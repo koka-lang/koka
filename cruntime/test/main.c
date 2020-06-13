@@ -5,14 +5,16 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
-#pragma GCC diagnostic ignored "-Wunused-function"
-#pragma GCC diagnostic ignored "-Woverlength-strings"
 #include <stdio.h>
 #include "time.h"
 #include "runtime.h"
 #include <math.h>
 #include <limits.h>
 #include <float.h>
+
+#pragma GCC diagnostic ignored "-Wunused-function"
+#pragma GCC diagnostic ignored "-Woverlength-strings"
+
 
 define_string_literal(, stest, 5, "hello")
 
@@ -409,20 +411,13 @@ static void test_double(context_t* ctx) {
 
 static void test_random(context_t* ctx) {
   msecs_t start = _clock_start();
-  uint32_t y = random_uint32(ctx);
+  uint32_t y = srandom_uint32(ctx);
   const size_t N = 100000000;
   for (size_t i = 0; i < N; i++) {
-    y = random_range32(60000,ctx);
+    y = srandom_range32(60000,ctx);
   }
   msecs_t end = _clock_end(start);
-  printf("chacha8: final: 0x%x, %6.3fs\n", y, (double)end/1000.0);
-  start = _clock_start();
-  y = 0;
-  for (size_t i = 0; i < N; i++) {
-    y = drandom_range32(60000,ctx);
-  }
-  end = _clock_end(start);
-  printf("sfc: final: 0x%x, %6.3fs\n", y, (double)end / 1000.0);  
+  printf("chacha20: final: 0x%x, %6.3fs\n", y, (double)end/1000.0);  
 }
 
 int main() {

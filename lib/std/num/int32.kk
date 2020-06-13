@@ -6,7 +6,7 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-// Operations on 32-bit signed integers.
+// Operations on 32-bit two's complement signed integers.
 public module std/num/int32
 
 // The maximal integer value before overflow happens
@@ -80,18 +80,18 @@ extern inline (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"; js inline "(#1
 extern inline (>)  : (int32,int32) -> bool  { inline "(#1 > #2)"; js inline "(#1 > #2)" }
 
 extern inline (+)  : (int32,int32) -> int32 { inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
-extern inline (-)  : (int32,int32) -> int32 { cs inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
+extern inline (-)  : (int32,int32) -> int32 { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
 
 extern inline neg?( i : int32 ) : bool {
-  inline "#1<0"
+  inline "(#1)<0"
 }
 
 extern inline pos?( i : int32 ) : bool {
-  inline "0<=#1"
+  inline "0<=(#1)"
 }
 
 extern inline zero?( i : int32 ) : bool {
-  inline "0==#1"
+  inline "0==(#1)"
 }
 
 val zero = 0.int32
@@ -123,7 +123,7 @@ fun dec( i : int32 ) : int32 {
 
 // Multiply two 32-bit integers.
 extern inline (*) : (int32,int32) -> int32 {
-  cs inline "#1*#2";
+  inline "#1*#2";
   js "$std_core._int32_multiply"
 }
 
@@ -157,48 +157,45 @@ fun abs0( i : int32 ) : int32
 
 // Take the bitwise _and_ of two `:int32`s
 extern inline (&) : (int32,int32) -> int32 {
-  cs inline "(#1 & #2)";
-  js inline "(#1 & #2)"
+  inline "(#1 & #2)";
 }
 
 // Take the bitwise _or_ of two `:int32`s
 extern inline (|) : (int32,int32) -> int32 {
-  cs inline "(#1 | #2)";
-  js inline "(#1 | #2)";
+  inline "(#1 | #2)";
 }
 
 // Take the bitwise _xor_ of two `:int32`s
 extern inline (^) : (int32,int32) -> int32 {
-  cs inline "(#1 ^ #2)";
-  js inline "(#1 ^ #2)"
+  inline "(#1 ^ #2)";
 }
 
 // Bitwise _not_ of an `:int32`, i.e. flips all bits.
 extern inline not : ( i : int32 ) -> int32  {
-  cs inline "(~#1)";
-  js inline "(~#1)"
+  inline "(~#1)"
 }
 
 
 // Shift an `:int32` `i` to the left by `n` bits.
 // Returns `i` when `n` is negative, or `0` when `n >= bitsInt`.
 extern inline shl : (int32,int32) -> int32 {
-  cs inline "(#1 << #2)";
-  js inline "(#1 << #2)";
+  inline "(#1 << #2)"
 }
 
 // Logical shift an `:int32` to the right by `n` bits. Shift in zeros from the left.
 // Returns `i` when `n` is negative, or `0` when `n >= bitsInt`.
 extern inline shr : (int32,int32) -> int32 {
-  cs inline "(Int32)(((UInt32)#1)>>#2)";
-  js inline "(#1>>>#2)";
+  c inline "((int32_t)((uint32_t)#1 >> #2))"
+  cs inline "(Int32)(((UInt32)#1)>>#2)"
+  js inline "(#1>>>#2)"
 }
 
 // Arithmetic shift an `:int32` to the right by `n` bits. Preserves the sign bit.
 // Returns `i` when `n` is negative. When `n >= bitsInt` returns either `-1` when `i<0`, or `0` when `i>=0`.
 extern inline sar : (int32,int32) -> int32 {
-  cs inline "(#1>>#2)";
-  js inline "(#1>>#2)";
+  c inline "(#1 >> #2)"
+  cs inline "(#1>>#2)"
+  js inline "(#1>>#2)"
 }
 
 // Bitwise rotate an `:int32` `n` bits to the left.
@@ -228,30 +225,34 @@ fun max( i : int32, j : int32 ) : int32 { if (i >= j) then i else j }
 
 // Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.
 extern inline cdiv : (int32,int32) -> exn int32 {
-  cs inline "(#1 / #2)";
+  inline "(#1 / #2)";
   js "$std_core._int32_cdiv"
 }
 
 // Truncated modulus (as in C). See also `(%):(x : int32, y : int32) -> int32`.
 extern inline cmod : (int32,int32) -> exn int32 {
-  cs inline "(#1 % #2)";
+  inline "(#1 % #2)";
   js "$std_core._int32_cmod"
 }
 
 // Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.
 private extern inline unsafe-cdiv : (int32,int32) -> int32 {
-  cs inline "(#1 / #2)";
+  inline "(#1 / #2)"
   js inline "((#1/#2)|0)"
 }
 
 // Truncated modulus (as in C). See also `(%):(x : int32, y : int32) -> int32`.
 private extern inline unsafe-cmod : (int32,int32) -> int32 {
-  cs inline "(#1 % #2)";
+  inline "(#1 % #2)"
   js inline "((#1 % #2)|0)"
 }
 
 // Convert an 32-bit integer to a double.
-extern inline double : (int32) -> double { cs inline "(double)(#1)"; js inline "(#1)" }
+extern inline double : (int32) -> double { 
+  c inline "((double)(#1))"
+  cs inline "(double)(#1)"
+  js inline "(#1)" 
+}
 
 // Negate a 32-bit integer
 fun negate( i : int32 ) : int32 {

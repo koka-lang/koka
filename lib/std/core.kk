@@ -2671,30 +2671,6 @@ fun unique() : ndet int
   }
 }
 
-// Returns one of its arguments `x`  or `y`  based on a non-deterministic choice.
-fun choose( x: a, y: a) : ndet a {
-  if (random-bool()) then x else y
-}
-
-// Return a random number equal or larger than 0.0 and smaller than 1.0
-extern random : () -> ndet double   {
-  c  "random_double"
-  cs "Primitive.RandomDouble"
-  js "Math.random"
-}
-
-// Return a positive random integer (including 0)
-extern random-int: () -> ndet int  {
-  c  "random_int"
-  cs "Primitive.RandomInt"
-  js inline "Math.floor(Math.random()*_max_precise)"
-}
-
-// Return a random boolean
-fun random-bool() : ndet bool {
-  (random() >= 0.5)
-}
-
 
 // ----------------------------------------------------------------------------
 // Control

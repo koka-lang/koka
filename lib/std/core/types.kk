@@ -23,7 +23,7 @@ type string
 // See also `std/num/double` for more operations on `:double`s.
 type value double
 
-// Type of a 32-bit signed integer.
+// A 32-bit signed integer (represented in two's complement).
 // See the [``std/int32``](std_int32.html) module for operations on 32-bit integers.
 type value int32
 

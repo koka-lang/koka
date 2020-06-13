@@ -13,7 +13,33 @@
   Deterministic pseudo random number generation. Fast but not secure.  
 ----------------------------------------------------------- */
 
-void sfc_init(uint64_t seed, sfc_ctx_t* rnd) {
+// pseudo random number context (using sfc32)
+typedef struct sfc_ctx_s {
+  uint32_t a;
+  uint32_t b;
+  uint32_t c;
+  uint32_t counter;
+} sfc_ctx_t;
+
+// Pseudo random number using sfc32 by Chris Doty-Humphrey.
+// It is a "chaotic" pseudo random generator that uses 32-bit operations only 
+// (so we can be deterministic across architectures in results and performance).
+// It has good statistical properties and passes PractRand and Big-crush.
+// It uses a 32-bit counter to guarantee a worst-case cycle
+// of 2^32. It has a 96-bit state, so the average period is 2^127.
+// The chance of a cycle of less than 2^(32+max(96-k,0)) is 2^-(32+k), 
+// (e.g. the chance of a cycle of less than 2^48 is 2^-80).
+// <http://pracrand.sourceforge.net/RNG_engines.txt>
+static inline uint32_t sfc_uint32(sfc_ctx_t* rnd) {
+  uint32_t x = rnd->a + rnd->b + rnd->counter;
+  rnd->counter++;
+  rnd->a = rnd->b ^ (rnd->b >> 9);
+  rnd->b = rnd->c + (rnd->c << 3);
+  rnd->c = rotl32(rnd->c, 21) + x;
+  return x;
+}
+
+static void sfc_init(uint64_t seed, sfc_ctx_t* rnd) {
   rnd->a = 0;
   rnd->b = (uint32_t)(seed);
   rnd->c = (uint32_t)(seed >> 32);
@@ -23,15 +49,35 @@ void sfc_init(uint64_t seed, sfc_ctx_t* rnd) {
   }
 }
 
-void drandom_seed(uint64_t seed, context_t* ctx) {
-  sfc_init(seed ^ U64(0x853C49E6748FEA9B), &ctx->drandom_ctx);
+// pseudo random number context (using pcg)
+typedef struct pcg_ctx_s {
+  uint64_t state;
+  uint64_t stream; // must be odd
+} pcg_ctx_t;
+
+// Pseudo random number using PCG by Melissa E. O'Neill.
+// It combines a linear congruential generator (CG) with an output permutation 
+// function (P) and has good statictical propertiest (and passes PractRand and Big-crush[2]).
+// Note: another good multiplier is U32(0xF13283AD) [1] which is more efficient on
+// 32-bit architectures as that can be implemented in 64x32-bit multiply instead
+// of a full 64x64-bit multiply.
+// [1]: https://www.pcg-random.org/posts/critiquing-pcg-streams.html#changing-the-multiplier
+// [2]: https://www.pcg-random.org/pdf/hmc-cs-2014-0905.pdf
+static inline uint32_t pcg_uint32(pcg_ctx_t* rnd) {
+  const uint64_t state0 = rnd->state;
+  rnd->state = (state0 * U64(0x5851F42D4C957F2D)) + rnd->stream;  
+  const uint32_t x = (uint32_t)(((state0 >> 18) ^ state0) >> 27);
+  const uint32_t rot = (uint32_t)(state0 >> 59);
+  return rotr32(x, rot);
 }
 
-// Fixed initialization so drandom is deterministic
-void drandom_init(context_t* ctx) {
-  drandom_seed(0, ctx);  
+static void pcg_init(uint64_t init, uint64_t stream, pcg_ctx_t* rnd) {
+  rnd->state = 0;
+  rnd->stream = (2*stream) | 1; // ensure it is odd
+  pcg_uint32(rnd);
+  rnd->state += init;
+  for (int i = 0; i < 8; i++) { pcg_uint32(rnd); }
 }
-
 
 
 /* ----------------------------------------------------------------------------
@@ -146,7 +192,7 @@ static void chacha_split(random_ctx_t* rnd, uint64_t nonce, random_ctx_t* ctx_ne
 
 
 /* ----------------------------------------------------------------------------
-Random interface
+Secure random: split
 -----------------------------------------------------------------------------*/
 #ifndef NDEBUG
 static bool random_is_initialized(random_ctx_t* rnd) {
@@ -159,6 +205,43 @@ void random_split(random_ctx_t* rnd, random_ctx_t* ctx_new) {
   assert_internal(rnd != ctx_new);
   chacha_split(rnd, (uintptr_t)ctx_new /*nonce*/, ctx_new);
 }
+
+
+
+/*--------------------------------------------------------------------------------------
+  Secure random: select in a range
+--------------------------------------------------------------------------------------*/
+
+uint32_t srandom_range32(uint32_t max, context_t* ctx) {
+  /* Select unbiased integer in the range [0,max) by Daniel Lemire <https://arxiv.org/pdf/1805.10941.pdf> */
+  uint32_t x = srandom_uint32(ctx);
+  uint64_t m = (uint64_t)x * (uint64_t)max;
+  uint32_t l = (uint32_t)m;
+  if (unlikely(l < max)) {
+    uint32_t threshold = (~max+1) % max;  /* 2^32 % max == (2^32 - max) % max == -max % max */
+    while (l < threshold) {
+      x = srandom_uint32(ctx);
+      m = (uint64_t)x * (uint64_t)max;
+      l = (uint32_t)m;
+    }
+  }
+  return (uint32_t)(m >> 32);
+}
+
+/*--------------------------------------------------------------------------------------
+  Secure random: get a double
+--------------------------------------------------------------------------------------*/
+
+// Use 48 random bits to generate a double in the range [0,1)
+double srandom_double(context_t* ctx) {
+  const uint32_t lo = (srandom_uint32(ctx) << 4);            /* clear lower 4 bits  */
+  const uint32_t hi = (srandom_uint32(ctx) & U32(0xFFFFF));  /* use only lower 20 bits (for bits 32 to 51) */
+  const uint64_t x = U64(0x3FF0000000000000) | (uint64_t)hi << 32 | (uint64_t)lo;
+  double d;
+  memcpy(&d, &x, sizeof(double)); /* alias safe: <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly> */
+  return (d - 1.0);
+}
+
 
 
 /* ----------------------------------------------------------------------------
@@ -275,27 +358,17 @@ static random_ctx_t* random_init(context_t* ctx) {
   const bool strong = os_random_buf(key, sizeof(key));
   if (!strong) {
     // if we fail to get random data from the OS, we fall back to a
-    // weak random source based on the current time and ASLR.
+    // weak random source based on the C library `rand()`, the current (high precision) time, and ASLR.
     warning_message("unable to use strong randomness\n");
-    sfc_ctx_t sfc;
-    sfc_init(os_random_weak(rand()), &sfc);
+    pcg_ctx_t pcg;
+    pcg_init(os_random_weak(rand())^U64(0x853C49E6748FEA9B), (uintptr_t)&random_init, &pcg);
     for (size_t i = 0; i < 8; i++) {  // key is eight 32-bit words.
-      uint32_t x = sfc_uint32(&sfc);
+      uint32_t x = pcg_uint32(&pcg);
       ((uint32_t*)key)[i] = x;
     }
   }
-  chacha_init(rnd, key, (uintptr_t)rnd /*nonce*/ );
+  chacha_init(rnd, key, (uintptr_t)&random_init /*nonce*/ );
   rnd->strong = strong;
-  return rnd;
-}
-
-random_ctx_t* random_round(context_t* ctx) {
-  // initialize on demand
-  random_ctx_t* rnd = ctx->random_ctx;
-  if (rnd == NULL) {
-    ctx->random_ctx = rnd = random_init(ctx);
-  }
-  chacha8(rnd);
   return rnd;
 }
 
@@ -307,13 +380,6 @@ random_ctx_t* srandom_round(context_t* ctx) {
   }
   chacha20(rnd);
   return rnd;
-}
-
-bool random_is_strong(context_t* ctx) {
-  if (ctx->random_ctx == NULL) {
-    random_round(ctx);
-  }
-  return ctx->random_ctx->strong;
 }
 
 bool srandom_is_strong(context_t* ctx) {
