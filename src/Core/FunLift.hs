@@ -75,11 +75,17 @@ liftDefGroup False (DefNonRec def)
        return [DefNonRec def']
 
 liftDefGroup False (DefRec defs)
-  = do -- traceDoc $ \penv -> text "not-toplevel, recursive def:" <+> text (show (length defs)) <+> ppName penv (defName (head defs)) <+> text ", tvs:" <+> tupled (map (ppTypeVar penv) (tvsList (ftv (defExpr (head defs))))) <//> prettyDef penv{coreShowDef=True} (head defs)
+  = do {- traceDoc $ \penv -> text "not-toplevel, recursive def:" <+> text (show (length defs)) 
+                             <+> ppName penv (defName (head defs)) 
+                             <+> text ", tvs:" 
+                             <+> tupled (map (ppTypeVar penv) (tvsList (ftv (defExpr (head defs))))) 
+                             <//> prettyDef penv{coreShowDef=True} (head defs)
+       -}
        (callExprs, liftedDefs0) <- fmap unzip $ mapM (makeDef fvs tvs) exprs
        let subst       = zip names callExprs
            liftedDefs  = map (substWithLiftedExpr subst) liftedDefs0
        groups <- liftDefGroup True (DefRec liftedDefs) -- lift all recs to top-level
+       -- atrace ("lifted: " ++ show (map defName liftedDefs)) $
        emitLifteds groups
 
        let defs' = zipWith (\def callExpr -> def{ defExpr = callExpr

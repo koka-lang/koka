@@ -148,9 +148,9 @@ fun xor() : amb bool {
   (p && !q)||(!p&&q)
 }
 
-val coinflip = handler {
-  flip() -> resume(random-bool())
-}
+//val coinflip = handler {
+//  flip() -> resume(random-bool())
+//}
 
 val amb = handler {
   return x -> [x]

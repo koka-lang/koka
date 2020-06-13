@@ -202,7 +202,7 @@ monLetGroup :: DefGroup -> Mon (TransX [DefGroup] Expr)
 monLetGroup dg
   = case dg of
       DefRec defs -> do ldefs <- monTrans (monLetDef True) defs
-                        return $ \k -> ldefs (\xss -> k (concat [DefRec xds : DefRec yds : map DefNonRec nds | (xds,yds,nds) <- xss]))
+                        return $ \k -> ldefs (\xss -> k (concat ([[DefRec xds] ++ (if null yds then [] else [DefRec yds]) ++ map DefNonRec nds | (xds,yds,nds) <- xss])))
       DefNonRec d -> do ldef <- monLetDef False d
                         return $ \k -> ldef (\(xds,yds,nds) -> k (map DefNonRec (xds ++ yds ++ nds)))
 

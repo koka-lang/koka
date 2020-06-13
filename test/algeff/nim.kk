@@ -180,6 +180,7 @@ fun testChoose() {
   allResults{ bobChooses { game(7) } }  // [bob,alice]
 }
 
+/*
 val coin = handler {
   return x -> x
   choose() -> resume(random() > 0.5)
@@ -188,7 +189,7 @@ val coin = handler {
 fun testCoin() {
   coin{ bobChooses { game(7) } }
 }
-
+*/
 
 // --------------------------------------------------------
 // Scoreboard
@@ -245,9 +246,11 @@ fun printBoard( gs : gstate ) : io () {
   }).join("\n").println
 }
 
+/*
 fun testPrint1() {
   state(s0){ printer{ coin{ bobChooses{ scoreUpdater{ game(7) }}}}}
 }
+*/
 
 fun replay(n : int,action : () -> <div|e> a) : <div|e> a {
   handle(action) {
@@ -255,10 +258,11 @@ fun replay(n : int,action : () -> <div|e> a) : <div|e> a {
   }
 }
 
+/*
 fun testPrint2() {
   state(s0){ printer{ replay(10){ coin{ bobChooses{ scoreUpdater{ game(7) }}}}}}
 }
-
+*/
 
 fun main() {
   [""
@@ -268,9 +272,9 @@ fun main() {
   ,testCheck().show
   ,testPc2().show
   ,testChoose().show
-  ,testCoin().show
-  ,testPrint1().show
-  ,testPrint2().show
+  //,testCoin().show
+  //,testPrint1().show
+  //,testPrint2().show
   ,""
   ].join("\n-----------\n").print
   testPc1().show.println // raises exception
