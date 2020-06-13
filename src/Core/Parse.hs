@@ -932,7 +932,7 @@ envLookupCon :: Env -> Name -> LexParser NameInfo
 envLookupCon env name
   = case gammaLookupExactCon name (gamma env) of
      [con@(InfoCon{})] -> return con
-     res               -> fail $ "unknown constructor: " ++ show name ++ ": " ++ show res ++ ":\n" ++ show (gamma env)
+     res               -> fail $ "unknown constructor: " ++ show name ++ ": " ++ show res -- ++ ":\n" ++ show (gamma env)
 
 envLookupVar :: Env -> Name -> LexParser Expr
 envLookupVar env name
@@ -940,4 +940,4 @@ envLookupVar env name
     [fun@(InfoFun{})] -> return $ coreExprFromNameInfo name fun
     [val@(InfoVal{})] -> return $ coreExprFromNameInfo name val
     [extern@(Type.Assumption.InfoExternal{})] -> return $ coreExprFromNameInfo name extern
-    res               -> fail $ "unknown identifier: " ++ showPlain name ++ ": " ++ show res ++ ":\n" ++ show (gamma env)
+    res               -> fail $ "unknown identifier: " ++ showPlain name ++ ": " ++ show res --  ++ ":\n" ++ show (gamma env)
