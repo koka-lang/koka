@@ -216,19 +216,21 @@ newtype Parc a = Parc (Env -> State -> Result a)
 data Env = Env{ currentDef :: [Def],
                 prettyEnv :: Pretty.Env,
                 newtypes  :: Newtypes,
-                owned     :: Owned
+                owned     :: Owned                
               }
               
 type Owned = TNames  -- = S.Set TName
 type InUse = S.Set Name
 
-data State = State{ uniq :: Int, inuse :: InUse }
+data ReuseInfo = ReuseInfo{ reuseRepr :: ConRepr, reuseCon :: ConInfo }
+
+data State = State{ uniq :: Int, inuse :: InUse, reuse :: [(Name,ReuseInfo)] }
 
 data Result a = Ok a State
 
 runParc :: Pretty.Env -> Newtypes -> Int -> Parc a -> (a,Int)
 runParc penv newtypes u (Parc c)
- = case c (Env [] penv newtypes tnamesEmpty) (State u S.empty) of
+ = case c (Env [] penv newtypes tnamesEmpty) (State u S.empty []) of
      Ok x st -> (x,uniq st)     
 
 instance Functor Parc where
@@ -265,6 +267,7 @@ updateSt f
 getSt :: Parc State
 getSt
   = Parc (\env st -> Ok st st)
+
 
 -----------------------
 -- owned names
@@ -313,15 +316,15 @@ setInUse :: InUse -> Parc ()
 setInUse inuse0
  = do updateSt (\st -> st{ inuse = inuse0 })
       return ()
-       
+      
+-- TODO: also save/restore the reuseInfo?       
 isolateInUse :: Parc a -> Parc (a, InUse)
 isolateInUse action
   = do inuse0 <- getInUse
        x <- action
        st1 <- updateSt (\st -> st{ inuse = inuse0 })  -- restore 
        return (x,inuse st1)
-       
-       
+            
 branchInUse :: [Parc a] -> Parc [a]
 branchInUse branches
   = do xs0 <- mapM isolateInUse branches
@@ -329,6 +332,25 @@ branchInUse branches
            inuse = S.unions inuses
        setInUse inuse
        return xs
+
+-----------------------
+-- reuse
+
+withReuse :: ReuseInfo -> Parc a -> Parc (a, Maybe Name)
+withReuse reuseInfo action 
+  = do r <- uniqueName "reuse"
+       updateSt (\st -> st{ reuse = (r,reuseInfo): reuse st })
+       x <- action
+       st0 <- updateSt (\st -> st{ reuse = filter (\(r',_) -> r /= r') (reuse st) })
+       let isReused = null (filter (\(r',_) -> r == r') (reuse st0))
+       if (isReused)
+        then return (x,Just r)
+        else return (x,Nothing)
+       
+tryReuse :: TName -> ConRepr -> Parc (Maybe Name)
+tryReuse conName conRepr
+  = return Nothing -- TODO: lookup if we can reuse, and if so, remove the name from the ReuseInfo
+  
        
 -----------------------
 -- tracing
