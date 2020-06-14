@@ -1258,6 +1258,12 @@ fun maybe( i : int ) : maybe<int> {
     if (i==0) then Nothing else Just(i)
 }
 
+fun fold-int( start : int, end : int, init : a, f : (int,a) -> a ) : a {
+  if (start >= end) then return init
+  val x = f(start,init)
+  fold-int(unsafe-decreasing(start.inc), end, x, f)
+}
+
 // ----------------------------------------------------------------------------
 // 32-bit integers
 // Just define the operations needed for defining the std/core interface but

@@ -314,3 +314,11 @@ fun divmod(x:int32,y:int32) : (int32,int32) {
   elif (y.pos?) then (q.dec, r+y)
   else (q.inc,r - y)
 }
+
+
+
+fun fold-int32( start : int32, end : int32, init : a, f : (int32,a) -> a ) : a {
+  if (start >= end) then return init
+  val x = f(start,init)
+  fold-int32(unsafe-decreasing(start.inc), end, x, f)
+}
