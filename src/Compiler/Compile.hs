@@ -871,15 +871,18 @@ inferCheck loaded flags line coreImports program1
        coreDefsUR <- unreturn penv coreDefs0
        -- let coreDefsUR = coreDefs0
        when (coreCheck flags) $ trace "return core check" $ Core.Check.checkCore False False penv unique4 gamma coreDefsUR
-
+           
        let showDef def = show (Core.Pretty.prettyDef ((prettyEnvFromFlags flags){coreShowDef=True}) def)
-           traceDefGroups dgs = trace (unlines (map showDef (Core.flattenDefGroups dgs))) $ return ()
+           traceDefGroups title dgs = trace (unlines (["","-----------------", title, "---------------"] ++ map showDef (Core.flattenDefGroups dgs))) $ return ()
 
-       -- traceDefGroups coreDefsUR
-       -- lifting recursive functions to top level
+       -- traceDefGroups "unreturn" coreDefsUR
+      
+       -- lifting recursive functions to top level       
        let (coreDefsLifted,uniqueLift) = liftFunctions penv unique4 coreDefsUR
        when (coreCheck flags) $ trace "lift functions core check" $ Core.Check.checkCore True True penv uniqueLift gamma coreDefsLifted
 
+       -- traceDefGroups "lifted" coreDefsLifted
+      
        -- do monadic effect translation (i.e. insert binds)
        coreDefsMon
            <- if (not (enableMon flags) ||
@@ -892,7 +895,7 @@ inferCheck loaded flags line coreImports program1
                           trace "monadic core check" $ Core.Check.checkCore False False penv uniqueLift gamma cdefs
                        return (cdefs)
        
-       -- traceDefGroups coreDefsMon
+       -- traceDefGroups "monadic" coreDefsMon
        
        -- resolve phantom .open
        let coreDefsOR = openResolve penv gamma coreDefsMon

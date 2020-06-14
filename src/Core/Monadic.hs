@@ -146,9 +146,7 @@ monExpr' topLevel expr
                               appBind resTp feff (typeOf contBody) ff argss cont
                           ))
       Let defgs body
-        -> do defgs' <- monLetGroups defgs
-              body'  <- monExpr body
-              return $ \k -> defgs' (\dgs -> Let dgs (body' k))
+        -> monLetGroups defgs body
 
       Case exprs bs
         -> do exprs' <- monTrans monExpr exprs
@@ -192,11 +190,13 @@ monGuard (Guard guard body)
        body'  <- monExpr body
        return $ Guard guard (body' id)
 
-monLetGroups :: DefGroups -> Mon (TransX DefGroups Expr)
-monLetGroups dgs
-  = do dgss' <- monTrans monLetGroup dgs
-       return $ \k -> dgss' (\dgss -> k (concat dgss))
-  -- = monDefGroups dgs
+monLetGroups :: DefGroups -> Expr -> Mon (TransX Expr Expr)
+monLetGroups [] body
+  = monExpr body
+monLetGroups (dg:dgs) body
+  = do dg' <- monLetGroup dg
+       expr' <- monLetGroups dgs body
+       return $ \k -> dg' (\xdg -> Let xdg (expr' k))
 
 monLetGroup :: DefGroup -> Mon (TransX [DefGroup] Expr)
 monLetGroup dg
@@ -212,6 +212,8 @@ monLetDef recursive def
     do expr' <- monExpr' True (defExpr def) -- don't increase depth
        return $ \k -> expr' (\xx -> k ([def{defExpr = xx}],[],[]))
                          -- \k -> k [def{ defExpr = expr' id}]
+
+
 {-
 simplify :: Expr -> Expr
 simplify expr
