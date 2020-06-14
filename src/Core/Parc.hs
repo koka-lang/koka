@@ -5,7 +5,6 @@
 -- terms of the Apache License, Version 2.0. A copy of the License can be
 -- found in the file "license.txt" at the root of this distribution.
 -----------------------------------------------------------------------------
-
 module Core.Parc ( parcCore ) where
 
 import qualified Lib.Trace
@@ -41,24 +40,49 @@ trace s x =
   Lib.Trace.trace s
     x
 
+enabled = False
+
 --------------------------------------------------------------------------
 -- Reference count transformation
 --------------------------------------------------------------------------
 
 parcCore :: Pretty.Env -> Newtypes -> Int -> Core -> (Core,Int)
 parcCore penv newtypes u core
-  = let (defs',u1) = runParc penv newtypes u (parcDefGroups (coreProgDefs core))
-    in (core{ coreProgDefs  = defs' }, u1)
+  | not enabled = (core, u)
+  | otherwise   = let (defs',u1) = runParc penv newtypes u (parcDefGroups True (coreProgDefs core))
+                  in (core{ coreProgDefs  = defs' }, u1)
 
 {--------------------------------------------------------------------------
   definition groups
 --------------------------------------------------------------------------}
 
-parcDefGroups :: DefGroups -> Parc DefGroups
-parcDefGroups defGroups
+parcDefGroups :: Bool -> DefGroups -> Parc DefGroups
+parcDefGroups topLevel defGroups
   = do traceDoc (\penv -> text "parcDefGroups")
-       return defGroups
+       mapM (parcDefGroup topLevel) defGroups
 
+parcDefGroup :: Bool -> DefGroup -> Parc DefGroup
+parcDefGroup topLevel dg
+  = case dg of
+      DefRec defs    -> do defs' <- mapM (parcDef topLevel) defs
+                           return (DefRec defs')
+      DefNonRec def  -> do def' <- parcDef topLevel def
+                           return (DefNonRec def')
+
+parcDef :: Bool -> Def -> Parc Def
+parcDef topLevel def
+  = (if topLevel then isolated else id) $
+    do expr <- parcExpr (defExpr def)
+       return (def{ defExpr = expr })
+  where
+    isolated action
+      = do (x,inuse) <- isolateInUse action
+           assertion ("Core.Parc.parcDef: inuse not empty: " ++ show (defName def))  (S.null inuse) $
+             return x
+
+parcExpr :: Expr -> Parc Expr
+parcExpr expr
+  = return expr
 
 {-
 val x = y
