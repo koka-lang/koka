@@ -35,7 +35,7 @@ module Core.Core ( -- Data structures
                    , addNonRec, addCoreDef, coreNull
                    , freshName
                    , typeOf
-                   , isExprUnit
+                   , isExprUnit, exprUnit
                    , isExprTrue,  exprTrue, patTrue
                    , isExprFalse, exprFalse, patFalse
                    , isValueExpr
@@ -85,7 +85,7 @@ import Common.Unique
 import Common.Id
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
                         nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameBox, nameUnbox, 
-                        nameVector, nameCons, nameNull, nameTpList)
+                        nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit)
 import Common.Syntax
 import Kind.Kind
 import Type.Type
@@ -103,6 +103,10 @@ isExprTrue _              = False
 
 isExprFalse (Con tname _)  = (getName tname == nameFalse)
 isExprFalse _              = False
+
+exprUnit :: Expr
+exprUnit = Con (TName nameUnit typeUnit) (ConEnum nameTpUnit DataEnum 0)
+           -- (ConInfo nameUnit typeUnit [] [] [] (TFun [] typeTotal typeUnit) Inductive rangeNull [] [] False Public "")
 
 (patFalse,exprFalse) = patExprBool nameFalse 0
 (patTrue,exprTrue)   = patExprBool nameTrue 1

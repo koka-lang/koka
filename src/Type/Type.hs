@@ -43,6 +43,7 @@ module Type.Type (-- * Types
                   , typeDivergent, typeTotal, typePartial
                   , typeList, typeVector, typeApp, typeRef, typeNull, typeOptional, typeMakeTuple
                   , isOptional, makeOptional, unOptional
+                  , typeReuse
 
                   --, handledToLabel
                   , tconHandled, tconHandled1
@@ -795,6 +796,10 @@ tconUnit
 typeVoid :: Tau
 typeVoid
   = TCon (TypeCon nameTpVoid kindStar)
+
+typeReuse :: Tau
+typeReuse
+   = TCon (TypeCon nameTpReuse kindStar)
 
 typeAny :: Tau
 typeAny

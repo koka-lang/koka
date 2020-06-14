@@ -1180,7 +1180,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       let mbEntry = case compileTarget of
                       Executable name tp -> Just (name,isAsyncFunction tp)
                       _                  -> Nothing
-      let (core,unique) = parcCore (prettyEnvFromFlags flags) unique0 core0
+      let (core,unique) = parcCore (prettyEnvFromFlags flags) newtypes unique0 core0
           (cdoc,hdoc) = cFromCore sourceDir newtypes unique mbEntry core
       termPhase term ( "generate c: " ++ outBase )
       writeDocW 120 outC cdoc

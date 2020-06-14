@@ -30,6 +30,14 @@ type value int32
 // An any type. Used for extern calls
 type value any
 
+// Internal type used for in-place update of unique pattern matches
+type value reuse
+
+extern no-reuse() : reuse {
+  c inline "NULL"
+  js inline "null"
+}
+
 // A unicode character.
 // Characters are unicode _codepoint_\/s.
 // This is different from a unicode _grapheme_ which represents a single displayed

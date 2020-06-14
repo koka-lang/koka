@@ -45,7 +45,7 @@ module Common.NamePrim
           , nameIdentity
           , nameMaskAt, nameMaskBuiltin
           , isClauseTailName, nameClauseTailNoYield
-          , nameTpEvIndex
+          , nameTpEvIndex, nameYielding
 
           --
           , nameUnsafeTotal
@@ -53,7 +53,9 @@ module Common.NamePrim
           
           , nameTpBox, nameUnbox, nameBox
           
-          , nameDup, nameDrop, nameDropPat, nameDropReusePat
+          , nameDup, nameDrop, nameIsUnique, nameFree
+          , nameKeepMatch, nameDropMatch, nameReuseMatch
+          , nameTpReuse, nameReuse, nameNoReuse
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -255,6 +257,7 @@ nameOpen i      = coreHndName (".open" ++ show i)
 nameHandle      = coreHndName ".hhandle"
 nameNamedHandle = coreHndName ".named-handle"
 
+nameYielding    = coreHndName "yielding"
 nameBind        = coreHndName "yield-bind" -- preludeName "bind"
 nameEffectOpen  = coreHndName ".open" -- preludeName ".open"
 
@@ -348,10 +351,17 @@ nameTpBox       = coreTypesName ".Box"
 nameBox         = coreTypesName ".box"
 nameUnbox       = coreTypesName ".unbox"
 
+nameTpReuse     = coreTypesName "reuse"
+nameNoReuse     = coreTypesName "no-reuse"
+nameReuse       = coreTypesName ".reuse"
+
 nameDup         = coreTypesName ".dup"
 nameDrop        = coreTypesName ".drop"
-nameDropPat     = coreTypesName ".drop-pat"
-nameDropReusePat= coreTypesName ".drop-reuse-pat"
+nameFree        = coreTypesName ".free"
+nameIsUnique    = coreTypesName ".is-unique"
+nameKeepMatch   = coreTypesName ".keep-match"
+nameDropMatch   = coreTypesName ".drop-match"
+nameReuseMatch  = coreTypesName ".reuse-match"
 
 nameTuple :: Int -> Name
 nameTuple n     = coreTypesName ("(" ++ (replicate (n-1) ',') ++ ")")

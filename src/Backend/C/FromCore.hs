@@ -678,6 +678,7 @@ genDupDropFields isDup dataRepr con conFields
       ((if (hasTagField dataRepr) then text "_x._cons." <.> ppDefName (conInfoName con) else text "_x") 
        <.> dot <.> ppName name) | (name,tp) <- conFields]
                         
+                        
 genDupDropCallX prim tp args
   =  (
     case cType tp of
@@ -695,6 +696,7 @@ genDupDropCallX prim tp args
 genDupCall tp arg  = hcat $ genDupDropCall True tp arg
 genDropCall tp arg = hcat $ genDupDropCall False tp arg
 
+genDupDropCall :: Bool -> Type -> Doc -> [Doc]
 genDupDropCall isDup tp arg = if (isDup) then genDupDropCallX "dup" tp (parens arg) 
                                          else genDupDropCallX "drop" tp (arguments [arg])
 
@@ -925,6 +927,8 @@ cTypeCon c
          then CPrim "float"
         else if (name == nameTpRef || name == nameTpLocalVar)
          then CPrim "ref_t"
+        else if (name == nameTpReuse)
+         then CPrim "reuse_t"
         else CData (typeClassName name)
 
 
@@ -1448,12 +1452,28 @@ genInlineExternal tname formats argDocs
 
 -- generate external: needs to add try blocks for primitives that can throw exceptions
 genExprExternal :: TName -> [(Target,String)] -> [Doc] -> Asm ([Doc],Doc)
+
 -- special case box/unbox
 genExprExternal tname formats [argDoc] | getName tname == nameBox || getName tname == nameUnbox
   = let isBox = (getName tname == nameBox)
         tp    = case typeOf tname of
                   TFun [(_,fromTp)] _ toTp -> if (isBox) then fromTp else toTp
         call  = genBoxCall (if (isBox) then "box" else "unbox") tp argDoc
+    in return ([], call)
+
+-- special case dup/drop
+genExprExternal tname formats [argDoc] | getName tname == nameDup || getName tname == nameDrop
+  = let isDup = (getName tname == nameDup)
+        tp    = case typeOf tname of
+                  TFun [(_,fromTp)] _ toTp -> fromTp
+        call  = hcat (genDupDropCall isDup tp argDoc)   -- if empty, pass dup argument along?
+    in return ([], call)
+
+-- special case is-unique
+genExprExternal tname formats [argDoc] | getName tname == nameIsUnique
+  = let tp    = case typeOf tname of
+                  TFun [(_,fromTp)] _ toTp -> fromTp
+        call  = text "constructor_is_unique" <.> parens argDoc  
     in return ([], call)
 
 -- normal external
@@ -1547,7 +1567,12 @@ isInlineableExpr expr
       TypeApp expr _   -> isInlineableExpr expr
       TypeLam _ expr   -> isInlineableExpr expr
       Lit (LitString _)-> False
-      App (Var _ (InfoExternal _)) args -> all isPureExpr args  -- yielding() etc.
+      -- C has no guarantee on argument evaluation so we only allow a select few operations to be inlined
+      App (Var v (InfoExternal _)) [] -> getName v == nameYielding
+      
+      -- App (Var v (InfoExternal _)) [arg] | getName v `elem` [nameBox,nameUnbox] -> isInlineableExpr arg
+      --App (Var _ (InfoExternal _)) args -> all isPureExpr args  -- yielding() etc.
+      
       -- App (Var v _) [arg] | getName v `elem` [nameBox,nameUnbox] -> isInlineableExpr arg
       {-
       -- TODO: comment out for now as it may prevent a tailcall if inlined
@@ -1566,7 +1591,7 @@ isPureExpr expr
       TypeLam _ expr  -> isPureExpr expr
       Var _ _ -> True
       Con _ _ -> True
-      Lit (LitString _) -> False  -- for our purposes, it's not pure
+      Lit (LitString _) -> False  -- for our purposes, it's not pure (as it needs a declaration)
       Lit _   -> True
       Lam _ _ _ -> True
       _       -> False
