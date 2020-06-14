@@ -215,16 +215,20 @@ newtype Parc a = Parc (Env -> State -> Result a)
 
 data Env = Env{ currentDef :: [Def],
                 prettyEnv :: Pretty.Env,
-                newtypes  :: Newtypes 
+                newtypes  :: Newtypes,
+                owned     :: Owned
               }
+              
+type Owned = TNames  -- = S.Set TName
+type InUse = S.Set Name
 
-data State = State{ uniq :: Int }
+data State = State{ uniq :: Int, inuse :: InUse }
 
 data Result a = Ok a State
 
 runParc :: Pretty.Env -> Newtypes -> Int -> Parc a -> (a,Int)
 runParc penv newtypes u (Parc c)
- = case c (Env [] penv newtypes) (State u) of
+ = case c (Env [] penv newtypes tnamesEmpty) (State u S.empty) of
      Ok x st -> (x,uniq st)     
 
 instance Functor Parc where
@@ -257,7 +261,77 @@ getEnv
 updateSt :: (State -> State) -> Parc State
 updateSt f
  = Parc (\env st -> Ok st (f st))
+ 
+getSt :: Parc State
+getSt
+  = Parc (\env st -> Ok st st)
 
+-----------------------
+-- owned names
+
+withOwned :: [TName] -> Parc a -> Parc a
+withOwned tnames action
+  = withEnv (\env -> env{ owned = tnamesInsertAll (owned env) tnames}) action
+  
+getOwned :: Parc [TName]
+getOwned 
+  = do env <- getEnv
+       return (tnamesList (owned env))
+       
+ownedAndNotUsed :: Parc [TName]
+ownedAndNotUsed 
+  = do owned <- getOwned
+       used  <- getInUse
+       let isUsed tname = S.member (getName tname) used
+       return $ filter (not . isUsed) owned
+
+
+-----------------------
+-- in-use sets
+
+addInUse :: Name -> Parc ()
+addInUse name
+  = do updateSt (\st -> st{ inuse = S.insert name (inuse st)})
+       return ()
+
+isInUse :: Name -> Parc Bool
+isInUse name
+  = do st <- getSt
+       return (S.member name (inuse st))
+
+dropInUse :: Name -> Parc ()
+dropInUse name
+  = do updateSt (\st -> st{ inuse = S.delete name (inuse st)})
+       return ()
+
+getInUse :: Parc InUse
+getInUse
+  = do st <- getSt
+       return (inuse st)
+
+setInUse :: InUse -> Parc ()
+setInUse inuse0
+ = do updateSt (\st -> st{ inuse = inuse0 })
+      return ()
+       
+isolateInUse :: Parc a -> Parc (a, InUse)
+isolateInUse action
+  = do inuse0 <- getInUse
+       x <- action
+       st1 <- updateSt (\st -> st{ inuse = inuse0 })  -- restore 
+       return (x,inuse st1)
+       
+       
+branchInUse :: [Parc a] -> Parc [a]
+branchInUse branches
+  = do xs0 <- mapM isolateInUse branches
+       let (xs, inuses) = unzip xs0
+           inuse = S.unions inuses
+       setInUse inuse
+       return xs
+       
+-----------------------
+-- tracing
 
 withCurrentDef :: Def -> Parc a -> Parc a
 withCurrentDef def action
@@ -276,6 +350,7 @@ parcTrace msg
       trace ("Core.Parc: " ++ show (map defName (currentDef env)) ++ ": " ++ msg) $ return ()
 
 
+----------------
 getNewtypes :: Parc Newtypes
 getNewtypes
   = do env <- getEnv
