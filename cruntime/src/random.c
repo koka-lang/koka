@@ -13,42 +13,6 @@
   Deterministic pseudo random number generation. Fast but not secure.  
 ----------------------------------------------------------- */
 
-// pseudo random number context (using sfc32)
-typedef struct sfc_ctx_s {
-  uint32_t a;
-  uint32_t b;
-  uint32_t c;
-  uint32_t counter;
-} sfc_ctx_t;
-
-// Pseudo random number using sfc32 by Chris Doty-Humphrey.
-// It is a "chaotic" pseudo random generator that uses 32-bit operations only 
-// (so we can be deterministic across architectures in results and performance).
-// It has good statistical properties and passes PractRand and Big-crush.
-// It uses a 32-bit counter to guarantee a worst-case cycle
-// of 2^32. It has a 96-bit state, so the average period is 2^127.
-// The chance of a cycle of less than 2^(32+max(96-k,0)) is 2^-(32+k), 
-// (e.g. the chance of a cycle of less than 2^48 is 2^-80).
-// <http://pracrand.sourceforge.net/RNG_engines.txt>
-static inline uint32_t sfc_uint32(sfc_ctx_t* rnd) {
-  uint32_t x = rnd->a + rnd->b + rnd->counter;
-  rnd->counter++;
-  rnd->a = rnd->b ^ (rnd->b >> 9);
-  rnd->b = rnd->c + (rnd->c << 3);
-  rnd->c = rotl32(rnd->c, 21) + x;
-  return x;
-}
-
-static void sfc_init(uint64_t seed, sfc_ctx_t* rnd) {
-  rnd->a = 0;
-  rnd->b = (uint32_t)(seed);
-  rnd->c = (uint32_t)(seed >> 32);
-  rnd->counter = 1;
-  for (size_t i = 0; i < 12; i++) {
-    sfc_uint32(rnd);
-  }
-}
-
 // pseudo random number context (using pcg)
 typedef struct pcg_ctx_s {
   uint64_t state;
@@ -78,6 +42,45 @@ static void pcg_init(uint64_t init, uint64_t stream, pcg_ctx_t* rnd) {
   rnd->state += init;
   for (int i = 0; i < 8; i++) { pcg_uint32(rnd); }
 }
+
+
+/*
+// pseudo random number context (using sfc32)
+typedef struct sfc_ctx_s {
+  uint32_t a;
+  uint32_t b;
+  uint32_t c;
+  uint32_t counter;
+} sfc_ctx_t;
+
+// Pseudo random number using sfc32 by Chris Doty-Humphrey.
+// It is a "chaotic" pseudo random generator that uses 32-bit operations only
+// (so we can be deterministic across architectures in results and performance).
+// It has good statistical properties and passes PractRand and Big-crush.
+// It uses a 32-bit counter to guarantee a worst-case cycle
+// of 2^32. It has a 96-bit state, so the average period is 2^127.
+// The chance of a cycle of less than 2^(32+max(96-k,0)) is 2^-(32+k),
+// (e.g. the chance of a cycle of less than 2^48 is 2^-80).
+// <http://pracrand.sourceforge.net/RNG_engines.txt>
+static inline uint32_t sfc_uint32(sfc_ctx_t* rnd) {
+  uint32_t x = rnd->a + rnd->b + rnd->counter;
+  rnd->counter++;
+  rnd->a = rnd->b ^ (rnd->b >> 9);
+  rnd->b = rnd->c + (rnd->c << 3);
+  rnd->c = rotl32(rnd->c, 21) + x;
+  return x;
+}
+
+static void sfc_init(uint64_t seed, sfc_ctx_t* rnd) {
+  rnd->a = 0;
+  rnd->b = (uint32_t)(seed);
+  rnd->c = (uint32_t)(seed >> 32);
+  rnd->counter = 1;
+  for (size_t i = 0; i < 12; i++) {
+    sfc_uint32(rnd);
+  }
+}
+*/
 
 
 /* ----------------------------------------------------------------------------

@@ -40,7 +40,7 @@ between 0x001 and 0xFFE. The ranges of IEEE double values are:
 
 Now, if a double is:
 - positive: we add 0010 0000 0000 000, such that the range of positive doubles is boxed between
-            0010 0000 0000 0000 and 0x7FFF FFFF FFFF FFFF
+            0010 0000 0000 0000 and 7FFF FFFF FFFF FFFF
 - negative: leave it as is, so the negative doubles are boxed between
             8000 0000 0000 0000 and FFEF FFFF FFFF FFFF
 - special : either infinity or NaN. We save the sign, NaN signal bit, and bottom 48 bits as
@@ -225,9 +225,9 @@ static inline box_t box_double(double d, context_t* ctx) {
     // NaN or infinity
     uint16_t utop = (u >> 48);
     int16_t   top = (((int16_t)utop >> 12) & 0xFFF8) | ((utop>>1)&0x0004);  // maintain the sign and save NaN signal bit
-    uint64_t bot  = ((u << 16) >> 16);                           // clear top 16 bits
-    if ((utop & 0x0007) != 0 && bot == 0) { bot = 1; }           // ensure we maintain a non-zero NaN payload if just the top 3 bits were set
-    u = ((uint64_t)top << 48) | (bot << 2) | 0x03;   // and merge and set as special double
+    uint64_t bot  = ((u << 16) >> 16);                  // clear top 16 bits
+    if ((utop & 0x0007) != 0 && bot == 0) { bot = 1; }  // ensure we maintain a non-zero NaN payload if just the top 3 bits were set (or we may unbox a NaN as infinity!)
+    u = ((uint64_t)top << 48) | (bot << 2) | 0x03;      // and merge and set as special double
     v.box = u;
     assert_internal(!is_double_normal(v) && is_double_special_fast(v));
 #if (DEBUG>=3)

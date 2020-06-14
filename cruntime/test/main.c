@@ -410,11 +410,11 @@ static void test_double(context_t* ctx) {
   i = 0;
   do {
     dx = values[i++];
-    box_t b = box_double(dx, ctx);
-    printf("value: %.20e, box-unbox to: %.20e, box: 0x%zx\n", dx, unbox_double(b, ctx), b.box);
+    box_t bx = box_double(dx, ctx);
+    printf("value: %.20e, box-unbox to: %.20e, box: 0x%zx\n", dx, unbox_double(bx, ctx), bx.box);
     dx = -dx;
-    b = box_double(dx, ctx);
-    printf("value: %.20e, box-unbox to: %.20e, box: 0x%zx\n", dx, unbox_double(b, ctx), b.box);
+    bx = box_double(dx, ctx);
+    printf("value: %.20e, box-unbox to: %.20e, box: 0x%zx\n", dx, unbox_double(bx, ctx), bx.box);
   } while (!isnan(dx));
 }
 
