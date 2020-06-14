@@ -288,7 +288,7 @@ static inline char_t utf8_read(const uint8_t* s, size_t* count) {
 #if DEBUG
   size_t dcount;
   assert_internal(c == utf8_read_validate(s, &dcount));
-  assert_internal(*count = dcount);
+  assert_internal(*count == dcount);
 #endif
   return c;
 }

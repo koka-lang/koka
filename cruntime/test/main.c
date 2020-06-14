@@ -406,6 +406,16 @@ static void test_double(context_t* ctx) {
     integer_t x = integer_from_double(dx, ctx);
     printf("value: %.20e, %.20e, integer: ", dx, round(dx)); integer_print(x, ctx); printf("\n");
   } while (!isnan(dx));
+  // test boxing
+  i = 0;
+  do {
+    dx = values[i++];
+    box_t b = box_double(dx, ctx);
+    printf("value: %.20e, box-unbox to: %.20e, box: 0x%zx\n", dx, unbox_double(b, ctx), b.box);
+    dx = -dx;
+    b = box_double(dx, ctx);
+    printf("value: %.20e, box-unbox to: %.20e, box: 0x%zx\n", dx, unbox_double(b, ctx), b.box);
+  } while (!isnan(dx));
 }
 
 
@@ -438,7 +448,7 @@ int main() {
   test_pow10(ctx);
   test_double(ctx);
   // test_bitcount();
-  test_random(ctx);
+  // test_random(ctx);
   
   /*
   init_nums();
