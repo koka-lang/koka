@@ -45,7 +45,7 @@ Now, if a double is:
             8000 0000 0000 0000 and FFEF FFFF FFFF FFFF
 - special : either infinity or NaN. We save the sign, NaN signal bit, and bottom 48 bits as
             a 50-bit number and encode as a boxed special double ending in 0x03.
-            (this means we may lose the top 3 bits of a potential NaN payload)
+            (this means we may lose the top 3 bits (bits 49 to 51) of a potential NaN payload)
 
 
 -------------------------
@@ -234,7 +234,7 @@ static inline box_t box_double(double d, context_t* ctx) {
     double dx = unbox_double(v, ctx);
     uint64_t ux;
     memcpy(&ux, &dx, sizeof(double));
-    assert_internal(u == ux);  // (may fail due to top 3 bits payload of NaN)
+    assert_internal(u == ux);  // (may fail due to top 3 bits of a NaN payload)
 #endif
   }
   assert_internal(is_double(v));

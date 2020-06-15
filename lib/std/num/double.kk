@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
-  Copyright 2017 Microsoft Corporation.
+  Copyright 2017-2020 Daan Leijen, Microsoft Corporation.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -11,7 +11,7 @@
 */
 public module std/num/double
 
-import std/text/regex
+import std/text/parse
 import std/num/int32
 
 extern include {
@@ -473,38 +473,41 @@ fun show-hex( d : double, width : int = 1, use-capitals : bool = True, pre : str
 // Also allows floats in [hexadecimal notation](https://books.google.com/books?id=FgMsCwAAQBAJ&pg=PA41) (`0xA.Fp-10`) that can
 // be represented precisely (and are the preferred _round trip_ format).
 fun parse-double( s : string ) : maybe<double> {
-	val st = s.trim
-	match(st.find(rx-float)) {
-		Just(cap) -> {
-			// regular float number
-      val p = prim-parse-double(cap.groups[2])	// regular decimal double
-      // do the sign separately as the primitive parse routines not always parse negative zero correctly (e.g. on .net)
-      val d = if (cap.groups[1]=="-") then ~p else p
-			if (d.nan?) then Nothing else Just(d)
-		}
-		Nothing -> match (st.find(rx-hexfloat)) {
-			Just(cap) -> {
-				// float in hexadecimal notation
-				val man	= cap.groups[1]
-				val frac	= cap.groups[2]
-				val exp	= cap.groups[3]
-        val m 	= (man + frac).parse-int.maybe(0)
-				val e	= exp.parse-int.maybe(0) - 4*frac.count
-				Just(encode(m,e))
-			}
-			Nothing -> {
-				// special values
-				val t = st.to-lower
-				if (t=="nan") then Just(nan)
-				elif (t=="inf"||t=="infinity") then Just(posinf)
-				elif (t=="-inf"||t=="-infinity") then Just(neginf)
-				else Nothing
-			}
-		}
-	}
+	s.trim.to-lower.slice.parse-eof(pdouble).maybe
 }
-private val rx-float	= regex(@"^([\-\+])?(\d+(?:\.\d+)?(?:[eE][\-\+]\d+)?)$")
-private val rx-hexfloat	= regex(@"^([\-\+]?0[xX][0-9a-fA-F]+)(?:\.([0-9a-fA-F]+))?(?:[pP]([\-\+]?\d+))?$")
+
+fun pdouble() : parse double {
+  val neg = sign()
+  val d = [{ phexdouble() }, { pdecdouble() }, { pspecial() }, { 0.0 }].choose
+  if (neg) then ~d else d
+}
+
+private fun phexdouble() : parse double {
+  char('0')
+  one-of("xX")
+  val man  = hex-digits()
+  val frac = optional( "", { char('.'); hex-digits() }).trim-right("0")
+  val exp : int = optional( 0, { one-of("pP"); pint() })
+  val m : int = (man + frac).parse-int(hex=True).default(0)
+  val e : int = exp - 4*frac.count
+  encode(m,e)
+}
+
+private fun pdecdouble() : parse double {
+  val man  = digits()
+  val frac = optional("", { char('.'); digits() }).trim-right("0")
+  val exp : int = optional( 0, { one-of("eE"); pint() })
+	val m : int = (man + frac).parse-int-default(0)
+  val e : int = exp - frac.count  
+  m.double * exp10(e.double)	
+}
+
+private fun pspecial() : parse double {
+	[{ pstring("nan"); nan },
+	 { pstring("infinity"); posinf },
+	 { pstring("inf"); posinf }
+	].choose
+}
 
 // Return `nan` on failure
 private extern prim-parse-double( s : string ) : double {

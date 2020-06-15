@@ -175,7 +175,7 @@ makeDef name expr
 -- Generate a test if a (locally bound) name is unique
 genIsUnique :: TName -> Expr
 genIsUnique tname
-  = App (Var (TName nameIsUnique funTp) (InfoExternal [(C, "constructur_is_unique(#1)")]))
+  = App (Var (TName nameIsUnique funTp) (InfoExternal [(C, "constructor_is_unique(#1)")]))
         [Var tname InfoNone]
   where 
     tp    = typeOf tname
