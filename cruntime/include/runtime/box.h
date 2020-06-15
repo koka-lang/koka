@@ -128,7 +128,7 @@ static inline bool box_eq(box_t b1, box_t b2) {
 }
 
 // We cannot store NULL in boxed values; use `box_null` instead
-#define box_null   (box_from_uintptr(3))    // box_cptr(NULL)
+#define box_null   (box_from_uintptr(7))    // = NaN with payload 1
 
 
 // the _fast versions can apply if you are sure it is not a double
@@ -473,6 +473,33 @@ static inline void* unbox_cptr(box_t b) {
   }
   else {
     return unbox_cptr_raw(b);
+  }
+}
+
+static inline box_t box_fun_ptr(void* f) {
+  intx_t i = (intptr_t)f;
+  if (i >= MIN_BOXED_INT && i <= MAX_BOXED_INT) {
+    // box as int
+    return box_int(i);
+  }
+  else {
+    assert(false);
+    return box_null;
+  }
+}
+
+static inline void* unbox_fun_ptr(box_t b) {
+  if (is_int_fast(b)) {
+    assert_internal(is_int(b));
+    return (void*)(unbox_int(b));
+  }
+  else if (is_ptr_fast(b)) {
+    // static function pointer (always has zero scan field so can encode without tag bits)
+    return (void*)(unbox_ptr(b));
+  }
+  else {
+    assert(false);
+    return NULL;
   }
 }
 

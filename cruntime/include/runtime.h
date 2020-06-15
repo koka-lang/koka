@@ -493,7 +493,7 @@ static inline value_tag_t value_tag(uint_t tag) {
   return box_enum(tag);
 }
 */
-#define value_tag(tag) (box_from_uintptr(((uintx_t)tag << 2) | 0x03))
+#define value_tag(tag) (box_from_uintptr(((uintx_t)tag << 2) | 0x02))
 
 
 /*--------------------------------------------------------------------------------------
@@ -502,9 +502,9 @@ static inline value_tag_t value_tag(uint_t tag) {
 
 #define function_as(tp,fun)                     datatype_as_assert(tp,fun,TAG_FUNCTION)
 #define function_alloc_as(tp,scan_fsize,ctx)    block_alloc_as(tp,scan_fsize,TAG_FUNCTION,ctx)
-#define function_call(restp,argtps,f,args)      ((restp(*)argtps)(unbox_cptr(f->fun)))args
+#define function_call(restp,argtps,f,args)      ((restp(*)argtps)(unbox_fun_ptr(f->fun)))args
 #define define_static_function(name,cfun) \
-  static struct function_s _static_##name = { { HEADER_STATIC(0,TAG_FUNCTION) }, { (uintptr_t)&cfun } }; /* note: should be box_cptr(&cfun) but we need a constant expression */ \
+  static struct function_s _static_##name = { { HEADER_STATIC(0,TAG_FUNCTION) }, { ((uintptr_t)&cfun) } }; /* note: should be box_fun_ptr(&cfun) but we need a constant expression */ \
   function_t name = &_static_##name;
 
 
