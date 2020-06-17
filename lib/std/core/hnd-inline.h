@@ -31,7 +31,7 @@ static inline struct __std_core_hnd__ev_s* evv_at( int32_t i, context_t* ctx ) {
 }
 
 static inline evv_t evv_get(context_t* ctx) {
-  return dup_datatype_as(vector_t, ctx->evv);
+  return dup_datatype_as(evv_t, ctx->evv);
 }
 
 static inline unit_t evv_set(evv_t evv, context_t* ctx) {

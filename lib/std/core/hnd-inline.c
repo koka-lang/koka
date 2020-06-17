@@ -262,7 +262,7 @@ struct __std_core_hnd_yld_s  yield_prompt( struct __std_core_hnd_Marker m, conte
 }
 
 unit_t  evv_guard(evv_t evv, context_t* ctx) {
-  if (ctx->evv == evv) {
+  if (ctx->evv != evv) {
     // todo: improve error message with diagnostics
     fatal_error(EFAULT,"trying to resume outside the (handler) scope of the original handler");
   }
