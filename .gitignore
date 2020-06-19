@@ -1,6 +1,8 @@
 node_modules/
 out/
-stack.yaml
+stack.yaml.lock
+package-lock.json
 .stack-work
 src/Syntax/Lexer.hs
 .idea/
+*.pdb
