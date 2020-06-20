@@ -600,8 +600,8 @@ static inline box_t box_unit_t(unit_t u) {
 
 static inline unit_t unbox_unit_t(box_t u) {
   UNUSED_RELEASE(u);
-  assert_internal( unbox_enum(u) == (uintx_t)Unit);
-  return Unit;
+  assert_internal( unbox_enum(u) == (uintx_t)Unit || is_box_any(u));
+  return unbox_enum(u);
 }
 
 /*--------------------------------------------------------------------------------------

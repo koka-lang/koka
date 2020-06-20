@@ -134,7 +134,7 @@ static box_t kcompose( function_t fself, box_t x, context_t* ctx) {
       }
       drop_function_t(fself,ctx);
       drop_box_t(x,ctx);
-      return box_null; // return yielding
+      return box_any; // return yielding
     }
   }
   drop_function_t(fself,ctx);
@@ -173,7 +173,7 @@ box_t yield_extend( function_t next, context_t* ctx ) {
     }
     yield->conts[yield->conts_count++] = next;
   }
-  return box_null;
+  return box_any;
 }
 
 // cont_apply: \x -> f(cont,x) 
@@ -211,7 +211,7 @@ box_t yield_cont( function_t f, context_t* ctx ) {
     yield->conts_count = 1;
     yield->conts[0] = new_cont_apply(f, cont, ctx);
   }
-  return box_null;
+  return box_any;
 }
 
 function_t yield_to( struct __std_core_hnd_Marker m, function_t clause, context_t* ctx ) {
@@ -221,18 +221,18 @@ function_t yield_to( struct __std_core_hnd_Marker m, function_t clause, context_
   yield->marker = m.m;
   yield->clause = clause;
   yield->conts_count = 0;
-  return NULL;
+  return unbox_datatype_as(function_t,box_any);
 }
 
 box_t yield_final( struct __std_core_hnd_Marker m, function_t clause, context_t* ctx ) {
   yield_to(m,clause,ctx);
   ctx->yielding = YIELD_FINAL;
-  return box_null;
+  return box_any;
 }
 
 box_t fatal_resume_final(context_t* ctx) {
   fatal_error(EFAULT,"trying to resume a finalized resumption");
-  return box_null;
+  return box_any;
 }
 
 static box_t _fatal_resume_final(function_t self, context_t* ctx) {
@@ -329,5 +329,5 @@ box_t yield_reyield( __std_core_hnd__yield_info yldinfo, context_t* ctx) {
     ctx->yield.conts[i] = dup_function_t(yld->conts[i]);
   }
   drop_constructor(yld,ctx);
-  return box_null;
+  return box_any;
 }

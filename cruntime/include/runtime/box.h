@@ -14,8 +14,8 @@
 Boxing
 
 On 64-bit we like to box doubles without heap allocation, as well as allowing
-for 52-bit (sign extended) pointers to allow for future address extensions
-on x86_64 (and already available on ARMv8-A). 
+for 52-bit (sign extended) pointers to allow for a large virtual addressing space
+(like on ARMv8-A). 
 
 For pointers and integers, the top 12-bits are the sign extension of the bottom 52 bits
 and thus always 0x000 or 0xFFF (denoted as `sss`).
@@ -130,6 +130,8 @@ static inline bool box_eq(box_t b1, box_t b2) {
 // We cannot store NULL in boxed values; use `box_null` instead
 #define box_null   (box_from_uintptr(7))    // = NaN with payload 1
 
+// `box_any` is used to return when yielding (and should be accepted by any unbox operation)
+#define box_any    (box_from_uintptr(11))   // = NaN with payload 2
 
 // the _fast versions can apply if you are sure it is not a double
 static inline bool is_ptr_fast(box_t b) {
@@ -143,6 +145,12 @@ static inline bool is_enum_fast(box_t b) {
 }
 static inline bool is_double_special_fast(box_t b) {
   return ((b.box & 0x03)==3);
+}
+static inline bool is_box_null(box_t b) {
+  return (b.box == box_null.box);
+}
+static inline bool is_box_any(box_t b) {
+  return (b.box == box_any.box);
 }
 
 #define MAX_BOXED_INT  ((intptr_t)INTPTR_MAX >> (INTPTR_BITS - BOXED_INT_BITS))
@@ -187,7 +195,7 @@ static inline bool is_double(box_t b) {
 
 static inline double unbox_double(box_t v, context_t* ctx) {
   UNUSED(ctx);
-  assert_internal(is_double(v));
+  assert_internal(is_double(v) || is_box_any(v));
   double d;
   uint64_t u = v.box;
   if (likely(is_double_normal(v))) {
@@ -198,7 +206,7 @@ static inline double unbox_double(box_t v, context_t* ctx) {
   }
   else {
     // NaN or infinity
-    assert_internal(is_double_special(v));
+    assert_internal(is_double_special(v) || is_box_any(v));
     uint64_t bot = ((u << 14) >> 16);  // clear top 14 bits and bottom 2 bits (= bottom 48 bits of the double)
     uint64_t signal = ((u >> 50) & 1) << 51;
     uint64_t top = ((int64_t)u >= 0 ? U64(0x7FF) : U64(0xFFF)) << 52;
@@ -340,7 +348,7 @@ static inline bool is_non_null_ptr(box_t v) {
 }
 
 static inline ptr_t unbox_ptr(box_t v) {
-  assert_internal(is_ptr(v));
+  assert_internal(is_ptr(v) || is_box_any(v));
   assert_internal(v.box != 0); // no NULL pointers allowed
   return (block_t*)(v.box);
 }
@@ -353,7 +361,7 @@ static inline box_t box_ptr(const block_t* p) {
 }
 
 static inline uintx_t unbox_enum(box_t b) {
-  assert_internal(is_enum(b));
+  assert_internal(is_enum(b) || is_box_any(b));
   return shr(b.box, 2);
 }
 
@@ -365,7 +373,7 @@ static inline box_t box_enum(uintx_t u) {
 }
 
 static inline intx_t unbox_int(box_t v) {
-  assert_internal(is_int(v));
+  assert_internal(is_int(v) || is_box_any(v));
   return (sar(v.box, 2));
 }
 
@@ -476,7 +484,8 @@ static inline void* unbox_cptr(box_t b) {
   }
 }
 
-static inline box_t box_fun_ptr(void* f) {
+static inline box_t box_fun_ptr(void* f, context_t* ctx) {
+  UNUSED(ctx);
   intx_t i = (intptr_t)f;
   if (i >= MIN_BOXED_INT && i <= MAX_BOXED_INT) {
     // box as int
