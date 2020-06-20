@@ -58,7 +58,7 @@ parcCore penv newtypes u core
 
 parcDefGroups :: Bool -> DefGroups -> Parc DefGroups
 parcDefGroups topLevel defGroups
-  = do traceDoc (\penv -> text "parcDefGroups")
+  = do parcTraceDoc (\penv -> text "parcDefGroups")
        mapM (parcDefGroup topLevel) defGroups
 
 parcDefGroup :: Bool -> DefGroup -> Parc DefGroup
@@ -72,7 +72,8 @@ parcDefGroup topLevel dg
 parcDef :: Bool -> Def -> Parc Def
 parcDef topLevel def
   = (if topLevel then isolated else id) $
-    do expr <- parcExpr (defExpr def)
+    do parcTraceDoc (\penv -> prettyDef (penv{Pretty.coreShowDef=True}) def )
+       expr <- parcExpr (defExpr def)
        return (def{ defExpr = expr })
   where
     isolated action
@@ -385,8 +386,8 @@ withCurrentDef def action
    withEnv (\env -> env{currentDef = def:currentDef env}) $
    action
 
-traceDoc :: (Pretty.Env -> Doc) -> Parc ()
-traceDoc f
+parcTraceDoc :: (Pretty.Env -> Doc) -> Parc ()
+parcTraceDoc f
  = do env <- getEnv
       parcTrace (show (f (prettyEnv env)))
 
