@@ -107,33 +107,33 @@ parcExpr (App fun args)
   = do args' <- reverseMapM parcExpr args
        fun'  <- parcExpr fun
        return (App fun' args')
-       
+
 parcExpr (Lam pars body)
   = do body' <- withNoUse $ parcExpr body
        -- for each par in pars, if inuse = ok, otherwise drop
        -- remove all pars from "inuse"
-       
+
 parcExpr (Let dgs body)
   = do body' <- parcExpr body
        dgs'  <- parcDefGroups dgs
        return (Let dgs' body')
 
-parcExpr expr@(Con cname info)   
+parcExpr expr@(Con cname info)
   = do if availableReuse then allocReuse else ..
-    
+
 parcExpr expr@(Var vname InfoNone)   -- InfoArity, InfoExternal
   = do inuse <- getInUse(vname)
-       if (inuse) 
+       if (inuse)
         then return expr  -- dup it
         else do addInUse(vname)
-                return expr 
-       
-parcExpr expr  
+                return expr
+
+parcExpr expr
   = return expr
 
 -}
 
--- Generate a "drop match" 
+-- Generate a "drop match"
 genDropMatch :: TName -> [TName] -> [TName] -> Parc Expr
 genDropMatch con dups drops
   = do xdrops <- mapM genDrop drops
@@ -149,7 +149,7 @@ genKeepMatch con dups drops
        cdrop  <- genDrop con
        return $ makeStats (catMaybes (xdups ++ [cdrop]))
 
--- Generate a "reuse match" 
+-- Generate a "reuse match"
 genReuseMatch :: TName -> [TName] -> [TName] -> Parc Expr
 genReuseMatch con dups drops
  = do xdrops <- mapM genDrop drops
@@ -167,18 +167,18 @@ makeStats []
 makeStats exprs
   = Let [DefNonRec (makeDef nameNil expr) | expr <- init exprs]
         (last exprs)
-      
+
 
 makeDef :: Name -> Expr -> Def
 makeDef name expr
   = Def name (typeOf expr) expr Private DefVal InlineNever rangeNull ""
-  
+
 -- Generate a test if a (locally bound) name is unique
 genIsUnique :: TName -> Expr
 genIsUnique tname
   = App (Var (TName nameIsUnique funTp) (InfoExternal [(C, "constructor_is_unique(#1)")]))
         [Var tname InfoNone]
-  where 
+  where
     tp    = typeOf tname
     funTp = TFun [(nameNil,tp)] typeTotal typeBool
 
@@ -188,7 +188,7 @@ genFree :: TName -> Expr
 genFree tname
   = App (Var (TName nameFree funTp) (InfoExternal [(C, "constructor_free(#1)")]))
         [Var tname InfoNone]
-  where 
+  where
     tp    = typeOf tname
     funTp = TFun [(nameNil,tp)] typeTotal typeUnit
 
@@ -197,14 +197,14 @@ genReuse :: TName -> Expr
 genReuse tname
   = App (Var (TName nameReuse funTp) (InfoExternal [(C, "constructor_reuse(#1)")]))
         [Var tname InfoNone]
-  where 
+  where
     tp    = typeOf tname
     funTp = TFun [(nameNil,tp)] typeTotal typeReuse
 
 
 -- Generate a reuse of a constructor
 genNoReuse :: Expr
-genNoReuse 
+genNoReuse
   = App (Var (TName nameNoReuse funTp) (InfoArity 0 0)) []
   where
     funTp = TFun [] typeTotal typeReuse
@@ -215,24 +215,24 @@ genDrop tname = genDupDrop False tname
 -- Generate a dup/drop over a given (locally bound) name
 -- May return Nothing if the type never needs a dup/drop (like an `int` or `bool`)
 genDupDrop :: Bool -> TName -> Parc (Maybe Expr)
-genDupDrop isDup tname 
+genDupDrop isDup tname
   = do let tp = typeOf tname
        (dataDef,dataRepr) <- getDataDefRepr tp
        case dataDef of
          DataDefValue _ 0 -> return Nothing    -- no need to dup/drop a value type with no pointer fields (like int)
          _ -> return (Just (App (dupDropFun isDup tp) [Var tname InfoNone]))
 
-  
-dupFun tp  = dupDropFun True tp 
+
+dupFun tp  = dupDropFun True tp
 dropFun tp = dupDropFun False tp
 
-dupDropFun isDup tp  
-  = Var (TName name (coerceTp )) (InfoExternal [(C, (if isDup then "dup" else "drop") ++ "(#1)")])    
-  where 
+dupDropFun isDup tp
+  = Var (TName name (coerceTp )) (InfoExternal [(C, (if isDup then "dup" else "drop") ++ "(#1)")])
+  where
     name = if isDup then nameDup else nameDrop
     coerceTp = TFun [(nameNil,tp)] typeTotal (if (isDup) then tp else typeUnit)
 
-    
+
 {--------------------------------------------------------------------------
  Parc monad
 --------------------------------------------------------------------------}
@@ -241,9 +241,9 @@ newtype Parc a = Parc (Env -> State -> Result a)
 data Env = Env{ currentDef :: [Def],
                 prettyEnv :: Pretty.Env,
                 newtypes  :: Newtypes,
-                owned     :: Owned                
+                owned     :: Owned
               }
-              
+
 type Owned = TNames  -- = S.Set TName
 type InUse = S.Set Name
 
@@ -256,7 +256,7 @@ data Result a = Ok a State
 runParc :: Pretty.Env -> Newtypes -> Int -> Parc a -> (a,Int)
 runParc penv newtypes u (Parc c)
  = case c (Env [] penv newtypes tnamesEmpty) (State u S.empty []) of
-     Ok x st -> (x,uniq st)     
+     Ok x st -> (x,uniq st)
 
 instance Functor Parc where
  fmap f (Parc c)  = Parc (\env st -> case c env st of
@@ -288,7 +288,7 @@ getEnv
 updateSt :: (State -> State) -> Parc State
 updateSt f
  = Parc (\env st -> Ok st (f st))
- 
+
 getSt :: Parc State
 getSt
   = Parc (\env st -> Ok st st)
@@ -300,14 +300,14 @@ getSt
 withOwned :: [TName] -> Parc a -> Parc a
 withOwned tnames action
   = withEnv (\env -> env{ owned = tnamesInsertAll (owned env) tnames}) action
-  
+
 getOwned :: Parc [TName]
-getOwned 
+getOwned
   = do env <- getEnv
        return (tnamesList (owned env))
-       
+
 ownedAndNotUsed :: Parc [TName]
-ownedAndNotUsed 
+ownedAndNotUsed
   = do owned <- getOwned
        used  <- getInUse
        let isUsed tname = S.member (getName tname) used
@@ -341,15 +341,15 @@ setInUse :: InUse -> Parc ()
 setInUse inuse0
  = do updateSt (\st -> st{ inuse = inuse0 })
       return ()
-      
--- TODO: also save/restore the reuseInfo?       
+
+-- TODO: also save/restore the reuseInfo?
 isolateInUse :: Parc a -> Parc (a, InUse)
 isolateInUse action
   = do inuse0 <- getInUse
        x <- action
-       st1 <- updateSt (\st -> st{ inuse = inuse0 })  -- restore 
+       st1 <- updateSt (\st -> st{ inuse = inuse0 })  -- restore
        return (x,inuse st1)
-            
+
 branchInUse :: [Parc a] -> Parc [a]
 branchInUse branches
   = do xs0 <- mapM isolateInUse branches
@@ -362,7 +362,7 @@ branchInUse branches
 -- reuse
 
 withReuse :: ReuseInfo -> Parc a -> Parc (a, Maybe Name)
-withReuse reuseInfo action 
+withReuse reuseInfo action
   = do r <- uniqueName "reuse"
        updateSt (\st -> st{ reuse = (r,reuseInfo): reuse st })
        x <- action
@@ -371,12 +371,12 @@ withReuse reuseInfo action
        if (isReused)
         then return (x,Just r)
         else return (x,Nothing)
-       
+
 tryReuse :: TName -> ConRepr -> Parc (Maybe Name)
 tryReuse conName conRepr
   = return Nothing -- TODO: lookup if we can reuse, and if so, remove the name from the ReuseInfo
-  
-       
+
+
 -----------------------
 -- tracing
 

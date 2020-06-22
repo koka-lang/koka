@@ -6,3 +6,4 @@ package-lock.json
 src/Syntax/Lexer.hs
 .idea/
 *.pdb
+.vs/
