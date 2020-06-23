@@ -1107,7 +1107,9 @@ operationDecl opCount vis foralls docEffect hndName mbResource effTp hndTp hndTp
                                            [binderType par | (vis,par) <- pars] rng])
                                           
            clauseRhoTp = makeTpApp (TpCon clauseName rng)
-                                   (clauseParsTp ++ [tres] ++ map tpVar hndTpVars)
+                                   (clauseParsTp ++ [tres] 
+                                     ++ [makeTpApp hndTp (map tpVar foralls) rng]
+                                     ++ map tpVar hndTpVars)
                                    rng
            clauseTp    = quantify QForall exists $ clauseRhoTp
 

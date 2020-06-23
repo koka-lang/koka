@@ -166,6 +166,8 @@ extern inline (||) : (bool,bool) -> bool  { inline "(#1 || #2)" }
 extern inline not  : (bool) -> bool  { inline "!(#1)" }
 extern inline (!)  : (bool) -> bool  { inline "!(#1)" }
 
+// needed for markers in `std/core/hnd`.
+extern inline zero32() : int32 { inline "0" }
 
 // ----------------------------------------------------------------------------
 // References

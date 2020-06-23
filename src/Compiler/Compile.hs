@@ -882,23 +882,10 @@ inferCheck loaded flags line coreImports program1
        when (coreCheck flags) $ trace "lift functions core check" $ Core.Check.checkCore True True penv uniqueLift gamma coreDefsLifted
 
        -- traceDefGroups "lifted" coreDefsLifted
-      
-       -- do monadic effect translation (i.e. insert binds)
-       coreDefsMon
-           <- if (not (enableMon flags) ||
-                  Core.coreProgName coreProgram1 == newName "std/core/types" ||
-                  Core.coreProgName coreProgram1 == newName "std/core/hnd" )
-               then return (coreDefsLifted)
-               else do cdefs <- Core.Monadic.monTransform penv coreDefsLifted
-                       -- recheck cps transformed core
-                       when (coreCheck flags) $
-                          trace "monadic core check" $ Core.Check.checkCore False False penv uniqueLift gamma cdefs
-                       return (cdefs)
-       
-       -- traceDefGroups "monadic" coreDefsMon
+
        
        -- resolve phantom .open
-       let coreDefsOR = openResolve penv gamma coreDefsMon
+       let coreDefsOR = openResolve penv gamma coreDefsLifted
            uniqueOR   = uniqueLift
        when (coreCheck flags) $ trace "open resolve core check" $ Core.Check.checkCore True False penv uniqueOR gamma coreDefsOR
 
@@ -916,10 +903,24 @@ inferCheck loaded flags line coreImports program1
                               when (coreCheck flags) $
                                 trace "after simplify core check 1" $Core.Check.checkCore True False penv uniqueOR' gamma cdefs0
                               return (cdefs0,uniqueOR') -- $ simplifyDefs False 1 unique4a penv cdefs
-
+                        
+       -- do monadic effect translation (i.e. insert binds)
+       let uniqueMon = uniqueSimp
+       coreDefsMon
+           <- if (not (enableMon flags) ||
+                  Core.coreProgName coreProgram1 == newName "std/core/types" ||
+                  Core.coreProgName coreProgram1 == newName "std/core/hnd" )
+               then return (coreDefsSimp)
+               else do cdefs <- Core.Monadic.monTransform penv coreDefsSimp
+                       -- recheck cps transformed core
+                       when (coreCheck flags) $
+                          trace "monadic core check" $ Core.Check.checkCore False False penv uniqueLift gamma cdefs
+                       return (cdefs)
+       
+       -- traceDefGroups "monadic" coreDefsMon
 
        -- do an inlining pass
-       let (coreDefsInl,uniqueInl) = inlineDefs penv uniqueSimp (loadedInlines loaded3) coreDefsSimp
+       let (coreDefsInl,uniqueInl) = inlineDefs penv uniqueMon (loadedInlines loaded3) coreDefsMon
        when (coreCheck flags) $ trace "inlined functions core check" $ Core.Check.checkCore True True penv uniqueInl gamma coreDefsInl
 
        -- and one more simplify

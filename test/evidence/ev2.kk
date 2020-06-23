@@ -110,6 +110,7 @@ effect instance file<a> {
   fun fthrow(x:a) : b
 }
 
+
 effect rec cow {
   control moo() : (() -> cow ())
 }
