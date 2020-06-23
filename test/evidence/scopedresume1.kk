@@ -13,18 +13,17 @@ val hevil = handler {
   control evil() { (fun(){ resume(())() } ) } 
 }
 
-fun test() {
-  val x = ask()
-  evil()
-  val y = ask()
-  (fun(){ x + y })
-}
 
 // scoped resumptions: fails at runtime
 // regular effects: returns 3  (not 2)
 fun non-scoped() : int {
-  val f : () -> reader int
-        = reader-one{ hevil{ test() } }
+  val f // : () -> reader int
+        = reader-one{ hevil{ 
+            val x = ask()
+            evil()
+            val y = ask()
+            (fun(){ x + y })
+          } }
   reader-two{ f() }
 }
 
