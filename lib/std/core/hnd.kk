@@ -438,7 +438,7 @@ public fun ".perform1"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,h,
 
 private fun evv-swap-with(ev : ev<h>) {
   match(ev) {
-    Ev(_tag,m,h,w) -> evv-swap(w)
+    Ev(_tag,_m,_h,w) -> evv-swap(w)
   }
 } 
 
