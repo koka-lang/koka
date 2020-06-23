@@ -6,24 +6,26 @@ effect evil {
   control evil() : ()
 }
 
-val reader-one = handler { fun ask() { 1 } }
-val reader-two = handler { fun ask() { 2 } }
+val reader-one = handler { fun ask(){ 1 } }
+val reader-two = handler { fun ask(){ 2 } }
 
 val hevil = handler { 
+  return x { (fun(){ x }) }
   control evil() { (fun(){ resume(())() } ) } 
 }
 
+fun test() : <reader,evil> int {
+  val x = ask()
+  evil()
+  val y = ask()
+  x + y
+}
 
 // scoped resumptions: fails at runtime
 // regular effects: returns 3  (not 2)
 fun non-scoped() : int {
   val f // : () -> reader int
-        = reader-one{ hevil{ 
-            val x = ask()
-            evil()
-            val y = ask()
-            (fun(){ x + y })
-          } }
+        = reader-one{ hevil{ test() } }
   reader-two{ f() }
 }
 
@@ -54,6 +56,7 @@ fun xreader(action) {
 
 // evil coordinates the change
 val xevil = handler{ 
+  return x { (fun(){ x }) }
   control evil() { 
     ret()       // capture resumption to outer (which returns a full resumption)
     xinc()      // if resumed (through outer), change the reader    
@@ -62,11 +65,11 @@ val xevil = handler{
 }
 
 
-fun xtest() {
+fun xtest() : <xreader,evil> int {
   val x = xask()
   evil()
   val y = xask()
-  (fun(){ x + y })
+  x + y
 }
 
 // now we can stay scoped
