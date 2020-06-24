@@ -25,6 +25,7 @@ static char ascii_iswhite(char c) {
 }
 
 static int stricmpx(const char* s, const char* t) {
+  if (s==t) return 0;
   char c,d;
   do {
     c = *s++;
@@ -39,6 +40,7 @@ static int stricmpx(const char* s, const char* t) {
 int string_cmp_borrow(string_t str1, string_t str2) {
   const char* s1 = string_cbuf_borrow(str1);
   const char* s2 = string_cbuf_borrow(str2);
+  if (s1==s2) return 0;
   return strcmp(s1, s2);
 }
 
@@ -52,6 +54,7 @@ int string_cmp(string_t str1, string_t str2, context_t* ctx) {
 int string_icmp_borrow(string_t str1, string_t str2) {
   const char* s1 = string_cbuf_borrow(str1);
   const char* s2 = string_cbuf_borrow(str2);
+  if (s1==s2) return 0;
   return stricmpx(s1, s2);
 }
 

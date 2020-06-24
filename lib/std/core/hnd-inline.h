@@ -12,10 +12,18 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 struct __std_core_hnd__ev_s;
-typedef vector_t evv_t;
+typedef vector_t evv_t;         // either a vector, or a single evidence
 
 static inline bool evv_is_vector(evv_t evv) {
   return (datatype_tag(evv) >= TAG_VECTOR_SMALL);
+}
+
+static inline evv_t dup_evv_t(evv_t evv) {
+  return dup_datatype_as(evv_t,evv);
+}
+
+static inline void drop_evv_t(evv_t evv, context_t* ctx) {
+  drop_datatype(evv,ctx);
 }
 
 static inline struct __std_core_hnd__ev_s* evv_at( int32_t i, context_t* ctx ) {
@@ -70,8 +78,10 @@ struct __std_core_hnd_Htag;
 struct __std_core_hnd_Marker;
 struct __std_core_hnd_yld_s;
 
-int32_t      evv_index( struct __std_core_hnd_Htag htag, context_t* ctx );
+
+struct __std_core_hnd__ev_s* ev_none(context_t* cxt);
 struct __std_core_hnd__ev_s* evv_lookup( struct __std_core_hnd_Htag htag, context_t* ctx );
+int32_t      evv_index( struct __std_core_hnd_Htag htag, context_t* ctx );
 evv_t        evv_create(evv_t evv, vector_t indices, context_t* ctx);
 evv_t        evv_insert(evv_t evv, struct __std_core_hnd__ev_s* ev, context_t* ctx);
 evv_t        evv_delete(evv_t evv, int32_t index, bool behind, context_t* ctx);
