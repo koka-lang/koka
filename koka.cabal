@@ -19,6 +19,7 @@ executable koka
                        , array >=0.5 && <1
                        , process >=1.4 && <2
                        , directory >=1.3 && <2
+                       , cond >=0.4 && <1
   hs-source-dirs:      src, src/Platform/cpp
   c-sources:           src/Platform/cpp/Platform/cconsole.c
   include-dirs:        src/Platform/cpp/Platform

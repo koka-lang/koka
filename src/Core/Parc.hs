@@ -9,9 +9,10 @@ module Core.Parc ( parcCore ) where
 
 import qualified Lib.Trace
 import Control.Applicative hiding (empty)
+import Control.Conditional
 import Control.Monad
 import Data.List ( intersperse, partition )
-import Data.Maybe ( catMaybes )
+import Data.Maybe ( catMaybes, fromMaybe )
 import Data.Char
 -- import Data.Maybe
 -- import Data.Monoid ( mappend )
@@ -40,7 +41,20 @@ trace s x =
   Lib.Trace.trace s
     x
 
-enabled = False
+enabled = True
+
+--------------------------------------------------------------------------
+-- Local typeclass for convenience
+--------------------------------------------------------------------------
+
+class ParcName a where
+  parcGetName :: a -> Name
+
+instance ParcName Name where
+  parcGetName = id
+
+instance ParcName TName where
+  parcGetName = getName
 
 --------------------------------------------------------------------------
 -- Reference count transformation
@@ -58,8 +72,7 @@ parcCore penv newtypes u core
 
 parcDefGroups :: Bool -> DefGroups -> Parc DefGroups
 parcDefGroups topLevel defGroups
-  = do parcTraceDoc (\penv -> text "parcDefGroups")
-       mapM (parcDefGroup topLevel) defGroups
+  = mapM (parcDefGroup topLevel) defGroups
 
 parcDefGroup :: Bool -> DefGroup -> Parc DefGroup
 parcDefGroup topLevel dg
@@ -74,16 +87,55 @@ parcDef topLevel def
   = (if topLevel then isolated else id) $
     do parcTraceDoc (\penv -> prettyDef (penv{Pretty.coreShowDef=True}) def )
        expr <- parcExpr (defExpr def)
-       return (def{ defExpr = expr })
+       let result = def{defExpr=expr}
+       parcTraceDoc (\penv -> prettyDef (penv{Pretty.coreShowDef=True}) result)
+       return result
   where
     isolated action
       = do (x,inuse) <- isolateInUse action
            assertion ("Core.Parc.parcDef: inuse not empty: " ++ show (defName def))  (S.null inuse) $
              return x
 
+reverseMapM :: Monad m => (a -> m b) -> [a] -> m [b]
+reverseMapM action args =
+  do val <- mapM action (reverse args)
+     return $ reverse val
+
+{- try:
+:set --target=c
+fun f(x: list<a>): list<a> { x + x }
+
+-}
 parcExpr :: Expr -> Parc Expr
 parcExpr expr
-  = return expr
+  = do parcTraceDoc (`prettyExpr` expr)
+       case expr of
+         Lam tns eff body
+           -> do body' <- parcExpr body -- todo: reset environment
+                 -- todo: free args that are not used
+                 return $ Lam tns eff body'
+         Var tn info
+           -> do needsDup <- isInUse tn
+                 addInUse tn
+                 dupExpr <- genDup tn
+                 return $ expr <| dupExpr
+         App fn args
+           -> do args' <- reverseMapM parcExpr args
+                 fn'   <- parcExpr fn
+                 return $ App fn' args'
+         TypeLam ts body
+           -> do body' <- parcExpr body
+                 return $ TypeLam ts body'
+         TypeApp fn ts
+           -> do return expr
+         Con ctor repr
+           -> do return expr
+         Lit lit
+           -> return expr
+         Let dfns body
+           -> do return expr
+         Case conds branches
+           -> do return expr
 
 {-
 val x = y
@@ -274,7 +326,7 @@ instance Monad Parc where
                                                                Ok x' st'' -> Ok x' st'')
 
 instance HasUnique Parc where
- updateUnique f = Parc (\env st -> Ok (uniq st) st{ uniq = (f (uniq st)) })
+ updateUnique f = Parc (\env st -> Ok (uniq st) st{ uniq = f (uniq st) })
  setUnique  i   = Parc (\env st -> Ok () st{ uniq = i})
 
 withEnv :: (Env -> Env) -> Parc a -> Parc a
@@ -317,25 +369,26 @@ ownedAndNotUsed
 -----------------------
 -- in-use sets
 
-addInUse :: Name -> Parc ()
-addInUse name
+addInUse :: ParcName p => p -> Parc ()
+addInUse name'
   = do updateSt (\st -> st{ inuse = S.insert name (inuse st)})
        return ()
+    where name = parcGetName name'
 
-isInUse :: Name -> Parc Bool
-isInUse name
+isInUse :: ParcName p => p -> Parc Bool
+isInUse name'
   = do st <- getSt
        return (S.member name (inuse st))
+    where name = parcGetName name'
 
-dropInUse :: Name -> Parc ()
-dropInUse name
+dropInUse :: ParcName p => p -> Parc ()
+dropInUse name'
   = do updateSt (\st -> st{ inuse = S.delete name (inuse st)})
        return ()
+    where name = parcGetName name'
 
 getInUse :: Parc InUse
-getInUse
-  = do st <- getSt
-       return (inuse st)
+getInUse = inuse <$> getSt
 
 setInUse :: InUse -> Parc ()
 setInUse inuse0
@@ -367,10 +420,8 @@ withReuse reuseInfo action
        updateSt (\st -> st{ reuse = (r,reuseInfo): reuse st })
        x <- action
        st0 <- updateSt (\st -> st{ reuse = filter (\(r',_) -> r /= r') (reuse st) })
-       let isReused = null (filter (\(r',_) -> r == r') (reuse st0))
-       if (isReused)
-        then return (x,Just r)
-        else return (x,Nothing)
+       let isReused = not (any (\(r',_) -> r == r') (reuse st0))
+       return (x, isReused |> r)
 
 tryReuse :: TName -> ConRepr -> Parc (Maybe Name)
 tryReuse conName conRepr
@@ -399,10 +450,7 @@ parcTrace msg
 
 ----------------
 getNewtypes :: Parc Newtypes
-getNewtypes
-  = do env <- getEnv
-       return (newtypes env)
-
+getNewtypes = newtypes <$> getEnv
 
 getDataDefRepr :: Type -> Parc (DataDef,DataRepr)
 getDataDefRepr tp
