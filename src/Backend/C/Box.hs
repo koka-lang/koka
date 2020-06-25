@@ -64,7 +64,7 @@ boxDef def
          expr  <- uniqueSimplify True {- unsafe -} 2 {- duplicationMax -} bexpr
          return def{ defExpr = expr }
 
-
+-- add box/unbox such that the type of `expr` matches `BoxType`
 boxExpr :: BoxType -> Expr -> Unique Expr
 boxExpr expectTp expr
   = case expr of
@@ -96,30 +96,50 @@ boxExpr expectTp expr
 
 boxBranch :: [BoxType] -> BoxType -> Branch -> Unique Branch
 boxBranch patTps expectTp (Branch patterns guards)
-  = do bpatterns <- mapM (\(patTp,pat) -> boxPattern patTp pat) (zip patTps patterns)
-       bguards <- mapM (boxGuard expectTp) guards
+  = do (bpatterns,defss) <- unzipM $ mapM (\(patTp,pat) -> boxPattern patTp pat) (zip patTps patterns)
+       let binds expr  = makeLet [DefNonRec def | def <- concat defss] expr
+       bguards <- mapM (boxGuard expectTp binds) guards
        return (Branch bpatterns bguards)
 
-boxGuard :: BoxType -> Guard -> Unique Guard
-boxGuard expectTp (Guard test expr)
+boxGuard :: BoxType -> (Expr -> Expr) -> Guard -> Unique Guard
+boxGuard expectTp binds (Guard test expr)
   =do btest <- boxExpr typeBool test
       bexpr <- boxExpr expectTp expr
-      return (Guard btest bexpr)
+      return (Guard btest (binds bexpr))  -- TODO: binds come too late to appear in guards but we need binds for function wrappers?.. perhaps create a specal pattern just for the C backend?
+                   
 
-boxPattern :: BoxType -> Pattern -> Unique Pattern
+-- add bindings and box/unbox such that pattern matches the required boxtype
+boxPattern :: BoxType -> Pattern -> Unique (Pattern, [Def])
 boxPattern fromTp PatWild
   = boxPatternX fromTp PatWild
 boxPattern fromTp pat | cType (fromTp) /= cType toTp
-  = do i <- unique
-       let uname = newHiddenName ("unbox-x" ++ show i)
-       coerce <- -- trace ("pattern coerce: " ++ show uname ++ ": " ++ show (pretty fromTp) ++ " ~> " ++ show (pretty toTp)) $
-                 bcoerce fromTp toTp (Var (TName uname toTp) InfoNone)
-       case coerce of
-         -- TODO: detect better if unbox is needed than looking at the result expression of bcoerce...
-         App{} -> -- trace ("unbox pattern: " ++ show uname) $
-                  do bpat <- boxPatternX toTp pat
-                     return (PatVar (TName uname toTp) bpat)
-         _     -> boxPatternX fromTp pat
+  = do mcoerce <- -- trace ("pattern coerce: " ++ show (pretty fromTp) ++ " ~> " ++ show (pretty toTp)) $
+                  bcoerceX fromTp toTp (Var (TName nameNil toTp) InfoNone)
+       case mcoerce of
+         Just coerce0
+           -> -- We just insert a specially named pattern variable -- the backend recognizes this
+              -- and generates unbox/box expressions appropiately so nested patterns are handled correctly
+              -- Unfortunately, this goes wrong for function wrappers; for those we rename and generate a
+              -- binding; this works as a function type is never pattern matched further.
+              case coerce0 of
+                Lam{} -> -- function match
+                         case pat of 
+                           PatVar tname _
+                             -> -- ok, no nested match
+                                do i <- unique
+                                   let uname = newHiddenName ("fun-unbox-x" ++ show i)
+                                   coerce <- bcoerce fromTp toTp (Var (TName uname fromTp) InfoNone)  -- regenerate the coercion
+                                   let def = makeTDef (TName (getName tname) toTp) coerce
+                                   -- trace ("unbox function: " ++ show uname) $
+                                   return (PatVar (TName uname fromTp) PatWild, [def])
+                           _ -> failure "Backend/C/FromCore.boxPattern: nested match on a function?"
+                _     -> -- regular box/unbox 
+                         do i <- unique
+                            let uname = newHiddenName ("unbox-x" ++ show i)
+                            (bpat,defs) <- boxPatternX toTp pat
+                            -- trace ("unbox pattern: " ++ show uname) $
+                            return (PatVar (TName uname toTp) bpat, defs)  -- toTp for generating correct unbox call in the C backend
+         _ -> boxPatternX fromTp pat
                      
   where
     toTp  = case pat of
@@ -131,26 +151,34 @@ boxPattern fromTp pat | cType (fromTp) /= cType toTp
 boxPattern fromTp pat
   = boxPatternX fromTp pat
 
-boxPatternX :: BoxType -> Pattern -> Unique Pattern
+boxPatternX :: BoxType -> Pattern -> Unique (Pattern,[Def])
 boxPatternX fromTp pat
   = case pat of
       PatCon name params repr targs exists tres conInfo
-        -> do bparams <- mapM (\(ftp,par) -> boxPattern ftp par)  (zip (map snd (conInfoParams conInfo)) params)
-              return (PatCon name bparams repr targs exists tres conInfo)
+        -> do (bparams,defss) <- unzipM $ mapM (\(ftp,par) -> boxPattern ftp par)  (zip (map snd (conInfoParams conInfo)) params)
+              return (PatCon name bparams repr targs exists tres conInfo, concat defss)
       PatVar tname arg
-        -> do barg <- boxPattern (typeOf tname) arg
-              return (PatVar tname barg)
-      PatWild  -> return pat
-      PatLit _ -> return pat
+        -> do (barg,defs) <- boxPattern (typeOf tname) arg
+              return (PatVar tname barg, defs)
+      PatWild  -> return (pat,[])
+      PatLit _ -> return (pat,[])
 
+-- coerce `expr` of `fromTp` to `toTp`
 bcoerce :: Type -> Type -> Expr -> Unique Expr
 bcoerce fromTp toTp expr
+  = do mb <- bcoerceX fromTp toTp expr 
+       case mb of
+        Just expr' -> return expr'
+        Nothing    -> return expr
+      
+bcoerceX :: Type -> Type -> Expr -> Unique (Maybe Expr)
+bcoerceX fromTp toTp expr
   = case (cType fromTp, cType toTp) of
-      (CBox, CBox)             -> return expr
-      (CBox, CData)            -> return $ App (unboxVar) [expr]
-      (CBox, CFun cpars cres)  -> return $ App (unboxVar) [expr]
-      (CData, CBox)            -> return $ App (boxVar) [expr]
-      (CFun cpars cres, CBox)  -> return $ App (boxVar) [expr]
+      (CBox, CBox)             -> return Nothing
+      (CBox, CData)            -> return $ Just $ App (unboxVar) [expr]
+      (CBox, CFun cpars cres)  -> return $ Just $ App (unboxVar) [expr]
+      (CData, CBox)            -> return $ Just $ App (boxVar) [expr]
+      (CFun cpars cres, CBox)  -> return $ Just $ App (boxVar) [expr]
 
       (CFun fromPars fromRes, CFun toPars toRes)
           | not (all (\(t1,t2) -> t1 == t2) (zip fromPars toPars) && fromRes == toRes)
@@ -163,9 +191,9 @@ bcoerce fromTp toTp expr
                                    args  = [Var par InfoNone | par <- pars]
                                bargs <- mapM (\(arg,argTp) -> boxExpr argTp arg) (zip args (map snd fromParTps))
                                bapp  <- bcoerce fromResTp toResTp (App expr bargs)
-                               return (Lam pars toEffTp bapp)
+                               return (Just (Lam pars toEffTp bapp))
 
-      _   -> return expr
+      _   -> return Nothing
   where
     boxVar
       = Var (TName nameBox (coerceTp)) (InfoExternal [(C, "box(#1)")])

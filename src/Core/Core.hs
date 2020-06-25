@@ -44,6 +44,8 @@ module Core.Core ( -- Data structures
                    , makeInt32
                    , makeEvIndex
                    , makeList, makeVector
+                   , makeDef, makeTDef, makeStats
+                   , unzipM
                    , Visibility(..), Fixity(..), Assoc(..), isPublic
                    , coreName
                    , tnamesList, tnamesEmpty, tnamesDiff, tnamesInsertAll
@@ -144,6 +146,25 @@ makeList tp exprs
     consCon  = Con (TName nameCons consTp) (ConAsCons nameTpList DataAsList nameNull 1)
     cons expr xs = App (TypeApp consCon [tp]) [expr,xs]
     a = TypeVar (0) kindStar Bound            
+
+makeDef :: Name -> Expr -> Def
+makeDef name expr
+  = Def name (typeOf expr) expr Private DefVal InlineNever rangeNull ""
+
+makeTDef :: TName -> Expr -> Def
+makeTDef (TName name tp) expr
+  = Def name tp expr Private DefVal InlineNever rangeNull ""
+
+
+makeStats :: [Expr] -> Expr
+makeStats []
+  = failure "Core.Parc.makeStats: no expressions"
+makeStats exprs
+  = Let [DefNonRec (makeDef nameNil expr) | expr <- init exprs]
+        (last exprs)
+    
+unzipM :: Monad m => m [(a,b)] -> m ([a],[b])
+unzipM m = fmap unzip m
 
 {--------------------------------------------------------------------------
   Top-level structure

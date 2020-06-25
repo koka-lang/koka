@@ -237,9 +237,11 @@ static inline decl_pure bool yielding_final(const context_t* ctx) {
   return (ctx->yielding == YIELD_FINAL);
 }
 
-// Get a thread local marker unique number.
+// Get a thread local marker unique number >= 1.
 static inline int32_t marker_unique(context_t* ctx) {
-  return ctx->marker_unique++;
+  int32_t m = ++ctx->marker_unique;           // must return a marker >= 1 so increment first;
+  if (m == INT32_MAX) ctx->marker_unique = 1; // controlled reset
+  return m;
 }
 
 
@@ -503,13 +505,15 @@ static inline value_tag_t value_tag(uint_t tag) {
 #define function_as(tp,fun)                     datatype_as_assert(tp,fun,TAG_FUNCTION)
 #define function_alloc_as(tp,scan_fsize,ctx)    block_alloc_as(tp,scan_fsize,TAG_FUNCTION,ctx)
 #define function_call(restp,argtps,f,args)      ((restp(*)argtps)(unbox_fun_ptr(f->fun)))args
-#define define_static_function(name,cfun) \
-  static struct function_s _static_##name = { { HEADER_STATIC(0,TAG_FUNCTION) }, { ((uintptr_t)&cfun) } }; /* note: should be box_fun_ptr(&cfun) but we need a constant expression */ \
-  function_t name = &_static_##name;
+#define define_static_function(name,cfun,ctx) \
+  static struct function_s _static_##name = { { HEADER_STATIC(0,TAG_FUNCTION) }, { 0x7 } }; /* must be box_null */ \
+  function_t name = &_static_##name; \
+  if (box_eq(name->fun,box_null)) { name->fun = box_fun_ptr((fun_ptr_t)&cfun,ctx); }  // initialize on demand so it can be boxed properly
+  
 
 
-extern function_t function_id;
-extern function_t function_null;
+function_t function_id(context_t* ctx);
+function_t function_null(context_t* ctx);
 
 static inline function_t unbox_function_t(box_t v) {
   return unbox_datatype_as_assert(function_t, v, TAG_FUNCTION);

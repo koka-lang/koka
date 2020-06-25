@@ -164,7 +164,7 @@ static box_t kcompose( function_t fself, box_t x, context_t* ctx) {
 }
 
 static function_t new_kcompose( function_t* conts, intx_t count, context_t* ctx ) {
-  if (count<=0) return dup_function_t(function_id);
+  if (count<=0) return function_id(ctx);
   if (count==1) return conts[0];
   struct kcompose_fun_s* f = block_as(struct kcompose_fun_s*, 
                                block_alloc(sizeof(struct kcompose_fun_s) - sizeof(function_t) + (count*sizeof(function_t)), 
@@ -261,7 +261,10 @@ static box_t _fatal_resume_final(function_t self, context_t* ctx) {
   drop_function_t(self,ctx);
   return fatal_resume_final(ctx);
 }
-define_static_function(fun_fatal_resume_final,_fatal_resume_final);
+static function_t fun_fatal_resume_final(context_t* ctx) {
+  define_static_function(f,_fatal_resume_final,ctx);
+  return dup_function_t(f);
+}
 
 
 struct __std_core_hnd_yld_s  yield_prompt( struct __std_core_hnd_Marker m, context_t* ctx ) {
@@ -273,7 +276,7 @@ struct __std_core_hnd_yld_s  yield_prompt( struct __std_core_hnd_Marker m, conte
     return (ctx->yielding == YIELD_FINAL ? __std_core_hnd__new_YieldingFinal(ctx) : __std_core_hnd__new_Yielding(ctx));
   }
   else {
-    function_t cont = (ctx->yielding == YIELD_FINAL ? dup_function_t(fun_fatal_resume_final) : new_kcompose(yield->conts, yield->conts_count, ctx));
+    function_t cont = (ctx->yielding == YIELD_FINAL ? fun_fatal_resume_final(ctx) : new_kcompose(yield->conts, yield->conts_count, ctx));
     function_t clause = yield->clause;
     ctx->yielding = 0;
     #ifndef NDEBUG
@@ -330,7 +333,7 @@ __std_core_hnd__yield_info yield_capture(context_t* ctx) {
     yld->conts[i] = ctx->yield.conts[i];
   }
   for( ; i < YIELD_CONT_MAX; i++) {
-    yld->conts[i] = dup_function_t(function_null);
+    yld->conts[i] = function_null(ctx);
   }
   yld->conts_count = ctx->yield.conts_count;
   yld->marker = ctx->yield.marker;

@@ -61,11 +61,11 @@ externalNames
 -- Generate C code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: FilePath -> Newtypes -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc)
+cFromCore :: FilePath -> Newtypes -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
 cFromCore sourceDir newtypes uniq mbMain core
   = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes False)
            (genModule sourceDir mbMain core) of
-      ((),cdoc,hdoc) -> (cdoc,hdoc)
+      (bcore,cdoc,hdoc) -> (cdoc,hdoc,bcore)
   where
     moduleName = coreProgName core
     penv       = Pretty.defaultEnv{ Pretty.context = moduleName, Pretty.fullNames = False }
@@ -76,7 +76,7 @@ contextDoc = text "_ctx"
 contextParam :: Doc
 contextParam = text "context_t* _ctx"
 
-genModule :: FilePath -> Maybe (Name,Bool) -> Core -> Asm ()
+genModule :: FilePath -> Maybe (Name,Bool) -> Core -> Asm Core
 genModule sourceDir mbMain core0
   =  do core <- liftUnique (boxCore core0)  -- box/unbox transform
         let headComment   = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
@@ -114,7 +114,7 @@ genModule sourceDir mbMain core0
                   <.> block init
         emitToH $ vcat [ linebreak <.> initSignature <.> semi <.> linebreak
                        , text "#endif // header"]
-        return ()
+        return core -- box/unboxed core
   where
     modName         = ppModName (coreProgName core0)
 
@@ -832,7 +832,7 @@ genLambda params eff body
                      <-> text (if toH then "static inline" else "static")
                      <+> text "function_t" <+> ppName newName <.> ntparameters fields <+> block ( vcat (
                        (if (null fields)
-                         then [text "define_static_function" <.> tupled [text "_fself", ppName funName] <.> semi
+                         then [text "define_static_function" <.> arguments [text "_fself", ppName funName] <.> semi
                                --text "static" <+> structDoc <+> text "_self ="
                               --  <+> braces (braces (text "static_header(1, TAG_FUNCTION), box_cptr(&" <.> ppName funName <.> text ")")) <.> semi
                               ,text "return _fself;"]

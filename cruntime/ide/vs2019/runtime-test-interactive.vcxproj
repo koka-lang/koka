@@ -150,8 +150,6 @@
     <ProjectReference Include="runtime.vcxproj">
       <Project>{abb5eae7-b3e6-432e-b636-333449892ea6}</Project>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="..\..\..\out\lib\interactive.c" />
     <ClCompile Include="..\..\..\out\lib\std_core.c" />
     <ClCompile Include="..\..\..\out\lib\std_core_hnd.c" />

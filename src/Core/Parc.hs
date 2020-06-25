@@ -161,17 +161,7 @@ genReuseMatch con dups drops
 
 
 
-makeStats :: [Expr] -> Expr
-makeStats []
-  = failure "Core.Parc.makeStats: no expressions"
-makeStats exprs
-  = Let [DefNonRec (makeDef nameNil expr) | expr <- init exprs]
-        (last exprs)
-      
-
-makeDef :: Name -> Expr -> Def
-makeDef name expr
-  = Def name (typeOf expr) expr Private DefVal InlineNever rangeNull ""
+  
   
 -- Generate a test if a (locally bound) name is unique
 genIsUnique :: TName -> Expr
