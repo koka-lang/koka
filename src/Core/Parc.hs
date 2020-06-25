@@ -41,7 +41,7 @@ trace s x =
   Lib.Trace.trace s
     x
 
-enabled = True
+enabled = False
 
 --------------------------------------------------------------------------
 -- Local typeclass for convenience
