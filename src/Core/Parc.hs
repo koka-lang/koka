@@ -9,7 +9,6 @@ module Core.Parc ( parcCore ) where
 
 import qualified Lib.Trace
 import Control.Applicative hiding (empty)
-import Control.Conditional
 import Control.Monad
 import Data.List ( intersperse, partition )
 import Data.Maybe ( catMaybes, fromMaybe )
@@ -72,12 +71,12 @@ parcCore penv newtypes u core
 
 parcDefGroups :: Bool -> DefGroups -> Parc DefGroups
 parcDefGroups topLevel defGroups
-  = mapM (parcDefGroup topLevel) defGroups
+  = reverseMapM (parcDefGroup topLevel) defGroups
 
 parcDefGroup :: Bool -> DefGroup -> Parc DefGroup
 parcDefGroup topLevel dg
   = case dg of
-      DefRec defs    -> do defs' <- mapM (parcDef topLevel) defs
+      DefRec defs    -> do defs' <- reverseMapM (parcDef topLevel) defs
                            return (DefRec defs')
       DefNonRec def  -> do def' <- parcDef topLevel def
                            return (DefNonRec def')
@@ -93,13 +92,9 @@ parcDef topLevel def
   where
     isolated action
       = do (x,inuse) <- isolateInUse action
-           assertion ("Core.Parc.parcDef: inuse not empty: " ++ show (defName def))  (S.null inuse) $
-             return x
+           -- assertion ("Core.Parc.parcDef: inuse not empty: " ++ show (defName def))  (S.null inuse) $
+           return x
 
-reverseMapM :: Monad m => (a -> m b) -> [a] -> m [b]
-reverseMapM action args =
-  do val <- mapM action (reverse args)
-     return $ reverse val
 
 {- try:
 :set --target=c
@@ -112,36 +107,60 @@ fun f(x : list<int>) : list<int> { val y = match(x) { Cons(_, _) -> x Nil -> [] 
 -}
 parcExpr :: Expr -> Parc Expr
 parcExpr expr
-  = do parcTraceDoc (`prettyExpr` expr)
+  = do parcTraceDoc (\penv -> prettyExpr penv expr)
        case expr of
-         Lit _ -> return expr -- done
-         Lam tns eff body
-           -> do body' <- parcExpr body -- todo: reset environment
-                 argsInUse <- mapM isInUse tns
-                 -- todo: free args that are not used
-                 return $ Lam tns eff body'
-         Var tn info
-           -> do needsDup <- isInUse tn
-                 dupExpr <- genDup tn
-                 let dupExpr' = if needsDup then dupExpr else Just expr
-                 addInUse tn
-                 return $ fromMaybe expr dupExpr'
+         TypeLam tpars body
+           -> do body' <- parcExpr body
+                 return $ TypeLam tpars body'
+         TypeApp body targs
+           -> do body' <- parcExpr body
+                 return (TypeApp body targs)
+         Lam pars eff body
+           -> do let free = tnamesList (freeLocals body) 
+                 freeDups <- dupTNames (zip free (repeat InfoNone))
+                 body' <- withIsolated $ 
+                          withOwned (free ++ pars) $ 
+                          do body'    <- parcExpr body
+                             dropPars <- ownedAndNotUsed
+                             drops    <- mapM genDrop dropPars
+                             return (maybeStats drops body')
+                 return $ maybeStats freeDups (Lam pars eff body')
+         Var tname info
+           -> do mbDup <- dupTName (tname,info)
+                 -- return $ maybeStats mbDups expr
+                 case mbDup of
+                   Just dup -> return dup
+                   Nothing  -> return expr
          App fn args
            -> do args' <- reverseMapM parcExpr args
                  fn'   <- parcExpr fn
                  return $ App fn' args'
-         TypeLam ts body
-           -> do body' <- parcExpr body
-                 return $ TypeLam ts body'
-         TypeApp fn ts
-           -> do return expr
+         Lit _ 
+           -> return expr -- done
          Con ctor repr
            -> do return expr
-         Let [DefNonRec def] body
-           -> do return expr
-         Let _ _ -> error "lets not flattened before Parc"
+         Let dgs body
+           -> do body' <- parcExpr body
+                 dgs' <- parcDefGroups False dgs 
+                 return (Let dgs' body')
          Case conds branches
            -> do return expr
+
+
+dupTNames :: [(TName,VarInfo)] -> Parc [Maybe Expr]
+dupTNames tnames
+  = mapM dupTName tnames
+  
+dupTName :: (TName,VarInfo) -> Parc (Maybe Expr)
+dupTName (tname,InfoNone)
+  = do needsDup <- isInUse tname
+       if needsDup 
+        then genDup tname 
+        else do addInUse tname
+                return Nothing
+
+dupTName (tname,_) 
+  = return Nothing
 
 {-
 val x = y
@@ -190,6 +209,16 @@ parcExpr expr
   = return expr
 
 -}
+
+reverseMapM :: Monad m => (a -> m b) -> [a] -> m [b]
+reverseMapM action args =
+  do args' <- mapM action (reverse args)
+     return $ reverse args'
+
+
+maybeStats :: [Maybe Expr] -> Expr -> Expr
+maybeStats xs expr
+  = makeStats (catMaybes xs ++ [expr])
 
 -- Generate a "drop match"
 genDropMatch :: TName -> [TName] -> [TName] -> Parc Expr
@@ -261,10 +290,13 @@ genDrop tname = genDupDrop False tname
 genDupDrop :: Bool -> TName -> Parc (Maybe Expr)
 genDupDrop isDup tname
   = do let tp = typeOf tname
-       (dataDef,dataRepr) <- getDataDefRepr tp
-       case dataDef of
-         DataDefValue _ 0 -> return Nothing    -- no need to dup/drop a value type with no pointer fields (like int)
-         _ -> return (Just (App (dupDropFun isDup tp) [Var tname InfoNone]))
+       mbRepr <- getDataDefRepr tp
+       case mbRepr of
+         Just (dataDef,dataRepr) 
+           -> case dataDef of        
+                 DataDefValue _ 0 -> return Nothing    -- no need to dup/drop a value type with no pointer fields (like int)
+                 _ -> return (Just (App (dupDropFun isDup tp) [Var tname InfoNone]))
+         _ -> return Nothing
 
 
 dupFun tp  = dupDropFun True tp
@@ -403,6 +435,16 @@ branchInUse branches
        setInUse inuse
        return xs
 
+withIsolated :: Parc a -> Parc a 
+withIsolated action
+  = fmap fst $
+    isolateInUse $
+    withEnv (\env -> env{ owned = tnamesEmpty }) $
+    do updateSt (\st -> st{ inuse = S.empty, reuse = [] })
+       action
+       
+
+
 -----------------------
 -- drop statement
 {-
@@ -429,7 +471,7 @@ withReuse reuseInfo action
        x <- action
        st0 <- updateSt (\st -> st{ reuse = filter (\(r',_) -> r /= r') (reuse st) })
        let isReused = not (any (\(r',_) -> r == r') (reuse st0))
-       return (x, isReused |> r)
+       return (x, if isReused then Just r else Nothing)
 
 tryReuse :: TName -> ConRepr -> Parc (Maybe Name)
 tryReuse conName conRepr
@@ -460,14 +502,14 @@ parcTrace msg
 getNewtypes :: Parc Newtypes
 getNewtypes = newtypes <$> getEnv
 
-getDataDefRepr :: Type -> Parc (DataDef,DataRepr)
+getDataDefRepr :: Type -> Parc (Maybe (DataDef,DataRepr))
 getDataDefRepr tp
   = case extractDataDefType tp of
-      Nothing -> return (DataDefNormal,DataNormal)
+      Nothing -> return (Just (DataDefNormal,DataNormal))
       Just name -> do newtypes <- getNewtypes
                       case newtypesLookupAny name newtypes of
                         Nothing -> failure $ "Core.Parc.getDataInfo: cannot find type: " ++ show name
-                        Just di -> return (dataInfoDef di, fst (getDataRepr di))
+                        Just di -> return (Just (dataInfoDef di, fst (getDataRepr di)))
 
 extractDataDefType tp
   = case expandSyn tp of

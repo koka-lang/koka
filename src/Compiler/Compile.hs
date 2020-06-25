@@ -1171,8 +1171,7 @@ codeGenJS term flags modules compileTarget outBase core
 
 
 codeGenC :: FilePath -> Newtypes -> Int -> Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO ()))
-codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase core0  | not (C `elem` targets flags)
- = return Nothing
+codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase core0  | not (C `elem` targets flags) = return Nothing
 codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase core0
  = compilerCatch "c" term Nothing $
    do let outC = outBase ++ ".c"
