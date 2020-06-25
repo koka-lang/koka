@@ -105,20 +105,27 @@ reverseMapM action args =
 :set --target=c
 fun f(x: list<a>): list<a> { x + x }
 
+fun f(x: list<int>): list<int> { return [] }
+
+fun f(x : list<int>) : list<int> { val y = match(x) { Cons(_, _) -> x Nil -> [] } return y }
+
 -}
 parcExpr :: Expr -> Parc Expr
 parcExpr expr
   = do parcTraceDoc (`prettyExpr` expr)
        case expr of
+         Lit _ -> return expr -- done
          Lam tns eff body
            -> do body' <- parcExpr body -- todo: reset environment
+                 argsInUse <- mapM isInUse tns
                  -- todo: free args that are not used
                  return $ Lam tns eff body'
          Var tn info
            -> do needsDup <- isInUse tn
-                 addInUse tn
                  dupExpr <- genDup tn
-                 return $ expr <| dupExpr
+                 let dupExpr' = if needsDup then dupExpr else Just expr
+                 addInUse tn
+                 return $ fromMaybe expr dupExpr'
          App fn args
            -> do args' <- reverseMapM parcExpr args
                  fn'   <- parcExpr fn
@@ -130,10 +137,9 @@ parcExpr expr
            -> do return expr
          Con ctor repr
            -> do return expr
-         Lit lit
-           -> return expr
-         Let dfns body
+         Let [DefNonRec def] body
            -> do return expr
+         Let _ _ -> error "lets not flattened before Parc"
          Case conds branches
            -> do return expr
 
@@ -211,20 +217,6 @@ genReuseMatch con dups drops
                  (makeStats (catMaybes xdrops ++ [genReuse con]))
                  (makeStats (catMaybes (xdups ++ [cdrop]) ++ [genNoReuse]))
 
-
-
-makeStats :: [Expr] -> Expr
-makeStats []
-  = failure "Core.Parc.makeStats: no expressions"
-makeStats exprs
-  = Let [DefNonRec (makeDef nameNil expr) | expr <- init exprs]
-        (last exprs)
-
-
-makeDef :: Name -> Expr -> Def
-makeDef name expr
-  = Def name (typeOf expr) expr Private DefVal InlineNever rangeNull ""
-
 -- Generate a test if a (locally bound) name is unique
 genIsUnique :: TName -> Expr
 genIsUnique tname
@@ -279,10 +271,10 @@ dupFun tp  = dupDropFun True tp
 dropFun tp = dupDropFun False tp
 
 dupDropFun isDup tp
-  = Var (TName name (coerceTp )) (InfoExternal [(C, (if isDup then "dup" else "drop") ++ "(#1)")])
+  = Var (TName name coerceTp) (InfoExternal [(C, (if isDup then "dup" else "drop") ++ "(#1)")])
   where
     name = if isDup then nameDup else nameDrop
-    coerceTp = TFun [(nameNil,tp)] typeTotal (if (isDup) then tp else typeUnit)
+    coerceTp = TFun [(nameNil,tp)] typeTotal (if isDup then tp else typeUnit)
 
 
 {--------------------------------------------------------------------------
@@ -411,6 +403,22 @@ branchInUse branches
        setInUse inuse
        return xs
 
+-----------------------
+-- drop statement
+{-
+genDropStmt :: TName -> Expr -> Parc Expr
+genDropStmt tn e
+  = do r <- uniqueName "drop"
+       dr <- genDrop tn
+       let def = makeTDef tn
+       return $ makeLet []
+
+makeExprSeq :: [Expr] -> Parc Expr
+makeExprSeq [] = error "empty list provided to makeExprSeq"
+makeExprSeq [x] = return x
+makeExprSeq (x:xs)
+  =
+-}
 -----------------------
 -- reuse
 

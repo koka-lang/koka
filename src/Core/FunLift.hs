@@ -33,7 +33,7 @@ import Type.TypeVar
 import Type.Pretty hiding (Env)
 import qualified Type.Pretty as Pretty
 import Type.Assumption
-import Core.Core
+import Core.Core hiding (makeDef)
 import qualified Core.Core as Core
 import Core.Pretty
 import Core.CoreVar

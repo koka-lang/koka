@@ -83,6 +83,9 @@ topDown (Let dgs body)
   where
     subst sub expr
       = if null sub then expr else (sub |~> expr)
+    extend :: (TName,Expr) -> [(TName,Expr)] -> [(TName,Expr)]
+    extend (name,e) sub
+      = (name,e):sub
 
     topDownLet :: [(TName,Expr)] -> [DefGroup] -> [DefGroup] -> Expr -> Simp Expr
     topDownLet sub acc [] body
@@ -133,49 +136,16 @@ topDown (Let dgs body)
                      Occur 0 m n vcnt | (vcnt * sizeOfExpr se) < maxSmallOccur
                        -> -- trace "occurs as cheap value: inline" $
                           inlineExpr
+                     
                      -- inline total and very small expressions
                      Many n | (n*sizeOfExpr se) < maxSmallOccur
                        -> -- trace "occurs many as cheap value: inline" $
                           inlineExpr
+                     
                      -- dont inline
                      oc -> -- trace ("no inline: occurrences: " ++ show oc ++ ", size: " ++ show (sizeOfExpr se)) $
                            topDownLet sub (sdg:acc) dgs body
-
-            {-
-               if (isTotalAndCheap se)
-                then -- inline total and small expressions
-                     -- trace (" inline small") $
-                     topDownLet (extend (TName x tp, se) sub) acc dgs body
-               else case extractFun se of
-                Just (tpars,pars,_,_)
-                  | occursAtMostOnceApplied
-                    -- occursAtMostTwiceApplied -- TODO: this is probably too aggresive but inlines all yield-bind next arguments...
-                     x (length tpars) (length pars) (Let dgs body) -- todo: exponential revisits of occurs
-                  -> -- function that occurs once in the body and is fully applied; inline to expose more optimization
-                     -- let f = \x -> x in f(2) ~> 2
-                     -- trace (" inline once & applied") $
-                     topDownLet (extend (TName x tp, se) sub) acc dgs body
-                Just ([],pars,eff,fbody) | isSmall fbody -- App (Var _ _) args)  | all cheap args
-                  -> -- inline functions that are small
-                     -- trace (" inline direct app") $
-                     topDownLet (extend (TName x tp, se) sub) acc dgs body
-                _ | isTotal se && isSmall se && occursAtMostOnce x (Let dgs body) -- todo: exponential revisits of occurs
-                  -> -- inline small total expressions
-                     -- trace (" inline small total once") $
-                     topDownLet (extend (TName x tp, se) sub) acc dgs body
-                _ -> -- no inlining
-                     -- trace (" don't inline") $
-                     topDownLet sub (sdg:acc) dgs body
-          -}
-    extend :: (TName,Expr) -> [(TName,Expr)] -> [(TName,Expr)]
-    extend (name,e) sub
-      = (name,e):sub
-
-    extractFun expr
-      = case expr of
-          TypeLam tpars (Lam pars eff body) -> Just (tpars,pars,eff,body)
-          Lam pars eff body                 -> Just ([],pars,eff,body)
-          _ -> Nothing
+            
 
 
 
@@ -251,7 +221,6 @@ topDown expr
 --------------------------------------------------------------------------}
 
 bottomUp :: Expr -> Expr
-
 
 -- replace "(/\a. body) t1" with "body[a |-> t1]"
 bottomUp expr@(TypeApp (TypeLam tvs body) tps)
@@ -424,6 +393,75 @@ matchBranch scrut branch
 
 data Match a = Match a | Unknown | NoMatch
 
+bottomUpM :: Expr -> Simp Expr
+bottomUpM (Let dgs body)
+  = bottomUpLet [] [] dgs body
+  where
+    subst sub expr
+      = if null sub then expr else (sub |~> expr)
+      
+    extend :: (TName,Expr) -> [(TName,Expr)] -> [(TName,Expr)]
+    extend (name,e) sub
+      = (name,e):sub
+
+    extractFun expr
+      = case expr of
+          TypeLam tpars (Lam pars eff body) -> Just (tpars,pars,eff,body)
+          Lam pars eff body                 -> Just ([],pars,eff,body)
+          _ -> Nothing
+
+    bottomUpLet :: [(TName,Expr)] -> [DefGroup] -> [DefGroup] -> Expr -> Simp Expr
+    bottomUpLet sub acc [] body
+      = case subst sub body of
+          Let sdgs sbody -> bottomUpLet [] acc sdgs sbody  -- merge nested Let's
+          sbody -> if (null acc)
+                    then return sbody
+                    else return $ Let (reverse acc) sbody
+
+    bottomUpLet sub acc [DefNonRec (Def{defName=name,defType=tp,defExpr=e})] (Var v _) | getName v == name
+      = bottomUpLet sub acc [] e
+
+    bottomUpLet sub acc (dg:dgs) body
+      = let sdg = subst sub dg
+        in case sdg of
+          DefRec defs
+            -> bottomUpLet sub (sdg:acc) dgs body -- don't inline recursive ones
+          DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})  | not (isTotal se)
+            -> bottomUpLet sub (sdg:acc) dgs body
+          DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})  -- isTotal se
+             -> -- trace ("simplify let: " ++ show x) $
+                do maxSmallOccur <- getDuplicationMax
+                   let inlineExpr = bottomUpLet (extend (TName x tp, se) sub) acc dgs body
+                   case occurrencesOf x (Let dgs body) of
+                     -- no occurrence, disregard
+                     Occur 0 m n 0
+                       -> -- trace "no occurrence" $
+                          bottomUpLet sub (acc) dgs body
+                     -- occurs once, always inline (TODO: maybe only if it is not very big?)
+                     Occur vcnt m n acnt | vcnt + acnt == 1
+                       -> -- trace "occurs once: inline" $
+                          inlineExpr
+                     -- occurs fully applied, check if it small enough to inline anyways;
+                     -- as it is a function, make it expensive to inline partial applications to avoid too much duplication
+                     Occur acnt m n vcnt  | ((acnt + vcnt*3) * sizeOfExpr se) < maxSmallOccur
+                       -> -- trace "occurs as cheap function: inline" $
+                          inlineExpr
+                     -- occurs multiple times as variable, check if it small enough to inline anyways
+                     Occur 0 m n vcnt | (vcnt * sizeOfExpr se) < maxSmallOccur
+                       -> -- trace "occurs as cheap value: inline" $
+                          inlineExpr
+                     -- inline total and very small expressions
+                     Many n | (n*sizeOfExpr se) < maxSmallOccur
+                       -> -- trace "occurs many as cheap value: inline" $
+                          inlineExpr
+                     -- dont inline
+                     oc -> -- trace ("no inline: occurrences: " ++ show oc ++ ", size: " ++ show (sizeOfExpr se)) $
+                           bottomUpLet sub (sdg:acc) dgs body
+
+
+bottomUpM expr
+  = return (bottomUp expr)
+
 {--------------------------------------------------------------------------
   Effects
 --------------------------------------------------------------------------}
@@ -501,6 +539,7 @@ instance Simplify Expr where
                   -> do xs <- simplify exprs
                         bs <- simplify branches
                         return $ Case xs bs
+         -- bottomUpM e'
          return (bottomUp e')
 
 instance Simplify Branch where

@@ -212,7 +212,7 @@ void random_split(random_ctx_t* rnd, random_ctx_t* ctx_new) {
 
 
 /*--------------------------------------------------------------------------------------
-  Secure random: select in a range
+  Secure random: select in a range without bias
 --------------------------------------------------------------------------------------*/
 
 uint32_t srandom_range32(uint32_t max, context_t* ctx) {
@@ -371,7 +371,7 @@ static random_ctx_t* random_init(context_t* ctx) {
     }
   }
   chacha_init(rnd, key, (uintptr_t)&random_init /*nonce*/ );
-  rnd->strong = strong;
+  rnd->is_strong = strong;
   return rnd;
 }
 
@@ -386,8 +386,9 @@ random_ctx_t* srandom_round(context_t* ctx) {
 }
 
 bool srandom_is_strong(context_t* ctx) {
-  if (ctx->srandom_ctx == NULL) {
-    srandom_round(ctx);
+  random_ctx_t* rnd = ctx->srandom_ctx;
+  if (rnd == NULL) {
+    rnd = srandom_round(ctx);
   }
-  return ctx->srandom_ctx->strong;
+  return rnd->is_strong;
 }

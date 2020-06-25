@@ -484,32 +484,15 @@ static inline void* unbox_cptr(box_t b) {
   }
 }
 
-static inline box_t box_fun_ptr(void* f, context_t* ctx) {
-  UNUSED(ctx);
-  intx_t i = (intptr_t)f;
-  if (i >= MIN_BOXED_INT && i <= MAX_BOXED_INT) {
-    // box as int
-    return box_int(i);
-  }
-  else {
-    assert(false);
-    return box_null;
-  }
+typedef void (*fun_ptr_t)(void);
+#define box_fun_ptr(f,ctx)  _box_fun_ptr((fun_ptr_t)f, ctx)
+
+static inline box_t _box_fun_ptr(fun_ptr_t f, context_t* ctx) {
+  return box_cptr((void*)f, ctx);
 }
 
 static inline void* unbox_fun_ptr(box_t b) {
-  if (is_int_fast(b)) {
-    assert_internal(is_int(b));
-    return (void*)(unbox_int(b));
-  }
-  else if (is_ptr_fast(b)) {
-    // static function pointer (always has zero scan field so can encode without tag bits)
-    return (void*)(unbox_ptr(b));
-  }
-  else {
-    assert(false);
-    return NULL;
-  }
+  return unbox_cptr(b);
 }
 
 static inline box_t dup_box_t(box_t b) {

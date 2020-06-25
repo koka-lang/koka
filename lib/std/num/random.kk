@@ -84,7 +84,7 @@ fun random-bool() : random bool {
   (random-int32() >= 0.int32)
 }
 
-// Return a random integer in the range -2147483648 to 2147483647.
+// Return a random integer in the range [-2147483648,2147483647].
 fun random-int() : random int {
   random-int32().int
 }

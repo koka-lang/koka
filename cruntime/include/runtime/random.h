@@ -10,11 +10,12 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
+// Strong random state based on chacha20.
 typedef struct random_ctx_s {
   uint32_t output[16]; // current output
   uint32_t input[16];  // current state
   int32_t  used;       // how many output fields are already used?
-  bool     strong;     // initialized from strong random source?
+  bool     is_strong;  // initialized from strong random source?
 } random_ctx_t;
 
 decl_export random_ctx_t* srandom_round(context_t* ctx);
@@ -40,7 +41,7 @@ static inline uint64_t srandom_uint64(context_t* ctx) {
 }
 
 decl_export bool     srandom_is_strong(context_t* ctx);
-decl_export uint32_t srandom_range32(uint32_t max, context_t* ctx);
+decl_export uint32_t srandom_range32(uint32_t max, context_t* ctx);  // unbiased range
 decl_export double   srandom_double(context_t* ctx);
 
 

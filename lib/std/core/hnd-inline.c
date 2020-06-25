@@ -33,6 +33,21 @@ static inline box_t* evv_as_vec(evv_t evv, size_t* len, box_t* single) {
   }
 }
 
+struct __std_core_hnd__ev_s* ev_none(context_t* ctx) {
+  static __std_core_hnd__ev ev_none_singleton;
+  if (ev_none_singleton==NULL) {
+    ev_none_singleton = __std_core_hnd__new_Ev(
+      __std_core_hnd__new_Htag(dup_string_t(string_empty),ctx), // tag ""
+      __std_core_hnd__new_Marker(-1,ctx),                       // marker -1
+      box_null,                                                 // no handler
+      dup_vector_t(vector_empty),
+      ctx
+    );      
+  }
+  return dup___std_core_hnd__ev(ev_none_singleton);
+}
+
+
 int32_t evv_index( struct __std_core_hnd_Htag htag, context_t* ctx ) {
   // todo: drop htag?
   size_t len;
@@ -40,12 +55,12 @@ int32_t evv_index( struct __std_core_hnd_Htag htag, context_t* ctx ) {
   box_t* vec = evv_as_vec(ctx->evv,&len,&single);
   for(size_t i = 0; i < len; i++) {
     struct __std_core_hnd_Ev* ev = unbox_ev(vec[i],ctx);
-    if (htag._field1 == ev->_field1._field1) return (int32_t)(i); // compare string address for equality
+    if (string_cmp_borrow(htag._field1,ev->_field1._field1) <= 0) return (int32_t)(i); // break on insertion point
   }
-  string_t evvs = evv_show(dup_datatype_as(evv_t,ctx->evv),ctx);
-  fatal_error(EFAULT,"cannot find tag '%s' in: %s", string_cbuf_borrow(htag._field1), string_cbuf_borrow(evvs));
-  drop_string_t(evvs,ctx);  
-  return -1;
+  //string_t evvs = evv_show(dup_datatype_as(evv_t,ctx->evv),ctx);
+  //fatal_error(EFAULT,"cannot find tag '%s' in: %s", string_cbuf_borrow(htag._field1), string_cbuf_borrow(evvs));
+  //drop_string_t(evvs,ctx);  
+  return (int32_t)len;
 }
 
 __std_core_hnd__ev evv_lookup( struct __std_core_hnd_Htag htag, context_t* ctx ) {
@@ -56,7 +71,14 @@ __std_core_hnd__ev evv_lookup( struct __std_core_hnd_Htag htag, context_t* ctx )
 
 
 evv_t evv_insert(evv_t evvd, __std_core_hnd__ev evd, context_t* ctx) {
-  const struct __std_core_hnd_Ev* ev = __std_core_hnd__as_Ev(evd);
+  struct __std_core_hnd_Ev* ev = __std_core_hnd__as_Ev(evd);
+  // update ev
+  int32_t marker = ev->_field2.m;
+  if (marker < 0) { return evvd; } // ev-none 
+  drop_evv_t(ev->_field4,ctx);
+  ev->_field4 = evvd;     // dup evvd
+  if (marker==0) { return dup_evv_t(evvd); } // zero marker means this evidence is not in the evidence vector
+  // insert ev
   size_t n;
   box_t single;
   const box_t* evv1 = evv_as_vec(evvd, &n, &single);
@@ -73,7 +95,7 @@ evv_t evv_insert(evv_t evvd, __std_core_hnd__ev evd, context_t* ctx) {
   for(; i < n; i++) {
     evv2[i+1] = dup_box_t(evv1[i]);  // use dup_datatype for efficiency?
   }
-  drop_datatype(evvd,ctx);
+  // drop_datatype(evvd,ctx);  // assigned to evidence already
   return vec2;
 }
 
@@ -142,7 +164,7 @@ static box_t kcompose( function_t fself, box_t x, context_t* ctx) {
 }
 
 static function_t new_kcompose( function_t* conts, intx_t count, context_t* ctx ) {
-  if (count<=0) return dup_function_t(function_id);
+  if (count<=0) return function_id(ctx);
   if (count==1) return conts[0];
   struct kcompose_fun_s* f = block_as(struct kcompose_fun_s*, 
                                block_alloc(sizeof(struct kcompose_fun_s) - sizeof(function_t) + (count*sizeof(function_t)), 
@@ -239,7 +261,10 @@ static box_t _fatal_resume_final(function_t self, context_t* ctx) {
   drop_function_t(self,ctx);
   return fatal_resume_final(ctx);
 }
-define_static_function(fun_fatal_resume_final,_fatal_resume_final);
+static function_t fun_fatal_resume_final(context_t* ctx) {
+  define_static_function(f,_fatal_resume_final,ctx);
+  return dup_function_t(f);
+}
 
 
 struct __std_core_hnd_yld_s  yield_prompt( struct __std_core_hnd_Marker m, context_t* ctx ) {
@@ -251,7 +276,7 @@ struct __std_core_hnd_yld_s  yield_prompt( struct __std_core_hnd_Marker m, conte
     return (ctx->yielding == YIELD_FINAL ? __std_core_hnd__new_YieldingFinal(ctx) : __std_core_hnd__new_Yielding(ctx));
   }
   else {
-    function_t cont = (ctx->yielding == YIELD_FINAL ? dup_function_t(fun_fatal_resume_final) : new_kcompose(yield->conts, yield->conts_count, ctx));
+    function_t cont = (ctx->yielding == YIELD_FINAL ? fun_fatal_resume_final(ctx) : new_kcompose(yield->conts, yield->conts_count, ctx));
     function_t clause = yield->clause;
     ctx->yielding = 0;
     #ifndef NDEBUG
@@ -308,7 +333,7 @@ __std_core_hnd__yield_info yield_capture(context_t* ctx) {
     yld->conts[i] = ctx->yield.conts[i];
   }
   for( ; i < YIELD_CONT_MAX; i++) {
-    yld->conts[i] = dup_function_t(function_null);
+    yld->conts[i] = function_null(ctx);
   }
   yld->conts_count = ctx->yield.conts_count;
   yld->marker = ctx->yield.marker;

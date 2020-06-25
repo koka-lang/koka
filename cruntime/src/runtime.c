@@ -20,7 +20,10 @@ static box_t _function_id(function_t self, box_t x, context_t* ctx) {
   drop_function_t(self,ctx);
   return x;
 }
-define_static_function(function_id, _function_id)
+function_t function_id(context_t* ctx) {
+  define_static_function(fun_id, _function_id, ctx)
+  return dup_function_t(fun_id);
+}
 
 // null function
 static box_t _function_null(function_t self, context_t* ctx) {
@@ -28,7 +31,10 @@ static box_t _function_null(function_t self, context_t* ctx) {
   fatal_error(EFAULT, "null function is called");
   return box_null;
 }
-define_static_function(function_null, _function_null)
+function_t function_null(context_t* ctx) {
+  define_static_function(fun_null, _function_null, ctx);
+  return dup_function_t(fun_null);
+}
 
 // empty vector
 static struct vector_small_s _vector_empty
@@ -146,7 +152,7 @@ context_t* runtime_context(void) {
   ctx = (context_t*)calloc(sizeof(context_t),1);
   ctx->evv = dup_vector_t(vector_empty);
   ctx->thread_id = (uintptr_t)(&context);
-  ctx->unique = integer_one;
+  ctx->unique = integer_one;  
   return ctx;
 }
 
