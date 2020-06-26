@@ -36,11 +36,20 @@ import Core.Core
 import Core.Pretty
 import Core.CoreVar
 
+import Platform.Runtime (unsafePerformIO)
+import qualified System.Environment as Sys
+
 trace s x =
   Lib.Trace.trace s
     x
 
-enabled = False
+{-# NOINLINE enabled #-}
+enabled :: Bool
+enabled = unsafePerformIO $ do
+  e <- Sys.lookupEnv "KK_PARC"
+  case e of
+    Nothing -> return False
+    Just val -> return $ map toLower val `elem` ["1", "on", "yes", "true", "y", "t"]
 
 --------------------------------------------------------------------------
 -- Local typeclass for convenience
@@ -116,10 +125,10 @@ parcExpr expr
            -> do body' <- parcExpr body
                  return (TypeApp body targs)
          Lam pars eff body
-           -> do let free = tnamesList (freeLocals body) 
+           -> do let free = tnamesList (freeLocals body)
                  freeDups <- dupTNames (zip free (repeat InfoNone))
-                 body' <- withIsolated $ 
-                          withOwned (free ++ pars) $ 
+                 body' <- withIsolated $
+                          withOwned (free ++ pars) $
                           do body'    <- parcExpr body
                              dropPars <- ownedAndNotUsed
                              drops    <- mapM genDrop dropPars
@@ -135,13 +144,13 @@ parcExpr expr
            -> do args' <- reverseMapM parcExpr args
                  fn'   <- parcExpr fn
                  return $ App fn' args'
-         Lit _ 
+         Lit _
            -> return expr -- done
          Con ctor repr
            -> do return expr
          Let dgs body
            -> do body' <- parcExpr body
-                 dgs' <- parcDefGroups False dgs 
+                 dgs' <- parcDefGroups False dgs
                  return (Let dgs' body')
          Case conds branches
            -> do return expr
@@ -150,16 +159,16 @@ parcExpr expr
 dupTNames :: [(TName,VarInfo)] -> Parc [Maybe Expr]
 dupTNames tnames
   = mapM dupTName tnames
-  
+
 dupTName :: (TName,VarInfo) -> Parc (Maybe Expr)
 dupTName (tname,InfoNone)
   = do needsDup <- isInUse tname
-       if needsDup 
-        then genDup tname 
+       if needsDup
+        then genDup tname
         else do addInUse tname
                 return Nothing
 
-dupTName (tname,_) 
+dupTName (tname,_)
   = return Nothing
 
 {-
@@ -292,8 +301,8 @@ genDupDrop isDup tname
   = do let tp = typeOf tname
        mbRepr <- getDataDefRepr tp
        case mbRepr of
-         Just (dataDef,dataRepr) 
-           -> case dataDef of        
+         Just (dataDef,dataRepr)
+           -> case dataDef of
                  DataDefValue _ 0 -> return Nothing    -- no need to dup/drop a value type with no pointer fields (like int)
                  _ -> return (Just (App (dupDropFun isDup tp) [Var tname InfoNone]))
          _ -> return Nothing
@@ -435,14 +444,14 @@ branchInUse branches
        setInUse inuse
        return xs
 
-withIsolated :: Parc a -> Parc a 
+withIsolated :: Parc a -> Parc a
 withIsolated action
   = fmap fst $
     isolateInUse $
     withEnv (\env -> env{ owned = tnamesEmpty }) $
     do updateSt (\st -> st{ inuse = S.empty, reuse = [] })
        action
-       
+
 
 
 -----------------------
