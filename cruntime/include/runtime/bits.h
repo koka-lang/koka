@@ -10,6 +10,21 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
+// Define __builtin suffixes for gcc/clang
+#if defined(__GNUC__)
+#if (LONG_MAX == INT32_MAX) 
+#define __builtin32(name)  __builtin_##name##l
+#else
+#define __builtin32(name)  __builtin_##name
+#endif
+#if (LONG_MAX == INT64_MAX) 
+#define __builtin64(name)  __builtin_##name##l
+#else
+#define __builtin64(name)  __builtin_##name##ll
+#endif
+#endif
+
+
 /* -----------------------------------------------------------
   Is a word a power of two? see: <https://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2>
   (0 is not a power of two)
@@ -35,23 +50,18 @@ static inline bool bits_is_power_of2(uintx_t x) {
 static inline uint16_t rotl16(uint16_t x, uint16_t shift) {
   return _rotl16(x, (uint8_t)shift);  // in <stdlib.h>
 }
-
 static inline uint16_t rotr16(uint16_t x, uint16_t shift) {
   return _rotr16(x, (uint8_t)shift);
 }
-
 static inline uint32_t rotl32(uint32_t x, uint32_t shift) {
   return _lrotl(x, (int)shift);
 }
-
 static inline uint32_t rotr32(uint32_t x, uint32_t shift) {
   return _lrotr(x, (int)shift);
 }
-
 static inline uint64_t rotl64(uint64_t x, uint64_t shift) {
   return _rotl64(x, (int)shift);
 }
-
 static inline uint64_t rotr64(uint64_t x, uint64_t shift) {
   return _rotr64(x, (int)shift);
 }
@@ -59,23 +69,18 @@ static inline uint64_t rotr64(uint64_t x, uint64_t shift) {
 static inline uint16_t rotl16(uint16_t x, uint16_t shift) {
   return (x << shift) | (x >> (16 - shift));
 }
-
 static inline uint16_t rotr16(uint16_t x, uint16_t shift) {
   return (x >> shift) | (x << (16 - shift));
 }
-
 static inline uint32_t rotl32(uint32_t x, uint32_t shift) {
   return (x << shift) | (x >> (32 - shift));
 }
-
 static inline uint32_t rotr32(uint32_t x, uint32_t shift) {
   return (x >> shift) | (x << (32 - shift));
 }
-
 static inline uint64_t rotl64(uint64_t x, uint64_t shift) {
   return (x << shift) | (x >> (64 - shift));
 }
-
 static inline uint64_t rotr64(uint64_t x, uint64_t shift) {
   return (x >> shift) | (x << (64 - shift));
 }
@@ -132,18 +137,18 @@ static inline uint8_t bits_ctz64(uint64_t x) {
 
 #elif defined(__GNUC__)
 static inline uint8_t bits_clz32(uint32_t x) {
-  return (x==0 ? 32 : __builtin_clz(x));
+  return (x==0 ? 32 : __builtin32(clz)(x));
 }
 static inline uint8_t bits_ctz32(uint32_t x) {
-  return (x==0 ? 32 : __builtin_ctz(x));
+  return (x==0 ? 32 : __builtin32(ctz)(x));
 }
 #if (INTPTR_SIZE >= 8)
 #define HAS_BITS_CLZ64
 static inline uint8_t bits_clz64(uint64_t x) {
-  return (x==0 ? 64 : __builtin_clzll(x));
+  return (x==0 ? 64 : __builtin64(clz)(x));
 }
 static inline uint8_t bits_ctz64(uint64_t x) {
-  return (x==0 ? 64 : __builtin_ctzll(x));
+  return (x==0 ? 64 : __builtin64(ctz)(x));
 }
 #endif
 #else
@@ -250,12 +255,12 @@ static inline uint64_t bits_count64(uint64_t x) {
 
 #elif defined(__GNUC__)
 static inline uint32_t bits_count32(uint32_t x) {
-  return __builtin_popcount(x);
+  return __builtin32(popcount)(x);
 }
 #if (INTPTR_SIZE >= 8)
 #define HAS_BITS_COUNT64
 static inline uint64_t bits_count64(uint64_t x) {
-  return __builtin_popcountll(x);
+  return __builtin64(popcount)(x);
 }
 #endif
 
@@ -345,10 +350,10 @@ static inline uint8_t bits_parity64(uint64_t x) {
 
 #elif defined(__GNUC__)
 static inline uint8_t bits_parity32(uint32_t x) {
-  return (uint8_t)__builtin_parity(x);
+  return (uint8_t)__builtin32(parity)(x);
 }
 static inline uint8_t bits_parity64(uint64_t x) {
-  return (uint8_t)__builtin_parityll(x);
+  return (uint8_t)__builtin64(parity)(x);
 }
 
 #else

@@ -194,7 +194,7 @@ static inline bool utf8_is_cont(uint8_t c) {
 }
 
 // Advance to the next codepoint. (does not advance past the end)
-// This should not validate, but advance to the next non-continution byte.
+// This should not validate, but advance to the next non-continuation byte.
 static inline const uint8_t* utf8_next(const uint8_t* s) {
   if (*s != 0) s++;                // skip first byte except if 0
   for (; utf8_is_cont(*s); s++) {} // skip continuation bytes
@@ -202,7 +202,7 @@ static inline const uint8_t* utf8_next(const uint8_t* s) {
 }
 
 // Retreat to the previous codepoint. 
-// This should not validate, but backup to the previous non-continution byte.
+// This should not validate, but backup to the previous non-continuation byte.
 static inline const uint8_t* utf8_prev(const uint8_t* s) {
   s--;                             // skip back at least 1 byte
   for (; utf8_is_cont(*s); s--) {} // skip while continuation bytes

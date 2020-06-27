@@ -379,12 +379,12 @@ static inline integer_t integer_abs(integer_t x, context_t* ctx) {
 }
 
 static inline integer_t integer_dec(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return integer_sub(x,integer_one,ctx);
+  if (likely(is_smallint(x))) return integer_sub_small(x,integer_one,ctx);
   return integer_sub_generic(x, integer_one,ctx);
 }
 
 static inline integer_t integer_inc(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return integer_add(x, integer_one,ctx);
+  if (likely(is_smallint(x))) return integer_add_small(x, integer_one,ctx);
   return integer_add_generic(x, integer_one,ctx);
 }
 
