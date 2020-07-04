@@ -79,7 +79,7 @@
 #ifndef UNUSED
 #define UNUSED(x)  ((void)(x))
 #ifdef NDEBUG
-#define UNUSED_RELEASE(x)  UNUSED(x);
+#define UNUSED_RELEASE(x)  UNUSED(x)
 #else
 #define UNUSED_RELEASE(x)  
 #endif
@@ -142,12 +142,16 @@ typedef uintptr_t      uintx_t;
 #define UX(i)          (i##ULL)
 #define IX(i)          (i##LL)
 #define INTX_SIZE      INTPTR_SIZE
+#define INTX_MAX       INTPTR_MAX
+#define INTX_MIN       INTPTR_MIN
 #else 
 typedef long           intx_t;
 typedef unsigned long  uintx_t;
 #define UX(i)          (i##UL)
 #define IX(i)          (i##L)
 #define INTX_SIZE      LONG_SIZE
+#define INTX_MAX       LONG_MAX
+#define INTX_MIN       LONG_MIN
 #endif
 #define INTX_BITS  (8*INTX_SIZE)
 

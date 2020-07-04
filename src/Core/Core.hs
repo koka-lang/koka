@@ -450,12 +450,12 @@ infoTypeArity (_)             = 0
 isInfoArity (InfoArity _ _) = True
 isInfoArity _ = False
 
-data Branch = Branch { branchPatterns :: [Pattern]
-                     , branchGuards   :: [Guard]
+data Branch = Branch { branchPatterns :: [Pattern]  -- length = length exprs in the match
+                     , branchGuards   :: [Guard]    -- any number (>= 1) of guarded expressions
                      }
 
-data Guard  = Guard { guardTest :: Expr
-                    , guardExpr :: Expr
+data Guard  = Guard { guardTest :: Expr  -- boolean
+                    , guardExpr :: Expr  -- body of the branch
                     }
 
 data Pattern

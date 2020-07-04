@@ -25,6 +25,12 @@
 #endif
 
 
+#if (INTX_SIZE==4)
+#define __bitsx(name)  bits_##name##32
+#else
+#define __bitsx(name)  bits_##name##64
+#endif
+
 /* -----------------------------------------------------------
   Is a word a power of two? see: <https://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2>
   (0 is not a power of two)
@@ -191,22 +197,12 @@ static inline uint8_t bits_ctz64(uint64_t x) {
 }
 #endif
 
-#if (INTX_SIZE == 4) 
 static inline uint8_t bits_clz(uintx_t x) {
-  return bits_clz32(x);
+  return __bitsx(clz)(x);
 }
 static inline uint8_t bits_ctz(uintx_t x) {
-  return bits_ctz32(x);
+  return __bitsx(ctz)(x);
 }
-#else
-static inline uint8_t bits_clz(uintx_t x) {
-  return bits_clz64(x);
-}
-static inline uint8_t bits_ctz(uintx_t x) {
-  return bits_ctz64(x);
-}
-#endif
-
 
 /* -----------------------------------------------------------
   Is there a zero byte in a word? see: <https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord>
@@ -228,13 +224,26 @@ static inline bool bits_has_zero_byte64(uint64_t x) {
   return ((x - bits_one_mask64) & (~x & bits_high_mask64));
 }
 
+// Does `x` contain a zero byte?
 static inline bool bits_has_zero_byte(uintx_t x) {
-#if (INTX_SIZE == 4) 
-  return bits_has_zero_byte32(x);
-#else
-  return bits_has_zero_byte64(x);
-#endif
+  return __bitsx(has_zero_byte)(x);
 }
+
+static inline bool bits_has_byte32(uint32_t x, uint8_t n) {
+  x ^= bits_one_mask32*n;
+  return bits_has_zero_byte(x);
+}
+
+static inline bool bits_has_byte64(uint64_t x, uint8_t n) {
+  x ^= bits_one_mask64*n;
+  return bits_has_zero_byte(x);
+}
+
+// is there any byte in `x` equal to `n`?
+static inline bool bits_has_byte(uintx_t x, uint8_t n) {
+  return __bitsx(has_byte)(x,n);
+}
+
 
 /* ---------------------------------------------------------------
   bits_count: population count / hamming weight  (count set bits)
@@ -287,11 +296,7 @@ static inline uint64_t bits_count64(uint64_t x) {
 #endif
 
 static inline uintx_t bits_count(uintx_t x) {
-#if (INTX_SIZE==4)
-  return bits_count32(x);
-#else
-  return bits_count64(x);
-#endif
+  return __bitsx(count)(x);
 }
 
 
@@ -336,46 +341,75 @@ static inline uint64_t bits_bswap64(uint64_t x) {
 #endif
 
 /* ---------------------------------------------------------------
-  Parity: returns `((bits_count(x) % 2) == 0) ? 0 : 1)`
+  Parity: returns `bits_count(x) % 2`
   see <https://graphics.stanford.edu/~seander/bithacks.html#ParityParallel>
 ------------------------------------------------------------------ */
 
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
-static inline uint8_t bits_parity32(uint32_t x) {
+static inline uint8_t bits_count_is_even32(uint32_t x) {
   return ((uint8_t)bits_count32(x) & 1);
 }
-static inline uint8_t bits_parity64(uint64_t x) {
+static inline uint8_t bits_count_is_even64(uint64_t x) {
   return ((uint8_t)bits_count64(x) & 1);
 }
 
 #elif defined(__GNUC__)
-static inline uint8_t bits_parity32(uint32_t x) {
+static inline uint8_t bits_count_is_even32(uint32_t x) {
   return (uint8_t)__builtin32(parity)(x);
 }
-static inline uint8_t bits_parity64(uint64_t x) {
+static inline uint8_t bits_count_is_even64(uint64_t x) {
   return (uint8_t)__builtin64(parity)(x);
 }
 
 #else
-static inline uint8_t bits_parity32(uint32_t x) {
+static inline uint8_t bits_count_is_even32(uint32_t x) {
   x ^= x >> 16;
   x ^= x >> 8;
   x ^= x >> 4;
   x &= 0x0F;
   return (uint8_t)(((0x6996 >> x) & 1));  // 0x6996 = 0b0110100110010110  == "mini" 16 bit lookup table with a bit set if the value has non-even parity
 }
-static inline uint8_t bits_parity64(uint64_t x) {
+static inline uint8_t bits_count_is_even64(uint64_t x) {
   x ^= x >> 32;
-  return bits_parity32((uint32_t)x);
+  return bits_count_is_even32((uint32_t)x);
 }
 #endif
 
-static inline uint8_t bits_parity(uintx_t x) {
-#if (INTX_SIZE==4)
-  return bits_parity32(x);
-#else
-  return bits_parity64(x);
-#endif
+static inline uint8_t bits_count_is_even(uintx_t x) {
+  return __bitsx(parity)(x);
 }
+
+/* ---------------------------------------------------------------
+  Digits in a decimal representation
+------------------------------------------------------------------ */
+
+static inline uint8_t bits_digits32(uint32_t x) {
+  if (x >= U32(100000)) {
+    return (x >= U32(1000000000) ? 10 : (x >= U32(100000000) ? 9 : (x >= U32(10000000) ? 8 : (x >= U32(1000000) ? 7 : 6))));
+  }
+  else {
+    return (x >= 10000 ? 5 : (x >= 1000 ? 4 : (x >= 100 ? 3 : (x >= 10 ? 2 : 1))));
+  }
+}
+
+static inline uint8_t bits_digits64(uint64_t x) {
+  // 2^64 = 1.8e19
+  if (x <= UINT32_MAX) return bits_digits32((uint32_t)x);
+  const uint32_t base9 = U32(1000000000);  // 1e9
+  const uint64_t y = x / base9;
+  assert_internal(y>0);
+  uint8_t count = bits_digits32((uint32_t)(x % base9));
+  const uint64_t z = y / base9;
+  count += bits_digits32((uint32_t)(y % base9));
+  if (z > 0) {
+    count += bits_digits32((uint32_t)(z));
+  }
+  return count;
+}
+
+static inline uint8_t bits_digits(uintx_t x) {
+  return __bitsx(digits)(x);
+}
+
 
 #endif // include guard

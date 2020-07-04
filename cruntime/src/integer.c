@@ -1202,38 +1202,21 @@ integer_t integer_ctz(integer_t x, context_t* ctx) {
   }
 }
 
-static intx_t count_digits32(uint32_t x) {
-  if (x < 10000) { // 1 - 4
-    if (x < 100) return (x < 10 ? 1 : 2);
-    else return (x < 1000 ? 3 : 4);
-  }
-  else { // 5 - 9
-    if (x < 1000000UL) /*6*/ return (x < 100000 ? 5 : 6);
-    else if (x < 100000000UL) /*8*/ return (x < 10000000UL ? 7 : 8);
-    else return (x < 1000000000UL /*9*/ ? 9 : 10);
-  }  
-}
-
 static intx_t int_count_digits(intx_t x) {
   // make positive
   uintx_t u;
   if (x < 0) {
-    u = (uintx_t)(x == INTPTR_MIN ? INTPTR_MAX : -x);  // careful for overflow
+    u = (uintx_t)(x == INTX_MIN ? INTX_MAX : -x);  // careful for overflow
   }
   else {
     u = (uintx_t)x;
   }
-  intx_t count = 0;
-  do {
-    count += count_digits32(u % BASE);  // count up to 9 digits at a time 
-    u /= BASE;
-  } while (u > 0);
-  return count;
+  return bits_digits(u);
 }
 
 static intx_t bigint_count_digits(bigint_t* x) {
   assert_internal(x->count > 0);
-  return count_digits32(x->digits[x->count-1]) + LOG_BASE*(x->count - 1);
+  return bits_digits32(x->digits[x->count-1]) + LOG_BASE*(x->count - 1);
 }
 
 integer_t integer_count_digits(integer_t x, context_t* ctx) {
