@@ -43,9 +43,11 @@ Now, if a double is:
             0010 0000 0000 0000 and 7FFF FFFF FFFF FFFF
 - negative: leave it as is, so the negative doubles are boxed between
             8000 0000 0000 0000 and FFEF FFFF FFFF FFFF
-- special : either infinity or NaN. We save the sign, NaN signal bit, and bottom 48 bits as
-            a 50-bit number and encode as a boxed special double ending in 0x03.
-            (this means we may lose the top 3 bits (bits 49 to 51) of a potential NaN payload)
+- special : either infinity or NaN. We extend the sign over the exponent bits (since these are always 0x7FF),
+            and merge the bits 0-1 with bits 2-3 to ensure a NaN payload is never unboxed as 0. 
+            We set the bottom two bits to 0x03 to encode as a special double.
+            On unboxing, we extend the bits 2-3 to bits 0-1, which means we may lose up to 2 bits
+            of the NaN payload.
 
 
 -------------------------
@@ -73,14 +75,14 @@ If we add, the last 2 bits are:
 so the test `(z&0x02) == 0` checks if we added 2 integers.
 Finally, we subtract 1 to normalize the integer again. With gcc on x86-64 we get:
 
-integer_add(long,long)
+integer_add(long x, long y)
         mov     edx, edi   // move bottom 32-bits of `x` to edx
         add     edx, esi   // add bottom 32-bits of `y`
         movsx   rax, edx   // sign extend to 64-bits result in rax
         jo      .L7        // on (32-bit) overflow goto slow
         and     edx, 2     // check bit 1 of the result
         je      .L7        // if it is zero, goto slow
-        sub     rax, 1     // normalize back to an integer
+        sub     rax, 1     // normalize back to an integer  
         ret
 .L7:
         jmp     integer_add_generic(long, long)
@@ -207,42 +209,41 @@ static inline double unbox_double(box_t v, context_t* ctx) {
   else {
     // NaN or infinity
     assert_internal(is_double_special(v) || is_box_any(v));
-    uint64_t bot = ((u << 14) >> 16);  // clear top 14 bits and bottom 2 bits (= bottom 48 bits of the double)
-    uint64_t signal = ((u >> 50) & 1) << 51;
-    uint64_t top = ((int64_t)u >= 0 ? U64(0x7FF) : U64(0xFFF)) << 52;
-    u = (top | signal | bot);
+    assert_internal((v.box & 0x03) == 0x03);
+    u = (v.box ^ 0x03) | ((v.box >> 2) & 0x03);  // invert:  v.box = u | 0x03 | ((u & 0x03) << 2);    
+    u |= (U64(0x7FF) << 52);                     // restore exponent to 0x7FF (only needed for positive u but this avoids an if)
     memcpy(&d, &u, sizeof(d)); // safe for C aliasing
     assert_internal(!isfinite(d));
   }  
   return d;
 }
 
+
 static inline box_t box_double(double d, context_t* ctx) {
   UNUSED(ctx);
   uint64_t u;
   box_t v;
   memcpy(&u, &d, sizeof(u));  // safe for C aliasing
-  if (likely(isfinite(d))) {
-    // regular double
-    if (!signbit(d)) { u += (U64(1) << 52); }  // add 0x0010 0000 0000 0000 to positive doubles (use signbit to encode -0.0 properly)
+  uint64_t exp = (u >> 52) & 0x7FF;
+  if (likely(exp != 0x7FF)) {
+    // finite double
+    if ((int64_t)u >= 0) { u += (U64(1) << 52); }  // add 0x0010 0000 0000 0000 to positive doubles (use signbit to encode -0.0 properly)
     v.box = u;
     assert_internal(is_double_normal(v));
     assert_internal(unbox_double(v, ctx) == d);
   }
   else {
     // NaN or infinity
-    uint16_t utop = (u >> 48);
-    int16_t   top = (((int16_t)utop >> 12) & 0xFFF8) | ((utop>>1)&0x0004);  // maintain the sign and save NaN signal bit
-    uint64_t bot  = ((u << 16) >> 16);                  // clear top 16 bits
-    if ((utop & 0x0007) != 0 && bot == 0) { bot = 1; }  // ensure we maintain a non-zero NaN payload if just the top 3 bits were set (or we may unbox a NaN as infinity!)
-    u = ((uint64_t)top << 48) | (bot << 2) | 0x03;      // and merge and set as special double
-    v.box = u;
+    if ((int64_t)u >= 0) {
+      u = ((u << 12) >> 12);  // clear upper 12 bits if >= 0, (so upper the 12 bits are either 0xFFF or 0x000)
+    }
+    v.box = u | 0x03 | ((u & 0x03) << 2);  // merge bits 0-1 with 2-3 (to avoid non-zero NaN payload on unbox)
     assert_internal(!is_double_normal(v) && is_double_special_fast(v));
 #if (DEBUG>=3)
     double dx = unbox_double(v, ctx);
     uint64_t ux;
     memcpy(&ux, &dx, sizeof(double));
-    assert_internal(u == ux);  // (may fail due to top 3 bits of a NaN payload)
+    assert_internal(u == ux);  // (may fail due to bits 2-3 of a NaN payload)
 #endif
   }
   assert_internal(is_double(v));

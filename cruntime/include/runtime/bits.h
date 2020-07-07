@@ -376,7 +376,7 @@ static inline uint8_t bits_count_is_even64(uint64_t x) {
 #endif
 
 static inline uint8_t bits_count_is_even(uintx_t x) {
-  return __bitsx(parity)(x);
+  return __bitsx(count_is_even)(x);
 }
 
 /* ---------------------------------------------------------------
