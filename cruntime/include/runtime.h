@@ -50,9 +50,9 @@ typedef enum tag_e {
   TAG_VECTOR_SMALL,// a vector of (boxed) values of at most (SCAN_FSIZE_MAX-1) length
   TAG_VECTOR,      // a vector of (boxed) values
   TAG_INT64,       // boxed int64_t
+  TAG_DOUBLE,      // boxed IEEE double (64-bit)
 #if INTPTR_SIZE < 8
   TAG_INT32,       // boxed int32_t
-  TAG_DOUBLE,      // boxed IEEE double (64-bit)
   TAG_FLOAT,       // boxed IEEE float  (32-bit)
 #endif
   // raw tags have a free function together with a `void*` to the data

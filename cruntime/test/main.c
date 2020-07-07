@@ -131,12 +131,12 @@ void test_sub(integer_t x, integer_t y, integer_t expect, context_t* ctx) {
 
 void fibx(int n, integer_t* x1, integer_t* x2, context_t* ctx) {
   if (n <= 1) {
-    *x1 = box_int(0);
-    *x2 = box_int(0);
+    *x1 = integer_zero;
+    *x2 = integer_zero;
   }
   else if (n == 2) {
-    *x1 = box_int(1);
-    *x2 = box_int(0);
+    *x1 = integer_one;
+    *x2 = integer_zero;
   }
   else {
     integer_t y1; 

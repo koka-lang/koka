@@ -14,6 +14,43 @@
   The boxed small int is restricted in size to SMALLINT_BITS such that we can do
   efficient arithmetic on the boxed representation of a small int directly where
   `boxed(n) == 4*n + 1`. The `smallint_t` size is chosen to allow efficient overflow detection.
+
+By reserving 2 of the lower bits we can make large integer arithmetic
+more efficient where a large integer is either a pointer to a bigint
+or a sign extended small integer of at most 30 bits; We can do addition
+then directly on the boxed values as:
+
+    boxed integer_add(boxed x, boxed y) {
+      int_t z;
+      if (unlikely(smallint_add_ovf32(x,y,&z) || (z&0x02)==0)) return integer_add_generic(x,y);
+      return (boxed)(z - 1);  // or: z ^ 0x03
+    }
+
+We can do a direct 32-bit addition and test for 32-bit overflow and
+only afterwards test if we actually added 2 integers and not two pointers.
+If we add, the last 2 bits are:
+
+     x + y = z
+    00  00  00    ptr + ptr
+    00  01  01    ptr + int
+    01  00  01    int + ptr
+    01  01  10    int + int
+
+so the test `(z&0x02) == 0` checks if we added 2 integers.
+Finally, we subtract 1 to normalize the integer again. With gcc on x86-64 we get:
+
+integer_add(long x, long y)
+        mov     edx, edi   // move bottom 32-bits of `x` to edx
+        add     edx, esi   // add bottom 32-bits of `y`
+        movsx   rax, edx   // sign extend to 64-bits result in rax
+        jo      .L7        // on (32-bit) overflow goto slow
+        and     edx, 2     // check bit 1 of the result
+        je      .L7        // if it is zero, goto slow
+        sub     rax, 1     // normalize back to an integer
+        ret
+.L7:
+        jmp     integer_add_generic(long, long)
+
 --------------------------------------------------------------------------------------------------*/
 
 #if INTPTR_SIZE==8                           // always us 32-bits on 64-bit platforms
@@ -32,19 +69,24 @@ typedef int16_t smallint_t;
 #define SMALLINT_MAX  ((intptr_t)(((uintptr_t)INTPTR_MAX >> (INTPTR_BITS - SMALLINT_BITS)) >> 2))  // use unsigned shift to avoid UB
 #define SMALLINT_MIN  (-SMALLINT_MAX - 1)
 
+static inline intx_t unbox_smallint_t(integer_t i) {
+  assert_internal(is_value(i) && (i.box&0x03)==0x01);
+  return sar(unbox_int(i), 1);
+}
+
 static inline bool is_integer(integer_t i) {
-  return ((is_int(i)  && unbox_int(i) >= SMALLINT_MIN && unbox_int(i) <= SMALLINT_MAX) 
+  return ((is_value(i) && unbox_smallint_t(i) >= SMALLINT_MIN && unbox_smallint_t(i) <= SMALLINT_MAX) 
          || (is_ptr(i) && block_tag(unbox_ptr(i)) == TAG_BIGINT));
 }
 
 static inline bool is_bigint(integer_t i) {
   assert_internal(is_integer(i));
-  return is_ptr_fast(i);
+  return _is_ptr_fast(i);
 }
 
 static inline bool is_smallint(integer_t i) {
   assert_internal(is_integer(i));
-  return is_int_fast(i);
+  return _is_value_fast(i);
 }
 
 static inline bool are_smallints(integer_t i, integer_t j) {
@@ -52,9 +94,9 @@ static inline bool are_smallints(integer_t i, integer_t j) {
   return ((i.box&j.box)&1)!=0;
 }
 
-static inline integer_t integer_from_small(intptr_t i) {   // use for known small ints (under 14 bits)
+static inline integer_t integer_from_small(intptr_t i) {   // use for known small ints (at most 14 bits)
   assert_internal(i >= SMALLINT_MIN && i <= SMALLINT_MAX);
-  return box_int(i);
+  return box_int((i<<1));
 }
 
 #define integer_zero     (integer_from_small(0))
@@ -207,7 +249,11 @@ static inline bool smallint_mul_ovf(intptr_t x, intptr_t y, intptr_t* r) {
 static inline integer_t integer_add_small(integer_t x, integer_t y, context_t* ctx) {
   assert_internal(are_smallints(x, y));
   intptr_t i;
-  if (likely(!smallint_add_ovf(box_as_intptr(x), box_as_intptr(y)^1, &i))) return box_from_intptr(i);
+  if (likely(!smallint_add_ovf(box_as_intptr(x), box_as_intptr(y)^1, &i))) {
+    integer_t z = box_from_intptr(i); 
+    assert_internal(is_smallint(z));
+    return z;
+  }
   return integer_add_generic(x, y, ctx);
 }
 
@@ -232,7 +278,7 @@ static inline integer_t integer_add(integer_t x, integer_t y, context_t* ctx) {
   intptr_t i;
   if (likely(!smallint_add_ovf(box_as_intptr(x), box_as_intptr(y), &i) && (i&2)!=0)) {
     integer_t z = box_from_intptr(i^3);  // == i - 1
-    assert_internal(is_int(z));
+    assert_internal(is_smallint(z));
     return z;
   }
   return integer_add_generic(x, y, ctx);
@@ -249,7 +295,11 @@ static inline integer_t integer_add(integer_t x, integer_t y, context_t* ctx) {
 static inline integer_t integer_sub_small(integer_t x, integer_t y, context_t* ctx) {
   assert_internal(are_smallints(x, y));
   intptr_t i;
-  if (likely(!smallint_sub_ovf(box_as_intptr(x), box_as_intptr(y)^1, &i))) return box_from_intptr(i);
+  if (likely(!smallint_sub_ovf(box_as_intptr(x), box_as_intptr(y)^1, &i))) {
+    integer_t z = box_from_intptr(i);
+    assert_internal(is_smallint(z));
+    return z;
+  }
   return integer_sub_generic(x, y, ctx);
 }
 
@@ -272,7 +322,7 @@ static inline integer_t integer_mul_small(integer_t x, integer_t y, context_t* c
   intptr_t k;
   if (likely(!smallint_mul_ovf(i, j, &k))) {
     integer_t z = box_from_intptr(k|1);
-    assert_internal(is_int(z));
+    assert_internal(is_smallint(z));
     return z;
   }
   return integer_mul_generic(x, y, ctx);
@@ -334,17 +384,17 @@ static inline integer_t integer_div_mod(integer_t x, integer_t y, integer_t* mod
 }
 
 static inline int32_t integer_clamp32(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return (int32_t)unbox_int(x);
+  if (likely(is_smallint(x))) return (int32_t)unbox_smallint_t(x);
   return integer_clamp32_generic(x, ctx);
 }
 
 static inline int64_t integer_clamp64(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return (int64_t)unbox_int(x);
+  if (likely(is_smallint(x))) return (int64_t)unbox_smallint_t(x);
   return integer_clamp64_generic(x, ctx);
 }
 
 static inline intx_t integer_clamp(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return unbox_int(x);
+  if (likely(is_smallint(x))) return unbox_smallint_t(x);
 #if INTX_SIZE <= 4
   return integer_clamp32_generic(x, ctx);
 #else
@@ -354,7 +404,7 @@ static inline intx_t integer_clamp(integer_t x, context_t* ctx) {
 
 
 static inline double integer_as_double(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return (double)unbox_int(x);
+  if (likely(is_smallint(x))) return (double)unbox_smallint_t(x);
   return integer_as_double_generic(x, ctx);
 }
 

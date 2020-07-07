@@ -423,15 +423,14 @@ string_t double_show(double d, int32_t prec, context_t* ctx) {
 
 string_t show_any(box_t b, context_t* ctx) {
   char buf[128];
-  if (is_double(b)) {
+#if USE_NAN_BOX
+  if (_is_double(b)) {
     return double_show(unbox_double(b, ctx), 0, ctx);
   }
-  else if (is_enum(b)) {
-    snprintf(buf, 128, "enum(%zu)", unbox_enum(b));
-    return string_alloc_dup(buf, ctx);
-  }
-  else if (is_int(b)) {
-    snprintf(buf, 128, "int(%zi)", unbox_int(b));
+  else
+#endif
+  if (is_value(b)) {
+    snprintf(buf, 128, "value(%zi)", unbox_int(b));
     return string_alloc_dup(buf, ctx);
   }
   else if (b.box == box_null.box) {

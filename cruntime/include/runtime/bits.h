@@ -231,12 +231,12 @@ static inline bool bits_has_zero_byte(uintx_t x) {
 
 static inline bool bits_has_byte32(uint32_t x, uint8_t n) {
   x ^= bits_one_mask32*n;
-  return bits_has_zero_byte(x);
+  return bits_has_zero_byte32(x);
 }
 
 static inline bool bits_has_byte64(uint64_t x, uint8_t n) {
   x ^= bits_one_mask64*n;
-  return bits_has_zero_byte(x);
+  return bits_has_zero_byte64(x);
 }
 
 // is there any byte in `x` equal to `n`?
