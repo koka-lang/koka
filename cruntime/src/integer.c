@@ -36,6 +36,7 @@ typedef int32_t   digit_t;     // 2*BASE + 1 < digit_t_max
 typedef int64_t   ddigit_t;    // (BASE*BASE + BASE) + 1 < ddigit_t_max
 #define BASE        ((intx_t)1000000000UL)  
 #define LOG_BASE    (9)
+#define DIGIT_BITS  (32)
 
 typedef uint16_t extra_t;
 #define MAX_EXTRA           (UINT16_MAX / 2)  // we use 1 bit for the negative bool
@@ -206,7 +207,12 @@ static bigint_t* bigint_push(bigint_t* x, digit_t d, context_t* ctx) {
 
 // Bigint to integer. Possibly converting to a small int.
 static integer_t integer_bigint(bigint_t* x, context_t* ctx) {
-  if (x->count==1 && x->digits[0] <= SMALLINT_MAX) {
+  if (x->count==1 
+#if (DIGIT_BITS >= SMALLINT_BITS-2)    
+    && x->digits[0] <= SMALLINT_MAX
+#endif
+  ) {
+
     // make it a small int
     intx_t i = x->digits[0];
     if (x->is_neg) i = -i;

@@ -11,7 +11,7 @@
 
 /*--------------------------------------------------------------------------------------------------
 Integers are always boxed: and either a pointer to a `bigint_t` (with lowest bit == 0), 
-or a boxed (small) int (with lowest bit == 1).
+or a boxed _small_ int (with lowest bit == 1).
 
 The boxed small int is restricted in size to SMALLINT_BITS such that we can do
 efficient arithmetic on the boxed representation of a small int directly where
@@ -150,7 +150,7 @@ measure the impact on specific platforms.
 #endif
 
 #if USE_BUILTIN_OVF
-typedef intptr_t smallint_t
+typedef intptr_t smallint_t;
 #define SMALLINT_BITS  (INTPTR_BITS)
 #elif INTPTR_SIZE==8
 typedef int32_t smallint_t;
@@ -247,7 +247,7 @@ decl_export noinline void       integer_print(integer_t x, context_t* ctx);
 
 
 /*---------------------------------------------------------------------------------
-  Inlined operation to allow for fast operation on small integers
+  Conversion
 -----------------------------------------------------------------------------------*/
 
 static inline integer_t integer_from_int(intx_t i, context_t* ctx) {
@@ -255,7 +255,12 @@ static inline integer_t integer_from_int(intx_t i, context_t* ctx) {
 }
 
 static inline integer_t integer_from_int32(int32_t i, context_t* ctx) {
+#if (SMALLINT_BITS >= 34)
+  UNUSED(ctx);
+  return integer_from_small(i);
+#else
   return (likely(i >= SMALLINT_MIN && i <= SMALLINT_MAX) ? integer_from_small(i) : integer_from_big(i, ctx));
+#endif
 }
 
 static inline integer_t integer_from_int64(int64_t i, context_t* ctx) {
@@ -284,147 +289,116 @@ static inline integer_t integer_from_intptr_t(intptr_t i, context_t* ctx) {
   return integer_from_int(i, ctx);
 }
 
-#if defined(__GNUC__) && (SMALLINT_BITS >= 32)  
 
-// Use the overflow detecting primitives
+/*---------------------------------------------------------------------------------
+Addition, Subtraction, and Multiply depend on using __builtin_xxx_overflow or not.
 
-static inline bool smallint_add_ovf(intptr_t h, intptr_t y, intptr_t* r) {
-  smallint_t i;
-  const bool ovf = __builtin_add_overflow((smallint_t)h, (smallint_t)y, &i);
-  *r = (intptr_t)i; // sign extend
-  return ovf;
-}
+Addition: for small n we have `boxed(n) = n*4 + 1`, and we can add as:
+    boxed(n) + boxed(m) - 1
+    = (n*4 + 1) + (m*4 + 1) - 1
+    = n*4 + m*4 + 2 - 1
+    = 4*(n + m) + 1
+    = boxed(n+m)
+  (to normalize back we use (^ 3) instead of (- 1) to reduce register stalls 
+  (since we know the bottom bits of the result are 01)
 
-static inline bool smallint_sub_ovf(intptr_t h, intptr_t y, intptr_t* r) {
-  smallint_t i;
-  const bool ovf = __builtin_sub_overflow((smallint_t)h, (smallint_t)y, &i);
-  *r = (intptr_t)i; // sign extend
-  return ovf;
-}
-
-static inline bool smallint_mul_ovf(intptr_t h, intptr_t y, intptr_t* r) {
-  smallint_t i;
-  const bool ovf = __builtin_mul_overflow((smallint_t)h, (smallint_t)y, &i);
-  *r = (intptr_t)i; // sign extend
-  return ovf;
-}
-
-#else 
-// Generic overflow detection, still quite good.
-
-static inline bool smallint_add_ovf(intptr_t x, intptr_t y, intptr_t* r) {
-  intptr_t z = x + y; // do a full add
-  *r = z;
-  uintptr_t s = (uintptr_t)(sar(z, SMALLINT_BITS - 1)); // cast to unsigned to avoid UB for s+1 on overflow
-  return (s + 1 > 1); // are the top bits not 0 or -1 ?
-}
-
-static inline bool smallint_sub_ovf(intptr_t x, intptr_t y, intptr_t* r) {
-  intptr_t z = x - y; // do a full sub
-  *r = z;
-  uintptr_t s = (uintptr_t)(sar(z, SMALLINT_BITS - 1)); // cast to unsigned to avoid UB for s+1 on overflow
-  return (s + 1 > 1); // are the top bits not 0 or -1 ?
-}
-
-static inline bool smallint_mul_ovf(intptr_t x, intptr_t y, intptr_t* r) {
-  intptr_t z = x * y; // do a full multiply (as smallint is at most half the int_t size)
-  *r = z;
-  uintptr_t s = (uintptr_t)(sar(z, SMALLINT_BITS - 1)); // cast to unsigned to avoid UB for s+1 on overflow
-  return (s + 1 > 1); // are the top bits not 0 or -1 ?
-}
-
-#endif
-
-
-/* Fast addition on small integers. Since `boxed(n) = n*4 + 1`, we can add as:
-      boxed(n) + (boxed(m) - 1)
-      = (n*4 + 1) + ((m*4 + 1) - 1)
-      = n*4 + m*4 + 1
-      = 4*(n + m) + 1
-      = boxed(n+m)
-    (we use (^ 1) instead of (- 1) to reduce register stalls (since we know the bottom bits of `y` are 01)
-*/
-static inline integer_t integer_add_small(integer_t x, integer_t y, context_t* ctx) {
-  assert_internal(are_smallints(x, y));
-  intptr_t i;
-  if (likely(!smallint_add_ovf(box_as_intptr(x), box_as_intptr(y)^1, &i))) {
-    integer_t z = box_from_intptr(i); 
-    assert_internal(is_smallint(z));
-    return z;
-  }
-  return integer_add_generic(x, y, ctx);
-}
-
-
-/*
-static inline integer_t integer_add(integer_t x, integer_t y) {
-  if (likely(are_smallints(x, y))) return integer_add_small(x, y);
-  return integer_add_generic(x, y);
-}
-*/
-
-/* We further optimize addition on integers, if we add directly, our lowest 2 bits are :
-    x + y = z
+     x + y = z
     00  00  00    ptr + ptr
     00  01  01    ptr + int
     01  00  01    int + ptr
     01  01  10    int + int
-  and we can detect afterwards if it was correct to assume these were smallint's
-*/
-static inline integer_t integer_add(integer_t x, integer_t y, context_t* ctx) {
-  assert_internal(is_integer(x) && is_integer(y));
-  intptr_t i;
-  if (likely(!smallint_add_ovf(box_as_intptr(x), box_as_intptr(y), &i) && (i&2)!=0)) {
-    integer_t z = box_from_intptr(i^3);  // == i - 1
-    assert_internal(is_smallint(z));
-    return z;
-  }
-  return integer_add_generic(x, y, ctx);
-}
+  so we can check if both were small ints by checking if bit 1 is set in the result.
 
-
-/* Fast subtract on small integers. Since `boxed(n) = n*4 + 1`, we can subtract as:
-      boxed(n) - (boxed(m) - 1)
-      = (n*4 + 1) - ((m*4 + 1) - 1)
-      = n*4 + 1 - m*4
-      = (n - m)*4 + 1
+Subtraction: for small `n` we have
+      (boxed(n) + 1) - boxed(m) 
+      = (n*4 + 2) - (m*4 + 1)
+      = n*4 - m*4 + 2 - 1
+      = 4*(n - m) + 1
       = boxed(n-m)
-*/
-static inline integer_t integer_sub_small(integer_t x, integer_t y, context_t* ctx) {
-  assert_internal(are_smallints(x, y));
-  intptr_t i;
-  if (likely(!smallint_sub_ovf(box_as_intptr(x), box_as_intptr(y)^1, &i))) {
-    integer_t z = box_from_intptr(i);
-    assert_internal(is_smallint(z));
-    return z;
-  }
-  return integer_sub_generic(x, y, ctx);
-}
+  except we use ^3 instead of +1 as we check if both were small ints:
 
-static inline integer_t integer_sub(integer_t x, integer_t y, context_t* ctx) {
-  if (likely(are_smallints(x, y))) return integer_sub_small(x, y, ctx);
-  return integer_sub_generic(x, y, ctx);
-}
+     x - y   x^3  (x^3 - y)
+    00  00    11   11       ptr - ptr
+    00  01    11   10       ptr - int
+    01  00    10   10       int - ptr
+    01  01    10   01       int - int
+  So we can detect if both were small ints by checking if bit 1 was clear in the result.
 
-/* Fast multiply on small integers. Since `boxed(n) = n*4 + 1`, we can multiply as:
+Multiply: Since `boxed(n) = n*4 + 1`, we can multiply as:
     (boxed(n)/2) * (boxed(m)/2) + 1
     = (n*4+1)/2 * (m*4+1)/2 + 1
     = (n*2) * (m*2) + 1
     = (n*m*4) + 1
     = boxed(n*m)
-*/
+    
+    we check before multiply for small integers and do not combine with the overflow check.
+-----------------------------------------------------------------------------------*/
+
+#if USE_BUILTIN_OVF
+
+static inline integer_t integer_add(integer_t x, integer_t y, context_t* ctx) {
+  intptr_t z;
+  if (likely(!__builtin_add_overflow(box_as_intptr(x), box_as_intptr(y), &z) && (z&2)!=0)) {
+    assert_internal((z&3) == 2);
+    return box_from_intptr(z^3);
+  }
+  return integer_add_generic(x, y, ctx);
+}
+
+static inline integer_t integer_sub(integer_t x, integer_t y, context_t* ctx) {
+  intptr_t z;
+  if (likely(!__builtin_sub_overflow(box_as_intptr(x)^3, box_as_intptr(y), &z) && (z&2)==0)) {
+    assert_internal((z&3) == 1);
+    return box_from_intptr(z);
+  }
+  return integer_sub_generic(x, y, ctx);
+}
+
 static inline integer_t integer_mul_small(integer_t x, integer_t y, context_t* ctx) {
   assert_internal(are_smallints(x, y));
   intptr_t i = sar(box_as_intptr(x), 1);
   intptr_t j = sar(box_as_intptr(y), 1);
-  intptr_t k;
-  if (likely(!smallint_mul_ovf(i, j, &k))) {
-    integer_t z = box_from_intptr(k|1);
-    assert_internal(is_smallint(z));
-    return z;
+  intptr_t z;
+  if (likely(!__builtin_mul_overflow(i, j, &z))) {
+    assert_internal((z&3)==0);
+    return box_from_intptr(z|1);
   }
   return integer_mul_generic(x, y, ctx);
 }
+
+#else
+
+static inline integer_t integer_add(integer_t x, integer_t y, context_t* ctx) {
+  intptr_t z = box_as_intptr(x) + box_as_intptr(y);
+  if (likely(z == (smallint_t)(z|2))) {  // set bit 1 and sign extend
+    assert_internal((z&3) == 2);
+    return box_from_intptr(z^3);
+  }
+  return integer_add_generic(x, y, ctx);
+}
+
+static inline integer_t integer_sub(integer_t x, integer_t y, context_t* ctx) {
+  intptr_t z = (box_as_intptr(x)^3) - box_as_intptr(y);
+  if (likely(z == (smallint_t)(z^2))) {  // clear bit 1 and sign extend
+    assert_internal((z&3) == 1);
+    return box_from_intptr(z);
+  }
+  return integer_sub_generic(x, y, ctx);
+}
+
+static inline integer_t integer_mul_small(integer_t x, integer_t y, context_t* ctx) {
+  assert_internal(are_smallints(x, y));
+  intptr_t i = sar(box_as_intptr(x), 1);
+  intptr_t j = sar(box_as_intptr(y), 1);
+  intptr_t z = i*j;
+  if (likely(z == (smallint_t)(z))) {
+    assert_internal((z&3) == 0);
+    return box_from_intptr(z|1);
+  }
+  return integer_mul_generic(x, y, ctx);
+}
+
+#endif
 
 static inline integer_t integer_mul(integer_t x, integer_t y, context_t* ctx) {
   if (likely(are_smallints(x, y))) return integer_mul_small(x, y, ctx);
@@ -441,11 +415,11 @@ static inline integer_t integer_div_small(integer_t x, integer_t y) {
   assert_internal(are_smallints(x, y));
   intptr_t i = sar(box_as_intptr(x), 1);
   intptr_t j = sar(box_as_intptr(y), 1);
-  return box_from_uintptr(shr(i/j, UX(2))|1);
+  return box_from_uintptr(((i/j)<<2)|1);
 }
 
 /* Fast modulus on small integers. Since `boxed(n) = n*4 + 1`, we can divide as:
-    2*((boxed(n)/2)/((boxed(m)/2) + 1
+    2*((boxed(n)/2)%((boxed(m)/2) + 1
     = 2*((n*2)%(m*2)) + 1
     = 2*2*(n%m) + 1
     = boxed(n%m)
@@ -454,15 +428,15 @@ static inline integer_t integer_mod_small(integer_t x, integer_t y) {
   assert_internal(are_smallints(x, y));
   intptr_t i = sar(box_as_intptr(x), 1);
   intptr_t j = sar(box_as_intptr(y), 1);
-  return box_from_uintptr(shr(i%j, UX(1))|1);
+  return box_from_uintptr(((i%j)<<1)|1);
 }
 
 static inline integer_t integer_div_mod_small(integer_t x, integer_t y, integer_t* mod) {
   assert_internal(are_smallints(x, y)); assert_internal(mod!=NULL);
   intptr_t i = sar(box_as_intptr(x), 1);
   intptr_t j = sar(box_as_intptr(y), 1);
-  *mod = box_from_intptr(shr(i%j, 1)|1);
-  return box_from_intptr(shr(i/j, 2)|1);
+  *mod = box_from_intptr(((i%j)<<1)|1);
+  return box_from_intptr(((i/j)<<2)|1);
 }
 
 static inline integer_t integer_div(integer_t x, integer_t y, context_t* ctx) {
@@ -513,7 +487,7 @@ static inline integer_t integer_sqr(integer_t x, context_t* ctx) {
 
 static inline integer_t integer_neg_small(integer_t x, context_t* ctx) {
   assert_internal(is_smallint(x));
-  return integer_sub_small(integer_zero, x, ctx);   // negation can overflow
+  return integer_sub(integer_zero, x, ctx);   // negation can overflow
 }
 
 static inline integer_t integer_neg(integer_t x, context_t* ctx) {
@@ -527,13 +501,11 @@ static inline integer_t integer_abs(integer_t x, context_t* ctx) {
 }
 
 static inline integer_t integer_dec(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return integer_sub_small(x,integer_one,ctx);
-  return integer_sub_generic(x, integer_one,ctx);
+  return integer_sub(x,integer_one,ctx);  
 }
 
 static inline integer_t integer_inc(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return integer_add_small(x, integer_one,ctx);
-  return integer_add_generic(x, integer_one,ctx);
+  return integer_add(x, integer_one,ctx);
 }
 
 static inline int integer_cmp(integer_t x, integer_t y, context_t* ctx) {
