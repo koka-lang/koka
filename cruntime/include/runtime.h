@@ -51,10 +51,9 @@ typedef enum tag_e {
   TAG_VECTOR,      // a vector of (boxed) values
   TAG_INT64,       // boxed int64_t
   TAG_DOUBLE,      // boxed IEEE double (64-bit)
-#if INTPTR_SIZE < 8
-  TAG_INT32,       // boxed int32_t
-  TAG_FLOAT,       // boxed IEEE float  (32-bit)
-#endif
+  TAG_INT32,       // boxed int32_t               (on 32-bit platforms)
+  TAG_FLOAT,       // boxed IEEE float  (32-bit)  (on 32-bit platforms)
+  TAG_CFUNPTR,     // C function pointer
   // raw tags have a free function together with a `void*` to the data
   TAG_CPTR_RAW,    // full void* (must be first, see tag_is_raw())
   TAG_STRING_RAW,  // pointer to a valid UTF8 string
@@ -451,16 +450,6 @@ typedef enum unit_e {
   Unit = 0
 } unit_t;
 
-// A function to free a raw C pointer, raw bytes, or raw string.
-typedef void (free_fun_t)(void*);
-decl_export void free_fun_null(void* p);
-
-// "raw" types: first field is pointer to a free function, the next field a pointer to raw C data
-typedef struct cptr_raw_s {
-  block_t     _block;
-  free_fun_t* free;
-  void*       cptr;
-} *cptr_raw_t;
 
 
 #include "runtime/box.h"

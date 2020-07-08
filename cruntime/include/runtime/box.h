@@ -57,7 +57,7 @@ and thus always 0x000 or 0xFFF (denoted as `sss`).
     FFFx xxxx xxxx xxxz   z = bbbb bbb0  : 52-bit negative pointer (always aligned to 2 bytes!)
     FFFx xxxx xxxx xxxz   z = bbbb bbb1  : 51-bit negative value
 
-On 64-bit we can encode most doubles such that the top 12-bits are
+We can encode most doubles such that the top 12-bits are
 between 0x001 and 0xFFE. The ranges of IEEE double values are:
     positive doubles        : 0000 0000 0000 0000 - 7FEF FFFF FFFF FFFF
     positive infinity       : 7FF0 0000 0000 0000
@@ -75,8 +75,6 @@ between 0x001 and 0xFFE. The ranges of IEEE double values are:
               and merge the bit 0 with bit 1 to ensure a NaN payload is never unboxed as 0. 
               We set the bottom bit to 1 to encode as a value.
               On unboxing, we extend bit 1 to bit 0, which means we may lose up to 1 bit of the NaN payload.
-
-
 ----------------------------------------------------------------*/
 
 #define USE_NAN_BOX   (0)
@@ -178,25 +176,24 @@ static inline bool is_value(box_t b) {
   return _is_value_fast(b);
 }
 
-static inline double unbox_double(box_t v, context_t* ctx) {
+static inline double unbox_double(box_t b, context_t* ctx) {
   UNUSED(ctx);  
-  if (is_value(v)) {
+  if (is_value(b)) {
     // positive double
     double d;
-    uint64_t u = shr(v.box,1);
+    uint64_t u = shr(b.box,1);
     memcpy(&d, &u, sizeof(d)); // safe for C aliasing: see <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly>
     return d;
   }
   else {
     // heap allocated
-    return unbox_double_heap(v, ctx);
+    return unbox_double_heap(b, ctx);
   }
 }
 
 static inline box_t box_double(double d, context_t* ctx) {
   UNUSED(ctx);
   int64_t i;
-  box_t v;
   memcpy(&i, &d, sizeof(i));  // safe for C aliasing
   if (i >= 0) {  // positive?
     return box_enum((uint64_t)i);
@@ -446,6 +443,16 @@ static inline block_t* unbox_block_t(box_t v, tag_t expected_tag ) {
   return b;
 }
 
+static inline box_t dup_box_t(box_t b) {
+  if (is_ptr(b)) dup_block(unbox_ptr(b));
+  return b;
+}
+
+static inline void drop_box_t(box_t b, context_t* ctx) {
+  if (is_ptr(b)) drop_block(unbox_ptr(b), ctx);
+}
+
+
 static inline box_t box_block_t(block_t* b) {
   return box_ptr(b);
 }
@@ -487,6 +494,18 @@ typedef struct boxed_value_s {
 
 // C pointers
 
+// A function to free a raw C pointer, raw bytes, or raw string.
+typedef void (free_fun_t)(void*);
+decl_export void free_fun_null(void* p);
+
+// "raw" types: first field is pointer to a free function, the next field a pointer to raw C data
+typedef struct cptr_raw_s {
+  block_t     _block;
+  free_fun_t* free;
+  void* cptr;
+} *cptr_raw_t;
+
+
 static inline box_t box_cptr_raw(free_fun_t* freefun, void* p, context_t* ctx) {
   cptr_raw_t raw = block_alloc_as(struct cptr_raw_s, 0, TAG_CPTR_RAW, ctx);
   raw->free = freefun;
@@ -521,25 +540,30 @@ static inline void* unbox_cptr(box_t b) {
   }
 }
 
+// C function pointers
+
+typedef void (*fun_ptr_t)(void);
+
+typedef struct cfunptr_s {
+  block_t     _block;
+  fun_ptr_t   cfunptr;
+} *cfunptr_t;
+
 typedef void (*fun_ptr_t)(void);
 #define box_fun_ptr(f,ctx)  _box_fun_ptr((fun_ptr_t)f, ctx)
 
 static inline box_t _box_fun_ptr(fun_ptr_t f, context_t* ctx) {
-  return box_cptr((void*)f, ctx);
+  cfunptr_t fp = block_alloc_as(struct cfunptr_s, 0, TAG_CFUNPTR, ctx);
+  fp->cfunptr = f;
+  return box_ptr(&fp->_block);
 }
 
-static inline void* unbox_fun_ptr(box_t b) {
-  return unbox_cptr(b);
+static inline fun_ptr_t unbox_fun_ptr(box_t b) {
+  cfunptr_t fp = unbox_datatype_as_assert(cfunptr_t, b, TAG_CFUNPTR);
+  return fp->cfunptr;
 }
 
-static inline box_t dup_box_t(box_t b) {
-  if (is_ptr(b)) dup_block(unbox_ptr(b));
-  return b;
-}
 
-static inline void drop_box_t(box_t b, context_t* ctx) {
-  if (is_ptr(b)) drop_block(unbox_ptr(b), ctx);
-}
 
 
 #endif // include guard

@@ -10,24 +10,26 @@
 ---------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------------------------------
-  Integers are always boxed: and either a pointer to a `bigint_t`, or a boxed (small) int.
-  The boxed small int is restricted in size to SMALLINT_BITS such that we can do
-  efficient arithmetic on the boxed representation of a small int directly where
-  `boxed(n) == 4*n + 1`. The `smallint_t` size is chosen to allow efficient overflow detection.
+Integers are always boxed: and either a pointer to a `bigint_t` (with lowest bit == 0), 
+or a boxed (small) int (with lowest bit == 1).
 
-By reserving 2 of the lower bits we can make large integer arithmetic
-more efficient where a large integer is either a pointer to a bigint
-or a sign extended small integer of at most 30 bits; We can do addition
-then directly on the boxed values as:
+The boxed small int is restricted in size to SMALLINT_BITS such that we can do
+efficient arithmetic on the boxed representation of a small int directly where
+`boxed(n) == 4*n + 1`. The `smallint_t` size is chosen to allow efficient overflow detection.
+By using `4*n + 1` we always have the lowest two bits of a pointer as `00` 
+while those of a smallint_t are always `01`.
 
-    boxed integer_add(boxed x, boxed y) {
-      int_t z;
-      if (unlikely(smallint_add_ovf32(x,y,&z) || (z&0x02)==0)) return integer_add_generic(x,y);
-      return (boxed)(z - 1);  // or: z ^ 0x03
+This way we can do more efficient basic arithmetic where we can for example directly add 
+and test afterwards if we actually added two small integers (and not two pointers)
+and whether there was an overflow. For example,
+
+    intptr_t integer_add(intptr_t x, intptr_t y) {
+      intptr_t z;
+      if (unlikely(__builtin_add_overflow(x,y,&z) || (z&2)==0)) return integer_add_generic(x,y);
+      return (z^3);  // or `z - 1`
     }
 
-We can do a direct 32-bit addition and test for 32-bit overflow and
-only afterwards test if we actually added 2 integers and not two pointers.
+Here we test afterwards if we actually added 2 integers and not two pointers.
 If we add, the last 2 bits are:
 
      x + y = z
@@ -37,31 +39,125 @@ If we add, the last 2 bits are:
     01  01  10    int + int
 
 so the test `(z&0x02) == 0` checks if we added 2 integers.
-Finally, we subtract 1 to normalize the integer again. With gcc on x86-64 we get:
+Finally, we subtract 1 (== ^3 in this case) to normalize the integer again. 
+With gcc on x86-64 we get:
 
 integer_add(long x, long y)
-        mov     edx, edi   // move bottom 32-bits of `x` to edx
-        add     edx, esi   // add bottom 32-bits of `y`
-        movsx   rax, edx   // sign extend to 64-bits result in rax
-        jo      .L7        // on (32-bit) overflow goto slow
-        and     edx, 2     // check bit 1 of the result
+        mov     rax, rdi   // move  `x` to eax
+        add     rax, rsi   // add `y`
+        jo      .L7        // on overflow goto slow
+        and     rax, 2     // check bit 1 of the result
         je      .L7        // if it is zero, goto slow
-        sub     rax, 1     // normalize back to an integer
+        xor     rax, 3     // normalize back to an integer (clear bit 1, set bit 0)
         ret
 .L7:
         jmp     integer_add_generic(long, long)
 
+However, not all compilers have a `__builtin_add_overflow`, and it is not always 
+compiled well either. For example, the Intel C compiler generates:
+
+integer_add(long x, long y)
+        mov       rax, rdi                                      #22.20
+        xor       edx, edx                                      #22.20
+        add       rax, rsi                                      #22.20
+        seto      dl                                            #22.20
+        test      dl, dl                                        #56.8
+        jne       ..B2.4        # Prob 9%                       #56.8
+        test      rax, 2                                        #56.41
+        je        ..B2.4        # Prob 29%                      #56.45
+        xor       rax, 3                                        #56.58
+        ret                                                     #56.58
+..B2.4:                         # Preds ..B2.2 ..B2.1
+        jmp       integer_add_generic(long, long)
+
+
+However, we can also test in portable way, and do it with just a single test!
+We can do that by limiting smallint_t to a half-word. 
+We then use a full-word add and see if the sign-extended lower half-word 
+equals the full-word (and thus didn't overflow). 
+This also allows us to combine that test with testing
+if we added two small integers, (where bit 1 must ==1 after an addition):
+
+    intptr_t integer_add(intptr_t x, intptr_t y) {
+      intptr_t z = x + y;
+      if (likely(z == (int32_t)(z|2))) return (z^3);
+                                  else return integer_add_generic(x,y);
+    }
+
+Now we have just one test that test both for overflow, as well as for the
+small integers. This gives with clang (and gcc/msvc/icc) on x86-64:
+
+integer_add(long x, long y)
+        lea     rax, [rdi+rsi]        // add into rax
+        movsxd  rcx, eax              // sign extend lower 32-bits to rcx
+        or      rcx, 2                // set bit 1 to 1
+        cmp     rax, rcx              // rax == rcx ?
+        jne     .L28                  // if not, we have an overflow or added a pointer
+        xor     rax, 3                // clear bit 1, set bit 0
+        ret
+.L28:
+        jmp     integer_add_generic
+
+on RISC-V with gcc we get:
+
+integer_add(long x, long y)
+        add     a4,a0,a1       // add into a4
+        ori     a5,a4,2        // a5 = a4|2
+        sext.w  a5,a5          // sign extend
+        bne     a5,a4,.L30     // a5 == a4 ? if not, overflow or pointer add
+        xori    a0,a5,3        // clear bit 1, set bit 0
+        ret
+.L30:
+        tail    integer_add_generic
+
+
+on ARM-v8 with gcc; using __builtin_add_overflow, we have:
+
+        add     x2, x0, x1    // x2 = x0 + x1
+        eon     x3, x0, x1    // x3 = ~(x0^x1)
+        eor     x4, x2, x1    // x4 = x2^x1
+        tst     x4, x3        // x4 & x3
+        bmi     .L6           // branch if negative
+        tbz     x2, 1, .L6    // test bit 1 == 0
+        eor     x0, x3, 3     // x0 = x3^3
+        ret
+.L6:
+        b       add_slow(long, long)
+
+and in the portable way:
+
+        add     x3, x0, x1   // x3 = x0 + x1
+        orr     w2, w3, 2    // w2 = w3|2
+        sxtw    x2, w2       // sign extend w2 to x2
+        cmp     x2, x3       // x2 == x3?
+        bne     .L32         // if not, goto slow
+        eor     x0, x2, 3    // x0 = x2^3
+        ret
+.L32:
+        b       add_slow(long, long)
+        
+So, overall, the portable way seems to always be better with a single test
+but can only use a half-word for small integers. We make it a define so we can 
+measure the impact on specific platforms.
 --------------------------------------------------------------------------------------------------*/
 
-#if INTPTR_SIZE==8                           // always us 32-bits on 64-bit platforms
+#if defined(__GNUC__)
+#define USE_BUILTIN_OVF (1)
+#endif
+
+#ifndef USE_BUILTIN_OVF
+#define USE_BUILTIN_OVF (0)       // default to portable overflow detection
+#endif
+
+#if USE_BUILTIN_OVF
+typedef intptr_t smallint_t
+#define SMALLINT_BITS  (INTPTR_BITS)
+#elif INTPTR_SIZE==8
 typedef int32_t smallint_t;
-#define SMALLINT_BITS       (32)
-#elif (INTPTR_SIZE==4) && defined(__GNUC__)  // with overflow builtins we can use the full 32 bits
-typedef int32_t smallint_t;
-#define SMALLINT_BITS       (32)
-#elif INTPTR_SIZE==4                         // otherwise generic overflow detect uses 16-bit operands with 32-bit operations
+#define SMALLINT_BITS  (32)
+#elif INTPTR_SIZE==4
 typedef int16_t smallint_t;
-#define SMALLINT_BITS       (16)
+#define SMALLINT_BITS  (16)
 #else
 # error "platform must be 32 or 64 bits."
 #endif
@@ -69,13 +165,18 @@ typedef int16_t smallint_t;
 #define SMALLINT_MAX  ((intptr_t)(((uintptr_t)INTPTR_MAX >> (INTPTR_BITS - SMALLINT_BITS)) >> 2))  // use unsigned shift to avoid UB
 #define SMALLINT_MIN  (-SMALLINT_MAX - 1)
 
-static inline intx_t unbox_smallint_t(integer_t i) {
+static inline intx_t smallint_from_integer(integer_t i) {  // use for known small ints
   assert_internal(is_value(i) && (i.box&0x03)==0x01);
   return sar(unbox_int(i), 1);
 }
 
+static inline integer_t integer_from_small(intptr_t i) {   // use for known small int constants (at most 14 bits)
+  assert_internal(i >= SMALLINT_MIN && i <= SMALLINT_MAX);
+  return box_int((i<<1));
+}
+
 static inline bool is_integer(integer_t i) {
-  return ((is_value(i) && unbox_smallint_t(i) >= SMALLINT_MIN && unbox_smallint_t(i) <= SMALLINT_MAX) 
+  return ((is_value(i) && smallint_from_integer(i) >= SMALLINT_MIN && smallint_from_integer(i) <= SMALLINT_MAX) 
          || (is_ptr(i) && block_tag(unbox_ptr(i)) == TAG_BIGINT));
 }
 
@@ -94,10 +195,7 @@ static inline bool are_smallints(integer_t i, integer_t j) {
   return ((i.box&j.box)&1)!=0;
 }
 
-static inline integer_t integer_from_small(intptr_t i) {   // use for known small ints (at most 14 bits)
-  assert_internal(i >= SMALLINT_MIN && i <= SMALLINT_MAX);
-  return box_int((i<<1));
-}
+
 
 #define integer_zero     (integer_from_small(0))
 #define integer_one      (integer_from_small(1))
@@ -384,17 +482,17 @@ static inline integer_t integer_div_mod(integer_t x, integer_t y, integer_t* mod
 }
 
 static inline int32_t integer_clamp32(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return (int32_t)unbox_smallint_t(x);
+  if (likely(is_smallint(x))) return (int32_t)smallint_from_integer(x);
   return integer_clamp32_generic(x, ctx);
 }
 
 static inline int64_t integer_clamp64(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return (int64_t)unbox_smallint_t(x);
+  if (likely(is_smallint(x))) return (int64_t)smallint_from_integer(x);
   return integer_clamp64_generic(x, ctx);
 }
 
 static inline intx_t integer_clamp(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return unbox_smallint_t(x);
+  if (likely(is_smallint(x))) return smallint_from_integer(x);
 #if INTX_SIZE <= 4
   return integer_clamp32_generic(x, ctx);
 #else
@@ -404,7 +502,7 @@ static inline intx_t integer_clamp(integer_t x, context_t* ctx) {
 
 
 static inline double integer_as_double(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return (double)unbox_smallint_t(x);
+  if (likely(is_smallint(x))) return (double)smallint_from_integer(x);
   return integer_as_double_generic(x, ctx);
 }
 

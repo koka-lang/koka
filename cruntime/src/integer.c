@@ -261,7 +261,7 @@ static bigint_t* integer_to_bigint(integer_t x, context_t* ctx) {
   }
   else {
     assert_internal(is_smallint(x));
-    return bigint_from_int(unbox_smallint_t(x), ctx);
+    return bigint_from_int(smallint_from_integer(x), ctx);
   }
 }
 
@@ -848,7 +848,7 @@ integer_t integer_pow(integer_t x, integer_t p, context_t* ctx) {
     }
   }
   assert_internal(is_smallint(p));
-  intx_t i = unbox_smallint_t(p);
+  intx_t i = smallint_from_integer(p);
   while (1) {
     if ((i&1)!=0) {
       dup_integer_t(x);
@@ -1070,7 +1070,7 @@ integer_t integer_mul_generic(integer_t x, integer_t y, context_t* ctx) {
 integer_t integer_div_mod_generic(integer_t x, integer_t y, integer_t* mod, context_t* ctx) {
   assert_internal(is_integer(x)&&is_integer(y));
   if (is_smallint(y)) {
-    intx_t ay = unbox_smallint_t(y);
+    intx_t ay = smallint_from_integer(y);
     if (ay == 0) return box_null; // raise div-by-zero
     if (ay == 1) {
       if (mod!=NULL) *mod = integer_zero;
@@ -1145,7 +1145,7 @@ integer_t integer_mod_generic(integer_t x, integer_t y, context_t* ctx) {
 
 string_t integer_to_string(integer_t x, context_t* ctx) {
   if (is_smallint(x)) {
-    return int_to_string(unbox_smallint_t(x), ctx);
+    return int_to_string(smallint_from_integer(x), ctx);
   }
   else {
     return bigint_to_string(integer_to_bigint(x, ctx), ctx);
@@ -1195,7 +1195,7 @@ static intx_t bigint_ctz(bigint_t* x, context_t* ctx) {
 
 integer_t integer_ctz(integer_t x, context_t* ctx) {
   if (is_smallint(x)) {
-    return integer_from_small(int_ctz(unbox_smallint_t(x)));
+    return integer_from_small(int_ctz(smallint_from_integer(x)));
   }
   else {
     return integer_from_int(bigint_ctz(integer_to_bigint(x, ctx), ctx), ctx);
@@ -1221,7 +1221,7 @@ static intx_t bigint_count_digits(bigint_t* x) {
 
 integer_t integer_count_digits(integer_t x, context_t* ctx) {
   if (is_smallint(x)) {
-    return integer_from_small(int_count_digits(unbox_smallint_t(x)));
+    return integer_from_small(int_count_digits(smallint_from_integer(x)));
   }
   else {
     return integer_from_int(bigint_count_digits(integer_to_bigint(x, ctx)), ctx);
@@ -1243,7 +1243,7 @@ integer_t integer_mul_pow10(integer_t x, integer_t p, context_t* ctx) {
     // TODO: raise error
     return integer_zero;
   }
-  intx_t i = unbox_smallint_t(p);
+  intx_t i = smallint_from_integer(p);
 
   // negative?
   if (i < 0) {
@@ -1289,7 +1289,7 @@ integer_t integer_div_pow10(integer_t x, integer_t p, context_t* ctx) {
     // TODO: raise error
     return integer_zero;
   }
-  intx_t i = unbox_smallint_t(p);
+  intx_t i = smallint_from_integer(p);
 
   // negative?
   if (i < 0) {
