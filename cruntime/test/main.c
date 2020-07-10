@@ -57,11 +57,10 @@ static msecs_t test_timing(const char* msg, size_t loops, void (*fun)(integer_t,
   }
   msecs_t end = _clock_end(start);
   drop_integer_t(x,ctx);
-  drop_integer_t(y,ctx);
+  drop_integer_t(y,ctx);  
   //printf("test %s, %zu iterations: %6.3f s\n", msg, loops, (double)(end)/1000.0);
   return end;
 }
-
 
 typedef integer_t(iop)(integer_t x, integer_t y, context_t* ctx);
 typedef intptr_t(xop)(intptr_t x, intptr_t y, context_t* ctx);
@@ -430,6 +429,33 @@ static void test_random(context_t* ctx) {
   printf("chacha20: final: 0x%x, %6.3fs\n", y, (double)end/1000.0);  
 }
 
+static void test_ovf(context_t* ctx) {
+  /*
+  on x86-64, with a Xeon:
+         portable  builtin   (overflow detection method)
+  msvc:  0.150s    N/A
+  gcc :  0.130s    0.105s
+  clang: 0.175s    0.170s
+  */
+  msecs_t start = _clock_start();
+  integer_t n = integer_zero;
+  intx_t i = 0;
+#ifdef NDEBUG
+  const intx_t delta = 1;
+#else
+  const intx_t delta = 100;
+#endif
+  for (; i < 100000000; i += delta) {
+    n = integer_inc(n, ctx);
+  }
+  for (; i > 0; i -= delta) {
+    n = integer_dec(n, ctx);
+  }
+  msecs_t end = _clock_end(start);
+  integer_print(n, ctx);
+  printf("\nint-inc-dec: %6.3fs\n", (double)end/1000.0);
+}
+
 int main() {
   context_t* ctx = runtime_context();
   test_fib(50,ctx);   // 12586269025
@@ -446,7 +472,8 @@ int main() {
   test_div(ctx);
   test_count(ctx);
   test_pow10(ctx);
-  test_double(ctx);
+  test_double(ctx);  
+  test_ovf(ctx);
   // test_bitcount();
   // test_random(ctx);
   

@@ -141,8 +141,8 @@ but can only use a half-word for small integers. We make it a define so we can
 measure the impact on specific platforms.
 --------------------------------------------------------------------------------------------------*/
 
-#if defined(__GNUC__)
-#define USE_BUILTIN_OVF (1)
+#if defined(__GNUC__) && !(defined(__clang__) || defined(__INTEL_COMPILER))
+#define USE_BUILTIN_OVF (1)      // only GCC seems to generate good code with builtins
 #endif
 
 #ifndef USE_BUILTIN_OVF
@@ -379,7 +379,7 @@ static inline integer_t integer_add(integer_t x, integer_t y, context_t* ctx) {
 
 static inline integer_t integer_sub(integer_t x, integer_t y, context_t* ctx) {
   intptr_t z = (box_as_intptr(x)^3) - box_as_intptr(y);
-  if (likely(z == (smallint_t)(z^2))) {  // clear bit 1 and sign extend
+  if (likely(z == (smallint_t)(z&~IP(2)))) {  // clear bit 1 and sign extend
     assert_internal((z&3) == 1);
     return box_from_intptr(z);
   }
