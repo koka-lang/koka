@@ -454,9 +454,9 @@ typedef enum unit_e {
 
 
 
+#include "runtime/bits.h"
 #include "runtime/box.h"
 #include "runtime/integer.h"
-#include "runtime/bits.h"
 #include "runtime/string.h"
 #include "runtime/random.h"
 

@@ -164,7 +164,6 @@ void test_fib(int i, context_t* ctx) {
 
 void test_read(const char* s, context_t* ctx) {
   printf("read %s = ", s);
-  integer_t i;
   integer_print(integer_from_str(s,ctx), ctx);
   printf("\n");
 }
@@ -397,8 +396,15 @@ static void test_bitcount() {
   }  
 }
 
+static void test_box_double(double dx, context_t* ctx) {
+  box_t bx = box_double(dx, ctx);
+  double e = unbox_double(bx, ctx);
+  printf("value: %.20e, box-unbox to: %.20e, box: 0x%016zx\n", dx, e, bx.box);
+  assert(e == dx || (isnan(e) && isnan(dx)));
+}
+
 static void test_double(context_t* ctx) {
-  double values[] = { 0.0, 1.0, 3.142, 0.5, 1.5, 2.5, -1.5, -2.5, pow(2.0,32.0), pow(2.0,64.0), INFINITY, pow(10.0,308), DBL_MAX, -DBL_MAX, DBL_EPSILON, NAN };
+  double values[] = { 0.0, 1.0, 3.142, 0.5, 1.5, 2.5, -1.5, -2.5, pow(2.0,-510.0), pow(2.0,-511.0), pow(2.0,32.0), pow(2.0,64.0), pow(2.0,511.0), pow(2.0,512.0), pow(2.0,513.0), INFINITY, pow(10.0,308), DBL_MAX, -DBL_MAX, DBL_EPSILON, NAN };
   size_t i = 0;
   double dx;
   do {
@@ -410,11 +416,12 @@ static void test_double(context_t* ctx) {
   i = 0;
   do {
     dx = values[i++];
-    box_t bx = box_double(dx, ctx);
-    printf("value: %.20e, box-unbox to: %.20e, box: 0x%016zx\n", dx, unbox_double(bx, ctx), bx.box);
-    dx = -dx;
-    bx = box_double(dx, ctx);
-    printf("value: %.20e, box-unbox to: %.20e, box: 0x%016zx\n", dx, unbox_double(bx, ctx), bx.box);
+    test_box_double(dx,ctx);
+    test_box_double(nexttoward(dx,-INFINITY), ctx);
+    test_box_double(nexttoward(dx,INFINITY), ctx);
+    test_box_double(-dx, ctx);
+    test_box_double(nexttoward(-dx, -INFINITY), ctx);
+    test_box_double(nexttoward(-dx, +INFINITY), ctx);
   } while (!isnan(dx));
 }
 
@@ -432,11 +439,19 @@ static void test_random(context_t* ctx) {
 
 static void test_ovf(context_t* ctx) {
   /*
+  add + subtract, 100000000x
+  on x86-64, with a Xeon: 
+         portable  builtin   (overflow detection method)
+  msvc:  0.185s    N/A
+  gcc :  0.147s    0.105s
+  clang: 0.175s    0.170s
+
+  add only, 100000000x
   on x86-64, with a Xeon:
          portable  builtin   (overflow detection method)
-  msvc:  0.150s    N/A
-  gcc :  0.130s    0.105s
-  clang: 0.175s    0.170s
+  msvc:  0.102s    N/A
+  gcc :  0.068s    0.054s
+  clang: 0.067s    0.053s
   */
   msecs_t start = _clock_start();
   integer_t n = integer_zero;
@@ -446,12 +461,8 @@ static void test_ovf(context_t* ctx) {
 #else
   const intx_t delta = 100;
 #endif
-  for (; i < 100000000; i += delta) {
-    n = integer_inc(n, ctx);
-  }
-  for (; i > 0; i -= delta) {
-    n = integer_dec(n, ctx);
-  }
+  for (; i < 100000000; i += delta) { n = integer_inc(n, ctx); }
+  for (; i > 0; i -= delta) { n = integer_dec(n, ctx); }
   msecs_t end = _clock_end(start);
   integer_print(n, ctx);
   printf("\nint-inc-dec: %6.3fs\n", (double)end/1000.0);

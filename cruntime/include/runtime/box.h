@@ -21,8 +21,8 @@ or a value for small integers (and boxing is zero cost this way as well).
 
 On 32-bit platforms doubles are heap allocated when boxed, but on 64-bit
 platforms there are 2 strategies: 
-(A) heap allocate all negative doubles, and use the value encoding for 
-    positive doubles, or 
+(A) As we lose 1 bit, heap allocate half of the doubles, and use the 
+    value encoding for the other half.
 (B) limit addresses and values to 52 bits and use the top 12 bits to 
     distinguish pointers, values, or doubles. This effectively encodes 
     pointers and values in the NaN space but encodes it in a way that pointers 
@@ -39,11 +39,15 @@ Using `x` for bytes, and `b` for bits, with `z` the least significant byte, we h
     (xxxx xxxx) xxxx xxxz   z = bbbb bbb0  : 64-bit pointer: n    (always aligned to (at least) 2 bytes!)
     (xxxx xxxx) xxxx xxxz   z = bbbb bbb1  : 63-bit values: n*2+1
 
-On 64-bit, a positive double is encoded as a value `((d<<1) | 1)` while negative
-doubles are heap allocated. (note: we could refine this more, for example, encode
-all doubles that fit in a 10-bit exponent and only allocate doubles outside that range).
+On 64-bit, We can encode half of the doubles by saving 1 bit; There are two available strategies:
+(A1): heap allocate negative doubles, where a positive double is encoded as a value 
+       `((d<<1) | 1)`. (define BOX_DOUBLE_IF_NEG to use this strategy)
+(A2): use value encoding if the 11-bit exponent fits in 10-bits. This uses value encoding
+      numbers whose absolute value is in the range [2^-511,2^512), or if it is
+      zero, subnormal, NaN, or infinity. This is the default as this captures almost
+      all doubles that are commonly in use for most workloads.
 
-(B), only on 64-bit:
+(B), use NaN boxing on 64-bit:
    
 For pointers and integers, the top 12-bits are the sign extension of the bottom 52 bits
 and thus always 0x000 or 0xFFF (denoted as `sss`).
@@ -77,8 +81,9 @@ between 0x001 and 0xFFE. The ranges of IEEE double values are:
               On unboxing, we extend bit 1 to bit 0, which means we may lose up to 1 bit of the NaN payload.
 ----------------------------------------------------------------*/
 
-#define USE_NAN_BOX   (0)
+#define USE_NAN_BOX   (0)                  
 // #define USE_NAN_BOX   (INTPTR_SIZE==8)  // only possible on 64-bit platforms
+// #define BOX_DOUBLE_IF_NEG               // strategy A2
 
 // Forward declarations
 static inline bool      is_ptr(box_t b);
@@ -196,20 +201,49 @@ static inline double unbox_double(box_t b, context_t* ctx) {
 static inline box_t box_double(double d, context_t* ctx) {
   UNUSED(ctx);
   uint64_t u;
-  box_t v;
   memcpy(&u, &d, sizeof(u));  // safe for C aliasing
-  uint64_t exp = (u >> 52) & 0x7FF;
-  if (exp==0) {  // 0, or subnormal
-
+  u = rotl64(u, 12);
+  uint64_t exp = u & 0x7FF;
+  u -= exp;
+  // adjust to 10-bit exponent (if possible)
+  if (exp==0) { 
+    // already good
   }
+  else if (exp==0x7FF) {
+    exp = 0x3FF;
+  }
+  else if (exp > 0x200 && exp < 0x5FF) {
+    exp -= 0x200;
+  }
+  else {
+    // outside our range, heap allocate (outside [2^-510,2^512) and not 0, subnormal, NaN or Inf)
+    return box_double_heap(d, ctx);
+  }
+  assert_internal(exp <= 0x3FF);
+  box_t b = { (u | (exp<<1) | 1) };
+  return b;
 }
 
 static inline double unbox_double(box_t b, context_t* ctx) {
   UNUSED(ctx);
   if (is_value(b)) {
-    // positive double
+    // expand 10-bit exponent to 11-bits again
+    uint64_t u = b.box;
+    uint64_t exp = u & 0x7FF;
+    u -= exp;    // clear lower 11 bits
+    exp >>= 1;
+    if (exp == 0) {
+      // ok
+    }
+    else if (exp==0x3FF) { 
+      exp = 0x7FF; 
+    } 
+    else { 
+      exp += 0x200; 
+    }
+    assert_internal(exp <= 0x7FF);
+    u = rotr64(u | exp, 12);
     double d;
-    uint64_t u = shr(b.box, 1);
     memcpy(&d, &u, sizeof(d)); // safe for C aliasing: see <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly>
     return d;
   }
@@ -535,10 +569,11 @@ static inline void* unbox_cptr_raw(box_t b) {
 }
 
 static inline box_t box_cptr(void* p, context_t* ctx) {
-  intx_t i = (intptr_t)p;
-  if (i >= MIN_BOXED_INT && i <= MAX_BOXED_INT) {
-    // box as int
-    return box_int(i);
+  uintptr_t u = (uintptr_t)p;
+  if (likely((u&1) == 0)) {  // aligned pointer?
+    // box as value
+    box_t b = { (u|1) };
+    return b;
   }
   else {
     // allocate 
@@ -549,7 +584,7 @@ static inline box_t box_cptr(void* p, context_t* ctx) {
 static inline void* unbox_cptr(box_t b) {
   if (_is_value_fast(b)) {
     assert_internal(is_value(b));
-    return (void*)(unbox_int(b));
+    return (void*)(b.box ^ 1);  // clear lowest bit
   }
   else {
     return unbox_cptr_raw(b);
@@ -569,17 +604,26 @@ typedef void (*fun_ptr_t)(void);
 #define box_fun_ptr(f,ctx)  _box_fun_ptr((fun_ptr_t)f, ctx)
 
 static inline box_t _box_fun_ptr(fun_ptr_t f, context_t* ctx) {
-  cfunptr_t fp = block_alloc_as(struct cfunptr_s, 0, TAG_CFUNPTR, ctx);
-  fp->cfunptr = f;
-  return box_ptr(&fp->_block);
+  uintptr_t u = (uintptr_t)f;              // assume we can convert a function pointer to uintptr_t...      
+  if ((u&1)==0 && sizeof(u)==sizeof(f)) {  // aligned pointer? (and sanity check if function pointer != object pointer)
+    box_t b = { (u|1) };
+    return b;
+  }
+  else {
+    cfunptr_t fp = block_alloc_as(struct cfunptr_s, 0, TAG_CFUNPTR, ctx);
+    fp->cfunptr = f;
+    return box_ptr(&fp->_block);
+  }
 }
 
 static inline fun_ptr_t unbox_fun_ptr(box_t b) {
-  cfunptr_t fp = unbox_datatype_as_assert(cfunptr_t, b, TAG_CFUNPTR);
-  return fp->cfunptr;
+  if (likely(_is_value_fast(b))) {
+    return (fun_ptr_t)(b.box ^ 1); // clear lowest bit
+  }
+  else {
+    cfunptr_t fp = unbox_datatype_as_assert(cfunptr_t, b, TAG_CFUNPTR);
+    return fp->cfunptr;
+  }
 }
-
-
-
 
 #endif // include guard
