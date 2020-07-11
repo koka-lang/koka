@@ -488,7 +488,6 @@ static inline value_tag_t value_tag(uintx_t tag) {
 */
 #define value_tag(tag) (_new_integer(((uintptr_t)tag << 2) | 0x01))   // as a small int
 
-
 /*--------------------------------------------------------------------------------------
   Functions
 --------------------------------------------------------------------------------------*/
@@ -497,7 +496,7 @@ static inline value_tag_t value_tag(uintx_t tag) {
 #define function_alloc_as(tp,scan_fsize,ctx)    block_alloc_as(tp,scan_fsize,TAG_FUNCTION,ctx)
 #define function_call(restp,argtps,f,args)      ((restp(*)argtps)(unbox_fun_ptr(f->fun)))args
 #define define_static_function(name,cfun,ctx) \
-  static struct function_s _static_##name = { { HEADER_STATIC(0,TAG_FUNCTION) }, { 0x7 } }; /* must be box_null */ \
+  static struct function_s _static_##name = { { HEADER_STATIC(0,TAG_FUNCTION) }, { ~UP(0) } }; /* must be box_null */ \
   function_t name = &_static_##name; \
   if (box_eq(name->fun,box_null)) { name->fun = box_fun_ptr((fun_ptr_t)&cfun,ctx); }  // initialize on demand so it can be boxed properly
   

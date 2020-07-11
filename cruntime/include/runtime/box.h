@@ -164,6 +164,20 @@ static inline bool is_value(box_t b) {
   return _is_value_fast(b);
 }
 
+#if defined(BOX_DOUBLE_IF_NEG)
+static inline box_t box_double(double d, context_t* ctx) {
+  UNUSED(ctx);
+  int64_t i;
+  memcpy(&i, &d, sizeof(i));  // safe for C aliasing
+  if (i >= 0) {  // positive?
+    return box_enum((uint64_t)i);
+  }
+  else {
+    // heap allocate
+    return box_double_heap(d, ctx);
+  }
+}
+
 static inline double unbox_double(box_t b, context_t* ctx) {
   UNUSED(ctx);  
   if (is_value(b)) {
@@ -178,19 +192,33 @@ static inline double unbox_double(box_t b, context_t* ctx) {
     return unbox_double_heap(b, ctx);
   }
 }
-
+#else
 static inline box_t box_double(double d, context_t* ctx) {
   UNUSED(ctx);
-  int64_t i;
-  memcpy(&i, &d, sizeof(i));  // safe for C aliasing
-  if (i >= 0) {  // positive?
-    return box_enum((uint64_t)i);
-  }
-  else {
-    // heap allocate
-    return box_double_heap(d, ctx);
+  uint64_t u;
+  box_t v;
+  memcpy(&u, &d, sizeof(u));  // safe for C aliasing
+  uint64_t exp = (u >> 52) & 0x7FF;
+  if (exp==0) {  // 0, or subnormal
+
   }
 }
+
+static inline double unbox_double(box_t b, context_t* ctx) {
+  UNUSED(ctx);
+  if (is_value(b)) {
+    // positive double
+    double d;
+    uint64_t u = shr(b.box, 1);
+    memcpy(&d, &u, sizeof(d)); // safe for C aliasing: see <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly>
+    return d;
+  }
+  else {
+    // heap allocated
+    return unbox_double_heap(b, ctx);
+  }
+}
+#endif
 
 static inline int32_t unbox_int32_t(box_t v, context_t* ctx) {
   UNUSED(ctx);

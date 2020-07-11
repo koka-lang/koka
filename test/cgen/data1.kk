@@ -52,7 +52,7 @@ type normal<a> { One(x:a,y:pair<int,int>,z:pair<int,int>); Two(x:int); Three }
 // open
 type open open<a> { Open1(:a) }
 
-type extend open<a> { Open2(:int) }
+// type extend open<a> { Open2(:int) }
 
 // mixed raw / scan
 type point { Point(x:double,y:double,z:int) }

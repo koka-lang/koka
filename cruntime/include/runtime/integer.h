@@ -139,10 +139,23 @@ and in the portable way:
 So, overall, the portable way seems to always be better with a single test
 but can only use a half-word for small integers. We make it a define so we can 
 measure the impact on specific platforms.
+
+Some quick timings on a Xeon x86-64:
+  small add, 100000000x
+         portable  builtin
+  msvc:  0.102s    N/A
+  gcc :  0.068s    0.054s
+  clang: 0.067s    0.053s
+
+  small add + subtract, 100000000x
+         portable  builtin
+  msvc:  0.185s    N/A
+  gcc :  0.147s    0.105s
+  clang: 0.171s    0.158s
 --------------------------------------------------------------------------------------------------*/
 
-#if defined(__GNUC__) && !(defined(__clang__) || defined(__INTEL_COMPILER))
-#define USE_BUILTIN_OVF (1)      // only GCC seems to generate good code with builtins
+#if defined(__GNUC__) && !(defined(__INTEL_COMPILER))
+#define USE_BUILTIN_OVF (1) 
 #endif
 
 #ifndef USE_BUILTIN_OVF
