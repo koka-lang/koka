@@ -87,6 +87,11 @@ static ptr_t bigint_ptr_(bigint_t* x) {
   return &x->_block;
 }
 
+static integer_t bigint_as_integer_(bigint_t* x) {
+  assert_internal(((uintptr_t)x&3) == 0);
+  return _new_integer((intptr_t)bigint_ptr_(x));
+}
+
 static bool bigint_is_unique_(bigint_t* x) {
   return block_is_unique(bigint_ptr_(x));
 }
@@ -220,7 +225,7 @@ static integer_t integer_bigint(bigint_t* x, context_t* ctx) {
     return integer_from_small(i);
   }
   else {
-    return box_ptr(bigint_ptr_(x));
+    return bigint_as_integer_(x);
   }
 }
 
@@ -263,7 +268,7 @@ static bigint_t* bigint_from_uint64(uint64_t i, context_t* ctx) {
 static bigint_t* integer_to_bigint(integer_t x, context_t* ctx) {
   assert_internal(is_integer(x));
   if (is_bigint(x)) {
-    return block_as_assert(bigint_t*, unbox_ptr(x), TAG_BIGINT);
+    return block_as_assert(bigint_t*, _as_bigint(x), TAG_BIGINT);
   }
   else {
     assert_internal(is_smallint(x));
@@ -272,15 +277,15 @@ static bigint_t* integer_to_bigint(integer_t x, context_t* ctx) {
 }
 
 integer_t integer_from_bigu64(uint64_t i, context_t* ctx) {
-  return box_ptr(bigint_ptr_(bigint_from_uint64(i, ctx)));
+  return bigint_as_integer_(bigint_from_uint64(i, ctx));
 }
 
 integer_t integer_from_big64(int64_t i, context_t* ctx) {
-  return box_ptr(bigint_ptr_(bigint_from_int64(i,ctx)));
+  return bigint_as_integer_(bigint_from_int64(i,ctx));
 }
 
 integer_t integer_from_big(intx_t i, context_t* ctx) {
-  return box_ptr(bigint_ptr_(bigint_from_int(i, ctx)));
+  return bigint_as_integer_(bigint_from_int(i, ctx));
 }
 
 
@@ -391,7 +396,7 @@ integer_t integer_parse(const char* s, context_t* ctx) {
   // sign
   if (s[i] == '+') { i++; }
   else if (s[i] == '-') { is_neg = true; i++; }
-  if (!isdigit(s[i])) return box_null;  // must start with a digit
+  if (!isdigit(s[i])) return integer_null;  // must start with a digit
   // significant 
   for (; s[i] != 0; i++) {
     char c = s[i];
@@ -403,7 +408,7 @@ integer_t integer_parse(const char* s, context_t* ctx) {
     else if ((c == '.' || c=='e' || c=='E') && isdigit(s[i+1])) { // found fraction/exponent
       break;
     }
-    else return box_null; // error    
+    else return integer_null; // error    
   }
   // const char* sigend = s + i;
   // fraction
@@ -427,7 +432,7 @@ integer_t integer_parse(const char* s, context_t* ctx) {
       else if ((c=='e' || c=='E') && (isdigit(s[i+1]) || (s[i+1]=='+' && isdigit(s[i+2])))) { // found fraction/exponent
         break;
       }
-      else return box_null; // error    
+      else return integer_null; // error    
     }
   }
   frac_digits -= frac_trailing_zeros; // ignore trailing zeros
@@ -442,12 +447,12 @@ integer_t integer_parse(const char* s, context_t* ctx) {
       char c = s[i];
       if (isdigit(c)) {
         exp = 10*exp + ((size_t)c - '0');
-        if (exp > BASE) return box_null; // exponents must be < 10^9
+        if (exp > BASE) return integer_null; // exponents must be < 10^9
       }
-      else return box_null;
+      else return integer_null;
     }
   }
-  if (exp < frac_digits) return box_null; // fractional number
+  if (exp < frac_digits) return integer_null; // fractional number
   const size_t zero_digits = exp - frac_digits;
   const size_t dec_digits = sig_digits + frac_digits + zero_digits;  // total decimal digits needed in the bigint
 
@@ -502,7 +507,7 @@ integer_t integer_parse(const char* s, context_t* ctx) {
 
 integer_t integer_from_str(const char* num, context_t* ctx) {
   integer_t i = integer_parse(num,ctx);
-  assert_internal(i.box != box_null.box);
+  assert_internal(i.value != integer_null.value);
   return i;
 }
 
@@ -822,16 +827,16 @@ static bigint_t* bigint_mul_karatsuba(bigint_t* x, bigint_t* y, context_t* ctx) 
 
 integer_t integer_pow(integer_t x, integer_t p, context_t* ctx) {
   if (is_smallint(p)) {
-    if (box_as_intptr(p) == box_as_intptr(integer_zero)) return integer_one;
+    if (p.value == integer_zero.value) return integer_one;
   }
   if (is_smallint(x)) {
-    if (box_as_intptr(x) == box_as_intptr(integer_zero)) {
+    if (x.value == integer_zero.value) {
       drop_integer_t(p,ctx);  return integer_zero;
     }
-    if (box_as_intptr(x) == box_as_intptr(integer_one)) {
+    if (x.value == integer_one.value) {
       drop_integer_t(p,ctx);  return integer_one;
     }
-    if (box_as_intptr(x) == box_as_intptr(integer_min_one)) {
+    if (x.value == integer_min_one.value) {
       return (integer_is_even(p,ctx) ? integer_one : integer_min_one);
     }
   }
@@ -1025,7 +1030,7 @@ static bigint_t* bigint_sub(bigint_t* x, bigint_t* y, bool yneg, context_t* ctx)
 
  bool integer_is_even_generic(integer_t x, context_t* ctx) {
   assert_internal(is_integer(x));
-  if (is_smallint(x)) return ((box_as_intptr(x)&0x08)==0);
+  if (is_smallint(x)) return ((x.value&0x04)==0);
   bigint_t* bx = integer_to_bigint(x,ctx);
   bool even = ((bx->digits[0]&0x1)==0);
   drop_integer_t(x,ctx);
@@ -1077,7 +1082,7 @@ integer_t integer_div_mod_generic(integer_t x, integer_t y, integer_t* mod, cont
   assert_internal(is_integer(x)&&is_integer(y));
   if (is_smallint(y)) {
     intx_t ay = smallint_from_integer(y);
-    if (ay == 0) return box_null; // raise div-by-zero
+    if (ay == 0) return integer_null; // raise div-by-zero
     if (ay == 1) {
       if (mod!=NULL) *mod = integer_zero;
       return x;
@@ -1138,7 +1143,7 @@ integer_t integer_div_generic(integer_t x, integer_t y, context_t* ctx) {
 }
 
 integer_t integer_mod_generic(integer_t x, integer_t y, context_t* ctx) {
-  integer_t mod = box_null;
+  integer_t mod = integer_null;
   integer_t div = integer_div_mod_generic(x, y, &mod, ctx);
   drop_integer_t(div, ctx);
   return mod;
@@ -1385,7 +1390,7 @@ integer_t integer_from_double(double d, context_t* ctx) {
   else {
     snprintf(buf, 32, "%.20e", d);
     integer_t i = integer_parse(buf, ctx);
-    return (i.box==box_null.box ? integer_zero : i);
+    return (i.value==integer_null.value ? integer_zero : i);
   }
 }
 

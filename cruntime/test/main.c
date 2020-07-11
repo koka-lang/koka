@@ -72,15 +72,15 @@ static intptr_t sub(intptr_t x, intptr_t y, context_t* ctx) { UNUSED(ctx); retur
 static intptr_t mul(intptr_t x, intptr_t y, context_t* ctx) { UNUSED(ctx); return check(x * y); }
 
 void testx(const char* name, iop* op, xop* opx, intptr_t i, intptr_t j, context_t* ctx) {
-  integer_t x = box_int(i);
-  integer_t y = box_int(j);
-  intptr_t k = unbox_int(op(x, y, ctx));
+  integer_t x = _new_integer(i);
+  integer_t y = _new_integer(j);
+  intptr_t k = op(x, y, ctx).value;
   intptr_t expect = opx(i, j, ctx);
   printf("%16zx %s %16zx = %16zx: %4s   (expected %zx) %s\n", i, name, j, k, (k==expect ? "ok" : "FAIL"), expect, (k == 10 ? "(overflow)" : ""));
 }
-void testb(const char* name, iop* op, box_t x, box_t y, box_t expect, context_t* ctx ) {
+void testb(const char* name, iop* op, integer_t x, integer_t y, integer_t expect, context_t* ctx ) {
   integer_t k = (op(x, y, ctx));
-  printf("%16zx %s %16zx = %16zx: %4s   (expected %zx) %s\n", x.box, name, y.box, k.box, (k.box==expect.box ? "ok" : "FAIL"), expect.box, (k.box == 43 ? "(overflow)" : ""));
+  printf("%16zx %s %16zx = %16zx: %4s   (expected %zx) %s\n", x.value, name, y.value, k.value, (k.value==expect.value ? "ok" : "FAIL"), expect.value, (k.value == 43 ? "(overflow)" : ""));
 }
 void test_op(const char* name, iop* op, xop* opx, context_t* ctx) {
   testx(name, op, opx, SMALLINT_MAX, 1, ctx);
@@ -99,9 +99,9 @@ void test_op(const char* name, iop* op, xop* opx, context_t* ctx) {
   testx(name, op, opx, SMALLINT_MAX, SMALLINT_MIN, ctx);
   testx(name, op, opx, SMALLINT_MIN, SMALLINT_MAX, ctx);
   testx(name, op, opx, SMALLINT_MIN, SMALLINT_MIN, ctx);
-  testb(name, op, box_from_uintptr(24), box_from_uintptr(24), box_from_uintptr(41), ctx);  // ptr + ptr
-  testb(name, op, box_from_uintptr(24), box_from_uintptr(13), box_from_uintptr(41), ctx);  // ptr + int
-  testb(name, op, box_from_uintptr(13), box_from_uintptr(24), box_from_uintptr(41), ctx);  // int + ptr
+  testb(name, op, _new_integer(24), _new_integer(24), _new_integer(41), ctx);  // ptr + ptr
+  testb(name, op, _new_integer(24), _new_integer(13), _new_integer(41), ctx);  // ptr + int
+  testb(name, op, _new_integer(13), _new_integer(24), _new_integer(41), ctx);  // int + ptr
 }
 
 void test(context_t* ctx) {

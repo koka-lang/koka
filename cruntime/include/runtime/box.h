@@ -88,21 +88,9 @@ static inline intx_t    unbox_int(box_t v);
 static inline box_t     box_int(intx_t i);
 
 // Use a boxed representation as an intptr
-static inline box_t box_from_uintptr(uintptr_t u) {
+static inline box_t _new_box(uintptr_t u) {
   box_t b = { u };
   return b;
-}
-
-static inline box_t box_from_intptr(intptr_t i) {
-  return box_from_uintptr((uintptr_t)i);
-}
-
-static inline uintptr_t box_as_uintptr(box_t b) {
-  return b.box;
-}
-
-static inline intptr_t box_as_intptr(box_t b) {
-  return (intptr_t)box_as_uintptr(b);
 }
 
 // Are two boxed representations equal?
@@ -111,10 +99,10 @@ static inline bool box_eq(box_t b1, box_t b2) {
 }
 
 // We cannot store NULL in boxed values; use `box_null` instead
-#define box_null   (box_from_uintptr(~UP(0)))  // -1 value
+#define box_null   (_new_box(~UP(0)))  // -1 value
 
 // `box_any` is used to return when yielding (and should be accepted by any unbox operation)
-#define box_any    (box_from_uintptr(1))       // 0 value
+#define box_any    (_new_box(1))       // 0 value
 
 // the _fast versions can apply if you are sure it is not a double
 static inline bool _is_ptr_fast(box_t b) {

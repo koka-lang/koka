@@ -90,7 +90,9 @@ typedef struct box_s {
 
 // An integer is either a small int or a pointer to a bigint_t. Identity with boxed values.
 // See `integer.h` for definitions.
-typedef box_t integer_t;
+typedef struct integer_s {
+  intptr_t value;
+} integer_t;
 
 // boxed forward declarations
 static inline uintx_t   unbox_enum(box_t v);
@@ -475,16 +477,16 @@ static inline integer_t gen_unique(context_t* ctx) {
   Value tags
 --------------------------------------------------------------------------------------*/
 
-// Tag for value types is always a boxed enum
-typedef box_t value_tag_t;
+// Tag for value types is always an integer
+typedef integer_t value_tag_t;
 
 // Use inlined #define to enable constant initializer expression
 /*
-static inline value_tag_t value_tag(uint_t tag) {
-  return box_enum(tag);
+static inline value_tag_t value_tag(uintx_t tag) {
+  return integer_from_small((intx_t)tag);
 }
 */
-#define value_tag(tag) (box_from_uintptr(((uintx_t)tag << 2) | 0x02))
+#define value_tag(tag) (_new_integer(((uintptr_t)tag << 2) | 0x01))   // as a small int
 
 
 /*--------------------------------------------------------------------------------------

@@ -31,7 +31,7 @@ static inline __std_core_types__maybe integer_xparse( string_t s, bool hex, cont
   else {
     integer_t i = integer_parse(string_cbuf_borrow(s),ctx);
     drop_string_t(s,ctx);
-    return (box_eq(i,box_null) ? __std_core_types__new_Nothing(ctx) : __std_core_types__new_Just(box_integer_t(i),ctx));
+    return ((i.value == integer_null.value) ? __std_core_types__new_Nothing(ctx) : __std_core_types__new_Just(box_integer_t(i),ctx));
   }
 }
 

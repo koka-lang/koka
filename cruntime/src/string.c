@@ -444,7 +444,7 @@ string_t show_any(box_t b, context_t* ctx) {
     tag_t tag = block_tag(p);
     if (tag == TAG_BIGINT) {
       // todo: add tag
-      return integer_to_string(b, ctx);
+      return integer_to_string(unbox_integer_t(b), ctx);
     }
     else if (tag == TAG_STRING_SMALL || tag == TAG_STRING || tag == TAG_STRING_RAW) {
       // todo: add tag
