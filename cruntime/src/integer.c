@@ -387,8 +387,11 @@ string_t int_to_string(intx_t n, context_t* ctx) {
   Parse an integer
 ----------------------------------------------------------------------*/
 
-integer_t integer_parse(const char* s, context_t* ctx) {
-  assert_internal(s!=NULL);
+bool integer_parse(const char* s, integer_t* res, context_t* ctx) {
+  assert_internal(s!=NULL && res != NULL);
+  if (res==NULL) return false;
+  *res = integer_zero;
+  if (s==NULL) return false;
   // parse
   bool is_neg = false;
   size_t sig_digits = 0; // digits before the fraction
@@ -396,7 +399,7 @@ integer_t integer_parse(const char* s, context_t* ctx) {
   // sign
   if (s[i] == '+') { i++; }
   else if (s[i] == '-') { is_neg = true; i++; }
-  if (!isdigit(s[i])) return integer_null;  // must start with a digit
+  if (!isdigit(s[i])) return false;  // must start with a digit
   // significant 
   for (; s[i] != 0; i++) {
     char c = s[i];
@@ -408,7 +411,7 @@ integer_t integer_parse(const char* s, context_t* ctx) {
     else if ((c == '.' || c=='e' || c=='E') && isdigit(s[i+1])) { // found fraction/exponent
       break;
     }
-    else return integer_null; // error    
+    else return false; // error    
   }
   // const char* sigend = s + i;
   // fraction
@@ -432,7 +435,7 @@ integer_t integer_parse(const char* s, context_t* ctx) {
       else if ((c=='e' || c=='E') && (isdigit(s[i+1]) || (s[i+1]=='+' && isdigit(s[i+2])))) { // found fraction/exponent
         break;
       }
-      else return integer_null; // error    
+      else return false; // error    
     }
   }
   frac_digits -= frac_trailing_zeros; // ignore trailing zeros
@@ -447,12 +450,12 @@ integer_t integer_parse(const char* s, context_t* ctx) {
       char c = s[i];
       if (isdigit(c)) {
         exp = 10*exp + ((size_t)c - '0');
-        if (exp > BASE) return integer_null; // exponents must be < 10^9
+        if (exp > BASE) return false; // exponents must be < 10^9
       }
-      else return integer_null;
+      else return false;
     }
   }
-  if (exp < frac_digits) return integer_null; // fractional number
+  if (exp < frac_digits) return false; // fractional number
   const size_t zero_digits = exp - frac_digits;
   const size_t dec_digits = sig_digits + frac_digits + zero_digits;  // total decimal digits needed in the bigint
 
@@ -473,7 +476,8 @@ integer_t integer_parse(const char* s, context_t* ctx) {
       d *= 10;
     }
     if (is_neg) d = -d;
-    return integer_from_int(d,ctx);
+    *res = integer_from_int(d,ctx);
+    return true;
   }
 
   // otherwise construct a big int
@@ -502,13 +506,15 @@ integer_t integer_parse(const char* s, context_t* ctx) {
   // set the final zeros
   assert_internal(zero_digits / LOG_BASE == k);
   for (size_t j = 0; j < k; j++) { b->digits[j] = 0; }
-  return integer_bigint(b, ctx);
+  *res = integer_bigint(b, ctx);
+  return true;
 }
 
 integer_t integer_from_str(const char* num, context_t* ctx) {
-  integer_t i = integer_parse(num,ctx);
-  assert_internal(i.value != integer_null.value);
-  return i;
+  integer_t i; 
+  bool ok = integer_parse(num, &i, ctx);
+  assert_internal(ok);
+  return (ok ? i : integer_zero);
 }
 
 /*----------------------------------------------------------------------
@@ -1082,7 +1088,7 @@ integer_t integer_div_mod_generic(integer_t x, integer_t y, integer_t* mod, cont
   assert_internal(is_integer(x)&&is_integer(y));
   if (is_smallint(y)) {
     intx_t ay = smallint_from_integer(y);
-    if (ay == 0) return integer_null; // raise div-by-zero
+    if (ay == 0) return integer_zero; // raise div-by-zero
     if (ay == 1) {
       if (mod!=NULL) *mod = integer_zero;
       return x;
@@ -1143,7 +1149,7 @@ integer_t integer_div_generic(integer_t x, integer_t y, context_t* ctx) {
 }
 
 integer_t integer_mod_generic(integer_t x, integer_t y, context_t* ctx) {
-  integer_t mod = integer_null;
+  integer_t mod = integer_zero;
   integer_t div = integer_div_mod_generic(x, y, &mod, ctx);
   drop_integer_t(div, ctx);
   return mod;
@@ -1389,8 +1395,9 @@ integer_t integer_from_double(double d, context_t* ctx) {
   }
   else {
     snprintf(buf, 32, "%.20e", d);
-    integer_t i = integer_parse(buf, ctx);
-    return (i.value==integer_null.value ? integer_zero : i);
+    integer_t i;
+    bool ok = integer_parse(buf, &i, ctx);
+    return (ok ? i : integer_zero);
   }
 }
 

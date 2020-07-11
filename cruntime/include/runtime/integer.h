@@ -206,7 +206,6 @@ static inline bool integer_small_eq(integer_t x, integer_t y) {
 }
 
 
-#define integer_null     (_new_integer((intptr_t)box_null.box)) 
 #define integer_zero     (integer_from_small(0))
 #define integer_one      (integer_from_small(1))
 #define integer_min_one  (integer_from_small(-1))
@@ -223,16 +222,16 @@ static inline integer_t unbox_integer_t(box_t b) {
 }
 
 static inline integer_t dup_integer_t(integer_t i) {
-  if (is_bigint(i)) dup_block(_as_bigint(i));
+  if (unlikely(is_bigint(i))) { dup_block(_as_bigint(i)); }
   return i;
 }
 
 static inline void drop_integer_t(integer_t i, context_t* ctx) { 
-  if (is_bigint(i)) drop_block(_as_bigint(i), ctx);
+  if (unlikely(is_bigint(i))) { drop_block(_as_bigint(i), ctx); }
 }
 
-decl_export integer_t  integer_parse(const char* num, context_t* ctx);
-decl_export integer_t  integer_from_str(const char* num, context_t* ctx); // for known correct string number
+decl_export bool       integer_parse(const char* num, integer_t* result, context_t* ctx);
+decl_export integer_t  integer_from_str(const char* num, context_t* ctx); // for known correct string number (returns 0 on wrong string)
 decl_export noinline integer_t  integer_from_big(intx_t i, context_t* ctx);         // for possibly large i
 decl_export noinline integer_t  integer_from_big64(int64_t i, context_t* ctx);     // for possibly large i
 decl_export noinline integer_t  integer_from_bigu64(uint64_t i, context_t* ctx);   // for possibly large i
