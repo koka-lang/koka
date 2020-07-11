@@ -33,10 +33,10 @@ static inline uint32_t atomic_decrement32(volatile _Atomic(uint32_t)* p) {
 }
 #else
 static inline uint32_t atomic_increment32(volatile _Atomic(uint32_t)* p) {
-  return atomic_fetch_add(p, 1);
+  return atomic_fetch_add(p, U32(1));
 }
 static inline uint32_t atomic_decrement32(volatile _Atomic(uint32_t)* p) {
-  return atomic_fetch_sub(p, 1);
+  return atomic_fetch_sub(p, U32(1));
 }
 #endif
 

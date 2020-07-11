@@ -276,17 +276,13 @@ decl_export void block_free(block_t* b, context_t* ctx);
 static inline void block_init(block_t* b, size_t size, size_t scan_fsize, tag_t tag) {
   UNUSED(size);
   assert_internal(scan_fsize < SCAN_FSIZE_MAX);
-  header_t header = { 0 };
-  header.tag = (uint16_t)tag;
-  header.scan_fsize = (uint8_t)scan_fsize;
+  header_t header = { 0, (uint16_t)tag, (uint8_t)scan_fsize, 0 };  
   b->header = header;
 }
 
 static inline void block_large_init(block_large_t* b, size_t size, size_t scan_fsize, tag_t tag) {
   UNUSED(size);
-  header_t header = { 0 };
-  header.tag = (uint16_t)tag;
-  header.scan_fsize = SCAN_FSIZE_MAX;
+  header_t header = { 0, (uint16_t)tag, SCAN_FSIZE_MAX, 0 };
   b->_block.header = header;
   b->large_scan_fsize = box_enum(scan_fsize);
 }
@@ -595,7 +591,7 @@ static inline box_t box_unit_t(unit_t u) {
 static inline unit_t unbox_unit_t(box_t u) {
   UNUSED_RELEASE(u);
   assert_internal( unbox_enum(u) == (uintx_t)Unit || is_box_any(u));
-  return unbox_enum(u);
+  return (unit_t)unbox_enum(u);
 }
 
 /*--------------------------------------------------------------------------------------

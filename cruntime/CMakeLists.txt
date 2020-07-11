@@ -8,6 +8,7 @@ option(RT_USE_CXX           "Use the C++ compiler to compile the library (instea
 option(RT_SEE_ASM           "Generate assembly files" OFF)
 
 set(rt_sources
+    src/box.c
     src/integer.c
     src/refcount.c
     src/runtime.c
