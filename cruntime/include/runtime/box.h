@@ -81,7 +81,7 @@ between 0x001 and 0xFFE. The ranges of IEEE double values are:
               On unboxing, we extend bit 1 to bit 0, which means we may lose up to 1 bit of the NaN payload.
 ----------------------------------------------------------------*/
 
-#define USE_NAN_BOX   (0)                  
+#define USE_NAN_BOX   (0)                  // strategy A by default
 // #define USE_NAN_BOX   (INTPTR_SIZE==8)  // only possible on 64-bit platforms
 // #define BOX_DOUBLE_IF_NEG               // strategy A2
 

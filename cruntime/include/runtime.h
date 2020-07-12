@@ -179,7 +179,7 @@ typedef struct vector_s {
   block_t _block;
 } *vector_t;
 
-// Strong random number context (using chacha8/20)
+// Strong random number context (using chacha20)
 struct random_ctx_s;
 
 //A yield context allows up to 8 continuations to be stored in-place

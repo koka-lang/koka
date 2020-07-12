@@ -86,7 +86,7 @@ set(rt_basename runtime)
 
 message(STATUS "")
 message(STATUS "Library base name: ${rt_basename}")
-message(STATUS "Build type       : ${CMAKE_BUILD_TYPE_LC}")
+message(STATUS "Build type       : ${CMAKE_BUILD_TYPE}")
 message(STATUS "")
 
 # -----------------------------------------------------------------------------

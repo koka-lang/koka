@@ -21,7 +21,7 @@ typedef struct pcg_ctx_s {
 
 // Pseudo random number using PCG by Melissa E. O'Neill.
 // It combines a linear congruential generator (CG) with an output permutation 
-// function (P) and has good statictical propertiest (and passes PractRand and Big-crush[2]).
+// function (P) and has good statictical properties (and passes PractRand and Big-crush[2]).
 // Note: another good multiplier is U32(0xF13283AD) [1] which is more efficient on
 // 32-bit architectures as that can be implemented in 64x32-bit multiply instead
 // of a full 64x64-bit multiply.
@@ -67,7 +67,7 @@ static inline uint32_t sfc_uint32(sfc_ctx_t* rnd) {
   rnd->counter++;
   rnd->a = rnd->b ^ (rnd->b >> 9);
   rnd->b = rnd->c + (rnd->c << 3);
-  rnd->c = rotl32(rnd->c, 21) + x;
+  rnd->c = bits_rotl32(rnd->c, 21) + x;
   return x;
 }
 

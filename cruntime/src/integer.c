@@ -15,55 +15,36 @@
 #include "runtime/integer.h"
 
 /*----------------------------------------------------------------------
-Big integers. For our purposes, we need an implementation that does not have to be the fastest 
-possible; we instead aim for portable, simple, well performing, and with fast conversion to/from decimal strings. 
-Still, it performs quite respectable and does have various optimizations including Karatsuba multiplication.
+Big integers. For our purposes, we need an implementation that does not 
+have to be the fastest possible; we instead aim for portable, simple, 
+well performing, and with fast conversion to/from decimal strings. 
+Still, it performs quite respectable and does have various optimizations 
+including Karatsuba multiplication.
 
-  Big integers are arrays of `digits` with a `count` and `is_neg` flag. For a number `n` we have:
+  Big integers are arrays of `digits` with a `count` and `is_neg` flag. 
+  For a number `n` we have:
   
   n = (is_neg ? -1 : 1) * (digits[0]*(BASE^0) + digits[1]*(BASE^1) + ... + digits[count-1]*(BASE^(count-1)))
 
   For any `count>0`, we have `digits[count-1] != 0`.
-  We use a decimal representation for efficient conversion of numbers to strings and back.
-  We use 32-bit or 64-bit integers for the digits depending on the platform, this way:
+  We use a decimal representation for efficient conversion of numbers 
+  to strings and back. We use 32-bit or 64-bit integers for the digits 
+  depending on the platform, this way:
   - we can use base 10^9 or 10^18  (which uses 29.9 / 59.8 bits of the 32/64 available).
-  - it can hold `2*BASE + 1` which allows for efficient addition with portable overflow detection.
-  - a double digit `ddigit_t` of 64/128-bit can hold a full multiply of `BASE*BASE + BASE + 1` 
-    which allows efficient multiplication with portable overflow detection.
+  - it can hold `2*BASE + 1` which allows for efficient addition with 
+    portable overflow detection.
+  - a double digit `ddigit_t` of 64/128-bit can hold a full multiply 
+    of `BASE*BASE + BASE + 1` which allows efficient multiplication with 
+    portable overflow detection.
 ----------------------------------------------------------------------*/
 
-#if (INTPTR_SIZE<8 || (defined(_MSC_VER) && (_MSC_VER < 1900)))
-// Use 32-bit digits
-#define BASE        I32(1000000000)  
-#define LOG_BASE    (9)
-#define DIGIT_BITS  (32)
-
-typedef uint32_t digit_t;     // 2*BASE + 1 < digit_t_max
-
-typedef uint64_t ddigit_t;    // double digit for multiplies
-
-static inline ddigit_t ddigit_mul_add(digit_t x, digit_t y, digit_t z) {
-  return ((ddigit_t)x * y) + z;
-}
-
-static inline digit_t ddigit_div(ddigit_t d, digit_t divisor, digit_t* rem) {
-  if (d < divisor) {
-    if (rem!=NULL) *rem = (digit_t)d;
-    return 0;
-  }
-  if (rem!=NULL) *rem = (digit_t)(d%divisor);
-  return (digit_t)(d/divisor);
-}
-
-#else
-// Use 64-bit digits
+#if (INTPTR_SIZE>=8) && defined(_MSC_VER) && (_MSC_VER < 1900)
+// Use 64-bit digits on Microsoft VisualC
 #define BASE        I64(1000000000000000000)  
 #define LOG_BASE    (18)
 #define DIGIT_BITS  (64)
+typedef uint64_t    digit_t;     // 2*BASE + 1 < digit_t_max
 
-typedef uint64_t   digit_t;     // 2*BASE + 1 < digit_t_max
-
-#if defined(_MSC_VER)
 typedef struct ddigit_s {
   uint64_t hi;
   uint64_t lo;
@@ -92,9 +73,14 @@ static inline ddigit_t ddigit_mul_add(digit_t x, digit_t y, digit_t z) {
   return r;
 }
 
-#else  // gcc, clang, icc
+#elif (INTPTR_SIZE >= 8) && defined(__GNUC__)
+// Use 64-bit digits with gcc/clang/icc
+#define BASE        I64(1000000000000000000)  
+#define LOG_BASE    (18)
+#define DIGIT_BITS  (64)
+typedef uint64_t    digit_t;     // 2*BASE + 1 < digit_t_max
 
-typedef unsigned __int128 ddigit_t;
+__extension__ typedef unsigned __int128 ddigit_t;
 
 static inline digit_t ddigit_div(ddigit_t d, digit_t divisor, digit_t* rem) {
   if (d < divisor) {
@@ -108,7 +94,28 @@ static inline digit_t ddigit_div(ddigit_t d, digit_t divisor, digit_t* rem) {
 static inline ddigit_t ddigit_mul_add(digit_t x, digit_t y, digit_t z) {
   return ((ddigit_t)x * y) + z;
 }
-#endif
+
+#else 
+// Default: use 32-bit digits
+#define BASE        I32(1000000000)  
+#define LOG_BASE    (9)
+#define DIGIT_BITS  (32)
+typedef uint32_t    digit_t;     // 2*BASE + 1 < digit_t_max
+
+typedef uint64_t    ddigit_t;    // double digit for multiplies
+
+static inline ddigit_t ddigit_mul_add(digit_t x, digit_t y, digit_t z) {
+  return ((ddigit_t)x * y) + z;
+}
+
+static inline digit_t ddigit_div(ddigit_t d, digit_t divisor, digit_t* rem) {
+  if (d < divisor) {
+    if (rem!=NULL) *rem = (digit_t)d;
+    return 0;
+  }
+  if (rem!=NULL) *rem = (digit_t)(d%divisor);
+  return (digit_t)(d/divisor);
+}
 
 #endif
 
@@ -771,7 +778,7 @@ static bigint_t* bigint_sub_abs(bigint_t* x, bigint_t* y, context_t* ctx) {  // 
   // propagate borrow
   for (; borrow != 0 && i < cx; i++) {
     diff = x->digits[i] - borrow;
-    if (unlikely(diff >= BASE)) {
+    if (unlikely(diff >= BASE)) {  // unsigned wrap around
       // borrow stays 1;
       assert_internal(diff==~((digit_t)0));
       diff += BASE;

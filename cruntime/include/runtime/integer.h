@@ -10,17 +10,17 @@
 ---------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------------------------------
-Integers are always boxed: and either a pointer to a `bigint_t` (with lowest bit == 0), 
-or a boxed _small_ int (with lowest bit == 1).
+Integers are either a pointer to a `bigint_t` (with lowest bit == 0),  
+or a _small_ int (with lowest bit == 1).
 
-The boxed small int is restricted in size to SMALLINT_BITS such that we can do
-efficient arithmetic on the boxed representation of a small int directly where
+The small int is restricted in size to SMALLINT_BITS such that we can do
+efficient arithmetic on the representation of a small int directly where
 `boxed(n) == 4*n + 1`. The `smallint_t` size is chosen to allow efficient overflow detection.
 By using `4*n + 1` we always have the lowest two bits of a pointer as `00` 
 while those of a smallint_t are always `01`.
 
 This way we can do more efficient basic arithmetic where we can for example directly add 
-and test afterwards if we actually added two small integers (and not two pointers)
+and test afterwards if we actually added two small integers (and not two pointers or smallint and pointer)
 and whether there was an overflow. For example,
 
     intptr_t integer_add(intptr_t x, intptr_t y) {
@@ -137,10 +137,11 @@ and in the portable way:
         b       add_slow(long, long)
         
 So, overall, the portable way seems to always be better with a single test
-but can only use a half-word for small integers. We make it a define so we can 
+but we can only use a half-word for small integers. We make it a define so we can 
 measure the impact on specific platforms.
 
-Some quick timings on a Xeon x86-64:
+Some quick timings on a Xeon x86-64 show though that the builtin performs (a bit) better
+on that platform:
   small add, 100000000x
          portable  builtin
   msvc:  0.102s    N/A
@@ -152,9 +153,16 @@ Some quick timings on a Xeon x86-64:
   msvc:  0.185s    N/A
   gcc :  0.147s    0.105s
   clang: 0.171s    0.158s
+
+but, when we do the same  "small add + subtract, 100000000x", but surrounded by lots
+of other code, we measure for gcc:
+  gcc :  0.137s    0.158s
+  clang: 0.171s    0.171s
+
+so more experimentation is needed.
 --------------------------------------------------------------------------------------------------*/
 
-#if defined(__GNUC__) && !(defined(__INTEL_COMPILER))
+#if defined(__GNUC__) && !defined(__INTEL_COMPILER)
 #define USE_BUILTIN_OVF (1) 
 #endif
 
