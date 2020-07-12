@@ -53,59 +53,51 @@ static inline bool bits_is_power_of2(uintx_t x) {
   Rotations
 ----------------------------------------------------------- */
 #ifdef _MSC_VER
-static inline uint16_t rotl16(uint16_t x, uint16_t shift) {
+static inline uint16_t bits_rotl16(uint16_t x, uint16_t shift) {
   return _rotl16(x, (uint8_t)shift);  // in <stdlib.h>
 }
-static inline uint16_t rotr16(uint16_t x, uint16_t shift) {
+static inline uint16_t bits_rotr16(uint16_t x, uint16_t shift) {
   return _rotr16(x, (uint8_t)shift);
 }
-static inline uint32_t rotl32(uint32_t x, uint32_t shift) {
+static inline uint32_t bits_rotl32(uint32_t x, uint32_t shift) {
   return _lrotl(x, (int)shift);
 }
-static inline uint32_t rotr32(uint32_t x, uint32_t shift) {
+static inline uint32_t bits_rotr32(uint32_t x, uint32_t shift) {
   return _lrotr(x, (int)shift);
 }
-static inline uint64_t rotl64(uint64_t x, uint64_t shift) {
+static inline uint64_t bits_rotl64(uint64_t x, uint64_t shift) {
   return _rotl64(x, (int)shift);
 }
-static inline uint64_t rotr64(uint64_t x, uint64_t shift) {
+static inline uint64_t bits_rotr64(uint64_t x, uint64_t shift) {
   return _rotr64(x, (int)shift);
 }
 #else
-static inline uint16_t rotl16(uint16_t x, uint16_t shift) {
+static inline uint16_t bits_rotl16(uint16_t x, uint16_t shift) {
   return (x << shift) | (x >> (16 - shift));
 }
-static inline uint16_t rotr16(uint16_t x, uint16_t shift) {
+static inline uint16_t bits_rotr16(uint16_t x, uint16_t shift) {
   return (x >> shift) | (x << (16 - shift));
 }
-static inline uint32_t rotl32(uint32_t x, uint32_t shift) {
+static inline uint32_t bits_rotl32(uint32_t x, uint32_t shift) {
   return (x << shift) | (x >> (32 - shift));
 }
-static inline uint32_t rotr32(uint32_t x, uint32_t shift) {
+static inline uint32_t bits_rotr32(uint32_t x, uint32_t shift) {
   return (x >> shift) | (x << (32 - shift));
 }
-static inline uint64_t rotl64(uint64_t x, uint64_t shift) {
+static inline uint64_t bits_rotl64(uint64_t x, uint64_t shift) {
   return (x << shift) | (x >> (64 - shift));
 }
-static inline uint64_t rotr64(uint64_t x, uint64_t shift) {
+static inline uint64_t bits_rotr64(uint64_t x, uint64_t shift) {
   return (x >> shift) | (x << (64 - shift));
 }
 #endif
 
-static inline uintx_t rotl(uintx_t x, uintx_t shift) {
-#if (INTX_SIZE==4)
-  return rotl32(x, shift);
-#else
-  return rotl64(x, shift);
-#endif
+static inline uintx_t bits_rotl(uintx_t x, uintx_t shift) {
+  return __bitsx(rotl)(x, shift);
 }
 
-static inline uintx_t rotr(uintx_t x, uintx_t shift) {
-#if (INTX_SIZE==4)
-  return rotr32(x, shift);
-#else
-  return rotr64(x, shift);
-#endif
+static inline uintx_t bits_rotr(uintx_t x, uintx_t shift) {
+  return __bitsx(rotr)(x, shift);
 }
 
 
@@ -250,15 +242,31 @@ static inline bool bits_has_byte(uintx_t x, uint8_t n) {
   see <https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel>
 ------------------------------------------------------------------ */
 
+static inline uint32_t bits_generic_count32(uint32_t x) {
+  x = x - ((x >> 1) & U32(0x55555555));
+  x = (x & U32(0x33333333)) + ((x >> 2) & U32(0x33333333));
+  return ((((x + (x >> 4)) & U32(0x0F0F0F0F)) * U32(0x01010101)) >> 24);
+}
+
+static inline uint64_t bits_generic_count64(uint64_t x) {
+  x = x - ((x >> 1) & U64(0x5555555555555555));
+  x = (x & U64(0x3333333333333333)) + ((x >> 2) & U64(0x3333333333333333));
+  return ((((x + (x >> 4)) & U64(0x0F0F0F0F0F0F0F0F)) * U64(0x0101010101010101)) >> 56);
+}
+
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
 #include <intrin.h>
+extern bool __has_popcnt;  // initialized in runtime.c
+
 static inline uint32_t bits_count32(uint32_t x) {
-  return __popcnt(x);
+  if (__has_popcnt) return __popcnt(x);
+  return bits_generic_count32(x);
 }
 #if (INTPTR_SIZE >= 8)
 #define HAS_BITS_COUNT64
 static inline uint64_t bits_count64(uint64_t x) {
-  return __popcnt64(x);
+  if (__has_popcnt) return __popcnt64(x);
+  return bits_generic_count64(x);
 }
 #endif
 
@@ -275,23 +283,19 @@ static inline uint64_t bits_count64(uint64_t x) {
 
 #else
 static inline uint32_t bits_count32(uint32_t x) {
-  x = x - ((x >> 1) & U32(0x55555555)); 
-  x = (x & U32(0x33333333)) + ((x >> 2) & U32(0x33333333));
-  return (((x + (x >> 4) & U32(0x0F0F0F0F)) * U32(0x01010101)) >> 24);
+  return bits_generic_count32(x);
 }
 
 #define HAS_BITS_COUNT64
 static inline uint64_t bits_count64(uint64_t x) {
-  x = x - ((x >> 1) & U64(0x5555555555555555));
-  x = (x & U64(0x3333333333333333)) + ((x >> 2) & U64(0x3333333333333333));
-  return (((x + (x >> 4) & U64(0x0F0F0F0F0F0F0F0F)) * U64(0x0101010101010101)) >> 56);
+  return bits_generic_count64(x);
 }
 #endif
 
 #ifndef HAS_BITS_COUNT64
 #define HAS_BITS_COUNT64
 static inline uint64_t bits_count64(uint64_t x) {
-  return bits_count32((uint32_t)x) + bits_count32((uint32_t)(x>>32));
+  return (uint64_t)(bits_count32((uint32_t)x) + bits_count32((uint32_t)(x>>32)));
 }
 #endif
 

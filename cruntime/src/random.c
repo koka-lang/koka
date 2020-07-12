@@ -32,7 +32,7 @@ static inline uint32_t pcg_uint32(pcg_ctx_t* rnd) {
   rnd->state = (state0 * U64(0x5851F42D4C957F2D)) + rnd->stream;  
   const uint32_t x = (uint32_t)(((state0 >> 18) ^ state0) >> 27);
   const uint32_t rot = (uint32_t)(state0 >> 59);
-  return rotr32(x, rot);
+  return bits_rotr32(x, rot);
 }
 
 static void pcg_init(uint64_t init, uint64_t stream, pcg_ctx_t* rnd) {
@@ -104,10 +104,10 @@ The implementation uses regular C code which compiles very well on modern compil
 -----------------------------------------------------------------------------*/
 
 static inline void qround(uint32_t x[16], size_t a, size_t b, size_t c, size_t d) {
-  x[a] += x[b]; x[d] = rotl32(x[d] ^ x[a], 16);
-  x[c] += x[d]; x[b] = rotl32(x[b] ^ x[c], 12);
-  x[a] += x[b]; x[d] = rotl32(x[d] ^ x[a], 8);
-  x[c] += x[d]; x[b] = rotl32(x[b] ^ x[c], 7);
+  x[a] += x[b]; x[d] = bits_rotl32(x[d] ^ x[a], 16);
+  x[c] += x[d]; x[b] = bits_rotl32(x[b] ^ x[c], 12);
+  x[a] += x[b]; x[d] = bits_rotl32(x[d] ^ x[a], 8);
+  x[c] += x[d]; x[b] = bits_rotl32(x[b] ^ x[c], 7);
 }
 
 static inline void chacha_shuffle(const size_t rounds, uint32_t* x)
@@ -348,7 +348,7 @@ static uint64_t os_random_weak(uint64_t extra_seed) {
   #else
     struct timespec time;
     clock_gettime(CLOCK_MONOTONIC, &time);
-    x ^= rotl64((uint64_t)time.tv_sec, 32);
+    x ^= bits_rotl64((uint64_t)time.tv_sec, 32);
     x ^= (uint64_t)time.tv_nsec;
   #endif  
   assert_internal(x != 0);

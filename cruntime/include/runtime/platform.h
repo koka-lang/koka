@@ -155,10 +155,13 @@ typedef unsigned long  uintx_t;
 #endif
 #define INTX_BITS  (8*INTX_SIZE)
 
-
 // Distinguish unsigned shift right and signed arithmetic shift right.
-static inline intx_t  sar(intx_t i, intx_t shift) { return (i >> shift); }
-static inline uintx_t shr(uintx_t i, uintx_t shift) { return (i >> shift); }
+static inline intx_t   sar(intx_t i, intx_t shift)      { return (i >> shift); }
+static inline uintx_t  shr(uintx_t u, uintx_t shift)    { return (u >> shift); }
+static inline int32_t  sar32(int32_t i, intx_t shift)   { return (i >> shift); }
+static inline uint32_t shr32(uint32_t u, uintx_t shift) { return (u >> shift); }
+static inline int64_t  sar64(int32_t i, intx_t shift)   { return (i >> shift); }
+static inline uint64_t shr64(uint32_t u, uintx_t shift) { return (u >> shift); }
 
 // Limited reference counts can be more efficient
 #if PTRDIFF_MAX <= INT32_MAX

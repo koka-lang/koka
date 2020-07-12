@@ -130,13 +130,24 @@ static void runtime_done(void) {
   process_initialized = false;
 }
 
+
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
+bool __has_popcnt = false;
+#endif
+
 static void runtime_init(void) {
   if (process_initialized) return;
   process_initialized = true;
 #if defined(_WIN32) && defined(_CONSOLE)
   SetConsoleOutputCP(65001); // set the console to unicode instead of OEM page
 #endif
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
+  int32_t cpu_info[4];
+  __cpuid(cpu_info, 1);
+  __has_popcnt = ((cpu_info[2] & (I32(1)<<23)) != 0);
+#endif
   atexit(&runtime_done);
+
 }
 
 /*--------------------------------------------------------------------------------------------------
