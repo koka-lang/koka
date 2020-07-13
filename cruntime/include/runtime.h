@@ -9,25 +9,22 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
-
-#define REFCOUNT_LIMIT_TO_32BIT 0
-#define MULTI_THREADED          1
-#define ARCH_LITTLE_ENDIAN      1
-//#define ARCH_BIG_ENDIAN       1
-
-#include <assert.h>
-#include <errno.h>   // ENOSYS, etc
-#include <limits.h>  // LONG_MAX, etc
+#include <assert.h>  // assert
+#include <errno.h>   // ENOSYS, ...
+#include <limits.h>  // LONG_MAX, ...
 #include <stddef.h>  // ptrdiff_t
-#include <stdint.h>  // int_t, etc
+#include <stdint.h>  // int_t, ...
 #include <stdbool.h> // bool
-#include <stdio.h>   // FILE*
-#include <string.h>  // strlen
-#include <stdlib.h>  // malloc, abort, etc.
-#include <math.h>    
+#include <stdio.h>   // FILE*, printf, ...
+#include <string.h>  // strlen, memcpy, ...
+#include <stdlib.h>  // malloc, abort, ...
+#include <math.h>    // isnan, ...
+
+#define MULTI_THREADED  1      // set to 0 to be used single threaded only
 
 #include "runtime/platform.h"  // Platform abstractions and portability definitions
 #include "runtime/atomic.h"    // Atomic operations
+
 
 
 /*--------------------------------------------------------------------------------------
@@ -47,7 +44,6 @@ typedef enum tag_e {
   TAG_STRING_SMALL,// UTF8 encoded string of at most 7 bytes.
   TAG_STRING,      // UTF8 encoded string: valid (modified) UTF8 ending with a zero byte.
   TAG_BYTES,       // a vector of bytes
-  TAG_VECTOR_SMALL,// a vector of (boxed) values of at most (SCAN_FSIZE_MAX-1) length
   TAG_VECTOR,      // a vector of (boxed) values
   TAG_INT64,       // boxed int64_t
   TAG_DOUBLE,      // boxed IEEE double (64-bit)
@@ -77,7 +73,7 @@ typedef struct header_s {
   uint8_t   thread_shared : 1;
 } header_t;
 
-#define SCAN_FSIZE_MAX (255)
+#define SCAN_FSIZE_MAX (0xFF)
 #define HEADER(scan_fsize,tag)         { 0, tag, scan_fsize, 0 }            // start with refcount of 0
 #define HEADER_STATIC(scan_fsize,tag)  { U32(0xFF00), tag, scan_fsize, 0 }  // start with recognisable refcount (anything > 1 is ok)
 
@@ -133,9 +129,10 @@ typedef struct block_s {
 typedef struct block_large_s {
   block_t  _block;
   box_t    large_scan_fsize; // if `scan_fsize == 0xFF` there is a first field with the full scan size
+                             // (the full scan size should include the `large_scan_fsize` field itself!)
 } block_large_t;
 
-// A pointer to a block is never NULL.
+// A pointer to a block. Cannot be NULL.
 typedef block_t* ptr_t;
 
 
@@ -482,7 +479,7 @@ static inline value_tag_t value_tag(uintx_t tag) {
   return integer_from_small((intx_t)tag);
 }
 */
-#define value_tag(tag) (_new_integer(((uintptr_t)tag << 2) | 0x01))   // as a small int
+#define value_tag(tag) (_new_integer(((uintptr_t)tag << 2) | 1))   // as a small int
 
 /*--------------------------------------------------------------------------------------
   Functions
@@ -607,35 +604,17 @@ static inline vector_t dup_vector_t(vector_t v) {
   return dup_datatype_as(vector_t, v);
 }
 
-typedef struct vector_small_s {
-  struct vector_s _type;
-  box_t    length;
-  box_t    vec[1];            // vec[length]
-} *vector_small_t;
-
-typedef struct vector_large_s {
+typedef struct vector_large_s {  // always use a large block for a vector so the offset to the elements is fixed
   struct block_large_s _block;
-  box_t    length;
-  box_t    vec[1];            // vec[length]
+  box_t    vec[1];               // vec[(large_)scan_fsize]
 } *vector_large_t;
 
 static inline vector_t vector_alloc(size_t length, box_t def, context_t* ctx) {
   if (length==0) {
     return dup_vector_t(vector_empty);
   }
-  else if (length < SCAN_FSIZE_MAX) {
-    vector_small_t v = block_as_assert(vector_small_t, block_alloc(sizeof(struct vector_small_s) + (length-1)*sizeof(box_t), 1 + length, TAG_VECTOR_SMALL, ctx), TAG_VECTOR_SMALL);
-    v->length = box_enum(length);
-    if (def.box != box_null.box) {
-      for (size_t i = 0; i < length; i++) {
-        v->vec[i] = def;
-      }
-    }
-    return &v->_type;
-  }
   else {
-    vector_large_t v = (vector_large_t)block_large_alloc(sizeof(struct vector_large_s) + (length-1)*sizeof(box_t), 1 + length, TAG_VECTOR, ctx);
-    v->length = box_enum(length);
+    vector_large_t v = (vector_large_t)block_large_alloc(sizeof(struct vector_large_s) + (length-1)*sizeof(box_t), length + 1 /* large_scan_fsize */, TAG_VECTOR, ctx);
     if (def.box != box_null.box) {
       for (size_t i = 0; i < length; i++) {
         v->vec[i] = def;
@@ -646,22 +625,15 @@ static inline vector_t vector_alloc(size_t length, box_t def, context_t* ctx) {
 }
 
 static inline size_t vector_len(const vector_t v) {
-  if (datatype_tag(v)==TAG_VECTOR_SMALL) {
-    return unbox_enum(datatype_as_assert(vector_small_t,v,TAG_VECTOR_SMALL)->length);
-  }
-  else {
-    return unbox_enum(datatype_as_assert(vector_large_t, v, TAG_VECTOR)->length);
-  }
+  size_t len = unbox_enum( datatype_as_assert(vector_large_t, v, TAG_VECTOR)->_block.large_scan_fsize ) - 1;
+  assert_internal(len + 1 == block_scan_fsize(&v->_block));  
+  assert_internal(len + 1 != 0);
+  return len;
 }
 
 static inline box_t* vector_buf(vector_t v, size_t* len) {
   if (len != NULL) *len = vector_len(v);
-  if (datatype_tag(v)==TAG_VECTOR_SMALL) {
-    return &(datatype_as_assert(vector_small_t, v, TAG_VECTOR_SMALL)->vec[0]);
-  }
-  else {
-    return &(datatype_as_assert(vector_large_t, v, TAG_VECTOR)->vec[0]);
-  }
+  return &(datatype_as_assert(vector_large_t, v, TAG_VECTOR)->vec[0]);  
 }
 
 static inline box_t vector_at(const vector_t v, size_t i) {
@@ -677,7 +649,7 @@ static inline box_t box_vector_t(vector_t v, context_t* ctx) {
 static inline vector_t unbox_vector_t(box_t v, context_t* ctx) {
   UNUSED(ctx);
   block_t* b = unbox_ptr(v);
-  assert_internal(block_tag(b) == TAG_VECTOR_SMALL || block_tag(b) == TAG_VECTOR);
+  assert_internal(block_tag(b) == TAG_VECTOR);
   return (vector_t)b;
 }
 

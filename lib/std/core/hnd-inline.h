@@ -15,7 +15,7 @@ struct __std_core_hnd__ev_s;
 typedef vector_t evv_t;         // either a vector, or a single evidence
 
 static inline bool evv_is_vector(evv_t evv) {
-  return (datatype_tag(evv) >= TAG_VECTOR_SMALL);
+  return (datatype_tag(evv) == TAG_VECTOR);
 }
 
 static inline evv_t dup_evv_t(evv_t evv) {

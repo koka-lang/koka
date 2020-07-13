@@ -37,9 +37,9 @@ function_t function_null(context_t* ctx) {
 }
 
 // empty vector
-static struct vector_small_s _vector_empty
-= { {{ HEADER_STATIC(0,TAG_VECTOR_SMALL) }}, { 0x02 } /* length = box_enum(0) */, {{0}} };
-vector_t vector_empty = &_vector_empty._type;
+static struct vector_large_s _vector_empty
+  = { {{ HEADER_STATIC(SCAN_FSIZE_MAX,TAG_VECTOR) }, {5} /* = 1 value */ }, {{0}} };
+vector_t vector_empty = (vector_t)(&_vector_empty._block._block);
 
 // null function
 void free_fun_null(void* p) {

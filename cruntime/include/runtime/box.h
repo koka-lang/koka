@@ -39,7 +39,7 @@ Using `x` for bytes, and `b` for bits, with `z` the least significant byte, we h
     (xxxx xxxx) xxxx xxxz   z = bbbb bbb0  : 64-bit pointer: n    (always aligned to (at least) 2 bytes!)
     (xxxx xxxx) xxxx xxxz   z = bbbb bbb1  : 63-bit values: n*2+1
 
-On 64-bit, We can encode half of the doubles by saving 1 bit; There are two available strategies:
+On 64-bit, We can encode half of the doubles by saving 1 bit; There are two implemented strategies:
 (A1): heap allocate negative doubles, where a positive double is encoded as a value 
        `((d<<1) | 1)`. (define BOX_DOUBLE_IF_NEG to use this strategy)
 (A2): use value encoding if the 11-bit exponent fits in 10-bits. This uses value encoding
@@ -103,7 +103,7 @@ static inline bool box_eq(box_t b1, box_t b2) {
   return (b1.box == b2.box);
 }
 
-// We cannot store NULL in boxed values; use `box_null` instead
+// We cannot store NULL as a pointer (`ptr_t`); use `box_null` instead
 #define box_null   (_new_box(~UP(0)))  // -1 value
 
 // `box_any` is used to return when yielding (and should be accepted by any unbox operation)

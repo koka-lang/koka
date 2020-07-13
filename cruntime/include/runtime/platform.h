@@ -9,6 +9,7 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
+
 /*--------------------------------------------------------------------------------------
   Platform: we assume:
   - C99 as C compiler (syntax and library), with possible C11 extensions for threads and atomics.
@@ -163,11 +164,11 @@ static inline uint32_t shr32(uint32_t u, uintx_t shift) { return (u >> shift); }
 static inline int64_t  sar64(int32_t i, intx_t shift)   { return (i >> shift); }
 static inline uint64_t shr64(uint32_t u, uintx_t shift) { return (u >> shift); }
 
-// Limited reference counts can be more efficient
-#if PTRDIFF_MAX <= INT32_MAX
-#undef  REFCOUNT_LIMIT_TO_32BIT
-#define REFCOUNT_LIMIT_TO_32BIT  1
-#endif
+// Architecture assumptions
+#define ARCH_LITTLE_ENDIAN      1
+//#define ARCH_BIG_ENDIAN       1
+
+#define FUNPTR_SIZE             INTPTR_SIZE    // the size of function pointer: `void (*f)(void)`
 
 
 #endif // include guard
