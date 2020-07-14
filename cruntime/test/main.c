@@ -385,7 +385,7 @@ static void test_mulk(integer_t x, integer_t y) {
 }
 */
 
-static void test_bitcount() {
+static void test_bitcount(void) {
   uint32_t values[] = { 1,0x80000000,0xFFFFFFFF,0xFFFF,0xFFFF0000,0x7FFFFFFF,0xFFFFFFFE, 0x7FFFFFFE, 0x80000001, 0 };
   size_t i = 0;
   uint32_t v;
@@ -396,6 +396,20 @@ static void test_bitcount() {
   for (v = 1; v != 0; v <<= 1) {
     printf("value: 0x%08x, ctz: %2u, clz: %2u\n", v, bits_ctz32(v), bits_clz32(v));
   }  
+}
+
+static void test_popcount(void) {
+  printf("testing popcount...");
+  for (uint32_t i = 0; i < UINT32_MAX; i++) {
+    uint32_t c1 = bits_generic_count32(i);
+    uint32_t c2 = bits_count32(i);
+    if (c1 != c2) {
+      assert(c1 == c2);
+      abort();
+    }
+    if (i % 10000000 == 0) printf(".");
+  }
+  printf(": ok for all 32-bit values.\n");
 }
 
 static void test_box_double(double dx, context_t* ctx) {
@@ -488,6 +502,7 @@ int main() {
   test_pow10(ctx);
   test_double(ctx);  
   test_ovf(ctx);
+  test_popcount();
   // test_bitcount();
   // test_random(ctx);
   

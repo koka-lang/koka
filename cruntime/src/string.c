@@ -85,10 +85,9 @@ size_t decl_pure string_count(string_t str) {
     const uintx_t* p;
     for (p = (const uintx_t*)t; !bits_has_zero_byte(*p); p++) {
       // count continuation bytes (0b10xxxxxx bytes) in parallel
-      // see <https://graphics.stanford.edu/~seander/bithacks.html#HasLessInWord>
       const uintx_t u = *p;
       const uintx_t m = ((u & bits_high_mask) >> 7) & ((~u) >> 6); // each byte in `m` is 0x01 iff it was a continuation byte
-      cont += (m * bits_one_mask) >> ((sizeof(uintx_t) - 1) * 8);  // multiply by one_mask leaves count of 0x01 bytes in the msb
+      cont += bits_byte_sum(m);
     }
     t = (const uint8_t*)p; // restore t
   }

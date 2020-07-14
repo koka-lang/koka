@@ -197,7 +197,11 @@ static inline uint8_t bits_ctz(uintx_t x) {
 }
 
 /* -----------------------------------------------------------
-  Is there a zero byte in a word? see: <https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord>
+  Byte operations
+
+  - Is there a zero byte in a word? see: <https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord>
+  - Is any byte equal to n?
+  - Sum of bytes
 ----------------------------------------------------------- */
 
 #define bits_one_mask32     U32(0x01010101)
@@ -221,19 +225,51 @@ static inline bool bits_has_zero_byte(uintx_t x) {
   return __bitsx(has_zero_byte)(x);
 }
 
+// is there any byte in `x` equal to `n`?
 static inline bool bits_has_byte32(uint32_t x, uint8_t n) {
-  x ^= bits_one_mask32*n;
+  uint32_t y = n;
+  y |= (y << 8);
+  y |= (y << 16);
+  x ^= y;
   return bits_has_zero_byte32(x);
 }
 
+// is there any byte in `x` equal to `n`?
 static inline bool bits_has_byte64(uint64_t x, uint8_t n) {
-  x ^= bits_one_mask64*n;
+  uint64_t y = n;
+  y |= (y << 8);
+  y |= (y << 16);
+  y |= (y << 32);
+  x ^= y;
   return bits_has_zero_byte64(x);
 }
 
 // is there any byte in `x` equal to `n`?
 static inline bool bits_has_byte(uintx_t x, uint8_t n) {
   return __bitsx(has_byte)(x,n);
+}
+
+
+// sum of all the bytes in `x` if it is guaranteed that the sum < 256!
+static inline uint8_t bits_byte_sum32(uint32_t x) {
+  // perform `x * bits_one_mask`: the highest byte contains the sum of all bytes.
+  // note: clang will compile to either shift/adds or a multiply depending on the target
+  x += (x << 8);
+  x += (x << 16);
+  return (x >> 24);
+}
+
+// sum of all the bytes in `x` if it is guaranteed that the sum < 256!
+static inline uint8_t bits_byte_sum64(uint64_t x) {
+  x += (x << 8);
+  x += (x << 16);
+  x += (x << 32);
+  return (x >> 56);
+}
+
+// sum of all the bytes in `x` if it is guaranteed that the sum < 256!
+static inline uint8_t bits_byte_sum(uintx_t x) {
+  return __bitsx(byte_sum)(x);
 }
 
 
@@ -245,13 +281,15 @@ static inline bool bits_has_byte(uintx_t x, uint8_t n) {
 static inline uint32_t bits_generic_count32(uint32_t x) {
   x = x - ((x >> 1) & U32(0x55555555));
   x = (x & U32(0x33333333)) + ((x >> 2) & U32(0x33333333));
-  return ((((x + (x >> 4)) & U32(0x0F0F0F0F)) * U32(0x01010101)) >> 24);
+  x = (x + (x >> 4)) & U32(0x0F0F0F0F);
+  return bits_byte_sum32(x);
 }
 
 static inline uint64_t bits_generic_count64(uint64_t x) {
   x = x - ((x >> 1) & U64(0x5555555555555555));
   x = (x & U64(0x3333333333333333)) + ((x >> 2) & U64(0x3333333333333333));
-  return ((((x + (x >> 4)) & U64(0x0F0F0F0F0F0F0F0F)) * U64(0x0101010101010101)) >> 56);
+  x = (x + (x >> 4)) & U64(0x0F0F0F0F0F0F0F0F);
+  return bits_byte_sum64(x);
 }
 
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
