@@ -133,6 +133,7 @@ static void runtime_done(void) {
 
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
 bool __has_popcnt = false;
+bool __has_lzcnt = false;
 #endif
 
 static void runtime_init(void) {
@@ -145,6 +146,7 @@ static void runtime_init(void) {
   int32_t cpu_info[4];
   __cpuid(cpu_info, 1);
   __has_popcnt = ((cpu_info[2] & (I32(1)<<23)) != 0);
+  __has_lzcnt  = ((cpu_info[2] & (I32(1)<<5)) != 0);
 #endif
   atexit(&runtime_done);
 

@@ -389,12 +389,19 @@ static void test_bitcount(void) {
   uint32_t values[] = { 1,0x80000000,0xFFFFFFFF,0xFFFF,0xFFFF0000,0x7FFFFFFF,0xFFFFFFFE, 0x7FFFFFFE, 0x80000001, 0 };
   size_t i = 0;
   uint32_t v;
+  uint8_t l, t;
   do {
     v = values[i++];
-    printf("value: 0x%08x, ctz: %2u, clz: %2u\n", v, bits_ctz32(v), bits_clz32(v));
+    l = bits_clz32(v);
+    t = bits_ctz32(v);
+    if (v == 0) assert((l + t) == 64);
+    printf("value: 0x%08x, ctz: %2u, clz: %2u\n", v, t, l);
   } while (v != 0);
   for (v = 1; v != 0; v <<= 1) {
-    printf("value: 0x%08x, ctz: %2u, clz: %2u\n", v, bits_ctz32(v), bits_clz32(v));
+    l = bits_clz32(v);
+    t = bits_ctz32(v);
+    printf("value: 0x%08x, ctz: %2u, clz: %2u\n", v, t, l);
+    assert((l + t) == 31);
   }  
 }
 
@@ -502,8 +509,8 @@ int main() {
   test_pow10(ctx);
   test_double(ctx);  
   test_ovf(ctx);
-  test_popcount();
-  // test_bitcount();
+  // test_popcount();
+  test_bitcount();
   // test_random(ctx);
   
   /*

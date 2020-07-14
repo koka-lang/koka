@@ -72,6 +72,7 @@ static inline uint64_t bits_rotr64(uint64_t x, uint64_t shift) {
   return _rotr64(x, (int)shift);
 }
 #else
+// most compilers translate these expressions to a direct rotation instruction
 static inline uint16_t bits_rotl16(uint16_t x, uint16_t shift) {
   return (x << shift) | (x >> (16 - shift));
 }
@@ -113,21 +114,38 @@ static inline uint8_t bits_ctz64(uint64_t x);
 
 #if defined(_MSC_VER) && (defined(_M_ARM64) || defined(_M_ARM) || defined(_M_X64) || defined(_M_IX86))
 #include <intrin.h>
+
+#if defined(_M_X64) || defined(_M_IX86)
+extern bool __has_lzcnt;
+#endif
+
 static inline uint8_t bits_clz32(uint32_t x) {
+  #if defined(_M_X64) || defined(_M_IX86)
+  if (__has_lzcnt) return (uint8_t)__lzcnt(x);
+  #endif
   unsigned long idx;
   return (_BitScanReverse(&idx, x) ? 31 - (uint8_t)idx : 32);
 }
 static inline uint8_t bits_ctz32(uint32_t x) {
+  #if defined(_M_X64) || defined(_M_IX86)
+  if (__has_lzcnt) return (uint8_t)_tzcnt_u32(x);
+  #endif
   unsigned long idx;
   return (_BitScanForward(&idx, x) ? (uint8_t)idx : 32);
 }
 #if (INTPTR_SIZE >= 8)
 #define HAS_BITS_CLZ64
 static inline uint8_t bits_clz64(uint64_t x) {
+  #if defined(_M_X64) || defined(_M_IX86)
+  if (__has_lzcnt) return (uint8_t)__lzcnt64(x);
+  #endif
   unsigned long idx;
   return (_BitScanReverse64(&idx, x) ? 63 - (uint8_t)idx : 64);
 }
 static inline uint8_t bits_ctz64(uint64_t x) {
+  #if defined(_M_X64) || defined(_M_IX86)
+  if (__has_lzcnt) return (uint8_t)_tzcnt_u64(x);
+  #endif
   unsigned long idx;
   return (_BitScanForward64(&idx, x) ? (uint8_t)idx : 64);
 }
