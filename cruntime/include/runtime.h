@@ -317,13 +317,13 @@ static inline char* _block_as_assert(block_t* b, tag_t tag) {
   Reference counting
 --------------------------------------------------------------------------------------*/
 
-decl_export void     block_check_free(block_t* b, context_t* ctx);
-decl_export block_t* dup_block_check(block_t* b);
+decl_export void     block_check_free(block_t* b, uint32_t rc, context_t* ctx);
+decl_export block_t* dup_block_check(block_t* b, uint32_t rc);
 
 static inline block_t* dup_block(block_t* b) {
-  uint32_t rc = b->header.refcount;
+  const uint32_t rc = b->header.refcount;
   if (unlikely((int32_t)rc < 0)) {  // note: assume two's complement  (we can skip this check if we never overflow a reference count or use thread-shared objects.)
-    return dup_block_check(b);      // thread-shared or sticky (overflow) ?
+    return dup_block_check(b,rc);   // thread-shared or sticky (overflow) ?
   }
   else {
     b->header.refcount = rc+1;
@@ -332,9 +332,9 @@ static inline block_t* dup_block(block_t* b) {
 }
 
 static inline void drop_block(block_t* b, context_t* ctx) {
-  uint32_t rc = b->header.refcount;
+  const uint32_t rc = b->header.refcount;
   if ((int32_t)rc <= 0) {         // note: assume two's complement
-    block_check_free(b, ctx);     // thread-shared, sticky (overflowed), or can be freed? 
+    block_check_free(b, rc, ctx); // thread-shared, sticky (overflowed), or can be freed? 
   }
   else {
     b->header.refcount = rc-1;

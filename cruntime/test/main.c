@@ -406,7 +406,7 @@ static void test_bitcount(void) {
 }
 
 static void test_popcount(void) {
-  printf("testing popcount...");
+  printf("testing popcount..."); fflush(stdout);
   for (uint32_t i = 0; i < UINT32_MAX; i++) {
     uint32_t c1 = bits_generic_count32(i);
     uint32_t c2 = bits_count32(i);
@@ -414,7 +414,10 @@ static void test_popcount(void) {
       assert(c1 == c2);
       abort();
     }
-    if (i % 10000000 == 0) printf(".");
+    if (i % 10000000 == 0) {
+      printf(".");
+      fflush(stdout);
+    }
   }
   printf(": ok for all 32-bit values.\n");
 }
@@ -510,7 +513,7 @@ int main() {
   test_double(ctx);  
   test_ovf(ctx);
   // test_popcount();
-  test_bitcount();
+  // test_bitcount();
   // test_random(ctx);
   
   /*

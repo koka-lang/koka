@@ -116,7 +116,7 @@ static inline uint8_t bits_ctz64(uint64_t x);
 #include <intrin.h>
 
 #if defined(_M_X64) || defined(_M_IX86)
-extern bool __has_lzcnt;
+extern bool __has_lzcnt;  // initialized in runtime.c
 #endif
 
 static inline uint8_t bits_clz32(uint32_t x) {

@@ -51,8 +51,8 @@
 #if defined(__GNUC__)
 #define unlikely(h)     __builtin_expect((h),0)
 #define likely(h)       __builtin_expect((h),1)
-#define decl_const      __attribute__((const))
-#define decl_pure       __attribute__((pure))
+#define decl_const      __attribute__((const))    // reads no global state at all
+#define decl_pure       __attribute__((pure))     // may read global state but has no observable side effects
 #define noinline        __attribute__((noinline))
 #define decl_thread     __thread
 #elif defined(_MSC_VER)
