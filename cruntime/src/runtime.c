@@ -41,7 +41,7 @@ static struct vector_large_s _vector_empty
   = { {{ HEADER_STATIC(SCAN_FSIZE_MAX,TAG_VECTOR) }, {5} /* = 1 value */ }, {{0}} };
 vector_t vector_empty = (vector_t)(&_vector_empty._block._block);
 
-// null function
+// null functions
 void free_fun_null(void* p) {
   UNUSED(p);
 }
@@ -143,21 +143,24 @@ static void runtime_init(void) {
   SetConsoleOutputCP(65001); // set the console to unicode instead of OEM page
 #endif
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
+  // <https://en.wikipedia.org/wiki/SSE4#POPCNT_and_LZCNT>
   int32_t cpu_info[4];
   __cpuid(cpu_info, 1);
-  __has_popcnt = ((cpu_info[2] & (I32(1)<<23)) != 0);
+  __has_popcnt = ((cpu_info[2] & (I32(1)<<23)) != 0);  
+  __cpuid(cpu_info, 0x80000001);
   __has_lzcnt  = ((cpu_info[2] & (I32(1)<<5)) != 0);
 #endif
   atexit(&runtime_done);
-
 }
 
 /*--------------------------------------------------------------------------------------------------
   Getting the initial context (per thread)
 --------------------------------------------------------------------------------------------------*/
 
+// The thread local context; usually passed explicitly for efficiency.
 static decl_thread context_t* context;
 
+// Get the thread local context (also initializes on demand)
 context_t* runtime_context(void) {
   context_t* ctx = context;
   if (ctx!=NULL) return ctx;
@@ -166,6 +169,7 @@ context_t* runtime_context(void) {
   ctx->evv = dup_vector_t(vector_empty);
   ctx->thread_id = (uintptr_t)(&context);
   ctx->unique = integer_one;  
+  // todo: register a thread_done function to release the context on thread terminatation.
   return ctx;
 }
 
