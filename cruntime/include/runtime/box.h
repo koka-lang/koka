@@ -10,116 +10,92 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/*--------------------------------------------------------------
+/*-------------------------------------------------------------------------
 Boxing
 
-On 64-bit we like to box doubles without heap allocation, as well as allowing
-for 52-bit (sign extended) pointers to allow for a large virtual addressing space
-(like on ARMv8-A). 
+We assume pointers are always aligned to the machine word size, and we  
+use the bottom (least significant) bit to distinguish pointers from values. 
+This way, boxing a heap pointer has zero cost and is unchanged which helps
+the processor with prediction. For integers, we use a pointer to big integers,
+or a value for small integers (and boxing is zero cost this way as well).
 
-For pointers and integers, the top 12-bits are the sign extension of the bottom 52 bits
-and thus always 0x000 or 0xFFF (denoted as `sss`).
+On 32-bit platforms doubles are heap allocated when boxed, but on 64-bit
+platforms there are 2 strategies: 
+(A) As we lose 1 bit, heap allocate half of the doubles, and use the 
+    value encoding for the other half.
+(B) limit addresses and values to 52 bits and use the top 12 bits to 
+    distinguish pointers, values, or doubles. This effectively encodes 
+    pointers and values in the NaN space but encodes it in a way that pointers 
+    can be used as is. (This strategy is selected when `USE_NAN_BOX`=1)
+    
+Option (B) avoids allocating any double for boxing but has a cost in that 
+scanning memory for recursive free-ing is more expensive (to distinguish 
+pointers from doubles) so we default to option (A).
+
 Using `x` for bytes, and `b` for bits, with `z` the least significant byte, we have:
 
-    sssx xxxx xxxx xxxz   z = bbbb bb00  : 52-bit sign extended pointer (always aligned to 4 bytes!)
-    sssx xxxx xxxx xxxz   z = bbbb bb01  : 50-bit sign extended integer
-    sssx xxxx xxxx xxxz   z = bbbb bb10  : 50-bit unsigned enumeration
-    sssx xxxx xxxx xxxz   z = bbbb bb11  : 50-bit special double (see below)
+(A):
 
-So, an integer `n` is encoded boxed as `boxed(n) == n*4 + 1`.
+    (xxxx xxxx) xxxx xxxz   z = bbbb bbb0  : 64-bit pointer: n    (always aligned to (at least) 2 bytes!)
+    (xxxx xxxx) xxxx xxxz   z = bbbb bbb1  : 63-bit values: n*2+1
 
----------------------
-On 64-bit we can now encode most doubles such that the top 12-bits are
+On 64-bit, We can encode half of the doubles by saving 1 bit; There are two implemented strategies:
+(A1): heap allocate negative doubles, where a positive double is encoded as a value 
+       `((d<<1) | 1)`. (define BOX_DOUBLE_IF_NEG to use this strategy)
+(A2): use value encoding if the 11-bit exponent fits in 10-bits. This uses value encoding
+      numbers whose absolute value is in the range [2^-511,2^512), or if it is
+      zero, subnormal, NaN, or infinity. This is the default as this captures almost
+      all doubles that are commonly in use for most workloads.
+
+(B), use NaN boxing on 64-bit:
+   
+For pointers and integers, the top 12-bits are the sign extension of the bottom 52 bits
+and thus always 0x000 or 0xFFF (denoted as `sss`).
+
+    000x xxxx xxxx xxxz   z = bbbb bbb0  : 52-bit positive pointer (always aligned to 2 bytes!)
+    000x xxxx xxxx xxxz   z = bbbb bbb1  : 51-bit positive value
+    001x xxxx xxxx xxxz   z = bbbb bbbb  : positive double: d + (0x001 << 52)
+    ...
+    800x xxxx xxxx xxxz   z = bbbb bbbb  : negative double: d 
+    ... 
+    FFFx xxxx xxxx xxxz   z = bbbb bbb0  : 52-bit negative pointer (always aligned to 2 bytes!)
+    FFFx xxxx xxxx xxxz   z = bbbb bbb1  : 51-bit negative value
+
+We can encode most doubles such that the top 12-bits are
 between 0x001 and 0xFFE. The ranges of IEEE double values are:
-  positive doubles        : 0000 0000 0000 0000 - 7FEF FFFF FFFF FFFF
-  positive infinity       : 7FF0 0000 0000 0000
-  positive NaN            : 7FF0 0000 0000 0001 - 7FFF FFFF FFFF FFFF
-  negative doubles        : 8000 0000 0000 0000 - FFEF FFFF FFFF FFFF
-  negative infinity       : FFF0 0000 0000 0000
-  negative NaN            : FFF0 0000 0000 0001 - FFFF FFFF FFFF FFFF
+    positive doubles        : 0000 0000 0000 0000 - 7FEF FFFF FFFF FFFF
+    positive infinity       : 7FF0 0000 0000 0000
+    positive NaN            : 7FF0 0000 0000 0001 - 7FFF FFFF FFFF FFFF
+    negative doubles        : 8000 0000 0000 0000 - FFEF FFFF FFFF FFFF
+    negative infinity       : FFF0 0000 0000 0000
+    negative NaN            : FFF0 0000 0000 0001 - FFFF FFFF FFFF FFFF
 
-Now, if a double is:
-- positive: we add 0010 0000 0000 000, such that the range of positive doubles is boxed between
-            0010 0000 0000 0000 and 7FFF FFFF FFFF FFFF
-- negative: leave it as is, so the negative doubles are boxed between
-            8000 0000 0000 0000 and FFEF FFFF FFFF FFFF
-- special : either infinity or NaN. We save the sign, NaN signal bit, and bottom 48 bits as
-            a 50-bit number and encode as a boxed special double ending in 0x03.
-            (this means we may lose the top 3 bits (bits 49 to 51) of a potential NaN payload)
-
-
--------------------------
-By reserving 2 of the lower bits we can make large integer arithmetic
-more efficient where a large integer is either a pointer to a bigint
-or a sign extended small integer of at most 30 bits; We can do addition
-then directly on the boxed values as:
-
-    boxed integer_add(boxed x, boxed y) {
-      int_t z;
-      if (unlikely(smallint_add_ovf32(x,y,&z) || (z&0x02)==0)) return integer_add_generic(x,y);
-      return (boxed)(z - 1);  // or: z ^ 0x03
-    }
-
-We can do a direct 32-bit addition and test for 32-bit overflow and
-only afterwards test if we actually added 2 integers and not two pointers.
-If we add, the last 2 bits are:
-
-     x + y = z
-    00  00  00    ptr + ptr
-    00  01  01    ptr + int
-    01  00  01    int + ptr
-    01  01  10    int + int
-
-so the test `(z&0x02) == 0` checks if we added 2 integers.
-Finally, we subtract 1 to normalize the integer again. With gcc on x86-64 we get:
-
-integer_add(long,long)
-        mov     edx, edi   // move bottom 32-bits of `x` to edx
-        add     edx, esi   // add bottom 32-bits of `y`
-        movsx   rax, edx   // sign extend to 64-bits result in rax
-        jo      .L7        // on (32-bit) overflow goto slow
-        and     edx, 2     // check bit 1 of the result
-        je      .L7        // if it is zero, goto slow
-        sub     rax, 1     // normalize back to an integer
-        ret
-.L7:
-        jmp     integer_add_generic(long, long)
-
-----------------
-On 32-bit we use the same encoding of the bottom bits but no restriction
-on the top 16 bits as we will box doubles as heap allocated values.
-
-  xxxx xxxz   z = bbbb bb00  : 32-bit pointer (always aligned to 4 bytes)
-  xxxx xxxz   z = bbbb bb01  : 30-bit integer
-  xxxx xxxz   z = bbbb bb10  : 30-bit enumeration
-  xxxx xxxz   z = bbbb bb11  : reserved (unused special double)
-
-We still have fast addition of large integers but use 14-bit small
-integers where we can do a 16-bit efficient overflow check.
+  Now, if a double is:
+  - positive: we add (0x001 << 52), such that the range of positive doubles is boxed between
+              0010 0000 0000 0000 and 7FFF FFFF FFFF FFFF
+  - negative: leave it as is, so the negative doubles are boxed between
+              8000 0000 0000 0000 and FFEF FFFF FFFF FFFF
+  - special : either infinity or NaN. We extend the sign over the exponent bits (since these are always 0x7FF),
+              and merge the bit 0 with bit 1 to ensure a NaN payload is never unboxed as 0. 
+              We set the bottom bit to 1 to encode as a value.
+              On unboxing, we extend bit 1 to bit 0, which means we may lose up to 1 bit of the NaN payload.
 ----------------------------------------------------------------*/
+
+#define USE_NAN_BOX   (0)                  // strategy A by default
+// #define USE_NAN_BOX   (INTPTR_SIZE==8)  // only possible on 64-bit platforms
+// #define BOX_DOUBLE_IF_NEG               // strategy A2
 
 // Forward declarations
 static inline bool      is_ptr(box_t b);
-static inline bool      is_ptr_fast(box_t b);   // if it is either a pointer, int, or enum, but not a double
-static inline bool      is_enum_fast(box_t b);  // if it is either a pointer, int, or enum, but not a double
 static inline block_t*  unbox_ptr(box_t b);
 static inline box_t     box_ptr(const block_t* p);
 static inline intx_t    unbox_int(box_t v);
 static inline box_t     box_int(intx_t i);
 
 // Use a boxed representation as an intptr
-static inline box_t box_from_uintptr(uintptr_t u) {
+static inline box_t _new_box(uintptr_t u) {
   box_t b = { u };
   return b;
-}
-static inline box_t box_from_intptr(intptr_t i) {
-  return box_from_uintptr((uintptr_t)i);
-}
-static inline uintptr_t box_as_uintptr(box_t b) {
-  return b.box;
-}
-static inline intptr_t box_as_intptr(box_t b) {
-  return (intptr_t)box_as_uintptr(b);
 }
 
 // Are two boxed representations equal?
@@ -127,126 +103,59 @@ static inline bool box_eq(box_t b1, box_t b2) {
   return (b1.box == b2.box);
 }
 
-// We cannot store NULL in boxed values; use `box_null` instead
-#define box_null   (box_from_uintptr(7))    // = NaN with payload 1
+// We cannot store NULL as a pointer (`ptr_t`); use `box_null` instead
+#define box_null   (_new_box(~UP(0)))  // -1 value
 
 // `box_any` is used to return when yielding (and should be accepted by any unbox operation)
-#define box_any    (box_from_uintptr(11))   // = NaN with payload 2
+#define box_any    (_new_box(1))       // 0 value
 
 // the _fast versions can apply if you are sure it is not a double
-static inline bool is_ptr_fast(box_t b) {
-  return ((b.box & 0x03)==0);
+static inline bool _is_ptr_fast(box_t b) {
+  return ((b.box&1)==0);
 }
-static inline bool is_int_fast(box_t b) {
-  return ((b.box & 0x03)==1);
+
+static inline bool _is_value_fast(box_t b) {
+  return ((b.box&1)==1);
 }
-static inline bool is_enum_fast(box_t b) {
-  return ((b.box & 0x03)==2);
-}
-static inline bool is_double_special_fast(box_t b) {
-  return ((b.box & 0x03)==3);
-}
+
 static inline bool is_box_null(box_t b) {
   return (b.box == box_null.box);
 }
+
 static inline bool is_box_any(box_t b) {
   return (b.box == box_any.box);
 }
 
-#define MAX_BOXED_INT  ((intptr_t)INTPTR_MAX >> (INTPTR_BITS - BOXED_INT_BITS))
+#define MAX_BOXED_INT  ((intptr_t)INTPTR_MAX >> (INTPTR_BITS - BOXED_VALUE_BITS))
 #define MIN_BOXED_INT  (- MAX_BOXED_INT - 1)
 
-#define MAX_BOXED_ENUM ((uintptr_t)UINTPTR_MAX >> (INTPTR_BITS - BOXED_INT_BITS))
-#define MIN_BOXED_ENUM (0)
+#define MAX_BOXED_UINT ((uintptr_t)UINTPTR_MAX >> (INTPTR_BITS - BOXED_VALUE_BITS))
+#define MIN_BOXED_UINT (0)
 
-// 64-bit
-#if INTPTR_SIZE==8
 
-#define BOXED_INT_BITS      (50)
-
-// checking does not have to be optimal as we do not generally use this.
-static inline bool is_double_normal(box_t b) {
-  // test if top 16 bits are not 0xFFFx or 0x000x; adding 0x10 brings that in the range 0x0000 to 0x001F
-  uint16_t top = (uint16_t)shr(b.box, 48);
-  return ((uint16_t)(top + 0x10) > 0x1F);
-}
-static inline bool _ptr_is_not_double_normal(box_t b) {
-  // faster test if a `ptr` is guaranteed to not have 0xFFF as the top 12 bits. 
-  // (which is usually the case, unless you are kernel programming)
-  // this is used when doing `boxed_incref` for example.
-  assert_internal(is_ptr_fast(b));
-  return ((uint16_t)shr(b.box, 52) == 0);
-}
-static inline bool is_ptr(box_t b) {
-  return (is_ptr_fast(b) && likely(_ptr_is_not_double_normal(b)));
-}
-static inline bool is_int(box_t b) {
-  return (is_int_fast(b) && likely(!is_double_normal(b)));
-}
-static inline bool is_enum(box_t b) {
-  return (is_enum_fast(b) && likely(!is_double_normal(b)));
-}
-static inline bool is_double_special(box_t b) {
-  return (is_double_special_fast(b) && likely(!is_double_normal(b)));
-}
-static inline bool is_double(box_t b) {
-  return (is_double_normal(b) || is_double_special_fast(b));  // first test for double_normal!
-}
-
-static inline double unbox_double(box_t v, context_t* ctx) {
-  UNUSED(ctx);
-  assert_internal(is_double(v) || is_box_any(v));
-  double d;
-  uint64_t u = v.box;
-  if (likely(is_double_normal(v))) {
-    // regular double
-    if ((int64_t)u >= 0) { u -= (U64(1) << 52); } // subtract 0x0010 0000 0000 0000 to positive doubles    
-    memcpy(&d, &u, sizeof(d)); // safe for C aliasing: see <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly>
-    assert_internal(isfinite(d));
-  }
-  else {
-    // NaN or infinity
-    assert_internal(is_double_special(v) || is_box_any(v));
-    uint64_t bot = ((u << 14) >> 16);  // clear top 14 bits and bottom 2 bits (= bottom 48 bits of the double)
-    uint64_t signal = ((u >> 50) & 1) << 51;
-    uint64_t top = ((int64_t)u >= 0 ? U64(0x7FF) : U64(0xFFF)) << 52;
-    u = (top | signal | bot);
-    memcpy(&d, &u, sizeof(d)); // safe for C aliasing
-    assert_internal(!isfinite(d));
-  }  
-  return d;
-}
-
-static inline box_t box_double(double d, context_t* ctx) {
-  UNUSED(ctx);
-  uint64_t u;
-  box_t v;
-  memcpy(&u, &d, sizeof(u));  // safe for C aliasing
-  if (likely(isfinite(d))) {
-    // regular double
-    if (!signbit(d)) { u += (U64(1) << 52); }  // add 0x0010 0000 0000 0000 to positive doubles (use signbit to encode -0.0 properly)
-    v.box = u;
-    assert_internal(is_double_normal(v));
-    assert_internal(unbox_double(v, ctx) == d);
-  }
-  else {
-    // NaN or infinity
-    uint16_t utop = (u >> 48);
-    int16_t   top = (((int16_t)utop >> 12) & 0xFFF8) | ((utop>>1)&0x0004);  // maintain the sign and save NaN signal bit
-    uint64_t bot  = ((u << 16) >> 16);                  // clear top 16 bits
-    if ((utop & 0x0007) != 0 && bot == 0) { bot = 1; }  // ensure we maintain a non-zero NaN payload if just the top 3 bits were set (or we may unbox a NaN as infinity!)
-    u = ((uint64_t)top << 48) | (bot << 2) | 0x03;      // and merge and set as special double
-    v.box = u;
-    assert_internal(!is_double_normal(v) && is_double_special_fast(v));
-#if (DEBUG>=3)
-    double dx = unbox_double(v, ctx);
-    uint64_t ux;
-    memcpy(&ux, &dx, sizeof(double));
-    assert_internal(u == ux);  // (may fail due to top 3 bits of a NaN payload)
+#if !USE_NAN_BOX
+double unbox_double_heap(box_t b, context_t* ctx);
+box_t box_double_heap(double d, context_t* ctx);
 #endif
-  }
-  assert_internal(is_double(v));
-  return v;
+
+#if (INTPTR_SIZE==8)
+box_t box_double(double d, context_t* ctx);
+double unbox_double(box_t b, context_t* ctx);
+#endif
+
+//---------------------------------------------------------------------
+// 64-bit
+//---------------------------------------------------------------------
+#if (INTPTR_SIZE==8) && !USE_NAN_BOX
+
+#define BOXED_VALUE_BITS  (63)
+
+static inline bool is_ptr(box_t b) {
+  return _is_ptr_fast(b);
+}
+
+static inline bool is_value(box_t b) {
+  return _is_value_fast(b);
 }
 
 static inline int32_t unbox_int32_t(box_t v, context_t* ctx) {
@@ -261,49 +170,74 @@ static inline box_t box_int32_t(int32_t i, context_t* ctx) {
   return box_int(i);
 }
 
-// 32 bit
-#elif INTPTR_SIZE==4
 
-#define BOXED_INT_BITS      (30)
+//--------------------------------------------------------------
+// 64 bit, NaN boxing
+//--------------------------------------------------------------
+#elif (INTPTR_SIZE==8) && USE_NAN_BOX 
+
+#define BOXED_VALUE_BITS  (51)
+
+static inline bool _is_double_normal(box_t b) {
+  // test if top 12 bits are not 0xFFF or 0x000
+  intptr_t i = sar((intptr_t)b.box, 21);  // arithmetic shift right until lowest of the 12 bits (at bit 52), is at bit 31.
+  return (i != (int32_t)i);               // check if sign extension is not equal
+}
 
 static inline bool is_ptr(box_t b) {
-  return is_ptr_fast(b);
+  return (_is_ptr_fast(b) && likely(!_is_double_normal(b)));
 }
-static inline bool is_int(box_t b) {
-  return is_int_fast(b);
+
+static inline bool is_value(box_t b) {
+  return (_is_value_fast(b) && likely(!_is_double_normal(b)));
 }
-static inline bool is_enum(box_t b) {
-  return is_enum_fast(b);
+
+static inline bool _is_double_special(box_t b) {
+  return (_is_value_fast(b) && likely(!_is_double_normal(b)));
 }
-static inline bool is_double_special(box_t b) {
-  bool is_special = is_double_special_fast(b);
-  assert_internal(!is_special);
-  return is_special;
+
+static inline bool _is_double(box_t b) {
+  return (_is_double_normal(b) || _is_value_fast(b));  // first test for double_normal!
 }
-static inline bool is_double_normal(box_t v) {
+
+static inline int32_t unbox_int32_t(box_t v, context_t* ctx) {
+  UNUSED(ctx);
+  intx_t i = unbox_int(v);
+  assert_internal(i >= INT32_MIN && i <= INT32_MAX);
+  return (int32_t)(i);
+}
+
+static inline box_t box_int32_t(int32_t i, context_t* ctx) {
+  UNUSED(ctx);
+  return box_int(i);
+}
+
+//--------------------------------------------------------------
+// 32 bit
+//--------------------------------------------------------------
+#elif INTPTR_SIZE==4
+
+#define BOXED_VALUE_BITS      (31)
+
+static inline bool is_ptr(box_t b) {
+  return _is_ptr_fast(b);
+}
+static inline bool is_value(box_t b) {
+  return _is_value_fast(b);
+}
+static inline bool _is_double_normal(box_t v) {
   return (is_ptr(v) && block_tag(unbox_ptr(v)) == TAG_DOUBLE);
 }
-static inline bool is_double(box_t v) {
-  return is_double_normal(v);
+static inline bool _is_double(box_t v) {
+  return _is_double_normal(v);
 }
 
-typedef struct boxed_double_s {
-  block_t _block;
-  double  value;
-} *boxed_double_t;
-
 static inline double unbox_double(box_t b, context_t* ctx) {
-  assert_internal(is_double(b));
-  boxed_double_t dt = block_as_assert(boxed_double_t,unbox_ptr(b),TAG_DOUBLE);
-  double d = dt->value;
-  drop_datatype(dt,ctx);
-  return d;
+  return unbox_double_heap(b,ctx);
 }
 
 static inline box_t box_double(double d, context_t* ctx) {
-  boxed_double_t dt = block_alloc_as(struct boxed_double_s, 0, TAG_DOUBLE, ctx);
-  dt->value = d;
-  return box_ptr(&dt->_block);
+  return box_double_heap(d, ctx);
 }
 
 typedef struct boxed_int32_s {
@@ -312,7 +246,7 @@ typedef struct boxed_int32_s {
 } *boxed_int32_t;
 
 static inline int32_t unbox_int32_t(box_t v, context_t* ctx) {
-  if (likely(is_int(v))) {
+  if (likely(is_value(v))) {
     intx_t i = unbox_int(v);
     assert_internal(i >= INT32_MIN && i <= INT32_MAX);
     return (int32_t)i;
@@ -361,26 +295,26 @@ static inline box_t box_ptr(const block_t* p) {
 }
 
 static inline uintx_t unbox_enum(box_t b) {
-  assert_internal(is_enum(b) || is_box_any(b));
-  return shr(b.box, 2);
+  assert_internal(is_value(b) || is_box_any(b));
+  return shr(b.box, 1);
 }
 
 static inline box_t box_enum(uintx_t u) {
-  assert_internal(u <= MAX_BOXED_ENUM);
-  box_t b = { ((uintptr_t)u << 2) | 0x02 };
-  assert_internal(is_enum(b));
+  assert_internal(u <= MAX_BOXED_UINT);
+  box_t b = { ((uintptr_t)u << 1) | 1 };
+  assert_internal(is_value(b));
   return b;
 }
 
 static inline intx_t unbox_int(box_t v) {
-  assert_internal(is_int(v) || is_box_any(v));
-  return (sar(v.box, 2));
+  assert_internal(is_value(v) || is_box_any(v));
+  return (sar(v.box, 1));
 }
 
 static inline box_t box_int(intx_t i) {
   assert_internal(i >= MIN_BOXED_INT && i <= MAX_BOXED_INT);
-  box_t v = { (uintptr_t)(i << 2) | 0x01 };
-  assert_internal(is_int(v));
+  box_t v = { (uintptr_t)(i << 1) | 1 };
+  assert_internal(is_value(v));
   return v;
 }
 
@@ -408,6 +342,16 @@ static inline block_t* unbox_block_t(box_t v, tag_t expected_tag ) {
   assert_internal(block_tag(b) == expected_tag);
   return b;
 }
+
+static inline box_t dup_box_t(box_t b) {
+  if (is_ptr(b)) dup_block(unbox_ptr(b));
+  return b;
+}
+
+static inline void drop_box_t(box_t b, context_t* ctx) {
+  if (is_ptr(b)) drop_block(unbox_ptr(b), ctx);
+}
+
 
 static inline box_t box_block_t(block_t* b) {
   return box_ptr(b);
@@ -450,6 +394,18 @@ typedef struct boxed_value_s {
 
 // C pointers
 
+// A function to free a raw C pointer, raw bytes, or raw string.
+typedef void (free_fun_t)(void*);
+decl_export void free_fun_null(void* p);
+
+// "raw" types: first field is pointer to a free function, the next field a pointer to raw C data
+typedef struct cptr_raw_s {
+  block_t     _block;
+  free_fun_t* free;
+  void* cptr;
+} *cptr_raw_t;
+
+
 static inline box_t box_cptr_raw(free_fun_t* freefun, void* p, context_t* ctx) {
   cptr_raw_t raw = block_alloc_as(struct cptr_raw_s, 0, TAG_CPTR_RAW, ctx);
   raw->free = freefun;
@@ -463,10 +419,11 @@ static inline void* unbox_cptr_raw(box_t b) {
 }
 
 static inline box_t box_cptr(void* p, context_t* ctx) {
-  intx_t i = (intptr_t)p;
-  if (i >= MIN_BOXED_INT && i <= MAX_BOXED_INT) {
-    // box as int
-    return box_int(i);
+  uintptr_t u = (uintptr_t)p;
+  if (likely((u&1) == 0)) {  // aligned pointer?
+    // box as value
+    box_t b = { (u|1) };
+    return b;
   }
   else {
     // allocate 
@@ -475,36 +432,48 @@ static inline box_t box_cptr(void* p, context_t* ctx) {
 }
 
 static inline void* unbox_cptr(box_t b) {
-  if (is_int_fast(b)) {
-    assert_internal(is_int(b));
-    return (void*)(unbox_int(b));
+  if (_is_value_fast(b)) {
+    assert_internal(is_value(b));
+    return (void*)(b.box ^ 1);  // clear lowest bit
   }
   else {
     return unbox_cptr_raw(b);
   }
 }
 
+// C function pointers
+
+typedef void (*fun_ptr_t)(void);
+
+typedef struct cfunptr_s {
+  block_t     _block;
+  fun_ptr_t   cfunptr;
+} *cfunptr_t;
+
 typedef void (*fun_ptr_t)(void);
 #define box_fun_ptr(f,ctx)  _box_fun_ptr((fun_ptr_t)f, ctx)
 
 static inline box_t _box_fun_ptr(fun_ptr_t f, context_t* ctx) {
-  return box_cptr((void*)f, ctx);
+  uintptr_t u = (uintptr_t)f;              // assume we can convert a function pointer to uintptr_t...      
+  if ((u&1)==0 && sizeof(u)==sizeof(f)) {  // aligned pointer? (and sanity check if function pointer != object pointer)
+    box_t b = { (u|1) };
+    return b;
+  }
+  else {
+    cfunptr_t fp = block_alloc_as(struct cfunptr_s, 0, TAG_CFUNPTR, ctx);
+    fp->cfunptr = f;
+    return box_ptr(&fp->_block);
+  }
 }
 
-static inline void* unbox_fun_ptr(box_t b) {
-  return unbox_cptr(b);
+static inline fun_ptr_t unbox_fun_ptr(box_t b) {
+  if (likely(_is_value_fast(b))) {
+    return (fun_ptr_t)(b.box ^ 1); // clear lowest bit
+  }
+  else {
+    cfunptr_t fp = unbox_datatype_as_assert(cfunptr_t, b, TAG_CFUNPTR);
+    return fp->cfunptr;
+  }
 }
-
-static inline box_t dup_box_t(box_t b) {
-  if (is_ptr(b)) dup_block(unbox_ptr(b));
-  return b;
-}
-
-static inline void drop_box_t(box_t b, context_t* ctx) {
-  if (is_ptr(b)) drop_block(unbox_ptr(b), ctx);
-}
-
-
-
 
 #endif // include guard

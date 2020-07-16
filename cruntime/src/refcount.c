@@ -26,9 +26,10 @@
   0xF0000000 - 0xFFFFFFFF   : invalid; used for debug checks
 --------------------------------------------------------------------------------------*/
 
-#define RC_SHARED     U32(0x80000000)  // 0b1000 0000 ...
-#define RC_STICKY_LO  U32(0xD0000000)  // 0b1101 0000 ...
-#define RC_STICKY_HI  U32(0xE0000000)  // 0b1110 0000 ...
+#define RC_SHARED     U32(0x80000000)  // 0b1000 ...
+#define RC_STICKY_LO  U32(0xD0000000)  // 0b1101 ...
+#define RC_STICKY_HI  U32(0xE0000000)  // 0b1110 ...
+#define RC_INVALID    U32(0xF0000000)  // 0b1111 ...
 
 static inline uint32_t atomic_incr(block_t* b) {
   return atomic_increment32((volatile _Atomic(uint32_t)*)&b->header.refcount);
@@ -38,32 +39,33 @@ static inline uint32_t atomic_decr(block_t* b) {
 }
 
 // Check if a reference decrement caused the block to be free or needs atomic operations
-noinline void block_check_free(block_t* b, context_t* ctx) {
+noinline void block_check_free(block_t* b, uint32_t rc0, context_t* ctx) {
   assert_internal(b!=NULL);
-  assert_internal(b->header.refcount == 0 || b->header.refcount >= RC_SHARED);
-  if (b->header.refcount==0) {
+  assert_internal(b->header.refcount == rc0);
+  assert_internal(rc0 == 0 || (rc0 >= RC_SHARED && rc0 < RC_INVALID));
+  if (likely(rc0==0)) {
     block_free(b, ctx);  // no more references, free it.
+  }
+  else if (unlikely(rc0 >= RC_STICKY_LO)) {
+    // sticky: do not decrement further
   }
   else {
     const uint32_t rc = atomic_decr(b);
-    if (unlikely(rc >= RC_STICKY_LO)) {
-      atomic_incr(b);       // sticky: undo the decrement so we never free
-    }
-    else if (rc == RC_SHARED && b->header.thread_shared) {  // with a shared reference dropping to RC_SHARED means no more references
-      b->header.refcount = 0; // no longer shared
+    if (rc == RC_SHARED && b->header.thread_shared) {  // with a shared reference dropping to RC_SHARED means no more references
+      b->header.refcount = 0;        // no longer shared
       b->header.thread_shared = 0;
       block_free(b, ctx);            // no more references, free it.
     }
   }
 }
 
-noinline block_t* dup_block_check(block_t* b) {
+noinline block_t* dup_block_check(block_t* b, uint32_t rc0) {
   assert_internal(b!=NULL);
-  assert_internal(b->header.refcount >= RC_SHARED);
-  const uint32_t rc = atomic_incr(b);
-  if (unlikely(rc >= RC_STICKY_HI)) {
-    atomic_decr(b);  // undo the increment to avoid overflow
+  assert_internal(b->header.refcount == rc0 && rc0 >= RC_SHARED);
+  if (likely(rc0 < RC_STICKY_HI)) {
+    atomic_incr(b);
   }
+  // else sticky: no longer increment (or decrement)
   return b;
 }
 

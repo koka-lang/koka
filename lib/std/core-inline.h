@@ -29,9 +29,10 @@ static inline __std_core_types__maybe integer_xparse( string_t s, bool hex, cont
     return __std_core_types__new_Nothing(ctx);
   }
   else {
-    integer_t i = integer_parse(string_cbuf_borrow(s),ctx);
+    integer_t i;
+    bool ok = integer_parse(string_cbuf_borrow(s),&i,ctx);
     drop_string_t(s,ctx);
-    return (box_eq(i,box_null) ? __std_core_types__new_Nothing(ctx) : __std_core_types__new_Just(box_integer_t(i),ctx));
+    return (ok ? __std_core_types__new_Just(box_integer_t(i),ctx) : __std_core_types__new_Nothing(ctx));
   }
 }
 

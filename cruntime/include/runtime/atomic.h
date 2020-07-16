@@ -23,21 +23,20 @@
 static inline uint32_t atomic_increment32(volatile _Atomic(uint32_t)* p); 
 static inline uint32_t atomic_decrement32(volatile _Atomic(uint32_t)* p);
 
-
 #if defined(_MSC_VER) && (LONG_MAX == INT32_MAX)
 #include <intrin.h>
 static inline uint32_t atomic_increment32(volatile _Atomic(uint32_t)* p) {
- return (uint32_t)_InterlockedIncrement((volatile long*)p);
+ return ((uint32_t)_InterlockedIncrement((volatile long*)p) - 1);
 }
 static inline uint32_t atomic_decrement32(volatile _Atomic(uint32_t)* p) {
- return (uint32_t)_InterlockedDecrement((volatile long*)p);
+ return ((uint32_t)_InterlockedDecrement((volatile long*)p + 1));
 }
 #else
 static inline uint32_t atomic_increment32(volatile _Atomic(uint32_t)* p) {
-  return atomic_fetch_add(p, (uint32_t)(1));
+  return atomic_fetch_add(p, U32(1));
 }
 static inline uint32_t atomic_decrement32(volatile _Atomic(uint32_t)* p) {
-  return atomic_fetch_sub(p, (uint32_t)(1));
+  return atomic_fetch_sub(p, U32(1));
 }
 #endif
 

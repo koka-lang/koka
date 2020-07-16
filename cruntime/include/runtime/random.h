@@ -20,7 +20,7 @@ typedef struct random_ctx_s {
 
 decl_export random_ctx_t* srandom_round(context_t* ctx);
 
-// Secure strong random number using chacha20 (by Daniel J. Bernstein)
+// Strong random number using chacha20 (by Daniel J. Bernstein)
 // Initial randomness comes from the OS.
 static inline uint32_t srandom_uint32(context_t* ctx) {
   random_ctx_t* rnd = ctx->srandom_ctx;

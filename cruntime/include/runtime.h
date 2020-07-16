@@ -9,25 +9,22 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
-
-#define REFCOUNT_LIMIT_TO_32BIT 0
-#define MULTI_THREADED          1
-#define ARCH_LITTLE_ENDIAN      1
-//#define ARCH_BIG_ENDIAN       1
-
-#include <assert.h>
-#include <errno.h>   // ENOSYS, etc
-#include <limits.h>  // LONG_MAX, etc
+#include <assert.h>  // assert
+#include <errno.h>   // ENOSYS, ...
+#include <limits.h>  // LONG_MAX, ...
 #include <stddef.h>  // ptrdiff_t
-#include <stdint.h>  // int_t, etc
+#include <stdint.h>  // int_t, ...
 #include <stdbool.h> // bool
-#include <stdio.h>   // FILE*
-#include <string.h>  // strlen
-#include <stdlib.h>  // malloc, abort, etc.
-#include <math.h>    
+#include <stdio.h>   // FILE*, printf, ...
+#include <string.h>  // strlen, memcpy, ...
+#include <stdlib.h>  // malloc, abort, ...
+#include <math.h>    // isnan, ...
+
+#define MULTI_THREADED  1      // set to 0 to be used single threaded only
 
 #include "runtime/platform.h"  // Platform abstractions and portability definitions
 #include "runtime/atomic.h"    // Atomic operations
+
 
 
 /*--------------------------------------------------------------------------------------
@@ -47,14 +44,12 @@ typedef enum tag_e {
   TAG_STRING_SMALL,// UTF8 encoded string of at most 7 bytes.
   TAG_STRING,      // UTF8 encoded string: valid (modified) UTF8 ending with a zero byte.
   TAG_BYTES,       // a vector of bytes
-  TAG_VECTOR_SMALL,// a vector of (boxed) values of at most (SCAN_FSIZE_MAX-1) length
   TAG_VECTOR,      // a vector of (boxed) values
   TAG_INT64,       // boxed int64_t
-#if INTPTR_SIZE < 8
-  TAG_INT32,       // boxed int32_t
   TAG_DOUBLE,      // boxed IEEE double (64-bit)
-  TAG_FLOAT,       // boxed IEEE float  (32-bit)
-#endif
+  TAG_INT32,       // boxed int32_t               (on 32-bit platforms)
+  TAG_FLOAT,       // boxed IEEE float  (32-bit)  (on 32-bit platforms)
+  TAG_CFUNPTR,     // C function pointer
   // raw tags have a free function together with a `void*` to the data
   TAG_CPTR_RAW,    // full void* (must be first, see tag_is_raw())
   TAG_STRING_RAW,  // pointer to a valid UTF8 string
@@ -78,7 +73,7 @@ typedef struct header_s {
   uint8_t   thread_shared : 1;
 } header_t;
 
-#define SCAN_FSIZE_MAX (255)
+#define SCAN_FSIZE_MAX (0xFF)
 #define HEADER(scan_fsize,tag)         { 0, tag, scan_fsize, 0 }            // start with refcount of 0
 #define HEADER_STATIC(scan_fsize,tag)  { U32(0xFF00), tag, scan_fsize, 0 }  // start with recognisable refcount (anything > 1 is ok)
 
@@ -91,7 +86,9 @@ typedef struct box_s {
 
 // An integer is either a small int or a pointer to a bigint_t. Identity with boxed values.
 // See `integer.h` for definitions.
-typedef box_t integer_t;
+typedef struct integer_s {
+  intptr_t value;
+} integer_t;
 
 // boxed forward declarations
 static inline uintx_t   unbox_enum(box_t v);
@@ -132,9 +129,10 @@ typedef struct block_s {
 typedef struct block_large_s {
   block_t  _block;
   box_t    large_scan_fsize; // if `scan_fsize == 0xFF` there is a first field with the full scan size
+                             // (the full scan size should include the `large_scan_fsize` field itself!)
 } block_large_t;
 
-// A pointer to a block is never NULL.
+// A pointer to a block. Cannot be NULL.
 typedef block_t* ptr_t;
 
 
@@ -178,7 +176,7 @@ typedef struct vector_s {
   block_t _block;
 } *vector_t;
 
-// Strong random number context (using chacha8/20)
+// Strong random number context (using chacha20)
 struct random_ctx_s;
 
 //A yield context allows up to 8 continuations to be stored in-place
@@ -275,17 +273,13 @@ decl_export void block_free(block_t* b, context_t* ctx);
 static inline void block_init(block_t* b, size_t size, size_t scan_fsize, tag_t tag) {
   UNUSED(size);
   assert_internal(scan_fsize < SCAN_FSIZE_MAX);
-  header_t header = { 0 };
-  header.tag = (uint16_t)tag;
-  header.scan_fsize = (uint8_t)scan_fsize;
+  header_t header = { 0, (uint16_t)tag, (uint8_t)scan_fsize, 0 };  
   b->header = header;
 }
 
 static inline void block_large_init(block_large_t* b, size_t size, size_t scan_fsize, tag_t tag) {
   UNUSED(size);
-  header_t header = { 0 };
-  header.tag = (uint16_t)tag;
-  header.scan_fsize = SCAN_FSIZE_MAX;
+  header_t header = { 0, (uint16_t)tag, SCAN_FSIZE_MAX, 0 };
   b->_block.header = header;
   b->large_scan_fsize = box_enum(scan_fsize);
 }
@@ -323,13 +317,13 @@ static inline char* _block_as_assert(block_t* b, tag_t tag) {
   Reference counting
 --------------------------------------------------------------------------------------*/
 
-decl_export void     block_check_free(block_t* b, context_t* ctx);
-decl_export block_t* dup_block_check(block_t* b);
+decl_export void     block_check_free(block_t* b, uint32_t rc, context_t* ctx);
+decl_export block_t* dup_block_check(block_t* b, uint32_t rc);
 
 static inline block_t* dup_block(block_t* b) {
-  uint32_t rc = b->header.refcount;
+  const uint32_t rc = b->header.refcount;
   if (unlikely((int32_t)rc < 0)) {  // note: assume two's complement  (we can skip this check if we never overflow a reference count or use thread-shared objects.)
-    return dup_block_check(b);      // thread-shared or sticky (overflow) ?
+    return dup_block_check(b,rc);   // thread-shared or sticky (overflow) ?
   }
   else {
     b->header.refcount = rc+1;
@@ -338,9 +332,9 @@ static inline block_t* dup_block(block_t* b) {
 }
 
 static inline void drop_block(block_t* b, context_t* ctx) {
-  uint32_t rc = b->header.refcount;
+  const uint32_t rc = b->header.refcount;
   if ((int32_t)rc <= 0) {         // note: assume two's complement
-    block_check_free(b, ctx);     // thread-shared, sticky (overflowed), or can be freed? 
+    block_check_free(b, rc, ctx); // thread-shared, sticky (overflowed), or can be freed? 
   }
   else {
     b->header.refcount = rc-1;
@@ -451,21 +445,11 @@ typedef enum unit_e {
   Unit = 0
 } unit_t;
 
-// A function to free a raw C pointer, raw bytes, or raw string.
-typedef void (free_fun_t)(void*);
-decl_export void free_fun_null(void* p);
-
-// "raw" types: first field is pointer to a free function, the next field a pointer to raw C data
-typedef struct cptr_raw_s {
-  block_t     _block;
-  free_fun_t* free;
-  void*       cptr;
-} *cptr_raw_t;
 
 
+#include "runtime/bits.h"
 #include "runtime/box.h"
 #include "runtime/integer.h"
-#include "runtime/bits.h"
 #include "runtime/string.h"
 #include "runtime/random.h"
 
@@ -486,17 +470,16 @@ static inline integer_t gen_unique(context_t* ctx) {
   Value tags
 --------------------------------------------------------------------------------------*/
 
-// Tag for value types is always a boxed enum
-typedef box_t value_tag_t;
+// Tag for value types is always an integer
+typedef integer_t value_tag_t;
 
 // Use inlined #define to enable constant initializer expression
 /*
-static inline value_tag_t value_tag(uint_t tag) {
-  return box_enum(tag);
+static inline value_tag_t value_tag(uintx_t tag) {
+  return integer_from_small((intx_t)tag);
 }
 */
-#define value_tag(tag) (box_from_uintptr(((uintx_t)tag << 2) | 0x02))
-
+#define value_tag(tag) (_new_integer(((uintptr_t)tag << 2) | 1))   // as a small int
 
 /*--------------------------------------------------------------------------------------
   Functions
@@ -506,7 +489,7 @@ static inline value_tag_t value_tag(uint_t tag) {
 #define function_alloc_as(tp,scan_fsize,ctx)    block_alloc_as(tp,scan_fsize,TAG_FUNCTION,ctx)
 #define function_call(restp,argtps,f,args)      ((restp(*)argtps)(unbox_fun_ptr(f->fun)))args
 #define define_static_function(name,cfun,ctx) \
-  static struct function_s _static_##name = { { HEADER_STATIC(0,TAG_FUNCTION) }, { 0x7 } }; /* must be box_null */ \
+  static struct function_s _static_##name = { { HEADER_STATIC(0,TAG_FUNCTION) }, { ~UP(0) } }; /* must be box_null */ \
   function_t name = &_static_##name; \
   if (box_eq(name->fun,box_null)) { name->fun = box_fun_ptr((fun_ptr_t)&cfun,ctx); }  // initialize on demand so it can be boxed properly
   
@@ -605,7 +588,7 @@ static inline box_t box_unit_t(unit_t u) {
 static inline unit_t unbox_unit_t(box_t u) {
   UNUSED_RELEASE(u);
   assert_internal( unbox_enum(u) == (uintx_t)Unit || is_box_any(u));
-  return unbox_enum(u);
+  return (unit_t)unbox_enum(u);
 }
 
 /*--------------------------------------------------------------------------------------
@@ -621,35 +604,17 @@ static inline vector_t dup_vector_t(vector_t v) {
   return dup_datatype_as(vector_t, v);
 }
 
-typedef struct vector_small_s {
-  struct vector_s _type;
-  box_t    length;
-  box_t    vec[1];            // vec[length]
-} *vector_small_t;
-
-typedef struct vector_large_s {
+typedef struct vector_large_s {  // always use a large block for a vector so the offset to the elements is fixed
   struct block_large_s _block;
-  box_t    length;
-  box_t    vec[1];            // vec[length]
+  box_t    vec[1];               // vec[(large_)scan_fsize]
 } *vector_large_t;
 
 static inline vector_t vector_alloc(size_t length, box_t def, context_t* ctx) {
   if (length==0) {
     return dup_vector_t(vector_empty);
   }
-  else if (length < SCAN_FSIZE_MAX) {
-    vector_small_t v = block_as_assert(vector_small_t, block_alloc(sizeof(struct vector_small_s) + (length-1)*sizeof(box_t), 1 + length, TAG_VECTOR_SMALL, ctx), TAG_VECTOR_SMALL);
-    v->length = box_enum(length);
-    if (def.box != box_null.box) {
-      for (size_t i = 0; i < length; i++) {
-        v->vec[i] = def;
-      }
-    }
-    return &v->_type;
-  }
   else {
-    vector_large_t v = (vector_large_t)block_large_alloc(sizeof(struct vector_large_s) + (length-1)*sizeof(box_t), 1 + length, TAG_VECTOR, ctx);
-    v->length = box_enum(length);
+    vector_large_t v = (vector_large_t)block_large_alloc(sizeof(struct vector_large_s) + (length-1)*sizeof(box_t), length + 1 /* large_scan_fsize */, TAG_VECTOR, ctx);
     if (def.box != box_null.box) {
       for (size_t i = 0; i < length; i++) {
         v->vec[i] = def;
@@ -660,22 +625,15 @@ static inline vector_t vector_alloc(size_t length, box_t def, context_t* ctx) {
 }
 
 static inline size_t vector_len(const vector_t v) {
-  if (datatype_tag(v)==TAG_VECTOR_SMALL) {
-    return unbox_enum(datatype_as_assert(vector_small_t,v,TAG_VECTOR_SMALL)->length);
-  }
-  else {
-    return unbox_enum(datatype_as_assert(vector_large_t, v, TAG_VECTOR)->length);
-  }
+  size_t len = unbox_enum( datatype_as_assert(vector_large_t, v, TAG_VECTOR)->_block.large_scan_fsize ) - 1;
+  assert_internal(len + 1 == block_scan_fsize(&v->_block));  
+  assert_internal(len + 1 != 0);
+  return len;
 }
 
 static inline box_t* vector_buf(vector_t v, size_t* len) {
   if (len != NULL) *len = vector_len(v);
-  if (datatype_tag(v)==TAG_VECTOR_SMALL) {
-    return &(datatype_as_assert(vector_small_t, v, TAG_VECTOR_SMALL)->vec[0]);
-  }
-  else {
-    return &(datatype_as_assert(vector_large_t, v, TAG_VECTOR)->vec[0]);
-  }
+  return &(datatype_as_assert(vector_large_t, v, TAG_VECTOR)->vec[0]);  
 }
 
 static inline box_t vector_at(const vector_t v, size_t i) {
@@ -691,7 +649,7 @@ static inline box_t box_vector_t(vector_t v, context_t* ctx) {
 static inline vector_t unbox_vector_t(box_t v, context_t* ctx) {
   UNUSED(ctx);
   block_t* b = unbox_ptr(v);
-  assert_internal(block_tag(b) == TAG_VECTOR_SMALL || block_tag(b) == TAG_VECTOR);
+  assert_internal(block_tag(b) == TAG_VECTOR);
   return (vector_t)b;
 }
 

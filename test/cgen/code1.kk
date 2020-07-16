@@ -49,9 +49,23 @@ fun box-test3( xs : list<int> ) : int {
 }
 
 fun box-test4( xs : list<int> ) : int {
-  match(xs.map(Just)) {
+  val x = xs.map(Just)
+  drop(xs)
+  match(x) {
     Cons(Just(x)) -> x
-    Cons(Nothing,Cons(Just(y))) -> y
+    Cons(Just(y1) as x1,Cons(Just(y2) as x3, _ as x4) as x2) 
+      -> dup(y); drop(x); y
+         
+         drop-match(x, 
+           {drop-match(x1, {}, {dup(y1)});
+            drop-match(x2, { drop-match(x3, {}, {dup(y2)} ); drop(x4) }, { dup(y2) }) 
+           },
+           {dup(y1);dup(y2)})
+         
+    Cons(y,xx) ->  drop-match(x,{},{dup(y);dup(xx)})
+         
+      
+       
     _ -> 42
   }
 }

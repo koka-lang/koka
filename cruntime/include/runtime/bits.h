@@ -25,6 +25,12 @@
 #endif
 
 
+#if (INTX_SIZE==4)
+#define __bitsx(name)  bits_##name##32
+#else
+#define __bitsx(name)  bits_##name##64
+#endif
+
 /* -----------------------------------------------------------
   Is a word a power of two? see: <https://graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2>
   (0 is not a power of two)
@@ -47,59 +53,52 @@ static inline bool bits_is_power_of2(uintx_t x) {
   Rotations
 ----------------------------------------------------------- */
 #ifdef _MSC_VER
-static inline uint16_t rotl16(uint16_t x, uint16_t shift) {
+static inline uint16_t bits_rotl16(uint16_t x, uint16_t shift) {
   return _rotl16(x, (uint8_t)shift);  // in <stdlib.h>
 }
-static inline uint16_t rotr16(uint16_t x, uint16_t shift) {
+static inline uint16_t bits_rotr16(uint16_t x, uint16_t shift) {
   return _rotr16(x, (uint8_t)shift);
 }
-static inline uint32_t rotl32(uint32_t x, uint32_t shift) {
+static inline uint32_t bits_rotl32(uint32_t x, uint32_t shift) {
   return _lrotl(x, (int)shift);
 }
-static inline uint32_t rotr32(uint32_t x, uint32_t shift) {
+static inline uint32_t bits_rotr32(uint32_t x, uint32_t shift) {
   return _lrotr(x, (int)shift);
 }
-static inline uint64_t rotl64(uint64_t x, uint64_t shift) {
+static inline uint64_t bits_rotl64(uint64_t x, uint64_t shift) {
   return _rotl64(x, (int)shift);
 }
-static inline uint64_t rotr64(uint64_t x, uint64_t shift) {
+static inline uint64_t bits_rotr64(uint64_t x, uint64_t shift) {
   return _rotr64(x, (int)shift);
 }
 #else
-static inline uint16_t rotl16(uint16_t x, uint16_t shift) {
+// most compilers translate these expressions to a direct rotation instruction
+static inline uint16_t bits_rotl16(uint16_t x, uint16_t shift) {
   return (x << shift) | (x >> (16 - shift));
 }
-static inline uint16_t rotr16(uint16_t x, uint16_t shift) {
+static inline uint16_t bits_rotr16(uint16_t x, uint16_t shift) {
   return (x >> shift) | (x << (16 - shift));
 }
-static inline uint32_t rotl32(uint32_t x, uint32_t shift) {
+static inline uint32_t bits_rotl32(uint32_t x, uint32_t shift) {
   return (x << shift) | (x >> (32 - shift));
 }
-static inline uint32_t rotr32(uint32_t x, uint32_t shift) {
+static inline uint32_t bits_rotr32(uint32_t x, uint32_t shift) {
   return (x >> shift) | (x << (32 - shift));
 }
-static inline uint64_t rotl64(uint64_t x, uint64_t shift) {
+static inline uint64_t bits_rotl64(uint64_t x, uint64_t shift) {
   return (x << shift) | (x >> (64 - shift));
 }
-static inline uint64_t rotr64(uint64_t x, uint64_t shift) {
+static inline uint64_t bits_rotr64(uint64_t x, uint64_t shift) {
   return (x >> shift) | (x << (64 - shift));
 }
 #endif
 
-static inline uintx_t rotl(uintx_t x, uintx_t shift) {
-#if (INTX_SIZE==4)
-  return rotl32(x, shift);
-#else
-  return rotl64(x, shift);
-#endif
+static inline uintx_t bits_rotl(uintx_t x, uintx_t shift) {
+  return __bitsx(rotl)(x, shift);
 }
 
-static inline uintx_t rotr(uintx_t x, uintx_t shift) {
-#if (INTX_SIZE==4)
-  return rotr32(x, shift);
-#else
-  return rotr64(x, shift);
-#endif
+static inline uintx_t bits_rotr(uintx_t x, uintx_t shift) {
+  return __bitsx(rotr)(x, shift);
 }
 
 
@@ -115,21 +114,38 @@ static inline uint8_t bits_ctz64(uint64_t x);
 
 #if defined(_MSC_VER) && (defined(_M_ARM64) || defined(_M_ARM) || defined(_M_X64) || defined(_M_IX86))
 #include <intrin.h>
+
+#if defined(_M_X64) || defined(_M_IX86)
+extern bool __has_lzcnt;  // initialized in runtime.c
+#endif
+
 static inline uint8_t bits_clz32(uint32_t x) {
+  #if defined(_M_X64) || defined(_M_IX86)
+  if (__has_lzcnt) return (uint8_t)__lzcnt(x);
+  #endif
   unsigned long idx;
   return (_BitScanReverse(&idx, x) ? 31 - (uint8_t)idx : 32);
 }
 static inline uint8_t bits_ctz32(uint32_t x) {
+  #if defined(_M_X64) || defined(_M_IX86)
+  if (__has_lzcnt) return (uint8_t)_tzcnt_u32(x);
+  #endif
   unsigned long idx;
   return (_BitScanForward(&idx, x) ? (uint8_t)idx : 32);
 }
 #if (INTPTR_SIZE >= 8)
 #define HAS_BITS_CLZ64
 static inline uint8_t bits_clz64(uint64_t x) {
+  #if defined(_M_X64) || defined(_M_IX86)
+  if (__has_lzcnt) return (uint8_t)__lzcnt64(x);
+  #endif
   unsigned long idx;
   return (_BitScanReverse64(&idx, x) ? 63 - (uint8_t)idx : 64);
 }
 static inline uint8_t bits_ctz64(uint64_t x) {
+  #if defined(_M_X64) || defined(_M_IX86)
+  if (__has_lzcnt) return (uint8_t)_tzcnt_u64(x);
+  #endif
   unsigned long idx;
   return (_BitScanForward64(&idx, x) ? (uint8_t)idx : 64);
 }
@@ -191,25 +207,19 @@ static inline uint8_t bits_ctz64(uint64_t x) {
 }
 #endif
 
-#if (INTX_SIZE == 4) 
 static inline uint8_t bits_clz(uintx_t x) {
-  return bits_clz32(x);
+  return __bitsx(clz)(x);
 }
 static inline uint8_t bits_ctz(uintx_t x) {
-  return bits_ctz32(x);
+  return __bitsx(ctz)(x);
 }
-#else
-static inline uint8_t bits_clz(uintx_t x) {
-  return bits_clz64(x);
-}
-static inline uint8_t bits_ctz(uintx_t x) {
-  return bits_ctz64(x);
-}
-#endif
-
 
 /* -----------------------------------------------------------
-  Is there a zero byte in a word? see: <https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord>
+  Byte operations
+
+  - Is there a zero byte in a word? see: <https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord>
+  - Is any byte equal to n?
+  - Sum of bytes
 ----------------------------------------------------------- */
 
 #define bits_one_mask32     U32(0x01010101)
@@ -228,28 +238,91 @@ static inline bool bits_has_zero_byte64(uint64_t x) {
   return ((x - bits_one_mask64) & (~x & bits_high_mask64));
 }
 
+// Does `x` contain a zero byte?
 static inline bool bits_has_zero_byte(uintx_t x) {
-#if (INTX_SIZE == 4) 
-  return bits_has_zero_byte32(x);
-#else
-  return bits_has_zero_byte64(x);
-#endif
+  return __bitsx(has_zero_byte)(x);
 }
+
+// is there any byte in `x` equal to `n`?
+static inline bool bits_has_byte32(uint32_t x, uint8_t n) {
+  uint32_t y = n;
+  y |= (y << 8);
+  y |= (y << 16);
+  x ^= y;
+  return bits_has_zero_byte32(x);
+}
+
+// is there any byte in `x` equal to `n`?
+static inline bool bits_has_byte64(uint64_t x, uint8_t n) {
+  uint64_t y = n;
+  y |= (y << 8);
+  y |= (y << 16);
+  y |= (y << 32);
+  x ^= y;
+  return bits_has_zero_byte64(x);
+}
+
+// is there any byte in `x` equal to `n`?
+static inline bool bits_has_byte(uintx_t x, uint8_t n) {
+  return __bitsx(has_byte)(x,n);
+}
+
+
+// sum of all the bytes in `x` if it is guaranteed that the sum < 256!
+static inline uint8_t bits_byte_sum32(uint32_t x) {
+  // perform `x * bits_one_mask`: the highest byte contains the sum of all bytes.
+  // note: clang will compile to either shift/adds or a multiply depending on the target
+  x += (x << 8);
+  x += (x << 16);
+  return (x >> 24);
+}
+
+// sum of all the bytes in `x` if it is guaranteed that the sum < 256!
+static inline uint8_t bits_byte_sum64(uint64_t x) {
+  x += (x << 8);
+  x += (x << 16);
+  x += (x << 32);
+  return (x >> 56);
+}
+
+// sum of all the bytes in `x` if it is guaranteed that the sum < 256!
+static inline uint8_t bits_byte_sum(uintx_t x) {
+  return __bitsx(byte_sum)(x);
+}
+
 
 /* ---------------------------------------------------------------
   bits_count: population count / hamming weight  (count set bits)
   see <https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel>
 ------------------------------------------------------------------ */
 
+static inline uint32_t bits_generic_count32(uint32_t x) {
+  x = x - ((x >> 1) & U32(0x55555555));
+  x = (x & U32(0x33333333)) + ((x >> 2) & U32(0x33333333));
+  x = (x + (x >> 4)) & U32(0x0F0F0F0F);
+  return bits_byte_sum32(x);
+}
+
+static inline uint64_t bits_generic_count64(uint64_t x) {
+  x = x - ((x >> 1) & U64(0x5555555555555555));
+  x = (x & U64(0x3333333333333333)) + ((x >> 2) & U64(0x3333333333333333));
+  x = (x + (x >> 4)) & U64(0x0F0F0F0F0F0F0F0F);
+  return bits_byte_sum64(x);
+}
+
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
 #include <intrin.h>
+extern bool __has_popcnt;  // initialized in runtime.c
+
 static inline uint32_t bits_count32(uint32_t x) {
-  return __popcnt(x);
+  if (__has_popcnt) return __popcnt(x);
+  return bits_generic_count32(x);
 }
 #if (INTPTR_SIZE >= 8)
 #define HAS_BITS_COUNT64
 static inline uint64_t bits_count64(uint64_t x) {
-  return __popcnt64(x);
+  if (__has_popcnt) return __popcnt64(x);
+  return bits_generic_count64(x);
 }
 #endif
 
@@ -266,32 +339,24 @@ static inline uint64_t bits_count64(uint64_t x) {
 
 #else
 static inline uint32_t bits_count32(uint32_t x) {
-  x = x - ((x >> 1) & U32(0x55555555)); 
-  x = (x & U32(0x33333333)) + ((x >> 2) & U32(0x33333333));
-  return (((x + (x >> 4) & U32(0x0F0F0F0F)) * U32(0x01010101)) >> 24);
+  return bits_generic_count32(x);
 }
 
 #define HAS_BITS_COUNT64
 static inline uint64_t bits_count64(uint64_t x) {
-  x = x - ((x >> 1) & U64(0x5555555555555555));
-  x = (x & U64(0x3333333333333333)) + ((x >> 2) & U64(0x3333333333333333));
-  return (((x + (x >> 4) & U64(0x0F0F0F0F0F0F0F0F)) * U64(0x0101010101010101)) >> 56);
+  return bits_generic_count64(x);
 }
 #endif
 
 #ifndef HAS_BITS_COUNT64
 #define HAS_BITS_COUNT64
 static inline uint64_t bits_count64(uint64_t x) {
-  return bits_count32((uint32_t)x) + bits_count32((uint32_t)(x>>32));
+  return (uint64_t)(bits_count32((uint32_t)x) + bits_count32((uint32_t)(x>>32)));
 }
 #endif
 
 static inline uintx_t bits_count(uintx_t x) {
-#if (INTX_SIZE==4)
-  return bits_count32(x);
-#else
-  return bits_count64(x);
-#endif
+  return __bitsx(count)(x);
 }
 
 
@@ -336,46 +401,75 @@ static inline uint64_t bits_bswap64(uint64_t x) {
 #endif
 
 /* ---------------------------------------------------------------
-  Parity: returns `((bits_count(x) % 2) == 0) ? 0 : 1)`
+  Parity: returns `bits_count(x) % 2`
   see <https://graphics.stanford.edu/~seander/bithacks.html#ParityParallel>
 ------------------------------------------------------------------ */
 
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
-static inline uint8_t bits_parity32(uint32_t x) {
+static inline uint8_t bits_count_is_even32(uint32_t x) {
   return ((uint8_t)bits_count32(x) & 1);
 }
-static inline uint8_t bits_parity64(uint64_t x) {
+static inline uint8_t bits_count_is_even64(uint64_t x) {
   return ((uint8_t)bits_count64(x) & 1);
 }
 
 #elif defined(__GNUC__)
-static inline uint8_t bits_parity32(uint32_t x) {
+static inline uint8_t bits_count_is_even32(uint32_t x) {
   return (uint8_t)__builtin32(parity)(x);
 }
-static inline uint8_t bits_parity64(uint64_t x) {
+static inline uint8_t bits_count_is_even64(uint64_t x) {
   return (uint8_t)__builtin64(parity)(x);
 }
 
 #else
-static inline uint8_t bits_parity32(uint32_t x) {
+static inline uint8_t bits_count_is_even32(uint32_t x) {
   x ^= x >> 16;
   x ^= x >> 8;
   x ^= x >> 4;
   x &= 0x0F;
   return (uint8_t)(((0x6996 >> x) & 1));  // 0x6996 = 0b0110100110010110  == "mini" 16 bit lookup table with a bit set if the value has non-even parity
 }
-static inline uint8_t bits_parity64(uint64_t x) {
+static inline uint8_t bits_count_is_even64(uint64_t x) {
   x ^= x >> 32;
-  return bits_parity32((uint32_t)x);
+  return bits_count_is_even32((uint32_t)x);
 }
 #endif
 
-static inline uint8_t bits_parity(uintx_t x) {
-#if (INTX_SIZE==4)
-  return bits_parity32(x);
-#else
-  return bits_parity64(x);
-#endif
+static inline uint8_t bits_count_is_even(uintx_t x) {
+  return __bitsx(count_is_even)(x);
 }
+
+/* ---------------------------------------------------------------
+  Digits in a decimal representation
+------------------------------------------------------------------ */
+
+static inline uint8_t bits_digits32(uint32_t x) {
+  if (x >= U32(100000)) {
+    return (x >= U32(1000000000) ? 10 : (x >= U32(100000000) ? 9 : (x >= U32(10000000) ? 8 : (x >= U32(1000000) ? 7 : 6))));
+  }
+  else {
+    return (x >= 10000 ? 5 : (x >= 1000 ? 4 : (x >= 100 ? 3 : (x >= 10 ? 2 : 1))));
+  }
+}
+
+static inline uint8_t bits_digits64(uint64_t x) {
+  // 2^64 = 1.8e19
+  if (x <= UINT32_MAX) return bits_digits32((uint32_t)x);
+  const uint32_t base9 = U32(1000000000);  // 1e9
+  const uint64_t y = x / base9;
+  assert_internal(y>0);
+  uint8_t count = bits_digits32((uint32_t)(x % base9));
+  const uint64_t z = y / base9;
+  count += bits_digits32((uint32_t)(y % base9));
+  if (z > 0) {
+    count += bits_digits32((uint32_t)(z));
+  }
+  return count;
+}
+
+static inline uint8_t bits_digits(uintx_t x) {
+  return __bitsx(digits)(x);
+}
+
 
 #endif // include guard

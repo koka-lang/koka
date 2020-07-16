@@ -85,10 +85,9 @@ size_t decl_pure string_count(string_t str) {
     const uintx_t* p;
     for (p = (const uintx_t*)t; !bits_has_zero_byte(*p); p++) {
       // count continuation bytes (0b10xxxxxx bytes) in parallel
-      // see <https://graphics.stanford.edu/~seander/bithacks.html#HasLessInWord>
       const uintx_t u = *p;
       const uintx_t m = ((u & bits_high_mask) >> 7) & ((~u) >> 6); // each byte in `m` is 0x01 iff it was a continuation byte
-      cont += (m * bits_one_mask) >> ((sizeof(uintx_t) - 1) * 8);  // multiply by one_mask leaves count of 0x01 bytes in the msb
+      cont += bits_byte_sum(m);
     }
     t = (const uint8_t*)p; // restore t
   }
@@ -423,15 +422,14 @@ string_t double_show(double d, int32_t prec, context_t* ctx) {
 
 string_t show_any(box_t b, context_t* ctx) {
   char buf[128];
-  if (is_double(b)) {
+#if USE_NAN_BOX
+  if (_is_double(b)) {
     return double_show(unbox_double(b, ctx), 0, ctx);
   }
-  else if (is_enum(b)) {
-    snprintf(buf, 128, "enum(%zu)", unbox_enum(b));
-    return string_alloc_dup(buf, ctx);
-  }
-  else if (is_int(b)) {
-    snprintf(buf, 128, "int(%zi)", unbox_int(b));
+  else
+#endif
+  if (is_value(b)) {
+    snprintf(buf, 128, "value(%zi)", unbox_int(b));
     return string_alloc_dup(buf, ctx);
   }
   else if (b.box == box_null.box) {
@@ -445,7 +443,7 @@ string_t show_any(box_t b, context_t* ctx) {
     tag_t tag = block_tag(p);
     if (tag == TAG_BIGINT) {
       // todo: add tag
-      return integer_to_string(b, ctx);
+      return integer_to_string(unbox_integer_t(b), ctx);
     }
     else if (tag == TAG_STRING_SMALL || tag == TAG_STRING || tag == TAG_STRING_RAW) {
       // todo: add tag

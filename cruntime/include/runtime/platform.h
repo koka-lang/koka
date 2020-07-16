@@ -9,6 +9,7 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
+
 /*--------------------------------------------------------------------------------------
   Platform: we assume:
   - C99 as C compiler (syntax and library), with possible C11 extensions for threads and atomics.
@@ -50,8 +51,8 @@
 #if defined(__GNUC__)
 #define unlikely(h)     __builtin_expect((h),0)
 #define likely(h)       __builtin_expect((h),1)
-#define decl_const      __attribute__((const))
-#define decl_pure       __attribute__((pure))
+#define decl_const      __attribute__((const))    // reads no global state at all
+#define decl_pure       __attribute__((pure))     // may read global state but has no observable side effects
 #define noinline        __attribute__((noinline))
 #define decl_thread     __thread
 #elif defined(_MSC_VER)
@@ -79,7 +80,7 @@
 #ifndef UNUSED
 #define UNUSED(x)  ((void)(x))
 #ifdef NDEBUG
-#define UNUSED_RELEASE(x)  UNUSED(x);
+#define UNUSED_RELEASE(x)  UNUSED(x)
 #else
 #define UNUSED_RELEASE(x)  
 #endif
@@ -142,25 +143,32 @@ typedef uintptr_t      uintx_t;
 #define UX(i)          (i##ULL)
 #define IX(i)          (i##LL)
 #define INTX_SIZE      INTPTR_SIZE
+#define INTX_MAX       INTPTR_MAX
+#define INTX_MIN       INTPTR_MIN
 #else 
 typedef long           intx_t;
 typedef unsigned long  uintx_t;
 #define UX(i)          (i##UL)
 #define IX(i)          (i##L)
 #define INTX_SIZE      LONG_SIZE
+#define INTX_MAX       LONG_MAX
+#define INTX_MIN       LONG_MIN
 #endif
 #define INTX_BITS  (8*INTX_SIZE)
 
-
 // Distinguish unsigned shift right and signed arithmetic shift right.
-static inline intx_t  sar(intx_t i, intx_t shift) { return (i >> shift); }
-static inline uintx_t shr(uintx_t i, uintx_t shift) { return (i >> shift); }
+static inline intx_t   sar(intx_t i, intx_t shift)      { return (i >> shift); }
+static inline uintx_t  shr(uintx_t u, uintx_t shift)    { return (u >> shift); }
+static inline int32_t  sar32(int32_t i, intx_t shift)   { return (i >> shift); }
+static inline uint32_t shr32(uint32_t u, uintx_t shift) { return (u >> shift); }
+static inline int64_t  sar64(int32_t i, intx_t shift)   { return (i >> shift); }
+static inline uint64_t shr64(uint32_t u, uintx_t shift) { return (u >> shift); }
 
-// Limited reference counts can be more efficient
-#if PTRDIFF_MAX <= INT32_MAX
-#undef  REFCOUNT_LIMIT_TO_32BIT
-#define REFCOUNT_LIMIT_TO_32BIT  1
-#endif
+// Architecture assumptions
+#define ARCH_LITTLE_ENDIAN      1
+//#define ARCH_BIG_ENDIAN       1
+
+#define FUNPTR_SIZE             INTPTR_SIZE    // the size of function pointer: `void (*f)(void)`
 
 
 #endif // include guard
