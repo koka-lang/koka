@@ -889,7 +889,7 @@ inferCheck loaded flags line coreImports program1
            uniqueOR   = uniqueLift
        when (coreCheck flags) $ trace "open resolve core check" $ Core.Check.checkCore True False penv uniqueOR gamma coreDefsOR
 
-       -- traceDefGroups coreDefsOR
+       -- traceDefGroups "open resolve" coreDefsOR
        
        -- simplify coreF if enabled
        (coreDefsSimp,uniqueSimp)

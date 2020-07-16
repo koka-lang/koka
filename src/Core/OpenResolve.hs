@@ -143,16 +143,22 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                                   ress -> failure $ "Core.OpenResolve.resOpen: unknown name: " ++ show name -- ++ ", " ++ show gamma
                  -- actionPar = TName (newHiddenName "action") (TFun targs effFrom tres)
                  params = [TName (newHiddenName ("x" ++ show i)) (snd targ) | (i,targ) <- zip [1..] targs]
+                 exprName = TName (newHiddenName "x0") (tpFrom)
+                 exprVar  = Var exprName InfoNone
+                 exprApp lam  = App (Lam [exprName] typeTotal lam) [expr]
                  
                  wrapperThunk openExpr evExprs
-                   = Lam params effFrom $
-                       App (makeTypeApp openExpr [tres,effFrom,effTo])
-                           (evExprs ++ [Lam [] effTo (App expr [Var p InfoNone | p <- params])])
+                   = exprApp $
+                       Lam params effFrom $
+                           App (makeTypeApp openExpr [tres,effFrom,effTo])
+                               (evExprs ++ [Lam [] effTo (App exprVar [Var p InfoNone | p <- params])])
+                    
                            
                  wrapper openExpr evExprs
-                   = Lam params effFrom $
-                       App (makeTypeApp openExpr (map snd targs ++ [tres,effFrom,effTo]))
-                           (evExprs ++ [expr] ++ [Var p InfoNone | p <- params])
+                   = exprApp $
+                       Lam params effFrom $
+                         App (makeTypeApp openExpr (map snd targs ++ [tres,effFrom,effTo]))
+                             (evExprs ++ [exprVar] ++ [Var p InfoNone | p <- params])
                            
                    
                  evIndexOf l
