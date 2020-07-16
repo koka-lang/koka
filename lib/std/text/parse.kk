@@ -16,6 +16,7 @@ effect parse {
   fun satisfy( pred : sslice -> total maybe<(a,sslice)> ) : maybe<a>
   control fail(msg : string) : a
   control pick() : bool
+  fun current-input : sslice
 }
 
 type parse-error<a> {
@@ -45,8 +46,9 @@ fun parse-eof( input : sslice, p : () -> <parse|e> a) : e parse-error<a> {
 fun parse( input0 : sslice, p : () -> <parse|e> a ) : e parse-error<a> {
   var input := input0
   with {
-    return x          { ParseOk(x,input) }
-    control fail(msg) { ParseError(msg,input) }
+    return x            { ParseOk(x,input) }
+    fun current-input() { input }
+    control fail(msg)   { ParseError(msg,input) }
     fun satisfy(pred) {
       val inp = input
       val m = fun() : total _ { pred(inp) }
@@ -56,11 +58,15 @@ fun parse( input0 : sslice, p : () -> <parse|e> a ) : e parse-error<a> {
       }
     }
     control pick() {
+      val save = input;
       match(resume(True)) {
         ParseOk(x1,rest1) { ParseOk(x1,rest1) }
-        err1 -> match(resume(False)) {  // todo: limit lookahead?
-          ParseOk(x2,rest2) { ParseOk(x2,rest2) }
-          _err2 -> err1  // todo: merge or pick closest?
+        err1 -> {
+          input := save
+          match(resume(False)) {  // todo: limit lookahead?
+            ParseOk(x2,rest2) { ParseOk(x2,rest2) }
+            _err2 -> err1  // todo: merge or pick closest?
+          }
         }
       }
     }    
