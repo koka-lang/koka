@@ -7,7 +7,7 @@
 -----------------------------------------------------------------------------
 module Core.Parc ( parcCore ) where
 
-import qualified Lib.Trace
+import Lib.Trace (trace)
 import Control.Applicative hiding (empty)
 import Control.Monad
 import Data.List ( intersperse, partition )
@@ -38,10 +38,6 @@ import Core.CoreVar
 
 import Platform.Runtime (unsafePerformIO)
 import qualified System.Environment as Sys
-
-trace s x =
-  Lib.Trace.trace s
-    x
 
 {-# NOINLINE enabled #-}
 enabled :: Bool
@@ -113,6 +109,8 @@ fun f(x: list<int>): list<int> { return [] }
 
 fun f(x : list<int>) : list<int> { val y = match(x) { Cons(_, _) -> x Nil -> [] } return y }
 
+fun f(x : int) : int { val y = match(x+1) { 2 -> 3 _ -> x } return y }
+
 -}
 parcExpr :: Expr -> Parc Expr
 parcExpr expr
@@ -123,7 +121,7 @@ parcExpr expr
                  return $ TypeLam tpars body'
          TypeApp body targs
            -> do body' <- parcExpr body
-                 return (TypeApp body targs)
+                 return $ TypeApp body targs
          Lam pars eff body
            -> do let free = tnamesList (freeLocals body)
                  freeDups <- dupTNames (zip free (repeat InfoNone))
@@ -136,7 +134,6 @@ parcExpr expr
                  return $ maybeStats freeDups (Lam pars eff body')
          Var tname info
            -> do mbDup <- dupTName (tname,info)
-                 -- return $ maybeStats mbDups expr
                  case mbDup of
                    Just dup -> return dup
                    Nothing  -> return expr
@@ -145,15 +142,65 @@ parcExpr expr
                  fn'   <- parcExpr fn
                  return $ App fn' args'
          Lit _
-           -> return expr -- done
+           -> return expr
          Con ctor repr
            -> do return expr
          Let dgs body
            -> do body' <- parcExpr body
                  dgs' <- parcDefGroups False dgs
-                 return (Let dgs' body')
-         Case conds branches
-           -> do return expr
+                 return $ Let dgs' body'
+         Case exprs branches
+           -> do (exprs', dgs) <- caseExpandExprs exprs
+                 return $ Let dgs (Case exprs' branches)
+
+caseExpandExprs :: [Expr] -> Parc ([Expr], DefGroups)
+caseExpandExprs [] = return ([], [])
+caseExpandExprs (x:xs)
+  = case x of
+      Var _ _ -> do (xs', defs) <- caseExpandExprs xs
+                    return (x:xs', defs)
+      _ -> do name <- uniqueName "case"
+              let def = DefNonRec (makeDef name x)
+              let var = Var (TName name (typeOf x)) InfoNone
+              (xs', defs) <- caseExpandExprs xs
+              return (var:xs', def:defs)
+
+addUniqueNames :: Expr -> Parc Expr
+addUniqueNames e@(Case exprs branches)
+  = do branches' <- mapM addUniqueNamesToBranch branches
+       return $ e { caseBranches = branches' }
+addUniqueNames _ = error "addUniqueNames only applies to Case exprs"
+
+addUniqueNamesToBranch :: Branch -> Parc Branch
+addUniqueNamesToBranch branch
+  = do patterns' <- mapM addUniqueNamesToPattern (branchPatterns branch)
+       return (branch { branchPatterns = patterns' })
+
+{-
+data Pattern
+  = PatCon{ patConName :: TName,        ** names the constructor. full signature. not good to use since it can contain existential types
+            patConPatterns:: [Pattern], -- sub-patterns. fully materialized to match arity.
+            patConRepr :: ConRepr,      -- representation of ctor in backend. not needed
+            patTypeArgs :: [Type],      -- can be zipped with patConPatterns above
+            patExists :: [TypeVar],     -- closed under existentials here
+            patTypeRes :: Type,         -- result type
+            patConInfo :: ConInfo }     -- all other info. not needed
+  | PatVar{ patName :: TName,           ** name/type of variable
+            patPattern :: Pattern }     -- sub-pattern
+  | PatLit{ patLit :: Lit }             ** just a literal (below)
+  | PatWild                             ** can be top-level. need types of scrutinees
+
+data Lit =
+    LitInt    Integer
+  | LitFloat  Double
+  | LitChar   Char
+  | LitString String
+
+Use typeOf for exprs/literals
+-}
+
+addUniqueNamesToPattern :: Pattern -> Parc Pattern
+addUniqueNamesToPattern = return -- TODO: need typed names here
 
 
 dupTNames :: [(TName,VarInfo)] -> Parc [Maybe Expr]
@@ -170,54 +217,6 @@ dupTName (tname,InfoNone)
 
 dupTName (tname,_)
   = return Nothing
-
-{-
-val x = y
-f(g(x),y,x)
-~>
-
-f(g(dup(x)),y,x) | {x,y,f}
-
-~>
-
-f(g(x),y,dup(x)) | {x,y,f}
-
-fun foo(x) {
-  val f = (dup(x); allocate_fun(x)) + fun(y | x){ x + y }
-  if (x==1) then 2 else f(3) + f(5)
-}
-
-
-parcExpr :: Expr -> Parc Expr
-parcExpr (App fun args)
-  = do args' <- reverseMapM parcExpr args
-       fun'  <- parcExpr fun
-       return (App fun' args')
-
-parcExpr (Lam pars body)
-  = do body' <- withNoUse $ parcExpr body
-       -- for each par in pars, if inuse = ok, otherwise drop
-       -- remove all pars from "inuse"
-
-parcExpr (Let dgs body)
-  = do body' <- parcExpr body
-       dgs'  <- parcDefGroups dgs
-       return (Let dgs' body')
-
-parcExpr expr@(Con cname info)
-  = do if availableReuse then allocReuse else ..
-
-parcExpr expr@(Var vname InfoNone)   -- InfoArity, InfoExternal
-  = do inuse <- getInUse(vname)
-       if (inuse)
-        then return expr  -- dup it
-        else do addInUse(vname)
-                return expr
-
-parcExpr expr
-  = return expr
-
--}
 
 reverseMapM :: Monad m => (a -> m b) -> [a] -> m [b]
 reverseMapM action args =
