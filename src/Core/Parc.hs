@@ -109,7 +109,7 @@ fun f(x: list<int>): list<int> { return [] }
 
 fun f(x : list<int>) : list<int> { val y = match(x) { Cons(_, _) -> x Nil -> [] } return y }
 
-fun f(x : int) : int { val y = match(x+1) { 2 -> 3 _ -> x } return y }
+fun f(x : int) : int { val y = match(x+1) { 2 -> 3 ; _ -> x } return y }
 
 -}
 parcExpr :: Expr -> Parc Expr
@@ -150,8 +150,9 @@ parcExpr expr
                  dgs' <- parcDefGroups False dgs
                  return $ Let dgs' body'
          Case exprs branches
-           -> do (exprs', dgs) <- caseExpandExprs exprs
-                 return $ Let dgs (Case exprs' branches)
+           -> do exprs' <- reverseMapM parcExpr exprs
+                 (exprs'', dgs) <- caseExpandExprs exprs'
+                 return $ Let dgs (Case exprs'' branches)
 
 caseExpandExprs :: [Expr] -> Parc ([Expr], DefGroups)
 caseExpandExprs [] = return ([], [])
