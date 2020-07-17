@@ -159,6 +159,8 @@ makeTDef (TName name tp) expr
 makeStats :: [Expr] -> Expr
 makeStats []
   = failure "Core.Parc.makeStats: no expressions"
+makeStats [expr]
+  = expr  
 makeStats exprs
   = Let [DefNonRec (makeDef nameNil expr) | expr <- init exprs]
         (last exprs)
