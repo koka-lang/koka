@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(runtime C CXX)
+project(runtime C)
 
 enable_testing()
 
@@ -11,11 +11,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED YES)
 set(CMAKE_C_EXTENSIONS NO)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED YES)
-set(CMAKE_CXX_EXTENSIONS NO)
-
-set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_C_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
 
 # -----------------------------------------------------------------------------
@@ -88,7 +84,7 @@ add_test(NAME runtime-test COMMAND runtime-test)
 target_compile_options(
   runtime-flags
   INTERFACE
-    $<$<COMPILE_LANG_AND_ID:CXX,AppleClang,Clang,GNU,Intel>:
+    $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNU,Intel>:
       -Wall
       -Wextra
       -Wno-unknown-pragmas
