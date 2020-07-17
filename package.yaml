@@ -1,0 +1,45 @@
+name:       koka
+version:    0.1.0.0
+github:     "koka-lang/koka"
+license:    Apache-2.0
+author:     Daan Leijen
+maintainer: daan@microsoft.com
+
+extra-source-files:
+  - readme.md
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description: Please see the README on GitHub at <https://github.com/koka-lang/koka#readme>
+
+dependencies:
+  - base >= 4.9 && < 5
+  - array
+  - bytestring
+  - cond
+  - containers
+  - directory
+  - parsec
+  - process
+  - text
+  - time
+
+executables:
+  koka:
+    main: Main.hs
+    other-extensions:
+      - CPP
+      - OverloadedStrings
+    source-dirs:
+      - src
+      - src/Platform/cpp
+    c-sources:
+      - src/Platform/cpp/Platform/cconsole.c
+    include-dirs:
+      - src/Platform/cpp/Platform
+    build-tools:
+      - alex
+    when:
+      - condition: os(windows)
+        cpp-options: -DWINDOWS
