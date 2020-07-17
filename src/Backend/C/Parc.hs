@@ -1,11 +1,11 @@
 -----------------------------------------------------------------------------
--- Copyright 2020 Microsoft Corporation.
+-- Copyright 2020 Microsoft Corporation, Daan Leijen
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
 -- found in the file "license.txt" at the root of this distribution.
 -----------------------------------------------------------------------------
-module Core.Parc ( parcCore ) where
+module Backend.C.Parc ( parcCore ) where
 
 import Lib.Trace (trace)
 import Control.Applicative hiding (empty)
@@ -64,11 +64,12 @@ instance ParcName TName where
 -- Reference count transformation
 --------------------------------------------------------------------------
 
-parcCore :: Pretty.Env -> Newtypes -> Int -> Core -> (Core,Int)
-parcCore penv newtypes u core
-  | not enabled = (core, u)
-  | otherwise   = let (defs',u1) = runParc penv newtypes u (parcDefGroups True (coreProgDefs core))
-                  in (core{ coreProgDefs  = defs' }, u1)
+parcCore :: Pretty.Env -> Newtypes -> Core -> Unique Core
+parcCore penv newtypes core
+  | not enabled = return core
+  | otherwise   = do defs <- runParc penv newtypes (parcDefGroups True (coreProgDefs core))
+                     trace (show (vcat (map (prettyDefGroup penv{Pretty.coreShowDef=True}) defs))) $
+                      return core{ coreProgDefs  = defs }
 
 {--------------------------------------------------------------------------
   definition groups
@@ -89,10 +90,10 @@ parcDefGroup topLevel dg
 parcDef :: Bool -> Def -> Parc Def
 parcDef topLevel def
   = (if topLevel then isolated else id) $
-    do parcTraceDoc (\penv -> prettyDef (penv{Pretty.coreShowDef=True}) def )
+    do --parcTraceDoc (\penv -> prettyDef (penv{Pretty.coreShowDef=True}) def )
        expr <- parcExpr (defExpr def)
        let result = def{defExpr=expr}
-       parcTraceDoc (\penv -> prettyDef (penv{Pretty.coreShowDef=True}) result)
+       --parcTraceDoc (\penv -> prettyDef (penv{Pretty.coreShowDef=True}) result)
        return result
   where
     isolated action
@@ -114,7 +115,7 @@ fun f(x : int) : int { val y = match(x+1) { 2 -> 3 ; _ -> x } return y }
 -}
 parcExpr :: Expr -> Parc Expr
 parcExpr expr
-  = do parcTraceDoc (\penv -> prettyExpr penv expr)
+  = do --  parcTraceDoc (\penv -> prettyExpr penv expr)
        case expr of
          TypeLam tpars body
            -> do body' <- parcExpr body
@@ -393,9 +394,10 @@ data State = State{ uniq :: Int, inuse :: InUse, reuse :: [(Name,ReuseInfo)] }
 
 data Result a = Ok a State
 
-runParc :: Pretty.Env -> Newtypes -> Int -> Parc a -> (a,Int)
-runParc penv newtypes u (Parc c)
- = case c (Env [] penv newtypes []) (State u S.empty []) of
+runParc :: Pretty.Env -> Newtypes -> Parc a -> Unique a
+runParc penv newtypes (Parc c)
+ = withUnique $ \u ->
+   case c (Env [] penv newtypes []) (State u S.empty []) of
      Ok x st -> (x,uniq st)
 
 instance Functor Parc where

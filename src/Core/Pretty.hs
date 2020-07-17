@@ -9,7 +9,7 @@
 -}
 -----------------------------------------------------------------------------
 
-module Core.Pretty( prettyCore, prettyExpr, prettyPattern, prettyDef ) where
+module Core.Pretty( prettyCore, prettyExpr, prettyPattern, prettyDef, prettyDefs, prettyDefGroup ) where
 
 import Lib.Trace
 import Data.Char( isAlphaNum )

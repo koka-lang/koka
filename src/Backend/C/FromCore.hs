@@ -1,5 +1,5 @@
 -----------------------------------------------------------------------------
--- Copyright 2020 Microsoft Corporation.
+-- Copyright 2020 Microsoft Corporation, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
@@ -40,6 +40,7 @@ import Core.Core
 import Core.Pretty
 import Core.CoreVar
 
+import Backend.C.Parc
 import Backend.C.Box
 
 type CommentDoc   = Doc
@@ -61,14 +62,14 @@ externalNames
 -- Generate C code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: FilePath -> Newtypes -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
-cFromCore sourceDir newtypes uniq mbMain core
+cFromCore :: FilePath -> Pretty.Env -> Newtypes -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
+cFromCore sourceDir penv0 newtypes uniq mbMain core
   = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes False)
-           (genModule sourceDir mbMain core) of
+           (genModule sourceDir penv newtypes mbMain core) of
       (bcore,cdoc,hdoc) -> (cdoc,hdoc,bcore)
   where
     moduleName = coreProgName core
-    penv       = Pretty.defaultEnv{ Pretty.context = moduleName, Pretty.fullNames = False }
+    penv       = penv0{ Pretty.context = moduleName, Pretty.fullNames = False }
 
 contextDoc :: Doc
 contextDoc = text "_ctx"
@@ -76,9 +77,11 @@ contextDoc = text "_ctx"
 contextParam :: Doc
 contextParam = text "context_t* _ctx"
 
-genModule :: FilePath -> Maybe (Name,Bool) -> Core -> Asm Core
-genModule sourceDir mbMain core0
-  =  do core <- liftUnique (boxCore core0)  -- box/unbox transform
+genModule :: FilePath -> Pretty.Env -> Newtypes -> Maybe (Name,Bool) -> Core -> Asm Core
+genModule sourceDir penv newtypes mbMain core0
+  =  do core <- liftUnique (do bcore <- boxCore core0            -- box/unbox transform
+                               parcCore penv newtypes bcore)     -- precise automatic reference counting
+                               
         let headComment   = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
             initSignature = text "void" <+> ppName (qualify (coreProgName core) (newName ".init")) <.> parameters []
 

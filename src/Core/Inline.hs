@@ -215,9 +215,9 @@ withEnv :: (Env -> Env) -> Inl a -> Inl a
 withEnv f (Inl c)
   = Inl (\env st -> c (f env) st)
 
-withUnique :: (Int -> (a,Int)) -> Inl a
-withUnique f
-  = Inl (\env st -> let (x,u') = f (uniq st) in Ok x (st{ uniq = u'}))
+--withUnique :: (Int -> (a,Int)) -> Inl a
+--withUnique f
+-- = Inl (\env st -> let (x,u') = f (uniq st) in Ok x (st{ uniq = u'}))
 
 getEnv :: Inl Env
 getEnv

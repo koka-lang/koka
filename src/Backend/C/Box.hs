@@ -1,5 +1,5 @@
 -----------------------------------------------------------------------------
--- Copyright 2020 Microsoft Corporation.
+-- Copyright 2020 Microsoft Corporation, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
@@ -121,6 +121,7 @@ boxPattern fromTp pat | cType (fromTp) /= cType toTp
               -- and generates unbox/box expressions appropiately so nested patterns are handled correctly
               -- Unfortunately, this goes wrong for function wrappers; for those we rename and generate a
               -- binding; this works as a function type is never pattern matched further.
+              -- TODO: this may fail if the function is used in a guard test? (perhaps substitute in there?)
               case coerce0 of
                 Lam{} -> -- function match
                          case pat of 

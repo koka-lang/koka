@@ -91,7 +91,7 @@ import Core.Simplify( simplifyDefs )
 import Core.Uniquefy( uniquefy )
 import qualified Core.Pretty
 import Core.Parse(  parseCore )
-import Core.Parc( parcCore )
+
 
 import System.Directory ( doesFileExist )
 import Compiler.Package
@@ -1180,10 +1180,10 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       let mbEntry = case compileTarget of
                       Executable name tp -> Just (name,isAsyncFunction tp)
                       _                  -> Nothing
-      let (core,unique) = parcCore (prettyEnvFromFlags flags) newtypes unique0 core0
-          (cdoc,hdoc,bcore) = cFromCore sourceDir newtypes unique mbEntry core
+      let -- (core,unique) = parcCore (prettyEnvFromFlags flags) newtypes unique0 core0
+          (cdoc,hdoc,bcore) = cFromCore sourceDir (prettyEnvFromFlags flags) newtypes unique0 mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } bcore
-      writeDocW 120 (outBase ++ ".box.core") bcoreDoc
+      writeDocW 120 (outBase ++ ".c.core") bcoreDoc
       
       termPhase term ( "generate c: " ++ outBase )
       writeDocW 120 outC cdoc
