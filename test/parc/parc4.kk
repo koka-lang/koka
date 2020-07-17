@@ -2,11 +2,10 @@ fun foo1() {
   head([1],1)
 }
 
-fun foo2() {
+fun foo2(y) {
   val xs = [1]
-  val ys = ["hi"].map(println)  
   match(xs) {
-    Cons(x) -> xs
-    _       -> [y]
+    Cons(x) -> x
+    _       -> y
   }
 }
