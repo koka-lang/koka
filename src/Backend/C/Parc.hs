@@ -116,111 +116,105 @@ fun f(x : int) : int { val y = match(x+1) { 2 -> 3 ; _ -> x } return y }
 -}
 parcExpr :: Expr -> Parc Expr
 parcExpr expr
-  = do --  parcTraceDoc (\penv -> prettyExpr penv expr)
-       case expr of
-         TypeLam tpars body
-           -> do body' <- parcExpr body
-                 return $ TypeLam tpars body'
-         TypeApp body targs
-           -> do body' <- parcExpr body
-                 return $ TypeApp body targs
-         Lam pars eff body
-           -> do let freeBody = freeLocals body
-                     parsSet  = S.fromList pars
-                     free     = tnamesList $ S.difference freeBody parsSet      
-                     parsUnused = tnamesList $ S.difference parsSet freeBody                     
-                 freeDups <- dupTNames (zip free (repeat InfoNone))
-                 parDrops <- mapM genDrop parsUnused
-                 body' <- withIsolated $
-                          withOwned (tnamesList freeBody) $
-                          parcExpr body                                                     
-                 return $ maybeStats freeDups (Lam pars eff (maybeStats parDrops body'))
-         Var tname info
-           -> do mbDup <- dupTName (tname,info)
-                 case mbDup of
-                   Just dup -> return dup
-                   Nothing  -> return expr
-         App fn args
-           -> do args' <- reverseMapM parcExpr args
-                 fn'   <- parcExpr fn
-                 return $ App fn' args'
-         Lit _
-           -> return expr
-         Con ctor repr
-           -> do return expr
-         Let dgs body
-           -> do body' <- parcExpr body
-                 dgs' <- parcDefGroups False dgs
-                 return $ Let dgs' body'
-         -- all variable scrutinees?
-         Case exprs branches  | all isExprVar exprs
-           ->  do xbranches' <- reverseMapM parcBranch branches   
-                  let (branches',inUses) = unzip xbranches'
-                  setInUse (S.unions inUses)
-                  _ <- reverseMapM parcExpr exprs  -- process, but don't use
-                  return (Case exprs branches')  -- exprs is all borrowed vars (should not dup)
-         -- bind scrutinees first
-         Case exprs branches
-           -> do (vexprs,dgs) <- caseExpandExprs exprs
-                 assertion ("Core.Parc.parcExpr.Case") (not (null dgs)) $
-                   parcExpr (makeLet dgs (Case vexprs branches))
+  = case expr of
+      TypeLam tpars body
+        -> do body' <- parcExpr body
+              return $ TypeLam tpars body'
+      TypeApp body targs
+        -> do body' <- parcExpr body
+              return $ TypeApp body' targs
+      Lam pars eff body
+        -> do let usedInBody = freeLocals body
+                  parsSet    = S.fromList pars
+                  captures   = tnamesList $ S.difference usedInBody parsSet
+                  parsUnused = tnamesList $ S.difference parsSet usedInBody
+              captureDups <- dupTNames (zip captures (repeat InfoNone))
+              parDrops <- mapM genDrop parsUnused
+              body' <- withIsolated $
+                       withOwned (tnamesList usedInBody) $
+                       parcExpr body
+              let lam' = Lam pars eff (maybeStats parDrops body')
+              return $ maybeStats captureDups lam'
+      Var tname info
+        -> do mbDup <- dupTName (tname, info)
+              case mbDup of
+                Just dup -> return dup
+                Nothing  -> return expr
+      App fn args
+        -> do args' <- reverseMapM parcExpr args
+              fn'   <- parcExpr fn
+              return $ App fn' args'
+      Lit _
+        -> return expr
+      Con ctor repr
+        -> return expr
+      Let dgs body
+        -> do body' <- parcExpr body
+              dgs' <- parcDefGroups False dgs
+              return $ Let dgs' body'
+      -- all variable scrutinees?
+      Case exprs branches  | all isExprVar exprs
+        ->  do xbranches' <- reverseMapM parcBranch branches
+               let (branches',inUses) = unzip xbranches'
+               setInUse (S.unions inUses)
+               _ <- reverseMapM parcExpr exprs  -- process, but don't use
+               return (Case exprs branches')  -- exprs is all borrowed vars (should not dup)
+      -- bind scrutinees first
+      Case exprs branches
+        -> do (vexprs,dgs) <- unzip <$> reverseMapM caseExpandExpr exprs
+              let dgs' = catMaybes dgs
+              assertion "Core.Parc.parcExpr.Case" (not (null dgs')) $
+                parcExpr (makeLet dgs' (Case vexprs branches))
 
 -- Generate variable names for scrutinee expressions
-caseExpandExprs :: [Expr] -> Parc ([Expr], DefGroups)
-caseExpandExprs [] = return ([], [])
-caseExpandExprs (x:xs)
-  = case x of
-      Var _ _ -> do (xs', defs) <- caseExpandExprs xs
-                    return (x:xs', defs)
-      _ -> do name <- uniqueName "match"
-              let def = DefNonRec (makeDef name x)
-              let var = Var (TName name (typeOf x)) InfoNone
-              (xs', defs) <- caseExpandExprs xs
-              return (var:xs', def:defs)
+caseExpandExpr :: Expr -> Parc (Expr, Maybe DefGroup)
+caseExpandExpr x@Var{} = return (x, Nothing)
+caseExpandExpr x = do name <- uniqueName "match"
+                      let def = DefNonRec (makeDef name x)
+                      let var = Var (TName name (typeOf x)) InfoNone
+                      return (var, Just def)
 
-isExprVar (Var{})  = True
-isExprVar _        = False
+isExprVar :: Expr -> Bool
+isExprVar Var{} = True
+isExprVar _     = False
 
 {-
 
 match(xs) {
   Cons(y,yy)         | foo(yy) -> e1
   Cons(y,Cons(yy,_)) | bar(y)  -> e2
-  _ -> 
+  _ ->
 }
 
 -}
 
-
-parcBranch :: Branch -> Parc (Branch,InUse)
+parcBranch :: Branch -> Parc (Branch, InUse)
 parcBranch b@(Branch patterns guards)
-  = do let pvars = (bv patterns)
-       (guards',inUse) <- fmap unzip $ reverseMapM (parcGuard pvars) guards
+  = do let pvars = bv patterns
+       (guards',inUse) <- unzip <$> reverseMapM (parcGuard pvars) guards
        return (Branch patterns guards', S.unions inUse)
-       
-parcGuard :: TNames -> Guard -> Parc (Guard,InUse)
-parcGuard pvars (Guard test expr) 
+
+parcGuard :: TNames -> Guard -> Parc (Guard, InUse)
+parcGuard pvars (Guard test expr)
   = isolateInUse $
     do -- body
-       contInUse <- getInUse  -- everything in use in our continuation after the match           
+       contInUse <- getInUse  -- everything in use in our continuation after the match
        let free      = freeLocals expr
            pvarInUse = tnamesList $ S.intersection pvars free
-       owned    <- getOwned      
+       owned    <- getOwned
        let isUsed tname = S.member (getName tname) (S.union (S.map getName free) contInUse)
            (stillOwned,dropOwned)  = partition isUsed owned
        drops    <- mapM genDrop dropOwned
        pvarDups <- mapM genDup pvarInUse
        expr'    <- withOwned (stillOwned ++ pvarInUse) $
                    parcExpr expr
-  
+
        -- test: treat all variables as if in-use so no reference counts change
        let freeTest = freeLocals test
        (test',_) <- isolateInUse $ do setInUse (S.map getName freeTest)
-                                      parcExpr test                
-                      
+                                      parcExpr test
+
        return (Guard test' (maybeStats (pvarDups ++ drops) expr'))
-       
-        
 
 
 addUniqueNames :: Expr -> Parc Expr
@@ -504,7 +498,7 @@ isolateBranches branches
        return xs
 
 -- for a lambda, fully isolated
-withIsolated :: Parc a -> Parc a   
+withIsolated :: Parc a -> Parc a
 withIsolated action
   = fmap fst $
     isolateInUse $
