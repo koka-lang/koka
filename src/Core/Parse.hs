@@ -523,7 +523,15 @@ type PatBinders = [(Name,Type)]
 
 parsePattern  :: Env -> LexParser (Env,Pattern)
 parsePattern env
-  = parsePatCon env <|> parsePatVar env <|> parsePatWild env
+  = do (env',pat) <- parsePatternBasic env
+       (do keyword "as"
+           parsePatVar env' pat
+        <|>
+           return (env',pat))
+    
+parsePatternBasic  :: Env -> LexParser (Env,Pattern)
+parsePatternBasic env
+  = parsePatCon env <|> parsePatVar env PatWild <|> parsePatWild env
     <|> parens (parsePattern env)
 
 parsePatCon  :: Env -> LexParser (Env,Pattern)
@@ -559,12 +567,12 @@ parsePatternArg env
        tp  <- typeAnnot env
        return (env1,(pat,tp))
 
-parsePatVar  :: Env -> LexParser (Env,Pattern)
-parsePatVar env
+parsePatVar  :: Env -> Pattern -> LexParser (Env,Pattern)
+parsePatVar env pat
   = do (name,_) <- varid
        tp <- typeAnnot env
        let env1 = envExtendLocal env (name,tp)
-       return (env1,PatVar (TName name tp) PatWild)
+       return (env1,PatVar (TName name tp) pat)
 
 parsePatWild env
   = do wildcard
