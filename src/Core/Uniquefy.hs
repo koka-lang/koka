@@ -20,7 +20,7 @@ import Common.Name
 import qualified Common.NameSet as S
 import qualified Common.NameMap as M
 import Core.Core
-
+import Common.Failure
 
 type Locals = S.NameSet
 type Renaming = M.NameMap Name
@@ -149,12 +149,12 @@ uniquefyExprX expr
                                 return (Let defGroups1 expr1)
       Case exprs branches
         -> do exprs1 <- mapM uniquefyExprX exprs
-              branches1 <- localized $ mapM uniquefyBranch branches
+              branches1 <- localized $ mapM (uniquefyBranch (map typeOf exprs)) branches
               return (Case exprs1 branches1 )
 
 
-uniquefyBranch (Branch patterns guardExprs)
-  = do patterns1   <- mapM uniquefyPattern patterns
+uniquefyBranch patTps (Branch patterns guardExprs)
+  = do patterns1   <- mapM uniquefyPattern (zip patterns patTps)
        guardExprs1 <- mapM uniquefyGuard guardExprs
        return (Branch patterns1 guardExprs1)
 
@@ -163,16 +163,25 @@ uniquefyGuard (Guard test expr)
        e <- uniquefyExprX expr
        return (Guard t e)
 
-uniquefyPattern pattern
+uniquefyPattern (pattern, patTp)
   = case pattern of
-      PatWild -> return pattern
-      PatLit _ -> return pattern
       PatVar tname pat -> do tname' <- uniquefyTName tname
-                             pat'   <- uniquefyPattern pat
+                             pat'   <- uniquefyPatternX pat patTp
                              return (PatVar tname' pat')
-      PatCon { patConPatterns = patterns }
-        -> do patterns1 <- mapM uniquefyPattern patterns
+      _ -> do -- insert PatVar
+              name <- uniquefyName (newHiddenName "pat")
+              pat  <- uniquefyPatternX pattern patTp
+              return (PatVar (TName name patTp) pat)
+              
+
+uniquefyPatternX pattern patTp           
+  = case pattern of
+     PatWild  -> return pattern
+     PatLit _ -> return pattern
+     PatCon { patConPatterns = patterns, patTypeArgs = patTps }
+        -> do patterns1 <- mapM uniquefyPattern (zip patterns patTps)
               return pattern{ patConPatterns = patterns1 }
+     _  -> failure "Core.Uniquefy.UniquefyPatternX: unexpected PatVar"
 
 uniquefyTName :: TName -> Un TName
 uniquefyTName tname
