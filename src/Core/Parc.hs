@@ -123,15 +123,16 @@ parcExpr expr
            -> do body' <- parcExpr body
                  return $ TypeApp body targs
          Lam pars eff body
-           -> do let free = tnamesList (freeLocals body)
+           -> do let freeBody = freeLocals body
+                     parsSet  = S.fromList pars
+                     free     = tnamesList $ S.difference freeBody parsSet      
+                     parsUnused = tnamesList $ S.difference parsSet freeBody                     
                  freeDups <- dupTNames (zip free (repeat InfoNone))
+                 parDrops <- mapM genDrop parsUnused
                  body' <- withIsolated $
-                          withOwned (free ++ pars) $
-                          do body'    <- parcExpr body
-                             dropPars <- ownedAndNotUsed
-                             drops    <- mapM genDrop dropPars
-                             return (maybeStats drops body')
-                 return $ maybeStats freeDups (Lam pars eff body')
+                          withOwned (tnamesList freeBody) $
+                          parcExpr body                                                     
+                 return $ maybeStats freeDups (Lam pars eff (maybeStats parDrops body'))
          Var tname info
            -> do mbDup <- dupTName (tname,info)
                  case mbDup of
@@ -149,22 +150,69 @@ parcExpr expr
            -> do body' <- parcExpr body
                  dgs' <- parcDefGroups False dgs
                  return $ Let dgs' body'
+         -- all variable scrutinees?
+         Case exprs branches  | all isExprVar exprs
+           ->  do xbranches' <- reverseMapM parcBranch branches   
+                  let (branches',inUses) = unzip xbranches'
+                  setInUse (S.unions inUses)
+                  _ <- reverseMapM parcExpr exprs  -- process, but don't use
+                  return (Case exprs branches')  -- exprs is all borrowed vars (should not dup)
+         -- bind scrutinees first
          Case exprs branches
-           -> do exprs' <- reverseMapM parcExpr exprs
-                 (exprs'', dgs) <- caseExpandExprs exprs'
-                 return $ Let dgs (Case exprs'' branches)
+           -> do (vexprs,dgs) <- caseExpandExprs exprs
+                 assertion ("Core.Parc.parcExpr.Case") (not (null dgs)) $
+                   parcExpr (makeLet dgs (Case vexprs branches))
 
+-- Generate variable names for scrutinee expressions
 caseExpandExprs :: [Expr] -> Parc ([Expr], DefGroups)
 caseExpandExprs [] = return ([], [])
 caseExpandExprs (x:xs)
   = case x of
       Var _ _ -> do (xs', defs) <- caseExpandExprs xs
                     return (x:xs', defs)
-      _ -> do name <- uniqueName "case"
+      _ -> do name <- uniqueName "match"
               let def = DefNonRec (makeDef name x)
               let var = Var (TName name (typeOf x)) InfoNone
               (xs', defs) <- caseExpandExprs xs
               return (var:xs', def:defs)
+
+isExprVar (Var{})  = True
+isExprVar _        = False
+
+{-
+
+match(xs) {
+  Cons(y,yy)         | foo(yy) -> e1
+  Cons(y,Cons(yy,_)) | bar(y)  -> e2
+  _ -> 
+}
+
+-}
+
+
+parcBranch :: Branch -> Parc (Branch,InUse)
+parcBranch b@(Branch patterns guards)
+  = do let pvars = (bv patterns)
+       (guards',inUse) <- fmap unzip $ reverseMapM (parcGuard pvars) guards
+       return (Branch patterns guards', S.unions inUse)
+       
+parcGuard :: TNames -> Guard -> Parc (Guard,InUse)
+parcGuard pvars (Guard test expr) 
+  = isolateInUse $
+    do contInUse <- getInUse  -- everything in use in our continuation after the match           
+       let free      = freeLocals expr
+           pvarInUse = tnamesList $ S.intersection pvars free
+       owned    <- getOwned      
+       let isUsed tname = S.member (getName tname) (S.union (S.map getName free) contInUse)
+           (stillOwned,dropOwned)  = partition isUsed owned
+       drops    <- mapM genDrop dropOwned
+       pvarDups <- mapM genDup pvarInUse
+       expr'    <- withOwned (stillOwned ++ pvarInUse) $
+                   parcExpr expr
+       return (Guard test (maybeStats (pvarDups ++ drops) expr'))
+       
+        
+
 
 addUniqueNames :: Expr -> Parc Expr
 addUniqueNames e@(Case exprs branches)
@@ -329,7 +377,7 @@ data Env = Env{ currentDef :: [Def],
                 owned     :: Owned
               }
 
-type Owned = TNames  -- = S.Set TName
+type Owned = [TName]  -- = S.Set TName
 type InUse = S.Set Name
 
 data ReuseInfo = ReuseInfo{ reuseRepr :: ConRepr, reuseCon :: ConInfo }
@@ -340,7 +388,7 @@ data Result a = Ok a State
 
 runParc :: Pretty.Env -> Newtypes -> Int -> Parc a -> (a,Int)
 runParc penv newtypes u (Parc c)
- = case c (Env [] penv newtypes tnamesEmpty) (State u S.empty []) of
+ = case c (Env [] penv newtypes []) (State u S.empty []) of
      Ok x st -> (x,uniq st)
 
 instance Functor Parc where
@@ -384,12 +432,12 @@ getSt
 
 withOwned :: [TName] -> Parc a -> Parc a
 withOwned tnames action
-  = withEnv (\env -> env{ owned = tnamesInsertAll (owned env) tnames}) action
+  = withEnv (\env -> env{ owned = {- tnamesInsertAll (owned env) -} tnames}) action
 
 getOwned :: Parc [TName]
 getOwned
   = do env <- getEnv
-       return (tnamesList (owned env))
+       return (owned env)
 
 ownedAndNotUsed :: Parc [TName]
 ownedAndNotUsed
@@ -436,19 +484,21 @@ isolateInUse action
        st1 <- updateSt (\st -> st{ inuse = inuse0 })  -- restore
        return (x,inuse st1)
 
-branchInUse :: [Parc a] -> Parc [a]
-branchInUse branches
-  = do xs0 <- mapM isolateInUse branches
+-- branches are isolated from each other
+isolateBranches :: [Parc a] -> Parc [a]
+isolateBranches branches
+  = do xs0 <- reverseMapM isolateInUse branches
        let (xs, inuses) = unzip xs0
            inuse = S.unions inuses
        setInUse inuse
        return xs
 
-withIsolated :: Parc a -> Parc a
+-- for a lambda, fully isolated
+withIsolated :: Parc a -> Parc a   
 withIsolated action
   = fmap fst $
     isolateInUse $
-    withEnv (\env -> env{ owned = tnamesEmpty }) $
+    withEnv (\env -> env{ owned = [] }) $
     do updateSt (\st -> st{ inuse = S.empty, reuse = [] })
        action
 
