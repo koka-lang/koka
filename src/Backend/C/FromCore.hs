@@ -79,8 +79,9 @@ contextParam = text "context_t* _ctx"
 
 genModule :: FilePath -> Pretty.Env -> Newtypes -> Maybe (Name,Bool) -> Core -> Asm Core
 genModule sourceDir penv newtypes mbMain core0
-  =  do core <- liftUnique (do bcore <- boxCore core0            -- box/unbox transform
-                               parcCore penv newtypes bcore)     -- precise automatic reference counting
+  =  do core <- liftUnique (do pcore <-parcCore penv newtypes core0 -- precise automatic reference counting
+                               boxCore pcore            -- box/unbox transform
+                               )     
                                
         let headComment   = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
             initSignature = text "void" <+> ppName (qualify (coreProgName core) (newName ".init")) <.> parameters []
