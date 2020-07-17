@@ -68,7 +68,8 @@ parcCore :: Pretty.Env -> Newtypes -> Core -> Unique Core
 parcCore penv newtypes core
   | not enabled = return core
   | otherwise   = do defs <- runParc penv newtypes (parcDefGroups True (coreProgDefs core))
-                     trace (show (vcat (map (prettyDefGroup penv{Pretty.coreShowDef=True}) defs))) $
+                     trace (show (vcat (map (prettyDefGroup penv{Pretty.coreShowDef=True,Pretty.coreShowTypes=False,Pretty.fullNames=False})
+                                            defs))) $
                       return core{ coreProgDefs  = defs }
 
 {--------------------------------------------------------------------------
