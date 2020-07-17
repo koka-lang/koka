@@ -309,13 +309,17 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
     in withDef name inlineC (tryFun defBody)
   where
     emit = if inlineC then emitToH else emitToC
+    
+    resTp = case splitFunScheme tp of
+                    Nothing -> tp
+                    Just (_,_,argTps,_,resTp0) -> resTp0         
 
     genFunDef :: [TName] -> Expr -> Asm ()
-    genFunDef params body
+    genFunDef params body 
       = do let args = map ( ppName . getName ) params
                isTailCall = body `isTailCalling` name
            bodyDoc <- (if isTailCall then withStatement else id)
-                      (genStat (ResultReturn (Just (TName name tp)) params) body)
+                      (genStat (ResultReturn (Just (TName name resTp)) params) body)
            penv <- getPrettyEnv
            let tpDoc = typeComment (Pretty.ppType penv tp)
            let sig = genLamSig inlineC vis name params body
@@ -331,7 +335,7 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
                       )
 
 unitSemi :: Type -> Doc
-unitSemi tp  = if (isTypeUnit tp) then text " = __std_core_types__Unit_;" else semi
+unitSemi tp  = if (isTypeUnit tp) then text " = Unit;" else semi
 
 ---------------------------------------------------------------------------------
 -- Generate value constructors for each defined type
@@ -950,7 +954,7 @@ getResult result doc
 getResultX result (retDoc)
   = case result of
      ResultReturn (Just n) _  | (isTypeUnit (typeOf n)) 
-                              -> retDoc <.> text "; return __std_core_types__Unit_;"
+                              -> retDoc <.> text "; return Unit;"
      ResultReturn _ _  -> text "return" <+> retDoc <.> semi
      ResultAssign n ml -> ( if isWildcard (getName n) || nameNil == (getName n) || isTypeUnit (typeOf n)
                               then retDoc <.> semi
