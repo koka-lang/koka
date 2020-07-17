@@ -199,7 +199,8 @@ parcBranch b@(Branch patterns guards)
 parcGuard :: TNames -> Guard -> Parc (Guard,InUse)
 parcGuard pvars (Guard test expr) 
   = isolateInUse $
-    do contInUse <- getInUse  -- everything in use in our continuation after the match           
+    do -- body
+       contInUse <- getInUse  -- everything in use in our continuation after the match           
        let free      = freeLocals expr
            pvarInUse = tnamesList $ S.intersection pvars free
        owned    <- getOwned      
@@ -209,7 +210,13 @@ parcGuard pvars (Guard test expr)
        pvarDups <- mapM genDup pvarInUse
        expr'    <- withOwned (stillOwned ++ pvarInUse) $
                    parcExpr expr
-       return (Guard test (maybeStats (pvarDups ++ drops) expr'))
+  
+       -- test: treat all variables as if in-use so no reference counts change
+       let freeTest = freeLocals test
+       (test',_) <- isolateInUse $ do setInUse (S.map getName freeTest)
+                                      parcExpr test                
+                      
+       return (Guard test' (maybeStats (pvarDups ++ drops) expr'))
        
         
 
