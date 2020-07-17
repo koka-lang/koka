@@ -213,7 +213,7 @@ genLocalDef def@(Def name tp expr vis sort inl rng comm)
        let fdoc = vcat [ if null comm
                            then empty
                            else align (vcat (space : map text (lines (trim comm)))) {- already a valid C comment -}
-                       , ppVarDecl (defTName def) <.> semi
+                       , if (nameIsNil name) then empty else ppVarDecl (defTName def) <.> unitSemi tp                          
                        , defDoc
                        ]
        return (fdoc)
@@ -301,7 +301,7 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
                                 emitToC (text "define_string_literal" <.> tupled [decl,ppName name,pretty clen,cstr] <.> semi)
                         _ -> do doc <- genStat (ResultAssign (TName name tp) Nothing) (defBody)
                                 emitToInit doc
-                                let decl = ppType tp <+> ppName name <.> semi
+                                let decl = ppType tp <+> ppName name <.> unitSemi tp
                                 if (isPublic vis)
                                  then do emitToH (linebreak <.> text "extern" <+> decl)
                                          emitToC (linebreak <.> decl)
@@ -315,7 +315,7 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
       = do let args = map ( ppName . getName ) params
                isTailCall = body `isTailCalling` name
            bodyDoc <- (if isTailCall then withStatement else id)
-                      (genStat (ResultReturn (Just name) params) body)
+                      (genStat (ResultReturn (Just (TName name tp)) params) body)
            penv <- getPrettyEnv
            let tpDoc = typeComment (Pretty.ppType penv tp)
            let sig = genLamSig inlineC vis name params body
@@ -329,6 +329,9 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
                           else debugComment ("genFunDef: no tail calls to " ++ showName name ++ " found")
                             <.> tblock tpDoc bodyDoc
                       )
+
+unitSemi :: Type -> Doc
+unitSemi tp  = if (isTypeUnit tp) then text " = __std_core_types__Unit_;" else semi
 
 ---------------------------------------------------------------------------------
 -- Generate value constructors for each defined type
@@ -942,14 +945,16 @@ getResult :: Result -> Doc -> Doc
 getResult result doc
   = if isEmptyDoc doc
       then text ""
-      else getResultX result (doc,doc)
+      else getResultX result doc
 
-getResultX result (puredoc,retdoc)
+getResultX result (retDoc)
   = case result of
-     ResultReturn _ _  -> text "return" <+> retdoc <.> semi
-     ResultAssign n ml -> ( if isWildcard (getName n)
-                              then (if (isEmptyDoc puredoc) then puredoc else puredoc <.> semi)
-                              else ppName (getName n) <+> text "=" <+> retdoc <.> semi <+> text "/*" <.> pretty (typeOf n) <.> text "*/"
+     ResultReturn (Just n) _  | (isTypeUnit (typeOf n)) 
+                              -> retDoc <.> text "; return __std_core_types__Unit_;"
+     ResultReturn _ _  -> text "return" <+> retDoc <.> semi
+     ResultAssign n ml -> ( if isWildcard (getName n) || nameNil == (getName n) || isTypeUnit (typeOf n)
+                              then retDoc <.> semi
+                              else ppName (getName n) <+> text "=" <+> retDoc <.> semi <+> text "/*" <.> pretty (typeOf n) <.> text "*/"
                           ) <-> case ml of
                                   Nothing -> empty
                                   Just l  -> text "goto" <+> ppName l <.> semi
@@ -961,7 +966,7 @@ tryTailCall result expr
   = case expr of
      -- Tailcall case 1
      App (Var n info) args  | ( case result of
-                                  ResultReturn (Just m) _ -> m == getName n && infoArity info == (length args)
+                                  ResultReturn (Just m) _ -> m == n && infoArity info == (length args)
                                   _                       -> False
                               )
        -> do let (ResultReturn _ params) = result
@@ -970,7 +975,7 @@ tryTailCall result expr
 
      -- Tailcall case 2
      App (TypeApp (Var n info) _) args | ( case result of
-                                            ResultReturn (Just m) _ -> m == getName n && infoArity info == (length args)
+                                            ResultReturn (Just m) _ -> m == n && infoArity info == (length args)
                                             _                       -> False
                                           )
        -> do let (ResultReturn _ params) = result
@@ -1256,9 +1261,10 @@ genVarBinding expr
   = case expr of
       Var tn _ -> return $ (empty, tn)
       _        -> do name <- newVarName "x"
-                     let tname = TName name (typeOf expr)
+                     let tp = typeOf expr
+                         tname = TName name tp
                      doc  <- genStat (ResultAssign tname Nothing) expr
-                     return (ppVarDecl tname <.> semi <-> doc, tname)
+                     return (ppVarDecl tname <.> unitSemi tp  <-> doc, tname)
 
 
 ---------------------------------------------------------------------------------
@@ -1660,7 +1666,7 @@ data Env = Env { moduleName        :: Name                    -- | current modul
                , inStatement       :: Bool                    -- | for generating correct function declarations in strict mode
                }
 
-data Result = ResultReturn (Maybe Name) [TName] -- first field carries function name if not anonymous and second the arguments which are always known
+data Result = ResultReturn (Maybe TName) [TName] -- first field carries function name if not anonymous and second the arguments which are always known
             | ResultAssign TName (Maybe Name)    -- variable name and optional label to break
 
 initSt uniq = St uniq [] [] [] []
