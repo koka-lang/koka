@@ -768,7 +768,7 @@ static bigint_t* bigint_sub_abs(bigint_t* x, bigint_t* y, context_t* ctx) {  // 
     diff = x->digits[i] - borrow - y->digits[i];
     if (unlikely(diff >= BASE)) {   // unsigned wrap around
       borrow = 1;
-      diff += BASE; assert_internal(diff >= 0);
+      diff += BASE; // assert_internal(diff >= 0);
     }
     else {
       borrow = 0;

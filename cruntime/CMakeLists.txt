@@ -94,6 +94,9 @@ target_compile_options(
       -pedantic
       -ftls-model=initial-exec>)
 
+# Platform-specific definitions
+target_compile_definitions(runtime-flags INTERFACE $<$<PLATFORM_ID:Linux>:_GNU_SOURCE>)
+
 # Architecture flags
 if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "arm")
   target_compile_options(runtime-flags INTERFACE -march=native)
