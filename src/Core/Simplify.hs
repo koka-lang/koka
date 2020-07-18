@@ -474,9 +474,9 @@ effectLabelFromHandler tp
 
 effectOffset :: Name -> Type -> Integer
 effectOffset l effTp
-  = let (ls,_) = extractHandledEffect effTp
+  = let (ls,tl) = extractHandledEffect effTp
         ofs = findMatch 0 l ls
-    in -- trace ("found offset " ++ show ofs ++ " for " ++ show l ++ " in " ++ show (map (show . labelName) ls)) $    
+    in trace ("found offset " ++ show ofs ++ " for " ++ show l ++ " in " ++ show (map (show . labelName) ls) ++ " | " ++ show tl) $    
        ofs
 
 findMatch :: Integer -> Name -> [Type] -> Integer
