@@ -353,7 +353,7 @@ fun list( lo : char, hi : char ) : total list<char>
   list(lo.int, hi.int).map( char )
 }
 
-private val maxListStack = 100
+private val maxListStack = 50
 
 
 private fun zipwith-acc( f, i, acc, xs, ys )
