@@ -160,15 +160,28 @@ parcExpr expr
                setInUse (S.unions inUses)
                _ <- reverseMapM parcExpr exprs  -- process, but don't use
                return (Case exprs branches')  -- exprs is all borrowed vars (should not dup)
-      -- bind scrutinees first
       Case exprs branches
-        -> do expr' <- normalizeCase expr
-              parcExpr expr'
+        -> normalizeCase expr
 
 normalizeCase :: Expr -> Parc Expr
-normalizeCase c@Case{caseExprs}
+normalizeCase Case{caseExprs,caseBranches}
   = do (vexprs,dgs) <- unzip <$> reverseMapM caseExpandExpr caseExprs
-       return $ makeLet (catMaybes dgs) c{caseExprs=vexprs}
+       let brs' = map (normalizeBranch vexprs) caseBranches
+       parcExpr $ makeLet (catMaybes dgs) (Case vexprs brs')
+
+normalizeBranch :: [Expr] -> Branch -> Branch
+normalizeBranch vexprs br@Branch{branchPatterns, branchGuards}
+  = let renameGuard (old, new) (Guard test expr)
+          = Guard (rename old new test) (rename old new expr)
+        nameMapping pat (Var (TName new _) _)
+          = case pat of
+              PatVar (TName old _) pat'
+                -> (Just (old, new), pat')
+              _ -> (Nothing, pat)
+        (newNames, pats') = unzip $ zipWith nameMapping branchPatterns vexprs
+        newNames' = catMaybes newNames
+        guards' = map (\g -> foldr renameGuard g newNames') branchGuards
+     in Branch pats' guards'
 
 -- only safe once variable names have been uniquified
 rename :: Name -> Name -> Expr -> Expr
@@ -201,7 +214,14 @@ rename old new expr
          Case exprs brs -> Case (map renameExpr exprs) (map renameBranch brs)
 
 caseIsNormalized :: [Expr] -> [Branch] -> Bool
-caseIsNormalized exprs branches = all isExprVar exprs
+caseIsNormalized exprs branches
+  = all isExprVar exprs && all (not . mightAlias) branches
+  where isExprVar Var{}   = True
+        isExprVar _       = False
+        isPatVar PatVar{} = True
+        isPatVar _        = False
+        mightAlias Branch{branchPatterns}
+          = any isPatVar branchPatterns
 
 -- Generate variable names for scrutinee expressions
 caseExpandExpr :: Expr -> Parc (Expr, Maybe DefGroup)
@@ -210,10 +230,6 @@ caseExpandExpr x = do name <- uniqueName "match"
                       let def = DefNonRec (makeDef name x)
                       let var = Var (TName name (typeOf x)) InfoNone
                       return (var, Just def)
-
-isExprVar :: Expr -> Bool
-isExprVar Var{} = True
-isExprVar _     = False
 
 {-
 
