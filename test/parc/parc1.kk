@@ -30,3 +30,21 @@ fun match3(xs:list<int>) {
     Nil -> []
   }
 }
+
+fun match4(xs:list<a>, ys:list<a>): list<a> {
+  match(xs) {
+    Cons(z) -> match(ys) {
+                 Cons(z) -> [z]
+                 Nil -> xs
+               }
+    Nil -> ys
+  }
+}
+
+fun match5(xs:list<int>) {
+  match(xs) {
+    // this 'ys' cannot be changed to 'xs' to be even more ambiguous
+    Cons(xs) as ys -> xs
+    Nil -> 1
+  }
+}

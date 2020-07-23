@@ -5,6 +5,8 @@
 -- terms of the Apache License, Version 2.0. A copy of the License can be
 -- found in the file "license.txt" at the root of this distribution.
 -----------------------------------------------------------------------------
+{-# LANGUAGE NamedFieldPuns #-}
+
 module Backend.C.Parc ( parcCore ) where
 
 import Lib.Trace (trace)
@@ -152,8 +154,7 @@ parcExpr expr
         -> do body' <- parcExpr body
               dgs' <- parcDefGroups False dgs
               return $ Let dgs' body'
-      -- all variable scrutinees?
-      Case exprs branches  | all isExprVar exprs
+      Case exprs branches | caseIsNormalized exprs branches
         ->  do xbranches' <- reverseMapM parcBranch branches
                let (branches',inUses) = unzip xbranches'
                setInUse (S.unions inUses)
@@ -161,10 +162,46 @@ parcExpr expr
                return (Case exprs branches')  -- exprs is all borrowed vars (should not dup)
       -- bind scrutinees first
       Case exprs branches
-        -> do (vexprs,dgs) <- unzip <$> reverseMapM caseExpandExpr exprs
-              let dgs' = catMaybes dgs
-              assertion "Core.Parc.parcExpr.Case" (not (null dgs')) $
-                parcExpr (makeLet dgs' (Case vexprs branches))
+        -> do expr' <- normalizeCase expr
+              parcExpr expr'
+
+normalizeCase :: Expr -> Parc Expr
+normalizeCase c@Case{caseExprs}
+  = do (vexprs,dgs) <- unzip <$> reverseMapM caseExpandExpr caseExprs
+       return $ makeLet (catMaybes dgs) c{caseExprs=vexprs}
+
+-- only safe once variable names have been uniquified
+rename :: Name -> Name -> Expr -> Expr
+rename old new expr
+  = let renameExpr
+          = rename old new
+        renameName name
+          = if name == old then new else name
+        renameTName (TName name ty)
+          = TName (renameName name) ty
+        renameDef def@Def{defName,defExpr}
+          = def{defName = renameName defName, defExpr = renameExpr defExpr}
+        renameDefGroup dg
+          = case dg of
+              DefRec defs -> DefRec (map renameDef defs)
+              DefNonRec def -> DefNonRec (renameDef def)
+        renameGuard (Guard test expr)
+          = Guard (renameExpr test) (renameExpr expr)
+        renameBranch br@Branch{branchGuards}
+          = br{branchGuards=map renameGuard branchGuards}
+    in case expr of
+         Var tn info -> Var (renameTName tn) info
+         Lam tns eff expr -> Lam (map renameTName tns) eff (renameExpr expr)
+         App body args -> App (renameExpr body) (map renameExpr args)
+         TypeLam tvs expr -> TypeLam tvs (renameExpr expr)
+         TypeApp expr tys -> TypeApp (renameExpr expr) tys
+         Con tn repr -> Con (renameTName tn) repr
+         Lit _ -> expr
+         Let dgs expr -> Let (map renameDefGroup dgs) (renameExpr expr)
+         Case exprs brs -> Case (map renameExpr exprs) (map renameBranch brs)
+
+caseIsNormalized :: [Expr] -> [Branch] -> Bool
+caseIsNormalized exprs branches = all isExprVar exprs
 
 -- Generate variable names for scrutinee expressions
 caseExpandExpr :: Expr -> Parc (Expr, Maybe DefGroup)

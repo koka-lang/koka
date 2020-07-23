@@ -86,7 +86,7 @@ import Common.Failure
 import Common.Unique
 import Common.Id
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
-                        nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameBox, nameUnbox, 
+                        nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameBox, nameUnbox,
                         nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit)
 import Common.Syntax
 import Kind.Kind
@@ -130,7 +130,7 @@ makeVector :: Type -> [Expr] -> Expr
 makeVector tp exprs
   = App (TypeApp vectorFromList [tp]) [makeList tp exprs]
   where
-    vectorFromList 
+    vectorFromList
       = Var (TName nameVector (TForall [a] [] (typeFun [(nameNil,TApp typeList [TVar a])] typeTotal (TApp typeVector [TVar a]))))
             (InfoArity 1 1)
     a = TypeVar (0) kindStar Bound
@@ -145,7 +145,7 @@ makeList tp exprs
     consTp   = TForall [a] [] (typeFun [(nameNil,TVar a),(nameNil,TApp typeList [TVar a])] typeTotal (TApp typeList [TVar a]))
     consCon  = Con (TName nameCons consTp) (ConAsCons nameTpList DataAsList nameNull 1)
     cons expr xs = App (TypeApp consCon [tp]) [expr,xs]
-    a = TypeVar (0) kindStar Bound            
+    a = TypeVar (0) kindStar Bound
 
 makeDef :: Name -> Expr -> Def
 makeDef name expr
@@ -160,11 +160,11 @@ makeStats :: [Expr] -> Expr
 makeStats []
   = failure "Core.Parc.makeStats: no expressions"
 makeStats [expr]
-  = expr  
+  = expr
 makeStats exprs
   = Let [DefNonRec (makeDef nameNil expr) | expr <- init exprs]
         (last exprs)
-    
+
 unzipM :: Monad m => m [(a,b)] -> m ([a],[b])
 unzipM m = fmap unzip m
 
@@ -261,7 +261,7 @@ data DataRepr = -- value types
                 DataEnum            -- only singletons (as an enumeration)
               | DataIso             -- only one constructor with one field  (isomorpic)
               | DataSingleStruct    -- only one constructor (no tag needed)
-              | DataAsMaybe         -- one constructor with fields, and one singleton 
+              | DataAsMaybe         -- one constructor with fields, and one singleton
               | DataStruct          -- compatible constructors (all raw or regular types) and possibly singletons (need tag)
               -- non-value types
               | DataSingle          -- only one constructor (no tag needed)
@@ -334,7 +334,7 @@ getDataReprEx getIsValue info
              then (DataAsMaybe
                   ,map (\con -> if (null (conInfoParams con)) then ConSingleton typeName DataAsMaybe
                                  else ConAsJust typeName DataAsMaybe (conInfoName (head singletons))) conInfos)
-             else (DataStruct, map (\con -> if null (conInfoParams con) 
+             else (DataStruct, map (\con -> if null (conInfoParams con)
                                           then ConSingleton typeName DataStruct
                                           else ConStruct typeName DataStruct) conInfos )
          )
@@ -343,10 +343,10 @@ getDataReprEx getIsValue info
             then (DataAsList
                  ,map (\con -> if (null (conInfoParams con)) then ConSingleton typeName DataAsList
                                 else ConAsCons typeName DataAsList (conInfoName (head singletons))) conInfos)
-           else let dataRepr = if (length singletons == length conInfos -1 || null conInfos) 
+           else let dataRepr = if (length singletons == length conInfos -1 || null conInfos)
                                 then DataSingleNormal else DataNormal
                 in (dataRepr
-                   ,map (\con -> if null (conInfoParams con) 
+                   ,map (\con -> if null (conInfoParams con)
                                   then ConSingleton typeName dataRepr
                                   else ConNormal typeName dataRepr) conInfos
                    )
@@ -461,7 +461,13 @@ data Guard  = Guard { guardTest :: Expr  -- boolean
                     }
 
 data Pattern
-  = PatCon{ patConName :: TName, patConPatterns:: [Pattern], patConRepr :: ConRepr, patTypeArgs :: [Type], patExists :: [TypeVar], patTypeRes :: Type, patConInfo :: ConInfo }
+  = PatCon{ patConName :: TName,
+            patConPatterns:: [Pattern],
+            patConRepr :: ConRepr,
+            patTypeArgs :: [Type],
+            patExists :: [TypeVar],
+            patTypeRes :: Type,
+            patConInfo :: ConInfo }
   | PatVar{ patName :: TName, patPattern :: Pattern }
   | PatLit{ patLit :: Lit }
   | PatWild
