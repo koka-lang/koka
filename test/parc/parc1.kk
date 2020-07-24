@@ -1,5 +1,34 @@
-fun foo1(x,y) { x }
-fun foo2(x:int,y:int) { x + x }
+fun foo1(x, y) {
+  return x
+}
+
+fun foo2(x:int, y:int) {
+  return x + x
+}
+
+fun foo3(x: list<a>): list<a> {
+  return x + x
+}
+
+fun foo4(x: list<int>): list<int> { 
+  return []
+}
+
+fun foo5(x : list<int>) : list<int> {
+  val y = match(x) {
+    Cons(_, _) -> x
+    Nil -> []
+  }
+  return y
+}
+
+fun foo6(x : int) : int {
+  val y = match(x + 1) {
+    2 -> 3
+    _ -> x
+  }
+  return y
+}
 
 fun match1(xs:list<int>, y:int) {    // drop y once
   match(xs) {
@@ -46,5 +75,12 @@ fun match5(xs:list<int>) {
     // this 'ys' cannot be changed to 'xs' to be even more ambiguous
     Cons(xs) as ys -> xs
     Nil -> 1
+  }
+}
+
+fun match6(xs:list<int>) {
+  match(xs) {
+    Cons as ys | ys.length == 2 -> ys  // don't dup(ys); drop(xs)
+    Nil -> []
   }
 }

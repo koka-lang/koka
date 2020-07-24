@@ -104,18 +104,6 @@ parcDef topLevel def
            -- assertion ("Core.Parc.parcDef: inuse not empty: " ++ show (defName def))  (S.null inuse) $
            return x
 
-
-{- try:
-:set --target=c
-fun f(x: list<a>): list<a> { x + x }
-
-fun f(x: list<int>): list<int> { return [] }
-
-fun f(x : list<int>) : list<int> { val y = match(x) { Cons(_, _) -> x Nil -> [] } return y }
-
-fun f(x : int) : int { val y = match(x+1) { 2 -> 3 ; _ -> x } return y }
-
--}
 parcExpr :: Expr -> Parc Expr
 parcExpr expr
   = case expr of
