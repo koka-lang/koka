@@ -1,52 +1,56 @@
 fun foo1(x, y) {
+  // drop y
   return x
 }
 
 fun foo2(x:int, y:int) {
+  // drop y, dup x
   return x + x
 }
 
-fun foo3(x: list<a>): list<a> {
+fun foo3(x:list<a>): list<a> {
+  // dup x
   return x + x
 }
 
-fun foo4(x: list<int>): list<int> { 
+fun foo4(x:list<int>): list<int> {
+  // drop x
   return []
 }
 
-fun foo5(x : list<int>) : list<int> {
+fun foo5(x:list<int>): list<int> {
   val y = match(x) {
-    Cons(_, _) -> x
-    Nil -> []
+    Cons -> x
+    Nil -> /* drop x */ []
   }
   return y
 }
 
-fun foo6(x : int) : int {
-  val y = match(x + 1) {
-    2 -> 3
-    _ -> x
+fun foo6(x:int):int {
+  val y = match(x + 1) { /* store in x' */
+    2 -> /* drop x, x' */ 3
+    _ -> /* drop x' */ x
   }
   return y
 }
 
 fun match1(xs:list<int>, y:int) {    // drop y once
   match(xs) {
-    Cons(x,_) -> match(xs){
-                    Cons -> x
-                    Nil -> 2
-                  }
+    Cons(x,_) -> match(xs) {
+                   Cons -> x
+                   Nil -> 2
+                 }
     Cons -> 2
     _ -> y
   }
 }
 
-fun match2(xs:list<int>, y:int, z :int) {    // drop y once, drop z early
+fun match2(xs:list<int>, y:int, z:int) {    // drop y once, drop z early
   match(xs) {
-    Cons(x,_) -> match(xs){
-                    Cons -> x
-                    Nil -> 2
-                  }
+    Cons(x,_) -> match(xs) {
+                   Cons -> x
+                   Nil -> 2
+                 }
     Cons -> 2
     _ -> y
   }

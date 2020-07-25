@@ -461,14 +461,17 @@ data Guard  = Guard { guardTest :: Expr  -- boolean
                     }
 
 data Pattern
-  = PatCon{ patConName :: TName,
-            patConPatterns:: [Pattern],
-            patConRepr :: ConRepr,
-            patTypeArgs :: [Type],
-            patExists :: [TypeVar],
-            patTypeRes :: Type,
-            patConInfo :: ConInfo }
-  | PatVar{ patName :: TName, patPattern :: Pattern }
+  = PatCon{ patConName :: TName,        -- ^ names the constructor with full signature.
+            patConPatterns:: [Pattern], -- ^ sub-patterns. fully materialized to match arity.
+            patConRepr :: ConRepr,      -- ^ representation of ctor in backend.
+            patTypeArgs :: [Type],      -- ^ zipped with patConPatterns
+            patExists :: [TypeVar],     -- ^ closed under existentials here
+            patTypeRes :: Type,         -- ^ result type
+            patConInfo :: ConInfo       -- ^ other constructor info
+          }
+  | PatVar{ patName :: TName,           -- ^ name/type of variable
+            patPattern :: Pattern       -- ^ named sub-pattern
+          }
   | PatLit{ patLit :: Lit }
   | PatWild
 
