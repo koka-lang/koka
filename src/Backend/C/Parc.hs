@@ -359,7 +359,7 @@ dupDropFun isDup tp
 --------------------------------------------------------------------------
 
 type ParcM a = ReaderT Env (State ParcState) a
-newtype Parc a = Parc { unParc :: ParcM a }
+newtype Parc a = Parc (ParcM a)
   deriving (Functor, Applicative, Monad, MonadReader Env, MonadState ParcState)
 
 type Owned = S.Set TName
@@ -370,7 +370,9 @@ data Env = Env { currentDef :: [Def],
                }
 
 type Consumed = S.Set TName
-data ParcState = ParcState{ uniq :: Int, consumed :: Consumed }
+data ParcState = ParcState { uniq :: Int,
+                             consumed :: Consumed
+                           }
 
 runParc :: Pretty.Env -> Newtypes -> Parc a -> Unique a
 runParc penv newtypes (Parc action)
@@ -386,7 +388,7 @@ instance HasUnique Parc where
   setUnique i = modify (\s -> s{ uniq = i })
 
 withEnv :: (Env -> Env) -> Parc a -> Parc a
-withEnv f (Parc action) = Parc (withReaderT f action)
+withEnv = local
 
 getEnv :: Parc Env
 getEnv = ask
@@ -402,8 +404,8 @@ getSt = get
 -- owned names
 
 withOwned :: [TName] -> Parc a -> Parc a
-withOwned tnames action
-  = withEnv (\env -> env{ owned = tnamesInsertAll (owned env) tnames}) action
+withOwned tnames
+  = withEnv (\env -> env{ owned = tnamesInsertAll (owned env) tnames})
 
 getOwned :: Parc Owned
 getOwned = owned <$> getEnv
@@ -423,9 +425,7 @@ consume name
        return ()
 
 isConsumed :: TName -> Parc Bool
-isConsumed name
-  = do st <- getSt
-       return (S.member name (consumed st))
+isConsumed name = S.member name . consumed <$> getSt
 
 getConsumed :: Parc Consumed
 getConsumed = consumed <$> getSt
@@ -464,10 +464,7 @@ withIsolated action
 -- tracing
 
 withCurrentDef :: Def -> Parc a -> Parc a
-withCurrentDef def action
- = -- trace ("Parcing: " ++ show (defName def)) $
-   withEnv (\env -> env{currentDef = def:currentDef env}) $
-   action
+withCurrentDef def = withEnv (\env -> env{currentDef = def:currentDef env})
 
 parcTraceDoc :: (Pretty.Env -> Doc) -> Parc ()
 parcTraceDoc f
