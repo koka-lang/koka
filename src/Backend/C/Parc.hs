@@ -5,18 +5,20 @@
 -- terms of the Apache License, Version 2.0. A copy of the License can be
 -- found in the file "license.txt" at the root of this distribution.
 -----------------------------------------------------------------------------
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns, GeneralizedNewtypeDeriving  #-}
 
 module Backend.C.Parc ( parcCore ) where
 
 import Lib.Trace (trace)
 import Control.Applicative hiding (empty)
 import Control.Monad
+import Control.Monad.Identity
+import Control.Monad.Reader
+import Control.Monad.State
 import Data.List ( intersperse, partition )
 import Data.Maybe ( catMaybes, fromMaybe )
 import Data.Char
--- import Data.Maybe
--- import Data.Monoid ( mappend )
+import Data.Set ( (\\) )
 import qualified Data.Set as S
 
 import Kind.Kind
@@ -50,19 +52,6 @@ enabled = unsafePerformIO $ do
     Just val -> return $ map toLower val `elem` ["1", "on", "yes", "true", "y", "t"]
 
 --------------------------------------------------------------------------
--- Local typeclass for convenience
---------------------------------------------------------------------------
-
-class ParcName a where
-  parcGetName :: a -> Name
-
-instance ParcName Name where
-  parcGetName = id
-
-instance ParcName TName where
-  parcGetName = getName
-
---------------------------------------------------------------------------
 -- Reference count transformation
 --------------------------------------------------------------------------
 
@@ -74,9 +63,9 @@ parcCore penv newtypes core
                                             defs))) $
                       return core{ coreProgDefs  = defs }
 
-{--------------------------------------------------------------------------
-  definition groups
---------------------------------------------------------------------------}
+--------------------------------------------------------------------------
+-- Definition groups
+--------------------------------------------------------------------------
 
 parcDefGroups :: Bool -> DefGroups -> Parc DefGroups
 parcDefGroups topLevel defGroups
@@ -93,14 +82,11 @@ parcDefGroup topLevel dg
 parcDef :: Bool -> Def -> Parc Def
 parcDef topLevel def
   = (if topLevel then isolated else id) $
-    do --parcTraceDoc (\penv -> prettyDef (penv{Pretty.coreShowDef=True}) def )
-       expr <- parcExpr (defExpr def)
-       let result = def{defExpr=expr}
-       --parcTraceDoc (\penv -> prettyDef (penv{Pretty.coreShowDef=True}) result)
-       return result
+    do expr <- parcExpr (defExpr def)
+       return def{defExpr=expr}
   where
     isolated action
-      = do (x,inuse) <- isolateInUse action
+      = do (x,inuse) <- isolateConsumed action
            -- assertion ("Core.Parc.parcDef: inuse not empty: " ++ show (defName def))  (S.null inuse) $
            return x
 
@@ -145,11 +131,22 @@ parcExpr expr
       Case exprs branches | caseIsNormalized exprs branches
         ->  do xbranches' <- reverseMapM parcBranch branches
                let (branches',inUses) = unzip xbranches'
-               setInUse (S.unions inUses)
+               setConsumed (S.unions inUses)
                _ <- reverseMapM parcExpr exprs  -- process, but don't use
                return (Case exprs branches')  -- exprs is all borrowed vars (should not dup)
       Case exprs branches
         -> normalizeCase expr
+
+-- parcOwnedBinding :: TName -> Expr -> Parc Expr
+-- parcOwnedBinding tn expr
+--   = withOwned tn $ do
+--      expr' <- parcExpr expr
+--      consumed <- isConsumed tn
+--      dropTn <- genDrop tn
+--      let drops = case dropTn of
+--                    Just d | not consumed -> [d]
+--                    _ -> []
+--      return $ makeStats (drops ++ [expr'])
 
 normalizeCase :: Expr -> Parc Expr
 normalizeCase Case{caseExprs,caseBranches}
@@ -219,95 +216,44 @@ caseExpandExpr x = do name <- uniqueName "match"
                       let var = Var (TName name (typeOf x)) InfoNone
                       return (var, Just def)
 
-{-
-
-match(xs) {
-  Cons(y,yy)         | foo(yy) -> e1
-  Cons(y,Cons(yy,_)) | bar(y)  -> e2
-  _ ->
-}
-
--}
-
-parcBranch :: Branch -> Parc (Branch, InUse)
+parcBranch :: Branch -> Parc (Branch, Consumed)
 parcBranch b@(Branch patterns guards)
   = do let pvars = bv patterns
-       (guards',inUse) <- unzip <$> reverseMapM (parcGuard pvars) guards
-       return (Branch patterns guards', S.unions inUse)
+       (guards',consumed) <- unzip <$> reverseMapM (parcGuard pvars) guards
+       return (Branch patterns guards', S.unions consumed)
 
-parcGuard :: TNames -> Guard -> Parc (Guard, InUse)
+parcGuard :: TNames -> Guard -> Parc (Guard, Consumed)
 parcGuard pvars (Guard test expr)
-  = isolateInUse $
+  = isolateConsumed $
     do -- body
-       contInUse <- getInUse  -- everything in use in our continuation after the match
+       contInUse <- getConsumed  -- everything in use in our continuation after the match
        let free      = freeLocals expr
            pvarInUse = tnamesList $ S.intersection pvars free
        owned    <- getOwned
-       let isUsed tname = S.member (getName tname) (S.union (S.map getName free) contInUse)
-           (stillOwned,dropOwned)  = partition isUsed owned
-       drops    <- mapM genDrop dropOwned
+       let isUsed tname = S.member tname (S.union free contInUse)
+           (stillOwned,dropOwned) = S.partition isUsed owned
+       drops    <- mapM genDrop (S.toList dropOwned)
        pvarDups <- mapM genDup pvarInUse
-       expr'    <- withOwned (stillOwned ++ pvarInUse) $
-                   parcExpr expr
+       let owned = S.toList stillOwned ++ pvarInUse
+       expr'    <- withOwned owned (parcExpr expr)
 
        -- test: treat all variables as if in-use so no reference counts change
        let freeTest = freeLocals test
-       (test',_) <- isolateInUse $ do setInUse (S.map getName freeTest)
-                                      parcExpr test
+       (test',_) <- isolateConsumed $ do setConsumed freeTest
+                                         parcExpr test
 
        return (Guard test' (maybeStats (pvarDups ++ drops) expr'))
 
-
-addUniqueNames :: Expr -> Parc Expr
-addUniqueNames e@(Case exprs branches)
-  = do branches' <- mapM addUniqueNamesToBranch branches
-       return $ e { caseBranches = branches' }
-addUniqueNames _ = error "addUniqueNames only applies to Case exprs"
-
-addUniqueNamesToBranch :: Branch -> Parc Branch
-addUniqueNamesToBranch branch
-  = do patterns' <- mapM addUniqueNamesToPattern (branchPatterns branch)
-       return (branch { branchPatterns = patterns' })
-
-{-
-data Pattern
-  = PatCon{ patConName :: TName,        ** names the constructor. full signature. not good to use since it can contain existential types
-            patConPatterns:: [Pattern], -- sub-patterns. fully materialized to match arity.
-            patConRepr :: ConRepr,      -- representation of ctor in backend. not needed
-            patTypeArgs :: [Type],      -- can be zipped with patConPatterns above
-            patExists :: [TypeVar],     -- closed under existentials here
-            patTypeRes :: Type,         -- result type
-            patConInfo :: ConInfo }     -- all other info. not needed
-  | PatVar{ patName :: TName,           ** name/type of variable
-            patPattern :: Pattern }     -- sub-pattern
-  | PatLit{ patLit :: Lit }             ** just a literal (below)
-  | PatWild                             ** can be top-level. need types of scrutinees
-
-data Lit =
-    LitInt    Integer
-  | LitFloat  Double
-  | LitChar   Char
-  | LitString String
-
-Use typeOf for exprs/literals
--}
-
-addUniqueNamesToPattern :: Pattern -> Parc Pattern
-addUniqueNamesToPattern = return -- TODO: need typed names here
-
-
 dupTNames :: [(TName,VarInfo)] -> Parc [Maybe Expr]
-dupTNames tnames
-  = mapM dupTName tnames
+dupTNames tnames = mapM dupTName tnames
 
 dupTName :: (TName,VarInfo) -> Parc (Maybe Expr)
 dupTName (tname,InfoNone)
-  = do needsDup <- isInUse tname
+  = do needsDup <- isConsumed tname
        if needsDup
         then genDup tname
-        else do addInUse tname
+        else do consume tname
                 return Nothing
-
 dupTName (tname,_)
   = return Nothing
 
@@ -315,7 +261,6 @@ reverseMapM :: Monad m => (a -> m b) -> [a] -> m [b]
 reverseMapM action args =
   do args' <- mapM action (reverse args)
      return $ reverse args'
-
 
 maybeStats :: [Maybe Expr] -> Expr -> Expr
 maybeStats xs expr
@@ -409,67 +354,48 @@ dupDropFun isDup tp
     name = if isDup then nameDup else nameDrop
     coerceTp = TFun [(nameNil,tp)] typeTotal (if isDup then tp else typeUnit)
 
+--------------------------------------------------------------------------
+-- Parc monad
+--------------------------------------------------------------------------
 
-{--------------------------------------------------------------------------
- Parc monad
---------------------------------------------------------------------------}
-newtype Parc a = Parc (Env -> State -> Result a)
+type ParcM a = ReaderT Env (State ParcState) a
+newtype Parc a = Parc { unParc :: ParcM a }
+  deriving (Functor, Applicative, Monad, MonadReader Env, MonadState ParcState)
 
-data Env = Env{ currentDef :: [Def],
-                prettyEnv :: Pretty.Env,
-                newtypes  :: Newtypes,
-                owned     :: Owned
-              }
+type Owned = S.Set TName
+data Env = Env { currentDef :: [Def],
+                 prettyEnv :: Pretty.Env,
+                 newtypes  :: Newtypes,
+                 owned     :: Owned
+               }
 
-type Owned = [TName]  -- = S.Set TName
-type InUse = S.Set Name
-
-data ReuseInfo = ReuseInfo{ reuseRepr :: ConRepr, reuseCon :: ConInfo }
-
-data State = State{ uniq :: Int, inuse :: InUse, reuse :: [(Name,ReuseInfo)] }
-
-data Result a = Ok a State
+type Consumed = S.Set TName
+data ParcState = ParcState{ uniq :: Int, consumed :: Consumed }
 
 runParc :: Pretty.Env -> Newtypes -> Parc a -> Unique a
-runParc penv newtypes (Parc c)
- = withUnique $ \u ->
-   case c (Env [] penv newtypes []) (State u S.empty []) of
-     Ok x st -> (x,uniq st)
-
-instance Functor Parc where
- fmap f (Parc c)  = Parc (\env st -> case c env st of
-                                       Ok x st' -> Ok (f x) st')
-
-instance Applicative Parc where
- pure  = return
- (<*>) = ap
-
-instance Monad Parc where
- return x       = Parc (\env st -> Ok x st)
- (Parc c) >>= f = Parc (\env st -> case c env st of
-                                     Ok x st' -> case f x of
-                                                   Parc d -> case d env st' of
-                                                               Ok x' st'' -> Ok x' st'')
+runParc penv newtypes (Parc action)
+  = withUnique $ \u ->
+      let env = Env [] penv newtypes S.empty
+          st = ParcState u S.empty
+          (val, st') = runState (runReaderT action env) st
+       in (val, uniq st')
 
 instance HasUnique Parc where
- updateUnique f = Parc (\env st -> Ok (uniq st) st{ uniq = f (uniq st) })
- setUnique  i   = Parc (\env st -> Ok () st{ uniq = i})
+  updateUnique f = do modify (\s -> s { uniq = f (uniq s) })
+                      gets uniq
+  setUnique i = modify (\s -> s{ uniq = i })
 
 withEnv :: (Env -> Env) -> Parc a -> Parc a
-withEnv f (Parc c)
- = Parc (\env st -> c (f env) st)
+withEnv f (Parc action) = Parc (withReaderT f action)
 
 getEnv :: Parc Env
-getEnv
- = Parc (\env st -> Ok env st)
+getEnv = ask
 
-updateSt :: (State -> State) -> Parc State
-updateSt f
- = Parc (\env st -> Ok st (f st))
+updateSt :: (ParcState -> ParcState) -> Parc ParcState
+updateSt f = modify f >> get
 
-getSt :: Parc State
-getSt
-  = Parc (\env st -> Ok st st)
+getSt :: Parc ParcState
+getSt = get
 
 
 -----------------------
@@ -477,110 +403,62 @@ getSt
 
 withOwned :: [TName] -> Parc a -> Parc a
 withOwned tnames action
-  = withEnv (\env -> env{ owned = {- tnamesInsertAll (owned env) -} tnames}) action
+  = withEnv (\env -> env{ owned = tnamesInsertAll (owned env) tnames}) action
 
-getOwned :: Parc [TName]
-getOwned
-  = do env <- getEnv
-       return (owned env)
+getOwned :: Parc Owned
+getOwned = owned <$> getEnv
 
-ownedAndNotUsed :: Parc [TName]
+ownedAndNotUsed :: Parc Owned
 ownedAndNotUsed
   = do owned <- getOwned
-       used  <- getInUse
-       let isUsed tname = S.member (getName tname) used
-       return $ filter (not . isUsed) owned
-
+       used  <- getConsumed
+       return $ owned \\ used
 
 -----------------------
 -- in-use sets
 
-addInUse :: ParcName p => p -> Parc ()
-addInUse name'
-  = do updateSt (\st -> st{ inuse = S.insert name (inuse st)})
+consume :: TName -> Parc ()
+consume name
+  = do updateSt (\st -> st{ consumed = S.insert name (consumed st)})
        return ()
-    where name = parcGetName name'
 
-isInUse :: ParcName p => p -> Parc Bool
-isInUse name'
+isConsumed :: TName -> Parc Bool
+isConsumed name
   = do st <- getSt
-       return (S.member name (inuse st))
-    where name = parcGetName name'
+       return (S.member name (consumed st))
 
-dropInUse :: ParcName p => p -> Parc ()
-dropInUse name'
-  = do updateSt (\st -> st{ inuse = S.delete name (inuse st)})
-       return ()
-    where name = parcGetName name'
+getConsumed :: Parc Consumed
+getConsumed = consumed <$> getSt
 
-getInUse :: Parc InUse
-getInUse = inuse <$> getSt
-
-setInUse :: InUse -> Parc ()
-setInUse inuse0
- = do updateSt (\st -> st{ inuse = inuse0 })
+setConsumed :: Consumed -> Parc ()
+setConsumed consumed'
+ = do updateSt (\st -> st{ consumed = consumed' })
       return ()
 
--- TODO: also save/restore the reuseInfo?
-isolateInUse :: Parc a -> Parc (a, InUse)
-isolateInUse action
-  = do inuse0 <- getInUse
+isolateConsumed :: Parc a -> Parc (a, Consumed)
+isolateConsumed action
+  = do consumed' <- getConsumed
        x <- action
-       st1 <- updateSt (\st -> st{ inuse = inuse0 })  -- restore
-       return (x,inuse st1)
+       st1 <- updateSt (\st -> st{ consumed = consumed' })  -- restore
+       return (x, consumed st1)
 
 -- branches are isolated from each other
 isolateBranches :: [Parc a] -> Parc [a]
 isolateBranches branches
-  = do xs0 <- reverseMapM isolateInUse branches
+  = do xs0 <- reverseMapM isolateConsumed branches
        let (xs, inuses) = unzip xs0
            inuse = S.unions inuses
-       setInUse inuse
+       setConsumed inuse
        return xs
 
 -- for a lambda, fully isolated
 withIsolated :: Parc a -> Parc a
 withIsolated action
   = fmap fst $
-    isolateInUse $
-    withEnv (\env -> env{ owned = [] }) $
-    do updateSt (\st -> st{ inuse = S.empty, reuse = [] })
+    isolateConsumed $
+    withEnv (\env -> env{ owned = S.empty }) $
+    do updateSt (\st -> st{ consumed = S.empty })
        action
-
-
-
------------------------
--- drop statement
-{-
-genDropStmt :: TName -> Expr -> Parc Expr
-genDropStmt tn e
-  = do r <- uniqueName "drop"
-       dr <- genDrop tn
-       let def = makeTDef tn
-       return $ makeLet []
-
-makeExprSeq :: [Expr] -> Parc Expr
-makeExprSeq [] = error "empty list provided to makeExprSeq"
-makeExprSeq [x] = return x
-makeExprSeq (x:xs)
-  =
--}
------------------------
--- reuse
-
-withReuse :: ReuseInfo -> Parc a -> Parc (a, Maybe Name)
-withReuse reuseInfo action
-  = do r <- uniqueName "reuse"
-       updateSt (\st -> st{ reuse = (r,reuseInfo): reuse st })
-       x <- action
-       st0 <- updateSt (\st -> st{ reuse = filter (\(r',_) -> r /= r') (reuse st) })
-       let isReused = not (any (\(r',_) -> r == r') (reuse st0))
-       return (x, if isReused then Just r else Nothing)
-
-tryReuse :: TName -> ConRepr -> Parc (Maybe Name)
-tryReuse conName conRepr
-  = return Nothing -- TODO: lookup if we can reuse, and if so, remove the name from the ReuseInfo
-
 
 -----------------------
 -- tracing
