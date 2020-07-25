@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 84e81d192858912ffea4d1bb40f73e67c95dff242a396189cd8c04be4c2f56f6
+-- hash: 46d2c9f401a55556794e1a4baa9573280ef556a1edbf68ea77a27ca92a0242d4
 
 name:           koka
 version:        0.1.0.0
@@ -137,6 +137,7 @@ executable koka
     , cond
     , containers
     , directory
+    , mtl
     , parsec
     , process
     , text

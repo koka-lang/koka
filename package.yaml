@@ -20,6 +20,7 @@ dependencies:
   - cond
   - containers
   - directory
+  - mtl
   - parsec
   - process
   - text
