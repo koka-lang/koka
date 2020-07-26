@@ -74,10 +74,8 @@ parcDefGroups topLevel defGroups
 parcDefGroup :: Bool -> DefGroup -> Parc DefGroup
 parcDefGroup topLevel dg
   = case dg of
-      DefRec defs    -> do defs' <- reverseMapM (parcDef topLevel) defs
-                           return (DefRec defs')
-      DefNonRec def  -> do def' <- parcDef topLevel def
-                           return (DefNonRec def')
+      DefRec    defs -> DefRec <$> reverseMapM (parcDef topLevel) defs
+      DefNonRec def  -> DefNonRec <$> parcDef topLevel def
 
 parcDef :: Bool -> Def -> Parc Def
 parcDef topLevel def
@@ -87,35 +85,31 @@ parcDef topLevel def
   where
     isolated action
       = do (x,inuse) <- isolateConsumed action
-           -- assertion ("Core.Parc.parcDef: inuse not empty: " ++ show (defName def))  (S.null inuse) $
            return x
+
+parcOwnedBindings :: [TName] -> Expr -> Parc Expr
+parcOwnedBindings tns expr
+  = withOwned tns $ do
+      expr' <- parcExpr expr
+      unused <- filterM (fmap not . isConsumed) tns
+      drops <- catMaybes <$> mapM genDrop unused
+      return $ makeStats (drops ++ [expr'])
 
 parcExpr :: Expr -> Parc Expr
 parcExpr expr
   = case expr of
       TypeLam tpars body
-        -> do body' <- parcExpr body
-              return $ TypeLam tpars body'
+        -> TypeLam tpars <$> parcExpr body
       TypeApp body targs
-        -> do body' <- parcExpr body
-              return $ TypeApp body' targs
+        -> (`TypeApp` targs) <$> parcExpr body
       Lam pars eff body
-        -> do let usedInBody = freeLocals body
-                  parsSet    = S.fromList pars
-                  captures   = tnamesList $ S.difference usedInBody parsSet
-                  parsUnused = tnamesList $ S.difference parsSet usedInBody
-              captureDups <- dupTNames (zip captures (repeat InfoNone))
-              parDrops <- mapM genDrop parsUnused
-              body' <- withIsolated $
-                       withOwned (tnamesList usedInBody) $
-                       parcExpr body
-              let lam' = Lam pars eff (maybeStats parDrops body')
-              return $ maybeStats captureDups lam'
+        -> do (body', consumed) <- isolateBody $ parcOwnedBindings pars body
+              let captures = S.toList $ consumed \\ S.fromList pars
+              dups <- dupTNames (zip captures (repeat InfoNone))
+              mapM_ consume captures
+              return $ Lam pars eff (maybeStats dups body')
       Var tname info
-        -> do mbDup <- dupTName (tname, info)
-              case mbDup of
-                Just dup -> return dup
-                Nothing  -> return expr
+        -> fromMaybe expr <$> dupTName (tname, info)
       App fn args
         -> do args' <- reverseMapM parcExpr args
               fn'   <- parcExpr fn
@@ -134,19 +128,8 @@ parcExpr expr
                setConsumed (S.unions inUses)
                _ <- reverseMapM parcExpr exprs  -- process, but don't use
                return (Case exprs branches')  -- exprs is all borrowed vars (should not dup)
-      Case exprs branches
+      Case _ _
         -> normalizeCase expr
-
--- parcOwnedBinding :: TName -> Expr -> Parc Expr
--- parcOwnedBinding tn expr
---   = withOwned tn $ do
---      expr' <- parcExpr expr
---      consumed <- isConsumed tn
---      dropTn <- genDrop tn
---      let drops = case dropTn of
---                    Just d | not consumed -> [d]
---                    _ -> []
---      return $ makeStats (drops ++ [expr'])
 
 normalizeCase :: Expr -> Parc Expr
 normalizeCase Case{caseExprs,caseBranches}
@@ -383,9 +366,8 @@ runParc penv newtypes (Parc action)
        in (val, uniq st')
 
 instance HasUnique Parc where
-  updateUnique f = do modify (\s -> s { uniq = f (uniq s) })
-                      gets uniq
-  setUnique i = modify (\s -> s{ uniq = i })
+  updateUnique f = modify (\s -> s { uniq = f (uniq s) }) >> gets uniq
+  setUnique i = modify (\s -> s { uniq = i })
 
 withEnv :: (Env -> Env) -> Parc a -> Parc a
 withEnv = local
@@ -437,10 +419,11 @@ setConsumed consumed'
 
 isolateConsumed :: Parc a -> Parc (a, Consumed)
 isolateConsumed action
-  = do consumed' <- getConsumed
+  = do consumed <- getConsumed
        x <- action
-       st1 <- updateSt (\st -> st{ consumed = consumed' })  -- restore
-       return (x, consumed st1)
+       consumed' <- getConsumed
+       setConsumed consumed
+       return (x, consumed')
 
 -- branches are isolated from each other
 isolateBranches :: [Parc a] -> Parc [a]
@@ -451,14 +434,10 @@ isolateBranches branches
        setConsumed inuse
        return xs
 
--- for a lambda, fully isolated
-withIsolated :: Parc a -> Parc a
-withIsolated action
-  = fmap fst $
-    isolateConsumed $
-    withEnv (\env -> env{ owned = S.empty }) $
-    do updateSt (\st -> st{ consumed = S.empty })
-       action
+-- for a lambda
+isolateBody :: Parc a -> Parc (a, Consumed)
+isolateBody action
+  = isolateConsumed $ withEnv (\env -> env{owned = S.empty}) action
 
 -----------------------
 -- tracing
@@ -490,6 +469,7 @@ getDataDefRepr tp
                         Nothing -> failure $ "Core.Parc.getDataInfo: cannot find type: " ++ show name
                         Just di -> return (Just (dataInfoDef di, fst (getDataRepr di)))
 
+extractDataDefType :: Type -> Maybe Name
 extractDataDefType tp
   = case expandSyn tp of
       TApp t _      -> extractDataDefType t
