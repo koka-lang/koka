@@ -1,3 +1,7 @@
+fun foo0(x) {
+  x
+}
+
 fun foo1(x, y) {
   // drop y
   return x
@@ -32,6 +36,11 @@ fun foo6(x:int):int {
     _ -> /* drop x' */ x
   }
   return y
+}
+
+fun foo7(x:int): (() -> int) {
+  // no dups/drops
+  return fun() { x }
 }
 
 fun match1(xs:list<int>, y:int) {    // drop y once
