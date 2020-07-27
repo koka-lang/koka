@@ -128,20 +128,22 @@ parcExpr expr
       Let dgs body
         -> do body' <- parcExpr body
               dgs' <- parcDefGroups False dgs
+              forget (bv dgs')
               return $ Let dgs' body'
       Case exprs brs | caseIsNormalized exprs brs
-        -> withOwned (fv exprs) $
-             do brs' <- parcBranches brs
-                exprs' <- mapM parcExpr exprs
+        -> withOwned scrutinees $
+             do exprs' <- isolated_ $ mapM parcExpr exprs
+                brs' <- parcBranches scrutinees brs
                 return $ Case exprs' brs'
+           where scrutinees = fv exprs
       Case _ _
         -> parcExpr =<< normalizeCase expr
 
-parcBranches :: [Branch] -> Parc [Branch]
-parcBranches brs
+parcBranches :: TNames -> [Branch] -> Parc [Branch]
+parcBranches scrutinees brs
   = do -- results :: [(Branch, [(TNames, Consumed)])]
        results <- mapM parcBranch brs
-       let c = S.unions (map snd $ concatMap snd results)
+       let c = S.union scrutinees $ S.unions (map snd $ concatMap snd results)
        setConsumed c
        forM results $ \(Branch pats gds, dats) ->
          do gds' <- forM (zip gds dats) $ \(g, (toDup, cij)) ->
@@ -423,6 +425,11 @@ setConsumed consumed'
 consume :: TName -> Parc ()
 consume name
   = do updateSt (\st -> st{ consumed = S.insert name (consumed st) })
+       return ()
+
+forget :: TNames -> Parc ()
+forget tns
+  = do updateSt (\st -> st{ consumed = (consumed st) \\ tns })
        return ()
 
 isConsumed :: TName -> Parc Bool
