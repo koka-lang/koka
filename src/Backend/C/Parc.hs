@@ -112,7 +112,7 @@ parcExpr expr
               (body', consumed) <- isolated $ parcOwnedBindings parSet body
               let captures = S.toList $ consumed \\ parSet
               dups <- mapM useTName captures
-              return $ Lam pars eff (maybeStats dups body')
+              return (maybeStats dups $ Lam pars eff body')
       Var tname InfoNone
         -> fromMaybe expr <$> useTName tname
       Var _ _ -- InfoArity/External are not reference-counted
