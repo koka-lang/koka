@@ -1,13 +1,8 @@
-// Test value boxing
-fun foo(x, y) {
-  /* drop y */
-  x
-}
-
-fun match1(xs:list<maybe<int>>, y:int) {
+fun test(xs:list<int>, y:int, z :int) {
   match(xs) {
-    Cons(Just(x)) | x == y -> /* dup x; drop xs; drop y */ x
-    Cons(Nothing) -> /* drop xs; drop y */ 2
-    _ -> /* drop xs */ y
+    Cons(x) | x == z -> /* dup x; drop xs; drop y; drop z */ x
+    Cons(x) | x == y -> /* drop xs; drop z */ y
+    Cons | y == z -> /* drop xs; drop y; drop z */ 2
+    _ -> /* drop xs; drop z */ y
   }
 }

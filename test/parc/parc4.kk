@@ -1,18 +1,7 @@
-fun foo1() {
-  head([1],1)
-  /*
-  val xs = [1]
+fun test(xs:list<maybe<int>>, y:int) {
   match(xs) {
-    Cons(x) -> /* dup x; drop xs */ x
-    _ -> /* drop xs */ 1
-  }
-  */
-}
-
-fun foo2(y) {
-  val xs = [1]
-  match(xs) {
-    Cons(x) -> /* dup x; drop xs; drop y */ x
-    _       -> /* drop xs */ y
+    Cons(Just(x)) | x == y -> /* dup x; drop xs; drop y */ x
+    Cons(Nothing) -> /* drop xs; drop y */ 2
+    _ -> /* drop xs */ y
   }
 }
