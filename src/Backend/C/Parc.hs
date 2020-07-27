@@ -71,7 +71,8 @@ parcOwnedBindings :: TNames -> Expr -> Parc Expr
 parcOwnedBindings tns expr
   = withOwned tns $ do
       expr'  <- parcExpr expr
-      unused <- filterM (fmap not . isConsumed) (S.toList tns)
+      consumed <- getConsumed
+      let unused = S.toList (tns \\ consumed)
       drops  <- mapM genDrop unused
       return $ maybeStats drops expr'
 
@@ -91,13 +92,9 @@ parcDefGroup topLevel dg
 
 parcDef :: Bool -> Def -> Parc Def
 parcDef topLevel def
-  = (if topLevel then isolated else id) $
+  = (if topLevel then isolated_ else id) $
     do expr <- parcExpr (defExpr def)
        return def{defExpr=expr}
-  where
-    isolated action
-      = do (x,inuse) <- isolateConsumed action
-           return x
 
 --------------------------------------------------------------------------
 -- Main PARC algorithm
@@ -112,7 +109,7 @@ parcExpr expr
         -> (`TypeApp` targs) <$> parcExpr body
       Lam pars eff body
         -> do let parSet = S.fromList pars
-              (body', consumed) <- isolateBody $ parcOwnedBindings parSet body
+              (body', consumed) <- isolated $ parcOwnedBindings parSet body
               let captures = S.toList $ consumed \\ parSet
               dups <- mapM useTName captures
               return $ Lam pars eff (maybeStats dups body')
@@ -133,19 +130,17 @@ parcExpr expr
               dgs' <- parcDefGroups False dgs
               return $ Let dgs' body'
       Case exprs brs | caseIsNormalized exprs brs
-        ->  do let scrutinees = map (\(Var tn _) -> tn) exprs
-               -- dup the scrutinees if they're used after the match
-               (exprs', _) <- isolateConsumed $ reverseMapM parcExpr exprs
-               brs' <- parcBranches scrutinees brs
-               return $ Case exprs' brs'
+        -> withOwned (fv exprs) $
+             do brs' <- parcBranches brs
+                exprs' <- mapM parcExpr exprs
+                return $ Case exprs' brs'
       Case _ _
         -> parcExpr =<< normalizeCase expr
 
-parcBranches :: [TName] -> [Branch] -> Parc [Branch]
-parcBranches scrutinees brs
-  = do let scrutinees' = S.fromList scrutinees
-       results <- mapM (withOwned scrutinees' . parcBranch) brs
-       -- results :: [(Branch, [(TNames, Consumed)])]
+parcBranches :: [Branch] -> Parc [Branch]
+parcBranches brs
+  = do -- results :: [(Branch, [(TNames, Consumed)])]
+       results <- mapM parcBranch brs
        let c = S.unions (map snd $ concatMap snd results)
        setConsumed c
        forM results $ \(Branch pats gds, dats) ->
@@ -164,7 +159,7 @@ parcBranch b@(Branch pats guards)
 parcGuard :: TNames -> Guard -> Parc (Guard, (TNames, Consumed))
 parcGuard pvs (Guard test expr)
   = do test'        <- noneOwned $ parcExpr test
-       (expr', cij) <- isolateConsumed $ withOwned pvs $ parcExpr expr
+       (expr', cij) <- isolated $ withOwned pvs $ parcExpr expr
        let needsDups = S.intersection pvs cij
        return (Guard test' expr', (needsDups, cij))
 
@@ -433,18 +428,16 @@ consume name
 isConsumed :: TName -> Parc Bool
 isConsumed name = S.member name <$> getConsumed
 
-isolateConsumed :: Parc a -> Parc (a, Consumed)
-isolateConsumed action
+isolated :: Parc a -> Parc (a, Consumed)
+isolated action
   = do consumed <- getConsumed
        x <- action
        consumed' <- getConsumed
        setConsumed consumed
        return (x, consumed')
 
--- for a lambda
-isolateBody :: Parc a -> Parc (a, Consumed)
-isolateBody action
-  = isolateConsumed $ noneOwned action
+isolated_ :: Parc a -> Parc a
+isolated_ action = fst <$> isolated action
 
 --------------------------------------------------------------------------
 -- Tracing

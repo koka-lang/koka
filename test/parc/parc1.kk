@@ -8,13 +8,12 @@ fun foo1(x, y) {
 }
 
 fun foo2(x:int, y:int) {
-  // drop y, dup x
-  return x + x
+  // drop y
+  return /* dup x */ x + x
 }
 
 fun foo3(x:list<a>): list<a> {
-  // dup x
-  return x + x
+  return /* dup x */ x + x
 }
 
 fun foo4(x:list<int>): list<int> {
@@ -53,7 +52,7 @@ fun foo8(x:int, y:a, z:a): a {
 fun match1(xs:list<int>, y:int) {
   match(xs) {
     Cons(x,_) ->
-      /* drop y */
+      /* dup x; drop y */
       match(xs) {
         Cons -> /* drop xs */ x
         Nil -> /* drop x, xs */ 2
