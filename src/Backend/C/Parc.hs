@@ -69,7 +69,7 @@ parcCore penv newtypes core
 
 parcOwnedBindings :: [TName] -> Expr -> Parc Expr
 parcOwnedBindings tns expr
-  = withOwned tns $ do
+  = withOwned (S.fromList tns) $ do
       expr'  <- parcExpr expr
       unused <- filterM (fmap not . isConsumed) tns
       drops  <- mapM genDrop unused
@@ -143,20 +143,21 @@ parcExpr expr
 
 parcBranches :: [TName] -> [Branch] -> Parc [Branch]
 parcBranches scrutinees brs
-  = do brs' <- mapM (withOwned scrutinees . parcBranch) brs
+  = do let scrutinees' = S.fromList scrutinees
+       brs' <- mapM (withOwned scrutinees' . parcBranch) brs
        return brs'
 
 parcBranch :: Branch -> Parc Branch
 parcBranch b@(Branch pats guards)
-  = do let pvs = S.toList $ bv pats
+  = do let pvs = bv pats
        guards' <- mapM (parcGuard pvs) guards
        return b
 
-parcGuard :: [TName] -> Guard -> Parc Guard
+parcGuard :: TNames -> Guard -> Parc Guard
 parcGuard pvs g@(Guard test expr)
   = do (test', _) <- isolateConsumed $ noneOwned $ parcExpr test
        (expr', cij) <- isolateConsumed $ withOwned pvs $ parcExpr expr
-       let needsDups = S.intersect (S.fromList pvs) cij
+       let needsDups = S.intersection pvs cij
 
        return g
 
@@ -400,9 +401,9 @@ getSt = get
 noneOwned :: Parc a -> Parc a
 noneOwned = withEnv (\env -> env { owned = S.empty })
 
-withOwned :: [TName] -> Parc a -> Parc a
+withOwned :: TNames -> Parc a -> Parc a
 withOwned tnames
-  = withEnv (\env -> env{ owned = tnamesInsertAll (owned env) tnames })
+  = withEnv (\env -> env{ owned = S.union (owned env) tnames })
 
 getOwned :: Parc Owned
 getOwned = owned <$> getEnv
