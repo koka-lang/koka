@@ -67,11 +67,11 @@ parcCore penv newtypes core
 -- Rule for ensuring a binding is consumed in its scope.
 --------------------------------------------------------------------------
 
-parcOwnedBindings :: [TName] -> Expr -> Parc Expr
+parcOwnedBindings :: TNames -> Expr -> Parc Expr
 parcOwnedBindings tns expr
-  = withOwned (S.fromList tns) $ do
+  = withOwned tns $ do
       expr'  <- parcExpr expr
-      unused <- filterM (fmap not . isConsumed) tns
+      unused <- filterM (fmap not . isConsumed) (S.toList tns)
       drops  <- mapM genDrop unused
       return $ maybeStats drops expr'
 
@@ -111,13 +111,15 @@ parcExpr expr
       TypeApp body targs
         -> (`TypeApp` targs) <$> parcExpr body
       Lam pars eff body
-        -> do (body', consumed) <- isolateBody $ parcOwnedBindings pars body
-              let captures = S.toList $ consumed \\ S.fromList pars
-              dups <- dupTNames (zip captures (repeat InfoNone))
-              mapM_ consume captures
+        -> do let parSet = S.fromList pars
+              (body', consumed) <- isolateBody $ parcOwnedBindings parSet body
+              let captures = S.toList $ consumed \\ parSet
+              dups <- mapM useTName captures
               return $ Lam pars eff (maybeStats dups body')
-      Var tname info
-        -> fromMaybe expr <$> dupTName (tname, info)
+      Var tname InfoNone
+        -> fromMaybe expr <$> useTName tname
+      Var _ _ -- InfoArity/External are not reference-counted
+        -> return expr
       App fn args
         -> do args' <- reverseMapM parcExpr args
               fn'   <- parcExpr fn
@@ -135,8 +137,6 @@ parcExpr expr
                -- dup the scrutinees if they're used after the match
                (exprs', _) <- isolateConsumed $ reverseMapM parcExpr exprs
                brs' <- parcBranches scrutinees brs
-               -- mark the scrutinees as consumed
-               mapM_ consume scrutinees
                return $ Case exprs' brs'
       Case _ _
         -> parcExpr =<< normalizeCase expr
@@ -144,22 +144,29 @@ parcExpr expr
 parcBranches :: [TName] -> [Branch] -> Parc [Branch]
 parcBranches scrutinees brs
   = do let scrutinees' = S.fromList scrutinees
-       brs' <- mapM (withOwned scrutinees' . parcBranch) brs
-       return brs'
+       results <- mapM (withOwned scrutinees' . parcBranch) brs
+       -- results :: [(Branch, [(TNames, Consumed)])]
+       let c = S.unions (map snd $ concatMap snd results)
+       setConsumed c
+       forM results $ \(Branch pats gds, dats) ->
+         do gds' <- forM (zip gds dats) $ \(g, (toDup, cij)) ->
+              do drops <- mapM genDrop (S.toList (c \\ cij))
+                 dups <- mapM genDup (S.toList toDup)
+                 return g{guardExpr = maybeStats (dups ++ drops) (guardExpr g)}
+            return $ Branch pats gds'
 
-parcBranch :: Branch -> Parc Branch
+parcBranch :: Branch -> Parc (Branch, [(TNames, Consumed)])
 parcBranch b@(Branch pats guards)
   = do let pvs = bv pats
-       guards' <- mapM (parcGuard pvs) guards
-       return b
+       (guards', ci) <- unzip <$> mapM (parcGuard pvs) guards
+       return (Branch pats guards', ci)
 
-parcGuard :: TNames -> Guard -> Parc Guard
-parcGuard pvs g@(Guard test expr)
-  = do (test', _) <- isolateConsumed $ noneOwned $ parcExpr test
+parcGuard :: TNames -> Guard -> Parc (Guard, (TNames, Consumed))
+parcGuard pvs (Guard test expr)
+  = do test'        <- noneOwned $ parcExpr test
        (expr', cij) <- isolateConsumed $ withOwned pvs $ parcExpr expr
        let needsDups = S.intersection pvs cij
-
-       return g
+       return (Guard test' expr', (needsDups, cij))
 
 --------------------------------------------------------------------------
 -- Case normalization
@@ -237,18 +244,14 @@ rename old new expr
 -- Convenience methods for inserting PARC ops
 --------------------------------------------------------------------------
 
-dupTNames :: [(TName,VarInfo)] -> Parc [Maybe Expr]
-dupTNames = mapM dupTName
-
-dupTName :: (TName,VarInfo) -> Parc (Maybe Expr)
-dupTName (tname,InfoNone)
-  = do needsDup <- isConsumed tname
-       if needsDup
+useTName :: TName -> Parc (Maybe Expr)
+useTName tname
+  = do consumed <- isConsumed tname
+       owned <- isOwned tname
+       when owned $ consume tname
+       if consumed || not owned
         then genDup tname
-        else do consume tname
-                return Nothing
-dupTName _
-  = return Nothing
+        else return Nothing
 
 -- Generate a "drop match"
 genDropMatch :: TName -> [TName] -> [TName] -> Parc Expr
@@ -358,14 +361,14 @@ type ParcM a = ReaderT Env (State ParcState) a
 newtype Parc a = Parc (ParcM a)
   deriving (Functor, Applicative, Monad, MonadReader Env, MonadState ParcState)
 
-type Owned = S.Set TName
+type Owned = TNames
 data Env = Env { currentDef :: [Def],
                  prettyEnv :: Pretty.Env,
                  newtypes  :: Newtypes,
                  owned     :: Owned
                }
 
-type Consumed = S.Set TName
+type Consumed = TNames
 data ParcState = ParcState { uniq :: Int,
                              consumed :: Consumed
                            }
@@ -401,9 +404,9 @@ getSt = get
 noneOwned :: Parc a -> Parc a
 noneOwned = withEnv (\env -> env { owned = S.empty })
 
-withOwned :: TNames -> Parc a -> Parc a
-withOwned tnames
-  = withEnv (\env -> env{ owned = S.union (owned env) tnames })
+withOwned :: Owned -> Parc a -> Parc a
+withOwned newOwned
+  = withEnv (\env -> env{ owned = S.union (owned env) newOwned })
 
 getOwned :: Parc Owned
 getOwned = owned <$> getEnv

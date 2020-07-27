@@ -31,7 +31,7 @@ fun foo5(x:list<int>): list<int> {
 }
 
 fun foo6(x:int):int {
-  val y = match(x + 1) { /* store in x' */
+  val y = match(x + 1) { /* dup x; store in x' */
     2 -> /* drop x, x' */ 3
     _ -> /* drop x' */ x
   }
