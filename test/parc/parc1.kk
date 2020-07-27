@@ -66,7 +66,7 @@ fun match2(xs:list<int>, y:int, z:int) {
   // drop z
   match(xs) {
     Cons(x,_) ->
-      // drop y
+      // dup x; drop y
       match(xs) {
         Cons -> /* drop xs */ x
         Nil -> /* drop x, xs */ 2
@@ -87,24 +87,23 @@ fun match3(xs:list<int>) {
 fun match4(xs:list<a>, ys:list<a>): list<a> {
   match(xs) {
     Cons(z) -> match(ys) {
-                 Cons(z) -> [z]
-                 Nil -> xs
+                 Cons(z /* z' */) -> /* dup z'; drop xs; drop ys */ [z /* z' */]
+                 Nil -> /* drop ys */ xs
                }
-    Nil -> ys
+    Nil -> /* drop xs */ ys
   }
 }
 
 fun match5(xs:list<int>) {
   match(xs) {
-    // this 'ys' cannot be changed to 'xs' to be even more ambiguous
-    Cons(xs) as ys -> xs
-    Nil -> 1
+    Cons(xs /* xs' */) as ys -> /* dup xs'; drop xs */ xs /* xs' */
+    Nil -> /* drop xs */ 1
   }
 }
 
 fun match6(xs:list<int>) {
   match(xs) {
-    Cons(x) -> Cons(x, xs)
+    Cons(x) -> /* dup(x) */ Cons(x /* box(x) */, xs)
     Nil -> /* drop xs */ Nil
   }
 }

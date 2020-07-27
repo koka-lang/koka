@@ -162,8 +162,7 @@ parcGuard :: TNames -> Guard -> Parc (Guard, (TNames, Consumed))
 parcGuard pvs (Guard test expr)
   = do test'        <- noneOwned $ parcExpr test
        (expr', cij) <- isolated $ withOwned pvs $ parcExpr expr
-       let needsDups = S.intersection pvs cij
-       return (Guard test' expr', (needsDups, cij))
+       return (Guard test' expr', (cij `S.intersection` pvs, cij \\ pvs))
 
 --------------------------------------------------------------------------
 -- Case normalization
@@ -429,7 +428,7 @@ consume name
 
 forget :: TNames -> Parc ()
 forget tns
-  = do updateSt (\st -> st{ consumed = (consumed st) \\ tns })
+  = do updateSt (\st -> st{ consumed = consumed st \\ tns })
        return ()
 
 isConsumed :: TName -> Parc Bool
