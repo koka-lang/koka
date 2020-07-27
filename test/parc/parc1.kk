@@ -43,33 +43,45 @@ fun foo7(x:int): (() -> int) {
   return fun() { x }
 }
 
-fun match1(xs:list<int>, y:int) {    // drop y once
-  match(xs) {
-    Cons(x,_) -> match(xs) {
-                   Cons -> x
-                   Nil -> 2
-                 }
-    Cons -> 2
-    _ -> y
+fun foo8(x:int, y:a, z:a): a {
+  match(x) {
+    0 -> /* drop x, z */ y
+    _ -> /* drop x, y */ z
   }
 }
 
-fun match2(xs:list<int>, y:int, z:int) {    // drop y once, drop z early
+fun match1(xs:list<int>, y:int) {
   match(xs) {
-    Cons(x,_) -> match(xs) {
-                   Cons -> x
-                   Nil -> 2
-                 }
-    Cons -> 2
-    _ -> y
+    Cons(x,_) ->
+      /* drop y */
+      match(xs) {
+        Cons -> /* drop xs */ x
+        Nil -> /* drop x, xs */ 2
+      }
+    Cons -> /* drop y, xs */ 2
+    _ -> /* drop xs */ y
+  }
+}
+
+fun match2(xs:list<int>, y:int, z:int) {
+  // drop z
+  match(xs) {
+    Cons(x,_) ->
+      // drop y
+      match(xs) {
+        Cons -> /* drop xs */ x
+        Nil -> /* drop x, xs */ 2
+      }
+    Cons -> /* drop y, xs */ 2
+    _ -> /* drop xs */ y
   }
 }
 
 
 fun match3(xs:list<int>) {
   match(xs) {
-    Cons as ys -> ys  // don't dup(ys); drop(xs)
-    Nil -> []
+    Cons as ys -> ys
+    Nil -> /* drop xs */ []
   }
 }
 
@@ -93,7 +105,7 @@ fun match5(xs:list<int>) {
 
 fun match6(xs:list<int>) {
   match(xs) {
-    Cons as ys | ys.length == 2 -> ys  // don't dup(ys); drop(xs)
-    Nil -> []
+    Cons(x) -> Cons(x, xs)
+    Nil -> /* drop xs */ Nil
   }
 }
