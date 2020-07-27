@@ -130,42 +130,35 @@ parcExpr expr
         -> do body' <- parcExpr body
               dgs' <- parcDefGroups False dgs
               return $ Let dgs' body'
-      Case exprs branches | caseIsNormalized exprs branches
-        ->  do xbranches' <- reverseMapM parcBranch branches
-               let (branches',inUses) = unzip xbranches'
-               setConsumed (S.unions inUses)
-               _ <- reverseMapM parcExpr exprs  -- process, but don't use
-               return (Case exprs branches')  -- exprs is all borrowed vars (should not dup)
+      Case exprs brs | caseIsNormalized exprs brs
+        ->  do let scrutinees = map (\(Var tn _) -> tn) exprs
+               -- dup the scrutinees if they're used after the match
+               (exprs', _) <- isolateConsumed $ reverseMapM parcExpr exprs
+               brs' <- parcBranches scrutinees brs
+               -- mark the scrutinees as consumed
+               mapM_ consume scrutinees
+               return $ Case exprs' brs'
       Case _ _
-        -> normalizeCase expr
+        -> parcExpr =<< normalizeCase expr
 
-parcBranch :: Branch -> Parc (Branch, Consumed)
-parcBranch b@(Branch patterns guards)
-  = do let pvars = bv patterns
-       (guards',consumed) <- unzip <$> reverseMapM (parcGuard pvars) guards
-       return (Branch patterns guards', S.unions consumed)
+parcBranches :: [TName] -> [Branch] -> Parc [Branch]
+parcBranches scrutinees brs
+  = do brs' <- mapM (withOwned scrutinees . parcBranch) brs
+       return brs'
 
-parcGuard :: TNames -> Guard -> Parc (Guard, Consumed)
-parcGuard pvars (Guard test expr)
-  = isolateConsumed $
-    do -- body
-       contInUse <- getConsumed  -- everything in use in our continuation after the match
-       let free      = freeLocals expr
-           pvarInUse = tnamesList $ S.intersection pvars free
-       owned    <- getOwned
-       let isUsed tname = S.member tname (S.union free contInUse)
-           (stillOwned,dropOwned) = S.partition isUsed owned
-       drops    <- mapM genDrop (S.toList dropOwned)
-       pvarDups <- mapM genDup pvarInUse
-       let owned = S.toList stillOwned ++ pvarInUse
-       expr'    <- withOwned owned (parcExpr expr)
+parcBranch :: Branch -> Parc Branch
+parcBranch b@(Branch pats guards)
+  = do let pvs = S.toList $ bv pats
+       guards' <- mapM (parcGuard pvs) guards
+       return b
 
-       -- test: treat all variables as if in-use so no reference counts change
-       let freeTest = freeLocals test
-       (test',_) <- isolateConsumed $ do setConsumed freeTest
-                                         parcExpr test
+parcGuard :: [TName] -> Guard -> Parc Guard
+parcGuard pvs g@(Guard test expr)
+  = do (test', _) <- isolateConsumed $ noneOwned $ parcExpr test
+       (expr', cij) <- isolateConsumed $ withOwned pvs $ parcExpr expr
+       let needsDups = S.intersect (S.fromList pvs) cij
 
-       return (Guard test' (maybeStats (pvarDups ++ drops) expr'))
+       return g
 
 --------------------------------------------------------------------------
 -- Case normalization
@@ -185,7 +178,7 @@ normalizeCase :: Expr -> Parc Expr
 normalizeCase Case{caseExprs,caseBranches}
   = do (vexprs,dgs) <- unzip <$> reverseMapM caseExpandExpr caseExprs
        let brs' = map (normalizeBranch vexprs) caseBranches
-       parcExpr $ makeLet (catMaybes dgs) (Case vexprs brs')
+       return $ makeLet (catMaybes dgs) (Case vexprs brs')
 
 -- Generate variable names for scrutinee expressions
 caseExpandExpr :: Expr -> Parc (Expr, Maybe DefGroup)
@@ -244,7 +237,7 @@ rename old new expr
 --------------------------------------------------------------------------
 
 dupTNames :: [(TName,VarInfo)] -> Parc [Maybe Expr]
-dupTNames tnames = mapM dupTName tnames
+dupTNames = mapM dupTName
 
 dupTName :: (TName,VarInfo) -> Parc (Maybe Expr)
 dupTName (tname,InfoNone)
@@ -253,7 +246,7 @@ dupTName (tname,InfoNone)
         then genDup tname
         else do consume tname
                 return Nothing
-dupTName (tname,_)
+dupTName _
   = return Nothing
 
 -- Generate a "drop match"
@@ -404,23 +397,21 @@ getSt = get
 -----------------------
 -- owned names
 
+noneOwned :: Parc a -> Parc a
+noneOwned = withEnv (\env -> env { owned = S.empty })
+
 withOwned :: [TName] -> Parc a -> Parc a
 withOwned tnames
-  = withEnv (\env -> env{ owned = tnamesInsertAll (owned env) tnames})
+  = withEnv (\env -> env{ owned = tnamesInsertAll (owned env) tnames })
 
 getOwned :: Parc Owned
 getOwned = owned <$> getEnv
 
+isOwned :: TName -> Parc Bool
+isOwned tn = S.member tn <$> getOwned
+
 -----------------------
 -- in-use sets
-
-consume :: TName -> Parc ()
-consume name
-  = do updateSt (\st -> st{ consumed = S.insert name (consumed st)})
-       return ()
-
-isConsumed :: TName -> Parc Bool
-isConsumed name = S.member name <$> getConsumed
 
 getConsumed :: Parc Consumed
 getConsumed = consumed <$> getSt
@@ -429,6 +420,14 @@ setConsumed :: Consumed -> Parc ()
 setConsumed consumed'
  = do updateSt (\st -> st{ consumed = consumed' })
       return ()
+
+consume :: TName -> Parc ()
+consume name
+  = do updateSt (\st -> st{ consumed = S.insert name (consumed st) })
+       return ()
+
+isConsumed :: TName -> Parc Bool
+isConsumed name = S.member name <$> getConsumed
 
 isolateConsumed :: Parc a -> Parc (a, Consumed)
 isolateConsumed action
@@ -441,10 +440,11 @@ isolateConsumed action
 -- for a lambda
 isolateBody :: Parc a -> Parc (a, Consumed)
 isolateBody action
-  = isolateConsumed $ withEnv (\env -> env{owned = S.empty}) action
+  = isolateConsumed $ noneOwned action
 
------------------------
--- tracing
+--------------------------------------------------------------------------
+-- Tracing
+--------------------------------------------------------------------------
 
 withCurrentDef :: Def -> Parc a -> Parc a
 withCurrentDef def = withEnv (\env -> env{currentDef = def:currentDef env})
