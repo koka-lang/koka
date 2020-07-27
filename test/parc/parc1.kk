@@ -87,7 +87,7 @@ fun match3(xs:list<int>) {
 fun match4(xs:list<a>, ys:list<a>): list<a> {
   match(xs) {
     Cons(z) -> match(ys) {
-                 Cons(z /* z' */) -> /* dup z'; drop xs; drop ys */ [z /* z' */]
+                 Cons(z /* z0 */) -> /* dup z0; drop xs; drop ys */ [z /* z0 */]
                  Nil -> /* drop ys */ xs
                }
     Nil -> /* drop xs */ ys
@@ -96,11 +96,12 @@ fun match4(xs:list<a>, ys:list<a>): list<a> {
 
 fun match5(xs:list<int>) {
   match(xs) {
-    Cons(xs /* xs' */) as ys -> /* dup xs'; drop xs */ xs /* xs' */
+    Cons(xs /* xs0 */) as ys -> /* dup xs0; drop xs */ xs /* xs0 */
     Nil -> /* drop xs */ 1
   }
 }
 
+// TRICKY: need to dup x because xs is consumed by Cons-ctor
 fun match6(xs:list<int>) {
   match(xs) {
     Cons(x) -> /* dup(x) */ Cons(x /* box(x) */, xs)

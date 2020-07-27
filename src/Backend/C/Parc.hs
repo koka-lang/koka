@@ -81,8 +81,7 @@ parcOwnedBindings tns expr
 --------------------------------------------------------------------------
 
 parcDefGroups :: Bool -> DefGroups -> Parc DefGroups
-parcDefGroups topLevel defGroups
-  = reverseMapM (parcDefGroup topLevel) defGroups
+parcDefGroups topLevel = reverseMapM (parcDefGroup topLevel)
 
 parcDefGroup :: Bool -> DefGroup -> Parc DefGroup
 parcDefGroup topLevel dg
@@ -130,27 +129,31 @@ parcExpr expr
               dgs' <- parcDefGroups False dgs
               forget (bv dgs')
               return $ Let dgs' body'
-      Case exprs brs | caseIsNormalized exprs brs
+      Case vars brs | caseIsNormalized vars brs
         -> withOwned scrutinees $
-             do exprs' <- isolated_ $ mapM parcExpr exprs
+             do vars' <- isolated_ $ mapM parcExpr vars
                 brs' <- parcBranches scrutinees brs
-                return $ Case exprs' brs'
-           where scrutinees = fv exprs
+                return $ Case vars' brs'
+           where scrutinees = fv vars
       Case _ _
         -> parcExpr =<< normalizeCase expr
 
 parcBranches :: TNames -> [Branch] -> Parc [Branch]
 parcBranches scrutinees brs
-  = do -- results :: [(Branch, [(TNames, Consumed)])]
+  = do let fvT = fv (map (map guardTest . branchGuards) brs)
+       let bvP = bv (map branchPatterns brs)
+       owned <- getOwned
+       let testsBorrowed = S.intersection owned (fvT \\ bvP)
+       -- results :: [(Branch, [(TNames, Consumed)])]
        results <- mapM parcBranch brs
-       let c = S.union scrutinees $ S.unions (map snd $ concatMap snd results)
+       let branchesConsumed = map snd (concatMap snd results)
+       let c = S.unions $ [scrutinees, testsBorrowed] ++ branchesConsumed
        setConsumed c
-       forM results $ \(Branch pats gds, dats) ->
-         do gds' <- forM (zip gds dats) $ \(g, (toDup, cij)) ->
-              do drops <- mapM genDrop (S.toList (c \\ cij))
-                 dups <- mapM genDup (S.toList toDup)
-                 return g{guardExpr = maybeStats (dups ++ drops) (guardExpr g)}
-            return $ Branch pats gds'
+       forM results $ \(Branch pats gds, dats) -> Branch pats <$>
+         forM (zip gds dats) (\(g, (toDup, cij)) ->
+           do drops <- mapM genDrop (S.toList (c \\ cij))
+              dups <- mapM genDup (S.toList toDup)
+              return g{guardExpr = maybeStats (dups ++ drops) (guardExpr g)})
 
 parcBranch :: Branch -> Parc (Branch, [(TNames, Consumed)])
 parcBranch b@(Branch pats guards)
@@ -311,9 +314,6 @@ genNoReuse
   where
     funTp = TFun [] typeTotal typeReuse
 
-genDup  tname = genDupDrop True tname
-genDrop tname = genDupDrop False tname
-
 -- Generate a dup/drop over a given (locally bound) name
 -- May return Nothing if the type never needs a dup/drop (like an `int` or `bool`)
 genDupDrop :: Bool -> TName -> Parc (Maybe Expr)
@@ -327,15 +327,19 @@ genDupDrop isDup tname
                  _ -> return (Just (App (dupDropFun isDup tp) [Var tname InfoNone]))
          _ -> return Nothing
 
+genDup  = genDupDrop True
+genDrop = genDupDrop False
 
-dupFun tp  = dupDropFun True tp
-dropFun tp = dupDropFun False tp
-
+-- get the dup/drop function
+dupDropFun :: Bool -> Type -> Expr
 dupDropFun isDup tp
   = Var (TName name coerceTp) (InfoExternal [(C, (if isDup then "dup" else "drop") ++ "(#1)")])
   where
     name = if isDup then nameDup else nameDrop
     coerceTp = TFun [(nameNil,tp)] typeTotal (if isDup then tp else typeUnit)
+
+dupFun  = dupDropFun True
+dropFun = dupDropFun False
 
 --------------------------------------------------------------------------
 -- Utilities for readability
