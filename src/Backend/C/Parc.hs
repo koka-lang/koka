@@ -69,7 +69,7 @@ parcCore penv newtypes core
 
 parcOwnedBindings :: TNames -> Expr -> Parc Expr
 parcOwnedBindings tns expr
-  = withOwned tns $ do
+  = extendOwned tns $ do
       expr'  <- parcExpr expr
       consumed <- getConsumed
       let unused = S.toList (tns \\ consumed)
@@ -108,12 +108,13 @@ parcExpr expr
         -> (`TypeApp` targs) <$> parcExpr body
       Lam pars eff body
         -> do let parSet = S.fromList pars
+              -- todo: this should probably have an empty consumed set.
               (body', consumed) <- isolated $ parcOwnedBindings parSet body
               let captures = S.toList $ consumed \\ parSet
-              dups <- mapM useTName captures
+              dups <- mapM consumeTName captures
               return (maybeStats dups $ Lam pars eff body')
       Var tname InfoNone
-        -> fromMaybe expr <$> useTName tname
+        -> fromMaybe expr <$> consumeTName tname
       Var _ _ -- InfoArity/External are not reference-counted
         -> return expr
       App fn args
@@ -125,12 +126,12 @@ parcExpr expr
       Con ctor repr
         -> return expr
       Let dgs body
-        -> do body' <- parcExpr body
+        -> do body' <- {- extendOwned (bv dgs) $ -} parcExpr body
               dgs' <- parcDefGroups False dgs
               forget (bv dgs')
               return $ Let dgs' body'
       Case vars brs | caseIsNormalized vars brs
-        -> withOwned scrutinees $
+        -> extendOwned scrutinees $
              do vars' <- isolated_ $ mapM parcExpr vars
                 brs' <- parcBranches scrutinees brs
                 return $ Case vars' brs'
@@ -164,7 +165,7 @@ parcBranch b@(Branch pats guards)
 parcGuard :: TNames -> Guard -> Parc (Guard, (TNames, Consumed))
 parcGuard pvs (Guard test expr)
   = do test'        <- noneOwned $ parcExpr test
-       (expr', cij) <- isolated $ withOwned pvs $ parcExpr expr
+       (expr', cij) <- isolated $ extendOwned pvs $ parcExpr expr
        return (Guard test' expr', (cij `S.intersection` pvs, cij \\ pvs))
 
 --------------------------------------------------------------------------
@@ -243,14 +244,18 @@ rename old new expr
 -- Convenience methods for inserting PARC ops
 --------------------------------------------------------------------------
 
-useTName :: TName -> Parc (Maybe Expr)
-useTName tname
+consumeTName :: TName -> Parc (Maybe Expr)
+consumeTName tname
   = do consumed <- isConsumed tname
        owned <- isOwned tname
        when owned $ consume tname
-       if consumed || not owned
-        then genDup tname
-        else return Nothing
+       let borrowed = not owned
+       if consumed || borrowed
+         then genDup tname
+         else return Nothing
+
+borrowTName :: TName -> Parc (Maybe Expr)
+borrowTName tname = return Nothing
 
 -- Generate a "drop match"
 genDropMatch :: TName -> [TName] -> [TName] -> Parc Expr
@@ -404,8 +409,8 @@ getSt = get
 noneOwned :: Parc a -> Parc a
 noneOwned = withEnv (\env -> env { owned = S.empty })
 
-withOwned :: Owned -> Parc a -> Parc a
-withOwned newOwned
+extendOwned :: Owned -> Parc a -> Parc a
+extendOwned newOwned
   = withEnv (\env -> env{ owned = S.union (owned env) newOwned })
 
 getOwned :: Parc Owned
