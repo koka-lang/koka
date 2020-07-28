@@ -1,0 +1,26 @@
+[01;30minitial core check
+[00;39;49m[00m[01;30mreturn core check
+[00;39;49m[00m[01;30mlift functions core check
+[00;39;49m[00m[01;30mopen resolve core check
+[00;39;49m[00m[01;30mafter simplify core check 1
+[00;39;49m[00m[01;30mmonadic core check
+[00;39;49m[00m[01;30minlined functions core check
+[00;39;49m[00m[01;30mafter simplify core check 2
+[00;39;49m[00m[01;30mpublic fun test : () -> std/core/types/int
+ = fun(){
+ val xs.32 : list<std/core/types/int>
+ = std/core/Cons(1, std/core/Nil);
+ match (xs.32) {
+ (std/core/Cons((x: std/core/types/int), (.pat0: list<std/core/types/int>)) : list<std/core/types/int> )
+ -> val _ : std/core/types/int
+ = std/core/types/.dup(x);
+ val _ : ()
+ = std/core/types/.drop(xs.32);
+ x;
+ _
+ -> std/core/types/.drop(xs.32);
+ 1;
+ }
+ };
+[00;39;49m[00m[01;30mcl -nologo -c -W3 -Gm- -Zi -MDd -RTC1 -Fa"out/test/parc_parc5.asm" -I"cruntime/include" -Fo"out/test/parc_parc5.obj" "out/test/parc_parc5.c"
+[00;39;49m[00mparc_parc5.c

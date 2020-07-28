@@ -1,0 +1,30 @@
+[01;30minitial core check
+[00;39;49m[00m[01;30mreturn core check
+[00;39;49m[00m[01;30mlift functions core check
+[00;39;49m[00m[01;30mopen resolve core check
+[00;39;49m[00m[01;30mafter simplify core check 1
+[00;39;49m[00m[01;30mmonadic core check
+[00;39;49m[00m[01;30minlined functions core check
+[00;39;49m[00m[01;30mafter simplify core check 2
+[00;39;49m[00m[01;30mpublic fun test : (x : std/core/types/int) -> std/core/types/int
+ = fun(x: std/core/types/int){
+ val .match.37 : std/core/types/int
+ = std/core/(+)((std/core/types/.dup(x)), 1);
+ match (.match.37) {
+ 2
+ -> val _ : ()
+ = std/core/types/.drop(.match.37);
+ val _ : ()
+ = std/core/types/.drop(x);
+ 3;
+ _
+ -> std/core/types/.drop(.match.37);
+ x;
+ }
+ };
+[00;39;49m[00m[01;30mcl -nologo -c -W3 -Gm- -Zi -MDd -RTC1 -Fa"out/test/parc_parc12.asm" -I"cruntime/include" -Fo"out/test/parc_parc12.obj" "out/test/parc_parc12.c"
+[00;39;49m[00mparc_parc12.c
+out/test/parc_parc12.c(7): error C2088: '==': illegal for struct
+failure while running c:
+ cl -nologo -c -W3 -Gm- -Zi -MDd -RTC1 -Fa"out/test/parc_parc12.asm" -I"cruntime/include" -Fo"out/test/parc_parc12.obj"
+ "out/test/parc_parc12.c"
