@@ -1,12 +1,13 @@
-[01;30minitial core check
-[00;39;49m[00m[01;30mreturn core check
-[00;39;49m[00m[01;30mlift functions core check
-[00;39;49m[00m[01;30mopen resolve core check
-[00;39;49m[00m[01;30mafter simplify core check 1
-[00;39;49m[00m[01;30mmonadic core check
-[00;39;49m[00m[01;30minlined functions core check
-[00;39;49m[00m[01;30mafter simplify core check 2
-[00;39;49m[00m[01;30mpublic fun test : (xs : list<std/core/types/int>) -> std/core/types/int
+parc_parc19.c
+initial core check
+return core check
+lift functions core check
+open resolve core check
+after simplify core check 1
+monadic core check
+inlined functions core check
+after simplify core check 2
+public fun test : (xs : list<std/core/types/int>) -> std/core/types/int
  = fun(xs: list<std/core/types/int>){
  match (xs) {
  (std/core/Cons((xs0: std/core/types/int), (.pat: list<std/core/types/int>)) : list<std/core/types/int> )
@@ -20,8 +21,7 @@
  1;
  }
  };
-[00;39;49m[00m[01;30mcl -nologo -c -W3 -Gm- -Zi -MDd -RTC1 -Fa"out/test/parc_parc19.asm" -I"cruntime/include" -Fo"out/test/parc_parc19.obj" "out/test/parc_parc19.c"
-[00;39;49m[00mparc_parc19.c
+cl -nologo -c -W3 -Gm- -Zi -MDd -RTC1 -Fa"out/test/parc_parc19.asm" -I"cruntime/include" -Fo"out/test/parc_parc19.obj" "out/test/parc_parc19.c"
 test/parc/parc19.kk(3,10): warning: xs shadows an earlier local definition or parameter
 test/parc/parc19.kk(3,27): warning: pattern variable ys is unused (or a wrongly spelled constructor?)
  hint: prepend an underscore to make it a wildcard pattern
