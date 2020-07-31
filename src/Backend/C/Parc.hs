@@ -241,7 +241,7 @@ useTName :: TName -> Parc (Maybe Expr)
 useTName tname
   = do live <- isLive tname
        owned <- isOwned tname
-       when owned $ markUsed tname
+       when owned $ markLive tname
        if live || not owned
          then genDup tname
          else return Nothing
@@ -468,8 +468,8 @@ extendOwned = withOwned . S.union
 -------------------------------
 -- live set abstractions --
 
-markUsed :: TName -> Parc ()
-markUsed = modifyLive . S.insert
+markLive :: TName -> Parc ()
+markLive = modifyLive . S.insert
 
 forget :: TNames -> Parc ()
 forget tns = modifyLive (\\ tns)
