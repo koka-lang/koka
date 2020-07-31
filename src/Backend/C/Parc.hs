@@ -130,11 +130,9 @@ parcExpr expr
               dgs' <- parcDefGroups False dgs
               return $ Let dgs' body'
       Case vars brs | caseIsNormalized vars brs
-        -> extendOwned scrutinees $
-             do vars' <- isolated_ $ mapM parcExpr vars
-                brs' <- parcBranches scrutinees brs
-                return $ Case vars' brs'
-           where scrutinees = fv vars
+        -> do vars' <- isolated_ $ mapM parcExpr vars
+              brs' <- parcBranches (fv vars) brs
+              return $ Case vars' brs'
       Case _ _
         -> parcExpr =<< normalizeCase expr
 
