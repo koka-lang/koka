@@ -360,9 +360,8 @@ maybeStats xs expr = makeStats (catMaybes xs ++ [expr])
 -- Parc monad
 --------------------------------------------------------------------------
 
-type ParcM a = ReaderT Env (State ParcState) a
-newtype Parc a = Parc (ParcM a)
-  deriving (Functor, Applicative, Monad, MonadReader Env, MonadState ParcState)
+-----------------
+-- definitions --
 
 type Owned = TNames
 data Env = Env { currentDef :: [Def],
@@ -376,17 +375,13 @@ data ParcState = ParcState { uniq :: Int,
                              consumed :: Consumed
                            }
 
-runParc :: Pretty.Env -> Newtypes -> Parc a -> Unique a
-runParc penv newtypes (Parc action)
-  = withUnique $ \u ->
-      let env = Env [] penv newtypes S.empty
-          st = ParcState u S.empty
-          (val, st') = runState (runReaderT action env) st
-       in (val, uniq st')
+type ParcM a = ReaderT Env (State ParcState) a
+newtype Parc a = Parc (ParcM a)
+  deriving (Functor, Applicative, Monad, MonadReader Env, MonadState ParcState)
 
 instance HasUnique Parc where
-  updateUnique f = modify (\s -> s { uniq = f (uniq s) }) >> gets uniq
-  setUnique i = modify (\s -> s { uniq = i })
+  updateUnique f = do { old <- getUniq; modifyUniq f; return old }
+  setUnique = setUniq
 
 withEnv :: (Env -> Env) -> Parc a -> Parc a
 withEnv = local
@@ -400,39 +395,90 @@ updateSt = modify
 getSt :: Parc ParcState
 getSt = get
 
------------------------
--- owned names
+runParc :: Pretty.Env -> Newtypes -> Parc a -> Unique a
+runParc penv newtypes (Parc action)
+  = withUnique $ \u ->
+      let env = Env [] penv newtypes S.empty
+          st = ParcState u S.empty
+          (val, st') = runState (runReaderT action env) st
+       in (val, uniq st')
 
-noneOwned :: Parc a -> Parc a
-noneOwned = withEnv (\env -> env { owned = S.empty })
+-------------------
+-- env accessors --
 
-extendOwned :: Owned -> Parc a -> Parc a
-extendOwned newOwned
-  = withEnv (\env -> env{ owned = S.union (owned env) newOwned })
+getCurrentDef :: Parc [Def]
+getCurrentDef = currentDef <$> getEnv
+
+withCurrentDef :: ([Def] -> [Def]) -> Parc a -> Parc a
+withCurrentDef f = withEnv (\e -> e { currentDef = f (currentDef e) })
+
+--
+
+getPrettyEnv :: Parc Pretty.Env
+getPrettyEnv = prettyEnv <$> getEnv
+
+withPrettyEnv :: (Pretty.Env -> Pretty.Env) -> Parc a -> Parc a
+withPrettyEnv f = withEnv (\e -> e { prettyEnv = f (prettyEnv e) })
+
+--
+
+getNewtypes :: Parc Newtypes
+getNewtypes = newtypes <$> getEnv
+
+withNewtypes :: (Newtypes -> Newtypes) -> Parc a -> Parc a
+withNewtypes f = withEnv (\e -> e { newtypes = f (newtypes e) })
+
+--
 
 getOwned :: Parc Owned
 getOwned = owned <$> getEnv
 
-isOwned :: TName -> Parc Bool
-isOwned tn = S.member tn <$> getOwned
+withOwned :: (Owned -> Owned) -> Parc a -> Parc a
+withOwned f = withEnv (\e -> e { owned = f (owned e) })
 
------------------------
--- in-use sets
+---------------------
+-- state accessors --
+
+getUniq :: Parc Int
+getUniq = uniq <$> getSt
+
+modifyUniq :: (Int -> Int) -> Parc ()
+modifyUniq f = updateSt (\s -> s { uniq = f (uniq s) })
+
+setUniq :: Int -> Parc ()
+setUniq = modifyUniq . const
+
+--
 
 getConsumed :: Parc Consumed
 getConsumed = consumed <$> getSt
 
+modifyConsumed :: (Consumed -> Consumed) -> Parc ()
+modifyConsumed f = updateSt (\s -> s { consumed = f (consumed s) })
+
 setConsumed :: Consumed -> Parc ()
-setConsumed consumed'
-  = updateSt (\st -> st{ consumed = consumed' })
+setConsumed = modifyConsumed . const
+
+-----------------------------
+-- owned name abstractions --
+
+isOwned :: TName -> Parc Bool
+isOwned tn = S.member tn <$> getOwned
+
+noneOwned :: Parc a -> Parc a
+noneOwned = withOwned (const S.empty)
+
+extendOwned :: Owned -> Parc a -> Parc a
+extendOwned = withOwned . S.union
+
+-------------------------------
+-- consumed set abstractions --
 
 consume :: TName -> Parc ()
-consume name
-  = updateSt (\st -> st{ consumed = S.insert name (consumed st) })
+consume = modifyConsumed . S.insert
 
 forget :: TNames -> Parc ()
-forget tns
-  = updateSt (\st -> st{ consumed = consumed st \\ tns })
+forget tns = modifyConsumed (\\ tns)
 
 isConsumed :: TName -> Parc Bool
 isConsumed name = S.member name <$> getConsumed
@@ -452,23 +498,17 @@ isolated_ action = fst <$> isolated action
 -- Tracing
 --------------------------------------------------------------------------
 
-withCurrentDef :: Def -> Parc a -> Parc a
-withCurrentDef def = withEnv (\env -> env{currentDef = def:currentDef env})
-
 parcTraceDoc :: (Pretty.Env -> Doc) -> Parc ()
 parcTraceDoc f
- = do env <- getEnv
-      parcTrace (show (f (prettyEnv env)))
+ = do pretty <- getPrettyEnv
+      parcTrace (show (f pretty))
 
 parcTrace :: String -> Parc ()
 parcTrace msg
- = do env <- getEnv
-      trace ("Core.Parc: " ++ show (map defName (currentDef env)) ++ ": " ++ msg) $ return ()
+ = do defs <- getCurrentDef
+      trace ("Core.Parc: " ++ show (map defName defs) ++ ": " ++ msg) $ return ()
 
 ----------------
-
-getNewtypes :: Parc Newtypes
-getNewtypes = newtypes <$> getEnv
 
 getDataDefRepr :: Type -> Parc (Maybe (DataDef,DataRepr))
 getDataDefRepr tp

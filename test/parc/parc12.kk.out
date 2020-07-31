@@ -10,17 +10,17 @@ inlined functions core check
 after simplify core check 2
 public fun test : (x : std/core/types/int) -> std/core/types/int
  = fun(x: std/core/types/int){
- val .match.37 : std/core/types/int
+ val .match.36 : std/core/types/int
  = std/core/(+)((std/core/types/.dup(x)), 1);
- match (.match.37) {
+ match (.match.36) {
  2
  -> val _ : ()
- = std/core/types/.drop(.match.37);
+ = std/core/types/.drop(.match.36);
  val _ : ()
  = std/core/types/.drop(x);
  3;
  _
- -> std/core/types/.drop(.match.37);
+ -> std/core/types/.drop(.match.36);
  x;
  }
  };
