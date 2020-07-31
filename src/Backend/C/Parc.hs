@@ -69,7 +69,7 @@ parcCore penv newtypes core
 
 parcOwnedBindings :: TNames -> Expr -> Parc Expr
 parcOwnedBindings tns expr
-  = extendOwned tns $ do
+  = inScope tns $ do
       expr'  <- parcExpr expr
       consumed <- getConsumed
       let unused = S.toList (tns \\ consumed)
@@ -126,9 +126,8 @@ parcExpr expr
       Con ctor repr
         -> return expr
       Let dgs body
-        -> do body' <- {- extendOwned (bv dgs) $ -} parcExpr body
+        -> do body' <- inScope (bv dgs) $ parcExpr body
               dgs' <- parcDefGroups False dgs
-              forget (bv dgs')
               return $ Let dgs' body'
       Case vars brs | caseIsNormalized vars brs
         -> extendOwned scrutinees $
@@ -247,8 +246,7 @@ consumeTName tname
   = do consumed <- isConsumed tname
        owned <- isOwned tname
        when owned $ consume tname
-       let borrowed = not owned
-       if consumed || borrowed
+       if consumed || not owned
          then genDup tname
          else return Nothing
 
@@ -493,6 +491,15 @@ isolated action
 
 isolated_ :: Parc a -> Parc a
 isolated_ action = fst <$> isolated action
+
+------------------------
+-- scope abstractions --
+
+inScope :: TNames -> Parc a -> Parc a
+inScope tns actions
+  = do r <- extendOwned tns actions
+       forget tns
+       return r
 
 --------------------------------------------------------------------------
 -- Tracing
