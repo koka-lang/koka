@@ -36,8 +36,8 @@ Using `x` for bytes, and `b` for bits, with `z` the least significant byte, we h
 
 (A):
 
-    (xxxx xxxx) xxxx xxxz   z = bbbb bbb0  : 64-bit pointer: n    (always aligned to (at least) 2 bytes!)
-    (xxxx xxxx) xxxx xxxz   z = bbbb bbb1  : 63-bit values: n*2+1
+    (xxxx xxxx) xxxx xxxz   z = bbbb bbb0  : 64-bit pointer p  (always aligned to (at least) 2 bytes!)
+    (xxxx xxxx) xxxx xxxz   z = bbbb bbb1  : 63-bit values n as n*2+1
 
 On 64-bit, We can encode half of the doubles by saving 1 bit; There are two implemented strategies:
 (A1): heap allocate negative doubles, where a positive double is encoded as a value 
@@ -255,7 +255,7 @@ static inline int32_t unbox_int32_t(box_t v, context_t* ctx) {
     assert_internal(is_ptr(v) && block_tag(unbox_ptr(v)) == TAG_INT32);
     boxed_int32_t bi = block_as_assert(boxed_int32_t, unbox_ptr(v), TAG_INT32);
     int32_t i = bi->value;
-    drop_block(&bi->_block,ctx);
+    if (ctx!=NULL) { drop_block(&bi->_block, ctx); }
     return i;
   }
 }
@@ -381,15 +381,15 @@ typedef struct boxed_value_s {
   do { \
     boxed_value_t p = unbox_datatype_as_assert(boxed_value_t,box,TAG_BOX); \
     x = *((tp*)(&p->data[0])); \
-    drop_datatype(p,ctx); \
-  }while(0);
+    if (ctx!=NULL) { drop_datatype(p,ctx); } \
+  } while(0);
 
 #define box_valuetype(tp,x,val,scan_fsize,ctx)  \
-  do{ \
-     boxed_value_t p = block_as_assert(boxed_value_t, block_alloc(sizeof(block_t) + sizeof(tp), scan_fsize, TAG_BOX, ctx), TAG_BOX); \
-     *((tp*)(&p->data[0])) = val;  \
-     x = box_datatype(p); \
-  }while(0);
+  do { \
+    boxed_value_t p = block_as_assert(boxed_value_t, block_alloc(sizeof(block_t) + sizeof(tp), scan_fsize, TAG_BOX, ctx), TAG_BOX); \
+    *((tp*)(&p->data[0])) = val;  \
+    x = box_datatype(p); \
+  } while(0);
 
 
 // C pointers
@@ -443,17 +443,17 @@ static inline void* unbox_cptr(box_t b) {
 
 // C function pointers
 
-typedef void (*fun_ptr_t)(void);
+typedef void (*cfun_ptr_t)(void);
 
 typedef struct cfunptr_s {
   block_t     _block;
-  fun_ptr_t   cfunptr;
+  cfun_ptr_t  cfunptr;
 } *cfunptr_t;
 
-typedef void (*fun_ptr_t)(void);
-#define box_fun_ptr(f,ctx)  _box_fun_ptr((fun_ptr_t)f, ctx)
+typedef void (*cfun_ptr_t)(void);
+#define box_cfun_ptr(f,ctx)  _box_cfun_ptr((cfun_ptr_t)f, ctx)
 
-static inline box_t _box_fun_ptr(fun_ptr_t f, context_t* ctx) {
+static inline box_t _box_cfun_ptr(cfun_ptr_t f, context_t* ctx) {
   uintptr_t u = (uintptr_t)f;              // assume we can convert a function pointer to uintptr_t...      
   if ((u&1)==0 && sizeof(u)==sizeof(f)) {  // aligned pointer? (and sanity check if function pointer != object pointer)
     box_t b = { (u|1) };
@@ -466,9 +466,9 @@ static inline box_t _box_fun_ptr(fun_ptr_t f, context_t* ctx) {
   }
 }
 
-static inline fun_ptr_t unbox_fun_ptr(box_t b) {
+static inline cfun_ptr_t unbox_cfun_ptr(box_t b) {
   if (likely(_is_value_fast(b))) {
-    return (fun_ptr_t)(b.box ^ 1); // clear lowest bit
+    return (cfun_ptr_t)(b.box ^ 1); // clear lowest bit
   }
   else {
     cfunptr_t fp = unbox_datatype_as_assert(cfunptr_t, b, TAG_CFUNPTR);

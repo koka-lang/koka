@@ -2629,7 +2629,7 @@ fun once( calc : () -> a ) : (() -> a) {
     return fun() {
       unsafe-total {
         match(value) {
-          Just(x) -> x
+          Just(y) -> y
           Nothing -> {
             val x = calc()
             value := Just(x)
