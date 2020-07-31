@@ -101,11 +101,8 @@ parcExpr expr
               (body', live) <- isolateWith S.empty
                              $ withOwned caps  -- captured variables are owned
                              $ scoped parsSet $ do
-                                 l <- getLive
-                                 parcTrace ("before: " ++ show l ++ "  lambda: " ++ show expr)
                                  expr <- parcExpr body
                                  live <- getLive
-                                 parcTrace ("after: " ++ show live)
                                  drops  <- foldMapM genDrop (parsSet \\ live)
                                  return $ maybeStats drops expr
               dups <- foldMapM useTName caps
@@ -445,14 +442,14 @@ extendOwned = updateOwned . S.union
 -------------------------------
 -- live set abstractions --
 
+-- only add locals (can happen with scrutinees)
 markLive :: TName -> Parc ()
 markLive tname
-  = if (isQualified (getName tname))    -- only add locals (can happen with scrutinees)
-     then return ()                     
-     else modifyLive (S.insert tname)   
+  = unless (isQualified (getName tname))
+  $ modifyLive (S.insert tname)
 
 markLives :: TNames -> Parc ()
-markLives = modifyLive . S.union
+markLives = mapM_ markLive
 
 forget :: TNames -> Parc ()
 forget tns = modifyLive (\\ tns)
