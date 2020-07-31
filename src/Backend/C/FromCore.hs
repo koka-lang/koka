@@ -575,7 +575,7 @@ genBoxUnbox name info dataRepr
        genUnbox  tname info dataRepr
        
 
-genBoxCall prim tp arg 
+genBoxCall prim asBorrowed tp arg 
   = text prim <.> text "_" <.> (
     case cType tp of
       CFun _ _   -> text "function_t" <.> parens arg
@@ -583,9 +583,11 @@ genBoxCall prim tp arg
                  -> text val <.> parens arg  -- no context
       --CPrim val  | val == "int32_t" || val == "double" || val == "unit_t"
       --           -> text val <.> arguments [arg]
-      CData name -> ppName name <.> arguments [arg]
-      _          -> ppType tp <.> arguments [arg]
+      CData name -> ppName name <.> tupled [arg,ctx]
+      _          -> ppType tp <.> tupled [arg,ctx]
     )
+  where
+    ctx = if asBorrowed then text "NULL" else contextDoc
 
 
 genBox name info dataRepr
@@ -595,7 +597,7 @@ genBox name info dataRepr
         DataEnum -> text "return" <+> text "box_enum" <.> tupled [text "x"] <.> semi
         DataIso  -> let conInfo = head (dataInfoConstrs info)
                         (isoName,isoTp)   = (head (conInfoParams conInfo))
-                    in text "return" <+> genBoxCall "box" isoTp (text "x." <.> ppName (unqualify isoName)) <.> semi
+                    in text "return" <+> genBoxCall "box" False isoTp (text "x." <.> ppName (unqualify isoName)) <.> semi
         _ -> case dataInfoDef info of
                DataDefValue raw scancount
                   -> let -- extra = if (isDataStructLike dataRepr) then 1 else 0  -- adjust scan count for added "tag_t" members in structs with multiple constructors
@@ -617,7 +619,7 @@ genUnbox name info dataRepr
         DataEnum -> text "return" <+> parens (ppName name) <.> text "unbox_enum" <.> tupled [text "x"]
         DataIso  -> let conInfo = head (dataInfoConstrs info)
                         isoTp   = snd (head (conInfoParams conInfo))
-                    in text "return" <+> conCreateNameInfo conInfo <.> arguments [genBoxCall "unbox" isoTp (text "x")]
+                    in text "return" <+> conCreateNameInfo conInfo <.> arguments [genBoxCall "unbox" False isoTp (text "x")]
         _ | dataReprIsValue dataRepr
           -> vcat [ ppName name <+> text "_unbox;" 
                   , text "unbox_valuetype" <.> arguments [ppName name, text "_unbox", text "x"] <.> semi
@@ -1147,7 +1149,7 @@ genPatternTest doTest (exprDoc,pattern)
       PatWild -> return []
       PatVar tname pattern | hiddenNameStartsWith (getName tname) "unbox"
         -> do let after = ppType (typeOf tname) <+> ppDefName (getName tname) <+> text "=" 
-                              <+> genBoxCall "unbox" (typeOf tname) exprDoc <.> semi
+                              <+> genBoxCall "unbox" True (typeOf tname) exprDoc <.> semi
                   next  = genNextPatterns (\self fld -> self) (ppDefName (getName tname)) (typeOf tname) [pattern]
               return [([],[after],next)]
       PatVar tname pattern
@@ -1472,7 +1474,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameBox || getName tna
   = let isBox = (getName tname == nameBox)
         tp    = case typeOf tname of
                   TFun [(_,fromTp)] _ toTp -> if (isBox) then fromTp else toTp
-        call  = genBoxCall (if (isBox) then "box" else "unbox") tp argDoc
+        call  = genBoxCall (if (isBox) then "box" else "unbox") False tp argDoc
     in return ([], call)
 
 -- special case dup/drop
