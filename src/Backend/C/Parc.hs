@@ -376,7 +376,7 @@ getCurrentDef :: Parc [Def]
 getCurrentDef = currentDef <$> getEnv
 
 withCurrentDef :: Def -> Parc a -> Parc a
-withCurrentDef def = withEnv (\e -> e { currentDef = def : (currentDef e) })
+withCurrentDef def = withEnv (\e -> e { currentDef = def : currentDef e })
 
 --
 
