@@ -107,10 +107,13 @@ parcExpr expr
       TypeApp body targs
         -> (`TypeApp` targs) <$> parcExpr body
       Lam pars eff body
-        -> do (body', live) <- isolateWith S.empty $
-                               setOwned S.empty $
+        -> do let free = freeLocals expr
+              dups <- foldMapM useTName free
+              (body', live) <- isolateWith S.empty $
+                               setOwned free $        -- captured variables are owned
                                parcOwnedBindings (S.fromList pars) body
-              dups <- foldMapM useTName live
+              -- dups <- foldMapM useTName live
+              -- assertion "parcExpr: free==live" (free == live) $
               return (maybeStats dups $ Lam pars eff body')
       Var tname InfoNone
         -> fromMaybe expr <$> useTName tname
@@ -127,11 +130,13 @@ parcExpr expr
       Let dgs body
         -> do body' <- inScope (bv dgs) $ parcExpr body
               dgs' <- parcDefGroups False dgs
+              -- TODO: drop potential bindings
               return $ Let dgs' body'
       Case vars brs | caseIsNormalized vars brs
         -> Case vars <$> parcBranches (fv vars) brs
       Case _ _
-        -> parcExpr =<< normalizeCase expr
+        -> do nexpr <- normalizeCase expr
+              parcExpr nexpr
 
 parcBranches :: TNames -> [Branch] -> Parc [Branch]
 parcBranches scrutinees brs
@@ -139,7 +144,7 @@ parcBranches scrutinees brs
        branchFns <- reverseMapM (parcBranch scrutinees live) brs
        markLives scrutinees
        live' <- getLive
-       mapM ($live') branchFns
+       mapM ($ live') branchFns
 
 parcBranch :: TNames -> Live -> Branch -> Parc (Live -> Parc Branch)
 parcBranch scrutinees live (Branch pats guards)
@@ -154,9 +159,10 @@ parcGuard scrutinees pvs live (Guard test expr)
        dups <- foldMapM genDup (S.intersection pvs live')
        markLives live'
        test' <- setOwned S.empty $ parcExpr test
-       return $ \c -> do
-         drops <- foldMapM genDrop (c \\ live')
+       return $ \matchLive -> do
+         drops <- foldMapM genDrop (matchLive \\ live')  -- drop anything owned that is not alive anymore
          return $ Guard test' (maybeStats (dups ++ drops) expr')
+
 
 --------------------------------------------------------------------------
 -- Case normalization
@@ -177,6 +183,8 @@ normalizeCase Case{caseExprs,caseBranches}
   = do (vexprs,dgs) <- unzip <$> reverseMapM caseExpandExpr caseExprs
        let brs' = map (normalizeBranch vexprs) caseBranches
        return $ makeLet (catMaybes dgs) (Case vexprs brs')
+normalizeCase _
+  = failure "Backend.C.Parc.normalizeCase" 
 
 -- Generate variable names for scrutinee expressions
 caseExpandExpr :: Expr -> Parc (Expr, Maybe DefGroup)
@@ -188,18 +196,16 @@ caseExpandExpr x = do name <- uniqueName "match"
 
 normalizeBranch :: [Expr] -> Branch -> Branch
 normalizeBranch vexprs br@Branch{branchPatterns, branchGuards}
-  = let renameGuard (old, new) (Guard test expr)
+  = let {-renameGuard (old, new) (Guard test expr)
           = Guard (rename old new test) (rename old new expr)
-        nameMapping pat (Var (TName new _) _)
-          = case pat of
-              PatVar (TName old _) pat'
-                -> (Just (old, new), pat')
-              _ -> (Nothing, pat)
+        -}
+        nameMapping (PatVar old pat') var@(Var _ _) = (Just (old, var), pat')
+        nameMapping pat var = (Nothing,pat)
         (newNames, pats') = unzip $ zipWith nameMapping branchPatterns vexprs
-        newNames' = catMaybes newNames
-        guards' = map (\g -> foldr renameGuard g newNames') branchGuards
+        -- newNames = [(name,v) | (name,v) <- newNames0] --catMaybes newNames
+        guards' = catMaybes newNames |~> branchGuards  -- map (\g -> foldr renameGuard g newNames') branchGuards
      in Branch pats' guards'
-
+{-
 -- only safe once variable names have been uniquified
 rename :: Name -> Name -> Expr -> Expr
 rename old new expr
@@ -229,6 +235,7 @@ rename old new expr
          Lit _ -> expr
          Let dgs expr -> Let (map renameDefGroup dgs) (renameExpr expr)
          Case exprs brs -> Case (map renameExpr exprs) (map renameBranch brs)
+-}
 
 --------------------------------------------------------------------------
 -- Convenience methods for inserting PARC ops
@@ -347,10 +354,12 @@ reverseMapM action args =
 -- for mapping over a set and collecting the results into a list.
 foldMapM :: (Monad m, Foldable t) => (a -> m b) -> t a -> m [b]
 foldMapM f = foldr merge (return [])
-  where merge x r = f x >>= (\y -> (y:) <$!> r)
+  where merge x r = do y <- f x 
+                       (y:) <$!> r
 
 maybeStats :: [Maybe Expr] -> Expr -> Expr
-maybeStats xs expr = makeStats (catMaybes xs ++ [expr])
+maybeStats xs expr 
+  = makeStats (catMaybes xs ++ [expr])
 
 --------------------------------------------------------------------------
 -- Parc monad
@@ -494,7 +503,10 @@ isolated_ :: Parc a -> Parc a
 isolated_ action = fst <$> isolated action
 
 isolateWith :: Live -> Parc a -> Parc (a, Live)
-isolateWith live action = isolated $ setLive live >> action
+isolateWith live action 
+  = isolated $ 
+    do setLive live 
+       action
 
 ------------------------
 -- scope abstractions --
