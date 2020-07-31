@@ -80,6 +80,7 @@ parcDefGroup topLevel dg
 parcDef :: Bool -> Def -> Parc Def
 parcDef topLevel def
   = (if topLevel then isolated_ else id) $
+    withCurrentDef def $
     do expr <- parcExpr (defExpr def)
        return def{defExpr=expr}
 
@@ -379,8 +380,8 @@ runParc penv newtypes (Parc action)
 getCurrentDef :: Parc [Def]
 getCurrentDef = currentDef <$> getEnv
 
-withCurrentDef :: ([Def] -> [Def]) -> Parc a -> Parc a
-withCurrentDef f = withEnv (\e -> e { currentDef = f (currentDef e) })
+withCurrentDef :: Def -> Parc a -> Parc a
+withCurrentDef def = withEnv (\e -> e { currentDef = def : (currentDef e) })
 
 --
 
@@ -445,7 +446,10 @@ extendOwned = updateOwned . S.union
 -- live set abstractions --
 
 markLive :: TName -> Parc ()
-markLive = modifyLive . S.insert
+markLive tname
+  = if (isQualified (getName tname))    -- only add locals (can happen with scrutinees)
+     then return ()                     
+     else modifyLive (S.insert tname)   
 
 markLives :: TNames -> Parc ()
 markLives = modifyLive . S.union
