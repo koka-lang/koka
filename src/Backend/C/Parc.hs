@@ -110,7 +110,7 @@ parcExpr expr
         -> do let free = freeLocals expr
               dups <- foldMapM useTName free
               (body', live) <- isolateWith S.empty $
-                               setOwned free $        -- captured variables are owned
+                               withOwned free $        -- captured variables are owned
                                parcOwnedBindings (S.fromList pars) body
               -- dups <- foldMapM useTName live
               -- assertion "parcExpr: free==live" (free == live) $
@@ -158,7 +158,7 @@ parcGuard scrutinees pvs live (Guard test expr)
   = do (expr', live') <- isolateWith live $ extendOwned pvs $ parcExpr expr
        dups <- foldMapM genDup (S.intersection pvs live')
        markLives live'
-       test' <- setOwned S.empty $ parcExpr test
+       test' <- withOwned S.empty $ parcExpr test
        return $ \matchLive -> do
          drops <- foldMapM genDrop (matchLive \\ live')  -- drop anything owned that is not alive anymore
          return $ Guard test' (maybeStats (dups ++ drops) expr')
@@ -405,8 +405,8 @@ withNewtypes f = withEnv (\e -> e { newtypes = f (newtypes e) })
 getOwned :: Parc Owned
 getOwned = owned <$> getEnv
 
-withOwned :: (Owned -> Owned) -> Parc a -> Parc a
-withOwned f = withEnv (\e -> e { owned = f (owned e) })
+updateOwned :: (Owned -> Owned) -> Parc a -> Parc a
+updateOwned f = withEnv (\e -> e { owned = f (owned e) })
 
 ---------------------
 -- state accessors --
@@ -437,11 +437,11 @@ setLive = modifyLive . const
 isOwned :: TName -> Parc Bool
 isOwned tn = S.member tn <$> getOwned
 
-setOwned :: TNames -> Parc a -> Parc a
-setOwned = withOwned . const
+withOwned :: Owned -> Parc a -> Parc a
+withOwned = updateOwned . const
 
 extendOwned :: Owned -> Parc a -> Parc a
-extendOwned = withOwned . S.union
+extendOwned = updateOwned . S.union
 
 -------------------------------
 -- live set abstractions --
