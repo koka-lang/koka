@@ -155,7 +155,7 @@ parcBranches scrutinees brs
            mkGuard <$> mapM genDrop (S.toList (c \\ cij)))
 
 parcBranch :: Branch -> Parc [([Maybe Expr] -> Guard, Consumed)]
-parcBranch (Branch pats guards) 
+parcBranch (Branch pats guards)
   = mapM (parcGuard (bv pats)) guards
 
 parcGuard :: TNames -> Guard -> Parc ([Maybe Expr] -> Guard, Consumed)
@@ -394,12 +394,11 @@ withEnv = local
 getEnv :: Parc Env
 getEnv = ask
 
-updateSt :: (ParcState -> ParcState) -> Parc ParcState
-updateSt f = modify f >> get
+updateSt :: (ParcState -> ParcState) -> Parc ()
+updateSt = modify
 
 getSt :: Parc ParcState
 getSt = get
-
 
 -----------------------
 -- owned names
@@ -425,18 +424,15 @@ getConsumed = consumed <$> getSt
 
 setConsumed :: Consumed -> Parc ()
 setConsumed consumed'
- = do updateSt (\st -> st{ consumed = consumed' })
-      return ()
+  = updateSt (\st -> st{ consumed = consumed' })
 
 consume :: TName -> Parc ()
 consume name
-  = do updateSt (\st -> st{ consumed = S.insert name (consumed st) })
-       return ()
+  = updateSt (\st -> st{ consumed = S.insert name (consumed st) })
 
 forget :: TNames -> Parc ()
 forget tns
-  = do updateSt (\st -> st{ consumed = consumed st \\ tns })
-       return ()
+  = updateSt (\st -> st{ consumed = consumed st \\ tns })
 
 isConsumed :: TName -> Parc Bool
 isConsumed name = S.member name <$> getConsumed
@@ -469,8 +465,8 @@ parcTrace msg
  = do env <- getEnv
       trace ("Core.Parc: " ++ show (map defName (currentDef env)) ++ ": " ++ msg) $ return ()
 
-
 ----------------
+
 getNewtypes :: Parc Newtypes
 getNewtypes = newtypes <$> getEnv
 
