@@ -14,7 +14,7 @@ Integers are either a pointer to a `bigint_t` (with lowest bit == 0),
 or a _small_ int (with lowest bit == 1).
 
 The small int is restricted in size to SMALLINT_BITS such that we can do
-efficient arithmetic on the representation of a small int directly where
+efficient arithmetic on the representation of a small int `n` directly where
 `boxed(n) == 4*n + 1`. The `smallint_t` size is chosen to allow efficient overflow detection.
 By using `4*n + 1` we always have the lowest two bits of a pointer as `00` 
 while those of a smallint_t are always `01`.
@@ -622,7 +622,7 @@ static inline bool integer_is_neg(integer_t x, context_t* ctx) {
 }
 
 static inline bool integer_is_pos(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return (x.value>0);
+  if (likely(is_smallint(x))) return (x.value>1);
   return (integer_signum_generic(x,ctx) > 0);
 }
 

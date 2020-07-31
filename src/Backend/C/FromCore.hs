@@ -849,7 +849,7 @@ genLambda params eff body
                               ,text "return _fself;"]
                          else [structDoc <.> text "* _self = function_alloc_as" <.> arguments [structDoc, pretty (scanCount + 1) -- +1 for the _type.fun 
                                                                                               ] <.> semi
-                              ,text "_self->_type.fun = box_fun_ptr(&" <.> ppName funName <.> text ", current_context());"]
+                              ,text "_self->_type.fun = box_cfun_ptr(&" <.> ppName funName <.> text ", current_context());"]
                               ++ [text "_self->" <.> ppName name <+> text "=" <+> ppName name <.> semi | (name,_) <- fields]
                               ++ [text "return &_self->_type;"])
                      ))
