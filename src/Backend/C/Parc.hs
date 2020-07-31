@@ -74,7 +74,7 @@ parcDefGroups topLevel = reverseMapM (parcDefGroup topLevel)
 parcDefGroup :: Bool -> DefGroup -> Parc DefGroup
 parcDefGroup topLevel dg
   = case dg of
-      DefRec    defs -> DefRec <$> reverseMapM (parcDef topLevel) defs
+      DefRec    defs -> DefRec    <$> reverseMapM (parcDef topLevel) defs
       DefNonRec def  -> DefNonRec <$> parcDef topLevel def
 
 parcDef :: Bool -> Def -> Parc Def
@@ -97,15 +97,18 @@ parcExpr expr
       Lam pars eff body
         -> do let caps = freeLocals expr
               let parsSet = S.fromList pars
-              dups <- foldMapM useTName caps
-              (body', live) <- isolateWith S.empty $
-                               withOwned caps $  -- captured variables are owned
-                               scoped parsSet $ do
+              (body', live) <- isolateWith S.empty
+                             $ withOwned caps  -- captured variables are owned
+                             $ scoped parsSet $ do
+                                 l <- getLive
+                                 parcTrace ("before: " ++ show l ++ "  lambda: " ++ show expr)
                                  expr <- parcExpr body
                                  live <- getLive
+                                 parcTrace ("after: " ++ show live)
                                  drops  <- foldMapM genDrop (parsSet \\ live)
                                  return $ maybeStats drops expr
-              assertion "parcExpr: caps==live" (caps == live) $
+              dups <- foldMapM useTName caps
+              assertion ("parcExpr: caps==live" ++ show caps ++ show live ++ show body) (caps == live) $
                 return (maybeStats dups $ Lam pars eff body')
       Var tname InfoNone
         -> fromMaybe expr <$> useTName tname
@@ -128,7 +131,7 @@ parcExpr expr
       Let _ _
         -> failure "Backend.C.Parc.parcExpr"
       Case vars brs | caseIsNormalized vars brs
-        -> Case vars <$> parcBranches (fv vars) brs
+        -> Case vars <$> parcBranches (freeLocals vars) brs
       Case _ _
         -> do nexpr <- normalizeCase expr
               parcExpr nexpr
@@ -146,7 +149,7 @@ parcBranch scrutinees live (Branch pats guards)
   = do let pvs = bv pats
        guardFns <- reverseMapM (parcGuard scrutinees pvs live) guards
        forget pvs
-       return $ \c -> Branch pats <$> mapM ($c) guardFns
+       return $ \c -> Branch pats <$> mapM ($ c) guardFns
 
 parcGuard :: TNames -> TNames -> Live -> Guard -> Parc (Live -> Parc Guard)
 parcGuard scrutinees pvs live (Guard test expr)
