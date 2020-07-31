@@ -64,15 +64,15 @@ parcCore penv newtypes core
                       return core{ coreProgDefs  = defs }
 
 --------------------------------------------------------------------------
--- Rule for ensuring a binding is consumed in its scope.
+-- Rule for ensuring a binding is live in its scope.
 --------------------------------------------------------------------------
 
 parcOwnedBindings :: TNames -> Expr -> Parc Expr
 parcOwnedBindings tns expr
   = inScope tns $ do
       expr'  <- parcExpr expr
-      consumed <- getConsumed
-      let unused = S.toList (tns \\ consumed)
+      live <- getLive
+      let unused = S.toList (tns \\ live)
       drops  <- mapM genDrop unused
       return $ maybeStats drops expr'
 
@@ -108,13 +108,13 @@ parcExpr expr
         -> (`TypeApp` targs) <$> parcExpr body
       Lam pars eff body
         -> do let parSet = S.fromList pars
-              -- todo: this should probably have an empty consumed set.
-              (body', consumed) <- isolated $ parcOwnedBindings parSet body
-              let captures = S.toList $ consumed \\ parSet
-              dups <- mapM consumeTName captures
+              -- todo: this should probably have an empty live set.
+              (body', live) <- isolated $ parcOwnedBindings parSet body
+              let captures = S.toList $ live \\ parSet
+              dups <- mapM useTName captures
               return (maybeStats dups $ Lam pars eff body')
       Var tname InfoNone
-        -> fromMaybe expr <$> consumeTName tname
+        -> fromMaybe expr <$> useTName tname
       Var _ _ -- InfoArity/External are not reference-counted
         -> return expr
       App fn args
@@ -144,20 +144,20 @@ parcBranches scrutinees brs
        let bvP = bv (map branchPatterns brs)
        owned <- getOwned
        let testsBorrowed = S.intersection owned (fvT \\ bvP)
-       -- results :: [[([Maybe Expr] -> Guard, Consumed)]]
+       -- results :: [[([Maybe Expr] -> Guard, Live)]]
        results <- mapM parcBranch brs
-       let branchesConsumed = concatMap (map snd) results
-       let c = S.unions $ [scrutinees, testsBorrowed] ++ branchesConsumed
-       setConsumed c
+       let branchesLive = concatMap (map snd) results
+       let c = S.unions $ [scrutinees, testsBorrowed] ++ branchesLive
+       setLive c
        forM (zip brs results) $ \(Branch pats _, guards) -> Branch pats <$>
          forM guards (\(mkGuard, cij) ->
            mkGuard <$> mapM genDrop (S.toList (c \\ cij)))
 
-parcBranch :: Branch -> Parc [([Maybe Expr] -> Guard, Consumed)]
+parcBranch :: Branch -> Parc [([Maybe Expr] -> Guard, Live)]
 parcBranch (Branch pats guards)
   = mapM (parcGuard (bv pats)) guards
 
-parcGuard :: TNames -> Guard -> Parc ([Maybe Expr] -> Guard, Consumed)
+parcGuard :: TNames -> Guard -> Parc ([Maybe Expr] -> Guard, Live)
 parcGuard pvs (Guard test expr)
   = do test'        <- noneOwned $ parcExpr test
        (expr', cij) <- isolated $ extendOwned pvs $ parcExpr expr
@@ -241,12 +241,12 @@ rename old new expr
 -- Convenience methods for inserting PARC ops
 --------------------------------------------------------------------------
 
-consumeTName :: TName -> Parc (Maybe Expr)
-consumeTName tname
-  = do consumed <- isConsumed tname
+useTName :: TName -> Parc (Maybe Expr)
+useTName tname
+  = do live <- isLive tname
        owned <- isOwned tname
-       when owned $ consume tname
-       if consumed || not owned
+       when owned $ markUsed tname
+       if live || not owned
          then genDup tname
          else return Nothing
 
@@ -368,9 +368,9 @@ data Env = Env { currentDef :: [Def],
                  owned     :: Owned
                }
 
-type Consumed = TNames
+type Live = TNames
 data ParcState = ParcState { uniq :: Int,
-                             consumed :: Consumed
+                             live :: Live
                            }
 
 type ParcM a = ReaderT Env (State ParcState) a
@@ -448,14 +448,14 @@ setUniq = modifyUniq . const
 
 --
 
-getConsumed :: Parc Consumed
-getConsumed = consumed <$> getSt
+getLive :: Parc Live
+getLive = live <$> getSt
 
-modifyConsumed :: (Consumed -> Consumed) -> Parc ()
-modifyConsumed f = updateSt (\s -> s { consumed = f (consumed s) })
+modifyLive :: (Live -> Live) -> Parc ()
+modifyLive f = updateSt (\s -> s { live = f (live s) })
 
-setConsumed :: Consumed -> Parc ()
-setConsumed = modifyConsumed . const
+setLive :: Live -> Parc ()
+setLive = modifyLive . const
 
 -----------------------------
 -- owned name abstractions --
@@ -470,24 +470,24 @@ extendOwned :: Owned -> Parc a -> Parc a
 extendOwned = withOwned . S.union
 
 -------------------------------
--- consumed set abstractions --
+-- live set abstractions --
 
-consume :: TName -> Parc ()
-consume = modifyConsumed . S.insert
+markUsed :: TName -> Parc ()
+markUsed = modifyLive . S.insert
 
 forget :: TNames -> Parc ()
-forget tns = modifyConsumed (\\ tns)
+forget tns = modifyLive (\\ tns)
 
-isConsumed :: TName -> Parc Bool
-isConsumed name = S.member name <$> getConsumed
+isLive :: TName -> Parc Bool
+isLive name = S.member name <$> getLive
 
-isolated :: Parc a -> Parc (a, Consumed)
+isolated :: Parc a -> Parc (a, Live)
 isolated action
-  = do consumed <- getConsumed
+  = do live <- getLive
        x <- action
-       consumed' <- getConsumed
-       setConsumed consumed
-       return (x, consumed')
+       live' <- getLive
+       setLive live
+       return (x, live')
 
 isolated_ :: Parc a -> Parc a
 isolated_ action = fst <$> isolated action
