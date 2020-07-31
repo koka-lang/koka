@@ -179,12 +179,12 @@ caseIsNormalized exprs branches
           = any isPatVar branchPatterns
 
 normalizeCase :: Expr -> Parc Expr
-normalizeCase Case{caseExprs,caseBranches}
-  = do (vexprs,dgs) <- unzip <$> reverseMapM caseExpandExpr caseExprs
+normalizeCase Case{caseExprs, caseBranches}
+  = do (vexprs, dgs) <- unzip <$> reverseMapM caseExpandExpr caseExprs
        let brs' = map (normalizeBranch vexprs) caseBranches
        return $ makeLet (catMaybes dgs) (Case vexprs brs')
 normalizeCase _
-  = failure "Backend.C.Parc.normalizeCase" 
+  = failure "Backend.C.Parc.normalizeCase"
 
 -- Generate variable names for scrutinee expressions
 caseExpandExpr :: Expr -> Parc (Expr, Maybe DefGroup)
@@ -196,46 +196,13 @@ caseExpandExpr x = do name <- uniqueName "match"
 
 normalizeBranch :: [Expr] -> Branch -> Branch
 normalizeBranch vexprs br@Branch{branchPatterns, branchGuards}
-  = let {-renameGuard (old, new) (Guard test expr)
-          = Guard (rename old new test) (rename old new expr)
-        -}
-        nameMapping (PatVar old pat') var@(Var _ _) = (Just (old, var), pat')
-        nameMapping pat var = (Nothing,pat)
+  = let nameMapping pat new
+           = case pat of
+               PatVar old pat' -> (Just (old, new), pat')
+               _ -> (Nothing, pat)
         (newNames, pats') = unzip $ zipWith nameMapping branchPatterns vexprs
-        -- newNames = [(name,v) | (name,v) <- newNames0] --catMaybes newNames
-        guards' = catMaybes newNames |~> branchGuards  -- map (\g -> foldr renameGuard g newNames') branchGuards
+        guards' = catMaybes newNames |~> branchGuards
      in Branch pats' guards'
-{-
--- only safe once variable names have been uniquified
-rename :: Name -> Name -> Expr -> Expr
-rename old new expr
-  = let renameExpr
-          = rename old new
-        renameName name
-          = if name == old then new else name
-        renameTName (TName name ty)
-          = TName (renameName name) ty
-        renameDef def@Def{defName,defExpr}
-          = def{defName = renameName defName, defExpr = renameExpr defExpr}
-        renameDefGroup dg
-          = case dg of
-              DefRec defs -> DefRec (map renameDef defs)
-              DefNonRec def -> DefNonRec (renameDef def)
-        renameGuard (Guard test expr)
-          = Guard (renameExpr test) (renameExpr expr)
-        renameBranch br@Branch{branchGuards}
-          = br{branchGuards=map renameGuard branchGuards}
-    in case expr of
-         Var tn info -> Var (renameTName tn) info
-         Lam tns eff expr -> Lam (map renameTName tns) eff (renameExpr expr)
-         App body args -> App (renameExpr body) (map renameExpr args)
-         TypeLam tvs expr -> TypeLam tvs (renameExpr expr)
-         TypeApp expr tys -> TypeApp (renameExpr expr) tys
-         Con tn repr -> Con (renameTName tn) repr
-         Lit _ -> expr
-         Let dgs expr -> Let (map renameDefGroup dgs) (renameExpr expr)
-         Case exprs brs -> Case (map renameExpr exprs) (map renameBranch brs)
--}
 
 --------------------------------------------------------------------------
 -- Convenience methods for inserting PARC ops
@@ -354,11 +321,11 @@ reverseMapM action args =
 -- for mapping over a set and collecting the results into a list.
 foldMapM :: (Monad m, Foldable t) => (a -> m b) -> t a -> m [b]
 foldMapM f = foldr merge (return [])
-  where merge x r = do y <- f x 
+  where merge x r = do y <- f x
                        (y:) <$!> r
 
 maybeStats :: [Maybe Expr] -> Expr -> Expr
-maybeStats xs expr 
+maybeStats xs expr
   = makeStats (catMaybes xs ++ [expr])
 
 --------------------------------------------------------------------------
@@ -503,9 +470,9 @@ isolated_ :: Parc a -> Parc a
 isolated_ action = fst <$> isolated action
 
 isolateWith :: Live -> Parc a -> Parc (a, Live)
-isolateWith live action 
-  = isolated $ 
-    do setLive live 
+isolateWith live action
+  = isolated $
+    do setLive live
        action
 
 ------------------------
