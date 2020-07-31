@@ -15,10 +15,8 @@ import Control.Monad
 import Control.Monad.Identity
 import Control.Monad.Reader
 import Control.Monad.State
-import Data.List ( intersperse, partition )
 import Data.Maybe ( catMaybes, fromMaybe )
 import Data.Char
-import Data.Foldable (foldMap)
 import Data.Set ( (\\) )
 import qualified Data.Set as S
 
