@@ -145,28 +145,26 @@ parcBranches scrutinees brs
        let bvP = bv (map branchPatterns brs)
        owned <- getOwned
        let testsBorrowed = S.intersection owned (fvT \\ bvP)
-       -- results :: [(Branch, [(TNames, Consumed)])]
+       -- results :: [[([Maybe Expr] -> Guard, Consumed)]]
        results <- mapM parcBranch brs
-       let branchesConsumed = map snd (concatMap snd results)
+       let branchesConsumed = concatMap (map snd) results
        let c = S.unions $ [scrutinees, testsBorrowed] ++ branchesConsumed
        setConsumed c
-       forM results $ \(Branch pats gds, dats) -> Branch pats <$>
-         forM (zip gds dats) (\(g, (toDup, cij)) ->
-           do drops <- mapM genDrop (S.toList (c \\ cij))
-              dups <- mapM genDup (S.toList toDup)
-              return g{guardExpr = maybeStats (dups ++ drops) (guardExpr g)})
+       forM (zip brs results) $ \(Branch pats _, guards) -> Branch pats <$>
+         forM guards (\(mkGuard, cij) ->
+           mkGuard <$> mapM genDrop (S.toList (c \\ cij)))
 
-parcBranch :: Branch -> Parc (Branch, [(TNames, Consumed)])
-parcBranch b@(Branch pats guards)
-  = do let pvs = bv pats
-       (guards', ci) <- unzip <$> mapM (parcGuard pvs) guards
-       return (Branch pats guards', ci)
+parcBranch :: Branch -> Parc [([Maybe Expr] -> Guard, Consumed)]
+parcBranch (Branch pats guards) 
+  = mapM (parcGuard (bv pats)) guards
 
-parcGuard :: TNames -> Guard -> Parc (Guard, (TNames, Consumed))
+parcGuard :: TNames -> Guard -> Parc ([Maybe Expr] -> Guard, Consumed)
 parcGuard pvs (Guard test expr)
   = do test'        <- noneOwned $ parcExpr test
        (expr', cij) <- isolated $ extendOwned pvs $ parcExpr expr
-       return (Guard test' expr', (cij `S.intersection` pvs, cij \\ pvs))
+       dups <- mapM genDup (S.toList $ cij `S.intersection` pvs)
+       let mkGuard drops = Guard test' $ maybeStats (dups ++ drops) expr'
+       return (mkGuard, cij \\ pvs)
 
 --------------------------------------------------------------------------
 -- Case normalization
