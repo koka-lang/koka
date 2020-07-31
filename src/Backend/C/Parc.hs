@@ -18,6 +18,7 @@ import Control.Monad.State
 import Data.List ( intersperse, partition )
 import Data.Maybe ( catMaybes, fromMaybe )
 import Data.Char
+import Data.Foldable (foldMap)
 import Data.Set ( (\\) )
 import qualified Data.Set as S
 
@@ -72,8 +73,7 @@ parcOwnedBindings tns expr
   = inScope tns $ do
       expr'  <- parcExpr expr
       live <- getLive
-      let unused = S.toList (tns \\ live)
-      drops  <- mapM genDrop unused
+      drops  <- foldMapM genDrop (tns \\ live)
       return $ maybeStats drops expr'
 
 --------------------------------------------------------------------------
@@ -107,11 +107,10 @@ parcExpr expr
       TypeApp body targs
         -> (`TypeApp` targs) <$> parcExpr body
       Lam pars eff body
-        -> do let parSet = S.fromList pars
-              -- todo: this should probably have an empty live set.
-              (body', live) <- isolated $ parcOwnedBindings parSet body
-              let captures = S.toList $ live \\ parSet
-              dups <- mapM useTName captures
+        -> do (body', live) <- isolateWith S.empty $
+                               setOwned S.empty $
+                               parcOwnedBindings (S.fromList pars) body
+              dups <- foldMapM useTName live
               return (maybeStats dups $ Lam pars eff body')
       Var tname InfoNone
         -> fromMaybe expr <$> useTName tname
@@ -136,30 +135,28 @@ parcExpr expr
 
 parcBranches :: TNames -> [Branch] -> Parc [Branch]
 parcBranches scrutinees brs
-  = do let fvT = fv (map (map guardTest . branchGuards) brs)
-       let bvP = bv (map branchPatterns brs)
-       owned <- getOwned
-       let testsBorrowed = S.intersection owned (fvT \\ bvP)
-       -- results :: [[([Maybe Expr] -> Guard, Live)]]
-       results <- mapM parcBranch brs
-       let branchesLive = concatMap (map snd) results
-       let c = S.unions $ [scrutinees, testsBorrowed] ++ branchesLive
-       setLive c
-       forM (zip brs results) $ \(Branch pats _, guards) -> Branch pats <$>
-         forM guards (\(mkGuard, cij) ->
-           mkGuard <$> mapM genDrop (S.toList (c \\ cij)))
+  = do live <- getLive
+       branchFns <- reverseMapM (parcBranch scrutinees live) brs
+       markLives scrutinees
+       live' <- getLive
+       mapM ($live') branchFns
 
-parcBranch :: Branch -> Parc [([Maybe Expr] -> Guard, Live)]
-parcBranch (Branch pats guards)
-  = mapM (parcGuard (bv pats)) guards
+parcBranch :: TNames -> Live -> Branch -> Parc (Live -> Parc Branch)
+parcBranch scrutinees live (Branch pats guards)
+  = do let pvs = bv pats
+       guardFns <- reverseMapM (parcGuard scrutinees pvs live) guards
+       forget pvs
+       return $ \c -> Branch pats <$> mapM ($c) guardFns
 
-parcGuard :: TNames -> Guard -> Parc ([Maybe Expr] -> Guard, Live)
-parcGuard pvs (Guard test expr)
-  = do test'        <- noneOwned $ parcExpr test
-       (expr', cij) <- isolated $ extendOwned pvs $ parcExpr expr
-       dups <- mapM genDup (S.toList $ cij `S.intersection` pvs)
-       let mkGuard drops = Guard test' $ maybeStats (dups ++ drops) expr'
-       return (mkGuard, cij \\ pvs)
+parcGuard :: TNames -> TNames -> Live -> Guard -> Parc (Live -> Parc Guard)
+parcGuard scrutinees pvs live (Guard test expr)
+  = do (expr', live') <- isolateWith live $ extendOwned pvs $ parcExpr expr
+       dups <- foldMapM genDup (S.intersection pvs live')
+       markLives live'
+       test' <- setOwned S.empty $ parcExpr test
+       return $ \c -> do
+         drops <- foldMapM genDrop (c \\ live')
+         return $ Guard test' (maybeStats (dups ++ drops) expr')
 
 --------------------------------------------------------------------------
 -- Case normalization
@@ -241,7 +238,7 @@ useTName :: TName -> Parc (Maybe Expr)
 useTName tname
   = do live <- isLive tname
        owned <- isOwned tname
-       when owned $ markLive tname
+       markLive tname
        if live || not owned
          then genDup tname
          else return Nothing
@@ -346,6 +343,11 @@ reverseMapM :: Monad m => (a -> m b) -> [a] -> m [b]
 reverseMapM action args =
   do args' <- mapM action (reverse args)
      return $ reverse args'
+
+-- for mapping over a set and collecting the results into a list.
+foldMapM :: (Monad m, Foldable t) => (a -> m b) -> t a -> m [b]
+foldMapM f = foldr merge (return [])
+  where merge x r = f x >>= (\y -> (y:) <$!> r)
 
 maybeStats :: [Maybe Expr] -> Expr -> Expr
 maybeStats xs expr = makeStats (catMaybes xs ++ [expr])
@@ -459,8 +461,8 @@ setLive = modifyLive . const
 isOwned :: TName -> Parc Bool
 isOwned tn = S.member tn <$> getOwned
 
-noneOwned :: Parc a -> Parc a
-noneOwned = withOwned (const S.empty)
+setOwned :: TNames -> Parc a -> Parc a
+setOwned = withOwned . const
 
 extendOwned :: Owned -> Parc a -> Parc a
 extendOwned = withOwned . S.union
@@ -470,6 +472,9 @@ extendOwned = withOwned . S.union
 
 markLive :: TName -> Parc ()
 markLive = modifyLive . S.insert
+
+markLives :: TNames -> Parc ()
+markLives = modifyLive . S.union
 
 forget :: TNames -> Parc ()
 forget tns = modifyLive (\\ tns)
@@ -488,12 +493,15 @@ isolated action
 isolated_ :: Parc a -> Parc a
 isolated_ action = fst <$> isolated action
 
+isolateWith :: Live -> Parc a -> Parc (a, Live)
+isolateWith live action = isolated $ setLive live >> action
+
 ------------------------
 -- scope abstractions --
 
 inScope :: TNames -> Parc a -> Parc a
-inScope tns actions
-  = do r <- extendOwned tns actions
+inScope tns action
+  = do r <- extendOwned tns action
        forget tns
        return r
 

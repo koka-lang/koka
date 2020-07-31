@@ -10,7 +10,7 @@ after simplify core check 2
 public fun test : (x : std/core/types/int) -> (() -> std/core/types/int)
  = fun(x: std/core/types/int){
  fun(){
- x
+ std/core/types/.dup(x)
  }
  };
 cl -nologo -c -W3 -Gm- -Zi -MDd -RTC1 -Fa"out/test/parc_parc13.asm" -I"cruntime/include" -Fo"out/test/parc_parc13.obj" "out/test/parc_parc13.c"
