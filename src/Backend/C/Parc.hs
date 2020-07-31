@@ -65,18 +65,6 @@ parcCore penv newtypes core
                       return core{ coreProgDefs  = defs }
 
 --------------------------------------------------------------------------
--- Rule for ensuring a binding is live in its scope.
---------------------------------------------------------------------------
-
-parcOwnedBindings :: TNames -> Expr -> Parc Expr
-parcOwnedBindings tns expr
-  = inScope tns $ do
-      expr'  <- parcExpr expr
-      live <- getLive
-      drops  <- foldMapM genDrop (tns \\ live)
-      return $ maybeStats drops expr'
-
---------------------------------------------------------------------------
 -- Definition groups
 --------------------------------------------------------------------------
 
@@ -107,14 +95,18 @@ parcExpr expr
       TypeApp body targs
         -> (`TypeApp` targs) <$> parcExpr body
       Lam pars eff body
-        -> do let free = freeLocals expr
-              dups <- foldMapM useTName free
+        -> do let caps = freeLocals expr
+              let parsSet = S.fromList pars
+              dups <- foldMapM useTName caps
               (body', live) <- isolateWith S.empty $
-                               withOwned free $        -- captured variables are owned
-                               parcOwnedBindings (S.fromList pars) body
-              -- dups <- foldMapM useTName live
-              -- assertion "parcExpr: free==live" (free == live) $
-              return (maybeStats dups $ Lam pars eff body')
+                               withOwned caps $  -- captured variables are owned
+                               scoped parsSet $ do
+                                 expr <- parcExpr body
+                                 live <- getLive
+                                 drops  <- foldMapM genDrop (parsSet \\ live)
+                                 return $ maybeStats drops expr
+              assertion "parcExpr: caps==live" (caps == live) $
+                return (maybeStats dups $ Lam pars eff body')
       Var tname InfoNone
         -> fromMaybe expr <$> useTName tname
       Var _ _ -- InfoArity/External are not reference-counted
@@ -127,11 +119,14 @@ parcExpr expr
         -> return expr
       Con ctor repr
         -> return expr
-      Let dgs body
-        -> do body' <- inScope (bv dgs) $ parcExpr body
-              dgs' <- parcDefGroups False dgs
-              -- TODO: drop potential bindings
-              return $ Let dgs' body'
+      Let [] body
+        -> parcExpr body
+      Let (DefNonRec def:dgs) body
+        -> do body' <- scoped (bv def) $ parcExpr $ Let dgs body
+              def'  <- parcDef False def
+              return $ makeLet [DefNonRec def'] body'
+      Let _ _
+        -> failure "Backend.C.Parc.parcExpr"
       Case vars brs | caseIsNormalized vars brs
         -> Case vars <$> parcBranches (fv vars) brs
       Case _ _
@@ -458,6 +453,9 @@ forget tns = modifyLive (\\ tns)
 isLive :: TName -> Parc Bool
 isLive name = S.member name <$> getLive
 
+isDead :: TName -> Parc Bool
+isDead = fmap not . isLive
+
 isolated :: Parc a -> Parc (a, Live)
 isolated action
   = do live <- getLive
@@ -478,8 +476,8 @@ isolateWith live action
 ------------------------
 -- scope abstractions --
 
-inScope :: TNames -> Parc a -> Parc a
-inScope tns action
+scoped :: TNames -> Parc a -> Parc a
+scoped tns action
   = do r <- extendOwned tns action
        forget tns
        return r
