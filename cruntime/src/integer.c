@@ -1475,7 +1475,7 @@ int64_t integer_clamp64_generic(integer_t x, context_t* ctx) {
 
 double integer_as_double_generic(integer_t x, context_t* ctx) {
   bigint_t* bx = integer_to_bigint(x, ctx);
-  if (bx->count > ((310/LOG_BASE) + 1)) return (bx->is_neg ? -HUGE_VALL : HUGE_VALL);
+  if (bx->count > ((310/LOG_BASE) + 1)) return (bx->is_neg ? -HUGE_VAL : HUGE_VAL);
   double base = (double)BASE;
   double d = 0.0;
   for (size_t i = bx->count; i > 0; i--) {

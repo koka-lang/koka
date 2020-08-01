@@ -58,8 +58,6 @@
 #define decl_noinline   __attribute__((noinline))
 #define decl_thread     __thread
 #elif defined(_MSC_VER)
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-value"
 #pragma warning(disable:4214)  // using bit field types other than int
 #pragma warning(disable:4101)  // unreferenced local variable
 #pragma warning(disable:4204)  // non-constant aggregate initializer

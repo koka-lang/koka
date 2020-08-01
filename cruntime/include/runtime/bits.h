@@ -11,7 +11,7 @@
 ---------------------------------------------------------------------------*/
 
 // Define __builtin suffixes for gcc/clang
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__GNUC__)
 #if (LONG_MAX == INT32_MAX) 
 #define __builtin32(name)  __builtin_##name##l
 #else
@@ -113,7 +113,7 @@ static inline uint8_t bits_ctz32(uint32_t x);
 static inline uint8_t bits_ctz64(uint64_t x);
 static inline uint8_t bits_ctz64(uint64_t x);
 
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__GNUC__)
 static inline uint8_t bits_clz32(uint32_t x) {
   return (x==0 ? 32 : __builtin32(clz)(x));
 }
