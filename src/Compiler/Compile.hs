@@ -1220,28 +1220,41 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                 targetExe  = targetBase ++ exeExtension
             
             -- write CMakeSources.txt    
-            let sources    = text "set(kk_csources" <->
+                sources    = text "set(kk_csources" <->
                              indent 2 (vcat (map text [dquote (showModName mname ++ ".c") | 
                                        mname <- (map modName modules ++ [Core.coreProgName core0])])) <->
                              text ")"
                 mainName = showModName (Core.coreProgName core0)
                 cmake = vcat [
                           text "cmake_minimum_required(VERSION 3.8)",
-                          text ("project(" ++ mainName ++ " C)"),
+                          text "project" <.> parens (dquotes (text mainName) <+> text "C"),
                           text "set(CMAKE_C_STANDARD 11)",
+                          text "if(NOT DEFINED kkc_install_dir)" <->
+                            text "  set" <.> parens (text "kkc_install_dir" <+> dquotes (text (installDir flags))) <->
+                            text "endif()",
+                          text "set" <.> parens (text "kk_target" <+> dquotes (text mainName)),                 
+                          text "find_package(runtime 1.0 PATHS \"${kkc_install_dir}/cruntime/out/install\")",
                           space,
-                          text "INCLUDE" <.> parens (dquotes (text "CMake-Koka.txt") <+> text "OPTIONAL"),
-                          text "INCLUDE" <.> parens (dquotes (text "CMake-" <.> text mainName <.> text ".txt") <+> text "OPTIONAL"),
+                          text "INCLUDE" <.> parens (dquotes (text mainName <.> text ".cmake") <+> text "OPTIONAL"),
                           space,
                           sources,
                           space,
-                          text "add_executable" <.> parens( dquotes (text mainName) <+> text "${kk_csources}" ),
-                          text "target_include_directories" <.> parens (dquotes (text mainName) <+> text "PRIVATE" <+> dquotes (text "../../cruntime/include"))
+                          text "add_executable(${kk_target} ${kk_csources})",
+                          text "target_link_libraries(${kk_target} PRIVATE runtime)"
                         ]
+                        
+                buildDir = "\"" ++ outName flags (outBase ++ "/" ++ (if (debug flags) then "debug" else "release")) ++ "\""
+                buildType = "-DCMAKE_BUILD_TYPE=" ++ (if debug flags then "Debug" else "Release")
+                kkcInstallDir = "-Dkkc_install_dir=\"" ++ installDir flags ++ "\""
+                cmakeConfig = "cmake " ++ buildType ++ " " ++ kkcInstallDir ++ 
+                                 " -S \"" ++ outName flags "" ++ "\" -B " ++ buildDir ++ " \"" ++ outName flags "" ++ "\""
+                cmakeBuild  = "cmake --build " ++ buildDir
             writeDoc (outName flags ("CMakeLists.txt")) cmake
-
+            runSystem cmakeConfig   
+            runSystem cmakeBuild
+            
             -- link
-            let  linkExtra = ""
+            let linkExtra = ""
                 linkOpt   = joinWith " " $
                             [ if (debug flags) then "-Zi" else ""
                             , if (debug flags && optimize flags <= 0) then "-MDd" else "-MD"

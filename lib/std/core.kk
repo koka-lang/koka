@@ -253,13 +253,6 @@ cotype stream<a> {
   con Next(head:a, tail: stream<a> )
 }
 
-// An enumeration to represent order
-type order {
-  Lt
-  Eq
-  Gt
-}
-
 fun int( x : order ) : int
 {
   match(x) {

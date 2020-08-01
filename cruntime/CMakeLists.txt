@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.8)
 project(runtime C)
-
+include(cmake/runtime-config-version.cmake)
 enable_testing()
 
 # -----------------------------------------------------------------------------
@@ -30,12 +30,19 @@ if (NOT isMultiConfig AND NOT CMAKE_BUILD_TYPE)
   endif()
 endif()
 
+set(rt_basename "runtime")
+string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LC)
+if(NOT(CMAKE_BUILD_TYPE_LC MATCHES "^(release|relwithdebinfo|minsizerel)$"))
+  set(rt_basename "${rt_basename}-${CMAKE_BUILD_TYPE_LC}") #append build type (e.g. -debug) if not a release version
+endif()
+
 # -----------------------------------------------------------------------------
 # Dependencies
 # -----------------------------------------------------------------------------
 
-set(THREADS_PREFER_PTHREAD_FLAG YES)
-find_package(Threads REQUIRED)
+message(STATUS "Library base name: ${rt_basename}")
+message(STATUS "Build type       : ${CMAKE_BUILD_TYPE_LC}")
+
 
 # -----------------------------------------------------------------------------
 # Main target
@@ -55,11 +62,16 @@ add_library(runtime-flags INTERFACE)
 
 # library
 add_library(runtime STATIC ${rt_sources})
-set_target_properties(runtime PROPERTIES OUTPUT_NAME runtime)
-
+set_target_properties(runtime PROPERTIES VERSION ${rt_version} OUTPUT_NAME ${rt_basename})
 target_compile_definitions(runtime PRIVATE RT_STATIC_LIB)
-target_include_directories(runtime PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-target_link_libraries(runtime PRIVATE runtime-flags Threads::Threads)
+target_include_directories(runtime PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>)
+target_link_libraries(runtime PUBLIC runtime-flags)
+
+install(TARGETS runtime runtime-flags EXPORT runtime)
+install(EXPORT runtime DESTINATION cmake)
+install(DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h*")
+install(FILES cmake/runtime-config.cmake DESTINATION cmake)
+install(FILES cmake/runtime-config-version.cmake DESTINATION cmake)
 
 # -----------------------------------------------------------------------------
 # Testing
@@ -71,10 +83,9 @@ set(test_sources
     )
 
 add_executable(runtime-test ${test_sources})
-
 target_link_libraries(runtime-test PRIVATE runtime runtime-flags)
-
 add_test(NAME runtime-test COMMAND runtime-test)
+
 
 # -----------------------------------------------------------------------------
 # Extended configuration
@@ -88,6 +99,8 @@ target_compile_options(
       -Wall
       -Wextra
       -Wno-unknown-pragmas
+      -Wno-unused-parameter
+      -Wno-missing-field-initializers
       -Wpointer-arith
       -Wshadow
       -Wstrict-aliasing

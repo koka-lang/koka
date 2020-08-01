@@ -15,12 +15,8 @@
 
 box_t __std_core_error_pattern(string_t location, string_t definition, context_t* _ctx);
 
-static inline enum __std_core__order_e __std_core__new_Eq(context_t* _ctx);
-static inline enum __std_core__order_e __std_core__new_Lt(context_t* _ctx);
-static inline enum __std_core__order_e __std_core__new_Gt(context_t* _ctx);
-
-static inline enum __std_core__order_e int_as_order(int i,context_t* ctx) {
-  return (i==0 ? __std_core__new_Eq(ctx) : (i > 0 ? __std_core__new_Gt(ctx) : __std_core__new_Lt(ctx)));
+static inline __std_core_types__order int_as_order(int i,context_t* ctx) {
+  return (i==0 ? __std_core_types__new_Eq(ctx) : (i > 0 ? __std_core_types__new_Gt(ctx) : __std_core_types__new_Lt(ctx)));
 }
 
 static inline __std_core_types__maybe integer_xparse( string_t s, bool hex, context_t* ctx ) {
@@ -81,7 +77,7 @@ static inline box_t vector_at32( vector_t v, int32_t i, context_t* ctx  ) {
 static inline unit_t vector_unsafe_assign32( vector_t v, int32_t i, box_t x, context_t* ctx  ) {
   size_t len;
   box_t* p = vector_buf(v,&len);
-  assert_internal(i >= 0 && i < len);
+  assert_internal(i >= 0 && (size_t)i < len);
   p[i] = x;
   drop_vector_t(v,ctx); // TODO: avoid?
   return Unit;  
@@ -96,7 +92,7 @@ static inline vector_t vector_alloc32( int32_t n, context_t* ctx ) {
 
 static inline box_t vector_at_int( vector_t v, integer_t n, context_t* ctx ) {
   // TODO: check bounds
-  vector_at32(v,integer_clamp32(n,ctx),ctx);
+  return vector_at32(v,integer_clamp32(n,ctx),ctx);
 }
 
 static inline double double_abs(double d) {

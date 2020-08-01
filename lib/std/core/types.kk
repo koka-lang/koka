@@ -143,6 +143,13 @@ type either<a,b> {
   con Right( right : b )
 }
 
+// An enumeration to represent order
+type order {
+  Lt
+  Eq
+  Gt
+}
+
 // ----------------------------------------------------------------------------
 // Standard functions
 // ----------------------------------------------------------------------------
