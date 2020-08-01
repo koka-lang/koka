@@ -39,7 +39,7 @@ static inline uint32_t atomic_decr(block_t* b) {
 }
 
 // Check if a reference decrement caused the block to be free or needs atomic operations
-noinline void block_check_free(block_t* b, uint32_t rc0, context_t* ctx) {
+decl_noinline void block_check_free(block_t* b, uint32_t rc0, context_t* ctx) {
   assert_internal(b!=NULL);
   assert_internal(b->header.refcount == rc0);
   assert_internal(rc0 == 0 || (rc0 >= RC_SHARED && rc0 < RC_INVALID));
@@ -59,7 +59,7 @@ noinline void block_check_free(block_t* b, uint32_t rc0, context_t* ctx) {
   }
 }
 
-noinline block_t* dup_block_check(block_t* b, uint32_t rc0) {
+decl_noinline block_t* dup_block_check(block_t* b, uint32_t rc0) {
   assert_internal(b!=NULL);
   assert_internal(b->header.refcount == rc0 && rc0 >= RC_SHARED);
   if (likely(rc0 < RC_STICKY_HI)) {
@@ -116,7 +116,7 @@ static void block_push_delayed_free(block_t* b, context_t* ctx) {
 }
 
 static void block_free_raw(block_t* b);
-static noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx);
+static decl_noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx);
 
 // Free all delayed free blocks.
 // TODO: limit to a certain number to limit worst-case free times?
@@ -156,7 +156,7 @@ static inline box_t block_field(block_t* b, size_t index) {
 // Free recursively a block -- if the recursion becomes too deep, push
 // blocks on the delayed free list to free them later. The delayed free list
 // is encoded in the headers and needs no further space.
-static noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx) {
+static decl_noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx) {
   while(true) {
     assert_internal(b->header.refcount == 0);
     size_t scan_fsize = b->header.scan_fsize;

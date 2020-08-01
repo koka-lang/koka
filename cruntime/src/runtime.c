@@ -8,12 +8,8 @@
 #include "runtime.h"
 #include <stdarg.h>
 #ifdef _WIN32
-#include <windows.h>
+#include <Windows.h>
 #endif
-
-// ptr_null
-static block_t ptr_null_block = { HEADER_STATIC(0,TAG_INVALID) };
-ptr_t ptr_null = (ptr_t)(&ptr_null_block);
 
 // identity function
 static box_t _function_id(function_t self, box_t x, context_t* ctx) {
@@ -32,7 +28,7 @@ static box_t _function_null(function_t self, context_t* ctx) {
   return box_null;
 }
 function_t function_null(context_t* ctx) {
-  define_static_function(fun_null, _function_null, ctx);
+  define_static_function(fun_null, _function_null, ctx)
   return dup_function_t(fun_null);
 }
 
@@ -49,7 +45,7 @@ void free_fun_null(void* p) {
 
 string_t runtime_host(context_t* ctx) {
   UNUSED(ctx);
-  define_string_literal(static, host, 5, "libc");
+  define_string_literal(static, host, 5, "libc")
   return dup_string_t(host);
 }
 
@@ -58,8 +54,11 @@ string_t runtime_host(context_t* ctx) {
 --------------------------------------------------------------------------------------------------*/
 static void _strlcpy(char* dest, const char* src, size_t dest_size) {
   dest[0] = 0;
-#pragma warning(suppress:4996)
+#ifdef _MSC_VER
+  strncpy_s(dest, dest_size, src, dest_size - 1);
+#else
   strncpy(dest, src, dest_size - 1);
+#endif
   dest[dest_size - 1] = 0;
 }
 /*

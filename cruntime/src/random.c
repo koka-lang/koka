@@ -150,11 +150,11 @@ static inline void chacha_block(const size_t rounds, uint32_t* input, uint32_t* 
   }
 }
 
-noinline void chacha20(random_ctx_t* rnd) {
+decl_noinline void chacha20(random_ctx_t* rnd) {
   chacha_block(20, rnd->input, rnd->output);
   rnd->used = 0;
 }
-noinline void chacha8(random_ctx_t* rnd) {
+decl_noinline void chacha8(random_ctx_t* rnd) {
   chacha_block(8, rnd->input, rnd->output);
   rnd->used = 0;
 }

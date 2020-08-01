@@ -1,6 +1,6 @@
 ﻿#pragma once
-#ifndef __RUNTIME_H__
-#define __RUNTIME_H__
+#ifndef RUNTIME_H_
+#define RUNTIME_H_
 
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.
@@ -309,7 +309,7 @@ static inline char* _block_as_assert(block_t* b, tag_t tag) {
 }
 
 #define block_alloc_as(struct_tp,scan_fsize,tag,ctx)  ((struct_tp*)block_alloc(sizeof(struct_tp),scan_fsize,tag,ctx))
-#define block_as(tp,b)                                ((tp)((char*)(b)))
+#define block_as(tp,b)                                ((tp)((void*)(b)))
 #define block_as_assert(tp,b,tag)                     ((tp)_block_as_assert(b,tag))
 
 
@@ -429,7 +429,7 @@ static inline block_t* block_alloc_reuse(reuse_t r, size_t size, size_t scan_fsi
 // 1. if unique, drop the unused fields and make the constructor block available for reuse
 // 2. otherwise, duplicate the used fields, drop the constructor, and don't reuse
 #define reuse_match(reuseid,con,dups,drops,ctx) \
-  if (constructor_is_unique(conid)) { \
+  if (constructor_is_unique(con)) { \
     do drops while(0); reuseid = constructor_reuse(conid); \
   } else { \
     do dups while(0); drop_constructor(con,ctx); reuseid = NULL; \
@@ -590,7 +590,7 @@ static inline box_t box_unit_t(unit_t u) {
 static inline unit_t unbox_unit_t(box_t u) {
   UNUSED_RELEASE(u);
   assert_internal( unbox_enum(u) == (uintx_t)Unit || is_box_any(u));
-  return (unit_t)unbox_enum(u);
+  return Unit; // (unit_t)unbox_enum(u);
 }
 
 /*--------------------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 #pragma once
-#ifndef __PLATFORM_H__
-#define __PLATFORM_H__
+#ifndef PLATFORM_H_
+#define PLATFORM_H_
 
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.
@@ -28,7 +28,7 @@
 #define decl_externc    extern
 #endif
 
-#if (__cplusplus >= 201103L) || (_MSC_VER > 1900)  // C++11
+#if ((defined(__cplusplus) && __cplusplus >= 201103L)) || (_MSC_VER > 1900)  // C++11
 #define _constexpr      constexpr
 #else
 #define _constexpr
@@ -49,13 +49,17 @@
 #endif
 
 #if defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-value"
 #define unlikely(h)     __builtin_expect((h),0)
 #define likely(h)       __builtin_expect((h),1)
 #define decl_const      __attribute__((const))    // reads no global state at all
 #define decl_pure       __attribute__((pure))     // may read global state but has no observable side effects
-#define noinline        __attribute__((noinline))
+#define decl_noinline   __attribute__((noinline))
 #define decl_thread     __thread
 #elif defined(_MSC_VER)
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-value"
 #pragma warning(disable:4214)  // using bit field types other than int
 #pragma warning(disable:4101)  // unreferenced local variable
 #pragma warning(disable:4204)  // non-constant aggregate initializer
@@ -64,14 +68,14 @@
 #define likely(x)       (x)
 #define decl_const
 #define decl_pure
-#define noinline        __declspec(noinline)
+#define decl_noinline   __declspec(noinline)
 #define decl_thread     __declspec(thread)
 #else
 #define unlikely(h)     (h)
 #define likely(h)       (h)
 #define decl_const
 #define decl_pure
-#define noinline   
+#define decl_noinline   
 #define decl_thread     __thread
 #endif
 

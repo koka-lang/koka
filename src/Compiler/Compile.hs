@@ -1211,14 +1211,37 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
           
       trace compileCmd $ return ()
       runSystem compileCmd
-
-      -- link the object files?
+      
+      -- compile and link?
       case mbEntry of
        Nothing -> return Nothing
        Just _ ->
          do let targetBase = (if null (exeName flags) then (outBase) else outName flags (exeName flags))
                 targetExe  = targetBase ++ exeExtension
-                linkExtra = ""
+            
+            -- write CMakeSources.txt    
+            let sources    = text "set(kk_csources" <->
+                             indent 2 (vcat (map text [dquote (showModName mname ++ ".c") | 
+                                       mname <- (map modName modules ++ [Core.coreProgName core0])])) <->
+                             text ")"
+                mainName = showModName (Core.coreProgName core0)
+                cmake = vcat [
+                          text "cmake_minimum_required(VERSION 3.8)",
+                          text ("project(" ++ mainName ++ " C)"),
+                          text "set(CMAKE_C_STANDARD 11)",
+                          space,
+                          text "INCLUDE" <.> parens (dquotes (text "CMake-Koka.txt") <+> text "OPTIONAL"),
+                          text "INCLUDE" <.> parens (dquotes (text "CMake-" <.> text mainName <.> text ".txt") <+> text "OPTIONAL"),
+                          space,
+                          sources,
+                          space,
+                          text "add_executable" <.> parens( dquotes (text mainName) <+> text "${kk_csources}" ),
+                          text "target_include_directories" <.> parens (dquotes (text mainName) <+> text "PRIVATE" <+> dquotes (text "../../cruntime/include"))
+                        ]
+            writeDoc (outName flags ("CMakeLists.txt")) cmake
+
+            -- link
+            let  linkExtra = ""
                 linkOpt   = joinWith " " $
                             [ if (debug flags) then "-Zi" else ""
                             , if (debug flags && optimize flags <= 0) then "-MDd" else "-MD"
@@ -1238,6 +1261,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                 
             trace linkCmd $ return ()
             runSystem linkCmd
+            -- run cmake
             
             -- run the program?
             trace ("run: " ++ targetExe) $ return ()
@@ -1302,6 +1326,8 @@ outName flags s
      then s
      else joinPath (outDir flags) s
 
+posixOutName flags s
+ = normalizeWith '/' (outName flags s)
 
 
 ifaceExtension

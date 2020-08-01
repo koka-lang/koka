@@ -1,6 +1,6 @@
 #pragma once
-#ifndef __BITS_H__
-#define __BITS_H__
+#ifndef BITS_H_
+#define BITS_H_
 
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.
@@ -11,7 +11,7 @@
 ---------------------------------------------------------------------------*/
 
 // Define __builtin suffixes for gcc/clang
-#if defined(__GNUC__)
+#if defined(__GNUC__) || defined(__clang__)
 #if (LONG_MAX == INT32_MAX) 
 #define __builtin32(name)  __builtin_##name##l
 #else
@@ -113,7 +113,24 @@ static inline uint8_t bits_ctz32(uint32_t x);
 static inline uint8_t bits_ctz64(uint64_t x);
 static inline uint8_t bits_ctz64(uint64_t x);
 
-#if defined(_MSC_VER) && (defined(_M_ARM64) || defined(_M_ARM) || defined(_M_X64) || defined(_M_IX86))
+#if defined(__GNUC__) || defined(__clang__)
+static inline uint8_t bits_clz32(uint32_t x) {
+  return (x==0 ? 32 : __builtin32(clz)(x));
+}
+static inline uint8_t bits_ctz32(uint32_t x) {
+  return (x==0 ? 32 : __builtin32(ctz)(x));
+}
+#if (INTPTR_SIZE >= 8)
+#define HAS_BITS_CLZ64
+static inline uint8_t bits_clz64(uint64_t x) {
+  return (x==0 ? 64 : __builtin64(clz)(x));
+}
+static inline uint8_t bits_ctz64(uint64_t x) {
+  return (x==0 ? 64 : __builtin64(ctz)(x));
+}
+#endif
+
+#elif defined(_MSC_VER) && (defined(_M_ARM64) || defined(_M_ARM) || defined(_M_X64) || defined(_M_IX86))
 #include <intrin.h>
 
 #if defined(_M_X64) || defined(_M_IX86)
@@ -152,22 +169,6 @@ static inline uint8_t bits_ctz64(uint64_t x) {
 }
 #endif
 
-#elif defined(__GNUC__)
-static inline uint8_t bits_clz32(uint32_t x) {
-  return (x==0 ? 32 : __builtin32(clz)(x));
-}
-static inline uint8_t bits_ctz32(uint32_t x) {
-  return (x==0 ? 32 : __builtin32(ctz)(x));
-}
-#if (INTPTR_SIZE >= 8)
-#define HAS_BITS_CLZ64
-static inline uint8_t bits_clz64(uint64_t x) {
-  return (x==0 ? 64 : __builtin64(clz)(x));
-}
-static inline uint8_t bits_ctz64(uint64_t x) {
-  return (x==0 ? 64 : __builtin64(ctz)(x));
-}
-#endif
 #else
 static inline uint8_t bits_ctz32(uint32_t x) {
   // de Bruijn multiplication, see <http://supertech.csail.mit.edu/papers/debruijn.pdf>
