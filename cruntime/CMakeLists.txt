@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.8)
 project(runtime C)
 
 enable_testing()
@@ -91,7 +91,6 @@ target_compile_options(
       -Wpointer-arith
       -Wshadow
       -Wstrict-aliasing
-      -pedantic
       -ftls-model=initial-exec>)
 
 # Platform-specific definitions

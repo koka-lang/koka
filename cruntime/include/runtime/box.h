@@ -1,6 +1,6 @@
 #pragma once
-#ifndef __BOX_H__
-#define __BOX_H__
+#ifndef BOX_H_
+#define BOX_H_
 
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.

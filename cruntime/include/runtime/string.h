@@ -1,6 +1,6 @@
 #pragma once
-#ifndef __STRING_H__
-#define __STRING_H__
+#ifndef STRING_H_
+#define STRING_H_
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.
 
@@ -285,7 +285,7 @@ static inline char_t utf8_read(const uint8_t* s, size_t* count) {
     *count = (utf8_next(s) - s);  // skip to next
     c = char_replacement;
   }
-#if DEBUG
+#if (DEBUG!=0)
   size_t dcount;
   assert_internal(c == utf8_read_validate(s, &dcount));
   assert_internal(*count == dcount);

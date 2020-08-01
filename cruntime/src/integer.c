@@ -436,7 +436,7 @@ static string_t bigint_to_string(bigint_t* b, context_t* ctx) {
 }
 
 // int_t to string
-string_t int_to_string(intx_t n, context_t* ctx) {
+static string_t int_to_string(intx_t n, context_t* ctx) {
   assert_internal(INTPTR_SIZE <= 26);
   char buf[64];  // enough for 2^212
   bool neg = (n < 0);
@@ -1289,8 +1289,8 @@ static intx_t int_ctz(intx_t x) {
 }
 
 static intx_t bigint_ctz(bigint_t* x, context_t* ctx) {
-  size_t i;
-  for (i = 0; i < (x->count-1); i++) {
+  intx_t i;
+  for (i = 0; i < (intx_t)(x->count-1); i++) {
     if (x->digits[i] != 0) break;
   }
   assert_internal(x->digits[i]!=0);
@@ -1371,8 +1371,8 @@ integer_t integer_mul_pow10(integer_t x, integer_t p, context_t* ctx) {
   }
 
   // multiply a bigint
-  intx_t large = i / LOG_BASE;  // number of zero digits to shift in
-  intx_t ismall = i % LOG_BASE;  // small multiply the left over
+  size_t large = (size_t)i / LOG_BASE;  // number of zero digits to shift in
+  size_t ismall = (size_t)i % LOG_BASE;  // small multiply the left over
   bigint_t* b = integer_to_bigint(x, ctx);
   if (ismall > 0) {
     b = bigint_mul_small(b, powers_of_10[ismall], ctx);
@@ -1417,12 +1417,12 @@ integer_t integer_div_pow10(integer_t x, integer_t p, context_t* ctx) {
   }
 
   // divide a bigint
-  intx_t large = i / LOG_BASE;  // number of zero digits to shift out
-  intx_t ismall = i % LOG_BASE;  // small divide the left over
+  size_t large = (size_t)i / LOG_BASE;  // number of zero digits to shift out
+  size_t ismall = (size_t)i % LOG_BASE;  // small divide the left over
   bigint_t* b = integer_to_bigint(x, ctx);
   size_t bcount = b->count;
   if (large > 0) {
-    if (large >= (intx_t)bcount) { 
+    if (large >= bcount) { 
       drop_bigint(b, ctx);
       return integer_zero;
     }
@@ -1449,7 +1449,7 @@ int32_t integer_clamp32_generic(integer_t x, context_t* ctx) {
   int32_t i = 0;
 #if (BASE < INT32_MAX)
   if (bx->count > 1) {
-    i = (bx->digits[1]*BASE);
+    i = (int32_t)(bx->digits[1]*BASE);
   }
 #endif
   i += (int32_t)bx->digits[0];
@@ -1475,7 +1475,7 @@ int64_t integer_clamp64_generic(integer_t x, context_t* ctx) {
 
 double integer_as_double_generic(integer_t x, context_t* ctx) {
   bigint_t* bx = integer_to_bigint(x, ctx);
-  if (bx->count > ((310/LOG_BASE) + 1)) return (bx->is_neg ? -INFINITY : INFINITY);
+  if (bx->count > ((310/LOG_BASE) + 1)) return (bx->is_neg ? -HUGE_VALL : HUGE_VALL);
   double base = (double)BASE;
   double d = 0.0;
   for (size_t i = bx->count; i > 0; i--) {

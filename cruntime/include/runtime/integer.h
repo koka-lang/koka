@@ -1,6 +1,6 @@
 #pragma once
-#ifndef __INTEGER_H__
-#define __INTEGER_H__
+#ifndef INTEGER_H_
+#define INTEGER_H_
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.
 
@@ -253,37 +253,37 @@ static inline void drop_integer_t(integer_t i, context_t* ctx) {
 
 decl_export bool       integer_parse(const char* num, integer_t* result, context_t* ctx);
 decl_export integer_t  integer_from_str(const char* num, context_t* ctx); // for known correct string number (returns 0 on wrong string)
-decl_export noinline integer_t  integer_from_big(intx_t i, context_t* ctx);         // for possibly large i
-decl_export noinline integer_t  integer_from_big64(int64_t i, context_t* ctx);     // for possibly large i
-decl_export noinline integer_t  integer_from_bigu64(uint64_t i, context_t* ctx);   // for possibly large i
-decl_export noinline integer_t  integer_from_double(double d, context_t* ctx);     // round d and convert to integer (0 for NaN/Inf)
+decl_export decl_noinline integer_t  integer_from_big(intx_t i, context_t* ctx);         // for possibly large i
+decl_export decl_noinline integer_t  integer_from_big64(int64_t i, context_t* ctx);     // for possibly large i
+decl_export decl_noinline integer_t  integer_from_bigu64(uint64_t i, context_t* ctx);   // for possibly large i
+decl_export decl_noinline integer_t  integer_from_double(double d, context_t* ctx);     // round d and convert to integer (0 for NaN/Inf)
 
-decl_export noinline int32_t    integer_clamp32_generic(integer_t i, context_t* ctx);
-decl_export noinline int64_t    integer_clamp64_generic(integer_t i, context_t* ctx);
-decl_export noinline double     integer_as_double_generic(integer_t i, context_t* ctx);
+decl_export decl_noinline int32_t    integer_clamp32_generic(integer_t i, context_t* ctx);
+decl_export decl_noinline int64_t    integer_clamp64_generic(integer_t i, context_t* ctx);
+decl_export decl_noinline double     integer_as_double_generic(integer_t i, context_t* ctx);
 
-decl_export noinline integer_t  integer_add_generic(integer_t x, integer_t y, context_t* ctx);
-decl_export noinline integer_t  integer_sub_generic(integer_t x, integer_t y, context_t* ctx);
-decl_export noinline integer_t  integer_mul_generic(integer_t x, integer_t y, context_t* ctx);
-decl_export noinline integer_t  integer_div_generic(integer_t x, integer_t y, context_t* ctx);
-decl_export noinline integer_t  integer_mod_generic(integer_t x, integer_t y, context_t* ctx);
-decl_export noinline integer_t  integer_div_mod_generic(integer_t x, integer_t y, integer_t* mod, context_t* ctx);
+decl_export decl_noinline integer_t  integer_add_generic(integer_t x, integer_t y, context_t* ctx);
+decl_export decl_noinline integer_t  integer_sub_generic(integer_t x, integer_t y, context_t* ctx);
+decl_export decl_noinline integer_t  integer_mul_generic(integer_t x, integer_t y, context_t* ctx);
+decl_export decl_noinline integer_t  integer_div_generic(integer_t x, integer_t y, context_t* ctx);
+decl_export decl_noinline integer_t  integer_mod_generic(integer_t x, integer_t y, context_t* ctx);
+decl_export decl_noinline integer_t  integer_div_mod_generic(integer_t x, integer_t y, integer_t* mod, context_t* ctx);
 
-decl_export noinline int        integer_cmp_generic(integer_t x, integer_t y, context_t* ctx);
-decl_export noinline integer_t  integer_neg_generic(integer_t x, context_t* ctx);
-decl_export noinline integer_t  integer_sqr_generic(integer_t x, context_t* ctx);
-decl_export noinline integer_t  integer_pow(integer_t x, integer_t p, context_t* ctx);
+decl_export decl_noinline int        integer_cmp_generic(integer_t x, integer_t y, context_t* ctx);
+decl_export decl_noinline integer_t  integer_neg_generic(integer_t x, context_t* ctx);
+decl_export decl_noinline integer_t  integer_sqr_generic(integer_t x, context_t* ctx);
+decl_export decl_noinline integer_t  integer_pow(integer_t x, integer_t p, context_t* ctx);
 
-decl_export noinline bool       integer_is_even_generic(integer_t x, context_t* ctx);
-decl_export noinline int        integer_signum_generic(integer_t x, context_t* ctx);
+decl_export decl_noinline bool       integer_is_even_generic(integer_t x, context_t* ctx);
+decl_export decl_noinline int        integer_signum_generic(integer_t x, context_t* ctx);
 
-decl_export noinline integer_t  integer_ctz(integer_t x, context_t* ctx);           // count trailing zero digits
-decl_export noinline integer_t  integer_count_digits(integer_t x, context_t* ctx);  // count decimal digits
-decl_export noinline integer_t  integer_mul_pow10(integer_t x, integer_t p, context_t* ctx);  // x*(10^p)
-decl_export noinline integer_t  integer_div_pow10(integer_t x, integer_t p, context_t* ctx);  // x/(10^p)
+decl_export decl_noinline integer_t  integer_ctz(integer_t x, context_t* ctx);           // count trailing zero digits
+decl_export decl_noinline integer_t  integer_count_digits(integer_t x, context_t* ctx);  // count decimal digits
+decl_export decl_noinline integer_t  integer_mul_pow10(integer_t x, integer_t p, context_t* ctx);  // x*(10^p)
+decl_export decl_noinline integer_t  integer_div_pow10(integer_t x, integer_t p, context_t* ctx);  // x/(10^p)
 
-decl_export noinline void       integer_fprint(FILE* f, integer_t x, context_t* ctx);
-decl_export noinline void       integer_print(integer_t x, context_t* ctx);
+decl_export decl_noinline void       integer_fprint(FILE* f, integer_t x, context_t* ctx);
+decl_export decl_noinline void       integer_print(integer_t x, context_t* ctx);
 
 
 /*---------------------------------------------------------------------------------
@@ -516,7 +516,7 @@ static inline intx_t integer_clamp(integer_t x, context_t* ctx) {
 
 
 static inline double integer_as_double(integer_t x, context_t* ctx) {
-  if (likely(is_smallint(x))) return (double)smallint_from_integer(x);
+  if (likely(is_smallint(x))) return (double)(smallint_from_integer(x));
   return integer_as_double_generic(x, ctx);
 }
 

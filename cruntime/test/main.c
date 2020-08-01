@@ -16,10 +16,10 @@
 #pragma GCC diagnostic ignored "-Woverlength-strings"
 
 
-define_string_literal(, stest, 5, "hello")
+define_string_literal(static, stest, 5, "hello")
 
 #define define_singleton(decl,tp,name,tag) \
-   tp _static_##name = { { HEADER_STATIC(0,tag) } }; \
+   decl tp _static_##name = { { HEADER_STATIC(0,tag) } }; \
    decl tp* name = &_static_##name;
 
 // type data1/list
@@ -28,7 +28,7 @@ struct __data1_list_s {
   block_t _block;
 };
 
-define_singleton( , struct __data1_list_s, __data1_singleton_Nil, (tag_t)0)
+define_singleton( static, struct __data1_list_s, __data1_singleton_Nil, (tag_t)0)
 
 struct __data1_Cons {
   struct __data1_list_s _inherit;
@@ -38,13 +38,13 @@ struct __data1_Cons {
 static inline bool __data1__is_Cons(__data1__list x) {
   return (x != __data1_singleton_Nil);
 }
-__data1__list __data1__new_Cons(box_t x, __data1__list tail, context_t* ctx) {
+static __data1__list __data1__new_Cons(box_t x, __data1__list tail, context_t* ctx) {
   struct __data1_Cons* _con = block_alloc_as(struct __data1_Cons, 2 /* scan fields */, (tag_t)1 /* tag */, ctx);
   _con->x = x;
   _con->tail = tail;
   return &_con->_inherit;
 }
-struct __data1_Cons* __data1__as_Cons(__data1__list x) {
+static struct __data1_Cons* __data1__as_Cons(__data1__list x) {
   assert(__data1__is_Cons(x));
   return datatype_as(struct __data1_Cons*, x);
 }
@@ -71,18 +71,18 @@ static intptr_t add(intptr_t x, intptr_t y, context_t* ctx) { UNUSED(ctx);  retu
 static intptr_t sub(intptr_t x, intptr_t y, context_t* ctx) { UNUSED(ctx); return check(x - y); }
 static intptr_t mul(intptr_t x, intptr_t y, context_t* ctx) { UNUSED(ctx); return check(x * y); }
 
-void testx(const char* name, iop* op, xop* opx, intptr_t i, intptr_t j, context_t* ctx) {
+static void testx(const char* name, iop* op, xop* opx, intptr_t i, intptr_t j, context_t* ctx) {
   integer_t x = _new_integer(i);
   integer_t y = _new_integer(j);
   intptr_t k = op(x, y, ctx).value;
   intptr_t expect = opx(i, j, ctx);
   printf("%16zx %s %16zx = %16zx: %4s   (expected %zx) %s\n", i, name, j, k, (k==expect ? "ok" : "FAIL"), expect, (k == 10 ? "(overflow)" : ""));
 }
-void testb(const char* name, iop* op, integer_t x, integer_t y, integer_t expect, context_t* ctx ) {
+static void testb(const char* name, iop* op, integer_t x, integer_t y, integer_t expect, context_t* ctx ) {
   integer_t k = (op(x, y, ctx));
   printf("%16zx %s %16zx = %16zx: %4s   (expected %zx) %s\n", x.value, name, y.value, k.value, (k.value==expect.value ? "ok" : "FAIL"), expect.value, (k.value == 43 ? "(overflow)" : ""));
 }
-void test_op(const char* name, iop* op, xop* opx, context_t* ctx) {
+static void test_op(const char* name, iop* op, xop* opx, context_t* ctx) {
   testx(name, op, opx, SMALLINT_MAX, 1, ctx);
   testx(name, op, opx, 0, 0, ctx);
   testx(name, op, opx, 1, 0, ctx);
@@ -104,13 +104,13 @@ void test_op(const char* name, iop* op, xop* opx, context_t* ctx) {
   testb(name, op, _new_integer(13), _new_integer(24), _new_integer(41), ctx);  // int + ptr
 }
 
-void test(context_t* ctx) {
+static void test(context_t* ctx) {
   test_op("+", &integer_add, &add, ctx);
   test_op("-", &integer_sub, &sub, ctx);
   test_op("*", &integer_mul, &mul, ctx);
 }
 
-void test_add(integer_t x, integer_t y, integer_t expect, context_t* ctx) {
+static void test_add(integer_t x, integer_t y, integer_t expect, context_t* ctx) {
   dup_integer_t(x); dup_integer_t(y);
   integer_print(x, ctx); printf(" + "); integer_print(y, ctx); printf(" = ");
   integer_t z = integer_add(x, y, ctx);
@@ -119,7 +119,7 @@ void test_add(integer_t x, integer_t y, integer_t expect, context_t* ctx) {
   printf("\n");
 }
 
-void test_sub(integer_t x, integer_t y, integer_t expect, context_t* ctx) {
+static void test_sub(integer_t x, integer_t y, integer_t expect, context_t* ctx) {
   dup_integer_t(x); dup_integer_t(y);
   integer_print(x, ctx); printf(" - "); integer_print(y, ctx); printf(" = ");
   integer_t z = integer_sub(x, y, ctx);
@@ -128,7 +128,7 @@ void test_sub(integer_t x, integer_t y, integer_t expect, context_t* ctx) {
   printf("\n");
 }
 
-void fibx(int n, integer_t* x1, integer_t* x2, context_t* ctx) {
+static void fibx(int n, integer_t* x1, integer_t* x2, context_t* ctx) {
   if (n <= 1) {
     *x1 = integer_zero;
     *x2 = integer_zero;
@@ -146,7 +146,7 @@ void fibx(int n, integer_t* x1, integer_t* x2, context_t* ctx) {
   }
 }
 
-integer_t fib(int n, context_t* ctx) {
+static integer_t fib(int n, context_t* ctx) {
   integer_t y1;
   integer_t y2;
   fibx(n+1, &y1, &y2, ctx);
@@ -156,24 +156,24 @@ integer_t fib(int n, context_t* ctx) {
 
 
 
-void test_fib(int i, context_t* ctx) {
+static void test_fib(int i, context_t* ctx) {
   printf("fib %i = ", i);
   integer_print(fib(i,ctx), ctx);
   printf("\n");
 }
 
-void test_read(const char* s, context_t* ctx) {
+static void test_read(const char* s, context_t* ctx) {
   printf("read %s = ", s);
   integer_print(integer_from_str(s,ctx), ctx);
   printf("\n");
 }
 
-void expect(bool b, bool exp) {
+static void expect(bool b, bool exp) {
   UNUSED_RELEASE(b); UNUSED_RELEASE(exp);
   assert(b==exp);
 }
 
-void expect_eq(integer_t x, integer_t y, context_t* ctx) {
+static void expect_eq(integer_t x, integer_t y, context_t* ctx) {
   dup_integer_t(x); dup_integer_t(y);
   printf(" "); integer_print(x, ctx); printf(" == ");  integer_print(y, ctx);
   bool eq = integer_eq(x, y, ctx);
@@ -181,7 +181,7 @@ void expect_eq(integer_t x, integer_t y, context_t* ctx) {
   assert(eq);
 }
 
-void test_cmp_pos(context_t* ctx) {
+static void test_cmp_pos(context_t* ctx) {
   printf("cmp works for positive numbers?\n");
 
   expect(integer_gt(integer_from_small(54), integer_from_small(45), ctx), true);
@@ -192,7 +192,7 @@ void test_cmp_pos(context_t* ctx) {
   expect(integer_gt(integer_from_str("4598765432109876",ctx), integer_from_str("4598765432109876",ctx), ctx),false);
 }
 
-void test_addx(context_t* ctx) {
+static void test_addx(context_t* ctx) {
   printf("addition\n");
   expect_eq(integer_add(integer_from_small(0),integer_from_str("9844190321790980841789",ctx), ctx),integer_from_str("9844190321790980841789",ctx),ctx);
   expect_eq(integer_add(integer_from_str("9844190321790980841789",ctx), integer_from_small(0), ctx), integer_from_str("9844190321790980841789",ctx),ctx);
@@ -221,14 +221,14 @@ void test_addx(context_t* ctx) {
 
 #define append10(s) s s s s s s s s s s
 
-const char* a = "1234567890";
-const char* b = append10("1234567890");
-const char* c = append10(append10("1234567890"));
-const char* d = append10(append10(append10("1234567890")));
-// const char* e = append10(append10(append10(append10("1234567890"))));
+static const char* a = "1234567890";
+static const char* b = append10("1234567890");
+static const char* c = append10(append10("1234567890"));
+static const char* d = append10(append10(append10("1234567890")));
+// static const char* e = append10(append10(append10(append10("1234567890"))));
 
 
-void test_carry(context_t* ctx) {
+static void test_carry(context_t* ctx) {
   const char* fibs[] = { "1", "1", "2", "3", "5", "8", "13", "21", "34", "55", "89", "144", "233", "377", "610", "987", "1597", "2584", "4181", "6765", "10946", "17711", "28657", "46368", "75025", "121393", "196418", "317811", "514229", "832040", "1346269", "2178309", "3524578", "5702887", "9227465", "14930352", "24157817", "39088169", "63245986", "102334155", "165580141", "267914296", "433494437", "701408733", "1134903170", "1836311903", "2971215073", "4807526976", "7778742049", "12586269025"
                        , "20365011074", "32951280099", "53316291173", "86267571272", "139583862445", "225851433717", "365435296162", "591286729879", "956722026041", "1548008755920", "2504730781961", "4052739537881", "6557470319842", "10610209857723", "17167680177565", "27777890035288", "44945570212853", "72723460248141", "117669030460994", "190392490709135", "308061521170129", "498454011879264", "806515533049393", "1304969544928657", "2111485077978050", "3416454622906707", "5527939700884757", "8944394323791464", "14472334024676221", "23416728348467685", "37889062373143906", "61305790721611591", "99194853094755497", "160500643816367088", "259695496911122585", "420196140727489673", "679891637638612258", "1100087778366101931", "1779979416004714189", "2880067194370816120", "4660046610375530309", "7540113804746346429", "12200160415121876738", "19740274219868223167", "31940434634990099905", "51680708854858323072", "83621143489848422977", "135301852344706746049", "218922995834555169026"
   };
@@ -272,7 +272,7 @@ static integer_t factorial(integer_t n, context_t* ctx) {
   return integer_mul(factorial(integer_dec(n, ctx), ctx),n, ctx);
 }
 
-void test_large(context_t* ctx) {
+static void test_large(context_t* ctx) {
   const char* tenFactorial = "3628800";
   const char* hundredFactorial = "93326215443944152681699238856266700490715968264381621468592963895217599993229915608941463976156518286253697920827223758251185210916864000000000000000000000000";
   const char* threeToTenThousand = "16313501853426258743032567291811547168121324535825379939348203261918257308143190787480155630847848309673252045223235795433405582999177203852381479145368112501453192355166224391025423628843556686559659645012014177448275529990373274425446425751235537341867387607813619937225616872862016504805593174059909520461668500663118926911571773452255850626968526251879139867085080472539640933730243410152186914328917354576854457274195562218013337745628502470673059426999114202540773175988199842487276183685299388927825296786440252999444785694183675323521704432195785806270123388382931770198990841300861506996108944782065015163410344894945809337689156807686673462563038164792190665340124344133980763205594364754963451564072340502606377790585114123814919001637177034457385019939060232925194471114235892978565322415628344142184842892083466227875760501276009801530703037525839157893875741192497705300469691062454369926795975456340236777734354667139072601574969834312769653557184396147587071260443947944862235744459711204473062937764153770030210332183635531818173456618022745975055313212598514429587545547296534609597194836036546870491771927625214352957503454948403635822345728774885175809500158451837389413798095329711993092101417428406774326126450005467888736546254948658602484494535938888656542746977424368385335496083164921318601934977025095780370104307980276356857350349205866078371806065542393536101673402017980951598946980664330391505845803674248348878071010412918667335823849899623486215050304052577789848512410263834811719236949311423411823585316405085306164936671137456985394285677324771775046050970865520893596151687017153855755197348199659070192954771308347627111052471134476325986362838585959552209645382089055182871854866744633737533217524880118401787595094060855717010144087136495532418544241489437080074716158404895914136451802032446707961058757633345691696743293869623745410870051851590672859347061212573446572045088465460616826082579731686004585218284333452396157730036306379421822435818001505905203918209206969662326706952623512427380240468784114535101496733983401240219840048956733689309620321613793757156727562461651933397540266795963865921590913322060572673349849253303397874242381960775337182730037783698708748781738419747698880321601186310506332869704931303076839444790968339306301273371014087248060946851793697973114432706759288546077622831002526800554849696867710280945946603669593797354642136622231192695027321229511912952940320879763123151760555959496961163141455688278842949587288399100273691880018774147568892650186152065335219113072582417699616901995530249937735219099786758954892534365835235843156112799728164123461219817343904782402517111603206575330527850752564642995318064985900815557979945885931124351303252811255254295797082281946658798705979077492469849644183166585950844953164726896146168297808178398470451561320526180542310840744843107469368959707726836608471817060598771730170755446473440774031371227437651048421606224757527085958515947273151027400662948161111284777828103531499488913672800783167888051177155427285103861736658069404797695900758820465238673970882660162285107599221418743657006872537842677883708807515850397691812433880561772652364847297019508025848964833883225165668986935081274596293983121864046277268590401580209059988500511262470167150495261908136688693861324081559046336288963037090312033522400722360882494928182809075406914319957044927504420797278117837677431446979085756432990753582588102440240611039084516401089948868433353748444104639734074519165067632941419347985624435567342072815910754484123812917487312938280670403228188813003978384081332242484646571417574404852962675165616101527367425654869508712001788393846171780457455963045764943565964887518396481296159902471996735508854292964536796779404377230965723361625182030798297734785854606060323419091646711138678490928840107449923456834763763114226000770316931243666699425694828181155048843161380832067845480569758457751090640996007242018255400627276908188082601795520167054701327802366989747082835481105543878446889896230696091881643547476154998574015907396059478684978574180486798918438643164618541351689258379042326487669479733384712996754251703808037828636599654447727795924596382283226723503386540591321268603222892807562509801015765174359627788357881606366119032951829868274617539946921221330284257027058653162292482686679275266764009881985590648534544939224296689791195355783205968492422636277656735338488299104238060289209390654467316291591219712866052661347026855261289381236881063068219249064767086495184176816629077103667131505064964190910450196502178972477361881300608688593782509793781457170396897496908861893034634895715117114601514654381347139092345833472226493656930996045016355808162984965203661519182202145414866559662218796964329217241498105206552200001";
@@ -291,7 +291,7 @@ void test_large(context_t* ctx) {
   expect_eq(integer_div(integer_mul(dup_integer_t(y), dup_integer_t(x), ctx), y, ctx), x,ctx);
 }
 
-void test_div(context_t* ctx) {
+static void test_div(context_t* ctx) {
   expect_eq(integer_div(integer_from_str("163500573666152634716420931676158",ctx), integer_from_int(13579, ctx), ctx), integer_from_str("12040693251797086288859336598",ctx),ctx);
   expect_eq(integer_div(integer_from_str("163500573666152634716420931676158",ctx), integer_from_int(-13579, ctx), ctx), integer_from_str("-12040693251797086288859336598",ctx),ctx);
   expect_eq(integer_div(integer_from_str("-163500573666152634716420931676158",ctx), integer_from_int(13579, ctx), ctx), integer_from_str("-12040693251797086288859336598",ctx),ctx);
@@ -318,7 +318,7 @@ void test_div(context_t* ctx) {
 }
 
 
-void test_count(context_t* ctx) {
+static void test_count(context_t* ctx) {
   expect_eq(integer_count_digits(integer_from_int(0, ctx), ctx), integer_from_int(1, ctx),ctx);
   expect_eq(integer_count_digits(integer_from_int(9999,ctx), ctx), integer_from_int(4, ctx),ctx);
   expect_eq(integer_count_digits(integer_from_int(70123,ctx), ctx), integer_from_int(5, ctx),ctx);
@@ -334,7 +334,7 @@ void test_count(context_t* ctx) {
   expect_eq(integer_ctz(integer_from_str("1000000000000000000",ctx), ctx), integer_from_int(18,ctx),ctx);
 }
 
-void test_pow10(context_t* ctx) {
+static void test_pow10(context_t* ctx) {
   expect_eq(integer_mul_pow10(integer_from_str("1234567890",ctx),integer_from_int(0,ctx), ctx), integer_from_str("1234567890",ctx),ctx);
   expect_eq(integer_mul_pow10(integer_from_int(0,ctx), integer_from_str("1234567890",ctx), ctx), integer_from_int(0,ctx),ctx);
   expect_eq(integer_mul_pow10(integer_from_int(-1, ctx), integer_from_str("12",ctx), ctx), integer_from_str("-1e12",ctx),ctx);
@@ -430,7 +430,7 @@ static void test_box_double(double dx, context_t* ctx) {
 }
 
 static void test_double(context_t* ctx) {
-  double values[] = { 0.0, 1.0, 3.142, 0.5, 1.5, 2.5, -1.5, -2.5, pow(2.0,-510.0), pow(2.0,-511.0), pow(2.0,32.0), pow(2.0,64.0), pow(2.0,511.0), pow(2.0,512.0), pow(2.0,513.0), INFINITY, pow(10.0,308), DBL_MAX, -DBL_MAX, DBL_EPSILON, NAN };
+  double values[] = { 0.0, 1.0, 3.142, 0.5, 1.5, 2.5, -1.5, -2.5, pow(2.0,-510.0), pow(2.0,-511.0), pow(2.0,32.0), pow(2.0,64.0), pow(2.0,511.0), pow(2.0,512.0), pow(2.0,513.0), HUGE_VALL, pow(10.0,308), DBL_MAX, -DBL_MAX, DBL_EPSILON, (double)NAN };
   size_t i = 0;
   double dx;
   do {
@@ -443,11 +443,11 @@ static void test_double(context_t* ctx) {
   do {
     dx = values[i++];
     test_box_double(dx,ctx);
-    test_box_double(nexttoward(dx,-INFINITY), ctx);
-    test_box_double(nexttoward(dx,INFINITY), ctx);
+    test_box_double(nexttoward(dx,-HUGE_VALL), ctx);
+    test_box_double(nexttoward(dx, HUGE_VALL), ctx);
     test_box_double(-dx, ctx);
-    test_box_double(nexttoward(-dx, -INFINITY), ctx);
-    test_box_double(nexttoward(-dx, +INFINITY), ctx);
+    test_box_double(nexttoward(-dx, -HUGE_VALL), ctx);
+    test_box_double(nexttoward(-dx, +HUGE_VALL), ctx);
   } while (!isnan(dx));
 }
 

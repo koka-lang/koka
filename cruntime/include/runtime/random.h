@@ -1,6 +1,6 @@
 #pragma once
-#ifndef __RANDOM_H__
-#define __RANDOM_H__
+#ifndef RANDOM_H_
+#define RANDOM_H_
 
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.
