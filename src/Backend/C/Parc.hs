@@ -94,7 +94,10 @@ parcExpr expr
       TypeApp body targs
         -> (`TypeApp` targs) <$> parcExpr body
       Lam pars eff body
-        -> do let caps = freeLocals expr
+        -> do -- todo: this is a whole second pass. is there any way around this?
+              -- maybe we should track a borrowed set and presume owned, instead
+              -- of the other way around?
+              let caps = freeLocals expr
               let parsSet = S.fromList pars
               (body', live) <- isolateWith S.empty
                              $ withOwned caps  -- captured variables are owned

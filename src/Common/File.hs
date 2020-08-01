@@ -294,6 +294,7 @@ getInstallDir
        let d  = dirname p
            ds = splitPath d
            result = case reverse ds of
+                      ("bin":_:"install":".stack-work":es) -> joinPaths (reverse es)
                       ("bin":es)   -> joinPaths (reverse es)
                       (_:"out":es) -> joinPaths (reverse es)
                       _            -> d

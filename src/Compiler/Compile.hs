@@ -462,7 +462,7 @@ checkUnhandledEffects flags loaded name range tp
                                                  then do mf' <- combine eff mf ls
                                                          return (Just (g mf'))
                                                  else combine eff (Just (g mf)) ls
-                                        infos 
+                                        infos
                                           -> -- trace ("not found: " ++ show (loadedGamma loaded)) $
                                              do errorMsg (ErrorGeneral range (text "there are unhandled effects for the main expression" <-->
                                                            text " inferred effect :" <+> ppType (prettyEnvFromFlags flags) eff <-->
@@ -871,26 +871,26 @@ inferCheck loaded flags line coreImports program1
        coreDefsUR <- unreturn penv coreDefs0
        -- let coreDefsUR = coreDefs0
        when (coreCheck flags) $ trace "return core check" $ Core.Check.checkCore False False penv unique4 gamma coreDefsUR
-           
+
        let showDef def = show (Core.Pretty.prettyDef ((prettyEnvFromFlags flags){coreShowDef=True}) def)
            traceDefGroups title dgs = trace (unlines (["","-----------------", title, "---------------"] ++ map showDef (Core.flattenDefGroups dgs))) $ return ()
 
        -- traceDefGroups "unreturn" coreDefsUR
-      
-       -- lifting recursive functions to top level       
+
+       -- lifting recursive functions to top level
        let (coreDefsLifted,uniqueLift) = liftFunctions penv unique4 coreDefsUR
        when (coreCheck flags) $ trace "lift functions core check" $ Core.Check.checkCore True True penv uniqueLift gamma coreDefsLifted
 
        -- traceDefGroups "lifted" coreDefsLifted
 
-       
+
        -- resolve phantom .open
        let coreDefsOR = openResolve penv gamma coreDefsLifted
            uniqueOR   = uniqueLift
        when (coreCheck flags) $ trace "open resolve core check" $ Core.Check.checkCore True False penv uniqueOR gamma coreDefsOR
 
        -- traceDefGroups coreDefsOR
-       
+
        -- simplify coreF if enabled
        (coreDefsSimp,uniqueSimp)
                   <- if simplify flags < 0  -- if zero, we still run one simplify step to remove open applications
@@ -903,7 +903,7 @@ inferCheck loaded flags line coreImports program1
                               when (coreCheck flags) $
                                 trace "after simplify core check 1" $Core.Check.checkCore True False penv uniqueOR' gamma cdefs0
                               return (cdefs0,uniqueOR') -- $ simplifyDefs False 1 unique4a penv cdefs
-                        
+
        -- do monadic effect translation (i.e. insert binds)
        let uniqueMon = uniqueSimp
        coreDefsMon
@@ -916,7 +916,7 @@ inferCheck loaded flags line coreImports program1
                        when (coreCheck flags) $
                           trace "monadic core check" $ Core.Check.checkCore False False penv uniqueLift gamma cdefs
                        return (cdefs)
-       
+
        -- traceDefGroups "monadic" coreDefsMon
 
        -- do an inlining pass
@@ -1184,7 +1184,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
           (cdoc,hdoc,bcore) = cFromCore sourceDir (prettyEnvFromFlags flags) newtypes unique0 mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } bcore
       writeDocW 120 (outBase ++ ".c.core") bcoreDoc
-      
+
       termPhase term ( "generate c: " ++ outBase )
       writeDocW 120 outC cdoc
       writeDocW 120 outH hdoc
@@ -1192,23 +1192,23 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       {-
       -- compile the C code
       let compileExtra = "-Fa" ++ dquote (outBase ++ ".asm")  -- generate assembly
-          compileDbg   = if (debug flags) 
+          compileDbg   = if (debug flags)
                           then ("-Zi" ++ (if (optimize flags <= 0) then " -MDd -RTC1" else " -MD"))
                           else "-MD"
-          compileOpt   = if (debug flags && optimize flags <= 0) 
+          compileOpt   = if (debug flags && optimize flags <= 0)
                           then ""
                          else if (optimize flags == 1)
                           then "-O2 -Ob1 -DNDEBUG=1"  -- Ob1: inline only marked inline
                           else "-GL -Gy -GS- -O2 -Ob2 -DNDEBUG=1"  -- GL:whole program opt, Ob2: inline freely
           compileObj   = "-Fo" ++ dquote (outBase ++ objExtension)
           compileInc   = joinWith " " $ map (\inc -> "-I" ++ dquote inc) $ ["cruntime/include"]
-          compileCmd   = joinWith " " $ 
+          compileCmd   = joinWith " " $
                          [ "cl -nologo -c -W3 -Gm-"
                          , compileDbg
                          , compileOpt, compileExtra
                          , compileInc, compileObj, dquote outC
                          ]
-          
+
       trace compileCmd $ return ()
       runSystem compileCmd
       -}
@@ -1220,17 +1220,17 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                 targetDir  = outName flags (outBase ++ "/" ++ (if (debug flags) then "debug" else "release"))
                 targetBase = targetDir ++ "/" ++ (if null (exeName flags) then mainName else exeName flags)
                 targetExe  = targetBase ++ exeExtension
-            
-            -- write CMakeSources.txt    
+
+            -- write CMakeSources.txt
                 sources    = text "set(kk_csources" <->
-                             indent 2 (vcat (map text [dquote (showModName mname ++ ".c") | 
+                             indent 2 (vcat (map text [dquote (showModName mname ++ ".c") |
                                        mname <- (map modName modules ++ [Core.coreProgName core0])])) <->
                              text ")"
                 cmake = vcat [
                           text "cmake_minimum_required(VERSION 3.8)",
                           text "project" <.> parens (dquotes (text mainName) <+> text "C"),
                           text "set(CMAKE_C_STANDARD 11)",
-                          text "set" <.> parens (text "kk_target" <+> dquotes (text mainName)),                 
+                          text "set" <.> parens (text "kk_target" <+> dquotes (text mainName)),
                           text "find_package(runtime 1.0 CONFIG)",
                           space,
                           text "INCLUDE" <.> parens (dquotes (text mainName <.> text ".cmake") <+> text "OPTIONAL"),
@@ -1240,17 +1240,22 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                           text "add_executable(${kk_target} ${kk_csources})",
                           text "target_link_libraries(${kk_target} PRIVATE runtime)"
                         ]
-                        
+
                 buildDir = "\"" ++ targetDir ++ "\""
                 buildType = "-DCMAKE_BUILD_TYPE=" ++ (if debug flags then "Debug" else "Release")
                 -- kkcInstallDir = "-Dkkc_install_dir=\"" ++ installDir flags ++ "\""
                 runtimeDir  = "-Druntime_DIR=\"" ++ installDir flags ++ "/cruntime/out/install/cmake" ++ "\""
-                cmakeConfig = "cmake -G Ninja " ++ buildType ++ " " ++ runtimeDir ++ 
-                                 " -S \"" ++ outName flags "" ++ "\" -B " ++ buildDir 
+                cmakeConfig = "cmake -G Ninja " ++ buildType ++ " " ++ runtimeDir ++
+                                 " -S \"" ++ outName flags "" ++ "\" -B " ++ buildDir
                 cmakeBuild  = "cmake --build " ++ buildDir
             writeDoc (outName flags ("CMakeLists.txt")) cmake
-            runSystem cmakeConfig   
+
+            trace cmakeConfig $ return ()
+            runSystem cmakeConfig
+
+            trace cmakeBuild $ return ()
             runSystem cmakeBuild
+            
             {-
             -- link
             let linkExtra = ""
@@ -1262,26 +1267,26 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                 linkExe   = "-Fe" ++ dquote (targetExe)
                 runtimeLib= "cruntime/out/msvc-x64/" ++ (if (optimize flags <= 0) then "Debug" else "Release")
                             ++ "/runtime.lib"
-                linkCmd   = joinWith " " $ 
+                linkCmd   = joinWith " " $
                             [ "cl -nologo -W3 -Gm-"
                             , linkOpt, linkExtra
                             , linkExe, linkPdb
                             , concat [dquote (outName flags (showModName (modName mod)) ++ objExtension) ++ " " | mod <- modules]
                             , dquote (outBase ++ objExtension)
                             , runtimeLib
-                            ]                            
-                
+                            ]
+
             trace linkCmd $ return ()
             runSystem linkCmd
             -}
-            
+
             -- run the program?
             trace ("run: " ++ targetExe) $ return ()
             return (Just (runSystem (dquote targetExe)))
-      
+
 joinWith sep xs
   = concat (intersperse sep xs)
-  
+
 copyIFaceToOutputDir :: Terminal -> Flags -> FilePath -> PackageName -> [Module] -> IO ()
 copyIFaceToOutputDir term flags iface targetPath imported
   -- | host flags == Node && target flags == JS = return ()
