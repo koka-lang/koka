@@ -260,7 +260,7 @@ static inline void* runtime_zalloc(size_t sz, context_t* ctx) {
 
 static inline void runtime_free(void* p) {
   UNUSED(p);
-  // free(p);
+  //free(p);
 }
 
 static inline void* runtime_realloc(void* p, size_t sz, context_t* ctx) {
@@ -533,8 +533,10 @@ static inline ref_t ref_alloc(box_t value, context_t* ctx) {
   return r;
 }
 
-static inline box_t ref_get(ref_t b) {
-  return dup_box_t(b->value);
+static inline box_t ref_get(ref_t r) {
+  box_t b = dup_box_t(r->value);
+  // TODO: drop_box_t(r,_ctx)  
+  return b;
 }
 
 static inline unit_t ref_set(ref_t r, box_t value, context_t* ctx) {
