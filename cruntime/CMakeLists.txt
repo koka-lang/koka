@@ -14,6 +14,8 @@ set(CMAKE_C_EXTENSIONS NO)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
 
+set(CMAKE_DEBUG_POSTFIX "-debug")
+
 # -----------------------------------------------------------------------------
 # Convenience: set default build type depending on the build directory
 # -----------------------------------------------------------------------------
@@ -31,17 +33,13 @@ if (NOT isMultiConfig AND NOT CMAKE_BUILD_TYPE)
 endif()
 
 set(rt_basename "runtime")
-string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LC)
-if(NOT(CMAKE_BUILD_TYPE_LC MATCHES "^(release|relwithdebinfo|minsizerel)$"))
-  set(rt_basename "${rt_basename}-${CMAKE_BUILD_TYPE_LC}") #append build type (e.g. -debug) if not a release version
-endif()
 
 # -----------------------------------------------------------------------------
 # Dependencies
 # -----------------------------------------------------------------------------
 
 message(STATUS "Library base name: ${rt_basename}")
-message(STATUS "Build type       : ${CMAKE_BUILD_TYPE_LC}")
+message(STATUS "Build type       : ${CMAKE_BUILD_TYPE}")
 
 
 # -----------------------------------------------------------------------------
@@ -103,8 +101,7 @@ target_compile_options(
       -Wno-missing-field-initializers
       -Wpointer-arith
       -Wshadow
-      -Wstrict-aliasing
-      -ftls-model=initial-exec>)
+      -Wstrict-aliasing>)
 
 # Platform-specific definitions
 target_compile_definitions(runtime-flags INTERFACE $<$<PLATFORM_ID:Linux>:_GNU_SOURCE>)

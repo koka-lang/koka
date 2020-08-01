@@ -1189,7 +1189,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       writeDocW 120 outC cdoc
       writeDocW 120 outH hdoc
       when (showAsmC flags) (termDoc term (hdoc <//> cdoc))
-    
+      {-
       -- compile the C code
       let compileExtra = "-Fa" ++ dquote (outBase ++ ".asm")  -- generate assembly
           compileDbg   = if (debug flags) 
@@ -1211,12 +1211,14 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
           
       trace compileCmd $ return ()
       runSystem compileCmd
-      
+      -}
       -- compile and link?
       case mbEntry of
        Nothing -> return Nothing
        Just _ ->
-         do let targetBase = (if null (exeName flags) then (outBase) else outName flags (exeName flags))
+         do let mainName   = showModName (Core.coreProgName core0)
+                targetDir  = outName flags (outBase ++ "/" ++ (if (debug flags) then "debug" else "release"))
+                targetBase = targetDir ++ "/" ++ (if null (exeName flags) then mainName else exeName flags)
                 targetExe  = targetBase ++ exeExtension
             
             -- write CMakeSources.txt    
@@ -1224,16 +1226,12 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                              indent 2 (vcat (map text [dquote (showModName mname ++ ".c") | 
                                        mname <- (map modName modules ++ [Core.coreProgName core0])])) <->
                              text ")"
-                mainName = showModName (Core.coreProgName core0)
                 cmake = vcat [
                           text "cmake_minimum_required(VERSION 3.8)",
                           text "project" <.> parens (dquotes (text mainName) <+> text "C"),
                           text "set(CMAKE_C_STANDARD 11)",
-                          text "if(NOT DEFINED kkc_install_dir)" <->
-                            text "  set" <.> parens (text "kkc_install_dir" <+> dquotes (text (installDir flags))) <->
-                            text "endif()",
                           text "set" <.> parens (text "kk_target" <+> dquotes (text mainName)),                 
-                          text "find_package(runtime 1.0 PATHS \"${kkc_install_dir}/cruntime/out/install\")",
+                          text "find_package(runtime 1.0 CONFIG)",
                           space,
                           text "INCLUDE" <.> parens (dquotes (text mainName <.> text ".cmake") <+> text "OPTIONAL"),
                           space,
@@ -1243,16 +1241,17 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                           text "target_link_libraries(${kk_target} PRIVATE runtime)"
                         ]
                         
-                buildDir = "\"" ++ outName flags (outBase ++ "/" ++ (if (debug flags) then "debug" else "release")) ++ "\""
+                buildDir = "\"" ++ targetDir ++ "\""
                 buildType = "-DCMAKE_BUILD_TYPE=" ++ (if debug flags then "Debug" else "Release")
-                kkcInstallDir = "-Dkkc_install_dir=\"" ++ installDir flags ++ "\""
-                cmakeConfig = "cmake " ++ buildType ++ " " ++ kkcInstallDir ++ 
-                                 " -S \"" ++ outName flags "" ++ "\" -B " ++ buildDir ++ " \"" ++ outName flags "" ++ "\""
+                -- kkcInstallDir = "-Dkkc_install_dir=\"" ++ installDir flags ++ "\""
+                runtimeDir  = "-Druntime_DIR=\"" ++ installDir flags ++ "/cruntime/out/install/cmake" ++ "\""
+                cmakeConfig = "cmake -G Ninja " ++ buildType ++ " " ++ runtimeDir ++ 
+                                 " -S \"" ++ outName flags "" ++ "\" -B " ++ buildDir 
                 cmakeBuild  = "cmake --build " ++ buildDir
             writeDoc (outName flags ("CMakeLists.txt")) cmake
             runSystem cmakeConfig   
             runSystem cmakeBuild
-            
+            {-
             -- link
             let linkExtra = ""
                 linkOpt   = joinWith " " $
@@ -1274,7 +1273,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                 
             trace linkCmd $ return ()
             runSystem linkCmd
-            -- run cmake
+            -}
             
             -- run the program?
             trace ("run: " ++ targetExe) $ return ()
