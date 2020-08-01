@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.8)
-project(runtime C)
-include(cmake/runtime-config-version.cmake)
+project(runtime VERSION 1.0 LANGUAGES C)
 enable_testing()
+
+include(CMakePackageConfigHelpers)
 
 # -----------------------------------------------------------------------------
 # Language options
@@ -32,16 +33,6 @@ if (NOT isMultiConfig AND NOT CMAKE_BUILD_TYPE)
   endif()
 endif()
 
-set(rt_basename "runtime")
-
-# -----------------------------------------------------------------------------
-# Dependencies
-# -----------------------------------------------------------------------------
-
-message(STATUS "Library base name: ${rt_basename}")
-message(STATUS "Build type       : ${CMAKE_BUILD_TYPE}")
-
-
 # -----------------------------------------------------------------------------
 # Main target
 # -----------------------------------------------------------------------------
@@ -60,16 +51,22 @@ add_library(runtime-flags INTERFACE)
 
 # library
 add_library(runtime STATIC ${rt_sources})
-set_target_properties(runtime PROPERTIES VERSION ${rt_version} OUTPUT_NAME ${rt_basename})
 target_compile_definitions(runtime PRIVATE RT_STATIC_LIB)
-target_include_directories(runtime PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>)
+target_include_directories(runtime PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(runtime PUBLIC runtime-flags)
 
-install(TARGETS runtime runtime-flags EXPORT runtime)
-install(EXPORT runtime DESTINATION cmake)
+install(TARGETS runtime runtime-flags
+        EXPORT runtime
+        INCLUDES DESTINATION include)
+
+install(EXPORT runtime
+        DESTINATION cmake
+        FILE runtime-config.cmake)
+
 install(DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h*")
-install(FILES cmake/runtime-config.cmake DESTINATION cmake)
-install(FILES cmake/runtime-config-version.cmake DESTINATION cmake)
+
+write_basic_package_version_file(runtime-config-version.cmake COMPATIBILITY SameMajorVersion)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/runtime-config-version.cmake DESTINATION cmake)
 
 # -----------------------------------------------------------------------------
 # Testing
