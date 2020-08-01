@@ -53,8 +53,9 @@ static inline bool bits_is_power_of2(uintx_t x) {
   Rotations
 ----------------------------------------------------------- */
 #ifdef _MSC_VER
+#include <intrin.h>
 static inline uint16_t bits_rotl16(uint16_t x, uint16_t shift) {
-  return _rotl16(x, (uint8_t)shift);  // in <stdlib.h>
+  return _rotl16(x, (uint8_t)shift);  // in <intrin.h>
 }
 static inline uint16_t bits_rotr16(uint16_t x, uint16_t shift) {
   return _rotr16(x, (uint8_t)shift);

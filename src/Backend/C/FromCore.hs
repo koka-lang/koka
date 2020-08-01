@@ -1397,7 +1397,8 @@ genAppNormal f args
                -- call unknown function_t
                _ -> do (fdecls,fdoc) <- case f of
                                           Var tname info -> return ([], ppName (getName tname)) -- prevent lambda wrapping recursively
-                                          _ -> genExpr f
+                                          _ -> do (fdecl,fname) <- genVarBinding f 
+                                                  return ([fdecl],ppName (getName fname))
                        let (cresTp,cargTps) = case splitFunScheme (typeOf f) of
                                                Just (_,_,argTps,_,resTp)
                                                  -> (ppType resTp, tupled ([text "function_t"] ++
@@ -1883,7 +1884,7 @@ minSmallInt64 = -maxSmallInt64 - 1
 ppName :: Name -> Doc
 ppName name
   = if isQualified name
-     then ppModName (qualifier name) <.> text "_" <.> encode False (unqualify name)
+     then ppModName (qualifier name) <.> text "_" <.> text (asciiEncode False (show (unqualify name)))-- encode False (unqualify name)
      else encode False name
 
 ppQName :: Name -> Name -> Doc
@@ -1898,10 +1899,10 @@ ppModName name
 
 encode :: Bool -> Name -> Doc
 encode isModule name
-  = let s = show name
+  = let s = asciiEncode isModule (show name)
     in if (isReserved s)
-         then text ("__" ++ s)
-         else text ( (asciiEncode isModule s))
+         then text ("_kk_" ++ s)
+         else text s
 
 isReserved :: String -> Bool
 isReserved s
@@ -1971,6 +1972,7 @@ reserved
     ]
     ++ -- special macros
     [ "errno"
+    , "exception_info"
     ]
 
 block :: Doc -> Doc

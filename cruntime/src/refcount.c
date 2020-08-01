@@ -32,10 +32,10 @@
 #define RC_INVALID    U32(0xF0000000)  // 0b1111 ...
 
 static inline uint32_t atomic_incr(block_t* b) {
-  return atomic_increment32((volatile _Atomic(uint32_t)*)&b->header.refcount);
+  return atomic_inc32_relaxed((_Atomic(uint32_t)*)&b->header.refcount);
 }
 static inline uint32_t atomic_decr(block_t* b) {
-  return atomic_decrement32((volatile _Atomic(uint32_t)*)&b->header.refcount);
+  return atomic_dec32_relaxed((_Atomic(uint32_t)*)&b->header.refcount);
 }
 
 // Check if a reference decrement caused the block to be free or needs atomic operations
