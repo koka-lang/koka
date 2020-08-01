@@ -117,8 +117,8 @@ data Flags
          , genCore          :: Bool
          , coreCheck        :: Bool
          , enableMon        :: Bool
-         -- , installDir       :: FilePath
          , semiInsert       :: Bool
+         , installDir       :: FilePath
          , packages         :: Packages
          , forceModule      :: FilePath
          , optimize         :: Int       -- optimization level; 0 or less is off
@@ -162,8 +162,8 @@ flagsNull
           False -- genCore
           False -- coreCheck
           True  -- enableMonadic
-          -- ""  -- install dir
           True  -- semi colon insertion
+          ""    -- install dir
           packagesEmpty -- packages
           "" -- forceModule
           0    -- optimize
@@ -381,6 +381,7 @@ processOptions flags0 opts
              in do pkgs <- discoverPackages (outDir flags)
                    installDir <- getInstallDir
                    return (flags{ packages = pkgs,
+                                  installDir = normalizeWith '/' installDir,
                                   includePath = joinPath installDir "lib":includePath flags },mode)
         else invokeError errs
 
