@@ -12,6 +12,7 @@
 #include <math.h>
 #include <limits.h>
 #include <float.h>
+#include <inttypes.h>
 
 #pragma GCC diagnostic ignored "-Wunused-function"
 #pragma GCC diagnostic ignored "-Woverlength-strings"
@@ -456,22 +457,22 @@ static void test_count10(context_t* ctx) {
   uint64_t u = 0;
   for (int i = 0; i < 22; i++) {
     uint8_t d1 = bits_digits64(u - 1);
-    printf("value: %20llu, %3u", u-1, d1);
+    printf("value: %20" PRIu64 ", %3u", u-1, d1);
     uint8_t d0 = bits_digits64(u);
-    printf(", value: %20llu, %3u", u, d0);
+    printf(", value: %20" PRIu64 ", %3u", u, d0);
     uint8_t d9 = bits_digits64(u*9);
-    printf(", value: %20llu, %3u\n", u*9, d9);
+    printf(", value: %20" PRIu64 ", %3u\n", u*9, d9);
     if (u==0) u = 1;
          else u *= 10;
   }
   u = 1;
   for (int i = 0; i < 64; i++) {
     uint8_t d1 = bits_digits64(u - 1);
-    printf("value: %20llu, %3u", u-1, d1);
+    printf("value: %20" PRIu64 ", %3u", u-1, d1);
     uint8_t d0 = bits_digits64(u);
-    printf(", value: %20llu, %3u", u, d0);
+    printf(", value: %20" PRIu64 ", %3u", u, d0);
     uint8_t d9 = bits_digits64(u*9);
-    printf(", value: %20llu, %3u\n", u*9, d9);
+    printf(", value: %20" PRIu64 ", %3u\n", u*9, d9);
     if (u==0) u = 1;
     else u <<= 1;
   }
