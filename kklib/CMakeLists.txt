@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.10)
 project(kklib VERSION 1.0 LANGUAGES C)
+
 enable_testing()
 
-include(CMakePackageConfigHelpers)
 
 # -----------------------------------------------------------------------------
 # Language options
@@ -16,6 +16,7 @@ set(CMAKE_C_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
 
 set(CMAKE_DEBUG_POSTFIX "-debug")
+
 
 # -----------------------------------------------------------------------------
 # Main target
@@ -35,17 +36,37 @@ set(kklib_sources
 add_library(kklib-flags INTERFACE)
 
 # library
-add_library(kklib STATIC ${kklib_sources})
+add_library(kklib ${kklib_sources})
 target_compile_definitions(kklib PRIVATE KKLIB_STATIC_LIB)
-target_include_directories(kklib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>)
+target_include_directories(kklib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(kklib PUBLIC kklib-flags)
 
-install(TARGETS kklib kklib-flags EXPORT kklib INCLUDES DESTINATION include ARCHIVE DESTINATION lib)
-install(EXPORT kklib DESTINATION cmake FILE kklib-config.cmake)
-install(DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h*")
+
+# -----------------------------------------------------------------------------
+# Packaging
+# -----------------------------------------------------------------------------
+
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+install(TARGETS kklib kklib-flags
+        EXPORT kklib
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        INCLUDES DESTINATION include)
+
+install(EXPORT kklib
+        DESTINATION cmake
+        FILE kklib-config.cmake)
+
+install(DIRECTORY include/
+        DESTINATION include
+        FILES_MATCHING PATTERN "*.h")
 
 write_basic_package_version_file(kklib-config-version.cmake COMPATIBILITY SameMajorVersion)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kklib-config-version.cmake DESTINATION cmake)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kklib-config-version.cmake
+        DESTINATION cmake)
 
 
 # -----------------------------------------------------------------------------
@@ -58,7 +79,8 @@ set(test_sources
     )
 
 add_executable(kklib-test ${test_sources})
-target_link_libraries(kklib-test PRIVATE kklib kklib-flags)
+target_link_libraries(kklib-test PRIVATE kklib)
+
 add_test(NAME kklib-test COMMAND kklib-test)
 
 
@@ -66,39 +88,30 @@ add_test(NAME kklib-test COMMAND kklib-test)
 # Extended configuration
 # -----------------------------------------------------------------------------
 
-# Compiler flags
-set(kklib_cflags "")
+# CMake 3.10-compatible generator expressions
+set(gnu_like $<OR:$<C_COMPILER_ID:AppleClang>,$<C_COMPILER_ID:Clang>,$<C_COMPILER_ID:GNU>,$<C_COMPILER_ID:Intel>>)
+set(unix     $<OR:$<PLATFORM_ID:Linux>,$<PLATFORM_ID:Darwin>>)
 
-if(CMAKE_C_COMPILER_ID MATCHES "AppleClang|Clang|GNU|Intel")
-  list(APPEND kklib_cflags 
-    -Wall
-    -Wextra
-    -Wno-unknown-pragmas
-    -Wno-unused-parameter
-    -Wno-unused-variable
-    -Wno-unused-value
-    -Wno-missing-field-initializers
-    -Wpointer-arith
-    -Wshadow
-    -Wstrict-aliasing)
-endif()
-
-if(CMAKE_C_COMPILER_ID MATCHES "GNU")
-  list(APPEND kklib_cflags  -Wno-unused-but-set-variable)
-endif()
-
-if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "arm")
-  list(APPEND kklib_cflags -march=native)
-endif()
-
-target_compile_options(kklib-flags INTERFACE ${kklib_cflags})
+target_compile_options(
+  kklib-flags
+  INTERFACE
+    $<${gnu_like}:
+      -Wall
+      -Wextra
+      -Wno-unknown-pragmas
+      -Wno-unused-parameter
+      -Wno-unused-variable
+      -Wno-unused-value
+      -Wno-missing-field-initializers
+      -Wpointer-arith
+      -Wshadow
+      -Wstrict-aliasing>
+    $<$<C_COMPILER_ID:GNU>:
+      -Wno-unused-but-set-variable>
+)
 
 # Platform-specific definitions
-if(UNIX)
-  target_compile_definitions(kklib-flags INTERFACE _GNU_SOURCE)
-endif()
+target_compile_definitions(kklib-flags INTERFACE $<${unix}:_GNU_SOURCE>)
 
 # Additional libraries
-if(UNIX)
-  target_link_libraries(kklib-flags INTERFACE m)
-endif()  
+target_link_libraries(kklib-flags INTERFACE $<${unix}:m>)
