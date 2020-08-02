@@ -37,10 +37,10 @@ add_library(kklib-flags INTERFACE)
 # library
 add_library(kklib STATIC ${kklib_sources})
 target_compile_definitions(kklib PRIVATE KKLIB_STATIC_LIB)
-target_include_directories(kklib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+target_include_directories(kklib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>)
 target_link_libraries(kklib PUBLIC kklib-flags)
 
-install(TARGETS kklib kklib-flags EXPORT kklib INCLUDES DESTINATION include)
+install(TARGETS kklib kklib-flags EXPORT kklib INCLUDES DESTINATION include ARCHIVE DESTINATION lib)
 install(EXPORT kklib DESTINATION cmake FILE kklib-config.cmake)
 install(DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h*")
 
@@ -67,8 +67,10 @@ add_test(NAME kklib-test COMMAND kklib-test)
 # -----------------------------------------------------------------------------
 
 # Compiler flags
-target_compile_options(kklib-flags INTERFACE 
-  $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNU,Intel>:
+set(kklib_cflags "")
+
+if(CMAKE_C_COMPILER_ID MATCHES "AppleClang|Clang|GNU|Intel")
+  list(APPEND kklib_cflags 
     -Wall
     -Wextra
     -Wno-unknown-pragmas
@@ -78,16 +80,25 @@ target_compile_options(kklib-flags INTERFACE
     -Wno-missing-field-initializers
     -Wpointer-arith
     -Wshadow
-    -Wstrict-aliasing>
-  $<$<COMPILE_LANG_AND_ID:C,GNU>:-Wno-unused-but-set-variable>)
+    -Wstrict-aliasing)
+endif()
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU")
+  list(APPEND kklib_cflags  -Wno-unused-but-set-variable)
+endif()
+
+if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "arm")
+  list(APPEND kklib_cflags -march=native)
+endif()
+
+target_compile_options(kklib-flags INTERFACE ${kklib_cflags})
 
 # Platform-specific definitions
-target_compile_definitions(kklib-flags INTERFACE $<$<PLATFORM_ID:Linux>:_GNU_SOURCE>)
-
-# Architecture flags
-if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "arm")
-  target_compile_options(kklib-flags INTERFACE -march=native)
+if(UNIX)
+  target_compile_definitions(kklib-flags INTERFACE _GNU_SOURCE)
 endif()
 
 # Additional libraries
-target_link_libraries(kklib-flags INTERFACE $<$<PLATFORM_ID:Linux,Darwin>:m>)
+if(UNIX)
+  target_link_libraries(kklib-flags INTERFACE m)
+endif()  

@@ -1254,15 +1254,15 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                 targetExe  = targetBase ++ exeExtension    -- out/interactive/debug/interactive.exe
                 
             let 
-                cmakeConfig = "cmake" ++ makeSystemFlag ++ buildTypeFlag ++ 
-                                 " -Dkklib_DIR=" ++ dquote (kklibInstallDir ++ "/cmake") ++
-                                 " -S " ++ dquote buildDir ++ 
-                                 " -B " ++ dquote targetDir
+                cmakeConfig = "cmake -E chdir " ++ dquote targetDir 
+                               ++ " cmake" ++ makeSystemFlag ++ buildTypeFlag 
+                               ++ " -Dkklib_DIR=" ++ dquote (kklibInstallDir ++ "/cmake") 
+                               ++  " .." -- ++ dquote buildDir  
                 cmakeBuild  = "cmake --build " ++ dquote targetDir
                 cmakeLists  = buildDir ++ "/CMakeLists.txt"
             
             -- write CMakeLists
-            createDirectoryIfMissing True buildDir            
+            createDirectoryIfMissing True targetDir
             mbContent <- readTextFile cmakeLists
             case mbContent of
               Just content | content == cmake 
@@ -1313,14 +1313,15 @@ installKKLib term flags kklibDir kklibInstallDir makeSystemFlag buildTypeFlag bu
        exist <- doesFileExist cmakeFile
        if (exist) then return ()
         else do termPhase term ("building kklib library")
-                let cmakeDir    = dquote (kklibDir ++ "/out/" ++ buildType)
-                    cmakeConfig = "cmake" ++ makeSystemFlag ++ buildTypeFlag 
+                let cmakeDir    = (kklibDir ++ "/out/" ++ buildType)
+                    cmakeConfig = "cmake -E chdir " ++ dquote cmakeDir 
+                                   ++ " cmake" ++ makeSystemFlag ++ buildTypeFlag 
                                    ++ " -DCMAKE_INSTALL_PREFIX=" ++ kklibInstallDir
-                                   ++ " -S " ++ dquote kklibDir 
-                                   ++ " -B " ++ cmakeDir
-                    cmakeBuild  = "cmake --build " ++ cmakeDir
-                    cmakeInstall= "cmake --install " ++ cmakeDir
-                    
+                                   ++ " " ++ dquote kklibDir 
+                    cmakeBuild  = "cmake --build " ++ dquote cmakeDir
+                    cmakeInstall= "cmake --build " ++ dquote cmakeDir ++ " --target install"
+                
+                createDirectoryIfMissing True cmakeDir    
                 runSystemEcho cmakeConfig
                 runSystemEcho cmakeBuild
                 runSystemEcho cmakeInstall

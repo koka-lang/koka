@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ffb72ea0e9d4d3084754a9549d81e64e1a7534bc6e73ddeb5743f7477435a953
+-- hash: 2efe0c48d698ffc88218de8488919b787a19992bbf21e04523786be0f71afe26
 
 name:           koka
 version:        0.9.0.0
@@ -96,7 +96,6 @@ executable koka
       Syntax.Highlight
       Syntax.Layout
       Syntax.Lexeme
-      Syntax.Lexer
       Syntax.Lexer
       Syntax.Parse
       Syntax.Promote

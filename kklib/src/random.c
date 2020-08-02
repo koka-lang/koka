@@ -289,8 +289,8 @@ static bool os_random_buf(void* buf, size_t buf_len) {
   return true;
 }
 #elif defined(__linux__)
-#include <sys/syscall.h>
 #include <unistd.h>
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
