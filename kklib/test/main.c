@@ -5,7 +5,7 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
-#define __USE_MINGW_ANSI_STDIO 1
+#define __USE_MINGW_ANSI_STDIO 1  // so %z is valid on mingw
 #include <stdio.h>
 #include "time.h"
 #include "kklib.h"

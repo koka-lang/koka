@@ -68,18 +68,18 @@ add_test(NAME kklib-test COMMAND kklib-test)
 
 # Compiler flags
 target_compile_options(kklib-flags INTERFACE 
-   $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNU,Intel>:
-      -Wall
-      -Wextra
-      -Wno-unknown-pragmas
-      -Wno-unused-parameter
-      -Wno-unused-variable
-      -Wno-unused-value
-      -Wno-unused-but-set-variable
-      -Wno-missing-field-initializers
-      -Wpointer-arith
-      -Wshadow
-      -Wstrict-aliasing>)
+  $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNU,Intel>:
+    -Wall
+    -Wextra
+    -Wno-unknown-pragmas
+    -Wno-unused-parameter
+    -Wno-unused-variable
+    -Wno-unused-value
+    -Wno-missing-field-initializers
+    -Wpointer-arith
+    -Wshadow
+    -Wstrict-aliasing>
+  $<$<COMPILE_LANG_AND_ID:C,GNU>:-Wno-unused-but-set-variable>)
 
 # Platform-specific definitions
 target_compile_definitions(kklib-flags INTERFACE $<$<PLATFORM_ID:Linux>:_GNU_SOURCE>)
