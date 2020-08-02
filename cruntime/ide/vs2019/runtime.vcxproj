@@ -202,6 +202,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="$(ProjectDir)..\..\src\integer.c" />
+    <ClCompile Include="..\..\src\bits.c" />
     <ClCompile Include="..\..\src\box.c" />
     <ClCompile Include="..\..\src\random.c" />
     <ClCompile Include="..\..\src\refcount.c">

@@ -451,6 +451,30 @@ static void test_double(context_t* ctx) {
   } while (!isnan(dx));
 }
 
+static void test_count10(context_t* ctx) {
+  uint64_t u = 0;
+  for (int i = 0; i < 22; i++) {
+    uint8_t d1 = bits_digits64(u - 1);
+    printf("value: %20llu, %3u", u-1, d1);
+    uint8_t d = bits_digits64(u);
+    printf(", value: %20llu, %3u", u, d);
+    uint8_t d9 = bits_digits64(u*9);
+    printf(", value: %20llu, %3u\n", u*9, d9);
+    if (u==0) u = 1;
+         else u *= 10;
+  }
+  u = 1;
+  for (int i = 0; i < 64; i++) {
+    uint8_t d1 = bits_digits64(u - 1);
+    printf("value: %20llu, %3u", u-1, d1);
+    uint8_t d = bits_digits64(u);
+    printf(", value: %20llu, %3u", u, d);
+    uint8_t d9 = bits_digits64(u*9);
+    printf(", value: %20llu, %3u\n", u*9, d9);
+    if (u==0) u = 1;
+    else u <<= 1;
+  }
+}
 
 static void test_random(context_t* ctx) {
   msecs_t start = _clock_start();
@@ -512,6 +536,7 @@ int main() {
   test_pow10(ctx);
   test_double(ctx);
   test_ovf(ctx);
+  // test_count10(ctx);
   // test_popcount();
   // test_bitcount();
   // test_random(ctx);

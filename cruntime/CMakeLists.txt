@@ -38,6 +38,7 @@ endif()
 # -----------------------------------------------------------------------------
 
 set(rt_sources
+    src/bits.c
     src/box.c
     src/integer.c
     src/random.c
