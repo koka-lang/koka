@@ -1253,7 +1253,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                 targetBase = targetDir ++ "/" ++ mainName  -- out/interactive/debug/interactive
                 targetExe  = targetBase ++ exeExtension    -- out/interactive/debug/interactive.exe
                 
-            let 
+            let -- using -S and -B is more neat, but not available before cmake 3.15 (so we use chdir)
                 cmakeConfig = "cmake -E chdir " ++ dquote targetDir 
                                ++ " cmake" ++ makeSystemFlag ++ buildTypeFlag 
                                ++ " -Dkklib_DIR=" ++ dquote (kklibInstallDir ++ "/cmake") 
@@ -1314,12 +1314,12 @@ installKKLib term flags kklibDir kklibInstallDir makeSystemFlag buildTypeFlag bu
        if (exist) then return ()
         else do termPhase term ("building kklib library")
                 let cmakeDir    = (kklibDir ++ "/out/" ++ buildType)
-                    cmakeConfig = "cmake -E chdir " ++ dquote cmakeDir 
+                    cmakeConfig = "cmake -E chdir " ++ dquote cmakeDir   -- see above for chdir
                                    ++ " cmake" ++ makeSystemFlag ++ buildTypeFlag 
                                    ++ " -DCMAKE_INSTALL_PREFIX=" ++ kklibInstallDir
                                    ++ " " ++ dquote kklibDir 
                     cmakeBuild  = "cmake --build " ++ dquote cmakeDir
-                    cmakeInstall= "cmake --build " ++ dquote cmakeDir ++ " --target install"
+                    cmakeInstall= "cmake --build " ++ dquote cmakeDir ++ " --target install"   -- switch "--install" is not available before cmake 3.15
                 
                 createDirectoryIfMissing True cmakeDir    
                 runSystemEcho cmakeConfig
