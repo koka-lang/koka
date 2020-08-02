@@ -1209,9 +1209,9 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                          , compileInc, compileObj, dquote outC
                          ]
 
-      trace compileCmd $ return ()
+      trace compileCmd $ return ()  
       runSystem compileCmd
-      -}
+      -}   
       -- compile and link?
       case mbEntry of
        Nothing -> return Nothing
