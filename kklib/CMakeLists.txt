@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.8)
 project(kklib VERSION 1.0 LANGUAGES C)
 
 enable_testing()
@@ -36,7 +36,7 @@ set(kklib_sources
 add_library(kklib-flags INTERFACE)
 
 # library
-add_library(kklib ${kklib_sources})
+add_library(kklib STATIC ${kklib_sources})
 target_compile_definitions(kklib PRIVATE KKLIB_STATIC_LIB)
 target_include_directories(kklib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(kklib PUBLIC kklib-flags)
@@ -88,7 +88,7 @@ add_test(NAME kklib-test COMMAND kklib-test)
 # Extended configuration
 # -----------------------------------------------------------------------------
 
-# CMake 3.10-compatible generator expressions
+# CMake 3.8-compatible generator expressions
 set(gnu_like $<OR:$<C_COMPILER_ID:AppleClang>,$<C_COMPILER_ID:Clang>,$<C_COMPILER_ID:GNU>,$<C_COMPILER_ID:Intel>>)
 set(unix     $<OR:$<PLATFORM_ID:Linux>,$<PLATFORM_ID:Darwin>>)
 
