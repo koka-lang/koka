@@ -6,7 +6,7 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 #define  _CRT_SECURE_NO_WARNINGS
-#include "runtime.h"
+#include "kklib.h"
 
 
 // Allow reading aligned words as long as some bytes in it are part of a valid C object

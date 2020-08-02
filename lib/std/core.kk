@@ -2755,7 +2755,7 @@ private fun for-while32( start: int32, end : int32, action : (int32) -> e maybe<
 
 // Return the host environment: `dotnet`, `browser`, `webworker`, `node`, or `libc`.
 extern host() : ndet string {
-  c "runtime_host"
+  c "get_host"
   cs inline "\"dotnet\""
   js inline "_host"
 }

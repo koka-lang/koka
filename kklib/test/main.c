@@ -7,7 +7,7 @@
 ---------------------------------------------------------------------------*/
 #include <stdio.h>
 #include "time.h"
-#include "runtime.h"
+#include "kklib.h"
 #include <math.h>
 #include <limits.h>
 #include <float.h>
@@ -519,7 +519,7 @@ static void test_ovf(context_t* ctx) {
 }
 
 int main() {
-  context_t* ctx = runtime_context();
+  context_t* ctx = get_context();
   test_fib(50,ctx);   // 12586269025
   test_fib(150, ctx);  // 9969216677189303386214405760200
   test_fib(300, ctx);  // 22223224462942044552973989346190996720666693909649976499097960

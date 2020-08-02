@@ -5,7 +5,7 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
-#include "runtime.h"
+#include "kklib.h"
 #include <stdarg.h>
 #ifdef _WIN32
 #include <Windows.h>
@@ -106,7 +106,7 @@ void fatal_error(int err, const char* fmt, ...) {
   UNUSED(err);
   va_list args;
   va_start(args, fmt);
-  log_message_fmt(runtime_context(), LOG_FATAL, fmt, args);
+  log_message_fmt(get_context(), LOG_FATAL, fmt, args);
   va_end(args);
   abort();   // todo: call error handler
 }
@@ -114,7 +114,7 @@ void fatal_error(int err, const char* fmt, ...) {
 void warning_message(const char* fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  log_message_fmt(runtime_context(), LOG_WARNING, fmt, args);
+  log_message_fmt(get_context(), LOG_WARNING, fmt, args);
   va_end(args);
 }
 
@@ -124,7 +124,7 @@ void warning_message(const char* fmt, ...) {
 
 static bool process_initialized; // = false
 
-static void runtime_done(void) {
+static void kklib_done(void) {
   if (!process_initialized) return;
   process_initialized = false;
 }
@@ -135,7 +135,7 @@ bool __has_popcnt = false;
 bool __has_lzcnt = false;
 #endif
 
-static void runtime_init(void) {
+static void kklib_init(void) {
   if (process_initialized) return;
   process_initialized = true;
 #if defined(_WIN32) && defined(_CONSOLE)
@@ -149,7 +149,7 @@ static void runtime_init(void) {
   __cpuid(cpu_info, 0x80000001);
   __has_lzcnt  = ((cpu_info[2] & (I32(1)<<5)) != 0);
 #endif
-  atexit(&runtime_done);
+  atexit(&kklib_done);
 }
 
 /*--------------------------------------------------------------------------------------------------
@@ -160,10 +160,10 @@ static void runtime_init(void) {
 static decl_thread context_t* context;
 
 // Get the thread local context (also initializes on demand)
-context_t* runtime_context(void) {
+context_t* get_context(void) {
   context_t* ctx = context;
   if (ctx!=NULL) return ctx;
-  runtime_init();
+  kklib_init();
   ctx = (context_t*)calloc(sizeof(context_t),1);
   ctx->evv = dup_vector_t(vector_empty);
   ctx->thread_id = (uintptr_t)(&context);
@@ -180,7 +180,7 @@ context_t* runtime_context(void) {
 #if defined(__cplusplus)  // also used for _MSC_VER
 // C++: use static initialization to detect process start
 static bool process_init(void) {
-  runtime_init();
+  kklib_init();
   return true;
 }
 static bool _process_init = process_init();
@@ -188,9 +188,9 @@ static bool _process_init = process_init();
 #elif defined(__GNUC__) || defined(__clang__)
 // GCC,Clang: use the constructor attribute
 static void __attribute__((constructor)) process_init(void) {
-  runtime_init();
+  kklib_init();
 }
 
 #else
-#pragma message("define a way to call runtime_init on your platform")
+#pragma message("define a way to call kklib_init on your platform")
 #endif

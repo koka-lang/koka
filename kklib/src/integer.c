@@ -11,8 +11,8 @@
 #include <string.h> // memcpy
 #include <ctype.h>
 #include <math.h>   // INFINITY
-#include "runtime.h"
-#include "runtime/integer.h"
+#include "kklib.h"
+#include "kklib/integer.h"
 
 /*----------------------------------------------------------------------
 Big integers. For our purposes, we need an implementation that does not 

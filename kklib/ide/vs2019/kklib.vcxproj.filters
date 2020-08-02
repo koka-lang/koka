@@ -1,28 +1,28 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClInclude Include="$(ProjectDir)..\..\include\runtime\integer.h">
+    <ClInclude Include="$(ProjectDir)..\..\include\kklib\integer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="$(ProjectDir)..\..\include\runtime.h">
+    <ClInclude Include="$(ProjectDir)..\..\include\kklib.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\runtime\box.h">
+    <ClInclude Include="..\..\include\kklib\box.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\runtime\string.h">
+    <ClInclude Include="..\..\include\kklib\string.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\runtime\atomic.h">
+    <ClInclude Include="..\..\include\kklib\atomic.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\runtime\platform.h">
+    <ClInclude Include="..\..\include\kklib\platform.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\runtime\bits.h">
+    <ClInclude Include="..\..\include\kklib\bits.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\include\runtime\random.h">
+    <ClInclude Include="..\..\include\kklib\random.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -41,7 +41,7 @@
     <ClCompile Include="..\..\src\refcount.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\runtime.c">
+    <ClCompile Include="..\..\src\kklib.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\string.c">

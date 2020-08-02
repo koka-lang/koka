@@ -1,6 +1,6 @@
 ﻿#pragma once
-#ifndef RUNTIME_H_
-#define RUNTIME_H_
+#ifndef KKLIB_H_
+#define KKLIB_H_
 
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.
@@ -22,8 +22,8 @@
 
 #define MULTI_THREADED  1      // set to 0 to be used single threaded only
 
-#include "runtime/platform.h"  // Platform abstractions and portability definitions
-#include "runtime/atomic.h"    // Atomic operations
+#include "kklib/platform.h"  // Platform abstractions and portability definitions
+#include "kklib/atomic.h"    // Atomic operations
 
 
 
@@ -215,7 +215,7 @@ typedef struct context_s {
 } context_t;
 
 // Get the current (thread local) runtime context (should always equal the `_ctx` parameter)
-decl_export context_t* runtime_context(void); 
+decl_export context_t* get_context(void); 
 
 // The current context is passed as a _ctx parameter in the generated code
 #define current_context()   _ctx
@@ -447,11 +447,11 @@ typedef enum unit_e {
 
 
 
-#include "runtime/bits.h"
-#include "runtime/box.h"
-#include "runtime/integer.h"
-#include "runtime/string.h"
-#include "runtime/random.h"
+#include "kklib/bits.h"
+#include "kklib/box.h"
+#include "kklib/integer.h"
+#include "kklib/string.h"
+#include "kklib/random.h"
 
 /*----------------------------------------------------------------------
   TLD operations
@@ -678,7 +678,7 @@ struct bytes_raw_s {             // pointer to bytes with free function
 
 
 
-decl_export string_t  runtime_host(context_t* ctx);
+decl_export string_t  get_host(context_t* ctx);
 
 
 #endif // include guard

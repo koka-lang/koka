@@ -5,7 +5,7 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
-#include "runtime.h"
+#include "kklib.h"
 
 static const uintx_t powers_of_10[] = { 
     1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000

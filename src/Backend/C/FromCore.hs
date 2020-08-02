@@ -97,10 +97,10 @@ genModule sourceDir penv newtypes mbMain core0
                          ++ externalIncludesC
 
         emitToH $ vcat $ [ text "#pragma once"
-                         , text "#ifndef __" <.> modName <.> text "_H"
-                         , text "#define __" <.> modName <.> text "_H"
+                         , text "#ifndef _" <.> modName <.> text "_H"
+                         , text "#define _" <.> modName <.> text "_H"
                          , headComment
-                         , text "#include <runtime.h>" ]
+                         , text "#include <kklib.h>" ]
                          ++ map moduleImport (coreProgImports core)
                          ++ externalIncludesH
 
@@ -189,7 +189,7 @@ genMain progName Nothing = return ()
 genMain progName (Just (name,_)) 
   = emitToC $
     text "\n// main entry\nint main(int argc, char** argv)" <+> block (vcat [
-      text "context_t* _ctx = runtime_context();"
+      text "context_t* _ctx = get_context();"
     , ppName (qualify progName (newName ".init")) <.> parens (text "_ctx") <.> semi
     , ppName name <.> parens (text "_ctx") <.> semi
     , text "return 0;"
