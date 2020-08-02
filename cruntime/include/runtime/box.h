@@ -94,7 +94,7 @@ static inline box_t     box_int(intx_t i);
 
 // Use a boxed representation as an intptr
 static inline box_t _new_box(uintptr_t u) {
-  box_t b = { u };
+  box_t b; b.box = u;
   return b;
 }
 

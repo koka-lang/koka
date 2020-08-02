@@ -144,7 +144,7 @@ string_t slice_to_string( __std_core__sslice  sslice, context_t* ctx ) {
   const uint8_t* end;
   sslice_start_end_borrow(sslice, &start, &end);
   // is it the full string?
-  if (sslice.start == 0 && sslice.len == string_len_borrow(sslice.str)) {
+  if (sslice.start == 0 && (size_t)sslice.len == string_len_borrow(sslice.str)) {
     // TODO: drop sslice and dup sslice.str?
     return sslice.str;
   }

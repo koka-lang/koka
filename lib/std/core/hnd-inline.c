@@ -108,7 +108,7 @@ evv_t evv_delete(evv_t evvd, int32_t index, bool behind, context_t* ctx) {
     return evv_total(ctx);
   }
   if (behind) index++;
-  assert_internal(index < n);  
+  assert_internal((size_t)index < n);  
   const vector_t vec2 = vector_alloc(n+1,box_null,ctx);  
   box_t* const evv2 = vector_buf(vec2,NULL);
   size_t i;

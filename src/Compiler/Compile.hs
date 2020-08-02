@@ -1216,9 +1216,9 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       case mbEntry of
        Nothing -> return Nothing
        Just _ ->
-         do let mainName   = showModName (Core.coreProgName core0)
-                targetDir  = outName flags (outBase ++ "/" ++ (if (debug flags) then "debug" else "release"))
-                targetBase = targetDir ++ "/" ++ (if null (exeName flags) then mainName else exeName flags)
+         do let mainName   = if null (exeName flags) then showModName (Core.coreProgName core0) else exeName flags
+                targetDir  = outName flags (mainName ++ "/" ++ (if (debug flags) then "debug" else "release"))
+                targetBase = targetDir ++ "/" ++ mainName
                 targetExe  = targetBase ++ exeExtension
 
             -- write CMakeSources.txt
