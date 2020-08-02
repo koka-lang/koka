@@ -6,6 +6,7 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 #define  _CRT_SECURE_NO_WARNINGS
+#define  __USE_MINGW_ANSI_STDIO 1
 #include "kklib.h"
 
 

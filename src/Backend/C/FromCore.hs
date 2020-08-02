@@ -216,14 +216,20 @@ genLocalDef def@(Def name tp expr vis sort inl rng comm)
        defDoc <- genStat (ResultAssign (defTName def) Nothing) expr
        let fdoc = vcat [ if null comm
                            then empty
-                           else align (vcat (space : map text (lines (trim comm)))) {- already a valid C comment -}
+                           else align (vcat (space : map text (lines (trimComment comm)))) {- already a valid C comment -}
                        , if (nameIsNil name) then empty else ppVarDecl (defTName def) <.> unitSemi tp                          
                        , defDoc
                        ]
        return (fdoc)
+
+-- remove final newlines and whitespace and line continuations (\\)
+trimComment comm
+  = unlines (map trimLine (lines comm))
   where
-    -- remove final newlines and whitespace
-    trim s = reverse (dropWhile (`elem` " \n\r\t") (reverse s))
+    trimLine s = case reverse s of
+                   '\\':xs -> trimRest xs
+                   xs      -> trimRest xs
+    trimRest xs = reverse (dropWhile (`elem` " \n\r\t") xs)
 
 
 ---------------------------------------------------------------------------------
@@ -275,11 +281,8 @@ genLamSig inlineC vis name params body
 genTopDef :: Bool -> Bool -> Def -> Asm ()
 genTopDef genSig inlineC def@(Def name tp expr vis sort inl rng comm)
   = do when (not (null comm)) $
-         (if inlineC then emitToH else emitToC) (align (vcat (space : map text (lines (trim comm))))) {- already a valid C comment -}
+         (if inlineC then emitToH else emitToC) (align (vcat (space : map text (lines (trimComment comm))))) {- already a valid C comment -}
        genTopDefDecl genSig inlineC def
-  where
-    -- remove final newlines and whitespace
-    trim s = reverse (dropWhile (`elem` " \n\r\t") (reverse s))
 
 genTopDefDecl :: Bool -> Bool -> Def -> Asm ()
 genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
@@ -1989,7 +1992,7 @@ tblock tpDoc doc
 
 tcoBlock :: Doc -> Doc -> Doc
 tcoBlock tpDoc doc
-  = tblock tpDoc (text "_tailcall:" <-> doc)
+  = tblock tpDoc (text "_tailcall: ;" <-> doc)
 
 tailcall :: Doc
 tailcall  = text "goto _tailcall;"

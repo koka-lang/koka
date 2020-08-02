@@ -490,7 +490,7 @@ fun reverse(xs : list<a>) : list<a>
   reverse-append( xs, Nil )
 }
 
-// Efficiently reverse a list `xs` and append it to `tl`:\
+// Efficiently reverse a list `xs` and append it to `tl`:  
 // `reverse-append(xs,tl) == reserve(xs) + tl
 fun reverse-append( xs : list<a>, tl : list<a> ) : list<a>
 {

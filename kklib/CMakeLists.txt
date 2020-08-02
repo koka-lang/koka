@@ -75,6 +75,7 @@ target_compile_options(kklib-flags INTERFACE
       -Wno-unused-parameter
       -Wno-unused-variable
       -Wno-unused-value
+      -Wno-unused-but-set-variable
       -Wno-missing-field-initializers
       -Wpointer-arith
       -Wshadow
