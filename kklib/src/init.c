@@ -43,7 +43,7 @@ void free_fun_null(void* p) {
 }
 
 
-string_t runtime_host(context_t* ctx) {
+string_t get_host(context_t* ctx) {
   UNUSED(ctx);
   define_string_literal(static, host, 5, "libc")
   return dup_string_t(host);

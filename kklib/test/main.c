@@ -16,7 +16,7 @@
 #pragma GCC diagnostic ignored "-Woverlength-strings"
 
 
-define_string_literal(static, stest, 5, "hello")
+//define_string_literal(static, stest, 5, "hello")
 
 #define define_singleton(decl,tp,name,tag) \
    decl tp _static_##name = { { HEADER_STATIC(0,tag) } }; \
@@ -224,7 +224,7 @@ static void test_addx(context_t* ctx) {
 static const char* a = "1234567890";
 static const char* b = append10("1234567890");
 static const char* c = append10(append10("1234567890"));
-static const char* d = append10(append10(append10("1234567890")));
+// static const char* d = append10(append10(append10("1234567890")));
 // static const char* e = append10(append10(append10(append10("1234567890"))));
 
 
@@ -456,8 +456,8 @@ static void test_count10(context_t* ctx) {
   for (int i = 0; i < 22; i++) {
     uint8_t d1 = bits_digits64(u - 1);
     printf("value: %20llu, %3u", u-1, d1);
-    uint8_t d = bits_digits64(u);
-    printf(", value: %20llu, %3u", u, d);
+    uint8_t d0 = bits_digits64(u);
+    printf(", value: %20llu, %3u", u, d0);
     uint8_t d9 = bits_digits64(u*9);
     printf(", value: %20llu, %3u\n", u*9, d9);
     if (u==0) u = 1;
@@ -467,8 +467,8 @@ static void test_count10(context_t* ctx) {
   for (int i = 0; i < 64; i++) {
     uint8_t d1 = bits_digits64(u - 1);
     printf("value: %20llu, %3u", u-1, d1);
-    uint8_t d = bits_digits64(u);
-    printf(", value: %20llu, %3u", u, d);
+    uint8_t d0 = bits_digits64(u);
+    printf(", value: %20llu, %3u", u, d0);
     uint8_t d9 = bits_digits64(u*9);
     printf(", value: %20llu, %3u\n", u*9, d9);
     if (u==0) u = 1;

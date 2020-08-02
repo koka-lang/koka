@@ -1231,20 +1231,20 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                           text "project" <.> parens (dquotes (text mainName) <+> text "C"),
                           text "set(CMAKE_C_STANDARD 11)",
                           text "set" <.> parens (text "kk_target" <+> dquotes (text mainName)),
-                          text "find_package(runtime 1.0 CONFIG)",
+                          text "find_package(kklib 1.0 CONFIG)",
                           space,
                           text "INCLUDE" <.> parens (dquotes (text mainName <.> text ".cmake") <+> text "OPTIONAL"),
                           space,
                           sources,
                           space,
                           text "add_executable(${kk_target} ${kk_csources})",
-                          text "target_link_libraries(${kk_target} PRIVATE runtime)"
+                          text "target_link_libraries(${kk_target} PRIVATE kklib)"
                         ]
 
                 buildDir = "\"" ++ targetDir ++ "\""
                 buildType = "-DCMAKE_BUILD_TYPE=" ++ (if debug flags then "Debug" else "Release")
                 -- kkcInstallDir = "-Dkkc_install_dir=\"" ++ installDir flags ++ "\""
-                runtimeDir  = "-Druntime_DIR=\"" ++ installDir flags ++ "/cruntime/out/install/cmake" ++ "\""
+                runtimeDir  = "-Dkklib_DIR=\"" ++ installDir flags ++ "/kklib/out/install/cmake" ++ "\""
                 cmakeConfig = "cmake -G Ninja " ++ buildType ++ " " ++ runtimeDir ++
                                  " -S \"" ++ outName flags "" ++ "\" -B " ++ buildDir
                 cmakeBuild  = "cmake --build " ++ buildDir

@@ -138,14 +138,14 @@ extern bool __has_lzcnt;  // initialized in runtime.c
 #endif
 
 static inline uint8_t bits_clz32(uint32_t x) {
-  #if (_MSC_VER > 1920) && (defined(_M_X64) || defined(_M_IX86))
+  #if !defined(__clang__) && (defined(_M_X64) || defined(_M_IX86))
   if (__has_lzcnt) return (uint8_t)__lzcnt(x);
   #endif
   unsigned long idx;
   return (_BitScanReverse(&idx, x) ? 31 - (uint8_t)idx : 32);
 }
 static inline uint8_t bits_ctz32(uint32_t x) {
-  #if (_MSC_VER > 1920) && (defined(_M_X64) || defined(_M_IX86))
+  #if !defined(__clang__) && (defined(_M_X64) || defined(_M_IX86))
   if (__has_lzcnt) return (uint8_t)_tzcnt_u32(x);
   #endif
   unsigned long idx;
@@ -154,14 +154,14 @@ static inline uint8_t bits_ctz32(uint32_t x) {
 #if (INTPTR_SIZE >= 8)
 #define HAS_BITS_CLZ64
 static inline uint8_t bits_clz64(uint64_t x) {
-  #if (_MSC_VER > 1920) && (defined(_M_X64) || defined(_M_IX86))
+  #if !defined(__clang__) && (defined(_M_X64) || defined(_M_IX86))
   if (__has_lzcnt) return (uint8_t)__lzcnt64(x);
   #endif
   unsigned long idx;
   return (_BitScanReverse64(&idx, x) ? 63 - (uint8_t)idx : 64);
 }
 static inline uint8_t bits_ctz64(uint64_t x) {
-  #if (_MSC_VER > 1920) && (defined(_M_X64) || defined(_M_IX86))
+  #if !defined(__clang__) && (defined(_M_X64) || defined(_M_IX86))
   if (__has_lzcnt) return (uint8_t)_tzcnt_u64(x);
   #endif
   unsigned long idx;

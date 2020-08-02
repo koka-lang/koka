@@ -38,7 +38,7 @@ including Karatsuba multiplication.
     portable overflow detection.
 ----------------------------------------------------------------------*/
 
-#if (INTPTR_SIZE>=8) && defined(_MSC_VER) && (_MSC_VER >= 1920)
+#if (INTPTR_SIZE>=8) && defined(_MSC_VER) && (_MSC_VER >= 1920) && !defined(__clang__)
 // Use 64-bit digits on Microsoft VisualC
 #define BASE        I64(1000000000000000000)  
 #define LOG_BASE    (18)

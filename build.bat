@@ -2,14 +2,14 @@
 
 pushd %~dp0
 
-cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=cruntime/out/install -S cruntime -B cruntime/out/Debug
-cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=cruntime/out/install -S cruntime -B cruntime/out/Release
+cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=kklib/out/install -S kklib -B kklib/out/debug
+cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=kklib/out/install -S kklib -B kklib/out/release
 
-cmake --build cruntime/out/Debug --config Debug
-cmake --build cruntime/out/Release --config Debug
+cmake --build kklib/out/debug --config Debug
+cmake --build kklib/out/release --config Debug
 
-cmake --install cruntime/out/Debug
-cmake --install cruntime/out/Release
+cmake --install kklib/out/debug
+cmake --install kklib/out/release
 
 stack build
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(runtime VERSION 1.0 LANGUAGES C)
+project(kklib VERSION 1.0 LANGUAGES C)
 enable_testing()
 
 include(CMakePackageConfigHelpers)
@@ -18,56 +18,35 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
 set(CMAKE_DEBUG_POSTFIX "-debug")
 
 # -----------------------------------------------------------------------------
-# Convenience: set default build type depending on the build directory
-# -----------------------------------------------------------------------------
-
-get_property(isMultiConfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-
-if (NOT isMultiConfig AND NOT CMAKE_BUILD_TYPE)
-  if ("${CMAKE_BINARY_DIR}" MATCHES ".*(D|d)ebug$")
-    message(STATUS "No build type selected, default to: Debug")
-    set(CMAKE_BUILD_TYPE "Debug")
-  else()
-    message(STATUS "No build type selected, default to: Release")
-    set(CMAKE_BUILD_TYPE "Release")
-  endif()
-endif()
-
-# -----------------------------------------------------------------------------
 # Main target
 # -----------------------------------------------------------------------------
 
-set(rt_sources
+set(kklib_sources
     src/bits.c
     src/box.c
     src/integer.c
     src/random.c
     src/refcount.c
-    src/runtime.c
+    src/init.c
     src/string.c
     )
 
 # properties library
-add_library(runtime-flags INTERFACE)
+add_library(kklib-flags INTERFACE)
 
 # library
-add_library(runtime STATIC ${rt_sources})
-target_compile_definitions(runtime PRIVATE RT_STATIC_LIB)
-target_include_directories(runtime PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-target_link_libraries(runtime PUBLIC runtime-flags)
+add_library(kklib STATIC ${kklib_sources})
+target_compile_definitions(kklib PRIVATE KKLIB_STATIC_LIB)
+target_include_directories(kklib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+target_link_libraries(kklib PUBLIC kklib-flags)
 
-install(TARGETS runtime runtime-flags
-        EXPORT runtime
-        INCLUDES DESTINATION include)
-
-install(EXPORT runtime
-        DESTINATION cmake
-        FILE runtime-config.cmake)
-
+install(TARGETS kklib kklib-flags EXPORT kklib INCLUDES DESTINATION include)
+install(EXPORT kklib DESTINATION cmake FILE kklib-config.cmake)
 install(DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h*")
 
-write_basic_package_version_file(runtime-config-version.cmake COMPATIBILITY SameMajorVersion)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/runtime-config-version.cmake DESTINATION cmake)
+write_basic_package_version_file(kklib-config-version.cmake COMPATIBILITY SameMajorVersion)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kklib-config-version.cmake DESTINATION cmake)
+
 
 # -----------------------------------------------------------------------------
 # Testing
@@ -78,9 +57,9 @@ set(test_sources
     test/time.c
     )
 
-add_executable(runtime-test ${test_sources})
-target_link_libraries(runtime-test PRIVATE runtime runtime-flags)
-add_test(NAME runtime-test COMMAND runtime-test)
+add_executable(kklib-test ${test_sources})
+target_link_libraries(kklib-test PRIVATE kklib kklib-flags)
+add_test(NAME kklib-test COMMAND kklib-test)
 
 
 # -----------------------------------------------------------------------------
@@ -88,26 +67,26 @@ add_test(NAME runtime-test COMMAND runtime-test)
 # -----------------------------------------------------------------------------
 
 # Compiler flags
-target_compile_options(
-  runtime-flags
-  INTERFACE
-    $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNU,Intel>:
+target_compile_options(kklib-flags INTERFACE 
+   $<$<COMPILE_LANG_AND_ID:C,AppleClang,Clang,GNU,Intel>:
       -Wall
       -Wextra
       -Wno-unknown-pragmas
       -Wno-unused-parameter
+      -Wno-unused-variable
+      -Wno-unused-value
       -Wno-missing-field-initializers
       -Wpointer-arith
       -Wshadow
       -Wstrict-aliasing>)
 
 # Platform-specific definitions
-target_compile_definitions(runtime-flags INTERFACE $<$<PLATFORM_ID:Linux>:_GNU_SOURCE>)
+target_compile_definitions(kklib-flags INTERFACE $<$<PLATFORM_ID:Linux>:_GNU_SOURCE>)
 
 # Architecture flags
 if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "arm")
-  target_compile_options(runtime-flags INTERFACE -march=native)
+  target_compile_options(kklib-flags INTERFACE -march=native)
 endif()
 
 # Additional libraries
-target_link_libraries(runtime-flags INTERFACE $<$<PLATFORM_ID:Linux,Darwin>:m>)
+target_link_libraries(kklib-flags INTERFACE $<$<PLATFORM_ID:Linux,Darwin>:m>)
