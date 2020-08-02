@@ -34,6 +34,7 @@ module Common.File(
                   , FileTime, fileTime0, maxFileTime, maxFileTimes
                   , fileTimeCompare, getFileTime
                   , getFileTimeOrCurrent, getCurrentTime
+                  , readTextFile
                   , copyTextFile, copyTextIfNewer, copyTextIfNewerWith, copyTextFileWith
                   , copyBinaryFile, copyBinaryIfNewer
                   ) where
@@ -41,7 +42,7 @@ module Common.File(
 import Data.List        ( intersperse )
 import Data.Char        ( toLower, isSpace )
 import Platform.Config  ( pathSep, pathDelimiter, sourceExtension )
-import qualified Platform.Runtime as B ( copyBinaryFile )
+import qualified Platform.Runtime as B ( copyBinaryFile, exCatch )
 import Common.Failure   ( raiseIO, catchIO )
 
 import System.Process   ( system )
@@ -241,6 +242,12 @@ maxFileTime t1 t2
 maxFileTimes :: [FileTime] -> FileTime
 maxFileTimes times
   = foldr maxFileTime fileTime0 times
+
+readTextFile :: FilePath -> IO (Maybe String)
+readTextFile fpath
+  = B.exCatch (do content <- readFile fpath
+                  return (seq (last content) $ Just content)) 
+              (\exn -> return Nothing)
 
 copyTextFile :: FilePath -> FilePath -> IO ()
 copyTextFile src dest

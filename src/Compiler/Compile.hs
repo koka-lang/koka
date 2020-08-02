@@ -1231,20 +1231,21 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                              indent 2 (vcat (map text [dquote ("../" ++ showModName mname ++ ".c") |
                                        mname <- (map modName modules ++ [Core.coreProgName core0])])) <->
                              text ")"
-                cmake = vcat [
-                          text "cmake_minimum_required(VERSION 3.8)",
-                          text "project" <.> parens (dquotes (text mainName) <+> text "C"),
-                          text "set(CMAKE_C_STANDARD 11)",
-                          text "set" <.> parens (text "kk_target" <+> dquotes (text mainName)),
-                          text "find_package(kklib 1.0 CONFIG)",
-                          space,
-                          text "INCLUDE" <.> parens (dquotes (text mainName <.> text ".cmake") <+> text "OPTIONAL"),
-                          space,
-                          sources,
-                          space,
-                          text "add_executable(${kk_target} ${kk_csources})",
-                          text "target_link_libraries(${kk_target} PRIVATE kklib)"
-                        ]
+                cmakeDoc = vcat [
+                              text "cmake_minimum_required(VERSION 3.8)",
+                              text "project" <.> parens (dquotes (text mainName) <+> text "C"),
+                              text "set(CMAKE_C_STANDARD 11)",
+                              text "set" <.> parens (text "kk_target" <+> dquotes (text mainName)),
+                              text "find_package(kklib 1.0 CONFIG)",
+                              space,
+                              text "INCLUDE" <.> parens (dquotes (text mainName <.> text ".cmake") <+> text "OPTIONAL"),
+                              space,
+                              sources,
+                              space,
+                              text "add_executable(${kk_target} ${kk_csources})",
+                              text "target_link_libraries(${kk_target} PRIVATE kklib)"
+                            ]
+                cmake = show cmakeDoc
 
             let csourceDir = outName flags ""              -- out
                 buildDir   = outName flags mainName        -- out/interactive
@@ -1258,12 +1259,24 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                                  " -S " ++ dquote buildDir ++ 
                                  " -B " ++ dquote targetDir
                 cmakeBuild  = "cmake --build " ++ dquote targetDir
+                cmakeLists  = buildDir ++ "/CMakeLists.txt"
             
-            createDirectoryIfMissing True buildDir
-            writeDoc (buildDir ++ "/CMakeLists.txt") cmake
-
+            -- write CMakeLists
+            createDirectoryIfMissing True buildDir            
+            mbContent <- readTextFile cmakeLists
+            case mbContent of
+              Just content | content == cmake 
+                -> return ()  -- avoid changing if not needed
+              _ -> writeFile cmakeLists cmake
+            
+            -- configure
+            hasConfig <- doesFileExist (targetDir ++ "/CMakeCache.txt")
+            when (not hasConfig) $
+              do termPhase term ("configure C compilation")
+                 runSystemEcho cmakeConfig
+              
+            -- build
             termPhase term ("compiling and linking C files")
-            runSystemEcho cmakeConfig
             runSystemEcho cmakeBuild
             
             {-

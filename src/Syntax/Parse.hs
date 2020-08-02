@@ -423,8 +423,10 @@ externalIncludeEntry
     ptryReadFile :: FilePath -> LexParser (Maybe String)
     ptryReadFile fpath
       = do pos <- getPosition
-           let mbContent  = unsafePerformIO $ exCatch (do{ -- putStrLn ("reading: " ++ fpath);
-                                                           content <- readFile fpath; return (Just content) }) (\exn -> return Nothing)
+           let mbContent  = unsafePerformIO $ exCatch (do -- putStrLn ("reading: " ++ fpath);
+                                                          content <- readFile fpath
+                                                          return (seq (last content) $ Just content) 
+                                                      ) (\exn -> return Nothing)
            case mbContent of
              Just content -> seq content $ return (Just content)
              Nothing      -> return Nothing
