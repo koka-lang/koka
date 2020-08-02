@@ -1216,7 +1216,15 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       case mbEntry of
        Nothing -> return Nothing
        Just _ ->
-         do let mainName   = if null (exeName flags) then showModName (Core.coreProgName core0) else exeName flags
+         do let kklibDir        = installDir flags ++ "/kklib"
+                kklibInstallDir = kklibDir ++ "/out/install"
+                buildType       = if (optimize flags <= 0) then "debug" else "release"
+                buildTypeFlag   = " -DCMAKE_BUILD_TYPE=" ++ (if (optimize flags <= 0) then "Debug" else "Release")
+                makeSystemFlag  = if (exeExtension==".exe") then " -G Ninja" else ""
+                
+            installKKLib term flags kklibDir kklibInstallDir makeSystemFlag buildTypeFlag buildType
+            
+            let mainName   = if null (exeName flags) then showModName (Core.coreProgName core0) else exeName flags
                 
                 sources    = text "set(kk_csources" <->
                              indent 2 (vcat (map text [dquote ("../" ++ showModName mname ++ ".c") |
@@ -1239,25 +1247,23 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
 
             let csourceDir = outName flags ""              -- out
                 buildDir   = outName flags mainName        -- out/interactive
-                targetDir  = buildDir ++ "/" ++ (if (debug flags) then "debug" else "release")  -- out/interactive/debug
+                targetDir  = buildDir ++ "/" ++ buildType  -- out/interactive/debug
                 targetBase = targetDir ++ "/" ++ mainName  -- out/interactive/debug/interactive
                 targetExe  = targetBase ++ exeExtension    -- out/interactive/debug/interactive.exe
                 
-            let buildType = "-DCMAKE_BUILD_TYPE=" ++ (if debug flags then "Debug" else "Release")
-                -- kkcInstallDir = "-Dkkc_install_dir=\"" ++ installDir flags ++ "\""
-                runtimeDir  = "-Dkklib_DIR=" ++ dquote (installDir flags ++ "/kklib/out/install/cmake")
-                cmakeConfig = "cmake -G Ninja " ++ buildType ++ " " ++ runtimeDir ++
-                                 " -S " ++ dquote buildDir ++ " -B " ++ dquote targetDir
+            let 
+                cmakeConfig = "cmake" ++ makeSystemFlag ++ buildTypeFlag ++ 
+                                 " -Dkklib_DIR=" ++ dquote (kklibInstallDir ++ "/cmake") ++
+                                 " -S " ++ dquote buildDir ++ 
+                                 " -B " ++ dquote targetDir
                 cmakeBuild  = "cmake --build " ++ dquote targetDir
             
             createDirectoryIfMissing True buildDir
             writeDoc (buildDir ++ "/CMakeLists.txt") cmake
 
-            trace cmakeConfig $ return ()
-            runSystem cmakeConfig
-
-            trace cmakeBuild $ return ()
-            runSystem cmakeBuild
+            termPhase term ("compiling and linking C files")
+            runSystemEcho cmakeConfig
+            runSystemEcho cmakeBuild
             
             {-
             -- link
@@ -1286,6 +1292,28 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             -- run the program?
             trace ("run: " ++ targetExe) $ return ()
             return (Just (runSystem (dquote targetExe)))
+            
+installKKLib :: Terminal -> Flags -> FilePath -> FilePath -> String -> String -> String -> IO ()
+installKKLib term flags kklibDir kklibInstallDir makeSystemFlag buildTypeFlag buildType
+  = do let cmakeFile =  kklibInstallDir ++ "/cmake/kklib-config-" ++ buildType ++ ".cmake"
+       exist <- doesFileExist cmakeFile
+       if (exist) then return ()
+        else do termPhase term ("building kklib library")
+                let cmakeDir    = dquote (kklibDir ++ "/out/" ++ buildType)
+                    cmakeConfig = "cmake" ++ makeSystemFlag ++ buildTypeFlag 
+                                   ++ " -DCMAKE_INSTALL_PREFIX=" ++ kklibInstallDir
+                                   ++ " -S " ++ dquote kklibDir 
+                                   ++ " -B " ++ cmakeDir
+                    cmakeBuild  = "cmake --build " ++ cmakeDir
+                    cmakeInstall= "cmake --install " ++ cmakeDir
+                    
+                runSystemEcho cmakeConfig
+                runSystemEcho cmakeBuild
+                runSystemEcho cmakeInstall
+
+runSystemEcho cmd
+  = trace ("> " ++ cmd) $ 
+    runSystem cmd
 
 joinWith sep xs
   = concat (intersperse sep xs)
