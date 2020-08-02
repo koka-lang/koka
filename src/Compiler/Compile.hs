@@ -1217,13 +1217,9 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
        Nothing -> return Nothing
        Just _ ->
          do let mainName   = if null (exeName flags) then showModName (Core.coreProgName core0) else exeName flags
-                targetDir  = outName flags (mainName ++ "/" ++ (if (debug flags) then "debug" else "release"))
-                targetBase = targetDir ++ "/" ++ mainName
-                targetExe  = targetBase ++ exeExtension
-
-            -- write CMakeSources.txt
+                
                 sources    = text "set(kk_csources" <->
-                             indent 2 (vcat (map text [dquote (showModName mname ++ ".c") |
+                             indent 2 (vcat (map text [dquote ("../" ++ showModName mname ++ ".c") |
                                        mname <- (map modName modules ++ [Core.coreProgName core0])])) <->
                              text ")"
                 cmake = vcat [
@@ -1241,14 +1237,21 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                           text "target_link_libraries(${kk_target} PRIVATE kklib)"
                         ]
 
-                buildDir = "\"" ++ targetDir ++ "\""
-                buildType = "-DCMAKE_BUILD_TYPE=" ++ (if debug flags then "Debug" else "Release")
+            let csourceDir = outName flags ""              -- out
+                buildDir   = outName flags mainName        -- out/interactive
+                targetDir  = buildDir ++ "/" ++ (if (debug flags) then "debug" else "release")  -- out/interactive/debug
+                targetBase = targetDir ++ "/" ++ mainName  -- out/interactive/debug/interactive
+                targetExe  = targetBase ++ exeExtension    -- out/interactive/debug/interactive.exe
+                
+            let buildType = "-DCMAKE_BUILD_TYPE=" ++ (if debug flags then "Debug" else "Release")
                 -- kkcInstallDir = "-Dkkc_install_dir=\"" ++ installDir flags ++ "\""
-                runtimeDir  = "-Dkklib_DIR=\"" ++ installDir flags ++ "/kklib/out/install/cmake" ++ "\""
+                runtimeDir  = "-Dkklib_DIR=" ++ dquote (installDir flags ++ "/kklib/out/install/cmake")
                 cmakeConfig = "cmake -G Ninja " ++ buildType ++ " " ++ runtimeDir ++
-                                 " -S \"" ++ outName flags "" ++ "\" -B " ++ buildDir
-                cmakeBuild  = "cmake --build " ++ buildDir
-            writeDoc (outName flags ("CMakeLists.txt")) cmake
+                                 " -S " ++ dquote buildDir ++ " -B " ++ dquote targetDir
+                cmakeBuild  = "cmake --build " ++ dquote targetDir
+            
+            createDirectoryIfMissing True buildDir
+            writeDoc (buildDir ++ "/CMakeLists.txt") cmake
 
             trace cmakeConfig $ return ()
             runSystem cmakeConfig
