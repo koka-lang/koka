@@ -1220,8 +1220,9 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                 kklibInstallDir = kklibDir ++ "/out/install"
                 buildType       = if (optimize flags <= 0) then "debug" else "release"
                 buildTypeFlag   = " -DCMAKE_BUILD_TYPE=" ++ (if (optimize flags <= 0) then "Debug" else "Release")
-                makeSystemFlag  = if (exeExtension==".exe") then " -G Ninja" else ""
+                makeSystemFlag  = if onWindows then " -G Ninja" else ""
                 
+            checkCMake term flags
             installKKLib term flags kklibDir kklibInstallDir makeSystemFlag buildTypeFlag buildType
             
             let mainName   = if null (exeName flags) then showModName (Core.coreProgName core0) else exeName flags
@@ -1310,6 +1311,40 @@ installKKLib term flags kklibDir kklibInstallDir makeSystemFlag buildTypeFlag bu
                 runSystemEcho cmakeConfig
                 runSystemEcho cmakeBuild
                 runSystemEcho cmakeInstall
+
+-- emit helpful messages if dependencies are not installed (cmake etc)             
+checkCMake :: Terminal -> Flags -> IO ()
+checkCMake term flags
+  = do paths   <- getEnvPaths "PATH"
+       mbCMake <- searchPaths paths [exeExtension] "cmake"
+       case mbCMake of
+         Nothing -> do termDoc term (text "error: 'cmake' command cannot be found." <-> 
+                                     text " hint: install from <https://cmake.org/download/> or using 'sudo apt-get install cmake'")
+                       return ()
+         Just _  -> if (not (onWindows))
+                     then return ()
+                     else do vsDir <- getEnvVar "VSINSTALLDIR"
+                             if (null vsDir) 
+                              then -- bare windows prompt: check for Ninja, and if using clang
+                                   do mbNinja <- searchPaths paths [exeExtension] "ninja"
+                                      case mbNinja of
+                                        Nothing -> do termDoc term (text "error: 'ninja' build system not found" <->
+                                                                    text " hint: run from a Visual Studio 'x64 Native Tools Command Prompt'" <->
+                                                                    text "       or install 'ninja' from <https://github.com/ninja-build/ninja/releases>")
+                                                      return ()                                                              
+                                        Just _  -> return ()
+                                                   {-do cc <- getEnvVar "CC" 
+                                                      if (cc=="clang") 
+                                                       then do termDoc term (text "When using 'clang' you must run in a 'x64 Native Tools Command Prompt'")
+                                                               return ()
+                                                       else return ()-}
+                              else -- visual studio prompt
+                                   return ()                   
+          
+
+onWindows :: Bool
+onWindows
+  = (exeExtension == ".exe")
 
 runSystemEcho cmd
   = trace ("> " ++ cmd) $ 
