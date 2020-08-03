@@ -161,6 +161,10 @@ public fun yield-bind( x : a, next : a -> e b ) : e b {
   if (yielding()) then yield-extend(next) else next(x)
 }
 
+public fun yield-bind2( x : a, extend : a -> e b, next : a -> e b ) : e b {
+  if (yielding()) then yield-extend(extend) else next(x)
+}
+
 private extern yield-cont(f : (a -> e a, a) -> e r ) : e r {  // make hidden public?
   c  inline "yield_cont(#1,current_context())"
   js "_yield_cont"

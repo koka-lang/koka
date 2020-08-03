@@ -30,7 +30,7 @@ module Common.NamePrim
           , nameToAny
           , nameEnsureK
           , nameIsValidK
-          , nameLift, nameBind
+          , nameLift, nameBind, nameBind2
           , nameInject, nameInjectExn, nameInjectResource
           , nameTpResourceTag, nameConResourceTag
           , nameConEv
@@ -259,6 +259,7 @@ nameNamedHandle = coreHndName ".named-handle"
 
 nameYielding    = coreHndName "yielding"
 nameBind        = coreHndName "yield-bind" -- preludeName "bind"
+nameBind2       = coreHndName "yield-bind2" 
 nameEffectOpen  = coreHndName ".open" -- preludeName ".open"
 
 nameClauseTailNoYield n = coreHndName ("clause-tail-noyield" ++ show n)

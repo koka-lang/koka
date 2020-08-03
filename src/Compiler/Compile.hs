@@ -57,6 +57,7 @@ import Core.UnReturn          ( unreturn )
 import Core.OpenResolve       ( openResolve )
 import Core.FunLift           ( liftFunctions )
 import Core.Monadic           ( monTransform )
+import Core.MonadicLift       ( monadicLift )
 import Core.Inlines           ( inlinesExtends, extractInlines )
 import Core.Inline            ( inlineDefs )
 
@@ -918,9 +919,13 @@ inferCheck loaded flags line coreImports program1
                        return (cdefs)
        
        -- traceDefGroups "monadic" coreDefsMon
+       
+       let (coreDefsMonL,uniqueMonL) = monadicLift penv uniqueMon coreDefsMon
+       when (coreCheck flags) $ trace "monadic lift core check" $ Core.Check.checkCore True True penv uniqueMonL gamma coreDefsMonL
+       -- traceDefGroups "monadic lift" coreDefsMonL
 
        -- do an inlining pass
-       let (coreDefsInl,uniqueInl) = inlineDefs penv uniqueMon (loadedInlines loaded3) coreDefsMon
+       let (coreDefsInl,uniqueInl) = inlineDefs penv uniqueMonL (loadedInlines loaded3) coreDefsMonL
        when (coreCheck flags) $ trace "inlined functions core check" $ Core.Check.checkCore True True penv uniqueInl gamma coreDefsInl
 
        -- and one more simplify

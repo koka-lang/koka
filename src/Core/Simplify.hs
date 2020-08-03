@@ -116,7 +116,7 @@ topDown (Let dgs body)
                topDownLet sub (sdg:acc) dgs body
           DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})  -- isTotal se
              -> -- trace ("simplify let: " ++ show x) $
-                do maxSmallOccur <- getDuplicationMax
+                do maxSmallOccur <- return 5; -- getDuplicationMax
                    let inlineExpr = topDownLet (extend (TName x tp, se) sub) acc dgs body
                    case occurrencesOf x (Let dgs body) of
                      -- no occurrence, disregard
@@ -136,7 +136,6 @@ topDown (Let dgs body)
                      Occur 0 m n vcnt | (vcnt * sizeOfExpr se) < maxSmallOccur
                        -> -- trace "occurs as cheap value: inline" $
                           inlineExpr
-                     
                      -- inline total and very small expressions
                      Many n | (n*sizeOfExpr se) < maxSmallOccur
                        -> -- trace "occurs many as cheap value: inline" $
