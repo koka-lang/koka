@@ -1320,13 +1320,16 @@ static intx_t int_count_digits(intx_t x) {
   return bits_digits(u);
 }
 
-static intx_t bigint_count_digits(bigint_t* x) {
+static intx_t bigint_count_digits(bigint_t* x, context_t* ctx) {
   assert_internal(x->count > 0);
+  intx_t count;
 #if (DIGIT_BITS==64)
-  return bits_digits64(x->digits[x->count-1]) + LOG_BASE*(x->count - 1);
+  count = bits_digits64(x->digits[x->count-1]) + LOG_BASE*(x->count - 1);
 #else
-  return bits_digits32(x->digits[x->count-1]) + LOG_BASE*(x->count - 1);
+  count = bits_digits32(x->digits[x->count-1]) + LOG_BASE*(x->count - 1);
 #endif
+  drop_bigint(x, ctx);
+  return count;
 }
 
 integer_t integer_count_digits(integer_t x, context_t* ctx) {
@@ -1334,7 +1337,7 @@ integer_t integer_count_digits(integer_t x, context_t* ctx) {
     return integer_from_small(int_count_digits(smallint_from_integer(x)));
   }
   else {
-    return integer_from_int(bigint_count_digits(integer_to_bigint(x, ctx)), ctx);
+    return integer_from_int(bigint_count_digits(integer_to_bigint(x, ctx), ctx), ctx);
   }
 }
 
