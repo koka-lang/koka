@@ -121,11 +121,12 @@ void warning_message(const char* fmt, ...) {
 /*--------------------------------------------------------------------------------------------------
   Process init/done
 --------------------------------------------------------------------------------------------------*/
-
+static void free_context(void);
 static bool process_initialized; // = false
 
 static void kklib_done(void) {
   if (!process_initialized) return;
+  free_context();
   process_initialized = false;
 }
 
@@ -170,6 +171,15 @@ context_t* get_context(void) {
   ctx->unique = integer_one;  
   // todo: register a thread_done function to release the context on thread terminatation.
   return ctx;
+}
+
+static void free_context(void) {
+  if (context != NULL) {
+    drop_vector_t(context->evv, context);
+    // TODO: process delayed_free
+    runtime_free(context);
+    context = NULL;
+  }
 }
 
 
