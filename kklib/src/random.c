@@ -249,9 +249,9 @@ double srandom_double(context_t* ctx) {
 
 /* ----------------------------------------------------------------------------
 To get an initial secure random context we rely on the OS:
-- Windows     : BCryptGenRandom
+- Windows     : RtlGenRandom (or BCryptGenRandom)
 - OSX,bsd,wasi: arc4random_buf
-- Linux       : getrandom,/dev/urandom
+- Linux       : getrandom (or /dev/urandom)
 If we cannot get good randomness, we fall back to weak randomness based on a timer and ASLR.
 -----------------------------------------------------------------------------*/
 
@@ -339,7 +339,7 @@ static bool os_random_buf(void* buf, size_t buf_len) {
 
 #if defined(_WIN32)
 #include <windows.h>
-#elif defined(__APPLE__)
+#elif defined(__XAPPLE__)  // TODO: mach_time.h includes vm_types.h which (re)defines `integer_t`...
 #include <mach/mach_time.h>
 #else
 #include <time.h>
@@ -352,7 +352,7 @@ static uint64_t os_random_weak(uint64_t extra_seed) {
     LARGE_INTEGER pcount;
     QueryPerformanceCounter(&pcount);
     x ^= (uint64_t)(pcount.QuadPart);
-  #elif defined(__APPLE__)
+  #elif defined(__XAPPLE__)
     x ^= (uint64_t)mach_absolute_time();
   #else
     struct timespec time;
