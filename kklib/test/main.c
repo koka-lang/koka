@@ -564,9 +564,6 @@ int main() {
   }
   */
 
-  intptr_t i = (intptr_t)(__data1__new_Cons(box_int(1),__data1_singleton_Nil,ctx));
-  assert(i != 0);
-
   puts("Success!");
   return 0;
 }
