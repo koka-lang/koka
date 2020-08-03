@@ -82,6 +82,7 @@ add_executable(kklib-test ${test_sources})
 target_link_libraries(kklib-test PRIVATE kklib)
 
 add_test(NAME kklib-test COMMAND kklib-test)
+set_tests_properties(kklib-test PROPERTIES PASS_REGULAR_EXPRESSION "Success!")
 
 
 # -----------------------------------------------------------------------------

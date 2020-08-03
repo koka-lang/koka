@@ -4,7 +4,7 @@
 
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.
- 
+
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
@@ -54,7 +54,7 @@ typedef enum tag_e {
   TAG_CPTR_RAW,    // full void* (must be first, see tag_is_raw())
   TAG_STRING_RAW,  // pointer to a valid UTF8 string
   TAG_BYTES_RAW,   // pointer to bytes
-  TAG_LAST         
+  TAG_LAST
 } tag_t;
 
 static inline bool tag_is_raw(tag_t tag) {
@@ -64,12 +64,12 @@ static inline bool tag_is_raw(tag_t tag) {
 // Every heap block starts with a 64-bit header with a reference count, tag, and scan fields count.
 // The reference count is 0 for a unique reference (for a faster free test in drop).
 // Reference counts larger than 0x8000000 use atomic increment/decrement (for thread shared objects).
-// (Reference counts are always 32-bit (even on 64-bit) platforms but get "sticky" if 
+// (Reference counts are always 32-bit (even on 64-bit) platforms but get "sticky" if
 //  they get too large (>0xC0000000) and in such case we never free the object, see `refcount.c`)
 typedef struct header_s {
   uint32_t  refcount;         // reference count
   uint16_t  tag;              // header tag
-  uint8_t   scan_fsize;       // number of fields that should be scanned when releasing (`scan_fsize <= 0xFF`, if 0xFF, the full scan size is the first field)  
+  uint8_t   scan_fsize;       // number of fields that should be scanned when releasing (`scan_fsize <= 0xFF`, if 0xFF, the full scan size is the first field)
   uint8_t   thread_shared : 1;
 } header_t;
 
@@ -96,7 +96,7 @@ static inline box_t     box_enum(uintx_t u);
 
 
 /*--------------------------------------------------------------------------------------
-  Blocks 
+  Blocks
   A block is an object that starts with a header.
 
   (non-value) datatypes contain a first `_block` field.
@@ -104,11 +104,11 @@ static inline box_t     box_enum(uintx_t u);
   This representation ensures correct behaviour under C alias rules and allow good optimization.
   e.g. :
 
-  typedef struct list_s {  
-    block_t _block; 
+  typedef struct list_s {
+    block_t _block;
   } *list_t;
 
-  struct Cons { 
+  struct Cons {
     struct list_s  _type;
     box_t          head;
     list_t         tail;
@@ -143,7 +143,7 @@ static inline decl_const tag_t block_tag(const block_t* b) {
 static inline decl_pure size_t block_scan_fsize(const block_t* b) {
   const size_t sfsize = b->header.scan_fsize;
   if (likely(sfsize != SCAN_FSIZE_MAX)) return sfsize;
-  const block_large_t* bl = (const block_large_t*)b; 
+  const block_large_t* bl = (const block_large_t*)b;
   return unbox_enum(bl->large_scan_fsize);
 }
 
@@ -163,11 +163,11 @@ static inline decl_pure bool block_is_unique(const block_t* b) {
 --------------------------------------------------------------------------------------*/
 typedef void*  heap_t;
 
-// A function has as its first field a pointer to a C function that takes the 
+// A function has as its first field a pointer to a C function that takes the
 // `function_t` itself as a first argument. The following fields are the free variables.
 typedef struct function_s {
   block_t  _block;
-  box_t    fun;     
+  box_t    fun;
   // followed by free variables
 } *function_t;
 
@@ -193,7 +193,7 @@ typedef struct yield_s {
   function_t clause;          // the operation clause to execute when the handler is found
   size_t     conts_count;     // number of continuations in `conts`
   function_t conts[YIELD_CONT_MAX];  // fixed array of continuations. The final continuation `k` is
-                              // composed as `fN ○ ... ○ f2 ○ f1` if `conts = { f1, f2, ..., fN }` 
+                              // composed as `fN ○ ... ○ f2 ○ f1` if `conts = { f1, f2, ..., fN }`
                               // if the array becomes full, a fresh array is allocated and the first
                               // entry points to its composition.
 } yield_t;
@@ -215,7 +215,7 @@ typedef struct context_s {
 } context_t;
 
 // Get the current (thread local) runtime context (should always equal the `_ctx` parameter)
-decl_export context_t* get_context(void); 
+decl_export context_t* get_context(void);
 
 // The current context is passed as a _ctx parameter in the generated code
 #define current_context()   _ctx
@@ -260,7 +260,7 @@ static inline void* runtime_zalloc(size_t sz, context_t* ctx) {
 
 static inline void runtime_free(void* p) {
   UNUSED(p);
-  //free(p);
+  free(p);
 }
 
 static inline void* runtime_realloc(void* p, size_t sz, context_t* ctx) {
@@ -273,7 +273,7 @@ decl_export void block_free(block_t* b, context_t* ctx);
 static inline void block_init(block_t* b, size_t size, size_t scan_fsize, tag_t tag) {
   UNUSED(size);
   assert_internal(scan_fsize < SCAN_FSIZE_MAX);
-  header_t header = { 0, (uint16_t)tag, (uint8_t)scan_fsize, 0 };  
+  header_t header = { 0, (uint16_t)tag, (uint8_t)scan_fsize, 0 };
   b->header = header;
 }
 
@@ -334,7 +334,7 @@ static inline block_t* dup_block(block_t* b) {
 static inline void drop_block(block_t* b, context_t* ctx) {
   const uint32_t rc = b->header.refcount;
   if ((int32_t)rc <= 0) {         // note: assume two's complement
-    block_check_free(b, rc, ctx); // thread-shared, sticky (overflowed), or can be freed? 
+    block_check_free(b, rc, ctx); // thread-shared, sticky (overflowed), or can be freed?
   }
   else {
     b->header.refcount = rc-1;
@@ -379,11 +379,11 @@ static inline block_t* dup_block_assert(block_t* b, tag_t tag) {
 
 #define define_static_datatype(decl,struct_tp,name,tag) \
   static struct_tp _static_##name = { { HEADER_STATIC(0,tag) } }; \
-  decl struct_tp* name = &_static_##name; 
+  decl struct_tp* name = &_static_##name;
 
 #define define_static_open_datatype(decl,struct_tp,name,otag) /* ignore otag as it is initialized dynamically */ \
   static struct_tp _static_##name = { { HEADER_STATIC(0,TAG_OPEN) }, &_static_string_empty._type }; \
-  decl struct_tp* name = &_static_##name; 
+  decl struct_tp* name = &_static_##name;
 
 
 /*----------------------------------------------------------------------
@@ -415,7 +415,7 @@ static inline block_t* block_alloc_reuse(reuse_t r, size_t size, size_t scan_fsi
 #define keep_match(con,dups) \
   do dups while(0)
 
-// The constructor that is matched on is dropped: 
+// The constructor that is matched on is dropped:
 // 1. if unique, drop the unused fields and free just the constructor block
 // 2. otherwise, duplicate the used fields, and drop the constructor
 #define drop_match(con,dups,drops,ctx) \
@@ -492,7 +492,7 @@ static inline value_tag_t value_tag(uintx_t tag) {
   static struct function_s _static_##name = { { HEADER_STATIC(0,TAG_FUNCTION) }, { ~UP(0) } }; /* must be box_null */ \
   function_t name = &_static_##name; \
   if (box_eq(name->fun,box_null)) { name->fun = box_cfun_ptr((cfun_ptr_t)&cfun,ctx); }  // initialize on demand so it can be boxed properly
-  
+
 
 
 function_t function_id(context_t* ctx);
@@ -535,12 +535,12 @@ static inline ref_t ref_alloc(box_t value, context_t* ctx) {
 
 static inline box_t ref_get(ref_t r) {
   box_t b = dup_box_t(r->value);
-  // TODO: drop_box_t(r,_ctx)  
+  // TODO: drop_box_t(r,_ctx)
   return b;
 }
 
 static inline unit_t ref_set(ref_t r, box_t value, context_t* ctx) {
-  box_t b = r->value; 
+  box_t b = r->value;
   drop_box_t(b, ctx);
   r->value = value;
   return Unit;
@@ -628,14 +628,14 @@ static inline vector_t vector_alloc(size_t length, box_t def, context_t* ctx) {
 
 static inline size_t vector_len(const vector_t v) {
   size_t len = unbox_enum( datatype_as_assert(vector_large_t, v, TAG_VECTOR)->_block.large_scan_fsize ) - 1;
-  assert_internal(len + 1 == block_scan_fsize(&v->_block));  
+  assert_internal(len + 1 == block_scan_fsize(&v->_block));
   assert_internal(len + 1 != 0);
   return len;
 }
 
 static inline box_t* vector_buf(vector_t v, size_t* len) {
   if (len != NULL) *len = vector_len(v);
-  return &(datatype_as_assert(vector_large_t, v, TAG_VECTOR)->vec[0]);  
+  return &(datatype_as_assert(vector_large_t, v, TAG_VECTOR)->vec[0]);
 }
 
 static inline box_t vector_at(const vector_t v, size_t i) {

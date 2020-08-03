@@ -239,9 +239,11 @@ static void test_carry(context_t* ctx) {
 
   for (intptr_t i = 2; i < 99; i++) {
     dup_integer_t(last);
-    num = integer_add(num,last, ctx);
+    num = integer_add(num, last, ctx);
+
     dup_integer_t(num);
-    last = integer_sub(num,last, ctx);
+    last = integer_sub(num, last, ctx);
+
     dup_integer_t(num);
     expect_eq(num,integer_from_str(fibs[i], ctx),ctx);
   }
@@ -563,7 +565,10 @@ int main() {
   */
 
   intptr_t i = (intptr_t)(__data1__new_Cons(box_int(1),__data1_singleton_Nil,ctx));
-  return !(i != 0);
+  assert(i != 0);
+
+  puts("Success!");
+  return 0;
 }
 
 /*
