@@ -301,9 +301,13 @@ getInstallDir
        let d  = dirname p
            ds = splitPath d
            result = case reverse ds of
-                      ("bin":_:"install":".stack-work":es) -> joinPaths (reverse es)
+                      -- stack build
+                      ("bin":_:"install":".stack-work":es)     -> joinPaths (reverse es)
+                      ("bin":_:_:"install":".stack-work":es)   -> joinPaths (reverse es)
                       ("bin":_:_:_:"install":".stack-work":es) -> joinPaths (reverse es)
+                      -- install
                       ("bin":es)   -> joinPaths (reverse es)
+                      -- jake build
                       (_:"out":es) -> joinPaths (reverse es)
                       _            -> d
        -- trace ("install-dir: " ++ result ++ ": " ++ show ds) $
