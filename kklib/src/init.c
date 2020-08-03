@@ -50,7 +50,7 @@ string_t get_host(context_t* ctx) {
 }
 
 /*--------------------------------------------------------------------------------------------------
-  Errors 
+  Errors
 --------------------------------------------------------------------------------------------------*/
 static void _strlcpy(char* dest, const char* src, size_t dest_size) {
   dest[0] = 0;
@@ -146,7 +146,7 @@ static void kklib_init(void) {
   // <https://en.wikipedia.org/wiki/SSE4#POPCNT_and_LZCNT>
   int32_t cpu_info[4];
   __cpuid(cpu_info, 1);
-  __has_popcnt = ((cpu_info[2] & (I32(1)<<23)) != 0);  
+  __has_popcnt = ((cpu_info[2] & (I32(1)<<23)) != 0);
   __cpuid(cpu_info, 0x80000001);
   __has_lzcnt  = ((cpu_info[2] & (I32(1)<<5)) != 0);
 #endif
@@ -168,7 +168,8 @@ context_t* get_context(void) {
   ctx = (context_t*)calloc(sizeof(context_t),1);
   ctx->evv = dup_vector_t(vector_empty);
   ctx->thread_id = (uintptr_t)(&context);
-  ctx->unique = integer_one;  
+  ctx->unique = integer_one;
+  context = ctx;
   // todo: register a thread_done function to release the context on thread terminatation.
   return ctx;
 }
