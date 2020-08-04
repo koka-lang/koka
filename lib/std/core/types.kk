@@ -225,6 +225,13 @@ extern inline run : forall<e,a> ( action : forall<h> () -> <alloc<h>,read<h>,wri
 type local :: (H) -> X
 type local-var :: (H,V) -> V
 
+// Allocate a fresh local with an initial value.
+extern inline local-new : forall<s,a> (value:a) -> local<s> local-var<s,a> {
+  c inline "ref_alloc(#1,current_context())"
+  cs inline "new Ref<##1,##2>(#1)"
+  js inline "{ value: #1 }"
+}
+
 // Assign a new value to a local variable
 extern inline local-set  : forall<s,a,l> (v: local-var<s,a>, assigned: a) -> <local<s>> () {
   c inline "(ref_set(#1,#2,current_context()))"
@@ -239,7 +246,7 @@ extern inline local-get : forall<s,a,e> (v: local-var<s,a>) -> <local<s>|e> a wi
   js inline "((#1).value)";
 }
 
-// If local mutation is unobservable, the `:local` effect can be erased by using the `run-locals` function.
+// If local mutation is unobservable, the `:local` effect can be erased by using the `local-scope` function.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
 extern inline local-scope : forall<e,a> ( action : forall<h> () -> <local<h> | e> a) -> e a  {
   c  "(function_call(box_t,(function_t,context_t*),#1,(#1,current_context())))"
@@ -247,6 +254,7 @@ extern inline local-scope : forall<e,a> ( action : forall<h> () -> <local<h> | e
   js inline "((#1)())";
 }
 
+extern inline byref(loc : a) : a { inline "#1" }
 
 // ----------------------------------------------------------------------------
 // Unsafe: todo: move to separate module
@@ -263,6 +271,11 @@ fun unsafe-total( action : () -> e a ) : a {
 }
 
 // _Unsafe_. This function pretends the give action was deterministic
-fun unsafe-ndet( action : () -> <ndet|e> a ) : e a {
+fun unsafe-no-ndet( action : () -> <ndet|e> a ) : e a {
+  unsafe-total-cast( action )()
+}
+
+// _Unsafe_. This function pretends the give action is terminating
+fun unsafe-no-div( action : () -> <div|e> a ) : e a {
   unsafe-total-cast( action )()
 }

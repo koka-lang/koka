@@ -287,7 +287,7 @@ nameRefSet      = coreTypesName "set"
 nameLocalSet    = coreTypesName "local-set"
 nameLocalGet    = coreTypesName "local-get"
 nameDeref       = coreTypesName "!"
-nameByref       = coreTypesName ".&"
+nameByref       = coreTypesName "byref"
 
 namePredHeapDiv = coreTypesName "hdiv"
 namePredEffDiv  = coreTypesName "ediv"

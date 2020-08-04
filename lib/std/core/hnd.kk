@@ -340,23 +340,17 @@ public fun ".mask-builtin"<a,e1,e2>( action : () -> e1 a ) : e2 a {
 // Local variables
 // -------------------------------------------
 
-private extern inline unsafe-local( f : () -> <div,read<h>,write<h>,alloc<h>,local<h>|e> a ) : <local<h>|e> a {
-  c inline "(function_call(box_t,(function_t,context_t*),#1,(#1,current_context())))"
-  inline "(#1)()"
-}
-private extern inline unsafe-ref-to-local( r : ref<h,a> ) : local-var<h,a> { inline "#1" }
-
-private fun prompt-local-var(r:ref<h,a>, res : b  ) : <div,read<h>,write<h>,local<h>|e> b {
+private fun prompt-local-var(loc:local-var<s,a>, res : b  ) : <div,local<s>|e> b {
   if (!yielding()) return res;
-  val v = !r
-  yield-cont(fun(cont,x){ r := v; prompt-local-var(r,cont(x)) } )  // restore state early before the resume
+  val v = loc
+  yield-cont(fun(cont,x){ loc := v; prompt-local-var(std/core/types/byref(loc),cont(x)) } )  // restore state early before the resume
 }
 
 public fun local-var(init:a, action: (l:local-var<s,a>) -> <local<s>|e> b ) : <local<s>|e> b {
-  unsafe-local {
-    val r   = ref(init)
-    val res = cast-ev1(action)(unsafe-ref-to-local(r))
-    prompt-local-var(r,res)
+  unsafe-no-div {
+    val loc : local-var<_,_> = local-new(init)
+    val res = cast-ev1(action)(std/core/types/byref(loc))
+    prompt-local-var(std/core/types/byref(loc),res)
   }
 }
 
