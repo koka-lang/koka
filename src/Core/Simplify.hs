@@ -108,7 +108,7 @@ topDown (Let dgs body)
                      topDownLet sub (acc) dgs body -- dead definition
                 else -- trace ("no simplify rec def: " ++ show (defName def)) $
                      topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
-          DefRec defs
+          DefRec defs'
             -> -- trace ("don't simplify recursive lets: " ++ show (map defName defs)) $
                topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
           DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})  | not (isTotal se)
@@ -181,17 +181,16 @@ topDown expr@(App (Lam pars eff body) args) | length pars == length args
 
 -- Direct function applications
 topDown expr@(App (TypeApp (TypeLam tpars (Lam pars eff body)) targs) args) | length pars == length args && length tpars == length targs
-  = do newNames <- mapM uniqueTName pars
-       let sub = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]
-           argsopt = replicate (length pars - length args) (Var (TName nameOptionalNone typeAny) InfoNone)
-       -- trace ("topdown fun: " ++ show expr ++ "\n") $
+  = do let tsub    = subNew (zip tpars targs)
+       newNames <- mapM uniqueTName [TName nm (tsub |-> tp) | (TName nm tp) <- pars]
+       let sub     = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]           
+           -- argsopt = replicate (length pars - length args) (Var (TName nameOptionalNone typeAny) InfoNone)
+       -- trace ("topdown fun: " ++ show expr ++ "\n") $ return ()
        topDown $
-         substitute (subNew (zip tpars targs)) $
-          Let (zipWith makeDef newNames (args++argsopt)) (sub |~> body)
+          Let (zipWith makeDef newNames args) (sub |~> (substitute tsub body))       
   where
     makeDef (TName npar nparTp) arg
       = DefNonRec (Def npar nparTp arg Private DefVal InlineAuto rangeNull "")
-
 
 
 {-
@@ -226,7 +225,7 @@ bottomUp :: Expr -> Expr
 bottomUp expr@(TypeApp (TypeLam tvs body) tps)
   = if (length tvs == length tps)
      then let sub = subNew (zip tvs tps)
-          in sub |-> body
+          in seq sub (sub |-> body)
      else expr
 
 -- eta-contract "/\a. (body a)" to "body"
