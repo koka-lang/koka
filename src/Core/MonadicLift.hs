@@ -219,7 +219,7 @@ makeDef fvs tvs expr
 
     liftedFun = addTypeLambdas alltpars $ Lam allpars eff body
     liftedTp  = typeOf liftedFun
-    liftedDef name inl = Def name liftedTp liftedFun Private DefFun inl rangeNull "// monadic lift"
+    liftedDef name inl = Def name liftedTp liftedFun Private DefFun InlineNever rangeNull "// monadic lift"
 
     funExpr name
       = Var (TName name liftedTp) (InfoArity (length alltpars) (length allargs))
