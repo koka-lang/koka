@@ -2509,7 +2509,7 @@ fun exn?( t : try<a> ) : bool {
 
 // Transform an exception effect to a `:try` type.
 fun try( action : () -> <exn|e> a ) : e try<a> {
-  try({ TryOk(action()) }, TryExn)
+  try({ TryOk(action()) }, fun(exn){ TryExn(exn) })
 }
 
 // Return a default value when an exception is raised
