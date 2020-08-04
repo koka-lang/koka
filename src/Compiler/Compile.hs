@@ -58,7 +58,7 @@ import Core.OpenResolve       ( openResolve )
 import Core.FunLift           ( liftFunctions )
 import Core.Monadic           ( monTransform )
 import Core.MonadicLift       ( monadicLift )
-import Core.Inlines           ( inlinesExtends, extractInlines )
+import Core.Inlines           ( inlinesExtends, extractInlineDefs )
 import Core.Inline            ( inlineDefs )
 
 import Static.BindingGroups   ( bindingGroups )
@@ -957,6 +957,7 @@ inferCheck loaded flags line coreImports program1
        -- Assemble core program and return
        let coreDefsLast = coreDefsSimp2
            uniqueLast   = uniqueSimp2
+           inlineDefs   = extractInlineDefs (coreInlineMax penv) coreDefsLast
 
            coreProgram2 = -- Core.Core (getName program1) [] [] coreTypeDefs coreDefs0 coreExternals
                           uniquefy $
@@ -964,10 +965,15 @@ inferCheck loaded flags line coreImports program1
                                       , Core.coreProgDefs = coreDefsLast  -- coreDefsSimp
                                       , Core.coreProgFixDefs = [Core.FixDef name fix | FixDef name fix rng <- programFixDefs program1]
                                       }
+                                      
            loaded4 = loaded3{ loadedGamma = gamma
                             , loadedUnique = uniqueLast
-                            , loadedModule = (loadedModule loaded3){ modCore = coreProgram2, modRangeMap = mbRangeMap2 }
-                            , loadedInlines = inlinesExtends (extractInlines (coreInlineMax penv) coreDefsLast) (loadedInlines loaded3)
+                            , loadedModule = (loadedModule loaded3){ 
+                                                modCore = coreProgram2, 
+                                                modRangeMap = mbRangeMap2,
+                                                modInlines  = Right inlineDefs
+                                              }
+                            , loadedInlines = inlinesExtends inlineDefs (loadedInlines loaded3)
                             }
 
        -- for now, generate C# code here
@@ -998,14 +1004,18 @@ codeGen term flags compileTarget loaded
 
        let env      = (prettyEnvFromFlags flags){ context = loadedName loaded, importsMap = loadedImportMap loaded }
            outIface = outBase ++ ifaceExtension
-           ifaceDoc = Core.Pretty.prettyCore env{ coreIface = True } (modCore mod) <-> Lib.PPrint.empty
+           inlineDefs = case modInlines mod of
+                          Right defs -> defs
+                          Left _     -> []
+           ifaceDoc = Core.Pretty.prettyCore env{ coreIface = True } inlineDefs (modCore mod) <-> Lib.PPrint.empty
 
        -- create output directory if it does not exist
        createDirectoryIfMissing True (dirname outBase)
 
        -- core
        let outCore  = outBase ++ ".core"
-           coreDoc  = Core.Pretty.prettyCore env{ coreIface = False, coreShowDef = (showCore flags) } (modCore mod) <-> Lib.PPrint.empty
+           coreDoc  = Core.Pretty.prettyCore env{ coreIface = False, coreShowDef = (showCore flags) } inlineDefs (modCore mod) 
+                       <-> Lib.PPrint.empty
        when (genCore flags)  $
          do termPhase term "generate core"
             writeDocW 10000 outCore coreDoc  -- just for debugging
@@ -1187,7 +1197,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                       _                  -> Nothing
       let (core,unique) = parcCore (prettyEnvFromFlags flags) newtypes unique0 core0
           (cdoc,hdoc,bcore) = cFromCore sourceDir newtypes unique mbEntry core
-          bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } bcore
+          bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } [] bcore
       writeDocW 120 (outBase ++ ".box.core") bcoreDoc
       
       termPhase term ( "generate c: " ++ outBase )

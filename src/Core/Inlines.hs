@@ -14,8 +14,8 @@ module Core.Inlines ( -- Inline map
                     , inlinesLookup
                     , ppInlines
 
-                    , extractInlines
-                    , inlinesExtractDef
+                    , extractInlineDefs
+                    , extractInlineDef
                     ) where
 
 import Lib.Trace
@@ -69,17 +69,17 @@ inlinesLookup name (Inlines inlines)
 {--------------------------------------------------------------------------
   Get suitable inline definitions from Core
 --------------------------------------------------------------------------}
-extractInlines :: Int -> DefGroups -> [InlineDef]
-extractInlines costMax dgs
+extractInlineDefs :: Int -> DefGroups -> [InlineDef]
+extractInlineDefs costMax dgs
   = concatMap (extractDefGroup costMax) dgs
 
 extractDefGroup costMax (DefRec defs)
-  = catMaybes (map (inlinesExtractDef costMax True) defs)
+  = catMaybes (map (extractInlineDef costMax True) defs)
 extractDefGroup costMax (DefNonRec def)
-  = maybeToList (inlinesExtractDef costMax False def)
+  = maybeToList (extractInlineDef costMax False def)
 
-inlinesExtractDef :: Int -> Bool -> Def -> Maybe InlineDef
-inlinesExtractDef costMax isRec def
+extractInlineDef :: Int -> Bool -> Def -> Maybe InlineDef
+extractInlineDef costMax isRec def
   = let inlinable = (isInlineable costMax def)
     in -- trace ("def: " ++ show (defName def) ++ ": inline=" ++ show inlinable) $
         if not inlinable then Nothing
