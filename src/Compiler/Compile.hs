@@ -1170,7 +1170,7 @@ codeGenJS term flags modules compileTarget outBase core
               Browser ->
                do return (Just (runSystem (dquote outHtml ++ " &")))
               Node ->
-               do return (Just (runSystem ("node --stack-size=16000 " ++ outjs)))
+               do return (Just (runSystem ("node --stack-size=100000 " ++ outjs)))
 
 
 
