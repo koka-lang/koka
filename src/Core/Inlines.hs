@@ -26,6 +26,7 @@ import qualified Data.List as L
 import Lib.PPrint
 import qualified Common.NameMap as M
 import Common.Name
+import Common.NamePrim( nameBind, nameBind2 )
 import Common.ColorScheme
 import Core.Core
 import Type.Pretty
@@ -82,7 +83,9 @@ inlinesExtractDef costMax isRec def
   = let inlinable = (isInlineable costMax def)
     in -- trace ("def: " ++ show (defName def) ++ ": inline=" ++ show inlinable) $
         if not inlinable then Nothing
-         else Just (InlineDef (defName def) (defExpr def) isRec (costDef def))
+         else let cost = if (defName def == nameBind2 || defName def == nameBind)  -- TODO: use generic mechanism? force-inline keyword?
+                          then 0 else costDef def
+              in Just (InlineDef (defName def) (defExpr def) isRec cost)
 
 instance Show Inlines where
  show = show . pretty
