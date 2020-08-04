@@ -54,17 +54,17 @@ docsFromRanges colors ranges
 
 docFromRange :: ColorScheme -> Range -> Doc
 docFromRange colors range
-  = case map (limitLineLen 55) (limitLines 3 (lines (sourceFromRange range))) of
+  = case map (limitLineLen 80) (limitLines 3 (lines (sourceFromRange range))) of
       []  -> empty
       src -> color (colorSource colors) (align (vcat (map text src)))
   where
     limitLineLen n line
       = if (length line <= n)
          then line
-         else let n2    = div n 2
-                  (x,y) = splitAt n2 line
+         else let n3    = div n 3
+                  (x,y) = splitAt (2*n3) line
                   pre   = reverse (dropWhile (not . isSpace) (reverse x))
-                  post  = dropWhile (not . isSpace) (reverse (take (n2-5) (reverse y)))
+                  post  = dropWhile (not . isSpace) (reverse (take n3 (reverse y)))
               in pre ++ " ... " ++ post
 
     limitLines n ls

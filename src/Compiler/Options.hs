@@ -142,7 +142,7 @@ flagsNull
           [JS]
           Node
           5     -- simplify passes
-          320   -- simplify dup max
+          6     -- simplify dup max
           defaultColorScheme
           "out"    -- out-dir
           []
@@ -167,7 +167,7 @@ flagsNull
           packagesEmpty -- packages
           "" -- forceModule
           0    -- optimize
-          15   -- inlineMax
+          10   -- inlineMax
           True -- debug
 
 isHelp Help = True

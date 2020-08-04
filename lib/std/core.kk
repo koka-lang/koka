@@ -346,7 +346,7 @@ fun list( lo : char, hi : char ) : total list<char>
   list(lo.int, hi.int).map( char )
 }
 
-private val maxListStack = 100
+private val maxListStack = 50
 
 
 private fun zipwith-acc( f, i, acc, xs, ys )
@@ -2502,7 +2502,7 @@ fun exn?( t : try<a> ) : bool {
 
 // Transform an exception effect to a `:try` type.
 fun try( action : () -> <exn|e> a ) : e try<a> {
-  try({ TryOk(action()) }, TryExn)
+  try({ TryOk(action()) }, fun(exn){ TryExn(exn) })
 }
 
 // Return a default value when an exception is raised

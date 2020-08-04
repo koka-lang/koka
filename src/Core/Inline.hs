@@ -236,7 +236,7 @@ withCurrentDef def action
 
 inlExtend :: Bool -> [Def] -> Inl a -> Inl a
 inlExtend isRec defs
-  = withEnv (\env -> let inls = catMaybes (map (inlinesExtractDef (2*(coreInlineMax (prettyEnv env))) isRec) defs)
+  = withEnv (\env -> let inls = catMaybes (map (extractInlineDef (2*(coreInlineMax (prettyEnv env))) isRec) defs)
                      in env{ inlines = inlinesExtends inls (inlines env)} )
 
 inlLookup :: Name -> Inl (Maybe (InlineDef,Int,Int))

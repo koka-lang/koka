@@ -41,7 +41,7 @@ keyword env s
   Show instance declarations
 --------------------------------------------------------------------------}
 
-instance Show Core      where show = show . prettyCore      defaultEnv
+instance Show Core      where show = show . prettyCore      defaultEnv []
 instance Show External  where show = show . prettyExternal  defaultEnv
 instance Show TypeDef   where show = show . prettyTypeDef   defaultEnv
 instance Show DefGroup  where show = show . prettyDefGroup  defaultEnv
@@ -55,8 +55,8 @@ instance Show Pattern   where show = show . snd . prettyPattern   defaultEnv
   Pretty-printers proper
 --------------------------------------------------------------------------}
 
-prettyCore :: Env -> Core -> Doc
-prettyCore env0 core@(Core name imports fixDefs typeDefGroups defGroups externals doc)
+prettyCore :: Env -> [InlineDef] -> Core -> Doc
+prettyCore env0 inlineDefs core@(Core name imports fixDefs typeDefGroups defGroups externals doc)
   = prettyComment env doc $
     keyword env "module" <+>
     (if (coreIface env) then text "interface " else empty) <.>
@@ -75,10 +75,11 @@ prettyCore env0 core@(Core name imports fixDefs typeDefGroups defGroups external
       , separator "external declarations"
       , map (prettyExternal env) externals
       , separator "inline definitions"
-      , if (coreInlineMax env0 < 0 || not (coreIface env0))
+      , if (coreInlineMax env0 < 0 || not (coreIface env0) || null inlineDefs)
          then []
          else [text ".inline"] ++
-              map (prettyInlineDefGroup env1{coreInlineMax = coreInlineMax env0}) defGroups
+              -- map (prettyInlineDefGroup env1{coreInlineMax = coreInlineMax env0}) defGroups
+               map (prettyInlineDef env1) inlineDefs
       ]
       -- ,
       {-
@@ -187,6 +188,7 @@ prettyDefs :: Env -> Defs -> Doc
 prettyDefs env (defs)
   = vcat (map (prettyDef env) defs)
 
+{-
 prettyInlineDefGroup :: Env -> DefGroup -> Doc
 prettyInlineDefGroup env (DefRec defs)
   = -- (\ds -> text "rec {" <-> tab ds <-> text "}") $
@@ -207,6 +209,22 @@ prettyInlineDef env isRec def@(Def name scheme expr vis sort inl nameRng doc)
     -- <+> text ":" <+> prettyType env scheme
     <+> text ("// inline size: " ++ show (costDef def))
     <.> linebreak <.> indent 2 (text "=" <+> prettyExpr env{coreShowVis=False,coreShowDef=True} expr) <.> semi
+-}
+
+prettyInlineDef :: Env ->  InlineDef -> Doc
+prettyInlineDef env (InlineDef name expr isRec cost)
+  = keyword env (if isFun then "fun" else "val")
+    <.> (if (cost <= 0) then (space <.> keyword env "inline") else empty)
+    <.> (if isRec then (space <.> keyword env "rec") else empty)
+    <+> (if nameIsNil name then text "_" else prettyDefName env name)
+    -- <+> text ":" <+> prettyType env scheme
+    <+> text ("// inline size: " ++ show cost)
+    <.> linebreak <.> indent 2 (text "=" <+> prettyExpr env{coreShowVis=False,coreShowDef=True} expr) <.> semi
+  where
+    isFun = case expr of 
+              TypeLam _ (Lam _ _ _) -> True
+              Lam _ _ _             -> True
+              _                     -> False
 
 prettyDef :: Env -> Def -> Doc
 prettyDef env def@(Def name scheme expr vis sort inl nameRng doc)

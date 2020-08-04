@@ -235,8 +235,6 @@ instance Ord Range where
         EQ   -> compare p2 q2
         ltgt -> ltgt
 
-
-
 showRange endToo (Range p1 p2)
   = (if (posLine p1 >= bigLine) then "" else sourceName (posSource p1))  ++
     if (endToo) 
@@ -341,4 +339,3 @@ sourceFromRange (Range start end)
     c2 = posColumn end
     l1 = if posLine start >= bigLine then 1 else posLine start
     l2 = if posLine end >= bigLine then (if posLine start >= bigLine then posLine end - posLine start +1 else 1) else posLine end
-

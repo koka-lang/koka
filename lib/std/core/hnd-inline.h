@@ -74,6 +74,7 @@ static inline evv_t evv_swap_create1(int32_t i, context_t* ctx) {
   }
 }
 
+
 struct __std_core_hnd_Htag;
 struct __std_core_hnd_Marker;
 struct __std_core_hnd_yld_s;
@@ -97,3 +98,9 @@ struct __std_core_hnd_yld_s  yield_prompt( struct __std_core_hnd_Marker m, conte
 
 struct __std_core_hnd__yield_info_s* yield_capture(context_t* ctx);
 box_t        yield_reyield(struct __std_core_hnd__yield_info_s* yld, context_t* ctx);
+
+static inline evv_t evv_swap_delete(int32_t i, bool behind, context_t* ctx) {
+  evv_t evv0 = ctx->evv;  
+  ctx->evv = evv_delete(dup_evv_t(evv0), i, behind, ctx);
+  return evv0;
+}

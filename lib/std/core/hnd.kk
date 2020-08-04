@@ -113,9 +113,9 @@ private extern evv-insert( evv : evv<e1>, ev : ev<h> ) : e1 evv<e2> {
   js "_evv_insert"
 }
 
-private extern evv-delete( w : evv<e1>, i : ev-index, behind : bool ) : evv<e2> {
-  c  inline "evv_delete(#1,#2,#3,current_context())"
-  js "_evv_delete"
+private extern evv-swap-delete( i : ev-index, behind : bool ) : e1 evv<e> {
+  c  inline "evv_swap_delete(#1,#2,current_context())"
+  js "_evv_swap_delete"
 }
 
 private extern inline evv-swap-create0() : evv<<>> {
@@ -157,8 +157,12 @@ public extern noinline yield-extend(next : a -> e b ) : e b {
   js "_yield_extend"
 }
 
-public fun yield-bind( x : a, next : a -> e b ) : e b {
+public fun inline yield-bind( x : a, next : a -> e b ) : e b {
   if (yielding()) then yield-extend(next) else next(x)
+}
+
+public fun inline yield-bind2( x : a, extend : a -> e b, next : a -> e b ) : e b {
+  if (yielding()) then yield-extend(extend) else next(x)
 }
 
 private extern yield-cont(f : (a -> e a, a) -> e r ) : e r {  // make hidden public?
@@ -190,7 +194,7 @@ private fun yield-to( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) :
   val w0 = evv-get()
   val g : () -> _b = yield-to-prim(m, clause)
   yield-extend fun(f){ 
-    val keep1 = guard(w0)  // check the evidence is correctly restored
+    // val keep1 = guard(w0)  // check the evidence is correctly restored
     f() 
   }
 }
@@ -311,23 +315,22 @@ public fun ".named-handle"( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : ev<
 // -------------------------------------------
 
 private fun mask-at1( i : ev-index, behind : bool, action : (a) -> e1 b, x : a ) : e2 b {
-  val w0 = evv-get()
-  val w1 = evv-delete(w0,i,behind)
+  val w0 = evv-swap-delete(i,behind)
   val y = cast-ev1(action)(x)
-  if (yielding()) return yield-cont(fun(cont,res){ mask-at1(unsafe-decreasing(i),behind,cont,res) })
   evv-set(w0)
+  if (yielding()) return yield-cont(fun(cont,res){ mask-at1(unsafe-decreasing(i),behind,cont,res) })
   y
 }
 
 public fun ".mask-at"<a,e1,e2>( i : ev-index, behind : bool, action : () -> e1 a ) : e2 a {
-  val w0 = evv-get()
-  val w1 = evv-delete(w0,i,behind)
+  val w0 = evv-swap-delete(i,behind)
   val x = cast-ev0(action)()
-  if (yielding()) return yield-cont(fun(cont,res){ mask-at1(i,behind,cont,res) })
   evv-set(w0)
+  if (yielding()) return yield-cont(fun(cont,res){ mask-at1(i,behind,cont,res) })
   x
 }
 
+// mask for builtin effects without a handler or evidence
 public fun ".mask-builtin"<a,e1,e2>( action : () -> e1 a ) : e2 a {
   cast-ev0(action)()
 }
@@ -337,23 +340,17 @@ public fun ".mask-builtin"<a,e1,e2>( action : () -> e1 a ) : e2 a {
 // Local variables
 // -------------------------------------------
 
-private extern inline unsafe-local( f : () -> <div,read<h>,write<h>,alloc<h>,local<h>|e> a ) : <local<h>|e> a {
-  c inline "(function_call(box_t,(function_t,context_t*),#1,(#1,current_context())))"
-  inline "(#1)()"
-}
-private extern inline unsafe-ref-to-local( r : ref<h,a> ) : local-var<h,a> { inline "#1" }
-
-private fun prompt-local-var(r:ref<h,a>, res : b  ) : <div,read<h>,write<h>,local<h>|e> b {
+private fun prompt-local-var(loc:local-var<s,a>, res : b  ) : <div,local<s>|e> b {
   if (!yielding()) return res;
-  val v = !r
-  yield-cont(fun(cont,x){ r := v; prompt-local-var(r,cont(x)) } )  // restore state early before the resume
+  val v = loc
+  yield-cont(fun(cont,x){ loc := v; prompt-local-var(std/core/types/byref(loc),cont(x)) } )  // restore state early before the resume
 }
 
 public fun local-var(init:a, action: (l:local-var<s,a>) -> <local<s>|e> b ) : <local<s>|e> b {
-  unsafe-local {
-    val r   = ref(init)
-    val res = cast-ev1(action)(unsafe-ref-to-local(r))
-    prompt-local-var(r,res)
+  unsafe-no-div {
+    val loc : local-var<_,_> = local-new(init)
+    val res = cast-ev1(action)(std/core/types/byref(loc))
+    prompt-local-var(std/core/types/byref(loc),res)
   }
 }
 
@@ -522,8 +519,8 @@ private fun under0( ev : ev<i>, op : () -> e b) : e b {
   val w0 = evv-swap-with(ev)
   val y = op()
   // evv-set(w0)   // only needed before yielding for evidence expected check in prompt
-  if (yielding()) return yield-cont( fun(cont,res){ under1(ev,cont,res)} )
   evv-set(w0)
+  if (yielding()) return yield-cont( fun(cont,res){ under1(ev,cont,res)} )
   y
 }
 
@@ -569,8 +566,8 @@ abstract type clause2<a1,a2,b,h,e,r> {
 private fun under2( ev : ev<h>, op : (a1,a2) -> e b, x1 : a1, x2 : a2 ) : e b {
   val w0 = evv-swap-with(ev)
   val z = op(x1,x2)
-  if (yielding()) return yield-cont( fun(cont,res){ under1(ev,cont,res)} )
   evv-set(w0)
+  if (yielding()) return yield-cont( fun(cont,res){ under1(ev,cont,res)} )
   z
 }
 
@@ -655,8 +652,8 @@ public fun ".perform3"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<(a1,a2
 private fun under3( ev : ev<h>, op : (a1,a2,a3) -> e b, x1 : a1, x2 : a2, x3 : a3 ) : e b {
   val w0 = evv-swap-with(ev)
   val z = op(x1,x2,x3)
-  if (yielding()) return yield-cont( fun(cont,res){ under1(ev,cont,res)} )
   evv-set(w0)
+  if (yielding()) return yield-cont( fun(cont,res){ under1(ev,cont,res)} )
   z
 }
 
@@ -677,8 +674,8 @@ public fun ".perform4"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<(a1,a2
 private fun under4( ev : ev<h>, op : (a1,a2,a3,a4) -> e b, x1 : a1, x2 : a2, x3 : a3, x4 : a4 ) : e b {
   val w0 = evv-swap-with(ev)
   val z = op(x1,x2,x3,x4)
-  if (yielding()) return yield-cont( fun(cont,res){ under1(ev,cont,res)} )
   evv-set(w0)
+  if (yielding()) return yield-cont( fun(cont,res){ under1(ev,cont,res)} )
   z
 }
 

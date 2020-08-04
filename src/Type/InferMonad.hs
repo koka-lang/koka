@@ -76,6 +76,7 @@ import Common.Unique
 import Common.Failure
 import Common.Error
 import Common.Syntax( Visibility(..))
+import Common.File(endsWith,normalizeWith)
 import Common.Name
 import Common.NamePrim(nameTpVoid,nameTpPure,nameTpIO,nameTpST,nameTpAsyncX,
                        nameTpRead,nameTpWrite,namePredHeapDiv,nameReturn,
@@ -237,7 +238,7 @@ improve contextRange range close eff0 rho0 core0
 
        -- isolate: do first to discharge certain hdiv predicates.
        -- todo: in general, we must to this after some improvement since that can lead to substitutions that may enable isolation..
-       (ps0,eff0,coref0) <- isolate (tvsUnions [free,ftv srho]) sps seff
+       (ps0,eff0,coref0) <- isolate contextRange (tvsUnions [free,ftv srho]) sps seff
 
        -- simplify and improve predicates
        (ps1,(eff1,rho1),coref1) <- simplifyAndResolve contextRange free ps0 (eff0,srho)
@@ -277,14 +278,20 @@ instantiateNoEx range tp
        return (rho, tvars, coref)
 
 -- | Automatically remove heap effects when safe to do so.
-isolate :: Tvs -> [Evidence] -> Effect -> Inf ([Evidence],Effect, Core.Expr -> Core.Expr)
-isolate free ps eff
+isolate :: Range -> Tvs -> [Evidence] -> Effect -> Inf ([Evidence],Effect, Core.Expr -> Core.Expr)
+{-
+isolate rng free ps eff  | src `endsWith` "std/core/hnd.kk"
+  = return (ps,eff,id)
+  where 
+    src = normalizeWith '/' (sourceName (rangeSource rng))
+-}    
+isolate rng free ps eff
   = -- trace ("isolate: " ++ show eff ++ " with free " ++ show (tvsList free)) $
     let (ls,tl) = extractOrderedEffect eff
     in case filter (\l -> labelName l `elem` [nameTpLocal,nameTpRead,nameTpWrite]) ls of
           (lab@(TApp labcon [TVar h]) : _)
             -> -- has heap variable 'h' in its effect
-               do trace ("isolate:"  ++ show (pretty eff)) $ return ()
+               do trace ("isolate:" ++ show (sourceName (rangeSource rng)) ++ ": " ++ show (pretty eff)) $ return ()
                   (polyPs,ps1) <- splitHDiv h ps
                   let isLocal = (labelName lab == nameTpLocal)
                   if not (-- null polyPs ||  -- TODO: we might want to isolate too if it is not null?
@@ -305,7 +312,7 @@ isolate free ps eff
                             trace ("isolate to:"  ++ show (pretty neweff)) $ return ()
                             -- return (sps, neweff, id) -- TODO: supply evidence (i.e. apply the run function)
                             -- and try again
-                            (sps',eff',coref) <- isolate free sps neweff
+                            (sps',eff',coref) <- isolate rng free sps neweff
                             let coreRun cexpr = if (isLocal)
                                                  then cexpr
                                                  else cexpr  -- TODO: apply runST?

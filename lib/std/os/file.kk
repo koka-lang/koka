@@ -28,13 +28,13 @@ extern include {
 public extern read-text-file-sync( fileName : string ) : io string
 {
   cs inline "System.IO.File.ReadAllText(#1,System.Text.Encoding.UTF8)"
-  js inline "fs.readFileSync(#1,{encoding: 'utf8'})"
+  js inline "($std_core.host()=='node' ? fs.readFileSync(#1,{encoding: 'utf8'}) : '')"
 }
 
 // Deprecated: Write a text file synchronously (using UTF8 encoding)
 public extern write-text-file-sync( fileName : string, content : string )  : io () {
   cs inline "System.IO.File.WriteAllText(#1,#2,System.Text.Encoding.UTF8)"
-  js inline "fs.writeFileSync(#1,#2,{encoding: 'utf8'})"
+  js inline "($std_core.host()=='node' ? fs.writeFileSync(#1,#2,{encoding: 'utf8'}) : null)"
 }
 
 

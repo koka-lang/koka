@@ -112,10 +112,11 @@ subNew :: [(TypeVar, Tau)] -> Sub
 subNew sub
   = -- assertion "Type.TypeVar.subNew" (all (\tv -> length (filter (==tv) tvs) == 1) tvs) $
     -- assertion "Type.TypeVar.subNew.Tau" (all isTau taus) $
-    assertion ("Type.TypeVar.subNew.KindMismatch: " ++ show (length sub)
-                ++ concatMap (\(x,t) -> "(" ++ showTypeVar x ++ " |-> " ++ showTp t ++ ")") sub)
-     (all (\(x, t) -> getKind x == getKind t) sub) $
-    Sub (M.fromList sub)
+    let s = assertion ("Type.TypeVar.subNew.KindMismatch: " ++ show (length sub)
+                        ++ concatMap (\(x,t) -> "(" ++ showTypeVar x ++ " |-> " ++ showTp t ++ ")") sub)
+             (all (\(x, t) -> getKind x == getKind t) sub) $
+            Sub (M.fromList sub)
+    in seq s s
 
 subDom :: Sub -> Tvs
 subDom (Sub sub)
