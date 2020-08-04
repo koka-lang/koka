@@ -157,11 +157,11 @@ public extern noinline yield-extend(next : a -> e b ) : e b {
   js "_yield_extend"
 }
 
-public fun yield-bind( x : a, next : a -> e b ) : e b {
+public fun inline yield-bind( x : a, next : a -> e b ) : e b {
   if (yielding()) then yield-extend(next) else next(x)
 }
 
-public fun yield-bind2( x : a, extend : a -> e b, next : a -> e b ) : e b {
+public fun inline yield-bind2( x : a, extend : a -> e b, next : a -> e b ) : e b {
   if (yielding()) then yield-extend(extend) else next(x)
 }
 
@@ -194,7 +194,7 @@ private fun yield-to( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) :
   val w0 = evv-get()
   val g : () -> _b = yield-to-prim(m, clause)
   yield-extend fun(f){ 
-    val keep1 = guard(w0)  // check the evidence is correctly restored
+    // val keep1 = guard(w0)  // check the evidence is correctly restored
     f() 
   }
 }
