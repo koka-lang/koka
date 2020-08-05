@@ -172,7 +172,7 @@ data DataInfo = DataInfo{ dataInfoSort    :: DataKind
                         , dataInfoParams  :: [TypeVar] {- ^ arguments -}
                         , dataInfoConstrs :: [ConInfo]
                         , dataInfoRange   :: Range
-                        , dataInfoDef     :: DataDef  -- normal, rec, open
+                        , dataInfoDef     :: DataDef  -- value(raw,scan), normal, rec, open
                         , dataInfoVis     :: Visibility
                         , dataInfoDoc     :: String
                         }

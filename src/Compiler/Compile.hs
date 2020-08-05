@@ -1253,12 +1253,12 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                               text "set" <.> parens (text "kk_target" <+> dquotes (text mainName)),
                               text "find_package(kklib 1.0 CONFIG)",
                               space,
-                              text "INCLUDE" <.> parens (dquotes (text mainName <.> text ".cmake") <+> text "OPTIONAL"),
-                              space,
                               sources,
                               space,
                               text "add_executable(${kk_target} ${kk_csources})",
-                              text "target_link_libraries(${kk_target} PRIVATE kklib)"
+                              text "target_link_libraries(${kk_target} PRIVATE kklib)",
+                              space,
+                              text "include" <.> parens (dquotes (text mainName <.> text ".cmake") <+> text "OPTIONAL")
                             ]
                 cmake = show cmakeDoc
 

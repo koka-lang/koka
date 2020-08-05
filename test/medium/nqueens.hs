@@ -37,4 +37,4 @@ queens n
   = len (find_solutions n n)
 
 main 
-  = print (queens 13)
+  = print (queens 8)

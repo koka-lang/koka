@@ -34,7 +34,7 @@ public fun queens( n : int ) : div int {
 }
 
 public fun main() {
-  queens(8).println
+  queens(13).println
 }
 
 
