@@ -1,3 +1,4 @@
+{-# OPTIONS -cpp #-}
 -----------------------------------------------------------------------------
 -- Copyright 2012 Microsoft Corporation.
 --
@@ -957,8 +958,10 @@ instance Monad Asm where
                                     (x,st1) -> case f x of
                                                  Asm b -> b env st1)
 
+#if __GLASGOW_HASKELL__ >= 808
 instance MonadFail Asm where
   fail          = errorWithoutStackTrace
+#endif
 
 runAsm :: Env -> Asm Doc -> Doc
 runAsm initEnv (Asm asm)

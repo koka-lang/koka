@@ -1,3 +1,4 @@
+{-# OPTIONS -cpp #-}
 -----------------------------------------------------------------------------
 -- Copyright 2012 Microsoft Corporation.
 --
@@ -74,9 +75,14 @@ instance Monad Check where
                                       Ok x u' -> case f x of
                                                    Check d -> d u' g
                                       Err doc -> Err doc)
+#if __GLASGOW_HASKELL__ < 808
+  fail s        = Check (\u g -> Err (text s))
+#endif
 
+#if __GLASGOW_HASKELL__ >= 808
 instance MonadFail Check where
   fail s        = Check (\u g -> Err (text s))
+#endif
 
 instance HasUnique Check where
   updateUnique f = Check (\u g -> Ok u (f u))

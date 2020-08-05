@@ -1,3 +1,4 @@
+{-# OPTIONS -cpp #-}
 -----------------------------------------------------------------------------
 -- Copyright 2012 Microsoft Corporation.
 --
@@ -14,6 +15,7 @@ module Common.Error( Error, ErrorMessage(..), errorMsg, ok
                    , ppErrorMessage, errorWarning ) where
 
 import Control.Monad
+import Control.Monad.Fail(MonadFail)
 import Control.Applicative
 import Lib.PPrint
 import Common.Range
@@ -138,9 +140,14 @@ instance Monad Error where
   e >>= f       = case e of 
                     Ok x w   -> addWarnings w (f x)
                     Error msg w -> Error msg w
+#if __GLASGOW_HASKELL__ < 808
+  fail s        = Error (ErrorGeneral rangeNull (text s)) []
+#endif
 
+#if __GLASGOW_HASKELL__ >= 808
 instance MonadFail Error where
   fail s        = Error (ErrorGeneral rangeNull (text s)) []
+#endif
 
 instance MonadPlus Error where
   mzero         = Error ErrorZero []
