@@ -957,6 +957,9 @@ instance Monad Asm where
                                     (x,st1) -> case f x of
                                                  Asm b -> b env st1)
 
+instance MonadFail Asm where
+  fail          = errorWithoutStackTrace
+
 runAsm :: Env -> Asm Doc -> Doc
 runAsm initEnv (Asm asm)
   = case asm initEnv initSt of

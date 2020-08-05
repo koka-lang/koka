@@ -70,11 +70,13 @@ instance Applicative Check where
 
 instance Monad Check where
   return x      = Check (\u g -> Ok x u)
-  fail s        = Check (\u g -> Err (text s))
   (Check c) >>= f  = Check (\u g -> case c u g of
                                       Ok x u' -> case f x of
                                                    Check d -> d u' g
                                       Err doc -> Err doc)
+
+instance MonadFail Check where
+  fail s        = Check (\u g -> Err (text s))
 
 instance HasUnique Check where
   updateUnique f = Check (\u g -> Ok u (f u))
