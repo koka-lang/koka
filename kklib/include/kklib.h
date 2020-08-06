@@ -387,6 +387,14 @@ static inline block_t* dup_block_assert(block_t* b, tag_t tag) {
   return dup_block(b);
 }
 
+static inline void drop_reuse_t(reuse_t r, context_t* ctx) {
+  UNUSED(ctx);
+  if (r != NULL) {
+    assert_internal(block_is_unique(r));
+    runtime_free(r);
+  }
+}
+
 
 /*--------------------------------------------------------------------------------------
   Datatype and Constructor macros
