@@ -8,6 +8,17 @@
 #include "kklib.h"
 
 
+typedef struct block_fields_s {
+  block_t _block;
+  box_t   fields[1];
+} block_fields_t;
+
+static inline box_t block_field(block_t* b, size_t index) {
+  block_fields_t* bf = (block_fields_t*)b;  // must overlap with datatypes with scanned fields.
+  return bf->fields[index];
+}
+
+
 /*--------------------------------------------------------------------------------------
   Checked reference counts. 
   - We use a sticky range above `RC_STICKY_LO` to prevent overflow
@@ -56,6 +67,27 @@ decl_noinline void block_check_free(block_t* b, uint32_t rc0, context_t* ctx) {
       b->header.thread_shared = 0;
       block_free(b, ctx);            // no more references, free it.
     }
+  }
+}
+
+// Check if a reference decrement caused the block to be reused or needs atomic operations
+decl_noinline reuse_t block_check_reuse(block_t* b, uint32_t rc0, context_t* ctx) {
+  assert_internal(b!=NULL);
+  assert_internal(b->header.refcount == rc0);
+  assert_internal(rc0 == 0 || (rc0 >= RC_SHARED && rc0 < RC_INVALID));
+  if (likely(rc0==0)) {
+    // no more references, reuse it.
+    size_t scan_fsize = block_scan_fsize(b);
+    for (size_t i = 0; i < scan_fsize; i++) {
+      drop_box_t(block_field(b, i), ctx);
+    }
+    memset(&b->header, 0, sizeof(header_t)); // not really necessary
+    return b;
+  }
+  else {
+    // may be shared or sticky
+    block_check_free(b, rc0, ctx);
+    return reuse_null;
   }
 }
 
@@ -142,16 +174,6 @@ static void block_decref_delayed(context_t* ctx) {
 }
 
 #define MAX_RECURSE_DEPTH (100)
-
-typedef struct block_fields_s {
-  block_t _block;
-  box_t   fields[1];
-} block_fields_t;
-
-static inline box_t block_field(block_t* b, size_t index) {
-  block_fields_t* bf = (block_fields_t*)b;  // must overlap with datatypes with scanned fields.
-  return bf->fields[index];
-}
 
 // Free recursively a block -- if the recursion becomes too deep, push
 // blocks on the delayed free list to free them later. The delayed free list

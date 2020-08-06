@@ -20,7 +20,7 @@ __std_core__list vector_to_list(vector_t v, __std_core__list tail, context_t* ct
   struct __std_core_Cons* cons = NULL;
   __std_core__list list = NULL;
   for( size_t i = 0; i < n; i++ ) {
-    __std_core__list hd = __std_core__new_Cons(dup_box_t(p[i]), nil, ctx);
+    __std_core__list hd = __std_core__new_Cons(reuse_null,dup_box_t(p[i]), nil, ctx);
     if (cons==NULL) {
       list = hd;
     }
@@ -81,7 +81,7 @@ __std_core__list string_to_list(string_t s, context_t* ctx) {
   char_t c;
   while( (c = utf8_read(p,&count), c != 0) ) {
     p += count;
-    __std_core__list cons = __std_core__new_Cons(box_char_t(c,ctx), nil, ctx);
+    __std_core__list cons = __std_core__new_Cons(reuse_null,box_char_t(c,ctx), nil, ctx);
     if (tl!=NULL) {
       tl->tail = cons;
     }

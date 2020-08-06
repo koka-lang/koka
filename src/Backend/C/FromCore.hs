@@ -519,9 +519,10 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
                    emitToInit $ text "_static_" <.> conSingletonName con <.> text "._tag =" <+> ppConTag con conRepr dataRepr <.> semi -- assign open tag
          else return ()
        when (dataRepr == DataOpen) $ emitToH $ text "extern string_t" <+> conTagName con <.> semi 
+       let at = newHiddenName "at"
        emitToH $          
           text "static inline" <+> ppName (typeClassName (dataInfoName info)) <+> conCreateNameInfo con
-          <.> ntparameters (conInfoParams con)
+          <.> ntparameters ((if (dataReprIsValue dataRepr || null conFields) then [] else [(at,typeReuse)]) ++ conInfoParams con)
           <.> block (
             let nameDoc = ppName (conInfoName con)
                 -- tagDoc  = text "datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
@@ -548,8 +549,10 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
                     else if (null conFields)
                      then text "return dup_datatype_as" <.> tupled [ppName (typeClassName (dataInfoName info)),  (conSingletonName con) {-, ppConTag con conRepr dataRepr <+> text "/* _tag */"-}] <.> semi
                      else vcat([text "struct" <+> nameDoc <.> text "*" <+> tmp <+> text "="
-                               <+> text "block_alloc_as" 
-                                       <.> arguments [text "struct" <+> nameDoc, pretty scanCount <+> text "/* scan count */",
+                               <+> text "block_alloc_at_as" 
+                                       <.> arguments [ text "struct" <+> nameDoc, 
+                                                       ppName at,
+                                                       pretty scanCount <+> text "/* scan count */",
                                                        if (dataRepr /= DataOpen)
                                                         then ppConTag con conRepr dataRepr <+> text "/* tag */"
                                                         else text "TAG_OPEN"]
@@ -1385,6 +1388,10 @@ genApp f args
 
 
 genAppNormal :: Expr -> [Expr] -> Asm ([Doc],Doc)
+genAppNormal (Var allocAt _) [Var at _, App (Con tname repr) args]  | getName allocAt == nameAllocAt
+  = do (decls,argDocs) <- genExprs args
+       let atDoc = ppName (getName at)
+       return (decls,conCreateName (getName tname) <.> arguments ([atDoc] ++ argDocs))
 genAppNormal f args
   = do (decls,argDocs) <- genExprs args
        case extractExtern f of
@@ -1396,7 +1403,8 @@ genAppNormal f args
            -> case f of
                -- constructor
                Con tname repr
-                 -> return (decls,conCreateName (getName tname) <.> arguments argDocs)
+                 -> let at = if (dataReprIsValue (conDataRepr repr)) then [] else [text "reuse_null"]
+                    in return (decls,conCreateName (getName tname) <.> arguments (at ++ argDocs))
                -- call to known function
                Var tname (InfoArity m n) | isQualified (getName tname)
                  -> return (decls,ppName (getName tname) <.> arguments argDocs)

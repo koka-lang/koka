@@ -1,12 +1,12 @@
 data List a = Nil | Cons a (List a)
 
 len xs
-  = len' 0 xs
+  = len' xs 0
 
-len' acc xs
+len' xs acc
   = case xs of
       Nil -> acc
-      Cons _ t -> len' (acc+1) t
+      Cons _ t -> len' t $! (acc+1)
 
 safe queen diag xs
   = case xs of
@@ -37,4 +37,4 @@ queens n
   = len (find_solutions n n)
 
 main 
-  = print (queens 8)
+  = print (queens 13)

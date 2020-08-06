@@ -284,6 +284,24 @@ static inline void block_large_init(block_large_t* b, size_t size, size_t scan_f
   b->large_scan_fsize = box_enum(scan_fsize);
 }
 
+typedef block_t* reuse_t;
+
+#define reuse_null   ((reuse_t)NULL)
+
+static inline block_t* block_alloc_at(reuse_t at, size_t size, size_t scan_fsize, tag_t tag, context_t* ctx) {
+  assert_internal(scan_fsize < SCAN_FSIZE_MAX);
+  block_t* b;
+  if (at==reuse_null) {
+    b = (block_t*)runtime_malloc(size, ctx);
+  }
+  else {
+    assert_internal(block_is_unique(at)); // TODO: check usable size of `at`
+    b = at;
+  }
+  block_init(b, size, scan_fsize, tag);
+  return b;
+}
+
 static inline block_t* block_alloc(size_t size, size_t scan_fsize, tag_t tag, context_t* ctx) {
   assert_internal(scan_fsize < SCAN_FSIZE_MAX);
   block_t* b = (block_t*)runtime_malloc(size, ctx);
@@ -308,9 +326,11 @@ static inline char* _block_as_assert(block_t* b, tag_t tag) {
   return (char*)b;
 }
 
-#define block_alloc_as(struct_tp,scan_fsize,tag,ctx)  ((struct_tp*)block_alloc(sizeof(struct_tp),scan_fsize,tag,ctx))
-#define block_as(tp,b)                                ((tp)((void*)(b)))
-#define block_as_assert(tp,b,tag)                     ((tp)_block_as_assert(b,tag))
+#define block_alloc_as(struct_tp,scan_fsize,tag,ctx)        ((struct_tp*)block_alloc_at(reuse_null, sizeof(struct_tp),scan_fsize,tag,ctx))
+#define block_alloc_at_as(struct_tp,at,scan_fsize,tag,ctx)  ((struct_tp*)block_alloc_at(at, sizeof(struct_tp),scan_fsize,tag,ctx))
+
+#define block_as(tp,b)                                      ((tp)((void*)(b)))
+#define block_as_assert(tp,b,tag)                           ((tp)_block_as_assert(b,tag))
 
 
 /*--------------------------------------------------------------------------------------
@@ -341,6 +361,20 @@ static inline void drop_block(block_t* b, context_t* ctx) {
   }
 }
 
+reuse_t block_check_reuse(block_t* b, uint32_t rc0, context_t* ctx);
+
+// Decrement the reference count, and return the memory for reuse if it drops to zero
+static inline reuse_t drop_reuse_block(block_t* b, context_t* ctx) {
+  const uint32_t rc = b->header.refcount;
+  if ((int32_t)rc <= 0) {                 // note: assume two's complement
+    return block_check_reuse(b, rc, ctx); // thread-shared, sticky (overflowed), or can be reused?
+  }
+  else {
+    b->header.refcount = rc-1;
+    return reuse_null;
+  }
+}
+
 static inline void drop_block_assert(block_t* b, tag_t tag, context_t* ctx) {
   UNUSED_RELEASE(tag);
   assert_internal(block_tag(b) == tag);
@@ -361,8 +395,9 @@ static inline block_t* dup_block_assert(block_t* b, tag_t tag) {
 #define datatype_tag(v)                     (block_tag(&((v)->_block)))
 #define datatype_is_unique(v)               (block_is_unique(&((v)->_block)))
 #define datatype_as(tp,v)                   (block_as(tp,&((v)->_block)))
-#define drop_datatype(v,ctx)                (drop_block(&((v)->_block),ctx))
 #define dup_datatype_as(tp,v)               ((tp)dup_block(&((v)->_block)))
+#define drop_datatype(v,ctx)                (drop_block(&((v)->_block),ctx))
+#define drop_reuse_datatype(v,ctx)          (drop_reuse_block(&((v)->_block),ctx))
 
 #define datatype_as_assert(tp,v,tag)        (block_as_assert(tp,&((v)->_block),tag))
 #define drop_datatype_assert(v,tag,ctx)     (drop_block_assert(&((v)->_block),tag,ctx))
@@ -370,11 +405,13 @@ static inline block_t* dup_block_assert(block_t* b, tag_t tag) {
 
 #define constructor_tag(v)                  (datatype_tag(&((v)->_type)))
 #define constructor_is_unique(v)            (datatype_is_unique(&((v)->_type)))
-#define drop_constructor(v,ctx)             (drop_datatype(&((v)->_type),ctx))
 #define dup_constructor_as(tp,v)            (dup_datatype_as(tp, &((v)->_type)))
+#define drop_constructor(v,ctx)             (drop_datatype(&((v)->_type),ctx))
+#define drop_reuse_constructor(v,ctx)       (drop_reuse_datatype(&((v)->_type),ctx))
 
-#define drop_value(v,ctx)                   (void)
 #define dup_value(v)                        (v)
+#define drop_value(v,ctx)                   (void)
+#define drop_reuse_value(v,ctx)             (reuse_null)
 
 
 #define define_static_datatype(decl,struct_tp,name,tag) \
@@ -389,27 +426,6 @@ static inline block_t* dup_block_assert(block_t* b, tag_t tag) {
 /*----------------------------------------------------------------------
   Reference counting of pattern matches
 ----------------------------------------------------------------------*/
-typedef block_t* reuse_t;
-
-static inline reuse_t block_reuse(block_t* b) {
-  // set tag to zero, unique, with zero scan size (so decref is valid on it)
-  memset(&b->header, 0, sizeof(header_t));
-  return b;
-}
-
-static inline block_t* block_alloc_reuse(reuse_t r, size_t size, size_t scan_fsize, tag_t tag, context_t* ctx) {
-  // TODO: check usable size p >= size
-  block_t* b;
-  if (r != NULL) {
-    assert_internal(block_is_unique(r));
-    b = r;
-  }
-  else {
-    b = (block_t*)runtime_malloc(size, ctx);
-  }
-  block_init(b, size, scan_fsize, tag);
-  return b;
-}
 
 // The constructor that is matched on is still used; only duplicate the used fields
 #define keep_match(con,dups) \
@@ -430,7 +446,7 @@ static inline block_t* block_alloc_reuse(reuse_t r, size_t size, size_t scan_fsi
 // 2. otherwise, duplicate the used fields, drop the constructor, and don't reuse
 #define reuse_match(reuseid,con,dups,drops,ctx) \
   if (constructor_is_unique(con)) { \
-    do drops while(0); reuseid = constructor_reuse(conid); \
+    do drops while(0); reuseid = drop_reuse_constructor(conid,ctx); \
   } else { \
     do dups while(0); drop_constructor(con,ctx); reuseid = NULL; \
   }

@@ -117,4 +117,4 @@ target_compile_definitions(kklib-flags INTERFACE $<${unix}:_GNU_SOURCE>)
 # Additional libraries
 target_link_libraries(kklib-flags INTERFACE $<${unix}:m>)
 
-include("${CMAKE_CURRENT_LIST_DIR}/../koka.cmake" OPTIONAL)
+include("${CMAKE_CURRENT_LIST_DIR}/../kklib.cmake" OPTIONAL)

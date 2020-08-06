@@ -37,6 +37,7 @@ struct __std_core_hnd__ev_s* ev_none(context_t* ctx) {
   static __std_core_hnd__ev ev_none_singleton;
   if (ev_none_singleton==NULL) {
     ev_none_singleton = __std_core_hnd__new_Ev(
+      reuse_null,
       __std_core_hnd__new_Htag(dup_string_t(string_empty),ctx), // tag ""
       __std_core_hnd__new_Marker(-1,ctx),                       // marker -1
       box_null,                                                 // no handler
