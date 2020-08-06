@@ -1,5 +1,5 @@
 -----------------------------------------------------------------------------
--- Copyright 2020 Microsoft Corporation, Daan Leijen
+-- Copyright 2020 Microsoft Corporation, Daan Leijen, Alex Reinking
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
@@ -240,7 +240,7 @@ genReuseMatch con dups drops
       xdups  <- mapM genDup dups
       cdrop  <- genDrop con
       return $ makeIfExpr (genIsUnique con)
-                 (makeStats (catMaybes xdrops ++ [genReuse con]))
+                 (makeStats (catMaybes xdrops ++ [genDropReuse con]))
                  (makeStats (catMaybes (xdups ++ [cdrop]) ++ [genNoReuse]))
 
 -- Generate a test if a (locally bound) name is unique
@@ -263,8 +263,8 @@ genFree tname
     funTp = TFun [(nameNil,tp)] typeTotal typeUnit
 
 -- Generate a reuse of a constructor
-genReuse :: TName -> Expr
-genReuse tname
+genDropReuse :: TName -> Expr
+genDropReuse tname
   = App (Var (TName nameReuse funTp) (InfoExternal [(C, "drop_reuse_datatype(#1,current_context())")]))
         [Var tname InfoNone]
   where
@@ -272,9 +272,11 @@ genReuse tname
     funTp = TFun [(nameNil,tp)] typeTotal typeReuse
 
 -- generate allocation-at of a constructor application
-genAllocAt :: Name -> Expr -> Expr
+-- at should have tyep `typeReuse`
+-- conApp should have form  App (Con _ _) conArgs    : length conArgs >= 1
+genAllocAt :: TName -> Expr -> Expr
 genAllocAt at conApp 
-  = App (Var (TName nameAllocAt typeAllocAt) (InfoArity 0 1)) [Var (TName at typeReuse) InfoNone, conApp]
+  = App (Var (TName nameAllocAt typeAllocAt) (InfoArity 0 1)) [Var at InfoNone, conApp]
   where
     conTp = typeOf conApp
     typeAllocAt = TFun [(nameNil,conTp)] typeTotal conTp 
