@@ -63,6 +63,7 @@ module Core.Core ( -- Data structures
                    , isConIso
                    , isDataStruct
                    , getDataRepr, getDataReprEx, dataInfoIsValue
+                   , dataReprIsValue
                    , VarInfo(..), isInfoArity
 
                    , isMonType, isMonEffect
@@ -293,6 +294,16 @@ isConIso _ = False
 
 isDataStruct (DataStruct) = True
 isDataStruct _ = False
+
+-- Value data is not heap allocated and needs no header
+dataReprIsValue :: DataRepr -> Bool
+dataReprIsValue DataEnum         = True
+dataReprIsValue DataIso          = True
+dataReprIsValue DataSingleStruct = True
+dataReprIsValue DataAsMaybe      = True
+dataReprIsValue DataStruct       = True   -- structs have a tag field though
+dataReprIsValue _                = False
+
 
 dataInfoIsValue :: DataInfo -> Bool
 dataInfoIsValue info = dataDefIsValue (dataInfoDef info)

@@ -818,14 +818,6 @@ hasTagField DataAsMaybe = True
 hasTagField DataStruct  = True
 hasTagField rep         = False
 
--- Value data is not heap allocated and needs no header
-dataReprIsValue :: DataRepr -> Bool
-dataReprIsValue DataEnum         = True
-dataReprIsValue DataIso          = True
-dataReprIsValue DataSingleStruct = True
-dataReprIsValue DataAsMaybe      = True
-dataReprIsValue DataStruct       = True   -- structs have a tag field though
-dataReprIsValue _                = False
 
 
 genLambda :: [TName] -> Effect -> Expr -> Asm Doc

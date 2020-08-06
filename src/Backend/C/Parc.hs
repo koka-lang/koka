@@ -526,3 +526,22 @@ extractDataDefType tp
       TForall _ _ t -> extractDataDefType t
       TCon tc       -> Just (typeConName tc)
       _             -> Nothing
+      
+      
+-- return the allocated size of a constructor. Return 0 for value types or singletons 
+constructorSize :: Newtypes -> ConRepr -> [Type] -> Int
+constructorSize newtypes conRepr paramTypes
+  = if (dataReprIsValue (conDataRepr conRepr) || null paramTypes)
+     then 0
+     else sum (map (fieldSize newtypes) paramTypes)
+
+-- return the field size of a type 
+fieldSize :: Newtypes -> Type -> Int
+fieldSize newtypes tp
+  = case extractDataDefType tp of
+      Nothing   -> 1  -- regular datatype is 1 pointer
+      Just name -> case newtypesLookupAny name newtypes of
+                     Nothing -> failure $ "Core.Parc.typeSize: cannot find type: " ++ show name
+                     Just di -> case dataInfoDef di of 
+                                  DataDefValue raw scan -> raw + scan  -- todo: take raw fields real size into account
+                                  _ -> 1 -- pointer to allocated data
