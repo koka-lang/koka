@@ -31,7 +31,7 @@ module Compiler.Compile( -- * Compile
 import Lib.Trace              ( trace )
 import Data.Char              ( isAlphaNum )
 
-import System.Directory       ( createDirectoryIfMissing, canonicalizePath )
+import System.Directory       ( createDirectoryIfMissing, canonicalizePath, getCurrentDirectory )
 import Data.List              ( isPrefixOf, intersperse )
 import Control.Applicative
 import Control.Monad          ( ap, when )
@@ -1239,6 +1239,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                 
             checkCMake term flags
             installKKLib term flags kklibDir kklibInstallDir makeSystemFlag buildTypeFlag buildType
+            currentDir <- getCurrentDirectory
             
             let mainName   = if null (exeName flags) then showModName (Core.coreProgName core0) else exeName flags
                 
@@ -1258,7 +1259,10 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                               text "add_executable(${kk_target} ${kk_csources})",
                               text "target_link_libraries(${kk_target} PRIVATE kklib)",
                               space,
-                              text "include" <.> parens (dquotes (text mainName <.> text ".cmake") <+> text "OPTIONAL")
+                              text "if(NOT DEFINED kkinvoke_dir)",
+                              text "  set(kkinvoke_dir .)",
+                              text "endif()",
+                              text "include" <.> parens (dquotes (text "${kkinvoke_dir}/" <.> text mainName <.> text ".cmake") <+> text "OPTIONAL")
                             ]
                 cmake = show cmakeDoc
 
@@ -1272,6 +1276,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                 cmakeConfig = "cmake -E chdir " ++ dquote targetDir 
                                ++ " cmake" ++ makeSystemFlag ++ buildTypeFlag 
                                ++ " -Dkklib_DIR=" ++ dquote (kklibInstallDir ++ "/cmake") 
+                               ++ " -Dkkinvoke_dir=" ++ dquote currentDir
                                ++  " .." -- ++ dquote buildDir  
                 cmakeBuild  = "cmake --build " ++ dquote targetDir
                 cmakeLists  = buildDir ++ "/CMakeLists.txt"
