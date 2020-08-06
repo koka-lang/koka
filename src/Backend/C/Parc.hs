@@ -7,6 +7,10 @@
 -----------------------------------------------------------------------------
 {-# LANGUAGE NamedFieldPuns, GeneralizedNewtypeDeriving  #-}
 
+-----------------------------------------------------------------------------
+-- precise automatic reference counting
+-----------------------------------------------------------------------------
+
 module Backend.C.Parc ( parcCore ) where
 
 import Lib.Trace (trace)

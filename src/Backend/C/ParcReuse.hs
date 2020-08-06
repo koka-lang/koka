@@ -7,6 +7,10 @@
 -----------------------------------------------------------------------------
 {-# LANGUAGE NamedFieldPuns, GeneralizedNewtypeDeriving  #-}
 
+-----------------------------------------------------------------------------
+-- constructor reuse analysis
+-----------------------------------------------------------------------------
+
 module Backend.C.ParcReuse ( parcReuseCore ) where
 
 import Lib.Trace (trace)
@@ -19,6 +23,7 @@ import Data.Maybe ( catMaybes, fromMaybe )
 import Data.Char
 import Data.Set ( (\\) )
 import qualified Data.Set as S
+import qualified Data.IntMap as M
 
 import Kind.Kind
 import Kind.Newtypes
@@ -34,8 +39,7 @@ import Common.NamePrim
 import Common.Failure
 import Common.Unique
 import Common.Syntax
-import qualified Common.NameMap as M
-import qualified Common.NameSet as S
+
 
 import Core.Core
 import Core.Pretty
@@ -69,12 +73,12 @@ parcReuseCore penv newtypes core
 --------------------------------------------------------------------------
 
 ruDefGroups :: Bool -> DefGroups -> Reuse DefGroups
-ruDefGroups topLevel = reverseMapM (ruDefGroup topLevel)
+ruDefGroups topLevel = mapM (ruDefGroup topLevel)
 
 ruDefGroup :: Bool -> DefGroup -> Reuse DefGroup
 ruDefGroup topLevel dg
   = case dg of
-      DefRec    defs -> DefRec    <$> reverseMapM (ruDef topLevel) defs
+      DefRec    defs -> DefRec    <$> mapM (ruDef topLevel) defs
       DefNonRec def  -> DefNonRec <$> ruDef topLevel def
 
 ruDef :: Bool -> Def -> Reuse Def
@@ -90,23 +94,37 @@ ruDef topLevel def
 
 ruExpr :: Expr -> Reuse Expr
 ruExpr expr
-  = case expr of
+  = case expr of    
+      App con@(Con cname repr) args
+        -> do args' <- mapM ruExpr args
+              newtypes <- getNewtypes
+              let size = constructorSize newtypes repr (map typeOf args)
+              available <- getAvailable
+              case (M.lookup size available) of
+                Just tnames | not (S.null tnames) 
+                  -> do let tname   = S.elemAt 0 tnames
+                            tnames' = S.deleteAt 0 tnames
+                        setAvailable (if (S.null tnames') then M.delete size available
+                                                          else M.insert size tnames' available)
+                        return (genAllocAt tname (App con args'))                        
+                _ -> return (App con args')
       TypeLam tpars body
         -> TypeLam tpars <$> ruExpr body
       TypeApp body targs
         -> (`TypeApp` targs) <$> ruExpr body
       Lam pars eff body
         ->Lam pars eff <$> ruExpr body
-      Var _ _ 
-        -> return expr
       App fn args
-        -> do args' <- reverseMapM ruExpr args
+        -> do args' <- mapM ruExpr args
               fn'   <- ruExpr fn
               return $ App fn' args'
+      Var _ _ 
+        -> return expr
       Lit _
         -> return expr
       Con ctor repr
         -> return expr
+        
       Let [] body
         -> ruExpr body
       Let (DefNonRec def:dgs) body
@@ -116,24 +134,61 @@ ruExpr expr
       Let _ _
         -> failure "Backend.C.Reuse.ruExpr"
       Case scrutinees branches
-        -> do scruts' <- reverseMapM ruExpr scrutinees
+        -> do scruts'   <- mapM ruExpr scrutinees
               branches' <- ruBranches branches
               return (Case scruts' branches')
 
 ruBranches :: [Branch] -> Reuse [Branch]
 ruBranches branches
-  = mapM ruBranch branches
+  = do (branches', avs) <- unzip <$> mapM ruBranch branches
+       setAvailable  (availableIntersect avs)
+       return branches'
 
-ruBranch :: Branch -> Reuse Branch
+ruBranch :: Branch -> Reuse (Branch, Available)
 ruBranch (Branch pats guards)
-  = Branch pats <$> mapM ruGuard guards
+  = do (pats',reuses) <- unzip <$> mapM (ruPattern Nothing) pats
+       (guards',avs)  <- unzip <$> mapM ruGuard guards
+       -- TODO: 
+       -- generate unique names for each binding in reuses list
+       -- add those to available, 
+       -- visit guards, 
+       -- generate drop_reuse for each binding that is no longer available (i.e. reused)
+       -- remove any other binding in reuses from available
+       return (Branch pats' guards', availableIntersect avs)
 
-ruGuard :: Guard -> Reuse Guard
+ruGuard :: Guard -> Reuse (Guard, Available)
 ruGuard (Guard test expr)
-  = do test' <- ruExpr test
+  = isolateAvailable $
+    do test' <- ruExpr test
        expr' <- ruExpr expr
        return (Guard test' expr')
 
+
+ruPattern :: Maybe TName -> Pattern -> Reuse (Pattern, [(TName,Int)])
+ruPattern mbVar pat
+  = case pat of
+      PatCon name params repr targs exists tres conInfo
+        -> do (params',reusess) <- unzip <$> mapM (ruPattern Nothing) params
+              newtypes <- getNewtypes
+              let size = constructorSize newtypes repr targs
+              (reuses,f) <- if (size <= 0) then return ([],id)
+                              else do (u,f) <- case mbVar of
+                                                 Just tname -> return (tname,id)
+                                                 _          -> do u <- uniqueTName "ru" tres
+                                                                  return (u,PatVar u)
+                                      return ([(u,size)], f)
+              return (f (PatCon name params' repr targs exists tres conInfo), concat(reuses:reusess))
+                
+      PatVar tname arg
+        -> do (arg',reuse) <- ruPattern (Just tname) arg
+              return (PatVar tname arg', reuse)
+      PatWild  -> return (pat,[])
+      PatLit _ -> return (pat,[])
+      
+uniqueTName base tp
+  = do nm <- uniqueName base
+       return (TName nm tp)
+      
 
 -- Generate a reuse of a constructor
 genDropReuse :: TName -> Expr
@@ -159,11 +214,6 @@ genAllocAt at conApp
 -- Utilities for readability
 --------------------------------------------------------------------------
 
-reverseMapM :: Monad m => (a -> m b) -> [a] -> m [b]
-reverseMapM action args =
-  do args' <- mapM action (reverse args)
-     return $ reverse args'
-
 -- for mapping over a set and collecting the results into a list.
 foldMapM :: (Monad m, Foldable t) => (a -> m b) -> t a -> m [b]
 foldMapM f = foldr merge (return [])
@@ -181,16 +231,14 @@ maybeStats xs expr
 -----------------
 -- definitions --
 
-type Available = M.NameMap Int
-type Reused    = S.NameSet 
+type Available = M.IntMap TNames
 
 data Env = Env { currentDef :: [Def],
                  prettyEnv :: Pretty.Env,
-                 newtypes  :: Newtypes,
-                 available :: Available
+                 newtypes :: Newtypes
                }
 
-data ReuseState = ReuseState { uniq :: Int, reused :: Reused }
+data ReuseState = ReuseState { uniq :: Int, available :: Available }
 
 type ReuseM a = ReaderT Env (State ReuseState) a
 
@@ -216,8 +264,8 @@ getSt = get
 runReuse :: Pretty.Env -> Newtypes -> Reuse a -> Unique a
 runReuse penv newtypes (Reuse action)
   = withUnique $ \u ->
-      let env = Env [] penv newtypes M.empty
-          st = ReuseState u S.empty
+      let env = Env [] penv newtypes
+          st = ReuseState u M.empty
           (val, st') = runState (runReaderT action env) st
        in (val, uniq st')
 
@@ -250,11 +298,18 @@ withNewtypes f = withEnv (\e -> e { newtypes = f (newtypes e) })
 --
 
 getAvailable :: Reuse Available
-getAvailable = available <$> getEnv
+getAvailable = available <$> getSt
 
-updateAvailable :: (Available -> Available) -> Reuse a -> Reuse a
-updateAvailable f = withEnv (\e -> e { available = f (available e) })
+updateAvailable :: (Available -> Available) -> Reuse ()
+updateAvailable f = updateSt (\s -> s { available = f (available s) })
 
+setAvailable :: Available -> Reuse ()
+setAvailable = updateAvailable . const
+
+availableIntersect :: [Available] -> Available
+availableIntersect avs
+  = M.filter (not . S.null) (M.unionsWith S.intersection avs)
+      
 ---------------------
 -- state accessors --
 
@@ -267,14 +322,15 @@ modifyUniq f = updateSt (\s -> s { uniq = f (uniq s) })
 setUniq :: Int -> Reuse ()
 setUniq = modifyUniq . const
 
-getReused :: Reuse Reused
-getReused = reused <$> getSt
 
-modifyReused :: (Reused -> Reused) -> Reuse ()
-modifyReused f = updateSt (\s -> s { reused = f (reused s) })
+isolateAvailable :: Reuse a -> Reuse (a,Available) 
+isolateAvailable action
+  = do avs0 <- getAvailable
+       x <- action
+       avs1 <- getAvailable
+       setAvailable avs0
+       return (x,avs1)
 
-setReused :: Reused -> Reuse ()
-setReused = modifyReused . const
 
 
 --------------------------------------------------------------------------

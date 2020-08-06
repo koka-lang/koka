@@ -41,6 +41,7 @@ import Core.Pretty
 import Core.CoreVar
 
 import Backend.C.Parc
+import Backend.C.ParcReuse
 import Backend.C.Box
 
 type CommentDoc   = Doc
@@ -79,7 +80,8 @@ contextParam = text "context_t* _ctx"
 
 genModule :: FilePath -> Pretty.Env -> Newtypes -> Maybe (Name,Bool) -> Core -> Asm Core
 genModule sourceDir penv newtypes mbMain core0
-  =  do core <- liftUnique (do pcore <-parcCore penv newtypes core0 -- precise automatic reference counting
+  =  do core <- liftUnique (do ucore <- parcReuseCore penv newtypes core0 -- constructor reuse analysis
+                               pcore <- parcCore penv newtypes ucore -- precise automatic reference counting
                                boxCore pcore            -- box/unbox transform
                                )     
                                
