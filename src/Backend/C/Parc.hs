@@ -265,12 +265,19 @@ genFree tname
 -- Generate a reuse of a constructor
 genReuse :: TName -> Expr
 genReuse tname
-  = App (Var (TName nameReuse funTp) (InfoExternal [(C, "constructor_reuse(#1)")]))
+  = App (Var (TName nameReuse funTp) (InfoExternal [(C, "drop_reuse_datatype(#1,current_context())")]))
         [Var tname InfoNone]
   where
     tp    = typeOf tname
     funTp = TFun [(nameNil,tp)] typeTotal typeReuse
 
+-- generate allocation-at of a constructor application
+genAllocAt :: Name -> Expr -> Expr
+genAllocAt at conApp 
+  = App (Var (TName nameAllocAt typeAllocAt) (InfoArity 0 1)) [Var (TName at typeReuse) InfoNone, conApp]
+  where
+    conTp = typeOf conApp
+    typeAllocAt = TFun [(nameNil,conTp)] typeTotal conTp 
 
 -- Generate a reuse of a constructor
 genNoReuse :: Expr
