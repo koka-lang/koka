@@ -22,6 +22,7 @@ module Common.Syntax( Visibility(..)
                     , dataDefIsRec, dataDefIsOpen, dataDefIsValue
                     , HandlerSort(..)
                     , isHandlerResource, isHandlerNormal
+                    , Platform(..), platform32, platform64
                     ) where
 
 {--------------------------------------------------------------------------
@@ -42,6 +43,13 @@ instance Show Host where
   show Node = "node"
   show Browser = "browser"
 
+data Platform = Platform{ sizePtr  :: Int -- sizeof(intptr_t)
+                        , sizeSize :: Int -- sizeof(size_t)
+                        }
+
+platform32, platform64 :: Platform
+platform32 = Platform 4 4
+platform64 = Platform 8 8 
 
 {--------------------------------------------------------------------------
   Visibility

@@ -818,6 +818,7 @@ inferCheck loaded flags line coreImports program1
          <- inferKinds
               (isValueFromFlags flags)
               (colorSchemeFromFlags flags)
+              (platform flags)
               (if (outHtml flags > 0) then Just rangeMapNew else Nothing)
               (loadedImportMap loaded)
               (loadedKGamma loaded)
@@ -1196,7 +1197,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                       Executable name tp -> Just (name,isAsyncFunction tp)
                       _                  -> Nothing
       let -- (core,unique) = parcCore (prettyEnvFromFlags flags) newtypes unique0 core0
-          (cdoc,hdoc,bcore) = cFromCore sourceDir (prettyEnvFromFlags flags) newtypes unique0 mbEntry core0
+          (cdoc,hdoc,bcore) = cFromCore sourceDir (prettyEnvFromFlags flags) (platform flags) newtypes unique0 mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } [] bcore
       writeDocW 120 (outBase ++ ".c.core") bcoreDoc
 

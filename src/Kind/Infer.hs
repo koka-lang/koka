@@ -35,10 +35,9 @@ import Common.Unique( uniqueId )
 import Common.Error
 import Common.ColorScheme( ColorScheme, colorType, colorSource )
 import Common.Range
+import Common.Syntax( Platform(..) )
 import Common.Name
-import Common.NamePrim( nameTrue, nameFalse, nameEffectEmpty, nameEffectExtend, nameEffectAppend,
-                        nameTpHandled, nameTpHandled1, nameCopy, namePatternMatchError,
-                        nameJust, nameNothing )
+import Common.NamePrim
 import Common.Syntax
 import qualified Common.NameMap as M
 import Syntax.Syntax
@@ -71,6 +70,7 @@ import Syntax.RangeMap
 inferKinds
   :: (DataInfo -> Bool) -- ^ is this a value type?
   -> ColorScheme      -- ^ Color scheme used for error messages
+  -> Platform         -- ^ Target platform (x32, x64)
   -> Maybe RangeMap   -- ^ possible range map for tool integration
   -> ImportMap        -- ^ Import aliases
   -> KGamma           -- ^ Initial kind kgamma
@@ -90,11 +90,11 @@ inferKinds
            , Int                  --  New unique
            , Maybe RangeMap
            )
-inferKinds isValue colors mbRangeMap imports kgamma0 syns0 data0 unique0
+inferKinds isValue colors platform mbRangeMap imports kgamma0 syns0 data0 unique0
             (Program source modName nameRange tdgroups defs importdefs externals fixdefs doc)
-  = let (errs1,warns1,rm1,unique1,(cgroups,kgamma1,syns1,data1)) = runKindInfer colors mbRangeMap modName imports kgamma0 syns0 data0 unique0 (infTypeDefGroups tdgroups)
-        (errs2,warns2,rm2,unique2,externals1)              = runKindInfer colors rm1 modName imports kgamma1 syns1 data1 unique1 (infExternals externals)
-        (errs3,warns3,rm3,unique3,defs1)                   = runKindInfer colors rm2 modName imports kgamma1 syns1 data1 unique2 (infDefGroups defs)
+  = let (errs1,warns1,rm1,unique1,(cgroups,kgamma1,syns1,data1)) = runKindInfer colors platform mbRangeMap modName imports kgamma0 syns0 data0 unique0 (infTypeDefGroups tdgroups)
+        (errs2,warns2,rm2,unique2,externals1)              = runKindInfer colors platform rm1 modName imports kgamma1 syns1 data1 unique1 (infExternals externals)
+        (errs3,warns3,rm3,unique3,defs1)                   = runKindInfer colors platform rm2 modName imports kgamma1 syns1 data1 unique2 (infDefGroups defs)
 --        (errs4,warns4,unique4,cgroups)                 = runKindInfer colors modName imports kgamma1 syns1 unique3 (infCoreTDGroups cgroups)
         (synInfos,dataInfos) = unzipEither (extractInfos cgroups)
         conInfos  = concatMap dataInfoConstrs dataInfos
@@ -791,7 +791,8 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
        consinfos <- mapM (resolveConstructor (getName newtp') sort (not (dataDefIsOpen ddef) && length constructors == 1) typeResult typeVars tvarMap) constructors
        let (constructors',infos) = unzip consinfos
        cs <- getColorScheme
-       let fname  = unqualify (getName newtp')
+       let qname  = getName newtp'
+           fname  = unqualify qname
            name   = if (isHandlerName fname) then fromHandlerName fname else fname
            nameDoc = color (colorType cs) (pretty name)
        --check recursion
@@ -814,7 +815,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                     -> return DataDefOpen
                   _ -- Value or Normal and not recursive
                     -> -- determine the raw fields and total size
-                       do dd <- toDefValues (ddef/=DataDefNormal) nameDoc infos
+                       do dd <- toDefValues (ddef/=DataDefNormal) qname nameDoc infos
                           case (ddef,dd) of  -- note: m = raw, n = scan
                             (DataDefValue _ _, DataDefValue m n)
                               -> if (hasKindStarResult (getKind typeResult))
@@ -836,10 +837,10 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
   where
     conVis (UserCon name exist params result rngName rng vis _) = vis
 
-    toDefValues :: Bool -> Doc -> [ConInfo] -> KInfer DataDef
-    toDefValues isVal nameDoc conInfos
+    toDefValues :: Bool -> Name -> Doc -> [ConInfo] -> KInfer DataDef
+    toDefValues isVal qname nameDoc conInfos
       = do ddefs <- mapM (toDefValue nameDoc) conInfos
-           maxDataDefs isVal nameDoc ddefs
+           maxDataDefs qname isVal nameDoc ddefs
 
     toDefValue :: Doc -> ConInfo -> KInfer (Int,Int)
     toDefValue nameDoc con
@@ -849,39 +850,65 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
            return dd
 
     -- note: (m = raw, n = scan)
-    maxDataDefs :: Bool -> Doc -> [(Int,Int)] -> KInfer DataDef
-    maxDataDefs isVal nameDoc [] = return (if isVal then DataDefValue 1 0 else DataDefNormal)
-    maxDataDefs isVal nameDoc [(m,n)] = return (DataDefValue m n)
-    maxDataDefs isVal nameDoc (dd:dds)
-      = do dd2 <- maxDataDefs isVal nameDoc dds
+    maxDataDefs :: Name -> Bool -> Doc -> [(Int,Int)] -> KInfer DataDef
+    maxDataDefs name False nameDoc []  = return DataDefNormal      
+    maxDataDefs name True nameDoc []  -- primitive abstract value type with no constructors
+      = let ptrSize = 8
+            size = if (name == nameTpChar || name == nameTpInt32 || name == nameTpFloat32)
+                    then 4
+                   else if (name == nameTpFloat || name == nameTpInt64)
+                    then 8
+                   else if (name == nameTpInt16)
+                    then 2
+                   else if (name == nameTpInt8 || name == nameTpByte)
+                    then 1
+                    else 0
+        in do m <- if (size <= 0) 
+                     then do platform <- getPlatform
+                             addWarning range (text "Type:" <+> nameDoc <+> text "is declared as a primitive value type but has no known compilation size, assuming size" <+> pretty (sizePtr platform))
+                             return (sizePtr platform)
+                     else return size
+              return (DataDefValue m 0)                     
+    maxDataDefs name isVal nameDoc [(m,n)] = return (DataDefValue m n)
+    maxDataDefs name isVal nameDoc (dd:dds)
+      = do dd2 <- maxDataDefs name isVal nameDoc dds
            case (dd,dd2) of
              ((0,0), DataDefValue m n)    -> return (DataDefValue m n)
              ((m,n), DataDefValue 0 0)    -> return (DataDefValue m n)
              ((m1,0), DataDefValue m2 0)  -> return (DataDefValue (max m1 m2) 0)
              ((0,n1), DataDefValue 0 n2)  -> return (DataDefValue 0 (max n1 n2))
              ((m1,n1), DataDefValue m2 n2) 
-               | m1 == m2  -> return (DataDefValue m1 (max n1 n2))
+               -- TODO: mixed raw is ok?
+               -- | m1 == m2  -> return (DataDefValue m1 (max n1 n2))
+               | n1 == n2 -> return (DataDefValue (max m1 m2) n1)
                | otherwise -> 
                  do if (isVal)
-                      then addError range (text "Type:" <+> nameDoc <+> text "is declared as a value type but has multiple constructors which varying raw types and regular types." <->
-                                           text "hint: value types with multiple constructors must all use the same number of regular types when mixed with raw types (use 'box' to use a raw type as a regular type).")
+                      then -- addError range (text "Type:" <+> nameDoc <+> text "is declared as a value type but has multiple constructors which varying raw types and regular types." <->
+                            --                text "hint: value types with multiple constructors must all use the same number of regular types when mixed with raw types (use 'box' to use a raw type as a regular type).")
+                           addError range (text "Type:" <+> nameDoc <+> text "is declared as a value type but has multiple constructors with a different number of regular types." <->
+                                           text "hint: value types with multiple constructors must all use the same number of regular types (use 'box' to use a value type as a regular type).")
                       else return ()
                     trace ("cannot default to a value type due to mixed raw/regular fields: " ++ show nameDoc) $
                      return DataDefNormal -- (DataDefValue (max m1 m2) (max n1 n2))
              _ -> return DataDefNormal
 
     sumDataDefs :: Doc -> [DataDef] -> KInfer (Int,Int)
-    sumDataDefs nameDoc [] = return (0,0)
-    sumDataDefs nameDoc (dd:dds)
-      = do case dd of
-             DataDefValue m n | m > 0 && n > 0   -- mixed raw and scan fields?
-               -> mapM_ (checkNoClash nameDoc m n) dds
-             _ -> return ()
-           (m2,n2) <- sumDataDefs nameDoc dds
-           case (dd) of
-            DataDefValue m1 n1
-              -> return (m1+m2, n1+n2)
-            _ -> return (m2, n2+1)
+    sumDataDefs nameDoc ddefs
+      = walk 0 0 ddefs
+      where
+        walk m n [] = return (0,0)
+        walk m n (dd:dds)
+          = do case dd of
+                 DataDefValue m1 n1
+                   -> do if (m1 > 0 && n1 > 0)   -- mixed raw and scan fields?
+                          then mapM_ (checkNoClash nameDoc m1 n1) dds
+                          else return ()
+                         walk (alignedAdd m m1) (n + n1) dds
+                 _ -> walk m (n + 1) dds
+               
+        alignedAdd :: Int -> Int -> Int
+        alignedAdd m m1
+          = (((m + (m1 - 1)) `div` m1)*m1) + m1   -- m1 starts at an alignment equal to its size
 
     checkNoClash :: Doc -> Int -> Int -> DataDef -> KInfer ()
     checkNoClash nameDoc m1 n1 dd
@@ -892,7 +919,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
           _ -> return ()
 
 
-
+    -- get the DataDef for a previous type
     typeDataDef :: Monad m => (Name -> m (Maybe DataInfo)) -> Type -> m DataDef
     typeDataDef lookupDataInfo tp
       = case expandSyn tp of

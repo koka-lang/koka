@@ -51,11 +51,11 @@ enabled = unsafePerformIO $ do
 -- Reference count transformation
 --------------------------------------------------------------------------
 
-parcReuseCore :: Pretty.Env -> Newtypes -> Core -> Unique Core
-parcReuseCore penv newtypes core
+parcReuseCore :: Pretty.Env -> Platform -> Newtypes -> Core -> Unique Core
+parcReuseCore penv platform newtypes core
   | not enabled = return core
   | otherwise   = do let defs = tr (coreProgDefs core) $ coreProgDefs core
-                     defs' <- runReuse penv newtypes (ruDefGroups True defs)
+                     defs' <- runReuse penv platform newtypes (ruDefGroups True defs)
                      tr defs' $ return core{ coreProgDefs  = defs' }
   where penv' = penv{Pretty.coreShowDef=True,Pretty.coreShowTypes=False,Pretty.fullNames=False}
         tr d = trace (show (vcat (map (prettyDefGroup penv') d)))
@@ -119,7 +119,8 @@ ruExpr expr
 ruTryReuseCon :: ConRepr -> [Type] -> Expr -> Reuse Expr
 ruTryReuseCon repr paramTypes conApp
   = do newtypes <- getNewtypes
-       let size = constructorSize newtypes repr paramTypes
+       platform <- getPlatform
+       let size = constructorSize platform newtypes repr paramTypes
        available <- getAvailable
        case M.lookup size available of
          Just tnames | not (S.null tnames)
@@ -164,7 +165,8 @@ ruPattern :: Pattern -> Reuse [(TName, Int)]
 ruPattern (PatVar tname PatCon{patConPatterns,patConRepr,patTypeArgs})
   = do reuses <- concat <$> mapM ruPattern patConPatterns
        newtypes <- getNewtypes
-       let size = constructorSize newtypes patConRepr patTypeArgs
+       platform <- getPlatform
+       let size = constructorSize platform newtypes patConRepr patTypeArgs
        if size > 0
          then return ((tname, size):reuses)
          else return reuses
@@ -239,6 +241,7 @@ type Available = M.IntMap TNames
 
 data Env = Env { currentDef :: [Def],
                  prettyEnv :: Pretty.Env,
+                 platform  :: Platform,
                  newtypes :: Newtypes
                }
 
@@ -265,10 +268,10 @@ updateSt = modify
 getSt :: Reuse ReuseState
 getSt = get
 
-runReuse :: Pretty.Env -> Newtypes -> Reuse a -> Unique a
-runReuse penv newtypes (Reuse action)
+runReuse :: Pretty.Env -> Platform -> Newtypes -> Reuse a -> Unique a
+runReuse penv platform newtypes (Reuse action)
   = withUnique $ \u ->
-      let env = Env [] penv newtypes
+      let env = Env [] penv platform newtypes
           st = ReuseState u M.empty
           (val, st') = runState (runReaderT action env) st
        in (val, uniq st')
@@ -299,6 +302,10 @@ getNewtypes = newtypes <$> getEnv
 withNewtypes :: (Newtypes -> Newtypes) -> Reuse a -> Reuse a
 withNewtypes f = withEnv (\e -> e { newtypes = f (newtypes e) })
 
+--
+
+getPlatform :: Reuse Platform
+getPlatform = platform <$> getEnv
 
 ---------------------
 -- state accessors --
@@ -364,22 +371,22 @@ ruTrace msg
 ----------------
 
 -- return the allocated size of a constructor. Return 0 for value types or singletons
-constructorSize :: Newtypes -> ConRepr -> [Type] -> Int
-constructorSize newtypes conRepr paramTypes
+constructorSize :: Platform -> Newtypes -> ConRepr -> [Type] -> Int
+constructorSize platform newtypes conRepr paramTypes
   = if dataReprIsValue (conDataRepr conRepr)
      then 0
-     else sum (map (fieldSize newtypes) paramTypes)
+     else sum (map (fieldSize platform newtypes) paramTypes)  -- TODO: take padding into account
 
 -- return the field size of a type
-fieldSize :: Newtypes -> Type -> Int
-fieldSize newtypes tp
+fieldSize :: Platform -> Newtypes -> Type -> Int
+fieldSize platform newtypes tp
   = case extractDataDefType tp of
-      Nothing   -> 1  -- regular datatype is 1 pointer
+      Nothing   -> sizePtr platform  -- regular datatype is 1 pointer
       Just name -> case newtypesLookupAny name newtypes of
                      Nothing -> failure $ "Backend.C.Reuse.typeSize: cannot find type: " ++ show name
                      Just di -> case dataInfoDef di of
-                                  DataDefValue raw scan -> raw + scan  -- todo: take raw fields real size into account
-                                  _ -> 1 -- pointer to allocated data
+                                  DataDefValue raw scan -> raw + (scan * sizePtr platform)
+                                  _ -> sizePtr platform -- pointer to allocated data
 
 extractDataDefType :: Type -> Maybe Name
 extractDataDefType tp
