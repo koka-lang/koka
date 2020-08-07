@@ -53,10 +53,8 @@ enabled = unsafePerformIO $ do
 parcReuseCore :: Pretty.Env -> Platform -> Newtypes -> Core -> Unique Core
 parcReuseCore penv platform newtypes core
   | not enabled = return core
-  | otherwise   = do let defs = coreProgDefs core
-                     defs' <- runReuse penv platform newtypes (ruDefGroups True defs)
-                     tr defs' $
-                       return core{ coreProgDefs  = defs' }
+  | otherwise   = do defs <- runReuse penv platform newtypes (ruDefGroups True (coreProgDefs core))
+                     tr defs $ return core{coreProgDefs=defs}
   where penv' = penv{Pretty.coreShowDef=True,Pretty.coreShowTypes=False,Pretty.fullNames=False}
         tr d = trace (show (vcat (map (prettyDefGroup penv') d)))
 

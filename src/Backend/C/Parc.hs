@@ -34,6 +34,7 @@ import Common.Syntax
 
 import Core.Core
 import Core.CoreVar
+import Core.Pretty
 
 import Platform.Runtime (unsafePerformIO)
 import qualified System.Environment as Sys
@@ -54,9 +55,9 @@ parcCore :: Pretty.Env -> Newtypes -> Core -> Unique Core
 parcCore penv newtypes core
   | not enabled = return core
   | otherwise   = do defs <- runParc penv newtypes (parcDefGroups True (coreProgDefs core))
-                     -- trace (show (vcat (map (prettyDefGroup penv{Pretty.coreShowDef=True,Pretty.coreShowTypes=False,Pretty.fullNames=False})
-                     --                        defs))) $
-                     return core{ coreProgDefs  = defs }
+                     tr defs $ return core{coreProgDefs=defs}
+  where penv' = penv{Pretty.coreShowDef=True,Pretty.coreShowTypes=False,Pretty.fullNames=False}
+        tr d = trace (show (vcat (map (prettyDefGroup penv') d)))
 
 --------------------------------------------------------------------------
 -- Definition groups
