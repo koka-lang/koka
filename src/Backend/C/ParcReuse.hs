@@ -14,36 +14,27 @@
 module Backend.C.ParcReuse ( parcReuseCore ) where
 
 import Lib.Trace (trace)
-import Control.Applicative hiding (empty)
 import Control.Monad
-import Control.Monad.Identity
 import Control.Monad.Reader
 import Control.Monad.State
-import Data.Maybe ( catMaybes, fromMaybe )
 import Data.Char
-import Data.Set ( (\\) )
+import Data.Maybe (catMaybes)
 import qualified Data.Set as S
 import qualified Data.IntMap as M
 
-import Kind.Kind
 import Kind.Newtypes
 import Type.Type
-import Type.TypeVar
-import Type.Kind( getKind )
 import qualified Type.Pretty as Pretty
 
 import Lib.PPrint
-import Common.Name
-import Common.Range
 import Common.NamePrim
 import Common.Failure
 import Common.Unique
 import Common.Syntax
 
-
 import Core.Core
 import Core.Pretty
-import Core.CoreVar
+
 
 import Platform.Runtime (unsafePerformIO)
 import qualified System.Environment as Sys
@@ -140,7 +131,7 @@ ruTryReuseCon repr paramTypes conApp
 ruBranches :: [Branch] -> Reuse [Branch]
 ruBranches branches
   = do (branches', avs) <- unzip <$> mapM ruBranch branches
-       setAvailable  (availableIntersect avs)
+       setAvailable (availableIntersect avs)
        return branches'
 
 ruBranch :: Branch -> Reuse (Branch, Available)
@@ -225,9 +216,7 @@ genAllocAt at conApp
 
 -- create a unique name specific to this module
 uniqueTName :: Type -> Reuse TName
-uniqueTName tp
-  = do nm <- uniqueName "ru"
-       return (TName nm tp)
+uniqueTName tp = (`TName` tp) <$> uniqueName "ru"
 
 -- for mapping over a set and collecting the results into a list.
 foldMapM :: (Monad m, Foldable t) => (a -> m b) -> t a -> m [b]

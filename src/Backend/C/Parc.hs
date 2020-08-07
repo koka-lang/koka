@@ -14,9 +14,7 @@
 module Backend.C.Parc ( parcCore ) where
 
 import Lib.Trace (trace)
-import Control.Applicative hiding (empty)
 import Control.Monad
-import Control.Monad.Identity
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Maybe ( catMaybes, fromMaybe )
@@ -24,23 +22,17 @@ import Data.Char
 import Data.Set ( (\\) )
 import qualified Data.Set as S
 
-import Kind.Kind
 import Kind.Newtypes
 import Type.Type
-import Type.TypeVar
-import Type.Kind( getKind )
 import qualified Type.Pretty as Pretty
 
 import Lib.PPrint
-import Common.Name
-import Common.Range
 import Common.NamePrim
 import Common.Failure
 import Common.Unique
 import Common.Syntax
 
 import Core.Core
-import Core.Pretty
 import Core.CoreVar
 
 import Platform.Runtime (unsafePerformIO)
