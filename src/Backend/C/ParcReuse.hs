@@ -5,7 +5,7 @@
 -- terms of the Apache License, Version 2.0. A copy of the License can be
 -- found in the file "license.txt" at the root of this distribution.
 -----------------------------------------------------------------------------
-{-# LANGUAGE NamedFieldPuns, GeneralizedNewtypeDeriving  #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving  #-}
 
 -----------------------------------------------------------------------------
 -- constructor reuse analysis
@@ -83,8 +83,7 @@ ruDefGroup topLevel dg
 
 ruDef :: Bool -> Def -> Reuse Def
 ruDef topLevel def
-  = -- (if topLevel then isolated_ else id) $
-    withCurrentDef def $
+  = withCurrentDef def $
     do expr <- ruExpr (defExpr def)
        return def{defExpr=expr}
 
@@ -94,57 +93,51 @@ ruDef topLevel def
 
 ruExpr :: Expr -> Reuse Expr
 ruExpr expr
-  = case expr of    
+  = case expr of
       App con@(Con cname repr) args
         -> do args' <- mapM ruExpr args
               ruTryReuseCon repr (map typeOf args) (App con args')
       App (TypeApp con@(Con cname repr) targs) args
         -> do args' <- mapM ruExpr args
               ruTryReuseCon repr (map typeOf args) (App (TypeApp con targs) args')
-        
+
       TypeLam tpars body
         -> TypeLam tpars <$> ruExpr body
       TypeApp body targs
         -> (`TypeApp` targs) <$> ruExpr body
       Lam pars eff body
-        ->Lam pars eff <$> ruExpr body
+        -> Lam pars eff <$> ruExpr body
       App fn args
-        -> do args' <- mapM ruExpr args
-              fn'   <- ruExpr fn
-              return $ App fn' args'
-      Var _ _ 
-        -> return expr
-      Lit _
-        -> return expr
-      Con ctor repr
-        -> return expr
-        
+        -> liftM2 App (ruExpr fn) (mapM ruExpr args)
+
       Let [] body
         -> ruExpr body
       Let (DefNonRec def:dgs) body
-        -> do body' <- ruExpr $ Let dgs body
-              def'  <- ruDef False def
+        -> do def'  <- ruDef False def
+              body' <- ruExpr $ Let dgs body
               return $ makeLet [DefNonRec def'] body'
       Let _ _
         -> failure "Backend.C.Reuse.ruExpr"
+
       Case scrutinees branches
-        -> do scruts'   <- mapM ruExpr scrutinees
-              branches' <- ruBranches branches
-              return (Case scruts' branches')
+        -> liftM2 Case (mapM ruExpr scrutinees) (ruBranches branches)
+
+      -- Var, Lit, Con
+      _ -> return expr
 
 ruTryReuseCon :: ConRepr -> [Type] -> Expr -> Reuse Expr
 ruTryReuseCon repr paramTypes conApp
-  = do  newtypes <- getNewtypes
-        let size = constructorSize newtypes repr paramTypes
-        available <- getAvailable
-        case (M.lookup size available) of
-          Just tnames | not (S.null tnames) 
-            -> do let tname   = S.elemAt 0 tnames
-                      tnames' = S.deleteAt 0 tnames
-                  setAvailable (if (S.null tnames') then M.delete size available
-                                                    else M.insert size tnames' available)
-                  return (genAllocAt tname conApp)                        
-          _ -> return (conApp)
+  = do newtypes <- getNewtypes
+       let size = constructorSize newtypes repr paramTypes
+       available <- getAvailable
+       case M.lookup size available of
+         Just tnames | not (S.null tnames)
+           -> do let tname   = S.elemAt 0 tnames
+                     tnames' = S.deleteAt 0 tnames
+                 setAvailable (if S.null tnames' then M.delete size available
+                                                 else M.insert size tnames' available)
+                 return (genAllocAt tname conApp)
+         _ -> return conApp
 
 
 ruBranches :: [Branch] -> Reuse [Branch]
@@ -156,19 +149,19 @@ ruBranches branches
 ruBranch :: Branch -> Reuse (Branch, Available)
 ruBranch (Branch pats guards)
   = do (pats',reusess) <- unzip <$> mapM (ruPattern Nothing) pats
-       -- TODO: 
-       -- generate unique names for each binding in reuses list, -- add those to available, 
+       -- TODO:
+       -- generate unique names for each binding in reuses list, -- add those to available,
        added <- mapM addAvailable (concat reusess)
-       -- visit guards, 
+       -- visit guards,
        (guards',avs)  <- unzip <$> mapM (ruGuard added) guards
        return (Branch pats' guards', availableIntersect avs)
   where
     addAvailable :: (TName,Int) -> Reuse (TName,TName,Int)
-    addAvailable (patName,size) 
+    addAvailable (patName,size)
       = do reuseName <- uniqueTName "ru" typeReuse
-           updateAvailable (\av -> M.insertWith S.union size (S.singleton reuseName) av)
+           updateAvailable (M.insertWith S.union size (S.singleton reuseName))
            return (reuseName,patName,size)
-           
+
 
 ruGuard :: [(TName,TName,Int)] -> Guard -> Reuse (Guard, Available)
 ruGuard patAdded (Guard test expr)
@@ -180,17 +173,17 @@ ruGuard patAdded (Guard test expr)
        return (Guard test' (makeLet dgs expr'))
 
 -- generate drop_reuse for each reused in patAdded
-ruTryReuse :: (TName,TName,Int) -> Reuse (Maybe Def) 
-ruTryReuse (reuseName, patName, size) 
+ruTryReuse :: (TName,TName,Int) -> Reuse (Maybe Def)
+ruTryReuse (reuseName, patName, size)
   = do av <- getAvailable
        reused <- case M.lookup size av of
                    Just tnames | S.member reuseName tnames
                                -> do let tnames' = S.delete reuseName tnames
-                                     setAvailable (if (S.null tnames') then M.delete size av
-                                                                       else M.insert size tnames' av)
+                                     setAvailable (if S.null tnames' then M.delete size av
+                                                                     else M.insert size tnames' av)
                                      return False
                    _ -> return True
-       if (reused) 
+       if reused
         then return (Just (makeTDef reuseName (genDropReuse patName)))
         else return Nothing
 
@@ -202,24 +195,24 @@ ruPattern mbVar pat
         -> do (params',reusess) <- unzip <$> mapM (ruPattern Nothing) params
               newtypes <- getNewtypes
               let size = constructorSize newtypes repr targs
-              (reuses,f) <- if (size <= 0) then return ([],id)
+              (reuses,f) <- if size <= 0
+                              then return ([],id)
                               else do (u,f) <- case mbVar of
                                                  Just tname -> return (tname,id)
                                                  _          -> do u <- uniqueTName "ru" tres
                                                                   return (u,PatVar u)
                                       return ([(u,size)], f)
               return (f (PatCon name params' repr targs exists tres conInfo), concat(reuses:reusess))
-                
+
       PatVar tname arg
         -> do (arg',reuse) <- ruPattern (Just tname) arg
               return (PatVar tname arg', reuse)
       PatWild  -> return (pat,[])
       PatLit _ -> return (pat,[])
-      
+
 uniqueTName base tp
   = do nm <- uniqueName base
        return (TName nm tp)
-      
 
 -- Generate a reuse of a constructor
 genDropReuse :: TName -> Expr
@@ -234,11 +227,11 @@ genDropReuse tname
 -- at should have tyep `typeReuse`
 -- conApp should have form  App (Con _ _) conArgs    : length conArgs >= 1
 genAllocAt :: TName -> Expr -> Expr
-genAllocAt at conApp 
+genAllocAt at conApp
   = App (Var (TName nameAllocAt typeAllocAt) (InfoArity 0 1)) [Var at InfoNone, conApp]
   where
     conTp = typeOf conApp
-    typeAllocAt = TFun [(nameNil,conTp)] typeTotal conTp 
+    typeAllocAt = TFun [(nameNil,conTp)] typeTotal conTp
 
 
 --------------------------------------------------------------------------
@@ -326,6 +319,19 @@ getNewtypes = newtypes <$> getEnv
 withNewtypes :: (Newtypes -> Newtypes) -> Reuse a -> Reuse a
 withNewtypes f = withEnv (\e -> e { newtypes = f (newtypes e) })
 
+
+---------------------
+-- state accessors --
+
+getUniq :: Reuse Int
+getUniq = uniq <$> getSt
+
+modifyUniq :: (Int -> Int) -> Reuse ()
+modifyUniq f = updateSt (\s -> s { uniq = f (uniq s) })
+
+setUniq :: Int -> Reuse ()
+setUniq = modifyUniq . const
+
 --
 
 getAvailable :: Reuse Available
@@ -340,19 +346,8 @@ setAvailable = updateAvailable . const
 availableIntersect :: [Available] -> Available
 availableIntersect avs
   = M.filter (not . S.null) (M.unionsWith S.intersection avs)
-      
----------------------
--- state accessors --
 
-getUniq :: Reuse Int
-getUniq = uniq <$> getSt
-
-modifyUniq :: (Int -> Int) -> Reuse ()
-modifyUniq f = updateSt (\s -> s { uniq = f (uniq s) })
-
-setUniq :: Int -> Reuse ()
-setUniq = modifyUniq . const
-
+--
 
 withNoneAvailable :: Reuse a -> Reuse a
 withNoneAvailable action
@@ -362,8 +357,7 @@ withNoneAvailable action
        setAvailable av0
        return x
 
-
-isolateAvailable :: Reuse a -> Reuse (a,Available) 
+isolateAvailable :: Reuse a -> Reuse (a,Available)
 isolateAvailable action
   = do avs0 <- getAvailable
        x <- action
@@ -388,22 +382,22 @@ ruTrace msg
       trace ("Core.Reuse: " ++ show (map defName defs) ++ ": " ++ msg) $ return ()
 
 ----------------
-      
--- return the allocated size of a constructor. Return 0 for value types or singletons 
+
+-- return the allocated size of a constructor. Return 0 for value types or singletons
 constructorSize :: Newtypes -> ConRepr -> [Type] -> Int
 constructorSize newtypes conRepr paramTypes
-  = if (dataReprIsValue (conDataRepr conRepr) || null paramTypes)
+  = if dataReprIsValue (conDataRepr conRepr) || null paramTypes
      then 0
      else sum (map (fieldSize newtypes) paramTypes)
 
--- return the field size of a type 
+-- return the field size of a type
 fieldSize :: Newtypes -> Type -> Int
 fieldSize newtypes tp
   = case extractDataDefType tp of
       Nothing   -> 1  -- regular datatype is 1 pointer
       Just name -> case newtypesLookupAny name newtypes of
                      Nothing -> failure $ "Backend.C.Reuse.typeSize: cannot find type: " ++ show name
-                     Just di -> case dataInfoDef di of 
+                     Just di -> case dataInfoDef di of
                                   DataDefValue raw scan -> raw + scan  -- todo: take raw fields real size into account
                                   _ -> 1 -- pointer to allocated data
 
@@ -414,4 +408,3 @@ extractDataDefType tp
       TForall _ _ t -> extractDataDefType t
       TCon tc       -> Just (typeConName tc)
       _             -> Nothing
-      
