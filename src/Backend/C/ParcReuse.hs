@@ -97,17 +97,11 @@ ruExpr expr
   = case expr of    
       App con@(Con cname repr) args
         -> do args' <- mapM ruExpr args
-              newtypes <- getNewtypes
-              let size = constructorSize newtypes repr (map typeOf args)
-              available <- getAvailable
-              case (M.lookup size available) of
-                Just tnames | not (S.null tnames) 
-                  -> do let tname   = S.elemAt 0 tnames
-                            tnames' = S.deleteAt 0 tnames
-                        setAvailable (if (S.null tnames') then M.delete size available
-                                                          else M.insert size tnames' available)
-                        return (genAllocAt tname (App con args'))                        
-                _ -> return (App con args')
+              ruTryReuseCon repr (map typeOf args) (App con args')
+      App (TypeApp con@(Con cname repr) targs) args
+        -> do args' <- mapM ruExpr args
+              ruTryReuseCon repr (map typeOf args) (App (TypeApp con targs) args')
+        
       TypeLam tpars body
         -> TypeLam tpars <$> ruExpr body
       TypeApp body targs
@@ -138,6 +132,21 @@ ruExpr expr
               branches' <- ruBranches branches
               return (Case scruts' branches')
 
+ruTryReuseCon :: ConRepr -> [Type] -> Expr -> Reuse Expr
+ruTryReuseCon repr paramTypes conApp
+  = do  newtypes <- getNewtypes
+        let size = constructorSize newtypes repr paramTypes
+        available <- getAvailable
+        case (M.lookup size available) of
+          Just tnames | not (S.null tnames) 
+            -> do let tname   = S.elemAt 0 tnames
+                      tnames' = S.deleteAt 0 tnames
+                  setAvailable (if (S.null tnames') then M.delete size available
+                                                    else M.insert size tnames' available)
+                  return (genAllocAt tname conApp)                        
+          _ -> return (conApp)
+
+
 ruBranches :: [Branch] -> Reuse [Branch]
 ruBranches branches
   = do (branches', avs) <- unzip <$> mapM ruBranch branches
@@ -146,22 +155,44 @@ ruBranches branches
 
 ruBranch :: Branch -> Reuse (Branch, Available)
 ruBranch (Branch pats guards)
-  = do (pats',reuses) <- unzip <$> mapM (ruPattern Nothing) pats
-       (guards',avs)  <- unzip <$> mapM ruGuard guards
+  = do (pats',reusess) <- unzip <$> mapM (ruPattern Nothing) pats
        -- TODO: 
-       -- generate unique names for each binding in reuses list
-       -- add those to available, 
+       -- generate unique names for each binding in reuses list, -- add those to available, 
+       added <- mapM addAvailable (concat reusess)
        -- visit guards, 
-       -- generate drop_reuse for each binding that is no longer available (i.e. reused)
-       -- remove any other binding in reuses from available
+       (guards',avs)  <- unzip <$> mapM (ruGuard added) guards
        return (Branch pats' guards', availableIntersect avs)
+  where
+    addAvailable :: (TName,Int) -> Reuse (TName,TName,Int)
+    addAvailable (patName,size) 
+      = do reuseName <- uniqueTName "ru" typeReuse
+           updateAvailable (\av -> M.insertWith S.union size (S.singleton reuseName) av)
+           return (reuseName,patName,size)
+           
 
-ruGuard :: Guard -> Reuse (Guard, Available)
-ruGuard (Guard test expr)
+ruGuard :: [(TName,TName,Int)] -> Guard -> Reuse (Guard, Available)
+ruGuard patAdded (Guard test expr)
   = isolateAvailable $
-    do test' <- ruExpr test
+    do test' <- withNoneAvailable $ ruExpr test
        expr' <- ruExpr expr
-       return (Guard test' expr')
+       mbDefs <- mapM ruTryReuse patAdded
+       let dgs = map DefNonRec (catMaybes mbDefs)
+       return (Guard test' (makeLet dgs expr'))
+
+-- generate drop_reuse for each reused in patAdded
+ruTryReuse :: (TName,TName,Int) -> Reuse (Maybe Def) 
+ruTryReuse (reuseName, patName, size) 
+  = do av <- getAvailable
+       reused <- case M.lookup size av of
+                   Just tnames | S.member reuseName tnames
+                               -> do let tnames' = S.delete reuseName tnames
+                                     setAvailable (if (S.null tnames') then M.delete size av
+                                                                       else M.insert size tnames' av)
+                                     return False
+                   _ -> return True
+       if (reused) 
+        then return (Just (makeTDef reuseName (genDropReuse patName)))
+        else return Nothing
 
 
 ruPattern :: Maybe TName -> Pattern -> Reuse (Pattern, [(TName,Int)])
@@ -321,6 +352,15 @@ modifyUniq f = updateSt (\s -> s { uniq = f (uniq s) })
 
 setUniq :: Int -> Reuse ()
 setUniq = modifyUniq . const
+
+
+withNoneAvailable :: Reuse a -> Reuse a
+withNoneAvailable action
+  = do av0 <- getAvailable
+       setAvailable M.empty
+       x <- action
+       setAvailable av0
+       return x
 
 
 isolateAvailable :: Reuse a -> Reuse (a,Available) 

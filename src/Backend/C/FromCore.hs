@@ -1386,6 +1386,10 @@ genAppNormal (Var allocAt _) [Var at _, App (Con tname repr) args]  | getName al
   = do (decls,argDocs) <- genExprs args
        let atDoc = ppName (getName at)
        return (decls,conCreateName (getName tname) <.> arguments ([atDoc] ++ argDocs))
+genAppNormal (Var allocAt _) [Var at _, App (TypeApp (Con tname repr) targs) args]  | getName allocAt == nameAllocAt
+  = do (decls,argDocs) <- genExprs args
+       let atDoc = ppName (getName at)
+       return (decls,conCreateName (getName tname) <.> arguments ([atDoc] ++ argDocs))
 genAppNormal f args
   = do (decls,argDocs) <- genExprs args
        case extractExtern f of
