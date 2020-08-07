@@ -62,9 +62,9 @@ parcCore :: Pretty.Env -> Newtypes -> Core -> Unique Core
 parcCore penv newtypes core
   | not enabled = return core
   | otherwise   = do defs <- runParc penv newtypes (parcDefGroups True (coreProgDefs core))
-                     trace (show (vcat (map (prettyDefGroup penv{Pretty.coreShowDef=True,Pretty.coreShowTypes=False,Pretty.fullNames=False})
-                                            defs))) $
-                      return core{ coreProgDefs  = defs }
+                     -- trace (show (vcat (map (prettyDefGroup penv{Pretty.coreShowDef=True,Pretty.coreShowTypes=False,Pretty.fullNames=False})
+                     --                        defs))) $
+                     return core{ coreProgDefs  = defs }
 
 --------------------------------------------------------------------------
 -- Definition groups
@@ -279,11 +279,11 @@ genDropReuse tname
 -- at should have tyep `typeReuse`
 -- conApp should have form  App (Con _ _) conArgs    : length conArgs >= 1
 genAllocAt :: TName -> Expr -> Expr
-genAllocAt at conApp 
+genAllocAt at conApp
   = App (Var (TName nameAllocAt typeAllocAt) (InfoArity 0 1)) [Var at InfoNone, conApp]
   where
     conTp = typeOf conApp
-    typeAllocAt = TFun [(nameNil,conTp)] typeTotal conTp 
+    typeAllocAt = TFun [(nameNil,conTp)] typeTotal conTp
 
 -- Generate a reuse of a constructor
 genNoReuse :: Expr
@@ -532,22 +532,22 @@ extractDataDefType tp
       TForall _ _ t -> extractDataDefType t
       TCon tc       -> Just (typeConName tc)
       _             -> Nothing
-      
-      
--- return the allocated size of a constructor. Return 0 for value types or singletons 
+
+
+-- return the allocated size of a constructor. Return 0 for value types or singletons
 constructorSize :: Newtypes -> ConRepr -> [Type] -> Int
 constructorSize newtypes conRepr paramTypes
   = if (dataReprIsValue (conDataRepr conRepr) || null paramTypes)
      then 0
      else sum (map (fieldSize newtypes) paramTypes)
 
--- return the field size of a type 
+-- return the field size of a type
 fieldSize :: Newtypes -> Type -> Int
 fieldSize newtypes tp
   = case extractDataDefType tp of
       Nothing   -> 1  -- regular datatype is 1 pointer
       Just name -> case newtypesLookupAny name newtypes of
                      Nothing -> failure $ "Core.Parc.typeSize: cannot find type: " ++ show name
-                     Just di -> case dataInfoDef di of 
+                     Just di -> case dataInfoDef di of
                                   DataDefValue raw scan -> raw + scan  -- todo: take raw fields real size into account
                                   _ -> 1 -- pointer to allocated data

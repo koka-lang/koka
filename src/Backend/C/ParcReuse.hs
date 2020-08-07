@@ -63,10 +63,11 @@ enabled = unsafePerformIO $ do
 parcReuseCore :: Pretty.Env -> Newtypes -> Core -> Unique Core
 parcReuseCore penv newtypes core
   | not enabled = return core
-  | otherwise   = do defs <- runReuse penv newtypes (ruDefGroups True (coreProgDefs core))
-                     trace (show (vcat (map (prettyDefGroup penv{Pretty.coreShowDef=True,Pretty.coreShowTypes=False,Pretty.fullNames=False})
-                                            defs))) $
-                      return core{ coreProgDefs  = defs }
+  | otherwise   = do let defs = tr (coreProgDefs core) $ coreProgDefs core
+                     defs' <- runReuse penv newtypes (ruDefGroups True defs)
+                     tr defs' $ return core{ coreProgDefs  = defs' }
+  where penv' = penv{Pretty.coreShowDef=True,Pretty.coreShowTypes=False,Pretty.fullNames=False}
+        tr d = trace (show (vcat (map (prettyDefGroup penv') d)))
 
 --------------------------------------------------------------------------
 -- Definition groups
@@ -94,12 +95,12 @@ ruDef topLevel def
 ruExpr :: Expr -> Reuse Expr
 ruExpr expr
   = case expr of
-      App con@(Con cname repr) args
+      App con@(Con _ repr) args
         -> do args' <- mapM ruExpr args
               ruTryReuseCon repr (map typeOf args) (App con args')
-      App (TypeApp con@(Con cname repr) targs) args
+      App ta@(TypeApp (Con _ repr) _) args
         -> do args' <- mapM ruExpr args
-              ruTryReuseCon repr (map typeOf args) (App (TypeApp con targs) args')
+              ruTryReuseCon repr (map typeOf args) (App ta args')
 
       TypeLam tpars body
         -> TypeLam tpars <$> ruExpr body
