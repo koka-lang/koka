@@ -893,17 +893,22 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
              _ -> return DataDefNormal
 
     sumDataDefs :: Doc -> [DataDef] -> KInfer (Int,Int)
-    sumDataDefs nameDoc [] = return (0,0)
-    sumDataDefs nameDoc (dd:dds)
-      = do case dd of
-             DataDefValue m n | m > 0 && n > 0   -- mixed raw and scan fields?
-               -> mapM_ (checkNoClash nameDoc m n) dds
-             _ -> return ()
-           (m2,n2) <- sumDataDefs nameDoc dds
-           case (dd) of
-            DataDefValue m1 n1
-              -> return (m1+m2, n1+n2)
-            _ -> return (m2, n2+1)
+    sumDataDefs nameDoc ddefs
+      = walk 0 0 ddefs
+      where
+        walk m n [] = return (0,0)
+        walk m n (dd:dds)
+          = do case dd of
+                 DataDefValue m1 n1
+                   -> do if (m1 > 0 && n1 > 0)   -- mixed raw and scan fields?
+                          then mapM_ (checkNoClash nameDoc m1 n1) dds
+                          else return ()
+                         walk (alignedAdd m m1) (n + n1) dds
+                 _ -> walk m (n + 1) dds
+               
+        alignedAdd :: Int -> Int -> Int
+        alignedAdd m m1
+          = (((m + (m1 - 1)) `div` m1)*m1) + m1   -- m1 starts at an alignment equal to its size
 
     checkNoClash :: Doc -> Int -> Int -> DataDef -> KInfer ()
     checkNoClash nameDoc m1 n1 dd
