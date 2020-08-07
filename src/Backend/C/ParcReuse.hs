@@ -35,7 +35,6 @@ import Common.Syntax
 import Core.Core
 import Core.Pretty
 
-
 import Platform.Runtime (unsafePerformIO)
 import qualified System.Environment as Sys
 
@@ -54,9 +53,10 @@ enabled = unsafePerformIO $ do
 parcReuseCore :: Pretty.Env -> Platform -> Newtypes -> Core -> Unique Core
 parcReuseCore penv platform newtypes core
   | not enabled = return core
-  | otherwise   = do let defs = tr (coreProgDefs core) $ coreProgDefs core
+  | otherwise   = do let defs = coreProgDefs core
                      defs' <- runReuse penv platform newtypes (ruDefGroups True defs)
-                     tr defs' $ return core{ coreProgDefs  = defs' }
+                     tr defs' $
+                       return core{ coreProgDefs  = defs' }
   where penv' = penv{Pretty.coreShowDef=True,Pretty.coreShowTypes=False,Pretty.fullNames=False}
         tr d = trace (show (vcat (map (prettyDefGroup penv') d)))
 
@@ -331,8 +331,7 @@ setAvailable :: Available -> Reuse ()
 setAvailable = updateAvailable . const
 
 availableIntersect :: [Available] -> Available
-availableIntersect avs
-  = M.filter (not . S.null) (M.unionsWith S.intersection avs)
+availableIntersect = M.unionsWith S.intersection
 
 --
 
