@@ -31,7 +31,7 @@ type value int32
 type value any
 
 // Internal type used for in-place update of unique pattern matches
-type value reuse
+type reuse
 
 extern no-reuse() : reuse {
   c inline "NULL"
