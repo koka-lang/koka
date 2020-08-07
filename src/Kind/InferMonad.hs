@@ -9,10 +9,10 @@
 -----------------------------------------------------------------------------
 module Kind.InferMonad( KInfer
                       , runKindInfer
-                      , addError
+                      , addError, addWarning
                       , freshKind,freshTypeVar,subst
                       , getKGamma
-                      , getSynonyms, getAllNewtypes
+                      , getSynonyms, getAllNewtypes, getPlatform
                       , extendInfGamma, extendKGamma, extendKSub
                       , findInfKind
                       , getColorScheme
@@ -30,6 +30,7 @@ import Lib.Trace
 import Lib.PPrint
 import Common.Failure( failure )
 import Common.Range
+import Common.Syntax( Platform )
 import Common.ColorScheme
 import Common.Unique
 import Common.Name
@@ -57,17 +58,17 @@ import qualified Core.Core as Core
 data KInfer a = KInfer (KEnv -> KSt -> KResult a)
 
 data KSt        = KSt{ kunique :: !Int, ksub :: !KSub, mbRangeMap :: Maybe RangeMap  }
-data KEnv       = KEnv{ cscheme :: !ColorScheme, currentModule :: !Name, imports :: ImportMap
+data KEnv       = KEnv{ cscheme :: !ColorScheme, platform :: !Platform, currentModule :: !Name, imports :: ImportMap
                       , kgamma :: !KGamma, infgamma :: !InfKGamma, synonyms :: !Synonyms
                       , newtypesImported :: !Newtypes, newtypesExtended :: !Newtypes }
 data KResult a  = KResult{ result:: !a, errors:: ![(Range,Doc)], warnings :: ![(Range,Doc)], st :: !KSt }
 
-runKindInfer :: ColorScheme -> Maybe RangeMap -> Name -> ImportMap -> KGamma -> Synonyms -> Newtypes -> Int -> KInfer a -> ([(Range,Doc)],[(Range,Doc)],Maybe RangeMap,Int,a)
-runKindInfer cscheme mbRangeMap moduleName imports kgamma syns datas unique (KInfer ki)
+runKindInfer :: ColorScheme -> Platform -> Maybe RangeMap -> Name -> ImportMap -> KGamma -> Synonyms -> Newtypes -> Int -> KInfer a -> ([(Range,Doc)],[(Range,Doc)],Maybe RangeMap,Int,a)
+runKindInfer cscheme platform mbRangeMap moduleName imports kgamma syns datas unique (KInfer ki)
   = let imports' = case importsExtend ({-toShortModuleName-} moduleName) moduleName imports of
                      Just imp -> imp
                      Nothing  -> imports -- ignore
-    in case ki (KEnv cscheme moduleName imports' kgamma M.empty syns datas newtypesEmpty) (KSt unique ksubEmpty mbRangeMap) of
+    in case ki (KEnv cscheme platform moduleName imports' kgamma M.empty syns datas newtypesEmpty) (KSt unique ksubEmpty mbRangeMap) of
          KResult x errs warns (KSt unique1 ksub rm) -> (errs,warns,rm,unique1,x)
 
 
@@ -162,6 +163,11 @@ getColorScheme :: KInfer ColorScheme
 getColorScheme
   = do env <- getKindEnv
        return (cscheme env)
+       
+getPlatform :: KInfer Platform
+getPlatform
+ = do env <- getKindEnv
+      return (platform env)       
 
 -- | Extend the inference kind assumption; checks for 'shadow' definitions
 extendInfGamma :: [TypeBinder InfKind] -> KInfer a -> KInfer a

@@ -818,6 +818,7 @@ inferCheck loaded flags line coreImports program1
          <- inferKinds
               (isValueFromFlags flags)
               (colorSchemeFromFlags flags)
+              (platform flags)
               (if (outHtml flags > 0) then Just rangeMapNew else Nothing)
               (loadedImportMap loaded)
               (loadedKGamma loaded)

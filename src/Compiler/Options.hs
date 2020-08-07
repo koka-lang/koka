@@ -31,7 +31,7 @@ import Lib.Printer
 import Common.Failure         ( raiseIO )
 import Common.ColorScheme
 import Common.File
-import Common.Syntax          ( Target (..), Host(..) )
+import Common.Syntax          ( Target (..), Host(..), Platform(..), platform32, platform64 )
 import Compiler.Package
 import Core.Core( dataInfoIsValue )
 {--------------------------------------------------------------------------
@@ -96,6 +96,7 @@ data Flags
          , library          :: Bool
          , targets          :: [Target]
          , host             :: Host
+         , platform         :: Platform
          , simplify         :: Int
          , simplifyMaxDup   :: Int
          , colorScheme      :: ColorScheme
@@ -141,6 +142,7 @@ flagsNull
           False -- library
           [JS]
           Node
+          platform64  
           5     -- simplify passes
           6     -- simplify dup max
           defaultColorScheme
@@ -213,7 +215,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["htmlcss"]         (ReqArg htmlCssFlag "link")     "set link to the css documentation style"
  , config []    ["target"]          [("js",[JS]),("cs",[CS]),("c",[C])] (\t f -> f{targets=t}) "generate csharp, javascript (default), or C"
  , config []    ["host"]            [("node",Node),("browser",Browser)] (\h f -> f{ targets=[JS], host=h}) "specify host for running code"
-
+ , config []    ["platform"]        [("x32",platform32),("x64",platform64)] (\p f -> f{platform=p})  "specify target platform, x32 (32-bit) or x64 (64-bit, default)"
  , emptyline
  , flag   []    ["showspan"]       (\b f -> f{ showSpan = b})      "show ending row/column too on errors"
  -- , flag   []    ["showkinds"]      (\b f -> f{showKinds=b})        "show full kind annotations"
