@@ -1,12 +1,3 @@
-parc_parc3.c
-initial core check
-return core check
-lift functions core check
-open resolve core check
-after simplify core check 1
-monadic core check
-inlined functions core check
-after simplify core check 2
 public fun test : (xs : list<std/core/types/int>, y : std/core/types/int, z : std/core/types/int) -> std/core/types/int
  = fun(xs: list<std/core/types/int>, y: std/core/types/int, z: std/core/types/int){
  match (xs) {
@@ -42,4 +33,3 @@ public fun test : (xs : list<std/core/types/int>, y : std/core/types/int, z : st
  y;
  }
  };
-cl -nologo -c -W3 -Gm- -Zi -MDd -RTC1 -Fa"out/test/parc_parc3.asm" -I"cruntime/include" -Fo"out/test/parc_parc3.obj" "out/test/parc_parc3.c"

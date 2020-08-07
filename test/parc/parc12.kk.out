@@ -1,13 +1,3 @@
-parc_parc12.c
-out/test/parc_parc12.c(7): error C2088: '==': illegal for struct
-initial core check
-return core check
-lift functions core check
-open resolve core check
-after simplify core check 1
-monadic core check
-inlined functions core check
-after simplify core check 2
 public fun test : (x : std/core/types/int) -> std/core/types/int
  = fun(x: std/core/types/int){
  val .match.36 : std/core/types/int
@@ -24,7 +14,3 @@ public fun test : (x : std/core/types/int) -> std/core/types/int
  x;
  }
  };
-cl -nologo -c -W3 -Gm- -Zi -MDd -RTC1 -Fa"out/test/parc_parc12.asm" -I"cruntime/include" -Fo"out/test/parc_parc12.obj" "out/test/parc_parc12.c"
-failure while running c:
- cl -nologo -c -W3 -Gm- -Zi -MDd -RTC1 -Fa"out/test/parc_parc12.asm" -I"cruntime/include" -Fo"out/test/parc_parc12.obj"
- "out/test/parc_parc12.c"

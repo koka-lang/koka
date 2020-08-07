@@ -1,14 +1,4 @@
-parc_parc1.c
-initial core check
-return core check
-lift functions core check
-open resolve core check
-after simplify core check 1
-monadic core check
-inlined functions core check
-after simplify core check 2
 public fun test : forall<a> (x : a) -> a
  = forall<a> fun(x: a){
  x
  };
-cl -nologo -c -W3 -Gm- -Zi -MDd -RTC1 -Fa"out/test/parc_parc1.asm" -I"cruntime/include" -Fo"out/test/parc_parc1.obj" "out/test/parc_parc1.c"

@@ -1,15 +1,5 @@
-parc_parc7.c
-initial core check
-return core check
-lift functions core check
-open resolve core check
-after simplify core check 1
-monadic core check
-inlined functions core check
-after simplify core check 2
 public fun test : forall<a,b> (x : a, y : b) -> a
  = forall<a,b> fun(x: a, y: b){
  std/core/types/.drop(y);
  x
  };
-cl -nologo -c -W3 -Gm- -Zi -MDd -RTC1 -Fa"out/test/parc_parc7.asm" -I"cruntime/include" -Fo"out/test/parc_parc7.obj" "out/test/parc_parc7.c"
