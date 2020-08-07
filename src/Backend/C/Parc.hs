@@ -210,80 +210,6 @@ useTName tname
          then genDup tname
          else return Nothing
 
-borrowTName :: TName -> Parc (Maybe Expr)
-borrowTName tname = return Nothing
-
--- Generate a "drop match"
-genDropMatch :: TName -> [TName] -> [TName] -> Parc Expr
-genDropMatch con dups drops
-  = do xdrops <- mapM genDrop drops
-       xdups  <- mapM genDup dups
-       cdrop  <- genDrop con
-       return $ makeIfExpr (genIsUnique con)
-                  (makeStats (catMaybes xdrops ++ [genFree con]))
-                  (makeStats (catMaybes (xdups ++ [cdrop])))
-
-genKeepMatch :: TName -> [TName] -> [TName] -> Parc Expr
-genKeepMatch con dups drops
-  = do xdups  <- mapM genDup dups
-       cdrop  <- genDrop con
-       return $ makeStats (catMaybes (xdups ++ [cdrop]))
-
--- Generate a "reuse match"
-genReuseMatch :: TName -> [TName] -> [TName] -> Parc Expr
-genReuseMatch con dups drops
- = do xdrops <- mapM genDrop drops
-      xdups  <- mapM genDup dups
-      cdrop  <- genDrop con
-      return $ makeIfExpr (genIsUnique con)
-                 (makeStats (catMaybes xdrops ++ [genDropReuse con]))
-                 (makeStats (catMaybes (xdups ++ [cdrop]) ++ [genNoReuse]))
-
--- Generate a test if a (locally bound) name is unique
-genIsUnique :: TName -> Expr
-genIsUnique tname
-  = App (Var (TName nameIsUnique funTp) (InfoExternal [(C, "constructor_is_unique(#1)")]))
-        [Var tname InfoNone]
-  where
-    tp    = typeOf tname
-    funTp = TFun [(nameNil,tp)] typeTotal typeBool
-
-
--- Generate a free of a constructor
-genFree :: TName -> Expr
-genFree tname
-  = App (Var (TName nameFree funTp) (InfoExternal [(C, "constructor_free(#1)")]))
-        [Var tname InfoNone]
-  where
-    tp    = typeOf tname
-    funTp = TFun [(nameNil,tp)] typeTotal typeUnit
-
--- Generate a reuse of a constructor
-genDropReuse :: TName -> Expr
-genDropReuse tname
-  = App (Var (TName nameReuse funTp) (InfoExternal [(C, "drop_reuse_datatype(#1,current_context())")]))
-        [Var tname InfoNone]
-  where
-    tp    = typeOf tname
-    funTp = TFun [(nameNil,tp)] typeTotal typeReuse
-
--- generate allocation-at of a constructor application
--- at should have tyep `typeReuse`
--- conApp should have form  App (Con _ _) conArgs    : length conArgs >= 1
-genAllocAt :: TName -> Expr -> Expr
-genAllocAt at conApp
-  = App (Var (TName nameAllocAt typeAllocAt) (InfoArity 0 1)) [Var at InfoNone, conApp]
-  where
-    conTp = typeOf conApp
-    typeAllocAt = TFun [(nameNil,conTp)] typeTotal conTp
-
--- Generate a reuse of a constructor
-genNoReuse :: Expr
-genNoReuse
-  = App (Var (TName nameNoReuse funTp) (InfoArity 0 0)) []
-  where
-    funTp = TFun [] typeTotal typeReuse
-
 -- Generate a dup/drop over a given (locally bound) name
 -- May return Nothing if the type never needs a dup/drop (like an `int` or `bool`)
 genDupDrop :: Bool -> TName -> Parc (Maybe Expr)
@@ -307,9 +233,6 @@ dupDropFun isDup tp
   where
     name = if isDup then nameDup else nameDrop
     coerceTp = TFun [(nameNil,tp)] typeTotal (if isDup then tp else typeUnit)
-
-dupFun  = dupDropFun True
-dropFun = dupDropFun False
 
 --------------------------------------------------------------------------
 -- Utilities for readability
@@ -463,9 +386,6 @@ forget tns = modifyLive (\\ tns)
 isLive :: TName -> Parc Bool
 isLive name = S.member name <$> getLive
 
-isDead :: TName -> Parc Bool
-isDead = fmap not . isLive
-
 isolated :: Parc a -> Parc (a, Live)
 isolated action
   = do live <- getLive
@@ -524,22 +444,3 @@ extractDataDefType tp
       TForall _ _ t -> extractDataDefType t
       TCon tc       -> Just (typeConName tc)
       _             -> Nothing
-
-
--- return the allocated size of a constructor. Return 0 for value types or singletons
-constructorSize :: Newtypes -> ConRepr -> [Type] -> Int
-constructorSize newtypes conRepr paramTypes
-  = if (dataReprIsValue (conDataRepr conRepr) || null paramTypes)
-     then 0
-     else sum (map (fieldSize newtypes) paramTypes)
-
--- return the field size of a type
-fieldSize :: Newtypes -> Type -> Int
-fieldSize newtypes tp
-  = case extractDataDefType tp of
-      Nothing   -> 1  -- regular datatype is 1 pointer
-      Just name -> case newtypesLookupAny name newtypes of
-                     Nothing -> failure $ "Core.Parc.typeSize: cannot find type: " ++ show name
-                     Just di -> case dataInfoDef di of
-                                  DataDefValue raw scan -> raw + scan  -- todo: take raw fields real size into account
-                                  _ -> 1 -- pointer to allocated data
