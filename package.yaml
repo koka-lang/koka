@@ -79,5 +79,6 @@ tests:
       - extra
       - filepath
       - hspec
+      - hspec-core
       - process
       - regex-compat
