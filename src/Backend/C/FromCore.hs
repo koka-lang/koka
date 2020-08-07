@@ -63,10 +63,10 @@ externalNames
 -- Generate C code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: FilePath -> Pretty.Env -> Newtypes -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
-cFromCore sourceDir penv0 newtypes uniq mbMain core
+cFromCore :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
+cFromCore sourceDir penv0 platform newtypes uniq mbMain core
   = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes False)
-           (genModule sourceDir penv newtypes mbMain core) of
+           (genModule sourceDir penv platform newtypes mbMain core) of
       (bcore,cdoc,hdoc) -> (cdoc,hdoc,bcore)
   where
     moduleName = coreProgName core
@@ -78,9 +78,9 @@ contextDoc = text "_ctx"
 contextParam :: Doc
 contextParam = text "context_t* _ctx"
 
-genModule :: FilePath -> Pretty.Env -> Newtypes -> Maybe (Name,Bool) -> Core -> Asm Core
-genModule sourceDir penv newtypes mbMain core0
-  =  do core <- liftUnique (do ucore <- parcReuseCore penv newtypes core0 -- constructor reuse analysis
+genModule :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Maybe (Name,Bool) -> Core -> Asm Core
+genModule sourceDir penv platform newtypes mbMain core0
+  =  do core <- liftUnique (do ucore <- parcReuseCore penv platform newtypes core0 -- constructor reuse analysis
                                pcore <- parcCore penv newtypes ucore -- precise automatic reference counting
                                boxCore pcore            -- box/unbox transform
                                )     
