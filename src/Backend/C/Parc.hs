@@ -217,12 +217,11 @@ genDupDrop :: Bool -> TName -> Parc (Maybe Expr)
 genDupDrop isDup tname
   = do let tp = typeOf tname
        mbRepr <- getDataDefRepr tp
-       case mbRepr of
-         Just (dataDef,dataRepr)
-           -> case dataDef of
-                 DataDefValue _ 0 -> return Nothing    -- no need to dup/drop a value type with no pointer fields (like int)
-                 _ -> return (Just (App (dupDropFun isDup tp) [Var tname InfoNone]))
-         _ -> return Nothing
+       return $
+         do (def, _) <- mbRepr
+            case def of
+              DataDefValue _ 0 -> Nothing
+              _ -> Just (App (dupDropFun isDup tp) [Var tname InfoNone])
 
 genDup  = genDupDrop True
 genDrop = genDupDrop False

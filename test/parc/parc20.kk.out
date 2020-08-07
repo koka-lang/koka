@@ -1,22 +1,16 @@
-parc_parc20.c
-initial core check
-return core check
-lift functions core check
-open resolve core check
-after simplify core check 1
-monadic core check
-inlined functions core check
-after simplify core check 2
 // TRICKY: need to dup x because xs is consumed by Cons-ctor
 public fun test : (xs : list<std/core/types/int>) -> list<std/core/types/int>
  = fun(xs: list<std/core/types/int>){
  match (xs) {
  (std/core/Cons((x: std/core/types/int), (.pat0: list<std/core/types/int>)) : list<std/core/types/int> )
  -> std/core/types/.dup(x);
- std/core/Cons(x, xs);
+ val .ru.22 : std/core/types/reuse
+ = std/core/types/.reuse((std/core/types/.dup(xs)));
+ std/core/types/.alloc-at(.ru.22, (std/core/Cons(x, xs)));
  (std/core/Nil() : (list<std/core/types/int>) )
  -> std/core/types/.drop(xs);
  std/core/Nil;
  }
  };
-cl -nologo -c -W3 -Gm- -Zi -MDd -RTC1 -Fa"out/test/parc_parc20.asm" -I"cruntime/include" -Fo"out/test/parc_parc20.obj" "out/test/parc_parc20.c"
+failure while running c:
+ *** internal compiler error: Core.Core.typeOf.App: Expected function: list<std/core/types/int>

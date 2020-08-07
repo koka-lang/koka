@@ -1,17 +1,10 @@
-parc_parc18.c
-initial core check
-return core check
-lift functions core check
-open resolve core check
-after simplify core check 1
-monadic core check
-inlined functions core check
-after simplify core check 2
 public fun test : forall<a> (xs : list<a>, ys : list<a>) -> list<a>
  = forall<a> fun(xs: list<a>, ys: list<a>){
  (match (xs) {
  (std/core/Cons((z: a), (.pat0: list<a>)) : list<a> )
- -> (match (ys) {
+ -> val .ru.36 : std/core/types/reuse
+ = std/core/types/.reuse((std/core/types/.dup(xs)));
+ (match (ys) {
  (std/core/Cons((z0: a), (.pat2: list<a>)) : list<a> )
  -> val _ : a
  = std/core/types/.dup(z0);
@@ -19,9 +12,12 @@ public fun test : forall<a> (xs : list<a>, ys : list<a>) -> list<a>
  = std/core/types/.drop(xs);
  val _ : ()
  = std/core/types/.drop(ys);
- std/core/Cons(z0, std/core/Nil);
+ std/core/types/.alloc-at(.ru.36, (std/core/Cons(z0, std/core/Nil)));
  (std/core/Nil() : (list<a>) )
- -> std/core/types/.drop(ys);
+ -> val _ : ()
+ = std/core/types/.drop(.ru.36);
+ val _ : ()
+ = std/core/types/.drop(ys);
  xs;
  });
  (std/core/Nil() : (list<a>) )
@@ -29,7 +25,8 @@ public fun test : forall<a> (xs : list<a>, ys : list<a>) -> list<a>
  ys;
  })
  };
-cl -nologo -c -W3 -Gm- -Zi -MDd -RTC1 -Fa"out/test/parc_parc18.asm" -I"cruntime/include" -Fo"out/test/parc_parc18.obj" "out/test/parc_parc18.c"
+failure while running c:
+ *** internal compiler error: Core.Core.typeOf.App: Expected function: list<35>
 test/parc/parc18.kk(4,23): warning: z shadows an earlier local definition or parameter
 test/parc/parc18.kk(3, 5): warning: pattern variable z is unused (or a wrongly spelled constructor?)
  hint: prepend an underscore to make it a wildcard pattern
