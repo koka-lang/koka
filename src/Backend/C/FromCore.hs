@@ -788,8 +788,8 @@ orderConFields ddef fields
 
 ppVis :: Visibility -> Doc
 ppVis _       = empty
-ppVis Public  = text "decl_public "
-ppVis Private = text "decl_private "
+-- ppVis Public  = text "decl_public "
+-- ppVis Private = text "decl_private "
 
 -- | Returns the type constructor class name, for "List" it would be ".List"
 typeConClassName :: Name -> Name
