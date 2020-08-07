@@ -83,8 +83,8 @@ genModule sourceDir penv newtypes mbMain core0
   =  do core <- liftUnique (do ucore <- parcReuseCore penv newtypes core0 -- constructor reuse analysis
                                pcore <- parcCore penv newtypes ucore -- precise automatic reference counting
                                boxCore pcore            -- box/unbox transform
-                               )     
-                               
+                               )
+
         let headComment   = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
             initSignature = text "void" <+> ppName (qualify (coreProgName core) (newName ".init")) <.> parameters []
 
@@ -110,7 +110,7 @@ genModule sourceDir penv newtypes mbMain core0
         genTypeDefs (coreProgTypeDefs core)
         emitToH (linebreak <.> text "// value declarations")
         genTopGroups (coreProgDefs core)
-        
+
         genMain (coreProgName core) mbMain
 
         init <- getInit
@@ -127,11 +127,11 @@ genModule sourceDir penv newtypes mbMain core0
     externalIncludesC :: [Doc]
     externalIncludesC
       = concatMap includeExternalC (coreProgExternals core0)
-      
+
     externalIncludesH :: [Doc]
     externalIncludesH
       = concatMap includeExternalH (coreProgExternals core0)
-      
+
 
     externalImports :: [Doc]
     externalImports
@@ -188,7 +188,7 @@ importExternal _ _
 
 genMain :: Name -> Maybe (Name,Bool) -> Asm ()
 genMain progName Nothing = return ()
-genMain progName (Just (name,_)) 
+genMain progName (Just (name,_))
   = emitToC $
     text "\n// main entry\nint main(int argc, char** argv)" <+> block (vcat [
       text "context_t* _ctx = get_context();"
@@ -219,7 +219,7 @@ genLocalDef def@(Def name tp expr vis sort inl rng comm)
        let fdoc = vcat [ if null comm
                            then empty
                            else align (vcat (space : map text (lines (trimComment comm)))) {- already a valid C comment -}
-                       , if (nameIsNil name) then empty else ppVarDecl (defTName def) <.> unitSemi tp                          
+                       , if (nameIsNil name) then empty else ppVarDecl (defTName def) <.> unitSemi tp
                        , defDoc
                        ]
        return (fdoc)
@@ -256,7 +256,7 @@ genFunTopDefSig def@(Def name tp defExpr vis sort inl rng comm)
   = do penv <- getPrettyEnv
        let tpDoc = typeComment (Pretty.ppType penv tp)
            sig   = (genFunDefSig False def)
-       -- (if (isPublic vis) then emitToH else emitToC) 
+       -- (if (isPublic vis) then emitToH else emitToC)
        emitToH (linebreak <.> sig <.> semi <+> tpDoc)
 
 genFunDefSig :: Bool -> Def -> Doc
@@ -318,13 +318,13 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
     in withDef name inlineC (tryFun defBody)
   where
     emit = if inlineC then emitToH else emitToC
-    
+
     resTp = case splitFunScheme tp of
                     Nothing -> tp
-                    Just (_,_,argTps,_,resTp0) -> resTp0         
+                    Just (_,_,argTps,_,resTp0) -> resTp0
 
     genFunDef :: [TName] -> Expr -> Asm ()
-    genFunDef params body 
+    genFunDef params body
       = do let args = map ( ppName . getName ) params
                isTailCall = body `isTailCalling` name
            bodyDoc <- (if isTailCall then withStatement else id)
@@ -374,14 +374,14 @@ genTypeDef (Data info isExtend)
        -- generate the type
        if (dataRepr == DataEnum)
         then emitToH $ ppVis (dataInfoVis info) <.> text "typedef enum" <+> ppName (typeClassName (dataInfoName info)) <.> text "_e" <+>
-                       block (if (null conReprs) 
+                       block (if (null conReprs)
                                then ppName (dataInfoName info) <.> text "_empty"
-                               else vcat (punctuate comma (map ppEnumCon (zip (dataInfoConstrs info) conReprs)))) <+> 
+                               else vcat (punctuate comma (map ppEnumCon (zip (dataInfoConstrs info) conReprs)))) <+>
                        ppName (typeClassName (dataInfoName info)) <.> semi <.> linebreak
         else if (dataReprIsValue dataRepr || isExtend)
           then return ()
               --  else emitToH $ text "struct" <+> ppName name <.> text "_s" <+> text "{" <+> text "datatype_tag_t _tag;" <+> text "};"
-          else emitToH $ ppVis (dataInfoVis info) <.> text "typedef struct" <+> ppName (typeClassName name) <.> text "_s" <+> 
+          else emitToH $ ppVis (dataInfoVis info) <.> text "typedef struct" <+> ppName (typeClassName name) <.> text "_s" <+>
                          block (vcat ([text "block_t _block;"] ++
                                       (if (dataRepr /= DataOpen) then [] else [text "string_t _tag;"])
                                )) <+>
@@ -491,7 +491,7 @@ genConstructorTestX info dataRepr con conRepr
 
 conTestName con
   = conTestNameX (conInfoName con)
-conTestNameX name  
+conTestNameX name
   = ppName (makeHiddenName "is" name)
 
 conTagName con
@@ -513,16 +513,16 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
                      declTpName = structTp <+> conSingletonName con
                      open = if (dataRepr == DataOpen) then "open_" else ""
                  emitToH $ text "extern" <+> ppName (typeClassName (dataInfoName info)) <+> conSingletonName con <.> semi
-                 emitToC $ text ("define_static_" ++ open ++ "datatype(,") 
+                 emitToC $ text ("define_static_" ++ open ++ "datatype(,")
                              <+> structTp <.> text ","
-                             <+> conSingletonName con <.> text "," 
+                             <+> conSingletonName con <.> text ","
                              <+> ppConTag con conRepr dataRepr <.> text ");"
                  when (dataRepr == DataOpen) $
                    emitToInit $ text "_static_" <.> conSingletonName con <.> text "._tag =" <+> ppConTag con conRepr dataRepr <.> semi -- assign open tag
          else return ()
-       when (dataRepr == DataOpen) $ emitToH $ text "extern string_t" <+> conTagName con <.> semi 
+       when (dataRepr == DataOpen) $ emitToH $ text "extern string_t" <+> conTagName con <.> semi
        let at = newHiddenName "at"
-       emitToH $          
+       emitToH $
           text "static inline" <+> ppName (typeClassName (dataInfoName info)) <+> conCreateNameInfo con
           <.> ntparameters ((if (dataReprIsValue dataRepr || null conFields) then [] else [(at,typeReuse)]) ++ conInfoParams con)
           <.> block (
@@ -532,7 +532,7 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
               ConEnum{}      -> text "return" <+> ppConTag con conRepr dataRepr <.> semi
               --ConSingleton{} | dataRepr == DataAsList
               --               -> text "return" <+> ppConTag con conRepr dataRepr <.> semi
-              ConIso{}       
+              ConIso{}
                 -> let tmp = text "_con"
                    in vcat [ppName (typeClassName (dataInfoName info)) <+> tmp <+> text "= {" <+> ppDefName (fst (head conFields)) <+> text "};"  -- struct init
                            ,text "return" <+> tmp <.> semi]
@@ -551,8 +551,8 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
                     else if (null conFields)
                      then text "return dup_datatype_as" <.> tupled [ppName (typeClassName (dataInfoName info)),  (conSingletonName con) {-, ppConTag con conRepr dataRepr <+> text "/* _tag */"-}] <.> semi
                      else vcat([text "struct" <+> nameDoc <.> text "*" <+> tmp <+> text "="
-                               <+> text "block_alloc_at_as" 
-                                       <.> arguments [ text "struct" <+> nameDoc, 
+                               <+> text "block_alloc_at_as"
+                                       <.> arguments [ text "struct" <+> nameDoc,
                                                        ppName at,
                                                        pretty scanCount <+> text "/* scan count */",
                                                        if (dataRepr /= DataOpen)
@@ -574,7 +574,7 @@ genConstructorAccess info dataRepr con conRepr
                     <.> tupled [ppName (typeClassName (dataInfoName info)) <+> text "x"]
                     <+> block( vcat $
                           [-- text "assert(" <.> conTestName con <.> tupled [text "x"] <.> text ");",
-                           text "return datatype_as_assert" <.> tupled [text "struct"  <+> ppName (conInfoName con) <.> text "*", text "x", 
+                           text "return datatype_as_assert" <.> tupled [text "struct"  <+> ppName (conInfoName con) <.> text "*", text "x",
                                (if (dataRepr == DataOpen) then text "TAG_OPEN" else ppConTag con conRepr dataRepr <+> text "/* _tag */")] <.> semi]
                         )
 
@@ -584,9 +584,9 @@ genBoxUnbox name info dataRepr
   = do let tname = typeClassName name
        genBox tname info dataRepr
        genUnbox  tname info dataRepr
-       
 
-genBoxCall prim asBorrowed tp arg 
+
+genBoxCall prim asBorrowed tp arg
   = text prim <.> text "_" <.> (
     case cType tp of
       CFun _ _   -> text "function_t" <.> parens arg
@@ -615,12 +615,12 @@ genBox name info dataRepr
                          docScanCount = if (hasTagField dataRepr)
                                          then text "scan_count_" <.> ppName name <.> parens (text "x")
                                          else pretty scancount <+> text "/* scan count */"
-                     in vcat [ text "box_t _box;" 
-                             , text "box_valuetype" <.> arguments [ppName name, text "_box", text "x", 
+                     in vcat [ text "box_t _box;"
+                             , text "box_valuetype" <.> arguments [ppName name, text "_box", text "x",
                                                                    docScanCount
                                                                   ] <.> semi
                              , text "return _box;" ]
-               _  -> text "return" <+> text "box_datatype" <.> tupled [text "x"] <.> semi 
+               _  -> text "return" <+> text "box_datatype" <.> tupled [text "x"] <.> semi
     )
 
 genUnbox name info dataRepr
@@ -632,7 +632,7 @@ genUnbox name info dataRepr
                         isoTp   = snd (head (conInfoParams conInfo))
                     in text "return" <+> conCreateNameInfo conInfo <.> arguments [genBoxCall "unbox" False isoTp (text "x")]
         _ | dataReprIsValue dataRepr
-          -> vcat [ ppName name <+> text "_unbox;" 
+          -> vcat [ ppName name <+> text "_unbox;"
                   , text "unbox_valuetype" <.> arguments [ppName name, text "_unbox", text "x"] <.> semi
                   , text "return _unbox;" ]
              -- text "unbox_valuetype" <.> arguments [ppName name, text "x"]
@@ -641,7 +641,7 @@ genUnbox name info dataRepr
 
 
 genDupDrop :: Name -> DataInfo -> DataRepr -> [(ConInfo,ConRepr,[(Name,Type)],Int)] -> Asm ()
-genDupDrop name info dataRepr conInfos 
+genDupDrop name info dataRepr conInfos
   = do genScanFields name info dataRepr conInfos
        genDupDropX True name info dataRepr conInfos
        genDupDropX False name info dataRepr conInfos
@@ -654,24 +654,24 @@ genScanFields name info dataRepr conInfos
     text "static inline size_t scan_count_"
     <.> ppName name <.> tupled [ppName name <+> text "_x"]
     <+> block (vcat (map (genScanFieldTests (length conInfos)) (zip conInfos [1..])))
-      
+
 genScanFieldTests :: Int -> ((ConInfo,ConRepr,[(Name,Type)],Int),Int) -> Doc
-genScanFieldTests lastIdx ((con,conRepr,conFields,scanCount),idx) 
-  = if (lastIdx == idx) 
+genScanFieldTests lastIdx ((con,conRepr,conFields,scanCount),idx)
+  = if (lastIdx == idx)
       then (text "else" <+> stat)
-      else (text (if (idx==1) then "if" else "else if") <+> parens (conTestName con <.> tupled [text "_x"])) 
+      else (text (if (idx==1) then "if" else "else if") <+> parens (conTestName con <.> tupled [text "_x"]))
             <+> stat
   where
     stat = text ("return " ++ show (1 {-tag-} + scanCount) ++ ";")
-    
+
 genDupDropX :: Bool -> Name -> DataInfo -> DataRepr -> [(ConInfo,ConRepr,[(Name,Type)],Int)] -> Asm ()
 genDupDropX isDup name info dataRepr conInfos
   = emitToH $
-     text "static inline" <+> (if isDup then ppName name <+> text "dup_" else text "void drop_") 
+     text "static inline" <+> (if isDup then ppName name <+> text "dup_" else text "void drop_")
      <.> ppName name <.> tupled ([ppName name <+> text "_x"] ++ (if isDup then [] else [text "context_t* _ctx"]))
      <+> block (vcat (dupDropTests))
   where
-    ret = (if isDup then [text "return _x;"] else [])          
+    ret = (if isDup then [text "return _x;"] else [])
     dupDropTests
       | dataRepr == DataEnum   = ret
       | dataRepr == DataIso    = [genDupDropIso isDup (head conInfos)] ++ ret
@@ -680,29 +680,29 @@ genDupDropX isDup name info dataRepr conInfos
                                else [text "drop_datatype" <.> arguments [text "_x"] <.> semi]
 
 genDupDropIso :: Bool -> (ConInfo,ConRepr,[(Name,Type)],Int) -> Doc
-genDupDropIso isDup (con,conRepr,[(name,tp)],scanCount) 
+genDupDropIso isDup (con,conRepr,[(name,tp)],scanCount)
   = hcat $ map (<.>semi) (genDupDropCall isDup tp (text "_x." <.> ppName name))
-  
+
 genDupDropTests :: Bool -> DataRepr -> Int -> ((ConInfo,ConRepr,[(Name,Type)],Int),Int) -> Doc
-genDupDropTests isDup dataRepr lastIdx ((con,conRepr,conFields,scanCount),idx) 
-  = let stats = genDupDropFields isDup dataRepr con conFields 
-    in if (lastIdx == idx) 
-        then (if null stats 
+genDupDropTests isDup dataRepr lastIdx ((con,conRepr,conFields,scanCount),idx)
+  = let stats = genDupDropFields isDup dataRepr con conFields
+    in if (lastIdx == idx)
+        then (if null stats
                then empty
               else if (lastIdx == 1)
                then vcat stats
                else text "else" <+> block (vcat stats))
-        else (text (if (idx==1) then "if" else "else if") <+> parens (conTestName con <.> tupled [text "_x"])) 
+        else (text (if (idx==1) then "if" else "else if") <+> parens (conTestName con <.> tupled [text "_x"]))
              <+> (if null stats then text "{ }" else block (vcat stats))
 
 genDupDropFields :: Bool -> DataRepr -> ConInfo -> [(Name,Type)] -> [Doc]
 genDupDropFields isDup dataRepr con conFields
   = map (\doc -> doc <.> semi) $ concat $
-    [genDupDropCall isDup tp 
-      ((if (hasTagField dataRepr) then text "_x._cons." <.> ppDefName (conInfoName con) else text "_x") 
+    [genDupDropCall isDup tp
+      ((if (hasTagField dataRepr) then text "_x._cons." <.> ppDefName (conInfoName con) else text "_x")
        <.> dot <.> ppName name) | (name,tp) <- conFields]
-                        
-                        
+
+
 genDupDropCallX prim tp args
   =  (
     case cType tp of
@@ -716,12 +716,12 @@ genDupDropCallX prim tp args
     )
   where
     pre s = prim ++ "_" ++ s
-    
+
 genDupCall tp arg  = hcat $ genDupDropCall True tp arg
 genDropCall tp arg = hcat $ genDupDropCall False tp arg
 
 genDupDropCall :: Bool -> Type -> Doc -> [Doc]
-genDupDropCall isDup tp arg = if (isDup) then genDupDropCallX "dup" tp (parens arg) 
+genDupDropCall isDup tp arg = if (isDup) then genDupDropCallX "dup" tp (parens arg)
                                          else genDupDropCallX "drop" tp (arguments [arg])
 
 
@@ -816,7 +816,7 @@ isDataStructLike _ = False
 
 -- explicit tag field?
 hasTagField :: DataRepr -> Bool
-hasTagField DataAsMaybe = True   
+hasTagField DataAsMaybe = True
 hasTagField DataStruct  = True
 hasTagField rep         = False
 
@@ -836,12 +836,12 @@ genLambda params eff body
                                  Just res -> res
            fieldDocs = [ppType tp <+> ppName name | (name,tp) <- fields]
            tpDecl  = text "struct" <+> ppName funTpName <+> block (
-                       vcat ([text "struct function_s _type;"] ++ 
+                       vcat ([text "struct function_s _type;"] ++
                              [ppType tp <+> ppName name <.> semi | (name,tp) <- fields])
                      ) <.> semi
 
            funSig  = text (if toH then "extern" else "static") <+> ppType (typeOf body)
-                     <+> ppName funName <.> parameters ([text "function_t _fself"] ++ 
+                     <+> ppName funName <.> parameters ([text "function_t _fself"] ++
                                                         [ppType tp <+> ppName name | (TName name tp) <- params])
 
            newDef  = funSig <.> semi
@@ -852,7 +852,7 @@ genLambda params eff body
                                --text "static" <+> structDoc <+> text "_self ="
                               --  <+> braces (braces (text "static_header(1, TAG_FUNCTION), box_cptr(&" <.> ppName funName <.> text ")")) <.> semi
                               ,text "return _fself;"]
-                         else [structDoc <.> text "* _self = function_alloc_as" <.> arguments [structDoc, pretty (scanCount + 1) -- +1 for the _type.fun 
+                         else [structDoc <.> text "* _self = function_alloc_as" <.> arguments [structDoc, pretty (scanCount + 1) -- +1 for the _type.fun
                                                                                               ] <.> semi
                               ,text "_self->_type.fun = box_cfun_ptr(&" <.> ppName funName <.> text ", current_context());"]
                               ++ [text "_self->" <.> ppName name <+> text "=" <+> ppName name <.> semi | (name,_) <- fields]
@@ -866,7 +866,7 @@ genLambda params eff body
        let funDef = funSig <+> block (
                       (if (null fields) then text "UNUSED(_fself);"
                         else let dups = braces (hcat [genDupCall tp (ppName name) <.> semi | (name,tp) <- fields])
-                             in vcat ([structDoc <.> text "* _self = function_as" <.> tupled [structDoc <.> text "*",text "_fself"] <.> semi] 
+                             in vcat ([structDoc <.> text "* _self = function_as" <.> tupled [structDoc <.> text "*",text "_fself"] <.> semi]
                                    ++ [ppType tp <+> ppName name <+> text "= _self->" <.> ppName name <.> semi <+> text "/*" <+> pretty tp <+> text "*/"  | (name,tp) <- fields]
                                    ++ [text "drop_match" <.> arguments [text "_self",dups,text "{}"]]
                                    ))
@@ -962,7 +962,7 @@ getResult result doc
 
 getResultX result (retDoc)
   = case result of
-     ResultReturn (Just n) _  | (isTypeUnit (typeOf n)) 
+     ResultReturn (Just n) _  | (isTypeUnit (typeOf n))
                               -> retDoc <.> text "; return Unit;"
      ResultReturn _ _  -> text "return" <+> retDoc <.> semi
      ResultAssign n ml -> ( if isWildcard (getName n) || nameNil == (getName n) || isTypeUnit (typeOf n)
@@ -1151,7 +1151,7 @@ genPatternTest doTest (exprDoc,pattern)
     case pattern of
       PatWild -> return []
       PatVar tname pattern | hiddenNameStartsWith (getName tname) "unbox"
-        -> do let after = ppType (typeOf tname) <+> ppDefName (getName tname) <+> text "=" 
+        -> do let after = ppType (typeOf tname) <+> ppDefName (getName tname) <+> text "="
                               <+> genBoxCall "unbox" True (typeOf tname) exprDoc <.> semi
                   next  = genNextPatterns (\self fld -> self) (ppDefName (getName tname)) (typeOf tname) [pattern]
               return [([],[after],next)]
@@ -1249,13 +1249,13 @@ genExprPrim expr
        -> do (doc, tname) <- genVarBinding expr
              nameDoc <- genDefName tname
              return ([doc], nameDoc)
-             
+
      Lit (LitString s)
        -> do name <- newVarName "s"
-             if (s=="") 
+             if (s=="")
               then return ([],text "dup_string_t(string_empty)")
               else do let (cstr,clen) = cstring s
-                      return ([text "define_string_literal" <.> tupled [empty,ppName name,pretty clen,cstr]] 
+                      return ([text "define_string_literal" <.> tupled [empty,ppName name,pretty clen,cstr]]
                              ,text "dup_string_t" <.> parens (ppName name));
 
      _ -> failure ("Backend.C.FromCore.genExpr: invalid expression:\n" ++ show expr)
@@ -1409,12 +1409,12 @@ genAppNormal f args
                -- call unknown function_t
                _ -> do (fdecls,fdoc) <- case f of
                                           Var tname info -> return ([], ppName (getName tname)) -- prevent lambda wrapping recursively
-                                          _ -> do (fdecl,fname) <- genVarBinding f 
+                                          _ -> do (fdecl,fname) <- genVarBinding f
                                                   return ([fdecl],ppName (getName fname))
                        let (cresTp,cargTps) = case splitFunScheme (typeOf f) of
                                                Just (_,_,argTps,_,resTp)
                                                  -> (ppType resTp, tupled ([text "function_t"] ++
-                                                                           (map (ppType . snd) argTps) ++ 
+                                                                           (map (ppType . snd) argTps) ++
                                                                            [text "context_t*"]))
                        return (fdecls ++ decls, text "function_call" <.> tupled [cresTp,cargTps,fdoc,arguments (fdoc:argDocs)])
 
@@ -1502,7 +1502,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameDup || getName tna
 genExprExternal tname formats [argDoc] | getName tname == nameIsUnique
   = let tp    = case typeOf tname of
                   TFun [(_,fromTp)] _ toTp -> fromTp
-        call  = text "constructor_is_unique" <.> parens argDoc  
+        call  = text "constructor_is_unique" <.> parens argDoc
     in return ([], call)
 
 -- normal external
@@ -1598,10 +1598,10 @@ isInlineableExpr expr
       Lit (LitString _)-> False
       -- C has no guarantee on argument evaluation so we only allow a select few operations to be inlined
       App (Var v (InfoExternal _)) [] -> getName v == nameYielding
-      
+
       -- App (Var v (InfoExternal _)) [arg] | getName v `elem` [nameBox,nameUnbox] -> isInlineableExpr arg
       --App (Var _ (InfoExternal _)) args -> all isPureExpr args  -- yielding() etc.
-      
+
       -- App (Var v _) [arg] | getName v `elem` [nameBox,nameUnbox] -> isInlineableExpr arg
       {-
       -- TODO: comment out for now as it may prevent a tailcall if inlined
@@ -1836,16 +1836,16 @@ ppLit lit
                          else text ("0x" ++ showHex 4 (fromEnum c))
       LitFloat d  -> text (showsPrec 20 d "")
       LitString s -> failure ("Backend.C.FromCore: ppLit: cannot inline string literal: " ++ show s)
-      
+
 cstring :: String -> (Doc,Int)
-cstring s     
+cstring s
   = let (cstr,ccnt) = unzip (map escape s)
     in (dquotes (hcat cstr), sum ccnt)
   where
     bytes bs
       = text ("\" \"" ++ concat ["\\x" ++ showHex 2 b | b <- bs] ++ "\" \"")
     escape c
-      = if (c=='\0') 
+      = if (c=='\0')
          then (bytes [0xC0,0x80],2) -- embedded zero character
         else if (c < ' ')
          then (if (c=='\n') then text "\\n"
@@ -1866,7 +1866,7 @@ cstring s
                 else if (x <= 0x10FFFF)
                  then (bytes [0xF0 + (x`div`262144), 0x80 + ((x`div`4096)`mod`64), 0x80 + ((x`div`64)`mod`64), 0x80 + (x`mod`64)], 4)
                  else escape (toEnum 0xFFFD)
-  
+
 
 genLitInt32 :: Integer -> Doc
 genLitInt32 i
