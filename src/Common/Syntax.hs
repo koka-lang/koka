@@ -23,6 +23,7 @@ module Common.Syntax( Visibility(..)
                     , HandlerSort(..)
                     , isHandlerResource, isHandlerNormal
                     , Platform(..), platform32, platform64
+                    , alignedSum, alignedAdd, alignUp
                     ) where
 
 {--------------------------------------------------------------------------
@@ -50,6 +51,18 @@ data Platform = Platform{ sizePtr  :: Int -- sizeof(intptr_t)
 platform32, platform64 :: Platform
 platform32 = Platform 4 4
 platform64 = Platform 8 8 
+
+
+alignedSum :: [Int] -> Int
+alignedSum xs = foldl alignedAdd 0 xs
+     
+alignedAdd :: Int -> Int -> Int
+alignedAdd x y = (alignUp x y) + y
+     
+alignUp :: Int -> Int -> Int
+alignUp x y  | y <= 0  = x
+alignUp x y  = ((x + y - 1) `div` y)*y    
+
 
 {--------------------------------------------------------------------------
   Visibility

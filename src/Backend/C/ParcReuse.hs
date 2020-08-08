@@ -377,7 +377,8 @@ constructorSize :: Platform -> Newtypes -> ConRepr -> [Type] -> Int
 constructorSize platform newtypes conRepr paramTypes
   = if dataReprIsValue (conDataRepr conRepr)
      then 0
-     else sum (map (fieldSize platform newtypes) paramTypes)  -- TODO: take padding into account
+     else alignUp (sizePtr platform) $
+          alignedSum (map (fieldSize platform newtypes) paramTypes)  
 
 -- return the field size of a type
 fieldSize :: Platform -> Newtypes -> Type -> Int

@@ -907,11 +907,6 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                           else return ()
                          walk (alignedAdd m m1) (n + n1) dds
                  _ -> walk m (n + 1) dds
-               
-        alignedAdd :: Int -> Int -> Int
-        alignedAdd m 0 = m
-        alignedAdd m m1
-          = (((m + (m1 - 1)) `div` m1)*m1) + m1   -- m1 starts at an alignment equal to its size
 
     checkNoClash :: Doc -> Int -> Int -> DataDef -> KInfer ()
     checkNoClash nameDoc m1 n1 dd
