@@ -50,19 +50,19 @@ fun isRed(t: tree): bool {
 
 fun ins(t: tree, kx: int, vx: bool): tree {
   t
-  /* match(t) { // what is the correct syntax here??
+  match(t) {
     Leaf -> Node(Red, Leaf, kx, vx, Leaf)
     Node(Red, a, ky, vy, b)
       | kx < ky  -> Node(Red, ins(a, kx, vx), ky, vy, b)
       | kx == ky -> Node(Red, a, kx, vx, b)
-      | _ -> Node(Red, a, ky, vy, ins(b, kx, vx))
+      | True -> Node(Red, a, ky, vy, ins(b, kx, vx))
     Node(Black, a, ky, vy, b)
       | kx < ky && isRed(a) -> balance1(ky, vy, b, ins(a, kx, vx))
       | kx < ky -> Node(Black, ins(a, kx, vx), ky, vy, b)
-      | kx = ky -> Node(Black, a, kx, vx, b)
+      | kx == ky -> Node(Black, a, kx, vx, b)
       | isRed(b) -> balance2(a, ky, vy, ins(b, kx, vx))
-      | _ -> Node(Black, a, ky, vy, ins(b, kx, vx))
-  } */
+      | True -> Node(Black, a, ky, vy, ins(b, kx, vx))
+  }
 }
 
 fun setBlack(t: tree): tree {
