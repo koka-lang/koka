@@ -815,7 +815,8 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                     -> return DataDefOpen
                   _ -- Value or Normal and not recursive
                     -> -- determine the raw fields and total size
-                       do dd <- toDefValues (ddef/=DataDefNormal) qname nameDoc infos
+                       do platform <- getPlatform
+                          dd <- toDefValues platform (ddef/=DataDefNormal) qname nameDoc infos
                           case (ddef,dd) of  -- note: m = raw, n = scan
                             (DataDefValue _ _, DataDefValue m n)
                               -> if (hasKindStarResult (getKind typeResult))
@@ -825,9 +826,9 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                             (DataDefValue _ _, DataDefNormal)
                               -> do addError range (text "Type" <+> nameDoc <+> text "cannot be used as a value type.")  -- should never happen?
                                     return DataDefNormal
-                            (DataDefNormal, DataDefValue m n) | (m+n) <= 3 && hasKindStarResult (getKind typeResult)
+                            (DataDefNormal, DataDefValue m n) | (m + (n*sizePtr platform)) <= 3*(sizePtr platform) && hasKindStarResult (getKind typeResult)
                               -> trace ("default to value: " ++ show name ++ ": " ++ show (m,n)) $
-                                 return (DataDefValue m n)
+                                  return (DataDefValue m n)
                             _ -> return DataDefNormal
 
        -- trace (showTypeBinder newtp') $
@@ -837,41 +838,42 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
   where
     conVis (UserCon name exist params result rngName rng vis _) = vis
 
-    toDefValues :: Bool -> Name -> Doc -> [ConInfo] -> KInfer DataDef
-    toDefValues isVal qname nameDoc conInfos
+    toDefValues :: Platform -> Bool -> Name -> Doc -> [ConInfo] -> KInfer DataDef
+    toDefValues platform isVal qname nameDoc conInfos
       = do ddefs <- mapM (toDefValue nameDoc) conInfos
-           maxDataDefs qname isVal nameDoc ddefs
+           maxDataDefs platform qname isVal nameDoc ddefs
 
     toDefValue :: Doc -> ConInfo -> KInfer (Int,Int)
     toDefValue nameDoc con
       = do ddefs <- mapM (typeDataDef lookupDataInfo . snd) (conInfoParams con)
            dd <- sumDataDefs nameDoc ddefs
-           -- trace ("datadefs: " ++ show nameDoc ++ ": " ++ show ddefs ++ " to " ++ show dd) $
-           return dd
+           trace ("datadefs: " ++ show nameDoc ++ "." ++ show (conInfoName con) ++ ": " ++ show ddefs ++ " to " ++ show dd) $
+            return dd
 
     -- note: (m = raw, n = scan)
-    maxDataDefs :: Name -> Bool -> Doc -> [(Int,Int)] -> KInfer DataDef
-    maxDataDefs name False nameDoc []  = return DataDefNormal      
-    maxDataDefs name True nameDoc []  -- primitive abstract value type with no constructors
-      = let ptrSize = 8
-            size = if (name == nameTpChar || name == nameTpInt32 || name == nameTpFloat32)
-                    then 4
-                   else if (name == nameTpFloat || name == nameTpInt64)
-                    then 8
-                   else if (name == nameTpInt16)
-                    then 2
-                   else if (name == nameTpInt8 || name == nameTpByte)
-                    then 1
-                    else 0
-        in do m <- if (size <= 0) 
-                     then do platform <- getPlatform
-                             addWarning range (text "Type:" <+> nameDoc <+> text "is declared as a primitive value type but has no known compilation size, assuming size" <+> pretty (sizePtr platform))
-                             return (sizePtr platform)
-                     else return size
-              return (DataDefValue m 0)                     
-    maxDataDefs name isVal nameDoc [(m,n)] = return (DataDefValue m n)
-    maxDataDefs name isVal nameDoc (dd:dds)
-      = do dd2 <- maxDataDefs name isVal nameDoc dds
+    maxDataDefs :: Platform -> Name -> Bool -> Doc -> [(Int,Int)] -> KInfer DataDef
+    maxDataDefs platform name False nameDoc []  = return DataDefNormal      
+    maxDataDefs platform name True nameDoc []  -- primitive abstract value type with no constructors
+      = do let ptrSize = 8
+               size  = if (name == nameTpChar || name == nameTpInt32 || name == nameTpFloat32)
+                        then 4
+                       else if (name == nameTpFloat || name == nameTpInt64)
+                        then 8
+                       else if (name == nameTpInt16)
+                        then 2
+                       else if (name == nameTpInt8 || name == nameTpByte)
+                        then 1
+                       else if (name == nameTpAny)
+                        then (sizePtr platform)
+                        else 0
+           m <- if (size <= 0) 
+                  then do addWarning range (text "Type:" <+> nameDoc <+> text "is declared as a primitive value type but has no known compilation size, assuming size" <+> pretty (sizePtr platform))
+                          return (sizePtr platform)
+                  else return size
+           return (DataDefValue m 0)                     
+    maxDataDefs platform name isVal nameDoc [(m,n)] = return (DataDefValue m n)
+    maxDataDefs platform name isVal nameDoc (dd:dds)
+      = do dd2 <- maxDataDefs platform name isVal nameDoc dds
            case (dd,dd2) of
              ((0,0), DataDefValue m n)    -> return (DataDefValue m n)
              ((m,n), DataDefValue 0 0)    -> return (DataDefValue m n)
@@ -896,7 +898,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
     sumDataDefs nameDoc ddefs
       = walk 0 0 ddefs
       where
-        walk m n [] = return (0,0)
+        walk m n [] = return (m,n)
         walk m n (dd:dds)
           = do case dd of
                  DataDefValue m1 n1
@@ -907,6 +909,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                  _ -> walk m (n + 1) dds
                
         alignedAdd :: Int -> Int -> Int
+        alignedAdd m 0 = m
         alignedAdd m m1
           = (((m + (m1 - 1)) `div` m1)*m1) + m1   -- m1 starts at an alignment equal to its size
 
