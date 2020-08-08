@@ -1,3 +1,7 @@
+module parc/parc13
+private import std/core/types = std/core/types = "";
+private import std/core/hnd = std/core/hnd = "";
+private import std/core = std/core = "";
 public fun test : (x : std/core/types/int) -> (() -> std/core/types/int)
  = fun(x: std/core/types/int){
  fun(){

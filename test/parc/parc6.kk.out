@@ -1,9 +1,13 @@
+module parc/parc6
+private import std/core/types = std/core/types = "";
+private import std/core/hnd = std/core/hnd = "";
+private import std/core = std/core = "";
 public fun test : (y : std/core/types/int) -> std/core/types/int
  = fun(y: std/core/types/int){
  val xs : list<std/core/types/int>
- = std/core/Cons(1, std/core/Nil);
+ = std/core/Cons((std/core/types/.box(1)), std/core/Nil);
  match (xs) {
- (std/core/Cons((x: std/core/types/int), (.pat0: list<std/core/types/int>)) : list<std/core/types/int> )
+ (std/core/Cons(((x: std/core/types/int) as .unbox-x23: std/core/types/int), (.pat0: list<std/core/types/int>)) : list<std/core/types/int> )
  -> val _ : std/core/types/int
  = std/core/types/.dup(x);
  val _ : ()

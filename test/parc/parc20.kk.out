@@ -1,16 +1,19 @@
+module parc/parc20
+private import std/core/types = std/core/types = "";
+private import std/core/hnd = std/core/hnd = "";
+private import std/core = std/core = "";
 // TRICKY: need to dup x because xs is consumed by Cons-ctor
 public fun test : (xs : list<std/core/types/int>) -> list<std/core/types/int>
  = fun(xs: list<std/core/types/int>){
  match (xs) {
- (std/core/Cons((x: std/core/types/int), (.pat0: list<std/core/types/int>)) : list<std/core/types/int> )
- -> std/core/types/.dup(x);
+ (std/core/Cons(((x: std/core/types/int) as .unbox-x23: std/core/types/int), (.pat0: list<std/core/types/int>)) : list<std/core/types/int> )
+ -> val _ : std/core/types/int
+ = std/core/types/.dup(x);
  val .ru.22 : std/core/types/reuse
  = std/core/types/.reuse((std/core/types/.dup(xs)));
- std/core/types/.alloc-at(.ru.22, (std/core/Cons(x, xs)));
+ std/core/types/.alloc-at(.ru.22, (std/core/Cons((std/core/types/.box(x)), xs)));
  (std/core/Nil() : (list<std/core/types/int>) )
  -> std/core/types/.drop(xs);
  std/core/Nil;
  }
  };
-failure while running c:
- *** internal compiler error: Core.Core.typeOf.App: Expected function: list<std/core/types/int>

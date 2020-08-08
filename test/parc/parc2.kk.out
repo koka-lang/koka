@@ -1,4 +1,8 @@
+module parc/parc2
+private import std/core/types = std/core/types = "";
+private import std/core/hnd = std/core/hnd = "";
+private import std/core = std/core = "";
 public fun test : forall<a> (x : list<a>) -> list<a>
- = forall<a> fun(x: list<a>){
+ = fun(x: list<45>){
  std/core/(+.4)((std/core/types/.dup(x)), x)
  };

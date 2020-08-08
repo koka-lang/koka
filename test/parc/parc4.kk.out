@@ -1,7 +1,13 @@
+module parc/parc4
+private import std/core/types = std/core/types = "";
+private import std/core/hnd = std/core/hnd = "";
+private import std/core = std/core = "";
 public fun test : (xs : list<std/core/types/maybe<std/core/types/int>>, y : std/core/types/int) -> std/core/types/int
  = fun(xs: list<std/core/types/maybe<std/core/types/int>>, y: std/core/types/int){
  match (xs) {
- (std/core/Cons(((std/core/types/Just((x: std/core/types/int)) : std/core/types/maybe<std/core/types/int> ) as .pat0: std/core/types/maybe<std/core/types/int>), (.pat1: list<std/core/types/maybe<std/core/types/int>>)) : list<std/core/types/maybe<std/core/types/int>> )
+ (std/core/Cons((((std/core/types/Just(((x: std/core/types/int) as .unbox-x51: std/core/types/int)) : std/core/types/maybe<std/core/types/int> ) as .pat0:
+ std/core/types/maybe<std/core/types/int>) as .unbox-x50: std/core/types/maybe<std/core/types/int>), (.pat1: list<std/core/types/maybe<std/core/types/int>>))
+ : list<std/core/types/maybe<std/core/types/int>> )
  | std/core/(==.1)((std/core/types/.dup(x)), (std/core/types/.dup(y))) -> val _ : std/core/types/int
  = std/core/types/.dup(x);
  val _ : ()
@@ -9,7 +15,8 @@ public fun test : (xs : list<std/core/types/maybe<std/core/types/int>>, y : std/
  val _ : ()
  = std/core/types/.drop(y);
  x;
- (std/core/Cons(((std/core/types/Nothing() : std/core/types/maybe<std/core/types/int> ) as .pat3: std/core/types/maybe<std/core/types/int>), (.pat4: list<std/core/types/maybe<std/core/types/int>>)) : list<std/core/types/maybe<std/core/types/int>> )
+ (std/core/Cons((((std/core/types/Nothing() : std/core/types/maybe<std/core/types/int> ) as .pat3: std/core/types/maybe<std/core/types/int>) as .unbox-x52
+ : std/core/types/maybe<std/core/types/int>), (.pat4: list<std/core/types/maybe<std/core/types/int>>)) : list<std/core/types/maybe<std/core/types/int>> )
  -> val _ : ()
  = std/core/types/.drop(xs);
  val _ : ()
