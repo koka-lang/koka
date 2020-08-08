@@ -157,6 +157,8 @@ patAddNames pat
         -> do name <- uniqueTName patTypeRes
               pats' <- mapM patAddNames patConPatterns
               return $ PatVar name pat{patConPatterns=pats'}
+      PatVar{patPattern=PatVar{}}
+        -> failure "Backend.C.ParcReuse.patAddNames"
       _ -> return pat
 
 ruPattern :: Pattern -> Reuse [(TName, Int)]
