@@ -1,7 +1,11 @@
+module parc/parc11
+private import std/core/types = std/core/types = "";
+private import std/core/hnd = std/core/hnd = "";
+private import std/core = std/core = "";
 public fun test : (x : list<std/core/types/int>) -> list<std/core/types/int>
  = fun(x: list<std/core/types/int>){
  match (x) {
- (std/core/Cons((.pat0: std/core/types/int), (.pat1: list<std/core/types/int>)) : list<std/core/types/int> )
+ (std/core/Cons(((.pat0: std/core/types/int) as .unbox-x19: std/core/types/int), (.pat1: list<std/core/types/int>)) : list<std/core/types/int> )
  -> x;
  (std/core/Nil() : (list<std/core/types/int>) )
  -> std/core/types/.drop(x);

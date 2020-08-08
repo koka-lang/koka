@@ -1,5 +1,9 @@
+module parc/parc7
+private import std/core/types = std/core/types = "";
+private import std/core/hnd = std/core/hnd = "";
+private import std/core = std/core = "";
 public fun test : forall<a,b> (x : a, y : b) -> a
- = forall<a,b> fun(x: a, y: b){
+ = fun(x: 0, y: 1){
  std/core/types/.drop(y);
  x
  };

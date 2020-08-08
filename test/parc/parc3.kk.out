@@ -1,7 +1,11 @@
+module parc/parc3
+private import std/core/types = std/core/types = "";
+private import std/core/hnd = std/core/hnd = "";
+private import std/core = std/core = "";
 public fun test : (xs : list<std/core/types/int>, y : std/core/types/int, z : std/core/types/int) -> std/core/types/int
  = fun(xs: list<std/core/types/int>, y: std/core/types/int, z: std/core/types/int){
  match (xs) {
- (std/core/Cons((x: std/core/types/int), (.pat0: list<std/core/types/int>)) : list<std/core/types/int> )
+ (std/core/Cons(((x: std/core/types/int) as .unbox-x99: std/core/types/int), (.pat0: list<std/core/types/int>)) : list<std/core/types/int> )
  | std/core/(==.1)((std/core/types/.dup(x)), (std/core/types/.dup(z))) -> val _ : std/core/types/int
  = std/core/types/.dup(x);
  val _ : ()
@@ -11,13 +15,13 @@ public fun test : (xs : list<std/core/types/int>, y : std/core/types/int, z : st
  val _ : ()
  = std/core/types/.drop(z);
  x;
- (std/core/Cons((x0: std/core/types/int), (.pat2: list<std/core/types/int>)) : list<std/core/types/int> )
+ (std/core/Cons(((x0: std/core/types/int) as .unbox-x100: std/core/types/int), (.pat2: list<std/core/types/int>)) : list<std/core/types/int> )
  | std/core/(==.1)((std/core/types/.dup(x0)), (std/core/types/.dup(y))) -> val _ : ()
  = std/core/types/.drop(xs);
  val _ : ()
  = std/core/types/.drop(z);
  y;
- (std/core/Cons((.pat4: std/core/types/int), (.pat5: list<std/core/types/int>)) : list<std/core/types/int> )
+ (std/core/Cons(((.pat4: std/core/types/int) as .unbox-x101: std/core/types/int), (.pat5: list<std/core/types/int>)) : list<std/core/types/int> )
  | std/core/(==.1)((std/core/types/.dup(y)), (std/core/types/.dup(z))) -> val _ : ()
  = std/core/types/.drop(xs);
  val _ : ()
