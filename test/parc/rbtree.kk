@@ -49,7 +49,21 @@ fun isRed(t: tree): bool {
 }
 
 fun ins(t: tree, kx: int, vx: bool): tree {
-  t/* match(t) {
+  match(t) {
+    Node(Red, a, ky, vy, b)
+      -> if (kx < ky) then Node(Red, ins(a, kx, vx), ky, vy, b)
+         elif (kx == ky) then Node(Red, a, kx, vx, b)
+         else Node(Red, a, ky, vy, ins(b, kx, vx))
+    Node(Black, a, ky, vy, b)
+      -> if (kx < ky && isRed(a)) then balance1(ky, vy, b, ins(a, kx, vx))
+         elif (kx < ky) then Node(Black, ins(a, kx, vx), ky, vy, b)
+         elif (kx == ky) then Node(Black, a, kx, vx, b)
+         elif (isRed(b)) then balance2(a, ky, vy, ins(b, kx, vx))
+         else Node(Black, a, ky, vy, ins(b, kx, vx))
+    _ -> Node(Red, Leaf, kx, vx, Leaf)
+  }
+
+  /* match(t) {
     Leaf -> Node(Red, Leaf, kx, vx, Leaf)
     Node(Red, a, ky, vy, b)
       | kx < ky  -> Node(Red, ins(a, kx, vx), ky, vy, b)
