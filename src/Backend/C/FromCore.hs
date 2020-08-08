@@ -1041,6 +1041,16 @@ genExprStat result expr
       _  | isInlineableExpr expr
         -> do exprDoc <- genInline expr
               return (getResult result exprDoc)
+              
+      {-
+      -- If (yielding(ctx)) then expr1 else expr2      
+      Let [DefNonRec (Def name tp (App (Var vnameYielding _) [ctx]) Private DefVal _ _ _)] 
+          (Case [Var vname _] [Branch [PatCon{patConName=con1}] (Guard guard1 expr1),
+                               Branch [PatCon{patConName=con2}] (Guard guard2 expr2)])  
+            | vname == name && vnameYielding == nameYielding && 
+              isExprTrue guard1 && isExprTrue guard2 && 
+              getName con1 == nameTrue && getName con2 == nameFalse
+         -> genExprStat -}
 
       Case exprs branches
          -> do (docs, scrutinees)
