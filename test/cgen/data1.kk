@@ -57,7 +57,7 @@ type open open<a> { Open1(:a) }
 // mixed raw / scan
 type point { Point(x:double,y:double,z:int) }
 
-// type wrong { Wrong( p1:point, p2:point ) }
+type wrong { Wrong( p1:point, p2:point ) }
 
 // mix raw / scan
 type mix<a> { Mix( p:point, m : mix<a>, i : int32, c : char ); MixNil }

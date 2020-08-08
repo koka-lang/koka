@@ -708,7 +708,7 @@ genDupDropCallX prim tp args
     case cType tp of
       CFun _ _   -> [text (pre "function_t") <.> args]
       CBox       -> [text (pre "box_t") <.> args]
-      CPrim val   | val == "integer_t" || val == "string_t" || val == "vector_t" || val == "ref_t"
+      CPrim val   | val == "integer_t" || val == "string_t" || val == "vector_t" || val == "ref_t" || val == "reuse_t"
                   -> [text (pre val) <.> args]
                   | otherwise
                   -> []-- text "value" <.> args

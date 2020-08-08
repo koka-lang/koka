@@ -135,11 +135,13 @@ ruBranches branches
 
 ruBranch :: Branch -> Reuse (Branch, Available)
 ruBranch (Branch pats guards)
-  = do pats' <- mapM patAddNames pats
+  = isolateAvailable $ 
+    do pats' <- mapM patAddNames pats
        reuses <- concat <$> mapM ruPattern pats'
        added <- mapM addAvailable reuses
-       (guards', avs)  <- unzip <$> mapM (ruGuard added) guards
-       return (Branch pats' guards', availableIntersect avs)
+       (guards', avs)  <- unzip <$> mapM (ruGuard added) guards       
+       setAvailable (availableIntersect avs)
+       return (Branch pats' guards')
   where
     addAvailable :: (TName, Int) -> Reuse (TName, TName, Int)
     addAvailable (patName, size)
@@ -156,7 +158,7 @@ patAddNames pat
       PatCon{patConPatterns,patTypeRes}
         -> do name <- uniqueTName patTypeRes
               pats' <- mapM patAddNames patConPatterns
-              return $ PatVar name pat{patConPatterns=pats'}
+              return $ PatVar name pat{patConPatterns=pats'}          
       _ -> return pat
 
 ruPattern :: Pattern -> Reuse [(TName, Int)]
@@ -207,7 +209,7 @@ genAllocAt at conApp
   = App (Var (TName nameAllocAt typeAllocAt) (InfoArity 0 1)) [Var at InfoNone, conApp]
   where
     conTp = typeOf conApp
-    typeAllocAt = TFun [(nameNil,conTp)] typeTotal conTp
+    typeAllocAt = TFun [(nameNil,typeReuse),(nameNil,conTp)] typeTotal conTp
 
 
 --------------------------------------------------------------------------
