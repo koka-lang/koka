@@ -110,6 +110,7 @@ module Common.NamePrim
           , nameTpAlloc
 
           , nameTuple, isNameTuple
+          , nameAnd, nameOr
 
           , namePredHeapDiv, namePredEffDiv
 
@@ -312,6 +313,9 @@ nameTpST        = coreTypesName "st"
 nameEffectEmpty = coreTypesName "<>"
 nameEffectExtend= coreTypesName "<|>"
 nameEffectAppend= newName ".<+>"  -- only used during kind inference
+
+nameAnd         = coreTypesName "&&"
+nameOr          = coreTypesName "||"
 
 nameTpHandled   = coreTypesName "handled"
 nameTpHandled1  = coreTypesName "handled1"

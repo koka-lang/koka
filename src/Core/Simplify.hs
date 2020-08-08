@@ -20,7 +20,8 @@ import Common.Range
 import Common.Syntax
 import Common.NamePrim( nameEffectOpen, nameToAny, nameEnsureK, nameReturn, nameOptionalNone, nameIsValidK
                        , nameLift, nameBind, nameEvvIndex, nameClauseTailNoYield, isClauseTailName
-                       , nameBox, nameUnbox )
+                       , nameBox, nameUnbox
+                       , nameAnd, nameOr )
 import Common.Unique
 import Type.Type
 import Type.Kind
@@ -147,6 +148,11 @@ topDown (Let dgs body)
             
 
 
+-- short circuit && and ||
+topDown (App (Var op _) [expr1,expr2])  | getName op == nameAnd 
+  = topDown (makeIfExpr expr1 expr2 exprFalse)
+topDown (App (Var op _) [expr1,expr2])  | getName op == nameOr
+  = topDown (makeIfExpr expr1 exprTrue expr2)
 
 -- Remove effect open applications; only if 'unsafe' is enabled since
 -- the effect types won't match up

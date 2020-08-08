@@ -1,5 +1,8 @@
 public module std/core/types
 
+infixr 30  (&&)
+infixr 20  (||)
+
 extern include {
   js file "types-inline.js"
 }
@@ -158,15 +161,20 @@ fun id(x : a) : a {
   x
 }
 
+// Logical conjuction
+fun (&&)( x : bool, y : bool) : bool {  // inlined in the compiler for short-circuit evaluation
+  if (x) then y else False
+}
 
-// For short-circuiting we use extern here
-// fun (&&)( x : bool, y : bool) : bool = if (x) then y else false
-// fun (||)( x : bool, y : bool) : bool = if (x) then true else y
+// Logical disjunction
+fun (||)( x : bool, y : bool) : bool { // inlined in the compiler for short-circuit evaluation
+  if (x) then True else y
+}
 
-extern inline (&&) : (bool,bool) -> bool  { inline "(#1 && #2)" }
-extern inline (||) : (bool,bool) -> bool  { inline "(#1 || #2)" }
+// extern inline (&&) : (bool,bool) -> bool  { inline "(#1 && #2)" }
+// extern inline (||) : (bool,bool) -> bool  { inline "(#1 || #2)" }
 
-// for efficiency we use extern here
+// for efficiency we use extern here (for now)
 // fun (!)( b : bool ) : bool = if (x) then false else true
 // fun not( b : bool ) : bool = if (x) then false else true
 

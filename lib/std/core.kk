@@ -20,8 +20,6 @@ infixr 80  (^)
 infixl 70  (*), (%), (/), cdiv, cmod
 infixl 60  (+), (-)
 infix  40  (!=), (==), (<=), (>=), (<), (>)
-infixr 30  (&&)
-infixr 20  (||)
 
 // prefix     (!), (-)
 
