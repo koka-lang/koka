@@ -847,8 +847,8 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
     toDefValue nameDoc con
       = do ddefs <- mapM (typeDataDef lookupDataInfo . snd) (conInfoParams con)
            dd <- sumDataDefs nameDoc ddefs
-           trace ("datadefs: " ++ show nameDoc ++ "." ++ show (conInfoName con) ++ ": " ++ show ddefs ++ " to " ++ show dd) $
-            return dd
+           -- trace ("datadefs: " ++ show nameDoc ++ "." ++ show (conInfoName con) ++ ": " ++ show ddefs ++ " to " ++ show dd) $
+           return dd
 
     -- note: (m = raw, n = scan)
     maxDataDefs :: Platform -> Name -> Bool -> Doc -> [(Int,Int)] -> KInfer DataDef
