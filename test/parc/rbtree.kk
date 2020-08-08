@@ -6,14 +6,14 @@ type tree {
   con Node(color: color, lchild: tree, key: int, value: bool, rchild: tree)
 }
 
-fun fold(f: (int, bool, a) -> a, t: tree, b: a): a {
+fun fold(t: tree, b: a, f: (int, bool, a) -> a): a {
   match (t) {
     Leaf
       -> /* drop(f,t) */
          b
     Node(_, l, k, v, r)
       -> /* dup(k,l,r) drop(t) */
-         fold(/* dup */ f, r, (/* dup */ f)(k, v, fold(f, l, b)))
+         r.fold((/* dup */ f)(k, v, l.fold(b, f)), f)
   }
 }
 
@@ -49,7 +49,7 @@ fun isRed(t: tree): bool {
 }
 
 fun ins(t: tree, kx: int, vx: bool): tree {
-  match(t) {
+  t/* match(t) {
     Leaf -> Node(Red, Leaf, kx, vx, Leaf)
     Node(Red, a, ky, vy, b)
       | kx < ky  -> Node(Red, ins(a, kx, vx), ky, vy, b)
@@ -61,7 +61,7 @@ fun ins(t: tree, kx: int, vx: bool): tree {
       | kx == ky -> Node(Black, a, kx, vx, b)
       | isRed(b) -> balance2(a, ky, vy, ins(b, kx, vx))
       | True -> Node(Black, a, ky, vy, ins(b, kx, vx))
-  }
+  } */
 }
 
 fun setBlack(t: tree): tree {
@@ -78,7 +78,7 @@ fun insert(t: tree, k: int, v: bool): tree {
 }
 
 fun mkMapAux(n: int, m: tree): div tree {
-  if (n == 0)
+  if (n <= 0)
     then m
     else mkMapAux(n - 1, insert(m, n - 1, (n - 1) % 10 == 0))
 }
@@ -87,10 +87,8 @@ fun mkMap(n: int): div tree {
   mkMapAux(n, Leaf)
 }
 
-/*
-def main (xs : List String) : IO UInt32 :=
-let m := mkMap xs.head!.toNat;
-let v := fold (fun (k : Nat) (v : Bool) (r : Nat) => if v then r + 1 else r) m 0;
-IO.println (toString v) *>
-pure 0
-*/
+fun main() {
+  val m = mkMap(42); // todo: read first command line arg for size
+  val v = m.fold(0) fun(k, v, r) { if (v) then r + 1 else r }
+  v.println
+}
