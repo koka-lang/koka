@@ -49,7 +49,6 @@ fun isRed(t: tree): bool {
 }
 
 fun ins(t: tree, kx: int, vx: bool): tree {
-  t
   match(t) {
     Leaf -> Node(Red, Leaf, kx, vx, Leaf)
     Node(Red, a, ky, vy, b)
