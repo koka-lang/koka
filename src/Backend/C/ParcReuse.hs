@@ -54,7 +54,8 @@ parcReuseCore :: Pretty.Env -> Platform -> Newtypes -> Core -> Unique Core
 parcReuseCore penv platform newtypes core
   | not enabled = return core
   | otherwise   = do defs <- runReuse penv platform newtypes (ruDefGroups True (coreProgDefs core))
-                     tr defs $ return core{coreProgDefs=defs}
+                     -- tr defs $ 
+                     return core{coreProgDefs=defs}
   where penv' = penv{Pretty.coreShowDef=True,Pretty.coreShowTypes=False,Pretty.fullNames=False}
         tr d = trace (show (vcat (map (prettyDefGroup penv') d)))
 
