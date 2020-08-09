@@ -51,6 +51,7 @@ module Type.InferMonad( Inf, InfGamma
                       , checkCasing
                       , normalize
                       , getResolver
+                      , getNewtypes
 
                       -- * Unification
                       , Context(..)
@@ -1118,6 +1119,12 @@ setPredicates :: [Evidence] -> Inf ()
 setPredicates ps
   = do updateSt (\st -> st{ preds = ps })
        return ()
+
+getNewtypes :: Inf Newtypes
+getNewtypes
+ = do env <- getEnv
+      return (types env)
+
 
 findDataInfo :: Name -> Inf DataInfo
 findDataInfo typeName

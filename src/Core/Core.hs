@@ -63,6 +63,7 @@ module Core.Core ( -- Data structures
                    , isConIso
                    , isDataStruct
                    , getDataRepr, getDataReprEx, dataInfoIsValue
+                   , getConRepr
                    , dataReprIsValue
                    , VarInfo(..), isInfoArity
 
@@ -312,6 +313,12 @@ getDataRepr :: DataInfo -> (DataRepr,[ConRepr])
 getDataRepr info
   = getDataReprEx dataInfoIsValue info
 
+getConRepr :: DataInfo -> ConInfo -> ConRepr
+getConRepr dataInfo conInfo
+  = let (_,creprs) = getDataRepr dataInfo 
+    in case [crepr | (ci,crepr) <- zip (dataInfoConstrs dataInfo) creprs, conInfoName ci == conInfoName conInfo] of
+         [crepr] -> crepr
+         _ -> failure ("Core.Core: getConRepr: constructor not in the datatype: " ++ show (dataInfoName dataInfo, conInfoName conInfo))
 
 getDataReprEx :: (DataInfo -> Bool) -> DataInfo -> (DataRepr,[ConRepr])
 getDataReprEx getIsValue info
