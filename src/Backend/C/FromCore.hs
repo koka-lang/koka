@@ -1404,6 +1404,8 @@ genAppNormal (Var allocAt _) [Var at _, App (TypeApp (Con tname repr) targs) arg
   = do (decls,argDocs) <- genExprs args
        let atDoc = ppName (getName at)
        return (decls,conCreateName (getName tname) <.> arguments ([atDoc] ++ argDocs))
+genAppNormal v@(Var allocAt _) [at, Let dgs expr]  | getName allocAt == nameAllocAt  -- can happen due to box operations
+  = genExpr (Let dgs (App v [at,expr]))
 genAppNormal f args
   = do (decls,argDocs) <- genExprs args
        case extractExtern f of
@@ -1418,6 +1420,8 @@ genAppNormal f args
                  -> let at = if (dataReprIsValue (conDataRepr repr)) then [] else [text "reuse_null"]
                     in return (decls,conCreateName (getName tname) <.> arguments (at ++ argDocs))
                -- call to known function
+               Var tname _ | getName tname == nameAllocAt
+                 -> failure ("allocat: " ++ show (f,args))
                Var tname (InfoArity m n) | isQualified (getName tname)
                  -> return (decls,ppName (getName tname) <.> arguments argDocs)
                -- call unknown function_t

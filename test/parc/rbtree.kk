@@ -41,10 +41,10 @@ fun balance2(t: tree, kv: int, vv: bool, s: tree): tree {
   }
 }
 
-fun isRed(t: tree): bool {
+fun is-red(t : tree) : bool {
   match(t) {
     Node(Red) -> True
-    _ -> False
+    _         -> False
   }
 }
 
@@ -57,10 +57,10 @@ fun ins(t: tree, kx: int, vx: bool): tree {
          elif (kx == ky) then Node(Red, a, kx, vx, b)
          else Node(Red, a, ky, vy, ins(b, kx, vx))
     Node(Black, a, ky, vy, b)
-      -> if (kx < ky && isRed(a)) then balance1(ky, vy, b, ins(a, kx, vx))
+      -> if (kx < ky && is-red(a)) then balance1(ky, vy, b, ins(a, kx, vx))
          elif (kx < ky) then Node(Black, ins(a, kx, vx), ky, vy, b)
          elif (kx == ky) then Node(Black, a, kx, vx, b)
-         elif (isRed(b)) then balance2(a, ky, vy, ins(b, kx, vx))
+         elif (is-red(b)) then balance2(a, ky, vy, ins(b, kx, vx))
          else Node(Black, a, ky, vy, ins(b, kx, vx))
   }
 
@@ -79,7 +79,7 @@ fun ins(t: tree, kx: int, vx: bool): tree {
   } */
 }
 
-fun setBlack(t: tree): tree {
+fun set-black(t: tree) : tree {
   match(t) {
     Node(_, l, k, v, r) -> Node(Black, l, k, v, r)
     _ -> t
@@ -87,24 +87,24 @@ fun setBlack(t: tree): tree {
 }
 
 fun insert(t: tree, k: int, v: bool): tree {
-  if (isRed(t))
-    then setBlack(ins(t, k, v))
+  if (is-red(t))
+    then set-black(ins(t, k, v))
     else ins(t, k, v)
 }
 
-fun mkMapAux(n: int, m: tree): div tree {
+fun make-tree-aux(n: int, m: tree): div tree {
   if (n <= 0) then m else {
     val n1 = n - 1
-    mkMapAux(n1, insert(m, n1, n1 % 10 == 0))
+    make-tree-aux(n1, insert(m, n1, n1 % 10 == 0))
   }
 }
 
-fun mkMap(n: int): div tree {
-  mkMapAux(n, Leaf)
+fun make-tree(n: int): div tree {
+  make-tree-aux(n, Leaf)
 }
 
 fun main() {
-  val m = mkMap(4200000); // todo: read first command line arg for size
+  val m = make-tree(4200000); // todo: read first command line arg for size
   val v = m.fold(0) fun(k, v, r) { if (v) then r + 1 else r }
   v.println
 }

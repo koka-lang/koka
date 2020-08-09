@@ -1,4 +1,4 @@
-# Adapted from https://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap.ml
+(* Adapted from https://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap.ml *)
 
 type color =
 | Red
@@ -69,5 +69,5 @@ let v = fold (fun k v r -> if v then r + 1 else r) m 0 in
 Printf.printf "%8d\n" v;
 v;;
 
-# main (int_of_string Sys.argv.(1));;
-main 4200000
+(* main (int_of_string Sys.argv.(1));; *)
+main 4200000;;
