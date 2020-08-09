@@ -102,7 +102,7 @@ fun mkMap(n: int): div tree {
 }
 
 fun main() {
-  val m = mkMap(42); // todo: read first command line arg for size
+  val m = mkMap(4200000); // todo: read first command line arg for size
   val v = m.fold(0) fun(k, v, r) { if (v) then r + 1 else r }
   v.println
 }
