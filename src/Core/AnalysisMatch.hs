@@ -32,11 +32,7 @@ import Core.Pretty
 analyzeBranches :: Newtypes -> Name -> Range -> [Branch] -> [Type] -> [DataInfo] -> (Bool,[(Range,Doc)],[Branch])
 analyzeBranches newtypes defName range branches types infos
   = let (exhaustive,branches',warnings)
-          = if  any (\info -> dataInfoIsOpen info || dataInfoIsLiteral info) infos
-             then -- literal or open type
-                  (finalBranchIsCatchAll branches, branches, [])
-             else -- datatype match
-                  matchBranches newtypes defName range branches types infos                                    
+          = matchBranches newtypes defName range branches types infos                                    
     in (exhaustive, warnings, branches' ++ (if exhaustive then [] else catchAll))
   where
     patternCount = length (branchPatterns (head branches))
@@ -66,9 +62,15 @@ instance Show Match where
 type Warnings = [(Range,Doc)]
 
 
+dataInfoGetConInfos :: DataInfo -> [ConInfo]
+dataInfoGetConInfos info
+  = if (dataInfoIsOpen info || dataInfoIsLiteral info) 
+     then [] 
+     else dataInfoConstrs info
+
 matchBranches :: Newtypes -> Name -> Range -> [Branch] -> [Type] -> [DataInfo] -> (Bool,[Branch],Warnings)
 matchBranches newtypes defName range branches types dataInfos
-  = let matches = [Match (dataInfoConstrs di) [] | di <- dataInfos]
+  = let matches = [Match (dataInfoGetConInfos di) [] | di <- dataInfos]
     in fold (matches,[],[]) branches
   where
     fold (matches,acc,ws) []  
@@ -98,9 +100,7 @@ matchPattern newtypes defName range top (m@(MatchComplete _), tp, pat)
 matchPattern newtypes defName range top (match@(Match cinfos cmatches), tp, pat) 
   = case pat of
       PatWild 
-        -> let newmatches = (cinfos `remove` map fst (filter isComplete cmatches)) 
-               -- cmatches' = [(ci,replicate (length (conInfoParams ci)) MatchComplete) | ci <- newmatches]
-               pat' = case newmatches of
+        -> let pat' = case (cinfos `remove` map fst (filter isComplete cmatches)) of
                         [con] | null (conInfoExists con)
                               -> -- one constructor unmatched: replace wild with the constructor to improve reuse
                                  -- trace ("try replace wild: " ++ show defName ++ ": " ++ show (conInfoName con) ++ ": " ++ show (pretty (conInfoType con))) $
@@ -126,12 +126,12 @@ matchPattern newtypes defName range top (match@(Match cinfos cmatches), tp, pat)
         -> case span (\(ci,_) -> getName cname /= conInfoName ci) cmatches of
              (pre,(ci,argMatches):post)
                -> -- matched before
-                  let skip = (length cinfos == length cmatches) && all isComplete (pre ++ post)  -- all other constructors matched! TODO: open?
+                  let skip = not (null cinfos) && (length cinfos == length cmatches) && all isComplete (pre ++ post)  -- all other constructors matched!
                       (argMatches',args',warnings) = matchPatterns newtypes defName range False argMatches targs args                                        
                   in (makeMatch cinfos (pre ++ ((ci,argMatches'):post)), 
                       pat{ patConPatterns = args', patConSkip = skip }, warnings)
              _ -> -- first match
-                  let skip = (length cinfos == length cmatches + 1) && all isComplete cmatches  -- all other constructors matched! TODO: open?
+                  let skip = not (null cinfos) && (length cinfos == length cmatches + 1) && all isComplete cmatches  -- all other constructors matched!
                       argMatches = [makeMatch (lookupConInfos newtypes tp) [] | tp <- targs]
                       (argMatches',args',warnings) = matchPatterns newtypes defName range False argMatches targs args                                        
                   in (makeMatch cinfos (cmatches ++ [(cinfo,argMatches')]), 
@@ -158,7 +158,7 @@ updateOneMatch [] _               = []
   
 makeMatch :: [ConInfo] -> [(ConInfo,[Match])] -> Match
 makeMatch cinfos cmatches
-  = if (length cinfos == length cmatches && all isComplete cmatches)
+  = if (not (null cinfos) && length cinfos == length cmatches && all isComplete cmatches)
      then MatchComplete cinfos
      else Match cinfos cmatches
 
@@ -188,7 +188,7 @@ lookupConInfos :: Newtypes -> Type -> [ConInfo]
 lookupConInfos newtypes tp
   = case expandSyn tp of
       TCon tcon -> case lookupDataInfo newtypes (typeconName tcon) of
-                     Just di -> dataInfoConstrs di
+                     Just di -> dataInfoGetConInfos di    -- [] for open or literals
                      Nothing -> []
       _         -> []
 
