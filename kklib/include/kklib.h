@@ -407,6 +407,7 @@ static inline reuse_t drop_reuse_block(block_t* b, context_t* ctx) {
 static inline reuse_t drop_reuse_blockn(block_t* b, size_t scan_fsize, context_t* ctx) {
   const uint32_t rc = b->header.refcount;
   if (rc == 0) {                 
+    assert_internal(block_scan_fsize(b) == scan_fsize);
     for (size_t i = 0; i < scan_fsize; i++) {
       drop_box_t(block_field(b, i), ctx);
     }

@@ -123,7 +123,10 @@ ruTryReuseCon repr paramTypes conApp
        available <- getAvailable
        case M.lookup size available of
          Just tnames | not (S.null tnames)
-           -> do let (tname, tnames') = S.deleteFindMin tnames
+           -> do let -- (tname, tnames') = S.deleteFindMin tnames
+                     n = S.size tnames
+                     tname = S.elemAt (n-1) tnames
+                     tnames' = S.deleteAt (n-1) tnames
                  setAvailable (M.insert size tnames' available)
                  return (genAllocAt tname conApp)
          _ -> return conApp
