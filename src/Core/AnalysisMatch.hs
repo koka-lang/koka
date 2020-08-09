@@ -42,10 +42,10 @@ analyzeBranches newtypes defName range branches types infos
                    ]
 
 
-data Match = Match{ conInfos   :: [ConInfo],           -- datatype info
-                    conMatches :: [(ConInfo,[Match])]  -- matched constructors
+data Match = Match{ conInfos   :: ![ConInfo],           -- datatype info
+                    conMatches :: ![(ConInfo,[Match])]  -- matched constructors
                   }
-           | MatchComplete{ conInfos :: [ConInfo] }
+           | MatchComplete{ conInfos :: ![ConInfo] }
            
 isMatchComplete (MatchComplete _) = True
 isMatchComplete _ = False           
@@ -64,7 +64,8 @@ type Warnings = [(Range,Doc)]
 
 dataInfoGetConInfos :: DataInfo -> [ConInfo]
 dataInfoGetConInfos info
-  = if (dataInfoIsOpen info || dataInfoIsLiteral info) 
+  = -- trace ("data info for: " ++ show (dataInfoName info) ++ ": " ++ show info)$
+    if (dataInfoIsOpen info || dataInfoIsLiteral info) 
      then [] 
      else dataInfoConstrs info
 
@@ -128,20 +129,22 @@ matchPattern newtypes defName range top (match@(Match cinfos cmatches), tp, pat)
                -> -- matched before
                   let skip = not (null cinfos) && (length cinfos == length cmatches) && all isComplete (pre ++ post)  -- all other constructors matched!
                       (argMatches',args',warnings) = matchPatterns newtypes defName range False argMatches targs args                                        
-                  in (makeMatch cinfos (pre ++ ((ci,argMatches'):post)), 
-                      pat{ patConPatterns = args', patConSkip = skip }, warnings)
+                      m = makeMatch cinfos (pre ++ ((ci,argMatches'):post))
+                  in seq m $
+                     (m, pat{ patConPatterns = args', patConSkip = skip }, warnings)
              _ -> -- first match
                   let skip = not (null cinfos) && (length cinfos == length cmatches + 1) && all isComplete cmatches  -- all other constructors matched!
                       argMatches = [makeMatch (lookupConInfos newtypes tp) [] | tp <- targs]
                       (argMatches',args',warnings) = matchPatterns newtypes defName range False argMatches targs args                                        
-                  in (makeMatch cinfos (cmatches ++ [(cinfo,argMatches')]), 
-                      pat{ patConPatterns = args', patConSkip = skip }, warnings)                    
+                      m = makeMatch cinfos (cmatches ++ [(cinfo,argMatches')])
+                  in seq m $ 
+                     (m, pat{ patConPatterns = args', patConSkip = skip }, warnings)                    
                   
   
 matchPatterns :: Newtypes -> Name -> Range -> Bool -> [Match] -> [Type] -> [Pattern] -> ([Match], [Pattern], Warnings)
 matchPatterns newtypes defName range top matches tps patterns
     = let (matches1,patterns1,warningss) = unzip3 $ map (matchPattern newtypes defName range top) (zip3 matches tps patterns)
-          matches2 = if (length matches1 == 1) then matches1
+          matches2 = if (length matches1 <= 1) then matches1
                      else case (filter (not . isMatchComplete) matches1) of
                        []  -> -- all matched fully 
                               matches1 
@@ -149,7 +152,8 @@ matchPatterns newtypes defName range top matches tps patterns
                               updateOneMatch matches matches1
                        _   -> -- multiple matches: discard the info to be conservative
                               matches
-      in (matches2, patterns1, concat warningss)
+      in seq matches2 $
+         (matches2, patterns1, concat warningss)
   
 updateOneMatch (m1:ms1) (m2:ms2)  | isMatchComplete m2 = m1 : updateOneMatch ms1 ms2
 updateOneMatch (m1:ms1) (m2:ms2)  = m2 : ms1
@@ -158,7 +162,9 @@ updateOneMatch [] _               = []
   
 makeMatch :: [ConInfo] -> [(ConInfo,[Match])] -> Match
 makeMatch cinfos cmatches
-  = if (not (null cinfos) && length cinfos == length cmatches && all isComplete cmatches)
+  = -- seq cmatches $
+    -- trace ("**make match: " ++ show (map conInfoName cinfos) ++ ":\n" ++ show cmatches) $
+    if (not (null cinfos) && length cinfos == length cmatches && all isComplete cmatches)
      then MatchComplete cinfos
      else Match cinfos cmatches
 
@@ -189,8 +195,11 @@ lookupConInfos newtypes tp
   = case expandSyn tp of
       TCon tcon -> case lookupDataInfo newtypes (typeconName tcon) of
                      Just di -> dataInfoGetConInfos di    -- [] for open or literals
-                     Nothing -> []
-      _         -> []
+                     Nothing -> trace ("Core.AnalysisMatch.lookupConInfos: not found: " ++ show (typeconName tcon) ++ ": " ++ show newtypes) $
+                                []
+      TApp t targs -> lookupConInfos newtypes t -- list<a>
+      _         -> -- trace ("Core.AnalysisMatch.lookupConInfos: not a tcon: " ++ show (pretty t)) $
+                   []
 
 
 finalBranchIsCatchAll :: [Branch] -> Bool
