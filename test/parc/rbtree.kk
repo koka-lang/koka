@@ -92,9 +92,10 @@ fun insert(t: tree, k: int, v: bool): tree {
 }
 
 fun mkMapAux(n: int, m: tree): div tree {
-  if (n <= 0)
-    then m
-    else mkMapAux(n - 1, insert(m, n - 1, (n - 1) % 10 == 0))
+  if (n <= 0) then m else {
+    val n1 = n - 1
+    mkMapAux(n1, insert(m, n1, n1 % 10 == 0))
+  }
 }
 
 fun mkMap(n: int): div tree {
