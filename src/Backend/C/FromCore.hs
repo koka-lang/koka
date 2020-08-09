@@ -65,7 +65,7 @@ externalNames
 
 cFromCore :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
 cFromCore sourceDir penv0 platform newtypes uniq mbMain core
-  = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes False)
+  = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes platform False)
            (genModule sourceDir penv platform newtypes mbMain core) of
       (bcore,cdoc,hdoc) -> (cdoc,hdoc,bcore)
   where
@@ -393,13 +393,9 @@ genTypeDef (Data info isExtend)
        -- order fields of constructors to have their scan fields first
        let conInfoReprs = zip (dataInfoConstrs info) conReprs
        conInfos <- mapM (\(conInfo,conRepr) -> do -- should never fail as mixed raw/scan is checked in kindInfer
-                                                  mbOrd <- orderConFields (dataInfoDef info) (conInfoParams conInfo)
-                                                  let (fields,scanCount0) = case mbOrd of
-                                                                              Nothing -> failure ("Backend.C.FromCore.orderConFields: multiple mixed scan/raw fields" ++ show name)
-                                                                              Just res -> res
-                                                  let scanCount = if (dataRepr == DataOpen)
-                                                                   then scanCount0 + 1  -- tag field
-                                                                   else scanCount0
+                                                  newtypes <- getNewtypes
+                                                  platform <- getPlatform
+                                                  let (fields,size,scanCount) = orderConFieldsEx platform newtypes (dataRepr == DataOpen) (conInfoParams conInfo)
                                                   return (conInfo,conRepr,fields,scanCount)) conInfoReprs
        -- generate types for constructors
        if (dataRepr == DataEnum)
@@ -762,34 +758,6 @@ arguments args
   = tupled (args ++ [contextDoc])
 
 
--- order constructor fields of constructors with raw field so the regular fields
--- come first to be scanned.
-orderConFields :: DataDef -> [(Name,Type)] -> Asm (Maybe ([(Name,Type)],Int))
-orderConFields ddef fields
-  = visit ([],[],0,0) fields
-  where
-    visit (rraw, rscan, scanCount, mixCount) []
-      = do case ddef of
-             DataDefValue raw scan | scanCount > scan
-               -> failure $ "Backend.C.FromCore.orderConFields: scan count seems wrong: " ++ show scanCount ++ " vs " ++ show (raw,scan) ++ ", in " ++ show fields
-             _ -> if (mixCount > 1)
-                   then return Nothing -- multiple fields with mixed raw/scan fields itself
-                   else return (Just (reverse rscan ++ reverse rraw, scanCount))
-    visit (rraw,rscan,scanCount,mixCount) (field@(name,tp) : fs)
-      = do (dd,dataRepr) <- getDataDefRepr tp
-           case dd of
-             DataDefValue raw scan
-               -> let extra = if (isDataStructLike dataRepr) then 1 else 0 in -- adjust scan count for added "tag_t" members in structs with multiple constructors
-                  if (raw > 0 && scan > 0)
-                   then -- mixed raw/scan: put it at the head of the raw fields (there should be only one of these as checked in Kind/Infer)
-                        -- but we count them to be sure (and for function data)
-                        visit (rraw ++ [field], rscan, scanCount + scan  + extra, mixCount + 1) fs
-                   else if (raw > 0)
-                         then visit (field:rraw, rscan, scanCount, mixCount) fs
-                         else visit (rraw, field:rscan, scanCount + scan + extra, mixCount) fs
-             _ -> visit (rraw, field:rscan, scanCount + 1, mixCount) fs
-
-
 ppVis :: Visibility -> Doc
 ppVis _       = empty
 -- ppVis Public  = text "decl_public "
@@ -814,10 +782,6 @@ ppDefName name
 vcatBreak []  = empty
 vcatBreak xs  = linebreak <.> vcat xs
 
-isDataStructLike (DataAsMaybe) = True
-isDataStructLike (DataStruct) = True
-isDataStructLike _ = False
-
 -- explicit tag field?
 hasTagField :: DataRepr -> Bool
 hasTagField DataAsMaybe = True
@@ -834,10 +798,9 @@ genLambda params eff body
            funTpName = postpend "_t" funName
            structDoc = text "struct" <+> ppName funTpName
            freeVars  = [(nm,tp) | (TName nm tp) <- tnamesList (freeLocals (Lam params eff body))]
-       mbOrd <- orderConFields DataDefNormal freeVars
-       let (fields,scanCount) = case mbOrd of
-                                 Nothing -> failure ("Backend.C.FromCore.genLambda: free value type variables have mixed raw/scan fields: report this issue please. " ++ show (funTpName))
-                                 Just res -> res
+       newtypes <- getNewtypes
+       platform <- getPlatform
+       let (fields,_,scanCount) = orderConFieldsEx platform newtypes False freeVars
            fieldDocs = [ppType tp <+> ppName name | (name,tp) <- fields]
            tpDecl  = text "struct" <+> ppName funTpName <+> block (
                        vcat ([text "struct function_s _type;"] ++
@@ -1706,7 +1669,8 @@ data Env = Env { moduleName        :: Name                    -- | current modul
                , prettyEnv         :: Pretty.Env              -- | for printing nice types
                , substEnv          :: [(TName, Doc)]          -- | substituting names
                , newtypes          :: Newtypes
-               , inStatement       :: Bool                    -- | for generating correct function declarations in strict mode
+               , platform          :: Platform
+               , inStatement       :: Bool                    -- | for generating correct function declarations in strict mode               
                }
 
 data Result = ResultReturn (Maybe TName) [TName] -- first field carries function name if not anonymous and second the arguments which are always known
@@ -1820,23 +1784,10 @@ getNewtypes
   = do env <- getEnv
        return (newtypes env)
 
-
-getDataDefRepr :: Type -> Asm (DataDef,DataRepr)
-getDataDefRepr tp
-  = case extractDataDefType tp of
-      Nothing -> return (DataDefNormal,DataNormal)
-      Just name -> do newtypes <- getNewtypes
-                      case newtypesLookupAny name newtypes of
-                        Nothing -> failure $ "Backend.C.FromCore.getDataInfo: cannot find type: " ++ show name
-                        Just di -> return (dataInfoDef di, fst (getDataRepr di))
-
-extractDataDefType tp
-  = case expandSyn tp of
-      TApp t _      -> extractDataDefType t
-      TForall _ _ t -> extractDataDefType t
-      TCon tc       -> Just (typeConName tc)
-      _             -> Nothing
-
+getPlatform :: Asm Platform
+getPlatform
+ = do env <- getEnv
+      return (platform env)       
 
 ---------------------------------------------------------------------------------
 -- Pretty printing

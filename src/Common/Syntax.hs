@@ -53,8 +53,8 @@ platform32 = Platform 4 4
 platform64 = Platform 8 8 
 
 
-alignedSum :: [Int] -> Int
-alignedSum xs = foldl alignedAdd 0 xs
+alignedSum :: Int -> [Int] -> Int
+alignedSum start xs = foldl alignedAdd start xs
      
 alignedAdd :: Int -> Int -> Int
 alignedAdd x y = (alignUp x y) + y

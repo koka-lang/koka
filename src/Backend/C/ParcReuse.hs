@@ -11,7 +11,7 @@
 -- constructor reuse analysis
 -----------------------------------------------------------------------------
 
-module Backend.C.ParcReuse ( parcReuseCore ) where
+module Backend.C.ParcReuse ( parcReuseCore, orderConFieldsEx, newtypesDataDefRepr, isDataStructLike ) where
 
 import Lib.Trace (trace)
 import Control.Monad
@@ -378,29 +378,58 @@ ruTrace msg
 -- return the allocated size of a constructor. Return 0 for value types or singletons
 constructorSize :: Platform -> Newtypes -> ConRepr -> [Type] -> (Int {- byte size -}, Int {- scan fields -})
 constructorSize platform newtypes conRepr paramTypes
-  = if dataReprIsValue (conDataRepr conRepr)
-     then (0,0)
-     else let (sizes,scans) = unzip $ map (fieldSize platform newtypes) paramTypes
-              size = alignedSum sizes
-              scan = sum scans
-          in (alignUp (sizePtr platform) size, scan)          
+  = let dataRepr = (conDataRepr conRepr)
+    in if dataReprIsValue dataRepr
+         then (0,0)
+         else let (fields,size,scan) = orderConFieldsEx platform newtypes (DataOpen == dataRepr) [(nameNil,tp) | tp <- paramTypes]
+              in (size,scan)
           
+      
+-- order constructor fields of constructors with raw field so the regular fields come first to be scanned.
+-- return the ordered fields, the byte size of the allocation, and the scan count (including tags)
+orderConFieldsEx :: Platform -> Newtypes -> Bool -> [(Name,Type)] -> ([(Name,Type)],Int,Int)
+orderConFieldsEx platform newtypes isOpen fields
+  = visit ([],[],0,0) fields
+  where
+    visit (rraw, rscan, scanCount0, mixCount) []
+      = if (mixCount > 1)
+         then failure ("Backend.C.ParcReuse.orderConFields: multiple fields with mixed raw/scan fields itself in " ++ show fields)
+         else let scanCount = scanCount0 + (if (isOpen) then 1 else 0)  -- +1 for the open datatype tag
+                  ssize = scanCount * (sizePtr platform)
+                  rsize = alignedSum ssize (map snd (reverse rraw))
+                  size  = alignUp rsize (sizeSize platform)
+              in (reverse rscan ++ map fst (reverse rraw), size, scanCount)
+    visit (rraw,rscan,scanCount,mixCount) (field@(name,tp) : fs)
+      = let (dd,dataRepr) = newtypesDataDefRepr newtypes tp
+        in case dd of
+             DataDefValue raw scan
+               -> let extra = if (isDataStructLike dataRepr) then 1 else 0 in -- adjust scan count for added "tag_t" members in structs with multiple constructors
+                  if (raw > 0 && scan > 0)
+                   then -- mixed raw/scan: put it at the head of the raw fields (there should be only one of these as checked in Kind/Infer)
+                        -- but we count them to be sure (and for function data)
+                        visit (rraw ++ [(field,raw)], rscan, scanCount + scan  + extra, mixCount + 1) fs
+                   else if (raw > 0)
+                         then visit ((field,raw):rraw, rscan, scanCount, mixCount) fs
+                         else visit (rraw, field:rscan, scanCount + scan + extra, mixCount) fs
+             _ -> visit (rraw, field:rscan, scanCount + 1, mixCount) fs
 
--- return the field size of a type
-fieldSize :: Platform -> Newtypes -> Type -> (Int {-byte size-}, Int {- scan fields 0 or 1 -})
-fieldSize platform newtypes tp
-  = case extractDataDefType tp of
-      Nothing   -> (sizePtr platform, 1)  -- regular datatype is 1 pointer
-      Just name -> case newtypesLookupAny name newtypes of
-                     Nothing -> failure $ "Backend.C.Reuse.typeSize: cannot find type: " ++ show name
-                     Just di -> case dataInfoDef di of
-                                  DataDefValue raw scan -> (raw + (scan * sizePtr platform), scan)  -- todo: +1 for tag?
-                                  _ -> (sizePtr platform, 1) -- pointer to allocated data
 
-extractDataDefType :: Type -> Maybe Name
+newtypesDataDefRepr :: Newtypes -> Type -> (DataDef,DataRepr)
+newtypesDataDefRepr newtypes tp
+   = case extractDataDefType tp of
+       Nothing   -> (DataDefNormal,DataNormal)
+       Just name -> case newtypesLookupAny name newtypes of
+                      Nothing -> failure $ "Backend.C.ParcReuse.getDataDefRepr: cannot find type: " ++ show name
+                      Just di -> (dataInfoDef di, fst (getDataRepr di))
+
 extractDataDefType tp
-  = case expandSyn tp of
-      TApp t _      -> extractDataDefType t
-      TForall _ _ t -> extractDataDefType t
-      TCon tc       -> Just (typeConName tc)
-      _             -> Nothing
+ = case expandSyn tp of
+     TApp t _      -> extractDataDefType t
+     TForall _ _ t -> extractDataDefType t
+     TCon tc       -> Just (typeConName tc)
+     _             -> Nothing
+
+
+isDataStructLike (DataAsMaybe) = True
+isDataStructLike (DataStruct) = True
+isDataStructLike _ = False
