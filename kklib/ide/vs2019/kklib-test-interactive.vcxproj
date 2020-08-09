@@ -150,10 +150,13 @@
     <ProjectReference Include="kklib.vcxproj">
       <Project>{abb5eae7-b3e6-432e-b636-333449892ea6}</Project>
     </ProjectReference>
-    <ClCompile Include="..\..\..\out\lib\interactive.c" />
-    <ClCompile Include="..\..\..\out\lib\std_core.c" />
-    <ClCompile Include="..\..\..\out\lib\std_core_hnd.c" />
-    <ClCompile Include="..\..\..\out\lib\std_core_types.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\out\interactive.c" />
+    <ClCompile Include="..\..\..\out\std_core.c" />
+    <ClCompile Include="..\..\..\out\std_core_hnd.c" />
+    <ClCompile Include="..\..\..\out\std_core_types.c" />
+    <ClCompile Include="..\..\..\out\test_parc_rbtree.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -841,7 +841,14 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
     toDefValues :: Platform -> Bool -> Name -> Doc -> [ConInfo] -> KInfer DataDef
     toDefValues platform isVal qname nameDoc conInfos
       = do ddefs <- mapM (toDefValue nameDoc) conInfos
-           maxDataDefs platform qname isVal nameDoc ddefs
+           ddef <- maxDataDefs platform qname isVal nameDoc ddefs
+           case ddef of
+             DataDefValue 0 0 -- enumeration
+               -> let n = length conInfos
+                  in if (n < 256)        then return $ DataDefValue 1 0   -- uint8_t
+                     else if (n < 65536) then return $ DataDefValue 2 0   -- uint16_t
+                                         else return $ DataDefValue 4 0   -- uint32_t
+             _ -> return ddef
 
     toDefValue :: Doc -> ConInfo -> KInfer (Int,Int)
     toDefValue nameDoc con
