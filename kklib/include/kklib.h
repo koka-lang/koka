@@ -364,7 +364,7 @@ static inline void drop_block(block_t* b, context_t* ctx) {
 reuse_t block_check_reuse(block_t* b, uint32_t rc0, context_t* ctx);
 
 // Decrement the reference count, and return the memory for reuse if it drops to zero
-static inline reuse_t drop_reuse_block(block_t* b, context_t* ctx) {
+static inline reuse_t drop_reuse_blockx(block_t* b, context_t* ctx) {
   const uint32_t rc = b->header.refcount;
   if ((int32_t)rc <= 0) {                 // note: assume two's complement
     return block_check_reuse(b, rc, ctx); // thread-shared, sticky (overflowed), or can be reused?
@@ -374,6 +374,54 @@ static inline reuse_t drop_reuse_block(block_t* b, context_t* ctx) {
     return reuse_null;
   }
 }
+
+typedef struct block_fields_s {
+  block_t _block;
+  box_t   fields[1];
+} block_fields_t;
+
+static inline box_t block_field(block_t* b, size_t index) {
+  block_fields_t* bf = (block_fields_t*)b;  // must overlap with datatypes with scanned fields.
+  return bf->fields[index];
+}
+
+static inline void drop_box_t(box_t b, context_t* ctx);
+
+// Decrement the reference count, and return the memory for reuse if it drops to zero
+static inline reuse_t drop_reuse_block(block_t* b, context_t* ctx) {
+  const uint32_t rc = b->header.refcount;
+  if ((int32_t)rc == 0) {                 // note: assume two's complement
+    size_t scan_fsize = block_scan_fsize(b);
+    for (size_t i = 0; i < scan_fsize; i++) {
+      drop_box_t(block_field(b, i), ctx);
+    }
+    return b;
+  }
+  else {
+    drop_block(b, ctx);
+    return reuse_null;
+  }
+}
+
+// Decrement the reference count, and return the memory for reuse if it drops to zero
+static inline reuse_t drop_reuse_blockn(block_t* b, size_t scan_fsize, context_t* ctx) {
+  const uint32_t rc = b->header.refcount;
+  if (rc == 0) {                 
+    for (size_t i = 0; i < scan_fsize; i++) {
+      drop_box_t(block_field(b, i), ctx);
+    }
+    return b;
+  }
+  else if ((int32_t)rc < 0) {     // note: assume two's complement
+    block_check_free(b, rc, ctx); // thread-shared or sticky (overflowed)?
+    return reuse_null;
+  }
+  else {
+    b->header.refcount = rc-1;
+    return reuse_null;
+  }
+}
+
 
 static inline void drop_block_assert(block_t* b, tag_t tag, context_t* ctx) {
   UNUSED_RELEASE(tag);
@@ -405,7 +453,7 @@ static inline void drop_reuse_t(reuse_t r, context_t* ctx) {
 #define datatype_as(tp,v)                   (block_as(tp,&((v)->_block)))
 #define dup_datatype_as(tp,v)               ((tp)dup_block(&((v)->_block)))
 #define drop_datatype(v,ctx)                (drop_block(&((v)->_block),ctx))
-#define drop_reuse_datatype(v,ctx)          (drop_reuse_block(&((v)->_block),ctx))
+#define drop_reuse_datatype(v,n,ctx)        (drop_reuse_blockn(&((v)->_block),n,ctx))
 
 #define datatype_as_assert(tp,v,tag)        (block_as_assert(tp,&((v)->_block),tag))
 #define drop_datatype_assert(v,tag,ctx)     (drop_block_assert(&((v)->_block),tag,ctx))

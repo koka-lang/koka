@@ -8,15 +8,6 @@
 #include "kklib.h"
 
 
-typedef struct block_fields_s {
-  block_t _block;
-  box_t   fields[1];
-} block_fields_t;
-
-static inline box_t block_field(block_t* b, size_t index) {
-  block_fields_t* bf = (block_fields_t*)b;  // must overlap with datatypes with scanned fields.
-  return bf->fields[index];
-}
 
 
 /*--------------------------------------------------------------------------------------

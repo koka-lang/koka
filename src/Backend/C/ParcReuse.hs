@@ -119,7 +119,7 @@ ruTryReuseCon :: ConRepr -> [Type] -> Expr -> Reuse Expr
 ruTryReuseCon repr paramTypes conApp
   = do newtypes <- getNewtypes
        platform <- getPlatform
-       let size = constructorSize platform newtypes repr paramTypes
+       let (size,_) = constructorSize platform newtypes repr paramTypes
        available <- getAvailable
        case M.lookup size available of
          Just tnames | not (S.null tnames)
@@ -144,11 +144,11 @@ ruBranch (Branch pats guards)
        setAvailable (availableIntersect avs)
        return (Branch pats' guards')
   where
-    addAvailable :: (TName, Int) -> Reuse (TName, TName, Int)
-    addAvailable (patName, size)
+    addAvailable :: (TName, Int, Int) -> Reuse (TName, TName, Int, Int)
+    addAvailable (patName, size, scan)
       = do reuseName <- uniqueTName typeReuse
            updateAvailable (M.insertWith S.union size (S.singleton reuseName))
-           return (reuseName, patName, size)
+           return (reuseName, patName, size, scan)
 
 patAddNames :: Pattern -> Reuse Pattern
 patAddNames pat
@@ -164,18 +164,18 @@ patAddNames pat
         -> failure "Backend.C.ParcReuse.patAddNames"
       _ -> return pat
 
-ruPattern :: Pattern -> Reuse [(TName, Int)]
+ruPattern :: Pattern -> Reuse [(TName, Int, Int)]
 ruPattern (PatVar tname PatCon{patConPatterns,patConRepr,patTypeArgs})
   = do reuses <- concat <$> mapM ruPattern patConPatterns
        newtypes <- getNewtypes
        platform <- getPlatform
-       let size = constructorSize platform newtypes patConRepr patTypeArgs
+       let (size,scan) = constructorSize platform newtypes patConRepr patTypeArgs
        if size > 0
-         then return ((tname, size):reuses)
+         then return ((tname, size, scan):reuses)
          else return reuses
 ruPattern _ = return []
 
-ruGuard :: [(TName, TName, Int)] -> Guard -> Reuse (Guard, Available)
+ruGuard :: [(TName, TName, Int, Int)] -> Guard -> Reuse (Guard, Available)
 ruGuard patAdded (Guard test expr)
   = isolateAvailable $
     do test' <- withNoneAvailable $ ruExpr test
@@ -185,24 +185,24 @@ ruGuard patAdded (Guard test expr)
        return (Guard test' (makeLet dgs expr'))
 
 -- generate drop_reuse for each reused in patAdded
-ruTryReuse :: (TName, TName, Int) -> Reuse (Maybe Def)
-ruTryReuse (reuseName, patName, size)
+ruTryReuse :: (TName, TName, Int, Int) -> Reuse (Maybe Def)
+ruTryReuse (reuseName, patName, size, scan)
   = do av <- getAvailable
        case M.lookup size av of
          Just tnames | S.member reuseName tnames
            -> do let tnames' = S.delete reuseName tnames
                  setAvailable (M.insert size tnames' av)
                  return Nothing
-         _ -> return (Just (makeTDef reuseName (genDropReuse patName)))
+         _ -> return (Just (makeTDef reuseName (genDropReuse patName scan)))
 
 -- Generate a reuse of a constructor
-genDropReuse :: TName -> Expr
-genDropReuse tname
-  = App (Var (TName nameReuse funTp) (InfoExternal [(C, "drop_reuse_datatype(#1,current_context())")]))
-        [Var tname InfoNone]
+genDropReuse :: TName -> Int -> Expr
+genDropReuse tname scan
+  = App (Var (TName nameReuse funTp) (InfoExternal [(C, "drop_reuse_datatype(#1,#2,current_context())")]))
+        [Var tname InfoNone, makeInt32 (toInteger scan)]
   where
     tp    = typeOf tname
-    funTp = TFun [(nameNil,tp)] typeTotal typeReuse
+    funTp = TFun [(nameNil,tp),(nameNil,typeInt32)] typeTotal typeReuse
 
 -- generate allocation-at of a constructor application
 -- at should have tyep `typeReuse`
@@ -373,23 +373,26 @@ ruTrace msg
 ----------------
 
 -- return the allocated size of a constructor. Return 0 for value types or singletons
-constructorSize :: Platform -> Newtypes -> ConRepr -> [Type] -> Int
+constructorSize :: Platform -> Newtypes -> ConRepr -> [Type] -> (Int {- byte size -}, Int {- scan fields -})
 constructorSize platform newtypes conRepr paramTypes
   = if dataReprIsValue (conDataRepr conRepr)
-     then 0
-     else alignUp (sizePtr platform) $
-          alignedSum (map (fieldSize platform newtypes) paramTypes)  
+     then (0,0)
+     else let (sizes,scans) = unzip $ map (fieldSize platform newtypes) paramTypes
+              size = alignedSum sizes
+              scan = sum scans
+          in (alignUp (sizePtr platform) size, scan)          
+          
 
 -- return the field size of a type
-fieldSize :: Platform -> Newtypes -> Type -> Int
+fieldSize :: Platform -> Newtypes -> Type -> (Int {-byte size-}, Int {- scan fields 0 or 1 -})
 fieldSize platform newtypes tp
   = case extractDataDefType tp of
-      Nothing   -> sizePtr platform  -- regular datatype is 1 pointer
+      Nothing   -> (sizePtr platform, 1)  -- regular datatype is 1 pointer
       Just name -> case newtypesLookupAny name newtypes of
                      Nothing -> failure $ "Backend.C.Reuse.typeSize: cannot find type: " ++ show name
                      Just di -> case dataInfoDef di of
-                                  DataDefValue raw scan -> raw + (scan * sizePtr platform)
-                                  _ -> sizePtr platform -- pointer to allocated data
+                                  DataDefValue raw scan -> (raw + (scan * sizePtr platform), scan)  -- todo: +1 for tag?
+                                  _ -> (sizePtr platform, 1) -- pointer to allocated data
 
 extractDataDefType :: Type -> Maybe Name
 extractDataDefType tp
