@@ -1177,18 +1177,20 @@ genPatternTest doTest (exprDoc,pattern)
         -> return [(test [text "string_cmp_cstr_borrow" <.> tupled [exprDoc,fst (cstring s)] <+> text "== 0"],[],[])]
       PatLit lit
         -> return [(test [exprDoc <+> text "==" <+> ppLit lit],[],[])]
-      PatCon tname patterns repr targs exists tres info
+      PatCon tname patterns repr targs exists tres info skip
         -> -- trace ("patCon: " ++ show info ++ ","  ++ show tname ++ ", " ++ show repr) $
            case repr of
                  ConEnum{}  | conInfoName info == nameTrue
-                    -> return [(test [exprDoc],[],[])]
+                    -> return [(xtest [exprDoc],[],[])]
                  ConEnum{} | conInfoName info == nameFalse
-                    -> return [(test [text "!" <.> parens exprDoc],[],[])]
+                    -> return [(xtest [text "!" <.> parens exprDoc],[],[])]
                  _  -> let dataRepr = conDataRepr repr
                        in if (dataReprIsValue dataRepr || isConSingleton repr)
                            then valTest tname info dataRepr
                            else conTest info
         where
+          xtest xs = if skip then [] else test xs
+          
           valTest :: TName -> ConInfo -> DataRepr -> Asm [([Doc],[Doc],[(Doc,Pattern)])]
           valTest conName conInfo dataRepr
             = --do let next = genNextPatterns (exprDoc) (typeOf tname) patterns
@@ -1197,14 +1199,14 @@ genPatternTest doTest (exprDoc,pattern)
                                  then "._cons." ++ show (ppDefName (getName conName)) ++ "."
                                  else "."
                      next = genNextPatterns (\self fld -> self <.> text selectOp <.> fld) exprDoc (typeOf tname) patterns
-                 return [(test [conTestName conInfo <.> tupled [exprDoc]],[],next)]
+                 return [(xtest [conTestName conInfo <.> tupled [exprDoc]],[],next)]
 
           conTest conInfo
             = do local <- newVarName "con"
                  let next    = genNextPatterns (\self fld -> self <.> text "->" <.> fld) (ppDefName local) (typeOf tname) patterns
                      typeDoc = text "struct" <+> ppName (conInfoName conInfo) <.> text "*"
                      assign  = typeDoc <+> ppDefName local <+> text "=" <+> conAsName conInfo <.> tupled [exprDoc] <.> semi
-                 return [(test [conTestName conInfo <.> parens exprDoc],[assign],next)]
+                 return [(xtest [conTestName conInfo <.> parens exprDoc],[assign],next)]
 
 
 genNextPatterns :: (Doc -> Doc -> Doc) -> Doc -> Type -> [Pattern] -> [(Doc,Pattern)]

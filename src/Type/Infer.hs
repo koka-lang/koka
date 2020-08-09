@@ -1598,7 +1598,7 @@ inferHandlerBranch propagated expect opsEffTp hxName opConInfos extraBinders res
                                       inferExpr propagated expect $ Let (DefNonRec xresumeDef) expr (getRange expr)
 
          -- build a Core pattern match
-         let patCore = Core.PatCon (Core.TName conname gconTp)
+         let patCore = Core._ (Core.TName conname gconTp)
                             [Core.PatVar (Core.TName (binderName par) (binderType par)) Core.PatWild   | par <- parBinders]
                              conrepr (parTps) resTp coninfo
              branchCore = Core.Branch [patCore] [Core.Guard Core.exprTrue exprCore]
@@ -1960,7 +1960,7 @@ inferBranch propagated matchType matchRange branch@(Branch pattern guard expr)
           Core.PatVar (Core.TName name tp) pat -> do stp <- subst tp
                                                      xs  <- extractInfGamma pat
                                                      return ((name,stp) : xs)
-          Core.PatCon _ args _ _ _ _ _     -> do xss <- mapM extractInfGamma args
+          Core.PatCon _ args _ _ _ _ _ _   -> do xss <- mapM extractInfGamma args
                                                  return (concat xss)
           Core.PatWild                     -> return []
           Core.PatLit _                    -> return []
@@ -2003,10 +2003,10 @@ inferPattern matchType branchRange (PatCon name patterns0 nameRange range) withP
            return ((btp,beff,bcore), ftv btp `tvsUnion` ftv beff)
            -}
            let (pcore,coreGuard)
-                = if (null xvars) then (Core.PatCon (Core.TName qname conRho) cpatterns repr (map snd conParTps) [] conResTp coninfo, coreGuard0)
+                = if (null xvars) then (Core.PatCon (Core.TName qname conRho) cpatterns repr (map snd conParTps) [] conResTp coninfo False, coreGuard0)
                   else let bindExists = [(TypeVar id kind Bound) | (TypeVar id kind _) <- xvars]
                            subExists  = subNew [(TypeVar id kind Skolem, TVar (TypeVar id kind Bound)) | TypeVar id kind _ <- bindExists]
-                           pcore     = Core.PatCon (Core.TName qname conRho) (subExists |-> cpatterns) repr (subExists |-> (map snd conParTps)) bindExists conResTp coninfo
+                           pcore     = Core.PatCon (Core.TName qname conRho) (subExists |-> cpatterns) repr (subExists |-> (map snd conParTps)) bindExists conResTp coninfo False
                            coreGuard = subExists |-> coreGuard0
                        in (pcore,coreGuard)
 
@@ -2152,6 +2152,7 @@ inferOptionals eff infgamma (par:pars)
                                                     []
                                                     coreResTp
                                                     conInfoOpt
+                                                    False
                                       ]
                                       [ Core.Guard   Core.exprTrue (Core.Var tempName Core.InfoNone) ]
                        ,  Core.Branch [ Core.PatWild ]

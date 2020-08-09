@@ -536,7 +536,10 @@ parsePatternBasic env
 
 parsePatCon  :: Env -> LexParser (Env,Pattern)
 parsePatCon env
-  = do cname <- qualifiedConId
+  = do skip  <- do specialId ".skip"
+                   return True
+                <|> return False
+       cname <- qualifiedConId
        (env1,exists) <- typeParams env
        (env2,args)  <- do (lparen <|> lapp)
                           x <- parsePatternArgs0 env1
@@ -545,7 +548,7 @@ parsePatCon env
        let (patArgs,argTypes)  = unzip args
        resTp <- typeAnnot env2
        con <- envLookupCon env2 cname
-       return $ (env2,PatCon (TName cname (infoType con)) patArgs (infoRepr con) argTypes exists resTp (infoCon con))
+       return $ (env2,PatCon (TName cname (infoType con)) patArgs (infoRepr con) argTypes exists resTp (infoCon con) skip)
 
 
 parsePatternArgs0 :: Env -> LexParser (Env,[(Pattern,Type)])

@@ -155,9 +155,9 @@ boxPattern fromTp pat
 boxPatternX :: BoxType -> Pattern -> Unique (Pattern,[Def])
 boxPatternX fromTp pat
   = case pat of
-      PatCon name params repr targs exists tres conInfo
+      PatCon name params repr targs exists tres conInfo skip
         -> do (bparams,defss) <- unzipM $ mapM (\(ftp,par) -> boxPattern ftp par)  (zip (map snd (conInfoParams conInfo)) params)
-              return (PatCon name bparams repr targs exists tres conInfo, concat defss)
+              return (PatCon name bparams repr targs exists tres conInfo skip, concat defss)
       PatVar tname arg
         -> do (barg,defs) <- boxPattern (typeOf tname) arg
               return (PatVar tname barg, defs)

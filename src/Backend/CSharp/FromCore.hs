@@ -1060,10 +1060,10 @@ genTag (exprDoc,patterns)
              -- putLn (text "int" <+> ppDefName local <+> text "=" <+> exprDoc <.> text "." <.> ppTagName <.> semi)
              return (Just (exprDoc <.> text "." <.> ppTagName))
   where
-    isConMatch (PatCon _ _ (ConNormal _ _ _) _ _ _ _) = True
-    isConMatch (PatCon _ _ (ConStruct _ _ _) _ _ _ _) = True
-    isConMatch (PatCon _ _ (ConIso _ _ _) _ _ _ _)    = True
-    isConMatch _                                      = False
+    isConMatch (PatCon _ _ (ConNormal _ _ _) _ _ _ _ _) = True
+    isConMatch (PatCon _ _ (ConStruct _ _ _) _ _ _ _ _) = True
+    isConMatch (PatCon _ _ (ConIso _ _ _) _ _ _ _ _)    = True
+    isConMatch _                                        = False
 
 genBranch :: [Maybe Doc] -> [Doc] -> Bool -> Branch -> Asm ()
 genBranch mbTagDocs exprDocs doTest branch@(Branch patterns [g@(Guard guard expr)]) -- TODO: adapt for multiple guards!
@@ -1151,7 +1151,7 @@ genPatternTest doTest (mbTagDoc,exprDoc,pattern)
               return [([],[after],next,[])]
       PatLit lit
         -> return [(test [exprDoc <+> text "==" <+> ppLit lit],[],[],[])]
-      PatCon tname patterns repr targs exists tres info
+      PatCon tname patterns repr targs exists tres info skip -- TODO: use skip
         -> do ctx <- getModule
               case repr of
                  ConEnum _ _ _

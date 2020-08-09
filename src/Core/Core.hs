@@ -119,7 +119,7 @@ patExprBool name tag
   = let tname   = TName name typeBool
         conEnum = ConEnum nameTpBool DataEnum tag
         conInfo = ConInfo name nameTpBool [] [] [] (TFun [] typeTotal typeBool) Inductive rangeNull [] [] False Public ""
-        pat = PatCon tname [] conEnum [] [] typeBool conInfo
+        pat = PatCon tname [] conEnum [] [] typeBool conInfo False
         expr = Con tname conEnum
     in (pat,expr)
 
@@ -485,7 +485,8 @@ data Pattern
             patTypeArgs :: [Type],      -- ^ zipped with patConPatterns
             patExists :: [TypeVar],     -- ^ closed under existentials here
             patTypeRes :: Type,         -- ^ result type
-            patConInfo :: ConInfo       -- ^ other constructor info
+            patConInfo :: ConInfo,      -- ^ other constructor info
+            patConSkip :: Bool         -- ^ skip testing for this constructor (as it should match already)
           }
   | PatVar{ patName :: TName,           -- ^ name/type of variable
             patPattern :: Pattern       -- ^ named sub-pattern

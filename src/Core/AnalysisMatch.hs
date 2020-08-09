@@ -13,7 +13,7 @@ module Core.AnalysisMatch( analyzeBranches ) where
 
 
 import Lib.Trace
-import Lib.PPrint( Doc, text, pretty )
+import Lib.PPrint( Doc, text, pretty, (<+>) )
 import Common.Syntax( Target(..) )
 import Common.Id
 import Common.Name
@@ -27,6 +27,7 @@ import Type.Pretty
 import Type.TypeVar
 import Type.Unify( runUnifyEx, unify )
 import Core.Core
+import Core.Pretty
 
 analyzeBranches :: Newtypes -> Name -> Range -> [Branch] -> [Type] -> [DataInfo] -> (Bool,[(Range,Doc)],[Branch])
 analyzeBranches newtypes defName range branches types infos
@@ -48,16 +49,19 @@ analyzeBranches newtypes defName range branches types infos
 data Match = Match{ conInfos   :: [ConInfo],           -- datatype info
                     conMatches :: [(ConInfo,[Match])]  -- matched constructors
                   }
-           | MatchComplete
+           | MatchComplete{ conInfos :: [ConInfo] }
            
-isMatchComplete MatchComplete = True
+isMatchComplete (MatchComplete _) = True
 isMatchComplete _ = False           
+
+isComplete :: (ConInfo,[Match]) -> Bool
+isComplete (_,cmatches)  = all isMatchComplete cmatches
 
 instance Show Match where
   show (Match cinfos cmatches)  = "match: " ++ show (map conInfoName cinfos) ++ ",\n" ++
                                   unlines [" " ++ show (conInfoName cinfo) ++ ": " ++
                                             unlines ["  " ++ show cmatch | cmatch <- ms] | (cinfo,ms) <- cmatches] 
-  show (MatchComplete) = "_"                                   
+  show (MatchComplete _) = "_"                                   
 
 type Warnings = [(Range,Doc)]
 
@@ -71,8 +75,10 @@ matchBranches newtypes defName range branches types dataInfos
       = -- trace ("** match analyze: " ++ show defName ++ "\n" ++ unlines (map show matches)) $ 
         (all isMatchComplete matches, reverse acc, reverse ws)
     fold (matches,acc,ws) (b:bs)
-      = let (matches',b',ws') = matchBranch newtypes defName range matches types b
-        in fold (matches', b':acc, ws' ++ ws) bs
+      = -- trace ("** match branch: " ++ show defName ++ "\n  branch: " ++ show b ++ "\n" ++ unlines (map show matches)) $ 
+        let (matches',b',ws') = matchBranch newtypes defName range matches types b
+        in -- trace ("** result branch: " ++ unlines (map show matches')) $
+           fold (matches', b':acc, ws' ++ ws) bs
 
 matchBranch :: Newtypes -> Name -> Range -> [Match] -> [Type] -> Branch -> ([Match],Branch,Warnings)
 matchBranch newtypes defName range matches patTps branch@(Branch patterns guards) | not ( any (isExprTrue . guardTest) guards )
@@ -85,14 +91,16 @@ matchBranch newtypes defName range matches patTps branch@(Branch patterns guards
     in (matches', Branch patterns' guards, warnings)
 
 matchPattern :: Newtypes -> Name -> Range -> Bool -> (Match,Type,Pattern) -> (Match,Pattern,Warnings)
-matchPattern newtypes defName range top (MatchComplete, tp, pat)
+matchPattern newtypes defName range top (m@(MatchComplete _), tp, pat)
   = -- already full matched
-    let warnings = if top then [(range,text "Some branches in the match will never be reached")] else []
-    in (MatchComplete, pat, warnings)
+    let warnings = if top then [(range,text "Some branches in the match will never be reached:" <+> text (show pat))] else []
+    in (m, pat, warnings)
 matchPattern newtypes defName range top (match@(Match cinfos cmatches), tp, pat) 
   = case pat of
       PatWild 
-        -> let pat' = case (cinfos `remove` map fst (filter (\(_,ms) -> all isMatchComplete ms) cmatches)) of
+        -> let newmatches = (cinfos `remove` map fst (filter isComplete cmatches)) 
+               -- cmatches' = [(ci,replicate (length (conInfoParams ci)) MatchComplete) | ci <- newmatches]
+               pat' = case newmatches of
                         [con] | null (conInfoExists con)
                               -> -- one constructor unmatched: replace wild with the constructor to improve reuse
                                  -- trace ("try replace wild: " ++ show defName ++ ": " ++ show (conInfoName con) ++ ": " ++ show (pretty (conInfoType con))) $
@@ -106,37 +114,52 @@ matchPattern newtypes defName range top (match@(Match cinfos cmatches), tp, pat)
                                                      PatCon (TName (conInfoName con) (conInfoType con))
                                                             [PatWild | _ <- conInfoParams con]
                                                             (getConRepr di con)
-                                                            targs [] tres con
+                                                            targs [] tres con True {- skip -}
                         _ -> PatWild
-           in (MatchComplete, pat', [])
+           in (MatchComplete cinfos, pat', [])
       PatVar tname arg 
         -> let (match',pat',warnings) = matchPattern newtypes defName range top (match,typeOf tname,arg)
            in (match', PatVar tname pat', warnings)
       PatLit lit
         -> (match,pat,[])
-      PatCon cname args repr targs _ _ cinfo
+      PatCon cname args repr targs _ _ cinfo _
         -> case span (\(ci,_) -> getName cname /= conInfoName ci) cmatches of
              (pre,(ci,argMatches):post)
                -> -- matched before
-                  let (argMatches',args',warnings) = matchPatterns newtypes defName range False argMatches targs args                  
+                  let skip = (length cinfos == length cmatches) && all isComplete (pre ++ post)  -- all other constructors matched! TODO: open?
+                      (argMatches',args',warnings) = matchPatterns newtypes defName range False argMatches targs args                                        
                   in (makeMatch cinfos (pre ++ ((ci,argMatches'):post)), 
-                      pat{ patConPatterns = args'}, warnings)
+                      pat{ patConPatterns = args', patConSkip = skip }, warnings)
              _ -> -- first match
-                  let argMatches = [makeMatch (lookupConInfos newtypes tp) [] | tp <- targs]
-                      (argMatches',args',warnings) = matchPatterns newtypes defName range False argMatches targs args                  
+                  let skip = (length cinfos == length cmatches + 1) && all isComplete cmatches  -- all other constructors matched! TODO: open?
+                      argMatches = [makeMatch (lookupConInfos newtypes tp) [] | tp <- targs]
+                      (argMatches',args',warnings) = matchPatterns newtypes defName range False argMatches targs args                                        
                   in (makeMatch cinfos (cmatches ++ [(cinfo,argMatches')]), 
-                      pat{ patConPatterns = args'}, warnings)                    
+                      pat{ patConPatterns = args', patConSkip = skip }, warnings)                    
                   
   
 matchPatterns :: Newtypes -> Name -> Range -> Bool -> [Match] -> [Type] -> [Pattern] -> ([Match], [Pattern], Warnings)
 matchPatterns newtypes defName range top matches tps patterns
-    = let (matches',patterns',warningss) = unzip3 $ map (matchPattern newtypes defName range top) (zip3 matches tps patterns)
-      in (matches', patterns', concat warningss)
+    = let (matches1,patterns1,warningss) = unzip3 $ map (matchPattern newtypes defName range top) (zip3 matches tps patterns)
+          matches2 = if (length matches1 == 1) then matches1
+                     else case (filter (not . isMatchComplete) matches1) of
+                       []  -> -- all matched fully 
+                              matches1 
+                       [m] -> -- one was matched, while all others were complete matches; info on m is valid
+                              updateOneMatch matches matches1
+                       _   -> -- multiple matches: discard the info to be conservative
+                              matches
+      in (matches2, patterns1, concat warningss)
+  
+updateOneMatch (m1:ms1) (m2:ms2)  | isMatchComplete m2 = m1 : updateOneMatch ms1 ms2
+updateOneMatch (m1:ms1) (m2:ms2)  = m2 : ms1
+updateOneMatch [] _               = []
+
   
 makeMatch :: [ConInfo] -> [(ConInfo,[Match])] -> Match
 makeMatch cinfos cmatches
-  = if (length cinfos == length cmatches && all (\(ci,ms) -> all isMatchComplete ms) cmatches)
-     then MatchComplete
+  = if (length cinfos == length cmatches && all isComplete cmatches)
+     then MatchComplete cinfos
      else Match cinfos cmatches
 
 instantiatePatCon :: Type -> [(Name,Type)] -> Scheme -> Maybe ([Type],Type)
@@ -180,7 +203,7 @@ finalBranchIsCatchAll branches
 alwaysMatch PatWild               = True
 alwaysMatch (PatLit _)            = False
 alwaysMatch (PatVar _ pat)        = alwaysMatch pat
-alwaysMatch (PatCon _ _ _ _ _ _ info) = conInfoSingleton info
+alwaysMatch (PatCon _ _ _ _ _ _ info _) = conInfoSingleton info
 -- alwaysMatch _                  = False
 
 -- construct a pattern match error

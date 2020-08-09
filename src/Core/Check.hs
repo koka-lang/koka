@@ -247,7 +247,7 @@ checkGuard (Guard guard expr)
 checkPattern :: (Type,Pattern) -> Check ()
 checkPattern (tpScrutinee,pat)
   = case pat of
-      PatCon tname args _ tpargs exists resTp coninfo
+      PatCon tname args _ tpargs exists resTp coninfo skip
         -> -- (if (null exists) then id else (trace ("check existential pattern: " ++ show exists ++ ", " ++ show tpScrutinee))) $
            do -- constrArgs <- findConstrArgs (prettyPattern pat) tpScrutinee (getName tname)
               mapM_  checkPattern  (zip tpargs args)

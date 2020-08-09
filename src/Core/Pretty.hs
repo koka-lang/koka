@@ -374,13 +374,14 @@ prettyPatternType (pat,tp) (env,docs)
 prettyPattern :: Env -> Pattern -> (Env,Doc)
 prettyPattern env pat
   = case pat of
-      PatCon tname args repr targs exists resTp info
+      PatCon tname args repr targs exists resTp info skip
                         -> -- pparens (prec env) precApp $
                            -- prettyName env (getName tname)
                            let env' = env { nice = niceTypeExtendVars exists (nice env) }
                                (env'',docs) = foldr prettyPatternType (env',[]) (zip args targs)
                            in (env'',
                                parens $
+                                (if skip then keyword env ".skip " else empty) <.>
                                 prettyConName env tname <.>
                                  (if (null exists) then empty
                                    else angled (map (ppTypeVar env'') exists)) <.>
@@ -637,9 +638,9 @@ instance HasTypeVar Pattern where
   sub `substitute` pat
     = case pat of
         PatVar tname pat   -> PatVar (sub `substitute` tname) (sub `substitute` pat)
-        PatCon tname args repr tps exists restp info
+        PatCon tname args repr tps exists restp info skip
           -> let sub' = subRemove exists sub
-             in PatCon (sub `substitute` tname) (sub' `substitute` args) repr (sub' `substitute` tps) exists (sub' `substitute` restp) info
+             in PatCon (sub `substitute` tname) (sub' `substitute` args) repr (sub' `substitute` tps) exists (sub' `substitute` restp) info skip
         PatWild           -> PatWild
         PatLit lit        -> pat
 
@@ -647,7 +648,7 @@ instance HasTypeVar Pattern where
   ftv pat
     = let tvs = case pat of
                   PatVar tname pat    -> tvsUnion (ftv tname) (ftv pat)
-                  PatCon tname args _ targs exists tres _ -> tvsRemove exists (tvsUnions [ftv tname,ftv args,ftv targs,ftv tres])
+                  PatCon tname args _ targs exists tres _ _ -> tvsRemove exists (tvsUnions [ftv tname,ftv args,ftv targs,ftv tres])
                   PatWild             -> tvsEmpty
                   PatLit lit          -> tvsEmpty
       in -- trace ("ftv :" ++ show (tvsList (tvs)) ++ ", in pattern: " ++ show pat) $
@@ -656,7 +657,7 @@ instance HasTypeVar Pattern where
   btv pat
     = case pat of
         PatVar tname pat           -> tvsUnion (btv tname) (btv pat)
-        PatCon tname args _ targs exists tres _  -> tvsUnions [btv tname,btv args,btv targs,btv tres,tvsNew exists]
+        PatCon tname args _ targs exists tres _ _  -> tvsUnions [btv tname,btv args,btv targs,btv tres,tvsNew exists]
         PatWild                 -> tvsEmpty
         PatLit lit              -> tvsEmpty
 

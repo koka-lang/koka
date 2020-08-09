@@ -382,7 +382,7 @@ matchBranches scrutinee branches
 matchBranch :: Expr -> Branch -> Match Expr
 matchBranch scrut (Branch [pat] [Guard guard expr]) | isExprTrue guard
   = case (scrut,pat) of
-      (Con name _repr, PatCon pname [] _prepr _ _ _ _info)
+      (Con name _repr, PatCon pname [] _prepr _ _ _ _info _)
         | name == pname -> Match expr
         | otherwise     -> NoMatch
       (_,PatVar name PatWild)
