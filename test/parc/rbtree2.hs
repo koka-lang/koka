@@ -1,5 +1,5 @@
 -- Adapted from https://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap.hs
--- Modified to be strict in the Tree fields
+-- Modified to be strict in the Tree fields and use large integers
 import System.Environment
 
 data Color =
@@ -54,9 +54,9 @@ insert t k v =
   if is_red t then set_black (ins t k v)
   else ins t k v
 
-type Map = Tree Int Bool
+type Map = Tree Integer Bool
 
-mk_Map_aux :: Int -> Map -> Map
+mk_Map_aux :: Integer -> Map -> Map
 mk_Map_aux 0 m = m
 mk_Map_aux n m = let n' = n-1 in mk_Map_aux n' (insert m n' (n' `mod` 10 == 0))
 
@@ -64,8 +64,8 @@ mk_Map n = mk_Map_aux n Leaf
 
 main = do
   -- [arg] <- getArgs
-  -- let n :: Int = read arg
-  let n = 4200000
+  -- let n :: Integer = read arg
+  let n = 4200000 :: Integer
   let m = mk_Map n
   let v = fold (\_ v r -> if v then r + 1 else r) m 0
   print v
