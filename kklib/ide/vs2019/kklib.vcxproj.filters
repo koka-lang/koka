@@ -56,5 +56,8 @@
     <ClCompile Include="..\..\src\init.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\mimalloc\src\static.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

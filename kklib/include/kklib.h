@@ -20,6 +20,7 @@
 #include <stdlib.h>  // malloc, abort, ...
 #include <math.h>    // isnan, ...
 
+
 #define MULTI_THREADED  1      // set to 0 to be used single threaded only
 
 #include "kklib/platform.h"  // Platform abstractions and portability definitions
@@ -248,6 +249,41 @@ static inline int32_t marker_unique(context_t* ctx) {
   Allocation
 --------------------------------------------------------------------------------------*/
 
+#ifdef KK_MIMALLOC
+#ifdef KK_STATIC_LIB
+#include "../mimalloc/include/mimalloc.h"
+#else
+#include "mimalloc.h"
+#endif
+static inline void* runtime_malloc_small(size_t sz, context_t* ctx) {
+  return mi_heap_malloc_small(ctx->heap,sz);
+}
+
+static inline void* runtime_malloc(size_t sz, context_t* ctx) {
+  return mi_heap_malloc(ctx->heap,sz);
+}
+
+static inline void* runtime_zalloc(size_t sz, context_t* ctx) {
+  UNUSED(ctx);
+  return mi_heap_zalloc(ctx->heap, sz);
+}
+
+static inline void* runtime_realloc(void* p, size_t sz, context_t* ctx) {
+  UNUSED(ctx);
+  return mi_heap_realloc(ctx->heap, p, sz);
+}
+
+
+static inline void runtime_free(void* p) {
+  UNUSED(p);
+  free(p);
+}
+#else
+static inline void* runtime_malloc_small(size_t sz, context_t* ctx) {
+  UNUSED(ctx);
+  return malloc(sz);
+}
+
 static inline void* runtime_malloc(size_t sz, context_t* ctx) {
   UNUSED(ctx);
   return malloc(sz);
@@ -258,15 +294,17 @@ static inline void* runtime_zalloc(size_t sz, context_t* ctx) {
   return calloc(1, sz);
 }
 
-static inline void runtime_free(void* p) {
-  UNUSED(p);
-  free(p);
-}
-
 static inline void* runtime_realloc(void* p, size_t sz, context_t* ctx) {
   UNUSED(ctx);
   return realloc(p, sz);
 }
+
+static inline void runtime_free(void* p) {
+  UNUSED(p);
+  free(p);
+}
+#endif
+
 
 decl_export void block_free(block_t* b, context_t* ctx);
 
@@ -304,7 +342,7 @@ static inline block_t* block_alloc_at(reuse_t at, size_t size, size_t scan_fsize
 
 static inline block_t* block_alloc(size_t size, size_t scan_fsize, tag_t tag, context_t* ctx) {
   assert_internal(scan_fsize < SCAN_FSIZE_MAX);
-  block_t* b = (block_t*)runtime_malloc(size, ctx);
+  block_t* b = (block_t*)runtime_malloc_small(size, ctx);
   block_init(b, size, scan_fsize, tag);
   return b;
 }

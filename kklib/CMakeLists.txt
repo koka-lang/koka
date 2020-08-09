@@ -3,6 +3,7 @@ project(kklib VERSION 1.0 LANGUAGES C)
 
 enable_testing()
 
+option(KK_MIMALLOC "Use the mimalloc allocator" ON)
 
 # -----------------------------------------------------------------------------
 # Language options
@@ -21,7 +22,7 @@ set(CMAKE_DEBUG_POSTFIX "-debug")
 # -----------------------------------------------------------------------------
 # Main target
 # -----------------------------------------------------------------------------
-
+set(kklib_targets kklib kklib-flags)
 set(kklib_sources
     src/bits.c
     src/box.c
@@ -31,6 +32,10 @@ set(kklib_sources
     src/init.c
     src/string.c
     )
+    
+if(KK_MIMALLOC MATCHES ON)
+  list(APPEND kklib_sources mimalloc/src/static.c)      
+endif()
 
 # properties library
 add_library(kklib-flags INTERFACE)
@@ -42,6 +47,28 @@ target_include_directories(kklib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE
 target_link_libraries(kklib PUBLIC kklib-flags)
 
 
+if(KK_MIMALLOC MATCHES ON)
+#cmake_policy(SET CMP0063 NEW)
+target_include_directories(kklib PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/mimalloc/include)
+if(WIN32)
+   target_link_libraries(kklib-flags INTERFACE psapi bcrypt)
+endif()   
+endif()
+
+if(0)
+option(MI_OVERRIDE "" OFF)
+option(MI_BUILD_STATIC "" OFF)
+option(MI_BUILD_SHARED "" OFF)
+option(MI_BUILD_OBJECT "" ON)
+option(MI_BUILD_TESTS "" OFF)
+add_subdirectory(mimalloc EXCLUDE_FROM_ALL)
+
+list(APPEND kklib_targets mimalloc-obj)
+target_compile_definitions(kklib-flags INTERFACE -DKK_MIMALLOC)
+target_link_libraries(kklib PUBLIC mimalloc-obj)
+endif()
+
+
 # -----------------------------------------------------------------------------
 # Packaging
 # -----------------------------------------------------------------------------
@@ -49,7 +76,7 @@ target_link_libraries(kklib PUBLIC kklib-flags)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-install(TARGETS kklib kklib-flags
+install(TARGETS ${kklib_targets}
         EXPORT kklib
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -63,6 +90,12 @@ install(EXPORT kklib
 install(DIRECTORY include/
         DESTINATION include
         FILES_MATCHING PATTERN "*.h")
+
+if(KK_MIMALLOC MATCHES ON)
+install(DIRECTORY mimalloc/include/
+        DESTINATION include
+        FILES_MATCHING PATTERN "mimalloc.h")
+endif()
 
 write_basic_package_version_file(kklib-config-version.cmake COMPATIBILITY SameMajorVersion)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kklib-config-version.cmake

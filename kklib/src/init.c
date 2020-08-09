@@ -165,7 +165,13 @@ context_t* get_context(void) {
   context_t* ctx = context;
   if (ctx!=NULL) return ctx;
   kklib_init();
-  ctx = (context_t*)calloc(sizeof(context_t),1);
+#ifdef KK_MIMALLOC
+  mi_heap_t* heap = mi_heap_new();
+  ctx = (context_t*)mi_heap_zalloc(heap, sizeof(context_t));
+  ctx->heap = heap;
+#else
+  ctx = (context_t*)calloc(1, sizeof(context_t));
+#endif
   ctx->evv = dup_vector_t(vector_empty);
   ctx->thread_id = (uintptr_t)(&context);
   ctx->unique = integer_one;
@@ -178,7 +184,13 @@ static void free_context(void) {
   if (context != NULL) {
     drop_vector_t(context->evv, context);
     // TODO: process delayed_free
+#ifdef KK_MIMALLOC
+    mi_heap_t* heap = context->heap;
+    mi_free(context);
+    mi_heap_delete(heap);
+#else
     runtime_free(context);
+#endif
     context = NULL;
   }
 }

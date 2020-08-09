@@ -116,8 +116,8 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>../../include</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_CONSOLE=1;DEBUG=3;%(PreprocessorDefinitions);</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>../../include;../../mimalloc/include</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>KK_MIMALLOC=1;_CONSOLE=1;DEBUG=3;%(PreprocessorDefinitions);</PreprocessorDefinitions>
       <SupportJustMyCode>false</SupportJustMyCode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -172,8 +172,8 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>../../include</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_CONSOLE=1;%(PreprocessorDefinitions);NDEBUG</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>../../include;../../mimalloc/include</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>KK_MIMALLOC=1;_CONSOLE=1;%(PreprocessorDefinitions);NDEBUG</PreprocessorDefinitions>
       <AssemblerOutput>AssemblyAndSourceCode</AssemblerOutput>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -202,6 +202,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="$(ProjectDir)..\..\src\integer.c" />
+    <ClCompile Include="..\..\mimalloc\src\static.c">
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Level3</WarningLevel>
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Level3</WarningLevel>
+    </ClCompile>
     <ClCompile Include="..\..\src\bits.c" />
     <ClCompile Include="..\..\src\box.c" />
     <ClCompile Include="..\..\src\random.c" />
