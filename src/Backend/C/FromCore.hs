@@ -373,11 +373,15 @@ genTypeDef (Data info isExtend)
        -- if (isExtend) then return ()
        -- generate the type
        if (dataRepr == DataEnum)
-        then emitToH $ ppVis (dataInfoVis info) <.> text "typedef enum" <+> ppName (typeClassName (dataInfoName info)) <.> text "_e" <+>
-                       block (if (null conReprs)
-                               then ppName (dataInfoName info) <.> text "_empty"
-                               else vcat (punctuate comma (map ppEnumCon (zip (dataInfoConstrs info) conReprs)))) <+>
-                       ppName (typeClassName (dataInfoName info)) <.> semi <.> linebreak
+        then let enumIntTp = case (dataInfoDef info) of
+                               DataDefValue 1 0 -> "uint8_t"
+                               DataDefValue 2 0 -> "uint16_t"
+                               _                -> "uint32_t"
+             in  emitToH $ ppVis (dataInfoVis info) <.> text "enum" <+> ppName (typeClassName (dataInfoName info)) <.> text "_e" <+>
+                           block (if (null conReprs)
+                                   then ppName (dataInfoName info) <.> text "_empty"
+                                   else vcat (punctuate comma (map ppEnumCon (zip (dataInfoConstrs info) conReprs)))) <.> semi <->                      
+                           text "typedef" <+> text enumIntTp <+> ppName (typeClassName (dataInfoName info)) <.> semi <.> linebreak
         else if (dataReprIsValue dataRepr || isExtend)
           then return ()
               --  else emitToH $ text "struct" <+> ppName name <.> text "_s" <+> text "{" <+> text "datatype_tag_t _tag;" <+> text "};"
