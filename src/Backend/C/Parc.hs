@@ -608,9 +608,10 @@ getDataDefRepr :: Type -> Parc (Maybe (DataDef,DataRepr))
 getDataDefRepr tp
   = case extractDataDefType tp of
       Nothing -> return (Just (DataDefNormal,DataNormal))
+      Just name | name == nameBoxCon -> return (Just (DataDefValue 0 1, DataIso))
       Just name -> do newtypes <- getNewtypes
                       case newtypesLookupAny name newtypes of
-                        Nothing -> failure $ "Core.Parc.getDataInfo: cannot find type: " ++ show name
+                        Nothing -> failure $ "Core.Parc.getDataDefRepr: cannot find type: " ++ show name
                         Just di -> return (Just (dataInfoDef di, fst (getDataRepr di)))
 
 extractDataDefType :: Type -> Maybe Name
