@@ -140,21 +140,25 @@ parcBranches scrutinees brs
 
 parcBranch :: TNames -> Live -> Branch -> Parc (Live -> Parc Branch)
 parcBranch scrutinees live (Branch pats guards)
-  = do let pvs = bv pats
-       guardFns <- reverseMapM (parcGuard scrutinees pvs live) guards
-       forget pvs
+  = do guardFns <- reverseMapM (parcGuard scrutinees (bv pats) live) guards
        return $ \c -> Branch pats <$> mapM ($ c) guardFns
 
 parcGuard :: TNames -> TNames -> Live -> Guard -> Parc (Live -> Parc Guard)
 parcGuard scrutinees pvs live (Guard test expr)
-  = do (expr', live') <- isolateWith live $ extendOwned pvs $ parcExpr expr
-       dups <- foldMapM genDup (S.intersection pvs live')
+  = scoped pvs $
+    do (expr', live') <- isolateWith live $ parcExpr expr
        markLives live'
        test' <- withOwned S.empty $ parcExpr test
-       return $ \matchLive -> do
-         drops <- foldMapM genDrop (matchLive \\ live')  -- drop anything owned that is not alive anymore
-         return $ Guard test' (maybeStats (dups ++ drops) expr')
+       return $ \matchLive -> extendOwned pvs $ do
+         let dups = S.intersection pvs live'
+         let drops = matchLive \\ live'
+         Guard test' <$> parcGuardRC dups drops expr'
 
+parcGuardRC :: TNames -> TNames -> Expr -> Parc Expr
+parcGuardRC dupVars dropVars body
+  = do dups <- foldMapM genDup dupVars
+       drops <- foldMapM genDrop dropVars
+       return $ maybeStats (dups ++ drops) body
 
 --------------------------------------------------------------------------
 -- Case normalization
@@ -203,9 +207,9 @@ normalizeBranch vexprs br@Branch{branchPatterns, branchGuards}
 useTName :: TName -> Parc (Maybe Expr)
 useTName tname
   = do live <- isLive tname
-       owned <- isOwned tname
+       borrowed <- isBorrowed tname
        markLive tname
-       if live || not owned
+       if live || borrowed
          then genDup tname
          else return Nothing
 
@@ -215,11 +219,14 @@ genDupDrop :: Bool -> TName -> Parc (Maybe Expr)
 genDupDrop isDup tname
   = do let tp = typeOf tname
        mbRepr <- getDataDefRepr tp
+       borrowed <- isBorrowed tname
        return $
-         do (def, _) <- mbRepr
-            case def of
-              DataDefValue _ 0 -> Nothing
-              _ -> Just (App (dupDropFun isDup tp) [Var tname InfoNone])
+         if borrowed && not isDup
+           then Nothing
+           else do (def, _) <- mbRepr
+                   case def of
+                     DataDefValue _ 0 -> Nothing
+                     _ -> Just (App (dupDropFun isDup tp) [Var tname InfoNone])
 
 genDup  = genDupDrop True
 genDrop = genDupDrop False
@@ -360,6 +367,9 @@ setLive = modifyLive . const
 isOwned :: TName -> Parc Bool
 isOwned tn = S.member tn <$> getOwned
 
+isBorrowed :: TName -> Parc Bool
+isBorrowed tn = not <$> isOwned tn
+
 withOwned :: Owned -> Parc a -> Parc a
 withOwned = updateOwned . const
 
@@ -404,13 +414,19 @@ isolateWith live action
 ------------------------
 -- scope abstractions --
 
+scoped :: TNames -> Parc a -> Parc a
+scoped vars action
+  = do expr <- extendOwned vars action
+       forget vars
+       return expr
+
 ownedInScope :: TNames -> Parc Expr -> Parc Expr
 ownedInScope vars action
- = do expr <- extendOwned vars action
-      live <- getLive
-      drops <- foldMapM genDrop (vars \\ live)
-      forget vars
-      return $ maybeStats drops expr
+  = scoped vars $
+      do expr <- action
+         live <- getLive
+         drops <- foldMapM genDrop (vars \\ live)
+         return $ maybeStats drops expr
 
 --------------------------------------------------------------------------
 -- Tracing
