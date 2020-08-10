@@ -55,7 +55,7 @@ parcCore :: Pretty.Env -> Newtypes -> Core -> Unique Core
 parcCore penv newtypes core
   | not enabled = return core
   | otherwise   = do defs <- runParc penv newtypes (parcDefGroups True (coreProgDefs core))
-                     -- tr defs $ 
+                     -- tr defs $
                      return core{coreProgDefs=defs}
   where penv' = penv{Pretty.coreShowDef=True,Pretty.coreShowTypes=False,Pretty.fullNames=False}
         tr d = trace (show (vcat (map (prettyDefGroup penv') d)))
@@ -99,11 +99,8 @@ parcExpr expr
               let parsSet = S.fromList pars
               (body', live) <- isolateWith S.empty
                              $ withOwned caps  -- captured variables are owned
-                             $ scoped parsSet $ do
-                                 expr <- parcExpr body
-                                 live <- getLive
-                                 drops  <- foldMapM genDrop (parsSet \\ live)
-                                 return $ maybeStats drops expr
+                             $ ownedInScope parsSet
+                             $ parcExpr body
               dups <- foldMapM useTName caps
               assertion ("parcExpr: caps==live" ++ show caps ++ show live ++ show body) (caps == live) $
                 return (maybeStats dups $ Lam pars eff body')
@@ -122,7 +119,7 @@ parcExpr expr
       Let [] body
         -> parcExpr body
       Let (DefNonRec def:dgs) body
-        -> do body' <- scoped (bv def) $ parcExpr $ Let dgs body
+        -> do body' <- ownedInScope (bv def) $ parcExpr (Let dgs body)
               def'  <- parcDef False def
               return $ makeLet [DefNonRec def'] body'
       Let _ _
@@ -407,11 +404,13 @@ isolateWith live action
 ------------------------
 -- scope abstractions --
 
-scoped :: TNames -> Parc a -> Parc a
-scoped tns action
-  = do r <- extendOwned tns action
-       forget tns
-       return r
+ownedInScope :: TNames -> Parc Expr -> Parc Expr
+ownedInScope vars action
+ = do expr <- extendOwned vars action
+      live <- getLive
+      drops <- foldMapM genDrop (vars \\ live)
+      forget vars
+      return $ maybeStats drops expr
 
 --------------------------------------------------------------------------
 -- Tracing
