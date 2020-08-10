@@ -120,17 +120,11 @@ ruExpr expr
 
 ruTryReuseCon :: TName -> ConRepr -> Expr -> Reuse Expr
 ruTryReuseCon cname repr conApp
-  = case splitFunScheme (typeOf cname) of
-      Just (_,_,tpars,_,_) 
-        -> ruTryReuseConEx cname repr tpars conApp
-      _ -> return conApp
-    
-ruTryReuseConEx :: TName -> ConRepr -> [(Name,Type)] -> Expr -> Reuse Expr
-ruTryReuseConEx cname repr paramTypes conApp
   = do newtypes <- getNewtypes
        platform <- getPlatform
-       let (size,_) = constructorSize platform newtypes repr (map snd paramTypes)
+       let (size,_) = constructorSizeOf platform newtypes cname repr 
        available <- getAvailable
+       -- ruTrace $ "try reuse: " ++ show (getName cname) ++ ": " ++ show size
        case M.lookup size available of
          Just tnames | not (S.null tnames)
            -> do let -- (tname, tnames') = S.deleteFindMin tnames
@@ -178,15 +172,17 @@ patAddNames pat
       _ -> return pat
 
 ruPattern :: Pattern -> Reuse [(TName, Int, Int)]
-ruPattern (PatVar tname PatCon{patConName,patConPatterns,patConRepr,patTypeArgs})
+ruPattern (PatVar tname PatCon{patConName,patConPatterns,patConRepr,patTypeArgs,patConInfo=ci})
   = do reuses <- concat <$> mapM ruPattern patConPatterns
        if (getName patConName == nameBoxCon)
         then return reuses  -- don't reuse boxes
         else  do newtypes <- getNewtypes
-                 platform <- getPlatform
-                 let (size,scan) = constructorSize platform newtypes patConRepr patTypeArgs
+                 platform <- getPlatform                 
+                 -- use type scheme of con, not the instantiated type, to calculate the correct size
+                 let (size,scan) = constructorSizeOf platform newtypes (TName (conInfoName ci) (conInfoType ci)) patConRepr 
                  if size > 0
-                   then return ((tname, size, scan):reuses)
+                   then do -- ruTrace $ "add for reuse: " ++ show (getName tname) ++ ": " ++ show size
+                           return ((tname, size, scan):reuses)
                    else return reuses
 ruPattern _ = return []
 
@@ -387,6 +383,15 @@ ruTrace msg
         return ()
 
 ----------------
+
+-- return the allocated size of a constructor. Return 0 for value types or singletons
+constructorSizeOf :: Platform -> Newtypes -> TName -> ConRepr -> (Int {- byte size -}, Int {- scan fields -})
+constructorSizeOf platform newtypes conName conRepr 
+  = case splitFunScheme (typeOf conName) of
+      Just (_,_,tpars,_,_) 
+        -> constructorSize platform newtypes conRepr (map snd tpars)
+      _ -> (0,0)
+  
 
 -- return the allocated size of a constructor. Return 0 for value types or singletons
 constructorSize :: Platform -> Newtypes -> ConRepr -> [Type] -> (Int {- byte size -}, Int {- scan fields -})
