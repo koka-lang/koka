@@ -57,7 +57,6 @@ executable koka
       Core.AnalysisMatch
       Core.AnalysisResume
       Core.BindingGroups
-      Core.Box
       Core.Check
       Core.Core
       Core.CoreVar

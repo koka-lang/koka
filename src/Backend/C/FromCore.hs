@@ -80,10 +80,11 @@ contextParam = text "context_t* _ctx"
 
 genModule :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Maybe (Name,Bool) -> Core -> Asm Core
 genModule sourceDir penv platform newtypes mbMain core0
-  =  do core <- liftUnique (do ucore <- parcReuseCore penv platform newtypes core0 -- constructor reuse analysis
+  =  do core <- liftUnique (do bcore <- boxCore core0            -- box/unbox transform
+                               ucore <- parcReuseCore penv platform newtypes bcore -- constructor reuse analysis
                                pcore <- parcCore penv newtypes ucore -- precise automatic reference counting
-                               boxCore pcore            -- box/unbox transform
-                               )
+                               return pcore
+                           )
 
         let headComment   = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
             initSignature = text "void" <+> ppName (qualify (coreProgName core) (newName ".init")) <.> parameters []
@@ -708,7 +709,7 @@ genDupDropCallX prim tp args
     case cType tp of
       CFun _ _   -> [text (pre "function_t") <.> args]
       CBox       -> [text (pre "box_t") <.> args]
-      CPrim val   | val == "integer_t" || val == "string_t" || val == "vector_t" || val == "ref_t" || val == "reuse_t"
+      CPrim val   | val == "integer_t" || val == "string_t" || val == "vector_t" || val == "ref_t" || val == "reuse_t" || val == "box_t"
                   -> [text (pre val) <.> args]
                   | otherwise
                   -> []-- text "value" <.> args
@@ -910,6 +911,8 @@ cTypeCon c
          then CPrim "float"
         else if (name == nameTpRef || name == nameTpLocalVar)
          then CPrim "ref_t"
+        else if (name == nameTpBox)
+         then CPrim "box_t"
         else if (name == nameTpReuse)
          then CPrim "reuse_t"
         else CData (typeClassName name)
@@ -1127,11 +1130,27 @@ genPatternTest doTest (exprDoc,pattern)
   = let test xs = if doTest then xs else [] in
     case pattern of
       PatWild -> return []
+      {-
       PatVar tname pattern | hiddenNameStartsWith (getName tname) "unbox"
         -> do let after = ppType (typeOf tname) <+> ppDefName (getName tname) <+> text "="
                               <+> genBoxCall "unbox" True (typeOf tname) exprDoc <.> semi
                   next  = genNextPatterns (\self fld -> self) (ppDefName (getName tname)) (typeOf tname) [pattern]
               return [([],[after],next)]
+      -}
+      {-
+      PatVar tname(PatCon bname [pattern] repr [targ] exists tres info skip)  | getName bname == nameBoxCon
+        -> do let tp    = targ
+                  after = ppType tp <+> ppDefName (getName tname) <+> text "="
+                          <+> genBoxCall "unbox" True tp exprDoc <.> semi
+                  next  = genNextPatterns (\self fld -> self) (ppDefName (getName tname)) tp [pattern]
+              return [([],[after],next)]      
+      -}
+      PatCon bname [pattern] repr [targ] exists tres info skip  | getName bname == nameBoxCon
+        -> do local <- newVarName "unbox"
+              let unbox   = genBoxCall "unbox" True targ exprDoc
+                  next    = genNextPatterns (\self fld -> self) {-(ppDefName local)-} unbox targ [pattern]
+                  -- assign  = ppType targ <+> ppDefName local <+> text "=" <+> unbox <.> semi
+              return [([],[{-assign-}],next)]
       PatVar tname pattern
         -> do let after = ppType (typeOf tname) <+> ppDefName (getName tname) <+> text "=" <+> exprDoc <.> semi
                   next  = genNextPatterns (\self fld -> self) (ppDefName (getName tname)) (typeOf tname) [pattern]
@@ -1146,7 +1165,7 @@ genPatternTest doTest (exprDoc,pattern)
                  ConEnum{}  | conInfoName info == nameTrue
                     -> return [(xtest [exprDoc],[],[])]
                  ConEnum{} | conInfoName info == nameFalse
-                    -> return [(xtest [text "!" <.> parens exprDoc],[],[])]
+                    -> return [(xtest [text "!" <.> parens exprDoc],[],[])]                 
                  _  -> let dataRepr = conDataRepr repr
                        in if (dataReprIsValue dataRepr || isConSingleton repr)
                            then valTest tname info dataRepr

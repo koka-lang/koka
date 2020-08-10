@@ -136,10 +136,11 @@ boxPattern fromTp pat | cType (fromTp) /= cType toTp
                            _ -> failure "Backend/C/FromCore.boxPattern: nested match on a function?"
                 _     -> -- regular box/unbox 
                          do i <- unique
-                            let uname = newHiddenName ("unbox-x" ++ show i)
+                            let uname = newHiddenName ("box-x" ++ show i)
                             (bpat,defs) <- boxPatternX toTp pat
                             -- trace ("unbox pattern: " ++ show uname) $
-                            return (PatVar (TName uname toTp) bpat, defs)  -- toTp for generating correct unbox call in the C backend
+                            -- return (PatVar (TName uname toTp) bpat, defs)  -- toTp for generating correct unbox call in the C backend
+                            return (PatVar (TName uname typeBoxStar) (patBox toTp typeBoxStar bpat), defs)
          _ -> boxPatternX fromTp pat
                      
   where
@@ -252,3 +253,26 @@ cType tp
         -> CBox
       TSyn syn args t
         -> cType t
+
+
+typeBoxStar = typeBox kindStar
+
+isBoxPat :: Pattern -> Bool
+isBoxPat (PatCon{ patConName = name })  = (getName name == nameBoxCon)
+
+patBox :: Type -> Type -> Pattern -> Pattern
+patBox tpPat tpRes pat 
+  = PatCon (TName nameBoxCon (conInfoType boxConInfo)) [pat] boxConRepr [tpPat] [] tpRes boxConInfo True
+
+boxConRepr :: ConRepr
+boxConRepr = ConSingle nameTpBox DataSingle 0
+
+boxConInfo :: ConInfo
+boxConInfo 
+  = ConInfo nameBox nameTpBox [a] [] [(nameNil,TVar a)] tp 
+            Inductive rangeNull [] [Public] True Public "" 
+  where
+    tp = TForall [a] [] (TFun [(nameNil,TVar a)] typeTotal typeBoxStar)
+    a  = TypeVar (0) kindStar Bound
+  
+  

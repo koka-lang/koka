@@ -51,7 +51,7 @@ module Common.NamePrim
           , nameUnsafeTotal
           , nameIntConst, nameInt32
 
-          , nameTpBox, nameUnbox, nameBox
+          , nameTpBox, nameUnbox, nameBox, nameBoxCon
 
           , nameDup, nameDrop, nameIsUnique, nameFree, nameDecRef
           , nameKeepMatch, nameDropMatch, nameReuseMatch
@@ -354,6 +354,7 @@ nameTpAny       = coreTypesName "any"
 nameTpVector    = coreTypesName "vector"
 
 nameTpBox       = coreTypesName ".Box"
+nameBoxCon      = coreTypesName ".Box"
 nameBox         = coreTypesName ".box"
 nameUnbox       = coreTypesName ".unbox"
 
