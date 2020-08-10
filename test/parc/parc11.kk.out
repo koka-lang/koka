@@ -7,7 +7,7 @@ public fun test : (x : list<std/core/types/int>) -> list<std/core/types/int>
  match (x) {
  (std/core/Cons(((.pat0: std/core/types/int) as .unbox-x19: std/core/types/int), (.pat1: list<std/core/types/int>)) : list<std/core/types/int> )
  -> x;
- (std/core/Nil() : (list<std/core/types/int>) )
+ (.skip std/core/Nil() : (list<std/core/types/int>) )
  -> std/core/types/.drop(x);
  std/core/Nil;
  }

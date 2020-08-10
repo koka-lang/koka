@@ -15,7 +15,7 @@ public fun test : (y : std/core/types/int) -> std/core/types/int
  val _ : ()
  = std/core/types/.drop(y);
  x;
- _
+ (.skip std/core/Nil() : (list<std/core/types/int>) )
  -> std/core/types/.drop(xs);
  y;
  }

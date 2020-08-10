@@ -6,25 +6,20 @@ public fun test : forall<a> (xs : list<a>, ys : list<a>) -> list<a>
  = fun(xs: list<35>, ys: list<35>){
  match (xs) {
  (std/core/Cons((z: 35), (.pat0: list<35>)) : list<a> )
- -> val .ru.36 : std/core/types/reuse
- = std/core/types/.reuse((std/core/types/.dup(xs)));
- (match (ys) {
+ -> (match (ys) {
  (std/core/Cons((z0: 35), (.pat2: list<35>)) : list<a> )
  -> val _ : a
  = std/core/types/.dup(z0);
  val _ : ()
  = std/core/types/.drop(xs);
- val _ : ()
- = std/core/types/.drop(ys);
- std/core/types/.alloc-at(.ru.36, (std/core/Cons(z0, std/core/Nil)));
- (std/core/Nil() : (list<a>) )
- -> val _ : ()
- = std/core/types/.drop(.ru.36);
- val _ : ()
- = std/core/types/.drop(ys);
+ val .ru.37 : std/core/types/reuse
+ = std/core/types/.reuse(ys, (std/core/int32(2)));
+ std/core/types/.alloc-at(.ru.37, (std/core/Cons(z0, std/core/Nil)));
+ (.skip std/core/Nil() : (list<a>) )
+ -> std/core/types/.drop(ys);
  xs;
  });
- (std/core/Nil() : (list<a>) )
+ (.skip std/core/Nil() : (list<a>) )
  -> std/core/types/.drop(xs);
  ys;
  }

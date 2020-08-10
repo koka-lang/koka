@@ -15,7 +15,7 @@ public fun test : (xs : list<std/core/types/int>, y : std/core/types/int, z : st
  (std/core/Cons(((.pat2: std/core/types/int) as .unbox-x32: std/core/types/int), (.pat3: list<std/core/types/int>)) : list<std/core/types/int> )
  -> std/core/types/.drop(xs);
  x;
- (std/core/Nil() : (list<std/core/types/int>) )
+ (.skip std/core/Nil() : (list<std/core/types/int>) )
  -> val _ : ()
  = std/core/types/.drop(x);
  val _ : ()
@@ -28,7 +28,7 @@ public fun test : (xs : list<std/core/types/int>, y : std/core/types/int, z : st
  val _ : ()
  = std/core/types/.drop(y);
  2;
- _
+ (.skip std/core/Nil() : (list<std/core/types/int>) )
  -> std/core/types/.drop(xs);
  y;
  }
