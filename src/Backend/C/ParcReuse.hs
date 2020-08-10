@@ -199,13 +199,13 @@ ruTryReuse (reuseName, patName, size, scan)
            -> do let tnames' = S.delete reuseName tnames
                  setAvailable (M.insert size tnames' av)
                  return Nothing
-         _ -> return (Just (makeTDef reuseName (genDropReuse patName scan)))
+         _ -> return (Just (makeTDef reuseName (genDropReuse patName (makeInt32 (toInteger scan)))))
 
 -- Generate a reuse of a constructor
-genDropReuse :: TName -> Int -> Expr
+genDropReuse :: TName -> Expr {- : int32 -} -> Expr
 genDropReuse tname scan
   = App (Var (TName nameReuse funTp) (InfoExternal [(C, "drop_reuse_datatype(#1,#2,current_context())")]))
-        [Var tname InfoNone, makeInt32 (toInteger scan)]
+        [Var tname InfoNone, scan]
   where
     tp    = typeOf tname
     funTp = TFun [(nameNil,tp),(nameNil,typeInt32)] typeTotal typeReuse
