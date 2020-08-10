@@ -276,7 +276,7 @@ static inline void* runtime_realloc(void* p, size_t sz, context_t* ctx) {
 
 static inline void runtime_free(void* p) {
   UNUSED(p);
-  free(p);
+  mi_free(p);
 }
 #else
 static inline void* runtime_malloc_small(size_t sz, context_t* ctx) {

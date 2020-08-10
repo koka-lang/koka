@@ -42,7 +42,7 @@ add_library(kklib-flags INTERFACE)
 
 # library
 add_library(kklib STATIC ${kklib_sources})
-target_compile_definitions(kklib PRIVATE KKLIB_STATIC_LIB)
+target_compile_definitions(kklib PRIVATE KK_STATIC_LIB)
 target_include_directories(kklib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(kklib PUBLIC kklib-flags)
 
@@ -50,8 +50,11 @@ target_link_libraries(kklib PUBLIC kklib-flags)
 if(KK_MIMALLOC MATCHES ON)
 #cmake_policy(SET CMP0063 NEW)
 target_include_directories(kklib PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/mimalloc/include)
+target_compile_definitions(kklib-flags INTERFACE KK_MIMALLOC=1)
 if(WIN32)
    target_link_libraries(kklib-flags INTERFACE psapi bcrypt)
+else()   
+   target_link_libraries(kklib-flags INTERFACE pthread)
 endif()   
 endif()
 
@@ -64,7 +67,7 @@ option(MI_BUILD_TESTS "" OFF)
 add_subdirectory(mimalloc EXCLUDE_FROM_ALL)
 
 list(APPEND kklib_targets mimalloc-obj)
-target_compile_definitions(kklib-flags INTERFACE -DKK_MIMALLOC)
+target_compile_definitions(kklib-flags INTERFACE KK_MIMALLOC=1)
 target_link_libraries(kklib PUBLIC mimalloc-obj)
 endif()
 
@@ -112,6 +115,7 @@ set(test_sources
     )
 
 add_executable(kklib-test ${test_sources})
+target_compile_definitions(kklib-test PRIVATE KK_STATIC_LIB)
 target_link_libraries(kklib-test PRIVATE kklib)
 
 add_test(NAME kklib-test COMMAND kklib-test)
