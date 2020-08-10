@@ -19,6 +19,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.Maybe ( catMaybes, fromMaybe )
 import Data.Char
+import qualified Data.Map.Strict as M
 import Data.Set ( (\\) )
 import qualified Data.Set as S
 
@@ -125,12 +126,17 @@ parcExpr expr
       Let _ _
         -> failure "Backend.C.Parc.parcExpr"
       Case vars brs | caseIsNormalized vars brs
-        -> Case vars <$> parcBranches (freeLocals vars) brs
+        -> Case vars <$> parcBranches (varNames vars) brs
       Case _ _
         -> do nexpr <- normalizeCase expr
               parcExpr nexpr
 
-parcBranches :: TNames -> [Branch] -> Parc [Branch]
+varNames :: [Expr] -> [TName]
+varNames (Var tn _:exprs) = tn:varNames exprs
+varNames (_:exprs) = varNames exprs
+varNames _ = []
+
+parcBranches :: [TName] -> [Branch] -> Parc [Branch]
 parcBranches scrutinees brs
   = do live <- getLive
        branchFns <- reverseMapM (parcBranch scrutinees live) brs
@@ -138,27 +144,74 @@ parcBranches scrutinees brs
        live' <- getLive
        mapM ($ live') branchFns
 
-parcBranch :: TNames -> Live -> Branch -> Parc (Live -> Parc Branch)
+parcBranch :: [TName] -> Live -> Branch -> Parc (Live -> Parc Branch)
 parcBranch scrutinees live (Branch pats guards)
-  = do guardFns <- reverseMapM (parcGuard scrutinees (bv pats) live) guards
+  = do guardFns <- reverseMapM (parcGuard scrutinees pats live) guards
        return $ \c -> Branch pats <$> mapM ($ c) guardFns
 
-parcGuard :: TNames -> TNames -> Live -> Guard -> Parc (Live -> Parc Guard)
-parcGuard scrutinees pvs live (Guard test expr)
+parcGuard :: [TName] -> [Pattern] -> Live -> Guard -> Parc (Live -> Parc Guard)
+parcGuard scrutinees pats live (Guard test expr)
   = scoped pvs $
     do (expr', live') <- isolateWith live $ parcExpr expr
        markLives live'
        test' <- withOwned S.empty $ parcExpr test
-       return $ \matchLive -> extendOwned pvs $ do
+       return $ \matchLive -> scoped pvs $ do
          let dups = S.intersection pvs live'
          let drops = matchLive \\ live'
-         Guard test' <$> parcGuardRC dups drops expr'
+         Guard test' <$> parcGuardRC scrutinees pats dups drops expr'
+  where pvs = bv pats
 
-parcGuardRC :: TNames -> TNames -> Expr -> Parc Expr
-parcGuardRC dupVars dropVars body
-  = do dups <- foldMapM genDup dupVars
-       drops <- foldMapM genDrop dropVars
-       return $ maybeStats (dups ++ drops) body
+parcGuardRC :: [TName] -> [Pattern] -> TNames -> TNames -> Expr -> Parc Expr
+parcGuardRC scrutinees pats dupVars dropVars body
+  = do let aliases = aliasMap scrutinees pats
+       -- parcTrace (show aliases)
+       rcStats <- optimizeGuard aliases dupVars dropVars
+       return $ maybeStats rcStats body
+
+-- maps a name to its children
+type AliasMap = M.Map TName TNames
+
+optimizeGuard :: AliasMap -> TNames -> TNames -> Parc [Maybe Expr]
+optimizeGuard aliases = opt
+  where children var = M.findWithDefault S.empty var aliases
+        isChildOf y x = S.member x (children y)
+        opt dupVars dropVars
+          | S.null dupVars && S.null dropVars
+              = return []
+          | S.null dupVars
+              = foldMapM genDrop dropVars
+          | S.null dropVars
+              = foldMapM genDup dupVars
+          | S.disjoint dupVars dropVars
+              = do let (y, dropVars') = S.deleteFindMin dropVars
+                   let (dupInY, notInY) = S.partition (isChildOf y) dupVars
+                   rest <- opt notInY dropVars'
+                   inlinedDrop <- inline dupInY y
+                   return $ rest ++ [inlinedDrop]
+          | otherwise
+              = let elims = S.intersection dupVars dropVars
+                 in opt (dupVars \\ elims) (dropVars \\ elims)
+        inline dupVars dropVar
+          | S.null dupVars
+              = genDrop dropVar
+          | otherwise
+              = do xdrops <- opt dupVars (children dropVar)
+                   xdups  <- opt dupVars S.empty
+                   let stat = makeIfExpr (genIsUnique dropVar)
+                                (maybeStats xdrops (genFree dropVar))
+                                (maybeStats xdups  (genDecRef dropVar))
+                   return (Just stat)
+
+aliasMap :: [TName] -> [Pattern] -> AliasMap
+aliasMap vars pats = M.unions $ map (\(s,p) -> aliases [s] p) $ zip vars pats
+  where aliases [] PatVar{patName,patPattern}
+          = aliases [patName] patPattern
+        aliases parents@(parent:_) PatVar{patName,patPattern}
+          = M.insertWith S.union parent (S.singleton patName) $
+              aliases (patName:parents) patPattern
+        aliases parents PatCon{patConPatterns}
+          = M.unionsWith S.union (map (aliases parents) patConPatterns)
+        aliases _ _ = M.empty
 
 --------------------------------------------------------------------------
 -- Case normalization
@@ -238,6 +291,27 @@ dupDropFun isDup tp
   where
     name = if isDup then nameDup else nameDrop
     coerceTp = TFun [(nameNil,tp)] typeTotal (if isDup then tp else typeUnit)
+
+-- Generate a test if a (locally bound) name is unique
+genIsUnique :: TName -> Expr
+genIsUnique tname
+  = App (Var (TName nameIsUnique funTp) (InfoExternal [(C, "constructor_is_unique(#1)")]))
+        [Var tname InfoNone]
+  where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeBool
+
+-- Generate a free of a constructor
+genFree :: TName -> Expr
+genFree tname
+  = App (Var (TName nameFree funTp) (InfoExternal [(C, "runtime_free(#1)")]))
+        [Var tname InfoNone]
+  where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
+
+-- Generate a ref-count drop of a constructor
+genDecRef :: TName -> Expr
+genDecRef tname
+  = App (Var (TName nameDecRef funTp) (InfoExternal [(C, "drop_constructor(#1)")]))
+        [Var tname InfoNone]
+  where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
 
 --------------------------------------------------------------------------
 -- Utilities for readability
@@ -385,7 +459,7 @@ markLive tname
   = unless (isQualified (getName tname))
   $ modifyLive (S.insert tname)
 
-markLives :: TNames -> Parc ()
+markLives :: Foldable t => t TName -> Parc ()
 markLives = mapM_ markLive
 
 forget :: TNames -> Parc ()

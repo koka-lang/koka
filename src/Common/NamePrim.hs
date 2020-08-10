@@ -50,10 +50,10 @@ module Common.NamePrim
           --
           , nameUnsafeTotal
           , nameIntConst, nameInt32
-          
+
           , nameTpBox, nameUnbox, nameBox
-          
-          , nameDup, nameDrop, nameIsUnique, nameFree
+
+          , nameDup, nameDrop, nameIsUnique, nameFree, nameDecRef
           , nameKeepMatch, nameDropMatch, nameReuseMatch
           , nameTpReuse, nameReuse, nameNoReuse
           , nameAllocAt
@@ -261,7 +261,7 @@ nameNamedHandle = coreHndName ".named-handle"
 
 nameYielding    = coreHndName "yielding"
 nameBind        = coreHndName "yield-bind" -- preludeName "bind"
-nameBind2       = coreHndName "yield-bind2" 
+nameBind2       = coreHndName "yield-bind2"
 nameEffectOpen  = coreHndName ".open" -- preludeName ".open"
 
 nameClauseTailNoYield n = coreHndName ("clause-tail-noyield" ++ show n)
@@ -365,6 +365,7 @@ nameAllocAt     = coreTypesName ".alloc-at"
 nameDup         = coreTypesName ".dup"
 nameDrop        = coreTypesName ".drop"
 nameFree        = coreTypesName ".free"
+nameDecRef      = coreTypesName ".dec-ref"
 nameIsUnique    = coreTypesName ".is-unique"
 nameKeepMatch   = coreTypesName ".keep-match"
 nameDropMatch   = coreTypesName ".drop-match"

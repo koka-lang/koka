@@ -8,12 +8,17 @@ public fun test : (y : std/core/types/int) -> std/core/types/int
  = std/core/Cons((std/core/types/.box(1)), std/core/Nil);
  match (xs) {
  (std/core/Cons(((x: std/core/types/int) as .unbox-x23: std/core/types/int), (.pat0: list<std/core/types/int>)) : list<std/core/types/int> )
- -> val _ : std/core/types/int
- = std/core/types/.dup(x);
- val _ : ()
- = std/core/types/.drop(xs);
- val _ : ()
+ -> val _ : ()
  = std/core/types/.drop(y);
+ val _ : ()
+ = (match ((std/core/types/.is-unique(xs))) {
+ (std/core/types/True() : std/core/types/bool )
+ -> std/core/types/.drop(.pat0);
+ std/core/types/.free(xs);
+ _
+ -> std/core/types/.dup(x);
+ std/core/types/.dec-ref(xs);
+ });
  x;
  (.skip std/core/Nil() : (list<std/core/types/int>) )
  -> std/core/types/.drop(xs);

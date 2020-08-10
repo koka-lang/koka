@@ -11,9 +11,9 @@ public fun test : (xs : list<std/core/types/maybe<std/core/types/int>>, y : std/
  | std/core/(==.1)((std/core/types/.dup(x)), (std/core/types/.dup(y))) -> val _ : std/core/types/int
  = std/core/types/.dup(x);
  val _ : ()
- = std/core/types/.drop(xs);
- val _ : ()
  = std/core/types/.drop(y);
+ val _ : ()
+ = std/core/types/.drop(xs);
  x;
  (std/core/Cons((((std/core/types/Nothing() : std/core/types/maybe<std/core/types/int> ) as .pat3: std/core/types/maybe<std/core/types/int>) as .unbox-x52
  : std/core/types/maybe<std/core/types/int>), (.pat4: list<std/core/types/maybe<std/core/types/int>>)) : list<std/core/types/maybe<std/core/types/int>> )

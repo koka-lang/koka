@@ -6,10 +6,14 @@ public fun test : (xs : list<std/core/types/int>) -> std/core/types/int
  = fun(xs: list<std/core/types/int>){
  match (xs) {
  (std/core/Cons(((xs0: std/core/types/int) as .unbox-x18: std/core/types/int), (.pat: list<std/core/types/int>)) : list<std/core/types/int> )
- -> val _ : std/core/types/int
- = std/core/types/.dup(xs0);
- val _ : ()
- = std/core/types/.drop(xs);
+ -> (match ((std/core/types/.is-unique(xs))) {
+ (std/core/types/True() : std/core/types/bool )
+ -> std/core/types/.drop(.pat);
+ std/core/types/.free(xs);
+ _
+ -> std/core/types/.dup(xs0);
+ std/core/types/.dec-ref(xs);
+ });
  xs0;
  (.skip std/core/Nil() : (list<std/core/types/int>) )
  -> std/core/types/.drop(xs);
