@@ -190,14 +190,14 @@ extractReuse expr
       = case expr of
           Let dgs body -> collectLets (dgs:acc) body
           _            -> (concat (reverse acc), expr)
-          
+
 
 
 
 -- maps a name to its children
 type AliasMap = M.Map TName TNames
 
--- TODO: 
+-- TODO:
 -- 1. what about non-heap allocated data? (always unique)
 -- 2. what about value types with references? (need type-specific dup/drop but have no refcount)
 -- 3. interaction with borrowed names
@@ -219,16 +219,16 @@ match(xs) {
 }
 -}
 optimizeGuard :: AliasMap -> TNames -> TNames -> Parc [Maybe Expr]
-optimizeGuard aliases dupVars dropVars 
+optimizeGuard aliases dupVars dropVars
   = opt dupVars dropVars
-  where 
-    children var 
+  where
+    children var
       = M.findWithDefault S.empty var aliases
-      
-    isDescendentOf parent x 
+
+    isDescendentOf parent x
       = let childs = children parent
         in (not (S.null childs) && ((S.member x childs) || any (\child -> isDescendentOf child x) childs))
-      
+
     opt dupVars dropVars
       | S.null dupVars && S.null dropVars
           = return []
@@ -245,7 +245,7 @@ optimizeGuard aliases dupVars dropVars
       | otherwise
           = let elims = S.intersection dupVars dropVars
             in opt (dupVars \\ elims) (dropVars \\ elims)
-             
+
     inlineDrop dupVars dropVar
       | S.null dupVars
           = genDrop dropVar
@@ -259,14 +259,12 @@ optimizeGuard aliases dupVars dropVars
                return (Just stat)
 
 aliasMap :: [TName] -> [Pattern] -> AliasMap
-aliasMap vars pats = M.unions $ map (\(s,p) -> aliases [s] p) $ zip vars pats
-  where aliases [] PatVar{patName,patPattern}
-          = aliases [patName] patPattern
-        aliases parents@(parent:_) PatVar{patName,patPattern}
+aliasMap scrutineeNames pats = M.unions $ zipWith aliases scrutineeNames pats
+  where aliases parent PatVar{patName,patPattern}
           = M.insertWith S.union parent (S.singleton patName) $
-              aliases (patName:parents) patPattern
-        aliases parents PatCon{patConPatterns}
-          = M.unionsWith S.union (map (aliases parents) patConPatterns)
+              aliases patName patPattern
+        aliases parent PatCon{patConPatterns}
+          = M.unionsWith S.union (map (aliases parent) patConPatterns)
         aliases _ _ = M.empty
 
 --------------------------------------------------------------------------
@@ -324,7 +322,7 @@ useTName tname
 
 -- value types with reference fields still need a drop
 needsDrop :: Type -> Parc Bool
-needsDrop tp         
+needsDrop tp
   = do mbRepr <- getDataDefRepr tp
        return $ case mbRepr of
          Just (DataDefValue _ 0, _) -> False
@@ -396,7 +394,7 @@ genFreeReuse tname
 
 -- Generate a reuse free of a constructor
 genReuseNull :: Expr
-genReuseNull 
+genReuseNull
   = App (Var (TName nameReuseNull funTp) (InfoExternal [(C, "reuse_null")])) []
   where funTp = TFun [] typeTotal typeReuse
 
