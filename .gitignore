@@ -8,3 +8,4 @@ src/Syntax/Lexer.hs
 *.pdb
 .vs/
 *~
+kklib/mimalloc
