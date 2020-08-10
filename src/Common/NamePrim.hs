@@ -55,7 +55,7 @@ module Common.NamePrim
 
           , nameDup, nameDrop, nameIsUnique, nameFree, nameDecRef
           , nameKeepMatch, nameDropMatch, nameReuseMatch
-          , nameTpReuse, nameReuse, nameNoReuse
+          , nameTpReuse, nameDropReuse, nameFreeReuse, nameReuseNull
           , nameAllocAt
 
           -- * Constructors
@@ -358,8 +358,9 @@ nameBox         = coreTypesName ".box"
 nameUnbox       = coreTypesName ".unbox"
 
 nameTpReuse     = coreTypesName "reuse"
-nameNoReuse     = coreTypesName "no-reuse"
-nameReuse       = coreTypesName ".reuse"
+nameReuseNull   = coreTypesName "no-reuse"
+nameDropReuse   = coreTypesName ".drop-reuse"
+nameFreeReuse   = coreTypesName ".free-reuse"
 nameAllocAt     = coreTypesName ".alloc-at"
 
 nameDup         = coreTypesName ".dup"

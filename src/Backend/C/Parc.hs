@@ -181,7 +181,7 @@ extractReuse expr
     extractReuses []  = ([],[])
     extractReuses (dg:dgs)
       = case dg of
-          DefNonRec (Def x tp (App (Var reuse _) [Var y InfoNone, scanCount]) Private DefVal _ _ _) | getName reuse == nameReuse
+          DefNonRec (Def x tp (App (Var reuse _) [Var y InfoNone, scanCount]) Private DefVal _ _ _) | getName reuse == nameDropReuse
             -> let (reuses,dgs') = extractReuses dgs
                in ((TName x tp,y,scanCount):reuses, dgs')
           _ -> ([],dg:dgs)
@@ -206,16 +206,16 @@ type AliasMap = M.Map TName TNames
 {-
 match(xs) {
   Cons(x,Cons(y,ys) as xx) ->
-    
-    if (unique(xs)) {
-      dup(y)
-      drop(xx)
-      free(xs)
+    r = if (unique(xs)) {
+      if (unique(xx)) { drop(y); free(xx) } { dup(ys); decref(xx) }
+      reuse(xs)
     }
-    else ({
-    
-    })
-    x + y
+    else {
+      dup(x)
+      dup(ys)
+      dec_ref(xs); reuse_null
+    }
+    Cons@r(x,ys)
 }
 -}
 optimizeGuard :: AliasMap -> TNames -> TNames -> Parc [Maybe Expr]
@@ -384,6 +384,22 @@ genFree tname
 genDecRef :: TName -> Parc (Maybe Expr)
 genDecRef tname
   = genDrop tname
+
+
+-- Generate a reuse free of a constructor
+genFreeReuse :: TName -> Expr
+genFreeReuse tname
+  = App (Var (TName nameFreeReuse funTp) (InfoExternal [(C, "free_reuse(#1)")]))
+        [Var tname InfoNone]
+  where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeReuse
+
+
+-- Generate a reuse free of a constructor
+genReuseNull :: Expr
+genReuseNull 
+  = App (Var (TName nameReuseNull funTp) (InfoExternal [(C, "reuse_null")])) []
+  where funTp = TFun [] typeTotal typeReuse
+
 
 --------------------------------------------------------------------------
 -- Utilities for readability
