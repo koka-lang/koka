@@ -171,15 +171,18 @@ patAddNames pat
       _ -> return pat
 
 ruPattern :: Pattern -> Reuse [(TName, Int, Int)]
-ruPattern (PatVar tname PatCon{patConPatterns,patConRepr,patTypeArgs})
+ruPattern (PatVar tname PatCon{patConName,patConPatterns,patConRepr,patTypeArgs})
   = do reuses <- concat <$> mapM ruPattern patConPatterns
-       newtypes <- getNewtypes
-       platform <- getPlatform
-       let (size,scan) = constructorSize platform newtypes patConRepr patTypeArgs
-       if size > 0
-         then return ((tname, size, scan):reuses)
-         else return reuses
+       if (getName patConName == nameBoxCon)
+        then return reuses  -- don't reuse boxes
+        else  do newtypes <- getNewtypes
+                 platform <- getPlatform
+                 let (size,scan) = constructorSize platform newtypes patConRepr patTypeArgs
+                 if size > 0
+                   then return ((tname, size, scan):reuses)
+                   else return reuses
 ruPattern _ = return []
+
 
 ruGuard :: [(TName, TName, Int, Int)] -> Guard -> Reuse (Guard, Available)
 ruGuard patAdded (Guard test expr)
@@ -421,6 +424,7 @@ newtypesDataDefRepr :: Newtypes -> Type -> (DataDef,DataRepr)
 newtypesDataDefRepr newtypes tp
    = case extractDataDefType tp of
        Nothing   -> (DataDefNormal,DataNormal)
+       Just name | name == nameTpBox -> (DataDefNormal,DataNormal)
        Just name -> case newtypesLookupAny name newtypes of
                       Nothing -> failure $ "Backend.C.ParcReuse.getDataDefRepr: cannot find type: " ++ show name
                       Just di -> (dataInfoDef di, fst (getDataRepr di))
