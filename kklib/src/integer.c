@@ -195,7 +195,7 @@ static size_t bigint_roundup_count(size_t count) {
 
 static bigint_t* bigint_alloc(size_t count, bool is_neg, context_t* ctx) {
   size_t dcount = bigint_roundup_count(count);
-  bigint_t* b = (bigint_t*)block_alloc(sizeof(bigint_t) - sizeof(digit_t) + dcount*sizeof(digit_t), 0, TAG_BIGINT, ctx);
+  bigint_t* b = (bigint_t*)block_alloc_any(sizeof(bigint_t) - sizeof(digit_t) + dcount*sizeof(digit_t), 0, TAG_BIGINT, ctx);
   b->is_neg = (is_neg ? 1 : 0);
   b->extra = (extra_t)(dcount - count);
   b->count = count;

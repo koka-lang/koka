@@ -250,17 +250,28 @@ static inline int32_t marker_unique(context_t* ctx) {
 --------------------------------------------------------------------------------------*/
 
 #ifdef KK_MIMALLOC
-#ifdef KK_STATIC_LIB
-#include "../mimalloc/include/mimalloc.h"
+#ifdef KK_MIMALLOC_INLINE
+  #ifdef KK_STATIC_LIB
+  #include "../mimalloc/include/mimalloc-inline.h"
+  #else
+  #include "mimalloc-inline.h"
+  #endif
+  static inline void* runtime_malloc_small(size_t sz, context_t* ctx) {
+    return mi_heap_malloc_small_inline(ctx->heap, sz);
+  }
 #else
-#include "mimalloc.h"
+  #ifdef KK_STATIC_LIB
+  #include "../mimalloc/include/mimalloc.h"
+  #else
+  #include "mimalloc.h"
+  #endif
+  static inline void* runtime_malloc_small(size_t sz, context_t* ctx) {
+    return mi_heap_malloc_small(ctx->heap, sz);
+  } 
 #endif
-static inline void* runtime_malloc_small(size_t sz, context_t* ctx) {
-  return mi_heap_malloc_small(ctx->heap,sz);
-}
 
 static inline void* runtime_malloc(size_t sz, context_t* ctx) {
-  return mi_heap_malloc(ctx->heap,sz);
+  return mi_heap_malloc(ctx->heap, sz);
 }
 
 static inline void* runtime_zalloc(size_t sz, context_t* ctx) {
@@ -273,20 +284,22 @@ static inline void* runtime_realloc(void* p, size_t sz, context_t* ctx) {
   return mi_heap_realloc(ctx->heap, p, sz);
 }
 
-
 static inline void runtime_free(void* p) {
   UNUSED(p);
   mi_free(p);
 }
+
+static inline void runtime_free_local(void* p) {
+  runtime_free(p);
+}
 #else
-static inline void* runtime_malloc_small(size_t sz, context_t* ctx) {
+static inline void* runtime_malloc(size_t sz, context_t* ctx) {
   UNUSED(ctx);
   return malloc(sz);
 }
 
-static inline void* runtime_malloc(size_t sz, context_t* ctx) {
-  UNUSED(ctx);
-  return malloc(sz);
+static inline void* runtime_malloc_small(size_t sz, context_t* ctx) {
+  return runtime_malloc(sz,ctx);
 }
 
 static inline void* runtime_zalloc(size_t sz, context_t* ctx) {
@@ -302,6 +315,10 @@ static inline void* runtime_realloc(void* p, size_t sz, context_t* ctx) {
 static inline void runtime_free(void* p) {
   UNUSED(p);
   free(p);
+}
+
+static inline void runtime_free_local(void* p) {
+  runtime_free(p);
 }
 #endif
 
@@ -330,7 +347,7 @@ static inline block_t* block_alloc_at(reuse_t at, size_t size, size_t scan_fsize
   assert_internal(scan_fsize < SCAN_FSIZE_MAX);
   block_t* b;
   if (at==reuse_null) {
-    b = (block_t*)runtime_malloc(size, ctx);
+    b = (block_t*)runtime_malloc_small(size, ctx);
   }
   else {
     assert_internal(block_is_unique(at)); // TODO: check usable size of `at`
@@ -343,6 +360,13 @@ static inline block_t* block_alloc_at(reuse_t at, size_t size, size_t scan_fsize
 static inline block_t* block_alloc(size_t size, size_t scan_fsize, tag_t tag, context_t* ctx) {
   assert_internal(scan_fsize < SCAN_FSIZE_MAX);
   block_t* b = (block_t*)runtime_malloc_small(size, ctx);
+  block_init(b, size, scan_fsize, tag);
+  return b;
+}
+
+static inline block_t* block_alloc_any(size_t size, size_t scan_fsize, tag_t tag, context_t* ctx) {
+  assert_internal(scan_fsize < SCAN_FSIZE_MAX);
+  block_t* b = (block_t*)runtime_malloc(size, ctx);
   block_init(b, size, scan_fsize, tag);
   return b;
 }

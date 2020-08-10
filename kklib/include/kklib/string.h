@@ -100,7 +100,7 @@ static inline string_t string_alloc_len(size_t len, const char* s, context_t* ct
     return &str->_type;
   }
   else {
-    string_normal_t str = block_as_assert(string_normal_t, block_alloc(sizeof(struct string_normal_s) - 1 /* char str[1] */ + len + 1 /* 0 terminator */, 0, TAG_STRING, ctx), TAG_STRING);
+    string_normal_t str = block_as_assert(string_normal_t, block_alloc_any(sizeof(struct string_normal_s) - 1 /* char str[1] */ + len + 1 /* 0 terminator */, 0, TAG_STRING, ctx), TAG_STRING);
     if (s != NULL && len > 0) {
       memcpy(&str->str[0], s, len);
     }

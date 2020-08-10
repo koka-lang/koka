@@ -3,7 +3,8 @@ project(kklib VERSION 1.0 LANGUAGES C)
 
 enable_testing()
 
-option(KK_MIMALLOC "Use the mimalloc allocator" ON)
+option(KK_MIMALLOC          "Use the mimalloc allocator" ON)
+option(KK_MIMALLOC_INLINE   "Use the inlined branch of mimalloc allocator" OFF)
 
 # -----------------------------------------------------------------------------
 # Language options
@@ -48,27 +49,16 @@ target_link_libraries(kklib PUBLIC kklib-flags)
 
 
 if(KK_MIMALLOC MATCHES ON)
-#cmake_policy(SET CMP0063 NEW)
 target_include_directories(kklib PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/mimalloc/include)
 target_compile_definitions(kklib-flags INTERFACE KK_MIMALLOC=1)
+if(KK_MIMALLOC_INLINE MATCHES ON)
+  target_compile_definitions(kklib-flags INTERFACE KK_MIMALLOC_INLINE=1)
+endif()
 if(WIN32)
    target_link_libraries(kklib-flags INTERFACE psapi bcrypt)
 else()   
    target_link_libraries(kklib-flags INTERFACE pthread)
 endif()   
-endif()
-
-if(0)
-option(MI_OVERRIDE "" OFF)
-option(MI_BUILD_STATIC "" OFF)
-option(MI_BUILD_SHARED "" OFF)
-option(MI_BUILD_OBJECT "" ON)
-option(MI_BUILD_TESTS "" OFF)
-add_subdirectory(mimalloc EXCLUDE_FROM_ALL)
-
-list(APPEND kklib_targets mimalloc-obj)
-target_compile_definitions(kklib-flags INTERFACE KK_MIMALLOC=1)
-target_link_libraries(kklib PUBLIC mimalloc-obj)
 endif()
 
 
@@ -95,9 +85,15 @@ install(DIRECTORY include/
         FILES_MATCHING PATTERN "*.h")
 
 if(KK_MIMALLOC MATCHES ON)
+if(KK_MIMALLOC_INLINE MATCHES ON)  
+install(DIRECTORY mimalloc/include/
+        DESTINATION include
+        FILES_MATCHING PATTERN "mimalloc*.h")
+else()        
 install(DIRECTORY mimalloc/include/
         DESTINATION include
         FILES_MATCHING PATTERN "mimalloc.h")
+endif()        
 endif()
 
 write_basic_package_version_file(kklib-config-version.cmake COMPATIBILITY SameMajorVersion)

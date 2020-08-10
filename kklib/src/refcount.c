@@ -8,6 +8,9 @@
 #include "kklib.h"
 
 
+static void block_runtime_free(block_t* b) {
+  runtime_free(b);
+}
 
 
 /*--------------------------------------------------------------------------------------
@@ -176,13 +179,13 @@ static decl_noinline void block_decref_free(block_t* b, size_t depth, context_t*
     if (scan_fsize == 0) {
       // nothing to scan, just free
       if (tag_is_raw(block_tag(b))) block_free_raw(b); // potentially call custom `free` function on the data
-      runtime_free(b);
+      block_runtime_free(b);
       return;
     }
     else if (scan_fsize == 1) {
       // if just one field, we can recursively free without using stack space
       const box_t v = block_field(b, 0);;
-      runtime_free(b);
+      block_runtime_free(b);
       if (is_non_null_ptr(v)) {
         // try to free the child now
         b = unbox_ptr(v);
@@ -213,7 +216,7 @@ static decl_noinline void block_decref_free(block_t* b, size_t depth, context_t*
         }
         // and recurse into the last one
         box_t v = block_field(b,scan_fsize - 1);
-        runtime_free(b);
+        block_runtime_free(b);
         if (is_non_null_ptr(v)) {
           b = unbox_ptr(v);
           if (block_decref_no_free(b)) {
@@ -244,12 +247,11 @@ void block_free(block_t* b, context_t* ctx) {
   assert_internal(b->header.refcount == 0);
   if (b->header.scan_fsize==0) {
     if (tag_is_raw(block_tag(b))) block_free_raw(b);
-    runtime_free(b); // deallocate directly if nothing to scan
+    block_runtime_free(b); // deallocate directly if nothing to scan
   }
   else {
     block_decref_free(b, 0 /* depth */, ctx);  // free recursively
     block_decref_delayed(ctx);     // process delayed frees
   }
 }
-
 
