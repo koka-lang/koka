@@ -11,7 +11,10 @@
 -- constructor reuse analysis
 -----------------------------------------------------------------------------
 
-module Backend.C.ParcReuse ( parcReuseCore, orderConFieldsEx, newtypesDataDefRepr, isDataStructLike ) where
+module Backend.C.ParcReuse ( parcReuseCore, 
+                             genDropReuse,
+                             orderConFieldsEx, newtypesDataDefRepr, isDataStructLike 
+                           ) where
 
 import Lib.Trace (trace)
 import Control.Monad

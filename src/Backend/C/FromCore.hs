@@ -1485,7 +1485,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameDup || getName tna
 genExprExternal tname formats [argDoc] | getName tname == nameIsUnique
   = let tp    = case typeOf tname of
                   TFun [(_,fromTp)] _ toTp -> fromTp
-        call  = text "constructor_is_unique" <.> parens argDoc
+        call  = text "datatype_is_unique" <.> parens argDoc
     in return ([], call)
 
 -- normal external

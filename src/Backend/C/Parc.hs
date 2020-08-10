@@ -165,12 +165,43 @@ parcGuardRC :: [TName] -> [Pattern] -> TNames -> TNames -> Expr -> Parc Expr
 parcGuardRC scrutinees pats dupVars dropVars body
   = do let aliases = aliasMap scrutinees pats
        -- parcTrace (show aliases)
+       let (reuses,body') = extractReuse body
+       parcTrace ("reuses: " ++ show (map (\(x,y,_) -> (x,y)) reuses))
        rcStats <- optimizeGuard aliases dupVars dropVars
        return $ maybeStats rcStats body
+
+
+-- extract `val x = drop_reuse(y,scan_count)` statements into a list (x,y,scan_count) and rest of the expressions
+extractReuse :: Expr -> ([(TName,TName,Expr)],Expr)
+extractReuse expr
+  = case collectLets [] expr of
+      (dgs,body) | not (null dgs)  -> let (reuses, dgs') = extractReuses dgs in (reuses, makeLet dgs' body)
+      _          -> ([],expr)
+  where
+    extractReuses []  = ([],[])
+    extractReuses (dg:dgs)
+      = case dg of
+          DefNonRec (Def x tp (App (Var reuse _) [Var y InfoNone, scanCount]) Private DefVal _ _ _) | getName reuse == nameReuse
+            -> let (reuses,dgs') = extractReuses dgs
+               in ((TName x tp,y,scanCount):reuses, dgs')
+          _ -> ([],dg:dgs)
+
+    collectLets acc expr
+      = case expr of
+          Let dgs body -> collectLets (dgs:acc) body
+          _            -> (concat (reverse acc), expr)
+          
+
+
 
 -- maps a name to its children
 type AliasMap = M.Map TName TNames
 
+-- TODO: 
+-- 1. what about non-heap allocated data? (always unique)
+-- 2. what about value types with references? (need type-specific dup/drop but have no refcount)
+-- 3. interaction with borrowed names
+-- 4. interaction with reuse
 optimizeGuard :: AliasMap -> TNames -> TNames -> Parc [Maybe Expr]
 optimizeGuard aliases = opt
   where children var = M.findWithDefault S.empty var aliases
@@ -197,9 +228,10 @@ optimizeGuard aliases = opt
           | otherwise
               = do xdrops <- opt dupVars (children dropVar)
                    xdups  <- opt dupVars S.empty
+                   xdecr  <- genDecRef dropVar
                    let stat = makeIfExpr (genIsUnique dropVar)
                                 (maybeStats xdrops (genFree dropVar))
-                                (maybeStats xdups  (genDecRef dropVar))
+                                (maybeStats (xdups ++ [xdecr]) exprUnit)
                    return (Just stat)
 
 aliasMap :: [TName] -> [Pattern] -> AliasMap
@@ -266,6 +298,24 @@ useTName tname
          then genDup tname
          else return Nothing
 
+-- value types with reference fields still need a drop
+needsDrop :: Type -> Parc Bool
+needsDrop tp         
+  = do mbRepr <- getDataDefRepr tp
+       return $ case mbRepr of
+         Just (DataDefValue _ 0, _) -> False
+         Just (_,_)                 -> True
+         _                          -> False
+
+isValueType :: Type -> Parc Bool
+isValueType tp
+  = do mbRepr <- getDataDefRepr tp
+       return $ case mbRepr of
+         Just (DataDefValue _ _, _) -> False
+         Just (_,_)                 -> True
+         _                          -> False
+
+
 -- Generate a dup/drop over a given (locally bound) name
 -- May return Nothing if the type never needs a dup/drop (like an `int` or `bool`)
 genDupDrop :: Bool -> TName -> Parc (Maybe Expr)
@@ -295,7 +345,7 @@ dupDropFun isDup tp
 -- Generate a test if a (locally bound) name is unique
 genIsUnique :: TName -> Expr
 genIsUnique tname
-  = App (Var (TName nameIsUnique funTp) (InfoExternal [(C, "constructor_is_unique(#1)")]))
+  = App (Var (TName nameIsUnique funTp) (InfoExternal [(C, "datatype_is_unique(#1)")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeBool
 
@@ -306,12 +356,10 @@ genFree tname
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
 
--- Generate a ref-count drop of a constructor
-genDecRef :: TName -> Expr
+-- Generate a ref-count drop of a constructor; for now, just use a drop
+genDecRef :: TName -> Parc (Maybe Expr)
 genDecRef tname
-  = App (Var (TName nameDecRef funTp) (InfoExternal [(C, "drop_constructor(#1)")]))
-        [Var tname InfoNone]
-  where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
+  = genDrop tname
 
 --------------------------------------------------------------------------
 -- Utilities for readability

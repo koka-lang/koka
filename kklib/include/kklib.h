@@ -423,6 +423,7 @@ static inline void drop_block(block_t* b, context_t* ctx) {
   }
 }
 
+
 reuse_t block_check_reuse(block_t* b, uint32_t rc0, context_t* ctx);
 
 // Decrement the reference count, and return the memory for reuse if it drops to zero
@@ -484,6 +485,24 @@ static inline reuse_t drop_reuse_blockn(block_t* b, size_t scan_fsize, context_t
     return reuse_null;
   }
 }
+
+static inline void drop_blockn(block_t* b, size_t scan_fsize,  context_t* ctx) {
+  const uint32_t rc = b->header.refcount;
+  if (rc == 0) {                 // note: assume two's complement
+    assert_internal(scan_fsize == block_scan_fsize(b));
+    for (size_t i = 0; i < scan_fsize; i++) {
+      drop_box_t(block_field(b, i), ctx);
+    }
+    runtime_free(b);
+  }
+  else if ((int32_t)rc < 0) {
+    block_check_free(b, rc, ctx); // thread-shared, sticky (overflowed)?
+  }
+  else {
+    b->header.refcount = rc-1;
+  }
+}
+
 
 
 static inline void drop_block_assert(block_t* b, tag_t tag, context_t* ctx) {

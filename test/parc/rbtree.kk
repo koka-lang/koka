@@ -8,12 +8,8 @@ type tree {
 
 fun fold(t: tree, b: a, f: (int, bool, a) -> a): a {
   match (t) {
-    Leaf
-      -> /* drop(f,t) */
-         b
-    Node(_, l, k, v, r)
-      -> /* dup(k,l,r) drop(t) */
-         r.fold((/* dup */ f)(k, v, l.fold(b, f)), f)
+    Leaf                -> b
+    Node(_, l, k, v, r) -> r.fold( f(k, v, l.fold(b, f)), f)
   }
 }
 
@@ -57,11 +53,11 @@ fun ins(t: tree, kx: int, vx: bool): tree {
          elif (kx == ky) then Node(Red, a, kx, vx, b)
          else Node(Red, a, ky, vy, ins(b, kx, vx))
     Node(Black, a, ky, vy, b)
-      -> if (kx < ky && is-red(a)) then balance1(ky, vy, b, ins(a, kx, vx))
-         elif (kx < ky) then Node(Black, ins(a, kx, vx), ky, vy, b)
+      -> if (kx < ky) then (if (is-red(a)) then balance1(ky, vy, b, ins(a, kx, vx))
+                                           else Node(Black, ins(a, kx, vx), ky, vy, b))
          elif (kx == ky) then Node(Black, a, kx, vx, b)
          elif (is-red(b)) then balance2(a, ky, vy, ins(b, kx, vx))
-         else Node(Black, a, ky, vy, ins(b, kx, vx))
+         else Node(Black, a, ky, vy, ins(b, kx, vx))  
   }
 
   /* match(t) {
@@ -105,6 +101,6 @@ fun make-tree(n: int): div tree {
 
 fun main() {
   val m = make-tree(4200000); // todo: read first command line arg for size
-  val v = m.fold(0) fun(k, v, r) { if (v) then r + 1 else r }
+  val v = m.fold(0) fun(k,v,r){ if (v) then r + 1 else r }
   v.println
 }

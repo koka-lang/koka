@@ -173,7 +173,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>../../include;../../mimalloc/include</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>KK_STATIC_LIB=1;KK_MIMALLOC=1;_CONSOLE=1;%(PreprocessorDefinitions);NDEBUG</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG=1;KK_STATIC_LIB=1;KK_MIMALLOC=1;_CONSOLE=1;%(PreprocessorDefinitions);NDEBUG</PreprocessorDefinitions>
       <AssemblerOutput>AssemblyAndSourceCode</AssemblerOutput>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <WholeProgramOptimization>true</WholeProgramOptimization>
