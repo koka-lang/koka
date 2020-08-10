@@ -202,37 +202,61 @@ type AliasMap = M.Map TName TNames
 -- 2. what about value types with references? (need type-specific dup/drop but have no refcount)
 -- 3. interaction with borrowed names
 -- 4. interaction with reuse
+
+{-
+match(xs) {
+  Cons(x,Cons(y,ys) as xx) ->
+    
+    if (unique(xs)) {
+      dup(y)
+      drop(xx)
+      free(xs)
+    }
+    else ({
+    
+    })
+    x + y
+}
+-}
 optimizeGuard :: AliasMap -> TNames -> TNames -> Parc [Maybe Expr]
-optimizeGuard aliases = opt
-  where children var = M.findWithDefault S.empty var aliases
-        isChildOf y x = S.member x (children y)
-        opt dupVars dropVars
-          | S.null dupVars && S.null dropVars
-              = return []
-          | S.null dupVars
-              = foldMapM genDrop dropVars
-          | S.null dropVars
-              = foldMapM genDup dupVars
-          | S.disjoint dupVars dropVars
-              = do let (y, dropVars') = S.deleteFindMin dropVars
-                   let (dupInY, notInY) = S.partition (isChildOf y) dupVars
-                   rest <- opt notInY dropVars'
-                   inlinedDrop <- inline dupInY y
-                   return $ rest ++ [inlinedDrop]
-          | otherwise
-              = let elims = S.intersection dupVars dropVars
-                 in opt (dupVars \\ elims) (dropVars \\ elims)
-        inline dupVars dropVar
-          | S.null dupVars
-              = genDrop dropVar
-          | otherwise
-              = do xdrops <- opt dupVars (children dropVar)
-                   xdups  <- opt dupVars S.empty
-                   xdecr  <- genDecRef dropVar
-                   let stat = makeIfExpr (genIsUnique dropVar)
-                                (maybeStats xdrops (genFree dropVar))
-                                (maybeStats (xdups ++ [xdecr]) exprUnit)
-                   return (Just stat)
+optimizeGuard aliases dupVars dropVars 
+  = opt dupVars dropVars
+  where 
+    children var 
+      = M.findWithDefault S.empty var aliases
+      
+    isDescendentOf parent x 
+      = let childs = children parent
+        in (not (S.null childs) && ((S.member x childs) || any (\child -> isDescendentOf child x) childs))
+      
+    opt dupVars dropVars
+      | S.null dupVars && S.null dropVars
+          = return []
+      | S.null dupVars
+          = foldMapM genDrop dropVars
+      | S.null dropVars
+          = foldMapM genDup dupVars
+      | S.disjoint dupVars dropVars
+          = do let (y, dropVars') = S.deleteFindMin dropVars
+               let (dupInY, notInY) = S.partition (isDescendentOf y) dupVars
+               rest <- opt notInY dropVars'    -- forall x `in` dupInY => x `notin` dropVars  (because dupInY `disjoint` dropVars)
+               inlinedDrop <- inlineDrop dupInY y
+               return $ rest ++ [inlinedDrop]
+      | otherwise
+          = let elims = S.intersection dupVars dropVars
+            in opt (dupVars \\ elims) (dropVars \\ elims)
+             
+    inlineDrop dupVars dropVar
+      | S.null dupVars
+          = genDrop dropVar
+      | otherwise
+          = do xdrops <- opt dupVars (children dropVar)
+               xdups  <- opt dupVars S.empty
+               xdecr  <- genDecRef dropVar
+               let stat = makeIfExpr (genIsUnique dropVar)
+                            (maybeStats xdrops (genFree dropVar))
+                            (maybeStats (xdups ++ [xdecr]) exprUnit)
+               return (Just stat)
 
 aliasMap :: [TName] -> [Pattern] -> AliasMap
 aliasMap vars pats = M.unions $ map (\(s,p) -> aliases [s] p) $ zip vars pats
@@ -317,7 +341,7 @@ isValueType tp
 
 
 -- Generate a dup/drop over a given (locally bound) name
--- May return Nothing if the type never needs a dup/drop (like an `int` or `bool`)
+-- May return Nothing if the type never needs a dup/drop (like an `int32` or `bool`)
 genDupDrop :: Bool -> TName -> Parc (Maybe Expr)
 genDupDrop isDup tname
   = do let tp = typeOf tname
