@@ -229,6 +229,7 @@ optimizeGuard aliases dupVars dropVars
       = let childs = children parent
         in (not (S.null childs) && ((S.member x childs) || any (\child -> isDescendentOf child x) childs))
 
+    opt :: TNames -> TNames -> Parc [Maybe Expr]
     opt dupVars dropVars
       | S.null dupVars && S.null dropVars
           = return []
@@ -250,13 +251,20 @@ optimizeGuard aliases dupVars dropVars
       | S.null dupVars
           = genDrop dropVar
       | otherwise
-          = do xdrops <- opt dupVars (children dropVar)
-               xdups  <- opt dupVars S.empty
-               xdecr  <- genDecRef dropVar
-               let stat = makeIfExpr (genIsUnique dropVar)
-                            (maybeStats xdrops (genFree dropVar))
-                            (maybeStats (xdups ++ [xdecr]) exprUnit)
-               return (Just stat)
+          = do xdups  <- opt dupVars S.empty
+               isVal  <- isValueType (typeOf dropVar)
+               if (isVal || isBoxType (typeOf dropVar))
+                 then do xdrop <- genDrop dropVar
+                         return (Just (maybeStatsUnit (xdups ++ [xdrop])))
+                 else do -- newdrops <- filterM (needsDrop . typeOf) (S.toList (children dropVar))
+                         xdrops <- opt dupVars (children dropVar) -- (S.fromList newdrops)                         
+                         xdecr  <- genDecRef dropVar
+                         let stat = makeIfExpr (genIsUnique dropVar)
+                                      (maybeStats xdrops (genFree dropVar))
+                                      (maybeStatsUnit (xdups ++ [xdecr]))
+                         return (Just stat)
+                         
+                         
 
 aliasMap :: [TName] -> [Pattern] -> AliasMap
 aliasMap scrutineeNames pats = M.unions $ zipWith aliases scrutineeNames pats
@@ -323,19 +331,17 @@ useTName tname
 -- value types with reference fields still need a drop
 needsDrop :: Type -> Parc Bool
 needsDrop tp
-  = do mbRepr <- getDataDefRepr tp
-       return $ case mbRepr of
-         Just (DataDefValue _ 0, _) -> False
-         Just (_,_)                 -> True
-         _                          -> False
+  = do repr <- getDataDefRepr tp
+       return $ case repr of
+         (DataDefValue _ 0, _) -> False
+         _                     -> True
 
 isValueType :: Type -> Parc Bool
 isValueType tp
-  = do mbRepr <- getDataDefRepr tp
-       return $ case mbRepr of
-         Just (DataDefValue _ _, _) -> False
-         Just (_,_)                 -> True
-         _                          -> False
+  = do repr <- getDataDefRepr tp
+       return $ case repr of
+         (DataDefValue _ _, _) -> True
+         _                     -> False
 
 
 -- Generate a dup/drop over a given (locally bound) name
@@ -343,15 +349,14 @@ isValueType tp
 genDupDrop :: Bool -> TName -> Parc (Maybe Expr)
 genDupDrop isDup tname
   = do let tp = typeOf tname
-       mbRepr <- getDataDefRepr tp
+       repr <- getDataDefRepr tp
        borrowed <- isBorrowed tname
        return $
          if borrowed && not isDup
            then Nothing
-           else do (def, _) <- mbRepr
-                   case def of
-                     DataDefValue _ 0 -> Nothing
-                     _ -> Just (App (dupDropFun isDup tp) [Var tname InfoNone])
+           else case repr of
+                 (DataDefValue _ 0, _) -> Nothing
+                 _ -> Just (App (dupDropFun isDup tp) [Var tname InfoNone])
 
 genDup  = genDupDrop True
 genDrop = genDupDrop False
@@ -417,6 +422,13 @@ foldMapM f = foldr merge (return [])
 maybeStats :: [Maybe Expr] -> Expr -> Expr
 maybeStats xs expr
   = makeStats (catMaybes xs ++ [expr])
+
+maybeStatsUnit :: [Maybe Expr] -> Expr
+maybeStatsUnit xs
+  = case catMaybes xs of
+      []    -> exprUnit
+      stats -> makeStats stats
+
 
 --------------------------------------------------------------------------
 -- Parc monad
@@ -604,15 +616,15 @@ parcTrace msg
 
 ----------------
 
-getDataDefRepr :: Type -> Parc (Maybe (DataDef,DataRepr))
+getDataDefRepr :: Type -> Parc (DataDef,DataRepr)
 getDataDefRepr tp
   = case extractDataDefType tp of
-      Nothing -> return (Just (DataDefNormal,DataNormal))
-      Just name | name == nameBoxCon -> return (Just (DataDefValue 0 1, DataIso))
+      Nothing -> return (DataDefNormal,DataNormal)
+      Just name | name == nameBoxCon -> return (DataDefNormal, DataNormal)
       Just name -> do newtypes <- getNewtypes
                       case newtypesLookupAny name newtypes of
                         Nothing -> failure $ "Core.Parc.getDataDefRepr: cannot find type: " ++ show name
-                        Just di -> return (Just (dataInfoDef di, fst (getDataRepr di)))
+                        Just di -> return (dataInfoDef di, fst (getDataRepr di))
 
 extractDataDefType :: Type -> Maybe Name
 extractDataDefType tp
@@ -621,3 +633,8 @@ extractDataDefType tp
       TForall _ _ t -> extractDataDefType t
       TCon tc       -> Just (typeConName tc)
       _             -> Nothing
+
+      
+isBoxType :: Type -> Bool
+isBoxType (TCon (TypeCon name _))  = name == nameTpBox
+isBoxType _ = False
