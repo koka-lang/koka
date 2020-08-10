@@ -88,12 +88,12 @@ ruDef topLevel def
 ruExpr :: Expr -> Reuse Expr
 ruExpr expr
   = case expr of
-      App con@(Con _ repr) args
+      App con@(Con cname repr) args
         -> do args' <- mapM ruExpr args
-              ruTryReuseCon repr (map typeOf args) (App con args')
-      App ta@(TypeApp (Con _ repr) _) args
+              ruTryReuseCon cname repr (App con args')
+      App ta@(TypeApp (Con cname repr) _) args
         -> do args' <- mapM ruExpr args
-              ruTryReuseCon repr (map typeOf args) (App ta args')
+              ruTryReuseCon cname repr (App ta args')
 
       TypeLam tpars body
         -> TypeLam tpars <$> ruExpr body
@@ -118,11 +118,18 @@ ruExpr expr
       -- Var, Lit, Con
       _ -> return expr
 
-ruTryReuseCon :: ConRepr -> [Type] -> Expr -> Reuse Expr
-ruTryReuseCon repr paramTypes conApp
+ruTryReuseCon :: TName -> ConRepr -> Expr -> Reuse Expr
+ruTryReuseCon cname repr conApp
+  = case splitFunScheme (typeOf cname) of
+      Just (_,_,tpars,_,_) 
+        -> ruTryReuseConEx cname repr tpars conApp
+      _ -> return conApp
+    
+ruTryReuseConEx :: TName -> ConRepr -> [(Name,Type)] -> Expr -> Reuse Expr
+ruTryReuseConEx cname repr paramTypes conApp
   = do newtypes <- getNewtypes
        platform <- getPlatform
-       let (size,_) = constructorSize platform newtypes repr paramTypes
+       let (size,_) = constructorSize platform newtypes repr (map snd paramTypes)
        available <- getAvailable
        case M.lookup size available of
          Just tnames | not (S.null tnames)
