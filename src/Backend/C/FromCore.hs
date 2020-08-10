@@ -1056,7 +1056,7 @@ genMatch result0 exprDocs branches
           <- case result0 of
                ResultAssign name Nothing | length branches > 1 && not (isSingleTestBranch)
                  -> do label <- newVarName "match"
-                       return (ResultAssign name (Just label),[ppName label <.> colon])
+                       return (ResultAssign name (Just label),[ppName label <.> colon <+> semi])
                _ -> return (result0,[])
        docsInit <- mapM (genBranch result exprDocs True) (init branches)
        docLast0  <- genBranch result0 exprDocs False (last branches)
