@@ -415,8 +415,8 @@ static inline block_t* dup_block(block_t* b) {
 
 static inline void drop_block(block_t* b, context_t* ctx) {
   const uint32_t rc = b->header.refcount;
-  if ((int32_t)rc <= 0) {         // note: assume two's complement
-    block_check_free(b, rc, ctx); // thread-shared, sticky (overflowed), or can be freed?
+  if ((int32_t)(rc <= 0)) {         // note: assume two's complement
+    block_check_free(b, rc, ctx);   // thread-shared, sticky (overflowed), or can be freed?
   }
   else {
     b->header.refcount = rc-1;
@@ -545,7 +545,7 @@ static inline void drop_reuse_t(reuse_t r, context_t* ctx) {
 #define constructor_is_unique(v)            (datatype_is_unique(&((v)->_type)))
 #define dup_constructor_as(tp,v)            (dup_datatype_as(tp, &((v)->_type)))
 #define drop_constructor(v,ctx)             (drop_datatype(&((v)->_type),ctx))
-#define drop_reuse_constructor(v,ctx)       (drop_reuse_datatype(&((v)->_type),ctx))
+#define drop_reuse_constructor(v,n,ctx)     (drop_reuse_datatype(&((v)->_type),n,ctx))
 
 #define dup_value(v)                        (v)
 #define drop_value(v,ctx)                   (void)

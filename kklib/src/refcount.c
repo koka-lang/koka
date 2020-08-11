@@ -7,10 +7,35 @@
 ---------------------------------------------------------------------------*/
 #include "kklib.h"
 
+static void block_decref_delayed(context_t* ctx);
+static decl_noinline void block_decref_free(block_t* b, size_t scan_fsize, const size_t depth, context_t* ctx);
 
 static void block_runtime_free(block_t* b) {
   runtime_free(b);
 }
+
+static void block_free_raw(block_t* b) {
+  assert_internal(tag_is_raw(block_tag(b)));
+  struct cptr_raw_s* raw = (struct cptr_raw_s*)b;  // all raw structures must overlap this!
+  if (raw->free != NULL) {
+    (*raw->free)(raw->cptr);
+  }
+}
+
+// Free a block and recursively decrement reference counts on children.
+void block_free(block_t* b, context_t* ctx) {
+  assert_internal(b->header.refcount == 0);
+  const size_t scan_fsize = b->header.scan_fsize;
+  if (scan_fsize==0) {
+    if (tag_is_raw(block_tag(b))) block_free_raw(b);
+    block_runtime_free(b); // deallocate directly if nothing to scan
+  }
+  else {
+    block_decref_free(b, scan_fsize, 0 /* depth */, ctx);  // free recursively
+    block_decref_delayed(ctx);     // process delayed frees
+  }
+}
+
 
 
 /*--------------------------------------------------------------------------------------
@@ -141,8 +166,6 @@ static void block_push_delayed_free(block_t* b, context_t* ctx) {
   ctx->delayed_free = b;
 }
 
-static void block_free_raw(block_t* b);
-static decl_noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx);
 
 // Free all delayed free blocks.
 // TODO: limit to a certain number to limit worst-case free times?
@@ -162,7 +185,7 @@ static void block_decref_delayed(context_t* ctx) {
 #endif
       delayed = (block_t*)next;
       // and free the block
-      block_decref_free(b, 0, ctx);
+      block_decref_free(b, b->header.scan_fsize, 0, ctx);
     } while (delayed != NULL);
   }
 }
@@ -172,10 +195,9 @@ static void block_decref_delayed(context_t* ctx) {
 // Free recursively a block -- if the recursion becomes too deep, push
 // blocks on the delayed free list to free them later. The delayed free list
 // is encoded in the headers and needs no further space.
-static decl_noinline void block_decref_free(block_t* b, size_t depth, context_t* ctx) {
+static decl_noinline void block_decref_free(block_t* b, size_t scan_fsize, const size_t depth, context_t* ctx) {
   while(true) {
     assert_internal(b->header.refcount == 0);
-    size_t scan_fsize = b->header.scan_fsize;
     if (scan_fsize == 0) {
       // nothing to scan, just free
       if (tag_is_raw(block_tag(b))) block_free_raw(b); // potentially call custom `free` function on the data
@@ -191,6 +213,7 @@ static decl_noinline void block_decref_free(block_t* b, size_t depth, context_t*
         b = unbox_ptr(v);
         if (block_decref_no_free(b)) {
           // continue freeing on this block
+          scan_fsize = b->header.scan_fsize;
           continue; // tailcall
         }
       }
@@ -210,7 +233,7 @@ static decl_noinline void block_decref_free(block_t* b, size_t depth, context_t*
           if (is_non_null_ptr(v)) {
             block_t* vb = unbox_ptr(v);
             if (block_decref_no_free(vb)) {
-              block_decref_free(vb, depth+1, ctx); // recurse with increased depth
+              block_decref_free(vb, vb->header.scan_fsize, depth+1, ctx); // recurse with increased depth
             }
           }
         }
@@ -220,6 +243,7 @@ static decl_noinline void block_decref_free(block_t* b, size_t depth, context_t*
         if (is_non_null_ptr(v)) {
           b = unbox_ptr(v);
           if (block_decref_no_free(b)) {
+            scan_fsize = b->header.scan_fsize;
             continue; // tailcall
           }
         }
@@ -234,24 +258,61 @@ static decl_noinline void block_decref_free(block_t* b, size_t depth, context_t*
   }
 }
 
-static void block_free_raw(block_t* b) {
-  assert_internal(tag_is_raw(block_tag(b)));
-  struct cptr_raw_s* raw = (struct cptr_raw_s*)b;  // all raw structures must overlap this!
-  if (raw->free != NULL) {
-    (*raw->free)(raw->cptr);
+
+
+
+
+
+/*
+// Check if a reference decrement caused the block to be free or needs atomic operations
+static void block_check_free_rec(block_t* b, uint32_t rc0, context_t* ctx) {
+  assert_internal(b!=NULL);
+  assert_internal(b->header.refcount == rc0);
+  assert_internal(rc0 == 0 || (rc0 >= RC_SHARED && rc0 < RC_INVALID));
+  if (likely(rc0==0)) {
+    block_free_rec(b, ctx);  // no more references, free it.
+  }
+  else if (unlikely(rc0 >= RC_STICKY_LO)) {
+    // sticky: do not decrement further
+  }
+  else {
+    const uint32_t rc = atomic_decr(b);
+    if (rc == RC_SHARED && b->header.thread_shared) {  // with a shared reference dropping to RC_SHARED means no more references
+      b->header.refcount = 0;        // no longer shared
+      b->header.thread_shared = 0;
+      block_free_rec(b, ctx);            // no more references, free it.
+    }
   }
 }
 
 // Free a block and recursively decrement reference counts on children.
 void block_free(block_t* b, context_t* ctx) {
   assert_internal(b->header.refcount == 0);
-  if (b->header.scan_fsize==0) {
+  const size_t scan_fsize = b->header.scan_fsize;
+  if (scan_fsize==0) {
     if (tag_is_raw(block_tag(b))) block_free_raw(b);
     block_runtime_free(b); // deallocate directly if nothing to scan
   }
   else {
-    block_decref_free(b, 0 /* depth */, ctx);  // free recursively
-    block_decref_delayed(ctx);     // process delayed frees
+    for (size_t i = 0; i < scan_fsize; i++) {
+      box_t f = block_field(b, i);
+      if (is_ptr(f)) {
+        ptr_t p = unbox_ptr(f);
+        uint32_t rc = p->header.refcount;
+        if (likely(rc==0)) {
+          block_free_rec(p, ctx);
+        }
+        else if (unlikely((int32_t)rc < 0)) {
+          block_check_free_rec(p, rc, ctx);
+        }
+        else {
+          p->header.refcount = rc - 1;
+        }
+      }
+    }
+    runtime_free(b);
   }
+  // block_decref_delayed(ctx);     // process delayed frees
 }
 
+*/
