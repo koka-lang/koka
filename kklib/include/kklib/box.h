@@ -94,7 +94,8 @@ static inline box_t     box_int(intx_t i);
 
 // Use a boxed representation as an intptr
 static inline box_t _new_box(uintptr_t u) {
-  box_t b; b.box = u;
+  box_t b; 
+  b.box = u;
   return b;
 }
 
@@ -372,23 +373,13 @@ static inline box_t box_ptr_assert(block_t* b, tag_t tag) {
 
 static inline datatype_t unbox_datatype(box_t b) {
   datatype_t d;
-  if (_is_ptr_fast(b)) {
-    d.ptr = (block_t*)(b.box);
-  }
-  else {
-    d.singleton = b.box;
-  }
+  d.singleton = b.box;
   return d;
 }
 
 static inline box_t box_datatype(datatype_t d) {
   box_t b;
-  if (datatype_is_ptr(d)) {
-    b.box = (uintptr_t)(d.ptr);
-  }
-  else {
-    b.box = d.singleton;
-  }
+  b.box = d.singleton;
   return b;
 }
 
