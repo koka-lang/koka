@@ -435,8 +435,8 @@ orderConFieldsEx platform newtypes isOpen fields
 newtypesDataDefRepr :: Newtypes -> Type -> (DataDef,DataRepr)
 newtypesDataDefRepr newtypes tp
    = case extractDataDefType tp of
-       Nothing   -> (DataDefNormal,DataNormal)
-       Just name | name == nameTpBox -> (DataDefNormal,DataNormal)
+       Nothing   -> (DataDefNormal,DataNormal True)
+       Just name | name == nameTpBox -> (DataDefNormal,DataNormal False)
        Just name -> case newtypesLookupAny name newtypes of
                       Nothing -> failure $ "Backend.C.ParcReuse.getDataDefRepr: cannot find type: " ++ show name
                       Just di -> (dataInfoDef di, fst (getDataRepr di))

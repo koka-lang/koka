@@ -18,7 +18,7 @@ __std_core__list vector_to_list(vector_t v, __std_core__list tail, context_t* ct
   }
   __std_core__list nil  = __std_core__new_Nil(ctx);
   struct __std_core_Cons* cons = NULL;
-  __std_core__list list = NULL;
+  __std_core__list list = __std_core__new_Nil(ctx);
   for( size_t i = 0; i < n; i++ ) {
     __std_core__list hd = __std_core__new_Cons(reuse_null,dup_box_t(p[i]), nil, ctx);
     if (cons==NULL) {

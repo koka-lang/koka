@@ -27,7 +27,7 @@ static inline box_t* evv_as_vec(evv_t evv, size_t* len, box_t* single) {
   }
   else {
     // single evidence
-    *single = box_datatype(evv);
+    *single = box_basetype(evv);
     *len = 1;
     return single;
   }
@@ -92,7 +92,7 @@ evv_t evv_insert(evv_t evvd, __std_core_hnd__ev evd, context_t* ctx) {
     if (string_cmp_borrow(ev->_field1._field1,ev1->_field1._field1) <= 0) break;
     evv2[i] = dup_box_t(evb1); // use dup_datatype for efficiency?
   }
-  evv2[i] = box_datatype(evd);
+  evv2[i] = box_basetype(evd);
   for(; i < n; i++) {
     evv2[i+1] = dup_box_t(evv1[i]);  // use dup_datatype for efficiency?
   }
@@ -105,7 +105,7 @@ evv_t evv_delete(evv_t evvd, int32_t index, bool behind, context_t* ctx) {
   box_t single;
   const box_t* evv1 = evv_as_vec(evvd, &n, &single);
   if (n <= 1) {
-    drop_datatype(evvd,ctx);
+    drop_basetype(evvd,ctx);
     return evv_total(ctx);
   }
   if (behind) index++;
@@ -119,7 +119,7 @@ evv_t evv_delete(evv_t evvd, int32_t index, bool behind, context_t* ctx) {
   for(; i < n-1; i++) {
     evv2[i] = dup_box_t(evv1[i+1]);
   }
-  drop_datatype(evvd,ctx);
+  drop_basetype(evvd,ctx);
   return vec2;
 }
 
@@ -134,7 +134,7 @@ string_t evv_show(evv_t evv, context_t* ctx) {
 -----------------------------------------------------------------------*/
 
 struct kcompose_fun_s {
-  struct function_s _type;  
+  struct function_s _base;  
   box_t      count;
   function_t conts[1];
 };
@@ -170,10 +170,10 @@ static function_t new_kcompose( function_t* conts, intx_t count, context_t* ctx 
   struct kcompose_fun_s* f = block_as(struct kcompose_fun_s*, 
                                block_alloc(sizeof(struct kcompose_fun_s) - sizeof(function_t) + (count*sizeof(function_t)), 
                                  2 + count /* scan size */, TAG_FUNCTION, ctx));
-  f->_type.fun = box_cptr(&kcompose,ctx);
+  f->_base.fun = box_cptr(&kcompose,ctx);
   f->count = box_int(count);
   memcpy(f->conts, conts, count * sizeof(function_t));
-  return (&f->_type);                              
+  return (&f->_base);                              
 }
 
 /*-----------------------------------------------------------------------
@@ -201,7 +201,7 @@ box_t yield_extend( function_t next, context_t* ctx ) {
 
 // cont_apply: \x -> f(cont,x) 
 struct cont_apply_fun_s {
-  struct function_s _type;
+  struct function_s _base;
   function_t f;
   function_t cont;
 };
@@ -216,10 +216,10 @@ static box_t cont_apply( function_t fself, box_t x, context_t* ctx ) {
 
 function_t new_cont_apply( function_t f, function_t cont, context_t* ctx ) {
   struct cont_apply_fun_s* self = function_alloc_as(struct cont_apply_fun_s, 2, ctx);
-  self->_type.fun = box_cptr(&cont_apply,ctx);
+  self->_base.fun = box_cptr(&cont_apply,ctx);
   self->f = f;
   self->cont = cont;
-  return (&self->_type);
+  return (&self->_base);
 }
 
 // Unlike `yield_extend`, `yield_cont` gets access to the current continuation. This is used in `yield_prompt`.
@@ -244,7 +244,7 @@ function_t yield_to( struct __std_core_hnd_Marker m, function_t clause, context_
   yield->marker = m.m;
   yield->clause = clause;
   yield->conts_count = 0;
-  return unbox_datatype_as(function_t,box_any);
+  return unbox_basetype_as(function_t,box_any);
 }
 
 box_t yield_final( struct __std_core_hnd_Marker m, function_t clause, context_t* ctx ) {
@@ -313,11 +313,11 @@ evv_t evv_swap_create( vector_t indices, context_t* ctx ) {
     drop_vector_t(indices,ctx);
     return evv_swap_create1(i,ctx);
   }
-  return evv_swap( evv_create(dup_datatype_as(evv_t,ctx->evv),indices,ctx), ctx );
+  return evv_swap( evv_create(dup_basetype_as(evv_t,ctx->evv),indices,ctx), ctx );
 }
 
 typedef struct yield_info_s {
-  struct __std_core_hnd__yield_info_s _type;
+  struct __std_core_hnd__yield_info_s _base;
   function_t clause;          
   function_t conts[YIELD_CONT_MAX];
   size_t     conts_count;     
@@ -341,7 +341,7 @@ __std_core_hnd__yield_info yield_capture(context_t* ctx) {
   yld->yielding = ctx->yielding;
   ctx->yielding = 0;
   ctx->yield.conts_count = 0;
-  return &yld->_type;
+  return datatype_from_base(&yld->_base);
 }
 
 box_t yield_reyield( __std_core_hnd__yield_info yldinfo, context_t* ctx) {

@@ -179,11 +179,11 @@ static bool bigint_is_unique_(bigint_t* x) {
 }
 
 static bigint_t* dup_bigint(bigint_t* x) {
-  return dup_datatype_as(bigint_t*, x);
+  return dup_basetype_as(bigint_t*, x);
 }
 
 static void drop_bigint(bigint_t* x, context_t* ctx) {
-  drop_datatype(x,ctx);
+  drop_basetype(x,ctx);
 }
 
 

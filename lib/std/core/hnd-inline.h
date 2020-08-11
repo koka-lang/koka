@@ -15,35 +15,35 @@ struct __std_core_hnd__ev_s;
 typedef vector_t evv_t;         // either a vector, or a single evidence
 
 static inline bool evv_is_vector(evv_t evv) {
-  return (datatype_tag(evv) == TAG_VECTOR);
+  return (basetype_has_tag(evv,TAG_VECTOR));
 }
 
 static inline evv_t dup_evv_t(evv_t evv) {
-  return dup_datatype_as(evv_t,evv);
+  return dup_basetype_as(evv_t,evv);
 }
 
 static inline void drop_evv_t(evv_t evv, context_t* ctx) {
-  drop_datatype(evv,ctx);
+  drop_basetype(evv,ctx);
 }
 
 static inline struct __std_core_hnd__ev_s* evv_at( int32_t i, context_t* ctx ) {
   // todo: make this faster by 1) use a value type for `ev`, and 2) inline the evv at the end of the context?
   const evv_t evv = ctx->evv;
   if (evv_is_vector(evv)) {
-    return unbox_datatype_as(struct __std_core_hnd__ev_s*,vector_at(evv,i));
+    return unbox_basetype_as(struct __std_core_hnd__ev_s*,vector_at(evv,i));
   }
   else {    
     assert_internal(i==0);
-    return dup_datatype_as(struct __std_core_hnd__ev_s*, evv); // single evidence
+    return dup_basetype_as(struct __std_core_hnd__ev_s*, evv); // single evidence
   }
 }
 
 static inline evv_t evv_get(context_t* ctx) {
-  return dup_datatype_as(evv_t, ctx->evv);
+  return dup_basetype_as(evv_t, ctx->evv);
 }
 
 static inline unit_t evv_set(evv_t evv, context_t* ctx) {
-  drop_datatype(ctx->evv, ctx);
+  drop_basetype(ctx->evv, ctx);
   ctx->evv = evv;
   return Unit;
 }
@@ -70,7 +70,7 @@ static inline evv_t evv_swap_create1(int32_t i, context_t* ctx) {
   }
   else {      
     assert_internal(i==0);
-    return dup_datatype_as(evv_t,evv0);  // already a single evidence
+    return dup_basetype_as(evv_t,evv0);  // already a single evidence
   }
 }
 
@@ -96,8 +96,8 @@ box_t        yield_final( struct __std_core_hnd_Marker m, function_t clause, con
 function_t   yield_to( struct __std_core_hnd_Marker m, function_t clause, context_t* ctx );
 struct __std_core_hnd_yld_s  yield_prompt( struct __std_core_hnd_Marker m, context_t* ctx );
 
-struct __std_core_hnd__yield_info_s* yield_capture(context_t* ctx);
-box_t        yield_reyield(struct __std_core_hnd__yield_info_s* yld, context_t* ctx);
+datatype_t   yield_capture(context_t* ctx);
+box_t        yield_reyield(datatype_t yld, context_t* ctx);
 
 static inline evv_t evv_swap_delete(int32_t i, bool behind, context_t* ctx) {
   evv_t evv0 = ctx->evv;  

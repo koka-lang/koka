@@ -2547,14 +2547,14 @@ type null<a>
 
 // Unsafe: transform any type to a `null` type; used internally by the compiler.
 external ".null-any"(x : a) : null<a> {
-  c  inline "((#1).box == box_null.box ? NULL : (__std_core__null)((#1).box))"
+  c  inline "((#1).box == box_null.box ? datatype_from_ptr(NULL) : unbox_datatype(#1))"
   cs inline "#1"
   js inline "(#1==null ? null : #1)"  // undefined -> null
 }
 
 // Transform a `:maybe` type to a `:null` type (using `null` for `Nothing`).
 external null(x : maybe<a>) : null<a> {
-  c  inline "(__std_core_types__is_Nothing(#1) ? NULL : (__std_core__null)((#1._cons.Just.value).box))"
+  c  inline "(__std_core_types__is_Nothing(#1) ? datatype_from_ptr(NULL) : unbox_datatype((#1)._cons.Just.value))"
   cs inline "(#1.tag_ == __std_core._maybe_Tag.Nothing ? default(##1) : #1.@value)"
   js inline "(#1==null ? null : #1.value)"
 }
@@ -2562,7 +2562,7 @@ external null(x : maybe<a>) : null<a> {
 // Transform a `:null` type to a `:maybe` type. Note that it is not
 // always the case that `id(x) == maybe(null(x))` (e.g. when `x = Just(Nothing)`).
 external maybe( n : null<a> ) : maybe<a> {
-  c inline "(#1 == NULL ? __std_core_types__new_Nothing(current_context()) : __std_core_types__new_Just(_new_box((uintptr_t)#1),current_context()))"
+  c inline "((#1).ptr == NULL ? __std_core_types__new_Nothing(current_context()) : __std_core_types__new_Just(box_datatype(#1),current_context()))"
   cs inline "(EqualityComparer<##1>.Default.Equals(#1,default(##1)) ? __std_core._maybe<##1>.Nothing_ : new __std_core._maybe<##1>(#1))"
   js inline "(#1==null ? $std_core_types.Nothing : $std_core_types.Just(#1))"
 }
