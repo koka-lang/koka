@@ -52,10 +52,10 @@ enabled = unsafePerformIO $ do
 -- Reference count transformation
 --------------------------------------------------------------------------
 
-parcCore :: Pretty.Env -> Newtypes -> Core -> Unique Core
-parcCore penv newtypes core
+parcCore :: Pretty.Env -> Platform -> Newtypes -> Core -> Unique Core
+parcCore penv platform newtypes core
   | not enabled = return core
-  | otherwise   = do defs <- runParc penv newtypes (parcDefGroups True (coreProgDefs core))
+  | otherwise   = do defs <- runParc penv platform newtypes (parcDefGroups True (coreProgDefs core))
                      -- tr defs $
                      return core{coreProgDefs=defs}
   where penv' = penv{Pretty.coreShowDef=True,Pretty.coreShowTypes=False,Pretty.fullNames=False}
@@ -224,6 +224,9 @@ optimizeGuard aliases dupVars dropVars
   where
     children var
       = M.findWithDefault S.empty var aliases
+      
+    isChildOf parent x
+      = S.member x (children parent)
 
     isDescendentOf parent x
       = let childs = children parent
@@ -253,9 +256,21 @@ optimizeGuard aliases dupVars dropVars
       | otherwise
           = do xdups  <- opt dupVars S.empty
                isVal  <- isValueType (typeOf dropVar)
-               if (isVal || isBoxType (typeOf dropVar))
-                 then do xdrop <- genDrop dropVar
-                         return (Just (maybeStatsUnit (xdups ++ [xdrop])))
+               let regularDrop = do xdrop <- genDrop dropVar
+                                    return (Just (maybeStatsUnit (xdups ++ [xdrop])))
+               if (isVal)
+                 then regularDrop
+               else if (isBoxType (typeOf dropVar))  -- Box
+                 then  do -- parcTrace $ ("inlineDrop: Box: " ++ show (S.toList dupVars) ++ ", " ++ show (dropVar))                      
+                          case S.toList dupVars of
+                            [dupVar] | isChildOf dropVar dupVar   -- single: Box(x) as y 
+                                     -> do bc <- getBoxForm (typeOf dupVar)  -- is x is a pure value type (int, double etc)?
+                                           -- parcTrace $ "  bc: " ++ show bc ++ ", tp: " ++ show (typeOf dupVar)
+                                           case bc of
+                                              BoxIdentity -> return Nothing  -- like `Box(int)` or `Box(int16)`: no need to dup/drop
+                                              --TODO: BoxRaw -> return (Just [{-drop_shallow-}])   -- like `Box(int64)` on 32-bit; just free the box 
+                                              _           -> regularDrop
+                            _        -> regularDrop
                  else do -- newdrops <- filterM (needsDrop . typeOf) (S.toList (children dropVar))
                          xdrops <- opt dupVars (children dropVar) -- (S.fromList newdrops)                         
                          xdecr  <- genDecRef dropVar
@@ -327,10 +342,42 @@ useTName tname
        if live || borrowed
          then genDup tname
          else return Nothing
+  
+-----------------------------------------------------------
+-- Optimize boxed reference counting
+-----------------------------------------------------------  
+         
+data BoxForm = BoxIdentity   -- directly in the box itself (`int` or any regular datatype)
+             | BoxRaw        -- (possibly) heap allocated raw bits (`int64`)
+             | BoxValue      -- (possibly) heap allocated value with scan fields (`maybe<int>`)
+             | BoxNone       -- not a boxed value type
+             deriving(Eq,Ord,Enum,Show)
+  
+getBoxForm :: Type -> Parc BoxForm
+getBoxForm tp
+ = do platform <- getPlatform
+      repr <- getDataDefRepr tp
+      return $ case repr of
+        (DataDefValue _ scan, _) 
+          -> if (scan==0) 
+              then case extractDataDefType tp of
+                     Just name | name == nameTpInt || name == nameTpChar
+                                 || ((name == nameTpInt32 || name == nameTpFloat32) && sizePtr platform > 4)  
+                                 || name == nameTpInt8 || name == nameTpInt16 || name == nameTpByte 
+                       -> BoxIdentity
+                     _ -> BoxRaw
+              else BoxValue
+        _ -> BoxIdentity
+
+
+-----------------------------------------------------------
+-- Optimize boxed reference counting
+-----------------------------------------------------------  
+
 
 -- value types with reference fields still need a drop
-needsDrop :: Type -> Parc Bool
-needsDrop tp
+needsDupDrop :: Type -> Parc Bool
+needsDupDrop tp
   = do repr <- getDataDefRepr tp
        return $ case repr of
          (DataDefValue _ 0, _) -> False
@@ -440,6 +487,7 @@ maybeStatsUnit xs
 type Owned = TNames
 data Env = Env { currentDef :: [Def],
                  prettyEnv :: Pretty.Env,
+                 platform  :: Platform,
                  newtypes  :: Newtypes,
                  owned     :: Owned
                }
@@ -469,10 +517,10 @@ updateSt = modify
 getSt :: Parc ParcState
 getSt = get
 
-runParc :: Pretty.Env -> Newtypes -> Parc a -> Unique a
-runParc penv newtypes (Parc action)
+runParc :: Pretty.Env -> Platform -> Newtypes -> Parc a -> Unique a
+runParc penv platform newtypes (Parc action)
   = withUnique $ \u ->
-      let env = Env [] penv newtypes S.empty
+      let env = Env [] penv platform newtypes S.empty
           st = ParcState u S.empty
           (val, st') = runState (runReaderT action env) st
        in (val, uniq st')
@@ -501,6 +549,9 @@ getNewtypes = newtypes <$> getEnv
 
 withNewtypes :: (Newtypes -> Newtypes) -> Parc a -> Parc a
 withNewtypes f = withEnv (\e -> e { newtypes = f (newtypes e) })
+
+getPlatform :: Parc Platform
+getPlatform = platform <$> getEnv
 
 --
 

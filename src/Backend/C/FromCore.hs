@@ -82,7 +82,7 @@ genModule :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Maybe (Name,Bool)
 genModule sourceDir penv platform newtypes mbMain core0
   =  do core <- liftUnique (do bcore <- boxCore core0            -- box/unbox transform
                                ucore <- parcReuseCore penv platform newtypes bcore -- constructor reuse analysis
-                               pcore <- parcCore penv newtypes ucore -- precise automatic reference counting
+                               pcore <- parcCore penv platform newtypes ucore -- precise automatic reference counting
                                return pcore
                            )
 
