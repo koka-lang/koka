@@ -75,7 +75,7 @@ fun eval(e : expr) : int {
   }
 }
 
-fun main() : io () {
+fun main() : <div,console> () {
   val e = mk_expr(23,1)
   val v1 = eval(e)
   val v2 = e.reassoc.cfold.eval
