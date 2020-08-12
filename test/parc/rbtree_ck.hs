@@ -67,6 +67,6 @@ mk_Map freq n = mk_Map_aux freq n Leaf []
 main = do
   -- [arg] <- getArgs
   -- let n :: Int = read arg
-  let ms = mk_Map 10 4200000 
+  let ms = mk_Map 5 4200000 
   let v = fold (\_ v r -> if v then r + 1 else r) (head ms) 0
   print v

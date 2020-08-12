@@ -1,4 +1,5 @@
 (* Adapted from https://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap.ml *)
+open List;;
 
 type color =
 | Red
@@ -65,9 +66,9 @@ let mk_map freq n = mk_map_aux freq n Leaf [];;
 
 let main freq n =
 let ms = mk_map freq n in
-let v = fold (fun k v r -> if v then r + 1 else r) (List.head ms) 0 in
+let v = fold (fun k v r -> if v then r + 1 else r) (List.hd ms) 0 in
 Printf.printf "%8d\n" v;
 v;;
 
 (* main (int_of_string Sys.argv.(1));; *)
-main 10 4200000;;
+main 5 4200000;;
