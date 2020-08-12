@@ -142,6 +142,8 @@ target_compile_options(
       -Wstrict-aliasing>
     $<$<C_COMPILER_ID:GNU>:
       -Wno-unused-but-set-variable>
+    $<$<C_COMPILER_ID:Clang>:
+      -Wno-cast-align -Wno-sign-conversion -Wno-undef -Wno-reserved-id-macro>
 )
 
 # Platform-specific definitions

@@ -12,7 +12,7 @@
 /*--------------------------------------------------------------------------------------
   Char as unicode point
 --------------------------------------------------------------------------------------*/
-typedef uint32_t char_t;
+typedef int32_t char_t;
 
 #define char_replacement  ((char_t)(U32(0xFFFD)))
 
@@ -251,7 +251,7 @@ static inline char_t utf8_read_validate(const uint8_t* s, size_t* count) {
   // this is important as it allows later to pre-allocate a buffer of the right size even if some
   // sequences are invalid.
   else {
-    *count = (utf8_next(s) - s);
+    *count = (size_t)(utf8_next(s) - s);
     return char_replacement;
   }
 }
@@ -282,7 +282,7 @@ static inline char_t utf8_read(const uint8_t* s, size_t* count) {
   }
   // invalid, skip continuation bytes
   else {  // b >= 0xF5
-    *count = (utf8_next(s) - s);  // skip to next
+    *count = (size_t)(utf8_next(s) - s);  // skip to next
     c = char_replacement;
   }
 #if (DEBUG!=0)

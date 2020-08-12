@@ -100,8 +100,8 @@ genModule sourceDir penv platform newtypes mbMain core0
                          ++ externalIncludesC
 
         emitToH $ vcat $ [ text "#pragma once"
-                         , text "#ifndef _" <.> modName <.> text "_H"
-                         , text "#define _" <.> modName <.> text "_H"
+                         , text "#ifndef KK" <.> modName <.> text "_H"
+                         , text "#define KK" <.> modName <.> text "_H"
                          , headComment
                          , text "#include <kklib.h>" ]
                          ++ map moduleImport (coreProgImports core)
@@ -308,7 +308,7 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
                         Lit (LitString s)
                           -> do let (cstr,clen) = cstring s
                                     decl = if (isPublic vis) then empty else text "static"
-                                emitToC (text "define_string_literal" <.> tupled [decl,ppName name,pretty clen,cstr] <.> semi)
+                                emitToC (text "define_string_literal" <.> tupled [decl,ppName name,pretty clen,cstr] {- <.> semi -})
                         _ -> do doc <- genStat (ResultAssign (TName name tp) Nothing) (defBody)
                                 emitToInit doc
                                 let decl = ppType tp <+> ppName name <.> unitSemi tp
@@ -637,7 +637,7 @@ genBox name info dataRepr
                      in vcat [ text "box_t _box;"
                              , text "box_valuetype" <.> arguments [ppName name, text "_box", text "x",
                                                                    docScanCount
-                                                                  ] <.> semi
+                                                                  ] -- <.> semi
                              , text "return _box;" ]
                _  -> text "return" <+> text (if dataReprMayHaveSingletons dataRepr then "box_datatype" else "box_basetype") <.> tupled [text "x"] <.> semi
     )
@@ -652,8 +652,8 @@ genUnbox name info dataRepr
                     in text "return" <+> conCreateNameInfo conInfo <.> arguments [genBoxCall "unbox" False isoTp (text "x")]
         _ | dataReprIsValue dataRepr
           -> vcat [ ppName name <+> text "_unbox;"
-                  , text "unbox_valuetype" <.> arguments [ppName name, text "_unbox", text "x"] <.> semi
-                  , text "return _unbox;" ]
+                  , text "unbox_valuetype" <.> arguments [ppName name, text "_unbox", text "x"]
+                  , text "return _unbox" ]
              -- text "unbox_valuetype" <.> arguments [ppName name, text "x"]
         _ -> text "return" 
                <+> (if dataReprMayHaveSingletons dataRepr 
@@ -895,7 +895,7 @@ genLambda params eff body
                      <-> text (if toH then "static inline" else "static")
                      <+> text "function_t" <+> ppName newName <.> ntparameters fields <+> block ( vcat (
                        (if (null fields)
-                         then [text "define_static_function" <.> arguments [text "_fself", ppName funName] <.> semi
+                         then [text "define_static_function" <.> arguments [text "_fself", ppName funName] -- <.> semi
                                --text "static" <+> structDoc <+> text "_self ="
                               --  <+> braces (braces (text "static_header(1, TAG_FUNCTION), box_cptr(&" <.> ppName funName <.> text ")")) <.> semi
                               ,text "return _fself;"]

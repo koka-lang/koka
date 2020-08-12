@@ -52,7 +52,7 @@
 #elif defined(_MSC_VER)
 // MSVC C compilation wrapper that uses Interlocked operations to model C11 atomics.
 #define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+#include <Windows.h>
 #include <intrin.h>
 #ifdef _WIN64
 typedef LONG64      msc_intptr_t;

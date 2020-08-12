@@ -878,7 +878,7 @@ static inline void unsupported_external(const char* msg) {
 --------------------------------------------------------------------------------------*/
 
 static inline box_t box_unit_t(unit_t u) {
-  return box_enum(u);
+  return box_enum((uintx_t)u);
 }
 
 static inline unit_t unbox_unit_t(box_t u) {

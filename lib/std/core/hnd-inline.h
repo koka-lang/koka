@@ -30,7 +30,7 @@ static inline struct __std_core_hnd__ev_s* evv_at( int32_t i, context_t* ctx ) {
   // todo: make this faster by 1) use a value type for `ev`, and 2) inline the evv at the end of the context?
   const evv_t evv = ctx->evv;
   if (evv_is_vector(evv)) {
-    return unbox_basetype_as(struct __std_core_hnd__ev_s*,vector_at(evv,i));
+    return unbox_basetype_as(struct __std_core_hnd__ev_s*,vector_at(evv,(size_t)i));
   }
   else {    
     assert_internal(i==0);
@@ -65,7 +65,7 @@ static inline evv_t evv_swap_create0(context_t* ctx) {
 static inline evv_t evv_swap_create1(int32_t i, context_t* ctx) {
   evv_t evv0 = ctx->evv;  
   if (evv_is_vector(evv0)) {
-    ctx->evv = (evv_t)unbox_ptr(vector_at(evv0,i)); // set single evidence
+    ctx->evv = (evv_t)unbox_ptr(vector_at(evv0,(size_t)i)); // set single evidence
     return evv0;
   }
   else {      
