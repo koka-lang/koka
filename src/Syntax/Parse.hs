@@ -1133,7 +1133,8 @@ operationDecl opCount vis foralls docEffect hndName mbResource effTp hndTp hndTp
 
                           innerBody = Case (Var hndArg False rng) [branch] rng
                           fld       = prepend "clause-" id
-                          branch    = Branch (PatCon (toConstructorName hndName) patterns rng rng) guardTrue (Var fld False rng)
+                          branch    = Branch (PatCon (toConstructorName hndName) patterns rng rng) 
+                                             [Guard guardTrue (Var fld False rng)]
                           i          = opIndex
                           fieldCount = opCount
                           patterns  = [(Nothing,PatWild rng) | _ <- [0..i-1]]
@@ -1468,7 +1469,7 @@ localValueDecl
            -> return $ bindVar binder (binderType binder) (binderRange binder)
          PatAnn (PatVar (binder@ValueBinder{ binderExpr = PatWild _})) tp rng
            -> return $ bindVar binder (Just tp) rng
-         _ -> return $ \body -> Case e [Branch pat guardTrue body] (combineRanged krng body)
+         _ -> return $ \body -> Case e [Branch pat [Guard guardTrue body]] (combineRanged krng body)
 
   where
     unParens (PatParens p _) = unParens(p)
@@ -1587,8 +1588,8 @@ ifexpr
                      where
                        match (tst,texpr) eexpr
                         = let trng = getRange tst
-                          in  Case tst [Branch (PatCon nameTrue [] trng trng) guardTrue texpr
-                                       ,Branch (PatCon nameFalse [] trng trng) guardTrue eexpr]
+                          in  Case tst [Branch (PatCon nameTrue [] trng trng) [Guard guardTrue texpr]
+                                       ,Branch (PatCon nameFalse [] trng trng) [Guard guardTrue eexpr]]
                                        (combineRanged tst eexpr)
 
        return fullMatch
@@ -1911,19 +1912,32 @@ handlerReturnDefault rng
 --------------------------------------------------------------------------}
 branch
   = do pat  <- pattern
-       (grd,exp) <- guard
-       return (Branch pat grd exp)
+       grds <- guards
+       return (Branch pat grds)
   <?> "pattern match"
 
-guard
+guards :: LexParser [UserGuard]
+guards
+  = do gs <- many guardBar 
+       if (null gs)
+        then (do g <- guardNoBar
+                 return (gs ++ [g]))
+        else (do g <- guardNoBar
+                 return (gs ++ [g])
+              <|>
+                 return gs)
+                 
+guardNoBar, guardBar :: LexParser UserGuard
+guardNoBar
+  = do exp <- bodyexpr
+       return (Guard guardTrue exp)
+
+guardBar
   = do bar
-       grd <- expr <?> "guard expression"
+       grd  <- expr <?> "guard expression"
        keyword "->"
-       exp <- blockexpr
-       return (grd,exp)
-  <|>
-    do exp <- bodyexpr
-       return (guardTrue, exp)
+       exp  <- blockexpr
+       return (Guard grd exp)
 
 
 {--------------------------------------------------------------------------

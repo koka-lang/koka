@@ -718,13 +718,17 @@ inferExpr propagated expect (Case expr branches rng)
        -- infer branches
        bress <- case (propagated,branches) of
                   (Nothing,(b:bs)) -> -- propagate the type of the first branch
-                    do bres@(tp,eff,bcore) <- inferBranch propagated ctp (getRange expr) b
+                    do bres@(tpeffs,_) <- inferBranch propagated ctp (getRange expr) b
+                       let tp = case tpeffs of
+                                  (tp,_):_ -> tp
+                                  _        -> failure $ "Type.Infer.inferExpr.Case: branch without guard"
                        bress <- mapM (inferBranch (Just (tp,getRange b)) ctp (getRange expr)) bs
                        return (bres:bress)
                   _ -> mapM (inferBranch propagated ctp (getRange expr)) branches
-       let (tps,effs,bcores) = unzip3 bress
+       let (tpeffss,bcores) = unzip bress
+           (tps,effs) = unzip (concat tpeffss)
        -- ensure branches match
-       let rngs = map (getRange . branchExpr) branches
+       let rngs = map (getRange . branchGuards) branches
            brngs = map getRange branches
        resTp  <- inferUnifyTypes checkMatch (zip tps (zip brngs rngs))
        -- resEff <- addTopMorphisms rng ((getRange expr,ceff):(zip rngs effs))
@@ -1302,7 +1306,7 @@ inferHandlerBranch handlerSort branchTp expect locals handledEffect effectName  
            bodyPat   = PatCon conName [(Nothing,toPattern par) | par <- pars] nameRng nameRng -- todo: potential to support full pattern matches in operator branches!
                      where
                        toPattern par = if (isWildcard (binderName par)) then PatWild nameRng else PatVar par{ binderExpr = PatWild nameRng }
-           bodyBranch= Branch bodyPat guardTrue localExpr
+           bodyBranch= Branch bodyPat [Guard guardTrue localExpr]
            bodyExpr  = Case (Var opParName False nameRng) [bodyBranch] rng
 
            branchExpr  = Lam ([parContextBind,opPar] ++ localsPar)  bodyExpr rng
@@ -1915,24 +1919,27 @@ inferVarX propagated expect name rng qname1 tp1 info1
        return (itp,eff,coref coreVar)
 -}
 
-inferBranch :: Maybe (Type,Range) -> Type -> Range -> Branch Type -> Inf (Type,Effect,Core.Branch)
-inferBranch propagated matchType matchRange branch@(Branch pattern guard expr)
+inferBranch :: Maybe (Type,Range) -> Type -> Range -> Branch Type -> Inf ([(Type,Effect)],Core.Branch)
+inferBranch propagated matchType matchRange branch@(Branch pattern guards)
   = inferPattern matchType (getRange branch) pattern (
-    \pcore gcore ->
+    \pcore gcores ->
        -- check for unused pattern bindings
        do let defined = CoreVar.bv pcore
-              free    = S.fromList $ map Core.getName $ S.toList $ CoreVar.fv gcore
+              free    = S.fromList $ map Core.getName $ S.toList $ CoreVar.fv gcores
           case filter (\tname -> not (S.member (Core.getName tname) free)) (Core.tnamesList defined) of
             [] -> return ()
             (name:_) -> do env <- getPrettyEnv
                            infWarning (getRange pattern) (text "pattern variable" <+> ppName env (Core.getName name) <+> text "is unused (or a wrongly spelled constructor?)" <->
-                                                        text " hint: prepend an underscore to make it a wildcard pattern")
-          return (Core.Branch [pcore] [gcore])
+                                                          text " hint: prepend an underscore to make it a wildcard pattern")
+          return (Core.Branch [pcore] gcores)
     )
     $ \infGamma ->
      -- infGamma <- extractInfGamma pcore
      extendInfGamma False infGamma $
-      do -- check guard expression
+      do -- check guard expressions
+         unzip <$> mapM (inferGuard propagated (getRange branch)) guards
+         
+         {-
          (gtp,geff,gcore) <- allowReturn False $ inferExpr (Just (typeBool,getRange guard)) Instantiated guard
          inferUnify (checkGuardTotal (getRange branch)) (getRange guard) typeTotal geff
          inferUnify (checkGuardBool (getRange branch)) (getRange guard) typeBool gtp
@@ -1941,6 +1948,7 @@ inferBranch propagated matchType matchRange branch@(Branch pattern guard expr)
                              inferExpr propagated Instantiated expr
          coreGuard <- subst (Core.Guard gcore bcore)
          return (btp,beff,coreGuard)
+         -}
          {-
          resCore <- subst (Core.Branch [pcore] [Core.Guard gcore bcore])
          -- check for unused pattern variables
@@ -1965,16 +1973,30 @@ inferBranch propagated matchType matchRange branch@(Branch pattern guard expr)
           Core.PatWild                     -> return []
           Core.PatLit _                    -> return []
 
+
+inferGuard :: Maybe (Type,Range) -> Range -> Guard Type -> Inf ((Type,Effect),Core.Guard) 
+inferGuard propagated branchRange (Guard test expr) 
+  = do  (gtp,geff,gcore) <- allowReturn False $ inferExpr (Just (typeBool,getRange test)) Instantiated test
+        inferUnify (checkGuardTotal branchRange) (getRange test) typeTotal geff
+        inferUnify (checkGuardBool branchRange) (getRange test) typeBool gtp
+        -- check branch expression
+        (btp,beff,bcore) <- -- inferIsolated matchRange (getRange expr) $
+                            inferExpr propagated Instantiated expr
+        coreGuard <- subst (Core.Guard gcore bcore)
+        return ((btp,beff),coreGuard)
+
+
 inferPatternX :: Type -> Range -> Pattern Type -> Inf (Core.Pattern,[(Name,NameInfo)])
 inferPatternX matchType branchRange pattern
-  = do (_,_,res) <- inferPattern matchType branchRange pattern (\pcore infGamma -> return (pcore,infGamma)) $ \infGamma ->
+  = do (_,res) <- inferPattern matchType branchRange pattern (\pcore infGamma -> return (pcore,infGamma)) $ \infGamma ->
                      do smatchType <- subst matchType
-                        return (smatchType,typeTotal,infGamma)
+                        return ([(smatchType,typeTotal)],infGamma)
        return res
 
-inferPattern :: HasTypeVar a => Type -> Range -> Pattern Type -> (Core.Pattern -> a -> Inf b) -> ([(Name,NameInfo)] -> Inf (Type,Effect,a))
-                  -> Inf (Type,Effect,b)
-inferPattern matchType branchRange (PatCon name patterns0 nameRange range) withPattern inferGuard
+inferPattern :: HasTypeVar a => Type -> Range -> Pattern Type -> (Core.Pattern -> a -> Inf b) 
+                  -> ([(Name,NameInfo)] -> Inf ([(Type,Effect)],a))
+                  -> Inf ([(Type,Effect)],b)
+inferPattern matchType branchRange (PatCon name patterns0 nameRange range) withPattern inferGuards
   = do (qname,gconTp,repr,coninfo) <- resolveConName name Nothing range
        addRangeInfo nameRange (RM.Id qname (RM.NICon gconTp) False)
        -- traceDoc $ \env -> text "inferPattern.constructor:" <+> pretty qname <.> text ":" <+> ppType env gconTp
@@ -1996,22 +2018,22 @@ inferPattern matchType branchRange (PatCon name patterns0 nameRange range) withP
                                                       inferPatternX sparTp branchRange pat)
                                             (zip (map snd conParTps) (patterns))
            let infGamma  = concat infGammas
-           (btp,beff,coreGuard0) <- inferGuard infGamma
+           (btpeffs,coreGuards0) <- inferGuards infGamma
            {-
            (btp,beff,bcore0) <- inferBranchCont pcore infGamma
            )
            return ((btp,beff,bcore), ftv btp `tvsUnion` ftv beff)
            -}
-           let (pcore,coreGuard)
-                = if (null xvars) then (Core.PatCon (Core.TName qname conRho) cpatterns repr (map snd conParTps) [] conResTp coninfo False, coreGuard0)
+           let (pcore,coreGuards)
+                = if (null xvars) then (Core.PatCon (Core.TName qname conRho) cpatterns repr (map snd conParTps) [] conResTp coninfo False, coreGuards0)
                   else let bindExists = [(TypeVar id kind Bound) | (TypeVar id kind _) <- xvars]
                            subExists  = subNew [(TypeVar id kind Skolem, TVar (TypeVar id kind Bound)) | TypeVar id kind _ <- bindExists]
                            pcore     = Core.PatCon (Core.TName qname conRho) (subExists |-> cpatterns) repr (subExists |-> (map snd conParTps)) bindExists conResTp coninfo False
-                           coreGuard = subExists |-> coreGuard0
-                       in (pcore,coreGuard)
+                           coreGuards = subExists |-> coreGuards0
+                       in (pcore,coreGuards)
 
-           bcore <- withPattern pcore coreGuard
-           return ((btp,beff,bcore),ftv btp `tvsUnion` ftv beff)
+           bcores <- withPattern pcore coreGuards
+           return ((btpeffs,bcores),ftv btpeffs)
   where
     useSkolemizedCon :: ConInfo -> Type -> Range -> Range -> (Rho -> [TypeVar] -> Inf (a,Tvs)) -> Inf a
     useSkolemizedCon coninfo gconTp range nameRange cont  | null (conInfoExists coninfo)
@@ -2048,14 +2070,14 @@ inferPattern matchType branchRange (PatVar binder) withPattern inferPart
                    Nothing -> return ()
                  (cpat,infGamma0) <- inferPatternX matchType branchRange (binderExpr binder)
                  let infGamma = ([(binderName binder,(createNameInfoX Public (binderName binder) DefVal (binderNameRange binder) matchType))] ++ infGamma0)
-                 (btp,beff,x) <- inferPart infGamma
+                 (btpeffs,x) <- inferPart infGamma
                  res <- withPattern (Core.PatVar (Core.TName (binderName binder) matchType) cpat) x
-                 return (btp,beff,res)
+                 return (btpeffs,res)
 
 inferPattern matchType branchRange (PatWild range) withPattern inferPart
-  =  do (btp,beff,x) <- inferPart []
+  =  do (btpeffs,x) <- inferPart []
         res <- withPattern Core.PatWild  x
-        return (btp,beff,res)
+        return (btpeffs,res)
 
 inferPattern matchType branchRange (PatAnn pat tp range) withPattern inferPart
   = inferPattern tp range pat withPattern $ \infGamma ->
@@ -2071,9 +2093,9 @@ inferPattern matchType branchRange (PatLit lit) withPattern inferPart
                 LitChar c _  -> (Core.PatLit (Core.LitChar c))
                 LitFloat f _  -> (Core.PatLit (Core.LitFloat f))
                 LitString s _  -> (Core.PatLit (Core.LitString s))
-    in do (btp,beff,x) <- inferPart []
+    in do (btpeffs,x) <- inferPart []
           res <- withPattern pat x
-          return (btp,beff,res)
+          return (btpeffs,res)
 {-
 inferPattern matchType branchRange pattern
   = todo ("Type.Infer.inferPattern")

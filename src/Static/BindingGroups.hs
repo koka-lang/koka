@@ -197,11 +197,16 @@ dependencyHandlerBranch modName hb@(HandlerBranch{ hbranchName=name, hbranchPars
 
 
 dependencyBranch :: Name -> UserBranch -> (UserBranch, FreeVar)
-dependencyBranch modName (Branch pattern guard expr)
-  = (Branch pattern depGuard depExpr, S.difference (S.union fvGuard fvExpr) (freeVar pattern))
+dependencyBranch modName (Branch pattern guards)
+  = let (depGuards, fvGuards) = unzipWith (id,S.unions) (map (dependencyGuard modName) guards)
+    in  (Branch pattern depGuards, S.difference fvGuards (freeVar pattern))
+
+dependencyGuard :: Name -> UserGuard -> (UserGuard, FreeVar)
+dependencyGuard modName (Guard test expr)
+  = (Guard depTest depExpr, S.union fvTest fvExpr)
   where
-    (depGuard, fvGuard) = dependencyExpr modName guard
-    (depExpr, fvExpr)   = dependencyExpr modName expr
+    (depTest, fvTest) = dependencyExpr modName test
+    (depExpr, fvExpr) = dependencyExpr modName expr
 
 dependencyLamBinders :: Name -> FreeVar -> [ValueBinder (Maybe UserType) (Maybe UserExpr)] -> ([ValueBinder (Maybe UserType) (Maybe UserExpr)], FreeVar)
 dependencyLamBinders modName fv []

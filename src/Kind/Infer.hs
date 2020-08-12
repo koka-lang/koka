@@ -229,11 +229,13 @@ synAccessors modName info
                       in case lookup name (zip (map fst (conInfoParams con)) [0..]) of
                         Just i
                           -> let patterns = [(Nothing,PatWild r) | _ <- [0..i-1]] ++ [(Nothing,PatVar (ValueBinder fld Nothing (PatWild r) r r))] ++ [(Nothing,PatWild r) | _ <- [i+1..length (conInfoParams con)-1]]
-                             in [(conInfoVis con,Branch (PatCon (conInfoName con) patterns r r) guardTrue (Var fld False r))]
+                             in [(conInfoVis con,Branch (PatCon (conInfoName con) patterns r r) 
+                                                        [Guard guardTrue (Var fld False r)])]
                         Nothing -> []
                 defaultBranch
                   = if isPartial
-                     then [Branch (PatWild rng) guardTrue (App (Var namePatternMatchError False rng) [(Nothing,msg) | msg <- messages] rng)]
+                     then [Branch (PatWild rng) 
+                             [Guard guardTrue (App (Var namePatternMatchError False rng) [(Nothing,msg) | msg <- messages] rng)]]
                      else []
                 messages
                   = [Lit (LitString (sourceName (posSource (rangeStart rng)) ++ show rng) rng), Lit (LitString (show name) rng)]
@@ -252,8 +254,8 @@ synTester info con
 
         expr      = Lam [ValueBinder arg Nothing Nothing rc rc] caseExpr rc
         caseExpr  = Case (Var arg False rc) [branch1,branch2] rc
-        branch1   = Branch (PatCon (conInfoName con) patterns rc rc) guardTrue (Var nameTrue False rc)
-        branch2   = Branch (PatWild rc) guardTrue (Var nameFalse False rc)
+        branch1   = Branch (PatCon (conInfoName con) patterns rc rc) [Guard guardTrue (Var nameTrue False rc)]
+        branch2   = Branch (PatWild rc) [Guard guardTrue (Var nameFalse False rc)]
         patterns  = [(Nothing,PatWild rc) | _ <- conInfoParams con]
         doc = "// Automatically generated. Tests for the `" ++ nameId (conInfoName con) ++ "` constructor of the `:" ++ nameId (dataInfoName info) ++ "` type.\n"
     in [DefNonRec (Def (ValueBinder name () expr rc rc) rc (conInfoVis con) (DefFun ) InlineAlways doc)]
@@ -601,11 +603,15 @@ infHandlerBranch (HandlerBranch name pars expr isRaw brType nameRng rng)
        expr' <- infExpr expr
        return (HandlerBranch name pars' expr' isRaw brType nameRng rng)
 
-infBranch (Branch pattern guard body)
+infBranch (Branch pattern guards)
   = do pattern'<- infPat pattern
-       guard'  <- infExpr guard
-       body'   <- infExpr body
-       return (Branch pattern' guard' body')
+       guards' <- mapM infGuard guards
+       return (Branch pattern' guards')
+
+infGuard (Guard test body)       
+  = do test' <- infExpr test
+       body' <- infExpr body
+       return (Guard test' body')
 
 
 {---------------------------------------------------------------

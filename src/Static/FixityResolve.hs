@@ -117,10 +117,14 @@ resolveExprMaybe (Just x) = do x' <- resolveExpr x
 isJust (Just _) = True
 isJust Nothing  = False
 
-resolveBranch (Branch pattern guard body)
-  = do guard'  <- resolveExpr guard
-       body'   <- resolveExpr body
-       return (Branch pattern guard' body')
+resolveBranch (Branch pattern guards)
+  = do guards' <- mapM resolveGuard guards
+       return (Branch pattern guards')
+  
+resolveGuard (Guard test expr)
+  = do test' <- resolveExpr test
+       expr' <- resolveExpr expr
+       return (Guard test' expr')
 
 resolveHandlerBranch hb@(HandlerBranch{ hbranchExpr=expr })
   = do expr'   <- resolveExpr expr
