@@ -278,20 +278,20 @@ optimizeGuard aliases ri dups drops = opt dups drops (M.keysSet ri)
                                        (maybeStatsUnit (xdups ++ [xdecr]))
 
 genSetNull :: ReuseInfo -> TName -> Parc (Maybe Expr)
-genSetNull ri x =
-  return $ do
-    (r, scan) <- M.lookup x ri
-    return $ makeLet [DefNonRec (makeTDef r genReuseNull)] exprUnit
+genSetNull ri x = genReuseX ri x True
 
 genReuse :: ReuseInfo -> TName -> Parc (Maybe Expr)
-genReuse ri x =
+genReuse ri x = genReuseX ri x False
+
+genReuseX :: ReuseInfo -> TName -> Bool -> Parc (Maybe Expr)
+genReuseX ri x setNull =
   return $ do
-    (r, scan) <- M.lookup x ri
-    let tp = typeOf x
-    let func = TName nameDropReuse $ TFun [(nameNil,tp),(nameNil,typeInt32)] typeTotal typeReuse
-    let args = [Var x InfoNone, scan]
-    let def = makeTDef r $ App (Var func (InfoExternal [(C, "drop_reuse_datatype(#1,#2,current_context())")])) args
-    return $ makeLet [DefNonRec def] exprUnit
+    (r, scan) <- M.lookup x ri  -- TODO: failure if not found
+    let assign = TName nameAssignReuse (TFun [(nameNil,typeReuse),(nameNil,typeOf x)] typeTotal typeUnit)
+        expr = if setNull
+                then (App (Var assign (InfoExternal [(C, "#1 = #2")])) [Var r InfoNone, genReuseNull])
+                else (App (Var assign (InfoExternal [(C, "#1 = &((#2)->_base._block)")])) [Var r InfoNone, Var x InfoNone])
+    return expr
 
 aliasMap :: [TName] -> [Pattern] -> AliasMap
 aliasMap scrutineeNames pats = M.unions $ zipWith aliases scrutineeNames pats
