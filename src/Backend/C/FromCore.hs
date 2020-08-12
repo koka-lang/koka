@@ -1264,6 +1264,21 @@ genExprs exprs
   = do xs <- mapM genExpr exprs
        let (declss,docs) = unzip xs
        return (concat declss, docs)
+       
+genInlineableExprs :: [Expr] -> Asm ([Doc],[Doc])
+genInlineableExprs exprs
+  = do xs <- mapM genInlineableExpr exprs
+       let (declss,docs) = unzip xs
+       return (concat declss, docs)
+       
+genInlineableExpr :: Expr -> Asm ([Doc],Doc)
+genInlineableExpr expr  | isInlineableExpr expr
+  = do doc <- genInline expr
+       return ([],doc)
+genInlineableExpr expr
+  = do (doc,var) <- genVarBinding expr
+       return ([doc],ppName (getName var))
+       
 
 -- | Introduces an additional let binding in core if necessary
 --   The expression in the result is guaranteed to be a Var afterwards
@@ -1381,17 +1396,17 @@ genApp f args
 
 genAppNormal :: Expr -> [Expr] -> Asm ([Doc],Doc)
 genAppNormal (Var allocAt _) [Var at _, App (Con tname repr) args]  | getName allocAt == nameAllocAt
-  = do (decls,argDocs) <- genExprs args
+  = do (decls,argDocs) <- genInlineableExprs args
        let atDoc = ppName (getName at)
        return (decls,conCreateName (getName tname) <.> arguments ([atDoc] ++ argDocs))
 genAppNormal (Var allocAt _) [Var at _, App (TypeApp (Con tname repr) targs) args]  | getName allocAt == nameAllocAt
-  = do (decls,argDocs) <- genExprs args
+  = do (decls,argDocs) <- genInlineableExprs args
        let atDoc = ppName (getName at)
        return (decls,conCreateName (getName tname) <.> arguments ([atDoc] ++ argDocs))
 genAppNormal v@(Var allocAt _) [at, Let dgs expr]  | getName allocAt == nameAllocAt  -- can happen due to box operations
   = genExpr (Let dgs (App v [at,expr]))
 genAppNormal f args
-  = do (decls,argDocs) <- genExprs args
+  = do (decls,argDocs) <- genInlineableExprs args
        case extractExtern f of
          -- known external
          Just (tname,formats)
@@ -1600,8 +1615,9 @@ isInlineableExpr expr
       Lit (LitString _)-> False
       -- C has no guarantee on argument evaluation so we only allow a select few operations to be inlined
       App (Var v (InfoExternal _)) [] -> getName v == nameYielding
-
-      -- App (Var v (InfoExternal _)) [arg] | getName v `elem` [nameBox,nameUnbox] -> isInlineableExpr arg
+      -- App (Var v (InfoExternal _)) [arg] | getName v `elem` [nameBox,nameDup,nameInt32] -> isInlineableExpr arg
+      App (Var v _) [arg] | getName v `elem` [nameBox,nameDup,nameInt32] -> isInlineableExpr arg
+      
       --App (Var _ (InfoExternal _)) args -> all isPureExpr args  -- yielding() etc.
 
       -- App (Var v _) [arg] | getName v `elem` [nameBox,nameUnbox] -> isInlineableExpr arg
