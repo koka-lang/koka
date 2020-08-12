@@ -19,6 +19,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.Maybe ( catMaybes, fromMaybe )
 import Data.Char
+import qualified Data.List as L
 import qualified Data.Map.Strict as M
 import Data.Set ( (\\) )
 import qualified Data.Set as S
@@ -165,21 +166,30 @@ type Dups   = TNames
 type Drops  = TNames
 type Reuses = TNames
 
+data DropRec = Drop TName | Reuse TName
+type DropRecs = [DropRec]
+
+getDropName :: DropRec -> TName
+getDropName (Drop tn) = tn
+getDropName (Reuse tn) = tn
+
 -- maps reused name to its token variable and scan count
 type ReuseInfo = M.Map TName (TName, Expr)
 
 parcGuardRC :: [TName] -> [Pattern] -> Dups -> Drops -> Expr -> Parc Expr
 parcGuardRC scrutinees pats dups drops body
   = do let aliases = aliasMap scrutinees pats
-       let (reuseInfo, body') = extractReuse body
-       rcStats <- optimizeGuard aliases reuseInfo dups drops
+       let (reuses, body') = extractReuse body
+       let reuseInfo = M.fromList reuses
+       let drops' = map Drop (S.toList drops) ++ map (Reuse . fst) reuses
+       rcStats <- optimizeGuard aliases reuseInfo dups drops'
        return $ maybeStats rcStats body'
 
-extractReuse :: Expr -> (ReuseInfo, Expr)
+extractReuse :: Expr -> ([(TName, (TName, Expr))], Expr)
 extractReuse expr
   = let (dgs, body) = collectLets [] expr
         (reuses, dgs') = extractReuses dgs
-     in (M.fromList reuses, makeLet dgs' body)
+     in (reuses, makeLet dgs' body)
   where
     extractReuses (DefNonRec (Def x tp (App (Var reuse _) [Var y InfoNone, scanCount]) Private DefVal _ _ _):dgs)
       | getName reuse == nameDropReuse
@@ -198,9 +208,8 @@ type AliasMap = M.Map TName TNames
 -- 1. what about non-heap allocated data? (always unique)
 -- 2. what about value types with references? (need type-specific dup/drop but have no refcount)
 -- 3. interaction with borrowed names
--- 4. interaction with reuse
-optimizeGuard :: AliasMap -> ReuseInfo -> Dups -> Drops -> Parc [Maybe Expr]
-optimizeGuard aliases ri dups drops = opt dups drops (M.keysSet ri)
+optimizeGuard :: AliasMap -> ReuseInfo -> Dups -> DropRecs -> Parc [Maybe Expr]
+optimizeGuard aliases ri = opt
   where
     children x
       = M.findWithDefault S.empty x aliases
@@ -209,88 +218,76 @@ optimizeGuard aliases ri dups drops = opt dups drops (M.keysSet ri)
     isDescendentOf parent x
       = let ys = children parent
          in not (S.null ys) && (S.member x ys || any (`isDescendentOf` x) ys)
-    isTopLevelIn x reuses
-      = not $ any (x `isDescendentOf`) reuses
 
-    opt :: Dups -> Drops -> Reuses -> Parc [Maybe Expr]
-    opt dups drops reuses
-      | all S.null [dups, drops, reuses]
-          = return []
-      | all S.null [dups, reuses]
-          = foldMapM genDrop drops
-      | all S.null [drops, reuses]
-          = foldMapM genDup dups
-      | all S.null [dups, drops]
-          = foldMapM (genReuse ri) reuses
-      | S.null drops
-          = if S.disjoint dups reuses
-            then do let y = S.findMin $ S.filter (`isTopLevelIn` reuses) reuses
-                    let reuses' = S.delete y reuses
-                    let (yDups, dups') = S.partition (isDescendentOf y) dups
-                    let (yReuses, reuses'') = S.partition (isDescendentOf y) reuses'
-                    rest <- opt dups' drops reuses''
-                    reuse <- inlineReuse yDups y yReuses
-                    return $ rest ++ [reuse]
-            else do let elims = S.intersection dups reuses
-                    rest <- opt (dups \\ elims) drops (reuses \\ elims)
-                    nulls <- foldMapM (genSetNull ri) elims
-                    return $ rest ++ nulls
-      | not (S.disjoint dups drops)
-          = let elims = S.intersection dups drops
-             in opt (dups \\ elims) (drops \\ elims) reuses
-      | otherwise
-          = do let (y, drops') = S.deleteFindMin drops
-               let (yDups, dups') = S.partition (isDescendentOf y) dups
-               let (yReuses, reuses') = S.partition (isDescendentOf y) reuses
-               rest <- opt dups' drops' reuses'
-               drop <- inlineDrop yDups y yReuses
-               return $ rest ++ [drop]
+    opt :: Dups -> DropRecs -> Parc [Maybe Expr]
+    opt dups []
+      | S.null dups = return []
+      | otherwise   = foldMapM genDup dups
+    opt dups dropRecs
+      | S.null dups = foldMapM (genDropRec ri) dropRecs
+    opt dups (Reuse y:ys)
+      | S.member y dups
+          = do rest <- opt (S.delete y dups) ys
+               set <- genSetNull ri y
+               return $ rest ++ [set]
+    opt dups (Drop y:ys)
+      | S.member y dups
+          = opt (S.delete y dups) ys
+    opt dups (yRec:ys)
+      = do let y = getDropName yRec
+               (yDups, dups') = S.partition (isDescendentOf y) dups
+               (yRecs, ys') = L.partition (isDescendentOf y . getDropName) ys
+           rest <- opt dups' ys'
+           inlined <- inline yDups yRec yRecs
+           return $ rest ++ [inlined]
 
-    inlineReuse dups dropVar reuses
-      = do xdups <- opt dups S.empty reuses
-           isVal <- isValueType (typeOf dropVar)
-           xdrops <- opt dups (children dropVar) reuses
-           xSetNull <- genSetNull ri dropVar
-           xReuse <- genReuse ri dropVar
-           return $ Just $ makeIfExpr (genIsUnique dropVar)
-                             (maybeStatsUnit (xdrops ++ [xReuse]))
-                             (maybeStatsUnit (xdups ++ [xSetNull]))
-
-    inlineDrop dups dropVar reuses
-      = do xdups <- opt dups S.empty reuses
-           isVal <- isValueType (typeOf dropVar)
-           let regularDrop = do xdrop <- genDrop dropVar
-                                return $ Just (maybeStatsUnit (xdups ++ [xdrop]))
-           if isVal
-             then regularDrop
-           else if isBoxType (typeOf dropVar)
-             then case S.toList dups of
-                    [dupVar] | isChildOf dropVar dupVar
-                      -> do bc <- getBoxForm (typeOf dupVar)
-                            case bc of
-                              BoxIdentity -> return Nothing
+    inline dups v drops
+      = do xdups  <- opt dups drops
+           xdrops <- opt dups $ map Drop (S.toList . children $ getDropName v) ++ drops
+           case v of
+             Reuse y
+               -> do xSetNull <- genSetNull ri y
+                     xReuse <- genReuse ri y
+                     return $ Just $ makeIfExpr (genIsUnique y)
+                                       (maybeStatsUnit (xdrops ++ [xReuse]))
+                                       (maybeStatsUnit (xdups ++ [xSetNull]))
+             Drop y
+               -> do isVal <- isValueType (typeOf y)
+                     let regularDrop = do xdrop <- genDrop y
+                                          return $ Just (maybeStatsUnit (xdups ++ [xdrop]))
+                     if isVal
+                       then regularDrop
+                     else if isBoxType (typeOf y)
+                       then case S.toList dups of
+                              [dupVar] | isChildOf y dupVar
+                                -> do bc <- getBoxForm (typeOf dupVar)
+                                      case bc of
+                                        BoxIdentity -> return Nothing
+                                        _ -> regularDrop
                               _ -> regularDrop
-                    _ -> regularDrop
-             else do xdrops <- opt dups (children dropVar) reuses
-                     xdecr  <- genDecRef dropVar
-                     return $ Just $ makeIfExpr (genIsUnique dropVar)
-                                       (maybeStats xdrops (genFree dropVar))
-                                       (maybeStatsUnit (xdups ++ [xdecr]))
+                       else do xdecr  <- genDecRef y
+                               return $ Just $ makeIfExpr (genIsUnique y)
+                                                 (maybeStats xdrops (genFree y))
+                                                 (maybeStatsUnit (xdups ++ [xdecr]))
+
+genDropRec :: ReuseInfo -> DropRec -> Parc (Maybe Expr)
+genDropRec ri (Reuse tn) = genReuse ri tn -- TODO: make this a genDropReuse
+genDropRec _ (Drop tn) = genDrop tn
 
 genSetNull :: ReuseInfo -> TName -> Parc (Maybe Expr)
-genSetNull ri x = genReuseX ri x True
+genSetNull ri x = genReuseEx ri x True
 
 genReuse :: ReuseInfo -> TName -> Parc (Maybe Expr)
-genReuse ri x = genReuseX ri x False
+genReuse ri x = genReuseEx ri x False
 
-genReuseX :: ReuseInfo -> TName -> Bool -> Parc (Maybe Expr)
-genReuseX ri x setNull =
+genReuseEx :: ReuseInfo -> TName -> Bool -> Parc (Maybe Expr)
+genReuseEx ri x setNull =
   return $ do
     (r, scan) <- M.lookup x ri  -- TODO: failure if not found
     let assign = TName nameAssignReuse (TFun [(nameNil,typeReuse),(nameNil,typeOf x)] typeTotal typeUnit)
         expr = if setNull
-                then (App (Var assign (InfoExternal [(C, "#1 = #2")])) [Var r InfoNone, genReuseNull])
-                else (App (Var assign (InfoExternal [(C, "#1 = &((#2)->_base._block)")])) [Var r InfoNone, Var x InfoNone])
+                then App (Var assign (InfoExternal [(C, "#1 = #2")])) [Var r InfoNone, genReuseNull]
+                else App (Var assign (InfoExternal [(C, "#1 = &((#2)->_base._block)")])) [Var r InfoNone, Var x InfoNone]
     return expr
 
 aliasMap :: [TName] -> [Pattern] -> AliasMap
