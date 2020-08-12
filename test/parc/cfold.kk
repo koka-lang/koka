@@ -21,7 +21,7 @@ fun append_add( e0 : expr, e3 : expr ) : expr {
 
 fun append_mul( e0 : expr, e3 : expr ) : expr {
   match(e0) {
-    Mul(e1,e2) -> Mul(e1, append_add(e2,e3))
+    Mul(e1,e2) -> Mul(e1, append_mul(e2,e3))
     _          -> Mul(e0,e3)
   }
 }
