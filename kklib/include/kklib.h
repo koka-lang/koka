@@ -68,15 +68,15 @@ static inline bool tag_is_raw(tag_t tag) {
 // (Reference counts are always 32-bit (even on 64-bit) platforms but get "sticky" if
 //  they get too large (>0xC0000000) and in such case we never free the object, see `refcount.c`)
 typedef struct header_s {
-  uint32_t  refcount;         // reference count
-  uint16_t  tag;              // header tag
   uint8_t   scan_fsize;       // number of fields that should be scanned when releasing (`scan_fsize <= 0xFF`, if 0xFF, the full scan size is the first field)
   uint8_t   thread_shared : 1;
+  uint16_t  tag;              // header tag
+  uint32_t  refcount;         // reference count
 } header_t;
 
 #define SCAN_FSIZE_MAX (0xFF)
-#define HEADER(scan_fsize,tag)         { 0, tag, scan_fsize, 0 }            // start with refcount of 0
-#define HEADER_STATIC(scan_fsize,tag)  { U32(0xFF00), tag, scan_fsize, 0 }  // start with recognisable refcount (anything > 1 is ok)
+#define HEADER(scan_fsize,tag)         { scan_fsize, 0, tag, 0 }            // start with refcount of 0
+#define HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 0, tag, U32(0xFF00) }  // start with recognisable refcount (anything > 1 is ok)
 
 
 // Polymorphic operations work on boxed values. (We use a struct for extra checks on accidental conversion)
@@ -154,6 +154,7 @@ typedef struct block_large_s {
 typedef block_t* ptr_t;
 
 // A general datatype with constructors and singletons is eiter a pointer to a block or an enumeration
+
 typedef union datatype_s {
   ptr_t      ptr;         // always lowest bit cleared
   uintptr_t  singleton;   // always lowest bit set as: 4*tag + 1
@@ -357,13 +358,18 @@ decl_export void block_free(block_t* b, context_t* ctx);
 static inline void block_init(block_t* b, size_t size, size_t scan_fsize, tag_t tag) {
   UNUSED(size);
   assert_internal(scan_fsize < SCAN_FSIZE_MAX);
-  header_t header = { 0, (uint16_t)tag, (uint8_t)scan_fsize, 0 };
+#if (ARCH_LITTLE_ENDIAN)
+  // explicit shifts lead to better codegen
+  *((uint64_t*)b) = ((uint64_t)scan_fsize | ((uint64_t)tag << 16));  
+#else
+  header_t header = { (uint8_t)scan_fsize, 0, (uint16_t)tag, 0 };
   b->header = header;
+#endif
 }
 
 static inline void block_large_init(block_large_t* b, size_t size, size_t scan_fsize, tag_t tag) {
   UNUSED(size);
-  header_t header = { 0, (uint16_t)tag, SCAN_FSIZE_MAX, 0 };
+  header_t header = { SCAN_FSIZE_MAX, 0, (uint16_t)tag, 0 };
   b->_block.header = header;
   b->large_scan_fsize = box_enum(scan_fsize);
 }
@@ -433,33 +439,34 @@ decl_export block_t* dup_block_check(block_t* b, uint32_t rc);
 
 static inline block_t* dup_block(block_t* b) {
   const uint32_t rc = b->header.refcount;
-  if (unlikely((int32_t)rc < 0)) {  // note: assume two's complement  (we can skip this check if we never overflow a reference count or use thread-shared objects.)
-    return dup_block_check(b,rc);   // thread-shared or sticky (overflow) ?
-  }
-  else {
+  if (likely((int32_t)rc >= 0)) {    // note: assume two's complement  (we can skip this check if we never overflow a reference count or use thread-shared objects.)
     b->header.refcount = rc+1;
     return b;
+  }
+  else {
+    return dup_block_check(b, rc);   // thread-shared or sticky (overflow) ?
   }
 }
 
 static inline void drop_block(block_t* b, context_t* ctx) {
   const uint32_t rc = b->header.refcount;
-  if ((int32_t)(rc <= 0)) {         // note: assume two's complement
-    block_check_free(b, rc, ctx);   // thread-shared, sticky (overflowed), or can be freed?
+  if ((int32_t)(rc > 0)) {          // note: assume two's complement
+    b->header.refcount = rc-1;
   }
   else {
-    b->header.refcount = rc-1;
+    block_check_free(b, rc, ctx);   // thread-shared, sticky (overflowed), or can be freed?
   }
 }
 
 static inline void block_decref(block_t* b, context_t* ctx) {
   const uint32_t rc = b->header.refcount;
   assert_internal(rc != 0);
-  if (unlikely((int32_t)(rc <= 0))) {  // note: assume two's complement
-    block_check_free(b, rc, ctx);      // thread-shared, sticky (overflowed), or can be freed? TODO: should just free; not drop recursively
+  if (likely((int32_t)(rc > 0))) {     // note: assume two's complement
+    b->header.refcount = rc - 1;
   }
   else {
-    b->header.refcount = rc - 1;
+    assert_internal(false);
+    block_check_free(b, rc, ctx);      // thread-shared, sticky (overflowed), or can be freed? TODO: should just free; not drop recursively
   }
 }
 
@@ -667,11 +674,11 @@ static inline void drop_datatype_assert(datatype_t d, tag_t t, context_t* ctx) {
 }
 
 static inline reuse_t drop_reuse_datatype(datatype_t d, size_t scan_fsize, context_t* ctx) {
-  if (datatype_is_ptr(d)) { 
-    return drop_reuse_blockn(d.ptr, scan_fsize, ctx); 
+  if (datatype_is_singleton(d)) {
+    return reuse_null;
   }
   else {
-    return reuse_null;
+    return drop_reuse_blockn(d.ptr, scan_fsize, ctx);
   }
 }
 
