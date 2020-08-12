@@ -137,9 +137,9 @@ isStruct DataIso          = True  -- because C# distinguishes on types, we canno
 isStruct _                = False
 
 hasTagField :: DataRepr -> Bool
-hasTagField DataNormal = True
-hasTagField DataStruct = True
-hasTagField _          = False
+hasTagField (DataNormal _) = True
+hasTagField DataStruct     = True
+hasTagField _              = False
 
 genTypeDef :: TypeDef -> Asm ()
 genTypeDef (Synonym synInfo)
