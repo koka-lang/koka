@@ -861,14 +861,6 @@ hasTagField DataAsMaybe = True
 hasTagField DataStruct  = True
 hasTagField rep         = False
 
-dataReprMayHaveSingletons :: DataRepr -> Bool
-dataReprMayHaveSingletons dataRepr
-  = case dataRepr of
-      DataAsList        -> True
-      DataSingleNormal  -> True
-      (DataNormal hasSingletons) -> hasSingletons
-      -- DataOpen          -> True
-      _                 -> False
 
 genLambda :: [TName] -> Effect -> Expr -> Asm Doc
 genLambda params eff body
