@@ -161,38 +161,35 @@ parcGuard scrutinees pats live (Guard test expr)
          Guard test' <$> parcGuardRC scrutinees pats dups drops expr'
   where pvs = bv pats
 
-parcGuardRC :: [TName] -> [Pattern] -> TNames -> TNames -> Expr -> Parc Expr
-parcGuardRC scrutinees pats dupVars dropVars body
+type Dups   = TNames
+type Drops  = TNames
+type Reuses = TNames
+
+-- maps reused name to its token variable and scan count
+type ReuseInfo = M.Map TName (TName, Expr)
+
+parcGuardRC :: [TName] -> [Pattern] -> Dups -> Drops -> Expr -> Parc Expr
+parcGuardRC scrutinees pats dups drops body
   = do let aliases = aliasMap scrutinees pats
-       -- parcTrace (show aliases)
-       let (reuses,body') = extractReuse body
-       parcTrace ("reuses: " ++ show (map (\(x,y,_) -> (x,y)) reuses))
-       rcStats <- optimizeGuard aliases dupVars dropVars
-       return $ maybeStats rcStats body
+       let (reuseInfo, body') = extractReuse body
+       rcStats <- optimizeGuard aliases reuseInfo dups drops
+       return $ maybeStats rcStats body'
 
-
--- extract `val x = drop_reuse(y,scan_count)` statements into a list (x,y,scan_count) and rest of the expressions
-extractReuse :: Expr -> ([(TName,TName,Expr)],Expr)
+extractReuse :: Expr -> (ReuseInfo, Expr)
 extractReuse expr
-  = case collectLets [] expr of
-      (dgs,body) | not (null dgs)  -> let (reuses, dgs') = extractReuses dgs in (reuses, makeLet dgs' body)
-      _          -> ([],expr)
+  = let (dgs, body) = collectLets [] expr
+        (reuses, dgs') = extractReuses dgs
+     in (M.fromList reuses, makeLet dgs' body)
   where
-    extractReuses []  = ([],[])
-    extractReuses (dg:dgs)
-      = case dg of
-          DefNonRec (Def x tp (App (Var reuse _) [Var y InfoNone, scanCount]) Private DefVal _ _ _) | getName reuse == nameDropReuse
-            -> let (reuses,dgs') = extractReuses dgs
-               in ((TName x tp,y,scanCount):reuses, dgs')
-          _ -> ([],dg:dgs)
+    extractReuses (DefNonRec (Def x tp (App (Var reuse _) [Var y InfoNone, scanCount]) Private DefVal _ _ _):dgs)
+      | getName reuse == nameDropReuse
+          = let (rs,dgs') = extractReuses dgs
+                r = (y, (TName x tp, scanCount))
+             in (r:rs, dgs')
+    extractReuses defs = ([], defs)
 
-    collectLets acc expr
-      = case expr of
-          Let dgs body -> collectLets (dgs:acc) body
-          _            -> (concat (reverse acc), expr)
-
-
-
+    collectLets acc (Let dgs body) = collectLets (dgs:acc) body
+    collectLets acc expr = (concat (reverse acc), expr)
 
 -- maps a name to its children
 type AliasMap = M.Map TName TNames
@@ -202,84 +199,99 @@ type AliasMap = M.Map TName TNames
 -- 2. what about value types with references? (need type-specific dup/drop but have no refcount)
 -- 3. interaction with borrowed names
 -- 4. interaction with reuse
-
-{-
-match(xs) {
-  Cons(x,Cons(y,ys) as xx) ->
-    r = if (unique(xs)) {
-      if (unique(xx)) { drop(y); free(xx) } { dup(ys); decref(xx) }
-      reuse(xs)
-    }
-    else {
-      dup(x)
-      dup(ys)
-      dec_ref(xs); reuse_null
-    }
-    Cons@r(x,ys)
-}
--}
-optimizeGuard :: AliasMap -> TNames -> TNames -> Parc [Maybe Expr]
-optimizeGuard aliases dupVars dropVars
-  = opt dupVars dropVars
+optimizeGuard :: AliasMap -> ReuseInfo -> Dups -> Drops -> Parc [Maybe Expr]
+optimizeGuard aliases ri dups drops = opt dups drops (M.keysSet ri)
   where
-    children var
-      = M.findWithDefault S.empty var aliases
-      
+    children x
+      = M.findWithDefault S.empty x aliases
     isChildOf parent x
       = S.member x (children parent)
-
     isDescendentOf parent x
-      = let childs = children parent
-        in (not (S.null childs) && ((S.member x childs) || any (\child -> isDescendentOf child x) childs))
+      = let ys = children parent
+         in not (S.null ys) && (S.member x ys || any (`isDescendentOf` x) ys)
+    isTopLevelIn x reuses
+      = not $ any (x `isDescendentOf`) reuses
 
-    opt :: TNames -> TNames -> Parc [Maybe Expr]
-    opt dupVars dropVars
-      | S.null dupVars && S.null dropVars
+    opt :: Dups -> Drops -> Reuses -> Parc [Maybe Expr]
+    opt dups drops reuses
+      | all S.null [dups, drops, reuses]
           = return []
-      | S.null dupVars
-          = foldMapM genDrop dropVars
-      | S.null dropVars
-          = foldMapM genDup dupVars
-      | S.disjoint dupVars dropVars
-          = do let (y, dropVars') = S.deleteFindMin dropVars
-               let (dupInY, notInY) = S.partition (isDescendentOf y) dupVars
-               rest <- opt notInY dropVars'    -- forall x `in` dupInY => x `notin` dropVars  (because dupInY `disjoint` dropVars)
-               inlinedDrop <- inlineDrop dupInY y
-               return $ rest ++ [inlinedDrop]
+      | all S.null [dups, reuses]
+          = foldMapM genDrop drops
+      | all S.null [drops, reuses]
+          = foldMapM genDup dups
+      | all S.null [dups, drops]
+          = foldMapM (genReuse ri) reuses
+      | S.null drops
+          = if S.disjoint dups reuses
+            then do let y = S.findMin $ S.filter (`isTopLevelIn` reuses) reuses
+                    let reuses' = S.delete y reuses
+                    let (yDups, dups') = S.partition (isDescendentOf y) dups
+                    let (yReuses, reuses'') = S.partition (isDescendentOf y) reuses'
+                    rest <- opt dups' drops reuses''
+                    reuse <- inlineReuse yDups y yReuses
+                    return $ rest ++ [reuse]
+            else do let elims = S.intersection dups reuses
+                    rest <- opt (dups \\ elims) drops (reuses \\ elims)
+                    nulls <- foldMapM (genSetNull ri) elims
+                    return $ rest ++ nulls
+      | not (S.disjoint dups drops)
+          = let elims = S.intersection dups drops
+             in opt (dups \\ elims) (drops \\ elims) reuses
       | otherwise
-          = let elims = S.intersection dupVars dropVars
-            in opt (dupVars \\ elims) (dropVars \\ elims)
+          = do let (y, drops') = S.deleteFindMin drops
+               let (yDups, dups') = S.partition (isDescendentOf y) dups
+               let (yReuses, reuses') = S.partition (isDescendentOf y) reuses
+               rest <- opt dups' drops' reuses'
+               drop <- inlineDrop yDups y yReuses
+               return $ rest ++ [drop]
 
-    inlineDrop dupVars dropVar
-      | S.null dupVars
-          = genDrop dropVar
-      | otherwise
-          = do xdups  <- opt dupVars S.empty
-               isVal  <- isValueType (typeOf dropVar)
-               let regularDrop = do xdrop <- genDrop dropVar
-                                    return (Just (maybeStatsUnit (xdups ++ [xdrop])))
-               if (isVal)
-                 then regularDrop
-               else if (isBoxType (typeOf dropVar))  -- Box
-                 then  do -- parcTrace $ ("inlineDrop: Box: " ++ show (S.toList dupVars) ++ ", " ++ show (dropVar))                      
-                          case S.toList dupVars of
-                            [dupVar] | isChildOf dropVar dupVar   -- single: Box(x) as y 
-                                     -> do bc <- getBoxForm (typeOf dupVar)  -- is x is a pure value type (int, double etc)?
-                                           -- parcTrace $ "  bc: " ++ show bc ++ ", tp: " ++ show (typeOf dupVar)
-                                           case bc of
-                                              BoxIdentity -> return Nothing  -- like `Box(int)` or `Box(int16)`: no need to dup/drop
-                                              --TODO: BoxRaw -> return (Just [{-drop_shallow-}])   -- like `Box(int64)` on 32-bit; just free the box 
-                                              _           -> regularDrop
-                            _        -> regularDrop
-                 else do -- newdrops <- filterM (needsDrop . typeOf) (S.toList (children dropVar))
-                         xdrops <- opt dupVars (children dropVar) -- (S.fromList newdrops)                         
-                         xdecr  <- genDecRef dropVar
-                         let stat = makeIfExpr (genIsUnique dropVar)
-                                      (maybeStats xdrops (genFree dropVar))
-                                      (maybeStatsUnit (xdups ++ [xdecr]))
-                         return (Just stat)
-                         
-                         
+    inlineReuse dups dropVar reuses
+      = do xdups <- opt dups S.empty reuses
+           isVal <- isValueType (typeOf dropVar)
+           xdrops <- opt dups (children dropVar) reuses
+           xSetNull <- genSetNull ri dropVar
+           xReuse <- genReuse ri dropVar
+           return $ Just $ makeIfExpr (genIsUnique dropVar)
+                             (maybeStatsUnit (xdrops ++ [xReuse]))
+                             (maybeStatsUnit (xdups ++ [xSetNull]))
+
+    inlineDrop dups dropVar reuses
+      = do xdups <- opt dups S.empty reuses
+           isVal <- isValueType (typeOf dropVar)
+           let regularDrop = do xdrop <- genDrop dropVar
+                                return $ Just (maybeStatsUnit (xdups ++ [xdrop]))
+           if isVal
+             then regularDrop
+           else if isBoxType (typeOf dropVar)
+             then case S.toList dups of
+                    [dupVar] | isChildOf dropVar dupVar
+                      -> do bc <- getBoxForm (typeOf dupVar)
+                            case bc of
+                              BoxIdentity -> return Nothing
+                              _ -> regularDrop
+                    _ -> regularDrop
+             else do xdrops <- opt dups (children dropVar) reuses
+                     xdecr  <- genDecRef dropVar
+                     return $ Just $ makeIfExpr (genIsUnique dropVar)
+                                       (maybeStats xdrops (genFree dropVar))
+                                       (maybeStatsUnit (xdups ++ [xdecr]))
+
+genSetNull :: ReuseInfo -> TName -> Parc (Maybe Expr)
+genSetNull ri x =
+  return $ do
+    (r, scan) <- M.lookup x ri
+    return $ makeLet [DefNonRec (makeTDef r genReuseNull)] exprUnit
+
+genReuse :: ReuseInfo -> TName -> Parc (Maybe Expr)
+genReuse ri x =
+  return $ do
+    (r, scan) <- M.lookup x ri
+    let tp = typeOf x
+    let func = TName nameDropReuse $ TFun [(nameNil,tp),(nameNil,typeInt32)] typeTotal typeReuse
+    let args = [Var x InfoNone, scan]
+    let def = makeTDef r $ App (Var func (InfoExternal [(C, "drop_reuse_datatype(#1,#2,current_context())")])) args
+    return $ makeLet [DefNonRec def] exprUnit
 
 aliasMap :: [TName] -> [Pattern] -> AliasMap
 aliasMap scrutineeNames pats = M.unions $ zipWith aliases scrutineeNames pats
@@ -342,29 +354,29 @@ useTName tname
        if live || borrowed
          then genDup tname
          else return Nothing
-  
+
 -----------------------------------------------------------
 -- Optimize boxed reference counting
------------------------------------------------------------  
-         
+-----------------------------------------------------------
+
 data BoxForm = BoxIdentity   -- directly in the box itself (`int` or any regular datatype)
              | BoxRaw        -- (possibly) heap allocated raw bits (`int64`)
              | BoxValue      -- (possibly) heap allocated value with scan fields (`maybe<int>`)
              | BoxNone       -- not a boxed value type
              deriving(Eq,Ord,Enum,Show)
-  
+
 getBoxForm :: Type -> Parc BoxForm
 getBoxForm tp
  = do platform <- getPlatform
       repr <- getDataDefRepr tp
       return $ case repr of
-        (DataDefValue _ scan, _) 
-          -> if (scan==0) 
+        (DataDefValue _ scan, _)
+          -> if scan == 0
               then case extractDataDefType tp of
-                     Just name | name == nameTpInt || name == nameTpChar
-                                 || ((name == nameTpInt32 || name == nameTpFloat32) && sizePtr platform > 4)  
-                                 || name == nameTpInt8 || name == nameTpInt16 || name == nameTpByte 
-                       -> BoxIdentity
+                     Just name
+                       | name `elem` [nameTpInt, nameTpChar, nameTpInt8, nameTpInt16, nameTpByte] ||
+                         ((name `elem` [nameTpInt32, nameTpFloat32]) && sizePtr platform > 4)
+                           -> BoxIdentity
                      _ -> BoxRaw
               else BoxValue
         _ -> BoxIdentity
@@ -372,8 +384,7 @@ getBoxForm tp
 
 -----------------------------------------------------------
 -- Optimize boxed reference counting
------------------------------------------------------------  
-
+-----------------------------------------------------------
 
 -- value types with reference fields still need a drop
 needsDupDrop :: Type -> Parc Bool
@@ -389,7 +400,6 @@ isValueType tp
        return $ case repr of
          (DataDefValue _ _, _) -> True
          _                     -> False
-
 
 -- Generate a dup/drop over a given (locally bound) name
 -- May return Nothing if the type never needs a dup/drop (like an `int32` or `bool`)
@@ -425,7 +435,7 @@ genIsUnique tname
 
 -- Generate a free of a constructor
 genFree :: TName -> Expr
-genFree tname  
+genFree tname
   = App (Var (TName nameFree funTp) (InfoExternal [(C, "runtime_free(#1)")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
@@ -434,12 +444,12 @@ genFree tname
 genDecRef :: TName -> Parc (Maybe Expr)
 genDecRef tname
   = do needs <- needsDupDrop (typeOf tname)
-       if (not needs) 
+       if not needs
          then return Nothing
          else return $ Just $
                         App (Var (TName nameDecRef funTp) (InfoExternal [(C, "decref(#1,current_context())")]))
                             [Var tname InfoNone]
-  where 
+  where
     funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
 
 
@@ -450,8 +460,7 @@ genFreeReuse tname
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeReuse
 
-
--- Generate a reuse free of a constructor
+-- Get a null token for reuse inlining
 genReuseNull :: Expr
 genReuseNull
   = App (Var (TName nameReuseNull funTp) (InfoExternal [(C, "reuse_null")])) []
@@ -692,7 +701,7 @@ extractDataDefType tp
       TCon tc       -> Just (typeConName tc)
       _             -> Nothing
 
-      
+
 isBoxType :: Type -> Bool
 isBoxType (TCon (TypeCon name _))  = name == nameTpBox
 isBoxType _ = False
