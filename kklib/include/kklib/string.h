@@ -12,7 +12,7 @@
 /*--------------------------------------------------------------------------------------
   Char as unicode point
 --------------------------------------------------------------------------------------*/
-typedef uint32_t char_t;
+typedef int32_t char_t;
 
 #define char_replacement  ((char_t)(U32(0xFFFD)))
 
@@ -36,7 +36,7 @@ typedef struct string_s {
 
 #define STRING_SMALL_MAX (UZ(8))
 typedef struct string_small_s {
-  struct string_s _type;
+  struct string_s _base;
   union {
     uint64_t str_value;              
     uint8_t  str[STRING_SMALL_MAX];  // UTF8 string in-place ending in 0 of at most 8 bytes
@@ -44,26 +44,26 @@ typedef struct string_small_s {
 } *string_small_t;
 
 typedef struct string_normal_s {
-  struct string_s _type;
+  struct string_s _base;
   size_t  length;
   uint8_t str[1];  // UTF8 string in-place of `length+1` bytes ending in 0
 } *string_normal_t;
 
 typedef struct string_raw_s {
-  struct string_s _type;
+  struct string_s _base;
   free_fun_t* free;     
   const uint8_t* cstr;  // UTF8 string of `length+1` bytes ending in 0
   size_t length;
 } *string_raw_t;
 
 extern struct string_normal_s _static_string_empty;
-#define string_empty  (&_static_string_empty._type)
+#define string_empty  (&_static_string_empty._base)
 
 // Define string literals
 #define define_string_literal(decl,name,len,chars) \
-  static struct { struct string_s _type; size_t length; char str[len+1]; } _static_##name = \
+  static struct { struct string_s _base; size_t length; char str[len+1]; } _static_##name = \
     { { { HEADER_STATIC(0,TAG_STRING) } }, len, chars }; \
-  decl string_t name = &_static_##name._type;  
+  decl string_t name = &_static_##name._base;  
 
 
 static inline string_t unbox_string_t(box_t v) {
@@ -77,11 +77,11 @@ static inline box_t box_string_t(string_t s) {
 }
 
 static inline void drop_string_t(string_t str, context_t* ctx) {
-  drop_datatype(str, ctx);
+  drop_basetype(str, ctx);
 }
 
 static inline string_t dup_string_t(string_t str) {
-  return dup_datatype_as(string_t,str);
+  return dup_basetype_as(string_t,str);
 }
 
 
@@ -97,7 +97,7 @@ static inline string_t string_alloc_len(size_t len, const char* s, context_t* ct
     if (s != NULL && len > 0) {
       memcpy(&str->u.str[0], s, len);
     }
-    return &str->_type;
+    return &str->_base;
   }
   else {
     string_normal_t str = block_as_assert(string_normal_t, block_alloc_any(sizeof(struct string_normal_s) - 1 /* char str[1] */ + len + 1 /* 0 terminator */, 0, TAG_STRING, ctx), TAG_STRING);
@@ -107,7 +107,7 @@ static inline string_t string_alloc_len(size_t len, const char* s, context_t* ct
     str->length = len;
     str->str[len] = 0;
     // todo: assert valid UTF8 in debug mode
-    return &str->_type;
+    return &str->_base;
   }
 }
 
@@ -127,7 +127,7 @@ static inline string_t string_alloc_raw_len(size_t len, const char* s, bool free
   str->cstr = (const uint8_t*)s;
   str->length = len;
   // todo: assert valid UTF8 in debug mode
-  return &str->_type;
+  return &str->_base;
 }
 
 static inline string_t string_alloc_raw(const char* s, bool free, context_t* ctx) {
@@ -136,14 +136,14 @@ static inline string_t string_alloc_raw(const char* s, bool free, context_t* ctx
 }
 
 static inline const uint8_t* string_buf_borrow(const string_t str) {
-  if (datatype_tag(str) == TAG_STRING_SMALL) {
-    return &(datatype_as_assert(string_small_t, str, TAG_STRING_SMALL)->u.str[0]);
+  if (basetype_has_tag(str,TAG_STRING_SMALL)) {
+    return &(basetype_as_assert(string_small_t, str, TAG_STRING_SMALL)->u.str[0]);
   }
-  else if (datatype_tag(str) == TAG_STRING) {
-    return &(datatype_as_assert(string_normal_t, str, TAG_STRING)->str[0]);
+  else if (basetype_has_tag(str,TAG_STRING)) {
+    return &(basetype_as_assert(string_normal_t, str, TAG_STRING)->str[0]);
   }
   else {
-    return datatype_as_assert(string_raw_t, str, TAG_STRING_RAW)->cstr;
+    return basetype_as_assert(string_raw_t, str, TAG_STRING_RAW)->cstr;
   }
 }
 
@@ -156,19 +156,19 @@ static inline int string_cmp_cstr_borrow(const string_t s, const char* t) {
 }
 
 static inline size_t decl_pure string_len_borrow(const string_t str) {
-  if (datatype_tag(str) == TAG_STRING_SMALL) {  
-    const string_small_t s = datatype_as_assert(const string_small_t, str, TAG_STRING_SMALL);
+  if (basetype_has_tag(str,TAG_STRING_SMALL)) {  
+    const string_small_t s = basetype_as_assert(const string_small_t, str, TAG_STRING_SMALL);
 #ifdef ARCH_LITTLE_ENDIAN
     return (STRING_SMALL_MAX - (bits_clz64(s->u.str_value)/8));
 #else
     return (STRING_SMALL_MAX - (bits_ctz64(s->u.str_value)/8));
 #endif
   }
-  else if (datatype_tag(str) == TAG_STRING) {
-    return datatype_as_assert(string_normal_t, str, TAG_STRING)->length;
+  else if (basetype_has_tag(str,TAG_STRING)) {
+    return basetype_as_assert(string_normal_t, str, TAG_STRING)->length;
   }
   else {
-    return datatype_as_assert(string_raw_t, str, TAG_STRING_RAW)->length;
+    return basetype_as_assert(string_raw_t, str, TAG_STRING_RAW)->length;
   }
 }
 
@@ -251,7 +251,7 @@ static inline char_t utf8_read_validate(const uint8_t* s, size_t* count) {
   // this is important as it allows later to pre-allocate a buffer of the right size even if some
   // sequences are invalid.
   else {
-    *count = (utf8_next(s) - s);
+    *count = (size_t)(utf8_next(s) - s);
     return char_replacement;
   }
 }
@@ -282,7 +282,7 @@ static inline char_t utf8_read(const uint8_t* s, size_t* count) {
   }
   // invalid, skip continuation bytes
   else {  // b >= 0xF5
-    *count = (utf8_next(s) - s);  // skip to next
+    *count = (size_t)(utf8_next(s) - s);  // skip to next
     c = char_replacement;
   }
 #if (DEBUG!=0)

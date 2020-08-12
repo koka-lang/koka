@@ -94,7 +94,8 @@ static inline box_t     box_int(intx_t i);
 
 // Use a boxed representation as an intptr
 static inline box_t _new_box(uintptr_t u) {
-  box_t b; b.box = u;
+  box_t b; 
+  b.box = u;
   return b;
 }
 
@@ -363,12 +364,26 @@ static inline box_t box_ptr_assert(block_t* b, tag_t tag) {
   return box_ptr(b);
 }
 
-#define unbox_datatype_as_assert(tp,b,tag)  (block_as_assert(tp,unbox_ptr(b),tag))
-#define unbox_datatype_as(tp,b)             ((tp)unbox_ptr(b))
-#define box_datatype(b)                     (box_ptr(&(b)->_block))
+#define unbox_basetype_as_assert(tp,b,tag)  (block_as_assert(tp,unbox_ptr(b),tag))
+#define unbox_basetype_as(tp,b)             ((tp)unbox_ptr(b))
+#define box_basetype(b)                     (box_ptr(&(b)->_block))
 
-#define unbox_constructor_as(tp,b,tag)   (unbox_datatype_as_assert(tp,b,tag))
-#define box_constructor(b)               (box_datatype(&(b)->_type))
+#define unbox_constructor_as(tp,b,tag)      (unbox_basetype_as_assert(tp,b,tag))
+#define box_constructor(b)                  (box_basetype(&(b)->_base))
+
+static inline datatype_t unbox_datatype(box_t b) {
+  datatype_t d;
+  d.singleton = b.box;
+  return d;
+}
+
+static inline box_t box_datatype(datatype_t d) {
+  box_t b;
+  b.box = d.singleton;
+  return b;
+}
+
+
 
 /* Generic boxing of value types */
 
@@ -379,16 +394,16 @@ typedef struct boxed_value_s {
 
 #define unbox_valuetype(tp,x,box,ctx) \
   do { \
-    boxed_value_t p = unbox_datatype_as_assert(boxed_value_t,box,TAG_BOX); \
+    boxed_value_t p = unbox_basetype_as_assert(boxed_value_t,box,TAG_BOX); \
     x = *((tp*)(&p->data[0])); \
-    if (ctx!=NULL) { drop_datatype(p,ctx); } \
+    if (ctx!=NULL) { drop_basetype(p,ctx); } \
   } while(0);
 
 #define box_valuetype(tp,x,val,scan_fsize,ctx)  \
   do { \
     boxed_value_t p = block_as_assert(boxed_value_t, block_alloc(sizeof(block_t) + sizeof(tp), scan_fsize, TAG_BOX, ctx), TAG_BOX); \
     *((tp*)(&p->data[0])) = val;  \
-    x = box_datatype(p); \
+    x = box_basetype(p); \
   } while(0);
 
 
@@ -414,7 +429,7 @@ static inline box_t box_cptr_raw(free_fun_t* freefun, void* p, context_t* ctx) {
 }
 
 static inline void* unbox_cptr_raw(box_t b) {
-  cptr_raw_t raw = unbox_datatype_as_assert( cptr_raw_t, b, TAG_CPTR_RAW );
+  cptr_raw_t raw = unbox_basetype_as_assert( cptr_raw_t, b, TAG_CPTR_RAW );
   return raw->cptr;
 }
 
@@ -471,7 +486,7 @@ static inline cfun_ptr_t unbox_cfun_ptr(box_t b) {
     return (cfun_ptr_t)(b.box ^ 1); // clear lowest bit
   }
   else {
-    cfunptr_t fp = unbox_datatype_as_assert(cfunptr_t, b, TAG_CFUNPTR);
+    cfunptr_t fp = unbox_basetype_as_assert(cfunptr_t, b, TAG_CFUNPTR);
     return fp->cfunptr;
   }
 }

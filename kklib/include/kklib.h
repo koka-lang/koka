@@ -68,15 +68,15 @@ static inline bool tag_is_raw(tag_t tag) {
 // (Reference counts are always 32-bit (even on 64-bit) platforms but get "sticky" if
 //  they get too large (>0xC0000000) and in such case we never free the object, see `refcount.c`)
 typedef struct header_s {
-  uint32_t  refcount;         // reference count
-  uint16_t  tag;              // header tag
   uint8_t   scan_fsize;       // number of fields that should be scanned when releasing (`scan_fsize <= 0xFF`, if 0xFF, the full scan size is the first field)
   uint8_t   thread_shared : 1;
+  uint16_t  tag;              // header tag
+  uint32_t  refcount;         // reference count
 } header_t;
 
 #define SCAN_FSIZE_MAX (0xFF)
-#define HEADER(scan_fsize,tag)         { 0, tag, scan_fsize, 0 }            // start with refcount of 0
-#define HEADER_STATIC(scan_fsize,tag)  { U32(0xFF00), tag, scan_fsize, 0 }  // start with recognisable refcount (anything > 1 is ok)
+#define HEADER(scan_fsize,tag)         { scan_fsize, 0, tag, 0 }            // start with refcount of 0
+#define HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 0, tag, U32(0xFF00) }  // start with recognisable refcount (anything > 1 is ok)
 
 
 // Polymorphic operations work on boxed values. (We use a struct for extra checks on accidental conversion)
@@ -100,24 +100,41 @@ static inline box_t     box_enum(uintx_t u);
   Blocks
   A block is an object that starts with a header.
 
-  (non-value) datatypes contain a first `_block` field.
-  Their constructors in turn contain a first `_type` field that is the datatype.
+  heap allocated datatypes contain a first `_block` field.
+  Their heap allocated constructors in turn contain a first `_base` field that is the datatype.
   This representation ensures correct behaviour under C alias rules and allow good optimization.
   e.g. :
 
-  typedef struct list_s {
-    block_t _block;
-  } *list_t;
+    typedef struct tree_s {
+      block_t _block;
+    } * tree_t
 
-  struct Cons {
-    struct list_s  _type;
-    box_t          head;
-    list_t         tail;
-  }
+    struct Bin {
+      struct tree_s  _base;
+      tree_t        left;
+      tree_t        right;
+    }
 
-  struct Nil {
-    struct list_s  _type;
-  }
+    struct Leaf {
+      struct tree_s  _base;
+      box_t          value;
+    }
+
+  Datatypes that have singletons encode singletons as constants with the lowest bit set to 1.
+  We use the type `datatype_t` to represent them:
+
+    struct list_s {
+      block_t _block;
+    };
+    typedef datatype_t list_t;
+
+    struct Cons {
+      struct list_s  _base;
+      box_t          head;
+      list_t         tail;
+    }
+
+    // no type for the Nil constructor
 --------------------------------------------------------------------------------------*/
 
 // A heap block is a header followed by `scan_fsize` boxed fields and further raw bytes
@@ -136,9 +153,22 @@ typedef struct block_large_s {
 // A pointer to a block. Cannot be NULL.
 typedef block_t* ptr_t;
 
+// A general datatype with constructors and singletons is eiter a pointer to a block or an enumeration
+
+typedef union datatype_s {
+  ptr_t      ptr;         // always lowest bit cleared
+  uintptr_t  singleton;   // always lowest bit set as: 4*tag + 1
+} datatype_t;
+
+
+
 
 static inline decl_const tag_t block_tag(const block_t* b) {
   return (tag_t)(b->header.tag);
+}
+
+static inline decl_const bool block_has_tag(const block_t* b, tag_t t) {
+  return (block_tag(b) == t);
 }
 
 static inline decl_pure size_t block_scan_fsize(const block_t* b) {
@@ -328,13 +358,18 @@ decl_export void block_free(block_t* b, context_t* ctx);
 static inline void block_init(block_t* b, size_t size, size_t scan_fsize, tag_t tag) {
   UNUSED(size);
   assert_internal(scan_fsize < SCAN_FSIZE_MAX);
-  header_t header = { 0, (uint16_t)tag, (uint8_t)scan_fsize, 0 };
+#if (ARCH_LITTLE_ENDIAN)
+  // explicit shifts lead to better codegen
+  *((uint64_t*)b) = ((uint64_t)scan_fsize | ((uint64_t)tag << 16));  
+#else
+  header_t header = { (uint8_t)scan_fsize, 0, (uint16_t)tag, 0 };
   b->header = header;
+#endif
 }
 
 static inline void block_large_init(block_large_t* b, size_t size, size_t scan_fsize, tag_t tag) {
   UNUSED(size);
-  header_t header = { 0, (uint16_t)tag, SCAN_FSIZE_MAX, 0 };
+  header_t header = { SCAN_FSIZE_MAX, 0, (uint16_t)tag, 0 };
   b->_block.header = header;
   b->large_scan_fsize = box_enum(scan_fsize);
 }
@@ -404,24 +439,37 @@ decl_export block_t* dup_block_check(block_t* b, uint32_t rc);
 
 static inline block_t* dup_block(block_t* b) {
   const uint32_t rc = b->header.refcount;
-  if (unlikely((int32_t)rc < 0)) {  // note: assume two's complement  (we can skip this check if we never overflow a reference count or use thread-shared objects.)
-    return dup_block_check(b,rc);   // thread-shared or sticky (overflow) ?
-  }
-  else {
+  if (likely((int32_t)rc >= 0)) {    // note: assume two's complement  (we can skip this check if we never overflow a reference count or use thread-shared objects.)
     b->header.refcount = rc+1;
     return b;
+  }
+  else {
+    return dup_block_check(b, rc);   // thread-shared or sticky (overflow) ?
   }
 }
 
 static inline void drop_block(block_t* b, context_t* ctx) {
   const uint32_t rc = b->header.refcount;
-  if ((int32_t)(rc <= 0)) {         // note: assume two's complement
-    block_check_free(b, rc, ctx);   // thread-shared, sticky (overflowed), or can be freed?
-  }
-  else {
+  if ((int32_t)(rc > 0)) {          // note: assume two's complement
     b->header.refcount = rc-1;
   }
+  else {
+    block_check_free(b, rc, ctx);   // thread-shared, sticky (overflowed), or can be freed?
+  }
 }
+
+static inline void block_decref(block_t* b, context_t* ctx) {
+  const uint32_t rc = b->header.refcount;
+  assert_internal(rc != 0);
+  if (likely((int32_t)(rc > 0))) {     // note: assume two's complement
+    b->header.refcount = rc - 1;
+  }
+  else {
+    assert_internal(false);
+    block_check_free(b, rc, ctx);      // thread-shared, sticky (overflowed), or can be freed? TODO: should just free; not drop recursively
+  }
+}
+
 
 
 reuse_t block_check_reuse(block_t* b, uint32_t rc0, context_t* ctx);
@@ -528,28 +576,127 @@ static inline void drop_reuse_t(reuse_t r, context_t* ctx) {
 
 /*--------------------------------------------------------------------------------------
   Datatype and Constructor macros
+  We use:
+  - basetype      For a pointer to the base type of a heap allocated constructor.
+                  Datatypes without singletons are always a datatypex
+  - datatype      For a regular datatype_t
+  - constructor   For a pointer to a heap allocated constructor (whose first field
+                  is `_base` and points to the base type as a `basetype`
 --------------------------------------------------------------------------------------*/
 
-#define datatype_tag(v)                     (block_tag(&((v)->_block)))
-#define datatype_is_unique(v)               (block_is_unique(&((v)->_block)))
-#define datatype_as(tp,v)                   (block_as(tp,&((v)->_block)))
-#define dup_datatype_as(tp,v)               ((tp)dup_block(&((v)->_block)))
-#define drop_datatype(v,ctx)                (drop_block(&((v)->_block),ctx))
-#define drop_reuse_datatype(v,n,ctx)        (drop_reuse_blockn(&((v)->_block),n,ctx))
+// #define basetype_tag(v)                     (block_tag(&((v)->_block)))
+#define basetype_has_tag(v,t)               (block_has_tag(&((v)->_block),t))
+#define basetype_is_unique(v)               (block_is_unique(&((v)->_block)))
+#define basetype_as(tp,v)                   (block_as(tp,&((v)->_block)))
+#define basetype_free(v)                    (runtime_free(v))
+#define basetype_decref(v,ctx)              (block_decref(&((v)->_block),ctx))
+#define dup_basetype_as(tp,v)               ((tp)dup_block(&((v)->_block)))
+#define drop_basetype(v,ctx)                (drop_block(&((v)->_block),ctx))
+#define drop_reuse_basetype(v,n,ctx)        (drop_reuse_blockn(&((v)->_block),n,ctx))
 
-#define datatype_as_assert(tp,v,tag)        (block_as_assert(tp,&((v)->_block),tag))
-#define drop_datatype_assert(v,tag,ctx)     (drop_block_assert(&((v)->_block),tag,ctx))
-#define dup_datatype_as_assert(tp,v,tag)    ((tp)dup_block_assert(&((v)->_block),tag))
+#define basetype_as_assert(tp,v,tag)        (block_as_assert(tp,&((v)->_block),tag))
+#define drop_basetype_assert(v,tag,ctx)     (drop_block_assert(&((v)->_block),tag,ctx))
+#define dup_basetype_as_assert(tp,v,tag)    ((tp)dup_block_assert(&((v)->_block),tag))
 
-#define constructor_tag(v)                  (datatype_tag(&((v)->_type)))
-#define constructor_is_unique(v)            (datatype_is_unique(&((v)->_type)))
-#define dup_constructor_as(tp,v)            (dup_datatype_as(tp, &((v)->_type)))
-#define drop_constructor(v,ctx)             (drop_datatype(&((v)->_type),ctx))
-#define drop_reuse_constructor(v,n,ctx)     (drop_reuse_datatype(&((v)->_type),n,ctx))
+#define constructor_tag(v)                  (basetype_tag(&((v)->_base)))
+#define constructor_is_unique(v)            (basetype_is_unique(&((v)->_base)))
+#define dup_constructor_as(tp,v)            (dup_basetype_as(tp, &((v)->_base)))
+#define drop_constructor(v,ctx)             (drop_basetype(&((v)->_base),ctx))
+#define drop_reuse_constructor(v,n,ctx)     (drop_reuse_basetype(&((v)->_base),n,ctx))
 
 #define dup_value(v)                        (v)
 #define drop_value(v,ctx)                   (void)
 #define drop_reuse_value(v,ctx)             (reuse_null)
+
+
+/*----------------------------------------------------------------------
+  Datatypes
+----------------------------------------------------------------------*/
+
+// create a singleton
+static inline datatype_t datatype_from_tag(tag_t t) {
+  datatype_t d;
+  d.singleton = (((uintptr_t)t)<<2 | 1);
+  return d;
+}
+
+static inline datatype_t datatype_from_ptr(ptr_t p) {
+  datatype_t d;
+  d.ptr = p;
+  return d;
+}
+
+static inline bool datatype_is_ptr(datatype_t d) {
+  return ((d.singleton&1) == 0);
+}
+
+static inline bool datatype_is_singleton(datatype_t d) {
+  return ((d.singleton&1) == 1);
+}
+
+static inline bool datatype_has_tag(datatype_t d, tag_t t) {
+  if (datatype_is_ptr(d)) {
+    return (block_tag(d.ptr) == t); 
+  }
+  else {
+    return (d.singleton == datatype_from_tag(t).singleton);
+  }
+}
+
+static inline block_t* datatype_as_ptr(datatype_t d) {
+  assert_internal(datatype_is_ptr(d));
+  return d.ptr;
+}
+
+static inline bool datatype_is_unique(datatype_t d) {
+  return (datatype_is_ptr(d) && block_is_unique(d.ptr));
+}
+
+static inline datatype_t dup_datatype(datatype_t d) {
+  if (datatype_is_ptr(d)) { dup_block(d.ptr); }
+  return d;
+}
+
+static inline void drop_datatype(datatype_t d, context_t* ctx) {
+  if (datatype_is_ptr(d)) { drop_block(d.ptr,ctx); }
+}
+
+static inline datatype_t dup_datatype_assert(datatype_t d, tag_t t) {
+  UNUSED_RELEASE(t);
+  assert_internal(datatype_has_tag(d, t));
+  return dup_datatype(d);
+}
+
+static inline void drop_datatype_assert(datatype_t d, tag_t t, context_t* ctx) {
+  UNUSED_RELEASE(t);
+  assert_internal(datatype_has_tag(d, t));
+  drop_datatype(d, ctx);
+}
+
+static inline reuse_t drop_reuse_datatype(datatype_t d, size_t scan_fsize, context_t* ctx) {
+  if (datatype_is_singleton(d)) {
+    return reuse_null;
+  }
+  else {
+    return drop_reuse_blockn(d.ptr, scan_fsize, ctx);
+  }
+}
+
+static inline void datatype_free(datatype_t d) {
+  if (datatype_is_ptr(d)) {
+    runtime_free(d.ptr);
+  }
+}
+
+static inline void datatype_decref(datatype_t d, context_t* ctx) {
+  if (datatype_is_ptr(d)) {
+    block_decref(d.ptr,ctx);
+  }
+}
+
+#define datatype_from_base(b)               (datatype_from_ptr(&(b)->_block))
+#define datatype_as(tp,v)                   (block_as(tp,datatype_as_ptr(v)))
+#define datatype_as_assert(tp,v,tag)        (block_as_assert(tp,datatype_as_ptr(v),tag))
 
 
 #define define_static_datatype(decl,struct_tp,name,tag) \
@@ -557,7 +704,7 @@ static inline void drop_reuse_t(reuse_t r, context_t* ctx) {
   decl struct_tp* name = &_static_##name;
 
 #define define_static_open_datatype(decl,struct_tp,name,otag) /* ignore otag as it is initialized dynamically */ \
-  static struct_tp _static_##name = { { HEADER_STATIC(0,TAG_OPEN) }, &_static_string_empty._type }; \
+  static struct_tp _static_##name = { { HEADER_STATIC(0,TAG_OPEN) }, &_static_string_empty._base }; \
   decl struct_tp* name = &_static_##name;
 
 
@@ -633,13 +780,13 @@ static inline value_tag_t value_tag(uintx_t tag) {
   return integer_from_small((intx_t)tag);
 }
 */
-#define value_tag(tag) (_new_integer(((uintptr_t)tag << 2) | 1))   // as a small int
+#define value_tag(tag) (integer_from_small(tag))   
 
 /*--------------------------------------------------------------------------------------
   Functions
 --------------------------------------------------------------------------------------*/
 
-#define function_as(tp,fun)                     datatype_as_assert(tp,fun,TAG_FUNCTION)
+#define function_as(tp,fun)                     basetype_as_assert(tp,fun,TAG_FUNCTION)
 #define function_alloc_as(tp,scan_fsize,ctx)    block_alloc_as(tp,scan_fsize,TAG_FUNCTION,ctx)
 #define function_call(restp,argtps,f,args)      ((restp(*)argtps)(unbox_cfun_ptr(f->fun)))args
 #define define_static_function(name,cfun,ctx) \
@@ -653,11 +800,11 @@ function_t function_id(context_t* ctx);
 function_t function_null(context_t* ctx);
 
 static inline function_t unbox_function_t(box_t v) {
-  return unbox_datatype_as_assert(function_t, v, TAG_FUNCTION);
+  return unbox_basetype_as_assert(function_t, v, TAG_FUNCTION);
 }
 
 static inline box_t box_function_t(function_t d) {
-  return box_datatype(d);
+  return box_basetype(d);
 }
 
 static inline bool function_is_unique(function_t f) {
@@ -665,11 +812,11 @@ static inline bool function_is_unique(function_t f) {
 }
 
 static inline void drop_function_t(function_t f, context_t* ctx) {
-  drop_datatype_assert(f, TAG_FUNCTION, ctx);
+  drop_basetype_assert(f, TAG_FUNCTION, ctx);
 }
 
 static inline function_t dup_function_t(function_t f) {
-  return dup_datatype_as_assert(function_t, f, TAG_FUNCTION);
+  return dup_basetype_as_assert(function_t, f, TAG_FUNCTION);
 }
 
 
@@ -708,20 +855,20 @@ static inline box_t ref_swap(ref_t r, box_t value) {
 
 static inline box_t box_ref_t(ref_t r, context_t* ctx) {
   UNUSED(ctx);
-  return box_datatype(r);
+  return box_basetype(r);
 }
 
 static inline ref_t unbox_ref_t(box_t b, context_t* ctx) {
   UNUSED(ctx);
-  return unbox_datatype_as_assert(ref_t, b, TAG_REF);
+  return unbox_basetype_as_assert(ref_t, b, TAG_REF);
 }
 
 static inline void drop_ref_t(ref_t r, context_t* ctx) {
-  drop_datatype_assert(r, TAG_REF, ctx);
+  drop_basetype_assert(r, TAG_REF, ctx);
 }
 
 static inline ref_t dup_ref_t(ref_t r) {
-  return dup_datatype_as_assert(ref_t, r, TAG_REF);
+  return dup_basetype_as_assert(ref_t, r, TAG_REF);
 }
 
 
@@ -738,7 +885,7 @@ static inline void unsupported_external(const char* msg) {
 --------------------------------------------------------------------------------------*/
 
 static inline box_t box_unit_t(unit_t u) {
-  return box_enum(u);
+  return box_enum((uintx_t)u);
 }
 
 static inline unit_t unbox_unit_t(box_t u) {
@@ -753,11 +900,11 @@ static inline unit_t unbox_unit_t(box_t u) {
 extern vector_t vector_empty;
 
 static inline void drop_vector_t(vector_t v, context_t* ctx) {
-  drop_datatype(v, ctx);
+  drop_basetype(v, ctx);
 }
 
 static inline vector_t dup_vector_t(vector_t v) {
-  return dup_datatype_as(vector_t, v);
+  return dup_basetype_as(vector_t, v);
 }
 
 typedef struct vector_large_s {  // always use a large block for a vector so the offset to the elements is fixed
@@ -781,7 +928,7 @@ static inline vector_t vector_alloc(size_t length, box_t def, context_t* ctx) {
 }
 
 static inline size_t vector_len(const vector_t v) {
-  size_t len = unbox_enum( datatype_as_assert(vector_large_t, v, TAG_VECTOR)->_block.large_scan_fsize ) - 1;
+  size_t len = unbox_enum( basetype_as_assert(vector_large_t, v, TAG_VECTOR)->_block.large_scan_fsize ) - 1;
   assert_internal(len + 1 == block_scan_fsize(&v->_block));
   assert_internal(len + 1 != 0);
   return len;
@@ -789,7 +936,7 @@ static inline size_t vector_len(const vector_t v) {
 
 static inline box_t* vector_buf(vector_t v, size_t* len) {
   if (len != NULL) *len = vector_len(v);
-  return &(datatype_as_assert(vector_large_t, v, TAG_VECTOR)->vec[0]);
+  return &(basetype_as_assert(vector_large_t, v, TAG_VECTOR)->vec[0]);
 }
 
 static inline box_t vector_at(const vector_t v, size_t i) {
@@ -818,13 +965,13 @@ typedef struct bytes_s {
 }* bytes_t;
 
 struct bytes_vector_s {          // in-place bytes
-  struct bytes_s  _type;
+  struct bytes_s  _base;
   size_t          length;
   char            buf[1];
 };
 
 struct bytes_raw_s {             // pointer to bytes with free function
-  struct bytes_s _type;
+  struct bytes_s _base;
   free_fun_t*    free;
   uint8_t*       data;
   size_t         length;

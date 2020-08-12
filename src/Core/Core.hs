@@ -269,7 +269,7 @@ data DataRepr = -- value types
               | DataSingle          -- only one constructor (no tag needed)
               | DataAsList          -- one constructor with fields, and one singleton (don't need a tag, for example can distinguish pointer vs enum)
               | DataSingleNormal    -- one constructor with fields, and multiple singletons (distinguish one pointer vs enums)
-              | DataNormal
+              | DataNormal{ hasSingletons :: Bool }
               | DataOpen
               deriving (Eq,Ord,Show)
 
@@ -362,7 +362,7 @@ getDataReprEx getIsValue info
                  ,map (\con -> if (null (conInfoParams con)) then ConSingleton typeName DataAsList
                                 else ConAsCons typeName DataAsList (conInfoName (head singletons))) conInfos)
            else let dataRepr = if (length singletons == length conInfos -1 || null conInfos)
-                                then DataSingleNormal else DataNormal
+                                then DataSingleNormal else (DataNormal (not (null singletons)))
                 in (dataRepr
                    ,map (\con -> if null (conInfoParams con)
                                   then ConSingleton typeName dataRepr

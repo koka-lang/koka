@@ -1204,8 +1204,8 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
         do termDoc term bcoreDoc
 
       termPhase term ( "generate c: " ++ outBase )
-      writeDocW 120 outC cdoc
-      writeDocW 120 outH hdoc
+      writeDocW 120 outC (cdoc <.> linebreak)
+      writeDocW 120 outH (hdoc <.> linebreak)
       when (showAsmC flags) (termDoc term (hdoc <//> cdoc))
       {-
       -- compile the C code

@@ -17,7 +17,7 @@ typedef struct boxed_double_s {
 double unbox_double_heap(box_t b, context_t* ctx) {
   boxed_double_t dt = block_as_assert(boxed_double_t, unbox_ptr(b), TAG_DOUBLE);
   double d = dt->value;
-  if (ctx != NULL) { drop_datatype(dt, ctx); }
+  if (ctx != NULL) { drop_basetype(dt, ctx); }
   return d;
 }
 

@@ -48,7 +48,7 @@ static __data1__list __data1__new_Cons(box_t x, __data1__list tail, context_t* c
 }
 static struct __data1_Cons* __data1__as_Cons(__data1__list x) {
   assert(__data1__is_Cons(x));
-  return datatype_as(struct __data1_Cons*, x);
+  return basetype_as(struct __data1_Cons*, x);
 }
 
 static msecs_t test_timing(const char* msg, size_t loops, void (*fun)(integer_t,integer_t), integer_t x, integer_t y, context_t* ctx) {

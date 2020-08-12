@@ -429,7 +429,7 @@ dupDropFun isDup tp
 -- Generate a test if a (locally bound) name is unique
 genIsUnique :: TName -> Expr
 genIsUnique tname
-  = App (Var (TName nameIsUnique funTp) (InfoExternal [(C, "datatype_is_unique(#1)")]))
+  = App (Var (TName nameIsUnique funTp) (InfoExternal [(C, "is_unique(#1)")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeBool
 
@@ -440,9 +440,18 @@ genFree tname
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
 
--- Generate a ref-count drop of a constructor; for now, just use a drop
+-- Generate a ref-count drop of a constructor
 genDecRef :: TName -> Parc (Maybe Expr)
-genDecRef = genDrop
+genDecRef tname
+  = do needs <- needsDupDrop (typeOf tname)
+       if not needs
+         then return Nothing
+         else return $ Just $
+                        App (Var (TName nameDecRef funTp) (InfoExternal [(C, "decref(#1,current_context())")]))
+                            [Var tname InfoNone]
+  where
+    funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
+
 
 -- Generate a reuse free of a constructor
 genFreeReuse :: TName -> Expr
@@ -677,8 +686,8 @@ parcTrace msg
 getDataDefRepr :: Type -> Parc (DataDef,DataRepr)
 getDataDefRepr tp
   = case extractDataDefType tp of
-      Nothing -> return (DataDefNormal,DataNormal)
-      Just name | name == nameBoxCon -> return (DataDefNormal, DataNormal)
+      Nothing -> return (DataDefNormal,DataNormal True)
+      Just name | name == nameBoxCon -> return (DataDefNormal, DataNormal False)
       Just name -> do newtypes <- getNewtypes
                       case newtypesLookupAny name newtypes of
                         Nothing -> failure $ "Core.Parc.getDataDefRepr: cannot find type: " ++ show name
