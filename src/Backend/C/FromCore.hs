@@ -557,7 +557,7 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
                                  then [ ppName (typeClassName (dataInfoName info)) <+> tmp <+> text "=" <+>
                                         text "{" <+> ppConTag con conRepr dataRepr <+> text "/* _tag */ }; // zero initializes remaining fields"]
                                       ++ map (assignField (\fld -> tmp <.> text "._cons." <.> ppDefName (conInfoName con) <.> text "." <.> fld)) conFields
-                                 else [ ppName (typeClassName (dataInfoName info)) <+> tmp <+> text "= {0}; // zero initializes all fields" ]
+                                 else [ ppName (typeClassName (dataInfoName info)) <+> tmp <.> semi {- <+> text "= {0}; // zero initializes all fields" -} ]
                                       ++ map (assignField (\fld -> tmp <.> text "." <.> fld)) conFields
                                )
                                ++ [text "return" <+> tmp <.> semi])
