@@ -11,15 +11,15 @@ let rec mk_expr n v =
   if n == 0 then (if v == 0 then Var 1 else Val v)
   else Add (mk_expr (n-1) (v+1), mk_expr (n-1) (dec v));;
 
-let rec append_add e1 e2 =
-match (e1, e2) with
-| (Add (e1, e2), e3) -> Add (e1, append_add e2 e3)
-| (e1, e2)           -> Add (e1, e2);;
+let rec append_add e0 e3 =
+match (e0) with
+| Add (e1, e2) -> Add (e1, append_add e2 e3)
+| _            -> Add (e0, e3);;
 
-let rec append_mul e1 e2 =
-match (e1, e2) with
-| (Mul (e1, e2), e3) -> Mul (e1, append_mul e2 e3)
-| (e1, e2)           -> Mul (e1, e2);;
+let rec append_mul e0 e3 =
+match e0 with
+| Mul (e1, e2) -> Mul (e1, append_mul e2 e3)
+| _            -> Mul (e0, e3);;
 
 let rec reassoc e =
 match e with
