@@ -256,29 +256,35 @@ optimizeGuard aliases ri = opt
                                        (maybeStatsUnit (xdrops ++ [xFree]))
                                        (maybeStatsUnit (xdups ++ [xDrop, xSetNull]))
              Drop y
-               -> do useRegular <- dontSpecialize (typeOf y)
-                     let regularDrop = do xdrop <- genDrop y
+               -> do let regularDrop = do xdrop <- genDrop y
                                           return $ Just (maybeStatsUnit (xdups ++ [xdrop]))
-                     if isBoxType (typeOf y)
-                       then case S.toList dups of
-                              [dupVar] | isChildOf y dupVar
-                                -> do bc <- getBoxForm (typeOf dupVar)
-                                      case bc of
-                                        BoxIdentity -> return Nothing
-                                        _ -> regularDrop
-                              _ -> regularDrop
-                      else if (useRegular)
-                       then regularDrop
-                       else do xFree <- genFree y
-                               return $ Just $ makeIfExpr (genIsUnique y)
-                                                 (maybeStatsUnit (xdrops ++ [xFree]))
-                                                 (maybeStatsUnit (xdups ++ [xDecRef]))
+                     valueForm <- getValueForm (typeOf y)
+                     case valueForm of
+                       Just vform 
+                        -> case vform of
+                             ValueOneScan-> case S.toList dups of
+                                              [dupVar] | isChildOf y dupVar
+                                                -> -- dup followed by drop of value of that one member; for example: Optional unpacking
+                                                   return Nothing
+                                              _ -> regularDrop
+                             ValueAllRaw -> return (Just (maybeStatsUnit xdups))  -- no drop needed
+                             ValueOther  -> regularDrop
+                       Nothing 
+                        -> if isBoxType (typeOf y)
+                             then case S.toList dups of
+                                    [dupVar] | isChildOf y dupVar
+                                      -> do bc <- getBoxForm (typeOf dupVar)
+                                            case bc of
+                                              BoxIdentity -> return Nothing    
+                                              _ -> regularDrop
+                                    _ -> regularDrop
+                            else if (isFun (typeOf y) || isTypeInt (typeOf y))  -- don't specialize certain primitives 
+                             then regularDrop
+                             else do xFree <- genFree y
+                                     return $ Just $ makeIfExpr (genIsUnique y)
+                                                       (maybeStatsUnit (xdrops ++ [xFree]))
+                                                       (maybeStatsUnit (xdups ++ [xDecRef]))
 
--- some types should not have specialized drops
-dontSpecialize :: Type -> Parc Bool
-dontSpecialize tp 
-  = do isVal <- isValueType tp
-       return (isVal || isBoxType tp || isFun tp || isTypeInt tp) 
 
 genDropRec :: ReuseInfo -> DropRec -> Parc (Maybe Expr)
 genDropRec _ (Drop tn) = genDrop tn
@@ -418,6 +424,23 @@ isValueType tp
        return $ case repr of
          (DataDefValue _ _, _) -> True
          _                     -> False
+
+
+data ValueForm
+  = ValueAllRaw   -- just bits
+  | ValueOneScan  -- one heap allocated member
+  | ValueOther
+  
+
+getValueForm :: Type -> Parc (Maybe ValueForm)
+getValueForm tp
+  = do repr <- getDataDefRepr tp
+       return $ case repr of
+          (DataDefValue _ 0, _) -> Just ValueAllRaw
+          (DataDefValue 0 1, _) -> Just ValueOneScan
+          (DataDefValue _ _, _) -> Just ValueOther
+          _                     -> Nothing
+
 
 -- Generate a dup/drop over a given (locally bound) name
 -- May return Nothing if the type never needs a dup/drop (like an `int32` or `bool`)
