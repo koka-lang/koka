@@ -256,12 +256,10 @@ optimizeGuard aliases ri = opt
                                        (maybeStatsUnit (xdrops ++ [xFree]))
                                        (maybeStatsUnit (xdups ++ [xDrop, xSetNull]))
              Drop y
-               -> do isVal <- isValueType (typeOf y)
+               -> do useRegular <- dontSpecialize (typeOf y)
                      let regularDrop = do xdrop <- genDrop y
                                           return $ Just (maybeStatsUnit (xdups ++ [xdrop]))
-                     if isVal
-                       then regularDrop
-                     else if isBoxType (typeOf y)
+                     if isBoxType (typeOf y)
                        then case S.toList dups of
                               [dupVar] | isChildOf y dupVar
                                 -> do bc <- getBoxForm (typeOf dupVar)
@@ -269,10 +267,18 @@ optimizeGuard aliases ri = opt
                                         BoxIdentity -> return Nothing
                                         _ -> regularDrop
                               _ -> regularDrop
+                      else if (useRegular)
+                       then regularDrop
                        else do xFree <- genFree y
                                return $ Just $ makeIfExpr (genIsUnique y)
                                                  (maybeStatsUnit (xdrops ++ [xFree]))
                                                  (maybeStatsUnit (xdups ++ [xDecRef]))
+
+-- some types should not have specialized drops
+dontSpecialize :: Type -> Parc Bool
+dontSpecialize tp 
+  = do isVal <- isValueType tp
+       return (isVal || isBoxType tp || isFun tp || isTypeInt tp) 
 
 genDropRec :: ReuseInfo -> DropRec -> Parc (Maybe Expr)
 genDropRec _ (Drop tn) = genDrop tn
@@ -717,4 +723,7 @@ extractDataDefType tp
 
 isBoxType :: Type -> Bool
 isBoxType (TCon (TypeCon name _))  = name == nameTpBox
-isBoxType _ = False
+isBoxType (TVar _)                 = True
+isBoxType (TSyn _ _ tp)            = isBoxType tp
+isBoxType (TApp tp _)              = isBoxType tp
+isBoxType _                        = False -- trace ("not a box: " ++ show (pretty tp))  False

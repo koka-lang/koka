@@ -593,7 +593,7 @@ static inline void drop_reuse_t(reuse_t r, context_t* ctx) {
 #define dup_basetype_as(tp,v)               ((tp)dup_block(&((v)->_block)))
 #define drop_basetype(v,ctx)                (drop_block(&((v)->_block),ctx))
 #define drop_reuse_basetype(v,n,ctx)        (drop_reuse_blockn(&((v)->_block),n,ctx))
-#define reuse_base_type(v)                  (&((v)->_block))
+#define reuse_basetype(v)                   (&((v)->_block))
 
 #define basetype_as_assert(tp,v,tag)        (block_as_assert(tp,&((v)->_block),tag))
 #define drop_basetype_assert(v,tag,ctx)     (drop_block_assert(&((v)->_block),tag,ctx))
