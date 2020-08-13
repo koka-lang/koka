@@ -185,6 +185,16 @@ Some interesting demos are:
 Enjoy,
   -- Daan
 
+# Environment
+
+On Windows, Koka's C backend can compile with the Stack-supplied MinGW compiler.
+However, the MinGW runtime libraries are not added to the PATH by default. In
+this case, you can prefix any command with `stack exec` (not just those that
+Stack itself built). For example, to use Intel VTune to profile a Koka program:
+
+```
+stack exec "C:\Program Files (x86)\IntelSWTools\VTune Profiler 2020\bin64\vtune-gui.exe"
+```
 
 # References
 

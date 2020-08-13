@@ -9,3 +9,4 @@ src/Syntax/Lexer.hs
 .vs/
 *~
 kklib/mimalloc
+*.exe
