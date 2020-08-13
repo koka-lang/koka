@@ -184,8 +184,9 @@ parcGuardRC scrutinees pats dups drops body
        let (reuses, body') = extractReuse body
        let reuseInfo = M.fromList reuses
        let drops' = map Drop (S.toList drops) ++ map (Reuse . fst) reuses
+       let reuseBindings = [DefNonRec (makeTDef tname genReuseNull) | (_,(tname,_)) <- reuses]
        rcStats <- optimizeGuard aliases reuseInfo dups drops'
-       return $ maybeStats rcStats body'
+       return $ makeLet reuseBindings (maybeStats rcStats body')
 
 extractReuse :: Expr -> ([(TName, (TName, Expr))], Expr)
 extractReuse expr
