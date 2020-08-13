@@ -29,7 +29,7 @@ module Compiler.Compile( -- * Compile
                        ) where
 
 import Lib.Trace              ( trace )
-import Data.Char              ( isAlphaNum )
+import Data.Char              ( isAlphaNum, toLower )
 
 import System.Directory       ( createDirectoryIfMissing, canonicalizePath, getCurrentDirectory )
 import Data.List              ( isPrefixOf, intersperse )
@@ -892,7 +892,7 @@ inferCheck loaded flags line coreImports program1
        when (coreCheck flags) $ trace "open resolve core check" $ Core.Check.checkCore True False penv uniqueOR gamma coreDefsOR
 
        -- traceDefGroups "open resolve" coreDefsOR
-       
+
        -- simplify coreF if enabled
        (coreDefsSimp,uniqueSimp)
                   <- if simplify flags < 0  -- if zero, we still run one simplify step to remove open applications
@@ -920,7 +920,7 @@ inferCheck loaded flags line coreImports program1
                        return (cdefs)
 
        -- traceDefGroups "monadic" coreDefsMon
-       
+
        let (coreDefsMonL,uniqueMonL) = monadicLift penv uniqueMon coreDefsMon
        when (coreCheck flags) $ trace "monadic lift core check" $ Core.Check.checkCore True True penv uniqueMonL gamma coreDefsMonL
        -- traceDefGroups "monadic lift" coreDefsMonL
@@ -966,11 +966,11 @@ inferCheck loaded flags line coreImports program1
                                       , Core.coreProgDefs = coreDefsLast  -- coreDefsSimp
                                       , Core.coreProgFixDefs = [Core.FixDef name fix | FixDef name fix rng <- programFixDefs program1]
                                       }
-                                      
+
            loaded4 = loaded3{ loadedGamma = gamma
                             , loadedUnique = uniqueLast
-                            , loadedModule = (loadedModule loaded3){ 
-                                                modCore = coreProgram2, 
+                            , loadedModule = (loadedModule loaded3){
+                                                modCore = coreProgram2,
                                                 modRangeMap = mbRangeMap2,
                                                 modInlines  = Right inlineDefs
                                               }
@@ -1015,7 +1015,7 @@ codeGen term flags compileTarget loaded
 
        -- core
        let outCore  = outBase ++ ".core"
-           coreDoc  = Core.Pretty.prettyCore env{ coreIface = False, coreShowDef = (showCore flags) } inlineDefs (modCore mod) 
+           coreDoc  = Core.Pretty.prettyCore env{ coreIface = False, coreShowDef = (showCore flags) } inlineDefs (modCore mod)
                        <-> Lib.PPrint.empty
        when (genCore flags)  $
          do termPhase term "generate core"
@@ -1227,25 +1227,30 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                          , compileInc, compileObj, dquote outC
                          ]
 
-      trace compileCmd $ return ()  
+      trace compileCmd $ return ()
       runSystem compileCmd
-      -}   
+      -}
       -- compile and link?
       case mbEntry of
        Nothing -> return Nothing
        Just _ ->
          do let kklibDir        = installDir flags ++ "/kklib"
                 kklibInstallDir = kklibDir ++ "/out/install"
-                buildType       = if (optimize flags <= 0) then "debug" else "release"
-                buildTypeFlag   = " -DCMAKE_BUILD_TYPE=" ++ (if (optimize flags <= 0) then "Debug" else "Release")
+                configType      = if optimize flags <= 0
+                                    then "Debug"
+                                    else if debug flags
+                                           then "RelWithDebInfo"
+                                           else "Release"
+                buildType       = map toLower configType
+                buildTypeFlag   = " -DCMAKE_BUILD_TYPE=" ++ configType
                 makeSystemFlag  = if onWindows then " -G Ninja" else ""
-                
+
             checkCMake term flags
             installKKLib term flags kklibDir kklibInstallDir makeSystemFlag buildTypeFlag buildType
             currentDir <- getCurrentDirectory
-            
+
             let mainName   = if null (exeName flags) then showModName (Core.coreProgName core0) else exeName flags
-                
+
                 sources    = text "set(kk_csources" <->
                              indent 2 (vcat (map text [dquote ("../" ++ showModName mname ++ ".c") |
                                        mname <- (map modName modules ++ [Core.coreProgName core0])])) <->
@@ -1274,34 +1279,34 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                 targetDir  = buildDir ++ "/" ++ buildType  -- out/interactive/debug
                 targetBase = targetDir ++ "/" ++ mainName  -- out/interactive/debug/interactive
                 targetExe  = targetBase ++ exeExtension    -- out/interactive/debug/interactive.exe
-                
+
             let -- using -S and -B is more neat, but not available before cmake 3.15 (so we use chdir)
-                cmakeConfig = "cmake -E chdir " ++ dquote targetDir 
-                               ++ " cmake" ++ makeSystemFlag ++ buildTypeFlag 
-                               ++ " -Dkklib_DIR=" ++ dquote (kklibInstallDir ++ "/cmake") 
+                cmakeConfig = "cmake -E chdir " ++ dquote targetDir
+                               ++ " cmake" ++ makeSystemFlag ++ buildTypeFlag
+                               ++ " -Dkklib_DIR=" ++ dquote (kklibInstallDir ++ "/cmake")
                                ++ " -Dkkinvoke_dir=" ++ dquote currentDir
-                               ++  " .." -- ++ dquote buildDir  
+                               ++  " .." -- ++ dquote buildDir
                 cmakeBuild  = "cmake --build " ++ dquote targetDir
                 cmakeLists  = buildDir ++ "/CMakeLists.txt"
-            
+
             -- write CMakeLists
             createDirectoryIfMissing True targetDir
             mbContent <- readTextFile cmakeLists
             case mbContent of
-              Just content | content == cmake 
+              Just content | content == cmake
                 -> return ()  -- avoid changing if not needed
               _ -> writeFile cmakeLists cmake
-            
+
             -- configure
             hasConfig <- doesFileExist (targetDir ++ "/CMakeCache.txt")
             when (not hasConfig) $
               do termPhase term ("configure C compilation")
                  runSystemEcho cmakeConfig
-              
+
             -- build
             termPhase term ("compiling and linking C files")
             runSystemEcho cmakeBuild
-            
+
             {-
             -- link
             let linkExtra = ""
@@ -1329,7 +1334,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             -- run the program?
             trace ("run: " ++ targetExe) $ return ()
             return (Just (runSystem (dquote targetExe)))
-            
+
 installKKLib :: Terminal -> Flags -> FilePath -> FilePath -> String -> String -> String -> IO ()
 installKKLib term flags kklibDir kklibInstallDir makeSystemFlag buildTypeFlag buildType
   = do let cmakeFile =  kklibInstallDir ++ "/cmake/kklib-config-" ++ buildType ++ ".cmake"
@@ -1338,53 +1343,53 @@ installKKLib term flags kklibDir kklibInstallDir makeSystemFlag buildTypeFlag bu
         else do termPhase term ("building kklib library")
                 let cmakeDir    = (kklibDir ++ "/out/" ++ buildType)
                     cmakeConfig = "cmake -E chdir " ++ dquote cmakeDir   -- see above for chdir
-                                   ++ " cmake" ++ makeSystemFlag ++ buildTypeFlag 
+                                   ++ " cmake" ++ makeSystemFlag ++ buildTypeFlag
                                    ++ " -DCMAKE_INSTALL_PREFIX=" ++ kklibInstallDir
-                                   ++ " " ++ dquote kklibDir 
+                                   ++ " " ++ dquote kklibDir
                     cmakeBuild  = "cmake --build " ++ dquote cmakeDir
                     cmakeInstall= "cmake --build " ++ dquote cmakeDir ++ " --target install"   -- switch "--install" is not available before cmake 3.15
-                
-                createDirectoryIfMissing True cmakeDir    
+
+                createDirectoryIfMissing True cmakeDir
                 runSystemEcho cmakeConfig
                 runSystemEcho cmakeBuild
                 runSystemEcho cmakeInstall
 
--- emit helpful messages if dependencies are not installed (cmake etc)             
+-- emit helpful messages if dependencies are not installed (cmake etc)
 checkCMake :: Terminal -> Flags -> IO ()
 checkCMake term flags
   = do paths   <- getEnvPaths "PATH"
        mbCMake <- searchPaths paths [exeExtension] "cmake"
        case mbCMake of
-         Nothing -> do termDoc term (text "error: 'cmake' command cannot be found." <-> 
+         Nothing -> do termDoc term (text "error: 'cmake' command cannot be found." <->
                                      text " hint: install from <https://cmake.org/download/> or using 'sudo apt-get install cmake'")
                        return ()
          Just _  -> if (not (onWindows))
                      then return ()
                      else do vsDir <- getEnvVar "VSINSTALLDIR"
-                             if (null vsDir) 
+                             if (null vsDir)
                               then -- bare windows prompt: check for Ninja, and if using clang
                                    do mbNinja <- searchPaths paths [exeExtension] "ninja"
                                       case mbNinja of
                                         Nothing -> do termDoc term (text "error: 'ninja' build system not found" <->
                                                                     text " hint: run from a Visual Studio 'x64 Native Tools Command Prompt'" <->
                                                                     text "       or install 'ninja' from <https://github.com/ninja-build/ninja/releases>")
-                                                      return ()                                                              
+                                                      return ()
                                         Just _  -> return ()
-                                                   {-do cc <- getEnvVar "CC" 
-                                                      if (cc=="clang") 
+                                                   {-do cc <- getEnvVar "CC"
+                                                      if (cc=="clang")
                                                        then do termDoc term (text "When using 'clang' you must run in a 'x64 Native Tools Command Prompt'")
                                                                return ()
                                                        else return ()-}
                               else -- visual studio prompt
-                                   return ()                   
-          
+                                   return ()
+
 
 onWindows :: Bool
 onWindows
   = (exeExtension == ".exe")
 
 runSystemEcho cmd
-  = trace ("> " ++ cmd) $ 
+  = trace ("> " ++ cmd) $
     runSystem cmd
 
 joinWith sep xs
