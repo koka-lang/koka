@@ -221,10 +221,14 @@ genLocalDef def@(Def name tp expr vis sort inl rng comm)
                            then empty
                            else align (vcat (space : map text (lines (trimComment comm)))) {- already a valid C comment -}
                        , if (nameIsNil name) then empty else ppVarDecl (defTName def) <.> unitSemi tp
-                       , defDoc
+                       , if (isDiscardExpr expr) then empty else defDoc
                        ]
        return (fdoc)
-
+  where
+    isDiscardExpr (Con con _)              = (getName con == nameUnit) 
+    isDiscardExpr (App (Var name _) [])    = (getName name == nameReuseNull)
+    isDiscardExpr _                        = False
+    
 -- remove final newlines and whitespace and line continuations (\\)
 trimComment comm
   = unlines (map trimLine (lines comm))
@@ -1752,7 +1756,7 @@ isInlineableExpr expr
       -- C has no guarantee on argument evaluation so we only allow a select few operations to be inlined
       App (Var v (InfoExternal _)) [] -> getName v `elem` [nameYielding,nameReuseNull]
       -- App (Var v (InfoExternal _)) [arg] | getName v `elem` [nameBox,nameDup,nameInt32] -> isInlineableExpr arg
-      App (Var v _) [arg] | getName v `elem` [nameBox,nameDup,nameInt32] -> isInlineableExpr arg
+      App (Var v _) [arg] | getName v `elem` [nameBox,nameDup,nameInt32,nameReuse] -> isInlineableExpr arg
       
       --App (Var _ (InfoExternal _)) args -> all isPureExpr args  -- yielding() etc.
 
