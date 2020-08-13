@@ -667,13 +667,16 @@ genDupDrop name info dataRepr conInfos
   = do genScanFields name info dataRepr conInfos
        genDupDropX True name info dataRepr conInfos
        genDupDropX False name info dataRepr conInfos
-       genIsUnique name info dataRepr
-       genFree name info dataRepr
-       genDecRef name info dataRepr
+       if (dataReprIsValue dataRepr)
+        then return ()
+        else do  genIsUnique name info dataRepr
+                 genFree name info dataRepr          -- free the block
+                 genDecRef name info dataRepr        -- decrement the ref count (if > 0)
+                 genDropReuseFun name info dataRepr     -- drop, but if refcount==0 return the address of the block instead of freeing
+                 genReuse name info dataRepr         -- return the address of the block
+       
 
 genIsUnique :: Name -> DataInfo -> DataRepr -> Asm ()
-genIsUnique name info dataRepr  | dataReprIsValue dataRepr
- = return ()
 genIsUnique name info dataRepr 
   = emitToH $
     text "static inline bool is_unique_" <.> ppName name <.> tupled [ppName name <+> text "_x"] <+> block (
@@ -684,8 +687,6 @@ genIsUnique name info dataRepr
       ) <.> semi)
 
 genFree :: Name -> DataInfo -> DataRepr -> Asm ()
-genFree name info dataRepr | dataReprIsValue dataRepr
- = return ()
 genFree name info dataRepr 
   = emitToH $
     text "static inline void free_" <.> ppName name <.> tupled [ppName name <+> text "_x"] <+> block (
@@ -695,8 +696,6 @@ genFree name info dataRepr
       ) <.> semi)
 
 genDecRef :: Name -> DataInfo -> DataRepr -> Asm ()
-genDecRef name info dataRepr  | dataReprIsValue dataRepr
- = return ()
 genDecRef name info dataRepr 
   = emitToH $
     text "static inline void decref_" <.> ppName name <.> parameters [ppName name <+> text "_x"] <+> block (
@@ -704,6 +703,27 @@ genDecRef name info dataRepr
         then text "datatype_decref"
         else text "basetype_decref"
       ) <.> arguments [text "_x"] <.> semi)
+
+
+genDropReuseFun :: Name -> DataInfo -> DataRepr -> Asm ()
+genDropReuseFun name info dataRepr 
+  = emitToH $
+    text "static inline reuse_t drop_reuse_" <.> ppName name <.> parameters [ppName name <+> text "_x"] <+> block (
+      text "return" <+> 
+      (if (dataReprMayHaveSingletons dataRepr)
+        then text "drop_reuse_datatype"
+        else text "drop_reuse_basetype"
+      ) <.> arguments [text "_x"] <.> semi)
+
+genReuse :: Name -> DataInfo -> DataRepr -> Asm ()
+genReuse name info dataRepr 
+  = emitToH $
+    text "static inline reuse_t reuse_" <.> ppName name <.> tupled [ppName name <+> text "_x"] <+> block (
+      text "return" <+> 
+      (if (dataReprMayHaveSingletons dataRepr)
+        then text "reuse_datatype(_x)"
+        else text "reuse_basetype(_x)"
+      ) <.> semi)
 
 
 genScanFields :: Name -> DataInfo -> DataRepr -> [(ConInfo,ConRepr,[(Name,Type)],Int)] -> Asm ()
@@ -798,6 +818,13 @@ genFreeCall tp arg  = genDupDropCallX "free" tp (parens arg)
 genDecRefCall :: Type -> Doc -> [Doc]
 genDecRefCall tp arg  = genDupDropCallX "decref" tp (arguments [arg])
 
+genDropReuseCall :: Type -> Doc -> [Doc]
+genDropReuseCall tp arg  = genDupDropCallX "drop_reuse" tp (arguments [arg])
+
+genReuseCall :: Type -> Doc -> [Doc]
+genReuseCall tp arg  = genDupDropCallX "reuse" tp (parens arg)
+
+
 
 conCreateNameInfo :: ConInfo -> Doc
 conCreateNameInfo con = conCreateName (conInfoName con)
@@ -860,6 +887,16 @@ hasTagField :: DataRepr -> Bool
 hasTagField DataAsMaybe = True
 hasTagField DataStruct  = True
 hasTagField rep         = False
+
+dataReprMayHaveSingletons :: DataRepr -> Bool
+dataReprMayHaveSingletons dataRepr
+  = case dataRepr of
+      DataAsList        -> True
+      DataSingleNormal  -> True
+      (DataNormal hasSingletons) -> hasSingletons
+      -- DataOpen          -> True
+      _                 -> False
+
 
 
 genLambda :: [TName] -> Effect -> Expr -> Asm Doc
@@ -1607,6 +1644,20 @@ genExprExternal tname formats [argDoc] | getName tname == nameDecRef
         call  = hcat (genDecRefCall tp argDoc)
     in return ([], call)
 
+-- special case drop_reuse
+genExprExternal tname formats [argDoc] | getName tname == nameDropReuse
+  = let tp    = case typeOf tname of
+                  TFun [(_,fromTp)] _ toTp -> fromTp
+        call  = hcat (genDropReuseCall tp argDoc)
+    in return ([], call)
+
+-- special case reuse
+genExprExternal tname formats [argDoc] | getName tname == nameReuse
+  = let tp    = case typeOf tname of
+                  TFun [(_,fromTp)] _ toTp -> fromTp
+        call  = hcat (genReuseCall tp argDoc)
+    in return ([], call)
+
 -- normal external
 genExprExternal tname formats argDocs0
   = let name = getName tname
@@ -1699,7 +1750,7 @@ isInlineableExpr expr
       TypeLam _ expr   -> isInlineableExpr expr
       Lit (LitString _)-> False
       -- C has no guarantee on argument evaluation so we only allow a select few operations to be inlined
-      App (Var v (InfoExternal _)) [] -> getName v == nameYielding
+      App (Var v (InfoExternal _)) [] -> getName v `elem` [nameYielding,nameReuseNull]
       -- App (Var v (InfoExternal _)) [arg] | getName v `elem` [nameBox,nameDup,nameInt32] -> isInlineableExpr arg
       App (Var v _) [arg] | getName v `elem` [nameBox,nameDup,nameInt32] -> isInlineableExpr arg
       
