@@ -708,12 +708,12 @@ genDecRef name info dataRepr
 genDropReuseFun :: Name -> DataInfo -> DataRepr -> Asm ()
 genDropReuseFun name info dataRepr 
   = emitToH $
-    text "static inline reuse_t drop_reuse_" <.> ppName name <.> parameters [ppName name <+> text "_x"] <+> block (
+    text "static inline reuse_t drop_reuse_" <.> ppName name <.> parameters [ppName name <+> text "_x", text "size_t _scan_fsize"] <+> block (
       text "return" <+> 
       (if (dataReprMayHaveSingletons dataRepr)
         then text "drop_reuse_datatype"
         else text "drop_reuse_basetype"
-      ) <.> arguments [text "_x"] <.> semi)
+      ) <.> arguments [text "_x", text "_scan_fsize"] <.> semi)
 
 genReuse :: Name -> DataInfo -> DataRepr -> Asm ()
 genReuse name info dataRepr 
