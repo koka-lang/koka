@@ -145,9 +145,9 @@ ruBranch :: Branch -> Reuse (Branch, Available)
 ruBranch (Branch pats guards)
   = isolateAvailable $ 
     do pats' <- mapM patAddNames pats
-       reuses <- concat <$> mapM ruPattern pats'
+       reuses <- concat <$> mapM ruPattern pats'  -- must be in depth order for Parc
        added <- mapM addAvailable reuses
-       (guards', avs)  <- unzip <$> mapM (ruGuard added) guards       
+       (guards', avs)  <- unzip <$> mapM (ruGuard added) guards      
        setAvailable (availableIntersect avs)
        return (Branch pats' guards')
   where
@@ -188,7 +188,7 @@ ruPattern _ = return []
 
 
 ruGuard :: [(TName, TName, Int, Int)] -> Guard -> Reuse (Guard, Available)
-ruGuard patAdded (Guard test expr)
+ruGuard patAdded (Guard test expr)  -- expects patAdded in depth-order
   = isolateAvailable $
     do test' <- withNoneAvailable $ ruExpr test
        expr' <- ruExpr expr

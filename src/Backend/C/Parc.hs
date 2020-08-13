@@ -210,6 +210,11 @@ type AliasMap = M.Map TName TNames
 -- 1. what about non-heap allocated data? (always unique)
 -- 2. what about value types with references? (need type-specific dup/drop but have no refcount)
 -- 3. interaction with borrowed names
+-- order invariant: 
+--  all dups before drops, and drops before drop-reuses, and,
+--  within drops and dropr-reuses, each are ordered by pattern tree depth: 
+--   parents must appear before children.
+-- note: all drops are "tree" disjoint, none is a parent of another.
 optimizeGuard :: AliasMap -> ReuseInfo -> Dups -> DropRecs -> Parc [Maybe Expr]
 optimizeGuard aliases ri = opt
   where
@@ -227,34 +232,35 @@ optimizeGuard aliases ri = opt
       | otherwise   = foldMapM genDup dups
     opt dups dropRecs
       | S.null dups = foldMapM (genDropRec ri) dropRecs
-    opt dups (Reuse y:ys)
-      | S.member y dups
-          = do rest <- opt (S.delete y dups) ys
+    opt dups (Reuse y:ys)   -- due to ordering, there are no further drops
+      | S.member y dups     
+          = -- can never reuse as it is dup'd: remove dup/drop-reuse pair
+            do rest <- opt (S.delete y dups) ys
                set <- genSetNull ri y
                return $ rest ++ [set]
     opt dups (Drop y:ys)
       | S.member y dups
-          = opt (S.delete y dups) ys
-    opt dups (yRec:ys)
+          = opt (S.delete y dups) ys   -- dup/drop cancels
+    opt dups (yRec:ys)  -- due to order, parents are first; if this would not be the case specialization opportunities may be lost
       = do let y = getDropName yRec
                (yDups, dups') = S.partition (isDescendentOf y) dups
-               (yRecs, ys') = L.partition (isDescendentOf y . getDropName) ys
-           rest <- opt dups' ys'
-           inlined <- inline yDups yRec yRecs
+               (yRecs, ys')   = L.partition (isDescendentOf y . getDropName) ys
+           rest    <- opt dups' ys'             -- optimize outside the y tree
+           inlined <- inline yDups yRec yRecs   -- specialize the y tree
            return $ rest ++ [inlined]
 
-    inline dups v drops
-      = do xdups   <- opt dups drops
-           xdrops  <- opt dups $ map Drop (S.toList . children $ getDropName v) ++ drops
+    inline dups v drops     -- dups and drops are descendents of v
+      = do xdups   <- opt dups drops   -- for the non-unique branch
+           xdrops  <- opt dups $ 
+                      map Drop (S.toList . children $ getDropName v) ++ drops -- drop direct children in unique branch (note: `v \notin drops`)
            xDecRef <- genDecRef (getDropName v)
            case v of
              Reuse y
-               -> do xFree    <- genReuseAssign ri y
-                     xDrop    <- genDrop y
+               -> do xReuse   <- genReuseAssign ri y
                      xSetNull <- genSetNull ri y
                      return $ Just $ makeIfExpr (genIsUnique y)
-                                       (maybeStatsUnit (xdrops ++ [xFree]))
-                                       (maybeStatsUnit (xdups ++ [xDrop, xSetNull]))
+                                       (maybeStatsUnit (xdrops ++ [xReuse]))
+                                       (maybeStatsUnit (xdups ++ [xDecRef, xSetNull]))
              Drop y
                -> do let regularDrop = do xdrop <- genDrop y
                                           return $ Just (maybeStatsUnit (xdups ++ [xdrop]))
@@ -267,15 +273,15 @@ optimizeGuard aliases ri = opt
                                                 -> -- dup followed by drop of value of that one member; for example: Optional unpacking
                                                    return Nothing
                                               _ -> regularDrop
-                             ValueAllRaw -> return (Just (maybeStatsUnit xdups))  -- no drop needed
-                             ValueOther  -> regularDrop
+                             ValueAllRaw -> return (Just (maybeStatsUnit xdups))  -- no drop needed; note: no need to do this already checked in genDup/genDrop
+                             ValueOther  -> regularDrop   
                        Nothing 
                         -> if isBoxType (typeOf y)
                              then case S.toList dups of
                                     [dupVar] | isChildOf y dupVar
                                       -> do bc <- getBoxForm (typeOf dupVar)
                                             case bc of
-                                              BoxIdentity -> return Nothing    
+                                              BoxIdentity -> return Nothing   -- cancel with single field box                                              
                                               _ -> regularDrop
                                     _ -> regularDrop
                             else if (isFun (typeOf y) || isTypeInt (typeOf y))  -- don't specialize certain primitives 
@@ -386,7 +392,6 @@ useTName tname
 data BoxForm = BoxIdentity   -- directly in the box itself (`int` or any regular datatype)
              | BoxRaw        -- (possibly) heap allocated raw bits (`int64`)
              | BoxValue      -- (possibly) heap allocated value with scan fields (`maybe<int>`)
-             | BoxNone       -- not a boxed value type
              deriving(Eq,Ord,Enum,Show)
 
 getBoxForm :: Type -> Parc BoxForm
