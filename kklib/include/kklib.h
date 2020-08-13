@@ -593,6 +593,7 @@ static inline void drop_reuse_t(reuse_t r, context_t* ctx) {
 #define dup_basetype_as(tp,v)               ((tp)dup_block(&((v)->_block)))
 #define drop_basetype(v,ctx)                (drop_block(&((v)->_block),ctx))
 #define drop_reuse_basetype(v,n,ctx)        (drop_reuse_blockn(&((v)->_block),n,ctx))
+#define reuse_base_type(v)                  (&((v)->_block))
 
 #define basetype_as_assert(tp,v,tag)        (block_as_assert(tp,&((v)->_block),tag))
 #define drop_basetype_assert(v,tag,ctx)     (drop_block_assert(&((v)->_block),tag,ctx))
@@ -681,6 +682,14 @@ static inline reuse_t drop_reuse_datatype(datatype_t d, size_t scan_fsize, conte
     return drop_reuse_blockn(d.ptr, scan_fsize, ctx);
   }
 }
+static inline reuse_t reuse_datatype(datatype_t d) {
+  if (datatype_is_singleton(d)) {
+    return reuse_null;
+  }
+  else {
+    return d.ptr;
+  }
+}
 
 static inline void datatype_free(datatype_t d) {
   if (datatype_is_ptr(d)) {
@@ -690,9 +699,10 @@ static inline void datatype_free(datatype_t d) {
 
 static inline void datatype_decref(datatype_t d, context_t* ctx) {
   if (datatype_is_ptr(d)) {
-    block_decref(d.ptr,ctx);
+    block_decref(d.ptr, ctx);
   }
 }
+
 
 #define datatype_from_base(b)               (datatype_from_ptr(&(b)->_block))
 #define datatype_as(tp,v)                   (block_as(tp,datatype_as_ptr(v)))

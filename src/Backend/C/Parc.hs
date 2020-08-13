@@ -41,6 +41,8 @@ import Core.Pretty
 import Platform.Runtime (unsafePerformIO)
 import qualified System.Environment as Sys
 
+import Backend.C.ParcReuse( genDropReuse )
+
 {-# NOINLINE enabled #-}
 enabled :: Bool
 enabled = unsafePerformIO $ do
@@ -181,8 +183,9 @@ parcGuardRC scrutinees pats dups drops body
        let (reuses, body') = extractReuse body
        let reuseInfo = M.fromList reuses
        let drops' = map Drop (S.toList drops) ++ map (Reuse . fst) reuses
+       let reuseBindings = [DefNonRec (makeTDef tname genReuseNull) | (_,(tname,_)) <- reuses]
        rcStats <- optimizeGuard aliases reuseInfo dups drops'
-       return $ maybeStats rcStats body'
+       return $ makeLet reuseBindings (maybeStats rcStats body')
 
 extractReuse :: Expr -> ([(TName, (TName, Expr))], Expr)
 extractReuse expr
@@ -246,11 +249,12 @@ optimizeGuard aliases ri = opt
            xDecRef <- genDecRef (getDropName v)
            case v of
              Reuse y
-               -> do xFree <- genReuse ri y
-                     xNull <- genSetNull ri y
+               -> do xFree    <- genReuseAssign ri y
+                     xDrop    <- genDrop y
+                     xSetNull <- genSetNull ri y
                      return $ Just $ makeIfExpr (genIsUnique y)
                                        (maybeStatsUnit (xdrops ++ [xFree]))
-                                       (maybeStatsUnit (xdups ++ [xDecRef, xNull]))
+                                       (maybeStatsUnit (xdups ++ [xDrop, xSetNull]))
              Drop y
                -> do isVal <- isValueType (typeOf y)
                      let regularDrop = do xdrop <- genDrop y
@@ -271,24 +275,26 @@ optimizeGuard aliases ri = opt
                                                  (maybeStatsUnit (xdups ++ [xDecRef]))
 
 genDropRec :: ReuseInfo -> DropRec -> Parc (Maybe Expr)
-genDropRec ri (Reuse tn) = genReuse ri tn -- TODO: make this a genDropReuse
 genDropRec _ (Drop tn) = genDrop tn
+genDropRec ri (Reuse tn)
+  = case M.lookup tn ri of
+      Just (r,scan) -> return (Just (genDropReuse tn scan))
+      _ -> failure $ "Backend.C.Parc.genDropRec: cannot find: " ++ show tn
+
 
 genSetNull :: ReuseInfo -> TName -> Parc (Maybe Expr)
-genSetNull ri x = genReuseEx ri x True
+genSetNull ri x = genReuseAssignEx ri x True
 
-genReuse :: ReuseInfo -> TName -> Parc (Maybe Expr)
-genReuse ri x = genReuseEx ri x False
+genReuseAssign :: ReuseInfo -> TName -> Parc (Maybe Expr)
+genReuseAssign ri x = genReuseAssignEx ri x False
 
-genReuseEx :: ReuseInfo -> TName -> Bool -> Parc (Maybe Expr)
-genReuseEx ri x setNull =
+genReuseAssignEx :: ReuseInfo -> TName -> Bool -> Parc (Maybe Expr)
+genReuseAssignEx ri x setNull =
   return $ do
     (r, scan) <- M.lookup x ri  -- TODO: failure if not found
     let assign = TName nameAssignReuse (TFun [(nameNil,typeReuse),(nameNil,typeOf x)] typeTotal typeUnit)
-        expr = if setNull
-                then App (Var assign (InfoExternal [(C, "#1 = #2")])) [Var r InfoNone, genReuseNull]
-                else App (Var assign (InfoExternal [(C, "#1 = &((#2)->_base._block)")])) [Var r InfoNone, Var x InfoNone]
-    return expr
+        arg    = if setNull then genReuseNull else genReuseAddress x
+    return (App (Var assign (InfoExternal [(C, "#1 = #2")])) [Var r InfoNone, arg])
 
 aliasMap :: [TName] -> [Pattern] -> AliasMap
 aliasMap scrutineeNames pats = M.unions $ zipWith aliases scrutineeNames pats
@@ -298,6 +304,15 @@ aliasMap scrutineeNames pats = M.unions $ zipWith aliases scrutineeNames pats
         aliases parent PatCon{patConPatterns}
           = M.unionsWith S.union (map (aliases parent) patConPatterns)
         aliases _ _ = M.empty
+
+
+-- Generate a reuse a block
+genReuseAddress :: TName -> Expr
+genReuseAddress tname
+  = App (Var (TName nameReuse funTp) (InfoExternal [(C, "reuse_datatype(#1,current_context())")])) [Var tname InfoNone]
+  where
+    tp    = typeOf tname
+    funTp = TFun [(nameNil,tp)] typeTotal typeReuse
 
 --------------------------------------------------------------------------
 -- Case normalization

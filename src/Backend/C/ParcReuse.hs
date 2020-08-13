@@ -12,8 +12,7 @@
 -----------------------------------------------------------------------------
 
 module Backend.C.ParcReuse ( parcReuseCore, 
-                             -- genDropReuse,
-                             dataReprMayHaveSingletons,
+                             genDropReuse,
                              orderConFieldsEx, newtypesDataDefRepr, isDataStructLike 
                            ) where
 
@@ -152,11 +151,11 @@ ruBranch (Branch pats guards)
        setAvailable (availableIntersect avs)
        return (Branch pats' guards')
   where
-    addAvailable :: (TName, Int, Int, Bool) -> Reuse (TName, TName, Int, Int, Bool)
-    addAvailable (patName, size, scan, mayHaveSingletons)
+    addAvailable :: (TName, Int, Int) -> Reuse (TName, TName, Int, Int)
+    addAvailable (patName, size, scan)
       = do reuseName <- uniqueTName typeReuse
            updateAvailable (M.insertWith S.union size (S.singleton reuseName))
-           return (reuseName, patName, size, scan, mayHaveSingletons)
+           return (reuseName, patName, size, scan)
 
 patAddNames :: Pattern -> Reuse Pattern
 patAddNames pat
@@ -172,7 +171,7 @@ patAddNames pat
         -> failure "Backend.C.ParcReuse.patAddNames"
       _ -> return pat
 
-ruPattern :: Pattern -> Reuse [(TName, Int {-byte size-}, Int {-scan fields-}, Bool {-hasSingletons-})]
+ruPattern :: Pattern -> Reuse [(TName, Int {-byte size-}, Int {-scan fields-})]
 ruPattern (PatVar tname PatCon{patConName,patConPatterns,patConRepr,patTypeArgs,patConInfo=ci})
   = do reuses <- concat <$> mapM ruPattern patConPatterns
        if (getName patConName == nameBoxCon)
@@ -183,12 +182,12 @@ ruPattern (PatVar tname PatCon{patConName,patConPatterns,patConRepr,patTypeArgs,
                  let (size,scan) = constructorSizeOf platform newtypes (TName (conInfoName ci) (conInfoType ci)) patConRepr 
                  if size > 0
                    then do -- ruTrace $ "add for reuse: " ++ show (getName tname) ++ ": " ++ show size
-                           return ((tname, size, scan, dataReprMayHaveSingletons (conDataRepr patConRepr)):reuses)
+                           return ((tname, size, scan):reuses)
                    else return reuses
 ruPattern _ = return []
 
 
-ruGuard :: [(TName, TName, Int, Int, Bool)] -> Guard -> Reuse (Guard, Available)
+ruGuard :: [(TName, TName, Int, Int)] -> Guard -> Reuse (Guard, Available)
 ruGuard patAdded (Guard test expr)
   = isolateAvailable $
     do test' <- withNoneAvailable $ ruExpr test
@@ -198,23 +197,22 @@ ruGuard patAdded (Guard test expr)
        return (Guard test' (makeLet dgs expr'))
 
 -- generate drop_reuse for each reused in patAdded
-ruTryReuse :: (TName, TName, Int, Int, Bool) -> Reuse (Maybe Def)
-ruTryReuse (reuseName, patName, size, scan, mayHaveSingletons)
+ruTryReuse :: (TName, TName, Int, Int) -> Reuse (Maybe Def)
+ruTryReuse (reuseName, patName, size, scan)
   = do av <- getAvailable
        case M.lookup size av of
          Just tnames | S.member reuseName tnames
            -> do let tnames' = S.delete reuseName tnames
                  setAvailable (M.insert size tnames' av)
                  return Nothing
-         _ -> return (Just (makeTDef reuseName (genDropReuse patName (makeInt32 (toInteger scan)) mayHaveSingletons)))
+         _ -> return (Just (makeTDef reuseName (genDropReuse patName (makeInt32 (toInteger scan)))))
 
 -- Generate a reuse of a constructor
-genDropReuse :: TName -> Expr {- : int32 -} -> Bool -> Expr
-genDropReuse tname scan mayHaveSingletons
-  = App (Var (TName nameDropReuse funTp) (InfoExternal [(C, reuse ++ "(#1,#2,current_context())")]))
+genDropReuse :: TName -> Expr {- : int32 -} -> Expr
+genDropReuse tname scan 
+  = App (Var (TName nameDropReuse funTp) (InfoExternal [(C, "drop_reuse_datatype(#1,#2,current_context())")]))
         [Var tname InfoNone, scan]
   where
-    reuse = if mayHaveSingletons then "drop_reuse_datatype" else "drop_reuse_basetype"
     tp    = typeOf tname
     funTp = TFun [(nameNil,tp),(nameNil,typeInt32)] typeTotal typeReuse
 
@@ -229,14 +227,6 @@ genAllocAt at conApp
     typeAllocAt = TFun [(nameNil,typeReuse),(nameNil,conTp)] typeTotal conTp
 
 
-dataReprMayHaveSingletons :: DataRepr -> Bool
-dataReprMayHaveSingletons dataRepr
-  = case dataRepr of
-      DataAsList        -> True
-      DataSingleNormal  -> True
-      (DataNormal hasSingletons) -> hasSingletons
-      -- DataOpen          -> True
-      _                 -> False
 
 --------------------------------------------------------------------------
 -- Utilities for readability
