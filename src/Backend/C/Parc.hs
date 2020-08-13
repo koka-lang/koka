@@ -164,7 +164,6 @@ parcGuard scrutinees pats live (Guard test expr)
 
 type Dups   = TNames
 type Drops  = TNames
-type Reuses = TNames
 
 data DropRec = Drop TName | Reuse TName
 type DropRecs = [DropRec]
@@ -242,15 +241,16 @@ optimizeGuard aliases ri = opt
            return $ rest ++ [inlined]
 
     inline dups v drops
-      = do xdups  <- opt dups drops
-           xdrops <- opt dups $ map Drop (S.toList . children $ getDropName v) ++ drops
+      = do xdups   <- opt dups drops
+           xdrops  <- opt dups $ map Drop (S.toList . children $ getDropName v) ++ drops
+           xDecRef <- genDecRef (getDropName v)
            case v of
              Reuse y
-               -> do xSetNull <- genSetNull ri y
-                     xReuse <- genReuse ri y
+               -> do xFree <- genReuse ri y
+                     xNull <- genSetNull ri y
                      return $ Just $ makeIfExpr (genIsUnique y)
-                                       (maybeStatsUnit (xdrops ++ [xReuse]))
-                                       (maybeStatsUnit (xdups ++ [xSetNull]))
+                                       (maybeStatsUnit (xdrops ++ [xFree]))
+                                       (maybeStatsUnit (xdups ++ [xDecRef, xNull]))
              Drop y
                -> do isVal <- isValueType (typeOf y)
                      let regularDrop = do xdrop <- genDrop y
@@ -265,10 +265,10 @@ optimizeGuard aliases ri = opt
                                         BoxIdentity -> return Nothing
                                         _ -> regularDrop
                               _ -> regularDrop
-                       else do xdecr  <- genDecRef y
+                       else do xFree <- genFree y
                                return $ Just $ makeIfExpr (genIsUnique y)
-                                                 (maybeStats xdrops (genFree y))
-                                                 (maybeStatsUnit (xdups ++ [xdecr]))
+                                                 (maybeStatsUnit (xdrops ++ [xFree]))
+                                                 (maybeStatsUnit (xdups ++ [xDecRef]))
 
 genDropRec :: ReuseInfo -> DropRec -> Parc (Maybe Expr)
 genDropRec ri (Reuse tn) = genReuse ri tn -- TODO: make this a genDropReuse
@@ -431,9 +431,10 @@ genIsUnique tname
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeBool
 
 -- Generate a free of a constructor
-genFree :: TName -> Expr
+genFree :: TName -> Parc (Maybe Expr)
 genFree tname
-  = App (Var (TName nameFree funTp) (InfoExternal [(C, "runtime_free(#1)")]))
+  = return $ Just $
+      App (Var (TName nameFree funTp) (InfoExternal [(C, "runtime_free(#1)")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
 
