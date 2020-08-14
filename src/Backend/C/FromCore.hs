@@ -1199,8 +1199,17 @@ genMatch result0 exprDocs branches
 
     isSingleTestBranch
       = case branches of
+          [_,Branch [pat] _] | testIsSkipped pat
+            -> True
           [Branch [pat] [Guard test expr],_]
             -> isExprTrue test && isSingleTestPat pat
+          _ -> False
+        
+    testIsSkipped pat
+      = case pat of
+          PatWild    -> True
+          PatVar _ p -> testIsSkipped p
+          PatCon{patConSkip = skip} -> skip
           _ -> False
 
     isSingleTestPat pat
