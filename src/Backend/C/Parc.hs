@@ -220,19 +220,23 @@ optimizeGuard :: ReuseInfo -> Dups -> [DropInfo] -> Parc [Maybe Expr]
 optimizeGuard ri dups rdrops
   = do shapes <- getShapeMap
        let childrenOf x = case M.lookup x shapes of
-                            Just shape -> children shape
-                            Nothing    -> S.empty
+                            Just (ShapeInfo children (Just _)) -> Just children  -- only for known shape
+                            _    -> Nothing
        optimizeGuardEx childrenOf ri dups rdrops
        
-optimizeGuardEx :: (TName -> TNames) -> ReuseInfo -> Dups -> [DropInfo] -> Parc [Maybe Expr]
-optimizeGuardEx childrenOf ri dups rdrops
+optimizeGuardEx :: (TName -> Maybe TNames) -> ReuseInfo -> Dups -> [DropInfo] -> Parc [Maybe Expr]
+optimizeGuardEx mchildrenOf ri dups rdrops
   = optimize dups rdrops
   where
+    childrenOf parent
+      = case (mchildrenOf parent) of
+          Just ch -> ch
+          Nothing -> S.empty
     isChildOf parent x
       = S.member x (childrenOf parent)
     isDescendentOf parent x
-      = let ys = childrenOf parent
-         in not (S.null ys) && (S.member x ys || any (`isDescendentOf` x) ys)
+      = let ys = childrenOf parent 
+        in not (S.null ys) && (S.member x ys || any (`isDescendentOf` x) ys)
          
     optimize :: Dups -> [DropInfo] -> Parc [Maybe Expr]
     optimize dups []
@@ -274,7 +278,11 @@ optimizeGuardEx childrenOf ri dups rdrops
            let isValue = case vform of 
                            Just _ -> True
                            _      -> False
-               dontSpecialize  = isValue || isBoxType tp || isFun tp || isTypeInt tp
+               allChildrenDropped = case mchildrenOf (dropInfoVar v) of
+                                      Just children -> all (\x -> x `elem` map dropInfoVar drops) (tnamesList children)
+                                      Nothing       -> False
+               dontSpecialize  = not allChildrenDropped || 
+                                 isValue || isBoxType tp || isFun tp || isTypeInt tp
            case v of
              Reuse y
                -> do xReuse   <- genReuseAssign ri y
@@ -287,7 +295,7 @@ optimizeGuardEx childrenOf ri dups rdrops
                -> do xDrop <- genDrop y 
                      return (maybeStatsUnit (xShared ++ [xDrop]))
              Drop y
-               -> do xFree <- genFree y
+               -> do xFree <- genFree y                              
                      return $ makeIfExpr (genIsUnique y)
                                 (maybeStatsUnit (xUnique ++ [xFree]))
                                 (maybeStatsUnit (xShared ++ [xDecRef]))
