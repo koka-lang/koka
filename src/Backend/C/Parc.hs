@@ -17,7 +17,7 @@ import Lib.Trace (trace)
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State
-import Data.Maybe ( catMaybes, fromMaybe )
+import Data.Maybe ( catMaybes, fromMaybe, isJust )
 import Data.Char
 import qualified Data.List as L
 import qualified Data.Map.Strict as M
@@ -274,18 +274,14 @@ optimizeGuardEx mchildrenOf ri dups rdrops
                       map Drop (S.toList . childrenOf $ dropInfoVar v) ++ drops -- drop direct children in unique branch (note: `v \notin drops`)
            xDecRef <- genDecRef (dropInfoVar v)
            let tp = typeOf (dropInfoVar v)
-           vform   <- getValueForm tp
-           let isValue = case vform of 
-                           Just _ -> True
-                           _      -> False
-               allChildrenDropped = case mchildrenOf (dropInfoVar v) of
-                                      Just children -> all (\x -> x `elem` map dropInfoVar drops) (tnamesList children)
-                                      Nothing       -> False
-               dontSpecialize  = not allChildrenDropped || 
-                                 isValue || isBoxType tp || isFun tp || isTypeInt tp
+           isValue <- isJust <$> getValueForm tp
+           let hasKnownChildren = isJust (mchildrenOf (dropInfoVar v))               
+               dontSpecialize   = not hasKnownChildren ||   -- or otherwise xUnique is wrong!
+                                  isValue || isBoxType tp || isFun tp || isTypeInt tp                                 
            case v of
              Reuse y
-               -> do xReuse   <- genReuseAssign ri y
+               -> assertion "Backend.C.Parc.specialize: reuse without known children" (hasKnownChildren)  $
+                  do xReuse   <- genReuseAssign ri y
                      xSetNull <- genSetNull ri y
                      return $ makeIfExpr (genIsUnique y)
                                 (maybeStatsUnit (xUnique ++ [xReuse]))
