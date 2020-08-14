@@ -41,7 +41,7 @@ import Core.Pretty
 import Platform.Runtime (unsafePerformIO)
 import qualified System.Environment as Sys
 
-import Backend.C.ParcReuse( genDropReuse )
+import Backend.C.ParcReuse( genDropReuse, constructorSizeOf )
 
 {-# NOINLINE enabled #-}
 enabled :: Bool
@@ -179,7 +179,7 @@ type ReuseInfo = M.Map TName (TName, Expr)
 
 parcGuardRC :: [TName] -> [Pattern] -> Dups -> Drops -> Expr -> Parc Expr
 parcGuardRC scrutinees pats dups drops body
-  = do let aliases = aliasMap scrutinees pats
+  = do aliases <- aliasMap scrutinees pats
        let (reuses, body') = extractReuse body
        let reuseInfo = M.fromList reuses
        let drops' = map Drop (S.toList drops) ++ map (Reuse . fst) reuses
@@ -204,7 +204,10 @@ extractReuse expr
     collectLets acc expr = (concat (reverse acc), expr)
 
 -- maps a name to its children
-type AliasMap = M.Map TName TNames
+type AliasMap = M.Map TName AliasInfo
+
+data AliasInfo = AliasInfo{ children :: TNames, scanFields :: Maybe Int  }
+
 
 -- TODO:
 -- 1. what about non-heap allocated data? (always unique)
@@ -218,12 +221,14 @@ type AliasMap = M.Map TName TNames
 optimizeGuard :: AliasMap -> ReuseInfo -> Dups -> DropRecs -> Parc [Maybe Expr]
 optimizeGuard aliases ri = opt
   where
-    children x
-      = M.findWithDefault S.empty x aliases
+    childrenOf x
+      = case M.lookup x aliases of
+          Just ai -> children ai
+          Nothing -> S.empty
     isChildOf parent x
-      = S.member x (children parent)
+      = S.member x (childrenOf parent)
     isDescendentOf parent x
-      = let ys = children parent
+      = let ys = childrenOf parent
          in not (S.null ys) && (S.member x ys || any (`isDescendentOf` x) ys)
 
     opt :: Dups -> DropRecs -> Parc [Maybe Expr]
@@ -272,7 +277,7 @@ optimizeGuard aliases ri = opt
       = Just <$>
         do xShared <- opt dups drops   -- for the non-unique branch
            xUnique <- opt dups $
-                      map Drop (S.toList . children $ getDropVar v) ++ drops -- drop direct children in unique branch (note: `v \notin drops`)
+                      map Drop (S.toList . childrenOf $ getDropVar v) ++ drops -- drop direct children in unique branch (note: `v \notin drops`)
            xDecRef <- genDecRef (getDropVar v)
            case v of
              Reuse y
@@ -314,15 +319,49 @@ genReuseAssignEx ri x setNull =
         arg    = if setNull then genReuseNull else genReuseAddress x
     return (App (Var assign (InfoExternal [(C, "#1 = #2")])) [Var r InfoNone, arg])
 
-aliasMap :: [TName] -> [Pattern] -> AliasMap
-aliasMap scrutineeNames pats = M.unions $ zipWith aliases scrutineeNames pats
-  where aliases parent PatVar{patName,patPattern}
-          = M.insertWith S.union parent (S.singleton patName) $
-              aliases patName patPattern
-        aliases parent PatCon{patConPatterns}
-          = M.unionsWith S.union (map (aliases parent) patConPatterns)
-        aliases _ _ = M.empty
+aliasMap :: [TName] -> [Pattern] -> Parc AliasMap
+aliasMap scrutineeNames pats
+  = do ms <- zipWithM aliasesOf scrutineeNames pats
+       return (M.unionsWith noDup ms)
+  where aliasesOf :: TName -> Pattern -> Parc AliasMap
+        aliasesOf parent pat
+          = case pat of
+              PatCon{patConPatterns,patConName,patConRepr}
+                -> do ms <- mapM aliases patConPatterns
+                      sc <- getScanFields patConName patConRepr
+                      let m  = M.unionsWith noDup ms
+                          ai = AliasInfo (tnamesFromList (map patName patConPatterns)) (Just sc)
+                      return (M.insert parent ai m)
+              PatVar{patName,patPattern}
+                -> do m <- aliasesOf patName patPattern
+                      case M.lookup patName m of
+                        Just ai -> return (M.insert parent ai m)   -- same children as parent == patName
+                        Nothing -> failure $ ("Backend.C.Parc.aliasMap: unbound alias: " ++ show patName)
+              PatLit _
+                -> return (M.singleton parent (AliasInfo tnamesEmpty (Just 0)))
+              PatWild
+                -> return (M.singleton parent (AliasInfo tnamesEmpty Nothing))
 
+        aliases :: Pattern -> Parc AliasMap
+        aliases pat
+          = case pat of
+              PatVar{patName,patPattern}
+                -> aliasesOf patName patPattern
+              PatCon{patConPatterns}
+                -> failure $ ("Backend.C.Parc.aliasMap: unnamed nested pattern")
+                   -- do ms <- mapM aliases patConPatterns
+                   --    return (M.unionsWith noDup ms)
+              _ -> return M.empty
+
+        noDup :: AliasInfo -> AliasInfo -> AliasInfo
+        noDup ai1 ai2 = failure $ "Backend.C.Parc.aliasMap.noDup: duplicate pattern names"
+
+        mergeInfo :: AliasInfo -> AliasInfo -> AliasInfo
+        mergeInfo (AliasInfo children1 sc1) (AliasInfo children2 sc2)
+          = AliasInfo (S.union children1 children2) (mergeMaybe sc1 sc2)
+
+        mergeMaybe Nothing y = y
+        mergeMaybe x _       = x
 
 -- Generate a reuse a block
 genReuseAddress :: TName -> Expr
@@ -617,6 +656,13 @@ withNewtypes f = withEnv (\e -> e { newtypes = f (newtypes e) })
 
 getPlatform :: Parc Platform
 getPlatform = platform <$> getEnv
+
+
+getScanFields :: TName -> ConRepr -> Parc Int
+getScanFields conName conRepr
+  = do platform <- getPlatform
+       newtypes <- getNewtypes
+       return (snd $ constructorSizeOf platform newtypes conName conRepr)
 
 --
 
