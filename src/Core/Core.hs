@@ -64,7 +64,7 @@ module Core.Core ( -- Data structures
                    , isDataStruct
                    , getDataRepr, getDataReprEx, dataInfoIsValue
                    , getConRepr
-                   , dataReprIsValue
+                   , dataReprIsValue, conReprIsValue
                    , VarInfo(..), isInfoArity
 
                    , isMonType, isMonEffect
@@ -305,6 +305,8 @@ dataReprIsValue DataAsMaybe      = True
 dataReprIsValue DataStruct       = True   -- structs have a tag field though
 dataReprIsValue _                = False
 
+conReprIsValue :: ConRepr -> Bool
+conReprIsValue crepr = dataReprIsValue (conDataRepr crepr)
 
 dataInfoIsValue :: DataInfo -> Bool
 dataInfoIsValue info = dataDefIsValue (dataInfoDef info)

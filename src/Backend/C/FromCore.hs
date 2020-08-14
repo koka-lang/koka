@@ -677,6 +677,7 @@ genDupDrop name info dataRepr conInfos
                  genFree name info dataRepr          -- free the block
                  genDecRef name info dataRepr        -- decrement the ref count (if > 0)
                  genDropReuseFun name info dataRepr     -- drop, but if refcount==0 return the address of the block instead of freeing
+                 genDropNFun name info dataRepr
                  genReuse name info dataRepr         -- return the address of the block
        
 
@@ -712,11 +713,21 @@ genDecRef name info dataRepr
 genDropReuseFun :: Name -> DataInfo -> DataRepr -> Asm ()
 genDropReuseFun name info dataRepr 
   = emitToH $
-    text "static inline reuse_t drop_reuse_" <.> ppName name <.> parameters [ppName name <+> text "_x", text "size_t _scan_fsize"] <+> block (
+    text "static inline reuse_t dropn_reuse_" <.> ppName name <.> parameters [ppName name <+> text "_x", text "size_t _scan_fsize"] <+> block (
       text "return" <+> 
       (if (dataReprMayHaveSingletons dataRepr)
-        then text "drop_reuse_datatype"
-        else text "drop_reuse_basetype"
+        then text "dropn_reuse_datatype"
+        else text "dropn_reuse_basetype"
+      ) <.> arguments [text "_x", text "_scan_fsize"] <.> semi)
+
+
+genDropNFun :: Name -> DataInfo -> DataRepr -> Asm ()
+genDropNFun name info dataRepr 
+  = emitToH $
+    text "static inline void dropn_" <.> ppName name <.> parameters [ppName name <+> text "_x", text "size_t _scan_fsize"] <+> block (
+      (if (dataReprMayHaveSingletons dataRepr)
+        then text "dropn_datatype"
+        else text "dropn_basetype"
       ) <.> arguments [text "_x", text "_scan_fsize"] <.> semi)
 
 genReuse :: Name -> DataInfo -> DataRepr -> Asm ()
@@ -822,11 +833,14 @@ genFreeCall tp arg  = genDupDropCallX "free" tp (parens arg)
 genDecRefCall :: Type -> Doc -> [Doc]
 genDecRefCall tp arg  = genDupDropCallX "decref" tp (arguments [arg])
 
-genDropReuseCall :: Type -> Doc -> [Doc]
-genDropReuseCall tp arg  = genDupDropCallX "drop_reuse" tp (arguments [arg])
+genDropReuseCall :: Type -> [Doc] -> [Doc]
+genDropReuseCall tp args  = genDupDropCallX "dropn_reuse" tp (arguments args)
 
 genReuseCall :: Type -> Doc -> [Doc]
 genReuseCall tp arg  = genDupDropCallX "reuse" tp (parens arg)
+
+genDropNCall :: Type -> [Doc] -> [Doc]
+genDropNCall tp args  = genDupDropCallX "dropn" tp (arguments args)
 
 
 
@@ -1625,9 +1639,17 @@ genExprExternal tname formats [argDoc,scanDoc] | getName tname == nameDrop
   = let isDup = (getName tname == nameDup)
         tp    = case typeOf tname of
                   TFun [(_,fromTp),(_,_)] _ toTp -> fromTp
-        call  = hcat (genDupDropCall False tp argDoc)   -- if empty, pass dup argument along?
+        call  = hcat (genDropNCall tp [argDoc,scanDoc])   
     in return ([], call)
-
+    
+    
+-- special case drop_reuse
+genExprExternal tname formats [argDoc,scanDoc] | getName tname == nameDropReuse
+  = let tp    = case typeOf tname of
+                  TFun [(_,fromTp),(_,_)] _ toTp -> fromTp
+        call  = hcat (genDropReuseCall tp [argDoc,scanDoc])
+    in return ([], call)
+    
 -- special case dup/drop
 genExprExternal tname formats [argDoc] | getName tname == nameDup || getName tname == nameDrop
   = let isDup = (getName tname == nameDup)
@@ -1655,13 +1677,6 @@ genExprExternal tname formats [argDoc] | getName tname == nameDecRef
   = let tp    = case typeOf tname of
                   TFun [(_,fromTp)] _ toTp -> fromTp
         call  = hcat (genDecRefCall tp argDoc)
-    in return ([], call)
-
--- special case drop_reuse
-genExprExternal tname formats [argDoc] | getName tname == nameDropReuse
-  = let tp    = case typeOf tname of
-                  TFun [(_,fromTp)] _ toTp -> fromTp
-        call  = hcat (genDropReuseCall tp argDoc)
     in return ([], call)
 
 -- special case reuse

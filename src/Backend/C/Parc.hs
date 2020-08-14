@@ -181,7 +181,7 @@ type ReuseInfo = M.Map TName (TName, Expr)
 
 -- maps a name to its children
 type ShapeMap = M.Map TName ShapeInfo
-data ShapeInfo = ShapeInfo{ children :: TNames, scanFields :: Maybe (Bool,Int)  }
+data ShapeInfo = ShapeInfo{ children :: TNames, scanFields :: Maybe (Maybe ConRepr,Int {-scan count-})  }
 
 
 parcGuardRC :: [TName] -> [Pattern] -> Dups -> Drops -> Expr -> Parc Expr
@@ -311,7 +311,7 @@ forwardingChild platform newtypes childrenOf dups y
                                    _ -> Nothing                                              
                Just _  -> Nothing
                Nothing -> case getBoxForm' platform newtypes (typeOf y) of
-                            BoxIdentity -> findChild y dups  -- Box(x) as y
+                            BoxIdentity -> findChild x dups  -- Box(x) as y
                             _ -> Nothing
       _ -> Nothing  
  where
@@ -353,9 +353,9 @@ inferShapes scrutineeNames pats
           = case pat of
               PatCon{patConPatterns,patConName,patConRepr}
                 -> do ms <- mapM shapesChild patConPatterns
-                      sc <- getConstructorSize patConName patConRepr
+                      ci <- getConstructorInfo patConName patConRepr
                       let m  = M.unionsWith noDup ms
-                          shape = ShapeInfo (tnamesFromList (map patName patConPatterns)) (Just sc)
+                          shape = ShapeInfo (tnamesFromList (map patName patConPatterns)) (Just ci)
                       return (M.insert parent shape m)
               PatVar{patName,patPattern}
                 -> do m <- shapesOf patName patPattern
@@ -363,7 +363,7 @@ inferShapes scrutineeNames pats
                         Just shape -> return (M.insert parent shape m)   -- same children as parent == patName
                         Nothing -> failure $ ("Backend.C.Parc.aliasMap: unbound alias: " ++ show patName)
               PatLit _ 
-                -> return (M.singleton parent (ShapeInfo tnamesEmpty (Just (False,0))))
+                -> return (M.singleton parent (ShapeInfo tnamesEmpty (Just (Nothing,0))))
               PatWild
                 -> return (M.singleton parent (ShapeInfo tnamesEmpty Nothing))
 
@@ -514,9 +514,9 @@ getValueForm tp = (`getValueForm'` tp) <$> getNewtypes
 
 -- Generate a dup/drop over a given (locally bound) name
 -- May return Nothing if the type never needs a dup/drop (like an `int32` or `bool`)
-genDupDrop :: Bool -> TName -> Maybe (Bool,Int) -> Parc (Maybe Expr)
-genDupDrop isDup tname (Just (True,0))  -- singleton
-  = do parcTrace $ "singleton: " ++ show tname
+genDupDrop :: Bool -> TName -> Maybe (Maybe ConRepr,Int) -> Parc (Maybe Expr)
+genDupDrop isDup tname (Just (Just ConSingleton{},0)) 
+  = do -- parcTrace $ "drop singleton: " ++ show tname
        return Nothing
 genDupDrop isDup tname mbScanCount
   = do let tp = typeOf tname
@@ -534,8 +534,8 @@ genDrop name = do shape <- getShapeInfo name
                   genDupDrop False name (scanFields shape)
 
 -- get the dup/drop function
-dupDropFun :: Bool -> Type -> Maybe (Bool,Int) -> Expr -> Expr
-dupDropFun False {-drop-} tp (Just (_,scanFields)) arg  -- drop with known number of scan fields
+dupDropFun :: Bool -> Type -> Maybe (Maybe ConRepr,Int) -> Expr -> Expr
+dupDropFun False {-drop-} tp (Just (Just conRepr,scanFields)) arg  | not (conReprIsValue conRepr) && not (isBoxType tp)-- drop with known number of scan fields
   = App (Var (TName name coerceTp) (InfoExternal [(C, "dropn(#1,#2)")])) [arg,makeInt32 (toInteger scanFields)]  
   where
     name = nameDrop
@@ -692,13 +692,13 @@ getPlatform :: Parc Platform
 getPlatform = platform <$> getEnv
 
 
-getConstructorSize :: TName -> ConRepr -> Parc (Bool {-singleton?-},Int)  
-getConstructorSize conName conRepr
+getConstructorInfo :: TName -> ConRepr -> Parc (Maybe ConRepr,Int)  
+getConstructorInfo conName conRepr
   = do platform <- getPlatform
        newtypes <- getNewtypes
        let (size,scan) = (constructorSizeOf platform newtypes conName conRepr)
-       parcTrace $ "get size " ++ show conName ++ ": " ++ show (size,scan)
-       return ((size == 0), scan)
+       -- parcTrace $ "get size " ++ show conName ++ ": " ++ show (size,scan)
+       return (Just conRepr, scan)
        
 --
 

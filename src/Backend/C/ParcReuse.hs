@@ -392,7 +392,7 @@ constructorSizeOf platform newtypes conName conRepr
   = case splitFunScheme (typeOf conName) of
       Just (_,_,tpars,_,_) 
         -> constructorSize platform newtypes conRepr (map snd tpars)
-      _ -> trace ("constructor not a function: " ++ show conName ++ ": " ++ show (pretty (typeOf conName))) $
+      _ -> -- trace ("constructor not a function: " ++ show conName ++ ": " ++ show (pretty (typeOf conName))) $
            (0,0)
   
 

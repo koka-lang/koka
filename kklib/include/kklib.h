@@ -470,12 +470,10 @@ static inline void block_decref(block_t* b, context_t* ctx) {
   }
 }
 
-
-
 reuse_t block_check_reuse(block_t* b, uint32_t rc0, context_t* ctx);
 
 // Decrement the reference count, and return the memory for reuse if it drops to zero
-static inline reuse_t drop_reuse_blockx(block_t* b, context_t* ctx) {
+static inline reuse_t drop_reuse_block(block_t* b, context_t* ctx) {
   const uint32_t rc = b->header.refcount;
   if ((int32_t)rc <= 0) {                 // note: assume two's complement
     return block_check_reuse(b, rc, ctx); // thread-shared, sticky (overflowed), or can be reused?
@@ -498,10 +496,27 @@ static inline box_t block_field(block_t* b, size_t index) {
 
 static inline void drop_box_t(box_t b, context_t* ctx);
 
-// Decrement the reference count, and return the memory for reuse if it drops to zero
-static inline reuse_t drop_reuse_block(block_t* b, context_t* ctx) {
+// Drop with inlined dropping of children 
+static inline void drop_blocki(block_t* b, context_t* ctx) {
   const uint32_t rc = b->header.refcount;
-  if ((int32_t)rc == 0) {                 // note: assume two's complement
+  if (rc == 0) {
+    const size_t scan_fsize = block_scan_fsize(b);
+    for (size_t i = 0; i < scan_fsize; i++) {
+      drop_box_t(block_field(b, i), ctx);
+    }    
+  }
+  else if (unlikely((int32_t)rc < 0)) {     // note: assume two's complement
+    block_check_free(b, rc, ctx);           // thread-share or sticky (overflowed) ?    
+  }
+  else {
+    b->header.refcount = rc-1;
+  }
+}
+
+// Decrement the reference count, and return the memory for reuse if it drops to zero (with inlined dropping)
+static inline reuse_t drop_reuse_blocki(block_t* b, context_t* ctx) {
+  const uint32_t rc = b->header.refcount;
+  if (rc == 0) {
     size_t scan_fsize = block_scan_fsize(b);
     for (size_t i = 0; i < scan_fsize; i++) {
       drop_box_t(block_field(b, i), ctx);
@@ -514,27 +529,8 @@ static inline reuse_t drop_reuse_block(block_t* b, context_t* ctx) {
   }
 }
 
-// Decrement the reference count, and return the memory for reuse if it drops to zero
-static inline reuse_t drop_reuse_blockn(block_t* b, size_t scan_fsize, context_t* ctx) {
-  const uint32_t rc = b->header.refcount;
-  if (rc == 0) {                 
-    assert_internal(block_scan_fsize(b) == scan_fsize);
-    for (size_t i = 0; i < scan_fsize; i++) {
-      drop_box_t(block_field(b, i), ctx);
-    }
-    return b;
-  }
-  else if ((int32_t)rc < 0) {     // note: assume two's complement
-    block_check_free(b, rc, ctx); // thread-shared or sticky (overflowed)?
-    return reuse_null;
-  }
-  else {
-    b->header.refcount = rc-1;
-    return reuse_null;
-  }
-}
-
-static inline void drop_blockn(block_t* b, size_t scan_fsize,  context_t* ctx) {
+// Drop with known scan size 
+static inline void dropn_block(block_t* b, size_t scan_fsize, context_t* ctx) {
   const uint32_t rc = b->header.refcount;
   if (rc == 0) {                 // note: assume two's complement
     assert_internal(scan_fsize == block_scan_fsize(b));
@@ -543,7 +539,7 @@ static inline void drop_blockn(block_t* b, size_t scan_fsize,  context_t* ctx) {
     }
     runtime_free(b);
   }
-  else if ((int32_t)rc < 0) {
+  else if (unlikely((int32_t)rc < 0)) {
     block_check_free(b, rc, ctx); // thread-shared, sticky (overflowed)?
   }
   else {
@@ -551,6 +547,27 @@ static inline void drop_blockn(block_t* b, size_t scan_fsize,  context_t* ctx) {
   }
 }
 
+
+
+// Drop-reuse with known scan size
+static inline reuse_t dropn_reuse_block(block_t* b, size_t scan_fsize, context_t* ctx) {
+  const uint32_t rc = b->header.refcount;
+  if (rc == 0) {                 
+    assert_internal(block_scan_fsize(b) == scan_fsize);
+    for (size_t i = 0; i < scan_fsize; i++) {
+      drop_box_t(block_field(b, i), ctx);
+    }
+    return b;
+  }
+  else if (unlikely((int32_t)rc < 0)) {     // note: assume two's complement
+    block_check_free(b, rc, ctx);           // thread-shared or sticky (overflowed)?
+    return reuse_null;
+  }
+  else {
+    b->header.refcount = rc-1;
+    return reuse_null;
+  }
+}
 
 
 static inline void drop_block_assert(block_t* b, tag_t tag, context_t* ctx) {
@@ -591,8 +608,9 @@ static inline void drop_reuse_t(reuse_t r, context_t* ctx) {
 #define basetype_free(v)                    (runtime_free(v))
 #define basetype_decref(v,ctx)              (block_decref(&((v)->_block),ctx))
 #define dup_basetype_as(tp,v)               ((tp)dup_block(&((v)->_block)))
-#define drop_basetype(v,ctx)                (drop_block(&((v)->_block),ctx))
-#define drop_reuse_basetype(v,n,ctx)        (drop_reuse_blockn(&((v)->_block),n,ctx))
+#define drop_basetype(v,ctx)                (drop_blocki(&((v)->_block),ctx))
+#define dropn_reuse_basetype(v,n,ctx)       (dropn_reuse_block(&((v)->_block),n,ctx))
+#define dropn_basetype(v,n,ctx)             (dropn_block(&((v)->_block),n,ctx))
 #define reuse_basetype(v)                   (&((v)->_block))
 
 #define basetype_as_assert(tp,v,tag)        (block_as_assert(tp,&((v)->_block),tag))
@@ -603,7 +621,7 @@ static inline void drop_reuse_t(reuse_t r, context_t* ctx) {
 #define constructor_is_unique(v)            (basetype_is_unique(&((v)->_base)))
 #define dup_constructor_as(tp,v)            (dup_basetype_as(tp, &((v)->_base)))
 #define drop_constructor(v,ctx)             (drop_basetype(&((v)->_base),ctx))
-#define drop_reuse_constructor(v,n,ctx)     (drop_reuse_basetype(&((v)->_base),n,ctx))
+#define dropn_reuse_constructor(v,n,ctx)    (dropn_reuse_basetype(&((v)->_base),n,ctx))
 
 #define dup_value(v)                        (v)
 #define drop_value(v,ctx)                   (void)
@@ -662,6 +680,12 @@ static inline void drop_datatype(datatype_t d, context_t* ctx) {
   if (datatype_is_ptr(d)) { drop_block(d.ptr,ctx); }
 }
 
+static inline void dropn_datatype(datatype_t d, size_t scan_fsize, context_t* ctx) {
+  assert_internal(datatype_is_ptr(d));
+  assert_internal(scan_fsize > 0);
+  dropn_block(d.ptr, scan_fsize, ctx);
+}
+
 static inline datatype_t dup_datatype_assert(datatype_t d, tag_t t) {
   UNUSED_RELEASE(t);
   assert_internal(datatype_has_tag(d, t));
@@ -674,12 +698,12 @@ static inline void drop_datatype_assert(datatype_t d, tag_t t, context_t* ctx) {
   drop_datatype(d, ctx);
 }
 
-static inline reuse_t drop_reuse_datatype(datatype_t d, size_t scan_fsize, context_t* ctx) {
+static inline reuse_t dropn_reuse_datatype(datatype_t d, size_t scan_fsize, context_t* ctx) {
   if (datatype_is_singleton(d)) {
     return reuse_null;
   }
   else {
-    return drop_reuse_blockn(d.ptr, scan_fsize, ctx);
+    return dropn_reuse_block(d.ptr, scan_fsize, ctx);
   }
 }
 static inline reuse_t reuse_datatype(datatype_t d) {
