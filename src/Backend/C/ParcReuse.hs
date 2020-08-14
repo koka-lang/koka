@@ -392,17 +392,21 @@ constructorSizeOf platform newtypes conName conRepr
   = case splitFunScheme (typeOf conName) of
       Just (_,_,tpars,_,_) 
         -> constructorSize platform newtypes conRepr (map snd tpars)
-      _ -> (0,0)
+      _ -> trace ("constructor not a function: " ++ show conName ++ ": " ++ show (pretty (typeOf conName))) $
+           (0,0)
   
 
 -- return the allocated size of a constructor. Return 0 for value types or singletons
 constructorSize :: Platform -> Newtypes -> ConRepr -> [Type] -> (Int {- byte size -}, Int {- scan fields -})
 constructorSize platform newtypes conRepr paramTypes
   = let dataRepr = (conDataRepr conRepr)
-    in if dataReprIsValue dataRepr
+    in {-  if dataReprIsValue dataRepr
          then (0,0)
-         else let (fields,size,scan) = orderConFieldsEx platform newtypes (DataOpen == dataRepr) [(nameNil,tp) | tp <- paramTypes]
-              in (size,scan)
+         else-}
+        let (fields,size,scan) = orderConFieldsEx platform newtypes (DataOpen == dataRepr) [(nameNil,tp) | tp <- paramTypes]
+        in if dataReprIsValue dataRepr
+            then (0,scan)
+            else (size,scan)
           
       
 -- order constructor fields of constructors with raw field so the regular fields come first to be scanned.

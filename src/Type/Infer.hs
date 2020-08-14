@@ -2162,6 +2162,7 @@ inferOptionals eff infgamma (par:pars)
             -- let coreVar (qname,tp,info) = Core.Var (Core.TName qname tp) (coreVarInfoFromNameInfo info)
             dataInfo <- findDataInfo nameTpOptional
             (coreNameOpt,coreTpOpt,coreReprOpt,conInfoOpt) <- resolveConName nameOptional Nothing fullRange
+            (coreNameOptNone,coreTpOptNone,coreReprOptNone,conInfoOptNone) <- resolveConName nameOptionalNone Nothing fullRange
             let tempName = Core.TName temp tp
             let parName  = Core.TName (binderName par) optTp
                 corePar = Core.Var parName Core.InfoNone
@@ -2177,7 +2178,15 @@ inferOptionals eff infgamma (par:pars)
                                                     False
                                       ]
                                       [ Core.Guard   Core.exprTrue (Core.Var tempName Core.InfoNone) ]
-                       ,  Core.Branch [ Core.PatWild ]
+                       ,  Core.Branch [ Core.PatCon (Core.TName coreNameOptNone coreTpOptNone)
+                                                    []
+                                                    (coreReprOptNone)
+                                                    []
+                                                    []
+                                                    coreResTp
+                                                    conInfoOptNone
+                                                    True {-skip test-}
+                                      ]
                                       [ Core.Guard   Core.exprTrue coreExpr ]
                        ]
                 def  = Core.Def local partp init Private DefVal InlineNever (binderNameRange par) ""
