@@ -32,7 +32,7 @@ import Lib.PPrint
 import Common.NamePrim
 import Common.Failure
 import Common.Unique
-import Common.Syntax
+import Common.Syntax hiding (scanFields)
 
 import Core.Core
 import Core.CoreVar
@@ -155,15 +155,17 @@ parcBranch scrutinees live (Branch pats guards)
 parcGuard :: [TName] -> [Pattern] -> Live -> Guard -> Parc (Live -> Parc Guard)
 parcGuard scrutinees pats live (Guard test expr)
   = scoped pvs $
-    do (expr', live') <- isolateWith live $ parcExpr expr
-       markLives live'
-       test' <- withOwned S.empty $ parcExpr test
-       return $ \matchLive -> scoped pvs $ do
-         let dups = S.intersection pvs live'
-         let drops = matchLive \\ live'
-         Guard test' <$> parcGuardRC scrutinees pats dups drops expr'
-  where pvs = bv pats
-
+    do aliases <- aliasMap scrutinees pats
+       extendAliases aliases $
+        do (expr', live') <- isolateWith live $ parcExpr expr
+           markLives live'
+           test' <- withOwned S.empty $ parcExpr test
+           return $ \matchLive -> scoped pvs $ do
+             let dups = S.intersection pvs live'
+             let drops = matchLive \\ live'
+             Guard test' <$> parcGuardRC aliases scrutinees pats dups drops expr'
+  where
+    pvs = bv pats
 type Dups   = TNames
 type Drops  = TNames
 
@@ -177,10 +179,9 @@ getDropVar (Reuse tn) = tn
 -- maps reused name to its token variable and scan count
 type ReuseInfo = M.Map TName (TName, Expr)
 
-parcGuardRC :: [TName] -> [Pattern] -> Dups -> Drops -> Expr -> Parc Expr
-parcGuardRC scrutinees pats dups drops body
-  = do aliases <- aliasMap scrutinees pats
-       let (reuses, body') = extractReuse body
+parcGuardRC :: AliasMap -> [TName] -> [Pattern] -> Dups -> Drops -> Expr -> Parc Expr
+parcGuardRC aliases scrutinees pats dups drops body
+  = do let (reuses, body') = extractReuse body
        let reuseInfo = M.fromList reuses
        let drops' = map Drop (S.toList drops) ++ map (Reuse . fst) reuses
        let reuseBindings = [DefNonRec (makeTDef tname genReuseNull) | (_,(tname,_)) <- reuses]
@@ -231,13 +232,8 @@ optimizeGuard aliases ri = opt
       = let ys = childrenOf parent
          in not (S.null ys) && (S.member x ys || any (`isDescendentOf` x) ys)
          
-    scanFieldsOf x
-      = case M.lookup x aliases of
-          Just (AliasInfo _ sc) -> sc
-          Nothing -> Nothing
-          
     genDropRec :: DropRec -> Parc (Maybe Expr)
-    genDropRec (Drop tn) = genDrop tn (scanFieldsOf tn)
+    genDropRec (Drop tn) = genDrop tn
     genDropRec (Reuse tn)
       = case M.lookup tn ri of
           Just (r,scan) 
@@ -308,7 +304,7 @@ optimizeGuard aliases ri = opt
                                 (maybeStatsUnit (xShared ++ [xDecRef, xSetNull]))
              Drop y | dontSpecialize 
                -- don't specialize certain primitives
-               -> do xDrop <- genDrop y (scanFieldsOf y)
+               -> do xDrop <- genDrop y 
                      return (maybeStatsUnit (xShared ++ [xDrop]))
              Drop y
                -> do xFree <- genFree y
@@ -370,12 +366,12 @@ aliasMap scrutineeNames pats
         noDup :: AliasInfo -> AliasInfo -> AliasInfo
         noDup ai1 ai2 = failure $ "Backend.C.Parc.aliasMap.noDup: duplicate pattern names"
 
-        mergeInfo :: AliasInfo -> AliasInfo -> AliasInfo
-        mergeInfo (AliasInfo children1 sc1) (AliasInfo children2 sc2)
-          = AliasInfo (S.union children1 children2) (mergeMaybe sc1 sc2)
-
-        mergeMaybe Nothing y = y
-        mergeMaybe x _       = x
+mergeAliasInfo :: AliasInfo -> AliasInfo -> AliasInfo
+mergeAliasInfo (AliasInfo children1 sc1) (AliasInfo children2 sc2)
+  = AliasInfo (S.union children1 children2) (mergeMaybe sc1 sc2)
+  where
+    mergeMaybe Nothing y = y
+    mergeMaybe x _       = x
 
 -- Generate a reuse a block
 genReuseAddress :: TName -> Expr
@@ -518,8 +514,9 @@ genDupDrop isDup tname mbScanCount
                  (DataDefValue _ 0, _) -> Nothing  -- no scan fields
                  _ -> Just (dupDropFun isDup tp mbScanCount (Var tname InfoNone))
 
-genDup name     = genDupDrop True name Nothing
-genDrop name sc = genDupDrop False name sc
+genDup name  = genDupDrop True name Nothing
+genDrop name = do sc <- getAliasInfo name
+                  genDupDrop False name (scanFields sc)
 
 -- get the dup/drop function
 dupDropFun :: Bool -> Type -> Maybe (Bool,Int) -> Expr -> Expr
@@ -614,7 +611,8 @@ data Env = Env { currentDef :: [Def],
                  prettyEnv :: Pretty.Env,
                  platform  :: Platform,
                  newtypes  :: Newtypes,
-                 owned     :: Owned
+                 owned     :: Owned,
+                 aliases   :: AliasMap
                }
 
 type Live = TNames
@@ -645,7 +643,7 @@ getSt = get
 runParc :: Pretty.Env -> Platform -> Newtypes -> Parc a -> Unique a
 runParc penv platform newtypes (Parc action)
   = withUnique $ \u ->
-      let env = Env [] penv platform newtypes S.empty
+      let env = Env [] penv platform newtypes S.empty M.empty
           st = ParcState u S.empty
           (val, st') = runState (runReaderT action env) st
        in (val, uniq st')
@@ -732,6 +730,24 @@ withOwned = updateOwned . const
 extendOwned :: Owned -> Parc a -> Parc a
 extendOwned = updateOwned . S.union
 
+-----
+extendAliases :: AliasMap -> Parc a -> Parc a
+extendAliases extend
+  = withEnv (\e -> e{ aliases = M.unionWith mergeAliasInfo extend (aliases e) })  -- note: left-biased, prefer extend
+
+getAliases :: Parc AliasMap
+getAliases = aliases <$> getEnv
+   
+getAliasInfo :: TName -> Parc AliasInfo 
+getAliasInfo tname
+  = do m <- getAliases
+       return (getAliasInfoOf tname m)
+       
+getAliasInfoOf tname m
+  = case M.lookup tname m of
+      Just ai -> ai 
+      Nothing -> (AliasInfo tnamesEmpty Nothing)
+      
 -------------------------------
 -- live set abstractions --
 
@@ -772,7 +788,9 @@ isolateWith live action
 
 scoped :: TNames -> Parc a -> Parc a
 scoped vars action
-  = do expr <- extendOwned vars action
+  = do expr <- extendOwned vars $
+               extendAliases (M.fromList [(v,AliasInfo S.empty Nothing) | v <- (S.elems vars)]) $
+               action
        forget vars
        return expr
 
@@ -781,7 +799,7 @@ ownedInScope vars action
   = scoped vars $
       do expr <- action
          live <- getLive
-         drops <- foldMapM (\name -> genDrop name Nothing) (vars \\ live)
+         drops <- foldMapM genDrop (vars \\ live)
          return $ maybeStats drops expr
 
 --------------------------------------------------------------------------
