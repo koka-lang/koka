@@ -10,3 +10,4 @@ src/Syntax/Lexer.hs
 *~
 kklib/mimalloc
 *.exe
+test_*.cmake
