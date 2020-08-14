@@ -8,12 +8,32 @@ public fun test : forall<a> (xs : list<a>, ys : list<a>) -> list<a>
  (std/core/Cons((z: 35), (.pat0: list<35>)) : list<a> )
  -> (match (ys) {
  (std/core/Cons((z0: 35), (.pat2: list<35>)) : list<a> )
+ -> val .ru.37 : std/core/types/reuse
+ = std/core/types/no-reuse();
+ val _ : ()
+ = (match ((std/core/types/.is-unique(ys))) {
+ (std/core/types/True() : std/core/types/bool )
+ -> (match ((std/core/types/.is-unique(.pat2))) {
+ (std/core/types/True() : std/core/types/bool )
+ -> std/core/types/.free(.pat2);
+ _
+ -> std/core/types/.dec-ref(.pat2);
+ });
+ std/core/types/.assign-reuse(.ru.37, (std/core/types/.reuse(ys)));
+ _
  -> val _ : a
  = std/core/types/.dup(z0);
  val _ : ()
- = std/core/types/.drop(xs);
- val .ru.37 : std/core/types/reuse
- = std/core/types/.reuse(ys, (std/core/int32(2)));
+ = std/core/types/.dec-ref(ys);
+ std/core/types/.assign-reuse(.ru.37, (std/core/types/no-reuse()));
+ });
+ val _ : ()
+ = (match ((std/core/types/.is-unique(xs))) {
+ (std/core/types/True() : std/core/types/bool )
+ -> std/core/types/.free(xs);
+ _
+ -> std/core/types/.dec-ref(xs);
+ });
  std/core/types/.alloc-at(.ru.37, (std/core/Cons(z0, std/core/Nil)));
  (.skip std/core/Nil() : (list<a>) )
  -> std/core/types/.drop(ys);

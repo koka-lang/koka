@@ -5,7 +5,8 @@ private import std/core = std/core = "";
 public fun test : (xs : list<std/core/types/int>) -> std/core/types/int
  = fun(xs: list<std/core/types/int>){
  match (xs) {
- (std/core/Cons(((xs0: std/core/types/int) as .unbox-x18: std/core/types/int), (.pat: list<std/core/types/int>)) : list<std/core/types/int> )
+ (std/core/Cons(((.skip std/core/types/.Box((xs0: std/core/types/int)) : std/core/types/.Box ) as .box-x17: std/core/types/.Box), (.pat: list<
+ std/core/types/int>)) : list<std/core/types/int> )
  -> (match ((std/core/types/.is-unique(xs))) {
  (std/core/types/True() : std/core/types/bool )
  -> std/core/types/.drop(.pat);
