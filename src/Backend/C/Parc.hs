@@ -156,11 +156,11 @@ parcGuard :: [TName] -> [Pattern] -> Live -> Guard -> Parc (Live -> Parc Guard)
 parcGuard scrutinees pats live (Guard test expr)
   = scoped pvs $
     do aliases <- aliasMap scrutinees pats
-       extendAliases aliases $
+       extendAliases aliases $ 
         do (expr', live') <- isolateWith live $ parcExpr expr
            markLives live'
            test' <- withOwned S.empty $ parcExpr test
-           return $ \matchLive -> scoped pvs $ do
+           return $ \matchLive -> scoped pvs $ extendAliases aliases $ do
              let dups = S.intersection pvs live'
              let drops = matchLive \\ live'
              Guard test' <$> parcGuardRC aliases scrutinees pats dups drops expr'
@@ -272,17 +272,28 @@ optimizeGuard aliases ri = opt
 
     forwardingChild :: Newtypes -> Platform -> Dups -> TName -> Maybe TName
     forwardingChild newtypes platform dups y
-      | [x] <- S.toList (S.filter (isChildOf y) dups)
-      = let ty = typeOf y
-         in case getValueForm' newtypes ty of
-              Just ValueOneScan -> Just x
-              Just _            -> Nothing
-              Nothing -> case getBoxForm' platform newtypes (typeOf x) of
-                           BoxIdentity | isBoxType ty -> Just x
-                           _ -> Nothing
-    forwardingChild _ _ _ _
-      = Nothing
-
+      = case tnamesList (childrenOf y) of
+          [x] ->  let tp = typeOf y
+                  in -- trace ("forwarding child: " ++ show y ++ ", show: " ++ show [x]) $
+                     case getValueForm' newtypes tp of
+                       Just ValueOneScan -> case findChild x dups of
+                                              Just x  -> Just x -- Just(x) as y   
+                                              Nothing -> -- trace (" check box type child: " ++ show (y,x)) $
+                                                         case getBoxForm' platform newtypes (typeOf x) of
+                                                           BoxIdentity -> -- trace (" check child's children: " ++ show x) $
+                                                                          case tnamesList (childrenOf x) of
+                                                                            [x'] -> findChild x' dups  -- (Just(Box x' as x)) as y
+                                                                            _    -> Nothing
+                                                           _ -> Nothing                                              
+                       Just _  -> Nothing
+                       Nothing -> case getBoxForm' platform newtypes tp of
+                                    BoxIdentity -> findChild y dups  -- Box(x) as y
+                                    _ -> Nothing
+          _ -> Nothing  
+     where
+       findChild x dups 
+         = if (S.member x dups) then Just x else Nothing
+            
     inline dups v drops     -- dups and drops are descendents of v
       = Just <$>
         do xShared <- opt dups drops   -- for the non-unique branch
@@ -367,11 +378,12 @@ aliasMap scrutineeNames pats
         noDup ai1 ai2 = failure $ "Backend.C.Parc.aliasMap.noDup: duplicate pattern names"
 
 mergeAliasInfo :: AliasInfo -> AliasInfo -> AliasInfo
-mergeAliasInfo (AliasInfo children1 sc1) (AliasInfo children2 sc2)
-  = AliasInfo (S.union children1 children2) (mergeMaybe sc1 sc2)
-  where
-    mergeMaybe Nothing y = y
-    mergeMaybe x _       = x
+mergeAliasInfo info1 (AliasInfo children2 Nothing)
+  = info1
+mergeAliasInfo (AliasInfo children1 Nothing) info2
+  = info2
+mergeAliasInfo info1 _
+  = info1
 
 -- Generate a reuse a block
 genReuseAddress :: TName -> Expr
@@ -502,7 +514,8 @@ getValueForm tp = (`getValueForm'` tp) <$> getNewtypes
 -- May return Nothing if the type never needs a dup/drop (like an `int32` or `bool`)
 genDupDrop :: Bool -> TName -> Maybe (Bool,Int) -> Parc (Maybe Expr)
 genDupDrop isDup tname (Just (True,0))  -- singleton
-  = return Nothing
+  = do parcTrace $ "singleton: " ++ show tname
+       return Nothing
 genDupDrop isDup tname mbScanCount
   = do let tp = typeOf tname
        repr <- getDataDefRepr tp
@@ -515,8 +528,8 @@ genDupDrop isDup tname mbScanCount
                  _ -> Just (dupDropFun isDup tp mbScanCount (Var tname InfoNone))
 
 genDup name  = genDupDrop True name Nothing
-genDrop name = do sc <- getAliasInfo name
-                  genDupDrop False name (scanFields sc)
+genDrop name = do ai <- getAliasInfo name
+                  genDupDrop False name (scanFields ai)
 
 -- get the dup/drop function
 dupDropFun :: Bool -> Type -> Maybe (Bool,Int) -> Expr -> Expr
@@ -682,6 +695,7 @@ getConstructorSize conName conRepr
   = do platform <- getPlatform
        newtypes <- getNewtypes
        let (size,scan) = (constructorSizeOf platform newtypes conName conRepr)
+       parcTrace $ "get size " ++ show conName ++ ": " ++ show (size,scan)
        return ((size == 0), scan)
        
 --
