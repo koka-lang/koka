@@ -36,12 +36,10 @@ public fun test : forall<a> (xs : list<a>, ys : list<a>) -> list<a>
  });
  std/core/types/.alloc-at(.ru.37, (std/core/Cons(z0, std/core/Nil)));
  (.skip std/core/Nil() : (list<a>) )
- -> std/core/types/.drop(ys);
- xs;
+ -> xs;
  });
  (.skip std/core/Nil() : (list<a>) )
- -> std/core/types/.drop(xs);
- ys;
+ -> ys;
  }
  };
 test/parc/parc18.kk(4,23): warning: z shadows an earlier local definition or parameter

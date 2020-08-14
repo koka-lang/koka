@@ -17,8 +17,7 @@ public fun test : (xs : list<std/core/types/int>) -> std/core/types/int
  });
  xs0;
  (.skip std/core/Nil() : (list<std/core/types/int>) )
- -> std/core/types/.drop(xs);
- 1;
+ -> 1;
  }
  };
 test/parc/parc19.kk(3,10): warning: xs shadows an earlier local definition or parameter

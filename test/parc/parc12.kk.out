@@ -9,7 +9,7 @@ public fun test : (x : std/core/types/int) -> std/core/types/int
  match (.match.36) {
  2
  -> val _ : ()
- = std/core/types/.drop(.match.36);
+ = std/core/types/.drop(.match.36, (std/core/int32(0)));
  val _ : ()
  = std/core/types/.drop(x);
  3;

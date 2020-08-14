@@ -24,14 +24,14 @@ public fun test : (xs : list<std/core/types/int>, y : std/core/types/int, z : st
  (std/core/Cons(((.skip std/core/types/.Box((x0: std/core/types/int)) : std/core/types/.Box ) as .box-x97: std/core/types/.Box), (.pat2: list<
  std/core/types/int>)) : list<std/core/types/int> )
  | std/core/(==.1)((std/core/types/.dup(x0)), (std/core/types/.dup(y))) -> val _ : ()
- = std/core/types/.drop(xs);
+ = std/core/types/.drop(xs, (std/core/int32(2)));
  val _ : ()
  = std/core/types/.drop(z);
  y;
  (std/core/Cons(((.skip std/core/types/.Box((.pat4: std/core/types/int)) : std/core/types/.Box ) as .box-x98: std/core/types/.Box), (.pat5: list<
  std/core/types/int>)) : list<std/core/types/int> )
  | std/core/(==.1)((std/core/types/.dup(y)), (std/core/types/.dup(z))) -> val _ : ()
- = std/core/types/.drop(xs);
+ = std/core/types/.drop(xs, (std/core/int32(2)));
  val _ : ()
  = std/core/types/.drop(y);
  val _ : ()
