@@ -196,6 +196,18 @@ Stack itself built). For example, to use Intel VTune to profile a Koka program:
 stack exec "C:\Program Files (x86)\IntelSWTools\VTune Profiler 2020\bin64\vtune-gui.exe"
 ```
 
+# Testing
+
+To run tests, use stack:
+
+```
+stack test                                              # All tests
+stack test --test-arguments="--match /parc/"            # One category
+stack test --test-arguments="--mode new"                # Create output files
+stack test --test-arguments="--mode update"             # Update output files
+stack test --test-arguments="--match /parc/ --mode new" # Combined
+```
+
 # References
 
 1. Daniel Hillerström, and Sam Lindley. &ldquo;Liberating Effects with Rows and Handlers.&rdquo; In _Proceedings of the 1st International Workshop on Type-Driven Development_, 15--27. TyDe 2016. Nara, Japan. 2016. doi:[10.1145/2976022.2976033](https://dx.doi.org/10.1145/2976022.2976033).

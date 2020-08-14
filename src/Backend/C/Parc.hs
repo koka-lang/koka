@@ -170,9 +170,9 @@ type Drops  = TNames
 data DropRec = Drop TName | Reuse TName
 type DropRecs = [DropRec]
 
-getDropName :: DropRec -> TName
-getDropName (Drop tn) = tn
-getDropName (Reuse tn) = tn
+getDropVar :: DropRec -> TName
+getDropVar (Drop tn) = tn
+getDropVar (Reuse tn) = tn
 
 -- maps reused name to its token variable and scan count
 type ReuseInfo = M.Map TName (TName, Expr)
@@ -210,9 +210,9 @@ type AliasMap = M.Map TName TNames
 -- 1. what about non-heap allocated data? (always unique)
 -- 2. what about value types with references? (need type-specific dup/drop but have no refcount)
 -- 3. interaction with borrowed names
--- order invariant: 
+-- order invariant:
 --  all dups before drops, and drops before drop-reuses, and,
---  within drops and dropr-reuses, each are ordered by pattern tree depth: 
+--  within drops and dropr-reuses, each are ordered by pattern tree depth:
 --   parents must appear before children.
 -- note: all drops are "tree" disjoint, none is a parent of another.
 optimizeGuard :: AliasMap -> ReuseInfo -> Dups -> DropRecs -> Parc [Maybe Expr]
@@ -232,64 +232,64 @@ optimizeGuard aliases ri = opt
       | otherwise   = foldMapM genDup dups
     opt dups dropRecs
       | S.null dups = foldMapM (genDropRec ri) dropRecs
-    opt dups (Reuse y:ys)   -- due to ordering, there are no further drops
-      | S.member y dups     
-          = -- can never reuse as it is dup'd: remove dup/drop-reuse pair
-            do rest <- opt (S.delete y dups) ys
-               set <- genSetNull ri y
-               return $ rest ++ [set]
-    opt dups (Drop y:ys)
-      | S.member y dups
-          = opt (S.delete y dups) ys   -- dup/drop cancels
     opt dups (yRec:ys)  -- due to order, parents are first; if this would not be the case specialization opportunities may be lost
-      = do let y = getDropName yRec
-               (yDups, dups') = S.partition (isDescendentOf y) dups
-               (yRecs, ys')   = L.partition (isDescendentOf y . getDropName) ys
-           rest    <- opt dups' ys'             -- optimize outside the y tree
-           inlined <- inline yDups yRec yRecs   -- specialize the y tree
-           return $ rest ++ [inlined]
+      = do let y = getDropVar yRec
+           newtypes <- getNewtypes
+           platform <- getPlatform
+           case yRec of
+             -- due to ordering, there are no further drops
+             Reuse _ | S.member y dups
+               -- can never reuse as it is dup'd: remove dup/drop-reuse pair
+               -> do rest <- opt (S.delete y dups) ys
+                     set <- genSetNull ri y
+                     return $ rest ++ [set]
+             Drop _ | S.member y dups
+               -> opt (S.delete y dups) ys -- dup/drop cancels
+             Drop _ | Just x <- forwardingChild newtypes platform dups y
+               -- cancel with boxes, value types that simply
+               -- forward their drops to their children
+               -> opt (S.delete x dups) ys
+             _ -> do let (yDups, dups') = S.partition (isDescendentOf y) dups
+                     let (yRecs, ys')   = L.partition (isDescendentOf y . getDropVar) ys
+                     rest    <- opt dups' ys'             -- optimize outside the y tree
+                     inlined <- inline yDups yRec yRecs   -- specialize the y tree
+                     return $ rest ++ [inlined]
+
+    forwardingChild :: Newtypes -> Platform -> Dups -> TName -> Maybe TName
+    forwardingChild newtypes platform dups y
+      | [x] <- S.toList (S.filter (isChildOf y) dups)
+      = let ty = typeOf y
+         in case getValueForm' newtypes ty of
+              Just ValueOneScan -> Just x
+              Just _            -> Nothing
+              Nothing -> case getBoxForm' platform newtypes (typeOf x) of
+                           BoxIdentity | isBoxType ty -> Just x
+                           _ -> Nothing
+    forwardingChild _ _ _ _
+      = Nothing
 
     inline dups v drops     -- dups and drops are descendents of v
-      = do xdups   <- opt dups drops   -- for the non-unique branch
-           xdrops  <- opt dups $ 
-                      map Drop (S.toList . children $ getDropName v) ++ drops -- drop direct children in unique branch (note: `v \notin drops`)
-           xDecRef <- genDecRef (getDropName v)
+      = Just <$>
+        do xShared <- opt dups drops   -- for the non-unique branch
+           xUnique <- opt dups $
+                      map Drop (S.toList . children $ getDropVar v) ++ drops -- drop direct children in unique branch (note: `v \notin drops`)
+           xDecRef <- genDecRef (getDropVar v)
            case v of
              Reuse y
                -> do xReuse   <- genReuseAssign ri y
                      xSetNull <- genSetNull ri y
-                     return $ Just $ makeIfExpr (genIsUnique y)
-                                       (maybeStatsUnit (xdrops ++ [xReuse]))
-                                       (maybeStatsUnit (xdups ++ [xDecRef, xSetNull]))
+                     return $ makeIfExpr (genIsUnique y)
+                                (maybeStatsUnit (xUnique ++ [xReuse]))
+                                (maybeStatsUnit (xShared ++ [xDecRef, xSetNull]))
+             Drop y | isFun (typeOf y) || isTypeInt (typeOf y)
+               -- don't specialize certain primitives
+               -> do xDrop <- genDrop y
+                     return (maybeStatsUnit (xShared ++ [xDrop]))
              Drop y
-               -> do let regularDrop = do xdrop <- genDrop y
-                                          return $ Just (maybeStatsUnit (xdups ++ [xdrop]))
-                     valueForm <- getValueForm (typeOf y)
-                     case valueForm of
-                       Just vform 
-                        -> case vform of
-                             ValueOneScan-> case S.toList dups of
-                                              [dupVar] | isChildOf y dupVar
-                                                -> -- dup followed by drop of value of that one member; for example: Optional unpacking
-                                                   return Nothing
-                                              _ -> regularDrop
-                             ValueAllRaw -> return (Just (maybeStatsUnit xdups))  -- no drop needed; note: no need to do this already checked in genDup/genDrop
-                             ValueOther  -> regularDrop   
-                       Nothing 
-                        -> if isBoxType (typeOf y)
-                             then case S.toList dups of
-                                    [dupVar] | isChildOf y dupVar
-                                      -> do bc <- getBoxForm (typeOf dupVar)
-                                            case bc of
-                                              BoxIdentity -> return Nothing   -- cancel with single field box                                              
-                                              _ -> regularDrop
-                                    _ -> regularDrop
-                            else if (isFun (typeOf y) || isTypeInt (typeOf y))  -- don't specialize certain primitives 
-                             then regularDrop
-                             else do xFree <- genFree y
-                                     return $ Just $ makeIfExpr (genIsUnique y)
-                                                       (maybeStatsUnit (xdrops ++ [xFree]))
-                                                       (maybeStatsUnit (xdups ++ [xDecRef]))
+               -> do xFree <- genFree y
+                     return $ makeIfExpr (genIsUnique y)
+                                (maybeStatsUnit (xUnique ++ [xFree]))
+                                (maybeStatsUnit (xShared ++ [xDecRef]))
 
 
 genDropRec :: ReuseInfo -> DropRec -> Parc (Maybe Expr)
@@ -394,22 +394,25 @@ data BoxForm = BoxIdentity   -- directly in the box itself (`int` or any regular
              | BoxValue      -- (possibly) heap allocated value with scan fields (`maybe<int>`)
              deriving(Eq,Ord,Enum,Show)
 
+getBoxForm' :: Platform -> Newtypes -> Type -> BoxForm
+getBoxForm' platform newtypes tp
+  = case getDataDefRepr' newtypes tp of
+      (DataDefValue _ 0, _) -- 0 scan fields
+        -> case extractDataDefType tp of
+             Just name
+               | name `elem` [nameTpInt, nameTpChar, nameTpInt8, nameTpInt16, nameTpByte] ||
+                 ((name `elem` [nameTpInt32, nameTpFloat32]) && sizePtr platform > 4)
+                   -> BoxIdentity
+             _ -> BoxRaw
+      (DataDefValue _ _, _)
+        -> BoxValue
+      _ -> BoxIdentity
+
 getBoxForm :: Type -> Parc BoxForm
 getBoxForm tp
  = do platform <- getPlatform
-      repr <- getDataDefRepr tp
-      return $ case repr of
-        (DataDefValue _ scan, _)
-          -> if scan == 0
-              then case extractDataDefType tp of
-                     Just name
-                       | name `elem` [nameTpInt, nameTpChar, nameTpInt8, nameTpInt16, nameTpByte] ||
-                         ((name `elem` [nameTpInt32, nameTpFloat32]) && sizePtr platform > 4)
-                           -> BoxIdentity
-                     _ -> BoxRaw
-              else BoxValue
-        _ -> BoxIdentity
-
+      newtypes <- getNewtypes
+      return $ getBoxForm' platform newtypes tp
 
 -----------------------------------------------------------
 -- Optimize boxed reference counting
@@ -430,22 +433,21 @@ isValueType tp
          (DataDefValue _ _, _) -> True
          _                     -> False
 
-
 data ValueForm
   = ValueAllRaw   -- just bits
   | ValueOneScan  -- one heap allocated member
   | ValueOther
-  
+
+getValueForm' :: Newtypes -> Type -> Maybe ValueForm
+getValueForm' newtypes tp
+  = case getDataDefRepr' newtypes tp of
+      (DataDefValue _ 0, _) -> Just ValueAllRaw
+      (DataDefValue 0 1, _) -> Just ValueOneScan
+      (DataDefValue _ _, _) -> Just ValueOther
+      _                     -> Nothing
 
 getValueForm :: Type -> Parc (Maybe ValueForm)
-getValueForm tp
-  = do repr <- getDataDefRepr tp
-       return $ case repr of
-          (DataDefValue _ 0, _) -> Just ValueAllRaw
-          (DataDefValue 0 1, _) -> Just ValueOneScan
-          (DataDefValue _ _, _) -> Just ValueOther
-          _                     -> Nothing
-
+getValueForm tp = (`getValueForm'` tp) <$> getNewtypes
 
 -- Generate a dup/drop over a given (locally bound) name
 -- May return Nothing if the type never needs a dup/drop (like an `int32` or `bool`)
@@ -730,15 +732,19 @@ parcTrace msg
 
 ----------------
 
-getDataDefRepr :: Type -> Parc (DataDef,DataRepr)
-getDataDefRepr tp
+getDataDefRepr' :: Newtypes -> Type -> (DataDef, DataRepr)
+getDataDefRepr' newtypes tp
   = case extractDataDefType tp of
-      Nothing -> return (DataDefNormal,DataNormal True)
-      Just name | name == nameBoxCon -> return (DataDefNormal, DataNormal False)
-      Just name -> do newtypes <- getNewtypes
-                      case newtypesLookupAny name newtypes of
-                        Nothing -> failure $ "Core.Parc.getDataDefRepr: cannot find type: " ++ show name
-                        Just di -> return (dataInfoDef di, fst (getDataRepr di))
+      Nothing -> (DataDefNormal, DataNormal True)
+      Just name | name == nameBoxCon -> (DataDefNormal, DataNormal False)
+      Just name -> case newtypesLookupAny name newtypes of
+                      Nothing -> failure $ "Core.Parc.getDataDefRepr: cannot find type: " ++ show name
+                      Just di -> (dataInfoDef di, fst (getDataRepr di))
+
+getDataDefRepr :: Type -> Parc (DataDef, DataRepr)
+getDataDefRepr tp
+  = do newtypes <- getNewtypes
+       return $ getDataDefRepr' newtypes tp
 
 extractDataDefType :: Type -> Maybe Name
 extractDataDefType tp
