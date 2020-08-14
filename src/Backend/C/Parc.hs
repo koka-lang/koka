@@ -233,10 +233,9 @@ optimizeGuard aliases ri = opt
 
     opt :: Dups -> DropRecs -> Parc [Maybe Expr]
     opt dups []
-      | S.null dups = return []
-      | otherwise   = foldMapM genDup dups
-    opt dups dropRecs
-      | S.null dups = foldMapM (genDropRec ri) dropRecs
+      = foldMapM genDup dups
+    opt dups dropRecs | S.null dups
+      = foldMapM (genDropRec ri) dropRecs
     opt dups (yRec:ys)  -- due to order, parents are first; if this would not be the case specialization opportunities may be lost
       = do newtypes <- getNewtypes
            platform <- getPlatform
