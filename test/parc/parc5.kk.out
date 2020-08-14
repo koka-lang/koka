@@ -7,7 +7,8 @@ public fun test : () -> std/core/types/int
  val xs.32 : list<std/core/types/int>
  = std/core/Cons((std/core/types/.box(1)), std/core/Nil);
  match (xs.32) {
- (std/core/Cons(((x: std/core/types/int) as .unbox-x39: std/core/types/int), (.pat0: list<std/core/types/int>)) : list<std/core/types/int> )
+ (std/core/Cons(((.skip std/core/types/.Box((x: std/core/types/int)) : std/core/types/.Box ) as .box-x38: std/core/types/.Box), (.pat0: list<
+ std/core/types/int>)) : list<std/core/types/int> )
  -> (match ((std/core/types/.is-unique(xs.32))) {
  (std/core/types/True() : std/core/types/bool )
  -> std/core/types/.drop(.pat0);
