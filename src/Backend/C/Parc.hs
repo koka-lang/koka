@@ -233,9 +233,9 @@ optimizeGuard aliases ri = opt
     opt dups dropRecs
       | S.null dups = foldMapM (genDropRec ri) dropRecs
     opt dups (yRec:ys)  -- due to order, parents are first; if this would not be the case specialization opportunities may be lost
-      = do let y = getDropVar yRec
-           newtypes <- getNewtypes
+      = do newtypes <- getNewtypes
            platform <- getPlatform
+           let y = getDropVar yRec
            case yRec of
              -- due to ordering, there are no further drops
              Reuse _ | S.member y dups

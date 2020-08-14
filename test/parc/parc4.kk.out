@@ -5,18 +5,40 @@ private import std/core = std/core = "";
 public fun test : (xs : list<std/core/types/maybe<std/core/types/int>>, y : std/core/types/int) -> std/core/types/int
  = fun(xs: list<std/core/types/maybe<std/core/types/int>>, y: std/core/types/int){
  match (xs) {
- (std/core/Cons((((std/core/types/Just(((x: std/core/types/int) as .unbox-x51: std/core/types/int)) : std/core/types/maybe<std/core/types/int> ) as .pat0:
- std/core/types/maybe<std/core/types/int>) as .unbox-x50: std/core/types/maybe<std/core/types/int>), (.pat1: list<std/core/types/maybe<std/core/types/int>>))
- : list<std/core/types/maybe<std/core/types/int>> )
- | std/core/(==.1)((std/core/types/.dup(x)), (std/core/types/.dup(y))) -> val _ : std/core/types/int
- = std/core/types/.dup(x);
- val _ : ()
+ (std/core/Cons(((.skip std/core/types/.Box(((std/core/types/Just(((.skip std/core/types/.Box((x: std/core/types/int)) : std/core/types/.Box ) as .box-x49
+ : std/core/types/.Box)) : std/core/types/maybe<std/core/types/int> ) as .pat0: std/core/types/maybe<std/core/types/int>)) : std/core/types/.Box ) as 
+ .box-x48: std/core/types/.Box), (.pat1: list<std/core/types/maybe<std/core/types/int>>)) : list<std/core/types/maybe<std/core/types/int>> )
+ | std/core/(==.1)((std/core/types/.dup(x)), (std/core/types/.dup(y))) -> val _ : ()
  = std/core/types/.drop(y);
  val _ : ()
- = std/core/types/.drop(xs);
+ = (match ((std/core/types/.is-unique(xs))) {
+ (std/core/types/True() : std/core/types/bool )
+ -> val _ : ()
+ = std/core/types/.drop(.pat1);
+ val _ : ()
+ = (match ((std/core/types/.is-unique(.box-x48))) {
+ (std/core/types/True() : std/core/types/bool )
+ -> (match ((std/core/types/.is-unique(.pat0))) {
+ (std/core/types/True() : std/core/types/bool )
+ -> std/core/types/.free(.pat0);
+ _
+ -> std/core/types/.dup(x);
+ std/core/types/.dec-ref(.pat0);
+ });
+ std/core/types/.free(.box-x48);
+ _
+ -> std/core/types/.dup(x);
+ std/core/types/.dec-ref(.box-x48);
+ });
+ std/core/types/.free(xs);
+ _
+ -> std/core/types/.dup(x);
+ std/core/types/.dec-ref(xs);
+ });
  x;
- (std/core/Cons((((std/core/types/Nothing() : std/core/types/maybe<std/core/types/int> ) as .pat3: std/core/types/maybe<std/core/types/int>) as .unbox-x52
- : std/core/types/maybe<std/core/types/int>), (.pat4: list<std/core/types/maybe<std/core/types/int>>)) : list<std/core/types/maybe<std/core/types/int>> )
+ (std/core/Cons(((.skip std/core/types/.Box(((std/core/types/Nothing() : std/core/types/maybe<std/core/types/int> ) as .pat3: std/core/types/maybe<
+ std/core/types/int>)) : std/core/types/.Box ) as .box-x50: std/core/types/.Box), (.pat4: list<std/core/types/maybe<std/core/types/int>>)) : list<
+ std/core/types/maybe<std/core/types/int>> )
  -> val _ : ()
  = std/core/types/.drop(xs);
  val _ : ()
