@@ -206,7 +206,7 @@ extractReuse expr
 -- maps a name to its children
 type AliasMap = M.Map TName AliasInfo 
 
-data AliasInfo = AliasInfo{ children :: TNames, scanFields :: Maybe Int  }
+data AliasInfo = AliasInfo{ children :: TNames, scanFields :: Maybe (Bool,Int)  }
 
 
 -- TODO:
@@ -230,13 +230,28 @@ optimizeGuard aliases ri = opt
     isDescendentOf parent x
       = let ys = childrenOf parent
          in not (S.null ys) && (S.member x ys || any (`isDescendentOf` x) ys)
+         
+    scanFieldsOf x
+      = case M.lookup x aliases of
+          Just (AliasInfo _ sc) -> sc
+          Nothing -> Nothing
+          
+    genDropRec :: DropRec -> Parc (Maybe Expr)
+    genDropRec (Drop tn) = genDrop tn (scanFieldsOf tn)
+    genDropRec (Reuse tn)
+      = case M.lookup tn ri of
+          Just (r,scan) 
+            -> -- assertion "wrong scan fields in reuse" (snd (maybe (False,0) (scanFieldsOf tn)) == scan)  $
+               return (Just (genDropReuse tn scan))
+          _ -> failure $ "Backend.C.Parc.genDropRec: cannot find: " ++ show tn
+          
 
     opt :: Dups -> DropRecs -> Parc [Maybe Expr]
     opt dups []
       | S.null dups = return []
       | otherwise   = foldMapM genDup dups
     opt dups dropRecs
-      | S.null dups = foldMapM (genDropRec ri) dropRecs
+      | S.null dups = foldMapM genDropRec dropRecs
     opt dups (Reuse y:ys)   -- due to ordering, there are no further drops
       | S.member y dups     
           = -- can never reuse as it is dup'd: remove dup/drop-reuse pair
@@ -267,7 +282,7 @@ optimizeGuard aliases ri = opt
                                        (maybeStatsUnit (xdrops ++ [xReuse]))
                                        (maybeStatsUnit (xdups ++ [xDecRef, xSetNull]))
              Drop y
-               -> do let regularDrop = do xdrop <- genDrop y
+               -> do let regularDrop = do xdrop <- genDrop y (scanFieldsOf y)
                                           return $ Just (maybeStatsUnit (xdups ++ [xdrop]))
                      valueForm <- getValueForm (typeOf y)
                      case valueForm of
@@ -297,12 +312,6 @@ optimizeGuard aliases ri = opt
                                                        (maybeStatsUnit (xdups ++ [xDecRef]))
 
 
-genDropRec :: ReuseInfo -> DropRec -> Parc (Maybe Expr)
-genDropRec _ (Drop tn) = genDrop tn
-genDropRec ri (Reuse tn)
-  = case M.lookup tn ri of
-      Just (r,scan) -> return (Just (genDropReuse tn scan))
-      _ -> failure $ "Backend.C.Parc.genDropRec: cannot find: " ++ show tn
 
 
 genSetNull :: ReuseInfo -> TName -> Parc (Maybe Expr)
@@ -328,7 +337,7 @@ aliasMap scrutineeNames pats
           = case pat of
               PatCon{patConPatterns,patConName,patConRepr}
                 -> do ms <- mapM aliases patConPatterns
-                      sc <- getScanFields patConName patConRepr
+                      sc <- getConstructorSize patConName patConRepr
                       let m  = M.unionsWith noDup ms
                           ai = AliasInfo (tnamesFromList (map patName patConPatterns)) (Just sc)
                       return (M.insert parent ai m)
@@ -338,7 +347,7 @@ aliasMap scrutineeNames pats
                         Just ai -> return (M.insert parent ai m)   -- same children as parent == patName
                         Nothing -> failure $ ("Backend.C.Parc.aliasMap: unbound alias: " ++ show patName)
               PatLit _ 
-                -> return (M.singleton parent (AliasInfo tnamesEmpty (Just 0)))
+                -> return (M.singleton parent (AliasInfo tnamesEmpty (Just (False,0))))
               PatWild
                 -> return (M.singleton parent (AliasInfo tnamesEmpty Nothing))
                 
@@ -488,8 +497,10 @@ getValueForm tp
 
 -- Generate a dup/drop over a given (locally bound) name
 -- May return Nothing if the type never needs a dup/drop (like an `int32` or `bool`)
-genDupDrop :: Bool -> TName -> Parc (Maybe Expr)
-genDupDrop isDup tname
+genDupDrop :: Bool -> TName -> Maybe (Bool,Int) -> Parc (Maybe Expr)
+genDupDrop isDup tname (Just (True,0))  -- singleton
+  = return Nothing
+genDupDrop isDup tname mbScanCount
   = do let tp = typeOf tname
        repr <- getDataDefRepr tp
        borrowed <- isBorrowed tname
@@ -497,16 +508,21 @@ genDupDrop isDup tname
          if borrowed && not isDup
            then Nothing
            else case repr of
-                 (DataDefValue _ 0, _) -> Nothing
-                 _ -> Just (App (dupDropFun isDup tp) [Var tname InfoNone])
+                 (DataDefValue _ 0, _) -> Nothing  -- no scan fields
+                 _ -> Just (dupDropFun isDup tp mbScanCount (Var tname InfoNone))
 
-genDup  = genDupDrop True
-genDrop = genDupDrop False
+genDup name     = genDupDrop True name Nothing
+genDrop name sc = genDupDrop False name sc
 
 -- get the dup/drop function
-dupDropFun :: Bool -> Type -> Expr
-dupDropFun isDup tp
-  = Var (TName name coerceTp) (InfoExternal [(C, (if isDup then "dup" else "drop") ++ "(#1)")])
+dupDropFun :: Bool -> Type -> Maybe (Bool,Int) -> Expr -> Expr
+dupDropFun False {-drop-} tp (Just (_,scanFields)) arg  -- drop with known number of scan fields
+  = App (Var (TName name coerceTp) (InfoExternal [(C, "dropn(#1,#2)")])) [arg,makeInt32 (toInteger scanFields)]  
+  where
+    name = nameDrop
+    coerceTp = TFun [(nameNil,tp),(nameNil,typeInt32)] typeTotal typeUnit
+dupDropFun isDup tp mbScanCount arg
+  = App (Var (TName name coerceTp) (InfoExternal [(C, (if isDup then "dup" else "drop") ++ "(#1)")])) [arg]
   where
     name = if isDup then nameDup else nameDrop
     coerceTp = TFun [(nameNil,tp)] typeTotal (if isDup then tp else typeUnit)
@@ -656,11 +672,12 @@ getPlatform :: Parc Platform
 getPlatform = platform <$> getEnv
 
 
-getScanFields :: TName -> ConRepr -> Parc Int
-getScanFields conName conRepr
+getConstructorSize :: TName -> ConRepr -> Parc (Bool {-singleton?-},Int)  
+getConstructorSize conName conRepr
   = do platform <- getPlatform
        newtypes <- getNewtypes
-       return (snd $ constructorSizeOf platform newtypes conName conRepr)
+       let (size,scan) = (constructorSizeOf platform newtypes conName conRepr)
+       return ((size == 0), scan)
        
 --
 
@@ -757,7 +774,7 @@ ownedInScope vars action
   = scoped vars $
       do expr <- action
          live <- getLive
-         drops <- foldMapM genDrop (vars \\ live)
+         drops <- foldMapM (\name -> genDrop name Nothing) (vars \\ live)
          return $ maybeStats drops expr
 
 --------------------------------------------------------------------------

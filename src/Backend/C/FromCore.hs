@@ -1619,6 +1619,15 @@ genExprExternal tname formats [argDoc] | getName tname == nameBox || getName tna
         call  = genBoxCall (if (isBox) then "box" else "unbox") False tp argDoc
     in return ([], call)
 
+
+-- special case dropn
+genExprExternal tname formats [argDoc,scanDoc] | getName tname == nameDrop
+  = let isDup = (getName tname == nameDup)
+        tp    = case typeOf tname of
+                  TFun [(_,fromTp),(_,_)] _ toTp -> fromTp
+        call  = hcat (genDupDropCall False tp argDoc)   -- if empty, pass dup argument along?
+    in return ([], call)
+
 -- special case dup/drop
 genExprExternal tname formats [argDoc] | getName tname == nameDup || getName tname == nameDrop
   = let isDup = (getName tname == nameDup)
