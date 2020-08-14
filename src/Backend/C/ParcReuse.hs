@@ -13,7 +13,8 @@
 
 module Backend.C.ParcReuse ( parcReuseCore, 
                              genDropReuse,
-                             orderConFieldsEx, newtypesDataDefRepr, isDataStructLike 
+                             orderConFieldsEx, newtypesDataDefRepr, isDataStructLike,
+                             constructorSizeOf
                            ) where
 
 import Lib.Trace (trace)

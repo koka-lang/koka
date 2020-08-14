@@ -49,7 +49,7 @@ module Core.Core ( -- Data structures
                    , Visibility(..), Fixity(..), Assoc(..), isPublic
                    , coreName
                    , tnamesList, tnamesEmpty, tnamesDiff, tnamesInsertAll
-                   , tnamesUnion, tnamesUnions, tnamesRemove
+                   , tnamesUnion, tnamesUnions, tnamesRemove, tnamesFromList
                    -- , getTypeArityExpr -- ,getParamArityExpr
                    , getEffExpr
                    , TNames
@@ -670,6 +670,10 @@ tnamesEmpty = S.empty
 tnamesList :: TNames -> [TName]
 tnamesList tns
   = S.elems tns
+
+tnamesFromList :: [TName] -> TNames
+tnamesFromList tns
+  = S.fromList tns
 
 tnamesInsertAll :: TNames -> [TName] -> TNames
 tnamesInsertAll  = foldr S.insert
