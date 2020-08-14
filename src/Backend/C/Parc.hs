@@ -293,6 +293,12 @@ optimizeGuard aliases ri = opt
            xUnique <- opt dups $
                       map Drop (S.toList . childrenOf $ getDropVar v) ++ drops -- drop direct children in unique branch (note: `v \notin drops`)
            xDecRef <- genDecRef (getDropVar v)
+           let tp = typeOf (getDropVar v)
+           vform   <- getValueForm tp
+           let isValue = case vform of 
+                           Just _ -> True
+                           _      -> False
+               dontSpecialize  = isValue || isBoxType tp || isFun tp || isTypeInt tp
            case v of
              Reuse y
                -> do xReuse   <- genReuseAssign ri y
@@ -300,7 +306,7 @@ optimizeGuard aliases ri = opt
                      return $ makeIfExpr (genIsUnique y)
                                 (maybeStatsUnit (xUnique ++ [xReuse]))
                                 (maybeStatsUnit (xShared ++ [xDecRef, xSetNull]))
-             Drop y | isFun (typeOf y) || isTypeInt (typeOf y)
+             Drop y | dontSpecialize 
                -- don't specialize certain primitives
                -> do xDrop <- genDrop y (scanFieldsOf y)
                      return (maybeStatsUnit (xShared ++ [xDrop]))
