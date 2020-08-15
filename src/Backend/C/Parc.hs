@@ -529,14 +529,20 @@ genDupDrop isDup tname (Just ConSingleton{}) (Just 0)
        return Nothing
 genDupDrop isDup tname mbConRepr mbScanCount
   = do let tp = typeOf tname
-       dd <- getDataDef tp
+       mbDi     <- getDataInfo tp
        borrowed <- isBorrowed tname
-       return $
-         if borrowed && not isDup
-           then Nothing
-           else case dd of
-                 (DataDefValue _ 0) -> Nothing  -- no scan fields
-                 _ -> Just (dupDropFun isDup tp mbConRepr mbScanCount (Var tname InfoNone))
+       if borrowed && not isDup
+         then return Nothing
+         else let normal = (Just (dupDropFun isDup tp mbConRepr mbScanCount (Var tname InfoNone)))
+              in case mbDi of
+                Just di -> case (dataInfoDef di, dataInfoConstrs di, snd (getDataRepr di)) of
+                             (DataDefNormal, [conInfo], [conRepr])  -- data with just one constructor
+                               -> do scan <- getConstructorScanFields (TName (conInfoName conInfo) (conInfoType conInfo)) conRepr
+                                     return (Just (dupDropFun isDup tp (Just conRepr) (Just scan) (Var tname InfoNone)))
+                             (DataDefValue _ 0, _, _) 
+                               -> return Nothing  -- value with no scan fields
+                             _ -> return normal
+                _ -> return normal
 
 genDup name  = genDupDrop True name Nothing Nothing
 genDrop name = do shape <- getShapeInfo name
@@ -843,19 +849,26 @@ parcTrace msg
 
 ----------------
 
-getDataInfo' :: Newtypes -> Type -> (DataInfo)
+getDataInfo' :: Newtypes -> Type -> Maybe DataInfo
 getDataInfo' newtypes tp
   = case extractDataDefType tp of
-      Nothing -> (DataDefNormal, DataNormal True)
-      Just name | name == nameBoxCon -> (DataDefNormal, DataNormal False)
+      Nothing   -> Nothing
+      Just name | name == nameBoxCon -> Nothing
       Just name -> case newtypesLookupAny name newtypes of
                       Nothing -> failure $ "Core.Parc.getDataDefInfo: cannot find type: " ++ show name
-                      Just di -> di
+                      Just di -> Just di
 
 getDataDef' :: Newtypes -> Type -> DataDef
 getDataDef' newtypes tp
-  = let di =  getDataInfo' newtypes tp
-    in (dataInfoDef di)
+  = case getDataInfo' newtypes tp of
+      Just di -> dataInfoDef di
+      _       -> DataDefNormal
+
+
+getDataInfo :: Type -> Parc (Maybe DataInfo)
+getDataInfo tp
+  = do newtypes <- getNewtypes
+       return (getDataInfo' newtypes tp)
 
 getDataDef :: Type -> Parc DataDef
 getDataDef tp
