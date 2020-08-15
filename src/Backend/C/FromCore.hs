@@ -296,7 +296,7 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
   = let tryFun expr = case expr of
                         TypeApp e _   -> tryFun e
                         TypeLam _ e   -> tryFun e
-                        Lam params eff body  -> genFunDef params body
+                        Lam params eff body | isDefFun sort -> genFunDef params body
                         _ | isDefFun sort
                           -> -- some optimization turned a toplevel lambda into
                              -- a value; wrap it back into a lambda again as all occurrences

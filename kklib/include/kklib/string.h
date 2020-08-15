@@ -68,7 +68,7 @@ extern struct string_normal_s _static_string_empty;
 
 static inline string_t unbox_string_t(box_t v) {
   block_t* b = unbox_ptr(v);
-  assert_internal(block_tag(b) == TAG_STRING_SMALL || block_tag(b) == TAG_STRING || block_tag(b) == TAG_STRING_RAW);
+  assert_internal(block_tag(b) == TAG_STRING_SMALL || block_tag(b) == TAG_STRING || block_tag(b) == TAG_STRING_RAW || block_tag(b) == TAG_BOX_ANY);
   return (string_t)b;
 }
 

@@ -25,7 +25,7 @@ fun catch(action,h) {
 }
 
 fun zerodiv(x,y) {
-  common/catch( { safe-div(x,y) }, fun(s) { 0 } )
+  common/catch( { safe-div(x,y) }, fun(s) { 42 } )
 }
 
 val to-maybe = handler {

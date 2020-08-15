@@ -159,9 +159,7 @@
     <ClCompile Include="..\..\..\out\std_core.c" />
     <ClCompile Include="..\..\..\out\std_core_hnd.c" />
     <ClCompile Include="..\..\..\out\std_core_types.c" />
-    <ClCompile Include="..\..\..\out\test_parc_rbtree.c">
-      <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">AssemblyAndSourceCode</AssemblerOutput>
-    </ClCompile>
+    <ClCompile Include="..\..\..\out\test_algeff_common.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
