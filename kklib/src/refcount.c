@@ -110,6 +110,29 @@ decl_noinline reuse_t block_check_reuse(block_t* b, uint32_t rc0, context_t* ctx
   }
 }
 
+// Check if a reference decrement caused the block to be freed shallowly or needs atomic operations
+decl_noinline void block_check_decref(block_t* b, uint32_t rc0, context_t* ctx) {
+  UNUSED(ctx);
+  assert_internal(b!=NULL);
+  assert_internal(b->header.refcount == rc0);
+  assert_internal(rc0 == 0 || (rc0 >= RC_SHARED && rc0 < RC_INVALID));
+  if (likely(rc0==0)) {
+    runtime_free(b);  // no more references, free it (without dropping children!)
+  }
+  else if (unlikely(rc0 >= RC_STICKY_LO)) {
+    // sticky: do not decrement further
+  }
+  else {
+    const uint32_t rc = atomic_decr(b);
+    if (rc == RC_SHARED && b->header.thread_shared) {  // with a shared reference dropping to RC_SHARED means no more references
+      b->header.refcount = 0;        // no longer shared
+      b->header.thread_shared = 0;
+      runtime_free(b);               // no more references, free it.
+    }
+  }
+}
+
+
 decl_noinline block_t* dup_block_check(block_t* b, uint32_t rc0) {
   assert_internal(b!=NULL);
   assert_internal(b->header.refcount == rc0 && rc0 >= RC_SHARED);

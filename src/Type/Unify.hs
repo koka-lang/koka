@@ -235,8 +235,10 @@ unify (TFun args1 eff1 res1) (TFun args2 eff2 res2) | length args1 == length arg
   = do withError (effErr) (unify eff1 eff2)
        unifies (res1:map snd args1) (res2:map snd args2)
   where
-    effErr NoMatch  = NoMatchEffect eff1 eff2
-    effErr err      = err
+    -- specialize to sub-part of the type for effect unification errors
+    effErr NoMatch              = NoMatchEffect eff1 eff2
+    effErr (NoMatchEffect _ _)  = NoMatchEffect eff1 eff2
+    effErr err                  = err
 
 -- quantified types
 unify (TForall vars1 preds1 tp1) (TForall vars2 preds2 tp2) | length vars1 == length vars2 && length preds1 == length preds2

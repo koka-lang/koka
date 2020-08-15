@@ -577,7 +577,7 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
                                                         then ppConTag con conRepr dataRepr <+> text "/* tag */"
                                                         else text "TAG_OPEN"]
                                <.> semi]
-                              ++ (if (dataRepr /= DataOpen) then [] else [tmp <.> text "->_base._tag =" <+> ppConTag con conRepr dataRepr <.> semi ])
+                              ++ (if (dataRepr /= DataOpen) then [] else [tmp <.> text "->_base._tag = dup_string_t" <.> parens(ppConTag con conRepr dataRepr) <.> semi ])
                               ++ map (assignField (\fld -> tmp <.> text "->" <.> fld)) conFields
                               ++ [let base = text "&" <.> tmp <.> text "->_base"
                                   in if (dataReprMayHaveSingletons dataRepr)

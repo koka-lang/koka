@@ -15,15 +15,15 @@ struct __std_core_hnd__ev_s;
 typedef vector_t evv_t;         // either a vector, or a single evidence
 
 static inline bool evv_is_vector(evv_t evv) {
-  return (basetype_has_tag(evv,TAG_VECTOR));
+  return (datatype_is_singleton(evv) || datatype_has_tag(evv,TAG_VECTOR));
 }
 
 static inline evv_t dup_evv_t(evv_t evv) {
-  return dup_basetype_as(evv_t,evv);
+  return dup_datatype(evv);  
 }
 
 static inline void drop_evv_t(evv_t evv, context_t* ctx) {
-  drop_basetype(evv,ctx);
+  drop_datatype(evv,ctx);
 }
 
 static inline struct __std_core_hnd__ev_s* evv_at( int32_t i, context_t* ctx ) {
@@ -34,16 +34,18 @@ static inline struct __std_core_hnd__ev_s* evv_at( int32_t i, context_t* ctx ) {
   }
   else {    
     assert_internal(i==0);
-    return dup_basetype_as(struct __std_core_hnd__ev_s*, evv); // single evidence
+    assert_internal(datatype_is_ptr(evv));
+    dup_datatype(evv);
+    return datatype_as(struct __std_core_hnd__ev_s*, evv); // single evidence    
   }
 }
 
 static inline evv_t evv_get(context_t* ctx) {
-  return dup_basetype_as(evv_t, ctx->evv);
+  return dup_evv_t(ctx->evv);
 }
 
 static inline unit_t evv_set(evv_t evv, context_t* ctx) {
-  drop_basetype(ctx->evv, ctx);
+  drop_evv_t(ctx->evv, ctx);
   ctx->evv = evv;
   return Unit;
 }
@@ -55,7 +57,7 @@ static inline evv_t evv_swap(evv_t evv, context_t* ctx) {
 }
 
 static inline evv_t evv_total(context_t* ctx) {
-  return dup_vector_t(vector_empty);
+  return vector_empty();
 }
 
 static inline evv_t evv_swap_create0(context_t* ctx) {
@@ -65,12 +67,12 @@ static inline evv_t evv_swap_create0(context_t* ctx) {
 static inline evv_t evv_swap_create1(int32_t i, context_t* ctx) {
   evv_t evv0 = ctx->evv;  
   if (evv_is_vector(evv0)) {
-    ctx->evv = (evv_t)unbox_ptr(vector_at(evv0,(size_t)i)); // set single evidence
+    ctx->evv = datatype_from_ptr(unbox_ptr(vector_at(evv0,(size_t)i))); // set single evidence
     return evv0;
   }
   else {      
     assert_internal(i==0);
-    return dup_basetype_as(evv_t,evv0);  // already a single evidence
+    return dup_datatype(evv0);  // already a single evidence
   }
 }
 

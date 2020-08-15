@@ -38,6 +38,7 @@ typedef enum tag_e {
   TAG_MAX       = 65000,
   TAG_OPEN,        // open datatype, first field is a string tag
   TAG_BOX,         // boxed value type
+  TAG_BOX_ANY,     // box_any polymorphic value
   TAG_REF,         // mutable reference
   TAG_FUNCTION,    // function with free its free variables
   TAG_BIGINT,      // big integer (see `integer.c`)
@@ -208,13 +209,16 @@ typedef struct function_s {
   // followed by free variables
 } *function_t;
 
-// A vector is an array of boxed values.
-typedef struct vector_s {
-  block_t _block;
-} *vector_t;
+// A vector is an array of boxed values, or an empty singleton
+typedef datatype_t vector_t;
 
 // Strong random number context (using chacha20)
 struct random_ctx_s;
+
+// Box any is used when yielding
+typedef struct box_any_s {
+  block_t  _block;
+} *box_any_t;
 
 //A yield context allows up to 8 continuations to be stored in-place
 #define YIELD_CONT_MAX (8)
@@ -249,6 +253,7 @@ typedef struct context_s {
   function_t  log;              // logging function
   function_t  out;              // std output
   struct random_ctx_s* srandom_ctx;    // secure random using chacha20, initialized on demand
+  box_any_t   box_any;          // used when yielding as a value of any type
 } context_t;
 
 // Get the current (thread local) runtime context (should always equal the `_ctx` parameter)
@@ -425,7 +430,7 @@ static inline block_t* block_realloc(block_t* b, size_t size, context_t* ctx) {
 
 static inline char* _block_as_assert(block_t* b, tag_t tag) {
   UNUSED_RELEASE(tag);
-  assert_internal(block_tag(b) == tag);
+  assert_internal(block_tag(b) == tag || block_tag(b) == TAG_BOX_ANY);
   return (char*)b;
 }
 
@@ -441,6 +446,7 @@ static inline char* _block_as_assert(block_t* b, tag_t tag) {
 --------------------------------------------------------------------------------------*/
 
 decl_export void     block_check_free(block_t* b, uint32_t rc, context_t* ctx);
+decl_export void     block_check_decref(block_t* b, uint32_t rc, context_t* ctx);
 decl_export block_t* dup_block_check(block_t* b, uint32_t rc);
 
 static inline block_t* dup_block(block_t* b) {
@@ -465,13 +471,12 @@ static inline void drop_block(block_t* b, context_t* ctx) {
 }
 
 static inline void block_decref(block_t* b, context_t* ctx) {
-  const uint32_t rc = b->header.refcount;
-  assert_internal(rc != 0);
+  const uint32_t rc = b->header.refcount;  
   if (likely((int32_t)(rc > 0))) {     // note: assume two's complement
     b->header.refcount = rc - 1;
   }
   else {
-    block_check_free(b, rc, ctx);      // thread-shared, sticky (overflowed), or can be freed? TODO: should just free; not drop recursively
+    block_check_decref(b, rc, ctx);      // thread-shared, sticky (overflowed), or can be freed? TODO: should just free; not drop recursively
   }
 }
 
@@ -577,13 +582,13 @@ static inline reuse_t dropn_reuse_block(block_t* b, size_t scan_fsize, context_t
 
 static inline void drop_block_assert(block_t* b, tag_t tag, context_t* ctx) {
   UNUSED_RELEASE(tag);
-  assert_internal(block_tag(b) == tag);
+  assert_internal(block_tag(b) == tag || block_tag(b) == TAG_BOX_ANY);
   drop_block(b,ctx);
 }
 
 static inline block_t* dup_block_assert(block_t* b, tag_t tag) {
   UNUSED_RELEASE(tag);
-  assert_internal(block_tag(b) == tag);
+  assert_internal(block_tag(b) == tag || block_tag(b) == TAG_BOX_ANY);
   return dup_block(b);
 }
 
@@ -648,6 +653,10 @@ static inline datatype_t datatype_from_ptr(ptr_t p) {
   datatype_t d;
   d.ptr = p;
   return d;
+}
+
+static inline bool datatype_eq(datatype_t x, datatype_t y) {
+  return (x.ptr == y.ptr);
 }
 
 static inline bool datatype_is_ptr(datatype_t d) {
@@ -861,6 +870,7 @@ static inline function_t dup_function_t(function_t f) {
 
 /*--------------------------------------------------------------------------------------
   References
+  TODO: make thread safe
 --------------------------------------------------------------------------------------*/
 typedef struct ref_s {
   block_t _block;
@@ -936,24 +946,37 @@ static inline unit_t unbox_unit_t(box_t u) {
 /*--------------------------------------------------------------------------------------
   Vector
 --------------------------------------------------------------------------------------*/
-extern vector_t vector_empty;
-
-static inline void drop_vector_t(vector_t v, context_t* ctx) {
-  drop_basetype(v, ctx);
-}
-
-static inline vector_t dup_vector_t(vector_t v) {
-  return dup_basetype_as(vector_t, v);
-}
 
 typedef struct vector_large_s {  // always use a large block for a vector so the offset to the elements is fixed
-  struct block_large_s _block;
+  struct block_large_s _base;
   box_t    vec[1];               // vec[(large_)scan_fsize]
 } *vector_large_t;
 
+
+static inline vector_t vector_empty(void) {
+  return datatype_from_tag(1);
+}
+
+static inline vector_large_t vector_as_large(vector_t v) {
+  if (datatype_is_singleton(v)) {
+    return NULL;
+  }
+  else {
+    return datatype_as_assert(vector_large_t, v, TAG_VECTOR);
+  }
+}
+
+static inline void drop_vector_t(vector_t v, context_t* ctx) {
+  drop_datatype(v, ctx);
+}
+
+static inline vector_t dup_vector_t(vector_t v) {
+  return dup_datatype(v);
+}
+
 static inline vector_t vector_alloc(size_t length, box_t def, context_t* ctx) {
   if (length==0) {
-    return dup_vector_t(vector_empty);
+    return vector_empty();
   }
   else {
     vector_large_t v = (vector_large_t)block_large_alloc(sizeof(struct vector_large_s) + (length-1)*sizeof(box_t), length + 1 /* large_scan_fsize */, TAG_VECTOR, ctx);
@@ -962,20 +985,24 @@ static inline vector_t vector_alloc(size_t length, box_t def, context_t* ctx) {
         v->vec[i] = def;
       }
     }
-    return (vector_t)(&v->_block._block);
+    return datatype_from_base(&v->_base);
   }
 }
 
-static inline size_t vector_len(const vector_t v) {
-  size_t len = unbox_enum( basetype_as_assert(vector_large_t, v, TAG_VECTOR)->_block.large_scan_fsize ) - 1;
-  assert_internal(len + 1 == block_scan_fsize(&v->_block));
+static inline size_t vector_len(const vector_t vd) {
+  vector_large_t v = vector_as_large(vd);
+  if (v==NULL) return 0;
+  size_t len = unbox_enum( v->_base.large_scan_fsize ) - 1;
+  assert_internal(len + 1 == block_scan_fsize(&v->_base._block));
   assert_internal(len + 1 != 0);
   return len;
 }
 
-static inline box_t* vector_buf(vector_t v, size_t* len) {
-  if (len != NULL) *len = vector_len(v);
-  return &(basetype_as_assert(vector_large_t, v, TAG_VECTOR)->vec[0]);
+static inline box_t* vector_buf(vector_t vd, size_t* len) {
+  if (len != NULL) *len = vector_len(vd);
+  vector_large_t v = vector_as_large(vd);
+  if (v==NULL) return NULL;
+  return &(v->vec[0]);
 }
 
 static inline box_t vector_at(const vector_t v, size_t i) {
@@ -985,14 +1012,12 @@ static inline box_t vector_at(const vector_t v, size_t i) {
 
 static inline box_t box_vector_t(vector_t v, context_t* ctx) {
   UNUSED(ctx);
-  return box_ptr(&v->_block);
+  return box_datatype(v);
 }
 
 static inline vector_t unbox_vector_t(box_t v, context_t* ctx) {
   UNUSED(ctx);
-  block_t* b = unbox_ptr(v);
-  assert_internal(block_tag(b) == TAG_VECTOR);
-  return (vector_t)b;
+  return unbox_datatype(v);
 }
 
 /*--------------------------------------------------------------------------------------

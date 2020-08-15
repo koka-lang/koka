@@ -155,6 +155,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\out\interactive.c" />
     <ClCompile Include="..\..\..\out\std_core.c" />
     <ClCompile Include="..\..\..\out\std_core_hnd.c" />
     <ClCompile Include="..\..\..\out\std_core_types.c" />

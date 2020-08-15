@@ -88,7 +88,7 @@ private extern evv-show( evv : evv<e> ) : string {
 }
 
 private extern evv-eq(evv0 : evv<e>, evv1 : evv<e> ) : bool {
-  c inline "(#1) == (#2)"
+  c inline "datatype_eq(#1,#2)"
   js inline "(#1) === (#2)"
 }
 
@@ -171,7 +171,7 @@ private extern yield-cont(f : (a -> e a, a) -> e r ) : e r {  // make hidden pub
 }
 
 private extern inline keep-yielding-final() : e r {
-  c inline "box_any"
+  c inline "box_any(current_context())"
   js inline "undefined"
 }
 

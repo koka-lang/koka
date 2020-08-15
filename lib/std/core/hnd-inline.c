@@ -27,7 +27,7 @@ static inline box_t* evv_as_vec(evv_t evv, size_t* len, box_t* single) {
   }
   else {
     // single evidence
-    *single = box_basetype(evv);
+    *single = box_datatype(evv);
     *len = 1;
     return single;
   }
@@ -41,7 +41,7 @@ struct __std_core_hnd__ev_s* ev_none(context_t* ctx) {
       __std_core_hnd__new_Htag(dup_string_t(string_empty),ctx), // tag ""
       __std_core_hnd__new_Marker(-1,ctx),                       // marker -1
       box_null,                                                 // no handler
-      dup_vector_t(vector_empty),
+      vector_empty(),
       ctx
     );      
   }
@@ -105,7 +105,7 @@ evv_t evv_delete(evv_t evvd, int32_t index, bool behind, context_t* ctx) {
   box_t single;
   const box_t* evv1 = evv_as_vec(evvd, &n, &single);
   if (n <= 1) {
-    drop_basetype(evvd,ctx);
+    drop_datatype(evvd,ctx);
     return evv_total(ctx);
   }
   if (behind) index++;
@@ -119,7 +119,7 @@ evv_t evv_delete(evv_t evvd, int32_t index, bool behind, context_t* ctx) {
   for(; i < n-1; i++) {
     evv2[i] = dup_box_t(evv1[i+1]);
   }
-  drop_basetype(evvd,ctx);
+  drop_datatype(evvd,ctx);
   return vec2;
 }
 
@@ -157,7 +157,7 @@ static box_t kcompose( function_t fself, box_t x, context_t* ctx) {
       }
       drop_function_t(fself,ctx);
       drop_box_t(x,ctx);
-      return box_any; // return yielding
+      return box_any(ctx); // return yielding
     }
   }
   drop_function_t(fself,ctx);
@@ -196,7 +196,7 @@ box_t yield_extend( function_t next, context_t* ctx ) {
     }
     yield->conts[yield->conts_count++] = next;
   }
-  return box_any;
+  return box_any(ctx);
 }
 
 // cont_apply: \x -> f(cont,x) 
@@ -234,7 +234,7 @@ box_t yield_cont( function_t f, context_t* ctx ) {
     yield->conts_count = 1;
     yield->conts[0] = new_cont_apply(f, cont, ctx);
   }
-  return box_any;
+  return box_any(ctx);
 }
 
 function_t yield_to( struct __std_core_hnd_Marker m, function_t clause, context_t* ctx ) {
@@ -244,18 +244,18 @@ function_t yield_to( struct __std_core_hnd_Marker m, function_t clause, context_
   yield->marker = m.m;
   yield->clause = clause;
   yield->conts_count = 0;
-  return unbox_basetype_as(function_t,box_any);
+  return unbox_basetype_as(function_t,box_any(ctx));
 }
 
 box_t yield_final( struct __std_core_hnd_Marker m, function_t clause, context_t* ctx ) {
   yield_to(m,clause,ctx);
   ctx->yielding = YIELD_FINAL;
-  return box_any;
+  return box_any(ctx);
 }
 
 box_t fatal_resume_final(context_t* ctx) {
   fatal_error(EFAULT,"trying to resume a finalized resumption");
-  return box_any;
+  return box_any(ctx);
 }
 
 static box_t _fatal_resume_final(function_t self, context_t* ctx) {
@@ -288,7 +288,7 @@ struct __std_core_hnd_yld_s  yield_prompt( struct __std_core_hnd_Marker m, conte
 }
 
 unit_t  evv_guard(evv_t evv, context_t* ctx) {
-  if (ctx->evv != evv) {
+  if (!datatype_eq(ctx->evv,evv)) {
     // todo: improve error message with diagnostics
     fatal_error(EFAULT,"trying to resume outside the (handler) scope of the original handler");
   }
@@ -298,7 +298,7 @@ unit_t  evv_guard(evv_t evv, context_t* ctx) {
 
 evv_t evv_create(evv_t evv, vector_t indices, context_t* ctx) {
   unsupported_external("evv_create");
-  return dup_vector_t(vector_empty);
+  return vector_empty();
 }
 
 evv_t evv_swap_create( vector_t indices, context_t* ctx ) {
@@ -313,7 +313,7 @@ evv_t evv_swap_create( vector_t indices, context_t* ctx ) {
     drop_vector_t(indices,ctx);
     return evv_swap_create1(i,ctx);
   }
-  return evv_swap( evv_create(dup_basetype_as(evv_t,ctx->evv),indices,ctx), ctx );
+  return evv_swap( evv_create(dup_evv_t(ctx->evv),indices,ctx), ctx );
 }
 
 typedef struct yield_info_s {
@@ -355,5 +355,5 @@ box_t yield_reyield( __std_core_hnd__yield_info yldinfo, context_t* ctx) {
     ctx->yield.conts[i] = dup_function_t(yld->conts[i]);
   }
   drop_constructor(yld,ctx);
-  return box_any;
+  return box_any(ctx);
 }
