@@ -1138,16 +1138,6 @@ genExprStat result expr
         -> do exprDoc <- genInline expr
               return (getResult result exprDoc)
               
-      {-
-      -- If (yielding(ctx)) then expr1 else expr2      
-      Let [DefNonRec (Def name tp (App (Var vnameYielding _) [ctx]) Private DefVal _ _ _)] 
-          (Case [Var vname _] [Branch [PatCon{patConName=con1}] (Guard guard1 expr1),
-                               Branch [PatCon{patConName=con2}] (Guard guard2 expr2)])  
-            | vname == name && vnameYielding == nameYielding && 
-              isExprTrue guard1 && isExprTrue guard2 && 
-              getName con1 == nameTrue && getName con2 == nameFalse
-         -> genExprStat -}
-
       Case exprs branches
          -> do (docs, scrutinees)
                    <- fmap unzip $
@@ -1162,9 +1152,13 @@ genExprStat result expr
                return (vcat docs <-> doc)
 
       Let groups body
-        -> do docs1 <- genLocalGroups groups
-              doc2  <- genStat result body
-              return (vcat docs1 <-> doc2)
+        -> case (reverse groups, body) of
+             (DefNonRec (Def name tp expr Private DefVal _ _ _):rgroups, (Case [Var vname _] branches))  
+               | name == getName vname && not (S.member vname (freeLocals branches)) && isInlineableExpr expr
+               -> genExprStat result (makeLet (reverse rgroups) (Case [expr] branches))    
+             _ -> do docs1 <- genLocalGroups groups
+                     doc2  <- genStat result body
+                     return (vcat docs1 <-> doc2)
 
       -- Handling all other cases
       _ -> do (statDocs,exprDoc) <- genExpr expr
@@ -1789,7 +1783,7 @@ isInlineableExpr expr
       -- C has no guarantee on argument evaluation so we only allow a select few operations to be inlined
       App (Var v (InfoExternal _)) [] -> getName v `elem` [nameYielding,nameReuseNull]
       -- App (Var v (InfoExternal _)) [arg] | getName v `elem` [nameBox,nameDup,nameInt32] -> isInlineableExpr arg
-      App (Var v _) [arg] | getName v `elem` [nameBox,nameDup,nameInt32,nameReuse] -> isInlineableExpr arg
+      App (Var v _) [arg] | getName v `elem` [nameBox,nameDup,nameInt32,nameReuse,nameIsUnique] -> isInlineableExpr arg
       
       --App (Var _ (InfoExternal _)) args -> all isPureExpr args  -- yielding() etc.
 
