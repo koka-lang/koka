@@ -90,8 +90,18 @@ matchBranch newtypes defName range matches patTps branch@(Branch patterns guards
 
 matchBranch newtypes defName range matches patTps branch@(Branch patterns guards) 
   = -- some guard matches for sure; analyze the pattern
-    let (matches',patterns',warnings) = matchPatterns newtypes defName range True matches patTps patterns
-    in (matches', Branch patterns' guards, warnings)
+    let (matches',patterns',warnings1) = matchPatterns newtypes defName range True matches patTps patterns
+        warnings2 = analyzeGuards range guards
+    in (matches', Branch patterns' guards, warnings1 ++ warnings2)
+
+
+analyzeGuards :: Range -> [Guard] -> Warnings
+analyzeGuards range (Guard test expr : guards)  | isExprTrue test && not (null guards)
+  = [(range, text "Some guards in the branches will never be reached")] 
+analyzeGuards range (Guard test expr : guards)  | isExprFalse test 
+  = [(range, text "Some guard condition in the branches is never true")] ++ analyzeGuards range guards
+analyzeGuards range (g:gs) = analyzeGuards range gs
+analyzeGuards range []     = []
 
 matchPattern :: Newtypes -> Name -> Range -> Bool -> (Match,Type,Pattern) -> (Match,Pattern,Warnings)
 matchPattern newtypes defName range top (m@(MatchComplete _), tp, pat)

@@ -1918,28 +1918,29 @@ branch
 
 guards :: LexParser [UserGuard]
 guards
-  = do gs <- many guardBar 
-       if (null gs)
-        then (do g <- guardNoBar
-                 return (gs ++ [g]))
-        else (do g <- guardNoBar
-                 return (gs ++ [g])
-              <|>
-                 return gs)
-                 
-guardNoBar, guardBar :: LexParser UserGuard
-guardNoBar
-  = do exp <- bodyexpr
-       return (Guard guardTrue exp)
+  = many1 guardBar
+  <|>
+    do exp <- bodyexpr
+       return [Guard guardTrue exp]
 
 guardBar
-  = do bar
-       grd  <- expr <?> "guard expression"
+  = do bar  <?> "guard condition \"|\""
+       grd  <- pguardTest
        keyword "->"
        exp  <- blockexpr
        return (Guard grd exp)
 
-
+pguardTest
+  = do specialId "otherwise"  -- Haskell help
+       fail "hint: use \"_\" instead of \"otherwise\" for the guard condition"
+  <|>
+    do expr
+  <|>
+    do wildcard
+       return guardTrue
+  <?> "guard condition or '_'"
+    
+      
 {--------------------------------------------------------------------------
   Op expr
 --------------------------------------------------------------------------}
