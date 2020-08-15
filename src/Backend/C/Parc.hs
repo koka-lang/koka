@@ -468,15 +468,15 @@ data BoxForm = BoxIdentity   -- directly in the box itself (`int` or any regular
 
 getBoxForm' :: Platform -> Newtypes -> Type -> BoxForm
 getBoxForm' platform newtypes tp
-  = case getDataDefRepr' newtypes tp of
-      (DataDefValue _ 0, _) -- 0 scan fields
+  = case getDataDef' newtypes tp of
+      (DataDefValue _ 0) -- 0 scan fields
         -> case extractDataDefType tp of
              Just name
                | name `elem` [nameTpInt, nameTpChar, nameTpInt8, nameTpInt16, nameTpByte] ||
                  ((name `elem` [nameTpInt32, nameTpFloat32]) && sizePtr platform > 4)
                    -> BoxIdentity
              _ -> BoxRaw
-      (DataDefValue _ _, _)
+      (DataDefValue _ _)
         -> BoxValue
       _ -> BoxIdentity
 
@@ -493,17 +493,17 @@ getBoxForm tp
 -- value types with reference fields still need a drop
 needsDupDrop :: Type -> Parc Bool
 needsDupDrop tp
-  = do repr <- getDataDefRepr tp
-       return $ case repr of
-         (DataDefValue _ 0, _) -> False
-         _                     -> True
+  = do dd <- getDataDef tp
+       return $ case dd of
+         (DataDefValue _ 0) -> False
+         _                  -> True
 
 isValueType :: Type -> Parc Bool
 isValueType tp
-  = do repr <- getDataDefRepr tp
-       return $ case repr of
-         (DataDefValue _ _, _) -> True
-         _                     -> False
+  = do dd <- getDataDef tp
+       return $ case dd of
+         (DataDefValue _ _) -> True
+         _                  -> False
 
 data ValueForm
   = ValueAllRaw   -- just bits
@@ -512,11 +512,11 @@ data ValueForm
 
 getValueForm' :: Newtypes -> Type -> Maybe ValueForm
 getValueForm' newtypes tp
-  = case getDataDefRepr' newtypes tp of
-      (DataDefValue _ 0, _) -> Just ValueAllRaw
-      (DataDefValue 0 1, _) -> Just ValueOneScan
-      (DataDefValue _ _, _) -> Just ValueOther
-      _                     -> Nothing
+  = case getDataDef' newtypes tp of
+      (DataDefValue _ 0) -> Just ValueAllRaw
+      (DataDefValue 0 1) -> Just ValueOneScan
+      (DataDefValue _ _) -> Just ValueOther
+      _                  -> Nothing
 
 getValueForm :: Type -> Parc (Maybe ValueForm)
 getValueForm tp = (`getValueForm'` tp) <$> getNewtypes
@@ -529,13 +529,13 @@ genDupDrop isDup tname (Just ConSingleton{}) (Just 0)
        return Nothing
 genDupDrop isDup tname mbConRepr mbScanCount
   = do let tp = typeOf tname
-       repr <- getDataDefRepr tp
+       dd <- getDataDef tp
        borrowed <- isBorrowed tname
        return $
          if borrowed && not isDup
            then Nothing
-           else case repr of
-                 (DataDefValue _ 0, _) -> Nothing  -- no scan fields
+           else case dd of
+                 (DataDefValue _ 0) -> Nothing  -- no scan fields
                  _ -> Just (dupDropFun isDup tp mbConRepr mbScanCount (Var tname InfoNone))
 
 genDup name  = genDupDrop True name Nothing Nothing
@@ -843,19 +843,25 @@ parcTrace msg
 
 ----------------
 
-getDataDefRepr' :: Newtypes -> Type -> (DataDef, DataRepr)
-getDataDefRepr' newtypes tp
+getDataInfo' :: Newtypes -> Type -> (DataInfo)
+getDataInfo' newtypes tp
   = case extractDataDefType tp of
       Nothing -> (DataDefNormal, DataNormal True)
       Just name | name == nameBoxCon -> (DataDefNormal, DataNormal False)
       Just name -> case newtypesLookupAny name newtypes of
-                      Nothing -> failure $ "Core.Parc.getDataDefRepr: cannot find type: " ++ show name
-                      Just di -> (dataInfoDef di, fst (getDataRepr di))
+                      Nothing -> failure $ "Core.Parc.getDataDefInfo: cannot find type: " ++ show name
+                      Just di -> di
 
-getDataDefRepr :: Type -> Parc (DataDef, DataRepr)
-getDataDefRepr tp
+getDataDef' :: Newtypes -> Type -> DataDef
+getDataDef' newtypes tp
+  = let di =  getDataInfo' newtypes tp
+    in (dataInfoDef di)
+
+getDataDef :: Type -> Parc DataDef
+getDataDef tp
   = do newtypes <- getNewtypes
-       return $ getDataDefRepr' newtypes tp
+       return (getDataDef' newtypes tp)
+
 
 extractDataDefType :: Type -> Maybe Name
 extractDataDefType tp
