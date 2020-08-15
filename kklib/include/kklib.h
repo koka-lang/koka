@@ -71,12 +71,12 @@ typedef struct header_s {
   uint8_t   scan_fsize;       // number of fields that should be scanned when releasing (`scan_fsize <= 0xFF`, if 0xFF, the full scan size is the first field)
   uint8_t   thread_shared : 1;
   uint16_t  tag;              // header tag
-  uint32_t  refcount;         // reference count
+  uint32_t  refcount;         // reference count  (last to reduce code size constants in block_init)
 } header_t;
 
 #define SCAN_FSIZE_MAX (0xFF)
-#define HEADER(scan_fsize,tag)         { scan_fsize, 0, tag, 0 }            // start with refcount of 0
-#define HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 0, tag, U32(0xFF00) }  // start with recognisable refcount (anything > 1 is ok)
+#define HEADER(scan_fsize,tag)         { scan_fsize, 0, tag, 0}            // start with refcount of 0
+#define HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 0, tag, U32(0xFF00)}  // start with recognisable refcount (anything > 1 is ok)
 
 
 // Polymorphic operations work on boxed values. (We use a struct for extra checks on accidental conversion)
@@ -105,11 +105,18 @@ static inline box_t     box_enum(uintx_t u);
   This representation ensures correct behaviour under C alias rules and allow good optimization.
   e.g. :
 
+    type tree<a> {
+      Leaf( x : a )
+      Node( l : tree<a>, r : tree<a> )
+    }
+
+    ~>
+
     typedef struct tree_s {
       block_t _block;
     } * tree_t
 
-    struct Bin {
+    struct Node {
       struct tree_s  _base;
       tree_t        left;
       tree_t        right;
@@ -360,7 +367,7 @@ static inline void block_init(block_t* b, size_t size, size_t scan_fsize, tag_t 
   assert_internal(scan_fsize < SCAN_FSIZE_MAX);
 #if (ARCH_LITTLE_ENDIAN)
   // explicit shifts lead to better codegen
-  *((uint64_t*)b) = ((uint64_t)scan_fsize | ((uint64_t)tag << 16));  
+  *((uint64_t*)b) = ((uint64_t)scan_fsize | (uint64_t)tag << 16);                    
 #else
   header_t header = { (uint8_t)scan_fsize, 0, (uint16_t)tag, 0 };
   b->header = header;
@@ -465,7 +472,6 @@ static inline void block_decref(block_t* b, context_t* ctx) {
     b->header.refcount = rc - 1;
   }
   else {
-    assert_internal(false);
     block_check_free(b, rc, ctx);      // thread-shared, sticky (overflowed), or can be freed? TODO: should just free; not drop recursively
   }
 }
