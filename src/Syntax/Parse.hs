@@ -22,7 +22,7 @@ module Syntax.Parse( parseProgramFromFile
                    , tbinderId, constructorId, funid, paramid
                    , braced, semiBraces, semis, semiColons
                    , angles, anglesCommas, parensCommas, parens, curlies
-                   , semiColon, lparen, rparen, langle, rangle, comma, lapp, lidx
+                   , semiColon, lparen, rparen, langle, rangle, comma, lapp, lidx, bar
                    , qtypeid, qvarid, qconid, qidop, identifier, qoperator, varid, idop
                    , integer, charLit, floatLit, stringLit
                    , special, specialId, specialOp, specialConId, wildcard
@@ -2667,7 +2667,7 @@ rangle   = specialOp ">"
 lcurly   = special "{"
 rcurly   = special "}"
 
-bar      = specialOp "|"
+bar      = keyword "|" -- specialOp "|"
 comma    = special ","
 
 

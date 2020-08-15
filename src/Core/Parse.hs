@@ -510,7 +510,7 @@ parsePatterns1 env
 
 parseGuard :: Env -> LexParser Guard
 parseGuard env
-  = do grd <- do specialOp "|"
+  = do grd <- do bar
                  parseExpr env <?> "guard"
               <|>
               return exprTrue
@@ -796,7 +796,7 @@ teffect env
        return (foldr shallowEffectExtend ext labels)
 
 textend env
-  = do specialOp "|"
+  = do bar
        tp <- tatom env
        return tp
   <|>
