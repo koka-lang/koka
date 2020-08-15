@@ -329,7 +329,7 @@ getDataReprEx getIsValue info
         conTags  = [0..length conInfos - 1]
         singletons =  filter (\con -> null (conInfoParams con)) conInfos
         hasExistentials = any (\con -> not (null (conInfoExists con))) conInfos
-        isValue = getIsValue info
+        isValue = getIsValue info && not (dataInfoIsRec info)
         (dataRepr,conReprFuns) =
          if (dataInfoIsOpen(info))
           then (DataOpen, map (\conInfo conTag -> ConOpen typeName DataOpen) conInfos)

@@ -193,7 +193,7 @@ parcGuardRC scrutinees pats dups drops body
        let reuseInfo = M.fromList reuses
        let drops' = map Drop (S.toList drops) ++ map (Reuse . fst) reuses
        let reuseBindings = [DefNonRec (makeTDef tname genReuseNull) | (_,(tname,_)) <- reuses]
-       rcStats <- optimizeGuard reuseInfo dups drops'
+       rcStats <- optimizeGuard True reuseInfo dups drops'
        return $ makeLet reuseBindings (maybeStats rcStats body')
 
 extractReuse :: Expr -> ([(TName, (TName, Expr))], Expr)
@@ -219,8 +219,14 @@ extractReuse expr
 --  - all dups before drops, and drops before drop-reuses, and,
 --  - within drops and dropr-reuses, each are ordered by pattern tree depth: parents must appear before children.
 -- note: all drops are "tree" disjoint, none is a parent of another.
-optimizeGuard :: ReuseInfo -> Dups -> [DropInfo] -> Parc [Maybe Expr]
-optimizeGuard ri dups rdrops
+optimizeGuard :: Bool {-specialize?-} -> ReuseInfo -> Dups -> [DropInfo] -> Parc [Maybe Expr]
+optimizeGuard False ri dups rdrops
+  = -- no optimization
+    do xdups  <- foldMapM genDup dups
+       xdrops <- foldMapM (genDropFromInfo ri) rdrops
+       return (xdups ++ xdrops)
+       
+optimizeGuard enabled ri dups rdrops
   = do shapes <- getShapeMap
        let mchildrenOf x = case M.lookup x shapes of
                             Just (ShapeInfo mchildren _ _) -> mchildren 
@@ -262,7 +268,8 @@ optimizeGuardEx mchildrenOf ri dups rdrops
              Drop _ | Just x <- forwardingChild platform newtypes childrenOf dups y
                -- cancel with boxes, value types that simply
                -- forward their drops to their children
-               -> optimize (S.delete x dups) ys
+               -> do -- parcTrace $ "fuse forward child: " ++ show y ++ " -> " ++ show x
+                     optimize (S.delete x dups) ys
              _ -> do let (yDups, dups') = S.partition (isDescendentOf y) dups
                      let (yRecs, ys')   = L.partition (isDescendentOf y . dropInfoVar) ys
                      rest    <- optimize dups' ys'             -- optimize outside the y tree
@@ -303,11 +310,12 @@ optimizeGuardEx mchildrenOf ri dups rdrops
 forwardingChild :: Platform -> Newtypes -> (TName -> TNames) -> Dups -> TName -> Maybe TName
 forwardingChild platform newtypes childrenOf dups y
   = case tnamesList (childrenOf y) of
-      [x] -> -- trace ("forwarding child: " ++ show y ++ ", show: " ++ show [x]) $
+      [x] -> -- trace ("forwarding child?: " ++ show y ++ " -> " ++ show x) $
              case getValueForm' newtypes (typeOf y) of
                Just ValueOneScan 
                  -> case findChild x dups of
-                      Just x  -> Just x -- Just(x) as y   
+                      Just x  -> -- trace (" is forwarding: " ++ show y ++ " -> " ++ show x) $
+                                 Just x -- Just(x) as y   
                       Nothing -> -- trace (" check box type child: " ++ show (y,x)) $
                                  case getBoxForm' platform newtypes (typeOf x) of
                                    BoxIdentity 
@@ -317,9 +325,12 @@ forwardingChild platform newtypes childrenOf dups y
                                           _    -> Nothing
                                    _ -> Nothing                                              
                Just _  -> Nothing
-               Nothing -> case getBoxForm' platform newtypes (typeOf y) of
-                            BoxIdentity -> findChild x dups  -- Box(x) as y
+               Nothing | isBoxType (typeOf y)
+                       -> case getBoxForm' platform newtypes (typeOf x) of
+                            BoxIdentity -> --trace (" box identity: " ++ show y) $
+                                           findChild x dups  -- Box(x) as y
                             _ -> Nothing
+               _       -> Nothing
       _ -> Nothing  
  where
    findChild x dups 
@@ -531,6 +542,7 @@ genDupDrop isDup tname mbConRepr mbScanCount
   = do let tp = typeOf tname
        mbDi     <- getDataInfo tp
        borrowed <- isBorrowed tname
+       -- parcTrace $ "gen dup/drop: " ++ show tname ++ ": " ++ show (mbDi,mbConRepr,mbScanCount,borrowed,isDup)
        if borrowed && not isDup
          then return Nothing
          else let normal = (Just (dupDropFun isDup tp mbConRepr mbScanCount (Var tname InfoNone)))
@@ -538,13 +550,15 @@ genDupDrop isDup tname mbConRepr mbScanCount
                 Just di -> case (dataInfoDef di, dataInfoConstrs di, snd (getDataRepr di)) of
                              (DataDefNormal, [conInfo], [conRepr])  -- data with just one constructor
                                -> do scan <- getConstructorScanFields (TName (conInfoName conInfo) (conInfoType conInfo)) conRepr
+                                     -- parcTrace $ " add scan fields: " ++ show scan
                                      return (Just (dupDropFun isDup tp (Just conRepr) (Just scan) (Var tname InfoNone)))
                              (DataDefValue _ 0, _, _) 
-                               -> return Nothing  -- value with no scan fields
+                               -> do -- parcTrace $ " value with no scan fields"
+                                     return Nothing  -- value with no scan fields
                              _ -> return normal
                 _ -> return normal
 
-genDup name  = genDupDrop True name Nothing Nothing
+genDup name  = do genDupDrop True name Nothing Nothing
 genDrop name = do shape <- getShapeInfo name
                   genDupDrop False name (mconRepr shape) (scanFields shape)
 
@@ -712,7 +726,7 @@ getConstructorScanFields conName conRepr
   = do platform <- getPlatform
        newtypes <- getNewtypes
        let (size,scan) = (constructorSizeOf platform newtypes conName conRepr)
-       -- parcTrace $ "get size " ++ show conName ++ ": " ++ show (size,scan)
+       -- parcTrace $ "get size " ++ show conName ++ ": " ++ show (size,scan) ++ ", " ++ show conRepr
        return scan
        
 --
@@ -845,7 +859,8 @@ parcTraceDoc f
 parcTrace :: String -> Parc ()
 parcTrace msg
  = do defs <- getCurrentDef
-      trace ("Core.Parc: " ++ show (map defName defs) ++ ": " ++ msg) $ return ()
+      trace ("Core.Parc: " ++ show (map defName defs) ++ ": " ++ msg) $ 
+       return ()
 
 ----------------
 
@@ -856,7 +871,8 @@ getDataInfo' newtypes tp
       Just name | name == nameBoxCon -> Nothing
       Just name -> case newtypesLookupAny name newtypes of
                       Nothing -> failure $ "Core.Parc.getDataDefInfo: cannot find type: " ++ show name
-                      Just di -> Just di
+                      Just di -> -- trace ("datainfo of " ++ show (pretty tp) ++ " = " ++ show di) $
+                                 Just di
 
 getDataDef' :: Newtypes -> Type -> DataDef
 getDataDef' newtypes tp

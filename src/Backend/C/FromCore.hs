@@ -811,7 +811,8 @@ genDupDropCallX prim tp args
       CPrim val   | val == "integer_t" || val == "string_t" || val == "vector_t" || val == "ref_t" || val == "reuse_t" || val == "box_t"
                   -> [text (pre val) <.> args]
                   | otherwise
-                  -> []-- text "value" <.> args
+                  -> -- trace ("** skip dup/drop call: " ++ pre val ++ ": " ++ show args) $
+                     []-- text "value" <.> args
       CData name -> [text (pre "") <.> ppName name <.> args]
     )
   where

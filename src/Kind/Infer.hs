@@ -819,6 +819,8 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                     -> return DataDefRec
                   DataDefOpen
                     -> return DataDefOpen
+                  DataDefRec 
+                    -> return DataDefRec
                   _ -- Value or Normal and not recursive
                     -> -- determine the raw fields and total size
                        do platform <- getPlatform
@@ -832,7 +834,10 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                             (DataDefValue _ _, DataDefNormal)
                               -> do addError range (text "Type" <+> nameDoc <+> text "cannot be used as a value type.")  -- should never happen?
                                     return DataDefNormal
-                            (DataDefNormal, DataDefValue m n) | (m + (n*sizePtr platform)) <= 3*(sizePtr platform) && hasKindStarResult (getKind typeResult)
+                            (DataDefNormal, DataDefValue m n) 
+                                | (m + (n*sizePtr platform)) <= 3*(sizePtr platform) 
+                                  && hasKindStarResult (getKind typeResult)
+                                  && (sort /= Retractive)
                               -> trace ("default to value: " ++ show name ++ ": " ++ show (m,n)) $
                                   return (DataDefValue m n)
                             _ -> return DataDefNormal
