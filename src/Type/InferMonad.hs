@@ -671,7 +671,7 @@ occursInContext tv extraFree
 --------------------------------------------------------------------------}
 unifyError :: Context -> Range -> UnifyError -> Type -> Type -> Inf a
 unifyError context range (NoMatchEffect eff1 eff2) _ _
-  = unifyError context range NoMatch  eff1 eff2
+  = unifyError context range NoMatch eff2 eff1
 unifyError context range err xtp1 xtp2
   = do free <- freeInGamma
        tp1 <- subst xtp1 >>= normalizeX False free

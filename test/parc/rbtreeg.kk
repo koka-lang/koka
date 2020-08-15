@@ -56,7 +56,7 @@ fun ins(t: tree, kx: int, vx: bool): tree {
                                     else Node(Black, ins(a, kx, vx), ky, vy, b)
       | kx == ky  -> Node(Black, a, kx, vx, b)
       | is-red(b) -> balance2(a, ky, vy, ins(b, kx, vx))
-      | _         -> Node(Black, a, ky, vy, ins(b, kx, vx))
+      // | _         -> Node(Black, a, ky, vy, ins(b, kx, vx))
   }
 }
 
