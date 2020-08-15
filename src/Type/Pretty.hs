@@ -26,7 +26,7 @@ import Data.List( partition )
 import Lib.PPrint
 import Common.Name
 import Common.NamePrim( isNameTuple, nameTpOptional, nameEffectExtend, nameTpTotal, nameEffectEmpty,
-                        nameTpHandled, nameTpHandled1, nameTpDelay, nameSystemCore )
+                        nameTpHandled, nameTpHandled1, nameTpDelay, nameSystemCore, nameCoreTypes )
 import Common.ColorScheme
 import Common.IdNice
 import Common.Syntax
@@ -402,7 +402,9 @@ ppTypeName env name
 ppNameEx env name
   = if (fullNames env)
      then pretty name
-     else if (context env == qualifier name || (qualifier name == nameSystemCore && not (coreIface env)) || isNameTuple name)
+     else if (context env == qualifier name 
+               || ((qualifier name == nameSystemCore || qualifier name == nameCoreTypes) && not (coreIface env)) 
+               || isNameTuple name)
            then pretty (unqualify name)
            else -- if coreIface env
                 -- then pretty name
