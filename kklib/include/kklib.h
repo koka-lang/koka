@@ -20,7 +20,6 @@
 #include <stdlib.h>  // malloc, abort, ...
 #include <math.h>    // isnan, ...
 
-
 #define MULTI_THREADED  1      // set to 0 to be used single threaded only
 
 #include "kklib/platform.h"  // Platform abstractions and portability definitions
