@@ -292,6 +292,8 @@ isAlwaysMon expr
 isNeverMon :: Expr -> Bool
 isNeverMon expr
   = case expr of
+      App eopen@(TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [f] | getName open == nameEffectOpen
+        -> isTypeTotal effFrom  -- TODO: more cases? generally handler free
       TypeApp e _ -> isNeverMon e
       Var v _     -> getName v == canonicalName 1 nameDeref --TODO: remove special case?
       _ -> isTotal expr

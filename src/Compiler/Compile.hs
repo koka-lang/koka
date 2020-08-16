@@ -885,10 +885,24 @@ inferCheck loaded flags line coreImports program1
 
        -- traceDefGroups "lifted" coreDefsLifted
 
+       -- do monadic effect translation (i.e. insert binds)
+       let uniqueMon = uniqueLift
+       coreDefsMon
+           <- if (not (enableMon flags) ||
+                  Core.coreProgName coreProgram1 == newName "std/core/types" ||
+                  Core.coreProgName coreProgram1 == newName "std/core/hnd" )
+               then return (coreDefsLifted)
+               else do cdefs <- Core.Monadic.monTransform penv coreDefsLifted
+                       -- recheck cps transformed core
+                       when (coreCheck flags) $
+                          trace "monadic core check" $ Core.Check.checkCore False False penv uniqueLift gamma cdefs
+                       return (cdefs)
+
+       -- traceDefGroups "monadic" coreDefsMon
 
        -- resolve phantom .open
-       let coreDefsOR = openResolve penv gamma coreDefsLifted
-           uniqueOR   = uniqueLift
+       let coreDefsOR = openResolve penv gamma coreDefsMon
+           uniqueOR   = uniqueMon
        when (coreCheck flags) $ trace "open resolve core check" $ Core.Check.checkCore True False penv uniqueOR gamma coreDefsOR
 
        -- traceDefGroups "open resolve" coreDefsOR
@@ -898,14 +912,17 @@ inferCheck loaded flags line coreImports program1
                   <- if simplify flags < 0  -- if zero, we still run one simplify step to remove open applications
                       then return (coreDefsOR,uniqueOR)
                       else -- trace "simplify" $
-                           do let (cdefs0,uniqueOR') -- Core.Simplify.simplify $
+                           do let (cdefs0,unique0) -- Core.Simplify.simplify $
                                           -- Core.Simplify.simplify
                                      = simplifyDefs False (simplify flags) (simplifyMaxDup flags) uniqueOR penv coreDefsOR
                               -- recheck simplified core
                               when (coreCheck flags) $
-                                trace "after simplify core check 1" $Core.Check.checkCore True False penv uniqueOR' gamma cdefs0
-                              return (cdefs0,uniqueOR') -- $ simplifyDefs False 1 unique4a penv cdefs
+                                trace "after simplify core check 1" $Core.Check.checkCore True False penv unique0 gamma cdefs0
+                              return (cdefs0,unique0) -- $ simplifyDefs False 1 unique4a penv cdefs
 
+       -- traceDefGroups "open resolve simplified" coreDefsSimp
+       
+       {-                               
        -- do monadic effect translation (i.e. insert binds)
        let uniqueMon = uniqueSimp
        coreDefsMon
@@ -919,9 +936,10 @@ inferCheck loaded flags line coreImports program1
                           trace "monadic core check" $ Core.Check.checkCore False False penv uniqueLift gamma cdefs
                        return (cdefs)
 
-       -- traceDefGroups "monadic" coreDefsMon
-
-       let (coreDefsMonL,uniqueMonL) = monadicLift penv uniqueMon coreDefsMon
+       traceDefGroups "monadic" coreDefsMon
+       -}
+       
+       let (coreDefsMonL,uniqueMonL) = monadicLift penv uniqueSimp coreDefsSimp
        when (coreCheck flags) $ trace "monadic lift core check" $ Core.Check.checkCore True True penv uniqueMonL gamma coreDefsMonL
        -- traceDefGroups "monadic lift" coreDefsMonL
 
