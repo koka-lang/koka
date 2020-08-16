@@ -1062,7 +1062,8 @@ getResultX result (retDoc)
      ResultReturn (Just n) _  | (isTypeUnit (typeOf n))
                               -> retDoc <.> text "; return Unit;"
      ResultReturn _ _  -> text "return" <+> retDoc <.> semi
-     ResultAssign n ml -> ( if isWildcard (getName n) || nameNil == (getName n) || isTypeUnit (typeOf n)
+     ResultAssign n ml -> ( if --isWildcard (getName n) || 
+                               nameNil == (getName n) || isTypeUnit (typeOf n)
                               then retDoc <.> semi
                               else ppName (getName n) <+> text "=" <+> retDoc <.> semi <+> text "/*" <.> pretty (typeOf n) <.> text "*/"
                           ) <-> case ml of
