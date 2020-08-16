@@ -104,7 +104,7 @@ fun state(init, action) {
 }
 
 fun test3() {
-  statex(2,counter).fst
+  state(2,counter).fst
 }
 
 

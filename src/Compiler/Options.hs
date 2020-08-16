@@ -104,6 +104,7 @@ data Flags
          , includePath      :: [FilePath]
          , csc              :: FileName
          , node             :: FileName
+         , cmake            :: FileName
          , editor           :: String
          , redirectOutput   :: FileName
          , outHtml          :: Int
@@ -122,9 +123,11 @@ data Flags
          , installDir       :: FilePath
          , packages         :: Packages
          , forceModule      :: FilePath
+         , debug            :: Bool      -- emit debug info
          , optimize         :: Int       -- optimization level; 0 or less is off
-         , optInlineMax     :: Int
-         , debug            :: Bool
+         , optInlineMax     :: Int         
+         , parcReuse        :: Bool
+         , parcSpecialize   :: Bool
          }
 
 flagsNull :: Flags
@@ -150,6 +153,7 @@ flagsNull
           []
           "csc"
           "node"
+          "cmake"
           ""
           ""
           0
@@ -168,9 +172,11 @@ flagsNull
           ""    -- install dir
           packagesEmpty -- packages
           "" -- forceModule
+          True -- debug
           0    -- optimize
           10   -- inlineMax
-          True -- debug
+          True -- parc reuse
+          True -- parc specialize
 
 isHelp Help = True
 isHelp _    = False
@@ -206,32 +212,33 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   ['v'] ["verbose"]         (\b f -> f{verbose=if b then (verbose f)+1 else 0}) "run more verbose"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
- , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})         "optimize (off by default, 1=optimize+debug info, 2=optimize)"
+ , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (off by default, 2=full optimization)"
  , flag   ['D'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)"
 
  , emptyline
  , flag   []    ["html"]            (\b f -> f{outHtml = if b then 2 else 0}) "generate documentation"
- , option []    ["htmlbases"]       (ReqArg htmlBasesFlag "bases")  "set link prefixes for documentation"
- , option []    ["htmlcss"]         (ReqArg htmlCssFlag "link")     "set link to the css documentation style"
- , config []    ["target"]          [("js",[JS]),("cs",[CS]),("c",[C])] (\t f -> f{targets=t}) "generate csharp, javascript (default), or C"
+ , option []    ["htmlbases"]       (ReqArg htmlBasesFlag "bases")            "set link prefixes for documentation"
+ , option []    ["htmlcss"]         (ReqArg htmlCssFlag "link")               "set link to the css documentation style"
+ , config []    ["target"]          [("js",[JS]),("cs",[CS]),("c",[C])] (\t f -> f{targets=t})             "generate csharp, javascript (default), or C"
  , config []    ["host"]            [("node",Node),("browser",Browser)] (\h f -> f{ targets=[JS], host=h}) "specify host for running code"
- , config []    ["platform"]        [("x32",platform32),("x64",platform64)] (\p f -> f{platform=p})  "specify target platform, x32 (32-bit) or x64 (64-bit, default)"
+ , config []    ["platform"]        [("x32",platform32),("x64",platform64)] (\p f -> f{platform=p})        "specify target platform (64-bit by default)"
  , emptyline
- , flag   []    ["showspan"]       (\b f -> f{ showSpan = b})      "show ending row/column too on errors"
+ , flag   []    ["showspan"]       (\b f -> f{ showSpan = b})       "show ending row/column too on errors"
  -- , flag   []    ["showkinds"]      (\b f -> f{showKinds=b})        "show full kind annotations"
- , flag   []    ["showkindsigs"]   (\b f -> f{showKindSigs=b})     "show kind signatures of type definitions"
- , flag   []    ["showtypesigs"]   (\b f -> f{showTypeSigs=b})     "show type signatures of definitions"
- , flag   []    ["showsynonyms"]   (\b f -> f{showSynonyms=b})     "show expanded type synonyms in types"
- , flag   []    ["showcore"]       (\b f -> f{showCore=b})         "show core"
- , flag   []    ["showcoretypes"]       (\b f -> f{showCoreTypes=b})         "show full types in core"
- , flag   []    ["showcs"]         (\b f -> f{showAsmCS=b})    "show generated c#"
- , flag   []    ["showjs"]         (\b f -> f{showAsmJS=b}) "show generated javascript"
- , flag   []    ["showc"]          (\b f -> f{showAsmC=b}) "show generated C"
- , flag   []    ["core"]            (\b f -> f{genCore=b})           "generate a core file"
+ , flag   []    ["showkindsigs"]   (\b f -> f{showKindSigs=b})      "show kind signatures of type definitions"
+ , flag   []    ["showtypesigs"]   (\b f -> f{showTypeSigs=b})      "show type signatures of definitions"
+ , flag   []    ["showsynonyms"]   (\b f -> f{showSynonyms=b})      "show expanded type synonyms in types"
+ , flag   []    ["showcore"]       (\b f -> f{showCore=b})          "show core"
+ , flag   []    ["showcoretypes"]  (\b f -> f{showCoreTypes=b})     "show full types in core"
+ , flag   []    ["showcs"]         (\b f -> f{showAsmCS=b})         "show generated c#"
+ , flag   []    ["showjs"]         (\b f -> f{showAsmJS=b})         "show generated javascript"
+ , flag   []    ["showc"]          (\b f -> f{showAsmC=b})          "show generated C"
+ , flag   []    ["core"]            (\b f -> f{genCore=b})          "generate a core file"
  , flag   []    ["checkcore"]      (\b f -> f{coreCheck=b})         "check generated core"
  -- , flag   []    ["show-coreF"]      (\b f -> f{showCoreF=b})        "show coreF"
  , emptyline
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
+ , option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"
  , option []    ["csc"]             (ReqArg cscFlag "cmd")          "use <cmd> as the csharp backend compiler"
  , option []    ["node"]            (ReqArg nodeFlag "cmd")         "use <cmd> to execute node"
  , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors"
@@ -239,15 +246,17 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , configstr [] ["console"]      ["ansi","html","raw"] (\s f -> f{console=s})   "console output format"
 --  , option []    ["install-dir"]     (ReqArg installDirFlag "dir")       "set the install directory explicitly"
 
- , hiddenNumOption 3 "n" [] ["simplify"]  (\i f -> f{simplify=i})    "enable 'n' core simplification passes"
- , hiddenNumOption 320 "n" [] ["optmaxdup"]  (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
- , hiddenNumOption 10 "n" [] ["optinline"]  (\i f -> f{optInlineMax=i})    "set 'n' as maximum inline threshold (=12)"
- , hiddenFlag   []    ["mon"]       (\b f -> f{enableMon=b})          "enable monadic translation"
- , hiddenFlag []      ["semi"]      (\b f -> f{semiInsert=b})     "insert semicolons based on layout"
+ , hide $ fnum 3 "n"  ["simplify"]  (\i f -> f{simplify=i})          "enable 'n' core simplification passes"
+ , hide $ fnum 320 "n"["maxdup"]    (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
+ , hide $ fnum 10 "n" ["inline"]    (\i f -> f{optInlineMax=i})      "set 'n' as maximum inline threshold (=10)"
+ , hide $ fflag       ["monadic"]   (\b f -> f{enableMon=b})         "enable monadic translation"
+ , hide $ fflag       ["semi"]      (\b f -> f{semiInsert=b})        "insert semicolons based on layout"
+ , hide $ fflag       ["parcreuse"] (\b f -> f{parcReuse=b})         "enable in-place update analysis"
+ , hide $ fflag       ["parcspec"]  (\b f -> f{parcSpecialize=b})    "enable reference count specialization"
  ]
  where
   emptyline
-    = flag   []    [] (\b f -> f) ""
+    = flag [] [] (\b f -> f) ""
 
   option short long f desc
     = ([Option short long f desc],[])
@@ -255,22 +264,23 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   flag short long f desc
     = ([Option short long (NoArg (Flag (f True))) desc]
       ,[Option [] (map ("no-" ++) long) (NoArg (Flag (f False))) ""])
-      
+  
   numOption def optarg short long f desc
     = ([Option short long (OptArg (\mbs -> Flag (numOptionX def f mbs)) optarg) desc]
       ,[Option [] (map ("no-" ++) long) (NoArg (Flag (f (-1)))) ""])
-      
-  hiddenOption short long f desc
-    = ([],[Option short long f desc])
 
-  hiddenFlag short long f desc
-    = ([],[Option short long (NoArg (Flag (f True))) desc
-          ,Option [] (map ("no-" ++) long) (NoArg (Flag (f False))) ""])
+  -- feature flags    
+  fflag long f desc
+    = ([Option [] (map ("f"++) long) (NoArg (Flag (f True))) desc]
+      ,[Option [] (map ("fno-" ++) long) (NoArg (Flag (f False))) ""])  
 
-  hiddenNumOption def optarg short long f desc
-    = ([],[Option short long (OptArg (\mbs -> Flag (numOptionX def f mbs)) optarg) desc
-          ,Option [] (map ("no-" ++) long) (NoArg (Flag (f (-1)))) ""])
+  fnum def optarg long f desc
+    = ([Option [] (map ("f"++) long) (OptArg (\mbs -> Flag (numOptionX def f mbs)) optarg) desc]
+      ,[Option [] (map ("fno-" ++) long) (NoArg (Flag (f (-1)))) ""])
 
+  hide (vis,hidden) 
+    = ([],vis ++ hidden)
+              
   numOptionX def f mbs
     = case mbs of
         Nothing -> f def
@@ -324,6 +334,10 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
   redirectFlag s
     = Flag (\f -> f{ redirectOutput = s })
+    
+  cmakeFlag s
+      = Flag (\f -> f{ cmake = s })
+
 {-
   installDirFlag s
     = Flag (\f -> f{ installDir = s, includePath = (includePath f) ++ [libd] })
