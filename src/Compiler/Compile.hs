@@ -1358,8 +1358,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             runSystem linkCmd
             -}
 
-            -- run the program?
-            trace ("run: " ++ targetExe) $ return ()
+            termDoc term $ text "compiled:" <+> text (dquote (normalize targetExe)) <.> linebreak
             return (Just (runSystem (dquote targetExe)))
 
 installKKLib :: Terminal -> Flags -> FilePath -> FilePath -> String -> String -> String -> IO ()
