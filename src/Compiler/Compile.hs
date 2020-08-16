@@ -1070,9 +1070,10 @@ codeGen term flags compileTarget loaded
        when ((evaluate flags && isExecutable compileTarget)) $
         compilerCatch "program" term () $
           case concatMaybe mbRuns of
-            (run:_)  -> do termPhase term "run"
+            (run:_)  -> do termPhase term $ "execute" 
+                           termDoc term $ linebreak                           
                            run
-            _        -> return ()
+            _        -> termDoc term $ linebreak
 
        return loaded1 -- { loadedArities = arities, loadedExternals = externals }
   where
@@ -1359,14 +1360,14 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             runSystem linkCmd
             -}
 
-            termDoc term $ text "compiled:" <+> text (dquote (normalize targetExe)) <.> linebreak
+            termDoc term $ text "compiled:" <+> text (dquote (normalize targetExe))
             return (Just (runSystem (dquote targetExe)))
 
 installKKLib :: Terminal -> Flags -> FilePath -> FilePath -> String -> String -> String -> IO ()
 installKKLib term flags kklibDir kklibInstallDir cmakeGeneratorFlag cmakeConfigType configType
   = do let cmakeFile =  kklibInstallDir ++ "/cmake/kklib-config-" ++ configType ++ ".cmake"
        exist <- doesFileExist cmakeFile
-       if (exist) then return ()
+       if (exist && not (rebuild flags)) then return ()
         else do termPhase term ("building kklib library")
                 let cmakeDir    = (kklibDir ++ "/out/" ++ configType)
                     cmakeConfig = (cmake flags) ++ " -E chdir " ++ dquote cmakeDir   -- see above for chdir
