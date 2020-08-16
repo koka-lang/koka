@@ -41,7 +41,7 @@ import Core.CoreVar
 import Type.Unify( unify, runUnifyEx )
 
 trace s x =
- -- Lib.Trace.trace s
+  -- Lib.Trace.trace s
     x
 
 data Env = Env{ penv :: Pretty.Env, gamma :: Gamma }
@@ -173,10 +173,11 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                         case lsTo of
                           [] -> trace ("  no handled effect, in no handled effect context: use cast")
                                 expr
-                          _  -> trace ("  no handled effect; use none") $
-                                {- if (isHandlerFree expr) 
-                                 then expr  -- fully total with using any operations that need evidence; just leave it as is
-                                else -} if (n <= 4) 
+                          _  -> trace ("  no handled effect; use none: " ++ show expr) $
+                                if (isHandlerFree expr) 
+                                 then trace ("***  remove open-none") $  -- fully total with using any operations that need evidence; just leave it as is
+                                      expr
+                                else if (n <= 4) 
                                  then wrapper (resolve (nameOpenNone n)) []  -- fails in perf1c with exceeded stack size if --optmaxdup < 500 (since it prevents a tailcall)
                                       -- expr  -- fails in nim as it evidence is not cleared
                                  else wrapperThunk (resolve (nameOpenNone 0)) []
@@ -203,21 +204,21 @@ matchLabels (l1:ls1) (l2:ls2) = (labelName l1 == labelName l2) && matchLabels ls
 matchLabels [] []             = True
 matchLabels _ _               = False
 
--- is an expression handler free: meaning it will never need evidence (invoke an operation)
--- or change the evidence (use a handler).
+-- is a function expression handler free? : meaning if invoked, 
+-- it will never need evidence (invoke an operation) or change the evidence (use a handler).
 isHandlerFree :: Expr -> Bool   
 isHandlerFree expr  
   = case expr of
       TypeLam tpars body -> isHandlerFree body
       TypeApp body targs -> isHandlerFree body
-      App (Var vname (Core.InfoExternal{})) args  | handlerFreeFunType (typeOf vname) 
-        -> all isHandlerFree args
-      App (TypeApp (Var vname (Core.InfoExternal{})) targs) args  | handlerFreeFunType (typeOf vname)
-        -> all isHandlerFree args
-      _ -> isTotal expr
+      Var vname (Core.InfoExternal{})  -> handlerFreeFunType (typeOf vname)
+      Var vname _ -> handlerFreeFunType (typeOf vname) && isSystemCoreName (getName vname) 
+      Con{} -> True
+      Lit{} -> True
+      _     -> False
       
 handlerFreeFunType :: Type -> Bool
 handlerFreeFunType tp
   = case splitFunScheme tp of
-      Just (_,_,_,eff,_) -> containsHandledEffect [] eff
+      Just (_,_,_,eff,_) -> not (containsHandledEffect [] eff)
       _ -> False
