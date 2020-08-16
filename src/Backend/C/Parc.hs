@@ -345,26 +345,34 @@ genDropFromInfo ri (Reuse tn)
       Just (reuseName,scan) 
         -> -- assertion "wrong scan fields in reuse" (snd (maybe (False,0) (scanFieldsOf tn)) == scan)  $
            -- return (Just (makeTDef reuseName (genDropReuse tn scan)))
-           let assign = TName nameAssignReuse (TFun [(nameNil,typeReuse),(nameNil,typeOf tn)] typeTotal typeUnit)
-               arg    = genDropReuse tn scan
-           in return (Just (App (Var assign (InfoExternal [(C, "#1 = #2")])) [Var reuseName InfoNone, arg]))
+           do expr <- genReuseAssignWith reuseName (genDropReuse tn scan)
+              return (Just expr)
       _ -> failure $ "Backend.C.Parc.genDropFromInfo: cannot find: " ++ show tn
 
 
 
 genSetNull :: ReuseInfo -> TName -> Parc (Maybe Expr)
-genSetNull ri x = genReuseAssignEx ri x True
+genSetNull ri x 
+  = Just <$> genReuseAssignEx ri x True
 
 genReuseAssign :: ReuseInfo -> TName -> Parc (Maybe Expr)
-genReuseAssign ri x = genReuseAssignEx ri x False
+genReuseAssign ri x 
+  = Just <$> genReuseAssignEx ri x False
 
-genReuseAssignEx :: ReuseInfo -> TName -> Bool -> Parc (Maybe Expr)
-genReuseAssignEx ri x setNull =
-  return $ do
-    (r, scan) <- M.lookup x ri  -- TODO: failure if not found
-    let assign = TName nameAssignReuse (TFun [(nameNil,typeReuse),(nameNil,typeOf x)] typeTotal typeUnit)
-        arg    = if setNull then genReuseNull else genReuseAddress x
-    return (App (Var assign (InfoExternal [(C, "#1 = #2")])) [Var r InfoNone, arg])
+genReuseAssignEx :: ReuseInfo -> TName -> Bool -> Parc Expr
+genReuseAssignEx ri x setNull 
+  = case M.lookup x ri of
+      Nothing -> failure $ "Backend.C.Parc.genReuseAssignEx: cannot find: " ++ show x
+      Just (r, scan) 
+        -> let arg = if setNull then genReuseNull else genReuseAddress x
+           in genReuseAssignWith r arg
+
+
+genReuseAssignWith :: TName -> Expr -> Parc Expr
+genReuseAssignWith reuseName arg
+  = let assign = TName nameAssignReuse (TFun [(nameNil,typeReuse),(nameNil,typeReuse)] typeTotal typeUnit)
+    in return (App (Var assign (InfoExternal [(C, "#1 = #2")])) [Var reuseName InfoNone, arg])
+
 
 inferShapes :: [TName] -> [Pattern] -> Parc ShapeMap
 inferShapes scrutineeNames pats
