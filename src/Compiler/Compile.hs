@@ -887,10 +887,10 @@ inferCheck loaded flags line coreImports program1
 
        -- do monadic effect translation (i.e. insert binds)
        let uniqueMon = uniqueLift
+       let isPrimitiveModule = Core.coreProgName coreProgram1 == newName "std/core/types" ||
+                               Core.coreProgName coreProgram1 == newName "std/core/hnd" 
        coreDefsMon
-           <- if (not (enableMon flags) ||
-                  Core.coreProgName coreProgram1 == newName "std/core/types" ||
-                  Core.coreProgName coreProgram1 == newName "std/core/hnd" )
+           <- if (not (enableMon flags) || isPrimitiveModule)
                then return (coreDefsLifted)
                else do cdefs <- Core.Monadic.monTransform penv coreDefsLifted
                        -- recheck cps transformed core
@@ -901,7 +901,8 @@ inferCheck loaded flags line coreImports program1
        -- traceDefGroups "monadic" coreDefsMon
 
        -- resolve phantom .open
-       let coreDefsOR = openResolve penv gamma coreDefsMon
+       let coreDefsOR = if isPrimitiveModule then coreDefsMon
+                         else openResolve penv gamma coreDefsMon
            uniqueOR   = uniqueMon
        when (coreCheck flags) $ trace "open resolve core check" $ Core.Check.checkCore True False penv uniqueOR gamma coreDefsOR
 

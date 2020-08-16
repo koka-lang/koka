@@ -60,7 +60,7 @@ private extern inline evv-total() : evv<<>> {
 }
 
 
-public extern inline ".evv-at"<e,h> ( i : ev-index ) : e ev<h> {
+public extern inline ".evv-at"<e,h> ( i : ev-index ) : ev<h> {  // pretend total; don't simplify
   c inline "evv_at(#1,current_context())"
   js inline "$std_core_hnd._evv[#1]"
 }

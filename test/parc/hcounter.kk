@@ -35,8 +35,8 @@ fun test-direct(i) {
   if (i==0) then i else test-direct(i - 1)
 }
 
-val n = 10000000
+val n = 100000000
 fun main() {
-  test-direct(n).println
-  //test-normal(n,count).println
+  //test-direct(n).println
+  test-normal(n,count).println
 }
