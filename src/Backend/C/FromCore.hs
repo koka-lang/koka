@@ -63,10 +63,10 @@ externalNames
 -- Generate C code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
-cFromCore sourceDir penv0 platform newtypes uniq mbMain core
+cFromCore :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Int -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
+cFromCore sourceDir penv0 platform newtypes uniq enableReuse enableSpecialize mbMain core
   = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes platform False)
-           (genModule sourceDir penv platform newtypes mbMain core) of
+           (genModule sourceDir penv platform newtypes enableReuse enableSpecialize mbMain core) of
       (bcore,cdoc,hdoc) -> (cdoc,hdoc,bcore)
   where
     moduleName = coreProgName core
@@ -78,11 +78,13 @@ contextDoc = text "_ctx"
 contextParam :: Doc
 contextParam = text "context_t* _ctx"
 
-genModule :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Maybe (Name,Bool) -> Core -> Asm Core
-genModule sourceDir penv platform newtypes mbMain core0
+genModule :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> Asm Core
+genModule sourceDir penv platform newtypes enableReuse enableSpecialize mbMain core0
   =  do core <- liftUnique (do bcore <- boxCore core0            -- box/unbox transform
-                               ucore <- parcReuseCore penv platform newtypes bcore -- constructor reuse analysis
-                               pcore <- parcCore penv platform newtypes ucore -- precise automatic reference counting
+                               ucore <- if (enableReuse) 
+                                         then parcReuseCore penv platform newtypes bcore -- constructor reuse analysis
+                                         else return bcore
+                               pcore <- parcCore penv platform newtypes enableSpecialize ucore -- precise automatic reference counting
                                return pcore
                            )
 

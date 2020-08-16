@@ -55,10 +55,10 @@ enabled = unsafePerformIO $ do
 -- Reference count transformation
 --------------------------------------------------------------------------
 
-parcCore :: Pretty.Env -> Platform -> Newtypes -> Core -> Unique Core
-parcCore penv platform newtypes core
+parcCore :: Pretty.Env -> Platform -> Newtypes -> Bool -> Core -> Unique Core
+parcCore penv platform newtypes enableSpecialize core
   | not enabled = return core
-  | otherwise   = do defs <- runParc penv platform newtypes (parcDefGroups True (coreProgDefs core))
+  | otherwise   = do defs <- runParc penv platform newtypes enableSpecialize (parcDefGroups True (coreProgDefs core))
                      -- tr defs $
                      return core{coreProgDefs=defs}
   where penv' = penv{Pretty.coreShowDef=True,Pretty.coreShowTypes=False,Pretty.fullNames=False}
@@ -193,7 +193,8 @@ parcGuardRC scrutinees pats dups drops body
        let reuseInfo = M.fromList reuses
        let drops' = map Drop (S.toList drops) ++ map (Reuse . fst) reuses
        let reuseBindings = [DefNonRec (makeTDef tname genReuseNull) | (_,(tname,_)) <- reuses]
-       rcStats <- optimizeGuard True reuseInfo dups drops'
+       enable <- allowSpecialize
+       rcStats <- optimizeGuard enable reuseInfo dups drops'
        return $ makeLet reuseBindings (maybeStats rcStats body')
 
 extractReuse :: Expr -> ([(TName, (TName, Expr))], Expr)
@@ -221,7 +222,7 @@ extractReuse expr
 -- note: all drops are "tree" disjoint, none is a parent of another.
 optimizeGuard :: Bool {-specialize?-} -> ReuseInfo -> Dups -> [DropInfo] -> Parc [Maybe Expr]
 optimizeGuard False ri dups rdrops
-  = -- no optimization
+  = -- no optimization on dup/drops
     do xdups  <- foldMapM genDup dups
        xdrops <- foldMapM (genDropFromInfo ri) rdrops
        return (xdups ++ xdrops)
@@ -341,9 +342,12 @@ genDropFromInfo :: ReuseInfo -> DropInfo -> Parc (Maybe Expr)
 genDropFromInfo ri (Drop tn) = genDrop tn
 genDropFromInfo ri (Reuse tn)
   = case M.lookup tn ri of
-      Just (r,scan) 
+      Just (reuseName,scan) 
         -> -- assertion "wrong scan fields in reuse" (snd (maybe (False,0) (scanFieldsOf tn)) == scan)  $
-           return (Just (genDropReuse tn scan))
+           -- return (Just (makeTDef reuseName (genDropReuse tn scan)))
+           let assign = TName nameAssignReuse (TFun [(nameNil,typeReuse),(nameNil,typeOf tn)] typeTotal typeUnit)
+               arg    = genDropReuse tn scan
+           in return (Just (App (Var assign (InfoExternal [(C, "#1 = #2")])) [Var reuseName InfoNone, arg]))
       _ -> failure $ "Backend.C.Parc.genDropFromInfo: cannot find: " ++ show tn
 
 
@@ -655,6 +659,7 @@ data Env = Env { currentDef :: [Def],
                  prettyEnv :: Pretty.Env,
                  platform  :: Platform,
                  newtypes  :: Newtypes,
+                 enableSpec:: Bool,
                  owned     :: Owned,
                  shapeMap  :: ShapeMap
                }
@@ -684,10 +689,10 @@ updateSt = modify
 getSt :: Parc ParcState
 getSt = get
 
-runParc :: Pretty.Env -> Platform -> Newtypes -> Parc a -> Unique a
-runParc penv platform newtypes (Parc action)
+runParc :: Pretty.Env -> Platform -> Newtypes -> Bool -> Parc a -> Unique a
+runParc penv platform newtypes enableSpecialize (Parc action) 
   = withUnique $ \u ->
-      let env = Env [] penv platform newtypes S.empty M.empty
+      let env = Env [] penv platform newtypes enableSpecialize S.empty M.empty 
           st = ParcState u S.empty
           (val, st') = runState (runReaderT action env) st
        in (val, uniq st')
@@ -710,6 +715,9 @@ withPrettyEnv :: (Pretty.Env -> Pretty.Env) -> Parc a -> Parc a
 withPrettyEnv f = withEnv (\e -> e { prettyEnv = f (prettyEnv e) })
 
 --
+
+allowSpecialize :: Parc Bool
+allowSpecialize = enableSpec <$> getEnv
 
 getNewtypes :: Parc Newtypes
 getNewtypes = newtypes <$> getEnv

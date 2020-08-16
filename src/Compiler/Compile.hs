@@ -1216,7 +1216,8 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                       Executable name tp -> Just (name,isAsyncFunction tp)
                       _                  -> Nothing
       let -- (core,unique) = parcCore (prettyEnvFromFlags flags) newtypes unique0 core0
-          (cdoc,hdoc,bcore) = cFromCore sourceDir (prettyEnvFromFlags flags) (platform flags) newtypes unique0 mbEntry core0
+          (cdoc,hdoc,bcore) = cFromCore sourceDir (prettyEnvFromFlags flags) (platform flags) 
+                                newtypes unique0 (parcReuse flags) (parcSpecialize flags) mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } [] bcore
       writeDocW 120 (outBase ++ ".c.core") bcoreDoc
       when (showCore flags) $
