@@ -27,7 +27,7 @@ module Common.File(
                   , findMaximalPrefix
                   , isAbsolute
                   , commonPathPrefix
-                  , normalizeWith
+                  , normalizeWith, normalize
                   , isLiteralDoc
 
                   -- * Files

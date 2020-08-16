@@ -232,8 +232,13 @@ unify (TApp t1 ts1) (TApp u1 us2)   -- | length ts1 != length us2
 
 -- functions
 unify (TFun args1 eff1 res1) (TFun args2 eff2 res2) | length args1 == length args2
-  = do unify eff1 eff2
+  = do withError (effErr) (unify eff1 eff2)
        unifies (res1:map snd args1) (res2:map snd args2)
+  where
+    -- specialize to sub-part of the type for effect unification errors
+    effErr NoMatch              = NoMatchEffect eff1 eff2
+    effErr (NoMatchEffect _ _)  = NoMatchEffect eff1 eff2
+    effErr err                  = err
 
 -- quantified types
 unify (TForall vars1 preds1 tp1) (TForall vars2 preds2 tp2) | length vars1 == length vars2 && length preds1 == length preds2
@@ -452,6 +457,7 @@ data UnifyError
   = NoMatch
   | NoMatchKind
   | NoMatchPred
+  | NoMatchEffect Type Type
   | NoSubsume
   | NoEntail
   | Infinite
@@ -506,3 +512,9 @@ subst :: HasTypeVar a => a -> Unify a
 subst x
   = do sub <- getSubst
        return (sub |-> x)
+       
+withError :: (UnifyError -> UnifyError) -> Unify a -> Unify a
+withError f (Unify u)
+  = Unify (\st1 -> case (u st1) of
+                     Err err st2 -> Err (f err) st2
+                     ok          -> ok)

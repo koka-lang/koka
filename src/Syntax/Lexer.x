@@ -140,7 +140,7 @@ program :-
 
 -- type operators
 <0> "||"                  { string $ LexOp . newName }
-<0> $anglebar $anglebar+  { less 1 $ string $ LexOp . newName }
+<0> $anglebar $anglebar+  { less 1 $ string $ \s -> if (s=="|") then LexKeyword s "" else LexOp (newName s) }
 
 -- operators
 <0> @idop                 { string $ LexIdOp . newName . stripParens }
@@ -289,6 +289,7 @@ reservedNames
     , ":"
     , "->"
     , ":="
+    , "|"
 
     -- for core interfaces
     , "rec"

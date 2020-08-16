@@ -428,7 +428,7 @@ inferRecDef topLevel infgamma def
 inferDef :: Expect -> Def Type -> Inf Core.Def
 inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort inl doc)
  =do penv <- getPrettyEnv
-     if (verbose penv >= 2)
+     if (verbose penv >= 3)
       then Lib.Trace.trace ("infer: " ++ show sort ++ " " ++ show name) $ return ()
       else return ()
      withDefName name $
@@ -440,7 +440,7 @@ inferDef expect (Def (ValueBinder name mbTp expr nameRng vrng) rng vis sort inl 
            (resTp,resCore) <- maybeGeneralize rng nameRng eff expect tp coreExpr -- may not have been generalized due to annotation
            -- traceDoc $ \env -> text " infer def:" <+> pretty name <+> colon <+> ppType env resTp
            inferUnify (checkValue rng) nameRng typeTotal eff
-           if (verbose penv >= 2)
+           if (verbose penv >= 3)
             then Lib.Trace.trace (show (text " inferred" <+> pretty name <.> text ":" <+> niceType penv tp)) $ return ()
             else return ()
            subst (Core.Def name resTp resCore vis sort inl nameRng doc)  -- must 'subst' since the total unification can cause substitution. (see test/type/hr1a)

@@ -64,7 +64,7 @@ module Core.Core ( -- Data structures
                    , isDataStruct
                    , getDataRepr, getDataReprEx, dataInfoIsValue
                    , getConRepr
-                   , dataReprIsValue
+                   , dataReprIsValue, conReprIsValue
                    , VarInfo(..), isInfoArity
 
                    , isMonType, isMonEffect
@@ -305,6 +305,8 @@ dataReprIsValue DataAsMaybe      = True
 dataReprIsValue DataStruct       = True   -- structs have a tag field though
 dataReprIsValue _                = False
 
+conReprIsValue :: ConRepr -> Bool
+conReprIsValue crepr = dataReprIsValue (conDataRepr crepr)
 
 dataInfoIsValue :: DataInfo -> Bool
 dataInfoIsValue info = dataDefIsValue (dataInfoDef info)
@@ -327,7 +329,7 @@ getDataReprEx getIsValue info
         conTags  = [0..length conInfos - 1]
         singletons =  filter (\con -> null (conInfoParams con)) conInfos
         hasExistentials = any (\con -> not (null (conInfoExists con))) conInfos
-        isValue = getIsValue info
+        isValue = getIsValue info && not (dataInfoIsRec info)
         (dataRepr,conReprFuns) =
          if (dataInfoIsOpen(info))
           then (DataOpen, map (\conInfo conTag -> ConOpen typeName DataOpen) conInfos)

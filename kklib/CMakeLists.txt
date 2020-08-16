@@ -18,7 +18,7 @@ set(CMAKE_C_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
 
 set(CMAKE_DEBUG_POSTFIX "-debug")
-
+set(CMAKE_RELWITHDEBINFO_POSTFIX "d")
 
 # -----------------------------------------------------------------------------
 # Main target

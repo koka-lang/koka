@@ -670,12 +670,14 @@ occursInContext tv extraFree
   Unification errors
 --------------------------------------------------------------------------}
 unifyError :: Context -> Range -> UnifyError -> Type -> Type -> Inf a
+unifyError context range (NoMatchEffect eff1 eff2) _ _
+  = unifyError context range NoMatch eff2 eff1
 unifyError context range err xtp1 xtp2
   = do free <- freeInGamma
        tp1 <- subst xtp1 >>= normalizeX False free
        tp2 <- subst xtp2 >>= normalizeX False free
        env <- getEnv
-       unifyError' (prettyEnv env) context range err tp1 tp2
+       unifyError' (prettyEnv env){Pretty.fullNames = False} context range err tp1 tp2
 
 unifyError' env context range err tp1 tp2
   = do infError range $

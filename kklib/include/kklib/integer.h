@@ -163,7 +163,7 @@ so more experimentation is needed.
 --------------------------------------------------------------------------------------------------*/
 
 #if defined(__GNUC__) && !defined(__INTEL_COMPILER)
-#define USE_BUILTIN_OVF (1) 
+#define USE_BUILTIN_OVF (1)  
 #endif
 
 #ifndef USE_BUILTIN_OVF

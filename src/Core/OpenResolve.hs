@@ -41,7 +41,7 @@ import Core.CoreVar
 import Type.Unify( unify, runUnifyEx )
 
 trace s x =
- -- Lib.Trace.trace s
+  -- Lib.Trace.trace s
     x
 
 data Env = Env{ penv :: Pretty.Env, gamma :: Gamma }
@@ -110,13 +110,13 @@ resGuard env (Guard guard body)
 resOpen :: Env -> Expr -> Effect -> Effect -> Type -> Type -> Expr -> Expr
 resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) expr
   = trace (" resolve open: " ++ show (ppType penv effFrom) ++ ", to " ++ show (ppType penv effTo)) $
-    let n       = length targs
-        (ls1,tl1) = extractHandledEffect effFrom
-        (ls2,tl2) = extractHandledEffect effTo
+    let n               = length targs
+        (lsFrom,tlFrom) = extractHandledEffect effFrom
+        (lsTo,tlTo)     = extractHandledEffect effTo
     in -- assertion ("Core.OpenResolve.resOpen: opening from non-closed effect? " ++ show (ppType penv effFrom)) (isEffectFixed effFrom) $
        -- if effFrom is not closed (fixed) it comes from a mask (inject) in the type inferencer
        {-
-       if (matchLabels ls1 ls2)
+       if (matchLabels lsFrom lsTo)
         then -- same effect (except for builtins and/or polymorphic tail?)
              case (runUnifyEx 0 (unify tpFrom tpTo)) of
                (Left _,_,_)  -> -- not exactly equal, leave the .open as a cast
@@ -129,11 +129,11 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
         then -- exact match, just use expr
              trace "  identity" $ expr
        else if (not (isEffectFixed effFrom))
-        then {- if (and [matchType t1 t2 | (t1,t2) <- zip ls1 ls2])
+        then {- if (and [matchType t1 t2 | (t1,t2) <- zip lsFrom lsTo])
               then -- all handled effect match, just use expr
                    trace "masking? " $ expr
               else -} failure $ ("Core.openResolve.resOpen: todo: masking handled effect: " ++ show (ppType penv effFrom))
-       else if (matchType tl1 tl2 && length ls1 == length ls2 && and [matchType t1 t2 | (t1,t2) <- zip ls1 ls2])
+       else if (matchType tlFrom tlTo && length lsFrom == length lsTo && and [matchType t1 t2 | (t1,t2) <- zip lsFrom lsTo])
         then -- same handled effects, just use expr
              trace "  same handled effects, leave as is" $
              expr
@@ -168,13 +168,16 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                                                           (kindFunN (map getKind tpArgs ++ [kindEffect,kindStar]) kindStar))
                                in (makeTypeApp (resolve (toEffectTagName name)) tpArgs, typeApp hndCon tpArgs)
                      in App (makeTypeApp (resolve nameEvvIndex) [effTo,hndTp]) [htagTp]
-             in case ls1 of
+             in case lsFrom of
                  []  -> -- no handled effect, use cast
-                        case ls2 of
+                        case lsTo of
                           [] -> trace ("  no handled effect, in no handled effect context: use cast")
                                 expr
-                          _  -> trace ("  no handled effect; use none") $
-                                if (n <= 4) 
+                          _  -> trace ("  no handled effect; use none: " ++ show expr) $
+                                if (isHandlerFree expr) 
+                                 then trace ("***  remove open-none") $  -- fully total with using any operations that need evidence; just leave it as is
+                                      expr
+                                else if (n <= 4) 
                                  then wrapper (resolve (nameOpenNone n)) []  -- fails in perf1c with exceeded stack size if --optmaxdup < 500 (since it prevents a tailcall)
                                       -- expr  -- fails in nim as it evidence is not cleared
                                  else wrapperThunk (resolve (nameOpenNone 0)) []
@@ -186,8 +189,8 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                          else wrapperThunk (resolve (nameOpenAt 0)) [evIndexOf l]
 
                  _ -> --failure $ "Core.OpenResolve.resOpen: todo: from: " ++ show (ppType penv effFrom) ++ ", to " ++ show (ppType penv effTo)
-                      --           ++ " with handled: " ++ show (map (ppType penv) ls1, map (ppType penv) ls2)
-                      let indices = makeVector typeEvIndex (map evIndexOf ls1)
+                      --           ++ " with handled: " ++ show (map (ppType penv) lsFrom, map (ppType penv) lsTo)
+                      let indices = makeVector typeEvIndex (map evIndexOf lsFrom)
                       in if (n <= 3) 
                           then wrapper (resolve (nameOpen n)) [indices]
                           else wrapperThunk (resolve (nameOpen 0)) [indices]
@@ -200,3 +203,22 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo expr
 matchLabels (l1:ls1) (l2:ls2) = (labelName l1 == labelName l2) && matchLabels ls1 ls2
 matchLabels [] []             = True
 matchLabels _ _               = False
+
+-- is a function expression handler free? : meaning if invoked, 
+-- it will never need evidence (invoke an operation) or change the evidence (use a handler).
+isHandlerFree :: Expr -> Bool   
+isHandlerFree expr  
+  = case expr of
+      TypeLam tpars body -> isHandlerFree body
+      TypeApp body targs -> isHandlerFree body
+      Var vname (Core.InfoExternal{})  -> handlerFreeFunType (typeOf vname)
+      Var vname _ -> handlerFreeFunType (typeOf vname) && isSystemCoreName (getName vname) 
+      Con{} -> True
+      Lit{} -> True
+      _     -> False
+      
+handlerFreeFunType :: Type -> Bool
+handlerFreeFunType tp
+  = case splitFunScheme tp of
+      Just (_,_,_,eff,_) -> not (containsHandledEffect [] eff)
+      _ -> False

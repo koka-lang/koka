@@ -25,7 +25,7 @@ fun catch(action,h) {
 }
 
 fun zerodiv(x,y) {
-  common/catch( { safe-div(x,y) }, fun(s) { 0 } )
+  common/catch( { safe-div(x,y) }, fun(s) { 42 } )
 }
 
 val to-maybe = handler {
@@ -85,12 +85,21 @@ val state-param = handler(s) {
 }
 */
 
-fun state(init, action) {
+fun statex(init, action) {
   var s := init
   handle({mask<local>(action)}) {
     return x -> (x,s)
     get()    -> { resume(s) }
     put(x)   -> { s := x; resume(()) }
+  }
+}
+
+fun state(init, action) {
+  var s := init
+  handle({mask<local>(action)}) {
+    return x   { (x,s) }
+    fun get()  { s }
+    fun put(x) { s := x  }
   }
 }
 

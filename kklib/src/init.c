@@ -32,10 +32,6 @@ function_t function_null(context_t* ctx) {
   return dup_function_t(fun_null);
 }
 
-// empty vector
-static struct vector_large_s _vector_empty
-  = { {{ HEADER_STATIC(SCAN_FSIZE_MAX,TAG_VECTOR) }, {5} /* = 1 value */ }, {{0}} };
-vector_t vector_empty = (vector_t)(&_vector_empty._block._block);
 
 // null functions
 void free_fun_null(void* p) {
@@ -166,16 +162,17 @@ context_t* get_context(void) {
   if (ctx!=NULL) return ctx;
   kklib_init();
 #ifdef KK_MIMALLOC
-  mi_heap_t* heap = mi_heap_new();
+  mi_heap_t* heap = mi_heap_get_default(); //  mi_heap_new();
   ctx = (context_t*)mi_heap_zalloc(heap, sizeof(context_t));
   ctx->heap = heap;
 #else
   ctx = (context_t*)calloc(1, sizeof(context_t));
 #endif
-  ctx->evv = dup_vector_t(vector_empty);
+  ctx->evv = vector_empty();
   ctx->thread_id = (uintptr_t)(&context);
   ctx->unique = integer_one;
   context = ctx;
+  ctx->box_any = block_alloc_as(struct box_any_s, 0, TAG_BOX_ANY, ctx);
   // todo: register a thread_done function to release the context on thread terminatation.
   return ctx;
 }
@@ -183,11 +180,12 @@ context_t* get_context(void) {
 static void free_context(void) {
   if (context != NULL) {
     drop_vector_t(context->evv, context);
+    drop_basetype_assert(context->box_any, TAG_BOX_ANY, context);
     // TODO: process delayed_free
 #ifdef KK_MIMALLOC
-    mi_heap_t* heap = context->heap;
+    // mi_heap_t* heap = context->heap;
     mi_free(context);
-    mi_heap_delete(heap);
+    // mi_heap_delete(heap);
 #else
     runtime_free(context);
 #endif

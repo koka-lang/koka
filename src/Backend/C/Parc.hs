@@ -17,7 +17,7 @@ import Lib.Trace (trace)
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State
-import Data.Maybe ( catMaybes, fromMaybe )
+import Data.Maybe ( catMaybes, fromMaybe, isJust )
 import Data.Char
 import qualified Data.List as L
 import qualified Data.Map.Strict as M
@@ -55,10 +55,10 @@ enabled = unsafePerformIO $ do
 -- Reference count transformation
 --------------------------------------------------------------------------
 
-parcCore :: Pretty.Env -> Platform -> Newtypes -> Core -> Unique Core
-parcCore penv platform newtypes core
+parcCore :: Pretty.Env -> Platform -> Newtypes -> Bool -> Core -> Unique Core
+parcCore penv platform newtypes enableSpecialize core
   | not enabled = return core
-  | otherwise   = do defs <- runParc penv platform newtypes (parcDefGroups True (coreProgDefs core))
+  | otherwise   = do defs <- runParc penv platform newtypes enableSpecialize (parcDefGroups True (coreProgDefs core))
                      -- tr defs $
                      return core{coreProgDefs=defs}
   where penv' = penv{Pretty.coreShowDef=True,Pretty.coreShowTypes=False,Pretty.fullNames=False}
@@ -155,37 +155,46 @@ parcBranch scrutinees live (Branch pats guards)
 parcGuard :: [TName] -> [Pattern] -> Live -> Guard -> Parc (Live -> Parc Guard)
 parcGuard scrutinees pats live (Guard test expr)
   = scoped pvs $
-    do aliases <- aliasMap scrutinees pats
-       extendAliases aliases $ 
+    do shapes <- inferShapes scrutinees pats  -- create alias map for the pattern
+       extendShapes shapes $ -- merge with current alias map  
         do (expr', live') <- isolateWith live $ parcExpr expr
            markLives live'
            test' <- withOwned S.empty $ parcExpr test
-           return $ \matchLive -> scoped pvs $ extendAliases aliases $ do
+           return $ \matchLive -> scoped pvs $ extendShapes shapes $ do
              let dups = S.intersection pvs live'
              let drops = matchLive \\ live'
-             Guard test' <$> parcGuardRC aliases scrutinees pats dups drops expr'
+             Guard test' <$> parcGuardRC scrutinees pats dups drops expr'
   where
     pvs = bv pats
-type Dups   = TNames
-type Drops  = TNames
 
-data DropRec = Drop TName | Reuse TName
-type DropRecs = [DropRec]
+type Dups     = TNames
+type Drops    = TNames
 
-getDropVar :: DropRec -> TName
-getDropVar (Drop tn) = tn
-getDropVar (Reuse tn) = tn
+data DropInfo = Drop TName | Reuse TName
 
--- maps reused name to its token variable and scan count
+dropInfoVar :: DropInfo -> TName
+dropInfoVar (Drop tn) = tn
+dropInfoVar (Reuse tn) = tn
+
+-- maps reused name to its reuse token binding and scan count
 type ReuseInfo = M.Map TName (TName, Expr)
 
-parcGuardRC :: AliasMap -> [TName] -> [Pattern] -> Dups -> Drops -> Expr -> Parc Expr
-parcGuardRC aliases scrutinees pats dups drops body
+-- maps a name to its children
+type ShapeMap = M.Map TName ShapeInfo
+data ShapeInfo = ShapeInfo{ 
+                   mchildren  :: Maybe TNames,  -- if known, Just of children
+                   mconRepr   :: Maybe ConRepr, -- if known, conRepr; may be Just while mchildren is Nothing in case there is just one constructor (like a tuple)
+                   scanFields :: Maybe Int        
+                 }
+
+parcGuardRC :: [TName] -> [Pattern] -> Dups -> Drops -> Expr -> Parc Expr
+parcGuardRC scrutinees pats dups drops body
   = do let (reuses, body') = extractReuse body
        let reuseInfo = M.fromList reuses
        let drops' = map Drop (S.toList drops) ++ map (Reuse . fst) reuses
        let reuseBindings = [DefNonRec (makeTDef tname genReuseNull) | (_,(tname,_)) <- reuses]
-       rcStats <- optimizeGuard aliases reuseInfo dups drops'
+       enable <- allowSpecialize
+       rcStats <- optimizeGuard enable reuseInfo dups drops'
        return $ makeLet reuseBindings (maybeStats rcStats body')
 
 extractReuse :: Expr -> ([(TName, (TName, Expr))], Expr)
@@ -204,111 +213,86 @@ extractReuse expr
     collectLets acc (Let dgs body) = collectLets (dgs:acc) body
     collectLets acc expr = (concat (reverse acc), expr)
 
--- maps a name to its children
-type AliasMap = M.Map TName AliasInfo
-
-data AliasInfo = AliasInfo{ children :: TNames, scanFields :: Maybe (Bool,Int)  }
 
 
--- TODO:
--- 1. what about non-heap allocated data? (always unique)
--- 2. what about value types with references? (need type-specific dup/drop but have no refcount)
--- 3. interaction with borrowed names
+-- TODO:interaction with borrowed names
 -- order invariant:
---  all dups before drops, and drops before drop-reuses, and,
---  within drops and dropr-reuses, each are ordered by pattern tree depth:
---   parents must appear before children.
+--  - all dups before drops, and drops before drop-reuses, and,
+--  - within drops and dropr-reuses, each are ordered by pattern tree depth: parents must appear before children.
 -- note: all drops are "tree" disjoint, none is a parent of another.
-optimizeGuard :: AliasMap -> ReuseInfo -> Dups -> DropRecs -> Parc [Maybe Expr]
-optimizeGuard aliases ri = opt
+optimizeGuard :: Bool {-specialize?-} -> ReuseInfo -> Dups -> [DropInfo] -> Parc [Maybe Expr]
+optimizeGuard False ri dups rdrops
+  = -- no optimization on dup/drops
+    do xdups  <- foldMapM genDup dups
+       xdrops <- foldMapM (genDropFromInfo ri) rdrops
+       return (xdups ++ xdrops)
+       
+optimizeGuard enabled ri dups rdrops
+  = do shapes <- getShapeMap
+       let mchildrenOf x = case M.lookup x shapes of
+                            Just (ShapeInfo mchildren _ _) -> mchildren 
+                            _    -> Nothing
+       optimizeGuardEx mchildrenOf ri dups rdrops
+       
+optimizeGuardEx :: (TName -> Maybe TNames) -> ReuseInfo -> Dups -> [DropInfo] -> Parc [Maybe Expr]
+optimizeGuardEx mchildrenOf ri dups rdrops
+  = optimize dups rdrops
   where
-    childrenOf x
-      = case M.lookup x aliases of
-          Just ai -> children ai
+    childrenOf parent
+      = case (mchildrenOf parent) of
+          Just ch -> ch
           Nothing -> S.empty
     isChildOf parent x
       = S.member x (childrenOf parent)
     isDescendentOf parent x
-      = let ys = childrenOf parent
-         in not (S.null ys) && (S.member x ys || any (`isDescendentOf` x) ys)
+      = let ys = childrenOf parent 
+        in not (S.null ys) && (S.member x ys || any (`isDescendentOf` x) ys)
          
-    genDropRec :: DropRec -> Parc (Maybe Expr)
-    genDropRec (Drop tn) = genDrop tn
-    genDropRec (Reuse tn)
-      = case M.lookup tn ri of
-          Just (r,scan) 
-            -> -- assertion "wrong scan fields in reuse" (snd (maybe (False,0) (scanFieldsOf tn)) == scan)  $
-               return (Just (genDropReuse tn scan))
-          _ -> failure $ "Backend.C.Parc.genDropRec: cannot find: " ++ show tn
-          
-
-    opt :: Dups -> DropRecs -> Parc [Maybe Expr]
-    opt dups []
+    optimize :: Dups -> [DropInfo] -> Parc [Maybe Expr]
+    optimize dups []
       = foldMapM genDup dups
-    opt dups dropRecs | S.null dups
-      = foldMapM genDropRec dropRecs
-    opt dups (yRec:ys)  -- due to order, parents are first; if this would not be the case specialization opportunities may be lost
+    optimize dups dropRecs | S.null dups
+      = foldMapM (genDropFromInfo ri) dropRecs
+    optimize dups (yRec:ys)  -- due to order, parents are first; if this would not be the case specialization opportunities may be lost
       = do newtypes <- getNewtypes
            platform <- getPlatform
-           let y = getDropVar yRec
+           let y = dropInfoVar yRec
            case yRec of
              -- due to ordering, there are no further drops
              Reuse _ | S.member y dups
                -- can never reuse as it is dup'd: remove dup/drop-reuse pair
-               -> do rest <- opt (S.delete y dups) ys
+               -> do rest <- optimize (S.delete y dups) ys
                      set <- genSetNull ri y
                      return $ rest ++ [set]
              Drop _ | S.member y dups
-               -> opt (S.delete y dups) ys -- dup/drop cancels
-             Drop _ | Just x <- forwardingChild newtypes platform dups y
+               -> optimize (S.delete y dups) ys -- dup/drop cancels
+             Drop _ | Just x <- forwardingChild platform newtypes childrenOf dups y
                -- cancel with boxes, value types that simply
                -- forward their drops to their children
-               -> opt (S.delete x dups) ys
+               -> do -- parcTrace $ "fuse forward child: " ++ show y ++ " -> " ++ show x
+                     optimize (S.delete x dups) ys
              _ -> do let (yDups, dups') = S.partition (isDescendentOf y) dups
-                     let (yRecs, ys')   = L.partition (isDescendentOf y . getDropVar) ys
-                     rest    <- opt dups' ys'             -- optimize outside the y tree
-                     inlined <- inline yDups yRec yRecs   -- specialize the y tree
+                     let (yRecs, ys')   = L.partition (isDescendentOf y . dropInfoVar) ys
+                     rest    <- optimize dups' ys'             -- optimize outside the y tree
+                     inlined <- specialize yDups yRec yRecs   -- specialize the y tree
                      return $ rest ++ [inlined]
 
-    forwardingChild :: Newtypes -> Platform -> Dups -> TName -> Maybe TName
-    forwardingChild newtypes platform dups y
-      = case tnamesList (childrenOf y) of
-          [x] ->  let tp = typeOf y
-                  in -- trace ("forwarding child: " ++ show y ++ ", show: " ++ show [x]) $
-                     case getValueForm' newtypes tp of
-                       Just ValueOneScan -> case findChild x dups of
-                                              Just x  -> Just x -- Just(x) as y   
-                                              Nothing -> -- trace (" check box type child: " ++ show (y,x)) $
-                                                         case getBoxForm' platform newtypes (typeOf x) of
-                                                           BoxIdentity -> -- trace (" check child's children: " ++ show x) $
-                                                                          case tnamesList (childrenOf x) of
-                                                                            [x'] -> findChild x' dups  -- (Just(Box x' as x)) as y
-                                                                            _    -> Nothing
-                                                           _ -> Nothing                                              
-                       Just _  -> Nothing
-                       Nothing -> case getBoxForm' platform newtypes tp of
-                                    BoxIdentity -> findChild y dups  -- Box(x) as y
-                                    _ -> Nothing
-          _ -> Nothing  
-     where
-       findChild x dups 
-         = if (S.member x dups) then Just x else Nothing
-            
-    inline dups v drops     -- dups and drops are descendents of v
+    specialize :: Dups -> DropInfo -> [DropInfo] -> Parc (Maybe Expr)            
+    specialize dups v drops     -- dups and drops are descendents of v
       = Just <$>
-        do xShared <- opt dups drops   -- for the non-unique branch
-           xUnique <- opt dups $
-                      map Drop (S.toList . childrenOf $ getDropVar v) ++ drops -- drop direct children in unique branch (note: `v \notin drops`)
-           xDecRef <- genDecRef (getDropVar v)
-           let tp = typeOf (getDropVar v)
-           vform   <- getValueForm tp
-           let isValue = case vform of 
-                           Just _ -> True
-                           _      -> False
-               dontSpecialize  = isValue || isBoxType tp || isFun tp || isTypeInt tp
+        do xShared <- optimize dups drops   -- for the non-unique branch
+           xUnique <- optimize dups $
+                      map Drop (S.toList . childrenOf $ dropInfoVar v) ++ drops -- drop direct children in unique branch (note: `v \notin drops`)
+           xDecRef <- genDecRef (dropInfoVar v)
+           let tp = typeOf (dropInfoVar v)
+           isValue <- isJust <$> getValueForm tp
+           let hasKnownChildren = isJust (mchildrenOf (dropInfoVar v))               
+               dontSpecialize   = not hasKnownChildren ||   -- or otherwise xUnique is wrong!
+                                  isValue || isBoxType tp || isFun tp || isTypeInt tp                                 
            case v of
              Reuse y
-               -> do xReuse   <- genReuseAssign ri y
+               -> assertion "Backend.C.Parc.specialize: reuse without known children" (hasKnownChildren)  $
+                  do xReuse   <- genReuseAssign ri y
                      xSetNull <- genSetNull ri y
                      return $ makeIfExpr (genIsUnique y)
                                 (maybeStatsUnit (xUnique ++ [xReuse]))
@@ -318,72 +302,122 @@ optimizeGuard aliases ri = opt
                -> do xDrop <- genDrop y 
                      return (maybeStatsUnit (xShared ++ [xDrop]))
              Drop y
-               -> do xFree <- genFree y
+               -> do xFree <- genFree y                              
                      return $ makeIfExpr (genIsUnique y)
                                 (maybeStatsUnit (xUnique ++ [xFree]))
                                 (maybeStatsUnit (xShared ++ [xDecRef]))
 
 
+forwardingChild :: Platform -> Newtypes -> (TName -> TNames) -> Dups -> TName -> Maybe TName
+forwardingChild platform newtypes childrenOf dups y
+  = case tnamesList (childrenOf y) of
+      [x] -> -- trace ("forwarding child?: " ++ show y ++ " -> " ++ show x) $
+             case getValueForm' newtypes (typeOf y) of
+               Just ValueOneScan 
+                 -> case findChild x dups of
+                      Just x  -> -- trace (" is forwarding: " ++ show y ++ " -> " ++ show x) $
+                                 Just x -- Just(x) as y   
+                      Nothing -> -- trace (" check box type child: " ++ show (y,x)) $
+                                 case getBoxForm' platform newtypes (typeOf x) of
+                                   BoxIdentity 
+                                     -> -- trace (" check child's children: " ++ show x) $
+                                        case tnamesList (childrenOf x) of
+                                          [x'] -> findChild x' dups  -- (Just(Box x' as x)) as y
+                                          _    -> Nothing
+                                   _ -> Nothing                                              
+               Just _  -> Nothing
+               Nothing | isBoxType (typeOf y)
+                       -> case getBoxForm' platform newtypes (typeOf x) of
+                            BoxIdentity -> --trace (" box identity: " ++ show y) $
+                                           findChild x dups  -- Box(x) as y
+                            _ -> Nothing
+               _       -> Nothing
+      _ -> Nothing  
+ where
+   findChild x dups 
+     = if (S.member x dups) then Just x else Nothing
+
+
+genDropFromInfo :: ReuseInfo -> DropInfo -> Parc (Maybe Expr)
+genDropFromInfo ri (Drop tn) = genDrop tn
+genDropFromInfo ri (Reuse tn)
+  = case M.lookup tn ri of
+      Just (reuseName,scan) 
+        -> -- assertion "wrong scan fields in reuse" (snd (maybe (False,0) (scanFieldsOf tn)) == scan)  $
+           -- return (Just (makeTDef reuseName (genDropReuse tn scan)))
+           do expr <- genReuseAssignWith reuseName (genDropReuse tn scan)
+              return (Just expr)
+      _ -> failure $ "Backend.C.Parc.genDropFromInfo: cannot find: " ++ show tn
+
 
 
 genSetNull :: ReuseInfo -> TName -> Parc (Maybe Expr)
-genSetNull ri x = genReuseAssignEx ri x True
+genSetNull ri x 
+  = Just <$> genReuseAssignEx ri x True
 
 genReuseAssign :: ReuseInfo -> TName -> Parc (Maybe Expr)
-genReuseAssign ri x = genReuseAssignEx ri x False
+genReuseAssign ri x 
+  = Just <$> genReuseAssignEx ri x False
 
-genReuseAssignEx :: ReuseInfo -> TName -> Bool -> Parc (Maybe Expr)
-genReuseAssignEx ri x setNull =
-  return $ do
-    (r, scan) <- M.lookup x ri  -- TODO: failure if not found
-    let assign = TName nameAssignReuse (TFun [(nameNil,typeReuse),(nameNil,typeOf x)] typeTotal typeUnit)
-        arg    = if setNull then genReuseNull else genReuseAddress x
-    return (App (Var assign (InfoExternal [(C, "#1 = #2")])) [Var r InfoNone, arg])
+genReuseAssignEx :: ReuseInfo -> TName -> Bool -> Parc Expr
+genReuseAssignEx ri x setNull 
+  = case M.lookup x ri of
+      Nothing -> failure $ "Backend.C.Parc.genReuseAssignEx: cannot find: " ++ show x
+      Just (r, scan) 
+        -> let arg = if setNull then genReuseNull else genReuseAddress x
+           in genReuseAssignWith r arg
 
-aliasMap :: [TName] -> [Pattern] -> Parc AliasMap
-aliasMap scrutineeNames pats
-  = do ms <- zipWithM aliasesOf scrutineeNames pats
+
+genReuseAssignWith :: TName -> Expr -> Parc Expr
+genReuseAssignWith reuseName arg
+  = let assign = TName nameAssignReuse (TFun [(nameNil,typeReuse),(nameNil,typeReuse)] typeTotal typeUnit)
+    in return (App (Var assign (InfoExternal [(C, "#1 = #2")])) [Var reuseName InfoNone, arg])
+
+
+inferShapes :: [TName] -> [Pattern] -> Parc ShapeMap
+inferShapes scrutineeNames pats
+  = do ms <- zipWithM shapesOf scrutineeNames pats
        return (M.unionsWith noDup ms)
-  where aliasesOf :: TName -> Pattern -> Parc AliasMap
-        aliasesOf parent pat
+  where shapesOf :: TName -> Pattern -> Parc ShapeMap
+        shapesOf parent pat
           = case pat of
               PatCon{patConPatterns,patConName,patConRepr}
-                -> do ms <- mapM aliases patConPatterns
-                      sc <- getConstructorSize patConName patConRepr
+                -> do ms <- mapM shapesChild patConPatterns
+                      scan <- getConstructorScanFields patConName patConRepr
                       let m  = M.unionsWith noDup ms
-                          ai = AliasInfo (tnamesFromList (map patName patConPatterns)) (Just sc)
-                      return (M.insert parent ai m)
+                          shape = ShapeInfo (Just (tnamesFromList (map patName patConPatterns))) (Just patConRepr) (Just scan)
+                      return (M.insert parent shape m)
               PatVar{patName,patPattern}
-                -> do m <- aliasesOf patName patPattern
+                -> do m <- shapesOf patName patPattern
                       case M.lookup patName m of
-                        Just ai -> return (M.insert parent ai m)   -- same children as parent == patName
+                        Just shape -> return (M.insert parent shape m)   -- same children as parent == patName
                         Nothing -> failure $ ("Backend.C.Parc.aliasMap: unbound alias: " ++ show patName)
               PatLit _ 
-                -> return (M.singleton parent (AliasInfo tnamesEmpty (Just (False,0))))
+                -> return (M.singleton parent (ShapeInfo Nothing Nothing (Just 0)))
               PatWild
-                -> return (M.singleton parent (AliasInfo tnamesEmpty Nothing))
+                -> return (M.singleton parent (ShapeInfo Nothing Nothing Nothing))
 
-        aliases :: Pattern -> Parc AliasMap
-        aliases pat
+        shapesChild :: Pattern -> Parc ShapeMap
+        shapesChild pat
           = case pat of
               PatVar{patName,patPattern}
-                -> aliasesOf patName patPattern
+                -> shapesOf patName patPattern
               PatCon{patConPatterns}
                 -> failure $ ("Backend.C.Parc.aliasMap: unnamed nested pattern")
-                   -- do ms <- mapM aliases patConPatterns
+                   -- do ms <- mapM shapesChild patConPatterns
                    --    return (M.unionsWith noDup ms)
               _ -> return M.empty
 
-        noDup :: AliasInfo -> AliasInfo -> AliasInfo
-        noDup ai1 ai2 = failure $ "Backend.C.Parc.aliasMap.noDup: duplicate pattern names"
+        noDup :: ShapeInfo -> ShapeInfo -> ShapeInfo
+        noDup shape1 shape2 = failure $ "Backend.C.Parc.aliasMap.noDup: duplicate pattern names"
 
-mergeAliasInfo :: AliasInfo -> AliasInfo -> AliasInfo
-mergeAliasInfo info1 (AliasInfo children2 Nothing)
-  = info1
-mergeAliasInfo (AliasInfo children1 Nothing) info2
-  = info2
-mergeAliasInfo info1 _
-  = info1
+
+mergeShapeInfo :: ShapeInfo -> ShapeInfo -> ShapeInfo   -- prefer most info
+mergeShapeInfo (ShapeInfo mchildren1 mci1 mscan1) (ShapeInfo mchildren2 mci2 mscan2)  
+  = ShapeInfo (mergeMaybe mchildren1 mchildren2) (mergeMaybe mci1 mci2) (mergeMaybe mscan1 mscan2)
+  where
+    mergeMaybe Nothing y = y
+    mergeMaybe x _       = x
 
 -- Generate a reuse a block
 genReuseAddress :: TName -> Expr
@@ -457,15 +491,15 @@ data BoxForm = BoxIdentity   -- directly in the box itself (`int` or any regular
 
 getBoxForm' :: Platform -> Newtypes -> Type -> BoxForm
 getBoxForm' platform newtypes tp
-  = case getDataDefRepr' newtypes tp of
-      (DataDefValue _ 0, _) -- 0 scan fields
+  = case getDataDef' newtypes tp of
+      (DataDefValue _ 0) -- 0 scan fields
         -> case extractDataDefType tp of
              Just name
                | name `elem` [nameTpInt, nameTpChar, nameTpInt8, nameTpInt16, nameTpByte] ||
                  ((name `elem` [nameTpInt32, nameTpFloat32]) && sizePtr platform > 4)
                    -> BoxIdentity
              _ -> BoxRaw
-      (DataDefValue _ _, _)
+      (DataDefValue _ _)
         -> BoxValue
       _ -> BoxIdentity
 
@@ -482,17 +516,17 @@ getBoxForm tp
 -- value types with reference fields still need a drop
 needsDupDrop :: Type -> Parc Bool
 needsDupDrop tp
-  = do repr <- getDataDefRepr tp
-       return $ case repr of
-         (DataDefValue _ 0, _) -> False
-         _                     -> True
+  = do dd <- getDataDef tp
+       return $ case dd of
+         (DataDefValue _ 0) -> False
+         _                  -> True
 
 isValueType :: Type -> Parc Bool
 isValueType tp
-  = do repr <- getDataDefRepr tp
-       return $ case repr of
-         (DataDefValue _ _, _) -> True
-         _                     -> False
+  = do dd <- getDataDef tp
+       return $ case dd of
+         (DataDefValue _ _) -> True
+         _                  -> False
 
 data ValueForm
   = ValueAllRaw   -- just bits
@@ -501,44 +535,53 @@ data ValueForm
 
 getValueForm' :: Newtypes -> Type -> Maybe ValueForm
 getValueForm' newtypes tp
-  = case getDataDefRepr' newtypes tp of
-      (DataDefValue _ 0, _) -> Just ValueAllRaw
-      (DataDefValue 0 1, _) -> Just ValueOneScan
-      (DataDefValue _ _, _) -> Just ValueOther
-      _                     -> Nothing
+  = case getDataDef' newtypes tp of
+      (DataDefValue _ 0) -> Just ValueAllRaw
+      (DataDefValue 0 1) -> Just ValueOneScan
+      (DataDefValue _ _) -> Just ValueOther
+      _                  -> Nothing
 
 getValueForm :: Type -> Parc (Maybe ValueForm)
 getValueForm tp = (`getValueForm'` tp) <$> getNewtypes
 
 -- Generate a dup/drop over a given (locally bound) name
 -- May return Nothing if the type never needs a dup/drop (like an `int32` or `bool`)
-genDupDrop :: Bool -> TName -> Maybe (Bool,Int) -> Parc (Maybe Expr)
-genDupDrop isDup tname (Just (True,0))  -- singleton
-  = do parcTrace $ "singleton: " ++ show tname
+genDupDrop :: Bool -> TName -> Maybe ConRepr -> Maybe Int -> Parc (Maybe Expr)
+genDupDrop isDup tname (Just ConSingleton{}) (Just 0) 
+  = do -- parcTrace $ "drop singleton: " ++ show tname
        return Nothing
-genDupDrop isDup tname mbScanCount
+genDupDrop isDup tname mbConRepr mbScanCount
   = do let tp = typeOf tname
-       repr <- getDataDefRepr tp
+       mbDi     <- getDataInfo tp
        borrowed <- isBorrowed tname
-       return $
-         if borrowed && not isDup
-           then Nothing
-           else case repr of
-                 (DataDefValue _ 0, _) -> Nothing  -- no scan fields
-                 _ -> Just (dupDropFun isDup tp mbScanCount (Var tname InfoNone))
+       -- parcTrace $ "gen dup/drop: " ++ show tname ++ ": " ++ show (mbDi,mbConRepr,mbScanCount,borrowed,isDup)
+       if borrowed && not isDup
+         then return Nothing
+         else let normal = (Just (dupDropFun isDup tp mbConRepr mbScanCount (Var tname InfoNone)))
+              in case mbDi of
+                Just di -> case (dataInfoDef di, dataInfoConstrs di, snd (getDataRepr di)) of
+                             (DataDefNormal, [conInfo], [conRepr])  -- data with just one constructor
+                               -> do scan <- getConstructorScanFields (TName (conInfoName conInfo) (conInfoType conInfo)) conRepr
+                                     -- parcTrace $ " add scan fields: " ++ show scan
+                                     return (Just (dupDropFun isDup tp (Just conRepr) (Just scan) (Var tname InfoNone)))
+                             (DataDefValue _ 0, _, _) 
+                               -> do -- parcTrace $ " value with no scan fields"
+                                     return Nothing  -- value with no scan fields
+                             _ -> return normal
+                _ -> return normal
 
-genDup name  = genDupDrop True name Nothing
-genDrop name = do ai <- getAliasInfo name
-                  genDupDrop False name (scanFields ai)
+genDup name  = do genDupDrop True name Nothing Nothing
+genDrop name = do shape <- getShapeInfo name
+                  genDupDrop False name (mconRepr shape) (scanFields shape)
 
 -- get the dup/drop function
-dupDropFun :: Bool -> Type -> Maybe (Bool,Int) -> Expr -> Expr
-dupDropFun False {-drop-} tp (Just (_,scanFields)) arg  -- drop with known number of scan fields
+dupDropFun :: Bool -> Type -> Maybe ConRepr -> Maybe Int -> Expr -> Expr
+dupDropFun False {-drop-} tp (Just conRepr) (Just scanFields) arg  | not (conReprIsValue conRepr) && not (isBoxType tp)-- drop with known number of scan fields
   = App (Var (TName name coerceTp) (InfoExternal [(C, "dropn(#1,#2)")])) [arg,makeInt32 (toInteger scanFields)]  
   where
     name = nameDrop
     coerceTp = TFun [(nameNil,tp),(nameNil,typeInt32)] typeTotal typeUnit
-dupDropFun isDup tp mbScanCount arg
+dupDropFun isDup tp mbConRepr mbScanCount arg
   = App (Var (TName name coerceTp) (InfoExternal [(C, (if isDup then "dup" else "drop") ++ "(#1)")])) [arg]
   where
     name = if isDup then nameDup else nameDrop
@@ -624,8 +667,9 @@ data Env = Env { currentDef :: [Def],
                  prettyEnv :: Pretty.Env,
                  platform  :: Platform,
                  newtypes  :: Newtypes,
+                 enableSpec:: Bool,
                  owned     :: Owned,
-                 aliases   :: AliasMap
+                 shapeMap  :: ShapeMap
                }
 
 type Live = TNames
@@ -653,10 +697,10 @@ updateSt = modify
 getSt :: Parc ParcState
 getSt = get
 
-runParc :: Pretty.Env -> Platform -> Newtypes -> Parc a -> Unique a
-runParc penv platform newtypes (Parc action)
+runParc :: Pretty.Env -> Platform -> Newtypes -> Bool -> Parc a -> Unique a
+runParc penv platform newtypes enableSpecialize (Parc action) 
   = withUnique $ \u ->
-      let env = Env [] penv platform newtypes S.empty M.empty
+      let env = Env [] penv platform newtypes enableSpecialize S.empty M.empty 
           st = ParcState u S.empty
           (val, st') = runState (runReaderT action env) st
        in (val, uniq st')
@@ -680,6 +724,9 @@ withPrettyEnv f = withEnv (\e -> e { prettyEnv = f (prettyEnv e) })
 
 --
 
+allowSpecialize :: Parc Bool
+allowSpecialize = enableSpec <$> getEnv
+
 getNewtypes :: Parc Newtypes
 getNewtypes = newtypes <$> getEnv
 
@@ -690,13 +737,13 @@ getPlatform :: Parc Platform
 getPlatform = platform <$> getEnv
 
 
-getConstructorSize :: TName -> ConRepr -> Parc (Bool {-singleton?-},Int)  
-getConstructorSize conName conRepr
+getConstructorScanFields :: TName -> ConRepr -> Parc Int
+getConstructorScanFields conName conRepr
   = do platform <- getPlatform
        newtypes <- getNewtypes
        let (size,scan) = (constructorSizeOf platform newtypes conName conRepr)
-       parcTrace $ "get size " ++ show conName ++ ": " ++ show (size,scan)
-       return ((size == 0), scan)
+       -- parcTrace $ "get size " ++ show conName ++ ": " ++ show (size,scan) ++ ", " ++ show conRepr
+       return scan
        
 --
 
@@ -745,22 +792,22 @@ extendOwned :: Owned -> Parc a -> Parc a
 extendOwned = updateOwned . S.union
 
 -----
-extendAliases :: AliasMap -> Parc a -> Parc a
-extendAliases extend
-  = withEnv (\e -> e{ aliases = M.unionWith mergeAliasInfo extend (aliases e) })  -- note: left-biased, prefer extend
+extendShapes :: ShapeMap -> Parc a -> Parc a
+extendShapes extend
+  = withEnv (\e -> e{ shapeMap = M.unionWith mergeShapeInfo extend (shapeMap e) })  -- note: left-biased, prefer extend
 
-getAliases :: Parc AliasMap
-getAliases = aliases <$> getEnv
+getShapeMap :: Parc ShapeMap
+getShapeMap = shapeMap <$> getEnv
    
-getAliasInfo :: TName -> Parc AliasInfo 
-getAliasInfo tname
-  = do m <- getAliases
-       return (getAliasInfoOf tname m)
+getShapeInfo :: TName -> Parc ShapeInfo 
+getShapeInfo tname
+  = do m <- getShapeMap
+       return (getShapeInfoOf tname m)
        
-getAliasInfoOf tname m
+getShapeInfoOf tname m
   = case M.lookup tname m of
-      Just ai -> ai 
-      Nothing -> (AliasInfo tnamesEmpty Nothing)
+      Just shape -> shape 
+      Nothing    -> (ShapeInfo Nothing Nothing Nothing)
       
 -------------------------------
 -- live set abstractions --
@@ -803,7 +850,7 @@ isolateWith live action
 scoped :: TNames -> Parc a -> Parc a
 scoped vars action
   = do expr <- extendOwned vars $
-               extendAliases (M.fromList [(v,AliasInfo S.empty Nothing) | v <- (S.elems vars)]) $
+               -- extendShapes (M.fromList [(v,ShapeInfo S.empty Nothing) | v <- (S.elems vars)]) $
                action
        forget vars
        return expr
@@ -828,23 +875,38 @@ parcTraceDoc f
 parcTrace :: String -> Parc ()
 parcTrace msg
  = do defs <- getCurrentDef
-      trace ("Core.Parc: " ++ show (map defName defs) ++ ": " ++ msg) $ return ()
+      trace ("Core.Parc: " ++ show (map defName defs) ++ ": " ++ msg) $ 
+       return ()
 
 ----------------
 
-getDataDefRepr' :: Newtypes -> Type -> (DataDef, DataRepr)
-getDataDefRepr' newtypes tp
+getDataInfo' :: Newtypes -> Type -> Maybe DataInfo
+getDataInfo' newtypes tp
   = case extractDataDefType tp of
-      Nothing -> (DataDefNormal, DataNormal True)
-      Just name | name == nameBoxCon -> (DataDefNormal, DataNormal False)
+      Nothing   -> Nothing
+      Just name | name == nameBoxCon -> Nothing
       Just name -> case newtypesLookupAny name newtypes of
-                      Nothing -> failure $ "Core.Parc.getDataDefRepr: cannot find type: " ++ show name
-                      Just di -> (dataInfoDef di, fst (getDataRepr di))
+                      Nothing -> failure $ "Core.Parc.getDataDefInfo: cannot find type: " ++ show name
+                      Just di -> -- trace ("datainfo of " ++ show (pretty tp) ++ " = " ++ show di) $
+                                 Just di
 
-getDataDefRepr :: Type -> Parc (DataDef, DataRepr)
-getDataDefRepr tp
+getDataDef' :: Newtypes -> Type -> DataDef
+getDataDef' newtypes tp
+  = case getDataInfo' newtypes tp of
+      Just di -> dataInfoDef di
+      _       -> DataDefNormal
+
+
+getDataInfo :: Type -> Parc (Maybe DataInfo)
+getDataInfo tp
   = do newtypes <- getNewtypes
-       return $ getDataDefRepr' newtypes tp
+       return (getDataInfo' newtypes tp)
+
+getDataDef :: Type -> Parc DataDef
+getDataDef tp
+  = do newtypes <- getNewtypes
+       return (getDataDef' newtypes tp)
+
 
 extractDataDefType :: Type -> Maybe Name
 extractDataDefType tp

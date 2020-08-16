@@ -1,6 +1,6 @@
 // --------------------------------------------------------
 // Examples from the paper "Liberating effects with rows and handlers"
-// by Daniel Hillerström and Sam Lindley.
+// by Daniel Hillerstroem and Sam Lindley.
 // --------------------------------------------------------
 
 // --------------------------------------------------------

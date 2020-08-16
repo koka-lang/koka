@@ -103,12 +103,12 @@ fun sign( i : int32 ) : order {
 
 // Returns `true` if the integer `i`  is an odd number.
 fun odd?( i : int32 ) : bool {
-  return (i&1.int32==1.int32);
+  return (and(i,1.int32)==1.int32);
 }
 
 // Returns `true` if the integer `i`  is an even number.
 fun even?( i : int32 ) : bool {
-  return (i&1.int32==0.int32);
+  return (and(i,1.int32)==0.int32);
 }
 
 // Increment a 32-bit integer.
@@ -156,12 +156,12 @@ fun abs0( i : int32 ) : int32
 
 
 // Take the bitwise _and_ of two `:int32`s
-extern inline (&) : (int32,int32) -> int32 {
+extern inline and : (int32,int32) -> int32 {
   inline "(#1 & #2)";
 }
 
 // Take the bitwise _or_ of two `:int32`s
-extern inline (|) : (int32,int32) -> int32 {
+extern inline or : (int32,int32) -> int32 {
   inline "(#1 | #2)";
 }
 
@@ -202,16 +202,16 @@ extern inline sar : (int32,int32) -> int32 {
 // Does not rotate when `n` is negative.
 fun rotl( i : int32, n : int32 ) : int32 {
   if (n.neg?) return i;
-  val r = n & bits-int32.dec  // modulo bits in an int32
-  (shl(i,r) | shr(i,bits-int32 - r))
+  val r = and(n,bits-int32.dec)  // modulo bits in an int32
+  or(shl(i,r),shr(i,bits-int32 - r))
 }
 
 // Bitwise rotate an `:int32` `n` bits to the right.
 // Does not rotate when `n` is negative.
 fun rotr( i : int32, n : int32 ) : int32 {
   if (n.neg?) return i;
-  val r = n & bits-int32.dec  // modulo bits in an int32
-  (shr(i,r) | shl(i,bits-int32 - r))
+  val r = and(n,bits-int32.dec)  // modulo bits in an int32
+  or(shr(i,r),shl(i,bits-int32 - r))
 }
 
 

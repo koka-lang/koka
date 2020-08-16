@@ -63,10 +63,10 @@ externalNames
 -- Generate C code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
-cFromCore sourceDir penv0 platform newtypes uniq mbMain core
+cFromCore :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Int -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
+cFromCore sourceDir penv0 platform newtypes uniq enableReuse enableSpecialize mbMain core
   = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes platform False)
-           (genModule sourceDir penv platform newtypes mbMain core) of
+           (genModule sourceDir penv platform newtypes enableReuse enableSpecialize mbMain core) of
       (bcore,cdoc,hdoc) -> (cdoc,hdoc,bcore)
   where
     moduleName = coreProgName core
@@ -78,11 +78,13 @@ contextDoc = text "_ctx"
 contextParam :: Doc
 contextParam = text "context_t* _ctx"
 
-genModule :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Maybe (Name,Bool) -> Core -> Asm Core
-genModule sourceDir penv platform newtypes mbMain core0
+genModule :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> Asm Core
+genModule sourceDir penv platform newtypes enableReuse enableSpecialize mbMain core0
   =  do core <- liftUnique (do bcore <- boxCore core0            -- box/unbox transform
-                               ucore <- parcReuseCore penv platform newtypes bcore -- constructor reuse analysis
-                               pcore <- parcCore penv platform newtypes ucore -- precise automatic reference counting
+                               ucore <- if (enableReuse) 
+                                         then parcReuseCore penv platform newtypes bcore -- constructor reuse analysis
+                                         else return bcore
+                               pcore <- parcCore penv platform newtypes enableSpecialize ucore -- precise automatic reference counting
                                return pcore
                            )
 
@@ -296,7 +298,7 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
   = let tryFun expr = case expr of
                         TypeApp e _   -> tryFun e
                         TypeLam _ e   -> tryFun e
-                        Lam params eff body  -> genFunDef params body
+                        Lam params eff body | isDefFun sort -> genFunDef params body
                         _ | isDefFun sort
                           -> -- some optimization turned a toplevel lambda into
                              -- a value; wrap it back into a lambda again as all occurrences
@@ -577,7 +579,7 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
                                                         then ppConTag con conRepr dataRepr <+> text "/* tag */"
                                                         else text "TAG_OPEN"]
                                <.> semi]
-                              ++ (if (dataRepr /= DataOpen) then [] else [tmp <.> text "->_base._tag =" <+> ppConTag con conRepr dataRepr <.> semi ])
+                              ++ (if (dataRepr /= DataOpen) then [] else [tmp <.> text "->_base._tag = dup_string_t" <.> parens(ppConTag con conRepr dataRepr) <.> semi ])
                               ++ map (assignField (\fld -> tmp <.> text "->" <.> fld)) conFields
                               ++ [let base = text "&" <.> tmp <.> text "->_base"
                                   in if (dataReprMayHaveSingletons dataRepr)
@@ -677,6 +679,7 @@ genDupDrop name info dataRepr conInfos
                  genFree name info dataRepr          -- free the block
                  genDecRef name info dataRepr        -- decrement the ref count (if > 0)
                  genDropReuseFun name info dataRepr     -- drop, but if refcount==0 return the address of the block instead of freeing
+                 genDropNFun name info dataRepr
                  genReuse name info dataRepr         -- return the address of the block
        
 
@@ -712,11 +715,21 @@ genDecRef name info dataRepr
 genDropReuseFun :: Name -> DataInfo -> DataRepr -> Asm ()
 genDropReuseFun name info dataRepr 
   = emitToH $
-    text "static inline reuse_t drop_reuse_" <.> ppName name <.> parameters [ppName name <+> text "_x", text "size_t _scan_fsize"] <+> block (
+    text "static inline reuse_t dropn_reuse_" <.> ppName name <.> parameters [ppName name <+> text "_x", text "size_t _scan_fsize"] <+> block (
       text "return" <+> 
       (if (dataReprMayHaveSingletons dataRepr)
-        then text "drop_reuse_datatype"
-        else text "drop_reuse_basetype"
+        then text "dropn_reuse_datatype"
+        else text "dropn_reuse_basetype"
+      ) <.> arguments [text "_x", text "_scan_fsize"] <.> semi)
+
+
+genDropNFun :: Name -> DataInfo -> DataRepr -> Asm ()
+genDropNFun name info dataRepr 
+  = emitToH $
+    text "static inline void dropn_" <.> ppName name <.> parameters [ppName name <+> text "_x", text "size_t _scan_fsize"] <+> block (
+      (if (dataReprMayHaveSingletons dataRepr)
+        then text "dropn_datatype"
+        else text "dropn_basetype"
       ) <.> arguments [text "_x", text "_scan_fsize"] <.> semi)
 
 genReuse :: Name -> DataInfo -> DataRepr -> Asm ()
@@ -800,7 +813,8 @@ genDupDropCallX prim tp args
       CPrim val   | val == "integer_t" || val == "string_t" || val == "vector_t" || val == "ref_t" || val == "reuse_t" || val == "box_t"
                   -> [text (pre val) <.> args]
                   | otherwise
-                  -> []-- text "value" <.> args
+                  -> -- trace ("** skip dup/drop call: " ++ pre val ++ ": " ++ show args) $
+                     []-- text "value" <.> args
       CData name -> [text (pre "") <.> ppName name <.> args]
     )
   where
@@ -822,11 +836,14 @@ genFreeCall tp arg  = genDupDropCallX "free" tp (parens arg)
 genDecRefCall :: Type -> Doc -> [Doc]
 genDecRefCall tp arg  = genDupDropCallX "decref" tp (arguments [arg])
 
-genDropReuseCall :: Type -> Doc -> [Doc]
-genDropReuseCall tp arg  = genDupDropCallX "drop_reuse" tp (arguments [arg])
+genDropReuseCall :: Type -> [Doc] -> [Doc]
+genDropReuseCall tp args  = genDupDropCallX "dropn_reuse" tp (arguments args)
 
 genReuseCall :: Type -> Doc -> [Doc]
 genReuseCall tp arg  = genDupDropCallX "reuse" tp (parens arg)
+
+genDropNCall :: Type -> [Doc] -> [Doc]
+genDropNCall tp args  = genDupDropCallX "dropn" tp (arguments args)
 
 
 
@@ -931,7 +948,7 @@ genLambda params eff body
                          then [text "define_static_function" <.> arguments [text "_fself", ppName funName] -- <.> semi
                                --text "static" <+> structDoc <+> text "_self ="
                               --  <+> braces (braces (text "static_header(1, TAG_FUNCTION), box_cptr(&" <.> ppName funName <.> text ")")) <.> semi
-                              ,text "return _fself;"]
+                              ,text "return dup_function_t(_fself);"]
                          else [structDoc <.> text "* _self = function_alloc_as" <.> arguments [structDoc, pretty (scanCount + 1) -- +1 for the _base.fun
                                                                                               ] <.> semi
                               ,text "_self->_base.fun = box_cfun_ptr(&" <.> ppName funName <.> text ", current_context());"]
@@ -1047,7 +1064,8 @@ getResultX result (retDoc)
      ResultReturn (Just n) _  | (isTypeUnit (typeOf n))
                               -> retDoc <.> text "; return Unit;"
      ResultReturn _ _  -> text "return" <+> retDoc <.> semi
-     ResultAssign n ml -> ( if isWildcard (getName n) || nameNil == (getName n) || isTypeUnit (typeOf n)
+     ResultAssign n ml -> ( if --isWildcard (getName n) || 
+                               nameNil == (getName n) || isTypeUnit (typeOf n)
                               then retDoc <.> semi
                               else ppName (getName n) <+> text "=" <+> retDoc <.> semi <+> text "/*" <.> pretty (typeOf n) <.> text "*/"
                           ) <-> case ml of
@@ -1124,16 +1142,6 @@ genExprStat result expr
         -> do exprDoc <- genInline expr
               return (getResult result exprDoc)
               
-      {-
-      -- If (yielding(ctx)) then expr1 else expr2      
-      Let [DefNonRec (Def name tp (App (Var vnameYielding _) [ctx]) Private DefVal _ _ _)] 
-          (Case [Var vname _] [Branch [PatCon{patConName=con1}] (Guard guard1 expr1),
-                               Branch [PatCon{patConName=con2}] (Guard guard2 expr2)])  
-            | vname == name && vnameYielding == nameYielding && 
-              isExprTrue guard1 && isExprTrue guard2 && 
-              getName con1 == nameTrue && getName con2 == nameFalse
-         -> genExprStat -}
-
       Case exprs branches
          -> do (docs, scrutinees)
                    <- fmap unzip $
@@ -1148,9 +1156,13 @@ genExprStat result expr
                return (vcat docs <-> doc)
 
       Let groups body
-        -> do docs1 <- genLocalGroups groups
-              doc2  <- genStat result body
-              return (vcat docs1 <-> doc2)
+        -> case (reverse groups, body) of
+             (DefNonRec (Def name tp expr Private DefVal _ _ _):rgroups, (Case [Var vname _] branches))  
+               | name == getName vname && not (S.member vname (freeLocals branches)) && isInlineableExpr expr
+               -> genExprStat result (makeLet (reverse rgroups) (Case [expr] branches))    
+             _ -> do docs1 <- genLocalGroups groups
+                     doc2  <- genStat result body
+                     return (vcat docs1 <-> doc2)
 
       -- Handling all other cases
       _ -> do (statDocs,exprDoc) <- genExpr expr
@@ -1185,8 +1197,17 @@ genMatch result0 exprDocs branches
 
     isSingleTestBranch
       = case branches of
+          [_,Branch [pat] _] | testIsSkipped pat
+            -> True
           [Branch [pat] [Guard test expr],_]
             -> isExprTrue test && isSingleTestPat pat
+          _ -> False
+        
+    testIsSkipped pat
+      = case pat of
+          PatWild    -> True
+          PatVar _ p -> testIsSkipped p
+          PatCon{patConSkip = skip} -> skip
           _ -> False
 
     isSingleTestPat pat
@@ -1625,9 +1646,17 @@ genExprExternal tname formats [argDoc,scanDoc] | getName tname == nameDrop
   = let isDup = (getName tname == nameDup)
         tp    = case typeOf tname of
                   TFun [(_,fromTp),(_,_)] _ toTp -> fromTp
-        call  = hcat (genDupDropCall False tp argDoc)   -- if empty, pass dup argument along?
+        call  = hcat (genDropNCall tp [argDoc,scanDoc])   
     in return ([], call)
-
+    
+    
+-- special case drop_reuse
+genExprExternal tname formats [argDoc,scanDoc] | getName tname == nameDropReuse
+  = let tp    = case typeOf tname of
+                  TFun [(_,fromTp),(_,_)] _ toTp -> fromTp
+        call  = hcat (genDropReuseCall tp [argDoc,scanDoc])
+    in return ([], call)
+    
 -- special case dup/drop
 genExprExternal tname formats [argDoc] | getName tname == nameDup || getName tname == nameDrop
   = let isDup = (getName tname == nameDup)
@@ -1657,13 +1686,6 @@ genExprExternal tname formats [argDoc] | getName tname == nameDecRef
         call  = hcat (genDecRefCall tp argDoc)
     in return ([], call)
 
--- special case drop_reuse
-genExprExternal tname formats [argDoc] | getName tname == nameDropReuse
-  = let tp    = case typeOf tname of
-                  TFun [(_,fromTp)] _ toTp -> fromTp
-        call  = hcat (genDropReuseCall tp argDoc)
-    in return ([], call)
-
 -- special case reuse
 genExprExternal tname formats [argDoc] | getName tname == nameReuse
   = let tp    = case typeOf tname of
@@ -1691,7 +1713,7 @@ genExprExternal tname formats argDocs0
      = if  y `elem` ['1'..'9']
         then (let n = length args
                   i = fromEnum y - fromEnum '1'
-              in assertion ("illegal index in external: " ++ show tname ++ "("++k++"): index: " ++ show i) (i < n) $
+              in assertion ("illegal index in external: " ++ show tname ++ ":" ++ show (pretty (typeOf tname)) ++ "("++k++"): index: " ++ show i ++ ", arguments: " ++ show args) (i < n) $
                  (args!!i) <.> ppExternalF name xs args)
         else char y <.> ppExternalF name xs args
     ppExternalF name (x:xs)  args
@@ -1765,7 +1787,7 @@ isInlineableExpr expr
       -- C has no guarantee on argument evaluation so we only allow a select few operations to be inlined
       App (Var v (InfoExternal _)) [] -> getName v `elem` [nameYielding,nameReuseNull]
       -- App (Var v (InfoExternal _)) [arg] | getName v `elem` [nameBox,nameDup,nameInt32] -> isInlineableExpr arg
-      App (Var v _) [arg] | getName v `elem` [nameBox,nameDup,nameInt32,nameReuse] -> isInlineableExpr arg
+      App (Var v _) [arg] | getName v `elem` [nameBox,nameDup,nameInt32,nameReuse,nameIsUnique] -> isInlineableExpr arg
       
       --App (Var _ (InfoExternal _)) args -> all isPureExpr args  -- yielding() etc.
 

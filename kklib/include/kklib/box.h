@@ -107,8 +107,6 @@ static inline bool box_eq(box_t b1, box_t b2) {
 // We cannot store NULL as a pointer (`ptr_t`); use `box_null` instead
 #define box_null   (_new_box(~UP(0)))  // -1 value
 
-// `box_any` is used to return when yielding (and should be accepted by any unbox operation)
-#define box_any    (_new_box(1))       // 0 value
 
 // the _fast versions can apply if you are sure it is not a double
 static inline bool _is_ptr_fast(box_t b) {
@@ -123,9 +121,7 @@ static inline bool is_box_null(box_t b) {
   return (b.box == box_null.box);
 }
 
-static inline bool is_box_any(box_t b) {
-  return (b.box == box_any.box);
-}
+static inline bool is_box_any(box_t b);
 
 #define MAX_BOXED_INT  ((intptr_t)INTPTR_MAX >> (INTPTR_BITS - BOXED_VALUE_BITS))
 #define MIN_BOXED_INT  (- MAX_BOXED_INT - 1)
@@ -394,9 +390,17 @@ typedef struct boxed_value_s {
 
 #define unbox_valuetype(tp,x,box,ctx) \
   do { \
-    boxed_value_t p = unbox_basetype_as_assert(boxed_value_t,box,TAG_BOX); \
-    x = *((tp*)(&p->data[0])); \
-    if (ctx!=NULL) { drop_basetype(p,ctx); } \
+    if (unlikely(is_box_any(box))) { \
+      const size_t _max_scan_fsize = sizeof(tp)/sizeof(box_t); \
+      box_t* _fields = (box_t*)(&x); \
+      for (size_t i = 0; i < _max_scan_fsize; i++) { _fields[i] = box_any(ctx);  } \
+      block_decref(unbox_ptr(box),ctx); \
+    } \
+    else { \
+      boxed_value_t p = unbox_basetype_as_assert(boxed_value_t, box, TAG_BOX); \
+      x = *((tp*)(&p->data[0])); \
+      if (ctx!=NULL) { basetype_decref(p, ctx); } \
+    } \
   } while(0);
 
 #define box_valuetype(tp,x,val,scan_fsize,ctx)  \
@@ -405,6 +409,18 @@ typedef struct boxed_value_s {
     *((tp*)(&p->data[0])) = val;  \
     x = box_basetype(p); \
   } while(0);
+
+
+// `box_any` is used to return when yielding 
+// (and should be accepted by any unbox operation, and also dup/drop operations. That is why we use a ptr)
+static inline box_t box_any(context_t* ctx) {
+  dup_basetype_as_assert(box_any_t, ctx->box_any, TAG_BOX_ANY);
+  return box_basetype(ctx->box_any);
+}
+
+static inline bool is_box_any(box_t b) {
+  return (is_ptr(b) && block_has_tag(unbox_ptr(b), TAG_BOX_ANY));
+}
 
 
 // C pointers

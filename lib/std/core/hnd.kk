@@ -60,7 +60,7 @@ private extern inline evv-total() : evv<<>> {
 }
 
 
-public extern inline ".evv-at"<e,h> ( i : ev-index ) : e ev<h> {
+public extern inline ".evv-at"<e,h> ( i : ev-index ) : ev<h> {  // pretend total; don't simplify
   c inline "evv_at(#1,current_context())"
   js inline "$std_core_hnd._evv[#1]"
 }
@@ -88,7 +88,7 @@ private extern evv-show( evv : evv<e> ) : string {
 }
 
 private extern evv-eq(evv0 : evv<e>, evv1 : evv<e> ) : bool {
-  c inline "(#1) == (#2)"
+  c inline "datatype_eq(#1,#2)"
   js inline "(#1) === (#2)"
 }
 
@@ -171,7 +171,7 @@ private extern yield-cont(f : (a -> e a, a) -> e r ) : e r {  // make hidden pub
 }
 
 private extern inline keep-yielding-final() : e r {
-  c inline "box_any"
+  c inline "box_any(current_context())"
   js inline "undefined"
 }
 
@@ -180,17 +180,17 @@ private extern yield-prompt( m: marker<e,r> ) : yld<e,a,r> {
   js "_yield_prompt"
 }
 
-private extern inline yield-to-prim( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e (() -> b) {
+private extern yield-to-prim( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e (() -> b) {
   c  inline "yield_to(#1,#2,current_context())"
   js "$std_core_hnd._yield_to"
 }
 
-private extern inline yield-to-final( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e b {
+private extern yield-to-final( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e b {
   c  inline "yield_final(#1,#2,current_context())"
   js "$std_core_hnd._yield_final"
 }
 
-private fun yield-to( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e1 b {
+private fun noinline yield-to( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e1 b {
   val w0 = evv-get()
   val g : () -> _b = yield-to-prim(m, clause)
   yield-extend fun(f){ 

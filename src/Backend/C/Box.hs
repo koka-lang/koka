@@ -114,7 +114,7 @@ boxPattern fromTp PatWild
   = boxPatternX fromTp PatWild
 boxPattern fromTp pat | cType (fromTp) /= cType toTp
   = do mcoerce <- -- trace ("pattern coerce: " ++ show (pretty fromTp) ++ " ~> " ++ show (pretty toTp)) $
-                  bcoerceX fromTp toTp (Var (TName nameNil toTp) InfoNone)
+                  bcoerceX fromTp toTp (Var (TName nameNil fromTp) InfoNone)
        case mcoerce of
          Just coerce0
            -> -- We just insert a specially named pattern variable -- the backend recognizes this
@@ -125,7 +125,7 @@ boxPattern fromTp pat | cType (fromTp) /= cType toTp
               case coerce0 of
                 Lam{} -> -- function match
                          case pat of 
-                           PatVar tname _
+                           PatVar tname PatWild
                              -> -- ok, no nested match
                                 do i <- unique
                                    let uname = newHiddenName ("fun-unbox-x" ++ show i)

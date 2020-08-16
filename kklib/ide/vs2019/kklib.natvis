@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">  
+  <Type Name="block_s">
+    <DisplayString Condition="header.tag==0xFDEA">box_value</DisplayString>
+    <DisplayString Condition="header.tag==0xFDEB">box_any</DisplayString>
+    <DisplayString Condition="header.tag==0xFDEC">ref (value={((struct ref_s*)&amp;header)->value})</DisplayString>
+    <DisplayString Condition="header.tag==0xFDED">function={(void*)(((struct function_s*)&amp;header)->fun.box-1)}</DisplayString>
+    <DisplayString Condition="header.tag==0xFDEF">string={&amp;(((struct string_small_s*)&amp;header)->u.str)}</DisplayString>
+    <DisplayString Condition="header.tag==0xFDF0">string={((struct string_normal_s*)&amp;header)->str}</DisplayString>
+    <DisplayString Condition="header.tag==0xFDF2">vector=(length={(((struct block_large_s*)&amp;header)->large_scan_fsize.box-1)/4})</DisplayString>
+    <DisplayString>constructor=(tag={header.tag}, rc={header.refcount}, scan={(uint32_t)(header.scan_fsize==255?(((struct block_large_s*)&amp;header)->large_scan_fsize.box-1/4):header.scan_fsize)}, shared={(header.thread_shared?false:true)})</DisplayString>
+    <Expand>
+      <Item Name="reference count">header.refcount</Item>
+      <Item Name="tag">header.tag</Item>
+      <Item Name="thread shared">(bool)header.thread_shared</Item>
+      <Item Name="free variables" Condition="header.tag==0xFDED">(header.scan_fsize&gt;0?header.scan_fsize-1:0)</Item>
+      <Item Name="function entry" Condition="header.tag==0xFDED">(void*)(((struct function_s*)&amp;header)->fun.box-1)</Item>
+      <Item Name="scan fields">(header.scan_fsize==255?((((struct block_large_s*)&amp;header)->large_scan_fsize.box-1)/4):header.scan_fsize)</Item>
+      <ArrayItems Condition="header.tag==0xFDF2">
+        <Size>(((struct block_large_s*)&amp;header)->large_scan_fsize.box-1)/4</Size>
+        <ValuePointer>&amp;(((struct vector_large_s*)&amp;header)->vec[0])</ValuePointer>
+      </ArrayItems>
+      <ArrayItems Condition="header.tag==0xFDED &amp;&amp; header.scan_fsize&gt;0">
+        <!-- function -->
+        <Size>(header.scan_fsize - 1)</Size>
+        <ValuePointer>&amp;(((struct block_fields_s*)&amp;header)->fields[1])</ValuePointer>
+      </ArrayItems>
+      <ArrayItems Condition="header.tag!=0xFDED &amp;&amp; header.scan_fsize&gt;0 &amp;&amp; header.scan_fsize&lt;0xFF">
+        <Size>header.scan_fsize</Size>
+        <ValuePointer>&amp;(((struct block_fields_s*)&amp;header)->fields[0])</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  <Type Name="box_s">
+    <DisplayString Condition="(box&amp;1)==1">boxed (int={(box-1)/4}, raw={box})</DisplayString>
+    <DisplayString>boxed (ptr={*((struct block_s*)box)})</DisplayString>
+    <Expand>
+      <ExpandedItem Condition="(box&amp;1)==0">*((struct block_s*)box)</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="datatype_s">
+    <DisplayString Condition="(singleton&amp;1)==1">singleton (tag={(uint16_t)((singleton-1)/2)})</DisplayString>
+    <DisplayString>{*((struct block_s*)ptr)}</DisplayString>
+    <Expand>
+      <ExpandedItem Condition="(singleton&amp;1)==0">ptr</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="function_s">
+    <DisplayString>{_block}</DisplayString>
+    <Expand>
+      <ExpandedItem>_block</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="string_normal_s">
+    <DisplayString>{_block}</DisplayString>
+    <Expand>
+      <ExpandedItem>_block</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="integer_s">
+    <DisplayString Condition="(value&amp;1)==0">big int</DisplayString>
+    <DisplayString>small int= {(value-1)/4}</DisplayString>
+    <Expand>
+      <ExpandedItem Condition="(value&amp;1)==0">((struct bigint_s*)value)</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="bigint_s">
+    <DisplayString>big int</DisplayString>
+    <Expand>
+      <ArrayItems>
+        <Size>count</Size>
+        <ValuePointer>&amp;(digit s[0])</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  <Type Name="__std_core_hnd_Htag">
+    <DisplayString>handler tag ({*((struct block_s*)_field1)})</DisplayString>
+    <Expand>
+      <ExpandedItem>(struct string_s*)_field1</ExpandedItem>
+    </Expand>
+  </Type>
+
+</AutoVisualizer>

@@ -23,13 +23,13 @@
     "node": ">=0.10.0"
   },
   "dependencies": {
-    "amdefine": ">=0.0.4",
-    "requirejs": ">=2.1",
-    "node-static": ">=0.6",
-    "ws": ">=0.4",
-    "commander": ">=1.1.1",
+    "amdefine": "^1.0.1",
     "colors": ">=1.0",
-    "diff": ">=1.0"
+    "commander": ">=1.1.1",
+    "diff": ">=1.0",
+    "node-static": ">=0.6",
+    "requirejs": ">=2.1",
+    "ws": ">=0.4"
   },
   "scripts": {
     "preinstall": "npm install -g jake madoko"
