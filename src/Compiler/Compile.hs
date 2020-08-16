@@ -1255,20 +1255,20 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
        Just _ ->
          do let kklibDir        = installDir flags ++ "/kklib"
                 kklibInstallDir = kklibDir ++ "/out/install"
-                (configType,cmakeConfigType)      -- (configType is used by koka to name dirs,extensions, etc, cmakeConfigType is the CMake config type)
+                (configType,cmakeConfigType)      -- (configType is used by koka to name dirs etc, cmakeConfigType is the CMake config type)
                                 = if optimize flags <= 0
                                     then ("debug","Debug")
                                     else if debug flags
-                                           then ("released","RelWithDebInfo")
+                                           then ("relwithdebinfo","RelWithDebInfo")
                                            else ("release","Release")
                 cmakeConfigTypeFlag = " -DCMAKE_BUILD_TYPE=" ++ cmakeConfigType
 
-            cmakeGeneratorFlag
-              <- if False && onWindows then return " -G Ninja" 
+            cmakeGeneratorFlag  -- prefer Ninja if available
+              <- if onWindows then return " -G Ninja"  -- we must use Ninja on windows (as we cannot handle multi-config cmake)
                   else do paths   <- getEnvPaths "PATH"
                           mbNinja <- searchPaths paths [exeExtension] "ninja"
                           case mbNinja of
-                            Just ninja -> do termDoc term $ text "found ninja:" <+> pretty ninja
+                            Just ninja -> do -- termDoc term $ text "found ninja:" <+> pretty ninja
                                              return " -G Ninja"
                             Nothing    -> return ""
               
