@@ -390,9 +390,17 @@ typedef struct boxed_value_s {
 
 #define unbox_valuetype(tp,x,box,ctx) \
   do { \
-    boxed_value_t p = unbox_basetype_as_assert(boxed_value_t,box,TAG_BOX); \
-    x = *((tp*)(&p->data[0])); \
-    if (ctx!=NULL) { basetype_decref(p,ctx); } \
+    if (unlikely(is_box_any(box))) { \
+      const size_t _max_scan_fsize = sizeof(tp)/sizeof(box_t); \
+      box_t* _fields = (box_t*)(&x); \
+      for (size_t i = 0; i < _max_scan_fsize; i++) { _fields[i] = box_any(ctx);  } \
+      block_decref(unbox_ptr(box),ctx); \
+    } \
+    else { \
+      boxed_value_t p = unbox_basetype_as_assert(boxed_value_t, box, TAG_BOX); \
+      x = *((tp*)(&p->data[0])); \
+      if (ctx!=NULL) { basetype_decref(p, ctx); } \
+    } \
   } while(0);
 
 #define box_valuetype(tp,x,val,scan_fsize,ctx)  \

@@ -1710,7 +1710,7 @@ genExprExternal tname formats argDocs0
      = if  y `elem` ['1'..'9']
         then (let n = length args
                   i = fromEnum y - fromEnum '1'
-              in assertion ("illegal index in external: " ++ show tname ++ "("++k++"): index: " ++ show i) (i < n) $
+              in assertion ("illegal index in external: " ++ show tname ++ ":" ++ show (pretty (typeOf tname)) ++ "("++k++"): index: " ++ show i ++ ", arguments: " ++ show args) (i < n) $
                  (args!!i) <.> ppExternalF name xs args)
         else char y <.> ppExternalF name xs args
     ppExternalF name (x:xs)  args

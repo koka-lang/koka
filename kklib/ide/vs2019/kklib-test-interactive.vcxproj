@@ -161,6 +161,9 @@
     <ClCompile Include="..\..\..\out\std_core_types.c" />
     <ClCompile Include="..\..\..\out\test_algeff_common.c" />
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="kklib.natvis" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

@@ -85,7 +85,7 @@ val state-param = handler(s) {
 }
 */
 
-fun state(init, action) {
+fun statex(init, action) {
   var s := init
   handle({mask<local>(action)}) {
     return x -> (x,s)
@@ -94,8 +94,17 @@ fun state(init, action) {
   }
 }
 
+fun state(init, action) {
+  var s := init
+  handle({mask<local>(action)}) {
+    return x   { (x,s) }
+    fun get()  { s }
+    fun put(x) { s := x  }
+  }
+}
+
 fun test3() {
-  state(2,counter).fst
+  statex(2,counter).fst
 }
 
 

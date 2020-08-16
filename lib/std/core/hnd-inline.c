@@ -279,7 +279,7 @@ struct __std_core_hnd_yld_s  yield_prompt( struct __std_core_hnd_Marker m, conte
   else {
     function_t cont = (ctx->yielding == YIELD_FINAL ? fun_fatal_resume_final(ctx) : new_kcompose(yield->conts, yield->conts_count, ctx));
     function_t clause = yield->clause;
-    ctx->yielding = 0;
+    ctx->yielding = YIELD_NONE;
     #ifndef NDEBUG
     memset(yield,0,sizeof(yield_t));
     #endif

@@ -1509,7 +1509,7 @@ fun (>)( x : string, y : string ) : bool  { compare(x,y) == Gt }
 fun (<)( x : string, y : string ) : bool  { compare(x,y) == Lt }
 
 // Append two strings.
-extern inline (+) : (string,string) -> string {
+extern (+)(x : string, y : string) : string {
   c "string_cat"
   inline "(#1 + #2)"
 }
