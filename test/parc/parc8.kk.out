@@ -2,8 +2,8 @@ module parc/parc8
 private import std/core/types = std/core/types = "";
 private import std/core/hnd = std/core/hnd = "";
 private import std/core = std/core = "";
-public fun test : (x : std/core/types/int, y : std/core/types/int) -> std/core/types/int
- = fun(x: std/core/types/int, y: std/core/types/int){
+public fun test : (x : int, y : int) -> int
+ = fun(x: int, y: int){
  std/core/types/.drop(y);
  std/core/(+)((std/core/types/.dup(x)), x)
  };

@@ -3,16 +3,15 @@ private import std/core/types = std/core/types = "";
 private import std/core/hnd = std/core/hnd = "";
 private import std/core = std/core = "";
 // TRICKY: need to dup x because xs is consumed by Cons-ctor
-public fun test : (xs : list<std/core/types/int>) -> list<std/core/types/int>
- = fun(xs: list<std/core/types/int>){
+public fun test : (xs : list<int>) -> list<int>
+ = fun(xs: list<int>){
  match (xs) {
- (std/core/Cons(((.skip std/core/types/.Box((x: std/core/types/int)) : std/core/types/.Box ) as .box-x22: std/core/types/.Box), (.pat0: list<
- std/core/types/int>)) : list<std/core/types/int> )
+ (std/core/Cons(((.skip std/core/types/.Box((x: int)) : .Box ) as .box-x22: .Box), (.pat0: list<int>)) : list<int> )
  -> std/core/types/.dup(x);
- val .ru.27 : std/core/types/reuse
+ val .ru.27 : reuse
  = std/core/types/.drop-reuse((std/core/types/.dup(xs)), (std/core/int32(2)));
  std/core/types/.alloc-at(.ru.27, (std/core/Cons((std/core/types/.box(x)), xs)));
- (.skip std/core/Nil() : (list<std/core/types/int>) )
+ (.skip std/core/Nil() : (list<int>) )
  -> std/core/Nil;
  }
  };

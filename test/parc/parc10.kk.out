@@ -2,8 +2,8 @@ module parc/parc10
 private import std/core/types = std/core/types = "";
 private import std/core/hnd = std/core/hnd = "";
 private import std/core = std/core = "";
-public fun test : (x : list<std/core/types/int>) -> list<std/core/types/int>
- = fun(x: list<std/core/types/int>){
+public fun test : (x : list<int>) -> list<int>
+ = fun(x: list<int>){
  std/core/types/.drop(x);
  std/core/Nil
  };

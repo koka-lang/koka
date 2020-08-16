@@ -2,18 +2,17 @@ module parc/parc3
 private import std/core/types = std/core/types = "";
 private import std/core/hnd = std/core/hnd = "";
 private import std/core = std/core = "";
-public fun test : (xs : list<std/core/types/int>, y : std/core/types/int, z : std/core/types/int) -> std/core/types/int
- = fun(xs: list<std/core/types/int>, y: std/core/types/int, z: std/core/types/int){
+public fun test : (xs : list<int>, y : int, z : int) -> int
+ = fun(xs: list<int>, y: int, z: int){
  match (xs) {
- (std/core/Cons(((.skip std/core/types/.Box((x: std/core/types/int)) : std/core/types/.Box ) as .box-x96: std/core/types/.Box), (.pat0: list<
- std/core/types/int>)) : list<std/core/types/int> )
+ (std/core/Cons(((.skip std/core/types/.Box((x: int)) : .Box ) as .box-x96: .Box), (.pat0: list<int>)) : list<int> )
  | std/core/(==.1)((std/core/types/.dup(x)), (std/core/types/.dup(z))) -> val _ : ()
  = std/core/types/.drop(y);
  val _ : ()
  = std/core/types/.drop(z);
  val _ : ()
  = (match ((std/core/types/.is-unique(xs))) {
- (std/core/types/True() : std/core/types/bool )
+ (std/core/types/True() : bool )
  -> std/core/types/.drop(.pat0);
  std/core/types/.free(xs);
  _
@@ -21,15 +20,13 @@ public fun test : (xs : list<std/core/types/int>, y : std/core/types/int, z : st
  std/core/types/.dec-ref(xs);
  });
  x;
- (std/core/Cons(((.skip std/core/types/.Box((x0: std/core/types/int)) : std/core/types/.Box ) as .box-x97: std/core/types/.Box), (.pat2: list<
- std/core/types/int>)) : list<std/core/types/int> )
+ (std/core/Cons(((.skip std/core/types/.Box((x0: int)) : .Box ) as .box-x97: .Box), (.pat2: list<int>)) : list<int> )
  | std/core/(==.1)((std/core/types/.dup(x0)), (std/core/types/.dup(y))) -> val _ : ()
  = std/core/types/.drop(xs, (std/core/int32(2)));
  val _ : ()
  = std/core/types/.drop(z);
  y;
- (std/core/Cons(((.skip std/core/types/.Box((.pat4: std/core/types/int)) : std/core/types/.Box ) as .box-x98: std/core/types/.Box), (.pat5: list<
- std/core/types/int>)) : list<std/core/types/int> )
+ (std/core/Cons(((.skip std/core/types/.Box((.pat4: int)) : .Box ) as .box-x98: .Box), (.pat5: list<int>)) : list<int> )
  | std/core/(==.1)((std/core/types/.dup(y)), (std/core/types/.dup(z))) -> val _ : ()
  = std/core/types/.drop(xs, (std/core/int32(2)));
  val _ : ()

@@ -8,17 +8,12 @@ public fun test : forall<a> (xs : list<a>, ys : list<a>) -> list<a>
  (std/core/Cons((z: 35), (.pat0: list<35>)) : list<a> )
  -> (match (ys) {
  (std/core/Cons((z0: 35), (.pat2: list<35>)) : list<a> )
- -> val .ru.37 : std/core/types/reuse
+ -> val .ru.37 : reuse
  = std/core/types/no-reuse();
  val _ : ()
  = (match ((std/core/types/.is-unique(ys))) {
- (std/core/types/True() : std/core/types/bool )
- -> (match ((std/core/types/.is-unique(.pat2))) {
- (std/core/types/True() : std/core/types/bool )
- -> std/core/types/.free(.pat2);
- _
- -> std/core/types/.dec-ref(.pat2);
- });
+ (std/core/types/True() : bool )
+ -> std/core/types/.drop(.pat2);
  std/core/types/.assign-reuse(.ru.37, (std/core/types/.reuse(ys)));
  _
  -> val _ : a
@@ -29,8 +24,12 @@ public fun test : forall<a> (xs : list<a>, ys : list<a>) -> list<a>
  });
  val _ : ()
  = (match ((std/core/types/.is-unique(xs))) {
- (std/core/types/True() : std/core/types/bool )
- -> std/core/types/.free(xs);
+ (std/core/types/True() : bool )
+ -> val _ : ()
+ = std/core/types/.drop(.pat0);
+ val _ : ()
+ = std/core/types/.drop(z);
+ std/core/types/.free(xs);
  _
  -> std/core/types/.dec-ref(xs);
  });
