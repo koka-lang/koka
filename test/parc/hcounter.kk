@@ -37,6 +37,6 @@ fun test-direct(i) {
 
 val n = 1000000
 fun main() {
-  // test-direct(n)
-  test-normal(n,count)
+  test-direct(n).println
+  // test-normal(n,count).println
 }

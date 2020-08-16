@@ -159,7 +159,7 @@
     <ClCompile Include="..\..\..\out\std_core.c" />
     <ClCompile Include="..\..\..\out\std_core_hnd.c" />
     <ClCompile Include="..\..\..\out\std_core_types.c" />
-    <ClCompile Include="..\..\..\out\test_algeff_common.c" />
+    <ClCompile Include="..\..\..\out\test_parc_hqueens.c" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="kklib.natvis" />

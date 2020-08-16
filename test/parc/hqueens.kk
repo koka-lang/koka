@@ -83,7 +83,7 @@ fun test(n) {
 }
 
 fun main() {
-  test(13)
+  test(12)
 }
 
 

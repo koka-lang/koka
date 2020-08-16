@@ -946,7 +946,7 @@ genLambda params eff body
                          then [text "define_static_function" <.> arguments [text "_fself", ppName funName] -- <.> semi
                                --text "static" <+> structDoc <+> text "_self ="
                               --  <+> braces (braces (text "static_header(1, TAG_FUNCTION), box_cptr(&" <.> ppName funName <.> text ")")) <.> semi
-                              ,text "return _fself;"]
+                              ,text "return dup_function_t(_fself);"]
                          else [structDoc <.> text "* _self = function_alloc_as" <.> arguments [structDoc, pretty (scanCount + 1) -- +1 for the _base.fun
                                                                                               ] <.> semi
                               ,text "_self->_base.fun = box_cfun_ptr(&" <.> ppName funName <.> text ", current_context());"]
