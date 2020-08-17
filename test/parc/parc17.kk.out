@@ -9,7 +9,6 @@ public fun test : (xs : list<std/core/types/int>) -> list<std/core/types/int>
  std/core/types/int>)) : list<std/core/types/int> )
  -> xs;
  (.skip std/core/Nil() : (list<std/core/types/int>) )
- -> std/core/types/.drop(xs);
- std/core/Nil;
+ -> std/core/Nil;
  }
  };

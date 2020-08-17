@@ -16,20 +16,8 @@ public fun test : (xs : list<std/core/types/maybe<std/core/types/int>>, y : std/
  -> val _ : ()
  = std/core/types/.drop(.pat1);
  val _ : ()
- = (match ((std/core/types/.is-unique(.box-x48))) {
- (std/core/types/True() : std/core/types/bool )
- -> (match ((std/core/types/.is-unique(.pat0))) {
- (std/core/types/True() : std/core/types/bool )
- -> std/core/types/.free(.pat0);
- _
- -> std/core/types/.dup(x);
- std/core/types/.dec-ref(.pat0);
- });
- std/core/types/.free(.box-x48);
- _
- -> std/core/types/.dup(x);
- std/core/types/.dec-ref(.box-x48);
- });
+ = std/core/types/.dup(x);
+ std/core/types/.drop(.box-x48, (std/core/int32(1)));
  std/core/types/.free(xs);
  _
  -> std/core/types/.dup(x);
@@ -40,7 +28,7 @@ public fun test : (xs : list<std/core/types/maybe<std/core/types/int>>, y : std/
  std/core/types/int>)) : std/core/types/.Box ) as .box-x50: std/core/types/.Box), (.pat4: list<std/core/types/maybe<std/core/types/int>>)) : list<
  std/core/types/maybe<std/core/types/int>> )
  -> val _ : ()
- = std/core/types/.drop(xs);
+ = std/core/types/.drop(xs, (std/core/int32(3)));
  val _ : ()
  = std/core/types/.drop(y);
  2;

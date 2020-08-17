@@ -22,7 +22,6 @@ public fun test : (y : std/core/types/int) -> std/core/types/int
  });
  x;
  (.skip std/core/Nil() : (list<std/core/types/int>) )
- -> std/core/types/.drop(xs);
- y;
+ -> y;
  }
  };

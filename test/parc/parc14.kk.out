@@ -7,7 +7,7 @@ public fun test : forall<a> (x : std/core/types/int, y : a, z : a) -> a
  match (x) {
  0
  -> val _ : ()
- = std/core/types/.drop(x);
+ = std/core/types/.drop(x, (std/core/int32(0)));
  val _ : ()
  = std/core/types/.drop(z);
  y;
