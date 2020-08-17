@@ -38,18 +38,7 @@ import Core.Core
 import Core.CoreVar
 import Core.Pretty
 
-import Platform.Runtime (unsafePerformIO)
-import qualified System.Environment as Sys
-
 import Backend.C.ParcReuse( genDropReuse, constructorSizeOf )
-
-{-# NOINLINE enabled #-}
-enabled :: Bool
-enabled = unsafePerformIO $ do
-  e <- Sys.lookupEnv "KK_PARC"
-  case e of
-    Nothing -> return False
-    Just val -> return $ map toLower val `elem` ["1", "on", "yes", "true", "y", "t"]
 
 --------------------------------------------------------------------------
 -- Reference count transformation
@@ -57,10 +46,8 @@ enabled = unsafePerformIO $ do
 
 parcCore :: Pretty.Env -> Platform -> Newtypes -> Bool -> Core -> Unique Core
 parcCore penv platform newtypes enableSpecialize core
-  | not enabled = return core
-  | otherwise   = do defs <- runParc penv platform newtypes enableSpecialize (parcDefGroups True (coreProgDefs core))
-                     -- tr defs $
-                     return core{coreProgDefs=defs}
+  = do defs <- runParc penv platform newtypes enableSpecialize (parcDefGroups True (coreProgDefs core))
+       return core{coreProgDefs=defs}
   where penv' = penv{Pretty.coreShowDef=True,Pretty.coreShowTypes=False,Pretty.fullNames=False}
         tr d = trace (show (vcat (map (prettyDefGroup penv') d)))
 
