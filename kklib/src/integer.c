@@ -1317,16 +1317,16 @@ static kk_intx_t int_count_digits(kk_intx_t x) {
   else {
     u = (kk_uintx_t)x;
   }
-  return bits_digits(u);
+  return kk_bits_digits(u);
 }
 
 static kk_intx_t bigint_count_digits(kk_bigint_t* x, kk_context_t* ctx) {
   kk_assert_internal(x->count > 0);
   kk_intx_t count;
 #if (DIGIT_BITS==64)
-  count = bits_digits64(x->digits[x->count-1]) + LOG_BASE*(x->count - 1);
+  count = kk_bits_digits64(x->digits[x->count-1]) + LOG_BASE*(x->count - 1);
 #else
-  count = bits_digits32(x->digits[x->count-1]) + LOG_BASE*(x->count - 1);
+  count = kk_bits_digits32(x->digits[x->count-1]) + LOG_BASE*(x->count - 1);
 #endif
   drop_bigint(x, ctx);
   return count;

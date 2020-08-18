@@ -84,10 +84,10 @@ size_t kk_decl_pure kk_string_count(kk_string_t str) {
   if (*t != 0) {
     kk_assert_internal(((uintptr_t)t) % sizeof(kk_uintx_t) == 0);
     const kk_uintx_t* p;
-    for (p = (const kk_uintx_t*)t; !bits_has_zero_byte(*p); p++) {
+    for (p = (const kk_uintx_t*)t; !kk_bits_has_zero_byte(*p); p++) {
       // count continuation bytes (0b10xxxxxx bytes) in parallel
       const kk_uintx_t u = *p;
-      const kk_uintx_t m = ((u & bits_high_mask) >> 7) & ((~u) >> 6); // each byte in `m` is 0x01 iff it was a continuation byte
+      const kk_uintx_t m = ((u & kk_bits_high_mask) >> 7) & ((~u) >> 6); // each byte in `m` is 0x01 iff it was a continuation byte
       cont += kk_bits_byte_sum(m);
     }
     t = (const uint8_t*)p; // restore t

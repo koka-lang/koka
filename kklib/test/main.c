@@ -396,14 +396,14 @@ static void test_bitcount(void) {
   uint8_t l, t;
   do {
     v = values[i++];
-    l = bits_clz32(v);
-    t = bits_ctz32(v);
+    l = kk_bits_clz32(v);
+    t = kk_bits_ctz32(v);
     if (v == 0) assert((l + t) == 64);
     printf("value: 0x%08x, ctz: %2u, clz: %2u\n", v, t, l);
   } while (v != 0);
   for (v = 1; v != 0; v <<= 1) {
-    l = bits_clz32(v);
-    t = bits_ctz32(v);
+    l = kk_bits_clz32(v);
+    t = kk_bits_ctz32(v);
     printf("value: 0x%08x, ctz: %2u, clz: %2u\n", v, t, l);
     assert((l + t) == 31);
   }
@@ -412,8 +412,8 @@ static void test_bitcount(void) {
 static void test_popcount(void) {
   printf("testing popcount..."); fflush(stdout);
   for (uint32_t i = 0; i < UINT32_MAX; i++) {
-    uint32_t c1 = bits_generic_count32(i);
-    uint32_t c2 = bits_count32(i);
+    uint32_t c1 = kk_bits_generic_count32(i);
+    uint32_t c2 = kk_bits_count32(i);
     if (c1 != c2) {
       assert(c1 == c2);
       abort();
@@ -458,22 +458,22 @@ static void test_double(kk_context_t* ctx) {
 static void test_count10(kk_context_t* ctx) {
   uint64_t u = 0;
   for (int i = 0; i < 22; i++) {
-    uint8_t d1 = bits_digits64(u - 1);
+    uint8_t d1 = kk_bits_digits64(u - 1);
     printf("value: %20" PRIu64 ", %3u", u-1, d1);
-    uint8_t d0 = bits_digits64(u);
+    uint8_t d0 = kk_bits_digits64(u);
     printf(", value: %20" PRIu64 ", %3u", u, d0);
-    uint8_t d9 = bits_digits64(u*9);
+    uint8_t d9 = kk_bits_digits64(u*9);
     printf(", value: %20" PRIu64 ", %3u\n", u*9, d9);
     if (u==0) u = 1;
          else u *= 10;
   }
   u = 1;
   for (int i = 0; i < 64; i++) {
-    uint8_t d1 = bits_digits64(u - 1);
+    uint8_t d1 = kk_bits_digits64(u - 1);
     printf("value: %20" PRIu64 ", %3u", u-1, d1);
-    uint8_t d0 = bits_digits64(u);
+    uint8_t d0 = kk_bits_digits64(u);
     printf(", value: %20" PRIu64 ", %3u", u, d0);
-    uint8_t d9 = bits_digits64(u*9);
+    uint8_t d9 = kk_bits_digits64(u*9);
     printf(", value: %20" PRIu64 ", %3u\n", u*9, d9);
     if (u==0) u = 1;
     else u <<= 1;
@@ -482,10 +482,10 @@ static void test_count10(kk_context_t* ctx) {
 
 static void test_random(kk_context_t* ctx) {
   msecs_t start = _clock_start();
-  uint32_t y = srandom_uint32(ctx);
+  uint32_t y = kk_srandom_uint32(ctx);
   const size_t N = 100000000;
   for (size_t i = 0; i < N; i++) {
-    y = srandom_range32(60000,ctx);
+    y = kk_srandom_range32(60000,ctx);
   }
   msecs_t end = _clock_end(start);
   printf("chacha20: final: 0x%x, %6.3fs\n", y, (double)end/1000.0);

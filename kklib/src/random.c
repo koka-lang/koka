@@ -32,7 +32,7 @@ static inline uint32_t pcg_uint32(kk_pcg_ctx_t* rnd) {
   rnd->state = (state0 * KU64(0x5851F42D4C957F2D)) + rnd->stream;  
   const uint32_t x = (uint32_t)(((state0 >> 18) ^ state0) >> 27);
   const uint32_t rot = (uint32_t)(state0 >> 59);
-  return bits_rotr32(x, rot);
+  return kk_bits_rotr32(x, rot);
 }
 
 static void pcg_init(uint64_t init, uint64_t stream, kk_pcg_ctx_t* rnd) {
@@ -104,10 +104,10 @@ The implementation uses regular C code which compiles very well on modern compil
 -----------------------------------------------------------------------------*/
 
 static inline void qround(uint32_t x[16], size_t a, size_t b, size_t c, size_t d) {
-  x[a] += x[b]; x[d] = bits_rotl32(x[d] ^ x[a], 16);
-  x[c] += x[d]; x[b] = bits_rotl32(x[b] ^ x[c], 12);
-  x[a] += x[b]; x[d] = bits_rotl32(x[d] ^ x[a], 8);
-  x[c] += x[d]; x[b] = bits_rotl32(x[b] ^ x[c], 7);
+  x[a] += x[b]; x[d] = kk_bits_rotl32(x[d] ^ x[a], 16);
+  x[c] += x[d]; x[b] = kk_bits_rotl32(x[b] ^ x[c], 12);
+  x[a] += x[b]; x[d] = kk_bits_rotl32(x[d] ^ x[a], 8);
+  x[c] += x[d]; x[b] = kk_bits_rotl32(x[b] ^ x[c], 7);
 }
 
 static inline void kk_chacha_shuffle(const size_t rounds, uint32_t* x)
@@ -215,15 +215,15 @@ void kk_random_split(kk_random_ctx_t* rnd, kk_random_ctx_t* ctx_new) {
   Secure random: select in a range without bias
 --------------------------------------------------------------------------------------*/
 
-uint32_t srandom_range32(uint32_t max, kk_context_t* ctx) {
+uint32_t kk_srandom_range32(uint32_t max, kk_context_t* ctx) {
   /* Select unbiased integer in the range [0,max) by Daniel Lemire <https://arxiv.org/pdf/1805.10941.pdf> */
-  uint32_t x = srandom_uint32(ctx);
+  uint32_t x = kk_srandom_uint32(ctx);
   uint64_t m = (uint64_t)x * (uint64_t)max;
   uint32_t l = (uint32_t)m;
   if (kk_unlikely(l < max)) {
     uint32_t threshold = (~max+1) % max;  /* 2^32 % max == (2^32 - max) % max == -max % max */
     while (l < threshold) {
-      x = srandom_uint32(ctx);
+      x = kk_srandom_uint32(ctx);
       m = (uint64_t)x * (uint64_t)max;
       l = (uint32_t)m;
     }
@@ -236,9 +236,9 @@ uint32_t srandom_range32(uint32_t max, kk_context_t* ctx) {
 --------------------------------------------------------------------------------------*/
 
 // Use 48 random bits to generate a double in the range [0,1)
-double srandom_double(kk_context_t* ctx) {
-  const uint32_t lo = (srandom_uint32(ctx) << 4);            /* clear lower 4 bits  */
-  const uint32_t hi = (srandom_uint32(ctx) & KU32(0xFFFFF));  /* use only lower 20 bits (for bits 32 to 51) */
+double kk_srandom_double(kk_context_t* ctx) {
+  const uint32_t lo = (kk_srandom_uint32(ctx) << 4);            /* clear lower 4 bits  */
+  const uint32_t hi = (kk_srandom_uint32(ctx) & KU32(0xFFFFF));  /* use only lower 20 bits (for bits 32 to 51) */
   const uint64_t x = KU64(0x3FF0000000000000) | (uint64_t)hi << 32 | (uint64_t)lo;
   double d;
   memcpy(&d, &x, sizeof(double)); /* alias safe: <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly> */
@@ -380,11 +380,11 @@ static kk_random_ctx_t* random_init(kk_context_t* ctx) {
     }
   }
   chacha_init(rnd, key, (uintptr_t)&random_init /*nonce*/ );
-  rnd->kk_is_strong = strong;
+  rnd->is_strong = strong;
   return rnd;
 }
 
-kk_random_ctx_t* srandom_round(kk_context_t* ctx) {
+kk_random_ctx_t* kk_srandom_round(kk_context_t* ctx) {
   // initialize on demand
   kk_random_ctx_t* rnd = ctx->srandom_ctx;
   if (rnd == NULL) {
@@ -397,7 +397,7 @@ kk_random_ctx_t* srandom_round(kk_context_t* ctx) {
 bool kk_srandom_is_strong(kk_context_t* ctx) {
   kk_random_ctx_t* rnd = ctx->srandom_ctx;
   if (rnd == NULL) {
-    rnd = srandom_round(ctx);
+    rnd = kk_srandom_round(ctx);
   }
-  return rnd->kk_is_strong;
+  return rnd->is_strong;
 }

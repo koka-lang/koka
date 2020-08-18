@@ -63,7 +63,7 @@ kk_box_t kk_double_box(double d, kk_context_t* ctx) {
   KK_UNUSED(ctx);
   uint64_t u;
   memcpy(&u, &d, sizeof(u));  // safe for C aliasing
-  u = bits_rotl64(u, 12);
+  u = kk_bits_rotl64(u, 12);
   uint64_t exp = u & 0x7FF;
   u -= exp;
   // adjust to 10-bit exponent (if possible)
@@ -103,7 +103,7 @@ double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
       exp += 0x200;
     }
     kk_assert_internal(exp <= 0x7FF);
-    u = bits_rotr64(u | exp, 12);
+    u = kk_bits_rotr64(u | exp, 12);
     double d;
     memcpy(&d, &u, sizeof(d)); // safe for C aliasing: see <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly>
     return d;

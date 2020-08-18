@@ -159,9 +159,9 @@ static inline size_t kk_decl_pure kk_string_len_borrow(const kk_string_t str) {
   if (kk_basetype_has_tag(str,KK_TAG_STRING_SMALL)) {  
     const kk_string_small_t s = kk_basetype_as_assert(const kk_string_small_t, str, KK_TAG_STRING_SMALL);
 #ifdef KK_ARCH_LITTLE_ENDIAN
-    return (KK_STRING_SMALL_MAX - (bits_clz64(s->u.str_value)/8));
+    return (KK_STRING_SMALL_MAX - (kk_bits_clz64(s->u.str_value)/8));
 #else
-    return (KK_STRING_SMALL_MAX - (bits_ctz64(s->u.str_value)/8));
+    return (KK_STRING_SMALL_MAX - (kk_bits_ctz64(s->u.str_value)/8));
 #endif
   }
   else if (kk_basetype_has_tag(str,KK_TAG_STRING)) {
