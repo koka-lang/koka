@@ -1,0 +1,104 @@
+// Adapted from: https://raw.githubusercontent.com/leanprover/lean4/IFL19/tests/bench/deriv.ml
+// TODO: Koka does not yet support multiple patterns in the parser -- so we use tuple matching instead for now :-(
+type expr {
+  Val(value : int)
+  Var(name : string)
+  Add(l:expr, r:expr)
+  Mul(l:expr, r:expr)
+  Pow(l:expr, r:expr)
+  Ln(e:expr)
+}
+
+fun pown(a:int, b:int) : int {
+  pow(a,b)
+}
+
+fun add(n:expr,m:expr) : div expr {
+  match((n,m)) {
+    (Val(n), Val(m)) -> Val(n+m)
+    (Val(0),f)     -> f
+    (f,Val(0))     -> f
+    (f,Val(n))     -> add(Val(n),f)
+    (Val(n), Add(Val(m), f)) -> add(Val(n+m),f)
+    (f, Add(Val(n), g))      -> add(Val(n),add(f,g))
+    (Add(f, g), h)           -> add(f,add(g,h))
+    (f, g)                   -> Add(f, g)
+  }
+}
+
+fun mul(n:expr,m:expr) : div expr {
+  match ((n,m)) {
+    (Val(n), Val(m)) -> Val(n*m)
+    (Val(0), _)     -> Val(0)
+    (_, Val(0))     -> Val(0)
+    (Val(1), f)     -> f
+    (f, Val(1))     -> f
+    (f, Val(n))     -> mul(Val(n),f)
+    (Val(n), Mul(Val(m), f)) -> mul(Val(n*m),f)
+    (f, Mul(Val(n), g))      -> mul(Val(n),mul(f,g))
+    (Mul(f, g), h)           -> mul(f,mul(g,h))
+    (f, g)                   -> Mul(f, g)
+  }
+}
+
+fun powr(m:expr,n:expr) : div expr {
+  match ((m, n)) {
+    (Val(m), Val(n)) -> Val(pown(m,n))
+    (_,  Val(0))     -> Val(1)
+    (f, Val(1))      -> f
+    (Val(0), _)      -> Val(0)
+    (f, g)           -> Pow(f, g)
+  }
+}
+
+fun ln(n:expr) : expr {
+  match(n) {
+    (Val(1)) -> Val(0)
+    f        -> Ln(f)
+  }
+}
+
+fun d(x:string, f:expr) : div expr {
+  match(f) {
+    Val(_)     -> Val(0)
+    Var(y)     -> if (x == y) then Val(1) else Val(0)
+    Add(f, g)  -> add(d(x,f),d(x,g))
+    Mul(f, g)  -> add(mul(f,d(x,g)),mul(g,d(x,f)))
+    Pow(f, g)  -> mul(powr(f,g),add(mul(mul(g,d(x,f)),powr(f,Val(-1))),mul(ln(f),d(x,g))))
+    Ln(f)      -> mul(d(x,f),powr(f,Val(-1)))
+  }
+}
+
+fun count(f:expr) : int {
+  match(f) {
+    Val(_) -> 1
+    Var(_) -> 1
+    Add(f, g) -> count(f) + count(g)
+    Mul(f, g) -> count(f) + count(g)
+    Pow(f, g) -> count(f) + count(g)
+    Ln(f)     -> count(f)
+  }
+}
+
+fun nest_aux(s,f,n,x) {
+  if (n == 0) then x else {
+    val x = f(s - n, x) 
+    nest_aux(s,f,n - 1,x)
+  }
+}
+
+fun nest(f,n,e) {
+  nest_aux(n,f,n,e)
+}
+
+fun deriv(i : int, f : expr) {
+  val d = d("x",f)
+  println(show(i+1) + " count: " + count(d).show)
+  d
+}
+
+fun main() {
+  val x = Var("x")
+  val f = powr(x,x) 
+  nest(deriv,10,f)
+}
