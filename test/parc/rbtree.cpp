@@ -1,9 +1,10 @@
+// Using standard STL to test the red-black tree in C++
+// In glibc this uses eventually: <https://sourceware.org/git/?p=glibc.git;a=blob;f=misc/tsearch.c>
+// (Highly optimized in-place red-black tree using the low pointer bit to encode color information.)
 #include <iostream>
 #include <map>
 #include <algorithm>
 using std::for_each;
-// #include "util/nat.h"
-// using namespace lean;
 
 typedef int nat;
 
@@ -29,11 +30,10 @@ nat fold(map const & m) {
 }
 
 int main(int argc, char ** argv) {
-    if (argc != 2) {
-        std::cout << "invalid number of arguments\n";
-        return 1;
+    unsigned n = 4200000;
+    if (argc == 2) {
+      n = atoi(argv[1]);
     }
-    unsigned n = atoi(argv[1]);
     map m = mk_map(n);
     std::cout << fold(m) << "\n";
     return 0;
