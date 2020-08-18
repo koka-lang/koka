@@ -1,3 +1,5 @@
+// Try persisting std:map through copying; is too slow... 
+// We should try to make a persistent RB tree in C++ but this is not trivial to do...
 #include <iostream>
 #include <map>
 #include <list>
@@ -33,7 +35,9 @@ list<map> mk_map(unsigned n, unsigned freq) {
     while (n > 0) {
         --n;
         m->insert(std::make_pair(nat(n), n%10 == 0));
-        if (n % freq == 0) stack = cons(m, stack);
+        if (n % freq == 0) {
+          stack = cons(std::make_shared<map_t>(*m) /* copy constructor */, stack);
+        }
     }
     stack = cons(m, stack);
     return stack;
@@ -46,12 +50,12 @@ nat fold(map const & m) {
 }
 
 int main(int argc, char ** argv) {
-    if (argc != 3) {
-        std::cout << "invalid number of arguments\n";
-        return 1;
+    unsigned n = 42000; // 4200000;
+    unsigned freq = 5;
+    if (argc == 3) {
+      n = atoi(argv[1]);
+      freq = atoi(argv[2]);
     }
-    unsigned n = atoi(argv[1]);
-    unsigned freq = atoi(argv[2]);
     list<map> m = mk_map(n, freq);
     std::cout << fold(head(m)) << "\n";
     return 0;

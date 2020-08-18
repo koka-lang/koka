@@ -7,32 +7,28 @@
 ---------------------------------------------------------------------------*/
 #include "kklib.h"
 
-static void block_decref_delayed(context_t* ctx);
-static decl_noinline void block_decref_free(block_t* b, size_t scan_fsize, const size_t depth, context_t* ctx);
+static void kk_block_drop_free_delayed(kk_context_t* ctx);
+static kk_decl_noinline void kk_block_drop_free_rec(kk_block_t* b, size_t scan_fsize, const size_t depth, kk_context_t* ctx);
 
-static void block_runtime_free(block_t* b) {
-  runtime_free(b);
-}
-
-static void block_free_raw(block_t* b) {
-  assert_internal(tag_is_raw(block_tag(b)));
-  struct cptr_raw_s* raw = (struct cptr_raw_s*)b;  // all raw structures must overlap this!
+static void kk_block_free_raw(kk_block_t* b) {
+  kk_assert_internal(kk_tag_is_raw(kk_block_tag(b)));
+  struct kk_cptr_raw_s* raw = (struct kk_cptr_raw_s*)b;  // all raw structures must overlap this!
   if (raw->free != NULL) {
     (*raw->free)(raw->cptr);
   }
 }
 
 // Free a block and recursively decrement reference counts on children.
-void block_free(block_t* b, context_t* ctx) {
-  assert_internal(b->header.refcount == 0);
+static void kk_block_drop_free(kk_block_t* b, kk_context_t* ctx) {
+  kk_assert_internal(b->header.refcount == 0);
   const size_t scan_fsize = b->header.scan_fsize;
   if (scan_fsize==0) {
-    if (tag_is_raw(block_tag(b))) block_free_raw(b);
-    block_runtime_free(b); // deallocate directly if nothing to scan
+    if (kk_tag_is_raw(kk_block_tag(b))) kk_block_free_raw(b);
+    kk_block_free(b); // deallocate directly if nothing to scan
   }
   else {
-    block_decref_free(b, scan_fsize, 0 /* depth */, ctx);  // free recursively
-    block_decref_delayed(ctx);     // process delayed frees
+    kk_block_drop_free_rec(b, scan_fsize, 0 /* depth */, ctx);  // free recursively
+    kk_block_drop_free_delayed(ctx);     // process delayed frees
   }
 }
 
@@ -44,100 +40,100 @@ void block_free(block_t* b, context_t* ctx) {
     of the reference count. Any sticky reference won't be freed. There is a range between
     `RC_STICKY_LO` and `RC_STICKY_HI` to ensure stickyness even with concurrent increments and decrements.
   - The range above `RC_SHARED` uses atomic operations for shared reference counts. If a decrement
-    falls to `RC_SHARED` the object is freed (if is actually was shared, i.e. `thread_shared` is true).
+    falls to `RC_SHARED` the object is freed (if is actually was shared, i.e. `kk_thread_shared` is true).
   - Since `RC_SHARED` has the msb set, we can efficiently test in `drop` for either `0` (=free) or
     the need for atomic operations by using `if ((int32_t)rc <= 0) ...` (and similarly for `dup`).
   
   0                         : unique reference
   0x00000001 - 0x7FFFFFFF   : reference (in a single thread)
-  0x80000000 - 0xCFFFFFFF   : reference or thread-shared reference (if `thread_shared`). Use atomic operations
+  0x80000000 - 0xCFFFFFFF   : reference or thread-shared reference (if `kk_thread_shared`). Use atomic operations
   0xD0000000 - 0xDFFFFFFF   : sticky range: still increments, but no decrements
   0xE0000000 - 0xEFFFFFFF   : sticky range: neither increment, nor decrement
   0xF0000000 - 0xFFFFFFFF   : invalid; used for debug checks
 --------------------------------------------------------------------------------------*/
 
-#define RC_SHARED     U32(0x80000000)  // 0b1000 ...
-#define RC_STICKY_LO  U32(0xD0000000)  // 0b1101 ...
-#define RC_STICKY_HI  U32(0xE0000000)  // 0b1110 ...
-#define RC_INVALID    U32(0xF0000000)  // 0b1111 ...
+#define RC_SHARED     KU32(0x80000000)  // 0b1000 ...
+#define RC_STICKY_LO  KU32(0xD0000000)  // 0b1101 ...
+#define RC_STICKY_HI  KU32(0xE0000000)  // 0b1110 ...
+#define RC_INVALID    KU32(0xF0000000)  // 0b1111 ...
 
-static inline uint32_t atomic_incr(block_t* b) {
-  return atomic_inc32_relaxed((_Atomic(uint32_t)*)&b->header.refcount);
+static inline uint32_t kk_atomic_incr(kk_block_t* b) {
+  return kk_atomic_inc32_relaxed((_Atomic(uint32_t)*)&b->header.refcount);
 }
-static inline uint32_t atomic_decr(block_t* b) {
-  return atomic_dec32_relaxed((_Atomic(uint32_t)*)&b->header.refcount);
+static inline uint32_t kk_atomic_decr(kk_block_t* b) {
+  return kk_atomic_dec32_relaxed((_Atomic(uint32_t)*)&b->header.refcount);
 }
 
 // Check if a reference decrement caused the block to be free or needs atomic operations
-decl_noinline void block_check_free(block_t* b, uint32_t rc0, context_t* ctx) {
-  assert_internal(b!=NULL);
-  assert_internal(b->header.refcount == rc0);
-  assert_internal(rc0 == 0 || (rc0 >= RC_SHARED && rc0 < RC_INVALID));
-  if (likely(rc0==0)) {
-    block_free(b, ctx);  // no more references, free it.
+kk_decl_noinline void kk_block_check_drop(kk_block_t* b, uint32_t rc0, kk_context_t* ctx) {
+  kk_assert_internal(b!=NULL);
+  kk_assert_internal(b->header.refcount == rc0);
+  kk_assert_internal(rc0 == 0 || (rc0 >= RC_SHARED && rc0 < RC_INVALID));
+  if (kk_likely(rc0==0)) {
+    kk_block_drop_free(b, ctx);  // no more references, free it.
   }
-  else if (unlikely(rc0 >= RC_STICKY_LO)) {
+  else if (kk_unlikely(rc0 >= RC_STICKY_LO)) {
     // sticky: do not decrement further
   }
   else {
-    const uint32_t rc = atomic_decr(b);
-    if (rc == RC_SHARED && b->header.thread_shared) {  // with a shared reference dropping to RC_SHARED means no more references
+    const uint32_t rc = kk_atomic_decr(b);
+    if (rc == RC_SHARED && b->header.kk_thread_shared) {  // with a shared reference dropping to RC_SHARED means no more references
       b->header.refcount = 0;        // no longer shared
-      b->header.thread_shared = 0;
-      block_free(b, ctx);            // no more references, free it.
+      b->header.kk_thread_shared = 0;
+      kk_block_drop_free(b, ctx);            // no more references, free it.
     }
   }
 }
 
 // Check if a reference decrement caused the block to be reused or needs atomic operations
-decl_noinline reuse_t block_check_reuse(block_t* b, uint32_t rc0, context_t* ctx) {
-  assert_internal(b!=NULL);
-  assert_internal(b->header.refcount == rc0);
-  assert_internal(rc0 == 0 || (rc0 >= RC_SHARED && rc0 < RC_INVALID));
-  if (likely(rc0==0)) {
+kk_decl_noinline kk_reuse_t kk_block_check_drop_reuse(kk_block_t* b, uint32_t rc0, kk_context_t* ctx) {
+  kk_assert_internal(b!=NULL);
+  kk_assert_internal(b->header.refcount == rc0);
+  kk_assert_internal(rc0 == 0 || (rc0 >= RC_SHARED && rc0 < RC_INVALID));
+  if (kk_likely(rc0==0)) {
     // no more references, reuse it.
-    size_t scan_fsize = block_scan_fsize(b);
+    size_t scan_fsize = kk_block_scan_fsize(b);
     for (size_t i = 0; i < scan_fsize; i++) {
-      drop_box_t(block_field(b, i), ctx);
+      kk_box_drop(kk_block_field(b, i), ctx);
     }
-    memset(&b->header, 0, sizeof(header_t)); // not really necessary
+    memset(&b->header, 0, sizeof(kk_header_t)); // not really necessary
     return b;
   }
   else {
     // may be shared or sticky
-    block_check_free(b, rc0, ctx);
-    return reuse_null;
+    kk_block_check_drop(b, rc0, ctx);
+    return kk_reuse_null;
   }
 }
 
 // Check if a reference decrement caused the block to be freed shallowly or needs atomic operations
-decl_noinline void block_check_decref(block_t* b, uint32_t rc0, context_t* ctx) {
-  UNUSED(ctx);
-  assert_internal(b!=NULL);
-  assert_internal(b->header.refcount == rc0);
-  assert_internal(rc0 == 0 || (rc0 >= RC_SHARED && rc0 < RC_INVALID));
-  if (likely(rc0==0)) {
-    runtime_free(b);  // no more references, free it (without dropping children!)
+kk_decl_noinline void kk_block_check_decref(kk_block_t* b, uint32_t rc0, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+  kk_assert_internal(b!=NULL);
+  kk_assert_internal(b->header.refcount == rc0);
+  kk_assert_internal(rc0 == 0 || (rc0 >= RC_SHARED && rc0 < RC_INVALID));
+  if (kk_likely(rc0==0)) {
+    kk_free(b);  // no more references, free it (without dropping children!)
   }
-  else if (unlikely(rc0 >= RC_STICKY_LO)) {
+  else if (kk_unlikely(rc0 >= RC_STICKY_LO)) {
     // sticky: do not decrement further
   }
   else {
-    const uint32_t rc = atomic_decr(b);
-    if (rc == RC_SHARED && b->header.thread_shared) {  // with a shared reference dropping to RC_SHARED means no more references
+    const uint32_t rc = kk_atomic_decr(b);
+    if (rc == RC_SHARED && b->header.kk_thread_shared) {  // with a shared reference dropping to RC_SHARED means no more references
       b->header.refcount = 0;        // no longer shared
-      b->header.thread_shared = 0;
-      runtime_free(b);               // no more references, free it.
+      b->header.kk_thread_shared = 0;
+      kk_free(b);               // no more references, free it.
     }
   }
 }
 
 
-decl_noinline block_t* dup_block_check(block_t* b, uint32_t rc0) {
-  assert_internal(b!=NULL);
-  assert_internal(b->header.refcount == rc0 && rc0 >= RC_SHARED);
-  if (likely(rc0 < RC_STICKY_HI)) {
-    atomic_incr(b);
+kk_decl_noinline kk_block_t* kk_block_check_dup(kk_block_t* b, uint32_t rc0) {
+  kk_assert_internal(b!=NULL);
+  kk_assert_internal(b->header.refcount == rc0 && rc0 >= RC_SHARED);
+  if (kk_likely(rc0 < RC_STICKY_HI)) {
+    kk_atomic_incr(b);
   }
   // else sticky: no longer increment (or decrement)
   return b;
@@ -154,21 +150,21 @@ decl_noinline block_t* dup_block_check(block_t* b, uint32_t rc0) {
 --------------------------------------------------------------------------------------*/
 
 // Decrement a shared refcount without freeing the block yet. Returns true if there are no more references.
-static bool block_check_decref_no_free(block_t* b) {
-  const uint32_t rc = atomic_decr(b);
-  if (rc == RC_SHARED && b->header.thread_shared) {
+static bool block_check_decref_no_free(kk_block_t* b) {
+  const uint32_t rc = kk_atomic_decr(b);
+  if (rc == RC_SHARED && b->header.kk_thread_shared) {
     b->header.refcount = 0;      // no more shared
-    b->header.thread_shared = 0;   
+    b->header.kk_thread_shared = 0;   
     return true;                   // no more references
   }
-  if (unlikely(rc > RC_STICKY_LO)) {
-    atomic_incr(b);                // sticky: undo the decrement to never free
+  if (kk_unlikely(rc > RC_STICKY_LO)) {
+    kk_atomic_incr(b);                // sticky: undo the decrement to never free
   }
   return false;  
 }
 
 // Decrement a refcount without freeing the block yet. Returns true if there are no more references.
-static bool block_decref_no_free(block_t* b) {
+static bool kk_block_decref_no_free(kk_block_t* b) {
   uint32_t rc = b->header.refcount;
   if (rc==0) return true;
   else if (rc >= RC_SHARED) return block_check_decref_no_free(b);
@@ -177,14 +173,14 @@ static bool block_decref_no_free(block_t* b) {
 }
 
 // Push a block on the delayed-free list
-static void block_push_delayed_free(block_t* b, context_t* ctx) {
-  assert_internal(b->header.refcount == 0);
-  block_t* delayed = ctx->delayed_free;
+static void kk_block_push_delayed_drop_free(kk_block_t* b, kk_context_t* ctx) {
+  kk_assert_internal(b->header.refcount == 0);
+  kk_block_t* delayed = ctx->delayed_free;
   // encode the next pointer into the block header (while keeping `scan_fsize` valid)
-  b->header.refcount = (uint32_t)((uintx_t)delayed);
-#if (INTPTR_SIZE > 4)
-  b->header.tag = (uint16_t)(sar((intx_t)delayed,32));
-  assert_internal(sar((intx_t)delayed,48) == 0 || sar((intx_t)delayed, 48) == -1);
+  b->header.refcount = (uint32_t)((kk_uintx_t)delayed);
+#if (KK_INTPTR_SIZE > 4)
+  b->header.tag = (uint16_t)(kk_sar((kk_intx_t)delayed,32));
+  kk_assert_internal(kk_sar((kk_intx_t)delayed,48) == 0 || kk_sar((kk_intx_t)delayed, 48) == -1);
 #endif
   ctx->delayed_free = b;
 }
@@ -192,23 +188,23 @@ static void block_push_delayed_free(block_t* b, context_t* ctx) {
 
 // Free all delayed free blocks.
 // TODO: limit to a certain number to limit worst-case free times?
-static void block_decref_delayed(context_t* ctx) {
-  block_t* delayed;
+static void kk_block_drop_free_delayed(kk_context_t* ctx) {
+  kk_block_t* delayed;
   while ((delayed = ctx->delayed_free) != NULL) {
     ctx->delayed_free = NULL;
     do {
-      block_t* b = delayed;
+      kk_block_t* b = delayed;
       // decode the next element in the delayed list from the block header
-      intx_t next = (intx_t)b->header.refcount;
-#if (INTPTR_SIZE>4)
-      next += ((intx_t)((int16_t)(b->header.tag)) << 32); // sign extended
+      kk_intx_t next = (kk_intx_t)b->header.refcount;
+#if (KK_INTPTR_SIZE>4)
+      next += ((kk_intx_t)((int16_t)(b->header.tag)) << 32); // sign extended
 #endif
 #ifndef NDEBUG
       b->header.refcount = 0;
 #endif
-      delayed = (block_t*)next;
+      delayed = (kk_block_t*)next;
       // and free the block
-      block_decref_free(b, b->header.scan_fsize, 0, ctx);
+      kk_block_drop_free_rec(b, b->header.scan_fsize, 0, ctx);
     } while (delayed != NULL);
   }
 }
@@ -218,23 +214,23 @@ static void block_decref_delayed(context_t* ctx) {
 // Free recursively a block -- if the recursion becomes too deep, push
 // blocks on the delayed free list to free them later. The delayed free list
 // is encoded in the headers and needs no further space.
-static decl_noinline void block_decref_free(block_t* b, size_t scan_fsize, const size_t depth, context_t* ctx) {
+static kk_decl_noinline void kk_block_drop_free_rec(kk_block_t* b, size_t scan_fsize, const size_t depth, kk_context_t* ctx) {
   while(true) {
-    assert_internal(b->header.refcount == 0);
+    kk_assert_internal(b->header.refcount == 0);
     if (scan_fsize == 0) {
       // nothing to scan, just free
-      if (tag_is_raw(block_tag(b))) block_free_raw(b); // potentially call custom `free` function on the data
-      block_runtime_free(b);
+      if (kk_tag_is_raw(kk_block_tag(b))) kk_block_free_raw(b); // potentially call custom `free` function on the data
+      kk_block_free(b);
       return;
     }
     else if (scan_fsize == 1) {
       // if just one field, we can recursively free without using stack space
-      const box_t v = block_field(b, 0);;
-      block_runtime_free(b);
-      if (is_non_null_ptr(v)) {
+      const kk_box_t v = kk_block_field(b, 0);;
+      kk_block_free(b);
+      if (kk_box_is_non_null_ptr(v)) {
         // try to free the child now
-        b = unbox_ptr(v);
-        if (block_decref_no_free(b)) {
+        b = kk_ptr_unbox(v);
+        if (kk_block_decref_no_free(b)) {
           // continue freeing on this block
           scan_fsize = b->header.scan_fsize;
           continue; // tailcall
@@ -246,26 +242,26 @@ static decl_noinline void block_decref_free(block_t* b, size_t scan_fsize, const
       // more than 1 field
       if (depth < MAX_RECURSE_DEPTH) {
         size_t i = 0;
-        if (unlikely(scan_fsize >= SCAN_FSIZE_MAX)) { 
-          scan_fsize = unbox_enum(block_field(b, 0)); 
+        if (kk_unlikely(scan_fsize >= KK_SCAN_FSIZE_MAX)) { 
+          scan_fsize = kk_enum_unbox(kk_block_field(b, 0)); 
           i++;
         }
         // free fields up to the last one
         for (; i < (scan_fsize-1); i++) {
-          box_t v = block_field(b, i);
-          if (is_non_null_ptr(v)) {
-            block_t* vb = unbox_ptr(v);
-            if (block_decref_no_free(vb)) {
-              block_decref_free(vb, vb->header.scan_fsize, depth+1, ctx); // recurse with increased depth
+          kk_box_t v = kk_block_field(b, i);
+          if (kk_box_is_non_null_ptr(v)) {
+            kk_block_t* vb = kk_ptr_unbox(v);
+            if (kk_block_decref_no_free(vb)) {
+              kk_block_drop_free_rec(vb, vb->header.scan_fsize, depth+1, ctx); // recurse with increased depth
             }
           }
         }
         // and recurse into the last one
-        box_t v = block_field(b,scan_fsize - 1);
-        block_runtime_free(b);
-        if (is_non_null_ptr(v)) {
-          b = unbox_ptr(v);
-          if (block_decref_no_free(b)) {
+        kk_box_t v = kk_block_field(b,scan_fsize - 1);
+        kk_block_free(b);
+        if (kk_box_is_non_null_ptr(v)) {
+          b = kk_ptr_unbox(v);
+          if (kk_block_decref_no_free(b)) {
             scan_fsize = b->header.scan_fsize;
             continue; // tailcall
           }
@@ -274,68 +270,10 @@ static decl_noinline void block_decref_free(block_t* b, size_t scan_fsize, const
       }
       else {
         // recursed too deep, push this block onto the todo list
-        block_push_delayed_free(b,ctx);
+        kk_block_push_delayed_drop_free(b,ctx);
         return;
       }
     }
   }
 }
 
-
-
-
-
-
-/*
-// Check if a reference decrement caused the block to be free or needs atomic operations
-static void block_check_free_rec(block_t* b, uint32_t rc0, context_t* ctx) {
-  assert_internal(b!=NULL);
-  assert_internal(b->header.refcount == rc0);
-  assert_internal(rc0 == 0 || (rc0 >= RC_SHARED && rc0 < RC_INVALID));
-  if (likely(rc0==0)) {
-    block_free_rec(b, ctx);  // no more references, free it.
-  }
-  else if (unlikely(rc0 >= RC_STICKY_LO)) {
-    // sticky: do not decrement further
-  }
-  else {
-    const uint32_t rc = atomic_decr(b);
-    if (rc == RC_SHARED && b->header.thread_shared) {  // with a shared reference dropping to RC_SHARED means no more references
-      b->header.refcount = 0;        // no longer shared
-      b->header.thread_shared = 0;
-      block_free_rec(b, ctx);            // no more references, free it.
-    }
-  }
-}
-
-// Free a block and recursively decrement reference counts on children.
-void block_free(block_t* b, context_t* ctx) {
-  assert_internal(b->header.refcount == 0);
-  const size_t scan_fsize = b->header.scan_fsize;
-  if (scan_fsize==0) {
-    if (tag_is_raw(block_tag(b))) block_free_raw(b);
-    block_runtime_free(b); // deallocate directly if nothing to scan
-  }
-  else {
-    for (size_t i = 0; i < scan_fsize; i++) {
-      box_t f = block_field(b, i);
-      if (is_ptr(f)) {
-        ptr_t p = unbox_ptr(f);
-        uint32_t rc = p->header.refcount;
-        if (likely(rc==0)) {
-          block_free_rec(p, ctx);
-        }
-        else if (unlikely((int32_t)rc < 0)) {
-          block_check_free_rec(p, rc, ctx);
-        }
-        else {
-          p->header.refcount = rc - 1;
-        }
-      }
-    }
-    runtime_free(b);
-  }
-  // block_decref_delayed(ctx);     // process delayed frees
-}
-
-*/

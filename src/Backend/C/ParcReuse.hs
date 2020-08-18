@@ -39,27 +39,14 @@ import Common.Syntax
 import Core.Core
 import Core.Pretty
 
-import Platform.Runtime (unsafePerformIO)
-import qualified System.Environment as Sys
-
-{-# NOINLINE enabled #-}
-enabled :: Bool
-enabled = unsafePerformIO $ do
-  e <- Sys.lookupEnv "KK_PARC"
-  case e of
-    Nothing -> return False
-    Just val -> return $ map toLower val `elem` ["1", "on", "yes", "true", "y", "t"]
-
 --------------------------------------------------------------------------
 -- Reference count transformation
 --------------------------------------------------------------------------
 
 parcReuseCore :: Pretty.Env -> Platform -> Newtypes -> Core -> Unique Core
 parcReuseCore penv platform newtypes core
-  | not enabled = return core
-  | otherwise   = do defs <- runReuse penv platform newtypes (ruDefGroups True (coreProgDefs core))
-                     -- tr defs $ 
-                     return core{coreProgDefs=defs}
+  = do defs <- runReuse penv platform newtypes (ruDefGroups True (coreProgDefs core))
+       return core{coreProgDefs=defs}
   where penv' = penv{Pretty.coreShowDef=True,Pretty.coreShowTypes=False,Pretty.fullNames=False}
         tr d = trace (show (vcat (map (prettyDefGroup penv') d)))
 
@@ -211,7 +198,7 @@ ruTryReuse (reuseName, patName, size, scan)
 -- Generate a reuse of a constructor
 genDropReuse :: TName -> Expr {- : int32 -} -> Expr
 genDropReuse tname scan 
-  = App (Var (TName nameDropReuse funTp) (InfoExternal [(C, "drop_reuse_datatype(#1,#2,current_context())")]))
+  = App (Var (TName nameDropReuse funTp) (InfoExternal [(C, "drop_reuse(#1,#2,kk_context())")]))
         [Var tname InfoNone, scan]
   where
     tp    = typeOf tname

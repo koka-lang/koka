@@ -5,6 +5,8 @@ enable_testing()
 
 option(KK_MIMALLOC          "Use the mimalloc allocator" ON)
 option(KK_MIMALLOC_INLINE   "Use the inlined branch of mimalloc allocator" OFF)
+option(KK_DEBUG_SAN         "Compile with specified sanitizer (thread,memory,address,undefined) (clang only)" OFF)
+option(KK_DEBUG_FULL        "Use full internal debug assertions" OFF)
 
 # -----------------------------------------------------------------------------
 # Language options
@@ -34,15 +36,37 @@ set(kklib_sources
     src/string.c
     )
     
+# properties library; these are used for all koka compiled C sources
+add_library(kklib-flags INTERFACE)
+
+# extra option configuration
+include("${CMAKE_CURRENT_LIST_DIR}/../kklib-options.cmake" OPTIONAL)
+
+if(NOT (KK_DEBUG_SAN MATCHES OFF)) 
+  if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    message(STATUS "Build with ${KK_DEBUG_SAN} sanitizer (and switch KK_MIMALLOC to OFF)")
+    target_compile_options(kklib_flags PUBLIC -fsanitize=${KK_DEBUG_SAN} -g -O1)
+    target_link_options(kklib_flags PUBLIC -fsanitize=${KK_DEBUG_SAN})
+  else()
+    message(WARNING "Can only use ${KK_DEBUG_SAN} sanitizer with clang (KK_DEBUG_SAN is ignored)")    
+  endif()
+endif()
+
+if(KK_DEBUG_FULL MATCHES ON) 
+  target_compile_definitions(kklib_flags PUBLIC KK_DEBUG_FULL=1)
+endif()
+
 if(KK_MIMALLOC MATCHES ON)
   list(APPEND kklib_sources mimalloc/src/static.c)      
 endif()
 
-# properties library
-add_library(kklib-flags INTERFACE)
 
-# library
+# -----------------------------------------------------------------------------
+# Library
+# -----------------------------------------------------------------------------
+# support library
 add_library(kklib STATIC ${kklib_sources})
+
 target_compile_definitions(kklib PRIVATE KK_STATIC_LIB)
 target_include_directories(kklib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(kklib PUBLIC kklib-flags)
@@ -51,14 +75,14 @@ target_link_libraries(kklib PUBLIC kklib-flags)
 if(KK_MIMALLOC MATCHES ON)
 target_include_directories(kklib PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/mimalloc/include)
 target_compile_definitions(kklib-flags INTERFACE KK_MIMALLOC=1)
-if(KK_MIMALLOC_INLINE MATCHES ON)
-  target_compile_definitions(kklib-flags INTERFACE KK_MIMALLOC_INLINE=1)
-endif()
-if(WIN32)
-   target_link_libraries(kklib-flags INTERFACE psapi bcrypt)
-else()   
-   target_link_libraries(kklib-flags INTERFACE pthread)
-endif()   
+  if(KK_MIMALLOC_INLINE MATCHES ON)
+    target_compile_definitions(kklib-flags INTERFACE KK_MIMALLOC_INLINE=1)
+  endif()
+  if(WIN32)
+     target_link_libraries(kklib-flags INTERFACE psapi bcrypt)
+  else()   
+     target_link_libraries(kklib-flags INTERFACE pthread)
+  endif()   
 endif()
 
 

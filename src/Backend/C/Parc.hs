@@ -38,18 +38,7 @@ import Core.Core
 import Core.CoreVar
 import Core.Pretty
 
-import Platform.Runtime (unsafePerformIO)
-import qualified System.Environment as Sys
-
 import Backend.C.ParcReuse( genDropReuse, constructorSizeOf )
-
-{-# NOINLINE enabled #-}
-enabled :: Bool
-enabled = unsafePerformIO $ do
-  e <- Sys.lookupEnv "KK_PARC"
-  case e of
-    Nothing -> return False
-    Just val -> return $ map toLower val `elem` ["1", "on", "yes", "true", "y", "t"]
 
 --------------------------------------------------------------------------
 -- Reference count transformation
@@ -57,10 +46,8 @@ enabled = unsafePerformIO $ do
 
 parcCore :: Pretty.Env -> Platform -> Newtypes -> Bool -> Core -> Unique Core
 parcCore penv platform newtypes enableSpecialize core
-  | not enabled = return core
-  | otherwise   = do defs <- runParc penv platform newtypes enableSpecialize (parcDefGroups True (coreProgDefs core))
-                     -- tr defs $
-                     return core{coreProgDefs=defs}
+  = do defs <- runParc penv platform newtypes enableSpecialize (parcDefGroups True (coreProgDefs core))
+       return core{coreProgDefs=defs}
   where penv' = penv{Pretty.coreShowDef=True,Pretty.coreShowTypes=False,Pretty.fullNames=False}
         tr d = trace (show (vcat (map (prettyDefGroup penv') d)))
 
@@ -598,7 +585,7 @@ genIsUnique tname
 genFree :: TName -> Parc (Maybe Expr)
 genFree tname
   = return $ Just $
-      App (Var (TName nameFree funTp) (InfoExternal [(C, "runtime_free(#1)")]))
+      App (Var (TName nameFree funTp) (InfoExternal [(C, "kk_constructor_free(#1)")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
 
@@ -618,14 +605,14 @@ genDecRef tname
 -- Generate a reuse free of a constructor
 genFreeReuse :: TName -> Expr
 genFreeReuse tname
-  = App (Var (TName nameFreeReuse funTp) (InfoExternal [(C, "free_reuse(#1)")]))
+  = App (Var (TName nameFreeReuse funTp) (InfoExternal [(C, "kk_reuse_free(#1)")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeReuse
 
 -- Get a null token for reuse inlining
 genReuseNull :: Expr
 genReuseNull
-  = App (Var (TName nameReuseNull funTp) (InfoExternal [(C, "reuse_null")])) []
+  = App (Var (TName nameReuseNull funTp) (InfoExternal [(C, "kk_reuse_null")])) []
   where funTp = TFun [] typeTotal typeReuse
 
 

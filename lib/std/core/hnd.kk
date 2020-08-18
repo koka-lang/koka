@@ -38,7 +38,7 @@ public alias ev-index = int32
 // -------------------------------------------
 
 private extern fresh-marker-int() : int32 {
-  c inline "marker_unique(current_context())"
+  c inline "kk_marker_unique(kk_context())"
   js inline "$marker_unique++"
 }
 
@@ -55,86 +55,86 @@ private fun marker-none() : marker<e,r> {
 // -------------------------------------------
 
 private extern inline evv-total() : evv<<>> {
-  c  "evv_total"
+  c  "kk_evv_total"
   js inline "[]"
 }
 
 
 public extern inline ".evv-at"<e,h> ( i : ev-index ) : ev<h> {  // pretend total; don't simplify
-  c inline "evv_at(#1,current_context())"
+  c inline "kk_evv_at(#1,kk_context())"
   js inline "$std_core_hnd._evv[#1]"
 }
 
 // (dynamically) find evidence insertion/deletion index in the evidence vector
 public extern ".evv-index"<e::E,h>( htag : htag<h> ) : e ev-index {
-  c inline "evv_index(#1,current_context())"
+  c inline "kk_evv_index(#1,kk_context())"
   js inline "__evv_index($std_core_hnd._evv,#1)"
 }
 
 
 public extern ".evv-lookup"( htag : htag<h> ) : ev<h> {
-  c inline "evv_lookup(#1,current_context())"
+  c inline "kk_evv_lookup(#1,kk_context())"
   js inline "__evv_lookup($std_core_hnd._evv,#1)"
 }
 
 public extern inline ".evv-select"( i : ev-index, htag : htag<h> ) : ev<h> {
-  c inline "(#1 >= 0 ? evv_at(#1,current_context()) : evv_lookup(#2,current_context()))"
+  c inline "(#1 >= 0 ? kk_evv_at(#1,kk_context()) : kk_evv_lookup(#2,kk_context()))"
   js inline "(#1 >= 0 ? $std_core_hnd._evv[#1] : __evv_lookup($std_core_hnd._evv,#2))"
 }
 
 private extern evv-show( evv : evv<e> ) : string {
-  c  inline "evv_show(#1,current_context())"
+  c  inline "kk_evv_show(#1,kk_context())"
   js "_evv_show"
 }
 
 private extern evv-eq(evv0 : evv<e>, evv1 : evv<e> ) : bool {
-  c inline "datatype_eq(#1,#2)"
+  c inline "kk_datatype_eq(#1,#2)"
   js inline "(#1) === (#2)"
 }
 
 
 private extern evv-get() : e evv<e> {
-  c  inline "evv_get(current_context())"
+  c  inline "kk_evv_get(kk_context())"
   js inline "$std_core_hnd._evv"
 }
 
 private extern inline evv-set<e1,e>( w : evv<e1> ) : e () {
-  c inline "evv_set(#1,current_context())"
+  c inline "kk_evv_set(#1,kk_context())"
   js inline "(function(){ $std_core_hnd._evv = (#1); })()"
 }
 
 private extern inline evv-swap<e1,e2>( w : evv<e1> ) : e evv<e2> {
-  c inline "evv_swap(#1,current_context())"
+  c inline "kk_evv_swap(#1,kk_context())"
   js inline "(function(){ const evv = $std_core_hnd._evv; $std_core_hnd._evv = (#1); return evv; })()"
 }
 
 private extern evv-insert( evv : evv<e1>, ev : ev<h> ) : e1 evv<e2> {
-  c  inline "evv_insert(#1,#2,current_context())"
+  c  inline "kk_evv_insert(#1,#2,kk_context())"
   js "_evv_insert"
 }
 
 private extern evv-swap-delete( i : ev-index, behind : bool ) : e1 evv<e> {
-  c  inline "evv_swap_delete(#1,#2,current_context())"
+  c  inline "kk_evv_swap_delete(#1,#2,kk_context())"
   js "_evv_swap_delete"
 }
 
 private extern inline evv-swap-create0() : evv<<>> {
-  c inline "evv_swap_create0(current_context())"
+  c inline "kk_evv_swap_create0(kk_context())"
   js inline "(function(){ const evv = $std_core_hnd._evv; $std_core_hnd._evv = $std_core_hnd._evv_empty; return evv; })()"
 }
 
 private extern inline evv-swap-create1( i : ev-index ) : e evv<e> {   //not quite the right effect type but avoids unbound effect types
-  c inline "evv_swap_create1(#1,current_context())"
+  c inline "kk_evv_swap_create1(#1,kk_context())"
   js inline "(function(){ const evv = $std_core_hnd._evv; if (evv.length !== 1) { $std_core_hnd._evv = [evv[#1]]; }; return evv; })()"
 }
 
 private extern evv-swap-create( indices : vector<ev-index> ) : e evv<e> {
-  c inline "evv_swap_create(#1,current_context())"
+  c inline "kk_evv_swap_create(#1,kk_context())"
   js "_evv_swap_create"
 }
 
 private extern inline ev-none<e,h>() : e ev<h> {
-  c  "ev_none"
+  c  "kk_ev_none"
   js "ev_none"
 }
 
@@ -143,17 +143,17 @@ private extern inline ev-none<e,h>() : e ev<h> {
 // -------------------------------------------
 
 public extern inline yielding() : bool {
-  c  inline "yielding(current_context())"
+  c  inline "kk_yielding(kk_context())"
   js inline "($std_core_hnd._yield !== null)"
 }
 
 public extern inline yielding-non-final() : bool {
-  c  inline "yielding_non_final(current_context())"
+  c  inline "kk_yielding_non_final(kk_context())"
   js inline "($std_core_hnd._yield !== null && !$std_core_hnd._yield.final)"
 }
 
 public extern noinline yield-extend(next : a -> e b ) : e b {
-  c  inline "yield_extend(#1,current_context())"
+  c  inline "kk_yield_extend(#1,kk_context())"
   js "_yield_extend"
 }
 
@@ -166,27 +166,27 @@ public fun inline yield-bind2( x : a, extend : a -> e b, next : a -> e b ) : e b
 }
 
 private extern yield-cont(f : (a -> e a, a) -> e r ) : e r {  // make hidden public?
-  c  inline "yield_cont(#1,current_context())"
+  c  inline "kk_yield_cont(#1,kk_context())"
   js "_yield_cont"
 }
 
 private extern inline keep-yielding-final() : e r {
-  c inline "box_any(current_context())"
+  c inline "kk_box_any(kk_context())"
   js inline "undefined"
 }
 
 private extern yield-prompt( m: marker<e,r> ) : yld<e,a,r> {
-  c  inline "yield_prompt(#1,current_context())"
+  c  inline "kk_yield_prompt(#1,kk_context())"
   js "_yield_prompt"
 }
 
 private extern yield-to-prim( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e (() -> b) {
-  c  inline "yield_to(#1,#2,current_context())"
+  c  inline "kk_yield_to(#1,#2,kk_context())"
   js "$std_core_hnd._yield_to"
 }
 
 private extern yield-to-final( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e b {
-  c  inline "yield_final(#1,#2,current_context())"
+  c  inline "kk_yield_final(#1,#2,kk_context())"
   js "$std_core_hnd._yield_final"
 }
 
@@ -202,12 +202,12 @@ private fun noinline yield-to( m : marker<e1,r>, clause : ((() -> b) -> e1 r) ->
 public type yield-info
 
 private extern yield-capture() : e yield-info {
-  c "yield_capture"
+  c "kk_yield_capture"
   js "$std_core_hnd._yield_capture"
 }
 
 public extern unsafe-reyield(yld : yield-info) : e a {
-  c "yield_reyield"
+  c "kk_yield_reyield"
   js "$std_core_hnd._reyield"
 }
 
@@ -231,13 +231,13 @@ private type yld<e,a,r> {
 }
 
 private extern guard(w : evv<e> ) : e () {
-  c  inline "evv_guard(#1,current_context())"
+  c  inline "kk_evv_guard(#1,kk_context())"
   js "_guard"
   // if (evv-equals(w)) then () else unsafe-total{ error("non-scoped resumption") }
 }
 
 private extern resume-final() : a {
-  c  inline "fatal_resume_final(current_context())"
+  c  inline "kk_fatal_resume_final(kk_context())"
   js "_throw_resume_final"
 }
 
