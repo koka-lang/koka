@@ -100,5 +100,5 @@ fun deriv(i : int, f : expr) {
 fun main() {
   val x = Var("x")
   val f = powr(x,x) 
-  nest(deriv,10,f)
+  nest(deriv,10,f) 
 }
