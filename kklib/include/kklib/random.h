@@ -16,14 +16,14 @@ typedef struct kk_random_ctx_s {
   uint32_t input[16];  // current state
   int32_t  used;       // how many output fields are already used?
   bool     kk_is_strong;  // initialized from strong random source?
-} random_kk_ctx_t;
+} kk_random_ctx_t;
 
-kk_decl_export random_kk_ctx_t* srandom_round(kk_context_t* ctx);
+kk_decl_export kk_random_ctx_t* srandom_round(kk_context_t* ctx);
 
 // Strong random number using chacha20 (by Daniel J. Bernstein)
 // Initial randomness comes from the OS.
 static inline uint32_t srandom_uint32(kk_context_t* ctx) {
-  random_kk_ctx_t* rnd = ctx->srandom_ctx;
+  kk_random_ctx_t* rnd = ctx->srandom_ctx;
   if (kk_unlikely(rnd == NULL || rnd->used >= 16)) {
     rnd = srandom_round(ctx);
   }

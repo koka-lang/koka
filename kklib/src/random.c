@@ -17,7 +17,7 @@
 typedef struct kk_pcg_ctx_s {
   uint64_t state;
   uint64_t stream; // must be odd
-} pcg_kk_ctx_t;
+} kk_pcg_ctx_t;
 
 // Pseudo random number using PCG by Melissa E. O'Neill.
 // It combines a linear congruential generator (CG) with an output permutation 
@@ -27,7 +27,7 @@ typedef struct kk_pcg_ctx_s {
 // of a full 64x64-bit multiply.
 // [1]: https://www.pcg-random.org/posts/critiquing-pcg-streams.html#changing-the-multiplier
 // [2]: https://www.pcg-random.org/pdf/hmc-cs-2014-0905.pdf
-static inline uint32_t pcg_uint32(pcg_kk_ctx_t* rnd) {
+static inline uint32_t pcg_uint32(kk_pcg_ctx_t* rnd) {
   const uint64_t state0 = rnd->state;
   rnd->state = (state0 * KU64(0x5851F42D4C957F2D)) + rnd->stream;  
   const uint32_t x = (uint32_t)(((state0 >> 18) ^ state0) >> 27);
@@ -35,7 +35,7 @@ static inline uint32_t pcg_uint32(pcg_kk_ctx_t* rnd) {
   return bits_rotr32(x, rot);
 }
 
-static void pcg_init(uint64_t init, uint64_t stream, pcg_kk_ctx_t* rnd) {
+static void pcg_init(uint64_t init, uint64_t stream, kk_pcg_ctx_t* rnd) {
   rnd->state = 0;
   rnd->stream = (2*stream) | 1; // ensure it is odd
   pcg_uint32(rnd);
@@ -51,7 +51,7 @@ typedef struct kk_sfc_ctx_s {
   uint32_t b;
   uint32_t c;
   uint32_t counter;
-} sfc_kk_ctx_t;
+} kk_sfc_ctx_t;
 
 // Pseudo random number using sfc32 by Chris Doty-Humphrey.
 // It is a "chaotic" pseudo random generator that uses 32-bit operations only
@@ -62,16 +62,16 @@ typedef struct kk_sfc_ctx_s {
 // The chance of a cycle of less than 2^(32+max(96-k,0)) is 2^-(32+k),
 // (e.g. the chance of a cycle of less than 2^48 is 2^-80).
 // <http://pracrand.sourceforge.net/RNG_engines.txt>
-static inline uint32_t sfc_uint32(sfc_kk_ctx_t* rnd) {
+static inline uint32_t sfc_uint32(kk_sfc_ctx_t* rnd) {
   uint32_t x = rnd->a + rnd->b + rnd->counter;
   rnd->counter++;
   rnd->a = rnd->b ^ (rnd->b >> 9);
   rnd->b = rnd->c + (rnd->c << 3);
-  rnd->c = bits_rotl32(rnd->c, 21) + x;
+  rnd->c = kk_bits_rotl32(rnd->c, 21) + x;
   return x;
 }
 
-static void sfc_init(uint64_t seed, sfc_kk_ctx_t* rnd) {
+static void sfc_init(uint64_t seed, kk_sfc_ctx_t* rnd) {
   rnd->a = 0;
   rnd->b = (uint32_t)(seed);
   rnd->c = (uint32_t)(seed >> 32);
@@ -150,11 +150,11 @@ static inline void chacha_block(const size_t rounds, uint32_t* input, uint32_t* 
   }
 }
 
-kk_decl_noinline void chacha20(random_kk_ctx_t* rnd) {
+kk_decl_noinline void chacha20(kk_random_ctx_t* rnd) {
   chacha_block(20, rnd->input, rnd->output);
   rnd->used = 0;
 }
-kk_decl_noinline void chacha8(random_kk_ctx_t* rnd) {
+kk_decl_noinline void chacha8(kk_random_ctx_t* rnd) {
   chacha_block(8, rnd->input, rnd->output);
   rnd->used = 0;
 }
@@ -164,7 +164,7 @@ static inline uint32_t read32(const uint8_t* p, size_t idx32) {
   return ((uint32_t)p[i+0] | (uint32_t)p[i+1] << 8 | (uint32_t)p[i+2] << 16 | (uint32_t)p[i+3] << 24);
 }
 
-void chacha_init(random_kk_ctx_t* rnd, const uint8_t key[32], uint64_t nonce)
+void chacha_init(kk_random_ctx_t* rnd, const uint8_t key[32], uint64_t nonce)
 {
   // read the 32-bit values as little-endian
   memset(rnd, 0, sizeof(*rnd));
@@ -182,7 +182,7 @@ void chacha_init(random_kk_ctx_t* rnd, const uint8_t key[32], uint64_t nonce)
   rnd->used = 128;
 }
 
-static void kk_chacha_split(random_kk_ctx_t* rnd, uint64_t nonce, random_kk_ctx_t* ctx_new) {
+static void kk_chacha_split(kk_random_ctx_t* rnd, uint64_t nonce, kk_random_ctx_t* ctx_new) {
   memset(ctx_new, 0, sizeof(*ctx_new));
   memcpy(ctx_new->input, rnd->input, sizeof(ctx_new->input));
   ctx_new->input[12] = 0;
@@ -198,12 +198,12 @@ static void kk_chacha_split(random_kk_ctx_t* rnd, uint64_t nonce, random_kk_ctx_
 Secure random: split
 -----------------------------------------------------------------------------*/
 #ifndef NDEBUG
-static bool random_is_initialized(random_kk_ctx_t* rnd) {
+static bool random_is_initialized(kk_random_ctx_t* rnd) {
   return (rnd->input[0] != 0);
 }
 #endif
 
-void kk_random_split(random_kk_ctx_t* rnd, random_kk_ctx_t* ctx_new) {
+void kk_random_split(kk_random_ctx_t* rnd, kk_random_ctx_t* ctx_new) {
   kk_assert_internal(random_is_initialized(rnd));
   kk_assert_internal(rnd != ctx_new);
   kk_chacha_split(rnd, (uintptr_t)ctx_new /*nonce*/, ctx_new);
@@ -306,7 +306,7 @@ static bool os_random_buf(void* buf, size_t buf_len) {
   #endif
   static volatile uintptr_t no_getrandom; // = 0
   if (no_getrandom == 0) {
-    kk_ssize_t ret = syscall(SYS_getrandom, buf, buf_len, GRND_NONBLOCK);
+    ssize_t ret = syscall(SYS_getrandom, buf, buf_len, GRND_NONBLOCK);
     if (ret >= 0) return (buf_len == (size_t)ret);
     if (ret != ENOSYS) return false;
     no_getrandom = 1; // don't call again, and fall back to /dev/urandom
@@ -320,7 +320,7 @@ static bool os_random_buf(void* buf, size_t buf_len) {
   if (fd < 0) return false;
   size_t count = 0;
   while(count < buf_len) {
-    kk_ssize_t ret = read(fd, (char*)buf + count, buf_len - count);
+    ssize_t ret = read(fd, (char*)buf + count, buf_len - count);
     if (ret<=0) {
       if (errno!=EAGAIN && errno!=EINTR) break;
     }
@@ -346,33 +346,33 @@ static bool os_random_buf(void* buf, size_t buf_len) {
 #endif
 
 
-static uint64_t os_random_weak(uint64_t kk_extra_seed) {
-  uint64_t x = (uint64_t)&os_random_weak ^ kk_extra_seed; // hopefully, ASLR makes the address random
+static uint64_t os_random_weak(uint64_t extra_seed) {
+  uint64_t x = (uint64_t)&os_random_weak ^ extra_seed; // hopefully, ASLR makes the address random
   #if defined(_WIN32)
     LARGE_INTEGER pcount;
     QueryPerformanceCounter(&pcount);
     x ^= (uint64_t)(pcount.QuadPart);
-  #elif defined(__XAPPLE__)
-    x ^= (uint64_t)mach_kk_absolute_time();
+  #elif defined(__APPLE__)
+    x ^= (uint64_t)mach_absolute_time();
   #else
     struct timespec time;
     clock_gettime(CLOCK_MONOTONIC, &time);
-    x ^= bits_rotl64((uint64_t)time.kk_tv_sec, 32);
+    x ^= kk_bits_rotl64((uint64_t)time.tv_sec, 32);
     x ^= (uint64_t)time.tv_nsec;
   #endif  
   kk_assert_internal(x != 0);
   return x;
 }
 
-static random_kk_ctx_t* random_init(kk_context_t* ctx) {
-  random_kk_ctx_t* rnd = (random_kk_ctx_t*)kk_zalloc(sizeof(random_kk_ctx_t), ctx);
+static kk_random_ctx_t* random_init(kk_context_t* ctx) {
+  kk_random_ctx_t* rnd = (kk_random_ctx_t*)kk_zalloc(sizeof(kk_random_ctx_t), ctx);
   uint8_t key[32];
   const bool strong = os_random_buf(key, sizeof(key));
   if (!strong) {
     // if we fail to get random data from the OS, we fall back to a
     // weak random source based on the C library `rand()`, the current (high precision) time, and ASLR.
     kk_warning_message("unable to use strong randomness\n");
-    pcg_kk_ctx_t pcg;
+    kk_pcg_ctx_t pcg;
     pcg_init(os_random_weak(rand())^KU64(0x853C49E6748FEA9B), (uintptr_t)&random_init, &pcg);
     for (size_t i = 0; i < 8; i++) {  // key is eight 32-bit words.
       uint32_t x = pcg_uint32(&pcg);
@@ -384,9 +384,9 @@ static random_kk_ctx_t* random_init(kk_context_t* ctx) {
   return rnd;
 }
 
-random_kk_ctx_t* srandom_round(kk_context_t* ctx) {
+kk_random_ctx_t* srandom_round(kk_context_t* ctx) {
   // initialize on demand
-  random_kk_ctx_t* rnd = ctx->srandom_ctx;
+  kk_random_ctx_t* rnd = ctx->srandom_ctx;
   if (rnd == NULL) {
     ctx->srandom_ctx = rnd = random_init(ctx);
   }
@@ -395,7 +395,7 @@ random_kk_ctx_t* srandom_round(kk_context_t* ctx) {
 }
 
 bool kk_srandom_is_strong(kk_context_t* ctx) {
-  random_kk_ctx_t* rnd = ctx->srandom_ctx;
+  kk_random_ctx_t* rnd = ctx->srandom_ctx;
   if (rnd == NULL) {
     rnd = srandom_round(ctx);
   }

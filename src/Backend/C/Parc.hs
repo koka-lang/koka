@@ -585,7 +585,7 @@ genIsUnique tname
 genFree :: TName -> Parc (Maybe Expr)
 genFree tname
   = return $ Just $
-      App (Var (TName nameFree funTp) (InfoExternal [(C, "kk_free(#1)")]))
+      App (Var (TName nameFree funTp) (InfoExternal [(C, "kk_constructor_free(#1)")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
 

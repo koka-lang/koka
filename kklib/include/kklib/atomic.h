@@ -55,10 +55,10 @@
 #include <Windows.h>
 #include <intrin.h>
 #ifdef _WIN64
-typedef LONG64      msc_kk_intptr_t;
+typedef LONG64      msc_intptr_t;
 #define WRAP64(f)   f##64
 #else
-typedef LONG        msc_kk_intptr_t;
+typedef LONG        msc_intptr_t;
 #define WRAP64(f)   f
 #endif
 
@@ -73,11 +73,11 @@ typedef enum kk_memory_order_e {
 
 static inline uintptr_t kk_atomic_fetch_add_explicit(_Atomic(uintptr_t)*p, uintptr_t add, kk_memory_order_t mo) {
   KK_UNUSED(mo);
-  return (uintptr_t)WRAP64(_InterlockedExchangeAdd)((volatile msc_kk_intptr_t*)p, (msc_kk_intptr_t)add);
+  return (uintptr_t)WRAP64(_InterlockedExchangeAdd)((volatile msc_intptr_t*)p, (msc_intptr_t)add);
 }
 static inline uintptr_t kk_atomic_fetch_sub_explicit(_Atomic(uintptr_t)*p, uintptr_t sub, kk_memory_order_t mo) {
   KK_UNUSED(mo);
-  return (uintptr_t)WRAP64(_InterlockedExchangeAdd)((volatile msc_kk_intptr_t*)p, -((msc_kk_intptr_t)sub));
+  return (uintptr_t)WRAP64(_InterlockedExchangeAdd)((volatile msc_intptr_t*)p, -((msc_intptr_t)sub));
 }
 
 static inline uint32_t kk_atomic_fetch_add32_explicit(_Atomic(uint32_t)*p, uint32_t add, kk_memory_order_t mo) {

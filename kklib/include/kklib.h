@@ -364,8 +364,6 @@ static inline void kk_free_local(void* p) {
 #endif
 
 
-kk_decl_export void kk_block_free(kk_block_t* b, kk_context_t* ctx);
-
 static inline void kk_block_init(kk_block_t* b, size_t size, size_t scan_fsize, kk_tag_t tag) {
   KK_UNUSED(size);
   kk_assert_internal(scan_fsize < KK_SCAN_FSIZE_MAX);
@@ -434,6 +432,10 @@ static inline char* kk_block_assertx(kk_block_t* b, kk_tag_t tag) {
   return (char*)b;
 }
 
+static inline void kk_block_free(kk_block_t* b) {
+  kk_free(b);
+}
+
 #define kk_block_alloc_as(struct_tp,scan_fsize,tag,ctx)        ((struct_tp*)kk_block_alloc_at(kk_reuse_null, sizeof(struct_tp),scan_fsize,tag,ctx))
 #define kk_block_alloc_at_as(struct_tp,at,scan_fsize,tag,ctx)  ((struct_tp*)kk_block_alloc_at(at, sizeof(struct_tp),scan_fsize,tag,ctx))
 
@@ -445,9 +447,11 @@ static inline char* kk_block_assertx(kk_block_t* b, kk_tag_t tag) {
   Reference counting
 --------------------------------------------------------------------------------------*/
 
-kk_decl_export void        kk_block_check_free(kk_block_t* b, uint32_t rc, kk_context_t* ctx);
+kk_decl_export void        kk_block_check_drop(kk_block_t* b, uint32_t rc, kk_context_t* ctx);
 kk_decl_export void        kk_block_check_decref(kk_block_t* b, uint32_t rc, kk_context_t* ctx);
 kk_decl_export kk_block_t* kk_block_check_dup(kk_block_t* b, uint32_t rc);
+kk_decl_export kk_reuse_t  kk_block_check_drop_reuse(kk_block_t* b, uint32_t rc0, kk_context_t* ctx);
+
 
 static inline kk_block_t* kk_block_dup(kk_block_t* b) {
   const uint32_t rc = b->header.refcount;
@@ -466,7 +470,7 @@ static inline void kk_block_drop(kk_block_t* b, kk_context_t* ctx) {
     b->header.refcount = rc-1;
   }
   else {
-    kk_block_check_free(b, rc, ctx);   // thread-shared, sticky (overflowed), or can be freed?
+    kk_block_check_drop(b, rc, ctx);   // thread-shared, sticky (overflowed), or can be freed?
   }
 }
 
@@ -480,13 +484,11 @@ static inline void kk_block_decref(kk_block_t* b, kk_context_t* ctx) {
   }
 }
 
-kk_reuse_t kk_block_check_reuse(kk_block_t* b, uint32_t rc0, kk_context_t* ctx);
-
 // Decrement the reference count, and return the memory for reuse if it drops to zero
-static inline kk_reuse_t drop_reuse_block(kk_block_t* b, kk_context_t* ctx) {
+static inline kk_reuse_t kk_block_drop_reuse(kk_block_t* b, kk_context_t* ctx) {
   const uint32_t rc = b->header.refcount;
   if ((int32_t)rc <= 0) {                 // note: assume two's complement
-    return kk_block_check_reuse(b, rc, ctx); // thread-shared, sticky (overflowed), or can be reused?
+    return kk_block_check_drop_reuse(b, rc, ctx); // thread-shared, sticky (overflowed), or can be reused?
   }
   else {
     b->header.refcount = rc-1;
@@ -497,10 +499,10 @@ static inline kk_reuse_t drop_reuse_block(kk_block_t* b, kk_context_t* ctx) {
 typedef struct kk_block_fields_s {
   kk_block_t _block;
   kk_box_t   fields[1];
-} block_kk_fields_t;
+} kk_block_fields_t;
 
 static inline kk_box_t kk_block_field(kk_block_t* b, size_t index) {
-  block_kk_fields_t* bf = (block_kk_fields_t*)b;  // must overlap with datatypes with scanned fields.
+  kk_block_fields_t* bf = (kk_block_fields_t*)b;  // must overlap with datatypes with scanned fields.
   return bf->fields[index];
 }
 
@@ -516,7 +518,7 @@ static inline void kk_block_dropi(kk_block_t* b, kk_context_t* ctx) {
     }    
   }
   else if (kk_unlikely((int32_t)rc < 0)) {     // note: assume two's complement
-    kk_block_check_free(b, rc, ctx);           // thread-share or sticky (overflowed) ?    
+    kk_block_check_drop(b, rc, ctx);           // thread-share or sticky (overflowed) ?    
   }
   else {
     b->header.refcount = rc-1;
@@ -550,7 +552,7 @@ static inline void kk_block_dropn(kk_block_t* b, size_t scan_fsize, kk_context_t
     kk_free(b);
   }
   else if (kk_unlikely((int32_t)rc < 0)) {
-    kk_block_check_free(b, rc, ctx); // thread-shared, sticky (overflowed)?
+    kk_block_check_drop(b, rc, ctx); // thread-shared, sticky (overflowed)?
   }
   else {
     b->header.refcount = rc-1;
@@ -570,7 +572,7 @@ static inline kk_reuse_t kk_block_dropn_reuse(kk_block_t* b, size_t scan_fsize, 
     return b;
   }
   else if (kk_unlikely((int32_t)rc < 0)) {     // note: assume two's complement
-    kk_block_check_free(b, rc, ctx);           // thread-shared or sticky (overflowed)?
+    kk_block_check_drop(b, rc, ctx);           // thread-shared or sticky (overflowed)?
     return kk_reuse_null;
   }
   else {
@@ -615,7 +617,7 @@ static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
 #define kk_basetype_has_tag(v,t)               (kk_block_has_tag(&((v)->_block),t))
 #define kk_basetype_is_unique(v)               (kk_block_is_unique(&((v)->_block)))
 #define kk_basetype_as(tp,v)                   (kk_block_as(tp,&((v)->_block)))
-#define kk_basetype_free(v)                    (kk_free(v))
+#define kk_basetype_free(v)                    (kk_block_free(&((v)->_block)))
 #define kk_basetype_decref(v,ctx)              (kk_block_decref(&((v)->_block),ctx))
 #define kk_basetype_dup_as(tp,v)               ((tp)kk_block_dup(&((v)->_block)))
 #define kk_basetype_drop(v,ctx)                (kk_block_dropi(&((v)->_block),ctx))
@@ -629,6 +631,7 @@ static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
 
 #define kk_constructor_tag(v)                  (kk_basetype_tag(&((v)->_base)))
 #define kk_constructor_is_unique(v)            (kk_basetype_is_unique(&((v)->_base)))
+#define kk_constructor_free(v)                 (kk_basetype_free(&((v)->_base)))
 #define kk_constructor_dup_as(tp,v)            (kk_basetype_dup_as(tp, &((v)->_base)))
 #define kk_constructor_drop(v,ctx)             (kk_basetype_drop(&((v)->_base),ctx))
 #define kk_constructor_dropn_reuse(v,n,ctx)    (kk_basetype_dropn_reuse(&((v)->_base),n,ctx))

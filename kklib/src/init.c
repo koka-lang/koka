@@ -65,31 +65,31 @@ static void _strlcat(char* dest, const char* src, size_t kk_dest_size) {
 }
 */
 
-typedef enum log_level_e {
-  LOG_FATAL,
-  LOG_ERROR,
-  LOG_WARNING,
-  LOG_INFO,
-  LOG_DEBUG,
-  LOG_TRACE
-} log_kk_level_t;
+typedef enum kk_log_level_e {
+  KK_LOG_FATAL,
+  KK_LOG_ERROR,
+  KK_LOG_WARNING,
+  KK_LOG_INFO,
+  KK_LOG_DEBUG,
+  KK_LOG_TRACE
+} kk_log_level_t;
 
-static void log_message(log_kk_level_t level, const char* msg, kk_context_t* ctx) {
+static void log_message(kk_log_level_t level, const char* msg, kk_context_t* ctx) {
   KK_UNUSED(ctx); KK_UNUSED(level);
   fputs(msg,stderr); // TODO: use ctx->log
 }
 
-static void log_message_fmt(kk_context_t* ctx, log_kk_level_t level, const char* fmt, va_list args) {
+static void log_message_fmt(kk_context_t* ctx, kk_log_level_t level, const char* fmt, va_list args) {
   char buf[512];
   if (fmt==NULL) return;
   size_t prefix_len = 0;
   const char* prefix = NULL;
-  if (level==LOG_FATAL) prefix = "fatal: ";
-  else if (level==LOG_ERROR) prefix = "error: ";
-  else if (level==LOG_WARNING) prefix = "warning: ";
-  else if (level==LOG_INFO) prefix = "info: ";
-  else if (level==LOG_DEBUG) prefix = "debug: ";
-  else if (level==LOG_TRACE) prefix = "trace: ";
+  if (level==KK_LOG_FATAL) prefix = "fatal: ";
+  else if (level==KK_LOG_ERROR) prefix = "error: ";
+  else if (level==KK_LOG_WARNING) prefix = "warning: ";
+  else if (level==KK_LOG_INFO) prefix = "info: ";
+  else if (level==KK_LOG_DEBUG) prefix = "debug: ";
+  else if (level==KK_LOG_TRACE) prefix = "trace: ";
   if (prefix!=NULL) {
     prefix_len = strlen(prefix);
     _strlcpy(buf, prefix, sizeof(buf));
@@ -102,7 +102,7 @@ void kk_fatal_error(int err, const char* fmt, ...) {
   KK_UNUSED(err);
   va_list args;
   va_start(args, fmt);
-  log_message_fmt(kk_get_context(), LOG_FATAL, fmt, args);
+  log_message_fmt(kk_get_context(), KK_LOG_FATAL, fmt, args);
   va_end(args);
   abort();   // todo: call error handler
 }
@@ -110,7 +110,7 @@ void kk_fatal_error(int err, const char* fmt, ...) {
 void kk_warning_message(const char* fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  log_message_fmt(kk_get_context(), LOG_WARNING, fmt, args);
+  log_message_fmt(kk_get_context(), KK_LOG_WARNING, fmt, args);
   va_end(args);
 }
 
@@ -183,7 +183,7 @@ static void free_context(void) {
     kk_basetype_drop_assert(context->kk_box_any, KK_TAG_BOX_ANY, context);
     // TODO: process delayed_free
 #ifdef KK_MIMALLOC
-    // mi_kk_heap_t* heap = context->heap;
+    // mi_heap_t* heap = context->heap;
     mi_free(context);
     // mi_heap_delete(heap);
 #else
