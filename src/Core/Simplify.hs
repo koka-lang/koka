@@ -479,7 +479,7 @@ bottomUpM expr
 
 
 
-  
+-- optimization for match on ConSingle (like tuples)
 isMatchOnCon name n branch
   = case branchPatterns branch of
       [PatCon{patConName=cname,patConPatterns=pats}] 

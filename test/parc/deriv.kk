@@ -1,5 +1,4 @@
 // Adapted from: https://raw.githubusercontent.com/leanprover/lean4/IFL19/tests/bench/deriv.ml
-// TODO: Koka does not yet support multiple patterns in the parser -- so we use tuple matching instead for now :-(
 type expr {
   Val(value : int)
   Var(name : string)
@@ -13,27 +12,27 @@ fun pown(a:int, b:int) : int {
   pow(a,b)
 }
 
-fun add(n:expr,m:expr) : div expr {
-  match((n,m)) {
-    (Val(n), Val(m)) -> Val(n+m)
-    (Val(0),f)     -> f
-    (f,Val(0))     -> f
-    (f,Val(n))     -> add(Val(n),f)
-    (Val(n), Add(Val(m), f)) -> add(Val(n+m),f)
-    (f, Add(Val(n), g))      -> add(Val(n),add(f,g))
-    (Add(f, g), h)           -> add(f,add(g,h))
-    (f, g)                   -> Add(f, g)
+fun add(n0:expr,m0:expr) : div expr {
+  match((n0,m0)) {
+    (Val(n),Val(m))        -> Val(n+m)
+    (Val(0),f)             -> f
+    (f,Val(0))             -> f
+    (f,Val(n))             -> add(Val(n),f)
+    (Val(n),Add(Val(m),f)) -> add(Val(n+m),f)
+    (f,Add(Val(n),g))      -> add(Val(n),add(f,g))
+    (Add(f, g), h)         -> add(f,add(g,h))
+    (f,g)                  -> Add(f, g)
   }
 }
 
-fun mul(n:expr,m:expr) : div expr {
-  match ((n,m)) {
-    (Val(n), Val(m)) -> Val(n*m)
-    (Val(0), _)     -> Val(0)
-    (_, Val(0))     -> Val(0)
-    (Val(1), f)     -> f
-    (f, Val(1))     -> f
-    (f, Val(n))     -> mul(Val(n),f)
+fun mul(n0:expr,m0:expr) : div expr {
+  match ((n0,m0)) {
+    (Val(n), Val(m))         -> Val(n*m)
+    (Val(0), _)              -> Val(0)
+    (_, Val(0))              -> Val(0)
+    (Val(1), f)              -> f
+    (f, Val(1))              -> f
+    (f, Val(n))              -> mul(Val(n),f)
     (Val(n), Mul(Val(m), f)) -> mul(Val(n*m),f)
     (f, Mul(Val(n), g))      -> mul(Val(n),mul(f,g))
     (Mul(f, g), h)           -> mul(f,mul(g,h))
@@ -41,8 +40,8 @@ fun mul(n:expr,m:expr) : div expr {
   }
 }
 
-fun powr(m:expr,n:expr) : div expr {
-  match ((m, n)) {
+fun powr(m0:expr, n0:expr) : div expr {
+  match ((m0,n0)) {
     (Val(m), Val(n)) -> Val(pown(m,n))
     (_,  Val(0))     -> Val(1)
     (f, Val(1))      -> f
@@ -58,8 +57,8 @@ fun ln(n:expr) : expr {
   }
 }
 
-fun d(x:string, f:expr) : div expr {
-  match(f) {
+fun d(x:string, e:expr) : div expr {
+  match(e) {
     Val(_)     -> Val(0)
     Var(y)     -> if (x == y) then Val(1) else Val(0)
     Add(f, g)  -> add(d(x,f),d(x,g))
@@ -69,21 +68,21 @@ fun d(x:string, f:expr) : div expr {
   }
 }
 
-fun count(f:expr) : int {
-  match(f) {
-    Val(_) -> 1
-    Var(_) -> 1
-    Add(f, g) -> count(f) + count(g)
-    Mul(f, g) -> count(f) + count(g)
-    Pow(f, g) -> count(f) + count(g)
-    Ln(f)     -> count(f)
+fun count(e:expr) : int {
+  match(e) {
+    Val(_)   -> 1
+    Var(_)   -> 1
+    Add(f,g) -> count(f) + count(g)
+    Mul(f,g) -> count(f) + count(g)
+    Pow(f,g) -> count(f) + count(g)
+    Ln(f)    -> count(f)
   }
 }
 
 fun nest_aux(s,f,n,x) {
   if (n == 0) then x else {
-    val x = f(s - n, x) 
-    nest_aux(s,f,n - 1,x)
+    val y = f(s - n, x) 
+    nest_aux(s,f,n - 1,y)
   }
 }
 
