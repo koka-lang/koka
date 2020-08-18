@@ -11,20 +11,20 @@
 ---------------------------------------------------------------------------*/
 
 // Strong random state based on chacha20.
-typedef struct random_ctx_s {
+typedef struct kk_random_ctx_s {
   uint32_t output[16]; // current output
   uint32_t input[16];  // current state
   int32_t  used;       // how many output fields are already used?
-  bool     is_strong;  // initialized from strong random source?
-} random_ctx_t;
+  bool     kk_is_strong;  // initialized from strong random source?
+} random_kk_ctx_t;
 
-decl_export random_ctx_t* srandom_round(context_t* ctx);
+kk_decl_export random_kk_ctx_t* srandom_round(kk_context_t* ctx);
 
 // Strong random number using chacha20 (by Daniel J. Bernstein)
 // Initial randomness comes from the OS.
-static inline uint32_t srandom_uint32(context_t* ctx) {
-  random_ctx_t* rnd = ctx->srandom_ctx;
-  if (unlikely(rnd == NULL || rnd->used >= 16)) {
+static inline uint32_t srandom_uint32(kk_context_t* ctx) {
+  random_kk_ctx_t* rnd = ctx->srandom_ctx;
+  if (kk_unlikely(rnd == NULL || rnd->used >= 16)) {
     rnd = srandom_round(ctx);
   }
   uint32_t x = rnd->output[rnd->used];
@@ -32,17 +32,17 @@ static inline uint32_t srandom_uint32(context_t* ctx) {
   return x;
 }
 
-static inline integer_t srandom_int(context_t* ctx) {
-  return integer_from_int32((int32_t)srandom_uint32(ctx), ctx);
+static inline kk_integer_t srandom_int(kk_context_t* ctx) {
+  return kk_integer_from_int32((int32_t)srandom_uint32(ctx), ctx);
 }
 
-static inline uint64_t srandom_uint64(context_t* ctx) {
+static inline uint64_t srandom_uint64(kk_context_t* ctx) {
   return (((uint64_t)srandom_uint32(ctx) << 32) | srandom_uint32(ctx));
 }
 
-decl_export bool     srandom_is_strong(context_t* ctx);
-decl_export uint32_t srandom_range32(uint32_t max, context_t* ctx);  // unbiased range
-decl_export double   srandom_double(context_t* ctx);
+kk_decl_export bool     kk_srandom_is_strong(kk_context_t* ctx);
+kk_decl_export uint32_t srandom_range32(uint32_t max, kk_context_t* ctx);  // unbiased range
+kk_decl_export double   srandom_double(kk_context_t* ctx);
 
 
 #endif // include guard

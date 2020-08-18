@@ -7,60 +7,60 @@
 ---------------------------------------------------------------------------*/
 #include "kklib.h"
 
-#if !USE_NAN_BOX
+#if !KK_USE_NAN_BOX
 // Generic double allocation in the heap
-typedef struct boxed_double_s {
-  block_t _block;
+typedef struct kk_boxed_double_s {
+  kk_block_t _block;
   double  value;
-} *boxed_double_t;
+} *boxed_kk_double_t;
 
-double unbox_double_heap(box_t b, context_t* ctx) {
-  boxed_double_t dt = block_as_assert(boxed_double_t, unbox_ptr(b), TAG_DOUBLE);
+double kk_double_unbox_heap(kk_box_t b, kk_context_t* ctx) {
+  boxed_kk_double_t dt = kk_block_assert(boxed_kk_double_t, kk_ptr_unbox(b), KK_TAG_DOUBLE);
   double d = dt->value;
-  if (ctx != NULL) { drop_basetype(dt, ctx); }
+  if (ctx != NULL) { kk_basetype_drop(dt, ctx); }
   return d;
 }
 
-box_t box_double_heap(double d, context_t* ctx) {
-  boxed_double_t dt = block_alloc_as(struct boxed_double_s, 0, TAG_DOUBLE, ctx);
+kk_box_t kk_double_box_heap(double d, kk_context_t* ctx) {
+  boxed_kk_double_t dt = kk_block_alloc_as(struct kk_boxed_double_s, 0, KK_TAG_DOUBLE, ctx);
   dt->value = d;
-  return box_ptr(&dt->_block);
+  return kk_ptr_box(&dt->_block);
 }
 #endif
 
-#if (INTPTR_SIZE==8) && !USE_NAN_BOX
+#if (KK_INTPTR_SIZE==8) && !KK_USE_NAN_BOX
 
 #if defined(BOX_DOUBLE_IF_NEG)
-box_t box_double(double d, context_t* ctx) {
-  UNUSED(ctx);
+kk_box_t kk_double_box(double d, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
   int64_t i;
   memcpy(&i, &d, sizeof(i));  // safe for C aliasing
   if (i >= 0) {  // positive?
-    return box_enum((uint64_t)i);
+    return kk_enum_box((uint64_t)i);
   }
   else {
     // heap allocate
-    return box_double_heap(d, ctx);
+    return kk_double_box_heap(d, ctx);
   }
 }
 
-double unbox_double(box_t b, context_t* ctx) {
-  UNUSED(ctx);
-  if (is_value(b)) {
+double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+  if (kk_box_is_value(b)) {
     // positive double
     double d;
-    uint64_t u = shr(b.box, 1);
+    uint64_t u = kk_shr(b.box, 1);
     memcpy(&d, &u, sizeof(d)); // safe for C aliasing: see <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly>
     return d;
   }
   else {
     // heap allocated
-    return unbox_double_heap(b, ctx);
+    return kk_double_unbox_heap(b, ctx);
   }
 }
 #else
-box_t box_double(double d, context_t* ctx) {
-  UNUSED(ctx);
+kk_box_t kk_double_box(double d, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
   uint64_t u;
   memcpy(&u, &d, sizeof(u));  // safe for C aliasing
   u = bits_rotl64(u, 12);
@@ -78,16 +78,16 @@ box_t box_double(double d, context_t* ctx) {
   }
   else {
     // outside our range, heap allocate (outside [2^-510,2^512) and not 0, subnormal, NaN or Inf)
-    return box_double_heap(d, ctx);
+    return kk_double_box_heap(d, ctx);
   }
-  assert_internal(exp <= 0x3FF);
-  box_t b = { (u | (exp<<1) | 1) };
+  kk_assert_internal(exp <= 0x3FF);
+  kk_box_t b = { (u | (exp<<1) | 1) };
   return b;
 }
 
-double unbox_double(box_t b, context_t* ctx) {
-  UNUSED(ctx);
-  if (is_value(b)) {
+double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+  if (kk_box_is_value(b)) {
     // expand 10-bit exponent to 11-bits again
     uint64_t u = b.box;
     uint64_t exp = u & 0x7FF;
@@ -102,7 +102,7 @@ double unbox_double(box_t b, context_t* ctx) {
     else {
       exp += 0x200;
     }
-    assert_internal(exp <= 0x7FF);
+    kk_assert_internal(exp <= 0x7FF);
     u = bits_rotr64(u | exp, 12);
     double d;
     memcpy(&d, &u, sizeof(d)); // safe for C aliasing: see <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly>
@@ -110,48 +110,48 @@ double unbox_double(box_t b, context_t* ctx) {
   }
   else {
     // heap allocated
-    return unbox_double_heap(b, ctx);
+    return kk_double_unbox_heap(b, ctx);
   }
 }
 #endif
 
-#elif (INTPTR_SIZE==8) && USE_NAN_BOX 
+#elif (KK_INTPTR_SIZE==8) && KK_USE_NAN_BOX 
 
-static inline double unbox_double(box_t v, context_t* ctx) {
-  UNUSED(ctx);
-  assert_internal(_is_double(v) || is_box_any(v));
+static inline double kk_double_unbox(kk_box_t v, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+  kk_assert_internal(_is_double(v) || kk_box_is_any(v));
   double d;
   uint64_t u = v.box;
-  if (likely(_is_double_normal(v))) {
+  if (kk_likely(_kk_double_is_normal(v))) {
     // regular double
-    if ((int64_t)u >= 0) { u -= (U64(1) << 52); } // subtract 0x0010 0000 0000 0000 to positive doubles    
+    if ((int64_t)u >= 0) { u -= (KU64(1) << 52); } // subtract 0x0010 0000 0000 0000 to positive doubles    
     memcpy(&d, &u, sizeof(d)); // safe for C aliasing: see <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly>
-    assert_internal(isfinite(d));
+    kk_assert_internal(isfinite(d));
   }
   else {
     // NaN or infinity
-    assert_internal(_is_double_special(v) || is_box_any(v));
+    kk_assert_internal(kk__is_double_special(v) || kk_box_is_any(v));
     u = (v.box^1) | ((v.box >> 1) & 1);  // invert:  v.box = u | 1 | ((u & 1) << 1);    
-    u |= (U64(0x7FF) << 52);             // restore exponent to 0x7FF (only needed for positive u but this avoids an if)
+    u |= (KU64(0x7FF) << 52);             // restore exponent to 0x7FF (only needed for positive u but this avoids an if)
     memcpy(&d, &u, sizeof(d)); // safe for C aliasing
-    assert_internal(!isfinite(d));
+    kk_assert_internal(!isfinite(d));
   }
   return d;
 }
 
 
-static inline box_t box_double(double d, context_t* ctx) {
-  UNUSED(ctx);
+static inline kk_box_t kk_double_box(double d, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
   uint64_t u;
-  box_t v;
+  kk_box_t v;
   memcpy(&u, &d, sizeof(u));  // safe for C aliasing
   uint64_t exp = (u >> 52) & 0x7FF;
-  if (likely(exp != 0x7FF)) {
+  if (kk_likely(exp != 0x7FF)) {
     // finite double
-    if ((int64_t)u >= 0) { u += (U64(1) << 52); }  // add 0x0010 0000 0000 0000 to positive doubles (use signbit to encode -0.0 properly)
+    if ((int64_t)u >= 0) { u += (KU64(1) << 52); }  // add 0x0010 0000 0000 0000 to positive doubles (use signbit to encode -0.0 properly)
     v.box = u;
-    assert_internal(_is_double_normal(v));
-    assert_internal(unbox_double(v, ctx) == d);
+    kk_assert_internal(_kk_double_is_normal(v));
+    kk_assert_internal(kk_double_unbox(v, ctx) == d);
   }
   else {
     // NaN or infinity
@@ -159,15 +159,15 @@ static inline box_t box_double(double d, context_t* ctx) {
       u = ((u << 12) >> 12);  // clear upper 12 bits if >= 0, (so upper the 12 bits are either 0xFFF or 0x000)
     }
     v.box = u | 1 | ((u & 1) << 1);  // merge bit 0 with bit 1 (to avoid non-zero NaN payload on unbox)
-    assert_internal(!_is_double_normal(v) && _is_double_special(v));
+    kk_assert_internal(!_kk_double_is_normal(v) && kk__is_double_special(v));
 #if (DEBUG>=3)
-    double dx = unbox_double(v, ctx);
+    double dx = kk_double_unbox(v, ctx);
     uint64_t ux;
     memcpy(&ux, &dx, sizeof(double));
-    assert_internal(u == ux);  // (may fail due to bits 2-3 of a NaN payload)
+    kk_assert_internal(u == ux);  // (may fail due to bits 2-3 of a NaN payload)
 #endif
   }
-  assert_internal(_is_double(v));
+  kk_assert_internal(_is_double(v));
   return v;
 }
 

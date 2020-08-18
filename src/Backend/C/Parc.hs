@@ -585,7 +585,7 @@ genIsUnique tname
 genFree :: TName -> Parc (Maybe Expr)
 genFree tname
   = return $ Just $
-      App (Var (TName nameFree funTp) (InfoExternal [(C, "runtime_free(#1)")]))
+      App (Var (TName nameFree funTp) (InfoExternal [(C, "kk_free(#1)")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
 
@@ -605,14 +605,14 @@ genDecRef tname
 -- Generate a reuse free of a constructor
 genFreeReuse :: TName -> Expr
 genFreeReuse tname
-  = App (Var (TName nameFreeReuse funTp) (InfoExternal [(C, "free_reuse(#1)")]))
+  = App (Var (TName nameFreeReuse funTp) (InfoExternal [(C, "kk_reuse_free(#1)")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeReuse
 
 -- Get a null token for reuse inlining
 genReuseNull :: Expr
 genReuseNull
-  = App (Var (TName nameReuseNull funTp) (InfoExternal [(C, "reuse_null")])) []
+  = App (Var (TName nameReuseNull funTp) (InfoExternal [(C, "kk_reuse_null")])) []
   where funTp = TFun [] typeTotal typeReuse
 
 

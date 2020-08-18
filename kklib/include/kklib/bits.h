@@ -25,10 +25,10 @@
 #endif
 
 
-#if (INTX_SIZE==4)
-#define _bitsx(name)  bits_##name##32
+#if (KK_INTX_SIZE==4)
+#define kk_bitsx(name)  bits_##name##32
 #else
-#define _bitsx(name)  bits_##name##64
+#define kk_bitsx(name)  bits_##name##64
 #endif
 
 /* -----------------------------------------------------------
@@ -45,7 +45,7 @@ static inline bool bits_is_power_of2_64(uint64_t x) {
   return _bits_is_power_of2(x);
 }
 
-static inline bool bits_is_power_of2(uintx_t x) {
+static inline bool bits_is_power_of2(kk_uintx_t x) {
   return _bits_is_power_of2(x);
 }
 
@@ -94,12 +94,12 @@ static inline uint64_t bits_rotr64(uint64_t x, uint64_t shift) {
 }
 #endif
 
-static inline uintx_t bits_rotl(uintx_t x, uintx_t shift) {
-  return _bitsx(rotl)(x, shift);
+static inline kk_uintx_t bits_rotl(kk_uintx_t x, kk_uintx_t shift) {
+  return kk_bitsx(rotl)(x, shift);
 }
 
-static inline uintx_t bits_rotr(uintx_t x, uintx_t shift) {
-  return _bitsx(rotr)(x, shift);
+static inline kk_uintx_t bits_rotr(kk_uintx_t x, kk_uintx_t shift) {
+  return kk_bitsx(rotr)(x, shift);
 }
 
 
@@ -120,7 +120,7 @@ static inline uint8_t bits_clz32(uint32_t x) {
 static inline uint8_t bits_ctz32(uint32_t x) {
   return (x==0 ? 32 : __builtin32(ctz)(x));
 }
-#if (INTPTR_SIZE >= 8)
+#if (KK_INTPTR_SIZE >= 8)
 #define HAS_BITS_CLZ64
 static inline uint8_t bits_clz64(uint64_t x) {
   return (x==0 ? 64 : __builtin64(clz)(x));
@@ -151,7 +151,7 @@ static inline uint8_t bits_ctz32(uint32_t x) {
   unsigned long idx;
   return (_BitScanForward(&idx, x) ? (uint8_t)idx : 32);
 }
-#if (INTPTR_SIZE >= 8)
+#if (KK_INTPTR_SIZE >= 8)
 #define HAS_BITS_CLZ64
 static inline uint8_t bits_clz64(uint64_t x) {
   #if !defined(__clang__) && (defined(_M_X64) || defined(_M_IX86))
@@ -176,7 +176,7 @@ static inline uint8_t bits_ctz32(uint32_t x) {
     0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
     31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9
   };
-  return debruijn[((x & -(int32_t)x) * U32(0x077CB531)) >> 27];
+  return debruijn[((x & -(int32_t)x) * KU32(0x077CB531)) >> 27];
 }
 
 static inline uint8_t bits_clz32(uint32_t x) {
@@ -191,7 +191,7 @@ static inline uint8_t bits_clz32(uint32_t x) {
   x |= x >> 4;
   x |= x >> 8;
   x |= x >> 16;
-  return debruijn[(uint32_t)(x * U32(0x07C4ACDD)) >> 27];
+  return debruijn[(uint32_t)(x * KU32(0x07C4ACDD)) >> 27];
 }
 #endif
 
@@ -209,11 +209,11 @@ static inline uint8_t bits_ctz64(uint64_t x) {
 }
 #endif
 
-static inline uint8_t bits_clz(uintx_t x) {
-  return _bitsx(clz)(x);
+static inline uint8_t bits_clz(kk_uintx_t x) {
+  return kk_bitsx(clz)(x);
 }
-static inline uint8_t bits_ctz(uintx_t x) {
-  return _bitsx(ctz)(x);
+static inline uint8_t bits_ctz(kk_uintx_t x) {
+  return kk_bitsx(ctz)(x);
 }
 
 /* -----------------------------------------------------------
@@ -224,9 +224,9 @@ static inline uint8_t bits_ctz(uintx_t x) {
   - Sum of bytes
 ----------------------------------------------------------- */
 
-#define bits_one_mask32     U32(0x01010101)
-#define bits_one_mask64     U64(0x0101010101010101)
-#define bits_one_mask       ((~(UX(0)))/0xFF)         // 0x01010101 ...
+#define bits_one_mask32     KU32(0x01010101)
+#define bits_one_mask64     KU64(0x0101010101010101)
+#define bits_one_mask       ((~(KUX(0)))/0xFF)         // 0x01010101 ...
 
 #define bits_high_mask32    (bits_one_mask32<<7)      // 0x80808080
 #define bits_high_mask64    (bits_one_mask64<<7)      // 0x8080808080808080
@@ -241,8 +241,8 @@ static inline bool bits_has_zero_byte64(uint64_t x) {
 }
 
 // Does `x` contain a zero byte?
-static inline bool bits_has_zero_byte(uintx_t x) {
-  return _bitsx(has_zero_byte)(x);
+static inline bool bits_has_zero_byte(kk_uintx_t x) {
+  return kk_bitsx(has_zero_byte)(x);
 }
 
 // is there any byte in `x` equal to `n`?
@@ -265,8 +265,8 @@ static inline bool bits_has_byte64(uint64_t x, uint8_t n) {
 }
 
 // is there any byte in `x` equal to `n`?
-static inline bool bits_has_byte(uintx_t x, uint8_t n) {
-  return _bitsx(has_byte)(x,n);
+static inline bool bits_has_byte(kk_uintx_t x, uint8_t n) {
+  return kk_bitsx(has_byte)(x,n);
 }
 
 
@@ -288,8 +288,8 @@ static inline uint8_t bits_byte_sum64(uint64_t x) {
 }
 
 // sum of all the bytes in `x` if it is guaranteed that the sum < 256!
-static inline uint8_t bits_byte_sum(uintx_t x) {
-  return _bitsx(byte_sum)(x);
+static inline uint8_t kk_bits_byte_sum(kk_uintx_t x) {
+  return kk_bitsx(byte_sum)(x);
 }
 
 
@@ -299,16 +299,16 @@ static inline uint8_t bits_byte_sum(uintx_t x) {
 ------------------------------------------------------------------ */
 
 static inline uint32_t bits_generic_count32(uint32_t x) {
-  x = x - ((x >> 1) & U32(0x55555555));
-  x = (x & U32(0x33333333)) + ((x >> 2) & U32(0x33333333));
-  x = (x + (x >> 4)) & U32(0x0F0F0F0F);
+  x = x - ((x >> 1) & KU32(0x55555555));
+  x = (x & KU32(0x33333333)) + ((x >> 2) & KU32(0x33333333));
+  x = (x + (x >> 4)) & KU32(0x0F0F0F0F);
   return bits_byte_sum32(x);
 }
 
 static inline uint64_t bits_generic_count64(uint64_t x) {
-  x = x - ((x >> 1) & U64(0x5555555555555555));
-  x = (x & U64(0x3333333333333333)) + ((x >> 2) & U64(0x3333333333333333));
-  x = (x + (x >> 4)) & U64(0x0F0F0F0F0F0F0F0F);
+  x = x - ((x >> 1) & KU64(0x5555555555555555));
+  x = (x & KU64(0x3333333333333333)) + ((x >> 2) & KU64(0x3333333333333333));
+  x = (x + (x >> 4)) & KU64(0x0F0F0F0F0F0F0F0F);
   return bits_byte_sum64(x);
 }
 
@@ -320,7 +320,7 @@ static inline uint32_t bits_count32(uint32_t x) {
   if (__has_popcnt) return __popcnt(x);
   return bits_generic_count32(x);
 }
-#if (INTPTR_SIZE >= 8)
+#if (KK_INTPTR_SIZE >= 8)
 #define HAS_BITS_COUNT64
 static inline uint64_t bits_count64(uint64_t x) {
   if (__has_popcnt) return __popcnt64(x);
@@ -332,7 +332,7 @@ static inline uint64_t bits_count64(uint64_t x) {
 static inline uint32_t bits_count32(uint32_t x) {
   return __builtin32(popcount)(x);
 }
-#if (INTPTR_SIZE >= 8)
+#if (KK_INTPTR_SIZE >= 8)
 #define HAS_BITS_COUNT64
 static inline uint64_t bits_count64(uint64_t x) {
   return __builtin64(popcount)(x);
@@ -357,8 +357,8 @@ static inline uint64_t bits_count64(uint64_t x) {
 }
 #endif
 
-static inline uintx_t bits_count(uintx_t x) {
-  return _bitsx(count)(x);
+static inline kk_uintx_t bits_count(kk_uintx_t x) {
+  return kk_bitsx(count)(x);
 }
 
 
@@ -437,8 +437,8 @@ static inline uint8_t bits_count_is_even64(uint64_t x) {
 }
 #endif
 
-static inline uint8_t bits_count_is_even(uintx_t x) {
-  return _bitsx(count_is_even)(x);
+static inline uint8_t bits_count_is_even(kk_uintx_t x) {
+  return kk_bitsx(count_is_even)(x);
 }
 
 /* ---------------------------------------------------------------
@@ -447,8 +447,8 @@ static inline uint8_t bits_count_is_even(uintx_t x) {
 uint8_t bits_digits32(uint32_t x);
 uint8_t bits_digits64(uint64_t x);
 
-static inline uint8_t bits_digits(uintx_t x) {
-  return _bitsx(digits)(x);
+static inline uint8_t bits_digits(kk_uintx_t x) {
+  return kk_bitsx(digits)(x);
 }
 
 

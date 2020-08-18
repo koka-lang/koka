@@ -919,14 +919,14 @@ fun compare( x : char, y : char ) : order
 // Convert a character to its unicode code point
 extern inline int : (char) -> int {
   inline "#1"
-  c "integer_from_int"
+  c "kk_integer_from_int"
   cs inline "new BigInteger(#1)"
 }
 
 // Convert a unicode code point to a character
 extern inline char : (int) -> char {
   inline "(#1)";
-  c "integer_clamp32"
+  c "kk_integer_clamp32"
   cs inline "Primitive.IntToInt32(#1)"
 }
 
@@ -985,7 +985,7 @@ fun maybe( b : bool ) : maybe<()> {
 
 // Compare two integers
 extern inline compare : (int,int) -> order  {
-  c inline "int_as_order(integer_cmp(#1,#2,current_context()),current_context())"
+  c inline "kk_int_as_order(kk_integer_cmp(#1,#2,kk_context()),kk_context())"
   cs "Primitive.IntCompare"
   js "$std_core._int_compare"
 }
@@ -993,76 +993,76 @@ extern inline compare : (int,int) -> order  {
 
 // Are two integers equal?
 extern inline (==) : (int,int) -> bool  {
-  c  "integer_eq"
+  c  "kk_integer_eq"
   cs inline "(#1 == #2)"
   js "$std_core._int_eq"
 }
 
 // Are two integers not equal?
 extern inline (!=) : (int,int) -> bool  {
-  c  "integer_neq"
+  c  "kk_integer_neq"
   cs inline "(#1 != #2)"
   js "$std_core._int_ne"
 }
 
 // Is the first integer smaller or equal to the second?
 extern inline (<=) : (int,int) -> bool  {
-  c  "integer_lte"
+  c  "kk_integer_lte"
   cs inline "(#1 <= #2)"
   js "$std_core._int_le"
 }
 
 // Is the first integer greater or equal to the second?
 extern inline (>=) : (int,int) -> bool  {
-  c  "integer_gte"
+  c  "kk_integer_gte"
   cs inline "(#1 >= #2)"
   js "$std_core._int_ge"
 }
 
 // Is the first integer smaller than the second?
 extern inline (<)  : (int,int) -> bool  {
-  c  "integer_lt"
+  c  "kk_integer_lt"
   cs inline "(#1 < #2)"
   js "$std_core._int_lt"
 }
 
 // Is the first integer greater than the second?
 extern inline (>)  : (int,int) -> bool  {
-  c  "integer_gt"
+  c  "kk_integer_gt"
   cs inline "(#1 > #2)"
   js "$std_core._int_gt"
 }
 
 // Add two integers.
 extern inline (+) : (int,int) -> int {
-  c  "integer_add"
+  c  "kk_integer_add"
   cs inline "(#1 + #2)"
   js "$std_core._int_add"
 }
 
 // Substract two integers.
 extern inline (-) : (int,int) -> int {
-  c  "integer_sub"
+  c  "kk_integer_sub"
   cs inline "(#1 - #2)"
   js "$std_core._int_sub"
 }
 
 // Multiply two integers.
 extern inline (*) : (int,int) -> int {
-  c  "integer_mul"
+  c  "kk_integer_mul"
   cs inline "(#1 * #2)"
   js "$std_core._int_mul"
 }
 
 // Euclidean-0 division of two integers. See also `divmod:(x : int, y : int) -> (int,int)`.
 extern inline (/)(x:int,y:int) : int {
-  c  "integer_div"
+  c  "kk_integer_div"
   cs "Primitive.IntDiv"
   js "$std_core._int_div"
 }
 // Euclidean modulus of two integers; always a non-negative number. See also `divmod:(x : int, y : int) -> (int,int)`.
 extern inline (%)  : (int,int) -> int {
-  c  "integer_mod"
+  c  "kk_integer_mod"
   cs "Primitive.IntMod"
   js "$std_core._int_mod"
 }
@@ -1086,7 +1086,7 @@ extern inline (%)  : (int,int) -> int {
 // See also _Division and modulus for computer scientists, Daan Leijen, 2001_ for further information
 // available at: <http://research.microsoft.com/pubs/151917/divmodnote.pdf> .
 extern inline divmod(x:int,y:int) : (int,int) {
-  c "integer_divmod"
+  c "kk_integer_divmod"
   cs "Primitive.IntDivMod"
   js "$std_core._int_divmod"
 }
@@ -1097,28 +1097,28 @@ fun negate(i : int) : int {
 
 // Negate an integer.
 extern inline (~)(i:int) : int {
-  c  "integer_neg"
+  c  "kk_integer_neg"
   cs inline "(-#1)"
   js "$std_core._int_negate"
 }
 
 // Convert an integer to a `:double`. May return `nan` if the integer is too large to represent as a `:double`.
 extern inline double : (int) -> double  {
-  c  "integer_as_double"
+  c  "kk_integer_as_double"
   cs "Primitive.IntToDouble"
   js "$std_core._int_to_double"
 }
 
 // Is this an odd integer?
 extern inline odd?   : ( int ) -> bool  {
-  c  "integer_is_odd"
+  c  "kk_integer_is_odd"
   cs inline "!(#1.IsEven)"
   js "$std_core._int_isodd"
 }
 
 // Is this equal to zero?
 extern inline zero?  : ( int ) -> bool  {
-  c  "integer_is_zero"
+  c  "kk_integer_is_zero"
   cs inline "(#1.IsZero)"
   js "$std_core._int_iszero"
 }
@@ -1126,7 +1126,7 @@ extern inline zero?  : ( int ) -> bool  {
 
 // Return the absolute value of an integer.
 extern inline abs(i : int) : int {
-  c  "integer_abs"
+  c  "kk_integer_abs"
   cs "BigInteger.Abs"
   js "$std_core._int_abs"
 }
@@ -1146,7 +1146,7 @@ fun exp10( exp : int ) : int {
 
 // Raise an integer `i` to the power of `exp`.
 extern pow( i : int, exp : int ) : int {
-  c  "integer_pow"
+  c  "kk_integer_pow"
 	cs "Primitive.IntPow"
 	js "_int_pow"
 }
@@ -1163,26 +1163,26 @@ fun exp2( exp : int ) : int {
 
 // Return the number of ending `0` digits of `i`. Return `0` when `i==0`.
 extern exp10?( i : int ) : int {
-  c  "integer_ctz"
+  c  "kk_integer_ctz"
   cs "Primitive.IntCountPow10"
   js "_int_count_pow10"
 }
 
 // Return the number of decimal digits of `i`. Return `0` when `i==0`.
 extern count-digits( i : int ) : int {
-  c  "integer_count_digits"
+  c  "kk_integer_count_digits"
   cs "Primitive.IntCountDigits"
   js "_int_count_digits"
 }
 
 extern mul-exp10( i : int, n : int ) : int {
-  c  "integer_mul_pow10"
+  c  "kk_integer_mul_pow10"
   cs "Primitive.IntMulPow10"
   js "_int_mul_pow10"
 }
 
 extern cdiv-exp10( i : int, n : int ) : int {
-  c  "integer_div_pow10"
+  c  "kk_integer_div_pow10"
   cs "Primitive.IntCDivPow10"
   js "_int_cdiv_pow10"
 }
@@ -1209,7 +1209,7 @@ fun pos?(i : int ) : bool { i.sign == Gt }
 fun neg?(i : int ) : bool { i.sign == Lt }
 
 extern inline sign(i : int ) : order {
-  c  inline "int_as_order(integer_signum(#1,current_context()),current_context())"
+  c  inline "kk_int_as_order(kk_integer_signum(#1,kk_context()),kk_context())"
   cs "Primitive.IntSign"
   js "$std_core._int_sign"
 }
@@ -1263,7 +1263,7 @@ fun fold-int( start : int, end : int, init : a, f : (int,a) -> a ) : a {
 
 // Convert an `:int32` to an `:int`.
 extern inline int( i : int32 ) : int {
-  c  "integer_from_int"
+  c  "kk_integer_from_int"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_double"
 }
@@ -1271,7 +1271,7 @@ extern inline int( i : int32 ) : int {
 // Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
 // value if it is outside the range of an `:int32`.
 extern int32  : (int) -> int32   {
-  c  "integer_clamp32"
+  c  "kk_integer_clamp32"
   cs "Primitive.IntToInt32"
   js "$std_core._int_to_int32"
 }
@@ -1313,7 +1313,7 @@ fun parse-int( s : string, hex : bool = False) : maybe<int> {
 }
 
 private extern xparse-int( s : string, hex : bool ) : maybe<int> {
-  c  "integer_xparse"
+  c  "kk_integer_xparse"
   cs "Primitive.IntParse"
   js "_int_parse"
 }
@@ -1373,7 +1373,7 @@ extern inline (~)(d : double ) : double {
 // (rounding to an even number on a tie)
 // Returns `0` if the argument is not `finite?`.
 extern inline int(d : double ) : int {
-  c  "integer_from_double"
+  c  "kk_integer_from_double"
   cs "Primitive.IntDouble"
   js "$std_core._int_double"
 }
@@ -1388,7 +1388,7 @@ extern inline (^) : (d:double,p:double) -> double {
 
 // Return the absolute value of a `:double` `d`
 extern inline abs : (d:double) -> double  {
-  c inline "double_abs(#1)"
+  c inline "kk_double_abs(#1)"
   cs "Math.Abs"
   js "Math.abs"
 }
@@ -1439,21 +1439,21 @@ fun ".new-sslice"( str :string, start: int32, len : int32 ) {
 
 // Convert a character to a string
 external string : ( c : char ) -> string  {
-  c  "string_from_char"
+  c  "kk_string_from_char"
   cs inline "Primitive.CharToString(#1)";
   js inline "_char_to_string(#1)"
 }
 
 // Convert a vector of characters to a string.
 extern string : (vector<char>) -> string {
-  c  "string_from_chars"
+  c  "kk_string_from_chars"
   cs inline "Primitive.CharsToString(#1)";
   js inline "_chars_to_string(#1)"
 }
 
 // Convert a string to a vector of characters.
 extern vector : ( s : string ) -> vector<char> {
-  c  "string_to_chars"
+  c  "kk_string_to_chars"
   cs inline "Primitive.StringToChars(#1)";
   js inline "_string_to_chars(#1)"
 }
@@ -1461,14 +1461,14 @@ extern vector : ( s : string ) -> vector<char> {
 
 // Convert a string to a list of characters
 extern list( s : string ) : total list<char> {
-  c  "string_to_list"
+  c  "kk_string_to_list"
   cs inline "Primitive.StringToList(#1)"
   js inline "_string_to_list(#1)"
 }
 
 // Convert a list of characters to a string
 extern string( cs : list<char> ) : total string {
-  c  "string_from_list"
+  c  "kk_string_from_list"
   cs inline "Primitive.ListToString(#1)"
   js inline "_list_to_string(#1)"
 }
@@ -1477,21 +1477,21 @@ extern string( cs : list<char> ) : total string {
 // Are two strings equal?
 // Uses exact equality between character codes.
 extern inline (==) : (string,string) -> bool {
-  c  "string_is_eq"
+  c  "kk_string_is_eq"
   cs inline "(#1 == #2)"
   js inline "(#1 === #2)"
 }
 
 // Are two strings not equal?
 extern inline (!=) : (string,string) -> bool {
-  c  "string_is_neq"
+  c  "kk_string_is_neq"
   inline "(#1 != #2)"
   js inline "(#1 !== #2)"
 }
 
 private extern string-compare : ( x : string, y : string ) -> int
 {
-  c  "string_cmp_int"
+  c  "kk_string_cmp_int"
   cs inline "String.Compare(#1,#2)"
   js inline "(#1===#2 ? 0 : (#1 > #2 ? 1 : -1))"
 }
@@ -1510,7 +1510,7 @@ fun (<)( x : string, y : string ) : bool  { compare(x,y) == Lt }
 
 // Append two strings.
 extern (+)(x : string, y : string) : string {
-  c "string_cat"
+  c "kk_string_cat"
   inline "(#1 + #2)"
 }
 
@@ -1521,33 +1521,33 @@ fun (||)( x : string, y : string ) : string {
 
 // Length returns the length in the platform specific encoding (and should not be exported)
 private extern inline length( s : string ) : int32 {
-  c inline "((int32_t)string_len(#1,current_context()))"
+  c inline "((int32_t)kk_string_len(#1,kk_context()))"
   cs inline "#1.Length"
   js inline "#1.length"
 }
 
 // O(n). Return the number of characters in a string.
 extern count( s : string ) : int {
-  c  "string_count_int"
+  c  "kk_string_count_int"
   cs "Primitive.StringCount"
   js "_string_count"
 }
 
 // O(n). Return the number of characters in a string slice
 extern count( slice : sslice ) : int {
-  c  "slice_count"
+  c  "kk_slice_count"
   cs "Primitive.SliceCount"
   js "_sslice_count"
 }
 
 private extern first1(s : string ) : sslice {
-  c  "slice_first"
+  c  "kk_slice_first"
   cs "Primitive.SliceFirst"
   js "_sslice_first"
 }
 
 private extern last1(s : string ) : sslice {
-  c  "slice_last"
+  c  "kk_slice_last"
   cs "Primitive.SliceLast"
   js "_sslice_last"
 }
@@ -1595,7 +1595,7 @@ fun tail( s : string ) : string {
 
 // Return the common prefix of two strings (upto `upto` characters (default is minimum length of the two strings))
 extern common-prefix(s : string, t : string, upto : int = -1 ) : sslice {
-  c  "slice_common_prefix"
+  c  "kk_slice_common_prefix"
   cs "Primitive.SliceCommonPrefix"
   js "_sslice_common_prefix"
 }
@@ -1614,7 +1614,7 @@ extern common-prefix(s : string, t : string, upto : int = -1 ) : sslice {
 // * `"abc".last.advance(-1).string == "b"`.
 //
 public extern advance( slice : sslice, count : int ) : sslice {
-  c  "slice_advance"
+  c  "kk_slice_advance"
   cs "Primitive.SliceAdvance"
   js "_sslice_advance"
 }
@@ -1627,7 +1627,7 @@ public extern advance( slice : sslice, count : int ) : sslice {
 // * `"abc".last.extend(-1).string == ""`
 //
 extern extend( slice : sslice, count : int ) : sslice {
-  c  "slice_extend"
+  c  "kk_slice_extend"
   cs "Primitive.SliceExtend"
   js "_sslice_extend"
 }
@@ -1650,7 +1650,7 @@ fun after(slice : sslice) : sslice {
 // O(n). Copy the `slice` argument into a fresh string.
 // Takes O(1) time if the slice covers the entire string.
 extern string( slice : sslice ) : string {
-  c  "slice_to_string"
+  c  "kk_slice_to_string"
   cs "Primitive.SliceToString"
   js "_slice_to_string"
 }
@@ -1658,7 +1658,7 @@ extern string( slice : sslice ) : string {
 // If the slice is not empty,
 // return the first character, and a new slice that is advanced by 1.
 extern next( slice : sslice ) : maybe<(char,sslice)> {
-  c  "slice_next"
+  c  "kk_slice_next"
   cs "Primitive.SliceNext"
   js "_sslice_next"
 }
@@ -1685,7 +1685,7 @@ fun foreach( slice : sslice, action : (c:char) -> e ()) : e () {
 
 // Does string `s`  contain the string `sub`  ?
 private extern inline xindex-of(s : string, sub : string ) : int32 {
-  c inline "(int32_t)(string_index_of(#1,#2,current_context()))"
+  c inline "(int32_t)(kk_string_index_of(#1,#2,kk_context()))"
   cs inline "((#1).IndexOf(#2))";
   js inline "((#1).indexOf(#2))";
 }
@@ -1699,7 +1699,7 @@ fun find( s : string, sub : string ) : maybe<sslice> {
 
 // Does string `s`  contain the string `sub`  ?
 private extern inline xlast-index-of(s : string, sub : string ) : int32 {
-  c inline "(int32_t)(string_last_index_of(#1,#2,current_context()))"
+  c inline "(int32_t)(kk_string_last_index_of(#1,#2,kk_context()))"
   cs inline "(#1.LastIndexOf(#2))";
   js inline "((#1).lastIndexOf(#2))";
 }
@@ -1711,7 +1711,7 @@ fun find-last( s : string, sub : string ) : maybe<sslice> {
 }
 
 private extern inline xstarts-with: (s : string, pre : string ) -> bool {
-  c  "string_starts_with"
+  c  "kk_string_starts_with"
   cs inline "#1.StartsWith(#2)";
   js inline "(#1.substr(0,#2.length) === #2)"
 }
@@ -1727,7 +1727,7 @@ fun starts-with( s : string, pre : string ) : maybe<sslice> {
 
 
 private extern xends-with: (s : string, post : string ) -> bool {
-  c  "string_ends_with"
+  c  "kk_string_ends_with"
   cs inline "#1.EndsWith(#2)";
   js inline "((#1).indexOf(#2, (#1).length - (#2).length) !== -1)"
 }
@@ -1742,21 +1742,21 @@ fun ends-with( s : string, post : string ) : maybe<sslice> {
 
 // Does string `s`  contain the string `sub`  ?
 extern inline contains: (s : string, sub : string ) -> bool {
-  c  "string_contains"
+  c  "kk_string_contains"
   cs inline "((#1).Contains(#2))";
   js inline "((#1).indexOf(#2) >= 0)"
 }
 
 // Concatenate a vector of strings
 extern inline join: (v : vector<string> ) -> string {
-  c  "string_join"
+  c  "kk_string_join"
   cs "String.Concat";
   js inline "((#1).join(''))"
 }
 
 // Concatenate a vector of strings with a separator `sep`
 extern inline join: (v : vector<string>, sep : string ) -> total string {
-  c  "string_join_with"
+  c  "kk_string_join_with"
   cs "Primitive.Concat";
   js inline "((#1).join(#2))"
 }
@@ -1790,7 +1790,7 @@ fun repeat( s : string, n : int ) : string {
 }
 
 private extern repeat32( s : string, n : int32 ) : string {
-  c  "string_repeat32"
+  c  "kk_string_repeat32"
   cs "Primitive.Repeat"
   js "_string_repeat"
 }
@@ -1820,13 +1820,13 @@ fun maybe( s : string ) : maybe<string> {
 
 
 private extern inline splitv : ( s : string,  sep : string ) -> vector<string> {
-  c  "string_splitv"
+  c  "kk_string_splitv"
   cs inline "(#1.Split(new String[]{#2}, StringSplitOptions.None))";
   js inline "((#1).split(#2))"
 }
 
 private extern inline splitv : ( s : string,  sep : string, n : int32 ) -> vector<string> {
-  c  "string_splitv_atmost"
+  c  "kk_string_splitv_atmost"
   cs inline "#1.Split(new String[]{#2},#3, StringSplitOptions.None)";
   js inline "(#1).split(#2, #3)"
 }
@@ -1845,14 +1845,14 @@ fun split( s : string, sep: string, n : int) : list<string> {
 
 // Replace every occurrence of `pattern` to `repl` in a string.
 public extern inline replace-all( s : string, pattern : string, repl : string ) : string {
-  c  "string_replace_all"
+  c  "kk_string_replace_all"
   cs inline "(#1).Replace(#2,#3)";
   js inline @"(#1).replace(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'),#3)";
 }
 
 // Count occurences of `pattern` in a string.
 public extern inline count( s : string, pattern : string ) : int {
-  c  "string_count_pattern"
+  c  "kk_string_count_pattern"
   cs inline "Primitive.Count(#1,#2)";
   js inline @"((#2) ? ((#1).match(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'))||[]).length : 0)";
 }
@@ -1906,14 +1906,14 @@ fun unlines( xs : list<string> ) : string {
 
 // Convert a string to upper-case
 extern to-upper : (s : string) -> string {
-  c "string_to_upper"
+  c "kk_string_to_upper"
   cs inline "(#1).ToUpper()"
   js inline "(#1).toUpperCase()"
 }
 
 // Convert a string to lower-case
 extern to-lower : (s : string) -> string {
-  c "string_to_lower"
+  c "kk_string_to_lower"
   cs inline "(#1).ToLower()"
   js inline "(#1).toLowerCase()"
 }
@@ -1950,14 +1950,14 @@ fun trim( s : string ) : string {
 
 // Trim the starting white space of a string
 extern inline trim-left( s : string ) : string {
-  c  "string_trim_left"
+  c  "kk_string_trim_left"
   cs inline "(#1).TrimStart()"
   js inline "((#1).replace(/^\\s\\s*/,''))"
 }
 
 // Trim the ending white space of a string.
 extern inline trim-right( s : string ) : string {
-  c  "string_trim_right"
+  c  "kk_string_trim_right"
   cs inline "(#1).TrimEnd()"
   js inline "((#1).replace(/\\s+$/,''))"
 }
@@ -1970,26 +1970,26 @@ extern inline trim-right( s : string ) : string {
 
 // Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
 private extern inline unsafe-idx : forall<a> ( v : vector<a>, index : int32 ) -> total a {
-  c "vector_at32"
+  c "kk_vector_at32"
   cs inline "(#1)[#2]";
   js inline "(#1)[#2]";
 }
 
 private extern inline unsafe-assign : forall<a> ( v : vector<a>, i : int32, x : a ) -> total () {
-  c "vector_unsafe_assign32"
+  c "kk_vector_unsafe_assign32"
   cs inline "(#1)[#2] = #3";
   js inline "(#1)[#2] = #3";
 }
 
 private extern inline unsafe-vector : forall<a> ( n : int32 ) -> total vector<a> {
-  c "vector_alloc32"
+  c "kk_vector_alloc32"
   cs inline "(new ##1[#1])"
   js inline "Array(#1)"
 }
 
 // Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
 extern inline [] : forall<a> ( v : vector<a>, index : int ) -> exn a  {
-  c "vector_at_int"
+  c "kk_vector_at_int"
   cs inline "(#1)[Primitive.IntToInt32(#2)]"
   js inline "$std_core._vector_at(#1,#2)"
 }
@@ -2006,7 +2006,7 @@ fun length( v : vector<a> ) : int {
 }
 
 private extern inline length32 : forall<a> (v : vector<a> ) -> int32  {
-  c  inline "((int32_t)vector_len(#1))"
+  c  inline "((int32_t)kk_vector_len(#1))"
   cs inline "((#1).Length)";
   js inline "((#1).length)";
 }
@@ -2023,13 +2023,14 @@ fun vector-init( n : int, f : int -> a ) : vector<a> {
 
 // Create a new vector of length `n`  with initial elements given by function `f` .
 private extern vector-init32(n : int32, f : int32 -> a) : vector<a> {
-  c "vector_init32"
+  c "kk_vector_init32"
   cs inline "Primitive.NewArray<##1>(#1,#2)"
   js inline "_vector(#1,#2)"
 }
 
 // Create an empty vector.
 extern inline vector : forall<a> () -> vector<a> {
+  c inline "kk_vector_empty()"
   cs inline "new ##1[0]"
   js inline "[]"
 }
@@ -2074,7 +2075,7 @@ fun list( v : vector<a> ) : list<a> {
 
 // Convert a vector to a list with an optional tail.
 extern vlist( v : vector<a>, tail : list<a> = [] ) : list<a> {
-  c  "vector_to_list"
+  c  "kk_vector_to_list"
   cs inline "Primitive.VList<##1>(#1,#2)"
   js inline "_vlist(#1,#2)"
 }
@@ -2085,7 +2086,7 @@ fun vector( xs : list<a> ) : vector<a> {
 }
   
 extern unvlist( xs : list<a> ) : vector<a> {
-  c  "list_to_vector"
+  c  "kk_list_to_vector"
   cs inline "Primitive.UnVList<##1>(#1)"
   js inline "_unvlist(#1)"
 }
@@ -2135,21 +2136,21 @@ fun force( delayed : delayed<e,a> ) : e a {
 // Generic show: shows the internal representation of an object as a string
 // Note: this breaks parametricity so it should not be public
 private extern gshow : forall<a> a -> string {
-  c "show_any"
+  c "kk_show_any"
   cs inline "#1.ToString()";
   js inline "#1.toString()"
 }
 
 // Convert an `:int` to a string
 extern show( i : int ) : string {
-  c "integer_to_string"
+  c "kk_integer_to_string"
   cs inline "#1.ToString()";
   js inline "#1.toString()"
 }
 
 
 private extern int-show-hex(i:int,use-capitals:bool) : string {
-  c "integer_to_hex_string"
+  c "kk_integer_to_hex_string"
   cs "Primitive.IntShowHex"
   js "_int_showhex"
 }
@@ -2187,7 +2188,7 @@ fun show-fixed( d : double, precision : int = -2 ) : string {
 }
 
 private extern show-fixedx( d : double, prec : int32 ) : string {
-  c  "double_show_fixed"
+  c  "kk_double_show_fixed"
   cs "Primitive.DoubleShowFixed"
   js "_double_show_fixed"
 }
@@ -2201,7 +2202,7 @@ fun show-exp( d : double, precision : int = -17 ) {
 }
 
 private extern show-expx( d : double, prec : int32 ) : string {
-  c  "double_show_exp"
+  c  "kk_double_show_exp"
   cs "Primitive.DoubleShowExp"
   js "_double_show_exp"
 }
@@ -2298,14 +2299,14 @@ public fun noinline print-redirect( print : (msg : string) -> console () ) : io 
 
 // Print a string to the console, including a final newline character.
 private extern xprintsln(s : string) : console ()  {
-  c  "println"
+  c  "kk_println"
   cs "Console.WriteLine"
   js "_println"
 }
 
 // Print a string to the console
 private extern xprints( s : string) : console ()  {
-  c  "print"
+  c  "kk_print"
   cs "Console.Write"
   js "_print"
 }
@@ -2374,13 +2375,13 @@ fun println( u : () )  { printsln(show(())) }
 
 
 private extern xtrace : ( message : string ) -> ()  {
-  c  "trace"
+  c  "kk_trace"
   cs "Primitive.Trace"
   js "_trace"
 }
 
 private extern xtrace-any : forall<a>( message: string, x : a ) -> ()  {
-  c  "trace_any"
+  c  "kk_trace_any"
   cs "Primitive.TraceAny"
   js "_trace_any"
 }
@@ -2547,14 +2548,14 @@ type null<a>
 
 // Unsafe: transform any type to a `null` type; used internally by the compiler.
 external ".null-any"(x : a) : null<a> {
-  c  inline "((#1).box == box_null.box ? datatype_from_ptr(NULL) : unbox_datatype(#1))"
+  c  inline "((#1).box == kk_box_null.box ? kk_datatype_from_ptr(NULL) : kk_datatype_unbox(#1))"
   cs inline "#1"
   js inline "(#1==null ? null : #1)"  // undefined -> null
 }
 
 // Transform a `:maybe` type to a `:null` type (using `null` for `Nothing`).
 external null(x : maybe<a>) : null<a> {
-  c  inline "(__std_core_types__is_Nothing(#1) ? datatype_from_ptr(NULL) : unbox_datatype((#1)._cons.Just.value))"
+  c  inline "(kk_std_core_types__is_Nothing(#1) ? kk_datatype_from_ptr(NULL) : kk_datatype_unbox((#1)._cons.Just.value))"
   cs inline "(#1.tag_ == __std_core._maybe_Tag.Nothing ? default(##1) : #1.@value)"
   js inline "(#1==null ? null : #1.value)"
 }
@@ -2562,7 +2563,7 @@ external null(x : maybe<a>) : null<a> {
 // Transform a `:null` type to a `:maybe` type. Note that it is not
 // always the case that `id(x) == maybe(null(x))` (e.g. when `x = Just(Nothing)`).
 external maybe( n : null<a> ) : maybe<a> {
-  c inline "((#1).ptr == NULL ? __std_core_types__new_Nothing(current_context()) : __std_core_types__new_Just(box_datatype(#1),current_context()))"
+  c inline "((#1).ptr == NULL ? kk_std_core_types__new_Nothing(kk_context()) : kk_std_core_types__new_Just(kk_datatype_box(#1),kk_context()))"
   cs inline "(EqualityComparer<##1>.Default.Equals(#1,default(##1)) ? __std_core._maybe<##1>.Nothing_ : new __std_core._maybe<##1>(#1))"
   js inline "(#1==null ? $std_core_types.Nothing : $std_core_types.Just(#1))"
 }
@@ -2592,7 +2593,7 @@ val null-const : forall<a> null<a> = null(Nothing)
 
 // Used by the compiler to wrap main console applications
 extern main-console : forall<a,e> ( main : () -> e a ) -> e a {
-  c "main_console"
+  c "kk_main_console"
   cs inline "Primitive.MainConsole<##1>(#1)"
   js inline "(#1)()"
 }
@@ -2753,7 +2754,7 @@ private fun for-while32( start: int32, end : int32, action : (int32) -> e maybe<
 
 // Return the host environment: `dotnet`, `browser`, `webworker`, `node`, or `libc`.
 extern host() : ndet string {
-  c "get_host"
+  c "kk_get_host"
   cs inline "\"dotnet\""
   js inline "_host"
 }
@@ -2782,6 +2783,6 @@ extern inline ".inject-effect"<a::V,e1::E,e2::E>( effect-name : string, level : 
 alias value<a> = a
 
 extern phantom<a>() : a {
-  c inline "box_null"
+  c inline "kk_box_null"
   inline "undefined"
 }

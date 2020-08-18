@@ -198,7 +198,7 @@ ruTryReuse (reuseName, patName, size, scan)
 -- Generate a reuse of a constructor
 genDropReuse :: TName -> Expr {- : int32 -} -> Expr
 genDropReuse tname scan 
-  = App (Var (TName nameDropReuse funTp) (InfoExternal [(C, "drop_reuse_datatype(#1,#2,current_context())")]))
+  = App (Var (TName nameDropReuse funTp) (InfoExternal [(C, "drop_reuse(#1,#2,kk_context())")]))
         [Var tname InfoNone, scan]
   where
     tp    = typeOf tname

@@ -12,56 +12,56 @@
 #endif
 
 // identity function
-static box_t _function_id(function_t self, box_t x, context_t* ctx) {
-  drop_function_t(self,ctx);
+static kk_box_t _function_id(kk_function_t self, kk_box_t x, kk_context_t* ctx) {
+  kk_function_drop(self,ctx);
   return x;
 }
-function_t function_id(context_t* ctx) {
-  define_static_function(fun_id, _function_id, ctx)
-  return dup_function_t(fun_id);
+kk_function_t kk_function_id(kk_context_t* ctx) {
+  kk_define_static_function(fun_id, _function_id, ctx)
+  return kk_function_dup(fun_id);
 }
 
 // null function
-static box_t _function_null(function_t self, context_t* ctx) {
-  drop_function_t(self, ctx);
-  fatal_error(EFAULT, "null function is called");
-  return box_null;
+static kk_box_t _function_null(kk_function_t self, kk_context_t* ctx) {
+  kk_function_drop(self, ctx);
+  kk_fatal_error(EFAULT, "null function is called");
+  return kk_box_null;
 }
-function_t function_null(context_t* ctx) {
-  define_static_function(fun_null, _function_null, ctx)
-  return dup_function_t(fun_null);
+kk_function_t kk_function_null(kk_context_t* ctx) {
+  kk_define_static_function(fun_null, _function_null, ctx)
+  return kk_function_dup(fun_null);
 }
 
 
 // null functions
-void free_fun_null(void* p) {
-  UNUSED(p);
+void kk_free_fun_null(void* p) {
+  KK_UNUSED(p);
 }
 
 
-string_t get_host(context_t* ctx) {
-  UNUSED(ctx);
-  define_string_literal(static, host, 5, "libc")
-  return dup_string_t(host);
+kk_string_t kk_get_host(kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+  kk_define_string_literal(static, host, 5, "libc")
+  return kk_string_dup(host);
 }
 
 /*--------------------------------------------------------------------------------------------------
   Errors
 --------------------------------------------------------------------------------------------------*/
-static void _strlcpy(char* dest, const char* src, size_t dest_size) {
+static void _strlcpy(char* dest, const char* src, size_t kk_dest_size) {
   dest[0] = 0;
 #ifdef _MSC_VER
-  strncpy_s(dest, dest_size, src, dest_size - 1);
+  strncpy_s(dest, kk_dest_size, src, kk_dest_size - 1);
 #else
-  strncpy(dest, src, dest_size - 1);
+  strncpy(dest, src, kk_dest_size - 1);
 #endif
-  dest[dest_size - 1] = 0;
+  dest[kk_dest_size - 1] = 0;
 }
 /*
-static void _strlcat(char* dest, const char* src, size_t dest_size) {
+static void _strlcat(char* dest, const char* src, size_t kk_dest_size) {
 #pragma warning(suppress:4996)
-  strncat(dest, src, dest_size - 1);
-  dest[dest_size - 1] = 0;
+  strncat(dest, src, kk_dest_size - 1);
+  dest[kk_dest_size - 1] = 0;
 }
 */
 
@@ -72,14 +72,14 @@ typedef enum log_level_e {
   LOG_INFO,
   LOG_DEBUG,
   LOG_TRACE
-} log_level_t;
+} log_kk_level_t;
 
-static void log_message(log_level_t level, const char* msg, context_t* ctx) {
-  UNUSED(ctx); UNUSED(level);
+static void log_message(log_kk_level_t level, const char* msg, kk_context_t* ctx) {
+  KK_UNUSED(ctx); KK_UNUSED(level);
   fputs(msg,stderr); // TODO: use ctx->log
 }
 
-static void log_message_fmt(context_t* ctx, log_level_t level, const char* fmt, va_list args) {
+static void log_message_fmt(kk_context_t* ctx, log_kk_level_t level, const char* fmt, va_list args) {
   char buf[512];
   if (fmt==NULL) return;
   size_t prefix_len = 0;
@@ -98,19 +98,19 @@ static void log_message_fmt(context_t* ctx, log_level_t level, const char* fmt, 
   log_message(level,buf,ctx);
 }
 
-void fatal_error(int err, const char* fmt, ...) {
-  UNUSED(err);
+void kk_fatal_error(int err, const char* fmt, ...) {
+  KK_UNUSED(err);
   va_list args;
   va_start(args, fmt);
-  log_message_fmt(get_context(), LOG_FATAL, fmt, args);
+  log_message_fmt(kk_get_context(), LOG_FATAL, fmt, args);
   va_end(args);
   abort();   // todo: call error handler
 }
 
-void warning_message(const char* fmt, ...) {
+void kk_warning_message(const char* fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  log_message_fmt(get_context(), LOG_WARNING, fmt, args);
+  log_message_fmt(kk_get_context(), LOG_WARNING, fmt, args);
   va_end(args);
 }
 
@@ -142,9 +142,9 @@ static void kklib_init(void) {
   // <https://en.wikipedia.org/wiki/SSE4#POPCNT_and_LZCNT>
   int32_t cpu_info[4];
   __cpuid(cpu_info, 1);
-  __has_popcnt = ((cpu_info[2] & (I32(1)<<23)) != 0);
+  __has_popcnt = ((cpu_info[2] & (KI32(1)<<23)) != 0);
   __cpuid(cpu_info, 0x80000001);
-  __has_lzcnt  = ((cpu_info[2] & (I32(1)<<5)) != 0);
+  __has_lzcnt  = ((cpu_info[2] & (KI32(1)<<5)) != 0);
 #endif
   atexit(&kklib_done);
 }
@@ -154,40 +154,40 @@ static void kklib_init(void) {
 --------------------------------------------------------------------------------------------------*/
 
 // The thread local context; usually passed explicitly for efficiency.
-static decl_thread context_t* context;
+static kk_decl_thread kk_context_t* context;
 
 // Get the thread local context (also initializes on demand)
-context_t* get_context(void) {
-  context_t* ctx = context;
+kk_context_t* kk_get_context(void) {
+  kk_context_t* ctx = context;
   if (ctx!=NULL) return ctx;
   kklib_init();
 #ifdef KK_MIMALLOC
   mi_heap_t* heap = mi_heap_get_default(); //  mi_heap_new();
-  ctx = (context_t*)mi_heap_zalloc(heap, sizeof(context_t));
+  ctx = (kk_context_t*)mi_heap_zalloc(heap, sizeof(kk_context_t));
   ctx->heap = heap;
 #else
-  ctx = (context_t*)calloc(1, sizeof(context_t));
+  ctx = (kk_context_t*)calloc(1, sizeof(kk_context_t));
 #endif
-  ctx->evv = vector_empty();
+  ctx->evv = kk_vector_empty();
   ctx->thread_id = (uintptr_t)(&context);
-  ctx->unique = integer_one;
+  ctx->unique = kk_integer_one;
   context = ctx;
-  ctx->box_any = block_alloc_as(struct box_any_s, 0, TAG_BOX_ANY, ctx);
+  ctx->kk_box_any = kk_block_alloc_as(struct kk_box_any_s, 0, KK_TAG_BOX_ANY, ctx);
   // todo: register a thread_done function to release the context on thread terminatation.
   return ctx;
 }
 
 static void free_context(void) {
   if (context != NULL) {
-    drop_vector_t(context->evv, context);
-    drop_basetype_assert(context->box_any, TAG_BOX_ANY, context);
+    kk_vector_drop(context->evv, context);
+    kk_basetype_drop_assert(context->kk_box_any, KK_TAG_BOX_ANY, context);
     // TODO: process delayed_free
 #ifdef KK_MIMALLOC
-    // mi_heap_t* heap = context->heap;
+    // mi_kk_heap_t* heap = context->heap;
     mi_free(context);
     // mi_heap_delete(heap);
 #else
-    runtime_free(context);
+    kk_free(context);
 #endif
     context = NULL;
   }

@@ -205,21 +205,21 @@ type ref :: (H,V) -> V
 
 // Allocate a fresh reference with an initial value.
 extern inline ref : forall<h,a> (value:a) -> alloc<h> ref<h,a> {
-  c inline "ref_alloc(#1,current_context())"
+  c inline "kk_ref_alloc(#1,kk_context())"
   cs inline "new Ref<##1,##2>(#1)"
   js inline "{ value: #1 }"
 }
 
 // Assign a new value to a reference.
 extern inline set  : forall<h,a> (ref: ref<h,a>, assigned: a) -> <write<h>> () {
-  c inline "ref_set(#1,#2,current_context())"
+  c inline "kk_ref_set(#1,#2,kk_context())"
   cs inline "#1.Set(#2)";
   js inline "((#1).value = #2)"
 }
 
 // Read the value of reference.
 extern inline (!) : forall<h,a,e> (ref: ref<h,a>) -> <read<h>|e> a with(hdiv<h,a,e>)  {
-  c inline "ref_get(#1)"
+  c inline "kk_ref_get(#1)"
   cs inline "#1.Value";
   js inline "((#1).value)";
 }
@@ -227,7 +227,7 @@ extern inline (!) : forall<h,a,e> (ref: ref<h,a>) -> <read<h>|e> a with(hdiv<h,a
 // If a heap effect is unobservable, the heap effect can be erased by using the `run` fun.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
 extern inline run : forall<e,a> ( action : forall<h> () -> <alloc<h>,read<h>,write<h> | e> a ) -> e a  {
-  c  "(function_call(box_t,(function_t,context_t*),#1,(#1,current_context())))"
+  c  "(kk_function_call(kk_box_t,(kk_function_t,kk_context_t*),#1,(#1,kk_context())))"
   cs inline "Primitive.Run<##2>(#1)";
   js inline "((#1)())";
 }
@@ -242,21 +242,21 @@ type local-var :: (H,V) -> V
 
 // Allocate a fresh local with an initial value.
 extern inline local-new : forall<s,a> (value:a) -> local<s> local-var<s,a> {
-  c inline "ref_alloc(#1,current_context())"
+  c inline "kk_ref_alloc(#1,kk_context())"
   cs inline "new Ref<##1,##2>(#1)"
   js inline "{ value: #1 }"
 }
 
 // Assign a new value to a local variable
 extern inline local-set  : forall<s,a,l> (v: local-var<s,a>, assigned: a) -> <local<s>> () {
-  c inline "(ref_set(#1,#2,current_context()))"
+  c inline "(kk_ref_set(#1,#2,kk_context()))"
   cs inline "#1.Set(#2)";
   js inline "((#1).value = #2)"
 }
 
 // Read the value of a local variable.
 extern inline local-get : forall<s,a,e> (v: local-var<s,a>) -> <local<s>|e> a with(hdiv<s,a,e>)  {
-  c inline "(ref_get(#1))"
+  c inline "(kk_ref_get(#1))"
   cs inline "#1.Value";
   js inline "((#1).value)";
 }
@@ -264,7 +264,7 @@ extern inline local-get : forall<s,a,e> (v: local-var<s,a>) -> <local<s>|e> a wi
 // If local mutation is unobservable, the `:local` effect can be erased by using the `local-scope` function.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
 extern inline local-scope : forall<e,a> ( action : forall<h> () -> <local<h> | e> a) -> e a  {
-  c  "(function_call(box_t,(function_t,context_t*),#1,(#1,current_context())))"
+  c  "(kk_function_call(kk_box_t,(kk_function_t,kk_context_t*),#1,(#1,kk_context())))"
   cs inline "Primitive.Run<##2>(#1)";
   js inline "((#1)())";
 }
