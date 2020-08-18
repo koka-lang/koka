@@ -1287,6 +1287,8 @@ genPatternTest doTest (exprDoc,pattern)
               return [([],[after],next)]
       PatLit (LitString s)
         -> return [(test [text "kk_string_cmp_cstr_borrow" <.> tupled [exprDoc,fst (cstring s)] <+> text "== 0"],[],[])]
+      PatLit lit@(LitInt _)
+        -> return [(test [text "kk_integer_eq" <.> arguments [exprDoc,ppLit lit]],[],[])]
       PatLit lit
         -> return [(test [exprDoc <+> text "==" <+> ppLit lit],[],[])]
       PatCon tname patterns repr targs exists tres info skip
