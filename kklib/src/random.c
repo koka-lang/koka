@@ -197,7 +197,7 @@ static void kk_chacha_split(kk_random_ctx_t* rnd, uint64_t nonce, kk_random_ctx_
 /* ----------------------------------------------------------------------------
 Secure random: split
 -----------------------------------------------------------------------------*/
-#ifndef NDEBUG
+#if !defined(NDEBUG) && defined(KK_DEBUG_FULL)
 static bool random_is_initialized(kk_random_ctx_t* rnd) {
   return (rnd->input[0] != 0);
 }
