@@ -100,4 +100,5 @@ fun main() {
   val x = Var("x")
   val f = powr(x,x) 
   nest(deriv,10,f) 
+  println("done")
 }
