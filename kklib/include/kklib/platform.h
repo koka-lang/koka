@@ -77,11 +77,15 @@
 #define kk_decl_thread     __thread
 #endif
 
-#define kk_assert          assert
-#define kk_assert_internal kk_assert
+#define kk_assert(x)          assert(x)
+#ifdef KK_DEBUG_FULL
+#define kk_assert_internal(x) kk_assert(x)
+#else
+#define kk_assert_internal(x) 
+#endif
 
 #ifndef KK_UNUSED
-#define KK_UNUSED(x)  ((void)(x))
+#define KK_UNUSED(x)          ((void)(x))
 #ifdef NDEBUG
 #define KK_UNUSED_RELEASE(x)  KK_UNUSED(x)
 #else
