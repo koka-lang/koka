@@ -289,7 +289,9 @@ struct kk_std_core_hnd_yld_s kk_yield_prompt( struct kk_std_core_hnd_Marker m, k
 }
 
 kk_unit_t  kk_evv_guard(kk_evv_t evv, kk_context_t* ctx) {
-  if (!kk_datatype_eq(ctx->evv,evv)) {
+  bool eq = kk_datatype_eq(ctx->evv,evv);
+  kk_datatype_drop(evv,ctx);
+  if (!eq) {
     // todo: improve error message with diagnostics
     kk_fatal_error(EFAULT,"trying to resume outside the (handler) scope of the original handler");
   }

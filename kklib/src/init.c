@@ -180,7 +180,8 @@ kk_context_t* kk_get_context(void) {
 static void free_context(void) {
   if (context != NULL) {
     kk_vector_drop(context->evv, context);
-    kk_basetype_drop_assert(context->kk_box_any, KK_TAG_BOX_ANY, context);
+    kk_basetype_free(context->kk_box_any);
+    // kk_basetype_drop_assert(context->kk_box_any, KK_TAG_BOX_ANY, context);
     // TODO: process delayed_free
 #ifdef KK_MIMALLOC
     // mi_heap_t* heap = context->heap;
