@@ -75,10 +75,10 @@ kk_evv_t kk_evv_insert(kk_evv_t evvd, kk_std_core_hnd__ev evd, kk_context_t* ctx
   struct kk_std_core_hnd_Ev* ev = kk_std_core_hnd__as_Ev(evd);
   // update ev
   int32_t marker = ev->_field2.m;
-  if (marker < 0) { return evvd; } // ev-none 
+  if (marker < 0) { kk_basetype_drop(evd,ctx); return evvd; } // ev-none 
   kk_evv_drop(ev->_field4,ctx);
-  ev->_field4 = evvd;     // dup evvd
-  if (marker==0) { return kk_evv_dup(evvd); } // zero marker means this evidence is not in the evidence vector
+  ev->_field4 = evvd;     // TODO: dup evvd?
+  if (marker==0) { kk_basetype_drop(evd,ctx); return evvd; } // zero marker means this evidence should not be inserted into the evidence vector
   // insert ev
   size_t n;
   kk_box_t single;
