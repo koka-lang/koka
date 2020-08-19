@@ -515,7 +515,8 @@ static inline void kk_block_dropi(kk_block_t* b, kk_context_t* ctx) {
     const size_t scan_fsize = kk_block_scan_fsize(b);
     for (size_t i = 0; i < scan_fsize; i++) {
       kk_box_drop(kk_block_field(b, i), ctx);
-    }    
+    }
+    kk_block_free(b);
   }
   else if (kk_unlikely((int32_t)rc < 0)) {     // note: assume two's complement
     kk_block_check_drop(b, rc, ctx);           // thread-share or sticky (overflowed) ?    
@@ -549,7 +550,7 @@ static inline void kk_block_dropn(kk_block_t* b, size_t scan_fsize, kk_context_t
     for (size_t i = 0; i < scan_fsize; i++) {
       kk_box_drop(kk_block_field(b, i), ctx);
     }
-    kk_free(b);
+    kk_block_free(b);
   }
   else if (kk_unlikely((int32_t)rc < 0)) {
     kk_block_check_drop(b, rc, ctx); // thread-shared, sticky (overflowed)?
