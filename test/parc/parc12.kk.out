@@ -2,14 +2,14 @@ module parc/parc12
 private import std/core/types = std/core/types = "";
 private import std/core/hnd = std/core/hnd = "";
 private import std/core = std/core = "";
-public fun test : (x : std/core/types/int) -> std/core/types/int
- = fun(x: std/core/types/int){
- val .match.36 : std/core/types/int
+public fun test : (x : int) -> int
+ = fun(x: int){
+ val .match.36 : int
  = std/core/(+)((std/core/types/.dup(x)), 1);
  match (.match.36) {
  2
  -> val _ : ()
- = std/core/types/.drop(.match.36, (std/core/int32(0)));
+ = std/core/types/.drop(.match.36);
  val _ : ()
  = std/core/types/.drop(x);
  3;
