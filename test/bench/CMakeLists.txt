@@ -12,4 +12,5 @@ add_subdirectory(cpp)
 add_subdirectory(haskell)
 add_subdirectory(koka)
 add_subdirectory(ocaml)
+add_subdirectory(swift)
 
