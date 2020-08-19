@@ -427,7 +427,7 @@ static inline kk_block_t* kk_block_realloc(kk_block_t* b, size_t size, kk_contex
 }
 
 static inline char* kk_block_assertx(kk_block_t* b, kk_tag_t tag) {
-  KK_UNUSED_RELEASE(tag);
+  KK_UNUSED_INTERNAL(tag);
   kk_assert_internal(kk_block_tag(b) == tag || kk_block_tag(b) == KK_TAG_BOX_ANY);
   return (char*)b;
 }
@@ -584,13 +584,13 @@ static inline kk_reuse_t kk_block_dropn_reuse(kk_block_t* b, size_t scan_fsize, 
 
 
 static inline void kk_block_drop_assert(kk_block_t* b, kk_tag_t tag, kk_context_t* ctx) {
-  KK_UNUSED_RELEASE(tag);
+  KK_UNUSED_INTERNAL(tag);
   kk_assert_internal(kk_block_tag(b) == tag || kk_block_tag(b) == KK_TAG_BOX_ANY);
   kk_block_drop(b,ctx);
 }
 
 static inline kk_block_t* kk_block_dup_assert(kk_block_t* b, kk_tag_t tag) {
-  KK_UNUSED_RELEASE(tag);
+  KK_UNUSED_INTERNAL(tag);
   kk_assert_internal(kk_block_tag(b) == tag || kk_block_tag(b) == KK_TAG_BOX_ANY);
   return kk_block_dup(b);
 }
@@ -705,13 +705,13 @@ static inline void kk_datatype_dropn(kk_datatype_t d, size_t scan_fsize, kk_cont
 }
 
 static inline kk_datatype_t kk_datatype_dup_assert(kk_datatype_t d, kk_tag_t t) {
-  KK_UNUSED_RELEASE(t);
+  KK_UNUSED_INTERNAL(t);
   kk_assert_internal(kk_datatype_has_tag(d, t));
   return kk_datatype_dup(d);
 }
 
 static inline void kk_datatype_drop_assert(kk_datatype_t d, kk_tag_t t, kk_context_t* ctx) {
-  KK_UNUSED_RELEASE(t);
+  KK_UNUSED_INTERNAL(t);
   kk_assert_internal(kk_datatype_has_tag(d, t));
   kk_datatype_drop(d, ctx);
 }
@@ -883,45 +883,6 @@ typedef struct kk_ref_s {
 kk_decl_export kk_box_t  kk_ref_get_thread_shared(kk_ref_t r, kk_context_t* ctx);
 kk_decl_export kk_box_t  kk_ref_swap_thread_shared(kk_ref_t r, kk_box_t value, kk_context_t* ctx);
 
-static inline kk_ref_t kk_ref_alloc(kk_box_t value, kk_context_t* ctx) {
-  kk_ref_t r = kk_block_alloc_as(struct kk_ref_s, 1, KK_TAG_REF, ctx);
-  r->value = value.box;
-  return r;
-}
-
-static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
-  if (kk_likely(r->_block.header.thread_shared == 0)) {
-    // fast path
-    kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
-    return kk_box_dup(b);
-  }
-  else {
-    // thread shared
-    return kk_ref_get_thread_shared(r,ctx);
-  }  
-}
-
-static inline kk_box_t kk_ref_swap(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
-  if (kk_likely(!r->_block.header.thread_shared)) {
-    // fast path
-    kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
-    kk_atomic_store_relaxed(&r->value, value.box);
-    return b;
-  }
-  else {
-    // thread shared
-    return kk_ref_swap_thread_shared(r, value, ctx);
-  }
-}
-
-
-static inline kk_unit_t kk_ref_set(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
-  kk_box_t b = kk_ref_swap(r, value, ctx);
-  kk_box_drop(b, ctx);
-  return kk_Unit;
-}
-
-
 static inline kk_box_t kk_ref_box(kk_ref_t r, kk_context_t* ctx) {
   KK_UNUSED(ctx);
   return kk_basetype_box(r);
@@ -938,6 +899,46 @@ static inline void kk_ref_drop(kk_ref_t r, kk_context_t* ctx) {
 
 static inline kk_ref_t kk_ref_dup(kk_ref_t r) {
   return kk_basetype_dup_assert(kk_ref_t, r, KK_TAG_REF);
+}
+
+static inline kk_ref_t kk_ref_alloc(kk_box_t value, kk_context_t* ctx) {
+  kk_ref_t r = kk_block_alloc_as(struct kk_ref_s, 1, KK_TAG_REF, ctx);
+  kk_atomic_store_relaxed(&r->value,value.box);
+  return r;
+}
+
+static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
+  if (kk_likely(r->_block.header.thread_shared == 0)) {
+    // fast path
+    kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
+    kk_ref_drop(r,ctx);    // TODO: make references borrowed
+    return kk_box_dup(b);
+  }
+  else {
+    // thread shared
+    return kk_ref_get_thread_shared(r,ctx);
+  }  
+}
+
+static inline kk_box_t kk_ref_swap(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
+  if (kk_likely(!r->_block.header.thread_shared)) {
+    // fast path
+    kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
+    kk_atomic_store_relaxed(&r->value, value.box);
+    kk_ref_drop(r, ctx);
+    return b;
+  }
+  else {
+    // thread shared
+    return kk_ref_swap_thread_shared(r, value, ctx);
+  }
+}
+
+
+static inline kk_unit_t kk_ref_set(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
+  kk_box_t b = kk_ref_swap(r, value, ctx);
+  kk_box_drop(b, ctx);
+  return kk_Unit;
 }
 
 
@@ -958,7 +959,7 @@ static inline kk_box_t kk_unit_box(kk_unit_t u) {
 }
 
 static inline kk_unit_t kk_unit_unbox(kk_box_t u) {
-  KK_UNUSED_RELEASE(u);
+  KK_UNUSED_INTERNAL(u);
   kk_assert_internal( kk_enum_unbox(u) == (kk_uintx_t)kk_Unit || kk_box_is_any(u));
   return kk_Unit; // (kk_unit_t)kk_enum_unbox(u);
 }

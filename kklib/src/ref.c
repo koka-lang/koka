@@ -31,6 +31,7 @@ again: ;
     kk_box_drop(b,ctx);
     goto again;
   }
+  kk_ref_drop(r, ctx);
   return b;
 }
 
@@ -41,6 +42,7 @@ kk_decl_export kk_box_t kk_ref_swap_thread_shared(kk_ref_t r, kk_box_t value, kk
   do {
     if (exp==0) { exp = 1; }  // any value but 0
   } while (!kk_atomic_cas_weak_relaxed(&r->value, &exp, value.box));
+  kk_ref_drop(r, ctx);
   return _kk_box_new(exp);
 }
 

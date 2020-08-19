@@ -75,10 +75,10 @@ kk_evv_t kk_evv_insert(kk_evv_t evvd, kk_std_core_hnd__ev evd, kk_context_t* ctx
   struct kk_std_core_hnd_Ev* ev = kk_std_core_hnd__as_Ev(evd);
   // update ev
   int32_t marker = ev->_field2.m;
-  if (marker < 0) { return evvd; } // ev-none 
+  if (marker < 0) { kk_basetype_drop(evd,ctx); return evvd; } // ev-none 
   kk_evv_drop(ev->_field4,ctx);
-  ev->_field4 = evvd;     // dup evvd
-  if (marker==0) { return kk_evv_dup(evvd); } // zero marker means this evidence is not in the evidence vector
+  ev->_field4 = evvd;     // TODO: dup evvd?
+  if (marker==0) { kk_basetype_drop(evd,ctx); return evvd; } // zero marker means this evidence should not be inserted into the evidence vector
   // insert ev
   size_t n;
   kk_box_t single;
@@ -96,7 +96,7 @@ kk_evv_t kk_evv_insert(kk_evv_t evvd, kk_std_core_hnd__ev evd, kk_context_t* ctx
   for(; i < n; i++) {
     evv2[i+1] = kk_box_dup(evv1[i]);  // use dup_datatype for efficiency?
   }
-  // drop_datatype(evvd,ctx);  // assigned to evidence already
+  kk_datatype_drop(evvd,ctx);  // assigned to evidence already
   return vec2;
 }
 
@@ -110,6 +110,7 @@ kk_evv_t kk_evv_delete(kk_evv_t evvd, int32_t index, bool behind, kk_context_t* 
   }
   if (behind) index++;
   kk_assert_internal((size_t)index < n);  
+  // todo: copy without dupping (and later dropping) when possible
   const kk_vector_t vec2 = kk_vector_alloc(n+1,kk_box_null,ctx);  
   kk_box_t* const evv2 = kk_vector_buf(vec2,NULL);
   size_t i;
@@ -288,7 +289,9 @@ struct kk_std_core_hnd_yld_s kk_yield_prompt( struct kk_std_core_hnd_Marker m, k
 }
 
 kk_unit_t  kk_evv_guard(kk_evv_t evv, kk_context_t* ctx) {
-  if (!kk_datatype_eq(ctx->evv,evv)) {
+  bool eq = kk_datatype_eq(ctx->evv,evv);
+  kk_datatype_drop(evv,ctx);
+  if (!eq) {
     // todo: improve error message with diagnostics
     kk_fatal_error(EFAULT,"trying to resume outside the (handler) scope of the original handler");
   }
