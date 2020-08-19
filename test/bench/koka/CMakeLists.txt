@@ -11,15 +11,13 @@ foreach (source IN LISTS sources)
   set(src_path "${CMAKE_CURRENT_SOURCE_DIR}/${source}")
 
   # We really need a -o option.
-  set(koka_name "${CMAKE_CURRENT_SOURCE_DIR}/${basename}")
-  string(SUBSTRING "${koka_name}" 1 -1 koka_name)
-  string(REPLACE "_" "__" koka_name "${koka_name}")
+  string(REPLACE "_" "__" koka_name "${basename}")
   string(REPLACE "-" "_dash_" koka_name "${koka_name}")
   string(MAKE_C_IDENTIFIER "${koka_name}" koka_name)
 
   add_custom_command(
     OUTPUT  ${name}
-    COMMAND ${koka} --target=c -O2 -c "$<SHELL_PATH:${src_path}>"
+    COMMAND ${koka} --target=c -O2 "-i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}>" -c "$<SHELL_PATH:${src_path}>"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<SHELL_PATH:${CMAKE_CURRENT_BINARY_DIR}/out/${koka_name}/relwithdebinfo/${koka_name}>" ${name}
     DEPENDS ${source}
     VERBATIM)
