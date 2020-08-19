@@ -96,7 +96,7 @@ kk_evv_t kk_evv_insert(kk_evv_t evvd, kk_std_core_hnd__ev evd, kk_context_t* ctx
   for(; i < n; i++) {
     evv2[i+1] = kk_box_dup(evv1[i]);  // use dup_datatype for efficiency?
   }
-  drop_datatype(evvd,ctx);  // assigned to evidence already
+  kk_datatype_drop(evvd,ctx);  // assigned to evidence already
   return vec2;
 }
 
