@@ -215,7 +215,7 @@ static kk_box_t cont_apply( kk_function_t fself, kk_box_t x, kk_context_t* ctx )
 }
 
 kk_function_t kk_new_cont_apply( kk_function_t f, kk_function_t cont, kk_context_t* ctx ) {
-  struct cont_apply_fun_s* self = kk_function_alloc_as(struct cont_apply_fun_s, 2, ctx);
+  struct cont_apply_fun_s* self = kk_function_alloc_as(struct cont_apply_fun_s, 3, ctx);
   self->_base.fun = kk_cptr_box(&cont_apply,ctx);
   self->f = f;
   self->cont = cont;
