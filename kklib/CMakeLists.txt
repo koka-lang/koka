@@ -29,10 +29,11 @@ set(kklib_targets kklib kklib-flags)
 set(kklib_sources
     src/bits.c
     src/box.c
+    src/init.c
     src/integer.c
     src/random.c
     src/refcount.c
-    src/init.c
+    src/ref.c
     src/string.c
     )
     
@@ -47,6 +48,7 @@ if(NOT (KK_DEBUG_SAN MATCHES OFF))
     message(STATUS "Build with ${KK_DEBUG_SAN} sanitizer (and switch KK_MIMALLOC to OFF)")
     target_compile_options(kklib_flags PUBLIC -fsanitize=${KK_DEBUG_SAN} -g -O1)
     target_link_options(kklib_flags PUBLIC -fsanitize=${KK_DEBUG_SAN})
+    set(KK_MIMALLOC OFF)
   else()
     message(WARNING "Can only use ${KK_DEBUG_SAN} sanitizer with clang (KK_DEBUG_SAN is ignored)")    
   endif()

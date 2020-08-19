@@ -209,6 +209,7 @@
     <ClCompile Include="..\..\src\bits.c" />
     <ClCompile Include="..\..\src\box.c" />
     <ClCompile Include="..\..\src\random.c" />
+    <ClCompile Include="..\..\src\ref.c" />
     <ClCompile Include="..\..\src\refcount.c">
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">AssemblyAndSourceCode</AssemblerOutput>
     </ClCompile>

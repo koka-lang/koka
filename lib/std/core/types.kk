@@ -219,7 +219,7 @@ extern inline set  : forall<h,a> (ref: ref<h,a>, assigned: a) -> <write<h>> () {
 
 // Read the value of reference.
 extern inline (!) : forall<h,a,e> (ref: ref<h,a>) -> <read<h>|e> a with(hdiv<h,a,e>)  {
-  c inline "kk_ref_get(#1)"
+  c inline "kk_ref_get(#1,kk_context())"
   cs inline "#1.Value";
   js inline "((#1).value)";
 }
@@ -256,7 +256,7 @@ extern inline local-set  : forall<s,a,l> (v: local-var<s,a>, assigned: a) -> <lo
 
 // Read the value of a local variable.
 extern inline local-get : forall<s,a,e> (v: local-var<s,a>) -> <local<s>|e> a with(hdiv<s,a,e>)  {
-  c inline "(kk_ref_get(#1))"
+  c inline "(kk_ref_get(#1,kk_context()))"
   cs inline "#1.Value";
   js inline "((#1).value)";
 }

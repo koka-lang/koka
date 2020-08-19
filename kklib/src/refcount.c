@@ -77,9 +77,9 @@ kk_decl_noinline void kk_block_check_drop(kk_block_t* b, uint32_t rc0, kk_contex
   }
   else {
     const uint32_t rc = kk_atomic_decr(b);
-    if (rc == RC_SHARED && b->header.kk_thread_shared) {  // with a shared reference dropping to RC_SHARED means no more references
+    if (rc == RC_SHARED && b->header.thread_shared) {  // with a shared reference dropping to RC_SHARED means no more references
       b->header.refcount = 0;        // no longer shared
-      b->header.kk_thread_shared = 0;
+      b->header.thread_shared = 0;
       kk_block_drop_free(b, ctx);            // no more references, free it.
     }
   }
@@ -120,9 +120,9 @@ kk_decl_noinline void kk_block_check_decref(kk_block_t* b, uint32_t rc0, kk_cont
   }
   else {
     const uint32_t rc = kk_atomic_decr(b);
-    if (rc == RC_SHARED && b->header.kk_thread_shared) {  // with a shared reference dropping to RC_SHARED means no more references
+    if (rc == RC_SHARED && b->header.thread_shared) {  // with a shared reference dropping to RC_SHARED means no more references
       b->header.refcount = 0;        // no longer shared
-      b->header.kk_thread_shared = 0;
+      b->header.thread_shared = 0;
       kk_free(b);               // no more references, free it.
     }
   }
@@ -152,9 +152,9 @@ kk_decl_noinline kk_block_t* kk_block_check_dup(kk_block_t* b, uint32_t rc0) {
 // Decrement a shared refcount without freeing the block yet. Returns true if there are no more references.
 static bool block_check_decref_no_free(kk_block_t* b) {
   const uint32_t rc = kk_atomic_decr(b);
-  if (rc == RC_SHARED && b->header.kk_thread_shared) {
+  if (rc == RC_SHARED && b->header.thread_shared) {
     b->header.refcount = 0;      // no more shared
-    b->header.kk_thread_shared = 0;   
+    b->header.thread_shared = 0;   
     return true;                   // no more references
   }
   if (kk_unlikely(rc > RC_STICKY_LO)) {

@@ -69,7 +69,7 @@ static inline bool kk_tag_is_raw(kk_tag_t tag) {
 //  they get too large (>0xC0000000) and in such case we never free the object, see `refcount.c`)
 typedef struct kk_header_s {
   uint8_t   scan_fsize;       // number of fields that should be scanned when releasing (`scan_fsize <= 0xFF`, if 0xFF, the full scan size is the first field)
-  uint8_t   kk_thread_shared : 1;
+  uint8_t   thread_shared : 1;
   uint16_t  tag;              // header tag
   uint32_t  refcount;         // reference count  (last to reduce code size constants in kk_block_init)
 } kk_header_t;
@@ -873,12 +873,15 @@ static inline kk_function_t kk_function_dup(kk_function_t f) {
 
 /*--------------------------------------------------------------------------------------
   References
-  TODO: make thread safe
 --------------------------------------------------------------------------------------*/
 typedef struct kk_ref_s {
   kk_block_t _block;
   kk_box_t   value;
 } *kk_ref_t;
+
+kk_decl_export kk_box_t  kk_ref_get_thread_shared(kk_ref_t r, kk_context_t* ctx);
+kk_decl_export kk_unit_t kk_ref_set_thread_shared(kk_ref_t r, kk_box_t value, kk_context_t* ctx);
+kk_decl_export kk_box_t  kk_ref_swap_thread_shared(kk_ref_t r, kk_box_t value, kk_context_t* ctx);
 
 static inline kk_ref_t kk_ref_alloc(kk_box_t value, kk_context_t* ctx) {
   kk_ref_t r = kk_block_alloc_as(struct kk_ref_s, 1, KK_TAG_REF, ctx);
@@ -886,23 +889,42 @@ static inline kk_ref_t kk_ref_alloc(kk_box_t value, kk_context_t* ctx) {
   return r;
 }
 
-static inline kk_box_t kk_ref_get(kk_ref_t r) {
-  kk_box_t b = kk_box_dup(r->value);
-  // TODO: kk_box_drop(r,_ctx)
-  return b;
+static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
+  if (kk_likely(r->_block.header.thread_shared == 0)) {
+    // fast path
+    return kk_box_dup(r->value);
+  }
+  else {
+    // thread shared
+    return kk_ref_get_thread_shared(r,ctx);
+  }  
 }
 
 static inline kk_unit_t kk_ref_set(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
-  kk_box_t b = r->value;
-  kk_box_drop(b, ctx);
-  r->value = value;
-  return kk_Unit;
+  if (kk_likely(!r->_block.header.thread_shared)) {
+    // fast path
+    kk_box_t b = r->value;
+    r->value = value;
+    kk_box_drop(b, ctx);
+    return kk_Unit;
+  }
+  else {
+    // thread shared
+    return kk_ref_set_thread_shared(r, value, ctx);
+  }
 }
 
-static inline kk_box_t kk_ref_swap(kk_ref_t r, kk_box_t value) {
-  kk_box_t b = r->value;
-  r->value = value;
-  return b;
+static inline kk_box_t kk_ref_swap(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
+  if (kk_likely(!r->_block.header.thread_shared)) {
+    // fast path
+    kk_box_t b = r->value;
+    r->value = value;
+    return b;
+  }
+  else {
+    // thread shared
+    return kk_ref_swap_thread_shared(r, value, ctx);
+  }
 }
 
 static inline kk_box_t kk_ref_box(kk_ref_t r, kk_context_t* ctx) {

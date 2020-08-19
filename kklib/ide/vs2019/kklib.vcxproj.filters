@@ -59,6 +59,9 @@
     <ClCompile Include="..\..\mimalloc\src\static.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\ref.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="kklib.natvis" />
