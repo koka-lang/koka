@@ -1,10 +1,9 @@
 find_program(ocamlopt "ocamlopt" REQUIRED)
 
 set(sources cfold.ml deriv.ml nqueens.ml rbtree.ml rbtree_ck.ml)
-
 foreach (source IN LISTS sources)
   get_filename_component(name "${source}" NAME_WE)
-  set(name "${name}-ml")
+  set(name "ml-${name}")
 
   add_custom_command(
     OUTPUT  ${name}

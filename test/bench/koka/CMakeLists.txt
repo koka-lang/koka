@@ -6,7 +6,7 @@ set(koka ${koka} exec koka --)
 
 foreach (source IN LISTS sources)
   get_filename_component(basename "${source}" NAME_WE)
-  set(name "${basename}-kk")
+  set(name "kk-${basename}")
 
   set(src_path "${CMAKE_CURRENT_SOURCE_DIR}/${source}")
 

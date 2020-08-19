@@ -4,7 +4,7 @@ set(CMAKE_CXX_EXTENSIONS NO)
 
 foreach (source IN ITEMS rbtree.cpp rbtree_ck.cpp)
   get_filename_component(name "${source}" NAME_WE)
-  set(name "${name}-cpp")
+  set(name "cpp-${name}")
 
   add_executable(${name} ${source})
   add_test(NAME ${name} COMMAND ${name})
