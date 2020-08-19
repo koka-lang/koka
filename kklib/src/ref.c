@@ -16,16 +16,16 @@ kk_decl_export kk_box_t kk_ref_get_thread_shared(kk_ref_t r, kk_context_t* ctx) 
   // write back the old value again.
 again: ;
   kk_box_t b; 
-  b.box = kk_atomic_read_relaxed(&r->value.box);
+  b.box = kk_atomic_load_relaxed(&r->value);
   do {
     if (kk_box_is_value(b)) return b;  // optimize: if it is a raw value (that is not heap allocated), we can immediately return
     if (b.box == 0) { b.box = 1; }     // expect any value but 0
-  } while (!kk_atomic_cas_weak_relaxed(&r->value.box, &b.box, 0));
+  } while (!kk_atomic_cas_weak_relaxed(&r->value, &b.box, 0));
   // we got it, and hold the "locked" reference (`r->value == 0`)
   kk_box_dup(b);
   // and release our lock by writing back `b`    
   uintptr_t guard = 0;
-  while (!kk_atomic_cas_strong_relaxed(&r->value.box, &guard, b.box)) { 
+  while (!kk_atomic_cas_strong_relaxed(&r->value, &guard, b.box)) { 
     assert(false); 
     // should never happen! as a last resort, restart the operation
     kk_box_drop(b,ctx);
@@ -37,17 +37,11 @@ again: ;
 kk_decl_export kk_box_t kk_ref_swap_thread_shared(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
   KK_UNUSED(ctx);
   // atomically swap, but not if guarded with 0 (to not interfere with a `ref_get`)
-  uintptr_t exp = kk_atomic_read_relaxed(&r->value.box);
+  uintptr_t exp = kk_atomic_load_relaxed(&r->value);
   do {
     if (exp==0) { exp = 1; }  // any value but 0
-  } while (!kk_atomic_cas_weak_relaxed(&r->value.box, &exp, value.box));
+  } while (!kk_atomic_cas_weak_relaxed(&r->value, &exp, value.box));
   return _kk_box_new(exp);
-}
-
-kk_decl_export kk_unit_t kk_ref_set_thread_shared(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
-  kk_box_t b = kk_ref_swap_thread_shared(r, value, ctx);
-  kk_box_drop(b, ctx);
-  return kk_Unit;
 }
 
 

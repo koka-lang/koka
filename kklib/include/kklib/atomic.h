@@ -38,8 +38,11 @@
 #define kk_atomic_add32_acq_rel(p,x)          kk_atomic_fetch_add32_explicit(p,x,kk_memory_order(acq_rel))
 #define kk_atomic_sub32_acq_rel(p,x)          kk_atomic_fetch_sub32_explicit(p,x,kk_memory_order(acq_rel))
 
-#define kk_atomic_read_relaxed(p)             kk_atomic(load_explicit)(p,kk_memory_order(relaxed))
-#define kk_atomic_read_acquire(p)             kk_atomic(load_explicit)(p,kk_memory_order(acquire))
+#define kk_atomic_load_relaxed(p)             kk_atomic(load_explicit)(p,kk_memory_order(relaxed))
+#define kk_atomic_load_acquire(p)             kk_atomic(load_explicit)(p,kk_memory_order(acquire))
+#define kk_atomic_store_relaxed(p,x)          kk_atomic(store_explicit)(p,x,kk_memory_order(relaxed))
+#define kk_atomic_store_release(p,x)          kk_atomic(store_explicit)(p,x,kk_memory_order(release))
+
 #define kk_atomic_cas_weak_relaxed(p,exp,des) kk_atomic(compare_exchange_weak_explicit)(p,exp,des,kk_memory_order(relaxed),kk_memory_order(relaxed))
 #define kk_atomic_cas_weak_acq_rel(p,exp,des) kk_atomic(compare_exchange_weak_explicit)(p,exp,des,kk_memory_order(acq_rel),kk_memory_order(acquire))
 #define kk_atomic_cas_strong_relaxed(p,exp,des) kk_atomic(compare_exchange_strong_explicit)(p,exp,des,kk_memory_order(relaxed),kk_memory_order(relaxed))
@@ -95,6 +98,16 @@ static inline uintptr_t kk_atomic_load_explicit(_Atomic(uintptr_t)*p, kk_memory_
   }
 #endif
   return (uintptr_t)WRAP64(_InterlockedOr)((volatile msc_intptr_t*)p, (msc_intptr_t)0);
+}
+static inline void kk_atomic_store_explicit(_Atomic(uintptr_t)*p, uintptr_t x, kk_memory_order_t mo) {
+  KK_UNUSED(mo);
+#if defined(_M_X64) || defined(_M_IX86)
+  if (mo == kk_memory_order_relaxed) {
+    *p = x;
+    return;
+  }
+#endif
+  WRAP64(_InterlockedExchange)((volatile msc_intptr_t*)p, (msc_intptr_t)x);
 }
 
 static inline bool kk_atomic_compare_exchange_weak_explicit(_Atomic(uintptr_t)*p, uintptr_t* expected, uintptr_t desired, kk_memory_order_t mo, kk_memory_order_t mofail) {

@@ -875,24 +875,24 @@ static inline kk_function_t kk_function_dup(kk_function_t f) {
   References
 --------------------------------------------------------------------------------------*/
 typedef struct kk_ref_s {
-  kk_block_t _block;
-  kk_box_t   value;
+  kk_block_t         _block;
+  _Atomic(uintptr_t) value;   // kk_box_t
 } *kk_ref_t;
 
 kk_decl_export kk_box_t  kk_ref_get_thread_shared(kk_ref_t r, kk_context_t* ctx);
-kk_decl_export kk_unit_t kk_ref_set_thread_shared(kk_ref_t r, kk_box_t value, kk_context_t* ctx);
 kk_decl_export kk_box_t  kk_ref_swap_thread_shared(kk_ref_t r, kk_box_t value, kk_context_t* ctx);
 
 static inline kk_ref_t kk_ref_alloc(kk_box_t value, kk_context_t* ctx) {
   kk_ref_t r = kk_block_alloc_as(struct kk_ref_s, 1, KK_TAG_REF, ctx);
-  r->value = value;
+  r->value = value.box;
   return r;
 }
 
 static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
   if (kk_likely(r->_block.header.thread_shared == 0)) {
     // fast path
-    return kk_box_dup(r->value);
+    kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
+    return kk_box_dup(b);
   }
   else {
     // thread shared
@@ -900,25 +900,11 @@ static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
   }  
 }
 
-static inline kk_unit_t kk_ref_set(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
-  if (kk_likely(!r->_block.header.thread_shared)) {
-    // fast path
-    kk_box_t b = r->value;
-    r->value = value;
-    kk_box_drop(b, ctx);
-    return kk_Unit;
-  }
-  else {
-    // thread shared
-    return kk_ref_set_thread_shared(r, value, ctx);
-  }
-}
-
 static inline kk_box_t kk_ref_swap(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
   if (kk_likely(!r->_block.header.thread_shared)) {
     // fast path
-    kk_box_t b = r->value;
-    r->value = value;
+    kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
+    kk_atomic_store_relaxed(&r->value, value.box);
     return b;
   }
   else {
@@ -926,6 +912,14 @@ static inline kk_box_t kk_ref_swap(kk_ref_t r, kk_box_t value, kk_context_t* ctx
     return kk_ref_swap_thread_shared(r, value, ctx);
   }
 }
+
+
+static inline kk_unit_t kk_ref_set(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
+  kk_box_t b = kk_ref_swap(r, value, ctx);
+  kk_box_drop(b, ctx);
+  return kk_Unit;
+}
+
 
 static inline kk_box_t kk_ref_box(kk_ref_t r, kk_context_t* ctx) {
   KK_UNUSED(ctx);
