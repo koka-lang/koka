@@ -921,7 +921,7 @@ static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
 }
 
 static inline kk_box_t kk_ref_swap(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
-  if (kk_likely(!r->_block.header.thread_shared)) {
+  if (kk_likely(r->_block.header.thread_shared == 0)) {
     // fast path
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
     kk_atomic_store_relaxed(&r->value, value.box);
