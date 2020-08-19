@@ -92,7 +92,7 @@ func eval(_ e: Expr) -> UInt64 {
     }
 }
 
-let e  = mk_expr(23, 1)
+let e  = mk_expr(19, 1)
 let v₁ = eval(e)
 let v₂ = eval(const_folding(reassoc(e)))
 print(v₁, v₂)

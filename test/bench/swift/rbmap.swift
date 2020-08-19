@@ -118,11 +118,10 @@ func aux (_ k : UInt64, _ v : Bool, _ r : UInt64) -> UInt64 {
   }
 }
 
-if CommandLine.arguments.count != 2 {
-  print("Incorrect number of arguments")
-} else {
-  let num  = UInt64(CommandLine.arguments[1])
-  let m = mk_map(num!)
-  let v = fold(aux, m, 0)
-  print(v)
+var num: UInt64? = 4200000
+if CommandLine.arguments.count >= 2 {
+  num = UInt64(CommandLine.arguments[1])
 }
+let m = mk_map(num!)
+let v = fold(aux, m, 0)
+print(v)

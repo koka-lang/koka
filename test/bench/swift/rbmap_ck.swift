@@ -152,12 +152,13 @@ func head (_ m : TreeList) -> Tree {
   }
 }
 
-if CommandLine.arguments.count != 3 {
-  print("Incorrect number of arguments")
-} else {
-  let num  = UInt64(CommandLine.arguments[1])
-  let freq = UInt64(CommandLine.arguments[2])
-  let m = mk_map(num!, freq!)
-  let v = fold(aux, head(m), 0)
-  print(my_len(m), " ", v)
+var num: UInt64?  = 4200000
+var freq: UInt64? = 5
+if CommandLine.arguments.count >= 3 {
+  num  = UInt64(CommandLine.arguments[1])
+  freq = UInt64(CommandLine.arguments[2])
 }
+
+let m = mk_map(num!, freq!)
+let v = fold(aux, head(m), 0)
+print(my_len(m), " ", v)
