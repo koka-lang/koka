@@ -7,6 +7,7 @@ option(KK_MIMALLOC          "Use the mimalloc allocator" ON)
 option(KK_MIMALLOC_INLINE   "Use the inlined branch of mimalloc allocator" OFF)
 option(KK_DEBUG_SAN         "Compile with specified sanitizer (thread,memory,address,undefined) (clang only)" OFF)
 option(KK_DEBUG_FULL        "Use full internal debug assertions" OFF)
+option(KK_BUILD_TEST        "Build test target" OFF)
 
 # -----------------------------------------------------------------------------
 # Language options
@@ -69,7 +70,7 @@ endif()
 # support library
 add_library(kklib STATIC ${kklib_sources})
 
-target_compile_definitions(kklib PRIVATE KK_STATIC_LIB)
+target_compile_definitions(kklib PUBLIC KK_STATIC_LIB)
 target_include_directories(kklib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(kklib PUBLIC kklib-flags)
 
@@ -130,19 +131,19 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kklib-config-version.cmake
 # -----------------------------------------------------------------------------
 # Testing
 # -----------------------------------------------------------------------------
+if(KK_BUILD_TEST MATCHES ON)    
+  set(test_sources
+      test/main.c
+      test/time.c
+      )
 
-set(test_sources
-    test/main.c
-    test/time.c
-    )
+  add_executable(kklib-test ${test_sources})
+  target_compile_definitions(kklib-test PRIVATE KK_STATIC_LIB)
+  target_link_libraries(kklib-test PRIVATE kklib)
 
-add_executable(kklib-test ${test_sources})
-target_compile_definitions(kklib-test PRIVATE KK_STATIC_LIB)
-target_link_libraries(kklib-test PRIVATE kklib)
-
-add_test(NAME kklib-test COMMAND kklib-test)
-set_tests_properties(kklib-test PROPERTIES PASS_REGULAR_EXPRESSION "Success!")
-
+  add_test(NAME kklib-test COMMAND kklib-test)
+  set_tests_properties(kklib-test PROPERTIES PASS_REGULAR_EXPRESSION "Success!")
+endif()
 
 # -----------------------------------------------------------------------------
 # Extended configuration

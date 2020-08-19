@@ -627,7 +627,7 @@ resolveModule term flags currentDir modules mimp
                     Just iface -> loadDepend iface root stem
 
       -- core import in source
-      ImpCore cimp | (null (Core.importPackage cimp)) && (currentDir == outDir flags) ->
+      ImpCore cimp | (null (Core.importPackage cimp)) && (currentDir == buildDir flags) ->
         do mbSource <- liftIO $ searchSource flags "" name
            mbIface  <- liftIO $ searchOutputIface flags name
            -- trace ("source core: found: " ++ show (mbIface,mbSource)) $ return ()
@@ -733,7 +733,7 @@ searchPackageIface flags currentDir mbPackage name
          Nothing
           -> searchPackages (packages flags) currentDir "" postfix
          Just ""
-          -> do let reliface = joinPath {- currentDir -} (outDir flags) postfix  -- TODO: should be currentDir?
+          -> do let reliface = joinPath {- currentDir -} (buildDir flags) postfix  -- TODO: should be currentDir?
                 exist <- doesFileExist reliface
                 if exist then return (Just reliface)
                  else trace ("no iface at: " ++ reliface) $ return Nothing
@@ -744,7 +744,7 @@ searchPackageIface flags currentDir mbPackage name
 searchOutputIface :: Flags -> Name -> IO (Maybe FilePath)
 searchOutputIface flags name
   = do let postfix = showModName name ++ ifaceExtension -- map (\c -> if c == '.' then '_' else c) (show name)
-           iface = joinPath (outDir flags) postfix
+           iface = joinPath (buildDir flags) postfix
        -- trace ("search output iface: " ++ show name ++ ": " ++ iface) $ return ()
        exist <- doesFileExist iface
        return (if exist then (Just iface) else Nothing)
@@ -1007,15 +1007,11 @@ modulePath mod
         else path
 
 
-outBaseName outDir fname
-  = if (null outDir)
-     then basename fname
-     else joinPath outDir (notdir (basename fname))
-
 capitalize s
   = case s of
       c:cs -> toUpper c : cs
       _    -> s
+
 
 codeGen :: Terminal -> Flags -> CompileTarget Type -> Loaded -> IO Loaded
 codeGen term flags compileTarget loaded
@@ -1096,7 +1092,7 @@ codeGenCSDll term flags modules compileTarget outBase core
                                  _ -> (Nothing, False)
            cs  = csharpFromCore (enableMon flags) mbEntry core
            outcs       = outBase ++ ".cs"
-           searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [outDir flags] {- : includePath flags -}, not (null dir)] ++ " "
+           searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [buildDir flags] {- : includePath flags -}, not (null dir)] ++ " "
 
        termPhase term $ "generate csharp" ++ maybe "" (\(name,_) -> ": entry: " ++ show name) mbEntry
        writeDoc outcs cs
@@ -1129,7 +1125,7 @@ codeGenCS term flags modules compileTarget outBase core
                                  _ -> (Nothing, False)
            cs  = csharpFromCore (enableMon flags) mbEntry core
            outcs       = outBase ++ ".cs"
-           searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [outDir flags] {- : includePath flags -}, not (null dir)] ++ " "
+           searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [buildDir flags] {- : includePath flags -}, not (null dir)] ++ " "
 
        termPhase term $ "generate csharp" ++ maybe "" (\(name,_) -> ": entry: " ++ show name) mbEntry
        writeDoc outcs cs
@@ -1192,7 +1188,7 @@ codeGenJS term flags modules compileTarget outBase core
 
             -- try to ensure require.js is there
             -- TODO: we should search along the node_modules search path
-            {-mbReq <- searchPackages (packages flags) (outDir flags) "requirejs" "require.js"
+            {-mbReq <- searchPackages (packages flags) (buildDir flags) "requirejs" "require.js"
             case mbReq of
               Just reqPath -> copyTextIfNewer (rebuild flags) reqPath (outName flags "require.js")
               Nothing      -> trace "could not find requirejs" $ return () -- TODO: warning?
@@ -1228,41 +1224,15 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       writeDocW 120 outC (cdoc <.> linebreak)
       writeDocW 120 outH (hdoc <.> linebreak)
       when (showAsmC flags) (termDoc term (hdoc <//> cdoc))
-      {-
-      -- compile the C code
-      let compileExtra = "-Fa" ++ dquote (outBase ++ ".asm")  -- generate assembly
-          compileDbg   = if (debug flags)
-                          then ("-Zi" ++ (if (optimize flags <= 0) then " -MDd -RTC1" else " -MD"))
-                          else "-MD"
-          compileOpt   = if (debug flags && optimize flags <= 0)
-                          then ""
-                         else if (optimize flags == 1)
-                          then "-O2 -Ob1 -DNDEBUG=1"  -- Ob1: inline only marked inline
-                          else "-GL -Gy -GS- -O2 -Ob2 -DNDEBUG=1"  -- GL:whole program opt, Ob2: inline freely
-          compileObj   = "-Fo" ++ dquote (outBase ++ objExtension)
-          compileInc   = joinWith " " $ map (\inc -> "-I" ++ dquote inc) $ ["cruntime/include"]
-          compileCmd   = joinWith " " $
-                         [ "cl -nologo -c -W3 -Gm-"
-                         , compileDbg
-                         , compileOpt, compileExtra
-                         , compileInc, compileObj, dquote outC
-                         ]
-
-      trace compileCmd $ return ()
-      runSystem compileCmd
-      -}
+      
       -- compile and link?
       case mbEntry of
        Nothing -> return Nothing
        Just _ ->
          do let kklibDir        = installDir flags ++ "/kklib"
                 kklibInstallDir = kklibDir ++ "/out/install"
-                (configType,cmakeConfigType)      -- (configType is used by koka to name dirs etc, cmakeConfigType is the CMake config type)
-                                = if optimize flags <= 0
-                                    then ("debug","Debug")
-                                    else if debug flags
-                                           then ("relwithdebinfo","RelWithDebInfo")
-                                           else ("release","Release")
+                
+                cmakeConfigType     = configType flags
                 cmakeConfigTypeFlag = " -DCMAKE_BUILD_TYPE=" ++ cmakeConfigType
 
             cmakeGeneratorFlag  -- prefer Ninja if available
@@ -1275,91 +1245,76 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                             Nothing    -> return ""
               
             checkCMake term flags
-            installKKLib term flags kklibDir kklibInstallDir cmakeGeneratorFlag cmakeConfigTypeFlag configType
+            -- installKKLib term flags kklibDir kklibInstallDir cmakeGeneratorFlag cmakeConfigTypeFlag configType
             currentDir <- getCurrentDirectory
+            installDir <- getInstallDir
 
             let mainName   = if null (exeName flags) then showModName (Core.coreProgName core0) else exeName flags
 
-                sources    = text "set(kk_csources" <->
-                             indent 2 (vcat (map text [dquote ("../" ++ showModName mname ++ ".c") |
-                                       mname <- (map modName modules ++ [Core.coreProgName core0])])) <->
+                sources    = text "set(" <.> text mainName <.> text "_csources" <->
+                             indent 2 (vcat (map text ["${CMAKE_BUILD_TYPE}/" ++ (showModName mname ++ ".c") |
+                                        mname <- (map modName modules ++ [Core.coreProgName core0])])) <->
                              text ")"
                 cmakeDoc = vcat [
-                              text "cmake_minimum_required(VERSION 3.8)",
-                              text "project" <.> parens (dquotes (text mainName) <+> text "C"),
-                              text "set(CMAKE_C_STANDARD 11)",
-                              text "set" <.> parens (text "kk_target" <+> dquotes (text mainName)),
-                              text "find_package(kklib 1.0 CONFIG)",
+                              text "# generated by the koka compiler; do not edit",
                               space,
                               sources,
                               space,
-                              text "add_executable(${kk_target} ${kk_csources})",
-                              text "target_link_libraries(${kk_target} PRIVATE kklib)",
+                              text "add_executable" <.> parens (text mainName <+> text "${" <.> text mainName <.> text "_csources}"),
+                              text "target_link_libraries(" <.> text mainName <+> text "PRIVATE kklib)",
                               space,
-                              text "if(NOT DEFINED kkinvoke_dir)",
-                              text "  set(kkinvoke_dir .)",
-                              text "endif()",
-                              text "include" <.> parens (dquotes (text "${kkinvoke_dir}/" <.> text mainName <.> text ".cmake") <+> text "OPTIONAL")
+                              text "add_custom_command(TARGET" <+> text mainName <+> text "POST_BUILD"
+                                      <+> text "COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:" <.> text mainName <.> text "> \"${CMAKE_CURRENT_LIST_DIR}/${CMAKE_BUILD_TYPE}\")",
+                              space
                             ]
                 cmakeContent= show cmakeDoc
 
-            let csourceDir = outName flags ""              -- out
-                buildDir   = outName flags mainName        -- out/interactive
-                targetDir  = buildDir ++ "/" ++ configType -- out/interactive/debug
-                targetBase = targetDir ++ "/" ++ mainName  -- out/interactive/debug/interactive
+            let csourceDir = outName flags ""              -- out/<config>
+                cbuildDir  = outName flags "cbuild"        -- out/<config>/cbuild
+                
+                targetDir  = cbuildDir
+                targetBase = joinPath cbuildDir mainName   -- out/interactive/debug/interactive
                 targetExe  = targetBase ++ exeExtension    -- out/interactive/debug/interactive.exe
 
             let -- using -S and -B is more neat, but not available before cmake 3.15 (so we use chdir)
+                cmakeLists  = outDir flags ++ "/CMakeLists.txt"
+                cmakeInc    = joinPath (outDir flags) (mainName ++ ".cmake")
+            
                 cmakeConfig = (cmake flags) ++ " -E chdir " ++ dquote targetDir
                                ++ " " ++ (cmake flags) ++ cmakeGeneratorFlag ++ cmakeConfigTypeFlag
-                               ++ " -Dkklib_DIR=" ++ dquote (kklibInstallDir ++ "/cmake")
-                               ++ " -Dkkinvoke_dir=" ++ dquote currentDir
-                               ++  " .." -- ++ dquote buildDir
-                cmakeBuild  = (cmake flags) ++ " --build " ++ dquote targetDir
-                cmakeLists  = buildDir ++ "/CMakeLists.txt"
+                               -- ++ " -Dkklib_DIR=" ++ dquote (kklibInstallDir ++ "/cmake")
+                               ++ " -Dkk_invokedir=" ++ dquote currentDir
+                               ++ " -Dkk_installdir=" ++ dquote installDir
+                               ++ (if (rebuild flags) then " -DKK_REBUILD=ON" else "")
+                               ++  " ../.."
+                               
+                cmakeBuild  = (cmake flags) ++ " --build " ++ dquote targetDir ++ " -t " ++ mainName
+                
+                kklibDir  = (joinPath installDir "kklib")
+                kkmainCmake = (joinPath kklibDir "kkmain.cmake")
+                
+            -- write top CMakeLists
+            copyTextIfNewerWith (rebuild flags) kkmainCmake cmakeLists 
+                  (\content -> "# generated from " ++ kkmainCmake ++ "; do not edit this file\n" ++ content)
 
-            -- write CMakeLists
+            -- write module CMakeLists
             createDirectoryIfMissing True targetDir
-            mbContent <- readTextFile cmakeLists
+            mbContent <- readTextFile cmakeInc
             case mbContent of
-              Just content | content == cmakeContent
+              Just content | (content == cmakeContent && not (rebuild flags))
                 -> return ()  -- avoid changing if not needed
-              _ -> writeFile cmakeLists cmakeContent
+              _ -> writeFile cmakeInc cmakeContent
 
             -- configure
             hasConfig <- doesFileExist (targetDir ++ "/CMakeCache.txt")
-            when (not hasConfig) $
-              do termPhase term ("configure C compilation")
+            when (not hasConfig || rebuild flags) $
+              do termPhase term ("(re)configure c compilation")
                  runSystemEcho cmakeConfig
 
             -- build
             termPhase term ("compiling and linking C files")
             runSystemEcho cmakeBuild
-
-            {-
-            -- link
-            let linkExtra = ""
-                linkOpt   = joinWith " " $
-                            [ if (debug flags) then "-Zi" else ""
-                            , if (debug flags && optimize flags <= 0) then "-MDd" else "-MD"
-                            , if (optimize flags <= 0) then "" else "-GL -Gy -GS-" ]
-                linkPdb   = if (debug flags) then "-Fd" ++ dquote (targetBase ++ ".pdb") else ""
-                linkExe   = "-Fe" ++ dquote (targetExe)
-                runtimeLib= "cruntime/out/msvc-x64/" ++ (if (optimize flags <= 0) then "Debug" else "Release")
-                            ++ "/runtime.lib"
-                linkCmd   = joinWith " " $
-                            [ "cl -nologo -W3 -Gm-"
-                            , linkOpt, linkExtra
-                            , linkExe, linkPdb
-                            , concat [dquote (outName flags (showModName (modName mod)) ++ objExtension) ++ " " | mod <- modules]
-                            , dquote (outBase ++ objExtension)
-                            , runtimeLib
-                            ]
-
-            trace linkCmd $ return ()
-            runSystem linkCmd
-            -}
-
+                  
             termDoc term $ text "compiled:" <+> text (dquote (normalize targetExe))
             return (Just (runSystem (dquote targetExe)))
 
@@ -1427,7 +1382,7 @@ copyIFaceToOutputDir :: Terminal -> Flags -> FilePath -> PackageName -> [Module]
 copyIFaceToOutputDir term flags iface targetPath imported
   -- | host flags == Node && target flags == JS = return ()
   -- | otherwise
-  = do let outName = joinPaths [outDir flags, targetPath, notdir iface]
+  = do let outName = joinPaths [buildDir flags, targetPath, notdir iface]
        copyTextIfNewer (rebuild flags) iface outName
        if (CS `elem` targets flags)
         then do let libSrc = notext iface ++ dllExtension
@@ -1474,10 +1429,25 @@ showModName name
 dquote s
   = "\"" ++ s ++ "\""
 
+outName :: Flags -> FilePath -> FilePath
 outName flags s
+  = joinPath (buildDir flags) s
+     
+buildDir :: Flags -> FilePath
+buildDir flags 
   = if (null (outDir flags))
-     then s
-     else joinPath (outDir flags) s
+     then configType flags
+     else joinPath (outDir flags) (configType flags)
+         
+configType :: Flags -> String
+configType flags
+  = if optimize flags <= 0
+      then "Debug"
+      else if debug flags
+             then "RelWithDebInfo"
+             else "Release"
+
+     
 
 posixOutName flags s
  = normalizeWith '/' (outName flags s)
