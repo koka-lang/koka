@@ -12,3 +12,15 @@ $ cmake --build build
 $ cd build
 $ ctest
 ```
+
+Select tests by language (ie. CTest label):
+
+```
+build$ ctest -L (koka|swift|cpp|haskell|ocaml)
+```
+
+Select tests by name fragment:
+
+```
+build$ ctest -R nqueens  # R for 'regex'
+```
