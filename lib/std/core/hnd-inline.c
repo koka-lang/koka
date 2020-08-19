@@ -96,7 +96,7 @@ kk_evv_t kk_evv_insert(kk_evv_t evvd, kk_std_core_hnd__ev evd, kk_context_t* ctx
   for(; i < n; i++) {
     evv2[i+1] = kk_box_dup(evv1[i]);  // use dup_datatype for efficiency?
   }
-  // drop_datatype(evvd,ctx);  // assigned to evidence already
+  drop_datatype(evvd,ctx);  // assigned to evidence already
   return vec2;
 }
 
@@ -110,6 +110,7 @@ kk_evv_t kk_evv_delete(kk_evv_t evvd, int32_t index, bool behind, kk_context_t* 
   }
   if (behind) index++;
   kk_assert_internal((size_t)index < n);  
+  // todo: copy without dupping (and later dropping) when possible
   const kk_vector_t vec2 = kk_vector_alloc(n+1,kk_box_null,ctx);  
   kk_box_t* const evv2 = kk_vector_buf(vec2,NULL);
   size_t i;
