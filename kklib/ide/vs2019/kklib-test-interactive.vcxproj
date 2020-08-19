@@ -158,7 +158,7 @@
     <ClCompile Include="..\..\..\out\std_core.c" />
     <ClCompile Include="..\..\..\out\std_core_hnd.c" />
     <ClCompile Include="..\..\..\out\std_core_types.c" />
-    <ClCompile Include="..\..\..\out\test_parc_deriv.c" />
+    <ClCompile Include="..\..\..\out\test_algeff_common.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

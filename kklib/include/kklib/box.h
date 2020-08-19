@@ -344,7 +344,7 @@ static inline void kk_box_drop(kk_box_t b, kk_context_t* ctx) {
 
 
 static inline kk_block_t* kk_block_unbox(kk_box_t v, kk_tag_t kk_expected_tag ) {
-  KK_UNUSED_RELEASE(kk_expected_tag);
+  KK_UNUSED_INTERNAL(kk_expected_tag);
   kk_block_t* b = kk_ptr_unbox(v);
   kk_assert_internal(kk_block_tag(b) == kk_expected_tag);
   return b;
@@ -355,7 +355,7 @@ static inline kk_box_t kk_block_box(kk_block_t* b) {
 }
 
 static inline kk_box_t kk_ptr_box_assert(kk_block_t* b, kk_tag_t tag) {
-  KK_UNUSED_RELEASE(tag);
+  KK_UNUSED_INTERNAL(tag);
   kk_assert_internal(kk_block_tag(b) == tag);
   return kk_ptr_box(b);
 }

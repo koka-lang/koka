@@ -91,6 +91,11 @@
 #else
 #define KK_UNUSED_RELEASE(x)  
 #endif
+#ifndef KK_DEBUG_FULL
+#define KK_UNUSED_INTERNAL(x)  KK_UNUSED(x)
+#else
+#define KK_UNUSED_INTERNAL(x)  
+#endif
 #endif
 
 // Defining constants of a specific size
