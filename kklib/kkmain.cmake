@@ -5,6 +5,7 @@
 #   kk_invokedir    : koka compiler invokation directory (= user current directory) (default: {CMAKE_CURRENT_LIST_DIR}/..)
 #   kk_installdir   : koka installation directory (default `kk_invokedir`)
 #   kklib_installdir:  (default to ${kk_installdir}/kklib)
+#   kk_target       : optional: can specify a specific module target (instead of all available ones)
 # ----------------------------------------------------------------------------- 
 cmake_minimum_required(VERSION 3.8)
 project(kkmain VERSION 1.0 LANGUAGES C)
@@ -60,15 +61,18 @@ endif()
 # modules: include all `<module>.cmake` files
 # -----------------------------------------------------------------------------
 
-file(GLOB kkmain_cmake_modules "*.cmake")
-foreach (kk_cmake_module IN LISTS kkmain_cmake_modules)
-  get_filename_component(kk_module "${kk_cmake_module}" NAME_WE)
-  if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/${CMAKE_BUILD_TYPE}/${kk_module}.c")
-    message(STATUS "module : ${kk_module}")
-    include("${kk_cmake_module}")
-  endif()
-endforeach ()  
-
+if (DEFINED kk_target)
+  include("${kk_target}.cmake")
+else()  
+  file(GLOB kkmain_cmake_modules "*.cmake")
+  foreach (kk_cmake_module IN LISTS kkmain_cmake_modules)
+    get_filename_component(kk_module "${kk_cmake_module}" NAME_WE)
+    if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/${CMAKE_BUILD_TYPE}/${kk_module}.c")
+      message(STATUS "module : ${kk_module}")
+      include("${kk_cmake_module}")
+    endif()
+  endforeach ()  
+endif()
 
 # -----------------------------------------------------------------------------
 # extra option configuration
