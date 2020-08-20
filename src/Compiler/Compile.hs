@@ -1289,7 +1289,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                                ++ (if (rebuild flags) then " -DKK_REBUILD=ON" else "")
                                ++  " ../.."
                                
-                cmakeBuild  = (cmake flags) ++ " --build " ++ dquote targetDir ++ " -t " ++ mainName
+                cmakeBuild  = (cmake flags) ++ " --build " ++ dquote targetDir ++ " --target " ++ mainName
                 
                 kklibDir  = (joinPath installDir "kklib")
                 kkmainCmake = (joinPath kklibDir "kkmain.cmake")
