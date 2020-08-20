@@ -77,7 +77,7 @@ kk_evv_t kk_evv_insert(kk_evv_t evvd, kk_std_core_hnd__ev evd, kk_context_t* ctx
   int32_t marker = ev->_field2.m;
   if (marker < 0) { kk_basetype_drop(evd,ctx); return evvd; } // ev-none 
   kk_evv_drop(ev->_field4,ctx);
-  ev->_field4 = evvd;     // TODO: dup evvd?
+  ev->_field4 = kk_datatype_dup(evvd);
   if (marker==0) { kk_basetype_drop(evd,ctx); return evvd; } // zero marker means this evidence should not be inserted into the evidence vector
   // insert ev
   size_t n;
