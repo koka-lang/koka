@@ -1,5 +1,10 @@
 # -----------------------------------------------------------------------------
-# Koka main CMakeLists.txt file
+# Koka top-level cmake file
+#
+# Options `-D<option>=<value>|ON`
+#   kk_invokedir    : koka compiler invokation directory (= user current directory) (default: {CMAKE_CURRENT_LIST_DIR}/..)
+#   kk_installdir   : koka installation directory (default `kk_invokedir`)
+#   kklib_installdir:  (default to ${kk_installdir}/kklib)
 # ----------------------------------------------------------------------------- 
 cmake_minimum_required(VERSION 3.8)
 project(kkmain VERSION 1.0 LANGUAGES C)
@@ -18,21 +23,19 @@ set(CMAKE_RELWITHDEBINFO_POSTFIX "d")
 
 # -----------------------------------------------------------------------------
 # Directories
-# -Dkk_invokedir    : koka compiler invokation directory (= user current directory)
-# -Dkk_installdir   : koka installation directory
-# -Dkklib_installdir: normally ${kk_installdir}/kklib
 # -----------------------------------------------------------------------------
 
 if(NOT DEFINED kk_invokedir)
   set(kk_invokedir "${CMAKE_CURRENT_LIST_DIR}/..")
 endif()
 if(NOT DEFINED kk_installdir)
-  set(kk_installdir "${kk_invoke_dir}")
+  set(kk_installdir "${kk_invokedir}")
 endif()
 if(NOT DEFINED kklib_installdir)
   set(kklib_installdir "${kk_installdir}/kklib")
 endif()
-message(STATUS "kklib_installdir=${kklib_installdir})")
+message(STATUS "koka install dir: ${kk_installdir}")
+message(STATUS "local build dir : ${CMAKE_CURRENT_LIST_DIR}")
 
 # -----------------------------------------------------------------------------
 # kklib support library
@@ -44,7 +47,7 @@ if (KK_USE_KKLIB_PACKAGE MATCHES ON)
 else()  
   # We copy the sources and compile as part of the modules (so all configuration is consistent).
   if (NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/kklib/CMakeLists.txt" OR (KK_REBUILD MATCHES ON))
-    message(STATUS "copying kklib")
+    message(STATUS "install: kklib")
     execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory "${kklib_installdir}/src" "${CMAKE_CURRENT_LIST_DIR}/kklib/src")
     execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory "${kklib_installdir}/include" "${CMAKE_CURRENT_LIST_DIR}/kklib/include")
     execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory "${kklib_installdir}/mimalloc" "${CMAKE_CURRENT_LIST_DIR}/kklib/mimalloc")
@@ -57,10 +60,15 @@ endif()
 # modules: include all `<module>.cmake` files
 # -----------------------------------------------------------------------------
 
-file(GLOB kkmain_modules CONFIGURE_DEPENDS "*.cmake")
-foreach (kkmodule IN LISTS kkmain_modules)
-  include("${kkmodule}")
-endforeach ()
+file(GLOB kkmain_cmake_modules "*.cmake")
+foreach (kk_cmake_module IN LISTS kkmain_cmake_modules)
+  get_filename_component(kk_module "${kk_cmake_module}" NAME_WE)
+  if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/${CMAKE_BUILD_TYPE}/${kk_module}.c")
+    message(STATUS "module : ${kk_module}")
+    include("${kk_cmake_module}")
+  endif()
+endforeach ()  
+
 
 # -----------------------------------------------------------------------------
 # extra option configuration

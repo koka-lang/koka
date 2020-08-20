@@ -1275,6 +1275,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                 targetDir  = cbuildDir
                 targetBase = joinPath cbuildDir mainName   -- out/interactive/debug/interactive
                 targetExe  = targetBase ++ exeExtension    -- out/interactive/debug/interactive.exe
+                finalExe   = joinPath csourceDir (mainName ++ exeExtension) -- copied from targetExe
 
             let -- using -S and -B is more neat, but not available before cmake 3.15 (so we use chdir)
                 cmakeLists  = outDir flags ++ "/CMakeLists.txt"
@@ -1305,9 +1306,10 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                 -> return ()  -- avoid changing if not needed
               _ -> writeFile cmakeInc cmakeContent
 
-            -- configure
-            hasConfig <- doesFileExist (targetDir ++ "/CMakeCache.txt")
-            when (not hasConfig || rebuild flags) $
+            -- configure?
+            hasCache <- doesFileExist (targetDir ++ "/CMakeCache.txt")
+            hasTargetExe <- doesFileExist targetExe   
+            when (not hasCache || not hasTargetExe || rebuild flags) $
               do termPhase term ("(re)configure c compilation")
                  runSystemEcho cmakeConfig
 
@@ -1315,8 +1317,8 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             termPhase term ("compiling and linking C files")
             runSystemEcho cmakeBuild
                   
-            termDoc term $ text "compiled:" <+> text (dquote (normalize targetExe))
-            return (Just (runSystem (dquote targetExe)))
+            termDoc term $ text "compiled:" <+> text (dquote (normalizeWith '/' finalExe))
+            return (Just (runSystem (dquote finalExe)))
 
 installKKLib :: Terminal -> Flags -> FilePath -> FilePath -> String -> String -> String -> IO ()
 installKKLib term flags kklibDir kklibInstallDir cmakeGeneratorFlag cmakeConfigType configType
