@@ -66,7 +66,11 @@ if (DEFINED kk_target)
 else()  
   file(GLOB kkmain_cmake_modules "*.cmake")
   foreach (kk_cmake_module IN LISTS kkmain_cmake_modules)
-    include("${kk_cmake_module}")
+    get_filename_component(kk_module "${kk_cmake_module}" NAME_WE)
+    if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/${CMAKE_BUILD_TYPE}/${kk_module}.c") # only include cmake's that have been koka compiled for this config
+      message(STATUS "module : ${kk_module}")
+      include("${kk_cmake_module}")
+    endif()
   endforeach ()  
 endif()
 

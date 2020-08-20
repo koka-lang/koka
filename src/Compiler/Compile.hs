@@ -1249,7 +1249,8 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             currentDir <- getCurrentDirectory
             installDir <- getInstallDir
 
-            let mainName   = if null (exeName flags) then showModName (Core.coreProgName core0) else exeName flags
+            let mainModName= showModName (Core.coreProgName core0)
+                mainName   = if null (exeName flags) then mainModName else exeName flags
 
                 sources    = text "set(" <.> text mainName <.> text "_csources" <->
                              indent 2 (vcat (map text ["${CMAKE_BUILD_TYPE}/" ++ (showModName mname ++ ".c") |
@@ -1273,13 +1274,13 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                 cbuildDir  = outName flags "cbuild"        -- out/<config>/cbuild
                 
                 targetDir  = cbuildDir
-                targetBase = joinPath cbuildDir mainName   -- out/interactive/debug/interactive
-                targetExe  = targetBase ++ exeExtension    -- out/interactive/debug/interactive.exe
-                finalExe   = joinPath csourceDir (mainName ++ exeExtension) -- copied from targetExe
+                targetBase = joinPath cbuildDir mainName   -- out/<config>/cbuild/<mainName>.exe
+                targetExe  = targetBase ++ exeExtension    -- out/<config>/cbuild/<mainName>.exe
+                finalExe   = joinPath csourceDir (mainName ++ exeExtension) -- -- out/<config>/<mainName>.exe (copied from targetExe)
 
             let -- using -S and -B is more neat, but not available before cmake 3.15 (so we use chdir)
                 cmakeLists  = outDir flags ++ "/CMakeLists.txt"
-                cmakeInc    = joinPath (outDir flags) (mainName ++ ".cmake")
+                cmakeInc    = joinPath (outDir flags) (mainModName ++ ".cmake")
             
                 cmakeConfig = (cmake flags) ++ " -E chdir " ++ dquote targetDir
                                ++ " " ++ (cmake flags) ++ cmakeGeneratorFlag ++ cmakeConfigTypeFlag
@@ -1291,7 +1292,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                                
                 cmakeBuild  = (cmake flags) ++ " --build " ++ dquote targetDir ++ " --target " ++ mainName
                 
-                kklibDir  = (joinPath installDir "kklib")
+                kklibDir    = (joinPath installDir "kklib")
                 kkmainCmake = (joinPath kklibDir "kkmain.cmake")
                 
             -- write top CMakeLists
@@ -1307,8 +1308,8 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
               _ -> writeFile cmakeInc cmakeContent
 
             -- configure?
-            hasCache <- doesFileExist (targetDir ++ "/CMakeCache.txt")
-            hasTargetExe <- doesFileExist targetExe   
+            hasCache     <- doesFileExist (targetDir ++ "/CMakeCache.txt")
+            hasTargetExe <- doesFileExist targetExe   -- too conservative? this makes the main cmakelists re-glob
             when (not hasCache || not hasTargetExe || rebuild flags) $
               do termPhase term ("(re)configure c compilation")
                  runSystemEcho cmakeConfig
@@ -1317,7 +1318,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             termPhase term ("compiling and linking C files")
             runSystemEcho cmakeBuild
                   
-            termDoc term $ text "compiled:" <+> text (dquote (normalizeWith '/' finalExe))
+            termDoc term $ text "compiled:" <+> text (normalize finalExe)
             return (Just (runSystem (dquote finalExe)))
 
 installKKLib :: Terminal -> Flags -> FilePath -> FilePath -> String -> String -> String -> IO ()
