@@ -50,7 +50,7 @@ nat fold(map const & m) {
 }
 
 int main(int argc, char ** argv) {
-    unsigned n = 42000; // 4200000;
+    unsigned n = 4200; // 4200000;
     unsigned freq = 5;
     if (argc == 3) {
       n = atoi(argv[1]);
@@ -58,5 +58,5 @@ int main(int argc, char ** argv) {
     }
     list<map> m = mk_map(n, freq);
     std::cout << fold(head(m)) << "\n";
-    return 0;
+    return 1;  // signal that this test is not working
 }

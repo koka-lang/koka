@@ -14,7 +14,7 @@ foreach (source IN LISTS sources)
 
   add_custom_command(
     OUTPUT  ${out_path}
-    COMMAND ${koka} --target=c --outname=${name} -O2 -c "$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}/${source}>"
+    COMMAND ${koka} --target=c --outname=${name} -v -O2 -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> -c "${source}"
     DEPENDS ${source}
     VERBATIM)
 
