@@ -10,7 +10,7 @@ foreach (source IN LISTS sources)
   get_filename_component(name "${source}" NAME_WE)
   set(name "kk-${name}")
 
-  set(out_path "${CMAKE_CURRENT_BINARY_DIR}/out/${name}/relwithdebinfo/${name}")
+  set(out_path "${CMAKE_CURRENT_BINARY_DIR}/out/RelWithDebInfo/cbuild/${name}")
 
   add_custom_command(
     OUTPUT  ${out_path}
