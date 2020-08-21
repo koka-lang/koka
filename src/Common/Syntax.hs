@@ -38,11 +38,12 @@ instance Show Target where
   show CHeader = "c header"
   show Default = ""
 
-data Host = Node | Browser deriving (Eq,Ord)
+data Host = Node | Browser | LibC deriving (Eq,Ord)
 
 instance Show Host where
-  show Node = "node"
+  show Node    = "node"
   show Browser = "browser"
+  show LibC    = "libc"
 
 data Platform = Platform{ sizePtr  :: Int -- sizeof(intptr_t)
                         , sizeSize :: Int -- sizeof(size_t)

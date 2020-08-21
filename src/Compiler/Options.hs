@@ -145,7 +145,7 @@ flagsNull
           True  -- executes
           False -- library
           [C]   -- target
-          Node
+          LibC
           platform64  
           5     -- simplify passes
           6     -- simplify dup max
@@ -158,11 +158,11 @@ flagsNull
           ""       -- cmake args
           ""       -- editor
           ""
-          0
+          0        -- out html
           []
           ("styles/" ++ programName ++ ".css")
           ("")
-          0
+          1        -- verbosity
           ""
           False
           "ansi"  -- console: ansi, html
@@ -209,21 +209,21 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   ['e'] ["execute"]         (\b f -> f{evaluate= b})        "compile and execute (default)"
  , flag   ['c'] ["compile"]         (\b f -> f{evaluate= not b})    "only compile, do not execute"
  , option ['i'] ["include"]         (OptArg includePathFlag "dirs") "add <dirs> to search path (empty resets)"
- , option ['o'] ["outdir"]          (ReqArg outDirFlag "dir")       "put generated files in <dir> ('out' by default)"
- , option []    ["outname"]         (ReqArg exeNameFlag "name")     "name of the final executable"
- , flag   ['v'] ["verbose"]         (\b f -> f{verbose=if b then (verbose f)+1 else 0}) "run more verbose"
+ , option ['o'] ["outdir"]          (ReqArg outDirFlag "dir")       "output files go to <dir> ('out' by default)"
+ , option []    ["outname"]         (ReqArg exeNameFlag "name")     "base name of the final executable"
+ , numOption 1 "n" ['v'] ["verbose"] (\i f -> f{verbose=i})         "verbosity 'n' (0=quiet, 1=default, 2=trace)"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
- , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (off by default, 2=full optimization)"
+ , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (0=default, 2=full)"
  , flag   ['D'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)"
 
  , emptyline
  , flag   []    ["html"]            (\b f -> f{outHtml = if b then 2 else 0}) "generate documentation"
  , option []    ["htmlbases"]       (ReqArg htmlBasesFlag "bases")            "set link prefixes for documentation"
  , option []    ["htmlcss"]         (ReqArg htmlCssFlag "link")               "set link to the css documentation style"
- , config []    ["target"]          [("js",[JS]),("cs",[CS]),("c",[C])] (\t f -> f{targets=t})             "generate csharp, javascript (default), or C"
- , config []    ["host"]            [("node",Node),("browser",Browser)] (\h f -> f{ targets=[JS], host=h}) "specify host for running code"
- , config []    ["platform"]        [("x32",platform32),("x64",platform64)] (\p f -> f{platform=p})        "specify target platform (64-bit by default)"
+ , config []    ["target"]          [("js",[JS]),("cs",[CS]),("c",[C])] (\t f -> f{targets=t})             "generate C (default), javascript, or C#"
+ , config []    ["host"]            [("libc",LibC),("node",Node),("browser",Browser)] (\h f -> f{ targets=[if (h==LibC) then C else JS], host=h}) "specify host for running code"
+ , config []    ["platform"]        [("x32",platform32),("x64",platform64)] (\p f -> f{platform=p})        "specify target platform (default=64-bit)"
  , emptyline
  , flag   []    ["showspan"]       (\b f -> f{ showSpan = b})       "show ending row/column too on errors"
  -- , flag   []    ["showkinds"]      (\b f -> f{showKinds=b})        "show full kind annotations"

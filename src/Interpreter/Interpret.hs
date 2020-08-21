@@ -563,7 +563,8 @@ remark st s
 terminal :: State -> Terminal
 terminal st
   = Terminal (messageErrorMsgLn st)
-             (if (verbose (flags st) > 0) then (\s -> withColor (printer st) DarkGray (message st (s ++ "\n"))) else (\_ -> return ()))
+             (if (verbose (flags st) > 1) 
+               then (\s -> withColor (printer st) DarkGray (message st (s ++ "\n"))) else (\_ -> return ()))
              (messagePrettyLn st)  -- (\_ -> return ()) --
              (messageScheme st)
              (messagePrettyLn st)

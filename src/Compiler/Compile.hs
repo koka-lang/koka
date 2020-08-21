@@ -1067,9 +1067,9 @@ codeGen term flags compileTarget loaded
         compilerCatch "program" term () $
           case concatMaybe mbRuns of
             (run:_)  -> do termPhase term $ "execute" 
-                           termDoc term $ linebreak                           
+                           termDoc term $ space
                            run
-            _        -> termDoc term $ linebreak
+            _        -> termDoc term $ space
 
        return loaded1 -- { loadedArities = arities, loadedExternals = externals }
   where
