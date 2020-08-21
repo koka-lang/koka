@@ -105,6 +105,7 @@ data Flags
          , csc              :: FileName
          , node             :: FileName
          , cmake            :: FileName
+         , cmakeArgs        :: String
          , editor           :: String
          , redirectOutput   :: FileName
          , outHtml          :: Int
@@ -154,7 +155,8 @@ flagsNull
           "csc"
           "node"
           "cmake"
-          ""
+          ""       -- cmake args
+          ""       -- editor
           ""
           0
           []
@@ -239,6 +241,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , emptyline
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
  , option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"
+ , option []    ["cmakeargs"]       (ReqArg cmakeArgsFlag "args")   "pass <args> to cmake"
  , option []    ["csc"]             (ReqArg cscFlag "cmd")          "use <cmd> as the csharp backend compiler"
  , option []    ["node"]            (ReqArg nodeFlag "cmd")         "use <cmd> to execute node"
  , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors"
@@ -337,6 +340,9 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
     
   cmakeFlag s
       = Flag (\f -> f{ cmake = s })
+
+  cmakeArgsFlag s
+      = Flag (\f -> f{ cmakeArgs = s })
 
 {-
   installDirFlag s

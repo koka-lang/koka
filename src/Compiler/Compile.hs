@@ -1288,7 +1288,8 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                                ++ " -Dkk_invokedir=" ++ currentDir
                                ++ " -Dkk_installdir=" ++ installDir
                                ++ (if (rebuild flags) then " -DKK_REBUILD=ON" else "")
-                               ++  " ../.."
+                               ++ " " ++ cmakeArgs flags
+                               ++ " ../.."
                                
                 cmakeBuild  = (cmake flags) ++ " --build " ++ dquote targetDir ++ " --target " ++ mainName
                 
