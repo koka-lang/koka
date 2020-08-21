@@ -172,8 +172,8 @@ target_compile_options(
 )
 
 # Use O1 even in debug mode
-if ((CMAKE_BUILD_TYPE MATCHES Debug) AND (NOT KK_DEBUG_FULL))
-  target_compile_options(kklib-flags INTERFACE $<${gnu_like}:-O1>)
+if (NOT KK_DEBUG_FULL)
+  target_compile_options(kklib-flags INTERFACE $<$<AND:$<CONFIG:Debug>,${gnu_like}>:-O1>)
 endif()
 
 # Platform-specific definitions

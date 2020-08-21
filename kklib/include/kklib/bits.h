@@ -408,36 +408,36 @@ static inline uint64_t kk_bits_bswap64(uint64_t x) {
 ------------------------------------------------------------------ */
 
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
-static inline uint8_t kk_bits_count_is_even32(uint32_t x) {
-  return ((uint8_t)kk_bits_count32(x) & 1);
+static inline bool kk_bits_count_is_even32(uint32_t x) {
+  return ((kk_bits_count32(x) & 1) == 0);
 }
-static inline uint8_t kk_bits_count_is_even64(uint64_t x) {
-  return ((uint8_t)kk_bits_count64(x) & 1);
+static inline bool kk_bits_count_is_even64(uint64_t x) {
+  return ((kk_bits_count64(x) & 1) == 0);
 }
 
 #elif defined(__GNUC__)
-static inline uint8_t kk_bits_count_is_even32(uint32_t x) {
-  return (uint8_t)__builtin32(parity)(x);
+static inline bool kk_bits_count_is_even32(uint32_t x) {
+  return (__builtin32(parity)(x) == 0);
 }
-static inline uint8_t kk_bits_count_is_even64(uint64_t x) {
-  return (uint8_t)__builtin64(parity)(x);
+static inline bool kk_bits_count_is_even64(uint64_t x) {
+  return (__builtin64(parity)(x) == 0);
 }
 
 #else
-static inline uint8_t kk_bits_count_is_even32(uint32_t x) {
+static inline bool kk_bits_count_is_even32(uint32_t x) {
   x ^= x >> 16;
   x ^= x >> 8;
   x ^= x >> 4;
   x &= 0x0F;
-  return (uint8_t)(((0x6996 >> x) & 1));  // 0x6996 = 0b0110100110010110  == "mini" 16 bit lookup table with a bit set if the value has non-even parity
+  return (((0x6996 >> x) & 1) == 0);  // 0x6996 = 0b0110100110010110  == "mini" 16 bit lookup table with a bit set if the value has non-even parity
 }
-static inline uint8_t kk_bits_count_is_even64(uint64_t x) {
+static inline bool kk_bits_count_is_even64(uint64_t x) {
   x ^= x >> 32;
   return kk_bits_count_is_even32((uint32_t)x);
 }
 #endif
 
-static inline uint8_t kk_bits_count_is_even(kk_uintx_t x) {
+static inline bool kk_bits_count_is_even(kk_uintx_t x) {
   return kk_bitsx(count_is_even)(x);
 }
 
