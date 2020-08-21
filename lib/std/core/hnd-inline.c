@@ -171,7 +171,7 @@ static kk_function_t new_kcompose( kk_function_t* conts, kk_intx_t count, kk_con
   struct kcompose_fun_s* f = kk_block_as(struct kcompose_fun_s*, 
                                kk_block_alloc(sizeof(struct kcompose_fun_s) - sizeof(kk_function_t) + (count*sizeof(kk_function_t)), 
                                  2 + count /* scan size */, KK_TAG_FUNCTION, ctx));
-  f->_base.fun = kk_cptr_box(&kcompose,ctx);
+  f->_base.fun = kk_cfun_ptr_box(&kcompose,ctx);
   f->count = kk_intx_box(count);
   memcpy(f->conts, conts, count * sizeof(kk_function_t));
   return (&f->_base);                              
