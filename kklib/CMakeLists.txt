@@ -171,6 +171,11 @@ target_compile_options(
       -Wno-unused-but-set-variable>
 )
 
+# Use O1 even in debug mode
+if($<CONFIG> MATCHES Debug) 
+  target_compile_options(kklib-flags INTERFACE $<${gnu_like}:-O1>)
+endif()
+
 # Platform-specific definitions
 target_compile_definitions(kklib-flags INTERFACE $<${unix}:_GNU_SOURCE>)
 
