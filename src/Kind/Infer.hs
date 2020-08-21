@@ -883,6 +883,8 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                         then 1
                        else if (name == nameTpAny)
                         then (sizePtr platform)
+                       else if (name == nameTpSizeT)
+                        then (sizeSize platform)
                         else 0
            m <- if (size <= 0) 
                   then do addWarning range (text "Type:" <+> nameDoc <+> text "is declared as a primitive value type but has no known compilation size, assuming size" <+> pretty (sizePtr platform))

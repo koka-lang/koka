@@ -30,6 +30,28 @@ type value double
 // See the [``std/int32``](std_int32.html) module for operations on 32-bit integers.
 type value int32
 
+// A signed integer equal to `size_t` in C. 
+// Provides no operations but is used mostly for interaction with external code.
+// The Javascript backend uses `int32` for this.
+type value size_t
+
+// A 8-bit unsigned integer (represented in two's complement).
+// Provides no operations but is used mostly for interaction with external code.
+type value uint8
+
+// A 8-bit signed integer (represented in two's complement).
+// Provides no operations but is used mostly for interaction with external code.
+type value int8
+
+// A 16-bit signed integer (represented in two's complement).
+// Provides no operations but is used mostly for interaction with external code.
+type value int16
+
+// A 32-bit IEEE 754 floating point value.
+// Not supported by the Javascript backend
+// Provides no operations but is used mostly for interaction with external code.
+type value float32
+
 // An any type. Used for extern calls
 type value any
 

@@ -1019,6 +1019,8 @@ cTypeCon c
          then CPrim "kk_char_t"  -- 32-bit unicode point
         else if (name == nameTpInt32)
          then CPrim "int32_t"
+        else if (name == nameTpSizeT)
+         then CPrim "size_t"
         else if (name == nameTpFloat)
          then CPrim "double"
         else if (name == nameTpBool)

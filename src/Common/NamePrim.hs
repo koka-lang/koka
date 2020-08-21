@@ -72,7 +72,7 @@ module Common.NamePrim
           , nameTpBool, nameTpInt, nameTpChar
           , nameTpFloat, nameTpFloat32
           , nameTpString
-          , nameTpInt32, nameTpInt64, nameTpInt16, nameTpInt8, nameTpByte
+          , nameTpInt32, nameTpInt64, nameTpInt16, nameTpInt8, nameTpByte, nameTpSizeT
           , nameTpAny
           , nameTpNull
           , nameTpException
@@ -346,9 +346,10 @@ nameTpInt32     = coreTypesName "int32"
 nameTpInt64     = coreTypesName "int64"
 nameTpInt16     = coreTypesName "int16"
 nameTpInt8      = coreTypesName "int8"
-nameTpByte      = coreTypesName "byte"
+nameTpSizeT     = coreTypesName "size_t"
+nameTpByte      = coreTypesName "uint8"
 nameTpFloat     = coreTypesName "double"
-nameTpFloat32   = coreTypesName "float"
+nameTpFloat32   = coreTypesName "float32"
 nameTpChar      = coreTypesName "char"
 nameTpString    = coreTypesName "string"
 nameTpAny       = coreTypesName "any"

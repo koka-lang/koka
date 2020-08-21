@@ -1196,7 +1196,7 @@ codeGenJS term flags modules compileTarget outBase core
             case host flags of
               Browser ->
                do return (Just (runSystem (dquote outHtml ++ " &")))
-              Node ->
+              _ ->
                do return (Just (runSystem ("node --stack-size=100000 " ++ outjs)))
 
 
