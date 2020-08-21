@@ -56,6 +56,13 @@ static inline kk_evv_t kk_evv_swap(kk_evv_t evv, kk_context_t* ctx) {
   return evv0;
 }
 
+static inline bool kk_evv_eq(kk_evv_t evv1, kk_evv_t evv2, kk_context_t* ctx) {  // TODO:make borrowing
+  bool eq = kk_datatype_eq(evv1,evv2);  
+  kk_evv_drop(evv1,ctx);
+  kk_evv_drop(evv2,ctx);
+  return eq;
+}
+
 static inline kk_evv_t kk_evv_total(kk_context_t* ctx) {
   return kk_vector_empty();
 }

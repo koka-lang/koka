@@ -88,7 +88,7 @@ private extern evv-show( evv : evv<e> ) : string {
 }
 
 private extern evv-eq(evv0 : evv<e>, evv1 : evv<e> ) : bool {
-  c inline "kk_datatype_eq(#1,#2)"
+  c inline "kk_evv_eq(#1,#2,kk_context())"
   js inline "(#1) === (#2)"
 }
 

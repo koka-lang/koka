@@ -486,10 +486,11 @@ typedef struct kk_cfunptr_s {
 static inline kk_box_t kk_cfun_ptr_boxx(kk_cfun_ptr_t f, kk_context_t* ctx) {
   uintptr_t u = (uintptr_t)f;              // assume we can convert a function pointer to uintptr_t...      
   if ((u&1)==0 && sizeof(u)==sizeof(f)) {  // aligned pointer? (and sanity check if function pointer != object pointer)
-    kk_box_t b = { (u|1) };
+    kk_box_t b = { (u|1) };                // box as value
     return b;
   }
   else {
+    // otherwise allocate
     kk_cfunptr_t fp = kk_block_alloc_as(struct kk_cfunptr_s, 0, KK_TAG_CFUNPTR, ctx);
     fp->cfunptr = f;
     return kk_ptr_box(&fp->_block);
@@ -498,7 +499,7 @@ static inline kk_box_t kk_cfun_ptr_boxx(kk_cfun_ptr_t f, kk_context_t* ctx) {
 
 static inline kk_cfun_ptr_t unbox_cfun_ptr(kk_box_t b) {
   if (kk_likely(_kk_box_is_value_fast(b))) {
-    return (kk_cfun_ptr_t)(b.box ^ 1); // clear lowest bit
+    return (kk_cfun_ptr_t)(b.box ^ 1);      // clear lowest bit
   }
   else {
     kk_cfunptr_t fp = kk_basetype_unbox_as_assert(kk_cfunptr_t, b, KK_TAG_CFUNPTR);
