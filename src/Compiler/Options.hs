@@ -142,9 +142,9 @@ flagsNull
           False
           False
           False -- typesigs
-          True -- executes
+          True  -- executes
           False -- library
-          [JS]
+          [C]   -- target
           Node
           platform64  
           5     -- simplify passes
