@@ -419,7 +419,7 @@ static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_con
 
 static inline kk_integer_t kk_integer_sub(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   intptr_t z = (x.value^3) - y.value;
-  if (kk_likely(z == (kk_smallint_t)(z&~IP(2)))) {  // clear bit 1 and sign extend
+  if (kk_likely(z == (kk_smallint_t)(z&~KIP(2)))) {  // clear bit 1 and sign extend
     kk_assert_internal((z&3) == 1);
     return _kk_new_integer(z);
   }

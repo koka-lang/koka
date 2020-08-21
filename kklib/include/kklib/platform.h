@@ -16,7 +16,7 @@
   - either a 32- or 64-bit platform (but others should be possible with few changes)
   - the compiler can do a great job on small static inline definitions (and we avoid #define's).
   - the compiler will inline small structs (like `struct kk_box_s{ uintptr_t u; }`) without
-    overhead (e.g. pass it in a register).
+    overhead (e.g. pass it in a register). This allows for better static checking.
   - (>>) on signed integers is an arithmetic right shift (i.e. sign extending)
   - a char/byte is 8 bits
   - either little-endian, or big-endian
@@ -77,6 +77,7 @@
 #define kk_decl_thread     __thread
 #endif
 
+// Assertions; kk_assert_internal is only enabled when KK_DEBUG_FULL is defined
 #define kk_assert(x)          assert(x)
 #ifdef KK_DEBUG_FULL
 #define kk_assert_internal(x) kk_assert(x)
@@ -100,17 +101,17 @@
 
 // Defining constants of a specific size
 #if LONG_MAX == INT64_MAX
-# define KK_LONG_SIZE 8
-# define KI32(i)  (i)
-# define KI64(i)  (i##L)
-# define KU32(i)  (i##U)
-# define KU64(i)  (i##UL)
+# define KK_LONG_SIZE   8
+# define KI32(i)        (i)
+# define KI64(i)        (i##L)
+# define KU32(i)        (i##U)
+# define KU64(i)        (i##UL)
 #elif LONG_MAX == INT32_MAX
 # define KK_LONG_SIZE 4
-# define KI32(i)  (i##L)
-# define KI64(i)  (i##LL)
-# define KU32(i)  (i##UL)
-# define KU64(i)  (i##ULL)
+# define KI32(i)        (i##L)
+# define KI64(i)        (i##LL)
+# define KU32(i)        (i##UL)
+# define KU64(i)        (i##ULL)
 #else
 #error size of a `long` must be 32 or 64 bits
 #endif
@@ -118,55 +119,66 @@
 // Define size of intptr_t
 #if INTPTR_MAX == INT64_MAX           // 9223372036854775807LL
 # define KK_INTPTR_SIZE 8
-# define IP(i)  KI64(i)
-# define UP(i)  KU64(i)
+# define KIP(i)         KI64(i)
+# define KUP(i)         KU64(i)
 #elif INTPTR_MAX == INT32_MAX         // 2147483647LL
 # define KK_INTPTR_SIZE 4
-# define IP(i)  KI32(i)
-# define UP(i)  KU32(i)
+# define KIP(i)         KI32(i)
+# define KUP(i)         KU32(i)
 #else
 #error platform must be 32 or 64 bits
 #endif
 #define KK_INTPTR_BITS        (8*KK_INTPTR_SIZE)
 #define KK_INTPTR_ALIGNUP(x)  ((((x)+KK_INTPTR_SIZE-1)/KK_INTPTR_SIZE)*KK_INTPTR_SIZE)
 
-// Define size of size_t
+// Define size of size_t and kk_ssize_t  (ssize_t is POSIX only and not C99)
 #if SIZE_MAX == UINT64_MAX           // 18446744073709551615LL
-# define KK_SIZE_SIZE 8
-# define KIZ(i)  KI64(i)
-# define KUZ(i)  KU64(i)
+# define KK_SIZE_SIZE   8
+# define KIZ(i)         KI64(i)
+# define KUZ(i)         KU64(i)
+typedef int64_t         kk_ssize_t;  
+#define KK_SSIZE_MAX    INT64_MAX
+#define KK_SSIZE_MIN    INT64_MIN
 #elif SIZE_MAX == UINT32_MAX         // 4294967295LL
-# define KK_SIZE_SIZE 4
-# define KIZ(i)  KI32(i)
-# define KUZ(i)  KU32(i)
+# define KK_SIZE_       SIZE 4
+# define KIZ(i)         KI32(i)
+# define KUZ(i)         KU32(i)
+typedef int32_t         kk_ssize_t;
+#define KK_SSIZE_MAX    INT32_MAX
+#define KK_SSIZE_MIN    INT32_MIN
 #else
 #error size of a `size_t` must be 32 or 64 bits
 #endif
 #define KK_SIZE_BITS   (8*KK_SIZE_SIZE)
 
 
-// Abstract over the "natural machine word" as `kk_intx_t`. This is useful when
-// targeting architectures where `sizeof(void*) < sizeof(long)` (like x32), or 
-// `sizeof(void*) > sizeof(size_t)` (like segmented architectures). 
-// We have `sizeof(kk_intx_t) >= sizeof(void*)` and `sizeof(kk_intx_t) >= sizeof(long)`.
-#if (LONG_MAX < INTPTR_MAX)
-typedef intptr_t       kk_intx_t;
-typedef uintptr_t      kk_uintx_t;
-#define KUX(i)         (i##ULL)
-#define KIX(i)         (i##LL)
-#define KK_INTX_SIZE   KK_INTPTR_SIZE
-#define KK_INTX_MAX    INTPTR_MAX
-#define KK_INTX_MIN    INTPTR_MIN
+
+// Abstract over the "natural machine word" as `kk_intx_t` such 
+// that `sizeof(kk_intx_t) == max(sizeof(long),sizeof(size_t))`. 
+// Note: we cannot use `long` for this as it is sometimes too short 
+// (as on Windows on 64-bit where it is 32 bits)
+// or sometimes too long (as on some segmented architectures). 
+// Also, on some architectures `sizeof(void*) < sizeof(long)` (like the x32 ABI), or 
+// `sizeof(void*) > sizeof(size_t)` (with segmented architectures).
+#if (ULONG_MAX < SIZE_MAX)
+typedef kk_ssize_t     kk_intx_t;
+typedef size_t         kk_uintx_t;
+#define KUX(i)         KUZ(i)
+#define KIX(i)         KIZ(i)
+#define KK_INTX_SIZE   KK_SIZE_SIZE
+#define KK_INTX_MAX    KK_SSIZE_MAX
+#define KK_INTX_MIN    KK_SSIZE_MIN
 #else 
 typedef long           kk_intx_t;
 typedef unsigned long  kk_uintx_t;
 #define KUX(i)         (i##UL)
 #define KIX(i)         (i##L)
 #define KK_INTX_SIZE   KK_LONG_SIZE
-#define KK_INTX_MAX    LONG_MAX
-#define KK_INTX_MIN    LONG_MIN
+#define KK_INTX_MAX    KK_LONG_MAX
+#define KK_INTX_MIN    KK_LONG_MIN
 #endif
 #define KK_INTX_BITS   (8*KK_INTX_SIZE)
+
 
 // Distinguish unsigned shift right and signed arithmetic shift right.
 static inline kk_intx_t   kk_sar(kk_intx_t i, kk_intx_t shift)   { return (i >> shift); }
