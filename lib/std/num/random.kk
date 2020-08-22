@@ -92,7 +92,7 @@ fun random-int() : random int {
 // Return a random double in the range [0,1) using 48-bits of randomness
 fun random-double() : random double {
   val lo = random-int32().shl(4.int32)
-  val hi = random-int32().shr(12.int32) | 0x3FF00000.int32
+  val hi = random-int32().shr(12.int32).or(0x3FF00000.int32)
   (double-from-bits(lo,hi) - 1.0)
 }
 

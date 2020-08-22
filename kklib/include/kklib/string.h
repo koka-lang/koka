@@ -183,6 +183,7 @@ static inline kk_string_t kk_string_copy(kk_string_t str, kk_context_t* ctx) {
   }
 }
 
+kk_decl_export kk_string_t kk_string_adjust_length(kk_string_t str, size_t newlen, kk_context_t* ctx);
 
 /*--------------------------------------------------------------------------------------------------
   UTF8 decoding/encoding

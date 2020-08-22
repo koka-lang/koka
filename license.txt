@@ -1,4 +1,4 @@
-Copyright (C) 2012-2016 Microsoft Corporation, Daan Leijen. 
+Copyright (C) 2012-2020 Microsoft Corporation, Daan Leijen. 
 
 Koka is free software; You can redistribute it and/or 
 modify it under the terms of this license.

@@ -363,6 +363,31 @@ kk_string_t  kk_string_trim_right(kk_string_t str, kk_context_t* ctx) {
   return tstr;
 }
 
+
+kk_string_t kk_string_adjust_length(kk_string_t str, size_t newlen, kk_context_t* ctx) {
+  if (newlen==0) {
+    kk_string_drop(str, ctx);
+    return kk_string_dup(kk_string_empty);
+  }
+  size_t len = kk_string_len_borrow(str);
+  if (len == newlen) {
+    return str;
+  }
+  if (!kk_basetype_is_unique(str) || !kk_basetype_has_tag(str, KK_TAG_STRING) || len < newlen || (3*(len/4)) > newlen) {
+    // if too small, or more than 25% waste, copy
+    kk_string_t tstr = kk_string_alloc_len(newlen, kk_string_cbuf_borrow(str), ctx);
+    kk_string_drop(str, ctx);
+    return tstr;
+  }
+  // otherwise modify length in place
+  kk_assert_internal(kk_basetype_has_tag(str, KK_TAG_STRING) && kk_basetype_is_unique(str));
+  kk_string_normal_t s = kk_basetype_as_assert(kk_string_normal_t, str, KK_TAG_STRING);
+  s->length = newlen;
+  s->str[newlen] = 0;
+  // kk_assert_internal(kk_string_is_valid(kk_string_dup(s),ctx));
+  return str;
+}
+
 /*--------------------------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------------------------*/
@@ -396,28 +421,26 @@ kk_unit_t kk_trace_any(kk_string_t s, kk_box_t x, kk_context_t* ctx) {
 }
 
 
-kk_string_t kk_double_show_fixed(double d, int32_t prec, kk_context_t* ctx) {
-  // TODO: respect prec
-  KK_UNUSED(prec);
-  char buf[32];
-  snprintf(buf, 32, "%f", d);
+static kk_string_t kk_double_show_spec(double d, int32_t prec, char spec, kk_context_t* ctx) {
+  char buf[64];
+  char fmt[16];
+  if (prec < 0)  prec = -prec;
+  if (prec > 48) prec = 48;
+  snprintf(fmt, 16, "%%.%i%c", (int)prec, spec);
+  snprintf(buf, 64, fmt, d);
   return kk_string_alloc_dup(buf, ctx);
+}
+
+kk_string_t kk_double_show_fixed(double d, int32_t prec, kk_context_t* ctx) {
+  return kk_double_show_spec(d, prec, prec < 0 ? 'g' : 'f', ctx);
 }
 
 kk_string_t kk_double_show_exp(double d, int32_t prec, kk_context_t* ctx) {
-  // TODO: respect prec
-  KK_UNUSED(prec);
-  char buf[32];
-  snprintf(buf, 32, "%e", d);
-  return kk_string_alloc_dup(buf, ctx);
+  return kk_double_show_spec(d, prec, prec < 0 ? 'g' : 'e', ctx);
 }
 
 kk_string_t kk_double_show(double d, int32_t prec, kk_context_t* ctx) {
-  // TODO: respect prec
-  KK_UNUSED(prec);
-  char buf[32];
-  snprintf(buf, 32, "%g", d);
-  return kk_string_alloc_dup(buf, ctx);
+  return kk_double_show_spec(d, prec, 'g', ctx);
 }
 
 

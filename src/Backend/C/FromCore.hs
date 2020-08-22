@@ -8,6 +8,7 @@
 
 module Backend.C.FromCore ( cFromCore ) where
 
+import Numeric( showHFloat )
 import Platform.Config(version)
 import Lib.Trace
 import Control.Applicative hiding (empty)
@@ -315,6 +316,10 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
                           -> do let (cstr,clen) = cstring s
                                     decl = if (isPublic vis) then empty else text "static"
                                 emitToC (text "kk_define_string_literal" <.> tupled [decl,ppName name,pretty clen,cstr] {- <.> semi -})
+                        -- special case for doubles
+                        Lit lit@(LitFloat f)
+                          -> do let flt  = ppLit lit
+                                emitToH (text "#define" <+> ppName name <+> parens (text "(double)" <.> parens flt))
                         _ -> do doc <- genStat (ResultAssign (TName name tp) Nothing) (defBody)
                                 emitToInit doc
                                 let decl = ppType tp <+> ppName name <.> unitSemi tp
@@ -1732,7 +1737,7 @@ getFormat tname formats
          Just s  -> s
          Nothing -> -- failure ("backend does not support external in " ++ show tname ++ ": " ++ show formats)
                     trace( "warning: C backend does not support external in " ++ show tname ) $
-                      ("unsupported_external(\"" ++ (show tname) ++ "\")")
+                      ("kk_unsupported_external(\"" ++ (show tname) ++ "\")")
       Just s -> s
 
 genDefName :: TName -> Asm Doc
@@ -2017,7 +2022,7 @@ ppLit lit
                      in if (c >= ' ' && c <= '~')
                          then text (show c)
                          else text ("0x" ++ showHex 4 (fromEnum c))
-      LitFloat d  -> text (showsPrec 20 d "")
+      LitFloat d  -> text (showHFloat d "")
       LitString s -> failure ("Backend.C.FromCore: ppLit: cannot inline string literal: " ++ show s)
 
 cstring :: String -> (Doc,Int)

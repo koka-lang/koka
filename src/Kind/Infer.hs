@@ -39,6 +39,7 @@ import Common.Syntax( Platform(..) )
 import Common.Name
 import Common.NamePrim
 import Common.Syntax
+import Common.File( startsWith )
 import qualified Common.NameMap as M
 import Syntax.Syntax
 import qualified Core.Core as Core
@@ -436,7 +437,9 @@ formatCall tp (target,ExternalCall fname)
     formatC
       = fname ++ argumentsC
     argumentsC
-      = "(" ++ concat (intersperse "," (["#" ++ show i | i <- [1..argumentCount]] ++ ["_ctx"])) ++ ")"
+      = "(" ++ concat (intersperse "," (["#" ++ show i | i <- [1..argumentCount]] ++ ctx)) ++ ")"
+    ctx 
+      = if (fname `startsWith` "kk_") then ["kk_context()"] else []
 
 
 

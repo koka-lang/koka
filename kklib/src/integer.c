@@ -43,6 +43,9 @@ including Karatsuba multiplication.
 #define BASE        KI64(1000000000000000000)
 #define LOG_BASE    (18)
 #define DIGIT_BITS  (64)
+#define BASE_HEX    KU64(0x100000000000000)  // largest hex base < BASE  
+#define PRIxDIGIT   "%llx"
+#define PRIXDIGIT   "%llX"
 typedef uint64_t    kk_digit_t;     // 2*BASE + 1 < kk_digit_t_max
 
 typedef struct kk_ddigit_s {
@@ -78,7 +81,12 @@ static inline kk_ddigit_t ddigit_mul_add(kk_digit_t x, kk_digit_t y, kk_digit_t 
 #define BASE        KI64(1000000000000000000)
 #define LOG_BASE    (18)
 #define DIGIT_BITS  (64)
+#define BASE_HEX    KU64(0x100000000000000)  // largest hex base < BASE  
 typedef uint64_t    kk_digit_t;     // 2*BASE + 1 < kk_digit_t_max
+
+#include <inttypes.h>
+#define PRIxDIGIT   "%" PRIx64
+#define PRIXDIGIT   "%" PRIX64
 
 __extension__ typedef unsigned __int128 kk_ddigit_t;
 
@@ -100,7 +108,10 @@ static inline kk_ddigit_t ddigit_mul_add(kk_digit_t x, kk_digit_t y, kk_digit_t 
 #define BASE        KI32(1000000000)
 #define LOG_BASE    (9)
 #define DIGIT_BITS  (32)
+#define BASE_HEX    KU32(0x10000000)  // largest hex base < BASE  
 typedef uint32_t    kk_digit_t;     // 2*BASE + 1 < kk_digit_t_max
+#define PRIxDIGIT   "%lx"
+#define PRIXDIGIT   "%lX"
 
 typedef uint64_t    kk_ddigit_t;    // double digit for multiplies
 
@@ -1258,10 +1269,51 @@ kk_string_t kk_integer_to_string(kk_integer_t x, kk_context_t* ctx) {
   }
 }
 
+static kk_string_t kk_int_to_hex_string(kk_intx_t i, bool use_capitals, kk_context_t* ctx) {
+  kk_assert_internal(i >= 0);
+  char buf[64];
+  if (use_capitals) {
+    snprintf(buf, 64, PRIXDIGIT, (kk_uintx_t)i);
+  }
+  else {
+    snprintf(buf, 64, PRIxDIGIT, (kk_uintx_t)i);
+  }
+  return kk_string_alloc_dup(buf, ctx);
+}
+
+static size_t kk_bigint_to_hex_buf(kk_bigint_t* b, char* buf, size_t size, bool use_capitals, kk_context_t* ctx) {
+  // TODO: can we improve the performance using the Chinese remainder theorem? or not using snprintf?
+  kk_assert_internal(!b->is_neg);
+  size_t len = 0;
+  while (len < size && ((b->count > 1) || (b->digits[0] != 0))) {
+    kk_digit_t mod;
+    b = kk_bigint_div_mod_small(b, BASE_HEX, &mod, ctx);
+    if (use_capitals)
+      snprintf(buf + len, size - len, PRIXDIGIT, mod);
+    else
+      snprintf(buf + len, size - len, PRIxDIGIT, mod);
+    len += strlen(buf + len);
+  }
+  drop_bigint(b,ctx);
+  return len;
+}
+
+static kk_string_t kk_bigint_to_hex_string(kk_bigint_t* b, bool use_capitals, kk_context_t* ctx) {
+  // overestimate the needed characters by using needed decimal digits
+  size_t needed = kk_bigint_to_buf_(b, NULL, 0);   
+  kk_string_t s = kk_string_alloc_buf(needed, ctx);
+  size_t len = kk_bigint_to_hex_buf(b, (char*)kk_string_cbuf_borrow(s), needed, use_capitals, ctx);
+  kk_assert_internal(needed > len);
+  return kk_string_adjust_length(s, len, ctx);
+}
+
 kk_decl_export kk_string_t kk_integer_to_hex_string(kk_integer_t x, bool use_capitals, kk_context_t* ctx) {
-  // TODO
-  KK_UNUSED(use_capitals);
-  return kk_integer_to_string(x, ctx);
+  if (kk_is_smallint(x)) {
+    return kk_int_to_hex_string(kk_smallint_from_integer(x), use_capitals, ctx);
+  }
+  else {
+    return kk_bigint_to_hex_string(kk_integer_to_bigint(x, ctx), use_capitals, ctx);
+  }
 }
 
 void kk_integer_fprint(FILE* f, kk_integer_t x, kk_context_t* ctx) {

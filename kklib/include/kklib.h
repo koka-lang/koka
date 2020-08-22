@@ -194,6 +194,34 @@ static inline kk_decl_pure bool kk_block_is_unique(const kk_block_t* b) {
   return (kk_likely(b->header.refcount == 0));
 }
 
+typedef struct kk_block_fields_s {
+  kk_block_t _block;
+  kk_box_t   fields[1];
+} kk_block_fields_t;
+
+static inline kk_box_t kk_block_field(kk_block_t* b, size_t index) {
+  kk_block_fields_t* bf = (kk_block_fields_t*)b;  // must overlap with datatypes with scanned fields.
+  return bf->fields[index];
+}
+
+#if (KK_INTPTR_SIZE==8)
+#define KK_BLOCK_INVALID  KUP(0xDFDFDFDFDFDFDFDF)
+#else
+#define KK_BLOCK_INVALID  KUP(0xDFDFDFDF)
+#endif
+
+static inline void kk_block_set_invalid(kk_block_t* b) {
+#ifdef KK_DEBUG_FULL
+  const size_t scan_fsize = kk_block_scan_fsize(b);
+  memset(((kk_block_fields_t*)b)->fields, 0xDF, sizeof(kk_box_t)*scan_fsize);
+#else
+  KK_UNUSED(b);
+#endif
+}
+
+static inline bool kk_block_is_valid(kk_block_t* b) {
+  return (b != NULL && kk_block_field(b, 0).box != KK_BLOCK_INVALID); // already freed!
+}
 
 /*--------------------------------------------------------------------------------------
   The thread local context as `kk_context_t`
@@ -434,6 +462,7 @@ static inline char* kk_block_assertx(kk_block_t* b, kk_tag_t tag) {
 }
 
 static inline void kk_block_free(kk_block_t* b) {
+  kk_block_set_invalid(b);
   kk_free(b);
 }
 
@@ -455,6 +484,7 @@ kk_decl_export kk_reuse_t  kk_block_check_drop_reuse(kk_block_t* b, uint32_t rc0
 
 
 static inline kk_block_t* kk_block_dup(kk_block_t* b) {
+  kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;
   if (kk_likely((int32_t)rc >= 0)) {    // note: assume two's complement  (we can skip this check if we never overflow a reference count or use thread-shared objects.)
     b->header.refcount = rc+1;
@@ -466,6 +496,7 @@ static inline kk_block_t* kk_block_dup(kk_block_t* b) {
 }
 
 static inline void kk_block_drop(kk_block_t* b, kk_context_t* ctx) {
+  kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;
   if ((int32_t)(rc > 0)) {          // note: assume two's complement
     b->header.refcount = rc-1;
@@ -476,6 +507,7 @@ static inline void kk_block_drop(kk_block_t* b, kk_context_t* ctx) {
 }
 
 static inline void kk_block_decref(kk_block_t* b, kk_context_t* ctx) {
+  kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;  
   if (kk_likely((int32_t)(rc > 0))) {     // note: assume two's complement
     b->header.refcount = rc - 1;
@@ -487,6 +519,7 @@ static inline void kk_block_decref(kk_block_t* b, kk_context_t* ctx) {
 
 // Decrement the reference count, and return the memory for reuse if it drops to zero
 static inline kk_reuse_t kk_block_drop_reuse(kk_block_t* b, kk_context_t* ctx) {
+  kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;
   if ((int32_t)rc <= 0) {                 // note: assume two's complement
     return kk_block_check_drop_reuse(b, rc, ctx); // thread-shared, sticky (overflowed), or can be reused?
@@ -497,20 +530,12 @@ static inline kk_reuse_t kk_block_drop_reuse(kk_block_t* b, kk_context_t* ctx) {
   }
 }
 
-typedef struct kk_block_fields_s {
-  kk_block_t _block;
-  kk_box_t   fields[1];
-} kk_block_fields_t;
-
-static inline kk_box_t kk_block_field(kk_block_t* b, size_t index) {
-  kk_block_fields_t* bf = (kk_block_fields_t*)b;  // must overlap with datatypes with scanned fields.
-  return bf->fields[index];
-}
 
 static inline void kk_box_drop(kk_box_t b, kk_context_t* ctx);
 
 // Drop with inlined dropping of children 
 static inline void kk_block_dropi(kk_block_t* b, kk_context_t* ctx) {
+  kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;
   if (rc == 0) {
     const size_t scan_fsize = kk_block_scan_fsize(b);
@@ -529,6 +554,7 @@ static inline void kk_block_dropi(kk_block_t* b, kk_context_t* ctx) {
 
 // Decrement the reference count, and return the memory for reuse if it drops to zero (with inlined dropping)
 static inline kk_reuse_t kk_block_dropi_reuse(kk_block_t* b, kk_context_t* ctx) {
+  kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;
   if (rc == 0) {
     size_t scan_fsize = kk_block_scan_fsize(b);
@@ -545,6 +571,7 @@ static inline kk_reuse_t kk_block_dropi_reuse(kk_block_t* b, kk_context_t* ctx) 
 
 // Drop with known scan size 
 static inline void kk_block_dropn(kk_block_t* b, size_t scan_fsize, kk_context_t* ctx) {
+  kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;
   if (rc == 0) {                 // note: assume two's complement
     kk_assert_internal(scan_fsize == kk_block_scan_fsize(b));
@@ -565,6 +592,7 @@ static inline void kk_block_dropn(kk_block_t* b, size_t scan_fsize, kk_context_t
 
 // Drop-reuse with known scan size
 static inline kk_reuse_t kk_block_dropn_reuse(kk_block_t* b, size_t scan_fsize, kk_context_t* ctx) {
+  kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;
   if (rc == 0) {                 
     kk_assert_internal(kk_block_scan_fsize(b) == scan_fsize);

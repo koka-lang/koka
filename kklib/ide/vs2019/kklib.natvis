@@ -16,6 +16,7 @@
       <Item Name="free variables" Condition="header.tag==0xFFC5">(header.scan_fsize&gt;0?header.scan_fsize-1:0)</Item>
       <Item Name="function entry" Condition="header.tag==0xFFC5">(void*)(((struct kk_function_s*)&amp;header)->fun.box-1)</Item>
       <Item Name="scan fields">(header.scan_fsize==255?((((struct kk_block_large_s*)&amp;header)->large_scan_fsize.box-1)/4):header.scan_fsize)</Item>
+      <Item Name="string length" Condition="header.tag==0xFFC8">((struct kk_string_normal_s*)&amp;header)->length</Item>
       <ArrayItems Condition="header.tag==0xFFCA">
         <Size>(((struct kk_block_large_s*)&amp;header)->large_scan_fsize.box-1)/4</Size>
         <ValuePointer>&amp;(((struct kk_vector_large_s*)&amp;header)->vec[0])</ValuePointer>

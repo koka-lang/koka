@@ -551,7 +551,7 @@ static inline kk_integer_t kk_integer_neg(kk_integer_t x, kk_context_t* ctx) {
 
 static inline kk_integer_t kk_integer_abs(kk_integer_t x, kk_context_t* ctx) {
   if (kk_likely(kk_is_smallint(x))) return (x.value < 0 ? kk_integer_neg_small(x,ctx) : x);
-  return (kk_integer_signum_generic(x, ctx) < 0 ? kk_integer_neg_generic(x, ctx) : x);
+  return (kk_integer_signum_generic(kk_integer_dup(x), ctx) < 0 ? kk_integer_neg_generic(x, ctx) : x);
 }
 
 static inline kk_integer_t kk_integer_dec(kk_integer_t x, kk_context_t* ctx) {

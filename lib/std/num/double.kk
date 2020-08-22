@@ -18,6 +18,30 @@ extern include {
 	js file "double-inline.js"
 }
 
+extern include {
+	c header @"
+		static inline kk_std_core_types__tuple2_ kk_double_to_bits( double d, kk_context_t* ctx ) {
+			uint64_t u;
+			memcpy(&u,&d,sizeof(u));
+			return kk_std_core_types__new_dash__lp__comma__rp_( kk_int32_box((int32_t)u, ctx), kk_int32_box((int32_t)(u >> 32), ctx), ctx );
+		}
+		static inline double kk_double_from_bits( int32_t lo, int32_t hi, kk_context_t* ctx ) {
+			KK_UNUSED(ctx);
+			double d;
+			uint64_t u = (((uint64_t)hi) << 32) | (uint64_t)lo;
+			memcpy(&d,&u,sizeof(d));
+			return d;
+		}
+	  static inline double kk_prim_parse_double( kk_string_t str, kk_context_t* ctx) {
+			const char* s = kk_string_cbuf_borrow(str);
+			char* end;
+			double d = strtod(s,&end);
+			kk_string_drop(str,ctx);  
+			return d;
+		}
+	"
+}
+
 
 //-----------------------------------------
 // Constants
@@ -82,45 +106,69 @@ val dbl-epsilon = 0x1.0p-52 // 2.2204460492503130808e-16
 val dbl-max-prec= 15
 
 // Represents a value that is _not a number_ (NaN)
-val nan : double    = 0.0/0.0
+val nan : double    = make-nan()
 
 // Positive infinity
-val posinf : double = 1.0/0.0
+val posinf : double = make-posinf()
 
 // Negative infinity
-val neginf : double = -1.0/0.0
+val neginf : double = make-neginf()
 
 
 //-----------------------------------------
 // NaN, Infinity
 //-----------------------------------------
 
+private extern make-nan() : double {
+	c  inline "(double)NAN"
+	cs inline "double.NaN"
+	js inline "NaN"
+}
+
+private extern make-posinf() : double {
+	c  inline "(double)INFINITY"
+	cs inline "double.PositiveInfinity"
+	js inline "Infinity"
+}
+
+private extern make-neginf() : double {
+	c  inline "-((double)INFINITY)"
+	cs inline "double.NegativeInfinity"
+	js inline "-Infinity"
+}
+
+
 // Is this value equal to NaN ?
 extern inline nan? : (double) -> bool {
+	c  inline "isnan(#1)"
   cs "double.IsNaN"
   js "isNaN"
 }
 
 // Is this value equal to negative or positive infinity ?
 extern inf? : (double) -> bool {
+	c  inline "isinf(#1)"
   cs "double.IsInfinity"
   js inline "((#1) === Infinity || (#1) === -Infinity)"
 }
 
 // Is this value equal to positive infinity ?
 extern inline posinf? : (double) -> bool {
+	c  inline "((#1)==INFINITY)"
   cs "double.IsPositiveInfinity"
   js inline "((#1) === Infinity)"
 }
 
 // Is this value equal to negative infinity ?
 extern inline neginf? : (double) -> bool {
+	c inline "((#1)==-INFINITY)"
   cs "double.IsNegativeInfinity"
   js inline "((#1) === -Infinity)"
 }
 
 // Is this a finite number (i.e. not `nan` or infinity)
 extern inline finite?( d : double ) : bool {
+	c  inline "isfinite(#1)"
   cs inline "(!double.IsNaN(#1) && !double.IsInfinity(#1))"
   js "isFinite"
 }
@@ -145,18 +193,21 @@ fun subnormal?( d :double ) : bool  {
 // Round a double to its nearest integral value.
 // If the value is halfway between two integers, the value is rounded to the even one.
 extern inline round : (d:double) -> double {
+	c  "lrint"              // assume the rounding mode is set correctly by kklib
   cs "Math.Round"
   js "$std_core._double_round"
 }
 
 // Return the largest integer equal or less than `d`
 extern inline floor : (d:double) -> double {
+	c  "floor"
   cs "Math.Floor"
   js "Math.floor"
 }
 
 // Return the smallest integer equal or larger than `d`
 extern inline ceiling : (d:double) -> double {
+	c  "ceil"
   cs "Math.Ceiling"
   js "Math.ceil"
 }
@@ -202,6 +253,7 @@ fun round-to-prec( d : double, prec : int  ) : double {
 // Returns `nan` if `d == nan`  or if `d`  is negative.
 // Returns `inf` if `d == inf` .
 extern inline sqrt : (d:double) -> double {
+	c  "sqrt"
   cs "Math.Sqrt"
   js "Math.sqrt"
 }
@@ -209,12 +261,14 @@ extern inline sqrt : (d:double) -> double {
 
 // Return the `d` raised to the power of `p`.
 extern inline pow : (d:double, p:double) -> double  {
+	c  "pow"
   cs "Math.Pow"
   js "Math.pow"
 }
 
 // Return the natural logarithm (in base _e_)  of a `:double` `d`
 extern inline log : (d:double) -> double  {
+	c  "log"
   cs "Math.Log"
   js "Math.log"
 }
@@ -231,6 +285,7 @@ fun log2( d : double ) : double {
 
 // Return _e_ to the power of `p`.
 extern inline exp( p : double ) : double {
+	c  "exp"
   cs "Math.Exp"
   js "Math.exp"
 }
@@ -325,6 +380,7 @@ fun (~=)(x : double, y : double ) : bool {
 
 // Low-level: return the `(lo,hi)` bits of a 64-bit double.
 extern double-to-bits( d : double ) : (int32,int32) {
+	c  "kk_double_to_bits"
   cs "Primitive.DoubleToBits"
   js "_double_to_bits"
 }
@@ -332,6 +388,7 @@ extern double-to-bits( d : double ) : (int32,int32) {
 
 // Low-level: create a `:double` from the given `lo` and `hi` 32-bits.
 extern double-from-bits( lo : int32, hi : int32 ) : double {
+	c  "kk_double_from_bits"
   cs "Primitive.DoubleFromBits"
   js "_double_from_bits"
 }
@@ -513,6 +570,7 @@ private fun pspecial() : parse double {
 
 // Return `nan` on failure
 private extern prim-parse-double( s : string ) : double {
+	c  "kk_prim_parse_double"
   cs "Primitive.DoubleParse"
   js "parseFloat"
 }
@@ -612,41 +670,48 @@ fun rad( deg : double ) : double {
 
 // Return the sine of an angle in radians `d`.
 extern inline sin( d : double ) : double {
+	c  "sin"
   cs "Math.Sin"
   js "Math.sin"
 }
 
 // Return the cosine of an angle in radians `d`.
 extern inline cos( d : double ) : double {
+	c  "cos"
   cs "Math.Cos"
   js "Math.cos"
 }
 
 // Return the tangent of an angle in radians `d`.
 extern inline tan( d : double ) : double {
+	c  "tan"
   cs "Math.Tan"
   js "Math.tan"
 }
 // Return the arc-tangent of `d`
 extern inline atan( d : double ) : double {
+	c  "atan"
   cs "Math.Atan"
   js "Math.atan"
 }
 
 // Return the arc-tangent of a point (`x`,`y`).
 extern inline atan2( x : double, y : double ) : double {
+	c  "atan2"
   cs "Math.Atan2"
   js "Math.atan2"
 }
 
 // Return the arc-cosine of `d`
 extern inline acos( d : double ) : double {
+	c  "acos"
   cs "Math.Acos"
   js "Math.acos"
 }
 
 // Return the arc-sine of `d`
 extern inline asin( d : double ) : double {
+	c  "asin"
   cs "Math.Asin"
   js "Math.asin"
 }
@@ -654,18 +719,21 @@ extern inline asin( d : double ) : double {
 
 // The hyperbolic tangent of `d`
 extern inline tanh( d : double ) : double {
+	c  "tanh"
   cs "Math.Tanh"
   js "Math.tanh"
 }
 
 // The hyperbolic cosine of `d`
 extern inline cosh( d : double ) : double {
+	c  "cosh"
   cs "Math.Cosh"
   js "Math.cosh"
 }
 
 // The hyperbolic sine of `d`
 extern inline sinh( d : double ) : double {
+	c  "sinh"
   cs "Math.Sinh"
   js "Math.sinh"
 }
