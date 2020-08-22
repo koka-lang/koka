@@ -174,8 +174,8 @@ typedef unsigned long  kk_uintx_t;
 #define KUX(i)         (i##UL)
 #define KIX(i)         (i##L)
 #define KK_INTX_SIZE   KK_LONG_SIZE
-#define KK_INTX_MAX    KK_LONG_MAX
-#define KK_INTX_MIN    KK_LONG_MIN
+#define KK_INTX_MAX    LONG_MAX
+#define KK_INTX_MIN    LONG_MIN
 #endif
 #define KK_INTX_BITS   (8*KK_INTX_SIZE)
 
