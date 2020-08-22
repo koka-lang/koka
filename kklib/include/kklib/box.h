@@ -504,7 +504,7 @@ static inline kk_cfun_ptr_t kk_cfun_ptr_unbox(kk_box_t b, kk_context_t* ctx) {
   else {
     kk_cfunptr_t fp = kk_basetype_unbox_as_assert(kk_cfunptr_t, b, KK_TAG_CFUNPTR);
     kk_cfun_ptr_t f = fp->cfunptr;
-    if (ctx!=NULL) kk_basetype_free(fp);
+    if (ctx!=NULL) kk_basetype_drop(fp,ctx);
     return f;
   }
 }

@@ -56,7 +56,7 @@ if(NOT (KK_DEBUG_SAN MATCHES OFF))
 endif()
 
 if(KK_DEBUG_FULL MATCHES ON) 
-  target_compile_definitions(kklib_flags PUBLIC KK_DEBUG_FULL=1)
+  target_compile_definitions(kklib-flags INTERFACE KK_DEBUG_FULL=1)
 endif()
 
 if(KK_MIMALLOC MATCHES ON)

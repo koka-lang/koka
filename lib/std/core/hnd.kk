@@ -31,7 +31,7 @@ abstract type ev<h> {
 
 private type evv<e::E>;
 
-public alias ev-index = int32
+public alias ev-index = size_t
 
 // -------------------------------------------
 // Internal Markers

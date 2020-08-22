@@ -39,8 +39,8 @@ struct kk_std_core_hnd__ev_s* kk_ev_none(kk_context_t* ctx) {
     ev_none_singleton = kk_std_core_hnd__new_Ev(
       kk_reuse_null,
       kk_std_core_hnd__new_Htag(kk_string_dup(kk_string_empty),ctx), // tag ""
-      kk_std_core_hnd__new_Marker(-1,ctx),                       // marker -1
-      kk_box_null,                                                 // no handler
+      kk_std_core_hnd__new_Marker(-1,ctx),                           // marker -1
+      kk_box_null,                                                   // no handler
       kk_vector_empty(),
       ctx
     );      
@@ -49,24 +49,24 @@ struct kk_std_core_hnd__ev_s* kk_ev_none(kk_context_t* ctx) {
 }
 
 
-int32_t kk_evv_index( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx ) {
+size_t kk_evv_index( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx ) {
   // todo: drop htag?
   size_t len;
   kk_box_t single;
   kk_box_t* vec = kk_evv_as_vec(ctx->evv,&len,&single);
   for(size_t i = 0; i < len; i++) {
     struct kk_std_core_hnd_Ev* ev = kk_ev_unbox(vec[i],ctx);
-    if (kk_string_cmp_borrow(htag._field1,ev->_field1._field1) <= 0) return (int32_t)(i); // break on insertion point
+    if (kk_string_cmp_borrow(htag._field1,ev->_field1._field1) <= 0) return i; // break on insertion point
   }
   //string_t evvs = kk_evv_show(dup_datatype_as(kk_evv_t,ctx->evv),ctx);
   //fatal_error(EFAULT,"cannot find tag '%s' in: %s", string_cbuf_borrow(htag._field1), string_cbuf_borrow(evvs));
   //drop_string_t(evvs,ctx);  
-  return (int32_t)len;
+  return len;
 }
 
 kk_std_core_hnd__ev kk_evv_lookup( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx ) {
   // todo: drop htag
-  int32_t idx = kk_evv_index(htag,ctx);
+  size_t idx = kk_evv_index(htag,ctx);
   return kk_evv_at(idx,ctx);
 }
 
@@ -100,7 +100,7 @@ kk_evv_t kk_evv_insert(kk_evv_t evvd, kk_std_core_hnd__ev evd, kk_context_t* ctx
   return vec2;
 }
 
-kk_evv_t kk_evv_delete(kk_evv_t evvd, int32_t index, bool behind, kk_context_t* ctx) {
+kk_evv_t kk_evv_delete(kk_evv_t evvd, size_t index, bool behind, kk_context_t* ctx) {
   size_t n;
   kk_box_t single;
   const kk_box_t* evv1 = kk_evv_as_vec(evvd, &n, &single);
@@ -109,12 +109,12 @@ kk_evv_t kk_evv_delete(kk_evv_t evvd, int32_t index, bool behind, kk_context_t* 
     return kk_evv_total(ctx);
   }
   if (behind) index++;
-  kk_assert_internal((size_t)index < n);  
+  kk_assert_internal(index < n);  
   // todo: copy without dupping (and later dropping) when possible
   const kk_vector_t vec2 = kk_vector_alloc(n+1,kk_box_null,ctx);  
   kk_box_t* const evv2 = kk_vector_buf(vec2,NULL);
   size_t i;
-  for(i = 0; i < (size_t)index; i++) {
+  for(i = 0; i < index; i++) {
     evv2[i] = kk_box_dup(evv1[i]);  // todo: use box_datatype for efficiency?
   }
   for(; i < n-1; i++) {
@@ -312,7 +312,7 @@ kk_evv_t kk_evv_swap_create( kk_vector_t indices, kk_context_t* ctx ) {
     return kk_evv_swap_create0(ctx);
   }
   if (len==1) {
-    int32_t i = kk_int32_unbox(vec[0],ctx);
+    size_t i = kk_size_unbox(vec[0],ctx);
     kk_vector_drop(indices,ctx);
     return kk_evv_swap_create1(i,ctx);
   }

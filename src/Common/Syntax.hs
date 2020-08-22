@@ -52,7 +52,11 @@ data Platform = Platform{ sizePtr  :: Int -- sizeof(intptr_t)
 platform32, platform64 :: Platform
 platform32 = Platform 4 4
 platform64 = Platform 8 8 
+platformJS = platform32
+platformCS = platform32
 
+instance Show Platform where
+  show (Platform sp ss) = "Platform(sizeof(void*)=" ++ show sp ++ ",sizeof(size_t)=" ++ show ss ++ ")"
 
 alignedSum :: Int -> [Int] -> Int
 alignedSum start xs = foldl alignedAdd start xs

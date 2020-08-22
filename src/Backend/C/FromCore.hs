@@ -1572,17 +1572,22 @@ genAppNormal f args
 
 genAppSpecial :: Expr -> [Expr] -> Asm (Maybe Doc)
 genAppSpecial f args
-  = case (f,args) of
-      (Var tname _, [Lit (LitInt i)]) | getName tname == nameInt32 && isSmallInt32 i
-        -> return (Just (genLitInt32 i))
-      _ -> case extractExtern f of
-             Just (tname,formats)
-               -- inline external
-               -> case args of
-                   [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt32 i
-                     -> return (Just (parens (text "(int32_t)" <.> pretty i)))
-                   _ -> return Nothing
-             _ -> return Nothing
+  = do platform <- getPlatform
+       case (f,args) of
+        (Var tname _, [Lit (LitInt i)]) | getName tname == nameInt32 && isSmallInt32 i
+          -> return (Just (genLitInt32 i))
+        (Var tname _, [Lit (LitInt i)]) | getName tname == nameSizeT && isSmallSizeT platform i
+          -> return (Just (genLitSizeT i))
+        _ -> case extractExtern f of
+               Just (tname,formats)
+                 -- inline external
+                 -> case args of
+                     [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt32 i
+                       -> return (Just (parens (text "(int32_t)" <.> pretty i)))
+                     [Lit (LitInt i)] | getName tname == nameSizeT && isSmallSizeT platform i
+                       -> return (Just (parens (text "(size_t)" <.> pretty i)))
+                     _ -> return Nothing
+               _ -> return Nothing
 
 {-
 genAppInline :: Expr -> [Expr] -> Asm Doc
@@ -2049,7 +2054,11 @@ cstring s
 genLitInt32 :: Integer -> Doc
 genLitInt32 i
   = parens (text "(int32_t)" <.> pretty i)
-
+  
+genLitSizeT :: Integer -> Doc
+genLitSizeT i
+  = parens (text "(size_t)" <.> pretty i)
+    
 isSmallLitInt expr
   = case expr of
       Lit (LitInt i)  -> isSmallInt i
@@ -2070,6 +2079,10 @@ maxSmallInt64, minSmallInt64 :: Integer
 maxSmallInt64 = 9223372036854775807  -- 2^63 - 1
 minSmallInt64 = -maxSmallInt64 - 1
 
+isSmallSizeT platform i 
+  | sizeSize platform == 4 = (i >= 0 && i <= 4294967295)
+  | sizeSize platform == 8 = (i >= 0 && i <= 18446744073709551615)
+  | otherwise = failure $ "Backend.C.isSmallSizeT: unknown platform size_t: " ++ show platform
 
 ppName :: Name -> Doc
 ppName name

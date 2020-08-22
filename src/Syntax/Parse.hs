@@ -1159,7 +1159,7 @@ operationDecl opCount vis foralls docEffect hndName mbResource effTp hndTp hndTp
                                ++ arguments) rng
 
 
-                        zeroIdx        = App (Var nameInt32 False nameRng) [(Nothing,Lit (LitInt 0 nameRng))] nameRng
+                        zeroIdx        = App (Var nameSizeT False nameRng) [(Nothing,Lit (LitInt 0 nameRng))] nameRng
                         resourceName   = newHiddenName "name"
                         resourceBinder = ValueBinder resourceName effTp  Nothing idrng rng
                         perform        = Var (namePerform (length pars)) False nameRng

@@ -41,7 +41,7 @@ module Core.Core ( -- Data structures
                    , isValueExpr
                    , openEffectExpr
                    , makeIfExpr
-                   , makeInt32
+                   , makeInt32, makeSizeT
                    , makeEvIndex
                    , makeList, makeVector
                    , makeDef, makeTDef, makeStats
@@ -89,7 +89,7 @@ import Common.Failure
 import Common.Unique
 import Common.Id
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
-                        nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameBox, nameUnbox,
+                        nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameSizeT, nameBox, nameUnbox,
                         nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit)
 import Common.Syntax
 import Kind.Kind
@@ -800,8 +800,16 @@ makeInt32 i
     in App int32 [Lit (LitInt i)]
 
 makeEvIndex :: Integer -> Expr
+makeEvIndex i | i < 0 = failure $ ("Core.Core.makeEvIndex: index < 0: " ++ show i)
 makeEvIndex i
-  = makeInt32 i
+  = let sizet = Var (TName nameSizeT (typeFun [(nameNil,typeInt)] typeTotal typeEvIndex)) (InfoArity 1 0 )
+    in App sizet [Lit (LitInt i)]
+
+makeSizeT :: Integer -> Expr
+makeSizeT i | i < 0 = failure $ ("Core.Core.makeSizeT: size_t < 0: " ++ show i)
+makeSizeT i
+  = let sizet = Var (TName nameSizeT (typeFun [(nameNil,typeInt)] typeTotal typeSizeT)) (InfoArity 1 0 )
+    in App sizet [Lit (LitInt i)]
 
 ---------------------------------------------------------------------------
 -- type of a core term

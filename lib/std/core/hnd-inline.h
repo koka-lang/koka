@@ -26,11 +26,11 @@ static inline void kk_evv_drop(kk_evv_t evv, kk_context_t* ctx) {
   kk_datatype_drop(evv,ctx);
 }
 
-static inline struct kk_std_core_hnd__ev_s* kk_evv_at( int32_t i, kk_context_t* ctx ) {
+static inline struct kk_std_core_hnd__ev_s* kk_evv_at( size_t i, kk_context_t* ctx ) {
   // todo: make this faster by 1) use a value type for `ev`, and 2) inline the evv at the end of the context?
   const kk_evv_t evv = ctx->evv;
   if (kk_evv_is_vector(evv)) {
-    return kk_basetype_unbox_as(struct kk_std_core_hnd__ev_s*,kk_vector_at(evv,(size_t)i));
+    return kk_basetype_unbox_as(struct kk_std_core_hnd__ev_s*,kk_vector_at(evv,i));
   }
   else {    
     kk_assert_internal(i==0);
@@ -71,10 +71,10 @@ static inline kk_evv_t kk_evv_swap_create0(kk_context_t* ctx) {
   return kk_evv_swap(kk_evv_total(ctx),ctx);
 }
 
-static inline kk_evv_t kk_evv_swap_create1(int32_t i, kk_context_t* ctx) {
+static inline kk_evv_t kk_evv_swap_create1(size_t i, kk_context_t* ctx) {
   kk_evv_t evv0 = ctx->evv;  
   if (kk_evv_is_vector(evv0)) {
-    ctx->evv = kk_datatype_from_ptr(kk_ptr_unbox(kk_vector_at(evv0,(size_t)i))); // set single evidence
+    ctx->evv = kk_datatype_from_ptr(kk_ptr_unbox(kk_vector_at(evv0,i))); // set single evidence
     return evv0;
   }
   else {      
@@ -91,10 +91,10 @@ struct kk_std_core_hnd_yld_s;
 
 struct kk_std_core_hnd__ev_s* kk_ev_none(kk_context_t* cxt);
 struct kk_std_core_hnd__ev_s* kk_evv_lookup( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx );
-int32_t      kk_evv_index( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx );
+size_t          kk_evv_index( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx );
 kk_evv_t        kk_evv_create(kk_evv_t evv, kk_vector_t indices, kk_context_t* ctx);
 kk_evv_t        kk_evv_insert(kk_evv_t evv, struct kk_std_core_hnd__ev_s* ev, kk_context_t* ctx);
-kk_evv_t        kk_evv_delete(kk_evv_t evv, int32_t index, bool behind, kk_context_t* ctx);
+kk_evv_t        kk_evv_delete(kk_evv_t evv, size_t index, bool behind, kk_context_t* ctx);
 kk_string_t     kk_evv_show(kk_evv_t evv, kk_context_t* ctx);
 kk_unit_t       kk_evv_guard(kk_evv_t evv, kk_context_t* ctx);
 kk_evv_t        kk_evv_swap_create( kk_vector_t indices, kk_context_t* ctx );
@@ -108,7 +108,7 @@ struct kk_std_core_hnd_yld_s  kk_yield_prompt( struct kk_std_core_hnd_Marker m, 
 kk_datatype_t   kk_yield_capture(kk_context_t* ctx);
 kk_box_t        kk_yield_reyield(kk_datatype_t yld, kk_context_t* ctx);
 
-static inline kk_evv_t kk_evv_swap_delete(int32_t i, bool behind, kk_context_t* ctx) {
+static inline kk_evv_t kk_evv_swap_delete(size_t i, bool behind, kk_context_t* ctx) {
   kk_evv_t evv0 = ctx->evv;  
   ctx->evv = kk_evv_delete(kk_evv_dup(evv0), i, behind, ctx);
   return evv0;

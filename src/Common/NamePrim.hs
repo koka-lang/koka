@@ -49,7 +49,7 @@ module Common.NamePrim
 
           --
           , nameUnsafeTotal
-          , nameIntConst, nameInt32
+          , nameIntConst, nameInt32, nameSizeT
 
           , nameTpBox, nameUnbox, nameBox, nameBoxCon
 
@@ -325,6 +325,7 @@ nameTpInst      = coreTypesName "inst"
 nameIdentity    = coreTypesName "id"
 
 nameInt32       = preludeName "int32"
+nameSizeT       = preludeName "size_t"
 
 nameUnit        = coreTypesName "()"
 nameTrue        = coreTypesName "True"
