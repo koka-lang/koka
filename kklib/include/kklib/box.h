@@ -114,7 +114,7 @@ static inline bool _kk_box_is_ptr_fast(kk_box_t b) {
 }
 
 static inline bool _kk_box_is_value_fast(kk_box_t b) {
-  return ((b.box&1)==1);
+  return ((b.box&1)!=0);
 }
 
 static inline bool kk_box_is_null(kk_box_t b) {
@@ -485,9 +485,8 @@ typedef struct kk_cfunptr_s {
 
 static inline kk_box_t kk_cfun_ptr_boxx(kk_cfun_ptr_t f, kk_context_t* ctx) {
   uintptr_t u = (uintptr_t)f;              // assume we can convert a function pointer to uintptr_t...      
-  if ((u&1)==0 && sizeof(u)==sizeof(f)) {  // aligned pointer? (and sanity check if function pointer != object pointer)
-    kk_box_t b = { (u|1) };                // box as value
-    return b;
+  if ((u <= KK_MAX_BOXED_UINT) && sizeof(u)==sizeof(f)) {  // aligned pointer? (and sanity check if function pointer != object pointer)
+    return kk_enum_box(u);
   }
   else {
     // otherwise allocate
@@ -497,14 +496,13 @@ static inline kk_box_t kk_cfun_ptr_boxx(kk_cfun_ptr_t f, kk_context_t* ctx) {
   }
 }
 
-static inline kk_cfun_ptr_t kk_cfun_ptr_unbox(kk_box_t b, kk_context_t* ctx) {
+static inline kk_cfun_ptr_t kk_cfun_ptr_unbox(kk_box_t b) {  // never drop; only used from function call
   if (kk_likely(_kk_box_is_value_fast(b))) {
-    return (kk_cfun_ptr_t)(b.box ^ 1);      // clear lowest bit
+    return (kk_cfun_ptr_t)(kk_enum_unbox(b)); 
   }
   else {
     kk_cfunptr_t fp = kk_basetype_unbox_as_assert(kk_cfunptr_t, b, KK_TAG_CFUNPTR);
     kk_cfun_ptr_t f = fp->cfunptr;
-    if (ctx!=NULL) kk_basetype_drop(fp,ctx);
     return f;
   }
 }

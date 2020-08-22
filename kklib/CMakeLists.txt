@@ -172,9 +172,9 @@ target_compile_options(
 )
 
 # Use O1 even in debug mode
-if (NOT KK_DEBUG_FULL)
+#if (NOT KK_DEBUG_FULL)
   target_compile_options(kklib-flags INTERFACE $<$<AND:$<CONFIG:Debug>,${gnu_like}>:-O1>)
-endif()
+#endif()
 
 # Platform-specific definitions
 target_compile_definitions(kklib-flags INTERFACE $<${unix}:_GNU_SOURCE>)

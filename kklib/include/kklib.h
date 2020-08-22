@@ -841,7 +841,7 @@ static inline kk_value_tag_t kk_value_tag(kk_uintx_t tag) {
 
 #define kk_function_as(tp,fun)                     kk_basetype_as_assert(tp,fun,KK_TAG_FUNCTION)
 #define kk_function_alloc_as(tp,scan_fsize,ctx)    kk_block_alloc_as(tp,scan_fsize,KK_TAG_FUNCTION,ctx)
-#define kk_function_call(restp,argtps,f,args)      ((restp(*)argtps)(kk_cfun_ptr_unbox(f->fun,NULL)))args
+#define kk_function_call(restp,argtps,f,args)      ((restp(*)argtps)(kk_cfun_ptr_unbox(f->fun)))args
 #define kk_define_static_function(name,cfun,ctx) \
   static struct kk_function_s _static_##name = { { KK_HEADER_STATIC(0,KK_TAG_FUNCTION) }, { ~KUP(0) } }; /* must be box_null */ \
   kk_function_t name = &_static_##name; \
