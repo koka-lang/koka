@@ -16,7 +16,7 @@ import Lib.Trace
 import Platform.Filetime
 import System.Directory            ( getCurrentDirectory, setCurrentDirectory )
 import Data.List                   ( isPrefixOf )
-import Data.Char                   ( isSpace )
+import Data.Char                   ( isSpace, toLower )
 import Control.Monad
 
 import Platform.Config hiding (programName)
@@ -646,14 +646,23 @@ messageHeader st
   where
     colors = colorSchemeFromFlags (flags st)
     header = color(colorInterpreter colors) $ vcat [
-        text " _          _           "
-       ,text "| |        | |          "
-       ,text "| | __ ___ | | __ __ _  "
-       ,text $ "| |/ // _ \\| |/ // _` | welcome to the " ++ Config.programName ++ " interpreter"
-       ,text "|   <| (_) |   <| (_| | " <.> headerVersion
-       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_| " <.> color (colorSource colors) (text "type :? for help")
+        text " _          _           ____"
+       ,text "| |        | |         |__  \\"
+       ,text "| | __ ___ | | __ __ _  __) |"
+       ,text "| |/ // _ \\| |/ // _` || ___/ " <.> welcome 
+       ,text "|   <| (_) |   <| (_| ||____| "  <.> headerVersion
+       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|       "  <.> color (colorSource colors) (text "type :? for help")       
        ]
-    headerVersion = text $ "version " ++ version ++ (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", " ++ buildDate
+    headerVersion = text $ "version " ++ version ++ 
+                           (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", " 
+                           ++ buildDate ++ targetMsg
+    welcome       = text ("welcome to the " ++ Config.programName ++ " interpreter")
+    targetMsg      
+      = case (targets (flags st)) of
+          [C]  -> ", libc " ++ show (8*sizePtr (platform (flags st))) ++ "-bit"
+          [JS] -> ", node"
+          [CS] -> ", .net"
+          _    -> ""
 
 semiRandom min max
   = do t <- getCurrentTime

@@ -78,7 +78,11 @@ sourceExtension :: String
 sourceExtension = ".kk"
 
 buildDate :: String
+#ifdef DATE
+buildDate  = DATE
+#else
 buildDate  = __DATE__
+#endif
 
 buildTime :: String
 buildTime  = __TIME__ ++ " " ++ __DATE__
