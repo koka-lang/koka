@@ -223,39 +223,40 @@ kk_string_t kk_string_repeat(kk_string_t str, size_t n, kk_context_t* ctx) {
   return tstr;
 }
 
-ptrdiff_t kk_string_index_of(kk_string_t str, kk_string_t sub, kk_context_t* ctx) {
+// to avoid casting to signed, return 0 for not found, or the index+1
+size_t kk_string_index_of1(kk_string_t str, kk_string_t sub, kk_context_t* ctx) {
   size_t slen = kk_string_len_borrow(str);
   size_t tlen = kk_string_len_borrow(sub);
-  ptrdiff_t idx;
+  size_t idx;
   if (tlen == 0) {
-    idx = (slen == 0 ? -1 : 0);
+    idx = (slen == 0 ? 0 : 1);
   }
   else if (tlen > slen) {
-    idx = -1;
+    idx = 0;
   }
   else {
     const char* s = kk_string_cbuf_borrow(str);
     const char* t = kk_string_cbuf_borrow(sub);
     const char* p = strstr(s, t);
-    idx = (p == NULL ? -1 : (p - s));
+    idx = (p == NULL ? 0 : (size_t)(p - s) + 1);
   }
   kk_string_drop(str, ctx);
   kk_string_drop(sub, ctx);
   return idx;
 }
 
-ptrdiff_t kk_string_last_index_of(kk_string_t str, kk_string_t sub, kk_context_t* ctx) {
+size_t kk_string_last_index_of1(kk_string_t str, kk_string_t sub, kk_context_t* ctx) {
   size_t slen = kk_string_len_borrow(str);
   size_t tlen = kk_string_len_borrow(sub);
-  ptrdiff_t idx;
+  size_t idx;
   if (tlen == 0) {
-    idx = (slen - 1);
+    idx = slen;
   }
   else if (tlen > slen) {
-    idx = -1;
+    idx = 0;
   }
   else if (tlen == slen) {
-    idx = (kk_string_cmp_borrow(str, sub) == 0 ? 0 : -1);
+    idx = (kk_string_cmp_borrow(str, sub) == 0 ? 1 : 0);
   }
   else {
     const char* s = kk_string_cbuf_borrow(str);
@@ -264,7 +265,7 @@ ptrdiff_t kk_string_last_index_of(kk_string_t str, kk_string_t sub, kk_context_t
     for (p = s + slen - tlen; p >= s; p--) {  // todo: use reverse Boyer-Moore instead of one character at a time
       if (strncmp(p, t, tlen) == 0) break;
     }
-    idx = (p >= s ? p - s : -1);
+    idx = (p >= s ? (size_t)(p - s) + 1 : 0);
   }
   kk_string_drop(str, ctx);
   kk_string_drop(sub, ctx);
@@ -312,7 +313,7 @@ bool kk_string_ends_with(kk_string_t str, kk_string_t post, kk_context_t* ctx) {
 }
 
 bool kk_string_contains(kk_string_t str, kk_string_t sub, kk_context_t* ctx) {
-  return (kk_string_index_of(str, sub, ctx) >= 0);
+  return (kk_string_index_of1(str, sub, ctx) > 0);
 }
 
 

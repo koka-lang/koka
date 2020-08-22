@@ -260,6 +260,7 @@ kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_from_double(double d, k
 
 kk_decl_export kk_decl_noinline int32_t    kk_integer_clamp32_generic(kk_integer_t i, kk_context_t* ctx);
 kk_decl_export kk_decl_noinline int64_t    kk_integer_clamp64_generic(kk_integer_t i, kk_context_t* ctx);
+kk_decl_export kk_decl_noinline size_t     kk_integer_clamp_size_t_generic(kk_integer_t i, kk_context_t* ctx);
 kk_decl_export kk_decl_noinline double     kk_integer_as_double_generic(kk_integer_t i, kk_context_t* ctx);
 
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_add_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx);
@@ -328,6 +329,7 @@ static inline kk_integer_t kk_integer_from_size_t(size_t i, kk_context_t* ctx) {
 static inline kk_integer_t kk_integer_from_intptr_t(intptr_t i, kk_context_t* ctx) {
   return kk_integer_from_int(i, ctx);
 }
+
 
 
 /*---------------------------------------------------------------------------------
@@ -503,6 +505,18 @@ static inline int32_t kk_integer_clamp32(kk_integer_t x, kk_context_t* ctx) {
 static inline int64_t kk_integer_clamp64(kk_integer_t x, kk_context_t* ctx) {
   if (kk_likely(kk_is_smallint(x))) return (int64_t)kk_smallint_from_integer(x);
   return kk_integer_clamp64_generic(x, ctx);
+}
+
+static inline size_t kk_integer_clamp_size_t(kk_integer_t x, kk_context_t* ctx) {
+  if (kk_likely(kk_is_smallint(x))) {
+    kk_intx_t i = kk_smallint_from_integer(x);
+    if (i < 0) return 0;
+#if (KK_SMALL_INT_MAX > SIZE_MAX)
+    else if (i > SIZE_MAX) return SIZE_MAX;
+#endif
+    return (size_t)(i);
+  }
+  return kk_integer_clamp_size_t_generic(x, ctx);
 }
 
 static inline kk_intx_t kk_integer_clamp(kk_integer_t x, kk_context_t* ctx) {

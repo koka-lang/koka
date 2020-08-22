@@ -497,14 +497,46 @@ static inline kk_box_t kk_cfun_ptr_boxx(kk_cfun_ptr_t f, kk_context_t* ctx) {
   }
 }
 
-static inline kk_cfun_ptr_t unbox_cfun_ptr(kk_box_t b) {
+static inline kk_cfun_ptr_t kk_cfun_ptr_unbox(kk_box_t b, kk_context_t* ctx) {
   if (kk_likely(_kk_box_is_value_fast(b))) {
     return (kk_cfun_ptr_t)(b.box ^ 1);      // clear lowest bit
   }
   else {
     kk_cfunptr_t fp = kk_basetype_unbox_as_assert(kk_cfunptr_t, b, KK_TAG_CFUNPTR);
-    return fp->cfunptr;
+    kk_cfun_ptr_t f = fp->cfunptr;
+    if (ctx!=NULL) kk_basetype_free(fp);
+    return f;
   }
 }
+
+// size_t
+typedef struct kk_box_size_s {
+  kk_block_t  _block;
+  size_t      value;
+} *kk_box_size_t;
+
+static inline kk_box_t kk_size_box(size_t i, kk_context_t* ctx) {
+  if (i <= KK_MAX_BOXED_UINT) {
+    return kk_enum_box((kk_uintx_t)i);
+  }
+  else {
+    kk_box_size_t b = kk_block_alloc_as(struct kk_box_size_s, 0, KK_TAG_SIZE_T, ctx);
+    b->value = i;
+    return kk_ptr_box(&b->_block);
+  }
+}
+
+static inline size_t kk_size_unbox(kk_box_t b, kk_context_t* ctx) {
+  if (kk_likely(_kk_box_is_value_fast(b))) {
+    return (size_t)kk_enum_unbox(b);
+  }
+  else {
+    kk_box_size_t s = kk_basetype_unbox_as_assert(kk_box_size_t, b, KK_TAG_SIZE_T);
+    size_t i = s->value;
+    if (ctx != NULL) kk_basetype_free(s);
+    return i;
+  }
+}
+
 
 #endif // include guard

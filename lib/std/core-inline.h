@@ -48,11 +48,6 @@ static inline kk_integer_t kk_string_cmp_int(kk_string_t s1, kk_string_t s2, kk_
   return kk_integer_from_small( kk_string_cmp(s1,s2,ctx) );
 }
 
-static inline kk_string_t kk_string_repeat32(kk_string_t s, int32_t n, kk_context_t* ctx) {
-  return kk_string_repeat(s, (n < 0 ? 0 : (size_t)n), ctx);
-}
-
-
 kk_string_t  kk_string_join(kk_vector_t v, kk_context_t* ctx);
 kk_string_t  kk_string_join_with(kk_vector_t v, kk_string_t sep, kk_context_t* ctx);
 kk_string_t  kk_string_replace_all(kk_string_t str, kk_string_t pattern, kk_string_t repl, kk_context_t* ctx);
@@ -68,30 +63,25 @@ struct kk_std_core_Sslice kk_slice_advance( struct kk_std_core_Sslice slice, kk_
 struct kk_std_core_Sslice kk_slice_extend( struct kk_std_core_Sslice slice, kk_integer_t count, kk_context_t* ctx );
 kk_std_core_types__maybe kk_slice_next( struct kk_std_core_Sslice slice, kk_context_t* ctx );
 
-static inline kk_box_t kk_vector_at32( kk_vector_t v, int32_t i, kk_context_t* ctx  ) {
-  kk_assert_internal(i >= 0);
-  return kk_vector_at(v,i);
-}
 
-static inline kk_unit_t kk_vector_unsafe_assign32( kk_vector_t v, int32_t i, kk_box_t x, kk_context_t* ctx  ) {
+static inline kk_unit_t kk_vector_unsafe_assign( kk_vector_t v, size_t i, kk_box_t x, kk_context_t* ctx  ) {
   size_t len;
   kk_box_t* p = kk_vector_buf(v,&len);
-  kk_assert_internal(i >= 0 && (size_t)i < len);
+  kk_assert(i < len);
   p[i] = x;
-  kk_vector_drop(v,ctx); // TODO: avoid?
+  kk_vector_drop(v,ctx); // TODO: use borrowing
   return kk_Unit;  
 }
 
-kk_vector_t kk_vector_init32( int32_t n, kk_function_t init, kk_context_t* ctx);
+kk_vector_t kk_vector_init( size_t n, kk_function_t init, kk_context_t* ctx);
   
-static inline kk_vector_t kk_vector_alloc32( int32_t n, kk_context_t* ctx ) {
-  kk_assert_internal(n >= 0);
-  return kk_vector_alloc( (n < 0 ? 0 : (size_t)n), kk_box_null, ctx);
+static inline kk_vector_t kk_vector_allocz( size_t n, kk_context_t* ctx ) {
+  return kk_vector_alloc( n, kk_box_null, ctx);
 }
 
 static inline kk_box_t kk_vector_at_int( kk_vector_t v, kk_integer_t n, kk_context_t* ctx ) {
   // TODO: check bounds
-  return kk_vector_at32(v,kk_integer_clamp32(n,ctx),ctx);
+  return kk_vector_at(v,kk_integer_clamp_size_t(n,ctx));
 }
 
 static inline double kk_double_abs(double d) {

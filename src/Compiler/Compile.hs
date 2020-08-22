@@ -647,7 +647,7 @@ resolveModule term flags currentDir modules mimp
       -- core import of package
       ImpCore cimp ->
         do mbIface <- liftIO $ searchPackageIface flags currentDir (Just (Core.importPackage cimp)) name
-           trace ("core import pkg: " ++ Core.importPackage cimp ++ "/" ++ show name ++ ": found: " ++ show (mbIface)) $ return ()
+           -- trace ("core import pkg: " ++ Core.importPackage cimp ++ "/" ++ show name ++ ": found: " ++ show (mbIface)) $ return ()
            case mbIface of
              Nothing    -> liftError $ errorMsg $ errorModuleNotFound flags rangeNull name
              Just iface -> loadFromIface iface "" ""

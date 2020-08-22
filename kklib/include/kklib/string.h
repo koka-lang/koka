@@ -392,11 +392,11 @@ kk_decl_export kk_vector_t kk_string_splitv_atmost(kk_string_t s, kk_string_t se
 
 kk_decl_export kk_string_t kk_string_repeat(kk_string_t s, size_t n, kk_context_t* ctx);
 
-kk_decl_export ptrdiff_t kk_string_index_of(kk_string_t str, kk_string_t sub, kk_context_t* ctx);
-kk_decl_export ptrdiff_t kk_string_last_index_of(kk_string_t str, kk_string_t sub, kk_context_t* ctx);
-kk_decl_export bool      kk_string_starts_with(kk_string_t str, kk_string_t pre, kk_context_t* ctx);
-kk_decl_export bool      kk_string_ends_with(kk_string_t str, kk_string_t post, kk_context_t* ctx);
-kk_decl_export bool      kk_string_contains(kk_string_t str, kk_string_t sub, kk_context_t* ctx);
+kk_decl_export size_t kk_string_index_of1(kk_string_t str, kk_string_t sub, kk_context_t* ctx);     // returns 0 for not found, or index + 1
+kk_decl_export size_t kk_string_last_index_of1(kk_string_t str, kk_string_t sub, kk_context_t* ctx);
+kk_decl_export bool   kk_string_starts_with(kk_string_t str, kk_string_t pre, kk_context_t* ctx);
+kk_decl_export bool   kk_string_ends_with(kk_string_t str, kk_string_t post, kk_context_t* ctx);
+kk_decl_export bool   kk_string_contains(kk_string_t str, kk_string_t sub, kk_context_t* ctx);
 
 kk_decl_export kk_string_t  kk_string_to_upper(kk_string_t str, kk_context_t* ctx);
 kk_decl_export kk_string_t  kk_string_to_lower(kk_string_t strs, kk_context_t* ctx);

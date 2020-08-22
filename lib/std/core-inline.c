@@ -56,12 +56,12 @@ kk_vector_t kk_list_to_vector(kk_std_core__list xs, kk_context_t* ctx) {
   return v;
 }
 
-kk_vector_t kk_vector_init32( int32_t n, kk_function_t init, kk_context_t* ctx) {
+kk_vector_t kk_vector_init( size_t n, kk_function_t init, kk_context_t* ctx) {
   kk_vector_t v = kk_vector_alloc(n,kk_box_null,ctx);
   kk_box_t* p = kk_vector_buf(v,NULL);
-  for(int32_t i = 0; i < n; i++) {
+  for(size_t i = 0; i < n; i++) {
     kk_function_dup(init);
-    p[i] = kk_function_call(kk_box_t,(kk_function_t,int32_t,kk_context_t*),init,(init,i,ctx));
+    p[i] = kk_function_call(kk_box_t,(kk_function_t,size_t,kk_context_t*),init,(init,i,ctx));
   }
   kk_function_drop(init,ctx);
   return v;
@@ -144,7 +144,7 @@ kk_string_t kk_slice_to_string( kk_std_core__sslice  sslice, kk_context_t* ctx )
   const uint8_t* end;
   kk_sslice_start_end_borrow(sslice, &start, &end);
   // is it the full string?
-  if (sslice.start == 0 && (size_t)sslice.len == kk_string_len_borrow(sslice.str)) {
+  if (sslice.start == 0 && sslice.len == kk_string_len_borrow(sslice.str)) {
     // TODO: drop sslice and dup sslice.str?
     return sslice.str;
   }
@@ -159,14 +159,14 @@ kk_string_t kk_slice_to_string( kk_std_core__sslice  sslice, kk_context_t* ctx )
 kk_std_core__sslice kk_slice_first( kk_string_t str, kk_context_t* ctx ) {
   const uint8_t* s = kk_string_buf_borrow(str);
   const uint8_t* next = kk_utf8_next(s);
-  return kk_std_core__new_Sslice(str, 0, (int32_t)(next - s), ctx);
+  return kk_std_core__new_Sslice(str, 0, (size_t)(next - s), ctx);
 }
 
 kk_std_core__sslice kk_slice_last( kk_string_t str, kk_context_t* ctx ) {
   const uint8_t* s = kk_string_buf_borrow(str);
   const uint8_t* end = s + kk_string_len_borrow(str);
   const uint8_t* prev = (s==end ? s : kk_utf8_prev(end));
-  return kk_std_core__new_Sslice(str, (int32_t)(end - s), (int32_t)(end - prev), ctx);
+  return kk_std_core__new_Sslice(str, (size_t)(end - s), (size_t)(end - prev), ctx);
 }
 
 kk_std_core_types__maybe kk_slice_next( struct kk_std_core_Sslice slice, kk_context_t* ctx ) {
@@ -176,11 +176,10 @@ kk_std_core_types__maybe kk_slice_next( struct kk_std_core_Sslice slice, kk_cont
   }
   const uint8_t* s = kk_string_buf_borrow(slice.str);
   const uint8_t* next = kk_utf8_next(s);
-  ptrdiff_t clen = (next - s);
+  size_t clen = (size_t)(next - s);
   kk_assert_internal(clen > 0 && clen <= slice.len);
-  if (clen < 0) clen = 0;
   if (clen > slice.len) clen = slice.len;
-  kk_std_core__sslice snext = kk_std_core__new_Sslice(slice.str, slice.start + (int32_t)clen, slice.len - (int32_t)clen, ctx);
+  kk_std_core__sslice snext = kk_std_core__new_Sslice(slice.str, slice.start + clen, slice.len - clen, ctx);
   return kk_std_core_types__new_Just( kk_std_core__sslice_box(snext,ctx), ctx);
 }
 
@@ -204,7 +203,7 @@ struct kk_std_core_Sslice kk_slice_extend( struct kk_std_core_Sslice slice, kk_i
     } while (cnt < 0 && t > sstart);
   }
   if (t == s1) return slice;  // length is unchanged
-  return kk_std_core__new_Sslice(slice.str, slice.start, (t < s0 ? 0 : (int32_t)(t - s0)), ctx);
+  return kk_std_core__new_Sslice(slice.str, slice.start, (t < s0 ? 0 : (size_t)(t - s0)), ctx);
 }
 
 struct kk_std_core_Sslice kk_slice_advance( struct kk_std_core_Sslice slice, kk_integer_t count, kk_context_t* ctx ) {
@@ -247,7 +246,7 @@ struct kk_std_core_Sslice kk_slice_advance( struct kk_std_core_Sslice slice, kk_
   }
   // t1 points to the new end
   kk_assert_internal(t1 >= t0);
-  return kk_std_core__new_Sslice(slice.str, (int32_t)(t0 - sstart), (int32_t)(t1 - t0), ctx);
+  return kk_std_core__new_Sslice(slice.str, (size_t)(t0 - sstart), (size_t)(t1 - t0), ctx);
 }
 
 struct kk_std_core_Sslice kk_slice_common_prefix( kk_string_t str1, kk_string_t str2, kk_integer_t iupto, kk_context_t* ctx ) {
@@ -259,5 +258,5 @@ struct kk_std_core_Sslice kk_slice_common_prefix( kk_string_t str1, kk_string_t 
     if (*s1 != *s2) break;
   }
   kk_string_drop(str2,ctx);
-  return kk_std_core__new_Sslice(str1, 0, (int32_t)(count), ctx);
+  return kk_std_core__new_Sslice(str1, 0, count, ctx);
 }

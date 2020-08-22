@@ -1476,6 +1476,42 @@ int64_t kk_integer_clamp64_generic(kk_integer_t x, kk_context_t* ctx) {
   return i;
 }
 
+size_t kk_integer_clamp_size_t_generic(kk_integer_t x, kk_context_t* ctx) {
+  kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
+  size_t i = 0;
+  if (bx->is_neg) goto done;
+#if (BASE < (SIZE_MAX/BASE))
+  if (bx->count > 3) {
+    i = SIZE_MAX; goto done; // overflow
+  }
+  else if (bx->count == 3) {
+    kk_digit_t d = bx->digits[2];
+    if (d > (SIZE_MAX/(BASE*BASE))) {
+      i = SIZE_MAX; goto done; // overflow;
+    }
+    i = (size_t)d*BASE*BASE;
+  }
+  if (bx->count >= 2) {
+    i += (size_t)bx->digits[1]*BASE;
+  }
+#elif (BASE < SIZE_MAX)
+  if (bx->count > 2) {
+    i = SIZE_MAX; goto done; // overflow
+  }
+  else if (bx->count >= 2) {
+    kk_digit_t d = bx->digits[1];
+    if (d > (SIZE_MAX/BASE)) {
+      i = SIZE_MAX; goto done; // overflow;
+    }
+    i = (size_t)d*BASE;
+  }
+#endif
+  i += (size_t)bx->digits[0];
+done:
+  drop_bigint(bx, ctx);
+  return i;
+}
+
 double kk_integer_as_double_generic(kk_integer_t x, kk_context_t* ctx) {
   kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
   if (bx->count > ((310/LOG_BASE) + 1)) return (bx->is_neg ? -HUGE_VAL : HUGE_VAL);

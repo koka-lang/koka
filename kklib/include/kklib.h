@@ -51,6 +51,7 @@ typedef enum kk_tag_e {
   KK_TAG_INT32,       // boxed int32_t               (on 32-bit platforms)
   KK_TAG_FLOAT,       // boxed IEEE float  (32-bit)  (on 32-bit platforms)
   KK_TAG_CFUNPTR,     // C function pointer
+  KK_TAG_SIZE_T,      // boxed size_t
   // raw tags have a free function together with a `void*` to the data
   KK_TAG_CPTR_RAW,    // full void* (must be first, see kk_tag_is_raw())
   KK_TAG_STRING_RAW,  // pointer to a valid UTF8 string
@@ -840,7 +841,7 @@ static inline kk_value_tag_t kk_value_tag(kk_uintx_t tag) {
 
 #define kk_function_as(tp,fun)                     kk_basetype_as_assert(tp,fun,KK_TAG_FUNCTION)
 #define kk_function_alloc_as(tp,scan_fsize,ctx)    kk_block_alloc_as(tp,scan_fsize,KK_TAG_FUNCTION,ctx)
-#define kk_function_call(restp,argtps,f,args)      ((restp(*)argtps)(unbox_cfun_ptr(f->fun)))args
+#define kk_function_call(restp,argtps,f,args)      ((restp(*)argtps)(kk_cfun_ptr_unbox(f->fun,NULL)))args
 #define kk_define_static_function(name,cfun,ctx) \
   static struct kk_function_s _static_##name = { { KK_HEADER_STATIC(0,KK_TAG_FUNCTION) }, { ~KUP(0) } }; /* must be box_null */ \
   kk_function_t name = &_static_##name; \
