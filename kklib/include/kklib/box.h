@@ -158,7 +158,7 @@ static inline bool kk_box_is_value(kk_box_t b) {
 static inline int32_t kk_int32_unbox(kk_box_t v, kk_context_t* ctx) {
   KK_UNUSED(ctx);
   kk_intx_t i = kk_intx_unbox(v);
-  kk_assert_internal(i >= INT32_MIN && i <= INT32_MAX);
+  kk_assert_internal((i >= INT32_MIN && i <= INT32_MAX) || kk_box_is_any(v));
   return (int32_t)(i);
 }
 
@@ -200,7 +200,7 @@ static inline bool _is_double(kk_box_t b) {
 static inline int32_t kk_int32_unbox(kk_box_t v, kk_context_t* ctx) {
   KK_UNUSED(ctx);
   kk_intx_t i = kk_intx_unbox(v);
-  kk_assert_internal(i >= INT32_MIN && i <= INT32_MAX);
+  kk_assert_internal((i >= INT32_MIN && i <= INT32_MAX) || kk_box_is_any(v));
   return (int32_t)(i);
 }
 
@@ -245,11 +245,11 @@ typedef struct kk_boxed_int32_s {
 static inline int32_t kk_int32_unbox(kk_box_t v, kk_context_t* ctx) {
   if (kk_likely(kk_box_is_value(v))) {
     kk_intx_t i = kk_intx_unbox(v);
-    kk_assert_internal(i >= INT32_MIN && i <= INT32_MAX);
+    kk_assert_internal((i >= INT32_MIN && i <= INT32_MAX) || kk_box_is_any(v));
     return (int32_t)i;
   }
   else {
-    kk_assert_internal(kk_box_is_ptr(v) && kk_block_tag(kk_ptr_unbox(v)) == KK_TAG_INT32);
+    kk_assert_internal((kk_box_is_ptr(v) && kk_block_tag(kk_ptr_unbox(v)) == KK_TAG_INT32) || kk_box_is_any(v));
     boxed_int32_t bi = kk_block_assert(boxed_int32_t, kk_ptr_unbox(v), KK_TAG_INT32);
     int32_t i = bi->value;
     if (ctx!=NULL) { kk_block_drop(&bi->_block, ctx); }
@@ -399,6 +399,9 @@ typedef struct kk_boxed_value_s {
     else { \
       kk_boxed_value_t p = kk_basetype_unbox_as_assert(kk_boxed_value_t, box, KK_TAG_BOX); \
       x = *((tp*)(&p->data[0])); \
+      kk_box_t* _fields = (kk_box_t*)(&p->data[0]); \
+      const size_t scan_fsize = p->_block.header.scan_fsize; \
+      for (size_t i = 0; i < scan_fsize; i++) { kk_box_dup(_fields[i]); } \
       if (ctx!=NULL) { kk_basetype_decref(p, ctx); } \
     } \
   } while(0);
