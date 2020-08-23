@@ -188,3 +188,9 @@ fun one-of-or( chars : string, default : char ) : parse char {
 fun hex-digits() : parse string {
   chars-are("digit", hex-digit? ).string
 }
+
+/*
+fun test(s : string, x : a, p : () -> parse a ) : a {
+  parse-eof(s.slice,p).maybe.default(x)
+}
+*/
