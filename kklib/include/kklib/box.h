@@ -388,21 +388,18 @@ typedef struct kk_boxed_value_s {
   char    data[KK_INTPTR_SIZE]; 
 } * kk_boxed_value_t;
 
-#define kk_valuetype_unbox(tp,x,box,ctx) \
+#define kk_valuetype_unbox_(tp,p,x,box,ctx) \
   do { \
     if (kk_unlikely(kk_box_is_any(box))) { \
+      _p = NULL; \
       const size_t kk__max_scan_fsize = sizeof(tp)/sizeof(kk_box_t); \
       kk_box_t* _fields = (kk_box_t*)(&x); \
       for (size_t i = 0; i < kk__max_scan_fsize; i++) { _fields[i] = kk_box_any(ctx);  } \
       kk_block_decref(kk_ptr_unbox(box),ctx); \
     } \
     else { \
-      kk_boxed_value_t p = kk_basetype_unbox_as_assert(kk_boxed_value_t, box, KK_TAG_BOX); \
+      p = kk_basetype_unbox_as_assert(kk_boxed_value_t, box, KK_TAG_BOX); \
       x = *((tp*)(&p->data[0])); \
-      kk_box_t* _fields = (kk_box_t*)(&p->data[0]); \
-      const size_t scan_fsize = p->_block.header.scan_fsize; \
-      for (size_t i = 0; i < scan_fsize; i++) { kk_box_dup(_fields[i]); } \
-      if (ctx!=NULL) { kk_basetype_decref(p, ctx); } \
     } \
   } while(0);
 

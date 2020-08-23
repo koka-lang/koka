@@ -637,43 +637,50 @@ primName prim d   = d <.> text "_" <.> text prim
 
 genBox name info dataRepr
   = emitToH $
-    text "static inline kk_box_t " <.> ppName name <.> text "_box" <.> parameters [ppName name <+> text "x"] <+> block (
+    text "static inline kk_box_t " <.> ppName name <.> text "_box" <.> parameters [ppName name <+> text "_x"] <+> block (
       case dataRepr of
-        DataEnum -> text "return" <+> text "kk_enum_box" <.> tupled [text "x"] <.> semi
+        DataEnum -> text "return" <+> text "kk_enum_box" <.> tupled [text "_x"] <.> semi
         DataIso  -> let conInfo = head (dataInfoConstrs info)
                         (isoName,isoTp)   = (head (conInfoParams conInfo))
-                    in text "return" <+> genBoxCall "box" False isoTp (text "x." <.> ppName (unqualify isoName)) <.> semi
+                    in text "return" <+> genBoxCall "box" False isoTp (text "_x." <.> ppName (unqualify isoName)) <.> semi
         _ -> case dataInfoDef info of
                DataDefValue raw scancount
                   -> let -- extra = if (isDataStructLike dataRepr) then 1 else 0  -- adjust scan count for added "tag_t" members in structs with multiple constructors
                          docScanCount = if (hasTagField dataRepr)
-                                         then ppName name <.> text "_scan_count" <.> parens (text "x")
+                                         then ppName name <.> text "_scan_count" <.> parens (text "_x")
                                          else pretty scancount <+> text "/* scan count */"
                      in vcat [ text "kk_box_t _box;"
-                             , text "kk_valuetype_box" <.> arguments [ppName name, text "_box", text "x",
+                             , text "kk_valuetype_box" <.> arguments [ppName name, text "_box", text "_x",
                                                                       docScanCount
                                                                      ] -- <.> semi
                              , text "return _box;" ]
-               _  -> text "return" <+> text (if dataReprMayHaveSingletons dataRepr then "kk_datatype_box" else "kk_basetype_box") <.> tupled [text "x"] <.> semi
+               _  -> text "return" <+> text (if dataReprMayHaveSingletons dataRepr then "kk_datatype_box" else "kk_basetype_box") <.> tupled [text "_x"] <.> semi
     )
 
 genUnbox name info dataRepr
   = emitToH $
-    text "static inline" <+> ppName name <+> ppName name <.> text "_unbox" <.> parameters [text "kk_box_t x"] <+> block (
+    text "static inline" <+> ppName name <+> ppName name <.> text "_unbox" <.> parameters [text "kk_box_t _x"] <+> block (
       (case dataRepr of
-        DataEnum -> text "return" <+> parens (ppName name) <.> text "kk_enum_unbox" <.> tupled [text "x"]
+        DataEnum -> text "return" <+> parens (ppName name) <.> text "kk_enum_unbox" <.> tupled [text "_x"]
         DataIso  -> let conInfo = head (dataInfoConstrs info)
                         isoTp   = snd (head (conInfoParams conInfo))
-                    in text "return" <+> conCreateNameInfo conInfo <.> arguments [genBoxCall "unbox" False isoTp (text "x")]
+                    in text "return" <+> conCreateNameInfo conInfo <.> arguments [genBoxCall "unbox" False isoTp (text "_x")]
         _ | dataReprIsValue dataRepr
-          -> vcat [ ppName name <+> text "_unbox;"
-                  , text "kk_valuetype_unbox" <.> arguments [ppName name, text "_unbox", text "x"]
+          -> vcat [ text "kk_boxed_value_t _p;"
+                  , ppName name <+> text "_unbox;"
+                  , text "kk_valuetype_unbox_" <.> arguments [ppName name, text "_p", text "_unbox", text "_x"] <.> semi  -- borrowing
+                  , text "if (_ctx!=NULL && _p!=NULL)" <+> block (
+                      text "if (kk_basetype_is_unique(_p)) { kk_basetype_free(_p); } else" <+> block (
+                        vcat [ppName name <.> text "_dup(_unbox);"
+                             ,text "kk_basetype_decref" <.> arguments [text "_p"] <.> semi]
+                      )
+                    )
                   , text "return _unbox" ]
              -- text "unbox_valuetype" <.> arguments [ppName name, text "x"]
         _ -> text "return" 
                <+> (if dataReprMayHaveSingletons dataRepr 
-                     then text "kk_datatype_unbox(x)" 
-                     else text "kk_basetype_unbox_as" <.> tupled [ppName name, text "x"])
+                     then text "kk_datatype_unbox(_x)" 
+                     else text "kk_basetype_unbox_as" <.> tupled [ppName name, text "_x"])
     ) <.> semi)
 
 
