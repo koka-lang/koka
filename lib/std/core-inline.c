@@ -166,7 +166,7 @@ kk_std_core__sslice kk_slice_last( kk_string_t str, kk_context_t* ctx ) {
   const uint8_t* s = kk_string_buf_borrow(str);
   const uint8_t* end = s + kk_string_len_borrow(str);
   const uint8_t* prev = (s==end ? s : kk_utf8_prev(end));
-  return kk_std_core__new_Sslice(str, (size_t)(end - s), (size_t)(end - prev), ctx);
+  return kk_std_core__new_Sslice(str, (size_t)(prev - s), (size_t)(end - prev), ctx);
 }
 
 kk_std_core_types__maybe kk_slice_next( struct kk_std_core_Sslice slice, kk_context_t* ctx ) {
@@ -174,13 +174,17 @@ kk_std_core_types__maybe kk_slice_next( struct kk_std_core_Sslice slice, kk_cont
     kk_std_core__sslice_drop(slice,ctx);
     return kk_std_core_types__new_Nothing(ctx);
   }
-  const uint8_t* s = kk_string_buf_borrow(slice.str);
-  const uint8_t* next = kk_utf8_next(s);
-  size_t clen = (size_t)(next - s);
+  const uint8_t* start;
+  const uint8_t* end;
+  kk_sslice_start_end_borrow(slice, &start, &end);
+  size_t clen;
+  const kk_char_t c = kk_utf8_read(start,&clen);
   kk_assert_internal(clen > 0 && clen <= slice.len);
   if (clen > slice.len) clen = slice.len;
-  kk_std_core__sslice snext = kk_std_core__new_Sslice(slice.str, slice.start + clen, slice.len - clen, ctx);
-  return kk_std_core_types__new_Just( kk_std_core__sslice_box(snext,ctx), ctx);
+  // TODO: specialize type to avoid boxing
+  kk_std_core__sslice snext = kk_std_core__new_Sslice(kk_string_dup(slice.str), slice.start + clen, slice.len - clen, ctx);
+  kk_std_core_types__tuple2_ res = kk_std_core_types__new_dash__lp__comma__rp_( kk_char_box(c,ctx), kk_std_core__sslice_box(snext,ctx), ctx);
+  return kk_std_core_types__new_Just( kk_std_core_types__tuple2__box(res,ctx), ctx );  
 }
 
 struct kk_std_core_Sslice kk_slice_extend( struct kk_std_core_Sslice slice, kk_integer_t count, kk_context_t* ctx ) {
