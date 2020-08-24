@@ -9,7 +9,8 @@
 
 # Koka: a function-oriented language with effect inference
 
-_Note: Koka v2 is currently under heavy development with the new evidence translation and C backend, and various features may be lacking.
+_Note: Koka v2 is currently under heavy development with the new evidence translation and C backend, and various features may be lacking,
+documentation may be outdated, and not all tests will run.
 Use the branch [`v1-master`](https://github.com/koka-lang/koka/tree/v1-master) to use the older stable Koka v1 with the Javascript backend._
 
 Koka is a strongly typed, strict functional language which tracks the (side) _effects_ of every function in its type.
@@ -327,7 +328,9 @@ There are two crucial ingredients to make this possible: evidence translation an
 
 As described in the paper _Effect Handlers, Evidently_, Xie _et al._ [6] show how to translate algebraic effect handlers at compilation
 time down to pure lambda calculus where all control flow is explicit again. This is done by Koka to remove any dependence on
-runtime mechanisms like split-stacks (as in Multi-core OCaml) or C stack copying [7]. 
+runtime mechanisms like split-stacks (as in Multi-core OCaml) or C stack copying [7]. Moreover, as the evidence for each handler
+is passed down to the call site, all _tail-resumptive_ operations can be executed in-place without needing to do an expensive
+yield- and resume. This makes the cost of tail-resumptive operations on effects comparable to a virtual method call.
 
 ## Perceus
 
