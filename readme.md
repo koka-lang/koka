@@ -15,9 +15,9 @@ Use the branch [`v1-master`](https://github.com/koka-lang/koka/tree/v1-master) t
 
 Koka is a strongly typed, strict functional language which tracks the (side) _effects_ of every function in its type.
 Koka syntax is Javascript/C like,
-the evaluation is strict like OCaml/C, and the type system is Haskell like, where pure and effectful computations are distinguished.
-This gives Koka rock-solid semantics backed by well-studied categorical semantics which makes it particularly easy to reason about (for 
-humans and compilers). 
+the evaluation is strict like OCaml/C, and the type- and effect system is Haskell like, where pure and effectful computations are distinguished.
+The precise effect typing gives Koka rock-solid semantics backed by well-studied category theory, which makes Koka particularly easy to reason 
+about (for both humans and compilers). 
 
 A function without any effect is called _total_ and corresponds to mathematically total functions.
 There are the builtin effects for partial functions that can raise exceptions, as _exn_, or potentially non-terminating functions as _div_ (divergent).
