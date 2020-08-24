@@ -1,22 +1,30 @@
 <img align="left" width="100" height="100" src="doc/logo/koka-logo-v2-800.png"/>
 
+<!--
 [<img align="right" src="https://travis-ci.org/koka-lang/koka.svg?branch=master"/>](https://travis-ci.org/koka-lang/koka)
+-->
 [<img align="right" src="https://badges.gitter.im/koka-lang/koka.svg"/>](https://gitter.im/koka-lang/koka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
-# Koka: a function-oriented language with effect inference
 
 &nbsp;
 
-
 # Koka: a function-oriented language with effect inference
-[![Build Status](https://travis-ci.org/koka-lang/koka.svg?branch=master)](https://travis-ci.org/koka-lang/koka)
-[![Join the chat at https://gitter.im/koka-lang/koka](https://badges.gitter.im/koka-lang/koka.svg)](https://gitter.im/koka-lang/koka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
+Koka v2 is currently under heavy development with the new evidence translation and C backend, and features may be lacking.
+Use the branch `v1-master` to use the older stable Koka with the Javascript backend.
+
+Koka is a functional style language that is strongly typed. Koka has two specific features that set it apart: it tracks
+the (side) _effects_ of every function in the type of the functions, and it has full support for algebraic effect
+handlers. Recent work on _evidence translation_ and _Perceus_ reference counting enable Koka to compile directly 
+to plain C code without needing a garbage collector or runtime system. Initial performance benchmarks are very promising, where
+a naive Koka implementation of a red-black tree balanced insertion ([`rbtree.kk`](test/bench/koka/rbtree.kk)) is within 10% of 
+the performance of a C++ implementation using `stl::map` ([`rbtree.cpp`](test/bench/cpp/rbtree.cpp)) (which is based on the highly efficient GNU 
+[`RBTree`](https://sourceware.org/git/?p=glibc.git;a=blob;f=misc/tsearch.c;h=cdc401a4e5411221ab2feb2baf8745991bde7868;hb=HEAD) implementation)!
 
 For more background information, see:
 
-* The [Koka book][kokabook] for a specification of the Koka language and a primer on algebraic effects.
+* The [A tour of Koka][kokabook] for a specification of the Koka language and a primer on algebraic effects.
 * The [library documentation][libraries].
-* The [Koka research page][kokaproject] and the [slides] of a talk presented Lang.Next (April 2012).
+* The [Koka research page][kokaproject].
 * The article _Algebraic Effects for Functional Programming_ [[3]](#references) about the algebraic effects in Koka.
 
 [kokabook]: https://koka-lang.github.io/koka/doc/kokaspec.html  
@@ -36,87 +44,85 @@ Unix.
 
 The following programs are required to build Koka:
 
-* The [Haskell platform](http://www.haskell.org/platform) (version 7.4 or later) or [Stack](https://docs.haskellstack.org/).
-* The [NodeJS](http://nodejs.org) runtime (version 4.2 LTS or later).
-* Some version of [Git](https://help.github.com/articles/set-up-git/) for version control.
+* [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.
+* [CMake](https://cmake.org/download/) to compile the generated C files.
+* Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
 
-All these programs are very easy to install on most platforms.
-Now we can build Koka itself:
+Building Koka:
+```
+> git clone https://github.com/koka-lang/koka
+> cd koka
+> stack build
+```
+You can also use `stack build --fast` to build a debug version of the compiler.
+You can invoke the compiler as:
+```
+> stack exec koka -- -c test/algeff/common
+compile: test/algeff/common.kk
+loading: std/core
+loading: std/core/types
+loading: std/core/hnd
+check  : test/algeff/common
+> cmake --build "out\Debug\cbuild" --target test_algeff_common
+[5/5] Linking C executable test_algeff_common.exe
+compiled: out\Debug\test_algeff_common.exe
+```
+and run the resulting executable:
+```
+> out\Debug\test_algeff_common.exe
+42
+Hello there, there
+hi
+hi
+1
+2
+[False,True,True,False]
+([False,False,True,True,False],2)
+```
+If you leave out the `-c` flag, Koka will execute the compiled program automatically.
+Without input files, the interpreter runs by default:
+```
+> stack exec koka
+```
 
-1. First clone the Koka sources with algebraic effects support:
+The [Atom](https://atom.io/) text editor is recommended
+to edit Koka programs. You can install support for Koka programs using
 
-   `> git clone https://github.com/koka-lang/koka.git`
-
-   You can also use the flag `-b dev` to get the latest development version.
-
-2. Go to the newly created Koka directory:
-
-   `> cd koka`
-
-3. Install any needed Node libraries using the Node package manager:
-
-   `> npm install`
-
-   If you are running on MacOSX or Unix, you may have to run this as
-   ``sudo npm install`` so that the ``npm`` package manager has enough
-   permissions to install the ``jake`` and ``madoko`` tools.
-
-4. Install `alex`, a lexer generator used by the Koka compiler,
-
-    a. if you use `cabal`,
-
-   ```
-   > cabal update
-   > cabal install alex
-   ```
-
-   b. or if you use `stack`,
-
-   ```
-   > stack install alex
-   ```
-
-5. Finally, build the compiler and run the Koka interactive environment:
-
-   `> jake`
-
-   `jake` uses `ghc` to compile Haskell programs by default.
-   If you use `stack` to build the project, set environment variable `build_with_stack`:
-
-   ```
-   > jake compiler build_with_stack=true
-   > jake # enter interactive shell
-   ```
-   only once to build.
-
-   You can type ``jake help`` to see an overview of all make targets.
-
- The [Atom](https://atom.io/) text editor is recommended
- to edit Koka programs. You can install support for Koka programs using
-
- `> jake atom`
+`> jake atom`
 
 (or use `jake sublime`) for the [Sublime](http://www.sublimetext.com) editor).
 
 
 ## Running the interactive compiler
 
-After running a plain ``jake`` command, the Koka interactive environment will start:
+After running a plain ``stack exec koka`` command, the Koka interactive environment will start:
 ````
-__          _
-| |        | |
-| | __ ___ | | __ __ _
-| |/ // _ \| |/ // _` | welcome to the koka interpreter
-|   <| (_) |   <| (_| | 0.9.0-dev (debug), Nov 10 2018
-|_|\_\\___/|_|\_\\__,_| type :? for help
+ _          _           ____
+| |        | |         |__  \
+| | __ ___ | | __ __ _  __) |
+| |/ // _ \| |/ // _` || ___/ welcome to the koka interpreter
+|   <| (_) |   <| (_| ||____| version 2.0.0-alpha, Aug 23 2020, libc 64-bit
+|_|\_\\___/|_|\_\\__,_|       type :? for help
 
 loading: std/core
+loading: std/core/types
+loading: std/core/hnd
+
+>
 ````
 Now you can test some expressions:
 
     > println("hi koka")
-    hi koka
+    loading: std/core
+    loading: std/core/types
+    loading: std/core/hnd
+    check  : interactive
+    > cmake --build "out\Debug\cbuild" --target interactive
+    [2/2] Linking C executable interactive.exe
+    compiled: out\Debug\interactive.exe
 
+    hi koka
+    
     > :t "hi"
     string
 
@@ -141,12 +147,6 @@ And quit the interpreter:
     Before the effect one believes in different causes than one does after the effect.
      -- Friedrich Nietzsche
 
-You can also run examples in the browser by setting the host:
-
-    > :set --host=browser
-    > 1+2
-
-Some browser specific demo to try is for example ``demo/dom/conway.kk``.
 
 ## Algebraic effect handlers
 
