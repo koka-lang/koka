@@ -34,12 +34,19 @@ withReadLine io
        io
 
 readLine prompt
-  = do line <- R.readline prompt
-       case reverse line of
-         []       -> readLine prompt
-         '\\' : t -> do line2 <- readLine prompt
-                        return (reverse t ++ "\n" ++ line2)
-         _        -> return line
+  = do line <- readLines 
+       return (Just line) 
+  where
+    readLines :: IO String
+    readLines 
+      = do mbline <- R.readline prompt
+           let line = case mbline of Just s   -> s
+                                     Nothing  -> ""
+           case reverse line of
+             []       -> readLines
+             '\\' : t -> do line2 <- readLines
+                            return $ (reverse t ++ "\n" ++ line2)
+             _        -> return line
 
 addHistory line
   = R.addHistory line
