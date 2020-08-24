@@ -1,9 +1,9 @@
-<img align="left" width="100" height="100" src="doc/logo/koka-logo100.png"/>
+<img align="left" width="100" height="100" src="doc/logo/koka-logo-v2-100.png"/>
 
 [<img align="right" src="https://travis-ci.org/koka-lang/koka.svg?branch=master"/>](https://travis-ci.org/koka-lang/koka)
 [<img align="right" src="https://badges.gitter.im/koka-lang/koka.svg"/>](https://gitter.im/koka-lang/koka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-# Koka
+# Koka: a function-oriented language with effect inference
 
 &nbsp;
 
