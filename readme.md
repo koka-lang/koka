@@ -29,11 +29,8 @@ ambient state, backtracking parser combinators, probablistic programming, Bayesi
 monads, and are compositional without needing lifting or monad transformers.
 
 Recent work on [evidence translation](#evidence-translation) and [Perceus](#perceus) precise compiler guided reference counting enable Koka to compile directly 
-to plain C code _without needing a garbage collector_ or runtime system. Initial performance benchmarks are very promising, where
-a naive functional Koka implementation of a red-black tree balanced insertion ([`rbtree.kk`](test/bench/koka/rbtree.kk)) is within 10% of 
-the performance of an in-place updating C++ implementation using `stl::map` ([`rbtree.cpp`](test/bench/cpp/rbtree.cpp)) (which uses the GNU 
-[`RBTree`](https://sourceware.org/git/?p=glibc.git;a=blob;f=misc/tsearch.c;h=cdc401a4e5411221ab2feb2baf8745991bde7868;hb=HEAD) implementation internally).
-It is our goal to generally fall within a factor 2&times; of C++ performance without needing manual memory management. 
+to plain C code _without needing a garbage collector_ or runtime system. Initial performance benchmarks are promising (see below),
+and it is our goal to generally fall within a factor 2&times; of C++ performance without needing manual memory management. 
 
 For more background information, see:
 
@@ -53,7 +50,7 @@ Enjoy,
   Daan Leijen
   
 Special thanks to:
-- [Ningning Xie](https://xnning.github.io/): for her work on the theory of [evidence translation](#evidence-translation) for algebraic effect handlers [6].
+- [Ningning Xie](https://xnning.github.io/): for her work on the theory and practice of [evidence translation](#evidence-translation) for algebraic effect handlers [6].
 - [Alex Reinking](https://alexreinking.com/): for the ongoing work on the [Perceus](#perceus) reference counting analysis.
 - And all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, and Edsko de Vries.
   
@@ -108,7 +105,8 @@ hi
 ```
 
 If you leave out the `-c` flag, Koka will execute the compiled program automatically.
-Use `-O2` to build an optimized program:
+The `-O2` flag builds an optimized program. Let's try it on a functional implementation
+of balanced insertion in a red-black tree balanced ([`rbtree.kk`](test/bench/koka/rbtree.kk)) 
 ```
 > stack exec koka -- -O2 -c test/bench/koka/rbtree32.kk
 ...
@@ -119,13 +117,20 @@ compiled: out/RelWithDebInfo/test_bench_koka_rbtree32
 > time out/RelWithDebInfo/test_bench_koka_rbtree32
 420000
 real    0m1.132s
-...
+```
+We can compare this against an in-place updating C++ implementation using `stl::map`
+([`rbtree.cpp`](test/bench/cpp/rbtree.cpp)) (which uses the GNU 
+[`RBTree`](https://sourceware.org/git/?p=glibc.git;a=blob;f=misc/tsearch.c;h=cdc401a4e5411221ab2feb2baf8745991bde7868;hb=HEAD) implementation internally):
+```
 > g++ -o cpp_rbtree -O3 test/bench/cpp/rbtree.cpp
 > time ./cpp_rbtree
 420000
 real    0m1.096s
 ...
 ```
+The close performance to C++ here is a result of [Perceus](#perceus) automatically
+tranforming the fast path of the pure functional rebalancing to use mostly in-place updates,
+closely mimicking the imperative rebalancing code of the hand optimized C++ library.
 
 Without giving any input files, the interpreter runs by default:
 ```
