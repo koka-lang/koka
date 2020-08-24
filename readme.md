@@ -31,8 +31,8 @@ Recent work on [evidence translation](#evidence-translation) and [Perceus](#perc
 to plain C code _without needing a garbage collector_ or runtime system. Initial performance benchmarks are very promising, where
 a naive functional Koka implementation of a red-black tree balanced insertion ([`rbtree.kk`](test/bench/koka/rbtree.kk)) is within 10% of 
 the performance of an in-place updating C++ implementation using `stl::map` ([`rbtree.cpp`](test/bench/cpp/rbtree.cpp)) (which uses the GNU 
-[`RBTree`](https://sourceware.org/git/?p=glibc.git;a=blob;f=misc/tsearch.c;h=cdc401a4e5411221ab2feb2baf8745991bde7868;hb=HEAD) implementation internally)!
-It is our goal to generally fall within a factor 2&times; of C++ performance without needing manual memory management. See Perceus.
+[`RBTree`](https://sourceware.org/git/?p=glibc.git;a=blob;f=misc/tsearch.c;h=cdc401a4e5411221ab2feb2baf8745991bde7868;hb=HEAD) implementation internally).
+It is our goal to generally fall within a factor 2&times; of C++ performance without needing manual memory management. 
 
 For more background information, see:
 
@@ -69,8 +69,8 @@ Unix.
 The following programs are required to build Koka:
 
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler .
-* [CMake](https://cmake.org/download/) to compile the generated C files (use `> apt-get install cmake` on Ubuntu).
-* Optional: The [Ninja](https://ninja-build.org/) build system for faster build times (required on Windows, use `> apt-get install ninja-build` on Ubuntu).
+* [CMake](https://cmake.org/download/) to compile the generated C files (use `> sudo apt-get install cmake` on Ubuntu).
+* Optional: The [Ninja](https://ninja-build.org/) build system for faster build times (required on Windows, use `> sudo apt-get install ninja-build` on Ubuntu).
 * Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
 
 Building Koka:
@@ -210,12 +210,13 @@ effect handlers (described in detail in [[3]](#references)).
 In the interactive environment, you can load various demo files with algebraic
 effects which are located in the ``test/algeff`` directory. 
 
-    > :l test/algeff/common
+    > :f test/algeff/common
 
+where ``:f`` forces a recompile (versus ``:l`` which avoids a recompile if possible). 
 Use the ``:?`` command to get an overview of all commands. After
 loading the ``common`` demo, we can run it directly from the interpreter:
 
-    > :l test/algeff/common
+    > :f test/algeff/common
     loading: test/algeff/common
     loading: std/core
     loading: std/core/types
@@ -274,7 +275,8 @@ Or only run benchmarks for one language with `-L <lang>`:
 ```
 > ctest -L koka
 ```
-Or run specific benchmarks using `-R <regex>`:
+Or run specific benchmarks using `-R <regex>`,
+like the symbolic derivative benchmark:
 ```
 > ctest -R deriv      
 Test project /home/daan/dev/koka/test/bench/build
@@ -330,15 +332,21 @@ runtime mechanisms like split-stacks (as in Multi-core OCaml) or C stack copying
 ## Perceus
 
 Even a pure core intermediate language with explicit control flow is not yet good enough to compile to C directly: without manual memory 
-management functional languages still need a (tracing) garbage collector (GC) (like OCaml or Haskell). A well performing generational GC
-is very hard to build and is invasive as it needs to be able to scan the roots and stack. Even the best garbage collectors still suffer
-from unpredictable latencies (especially with large live sets) and tend to require (much) more memory than achievable with manual memory
-management (as with C/C++ and Rust). 
+management functional languages still need a (tracing) garbage collector (like OCaml or Haskell). A well performing concurrent generational 
+garbage collector is very hard to build and is invasive as it needs to be able to scan the roots and stack. Even the best garbage collectors 
+still suffer from unpredictable latencies (especially with large live sets) and tend to require (much) more memory than achievable with 
+manual memory management (as with C/C++ and Rust). 
 
-With Koka we took a new approach based on reference counting. Usually, reference counting does not perform well due to various factors but
-in Koka we can do better: we use aggressive static analysis to insert _precise_ reference count instructions where memory is freed as soon as 
+With Koka we took a new approach based on reference counting. The usual wisdom is that  reference counting does not perform well due to various factors but
+in Koka we believe we can do better: 1) we know that all inductive and co-inductive datatypes are never cyclic so we can identify potential cycle introducing
+datatypes statically (like mutable references, and these are not so often used in mostly functional Koka), 2) again due to the strict type system
+we can statically track which values may become shared across threads and avoid expensive atomic operations for the majority of operations, and 
+finally 3) due to the explicit control-flow we can do deep analysis on variable life times.
+In particular, we use aggressive static analysis to insert _precise_ reference count instructions where memory is freed as soon as 
 it is no longer live (and in particular, we do not hold on to memory based on lexical scope as in almost all reference counting implementations
-in the wild). _Percues_  stands for _Precise automatic reference counting with reuse and specialization_: the _reuse_ component transform functional
+in the wild, like Swift, Python, C++ `shared_ptr` etc). 
+
+_Percues_  stands for _Precise automatic reference counting with reuse and specialization_: the _reuse_ component transform functional
 style pattern matches into _in-place update_ when possible, while _specialization_ specialize the reference counting based on the call sites and
 removes most rc operations in the fast path. For example, a simple `map` function:
 ```koka
