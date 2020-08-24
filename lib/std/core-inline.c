@@ -182,7 +182,7 @@ kk_std_core_types__maybe kk_slice_next( struct kk_std_core_Sslice slice, kk_cont
   kk_assert_internal(clen > 0 && clen <= slice.len);
   if (clen > slice.len) clen = slice.len;
   // TODO: specialize type to avoid boxing
-  kk_std_core__sslice snext = kk_std_core__new_Sslice(kk_string_dup(slice.str), slice.start + clen, slice.len - clen, ctx);
+  kk_std_core__sslice snext = kk_std_core__new_Sslice(slice.str, slice.start + clen, slice.len - clen, ctx);
   kk_std_core_types__tuple2_ res = kk_std_core_types__new_dash__lp__comma__rp_( kk_char_box(c,ctx), kk_std_core__sslice_box(snext,ctx), ctx);
   return kk_std_core_types__new_Just( kk_std_core_types__tuple2__box(res,ctx), ctx );  
 }

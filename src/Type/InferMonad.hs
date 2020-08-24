@@ -725,6 +725,7 @@ unifyError' env context range err tp1 tp2
           NoSubsume   -> ("type is not polymorph enough",[])
           NoEntail    -> ("predicates cannot be resolved",[])
           Infinite    -> ("types do not match (due to an infinite type)",[(text "hint",text "annotate the function definition?")])
+          NoMatchEffect{}-> ("effects do not match",[])
           NoArgMatch n m -> if (m<0)
                              then ("only functions can be applied",[])
                              else ("application has too " ++ (if (n > m) then "few" else "many") ++ " arguments"

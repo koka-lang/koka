@@ -20,6 +20,7 @@ import Common.Name
 import Common.Range
 import Common.Unique()
 import Common.NamePrim( namePatternMatchError, nameSystemCore )
+import Common.Failure
 import Kind.Kind( kindStar )
 import Kind.Newtypes
 import Type.Type
@@ -168,7 +169,7 @@ matchPatterns newtypes defName range top matches tps patterns
 updateOneMatch (m1:ms1) (m2:ms2)  | isMatchComplete m2 = m1 : updateOneMatch ms1 ms2
 updateOneMatch (m1:ms1) (m2:ms2)  = m2 : ms1
 updateOneMatch [] _               = []
-
+updateOneMatch _ _                = failure $ "Core.AnalysisMatch:updateOneMatch: no matching lists" 
   
 makeMatch :: [ConInfo] -> [(ConInfo,[Match])] -> Match
 makeMatch cinfos cmatches

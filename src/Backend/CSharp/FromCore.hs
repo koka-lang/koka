@@ -1175,6 +1175,8 @@ genPatternTest doTest (mbTagDoc,exprDoc,pattern)
                         return [(test [exprDoc <+> text "!=" <+>
                                     ppConSingleton ctx typeName (TName nilName (typeOf tname)) tpars]
                                 ,[],next,[])]
+                 ConAsJust typeName _ _ _
+                  -> testStruct typeName
                  ConStruct typeName _ _
                   -> testStruct typeName
                  ConIso typeName _ _

@@ -218,7 +218,8 @@ bcoerceX fromTp toTp expr
                                         mapM (\(arg,parToTp,parFromTp) -> bcoerce parToTp parFromTp arg) (zip3 args (map snd toParTps) (map snd fromParTps))
                                bapp  <- bcoerce fromResTp toResTp (App expr bargs)
                                return (Just (Lam pars toEffTp bapp))
-
+                      _ -> failure $ "Backend.C.Box: bcoerceX: expecting function (from): " ++ show (pretty fromTp)
+               _ -> failure $ "Backend.C.Box: bcoerceX: expecting function (to): " ++ show (pretty toTp)               
       _   -> return Nothing
   where
     boxVar 
@@ -310,6 +311,7 @@ typeBoxStar = typeBox kindStar
 
 isBoxPat :: Pattern -> Bool
 isBoxPat (PatCon{ patConName = name })  = (getName name == nameBoxCon)
+isBoxPat _                              = False
 
 patBox :: Type -> Type -> Pattern -> Pattern
 patBox tpPat tpRes pat 

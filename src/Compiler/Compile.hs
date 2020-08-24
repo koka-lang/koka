@@ -867,12 +867,14 @@ inferCheck loaded flags line coreImports program1
 
        -- make sure generated core is valid
        if (not (coreCheck flags)) then return ()
-        else trace "initial core check" $ Core.Check.checkCore False False penv unique4 gamma coreDefs0
+        else -- trace "initial core check" $
+             Core.Check.checkCore False False penv unique4 gamma coreDefs0
 
        -- remove return statements
        coreDefsUR <- unreturn penv coreDefs0
        -- let coreDefsUR = coreDefs0
-       when (coreCheck flags) $ trace "return core check" $ Core.Check.checkCore False False penv unique4 gamma coreDefsUR
+       when (coreCheck flags) $ -- trace "return core check" $ 
+                                Core.Check.checkCore False False penv unique4 gamma coreDefsUR
 
        let showDef def = show (Core.Pretty.prettyDef ((prettyEnvFromFlags flags){coreShowDef=True}) def)
            traceDefGroups title dgs = trace (unlines (["","-----------------", title, "---------------"] ++ map showDef (Core.flattenDefGroups dgs))) $ return ()
@@ -881,7 +883,8 @@ inferCheck loaded flags line coreImports program1
 
        -- lifting recursive functions to top level
        let (coreDefsLifted,uniqueLift) = liftFunctions penv unique4 coreDefsUR
-       when (coreCheck flags) $ trace "lift functions core check" $ Core.Check.checkCore True True penv uniqueLift gamma coreDefsLifted
+       when (coreCheck flags) $ -- trace "lift functions core check" $ 
+                                Core.Check.checkCore True True penv uniqueLift gamma coreDefsLifted
 
        -- traceDefGroups "lifted" coreDefsLifted
 
@@ -895,7 +898,8 @@ inferCheck loaded flags line coreImports program1
                else do cdefs <- Core.Monadic.monTransform penv coreDefsLifted
                        -- recheck cps transformed core
                        when (coreCheck flags) $
-                          trace "monadic core check" $ Core.Check.checkCore False False penv uniqueLift gamma cdefs
+                          -- trace "monadic core check" $ 
+                          Core.Check.checkCore False False penv uniqueLift gamma cdefs
                        return (cdefs)
 
        -- traceDefGroups "monadic" coreDefsMon
@@ -904,7 +908,8 @@ inferCheck loaded flags line coreImports program1
        let coreDefsOR = if isPrimitiveModule then coreDefsMon
                          else openResolve penv gamma coreDefsMon
            uniqueOR   = uniqueMon
-       when (coreCheck flags) $ trace "open resolve core check" $ Core.Check.checkCore True False penv uniqueOR gamma coreDefsOR
+       when (coreCheck flags) $ -- trace "open resolve core check" $
+                                Core.Check.checkCore True False penv uniqueOR gamma coreDefsOR
 
        -- traceDefGroups "open resolve" coreDefsOR
 
@@ -918,7 +923,8 @@ inferCheck loaded flags line coreImports program1
                                      = simplifyDefs False (simplify flags) (simplifyMaxDup flags) uniqueOR penv coreDefsOR
                               -- recheck simplified core
                               when (coreCheck flags) $
-                                trace "after simplify core check 1" $Core.Check.checkCore True False penv unique0 gamma cdefs0
+                                -- trace "after simplify core check 1" $
+                                Core.Check.checkCore True False penv unique0 gamma cdefs0
                               return (cdefs0,unique0) -- $ simplifyDefs False 1 unique4a penv cdefs
 
        -- traceDefGroups "open resolve simplified" coreDefsSimp
@@ -941,12 +947,14 @@ inferCheck loaded flags line coreImports program1
        -}
        
        let (coreDefsMonL,uniqueMonL) = monadicLift penv uniqueSimp coreDefsSimp
-       when (coreCheck flags) $ trace "monadic lift core check" $ Core.Check.checkCore True True penv uniqueMonL gamma coreDefsMonL
+       when (coreCheck flags) $ -- trace "monadic lift core check" $ 
+                                Core.Check.checkCore True True penv uniqueMonL gamma coreDefsMonL
        -- traceDefGroups "monadic lift" coreDefsMonL
 
        -- do an inlining pass
        let (coreDefsInl,uniqueInl) = inlineDefs penv uniqueMonL (loadedInlines loaded3) coreDefsMonL
-       when (coreCheck flags) $ trace "inlined functions core check" $ Core.Check.checkCore True True penv uniqueInl gamma coreDefsInl
+       when (coreCheck flags) $ -- trace "inlined functions core check" $ 
+                                Core.Check.checkCore True True penv uniqueInl gamma coreDefsInl
 
        -- and one more simplify
        (coreDefsSimp2,uniqueSimp2)
@@ -958,7 +966,8 @@ inferCheck loaded flags line coreImports program1
                                      = simplifyDefs False (simplify flags) (simplifyMaxDup flags) uniqueInl penv coreDefsInl
                               -- recheck simplified core
                               when (coreCheck flags) $
-                                trace "after simplify core check 2" $Core.Check.checkCore True True penv unique0 gamma cdefs0
+                                -- trace "after simplify core check 2" $
+                                Core.Check.checkCore True True penv unique0 gamma cdefs0
                               return (cdefs0,unique0) -- $ simplifyDefs False 1 unique4a penv cdefs
 {-
        -- and one more simplify
@@ -1035,7 +1044,7 @@ codeGen term flags compileTarget loaded
        when (genCore flags)  $
          do termPhase term "generate core"
             writeDocW 10000 outCore coreDoc  -- just for debugging
-       when (showCore flags && not (C `elem` targets flags)) $
+       when (showCore flags) $
          do termDoc term coreDoc
 
        -- write documentation
@@ -1054,7 +1063,7 @@ codeGen term flags compileTarget loaded
                  withNewFilePrinter (outBase ++ ".xmp.html") $ \printer ->
                   genDoc env (loadedKGamma loaded) (loadedGamma loaded) (modCore mod) printer
 
-       mbRuns <- sequence [backendCodeGen term flags (loadedModules loaded)  compileTarget  outBase (modCore mod)  | backendCodeGen <- backends]
+       mbRun <- backend term flags (loadedModules loaded)  compileTarget  outBase (modCore mod)
 
        -- write interface file last so on any error it will not be written
        writeDocW 10000 outIface ifaceDoc
@@ -1065,8 +1074,8 @@ codeGen term flags compileTarget loaded
        -- run the program
        when ((evaluate flags && isExecutable compileTarget)) $
         compilerCatch "program" term () $
-          case concatMaybe mbRuns of
-            (run:_)  -> do termPhase term $ "execute" 
+          case mbRun of
+            Just run -> do termPhase term $ "evaluate" 
                            termDoc term $ space
                            run
             _        -> termDoc term $ space
@@ -1076,15 +1085,15 @@ codeGen term flags compileTarget loaded
     concatMaybe :: [Maybe a] -> [a]
     concatMaybe mbs  = concatMap (maybe [] (\x -> [x])) mbs
 
-    backends = [codeGenCS, codeGenJS,
-                codeGenC (modSourcePath (loadedModule loaded))
-                         (loadedNewtypes loaded) (loadedUnique loaded)]
+    backend :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO()))
+    backend  = case target flags of
+                 CS -> codeGenCS
+                 JS -> codeGenJS
+                 _  -> codeGenC (modSourcePath (loadedModule loaded)) (loadedNewtypes loaded) (loadedUnique loaded)
 
 
 -- CS code generation via libraries; this catches bugs in C# generation early on but doesn't take a transitive closure of dll's
 codeGenCSDll:: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO()))
-codeGenCSDll term flags modules compileTarget outBase core   | not (CS `elem` targets flags)
-  = return Nothing
 codeGenCSDll term flags modules compileTarget outBase core
   = compilerCatch "csharp" term Nothing $
     do let (mbEntry,isAsync) = case compileTarget of
@@ -1116,8 +1125,6 @@ codeGenCSDll term flags modules compileTarget outBase core
 
 -- Generate C# through CS files without generating dll's
 codeGenCS :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO()))
-codeGenCS term flags modules compileTarget outBase core   | not (CS `elem` targets flags)
-  = return Nothing
 codeGenCS term flags modules compileTarget outBase core
   = compilerCatch "csharp" term Nothing $
     do let (mbEntry,isAsync) = case compileTarget of
@@ -1147,8 +1154,6 @@ codeGenCS term flags modules compileTarget outBase core
 
 
 codeGenJS :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO ()))
-codeGenJS term flags modules compileTarget outBase core  | not (JS `elem` targets flags)
-  = return Nothing
 codeGenJS term flags modules compileTarget outBase core
   = do let outjs = outBase ++ ".js"
        let mbEntry = case compileTarget of
@@ -1203,7 +1208,6 @@ codeGenJS term flags modules compileTarget outBase core
 
 
 codeGenC :: FilePath -> Newtypes -> Int -> Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO ()))
-codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase core0  | not (C `elem` targets flags) = return Nothing
 codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase core0
  = compilerCatch "c" term Nothing $
    do let outC = outBase ++ ".c"
@@ -1388,12 +1392,12 @@ copyIFaceToOutputDir term flags iface targetPath imported
   -- | otherwise
   = do let outName = joinPaths [buildDir flags, targetPath, notdir iface]
        copyTextIfNewer (rebuild flags) iface outName
-       if (CS `elem` targets flags)
+       if (CS == target flags)
         then do let libSrc = notext iface ++ dllExtension
                 let libOut = notext outName ++ dllExtension
                 copyBinaryIfNewer (rebuild flags) libSrc libOut
         else return ()
-       if (JS `elem` targets flags)
+       if (JS == target flags)
         then do let jsSrc = notext iface ++ ".js"
                 let jsOut = notext outName ++ ".js"
                 copyTextFileWith  jsSrc jsOut (packagePatch iface (targetPath) imported)

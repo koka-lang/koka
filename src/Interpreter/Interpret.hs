@@ -658,11 +658,11 @@ messageHeader st
                            ++ buildDate ++ targetMsg
     welcome       = text ("welcome to the " ++ Config.programName ++ " interpreter")
     targetMsg      
-      = case (targets (flags st)) of
-          [C]  -> ", libc " ++ show (8*sizePtr (platform (flags st))) ++ "-bit"
-          [JS] -> ", node"
-          [CS] -> ", .net"
-          _    -> ""
+      = case (target (flags st)) of
+          C  -> ", libc " ++ show (8*sizePtr (platform (flags st))) ++ "-bit"
+          JS -> ", node"
+          CS -> ", .net"
+          _  -> ""
 
 semiRandom min max
   = do t <- getCurrentTime

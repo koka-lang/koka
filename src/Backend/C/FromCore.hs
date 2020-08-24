@@ -800,6 +800,8 @@ genDupDropX isDup name info dataRepr conInfos
 genDupDropIso :: Bool -> (ConInfo,ConRepr,[(Name,Type)],Int) -> Doc
 genDupDropIso isDup (con,conRepr,[(name,tp)],scanCount)
   = hcat $ map (<.>semi) (genDupDropCall isDup tp (text "_x." <.> ppName name))
+genDupDropIso _ _ 
+  = failure $ "Backend.C.genDupDropIso: ivalid arguments"
 
 genDupDropTests :: Bool -> DataRepr -> Int -> ((ConInfo,ConRepr,[(Name,Type)],Int),Int) -> Doc
 genDupDropTests isDup dataRepr lastIdx ((con,conRepr,conFields,scanCount),idx)
@@ -1579,6 +1581,7 @@ genAppNormal f args
                                                  -> (ppType resTp, tupled ([text "kk_function_t"] ++
                                                                            (map (ppType . snd) argTps) ++
                                                                            [text "kk_context_t*"]))
+                                               _ -> failure $ ("Backend.C.genAppNormal: expecting function type: " ++ show (pretty (typeOf f)))
                        return (fdecls ++ decls, text "kk_function_call" <.> tupled [cresTp,cargTps,fdoc,arguments (fdoc:argDocs)])
 
 
@@ -1655,6 +1658,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameBox || getName tna
   = let isBox = (getName tname == nameBox)
         tp    = case typeOf tname of
                   TFun [(_,fromTp)] _ toTp -> if (isBox) then fromTp else toTp
+                  _ -> failure $ ("Backend.C.genExprExternal.unbox: expecting function type: " ++ show tname ++ ": " ++ show (pretty (typeOf tname)))
         call  = genBoxCall (if (isBox) then "box" else "unbox") False tp argDoc
     in return ([], call)
 
@@ -1664,6 +1668,7 @@ genExprExternal tname formats [argDoc,scanDoc] | getName tname == nameDrop
   = let isDup = (getName tname == nameDup)
         tp    = case typeOf tname of
                   TFun [(_,fromTp),(_,_)] _ toTp -> fromTp
+                  _ -> failure $ ("Backend.C.genExprExternal.dropn: expecting function type: " ++ show tname ++ ": " ++ show (pretty (typeOf tname)))
         call  = hcat (genDropNCall tp [argDoc,scanDoc])   
     in return ([], call)
     
@@ -1672,6 +1677,7 @@ genExprExternal tname formats [argDoc,scanDoc] | getName tname == nameDrop
 genExprExternal tname formats [argDoc,scanDoc] | getName tname == nameDropReuse
   = let tp    = case typeOf tname of
                   TFun [(_,fromTp),(_,_)] _ toTp -> fromTp
+                  _ -> failure $ ("Backend.C.genExprExternal.drop_reuse: expecting function type: " ++ show tname ++ ": " ++ show (pretty (typeOf tname)))
         call  = hcat (genDropReuseCall tp [argDoc,scanDoc])
     in return ([], call)
     
@@ -1680,6 +1686,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameDup || getName tna
   = let isDup = (getName tname == nameDup)
         tp    = case typeOf tname of
                   TFun [(_,fromTp)] _ toTp -> fromTp
+                  _ -> failure $ ("Backend.C.genExprExternal.drop: expecting function type: " ++ show tname ++ ": " ++ show (pretty (typeOf tname)))
         call  = hcat (genDupDropCall isDup tp argDoc)   -- if empty, pass dup argument along?
     in return ([], call)
 
@@ -1687,6 +1694,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameDup || getName tna
 genExprExternal tname formats [argDoc] | getName tname == nameIsUnique
   = let tp    = case typeOf tname of
                   TFun [(_,fromTp)] _ toTp -> fromTp
+                  _ -> failure $ ("Backend.C.genExprExternal.is_unique: expecting function type: " ++ show tname ++ ": " ++ show (pretty (typeOf tname)))
         call  = hcat (genIsUniqueCall tp argDoc)
     in return ([], call)
 
@@ -1694,6 +1702,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameIsUnique
 genExprExternal tname formats [argDoc] | getName tname == nameFree
   = let tp    = case typeOf tname of
                   TFun [(_,fromTp)] _ toTp -> fromTp
+                  _ -> failure $ ("Backend.C.genExprExternal.free: expecting function type: " ++ show tname ++ ": " ++ show (pretty (typeOf tname)))
         call  = hcat (genFreeCall tp argDoc)
     in return ([], call)
     
@@ -1701,6 +1710,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameFree
 genExprExternal tname formats [argDoc] | getName tname == nameDecRef
   = let tp    = case typeOf tname of
                   TFun [(_,fromTp)] _ toTp -> fromTp
+                  _ -> failure $ ("Backend.C.genExprExternal.decref: expecting function type: " ++ show tname ++ ": " ++ show (pretty (typeOf tname)))
         call  = hcat (genDecRefCall tp argDoc)
     in return ([], call)
 
@@ -1708,6 +1718,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameDecRef
 genExprExternal tname formats [argDoc] | getName tname == nameReuse
   = let tp    = case typeOf tname of
                   TFun [(_,fromTp)] _ toTp -> fromTp
+                  _ -> failure $ ("Backend.C.genExprExternal.reuse: expecting function type: " ++ show tname ++ ": " ++ show (pretty (typeOf tname)))
         call  = hcat (genReuseCall tp argDoc)
     in return ([], call)
 

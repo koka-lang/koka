@@ -31,7 +31,7 @@ import Lib.Printer
 import Common.Failure         ( raiseIO )
 import Common.ColorScheme
 import Common.File
-import Common.Syntax          ( Target (..), Host(..), Platform(..), platform32, platform64 )
+import Common.Syntax          ( Target (..), Host(..), Platform(..), platform32, platform64, platformJS, platformCS )
 import Compiler.Package
 import Core.Core( dataInfoIsValue )
 {--------------------------------------------------------------------------
@@ -94,7 +94,7 @@ data Flags
          , showTypeSigs     :: Bool
          , evaluate         :: Bool
          , library          :: Bool
-         , targets          :: [Target]
+         , target           :: Target
          , host             :: Host
          , platform         :: Platform
          , simplify         :: Int
@@ -144,8 +144,8 @@ flagsNull
           False -- typesigs
           True  -- executes
           False -- library
-          [C]   -- target
-          LibC
+          C     -- target
+          Node  -- js host
           platform64  
           5     -- simplify passes
           6     -- simplify dup max
@@ -190,8 +190,7 @@ isInteractive Interactive = True
 isInteractive _ = False
 
 isValueFromFlags flags
- = -- if (JS `elem` targets flags) then (const False) else dataInfoIsValue
-   dataInfoIsValue
+ = dataInfoIsValue
 
 {--------------------------------------------------------------------------
   Options and environment variables
@@ -221,9 +220,9 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["html"]            (\b f -> f{outHtml = if b then 2 else 0}) "generate documentation"
  , option []    ["htmlbases"]       (ReqArg htmlBasesFlag "bases")            "set link prefixes for documentation"
  , option []    ["htmlcss"]         (ReqArg htmlCssFlag "link")               "set link to the css documentation style"
- , config []    ["target"]          [("js",[JS]),("cs",[CS]),("c",[C])] (\t f -> f{targets=t})             "generate C (default), javascript, or C#"
- , config []    ["host"]            [("libc",LibC),("node",Node),("browser",Browser)] (\h f -> f{ targets=[if (h==LibC) then C else JS], host=h}) "specify host for running code"
- , config []    ["platform"]        [("x32",platform32),("x64",platform64)] (\p f -> f{platform=p})        "specify target platform (default=64-bit)"
+ , config []    ["target"]          [("js",JS),("cs",CS),("c",C)] targetFlag  "generate C (default), javascript, or C#"
+ , config []    ["host"]            [("node",Node),("browser",Browser)] (\h f -> f{ target=JS, host=h}) "specify host for running javascript"
+ , config []    ["platform"]        [("x32",platform32),("x64",platform64)] (\p f -> f{platform=p})     "specify target platform (default=64-bit)"
  , emptyline
  , flag   []    ["showspan"]       (\b f -> f{ showSpan = b})       "show ending row/column too on errors"
  -- , flag   []    ["showkinds"]      (\b f -> f{showKinds=b})        "show full kind annotations"
@@ -235,7 +234,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["showcs"]         (\b f -> f{showAsmCS=b})         "show generated c#"
  , flag   []    ["showjs"]         (\b f -> f{showAsmJS=b})         "show generated javascript"
  , flag   []    ["showc"]          (\b f -> f{showAsmC=b})          "show generated C"
- , flag   []    ["core"]            (\b f -> f{genCore=b})          "generate a core file"
+ , flag   []    ["core"]           (\b f -> f{genCore=b})          "generate a core file"
  , flag   []    ["checkcore"]      (\b f -> f{coreCheck=b})         "check generated core"
  -- , flag   []    ["show-coreF"]      (\b f -> f{showCoreF=b})        "show coreF"
  , emptyline
@@ -302,6 +301,12 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
   configstr short long opts f desc
     = config short long (map (\s -> (s,s)) opts) f desc
+    
+  targetFlag t f
+    = f{ target=t, platform=case t of 
+                              JS -> platformJS
+                              CS -> platformCS
+                              _  -> platform64  }
 
   colorFlag s
     = Flag (\f -> f{ colorScheme = readColorFlags s (colorScheme f) })
@@ -404,7 +409,8 @@ processOptions flags0 opts
                    installDir <- getInstallDir
                    return (flags{ packages = pkgs,
                                   installDir = normalizeWith '/' installDir,
-                                  includePath = joinPath installDir "lib":includePath flags },mode)
+                                  includePath = joinPath installDir "lib":includePath flags }
+                          ,mode)
         else invokeError errs
 
 extractFlags :: Flags -> [Option] -> Flags

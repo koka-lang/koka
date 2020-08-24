@@ -22,7 +22,7 @@ module Common.Syntax( Visibility(..)
                     , dataDefIsRec, dataDefIsOpen, dataDefIsValue
                     , HandlerSort(..)
                     , isHandlerResource, isHandlerNormal
-                    , Platform(..), platform32, platform64
+                    , Platform(..), platform32, platform64, platformCS, platformJS
                     , alignedSum, alignedAdd, alignUp
                     ) where
 
@@ -38,12 +38,12 @@ instance Show Target where
   show CHeader = "c header"
   show Default = ""
 
-data Host = Node | Browser | LibC deriving (Eq,Ord)
+data Host = Node | Browser deriving (Eq,Ord)
 
 instance Show Host where
   show Node    = "node"
   show Browser = "browser"
-  show LibC    = "libc"
+
 
 data Platform = Platform{ sizePtr  :: Int -- sizeof(intptr_t)
                         , sizeSize :: Int -- sizeof(size_t)
@@ -52,8 +52,8 @@ data Platform = Platform{ sizePtr  :: Int -- sizeof(intptr_t)
 platform32, platform64 :: Platform
 platform32 = Platform 4 4
 platform64 = Platform 8 8 
-platformJS = platform32
-platformCS = platform32
+platformJS = Platform 8 4
+platformCS = Platform 8 4
 
 instance Show Platform where
   show (Platform sp ss) = "Platform(sizeof(void*)=" ++ show sp ++ ",sizeof(size_t)=" ++ show ss ++ ")"

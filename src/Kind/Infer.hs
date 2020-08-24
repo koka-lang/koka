@@ -838,11 +838,13 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                               -> do addError range (text "Type" <+> nameDoc <+> text "cannot be used as a value type.")  -- should never happen?
                                     return DataDefNormal
                             (DataDefNormal, DataDefValue m n) 
-                                | (m + (n*sizePtr platform)) <= 3*(sizePtr platform) 
-                                  && hasKindStarResult (getKind typeResult)
-                                  && (sort /= Retractive)
-                              -> -- trace ("default to value: " ++ show name ++ ": " ++ show (m,n)) $
-                                 return (DataDefValue m n)
+                              -> if ((m + (n*sizePtr platform)) <= 3*(sizePtr platform) 
+                                      && hasKindStarResult (getKind typeResult)
+                                      && (sort /= Retractive))
+                                  then trace ("default to value: " ++ show name ++ ": " ++ show (m,n)) $
+                                       return (DataDefValue m n)
+                                  else trace ("default to reference: " ++ show name ++ ": " ++ show (m,n)) $
+                                       return (DataDefNormal)
                             _ -> return DataDefNormal
 
        -- trace (showTypeBinder newtp') $
