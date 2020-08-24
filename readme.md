@@ -25,6 +25,8 @@ Then we have effects for partial functions that can raise exceptions, as _exn_, 
 The combination of _exn_ and _div_ is called _pure_ as that corresponds to Haskell's notion of purity. On top of that we find
 mutability (as _st_) up to full non-deterministic side effects in _io_. 
 
+&nbsp; 
+
 Koka also has full support for _algebraic effect handlers_. This enables powerful control-flow abstraction that allows users to define
 compositional control-flow abstractions as a library; this includes advanced abstractions like exceptions, iterators, async-await concurrency,
 ambient state, backtracking parser combinators, probablistic programming, Bayesian machine learning, etc. Algebraic effect handlers subsume (free) 
