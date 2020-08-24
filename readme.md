@@ -27,7 +27,7 @@ compositional control-flow abstractions as a library; this includes advanced abs
 ambient state, backtracking parser combinators, probablistic programming, Bayesian machine learning, etc. Algebraic effect handlers subsume (free) 
 monads, and are compositional without needing lifting or monad transformers.
 
-Recent work on _evidence translation_ and _Perceus_ precise compiler guided reference counting enable Koka to compile directly 
+Recent work on _evidence translation_ and [_Perceus_](#Percues) precise compiler guided reference counting enable Koka to compile directly 
 to plain C code _without needing a garbage collector_ or runtime system. Initial performance benchmarks are very promising, where
 a naive functional Koka implementation of a red-black tree balanced insertion ([`rbtree.kk`](test/bench/koka/rbtree.kk)) is within 10% of 
 the performance of an in-place updating C++ implementation using `stl::map` ([`rbtree.cpp`](test/bench/cpp/rbtree.cpp)) (which uses the GNU 
@@ -50,6 +50,9 @@ For more background information, see:
 
 Enjoy,
   Daan Leijen
+  
+(Koka is the Japanese word for _effective_ ([Kōka](https://translate.google.com/#view=home&op=translate&sl=auto&tl=en&text=%E5%8A%B9%E6%9E%9C), 効果)).
+
 
 ## Installing the compiler
 
@@ -66,14 +69,14 @@ The following programs are required to build Koka:
 * Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
 
 Building Koka:
-```shell
+```
 > git clone https://github.com/koka-lang/koka
 > cd koka
 > stack build
 ```
 You can also use `stack build --fast` to build a debug version of the compiler.
 You can invoke the compiler now as: (this takes a while as it needs to build the core libraries as well)
-```shell
+```
 > stack exec koka -- -c test/algeff/common
 compile: test/algeff/common.kk
 loading: std/core
@@ -86,7 +89,7 @@ check  : test/algeff/common
 compiled: out\Debug\test_algeff_common.exe
 ```
 and run the resulting executable:
-```shell
+```
 > out\Debug\test_algeff_common.exe
 42
 Hello there, there
@@ -100,7 +103,7 @@ hi
 
 If you leave out the `-c` flag, Koka will execute the compiled program automatically.
 Use `-O2` to build an optimized program:
-```shell
+```
 > stack exec koka -- -O2 -c test/bench/koka/rbtree32.kk
 ...
 > cmake --build "out/RelWithDebInfo/cbuild" --target test_bench_koka_rbtree32
@@ -119,7 +122,7 @@ real    0m1.096s
 ```
 
 Without giving any input files, the interpreter runs by default:
-```shell
+```
 > stack exec koka
 ```
 
@@ -250,7 +253,7 @@ and `swiftc` in the path. The Swift compiler can be downloaded [here](https://sw
 and the benchmarks expect `switfc` to be installed at `/opt/swift/bin`.
 The benchmarks are build using:
 
-```shell
+```
 > cd test/bench
 > mkdir build
 > cd build
@@ -308,6 +311,46 @@ Stack itself built). For example, to use Intel VTune to profile a Koka program:
 stack exec "C:\Program Files (x86)\IntelSWTools\VTune Profiler 2020\bin64\vtune-gui.exe"
 ```
 
+# More on Evidence Translation and Perceus
+
+Koka compiles directly to plain C code without needing a garbage collector or runtime system.
+There are two crucial ingredients to make this possible: evidence translation and Perceus.
+
+## Evidence translation
+
+As described in the paper _Effect Handlers, Evidently_, Xie _et al._ [6] show how to translate algebraic effect handlers at compilation
+time down to pure lambda calculus where all control flow is explicit again. This is done by Koka to remove any dependence on
+runtime mechanisms like split-stacks (as in Multi-core OCaml) or C stack copying [7]. 
+
+## Perceus
+
+Even a pure core intermediate language with explicit control flow is not yet good enough to compile to C directly: without manual memory 
+management functional languages still need a (tracing) garbage collector (GC) (like OCaml or Haskell). A well performing generational GC
+is very hard to build and is invasive as it needs to be able to scan the roots and stack. Even the best garbage collectors still suffer
+from unpredictable latencies (especially with large live sets) and tend to require (much) more memory than achievable with manual memory
+management (as with C/C++ and Rust). 
+
+With Koka we took a new approach based on reference counting. Usually, reference counting does not perform well due to various factors but
+in Koka we can do better: we use aggressive static analysis to insert _precise_ reference count instructions where memory is freed as soon as 
+it is no longer live (and in particular, we do not hold on to memory based on lexical scope as in almost all reference counting implementations
+in the wild). _Percues_  stands for _Precise automatic reference counting with reuse and specialization_: the _reuse_ component transform functional
+style pattern matches into _in-place update_ when possible, while _specialization_ specialize the reference counting based on the call sites and
+removes most rc operations in the fast path. For example, a simple `map` function:
+```koka
+fun map( xs : list<a>, f : a -> e b ) : e list<b> {
+  match(xs) {
+    Cons(x,xx) -> Cons( f(x), map(xx,f) )
+    Nil        -> Nil
+  }
+}
+```
+will update the list _in place_ (reusing the `Cons` nodes that are matched) if the list happens to be not shared (and makes a copy otherwise). 
+This dynamically adjust the program from in-place update to persistence and is the main reason why it can approach the performance of 
+hand-optimized C++ on the red-black tree benchmark.
+
+Talk and paper are coming soon...
+
+
 # References
 
 1. Daniel Hillerström, and Sam Lindley. &ldquo;Liberating Effects with Rows and Handlers.&rdquo; In _Proceedings of the 1st International Workshop on Type-Driven Development_, 15--27. TyDe 2016. Nara, Japan. 2016. doi:[10.1145/2976022.2976033](https://dx.doi.org/10.1145/2976022.2976033).
@@ -319,3 +362,9 @@ stack exec "C:\Program Files (x86)\IntelSWTools\VTune Profiler 2020\bin64\vtune-
 4. Daan Leijen. &ldquo;Type Directed Compilation of Row-Typed Algebraic Effects.&rdquo; In _Proceedings of Principles of Programming Languages (POPL’17)_. Paris, France. Jan. 2017.
 
 5. Nicolas Wu, Tom Schrijvers, and Ralf Hinze. &ldquo;Effect Handlers in Scope.&rdquo; In _Proceedings of the 2014 ACM SIGPLAN Symposium on Haskell_, 1--12. Haskell ’14. ACM, New York, NY, USA. 2014. doi:[10.1145/2633357.2633358](https://dx.doi.org/10.1145/2633357.2633358)
+
+6. Ningning Xie, Jonathan Brachthäuser, Daniel Hillerström, Philipp Schuster, Daan Leijen. &ldquo;Effect Handlers, Evidently&rdquo;
+The 25th ACM SIGPLAN International Conference on Functional Programming (ICFP), August 2020. doi:[10.1145/3408981](https://doi.org/10.1145/3408981), [pdf](https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently-with-proofs-5f0b7d860b387.pdf)
+
+7. Ningning Xie and Daan Leijen. &ldquo;Effect Handlers in Haskell, Evidently&rdquo; The 13th ACM SIGPLAN International Haskell Symposium, August 2020.
+[pdf](https://www.microsoft.com/en-us/research/uploads/prod/2020/07/effev.pdf)
