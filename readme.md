@@ -9,8 +9,8 @@
 
 # Koka: a function-oriented language with effect inference
 
-_Note: Koka v2 is currently under heavy development with the new evidence translation and C backend -- various features may be lacking,
-documentation may be outdated, not all tests will run, and there may be bugs.
+_Note: Koka v2 is a research language that currently under heavy development with the new evidence translation and C backend -- various 
+features may be lacking, documentation may be outdated, not all tests will run, and there may be bugs.
 Use the branch [`v1-master`](https://github.com/koka-lang/koka/tree/v1-master) to use the older stable Koka v1 with the Javascript backend._
 
 Koka is a strongly typed, strict functional language which tracks the (side) _effects_ of every function in its type.
