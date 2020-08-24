@@ -223,7 +223,7 @@ nameToAny       = preludeName ".toany"
 nameApplyK      = preludeName ".applyK"
 nameIsValidK    = preludeName ".isValidK"
 nameMakeHandler handlerSort n
-  = preludeName (".make" ++ (if (not (isHandlerDeep handlerSort)) then show handlerSort else "") ++ "Handler" ++ show n)
+  = preludeName (".make" ++ (if (not (isHandlerNormal handlerSort)) then show handlerSort else "") ++ "Handler" ++ show n)
 nameMakeHandlerRet n
   = preludeName (".makeHandlerRet" ++ show n)
 

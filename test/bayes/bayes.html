@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <script src="../../out/lib/node_modules/requirejs/require.js"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+  </head>
+  <body>
+    <div id="bayes-chart" style="max-width:80%;height:80vh;margin:1em auto"></div>
+
+    <script type="text/javascript">
+    require.config({ baseUrl: "../../out/lib" });
+
+    // callback to get the chart data
+    function calculate( cb ) {
+      require(["test_bayes_bayes"],function($bayes) {
+        const xs = JSON.parse($bayes.browser_main());   // Call Koka `browser-main`
+        // zip all data:
+        // instead of:    [[(ax1,ay1),(ax2,ay2)],[(bx1,by1),(bx2,by2)]]
+        // we zip it to:  [[ax1,ay1,by1],[ax2,ay2,by2]]
+        if (xs[0][0] instanceof Array) {
+          const graphs = xs.length;
+          const base = xs[0];
+          for(var i = 0; i < base.length; i++) {
+            for(var c = 1; c < graphs; c++) {
+              base[i].push( xs[c][i][1] );
+            }
+          };
+          cb(base);
+        }
+        else {
+          cb(xs);
+        }
+      });
+    }
+
+    // Google chart magic
+    // https://developers.google.com/chart/interactive/docs/gallery/linechart
+    google.charts.load('current', {packages: ['corechart', 'line']});
+    google.charts.setOnLoadCallback(drawBasic);
+    function drawBasic() {
+      var data = new google.visualization.DataTable();
+      data.addColumn('number', 'X');
+      var options = {
+        hAxis: { title: 'Y' },
+        vAxis: { title: 'X' },
+        backgroundColor: '#f1f8e9',
+      };
+      var chart = new google.visualization.LineChart(document.getElementById('bayes-chart'));
+      calculate( function(xs) {
+        for(var i = 1; i < xs[0].length; i++) {
+          data.addColumn('number', 'Plot' + i.toString());
+        }
+        data.addRows(xs);
+        chart.draw(data, options);
+      });
+    }
+    </script>
+  </body>
+</html>

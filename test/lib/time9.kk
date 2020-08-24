@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------
    Copyright (C) 2012-2016 Microsoft Corporation
-    
+
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the file "license.txt" at the root of this distribution.
@@ -23,7 +23,7 @@ fun date-at-days( days : int, cal : calendar ) : date {
   instant-at-mjd( ddouble(days + mjd-y2000), ts-ti ).time(cal=cal).date
 }
 
-fun days-at-date( date : date, cal : calendar ) : int {
+fun days-at-date( date : date, cal : calendar ) : utc int {
   time(date, cal=cal).mjd.int - mjd-y2000
 }
 
@@ -32,7 +32,7 @@ fun days-at-date( date : date, cal : calendar ) : int {
   Testing
 ----------------------------------------------------------------------------*/
 fun check( msg : string, expect : string, result : string ) : io () {
-  if (expect==result) then () // println( msg + ": ok.") 
+  if (expect==result) then () // println( msg + ": ok.")
   else {
     println(msg + ": FAILED:\n expect : " + expect + "\n result: " + result )
     error("failure")
@@ -40,7 +40,7 @@ fun check( msg : string, expect : string, result : string ) : io () {
 }
 
 
-fun test-day-cal( day : int, cal : calendar ) : io date {
+fun test-day-cal( day : int, cal : calendar ) : <io,utc> date {
   val date1 = date-at-days( day, cal )
   val days1 = days-at-date( date1, cal )
   val date2 = date-at-days( days1, cal )
@@ -65,15 +65,15 @@ fun test-day( day : int ) {
 
 fun test( years : int = 500 ) {
   for-days( ~years, years ) fun(day){
-    test-day(day)    
+    test-day(day)
   }
   println("ok.")
 }
 
-fun for-days( ylo : int, yhi : int, action : int -> io () ) : io () {
+fun for-days( ylo : int, yhi : int, action : int -> <io,utc> () ) : <io,utc> () {
   println("days in years: " + ylo.show + " up to " + yhi.show)
   for(ylo,yhi) fun(y) {
-    val base = y*366 - 730119  // test round the year zero 
+    val base = y*366 - 730119  // test round the year zero
     println("year: " + time(2000,1,base).year.show)
     for(0,365) fun(day) { action(base + day)}
   }

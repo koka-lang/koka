@@ -18,7 +18,7 @@ public import std/time/ut1
   Testing
 ----------------------------------------------------------------------------*/
 
-fun check(name : string, res : string, tst : () -> io string ) : io () {
+fun check(name : string, res : string, tst : () -> <utc,io> string ) : <utc,io> () {
   val got = tst()
   println(name.pad-right(14,' ') + ": "
     + (if (got == res) then "ok: " + res
@@ -55,26 +55,26 @@ fun test-jd(ts-utc) {
 
 fun test-astro() {
   // check("astro1"){ instant(1977,1,1,cal=cal-tai).timestamp(ts-tt).seconds == instant(1977,1,1,cal=cal-tai).timestamp(ts-tcg).seconds }
-  check("astro2","1977-01-01T00:00:00Z TAI"){  instant-at-jd(ddouble-exp(24431445003725,~7),ts-tt).time(cal=cal-tai).show  }
+  check("astro2","1977-01-01T00:00:00Z TAI"){  instant-at-jd(ddouble-exp(24431445003725,~7),ts-tt).time-tai.show  }
 }
 
-public val sofai = instant(2006,1,15,21,24,37,0.5)
+public val sofai = ts-ti.instant(2006,1,15,21,24,37,0.5)
 
 // from: <http://www.iausofa.org/sofa_ts_c.pdf>
 // and: <http://docs.astropy.org/en/v0.2.2/time/index.html#time-scale>
 fun test-sofa(ts-utc) {
-  check("sofa1","2010-07-24T11:19:13.502Z TT"){  instant(2010,7,24,11,18,7,0.318).time(cal=cal-tt).show  }
+  check("sofa1","2010-07-24T11:19:13.502Z TT"){  instant(2010,7,24,11,18,7,0.318).time(ts=ts-tt).show  }
   check("sofa2","2454526.499998842593"){  instant(2008,2,29,23,59,59,0.9).jd(ts-utc).show-fixed(12)  }
   check("sofa3","2008-03-01T00:00:00Z"){  instant(2008,2,29,23,59,59,0.9).jd(ts-utc).round-to-prec(3).instant-at-jd(ts-utc).time.show  }
   val i = sofai
-  check("sofa4utc","2006-01-15T21:24:37.500Z"){  i.time(cal=cal-iso).show  }
-  check("sofa4ut1","2006-01-15T21:24:37.831700800Z UT1"){  i.time(cal=cal-ut1-approx).show  } // astropy: 37.834077793, sofa: 37.834100 ; should be between 0.8340874 and 0.8340738
-  check("sofa4tai","2006-01-15T21:25:10.500Z TAI"){  i.time(cal=cal-tai).show  }
-  check("sofa4tt","2006-01-15T21:25:42.684Z TT"){  i.time(cal=cal-tt).show   }
-  check("sofa4tcg","2006-01-15T21:25:43.322690496Z TCG"){  i.time(cal=cal-tcg).show  }   // astropy: 43.322690497
+  check("sofa4utc","2006-01-15T21:24:37.500Z"){  i.time(ts=ts-utc).show  }
+  check("sofa4ut1","2006-01-15T21:24:37.831700800Z UT1"){  i.time(ts=ts-ut1-approx).show  } // astropy: 37.834077793, sofa: 37.834100 ; should be between 0.8340874 and 0.8340738
+  check("sofa4tai","2006-01-15T21:25:10.500Z TAI"){  i.time-tai.show  }
+  check("sofa4tt","2006-01-15T21:25:42.684Z TT"){  i.time(ts=ts-tt).show   }
+  check("sofa4tcg","2006-01-15T21:25:43.322690496Z TCG"){  i.time(ts=ts-tcg).show  }   // astropy: 43.322690497
   // these differ slightly from astropy but up to 2micro-seconds
-  check("sofa4tdb","2006-01-15T21:25:42.684373055Z TDB"){  i.time(cal=cal-tdb).show  }   // astropy: 42.684371185
-  check("sofa4tcb","2006-01-15T21:25:56.893952304Z TCB"){  i.time(cal=cal-tcb).show  }   // astropy: 56.893950657  (differs because derived from tdb)
+  check("sofa4tdb","2006-01-15T21:25:42.684373055Z TDB"){  i.time(ts=ts-tdb).show  }   // astropy: 42.684371185
+  check("sofa4tcb","2006-01-15T21:25:56.893952304Z TCB"){  i.time(ts=ts-tcb).show  }   // astropy: 56.893950657  (differs because derived from tdb)
   // but we agree on the JD number of the skyfield library: http://rhodesmill.org/skyfield/time.html#uniform-time-scales-tai-tt-and-tdb
   check("skyfield-tt","2453751.392855138889") { i.jd(ts-tt).show-fixed(12) }  // skyfield: 2453751.392855139
   check("skyfield-tdb","2453751.392855143207"){  i.jd(ts-tdb).show-fixed(12)  }  // skyfield: 2453751.3928551432
@@ -84,9 +84,10 @@ fun test-sofa(ts-utc) {
 }
 
 public fun main() {
-  val ts-utc = ts-utc-load()
+  //val ts-utc = ts-utc-load()
+  //with fun utc() { ts-utc }
   test-misc()
-  test-jd(ts-utc)
+  test-jd(utc())
   test-astro()
-  test-sofa(ts-utc)
+  test-sofa(utc())
 }

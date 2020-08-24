@@ -23,7 +23,7 @@ module Core.Core ( -- Data structures
                    , flattenDefGroups
                    , extractSignatures
                    , typeDefIsExtension
-                   
+
                      -- Core term builders
                    , defIsVal
                    , defTName
@@ -232,7 +232,7 @@ getDataRepr maxStructFields info
         (dataRepr,conReprFuns) =
          if (dataInfoIsOpen(info))
           then (DataOpen, map (\conInfo conTag -> ConOpen typeName) conInfos)
-         else if (hasExistentials) 
+         else if (hasExistentials)
           then (DataNormal, map (\con -> ConNormal typeName) conInfos)
          else if (null (dataInfoParams info) && all (\con -> null (conInfoParams con)) conInfos)
           then (DataEnum,map (const (ConEnum typeName)) conInfos)
@@ -283,7 +283,7 @@ data Def = Def{ defName  :: Name
               , defSort  :: DefSort
               , defNameRange :: Range
               , defDoc :: String
-              }     
+              }
 
 
 defIsVal :: Def -> Bool
@@ -397,7 +397,7 @@ makeDefFun tp = DefFun (getMonType tp)
 
 defSortTo :: MonKind -> DefSort -> DefSort
 defSortTo monKind (DefFun _) = DefFun monKind
-defSortTo monKind sort       = sort                                   
+defSortTo monKind sort       = sort
 
 defSortFromTp :: Type -> DefSort -> DefSort
 defSortFromTp tp defSort = defSortTo (getMonType tp) defSort
@@ -414,22 +414,22 @@ getMonTypeX pureTvs monTvs tp
   | otherwise =
     case expandSyn tp of
       TForall vars preds t -> let tvs = tvsNew vars in getMonTypeX (tvsDiff pureTvs tvs) (tvsDiff monTvs tvs) t
-      TFun pars eff res    -> getMonEffectX pureTvs monTvs eff 
+      TFun pars eff res    -> getMonEffectX pureTvs monTvs eff
       _ -> NoMon
 
 getMonEffectX :: Tvs -> Tvs -> Effect -> MonKind
 getMonEffectX pureTvs monTvs eff
-  = let (ls,tl) = extractEffectExtend eff 
+  = let (ls,tl) = extractEffectExtend eff
     in if (any (\l -> case getHandledEffect l of
-                        Just ResumeMany -> True
+                        Just (ResumeMany,_) -> True
                         _ -> False) ls)
-        then AlwaysMon 
+        then AlwaysMon
         else getMonTVarX pureTvs monTvs tl
 
 getMonTVarX :: Tvs -> Tvs -> Type -> MonKind
 getMonTVarX pureTvs monTvs tp
   = case expandSyn tp of
-      TVar tv | isKindEffect (typevarKind tv) 
+      TVar tv | isKindEffect (typevarKind tv)
          -> let isPure = tvsMember tv pureTvs
                 isMon  = tvsMember tv monTvs
             in if (isPure) then NoMon
@@ -532,7 +532,7 @@ instance HasTypeVar Pattern where
   sub `substitute` pat
     = case pat of
         PatVar tname pat   -> PatVar (sub `substitute` tname) (sub `substitute` pat)
-        PatCon tname args repr tps exists restp info 
+        PatCon tname args repr tps exists restp info
           -> let sub' = subRemove exists sub
              in PatCon (sub `substitute` tname) (sub' `substitute` args) repr (sub' `substitute` tps) exists (sub' `substitute` restp) info
         PatWild           -> PatWild

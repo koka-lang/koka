@@ -257,8 +257,6 @@ topdef vis
     do effectDecl vis
   <|>
     do externDecl vis
-  <|>
-    do implicitDecl vis
 
 {---------------------------------------------------------------
   Import declaration
@@ -648,7 +646,7 @@ constructorId
 -----------------------------------------------------------
 
 type Param = (Visibility, ValueBinder UserType (Maybe UserExpr))
-
+{-
 --
 -- Implicit Parameter Declarations
 --
@@ -685,7 +683,7 @@ makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,linear,tpars,ki
              EffectDecl (vis,defvis,vrng,erng,doc,sort,linear,isResource,
                           effectName,irng,tpars,kind,prng,mbResource,[op])
   in makeEffectDecl decl
-
+-}
 --
 -- Handling Implicit Parameters
 --
@@ -751,7 +749,7 @@ parseEffectDecl dvis =
                              <|>
                                 return (Just (TpCon nameTpInst irng))
          (operations, xrng) <- semiBracesRanged (parseOpDecl defvis)
-         return $ -- trace ("parsed effect decl " ++ show id ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show isResource ++ " " ++ show tpars ++ " " ++ show kind ++ " " ++ show mbResource) $
+         return $ -- trace ("parsed effect decl " ++ show effectId ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show isResource ++ " " ++ show tpars ++ " " ++ show kind ++ " " ++ show mbResource) $
           EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, isResource, effectId, irng, tpars, kind, prng, mbResource, operations)
       <|>
       do (tpars,kind,prng) <- typeKindParams
@@ -933,7 +931,7 @@ parseValOpDecl vis =
 parseFunOpDecl :: Visibility -> LexParser OpDecl
 parseFunOpDecl vis =
   do ((rng0,doc),linear) <- do rdoc <- dockeywordFun
-                               return (rdoc,True)
+                               return (rdoc,False) -- allow linear here?
                             <|>
                             do rdoc <- dockeyword "control"
                                return (rdoc,False)
@@ -1109,7 +1107,7 @@ funDecl rng doc vis
        -- tpars <- aquantifier  -- todo: store somewhere
        (name,nameRng) <- funid
        (tpars,pars,parsRng,mbtres,preds,ann) <- funDef
-       body   <- block
+       body   <- bodyexpr
        let fun = promote spars tpars preds mbtres
                   (Lam pars body (combineRanged rng body))
        return (Def (ValueBinder name () (ann fun) nameRng nameRng) (combineRanged rng fun) vis defFun doc)
@@ -1335,7 +1333,7 @@ typeAnnotation
 --------------------------------------------------------------------------}
 bodyexpr :: LexParser UserExpr
 bodyexpr
-  = do keyword "->"
+  = do keyword "->" <|> keyword "="
        blockexpr
   <|>
     block
@@ -1438,19 +1436,18 @@ handlerExprX braces rng
        handlerExprXX braces rng mbEff scoped override hsort
 
 handlerSort =     do keywordResource
-                     override <- do lparen
+                     override <- do lapp
                                     (name,rng) <- qidentifier
                                     rparen
                                     return (Just (Var name False rng))
                                  <|> return Nothing
                      return (HandlerResource override)
-              <|> do specialId "shallow"; return HandlerShallow
-              <|> return HandlerDeep
+              <|> return HandlerNormal
 
 
 
 handlerExprXX braces rng mbEff scoped override hsort
-  = do (pars,dpars,rng1) <- if braces then handlerParams else return ([],[],rng) -- parensCommas lp handlerPar <|> return []
+  = do (pars,dpars,rng1) <- handlerParams -- if braces then handlerParams else return ([],[],rng) -- parensCommas lp handlerPar <|> return []
        -- remove default values of parameters
        let xpars = [par{binderExpr = Nothing} | par <- pars]
            bodyParser = if braces || not (null xpars) then bracedOps else handlerOps
@@ -1893,7 +1890,7 @@ injectExpr
 injectType :: LexParser (Range, UserExpr -> UserExpr)
 injectType
  = do rng1 <- keywordInject
-      behind <- do { specialId "behind"; return True } <|> return False
+      behind <- do { specialId "behind" <|> specialId "other"; return True } <|> return False
       langle
       tp <- ptype
       rangle

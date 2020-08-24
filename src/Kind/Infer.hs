@@ -550,8 +550,7 @@ infExpr expr
                                                 -> do rexpr' <- infExpr rexpr
                                                       return (HandlerResource (Just rexpr'))
                                                HandlerResource Nothing -> return $ HandlerResource Nothing
-                                               HandlerShallow -> return HandlerShallow
-                                               HandlerDeep -> return HandlerDeep
+                                               HandlerNormal -> return HandlerNormal
                                    ret' <- infExpr ret
                                    reinit' <- infExpr reinit
                                    final'  <- infExpr final

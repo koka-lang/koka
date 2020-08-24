@@ -17,27 +17,27 @@ public import std/time
 ----------------------------------------------------------------------------*/
 
 
-fun check(name : string, t1 : time, t2: time, tst : () -> <io,local<h>> bool ) : <io,local<h>> () {
+fun check(name : string, t1 : time, t2: time, tst : () -> <io,utc,local<h>> bool ) : <io,utc,local<h>> () {
   if (tst()) then () else {
     println( name + ":failed!\n t1: " + t1.show + "\n t2: " + t2.show )
     error("quit")
   }
 }
 
-public fun test-dates(starty : int = 1950, endy : int = 2050, tz : timezone = tz-utc, cal : calendar = cal-iso, print-every : int = 10) {
-  var prevt  := time(starty,1,0,tz=tz,cal=cal)
+public fun test-dates(starty : int = 1950, endy : int = 2050, tz : timezone = tz-utc, cal : calendar = cal-iso, ts : timescale = ts-ti, print-every : int = 10) {
+  var prevt  := time(starty,1,0,tz=tz,cal=cal,ts=ts)
   var prevwd := prevt.weekday
   for(starty,endy) fun(y:int){
-    if (y%print-every == 0)  println("tz: " + tz.name + ", cal: " + cal.name + ", year: " + y.show + "...")
+    if (y%print-every == 0)  println("tz: " + tz.name + ", cal: " + cal.name + ", ts: " + ts.name + ", year: " + y.show + "...")
     for(1,12) fun(m:int){
-      val t1 = time(y,m,tz=tz,cal=cal)
+      val t1 = time(y,m,tz=tz,cal=cal,ts=ts)
       val dm : int = t1.days-in-month
       for(1,dm) fun(d) {
-        val t = time(y,m,d,tz=tz,cal=cal)
+        val t = time(y,m,d,tz=tz,cal=cal,ts=ts)
         check("larger",t,prevt){ t > prevt }
         check("minday",t,prevt){ t.copy(day=t.day - 1) == prevt }
         check("plusday",t,prevt){ prevt.copy(day=prevt.day + 1) == t }
-        val t2 = t.instant.time(tz=tz,cal=cal)
+        val t2 = t.instant.time(tz=tz,cal=cal,ts=ts)
         check("sameday",t,t2){ t.date == t2.date }
         val wd = t.weekday
         check("nextday",t,prevt){ wd == prevwd + 1 }
@@ -55,9 +55,9 @@ public fun main() {
   test-dates()
   test-dates(tz=tz-fixed(1))
   test-dates(tz=tz-local()) // slowish as javascript getTimeOffset() is slowish
-  test-dates(tz=tz-fixed(~1),cal=cal-julian)
-  test-dates(tz=tz-fixed(~1),cal=cal-tai)
-  test-dates(tz=tz-fixed(1) ,cal=cal-gps)
+  test-dates(tz=tz-fixed(~1), cal=cal-julian)
+  test-dates(tz=tz-fixed(~1), ts=ts-tai)
+  test-dates(tz=tz-fixed(1) , ts=ts-gps)
 }
 
 public fun benchmark() {

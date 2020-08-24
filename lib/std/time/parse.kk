@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------
    Copyright (C) 2012-2016 Microsoft Corporation
-    
+
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
    can be found in the file "license.txt" at the root of this distribution.
@@ -17,15 +17,15 @@ import std/time/calendar
 import std/time/calendars  // iso-week, iso-month
 import std/time/time
 import std/time/locale
-
+import std/time/utc
 
 // -----------------------------------------------------------
-// Parsing 
+// Parsing
 // -----------------------------------------------------------
 
 /* Parse an [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) time string.
 The optional `calendar` (=`cal-iso`) argument can be given to interpret
-the date in a different calendar. If a time zone offset is given, the 
+the date in a different calendar. If a time zone offset is given, the
 
 ````plain
 2008-12-31               // just date
@@ -52,16 +52,16 @@ And also parses the ISO month dates (see `cal-iso-month`):
 2009-M01-03              // just month date
 2009-M003                // month date with day of the year
 ````
-. 
+.
 */
-public fun parse-iso( s : string, calendar : calendar = cal-iso ) : maybe<time> {
+public fun parse-iso( s : string, calendar : calendar = cal-iso ) : <utc> maybe<time> {
   match(s.find(rx-iso-date)) {
     Nothing -> Nothing
     Just(capd) -> {
       val xyear = capd.num(1)
       val (date,cal) =
         if (capd.groups[4] != "") then // ISO week date
-          (Date(xyear,capd.num(4),capd.num(5,1)),cal-iso-week)        
+          (Date(xyear,capd.num(4),capd.num(5,1)),cal-iso-week)
         elif (capd.groups[6] != "") then // ISO day of the year
           (Date(xyear,1,capd.num(6)), calendar)
         elif (capd.groups[7] != "") then // ISO month date
@@ -77,7 +77,7 @@ public fun parse-iso( s : string, calendar : calendar = cal-iso ) : maybe<time> 
           val mins  = capt.num(2)
           val secs  = parse-ddouble(capt.groups[3] + "." + capt.groups[4]).default(zero)
           val tzsign= if (capt.groups[5]=="+") then 1 else ~1
-          val tzhours= capt.num(6) 
+          val tzhours= capt.num(6)
           val tzmins = capt.num(7)
           val tzone = tz-fixed(tzsign*tzhours, tzmins)
           val clock = Clock(hours,mins,secs)
@@ -96,7 +96,7 @@ fun num( cap : matched, group : int, default : int = 0 ) : int {
 
 // Parse an [Internet Message Format](https://tools.ietf.org/html/rfc2822#section-3.3) time string.
 // For example: `"Tue, 27 Sep 2016 06:36:55 -0700"`.
-public fun parse-imf( s : string ) : maybe<time> {
+public fun parse-imf( s : string ) : <utc> maybe<time> {
   match(s.find(rx-imf)) {
     Nothing -> Nothing
     Just(cap) -> {
@@ -107,11 +107,11 @@ public fun parse-imf( s : string ) : maybe<time> {
       val mins  = cap.num(6)
       val secs  = cap.num(7)
       val tzsign= if (cap.groups[8]=="+") then 1 else ~1
-      val tzhours= cap.num(9) 
+      val tzhours= cap.num(9)
       val tzmins = cap.num(10)
       val tzone = tz-fixed(tzsign*tzhours, tzmins)
       // adjust 2 digit year
-      val year  = if (cap.groups[4].count <= 2) 
+      val year  = if (cap.groups[4].count <= 2)
                    then (if (xyear < 50) then 2000 + xyear else 1900 + xyear)
                    else xyear
       Just(time(year,month,day,hours,mins,secs,tz=tzone))
@@ -126,12 +126,11 @@ fun month-from-name( mname : string ) : maybe<int> {
     match(names) {
       Nil -> Nothing
       Cons(name,rest) -> {
-        if (name.to-lower.starts-with(lname).bool) 
-         then Just(month) 
+        if (name.to-lower.starts-with(lname).bool)
+         then Just(month)
          else search(rest,month+1)
       }
     }
   }
   search(time-locale-en-iso.month-names,1)
 }
-

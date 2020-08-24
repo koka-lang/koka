@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------
-   Copyright (C) 2012-2016 Microsoft Corporation
+   Copyright (C) 2012-2019 Microsoft Corporation
 
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
@@ -10,14 +10,19 @@
 
 # Dates and time
 
-This is an extensive library for managing time and supports advanced features
-as multiple calendars, astronomical time scales, accurate leap seconds, and time zones.
-Internally time is represented by a `:ddouble` giving it a very high range and precision
-(see the `std/time/instant` module).
+This is an extensive library for managing time.
+By using careful defaults the library offers an easy to use interface for the
+common use cases, but uses accurate and precise time representations and algorithms.
+In particular, it handles accurate leap seconds, time zones, multiple calendars,
+and astronomical time scales.
+Internally time is represented by a 128-bit `:ddouble` giving it a very high range
+and precision (up to 31 decimal digits, see the `std/time/instant` module for more
+information). As such, we believe this library is one of the most accurate time
+libraries around.
 
 Core concepts are:
 
-* A `:duration` is a span of time in fractional SI seconds.
+* A `:duration` is a span of time in SI seconds (as measured on the earth's geoid).
 
 * An `:instant` represents an instant in time. Instants can be substracted to
 get the `:duration` between them. Instants are usually represented as the number
@@ -27,9 +32,9 @@ standard UTC (`ts-ti`), or astronomical time scales like terrestrial time (`std/
 
 * A `:time` is a human readable `:date` (year, month, day), and `:clock` (hour, minutes, seconds)
 in a particular `:calendar` (usually the standard ISO calendar) and time zone.
-Instants can be converted to
-time values and back. We can add years, months, or days to a `:time`, or get the difference
-between times in days etc.
+Instants can be converted to time values and back. We can add logical years, months, or
+days to a `:time`, or get the difference between times in days etc. See the
+`std/time/time` module for more information.
 
 The current time, in the UTC timezone (`tz-utc`) using the ISO calendar (`cal-iso`):
 
@@ -51,6 +56,7 @@ We can also get the current instant in time as the number of SI seconds since th
 > now()
 539106063.980999947s
 ```
+See `std/time/chrono` for more information on system time.
 
 Calendar times can be constructed by giving a year, month (1-based), and day of the month (1-based)
 and optional hour, minutes, seconds, fraction of the second, timezone (`tz-utc`) and
@@ -143,6 +149,26 @@ fun test-nfib() {
   print-elapsed{ nfib(30) }   // "elapsed 0.111s"
 }
 ```
+
+## UTC
+
+The library uses by default the International Time (TI) time scale (`ts-ti`) which
+uses UTC time with leap seconds up to 2019, and ignores leap seconds after
+this. This is a nice default as it tracks historical leap seconds precisely
+while having deterministic future time calculations. Moreover, even if there
+are future leap seconds, only durations calculations between times will be
+off by the inserted leap seconds; `time-now`, `:time`, and `:instants`
+stay valid and designate correct times (as they use a _day + seconds_
+internal representation).
+
+There are two other good UTC time scales though:
+
+- `ts-ti-sls` smooths leap seconds over the last 1000s of a day with a leap
+  seccond so they never appear in any displayed time or timestamp.
+- `ts-utc-create`/`cal-utc-load` creates a proper UTC timescale from a leap
+  second table. This ensures future leap seconds are fully accounted for and
+  that duration calculations work properly up to 6 months into the future.
+
 .
 */
 module std/time

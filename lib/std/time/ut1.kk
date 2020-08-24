@@ -55,33 +55,16 @@ import std/time/calendar
 import std/time/calendars
 import std/time/time
 
-// The default UT1 (Universal time 1) calendar.
+// The default UT1 (Universal time 1) timescale
 // Uses builtin approximation of UT1 time as described in `deltat`.
 // To calculate UT1 more precisely, use `cal-ut1-load` (or `cal-ut1-create`).
-public val cal-ut1-approx = cal-ut1-create()
+public val ts-ut1-approx = ts-ut1-create()
 
-// The default UT2 (Universal time 2) calendar.
+// The default UT2 (Universal time 2) timescale.
 // Uses builtin approximation of UT2 time as described in `deltat`.
-// To calculate UT2 more precisely, use `cal-ut1-load` (or `cal-ut1-create`).
-public val cal-ut2-approx = cal-ut2-create()
+// To calculate UT2 more precisely, use `cal-ut2-load` (or `cal-ut2-create`).
+public val ts-ut2-approx = ts-ut2-create()
 
-// Create a UT1 (Universal time 1) calendar.
-// Takes an optional `dt` parameter to calculate &Delta;T (=TT - UT1)
-// more precisely. The `dt` functions should return `Nothing` for instants
-// outside its range so the builtin methods can be used in that case (see `deltat`).
-// (Note, you can get the UT1 `:timescale` from the returned calendar using `std/time/calendar/timescale`)
-public fun cal-ut1-create( dt : (i : instant) -> maybe<duration> = deltat-none ) {
-  iso-calendar( ts-ut1(dt) )
-}
-
-// Create a UT2 (Universal time 2) calendar.
-// Takes an optional `dt` parameter to calculate &Delta;T (=TT - UT1)
-// more precisely. The `dt` functions should return `Nothing` for instants
-// outside its range so the builtin methods can be used in that case (see `deltat`).
-// (Note, you can get the UT1 `:timescale` from the returned calendar using `std/time/calendar/timescale`)
-public fun cal-ut2-create( dt : (i : instant) -> maybe<duration> = deltat-none ) {
-  iso-calendar( ts-ut2(dt) )
-}
 
 val usno-url = "http://maia.usno.navy.mil/ser7/"  // "http://toshi.nofs.navy.mil/ser7/"
 
@@ -98,14 +81,14 @@ val usno-url = "http://maia.usno.navy.mil/ser7/"  // "http://toshi.nofs.navy.mil
 // If the ``.all`` file is older than `8*download-delay` the file is automatically refreshed from `url`.
 // The `4*download-timeout` (=`20.seconds`) gives the maximum time for downloading to finish (``.all`` file is about 3mb).
 // Set the optional parameter `verbose` to `False` to suppress trace messages on downloads or errors.
-public fun cal-ut1-load( basename : string = "finals2000A",
+public fun ts-ut1-load( basename : string = "finals2000A",
                          baseurl  : string = usno-url,
                          download-delay: duration = 1.weeks,
                          download-timeout: duration = 5.seconds,
                          verbose : bool = True
-                        ) : <io,async> calendar
+                        ) : <io,async> timescale
 {
-  cal-ut1-create( load-iersA( basename, baseurl, download-delay, download-timeout, verbose ) )
+  ts-ut1-create( load-iersA( basename, baseurl, download-delay, download-timeout, verbose ) )
 }
 
 // Load [IERS bulletin A](http://www.usno.navy.mil/USNO/earth-orientation/eo-products/weekly)
@@ -122,7 +105,7 @@ public fun load-iersA( basename : string = "finals2000A",
                        download-delay: duration = 1.weeks,
                        download-timeout: duration = 5.seconds,
                        verbose : bool = True
-                     )
+                     ) : <io,async> ((i:instant) -> maybe<duration>)
 {
   val fname-all    = basename + ".all"
   val finals-all   = load-iersA-all( fname-all, baseurl + fname-all,
@@ -294,7 +277,7 @@ fun ut1-to-tai( t : timestamp, dt-override : (i : instant) -> maybe<duration> ) 
 // Takes an optional `dt` parameter to calculate &Delta;T (=TT - UT1)
 // more precisely. The `dt` functions should return `Nothing` for instants
 // outside its range so the builtin methods can be used in that case (see `deltat`)
-fun ts-ut1( dt : (i : instant) -> maybe<duration> = deltat-none ) : timescale {
+public fun ts-ut1-create( dt : (i : instant) -> maybe<duration> = deltat-none ) : timescale {
   timescale("UT1",
     fun(i) { tai-to-ut1(i,dt) },
     fun(t) { ut1-to-tai(t,dt) }
@@ -307,15 +290,26 @@ fun ts-ut1( dt : (i : instant) -> maybe<duration> = deltat-none ) : timescale {
 // -----------------------------------------------------------
 
 fun ut2-offset( i : instant ) : timespan {
-  // UT2 definition from:
+
+  // UT2 = UT1 + 0.022*sin(2*pi*t) - 0.012*cos(2*pi*t) - 0.006*sin(4*pi*t) + 0.007*cos(4*pi*t)
+  // where `t` is the fraction of the Besselian year:
+  // t = 1900.0 + ((i.jd(ts-tt).double - 2415020.31352) / 365.242198781)
+  //
+  // The periodic definition comes from:
   //   McCarthy, Dennis D. (July 1991). "Astronomical Time".
-  //   Proceedings of the IEEE. 79 (7): 915–920. doi:10.1109/5.84967.
+  //   Proceedings of the IEEE. 79 (7): 915-920. doi:10.1109/5.84967.
   //   <http://www.cl.cam.ac.uk/~mgk25/volatile/astronomical-time.pdf>
-  // Note: Wikipedia gives a slightly different formula (but agrees on the periodic adjustment):
-  //   val t = 1900.0 + ((i.j2000.double - 2415020.31352) / 356.242198781)
-  // but we prefer the published version.
-  val t     = 2000.0 + ((i.mjd(ts-tt).double - 51544.03) / 356.2422)  // Besselian years
-  val tp2   = dbl-twopi*t
+  // and:
+  //   P.K.\ Seidelmann.
+  //   _Explanatory Supplement to the Astronomical Almanac_. page 85.
+  //   <https://books.google.co.jp/books?id=uJ4JhGJANb4C&pg=PA85&lpg=PA85&dq=ut2+time+sin+cos+ut2&source=bl&ots=zOZLBf8Qu5&sig=ACfU3U31AIFUM5rTUK-oGQUqv9BaqQJigw&hl=en&sa=X&ved=2ahUKEwjDs53Z563hAhWewosBHTlVBacQ6AEwEHoECAkQAQ#v=onepage&q=ut2%20time%20sin%20cos%20ut2&f=false>
+  // The Besselian year definition is by:
+  //   Jay\ Lieske.
+  //   _Precession Matrix Based on IAU_ (1976)
+  //   System of Astronomical Constants, Astronomy \& Astrophysics, 73, pages 282--284 (1979)
+  //   <https://en.wikipedia.org/wiki/Year#Besselian_year>
+  val t     = 1900.0 + ((i.jd(ts-tt).double - 2415020.31352) / 365.242198781) // Besselian years
+  val tp2   = dbl-twopi*(t.ffraction)
   val tp4   = 2.0*tp2
   val ofs   = 0.022*sin(tp2) - 0.012*cos(tp2) - 0.006*sin(tp4) + 0.007*cos(tp4)
   ofs.timespan
@@ -337,7 +331,7 @@ fun ut2-to-tai( t : timestamp, dt-override : (i : instant) -> maybe<duration> ) 
 // more precisely (since UT2 is derived from UT1).
 // The `dt` functions should return `Nothing` for instants
 // outside its range so the builtin methods can be used in that case (see `deltat`)
-fun ts-ut2( dt : (i : instant) -> maybe<duration> = deltat-none ) : timescale {
+public fun ts-ut2-create( dt : (i : instant) -> maybe<duration> = deltat-none ) : timescale {
   timescale("UT2",
     fun(i) { tai-to-ut2(i,dt) },
     fun(t) { ut2-to-tai(t,dt) }
@@ -366,7 +360,7 @@ public fun deltat( i : instant, dt-override : (i : instant) -> maybe<duration> =
   val dt = match(dt-override(i)) {
             Just(dt) -> dt
             Nothing  -> {
-              val y = i.time(cal=cal-tt).year-frac.double.round-to-prec(4)
+              val y = i.time(ts=ts-tt).year-frac.double.round-to-prec(4)
               deltat-builtin(y).duration
             }
           }

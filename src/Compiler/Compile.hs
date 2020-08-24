@@ -65,8 +65,8 @@ import Kind.Infer             ( inferKinds )
 import Kind.Kind              ( kindEffect )
 
 import Type.Type
-import Type.Kind              ( containsHandledEffect )
-import Type.Assumption        ( gammaLookupQ, extractGamma, infoType, gammaUnions, extractGammaImports, gammaLookup, gammaMap )
+import Type.Kind              ( containsHandledEffect, getHandledEffectX )
+import Type.Assumption        ( gammaLookupQ, extractGamma, infoType, NameInfo(..), gammaUnions, extractGammaImports, gammaLookup, gammaMap )
 import Type.Infer             ( inferTypes )
 import Type.Pretty hiding     ( verbose )
 import Compiler.Options       ( Flags(..), prettyEnvFromFlags, colorSchemeFromFlags, prettyIncludePath )
@@ -173,7 +173,7 @@ compileExpression term flags loaded compileTarget program line input
            -> do ld <- compileProgram' term flags{ evaluate = False } (loadedModules loaded) compileTarget  "<interactive>" programDef
                  let tp = infoType (gammaFind qnameExpr (loadedGamma ld))
                      (_,_,rho) = splitPredType tp
-                 liftError $ checkUnhandledEffects flags nameExpr rangeNull rho
+                 -- _ <- liftError $ checkUnhandledEffects flags loaded nameExpr rangeNull rho
                  case splitFunType rho of
                    -- return unit: just run the expression (for its assumed side effect)
                    Just (_,_,tres)  | isTypeUnit tres
@@ -367,7 +367,7 @@ compileProgram' term flags modules compileTarget fname program
                                                   (importVis imp) (Core.coreProgDoc (modCore mod))) mods
        loaded2 <- liftError $ typeCheck loaded1 flags 0 coreImports program
        liftIO $ termPhase term ("codegen " ++ show (getName program))
-       newTarget <- liftError $
+       (newTarget,loaded3) <- liftError $
            case compileTarget of
              Executable entryName _
                -> let mainName = if (isQualified entryName) then entryName else qualify (getName program) (entryName) in
@@ -378,14 +378,25 @@ compileProgram' term flags modules compileTarget fname program
                                                    TFun [] eff resTp  -> True -- resTp == typeUnit
                                                    _                  -> False
                              in case filter isMainType tps of
-                               [tp] -> do checkUnhandledEffects flags mainName rangeNull tp
-                                          return (Executable mainName tp)
+                               [tp] -> do mbF <- checkUnhandledEffects flags loaded2 mainName rangeNull tp
+                                          case mbF of
+                                           Nothing -> return (Executable mainName tp, loaded2)
+                                           Just f  ->
+                                            let mainName2  = qualify (getName program) (newHiddenName "main")
+                                                r          = rangeNull
+                                                expression = App (Var (if (isHiddenName mainName) then mainName -- .expr
+                                                                                                  else unqualify mainName -- main
+                                                                      ) False r) [] r
+                                                defMain    = Def (ValueBinder (unqualify mainName2) () (Lam [] (f expression) r) r r)  r Public (DefFun PolyMon)  ""
+                                                program2   = programAddDefs program [] [defMain]
+                                            in do loaded3 <- typeCheck loaded1 flags 0 coreImports program2
+                                                  return (Executable mainName2 tp, loaded3) -- TODO: refine the type of main2
                                []   -> errorMsg (ErrorGeneral rangeNull (text "the type of 'main' must be a function without arguments" <->
                                                                                       table [(text "expected type", ppType (prettyEnvFromFlags flags) mainType)
                                                                                             ,(text "inferred type", ppType (prettyEnvFromFlags flags) (head tps))]))
                                _    -> errorMsg (ErrorGeneral rangeNull (text "found multiple definitions for the 'main' function"))
-             Object -> return Object
-             Library -> return Library
+             Object -> return (Object,loaded2)
+             Library -> return (Library,loaded2)
        -- try to set the right host depending on the main type
        let flags' = case newTarget of
                       Executable _ tp
@@ -401,17 +412,36 @@ compileProgram' term flags modules compileTarget fname program
                                _ -> flags
                       _ -> flags
 
-       loaded3 <- liftIO $ codeGen term flags' newTarget loaded2
+       loaded4 <- liftIO $ codeGen term flags' newTarget loaded3
        -- liftIO $ termDoc term (text $ show (loadedGamma loaded3))
-       return loaded3{ loadedModules = addOrReplaceModule (loadedModule loaded3) (loadedModules loaded3) }
+       return loaded4{ loadedModules = addOrReplaceModule (loadedModule loaded4) (loadedModules loaded4) }
 
-checkUnhandledEffects flags name range tp
+checkUnhandledEffects :: Flags -> Loaded -> Name -> Range -> Type -> Error (Maybe (UserExpr -> UserExpr))
+checkUnhandledEffects flags loaded name range tp
   = case expandSyn tp of
-      TFun _ eff _  | containsHandledEffect [nameTpCps,nameTpAsync,nameTpInst] eff
-        -> errorMsg (ErrorGeneral range (text "there are unhandled effects for the main expression" <-->
-                                         text " inferred effect:" <+> ppType (prettyEnvFromFlags flags) eff <-->
-                                         text " hint           : wrap the main function in a handler"))
-      _ -> return ()
+      TFun _ eff _
+        -> let (ls,_) = extractEffectExtend eff
+           in combine eff Nothing ls
+      _ -> return Nothing
+  where
+    exclude = [nameTpCps,nameTpAsync,nameTpInst]
+
+    combine :: Effect -> Maybe (UserExpr -> UserExpr) -> [Effect] -> Error (Maybe (UserExpr -> UserExpr))
+    combine eff mf [] = return mf
+    combine eff mf (l:ls) = case getHandledEffectX exclude l of
+                             Nothing -> combine eff mf ls
+                             Just (_,effName)
+                               -> case gammaLookupQ (makeHiddenName "default" effName) (loadedGamma loaded) of
+                                    [InfoFun dname _ _ _]
+                                      -> let g expr = let r = getRange expr
+                                                      in App (Var dname False r) [(Nothing,Lam [] (maybe expr (\f -> f expr) mf) r)] r
+                                         in combine eff (Just g) ls
+                                    _ -> do errorMsg (ErrorGeneral range (text "there are unhandled effects for the main expression" <-->
+                                                       text " inferred effect :" <+> ppType (prettyEnvFromFlags flags) eff <-->
+                                                       text " unhandled effect:" <+> ppType (prettyEnvFromFlags flags) l <-->
+                                                       text " hint            : wrap the main function in a handler"))
+                                            combine eff mf ls
+
 
 data ModImport = ImpProgram Import
                | ImpCore    Core.Import

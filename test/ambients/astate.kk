@@ -20,15 +20,13 @@ fun local( init, action ) { // : (a,() -> <set<a>,get<a>|e> b) -> e b
   action()
 }
 
-fun localx(init1,init2,action) {
-  val r = {
-    with val get = init1
-    with control set(x) {
-      resume
-    }
+fun localo( init, action ) { // : (a,() -> <set<a>,get<a>|e> b) -> e b
+  with val get = init
+  with control set(x){
+    with override val get = x
+    resume(())
   }
-  with val get = init2
-  r(())
+  action()
 }
 
 fun printn() {
@@ -48,7 +46,7 @@ fun test2() : int {
   with val get = 41
   with local(0)
   set(get + 1)
-  (0 + get + inject<get>{get})  // = 42!
+  (0 + get + mask<get>{get})  // = 42!
 }
 
 // If we make the effect row closed, we can guarantee absence of

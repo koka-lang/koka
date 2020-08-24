@@ -103,13 +103,16 @@ Here are some interesting time steps that occurred in this time frame:
   instant(1972,1,1,0,0,10,cal=cal-tai).time.show == "1972-01-01T00:00:00Z"
   ```
 
+UTC was only established in 1960 (Arias and Guinot [@Arias:utc]), and the TAI
+instant 1961-01-01 00:00:01.422818Z TAI was set to be UTC instant
+1961-01-01Z exactly.
+
 ## UTC before 1961
 
-The TAI timescale was officially established on 1958-01-01Z, and at that
-time the difference (TAI - UT1) was approximately zero (about 0.008s).
+The TAI timescale was established with a 1958-01-01Z epoch, where
+the difference (UT2 - TAI) was set to be approximately zero[^fn-taiepoch].
 In the time frame 1958 up to 1961 the relation between TAI and UTC
-is not formally defined, as UTC was only officially established in 1960 (Arias
-and Guinot [@Arias:utc]).
+is not formally defined.
 
 We can however use the time steps and frequency adjustments as broadcast by
 the NIST WWV radio station (see Explanatory Supplement to the Astronomical
@@ -123,7 +126,7 @@ In the library, this makes UTC coincide with TAI up to 1958-01-01,
 interpolated with 'drift' up to 1972-01-01, and using integral leap-seconds
 after that.
 
-Interestingy, in the time before 1961, most leap steps occurred at 19:00h
+Interestingly, in the time before 1961, most leap steps occurred at 19:00h
 instead of at the last second of the day, for example, on 1959-01-28
 there was a 0.02s leap step:
 ```
@@ -137,7 +140,7 @@ showing the seconds at 60 just before 19:00h.
 Table [#tab-utc] shows all leap second time steps from 1958 up to 2017. This table
 is calculated and uses historical data for time steps before 1972.
 
-~ TableFigure { #tab-utc; caption:"Leap second time steps since 1958. The function \
+~ Begin TableFigure { #tab-utc; caption:"Leap second time steps since 1958. The function \
   &Delta;(_date_) returns the number of days since _date_. Entries after \
   1972 are based on [IETF data][ietfl]. The entries before 1972 are  \
   derived from the _Explanatory Supplement to the Astronomical Almanac_, by \
@@ -148,43 +151,43 @@ is calculated and uses historical data for time steps before 1972.
 | Date (UTC) &quad; | Time steps &quad; &quad; | (TAI--UTC)     | (TAI--UTC)     | Drift                                           | &quad; Frequency |
 |                   |                          | Just before\ \ | On the date&quad; |                                                 | Offset    |
 +:------------------|--------------------------|:---------------|:---------------|-------------------------------------------------|----------:+
-| 1958-01-01        | +0                       | 0              | 0              | 0.000s + 0.00073458&times;&Delta;(1958-01-01)       | -85&times;10^-10^ |
-| 1958-01-15, 19:00 | +0.020                   | 0.0108657      | 0.0308657      | 0.020s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
-| 1958-02-05, 19:00 | +0.020                   | 0.0462918      | 0.0662918      | 0.040s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
-| 1958-02-19, 19:00 | +0.020                   | 0.0765760      | 0.0965760      | 0.060s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
-| 1958-04-09, 19:00 | +0.020                   | 0.1325704      | 0.1525704      | 0.080s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
-| 1958-06-11, 19:00 | +0.020                   | 0.1988489      | 0.2188489      | 0.100s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
-| 1958-07-02, 19:00 | +0.020                   | 0.2342751      | 0.2542751      | 0.120s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
-| 1958-07-16, 19:00 | +0.020                   | 0.2645592      | 0.2845592      | 0.140s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
-| 1958-10-22, 19:00 | +0.020                   | 0.3565481      | 0.3765481      | 0.160s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
-| 1958-11-26, 19:00 | +0.020                   | 0.4022584      | 0.4222584      | 0.180s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
-| 1958-12-24, 19:00 | +0.020                   | 0.4428266      | 0.4628266      | 0.200s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
-| 1959-01-01        | +0                       | 0.4681217      | 0.4681220      | 0.468122s + 0.0008640&times;&Delta;(1959-01-01) | -100&times;10^-10^ |
-| 1959-01-28, 19:00 | +0.020                   | 0.4921340      | 0.5121340      | 0.488122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
-| 1959-02-25, 19:00 | +0.020                   | 0.5363260      | 0.5563260      | 0.508122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
-| 1959-04-05, 19:00 | +0.020                   | 0.5900220      | 0.6100220      | 0.528122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
-| 1959-08-26, 19:00 | +0.020                   | 0.7335740      | 0.7535740      | 0.548122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
-| 1959-09-30, 19:00 | +0.020                   | 0.7838140      | 0.8038140      | 0.568122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
-| 1959-11-04, 19:00 | +0.020                   | 0.8340540      | 0.8540540      | 0.588122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
-| 1959-11-18, 19:00 | +0.020                   | 0.8661500      | 0.8861500      | 0.608122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
-| 1959-12-16, 19:00 | +0.020                   | 0.9103420      | 0.9303420      | 0.628122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1958-01-01        | +0                       | 0.000000       | 0.000000       | 0.000000s + 0.00073458&times;&Delta;(1958-01-01) | -85&times;10^-10^ |
+| 1958-01-15, 19:00 | +0.020                   | 0.010866       | 0.030866       | 0.020000s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-02-05, 19:00 | +0.020                   | 0.046292       | 0.066292       | 0.040000s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-02-19, 19:00 | +0.020                   | 0.076576       | 0.096576       | 0.060000s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-04-09, 19:00 | +0.020                   | 0.132570       | 0.152570       | 0.080000s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-06-11, 19:00 | +0.020                   | 0.198849       | 0.218849       | 0.100000s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-07-02, 19:00 | +0.020                   | 0.234275       | 0.254275       | 0.120000s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-07-16, 19:00 | +0.020                   | 0.264559       | 0.284559       | 0.140000s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-10-22, 19:00 | +0.020                   | 0.356548       | 0.376548       | 0.160000s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-11-26, 19:00 | +0.020                   | 0.402258       | 0.422258       | 0.180000s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1958-12-24, 19:00 | +0.020                   | 0.442827       | 0.462827       | 0.200000s + 0.00073458&times;&Delta;(&quad;&quad;"&quad;&quad;) | -85&times;10^-10^ |
+| 1959-01-01        | +0                       | 0.468122       | 0.468122       | 0.468122s + 0.0008640&times;&Delta;(1959-01-01) | -100&times;10^-10^ |
+| 1959-01-28, 19:00 | +0.020                   | 0.492134       | 0.512134       | 0.488122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-02-25, 19:00 | +0.020                   | 0.536326       | 0.556326       | 0.508122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-04-05, 19:00 | +0.020                   | 0.590022       | 0.610022       | 0.528122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-08-26, 19:00 | +0.020                   | 0.733574       | 0.753574       | 0.548122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-09-30, 19:00 | +0.020                   | 0.783814       | 0.803814       | 0.568122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-11-04, 19:00 | +0.020                   | 0.834054       | 0.854054       | 0.588122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-11-18, 19:00 | +0.020                   | 0.866150       | 0.886150       | 0.608122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
+| 1959-12-16, 19:00 | +0.020                   | 0.910342       | 0.930342       | 0.628122s + 0.0008640&times;&Delta;(&quad;&quad;"&quad;&quad;) | -100&times;10^-10^ |
 | \                 |                          |                |                   |                                                                 |                    |
-| 1960-01-01        | +0                       | 0.9434820      | 0.9434820      | 0.943482s + 0.0012960&times;&Delta;(1960-01-01) | -150&times;10^-10^ |
-| 1961-01-01        | +0.005                   | 1.4178180      | 1.4228180      | 1.422818s + 0.0012960&times;&Delta;(1961-01-01) | -150&times;10^-10^ |
-| 1961-08-01        | --0.050                  | 1.6975700      | 1.6475700      | 1.372818s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
-| 1962-01-01        | +0                       | 1.8458580      | 1.8458580      | 1.845858s + 0.0011232&times;&Delta;(1962-01-01) | -130&times;10^-10^ |
-| 1963-11-01        | +0.100                   | 2.5972788      | 2.6972788      | 1.945858s + 0.0011232&times;&Delta;(&quad;&quad;"&quad;&quad;) | -130&times;10^-10^ |
-| 1964-01-01        | +0                       | 2.7657940      | 2.7657940      | 3.240130s + 0.0012960&times;&Delta;(1965-01-01) | -150&times;10^-10^ |
-| 1964-04-01        | +0.100                   | 2.8837300      | 2.9837300      | 3.340130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
-| 1964-09-01        | +0.100                   | 3.1820180      | 3.2820180      | 3.440130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
-| 1965-01-01        | +0.100                   | 3.4401300      | 3.5401300      | 3.540130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
-| 1965-03-01        | +0.100                   | 3.6165940      | 3.7165940      | 3.640130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
-| 1965-07-01        | +0.100                   | 3.8747060      | 3.9747060      | 3.740130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
-| 1965-09-01        | +0.100                   | 4.0550580      | 4.1550580      | 3.840130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
-| 1966-01-01        | +0                       | 4.3131700      | 4.3131700      | 4.313170s + 0.0025920&times;&Delta;(1966-01-01) | -300&times;10^-10^ |
-| 1968-02-01        | --0.100                  | 6.2856820      | 6.1856820      | 4.213170s + 0.0025920&times;&Delta;(&quad;&quad;"&quad;&quad;) | -300&times;10^-10^ |
+| 1960-01-01        | +0                       | 0.943482       | 0.943482       | 0.943482s + 0.0012960&times;&Delta;(1960-01-01) | -150&times;10^-10^ |
+| 1961-01-01        | +0.005                   | 1.417818       | 1.422818       | 1.422818s + 0.0012960&times;&Delta;(1961-01-01) | -150&times;10^-10^ |
+| 1961-08-01        | -0.050                   | 1.697570       | 1.647570       | 1.372818s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1962-01-01        | +0                       | 1.845858       | 1.845858       | 1.845858s + 0.0011232&times;&Delta;(1962-01-01) | -130&times;10^-10^ |
+| 1963-11-01        | +0.100                   | 2.597279       | 2.697279       | 1.945858s + 0.0011232&times;&Delta;(&quad;&quad;"&quad;&quad;) | -130&times;10^-10^ |
+| 1964-01-01        | +0                       | 2.765794       | 2.765794       | 3.240130s + 0.0012960&times;&Delta;(1965-01-01) | -150&times;10^-10^ |
+| 1964-04-01        | +0.100                   | 2.883730       | 2.983730       | 3.340130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1964-09-01        | +0.100                   | 3.182018       | 3.282018       | 3.440130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1965-01-01        | +0.100                   | 3.440130       | 3.540130       | 3.540130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1965-03-01        | +0.100                   | 3.616594       | 3.716594       | 3.640130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1965-07-01        | +0.100                   | 3.874706       | 3.974706       | 3.740130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1965-09-01        | +0.100                   | 4.055058       | 4.155058       | 3.840130s + 0.0012960&times;&Delta;(&quad;&quad;"&quad;&quad;) | -150&times;10^-10^ |
+| 1966-01-01        | +0                       | 4.313170       | 4.313170       | 4.313170s + 0.0025920&times;&Delta;(1966-01-01) | -300&times;10^-10^ |
+| 1968-02-01        | -0.100                   | 6.285682       | 6.185682       | 4.213170s + 0.0025920&times;&Delta;(&quad;&quad;"&quad;&quad;) | -300&times;10^-10^ |
 | \                 |                          |                |                   |                                                                 |                    |
-| 1972-01-01        | +0.107758                | 9.8922420      | 10             |                                                 |            |
+| 1972-01-01        | +0.107758                | 9.892242       | 10             |                                                 |            |
 | 1972-07-01        | +1                       | 10             | 11             |                                                 |            |
 | 1973-01-01        | +1                       | 11             | 12             |                                                 |            |
 | 1974-01-01        | +1                       | 12             | 13             |                                                 |            |
@@ -215,13 +218,13 @@ is calculated and uses historical data for time steps before 1972.
 |-------------------|--------------------------|----------------|----------------|-------------------------------------------------|-----------|
 {white-space:nowrap; col-2-padding-left:1em; .sans-serif; }
 
-~
+~ End TableFigure
 
 -- Daan Leijen, 2016.
 
 ## References { - }
 
-~ Bibliography { caption:"9" }
+~ Begin Bibliography { caption:"9" }
 
 ~~ BibItem { #Arias:utc; bibitem-label:"[1]"; searchterm:"Arias+Coordinated+universal+time+UTC+historical+background+perspectives" }
 E.F.\ Arias and B.\ Guinot.
@@ -233,14 +236,48 @@ Journ&eacute;es Syst&egrave;mes de R&eacute;f&eacute;rence Spatio-Temporels. 200
 ~~ BibItem { #Almanac; bibitem-label:"[2]"; searchterm:"Explanatory+Supplement+to+the+Astronomical+Almanac" }
 P.K.\ Seidelmann.
 _Explanatory Supplement to the Astronomical Almanac_.
-University Science Books, 1992. [pdf][astroa]
+University Science Books, 1992. [book][astroa]
 ~~
-~
+
+~~ BibItem { #taiepoch; bibitem-label:"[3]"; searchterm:"History+of+the+Bureau+International+lHeure+Guinot" }
+B.\ Guinot.
+_	History of the Bureau International de l'Heure_.
+In "Polar Motion: Historical and Scientific Problems", ASP Conference Series, Vol. 208,
+Edited by Steven Dick, Dennis McCarthy, and Brian Luzum.
+ISBN: 1-58381-039-0, 2000., p.175.
+[pdf][taiepoch]
+~~
+
+~~ BibItem { #byear; bibitem-label:"[4]"; searchterm:"Besselian+Year+Precession+Matrix+Based+on+IAU+Lieske" }
+Jay\ Lieske.
+_Precession Matrix Based on IAU_ (1976).
+System of Astronomical Constants, Astronomy \& Astrophysics, Vol. 73, pages 282--284. 1979.
+[wikipedia](https://en.wikipedia.org/wiki/Year#Besselian_year)
+~~
+
+~ End Bibliography
+
+[^fn-taiepoch]: The difference TAI-UT2 was supposed to be zero on 1958-01-01Z TAI but different
+    observatories used their own versions of UT2 leading to longitude errors
+    of a "few 0.01s" [@taiepoch]. At 1958-01-01 TAI the &Delta;T = TT - UT1 was 31.166s &plusmn; 0.003s
+    (see [historical &Delta;T](http://maia.usno.navy.mil/ser7/historic_deltat.data)),
+    which equals 1958-01-01T00:00:00.018 UT1 time.
+    When we calculate UT2 using the current definition [@Almanac, page 85]:
+
+    > UT2 = UT1 + 0.022&centerdot;sin(2&pi;&tau;) - 0.012&centerdot;cos(2&pi;&tau;) - 0.006&centerdot;sin(4&pi;&tau;) + 0.007&centerdot;cos(4&pi;&tau;)
+
+    where &tau; is the fraction of the Besselian year [@byear]:
+
+    > &tau; = 1900.0 + (JD~TT~ - 2415020.31352) / 365.242198781
+
+    we get 1958-01-01T00:00:00.013023922Z UT2. A difference of about 0.013s with TAI.
+
 
 [ietfl]: https://www.ietf.org/timezones/data/leap-seconds.list
 [dat]: http://maia.usno.navy.mil/ser7/tai-utc.dat
 [astroa]: https://books.google.com/books?id=uJ4JhGJANb4C&lpg=PA87&vq=wwv&pg=PA87#v=onepage&q=wwv&f=false
 [utchistory]: https://syrte.obspm.fr/journees2004/pdf/Arias2.pdf
+[taiepoch]:http://articles.adsabs.harvard.edu/cgi-bin/nph-iarticle_query?2000ASPC..208..175G&amp;data_type=PDF_HIGH&amp;whole_paper=YES&amp;type=PRINTER&amp;filetype=.pdf
 [WWV]: https://www.nist.gov/time-and-frequency-services/nist-radio-stations/wwv
 [UTC]: std_time_astro.html
 [TAI]: std_time_astro.html
@@ -256,6 +293,14 @@ import std/num/ddouble
 import std/time/timestamp
 import std/time/duration
 import std/time/instant
+
+// Return the UTC timescale with the latest leap second information.
+public ambient fun utc() : timescale
+
+public fun ".default-utc"( action : () -> <utc|e> a) : e a {
+  with fun utc() { ts-ti }
+  action()
+}
 
 /*----------------------------------------------------------------------------
   Unix and NTP timestamps
@@ -297,24 +342,24 @@ To indicate a time in a leap second, you can use a fraction `frac` that is large
 
 This works well for systems that support [``CLOCK_UTC``](http://www.madore.org/~david/computers/unix-leap-seconds.html).
 */
-public fun unix-instant( u : double, frac : double = 0.0 ) : instant {
+public fun unix-instant( u : double, frac : double = 0.0, ts : timescale = ts-ti ) : instant {
   val t    = u.ddouble + frac.fraction.ddouble
   val leap = frac.truncate.int
-  unix-instant(t,leap)
+  unix-instant(t,leap,ts)
 }
 
 // Create an instant from raw unix seconds since the unix epoch (1970-01-01T00:00:10 TAI)
 // Use a fraction `> 1` to indicate a time inside a leap second.
-public fun unix-instant( u : int, frac : double = 0.0 ) : instant {
+public fun unix-instant( u : int, frac : double = 0.0, ts : timescale = ts-ti ) : instant {
   val t    = u.ddouble + frac.fraction.ddouble
   val leap = frac.truncate.int
-  unix-instant(t,leap)
+  unix-instant(t,leap,ts)
 }
 
 // Create an instant from raw unix seconds since the unix epoch (1970-01-01T00:00:10 TAI)
-// and optional leap seconds.
-public fun unix-instant( t : timespan, leap : int = 0 ) : instant {
-  ts-unix.instant( timestamp(t - unix2000, leap) )
+// and optional leap seconds to designate instants inside a leap seconds.
+public fun unix-instant( t : timespan, leap : int = 0, ts : timescale = ts-ti ) : instant {
+  ts-ti.instant( timestamp(t - unix2000, leap) ).use-timescale(ts)
 }
 
 
@@ -322,14 +367,14 @@ public fun unix-instant( t : timespan, leap : int = 0 ) : instant {
 // Since Unix time stamps are ambigioous,
 // instants inside a leap seconds show as occurring in the second after that.
 public fun unix-timestamp( i :instant ) : ddouble {
-  (unix2000 + i.timestamp-in(ts-unix).unsafe-timespan-withleap)
+  (unix2000 + i.timestamp-in(ts-ti).unsafe-timespan-withleap)
 }
 
 val unix2000 = timespan(946684800)
 
 
 // Convert an NTP time in seconds since the NTP epoch (1900-01-01Z) to an instant.
-// Also takes an optional `leap` argument if the NTP time is _in_ a leap seconds.
+// Also takes an optional `leap` argument if the NTP time is inside a leap second.
 public fun ntp-instant( ntp : ddouble, leap : int = 0 ) : instant {
   ts-ntp.instant( timestamp(ntp,leap) - ntp2000 )
 }
@@ -351,7 +396,7 @@ val ntp2000 = timespan(3155673600)   // 2000-01-01 - 1900-01-01 in NTP seconds; 
 // Create a new time scale based on UTC seconds with a given `name`
 // and a leap second table.
 public fun utc-timescale( name : string, leaps : leaps-table ) : timescale {
-  fun from-tai(tai:duration)       { tai-to-utc(leaps,tai) }
+  fun from-tai(tai:duration)       { utc-from-tai(leaps,tai) }
   fun to-tai(utc:timestamp)        { utc-to-tai(leaps,utc) }
   fun seconds-in-day(utc:timestamp){ utc-seconds-in-day(leaps,utc) }
   fun to-mjd(utc:timestamp,tzdelta:timespan){ utc-to-mjd(leaps,utc,tzdelta) }
@@ -373,16 +418,16 @@ public fun ts-utc-create( leaps : leaps-table ) : timescale {
 }
 
 // [Unix](https://en.wikipedia.org/wiki/Unix_time) time scale is equal
-// to the UTC time scale (`ts-utc`) but  with a 1970-01-01Z epoch.
+// to the UTC time scale (`ts-utc`).
 public fun ts-unix-create( leaps : leaps-table ) : timescale {
   ts-utc-create(leaps) // utc-timescale( "UNIX", leaps )
 }
 
 
 // [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) time scale is equal
-// to the UTC time scale (`ts-utc`) but  with a 1900-01-01Z epoch.
+// to the UTC time scale (`ts-utc`).
 public fun ts-ntp-create( leaps : leaps-table ) : timescale {
-  ts-utc-create(leaps) // utc-timescale( "NTP", leaps )
+  ts-utc-create(leaps)
 }
 
 
@@ -395,15 +440,58 @@ possible future leap seconds after that date. This is the preferred time scale
 in this library as it guarantees deterministic time calculations for any
 future date, i.e. before 2017-01-01Z, TI == UTC, while after that, TI == TAI - 37s.
 */
-public val ts-ti : timescale = utc-timescale( "TI", leaps-table-ti )
+public val ts-ti : timescale = utc-timescale( "", leaps-table-ti )
 
 // [Unix](https://en.wikipedia.org/wiki/Unix_time) time scale based on Unix seconds.
 // It equals the `ts-ti` time scale.
 public val ts-unix : timescale = ts-ti // utc-timescale( "UNIX-TI", leaps-table-ti )
 
 // [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) time scale.
-// It equal the `ts-ti` time scale.
+// It equals the `ts-ti` time scale.
 public val ts-ntp : timescale = ts-ti // utc-timescale( "NTP-TI", leaps-table-ti )
+
+
+
+
+// Create a new smooted leap second time scale with an optional period during
+// which smoothing takes place. This is 1000s for `ts-utc-sls`.
+fun utc-sls-timescale( name : string, leaps : leaps-table, smooth : timespan = 1000.timespan ) : timescale {
+  fun from-tai(tai:duration) { utc-sls-from-tai(leaps,smooth,tai) }
+  fun to-tai(utc:timestamp)  { utc-sls-to-tai(leaps,smooth,utc) }
+  timescale(
+    name,
+    from-tai,
+    to-tai,
+    "UTC-SLS"
+  )
+}
+
+
+// Create a new UTC-SLS time scale from a provided leap second table `leaps`.
+// Implements a UTC time scale except without ever showing leap seconds.
+// UTC-SLS is equivalent to UTC except for the last 1000 seconds of a day where
+// a leap second occurs. On such day, the leap second time step (positive or negative)
+// is distributed over the last 1000 seconds of the day. On the full hour, UTC
+// and UTC-SLS are equal again.
+//
+// This is a recommended time scale to use for time stamps or communication
+// with other services since it avoids any potential trouble
+// with leap seconds while still being quite precise.
+// See also: <https://www.cl.cam.ac.uk/~mgk25/time/utc-sls>.
+//
+// You can create a UTC-SLS time scale based on the latest IETF leap second
+// data using [`cal-utc-sls-load`](std_time_download.html#cal_utc_sls_load).
+public fun ts-utc-sls-create( leaps : leaps-table ) : timescale {
+  utc-sls-timescale( "UTC-SLS", leaps )
+}
+
+// TI time scale with smoothed leap seconds.\
+// Implements a TI time scale (`ts-ti`) except without ever showing leap seconds.
+// TI-SLS is equivalent to TI except for the last 1000 seconds of a day where
+// a leap second occurs. On such day, the leap second time step (positive or negative)
+// is distributed over the last 1000 seconds of the day. On the full hour, TI
+// and TI-SLS are equal again.
+public val ts-ti-sls : timescale = utc-sls-timescale( "TI-SLS", leaps-table-ti )
 
 
 /*----------------------------------------------------------------------------
@@ -445,7 +533,7 @@ estimate plus the time of the leap period if we crossed over it, `utc0+diff`.
 Otherwise, the same holds but we need to add `diff` as leap seconds,
 in the example ending up as `189388799.5+1`.
 */
-fun tai-to-utc( leaps : leaps-table, tai-since : duration ) : timestamp {
+fun utc-from-tai( leaps : leaps-table, tai-since : duration ) : timestamp {
   val tai   = tai-since.timestamp
   // take tai==utc for an initial estimate
   val dtai0 = utc-to-delta-tai(leaps,tai)
@@ -461,6 +549,8 @@ fun tai-to-utc( leaps : leaps-table, tai-since : duration ) : timestamp {
   if (!inleap) then utc0 + diff else utc0.add-leap-seconds(diff)
 }
 
+// Return `Just(start,diff)` if a leap second occurred in the given day
+// (`days` after 2000-01-01) with the start time and leap second gap (`diff`)
 fun utc-leap-in-day( leaps : leaps-table, days : int ) : maybe<(timestamp,timespan)> {
   // check if there is a leap second in the day
   val utc0  = timestamp-days(days)
@@ -475,6 +565,7 @@ fun utc-leap-in-day( leaps : leaps-table, days : int ) : maybe<(timestamp,timesp
   Just((la1.utc-start, diff))
 }
 
+// The UTC seconds in a day
 fun utc-seconds-in-day( leaps : leaps-table, utc : timestamp ) : timespan {
   match(utc-leap-in-day(leaps,utc.days)) {
     Nothing -> solar-secs-per-day
@@ -482,6 +573,8 @@ fun utc-seconds-in-day( leaps : leaps-table, utc : timestamp ) : timespan {
   }
 }
 
+// Return the modified julian day since 2000-01-01 taking leap seconds into
+// account that happen any time during the day
 fun utc-to-mjd( leaps : leaps-table, utc : utc-timestamp, tzdelta : timespan ) : ddouble {
   val (days1,secs1) = (utc + tzdelta).days-seconds
   val frac = match(utc-leap-in-day(leaps,utc.days)) {
@@ -496,6 +589,8 @@ fun utc-to-mjd( leaps : leaps-table, utc : utc-timestamp, tzdelta : timespan ) :
   (days1.ddouble + frac)
 }
 
+// Return UTC from the modified julian day since 2000-01-01 taking leap seconds into
+// account that happen any time during the day
 fun utc-from-mjd( leaps : leaps-table, days : int, frac : ddouble ) : utc-timestamp {
   match(utc-leap-in-day(leaps,days)) {
     Nothing -> timestamp-days( days, frac*solar-secs-per-day)
@@ -510,13 +605,59 @@ fun utc-from-mjd( leaps : leaps-table, days : int, frac : ddouble ) : utc-timest
 }
 
 
+/*----------------------------------------------------------------------------
+  UTC-SLS to TAI conversion
+----------------------------------------------------------------------------*/
+fun utc-sls-leap-in-day( leaps : leaps-table, smooth : timespan, utc : utc-timestamp ) : maybe<(timestamp,timestamp,timespan,timespan)> {
+  match(utc-leap-in-day(leaps, utc.days)) {
+    Nothing -> Nothing // on non-leap days, utc-sls == utc
+    Just((start,diff)) {
+      val smooth-start = (start - smooth) + diff
+      val smooth-end   = start.add-leap-seconds(diff)
+      if (utc <= smooth-start) then Nothing // before the smoothing
+      elif (utc > smooth-end) then Nothing // after the leap second
+      else {
+        val smooth-total = smooth-end.timespan-noleap - smooth-start.timespan-noleap
+        val dt = (utc.unsafe-timespan-withleap - smooth-start.timespan-noleap)
+        Just((start,smooth-start,smooth-total,dt))
+      }
+    }
+  }
+}
+
+fun utc-sls-from-tai( leaps : leaps-table, smooth : timespan, tai-since : duration ) : timestamp {
+  val utc = utc-from-tai(leaps,tai-since)
+  match(utc-sls-leap-in-day(leaps, smooth, utc)) {
+    Nothing -> utc // outside smooth zone: utc-sls == utc
+    Just((_start,smooth-start,smooth-total,dt)) {
+      val frac = dt / smooth
+      smooth-start + (frac * smooth-total)
+    }
+  }
+}
+
+fun utc-sls-to-tai( leaps : leaps-table, smooth : timespan, sls : utc-timestamp ) : duration {
+  val utc = match(utc-sls-leap-in-day(leaps,smooth,sls)) { // sls ~ utc
+    Nothing -> sls  // utc == utc-sls outside smooth zone
+    Just((start,smooth-start,smooth-total,dt)) {
+      val frac  = dt / smooth-total
+      val utc0  = smooth-start + (frac * smooth)
+      if (utc0 <= start) then utc0 else {
+        val ldiff = utc0.timespan-noleap - start.timespan-noleap
+        start.add-leap-seconds(ldiff)
+      }
+    }
+  }
+  utc-to-tai(leaps,utc)
+}
+
 
 // -----------------------------------------------------------
 // Leap second table
 // -----------------------------------------------------------
 
 // `:utc-timestamp` is UTC time since 2000-01-01
-alias utc-timestamp = timestamp
+public alias utc-timestamp = timestamp
 
 // A leap second table describes when UTC leap seconds occur.
 abstract struct leaps-table(
@@ -541,6 +682,7 @@ val zero : leap-adjust = Leap-adjust(timestamp0,timespan0,timestamp0,zero)
 fun zero?( la : leap-adjust ) : bool {
   la.offset.zero? && la.drift.zero?
 }
+
 
 
 /*----------------------------------------------------------------------------
@@ -585,15 +727,30 @@ fun delta-tai( la : leap-adjust, utc : utc-timestamp ) : timespan {
   Default leap tables
 ----------------------------------------------------------------------------*/
 
+// Leap second table upto (but not including) 1972-01-01 UTC
+public val leaps-table-pre1972 : leaps-table = {
+  parse-leap-seconds-dat( default-leap-seconds-pre72 )
+}
+
 // Default TI leaps table has leap second information up to the compiler release (currently `leaps-table-y2017`).
-public val leaps-table-ti : leaps-table = parse-leaps-table( default-ietf-leap-seconds ).default(leaps-table0)
+public val leaps-table-ti : leaps-table = {
+  val post72 = parse-leap-seconds( default-ietf-leap-seconds )
+  post72.extend(leaps-table-pre1972)
+}
 
 // Leap second table up to 2017-01-01Z.
 public val leaps-table-y2017 : leaps-table = leaps-table-ti.upto(536544000.timestamp)  // == instant(2017,1,1).timestamp(ts-ti)
 
+public fun extend(leap1 : leaps-table, leap2 : leaps-table) : leaps-table {
+  match(leap1.adjusts.reverse) {
+    Nil -> leap2
+    Cons(la,_) ->
+      leap1( adjusts = leap1.adjusts + leap2.upto(la.utc-start - 1.timespan).adjusts )
+  }
+}
+
 private fun upto( lt : leaps-table, end : utc-timestamp ) : leaps-table {
-  lt( adjusts = lt.adjusts.drop-while(fun(la) { la.utc-start > end }),
-      expire  = ts-ti.instant(end))
+  lt( adjusts = lt.adjusts.drop-while(fun(la) { la.utc-start > end }) )
 }
 
 // Get a list of leap second steps in a triple, NTP start time, offset just before, and the new offset at that time,
@@ -613,30 +770,32 @@ public fun get-leap-steps( table : leaps-table = leaps-table-ti ) : list<(utc-ti
 // -----------------------------------------------------------
 
 // Parse a leap second table from text `leaps` in the  [IETF leap second](https://www.ietf.org/timezones/data/leap-seconds.list)
-// file format. Returns a full leap second table extended with historical leap second adjustments from before 1972.
-public fun parse-leaps-table( leaps : string ) : maybe<leaps-table> {
+// file format.
+public fun parse-leap-seconds( leaps : string ) : leaps-table {
   // get leap second adjustments
-  val adjusts72 = leaps.find-all(rxleap).map fun(cap) {
+  val adjusts = leaps.find-all(rxleap).map fun(cap) {
     val ntpsecs = cap.groups[1].parse-int-default(0)
     val adjust  = cap.groups[2].parse-int-default(0)
     // trace("leap entry: " + adjust.show + " - " + ntpsecs.show )
     Leap-adjust(timestamp(ntpsecs.timespan - ntp2000), adjust.timespan, timestamp0, timespan0)
   }.reverse
 
+  val expire = parse-leap-expire(leaps,adjusts)
+  val table = Leaps-table(expire,adjusts)
+  table
+}
+val rxleap   = regex(@"^[ \t]*(\d+)[ \t]+(\d+)[ \t]*(?:#.*)?$",multiLine=True)
+
+private fun parse-leap-expire( leaps : string, adjusts : list<leap-adjust>) : instant {
   // get expiration date
-  val la-final   = adjusts72.head.default(zero)
+  val la-final   = adjusts.head.default(zero)
   val utc-expire = leaps.find(rxexpire).map fun(cap) {
     val ntpex = cap.groups[1].parse-int-default(ntp2000.int)
     timestamp(ntpex.timespan - ntp2000)
   }.default(la-final.utc-start + (182*isolar-secs-per-day).timespan)  // default: 6 months after last leap second
   // trace("expire: " + utc-expire.ts-show)
-  val expire = ts-tai.instant( utc-expire - ntp2000 + la-final.offset ) // interpret as TAI to avoid recursion.
-
-  val adjusts = adjusts72 + leap-seconds-pre72()  // add pre 1972 adjustments
-  val table = Leaps-table(expire,adjusts)
-  Just(table)
+  ts-tai.instant( utc-expire - ntp2000 + la-final.offset ) // interpret as TAI to avoid recursion.
 }
-val rxleap   = regex(@"^[ \t]*(\d+)[ \t]+(\d+)[ \t]*(?:#.*)?$",multiLine=True)
 val rxexpire = regex(@"^[ \t]*#@[ \t]*(\d+)[ \t]*(?:#.*)?$", multiLine=True)
 
 // IETF leap second data valid until 2017-06-28
@@ -681,17 +840,22 @@ val default-ietf-leap-seconds = @"
 // Parsing TAI 'continuous' leap second tables from before 1972
 // -----------------------------------------------------------
 
-// Cached leap second table for dates before 1972.
-val leap-seconds-pre72 : (() -> list<leap-adjust>) = once{ parse-leap-seconds-dat() }
-
 val jd-epoch-shift     = 2400000.5.timespan  // JD to MJD
 val mjd-epoch-shift    = 51544.timespan // 2000-01-01Z - 1858-11-17Z modified julian date epoch
 
 
-// Parse the standard UTC leap second adjustment file.\
-// See <http://maia.usno.navy.mil/ser7/tai-utc.dat>
-fun parse-leap-seconds-dat( s : string = leap-seconds-dat ) : list<leap-adjust> {
-  s.find-all(rxtaiadjust).map( fun(cap) {
+// Parse the standard UTC leap second adjustment file in the "old" .dat format as
+// in <http://maia.usno.navy.mil/ser7/tai-utc.dat>, where entries have the shape
+// ````
+// 1961 JAN  1 =JD 2437300.5  TAI-UTC=   1.4228180 S + (MJD - 37300.) X 0.001296 S
+// ````
+// which specifies the start time (`JD 2437300.5`), new TAI-UTC offset
+// (`1.4228180`s), and the drift, starting at `37300` MJD of 0.001296s per day.
+// Lines that start with ``#`` are comments. As an extension you can have an
+// expiration date on a line that starts with ``#@`` followed by seconds since
+// the NTP epoch (1900-01-01). Just as in a standard IETF leap second file.
+public fun parse-leap-seconds-dat( leaps : string  ) : leaps-table {
+  val adjusts = leaps.find-all(rxtaiadjust).map( fun(cap) {
     val mjd    = cap.groups[1].parse-ddouble.default(jd-epoch-shift) - jd-epoch-shift
     val ofs    = cap.groups[2].parse-ddouble.default(zero)
     val dmjd   = cap.groups[3].parse-ddouble.default(zero)
@@ -702,17 +866,19 @@ fun parse-leap-seconds-dat( s : string = leap-seconds-dat ) : list<leap-adjust> 
     // trace("pre72 start=" + start.show + ", ofs: " + ofs.show + ", drift: " + drift.show )
     Leap-adjust( start, ofs, dstart, drift )
   }).reverse
+  val expire = parse-leap-expire(leaps,adjusts)
+  Leaps-table(expire,adjusts)
 }
-val rxtaiadjust = regex(@"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(-?\d+\.\d+)[^\d]+(\d+\.\d*)[^\d]+(\d+\.\d+) *S *$", multiLine=True)
+val rxtaiadjust = regex(@"^ *\d[^=]*=JD (\d+\.\d+) *TAI-UTC= *(-?\d+(?:\.\d*)?)[^\d]+(\d+(?:\.\d*)?)[^\d]+(\d+\.\d+) *S *$", multiLine=True)
 
 // TAI leap second adjustments for dates before 1972-01-01Z are linear interpolations.
 // TAI started in 1958-01-01Z. The initial official UTC time step in 1961-01-01Z was 1.422818s and before that there
 // were small steps of 20ms. See Explanatory Supplement to the Astronomical Almanac, 1992 edition, pages 86--87.
 // In 1958, the supplement remarks that WWC operated at an offset of _about_ -100e-10, we
 // change it to -85e-10 to end up with TAI-UTC == 0 at 1958-01-01.
-// (without a rate change it is a negative -0.0272380s).
+// (without a rate change it is a negative -0.0472380s).
 // Note the JD dates are at 0.29167 as the time steps were usually at 19:00h instead of midnight.
-val leap-seconds-dat = @"
+val default-leap-seconds-pre72 = @"
   # from: Explanatory Supplement to the Astronomical Almanac, 1992 edition, pages 86--87.
   1958 JAN  1 =JD 2436204.5     TAI-UTC= 0.0  S + (MJD - 36204.) X 0.00073458 S
   1958 JAN 15 =JD 2436219.29167 TAI-UTC= 0.02 S + (MJD - 36204.) X 0.00073458 S

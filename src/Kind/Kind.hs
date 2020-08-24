@@ -20,7 +20,7 @@ module Kind.Kind( -- * Kinds
                   , kindCon, kindConOver
                   , isKindFun
                   , isKindStar
-                  , isKindEffect, isKindHandled, isKindHandled1, isKindScope
+                  , isKindEffect, isKindHandled, isKindHandled1, isKindScope, isKindLabel
                   , kindAddArg
                   ) where
 
@@ -42,7 +42,7 @@ type KindCon  = Name
 -- | Kind and Type variables come in three flavours: 'Unifiable'
 -- variables can be unified, 'Skolem's are non-unifiable (fresh)
 -- variables, and 'Bound' variables are bound by a quantifier.
-data Flavour  = Bound 
+data Flavour  = Bound
               | Skolem
               | Meta    -- used for pretty printing
               deriving(Eq, Show)
@@ -103,8 +103,8 @@ kindHandled1 :: Kind
 kindHandled1
   = KCon nameKindHandled1
 
-kindExtend :: Kind 
-kindExtend 
+kindExtend :: Kind
+kindExtend
   = kindFun kindLabel (kindFun kindEffect kindEffect)
 
 -- | Kind constructor N from n kind star to kind star
@@ -127,7 +127,7 @@ isKindFun k
   = case k of
       KApp (KApp k0 k1) k2  -> k0 == kindArrow
       _ -> False
-      
+
 
 extractKindFun :: Kind -> ([Kind],Kind)
 extractKindFun k
@@ -137,18 +137,20 @@ extractKindFun k
            in (k1:args,res)
       _ -> ([],k)
 
-isKindStar, isKindEffect, isKindHandled :: Kind -> Bool
+isKindStar, isKindLabel, isKindEffect, isKindHandled :: Kind -> Bool
 isKindStar k
   = k == kindStar
 isKindEffect k
   = k == kindEffect
+isKindLabel k
+  = k == kindLabel
 isKindHandled k
   = k == kindHandled
 isKindHandled1 k
   = k == kindHandled1
 isKindScope k
   = k == kindScope
-  
+
 -- | Standard kind constants with their kind.
 builtinKinds :: [(Name,Kind)]
 builtinKinds

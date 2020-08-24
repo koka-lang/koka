@@ -17,7 +17,7 @@ public import std/time
 ----------------------------------------------------------------------------*/
 
 
-fun check(name : string, res : string, tst : () -> string ) : io () {
+fun check(name : string, res : string, tst : () -> utc string ) : <io,utc> () {
   val got = tst()
   println(name + ": " + (if (got == res) then "ok: " + res else "failed!:\n expect: " + res + "\n gotten: " + got))
 }
@@ -31,7 +31,7 @@ fun test-round() {
   check("round2", "2016-12-31T23:59:60Z"){ instant(2016,12,31,23,59,59,0.9998).time.show(3)  }
 
   // rounding between timescales
-  check("round3", "2000-01-01T00:00:00Z TT"){ instant(2000,1,0,23,59,27,0.816,cal=cal-tai).time(cal=cal-tt).show }
+  check("round3", "2000-01-01T00:00:00Z TT"){ instant(2000,1,0,23,59,27,0.816,ts=ts-tai).time(ts=ts-tt).show }
 
   // round into a different calendar
   check("round4", "1582-10-04T23:59:59.900Z JG") { time(1582,10,4,23,59,59,0.9,cal=cal-jg).show }
@@ -39,7 +39,7 @@ fun test-round() {
 }
 
 fun test-jd() {
-  check("jd0", "0"){ time(-4713,11,24,12,cal=cal-tt).jd.show }
+  check("jd0", "0"){ time(-4713,11,24,12,ts=ts-tt).jd.show }
   check("jd1", "2441318.5"){ time(1972,1,2,tz=tz-fixed(1)).jd.show }
   check("jd2", "2441318.458333333"){ time(1972,1,2,tz=tz-fixed(1)).instant.jd(ts-ti).show(9) }
 

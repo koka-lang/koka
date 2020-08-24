@@ -33,15 +33,7 @@ import Core.Pretty
 analyzeResume :: Name -> Name -> Bool -> Expr -> ResumeKind
 analyzeResume defName opName raw expr
   = case expr of
-      Lam pars eff body -> let rk0 = arTailExpr body
-                               rk  = if (not raw) then rk0
-                                      else ResumeNormalRaw
-                                        {- if (raw && (rk0==ResumeOnce || rk0<=ResumeScopedOnce))
-                                            then ResumeOnceRaw else ResumeNormalRaw -}
-                           in traceDoc (text "operator branch" <+> parens (pretty defName) <+> pretty opName <.> text ": resume" <+> text (show rk)
-                                      --  </> prettyExpr defaultEnv body
-                                       ) $
-                              rk
+      Lam pars eff body -> if (not raw) then arTailExpr body else ResumeNormalRaw
       TypeLam _ body    -> analyzeResume defName opName raw body
       TypeApp body _    -> analyzeResume defName opName raw body
       App _ [body]      -> analyzeResume defName opName raw body  -- for toAny (...)
@@ -51,15 +43,15 @@ analyzeResume defName opName raw expr
 arTailExpr expr  = arExpr' ResumeTail expr
 arExpr expr      = arExpr' ResumeScopedOnce expr
 
-isResumingElem tnames = S.member resumeName tnames || S.member finalizeName tnames
-isResuming tname = tname == resumeName || tname == finalizeName
+isResumingElem tnames = S.member resumeName tnames || S.member finalizeName tnames || S.member resumeShallowName tnames
+isResuming tname = (tname == resumeName || tname == finalizeName || tname == resumeShallowName)
 
 arExpr' appResume expr
   = case expr of
       Lam tnames eff body
         -> if (isResumingElem (fv expr)) then ResumeNormal else ResumeNever
       App (Var tname info) args  | isResuming tname
-        -> appResume `rand` arExprsAnd args
+        -> appResume `rand` arExprsAnd args `rand` (if (tname==resumeShallowName) then ResumeOnce else ResumeNever)
       App f args
         -> arExprsAnd (f:args)
       TypeLam tvs body
@@ -73,7 +65,8 @@ arExpr' appResume expr
       Lit lit
         -> ResumeNever
       Let [DefNonRec def] expr
-        | defName def == getName resumeName  -- TODO: too weak a check!! improve it!! we just need to skip the first definition..
+        -- TODO: too weak a check!! improve it!! we just need to skip the first definition..
+        | defName def == getName resumeName || defName def == getName resumeShallowName
         -> arExpr' appResume expr
       Let defGroups body -- TODO: be more sophisticated here?
         -> if (isResumingElem (bv defGroups `S.union` fv defGroups))
@@ -146,4 +139,5 @@ isScoped ResumeOnce   = False
 isScoped _            = True
 
 resumeName = TName (newName "resume") typeVoid
+resumeShallowName = TName (newName "resume-shallow") typeVoid
 finalizeName = TName (newName "finalize") typeVoid

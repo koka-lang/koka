@@ -20,18 +20,19 @@ import std/time/calendar
   Time scale calendars
 ----------------------------------------------------------------------------*/
 
+/*
 // The TAI Calendar. This is a standard ISO 8601 calender using
 // TAI time where every day is exactly 86400 SI seconds (unlike
 // standard UTC time which can insert leap seconds).
-public val cal-tai = iso-calendar( ts-tai )
+public val cal-tai = iso-calendar( ts-tai, "TAI" )
 
 // The GPS calendar is always `TAI - 19` but with epoch 1980-01-06Z
-public val cal-gps = iso-calendar( ts-gps ) //(ts-gps.to-tai)(timestamp(fixed(~19))).seconds )
+public val cal-gps = iso-calendar( ts-gps, "GPS" ) //(ts-gps.to-tai)(timestamp(fixed(~19))).seconds )
 
 // The Terrestrial (or Ephemeris) time calendar, i.e. an ISO calendar but using the `ts-tt` time scale.
 // TT is always `TAI + 32.184`
-public val cal-tt  = iso-calendar( ts-tt )//, fixed(32184,3) )
-
+public val cal-tt  = iso-calendar( ts-tt, "TT" )//, fixed(32184,3) )
+*/
 
 // ----------------------------------------------------
 // Coptic calendar

@@ -60,6 +60,7 @@ var mainExe   = path.join(buildDir,main + "-" + version + exeExt);
 var kokaFlags = "-i" + libraryDir + " -itest/algeff -itest/implicits -itest/ambients -itest/instance -itest/lib --core --checkcore " + (process.env.kokaFlags || "");
 
 if (variant === "profile") {
+  console.log("use profile options")
   hsFlags += " -prof -fprof-auto -O2";
   hsLinkFlags += " -rtsopts";
   hsRunFlags += " +RTS -p -RTS"
