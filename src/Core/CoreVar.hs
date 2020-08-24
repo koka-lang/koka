@@ -9,6 +9,7 @@
 module Core.CoreVar ( HasExprVar, (|~>)
                     , HasExpVar, fv, bv
                     , isTopLevel
+                    , freeLocals
                     ) where
 
 
@@ -27,12 +28,16 @@ import Core.Pretty
 
 
 isTopLevel :: Def -> Bool
-isTopLevel (Def name tp expr vis isVal nameRng doc)
+isTopLevel (Def name tp expr vis isVal inl nameRng doc)
   = let freeVar = filter (\(nm) -> not (isQualified nm) && nm /= unqualify name) (map getName (tnamesList (fv expr)))
         freeTVar = ftv expr
         yes = (null freeVar && tvsIsEmpty freeTVar)
     in -- trace ("isTopLevel " ++ show name ++ ": " ++ show (yes,freeVar,tvsList freeTVar)) $
         yes
+
+freeLocals :: HasExpVar a => a -> TNames
+freeLocals expr
+  = S.filter (\(TName nm _) -> not (isQualified nm)) (fv expr)
 
 
 {--------------------------------------------------------------------------
@@ -67,8 +72,8 @@ instance HasExpVar DefGroup where
       DefNonRec def -> bv def
 
 instance HasExpVar Def where
-  fv (Def name tp expr vis isVal nameRng doc) = fv expr
-  bv (Def name tp expr vis isVal nameRng doc) = S.singleton (TName name tp)
+  fv (Def name tp expr vis isVal inl nameRng doc) = fv expr
+  bv (Def name tp expr vis isVal inl nameRng doc) = S.singleton (TName name tp)
 
 fvDefGroups defGroups expr
   = case defGroups of
@@ -102,7 +107,7 @@ instance HasExpVar Pattern where
     = S.empty
   bv pat
     = case pat of
-        PatCon tname args _ _ _ _ _ -> bv args
+        PatCon tname args _ _ _ _ _ _ -> bv args
         PatVar tname pat         -> S.union (S.singleton tname) (bv pat)
         PatWild                  -> S.empty
         PatLit lit               -> S.empty
@@ -131,10 +136,10 @@ instance HasExprVar DefGroup where
 
 
 instance HasExprVar Def where
-  sub |~> (Def dname scheme expr vis isVal nameRng doc)
+  sub |~> (Def dname scheme expr vis isVal inl nameRng doc)
     = -- assertion "Core.HasExprVar.Def.|~>" (TName name scheme `notIn` sub) $
       let sub' = [(name,e) | (name,e) <- sub, getName name /= dname]
-      in Def dname scheme (sub' |~> expr) vis isVal nameRng doc
+      in Def dname scheme (sub' |~> expr) vis isVal inl nameRng doc
 
 instance HasExprVar Expr where
   sub |~> expr =
@@ -144,7 +149,7 @@ instance HasExprVar Expr where
                               in Lam tnames eff (sub' |~> expr)
       Var tname info       -> fromMaybe expr (lookup tname sub)
       App e1 e2            -> App (sub |~> e1) (sub |~> e2)
-      TypeLam typeVars exp -> assertion ("Core.HasExprVar.Expr.|~>.TypeLam: " ++ show typeVars ++ ",\n " ++ show sub ++ "\n " ++ show expr) 
+      TypeLam typeVars exp -> assertion ("Core.HasExprVar.Expr.|~>.TypeLam: " ++ show typeVars ++ ",\n " ++ show sub ++ "\n " ++ show expr)
                                         (all (\tv -> not (tvsMember tv (ftv (map snd sub)))) typeVars
                                           || all (\name -> not (S.member name (fv exp) )) (map fst sub)) $
                               TypeLam typeVars (sub |~> exp)
@@ -170,5 +175,3 @@ instance HasExprVar Guard where
 
 notIn :: TName -> [(TName, Expr)] -> Bool
 notIn name subst = not (name `elem` map fst subst)
-
-

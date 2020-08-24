@@ -60,7 +60,7 @@ $charesc  = [nrt\\\'\"]    -- "
               | [\xE1-\xEC] $cont $cont
               | \xED [\x80-\x9F] $cont
               | [\xEE-\xEF] $cont $cont
-              | \xF0 [\x90-\xBF] $cont
+              | \xF0 [\x90-\xBF] $cont $cont
               | [\xF1-\xF3] $cont $cont $cont
               | \xF4 [\x80-\x8F] $cont $cont
 
@@ -112,7 +112,7 @@ program :-
 
 -- fun/function followed by '(' or '<'
 <0> "fun" [\(\<]          { less 3 $ constant $ LexKeyword "fun.anon" "" }
-<0> "function" [\(\<]     { less 7 $ constant $ LexKeyword "function.anon" "" }
+<0> "function" [\(\<]     { less 8 $ constant $ LexKeyword "function.anon" "" }
 
 -- qualified identifiers
 <0> @qconid               { string $ LexCons . newQName }
@@ -140,7 +140,7 @@ program :-
 
 -- type operators
 <0> "||"                  { string $ LexOp . newName }
-<0> $anglebar $anglebar+  { less 1 $ string $ LexOp . newName }
+<0> $anglebar $anglebar+  { less 1 $ string $ \s -> if (s=="|") then LexKeyword s "" else LexOp (newName s) }
 
 -- operators
 <0> @idop                 { string $ LexIdOp . newName . stripParens }
@@ -216,6 +216,7 @@ stripParens s
 newQName s
   = let (rname,rsmod) = span (/='/') (reverse s)
     in case rsmod of
+         ('/':'/':rmod) | null rname -> newQualified (reverse rmod) ("/")
          ('/':rmod)  -> newQualified (reverse rmod) (reverse rname)
          _           -> newName s
 
@@ -288,6 +289,7 @@ reservedNames
     , ":"
     , "->"
     , ":="
+    , "|"
 
     -- for core interfaces
     , "rec"
@@ -487,8 +489,8 @@ lexing source lineNo input
 
         lparen token prev
           = case token of
-              LexSpecial "("  | isApplyToken prev -> LexSpecial "(.("  -- application
-              LexSpecial "["  | isApplyToken prev -> LexSpecial "[.["  -- indexing
+              LexSpecial "("  | isApplyToken prev -> LexSpecial "(.apply"  -- application
+              LexSpecial "["  | isApplyToken prev -> LexSpecial "[.index"  -- indexing
               _ -> token
 
         isApplyToken prev

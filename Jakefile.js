@@ -57,7 +57,7 @@ var buildDir  = path.join(outputDir, variant);
 var depFile   = path.join(buildDir,"dependencies");
 var mainExe   = path.join(buildDir,main + "-" + version + exeExt);
 
-var kokaFlags = "-i" + libraryDir + " -itest/algeff -itest/implicits -itest/ambients -itest/instance -itest/lib --core --checkcore " + (process.env.kokaFlags || "");
+var kokaFlags = "--target=js -i" + libraryDir + " -itest/algeff -itest/cgen -itest/parc -itest/lib --core --checkcore " + (process.env.kokaFlags || "");
 
 if (variant === "profile") {
   console.log("use profile options")
@@ -454,14 +454,23 @@ var hsModules = [
   "Core.Divergent",
   "Core.BindingGroups",
   "Core.UnReturn",
+  "Core.OpenResolve",
   "Core.Monadic",
   "Core.AnalysisResume",
   "Core.Simplify",
-
+  "Core.FunLift",
+  "Core.MonadicLift",
+  "Core.Inlines",
+  "Core.Inline",
+  
   "Type.Infer",
 
   "Backend.CSharp.FromCore",
   "Backend.JavaScript.FromCore",
+  "Backend.C.Box",
+  "Backend.C.ParcReuse",
+  "Backend.C.Parc",
+  "Backend.C.FromCore",
 
   "Syntax.Colorize",
   "Core.GenDoc",

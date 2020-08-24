@@ -11,7 +11,7 @@
 
 module Type.TypeVar(-- * Type substitutable entities
                       HasTypeVar( substitute, ftv, btv )
-                    , (|->) 
+                    , (|->)
                     , alltv, fuv, fbv, fsv
                     -- * Ordered free type variables
                     , HasOrderedTypeVar, oftv, ofuv
@@ -109,16 +109,17 @@ subIsNull (Sub sub)
   = M.null sub
 
 subNew :: [(TypeVar, Tau)] -> Sub
-subNew sub 
+subNew sub
   = -- assertion "Type.TypeVar.subNew" (all (\tv -> length (filter (==tv) tvs) == 1) tvs) $
-    -- assertion "Type.TypeVar.subNew.Tau" (all isTau taus) $ 
-    assertion ("Type.TypeVar.subNew.KindMismatch: " ++ show (length sub) 
-                ++ concatMap (\(x,t) -> "(" ++ showTypeVar x ++ " |-> " ++ showTp t ++ ")") sub) 
-     (all (\(x, t) -> getKind x == getKind t) sub) $
-    Sub (M.fromList sub)
+    -- assertion "Type.TypeVar.subNew.Tau" (all isTau taus) $
+    let s = assertion ("Type.TypeVar.subNew.KindMismatch: " ++ show (length sub)
+                        ++ concatMap (\(x,t) -> "(" ++ showTypeVar x ++ " |-> " ++ showTp t ++ ")") sub)
+             (all (\(x, t) -> getKind x == getKind t) sub) $
+            Sub (M.fromList sub)
+    in seq s s
 
 subDom :: Sub -> Tvs
-subDom (Sub sub) 
+subDom (Sub sub)
   = tvsNew (M.keys sub)
 
 subRange :: Sub -> [Tau]
@@ -138,10 +139,10 @@ subSingle tvar tau
   = -- Top assertion is invalid; it can happen (and happens) in the CoreF typechecker when
     -- typechecking (forall a. f a) with f :: forall b. b -> b, that a bound variable (b) with
     -- number ID must be substituted for another bound variable (a), which *could* have the same
-    -- ID. If we want to avoid this, we must ensure that all IDs are distinct; in particular, 
+    -- ID. If we want to avoid this, we must ensure that all IDs are distinct; in particular,
     -- the IDs of built-in types such as .select must be distinct from further IDs generated
     -- by the compiler.
-    assertion ("Type.TypeVar.subSingle: recursive type: " ++ showTVar tvar) 
+    assertion ("Type.TypeVar.subSingle: recursive type: " ++ showTVar tvar)
                (not (tvsMember tvar (ftv tau))) $
     -- assertion ("Type.TypeVar.subSingle: not a tau") (isTau tau) $
     assertion "Type.TypeVar.subSingle.KindMismatch" (getKind tvar == getKind tau) $
@@ -185,7 +186,7 @@ subExtend tvar tau sub@(Sub s)
 -- | Insert a new substitution. (Note: breaks abstraction barrier).
 subInsert :: TypeVar -> Tau -> Sub -> Sub
 subInsert tvar tau (Sub s)
-  = assertion ("Type.TypeVar.subSingle: recursive type: " ++ showTVar tvar) 
+  = assertion ("Type.TypeVar.subSingle: recursive type: " ++ showTVar tvar)
               (not (tvsMember tvar (ftv tau))) $
     assertion ("Type.TypeVar.subSingle: not a tau") (isTau tau) $
     Sub (M.insert tvar tau s)
@@ -196,7 +197,7 @@ subInserts assoc (Sub sub)
 
 (|->) :: HasTypeVar a => Sub -> a -> a
 sub |-> x
-  = if subIsNull sub then x else 
+  = if subIsNull sub then x else
      (sub `substitute` x)
 
 
@@ -209,7 +210,7 @@ instance HasTypeVar Sub where
 
   btv sub
     = tvsEmpty
-  
+
 
 instance HasTypeVar a => HasTypeVar (Maybe a) where
   sub `substitute` mb  = case mb of
@@ -291,7 +292,7 @@ tvsIntersect (Tvs set1) (Tvs set2)
 tvsCommon :: Tvs -> Tvs -> Bool
 tvsCommon tvs1 tvs2
   = not (tvsDisjoint tvs1 tvs2)
-  
+
 tvsDisjoint :: Tvs -> Tvs -> Bool
 tvsDisjoint tvs1 tvs2
   = tvsIsEmpty (tvsIntersect tvs1 tvs2)
@@ -336,7 +337,7 @@ instance (HasTypeVar a,HasTypeVar b,HasTypeVar c,HasTypeVar d,HasTypeVar e) => H
   sub `substitute` (a,b,c,d,e)
     = (sub `substitute` a, sub `substitute` b, sub `substitute` c, sub `substitute` d, sub `substitute` e)
   ftv (a,b,c,d,e)
-    = tvsUnions [ftv a, ftv b, ftv c, ftv d, ftv e] 
+    = tvsUnions [ftv a, ftv b, ftv c, ftv d, ftv e]
   btv (a,b,c,d,e)
     = tvsUnions [btv a, btv b, btv c, btv d, btv e]
 
@@ -394,10 +395,14 @@ instance HasTypeVar Type where
     = case tp of
         TForall vars preds tp   -> tvsInsertAll vars (tvsUnion (ftv preds) (btv tp))
         TFun args effect result -> tvsUnions (btv effect : btv result : map (btv . snd) args)
-        TSyn syn xs tp          -> btv tp 
+        TSyn syn xs tp          -> btv tp
         TApp tp arg             -> tvsUnion (btv tp) (btv arg)
         _                       -> tvsEmpty
 
+instance HasTypeVar Name where
+  sub `substitute` name = name
+  ftv name              = tvsEmpty
+  btv name              = tvsEmpty
 
 instance HasOrderedTypeVar Type where
   odftv tp
@@ -457,11 +462,11 @@ posneg isPos tp
       TVar tvar               -> if (isPos) then tvsSingle tvar else tvsEmpty
       TApp tp args            -> tvsUnions (posneg isPos tp : map (posneg isPos) args)
       TSyn syn xs tp          -> posneg isPos tp
-  
+
 
 
 {--------------------------------------------------------------------------
-  Operations requiring HasUnique 
+  Operations requiring HasUnique
 --------------------------------------------------------------------------}
 
 freshTypeVar :: HasUnique m => Kind -> Flavour -> m TypeVar
@@ -483,10 +488,10 @@ matchType tp1 tp2
   = case (expandSyn tp1,expandSyn tp2) of
       (TForall vs1 ps1 t1, TForall vs2 ps2 t2)  -> if (vs1==vs2)
                                                     then (matchPreds ps1 ps2 && matchType t1 t2)
-                                                    else if (length vs1 == length vs2 && all (\(v1,v2) -> getKind v1 == getKind v2) (zip vs1 vs2)) 
+                                                    else if (length vs1 == length vs2 && all (\(v1,v2) -> getKind v1 == getKind v2) (zip vs1 vs2))
                                                           then let sub = subNew (zip vs1 (map TVar vs2))
                                                                in (matchPreds (sub |-> ps1) ps2 && matchType (sub |-> t1) t2)
-                                                          else False                                                  
+                                                          else False
       (TFun pars1 eff1 t1, TFun pars2 eff2 t2)  -> (matchTypes (map snd pars1) (map snd pars2) && matchEffect eff1 eff2 && matchType t1 t2)
       (TCon c1, TCon c2)                        -> c1 == c2
       (TVar v1, TVar v2)                        -> v1 == v2

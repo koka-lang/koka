@@ -14,6 +14,7 @@ module Type.Assumption (
                     , gammaEmpty
                     , gammaExtend, gammaExtends
                     , gammaLookup, gammaLookupQ
+                    , gammaLookupCanonical, gammaLookupExactCon -- for core
                     , gammaMap
                     , gammaList
                     , gammaIsEmpty
@@ -27,11 +28,12 @@ module Type.Assumption (
                     , infoCanonicalName
                     -- * From Core
                     , extractGammaImports
-                    , extractGamma   
+                    , extractGamma
                     , coreDefInfo
                     , createNameInfo
                     , createNameInfoX
                     , getArity
+                    , coreVarInfoFromNameInfo, coreExprFromNameInfo
                     ) where
 import Lib.Trace
 import Common.Range
@@ -42,21 +44,21 @@ import Lib.PPrint
 import qualified Common.NameMap as M
 import Common.Name
 import Common.ColorScheme
-import Common.Syntax( Visibility(Public), Target )
+import Common.Syntax( Visibility(..), Target )
 import Type.Type
 import Type.TypeVar
 import Type.Pretty
 import qualified Core.Core as Core
 import qualified Core.CoreVar as CoreVar
 
--- import Lib.Trace
+import Lib.Trace
 
 data NameInfo
-  = InfoVal{ infoCName :: Name, infoType :: Scheme, infoRange :: Range, infoIsVar :: Bool }
-  | InfoFun{ infoCName :: Name, infoType :: Scheme, infoArity :: (Int,Int), infoRange :: Range }
-  | InfoCon{ infoType :: Scheme, infoRepr  :: Core.ConRepr, infoCon :: ConInfo, infoRange :: Range }
-  | InfoExternal{ infoCName :: Name, infoType :: Scheme, infoFormat :: [(Target,String)], infoRange :: Range }
-  | InfoImport{ infoType :: Scheme, infoAlias :: Name, infoFullName :: Name, infoRange :: Range }
+  = InfoVal{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoRange :: Range, infoIsVar :: Bool }
+  | InfoFun{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoArity :: (Int,Int), infoRange :: Range }
+  | InfoCon{ infoVis :: Visibility, infoType :: Scheme, infoRepr  :: Core.ConRepr, infoCon :: ConInfo, infoRange :: Range }
+  | InfoExternal{ infoVis :: Visibility, infoCName :: Name, infoType :: Scheme, infoFormat :: [(Target,String)], infoRange :: Range }
+  | InfoImport{ infoVis :: Visibility, infoType :: Scheme, infoAlias :: Name, infoFullName :: Name, infoRange :: Range }
   deriving (Show)
 
 infoCanonicalName :: Name -> NameInfo -> Name
@@ -91,6 +93,29 @@ infoElement info
       InfoCon{}     -> "constructor"
       InfoImport{}  -> "module"
       _             -> "identifier"
+
+infoIsVisible :: NameInfo -> Bool
+infoIsVisible info = case infoVis info of
+                     Public -> True
+                     _      -> False
+
+
+coreVarInfoFromNameInfo :: NameInfo -> Core.VarInfo
+coreVarInfoFromNameInfo info
+  = case info of
+      InfoVal _ _ tp _ _           -> Core.InfoNone
+      InfoFun _ _ tp (m,n) _       -> Core.InfoArity m n
+      InfoExternal _ _ tp format _ -> Core.InfoExternal format
+      _                            -> matchFailure "Type.Infer.coreVarInfoFromNameInfo"
+
+coreExprFromNameInfo qname info
+  = -- trace ("create name: " ++ show qname) $
+    case info of
+      InfoVal vis cname tp _ _            -> Core.Var (Core.TName cname tp) (Core.InfoNone)
+      InfoFun vis cname tp ((m,n)) _      -> Core.Var (Core.TName cname tp) (Core.InfoArity m n)
+      InfoCon vis  tp repr _ _            -> Core.Con (Core.TName qname tp) repr
+      InfoExternal vis cname tp format _  -> Core.Var (Core.TName cname tp) (Core.InfoExternal format)
+      InfoImport _ _ _ _ _                -> matchFailure "Type.Infer.coreExprFromNameInfo"
 
 
 {--------------------------------------------------------------------------
@@ -136,30 +161,45 @@ gammaExtend :: Name -> NameInfo -> Gamma -> Gamma
 gammaExtend name tp (Gamma gamma)
   = Gamma (M.insertWith combine (unqualify name) [(name,tp)] gamma)
 
-combine :: [(Name,NameInfo)] -> [(Name,NameInfo)] -> [(Name,NameInfo)] 
+combine :: [(Name,NameInfo)] -> [(Name,NameInfo)] -> [(Name,NameInfo)]
 combine xs ys
   = -- TODO: check for overlapping type schemes?
     xs ++ ys
+
+gammaLookupCanonical:: Name -> Gamma -> [NameInfo]
+gammaLookupCanonical name gamma
+  = let xs = (gammaLookupQ (nonCanonicalName name) gamma)
+    in -- trace ("gamma lookup canonical: " ++ show name ++ " in " ++ show xs) $
+       filter (\ni -> infoCanonicalName nameNil ni == name) xs
+
+gammaLookupExactCon :: Name -> Gamma -> [NameInfo]
+gammaLookupExactCon name gamma
+ = let xs = (gammaLookupQ name gamma)
+   in -- trace ("gamma lookup canonical: " ++ show name ++ " in " ++ show xs) $
+      filter isInfoCon xs
+
 
 
 gammaLookupQ :: Name -> Gamma -> [NameInfo]
 gammaLookupQ name (Gamma gamma)
   = case M.lookup (unqualify name) gamma of
       Nothing -> []
-      Just xs -> map snd (filter (\(n,tp) -> n == name) xs)
+      Just xs -> -- trace ("gamma lookupQ: " ++ show name ++ " in " ++ show xs) $
+                 map snd (filter (\(n,tp) -> n == name) xs)
 
 -- | @gammaLookup context name gamma@ looks up a potentially qualified name in a module named @context@.
 gammaLookup :: Name -> Gamma -> [(Name,NameInfo)]
 gammaLookup name (Gamma gamma)
   = case M.lookup (unqualify name) gamma of
       Nothing -> []
-      Just xs -> -- let qname = if isQualified name then name else qualify context name 
-                 -- in filter (\(n,_) -> n == qname) xs 
-                 -- trace (" in gamma found: " ++ show (map fst xs)) $ 
+      Just xs -> -- let qname = if isQualified name then name else qualify context name
+                 -- in filter (\(n,_) -> n == qname) xs
+                 -- trace (" in gamma found: " ++ show (map fst xs)) $
+                 filter (\(_,info) -> infoIsVisible info) $
                  if (isQualified name)
                   then filter (\(n,_) -> n == name || nameCaseEqual name n) xs
                   else xs
-                 
+
 gammaMap :: (NameInfo -> NameInfo) -> Gamma -> Gamma
 gammaMap f (Gamma gamma)
   = Gamma (M.map (\xs -> [(name,f tp) | (name,tp) <- xs]) gamma)
@@ -188,7 +228,7 @@ gammaFilter mod (Gamma g)
   = Gamma (M.map belongs g)
   where
     belongs xs  = [(name,tp) | (name,tp) <- xs, qualifier name == mod]
-  
+
 {---------------------------------------------------------------
   Extract from core
 ---------------------------------------------------------------}
@@ -196,69 +236,68 @@ gammaFilter mod (Gamma g)
 extractGammaImports :: [(Name,Name)] -> Name -> Gamma
 extractGammaImports imports modName
   = -- trace ("extend gamma: " ++ show imports) $
-    gammaExtend modAlias (InfoImport typeVoid modAlias modName rangeNull) $
+    gammaExtend modAlias (InfoImport Private typeVoid modAlias modName rangeNull) $
     gammaUnions (L.map extractImport imports)
   where
     modAlias = newName (reverse (takeWhile (/='.') (reverse (nameId modName))))
 
 extractImport (name,qname)
-  = gammaSingle name (InfoImport typeVoid name qname rangeNull)
+  = gammaSingle name (InfoImport Private typeVoid name qname rangeNull)
 
 -- | Extract a Gamma from a Core module
-extractGamma :: Bool -> Int -> Core.Core -> Gamma
-extractGamma publicOnly msf (Core.Core name imports fixDefs tdefgroups defgroups externals doc)
-  = gammaUnions [gammaUnions (L.map (extractDefGroup isVisible) defgroups)
-                ,gammaUnions (L.map (extractExternal isVisible) externals)
-                ,gammaUnions (L.map (extractTypeDefGroup isVisible msf) tdefgroups)
+extractGamma :: (DataInfo -> Bool) -> Bool -> Core.Core -> Gamma
+extractGamma isValue privateAsPublic (Core.Core name imports fixDefs tdefgroups defgroups externals doc)
+  = gammaUnions [gammaUnions (L.map (extractDefGroup updateVis) defgroups)
+                ,gammaUnions (L.map (extractExternal updateVis) externals)
+                ,gammaUnions (L.map (extractTypeDefGroup isValue updateVis) tdefgroups)
                 ]
   where
-    isVisible Public  = True
-    isVisible _       = not publicOnly
+    updateVis Public  = Public
+    updateVis Private = if (privateAsPublic) then Public else Private
 
-extractTypeDefGroup isVisible msf (Core.TypeDefGroup tdefs)
-  = gammaUnions (L.map (extractTypeDef isVisible msf) tdefs)
 
-extractTypeDef isVisible msf tdef
+extractTypeDefGroup isValue updateVis (Core.TypeDefGroup tdefs)
+  = gammaUnions (L.map (extractTypeDef isValue updateVis) tdefs)
+
+extractTypeDef isValue updateVis tdef
   = case tdef of
-     Core.Data dataInfo vis conViss isExtend  | isVisible vis
-       -> gammaUnions (L.map extractConInfo 
-            [(conInfo, conRepr) | (conInfo,(vis,conRepr)) <- zip (dataInfoConstrs dataInfo) 
-               (zip conViss (snd (Core.getDataRepr msf {- struct fields do not matter for extraction -} dataInfo))), isVisible vis])
+     Core.Data dataInfo isExtend
+       -> gammaUnions (L.map extractConInfo
+            [(conInfo, conRepr) | (conInfo,conRepr) <- zip (dataInfoConstrs dataInfo)
+                 (snd (Core.getDataReprEx isValue dataInfo))] )
      _ -> gammaEmpty
   where
     extractConInfo (conInfo,conRepr)
-      = gammaSingle (conInfoName conInfo) (InfoCon (conInfoType conInfo) conRepr conInfo (conInfoRange conInfo))
+      = gammaSingle (conInfoName conInfo) (InfoCon (updateVis (conInfoVis conInfo)) (conInfoType conInfo) conRepr conInfo (conInfoRange conInfo))
 
 
-extractDefGroup isVisible (Core.DefRec defs)
-  = gammaUnions (L.map (extractDef isVisible) defs)
-extractDefGroup isVisible (Core.DefNonRec def)
-  = extractDef isVisible def
+extractDefGroup updateVis (Core.DefRec defs)
+  = gammaUnions (L.map (extractDef updateVis) defs)
+extractDefGroup updateVis (Core.DefNonRec def)
+  = extractDef updateVis def
 
 
 
 
-extractDef isVisible def@(Core.Def name tp expr vis sort nameRng doc) | isVisible vis
-  = let info = createNameInfoX name sort nameRng tp -- specials since we cannot call isTopLevel as in coreDefInfo
-    in gammaSingle (Core.nonCanonicalName name) info
-extractDef isVisible _
-  = gammaEmpty
+extractDef updateVis def@(Core.Def name tp expr vis sort inl nameRng doc)
+  = let info = createNameInfoX (updateVis vis) name sort nameRng tp -- specials since we cannot call isTopLevel as in coreDefInfo
+    in gammaSingle (nonCanonicalName name) info
 
 
 coreDefInfo :: Core.Def -> (Name,NameInfo)
-coreDefInfo def@(Core.Def name tp expr vis sort nameRng doc)
-  = (Core.nonCanonicalName name,
-      createNameInfoX name (if (isDefFun sort && not (CoreVar.isTopLevel def)) then DefVal else sort) nameRng tp)
+coreDefInfo def@(Core.Def name tp expr vis sort inl nameRng doc)
+  = (nonCanonicalName name,
+      createNameInfoX vis name (if (isDefFun sort && not (CoreVar.isTopLevel def)) then DefVal else sort) nameRng tp)
     -- since we use coreDefInfo also for local definitions, we need to be careful to to use DefFun for
     -- things that do not get lifted to toplevel due to free type/variables. test: codegen/rec5
 
-createNameInfoX :: Name -> DefSort -> Range -> Type -> NameInfo
-createNameInfoX name sort rng tp
+createNameInfoX :: Visibility -> Name -> DefSort -> Range -> Type -> NameInfo
+createNameInfoX vis name sort rng tp
   = -- trace ("createNameInfoX: " ++ show name ++ ", " ++ show sort ++ ": " ++ show (pretty tp)) $
-    if (not (isDefFun sort)) then InfoVal name tp rng (sort == DefVar) else InfoFun name tp (getArity  tp) rng
+    if (not (isDefFun sort)) then InfoVal vis name tp rng (sort == DefVar) else InfoFun vis name tp (getArity  tp) rng
 
 createNameInfo name isVal rng tp
-  = createNameInfoX name (if isVal then DefVal else DefFun (Core.getMonType tp)) rng tp
+  = createNameInfoX Public name (if isVal then DefVal else DefFun) rng tp
     -- if (isVal) then InfoVal name tp rng False else InfoFun name tp (getArity tp) rng
 
 getArity :: Type -> (Int,Int)
@@ -272,9 +311,9 @@ getArity tp
       _                        -> failure ("Type.Assumption.createNameInfo.getArity: illegal type?" ++ show tp)
 
 
-extractExternal isVisible (Core.External name tp body vis nameRng doc) | isVisible vis
-  = gammaSingle (Core.nonCanonicalName name) (InfoExternal name tp body nameRng)
-extractExternal isVisible _
+extractExternal updateVis (Core.External name tp body vis nameRng doc)
+  = gammaSingle (nonCanonicalName name) (InfoExternal (updateVis vis) name tp body nameRng)
+extractExternal updateVis _
   = gammaEmpty
 
 {--------------------------------------------------------------------------
@@ -286,11 +325,11 @@ instance Show Gamma where
 instance Pretty Gamma where
   pretty g
     = ppGamma Type.Pretty.defaultEnv g
-    
-    
+
+
 ppGamma :: Env -> Gamma -> Doc
 ppGamma env gamma
-    = vcat [fill maxwidth (ppName env name) <.> color (colorSep (colors env)) (typeColon (colors env)) <+> align (nice scheme)
+    = vcat [fill maxwidth (text (showPlain name)) {-(ppName env name)-} <.> color (colorSep (colors env)) (typeColon (colors env)) <+> align (nice scheme)
         | (name,scheme) <- nameSchemes]
     where
       nameSchemes   = [(name,infoType info) | (name,info) <- gammaList gamma]
@@ -311,7 +350,7 @@ instance HasTypeVar Gamma where
 instance HasTypeVar NameInfo where
   sub `substitute` info
     = info{ infoType = sub `substitute` (infoType info) }
-  
+
   ftv info
     = ftv (infoType info)
 

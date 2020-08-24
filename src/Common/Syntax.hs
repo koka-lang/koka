@@ -14,31 +14,59 @@ module Common.Syntax( Visibility(..)
                     , Fixity(..)
                     , DataKind(..)
                     , DefSort(..), isDefFun, defFun
-                    , MonKind(..)
+                    , DefInline(..)
                     , Target(..)
                     , Host(..)
                     , isPublic, isPrivate
                     , DataDef(..)
-                    , dataDefIsRec, dataDefIsOpen
+                    , dataDefIsRec, dataDefIsOpen, dataDefIsValue
                     , HandlerSort(..)
                     , isHandlerResource, isHandlerNormal
+                    , Platform(..), platform32, platform64, platformCS, platformJS
+                    , alignedSum, alignedAdd, alignUp
                     ) where
 
 {--------------------------------------------------------------------------
   Backend targets
 --------------------------------------------------------------------------}
-data Target = CS | JS | Default deriving (Eq,Ord)
+data Target = CS | JS | C | CHeader | Default deriving (Eq,Ord)
 
 instance Show Target where
   show CS = "cs"
   show JS = "js"
+  show C  = "c"
+  show CHeader = "c header"
   show Default = ""
 
 data Host = Node | Browser deriving (Eq,Ord)
 
 instance Show Host where
-  show Node = "node"
+  show Node    = "node"
   show Browser = "browser"
+
+
+data Platform = Platform{ sizePtr  :: Int -- sizeof(intptr_t)
+                        , sizeSize :: Int -- sizeof(size_t)
+                        }
+
+platform32, platform64 :: Platform
+platform32 = Platform 4 4
+platform64 = Platform 8 8 
+platformJS = Platform 8 4
+platformCS = Platform 8 4
+
+instance Show Platform where
+  show (Platform sp ss) = "Platform(sizeof(void*)=" ++ show sp ++ ",sizeof(size_t)=" ++ show ss ++ ")"
+
+alignedSum :: Int -> [Int] -> Int
+alignedSum start xs = foldl alignedAdd start xs
+     
+alignedAdd :: Int -> Int -> Int
+alignedAdd x y = (alignUp x y) + y
+     
+alignUp :: Int -> Int -> Int
+alignUp x y  | y <= 0  = x
+alignUp x y  = ((x + y - 1) `div` y)*y    
 
 
 {--------------------------------------------------------------------------
@@ -82,13 +110,23 @@ instance Show DataKind where
   show CoInductive = "cotype"
   show Retractive = "rectype"
 
-data DataDef = DataDefNormal | DataDefRec | DataDefOpen
+data DataDef = DataDefValue{ rawFields :: Int, scanFields :: Int }
+             | DataDefNormal
+             | DataDefRec
+             | DataDefOpen
              deriving Eq
 
+instance Show DataDef where
+  show dd = case dd of
+              DataDefValue m n -> "val(raw:" ++ show m ++ ",scan:" ++ show n ++ ")"
+              DataDefNormal    -> "normal"
+              DataDefRec       -> "rec"
+              DataDefOpen      -> "open"
 
 dataDefIsRec ddef
   = case ddef of
-      DataDefNormal -> False
+      DataDefValue{} -> False
+      DataDefNormal  -> False
       _  -> True
 
 dataDefIsOpen ddef
@@ -96,38 +134,41 @@ dataDefIsOpen ddef
       DataDefOpen -> True
       _ -> False
 
+dataDefIsValue ddef
+  = case ddef of
+      DataDefValue _ _ -> True
+      _ -> False
 
 {--------------------------------------------------------------------------
   Definition kind
 --------------------------------------------------------------------------}
 
 data DefSort
-  = DefFun MonKind | DefVal | DefVar
+  = DefFun | DefVal | DefVar
   deriving (Eq,Ord)
 
-isDefFun (DefFun _) = True
+isDefFun (DefFun )  = True
 isDefFun _          = False
 
 defFun :: DefSort
-defFun = DefFun PolyMon
+defFun = DefFun
 
 instance Show DefSort where
   show ds = case ds of
-              DefFun kind -> "fun" ++ show kind
+              DefFun -> "fun"
               DefVal -> "val"
               DefVar -> "var"
 
-data MonKind
-  = NoMon      -- no monadic type
-  | AlwaysMon  -- always monadically translated
-  | PolyMon    -- polymorphic in monad translation: has a fast non-monadic, and a monadic version
+
+data DefInline
+  = InlineNever | InlineAlways | InlineAuto
   deriving (Eq,Ord)
 
-instance Show MonKind where
-  show mk = case mk of
-              NoMon     -> ""
-              AlwaysMon -> "*"
-              PolyMon   -> "**"
+instance Show DefInline where
+  show di = case di of
+              InlineNever  -> "noinline"
+              InlineAlways -> "inline"
+              InlineAuto   -> "autoinline"
 
 {--------------------------------------------------------------------------
   Fixities

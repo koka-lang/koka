@@ -16,7 +16,7 @@ import Lib.Trace
 import Platform.Filetime
 import System.Directory            ( getCurrentDirectory, setCurrentDirectory )
 import Data.List                   ( isPrefixOf )
-import Data.Char                   ( isSpace )
+import Data.Char                   ( isSpace, toLower )
 import Control.Monad
 
 import Platform.Config hiding (programName)
@@ -28,7 +28,7 @@ import Common.Failure         ( raiseIO, catchIO )
 import Common.ColorScheme
 import Common.File            ( notext, joinPath, searchPaths, runSystem, isPathSep )
 import Common.Name            ( Name, unqualify, qualify, newName )
-import Common.NamePrim        ( nameExpr, nameType, nameInteractive, nameInteractiveModule, nameSystemCore, toShortModuleName )
+import Common.NamePrim        ( nameExpr, nameType, nameInteractive, nameInteractiveModule, nameSystemCore )
 import Common.Range
 import Common.Error
 
@@ -84,7 +84,7 @@ interpret printer flags0 files
    -}
       -- ; interpreterEx st2
 
-      ; err <- loadFilesErr (terminal st2) st2{ flags = flags0{ showCore = False, showAsmCSharp = False }} [(show (nameSystemCore))] False -- map (\c -> if c == '.' then fileSep else c)
+      ; err <- loadFilesErr (terminal st2) st2{ flags = flags0{ showCore = False }} [(show (nameSystemCore))] False -- map (\c -> if c == '.' then fileSep else c)
                   `catchIO` (\msg -> do messageError st2 msg;
                                         return (errorMsg (ErrorGeneral rangeNull (text msg))))
       ; case checkError err of
@@ -273,7 +273,7 @@ loadFilesErr term startSt fileNames force
 
                       else return () -- remark st "nothing to load"
                     messageLn st ""
-                    let st' = st{ program = programAddImports (program st) (map toImport imports) }
+                    let st' = st{ program = programAddImports (program st) ({- map toImport imports ++ -} map toImport (loadedModules (loaded st))) }
                         toImport mod
                             = Import (modName mod) (modName mod) rangeNull Private
                     return (return st')
@@ -563,7 +563,8 @@ remark st s
 terminal :: State -> Terminal
 terminal st
   = Terminal (messageErrorMsgLn st)
-             (if (verbose (flags st) > 0) then (\s -> withColor (printer st) DarkGray (message st (s ++ "\n"))) else (\_ -> return ()))
+             (if (verbose (flags st) > 1) 
+               then (\s -> withColor (printer st) DarkGray (message st (s ++ "\n"))) else (\_ -> return ()))
              (messagePrettyLn st)  -- (\_ -> return ()) --
              (messageScheme st)
              (messagePrettyLn st)
@@ -645,14 +646,23 @@ messageHeader st
   where
     colors = colorSchemeFromFlags (flags st)
     header = color(colorInterpreter colors) $ vcat [
-        text " _          _           "
-       ,text "| |        | |          "
-       ,text "| | __ ___ | | __ __ _  "
-       ,text $ "| |/ // _ \\| |/ // _` | welcome to the " ++ Config.programName ++ " interpreter"
-       ,text "|   <| (_) |   <| (_| | " <.> headerVersion
-       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_| " <.> color (colorSource colors) (text "type :? for help")
+        text " _          _           ____"
+       ,text "| |        | |         |__  \\"
+       ,text "| | __ ___ | | __ __ _  __) |"
+       ,text "| |/ // _ \\| |/ // _` || ___/ " <.> welcome 
+       ,text "|   <| (_) |   <| (_| ||____| "  <.> headerVersion
+       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|       "  <.> color (colorSource colors) (text "type :? for help")       
        ]
-    headerVersion = text $ "version " ++ version ++ (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", " ++ buildDate
+    headerVersion = text $ "version " ++ version ++ 
+                           (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", " 
+                           ++ buildDate ++ targetMsg
+    welcome       = text ("welcome to the " ++ Config.programName ++ " interpreter")
+    targetMsg      
+      = case (target (flags st)) of
+          C  -> ", libc " ++ show (8*sizePtr (platform (flags st))) ++ "-bit"
+          JS -> ", node"
+          CS -> ", .net"
+          _  -> ""
 
 semiRandom min max
   = do t <- getCurrentTime

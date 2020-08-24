@@ -1,6 +1,6 @@
 { "name": "Koka",
   "scopeName": "source.koka",
-  "fileTypes": ["kk","kki"],
+  "fileTypes": ["kk","kki","core"],
   "author": "Daan Leijen",
   "firstLineMatch": "\\s*(public|private)?\\s*(module)\\s*((interface)?)\\s*(([a-z][\\w\\-]*/)*[a-z][\\w\\-]*)",
   "foldingStartMarker": "{\\s*$",
@@ -64,9 +64,11 @@
 
     { "include": "#libraryid" },
 
-    { "include": "#qidentifier" },
-
     { "include": "#qconstructor" },
+
+    { "include": "#qoperator" },
+
+    { "include": "#qidentifier" },
 
     { "include": "#identifier" },
 
@@ -228,7 +230,7 @@
       },
 
     "libraryid":
-      { "match": "(finally|inline|cs|js|file|ref|resume|resume-shallow|context)(?![\\w\\-?'])"
+      { "match": "(finally|inline|noinline|value|novalue|c|cs|js|file|ref|resume|resume-shallow|context)(?![\\w\\-?'])"
       , "name": "support.function.koka"
       },
 
@@ -280,15 +282,23 @@
       },
 
     "identifier" :
-      { "match": "[a-z][\\w\\-]*[\\'\\?]*"
+      { "match": "[a-z][\\w\\-]*[\\'\\?]*(?:\\.\\d+)?"
       , "name": "source.koka"
       },
 
     "qidentifier" :
-      { "match": "([a-z][\\w\\-]*/)+([a-z][\\w\\-]*[\\'\\?]*)"
+      { "match": "((?:[a-z][\\w\\-]*/)+)([\\.a-z][\\w\\-]*[\\'\\?]*(?:\\.\\d+)?)"
       , "captures": {
           "1": { "name": "entity.name.class.module.koka"},
           "2": { "name": "source.koka" }
+        }
+      },
+
+    "qoperator" :
+      { "match": "((?:[a-z][\\w\\-]*/)+)(\\([^\\n\\r\\)]+(?:\\.\\d+)?\\))"
+      , "captures": {
+          "1": { "name": "entity.name.class.module.koka"},
+          "2": { "name": "source.operator.koka" }
         }
       },
 
@@ -298,7 +308,7 @@
       },
 
     "qconstructor" :
-      { "match": "([a-z][\\w\\-]*/)([A-Z][\\w\\-]*[\\'\\?]*)"
+      { "match": "((?:[a-z][\\w\\-]*/)+)([A-Z][\\w\\-]*[\\'\\?]*)"
       , "captures": {
           "1": { "name": "entity.name.class.module.koka"},
           "2": { "name": "constant.other.constructor.koka" }
@@ -353,7 +363,7 @@
       },
 
     "decl_function":
-      { "match": "((?:fun|function|effect|control)(?:\\s+(raw))?(?:\\s+(noresume|resume))?|val|var)\\s+([a-z][\\w\\-]*[\\'\\?]*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\)|\\[\\])"
+      { "match": "((?:fun|function|effect|control)(?:\\s+(raw))?(?:\\s+(noresume|resume))?|val|var)\\s+([\\.a-z][\\w\\-]*[\\'\\?]*(?:\\.\\d+)?|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+(?:\\.\\d+)?\\)|\\[\\])"
       , "captures": {
           "1": { "name": "keyword.declaration.function.koka" },
           "2": { "name": "keyword.declaration.function.koka" },
@@ -368,7 +378,7 @@
       },
 
     "decl_function0":
-      { "begin": "((?:fun|function)(?:\\s+raw)?)\\s*(([a-z][\\w\\-]*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\)|\\[\\]))?\\s*(\\()"
+      { "begin": "((?:fun|function)(?:\\s+raw)?)\\s*(([\\.a-z][\\w\\-]*[\\'\\?]*(?:\\.\\d+)?|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+(?:\\.\\d+)?\\)|\\[\\]))?\\s*(\\()"
       , "end": "(?=[\\)\\{\\}\\[\\]=;]|(infix|infixr|infixl|type|cotype|rectype|alias|interface|extern|external|fun|function|val|var|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|public|private|abstract|cont)(?![\\w\\-?']))"
       , "beginCaptures": {
           "1": { "name": "keyword.declaration.function.koka" },
@@ -384,7 +394,7 @@
       },
 
     "decl_external":
-      { "match": "(extern|external)\\s+(include|inline)?\\s*([a-z][\\w\\-]*|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\)|\\[\\])?"
+      { "match": "(extern|external)\\s+(include|inline)?\\s*([\\.a-z][\\w\\-]*[\\'\\?]*(?:\\.\\d+)?|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+(?:\\.\\d+)?\\)|\\[\\])?"
       , "captures": {
           "1": { "name": "keyword.declaration.function.koka" },
           "2": { "name": "support.function.koka" },
@@ -393,7 +403,7 @@
       },
 
     "decl_val":
-      { "match": "(((val)\\s+)?)(([a-z][\\w\\-]*[\\'\\?]*)|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\))\\s*(=)(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\|<>])"
+      { "match": "(((val)\\s+)?)(([\\.a-z][\\w\\-]*[\\'\\?]*(?:\\.\\d+)?)|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\))\\s*(=)(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\|<>])"
       , "captures": {
           "3": { "name": "keyword.declaration.val.koka" },
           "5": { "name": "entity.name.val.koka" },
@@ -509,8 +519,8 @@
       },
 
     "type_app":
-      { "begin": "<(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|\\s\\d()])"
-      , "end": ">"
+      { "begin": "<(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|\\s\\d])"
+      , "end": ">|\\n|  "
       , "beginCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
       , "endCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
       , "name": "entity.name.class.type.koka"
@@ -522,7 +532,6 @@
     "type_content":
       { "patterns": [
           { "include": "#type_parameter" },
-
           { "include": "#type_content_top" }
         ]
       },
@@ -558,7 +567,7 @@
         },
 
         { "begin": "<(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|])"
-        , "end": ">"
+        , "end": ">|\\n|  "
         , "beginCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
         , "endCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
         , "name": "entity.name.class.type.koka"

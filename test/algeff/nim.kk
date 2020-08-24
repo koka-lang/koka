@@ -1,6 +1,6 @@
 // --------------------------------------------------------
 // Examples from the paper "Liberating effects with rows and handlers"
-// by Daniel Hillerström and Sam Lindley.
+// by Daniel Hillerstroem and Sam Lindley.
 // --------------------------------------------------------
 
 // --------------------------------------------------------
@@ -36,7 +36,7 @@ fun show(ps : list<player> ) : string {
 // --------------------------------------------------------
 
 effect nim {
-  fun move(player:player,sticks:int) : int
+  control move(player:player,sticks:int) : int
 }
 
 
@@ -57,8 +57,7 @@ fun game(n) {
 // --------------------------------------------------------
 
 val perfect = handler {
-  return x   -> x
-  move(_p,n) -> resume(max(1,n%4))
+  fun move(_p,n) { max(1,n%4) }
 }
 
 fun testPerfect1() {
@@ -84,7 +83,7 @@ fun validMoves(n) {
 
 val gametree = handler {
   return x  -> Winner(x)
-  move(p,n) -> {
+  control move(p,n) {
     val moves    = validMoves(n)
     val subgames = moves.mymap(resume)
     val subtrees = zip(moves,subgames)
@@ -118,16 +117,14 @@ effect cheating {
 }
 
 val cheatReport = handler {
-  return x -> x
-  cheat(p) -> error(p.show + " cheated!")
+  fun cheat(p) { error((p:player).show + " cheated!") }
 }
 
 val check = handler {
-  return x  -> x
-  move(p,n) -> {
+  fun move(p,n) {
     val m = move(p,n)
     if (validMoves(n).find(fun(i) { i == m }).bool)
-     then resume(m)
+     then m
      else cheat(p)
   }
 }
@@ -142,10 +139,11 @@ fun testCheck() {
 // --------------------------------------------------------
 
 val pc = handler {
-  return x -> x
-  move(p,n) -> match(p){
-    Alice -> resume(max(1,n%4))
-    Bob   -> resume(n)
+  fun move(p,n) {
+    match(p){
+      Alice -> max(1,n%4)
+      Bob   -> n
+    }
   }
 }
 
@@ -172,15 +170,17 @@ fun bobChooses(m) {
   if (choose()) then pc(m) else perfect(m)
 }
 
+
 val allResults = handler {
   return x -> [x]
-  choose() -> resume(True) + resume(False)
+  choose() -> ((resume(True) + resume(False)):list<_>)
 }
 
 fun testChoose() {
   allResults{ bobChooses { game(7) } }  // [bob,alice]
 }
 
+/*
 val coin = handler {
   return x -> x
   choose() -> resume(random() > 0.5)
@@ -189,7 +189,7 @@ val coin = handler {
 fun testCoin() {
   coin{ bobChooses { game(7) } }
 }
-
+*/
 
 // --------------------------------------------------------
 // Scoreboard
@@ -210,7 +210,7 @@ val state-param = handler(s) {
 
 fun state(init,action) {
   var s := init
-  handle(action) {
+  handle({mask<local>(action)}) {
     get()  -> resume(s)
     put(x) -> { s := x; resume(()) }
   }
@@ -246,9 +246,11 @@ fun printBoard( gs : gstate ) : io () {
   }).join("\n").println
 }
 
+/*
 fun testPrint1() {
   state(s0){ printer{ coin{ bobChooses{ scoreUpdater{ game(7) }}}}}
 }
+*/
 
 fun replay(n : int,action : () -> <div|e> a) : <div|e> a {
   handle(action) {
@@ -256,10 +258,11 @@ fun replay(n : int,action : () -> <div|e> a) : <div|e> a {
   }
 }
 
+/*
 fun testPrint2() {
   state(s0){ printer{ replay(10){ coin{ bobChooses{ scoreUpdater{ game(7) }}}}}}
 }
-
+*/
 
 fun main() {
   [""

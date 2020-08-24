@@ -1,0 +1,6 @@
+resolver: lts-14.27
+packages:
+- '.'
+extra-deps:
+- stylish-haskell-0.11.0.0
+- hlint-2.1.26

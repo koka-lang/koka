@@ -47,6 +47,7 @@ type UserTypeDefGroup = TypeDefGroup UserType UserKind
 type UserUserCon = UserCon UserType UserType UserKind
 type UserPattern = Pattern UserType
 type UserBranch  = Branch UserType
+type UserGuard   = Guard UserType
 type UserHandlerBranch = HandlerBranch UserType
 type UserValueBinder = ValueBinder () -- (Maybe UserType)
 type UserTypeBinder = TypeBinder UserKind
@@ -179,6 +180,7 @@ data Def t
        , defRange  :: Range
        , defVis    :: Visibility
        , defSort   :: DefSort
+       , defInline :: DefInline
        , defDoc    :: String
        }
 
@@ -207,7 +209,7 @@ data Expr t
   | Parens (Expr t)              Range
   | Handler (HandlerSort (Expr t)) HandlerScope HandlerOverride
                   (Maybe t) [ValueBinder (Maybe t) ()]
-                  (Expr t) (Expr t) (Expr t) [HandlerBranch t] Range Range
+                  (Maybe (Expr t)) (Maybe (Expr t)) (Maybe (Expr t)) [HandlerBranch t] Range Range
   | Inject t (Expr t) Bool {-behind?-} Range
 
 
@@ -230,10 +232,10 @@ data HandlerBranch t
                  }
 
 data Branch t
-  = Branch{ branchPattern :: (Pattern t)
-          , branchGuard :: (Expr t)
-          , branchExpr   :: (Expr t)
-          }
+  = Branch{ branchPattern :: (Pattern t), branchGuards :: [Guard t] }
+  
+data Guard t 
+  = Guard { guardTest :: (Expr t), guardExpr :: (Expr t) }
 
 -- | Patterns
 data Pattern t
@@ -291,7 +293,7 @@ instance Ranged (TypeDef t u k) where
     = typeDefRange typeDef
 
 instance Ranged t => Ranged (Def t) where
-  getRange (Def binder nameTypeRange _ _ _)
+  getRange (Def binder nameTypeRange _ _ _ _)
     = getRange binder
 
 instance Ranged (ValueBinder t e) where
@@ -363,8 +365,12 @@ instance Ranged (Pattern t) where
         PatLit lit              -> getRange lit
 
 instance Ranged (Branch t) where
-  getRange (Branch patterns guard body)
-    = combineRange (getRange patterns) (getRange body)
+  getRange (Branch patterns guards)
+    = combineRange (getRange patterns) (getRange guards)
+
+instance Ranged (Guard t) where
+  getRange (Guard guard body)
+    = combineRange (getRange guard) (getRange body)
 
 instance Ranged (HandlerBranch t) where
   getRange (HandlerBranch{ hbranchPatRange=rng, hbranchExpr=expr })
@@ -405,7 +411,7 @@ instance HasName (ValueBinder t e) where
   getRName vb = (binderName vb,binderNameRange vb)
 
 instance HasName (Def t) where
-  getRName (Def vb range _ _ _) = getRName vb
+  getRName (Def vb range _ _ _ _) = getRName vb
 
 
 
@@ -444,10 +450,10 @@ instance HasFreeTypeVar a => HasFreeTypeVar (Either a b) where
   Access definitions
 --------------------------------------------------------------------------}
 defBody :: Def t -> Expr t
-defBody (Def vb _ _ _ _)  = binderExpr vb
+defBody (Def vb _ _ _ _ _)  = binderExpr vb
 
 defName :: Def t -> Name
-defName (Def vb _ _ _ _)  = binderName vb
+defName (Def vb _ _ _ _ _)  = binderName vb
 
 defType :: Def t -> Maybe t
 defType def

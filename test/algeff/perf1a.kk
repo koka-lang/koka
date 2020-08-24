@@ -1,10 +1,10 @@
-import std/time
+import std/time/timer
 
 fun fib(n) {
   if (n<=1) then 1 else fib(n - 1) + fib(n - 2);
 }
 
-fun comp() { 
+fun comp() {
   fib(4)
 }
 
@@ -12,7 +12,7 @@ effect state<s> {
   fun get()      : s
   fun put(i : s) : ()
 }
- 
+
 fun count() {
   comp()
   val i = get()

@@ -20,7 +20,7 @@ module Syntax.Lexer
             ) where
 
 -- import Lib.Trace
-import Data.Char                                 hiding    ( isLetter, isAlphaNum ) 
+import Data.Char                                 hiding    ( isLetter, isAlphaNum )
 import Lib.Set as Set                               ( Set, fromList, member )
 import qualified Lib.PPrint as PP
 
@@ -76,7 +76,7 @@ reservedNames
 
 symbols :: [Char]
 symbols
-  = "$%&*+@!/\\^~=.:-?<.>|"    
+  = "$%&*+@!/\\^~=.:-?<.>|"
 
 isReserved :: String -> Bool
 isReserved name
@@ -125,7 +125,7 @@ uneither (Right x)  = x
 
 -- note: input can differ from sourceText source for literate files.
 lexing  :: Source -> Int -> BString -> [Lexeme] -- Either ErrorMessage [Lexeme]
-lexing source line input 
+lexing source line input
   = uneither $ parse (lexemes source line) (Range.sourceName source) (bstringToString input) -- of
     --  Left err  -> Left  $ ErrorParse (rangeNull) $ PP.text "invalid syntax" PP.<+> PP.string (show err)
     --  Right xs  -> Right $ xs
@@ -139,7 +139,7 @@ lexemes source line
        return xs
   where
     tokens  -- order matters! for example, first comment or otherwise /* may be scanned as an operator
-      = [whitespace,comment,idOrOp,specials,literal,wildcard]  
+      = [whitespace,comment,idOrOp,specials,literal,wildcard]
 
     ranged :: Parser Lex -> Parser Lexeme
     ranged p
@@ -257,24 +257,24 @@ digitsToNum base digits
 -- Qualification
 -----------------------------------------------------------
 idOrOp
-  = qualify (plainid <|> plainop <|> plaincon) 
+  = qualify (plainid <|> plainop <|> plaincon)
 
 qualify :: Parser Lex -> Parser Lex
 qualify p
   = do cid <- conid   -- constructor?
        (do char '.'   -- it was actually a module qualifier..
-           tok <- p  
+           tok <- p
            return $ case tok of -- and qualify
              LexId name      -> LexId (addQualifier cid name)
-             LexCons name    -> LexCons (addQualifier cid name) 
+             LexCons name    -> LexCons (addQualifier cid name)
              LexKeyword name _ -> LexError ("cannot qualify keywords (" ++ show name ++ ")")
              _               -> failure ("Syntax.Lexer.qualify: unexpected token: " ++ show tok)
         <|>
            -- no qualifier: it was just a constructor
-           return (LexCons (newName cid))  
+           return (LexCons (newName cid))
         )
    <|>
-    -- otherwise, just return p  
+    -- otherwise, just return p
     do p
   where
     addQualifier modid name
@@ -331,7 +331,7 @@ conid
        return (c:cs)
 
 plainid :: Parser Lex
-plainid 
+plainid
   = do c <- lower
        cs <- idchars
        let name = c:cs
@@ -355,11 +355,11 @@ idchar :: Parser String
 idchar
   = do c <- alphanum <|> oneOf "_"
        return [c]
-  <|> 
+  <|>
     try (do char '-'
             c <- letter
             return ['-',c])
-   
+
 
 
 
@@ -367,19 +367,19 @@ idchar
 -- Strings
 -----------------------------------------------------------
 charLit :: Parser Lex
-charLit   
+charLit
   = do char '\''
        c <- charGraphic '\'' <|> space <|> escape <|> utf8
        char '\''
        return (LexChar c)
     <?> "character"
 
-charGraphic x  
+charGraphic x
   = satisfy (\c -> (isGraphic c) && (c /= '\\') && (c /= x))
 
 
 stringLit :: Parser Lex
-stringLit   
+stringLit
   = do string "@\"" -- literal string
        s <- many (satisfy (/='"') <|> do{ try (string "\"\""); return '"' })
        char '"' <?> "end of a string literal"
@@ -388,12 +388,12 @@ stringLit
     do char '"'
        s <- many ((charGraphic '"' <|> space <|> escape <|> utf8) <?> "")
        char '"' <?> "end of a string literal"
-       return (LexString s)                    
+       return (LexString s)
     <?> "string"
 
 
 utf8 :: Parser Char
-utf8 
+utf8
   = do c1 <- extended
        let between lo hi  = (c1 >= lo && c1 <= hi)
        if (between '\xC2' '\xDF')
@@ -425,7 +425,7 @@ utf8
                  c3 <- cont
                  c4 <- cont
                  return (decode4 c1 c2 c3 c4)
-        else if (c1 == '\xF4') 
+        else if (c1 == '\xF4')
          then do c2 <- range '\x80' '\x8F'
                  c3 <- cont
                  c4 <- cont
@@ -446,7 +446,7 @@ utf8
 
 
 
-escape          
+escape
   = do char '\\'
        (charesc <|> hexesc <?> "escape code")
 
@@ -459,7 +459,7 @@ hexesc
                  do{ char 'U'; count 6 hexDigit }
        return (toEnum (fromInteger (digitsToNum 16 digits)))  -- TODO: check overflow
 
-charesc         
+charesc
   = choice (map parseEsc escMap)
  where
     parseEsc (c,code) = do{ char c; return code }
@@ -508,7 +508,7 @@ incomment acc
     <?> "end of comment"
     where
       commentchar     = "*/"
-      contentchar     =   whitechar 
+      contentchar     =   whitechar
                       <|> satisfy (\c -> (isGraphic c || isExtended c || c=='\t') && not (c `elem` commentchar))
 
 
@@ -529,7 +529,7 @@ isAlphaNum c = isLetter c || isDigit c
 letter   :: Parser Char
 letter    = satisfy isLetter
 isLetter  :: Char -> Bool
-isLetter c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') 
+isLetter c = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 lower    :: Parser Char
 lower     = satisfy (\c -> (c >= 'a' && c <= 'z'))
 upper    :: Parser Char
@@ -545,7 +545,7 @@ isWhiteChar c = c == ' ' || c == '\n' || c == '\r'
 isGraphic    :: Char -> Bool
 isGraphic c   = c >= '\x21' && c <= '\x7E'
 isExtended   :: Char -> Bool
-isExtended c  = c >= '\x7F' && c <= '\xFF' 
+isExtended c  = c >= '\x7F' && c <= '\xFF'
 
 -- bom      = do{ char '\xEF'; char '\xBB'; char '\xBF' }
 
@@ -571,18 +571,18 @@ utfDecode acc s
 
       -- modified utf8 encoding of 0
       (c1:c2:cs)        | (c1 == '\xC0' && c2 == '\x80') -> utfDecode ('\x00':acc) cs
-      
+
       -- invalid sequence of 4: use replacement
       (c1:c2:c3:c4:cs)        | (c1 >= '\xF5' && c1 <= '\xF7' && isCont c2 && isCont c3 && isCont c4) -> utfDecode (replacement:acc) cs
       -- invalid sequence of 5: use replacement
       (c1:c2:c3:c4:c5:cs)     | (c1 >= '\xF8' && c1 <= '\xFB' && isCont c2 && isCont c3 && isCont c4 && isCont c5) -> utfDecode (replacement:acc) cs
       -- invalid sequence of 6: use replacement
       (c1:c2:c3:c4:c5:c6:cs)  | (c1 >= '\xFC' && c1 <= '\xFD' && isCont c2 && isCont c3 && isCont c4 && isCont c5 && isCont c6) -> utfDecode (replacement:acc) cs
-      
+
       -- continuation bytes: skip
       (c:cs)            | isCont c -> utfDecode acc cs
       -- (c1:c2:cs)        | (c1 >= '\x80' && c1 <= '\xBF' && isCont c2) -> utfDecode (decode2 c1 c2) cs
-      
+
       -- otherwise: use replacement character
       (c:cs)            -> utfDecode (replacement:acc) cs
   where

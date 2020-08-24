@@ -84,7 +84,7 @@ fun test(n) {
 }
 
 fun main() {
-  test(10)
+  test(12)
 }
 
 
@@ -94,4 +94,3 @@ fun show-solutions( xss : solutions ) : io () {
     println(" " + xs.show)
   }  
 }
-

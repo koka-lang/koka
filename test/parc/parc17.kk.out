@@ -1,0 +1,13 @@
+module parc/parc17
+private import std/core/types = std/core/types = "";
+private import std/core/hnd = std/core/hnd = "";
+private import std/core = std/core = "";
+public fun test : (xs : list<int>) -> list<int>
+ = fun(xs: list<int>){
+ match (xs) {
+ (std/core/Cons(((.skip std/core/types/.Box((.pat: int)) : .Box ) as .box-x18: .Box), (.pat0: list<int>)) : list<int> )
+ -> xs;
+ (.skip std/core/Nil() : (list<int>) )
+ -> std/core/Nil;
+ }
+ };

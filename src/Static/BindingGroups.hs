@@ -14,7 +14,6 @@ import qualified Common.NameSet as S
 import Data.List(partition,isPrefixOf)
 import Lib.Scc( scc )  -- determine strongly connected components
 import Common.Name
-import Common.NamePrim (toShortModuleName)
 import Common.Range
 import Common.Syntax
 import Syntax.Syntax
@@ -27,7 +26,7 @@ import Lib.Trace (trace)
 
 bindingGroups :: UserProgram -> UserProgram
 bindingGroups (Program source modName nameRange typeDefs defs imports externals fixDefs doc)
-  = Program source modName nameRange (bindingsTypeDefs typeDefs) (bindings (toShortModuleName modName) defs) imports externals fixDefs doc
+  = Program source modName nameRange (bindingsTypeDefs typeDefs) (bindings ({-toShortModuleName-} modName) defs) imports externals fixDefs doc
 
 ---------------------------------------------------------------------------
 -- Binding groups in type definitions
@@ -114,8 +113,8 @@ dependencies modName defs
     (depDefs, deps)  = unzipWith (id,unions) (map (dependencyDef modName) defs)
 
 dependencyDef :: Name -> UserDef -> (UserDef, Deps)
-dependencyDef modName (Def binding range vis isVal defDoc)
-  = (Def depBinding range vis isVal defDoc, deps)
+dependencyDef modName (Def binding range vis isVal inline defDoc)
+  = (Def depBinding range vis isVal inline defDoc, deps)
   where
     (depBinding,deps) = dependencyBinding modName binding
 
@@ -171,10 +170,10 @@ dependencyExpr modName expr
 --      Con    name isop range -> (expr, S.empty)
       Lit    lit           -> (expr, S.empty)
       Handler shallow scoped override eff pars reinit ret final ops hrng rng
-        -> let (depRet,fv1)     = dependencyExpr modName ret
+        -> let (depRet,fv1)     = dependencyExprMaybe modName ret
                (depBranches,fv2)= dependencyBranches dependencyHandlerBranch modName ops
-               (depReinit,fv3)  = dependencyExpr modName reinit
-               (depFinal,fv4)   = dependencyExpr modName final
+               (depReinit,fv3)  = dependencyExprMaybe modName reinit
+               (depFinal,fv4)   = dependencyExprMaybe modName final
                fvs              = S.difference (S.unions [fv1,fv2,fv3,fv4]) (S.fromList (map binderName pars))
            in (Handler shallow scoped override eff pars depReinit depRet depFinal depBranches hrng rng,fvs)
       Inject tp body b rng -> let (depBody,fv) = dependencyExpr modName body
@@ -183,6 +182,11 @@ dependencyExpr modName expr
 dependencyBranches f modName branches
   = unzipWith (id,S.unions) (map (f modName) branches)
 
+dependencyExprMaybe modName mbExpr
+  = case mbExpr of
+      Nothing -> (Nothing,S.empty)
+      Just expr -> let (depExpr,fv) = dependencyExpr modName expr
+                   in (Just depExpr,fv)
 
 dependencyHandlerBranch :: Name -> UserHandlerBranch -> (UserHandlerBranch, FreeVar)
 dependencyHandlerBranch modName hb@(HandlerBranch{ hbranchName=name, hbranchPars=pars, hbranchExpr=expr })
@@ -193,11 +197,16 @@ dependencyHandlerBranch modName hb@(HandlerBranch{ hbranchName=name, hbranchPars
 
 
 dependencyBranch :: Name -> UserBranch -> (UserBranch, FreeVar)
-dependencyBranch modName (Branch pattern guard expr)
-  = (Branch pattern depGuard depExpr, S.difference (S.union fvGuard fvExpr) (freeVar pattern))
+dependencyBranch modName (Branch pattern guards)
+  = let (depGuards, fvGuards) = unzipWith (id,S.unions) (map (dependencyGuard modName) guards)
+    in  (Branch pattern depGuards, S.difference fvGuards (freeVar pattern))
+
+dependencyGuard :: Name -> UserGuard -> (UserGuard, FreeVar)
+dependencyGuard modName (Guard test expr)
+  = (Guard depTest depExpr, S.union fvTest fvExpr)
   where
-    (depGuard, fvGuard) = dependencyExpr modName guard
-    (depExpr, fvExpr)   = dependencyExpr modName expr
+    (depTest, fvTest) = dependencyExpr modName test
+    (depExpr, fvExpr) = dependencyExpr modName expr
 
 dependencyLamBinders :: Name -> FreeVar -> [ValueBinder (Maybe UserType) (Maybe UserExpr)] -> ([ValueBinder (Maybe UserType) (Maybe UserExpr)], FreeVar)
 dependencyLamBinders modName fv []
@@ -257,7 +266,7 @@ group defs deps
         defOrder0 = scc defDeps
         defOrder  = let (xs,ys) = partition noDeps defOrder0  -- no dependencies first
                         noDeps ids = case ids of
-                                       [id] -> S.null (M.find id defDeps0)
+                                       [id] -> isEarlyBindName id || S.null (M.find id defDeps0)
                                        _    -> False
                         (xxs,xys) = partition isHidden xs    -- and hidden names first inside those
                         isHidden ids = case ids of
@@ -272,8 +281,11 @@ group defs deps
                                     then [DefRec (M.find id defMap)]
                                     else map DefNonRec (M.find id defMap)
                            _    -> [DefRec [def | id <- ids, def <- M.find id defMap]]
-    in -- trace ("trace: binding order: " ++ show defVars ++ "\n " ++ show (defDeps) ++ "\n " ++ show defOrder0 ++ "\n " ++ show defOrder) $
-       concatMap makeGroup defOrder
+        finalGroup     = concatMap makeGroup defOrder
+    in --trace ("trace: bindings: " ++ show defVars ++ "\n\ndependencies: " ++ show (defDeps) ++
+       --             "\n\ninitial order: " ++ show defOrder0 ++ "\n\nfinal order: " ++ show defOrder) $
+       finalGroup
+
 
 groupTypeDefs :: [UserTypeDef] -> Deps -> [UserTypeDefGroup]
 groupTypeDefs typeDefs deps
@@ -307,7 +319,9 @@ orderedPartition pred xs
       = if (pred x) then part xx (x:ys,zs) else part xx (ys,x:zs)
 
 {-
-
+As a tribute to Doaitse Swierstra, let's leave in this code which
+was from a time when we used the Attribute Grammar system from
+Doaitse developed at the University of Utrecht.
 
 {--------------------------------------------------------------------
   Group

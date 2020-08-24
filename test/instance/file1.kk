@@ -19,5 +19,6 @@ fun fake-file(content,action) {
 fun main() {
   with<filesys> { }                // ~> with with<filesys> { }
   with f = fake-file( "hi" )       // ~> fake-file("hi", fun(f) { ... } }
-  println(f.read.count + 40)
+  with g = fake-file("there")
+  println(f.read() + g.read())
 }

@@ -1,0 +1,90 @@
+name:       koka
+version:    2.0.0.0
+github:     "koka-lang/koka"
+license:    Apache-2.0
+author:     Daan Leijen
+maintainer: daan@microsoft.com
+
+extra-source-files:
+  - readme.md
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description: Please see the README on GitHub at <https://github.com/koka-lang/koka#readme>
+
+dependencies:
+  - base >= 4.9 && < 5
+  - array
+  - bytestring
+  - cond
+  - containers
+  - directory
+  - mtl
+  - parsec
+  - process
+  - text
+  - time
+
+# Uncomment after moving src/Main.hs -> app/Main.hs
+
+# library:
+#   other-extensions:
+#     - CPP
+#     - OverloadedStrings
+#   source-dirs:
+#     - src
+#     - src/Platform/cpp
+#   c-sources:
+#     - src/Platform/cpp/Platform/cconsole.c
+#   include-dirs:
+#     - src/Platform/cpp/Platform
+#   build-tools:
+#     - alex
+#   when:
+#     - condition: os(windows)
+#       cpp-options: -DWINDOWS
+
+executables:
+  koka:
+    main: Main.hs
+    # source-dirs: app
+    # dependencies: koka
+    other-extensions:
+      - CPP
+      - OverloadedStrings
+    source-dirs:
+      - src
+      - src/Platform/cpp
+    c-sources:
+      - src/Platform/cpp/Platform/cconsole.c
+    include-dirs:
+      - src/Platform/cpp/Platform
+    build-tools:
+      - alex
+    ghc-options:
+      - -rtsopts
+    cpp-options:
+      - -DMAIN="koka"
+      - -DVARIANT="release"
+      - -DVERSION="2.0.0-alpha"
+    when:
+      - condition: os(windows)
+        cpp-options: -DWINDOWS
+
+tests:
+  koka-test:
+    main: Spec.hs
+    source-dirs: test
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      # - koka
+      - extra
+      - filepath
+      - hspec
+      - hspec-core
+      - process
+      - regex-compat

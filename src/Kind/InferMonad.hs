@@ -9,14 +9,14 @@
 -----------------------------------------------------------------------------
 module Kind.InferMonad( KInfer
                       , runKindInfer
-                      , addError
+                      , addError, addWarning
                       , freshKind,freshTypeVar,subst
                       , getKGamma
-                      , getSynonyms
+                      , getSynonyms, getAllNewtypes, getPlatform
                       , extendInfGamma, extendKGamma, extendKSub
                       , findInfKind
                       , getColorScheme
-                      , lookupSynInfo
+                      , lookupSynInfo, lookupDataInfo
                       , qualifyDef
                       , addRangeInfo
                       , infQualifiedName
@@ -30,10 +30,10 @@ import Lib.Trace
 import Lib.PPrint
 import Common.Failure( failure )
 import Common.Range
+import Common.Syntax( Platform )
 import Common.ColorScheme
 import Common.Unique
 import Common.Name
-import Common.NamePrim( toShortModuleName )
 import Common.QNameMap( Lookup(..) )
 import qualified Common.NameMap as M
 
@@ -41,6 +41,7 @@ import Kind.Kind
 import Kind.InferKind
 import Kind.Assumption
 import Kind.Synonym
+import Kind.Newtypes
 import Kind.ImportMap
 
 import Syntax.Syntax
@@ -57,16 +58,17 @@ import qualified Core.Core as Core
 data KInfer a = KInfer (KEnv -> KSt -> KResult a)
 
 data KSt        = KSt{ kunique :: !Int, ksub :: !KSub, mbRangeMap :: Maybe RangeMap  }
-data KEnv       = KEnv{ cscheme :: !ColorScheme, currentModule :: !Name, imports :: ImportMap
-                      , kgamma :: !KGamma, infgamma :: !InfKGamma, synonyms :: !Synonyms }
+data KEnv       = KEnv{ cscheme :: !ColorScheme, platform :: !Platform, currentModule :: !Name, imports :: ImportMap
+                      , kgamma :: !KGamma, infgamma :: !InfKGamma, synonyms :: !Synonyms
+                      , newtypesImported :: !Newtypes, newtypesExtended :: !Newtypes }
 data KResult a  = KResult{ result:: !a, errors:: ![(Range,Doc)], warnings :: ![(Range,Doc)], st :: !KSt }
 
-runKindInfer :: ColorScheme -> Maybe RangeMap -> Name -> ImportMap -> KGamma -> Synonyms -> Int -> KInfer a -> ([(Range,Doc)],[(Range,Doc)],Maybe RangeMap,Int,a)
-runKindInfer cscheme mbRangeMap moduleName imports kgamma syns unique (KInfer ki)
-  = let imports' = case importsExtend (toShortModuleName moduleName) moduleName imports of
+runKindInfer :: ColorScheme -> Platform -> Maybe RangeMap -> Name -> ImportMap -> KGamma -> Synonyms -> Newtypes -> Int -> KInfer a -> ([(Range,Doc)],[(Range,Doc)],Maybe RangeMap,Int,a)
+runKindInfer cscheme platform mbRangeMap moduleName imports kgamma syns datas unique (KInfer ki)
+  = let imports' = case importsExtend ({-toShortModuleName-} moduleName) moduleName imports of
                      Just imp -> imp
                      Nothing  -> imports -- ignore
-    in case ki (KEnv cscheme moduleName imports' kgamma M.empty syns) (KSt unique ksubEmpty mbRangeMap) of
+    in case ki (KEnv cscheme platform moduleName imports' kgamma M.empty syns datas newtypesEmpty) (KSt unique ksubEmpty mbRangeMap) of
          KResult x errs warns (KSt unique1 ksub rm) -> (errs,warns,rm,unique1,x)
 
 
@@ -152,10 +154,20 @@ getSynonyms
   = do env <- getKindEnv
        return (synonyms env)
 
+getAllNewtypes :: KInfer Newtypes
+getAllNewtypes
+ = do env <- getKindEnv  -- assume right-biased union
+      return (newtypesCompose  (newtypesImported env) (newtypesExtended env))
+
 getColorScheme :: KInfer ColorScheme
 getColorScheme
   = do env <- getKindEnv
        return (cscheme env)
+       
+getPlatform :: KInfer Platform
+getPlatform
+ = do env <- getKindEnv
+      return (platform env)       
 
 -- | Extend the inference kind assumption; checks for 'shadow' definitions
 extendInfGamma :: [TypeBinder InfKind] -> KInfer a -> KInfer a
@@ -204,8 +216,8 @@ extendKGamma ranges (Core.TypeDefGroup (tdefs)) ki
                                                   text "is already defined"
                                  return (kgamma,tdefs)
       where
-        nameKind (Core.Synonym synInfo vis) = (synInfoName synInfo, synInfoKind synInfo)
-        nameKind (Core.Data dataInfo vis conviss isExtend)   = (dataInfoName dataInfo, dataInfoKind dataInfo)
+        nameKind (Core.Synonym synInfo) = (synInfoName synInfo, synInfoKind synInfo)
+        nameKind (Core.Data dataInfo isExtend)   = (dataInfoName dataInfo, dataInfoKind dataInfo)
 
 
 -- | This extend KGamma does not check for duplicates
@@ -214,15 +226,20 @@ extendKGammaUnsafe (tdefs) (KInfer ki)
   -- ASSUME: kgamma and synonyms have a right-biased union
   = KInfer (\env -> \st -> ki (env{ kgamma = -- trace ("extend kgamma:\n" ++ show (kgamma env) ++ "\n with\n " ++ show (kGamma)) $
                                              kgammaUnion (kgamma env) kGamma
-                                  , synonyms = synonymsCompose (synonyms env) kSyns }) st)
+                                  , synonyms = synonymsCompose (synonyms env) kSyns
+                                  , newtypesExtended = newtypesCompose (newtypesExtended env) kNewtypes }) st)
   where
     kGamma = kgammaNewNub (map nameKind tdefs) -- duplicates are removed here
-    nameKind (Core.Synonym synInfo vis) = (synInfoName synInfo, synInfoKind synInfo)
-    nameKind (Core.Data dataInfo vis conviss isExtend)   = (dataInfoName dataInfo, dataInfoKind dataInfo)
+    nameKind (Core.Synonym synInfo)        = (synInfoName synInfo, synInfoKind synInfo)
+    nameKind (Core.Data dataInfo isExtend) = (dataInfoName dataInfo, dataInfoKind dataInfo)
 
     kSyns  = synonymsNew (concatMap nameSyn tdefs)
-    nameSyn (Core.Synonym synInfo vis) = [synInfo]
-    nameSyn _                          = []
+    nameSyn (Core.Synonym synInfo ) = [synInfo]
+    nameSyn _                       = []
+
+    kNewtypes  = newtypesNew (concatMap nameNewtype tdefs)
+    nameNewtype (Core.Data dataInfo _ )   = [dataInfo]
+    nameNewtype _                         = []
 
 infQualifiedName :: Name -> Range -> KInfer Name
 infQualifiedName name range  | not (isQualified name)
@@ -318,3 +335,10 @@ lookupSynInfo :: Name -> KInfer (Maybe SynInfo)
 lookupSynInfo name
   = do env <- getKindEnv
        return (synonymsLookup name (synonyms env))
+
+lookupDataInfo :: Name -> KInfer (Maybe DataInfo)
+lookupDataInfo name
+ = do env <- getKindEnv
+      case (newtypesLookupAny name (newtypesExtended env)) of
+        Nothing -> return (newtypesLookupPublic name (newtypesImported env))
+        just    -> return just

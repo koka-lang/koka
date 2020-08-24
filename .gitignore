@@ -1,6 +1,13 @@
+.stack-work
+.trash/
+.idea/
+.vs/
 node_modules/
 out/
-stack.yaml
-.stack-work
 src/Syntax/Lexer.hs
-.idea/
+kklib/mimalloc-inline
+stack.yaml.lock
+package-lock.json
+*.pdb
+*~
+*.exe

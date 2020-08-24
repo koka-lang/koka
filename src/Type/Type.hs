@@ -29,9 +29,10 @@ module Type.Type (-- * Types
                   , expandSyn
                   , canonicalForm, minimalForm
                   -- ** Standard types
-                  , typeInt, typeBool, typeFun, typeVoid, typeInt32
+                  , typeInt, typeBool, typeFun, typeVoid, typeInt32, typeEvIndex, typeSizeT
                   , typeUnit, typeChar, typeString, typeFloat
                   , typeTuple, typeAny
+                  , typeEv, isEvType, makeEvType
                   , effectExtend, effectExtends, effectEmpty, effectFixed, tconEffectExtend
                   , effectExtendNoDup, effectExtendNoDups
                   , extractEffectExtend
@@ -42,6 +43,7 @@ module Type.Type (-- * Types
                   , typeDivergent, typeTotal, typePartial
                   , typeList, typeVector, typeApp, typeRef, typeNull, typeOptional, typeMakeTuple
                   , isOptional, makeOptional, unOptional
+                  , typeReuse
 
                   --, handledToLabel
                   , tconHandled, tconHandled1
@@ -60,12 +62,12 @@ module Type.Type (-- * Types
                   -- ** Trivial conversion
                   , IsType( toType)
                   -- ** Primitive
-                  , isFun, splitFunType
+                  , isFun, splitFunType, splitFunScheme
                   , getTypeArities
                   , module Common.Name
                   ) where
 
--- import Lib.Trace
+import Lib.Trace
 import Data.Maybe(isJust)
 import Data.List( sortBy )
 
@@ -164,14 +166,15 @@ maxSynonymRank tp
 --------------------------------------------------------------------------}
 
 -- | Data type information: name, kind, type arguments, and constructors
-data DataInfo = DataInfo{ dataInfoSort :: DataKind
-                        , dataInfoName :: Name
-                        , dataInfoKind :: Kind
-                        , dataInfoParams :: [TypeVar] {- ^ arguments -}
+data DataInfo = DataInfo{ dataInfoSort    :: DataKind
+                        , dataInfoName    :: Name
+                        , dataInfoKind    :: Kind
+                        , dataInfoParams  :: [TypeVar] {- ^ arguments -}
                         , dataInfoConstrs :: [ConInfo]
-                        , dataInfoRange  :: Range
-                        , dataInfoDef    :: DataDef
-                        , dataInfoDoc    :: String
+                        , dataInfoRange   :: Range
+                        , dataInfoDef     :: DataDef  -- value(raw,scan), normal, rec, open
+                        , dataInfoVis     :: Visibility
+                        , dataInfoDoc     :: String
                         }
 
 dataInfoIsRec info
@@ -197,6 +200,7 @@ data ConInfo = ConInfo{ conInfoName :: Name
                       , conInfoParamRanges :: [Range]
                       , conInfoParamVis    :: [Visibility]
                       , conInfoSingleton :: Bool -- ^ is this the only constructor of this type?
+                      , conInfoVis :: Visibility
                       , conInfoDoc :: String
                       }
 
@@ -211,6 +215,7 @@ data SynInfo = SynInfo{ synInfoName :: Name
                       , synInfoType :: Type {- ^ result type -}
                       , synInfoRank :: SynonymRank
                       , synInfoRange :: Range
+                      , synInfoVis :: Visibility
                       , synInfoDoc :: String
                       }
              deriving Show
@@ -382,10 +387,16 @@ applyType tp1 tp2
 
 getTypeArities :: Type -> (Int,Int)
 getTypeArities tp
+  = case splitFunScheme tp of
+      Just (tvars,_,pars,eff,res) -> (length tvars, length pars)
+      Nothing -> (0,0)
+
+splitFunScheme :: Scheme -> Maybe ([TypeVar],[Pred],[(Name,Tau)],Effect,Tau)
+splitFunScheme tp
   = let (tvars, preds, rho) = splitPredType tp
     in case splitFunType rho of
-         Just (pars,eff,res) -> (length tvars, length pars)
-         Nothing             -> (length tvars, 0)
+         Just (pars,eff,res) -> Just (tvars,preds,pars,eff,res)
+         Nothing             -> Nothing
 
 
 {--------------------------------------------------------------------------
@@ -462,6 +473,13 @@ typeInt32 :: Tau
 typeInt32
   = TCon (TypeCon nameTpInt32 kindStar)
 
+typeEvIndex :: Tau
+typeEvIndex
+  = TSyn (TypeSyn nameTpEvIndex kindStar 0 Nothing) [] typeSizeT
+
+typeSizeT :: Tau
+typeSizeT
+  = TCon (TypeCon nameTpSizeT kindStar)
 
 -- | Type of floats
 typeFloat :: Tau
@@ -514,8 +532,9 @@ extractOrderedEffect :: Tau -> ([Tau],Tau)
 extractOrderedEffect tp
   = let (labs,tl) = extractEffectExtend tp
         labss     = concatMap expand labs
-        slabs     = (sortBy (\l1 l2 -> compare (labelName l1) (labelName l2)) labss)
-    in (slabs,tl)
+        slabs     = (sortBy (\l1 l2 -> labelNameCompare (labelName l1) (labelName l2)) labss)
+    in -- trace ("sorted: " ++ show (map labelName labss) ++ " to " ++ show (map labelName slabs)) $
+       (slabs,tl)
   where
     expand l
       = let (ls,tl) = extractEffectExtend l
@@ -525,27 +544,30 @@ extractOrderedEffect tp
 
 labelName :: Tau -> Name
 labelName tp
-  = fst (labelNameEx tp)
+  = let (name,_,_) = (labelNameEx tp) in name
 
 labelNameFull :: Tau -> Name
 labelNameFull tp
-  = let (name,i) = labelNameEx tp
+  = let (name,i,_) = labelNameEx tp
     in postpend ("$" ++ show i) name
 
 
 
-labelNameEx :: Tau -> (Name,Int)
+labelNameEx :: Tau -> (Name,Int,[Tau])
 labelNameEx tp
   = case expandSyn tp of
-      TCon tc -> (typeConName tc,0)
+      TCon tc -> (typeConName tc,0,[])
       TApp (TCon (TypeCon name _)) [htp] | (name == nameTpHandled || name == nameTpHandled1)
         -> labelNameEx htp -- use the handled effect name for handled<htp> types.
-      TApp (TCon tc) (TVar (TypeVar id kind Skolem) : _)  | isKindScope kind
-        -> (typeConName tc, idNumber id)
-      TApp (TCon tc) _  -> assertion ("non-expanded type synonym used as label") (typeConName tc /= nameEffectExtend) $
-                           (typeConName tc,0)
+      TApp (TCon tc) targs@(TVar (TypeVar id kind Skolem) : _)  | isKindScope kind
+        -> (typeConName tc, idNumber id, targs)
+      TApp (TCon tc) targs  -> assertion ("non-expanded type synonym used as label") (typeConName tc /= nameEffectExtend) $
+                               (typeConName tc,0,targs)
       _  -> failure "Type.Unify.labelName: label is not a constant"
 
+typePartial :: Type
+typePartial
+  = TApp tconHandled [TCon (TypeCon nameTpPartial kindHandled)]
 
 
 typeCps :: Type
@@ -647,7 +669,8 @@ extractEffectExtend t
   where
     extractLabel :: Tau -> [Tau]
     extractLabel l
-      = case expandSyn l of
+      = -- trace ("extractLabel: " ++ show l) $
+        case expandSyn l of
           TApp (TCon tc) [_,e] | typeConName tc == nameEffectExtend
             -> let (ls,tl) = extractEffectExtend l
                in assertion "label was not a fixed effect type alias" (isEffectFixed tl) $
@@ -696,9 +719,11 @@ isTypeTotal :: Tau -> Bool
 isTypeTotal (TCon tc) = (tc == tconTotal)
 isTypeTotal _         = False
 
+{-
 typePartial :: Tau
 typePartial
   = single nameTpPartial
+-}
 
 typePure :: Tau
 typePure
@@ -738,6 +763,19 @@ typeNull :: Tau -> Tau
 typeNull tp
   = typeApp (TCon (TypeCon nameTpNull kindStar)) [tp]
 
+-- | Type of evidence.
+typeEv :: Tau
+typeEv = TCon tconEv
+
+tconEv :: TypeCon
+tconEv = TypeCon nameTpEv (kindFun kindStar kindStar)
+
+isEvType :: Tau -> Bool
+isEvType (TCon tc) = tc == tconEv
+isEvType _         = False
+
+makeEvType :: Type -> Type
+makeEvType arg = typeApp typeEv [arg]
 
 -- | Create a function type. Can have zero arguments.
 typeFun :: [(Name,Tau)] -> Tau -> Tau -> Tau
@@ -762,6 +800,10 @@ typeVoid :: Tau
 typeVoid
   = TCon (TypeCon nameTpVoid kindStar)
 
+typeReuse :: Tau
+typeReuse
+   = TCon (TypeCon nameTpReuse kindStar)
+
 typeAny :: Tau
 typeAny
   = TCon (TypeCon (nameTpAny) kindStar)
@@ -775,7 +817,7 @@ typeMakeTuple tps
 
 typeTuple :: Int -> Tau
 typeTuple n
-  = TCon (TypeCon (nameTuple n) (kindArrowN n))
+  = TCon (TypeCon (nameTuple n) ({-kindArrowN n-} kindFunN (replicate n kindStar) kindStar))
 
 typeOptional :: Tau
 typeOptional

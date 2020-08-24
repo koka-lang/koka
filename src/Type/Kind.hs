@@ -8,8 +8,9 @@
 module Type.Kind ( HasKind( getKind )
                  , handledToLabel
                  , HandledSort(..)
-                 , getHandledEffect, getHandledEffectX
+                 , getHandledEffect, getHandledEffectX, isHandledEffect
                  , containsHandledEffect
+                 , extractHandledEffect
                  ) where
 
 import Data.Maybe( isJust )
@@ -17,6 +18,10 @@ import Common.NamePrim( nameTpHandled, nameTpHandled1 )
 import Common.Failure( failure )
 import Kind.Kind
 import Type.Type
+
+extractHandledEffect eff
+  = let (ls,tl) = extractOrderedEffect eff
+    in (filter isHandledEffect ls, tl)
 
 
 handledToLabel :: Type -> Type
@@ -32,6 +37,14 @@ containsHandledEffect exclude eff
 
 data HandledSort = ResumeOnce | ResumeMany
                  deriving (Eq,Show)
+
+isHandledEffect :: Type -> Bool
+isHandledEffect tp -- isJust (getHandledEffect tp)
+  = case expandSyn tp of
+      TApp (TCon (TypeCon name _)) [t]
+        -> (name == nameTpHandled || name == nameTpHandled1)
+      _ -> False
+
 
 getHandledEffect :: Type -> Maybe (HandledSort,Name)
 getHandledEffect tp
@@ -79,10 +92,13 @@ instance HasKind Type where
         TVar v         -> getKind v
         TCon c         -> getKind c
         TSyn syn xs tp -> -- getKind tp {- this is wrong for partially applied type synonym arguments, see "kind/alias3" test -}
+                          -- if (null xs) then getKind tp else 
                           kindApply xs (getKind syn)
-        TApp tp args   -> case collect [] (getKind tp) of
+        TApp tp args   -> kindApply args (getKind tp)
+                          {- case collect [] (getKind tp) of
                             (kres:_) -> kres
                             _  -> failure ("Type.Kind: illegal kind in type application? " ++ show (getKind tp) )
+                          -}
     where
       collect :: [Kind] -> Kind -> [Kind]
       collect acc (KApp (KApp arr k1) k2) | arr == kindArrow  = collect (k1:acc) k2

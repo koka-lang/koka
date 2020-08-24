@@ -58,9 +58,9 @@ resolveDefGroup (DefRec defs)
 resolveDefGroup (DefNonRec def)
   = resolveDef def >>= return . DefNonRec
 
-resolveDef (Def binder range vis isVal doc)
+resolveDef (Def binder range vis isVal inline doc)
   = do binder' <- resolveBinder binder
-       return (Def binder' range vis isVal doc)
+       return (Def binder' range vis isVal inline doc)
 
 resolveBinder binder
   = do expr' <- resolveExpr (binderExpr binder)
@@ -102,21 +102,29 @@ resolveExpr expr
       Parens expr range      -> do expr' <- resolveExpr expr
                                    return (Parens expr' range)
       Handler shallow scoped override eff pars reinit ret final ops hrng rng
-                             -> do ret' <- resolveExpr ret
-                                   reinit' <- resolveExpr reinit
-                                   final' <- resolveExpr final
+                             -> do ret' <- resolveExprMaybe ret
+                                   reinit' <- resolveExprMaybe reinit
+                                   final' <- resolveExprMaybe final
                                    ops' <- mapM resolveHandlerBranch ops
                                    return (Handler shallow scoped override eff pars reinit' ret' final' ops' hrng rng)
       Inject tp expr b range -> do expr' <- resolveExpr expr
                                    return (Inject tp expr' b range)
 
+resolveExprMaybe Nothing  = return Nothing
+resolveExprMaybe (Just x) = do x' <- resolveExpr x
+                               return (Just x')
+
 isJust (Just _) = True
 isJust Nothing  = False
 
-resolveBranch (Branch pattern guard body)
-  = do guard'  <- resolveExpr guard
-       body'   <- resolveExpr body
-       return (Branch pattern guard' body')
+resolveBranch (Branch pattern guards)
+  = do guards' <- mapM resolveGuard guards
+       return (Branch pattern guards')
+  
+resolveGuard (Guard test expr)
+  = do test' <- resolveExpr test
+       expr' <- resolveExpr expr
+       return (Guard test' expr')
 
 resolveHandlerBranch hb@(HandlerBranch{ hbranchExpr=expr })
   = do expr'   <- resolveExpr expr

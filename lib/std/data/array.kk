@@ -91,7 +91,7 @@ extern inline array : forall<h,a> ( v : vector<a> ) -> array<h,a> {
 
 
 // Convert a list to an array.
-fun array( xs : list<a> ) : array<h,a>
+fun noinline array( xs : list<a> ) : array<h,a>
 {
   unsafe-total {
     val n = xs.length

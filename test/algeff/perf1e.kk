@@ -27,7 +27,7 @@ fun countH( action ) {
   var cnt := 0
   with return x -> cnt
   with fun increment() { cnt := cnt+1 }
-  action()
+  mask<local>{action()}
 }
 
 fun fold-counterC( xs : list<int>, m : int) : <count> int {

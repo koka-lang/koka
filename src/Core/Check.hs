@@ -36,14 +36,14 @@ import Type.Pretty
 import Type.Kind
 import Type.TypeVar
 import Type.Unify( unify, runUnify )
-import Type.Operations( instantiate )
+import qualified Type.Operations as Op ( instantiateNoEx )
 
 import qualified Data.Set as S
 
-checkCore :: Bool -> Env -> Int -> Gamma -> DefGroups -> Error ()
-checkCore mon prettyEnv uniq gamma  defGroups
+checkCore :: Bool -> Bool -> Env -> Int -> Gamma -> DefGroups -> Error ()
+checkCore liberalEffects allowPartialApps prettyEnv uniq gamma  defGroups
   = case checkDefGroups defGroups (return ()) of
-      Check c -> case c uniq (CEnv mon gamma prettyEnv []) of
+      Check c -> case c uniq (CEnv liberalEffects allowPartialApps gamma prettyEnv []) of
                    Ok x _  -> return x
                    Err doc -> warningMsg (rangeNull, doc)
 
@@ -55,7 +55,7 @@ checkCore mon prettyEnv uniq gamma  defGroups
 --------------------------------------------------------------------------}
 newtype Check a = Check (Int -> CheckEnv -> Result a)
 
-data CheckEnv = CEnv{ mon :: Bool, gamma :: Gamma, prettyEnv :: Env, currentDef :: [Def] }
+data CheckEnv = CEnv{ liberalEff :: Bool, allowPartialApps :: Bool, gamma :: Gamma, prettyEnv :: Env, currentDef :: [Def] }
 
 data Result a = Ok a Int
               | Err Doc
@@ -125,8 +125,6 @@ checkTName (TName name tp)
 checkType :: Type -> Check Type
 checkType tp
   = return tp
-    --do env <- getEnv
-    --   return (if (mon env) then monType tp else tp)
 
 {--------------------------------------------------------------------------
   Definition groups
@@ -158,7 +156,7 @@ checkDef d
     do tp <- check (defExpr d)
        dtp <- checkType (defType d)
        -- trace ("deftype: " ++ show (defType d) ++ "\ninferred: " ++ show tp) $ return ()
-       match "checking annotation on definition" (prettyDef d) (dtp) tp
+       matchSub "checking annotation on definition" (prettyDef d) (dtp) tp
 
 coreNameInfo :: TName -> (Name,NameInfo)
 coreNameInfo tname = coreNameInfoX tname True
@@ -190,8 +188,15 @@ check expr
                   -> do -- env <- getEnv
                         --when (length tpPars /= length args + n) $
                         --  failDoc (\env -> text "wrong number of arguments in application: " <+> prettyExpr expr env)
-                        sequence_ [match "comparing formal and actual argument" (prettyExpr expr) formal actual | ((argname,formal),actual) <- zip tpPars tpArgs]
-                        return tpRes
+                        env <- getEnv
+                        if (allowPartialApps env)
+                         then do sequence_ [matchSub "comparing formal and actual argument" (prettyExpr expr) formal actual | ((argname,formal),actual) <- zip tpPars tpArgs]
+                                 let morePars = drop (length tpArgs) tpPars
+                                 if (null morePars)
+                                  then return tpRes
+                                  else return (TFun morePars eff tpRes)
+                         else do sequence_ [matchSub "comparing formal and actual argument" (prettyExpr expr) formal actual | ((argname,formal),actual) <- zip tpPars tpArgs]
+                                 return tpRes
       TypeLam tvars body
         -> do tp <- check body
               return (quantifyType tvars tp)
@@ -200,9 +205,11 @@ check expr
               let (tvars,_,tp) = splitPredType tpTForall
               -- We can use actual equality for kinds, because any kind variables will have been
               -- substituted when doing kind application (above)
-              when (length tps /= length tvars || or [getKind t /= getKind tp | (t,tp) <- zip tvars tps]) $
-                failDoc (\env -> text "kind error in type application:" <+> prettyExpr expr env)
-              return (subNew (zip tvars tps) |-> tp)
+              -- when (length tps /= length tvars || or [getKind t /= getKind tp | (t,tp) <- zip tvars tps]) $
+              when (length tps > length tvars || or [getKind t /= getKind tp | (t,tp) <- zip tvars tps]) $
+                failDoc (\env -> let penv = env{coreShowTypes=True,showKinds=True}
+                                 in text "kind error in type application:" <+> prettyExpr expr penv </> text " applied to: " <+> ppType penv tpTForall)
+              return (tForall (drop (length tps) tvars) [] (subNew (zip tvars tps) |-> tp))
       Lit lit
         -> return (typeOf lit)
 
@@ -240,8 +247,9 @@ checkGuard (Guard guard expr)
 checkPattern :: (Type,Pattern) -> Check ()
 checkPattern (tpScrutinee,pat)
   = case pat of
-      PatCon tname args _ tpargs exists resTp coninfo
-        -> do -- constrArgs <- findConstrArgs (prettyPattern pat) tpScrutinee (getName tname)
+      PatCon tname args _ tpargs exists resTp coninfo skip
+        -> -- (if (null exists) then id else (trace ("check existential pattern: " ++ show exists ++ ", " ++ show tpScrutinee))) $
+           do -- constrArgs <- findConstrArgs (prettyPattern pat) tpScrutinee (getName tname)
               mapM_  checkPattern  (zip tpargs args)
       PatVar tname _ -> match "comparing constructor argument to case annotation" (prettyPattern pat) tpScrutinee (typeOf tname)
       PatLit lit     -> match "comparing literal pattern to scrutinee" (prettyPattern pat) tpScrutinee (typeOf lit)
@@ -259,12 +267,34 @@ findConstrArgs fdoc tpScrutinee con
   = do tpCon <- lookupVar con
        -- Until we add qualifiers to constructor types, the list of predicates
        -- returned by instantiate' must always be empty
-       tpConInst <- instantiate rangeNull tpCon
+       (_,_,tpConInst,_) <- Op.instantiateNoEx rangeNull tpCon
        let Just (tpArgs, eff, tpRes) = splitFunType tpConInst
        ures <- runUnify (unify tpRes tpScrutinee)
        case ures of
         (Left error, _)  -> showCheck "comparing scrutinee with branch type" "cannot unify" tpRes tpScrutinee fdoc
         (Right _, subst) -> return $ (subst |-> map snd tpArgs)
+
+matchSub :: String -> (Env -> Doc) -> Type -> Type -> Check ()
+matchSub when fdoc a b
+  = do env <- getEnv
+       if (not (liberalEff env))
+        then match when fdoc a b
+        else -- check if b can be used as an a
+              case (splitFunType a, splitFunType b) of
+                (Just (targs1,teff1,tres1), Just (targs2,teff2,tres2)) | length targs1 == length targs2
+                  -> do match when fdoc tres1 tres2
+                        sequence_ [match when fdoc targ1 targ2 | ((_,targ1),(_,targ2)) <- zip targs1 targs2]
+                        matchSubEff when fdoc teff1 teff2
+                _ -> match when fdoc a b
+
+matchSubEff :: String -> (Env -> Doc) -> Type -> Type -> Check ()
+matchSubEff when fdoc eff1 eff2
+  = let (ls1,tl1) = extractHandledEffect eff1
+        (ls2,tl2) = extractHandledEffect eff2
+    in if (length ls1 /= length ls2)
+        then showCheck "handled effects do not match" when eff1 eff2 fdoc
+        else do sequence_ [match when fdoc targ1 targ2 | (targ1,targ2) <- zip ls1 ls2]
+                return ()
 
 
 -- In Core, when we are comparing types, we are interested in exact
@@ -276,9 +306,7 @@ match when fdoc a b
          (Left error, _)  -> showCheck ("cannot unify (" ++ show error ++ ")") when a b fdoc
          (Right _, subst) -> if subIsNull subst
                               then return ()
-                              else do env <- getEnv
-                                      if (mon env) then return ()
-                                        else showCheck "non-empty substitution" when a b (\env -> text "")
+                              else do showCheck "non-empty substitution" when a b (\env -> text "")
                                       return ()
 
 -- Print unification error
@@ -293,8 +321,9 @@ showMessage err when a b fdoc env
                      , text "  =~ " <.> docB
                      , text "when" <+> text when
                      , indent 2 (fdoc env)
+                     -- , text $ (show a) ++ "\n" ++ (show b)
                      ]
 
 prettyExpr e env = PrettyCore.prettyExpr env e
-prettyPattern e env = PrettyCore.prettyPattern env e
+prettyPattern e env = snd (PrettyCore.prettyPattern env e)
 prettyDef d env     = PrettyCore.prettyDef env d

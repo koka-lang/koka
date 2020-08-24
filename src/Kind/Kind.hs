@@ -15,12 +15,13 @@ module Kind.Kind( -- * Kinds
                  -- * Standard kinds
                   , kindStar, kindPred, kindEffect, kindArrow, kindScope, kindHeap
                   , kindHandled, kindHandled1
-                  , kindFun, kindArrowN, kindLabel, extractKindFun
+                  , kindFun, kindLabel, extractKindFun, kindFunN
                   , builtinKinds
                   , kindCon, kindConOver
                   , isKindFun
                   , isKindStar
                   , isKindEffect, isKindHandled, isKindHandled1, isKindScope, isKindLabel
+                  , hasKindStarResult
                   , kindAddArg
                   ) where
 
@@ -47,7 +48,9 @@ data Flavour  = Bound
               | Meta    -- used for pretty printing
               deriving(Eq, Show)
 
-
+hasKindStarResult :: Kind -> Bool
+hasKindStarResult kind
+  = isKindStar (snd (extractKindFun kind))
 
 {--------------------------------------------------------------------------
   Standard kinds
@@ -66,10 +69,6 @@ kindLabel
 kindArrow :: Kind
 kindArrow
   = KCon nameKindFun
-
-kindArrowN :: Int -> Kind
-kindArrowN n
-  = foldr kindFun (kindFun kindEffect kindStar) (replicate n kindStar)
 
 kindAddArg :: Kind -> Kind -> Kind
 kindAddArg kfun karg
@@ -116,6 +115,9 @@ kindConOver kinds
   = foldr kindFun kindStar kinds
 
 
+kindFunN :: [Kind] -> Kind -> Kind
+kindFunN kinds kind
+  = foldr kindFun kind kinds
 
 -- | Create a (kind) function from a kind to another kind.
 kindFun :: Kind -> Kind -> Kind

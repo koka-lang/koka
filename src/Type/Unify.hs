@@ -10,7 +10,7 @@
 -- Unification and subsumption
 -----------------------------------------------------------------------------
 
-module Type.Unify ( Unify, UnifyError(..), runUnify
+module Type.Unify ( Unify, UnifyError(..), runUnify, runUnifyEx
                   , unify
                   , subsume
                   , overlaps
@@ -55,7 +55,7 @@ overlaps range free tp1 tp2
          (Just (targs1,_,_), Just (targs2,_,_))
           -> {-
              if (length targs1 /= length targs2)
-              then unifyError NoMatch
+              then unifyError  NoMatch
               else unifies (map snd targs1) (map snd targs2)
              -}
              let (fixed1,optional1) = span (not . isOptional) (map snd targs1)
@@ -142,10 +142,10 @@ subsume range free tp1 tp2
        -- entailment check: predicates should be entailed
        -- todo: we should check for skolems since predicates with skolems must be entailed directly
        sub  <- getSubst
-       -- trace (" escape check: " ++ show (rho1,rho2) ++ " sub: " ++ show (subList sub)) $ return ()
+       --trace (" escape check: " ++ show (rho1,rho2) ++ " sub: " ++ show (subList sub)) $ return ()
        let allfree = tvsUnion free (ftv tp1)
            escaped = fsv $ [tp  | (tv,tp) <- subList sub, tvsMember tv allfree]
-       -- trace (" escape check: skolems: " ++ show sks ++ " vs. escaped: " ++ show (tvsList escaped)) $ return ()
+       --trace (" escape check: skolems: " ++ show sks ++ " vs. escaped: " ++ show (tvsList escaped)) $ return ()
        if (tvsDisjoint (tvsNew sks) escaped)
          then return ()
          else unifyError NoSubsume
@@ -213,14 +213,32 @@ unify (TCon tc1) (TCon tc2)  | tc1 == tc2
   = return ()
 
 -- applications
+{-
 unify (TApp t1 ts1) (TApp u1 us2)   | length ts1 == length us2
   = do unify t1 u1
        unifies ts1 us2
+-}
+unify (TApp t1 ts1) (TApp u1 us2)   -- | length ts1 != length us2
+  = let len1 = length ts1
+        len2 = length us2
+    in if (len1==len2)
+        then do unify t1 u1
+                unifies ts1 us2
+       else if (len1 < len2)
+        then do unify t1 (TApp u1 (take (len2 - len1) us2))
+                unifies ts1 (drop (len2 - len1) us2)
+        else do unify (TApp t1 (take (len1 - len2) ts1)) u1
+                unifies (drop (len1 - len2) ts1) us2
 
 -- functions
 unify (TFun args1 eff1 res1) (TFun args2 eff2 res2) | length args1 == length args2
-  = do unify eff1 eff2
+  = do withError (effErr) (unify eff1 eff2)
        unifies (res1:map snd args1) (res2:map snd args2)
+  where
+    -- specialize to sub-part of the type for effect unification errors
+    effErr NoMatch              = NoMatchEffect eff1 eff2
+    effErr (NoMatchEffect _ _)  = NoMatchEffect eff1 eff2
+    effErr err                  = err
 
 -- quantified types
 unify (TForall vars1 preds1 tp1) (TForall vars2 preds2 tp2) | length vars1 == length vars2 && length preds1 == length preds2
@@ -290,7 +308,7 @@ unifyTVar tv@(TypeVar id kind Meta) tp
                   then unifyTVar tv2 (TVar tv)
                   else return () -- todo: kind check?
             _ -> if (not (matchKind kind (getKind tp)))
-                  then -- trace ("unifyTVar: kinds: " ++ show (kind,getKind tp) ++ ", " ++ show tp) $
+                  then trace ("unifyTVar: kinds: typevar var:\n" ++ show kind ++ "\nand:\n" ++ show (getKind tp) ++ "\ntype:\n" ++ show tp) $
                        unifyError NoMatchKind
                   else do -- trace ("unifyVar: " ++ show tv ++ ":=" ++ show tp) $ return ()
                           extendSub tv tp
@@ -406,9 +424,9 @@ unifyLabels ls1 ls2
                     unifyLabels ll1 ll2
 
 compareLabel l1 l2
-  = let (name1,i1) = labelNameEx l1
-        (name2,i2) = labelNameEx l2
-    in case compare name1 name2 of
+  = let (name1,i1,_) = labelNameEx l1
+        (name2,i2,_) = labelNameEx l2
+    in case labelNameCompare name1 name2 of
          -- EQ | i1 /= 0 && i2 /= 0 -> compare i1 i2
          cmp -> cmp
 
@@ -439,20 +457,25 @@ data UnifyError
   = NoMatch
   | NoMatchKind
   | NoMatchPred
+  | NoMatchEffect Type Type
   | NoSubsume
   | NoEntail
   | Infinite
   | NoArgMatch Int Int
   deriving Show
 
+runUnifyEx :: Int -> Unify a -> (Either UnifyError a,Sub,Int)
+runUnifyEx i (Unify f)
+  = case f (St i subNull) of
+      Ok x (St j sub)    -> (Right x,sub,j)
+      Err err (St j sub) -> (Left err,sub,j)
+
 runUnify :: HasUnique m => Unify a -> m (Either UnifyError a,Sub)
-runUnify (Unify f)
+runUnify u
   = do i <- unique
-       case f (St i subNull) of
-         Ok x (St j sub)    -> do setUnique j
-                                  return (Right x,sub)
-         Err err (St j sub) -> do setUnique j
-                                  return (Left err,sub)
+       let (res,sub,j) = runUnifyEx i u
+       setUnique j
+       return (res,sub)
 
 instance HasUnique Unify where
   updateUnique f = Unify (\st -> Ok (uniq st) (st{ uniq = f (uniq st) }))
@@ -489,3 +512,9 @@ subst :: HasTypeVar a => a -> Unify a
 subst x
   = do sub <- getSubst
        return (sub |-> x)
+       
+withError :: (UnifyError -> UnifyError) -> Unify a -> Unify a
+withError f (Unify u)
+  = Unify (\st1 -> case (u st1) of
+                     Err err st2 -> Err (f err) st2
+                     ok          -> ok)

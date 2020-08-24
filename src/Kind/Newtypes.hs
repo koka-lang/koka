@@ -11,10 +11,11 @@
 -----------------------------------------------------------------------------
 module Kind.Newtypes( -- * Type newtypes
                       Newtypes, DataInfo(..)
-                    , newtypesEmpty, newtypesExtend, newtypesLookup, newtypesFind
+                    , newtypesEmpty, newtypesExtend, newtypesLookupPublic, newtypesFind
+                    , newtypesLookupAny
                     , newtypesNew, newtypesCompose
                     , newtypesIsEmpty
-                    , newtypesTypeDefs       
+                    , newtypesTypeDefs
                     , extractNewtypes
                       -- * Pretty
                     -- , ppNewtypes
@@ -23,7 +24,7 @@ module Kind.Newtypes( -- * Type newtypes
 import qualified Common.NameMap as M
 import Common.Failure( failure )
 import Common.Name
-import Common.Syntax  ( Visibility(..))
+import Common.Syntax  ( Visibility(..), isPublic )
 import Type.Type
 
 import Type.Pretty
@@ -50,25 +51,31 @@ newtypesNew :: [DataInfo] -> Newtypes
 newtypesNew infos
   = Newtypes (M.fromList [(dataInfoName info, info) | info <- infos])
 
-newtypesCompose :: Newtypes -> Newtypes -> Newtypes 
-newtypesCompose (Newtypes m1) (Newtypes m2) 
+newtypesCompose :: Newtypes -> Newtypes -> Newtypes
+newtypesCompose (Newtypes m1) (Newtypes m2)
   = Newtypes (M.union m2 m1) -- ASSUME: left-biased union
 
-newtypesTypeDefs :: Newtypes -> M.NameMap DataInfo 
+newtypesTypeDefs :: Newtypes -> M.NameMap DataInfo
 newtypesTypeDefs (Newtypes m)
-  = m 
+  = m
 
 newtypesExtend :: Name -> DataInfo -> Newtypes -> Newtypes
 newtypesExtend name info (Newtypes m)
   = Newtypes (M.insert name info m)
 
-newtypesLookup :: Name -> Newtypes -> Maybe DataInfo
-newtypesLookup name (Newtypes m)
+newtypesLookupPublic :: Name -> Newtypes -> Maybe DataInfo
+newtypesLookupPublic name nt
+  = case newtypesLookupAny name nt of
+      Just info | isPublic (dataInfoVis info)  -> Just info
+      _ -> Nothing
+
+newtypesLookupAny :: Name -> Newtypes -> Maybe DataInfo
+newtypesLookupAny name (Newtypes m)
   = M.lookup name m
 
 newtypesFind :: Name -> Newtypes -> DataInfo
 newtypesFind name syn
-  = case newtypesLookup name syn of
+  = case newtypesLookupAny name syn of
       Nothing -> failure ("Kind.Newtypes.newtypesFind: unknown newtype: " ++ show name)
       Just x  -> x
 
@@ -84,7 +91,7 @@ extractTypeDefGroup (Core.TypeDefGroup tdefs)
 extractTypeDef :: Core.TypeDef -> [DataInfo]
 extractTypeDef tdef
   = case tdef of
-      Core.Data dataInfo Public conViss False
+      Core.Data dataInfo False
         -> [dataInfo]
       _ -> []
 
@@ -100,10 +107,9 @@ instance Show Newtypes where
 instance Pretty Newtypes where
   pretty syns
     = ppNewtypes Type.Pretty.defaultEnv syns
-    
+
 ppNewtypes showOptions (Newtypes m)
     = vcat [fill 8 (pretty name) <.> colon <+>
             -- text "rank" <+> pretty rank <.> colon <+>
-            ppDataInfo defaultEnv True False dataInfo 
+            ppDataInfo defaultEnv True False dataInfo
            | (name,dataInfo) <- L.sortBy (\(n1,_) (n2,_) -> compare (show n1) (show n2)) $ M.toList m]
-

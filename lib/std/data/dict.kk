@@ -62,9 +62,9 @@ fun list( d : mdict<h,a> ) : read<h> list<(string,a)> {
 }
 
 // Assign to a string dictionary
-extern []( md : mdict<h,a>, s : string, assigned : a ) : write<h> () {
+extern inline []( md : mdict<h,a>, s : string, assigned : a ) : write<h> () {
   cs inline "(#1)[#2] = #3"
-  js "_dict_assign"
+  js inline "$std_data_dict._dict_assign(#1,#2,#3)"
 }
 
 extern copy : forall<h,a> ( md : mdict<h,a> ) -> <alloc<h>,read<h>> mdict<h,a> {
@@ -204,4 +204,3 @@ fun foreach-while( d : dict<a>, action : (string,a) -> e maybe<b> ) : e maybe<b>
 fun map( d : dict<a>, f : (string,a) -> e b ) : e dict<b> {
   d.keys.map( fun(k) { (k, f(k,unsafe-dict-get(d,k))) } ).dict
 }  
-

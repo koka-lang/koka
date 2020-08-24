@@ -9,8 +9,9 @@
 -}
 -----------------------------------------------------------------------------
 
-module Core.Pretty( prettyCore, prettyExpr, prettyPattern, prettyDef ) where
+module Core.Pretty( prettyCore, prettyExpr, prettyPattern, prettyDef, prettyDefs, prettyDefGroup ) where
 
+import Lib.Trace
 import Data.Char( isAlphaNum )
 import Common.Name
 import Common.ColorScheme
@@ -23,9 +24,8 @@ import Kind.Pretty hiding (prettyKind)
 import Kind.Synonym
 import Kind.ImportMap
 import Type.Type
+import Type.TypeVar
 import Type.Pretty
-
--- import Lib.Trace
 
 {--------------------------------------------------------------------------
   Show pretty names (rather than numbers)
@@ -41,50 +41,75 @@ keyword env s
   Show instance declarations
 --------------------------------------------------------------------------}
 
-instance Show Core      where show = show . prettyCore      defaultEnv
+instance Show Core      where show = show . prettyCore      defaultEnv []
 instance Show External  where show = show . prettyExternal  defaultEnv
 instance Show TypeDef   where show = show . prettyTypeDef   defaultEnv
 instance Show DefGroup  where show = show . prettyDefGroup  defaultEnv
 instance Show Def       where show = show . prettyDef       defaultEnv
-instance Show Expr      where show = show . prettyExpr      defaultEnv
+instance Show Expr      where show = show . prettyExpr      defaultEnv{showKinds=True,coreShowTypes=True}
 instance Show Lit       where show = show . prettyLit       defaultEnv
 instance Show Branch    where show = show . prettyBranch    defaultEnv
-instance Show Pattern   where show = show . prettyPattern   defaultEnv
--- instance Show MonKind   where show = show . prettyMonKind   defaultEnv
-instance Pretty MonKind where pretty = prettyMonKind defaultEnv
+instance Show Pattern   where show = show . snd . prettyPattern   defaultEnv
 
 {--------------------------------------------------------------------------
   Pretty-printers proper
 --------------------------------------------------------------------------}
 
-prettyCore :: Env -> Core -> Doc
-prettyCore env0 core@(Core name imports fixDefs typeDefGroups defGroups externals doc)
+prettyCore :: Env -> [InlineDef] -> Core -> Doc
+prettyCore env0 inlineDefs core@(Core name imports fixDefs typeDefGroups defGroups externals doc)
   = prettyComment env doc $
     keyword env "module" <+>
     (if (coreIface env) then text "interface " else empty) <.>
     prettyDefName env name <->
     (vcat $ concat $
-      [ map (prettyImport envX) (imports ++ extraImports)
+      [ separator "import declarations"
+      , map (prettyImport envX) (imports) -- ++ extraImports)
+      , separator "fixity declarations"
       , map (prettyFixDef envX) fixDefs
+      , separator "local imported aliases"
       , map (prettyImportedSyn envX) importedSyns
+      , separator "type declarations"
+      , map (prettyTypeDef envX) allTypeDefs
+      , separator "declarations"
+      , map (prettyDef env) allDefs
+      , separator "external declarations"
+      , map (prettyExternal env) externals
+      , separator "inline definitions"
+      , if (coreInlineMax env0 < 0 || not (coreIface env0) || null inlineDefs)
+         then []
+         else [text ".inline"] ++
+              -- map (prettyInlineDefGroup env1{coreInlineMax = coreInlineMax env0}) defGroups
+               map (prettyInlineDef env1) inlineDefs
+      ]
+      -- ,
+      {-
       , map (prettyTypeDefGroup envX) typeDefGroups
       , map (prettyDefGroup env) defGroups
       , map (prettyExternal env) externals
-      ]
+      -}
     )
   where
+    separator msg = if (not (coreIface env0)) then []
+                     else [text " ", text "//------------------------------", text ("//#kki: " ++ msg), text " "]
+
+    allDefs     = flattenDefGroups defGroups
+    allTypeDefs = flattenTypeDefGroups typeDefGroups
+
     env  = env1{ expandSynonyms = False }
     envX = env1{ showKinds = True, expandSynonyms = True }
 
     importedSyns = extractImportedSynonyms core
     extraImports = extractImportsFromSynonyms imports importedSyns
-    env1         = env0{ importsMap = extendImportMap extraImports (importsMap env0),
-                         showCoreTypes = (showCoreTypes env0 || coreIface env0),
-                         showKinds = (showKinds env0 || coreIface env0) }
+
+    env1         = env0{ importsMap =  extendImportMap extraImports (importsMap env0),
+                         coreShowTypes = (coreShowTypes env0 || coreIface env0),
+                         showKinds = (showKinds env0 || coreIface env0),
+                         coreInlineMax = (-1),
+                         coreShowDef = not (coreIface env0) }
 
 prettyImport env imp
-  = prettyComment env (importModDoc imp) $
-    (if isPublic (importVis imp) then keyword env "public " else empty) <.>
+  = -- prettyComment env (importModDoc imp) $
+    prettyVis env (importVis imp) $
     keyword env "import"
       <+> pretty (importsAlias (importName imp) (importsMap env)) <+> text "="
       <+> prettyName env (importName imp)
@@ -105,9 +130,11 @@ prettyFixDef env (FixDef name fixity)
 
 prettyImportedSyn :: Env -> SynInfo -> Doc
 prettyImportedSyn env synInfo
-  = ppSynInfo env False True synInfo Private <.> semi
+  = ppSynInfo env True False True synInfo <.> semi
 
 prettyExternal :: Env -> External -> Doc
+prettyExternal env (External name tp body vis nameRng doc) | coreIface env && isHiddenExternalName name
+  = empty
 prettyExternal env (External name tp body vis nameRng doc)
   = prettyComment env doc $
     prettyVis env vis $
@@ -143,20 +170,17 @@ prettyTypeDefGroup env (TypeDefGroup defs)
     vcat (map (prettyTypeDef env) defs)
 
 prettyTypeDef :: Env -> TypeDef -> Doc
-prettyTypeDef env (Synonym synInfo vis )
-  = ppSynInfo env True True synInfo vis <.> semi
+prettyTypeDef env (Synonym synInfo  )
+  = ppSynInfo env False True True synInfo <.> semi
 
-prettyTypeDef env (Data dataInfo vis conViss isExtend)
+prettyTypeDef env (Data dataInfo isExtend)
   = -- keyword env "type" <+> prettyVis env vis <.> ppDataInfo env True dataInfo
-    prettyDataInfo env True True isExtend dataInfo vis conViss <.> semi
+    prettyDataInfo env True False {-public only?-} isExtend dataInfo <.> semi
 
 prettyDefGroup :: Env -> DefGroup -> Doc
 prettyDefGroup env (DefRec defs)
   = -- (\ds -> text "rec {" <-> tab ds <-> text "}") $
-    -- text "rec" <+> align (
-    prettyDefs env defs
-    --)
-
+    text "rec {" <+> align (prettyDefs env defs) </> text "}"
 prettyDefGroup env (DefNonRec def)
   = prettyDef env def
 
@@ -164,19 +188,60 @@ prettyDefs :: Env -> Defs -> Doc
 prettyDefs env (defs)
   = vcat (map (prettyDef env) defs)
 
+{-
+prettyInlineDefGroup :: Env -> DefGroup -> Doc
+prettyInlineDefGroup env (DefRec defs)
+  = -- (\ds -> text "rec {" <-> tab ds <-> text "}") $
+    -- text "rec {" <+> align (prettyDefs env defs) </> text "}"
+    vcat (map (prettyInlineDef env True) defs)
+prettyInlineDefGroup env (DefNonRec def)
+  = prettyInlineDef env False def
+
+
+prettyInlineDef :: Env -> Bool -> Def -> Doc
+prettyInlineDef env isRec def | (not (coreIface env) || defInline def == InlineNever || (defInline def == InlineAuto && not (isInlineable (coreInlineMax env) def)))
+  = empty
+prettyInlineDef env isRec def@(Def name scheme expr vis sort inl nameRng doc)
+  = keyword env (show sort)
+    <.> (if (inl==InlineAlways) then (space <.> keyword env "inline") else empty)
+    <.> (if isRec then (space <.> keyword env "rec") else empty)
+    <+> (if nameIsNil name then text "_" else prettyDefName env name)
+    -- <+> text ":" <+> prettyType env scheme
+    <+> text ("// inline size: " ++ show (costDef def))
+    <.> linebreak <.> indent 2 (text "=" <+> prettyExpr env{coreShowVis=False,coreShowDef=True} expr) <.> semi
+-}
+
+prettyInlineDef :: Env ->  InlineDef -> Doc
+prettyInlineDef env (InlineDef name expr isRec cost)
+  = keyword env (if isFun then "fun" else "val")
+    <.> (if (cost <= 0) then (space <.> keyword env "inline") else empty)
+    <.> (if isRec then (space <.> keyword env "rec") else empty)
+    <+> (if nameIsNil name then text "_" else prettyDefName env name)
+    -- <+> text ":" <+> prettyType env scheme
+    <+> text ("// inline size: " ++ show cost)
+    <.> linebreak <.> indent 2 (text "=" <+> prettyExpr env{coreShowVis=False,coreShowDef=True} expr) <.> semi
+  where
+    isFun = case expr of 
+              TypeLam _ (Lam _ _ _) -> True
+              Lam _ _ _             -> True
+              _                     -> False
+
 prettyDef :: Env -> Def -> Doc
-prettyDef env (Def name scheme expr vis sort nameRng doc)
+prettyDef env def@(Def name scheme expr vis sort inl nameRng doc)
   = prettyComment env doc $
     prettyVis env vis $
     keyword env (show sort)
     <+> (if nameIsNil name then text "_" else prettyDefName env name)
     <+> text ":" <+> prettyType env scheme
-    <.> (if coreIface env then empty else linebreak <.> indent 2 (text "=" <+> prettyExpr env expr)) <.> semi
+    <.> (if (not (coreShowDef env)) -- && (sizeDef def >= coreInlineMax env)
+          then empty
+          else linebreak <.> indent 2 (text "=" <+> prettyExpr env{coreShowVis=False} expr)) <.> semi
 
 prettyVis env vis doc
-  = case vis of
-      Public  -> if (coreIface env) then doc else (keyword env "public" <+> doc)
-      Private -> if (coreIface env) then empty else doc
+  = if (not (coreShowVis env)) then doc else
+    case vis of
+      Public  -> keyword env "public" <+> doc
+      Private -> keyword env "private" <+> doc --if (coreIface env) then (keyword env "private" <+> doc) else doc
 
 prettyType env tp
   = head (prettyTypes env [tp])
@@ -189,11 +254,6 @@ prettyKind env prefix kind
      then empty
      else text prefix <+> ppKind (colors env) precTop kind
 
-prettyMonKind env monType
-  = text $ case monType of
-      NoMon     -> "fast"
-      AlwaysMon -> "bind"
-      PolyMon   -> "poly"
 
 {--------------------------------------------------------------------------
   Expressions
@@ -222,8 +282,8 @@ prettyExpr env (Var tname varInfo)
     prettyInfo
       = case varInfo of
           InfoNone -> empty
-          InfoArity m n mon -> braces (pretty m <.> comma <.> pretty n <.> comma <.> pretty mon)
-          InfoExternal f -> braces (text"@")
+          InfoArity m n  -> empty -- braces (pretty m <.> comma <.> pretty n)
+          InfoExternal f -> empty -- braces (text"@")
 
 prettyExpr env (App a args)
   = pparens (prec env) precApp $
@@ -240,8 +300,8 @@ prettyExpr env (TypeLam tvs expr)
                , nice = (if prettyNames then niceTypeExtendVars tvs else id) $ nice env
                }
 
-prettyExpr env (TypeApp expr tps) 
-  = if (not (showCoreTypes env)) then prettyExpr env expr
+prettyExpr env (TypeApp expr tps)
+  = if (not (coreShowTypes env)) then prettyExpr env expr
      else pparens (prec env) precApp $
           prettyExpr (decPrec env') expr <.> angled [prettyType env'' tp | tp <- tps]
   where
@@ -257,21 +317,22 @@ prettyExpr env (Lit lit)
   = prettyLit env lit
 
 -- Let
-prettyExpr env (Let ([DefNonRec (Def x tp e vis isVal nameRng doc)]) e')
+prettyExpr env (Let ([DefNonRec (Def x tp e vis isVal inl nameRng doc)]) e')
   = vcat [ let exprDoc = prettyExpr env e <.> semi
-           in if (x==nameNil) then exprDoc 
-               else (text "val" <+> hang 2 (prettyName env x <+> text ":" <+> prettyType env tp <-> text "=" <+> exprDoc))
+           in if (x==nameNil) then exprDoc
+               else (text "val" <+> hang 2 (prettyDefName env x <+> text ":" <+> prettyType env tp <-> text "=" <+> exprDoc))
          , prettyExpr env e'
          ]
 prettyExpr env (Let defGroups expr)
-  = vcat [ align $ vcat (map (\dg -> prettyDefGroup env dg <.> semi) defGroups)
+  = vcat [ align $ vcat (map (\dg -> prettyDefGroup env dg) defGroups)
          , prettyExpr env expr
          ]
 
 
 -- Case expressions
 prettyExpr env (Case exprs branches)
-  = text "match" <+> tupled (map (prettyExpr env{ prec = precAtom }) exprs) <+> text "{" <-->
+  = pparens (prec env) precTop $
+    text "match" <+> tupled (map (prettyExpr env{ prec = precAtom }) exprs) <+> text "{" <-->
     tab (prettyBranches env branches) <--> text "}"
 
 prettyVar env tname
@@ -287,7 +348,9 @@ prettyBranches env (branches)
 
 prettyBranch :: Env -> Branch -> Doc
 prettyBranch env (Branch patterns guards)
-  = hsep (map (prettyPattern env{ prec = precApp } ) patterns) <.> vcat (map (prettyGuard env) guards)
+  = let (env', patDocs) = (prettyPatterns env{ prec = precApp } patterns)
+    in hsep (punctuate comma patDocs)
+        <.> linebreak <.> indent 2 (vcat (map (prettyGuard env') guards)) <.> semi
 
 prettyGuard   :: Env -> Guard -> Doc
 prettyGuard env (Guard test expr)
@@ -296,27 +359,41 @@ prettyGuard env (Guard test expr)
        else text " |" <+> prettyExpr env{ prec = precTop } test
     )   <+> text "->" <+> prettyExpr env{ prec = precTop } expr
 
-prettyPatternType env (pat,tp)
-  = prettyPattern env pat <.>
-    (if (showCoreTypes env) then text " :" <+> prettyType env tp else empty)
 
-prettyPattern :: Env -> Pattern -> Doc
+prettyPatterns :: Env -> [Pattern] -> (Env,[Doc])
+prettyPatterns env pats
+  = foldl f (env,[]) pats
+  where
+    f (env,docs) pat = let (env',doc) = prettyPattern env pat
+                       in (env',doc:docs)
+
+prettyPatternType (pat,tp) (env,docs)
+  = let (env',doc) = prettyPattern (decPrec env) pat
+    in (env', (doc <.> (if (coreShowTypes env') then text " :" <+> prettyType env' tp else empty)) : docs)
+
+prettyPattern :: Env -> Pattern -> (Env,Doc)
 prettyPattern env pat
   = case pat of
-      PatCon tname args repr targs exists _ info
+      PatCon tname args repr targs exists resTp info skip
                         -> -- pparens (prec env) precApp $
-                           -- prettyName env (getName tname) 
+                           -- prettyName env (getName tname)
                            let env' = env { nice = niceTypeExtendVars exists (nice env) }
-                           in prettyConName env tname <.> 
-                               (if (null exists) then empty 
-                                 else angled (map (ppTypeVar env') exists)) <.>
-                               tupled (map (prettyPatternType (decPrec env')) (zip args targs))
+                               (env'',docs) = foldr prettyPatternType (env',[]) (zip args targs)
+                           in (env'',
+                               parens $
+                                (if skip then keyword env ".skip " else empty) <.>
+                                prettyConName env tname <.>
+                                 (if (null exists) then empty
+                                   else angled (map (ppTypeVar env'') exists)) <.>
+                                  tupled docs <+> colon <+> prettyType env'' resTp <.> space)
 
-      PatVar tname PatWild  -> prettyName env (getName tname)
-      PatVar tname pat      -> pparens (prec env) precApp $
-                               prettyPattern (decPrec env) pat <+> keyword env "as" <+> prettyName env (getName tname)
-      PatWild               -> text "_"
-      PatLit lit            -> prettyLit env lit
+      PatVar tname PatWild  -> (env, parens  $
+                               prettyTName env tname) -- prettyName env (getName tname))
+      PatVar tname pat      -> let (env',doc) = prettyPattern (decPrec env) pat
+                               in (env', parens (doc <+> keyword env "as" <+> prettyTName env (tname)))
+
+      PatWild               -> (env,text "_")
+      PatLit lit            -> (env,prettyLit env lit)
   where
     commaSep :: [Doc] -> Doc
     commaSep = hcat . punctuate comma
@@ -324,7 +401,8 @@ prettyPattern env pat
     prettyArg tname = parens (prettyName env (getName tname) <+> text "::" <+> prettyType env (typeOf tname))
 
     prettyConName env tname
-      = if (showCoreTypes env) then prettyTName env tname else pretty (getName tname) 
+      = pretty (getName tname)
+        --  if (coreShowTypes env) then prettyTName env tname else pretty (getName tname)
 
 {--------------------------------------------------------------------------
   Literals
@@ -334,9 +412,17 @@ prettyLit :: Env -> Lit -> Doc
 prettyLit env lit
   = case lit of
       LitInt    i -> color (colorNumber (colors env)) (text (show i))
-      LitFloat  d -> color (colorNumber (colors env)) (text (show d))
-      LitChar   c -> color (colorString (colors env)) (text (show c))
-      LitString s -> color (colorString (colors env)) (text (show s))
+      LitFloat  d -> color (colorNumber (colors env)) (text (show d)) -- TODO: use showHex
+      LitChar   c -> color (colorString (colors env)) (text ("'" ++ showXChar c ++ "'"))
+      LitString s -> color (colorString (colors env)) (text ("\"" ++ concatMap showXChar s ++ "\""))
+
+
+showXChar c
+  = if (c >= ' ' && c <= '~' && c /= '\"' && c /= '\'' && c /= '\\') then [c]
+    else let n = fromEnum c
+         in if (n < 256) then "\\x" ++ (showHex 2 n)
+            else if (n < 65536) then "\\u" ++ (showHex 4 n)
+                                else "\\U" ++ (showHex 6 n)
 
 {--------------------------------------------------------------------------
   Pretty-printers for non-core terms
@@ -344,17 +430,20 @@ prettyLit env lit
 
 prettyTName :: Env -> TName -> Doc
 prettyTName env (TName name tp)
-  = prettyName env name <.> text ":" <.> ppType env tp
+  = prettyName env name <.> text ":" <+> ppType env tp
 
 prettyName :: Env -> Name -> Doc
 prettyName env name
-  = color (colorSource (colors env)) $
-    pretty name
+  = color (colorSource (colors env)) $ pretty name
+  {-
+    let (nm,post) = canonicalSplit name
+    in if (post=="") then pretty name else pretty nm <.> text post
+    -}
 
 prettyDefName :: Env -> Name -> Doc
 prettyDefName env name
   = color (colorSource (colors env)) $
-    fmtName (unqualify name)
+    pretty (unqualify name)
   where
     fmtName cname
       = let (name,postfix) = canonicalSplit cname
@@ -362,7 +451,7 @@ prettyDefName env name
             pre = case s of
                    ""  -> empty
                    (c:cs) -> if (isAlphaNum c || c == '_' || c == '(' || c == '[') then text s else parens (text s)
-        in (if null postfix then pre else (pre <+> text postfix))
+        in (if null postfix then pre else (pre <.> text postfix))
 
 ppOperatorName env name
   = color (colorSource (colors env)) $
@@ -451,3 +540,132 @@ extractImportedSynonyms core
 
     extractSynonyms :: [Type] -> Synonyms
     extractSynonyms xs = foldr synonymsCompose synonymsEmpty (map extractSynonym xs)
+
+
+
+
+instance HasTypeVar DefGroup where
+  sub `substitute` defGroup
+    = case defGroup of
+        DefRec defs   -> DefRec (sub `substitute` defs)
+        DefNonRec def -> DefNonRec (sub `substitute` def)
+
+  ftv defGroup
+    = case defGroup of
+        DefRec defs   -> ftv defs
+        DefNonRec def -> ftv def
+
+  btv defGroup
+    = case defGroup of
+        DefRec defs   -> btv defs
+        DefNonRec def -> btv def
+
+
+instance HasTypeVar Def where
+  sub `substitute` (Def name scheme expr vis isVal inl nameRng doc)
+    = Def name (sub `substitute` scheme) (sub `substitute` expr) vis isVal inl nameRng doc
+
+  ftv (Def name scheme expr vis isVal inl nameRng doc)
+    = ftv scheme `tvsUnion` ftv expr
+
+  btv (Def name scheme expr vis isVal inl nameRng doc)
+    = btv scheme `tvsUnion` btv expr
+
+instance HasTypeVar Expr where
+  sub `substitute` expr
+    = case expr of
+        Lam tnames eff expr -> Lam (sub `substitute` tnames) (sub `substitute` eff) (sub `substitute` expr)
+        Var tname info    -> Var (sub `substitute` tname) info
+        App f args        -> App (sub `substitute` f) (sub `substitute` args)
+        TypeLam tvs expr  -> let sub' = subRemove tvs sub
+                              in TypeLam tvs (sub' |-> expr)
+        TypeApp expr tps   -> TypeApp (sub `substitute` expr) (sub `substitute` tps)
+        Con tname repr     -> Con (sub `substitute` tname) repr
+        Lit lit            -> Lit lit
+        Let defGroups expr -> Let (sub `substitute` defGroups) (sub `substitute` expr)
+        Case exprs branches -> Case (sub `substitute` exprs) (sub `substitute` branches)
+
+  ftv expr
+    = let tvs = case expr of
+                  Lam tname eff expr -> tvsUnions [ftv tname, ftv eff, ftv expr]
+                  Var tname info     -> ftv tname
+                  App a b            -> ftv a `tvsUnion` ftv b
+                  TypeLam tvs expr   -> tvsRemove tvs (ftv expr)
+                  TypeApp expr tp    -> ftv expr `tvsUnion` ftv tp
+                  Con tname repr     -> ftv tname
+                  Lit lit            -> tvsEmpty
+                  Let defGroups expr -> ftv defGroups `tvsUnion` ftv expr
+                  Case exprs branches -> ftv exprs `tvsUnion` ftv branches
+      in -- trace ("ftv :" ++ show (tvsList (tvs)) ++ ", in expr: " ++ show expr) $
+         tvs
+
+  btv expr
+    = case expr of
+        Lam tname eff expr -> tvsUnions [btv tname, btv eff, btv expr]
+        Var tname info     -> btv tname
+        App a b            -> btv a `tvsUnion` btv b
+        TypeLam tvs expr   -> tvsInsertAll tvs (btv expr)
+        TypeApp expr tp    -> btv expr `tvsUnion` btv tp
+        Con tname repr     -> btv tname
+        Lit lit            -> tvsEmpty
+        Let defGroups expr -> btv defGroups `tvsUnion` btv expr
+        Case exprs branches -> btv exprs `tvsUnion` btv branches
+
+
+instance HasTypeVar Branch where
+  sub `substitute` (Branch patterns guards)
+    = let sub' = subRemove (tvsList (btv patterns)) sub
+      in Branch (map ((sub `substitute`)) patterns) (map (sub' `substitute`) guards)
+
+  ftv (Branch patterns guards)
+    = ftv patterns `tvsUnion` (tvsDiff (ftv guards) (btv patterns))
+
+  btv (Branch patterns guards)
+    = btv patterns `tvsUnion` btv guards
+
+
+instance HasTypeVar Guard where
+  sub `substitute` (Guard test expr)
+    = Guard (sub `substitute` test) (sub `substitute` expr)
+  ftv (Guard test expr)
+    = let tvs = ftv test `tvsUnion` ftv expr
+      in -- trace ("ftv:" ++ show (tvsList (tvs)) ++ ", in guard: " ++ show expr) $
+         tvs
+  btv (Guard test expr)
+    = btv test `tvsUnion` btv expr
+
+instance HasTypeVar Pattern where
+  sub `substitute` pat
+    = case pat of
+        PatVar tname pat   -> PatVar (sub `substitute` tname) (sub `substitute` pat)
+        PatCon tname args repr tps exists restp info skip
+          -> let sub' = subRemove exists sub
+             in PatCon (sub `substitute` tname) (sub' `substitute` args) repr (sub' `substitute` tps) exists (sub' `substitute` restp) info skip
+        PatWild           -> PatWild
+        PatLit lit        -> pat
+
+
+  ftv pat
+    = let tvs = case pat of
+                  PatVar tname pat    -> tvsUnion (ftv tname) (ftv pat)
+                  PatCon tname args _ targs exists tres _ _ -> tvsRemove exists (tvsUnions [ftv tname,ftv args,ftv targs,ftv tres])
+                  PatWild             -> tvsEmpty
+                  PatLit lit          -> tvsEmpty
+      in -- trace ("ftv :" ++ show (tvsList (tvs)) ++ ", in pattern: " ++ show pat) $
+         tvs
+
+  btv pat
+    = case pat of
+        PatVar tname pat           -> tvsUnion (btv tname) (btv pat)
+        PatCon tname args _ targs exists tres _ _  -> tvsUnions [btv tname,btv args,btv targs,btv tres,tvsNew exists]
+        PatWild                 -> tvsEmpty
+        PatLit lit              -> tvsEmpty
+
+
+instance HasTypeVar TName where
+  sub `substitute` (TName name tp)
+    = TName name (sub `substitute` tp)
+  ftv (TName name tp)
+    = ftv tp
+  btv (TName name tp)
+    = btv tp

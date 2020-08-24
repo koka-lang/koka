@@ -4,7 +4,7 @@
 // --------------------------------------------------------
 public module common
 
-import std/os/readline
+// import std/os/readline
 
 // --------------------------------------------------------
 //  Exceptions
@@ -25,7 +25,7 @@ fun catch(action,h) {
 }
 
 fun zerodiv(x,y) {
-  common/catch( { safe-div(x,y) }, fun(s) { 0 } )
+  common/catch( { safe-div(x,y) }, fun(s) { 42 } )
 }
 
 val to-maybe = handler {
@@ -77,23 +77,34 @@ fun counter() {
   }
 }
 
+/*
 val state-param = handler(s) {
   return x -> (x,s)
   get()    -> resume(s,s)
   put(s')  -> resume((),s')
 }
+*/
 
-fun state(init, action) {
+fun statex(init, action) {
   var s := init
-  handle(action) {
+  handle({mask<local>(action)}) {
     return x -> (x,s)
-    get()    -> { val x = s; s := s+1; resume(x) }
+    get()    -> { resume(s) }
     put(x)   -> { s := x; resume(()) }
   }
 }
 
+fun state(init, action) {
+  var s := init
+  handle({mask<local>(action)}) {
+    return x   { (x,s) }
+    fun get()  { s }
+    fun put(x) { s := x  }
+  }
+}
+
 fun test3() {
-  state(2,counter)
+  state(2,counter).fst
 }
 
 
@@ -143,16 +154,16 @@ effect amb {
 fun xor() : amb bool {
   val p = flip()
   val q = flip()
-  :
+  (p && !q)||(!p&&q)
 }
 
-val coinflip = handler {
-  flip() -> resume(random-bool())
-}
+//val coinflip = handler {
+//  flip() -> resume(random-bool())
+//}
 
 val amb = handler {
   return x -> [x]
-  flip()   -> resume(False) + resume(True)
+  flip()   -> resume(False) + (resume(True) : list<_>)
 }
 
 fun test5() {
@@ -183,6 +194,7 @@ fun test7() {
 // --------------------------------------------------------
 //  An asynchronous effect
 // --------------------------------------------------------
+/*
 fun ask-age() {
   println("what is your name?")
   val name = readline()           // asynchronous!
@@ -203,7 +215,7 @@ fun ask-age-err() {
     println("error: " + err )
   }
 }
-
+*/
 
 // --------------------------------------------------------
 //  Testing
@@ -215,7 +227,6 @@ fun main() {
   test4()
   test5()
   test6()
-  test7()
   ()
 }
 

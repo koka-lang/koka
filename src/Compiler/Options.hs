@@ -17,6 +17,7 @@ module Compiler.Options( -- * Command line options
                        , prettyEnvFromFlags
                        , colorSchemeFromFlags
                        , prettyIncludePath
+                       , isValueFromFlags
                        ) where
 
 
@@ -30,9 +31,9 @@ import Lib.Printer
 import Common.Failure         ( raiseIO )
 import Common.ColorScheme
 import Common.File
-import Common.Syntax          ( Target (..), Host(..) )
+import Common.Syntax          ( Target (..), Host(..), Platform(..), platform32, platform64, platformJS, platformCS )
 import Compiler.Package
-
+import Core.Core( dataInfoIsValue )
 {--------------------------------------------------------------------------
   Convert flags to pretty environment
 --------------------------------------------------------------------------}
@@ -47,7 +48,8 @@ prettyEnvFromFlags flags
                  , TP.htmlCss         = htmlCss flags
                  , TP.htmlJs          = htmlJs flags
                  , TP.verbose         = verbose flags
-                 , TP.showCoreTypes   = showCoreTypes flags
+                 , TP.coreShowTypes   = showCoreTypes flags
+                 , TP.coreInlineMax   = optInlineMax flags
                  }
 
 
@@ -86,22 +88,26 @@ data Flags
          , showSynonyms     :: Bool
          , showCore         :: Bool
          , showCoreTypes    :: Bool
-         , showAsmCSharp    :: Bool
-         , showAsmJavaScript :: Bool
+         , showAsmCS        :: Bool
+         , showAsmJS        :: Bool
+         , showAsmC         :: Bool
          , showTypeSigs     :: Bool
          , evaluate         :: Bool
          , library          :: Bool
-         , targets          :: [Target]
+         , target           :: Target
          , host             :: Host
+         , platform         :: Platform
          , simplify         :: Int
+         , simplifyMaxDup   :: Int
          , colorScheme      :: ColorScheme
          , outDir           :: FilePath
          , includePath      :: [FilePath]
          , csc              :: FileName
          , node             :: FileName
+         , cmake            :: FileName
+         , cmakeArgs        :: String
          , editor           :: String
          , redirectOutput   :: FileName
-         , maxStructFields  :: Int
          , outHtml          :: Int
          , htmlBases        :: [(String,String)]
          , htmlCss          :: String
@@ -114,12 +120,15 @@ data Flags
          , genCore          :: Bool
          , coreCheck        :: Bool
          , enableMon        :: Bool
-         -- , installDir       :: FilePath
          , semiInsert       :: Bool
+         , installDir       :: FilePath
          , packages         :: Packages
          , forceModule      :: FilePath
-         , optimize         :: Int       -- optimization level; negative is off
-         , debug            :: Bool
+         , debug            :: Bool      -- emit debug info
+         , optimize         :: Int       -- optimization level; 0 or less is off
+         , optInlineMax     :: Int         
+         , parcReuse        :: Bool
+         , parcSpecialize   :: Bool
          }
 
 flagsNull :: Flags
@@ -129,27 +138,31 @@ flagsNull
           -- show
           False False  -- kinds kindsigs
           False False False -- synonyms core core-types
-          False -- show asmCSharp
-          False -- show asmJavaScript
+          False -- show asm
+          False
+          False
           False -- typesigs
-          True -- executes
+          True  -- executes
           False -- library
-          [JS]
-          Node
+          C     -- target
+          Node  -- js host
+          platform64  
           5     -- simplify passes
+          6     -- simplify dup max
           defaultColorScheme
           "out"    -- out-dir
           []
           "csc"
           "node"
+          "cmake"
+          ""       -- cmake args
+          ""       -- editor
           ""
-          ""
-          3
-          0
+          0        -- out html
           []
           ("styles/" ++ programName ++ ".css")
           ("")
-          0
+          1        -- verbosity
           ""
           False
           "ansi"  -- console: ansi, html
@@ -157,12 +170,15 @@ flagsNull
           False -- genCore
           False -- coreCheck
           True  -- enableMonadic
-          -- ""  -- install dir
           True  -- semi colon insertion
+          ""    -- install dir
           packagesEmpty -- packages
           "" -- forceModule
-          (-1) -- optimize
           True -- debug
+          0    -- optimize
+          10   -- inlineMax
+          True -- parc reuse
+          True -- parc specialize
 
 isHelp Help = True
 isHelp _    = False
@@ -172,6 +188,9 @@ isVersion _      = False
 
 isInteractive Interactive = True
 isInteractive _ = False
+
+isValueFromFlags flags
+ = dataInfoIsValue
 
 {--------------------------------------------------------------------------
   Options and environment variables
@@ -189,36 +208,39 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   ['e'] ["execute"]         (\b f -> f{evaluate= b})        "compile and execute (default)"
  , flag   ['c'] ["compile"]         (\b f -> f{evaluate= not b})    "only compile, do not execute"
  , option ['i'] ["include"]         (OptArg includePathFlag "dirs") "add <dirs> to search path (empty resets)"
- , option ['o'] ["outdir"]          (ReqArg outDirFlag "dir")       "put generated files in <dir> ('out' by default)"
- , option []    ["outname"]         (ReqArg exeNameFlag "name")     "name of the final executable"
- , flag   ['v'] ["verbose"]         (\b f -> f{verbose=if b then (verbose f)+1 else 0}) "run more verbose"
+ , option ['o'] ["outdir"]          (ReqArg outDirFlag "dir")       "output files go to <dir> ('out' by default)"
+ , option []    ["outname"]         (ReqArg exeNameFlag "name")     "base name of the final executable"
+ , numOption 1 "n" ['v'] ["verbose"] (\i f -> f{verbose=i})         "verbosity 'n' (0=quiet, 1=default, 2=trace)"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
- , flag   ['O'] ["optimize"]        (\b f -> f{optimize=if b then 1 else -1}) "optimize (off by default)"
+ , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (0=default, 2=full)"
  , flag   ['D'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)"
 
  , emptyline
  , flag   []    ["html"]            (\b f -> f{outHtml = if b then 2 else 0}) "generate documentation"
- , option []    ["htmlbases"]       (ReqArg htmlBasesFlag "bases")  "set link prefixes for documentation"
- , option []    ["htmlcss"]         (ReqArg htmlCssFlag "link")     "set link to the css documentation style"
- , config []    ["target"]          [("js",[JS]),("cs",[CS])] (\t f -> f{targets=t}) "generate csharp or javascript (default)"
- , config []    ["host"]            [("node",Node),("browser",Browser)] (\h f -> f{ targets=[JS], host=h}) "specify host for running code"
-
+ , option []    ["htmlbases"]       (ReqArg htmlBasesFlag "bases")            "set link prefixes for documentation"
+ , option []    ["htmlcss"]         (ReqArg htmlCssFlag "link")               "set link to the css documentation style"
+ , config []    ["target"]          [("js",JS),("cs",CS),("c",C)] targetFlag  "generate C (default), javascript, or C#"
+ , config []    ["host"]            [("node",Node),("browser",Browser)] (\h f -> f{ target=JS, host=h}) "specify host for running javascript"
+ , config []    ["platform"]        [("x32",platform32),("x64",platform64)] (\p f -> f{platform=p})     "specify target platform (default=64-bit)"
  , emptyline
- , flag   []    ["showspan"]       (\b f -> f{ showSpan = b})      "show ending row/column too on errors"
+ , flag   []    ["showspan"]       (\b f -> f{ showSpan = b})       "show ending row/column too on errors"
  -- , flag   []    ["showkinds"]      (\b f -> f{showKinds=b})        "show full kind annotations"
- , flag   []    ["showkindsigs"]   (\b f -> f{showKindSigs=b})     "show kind signatures of type definitions"
- , flag   []    ["showtypesigs"]   (\b f -> f{showTypeSigs=b})     "show type signatures of definitions"
- , flag   []    ["showsynonyms"]   (\b f -> f{showSynonyms=b})     "show expanded type synonyms in types"
- , flag   []    ["showcore"]       (\b f -> f{showCore=b})         "show core"
- , flag   []    ["showcoretypes"]       (\b f -> f{showCoreTypes=b})         "show full types in core"
- , flag   []    ["showcs"]         (\b f -> f{showAsmCSharp=b})    "show generated c#"
- , flag   []    ["showjs"]         (\b f -> f{showAsmJavaScript=b}) "show generated javascript"
- , flag   []    ["core"]            (\b f -> f{genCore=b})           "generate a core file"
+ , flag   []    ["showkindsigs"]   (\b f -> f{showKindSigs=b})      "show kind signatures of type definitions"
+ , flag   []    ["showtypesigs"]   (\b f -> f{showTypeSigs=b})      "show type signatures of definitions"
+ , flag   []    ["showsynonyms"]   (\b f -> f{showSynonyms=b})      "show expanded type synonyms in types"
+ , flag   []    ["showcore"]       (\b f -> f{showCore=b})          "show core"
+ , flag   []    ["showcoretypes"]  (\b f -> f{showCoreTypes=b})     "show full types in core"
+ , flag   []    ["showcs"]         (\b f -> f{showAsmCS=b})         "show generated c#"
+ , flag   []    ["showjs"]         (\b f -> f{showAsmJS=b})         "show generated javascript"
+ , flag   []    ["showc"]          (\b f -> f{showAsmC=b})          "show generated C"
+ , flag   []    ["core"]           (\b f -> f{genCore=b})          "generate a core file"
  , flag   []    ["checkcore"]      (\b f -> f{coreCheck=b})         "check generated core"
  -- , flag   []    ["show-coreF"]      (\b f -> f{showCoreF=b})        "show coreF"
  , emptyline
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
+ , option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"
+ , option []    ["cmakeargs"]       (ReqArg cmakeArgsFlag "args")   "pass <args> to cmake"
  , option []    ["csc"]             (ReqArg cscFlag "cmd")          "use <cmd> as the csharp backend compiler"
  , option []    ["node"]            (ReqArg nodeFlag "cmd")         "use <cmd> to execute node"
  , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors"
@@ -226,34 +248,42 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , configstr [] ["console"]      ["ansi","html","raw"] (\s f -> f{console=s})   "console output format"
 --  , option []    ["install-dir"]     (ReqArg installDirFlag "dir")       "set the install directory explicitly"
 
- , hiddenNumOption 3 "n" [] ["simplify"]  (\i f -> f{simplify=i})    "enable 'n' core simplification passes"
- , hiddenFlag   []    ["mon"]       (\b f -> f{enableMon=b})          "enable monadic translation"
- , hiddenFlag   []    ["structs"]   (\b f -> f{maxStructFields= if b then 3 else 0})  "pass constructors on stack"
- , hiddenFlag []      ["semi"]      (\b f -> f{semiInsert=b})     "insert semicolons based on layout"
+ , hide $ fnum 3 "n"  ["simplify"]  (\i f -> f{simplify=i})          "enable 'n' core simplification passes"
+ , hide $ fnum 320 "n"["maxdup"]    (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
+ , hide $ fnum 10 "n" ["inline"]    (\i f -> f{optInlineMax=i})      "set 'n' as maximum inline threshold (=10)"
+ , hide $ fflag       ["monadic"]   (\b f -> f{enableMon=b})         "enable monadic translation"
+ , hide $ fflag       ["semi"]      (\b f -> f{semiInsert=b})        "insert semicolons based on layout"
+ , hide $ fflag       ["parcreuse"] (\b f -> f{parcReuse=b})         "enable in-place update analysis"
+ , hide $ fflag       ["parcspec"]  (\b f -> f{parcSpecialize=b})    "enable reference count specialization"
  ]
  where
   emptyline
-    = flag   []    [] (\b f -> f) ""
+    = flag [] [] (\b f -> f) ""
 
   option short long f desc
     = ([Option short long f desc],[])
 
-  hiddenOption short long f desc
-    = ([],[Option short long f desc])
-
   flag short long f desc
     = ([Option short long (NoArg (Flag (f True))) desc]
       ,[Option [] (map ("no-" ++) long) (NoArg (Flag (f False))) ""])
+  
+  numOption def optarg short long f desc
+    = ([Option short long (OptArg (\mbs -> Flag (numOptionX def f mbs)) optarg) desc]
+      ,[Option [] (map ("no-" ++) long) (NoArg (Flag (f (-1)))) ""])
 
-  hiddenFlag short long f desc
-    = ([],[Option short long (NoArg (Flag (f True))) desc
-          ,Option [] (map ("no-" ++) long) (NoArg (Flag (f False))) ""])
+  -- feature flags    
+  fflag long f desc
+    = ([Option [] (map ("f"++) long) (NoArg (Flag (f True))) desc]
+      ,[Option [] (map ("fno-" ++) long) (NoArg (Flag (f False))) ""])  
 
-  hiddenNumOption def optarg short long f desc
-    = ([],[Option short long (OptArg (\mbs -> Flag (numOption def f mbs)) optarg) desc
-          ,Option [] (map ("no-" ++) long) (NoArg (Flag (f (-1)))) ""])
+  fnum def optarg long f desc
+    = ([Option [] (map ("f"++) long) (OptArg (\mbs -> Flag (numOptionX def f mbs)) optarg) desc]
+      ,[Option [] (map ("fno-" ++) long) (NoArg (Flag (f (-1)))) ""])
 
-  numOption def f mbs
+  hide (vis,hidden) 
+    = ([],vis ++ hidden)
+              
+  numOptionX def f mbs
     = case mbs of
         Nothing -> f def
         Just s  -> case reads s of
@@ -271,6 +301,12 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
   configstr short long opts f desc
     = config short long (map (\s -> (s,s)) opts) f desc
+    
+  targetFlag t f
+    = f{ target=t, platform=case t of 
+                              JS -> platformJS
+                              CS -> platformCS
+                              _  -> platform64  }
 
   colorFlag s
     = Flag (\f -> f{ colorScheme = readColorFlags s (colorScheme f) })
@@ -306,6 +342,13 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
   redirectFlag s
     = Flag (\f -> f{ redirectOutput = s })
+    
+  cmakeFlag s
+      = Flag (\f -> f{ cmake = s })
+
+  cmakeArgsFlag s
+      = Flag (\f -> f{ cmakeArgs = s })
+
 {-
   installDirFlag s
     = Flag (\f -> f{ installDir = s, includePath = (includePath f) ++ [libd] })
@@ -365,17 +408,15 @@ processOptions flags0 opts
              in do pkgs <- discoverPackages (outDir flags)
                    installDir <- getInstallDir
                    return (flags{ packages = pkgs,
-                                  includePath = joinPath installDir "lib":includePath flags },mode)
+                                  installDir = normalizeWith '/' installDir,
+                                  includePath = joinPath installDir "lib":includePath flags }
+                          ,mode)
         else invokeError errs
 
 extractFlags :: Flags -> [Option] -> Flags
 extractFlags flagsInit options
   = let flags = foldl extract flagsInit options
-    in case (JS `elem` targets flags) of  -- the maxStructFields prevents us from generating CS and JS at the same time...
-         True -> flags{ maxStructFields = -1 }
-         _    -> case (CS `elem` targets flags) of
-                   True | maxStructFields flags < 0 -> flags{ maxStructFields = 3 }
-                   _    -> flags
+    in flags
   where
     extract flags (Flag f)  = f flags
     extract flags _         = flags

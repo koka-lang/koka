@@ -13,6 +13,9 @@
 module Common.Name
           ( Name, Names     -- instance Eq Ord Show
           , showName        -- show with quotes
+          , showPlain
+          , labelNameCompare
+          , toHiddenUniqueName
           , newName, newQualified
           , nameNil, nameIsNil
           , nameCaseEqual, nameCaseOverlap, isSameNamespace
@@ -20,20 +23,27 @@ module Common.Name
           , nameId, nameModule
 
           , newFieldName, isFieldName, isWildcard
-          , newHiddenExternalName
-          , newHiddenName, isHiddenName
+          , newHiddenExternalName, isHiddenExternalName
+          , newHiddenName, isHiddenName, hiddenNameStartsWith
           , makeHiddenName, makeFreshHiddenName
+          , toUniqueName
           , newImplicitTypeVarName, isImplicitTypeVarName
           , newCreatorName
+          , toHandlerName, fromHandlerName, isHandlerName
+          , toOpSelectorName, fromOpSelectorName, isOpSelectorName
           , toOperationsName, fromOperationsName, isOperationsName
+          , toEffectTagName
+          , toHandleName, isHandleName
           , toOpsConName, toOpConName, toOpTypeName
           , toConstructorName, isConstructorName, toVarName
           , toOpenTagName, isOpenTagName
           , toValueOperationName, isValueOperationName, fromValueOperationsName
           , splitModuleName, unsplitModuleName
+          , isEarlyBindName
 
           , prepend, postpend
           , asciiEncode, showHex, moduleNameToPath
+          , canonicalSep, canonicalName, nonCanonicalName, canonicalSplit
           ) where
 
 import Lib.Trace( trace )
@@ -43,6 +53,10 @@ import Common.Failure(failure)
 import Common.File( joinPaths, splitOn, endsWith, startsWith )
 import Common.Range( rangeStart, posLine, posColumn )
 import Data.List(intersperse)
+
+
+isEarlyBindName name
+  = isHandleName name -- || nameId name `startsWith` "clause-" || hiddenNameStartsWith name "tag"
 
 ----------------------------------------------------------------
 -- Names
@@ -81,14 +95,14 @@ lowerCompare (Name m1 _ n1 _) (Name m2 _ n2 _)
   = case lowerCompareS m1 m2 of
       EQ -> lowerCompareS n1 n2
       lg -> lg
-  where
-    lowerCompareS (c:cs) (d:ds)
-      = case compare (toLower c) (toLower d) of
-          EQ -> lowerCompareS cs ds
-          lg -> lg
-    lowerCompareS (c:cs) [] = GT
-    lowerCompareS [] (d:ds) = LT
-    lowerCompareS [] []     = EQ
+
+lowerCompareS (c:cs) (d:ds)
+  = case compare (toLower c) (toLower d) of
+      EQ -> lowerCompareS cs ds
+      lg -> lg
+lowerCompareS (c:cs) [] = GT
+lowerCompareS [] (d:ds) = LT
+lowerCompareS [] []     = EQ
 
 instance Eq Name where
   n1@(Name _ hm1 _ hn1) == n2@(Name _ hm2 _ hn2)
@@ -102,17 +116,44 @@ instance Ord Name where
                 lg -> lg
         lg -> lg
 
+-- Effects compare by name first, then by module name for efficiency at runtime
+labelNameCompare nm1@(Name m1 hm1 n1 hn1) nm2@(Name m2 hm2 n2 hn2)
+  = case compare hn1 hn2 of
+      EQ -> case lowerCompareS n1 n2 of
+              EQ -> case compare hm1 hm2 of
+                      EQ -> lowerCompareS m1 m2
+                      lg -> lg
+              lg -> lg
+      lg -> lg
+
+
+canonicalSep = '.'
+
 instance Show Name where
   show (Name m _ n _)
-    = if null m
-       then n
-       else m ++ "/" ++ case n of
-                          (c:cs) | not (isAlpha c || c=='_' || c=='(') -> "(" ++ n ++ ")"
-                          _      -> n
+   = let (mid,post) = case (span isDigit (reverse n)) of
+                        (postfix, c:rest) | c == canonicalSep && not (null postfix)
+                           -> (reverse rest, c:reverse postfix)
+                        _  -> (n,"")
+         pre        = if null m then "" else m ++ "/"
+     in pre ++ case mid of
+                  (c:cs) -- | any (\c -> c `elem` ".([])") mid    -> "(" ++ n ++ ")"
+                         | not (isAlpha c || c=='_' || c=='(' || c== '.') -> "(" ++ n ++ ")"
+                  _      -> n
+
+
+showPlain (Name m _ n _)
+  = (if null m then "" else m ++ "/") ++ n
 
 instance Pretty Name where
   pretty name
     = text (show name)
+
+
+
+
+
+
 
 -- | Show quotes around the name
 showName :: Name -> String
@@ -135,7 +176,7 @@ newQualified m n
     -- The hash is done taking the first 4 characters. This is of course a
     -- terrible hash but we use it mostly to speed up *comparisions* for the NameMap
     hash :: String -> Int
-    hash s = foldl (\h c -> h*256 + fromEnum c) 0 (map toLower (take 4 s))
+    hash s = foldl (\h c -> h*256 + fromEnum c) 0 (map toLower (take 4 (s ++ "\0\0\0\0")))
 
 
 nameNil :: Name
@@ -224,11 +265,30 @@ isHiddenName name
       _       -> False
 
 makeHiddenName s name
-  = prepend ("." ++ s ++ "-") name
+  = --case nameId xname of
+    --  c:cs | not (isAlpha c) -> prepend "." xname -- hidden operator
+    --  _    ->
+    prepend ("." ++ s ++ "-") xname
+  where
+    xname = case nameId name of
+              '.':cs -> newQualified (nameModule name) cs
+              s      -> name
 
 makeFreshHiddenName s name range
   = makeHiddenName s (postpend (idFromPos (rangeStart range)) name)
-    where idFromPos pos = "-" ++ show (posLine pos) ++ "-" ++ show (posColumn pos)
+    where idFromPos pos = "-l" ++ show (posLine pos) ++ "-c" ++ show (posColumn pos)
+
+hiddenNameStartsWith name pre
+  = nameId name `startsWith` ("." ++ pre ++ "-")
+
+toUniqueName :: Int -> Name -> Name
+toUniqueName i name
+  = newQualified (nameModule name) $
+    reverse (insert (reverse (nameId name)))
+  where 
+    insert (c:cs) | c `elem` "'?" = c : insert cs
+    insert cs     = reverse (show i) ++ cs
+
 
 newFieldName i
   = newHiddenName ("field" ++ show i)
@@ -247,6 +307,9 @@ isImplicitTypeVarName name
 newHiddenExternalName name
   = makeHiddenName "extern" name
 
+isHiddenExternalName name
+  = hiddenNameStartsWith name "extern"
+
 
 -- | Create a constructor creator name from the constructor name.
 -- Used if special creation functions are used for the constructor.
@@ -254,6 +317,29 @@ newHiddenExternalName name
 newCreatorName :: Name -> Name
 newCreatorName name
   = makeHiddenName "create" name
+
+-- | Create a handler type name from an effect type name.
+toHandlerName :: Name -> Name
+toHandlerName name
+  = makeHiddenName "hnd" name
+
+isHandlerName :: Name -> Bool
+isHandlerName name
+  = nameId name `startsWith` ".hnd-"
+
+-- | Create an effect type name from an operations type name.
+fromHandlerName :: Name -> Name
+fromHandlerName name
+  = newQualified (nameModule name) (drop 5 (nameId name))
+
+-- | Create a handle function name from an effect type name.
+toHandleName :: Name -> Name
+toHandleName name
+  = makeHiddenName "handle" name
+
+isHandleName :: Name -> Bool
+isHandleName name
+  = hiddenNameStartsWith name "handle"
 
 
 -- | Create an operations type name from an effect type name.
@@ -270,6 +356,27 @@ isOperationsName name
 fromOperationsName :: Name -> Name
 fromOperationsName name
   = newQualified (nameModule name) (drop 5 (nameId name))
+
+-- | Create an operations type name from an effect type name.
+toOpSelectorName :: Name -> Name
+toOpSelectorName name
+  = makeHiddenName "select" name
+
+-- | Is this an operations name?
+isOpSelectorName :: Name -> Bool
+isOpSelectorName name
+  = nameId name `startsWith` ".select-"
+
+-- | Create an effect type name from an operations type name.
+fromOpSelectorName :: Name -> Name
+fromOpSelectorName name
+  = newQualified (nameModule name) (drop 8 (nameId name))
+
+-- | Create an effect tag name from an effect type name.
+toEffectTagName :: Name -> Name
+toEffectTagName name
+  = makeHiddenName "tag" name
+
 
 -- | Create an operation type name from an operation name.
 toOpTypeName :: Name -> Name
@@ -321,8 +428,36 @@ prepend s name
     )
 
 postpend :: String -> Name -> Name
-postpend s name
-  = newQualified (nameModule name) (nameId name ++ s)
+postpend s cname
+  = let (name,post) = canonicalSplit cname
+    in newQualified (nameModule name) (nameId name ++ s ++ post)
+
+
+toHiddenUniqueName :: Int -> String -> Name -> Name
+toHiddenUniqueName i s name
+  = makeHiddenName (s ++ show i) xname
+  where
+    xname = if (isAlpha (head (nameId name))) then name else newQualified (nameModule name) ("op")
+
+canonicalName :: Int -> Name -> Name
+canonicalName n name
+  = if (n==0) then name
+    else postpend (canonicalSep : show n) name
+    {-
+         case (span isDigit (reverse (nameId name))) of
+           (postfix, c:rest) | c == canonicalSep && not (null postfix) -> (newQualified (nameModule name) (reverse rest))
+           _ -> name -}
+
+nonCanonicalName :: Name -> Name
+nonCanonicalName name
+  = fst (canonicalSplit name)
+
+canonicalSplit :: Name -> (Name,String)
+canonicalSplit name
+  = case (span isDigit (reverse (nameId name))) of
+      (postfix, c:rest) | c == canonicalSep && not (null postfix) -> (newQualified (nameModule name) (reverse rest), c:reverse postfix)
+      _        -> (name,"")
+
 
 ----------------------------------------------------------------
 -- camel-case to dash-case
@@ -364,16 +499,16 @@ asciiEncode isModule name
   = case name of
       (c:cs)  | isAlphaNum c -> encodeChars name
       ""      -> "_null_"
-      ".<>"   -> "_Total_"
-      ".<|>"  -> "_Extend_"
-      ".()"   -> "_Unit_"
-      ".(,)"  -> "_Tuple2_"
-      ".(,,)" -> "_Tuple3_"
-      ".(,,,)"-> "_Tuple4_"
-      "()"    -> "_unit_"
-      "(,)"   -> "_tuple2_"
-      "(,,)"  -> "_tuple3_"
-      "(,,,)" -> "_tuple4_"
+      ".<>"   -> "_total_"
+      ".<|>"  -> "_extend_"
+      ".()"   -> "_unit_"
+      ".(,)"  -> "_tuple2_"
+      ".(,,)" -> "_tuple3_"
+      ".(,,,)"-> "_tuple4_"
+      "()"    -> "_Unit_"
+      "(,)"   -> "_Tuple2_"
+      "(,,)"  -> "_Tuple3_"
+      "(,,,)" -> "_Tuple4_"
       "[]"    -> "_index_"
       -- '.':'c':'o':'n':' ':cs -> trace ("con name: " ++ name) $ "_con_" ++ encodeChars cs
       -- '.':'t':'y':'p':'e':' ':cs -> "_type_" ++ encodeChars cs

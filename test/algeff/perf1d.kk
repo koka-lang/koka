@@ -41,7 +41,7 @@ fun test-normal(i0,action) {
 }
 
 
-fun deep-action() {
+fun multi-action() {
   hreader {
     hreader {
       hreader {
@@ -64,6 +64,6 @@ fun test-direct(i) {
 val n = 1000000
 fun main() {
   print-elapsed({test-direct(n)},      "direct")
-  print-elapsed({test-normal(n,count)},"handler")
-  print-elapsed({test-normal(n,deep-action)},"deep handler")
+  print-elapsed({test-normal(n,count)},"single handler")
+  print-elapsed({test-normal(n,multi-action)},"multiple handlers")
 }

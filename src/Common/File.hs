@@ -27,13 +27,14 @@ module Common.File(
                   , findMaximalPrefix
                   , isAbsolute
                   , commonPathPrefix
-                  , normalizeWith
+                  , normalizeWith, normalize
                   , isLiteralDoc
 
                   -- * Files
                   , FileTime, fileTime0, maxFileTime, maxFileTimes
                   , fileTimeCompare, getFileTime
                   , getFileTimeOrCurrent, getCurrentTime
+                  , readTextFile
                   , copyTextFile, copyTextIfNewer, copyTextIfNewerWith, copyTextFileWith
                   , copyBinaryFile, copyBinaryIfNewer
                   ) where
@@ -41,7 +42,7 @@ module Common.File(
 import Data.List        ( intersperse )
 import Data.Char        ( toLower, isSpace )
 import Platform.Config  ( pathSep, pathDelimiter, sourceExtension )
-import qualified Platform.Runtime as B ( copyBinaryFile )
+import qualified Platform.Runtime as B ( copyBinaryFile, exCatch )
 import Common.Failure   ( raiseIO, catchIO )
 
 import System.Process   ( system )
@@ -242,6 +243,12 @@ maxFileTimes :: [FileTime] -> FileTime
 maxFileTimes times
   = foldr maxFileTime fileTime0 times
 
+readTextFile :: FilePath -> IO (Maybe String)
+readTextFile fpath
+  = B.exCatch (do content <- readFile fpath
+                  return (seq (last content) $ Just content)) 
+              (\exn -> return Nothing)
+
 copyTextFile :: FilePath -> FilePath -> IO ()
 copyTextFile src dest
   = if (src == dest)
@@ -294,7 +301,13 @@ getInstallDir
        let d  = dirname p
            ds = splitPath d
            result = case reverse ds of
+                      -- stack build
+                      ("bin":_:"install":".stack-work":es)     -> joinPaths (reverse es)
+                      ("bin":_:_:"install":".stack-work":es)   -> joinPaths (reverse es)
+                      ("bin":_:_:_:"install":".stack-work":es) -> joinPaths (reverse es)
+                      -- install
                       ("bin":es)   -> joinPaths (reverse es)
+                      -- jake build
                       (_:"out":es) -> joinPaths (reverse es)
                       _            -> d
        -- trace ("install-dir: " ++ result ++ ": " ++ show ds) $

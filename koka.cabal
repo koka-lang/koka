@@ -1,26 +1,176 @@
-name:                koka
-version:             0.1.0.0
-license-file:        LICENSE
-author:              Daan Leijen
-maintainer:          daan@microsoft.com
-build-type:          Simple
-extra-source-files:  readme.md
-cabal-version:       >=1.10
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.33.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 6743c04f04665c8ec0557236bfc44c5084b2dc14c91609e0623cb414af988db7
+
+name:           koka
+version:        2.0.0.0
+description:    Please see the README on GitHub at <https://github.com/koka-lang/koka#readme>
+homepage:       https://github.com/koka-lang/koka#readme
+bug-reports:    https://github.com/koka-lang/koka/issues
+author:         Daan Leijen
+maintainer:     daan@microsoft.com
+license:        Apache-2.0
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    readme.md
+
+source-repository head
+  type: git
+  location: https://github.com/koka-lang/koka
 
 executable koka
-  main-is:             Main.hs
-  other-extensions:    CPP, OverloadedStrings
-  build-depends:       base >=4.9 && <5
-                       , bytestring >=0.10 && <1
-                       , time >=1.6 && <2
-                       , parsec >=3.1 && <4
-                       , containers >=0.5 && <1
-                       , text >=1.2 && <2
-                       , array >=0.5 && <1
-                       , process >=1.4 && <2
-                       , directory >=1.3 && <2
-  hs-source-dirs:      src, src/Platform/cpp
-  c-sources:           src/Platform/cpp/Platform/cconsole.c
-  include-dirs:        src/Platform/cpp/Platform
-  build-tools:         alex
-  default-language:    Haskell2010
+  main-is: Main.hs
+  other-modules:
+      Backend.C.Box
+      Backend.C.FromCore
+      Backend.C.Parc
+      Backend.C.ParcReuse
+      Backend.CSharp.FromCore
+      Backend.JavaScript.FromCore
+      Common.ColorScheme
+      Common.Error
+      Common.Failure
+      Common.File
+      Common.Id
+      Common.IdMap
+      Common.IdNice
+      Common.IdSet
+      Common.Message
+      Common.Name
+      Common.NameMap
+      Common.NamePrim
+      Common.NameSet
+      Common.QNameMap
+      Common.Range
+      Common.ResumeKind
+      Common.Syntax
+      Common.Unique
+      Compiler.Compile
+      Compiler.Module
+      Compiler.Options
+      Compiler.Package
+      Core.AnalysisMatch
+      Core.AnalysisResume
+      Core.BindingGroups
+      Core.Check
+      Core.Core
+      Core.CoreVar
+      Core.Divergent
+      Core.FunLift
+      Core.GenDoc
+      Core.Inline
+      Core.Inlines
+      Core.Monadic
+      Core.MonadicLift
+      Core.OpenResolve
+      Core.Parse
+      Core.Pretty
+      Core.Simplify
+      Core.Uniquefy
+      Core.UnReturn
+      Interpreter.Command
+      Interpreter.Interpret
+      Kind.Assumption
+      Kind.Constructors
+      Kind.ImportMap
+      Kind.Infer
+      Kind.InferKind
+      Kind.InferMonad
+      Kind.Kind
+      Kind.Newtypes
+      Kind.Pretty
+      Kind.Synonym
+      Kind.Unify
+      Lib.JSON
+      Lib.PPrint
+      Lib.Printer
+      Lib.Scc
+      Lib.Trace
+      Static.BindingGroups
+      Static.FixityResolve
+      Syntax.Colorize
+      Syntax.Highlight
+      Syntax.Layout
+      Syntax.Lexeme
+      Syntax.Lexer
+      Syntax.Parse
+      Syntax.Promote
+      Syntax.RangeMap
+      Syntax.Syntax
+      Type.Assumption
+      Type.Infer
+      Type.InferMonad
+      Type.InfGamma
+      Type.Kind
+      Type.Operations
+      Type.Pretty
+      Type.Type
+      Type.TypeVar
+      Type.Unify
+      Platform.Config
+      Platform.Console
+      Platform.Filetime
+      Platform.GetOptions
+      Platform.ReadLine
+      Platform.Runtime
+      Platform.Var
+      Paths_koka
+  hs-source-dirs:
+      src
+      src/Platform/cpp
+  other-extensions: CPP OverloadedStrings
+  ghc-options: -rtsopts
+  cpp-options: -DMAIN="koka" -DVARIANT="release" -DVERSION="2.0.0-alpha"
+  include-dirs:
+      src/Platform/cpp/Platform
+  c-sources:
+      src/Platform/cpp/Platform/cconsole.c
+  build-tools:
+      alex
+  build-depends:
+      array
+    , base >=4.9 && <5
+    , bytestring
+    , cond
+    , containers
+    , directory
+    , mtl
+    , parsec
+    , process
+    , text
+    , time
+  if os(windows)
+    cpp-options: -DWINDOWS
+  default-language: Haskell2010
+
+test-suite koka-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_koka
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      array
+    , base >=4.9 && <5
+    , bytestring
+    , cond
+    , containers
+    , directory
+    , extra
+    , filepath
+    , hspec
+    , hspec-core
+    , mtl
+    , parsec
+    , process
+    , regex-compat
+    , text
+    , time
+  default-language: Haskell2010
