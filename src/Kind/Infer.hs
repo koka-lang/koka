@@ -841,9 +841,9 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                               -> if ((m + (n*sizePtr platform)) <= 3*(sizePtr platform) 
                                       && hasKindStarResult (getKind typeResult)
                                       && (sort /= Retractive))
-                                  then trace ("default to value: " ++ show name ++ ": " ++ show (m,n)) $
+                                  then -- trace ("default to value: " ++ show name ++ ": " ++ show (m,n)) $
                                        return (DataDefValue m n)
-                                  else trace ("default to reference: " ++ show name ++ ": " ++ show (m,n)) $
+                                  else -- trace ("default to reference: " ++ show name ++ ": " ++ show (m,n)) $
                                        return (DataDefNormal)
                             _ -> return DataDefNormal
 

@@ -13,6 +13,14 @@ var child = require("child_process");
 var Colors = require("colors");
 var Diff   = require("diff");
 
+console.log(["warning: using 'jake' is deprecated; use 'stack' instead:",
+             "> stack build                                   # builds koka",
+             "> stack exec koka                               # run the koka interpreter",
+             "> stack exec koka -- --target=js                # with javascript target",
+             "> stack exec koka -- -c test/bench/koka/rbtree  # compile rbtree benchmark",
+             ""
+            ].join("\n"));
+
 //-----------------------------------------------------
 // Get the version from the package.json file
 //-----------------------------------------------------
