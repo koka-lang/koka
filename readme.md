@@ -9,12 +9,14 @@
 
 # Koka: a function-oriented language with effect inference
 
-Koka v2 is currently under heavy development with the new evidence translation and C backend, and features may be lacking.
-Use the branch `v1-master` to use the older stable Koka with the Javascript backend.
+_Note: Koka v2 is currently under heavy development with the new evidence translation and C backend, and various features may be lacking.
+Use the branch [`v1-master`](https://github.com/koka-lang/koka/tree/v1-master) to use the older stable Koka v1 with the Javascript backend._
 
-Koka is a functional style language that is strongly typed. Koka has two specific features that set it apart: it tracks
-the (side) _effects_ of every function in the type of the functions, and it has full support for algebraic effect
-handlers. Recent work on _evidence translation_ and _Perceus_ reference counting enable Koka to compile directly 
+Koka is a functional style language that is strongly typed, with two specific features that set it apart: it tracks
+the (side) _effects_ of every function in the type of the functions, and has full support for algebraic effect
+handlers.
+
+Recent work on _evidence translation_ and _Perceus_ reference counting enable Koka to compile directly 
 to plain C code without needing a garbage collector or runtime system. Initial performance benchmarks are very promising, where
 a naive Koka implementation of a red-black tree balanced insertion ([`rbtree.kk`](test/bench/koka/rbtree.kk)) is within 10% of 
 the performance of a C++ implementation using `stl::map` ([`rbtree.cpp`](test/bench/cpp/rbtree.cpp)) (which is based on the highly efficient GNU 
@@ -22,7 +24,7 @@ the performance of a C++ implementation using `stl::map` ([`rbtree.cpp`](test/be
 
 For more background information, see:
 
-* The [A tour of Koka][kokabook] for a specification of the Koka language and a primer on algebraic effects.
+* The [A tour of Koka][kokabook] for a specification of the Koka language and a primer on algebraic effect handlers.
 * The [library documentation][libraries].
 * The [Koka research page][kokaproject].
 * The article _Algebraic Effects for Functional Programming_ [[3]](#references) about the algebraic effects in Koka.
@@ -34,29 +36,32 @@ For more background information, see:
 [kokaproject]: http://research.microsoft.com/en-us/projects/koka
 [rise4fun]: http://rise4fun.com/koka/tutorial
 
+Enjoy,
+  Daan Leijen
 
 ## Installing the compiler
 
 At this point there are no binary releases of Koka and you need to build
-the compiler yourself. Fortunately, Koka has few dependencies and builds
-without problems on most common platforms, e.g. Windows, MacOSX, and
+the compiler yourself. Fortunately, Koka has few dependencies and should build
+without problems on most common platforms, e.g. Windows (including WSL), MacOSX, and
 Unix.
 
 The following programs are required to build Koka:
 
-* [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.
-* [CMake](https://cmake.org/download/) to compile the generated C files.
+* [Stack](https://docs.haskellstack.org/) to run the Haskell compiler .
+* [CMake](https://cmake.org/download/) to compile the generated C files (use `> apt-get install cmake` on Ubuntu).
+* Optional: The [Ninja](https://ninja-build.org/) build system for faster build times (required on Windows, use `> apt-get install ninja-build` on Ubuntu).
 * Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
 
 Building Koka:
-```
+```shell
 > git clone https://github.com/koka-lang/koka
 > cd koka
 > stack build
 ```
 You can also use `stack build --fast` to build a debug version of the compiler.
-You can invoke the compiler as:
-```
+You can invoke the compiler now as: (this takes a while as it needs to build the core libraries as well)
+```shell
 > stack exec koka -- -c test/algeff/common
 compile: test/algeff/common.kk
 loading: std/core
@@ -64,11 +69,12 @@ loading: std/core/types
 loading: std/core/hnd
 check  : test/algeff/common
 > cmake --build "out\Debug\cbuild" --target test_algeff_common
+...
 [5/5] Linking C executable test_algeff_common.exe
 compiled: out\Debug\test_algeff_common.exe
 ```
 and run the resulting executable:
-```
+```shell
 > out\Debug\test_algeff_common.exe
 42
 Hello there, there
@@ -79,9 +85,29 @@ hi
 [False,True,True,False]
 ([False,False,True,True,False],2)
 ```
+
 If you leave out the `-c` flag, Koka will execute the compiled program automatically.
-Without input files, the interpreter runs by default:
+Use `-O2` to build an optimized program:
+```shell
+> stack exec koka -- -O2 -c test/bench/koka/rbtree32.kk
+...
+> cmake --build "out/RelWithDebInfo/cbuild" --target test_bench_koka_rbtree32
+[15/15] Linking C executable test_bench_koka_rbtree32
+compiled: out/RelWithDebInfo/test_bench_koka_rbtree32
+
+> time out/RelWithDebInfo/test_bench_koka_rbtree32
+420000
+real    0m1.132s
+...
+> g++ -o cpp_rbtree -O3 test/bench/cpp/rbtree.cpp
+> time ./cpp_rbtree
+420000
+real    0m1.096s
+...
 ```
+
+Without giving any input files, the interpreter runs by default:
+```shell
 > stack exec koka
 ```
 
@@ -91,11 +117,13 @@ to edit Koka programs. You can install support for Koka programs using
 `> jake atom`
 
 (or use `jake sublime`) for the [Sublime](http://www.sublimetext.com) editor).
+If `node` is not installed, you can also copy the grammar files
+manually from the `koka/support` directory.
 
 
 ## Running the interactive compiler
 
-After running a plain ``stack exec koka`` command, the Koka interactive environment will start:
+After running the plain ``stack exec koka`` command, the Koka interactive environment will start:
 ````
  _          _           ____
 | |        | |         |__  \
@@ -131,14 +159,21 @@ Now you can test some expressions:
 
 Or load a demo:
 
-    > :l demo/collatz
-    compile: lib/demo/collatz.kk
-    check  : demo/collatz
+    > :l test/medium/fibonacci
+    compile: test/medium/fibonacci.kk
+    loading: std/core
+    loading: std/core/types
+    loading: std/core/hnd
+    check  : test/medium/fibonacci
     modules:
-      demo/collatz
+      test/medium/fibonacci
 
     > main()
-    Collatz(27) took 111 steps.
+    >> cmake --build "out/Debug/cbuild" --target interactive
+    [2/2] Linking C executable interactive
+    compiled: out/Debug/interactive
+
+    The 10000th fibonacci number is 33644764876431783266621612005107543310302148460680063906564769974680081442166662368155595513633734025582065332680836159373734790483865268263040892463056431887354544369559827491606602099884183933864652731300088830269235673613135117579297437854413752130520504347701602264758318906527890855154366159582987279682987510631200575428783453215515103870818298969791613127856265033195487140214287532698187962046936097879900350962302291026368131493195275630227837628441540360584402572114334961180023091208287046088923962328835461505776583271252546093591128203925285393434620904245248929403901706233888991085841065183173360437470737908552631764325733993712871937587746897479926305837065742830161637408969178426378624212835258112820516370298089332099905707920064367426202389783111470054074998459250360633560933883831923386783056136435351892133279732908133732642652633989763922723407882928177953580570993691049175470808931841056146322338217465637321248226383092103297701648054726243842374862411453093812206564914032751086643394517512161526545361333111314042436854805106765843493523836959653428071768775328348234345557366719731392746273629108210679280784718035329131176778924659089938635459327894523777674406192240337638674004021330343297496902028328145933418826817683893072003634795623117103101291953169794607632737589253530772552375943788434504067715555779056450443016640119462580972216729758615026968443146952034614932291105970676243268515992834709891284706740862008587135016260312071903172086094081298321581077282076353186624611278245537208532365305775956430072517744315051539600905168603220349163222640885248852433158051534849622434848299380905070483482449327453732624567755879089187190803662058009594743150052402532709746995318770724376825907419939632265984147498193609285223945039707165443156421328157688908058783183404917434556270520223564846495196112460268313970975069382648706613264507665074611512677522748621598642530711298441182622661057163515069260029861704945425047491378115154139941550671256271197133252763631939606902895650288268608362241082050562430701794976171121233066073310059947366875
 
 And quit the interpreter:
 
@@ -153,27 +188,35 @@ And quit the interpreter:
 A novel feature of Koka is a compiled and typed implementation of algebraic
 effect handlers (described in detail in [[3]](#references)).
 In the interactive environment, you can load various demo files with algebraic
-effects which are located in the ``test/algeff`` directory. This is by default
-included in the search path, so we can load them directly using
-the _load_ (``:l``) command:
+effects which are located in the ``test/algeff`` directory. 
 
-    > :l scoped
+    > :l test/algeff/common
 
 Use the ``:?`` command to get an overview of all commands. After
-loading the ``scoped`` demo, we can run it directly from the interpreter:
+loading the ``common`` demo, we can run it directly from the interpreter:
 
-    > :l scoped
-    compile: test/algeff/scoped.kk
-    check  : scoped
+    > :l test/algeff/common
+    loading: test/algeff/common
+    loading: std/core
+    loading: std/core/types
+    loading: std/core/hnd
     modules:
-      scoped
+      test/algeff/common
+      
+    > :t test2    
+    () -> console ()
 
-    > main()
-    [[[3]],[2,1],[1,2],[1,1,1]]
-    (state=12, [[[3]],[2,1],[1,2],[1,1,1]])
-    [(state=1, [[3]]),(state=5, [2,1]),(state=5, [1,2]),(state=9, [1,1,1])]
-    [[[3]]]
-    [42]
+    > test2()
+    loading: std/core
+    loading: std/core/types
+    loading: std/core/hnd
+    loading: test/algeff/common
+    check  : interactive
+    > cmake --build "out/Debug/cbuild" --target interactive
+    [2/2] Linking C executable interactive
+    compiled: out/Debug/interactive
+
+    Hello there, there
 
 Some interesting demos are:
 
@@ -182,20 +225,67 @@ Some interesting demos are:
   common control-flow abstractions like exceptions, state, iterators,
   ambiguity, and asynchronous programming.
 
-* ``scoped.kk``: Various examples from the paper "_Effect handlers in
-  Scope_" [[5]](#references).
-
 * ``nim.kk``: Various examples from the paper "_Liberating effects with
   rows and handlers_" [[1]](#references).
 
-* ``async*.kk``: Various asynchronous effect examples.
 
-* ``parser.kk``: Implements parser combinators as an effect.
+# Benchmarks
 
-Enjoy,
-  -- Daan
+There is a standard benchmark suite. It is still basic but more benchmarks 
+with effect handlers are coming. We only test on Linux and the benchmarks
+need `gcc`, `ghc` (should be there already), `ocamlopt` (use `sudo apt-get install ocaml`), 
+and `swiftc` in the path. The Swift compiler can be downloaded [here](https://swift.org/download/)
+and the benchmarks expect `switfc` to be installed at `/opt/swift/bin`.
+The benchmarks are build using:
+
+```shell
+> cd test/bench
+> mkdir build
+> cd build
+> cmake .. -DCMAKE_BUILD_TYPE=Release
+> cmake --build .
+```
+
+We can then run all benchmarks as:
+```
+> ctest .
+```
+Or only run benchmarks for one language with `-L <lang>`:
+```
+> ctest -L koka
+```
+Or run specific benchmarks using `-R <regex>`:
+```
+> ctest -R deriv      
+Test project /home/daan/dev/koka/test/bench/build
+    Start  4: hs-deriv
+1/4 Test  #4: hs-deriv .........................   Passed    2.29 sec
+    Start 10: kk-deriv
+2/4 Test #10: kk-deriv .........................   Passed    1.25 sec
+    Start 19: ml-deriv
+3/4 Test #19: ml-deriv .........................   Passed    1.73 sec
+    Start 25: sw-deriv
+4/4 Test #25: sw-deriv .........................   Passed    2.88 sec
+
+100% tests passed, 0 tests failed out of 4
+...
+```
+
+# Testing
+
+To run tests, use stack:
+
+```
+> stack test                                              # All tests
+> stack test --test-arguments="--match /parc/"            # One category
+> stack test --test-arguments="--mode new"                # Create output files
+> stack test --test-arguments="--mode update"             # Update output files
+> stack test --test-arguments="--match /parc/ --mode new" # Combined
+```
 
 # Environment
+
+## Windows
 
 On Windows, Koka's C backend can compile with the Stack-supplied MinGW compiler.
 However, the MinGW runtime libraries are not added to the PATH by default. In
@@ -204,18 +294,6 @@ Stack itself built). For example, to use Intel VTune to profile a Koka program:
 
 ```
 stack exec "C:\Program Files (x86)\IntelSWTools\VTune Profiler 2020\bin64\vtune-gui.exe"
-```
-
-# Testing
-
-To run tests, use stack:
-
-```
-stack test                                              # All tests
-stack test --test-arguments="--match /parc/"            # One category
-stack test --test-arguments="--mode new"                # Create output files
-stack test --test-arguments="--mode update"             # Update output files
-stack test --test-arguments="--match /parc/ --mode new" # Combined
 ```
 
 # References
