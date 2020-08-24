@@ -27,7 +27,7 @@ compositional control-flow abstractions as a library; this includes advanced abs
 ambient state, backtracking parser combinators, probablistic programming, Bayesian machine learning, etc. Algebraic effect handlers subsume (free) 
 monads, and are compositional without needing lifting or monad transformers.
 
-Recent work on _evidence translation_ and [_Perceus_](#Percues) precise compiler guided reference counting enable Koka to compile directly 
+Recent work on [evidence translation](#evidence-translation) and [Perceus](#perceus) precise compiler guided reference counting enable Koka to compile directly 
 to plain C code _without needing a garbage collector_ or runtime system. Initial performance benchmarks are very promising, where
 a naive functional Koka implementation of a red-black tree balanced insertion ([`rbtree.kk`](test/bench/koka/rbtree.kk)) is within 10% of 
 the performance of an in-place updating C++ implementation using `stl::map` ([`rbtree.cpp`](test/bench/cpp/rbtree.cpp)) (which uses the GNU 
@@ -50,6 +50,11 @@ For more background information, see:
 
 Enjoy,
   Daan Leijen
+  
+Special thanks to:
+- [Ningning Xie](https://xnning.github.io/): for her work on the theory of [evidence translation](#evidence-translation) for algebraic effect handlers [6].
+- [Alex Reinking](https://alexreinking.com/): for the ongoing work on the [Perceus](#perceus) reference counting analysis.
+- And all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, and Edsko de Vries.
   
 (Koka is the Japanese word for _effective_ ([Kōka](https://translate.google.com/#view=home&op=translate&sl=auto&tl=en&text=%E5%8A%B9%E6%9E%9C), 効果)).
 
