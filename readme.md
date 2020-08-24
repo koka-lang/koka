@@ -372,6 +372,7 @@ The following is the immediate todo list to be completed in the coming months:
 
 - Port all libray modules, in particular `std/text/regex` (using PCRE), `std/os/file`, and `std/async` (using `libuv`).
 - Run the full test suite again.
+- Remove dependency on `Jakefile` and use `stack` only.
 - Support local state inside a handler without needing `mask<local>`.
 - Support named effect handlers again.
 - Improve syntax for ambient values, functions, and control.
