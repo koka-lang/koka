@@ -17,13 +17,14 @@ Koka is a strongly typed, strict functional language which tracks the (side) _ef
 Koka syntax is Javascript/C like,
 the evaluation is strict like OCaml/C, and the type- and effect system is Haskell like, where pure and effectful computations are distinguished.
 The precise effect typing gives Koka rock-solid semantics backed by well-studied category theory, which makes Koka particularly easy to reason 
-about (for both humans and compilers). 
+about for both humans and compilers. (Given the importance of effect typing, the name Koka was derived from the Japanese word for _effective_ ([Kōka](https://translate.google.com/#view=home&op=translate&sl=auto&tl=en&text=%E5%8A%B9%E6%9E%9C), 効果)).
 
-A function without any effect is called _total_ and corresponds to mathematically total functions.
-There are the builtin effects for partial functions that can raise exceptions, as _exn_, or potentially non-terminating functions as _div_ (divergent).
-The combination of _exn_ and _div_ is called _pure_ as that corresponds to Haskell's notion of purity. 
+A function without any effect is called _total_ and corresponds to mathematically total functions -- a good place to be.
+Then we have effects for partial functions that can raise exceptions, as _exn_, and potentially non-terminating functions as _div_ (divergent).
+The combination of _exn_ and _div_ is called _pure_ as that corresponds to Haskell's notion of purity. On top of that we find
+mutability (as _st_) up to full non-deterministic side effects in _io_. 
 
-Koka also has full support for algebraic effect handlers. This enables powerful control-flow abstraction that allows users to define
+Koka also has full support for _algebraic effect handlers_. This enables powerful control-flow abstraction that allows users to define
 compositional control-flow abstractions as a library; this includes advanced abstractions like exceptions, iterators, async-await concurrency,
 ambient state, backtracking parser combinators, probablistic programming, Bayesian machine learning, etc. Algebraic effect handlers subsume (free) 
 monads, and are compositional without needing lifting or monad transformers.
@@ -53,8 +54,12 @@ Special thanks to:
 - [Ningning Xie](https://xnning.github.io/): for her work on the theory and practice of [evidence translation](#evidence-translation) for algebraic effect handlers [6].
 - [Alex Reinking](https://alexreinking.com/): for the ongoing work on the [Perceus](#perceus) reference counting analysis.
 - And all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, and Edsko de Vries.
-  
-(Koka is the Japanese word for _effective_ ([Kōka](https://translate.google.com/#view=home&op=translate&sl=auto&tl=en&text=%E5%8A%B9%E6%9E%9C), 効果)).
+
+Main branches:
+- `master`: latest stable version.
+- `dev`: current development branch -- submit PR's to this branch.
+- `v1-master`: last stable version of Koka v1: this is Koka with the Javascript (and C#) backend which does not use evidence translation.
+               This version still supports more features (like named handlers and `std/async`) and should compile examples from published papers.
 
 
 ## Installing the compiler
