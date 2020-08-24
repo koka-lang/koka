@@ -349,7 +349,7 @@ In particular, we use aggressive static analysis to insert _precise_ reference c
 it is no longer live (and in particular, we do not hold on to memory based on lexical scope as in almost all reference counting implementations
 in the wild, like Swift, Python, C++ `shared_ptr` etc). 
 
-_Percues_  stands for _Precise automatic reference counting with reuse and specialization_: the _reuse_ component transform functional
+_Perceus_  stands for _Precise automatic reference counting with reuse and specialization_: the _reuse_ component transform functional
 style pattern matches into _in-place update_ when possible, while _specialization_ specialize the reference counting based on the call sites and
 removes most rc operations in the fast path. For example, a simple `map` function:
 ```koka
@@ -365,6 +365,31 @@ This dynamically adjust the program from in-place update to persistence and is t
 hand-optimized C++ on the red-black tree benchmark.
 
 Talk and paper are coming soon...
+
+# Things to do
+
+The following is the immediate todo list to be completed in the coming months:
+
+- Port all libray modules, in particular `std/text/regex` (using PCRE), `std/os/file`, and `std/async` (using `libuv`).
+- Run the full test suite again.
+- Support local state inside a handler without needing `mask<local>`.
+- Support named effect handlers again.
+- Improve syntax for ambient values, functions, and control.
+- Improve syntax for applications (now disallows whitespace between the function and arguments).
+- Run the Bayesian machine learning program with large parameters.
+- Tune code generation better; the output is still too large.
+
+And future projects:
+
+- Implement inline specialization where functions like `map`, `fold` etc get specialized for the function with which they are called.
+- Various standard optimizations like case-of-case, join points, case-of-known constructor, etc.
+- Borrowing analysis for Perceus. 
+- Known reference count specialization.
+- Improve compilation of local state to use local variables directly (in C).
+- Package management of Koka modules.
+- Functions with a pattern match in the argument.
+
+Contact me if you are interested in tackling some of these :-)
 
 
 # References
