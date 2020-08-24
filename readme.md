@@ -20,12 +20,11 @@ The precise effect typing gives Koka rock-solid semantics backed by well-studied
 about for both humans and compilers. (Given the importance of effect typing, the name Koka was derived from the Japanese word for _effective_ ([Kōka](https://translate.google.com/#view=home&op=translate&sl=auto&tl=en&text=%E5%8A%B9%E6%9E%9C), 効果)).
 
 <img align="right" width="300" src="doc/snippet-rbtree.png"/>
+
 A function without any effect is called _total_ and corresponds to mathematically total functions -- a good place to be.
 Then we have effects for partial functions that can raise exceptions, as _exn_, and potentially non-terminating functions as _div_ (divergent).
 The combination of _exn_ and _div_ is called _pure_ as that corresponds to Haskell's notion of purity. On top of that we find
 mutability (as _st_) up to full non-deterministic side effects in _io_. 
-
-&nbsp; 
 
 Koka also has full support for _algebraic effect handlers_. This enables powerful control-flow abstraction that allows users to define
 compositional control-flow abstractions as a library; this includes advanced abstractions like exceptions, iterators, async-await concurrency,
