@@ -12,15 +12,27 @@
 _Note: Koka v2 is currently under heavy development with the new evidence translation and C backend, and various features may be lacking.
 Use the branch [`v1-master`](https://github.com/koka-lang/koka/tree/v1-master) to use the older stable Koka v1 with the Javascript backend._
 
-Koka is a functional style language that is strongly typed, with two specific features that set it apart: it tracks
-the (side) _effects_ of every function in the type of the functions, and has full support for algebraic effect
-handlers.
+Koka is a strongly typed, strict functional language which tracks the (side) _effects_ of every function in its type.
+Koka syntax is Javascript/C like,
+the evaluation is strict like OCaml/C, and the type system is Haskell like, where pure and effectful computations are distinguished.
+This gives Koka rock-solid semantics backed by well-studied categorical semantics which makes it particularly easy to reason about (for 
+humans and compilers). 
 
-Recent work on _evidence translation_ and _Perceus_ reference counting enable Koka to compile directly 
-to plain C code without needing a garbage collector or runtime system. Initial performance benchmarks are very promising, where
-a naive Koka implementation of a red-black tree balanced insertion ([`rbtree.kk`](test/bench/koka/rbtree.kk)) is within 10% of 
-the performance of a C++ implementation using `stl::map` ([`rbtree.cpp`](test/bench/cpp/rbtree.cpp)) (which is based on the highly efficient GNU 
-[`RBTree`](https://sourceware.org/git/?p=glibc.git;a=blob;f=misc/tsearch.c;h=cdc401a4e5411221ab2feb2baf8745991bde7868;hb=HEAD) implementation)!
+A function without any effect is called _total_ and corresponds to mathematically total functions.
+There are the builtin effects for partial functions that can raise exceptions, as _exn_, or potentially non-terminating functions as _div_ (divergent).
+The combination of _exn_ and _div_ is called _pure_ as that corresponds to Haskell's notion of purity. 
+
+Koka also has full support for algebraic effect handlers. This enables powerful control-flow abstraction that allows users to define
+compositional control-flow abstractions as a library; this includes advanced abstractions like exceptions, iterators, async-await concurrency,
+ambient state, backtracking parser combinators, probablistic programming, Bayesian machine learning, etc. Algebraic effect handlers subsume (free) 
+monads, and are compositional without needing lifting or monad transformers.
+
+Recent work on _evidence translation_ and _Perceus_ precise compiler guided reference counting enable Koka to compile directly 
+to plain C code _without needing a garbage collector_ or runtime system. Initial performance benchmarks are very promising, where
+a naive functional Koka implementation of a red-black tree balanced insertion ([`rbtree.kk`](test/bench/koka/rbtree.kk)) is within 10% of 
+the performance of an in-place updating C++ implementation using `stl::map` ([`rbtree.cpp`](test/bench/cpp/rbtree.cpp)) (which uses the GNU 
+[`RBTree`](https://sourceware.org/git/?p=glibc.git;a=blob;f=misc/tsearch.c;h=cdc401a4e5411221ab2feb2baf8745991bde7868;hb=HEAD) implementation internally)!
+It is our goal to generally fall within a factor 2&times; of C++ performance without needing manual memory management. See Perceus.
 
 For more background information, see:
 
