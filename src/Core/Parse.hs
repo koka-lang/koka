@@ -531,7 +531,7 @@ parsePattern env
     
 parsePatternBasic  :: Env -> LexParser (Env,Pattern)
 parsePatternBasic env
-  = parsePatCon env <|> parsePatVar env PatWild <|> parsePatWild env
+  = parsePatCon env <|> parsePatVar env PatWild <|> parsePatLit env <|> parsePatWild env
     <|> parens (parsePattern env)
 
 parsePatCon  :: Env -> LexParser (Env,Pattern)
@@ -576,6 +576,10 @@ parsePatVar env pat
        tp <- typeAnnot env
        let env1 = envExtendLocal env (name,tp)
        return (env1,PatVar (TName name tp) pat)
+
+parsePatLit env
+  = do lit <- parseLit
+       return (env,PatLit lit)
 
 parsePatWild env
   = do wildcard
