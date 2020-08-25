@@ -14,21 +14,28 @@ module Platform.ReadLine( withReadLine, readLine, readLineEx, addHistory
                         ) where
 
 
-#ifdef READLINE
-import qualified READLINE as R
-#else
 import System.IO
+
+#if (READLINE==2)
+import qualified System.Console.Readline as R
+#elif (READLINE==1)
+-- nothing
+#else
+import qualified System.Console.Haskeline as R
+import qualified System.Console.Haskeline.History as H
+import Platform.Runtime( unsafePerformIO )
+import Data.IORef
 #endif
 
-withReadLine :: IO a -> IO a
+withReadLine :: FilePath -> IO a -> IO a
 readLine     :: String -> IO (Maybe String)
 readLineEx   :: String -> IO () -> IO (Maybe String)
 addHistory   :: String -> IO ()
 
 
-#ifdef READLINE
+#if (READLINE==2) 
 
-withReadLine io
+withReadLine historyFile io
   = do R.initialize 
        R.setCompletionEntryFunction (Just (\input -> return []))
        io
@@ -54,9 +61,9 @@ addHistory line
 readLineEx prompt putPrompt
   = readLine prompt
 
-#else
+#elif (READLINE==1)
 
-withReadLine io
+withReadLine historyFile io
   = io
 
 readLine prompt
@@ -78,4 +85,47 @@ readLineEx prompt putPrompt
 addHistory line
   = return ()
 
+#else
+  
+vhistory :: IORef H.History
+vhistory = unsafePerformIO $ newIORef H.emptyHistory
+  
+withReadLine historyPath io
+  = do let historyFile = if (null historyPath) then "" else (historyPath ++ "/.readline")
+       h0 <- if (null historyFile) then return H.emptyHistory else H.readHistory historyFile 
+       writeIORef vhistory h0
+       x <- io
+       h1 <- readIORef vhistory
+       if (null historyFile) then return () else H.writeHistory historyFile (H.stifleHistory (Just 20) h1)
+       return x       
+
+readLine prompt 
+  = readLineEx prompt (do{ putStr prompt; hFlush stdout})
+
+readLineEx prompt putPrompt
+  = do putPrompt 
+       h0 <- readIORef vhistory
+       (mbline,h1) <- R.runInputT R.defaultSettings{R.autoAddHistory = False } $
+                      do R.putHistory h0
+                         line <- readLines
+                         h1 <- R.getHistory
+                         return (Just line, h1)
+       writeIORef vhistory h1
+       return mbline                         
+  where
+    readLines :: R.InputT IO String
+    readLines 
+      = do input <- R.getInputLine ""
+           case input of
+             Just line -> case reverse line of
+                            []       -> readLines
+                            '\\' : t -> do line2 <- readLines
+                                           return (reverse t ++ "\n" ++ line2)
+                            _        -> return line
+             _ -> return ""
+
+addHistory line
+  = do h <- readIORef vhistory
+       writeIORef vhistory (H.addHistory line h)
+  
 #endif

@@ -4,5 +4,4 @@ packages:
 extra-deps:
 - stylish-haskell-0.11.0.0
 - hlint-2.1.26
-# uncomment to enable libreadline
-# - readline-1.0.3.0
+- haskeline-0.8.0.0

@@ -70,7 +70,7 @@ data State = State{  printer    :: ColorPrinter
 ---------------------------------------------------------------}
 interpret ::  ColorPrinter -> Flags -> [FilePath] -> IO ()
 interpret printer flags0 files
-  = withReadLine $
+  = withReadLine (outDir flags0) $
     do{ let st0 = (State printer flags0 False initialLoaded initialLoaded [] (programNull nameInteractiveModule) Nothing [] initialLoaded)
       ; messageHeader st0
       ; let st2 = st0
