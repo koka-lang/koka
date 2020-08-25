@@ -23,13 +23,14 @@ import qualified System.Console.Readline as R
 #else
 import qualified System.Console.Haskeline as R
 import qualified System.Console.Haskeline.History as H
+import qualified System.Console.Haskeline.Completion as C
 import Platform.Runtime( unsafePerformIO )
 import Data.IORef
 #endif
 
 withReadLine :: FilePath -> IO a -> IO a
-readLine     :: String -> IO (Maybe String)
-readLineEx   :: String -> IO () -> IO (Maybe String)
+readLine     :: [FilePath] -> String -> IO (Maybe String)
+readLineEx   :: [FilePath] -> String -> IO () -> IO (Maybe String)
 addHistory   :: String -> IO ()
 
 
@@ -40,7 +41,7 @@ withReadLine historyFile io
        R.setCompletionEntryFunction (Just (\input -> return []))
        io
 
-readLine prompt
+readLine roots prompt
   = do line <- readLines 
        return (Just line) 
   where
@@ -58,18 +59,18 @@ readLine prompt
 addHistory line
   = R.addHistory line
 
-readLineEx prompt putPrompt
-  = readLine prompt
+readLineEx roots prompt putPrompt
+  = readLine roots prompt
 
 #elif (READLINE==1)
 
 withReadLine historyFile io
   = io
 
-readLine prompt
-  = readLineEx prompt (do{ putStr prompt; hFlush stdout})
+readLine roots prompt
+  = readLineEx roots prompt (do{ putStr prompt; hFlush stdout})
 
-readLineEx prompt putPrompt
+readLineEx roots prompt putPrompt
   = do s <- readLines
        return (Just s)
   where
@@ -99,13 +100,14 @@ withReadLine historyPath io
        if (null historyFile) then return () else H.writeHistory historyFile (H.stifleHistory (Just 20) h1)
        return x       
 
-readLine prompt 
-  = readLineEx prompt (do{ putStr prompt; hFlush stdout})
+readLine roots prompt 
+  = readLineEx roots prompt (do{ putStr prompt; hFlush stdout})
 
-readLineEx prompt putPrompt
+readLineEx roots prompt putPrompt
   = do putPrompt 
        h0 <- readIORef vhistory
-       (mbline,h1) <- R.runInputT R.defaultSettings{R.autoAddHistory = False } $
+       (mbline,h1) <- R.runInputT (R.setComplete (completeModuleName roots) 
+                                   (R.defaultSettings{R.autoAddHistory = False })) $
                       do R.putHistory h0
                          line <- readLines
                          h1 <- R.getHistory
@@ -128,4 +130,18 @@ addHistory line
   = do h <- readIORef vhistory
        writeIORef vhistory (H.addHistory line h)
   
+  
+completeModuleName :: [FilePath] -> C.CompletionFunc IO
+completeModuleName roots
+  = C.completeQuotedWord (Just '\\') "\"'" (listModules roots) $ 
+    C.completeWord (Just '\\') ("\"\'" ++ C.filenameWordBreakChars) (listModules roots)
+    
+listModules :: [FilePath] -> String -> IO [C.Completion]
+listModules roots pre
+  = do cs  <- C.listFiles pre
+       css <- mapM (\root -> do cs <- C.listFiles (root ++ "/" ++ pre)
+                                return [c{ C.replacement = drop (length root + 1) (C.replacement c) } | c <- cs]
+                   ) roots                   
+       return [c | c <- (cs ++ concat css), not (C.isFinished c) {-dir-} || take 3 (reverse (C.replacement c)) == "kk." ]
+    
 #endif
