@@ -91,7 +91,7 @@ vhistory :: IORef H.History
 vhistory = unsafePerformIO $ newIORef H.emptyHistory
   
 withReadLine historyPath io
-  = do let historyFile = if (null historyPath) then "" else (historyPath ++ "/.readline")
+  = do let historyFile = if (null historyPath) then "" else (historyPath ++ "/.koka-history")
        h0 <- if (null historyFile) then return H.emptyHistory else H.readHistory historyFile 
        writeIORef vhistory h0
        x <- io
