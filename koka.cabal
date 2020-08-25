@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ef542f7d8b80fad03386f3dace080b68dfb84720cedf0258e34e9eff3f0d5cf7
+-- hash: 64247d6e785914c72dd54efb6300b2aaf3c004706f6bd6542fddd5d69285becd
 
 name:           koka
 version:        2.0.0.0
@@ -140,6 +140,7 @@ executable koka
     , cond
     , containers
     , directory
+    , haskeline
     , mtl
     , parsec
     , process
@@ -166,6 +167,7 @@ test-suite koka-test
     , directory
     , extra
     , filepath
+    , haskeline
     , hspec
     , hspec-core
     , mtl

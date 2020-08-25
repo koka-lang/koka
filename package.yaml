@@ -25,6 +25,7 @@ dependencies:
   - process
   - text
   - time
+  - haskeline
 
 # Uncomment after moving src/Main.hs -> app/Main.hs
 
@@ -68,6 +69,7 @@ executables:
       - -DMAIN="koka"
       - -DVARIANT="release"
       - -DVERSION="2.0.0-alpha"
+      # - -DREADLINE=1   # to avoid using Haskeline
     when:
       - condition: os(windows)
         cpp-options: -DWINDOWS
