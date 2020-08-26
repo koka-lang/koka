@@ -92,7 +92,7 @@ import Core.Simplify( simplifyDefs )
 import Core.Uniquefy( uniquefy )
 import qualified Core.Pretty
 import Core.Parse(  parseCore )
-
+import Core.CTail( ctailOptimize )
 
 import System.Directory ( doesFileExist )
 import Compiler.Package
@@ -969,6 +969,10 @@ inferCheck loaded flags line coreImports program1
                                 -- trace "after simplify core check 2" $
                                 Core.Check.checkCore True True penv unique0 gamma cdefs0
                               return (cdefs0,unique0) -- $ simplifyDefs False 1 unique4a penv cdefs
+                              
+       -- constructor tail optimization
+       let (coreDefsCTail,uniqueCTail)
+                  = ctailOptimize penv (platform flags) newtypes gamma coreDefsSimp2 uniqueSimp2 
 {-
        -- and one more simplify
        (coreDefsSimp3,uniqueSimp3)
@@ -984,8 +988,8 @@ inferCheck loaded flags line coreImports program1
                               return (cdefs0,unique0) -- $ simplifyDefs False 1 unique4a penv cdefs
 -}
        -- Assemble core program and return
-       let coreDefsLast = coreDefsSimp2
-           uniqueLast   = uniqueSimp2
+       let coreDefsLast = coreDefsCTail
+           uniqueLast   = uniqueCTail
            inlineDefs   = extractInlineDefs (coreInlineMax penv) coreDefsLast
 
            coreProgram2 = -- Core.Core (getName program1) [] [] coreTypeDefs coreDefs0 coreExternals

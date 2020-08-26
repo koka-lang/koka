@@ -58,6 +58,13 @@ module Common.NamePrim
           , nameTpReuse, nameDropReuse, nameFreeReuse
           , nameReuseNull, nameAssignReuse, nameReuse
           , nameAllocAt
+          
+          -- * CTail optimization
+          , nameTpResolveSlot
+          , nameResolve
+          , nameResolveNext
+          , nameResolveSlot
+          , nameResolveHole
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -235,6 +242,15 @@ nameTpException  = preludeName "exception"
 nameTpMDict     = qualify nameDict (newName "mdict")
 nameTpDict      = qualify nameDict (newName "dict")
 nameTpBuilder   = qualify (newName "std/text/string") (newName "builder")
+
+
+nameTpResolveSlot   = resolveName ".slot"
+nameResolve         = resolveName ".resolve"
+nameResolveNext     = resolveName ".resolve-next" 
+nameResolveSlot     = resolveName ".resolve-slot"
+nameResolveHole     = resolveName ".resolve-hole"
+
+resolveName name    = qualify (newName "test/cgen/ctai1") (newName name)
 
 {--------------------------------------------------------------------------
   std/core/hnd
