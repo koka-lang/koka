@@ -244,13 +244,13 @@ nameTpDict      = qualify nameDict (newName "dict")
 nameTpBuilder   = qualify (newName "std/text/string") (newName "builder")
 
 
-nameTpResolveSlot   = resolveName ".slot"
+nameTpResolveSlot   = resolveName "slot"
 nameResolve         = resolveName ".resolve"
 nameResolveNext     = resolveName ".resolve-next" 
 nameResolveSlot     = resolveName ".resolve-slot"
 nameResolveHole     = resolveName ".resolve-hole"
 
-resolveName name    = qualify (newName "test/cgen/ctai1") (newName name)
+resolveName name    = qualify (newName "test/cgen/ctail1") (newName name)
 
 {--------------------------------------------------------------------------
   std/core/hnd

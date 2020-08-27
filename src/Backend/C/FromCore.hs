@@ -872,7 +872,9 @@ conSingletonName con = conSingletonNameX (conInfoName con)
 conSingletonNameX conName = ppName (makeHiddenName "singleton" conName)
 
 conAsName :: ConInfo -> Doc
-conAsName con = ppName (makeHiddenName "as" (conInfoName con))
+conAsName con   = conAsNameX (conInfoName con)
+
+conAsNameX cname = ppName (makeHiddenName "as" cname)
 
 openTagName :: Name -> Doc
 openTagName name = ppName (makeHiddenName "tag" name)
@@ -1543,6 +1545,7 @@ genApp f args
 
 
 genAppNormal :: Expr -> [Expr] -> Asm ([Doc],Doc)
+-- special: allocat
 genAppNormal (Var allocAt _) [Var at _, App (Con tname repr) args]  | getName allocAt == nameAllocAt
   = do (decls,argDocs) <- genInlineableExprs args
        let atDoc = ppName (getName at)
@@ -1553,6 +1556,15 @@ genAppNormal (Var allocAt _) [Var at _, App (TypeApp (Con tname repr) targs) arg
        return (decls,conCreateName (getName tname) <.> arguments ([atDoc] ++ argDocs))
 genAppNormal v@(Var allocAt _) [at, Let dgs expr]  | getName allocAt == nameAllocAt  -- can happen due to box operations
   = genExpr (Let dgs (App v [at,expr]))
+
+-- special: resolveSlot  
+genAppNormal v@(Var resolveSlot _) [App (Var dup _) [Var con _], Con cname crepr, Lit (LitString fieldName)]  | getName resolveSlot == nameResolveSlot && getName dup == nameDup
+  = do let doc = parens (ppType (typeOf con) <.> text "*") 
+                 <.> parens (text "&" <.> conAsNameX (getName cname) <.> parens (ppName (getName con)) <.> text "->" <.> text fieldName)
+       -- TODO: drop? or add borrowing
+       return ([],doc)
+  
+-- normal  
 genAppNormal f args
   = do (decls,argDocs) <- genInlineableExprs args
        case extractExtern f of
