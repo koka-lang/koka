@@ -972,7 +972,9 @@ inferCheck loaded flags line coreImports program1
                               
        -- constructor tail optimization
        let (coreDefsCTail,uniqueCTail)
-                  = ctailOptimize penv (platform flags) newtypes gamma coreDefsSimp2 uniqueSimp2 
+                  = if (optctail flags)  
+                     then ctailOptimize penv (platform flags) newtypes gamma coreDefsSimp2 uniqueSimp2 
+                     else (coreDefsSimp2,uniqueSimp2)
 {-
        -- and one more simplify
        (coreDefsSimp3,uniqueSimp3)

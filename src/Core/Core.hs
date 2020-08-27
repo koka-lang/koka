@@ -90,7 +90,7 @@ import Common.Unique
 import Common.Id
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
                         nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameSizeT, nameBox, nameUnbox,
-                        nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit)
+                        nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit, nameTpResolveSlot)
 import Common.Syntax
 import Kind.Kind
 import Type.Type
@@ -337,7 +337,7 @@ getDataReprEx getIsValue info
          -- TODO: only for C#? check this during kind inference?
          -- else if (hasExistentials)
          --  then (DataNormal, map (\con -> ConNormal typeName) conInfos)
-         else if (isValue && null (dataInfoParams info) && all (\con -> null (conInfoParams con)) conInfos)
+         else if (isValue && (null (dataInfoParams info) || typeName == nameTpResolveSlot) && all (\con -> null (conInfoParams con)) conInfos)
           then (DataEnum,map (const (ConEnum typeName DataEnum)) conInfos)
          else if (length conInfos == 1)
           then let conInfo = head conInfos

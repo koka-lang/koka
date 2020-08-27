@@ -697,6 +697,7 @@ genDupDrop name info dataRepr conInfos
                  genDropReuseFun name info dataRepr     -- drop, but if refcount==0 return the address of the block instead of freeing
                  genDropNFun name info dataRepr
                  genReuse name info dataRepr         -- return the address of the block
+                 genHole name info dataRepr
        
 
 genIsUnique :: Name -> DataInfo -> DataRepr -> Asm ()
@@ -756,6 +757,16 @@ genReuse name info dataRepr
       (if (dataReprMayHaveSingletons dataRepr)
         then text "kk_datatype_reuse(_x)"
         else text "kk_basetype_reuse(_x)"
+      ) <.> semi)
+
+genHole :: Name -> DataInfo -> DataRepr -> Asm ()
+genHole name info dataRepr 
+  = emitToH $
+    text "static inline" <+> ppName name <+> ppName name <.> text "_hole()" <+> block (
+      text "return" <+> 
+      (if (dataReprMayHaveSingletons dataRepr)
+        then text "kk_datatype_from_tag((kk_tag_t)0)"
+        else parens (ppName name) <.> text "(1)"
       ) <.> semi)
 
 
@@ -993,6 +1004,8 @@ genLambda params eff body
 
 
 ppType :: Type -> Doc
+ppType (TApp (TCon c) [t])  | typeConName c == nameTpResolveSlot
+  = ppType t <.> text "*"
 ppType tp
   = case cType tp of
       CBox -> text "kk_box_t"
@@ -1559,11 +1572,28 @@ genAppNormal v@(Var allocAt _) [at, Let dgs expr]  | getName allocAt == nameAllo
 
 -- special: resolveSlot  
 genAppNormal v@(Var resolveSlot _) [App (Var dup _) [Var con _], Con cname crepr, Lit (LitString fieldName)]  | getName resolveSlot == nameResolveSlot && getName dup == nameDup
-  = do let doc = parens (ppType (typeOf con) <.> text "*") 
-                 <.> parens (text "&" <.> conAsNameX (getName cname) <.> parens (ppName (getName con)) <.> text "->" <.> text fieldName)
+  = do let doc = genFieldAddress con cname fieldName
        -- TODO: drop? or add borrowing
        return ([],doc)
-  
+
+genAppNormal v@(Var resolveSlot _) [Var con _, Con cname crepr, Lit (LitString fieldName)]  | getName resolveSlot == nameResolveSlot
+ = do let drop = map (<.> semi) (genDupDropCall False (typeOf con) (ppName (getName con)))
+          doc = genFieldAddress con cname fieldName
+      -- TODO: drop? or add borrowing
+      return (drop, doc)
+
+genAppNormal v@(Var resolveNext _) [Var slot InfoNone, App (Var dup _) [Var res _], Var con _, Con cname crepr, Lit (LitString fieldName)]  | getName resolveNext == nameResolveNext, getName dup == nameDup
+ = do let assign = text "*" <.> ppName (getName slot) <+> text "=" <+> ppName (getName res) <.> semi
+          next   = genFieldAddress con cname fieldName
+      return ([assign],next)
+
+genAppNormal v@(Var resolveNext _) [Var slot InfoNone, Var res _, Var con _, Con cname crepr, Lit (LitString fieldName)]  | getName resolveNext == nameResolveNext
+ = do let drop   = map (<.> semi) (genDupDropCall False (typeOf con) (ppName (getName con)))
+          assign = text "*" <.> ppName (getName slot) <+> text "=" <+> ppName (getName res) <.> semi
+          next   = genFieldAddress con cname fieldName
+      -- TODO: drop? or add borrowing
+      return (drop ++ [assign],next)
+
 -- normal  
 genAppNormal f args
   = do (decls,argDocs) <- genInlineableExprs args
@@ -1595,6 +1625,11 @@ genAppNormal f args
                                                                            [text "kk_context_t*"]))
                                                _ -> failure $ ("Backend.C.genAppNormal: expecting function type: " ++ show (pretty (typeOf f)))
                        return (fdecls ++ decls, text "kk_function_call" <.> tupled [cresTp,cargTps,fdoc,arguments (fdoc:argDocs)])
+
+
+genFieldAddress :: TName -> TName -> String -> Doc
+genFieldAddress con cname fieldName
+  = parens (text "&" <.> conAsNameX (getName cname) <.> parens (ppName (getName con)) <.> text "->" <.> text fieldName)
 
 
 genAppSpecial :: Expr -> [Expr] -> Asm (Maybe Doc)
@@ -1733,6 +1768,14 @@ genExprExternal tname formats [argDoc] | getName tname == nameReuse
                   _ -> failure $ ("Backend.C.genExprExternal.reuse: expecting function type: " ++ show tname ++ ": " ++ show (pretty (typeOf tname)))
         call  = hcat (genReuseCall tp argDoc)
     in return ([], call)
+
+-- special case: resolve hole    
+genExprExternal tname formats [] | getName tname == nameResolveHole
+  = case typeOf tname of 
+      TFun [] _ tres -> return ([],ppType tres <.> text "_hole()")
+    
+genExprExternal tname formats [slotDoc,argDoc] | getName tname == nameResolve
+  = return ([],text "*" <.> parens slotDoc <+> text "=" <+> argDoc)
 
 -- normal external
 genExprExternal tname formats argDocs0
