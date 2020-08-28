@@ -180,7 +180,7 @@ ctailExpr top expr
       = do mbSlot <- getCTailSlot
            case mbSlot of 
               Nothing   -> return body
-              Just slot -> return (makeResolve slot body)
+              Just slot -> return (makeCTail slot body)
                 
     handleConApp dname cname f fargs
       = do (defs,body) <- ctailTryArg dname cname Nothing (\args -> ([],App f args)) (length fargs) (reverse fargs)
@@ -239,49 +239,49 @@ ctailFoundArg cname mbC mkApp field f fargs
        ctailVar  <- getCTailFun
        (con,fieldName) <- getFieldName cname field
        let tp    = typeOf (App f fargs)
-           hole  = makeResolveHole tp
+           hole  = makeCTailHole tp
            (defs,cons)  = mkApp [hole]
        consName  <- uniqueTName (typeOf cons)
        mbSlot <- getCTailSlot
        case mbSlot of
          Nothing 
-           -> do let resolveSlot = makeResolveSlot con (maybe consName id mbC) fieldName tp
+           -> do let resolveSlot = makeCTailCreate con (maybe consName id mbC) fieldName tp
                      ctailCall   = App ctailVar (fargs ++ [resolveSlot])
                  return $ (defs ++
                            [DefNonRec (makeTDef consName cons), 
                             DefNonRec (makeDef nameNil ctailCall)] 
                            ,Var consName InfoNone) 
          Just slot
-           -> do let resolveNext = makeResolveNext slot con consName (maybe consName id mbC) fieldName tp
+           -> do let resolveNext = makeCTailNext slot con consName (maybe consName id mbC) fieldName tp
                      ctailCall   = App ctailVar (fargs ++ [resolveNext])
                  return $ (defs ++ [DefNonRec (makeTDef consName cons)]
                           ,ctailCall)
 
 
-makeResolveHole :: Type -> Expr
-makeResolveHole tp
-  = App (Var (TName nameResolveHole funType) (InfoExternal [])) []
+makeCTailHole :: Type -> Expr
+makeCTailHole tp
+  = App (Var (TName nameCTailHole funType) (InfoExternal [])) []
   where 
     funType = TFun [] typeTotal tp
 
-makeResolveSlot :: Expr -> TName -> Name -> Type -> Expr
-makeResolveSlot con objName fieldName tp
-  = App (Var (TName nameResolveSlot funType) (InfoExternal [])) 
+makeCTailCreate :: Expr -> TName -> Name -> Type -> Expr
+makeCTailCreate con objName fieldName tp
+  = App (Var (TName nameCTailCreate funType) (InfoExternal [])) 
         [Var objName InfoNone, con, Lit (LitString (show fieldName))]  -- danger: not fully applied Con
   where
     funType = TFun [(nameNil,typeOf objName),(nameNil,typeOf objName),(nameNil,typeString)] typeTotal (makeSlotType tp)
     
 
-makeResolveNext :: TName -> Expr -> TName ->TName -> Name -> Type -> Expr
-makeResolveNext slot con resName objName fieldName tp
-  = App (Var (TName nameResolveNext funType) (InfoExternal [])) 
+makeCTailNext :: TName -> Expr -> TName ->TName -> Name -> Type -> Expr
+makeCTailNext slot con resName objName fieldName tp
+  = App (Var (TName nameCTailNext funType) (InfoExternal [])) 
         [Var slot InfoNone, Var resName InfoNone, Var objName InfoNone, con, Lit (LitString (show fieldName))]  -- danger: not fully applied Con
   where
     funType = TFun [(nameNil,typeOf slot),(nameNil,typeOf resName),(nameNil,typeOf objName),(nameNil,typeOf objName),(nameNil,typeString)] typeTotal (makeSlotType tp)
     
-makeResolve :: TName -> Expr -> Expr
-makeResolve slot expr
-  = App (Var (TName nameResolve funType) (InfoExternal [])) 
+makeCTail :: TName -> Expr -> Expr
+makeCTail slot expr
+  = App (Var (TName nameCTailSet funType) (InfoExternal [])) 
         [Var slot InfoNone,expr]  -- danger: not fully applied Con
   where
     funType = TFun [(nameNil,typeOf slot),(nameNil,typeOf expr)] typeTotal typeUnit
@@ -289,7 +289,7 @@ makeResolve slot expr
     
 makeSlotType :: Type -> Type
 makeSlotType tp
-  = TApp (TCon (TypeCon nameTpResolveSlot (kindFun kindStar kindStar))) [tp]
+  = TApp (TCon (TypeCon nameTpCTail (kindFun kindStar kindStar))) [tp]
 
     
 

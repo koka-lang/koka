@@ -60,11 +60,11 @@ module Common.NamePrim
           , nameAllocAt
           
           -- * CTail optimization
-          , nameTpResolveSlot
-          , nameResolve
-          , nameResolveNext
-          , nameResolveSlot
-          , nameResolveHole
+          , nameTpCTail
+          , nameCTailSet
+          , nameCTailNext
+          , nameCTailCreate
+          , nameCTailHole
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -244,13 +244,13 @@ nameTpDict      = qualify nameDict (newName "dict")
 nameTpBuilder   = qualify (newName "std/text/string") (newName "builder")
 
 
-nameTpResolveSlot   = resolveName "slot"
-nameResolve         = resolveName ".resolve"
-nameResolveNext     = resolveName ".resolve-next" 
-nameResolveSlot     = resolveName ".resolve-slot"
-nameResolveHole     = resolveName ".resolve-hole"
+nameTpCTail       = ctailName "ctail"
+nameCTailSet      = ctailName ".ctail-set"
+nameCTailNext     = ctailName ".ctail-next" 
+nameCTailCreate   = ctailName ".ctail-create"
+nameCTailHole     = ctailName ".ctail-hole"
 
-resolveName name    = qualify (newName "test/cgen/ctail1") (newName name)
+ctailName name    = qualify (newName "test/cgen/ctail1") (newName name)
 
 {--------------------------------------------------------------------------
   std/core/hnd

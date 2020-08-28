@@ -1004,7 +1004,7 @@ genLambda params eff body
 
 
 ppType :: Type -> Doc
-ppType (TApp (TCon c) [t])  | typeConName c == nameTpResolveSlot
+ppType (TApp (TCon c) [t])  | typeConName c == nameTpCTail
   = ppType t <.> text "*"
 ppType tp
   = case cType tp of
@@ -1570,24 +1570,24 @@ genAppNormal (Var allocAt _) [Var at _, App (TypeApp (Con tname repr) targs) arg
 genAppNormal v@(Var allocAt _) [at, Let dgs expr]  | getName allocAt == nameAllocAt  -- can happen due to box operations
   = genExpr (Let dgs (App v [at,expr]))
 
--- special: resolveSlot  
-genAppNormal v@(Var resolveSlot _) [App (Var dup _) [Var con _], Con cname crepr, Lit (LitString fieldName)]  | getName resolveSlot == nameResolveSlot && getName dup == nameDup
+-- special: ctail
+genAppNormal v@(Var ctailCreate _) [App (Var dup _) [Var con _], Con cname crepr, Lit (LitString fieldName)]  | getName ctailCreate == nameCTailCreate && getName dup == nameDup
   = do let doc = genFieldAddress con cname fieldName
        -- TODO: drop? or add borrowing
        return ([],doc)
 
-genAppNormal v@(Var resolveSlot _) [Var con _, Con cname crepr, Lit (LitString fieldName)]  | getName resolveSlot == nameResolveSlot
+genAppNormal v@(Var ctailCreate _) [Var con _, Con cname crepr, Lit (LitString fieldName)]  | getName ctailCreate == nameCTailCreate
  = do let drop = map (<.> semi) (genDupDropCall False (typeOf con) (ppName (getName con)))
           doc = genFieldAddress con cname fieldName
       -- TODO: drop? or add borrowing
       return (drop, doc)
 
-genAppNormal v@(Var resolveNext _) [Var slot InfoNone, App (Var dup _) [Var res _], Var con _, Con cname crepr, Lit (LitString fieldName)]  | getName resolveNext == nameResolveNext, getName dup == nameDup
+genAppNormal v@(Var ctailNext _) [Var slot InfoNone, App (Var dup _) [Var res _], Var con _, Con cname crepr, Lit (LitString fieldName)]  | getName ctailNext == nameCTailNext, getName dup == nameDup
  = do let assign = text "*" <.> ppName (getName slot) <+> text "=" <+> ppName (getName res) <.> semi
           next   = genFieldAddress con cname fieldName
       return ([assign],next)
 
-genAppNormal v@(Var resolveNext _) [Var slot InfoNone, Var res _, Var con _, Con cname crepr, Lit (LitString fieldName)]  | getName resolveNext == nameResolveNext
+genAppNormal v@(Var ctailNext _) [Var slot InfoNone, Var res _, Var con _, Con cname crepr, Lit (LitString fieldName)]  | getName ctailNext == nameCTailNext
  = do let drop   = map (<.> semi) (genDupDropCall False (typeOf con) (ppName (getName con)))
           assign = text "*" <.> ppName (getName slot) <+> text "=" <+> ppName (getName res) <.> semi
           next   = genFieldAddress con cname fieldName
@@ -1769,13 +1769,14 @@ genExprExternal tname formats [argDoc] | getName tname == nameReuse
         call  = hcat (genReuseCall tp argDoc)
     in return ([], call)
 
--- special case: resolve hole    
-genExprExternal tname formats [] | getName tname == nameResolveHole
+-- special case: ctail hole    
+genExprExternal tname formats [] | getName tname == nameCTailHole
   = case typeOf tname of 
       TFun [] _ tres -> return ([],ppType tres <.> text "_hole()")
     
-genExprExternal tname formats [slotDoc,argDoc] | getName tname == nameResolve
-  = return ([],text "*" <.> parens slotDoc <+> text "=" <+> argDoc)
+-- special case: ctail set
+genExprExternal tname formats [accDoc,argDoc] | getName tname == nameCTailSet
+  = return ([],text "*" <.> parens accDoc <+> text "=" <+> argDoc)
 
 -- normal external
 genExprExternal tname formats argDocs0
