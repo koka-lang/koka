@@ -934,4 +934,4 @@ splitTForall :: Type -> ([TypeVar], Type)
 splitTForall tp
   = case expandSyn tp of
       (TForall tvs _ tp) -> (tvs, tp) -- TODO what about the rest of the variables and preds?
-      _ ->  failure ("Core.Core.splitTForall: Expected forall" ++ show (pretty tp))
+      _ ->  failure ("Core.Core.splitTForall: Expected forall: " ++ show (pretty tp))

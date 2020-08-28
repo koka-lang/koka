@@ -35,6 +35,7 @@ import Common.Syntax
 import Core.Core
 import Core.Pretty
 import Core.CoreVar
+import Core.CTail( isCTailOp )
 
 import Core.Simplify
 
@@ -71,7 +72,8 @@ boxExpr expectTp expr
       -- remove type abstraction and applications
       TypeLam tvs e        -> boxExpr expectTp e
       TypeApp e tps        -> boxExpr expectTp e
-      -- Regular
+      
+      -- Regular      
       App e args           -> do let argTps = map boxTypeOf args
                                      eTp    = TFun [(nameNil,tp) | tp <- argTps] typeTotal expectTp
                                  bargs <- mapM (\(arg) -> boxExpr (boxTypeOf arg) arg) args
@@ -243,8 +245,9 @@ type BoxType = Type
 -- type without quantification
 boxTypeOf :: Expr -> BoxType
 boxTypeOf expr
-  = case splitPredType (typeOf expr) of
-      (_,_,tp) -> tp
+  = -- trace ("boxTypeOf: typeApp: " ++ show expr) $
+    case splitPredType (typeOf expr) of
+        (_,_,tp) -> tp
 
 boxType :: Type -> BoxType
 boxType tp

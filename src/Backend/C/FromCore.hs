@@ -1571,26 +1571,26 @@ genAppNormal v@(Var allocAt _) [at, Let dgs expr]  | getName allocAt == nameAllo
   = genExpr (Let dgs (App v [at,expr]))
 
 -- special: ctail
-genAppNormal v@(Var ctailCreate _) [App (Var dup _) [Var con _], Con cname crepr, Lit (LitString fieldName)]  | getName ctailCreate == nameCTailCreate && getName dup == nameDup
-  = do let doc = genFieldAddress con cname fieldName
+genAppNormal v@(Var ctailCreate _) [App (Var dup _) [Var con _],  Lit (LitString conName), Lit (LitString fieldName)]  | getName ctailCreate == nameCTailCreate && getName dup == nameDup
+  = do let doc = genFieldAddress con (readTupled conName) (readTupled fieldName)
        -- TODO: drop? or add borrowing
        return ([],doc)
 
-genAppNormal v@(Var ctailCreate _) [Var con _, Con cname crepr, Lit (LitString fieldName)]  | getName ctailCreate == nameCTailCreate
+genAppNormal v@(Var ctailCreate _) [Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName ctailCreate == nameCTailCreate
  = do let drop = map (<.> semi) (genDupDropCall False (typeOf con) (ppName (getName con)))
-          doc = genFieldAddress con cname fieldName
+          doc = genFieldAddress con (readTupled conName) (readTupled fieldName)
       -- TODO: drop? or add borrowing
       return (drop, doc)
 
-genAppNormal v@(Var ctailNext _) [Var slot InfoNone, App (Var dup _) [Var res _], Var con _, Con cname crepr, Lit (LitString fieldName)]  | getName ctailNext == nameCTailNext, getName dup == nameDup
+genAppNormal v@(Var ctailNext _) [Var slot InfoNone, App (Var dup _) [Var res _], Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName ctailNext == nameCTailNext, getName dup == nameDup
  = do let assign = text "*" <.> ppName (getName slot) <+> text "=" <+> ppName (getName res) <.> semi
-          next   = genFieldAddress con cname fieldName
+          next   = genFieldAddress con (readTupled conName) (readTupled fieldName)
       return ([assign],next)
 
-genAppNormal v@(Var ctailNext _) [Var slot InfoNone, Var res _, Var con _, Con cname crepr, Lit (LitString fieldName)]  | getName ctailNext == nameCTailNext
+genAppNormal v@(Var ctailNext _) [Var slot InfoNone, Var res _, Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName ctailNext == nameCTailNext
  = do let drop   = map (<.> semi) (genDupDropCall False (typeOf con) (ppName (getName con)))
           assign = text "*" <.> ppName (getName slot) <+> text "=" <+> ppName (getName res) <.> semi
-          next   = genFieldAddress con cname fieldName
+          next   = genFieldAddress con (readTupled conName) (readTupled fieldName)
       -- TODO: drop? or add borrowing
       return (drop ++ [assign],next)
 
@@ -1627,9 +1627,9 @@ genAppNormal f args
                        return (fdecls ++ decls, text "kk_function_call" <.> tupled [cresTp,cargTps,fdoc,arguments (fdoc:argDocs)])
 
 
-genFieldAddress :: TName -> TName -> String -> Doc
-genFieldAddress con cname fieldName
-  = parens (text "&" <.> conAsNameX (getName cname) <.> parens (ppName (getName con)) <.> text "->" <.> text fieldName)
+genFieldAddress :: TName -> Name -> Name -> Doc
+genFieldAddress conVar conName fieldName
+  = parens (text "&" <.> conAsNameX conName <.> parens (ppName (getName conVar)) <.> text "->" <.> ppName fieldName)
 
 
 genAppSpecial :: Expr -> [Expr] -> Asm (Maybe Doc)
@@ -1772,7 +1772,7 @@ genExprExternal tname formats [argDoc] | getName tname == nameReuse
 -- special case: ctail hole    
 genExprExternal tname formats [] | getName tname == nameCTailHole
   = case typeOf tname of 
-      TFun [] _ tres -> return ([],ppType tres <.> text "_hole()")
+      (TFun [] _ tres) -> return ([],ppType tres <.> text "_hole()")
     
 -- special case: ctail set
 genExprExternal tname formats [accDoc,argDoc] | getName tname == nameCTailSet

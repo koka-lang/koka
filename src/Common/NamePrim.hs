@@ -250,7 +250,7 @@ nameCTailNext     = ctailName ".ctail-next"
 nameCTailCreate   = ctailName ".ctail-create"
 nameCTailHole     = ctailName ".ctail-hole"
 
-ctailName name    = qualify (newName "test/cgen/ctail1") (newName name)
+ctailName name    = coreTypesName name
 
 {--------------------------------------------------------------------------
   std/core/hnd

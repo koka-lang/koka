@@ -316,3 +316,15 @@ fun unsafe-no-ndet( action : () -> <ndet|e> a ) : e a {
 fun unsafe-no-div( action : () -> <div|e> a ) : e a {
   unsafe-total-cast( action )()
 }
+
+// ----------------------------------------------------------------------------
+// These primitives are used by the compiler for 
+// _tail recursion module cons_ (TRMC) optimization.
+// ----------------------------------------------------------------------------
+
+type value ctail<a>
+
+extern inline ".ctail-hole"() : a { }
+extern inline ".ctail-create"(obj : a, cname : string, field : string) : ctail<a> { }
+extern inline ".ctail-next"(acc : ctail<a>, res : a, obj : a, cname : string , field : string ) : ctail<a> { }
+extern inline ".ctail-set"( acc : ctail<a>, res : a ) : () { }

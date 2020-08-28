@@ -14,6 +14,7 @@ module Common.Name
           ( Name, Names     -- instance Eq Ord Show
           , showName        -- show with quotes
           , showPlain
+          , showTupled, readTupled -- show and read back reliably
           , labelNameCompare
           , toHiddenUniqueName
           , newName, newQualified
@@ -149,7 +150,12 @@ instance Pretty Name where
   pretty name
     = text (show name)
 
-
+showTupled (Name m _ n _)
+  = show (m,n)
+  
+readTupled s
+  = let (m,n) = ((read s) :: (String,String))
+    in newQualified m n
 
 
 

@@ -1,9 +1,3 @@
-type value ctail<a>
-
-extern inline ".ctail-hole"() : a { }
-extern inline ".ctail-create"(x : a, s : string) : ctail<a> { }
-extern inline ".ctail-next"(acc : ctail<a>, x : a, y : a, s : string ) : ctail<a> { }
-extern inline ".ctail-set"( acc : ctail<a>, x : a ) : () { }
 
 fun mapx( xs : list<a>, f : a -> b ) : list<b> {
   match(xs) {

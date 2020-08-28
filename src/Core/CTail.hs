@@ -11,7 +11,7 @@
 -- constctailctor reuse analysis
 -----------------------------------------------------------------------------
 
-module Core.CTail ( ctailOptimize, uctailOptimize ) where
+module Core.CTail ( ctailOptimize, uctailOptimize, isCTailOp ) where
 
 import Lib.Trace (trace)
 import Control.Monad
@@ -157,10 +157,17 @@ ctailExpr top expr
   = do dname <- getCurrentDefName
        case expr of
           TypeLam tpars body  -> TypeLam tpars <$> ctailExpr top body
-          TypeApp body targs  -> (`TypeApp` targs) <$> ctailExpr top body
           Lam pars eff body   | top -> Lam pars eff <$> ctailExpr top body
           Let dgs body        -> Let dgs <$> ctailExpr top body
           Case xs branches    -> Case xs <$> mapM ctailBranch branches
+          
+          TypeApp body targs  
+            -> do expr' <- ctailExpr top body
+                  case expr' of
+                    App v@(Var ctailSet _) [acc,arg] | getName ctailSet == nameCTailSet
+                      -> return (App v [acc,TypeApp arg targs])   -- push down typeapp into ctail set
+                    _ -> return (TypeApp expr' targs)
+          
           
           App f@(TypeApp (Con cname _) _) fargs  
             -> handleConApp dname cname f fargs
@@ -180,7 +187,7 @@ ctailExpr top expr
       = do mbSlot <- getCTailSlot
            case mbSlot of 
               Nothing   -> return body
-              Just slot -> return (makeCTail slot body)
+              Just slot -> return (makeCTailSet slot body)
                 
     handleConApp dname cname f fargs
       = do (defs,body) <- ctailTryArg dname cname Nothing (\args -> ([],App f args)) (length fargs) (reverse fargs)
@@ -237,7 +244,7 @@ ctailFoundArg :: TName -> Maybe TName -> ([Expr] -> (DefGroups,Expr)) -> Int -> 
 ctailFoundArg cname mbC mkApp field f fargs 
   = do -- ctailTrace $ "found arg: " ++ show cname ++ ", " ++ show mbC ++ ", " ++ show field 
        ctailVar  <- getCTailFun
-       (con,fieldName) <- getFieldName cname field
+       (_,fieldName) <- getFieldName cname field
        let tp    = typeOf (App f fargs)
            hole  = makeCTailHole tp
            (defs,cons)  = mkApp [hole]
@@ -245,17 +252,21 @@ ctailFoundArg cname mbC mkApp field f fargs
        mbSlot <- getCTailSlot
        case mbSlot of
          Nothing 
-           -> do let resolveSlot = makeCTailCreate con (maybe consName id mbC) fieldName tp
+           -> do let resolveSlot = makeCTailCreate (maybe consName id mbC) cname fieldName tp
                      ctailCall   = App ctailVar (fargs ++ [resolveSlot])
                  return $ (defs ++
                            [DefNonRec (makeTDef consName cons), 
                             DefNonRec (makeDef nameNil ctailCall)] 
                            ,Var consName InfoNone) 
          Just slot
-           -> do let resolveNext = makeCTailNext slot con consName (maybe consName id mbC) fieldName tp
+           -> do let resolveNext = makeCTailNext slot consName (maybe consName id mbC) cname fieldName tp
                      ctailCall   = App ctailVar (fargs ++ [resolveNext])
                  return $ (defs ++ [DefNonRec (makeTDef consName cons)]
                           ,ctailCall)
+
+isCTailOp :: Name -> Bool
+isCTailOp name
+  = name `elem` [nameCTailHole,nameCTailCreate,nameCTailNext,nameCTailSet]
 
 
 makeCTailHole :: Type -> Expr
@@ -263,24 +274,27 @@ makeCTailHole tp
   = App (Var (TName nameCTailHole funType) (InfoExternal [])) []
   where 
     funType = TFun [] typeTotal tp
+    
 
-makeCTailCreate :: Expr -> TName -> Name -> Type -> Expr
-makeCTailCreate con objName fieldName tp
+makeCTailCreate :: TName -> TName -> Name -> Type -> Expr
+makeCTailCreate objName conName fieldName tp
   = App (Var (TName nameCTailCreate funType) (InfoExternal [])) 
-        [Var objName InfoNone, con, Lit (LitString (show fieldName))]  -- danger: not fully applied Con
+        [Var objName InfoNone, Lit (LitString (showTupled (getName conName))), Lit (LitString (showTupled fieldName))]  
   where
-    funType = TFun [(nameNil,typeOf objName),(nameNil,typeOf objName),(nameNil,typeString)] typeTotal (makeSlotType tp)
+    funType = TFun [(nameNil,typeOf objName),(nameNil,typeString),(nameNil,typeString)] typeTotal (makeSlotType tp)
     
 
-makeCTailNext :: TName -> Expr -> TName ->TName -> Name -> Type -> Expr
-makeCTailNext slot con resName objName fieldName tp
+makeCTailNext :: TName -> TName -> TName -> TName -> Name -> Type -> Expr
+makeCTailNext slot resName objName conName fieldName tp
   = App (Var (TName nameCTailNext funType) (InfoExternal [])) 
-        [Var slot InfoNone, Var resName InfoNone, Var objName InfoNone, con, Lit (LitString (show fieldName))]  -- danger: not fully applied Con
+        [Var slot InfoNone, Var resName InfoNone, Var objName InfoNone, 
+         Lit (LitString (showTupled (getName conName))), Lit (LitString (showTupled fieldName))] 
   where
-    funType = TFun [(nameNil,typeOf slot),(nameNil,typeOf resName),(nameNil,typeOf objName),(nameNil,typeOf objName),(nameNil,typeString)] typeTotal (makeSlotType tp)
+    funType = TFun [(nameNil,typeOf slot),(nameNil,typeOf resName),(nameNil,typeOf objName),
+                    (nameNil,typeString),(nameNil,typeString)] typeTotal (makeSlotType tp)
     
-makeCTail :: TName -> Expr -> Expr
-makeCTail slot expr
+makeCTailSet :: TName -> Expr -> Expr
+makeCTailSet slot expr
   = App (Var (TName nameCTailSet funType) (InfoExternal [])) 
         [Var slot InfoNone,expr]  -- danger: not fully applied Con
   where

@@ -49,7 +49,7 @@ var useStack    = hsCompiler === hsStack;
 var hsFlags     = "-fwarn-incomplete-patterns";
 var hsRunFlags  = "";
 var hsPackages  = ["text","parsec"];
-var hsLinkFlags = (["base","containers","directory","process","mtl"].concat(hsPackages)).map(function(p){ return "-package " + p; }).join(" ");
+var hsLinkFlags = (["base","containers","directory","process","mtl","haskeline"].concat(hsPackages)).map(function(p){ return "-package " + p; }).join(" ");
 
 var alexCompiler= "alex";
 var alexFlags   = "--latin1";
@@ -462,6 +462,7 @@ var hsModules = [
   "Core.Divergent",
   "Core.BindingGroups",
   "Core.UnReturn",
+  "Core.CTail",
   "Core.OpenResolve",
   "Core.Monadic",
   "Core.AnalysisResume",
