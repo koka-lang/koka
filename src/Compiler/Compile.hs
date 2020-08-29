@@ -32,6 +32,7 @@ import Lib.Trace              ( trace )
 import Data.Char              ( isAlphaNum, toLower )
 
 import System.Directory       ( createDirectoryIfMissing, canonicalizePath, getCurrentDirectory )
+import Data.Time.Clock        hiding (getCurrentTime)
 import Data.List              ( isPrefixOf, intersperse )
 import Control.Applicative
 import Control.Monad          ( ap, when )
@@ -41,7 +42,7 @@ import Common.Range           -- ( Range, sourceName )
 import Common.Name            -- ( Name, newName, qualify, asciiEncode )
 import Common.NamePrim        ( nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync, nameTpInst )
 import Common.Error
-import Common.File
+import Common.File            
 import Common.ColorScheme
 import Common.Message         ( table )
 import Common.Syntax
@@ -1092,7 +1093,14 @@ codeGen term flags compileTarget loaded
           case mbRun of
             Just run -> do termPhase term $ "evaluate" 
                            termDoc term $ space
+                           t0 <- getCurrentTime
                            run
+                           t1 <- getCurrentTime
+                           let diff = (diffUTCTime t1 t0)
+                               secs = case (span (\c -> c /= '.') (reverse (show diff))) of  -- TODO: convert to double and show?
+                                        (pre,'.':post)  | length pre > 4  -> reverse (('s':drop (length pre - 3) pre) ++ "." ++ post)
+                                        (pre,post) -> reverse (pre ++ post)                                         
+                           termDoc term $ color (colorInterpreter (colorScheme flags)) (linebreak <.> text ("elapsed: ~" ++ secs))
             _        -> termDoc term $ space
 
        return loaded1 -- { loadedArities = arities, loadedExternals = externals }
