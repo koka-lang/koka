@@ -74,11 +74,18 @@ add_library(kklib STATIC ${kklib_sources})
 target_compile_definitions(kklib PUBLIC KK_STATIC_LIB)
 target_include_directories(kklib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(kklib PUBLIC kklib-flags)
+if(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND "x${CMAKE_C_SIMULATE_ID}" STREQUAL "xMSVC")
+  target_compile_definitions(kklib PRIVATE __clang_msvc__=1)
+endif()
+
 
 
 if(KK_MIMALLOC MATCHES ON)
 target_include_directories(kklib PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/mimalloc/include)
 target_compile_definitions(kklib PRIVATE MI_MAX_ALIGN_SIZE=8)
+if(WIN32)
+  target_compile_definitions(kklib PRIVATE _CRT_SECURE_NO_WARNINGS=1)
+endif()
 target_compile_definitions(kklib-flags INTERFACE KK_MIMALLOC=1)
   if(KK_MIMALLOC_INLINE MATCHES ON)
     target_compile_definitions(kklib-flags INTERFACE KK_MIMALLOC_INLINE=1)

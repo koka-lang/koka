@@ -168,6 +168,8 @@ typedef size_t         kk_uintx_t;
 #define KK_INTX_SIZE   KK_SIZE_SIZE
 #define KK_INTX_MAX    KK_SSIZE_MAX
 #define KK_INTX_MIN    KK_SSIZE_MIN
+#define PRIxUX         "%zx"
+#define PRIXUX         "%zX"
 #else 
 typedef long           kk_intx_t;
 typedef unsigned long  kk_uintx_t;
@@ -176,6 +178,8 @@ typedef unsigned long  kk_uintx_t;
 #define KK_INTX_SIZE   KK_LONG_SIZE
 #define KK_INTX_MAX    LONG_MAX
 #define KK_INTX_MIN    LONG_MIN
+#define PRIxUX         "%lx"
+#define PRIXUX         "%lX"
 #endif
 #define KK_INTX_BITS   (8*KK_INTX_SIZE)
 
