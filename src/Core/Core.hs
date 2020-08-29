@@ -799,9 +799,9 @@ openEffectExpr effFrom effTo tpFrom tpTo expr
 hasNoEffectExpr expr
   = case expr of 
       TypeApp e targs -> hasNoEffectExpr e
-      Var{} -> True
       Lit{} -> True
       Con{} -> True
+      -- Var _ InfoExternal{} -> True  -- TODO: maybe too liberal?
       _     -> False
 
 makeInt32 :: Integer -> Expr
