@@ -785,7 +785,8 @@ freshName prefix
        return (newName $ prefix ++ "." ++ show id)
 
 openEffectExpr :: Effect -> Effect -> Type -> Type -> Expr -> Expr
-openEffectExpr effFrom effTo tpFrom tpTo expr
+openEffectExpr effFrom effTo tpFrom tpTo expr  | hasNoEffectExpr expr = expr
+openEffectExpr effFrom effTo tpFrom tpTo expr  
   = App (TypeApp varOpen [effFrom,effTo,tpFrom,tpTo]) [expr]
   where
     varOpen = Var (TName nameEffectOpen tpOpen) (InfoExternal [(Default,"#1")])    -- NOTE: quite fragile as it relies on the exact definition in core.kk
@@ -795,6 +796,13 @@ openEffectExpr effFrom effTo tpFrom tpTo expr
     e1      = TypeVar (-3) kindEffect Bound
     e2      = TypeVar (-4) kindEffect Bound
 
+hasNoEffectExpr expr
+  = case expr of 
+      TypeApp e targs -> hasNoEffectExpr e
+      Var{} -> True
+      Lit{} -> True
+      Con{} -> True
+      _     -> False
 
 makeInt32 :: Integer -> Expr
 makeInt32 i

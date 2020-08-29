@@ -1072,6 +1072,8 @@ cTypeCon c
          then CPrim "kk_box_t"
         else if (name == nameTpReuse)
          then CPrim "kk_reuse_t"
+        else if (name == nameTpCTail)
+         then CPrim "kk_ctail_t"
         else CData (typeClassName name)
 
 

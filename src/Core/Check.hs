@@ -70,7 +70,7 @@ instance Applicative Check where
 
 instance Monad Check where
   return x      = Check (\u g -> Ok x u)
-  fail s        = Check (\u g -> Err (text s))
+  fail s        = Check (\u g -> Err (text (show (defName (head (currentDef g)))) <.> colon <+> text s))
   (Check c) >>= f  = Check (\u g -> case c u g of
                                       Ok x u' -> case f x of
                                                    Check d -> d u' g

@@ -886,20 +886,32 @@ inferCheck loaded flags line coreImports program1
        when (coreCheck flags) $ -- trace "lift functions core check" $ 
                                 Core.Check.checkCore True True penv uniqueLift gamma coreDefsLifted
 
+       -- simplify core
+       let (coreDefsSimp0,uniqueSimp0) = simplifyDefs False (simplify flags) (0) uniqueLift penv coreDefsLifted
+       
        -- traceDefGroups "lifted" coreDefsLifted
+       
+           
+       -- constructor tail optimization
+       let (coreDefsCTail,uniqueCTail)
+                  = if (optctail flags)  
+                     then ctailOptimize penv (platform flags) newtypes gamma coreDefsSimp0 uniqueSimp0
+                     else (coreDefsSimp0,uniqueSimp0)
+                     
+       -- traceDefGroups "ctail" coreDefsCTail
 
        -- do monadic effect translation (i.e. insert binds)
-       let uniqueMon = uniqueLift
+       let uniqueMon = uniqueCTail
        let isPrimitiveModule = Core.coreProgName coreProgram1 == newName "std/core/types" ||
                                Core.coreProgName coreProgram1 == newName "std/core/hnd" 
        coreDefsMon
            <- if (not (enableMon flags) || isPrimitiveModule)
-               then return (coreDefsLifted)
-               else do cdefs <- Core.Monadic.monTransform penv coreDefsLifted
+               then return (coreDefsCTail)
+               else do cdefs <- Core.Monadic.monTransform penv coreDefsCTail
                        -- recheck cps transformed core
                        when (coreCheck flags) $
                           -- trace "monadic core check" $ 
-                          Core.Check.checkCore False False penv uniqueLift gamma cdefs
+                          Core.Check.checkCore False False penv uniqueCTail gamma cdefs
                        return (cdefs)
 
        -- traceDefGroups "monadic" coreDefsMon
@@ -969,12 +981,9 @@ inferCheck loaded flags line coreImports program1
                                 -- trace "after simplify core check 2" $
                                 Core.Check.checkCore True True penv unique0 gamma cdefs0
                               return (cdefs0,unique0) -- $ simplifyDefs False 1 unique4a penv cdefs
-                              
-       -- constructor tail optimization
-       let (coreDefsCTail,uniqueCTail)
-                  = if (optctail flags)  
-                     then ctailOptimize penv (platform flags) newtypes gamma coreDefsSimp2 uniqueSimp2 
-                     else (coreDefsSimp2,uniqueSimp2)
+
+       -- traceDefGroups "monadic lift simplified" coreDefsSimp2
+
 {-
        -- and one more simplify
        (coreDefsSimp3,uniqueSimp3)
@@ -990,8 +999,8 @@ inferCheck loaded flags line coreImports program1
                               return (cdefs0,unique0) -- $ simplifyDefs False 1 unique4a penv cdefs
 -}
        -- Assemble core program and return
-       let coreDefsLast = coreDefsCTail
-           uniqueLast   = uniqueCTail
+       let coreDefsLast = coreDefsSimp2
+           uniqueLast   = uniqueSimp2
            inlineDefs   = extractInlineDefs (coreInlineMax penv) coreDefsLast
 
            coreProgram2 = -- Core.Core (getName program1) [] [] coreTypeDefs coreDefs0 coreExternals
