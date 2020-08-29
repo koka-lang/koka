@@ -5,6 +5,5 @@
     <ClCompile Include="..\..\..\out\Debug\std_core_hnd.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core_types.c" />
     <ClCompile Include="..\..\..\out\Debug\interactive.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_algeff_common.c" />
   </ItemGroup>
 </Project>
