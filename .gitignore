@@ -11,3 +11,4 @@ package-lock.json
 *.pdb
 *~
 *.exe
+/*.cmake
