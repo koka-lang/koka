@@ -141,7 +141,10 @@ listModules roots pre
   = do cs  <- C.listFiles pre
        css <- mapM (\root -> do cs <- C.listFiles (root ++ "/" ++ pre)
                                 return [c{ C.replacement = drop (length root + 1) (C.replacement c) } | c <- cs]
-                   ) roots                   
-       return [c | c <- (cs ++ concat css), not (C.isFinished c) {-dir-} || take 3 (reverse (C.replacement c)) == "kk." ]
+                   ) roots  
+       let norm s  = map (\c -> if (c=='\\') then '/' else c) s                 
+       return [c{ C.replacement = norm (C.replacement c)} | 
+               c <- (cs ++ concat css), 
+               not (C.isFinished c) {-dir-} || take 3 (reverse (C.replacement c)) == "kk." ]
     
 #endif
