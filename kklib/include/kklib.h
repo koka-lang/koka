@@ -24,7 +24,7 @@
 
 #include "kklib/platform.h"  // Platform abstractions and portability definitions
 #include "kklib/atomic.h"    // Atomic operations
-
+#include "kklib/process.h"   // Process info
 
 
 /*--------------------------------------------------------------------------------------
@@ -283,10 +283,17 @@ typedef struct kk_context_s {
   kk_function_t  out;              // std output
   struct kk_random_ctx_s* srandom_ctx;    // secure random using chacha20, initialized on demand
   kk_box_any_t   kk_box_any;          // used when yielding as a value of any type
+  size_t         argc;
+  const char**   argv;
+  kk_timer_t     process_start;
 } kk_context_t;
 
 // Get the current (thread local) runtime context (should always equal the `_ctx` parameter)
 kk_decl_export kk_context_t* kk_get_context(void);
+
+kk_decl_export kk_context_t* kk_main_start(int argc, char** argv);
+kk_decl_export void          kk_main_end(kk_context_t* ctx);
+
 
 // The current context is passed as a _ctx parameter in the generated code
 #define kk_context()  _ctx

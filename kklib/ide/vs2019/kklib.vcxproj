@@ -208,6 +208,7 @@
     </ClCompile>
     <ClCompile Include="..\..\src\bits.c" />
     <ClCompile Include="..\..\src\box.c" />
+    <ClCompile Include="..\..\src\process.c" />
     <ClCompile Include="..\..\src\random.c" />
     <ClCompile Include="..\..\src\ref.c" />
     <ClCompile Include="..\..\src\refcount.c">
@@ -223,6 +224,7 @@
     <ClInclude Include="..\..\include\kklib\bits.h" />
     <ClInclude Include="..\..\include\kklib\box.h" />
     <ClInclude Include="..\..\include\kklib\platform.h" />
+    <ClInclude Include="..\..\include\kklib\process.h" />
     <ClInclude Include="..\..\include\kklib\random.h" />
     <ClInclude Include="..\..\include\kklib\string.h" />
   </ItemGroup>
