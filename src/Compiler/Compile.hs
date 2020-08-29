@@ -1100,7 +1100,8 @@ codeGen term flags compileTarget loaded
                                secs = case (span (\c -> c /= '.') (reverse (show diff))) of  -- TODO: convert to double and show?
                                         (pre,'.':post)  | length pre > 4  -> reverse (('s':drop (length pre - 3) pre) ++ "." ++ post)
                                         (pre,post) -> reverse (pre ++ post)                                         
-                           termDoc term $ color (colorInterpreter (colorScheme flags)) (linebreak <.> text ("elapsed: ~" ++ secs))
+                           when (showElapsed flags) $
+                             termDoc term $ color (colorInterpreter (colorScheme flags)) (linebreak <.> text ("elapsed: ~" ++ secs))
             _        -> termDoc term $ space
 
        return loaded1 -- { loadedArities = arities, loadedExternals = externals }

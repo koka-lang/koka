@@ -92,6 +92,7 @@ data Flags
          , showAsmJS        :: Bool
          , showAsmC         :: Bool
          , showTypeSigs     :: Bool
+         , showElapsed      :: Bool
          , evaluate         :: Bool
          , library          :: Bool
          , target           :: Target
@@ -143,6 +144,7 @@ flagsNull
           False
           False
           False -- typesigs
+          False -- show elapsed time
           True  -- executes
           False -- library
           C     -- target
@@ -226,6 +228,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , config []    ["host"]            [("node",Node),("browser",Browser)] (\h f -> f{ target=JS, host=h}) "specify host for running javascript"
  , config []    ["platform"]        [("x32",platform32),("x64",platform64)] (\p f -> f{platform=p})     "specify target platform (default=64-bit)"
  , emptyline
+ , flag   []    ["showelapsed"]    (\b f -> f{ showElapsed = b})    "show elapsed time after evaluation"
  , flag   []    ["showspan"]       (\b f -> f{ showSpan = b})       "show ending row/column too on errors"
  -- , flag   []    ["showkinds"]      (\b f -> f{showKinds=b})        "show full kind annotations"
  , flag   []    ["showkindsigs"]   (\b f -> f{showKindSigs=b})      "show kind signatures of type definitions"
