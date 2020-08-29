@@ -195,9 +195,10 @@ genMain progName Nothing = return ()
 genMain progName (Just (name,_))
   = emitToC $
     text "\n// main entry\nint main(int argc, char** argv)" <+> block (vcat [
-      text "kk_context_t* _ctx = kk_get_context();"
+      text "kk_context_t* _ctx = kk_main_start(argc, argv);"
     , ppName (qualify progName (newName ".init")) <.> parens (text "_ctx") <.> semi
     , ppName name <.> parens (text "_ctx") <.> semi
+    , text "kk_main_end(_ctx);"
     , text "return 0;"
     ]);
 

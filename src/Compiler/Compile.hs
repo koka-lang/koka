@@ -32,7 +32,6 @@ import Lib.Trace              ( trace )
 import Data.Char              ( isAlphaNum, toLower )
 
 import System.Directory       ( createDirectoryIfMissing, canonicalizePath, getCurrentDirectory )
-import Data.Time.Clock        hiding (getCurrentTime)
 import Data.List              ( isPrefixOf, intersperse )
 import Control.Applicative
 import Control.Monad          ( ap, when )
@@ -1093,15 +1092,7 @@ codeGen term flags compileTarget loaded
           case mbRun of
             Just run -> do termPhase term $ "evaluate" 
                            termDoc term $ space
-                           t0 <- getCurrentTime
-                           run
-                           t1 <- getCurrentTime
-                           let diff = (diffUTCTime t1 t0)
-                               secs = case (span (\c -> c /= '.') (reverse (show diff))) of  -- TODO: convert to double and show?
-                                        (pre,'.':post)  | length pre > 4  -> reverse (('s':drop (length pre - 3) pre) ++ "." ++ post)
-                                        (pre,post) -> reverse (pre ++ post)                                         
-                           when (showElapsed flags) $
-                             termDoc term $ color (colorInterpreter (colorScheme flags)) (linebreak <.> text ("elapsed: ~" ++ secs))
+                           run                           
             _        -> termDoc term $ space
 
        return loaded1 -- { loadedArities = arities, loadedExternals = externals }
@@ -1348,7 +1339,8 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             runSystemEcho cmakeBuild
                   
             termDoc term $ text "compiled:" <+> text (normalize finalExe)
-            return (Just (runSystem (dquote finalExe)))
+            let cmdflags = if (showElapsed flags) then " --kktime" else ""
+            return (Just (runSystem (dquote finalExe ++ cmdflags)))
 
 installKKLib :: Terminal -> Flags -> FilePath -> FilePath -> String -> String -> String -> IO ()
 installKKLib term flags kklibDir kklibInstallDir cmakeGeneratorFlag cmakeConfigType configType
