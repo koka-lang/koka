@@ -55,7 +55,7 @@ static void kk_block_drop_free(kk_block_t* b, kk_context_t* ctx) {
 #define RC_SHARED     KU32(0x80000000)  // 0b1000 ...
 #define RC_STICKY_LO  KU32(0xD0000000)  // 0b1101 ...
 #define RC_STICKY_HI  KU32(0xE0000000)  // 0b1110 ...
-#define RC_INVALID    KU32(0xF0000000)  // 0b1111 ...
+// #define RC_INVALID    KU32(0xF0000000)  // 0b1111 ...
 
 static inline uint32_t kk_atomic_incr(kk_block_t* b) {
   return kk_atomic_inc32_relaxed((_Atomic(uint32_t)*)&b->header.refcount);
@@ -225,7 +225,7 @@ static kk_decl_noinline void kk_block_drop_free_rec(kk_block_t* b, size_t scan_f
     }
     else if (scan_fsize == 1) {
       // if just one field, we can recursively free without using stack space
-      const kk_box_t v = kk_block_field(b, 0);;
+      const kk_box_t v = kk_block_field(b, 0);
       kk_block_free(b);
       if (kk_box_is_non_null_ptr(v)) {
         // try to free the child now

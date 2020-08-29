@@ -15,8 +15,6 @@
 // Allow reading aligned words as long as some bytes in it are part of a valid C object
 #define ARCH_ALLOW_WORD_READS  (1)  
 
-struct kk_string_normal_s kk__static_string_empty = { { { KK_HEADER_STATIC(0,KK_TAG_STRING) } }, 0, {0} };
-
 static char kk_ascii_toupper(char c) {
   return (c >= 'a' && c <= 'z' ? c - 'a' + 'A' : c);
 }
@@ -104,7 +102,7 @@ size_t kk_decl_pure kk_string_count(kk_string_t str) {
     if (kk_utf8_is_cont(*t)) cont++;
   }
   kk_assert_internal(t >= s);
-  size_t count = t - s;
+  size_t count = (size_t)(t - s);
   kk_assert_internal(count >= cont);
   return (count - cont);
 }
@@ -202,7 +200,7 @@ kk_vector_t kk_string_splitv_atmost(kk_string_t s, kk_string_t sep, size_t n, kk
       r = (const char*)kk_utf8_next((const uint8_t*)p);
     }
     kk_assert_internal(r != NULL && r > p);
-    size_t len = (r - p);
+    size_t len = (size_t)(r - p);
     ss[i] = kk_string_box(kk_string_alloc_len(len, p, ctx));
     p = r;  // advance
   }
@@ -349,7 +347,7 @@ kk_string_t  kk_string_trim_left(kk_string_t str, kk_context_t* ctx) {
   const char* p = s;
   for ( ; *p != 0 && ascii_iswhite(*p); p++) { }
   if (p == s) return str;           // no trim needed
-  const size_t tlen = len - (p - s);      // todo: if s is unique and tlen close to slen, move inplace?
+  const size_t tlen = len - (size_t)(p - s);      // todo: if s is unique and tlen close to slen, move inplace?
   kk_string_t tstr = kk_string_alloc_len(tlen, p, ctx);
   kk_string_drop(str, ctx);
   return tstr;
@@ -360,7 +358,7 @@ kk_string_t  kk_string_trim_right(kk_string_t str, kk_context_t* ctx) {
   const char* s = kk_string_cbuf_borrow(str);
   const char* p = s + len - 1;
   for (; p >= s && ascii_iswhite(*p); p--) {}
-  const size_t tlen = (p - s) + 1;
+  const size_t tlen = (size_t)(p - s) + 1;
   if (len == tlen) return str;  // no trim needed
   kk_string_t tstr = kk_string_alloc_len(tlen, s, ctx);
   kk_string_drop(str, ctx);
@@ -483,7 +481,7 @@ kk_string_t kk_show_any(kk_box_t b, kk_context_t* ctx) {
     }
     else if (tag == KK_TAG_FUNCTION) {
       kk_function_t fun = kk_block_assert(kk_function_t, p, KK_TAG_FUNCTION);
-      snprintf(buf, 128, "function(0x%zx)", (uintptr_t)kk_cptr_unbox(fun->fun));
+      snprintf(buf, 128, "function(0x%zx)", (uintptr_t)(kk_cptr_unbox(fun->fun)));
       kk_box_drop(b,ctx);
       return kk_string_alloc_dup(buf, ctx);
     }

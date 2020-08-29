@@ -150,7 +150,7 @@ static void kklib_init(void) {
   int32_t cpu_info[4];
   __cpuid(cpu_info, 1);
   __has_popcnt = ((cpu_info[2] & (KI32(1)<<23)) != 0);
-  __cpuid(cpu_info, 0x80000001);
+  __cpuid(cpu_info, (int)(0x80000001));
   __has_lzcnt  = ((cpu_info[2] & (KI32(1)<<5)) != 0);
 #endif
   atexit(&kklib_done);

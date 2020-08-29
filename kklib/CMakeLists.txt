@@ -178,6 +178,8 @@ target_compile_options(
       -Wstrict-aliasing>
     $<$<C_COMPILER_ID:GNU>:
       -Wno-unused-but-set-variable>
+    $<$<C_COMPILER_ID:Clang>:
+      -Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align>
 )
 
 # Use O1 even in debug mode

@@ -14,7 +14,7 @@
 // (2^63-1) us ~= 292471 years
 // ----------------------------------------------------------------
 #ifdef _WIN32
-#include <windows.h>
+#include <Windows.h>
 static kk_usecs_t kk_to_usecs(LARGE_INTEGER t) {
   static LARGE_INTEGER mfreq; // = 0
   if (mfreq.QuadPart == 0) {
@@ -77,8 +77,8 @@ kk_usecs_t kk_timer_end(kk_timer_t start) {
 // --------------------------------------------------------
 
 #if defined(_WIN32)
-#include <windows.h>
-#include <psapi.h>
+#include <Windows.h>
+#include <Psapi.h>
 #pragma comment(lib,"psapi.lib")
 
 static kk_msecs_t kk_filetime_msecs(const FILETIME* ftime) {

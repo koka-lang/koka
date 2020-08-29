@@ -68,7 +68,7 @@ static inline bool kk_tag_is_raw(kk_tag_t tag) {
 // Reference counts larger than 0x8000000 use atomic increment/decrement (for thread shared objects).
 // (Reference counts are always 32-bit (even on 64-bit) platforms but get "sticky" if
 //  they get too large (>0xC0000000) and in such case we never free the object, see `refcount.c`)
-typedef struct kk_header_s {
+typedef kk_decl_align(8) struct kk_header_s {
   uint8_t   scan_fsize;       // number of fields that should be scanned when releasing (`scan_fsize <= 0xFF`, if 0xFF, the full scan size is the first field)
   uint8_t   thread_shared : 1;
   uint16_t  tag;              // header tag
@@ -462,10 +462,10 @@ static inline kk_block_t* kk_block_realloc(kk_block_t* b, size_t size, kk_contex
   return (kk_block_t*)kk_realloc(b, size, ctx);
 }
 
-static inline char* kk_block_assertx(kk_block_t* b, kk_tag_t tag) {
+static inline kk_block_t* kk_block_assertx(kk_block_t* b, kk_tag_t tag) {
   KK_UNUSED_INTERNAL(tag);
   kk_assert_internal(kk_block_tag(b) == tag || kk_block_tag(b) == KK_TAG_BOX_ANY);
-  return (char*)b;
+  return b;
 }
 
 static inline void kk_block_free(kk_block_t* b) {
@@ -712,7 +712,7 @@ static inline kk_tag_t kk_datatype_tag(kk_datatype_t d) {
     return kk_block_tag(d.ptr);
   }
   else {
-    return (d.singleton >> 2);
+    return (kk_tag_t)(d.singleton >> 2);
   }
 }
 
@@ -799,11 +799,11 @@ static inline void kk_datatype_decref(kk_datatype_t d, kk_context_t* ctx) {
 
 #define kk_define_static_datatype(decl,kk_struct_tp,name,tag) \
   static kk_struct_tp _static_##name = { { KK_HEADER_STATIC(0,tag) } }; \
-  decl kk_struct_tp* name = &_static_##name;
+  decl kk_struct_tp* name = &_static_##name
 
 #define kk_define_static_open_datatype(decl,kk_struct_tp,name,otag) /* ignore otag as it is initialized dynamically */ \
   static kk_struct_tp _static_##name = { { KK_HEADER_STATIC(0,KK_TAG_OPEN) }, &kk__static_string_empty._base }; \
-  decl kk_struct_tp* name = &_static_##name;
+  decl kk_struct_tp* name = &_static_##name
 
 
 /*----------------------------------------------------------------------
@@ -990,6 +990,7 @@ static inline kk_unit_t kk_ref_set(kk_ref_t r, kk_box_t value, kk_context_t* ctx
 
 kk_decl_export void kk_fatal_error(int err, const char* msg, ...);
 kk_decl_export void kk_warning_message(const char* msg, ...);
+kk_decl_export void kk_info_message(const char* msg, ...);
 
 static inline void kk_unsupported_external(const char* msg) {
   kk_fatal_error(ENOSYS,msg);

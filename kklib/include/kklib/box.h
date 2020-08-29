@@ -305,7 +305,7 @@ static inline kk_box_t kk_enum_box(kk_uintx_t u) {
 
 static inline kk_intx_t kk_intx_unbox(kk_box_t v) {
   kk_assert_internal(kk_box_is_value(v) || kk_box_is_any(v));
-  return (kk_sar(v.box, 1));
+  return (kk_sar((kk_intx_t)v.box, 1));
 }
 
 static inline kk_box_t kk_intx_box(kk_intx_t i) {
@@ -385,7 +385,7 @@ static inline kk_box_t kk_datatype_box(kk_datatype_t d) {
 
 typedef struct kk_boxed_value_s {
   kk_block_t _block;
-  char    data[KK_INTPTR_SIZE]; 
+  intptr_t   data; 
 } * kk_boxed_value_t;
 
 #define kk_valuetype_unbox_(tp,p,x,box,ctx) \
@@ -399,16 +399,16 @@ typedef struct kk_boxed_value_s {
     } \
     else { \
       p = kk_basetype_unbox_as_assert(kk_boxed_value_t, box, KK_TAG_BOX); \
-      x = *((tp*)(&p->data[0])); \
+      x = *((tp*)(&p->data)); \
     } \
-  } while(0);
+  } while(0)
 
 #define kk_valuetype_box(tp,x,val,scan_fsize,ctx)  \
   do { \
     kk_boxed_value_t p = kk_block_assert(kk_boxed_value_t, kk_block_alloc(sizeof(kk_block_t) + sizeof(tp), scan_fsize, KK_TAG_BOX, ctx), KK_TAG_BOX); \
-    *((tp*)(&p->data[0])) = val;  \
+    *((tp*)(&p->data)) = val;  \
     x = kk_basetype_box(p); \
-  } while(0);
+  } while(0)
 
 
 // `box_any` is used to return when yielding 

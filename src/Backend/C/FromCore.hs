@@ -655,7 +655,7 @@ genBox name info dataRepr
                      in vcat [ text "kk_box_t _box;"
                              , text "kk_valuetype_box" <.> arguments [ppName name, text "_box", text "_x",
                                                                       docScanCount
-                                                                     ] -- <.> semi
+                                                                     ] <.> semi
                              , text "return _box;" ]
                _  -> text "return" <+> text (if dataReprMayHaveSingletons dataRepr then "kk_datatype_box" else "kk_basetype_box") <.> tupled [text "_x"] <.> semi
     )

@@ -293,7 +293,7 @@ static inline kk_char_t kk_utf8_read(const uint8_t* s, size_t* count) {
     c = b; // fast path ASCII
   }
   else if (b <= 0xBF) { // invalid continuation byte (check is strictly not necessary as we don't validate..)
-    *count = (kk_utf8_next(s) - s);  // skip to next
+    *count = (size_t)(kk_utf8_next(s) - s);  // skip to next
     c = kk_char_replacement;
   }
   else if (b <= 0xDF) { // b >= 0xC0  // 2 bytes
@@ -445,6 +445,7 @@ kk_decl_export kk_string_t kk_show_any(kk_box_t x, kk_context_t* ctx);
 
 kk_decl_export kk_string_t kk_double_show_fixed(double d, int32_t prec, kk_context_t* ctx);
 kk_decl_export kk_string_t kk_double_show_exp(double d, int32_t prec, kk_context_t* ctx);
+kk_decl_export kk_string_t kk_double_show(double d, int32_t prec, kk_context_t* ctx);
 
 
 #endif // include guard

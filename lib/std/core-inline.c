@@ -79,7 +79,7 @@ kk_std_core__list kk_string_to_list(kk_string_t s, kk_context_t* ctx) {
   struct kk_std_core_Cons* tl = NULL;
   size_t count;
   kk_char_t c;
-  while( (c = kk_utf8_read(p,&count), c != 0) ) {
+  while( ((void)(c = kk_utf8_read(p,&count)), c != 0) ) {
     p += count;
     kk_std_core__list cons = kk_std_core__new_Cons(kk_reuse_null,kk_char_box(c,ctx), nil, ctx);
     if (tl!=NULL) {
@@ -256,7 +256,7 @@ struct kk_std_core_Sslice kk_slice_advance( struct kk_std_core_Sslice slice, kk_
 struct kk_std_core_Sslice kk_slice_common_prefix( kk_string_t str1, kk_string_t str2, kk_integer_t iupto, kk_context_t* ctx ) {
   const uint8_t* s1 = kk_string_buf_borrow(str1);
   const uint8_t* s2 = kk_string_buf_borrow(str1);
-  size_t upto = kk_integer_clamp(iupto,ctx);
+  size_t upto = kk_integer_clamp_size_t(iupto,ctx);
   size_t count;
   for(count = 0; count < upto && *s1 != 0 && *s2 != 0; count++, s1++, s2++ ) {
     if (*s1 != *s2) break;

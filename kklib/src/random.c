@@ -150,21 +150,23 @@ static inline void chacha_block(const size_t rounds, uint32_t* input, uint32_t* 
   }
 }
 
-kk_decl_noinline void chacha20(kk_random_ctx_t* rnd) {
+static kk_decl_noinline void chacha20(kk_random_ctx_t* rnd) {
   chacha_block(20, rnd->input, rnd->output);
   rnd->used = 0;
 }
-kk_decl_noinline void chacha8(kk_random_ctx_t* rnd) {
+/*
+static kk_decl_noinline void chacha8(kk_random_ctx_t* rnd) {
   chacha_block(8, rnd->input, rnd->output);
   rnd->used = 0;
 }
+*/
 
 static inline uint32_t read32(const uint8_t* p, size_t idx32) {
   const size_t i = 4*idx32;
   return ((uint32_t)p[i+0] | (uint32_t)p[i+1] << 8 | (uint32_t)p[i+2] << 16 | (uint32_t)p[i+3] << 24);
 }
 
-void chacha_init(kk_random_ctx_t* rnd, const uint8_t key[32], uint64_t nonce)
+static void chacha_init(kk_random_ctx_t* rnd, const uint8_t key[32], uint64_t nonce)
 {
   // read the 32-bit values as little-endian
   memset(rnd, 0, sizeof(*rnd));
@@ -182,6 +184,7 @@ void chacha_init(kk_random_ctx_t* rnd, const uint8_t key[32], uint64_t nonce)
   rnd->used = 128;
 }
 
+/*
 static void kk_chacha_split(kk_random_ctx_t* rnd, uint64_t nonce, kk_random_ctx_t* ctx_new) {
   memset(ctx_new, 0, sizeof(*ctx_new));
   memcpy(ctx_new->input, rnd->input, sizeof(ctx_new->input));
@@ -192,7 +195,7 @@ static void kk_chacha_split(kk_random_ctx_t* rnd, uint64_t nonce, kk_random_ctx_
   kk_assert_internal(rnd->input[14] != ctx_new->input[14] || rnd->input[15] != ctx_new->input[15]); // do not reuse nonces!
   chacha20(ctx_new);
 }
-
+*/
 
 /* ----------------------------------------------------------------------------
 Secure random: split
@@ -203,12 +206,13 @@ static bool random_is_initialized(kk_random_ctx_t* rnd) {
 }
 #endif
 
-void kk_random_split(kk_random_ctx_t* rnd, kk_random_ctx_t* ctx_new) {
+/*
+static void kk_random_split(kk_random_ctx_t* rnd, kk_random_ctx_t* ctx_new) {
   kk_assert_internal(random_is_initialized(rnd));
   kk_assert_internal(rnd != ctx_new);
-  kk_chacha_split(rnd, (uintptr_t)ctx_new /*nonce*/, ctx_new);
+  kk_chacha_split(rnd, (uintptr_t)ctx_new, ctx_new); // nonce = ctx_new
 }
-
+*/
 
 
 /*--------------------------------------------------------------------------------------
@@ -265,7 +269,7 @@ static bool os_random_buf(void* buf, size_t buf_len) {
 }
 */
 #define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+#include <Windows.h>
 #define RtlGenRandom  SystemFunction036
 #ifdef __cplusplus
 extern "C" {
@@ -338,7 +342,7 @@ static bool os_random_buf(void* buf, size_t buf_len) {
 #endif
 
 #if defined(_WIN32)
-#include <windows.h>
+#include <Windows.h>
 #elif defined(__XAPPLE__)  // TODO: kk_mach_time.h includes kk_vm_types.h which (re)defines `kk_integer_t`...
 #include <mach/kk_mach_time.h>
 #else
@@ -373,7 +377,7 @@ static kk_random_ctx_t* random_init(kk_context_t* ctx) {
     // weak random source based on the C library `rand()`, the current (high precision) time, and ASLR.
     kk_warning_message("unable to use strong randomness\n");
     kk_pcg_ctx_t pcg;
-    pcg_init(os_random_weak(rand())^KU64(0x853C49E6748FEA9B), (uintptr_t)&random_init, &pcg);
+    pcg_init(os_random_weak((uint64_t)(rand()))^KU64(0x853C49E6748FEA9B), (uintptr_t)&random_init, &pcg);
     for (size_t i = 0; i < 8; i++) {  // key is eight 32-bit words.
       uint32_t x = pcg_uint32(&pcg);
       ((uint32_t*)key)[i] = x;
