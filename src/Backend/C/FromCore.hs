@@ -316,7 +316,9 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
                         Lit (LitString s)
                           -> do let (cstr,clen) = cstring s
                                     decl = if (isPublic vis) then empty else text "static"
-                                emitToC (text "kk_define_string_literal" <.> tupled [decl,ppName name,pretty clen,cstr] {- <.> semi -})
+                                if (clen > 0) 
+                                 then emitToC (text "kk_define_string_literal" <.> tupled [decl,ppName name,pretty clen,cstr] {- <.> semi -})
+                                 else emitToC (text "kk_define_string_literal_empty" <.> tupled [decl, ppName name])
                         -- special case for doubles
                         Lit lit@(LitFloat f)
                           -> do let flt  = ppLit lit
@@ -509,7 +511,7 @@ genConstructorTestX info dataRepr con conRepr
                                    -> text (if (dataReprMayHaveSingletons dataRepr) 
                                              then "kk_datatype_has_tag" else "kk_basetype_has_tag") 
                                       <.> tupled [text "x", ppConTag con conRepr dataRepr]
-                    ConOpen{}      -> text "x->_tag ==" <+> ppConTag con conRepr dataRepr
+                    ConOpen{}      -> text "kk_string_ptr_eq_borrow" <.> tupled [text "x->_tag",ppConTag con conRepr dataRepr]
                   ) <.> text ");")
 
 conTestName con
@@ -1228,8 +1230,8 @@ genMatch result0 exprDocs branches
 
     isSingleTestBranch
       = case branches of
-          [_,Branch [pat] _] | testIsSkipped pat
-            -> True
+          -- [_,Branch [pat] _] | testIsSkipped pat
+          --  -> True
           [Branch [pat] [Guard test expr],_]
             -> isExprTrue test && isSingleTestPat pat
           _ -> False
@@ -1417,7 +1419,7 @@ genExprPrim expr
      Lit (LitString s)
        -> do name <- newVarName "s"
              if (s=="")
-              then return ([],text "kk_string_dup(kk_string_empty)")
+              then return ([],text "kk_string_empty()")
               else do let (cstr,clen) = cstring s
                       return ([text "kk_define_string_literal" <.> tupled [empty,ppName name,pretty clen,cstr]]
                              ,text "kk_string_dup" <.> parens (ppName name));
