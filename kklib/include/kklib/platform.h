@@ -1,6 +1,6 @@
 #pragma once
-#ifndef PLATFORM_H_
-#define PLATFORM_H_
+#ifndef KK_PLATFORM_H
+#define KK_PLATFORM_H
 
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.

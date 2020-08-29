@@ -1,6 +1,6 @@
 #pragma once
-#ifndef INTEGER_H_
-#define INTEGER_H_
+#ifndef KK_INTEGER_H
+#define KK_INTEGER_H
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.
 

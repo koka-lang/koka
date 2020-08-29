@@ -38,9 +38,9 @@ struct kk_std_core_hnd__ev_s* kk_ev_none(kk_context_t* ctx) {
   if (ev_none_singleton==NULL) {
     ev_none_singleton = kk_std_core_hnd__new_Ev(
       kk_reuse_null,
-      kk_std_core_hnd__new_Htag(kk_string_dup(kk_string_empty),ctx), // tag ""
-      kk_std_core_hnd__new_Marker(-1,ctx),                           // marker -1
-      kk_box_null,                                                   // no handler
+      kk_std_core_hnd__new_Htag(kk_string_empty(),ctx), // tag ""
+      kk_std_core_hnd__new_Marker(-1,ctx),              // marker -1
+      kk_box_null,                                      // no handler
       kk_vector_empty(),
       ctx
     );      

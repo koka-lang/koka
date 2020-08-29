@@ -1,6 +1,6 @@
 #pragma once
-#ifndef STRING_H_
-#define STRING_H_
+#ifndef KK_STRING_H
+#define KK_STRING_H
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.
 
@@ -14,7 +14,7 @@
 --------------------------------------------------------------------------------------*/
 typedef int32_t kk_char_t;
 
-#define kk_char_replacement  ((kk_char_t)(KU32(0xFFFD)))
+#define kk_char_replacement   KI32(0xFFFD)
 
 static inline kk_char_t kk_char_unbox(kk_box_t b, kk_context_t* ctx) {
   return (kk_char_t)kk_int32_unbox(b,ctx);
@@ -27,12 +27,24 @@ static inline kk_box_t kk_char_box(kk_char_t c, kk_context_t* ctx) {
 /*--------------------------------------------------------------------------------------
   Strings
   Always point to valid modified-UTF8 characters.
+  Four kinds:
+  - singleton empty string
+  - small string of at most 8 utf8 bytes
+  - normal string of N utf8 bytes
+  - raw string pointing to a C buffer of utf8 bytes
+  These are not necessarily canonical (e.g. a normal or small string can have length 0 besides being empty)
 --------------------------------------------------------------------------------------*/
 
 // A string is modified UTF8 (with encoded zeros) ending with a '0' character.
-typedef struct kk_string_s {
+struct kk_string_s {
   kk_block_t _block;
-} *kk_string_t;
+};
+
+typedef kk_datatype_t kk_string_t;
+
+static inline kk_string_t kk_string_empty(void) {
+  return kk_datatype_from_tag(1);
+}
 
 #define KK_STRING_SMALL_MAX (KUZ(8))
 typedef struct kk_string_small_s {
@@ -56,32 +68,29 @@ typedef struct kk_string_raw_s {
   size_t         length;
 } *kk_string_raw_t;
 
-extern struct kk_string_normal_s kk__static_string_empty;
-#define kk_string_empty  (&kk__static_string_empty._base)
-
 // Define string literals
 #define kk_define_string_literal(decl,name,len,chars) \
   static struct { struct kk_string_s _base; size_t length; char str[len+1]; } _static_##name = \
     { { { KK_HEADER_STATIC(0,KK_TAG_STRING) } }, len, chars }; \
-  decl kk_string_t name = &_static_##name._base;  
+  decl kk_string_t name = { &_static_##name._base._block };  
 
+#define kk_define_string_literal_empty(decl,name) \
+  decl kk_string_t name = { (kk_block_t*)((uintptr_t)(5)) };
 
 static inline kk_string_t kk_string_unbox(kk_box_t v) {
-  kk_block_t* b = kk_ptr_unbox(v);
-  kk_assert_internal(kk_block_tag(b) == KK_TAG_STRING_SMALL || kk_block_tag(b) == KK_TAG_STRING || kk_block_tag(b) == KK_TAG_STRING_RAW || kk_block_tag(b) == KK_TAG_BOX_ANY);
-  return (kk_string_t)b;
+  return kk_datatype_unbox(v);  
 }
 
 static inline kk_box_t kk_string_box(kk_string_t s) {
-  return kk_ptr_box(&s->_block);
+  return kk_datatype_box(s);
 }
 
 static inline void kk_string_drop(kk_string_t str, kk_context_t* ctx) {
-  kk_basetype_drop(str, ctx);
+  kk_datatype_drop(str, ctx);
 }
 
 static inline kk_string_t kk_string_dup(kk_string_t str) {
-  return kk_basetype_dup_as(kk_string_t,str);
+  return kk_datatype_dup(str);
 }
 
 
@@ -91,13 +100,16 @@ static inline kk_string_t kk_string_dup(kk_string_t str) {
 
 // Allocate a string of `len` characters. Adds a terminating zero at the end.
 static inline kk_string_t kk_string_alloc_len(size_t len, const char* s, kk_context_t* ctx) {
-  if (len < KK_STRING_SMALL_MAX) {
+  if (len == 0) {
+    return kk_string_empty();
+  }
+  else if (len < KK_STRING_SMALL_MAX) {
     kk_string_small_t str = kk_block_alloc_as(struct kk_string_small_s, 0, KK_TAG_STRING_SMALL, ctx);
     str->u.str_value = 0;
     if (s != NULL && len > 0) {
       memcpy(&str->u.str[0], s, len);
     }
-    return &str->_base;
+    return kk_datatype_from_base(&str->_base);
   }
   else {
     kk_string_normal_t str = kk_block_assert(kk_string_normal_t, kk_block_alloc_any(sizeof(struct kk_string_normal_s) - 1 /* char str[1] */ + len + 1 /* 0 terminator */, 0, KK_TAG_STRING, ctx), KK_TAG_STRING);
@@ -107,7 +119,7 @@ static inline kk_string_t kk_string_alloc_len(size_t len, const char* s, kk_cont
     str->length = len;
     str->str[len] = 0;
     // todo: kk_assert valid UTF8 in debug mode
-    return &str->_base;
+    return kk_datatype_from_base(&str->_base);
   }
 }
 
@@ -120,30 +132,35 @@ static inline kk_string_t kk_string_alloc_dup(const char* s, kk_context_t* ctx) 
 }
 
 static inline kk_string_t kk_string_alloc_raw_len(size_t len, const char* s, bool free, kk_context_t* ctx) {
-  if (s==NULL) return kk_string_dup(kk_string_empty);
+  if (len == 0 || s==NULL) return kk_string_empty();
   kk_assert_internal(s[len]==0 && strlen(s)==len);
   struct kk_string_raw_s* str = kk_block_alloc_as(struct kk_string_raw_s, 0, KK_TAG_STRING_RAW, ctx);
   str->free = (free ? &kk_free : NULL);
   str->cstr = (const uint8_t*)s;
   str->length = len;
   // todo: kk_assert valid UTF8 in debug mode
-  return &str->_base;
+  return kk_datatype_from_base(&str->_base);
 }
 
 static inline kk_string_t kk_string_alloc_raw(const char* s, bool free, kk_context_t* ctx) {
-  if (s==NULL) return kk_string_dup(kk_string_empty);
+  if (s==NULL) return kk_string_empty();
   return kk_string_alloc_raw_len(strlen(s), s, free, ctx);
 }
 
 static inline const uint8_t* kk_string_buf_borrow(const kk_string_t str) {
-  if (kk_basetype_has_tag(str,KK_TAG_STRING_SMALL)) {
-    return &(kk_basetype_as_assert(kk_string_small_t, str, KK_TAG_STRING_SMALL)->u.str[0]);
+  static const uint8_t empty[1] = { 0 };
+  if (kk_datatype_is_singleton(str)) {
+    return empty;
   }
-  else if (kk_basetype_has_tag(str,KK_TAG_STRING)) {
-    return &(kk_basetype_as_assert(kk_string_normal_t, str, KK_TAG_STRING)->str[0]);
+  kk_tag_t tag = kk_datatype_tag(str);
+  if (tag == KK_TAG_STRING_SMALL) {
+    return &(kk_datatype_as_assert(kk_string_small_t, str, KK_TAG_STRING_SMALL)->u.str[0]);
+  }
+  else if (tag == KK_TAG_STRING) {
+    return &(kk_datatype_as_assert(kk_string_normal_t, str, KK_TAG_STRING)->str[0]);
   }
   else {
-    return kk_basetype_as_assert(kk_string_raw_t, str, KK_TAG_STRING_RAW)->cstr;
+    return kk_datatype_as_assert(kk_string_raw_t, str, KK_TAG_STRING_RAW)->cstr;
   }
 }
 
@@ -156,24 +173,27 @@ static inline int kk_string_cmp_cstr_borrow(const kk_string_t s, const char* t) 
 }
 
 static inline size_t kk_decl_pure kk_string_len_borrow(const kk_string_t str) {
-  if (kk_basetype_has_tag(str,KK_TAG_STRING_SMALL)) {  
-    const kk_string_small_t s = kk_basetype_as_assert(const kk_string_small_t, str, KK_TAG_STRING_SMALL);
+  if (kk_datatype_is_singleton(str)) {
+    return 0;
+  }
+  else if (kk_datatype_has_tag(str,KK_TAG_STRING_SMALL)) {
+    const kk_string_small_t s = kk_datatype_as_assert(const kk_string_small_t, str, KK_TAG_STRING_SMALL);
 #ifdef KK_ARCH_LITTLE_ENDIAN
     return (KK_STRING_SMALL_MAX - (kk_bits_clz64(s->u.str_value)/8));
 #else
     return (KK_STRING_SMALL_MAX - (kk_bits_ctz64(s->u.str_value)/8));
 #endif
   }
-  else if (kk_basetype_has_tag(str,KK_TAG_STRING)) {
-    return kk_basetype_as_assert(kk_string_normal_t, str, KK_TAG_STRING)->length;
+  else if (kk_datatype_has_tag(str,KK_TAG_STRING)) {
+    return kk_datatype_as_assert(kk_string_normal_t, str, KK_TAG_STRING)->length;
   }
   else {
-    return kk_basetype_as_assert(kk_string_raw_t, str, KK_TAG_STRING_RAW)->length;
+    return kk_datatype_as_assert(kk_string_raw_t, str, KK_TAG_STRING_RAW)->length;
   }
 }
 
 static inline kk_string_t kk_string_copy(kk_string_t str, kk_context_t* ctx) {
-  if (kk_block_is_unique(&str->_block)) {
+  if (kk_datatype_is_singleton(str) || kk_datatype_is_unique(str)) {
     return str;
   }
   else {
@@ -183,7 +203,14 @@ static inline kk_string_t kk_string_copy(kk_string_t str, kk_context_t* ctx) {
   }
 }
 
+static inline bool kk_string_ptr_eq_borrow(kk_string_t s1, kk_string_t s2) {
+  return (kk_datatype_eq(s1, s2));
+}
+
+
+
 kk_decl_export kk_string_t kk_string_adjust_length(kk_string_t str, size_t newlen, kk_context_t* ctx);
+
 
 /*--------------------------------------------------------------------------------------------------
   UTF8 decoding/encoding
@@ -372,6 +399,12 @@ kk_decl_export int kk_string_cmp(kk_string_t str1, kk_string_t str2, kk_context_
 kk_decl_export int kk_string_icmp_borrow(kk_string_t str1, kk_string_t str2);             // ascii case insensitive
 kk_decl_export int kk_string_icmp(kk_string_t str1, kk_string_t str2, kk_context_t* ctx);    // ascii case insensitive
 
+static inline bool kk_string_is_eq_borrow(kk_string_t s1, kk_string_t s2) {
+  return (kk_string_cmp_borrow(s1, s2) == 0);
+}
+static inline bool kk_string_is_neq_borrow(kk_string_t s1, kk_string_t s2) {
+  return (kk_string_cmp_borrow(s1, s2) != 0);
+}
 static inline bool kk_string_is_eq(kk_string_t s1, kk_string_t s2, kk_context_t* ctx) {
   return (kk_string_cmp(s1, s2, ctx) == 0);
 }

@@ -39,6 +39,7 @@ static int stricmpx(const char* s, const char* t) {
 
 
 int kk_string_cmp_borrow(kk_string_t str1, kk_string_t str2) {
+  if (kk_string_ptr_eq_borrow(str1, str2)) return 0;
   const char* s1 = kk_string_cbuf_borrow(str1);
   const char* s2 = kk_string_cbuf_borrow(str2);
   if (s1==s2) return 0;
@@ -53,6 +54,7 @@ int kk_string_cmp(kk_string_t str1, kk_string_t str2, kk_context_t* ctx) {
 }
 
 int kk_string_icmp_borrow(kk_string_t str1, kk_string_t str2) {
+  if (kk_string_ptr_eq_borrow(str1, str2)) return 0;
   const char* s1 = kk_string_cbuf_borrow(str1);
   const char* s2 = kk_string_cbuf_borrow(str2);
   if (s1==s2) return 0;
@@ -211,7 +213,7 @@ kk_vector_t kk_string_splitv_atmost(kk_string_t s, kk_string_t sep, size_t n, kk
 kk_string_t kk_string_repeat(kk_string_t str, size_t n, kk_context_t* ctx) {
   const char* s = kk_string_cbuf_borrow(str);
   size_t len = strlen(s);
-  if (len == 0) return kk_string_dup(kk_string_empty);
+  if (len == 0) return kk_string_empty();
   kk_string_t tstr = kk_string_alloc_len(len*n, NULL, ctx); // TODO: check overflow
   char* t = (char*)kk_string_cbuf_borrow(tstr);
   for (size_t i = 0; i < n; i++) {
@@ -367,25 +369,28 @@ kk_string_t  kk_string_trim_right(kk_string_t str, kk_context_t* ctx) {
 kk_string_t kk_string_adjust_length(kk_string_t str, size_t newlen, kk_context_t* ctx) {
   if (newlen==0) {
     kk_string_drop(str, ctx);
-    return kk_string_dup(kk_string_empty);
+    return kk_string_empty();
   }
   size_t len = kk_string_len_borrow(str);
   if (len == newlen) {
     return str;
   }
-  if (!kk_basetype_is_unique(str) || !kk_basetype_has_tag(str, KK_TAG_STRING) || len < newlen || (3*(len/4)) > newlen) {
-    // if too small, or more than 25% waste, copy
+  else if (len > newlen && (3*(len/4)) < newlen &&  // 0.75*len < newlen < len: update length in place if we can
+           kk_datatype_is_unique(str) && kk_datatype_has_tag(str, KK_TAG_STRING)) {
+    // length in place
+    kk_assert_internal(kk_datatype_has_tag(str, KK_TAG_STRING) && kk_datatype_is_unique(str));
+    kk_string_normal_t s = kk_datatype_as_assert(kk_string_normal_t, str, KK_TAG_STRING);
+    s->length = newlen;
+    s->str[newlen] = 0;
+    // kk_assert_internal(kk_string_is_valid(kk_string_dup(s),ctx));
+    return str;
+  }
+  else {
+    // full copy
     kk_string_t tstr = kk_string_alloc_len(newlen, kk_string_cbuf_borrow(str), ctx);
     kk_string_drop(str, ctx);
     return tstr;
   }
-  // otherwise modify length in place
-  kk_assert_internal(kk_basetype_has_tag(str, KK_TAG_STRING) && kk_basetype_is_unique(str));
-  kk_string_normal_t s = kk_basetype_as_assert(kk_string_normal_t, str, KK_TAG_STRING);
-  s->length = newlen;
-  s->str[newlen] = 0;
-  // kk_assert_internal(kk_string_is_valid(kk_string_dup(s),ctx));
-  return str;
 }
 
 /*--------------------------------------------------------------------------------------------------
@@ -472,7 +477,7 @@ kk_string_t kk_show_any(kk_box_t b, kk_context_t* ctx) {
     }
     else if (tag == KK_TAG_STRING_SMALL || tag == KK_TAG_STRING || tag == KK_TAG_STRING_RAW) {
       // todo: add tag
-      return (kk_string_t)p;
+      return kk_string_unbox(b);
     }
     else if (tag == KK_TAG_FUNCTION) {
       kk_function_t fun = kk_block_assert(kk_function_t, p, KK_TAG_FUNCTION);

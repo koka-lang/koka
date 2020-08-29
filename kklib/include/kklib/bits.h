@@ -1,6 +1,6 @@
 #pragma once
-#ifndef BITS_H_
-#define BITS_H_
+#ifndef KK_BITS_H
+#define KK_BITS_H
 
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.

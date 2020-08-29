@@ -1,6 +1,6 @@
 #pragma once
-#ifndef ATOMIC_H_
-#define ATOMIC_H_
+#ifndef KK_ATOMIC_H
+#define KK_ATOMIC_H
 
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.

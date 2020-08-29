@@ -1,6 +1,6 @@
 #pragma once
-#ifndef RANDOM_H_
-#define RANDOM_H_
+#ifndef KK_RANDOM_H
+#define KK_RANDOM_H
 
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.

@@ -5,5 +5,8 @@
     <ClCompile Include="..\..\..\out\Debug\std_core_hnd.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core_types.c" />
     <ClCompile Include="..\..\..\out\Debug\interactive.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_num_int32.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_num_double.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_text_parse.c" />
   </ItemGroup>
 </Project>

@@ -1,6 +1,6 @@
 ﻿#pragma once
-#ifndef KKLIB_H_
-#define KKLIB_H_
+#ifndef KKLIB_H
+#define KKLIB_H
 
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.
@@ -707,6 +707,15 @@ static inline bool kk_datatype_is_singleton(kk_datatype_t d) {
   return ((d.singleton&1) == 1);
 }
 
+static inline kk_tag_t kk_datatype_tag(kk_datatype_t d) {
+  if (kk_datatype_is_ptr(d)) {
+    return kk_block_tag(d.ptr);
+  }
+  else {
+    return (d.singleton >> 2);
+  }
+}
+
 static inline bool kk_datatype_has_tag(kk_datatype_t d, kk_tag_t t) {
   if (kk_datatype_is_ptr(d)) {
     return (kk_block_tag(d.ptr) == t); 
@@ -783,6 +792,7 @@ static inline void kk_datatype_decref(kk_datatype_t d, kk_context_t* ctx) {
 
 
 #define kk_datatype_from_base(b)               (kk_datatype_from_ptr(&(b)->_block))
+#define kk_datatype_from_constructor(b)        (kk_datatype_from_base(&(b)->base))
 #define kk_datatype_as(tp,v)                   (kk_block_as(tp,kk_datatype_as_ptr(v)))
 #define kk_datatype_as_assert(tp,v,tag)        (kk_block_assert(tp,kk_datatype_as_ptr(v),tag))
 
