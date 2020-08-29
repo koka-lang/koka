@@ -28,6 +28,7 @@ set(CMAKE_RELWITHDEBINFO_POSTFIX "d")
 # -----------------------------------------------------------------------------
 set(kklib_targets kklib kklib-flags)
 set(kklib_sources
+    src/process.c
     src/bits.c
     src/box.c
     src/init.c
@@ -77,6 +78,7 @@ target_link_libraries(kklib PUBLIC kklib-flags)
 
 if(KK_MIMALLOC MATCHES ON)
 target_include_directories(kklib PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/mimalloc/include)
+target_compile_definitions(kklib PRIVATE MI_MAX_ALIGN_SIZE=8)
 target_compile_definitions(kklib-flags INTERFACE KK_MIMALLOC=1)
   if(KK_MIMALLOC_INLINE MATCHES ON)
     target_compile_definitions(kklib-flags INTERFACE KK_MIMALLOC_INLINE=1)
