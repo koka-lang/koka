@@ -167,7 +167,7 @@ module std/num/ddouble
 
 import std/num/double
 import std/num/decimal
-import std/text/regex
+import std/text/parse
 
 /* The `:double` type implements [double double][ddwiki] 128-bit floating point numbers
 as a pair of IEEE `:double` values. This extends the precision to 31 decimal digits
@@ -819,6 +819,7 @@ public fun ddouble( s : string ) : ddouble {
   s.parse-ddouble.default(dd-nan)
 }
 
+/*
 // Parse a floating point number with up to 31 digits precision.
 // Returns `Nothing` on invalid input.
 public fun parse-ddouble( s  : string ) : maybe<ddouble> {
@@ -860,6 +861,35 @@ public fun parse-ddouble( s  : string ) : maybe<ddouble> {
 val rx-ddouble = regex(@"^([\-\+]?\d+)(?:\.(\d*))?(?:[eE]([\-\+]?\d+))?$")
 val rx-double-sum = regex(@"^(\S*\d) *\+ *(\S+)$")
 val rx-special = regex(@"^(nan)|([\+\-])?inf(?:inity)?$",ignorecase=True)
+*/
+
+public fun parse-ddouble( s  : string ) : maybe<ddouble> {
+	s.trim.to-lower.slice.parse-eof(pddouble).maybe
+}
+
+fun pddouble() : parse ddouble {
+	(pddouble-sum || pddouble-normal)
+}
+
+fun pddouble-sum() : parse ddouble {
+	val hi = pdouble()
+	if (!hi.finite?) return hi.ddouble   // NaN or +-Infinity
+	pstring(" + ")
+	val lo = pdouble()
+	return (hi.ddouble + lo.ddouble)
+}
+
+fun pddouble-normal() : parse ddouble {
+	val neg   = sign()
+	val whole	= digits() 
+	val frac	= optional("", { char('.'); digits() } ).trim-right("0")
+	val exp	  = optional(0, { char('e'); pint() } )
+	val w	= ((if (neg) then "-" else "") + whole + frac).parse-int.default(0)
+	val e	= exp - frac.count
+	val x = ddouble-int-exp(w,e)
+	// trace("parse-normal: w: " + w.show + ", e: " + e.show + "\n  wx: " + w.ddouble.show-sum + ", x: " + x.show + "\n  " + x.show-sum)	
+	x
+}
 
 /*------------------------------------------------------
   Advanced operations

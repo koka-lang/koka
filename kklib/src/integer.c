@@ -1274,8 +1274,8 @@ kk_integer_t kk_integer_cmod_generic(kk_integer_t x, kk_integer_t y, kk_context_
 // - x `mod` 2^n == and(x,2^(n-1))  for any x, n
 // - Euclidean division behaves identical to truncated division for positive dividends.
 kk_integer_t kk_integer_div_mod_generic(kk_integer_t x, kk_integer_t y, kk_integer_t* mod, kk_context_t* ctx) {
-  int sign = kk_integer_signum(kk_integer_dup(y),ctx);
-  if (sign==0) {
+if (kk_integer_is_zero(kk_integer_dup(y),ctx)) {
+    // div by zero
     if (mod!=NULL) {
       *mod = x;
     }
@@ -1285,18 +1285,30 @@ kk_integer_t kk_integer_div_mod_generic(kk_integer_t x, kk_integer_t y, kk_integ
     kk_integer_drop(y, ctx);
     return kk_integer_zero;
   }
-  else if (sign>0) {
+  else if (kk_integer_is_pos(kk_integer_dup(x),ctx)) {
+    // positive x
     return kk_integer_cdiv_cmod_generic(x, y, mod, ctx);
   }
   else {
-    kk_integer_t d = kk_integer_cdiv_cmod_generic(x, kk_integer_dup(y), mod, ctx);
-    if (kk_integer_is_neg((mod!=NULL ? kk_integer_dup(y) : y), ctx)) {
-      d = kk_integer_inc(d, ctx);
-      if (mod!=NULL) { *mod = kk_integer_sub(*mod, y, ctx); }
+    // regular
+    kk_integer_t m;
+    kk_integer_t d = kk_integer_cdiv_cmod_generic(x, kk_integer_dup(y), &m, ctx);
+    if (kk_integer_is_neg(kk_integer_dup(m), ctx)) {
+      if (kk_integer_is_neg(kk_integer_dup(y), ctx)) {
+        d = kk_integer_inc(d, ctx);
+        if (mod!=NULL) { m = kk_integer_sub(m, y, ctx); }      
+      }
+      else {
+        d = kk_integer_dec(d, ctx);
+        if (mod!=NULL) { m = kk_integer_add(m, y, ctx); } 
+      }
+    }
+    kk_integer_drop(y,ctx);
+    if (mod==NULL) {
+      kk_integer_drop(m, ctx);
     }
     else {
-      d = kk_integer_dec(d, ctx);
-      if (mod!=NULL) { *mod = kk_integer_add(*mod, y, ctx); }
+      *mod = m;
     }
     return d;
   }

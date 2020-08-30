@@ -7,7 +7,7 @@
 ---------------------------------------------------------------------------*/
 
 // Operations on arbitrary precision decimal numbers.
-public module std/num/decimal
+module std/num/decimal
 
 import std/text/parse
 import std/num/double
@@ -98,7 +98,7 @@ fun pdecimal() : parse decimal {
   val whole = digits()
 	val frac = optional("", { char('.'); digits() })
 	val exp  = optional(0, { one-of("eE"); pint() })
-	trace("frac:" + frac)
+	// trace("frac:" + frac)
 	val i = decimal-exp( (whole+frac).parse-int-default(0), exp - frac.count )
 	if (neg) then ~i else i
 }
@@ -123,8 +123,10 @@ public fun reduce( x : decimal ) : decimal {
 // Add two decimals.
 public fun (+)( x : decimal, y : decimal ) : decimal {
   val e  = min(x.exp,y.exp)
+	// trace("add: " + x.show-raw + " + " + y.show-raw + ", using exp: " + e.show )
   val xx = x.expand(e)
   val yy = y.expand(e)
+	// trace("expanded add: " + xx.show-raw + " + " + yy.show-raw)
   Decimal(xx.num + yy.num, e)
 }
 

@@ -326,10 +326,11 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
                         _ -> do doc <- genStat (ResultAssign (TName name tp) Nothing) (defBody)
                                 emitToInit doc
                                 let decl = ppType tp <+> ppName name <.> unitSemi tp
-                                if (isPublic vis)
-                                 then do emitToH (linebreak <.> text "extern" <+> decl)
-                                         emitToC (linebreak <.> decl)
-                                 else do emitToC (linebreak <.> text "static" <+> decl)
+                                -- if (isPublic vis) -- then do 
+                                -- always public since inlined definitions can refer to it (sin16 in std/num/ddouble)
+                                emitToH (linebreak <.> text "extern" <+> decl)
+                                emitToC (linebreak <.> decl)
+                                -- else do emitToC (linebreak <.> text "static" <+> decl)
     in withDef name inlineC (tryFun defBody)
   where
     emit = if inlineC then emitToH else emitToC
