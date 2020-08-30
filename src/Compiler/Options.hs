@@ -180,7 +180,7 @@ flagsNull
           True -- debug
           0    -- optimize
           10   -- inlineMax
-          False -- optctail
+          True -- optctail
           True -- parc reuse
           True -- parc specialize
 
