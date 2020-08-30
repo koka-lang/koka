@@ -1086,7 +1086,7 @@ extern inline (%)  : (int,int) -> int {
 // See also _Division and modulus for computer scientists, Daan Leijen, 2001_ for further information
 // available at: <http://research.microsoft.com/pubs/151917/divmodnote.pdf> .
 extern inline divmod(x:int,y:int) : (int,int) {
-  c "kk_integer_divmod"
+  c "kk_integer_div_mod"
   cs "Primitive.IntDivMod"
   js "$std_core._int_divmod"
 }
@@ -1182,7 +1182,7 @@ extern mul-exp10( i : int, n : int ) : int {
 }
 
 extern cdiv-exp10( i : int, n : int ) : int {
-  c  "kk_integer_div_pow10"
+  c  "kk_integer_cdiv_pow10"
   cs "Primitive.IntCDivPow10"
   js "_int_cdiv_pow10"
 }

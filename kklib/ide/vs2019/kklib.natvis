@@ -18,6 +18,7 @@
       <Item Name="scan fields">(header.scan_fsize==255?((((struct kk_block_large_s*)&amp;header)->large_scan_fsize.box-1)/4):header.scan_fsize)</Item>
       <Item Name="string length" Condition="header.tag==0xFFC8">((struct kk_string_normal_s*)&amp;header)->length</Item>
       <ArrayItems Condition="header.tag==0xFFCA">
+        <!-- vector -->
         <Size>(((struct kk_block_large_s*)&amp;header)->large_scan_fsize.box-1)/4</Size>
         <ValuePointer>&amp;(((struct kk_vector_large_s*)&amp;header)->vec[0])</ValuePointer>
       </ArrayItems>
@@ -27,6 +28,7 @@
         <ValuePointer>&amp;(((struct kk_block_fields_s*)&amp;header)->fields[1])</ValuePointer>
       </ArrayItems>
       <ArrayItems Condition="header.tag!=0xFFCA &amp;&amp; header.scan_fsize&gt;0 &amp;&amp; header.scan_fsize&lt;0xFF">
+        <!-- large and !vector -->
         <Size>header.scan_fsize</Size>
         <ValuePointer>&amp;(((struct kk_block_fields_s*)&amp;header)->fields[0])</ValuePointer>
       </ArrayItems>
@@ -68,9 +70,12 @@
   <Type Name="kk_bigint_s">
     <DisplayString>big int</DisplayString>
     <Expand>
+      <Item Name="block">_block</Item>
+      <Item Name="negative?">(bool)is_neg</Item>
+      <Item Name="extra">extra</Item>
       <ArrayItems>
         <Size>count</Size>
-        <ValuePointer>&amp;(digit s[0])</ValuePointer>
+        <ValuePointer>&amp;(digits[0])</ValuePointer>
       </ArrayItems>
     </Expand>
   </Type>

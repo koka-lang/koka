@@ -7,9 +7,9 @@
 ---------------------------------------------------------------------------*/
 
 // Operations on arbitrary precision decimal numbers.
-module std/num/decimal
+public module std/num/decimal
 
-import std/text/regex
+import std/text/parse
 import std/num/double
 
 // Type of a decimal number. Decimals have arbitrary precision and range and
@@ -41,8 +41,8 @@ fun decimal-exp( i : int, exp : int = 0 ) : decimal {
   // use exponents only at specific intervals to avoid too much re-scaling
   val x = round-exp(exp)  // always x <= exp
   val diff = exp - x
-  //trace("decimal-exp: " + i.show + "x" + exp.show + ", diff: " + diff.show + ", x: " + x.show)
-  if (diff.zero?) then Decimal(i,exp) else Decimal(i.mul-exp10(diff),x)
+  // trace("decimal-exp: " + i.show + "e" + exp.show + ", diff: " + diff.show + ", x: " + x.show)
+  if (diff.zero?) then Decimal(i,exp) else Decimal(i.mul-exp10(diff.abs),x)
 }
 
 /* Create a decimal from a `:double` with a specified maximal precision (=`-1`).
@@ -70,8 +70,9 @@ public fun decimal( d : double, max-prec : int = -1 ) : decimal {
 }
 
 
+/*
 // Parse a `:decimal` number.
-public fun parse-decimal( s : string ) : maybe<decimal> {
+public fun parse-decimalx( s : string ) : maybe<decimal> {
 	match(s.trim.find(rx-decimal)) {
 		Nothing -> Nothing
 		Just(cap) -> {
@@ -85,7 +86,22 @@ public fun parse-decimal( s : string ) : maybe<decimal> {
 	}
 }
 val rx-decimal = regex(@"^([\-\+]?)(\d+)(?:\.(\d*))?(?:[eE]([\-\+]?\d+))?$")
+*/
 
+// Parse a `:decimal` number.
+public fun parse-decimal( s : string ) : maybe<decimal> {
+	s.trim.slice.parse-eof(pdecimal).maybe
+}
+
+fun pdecimal() : parse decimal {
+	val neg  = sign()
+  val whole = digits()
+	val frac = optional("", { char('.'); digits() })
+	val exp  = optional(0, { one-of("eE"); pint() })
+	trace("frac:" + frac)
+	val i = decimal-exp( (whole+frac).parse-int-default(0), exp - frac.count )
+	if (neg) then ~i else i
+}
 
 // Ensure a decimal `x` has an exponent such that `x.exp <= e`.
 fun expand( x : decimal, e : int ) : decimal {
@@ -385,6 +401,11 @@ public fun ffraction( x : decimal ) : decimal {
 /* --------------------------------------------------------------------------------------
     Show
  -------------------------------------------------------------------------------------- */
+ 
+// Show a decimal `d` using its internal representation.
+public fun show-raw(d : decimal) {
+	d.num.show + "e" + d.exp.show
+}
 
 // Show a decimal `d` with a given precision `prec` (=`-1000`).
 // The precision specifies the  number of digits after the dot (in either scientific of fixed-point notation).

@@ -15,31 +15,8 @@ import std/text/parse
 import std/num/int32
 
 extern include {
+	c file "double-inline.h"
 	js file "double-inline.js"
-}
-
-extern include {
-	c header @"
-		static inline kk_std_core_types__tuple2_ kk_double_to_bits( double d, kk_context_t* ctx ) {
-			uint64_t u;
-			memcpy(&u,&d,sizeof(u));
-			return kk_std_core_types__new_dash__lp__comma__rp_( kk_int32_box((int32_t)u, ctx), kk_int32_box((int32_t)(u >> 32), ctx), ctx );
-		}
-		static inline double kk_double_from_bits( int32_t lo, int32_t hi, kk_context_t* ctx ) {
-			KK_UNUSED(ctx);
-			double d;
-			uint64_t u = (((uint64_t)hi) << 32) | (uint64_t)lo;
-			memcpy(&d,&u,sizeof(d));
-			return d;
-		}
-	  static inline double kk_prim_parse_double( kk_string_t str, kk_context_t* ctx) {
-			const char* s = kk_string_cbuf_borrow(str);
-			char* end;
-			double d = strtod(s,&end);
-			kk_string_drop(str,ctx);  
-			return d;
-		}
-	"
 }
 
 

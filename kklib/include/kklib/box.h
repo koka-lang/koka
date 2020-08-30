@@ -43,7 +43,7 @@ On 64-bit, We can encode half of the doubles by saving 1 bit; There are two impl
 (A1): heap allocate negative doubles, where a positive double is encoded as a value 
        `((d<<1) | 1)`. (define BOX_DOUBLE_IF_NEG to use this strategy)
 (A2): use value encoding if the 11-bit exponent fits in 10-bits. This uses value encoding
-      numbers whose absolute value is in the range [2^-511,2^512), or if it is
+      for numbers whose absolute value is in the range [2^-511,2^512), or if it is
       zero, subnormal, NaN, or infinity. This is the default as this captures almost
       all doubles that are commonly in use for most workloads.
 
@@ -81,8 +81,8 @@ between 0x001 and 0xFFE. The ranges of IEEE double values are:
               On unboxing, we extend bit 1 to bit 0, which means we may lose up to 1 bit of the NaN payload.
 ----------------------------------------------------------------*/
 
-#define KK_USE_NAN_BOX   (0)                  // strategy A by default
-// #define KK_USE_NAN_BOX   (KK_INTPTR_SIZE==8)  // only possible on 64-bit platforms
+#define KK_USE_NAN_BOX   (0)                  // strategy A(1) by default
+// #define KK_USE_NAN_BOX   (KK_INTPTR_SIZE==8)  // strategy B is only possible on 64-bit platforms
 // #define KK_BOX_DOUBLE_IF_NEG                  // strategy A2
 
 // Forward declarations

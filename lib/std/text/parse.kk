@@ -164,10 +164,13 @@ fun sign() : parse bool {
   (c=='-')
 }
 
+fun pnat() : parse int {
+  digits().parse-int-default(0)
+}
 
 fun pint() : parse int {
   val neg = sign()
-  val i = digits().parse-int-default(0)
+  val i = pnat()
   if (neg) then ~i else i
 }
 

@@ -12,17 +12,17 @@
 typedef struct kk_boxed_double_s {
   kk_block_t _block;
   double  value;
-} *boxed_kk_double_t;
+} *kk_boxed_double_t;
 
 double kk_double_unbox_heap(kk_box_t b, kk_context_t* ctx) {
-  boxed_kk_double_t dt = kk_block_assert(boxed_kk_double_t, kk_ptr_unbox(b), KK_TAG_DOUBLE);
+  kk_boxed_double_t dt = kk_block_assert(kk_boxed_double_t, kk_ptr_unbox(b), KK_TAG_DOUBLE);
   double d = dt->value;
   if (ctx != NULL) { kk_basetype_drop(dt, ctx); }
   return d;
 }
 
 kk_box_t kk_double_box_heap(double d, kk_context_t* ctx) {
-  boxed_kk_double_t dt = kk_block_alloc_as(struct kk_boxed_double_s, 0, KK_TAG_DOUBLE, ctx);
+  kk_boxed_double_t dt = kk_block_alloc_as(struct kk_boxed_double_s, 0, KK_TAG_DOUBLE, ctx);
   dt->value = d;
   return kk_ptr_box(&dt->_block);
 }

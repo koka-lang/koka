@@ -266,6 +266,11 @@ kk_decl_export kk_decl_noinline double     kk_integer_as_double_generic(kk_integ
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_add_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx);
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_sub_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx);
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_mul_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx);
+
+kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_cdiv_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx);
+kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_cmod_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx);
+kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_cdiv_cmod_generic(kk_integer_t x, kk_integer_t y, kk_integer_t* mod, kk_context_t* ctx);
+
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_div_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx);
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_mod_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx);
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_div_mod_generic(kk_integer_t x, kk_integer_t y, kk_integer_t* mod, kk_context_t* ctx);
@@ -281,6 +286,7 @@ kk_decl_export kk_decl_noinline int           kk_integer_signum_generic(kk_integ
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_ctz(kk_integer_t x, kk_context_t* ctx);           // count trailing zero digits
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_count_digits(kk_integer_t x, kk_context_t* ctx);  // count decimal digits
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_mul_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* ctx);  // x*(10^p)
+kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_cdiv_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* ctx);  // x/(10^p)
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_div_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* ctx);  // x/(10^p)
 
 kk_decl_export kk_decl_noinline void          kk_integer_fprint(FILE* f, kk_integer_t x, kk_context_t* ctx);
@@ -452,12 +458,29 @@ static inline kk_integer_t kk_integer_mul(kk_integer_t x, kk_integer_t y, kk_con
     = 4*((n*2)/(m*2)) + 1
     = 4*(n/m) + 1
     = boxed(n/m)
+  (we could divide by 4 as well but some processors do better on 1-bit shifts)
 */
-static inline kk_integer_t kk_integer_div_small(kk_integer_t x, kk_integer_t y) {
+static inline kk_integer_t kk_integer_cdiv_small(kk_integer_t x, kk_integer_t y) {
   kk_assert_internal(kk_are_smallints(x, y));
   intptr_t i = kk_sar(x.value, 1);
   intptr_t j = kk_sar(y.value, 1);
   return _kk_new_integer(((i/j)<<2)|1);
+}
+
+// Euclidean division: see <https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/divmodnote-letter.pdf>
+// Always preferred at it is more regular than C style truncated division. For example:
+// - modulus is always positive     
+// - x `div` 2^n == sar(x,n)        for any x, n
+// - x `mod` 2^n == and(x,2^(n-1))  for any x, n
+// - Euclidean division behaves identical to truncated division for positive dividends.
+static inline kk_integer_t kk_integer_div_small(kk_integer_t x, kk_integer_t y) {
+  kk_assert_internal(kk_are_smallints(x, y));
+  intptr_t i = kk_sar(x.value, 1);
+  intptr_t j = kk_sar(y.value, 1);
+  if (j==0) return kk_integer_zero;
+  intptr_t d = i/j;
+  if (i < 0) { d -= (j < 0 ? -1 : 1); }
+  return _kk_new_integer((d<<2)|1);
 }
 
 /* Fast modulus on small integers. Since `boxed(n) = n*4 + 1`, we can divide as:
@@ -465,20 +488,76 @@ static inline kk_integer_t kk_integer_div_small(kk_integer_t x, kk_integer_t y) 
     = 2*((n*2)%(m*2)) + 1
     = 2*2*(n%m) + 1
     = boxed(n%m)
+   (we could divide by 4 as well but some processors do better on 1-bit shifts)
 */
-static inline kk_integer_t kk_integer_mod_small(kk_integer_t x, kk_integer_t y) {
+static inline kk_integer_t kk_integer_cmod_small(kk_integer_t x, kk_integer_t y) {
   kk_assert_internal(kk_are_smallints(x, y));
   intptr_t i = kk_sar(x.value, 1);
   intptr_t j = kk_sar(y.value, 1);
   return _kk_new_integer(((i%j)<<1)|1);
 }
 
+// Euclidean mod on small integers. Since `boxed(n) = n*4 + 1`, we can divide as:
+//    4*((boxed(n)/4)%((boxed(m)/4) + 1
+//  = 4*(n%m) + 1
+//  = boxed(n%m)
+static inline kk_integer_t kk_integer_mod_small(kk_integer_t x, kk_integer_t y) {
+  kk_assert_internal(kk_are_smallints(x, y));
+  intptr_t i = kk_sar(x.value, 2);
+  intptr_t j = kk_sar(y.value, 2);
+  intptr_t m = (j==0 ? i : i%j);
+  if (x.value < 0) { m += (j < 0 ? -j : j); }
+  kk_assert_internal(m >= 0);
+  return _kk_new_integer((m<<2)|1);
+}
+
+
+static inline kk_integer_t kk_integer_cdiv_cmod_small(kk_integer_t x, kk_integer_t y, kk_integer_t* mod) {
+  kk_assert_internal(kk_are_smallints(x, y)); kk_assert_internal(mod!=NULL);
+  intptr_t i = kk_sar(x.value, 2);
+  intptr_t j = kk_sar(y.value, 2);
+  *mod = _kk_new_integer(((i%j)<<2)|1);
+  return _kk_new_integer(((i/j)<<2)|1);
+}
+
 static inline kk_integer_t kk_integer_div_mod_small(kk_integer_t x, kk_integer_t y, kk_integer_t* mod) {
   kk_assert_internal(kk_are_smallints(x, y)); kk_assert_internal(mod!=NULL);
-  intptr_t i = kk_sar(x.value, 1);
-  intptr_t j = kk_sar(y.value, 1);
-  *mod = _kk_new_integer(((i%j)<<1)|1);
-  return _kk_new_integer(((i/j)<<2)|1);
+  intptr_t i = kk_sar(x.value, 2);
+  intptr_t j = kk_sar(y.value, 2);
+  if (j==0) {
+    *mod = x;
+    return kk_integer_zero;
+  }
+  intptr_t d = i/j;
+  intptr_t m = i%j;
+  if (i < 0) {
+    if (j < 0) {
+      d++; m -= j;
+    }
+    else {
+      d--; m += j;
+    }
+  }
+  kk_assert_internal(m >= 0);
+  kk_assert_internal(d*y.value + m == x.value);
+  *mod = _kk_new_integer((m<<2)|1);
+  return _kk_new_integer((d<<2)|1);
+}
+
+static inline kk_integer_t kk_integer_cdiv(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  if (kk_likely(kk_are_smallints(x, y))) return kk_integer_cdiv_small(x, y);
+  return kk_integer_cdiv_generic(x, y, ctx);
+}
+
+static inline kk_integer_t kk_integer_cmod(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  if (kk_likely(kk_are_smallints(x, y))) return kk_integer_cmod_small(x, y);
+  return kk_integer_cmod_generic(x, y, ctx);
+}
+
+static inline kk_integer_t kk_integer_cdiv_cmod(kk_integer_t x, kk_integer_t y, kk_integer_t* mod, kk_context_t* ctx) {
+  kk_assert_internal(mod!=NULL);
+  if (kk_likely(kk_are_smallints(x, y))) return kk_integer_cdiv_cmod_small(x, y, mod);
+  return kk_integer_cdiv_cmod_generic(x, y, mod, ctx);
 }
 
 static inline kk_integer_t kk_integer_div(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
@@ -496,6 +575,7 @@ static inline kk_integer_t kk_integer_div_mod(kk_integer_t x, kk_integer_t y, kk
   if (kk_likely(kk_are_smallints(x, y))) return kk_integer_div_mod_small(x, y, mod);
   return kk_integer_div_mod_generic(x, y, mod, ctx);
 }
+
 
 static inline int32_t kk_integer_clamp32(kk_integer_t x, kk_context_t* ctx) {
   if (kk_likely(kk_is_smallint(x))) return (int32_t)kk_smallint_from_integer(x);
@@ -638,6 +718,11 @@ static inline bool integer_is_neg(kk_integer_t x, kk_context_t* ctx) {
 static inline bool kk_integer_is_pos(kk_integer_t x, kk_context_t* ctx) {
   if (kk_likely(kk_is_smallint(x))) return (x.value>1);
   return (kk_integer_signum_generic(x,ctx) > 0);
+}
+
+static inline bool kk_integer_is_neg(kk_integer_t x, kk_context_t* ctx) {
+  if (kk_likely(kk_is_smallint(x))) return (x.value<0);
+  return (kk_integer_signum_generic(x, ctx) < 0);
 }
 
 static inline kk_integer_t kk_integer_max(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
