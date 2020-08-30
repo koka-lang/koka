@@ -80,7 +80,7 @@ The following programs are required to build Koka:
 
 Building Koka:
 ```
-> git clone https://github.com/koka-lang/koka
+> git clone --recursive https://github.com/koka-lang/koka          # use --recursive
 > cd koka
 > stack build
 ```
