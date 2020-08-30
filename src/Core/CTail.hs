@@ -61,7 +61,8 @@ ctailDefGroups topLevel defs
 ctailDefGroup :: Bool -> DefGroup -> CTail [DefGroup]
 ctailDefGroup topLevel dg
   = case dg of
-      DefRec [def] | hasCTailCall (defTName def) True (defExpr def) -> ctailDef topLevel def
+      DefRec [def] | hasCTailCall (defTName def) True (defExpr def) 
+        -> ctailDef topLevel def
       _ -> return [dg]
     
 
@@ -143,7 +144,7 @@ hasCTailCallArg defName (rarg:rargs)
       App (Var name _) args                   | defName == name -> True
       App f@(TypeApp (Con{}) _) fargs  | tnamesMember defName (fv fargs) && all isTotal rargs
         -> hasCTailCallArg defName (reverse fargs)
-      App f@(Con{}) fargs  | tnamesMember defName (fv fargs) && all isTotal rargs
+      App f@(Con{}) fargs              | tnamesMember defName (fv fargs) && all isTotal rargs
         -> hasCTailCallArg defName (reverse fargs)
       _ -> (isTotal rarg && hasCTailCallArg defName rargs)
        

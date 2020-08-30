@@ -854,7 +854,30 @@ genExprExternal tname formats argDocs0
                                    <.> text "()"
                          in return ([],try)
 
+-- special case: ctail hole
 genExprExternalPrim :: TName -> [(Target,String)] -> [Doc] -> Asm ([Doc],Doc)
+genExprExternalPrim tname formats [] | getName tname == nameCTailHole
+  = return ([],text "undefined")
+    
+-- special case: ctail set (accumulator is implemented as {value:<obj>, field:<string>})
+genExprExternalPrim tname formats [accDoc,resDoc] | getName tname == nameCTailSet
+  = return ([], tupled [accDoc <.> text ".value[" <.> accDoc <.> text ".field] =" <+> resDoc, text "$std_core_types._Unit_"])
+
+-- special case: ctail next
+genExprExternalPrim tname formats [accDoc, resDoc, conDoc, conName, sfieldName]  | getName tname == nameCTailNext
+   = do let assign    = accDoc <.> text ".value[" <.> accDoc <.> text ".field] =" <+> resDoc -- <.> semi
+            fieldName = readTupled (read (show sfieldName) :: String)
+            reuse     = accDoc <.> text ".value =" <+> conDoc
+            next      = accDoc
+        return ([],tupled [assign,reuse,next])
+
+-- special case: ctail create
+genExprExternalPrim tname formats [conDoc, conName, sfieldName]  | getName tname == nameCTailCreate
+   = do let fieldName = readTupled (read (show sfieldName) :: String)
+        return ([],text "{value:" <+> conDoc <.> text ", field: \"" <.> ppName fieldName <.> text "\"}")
+
+
+-- normal external
 genExprExternalPrim tname formats argDocs0
   = let name = getName tname
         format = getFormat tname formats
@@ -887,7 +910,7 @@ getFormat tname formats
          Just s  -> s
          Nothing -> -- failure ("backend does not support external in " ++ show tname ++ ": " ++ show formats)
                     trace( "warning: backend does not support external in " ++ show tname ) $
-                      ("__std_core._unsupported_external(\"" ++ (show tname) ++ "\")")
+                      ("$std_core._unsupported_external(\"" ++ (show tname) ++ "\")")
       Just s -> s
 
 genDefName :: TName -> Asm Doc

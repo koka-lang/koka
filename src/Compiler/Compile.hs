@@ -889,7 +889,7 @@ inferCheck loaded flags line coreImports program1
        -- simplify core
        let (coreDefsSimp0,uniqueSimp0) = simplifyDefs False (simplify flags) (0) uniqueLift penv coreDefsLifted
        
-       -- traceDefGroups "lifted" coreDefsLifted
+       -- traceDefGroups "lifted" coreDefsSimp0
        
            
        -- constructor tail optimization

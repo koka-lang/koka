@@ -153,6 +153,23 @@ topDown (App (Var op _) [expr1,expr2])  | getName op == nameAnd
   = topDown (makeIfExpr expr1 expr2 exprFalse)
 topDown (App (Var op _) [expr1,expr2])  | getName op == nameOr
   = topDown (makeIfExpr expr1 exprTrue expr2)
+                
+-- Remove identity open applications; need to be done before open resolve to enable tail call optimization               
+topDown expr@(App app@(TypeApp (Var openName _) [effFrom,effTo,tpFrom,tpTo]) [arg])  
+  | getName openName == nameEffectOpen &&
+    (hasNoEffectExpr arg ||                -- arg uses no effects, or, the open is an identity
+      (matchType tlFrom tlTo && length lsFrom == length lsTo && and [matchType t1 t2 | (t1,t2) <- zip lsFrom lsTo]))
+  = topDown arg
+  where 
+    (lsFrom,tlFrom) = extractHandledEffect effFrom
+    (lsTo,tlTo)     = extractHandledEffect effTo
+    hasNoEffectExpr expr
+      = case expr of 
+          TypeApp e targs -> hasNoEffectExpr e
+          Lit{} -> True
+          Con{} -> True
+          -- Var _ InfoExternal{} -> True  -- TODO: maybe too liberal?
+          _     -> False
 
 -- Remove effect open applications; only if 'unsafe' is enabled since
 -- the effect types won't match up

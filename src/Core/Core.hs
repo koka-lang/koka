@@ -96,7 +96,7 @@ import Kind.Kind
 import Type.Type
 import Type.Pretty ()
 import Type.TypeVar
-import Type.Kind    ( getKind, getHandledEffect, HandledSort(ResumeMany), isHandledEffect )
+import Type.Kind    ( getKind, getHandledEffect, HandledSort(ResumeMany), isHandledEffect, extractHandledEffect )
 
 import Lib.Trace
 
@@ -785,9 +785,11 @@ freshName prefix
        return (newName $ prefix ++ "." ++ show id)
 
 openEffectExpr :: Effect -> Effect -> Type -> Type -> Expr -> Expr
-openEffectExpr effFrom effTo tpFrom tpTo expr  | hasNoEffectExpr expr = expr
 openEffectExpr effFrom effTo tpFrom tpTo expr  
-  = App (TypeApp varOpen [effFrom,effTo,tpFrom,tpTo]) [expr]
+  = if (hasNoEffectExpr expr)
+     then expr
+     else --trace ("open effect: " ++ show (map pretty [effFrom,effTo,tpFrom,tpTo])) $
+          App (TypeApp varOpen [effFrom,effTo,tpFrom,tpTo]) [expr]
   where
     varOpen = Var (TName nameEffectOpen tpOpen) (InfoExternal [(Default,"#1")])    -- NOTE: quite fragile as it relies on the exact definition in core.kk
     tpOpen  = TForall [e1,e2,a,b] [] (TFun [(newName "x", tpFrom)] typeTotal tpTo)
@@ -796,13 +798,13 @@ openEffectExpr effFrom effTo tpFrom tpTo expr
     e1      = TypeVar (-3) kindEffect Bound
     e2      = TypeVar (-4) kindEffect Bound
 
-hasNoEffectExpr expr
-  = case expr of 
-      TypeApp e targs -> hasNoEffectExpr e
-      Lit{} -> True
-      Con{} -> True
-      -- Var _ InfoExternal{} -> True  -- TODO: maybe too liberal?
-      _     -> False
+    hasNoEffectExpr expr
+      = case expr of 
+          TypeApp e targs -> hasNoEffectExpr e
+          Lit{} -> True
+          Con{} -> True
+          -- Var _ InfoExternal{} -> True  -- TODO: maybe too liberal?
+          _     -> False
 
 makeInt32 :: Integer -> Expr
 makeInt32 i

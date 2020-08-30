@@ -322,6 +322,7 @@ fun unsafe-no-div( action : () -> <div|e> a ) : e a {
 // _tail recursion module cons_ (TRMC) optimization.
 // ----------------------------------------------------------------------------
 
+// _Internal_. Internal type for _tail recursion module cons_ (TRMC) optimization.
 type value ctail<a>
 
 extern inline ".ctail-hole"() : a { }
