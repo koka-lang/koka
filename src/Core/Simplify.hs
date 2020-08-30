@@ -117,7 +117,7 @@ topDown (Let dgs body)
                topDownLet sub (sdg:acc) dgs body
           DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})  -- isTotal se
              -> -- trace ("simplify let: " ++ show x) $
-                do maxSmallOccur <- getDuplicationMax  -- should be 5 or higher
+                do maxSmallOccur <- getDuplicationMax  -- should be 10 or higher to inline partial bind applications
                    let inlineExpr = topDownLet (extend (TName x tp, se) sub) acc dgs body
                    case occurrencesOf x (Let dgs body) of
                      -- no occurrence, disregard
@@ -670,9 +670,9 @@ isSmallX n expr
 sizeOfExpr :: Expr -> Int
 sizeOfExpr expr
   = case expr of
-      Var tname info     -> 1
-      Con tname repr     -> 1
-      Lit lit            -> 1
+      Var tname info     -> 0
+      Con tname repr     -> 0
+      Lit lit            -> 0
       Lam tname eff body -> 1 + sizeOfExpr body
       App e args         -> 1 + sizeOfExpr e + sum (map sizeOfExpr args)
       TypeLam tvs e      -> sizeOfExpr e

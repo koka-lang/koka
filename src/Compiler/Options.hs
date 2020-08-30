@@ -151,7 +151,7 @@ flagsNull
           Node  -- js host
           platform64  
           5     -- simplify passes
-          6     -- simplify dup max
+          10    -- simplify dup max (must be at least 10 to inline partial applications across binds)
           defaultColorScheme
           "out"    -- out-dir
           []
@@ -254,7 +254,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 --  , option []    ["install-dir"]     (ReqArg installDirFlag "dir")       "set the install directory explicitly"
 
  , hide $ fnum 3 "n"  ["simplify"]  (\i f -> f{simplify=i})          "enable 'n' core simplification passes"
- , hide $ fnum 320 "n"["maxdup"]    (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
+ , hide $ fnum 10 "n" ["maxdup"]    (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
  , hide $ fnum 10 "n" ["inline"]    (\i f -> f{optInlineMax=i})      "set 'n' as maximum inline threshold (=10)"
  , hide $ fflag       ["monadic"]   (\b f -> f{enableMon=b})         "enable monadic translation"
  , hide $ fflag       ["semi"]      (\b f -> f{semiInsert=b})        "insert semicolons based on layout"
