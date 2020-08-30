@@ -1,4 +1,4 @@
-module nqueens
+module nqueens32
 import std/num/int32
 
 alias solution = list<int32>
