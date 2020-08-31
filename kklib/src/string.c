@@ -203,7 +203,7 @@ kk_vector_t kk_string_splitv_atmost(kk_string_t s, kk_string_t sep, size_t n, kk
     kk_assert_internal(r != NULL && r >= p);
     size_t len = (size_t)(r - p);
     ss[i] = kk_string_box(kk_string_alloc_len(len, p, ctx));
-    p = r + 1;  // advance
+    p = r + seplen;  // advance
   }
   kk_assert_internal(p <= pend);
   ss[count-1] = kk_string_box(kk_string_alloc_dup(p, ctx));  // todo: share string if p == s ?
@@ -211,6 +211,70 @@ kk_vector_t kk_string_splitv_atmost(kk_string_t s, kk_string_t sep, size_t n, kk
   kk_string_drop(sep, ctx);
   return v;
 }
+
+kk_string_t kk_string_replace_all(kk_string_t s, kk_string_t pat, kk_string_t rep, kk_context_t* ctx) {
+  return kk_string_replace_atmost(s, pat, rep, UINT32_MAX, ctx);
+}
+
+kk_string_t kk_string_replace_atmost(kk_string_t s, kk_string_t pat, kk_string_t rep, size_t n, kk_context_t* ctx) {
+  kk_string_t t = s;
+  if (n==0 || kk_string_is_empty_borrow(s) || kk_string_is_empty_borrow(pat)) goto done;
+
+  const char* p    = kk_string_cbuf_borrow(s);
+  const char* ppat = kk_string_cbuf_borrow(pat);
+  const char* prep = kk_string_cbuf_borrow(rep);
+  size_t plen     = kk_string_len_borrow(s);
+  size_t ppat_len = kk_string_len_borrow(pat);
+  size_t prep_len = kk_string_len_borrow(rep);
+  const char* pend = p + plen;
+  // if unique s & |rep| == |pat|, update in-place
+  // TODO: if unique s & |rep| <= |pat|, maybe update in-place if not too much waste?
+  if (kk_datatype_is_unique(s) && ppat_len == prep_len) {
+    size_t count = 0;
+    while (count < n && p < pend) {
+      const char* r = strstr(p, ppat);
+      if (r == NULL) break;
+      memcpy((char*)r, prep, prep_len);
+      count++;
+      p = r + prep_len;
+    }
+  }
+  else {
+    // count pat occurrences so we can pre-allocate the result buffer
+    size_t count = 0;
+    const char* r = p;
+    while (count < n && ((r = strstr(r, ppat)) != NULL)) {
+      count++;
+      r += ppat_len;
+    }
+    if (count == 0) goto done; // no pattern found
+    
+    // allocate
+    size_t newlen = plen - (count * ppat_len) + (count * prep_len);
+    t = kk_string_alloc_len(newlen, NULL, ctx);
+    char* q = (char*)kk_string_cbuf_borrow(t);
+    while (count > 0) {
+      count--;
+      r = strstr(p, ppat);
+      kk_assert_internal(r != NULL);
+      size_t ofs = (size_t)(r - p);
+      memcpy(q, p, ofs);
+      memcpy(q + ofs, prep, prep_len);
+      q += ofs + prep_len;
+      p += ofs + ppat_len;
+    }
+    size_t rest = (size_t)(pend - p);
+    memcpy(q, p, rest);
+    kk_assert_internal(q + rest == kk_string_cbuf_borrow(t) + newlen);
+  }
+
+done:
+  kk_string_drop(pat, ctx);
+  kk_string_drop(rep, ctx);
+  if (!kk_datatype_eq(t, s)) kk_datatype_drop(s, ctx);
+  return t;
+}
+
 
 kk_string_t kk_string_repeat(kk_string_t str, size_t n, kk_context_t* ctx) {
   const char* s = kk_string_cbuf_borrow(str);

@@ -212,6 +212,11 @@ static inline bool kk_string_ptr_eq_borrow(kk_string_t s1, kk_string_t s2) {
 kk_decl_export kk_string_t kk_string_adjust_length(kk_string_t str, size_t newlen, kk_context_t* ctx);
 
 
+static inline bool kk_string_is_empty_borrow(kk_string_t s) {
+  return (kk_string_len_borrow(s) == 0);
+}
+
+
 /*--------------------------------------------------------------------------------------------------
   UTF8 decoding/encoding
 --------------------------------------------------------------------------------------------------*/
@@ -392,6 +397,11 @@ static inline size_t kk_decl_pure kk_string_len(kk_string_t str, kk_context_t* c
   return len;
 }
 
+static inline bool kk_string_is_empty(kk_string_t s, kk_context_t* ctx) {
+  return (kk_string_len(s, ctx) == 0);
+}
+
+
 kk_decl_export size_t kk_decl_pure kk_string_count(kk_string_t str);  // number of code points
 
 kk_decl_export int kk_string_cmp_borrow(kk_string_t str1, kk_string_t str2);
@@ -423,6 +433,9 @@ kk_decl_export kk_string_t kk_integer_to_hex_string(kk_integer_t x, bool use_cap
 
 kk_decl_export kk_vector_t kk_string_splitv(kk_string_t s, kk_string_t sep, kk_context_t* ctx);
 kk_decl_export kk_vector_t kk_string_splitv_atmost(kk_string_t s, kk_string_t sep, size_t n, kk_context_t* ctx);
+
+kk_decl_export kk_string_t kk_string_replace_all(kk_string_t s, kk_string_t pat, kk_string_t rep, kk_context_t* ctx);
+kk_decl_export kk_string_t kk_string_replace_atmost(kk_string_t s, kk_string_t pat, kk_string_t rep, size_t n, kk_context_t* ctx);
 
 kk_decl_export kk_string_t kk_string_repeat(kk_string_t s, size_t n, kk_context_t* ctx);
 
