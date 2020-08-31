@@ -172,9 +172,9 @@ kk_vector_t kk_string_splitv_atmost(kk_string_t s, kk_string_t sep, size_t n, kk
   const char* q = kk_string_cbuf_borrow(sep);
   if (n<1) n = 1;
   size_t seplen = strlen(q);
-  size_t count;
+  size_t count;   // count of parts
   if (seplen > 0) {
-    // count separators
+    // count parts
     count = 1;
     const char* r = p;
     while (count < n && ((r = strstr(r, q)) != NULL)) {  
@@ -187,11 +187,12 @@ kk_vector_t kk_string_splitv_atmost(kk_string_t s, kk_string_t sep, size_t n, kk
     count = kk_string_count(kk_string_dup(s)); 
     if (count > n) count = n;
   }
-  kk_assert_internal(n > 0);
+  kk_assert_internal(count >= 1 && count <= n);
   // copy to vector
-  kk_vector_t v = kk_vector_alloc(n, kk_box_null, ctx);
+  kk_vector_t v = kk_vector_alloc(count, kk_box_null, ctx);
   kk_box_t* ss = kk_vector_buf(v, NULL);
-  for (size_t i = 0; i < (n-1); i++) {
+  const char* pend = p + kk_string_len_borrow(s);
+  for (size_t i = 0; i < (count-1) && p < pend; i++) {
     const char* r;
     if (seplen > 0) {
       r = strstr(p, q);
@@ -199,12 +200,13 @@ kk_vector_t kk_string_splitv_atmost(kk_string_t s, kk_string_t sep, size_t n, kk
     else {
       r = (const char*)kk_utf8_next((const uint8_t*)p);
     }
-    kk_assert_internal(r != NULL && r > p);
+    kk_assert_internal(r != NULL && r >= p);
     size_t len = (size_t)(r - p);
     ss[i] = kk_string_box(kk_string_alloc_len(len, p, ctx));
-    p = r;  // advance
+    p = r + 1;  // advance
   }
-  ss[n-1] = kk_string_box(kk_string_alloc_dup(p, ctx));  // todo: share string if p == s ?
+  kk_assert_internal(p <= pend);
+  ss[count-1] = kk_string_box(kk_string_alloc_dup(p, ctx));  // todo: share string if p == s ?
   kk_string_drop(s,ctx);
   kk_string_drop(sep, ctx);
   return v;
