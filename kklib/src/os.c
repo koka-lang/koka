@@ -191,7 +191,7 @@ kk_decl_export kk_string_t kk_os_app_path(kk_context_t* ctx) {
     size_t slen = kk_os_path_max();
     kk_string_t s = kk_string_alloc_len(slen, NULL, ctx);
     len = GetModuleFileNameA(NULL, (char*)kk_string_cbuf_borrow(s), (DWORD)slen+1);
-    if (len >= slen) {
+    if (len > slen) {
       // failed again, use fall back
       kk_string_drop(s, ctx);
       return kk_os_app_path_generic(ctx);
@@ -204,24 +204,16 @@ kk_decl_export kk_string_t kk_os_app_path(kk_context_t* ctx) {
 #include <libproc.h>
 #include <unistd.h>
 kk_string_t kk_os_app_path(kk_context_t* ctx) {
-  char buf[256];
   pid_t pid = getpid();
-  int   ret = proc_pidpath(pid, buf, sizeof(buf));
+  kk_string_t s = kk_string_alloc_len(PROC_PIDPATHINFO_MAXSIZE, NULL, ctx);
+  int ret = proc_pidpath(pid, (char*)kk_string_cbuf_borrow(s), PROC_PIDPATHINFO_MAXSIZE /* must be this value or the call fails */);
   if (ret > 0) {
     // failed, use fall back
-    kk_string_t s = kk_string_alloc_len(PROC_PIDPATHINFO_MAXSIZE, NULL, ctx);
-    ret = proc_pidpath(pid, kk_string_cbuf_borrow(s), sizeof(buf));
-    if (ret > 0) {
-      // failed again, use fall back
-      kk_string_drop(s, ctx);
-      return kk_os_app_path_generic(ctx);
-    }
-    else {
-      return kk_string_adjust_length(s, strlen(kk_string_cbuf_borrow(s)), ctx);
-    }
+    kk_string_drop(s, ctx);
+    return kk_os_app_path_generic(ctx);
   }
   else {
-    return kk_string_alloc_dup(buf, ctx);
+    return kk_string_adjust_length(s, strlen(kk_string_cbuf_borrow(s)), ctx);
   }
 }
 
@@ -239,7 +231,7 @@ kk_string_t kk_os_app_path(kk_context_t* ctx) {
 kk_string_t kk_os_app_path(kk_context_t* ctx) {
   kk_string_t s = kk_os_realpathx(KK_PROC_SELF,ctx);
   if (strcmp(kk_string_cbuf_borrow(s), KK_PROC_SELF)==0) {
-    // failed? try generic
+    // failed? try generic search
     return kk_os_app_path_generic(ctx);
   }
   else {
@@ -275,8 +267,7 @@ kk_decl_export kk_string_t kk_os_home_dir(kk_context_t* ctx) {
   const char* hd = getenv("HOMEDRIVE");
   const char* hp = getenv("HOMEPATH");
   if (hd!=NULL && hp!=NULL) {
-    kk_string_t s = kk_string_alloc_len(strlen(hd) + strlen(hp) + 1, hd, ctx);
-    strcat((char*)kk_string_cbuf_borrow(s), "\\");
+    kk_string_t s = kk_string_alloc_len(strlen(hd) + strlen(hp), hd, ctx);
     strcat((char*)kk_string_cbuf_borrow(s), hp);
     return s;
   }
