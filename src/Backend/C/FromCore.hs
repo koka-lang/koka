@@ -1273,7 +1273,11 @@ genGuard result (Guard guard expr)
         -> genStat result expr
       _ -> do (gddoc,gdoc) <- genExpr guard
               sdoc <- genStat result expr
-              return (vcat gddoc <-> text "if" <+> parens gdoc <+> block (sdoc))
+              return (vcat gddoc <-> text "if" <+> parensIf gdoc <+> block (sdoc))
+
+parensIf :: Doc -> Doc -- avoid parens if already parenthesized
+parensIf d
+  = if (dstartsWith d "(" && dendsWith d ")") then d else parens d
 
 
 genPattern :: Bool -> [(Doc,Pattern)] -> Asm Doc -> Asm Doc
@@ -1289,7 +1293,7 @@ genPattern doTest dpatterns genBody
        ndoc <- genPattern doTest nextPatterns genBody
        if (null tests)
         then return (vcat (locals ++ [ndoc]))
-        else return (text "if" <+> parens (hcat (punctuate (text "&&") tests))
+        else return (text "if" <+> parensIf (hcat (punctuate (text "&&") tests))
                       <+> block (vcat (locals ++ [ndoc])))
 
 genPatternTest :: Bool -> (Doc,Pattern) -> Asm [([Doc],[Doc],[(Doc,Pattern)])]
