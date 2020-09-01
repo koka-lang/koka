@@ -84,7 +84,7 @@ fun random-bool() : random bool {
   (random-int32() >= 0.int32)
 }
 
-// Return a random integer in the range [-2147483648,2147483647].
+// Return a random integer in the range [-2147483648,2147483647] (32-bits).
 fun random-int() : random int {
   random-int32().int
 }
@@ -107,16 +107,21 @@ fun srandom-bool() : ndet bool {
   (srandom-int32() >= 0.int32)
 }
 
-// Return a strong random number equal or larger than 0.0 and smaller than 1.0
-extern srandom-double : () -> ndet double   {
-  c  inline "kk_srandom_double(kk_context())"
-  js "_srandom_double"
+// Return a strong random integer in the range [-2147483648,2147483647] (32 bits).
+fun srandom-int() : ndet int {
+  srandom-int32().int
 }
 
-// Return a strong random `int32`
+// Return a strong random `:int32`
 extern srandom-int32: () -> ndet int32  {
   c  inline "(int32_t)kk_srandom_uint32(kk_context())"
   js "_srandom_int32"
+}
+
+// Return a strong random `:double` in the range [0,1) using 48-bits of randomness
+extern srandom-double : () -> ndet double   {
+  c  inline "kk_srandom_double(kk_context())"
+  js "_srandom_double"
 }
 
 // Are the strong random numbers generated from a strong random source? (like /dev/urandom)

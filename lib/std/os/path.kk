@@ -32,7 +32,7 @@ the `realpath` function should be used (which has the `:io` effect though).
 */
 module std/os/path
 
-import std/text/regex
+import std/text/parse
 
 extern include {
   cs file "path-inline.cs"
@@ -123,13 +123,14 @@ public fun absolute?( p : path ) : bool {
 // Create a normalized `:path` from a path string.
 public fun path( s : string ) : path {
   if (s.empty?) return Path("",[])
-  match(s.find(rx-root)) {
-    Nothing    -> path-parts("",s)
-    Just(capr) -> path-parts(capr.groups[1] + "/",capr.slice.after.string)
+  val t = s.replace-all("\\","/")
+  match(t.starts-with(proot)) {
+    Nothing          -> path-parts("",t)
+    Just((eof,rest)) -> path-parts(rest.before.string + (if (eof) then "/" else ""),rest.string)
   }
 }
 fun path-parts( root : string, s : string, dirs : list<string> = [] ) : path {
-  val parts = s.split(rx-partsep).path-split(dirs)
+  val parts = s.split("/").path-split(dirs)
   Path(root,parts)
 }
 fun path-split( parts : list<string>, dirs : list<string> ) : list<string>  {
@@ -144,8 +145,10 @@ fun push-dir( dir : string, dirs : list<string> ) : list<string> {
   else Cons(dir,dirs)
 }
 
-val rx-partsep = regex(@"[/\\]")
-val rx-root= regex(@"^([a-zA-Z]:|(?:\\\\|//)[^/\\]+)?(?:[/\\]|$)")
+fun proot() : parse bool {
+  ({ alpha(); char(':'); () }) || ({char('/'); many1({none-of("/")}); () })
+  ({ char('/'); False }) || ({ eof(); True })
+}
 
 // Parse a list of paths seperated by colon (`':'`) or semi-colon (`';'`)
 //
@@ -153,22 +156,18 @@ val rx-root= regex(@"^([a-zA-Z]:|(?:\\\\|//)[^/\\]+)?(?:[/\\]|$)")
 // In particular, a single letter path followed by an absolute path, e.g. ``c:/foo:/bar`` is
 // parsed as ``c:/foo`` and ``/bar``.
 public fun paths( s : string ) : list<path> {
-  s.split(rx-pathsep).paths-split
+  s.replace-all(";",":").split(":").paths-collect
 }
-fun paths-split( ps : list<string> ) : list<path> {
+fun paths-collect( ps : list<string> ) : list<path> {
   match(ps) {
-    Cons(root,Cons(colon,Cons(part,rest))) // match on windows 'c:\' parts
-      | colon==":" && root.count==1 && root.head-char.default(' ').alpha? &&
+    Cons(root,Cons(part,rest)) // match on windows 'c:\' parts
+      | root.count==1 && root.head-char.default(' ').alpha? &&
         part.notempty? && "/\\".contains(part.head)
-      -> Cons( path(root+":"+part), paths-split(rest))
-    Cons(part,rest)
-      | part==";" || part==":" || part==""
-      -> paths-split(rest)
-    Cons(part,rest) -> Cons( path(part), paths-split(rest))
+      -> Cons( path(root+":"+part), paths-collect(rest))
+    Cons(part,rest) -> Cons( path(part), paths-collect(rest))
     Nil             -> Nil
   }
 }
-val rx-pathsep = regex(@"([;:])")
 
 // Add two paths together. \
 // Keeps the root of `p1` and discards the root name of `p2`.\
@@ -209,14 +208,14 @@ public fun noext( p : path ) : path {
   p.change-ext("")
 }
 
-// Change the extension of a path.
+// Change the extension of a path. 
+// Only adds a dot if the extname does not already start with a dot.
 public fun change-ext( p : path, extname : string ) : path {
   val (basename,dirs) = p.parts.split-parts
   val (stemname,_)    = basename.split-base
-  val newext = if (extname.contains(rx-nodot)) then extname else "." + extname
+  val newext = if (extname.starts-with(".").bool) then extname else "." + extname
   path-parts(p.root, stemname+newext, dirs)
 }
-val rx-nodot = regex(@"^(?:$|[\./\\])")
 
 // If a path has no extension, set it to the provided one.
 public fun default-ext( p : path, newext : string ) : path {
@@ -273,6 +272,7 @@ public fun realpath( s : string ) : io path {
 }
 
 extern xrealpath( p : string ) : io string {
+  c  "kk_os_realpath"
   cs "System.IO.Path.GetFullPath"
   js "_get_realpath"
 }
@@ -280,12 +280,14 @@ extern xrealpath( p : string ) : io string {
 
 // Return the OS specific directory separator (`"/"` or `"\\"`)
 public extern partsep() : ndet string {
+  c  "kk_os_dir_sep"
   cs "System.IO.Path.DirectorySeparatorChar.ToString"
   js "_get_partsep"
 }
 
 // Return the OS specific path separator (`';'` or `':'`)
 public extern pathsep() : ndet string {
+  c  "kk_os_path_sep"
   cs "System.IO.Path.PathSeparator.ToString"
   js "_get_pathsep"
 }
@@ -296,6 +298,7 @@ public fun app-path() : io path {
 }
 
 extern xapp-path() : io string {
+  c "kk_os_app_path"
   cs inline "System.Reflection.Assembly.GetEntryAssembly().Location"
   js "_get_apppath"
 }
@@ -315,6 +318,7 @@ public fun homedir() : io path {
 }
 
 extern xhomedir() : io string {
+  c  "kk_os_home_dir"
   cs "_Path.GetHomeDir"
   js "_get_homedir"
 }
@@ -325,6 +329,7 @@ public fun tempdir() : io path {
 }
 
 extern xtempdir() : io string {
+  c  "kk_os_temp_dir"
   cs "System.IO.Path.GetTempPath"
   js "_get_tempdir"
 }

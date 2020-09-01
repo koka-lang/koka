@@ -19,6 +19,14 @@ effect parse {
   fun current-input : sslice
 }
 
+fun starts-with( s : string, p : () -> parse a )  : maybe<(a,sslice)> {
+  match (s.slice.parse(p)) {
+    ParseOk(x,rest) -> Just((x,rest))
+    _               -> Nothing
+  }
+}
+
+
 type parse-error<a> {
   ParseOk( result: a, rest : sslice )
   ParseError( msg : string, rest : sslice )
@@ -155,6 +163,18 @@ fun digit() : parse int {
   (c - '0').int
 }
 
+fun alpha() : parse char {
+  char-is("alpha", alpha?)
+}
+
+fun alpha-num() : parse char {
+  char-is("alpha-num", alpha-num?)
+}
+
+fun white() : parse char {
+  char-is("", white?)
+}
+
 fun digits() : parse string {
   chars-are("digit", digit? ).string
 }
@@ -178,9 +198,27 @@ fun optional( default : a, p : parser<e,a> ) : <parse|e> a {
   (p || ({ default }))
 }
 
-fun one-of( chars : string ) : parse char {
-  chars.list.map(fun(c){ (fun(){ char(c) } ) }).choose
+fun none-of( chars : string ) : parse char {
+  char-is("", fun(c){ !chars.contains(c.string)  })
 }
+
+fun one-of( chars : string ) : parse char {
+  char-is(chars, fun(c){ chars.contains(c.string)  })
+  // chars.list.map(fun(c){ (fun(){ char(c) } ) }).choose
+}
+
+private fun many-acc( p : parser<e,a>, acc : list<a> ) : <parse|e> list<a> {
+  ({ val x = p(); many-acc(unsafe-decreasing(p),Cons(x,acc)) }) || ({ acc.reverse })
+}
+
+fun many( p : parser<e,a> ) : <parse|e> list<a> {
+  many-acc(p,[])
+}
+
+fun many1( p : parser<e,a> ) : <parse|e> list<a> {
+  Cons(p(), many(p))
+}
+
 
 fun one-of-or( chars : string, default : char ) : parse char {
   optional( default, { one-of(chars) } )

@@ -20,6 +20,19 @@ fun ileave( xs : list<a>, ys : list<a> ) : div list<a> {
   }
 }
 
+
+/*
+get{ 
+  x <- ref->value  
+  dup(x)
+}
+
+set(y){
+  x <- ref->value
+  ref->value=y
+  drop(x)  
+}
+*/
 /*
 fun rev(xs : list<a>, acc : list<a> ) : list<a> {
   match(xs) {

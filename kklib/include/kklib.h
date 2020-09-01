@@ -851,6 +851,7 @@ typedef enum kk_unit_e {
 #include "kklib/integer.h"
 #include "kklib/string.h"
 #include "kklib/random.h"
+#include "kklib/os.h"
 
 /*----------------------------------------------------------------------
   TLD operations

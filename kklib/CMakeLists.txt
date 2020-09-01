@@ -37,6 +37,7 @@ set(kklib_sources
     src/refcount.c
     src/ref.c
     src/string.c
+    src/os.c
     )
     
 # properties library; these are used for all koka compiled C sources
