@@ -145,6 +145,9 @@ instance Monad IOErr where
                                                                    return (addWarnings w err)
                                    Left msg  -> return (errorMsg msg  ))
 
+instance MonadFail IOErr where
+  fail = liftError . fail
+
 
 bindIO :: IO (Error a) -> (a -> IO (Error b)) -> IO (Error b)
 bindIO io f

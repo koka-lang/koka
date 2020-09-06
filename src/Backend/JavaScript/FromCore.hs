@@ -1068,6 +1068,8 @@ instance Monad Asm where
   (Asm a) >>= f = Asm (\env st -> case a env st of
                                     (x,st1) -> case f x of
                                                  Asm b -> b env st1)
+instance MonadFail Asm where
+  fail = failure
 
 runAsm :: Env -> Asm Doc -> Doc
 runAsm initEnv (Asm asm)

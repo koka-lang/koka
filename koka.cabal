@@ -1,10 +1,8 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.34.2.
 --
 -- see: https://github.com/sol/hpack
---
--- hash: 952dcdece5fead78ebcba9432801e2ee80696242543966519d3ff7c98aa7890c
 
 name:           koka
 version:        2.0.0.0
@@ -137,7 +135,7 @@ executable koka
       alex
   build-depends:
       array
-    , base >=4.9 && <5
+    , base >=4.13 && <5
     , bytestring
     , cond
     , containers
@@ -162,7 +160,7 @@ test-suite koka-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       array
-    , base >=4.9 && <5
+    , base >=4.13 && <5
     , bytestring
     , cond
     , containers
