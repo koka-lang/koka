@@ -14,7 +14,7 @@ module Common.File(
                     getEnvPaths, getEnvVar
                   , searchPaths, searchPathsEx
                   , runSystem, runSystemRaw
-                  , getProgramPath, getInstallDir
+                  , getInstallDir
 
                   -- * Strings
                   , startsWith, endsWith, splitOn
@@ -47,13 +47,12 @@ import Common.Failure   ( raiseIO, catchIO )
 
 import System.Process   ( system )
 import System.Exit      ( ExitCode(..) )
-import System.Environment ( getEnvironment, getProgName )
+import System.Environment ( getEnvironment, getExecutablePath )
 import System.Directory ( doesFileExist, doesDirectoryExist
                         , copyFile
                         , getCurrentDirectory, getDirectoryContents
                         , createDirectoryIfMissing, canonicalizePath )
 
-import qualified Platform.Console as C (getProgramPath)
 import Lib.Trace
 import Platform.Filetime
 
@@ -297,7 +296,7 @@ copyTextIfNewerWith always srcName outName transform
 
 getInstallDir :: IO FilePath
 getInstallDir
-  = do p <- getProgramPath
+  = do p <- getExecutablePath
        let d  = dirname p
            ds = splitPath d
            result = case reverse ds of
@@ -312,24 +311,6 @@ getInstallDir
                       _            -> d
        -- trace ("install-dir: " ++ result ++ ": " ++ show ds) $
        return result
-
-
-
-getProgramPath :: IO FilePath
-getProgramPath
-  = do p <- C.getProgramPath  -- works on windows
-       if (not (null p))
-        then return p
-        else do name <- getProgName
-                if (null name)
-                 then return "main"
-                 else if (any isPathSep name)
-                  then return name
-                  else do paths <- getEnvPaths "PATH"
-                          mbp   <- searchPaths paths [] name  -- search along the PATH
-                          case mbp of
-                            Just fname -> return fname
-                            Nothing    -> return name
 
 
 commonPathPrefix :: FilePath -> FilePath -> FilePath
