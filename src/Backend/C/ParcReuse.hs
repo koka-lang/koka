@@ -114,14 +114,21 @@ ruTryReuseCon cname repr conApp
        available <- getAvailable
        -- ruTrace $ "try reuse: " ++ show (getName cname) ++ ": " ++ show size
        case M.lookup size available of
-         Just tnames | not (S.null tnames)
-           -> do let -- (tname, tnames') = S.deleteFindMin tnames
-                     n = S.size tnames
-                     tname = S.elemAt (n-1) tnames
-                     tnames' = S.deleteAt (n-1) tnames
-                 setAvailable (M.insert size tnames' available)
-                 return (genAllocAt tname conApp)
+         Just (rinfo0:rinfos0)
+           -> do let (rinfo,rinfos) = pick cname rinfo0 rinfos0 
+                 setAvailable (M.insert size rinfos available)
+                 return (genAllocAt rinfo conApp)
          _ -> return conApp
+  where
+    -- pick a good match: for now we prefer the same constructor
+    -- todo: match also common fields/arguments to help specialized reuse
+    pick cname rinfo []
+      = (rinfo,[])
+    pick cname rinfo@(ReuseInfo name (PatCon{patConName})) rinfos  | patConName == cname 
+      = (rinfo,rinfos)
+    pick cname rinfo (rinfo':rinfos)
+      = let (r,rs) = pick cname rinfo' rinfos in (r,rinfo:rs)
+
 
 ruBranches :: [Branch] -> Reuse [Branch]
 ruBranches branches
@@ -139,10 +146,10 @@ ruBranch (Branch pats guards)
        setAvailable (availableIntersect avs)
        return (Branch pats' guards')
   where
-    addAvailable :: (TName, Int, Int) -> Reuse (TName, TName, Int, Int)
-    addAvailable (patName, size, scan)
+    addAvailable :: (ReuseInfo, Int, Int) -> Reuse (TName, TName, Int, Int)
+    addAvailable (ReuseInfo patName pat, size, scan)
       = do reuseName <- uniqueTName typeReuse
-           updateAvailable (M.insertWith S.union size (S.singleton reuseName))
+           updateAvailable (M.insertWith (++) size [ReuseInfo reuseName pat])
            return (reuseName, patName, size, scan)
 
 patAddNames :: Pattern -> Reuse Pattern
@@ -159,8 +166,8 @@ patAddNames pat
         -> failure "Backend.C.ParcReuse.patAddNames"
       _ -> return pat
 
-ruPattern :: Pattern -> Reuse [(TName, Int {-byte size-}, Int {-scan fields-})]
-ruPattern (PatVar tname PatCon{patConName,patConPatterns,patConRepr,patTypeArgs,patConInfo=ci})
+ruPattern :: Pattern -> Reuse [(ReuseInfo, Int {-byte size-}, Int {-scan fields-})]
+ruPattern (PatVar tname pat@PatCon{patConName,patConPatterns,patConRepr,patTypeArgs,patConInfo=ci})
   = do reuses <- concat <$> mapM ruPattern patConPatterns
        if (getName patConName == nameBoxCon)
         then return reuses  -- don't reuse boxes
@@ -170,7 +177,7 @@ ruPattern (PatVar tname PatCon{patConName,patConPatterns,patConRepr,patTypeArgs,
                  let (size,scan) = constructorSizeOf platform newtypes (TName (conInfoName ci) (conInfoType ci)) patConRepr 
                  if size > 0
                    then do -- ruTrace $ "add for reuse: " ++ show (getName tname) ++ ": " ++ show size
-                           return ((tname, size, scan):reuses)
+                           return ((ReuseInfo tname pat, size, scan):reuses)
                    else return reuses
 ruPattern _ = return []
 
@@ -186,15 +193,15 @@ ruGuard patAdded (Guard test expr)  -- expects patAdded in depth-order
 
 -- generate drop_reuse for each reused in patAdded
 ruTryReuse :: (TName, TName, Int, Int) -> Reuse (Maybe Def)
-ruTryReuse (reuseName, patName, size, scan)
+ruTryReuse (rName, patName, size, scan)
   = do av <- getAvailable
        case M.lookup size av of
-         Just tnames | S.member reuseName tnames
-           -> do let tnames' = S.delete reuseName tnames
-                 setAvailable (M.insert size tnames' av)
+         Just rinfos  | rName `elem` (map reuseName rinfos)
+           -> do let rest = filter (\r -> rName /= reuseName r) rinfos
+                 setAvailable (M.insert size rest av)
                  return Nothing
-         _ -> return (Just (makeTDef reuseName (genDropReuse patName (makeInt32 (toInteger scan)))))
-
+         _ -> return (Just (makeTDef rName (genDropReuse patName (makeInt32 (toInteger scan)))))
+    
 -- Generate a reuse of a constructor
 genDropReuse :: TName -> Expr {- : int32 -} -> Expr
 genDropReuse tname scan 
@@ -207,9 +214,9 @@ genDropReuse tname scan
 -- generate allocation-at of a constructor application
 -- at should have tyep `typeReuse`
 -- conApp should have form  App (Con _ _) conArgs    : length conArgs >= 1
-genAllocAt :: TName -> Expr -> Expr
-genAllocAt at conApp
-  = App (Var (TName nameAllocAt typeAllocAt) (InfoArity 0 1)) [Var at InfoNone, conApp]
+genAllocAt :: ReuseInfo -> Expr -> Expr
+genAllocAt (ReuseInfo reuseName pat) conApp
+  = App (Var (TName nameAllocAt typeAllocAt) (InfoArity 0 1)) [Var reuseName (InfoReuse pat), conApp]
   where
     conTp = typeOf conApp
     typeAllocAt = TFun [(nameNil,typeReuse),(nameNil,conTp)] typeTotal conTp
@@ -241,7 +248,9 @@ maybeStats xs expr
 -----------------
 -- definitions --
 
-type Available = M.IntMap TNames
+type Available = M.IntMap [ReuseInfo]
+
+data ReuseInfo = ReuseInfo{ reuseName :: TName, pattern :: Pattern }
 
 data Env = Env { currentDef :: [Def],
                  prettyEnv :: Pretty.Env,
@@ -335,7 +344,11 @@ setAvailable :: Available -> Reuse ()
 setAvailable = updateAvailable . const
 
 availableIntersect :: [Available] -> Available
-availableIntersect = M.unionsWith S.intersection
+availableIntersect 
+  = M.unionsWith intersect
+  where
+    intersect xs ys 
+      = [r | r@(ReuseInfo rname _) <- xs, rname `elem` map reuseName ys]
 
 --
 
