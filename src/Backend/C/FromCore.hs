@@ -1637,9 +1637,9 @@ genAppNormal f args
                        return (fdecls ++ decls, text "kk_function_call" <.> tupled [cresTp,cargTps,fdoc,arguments (fdoc:argDocs)])
 
 
-genFieldAddress :: TName -> Name -> Name -> Doc
+genFieldAddress :: TName -> TName -> Name -> Doc
 genFieldAddress conVar conName fieldName
-  = parens (text "&" <.> conAsNameX conName <.> parens (ppName (getName conVar)) <.> text "->" <.> ppName fieldName)
+  = parens (text "&" <.> conAsNameX (getName conName) <.> parens (ppName (getName conVar)) <.> text "->" <.> ppName fieldName)
 
 
 genAppSpecial :: Expr -> [Expr] -> Asm (Maybe Doc)

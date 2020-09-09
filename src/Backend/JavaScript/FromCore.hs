@@ -653,6 +653,22 @@ genExpr expr
        -> return (empty, pretty i)
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameSizeT && isSmallInt i
        -> return (empty, pretty i)
+     
+     -- special case: ctail next
+     App (Var ctailNext (InfoConField conName fieldName)) [Var slot InfoNone, Var res _, Var con _]  | getName ctailNext == nameCTailNext
+       -> do accDoc <- genTName slot 
+             resDoc <- genTName res
+             conDoc <- genTName con
+             let assign    = accDoc <.> text ".value[" <.> accDoc <.> text ".field] =" <+> resDoc -- <.> semi
+                 reuse     = accDoc <.> text ".value =" <+> conDoc
+                 next      = accDoc
+             return (empty,tupled [assign,reuse,next])
+     
+     -- special case: ctail create
+     App (Var ctailCreate (InfoConField conName fieldName)) [Var con _] | getName ctailCreate == nameCTailCreate
+       -> do conDoc <- genTName con
+             return (empty,text "{value:" <+> conDoc <.> text ", field: \"" <.> ppName fieldName <.> text "\"}")
+
      App f args
        -> {- case splitFunScheme (typeOf f) of
             Just (_,_,tpars,eff,tres)
@@ -863,20 +879,6 @@ genExprExternalPrim tname formats [] | getName tname == nameCTailHole
 genExprExternalPrim tname formats [accDoc,resDoc] | getName tname == nameCTailSet
   = return ([], tupled [accDoc <.> text ".value[" <.> accDoc <.> text ".field] =" <+> resDoc, text "$std_core_types._Unit_"])
 
--- special case: ctail next
-genExprExternalPrim tname formats [accDoc, resDoc, conDoc, conName, sfieldName]  | getName tname == nameCTailNext
-   = do let assign    = accDoc <.> text ".value[" <.> accDoc <.> text ".field] =" <+> resDoc -- <.> semi
-            fieldName = readTupled (read (show sfieldName) :: String)
-            reuse     = accDoc <.> text ".value =" <+> conDoc
-            next      = accDoc
-        return ([],tupled [assign,reuse,next])
-
--- special case: ctail create
-genExprExternalPrim tname formats [conDoc, conName, sfieldName]  | getName tname == nameCTailCreate
-   = do let fieldName = readTupled (read (show sfieldName) :: String)
-        return ([],text "{value:" <+> conDoc <.> text ", field: \"" <.> ppName fieldName <.> text "\"}")
-
-
 -- normal external
 genExprExternalPrim tname formats argDocs0
   = let name = getName tname
@@ -1005,6 +1007,7 @@ isPureExpr expr
   = case expr of
       TypeApp expr _  -> isPureExpr expr
       TypeLam _ expr  -> isPureExpr expr
+      Var n (InfoConField{}) -> False
       Var n _  | getName n == nameReturn -> False -- make sure return will never be inlined
                | otherwise               -> True
       Con _ _ -> True

@@ -497,7 +497,7 @@ infoIsLocal info
       InfoReuse{}    -> True
       InfoArity{}    -> False
       InfoExternal{} -> False
-      InfoField{}    -> False
+      InfoConField{} -> False
 
 infoIsRefCounted info
   = infoIsLocal info
