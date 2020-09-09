@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 63ae0487a178ad258f1e003d859d3f43b647a0c91eb208861e3e92ae34e001a0
+-- hash: 952dcdece5fead78ebcba9432801e2ee80696242543966519d3ff7c98aa7890c
 
 name:           koka
 version:        2.0.0.0
@@ -30,6 +30,7 @@ executable koka
       Backend.C.FromCore
       Backend.C.Parc
       Backend.C.ParcReuse
+      Backend.C.ParcReuseSpec
       Backend.CSharp.FromCore
       Backend.JavaScript.FromCore
       Common.ColorScheme

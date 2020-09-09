@@ -43,6 +43,7 @@ import Core.CoreVar
 
 import Backend.C.Parc
 import Backend.C.ParcReuse
+import Backend.C.ParcReuseSpec
 import Backend.C.Box
 
 type CommentDoc   = Doc
@@ -86,7 +87,8 @@ genModule sourceDir penv platform newtypes enableReuse enableSpecialize mbMain c
                                          then parcReuseCore penv platform newtypes bcore -- constructor reuse analysis
                                          else return bcore
                                pcore <- parcCore penv platform newtypes enableSpecialize ucore -- precise automatic reference counting
-                               return pcore
+                               score <- parcReuseSpecialize penv pcore -- selective reuse
+                               return score
                            )
 
         let headComment   = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version

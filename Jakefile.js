@@ -479,6 +479,7 @@ var hsModules = [
   "Backend.C.Box",
   "Backend.C.ParcReuse",
   "Backend.C.Parc",
+  "Backend.C.ParcReuseSpec",
   "Backend.C.FromCore",
 
   "Syntax.Colorize",

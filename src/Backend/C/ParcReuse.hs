@@ -216,7 +216,7 @@ genDropReuse tname scan
 -- conApp should have form  App (Con _ _) conArgs    : length conArgs >= 1
 genAllocAt :: ReuseInfo -> Expr -> Expr
 genAllocAt (ReuseInfo reuseName pat) conApp
-  = App (Var (TName nameAllocAt typeAllocAt) (InfoArity 0 1)) [Var reuseName (InfoReuse pat), conApp]
+  = App (Var (TName nameAllocAt typeAllocAt) (InfoArity 0 2)) [Var reuseName (InfoReuse pat), conApp]
   where
     conTp = typeOf conApp
     typeAllocAt = TFun [(nameNil,typeReuse),(nameNil,conTp)] typeTotal conTp
