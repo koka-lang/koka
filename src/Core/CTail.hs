@@ -279,20 +279,17 @@ makeCTailHole tp
 
 makeCTailCreate :: TName -> TName -> Name -> Type -> Expr
 makeCTailCreate objName conName fieldName tp
-  = App (Var (TName nameCTailCreate funType) (InfoExternal [])) 
-        [Var objName InfoNone, Lit (LitString (showTupled (getName conName))), Lit (LitString (showTupled fieldName))]  
+  = App (Var (TName nameCTailCreate funType) (InfoConField conName fieldName)) [Var objName InfoNone]  
   where
-    funType = TFun [(nameNil,typeOf objName),(nameNil,typeString),(nameNil,typeString)] typeTotal (makeSlotType tp)
+    funType = TFun [(nameNil,typeOf objName)] typeTotal (makeSlotType tp)
     
 
 makeCTailNext :: TName -> TName -> TName -> TName -> Name -> Type -> Expr
 makeCTailNext slot resName objName conName fieldName tp
-  = App (Var (TName nameCTailNext funType) (InfoExternal [])) 
-        [Var slot InfoNone, Var resName InfoNone, Var objName InfoNone, 
-         Lit (LitString (showTupled (getName conName))), Lit (LitString (showTupled fieldName))] 
+  = App (Var (TName nameCTailNext funType) (InfoConField conName fieldName)) 
+        [Var slot InfoNone, Var resName InfoNone, Var objName InfoNone] 
   where
-    funType = TFun [(nameNil,typeOf slot),(nameNil,typeOf resName),(nameNil,typeOf objName),
-                    (nameNil,typeString),(nameNil,typeString)] typeTotal (makeSlotType tp)
+    funType = TFun [(nameNil,typeOf slot),(nameNil,typeOf resName),(nameNil,typeOf objName)] typeTotal (makeSlotType tp)
     
 makeCTailSet :: TName -> Expr -> Expr
 makeCTailSet slot expr

@@ -466,7 +466,7 @@ data VarInfo
   | InfoArity Int Int               -- #Type parameters, #parameters
   | InfoExternal [(Target,String)]  -- inline body
   | InfoReuse Pattern               
-  | InfoField TName Name            -- constructor name, field name
+  | InfoConField TName Name         -- constructor name, field name
   
 instance Show VarInfo where
   show info = case info of
@@ -474,7 +474,7 @@ instance Show VarInfo where
                   -> ""
                 InfoReuse pat 
                   -> "reuse:<pat>"
-                InfoField conName fieldName    
+                InfoConField conName fieldName    
                   -> "field:" ++ show conName ++ "." ++ show fieldName
                 InfoArity m n  
                   -> "arity:" ++ show (m,n)

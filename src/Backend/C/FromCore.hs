@@ -1581,26 +1581,26 @@ genAppNormal v@(Var allocAt _) [at, Let dgs expr]  | getName allocAt == nameAllo
   = genExpr (Let dgs (App v [at,expr]))
 
 -- special: ctail
-genAppNormal v@(Var ctailCreate _) [App (Var dup _) [Var con _],  Lit (LitString conName), Lit (LitString fieldName)]  | getName ctailCreate == nameCTailCreate && getName dup == nameDup
-  = do let doc = genFieldAddress con (readTupled conName) (readTupled fieldName)
+genAppNormal v@(Var ctailCreate (InfoConField conName fieldName)) [App (Var dup _) [Var con _]]  | getName ctailCreate == nameCTailCreate && getName dup == nameDup
+  = do let doc = genFieldAddress con conName fieldName  
        -- TODO: drop? or add borrowing
        return ([],doc)
 
-genAppNormal v@(Var ctailCreate _) [Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName ctailCreate == nameCTailCreate
+genAppNormal v@(Var ctailCreate (InfoConField conName fieldName)) [Var con _]  | getName ctailCreate == nameCTailCreate
  = do let drop = map (<.> semi) (genDupDropCall False (typeOf con) (ppName (getName con)))
-          doc = genFieldAddress con (readTupled conName) (readTupled fieldName)
+          doc = genFieldAddress con conName fieldName
       -- TODO: drop? or add borrowing
       return (drop, doc)
 
-genAppNormal v@(Var ctailNext _) [Var slot InfoNone, App (Var dup _) [Var res _], Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName ctailNext == nameCTailNext, getName dup == nameDup
+genAppNormal v@(Var ctailNext (InfoConField conName fieldName)) [Var slot InfoNone, App (Var dup _) [Var res _], Var con _]  | getName ctailNext == nameCTailNext, getName dup == nameDup
  = do let assign = text "*" <.> ppName (getName slot) <+> text "=" <+> ppName (getName res) <.> semi
-          next   = genFieldAddress con (readTupled conName) (readTupled fieldName)
+          next   = genFieldAddress con conName fieldName
       return ([assign],next)
 
-genAppNormal v@(Var ctailNext _) [Var slot InfoNone, Var res _, Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName ctailNext == nameCTailNext
+genAppNormal v@(Var ctailNext (InfoConField conName fieldName)) [Var slot InfoNone, Var res _, Var con _]  | getName ctailNext == nameCTailNext
  = do let drop   = map (<.> semi) (genDupDropCall False (typeOf con) (ppName (getName con)))
           assign = text "*" <.> ppName (getName slot) <+> text "=" <+> ppName (getName res) <.> semi
-          next   = genFieldAddress con (readTupled conName) (readTupled fieldName)
+          next   = genFieldAddress con conName fieldName
       -- TODO: drop? or add borrowing
       return (drop ++ [assign],next)
 
