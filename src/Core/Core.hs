@@ -66,7 +66,8 @@ module Core.Core ( -- Data structures
                    , getDataRepr, getDataReprEx, dataInfoIsValue
                    , getConRepr
                    , dataReprIsValue, conReprIsValue
-                   , VarInfo(..), isInfoArity
+                   , VarInfo(..), isInfoArity 
+                   , infoIsRefCounted, infoIsLocal
 
                    , isMonType, isMonEffect
 
@@ -461,10 +462,25 @@ defGroupsTNames :: DefGroups -> TNames
 defGroupsTNames group = foldr S.union S.empty (map defGroupTNames group)
 
 data VarInfo
-  = InfoNone
+  = InfoNone  
   | InfoArity Int Int               -- #Type parameters, #parameters
   | InfoExternal [(Target,String)]  -- inline body
-  deriving Show
+  | InfoReuse Pattern               
+  | InfoField TName Name            -- constructor name, field name
+  
+instance Show VarInfo where
+  show info = case info of
+                InfoNone  
+                  -> ""
+                InfoReuse pat 
+                  -> "reuse:<pat>"
+                InfoField conName fieldName    
+                  -> "field:" ++ show conName ++ "." ++ show fieldName
+                InfoArity m n  
+                  -> "arity:" ++ show (m,n)
+                InfoExternal formats 
+                  -> "external:" ++ show formats
+                
 
 infoArity (InfoArity m n) = n
 infoArity (_)             = 0
@@ -474,6 +490,17 @@ infoTypeArity (_)             = 0
 
 isInfoArity (InfoArity _ _) = True
 isInfoArity _ = False
+
+infoIsLocal info
+  = case info of
+      InfoNone       -> True
+      InfoReuse{}    -> True
+      InfoArity{}    -> False
+      InfoExternal{} -> False
+      InfoField{}    -> False
+
+infoIsRefCounted info
+  = infoIsLocal info
 
 data Branch = Branch { branchPatterns :: [Pattern]  -- length = length exprs in the match
                      , branchGuards   :: [Guard]    -- any number (>= 1) of guarded expressions

@@ -19,6 +19,9 @@ fun ileave( xs : list<a>, ys : list<a> ) : div list<a> {
   }
 }
 
+fun main() {
+  list(1,10).mapx(inc).sum.println
+}
 
 /*
 get{ 

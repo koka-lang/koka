@@ -95,9 +95,9 @@ parcExpr expr
               dups <- foldMapM useTName caps
               assertion ("parcExpr: caps==live" ++ show caps ++ show live ++ show body) (caps == live) $
                 return (maybeStats dups $ Lam pars eff body')
-      Var tname InfoNone
+      Var tname info | infoIsRefCounted info
         -> fromMaybe expr <$> useTName tname
-      Var _ _ -- InfoArity/External are not reference-counted
+      Var _ _ -- InfoArity/External/Field are not reference-counted
         -> return expr
       App fn args
         -> do args' <- reverseMapM parcExpr args

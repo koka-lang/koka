@@ -281,9 +281,9 @@ prettyExpr env (Var tname varInfo)
   where
     prettyInfo
       = case varInfo of
-          InfoNone -> empty
           InfoArity m n  -> empty -- braces (pretty m <.> comma <.> pretty n)
           InfoExternal f -> empty -- braces (text"@")
+          _ -> empty
 
 prettyExpr env (App a args)
   = pparens (prec env) precApp $
