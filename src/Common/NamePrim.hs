@@ -56,7 +56,7 @@ module Common.NamePrim
           , nameDup, nameDrop, nameIsUnique, nameFree, nameDecRef
           , nameKeepMatch, nameDropMatch, nameReuseMatch
           , nameTpReuse, nameDropReuse, nameFreeReuse
-          , nameReuseNull, nameAssignReuse, nameReuse
+          , nameReuseNull, nameAssignReuse, nameReuse, nameReuseIsValid
           , nameAllocAt, nameConFieldsAssign
           
           -- * CTail optimization
@@ -384,6 +384,7 @@ nameFreeReuse   = coreTypesName ".free-reuse"
 nameAllocAt     = coreTypesName ".alloc-at"
 nameAssignReuse = coreTypesName ".assign-reuse"
 nameReuse       = coreTypesName ".reuse"
+nameReuseIsValid= coreTypesName ".reuse-is-valid"
 nameConFieldsAssign = coreTypesName ".con-fields-assign"
 
 nameDup         = coreTypesName ".dup"

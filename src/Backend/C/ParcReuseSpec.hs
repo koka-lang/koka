@@ -22,7 +22,7 @@ import Type.Type
 import qualified Type.Pretty as Pretty
 
 import Lib.PPrint
-import Common.NamePrim( nameConFieldsAssign, nameAllocAt )
+import Common.NamePrim( nameConFieldsAssign, nameAllocAt, nameReuseIsValid )
 import Common.Failure
 import Common.Unique
 import Common.Syntax
@@ -115,7 +115,18 @@ ruSpecialize allocAt reuseName reusePat conApp
   = -- TODO: generate reuse specialized code by matching reusePat with the conApp
     -- conApp will be (App (Con _ _) [args]) or (App (TApp (Con _ _) targs) args))
     return (App allocAt [Var reuseName (InfoReuse reusePat), conApp])
+  
+
+-- generates: if (reuseName != NULL) then onValid else onInvalid  
+genReuseIfValid :: TName -> Expr -> Expr -> Expr
+genReuseIfValid reuseName onValid onInvalid
+  = makeIfExpr (genReuseIsValid reuseName) onValid onInvalid
     
+genReuseIsValid :: TName -> Expr
+genReuseIsValid reuseName 
+  = App (Var (TName nameReuseIsValid typeReuseIsValid) (InfoExternal [(C,"#1!=NULL")])) [Var reuseName InfoNone]
+  where
+    typeReuseIsValid = TFun [(nameNil,typeReuse)] typeTotal typeBool
 
 -- genConFieldsAssign tp conName reuseName [(field1,expr1)...(fieldN,exprN)]    
 -- generates:  c = (conName*)reuseName; c->field1 := expr1; ... ; c->fieldN := exprN; (tp*)(c) 
