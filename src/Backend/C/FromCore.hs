@@ -1581,6 +1581,20 @@ genAppNormal (Var allocAt _) [Var at _, App (TypeApp (Con tname repr) targs) arg
        return (decls,conCreateName (getName tname) <.> arguments ([atDoc] ++ argDocs))
 genAppNormal v@(Var allocAt _) [at, Let dgs expr]  | getName allocAt == nameAllocAt  -- can happen due to box operations
   = genExpr (Let dgs (App v [at,expr]))
+  
+-- special: conAssignFields
+genAppNormal (Var (TName conFieldsAssign typeAssign) _) (Var reuseName (InfoConField conName nameNil):fieldValues) | conFieldsAssign == nameConFieldsAssign
+  = do (decls,fieldDocs) <- genExprs fieldValues
+       tmp <- genVarName "con"
+       let conTp    = text "struct" <+> ppName (getName conName) <.> text "*"
+           tmpDecl  = conTp <+> tmp <+> text "=" <+> parens conTp <.> ppName (getName reuseName) <.> semi
+           fieldNames = case splitFunScheme typeAssign of
+                          Just (_,_,args,_,_) -> tail (map fst args)
+                          _ -> failure ("Backend.C.FromCore: illegal conAssignFields type: " ++ show (pretty typeAssign))
+           assigns  = [tmp <.> text "->" <.> ppName fname <+> text "=" <+> fval <.> semi 
+                      | (fname,fval) <- zip fieldNames fieldDocs]
+           result   = conAsNameX (getName conName) <.> parens tmp
+       return (decls ++ [tmp] ++ assigns, result)
 
 -- special: ctail
 genAppNormal v@(Var ctailCreate (InfoConField conName fieldName)) [App (Var dup _) [Var con _]]  | getName ctailCreate == nameCTailCreate && getName dup == nameDup
