@@ -129,6 +129,7 @@ data Flags
          , optimize         :: Int       -- optimization level; 0 or less is off
          , optInlineMax     :: Int         
          , optctail         :: Bool   
+         , optctailInline   :: Bool 
          , parcReuse        :: Bool
          , parcSpecialize   :: Bool
          }
@@ -181,6 +182,7 @@ flagsNull
           0    -- optimize
           10   -- inlineMax
           True -- optctail
+          False -- optctailInline
           True -- parc reuse
           True -- parc specialize
 
@@ -260,7 +262,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fflag       ["semi"]      (\b f -> f{semiInsert=b})        "insert semicolons based on layout"
  , hide $ fflag       ["parcreuse"] (\b f -> f{parcReuse=b})         "enable in-place update analysis"
  , hide $ fflag       ["parcspec"]  (\b f -> f{parcSpecialize=b})    "enable reference count specialization"
- , hide $ fflag       ["optctail"]  (\b f -> f{optctail=b})          "enable con-tail optimization"
+ , hide $ fflag       ["optctail"]  (\b f -> f{optctail=b})          "enable con-tail optimization (TRMC)"
+ , hide $ fflag       ["optctailinline"]  (\b f -> f{optctailInline=b})  "enable con-tail inlining (duplicates code)"
  ]
  where
   emptyline

@@ -895,7 +895,7 @@ inferCheck loaded flags line coreImports program1
        -- constructor tail optimization
        let (coreDefsCTail,uniqueCTail)
                   = if (optctail flags)  
-                     then ctailOptimize penv (platform flags) newtypes gamma coreDefsSimp0 uniqueSimp0
+                     then ctailOptimize penv (platform flags) newtypes gamma (optctailInline flags) coreDefsSimp0 uniqueSimp0
                      else (coreDefsSimp0,uniqueSimp0)
                      
        -- traceDefGroups "ctail" coreDefsCTail

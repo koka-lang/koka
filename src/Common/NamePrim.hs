@@ -65,6 +65,8 @@ module Common.NamePrim
           , nameCTailNext
           , nameCTailCreate
           , nameCTailHole
+          , nameCTailAlloc
+          , nameCTailGet
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -249,6 +251,8 @@ nameCTailSet      = ctailName ".ctail-set"
 nameCTailNext     = ctailName ".ctail-next" 
 nameCTailCreate   = ctailName ".ctail-create"
 nameCTailHole     = ctailName ".ctail-hole"
+nameCTailAlloc    = ctailName ".ctail-alloc"
+nameCTailGet      = ctailName ".ctail-get"
 
 ctailName name    = coreTypesName name
 

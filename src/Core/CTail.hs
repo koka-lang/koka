@@ -8,7 +8,7 @@
 {-# LANGUAGE NamedFieldPuns, GeneralizedNewtypeDeriving  #-}
 
 -----------------------------------------------------------------------------
--- constctailctor reuse analysis
+-- Tail Recursive Modulo Cons implementation (called "ctail")
 -----------------------------------------------------------------------------
 
 module Core.CTail ( ctailOptimize, uctailOptimize, isCTailOp ) where
@@ -41,13 +41,13 @@ import Core.Pretty
 --------------------------------------------------------------------------
 -- Reference count transformation
 --------------------------------------------------------------------------
-ctailOptimize :: Pretty.Env -> Platform -> Newtypes -> Gamma -> DefGroups -> Int -> (DefGroups,Int)
-ctailOptimize penv platform newtypes gamma defs uniq
-  = runUnique uniq (uctailOptimize penv platform newtypes gamma defs)
+ctailOptimize :: Pretty.Env -> Platform -> Newtypes -> Gamma -> Bool -> DefGroups -> Int -> (DefGroups,Int)
+ctailOptimize penv platform newtypes gamma ctailInline defs uniq
+  = runUnique uniq (uctailOptimize penv platform newtypes gamma ctailInline defs)
 
-uctailOptimize :: Pretty.Env -> Platform -> Newtypes -> Gamma -> DefGroups -> Unique DefGroups
-uctailOptimize penv platform newtypes gamma defs
-  = ctailRun penv platform newtypes gamma (ctailDefGroups True defs)    
+uctailOptimize :: Pretty.Env -> Platform -> Newtypes -> Gamma -> Bool -> DefGroups -> Unique DefGroups
+uctailOptimize penv platform newtypes gamma ctailInline defs
+  = ctailRun penv platform newtypes gamma ctailInline (ctailDefGroups True defs)    
   
 --------------------------------------------------------------------------
 -- Definition groups
@@ -84,7 +84,10 @@ ctailDef topLevel def
                      
                  cdefExpr <- withContext ctailTName (Just ctailTSlot) $
                              ctailExpr True (makeCDefExpr ctailTSlot (defExpr def))
-                 expr     <- withContext ctailTName Nothing (ctailExpr True (defExpr def))
+                 expr     <- withContext ctailTName Nothing $
+                             do doInline <- getOptCtailInline
+                                if (doInline) then ctailExpr True (defExpr def)
+                                              else ctailWrapper ctailTSlot (defExpr def)
                  let cdef = def{ defName = ctailName, defType = ctailType, defExpr = cdefExpr }
                  return [DefRec [cdef,def{defExpr = expr}]] -- {defExpr=expr}])
 
@@ -109,8 +112,31 @@ hasRefType tp
       TApp t ts   -> hasRefType t
       TCon con    -> not <$> isValueType (typeConName con)
       _           -> return False
+
+----------------------------------------------------------------------------
+-- Create a wrapper: this costs one allocation but prevents code duplication
+----------------------------------------------------------------------------
       
-      
+ctailWrapper :: TName -> Expr -> CTail Expr       
+ctailWrapper slot (TypeLam targs (Lam args eff body)) 
+  = do body' <- ctailWrapperBody (typeOf body) slot targs args
+       return (TypeLam targs (Lam args eff body'))
+ctailWrapper slot (Lam args eff body)   
+  = do body' <- ctailWrapperBody (typeOf body) slot [] args
+       return (Lam args eff body')
+ctailWrapper slot body                 
+  = failure $ "Core.CTail.ctailWrapper: illegal ctail function shape: " ++ show body
+  
+ctailWrapperBody :: Type -> TName -> [TypeVar] -> [TName] -> CTail Expr
+ctailWrapperBody resTp slot targs args
+  = do tailVar <- getCTailFun
+       let accDecl  = makeTDef slot (makeCTailAlloc resTp)
+           tailCall = App (makeTypeApp tailVar [TVar tv | tv <- targs]) [Var name InfoNone | name <- args ++ [slot]]
+           accGet   = makeCTailGet resTp slot 
+       return (Let [DefNonRec accDecl
+                   ,DefNonRec (makeDef nameNil tailCall)
+                   ]accGet)
+                
       
 --------------------------------------------------------------------------
 -- Does there exist a tail call definition?
@@ -297,7 +323,20 @@ makeCTailSet slot expr
         [Var slot InfoNone,expr]  -- danger: not fully applied Con
   where
     funType = TFun [(nameNil,typeOf slot),(nameNil,typeOf expr)] typeTotal typeUnit
+    
+makeCTailGet :: Type -> TName -> Expr
+makeCTailGet tp slot 
+  = App (Var (TName nameCTailGet funType) (InfoExternal [])) 
+        [Var slot InfoNone]
+  where
+    funType = TFun [(nameNil,typeOf slot)] typeTotal tp
         
+makeCTailAlloc :: Type -> Expr
+makeCTailAlloc tp
+  = App (Var (TName nameCTailAlloc funType) (InfoExternal [])) []
+  where 
+    funType = TFun [] typeTotal (makeSlotType tp)
+
     
 makeSlotType :: Type -> Type
 makeSlotType tp
@@ -336,6 +375,7 @@ data Env = Env { currentDef :: [Def],
                  platform  :: Platform,
                  newtypes :: Newtypes,
                  gamma :: Gamma,
+                 ctailInline :: Bool,
                  ctailName :: TName,
                  ctailSlot :: Maybe TName
                }
@@ -363,10 +403,10 @@ updateSt = modify
 getSt :: CTail CTailState
 getSt = get
 
-ctailRun :: Pretty.Env -> Platform -> Newtypes -> Gamma -> CTail a -> Unique a
-ctailRun penv platform newtypes gamma (CTail action)
+ctailRun :: Pretty.Env -> Platform -> Newtypes -> Gamma -> Bool -> CTail a -> Unique a
+ctailRun penv platform newtypes gamma ctailInline (CTail action)
   = withUnique $ \u ->
-      let env = Env [] penv platform newtypes gamma (TName nameNil typeUnit) Nothing
+      let env = Env [] penv platform newtypes gamma ctailInline (TName nameNil typeUnit) Nothing
           st = CTailState u
           (val, st') = runState (runReaderT action env) st
        in (val, uniq st')
@@ -432,6 +472,9 @@ withPrettyEnv f = withEnv (\e -> e { prettyEnv = f (prettyEnv e) })
 
 getPlatform :: CTail Platform
 getPlatform = platform <$> getEnv
+
+getOptCtailInline :: CTail Bool
+getOptCtailInline = ctailInline <$> getEnv
 
 ---------------------
 -- state accessors --

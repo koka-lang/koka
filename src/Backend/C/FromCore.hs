@@ -1804,6 +1804,23 @@ genExprExternal tname formats [] | getName tname == nameCTailHole
 genExprExternal tname formats [accDoc,argDoc] | getName tname == nameCTailSet
   = return ([],text "*" <.> parens accDoc <+> text "=" <+> argDoc)
 
+-- special case: ctail get
+genExprExternal tname formats [accDoc] | getName tname == nameCTailGet
+  = case (typeOf tname) of
+      TFun _ _ tres
+        -> do r <- genVarName "res" 
+              let rdecl = ppType tres <+> r <+> text "=" <+> text "*" <.> parens accDoc <.> semi 
+                          <+> text "kk_free" <.> parens accDoc <.> semi
+              return ([rdecl], r)
+      _ -> failure $"Backend.C.FromCore.genExprExternal.CTailGet: illegal type: " ++ show (pretty (typeOf tname))
+
+-- special case: ctail alloc
+genExprExternal tname formats [] | getName tname == nameCTailAlloc
+  = case (typeOf tname) of
+      TFun _ _ tres@(TApp _ [tp])
+        -> do return ([], parens (parens (ppType tres) <.> text "kk_malloc(sizeof(" <.> ppType tp <.> text "),kk_context())"))
+      _ -> failure $"Backend.C.FromCore.genExprExternal.CTailAlloc: illegal type: " ++ show (pretty (typeOf tname))
+
 -- normal external
 genExprExternal tname formats argDocs0
   = let name = getName tname

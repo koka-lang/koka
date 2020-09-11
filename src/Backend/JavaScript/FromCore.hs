@@ -661,8 +661,9 @@ genExpr expr
              conDoc <- genTName con
              let assign    = accDoc <.> text ".value[" <.> accDoc <.> text ".field] =" <+> resDoc -- <.> semi
                  reuse     = accDoc <.> text ".value =" <+> conDoc
+                 nextField = accDoc <.> text ".field =" <+> dquotes (ppName fieldName)              
                  next      = accDoc
-             return (empty,tupled [assign,reuse,next])
+             return (empty,tupled [assign,reuse,nextField,next])
      
      -- special case: ctail create
      App (Var ctailCreate (InfoConField conName fieldName)) [Var con _] | getName ctailCreate == nameCTailCreate
@@ -878,7 +879,17 @@ genExprExternalPrim tname formats [] | getName tname == nameCTailHole
 -- special case: ctail set (accumulator is implemented as {value:<obj>, field:<string>})
 genExprExternalPrim tname formats [accDoc,resDoc] | getName tname == nameCTailSet
   = return ([], tupled [accDoc <.> text ".value[" <.> accDoc <.> text ".field] =" <+> resDoc, text "$std_core_types._Unit_"])
+  
+-- special case: ctail get
+genExprExternalPrim tname formats [accDoc] | getName tname == nameCTailGet
+  = return ([], accDoc <.> text ".result.value")
 
+-- special case: ctail alloc
+genExprExternalPrim tname formats [] | getName tname == nameCTailAlloc  
+  = do res <- genVarName "res" 
+       return ([text "var" <+> res <+> text "=" <+> text "{ value: undefined }" <.> semi], 
+               text "{ value:" <+> res <.> text ", field: \"value\", result:" <+> res <+> text "}")
+    
 -- normal external
 genExprExternalPrim tname formats argDocs0
   = let name = getName tname

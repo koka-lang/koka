@@ -329,3 +329,5 @@ extern inline ".ctail-hole"() : a { }
 extern inline ".ctail-create"(obj : a, cname : string, field : string) : ctail<a> { }
 extern inline ".ctail-next"(acc : ctail<a>, res : a, obj : a, cname : string , field : string ) : ctail<a> { }
 extern inline ".ctail-set"( acc : ctail<a>, res : a ) : () { }
+extern inline ".ctail-get"( acc : ctail<a> ) : a { }
+extern inline ".ctail-alloc"() : ctail<a> { }
