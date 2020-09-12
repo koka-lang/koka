@@ -420,6 +420,7 @@ genTypeDef (Data info isExtend)
                                                   let (fields,size,scanCount) = orderConFieldsEx platform newtypes (dataRepr == DataOpen) (conInfoParams conInfo)
                                                   return (conInfo,conRepr,fields,scanCount)) conInfoReprs
        let maxScanCount = maxScanCountOf conInfos
+           minScanCount = minScanCountOf conInfos
        
        -- generate types for constructors
        if (dataRepr == DataEnum)
@@ -439,7 +440,7 @@ genTypeDef (Data info isExtend)
                        <+> block (text "kk_value_tag_t _tag;" <-> text "union"
                                   <+> block (vcat (
                                          map ppStructConField (dataInfoConstrs info)
-                                         ++ (if (maxScanCount > 0) 
+                                         ++ (if (maxScanCount > 0 && minScanCount /= maxScanCount) 
                                               then [text "kk_box_t _fields[" <.> pretty maxScanCount <.> text "];"]
                                               else [])                                         
                                       )) <+> text "_cons;") <.> semi
@@ -468,6 +469,11 @@ genTypeDef (Data info isExtend)
 maxScanCountOf :: [(ConInfo,ConRepr,[(Name,Type)],Int)] -> Int
 maxScanCountOf conInfos
   = foldr (\(_,_,_,sc) n -> max sc n) 0 conInfos
+
+minScanCountOf :: [(ConInfo,ConRepr,[(Name,Type)],Int)] -> Int
+minScanCountOf [] = 0
+minScanCountOf conInfos
+  = foldr (\(_,_,_,sc) n -> min sc n) (maxScanCountOf conInfos) conInfos
 
 genConstructorType :: DataInfo -> DataRepr -> (ConInfo,ConRepr,[(Name,Type)],Int) -> Asm ()
 genConstructorType info dataRepr (con,conRepr,conFields,scanCount) =
@@ -584,7 +590,8 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount maxScanCount
                                  then [ ppName (typeClassName (dataInfoName info)) <+> tmp <.> semi
                                       , tmp <.> text "._tag =" <+> ppConTag con conRepr dataRepr  <.> semi]
                                       ++ map (assignField (\fld -> tmp <.> text "._cons." <.> ppDefName (conInfoName con) <.> text "." <.> fld)) conFields
-                                      ++ [tmp <.> text "._cons._fields[" <.> pretty i <.> text "] = kk_box_null;" | i <- [length conFields..(maxScanCount-1)]]                                      
+                                      ++ [tmp <.> text "._cons._fields[" <.> pretty i <.> text "] = kk_box_null;" 
+                                          | i <- [scanCount..(maxScanCount-1)]]                                      
                                  else [ ppName (typeClassName (dataInfoName info)) <+> tmp <.> semi {- <+> text "= {0}; // zero initializes all fields" -} ]
                                       ++ map (assignField (\fld -> tmp <.> text "." <.> fld)) conFields
                                )
