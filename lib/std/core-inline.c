@@ -274,13 +274,13 @@ kk_std_core__error kk_error_from_errno( int err, kk_box_t result, kk_context_t* 
   else {
     kk_box_drop(result, ctx);
     kk_string_t msg;
-    #if ((__STDC_VERSION__ >= 201112L) || _MSC_VER) // C11 or msvc
-      char buf[256];
-      strerror_s(buf, 255, err); buf[255] = 0;
-      msg = kk_string_alloc_dup( buf, ctx );
-    #elif defined(_POSIX_C_SOURCE) &&  (_POSIX_C_SOURCE > 200112L)
+    #if defined(_POSIX_C_SOURCE) &&  (_POSIX_C_SOURCE > 200112L)
       char buf[256];
       strerror_r(err, buf, 255); buf[255] = 0;
+      msg = kk_string_alloc_dup( buf, ctx );
+    #elif defined(_MSC_VER) || (__STDC_VERSION__ >= 201112L || __cplusplus >= 201103L)
+      char buf[256];
+      strerror_s(buf, 255, err); buf[255] = 0;
       msg = kk_string_alloc_dup( buf, ctx );
     #else
       msg = kk_string_alloc_dup( strerror(err), ctx );
