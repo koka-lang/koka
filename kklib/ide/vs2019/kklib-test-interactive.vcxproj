@@ -161,7 +161,7 @@
     <ClCompile Include="..\..\..\out\Debug\std_core_types.c" />
     <ClCompile Include="..\..\..\out\Debug\std_num_int32.c" />
     <ClCompile Include="..\..\..\out\Debug\std_os_env.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_os_flags.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_os_file.c" />
     <ClCompile Include="..\..\..\out\Debug\std_os_path.c" />
     <ClCompile Include="..\..\..\out\Debug\std_text_parse.c" />
   </ItemGroup>

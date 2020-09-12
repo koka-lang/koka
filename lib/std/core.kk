@@ -2466,11 +2466,11 @@ public fun noinline notrace() : st<global> () {
 
 
 fun assert( message : string, condition : bool ) : () {
-  if (!condition) unsafe-noexn{ throwx(message,Assert) }
+  if (!condition) unsafe-noexn{ throw(message,ExnAssert) }
 }
 
 fun todo( message : string ) : () {
-  unsafe-noexn{ throwx(message,Todo) }
+  unsafe-noexn{ throw(message,ExnTodo) }
 }
 
 // ----------------------------------------------------------------------------
@@ -2480,12 +2480,12 @@ fun todo( message : string ) : () {
 // Exceptions
 effect exn {
   // Throw an exception
-  control throw( exn : exception ) : a
+  control throw-exn( exn : exception ) : a
 }
 
 fun ".default-exn"(action) {
   handle(action) {
-    control throw( exn : exception ) {
+    control throw-exn( exn : exception ) {
       "uncaught exception: ".prints
       show(exn).println
     }
@@ -2497,13 +2497,13 @@ struct exception( message :string, info :exception-info )
 
 // Exception information
 type open exception-info {
-  Error
-  Assert
-  Todo
-  Range
-  Pattern( location : string, definition : string )
-  System( errno : string )
-  Internal( name : string )
+  ExnError      // Generic error
+  ExnAssert
+  ExnTodo
+  ExnRange
+  ExnPattern( location : string, definition : string )
+  ExnSystem( errno : int )
+  ExnInternal( name : string )
 }
 
 
@@ -2512,26 +2512,23 @@ fun show( exn : exception ) : string {
   exn.message
 }
 
-fun throwx( message: string, info : exception-info ) : exn a {
-  throw(Exception(message,info))
-}
-
 // Throw an exception with a specified message.
-fun error( message : string ) : exn a {
-  throwx(message,Error)
+fun throw( message: string, info : exception-info = ExnError ) : exn a {
+  throw-exn(Exception(message,info))
 }
 
 
 // Raise a pattern match exception. This is function is used internally by the
 // compiler to generate error messages on pattern match failures.
 fun error-pattern(location : string, definition : string) : exn a {
-  throwx(location + (if (definition.empty?) then "" else (": " + definition)) + ": pattern match failure", Pattern(location,definition))
+  throw(location + (if (definition.empty?) then "" else (": " + definition)) + ": pattern match failure", 
+         ExnPattern(location,definition))
 }
 
 // Catch any exception raised in `action` and handle it.
 // Use `on-exn` or `on-exit` when appropiate.
 fun try( action : () -> <exn|e> a, hndl: exception -> e a ) : e a {
-  with control throw(exn){ hndl(exn) }
+  with control throw-exn(exn){ hndl(exn) }
   action()
 }
 
@@ -2541,23 +2538,16 @@ fun catch( action : () -> <exn|e> a, hndl: exception -> e a) : e a {
   try(action,hndl)
 }
 
-// A `:try` type represents a first-class exception result.
-type try<a> {
-  TryExn( exc : exception )
-  TryOk( result : a )
+// An `:error` type represents a first-class exception result.
+type error<a> {
+  Error( exception : exception )
+  Ok( result : a )
 }
 
-// Is it an exception?
-fun exn?( t : try<a> ) : bool {
-  match(t) {
-    TryExn -> True
-    _      -> False
-  }
-}
 
-// Transform an exception effect to a `:try` type.
-fun try( action : () -> <exn|e> a ) : e try<a> {
-  try({ TryOk(action()) }, fun(exn){ TryExn(exn) })
+// Transform an exception effect to an  `:error` type.
+fun try( action : () -> <exn|e> a ) : e error<a> {
+  try({ Ok(action()) }, fun(exn){ Error(exn) })
 }
 
 // Return a default value when an exception is raised
@@ -2565,21 +2555,43 @@ fun try-default( value : a , action : () -> <exn|e> a ) : e a {
   try( action, fun(_) { value })
 }
 
-// Transform an `:try` type back to an `exn` effect.
-fun untry( ex : try<a> ) : exn a {
-  match(ex) {
-    TryExn(exn) -> throw(exn)
-    TryOk(x)    -> x
+// Transform an `:error` type back to an `exn` effect.
+fun throw( err : error<a> ) : exn a {
+  match(err) {
+    Error(exn) -> throw-exn(exn)
+    Ok(x)      -> x
   }
 }
 
-// Transform a `:try` type to a `:maybe` value.
-fun maybe( t : try<a> ) : maybe<exception> {
+// Transform an `:error` type back to an `exn` effect.
+fun exn( err : error<a> ) : exn a {
+  throw(err)
+}
+
+// Use default value `def` in case of an error.
+fun default( t : error<a>, def : a ) : a {
   match(t) {
-    TryExn(exn) -> Just(exn)
-    TryOk -> Nothing
+    Error  -> def
+    Ok(x)  -> x
   }
 }
+
+// Transform an `:error` type to a `:maybe` value.
+fun maybe( t : error<a> ) : maybe<a> {
+  match(t) {
+    Error  -> Nothing
+    Ok(x)  -> Just(x)
+  }
+}
+
+// Transform an `:error` type to an `:either` value.
+fun either( t : error<a> ) : either<exception,a> {
+  match(t) {
+    Error(exn) -> Left(exn)
+    Ok(x)      -> Right(x)
+  }
+}
+
 /*
 // Set a `hndler` that is called only when an exception is raised in the `action` block.
 fun on-exn( hndler : exception -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a {
@@ -2594,6 +2606,7 @@ fun on-exn( hndler : exception -> <exn|e> (), action : () -> <exn|e> a ) : <exn|
 fun on-exit( hndler : () -> e (), action : () -> e a ) : e a {
   finally(hndler,action)
 }
+
 
 // ----------------------------------------------------------------------------
 // Null is used for external interfaces

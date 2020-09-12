@@ -117,7 +117,7 @@ effect cheating {
 }
 
 val cheatReport = handler {
-  fun cheat(p) { error((p:player).show + " cheated!") }
+  fun cheat(p) { throw((p:player).show + " cheated!") }
 }
 
 val check = handler {

@@ -95,3 +95,6 @@ static inline kk_std_core_types__tuple2_ kk_integer_div_mod_tuple(kk_integer_t x
 }
  
 kk_box_t kk_main_console( kk_function_t action, kk_context_t* ctx );
+
+struct kk_std_core_error_s;
+struct kk_std_core_error_s kk_error_from_errno( int err, kk_box_t result, kk_context_t* ctx );

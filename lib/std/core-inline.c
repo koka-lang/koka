@@ -264,3 +264,27 @@ struct kk_std_core_Sslice kk_slice_common_prefix( kk_string_t str1, kk_string_t 
   kk_string_drop(str2,ctx);
   return kk_std_core__new_Sslice(str1, 0, count, ctx);
 }
+
+
+
+kk_std_core__error kk_error_from_errno( int err, kk_box_t result, kk_context_t* ctx ) {
+  if (err==0) {
+    return kk_std_core__new_Ok( result, ctx );
+  }
+  else {
+    kk_box_drop(result, ctx);
+    kk_string_t msg;
+    #if ((__STDC_VERSION__ >= 201112L) || _MSC_VER) // C11 or msvc
+      char buf[256];
+      strerror_s(buf, 255, err); buf[255] = 0;
+      msg = kk_string_alloc_dup( buf, ctx );
+    #elif defined(_POSIX_C_SOURCE) &&  (_POSIX_C_SOURCE > 200112L)
+      char buf[256];
+      strerror_r(err, buf, 255); buf[255] = 0;
+      msg = kk_string_alloc_dup( buf, ctx );
+    #else
+      msg = kk_string_alloc_dup( strerror(err), ctx );
+    #endif
+    return kk_std_core__new_Error( kk_std_core__new_Exception( msg, kk_std_core__new_ExnSystem(kk_reuse_null, kk_integer_from_int(err,ctx), ctx), ctx), ctx );
+  }
+}
