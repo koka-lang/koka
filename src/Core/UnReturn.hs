@@ -123,8 +123,19 @@ urExpr expr
         -> return (R arg)
 
       -- pure expressions that do not contain return (as checked by the grammar)
+      App f args
+        -> do f' <- urPure f
+              args' <- mapM urPure args
+              return (I (App f' args'))
       _ -> return (U expr)
 
+urPure :: Expr -> UR Expr
+urPure expr
+  = do kexpr <- urExpr expr
+       case kexpr of
+         U org  -> return org
+         I e    -> return e
+         _      -> failure "Core.UnReturn.urTopDef: should not happen: return inside top level definition"
 
 urLet :: Expr -> [DefGroup] -> KExpr -> UR KExpr
 urLet org defgroups kbody
