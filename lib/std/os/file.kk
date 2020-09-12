@@ -25,17 +25,17 @@ extern import {
 // Read a text file synchronously (using UTF8 encoding)
 public fun read-text-file( path : string ) : <file,exn> string {
   match(read-text-file-either(path)) {
-    Left(errno) -> Exception("unable to read text file " + path.show, System(errno.show)).throw
+    Left(errno) -> throw(Exception("unable to read text file " + path.show, System(errno.show)))
     Right(s)    -> s
   }
 }
 
 // Write a text file synchronously (using UTF8 encoding)
 public fun write-text-file( path : string, content : string ) : <file,exn> () {
-  match(write-text-file-either(path,content)) {
-    Left(errno) -> Exception("unable to write text file " + path.show, System(errno.show)).throw
-    Right       -> ()
-  }
+  val errno = write-text-file-err(path,content)
+  if (errno!=0) 
+   then throw(Exception("unable to write text file " + path.show, System(errno.show)))
+   else ()
 }
 
 extern read-text-file-either( path : string ) : file either<int,string> {
@@ -44,8 +44,8 @@ extern read-text-file-either( path : string ) : file either<int,string> {
   //cs inline "System.IO.File.ReadAllText(#1,System.Text.Encoding.UTF8)"
 }
 
-extern write-text-file-either( path : string, content : string )  : file either<int,()> {
-  c "kk_os_write_text_file_either"
-  js inline "($std_core.host()=='node' ? fs.writeFileSync(#1,#2,{encoding: 'utf8'}) : null)"
+extern write-text-file-err( path : string, content : string )  : int {
+  c "kk_os_write_text_file_err"
+  js inline "($std_core.host()=='node' ? fs.writeFileSync(#1,#2,{encoding: 'utf8'}) : 1)"
   //cs inline "System.IO.File.WriteAllText(#1,#2,System.Text.Encoding.UTF8)"
 }
