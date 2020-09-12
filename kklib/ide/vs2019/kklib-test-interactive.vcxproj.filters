@@ -8,5 +8,6 @@
     <ClCompile Include="..\..\..\out\Debug\std_text_parse.c" />
     <ClCompile Include="..\..\..\out\Debug\interactive.c" />
     <ClCompile Include="..\..\..\out\Debug\std_os_path.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_os_env.c" />
   </ItemGroup>
 </Project>
