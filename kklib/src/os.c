@@ -11,6 +11,85 @@
 #include "kklib.h"
 
 /*--------------------------------------------------------------------------------------------------
+  Args
+--------------------------------------------------------------------------------------------------*/
+
+kk_decl_export kk_vector_t kk_os_get_argv(kk_context_t* ctx) {
+  if (ctx->argc==0 || ctx->argv==NULL) return kk_vector_empty();
+  kk_vector_t args = kk_vector_alloc(ctx->argc, kk_box_null, ctx);
+  kk_box_t* buf = kk_vector_buf(args, NULL);
+  for (size_t i = 0; i < ctx->argc; i++) {
+    buf[i] = kk_string_box(kk_string_alloc_dup(ctx->argv[i], ctx));
+  }
+  return args;
+}
+
+
+#if defined _WIN32
+#include <Windows.h>
+kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
+  const LPCH env = GetEnvironmentStringsA();
+  if (env==NULL) return kk_vector_empty();
+  // first count the number of environment variables  (ends with two zeros)
+  size_t count = 0;
+  for (size_t i = 0; !(env[i]==0 && env[i+1]==0); i++) {
+    if (env[i]==0) count++;
+  }
+  kk_vector_t v = kk_vector_alloc(count*2, kk_box_null, ctx);
+  kk_box_t* buf = kk_vector_buf(v, NULL);
+  const char* p = env;
+  // copy the strings into the vector
+  for(size_t i = 0; i < count; i++) {
+    const char* pname = p;
+    while (*p != '=' && *p != 0) { p++; }    
+    buf[2*i] = kk_string_box( kk_string_alloc_len((p - pname), pname, ctx) );
+    p++; // skip '='
+    const char* pvalue = p;
+    while (*p != 0) { p++; }
+    buf[2*i + 1] = kk_string_box(kk_string_alloc_len((p - pvalue), pvalue, ctx));
+    p++;
+  }
+  FreeEnvironmentStringsA(env);
+  return v;
+}
+#else
+#if defined(__APPLE__) && defined(__has_include) && __has_include(<crt_externs.h>)
+#include <crt_externs.h>
+static char** kk_get_environ(void) {
+  return (*_NSGetEnviron());
+}
+#else 
+// On Posix systems use `environ` 
+extern char** environ;
+static char** kk_get_environ(void) {
+  return environ;
+}
+#endif
+kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
+  const char** env = kk_get_environ();
+  if (env==NULL) return kk_vector_empty();
+  // first count the number of environment variables 
+  size_t count;
+  for (count = 0; env[count]!=NULL; count++) { /* nothing */ }
+  kk_vector_t v = kk_vector_alloc(count*2, kk_box_null, ctx);
+  kk_box_t* buf = kk_vector_buf(v, NULL);
+  // copy the strings into the vector
+  for (size_t i = 0; i < count; i++) {
+    const char* p = env[i];
+    const char* pname = p;
+    while (*p != '=' && *p != 0) { p++; }
+    buf[2*i] = kk_string_box(kk_string_alloc_len((p - pname), pname, ctx));
+    p++; // skip '='
+    const char* pvalue = p;
+    while (*p != 0) { p++; }
+    buf[2*i + 1] = kk_string_box(kk_string_alloc_len((p - pvalue), pvalue, ctx));
+  }
+  return v;
+}
+#endif
+
+
+/*--------------------------------------------------------------------------------------------------
   Path max
 --------------------------------------------------------------------------------------------------*/
 kk_decl_export size_t kk_os_path_max(void);

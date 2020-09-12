@@ -19,5 +19,7 @@ kk_decl_export kk_string_t kk_os_path_sep(kk_context_t* ctx);
 kk_decl_export kk_string_t kk_os_dir_sep(kk_context_t* ctx);
 kk_decl_export kk_string_t kk_os_home_dir(kk_context_t* ctx);
 kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx);
+kk_decl_export kk_vector_t kk_os_get_argv(kk_context_t* ctx);
+kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx);
 
 #endif // include guard
