@@ -28,9 +28,9 @@ fun to-tuples( xs : list<string> ) : env {
   }
 }
 
-extern os-get-env() : ndet vector<string>  {
+extern os-get-env() : ndet vector<string>  {   // vector as [name1,value1,...,nameN,valueN]
   c "kk_os_get_env"  
-  js inline "(typeof process !== 'undefined' ? process.env : {})"
+  js inline "(typeof process !== 'undefined' ? (function(){ var env = []; Object.keys(process.env).forEach(function(name){ env.push(name); env.push(process.env[name]); }); return env; })() : [])"
 }
 
 // Get the environment variables for this program
