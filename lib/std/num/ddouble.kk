@@ -867,7 +867,7 @@ public fun parse-ddouble( s  : string ) : maybe<ddouble> {
 	s.trim.to-lower.slice.parse-eof(pddouble).maybe
 }
 
-fun pddouble() : parse ddouble {
+public fun pddouble() : parse ddouble {
 	(pddouble-sum || pddouble-normal)
 }
 

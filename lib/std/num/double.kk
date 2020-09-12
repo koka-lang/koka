@@ -530,7 +530,7 @@ private fun phexdouble() : parse double {
 private fun pdecdouble() : parse double {
 	val cur  = current-input()
 	val man  = digits()
-	val frac = optional("", { char('.'); digits() }).trim-right("0")
+	val frac = optional("", { char('.'); digits0() }).trim-right("0")
   val exp : int = optional( 0, { one-of("eE"); pint() })
 	//val m : int = (man + frac).parse-int-default(0)
   //val e : int = exp - frac.count  

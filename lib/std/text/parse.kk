@@ -87,6 +87,10 @@ fun (||)( p1 : parser<e,a>, p2 : parser<e,a> ) : <parse|e> a {
   if (pick()) then p1() else p2()
 }
 
+fun optional( default : a, p : parser<e,a> ) : <parse|e> a {
+  (p || ({ default }))
+}
+
 fun choose( ps : list<parser<e,a>> ) : <parse|e> a {
   match(ps) {
     Nil -> fail("no further alternatives")
@@ -119,16 +123,17 @@ fun char-is( msg :string, pred : char -> bool ) : parse char {
   }
 }
 
-private fun next-while( slice : sslice, pred : char -> bool, acc : list<char> ) : (list<char>,sslice) {
+private fun next-while0( slice : sslice, pred : char -> bool, acc : list<char> ) : (list<char>,sslice) {
   match(slice.next) {
-    Just((c,rest)) | pred(c) -> next-while(unsafe-decreasing(rest), pred, Cons(c,acc) )
+    Just((c,rest)) | pred(c) -> next-while0(unsafe-decreasing(rest), pred, Cons(c,acc) )
     _ -> (acc.reverse,slice)
   }
 }
 
+
 fun chars-are( msg :string, pred : char -> bool ) : parse list<char> {
   satisfy-fail(msg) fun(slice) { 
-    match( slice.next-while(pred,[]) ) {
+    match( slice.next-while0(pred,[]) ) {
       ([],_) -> Nothing
       (xs,rest) -> Just((xs,rest))
     }
@@ -158,6 +163,10 @@ fun char( c : char ) : parse char {
   char-is( show(c), fun(c0){ c == c0 } )
 }
 
+fun no-digit() : parse char {
+  char-is("not a digit", fun(c){ !c.digit? })
+}
+
 fun digit() : parse int {
   val c = char-is("digit", digit?)
   (c - '0').int
@@ -175,8 +184,20 @@ fun white() : parse char {
   char-is("", white?)
 }
 
+fun whitespace() : parse string {
+  chars-are("", white?).string  
+}
+
+fun whitespace0() : parse string {
+  optional("", whitespace)
+}
+
 fun digits() : parse string {
   chars-are("digit", digit? ).string
+}
+
+fun digits0() : parse string {
+  optional("0", digits)
 }
 
 fun sign() : parse bool {
@@ -194,9 +215,6 @@ fun pint() : parse int {
   if (neg) then ~i else i
 }
 
-fun optional( default : a, p : parser<e,a> ) : <parse|e> a {
-  (p || ({ default }))
-}
 
 fun none-of( chars : string ) : parse char {
   char-is("", fun(c){ !chars.contains(c.string)  })
@@ -221,7 +239,7 @@ fun many1( p : parser<e,a> ) : <parse|e> list<a> {
 
 
 fun one-of-or( chars : string, default : char ) : parse char {
-  optional( default, { one-of(chars) } )
+  optional( default){ one-of(chars) }
 }
 //private val rx-float	= regex(@"^([\-\+])?(\d+(?:\.\d+)?(?:[eE][\-\+]\d+)?)$")
 //private val rx-hexfloat	= regex(@"^([\-\+]?0[xX][0-9a-fA-F]+)(?:\.([0-9a-fA-F]+))?(?:[pP]([\-\+]?\d+))?$")

@@ -814,27 +814,50 @@ public fun join-end( xs : list<string>, end : string) : string {
 
 
 // Concatenate all lists in a list (e.g. flatten the list). (tail-recursive)
-fun concat( xs : list<list<a>> ) : list<a>
+fun concat( xss : list<list<a>> ) : list<a>
 {
-  fun concat-rev( xss : list<list<a>>, acc : list<a> ) : list<a> {
-    match(xss) {
-      Cons(ys,yss) -> concat-rev( yss, ys + acc )
-      Nil          -> acc
-    }
+  fun concat-pre( ys : list<a>, zss : list<list<a>> ) : list<a> {
+    match(ys) {
+      Cons(y,yy) -> Cons(y,concat-pre(yy,zss))
+      Nil -> match(zss) {
+        Cons(zs,zzs) -> concat-pre(zs,zzs)
+        Nil -> Nil
+      }
+    }      
   }
-  concat-rev(xs.reverse,[])
+  concat-pre([],xss)
 }
 
 // Concatenate the result lists from applying a function to all elements.
 fun flatmap( xs: list<a>, f : a -> e list<b> ) : e list<b>
 {
-  xs.map(f).concat()
+  fun flatmap-pre( ys, zs ) {
+    match(ys) {
+      Cons(y,yy) -> Cons(y,flatmap-pre(yy,zs))
+      Nil -> match(zs) {
+        Cons(z,zz) -> flatmap-pre(f(z),zz)
+        Nil -> Nil
+      }
+    }      
+  }
+  flatmap-pre([],xs)
+}
+
+// Concatenate the `Just` result elements from applying a function to all elements.
+fun flatmap-maybe( xs : list<a>, f : a -> e maybe<b> ) : e list<b> {
+  match(xs) {
+    Cons(x,xx) -> match(f(x)) {
+      Just(y) -> Cons(y, xx.flatmap-maybe(f))
+      Nothing -> xx.flatmap-maybe(f)
+    }
+    Nil -> Nil
+  }
 }
 
 // Concatenate a list of `:maybe` values
 fun concat-maybe( xs : list<maybe<a>> ) : list<a>
 {
-  xs.map(list).concat()
+  xs.flatmap-maybe(id)
 }
 
 // Return the last element of a list (or `Nothing` for the empty list)
@@ -1086,7 +1109,7 @@ extern inline (%)  : (int,int) -> int {
 // See also _Division and modulus for computer scientists, Daan Leijen, 2001_ for further information
 // available at: <http://research.microsoft.com/pubs/151917/divmodnote.pdf> .
 extern inline divmod(x:int,y:int) : (int,int) {
-  c "kk_integer_div_mod"
+  c  "kk_integer_div_mod_tuple"
   cs "Primitive.IntDivMod"
   js "$std_core._int_divmod"
 }

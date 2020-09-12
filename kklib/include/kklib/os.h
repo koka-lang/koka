@@ -22,4 +22,7 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx);
 kk_decl_export kk_vector_t kk_os_get_argv(kk_context_t* ctx);
 kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx);
 
+kk_decl_export int kk_os_read_text_file(kk_string_t path, kk_string_t* result, kk_context_t* ctx);
+kk_decl_export int kk_os_write_text_file(kk_string_t path, kk_string_t content, kk_context_t* ctx);
+
 #endif // include guard
