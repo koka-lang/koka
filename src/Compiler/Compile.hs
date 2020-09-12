@@ -1465,11 +1465,14 @@ buildDir flags
          
 configType :: Flags -> String
 configType flags
-  = if optimize flags <= 0
-      then "Debug"
-      else if debug flags
-             then "RelWithDebInfo"
-             else "Release"
+  = if (target flags == C)
+     then (if optimize flags <= 0
+             then "Debug"
+             else if debug flags
+                    then "RelWithDebInfo"
+                    else "Release")
+     else (show (target flags))
+      
 
      
 

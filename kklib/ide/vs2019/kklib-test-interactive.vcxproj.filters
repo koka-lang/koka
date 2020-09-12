@@ -9,5 +9,6 @@
     <ClCompile Include="..\..\..\out\Debug\interactive.c" />
     <ClCompile Include="..\..\..\out\Debug\std_os_path.c" />
     <ClCompile Include="..\..\..\out\Debug\std_os_env.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_os_flags.c" />
   </ItemGroup>
 </Project>

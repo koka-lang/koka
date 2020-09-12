@@ -419,6 +419,8 @@ genTypeDef (Data info isExtend)
                                                   platform <- getPlatform
                                                   let (fields,size,scanCount) = orderConFieldsEx platform newtypes (dataRepr == DataOpen) (conInfoParams conInfo)
                                                   return (conInfo,conRepr,fields,scanCount)) conInfoReprs
+       let maxScanCount = maxScanCountOf conInfos
+       
        -- generate types for constructors
        if (dataRepr == DataEnum)
         then return ()
@@ -435,7 +437,12 @@ genTypeDef (Data info isExtend)
           else emitToH $ if (isDataStructLike dataRepr)
                   then ppVis (dataInfoVis info) <.> text "struct" <+> ppName name <.> text "_s"
                        <+> block (text "kk_value_tag_t _tag;" <-> text "union"
-                                  <+> block (vcat (map ppStructConField (dataInfoConstrs info))) <+> text "_cons;") <.> semi
+                                  <+> block (vcat (
+                                         map ppStructConField (dataInfoConstrs info)
+                                         ++ (if (maxScanCount > 0) 
+                                              then [text "kk_box_t _fields[" <.> pretty maxScanCount <.> text "];"]
+                                              else [])                                         
+                                      )) <+> text "_cons;") <.> semi
                        <-> ppVis (dataInfoVis info) <.> text "typedef struct" <+> ppName name <.> text "_s" <+> ppName (typeClassName name) <.> semi
                   else ppVis (dataInfoVis info) <.> text "typedef struct"
                        <+> (case (dataRepr,dataInfoConstrs info) of
@@ -445,7 +452,7 @@ genTypeDef (Data info isExtend)
                        <+> ppName (typeClassName name) <.> semi
 
        -- generate functions for constructors
-       mapM_ (genConstructor info dataRepr) conInfos
+       mapM_ (genConstructor info dataRepr maxScanCount) conInfos
        mapM_ (genConstructorTest info dataRepr) conInfos
        genDupDrop (typeClassName name) info dataRepr conInfos
 
@@ -458,6 +465,9 @@ genTypeDef (Data info isExtend)
     ppStructConField con
       = text "struct" <+> ppName ((conInfoName con)) <+> ppName (unqualify (conInfoName con)) <.> semi
 
+maxScanCountOf :: [(ConInfo,ConRepr,[(Name,Type)],Int)] -> Int
+maxScanCountOf conInfos
+  = foldr (\(_,_,_,sc) n -> max sc n) 0 conInfos
 
 genConstructorType :: DataInfo -> DataRepr -> (ConInfo,ConRepr,[(Name,Type)],Int) -> Asm ()
 genConstructorType info dataRepr (con,conRepr,conFields,scanCount) =
@@ -480,9 +490,9 @@ ppConField :: (Name,Type) -> Doc
 ppConField (name,tp)
   = ppType tp <+> ppName (unqualify name) <.> semi
 
-genConstructor :: DataInfo -> DataRepr -> (ConInfo,ConRepr,[(Name,Type)],Int) -> Asm ()
-genConstructor info dataRepr (con,conRepr,conFields,scanCount)
-  = do genConstructorCreate info dataRepr con conRepr conFields scanCount
+genConstructor :: DataInfo -> DataRepr -> Int -> (ConInfo,ConRepr,[(Name,Type)],Int) -> Asm ()
+genConstructor info dataRepr maxScanCount (con,conRepr,conFields,scanCount) 
+  = do genConstructorCreate info dataRepr con conRepr conFields scanCount maxScanCount
        genConstructorAccess info dataRepr con conRepr
 
 genConstructorTest :: DataInfo -> DataRepr -> (ConInfo,ConRepr,[(Name,Type)],Int) -> Asm ()
@@ -534,8 +544,8 @@ ppConTag con conRepr dataRepr
       _         ->  text "(kk_tag_t)" <.> parens (pretty (conTag conRepr))
 
 
-genConstructorCreate :: DataInfo -> DataRepr -> ConInfo -> ConRepr -> [(Name,Type)] -> Int -> Asm ()
-genConstructorCreate info dataRepr con conRepr conFields scanCount
+genConstructorCreate :: DataInfo -> DataRepr -> ConInfo -> ConRepr -> [(Name,Type)] -> Int -> Int -> Asm ()
+genConstructorCreate info dataRepr con conRepr conFields scanCount maxScanCount
   = do {-
        if (null conFields && not (dataReprIsValue dataRepr))
          then do let structTp = text "struct" <+> ppName (typeClassName (dataInfoName info)) <.> text "_s"
@@ -571,9 +581,10 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount
                    in if (dataReprIsValue dataRepr)
                     then vcat(--[ppName (typeClassName (dataInfoName info)) <+> tmp <.> semi]
                                (if (hasTagField dataRepr)
-                                 then [ ppName (typeClassName (dataInfoName info)) <+> tmp <+> text "=" <+>
-                                        text "{" <+> ppConTag con conRepr dataRepr <+> text "/* _tag */ }; // zero initializes remaining fields"]
+                                 then [ ppName (typeClassName (dataInfoName info)) <+> tmp <.> semi
+                                      , tmp <.> text "._tag =" <+> ppConTag con conRepr dataRepr  <.> semi]
                                       ++ map (assignField (\fld -> tmp <.> text "._cons." <.> ppDefName (conInfoName con) <.> text "." <.> fld)) conFields
+                                      ++ [tmp <.> text "._cons._fields[" <.> pretty i <.> text "] = kk_box_null;" | i <- [length conFields..(maxScanCount-1)]]                                      
                                  else [ ppName (typeClassName (dataInfoName info)) <+> tmp <.> semi {- <+> text "= {0}; // zero initializes all fields" -} ]
                                       ++ map (assignField (\fld -> tmp <.> text "." <.> fld)) conFields
                                )

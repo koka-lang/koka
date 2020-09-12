@@ -64,7 +64,7 @@ fun show-flags( o : myflags ) {
 ```
 \/
 */
-module std/os/flags
+public module std/os/flags
 
 import std/os/env
 
@@ -169,12 +169,12 @@ public fun usage( flags : list<flag<a>>, header : string = "usage:\n program [fl
   }
 
   fun paste(x,y,z) {
-    return (" " + x + "  " + y + "  " + z)
+    (" " + x + "  " + y + "  " + z)
   }
 
   val (shorts,longs,helps) = flags.map(show-flag).concat.unzip3
   val table = zipWith3( paste, shorts.align-left, longs.align-left, helps )
-  return (header + "\n" + table.unlines)
+  (header + "\n" + table.unlines)
 }
 
 fun show-flag( flag : flag<a> ) : list<(string,string,string)>
@@ -323,7 +323,7 @@ fun parse-shorts( s : string,  flags : list<flag<a>> ) : list<flag-kind<a>>
 {
   var done := False
   val fs = s.list.map-indexed fun(i,c) {
-    if (done) then return Nothing
+    if (done) return Nothing
     val optstr = "-" + c.string
     val applicable = flags.filter( fun(opt){ opt.short-names.contains(c.string) } )
     match(applicable) {
@@ -354,27 +354,27 @@ fun parse-shorts( s : string,  flags : list<flag<a>> ) : list<flag-kind<a>>
 
 fun error-ambiguous( applicable, opt ) {
   val header = "flag \"" + opt + "\" is ambiguous. It could be one of:"
-  return Error( usage( applicable, header ) )
+  Error( usage( applicable, header ) )
 }
 
 fun error-required( help, opt ) {
-  return Error( "flag \"" + opt + "\" requires an argument " + help)
+  Error( "flag \"" + opt + "\" requires an argument " + help)
 }
 
 fun error-negate( flagname ) {
-  return Error( "flag \"--" + flagname + "\" cannot be negated" );
+  Error( "flag \"--" + flagname + "\" cannot be negated" );
 }
 
 fun error-noarg( opt ) {
-  return Error( "flag \"" + opt + "\" does not take an argument")
+  Error( "flag \"" + opt + "\" does not take an argument")
 }
 
 fun error-unknown( opt ) {
-  return Error( error-unknown-message(opt) )
+  Error( error-unknown-message(opt) )
 }
 
 fun error-unknown-message( opt ) {
-  return ( "unrecognized flag \"" + opt + "\"")
+  ( "unrecognized flag \"" + opt + "\"")
 }
 
 
