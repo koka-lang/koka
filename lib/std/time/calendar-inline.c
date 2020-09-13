@@ -10,7 +10,7 @@
 --------------------------------------------------------------------------------------------------*/
 
 #define __STDC_WANT_LIB_EXT1__    // for gmtime_s
-#ifdef __GLIBC__
+#if defined(__GLIBC__) && !defined(_GNU_SOURCE)
 #define _GNU_SOURCE               // for tm_zone and tm_gmtoff
 #endif
 #include <time.h>
