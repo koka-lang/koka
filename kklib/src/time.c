@@ -42,9 +42,9 @@ static double kk_timer_ticks_prim(double* secs_frac, kk_context_t* ctx) {
 
 #else
 
-#if (defined(CLOCK_REALTIME) || defined(CLOCK_MONOTONIC))
-
 #include <time.h>
+
+#if (defined(CLOCK_REALTIME) || defined(CLOCK_MONOTONIC))
 #if !defined(CLOCK_MONOTONIC)
 #define CLOCK_MONOTONIC  CLOCK_REALTIME
 #endif
