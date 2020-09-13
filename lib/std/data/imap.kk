@@ -6,9 +6,10 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-
-/* Asynchronous file operations.
+/* Integer maps
 
    Todo.
 */
-module std/async/file
+module std/data/imap
+
+type imap<a>

@@ -6,9 +6,8 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-
-/* Asynchronous file operations.
+/* Mutable arrays
 
    Todo.
 */
-module std/async/file
+module std/data/array

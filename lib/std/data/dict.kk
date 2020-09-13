@@ -6,9 +6,8 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-
-/* Asynchronous file operations.
+/* Dictionary (or a string map)
 
    Todo.
 */
-module std/async/file
+module std/data/dict

@@ -74,6 +74,7 @@ public type normalization {
 
 
 extern normalizex( s  : string, norm : string ) : string {
+  c  inline "#1"                         // TODO: use utf8proc library?
   cs inline "Unicode.Normalize(#1,#2)"
   js inline "_normalize(#1,#2)"
 }
@@ -97,8 +98,8 @@ public fun normalize( s  : string, norm : normalization = NFC ) : string {
 // Return the column-width of a unicode character.
 // Equivalent to ``wcwidth``
 public fun width( c : char ) : int {
-  if (zero-widths.contains?(c.int)) then 0
-  elif (asian-wide.contains?(c.int)) then 2
+  if (zero-widths.force.contains?(c.int)) then 0
+  elif (asian-wide.force.contains?(c.int)) then 2
   else 1
 }
 
@@ -116,7 +117,7 @@ public fun width( s : string ) : int {
 //--------------------------------------------------------------
 
 // These characters are considered wide, i.e. 2 columns wide.
-val asian-wide : rtree = build-rtree([
+val asian-wide : delayed<total,rtree> = delay{ build-rtree([
   single(0x1100,0x115F),
   single(0x2329,0x2329), 
   single(0x232A,0x232A),
@@ -130,10 +131,10 @@ val asian-wide : rtree = build-rtree([
   single(0xFFE0,0xFFE6),
   single(0x20000,0x2FFFD),
   single(0x30000,0x3FFFD),
-])
+]) }
 
 // These characters have zero width
-val zero-widths : rtree = build-rtree([
+val zero-widths : delayed<total,rtree> = delay{ build-rtree([
   single(0x0000, 0x001F), single(0x007F, 0x00A0),                                      
   single(0x0300, 0x036F), single(0x0483, 0x0486), single(0x0488, 0x0489),
   single(0x0591, 0x05BD), single(0x05BF, 0x05BF), single(0x05C1, 0x05C2),
@@ -183,7 +184,7 @@ val zero-widths : rtree = build-rtree([
   single(0x1D173, 0x1D182), single(0x1D185, 0x1D18B), single(0x1D1AA, 0x1D1AD),
   single(0x1D242, 0x1D244), single(0xE0001, 0xE0001), single(0xE0020, 0xE007F),
   single(0xE0100, 0xE01EF)
-])
+]) }
 
 
 //--------------------------------------------------------------
@@ -209,7 +210,7 @@ fun contains?( t : rtree, i : int ) : bool {
 }
 
 fun build-rtree( xs : list<rtree> ) : rtree {
-  unsafe-nodiv{xs.combine}
+  xs.combine
 }
 
 fun single(lo,hi) {
@@ -224,17 +225,17 @@ fun bin(x,y) {
   }  
 }
 
-fun combine( xs : list<rtree> ) : div rtree {
-  match (combine-pair(xs)) {
+fun combine( xs : list<rtree> ) : rtree {
+  match (combine-pairs(xs)) {
     Nil         -> Tip
     Cons(x,Nil) -> x
-    ys          -> combine(ys)
+    ys          -> combine(unsafe-decreasing(ys))
   }
 }
 
-fun combine-pair( xs : list<rtree> ) : list<rtree> {
+fun combine-pairs( xs : list<rtree> ) : list<rtree> {
   match(xs) {
-    Cons(x,Cons(y,rest)) -> Cons( bin(x,y), combine-pair(rest) ) 
+    Cons(x,Cons(y,rest)) -> Cons( bin(x,y), combine-pairs(rest) ) 
     _ -> xs
   }
 }

@@ -25,17 +25,17 @@ infix  40  (!=), (==), (<=), (>=), (<), (>)
 
 
 extern include {
-  c  file "core-inline"
-  cs file "core-inline.cs"
-  js file "core-inline.js"
+  c  file "core/core-inline"
+  cs file "core/core-inline.cs"
+  js file "core/core-inline.js"
 }
 
 extern include {
-  js file "core-string-inline.js"
+  js file "core/core-string-inline.js"
 }
 
 extern include {
-  js file "core-console-inline.js"
+  js file "core/core-console-inline.js"
 }
 
 extern include {

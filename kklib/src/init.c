@@ -249,6 +249,23 @@ kk_decl_export void  kk_main_end(kk_context_t* ctx) {
 
 
 /*--------------------------------------------------------------------------------------------------
+  Debugger
+--------------------------------------------------------------------------------------------------*/
+
+#include <signal.h>
+
+kk_decl_export void kk_debugger_break(kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+#if _MSC_VER
+  __debugbreak();
+#elif defined(SIGTRAP)
+  raise(SIGTRAP);
+#else
+  abort();
+#endif
+}
+
+/*--------------------------------------------------------------------------------------------------
   Platform specific initialization hooks
 --------------------------------------------------------------------------------------------------*/
 

@@ -6,9 +6,10 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-
-/* Asynchronous file operations.
+/* Integer sets
 
    Todo.
 */
-module std/async/file
+module std/data/iset
+
+type iset

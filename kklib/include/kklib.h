@@ -294,6 +294,7 @@ kk_decl_export kk_context_t* kk_get_context(void);
 kk_decl_export kk_context_t* kk_main_start(int argc, char** argv);
 kk_decl_export void          kk_main_end(kk_context_t* ctx);
 
+kk_decl_export void          kk_debugger_break(kk_context_t* ctx);
 
 // The current context is passed as a _ctx parameter in the generated code
 #define kk_context()  _ctx
