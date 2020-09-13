@@ -17,9 +17,9 @@ import std/os/path
 //import std/time/instant
 //import std/time/utc
 
-extern import {
-  c  "file-inline.c"
-  js "fs"
+extern include {
+  c file "file-inline.c"
+  js file "file-inline.js"
 }
 
 // Read a text file synchronously (using UTF8 encoding)
@@ -44,12 +44,12 @@ private fun prepend( exn : exception, pre : string ) : exception {
 
 extern read-text-file-err( path : string ) : file error<string> {
   c "kk_os_read_text_file_error"
-  js inline "($std_core.host()=='node' ? fs.readFileSync(#1,{encoding: 'utf8'}) : '')"
+  js "_read_text_file_error"
   //cs inline "System.IO.File.ReadAllText(#1,System.Text.Encoding.UTF8)"
 }
 
 extern write-text-file-err( path : string, content : string ) : file error<()> {
   c "kk_os_write_text_file_error"
-  js inline "($std_core.host()=='node' ? fs.writeFileSync(#1,#2,{encoding: 'utf8'}) : 1)"
+  js "_write_text_file_error"
   //cs inline "System.IO.File.WriteAllText(#1,#2,System.Text.Encoding.UTF8)"
 }
