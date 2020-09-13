@@ -268,6 +268,12 @@ typedef struct kk_yield_s {
                                           // entry points to its composition.
 } kk_yield_t;
 
+// High precision duration.
+typedef struct kk_duration_s {
+  double seconds;
+  double second_fraction;
+} kk_duration_t;
+
 // The thread local context.
 // The fields `yielding`, `heap` and `evv` should come first for efficiency
 typedef struct kk_context_s {
@@ -279,13 +285,19 @@ typedef struct kk_context_s {
   kk_block_t*    delayed_free;     // list of blocks that still need to be freed
   kk_integer_t   unique;           // thread local unique number generation
   uintptr_t      thread_id;        // unique thread id
+  kk_box_any_t   kk_box_any;       // used when yielding as a value of any type
   kk_function_t  log;              // logging function
   kk_function_t  out;              // std output
-  struct kk_random_ctx_s* srandom_ctx;    // secure random using chacha20, initialized on demand
-  kk_box_any_t   kk_box_any;          // used when yielding as a value of any type
-  size_t         argc;
-  const char**   argv;
-  kk_timer_t     process_start;
+
+  struct kk_random_ctx_s* srandom_ctx; // strong random using chacha20, initialized on demand
+  size_t         argc;             // command line argument count 
+  const char**   argv;             // command line arguments
+  kk_timer_t     process_start;    // time at start of the process
+  int64_t        timer_freq;       // high precision timer frequency
+  kk_duration_t  timer_prev;       // last requested timer time
+  kk_duration_t  timer_delta;      // applied timer delta
+  int64_t        time_freq;        // unix time frequency
+  kk_duration_t  time_unix_prev;   // last requested unix time
 } kk_context_t;
 
 // Get the current (thread local) runtime context (should always equal the `_ctx` parameter)

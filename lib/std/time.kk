@@ -179,7 +179,9 @@ public import std/time/utc
 public import std/time/chrono
 public import std/time/timer
 
-public import std/time/download
+// For now not supported until we move to async
+// public import std/time/download
+
 public import std/time/date
 public import std/time/calendar
 public import std/time/calendars

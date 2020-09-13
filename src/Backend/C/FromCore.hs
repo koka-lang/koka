@@ -326,7 +326,7 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
                           -> do let flt  = ppLit lit
                                 emitToH (text "#define" <+> ppName name <+> parens (text "(double)" <.> parens flt))
                         _ -> do doc <- genStat (ResultAssign (TName name tp) Nothing) (defBody)
-                                emitToInit doc
+                                emitToInit (block doc)  -- must be scoped to avoid name clashes
                                 let decl = ppType tp <+> ppName name <.> unitSemi tp
                                 -- if (isPublic vis) -- then do 
                                 -- always public since inlined definitions can refer to it (sin16 in std/num/ddouble)
@@ -1478,7 +1478,7 @@ genInlineableExpr expr
 genVarBinding :: Expr -> Asm (Doc, TName)
 genVarBinding expr
   = case expr of
-      Var tn _ -> return $ (empty, tn)
+      Var tn _ | not (isQualified (getName tn))-> return $ (empty, tn)
       _        -> do name <- newVarName "x"
                      let tp = typeOf expr
                          tname = TName name tp

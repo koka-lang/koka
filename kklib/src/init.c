@@ -179,7 +179,7 @@ kk_context_t* kk_get_context(void) {
   ctx->thread_id = (uintptr_t)(&context);
   ctx->unique = kk_integer_one;
   context = ctx;
-  ctx->kk_box_any = kk_block_alloc_as(struct kk_box_any_s, 0, KK_TAG_BOX_ANY, ctx);
+  ctx->kk_box_any = kk_block_alloc_as(struct kk_box_any_s, 0, KK_TAG_BOX_ANY, ctx);  
   // todo: register a thread_done function to release the context on thread terminatation.
   return ctx;
 }

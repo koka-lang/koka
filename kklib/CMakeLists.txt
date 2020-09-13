@@ -28,16 +28,17 @@ set(CMAKE_RELWITHDEBINFO_POSTFIX "d")
 # -----------------------------------------------------------------------------
 set(kklib_targets kklib kklib-flags)
 set(kklib_sources
-    src/process.c
     src/bits.c
     src/box.c
     src/init.c
     src/integer.c
+    src/os.c
+    src/process.c
     src/random.c
     src/refcount.c
     src/ref.c
     src/string.c
-    src/os.c
+    src/time.c
     )
     
 # properties library; these are used for all koka compiled C sources

@@ -217,6 +217,7 @@
     </ClCompile>
     <ClCompile Include="..\..\src\init.c" />
     <ClCompile Include="..\..\src\string.c" />
+    <ClCompile Include="..\..\src\time.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(ProjectDir)..\..\include\kklib.h" />

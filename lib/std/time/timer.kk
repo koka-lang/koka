@@ -16,6 +16,7 @@ import std/time/duration
 import std/time/instant
 
 extern include {
+  c  file "timer-inline.c"
   cs file "timer-inline.cs"
   js file "timer-inline.js"
 }
@@ -33,6 +34,7 @@ public fun ticks() : ndet duration {
 }
 
 extern xticks() : ndet (double,double) {
+  c  "kk_timer_ticks_tuple"
   cs "_Timer.Ticks"
   js "_ticks"
 }
@@ -44,6 +46,7 @@ public fun ticks-resolution() : ndet duration {
 
 // Return the smallest time difference in seconds that `ticks` can measure.
 extern xticks-resolution() : ndet double {
+  c  "kk_timer_resolution"
   cs "_Timer.TicksResolution"
   js "_ticks_resolution"
 }
