@@ -100,7 +100,7 @@ public fun round-to-prec( t : time, prec : int ) : time {
   val c    = t.clock
   val secs = c.seconds.round-to-prec(prec)
   val ri   = t.instant.round-to-prec(prec)
-  // trace("time.round-to-prec: " + t.showx + ", t.seconds: " + t.seconds.show + ", secs: " + secs.show)
+  //trace("time.round-to-prec: " + t.show-raw + ", t.seconds: " + t.seconds.show + ", secs: " + secs.show)
   if (secs.truncate == t.seconds.truncate) then {
     // whole seconds stay the same, just update with the rounded seconds and instant
     t(clock=c(seconds=secs), instant = ri)
@@ -114,10 +114,10 @@ public fun round-to-prec( t : time, prec : int ) : time {
 // Show a `:time` in [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) format.
 public fun show(t : time, prec : int = 9 ) : string {
   val tp = t.round-to-prec(prec)
-  tp.showx(prec)
+  tp.show-raw(prec)
 }
 
-fun showx( tp : time, prec : int = 9 ) : string {
+public fun show-raw( tp : time, prec : int = 9 ) : string {
   val tsname = tp.timescale.name
   tp.date.show(tp.calendar.month-prefix)
    + "T" + tp.clock.show(prec)

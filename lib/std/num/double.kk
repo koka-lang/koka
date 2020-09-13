@@ -170,7 +170,7 @@ fun subnormal?( d :double ) : bool  {
 // Round a double to its nearest integral value.
 // If the value is halfway between two integers, the value is rounded to the even one.
 extern inline round : (d:double) -> double {
-	c  "lrint"              // assume the rounding mode is set correctly by kklib
+	c  "round"              // assume the rounding mode is set correctly by kklib
   cs "Math.Round"
   js "$std_core._double_round"
 }

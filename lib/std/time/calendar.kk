@@ -153,6 +153,7 @@ public fun instant( d : date, c : clock = clock0, tz : timezone = tz-utc, cal : 
 // Convert an `:instant` to a `:date`, `:clock`, timezone delta and abbreviation,
 // for a given timezone `tz` (=`tz-utc` by default) and calendar (=`cal-iso` by default).
 public fun instant-dc( i : instant, tz :timezone = tz-utc, cal : calendar = cal-iso ) : (date,clock,duration,string) {
+  //trace("instant-dc: " + i.show-raw)
   val (tzdelta,tzabbrv) = (tz.utc-delta)(i)
   val (d,c) = (cal.instant-to-dc)( i, tzdelta )
   (d,c,tzdelta,tzabbrv)
