@@ -44,7 +44,12 @@ static long kk_local_utc_delta(double unix_secs, kk_string_t* ptzname, kk_contex
   const time_t utc_delta = t - loct;   // the difference is the utc offset at that time
   if (ptzname != NULL) {
     // getting the timezone name need platform specific code    
-    #if defined(_WIN32)
+    #if (_POSIX_C_SOURCE >= 1) || _XOPEN_SOURCE || _POSIX_SOURCE || __MINGW32__ // tzname
+      bool isdst = false;
+      struct tm* ploctm = localtime(&t);
+      isdst = (ploctm->tm_isdst != 0);
+      *ptzname = kk_string_alloc_dup(tzname[isdst ? 1 : 0], ctx);
+    #elif defined(_WIN32)
       bool isdst = false;
       struct tm loctm;
       localtime_s(&loctm, &t);
@@ -53,12 +58,6 @@ static long kk_local_utc_delta(double unix_secs, kk_string_t* ptzname, kk_contex
       size_t tznamelen;
       _get_tzname(&tznamelen, tzname, 255, isdst ? 1 : 0); tzname[255] = 0;
       *ptzname = kk_string_alloc_dup(tzname, ctx);
-    #elif (_POSIX_C_SOURCE >= 1) || _XOPEN_SOURCE || _POSIX_SOURCE  // tzname
-      bool isdst = false;
-      struct tm ploctm;
-      ploctm = localtime(&t);
-      isdst = (ploctm->tm_isdst != 0);
-      *ptzname = tzname[isdst ? 1 : 0];
     #else
       // give up :-(
       * ptzname = kk_string_empty();

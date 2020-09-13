@@ -241,6 +241,16 @@ fun many1( p : parser<e,a> ) : <parse|e> list<a> {
   Cons(p(), many(p))
 }
 
+private fun count-acc( n : int, acc : list<a>, p : parser<e,a> ) : <parse|e> list<a> {
+  if (n <= 0) then acc.reverse else {
+    val x = p()
+    count-acc(unsafe-decreasing(n - 1), Cons(x,acc), p)
+  }  
+}
+
+fun count( n : int, p : parser<e,a> ) : <parse|e> list<a> {
+  count-acc(n, [], p)
+}
 
 fun one-of-or( chars : string, default : char ) : parse char {
   optional( default){ one-of(chars) }
