@@ -9,8 +9,10 @@
 // Formatting of time into a string.
 module std/time/format
 
-import std/text/regex
+import std/text/parse
 import std/num/ddouble
+import std/time/timestamp
+import std/time/duration
 import std/time/instant
 import std/time/date
 import std/time/calendar
@@ -283,6 +285,7 @@ fun format-pat( t : time, h : char, fmt : list<char>, locale : time-locale ) : (
   else (h.string,fmt) // return as-is
 }
 
+/*
 fun expand-locales( fmt : string, locale : time-locale ) : string {
   fmt.replace-all(rx-locale) fun(cap) {
     val n = cap.matched.count
@@ -306,6 +309,50 @@ fun expand-locales( fmt : string, locale : time-locale ) : string {
 }
 val rx-locale = regex(@"('[^']*'|""[^""]*"")|(t+)|(L+)|(l+)")
 val rx-long   = regex(@"dddd+|MMMM+|DD(?!D)")
+*/
+
+fun expand-locales( fmt : string, locale : time-locale ) : string {
+  fmt.slice.parse-eof( { plocales(locale) } ).maybe.default(fmt)
+}
+
+fun plocales( locale : time-locale ) : parse string {
+  many({plocale(locale)}).join
+}
+
+fun plocale( locale : time-locale ) : parse string {  
+  choose([
+    { none-of-many1("'\"tLl") },
+    { pquoted('\'') },
+    { pquoted('\"') },
+    { plocale-t(locale) },
+    { plocale-l(locale,'L') },
+    { plocale-l(locale,'l') }
+  ])
+}
+
+fun pquoted(quote : char) : parse string {
+  char(quote)
+  val s = optional(""){ chars-are("",fun(c){ c != quote } ).string }
+  char(quote)
+  return (quote.string + s + quote.string)
+}
+
+fun plocale-t( locale : time-locale ) : parse string {  
+  char('t')
+  optional(locale.format-t){ char('t'); locale.format-tt }
+}
+
+fun plocale-l( locale : time-locale, l : char ) : parse string {  
+  val ls = many1{ char(l) }
+  val n = ls.length
+  val nfmt = if (n>=4) then locale.format-llll elif (n==3) then locale.format-lll
+               elif (n==2) then locale.format-ll else locale.format-l
+  if (l=='L')
+   then nfmt
+   else nfmt.replace-all("dd","d").replace-all("dd","ddd")
+            .replace-all("MM","M").replace-all("MM","MMM")
+            .replace-all("DD","D").replace-all("DD","DDD")
+}
 
 fun showl( i : int, width : int = 2 ) : string {
   i.show.pad-left(width,'0')

@@ -28,6 +28,25 @@
 #define kk_decl_externc    extern
 #endif
 
+#ifdef __STDC_VERSION__
+#if (__STDC_VERSION__ >= 201112L)
+#define KK_C11
+#elif (__STDC_VERSION__ >= 199901L) 
+#define KK_C99
+#endif
+#endif
+
+#ifdef __cplusplus
+#if (__cplusplus >= 201703L)
+#define KK_CPP17
+#elif (__cplusplus >= 201402L)
+#define KK_CPP14
+#elif (__cplusplus >= 201103L)
+#define KK_CPP11
+#endif
+#endif
+
+
 #if ((defined(__cplusplus) && __cplusplus >= 201103L)) || (_MSC_VER > 1900)  // C++11
 #define kk_constexpr      constexpr
 #else

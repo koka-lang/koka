@@ -22,6 +22,7 @@ import std/time/utc
 import std/time/date
 
 extern include {
+  c  file "calendar-inline.c"
   cs file "calendar-inline.cs"
   js file "calendar-inline.js"
 }
@@ -120,6 +121,7 @@ type local-timezone
 // Get the current local timezone structure.
 // The timezone name is allowed to be the empty string.
 extern local-get-timezone() : ndet local-timezone {
+  c  "kk_local_get_timezone"
   cs "_Calendar.LocalTimeZone"
   js "_local_get_timezone"
 }
@@ -128,6 +130,7 @@ extern local-get-timezone() : ndet local-timezone {
 // and time `i` in fractional seconds since the UNIX epoch (1970-01-01).
 // Also returns time zone abbreviation.
 extern local-utc-delta( tz : local-timezone, i : double ) : (double,string) {
+  c  "kk_local_get_utc_delta_tuple"
   cs "_Calendar.LocalUtcDelta"
   js "_local_utc_delta"
 }

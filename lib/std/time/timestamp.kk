@@ -14,7 +14,6 @@ User code should use `:std/time/duration/duration`s and `:std/time/instant/insta
 */
 module std/time/timestamp
 
-//import std/text/regex
 import std/num/ddouble
 import std/num/int32
 import std/time/date

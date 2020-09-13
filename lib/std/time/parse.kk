@@ -12,6 +12,7 @@ module std/time/parse
 import std/text/regex
 import std/num/ddouble
 import std/time/duration
+import std/time/instant
 import std/time/date
 import std/time/calendar
 import std/time/calendars  // iso-week, iso-month

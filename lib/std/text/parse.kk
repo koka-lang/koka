@@ -220,6 +220,10 @@ fun none-of( chars : string ) : parse char {
   char-is("", fun(c){ !chars.contains(c.string)  })
 }
 
+fun none-of-many1( chars : string ) : parse string {
+  chars-are("", fun(c){ !chars.contains(c.string)  }).string
+}
+
 fun one-of( chars : string ) : parse char {
   char-is(chars, fun(c){ chars.contains(c.string)  })
   // chars.list.map(fun(c){ (fun(){ char(c) } ) }).choose

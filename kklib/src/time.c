@@ -9,6 +9,7 @@
 
 #define KK_NSECS_PER_SEC  KI64(1000000000)
 
+
 /*--------------------------------------------------------------------------------------------------
   Timer ticks
 --------------------------------------------------------------------------------------------------*/
@@ -40,12 +41,14 @@ static double kk_timer_ticks_prim(double* secs_frac, kk_context_t* ctx) {
 }
 
 #else
-#include <time.h>
 
 #if (defined(CLOCK_REALTIME) || defined(CLOCK_MONOTONIC))
+
+#include <time.h>
 #if !defined(CLOCK_MONOTONIC)
 #define CLOCK_MONOTONIC  CLOCK_REALTIME
 #endif
+
 // high res timer
 static double kk_timer_ticks_prim(double* secs_frac, kk_context_t* ctx) {  
   if (ctx->timer_freq == 0) {
@@ -150,8 +153,8 @@ static double kk_time_unix_now_prim(double* secs_frac, kk_context_t* ctx) {
   return secs;
 }
 #else 
-#include <time.h>
 
+#include <time.h>
 #ifdef CLOCK_UTC
 // high res time
 static double kk_time_unix_now_prim(double* secs_frac, kk_context_t* ctx) {
@@ -223,4 +226,5 @@ kk_decl_export double kk_time_resolution(kk_context_t* ctx) {
   kk_assert_internal(ctx->time_freq != 0);
   return (1.0 / (double)ctx->time_freq);
 }
+
 

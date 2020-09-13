@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012,2020 Daan Leijen, Microsoft Corporation.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
@@ -27,6 +27,8 @@ import qualified Data.ByteString          as B
 import qualified Data.ByteString.Char8    as BC
 import Data.Word( Word8 )
 }
+
+%encoding "latin1"
 
 -----------------------------------------------------------
 -- Character sets
