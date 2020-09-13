@@ -683,7 +683,13 @@ fun zero?( la : leap-adjust ) : bool {
   la.offset.zero? && la.drift.zero?
 }
 
+public fun show( l : leap-adjust ) : string {
+  [l.utc-start.show,": offset: ",l.offset.show,", drift-start: ",l.drift-start.show,", drift: ",l.drift.show].join
+}
 
+public fun show( t : leaps-table ) : string {
+  t.adjusts.map(show).unlines
+}
 
 /*----------------------------------------------------------------------------
   delta-TAI == TAI - UTC
@@ -773,7 +779,7 @@ public fun get-leap-steps( table : leaps-table = leaps-table-ti ) : list<(utc-ti
 // file format.
 
 public fun parse-leap-seconds( leaps : string ) : leaps-table {
-  val adjusts = leaps.lines.flatmap-maybe(parse-leap)
+  val adjusts = leaps.lines.flatmap-maybe(parse-leap).reverse
   val expire = parse-leap-expire(leaps,adjusts)
   Leaps-table(expire,adjusts)
 }
@@ -785,8 +791,6 @@ fun parse-leap( line : string ) : maybe<leap-adjust> {
 }
 
 fun pleap() : parse leap-adjust {
-  whitespace0()
-  pstring("#")
   whitespace0()
   val ntpsecs = pint()
   whitespace()
@@ -869,7 +873,7 @@ val mjd-epoch-shift    = 51544.timespan // 2000-01-01Z - 1858-11-17Z modified ju
 // expiration date on a line that starts with ``#@`` followed by seconds since
 // the NTP epoch (1900-01-01). Just as in a standard IETF leap second file.
 public fun parse-leap-seconds-dat( leaps : string  ) : leaps-table {
-  val adjusts = leaps.lines.flatmap-maybe(parse-taiadjust)
+  val adjusts = leaps.lines.flatmap-maybe(parse-taiadjust).reverse
   val expire = parse-leap-expire(leaps,adjusts)
   Leaps-table(expire,adjusts)
 }
@@ -903,9 +907,8 @@ fun parse-taiadjust( line : string ) : maybe<leap-adjust> {
 
 fun ptaiadjust() : parse leap-adjust {
   whitespace0()
-  digit()
   many1{ none-of("=") }
-  pstring("JD")
+  pstring("=JD")
   whitespace0()
   val mjd = pddouble() - jd-epoch-shift
   whitespace0()

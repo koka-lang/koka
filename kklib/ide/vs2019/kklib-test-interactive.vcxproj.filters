@@ -10,5 +10,22 @@
     <ClCompile Include="..\..\..\out\Debug\std_os_path.c" />
     <ClCompile Include="..\..\..\out\Debug\std_os_env.c" />
     <ClCompile Include="..\..\..\out\Debug\std_os_file.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_calendar.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_utc.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_timer.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_parse.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_instant.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_format.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_duration.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_chrono.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_num_ddouble.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_num_decimal.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_num_double.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_timestamp.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_time.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_locale.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_date.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_calendars.c" />
   </ItemGroup>
 </Project>

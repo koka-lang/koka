@@ -540,7 +540,7 @@ static inline kk_integer_t kk_integer_div_mod_small(kk_integer_t x, kk_integer_t
     }
   }
   kk_assert_internal(m >= 0);
-  kk_assert_internal(d*y.value + m == x.value);
+  kk_assert_internal(d*j + m == i);
   *mod = _kk_new_integer((m<<2)|1);
   return _kk_new_integer((d<<2)|1);
 }
