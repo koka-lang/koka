@@ -60,6 +60,7 @@ module Lib.PPrint
         
         , dstartsWith
         , dendsWith
+        , dcontains
         ) where
 
 
@@ -347,6 +348,10 @@ flatten (Colored f c d) = Colored f c (flatten d)
 flatten other           = other                     --Empty,Char,Text
 
 
+dcontains :: Doc -> (Char -> Bool) -> Bool
+dcontains doc pred
+  = any (any pred) (texts doc)
+
 dstartsWith :: Doc -> String -> Bool
 dstartsWith doc ""  = True
 dstartsWith doc pre
@@ -378,7 +383,7 @@ texts doc
       Empty       -> []
       Char c      -> [[c]]
       Text s      -> [s]
-      Line break  -> if break then [] else [" "]
+      Line break  -> if break then [] else ["\n"]
       Union x y   -> texts x
       Cat x y     -> texts x ++ texts y
       Nest i x    -> texts x
@@ -394,7 +399,7 @@ rtexts doc
       Empty       -> []
       Char c      -> [[c]]
       Text s      -> [reverse s]
-      Line break  -> if break then [] else [" "]
+      Line break  -> if break then [] else ["\n"]
       Union x y   -> rtexts x
       Cat x y     -> rtexts y ++ rtexts x
       Nest i x    -> rtexts x

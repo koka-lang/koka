@@ -223,12 +223,16 @@ genLocalDef def@(Def name tp expr vis sort inl rng comm)
   = do penv <- getPrettyEnv
        let resDoc = typeComment (Pretty.ppType penv tp)
        defDoc <- genStat (ResultAssign (defTName def) Nothing) expr
-       let fdoc = vcat [ if null comm
+       let fdoc = vcat ([ if null comm
                            then empty
-                           else align (vcat (space : map text (lines (trimComment comm)))) {- already a valid C comment -}
-                       , if (nameIsNil name) then empty else ppVarDecl (defTName def) <.> unitSemi tp
-                       , if (isDiscardExpr expr) then empty else defDoc
-                       ]
+                           else align (vcat (space : map text (lines (trimComment comm)))) {- already a valid C comment -}]
+                        ++ 
+                        if (not (nameIsNil name) && dstartsWith defDoc (show (ppName name) ++ " ="))
+                          then --single assignment without declarations
+                               [ ppType tp <+> defDoc <.> semi ]
+                          else [ if (nameIsNil name) then empty else ppVarDecl (defTName def) <.> unitSemi tp
+                               , if (isDiscardExpr expr) then empty else defDoc]
+                       )
        return (fdoc)
   where
     isDiscardExpr (Con con _)              = (getName con == nameUnit) 
@@ -877,7 +881,9 @@ genDupDropCall isDup tp arg = if (isDup) then genDupDropCallX "dup" tp (parens a
                                          else genDupDropCallX "drop" tp (arguments [arg])
 
 genIsUniqueCall :: Type -> Doc -> [Doc]
-genIsUniqueCall tp arg  = genDupDropCallX "is_unique" tp (parens arg)
+genIsUniqueCall tp arg  = case genDupDropCallX "is_unique" tp (parens arg) of
+                            [call] -> [text "kk_likely" <.> parens call]
+                            cs     -> cs
 
 genFreeCall :: Type -> Doc -> [Doc]
 genFreeCall tp arg  = genDupDropCallX "free" tp (parens arg)
@@ -1138,7 +1144,7 @@ tryTailCall result expr
                               )
        -> do let (ResultReturn _ params) = result
              stmts <- genOverride params args
-             return $ Just $ block $ stmts <-> tailcall
+             return $ Just $ tailblock $ stmts <-> tailcall
 
      -- Tailcall case 2
      App (TypeApp (Var n info) _) args | ( case result of
@@ -1147,10 +1153,11 @@ tryTailCall result expr
                                           )
        -> do let (ResultReturn _ params) = result
              stmts <- genOverride params args
-             return $ Just $ block $ stmts <-> tailcall
+             return $ Just $ tailblock $ stmts <-> tailcall
 
      _ -> return Nothing
   where
+    tailblock doc = hang 2 (text "{ // tailcall" <-> doc) <-> text "}"  
     -- overriding function arguments carefully
     genOverride :: [TName] -> [Expr] -> Asm Doc
     genOverride params args
@@ -1165,8 +1172,7 @@ tryTailCall result expr
                                             then debugComment ("genOverride: skipped overriding `" ++ (show p) ++ "` with itself")
                                             else debugComment ("genOverride: preparing tailcall") <.> p <+> text "=" <+> a <.> semi
                                 ) (zip docs1 docs2)
-           return $
-             linecomment (text "tail call") <-> vcat stmts <-> vcat assigns
+           return $ vcat (stmts ++ assigns)
 
 
 -- | Generates a statement from an expression by applying a return context (deeply) inside
@@ -1482,8 +1488,10 @@ genVarBinding expr
       _        -> do name <- newVarName "x"
                      let tp = typeOf expr
                          tname = TName name tp
-                     doc  <- genStat (ResultAssign tname Nothing) expr
-                     return (ppVarDecl tname <.> unitSemi tp  <-> doc, tname)
+                     doc <- genStat (ResultAssign tname Nothing) expr
+                     if (dstartsWith doc (show (ppName name) ++ " ="))
+                       then return (ppType tp <+> doc, tname)
+                       else return (ppVarDecl tname <.> unitSemi tp  <-> doc, tname)
 
 
 ---------------------------------------------------------------------------------
@@ -1627,16 +1635,16 @@ genAppNormal v@(Var ctailCreate (InfoConField conName fieldName)) [Var con _]  |
       return (drop, doc)
 
 genAppNormal v@(Var ctailNext (InfoConField conName fieldName)) [Var slot InfoNone, App (Var dup _) [Var res _], Var con _]  | getName ctailNext == nameCTailNext, getName dup == nameDup
- = do let assign = text "*" <.> ppName (getName slot) <+> text "=" <+> ppName (getName res) <.> semi
+ = do let assign = text "*" <.> ppName (getName slot) <+> text "=" <+> ppName (getName res)
           next   = genFieldAddress con conName fieldName
-      return ([assign],next)
+      return ([],tupled [assign,next])
 
 genAppNormal v@(Var ctailNext (InfoConField conName fieldName)) [Var slot InfoNone, Var res _, Var con _]  | getName ctailNext == nameCTailNext
- = do let drop   = map (<.> semi) (genDupDropCall False (typeOf con) (ppName (getName con)))
-          assign = text "*" <.> ppName (getName slot) <+> text "=" <+> ppName (getName res) <.> semi
+ = do let drop   = genDupDropCall False (typeOf con) (ppName (getName con))
+          assign = text "*" <.> ppName (getName slot) <+> text "=" <+> ppName (getName res)
           next   = genFieldAddress con conName fieldName
       -- TODO: drop? or add borrowing
-      return (drop ++ [assign],next)
+      return ([], tupled (drop ++ [assign,next]))
 
 -- normal  
 genAppNormal f args
@@ -1654,7 +1662,7 @@ genAppNormal f args
                     in return (decls,conCreateName (getName tname) <.> arguments (at ++ argDocs))
                -- call to known function
                Var tname _ | getName tname == nameAllocAt
-                 -> failure ("allocat: " ++ show (f,args))
+                 -> failure ("Backend.C.genApp.Var.allocat: " ++ show (f,args))
                Var tname (InfoArity m n) | isQualified (getName tname)
                  -> return (decls,ppName (getName tname) <.> arguments argDocs)
                -- call unknown function_t
@@ -1931,7 +1939,7 @@ isInlineableExpr expr
       TypeLam _ expr   -> isInlineableExpr expr
       Lit (LitString _)-> False
       -- C has no guarantee on argument evaluation so we only allow a select few operations to be inlined
-      App (Var v (InfoExternal _)) [] -> getName v `elem` [nameYielding,nameReuseNull]
+      App (Var v (InfoExternal _)) [] -> getName v `elem` [nameYielding,nameReuseNull,nameCTailHole]
       -- App (Var v (InfoExternal _)) [arg] | getName v `elem` [nameBox,nameDup,nameInt32] -> isInlineableExpr arg
       App (Var v _) [arg] | getName v `elem` [nameBox,nameInt32,nameReuse,nameIsUnique] -> isInlineableExpr arg
       
