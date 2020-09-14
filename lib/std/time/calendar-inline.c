@@ -17,52 +17,44 @@
 #endif
 #include <time.h>
 
-#if defined(x_GNU_SOURCE)
-// GNU libc has the tm_zone and tm_gmtoff fields
 static long kk_local_utc_delta(double unix_secs, kk_string_t* ptzname, kk_context_t* ctx) {
-  const time_t t = (time_t)unix_secs;
-  struct tm loctm;
-  localtime_r(&t, &loctm);
-  if (ptzname != NULL) {
-    *ptzname = kk_string_alloc_dup(loctm.tm_zone, ctx);
-  }
-  return (long)loctm.tm_gmtoff;
-}
-
-#else
-static long kk_local_utc_delta(double unix_secs, kk_string_t* ptzname, kk_context_t* ctx) {
-  // get the UTC delta in a portable way...
+  // get the UTC delta in a somewhat portable way...
+  bool isdst = false;
   const time_t t = (time_t)unix_secs;
   #if defined(_GNU_SOURCE) 
+    // GNU libc has the tm_zone and tm_gmtoff fields
+    struct tm loctm;
+    localtime_r(&t, &loctm);
+    loct  = t + tm_gmtoff;
+    isdst = (loctm.tm_isdst != 0);
+  #elif defined(_WIN32) && !defined(__MINGW32__)
     struct tm gmtm;
-    gmtime_r(&t, &gmtm);
+    gmtime_s(&gmtm, &t);                 // switched parameters :-(
     const time_t loct = mktime(&gmtm);   // interpret gmt as local time
-  #elif defined(_WIN32) || defined(KK_C11) 
+    struct tm loctm;
+    localtime_s(&loctm, &t);             // switched parameters :-(
+    isdst = (loctm.tm_isdst != 0);
+  #elif defined(KK_C11) && !defined(__MINGW32__)
     struct tm gmtm;
     gmtime_s(&t, &gmtm);             
     const time_t loct = mktime(&gmtm);   // interpret gmt as local time
+    struct tm loctm;
+    localtime_s(&t, &loctm);
+    isdst = (loctm.tm_isdst != 0);
   #else
     struct tm* pgmtm = gmtime(&t);
     const time_t loct = mktime(pgmtm);   // interpret gmt as local time
+    struct tm* ploctm = localtime(&t);
+    if (ploctm!=NULL && ploctm->tm_isdst) isdst = true;
   #endif
-  const time_t utc_delta = t - loct;   // the difference is the utc offset at that time
+  const time_t utc_delta = t - loct + (isdst ? 3600 : 0);   // the difference is the utc offset at that time
   if (ptzname != NULL) {
-    // getting the timezone name need platform specific code    
-    #if (_POSIX_C_SOURCE >= 1) || _XOPEN_SOURCE || _POSIX_SOURCE || __MINGW32__ // tzname
-      bool isdst = false;
-      struct tm* ploctm = localtime(&t);
-      if (ploctm==NULL) {
-        *ptzname = kk_string_empty();
-      }        
-      else {
-        isdst = (ploctm->tm_isdst != 0);
-        *ptzname = kk_string_alloc_dup(tzname[isdst ? 1 : 0], ctx);
-      }
+    // getting the timezone name
+    #if defined(_GNU_SOURCE)
+      *ptzname = kk_string_alloc_dup(loctm.tm_zone, ctx);
+    #elif (_POSIX_C_SOURCE >= 1) || _XOPEN_SOURCE || _POSIX_SOURCE || __MINGW32__ // tzname
+      *ptzname = kk_string_alloc_dup(tzname[isdst ? 1 : 0], ctx);
     #elif defined(_WIN32)
-      bool isdst = false;
-      struct tm loctm;
-      localtime_s(&t, &loctm);
-      isdst = (loctm.tm_isdst != 0);
       char tzname[256];
       size_t tznamelen;
       _get_tzname(&tznamelen, tzname, 255, isdst ? 1 : 0); tzname[255] = 0;
@@ -74,7 +66,7 @@ static long kk_local_utc_delta(double unix_secs, kk_string_t* ptzname, kk_contex
   }
   return (long)utc_delta;
 }
-#endif
+
 
 kk_std_time_calendar__local_timezone kk_local_get_timezone(kk_context_t* ctx) {
   return kk_datatype_from_tag((kk_tag_t)1); // dummy value; we cannot store the local timezone as it is a global :-(
