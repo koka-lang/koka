@@ -68,7 +68,8 @@ parcDef :: Bool -> Def -> Parc Def
 parcDef topLevel def
   = (if topLevel then isolated_ else id) $
     withCurrentDef def $
-    do expr <- parcExpr (defExpr def)
+    do -- parcTrace "enter def"
+       expr <- parcExpr (defExpr def)
        return def{defExpr=expr}
 
 --------------------------------------------------------------------------
@@ -89,16 +90,21 @@ parcExpr expr
               let caps = freeLocals expr
               let parsSet = S.fromList pars
               (body', live) <- isolateWith S.empty
-                             $ withOwned caps  -- captured variables are owned
-                             $ ownedInScope parsSet
-                             $ parcExpr body
+                             -- $ withOwned caps  -- captured variables are owned
+                             -- $ ownedInScope parsSet
+                             $ withOwned S.empty
+                             $ ownedInScope (S.union caps parsSet)
+                             $ parcExpr body                              
               dups <- foldMapM useTName caps
-              assertion ("parcExpr: caps==live" ++ show caps ++ show live ++ show body) (caps == live) $
+              -- assertion ("parcExpr: caps==live: " ++ show caps ++ " != " ++ show live ++ "\n  in: " ++ show expr) (caps == live) $
+              assertion("Backend.C.Parc.parcExpr.Lam: live==[]: " ++ show live ++ "\n in: " ++ show expr) (S.null live) $
                 return (maybeStats dups $ Lam pars eff body')
       Var tname info | infoIsRefCounted info
-        -> fromMaybe expr <$> useTName tname
-      Var _ _ -- InfoArity/External/Field are not reference-counted
-        -> return expr
+        -> do -- parcTrace ("refcounted: " ++ show tname ++ ": " ++ show info)
+              fromMaybe expr <$> useTName tname 
+      Var tname info -- InfoArity/External/Field are not reference-counted
+        -> do -- parcTrace ("not refcounted: " ++ show tname ++ ": " ++ show info)
+              return expr
       App fn args
         -> do args' <- reverseMapM parcExpr args
               fn'   <- parcExpr fn
@@ -463,9 +469,12 @@ useTName tname
   = do live <- isLive tname
        borrowed <- isBorrowed tname
        markLive tname
+       -- parcTrace ("marked live: " ++ show tname)
        if live || borrowed
-         then genDup tname
-         else return Nothing
+         then -- trace ("use dup " ++ show tname) $
+              genDup tname
+         else -- trace ("use nodup " ++ show tname) $ 
+              return Nothing
 
 -----------------------------------------------------------
 -- Optimize boxed reference counting
