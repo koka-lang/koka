@@ -25,8 +25,8 @@ static long kk_local_utc_delta(double unix_secs, kk_string_t* ptzname, kk_contex
     // GNU libc has the tm_zone and tm_gmtoff fields
     struct tm loctm;
     localtime_r(&t, &loctm);
-    loct  = t + tm_gmtoff;
-    isdst = (loctm.tm_isdst != 0);
+    isdst = (loctm.tm_isdst != 0);    
+    const time_t loct = t - loctm.tm_gmtoff + (isdst ? 3600 : 0);
   #elif defined(_WIN32) && !defined(__MINGW32__)
     struct tm gmtm;
     gmtime_s(&gmtm, &t);                 // switched parameters :-(
