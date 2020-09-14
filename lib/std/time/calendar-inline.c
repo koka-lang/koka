@@ -51,12 +51,17 @@ static long kk_local_utc_delta(double unix_secs, kk_string_t* ptzname, kk_contex
     #if (_POSIX_C_SOURCE >= 1) || _XOPEN_SOURCE || _POSIX_SOURCE || __MINGW32__ // tzname
       bool isdst = false;
       struct tm* ploctm = localtime(&t);
-      isdst = (ploctm->tm_isdst != 0);
-      *ptzname = kk_string_alloc_dup(tzname[isdst ? 1 : 0], ctx);
+      if (ploctm==NULL) {
+        *ptzname = kk_string_empty();
+      }        
+      else {
+        isdst = (ploctm->tm_isdst != 0);
+        *ptzname = kk_string_alloc_dup(tzname[isdst ? 1 : 0], ctx);
+      }
     #elif defined(_WIN32)
       bool isdst = false;
       struct tm loctm;
-      localtime_s(&loctm, &t);
+      localtime_s(&t, &loctm);
       isdst = (loctm.tm_isdst != 0);
       char tzname[256];
       size_t tznamelen;

@@ -155,12 +155,12 @@ static double kk_time_unix_now_prim(double* secs_frac, kk_context_t* ctx) {
 #else 
 
 #include <time.h>
-#ifdef CLOCK_UTC
+#if defined(CLOCK_REALTIME)
 // high res time
 static double kk_time_unix_now_prim(double* secs_frac, kk_context_t* ctx) {
   if (ctx->time_freq==0) {
     struct timespec tres = { 0, 0 };
-    clock_getres(CLOCK_UTC, &tres);
+    clock_getres(CLOCK_REALTIME, &tres);
     if (tres.tv_sec == 0 && tres.tv_nsec > 0 && tres.tv_nsec <= KK_NSECS_PER_SEC && (tres.tv_nsec % KK_NSECS_PER_SEC) == 0) {
       ctx->time_freq = (KK_NSECS_PER_SEC / tres.tv_nsec);
     }
@@ -169,7 +169,7 @@ static double kk_time_unix_now_prim(double* secs_frac, kk_context_t* ctx) {
     }
   }
   struct timespec t;
-  clock_gettime(CLOCK_UTC, &t);
+  clock_gettime(CLOCK_REALTIME, &t);
   if (secs_frac != NULL) {
     *secs_frac = (double)t.tv_nsec / 1.0e9;
   }
@@ -177,20 +177,17 @@ static double kk_time_unix_now_prim(double* secs_frac, kk_context_t* ctx) {
 }
 
 #else
-// low resolution timer
+// portable 1s resolution time
 static double kk_time_unix_now_prim(double* secs_frac, kk_context_t* ctx) {
   if (ctx->time_freq == 0) {
-    ctx->time_freq = (int64_t)CLOCKS_PER_SEC;
-    if (ctx->time_freq <= 0) ctx->time_freq = 1000;
+    ctx->time_freq = 1; // :-(
   }
-  int64_t t = (int64_t)clock();
-  // calculate in parts for precision
-  int64_t secs = t / ctx->time_freq;
-  int64_t frac = t % ctx->time_freq;
+  time_t t;
+  time(&t);
   if (secs_frac != NULL) {
-    *secs_frac = (double)frac / (double)ctx->timer_freq;
+    *secs_frac = 0.0;
   }
-  return (double)secs;
+  return (double)t;
 }
 #endif
 
