@@ -111,7 +111,7 @@ kk_evv_t kk_evv_delete(kk_evv_t evvd, size_t index, bool behind, kk_context_t* c
   if (behind) index++;
   kk_assert_internal(index < n);  
   // todo: copy without dupping (and later dropping) when possible
-  const kk_vector_t vec2 = kk_vector_alloc(n+1,kk_box_null,ctx);  
+  const kk_vector_t vec2 = kk_vector_alloc(n-1,kk_box_null,ctx);  
   kk_box_t* const evv2 = kk_vector_buf(vec2,NULL);
   size_t i;
   for(i = 0; i < index; i++) {
@@ -299,9 +299,22 @@ kk_unit_t  kk_evv_guard(kk_evv_t evv, kk_context_t* ctx) {
 }
 
 
-kk_evv_t kk_evv_create(kk_evv_t evv, kk_vector_t indices, kk_context_t* ctx) {
-  kk_unsupported_external("kk_evv_create");
-  return kk_vector_empty();
+kk_evv_t kk_evv_create(kk_evv_t evv1, kk_vector_t indices, kk_context_t* ctx) {
+  size_t len;
+  kk_box_t* elems = kk_vector_buf(indices,&len); // borrows
+  kk_vector_t evv2 = kk_vector_alloc(len,kk_box_null,ctx);
+  kk_box_t* buf2 = kk_vector_buf(evv2,NULL);
+  kk_assert_internal(kk_evv_is_vector(evv1));
+  size_t len1;
+  kk_box_t* buf1 = kk_vector_buf(evv1,&len1);
+  for(size_t i = 0; i < len; i++) {
+    size_t idx = kk_size_unbox(elems[i],ctx);
+    kk_assert_internal(idx < len1);
+    buf2[i] = kk_box_dup(buf1[idx]);
+  }
+  kk_vector_drop(indices,ctx);
+  kk_vector_drop(evv1,ctx);
+  return evv2;
 }
 
 kk_evv_t kk_evv_swap_create( kk_vector_t indices, kk_context_t* ctx ) {
