@@ -17,7 +17,7 @@
 #endif
 #include <time.h>
 
-#if defined(_GNU_SOURCE)
+#if defined(x_GNU_SOURCE)
 // GNU libc has the tm_zone and tm_gmtoff fields
 static long kk_local_utc_delta(double unix_secs, kk_string_t* ptzname, kk_context_t* ctx) {
   const time_t t = (time_t)unix_secs;
@@ -33,9 +33,13 @@ static long kk_local_utc_delta(double unix_secs, kk_string_t* ptzname, kk_contex
 static long kk_local_utc_delta(double unix_secs, kk_string_t* ptzname, kk_context_t* ctx) {
   // get the UTC delta in a portable way...
   const time_t t = (time_t)unix_secs;
-  #if defined(_WIN32) || defined(KK_C11) 
+  #if defined(_GNU_SOURCE) 
     struct tm gmtm;
-    gmtime_s(&gmtm, &t);             
+    gmtime_r(&t, &gmtm);
+    const time_t loct = mktime(&gmtm);   // interpret gmt as local time
+  #elif defined(_WIN32) || defined(KK_C11) 
+    struct tm gmtm;
+    gmtime_s(&t, &gmtm);             
     const time_t loct = mktime(&gmtm);   // interpret gmt as local time
   #else
     struct tm* pgmtm = gmtime(&t);
