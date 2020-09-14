@@ -34,7 +34,7 @@ static long kk_local_utc_delta(double unix_secs, kk_string_t* ptzname, kk_contex
     struct tm loctm;
     localtime_s(&loctm, &t);             // switched parameters :-(
     isdst = (loctm.tm_isdst != 0);
-  #elif defined(KK_C11) && !defined(__MINGW32__)
+  #elif defined(__STDC_LIB_EXT1__)
     struct tm gmtm;
     gmtime_s(&t, &gmtm);             
     const time_t loct = mktime(&gmtm);   // interpret gmt as local time
