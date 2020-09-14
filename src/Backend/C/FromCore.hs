@@ -882,7 +882,7 @@ genDupDropCall isDup tp arg = if (isDup) then genDupDropCallX "dup" tp (parens a
 
 genIsUniqueCall :: Type -> Doc -> [Doc]
 genIsUniqueCall tp arg  = case genDupDropCallX "is_unique" tp (parens arg) of
-                            [call] -> [text "kk_likely" <.> parens call]
+                            -- [call] -> [text "kk_likely" <.> parens call]
                             cs     -> cs
 
 genFreeCall :: Type -> Doc -> [Doc]
