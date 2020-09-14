@@ -1007,7 +1007,7 @@ kk_decl_export void kk_warning_message(const char* msg, ...);
 kk_decl_export void kk_info_message(const char* msg, ...);
 
 static inline void kk_unsupported_external(const char* msg) {
-  kk_fatal_error(ENOSYS,msg);
+  kk_fatal_error(ENOSYS,"unsupported external: %s", msg);
 }
 
 

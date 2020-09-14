@@ -8,7 +8,7 @@ public fun check(name : string, res : string, tst : () -> io string ) : io () {
   println(name.pad-right(8,' ') + ": "
     + (if (got == res) then "ok: " + res
                        else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
-  if (got != res) then error("failed") else ()
+  if (got != res) then throw("failed") else ()
 }
 
 public fun check-rt( name : string, expect : string, tst : () -> io ddouble ) : io () {
@@ -58,7 +58,7 @@ public fun check-prec( name : string, expect : ddouble, res : ddouble, eps : ddo
     }
     else {
       println(pre + "FAILED:\n expect: " + expect.show + "\n gotten: " + res.show )
-      error("failed " + name)
+      throw("failed " + name)
     }
   }
 }

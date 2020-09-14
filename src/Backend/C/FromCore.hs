@@ -1455,6 +1455,13 @@ genExprPrim expr
                       return ([text "kk_define_string_literal" <.> tupled [empty,ppName name,pretty clen,cstr]]
                              ,text "kk_string_dup" <.> parens (ppName name));
 
+     Var vname (InfoExternal formats)
+       -> case splitFunScheme (typeOf vname) of
+            Just(_,_,tpars,teff,tres) 
+              -> do names <- newVarNames (length tpars) 
+                    let tnames = [TName name tp | (name,(_,tp)) <- zip names tpars]
+                    genExpr $ Lam tnames teff (App expr [Var tname InfoNone | tname <- tnames])
+            _ -> failure ("Backend.C.FromCore.genExpr: invalid partially applied external:\n" ++ show expr)
      _ -> failure ("Backend.C.FromCore.genExpr: invalid expression:\n" ++ show expr)
 
 
@@ -1732,15 +1739,6 @@ extractExtern expr
       Var tname (InfoExternal formats) -> Just (tname,formats)
       _ -> Nothing
 
--- not fully applied external gets wrapped in a function
-genWrapExternal :: TName -> [(Target,String)] -> Asm Doc
-genWrapExternal tname formats
-  = do let n = snd (getTypeArities (typeOf tname))
-       vs  <- genVarNames n
-       (decls,doc) <- genExprExternal tname formats vs
-       return $ error ("Backend.C.FromCore.genWrapExternal: TODO: " ++ show (vcat (decls++[doc])))
-                 -- parens (text "function" <.> tupled vs <+> block (vcat (decls ++ [text "return" <+> doc <.> semi])))
-
 -- inlined external sometimes  needs wrapping in a applied function block
 genInlineExternal :: TName -> [(Target,String)] -> [Doc] -> Asm Doc
 genInlineExternal tname formats argDocs
@@ -1961,6 +1959,7 @@ isPureExpr expr
   = case expr of
       TypeApp expr _  -> isPureExpr expr
       TypeLam _ expr  -> isPureExpr expr
+      Var _ (InfoExternal{}) -> False
       Var _ _ -> True
       Con _ _ -> True
       Lit (LitString _) -> False  -- for our purposes, it's not pure (as it needs a declaration)

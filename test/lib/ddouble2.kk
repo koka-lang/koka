@@ -8,7 +8,7 @@ fun check(name : string, res : string, tst : () -> io string ) : io () {
   println(name.pad-right(8,' ') + ": "
     + (if (got == res) then "ok: " + res
                        else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
-  if (got != res) then error("failed") else ()
+  if (got != res) then throw("failed") else ()
 }
 
 fun check-rt( name : string, expect : ddouble, prec : int, tst : () -> io ddouble ) : io () {
@@ -49,7 +49,7 @@ fun check-prec( name : string, expect : ddouble, res : ddouble, eps : ddouble = 
       else {
         println(pre + "FAILED:\n expect: " + expect.show + "\n gotten: " + res.show )
         println("delta : " + delta.show + "\n error: " + relerr.show + "\n eps   : " + releps.show )
-        error("failed " + name)
+        throw("failed " + name)
       }
     }
   }
@@ -59,7 +59,7 @@ fun check-prec( name : string, expect : ddouble, res : ddouble, eps : ddouble = 
     }
     else {
       println(pre + "FAILED:\n expect: " + expect.show + "\n gotten: " + res.show )
-      error("failed " + name)
+      throw("failed " + name)
     }
   }
 }
