@@ -39,11 +39,11 @@ module Common.Name
           , toConstructorName, isConstructorName, toVarName
           , toOpenTagName, isOpenTagName
           , toValueOperationName, isValueOperationName, fromValueOperationsName
-          , splitModuleName, unsplitModuleName
+          , splitModuleName, unsplitModuleName, mergeCommonPath
           , isEarlyBindName
 
           , prepend, postpend
-          , asciiEncode, showHex, moduleNameToPath
+          , asciiEncode, showHex, moduleNameToPath, pathToModuleName
           , canonicalSep, canonicalName, nonCanonicalName, canonicalSplit
           ) where
 
@@ -223,6 +223,16 @@ splitModuleName name
 unsplitModuleName :: [Name] -> Name
 unsplitModuleName xs
   = newName (concat (intersperse "/" (map show xs)))
+
+mergeCommonPath :: Name -> Name -> Name
+mergeCommonPath mname name 
+  = let ns = splitModuleName name
+        ms = splitModuleName mname
+    in unsplitModuleName (merge ms ns)         
+  where
+    merge (m:ms) (n:ns) | m==n && and (zipWith (==) ms ns) = (m:ms) ++ (drop (length ms) ns)
+    merge (m:ms) ns     = m : merge ms ns
+    merge [] ns         = ns
 
 
 ----------------------------------------------------------------
@@ -495,6 +505,23 @@ moduleNameToPath :: Name -> FilePath
 moduleNameToPath name
   = asciiEncode True (show name)
 
+pathToModuleName :: FilePath -> Name
+pathToModuleName path
+  = newName (decode path)
+  where 
+    -- TODO: do proper decoding
+    decode s
+      = case s of
+          _ | s `startsWith` "_dash_" -> '-':decode (drop 6 s)
+          ('_':'_':cs) -> '_':decode cs
+          ('_':cs)     -> '/':decode cs
+          ('\\':cs)    -> '/':decode cs
+          (c:cs)       -> c:decode cs
+          []           -> ""
+    
+
+
+      
 {---------------------------------------------------------------
   Ascii encode a name
   - on module names  '/' becomes '_'

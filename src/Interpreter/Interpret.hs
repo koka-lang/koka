@@ -191,7 +191,7 @@ command st cmd
                       Nothing
                         -> do messageErrorMsgLnLn st (errorFileNotFound (flags st) fname)
                               interpreter st
-                      Just (root,fname)
+                      Just (root,fname,_)
                         -> do runEditor st (joinPath root fname)
                               command st Reload
                    }

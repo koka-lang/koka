@@ -272,7 +272,7 @@ compileModuleOrFile term flags modules fname force
     = do let modName = newName fname
          exist <- searchModule flags "" modName
          case (exist) of
-          Just fpath -> compileModule term (if force then flags{ forceModule = fpath } else flags)
+          Just (fpath) -> compileModule term (if force then flags{ forceModule = fpath } else flags)
                                       modules modName
           Nothing -> do fexist <- searchSourceFile flags "" fname
                         runIOErr $
@@ -590,7 +590,7 @@ searchModule :: Flags -> FilePath -> Name -> IO (Maybe FilePath)
 searchModule flags currentDir name
   = do mbSource <- searchSource flags currentDir name
        case mbSource of
-         Just (root,stem) -> return (Just (joinPath root stem))
+         Just (root,stem,mname) -> return (Just (joinPath root stem))
          Nothing -> do mbIface <- searchIncludeIface flags currentDir name
                        case mbIface of
                          Nothing -> searchPackageIface flags currentDir Nothing name
@@ -619,8 +619,8 @@ resolveModule term flags currentDir modules mimp
                                          loadFromIface iface "" ""
                     Just iface -> do loadFromIface iface "" ""
 
-             Just (root,stem) -> -- source found, search output iface
-               do mbIface <- liftIO $ searchOutputIface flags name
+             Just (root,stem,mname) -> -- source found, search output iface
+               do mbIface <- liftIO $ searchOutputIface flags mname
                   -- trace ("load from program: " ++ show (mbSource,mbIface)) $ return ()
                   case mbIface of
                     Nothing    -> loadFromSource modules root stem
@@ -634,14 +634,14 @@ resolveModule term flags currentDir modules mimp
            case (mbIface,mbSource) of
              (Nothing,Nothing)
                 -> liftError $ errorMsg $ errorModuleNotFound flags rangeNull name
-             (Nothing,Just (root,stem))
+             (Nothing,Just (root,stem,mname))
                 -> loadFromSource modules root stem
              (Just iface,Nothing)
                 -> do let cscheme = (colorSchemeFromFlags flags)
                       liftIO $ termDoc term $ color (colorWarning cscheme) $
                          text "warning: interface" <+> color (colorModule cscheme) (pretty name) <+> text "found but no corresponding source module"
                       loadFromIface iface "" ""
-             (Just iface,Just (root,stem))
+             (Just iface,Just (root,stem,mname))
                 -> loadDepend iface root stem
 
       -- core import of package
@@ -745,13 +745,21 @@ searchOutputIface :: Flags -> Name -> IO (Maybe FilePath)
 searchOutputIface flags name
   = do let postfix = showModName name ++ ifaceExtension -- map (\c -> if c == '.' then '_' else c) (show name)
            iface = joinPath (buildDir flags) postfix
-       -- trace ("search output iface: " ++ show name ++ ": " ++ iface) $ return ()
        exist <- doesFileExist iface
+       -- trace ("search output iface: " ++ show name ++ ": " ++ iface ++ " (" ++ (if exist then "found" else "not found" ) ++ ")") $ return ()
        return (if exist then (Just iface) else Nothing)
 
-searchSource :: Flags -> FilePath -> Name -> IO (Maybe (FilePath,FilePath))
+searchSource :: Flags -> FilePath -> Name -> IO (Maybe (FilePath,FilePath,Name {-full mod name relative to root-}))
 searchSource flags currentDir name
-  = searchSourceFile flags currentDir (show name)
+  = do mbFile <- searchSourceFile flags currentDir (show name) 
+       case mbFile of
+        Just (root,stem) 
+          -> let mname = case dirname stem of
+                           ""  -> name
+                           pre -> -- trace ("searchSource: " ++ showTupled name ++ ", " ++ show pre ++ ", " ++ show (pathToModuleName pre)) $
+                                  mergeCommonPath (pathToModuleName pre) name
+             in return (Just (root,stem,mname))
+        _ -> return Nothing
 
 searchSourceFile :: Flags -> FilePath -> FilePath -> IO (Maybe (FilePath,FilePath))
 searchSourceFile flags currentDir fname
