@@ -73,14 +73,17 @@ Unix.
 
 The following programs are required to build Koka:
 
-* [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.
-* [CMake](https://cmake.org/download/) to compile the generated C files (use `> sudo apt-get install cmake` on Ubuntu, `> brew install cmake` on macOS X).
-* Optional: The [Ninja](https://ninja-build.org/) build system for faster build times (required on Windows, use `> sudo apt-get install ninja-build` on Ubuntu, `> brew install ninja` on macOS X).
+* [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
+  (use `> curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS X)
+* [CMake](https://cmake.org/download/) to compile the generated C files.  
+  (use `> sudo apt-get install cmake` on Ubuntu, `> brew install cmake` on macOS X).
+* Optional: The [Ninja](https://ninja-build.org/) build system for faster build times.  
+  (required on Windows, use `> sudo apt-get install ninja-build` on Ubuntu, `> brew install ninja` on macOS X).
 * Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
 
-Building Koka:
+Building Koka (note the `--recursive` flag):
 ```
-> git clone --recursive https://github.com/koka-lang/koka          # use --recursive
+> git clone --recursive https://github.com/koka-lang/koka
 > cd koka
 > stack build
 ```
@@ -93,7 +96,7 @@ loading: std/core
 loading: std/core/types
 loading: std/core/hnd
 check  : test/algeff/common
-> cmake --build "out\Debug\cbuild" --target test_algeff_common
+cmake --build "out\Debug\cbuild" --target test_algeff_common
 ...
 [5/5] Linking C executable test_algeff_common.exe
 compiled: out\Debug\test_algeff_common.exe
@@ -117,7 +120,7 @@ of balanced insertion in a red-black tree balanced ([`rbtree.kk`](test/bench/kok
 ```
 > stack exec koka -- -O2 -c test/bench/koka/rbtree32.kk
 ...
-> cmake --build "out/RelWithDebInfo/cbuild" --target test_bench_koka_rbtree32
+cmake --build "out/RelWithDebInfo/cbuild" --target test_bench_koka_rbtree32
 [15/15] Linking C executable test_bench_koka_rbtree32
 compiled: out/RelWithDebInfo/test_bench_koka_rbtree32
 
@@ -178,7 +181,7 @@ Now you can test some expressions:
     loading: std/core/types
     loading: std/core/hnd
     check  : interactive
-    > cmake --build "out\Debug\cbuild" --target interactive
+    cmake --build "out\Debug\cbuild" --target interactive
     [2/2] Linking C executable interactive.exe
     compiled: out\Debug\interactive.exe
 
@@ -202,7 +205,7 @@ Or load a demo:
       test/medium/fibonacci
 
     > main()
-    >> cmake --build "out/Debug/cbuild" --target interactive
+    cmake --build "out/Debug/cbuild" --target interactive
     [2/2] Linking C executable interactive
     compiled: out/Debug/interactive
 
@@ -246,7 +249,7 @@ loading the ``common`` demo, we can run it directly from the interpreter:
     loading: std/core/hnd
     loading: test/algeff/common
     check  : interactive
-    > cmake --build "out/Debug/cbuild" --target interactive
+    cmake --build "out/Debug/cbuild" --target interactive
     [2/2] Linking C executable interactive
     compiled: out/Debug/interactive
 
