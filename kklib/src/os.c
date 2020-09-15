@@ -34,7 +34,7 @@ kk_decl_export int kk_os_read_text_file(kk_string_t path, kk_string_t* result, k
   if (ferror(f)) goto fail;
   if (nread < (size_t)fsize) { kk_string_adjust_length(s, nread, ctx); }
   fclose(f); f = NULL;
-  
+
   // TODO: validate UTF8 to UTF8
   *result = s;
   return 0;
@@ -45,7 +45,7 @@ fail:
   return (errno != 0 ? errno : -1);
 }
 
-kk_decl_export int kk_os_write_text_file(kk_string_t path, kk_string_t content, kk_context_t* ctx) 
+kk_decl_export int kk_os_write_text_file(kk_string_t path, kk_string_t content, kk_context_t* ctx)
 {
   FILE* f = fopen(kk_string_cbuf_borrow(path), "wb");
   kk_string_drop(path, ctx);
@@ -96,7 +96,7 @@ kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
   // copy the strings into the vector
   for(size_t i = 0; i < count; i++) {
     const char* pname = p;
-    while (*p != '=' && *p != 0) { p++; }    
+    while (*p != '=' && *p != 0) { p++; }
     buf[2*i] = kk_string_box( kk_string_alloc_len((p - pname), pname, ctx) );
     p++; // skip '='
     const char* pvalue = p;
@@ -113,8 +113,8 @@ kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
 static char** kk_get_environ(void) {
   return (*_NSGetEnviron());
 }
-#else 
-// On Posix systems use `environ` 
+#else
+// On Posix systems use `environ`
 extern char** environ;
 static char** kk_get_environ(void) {
   return environ;
@@ -123,7 +123,7 @@ static char** kk_get_environ(void) {
 kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
   const char** env = (const char**)kk_get_environ();
   if (env==NULL) return kk_vector_empty();
-  // first count the number of environment variables 
+  // first count the number of environment variables
   size_t count;
   for (count = 0; env[count]!=NULL; count++) { /* nothing */ }
   kk_vector_t v = kk_vector_alloc(count*2, kk_box_null, ctx);
@@ -194,7 +194,7 @@ static kk_string_t kk_os_realpathx(const char* fname, kk_context_t* ctx);
 
 #if defined(_WIN32)
 #include <Windows.h>
-static kk_string_t kk_os_realpathx(const char* fname, kk_context_t* ctx) {  
+static kk_string_t kk_os_realpathx(const char* fname, kk_context_t* ctx) {
   char buf[264];
   DWORD res = GetFullPathNameA(fname, 264, buf, NULL);
   if (res >= 264) {
@@ -207,8 +207,8 @@ static kk_string_t kk_os_realpathx(const char* fname, kk_context_t* ctx) {
   }
 }
 
-#elif defined(__linux__) || defined(__CYGWIN__) || defined(__sun) || defined(unix) || defined(__unix__) || defined(__unix)
-#include <limits.h>  
+#elif defined(__linux__) || defined(__CYGWIN__) || defined(__sun) || defined(unix) || defined(__unix__) || defined(__unix) || defined(__MACH__)
+#include <limits.h>
 static kk_string_t kk_os_realpathx(const char* fname, kk_context_t* ctx) {
   char* rpath   = realpath(fname, NULL);
   kk_string_t s = kk_string_alloc_dup(rpath, ctx);
@@ -236,7 +236,7 @@ kk_decl_export kk_string_t kk_os_realpath(kk_string_t fname, kk_context_t* ctx) 
 #ifdef _WIN32
 #define KK_PATH_SEP  ';'
 #define KK_DIR_SEP   '\\'
-#include <io.h>      
+#include <io.h>
 #else
 #define KK_PATH_SEP  ':'
 #define KK_DIR_SEP   '/'
@@ -283,8 +283,8 @@ static kk_string_t kk_os_searchpathx(const char* paths, const char* fname, kk_co
 static kk_string_t kk_os_app_path_generic(kk_context_t* ctx) {
   const char* p = ctx->argv[0];
   if (p==0 || strlen(p)==0) return kk_string_empty();
-  
-  if (p[0]=='/' 
+
+  if (p[0]=='/'
 #ifdef _WIN32
       || (p[1]==':' && ((p[0] >= 'a' && p[0] <= 'z') || ((p[0] >= 'A' && p[0] <= 'Z'))) && (p[2]=='\\' || p[2]=='/'))
 #endif
@@ -292,7 +292,7 @@ static kk_string_t kk_os_app_path_generic(kk_context_t* ctx) {
     // absolute path
     return kk_os_realpathx(p, ctx);
   }
-  else if (strchr(p,'/') != NULL 
+  else if (strchr(p,'/') != NULL
 #ifdef _WIN32
     || strchr(p,'\\') != NULL
 #endif
@@ -312,11 +312,11 @@ static kk_string_t kk_os_app_path_generic(kk_context_t* ctx) {
 
 #if defined(_WIN32)
 #include <Windows.h>
-kk_decl_export kk_string_t kk_os_app_path(kk_context_t* ctx) { 
+kk_decl_export kk_string_t kk_os_app_path(kk_context_t* ctx) {
   char buf[264];
   DWORD len = GetModuleFileNameA(NULL, buf, 264);
-  buf[min(len,263)] = 0;  
-  if (len < 264) { 
+  buf[min(len,263)] = 0;
+  if (len < 264) {
     // success
     return kk_string_alloc_dup(buf, ctx);
   }
@@ -331,7 +331,7 @@ kk_decl_export kk_string_t kk_os_app_path(kk_context_t* ctx) {
       return kk_os_app_path_generic(ctx);
     }
     return kk_string_adjust_length(s, len, ctx);
-  }  
+  }
 }
 #elif defined(__MACH__)
 #include <errno.h>
@@ -405,7 +405,7 @@ kk_decl_export kk_string_t kk_os_home_dir(kk_context_t* ctx) {
     strcat((char*)kk_string_cbuf_borrow(s), hp);
     return s;
   }
-#endif      
+#endif
   return kk_string_alloc_dup(".", ctx);
 }
 
@@ -421,7 +421,7 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx) {
     strcat((char*)kk_string_cbuf_borrow(s), "\\Temp");
     return s;
   }
-#endif      
+#endif
 #ifdef _WIN32
   return kk_string_alloc_dup("c:\\tmp", ctx);
 #else
