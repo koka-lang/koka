@@ -488,7 +488,7 @@ fun reverse(xs : list<a>) : list<a>
   reverse-append( xs, Nil )
 }
 
-// Efficiently reverse a list `xs` and append it to `tl`:  
+// Efficiently reverse a list `xs` and append it to `tl`:
 // `reverse-append(xs,tl) == reserve(xs) + tl
 fun reverse-append( xs : list<a>, tl : list<a> ) : list<a>
 {
@@ -823,7 +823,7 @@ fun concat( xss : list<list<a>> ) : list<a>
         Cons(zs,zzs) -> concat-pre(zs,zzs)
         Nil -> Nil
       }
-    }      
+    }
   }
   concat-pre([],xss)
 }
@@ -838,7 +838,7 @@ fun flatmap( xs: list<a>, f : a -> e list<b> ) : e list<b>
         Cons(z,zz) -> flatmap-pre(f(z),zz)
         Nil -> Nil
       }
-    }      
+    }
   }
   flatmap-pre([],xs)
 }
@@ -1319,7 +1319,7 @@ private fun decr( i : int32 ) : int32 {
 // ----------------------------------------------------------------------------
 // N-bit size_t
 // Just define the operations needed for defining the std/core interface but
-// don't export any definitions here. 
+// don't export any definitions here.
 // ----------------------------------------------------------------------------
 
 // Convert an integer to an `:size_t`. The number is _clamped_ to the maximal or minimum `:size_t`
@@ -2140,7 +2140,7 @@ extern vlist( v : vector<a>, tail : list<a> = [] ) : list<a> {
 fun vector( xs : list<a> ) : vector<a> {
   xs.unvlist
 }
-  
+
 extern unvlist( xs : list<a> ) : vector<a> {
   c  "kk_list_to_vector"
   cs inline "Primitive.UnVList<##1>(#1)"
@@ -2521,7 +2521,7 @@ fun throw( message: string, info : exception-info = ExnError ) : exn a {
 // Raise a pattern match exception. This is function is used internally by the
 // compiler to generate error messages on pattern match failures.
 fun error-pattern(location : string, definition : string) : exn a {
-  throw(location + (if (definition.empty?) then "" else (": " + definition)) + ": pattern match failure", 
+  throw(location + (if (definition.empty?) then "" else (": " + definition)) + ": pattern match failure",
          ExnPattern(location,definition))
 }
 

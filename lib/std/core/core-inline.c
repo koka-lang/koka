@@ -184,7 +184,7 @@ kk_std_core_types__maybe kk_slice_next( struct kk_std_core_Sslice slice, kk_cont
   // TODO: specialize type to avoid boxing
   kk_std_core__sslice snext = kk_std_core__new_Sslice(slice.str, slice.start + clen, slice.len - clen, ctx);
   kk_std_core_types__tuple2_ res = kk_std_core_types__new_dash__lp__comma__rp_( kk_char_box(c,ctx), kk_std_core__sslice_box(snext,ctx), ctx);
-  return kk_std_core_types__new_Just( kk_std_core_types__tuple2__box(res,ctx), ctx );  
+  return kk_std_core_types__new_Just( kk_std_core_types__tuple2__box(res,ctx), ctx );
 }
 
 struct kk_std_core_Sslice kk_slice_extend( struct kk_std_core_Sslice slice, kk_integer_t count, kk_context_t* ctx ) {
@@ -274,12 +274,12 @@ kk_std_core__error kk_error_from_errno( int err, kk_box_t result, kk_context_t* 
   else {
     kk_box_drop(result, ctx);
     kk_string_t msg;
-    #if defined(_GNU_SOURCE)
+    #if defined(_GNU_SOURCE) && !defined(__APPLE__)
       // GNU version of strerror_r
       char buf[256];
       char* serr = strerror_r(err, buf, 255); buf[255] = 0;
       msg = kk_string_alloc_dup( serr, ctx );
-    #elif (_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600) && !defined(_GNU_SOURCE)
+    #elif (_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600 || defined(__APPLE__))
       // XSI version of strerror_r
       char buf[256];
       strerror_r(err, buf, 255); buf[255] = 0;

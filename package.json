@@ -24,9 +24,10 @@
   },
   "dependencies": {
     "amdefine": "^1.0.1",
-    "colors": ">=1.0",
+    "colors": "^1.4.0",
     "commander": ">=1.1.1",
-    "diff": ">=1.0",
+    "diff": "^4.0.2",
+    "jake": "^10.8.2",
     "node-static": ">=0.6",
     "requirejs": ">=2.1",
     "ws": ">=0.4"
