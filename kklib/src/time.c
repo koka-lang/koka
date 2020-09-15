@@ -50,7 +50,7 @@ static double kk_timer_ticks_prim(double* secs_frac, kk_context_t* ctx) {
 #endif
 
 // high res timer
-static double kk_timer_ticks_prim(double* secs_frac, kk_context_t* ctx) {  
+static double kk_timer_ticks_prim(double* secs_frac, kk_context_t* ctx) {
   if (ctx->timer_freq == 0) {
     struct timespec tres = { 0, 0 };
     clock_getres(CLOCK_MONOTONIC, &tres);
@@ -71,6 +71,7 @@ static double kk_timer_ticks_prim(double* secs_frac, kk_context_t* ctx) {
 
 #else
 // low resolution timer
+#pragma message("using low-res timer on this platform")
 static double kk_timer_ticks_prim(double* secs_frac, kk_context_t* ctx) {
   if (ctx->timer_freq == 0) {
     ctx->timer_freq = (int64_t)CLOCKS_PER_SEC;
@@ -102,7 +103,7 @@ kk_decl_export double kk_timer_ticks(double* secs_frac, kk_context_t* ctx) {
   if (ctx->timer_prev.seconds > secs || (ctx->timer_prev.seconds == secs && ctx->timer_prev.second_fraction >= frac)) {
     // ouch, clock ran backward; add 1 nano second and adjust the delta
     ctx->timer_delta.seconds = ctx->timer_prev.seconds - secs;
-    ctx->timer_delta.second_fraction = ctx->timer_prev.second_fraction - frac - 1e-9; // can be negative    
+    ctx->timer_delta.second_fraction = ctx->timer_prev.second_fraction - frac - 1e-9; // can be negative
   }
   // save time in previous and adjust with the delta
   ctx->timer_prev.seconds = secs;
@@ -152,7 +153,7 @@ static double kk_time_unix_now_prim(double* secs_frac, kk_context_t* ctx) {
   }
   return secs;
 }
-#else 
+#else
 
 #include <time.h>
 #if defined(CLOCK_REALTIME)
@@ -223,5 +224,3 @@ kk_decl_export double kk_time_resolution(kk_context_t* ctx) {
   kk_assert_internal(ctx->time_freq != 0);
   return (1.0 / (double)ctx->time_freq);
 }
-
-
