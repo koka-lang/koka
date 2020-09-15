@@ -9,14 +9,14 @@
 
 # Koka: a function-oriented language with effect inference
 
-_Note: Koka v2 is a research language that currently under heavy development with the new evidence translation and C backend -- various 
+_Note: Koka v2 is a research language that currently under heavy development with the new evidence translation and C backend -- various
 features may be lacking, documentation may be outdated, not all tests will run, and there may be bugs.
 Use the branch [`v1-master`](https://github.com/koka-lang/koka/tree/v1-master) to use the older stable Koka v1 with the Javascript backend._
 
 Koka is a strongly typed, strict functional language which tracks the (side) _effects_ of every function in its type.
 Koka syntax is Javascript/C like,
 the evaluation is strict like OCaml/C, and the type- and effect system is Haskell like, where pure and effectful computations are distinguished.
-The precise effect typing gives Koka rock-solid semantics backed by well-studied category theory, which makes Koka particularly easy to reason 
+The precise effect typing gives Koka rock-solid semantics backed by well-studied category theory, which makes Koka particularly easy to reason
 about for both humans and compilers. (Given the importance of effect typing, the name Koka was derived from the Japanese word for _effective_ ([Kōka](https://translate.google.com/#view=home&op=translate&sl=auto&tl=en&text=%E5%8A%B9%E6%9E%9C), 効果)).
 
 <img align="right" width="300" src="doc/snippet-rbtree.png"/>
@@ -24,16 +24,16 @@ about for both humans and compilers. (Given the importance of effect typing, the
 A function without any effect is called _total_ and corresponds to mathematically total functions -- a good place to be.
 Then we have effects for partial functions that can raise exceptions, as _exn_, and potentially non-terminating functions as _div_ (divergent).
 The combination of _exn_ and _div_ is called _pure_ as that corresponds to Haskell's notion of purity. On top of that we find
-mutability (as _st_) up to full non-deterministic side effects in _io_. 
+mutability (as _st_) up to full non-deterministic side effects in _io_.
 
 Koka also has full support for _algebraic effect handlers_. This enables powerful control-flow abstraction that allows users to define
 compositional control-flow abstractions as a library; this includes advanced abstractions like exceptions, iterators, async-await concurrency,
-ambient state, backtracking parser combinators, probablistic programming, Bayesian machine learning, etc. Algebraic effect handlers subsume (free) 
+ambient state, backtracking parser combinators, probablistic programming, Bayesian machine learning, etc. Algebraic effect handlers subsume (free)
 monads, and are compositional without needing lifting or monad transformers.
 
-Recent work on [evidence translation](#evidence-translation) and [Perceus](#perceus) precise compiler guided reference counting enable Koka to compile directly 
+Recent work on [evidence translation](#evidence-translation) and [Perceus](#perceus) precise compiler guided reference counting enable Koka to compile directly
 to plain C code _without needing a garbage collector_ or runtime system. Initial performance benchmarks are promising (see below),
-and it is our goal to generally fall within a factor 2&times; of C++ performance without needing manual memory management. 
+and it is our goal to generally fall within a factor 2&times; of C++ performance without needing manual memory management.
 
 For more background information, see:
 
@@ -51,7 +51,7 @@ For more background information, see:
 
 Enjoy,
   Daan Leijen
-  
+
 Special thanks to:
 - [Ningning Xie](https://xnning.github.io/): for her work on the theory and practice of [evidence translation](#evidence-translation) for algebraic effect handlers [6].
 - [Alex Reinking](https://alexreinking.com/): for the ongoing work on the [Perceus](#perceus) reference counting analysis.
@@ -68,14 +68,14 @@ Main branches:
 
 At this point there are no binary releases of Koka and you need to build
 the compiler yourself. Fortunately, Koka has few dependencies and should build
-without problems on most common platforms, e.g. Windows (including WSL), MacOSX, and
+without problems on most common platforms, e.g. Windows (including WSL), macOS X, and
 Unix.
 
 The following programs are required to build Koka:
 
-* [Stack](https://docs.haskellstack.org/) to run the Haskell compiler .
-* [CMake](https://cmake.org/download/) to compile the generated C files (use `> sudo apt-get install cmake` on Ubuntu).
-* Optional: The [Ninja](https://ninja-build.org/) build system for faster build times (required on Windows, use `> sudo apt-get install ninja-build` on Ubuntu).
+* [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.
+* [CMake](https://cmake.org/download/) to compile the generated C files (use `> sudo apt-get install cmake` on Ubuntu, `> brew install cmake` on macOS X).
+* Optional: The [Ninja](https://ninja-build.org/) build system for faster build times (required on Windows, use `> sudo apt-get install ninja-build` on Ubuntu, `> brew install ninja` on macOS X).
 * Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
 
 Building Koka:
@@ -113,7 +113,7 @@ hi
 
 If you leave out the `-c` flag, Koka will execute the compiled program automatically.
 The `-O2` flag builds an optimized program. Let's try it on a functional implementation
-of balanced insertion in a red-black tree balanced ([`rbtree.kk`](test/bench/koka/rbtree.kk)) 
+of balanced insertion in a red-black tree balanced ([`rbtree.kk`](test/bench/koka/rbtree.kk))
 ```
 > stack exec koka -- -O2 -c test/bench/koka/rbtree32.kk
 ...
@@ -126,10 +126,10 @@ compiled: out/RelWithDebInfo/test_bench_koka_rbtree32
 real    0m1.132s
 ```
 We can compare this against an in-place updating C++ implementation using `stl::map`
-([`rbtree.cpp`](test/bench/cpp/rbtree.cpp)) (which uses the GNU 
+([`rbtree.cpp`](test/bench/cpp/rbtree.cpp)) (which uses the GNU
 [`RBTree`](https://sourceware.org/git/?p=glibc.git;a=blob;f=misc/tsearch.c;h=cdc401a4e5411221ab2feb2baf8745991bde7868;hb=HEAD) implementation internally):
 ```
-> g++ -o cpp_rbtree -O3 test/bench/cpp/rbtree.cpp
+> g++ --std=c++17 -o cpp_rbtree -O3 test/bench/cpp/rbtree.cpp
 > time ./cpp_rbtree
 420000
 real    0m1.096s
@@ -151,7 +151,7 @@ to edit Koka programs. You can install support for Koka programs using
 
 (or use `jake sublime`) for the [Sublime](http://www.sublimetext.com) editor).
 If `node` is not installed, you can also copy the grammar files
-manually from the `koka/support` directory.
+manually from the `support/atom` directory to `~/.atom/packages/language-koka`.
 
 
 ## Running the interactive compiler
@@ -183,7 +183,7 @@ Now you can test some expressions:
     compiled: out\Debug\interactive.exe
 
     hi koka
-    
+
     > :t "hi"
     string
 
@@ -221,11 +221,11 @@ And quit the interpreter:
 A novel feature of Koka is a compiled and typed implementation of algebraic
 effect handlers (described in detail in [[3]](#references)).
 In the interactive environment, you can load various demo files with algebraic
-effects which are located in the ``test/algeff`` directory. 
+effects which are located in the ``test/algeff`` directory.
 
     > :f test/algeff/common
 
-where ``:f`` forces a recompile (versus ``:l`` which avoids a recompile if possible). 
+where ``:f`` forces a recompile (versus ``:l`` which avoids a recompile if possible).
 Use the ``:?`` command to get an overview of all commands. After
 loading the ``common`` demo, we can run it directly from the interpreter:
 
@@ -236,7 +236,7 @@ loading the ``common`` demo, we can run it directly from the interpreter:
     loading: std/core/hnd
     modules:
       test/algeff/common
-      
+
     > :t test2    
     () -> console ()
 
@@ -265,11 +265,12 @@ Some interesting demos are:
 
 # Benchmarks
 
-There is a standard benchmark suite. It is still basic but more benchmarks 
+There is a standard benchmark suite. It is still basic but more benchmarks
 with effect handlers are coming. We only test on Linux and the benchmarks
-need `gcc`, `ghc` (should be there already), `ocamlopt` (use `sudo apt-get install ocaml`), 
-and `swiftc` in the path. The Swift compiler can be downloaded [here](https://swift.org/download/)
-and the benchmarks expect `switfc` to be installed at `/opt/swift/bin`.
+need `gcc`, `ghc` (should be there already), `ocamlopt` (use `sudo apt-get install ocaml`),
+and `swiftc` in the path. (On Linux (or WSL)
+the Swift compiler can be downloaded [here](https://swift.org/download/)
+and the benchmarks expect `switfc` to be installed at `/opt/swift/bin`).
 The benchmarks are build using:
 
 ```
@@ -346,20 +347,20 @@ yield- and resume. This makes the cost of tail-resumptive operations on effects 
 
 ## Perceus
 
-Even a pure core intermediate language with explicit control flow is not yet good enough to compile to C directly: without manual memory 
-management functional languages still need a (tracing) garbage collector (like OCaml or Haskell). A well performing concurrent generational 
-garbage collector is very hard to build and is invasive as it needs to be able to scan the roots and stack. Even the best garbage collectors 
-still suffer from unpredictable latencies (especially with large live sets) and tend to require (much) more memory than achievable with 
-manual memory management (as with C/C++ and Rust). 
+Even a pure core intermediate language with explicit control flow is not yet good enough to compile to C directly: without manual memory
+management functional languages still need a (tracing) garbage collector (like OCaml or Haskell). A well performing concurrent generational
+garbage collector is very hard to build and is invasive as it needs to be able to scan the roots and stack. Even the best garbage collectors
+still suffer from unpredictable latencies (especially with large live sets) and tend to require (much) more memory than achievable with
+manual memory management (as with C/C++ and Rust).
 
 With Koka we took a new approach based on reference counting. The usual wisdom is that  reference counting does not perform well due to various factors but
 in Koka we believe we can do better: 1) we know that all inductive and co-inductive datatypes are never cyclic so we can identify potential cycle introducing
 datatypes statically (like mutable references, and these are not so often used in mostly functional Koka), 2) again due to the strict type system
-we can statically track which values may become shared across threads and avoid expensive atomic operations for the majority of operations, and 
+we can statically track which values may become shared across threads and avoid expensive atomic operations for the majority of operations, and
 finally 3) due to the explicit control-flow we can do deep analysis on variable life times.
-In particular, we use aggressive static analysis to insert _precise_ reference count instructions where memory is freed as soon as 
+In particular, we use aggressive static analysis to insert _precise_ reference count instructions where memory is freed as soon as
 it is no longer live (and in particular, we do not hold on to memory based on lexical scope as in almost all reference counting implementations
-in the wild, like Swift, Python, C++ `shared_ptr` etc). 
+in the wild, like Swift, Python, C++ `shared_ptr` etc).
 
 _Perceus_  stands for _Precise automatic reference counting with reuse and specialization_: the _reuse_ component transform functional
 style pattern matches into _in-place update_ when possible, while _specialization_ specialize the reference counting based on the call sites and
@@ -372,8 +373,8 @@ fun map( xs : list<a>, f : a -> e b ) : e list<b> {
   }
 }
 ```
-will update the list _in place_ (reusing the `Cons` nodes that are matched) if the list happens to be not shared (and makes a copy otherwise). 
-This dynamically adjust the program from in-place update to persistence and is the main reason why it can approach the performance of 
+will update the list _in place_ (reusing the `Cons` nodes that are matched) if the list happens to be not shared (and makes a copy otherwise).
+This dynamically adjust the program from in-place update to persistence and is the main reason why it can approach the performance of
 hand-optimized C++ on the red-black tree benchmark.
 
 Talk and paper are coming soon...
@@ -396,7 +397,7 @@ And future projects:
 
 - Implement inline specialization where functions like `map`, `fold` etc get specialized for the function with which they are called.
 - Various standard optimizations like case-of-case, join points, case-of-known constructor, etc.
-- Borrowing analysis for Perceus. 
+- Borrowing analysis for Perceus.
 - Known reference count specialization.
 - Improve compilation of local state to use local variables directly (in C).
 - Package management of Koka modules.
