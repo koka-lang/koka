@@ -43,13 +43,14 @@ including Karatsuba multiplication.
 
 #if (KK_INTPTR_SIZE>=8) && defined(_MSC_VER) && (_MSC_VER >= 1920) && !defined(__clang_msvc__) /* not clang-cl or we get link errors */
 // Use 64-bit digits on Microsoft VisualC
-#define BASE        KI64(1000000000000000000)
-#define LOG_BASE    (18)
-#define DIGIT_BITS  (64)
-#define BASE_HEX    KU64(0x100000000000000)  // largest hex base < BASE  
-#define PRIxDIGIT   "%llx"
-#define PRIXDIGIT   "%llX"
-typedef uint64_t    kk_digit_t;     // 2*BASE + 1 < kk_digit_t_max
+#define BASE          KI64(1000000000000000000)
+#define LOG_BASE      (18)
+#define DIGIT_BITS    (64)
+#define BASE_HEX      KU64(0x100000000000000)  // largest hex base < BASE  
+#define LOG_BASE_HEX  (14)                     // hex digits in BASE_HEX
+#define PRIxDIGIT     "%llx"
+#define PRIXDIGIT     "%llX"
+typedef uint64_t      kk_digit_t;     // 2*BASE + 1 < kk_digit_t_max
 
 typedef struct kk_ddigit_s {
   uint64_t hi;
@@ -81,11 +82,12 @@ static inline kk_ddigit_t ddigit_mul_add(kk_digit_t x, kk_digit_t y, kk_digit_t 
 
 #elif (KK_INTPTR_SIZE >= 8) && defined(__GNUC__) 
 // Use 64-bit digits with gcc/clang/icc
-#define BASE        KI64(1000000000000000000)
-#define LOG_BASE    (18)
-#define DIGIT_BITS  (64)
-#define BASE_HEX    KU64(0x100000000000000)  // largest hex base < BASE  
-typedef uint64_t    kk_digit_t;     // 2*BASE + 1 < kk_digit_t_max
+#define BASE          KI64(1000000000000000000)
+#define LOG_BASE      (18)
+#define DIGIT_BITS    (64)
+#define BASE_HEX      KU64(0x100000000000000)  // largest hex base < BASE  
+#define LOG_BASE_HEX  (14)                     // hex digits in BASE_HEX
+typedef uint64_t      kk_digit_t;     // 2*BASE + 1 < kk_digit_t_max
 
 #include <inttypes.h>
 #define PRIxDIGIT   "%" PRIx64
@@ -112,13 +114,14 @@ static inline kk_ddigit_t ddigit_mul_add(kk_digit_t x, kk_digit_t y, kk_digit_t 
 #pragma message("using 32-bit digits for large integer arithmetic")
 #endif
 
-#define BASE        KI32(1000000000)
-#define LOG_BASE    (9)
-#define DIGIT_BITS  (32)
-#define BASE_HEX    KU32(0x10000000)  // largest hex base < BASE  
-typedef uint32_t    kk_digit_t;     // 2*BASE + 1 < kk_digit_t_max
-#define PRIxDIGIT   "%x"
-#define PRIXDIGIT   "%X"
+#define BASE          KI32(1000000000)
+#define LOG_BASE      (9)
+#define DIGIT_BITS    (32)
+#define BASE_HEX      KU32(0x10000000)  // largest hex base < BASE  
+#define LOG_BASE_HEX  (7)               // hex digits in BASE_HEX
+typedef uint32_t      kk_digit_t;       // 2*BASE + 1 < kk_digit_t_max
+#define PRIxDIGIT     "%x"
+#define PRIXDIGIT     "%X"
 
 typedef uint64_t    kk_ddigit_t;    // double digit for multiplies
 
@@ -137,6 +140,8 @@ static inline kk_digit_t ddigit_cdiv(kk_ddigit_t d, kk_digit_t divisor, kk_digit
 
 #endif
 
+#define KK_LOG16_DIV_LOG10  (1.20411998266)
+#define KK_LOG10_DIV_LOG16  (0.83048202372)
 
 typedef uint16_t kk_extra_t;
 #define MAX_EXTRA           (UINT16_MAX / 2)  // we use 1 bit for the negative bool
@@ -490,8 +495,7 @@ static kk_string_t kk_int_to_string(kk_intx_t n, kk_context_t* ctx) {
 /*----------------------------------------------------------------------
   Parse an integer
 ----------------------------------------------------------------------*/
-
-bool kk_integer_parse(const char* s, kk_integer_t* res, kk_context_t* ctx) {
+kk_decl_export bool kk_integer_parse(const char* s, kk_integer_t* res, kk_context_t* ctx) {
   kk_assert_internal(s!=NULL && res != NULL);
   if (res==NULL) return false;
   *res = kk_integer_zero;
@@ -503,16 +507,20 @@ bool kk_integer_parse(const char* s, kk_integer_t* res, kk_context_t* ctx) {
   // sign
   if (s[i] == '+') { i++; }
   else if (s[i] == '-') { is_neg = true; i++; }
-  if (!isdigit(s[i])) return false;  // must start with a digit
+  // check if hexadecimal?
+  if (s[i]=='0' && (s[i+1]=='x' || s[i+1]=='X')) {
+    return kk_integer_hex_parse(s, res, ctx);
+  }
+  if (!kk_ascii_is_digit(s[i])) return false;  // must start with a digit
   // significant
   for (; s[i] != 0; i++) {
     char c = s[i];
-    if (isdigit(c)) {
+    if (kk_ascii_is_digit(c)) {
       sig_digits++;
     }
-    else if (c=='_' && isdigit(s[i+1])) { // skip underscores
+    else if (c=='_' && kk_ascii_is_digit(s[i+1])) { // skip underscores
     }
-    else if ((c == '.' || c=='e' || c=='E') && isdigit(s[i+1])) { // found fraction/exponent
+    else if ((c == '.' || c=='e' || c=='E') && kk_ascii_is_digit(s[i+1])) { // found fraction/exponent
       break;
     }
     else return false; // error
@@ -525,7 +533,7 @@ bool kk_integer_parse(const char* s, kk_integer_t* res, kk_context_t* ctx) {
     i++;
     for (; s[i] != 0; i++) {
       char c = s[i];
-      if (isdigit(c)) {
+      if (kk_ascii_is_digit(c)) {
         if (c != '0') {
           kk_frac_trailing_zeros = 0;
         }
@@ -534,9 +542,9 @@ bool kk_integer_parse(const char* s, kk_integer_t* res, kk_context_t* ctx) {
         }
         frac_digits++;
       }
-      else if (c=='_' && isdigit(s[i+1])) { // skip underscores
+      else if (c=='_' && kk_ascii_is_digit(s[i+1])) { // skip underscores
       }
-      else if ((c=='e' || c=='E') && (isdigit(s[i+1]) || (s[i+1]=='+' && isdigit(s[i+2])))) { // found fraction/exponent
+      else if ((c=='e' || c=='E') && (kk_ascii_is_digit(s[i+1]) || (s[i+1]=='+' && kk_ascii_is_digit(s[i+2])))) { // found fraction/exponent
         break;
       }
       else return false; // error
@@ -552,7 +560,7 @@ bool kk_integer_parse(const char* s, kk_integer_t* res, kk_context_t* ctx) {
     for (; s[i] == '0'; i++) {}  // skip leading zeros
     for (; s[i] != 0; i++) {
       char c = s[i];
-      if (isdigit(c)) {
+      if (kk_ascii_is_digit(c)) {
         exp = 10*exp + ((size_t)c - '0');
         if (exp > BASE) return false; // exponents must be < 10^9
       }
@@ -571,7 +579,7 @@ bool kk_integer_parse(const char* s, kk_integer_t* res, kk_context_t* ctx) {
     size_t digits = 0;
     for (const char* p = s; p < end && digits < dec_digits; p++) {
       char c = *p;
-      if (isdigit(c)) {
+      if (kk_ascii_is_digit(c)) {
         digits++;
         d = 10*d + ((kk_intx_t)c - '0');
       }
@@ -596,7 +604,7 @@ bool kk_integer_parse(const char* s, kk_integer_t* res, kk_context_t* ctx) {
     // read a full digit
     for (size_t j = 0; j < chunk; ) {
       char c = (p < end ? *p++ : '0'); // fill out with zeros
-      if (isdigit(c)) {
+      if (kk_ascii_is_digit(c)) {
         digits++;
         j++;
         d = 10*d + ((kk_digit_t)c - '0'); kk_assert_internal(d<BASE);
@@ -620,6 +628,98 @@ kk_integer_t kk_integer_from_str(const char* num, kk_context_t* ctx) {
   kk_assert_internal(ok);
   return (ok ? i : kk_integer_zero);
 }
+
+
+/*----------------------------------------------------------------------
+  Parse an integer as hexadecimal
+----------------------------------------------------------------------*/
+
+static kk_bigint_t* kk_bigint_mul_small(kk_bigint_t* x, kk_digit_t y, kk_context_t* ctx);
+static kk_bigint_t* kk_bigint_add_abs_small(kk_bigint_t* x, kk_digit_t y, kk_context_t* ctx);
+
+bool kk_integer_hex_parse(const char* s, kk_integer_t* res, kk_context_t* ctx) {
+  kk_assert_internal(s!=NULL && res != NULL);
+  if (res==NULL) return false;
+  *res = kk_integer_zero;
+  if (s==NULL) return false;
+  // parse
+  bool is_neg = false;
+  size_t hdigits = 0; // digit count
+  size_t i = 0;
+  // sign
+  if (s[i] == '+') { i++; }
+  else if (s[i] == '-') { is_neg = true; i++; }
+  // skip leading 0[xX]
+  if (s[i] == '0' && (s[i+1]=='x' || s[i+1]=='X')) {
+    i += 2;  
+  }
+  if (!kk_ascii_is_hexdigit(s[i])) return false;  // must start with a hex digit
+
+  // significant
+  const char* start = s+i;
+  for (; s[i] != 0; i++) {
+    char c = s[i];
+    if (kk_ascii_is_hexdigit(c)) {
+      hdigits++;
+    }
+    else if (c=='_' && kk_ascii_is_hexdigit(s[i+1])) { 
+      // skip underscores
+    }
+    else {
+      return false; // error
+    }
+  }
+  const char* end = s+i;
+
+  // parsed correctly, ready to construct the number
+  // construct an `kk_intx_t` if it fits.
+  if (hdigits < LOG_BASE_HEX) {   // must be less than LOG_BASE_HEX to avoid overflow
+    kk_assert_internal(KK_INTX_SIZE >= sizeof(kk_digit_t));
+    kk_intx_t d = 0;
+    for (const char* p = s; p < end;  p++) {
+      char c = *p;
+      if (kk_ascii_is_hexdigit(c)) {
+        const kk_intx_t hd = (kk_intx_t)(kk_ascii_is_digit(c) ? c - '0' : 10 + (kk_ascii_is_lower(c) ? c - 'a' : c - 'A'));
+        d = 16*d + hd;
+      }
+    }
+    if (is_neg) d = -d;
+    *res = kk_integer_from_int(d, ctx);
+    return true;
+  }
+  
+  // otherwise construct a big int
+  const size_t count = (size_t)(ceil((double)hdigits * KK_LOG16_DIV_LOG10)) + 1; // conservatively overallocate to max needed.
+  kk_extra_t ecount = (count >= MAX_EXTRA ? MAX_EXTRA-1 : (kk_extra_t)count);
+  kk_bigint_t* b = bigint_alloc(ecount, is_neg, ctx);
+  b->extra += (ecount-1);
+  b->count -= (ecount-1);
+  b->digits[0] = 0;
+
+  // create in chucks of LOG_BASE_HEX digits
+  size_t chunk = hdigits%LOG_BASE_HEX; if (chunk==0) chunk = LOG_BASE_HEX; // initial number of digits to read
+  const char* p = start;
+  while (p < end) {
+    kk_digit_t d = 0;
+    // read a full digit
+    for (size_t j = 0; j < chunk && p < end; ) {
+      char c = *p++; // fill out with zeros
+      if (kk_ascii_is_hexdigit(c)) {
+        j++;
+        kk_digit_t hd = (kk_digit_t)(kk_ascii_is_digit(c) ? c - '0' : 10 + (kk_ascii_is_lower(c) ? c - 'a' : c - 'A'));
+        d = 16*d + hd; 
+        kk_assert_internal(d<BASE);
+      }
+    }
+    // and multiply-add
+    b = kk_bigint_mul_small(b, BASE_HEX, ctx);
+    b = kk_bigint_add_abs_small(b, d, ctx);
+    chunk = LOG_BASE_HEX;  // after the first chunk, the chunk is always a full LOG_BASE_HEX
+  }
+  *res = integer_bigint(b, ctx);
+  return true;
+}
+
 
 /*----------------------------------------------------------------------
   negate, compare
@@ -723,52 +823,57 @@ static kk_bigint_t* bigint_add_abs(kk_bigint_t* x, kk_bigint_t* y, kk_context_t*
   return kk_bigint_trim_to(z, i, true /* allow realloc */, ctx);
 }
 
-/*
-static kk_bigint_t* kk_bigint_add_abs_small(kk_bigint_t* x, kk_int_t y) {
-  kk_assert_internal(y >= 0 && y < BASE);
-  // kk_assert_internal(kk_bigint_sign_(x) == kk_bigint_sign_(y));
- // ensure x.count >= y.count
+
+static kk_bigint_t* kk_bigint_add_abs_small(kk_bigint_t* x, kk_digit_t y, kk_context_t* ctx) {
+  kk_assert_internal(y >= 0 && y < BASE);  
   const size_t cx = bigint_count_(x);
 
   // allocate result bigint
-  const size_t cz = ((kk_int_t)bigint_last_digit_(x) + y + 1 >= BASE ? cx + 1 : cx);
-  kk_bigint_t* z = bigint_alloc_reuse_(x, cz); // if z==x, we reused x.
+  const size_t cz = ((bigint_last_digit_(x) + y + 1) >= BASE ? cx + 1 : cx);  // is overflow is possible?
+  kk_bigint_t* z = bigint_alloc_reuse_(x, cz, ctx); // if z==x, we reused x.
   kk_assert_internal(bigint_count_(z) >= cx);
-  kk_digit_t carry = (kk_digit_t)y;
+  kk_digit_t carry = y;
   kk_digit_t sum = 0;
+
   // add y do the digits of x
   size_t i;
   for (i = 0; carry!=0 && i < cx; i++) {
     sum = x->digits[i] + carry;
-    if (unlikely(sum >= BASE)) {
+    if (kk_unlikely(sum >= BASE)) {
       carry = 1;
       sum -= BASE;
+      kk_assert_internal(sum < BASE);
     }
     else {
       carry = 0;
     }
     z->digits[i] = sum;
   }
-  // copy the tail
-  if (i < cx && z != x) {
-    kk_assert_internal(carry == 0);
-    // memcpy(&z->digits[i], &x->digits[i], (cx - i)*sizeof(kk_digit_t));
-    for (; i < cx; i++) {
-      z->digits[i] = x->digits[i];
-    }
-  }
-  else {
-    i = cx;
-    // carry flows into final extra digit?
-    if (carry) {
+  // wrap up
+  if (i == cx) {
+    // carry overflows into the last digit?
+    if (carry != 0) {
       z->digits[i++] = carry;
     }
   }
+  else {
+    kk_assert_internal(i < cx && carry==0);
+    if (z != x) {
+      // copy rest of digits if not in-place
+      for (; i < cx; i++) {
+        z->digits[i] = x->digits[i];
+      }
+    }
+    else {
+      // skip to the end
+      i = cx;
+    }
+  }
   kk_assert_internal(i == bigint_count_(z) || i + 1 == bigint_count_(z));
-  if (z != x) bigint_decref(x);
-  return kk_bigint_tkk_rim_to(z, i, true );
+  if (z != x) { drop_bigint(x, ctx); }
+  return kk_bigint_trim_to(z, i, true, ctx );
 }
-*/
+
 
 /*----------------------------------------------------------------------
   subtract absolute
@@ -1352,25 +1457,45 @@ static kk_string_t kk_int_to_hex_string(kk_intx_t i, bool use_capitals, kk_conte
 }
 
 static size_t kk_bigint_to_hex_buf(kk_bigint_t* b, char* buf, size_t size, bool use_capitals, kk_context_t* ctx) {
-  // TODO: can we improve the performance using the Chinese remainder theorem? or not using snprintf?
+  // TODO: can we improve the performance using the Chinese remainder theorem? 
+  // and avoid the reversal? and per digit divide?
   kk_assert_internal(!b->is_neg);
+  const char baseA = (use_capitals ? 'A' : 'a');
   size_t len = 0;
   while (len < size && ((b->count > 1) || (b->digits[0] != 0))) {
+    // convert per BASE_HEX chunk in reverse order
     kk_digit_t mod;
     b = kk_bigint_cdiv_cmod_small(b, BASE_HEX, &mod, ctx);
-    if (use_capitals)
-      snprintf(buf + len, size - len, PRIXDIGIT, mod);
-    else
-      snprintf(buf + len, size - len, PRIxDIGIT, mod);
-    len += strlen(buf + len);
+    for (size_t i = 0; i < LOG_BASE_HEX && len < size; i++) {
+      // convert the mod per hex digit in reverse order
+      kk_digit_t d = mod % 16;
+      mod /= 16;
+      buf[len++] = (char)(d < 10 ? d + '0' : d - 10 + baseA);
+    }
   }
+  if (len == 0) {
+    buf[len++] = '0';
+  }
+  while (len > 0 && buf[len - 1] == '0') { // remove trailing zeros  
+    len--;  
+  }
+  buf[len] = 0;
+
+  // reverse the digits (careful with alignment restrictions if trying optimizing this)
+  for (size_t i = 0; i < len/2; i++) {
+    char c = buf[i];
+    char d = buf[len - 1 - i];
+    buf[len - 1 - i] = c;
+    buf[i] = d;
+  }
+
   drop_bigint(b,ctx);
   return len;
 }
 
 static kk_string_t kk_bigint_to_hex_string(kk_bigint_t* b, bool use_capitals, kk_context_t* ctx) {
-  // overestimate the needed characters by using needed decimal digits
-  size_t needed = kk_bigint_to_buf_(b, NULL, 0);   
+  size_t dec_needed = kk_bigint_to_buf_(b, NULL, 0);   
+  size_t needed = (size_t)(ceil((double)dec_needed * KK_LOG10_DIV_LOG16)) + 2; // conservative estimate
   kk_string_t s = kk_string_alloc_buf(needed, ctx);
   size_t len = kk_bigint_to_hex_buf(b, (char*)kk_string_cbuf_borrow(s), needed, use_capitals, ctx);
   kk_assert_internal(needed > len);

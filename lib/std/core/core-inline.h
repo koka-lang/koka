@@ -20,16 +20,10 @@ static inline kk_std_core_types__order kk_int_as_order(int i,kk_context_t* ctx) 
 }
 
 static inline kk_std_core_types__maybe kk_integer_xparse( kk_string_t s, bool hex, kk_context_t* ctx ) {
-  if (hex) {
-    kk_unsupported_external("integer_xparse: hexadecimal");
-    return kk_std_core_types__new_Nothing(ctx);
-  }
-  else {
-    kk_integer_t i;
-    bool ok = kk_integer_parse(kk_string_cbuf_borrow(s),&i,ctx);
-    kk_string_drop(s,ctx);
-    return (ok ? kk_std_core_types__new_Just(kk_integer_box(i),ctx) : kk_std_core_types__new_Nothing(ctx));
-  }
+  kk_integer_t i;
+  bool ok = (hex ? kk_integer_hex_parse(kk_string_cbuf_borrow(s),&i,ctx) : kk_integer_parse(kk_string_cbuf_borrow(s),&i,ctx) );
+  kk_string_drop(s,ctx);
+  return (ok ? kk_std_core_types__new_Just(kk_integer_box(i),ctx) : kk_std_core_types__new_Nothing(ctx));  
 }
 
 struct kk_std_core_Sslice;

@@ -24,6 +24,15 @@ static inline kk_box_t kk_char_box(kk_char_t c, kk_context_t* ctx) {
   return kk_int32_box(c, ctx);
 }
 
+static inline bool kk_ascii_is_digit(char c)    { return (c >= '0' && c <= '9'); }
+static inline bool kk_ascii_is_lower(char c)    { return (c >= 'a' && c <= 'z'); }
+static inline bool kk_ascii_is_upper(char c)    { return (c >= 'A' && c <= 'Z'); }
+static inline bool kk_ascii_is_control(char c)  { return (c < ' '); }
+static inline bool kk_ascii_is_white(char c)    { return (c==' ' || c=='\t' || c=='\n' || c=='\r'); }
+static inline bool kk_ascii_is_hexdigit(char c) { return (kk_ascii_is_digit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')); }
+static inline bool kk_ascii_is_alpha(char c)    { return (kk_ascii_is_lower(c) || kk_ascii_is_upper(c)); }
+static inline bool kk_ascii_is_alphanum(char c) { return (kk_ascii_is_alpha(c) || kk_ascii_is_digit(c)); }
+
 /*--------------------------------------------------------------------------------------
   Strings
   Always point to valid modified-UTF8 characters.
