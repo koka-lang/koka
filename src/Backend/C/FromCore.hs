@@ -1285,7 +1285,7 @@ genMatch result0 exprDocs branches
 
 genBranch :: Result -> [Doc] -> Bool -> Branch -> Asm Doc
 genBranch result exprDocs doTest branch@(Branch patterns guards)
-  = genPattern doTest (zip exprDocs patterns) (genGuards result guards)
+  = genPattern doTest (freeLocals guards)  (zip exprDocs patterns) (genGuards result guards)
 
 genGuards :: Result -> [Guard] -> Asm Doc
 genGuards result guards
@@ -1306,24 +1306,24 @@ parensIf d
   = if (dstartsWith d "(" && dendsWith d ")") then d else parens d
 
 
-genPattern :: Bool -> [(Doc,Pattern)] -> Asm Doc -> Asm Doc
-genPattern doTest [] genBody
+genPattern :: Bool -> TNames -> [(Doc,Pattern)] -> Asm Doc -> Asm Doc
+genPattern doTest gfree [] genBody
   = genBody
-genPattern doTest dpatterns genBody
+genPattern doTest gfree dpatterns genBody
   = do (testss,localss,nextPatternss) <- fmap (unzip3 . concat) $
-                                           mapM (genPatternTest doTest) dpatterns
+                                           mapM (genPatternTest doTest gfree) dpatterns
        let tests  = concat testss
            locals = concat localss
            nextPatterns = concat nextPatternss
 
-       ndoc <- genPattern doTest nextPatterns genBody
+       ndoc <- genPattern doTest gfree nextPatterns genBody
        if (null tests)
         then return (vcat (locals ++ [ndoc]))
         else return (text "if" <+> parensIf (hcat (punctuate (text "&&") tests))
                       <+> block (vcat (locals ++ [ndoc])))
 
-genPatternTest :: Bool -> (Doc,Pattern) -> Asm [([Doc],[Doc],[(Doc,Pattern)])]
-genPatternTest doTest (exprDoc,pattern)
+genPatternTest :: Bool -> TNames -> (Doc,Pattern) -> Asm [([Doc],[Doc],[(Doc,Pattern)])]
+genPatternTest doTest gfree (exprDoc,pattern)
   = let test xs = if doTest then xs else [] in
     case pattern of
       PatWild -> return []
@@ -1349,9 +1349,10 @@ genPatternTest doTest (exprDoc,pattern)
                   -- assign  = ppType targ <+> ppDefName local <+> text "=" <+> unbox <.> semi
               return [([],[{-assign-}],next)]
       PatVar tname pattern
-        -> do let after = ppType (typeOf tname) <+> ppDefName (getName tname) <+> text "=" <+> exprDoc <.> semi
+        -> do let after = if (patternVarFree pattern && not (tnamesMember tname gfree)) then [] 
+                           else [ppType (typeOf tname) <+> ppDefName (getName tname) <+> text "=" <+> exprDoc <.> semi]
                   next  = genNextPatterns (\self fld -> self) (ppDefName (getName tname)) (typeOf tname) [pattern]
-              return [([],[after],next)]
+              return [([],after,next)]
       PatLit (LitString s)
         -> return [(test [text "kk_string_cmp_cstr_borrow" <.> tupled [exprDoc,fst (cstring s)] <+> text "== 0"],[],[])]
       PatLit lit@(LitInt _)
@@ -1389,6 +1390,11 @@ genPatternTest doTest (exprDoc,pattern)
                      assign  = typeDoc <+> ppDefName local <+> text "=" <+> conAsName conInfo <.> tupled [exprDoc] <.> semi
                  return [(xtest [conTestName conInfo <.> parens exprDoc],[assign],next)]
 
+patternVarFree  pat
+  = case pat of
+      PatWild  -> True
+      PatLit{} -> True 
+      _ -> False
 
 genNextPatterns :: (Doc -> Doc -> Doc) -> Doc -> Type -> [Pattern] -> [(Doc,Pattern)]
 genNextPatterns select exprDoc tp []
@@ -1401,8 +1407,9 @@ genNextPatterns select exprDoc tp patterns
                [PatWild]  | length args > 1 -> []
                [pat]      | length args == 0 || length args > 1 -> [(exprDoc, pat)]
                _          -> assertion ("C.FromCore.genNextPatterns: args != patterns " ++ show (length args, length patterns) ++ show (args,patterns) ++ ":\n expr: " ++ show exprDoc ++ "\n type: " ++ show tp) (length args == length patterns) $
-                             concatMap genNextPattern (zip [if nameIsNil name then newFieldName i else name  | (name,i) <- zip (map fst args) [1..]]
-                                                       patterns)
+                             concatMap genNextPattern
+                                          (zip [if nameIsNil name then newFieldName i else name  | (name,i) <- zip (map fst args) [1..]]
+                                           patterns)
          _ -> case patterns of
                 [PatWild] -> []
                 [pat]     -> [(exprDoc,pat)]
@@ -2336,10 +2343,10 @@ tblock tpDoc doc
 
 tcoBlock :: Doc -> Doc -> Doc
 tcoBlock tpDoc doc
-  = tblock tpDoc (text "kk_tailcall_: ;" <-> doc)
+  = tblock tpDoc (text "kk__tailcall: ;" <-> doc)
 
 tailcall :: Doc
-tailcall  = text "goto kk_tailcall_;"
+tailcall  = text "goto kk__tailcall;"
 
 object :: [(Doc, Doc)] -> Doc
 object xs
