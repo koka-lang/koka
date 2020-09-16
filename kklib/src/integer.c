@@ -520,7 +520,7 @@ kk_decl_export bool kk_integer_parse(const char* s, kk_integer_t* res, kk_contex
     }
     else if (c=='_' && kk_ascii_is_digit(s[i+1])) { // skip underscores
     }
-    else if ((c == '.' || c=='e' || c=='E') && kk_ascii_is_digit(s[i+1])) { // found fraction/exponent
+    else if ((c == '.' || c=='e' || c=='E') && (s[i+1]=='+' || kk_ascii_is_digit(s[i+1]))) { // found fraction/exponent
       break;
     }
     else return false; // error
