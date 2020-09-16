@@ -195,18 +195,15 @@ bcoerceX fromTp toTp expr
       -- see test/cgen/box3 and test/cgen/box3a
       (CBox, CFun cpars cres)  
         -> --trace ("box to fun: " ++ show expr) $
-           do boxedToTp <- boxedFunType toTp
-              let unboxed = App (unboxVarAtTp (TFun [(nameNil,fromTp)] typeTotal boxedToTp)) [expr]
-              expr' <- bcoerce boxedToTp toTp unboxed -- unwrap function; we must return Just even if no further wrapping was needed
-              return (Just expr')
-              -- return $ Just $ App (unboxVar) [expr]
+            do boxedToTp <- boxedFunType toTp
+               let unboxed = App (unboxVarAtTp (TFun [(nameNil,fromTp)] typeTotal boxedToTp)) [expr]
+               Just <$> bcoerce boxedToTp toTp unboxed -- unwrap function; we must return Just even if no further wrapping was needed
       
       (CFun cpars cres, CBox)  
          -> --trace ("fun to box: " ++ show expr) $
             do boxedFromTp <- boxedFunType fromTp
                expr'  <- bcoerce fromTp boxedFromTp expr  -- wrap function
-               return $ Just $ App (boxVarAtTp (TFun [(nameNil,boxedFromTp)] typeTotal toTp)) [expr']         -- and box it itselfob
-               -- return $ Just $ App (boxVar) [expr]
+               return $ Just $ App (boxVarAtTp (TFun [(nameNil,boxedFromTp)] typeTotal toTp)) [expr']         -- and box it itselfob               
                   
       -- coerce between function arguments/results
       (CFun fromPars fromRes, CFun toPars toRes)
@@ -252,6 +249,11 @@ boxBindExprAsValue fromTp toTp expr action  | isTotal expr
   = action expr
 boxBindExprAsValue fromTp toTp expr action
   = trace ("box coerce with yield extension: " ++ show expr) $
+    do v    <- uniqueTName "bv" fromTp
+       body <- action (Var v InfoNone)
+       return (Let [DefNonRec (makeTDef v expr)] body)
+          
+  {-
     do yextend <- do vb <- uniqueTName "bb" (TVar tvarA)
                      w  <- uniqueTName "bw" fromTp
                      x  <- uniqueTName "bx" toTp
@@ -269,15 +271,11 @@ boxBindExprAsValue fromTp toTp expr action
        body2 <- action (Var v InfoNone)
        return (Let [DefNonRec (makeTDef v expr)] $
                makeIfExpr makeYielding yextend body2
-              )   
+              )               
   where
     coerceTp 
       = TFun [(nameNil,fromTp)] typeTotal toTp
-      
-uniqueTName nm tp 
-  = do n <- uniqueName nm
-       return (TName n tp)
-                   
+                         
 makeYielding :: Expr
 makeYielding
   = App (Var (TName nameYielding typeYielding) (InfoExternal [(C,"kk_yielding(kk_context())")])) []
@@ -287,9 +285,14 @@ makeYielding
 makeYieldExtend :: Type -> Type -> Expr -> Unique Expr
 makeYieldExtend fromTp toTp expr
   = do let yextend = App (TypeApp (Var (TName nameYieldExtend typeYieldExtend) (InfoArity 3 1)) [TVar tvarA, TVar tvarB, typeTotal]) [expr]
+       {- -- no need for nice unbox, it will be box_any anyways...
        v <- uniqueTName "b" (TVar tvarB)
        body <- bcoerce (typeOf v) toTp (Var v InfoNone)
        return (Let [DefNonRec (makeTDef v yextend)] body)
+      -}
+       case cType toTp of
+         CBox -> return yextend
+         _    -> return $ App (unboxVarAtTp (TFun [(nameNil,TVar tvarB)] typeTotal toTp)) [yextend]
   where 
     typeYieldExtend = TForall [tvarA,tvarB,tvarE] []
                         (TFun [(nameNil,TFun [(nameNil,TVar tvarA)] (TVar tvarE) (typeYld (TVar tvarB)))]
@@ -301,7 +304,7 @@ tvarA,tvarB,tvarE :: TypeVar
 tvarA = TypeVar 0 kindStar Bound
 tvarB = TypeVar 1 kindStar Bound
 tvarE = TypeVar 2 kindEffect Bound
-
+-}
 
 type BoxType = Type
 
@@ -395,3 +398,6 @@ boxConInfo
     a  = TypeVar (0) kindStar Bound
   
   
+uniqueTName nm tp 
+  = do n <- uniqueName nm
+       return (TName n tp)
