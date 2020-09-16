@@ -393,7 +393,7 @@ typedef struct kk_boxed_value_s {
 #define kk_valuetype_unbox_(tp,p,x,box,ctx) \
   do { \
     if (kk_unlikely(kk_box_is_any(box))) { \
-      _p = NULL; \
+      p = NULL; \
       const size_t kk__max_scan_fsize = sizeof(tp)/sizeof(kk_box_t); \
       kk_box_t* _fields = (kk_box_t*)(&x); \
       for (size_t i = 0; i < kk__max_scan_fsize; i++) { _fields[i] = kk_box_any(ctx);  } \
@@ -401,14 +401,15 @@ typedef struct kk_boxed_value_s {
     } \
     else { \
       p = kk_basetype_unbox_as_assert(kk_boxed_value_t, box, KK_TAG_BOX); \
-      x = *((tp*)(&p->data)); \
+      memcpy(&x,&p->data,sizeof(tp)); /* avoid aliasing warning,  x = *((tp*)(&p->data)); */ \
     } \
   } while(0)
 
 #define kk_valuetype_box(tp,x,val,scan_fsize,ctx)  \
   do { \
     kk_boxed_value_t p = kk_block_assert(kk_boxed_value_t, kk_block_alloc(sizeof(kk_block_t) + sizeof(tp), scan_fsize, KK_TAG_BOX, ctx), KK_TAG_BOX); \
-    *((tp*)(&p->data)) = val;  \
+    const tp valx = val;               /* ensure we can take the address */ \
+    memcpy(&p->data,&valx,sizeof(tp)); /* avoid aliasing warning: *((tp*)(&p->data)) = val; */ \
     x = kk_basetype_box(p); \
   } while(0)
 
