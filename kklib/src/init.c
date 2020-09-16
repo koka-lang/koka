@@ -5,6 +5,7 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
+//#define _CRT_SECURE_NO_WARNINGS
 #include "kklib.h"
 #include <stdarg.h>
 #ifdef _WIN32
@@ -154,6 +155,9 @@ static void kklib_init(void) {
   __has_lzcnt  = ((cpu_info[2] & (KI32(1)<<5)) != 0);
 #endif
   atexit(&kklib_done);
+  //fexcept_t fexn;
+  //fesetexceptflag(&fexn, FE_ALL_EXCEPT);
+  //_controlfp(_EM_INEXACT|_EM_OVERFLOW|_EM_UNDERFLOW, _MCW_EM);
 }
 
 /*--------------------------------------------------------------------------------------------------

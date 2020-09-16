@@ -4,7 +4,7 @@ public import std/num/ddouble
 public import std/num/double
 
 public fun check(name : string, res : string, tst : () -> io string ) : io () {
-  val got = tst()
+  val got = tst().replace-all("e+0","e+")
   println(name.pad-right(8,' ') + ": "
     + (if (got == res) then "ok: " + res
                        else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))

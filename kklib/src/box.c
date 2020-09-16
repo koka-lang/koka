@@ -30,10 +30,11 @@ kk_box_t kk_double_box_heap(double d, kk_context_t* ctx) {
 
 #if (KK_INTPTR_SIZE==8) && !KK_USE_NAN_BOX
 
-#if defined(BOX_DOUBLE_IF_NEG)
+#if defined(KK_BOX_DOUBLE_IF_NEG)
 kk_box_t kk_double_box(double d, kk_context_t* ctx) {
   KK_UNUSED(ctx);
   int64_t i;
+  //if (isnan(d)) { kk_debugger_break(ctx); }
   memcpy(&i, &d, sizeof(i));  // safe for C aliasing
   if (i >= 0) {  // positive?
     return kk_enum_box((uint64_t)i);
@@ -46,17 +47,18 @@ kk_box_t kk_double_box(double d, kk_context_t* ctx) {
 
 double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
   KK_UNUSED(ctx);
+  double d;
   if (kk_box_is_value(b)) {
     // positive double
-    double d;
     uint64_t u = kk_shr(b.box, 1);
     memcpy(&d, &u, sizeof(d)); // safe for C aliasing: see <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly>
-    return d;
   }
   else {
     // heap allocated
-    return kk_double_unbox_heap(b, ctx);
+    d = kk_double_unbox_heap(b, ctx);
   }
+  // if (isnan(d)) { kk_debugger_break(ctx); }
+  return d;
 }
 #else
 kk_box_t kk_double_box(double d, kk_context_t* ctx) {
