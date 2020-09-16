@@ -119,7 +119,7 @@ double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
 
 #elif (KK_INTPTR_SIZE==8) && KK_USE_NAN_BOX 
 
-static inline double kk_double_unbox(kk_box_t v, kk_context_t* ctx) {
+kk_decl_export double kk_double_unbox(kk_box_t v, kk_context_t* ctx) {
   KK_UNUSED(ctx);
   kk_assert_internal(_is_double(v) || kk_box_is_any(v));
   double d;
@@ -141,8 +141,7 @@ static inline double kk_double_unbox(kk_box_t v, kk_context_t* ctx) {
   return d;
 }
 
-
-static inline kk_box_t kk_double_box(double d, kk_context_t* ctx) {
+kk_decl_export kk_box_t kk_double_box(double d, kk_context_t* ctx) {
   KK_UNUSED(ctx);
   uint64_t u;
   kk_box_t v;

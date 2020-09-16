@@ -82,8 +82,8 @@ between 0x001 and 0xFFE. The ranges of IEEE double values are:
 ----------------------------------------------------------------*/
 
 #define KK_USE_NAN_BOX   (0)                  // strategy A(1) by default
-// #define KK_USE_NAN_BOX   (KK_INTPTR_SIZE==8)  // strategy B is only possible on 64-bit platforms
-// #define KK_BOX_DOUBLE_IF_NEG (1)              // strategy A2
+//#define KK_USE_NAN_BOX   (KK_INTPTR_SIZE==8)  // strategy B is only possible on 64-bit platforms
+//#define KK_BOX_DOUBLE_IF_NEG (1)              // strategy A2
 
 // Forward declarations
 static inline bool         kk_box_is_ptr(kk_box_t b);
