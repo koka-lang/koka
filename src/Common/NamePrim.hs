@@ -45,7 +45,7 @@ module Common.NamePrim
           , nameIdentity
           , nameMaskAt, nameMaskBuiltin
           , isClauseTailName, nameClauseTailNoYield
-          , nameTpEvIndex, nameYielding
+          , nameTpEvIndex, nameYielding, nameYieldExtend
 
           --
           , nameUnsafeTotal
@@ -281,6 +281,7 @@ nameHandle      = coreHndName ".hhandle"
 nameNamedHandle = coreHndName ".named-handle"
 
 nameYielding    = coreHndName "yielding"
+nameYieldExtend = coreHndName "yield-extend"
 nameBind        = coreHndName "yield-bind" -- preludeName "bind"
 nameBind2       = coreHndName "yield-bind2"
 nameEffectOpen  = coreHndName ".open" -- preludeName ".open"

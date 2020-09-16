@@ -194,14 +194,16 @@ bcoerceX fromTp toTp expr
       -- boxed functions need to wrapped to take all arguments and results as boxed as well :-(
       -- see test/cgen/box3 and test/cgen/box3a
       (CBox, CFun cpars cres)  
-        -> do boxedToTp <- boxedFunType toTp
+        -> --trace ("box to fun: " ++ show expr) $
+           do boxedToTp <- boxedFunType toTp
               let unboxed = App (unboxVarAtTp (TFun [(nameNil,fromTp)] typeTotal boxedToTp)) [expr]
               expr' <- bcoerce boxedToTp toTp unboxed -- unwrap function; we must return Just even if no further wrapping was needed
               return (Just expr')
               -- return $ Just $ App (unboxVar) [expr]
       
       (CFun cpars cres, CBox)  
-         -> do boxedFromTp <- boxedFunType fromTp
+         -> --trace ("fun to box: " ++ show expr) $
+            do boxedFromTp <- boxedFunType fromTp
                expr'  <- bcoerce fromTp boxedFromTp expr  -- wrap function
                return $ Just $ App (boxVarAtTp (TFun [(nameNil,boxedFromTp)] typeTotal toTp)) [expr']         -- and box it itselfob
                -- return $ Just $ App (boxVar) [expr]
@@ -213,13 +215,8 @@ bcoerceX fromTp toTp expr
                Just (_,_,toParTps,toEffTp,toResTp)
                  -> case splitFunScheme fromTp of
                       Just (_,_,fromParTps,fromEffTp,fromResTp)
-                        -> do  names <- mapM (\_ -> uniqueName "b") toParTps
-                               let pars  = zipWith TName names (map snd toParTps)
-                                   args  = [Var par InfoNone | par <- pars]
-                               bargs <- -- mapM (\(arg,argTp) -> boxExpr argTp arg) (zip args (map snd fromParTps))
-                                        mapM (\(arg,parToTp,parFromTp) -> bcoerce parToTp parFromTp arg) (zip3 args (map snd toParTps) (map snd fromParTps))
-                               bapp  <- bcoerce fromResTp toResTp (App expr bargs)
-                               return (Just (Lam pars toEffTp bapp))
+                        -> Just <$> (boxBindExprAsValue fromTp toTp expr $ \vexpr ->
+                                      boxCoerceFun toParTps toEffTp toResTp fromParTps fromEffTp fromResTp vexpr)
                       _ -> failure $ "Backend.C.Box: bcoerceX: expecting function (from): " ++ show (pretty fromTp)
                _ -> failure $ "Backend.C.Box: bcoerceX: expecting function (to): " ++ show (pretty toTp)               
       _   -> return Nothing
@@ -227,17 +224,83 @@ bcoerceX fromTp toTp expr
     boxVar 
       = boxVarAtTp coerceTp
       
-    boxVarAtTp tp
-      = Var (TName nameBox tp) (InfoExternal [(C, "box(#1)")])
-      
     unboxVar
       = unboxVarAtTp coerceTp
       
-    unboxVarAtTp tp
-      = Var (TName nameUnbox tp) (InfoExternal [(C, "unbox(#1)")])
-      
     coerceTp
       = TFun [(nameNil,fromTp)] typeTotal toTp
+      
+boxVarAtTp tp
+  = Var (TName nameBox tp) (InfoExternal [(C, "box(#1)")])    
+unboxVarAtTp tp
+  = Var (TName nameUnbox tp) (InfoExternal [(C, "unbox(#1)")])
+        
+
+boxCoerceFun :: [(Name,Type)] -> Effect -> Type -> [(Name,Type)] -> Effect -> Type  -> Expr -> Unique Expr
+boxCoerceFun toParTps toEffTp toResTp fromParTps fromEffTp fromResTp expr
+  = -- trace ("box coerce fun: " ++ show expr) $
+    do names <- mapM (\_ -> uniqueName "b") toParTps
+       let pars  = zipWith TName names (map snd toParTps)
+           args  = [Var par InfoNone | par <- pars]
+       bargs <- -- mapM (\(arg,argTp) -> boxExpr argTp arg) (zip args (map snd fromParTps))
+                mapM (\(arg,parToTp,parFromTp) -> bcoerce parToTp parFromTp arg) (zip3 args (map snd toParTps) (map snd fromParTps))
+       bapp  <- bcoerce fromResTp toResTp (App expr bargs)
+       return (Lam pars toEffTp bapp)
+
+boxBindExprAsValue :: Type -> Type -> Expr -> (Expr -> Unique Expr) -> Unique Expr
+boxBindExprAsValue fromTp toTp expr action  | isTotal expr
+  = action expr
+boxBindExprAsValue fromTp toTp expr action
+  = trace ("box coerce with yield extension: " ++ show expr) $
+    do yextend <- do vb <- uniqueTName "bb" (TVar tvarA)
+                     w  <- uniqueTName "bw" fromTp
+                     x  <- uniqueTName "bx" toTp
+                     let varVb = Var vb InfoNone
+                         varX  = Var x InfoNone
+                     unboxVb <- bcoerce (typeOf vb) (typeOf w)  varVb
+                     boxResX <- bcoerce (typeOf x) (TVar tvarB) varX
+                     body1   <- action (Var w InfoNone)
+                     makeYieldExtend (typeOf vb) toTp $ 
+                        Lam [vb] typeTotal {-?-} $
+                        Let [DefNonRec (makeTDef w unboxVb)
+                            ,DefNonRec (makeTDef x body1)]
+                        boxResX
+       v  <- uniqueTName "bv" fromTp
+       body2 <- action (Var v InfoNone)
+       return (Let [DefNonRec (makeTDef v expr)] $
+               makeIfExpr makeYielding yextend body2
+              )   
+  where
+    coerceTp 
+      = TFun [(nameNil,fromTp)] typeTotal toTp
+      
+uniqueTName nm tp 
+  = do n <- uniqueName nm
+       return (TName n tp)
+                   
+makeYielding :: Expr
+makeYielding
+  = App (Var (TName nameYielding typeYielding) (InfoExternal [(C,"kk_yielding(kk_context())")])) []
+  where
+    typeYielding = TFun [] typeTotal typeBool
+    
+makeYieldExtend :: Type -> Type -> Expr -> Unique Expr
+makeYieldExtend fromTp toTp expr
+  = do let yextend = App (TypeApp (Var (TName nameYieldExtend typeYieldExtend) (InfoArity 3 1)) [TVar tvarA, TVar tvarB, typeTotal]) [expr]
+       v <- uniqueTName "b" (TVar tvarB)
+       body <- bcoerce (typeOf v) toTp (Var v InfoNone)
+       return (Let [DefNonRec (makeTDef v yextend)] body)
+  where 
+    typeYieldExtend = TForall [tvarA,tvarB,tvarE] []
+                        (TFun [(nameNil,TFun [(nameNil,TVar tvarA)] (TVar tvarE) (typeYld (TVar tvarB)))]
+                              (TVar tvarE) (typeYld (TVar tvarB)))
+    
+    typeYld tp = tp
+
+tvarA,tvarB,tvarE :: TypeVar
+tvarA = TypeVar 0 kindStar Bound
+tvarB = TypeVar 1 kindStar Bound
+tvarE = TypeVar 2 kindEffect Bound
 
 
 type BoxType = Type

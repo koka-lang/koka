@@ -11,6 +11,7 @@
 -----------------------------------------------------------------------------
 
 module Core.Monadic( monTransform
+                   , monMakeBind
                    ) where
 
 
@@ -249,10 +250,16 @@ appBind tpArg tpEff tpRes fun args cont
 applyBind tpArg tpEff tpRes expr cont
   = case cont of
       Lam [aname] eff (Var v _) | getName v == getName aname -> expr      
-      _ -> App (TypeApp (Var (TName nameBind typeBind) info) [tpArg, tpRes, tpEff]) [expr,cont]
+      _ -> monMakeBind tpArg tpEff tpRes expr cont
+           -- App (TypeApp (Var (TName nameBind typeBind) info) [tpArg, tpRes, tpEff]) [expr,cont]
+  
+    
+monMakeBind :: Type -> Effect -> Type -> Expr -> Expr -> Expr
+monMakeBind tpArg tpEff tpRes arg next
+  =  App (TypeApp (Var (TName nameBind typeBind) info) [tpArg, tpRes, tpEff]) [arg,next]
   where
     info = Core.InfoArity 2 3 -- Core.InfoExternal [(CS,"Eff.Op.Bind<##1,##2>(#1,#2)"),(JS,"$std_core._bind(#1,#2)")]
-
+    
 typeBind :: Type
 typeBind
   = TForall [tvarA,tvarB,tvarE] []
