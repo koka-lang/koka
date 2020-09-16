@@ -296,31 +296,25 @@ fun single(x) {
 }
 
 // Returns the length of a list.
-fun length(xs)
-{
-  fun len(acc,ys) {
-    match(ys)
-    {
-      Cons(_,yy) -> len( acc+1, yy )
+fun length(xs) {
+  fun len(ys,acc) {
+    match(ys) {
+      Cons(_,yy) -> yy.len(acc+1)
       Nil        -> acc
     }
   }
-
-  return len(0,xs)
+  xs.len(0)
 }
 
 // Returns an integer list of increasing elements from `lo`  to `hi`
 // (including both `lo`  and `hi` ).
 // If `lo > hi`  the function returns the empty list.
-fun list( lo: int, hi: int ) : total list<int>
-{
-  fun enumerate( low:int, high:int, acc: list<int> ) : list<int>
-  {
+fun list( lo: int, hi: int ) : total list<int> {
+  fun enumerate( low:int, high:int, acc: list<int> ) : list<int> {
     if (low > high)
      then acc
      else enumerate(low, unsafe-decreasing(high - 1), Cons(high,acc))
   }
-
   enumerate(lo,hi,[])
 }
 
@@ -328,8 +322,7 @@ fun list( lo: int, hi: int ) : total list<int>
 // (including both `lo`  and `hi` ).
 // If `lo > hi`  the function returns the empty list.
 fun list( lo : int, hi: int, f : int -> e a) : e list<a> {
-  fun enumerate( low:int, high:int, acc )
-  {
+  fun enumerate( low:int, high:int, acc ) {
     if (low > high)
      then acc
      else enumerate(low, unsafe-decreasing(high - 1), Cons(f(high),acc))
@@ -339,8 +332,7 @@ fun list( lo : int, hi: int, f : int -> e a) : e list<a> {
 
 
 // Create a list of characters from `lo`  to `hi`  (inclusive).
-fun list( lo : char, hi : char ) : total list<char>
-{
+fun list( lo : char, hi : char ) : total list<char> {
   list(lo.int, hi.int).map( char )
 }
 
@@ -359,139 +351,129 @@ private fun zipwith-acc( f, i, acc, xs, ys )
   }
 }
 
-private fun zipwith-iter( f, i, xs, ys )
-{
-  // recurse for the first `maxListStack` elements over the stack (to avoid extra heap allocation)
-  if (i > maxListStack) then zipwith-acc( f, i, Nil, xs, ys )
-  else {
-    match(xs) {
-      Nil -> Nil
-      Cons(x,xx) ->
-        match(ys) {
-          Nil -> Nil
-          Cons(y,yy) -> Cons( f(i,x,y), zipwith-iter(f,i+1,xx,yy))
-        }
-    }
-  }
-}
-
 // Zip two lists together by pairing the corresponding elements.
 // The returned list is only as long as the smallest input list.
-fun zip( xs : list<a>, ys : list<b> ) : list<(a,b)>
-{
-  zipwith-indexed( xs, ys, fun(i,x,y) { (x,y) } )
+fun zip( xs : list<a>, ys : list<b> ) : list<(a,b)> {
+  match(xs) {
+    Cons(x,xx) -> match(ys) {
+      Cons(y,yy) -> Cons((x,y),zip(xx,yy))
+      Nil        -> Nil
+    }
+    Nil -> Nil
+  }
 }
 
 // Zip two lists together by apply a function `f` to all corresponding elements.
 // The returned list is only as long as the smallest input list.
-fun zipwith( xs : list<a>, ys :list<b>, f : (a,b) -> e c ) : e list<c>
-{
-  zipwith-indexed(xs,ys,fun(i,x,y) { f(x,y) })
+fun zipwith( xs : list<a>, ys :list<b>, f : (a,b) -> e c ) : e list<c> {
+  match(xs) {
+    Cons(x,xx) -> match(ys) {
+      Cons(y,yy) -> Cons(f(x,y),zipwith(xx,yy,f))
+      Nil -> Nil
+    }
+    _ -> Nil
+  }
 }
 
 // Zip two lists together by apply a function `f` to all corresponding elements
 // and their index in the list.
 // The returned list is only as long as the smallest input list.
-fun zipwith-indexed( xs : list<a>, ys :list<b>, f : (int,a,b) -> e c ) : e list<c>
-{
-  zipwith-iter(f,0,xs,ys)
+fun zipwith-indexed( xs0 : list<a>, ys0 :list<b>, f : (int,a,b) -> e c ) : e list<c> {
+  fun zipwith-iter( i, xs, ys ) {
+    match(xs) {
+      Cons(x,xx) -> match(ys) {
+        Cons(y,yy) -> Cons(f(i,x,y),zipwith-iter(i+1,xx,yy))
+        Nil -> Nil
+      }
+      Nil -> Nil
+    }
+  }
+  zipwith-iter(0,xs0,ys0)
 }
 
 // Unzip a list of pairs into two lists
-fun unzip( xs : list<(a,b)> ) : (list<a>,list<b>)
-{
-  fun iter( ys, acc1, acc2 )
-  {
+fun unzip( xs : list<(a,b)> ) : (list<a>,list<b>) {
+  // todo: implement TRMC for multiple results
+  fun iter( ys, acc1, acc2 ) {
     match(ys) {
       Cons((x,y),xx) -> iter(xx,Cons(x,acc1),Cons(y,acc2))
       Nil            -> (reverse(acc1),reverse(acc2))
     }
   }
-
   iter(xs,[],[])
 }
 
 // Take the first `n` elements of a list (or fewer if the list is shorter than `n`)
-fun take( xs : list<a>, n : int ) : list<a>
-{
-  if (n <= 0) return Nil
+fun take( xs : list<a>, n : int ) : list<a> {
   match(xs) {
-    Nil -> Nil
-    Cons(x,xx) -> Cons(x,take(xx,n - 1))
+    Cons(x,xx) | n > 0 -> Cons(x, take(xx, n - 1))
+    _ -> Nil    
   }
 }
 
 // Drop the first `n` elements of a list (or fewer if the list is shorter than `n`)
-fun drop( xs : list<a>, n : int ) : list<a>
-{
-  if (n <= 0) return xs
+fun drop( xs : list<a>, n : int ) : list<a> {
   match(xs) {
-    Nil -> Nil
-    Cons(_,xx) -> drop(xx,n - 1)
+    Cons(_,xx) | n > 0 -> drop(xx, n - 1)
+    _ -> Nil    
   }
 }
 
-
-
 // Apply a function `f`  to each element of the input list in sequence.
-fun map(xs : list<a>, f : a -> e b) : e list<b>
-{
-  xs.map-indexed-peek( fun(i,x,xx) { f(x) } )
+fun map(xs : list<a>, f : a -> e b) : e list<b> {
+  match(xs) {
+    Cons(x,xx) -> Cons(f(x), xx.map(f))
+    Nil -> Nil
+  }
 }
 
 // Apply a function `f`  to each element of the input list in sequence where takes
 // both the index of the current element and the element itself as arguments.
-fun map-indexed(xs : list<a>, f : (idx : int, value : a) -> e b) : e list<b>
-{
-  xs.map-indexed-peek( fun(i,x,xx) { f(i,x) })
+fun map-indexed(xs : list<a>, f : (idx : int, value : a) -> e b) : e list<b> {
+  fun map-idx(ys,i) {
+    match(ys) {
+      Cons(y,yy) -> Cons(f(i,y), map-idx(yy,i+1))
+      Nil -> Nil
+    }
+  }
+  map-idx(xs,0)
 }
 
 // Apply a function `f`  to each element of the input list in sequence where `f` takes
 // both the current element and the tail list as arguments.
-fun map-peek(xs : list<a>, f : (value : a, rest : list<a>) -> e b) : e list<b>
-{
-  xs.map-indexed-peek( fun(i,x,xx) { f(x,xx) })
-}
-
-
-// recurse using an accumulator using constant heap space
-private fun map-acc(g : (int,a,list<a>) -> e b , n : int, acc : list<b>, ys : list<a>) : e list<b> {
-  match(ys) {
-    Cons(x,xx) -> map-acc(g,n+1,Cons(g(n,x,xx),acc),xx)
-    Nil -> reverse(acc)
+fun map-peek(xs : list<a>, f : (value : a, rest : list<a>) -> e b) : e list<b> {
+  fun mappeek(ys) {
+    match(ys) {
+      Cons(y,yy) -> Cons(f(y,yy), yy.mappeek)
+      Nil -> Nil
+    }
   }
+  mappeek(xs)
 }
+
+
 
 // Apply a function `f`  to each element of the input list in sequence where takes
 // both the index of the current element, the element itself, and the tail list as arguments.
 fun map-indexed-peek(xs : list<a>, f : (idx : int, value : a, rest : list<a> ) -> e b) : e list<b>
 {
-  // recurse for the first `maxListStack` elements over the stack (to avoid extra heap allocation)
-  fun map-iter(g : (int,a,list<a>) -> e b, n : int, ys : list<a>) : e list<b> {
-    if (n > maxListStack) {
-      map-acc(g,n,Nil,ys)
-    }
-    else {
-      match(ys) {
-        Cons(x,xx) -> Cons(g(n,x,xx),map-iter(g,n+1,xx))
-        Nil        -> Nil
-      }
+  fun mapidx(ys,i) {
+    match(ys) {
+      Cons(y,yy) -> Cons(f(i,y,yy), mapidx(yy,i+1))
+      Nil -> Nil
     }
   }
-
-  return map-iter(f,0,xs)
+  mapidx(xs,0)
 }
 
 // Reverse a list.
-fun reverse(xs : list<a>) : list<a>
-{
+fun reverse(xs : list<a>) : list<a> {
   reverse-append( xs, Nil )
 }
 
 // Efficiently reverse a list `xs` and append it to `tl`:
 // `reverse-append(xs,tl) == reserve(xs) + tl
-fun reverse-append( xs : list<a>, tl : list<a> ) : list<a>
-{
+fun reverse-append( xs : list<a>, tl : list<a> ) : list<a> {
   fun reverse-acc(acc : list<a>, ys : list<a> ) : list<a> {
     match(ys) {
       Cons(x,xx) -> reverse-acc(Cons(x,acc),xx)
@@ -502,118 +484,90 @@ fun reverse-append( xs : list<a>, tl : list<a> ) : list<a>
 }
 
 // Append two lists.
-fun (+)(xs : list<a>, ys : list<a> ) : list<a>
-{
-  // append using _constant_ stack space (by reversing the argument list)
-  fun rev-append(xx,yy) {
-    match(xx) {
-      Cons(z,zz) -> rev-append(zz,Cons(z,yy))
-      _          -> yy
-    }
-  }
-  // append for the first `maxListStack` elements over the stack
-  fun append(n,xx,yy) {
-    if (n > maxListStack) {
-      rev-append(reverse(xx),yy)
-    }
-    else {
-      match(xx) {
-        Cons(z,zz) -> Cons(z,append(n+1,zz,yy))
-        Nil -> yy
-      }
-    }
-  }
+fun (+)(xs : list<a>, ys : list<a> ) : list<a> {
+  append(xs,ys)
+}
 
-  match(ys) {
-    Nil -> xs
-    _   -> match(xs) {
-             Nil -> ys
-             _   -> append(0,xs,ys)
-           }
+// Append two lists.
+fun append(xs : list<a>, ys : list<a> ) : list<a> {
+  match(xs) {
+    Cons(x,xx) -> Cons(x,append(xx,ys))
+    Nil -> ys
   }
 }
 
 // Fold a list from the right, i.e. `foldr([1,2],0,(+)) == 1+(2+0)`
 // Note, `foldr` is less efficient than `foldl` as it reverses the list first.
-fun foldr(xs,z,f)
-{
+fun foldr(xs,z,f) {
   xs.reverse.foldl(z,fun(x,y){f(y,x)})
 }
 
 // Fold a list from the left, i.e. `foldl([1,2],0,(+)) == (0+1)+2`
 // Since `foldl` is tail recursive, it is preferred over `foldr` when using an associative function `f`
-fun foldl(xs,z,f)
-{
+fun foldl(xs,z,f) {
   match(xs) {
     Cons(x,xx) -> foldl(xx,f(z,x),f)
     Nil        -> z
   }
 }
 
-fun foldl1(xs : list<a>, f : (a,a) -> <exn|e> a) : <exn|e> a
-{
+fun foldl1(xs : list<a>, f : (a,a) -> <exn|e> a) : <exn|e> a {
   match(xs) {
     Cons(x,xx) -> xx.foldl(x,f)
   }
 }
 
-fun foldr1(xs : list<a>, f : (a,a) -> <exn|e> a) : <exn|e> a
-{
-  match(xs) {
-    Cons(x,Nil) -> x
-    Cons(x,xx)  -> f(x,xx.foldr1(f))
-  }
+fun foldr1(xs : list<a>, f : (a,a) -> <exn|e> a) : <exn|e> a {
+  xs.reverse.foldl1(f)
 }
 
 // Create a list of `n`  repeated elementes `x`
-fun replicate( x : a, n : int ) : list<a>
-{
-  fun enumerate( i : int, acc : list<_a> ) {
-    if (i <= 0) then acc else enumerate(unsafe-decreasing(i.dec),Cons(x,acc))
-  }
-
-  enumerate(n,[])
+fun replicate( x : a, n : int ) : list<a> {
+  if (n > 0) 
+   then Cons(x, replicate(x,unsafe-decreasing(n.dec)))
+   else Nil
 }
 
 // split a list at position `n`
-fun split( xs : list<a>, n : int ) : (list<a>, list<a>)
-{
+fun split( xs : list<a>, n : int ) : (list<a>, list<a>) {
   (xs.take(n), xs.drop(n))
 }
 
 
 fun span( xs : list<a>, predicate : a -> e bool ) : e (list<a>,list<a>)
 {
-  fun span-acc( ys, acc)
-  {
+  // todo: implement TRMC with multiple results to avoid the reverse
+  fun span-acc( ys, acc) {
     match(ys) {
       Cons(y,yy) -> if (y.predicate) then yy.span-acc(Cons(y,acc)) else (acc.reverse,ys)
       _ -> (acc.reverse, ys)
     }
   }
-
   xs.span-acc( [] )
 }
 
 // Keep only those initial elements that satisfy `predicate`
-fun take-while( xs : list<a>, predicate : a -> e bool ) : e list<a>
-{
-  xs.span(predicate).fst
+fun take-while( xs : list<a>, predicate : a -> e bool ) : e list<a> {
+  match(xs) {
+    Cons(x,xx) -> if (x.predicate) then Cons(x, xx.take-while(predicate) ) else Nil
+    Nil -> Nil
+  }
 }
 
 // Drop all initial elements that satisfy `predicate`
-fun drop-while( xs : list<a>, predicate : a -> e bool ) : e list<a>
-{
-  xs.span(predicate).snd
+fun drop-while( xs : list<a>, predicate : a -> e bool ) : e list<a> {
+  match(xs) {
+    Cons(x,xx) -> if (x.predicate) then xx.drop-while(predicate) else xs
+    Nil -> Nil
+  }
 }
 
 // Retain only those elements of a list that satisfy the given predicate `pred`.
 // For example: `filter([1,2,3],odd?) == [1,3]`
-fun filter( xs : list<a>, pred : a -> e bool ) : e list<a>
-{
+fun filter( xs : list<a>, pred : a -> e bool ) : e list<a> {
   match(xs) {
-    Nil -> Nil
     Cons(x,xx) -> if (pred(x)) then Cons(x,xx.filter(pred)) else xx.filter(pred)
+    Nil -> Nil    
   }
 }
 
@@ -627,13 +581,11 @@ fun remove( xs : list<a>, pred : a -> bool ) : list<a> {
 // Partition a list in two lists where the first list contains
 // those elements that satisfy the given predicate `pred`.
 // For example: `partition([1,2,3],odd?) == ([1,3],[2])`
-fun partition( xs : list<a>, pred : a -> bool ) : (list<a>,list<a>)
-{
+fun partition( xs : list<a>, pred : a -> bool ) : (list<a>,list<a>) {
   partition-acc( xs, pred, Nil, Nil)
 }
 
-private fun partition-acc( xs : list<a>, pred : a -> bool, acc1 : list<a>, acc2 : list<a> ) : (list<a>, list<a>)
-{
+private fun partition-acc( xs : list<a>, pred : a -> bool, acc1 : list<a>, acc2 : list<a> ) : (list<a>, list<a>) {
   match(xs) {
     Nil -> (acc1.reverse, acc2.reverse)
     Cons(x,xx) -> if (pred(x))
@@ -645,8 +597,7 @@ private fun partition-acc( xs : list<a>, pred : a -> bool, acc1 : list<a>, acc2 
 
 // Retain only those elements of a list that satisfy the given predicate `pred`.
 // For example: `filterMap([1,2,3],fun(i) { if (i.odd?) then Nothing else Just(i*i) }) == [4]`
-fun filter-map( xs : list<a>, pred : a -> e maybe<b> ) : e list<b>
-{
+fun filter-map( xs : list<a>, pred : a -> e maybe<b> ) : e list<b> {
   match(xs) {
     Nil -> Nil
     Cons(x,xx) -> match(pred(x)) {
@@ -657,8 +608,7 @@ fun filter-map( xs : list<a>, pred : a -> e maybe<b> ) : e list<b>
 }
 
 // Find the first element satisfying some predicate
-fun find( xs : list<a>, pred : a -> bool ) : maybe<a>
-{
+fun find( xs : list<a>, pred : a -> bool ) : maybe<a> {
   xs.foreach-while fun(x) {
     if (pred(x)) then Just(x) else Nothing
   }
@@ -760,16 +710,13 @@ fun foreach-indexed( xs : list<a>, action : (int,a) -> e () ) : e ()
 }
 
 // Insert a separator `sep`  between all elements of a list `xs` .
-fun intersperse( xs : list<a>, sep : a ) : list<a>
-{
-  //TODO: make tail recursive
+fun intersperse( xs : list<a>, sep : a ) : list<a> {
   fun before(ys,s) {
     match(ys) {
       Cons(y,yy) -> Cons(s,Cons(y,before(yy,s)))
       Nil        -> Nil
     }
   }
-
   match(xs) {
     Cons(x,xx)  -> Cons(x, xx.before(sep))
     Nil         -> Nil
@@ -857,7 +804,13 @@ fun flatmap-maybe( xs : list<a>, f : a -> e maybe<b> ) : e list<b> {
 // Concatenate a list of `:maybe` values
 fun concat-maybe( xs : list<maybe<a>> ) : list<a>
 {
-  xs.flatmap-maybe(id)
+  match(xs) {
+    Cons(x,xx) -> match(x) {
+      Just(y) -> Cons(y, xx.concat-maybe)
+      Nothing -> xx.concat-maybe
+    }
+    Nil -> Nil
+  }
 }
 
 // Return the last element of a list (or `Nothing` for the empty list)
@@ -882,22 +835,19 @@ fun last( xs : list<a>, default : a ) : a
 
 // Return the list without its last element.
 // Return an empty list for an empty list.
-fun init( xs : list<a> ) : list<a>
-{
+fun init( xs : list<a> ) : list<a> {
   match(xs) {
-    Cons(x,xx)  -> match(xx) {
-                     Nil -> Nil
-                     _   -> Cons(x,init(xx))
-                   }
-    Nil         -> Nil
+    Cons(x,Cons as xx) -> Cons(x,init(xx))
+    _ -> Nil
   }
 }
 
 // Get (zero-based) element `n`  of a list. Return a `:maybe` type.
-fun []( xs : list<a>, n : int ) : maybe<a>
-{
+fun []( xs : list<a>, n : int ) : maybe<a> {
   match(xs) {
-    Cons(x,xx) -> if (n==0) then Just(x) else xx[n - 1]
+    Cons(x,xx) -> if (n>0) then xx[n - 1] 
+                  elif (n==0) then Just(x) 
+                  else Nothing
     Nil -> Nothing
   }
 }
@@ -906,8 +856,8 @@ fun []( xs : list<a>, n : int ) : maybe<a>
 fun all( xs : list<a>, predicate : a -> e bool ) : e bool
 {
   match(xs) {
-    Nil -> True
     Cons(x,xx) -> if (predicate(x)) then xx.all(predicate) else False
+    Nil -> True    
   }
 }
 
@@ -916,8 +866,8 @@ fun all( xs : list<a>, predicate : a -> e bool ) : e bool
 fun any( xs : list<a>, predicate : a -> e bool ) : e bool
 {
   match(xs) {
-    Nil -> False
     Cons(x,xx) -> if (predicate(x)) then True else xx.any(predicate)
+    Nil -> False    
   }
 }
 
