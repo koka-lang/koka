@@ -57,21 +57,21 @@ externalNames
 -- Generate JavaScript code from System-F core language
 --------------------------------------------------------------------------
 
-javascriptFromCore :: Maybe (Name,Bool) -> Core -> Doc
-javascriptFromCore mbMain core
-  = runAsm (Env moduleName penv externalNames False) (genModule mbMain core)
+javascriptFromCore :: Maybe (Name,Bool) -> [Import] -> Core -> Doc
+javascriptFromCore mbMain imports core
+  = runAsm (Env moduleName penv externalNames False) (genModule mbMain imports core)
   where
     moduleName = coreProgName core
     penv       = Pretty.defaultEnv{ Pretty.context = moduleName, Pretty.fullNames = False }
 
-genModule :: Maybe (Name,Bool) -> Core -> Asm Doc
-genModule mbMain core
+genModule :: Maybe (Name,Bool) -> [Import] -> Core -> Asm Doc
+genModule mbMain imports core
   =  do let externs = vcat (concatMap includeExternal (coreProgExternals core))
             (tagDefs,defs) = partition isTagDef (coreProgDefs core)
         decls0 <- genGroups tagDefs
         decls1 <- genTypeDefs (coreProgTypeDefs core)
         decls2 <- genGroups defs
-        let imports = map importName (coreProgImports core)
+        let -- `imports = coreProgImports core` is not enough due to inlined definitions
             (mainEntry,mainImports) = case mbMain of
                           Nothing -> (empty,[])
                           Just (name,isAsync)
@@ -86,8 +86,8 @@ genModule mbMain core
         return $  text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
               <-> text "if (typeof define !== 'function') { var define = require('amdefine')(module) }"
               <-> text "define(" <.> ( -- (squotes $ ppModFileName $ coreProgName core) <.> comma <->
-                   list ( {- (squotes $ text "_external"): -} (map squotes (map fst (externalImports++mainImports)) ++ map moduleImport (coreProgImports core))) <.> comma <+>
-                   text "function" <.> tupled ( {- (text "_external"): -} (map snd (externalImports ++ mainImports) ++ map ppModName imports)) <+> text "{" <->
+                   list ( {- (squotes $ text "_external"): -} (map squotes (map fst (externalImports++mainImports)) ++ map moduleImport imports)) <.> comma <+>
+                   text "function" <.> tupled ( {- (text "_external"): -} (map snd (externalImports ++ mainImports) ++ map (ppModName . importName) imports)) <+> text "{" <->
                     vcat (
                     [ text "\"use strict\";"
                     , text "var" <+> modName <+> text " = {};"

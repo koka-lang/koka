@@ -1182,7 +1182,8 @@ codeGenJS term flags modules compileTarget outBase core
        let mbEntry = case compileTarget of
                        Executable name tp -> Just (name,isAsyncFunction tp)
                        _                  -> Nothing
-       let js    = javascriptFromCore mbEntry core
+           extractImport mod = Core.Import (modName mod) (modPackageQName mod) Public ""
+       let js    = javascriptFromCore mbEntry (map extractImport modules) core
        termPhase term ( "generate javascript: " ++ outjs )
        writeDocW 80 outjs js
        when (showAsmJS flags) (termDoc term js)
