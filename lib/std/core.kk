@@ -704,7 +704,7 @@ fun foreach-indexed( xs : list<a>, action : (int,a) -> e () ) : e ()
   var i := 0
   xs.foreach fun(x) {
     val j = i; // don't dereference `i` inside the inject
-    inject<local>{action(j,x)}
+    mask<local>{action(j,x)}
     i := i+1
   }
 }
@@ -2126,7 +2126,7 @@ fun force( delayed : delayed<e,a> ) : e a {
     match(!r) {
       Right(x) -> x
       Left(action) -> {
-        val x = (inject-st{inject<div>(action)})()
+        val x = (inject-st{mask<div>(action)})()
         r := Right(x)
         x
       }
@@ -2386,7 +2386,7 @@ private extern xtrace : ( message : string ) -> ()  {
   js "_trace"
 }
 
-private extern xtrace-any : forall<a>( message: string, x : a ) -> ()  {
+private extern xtrace-any : forall<a> ( message: string, x : a ) -> ()  {
   c  "kk_trace_any"
   cs "Primitive.TraceAny"
   js "_trace_any"
@@ -2434,7 +2434,7 @@ effect exn {
 }
 
 fun ".default-exn"(action) {
-  handle(action) {
+  handle( action ) {
     control throw-exn( exn : exception ) {
       "uncaught exception: ".prints
       show(exn).println

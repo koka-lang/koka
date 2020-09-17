@@ -161,6 +161,7 @@ private                   { return PRIVATE;}
 as                        { return AS;}
 
 inline                    { return ID_INLINE;  }
+noinline                  { return ID_NOINLINE;} 
 include                   { return ID_INCLUDE; }
 
 open                      { return ID_OPEN; }
@@ -168,8 +169,8 @@ behind                    { return ID_BEHIND; }
 extend                    { return ID_EXTEND; }
 linear                    { return ID_LINEAR;  }
 
-handler                   { return HANDLER; }
 handle                    { return HANDLE; }
+handler                   { return HANDLER; }
 effect                    { return EFFECT; }
 ambient                   { return EFFECT; }
 mask                      { return MASK; }
@@ -203,6 +204,7 @@ instance                  { return INSTANCE; }
 file                      { return ID_FILE;    }
 cs                        { return ID_CS;      }
 js                        { return ID_JS;      }
+c                         { return ID_C;       }
 
   /* Special symbols (cannot be an operator) */
 \)                        { return ')'; }

@@ -2,8 +2,13 @@
    This is free software; you can redistribute it and/or modify it under the
    terms of the Apache License, Version 2.0.
 */
+/* Requires at least Bison 3+; you can get a version for windows from
+   https://sourceforge.net/projects/winflexbison
+   (use the "latest" zip package)
+*/
 
-%pure-parser
+/* %pure-parser */
+%define api.pure
 
 %{
 typedef void*        yyscan_t;
@@ -71,8 +76,9 @@ void printDecl( const char* sort, const char* name );
 %token REC IFACE INSTANCE
 
 %token ID_INLINE ID_INCLUDE
-%token ID_CS ID_JS ID_FILE
+%token ID_C ID_CS ID_JS ID_FILE
 %token ID_LINEAR ID_OPEN ID_EXTEND ID_BEHIND
+%token ID_NOINLINE
 
 %type <Id>  varid conid qvarid qconid op
 %type <Id>  identifier qidentifier qoperator qconstructor
@@ -102,7 +108,7 @@ void printDecl( const char* sort, const char* name );
 -- Program
 ----------------------------------------------------------*/
 program     : semis visibility MODULE modulepath moduledecl  { printDecl("module",$4); }
-            | moduledecl                                     { printDecl("module","main"); }
+            | moduledecl    |                                 { printDecl("module","main"); }
             ;
 
 moduledecl  : '{' semis modulebody '}' semis
@@ -217,6 +223,7 @@ externinc   : externtarget externfile STRING
 
 externtarget: ID_CS
             | ID_JS
+            | ID_C
             | /* empty */
             ;
 
@@ -307,15 +314,24 @@ operations  : operations operation semis
             | /* empty */
             ;
 
-operation   : visibility FUN identifier typeparams lparen parameters ')' ':' tatomic
+operation   : visibility VAL identifier typeparams ':' tatomic
+            | visibility FUN identifier typeparams lparen parameters ')' ':' tatomic
+            | visibility CONTROL identifier typeparams lparen parameters ')' ':' tatomic
             ;
+             
 
 /* ---------------------------------------------------------
 -- Pure Declarations
 ----------------------------------------------------------*/
-puredecl    : VAL valdecl                   { $$ = $2; }
-            | FUN fundecl                   { $$ = $2; }
+puredecl    : VAL pureattr valdecl                   { $$ = $3; }
+            | FUN pureattr fundecl                 { $$ = $3; }
             ;
+
+pureattr    : ID_INLINE
+            | ID_NOINLINE
+            | /* nothing */
+            ;
+
 
 valdecl     : binder '=' blockexpr          { $$ = $1; }
             ;
@@ -386,7 +402,7 @@ decl        : FUN fundecl
             | VAR binder ASSIGN blockexpr   /* local variable declaration */
             ;
 
-
+            
 /* ---------------------------------------------------------
 -- Expressions
 ----------------------------------------------------------*/
@@ -546,10 +562,12 @@ qvarid      : QID
             ;
 
 varid       : ID
+            | ID_C            { $$ = "c"; }
             | ID_CS           { $$ = "cs"; }
             | ID_JS           { $$ = "js"; }
             | ID_FILE         { $$ = "file"; }
             | ID_INLINE       { $$ = "inline"; }
+            | ID_NOINLINE     { $$ = "noinline"; }
             | ID_INCLUDE      { $$ = "include"; }
             | ID_OPEN         { $$ = "open"; }
             | ID_EXTEND       { $$ = "extend"; }
@@ -634,6 +652,10 @@ patarg      : identifier '=' apattern            /* named argument */
 withstat    : WITH noretfunexpr                /* application to anonymous fun */
             | WITH binder '=' noretfunexpr     /* application to fun */
             | WITH withbind                    /* bind ambient */
+            /* deprecated */
+            | HANDLER withhandle opclauses
+            /* deprecated */
+            | HANDLE withhandle '(' arguments1 ')' handlerpars opclauses
             ;
 
 withexpr    : WITH withnobind IN expr          /* bind ambient */
