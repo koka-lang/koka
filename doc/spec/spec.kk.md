@@ -314,22 +314,30 @@ to detect such errors, but the Koka type system rejects this program:
 [LGo]: http://golang.org/ref/spec#Semicolons
 
 
-<!--
+
 ### Semicolon insertion  {#sec:layout}
+
+[Haskell]: http://www.haskell.org/onlinereport/haskell2010/haskellch10.html#x17-17800010.3  
+[Python]: http://docs.python.org/2/reference/lexical_analysis.html
+[JavaScript]: https://tc39.github.io/ecma262/#sec-rules-of-automatic-semicolon-insertion
+[Scala]: http://www.scala-lang.org/old/sites/default/files/linuxsoft_archives/docu/files/ScalaReference.pdf#page=13
+[Go]: http://golang.org/ref/spec#Semicolons
+
 
 Just like programming languages like 
 [Haskell], [Python], [JavaScript], [Scala], [Go], etc., there is a layout rule
 which automatically adds semicolons at appropriate places. This enables the
 programmer to leave out most semicolons.
 
-
 Koka will insert semicolons automatically for any statements
 and declarations that are _aligned between curly braces_ (`{` and `}`).
+{padding-left:1em}
+
 For example, in the following program:
 {.grammar}
 
 ```
-function eq1( x : int, y : int ) : io bool 
+fun eq1( x : int, y : int ) : io bool 
 {  
   print("calculate equality")
   val result = if (x == y) then True            
@@ -341,7 +349,7 @@ function eq1( x : int, y : int ) : io bool
 we get semicolons before each statement that was aligned between the braces:
 
 ```
-function eqSemi( x : int, y : int ) : io bool 
+fun eqSemi( x : int, y : int ) : io bool 
 {;  
   print("calculate equality");
   val result = if (x == y) then True            
@@ -354,7 +362,7 @@ Since semicolons are only inserted for _aligned_ statements, we can
 write a long statement on multiple lines by using more indentation:
 
 ```
-function eq2( x : int, y : int ) : io bool 
+fun eq2( x : int, y : int ) : io bool 
 {  
   print("calculate " +
          "equ" +
@@ -380,13 +388,13 @@ starts with `then`, `else`, `elif`, or one of `{`, `)`, or `]`.
 {.grammar}
 
 ```
-function bar()
+fun bar()
 {  
   val xs = [ 
     "list",
     "elements",
   ]
-  if (odd?(random-int())) 
+  if (odd?(3*3)) 
   {
     print("odd")
   }
@@ -399,7 +407,7 @@ Of course, it is still allowed to use semicolons explicitly which can be used
 for example to put multiple statements on a single line:
 
 ```
-function equalLine( x : int, y : int ) : io bool {
+fun equalLine( x : int, y : int ) : io bool {
   print("calculate equality"); (x == y) 
 }  
 ```
@@ -411,7 +419,7 @@ comments into the indentation (because of tabs or potential unicode
 characters). For example, the program:
 
 ```unchecked
-function equal( x : int, y : int ) : io bool {   
+fun equal( x : int, y : int ) : io bool {   
     print("calculate equality")
   result = if (x == y) then True   // wrong: too little indentation
   /* wrong */      else False
@@ -472,7 +480,7 @@ also be implemented as a straightforward transformation on the lexical token
 stream. In particular, there are no intricate dependencies with the parser
 that lead to bizarrely complex layout rules, as is the case in languages like
 [Haskell] or [JavaScript].
--->
+
 
 ### Implementation { #sec:lex-implementation }
 

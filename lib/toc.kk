@@ -19,7 +19,7 @@ import std/os/flags
 import std/os/path
 
 import std/text/parse
-import std/text/regex
+// import std/text/regex
 import std/text/unicode
 
 import std/num/decimal
@@ -29,7 +29,7 @@ import std/num/int32
 import std/num/random
 
 import std/time
-import std/time/astro
+// import std/time/astro
 import std/time/timestamp
-import std/time/timezone
-import std/time/ut1
+// import std/time/timezone
+// import std/time/ut1

@@ -206,7 +206,7 @@ fun square3( x : int ) : div int
 
 fun square4( x : int ) : exn int
 {
-  error( "oops" )
+  throw( "oops" )
   return x*x
 }
 ```
@@ -272,12 +272,12 @@ etc.
 
 Often, a function contains multiple effects, for example:
 
-```
+```unchecked
 fun combine-effects()
 {
-  val i = random-int() // non-deterministic
-  error("hi")          // exception raising
-  combine-effects()    // and non-terminating
+  val i = srandom-int() // non-deterministic
+  error("hi")           // exception raising
+  combine-effects()     // and non-terminating
 }
 ```
 
@@ -324,19 +324,20 @@ effects of predicate and action are extended automatically until they match.
 This ensures we take the union of the effects in the predicate and action.
 Take for example the following loop
 
-```
+```unchecked
+import std/num/random
 fun main() { looptest() }
 ////
 fun looptest()
 {
-  while { odd?(random-int()) }
+  while { odd?(srandom-int()) }
   {
-    error("<b>")
+    throw("odd")
   }
 }
 ```
 
-In the above program, Koka infers that the predicate `odd(random-int())` has
+In the above program, Koka infers that the predicate ``odd(random-int())`` has
 effect `: <ndet|e1> ` while the action has effect `: <exn|e2> ` for some `:e1` and `:e2`.
 When applying `while`, those
 effects are unified to the type `: <exn,ndet,div|e3> ` for some `:e3` (which can
@@ -405,7 +406,7 @@ fun fib3(n)
   val x = ref(0)
   val y = ref(1)
   repeat(n) {
-    val y0 = !y
+    val y0 = !y 
     y := !x + !y
     x := y0
   }

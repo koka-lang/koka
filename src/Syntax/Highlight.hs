@@ -90,13 +90,13 @@ showLexeme (Lexeme _ lex)
       LexString s   -> show s
       LexChar c     -> show c
       LexId id      -> show id
-      LexIdOp id    -> (if (isQualified id) then show (qualifier id) ++ "/" else "") ++ "(" ++ show (unqualify id) ++ ")"
-      LexOp id      -> show id
-      LexPrefix id  -> show id
+      LexIdOp id    -> (if (isQualified id) then show (qualifier id) ++ "/" else "") ++ "(" ++ showPlain (unqualify id) ++ ")"
+      LexOp id      -> showPlain id
+      LexPrefix id  -> showPlain id
       LexWildCard id-> show id
       LexModule id _ -> show id
       LexCons id    -> show id
-      LexTypedId id tp -> show id
+      LexTypedId id tp -> showPlain id
       LexKeyword k _ -> normalize k
       LexSpecial s  -> normalize s
       LexComment s  -> s
@@ -216,7 +216,7 @@ highlightLexeme transform fmt ctx0 (Lexeme rng lex) lexs
                                         else TokId id ""
                              in fmt tok (showId (unqualify id))
             LexWildCard id-> fmt (if (isCtxType ctx) then TokTypeVar else TokId id "") (show id)
-            LexOp id      -> fmt (if (isCtxType ctx) then (if (show id) `elem` ["<",">","|","::"] then TokTypeSpecial else TokTypeOp id) 
+            LexOp id      -> fmt (if (isCtxType ctx) then (if (showPlain id) `elem` ["<",">","|","::"] then TokTypeSpecial else TokTypeOp id) 
                                                      else TokOp id "") 
                                  (showOp (unqualify id))
             LexPrefix id  -> fmt (TokOp id "") (showId (unqualify id))
@@ -243,8 +243,8 @@ highlightLexeme transform fmt ctx0 (Lexeme rng lex) lexs
 
     showId :: Name -> String
     showId name
-      = if (nameId name == "!" || nameId name == "~") then show name
-        else case nameId name of
+      = if (nameId name == "!" || nameId name == "~") then showPlain name
+        else case nameId name of  
               (c:cs)  | not (isAlphaNum c || c == '_' || c == '(') -> "(" ++ show name ++ ")"
               _       -> show name
 
@@ -252,7 +252,7 @@ highlightLexeme transform fmt ctx0 (Lexeme rng lex) lexs
     showOp name
       = case nameId name of
           (c:cs)  | isAlphaNum c  -> "`" ++ show name ++ "`"
-          _       -> show name
+          _       -> showPlain name
 
     -- highlightComment :: TokenComment Lexeme -> TokenComment a
     highlightComment com
@@ -273,7 +273,7 @@ adjustContext ctx lex lexs
   = case ctx of
       CtxNormal 
         -> case lex of
-             LexOp op             | show op == "::" -> CtxType [] "::"
+             LexOp op             | showPlain op == "::" -> CtxType [] "::"
              LexKeyword ":" _       -> CtxType [] ":"
              LexKeyword "type" _    -> CtxType [] "type"
              LexKeyword "cotype" _  -> CtxType [] "cotype"
@@ -289,14 +289,15 @@ adjustContext ctx lex lexs
         -> case lex of
              LexId _            -> ctx
              LexCons id         -> ctx
-             LexOp op           | show op == "<" -> push NestAngle nest
-                                | show op == ">" -> pop NestAngle nest
-                                | otherwise      -> ctx
-
+             LexOp op           | showPlain op == "<" -> push NestAngle nest
+                                | showPlain op == ">" -> pop NestAngle nest
+                                | otherwise           -> ctx
+             
              LexWildCard _      -> ctx
              LexWhite _         -> ctx
              LexComment _       -> ctx
 
+             LexKeyword "|" _      -> ctx
              LexKeyword "." _      -> ctx
              LexKeyword ":" _      -> ctx
              LexKeyword "->" _     -> ctx
@@ -459,4 +460,3 @@ lexComment sourceName lineNo content
       = case (dropWhile (\c -> c `elem` " \t\r") s) of
           ('\n':cs) -> cs
           cs        -> cs
-

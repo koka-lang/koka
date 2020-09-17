@@ -217,12 +217,13 @@ var doclocal = (process.env.doclocal || "..\\koka-pages\\doc"); // \\\\research\
 desc("generate the language specification")
 task("spec", ["compiler"], function(mode) {
   jake.logger.log("build language specification");
-  var outspec   = path.join(outputDir,"spec");
+  var outspecx  = path.join(outputDir,"spec");
+  var outspec   = path.join(outspecx,"js");
   var outstyles = path.join(outspec,"styles");
   var outscripts = path.join(outspec,"scripts");
   var specdir   = path.join("doc","spec");
   var docflags  = "--htmlcss=styles/madoko.css;styles/koka.css " + ((mode === "publish") ? "--htmlbases=" + docsite + " " : "");
-  var cmd = mainExe + " -c -l --outdir=" + outspec +  " -i" + specdir + " --html " + docflags + kokaFlags + " ";
+  var cmd = mainExe + " -c -l --outdir=" + outspecx + " -i" + specdir + " --html " + docflags + kokaFlags + " ";
   command(cmd + "kokaspec.kk.md spec.kk.md getstarted.kk.md overview.kk.md", function() {
     command(cmd + "toc.kk", function() {
       // fix up includes
@@ -247,7 +248,7 @@ task("spec", ["compiler"], function(mode) {
       // process xmp.html to html using madoko
       var xmpFiles = new jake.FileList().include(path.join(outspec,"*.xmp.html"))
                                         .include(path.join(outspec,"kokaspec.md"))
-                                        .toArray().join(" ").replace(new RegExp("out[\\/\\\\]spec[\\/\\\\]","g"),"");
+                                        .toArray().join(" ").replace(new RegExp("out[\\/\\\\]spec[\\/\\\\]js[\\/\\\\]","g"),"");
       console.log(xmpFiles)
       command("cd " + outspec + " && " + cmdMarkdown + " --odir=." + " -v -mline-no:false -mlogo:false " + xmpFiles, function () {
         jake.cpR(path.join(outspec,"madoko.css"),outstyles);

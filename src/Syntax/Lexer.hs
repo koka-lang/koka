@@ -17248,7 +17248,7 @@ alex_actions = array (0 :: Int, 122)
   , (0,alex_action_50)
   ]
 
-{-# LINE 205 "src\Syntax\Lexer.x" #-}
+{-# LINE 207 "src\Syntax\Lexer.x" #-}
 
 -----------------------------------------------------------
 -- helpers

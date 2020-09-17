@@ -1,22 +1,21 @@
-Title         : The Koka Book
+Title         : A Tour of Koka
 Sub Title     : An Introduction and Specification of the Koka language.
 Heading Base  : 1
 Heading Depth : 4
 Toc Depth     : 4
-Css           : https://fonts.googleapis.com/css?family=Noto+Sans:400,400italic,700,700italic
-Css           : https://fonts.googleapis.com/css?family=Noto+Serif:400,400italic,700,700italic
+Css           : https://fonts.googleapis.com/css?family=Nunito:400,400italic,700,700italic
 Css           : https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic
 Css           : https://fonts.googleapis.com/css?family=Roboto+Slab:300,400,700
 Css           : styles/koka.css
 Css           : styles/kokaspec.css 
 Script        : scripts/kokaspec.js
-Colorizer     : unchecked.json
+Colorizer     : unchecked.json 
 Colorizer     : koka.json
 Bibliography  : koka.bib
 Description   : Koka Language Specification
 [INCLUDE=book]
-[INCLUDE=webtoc]
-[INCLUDE=webanchors]
+[INCLUDE=styles/webanchors]
+[INCLUDE=styles/webtoc]
 
 ~bar          : before='|' 
 ~many         : before='{ ' after=' }'
@@ -26,8 +25,8 @@ xlidx          : &#12310;
 lapp          : _lapp_
 lidx          : _lidx_
 
-h1, h2, h3 {
-  before: "[&#x1F517;](#&id;){.entity-anchor}"
+toc {
+  .expand-all;
 }
 
 toc.toc-contents {
@@ -61,11 +60,11 @@ h4 {
 }
 
 body {
-  font-family: 'Noto Serif','Cambria', "Times New Roman", "Liberation Serif", "Times", serif;
+  font-family: 'Nunito','Cambria', "Times New Roman", "Liberation Serif", "Times", serif;
 }
 
 .toc, h1, h2, h3, h4, h5 {
-  font-family: 'Noto Sans', 'Segoe UI', sans-serif;
+  font-family: 'Nunito', 'Segoe UI', sans-serif;
 }
 
 

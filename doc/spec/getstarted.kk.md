@@ -199,7 +199,7 @@ Next, let's write a handler for this effect:
 ```
 val amb = handler {
   return x -> [x]
-  flip()   -> resume(False) + resume(True)
+  flip()   -> append(resume(False), resume(True))
 }
 ```
 When a `flip` operation is issued, this handler will catch it
@@ -246,20 +246,17 @@ fun foo() : <amb,state<int>> bool {
   if (i>0 && p) then xor() else False
 }
 ```
-The handler for the `:state` effect takes a local parameter that
-is propagated through the `resume` function (as its second argument):
+The handler for the `:state` effect uses a local variable:
 ```
-val state = handler(i) {
-  return x -> x
-  get()    -> resume(i,i)
-  set(j)   -> resume((),j)
+fun state(init : a, action : () -> <state<a>|e> b ) : e b {
+  var s := init
+  handle({mask<local>(action)}) {
+    fun get()  -> s 
+    fun set(i) -> s := i
+  }
 }
 ```
-The type of the `state` handler takes an initial state as an extra argument too: 
-
-    > :t state
-    \(|`:forall<a,b,e>. () -> ((i : a, action : () -> <state<a>|e> b) -> e b)`\)
-
+where the `state` handler takes an initial state as the first argument.
 We can now combine the ambiguity handler with the state handler in
 two ways (see Section [#sec-anon] for a primer on anonymous function syntax):
 ```
