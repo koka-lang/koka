@@ -17,7 +17,7 @@ import std/os/path
 //import std/time/instant
 //import std/time/utc
 
-extern include {
+include extern {
   c file "file-inline.c"
   js file "file-inline.js"
 }

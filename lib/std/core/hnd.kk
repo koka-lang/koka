@@ -2,7 +2,7 @@ public module std/core/hnd
 
 import std/core/types
 
-extern include {
+include extern {
   c  file "hnd-inline"
   js file "hnd-inline.js"
 }
@@ -54,13 +54,13 @@ private fun marker-none() : marker<e,r> {
 // Internal Evidence vectors
 // -------------------------------------------
 
-private extern inline evv-total() : evv<<>> {
+private inline extern evv-total() : evv<<>> {
   c  "kk_evv_total"
   js inline "[]"
 }
 
 
-public extern inline ".evv-at"<e,h> ( i : ev-index ) : ev<h> {  // pretend total; don't simplify
+public inline extern ".evv-at"<e,h> ( i : ev-index ) : ev<h> {  // pretend total; don't simplify
   c inline "kk_evv_at(#1,kk_context())"
   js inline "$std_core_hnd._evv[#1]"
 }
@@ -77,7 +77,7 @@ public extern ".evv-lookup"( htag : htag<h> ) : ev<h> {
   js inline "__evv_lookup($std_core_hnd._evv,#1)"
 }
 
-public extern inline ".evv-select"( i : ev-index, htag : htag<h> ) : ev<h> {
+public inline extern ".evv-select"( i : ev-index, htag : htag<h> ) : ev<h> {
   c inline "(#1 >= 0 ? kk_evv_at(#1,kk_context()) : kk_evv_lookup(#2,kk_context()))"
   js inline "(#1 >= 0 ? $std_core_hnd._evv[#1] : __evv_lookup($std_core_hnd._evv,#2))"
 }
@@ -98,12 +98,12 @@ private extern evv-get() : e evv<e> {
   js inline "$std_core_hnd._evv"
 }
 
-private extern inline evv-set<e1,e>( w : evv<e1> ) : e () {
+private inline extern evv-set<e1,e>( w : evv<e1> ) : e () {
   c inline "kk_evv_set(#1,kk_context())"
   js inline "(function(){ $std_core_hnd._evv = (#1); })()"
 }
 
-private extern inline evv-swap<e1,e2>( w : evv<e1> ) : e evv<e2> {
+private inline extern evv-swap<e1,e2>( w : evv<e1> ) : e evv<e2> {
   c inline "kk_evv_swap(#1,kk_context())"
   js inline "(function(){ const evv = $std_core_hnd._evv; $std_core_hnd._evv = (#1); return evv; })()"
 }
@@ -118,12 +118,12 @@ private extern evv-swap-delete( i : ev-index, behind : bool ) : e1 evv<e> {
   js "_evv_swap_delete"
 }
 
-private extern inline evv-swap-create0() : evv<<>> {
+private inline extern evv-swap-create0() : evv<<>> {
   c inline "kk_evv_swap_create0(kk_context())"
   js inline "(function(){ const evv = $std_core_hnd._evv; $std_core_hnd._evv = $std_core_hnd._evv_empty; return evv; })()"
 }
 
-private extern inline evv-swap-create1( i : ev-index ) : e evv<e> {   //not quite the right effect type but avoids unbound effect types
+private inline extern evv-swap-create1( i : ev-index ) : e evv<e> {   //not quite the right effect type but avoids unbound effect types
   c inline "kk_evv_swap_create1(#1,kk_context())"
   js inline "(function(){ const evv = $std_core_hnd._evv; if (evv.length !== 1) { $std_core_hnd._evv = [evv[#1]]; }; return evv; })()"
 }
@@ -133,7 +133,7 @@ private extern evv-swap-create( indices : vector<ev-index> ) : e evv<e> {
   js "_evv_swap_create"
 }
 
-private extern inline ev-none<e,h>() : e ev<h> {
+private inline extern ev-none<e,h>() : e ev<h> {
   c  "kk_ev_none"
   js "ev_none"
 }
@@ -142,26 +142,26 @@ private extern inline ev-none<e,h>() : e ev<h> {
 // Internal Yielding
 // -------------------------------------------
 
-public extern inline yielding() : bool {
+public inline extern yielding() : bool {
   c  inline "kk_yielding(kk_context())"
   js inline "($std_core_hnd._yield !== null)"
 }
 
-public extern inline yielding-non-final() : bool {
+public inline extern yielding-non-final() : bool {
   c  inline "kk_yielding_non_final(kk_context())"
   js inline "($std_core_hnd._yield !== null && !$std_core_hnd._yield.final)"
 }
 
-public extern noinline yield-extend(next : a -> e b ) : e b {
+public noinline extern yield-extend(next : a -> e b ) : e b {
   c  inline "kk_yield_extend(#1,kk_context())"
   js "_yield_extend"
 }
 
-public fun inline yield-bind( x : a, next : a -> e b ) : e b {
+public inline fun yield-bind( x : a, next : a -> e b ) : e b {
   if (yielding()) then yield-extend(next) else next(x)
 }
 
-public fun inline yield-bind2( x : a, extend : a -> e b, next : a -> e b ) : e b {
+public inline fun yield-bind2( x : a, extend : a -> e b, next : a -> e b ) : e b {
   if (yielding()) then yield-extend(extend) else next(x)
 }
 
@@ -170,7 +170,7 @@ private extern yield-cont(f : (a -> e a, a) -> e r ) : e r {  // make hidden pub
   js "_yield_cont"
 }
 
-private extern inline keep-yielding-final() : e r {
+private inline extern keep-yielding-final() : e r {
   c inline "kk_box_any(kk_context())"
   js inline "undefined"
 }
@@ -190,7 +190,7 @@ private extern yield-to-final( m : marker<e1,r>, clause : ((() -> b) -> e1 r) ->
   js "$std_core_hnd._yield_final"
 }
 
-private fun noinline yield-to( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e1 b {
+private noinline fun yield-to( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e1 b {
   val w0 = evv-get()
   val g : () -> _b = yield-to-prim(m, clause)
   yield-extend fun(f){ 
@@ -215,13 +215,13 @@ public extern unsafe-reyield(yld : yield-info) : e a {
 //
 // -------------------------------------------
 
-private extern inline unsafe-coerce(x:a) : b { inline "#1" }
-private extern inline cast-ev0( f:() -> e1 b) : (() -> e0 b) { inline "#1" }
-private extern inline cast-ev1( f:(a1) -> e1 b) : ((a1) -> e0 b) { inline "#1" }
-private extern inline cast-ev2( f:(a1,a2) -> e1 b) : ((a1,a2) -> e0 b) { inline "#1" }
-private extern inline cast-ev3( f:(a1,a2,a3) -> e1 b) : ((a1,a2,a3) -> e0 b) { inline "#1" }
-private extern inline cast-ev4( f:(a1,a2,a3,a4) -> e1 b) : ((a1,a2,a3,a4) -> e0 b) { inline "#1" }
-private extern inline cast-ev5( f:(a1,a2,a3,a4,a5) -> e1 b) : ((a1,a2,a3,a4,a5) -> e0 b) { inline "#1" }
+private inline extern unsafe-coerce(x:a) : b { inline "#1" }
+private inline extern cast-ev0( f:() -> e1 b) : (() -> e0 b) { inline "#1" }
+private inline extern cast-ev1( f:(a1) -> e1 b) : ((a1) -> e0 b) { inline "#1" }
+private inline extern cast-ev2( f:(a1,a2) -> e1 b) : ((a1,a2) -> e0 b) { inline "#1" }
+private inline extern cast-ev3( f:(a1,a2,a3) -> e1 b) : ((a1,a2,a3) -> e0 b) { inline "#1" }
+private inline extern cast-ev4( f:(a1,a2,a3,a4) -> e1 b) : ((a1,a2,a3,a4) -> e0 b) { inline "#1" }
+private inline extern cast-ev5( f:(a1,a2,a3,a4,a5) -> e1 b) : ((a1,a2,a3,a4,a5) -> e0 b) { inline "#1" }
 
 private type yld<e,a,r> {
   Pure
@@ -278,7 +278,7 @@ private fun prompt( w0 : evv<e0>,  w1 : evv<e0>, ev : ev<h>, m : marker<e0,r>, r
   }
 }
 
-public fun noinline ".hhandle"( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : () -> e1 a ) : e r {
+public noinline fun ".hhandle"( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : () -> e1 a ) : e r {
   // insert new evidence for our handler
   val w0 = evv-get()        
   val m  = fresh-marker()
@@ -421,9 +421,9 @@ abstract type clause1<a,b,h,e,r> {
   Clause1( clause: (marker<e,r>, ev<h>, a) -> e b )
 }
 
-private extern inline cast-ev0( f : (marker<e1,r>,ev<h>) -> e1 b) : e ((marker<e1,r>,ev<h>) -> e b) { inline "#1" }
-private extern inline cast-ev1( f : (marker<e1,r>,ev<h>,a) -> e1 b) : e ((marker<e1,r>,ev<h>,a) -> e b) { inline "#1" }
-private extern inline cast-ev2( f : (marker<e1,r>,ev<h>,a1,a2) -> e1 b) : e ((marker<e1,r>,ev<h>,a1,a2) -> e b) { inline "#1" }
+private inline extern cast-ev0( f : (marker<e1,r>,ev<h>) -> e1 b) : e ((marker<e1,r>,ev<h>) -> e b) { inline "#1" }
+private inline extern cast-ev1( f : (marker<e1,r>,ev<h>,a) -> e1 b) : e ((marker<e1,r>,ev<h>,a) -> e b) { inline "#1" }
+private inline extern cast-ev2( f : (marker<e1,r>,ev<h>,a1,a2) -> e1 b) : e ((marker<e1,r>,ev<h>,a1,a2) -> e b) { inline "#1" }
 
 public fun ".perform1"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,h,e1,r>), x : a ) : e b {
   match(ev) {
@@ -457,7 +457,7 @@ private fun get( ref: ref<h,a>) : <read<h>,div> a {
   !ref
 }
 
-external inline unsafe-st(f : () -> <st<global>|e> a ) : (() -> e a) { inline "#1" }
+inline extern unsafe-st(f : () -> <st<global>|e> a ) : (() -> e a) { inline "#1" }
 
 private fun protect-check( resumed : ref<global,bool>,  k : (() -> b) -> e r, res : a ) : e a {
   val did-resume : bool = (unsafe-st{ !resumed })()
@@ -684,7 +684,7 @@ private fun under4( ev : ev<h>, op : (a1,a2,a3,a4) -> e b, x1 : a1, x2 : a2, x3 
 // Open
 // -------------------------------------------
 // Generated by type inference and later refined into one of the below variants
-public extern inline ".open"<e1,e2,a,b>( x : a ) : e2 b {
+public inline extern ".open"<e1,e2,a,b>( x : a ) : e2 b {
   inline "(#1)"
 }
 
@@ -782,7 +782,7 @@ private fun open1<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1 b, x : a )
 }
 
 
-public fun noinline ".open0"<b,e1,e2>( indices : vector<ev-index>, f : () -> e1 b ) : e2 b {
+public noinline fun ".open0"<b,e1,e2>( indices : vector<ev-index>, f : () -> e1 b ) : e2 b {
   val w = evv-swap-create(indices)
   val y = cast-ev0(f)()
   evv-set(w)
@@ -790,7 +790,7 @@ public fun noinline ".open0"<b,e1,e2>( indices : vector<ev-index>, f : () -> e1 
   y
 }
 
-public fun noinline ".open1"<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1 b, x : a ) : e2 b {
+public noinline fun ".open1"<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1 b, x : a ) : e2 b {
   val w = evv-swap-create(indices)
   val y = cast-ev1(f)(x)
   evv-set(w)
@@ -798,7 +798,7 @@ public fun noinline ".open1"<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1
   y
 }
 
-public fun noinline ".open2"<a1,a2,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
+public noinline fun ".open2"<a1,a2,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
   val w = evv-swap-create(indices)
   val y = cast-ev2(f)(x1,x2)
   evv-set(w)
@@ -806,7 +806,7 @@ public fun noinline ".open2"<a1,a2,b,e1,e2>( indices : vector<ev-index>, f : (a1
   y
 }
 
-public fun noinline ".open3"<a1,a2,a3,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3) -> e1 b, x1 : a1, x2 : a2, x3 : a3 ) : e2 b {
+public noinline fun ".open3"<a1,a2,a3,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3) -> e1 b, x1 : a1, x2 : a2, x3 : a3 ) : e2 b {
   val w = evv-swap-create(indices)
   val y = cast-ev3(f)(x1,x2,x3)
   evv-set(w)
@@ -814,7 +814,7 @@ public fun noinline ".open3"<a1,a2,a3,b,e1,e2>( indices : vector<ev-index>, f : 
   y
 }
 
-public fun noinline ".open4"<a1,a2,a3,a4,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3,a4) -> e1 b, x1 : a1, x2 : a2, x3 : a3, x4 : a4 ) : e2 b {
+public noinline fun ".open4"<a1,a2,a3,a4,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3,a4) -> e1 b, x1 : a1, x2 : a2, x3 : a3, x4 : a4 ) : e2 b {
   val w = evv-swap-create(indices)
   val y = cast-ev4(f)(x1,x2,x3,x4)
   evv-set(w)

@@ -24,21 +24,21 @@ infix  40  (!=), (==), (<=), (>=), (<), (>)
 // prefix     (!), (-)
 
 
-extern include {
+include extern {
   c  file "core/core-inline"
   cs file "core/core-inline.cs"
   js file "core/core-inline.js"
 }
 
-extern include {
+include extern {
   js file "core/core-string-inline.js"
 }
 
-extern include {
+include extern {
   js file "core/core-console-inline.js"
 }
 
-extern include {
+include extern {
   js file "../../contrib/biginteger.js"
 }
 
@@ -78,17 +78,17 @@ alias io-total = <ndet,console,net,file,ui,st<global>>
 alias io-noexn = <div,io-total>
 
 // The `:io` effect is used for functions that perform arbitrary I/O operations.
-alias io = <exn,io-noexn>
+alias io = <exn,io-noexn>  
 
 // ----------------------------------------------------------------------------
 // Masking
 // ----------------------------------------------------------------------------
 
 // Add the state effect to a function effect.
-// extern inline inject-st : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <st<h>|e> b)   { inline "#1" }
+// inline extern inject-st : forall<a,b,h,e> ((a) -> e b) -> total ((a) -> <st<h>|e> b)   { inline "#1" }
 
 // Add the state effect to a function effect.
-extern inline inject-st : forall<a,h,e> (() -> e a) -> total (() -> <st<h>|e> a)  { inline "#1" }
+inline extern inject-st : forall<a,h,e> (() -> e a) -> total (() -> <st<h>|e> a)  { inline "#1" }
 
 
 // ----------------------------------------------------------------------------
@@ -875,12 +875,12 @@ fun any( xs : list<a>, predicate : a -> e bool ) : e bool
 // Characters
 // ----------------------------------------------------------------------------
 
-extern inline (==) : (char,char) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
-extern inline (!=) : (char,char) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-extern inline (<=) : (char,char) -> bool  { inline "(#1 <= #2)" }
-extern inline (>=) : (char,char) -> bool  { inline "(#1 >= #2)" }
-extern inline (<)  : (char,char) -> bool  { inline "(#1 < #2)" }
-extern inline (>)  : (char,char) -> bool  { inline "(#1 > #2)" }
+inline extern (==) : (char,char) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
+inline extern (!=) : (char,char) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
+inline extern (<=) : (char,char) -> bool  { inline "(#1 <= #2)" }
+inline extern (>=) : (char,char) -> bool  { inline "(#1 >= #2)" }
+inline extern (<)  : (char,char) -> bool  { inline "(#1 < #2)" }
+inline extern (>)  : (char,char) -> bool  { inline "(#1 > #2)" }
 
 fun compare( x : char, y : char ) : order
 {
@@ -890,14 +890,14 @@ fun compare( x : char, y : char ) : order
 }
 
 // Convert a character to its unicode code point
-extern inline int : (char) -> int {
+inline extern int : (char) -> int {
   inline "#1"
   c "kk_integer_from_int"
   cs inline "new BigInteger(#1)"
 }
 
 // Convert a unicode code point to a character
-extern inline char : (int) -> char {
+inline extern char : (int) -> char {
   inline "(#1)";
   c "kk_integer_clamp32"
   cs inline "Primitive.IntToInt32(#1)"
@@ -957,7 +957,7 @@ fun maybe( b : bool ) : maybe<()> {
 // ----------------------------------------------------------------------------
 
 // Compare two integers
-extern inline compare : (int,int) -> order  {
+inline extern compare : (int,int) -> order  {
   c inline "kk_int_as_order(kk_integer_cmp(#1,#2,kk_context()),kk_context())"
   cs "Primitive.IntCompare"
   js "$std_core._int_compare"
@@ -965,76 +965,76 @@ extern inline compare : (int,int) -> order  {
 
 
 // Are two integers equal?
-extern inline (==) : (int,int) -> bool  {
+inline extern (==) : (int,int) -> bool  {
   c  "kk_integer_eq"
   cs inline "(#1 == #2)"
   js "$std_core._int_eq"
 }
 
 // Are two integers not equal?
-extern inline (!=) : (int,int) -> bool  {
+inline extern (!=) : (int,int) -> bool  {
   c  "kk_integer_neq"
   cs inline "(#1 != #2)"
   js "$std_core._int_ne"
 }
 
 // Is the first integer smaller or equal to the second?
-extern inline (<=) : (int,int) -> bool  {
+inline extern (<=) : (int,int) -> bool  {
   c  "kk_integer_lte"
   cs inline "(#1 <= #2)"
   js "$std_core._int_le"
 }
 
 // Is the first integer greater or equal to the second?
-extern inline (>=) : (int,int) -> bool  {
+inline extern (>=) : (int,int) -> bool  {
   c  "kk_integer_gte"
   cs inline "(#1 >= #2)"
   js "$std_core._int_ge"
 }
 
 // Is the first integer smaller than the second?
-extern inline (<)  : (int,int) -> bool  {
+inline extern (<)  : (int,int) -> bool  {
   c  "kk_integer_lt"
   cs inline "(#1 < #2)"
   js "$std_core._int_lt"
 }
 
 // Is the first integer greater than the second?
-extern inline (>)  : (int,int) -> bool  {
+inline extern (>)  : (int,int) -> bool  {
   c  "kk_integer_gt"
   cs inline "(#1 > #2)"
   js "$std_core._int_gt"
 }
 
 // Add two integers.
-extern inline (+) : (int,int) -> int {
+inline extern (+) : (int,int) -> int {
   c  "kk_integer_add"
   cs inline "(#1 + #2)"
   js "$std_core._int_add"
 }
 
 // Substract two integers.
-extern inline (-) : (int,int) -> int {
+inline extern (-) : (int,int) -> int {
   c  "kk_integer_sub"
   cs inline "(#1 - #2)"
   js "$std_core._int_sub"
 }
 
 // Multiply two integers.
-extern inline (*) : (int,int) -> int {
+inline extern (*) : (int,int) -> int {
   c  "kk_integer_mul"
   cs inline "(#1 * #2)"
   js "$std_core._int_mul"
 }
 
 // Euclidean-0 division of two integers. See also `divmod:(x : int, y : int) -> (int,int)`.
-extern inline (/)(x:int,y:int) : int {
+inline extern (/)(x:int,y:int) : int {
   c  "kk_integer_div"
   cs "Primitive.IntDiv"
   js "$std_core._int_div"
 }
 // Euclidean modulus of two integers; always a non-negative number. See also `divmod:(x : int, y : int) -> (int,int)`.
-extern inline (%)  : (int,int) -> int {
+inline extern (%)  : (int,int) -> int {
   c  "kk_integer_mod"
   cs "Primitive.IntMod"
   js "$std_core._int_mod"
@@ -1058,7 +1058,7 @@ extern inline (%)  : (int,int) -> int {
 //
 // See also _Division and modulus for computer scientists, Daan Leijen, 2001_ for further information
 // available at: <http://research.microsoft.com/pubs/151917/divmodnote.pdf> .
-extern inline divmod(x:int,y:int) : (int,int) {
+inline extern divmod(x:int,y:int) : (int,int) {
   c  "kk_integer_div_mod_tuple"
   cs "Primitive.IntDivMod"
   js "$std_core._int_divmod"
@@ -1069,28 +1069,28 @@ fun negate(i : int) : int {
 }
 
 // Negate an integer.
-extern inline (~)(i:int) : int {
+inline extern (~)(i:int) : int {
   c  "kk_integer_neg"
   cs inline "(-#1)"
   js "$std_core._int_negate"
 }
 
 // Convert an integer to a `:double`. May return `nan` if the integer is too large to represent as a `:double`.
-extern inline double : (int) -> double  {
+inline extern double : (int) -> double  {
   c  "kk_integer_as_double"
   cs "Primitive.IntToDouble"
   js "$std_core._int_to_double"
 }
 
 // Is this an odd integer?
-extern inline odd?   : ( int ) -> bool  {
+inline extern odd?   : ( int ) -> bool  {
   c  "kk_integer_is_odd"
   cs inline "!(#1.IsEven)"
   js "$std_core._int_isodd"
 }
 
 // Is this equal to zero?
-extern inline zero?  : ( int ) -> bool  {
+inline extern zero?  : ( int ) -> bool  {
   c  "kk_integer_is_zero"
   cs inline "(#1.IsZero)"
   js "$std_core._int_iszero"
@@ -1098,7 +1098,7 @@ extern inline zero?  : ( int ) -> bool  {
 
 
 // Return the absolute value of an integer.
-extern inline abs(i : int) : int {
+inline extern abs(i : int) : int {
   c  "kk_integer_abs"
   cs "BigInteger.Abs"
   js "$std_core._int_abs"
@@ -1126,12 +1126,12 @@ extern pow( i : int, exp : int ) : int {
 
 // Raise an integer `i` to the power of `exp`.
 fun (^)(i : int, exp : int ) : int {
-	pow(i,exp);
+  pow(i,exp);
 }
 
 // Calculate `2^exp`.
 fun exp2( exp : int ) : int {
-	pow(2,exp)
+  pow(2,exp)
 }
 
 // Return the number of ending `0` digits of `i`. Return `0` when `i==0`.
@@ -1181,7 +1181,7 @@ fun pos?(i : int ) : bool { i.sign == Gt }
 // Is the integer negative (stricly smaller than zero)
 fun neg?(i : int ) : bool { i.sign == Lt }
 
-extern inline sign(i : int ) : order {
+inline extern sign(i : int ) : order {
   c  inline "kk_int_as_order(kk_integer_signum(#1,kk_context()),kk_context())"
   cs "Primitive.IntSign"
   js "$std_core._int_sign"
@@ -1235,7 +1235,7 @@ fun fold-int( start : int, end : int, init : a, f : (int,a) -> a ) : a {
 // ----------------------------------------------------------------------------
 
 // Convert an `:int32` to an `:int`.
-extern inline int( i : int32 ) : int {
+inline extern int( i : int32 ) : int {
   c  "kk_integer_from_int"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_double"
@@ -1251,12 +1251,12 @@ extern int32  : (int) -> int32   {
 
 
 // Minimal set of operations that we need in `std/core`.
-private extern inline (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)"; js inline "(#1 <= #2)" }
-private extern inline (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"; js inline "(#1 < #2)" }
-private extern inline (+)  : (int32,int32) -> int32 { inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
-private extern inline (-)  : (int32,int32) -> int32 { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
-private extern inline pos?( i : int32 ) : bool { inline "(#1>0)" }
-private extern inline neg?( i : int32 ) : bool { inline "(#1<0)" }
+private inline extern (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)"; js inline "(#1 <= #2)" }
+private inline extern (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"; js inline "(#1 < #2)" }
+private inline extern (+)  : (int32,int32) -> int32 { inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
+private inline extern (-)  : (int32,int32) -> int32 { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
+private inline extern pos?( i : int32 ) : bool { inline "(#1>0)" }
+private inline extern neg?( i : int32 ) : bool { inline "(#1<0)" }
 
 private fun incr( i : int32 ) : int32 {
   i + 1.int32
@@ -1281,7 +1281,7 @@ extern size_t( i : int) : size_t   {
 }
 
 // Convert an `:size_t` to an `:int`.
-private extern inline int( i : size_t ) : int {
+private inline extern int( i : size_t ) : int {
   c  "kk_integer_from_size_t"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_double"
@@ -1289,12 +1289,12 @@ private extern inline int( i : size_t ) : int {
 
 
 // Minimal set of operations that we need in `std/core`.
-private extern inline (<=) : (size_t,size_t) -> bool   { inline "(#1 <= #2)" }
-private extern inline (<)  : (size_t,size_t) -> bool   { inline "(#1 < #2)" }
-private extern inline (+)  : (size_t,size_t) -> size_t { inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
-private extern inline (-)  : (size_t,size_t) -> size_t { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
-private extern inline pos?( i : size_t ) : bool { inline "(#1 > 0)" }
-private extern inline neg?( i : size_t ) : bool { inline "(#1 < 0)" }
+private inline extern (<=) : (size_t,size_t) -> bool   { inline "(#1 <= #2)" }
+private inline extern (<)  : (size_t,size_t) -> bool   { inline "(#1 < #2)" }
+private inline extern (+)  : (size_t,size_t) -> size_t { inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
+private inline extern (-)  : (size_t,size_t) -> size_t { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
+private inline extern pos?( i : size_t ) : bool { inline "(#1 > 0)" }
+private inline extern neg?( i : size_t ) : bool { inline "(#1 < 0)" }
 private extern zero?( i : size_t ) : bool { inline "(#1 == 0)" }
 private extern decr(i : size_t ) : size_t { inline "(#1 - 1)" }
 private extern incr(i : size_t ) : size_t { inline "(#1 + 1)" }
@@ -1329,18 +1329,18 @@ private extern xparse-int( s : string, hex : bool ) : maybe<int> {
 // Doubles
 // ----------------------------------------------------------------------------
 
-extern inline (==) : (double,double) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
-extern inline (!=) : (double,double) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-extern inline (<=) : (double,double) -> bool  { inline "(#1 <= #2)" }
-extern inline (>=) : (double,double) -> bool  { inline "(#1 >= #2)" }
-extern inline (<)  : (double,double) -> bool  { inline "(#1 < #2)" }
-extern inline (>)  : (double,double) -> bool  { inline "(#1 > #2)" }
+inline extern (==) : (double,double) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
+inline extern (!=) : (double,double) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
+inline extern (<=) : (double,double) -> bool  { inline "(#1 <= #2)" }
+inline extern (>=) : (double,double) -> bool  { inline "(#1 >= #2)" }
+inline extern (<)  : (double,double) -> bool  { inline "(#1 < #2)" }
+inline extern (>)  : (double,double) -> bool  { inline "(#1 > #2)" }
 
-extern inline (+) : (double,double) -> double { inline "(#1 + #2)" }
-extern inline (-) : (double,double) -> double { inline "(#1 - #2)" }
-extern inline (*) : (double,double) -> double { inline "(#1 * #2)" }
-extern inline (/) : (double,double) -> double { inline "(#1 / #2)" }
-extern inline (%) : (double,double) -> double { inline "(#1 % #2)" }
+inline extern (+) : (double,double) -> double { inline "(#1 + #2)" }
+inline extern (-) : (double,double) -> double { inline "(#1 - #2)" }
+inline extern (*) : (double,double) -> double { inline "(#1 * #2)" }
+inline extern (/) : (double,double) -> double { inline "(#1 / #2)" }
+inline extern (%) : (double,double) -> double { inline "(#1 % #2)" }
 
 fun compare( x : double, y : double) : order
 {
@@ -1370,7 +1370,7 @@ fun sign( d : double ) : order {
 }
 
 // Negate a `:double`.
-extern inline (~)(d : double ) : double {
+inline extern (~)(d : double ) : double {
   inline "(-#1)"  // inline so `~0.0` becomes negative zero
 }
 
@@ -1378,7 +1378,7 @@ extern inline (~)(d : double ) : double {
 // convert a `:double` to an `:int` using `round` to round to its nearest integer.
 // (rounding to an even number on a tie)
 // Returns `0` if the argument is not `finite?`.
-extern inline int(d : double ) : int {
+inline extern int(d : double ) : int {
   c  "kk_integer_from_double"
   cs "Primitive.IntDouble"
   js "$std_core._int_double"
@@ -1386,14 +1386,14 @@ extern inline int(d : double ) : int {
 
 
 // Returns the value `d`  raised to the power `p` .
-extern inline (^) : (d:double,p:double) -> double {
+inline extern (^) : (d:double,p:double) -> double {
   c inline "pow(#1,#2)"
   cs "Math.Pow"
   js "Math.pow"
 }
 
 // Return the absolute value of a `:double` `d`
-extern inline abs : (d:double) -> double  {
+inline extern abs : (d:double) -> double  {
   c inline "kk_double_abs(#1)"
   cs "Math.Abs"
   js "Math.abs"
@@ -1444,7 +1444,7 @@ fun ".new-sslice"( str :string, start: size_t, len : size_t ) {
 }
 
 // Convert a character to a string
-external string : ( c : char ) -> string  {
+extern string : ( c : char ) -> string  {
   c  "kk_string_from_char"
   cs inline "Primitive.CharToString(#1)";
   js inline "_char_to_string(#1)"
@@ -1482,14 +1482,14 @@ extern string( cs : list<char> ) : total string {
 
 // Are two strings equal?
 // Uses exact equality between character codes.
-extern inline (==) : (string,string) -> bool {
+inline extern (==) : (string,string) -> bool {
   c  "kk_string_is_eq"
   cs inline "(#1 == #2)"
   js inline "(#1 === #2)"
 }
 
 // Are two strings not equal?
-extern inline (!=) : (string,string) -> bool {
+inline extern (!=) : (string,string) -> bool {
   c  "kk_string_is_neq"
   inline "(#1 != #2)"
   js inline "(#1 !== #2)"
@@ -1526,7 +1526,7 @@ fun (||)( x : string, y : string ) : string {
 }
 
 // Length returns the length in the platform specific encoding (and should not be exported)
-private extern inline length( s : string ) : size_t {
+private inline extern length( s : string ) : size_t {
   c inline "kk_string_len(#1,kk_context())"
   cs inline "#1.Length"
   js inline "#1.length"
@@ -1690,7 +1690,7 @@ fun foreach( slice : sslice, action : (c:char) -> e ()) : e () {
 }
 
 // Does string `s`  contain the string `sub`  ?
-private extern inline xindex-of(s : string, sub : string ) : size_t {
+private inline extern xindex-of(s : string, sub : string ) : size_t {
   c inline "kk_string_index_of1(#1,#2,kk_context())"
   cs inline "((#1).IndexOf(#2) + 1)";
   js inline "((#1).indexOf(#2) + 1)";
@@ -1704,7 +1704,7 @@ fun find( s : string, sub : string ) : maybe<sslice> {
 }
 
 // Does string `s`  contain the string `sub`  ?
-private extern inline xlast-index-of(s : string, sub : string ) : size_t {
+private inline extern xlast-index-of(s : string, sub : string ) : size_t {
   c inline "kk_string_last_index_of1(#1,#2,kk_context())"
   cs inline "(#1.LastIndexOf(#2) + 1)";
   js inline "((#1).lastIndexOf(#2) + 1)";
@@ -1716,7 +1716,7 @@ fun find-last( s : string, sub : string ) : maybe<sslice> {
   if (i.zero?) then Nothing else Just(Sslice(s,i.decr,sub.length))
 }
 
-private extern inline xstarts-with: (s : string, pre : string ) -> bool {
+private inline extern xstarts-with: (s : string, pre : string ) -> bool {
   c  "kk_string_starts_with"
   cs inline "#1.StartsWith(#2)";
   js inline "(#1.substr(0,#2.length) === #2)"
@@ -1747,21 +1747,21 @@ fun ends-with( s : string, post : string ) : maybe<sslice> {
 }
 
 // Does string `s`  contain the string `sub`  ?
-extern inline contains: (s : string, sub : string ) -> bool {
+inline extern contains: (s : string, sub : string ) -> bool {
   c  "kk_string_contains"
   cs inline "((#1).Contains(#2))";
   js inline "((#1).indexOf(#2) >= 0)"
 }
 
 // Concatenate a vector of strings
-extern inline join: (v : vector<string> ) -> string {
+inline extern join: (v : vector<string> ) -> string {
   c  "kk_string_join"
   cs "String.Concat";
   js inline "((#1).join(''))"
 }
 
 // Concatenate a vector of strings with a separator `sep`
-extern inline join: (v : vector<string>, sep : string ) -> total string {
+inline extern join: (v : vector<string>, sep : string ) -> total string {
   c  "kk_string_join_with"
   cs "Primitive.Concat";
   js inline "((#1).join(#2))"
@@ -1825,13 +1825,13 @@ fun maybe( s : string ) : maybe<string> {
 }
 
 
-private extern inline splitv( s : string,  sep : string ) : vector<string> {
+private inline extern splitv( s : string,  sep : string ) : vector<string> {
   c  "kk_string_splitv"
   cs inline "(#1.Split(new String[]{#2}, StringSplitOptions.None))";
   js inline "((#1).split(#2))"
 }
 
-private extern inline splitv( s : string,  sep : string, n : size_t ) : vector<string> {
+private inline extern splitv( s : string,  sep : string, n : size_t ) : vector<string> {
   c  "kk_string_splitv_atmost"
   cs inline "#1.Split(new String[]{#2},#3, StringSplitOptions.None)";
   js inline "(#1).split(#2, #3)"
@@ -1850,14 +1850,14 @@ fun split( s : string, sep: string, n : int) : list<string> {
 }
 
 // Replace every occurrence of `pattern` to `repl` in a string.
-public extern inline replace-all( s : string, pattern : string, repl : string ) : string {
+public inline extern replace-all( s : string, pattern : string, repl : string ) : string {
   c  "kk_string_replace_all"
   cs inline "(#1).Replace(#2,#3)";
   js inline @"(#1).replace(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'),#3)";
 }
 
 // Count occurences of `pattern` in a string.
-public extern inline count( s : string, pattern : string ) : int {
+public inline extern count( s : string, pattern : string ) : int {
   c  "kk_string_count_pattern"
   cs inline "Primitive.Count(#1,#2)";
   js inline @"((#2) ? ((#1).match(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'))||[]).length : 0)";
@@ -1955,14 +1955,14 @@ fun trim( s : string ) : string {
 }
 
 // Trim the starting white space of a string
-extern inline trim-left( s : string ) : string {
+inline extern trim-left( s : string ) : string {
   c  "kk_string_trim_left"
   cs inline "(#1).TrimStart()"
   js inline "((#1).replace(/^\\s\\s*/,''))"
 }
 
 // Trim the ending white space of a string.
-extern inline trim-right( s : string ) : string {
+inline extern trim-right( s : string ) : string {
   c  "kk_string_trim_right"
   cs inline "(#1).TrimEnd()"
   js inline "((#1).replace(/\\s+$/,''))"
@@ -1975,26 +1975,26 @@ extern inline trim-right( s : string ) : string {
 // ----------------------------------------------------------------------------
 
 // Return the element at position `index`  in vector `v`  without bounds check!
-private extern inline unsafe-idx : forall<a> ( v : vector<a>, index : size_t ) -> total a {
+private inline extern unsafe-idx : forall<a> ( v : vector<a>, index : size_t ) -> total a {
   c inline "kk_vector_at(#1,#2)"
   cs inline "(#1)[#2]";
   js inline "(#1)[#2]";
 }
 
-private extern inline unsafe-assign : forall<a> ( v : vector<a>, i : size_t, x : a ) -> total () {
+private inline extern unsafe-assign : forall<a> ( v : vector<a>, i : size_t, x : a ) -> total () {
   c "kk_vector_unsafe_assign"
   cs inline "(#1)[#2] = #3";
   js inline "(#1)[#2] = #3";
 }
 
-private extern inline unsafe-vector : forall<a> ( n : size_t ) -> total vector<a> {
+private inline extern unsafe-vector : forall<a> ( n : size_t ) -> total vector<a> {
   c "kk_vector_allocz"
   cs inline "(new ##1[#1])"
   js inline "Array(#1)"
 }
 
 // Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
-extern inline [] : forall<a> ( v : vector<a>, index : int ) -> exn a  {
+inline extern [] : forall<a> ( v : vector<a>, index : int ) -> exn a  {
   c "kk_vector_at_int"
   cs inline "(#1)[Primitive.IntToInt32(#2)]"
   js inline "$std_core._vector_at(#1,#2)"
@@ -2011,7 +2011,7 @@ fun length( v : vector<a> ) : int {
   v.lengthz.int
 }
 
-private extern inline lengthz : forall<a> (v : vector<a> ) -> size_t  {
+private inline extern lengthz : forall<a> (v : vector<a> ) -> size_t  {
   c  inline "kk_vector_len(#1)"
   cs inline "((#1).Length)";
   js inline "((#1).length)";
@@ -2035,7 +2035,7 @@ private extern vector-initz(n : size_t, f : size_t -> a) : vector<a> {
 }
 
 // Create an empty vector.
-extern inline vector : forall<a> () -> vector<a> {
+inline extern vector : forall<a> () -> vector<a> {
   c inline "kk_vector_empty()"
   cs inline "new ##1[0]"
   js inline "[]"
@@ -2294,11 +2294,10 @@ private fun gprint( x : a ) : console () {
   print( x.gshow )
 }
 
-
-private val noinline redirect : ref<global,maybe<(string) -> console ()>> = unsafe-total { ref(Nothing) }
+private noinline val redirect : ref<global,maybe<(string) -> console ()>> = unsafe-total { ref(Nothing) }
 
 // redirect `print` and `println` calls to a specified function.
-public fun noinline print-redirect( print : (msg : string) -> console () ) : io ()
+public noinline fun print-redirect( print : (msg : string) -> console () ) : io ()
 {
   redirect := Just(print);
 }
@@ -2318,9 +2317,9 @@ private extern xprints( s : string) : console ()  {
 }
 
 // _Unsafe_. This function removes the non-termination effect (`:div`) from the effect of an action
-extern inline unsafe-nostate( action : () -> <st<h>,console> a ) : (() -> console a) { inline "#1"}
+inline extern unsafe-nostate( action : () -> <st<h>,console> a ) : (() -> console a) { inline "#1"}
 
-private fun noinline prints( s : string ) : console () {
+private noinline fun prints( s : string ) : console () {
   (unsafe-nostate {
     match(!redirect) {
       Nothing -> xprints(s)
@@ -2329,7 +2328,7 @@ private fun noinline prints( s : string ) : console () {
   })()
 }
 
-private fun noinline printsln( s : string ) : console () {
+private noinline fun printsln( s : string ) : console () {
   (unsafe-nostate {
     match(!redirect) {
       Nothing -> xprintsln(s)
@@ -2410,7 +2409,7 @@ public fun trace-any( message : string, x : a ) : () {
   }
 }
 // Disable tracing completely.
-public fun noinline notrace() : st<global> () {
+public noinline fun notrace() : st<global> () {
   trace-enabled := False
 }
 
@@ -2446,7 +2445,7 @@ fun ".default-exn"(action) {
 struct exception( message :string, info :exception-info )
 
 // Exception information
-type open exception-info {
+open type exception-info {
   ExnError      // Generic error
   ExnAssert
   ExnTodo
@@ -2566,14 +2565,14 @@ fun on-exit( hndler : () -> e (), action : () -> e a ) : e a {
 type null<a>
 
 // Unsafe: transform any type to a `null` type; used internally by the compiler.
-external ".null-any"(x : a) : null<a> {
+extern ".null-any"(x : a) : null<a> {
   c  inline "((#1).box == kk_box_null.box ? kk_datatype_from_ptr(NULL) : kk_datatype_unbox(#1))"
   cs inline "#1"
   js inline "(#1==null ? null : #1)"  // undefined -> null
 }
 
 // Transform a `:maybe` type to a `:null` type (using `null` for `Nothing`).
-external null(x : maybe<a>) : null<a> {
+extern null(x : maybe<a>) : null<a> {
   c  inline "(kk_std_core_types__is_Nothing(#1) ? kk_datatype_from_ptr(NULL) : kk_datatype_unbox((#1)._cons.Just.value))"
   cs inline "(#1.tag_ == __std_core._maybe_Tag.Nothing ? default(##1) : #1.@value)"
   js inline "(#1==null ? null : #1.value)"
@@ -2581,7 +2580,7 @@ external null(x : maybe<a>) : null<a> {
 
 // Transform a `:null` type to a `:maybe` type. Note that it is not
 // always the case that `id(x) == maybe(null(x))` (e.g. when `x = Just(Nothing)`).
-external maybe( n : null<a> ) : maybe<a> {
+extern maybe( n : null<a> ) : maybe<a> {
   c inline "((#1).ptr == NULL ? kk_std_core_types__new_Nothing(kk_context()) : kk_std_core_types__new_Just(kk_datatype_box(#1),kk_context()))"
   cs inline "(EqualityComparer<##1>.Default.Equals(#1,default(##1)) ? __std_core._maybe<##1>.Nothing_ : new __std_core._maybe<##1>(#1))"
   js inline "(#1==null ? $std_core_types.Nothing : $std_core_types.Just(#1))"
@@ -2623,10 +2622,10 @@ extern main-console : forall<a,e> ( main : () -> e a ) -> e a {
 // ----------------------------------------------------------------------------
 
 
-extern inline inject-local<a,h,e>( action : () -> e a ) : total (() -> <local<h>|e> a) { inline "#1" }
+inline extern inject-local<a,h,e>( action : () -> e a ) : total (() -> <local<h>|e> a) { inline "#1" }
 
 // Assign to an entry in a local `:vector` variable.
-extern inline [] : forall<s,a,e> ( self : local-var<s,vector<a>>, index : int, assigned : a ) -> <local<s>,exn|e> () {
+inline extern [] : forall<s,a,e> ( self : local-var<s,vector<a>>, index : int, assigned : a ) -> <local<s>,exn|e> () {
   cs inline "(#1)[(int)#2] = #3"
   js inline "(#1)[#2] = #3"
 }
@@ -2781,19 +2780,19 @@ extern host() : ndet string {
 
 // .open is used in the compiler to open up closed effects.
 // Usually simplified away but still present if --no-simplify flag is given
-extern inline ".open"<e1 :: E, e2 :: E, a, b>( x : a ) : total b {
+inline extern ".open"<e1 :: E, e2 :: E, a, b>( x : a ) : total b {
   inline "#1"
 }
 
 // Magic casting to the `:any` type.
-extern inline ".toany"( x : a ) : any {
+inline extern ".toany"( x : a ) : any {
   inline "#1"
   cs inline "(object)(#1)"
 }
 
 /*
 // TODO: revisit mask
-extern inline ".inject-effect"<a::V,e1::E,e2::E>( effect-name : string, level : int, action : () -> e1 a ) : e2 a {
+inline extern ".inject-effect"<a::V,e1::E,e2::E>( effect-name : string, level : int, action : () -> e1 a ) : e2 a {
   js inline "$std_core._throw_exception('Core.inject-effect is not implemented')"
 }
 */

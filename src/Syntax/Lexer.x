@@ -105,13 +105,12 @@ $charesc  = [nrt\\\'\"]    -- "
 program :-
 -- white space
 <0> $space+               { string $ LexWhite }
-<0> $tab+               		{ string $ LexWhite }
 <0> @newline              { constant $ LexWhite "\n" }
 <0> "/*" $symbol*         { next comment $ more id }
 <0> "//" $symbol*         { next linecom $ more id }
 <0> ^\# $symbol*          { next linedir $ more id }
 
-
+ 
 -- fun/function followed by '(' or '<'
 -- <0> "fun" [\(\<]          { less 3 $ constant $ LexKeyword "fun.anon" "" }
 -- <0> "function" [\(\<]     { less 8 $ constant $ LexKeyword "function.anon" "" }
@@ -163,6 +162,7 @@ program :-
 <0> \'.\'                 { string $ \s -> LexError ("illegal character literal: " ++ show (head (tail s))) }
 
 -- catch errors
+<0> $tab+                 { string $ \s -> LexError ("tab characters: configure your editor to use spaces instead (soft tab)") }
 <0> .                     { string $ \s -> LexError ("illegal character: " ++ show s ++ (if (s=="\t") then " (replace tabs with spaces)" else "")) }
 
 --------------------------

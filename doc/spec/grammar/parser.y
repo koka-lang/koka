@@ -196,7 +196,7 @@ externdecl  : inlineattr EXTERN funid externtype externbody    { $$ = $3; }
             
 inlineattr  : ID_INLINE
             | ID_NOINLINE
-            | /* empty 
+            | /* empty */ 
             ;            
 
 externtype  : ':' typescheme
@@ -248,17 +248,22 @@ aliasdecl   : ALIAS typeid typeparams kannot '=' type     { $$ = $2; }
             ;
 
 typedecl    : typesort typeid typeparams kannot typebody              { $$ = $2; }
-            | typesort ID_OPEN varid typeparams kannot typebody       { $$ = $3; } 
-            | typesort ID_EXTEND varid typeparams kannot typebody     { $$ = $3; } 
-            | typesort ID_VALUE varid typeparams kannot typebody      { $$ = $3; } 
-            | typesort ID_REFERENCE varid typeparams kannot typebody  { $$ = $3; } 
-            | STRUCT typeid typeparams kannot  conparams              { $$ = $2; }
+            | typeattr STRUCT typeid typeparams kannot  conparams     { $$ = $3; }
             | EFFECT typeid typeparams kannot opdecls                 { $$ = $2; }
-            | EFFECT ID_LINEAR varid typeparams kannot opdecls        { $$ = $3; } 
+            | ID_LINEAR EFFECT varid typeparams kannot opdecls        { $$ = $3; } 
             ;
 
-typesort    : TYPE | COTYPE | RECTYPE
+typesort    : typeattr TYPE 
+            | ID_OPEN TYPE
+            | ID_EXTEND TYPE
+            | COTYPE 
+            | RECTYPE
             ;
+            
+typeattr    : ID_VALUE 
+            | ID_REFERENCE
+            | /* empty */
+            ;            
 
 typebody    : '{' semis constructors '}'
             | /* empty */

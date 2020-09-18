@@ -37,7 +37,7 @@ import std/time/calendar
 import std/time/time
 import std/time/chrono
 
-extern include {
+include extern {
   js file "timezone-inline.js"
 }
 

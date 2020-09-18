@@ -27,7 +27,7 @@ module Syntax.Parse( parseProgramFromFile
                    , integer, charLit, floatLit, stringLit
                    , special, specialId, specialOp, specialConId, wildcard
                    , keyword, dockeyword
-                   , parseOpenExtend
+                   , typeDeclKind
                    ) where
 
 import Lib.Trace
@@ -305,42 +305,46 @@ parseInline
 --------------------------------------------------------------------------}
 externDecl :: Visibility -> LexParser [TopDef]
 externDecl dvis
-  = do (vis,vrng)  <- visibility dvis
-       (krng,doc) <- dockeyword "external" <|> dockeyword "extern"
-       (do specialId "include"
-           extern <- externalInclude (combineRange vrng krng)
-           return [DefExtern extern]
-        <|>
-        do keyword "import"
-           extern <- externalImport (combineRange vrng krng)
-           return [DefExtern extern]
-        <|>
-        do inline <- parseInline
-           (name,nameRng) <- funid
-           (pars,args,tp,annotate)
-             <- do keyword ":"
-                   tp <- ptype  -- no "some" allowed
-                   (pars,args) <- genParArgs (promoteType tp)
-                   return (pars,args,tp,\body -> Ann body tp (getRange tp))
-                <|>
-                do tpars <- typeparams
-                   (pars,parRng) <- parameters (inline /= InlineAlways) {- allow defaults? -}
-                   (teff,tres)   <- annotResult
-                   let tp = typeFromPars nameRng pars teff tres
-                   genParArgs tp -- checks the type
-                   return (pars,genArgs pars,tp,\body -> promote [] tpars [] (Just (Just teff, tres)) body)
-           (exprs,rng) <- externalBody
-           if (inline == InlineAlways)
-            then return [DefExtern (External name tp nameRng (combineRanges [vrng,krng,rng]) exprs vis doc)]
-            else do let  externName = newHiddenExternalName name
-                         fullRng    = combineRanges [vrng,krng,rng]
-                         extern     = External externName tp (before nameRng) (before fullRng) exprs Private doc
+  = do lr <- try ( do vrng <- specialId "include"
+                      (krng,_) <- dockeyword "extern"
+                      return (Left (externalInclude (combineRange vrng krng)))
+                  <|>
+                   do vrng <- keyword "import"
+                      (krng,_) <- dockeyword "extern"
+                      return (Left (externalImport (combineRange vrng krng))) )
+             <|>     
+             try ( do (vis,vrng) <- visibility dvis
+                      inline     <- parseInline
+                      (krng,doc) <- dockeyword "extern"
+                      return (Right (combineRange vrng krng, vis, doc, inline)) )
+       case lr of
+         Left p -> do extern <- p
+                      return [DefExtern extern]
+         Right (krng,vis,doc,inline)
+           -> do (name,nameRng) <- funid
+                 (pars,args,tp,annotate)
+                   <- do keyword ":"
+                         tp <- ptype  -- no "some" allowed
+                         (pars,args) <- genParArgs (promoteType tp)
+                         return (pars,args,tp,\body -> Ann body tp (getRange tp))
+                      <|>
+                      do tpars <- typeparams
+                         (pars,parRng) <- parameters (inline /= InlineAlways) {- allow defaults? -}
+                         (teff,tres)   <- annotResult
+                         let tp = typeFromPars nameRng pars teff tres
+                         genParArgs tp -- checks the type
+                         return (pars,genArgs pars,tp,\body -> promote [] tpars [] (Just (Just teff, tres)) body)
+                 (exprs,rng) <- externalBody
+                 if (inline == InlineAlways)
+                  then return [DefExtern (External name tp nameRng (combineRanges [krng,rng]) exprs vis doc)]
+                  else do let  externName = newHiddenExternalName name
+                               fullRng    = combineRanges [krng,rng]
+                               extern     = External externName tp (before nameRng) (before fullRng) exprs Private doc
 
-                         body       = annotate (Lam pars (App (Var externName False rangeNull) args fullRng) fullRng)
-                         binder     = ValueBinder name () body nameRng fullRng
-                         extfun     = Def binder fullRng vis defFun InlineNever doc
-                    return [DefExtern extern, DefValue extfun]
-        )
+                               body       = annotate (Lam pars (App (Var externName False rangeNull) args fullRng) fullRng)
+                               binder     = ValueBinder name () body nameRng fullRng
+                               extfun     = Def binder fullRng vis defFun InlineNever doc
+                          return [DefExtern extern, DefValue extfun]
   where
     typeFromPars :: Range -> [ValueBinder (Maybe UserType) (Maybe UserExpr)] -> UserType -> UserType -> UserType
     typeFromPars rng pars teff tres
@@ -580,26 +584,21 @@ enum
 
 typeDeclKind :: LexParser (DataKind,Range,String,DataDef, Bool)
 typeDeclKind
-  = do let f kw allowRec defsort
-              =do (rng,doc) <- dockeyword kw
-                  sort <- if (allowRec) then do{ keyword "rec"; return Retractive} <|> return defsort
-                           else return defsort
-                  (ddef,isExtend) <- parseOpenExtend (sort == Inductive)
-                  return (sort,rng,doc,ddef,isExtend)
-       (f "type" True (Inductive)
-        <|>
-        f "cotype" False (CoInductive)
-        <|>
-        f "rectype" False (Retractive))
+  = do (rng,doc) <- dockeyword "rectype" 
+       return (Retractive,rng,doc,DataDefNormal,False)
+  <|>
+    do (rng,doc) <- dockeyword "cotype" 
+       return (CoInductive,rng,doc,DataDefNormal,False)
+  <|>
+    try(
+    do (ddef,isExtend) <-     do { specialId "open"; return (DataDefOpen, False) }
+                          <|> do { specialId "extend"; return (DataDefOpen, True) }
+                          <|> do { specialId "value"; return (DataDefValue 0 0, False) }
+                          <|> do { specialId "reference"; return (DataDefNormal, False) } --todo: respect reference keyword
+                          <|> return (DataDefNormal, False)
+       (rng,doc) <- dockeyword "type"      
+       return (Inductive,rng,doc,ddef,isExtend))
 
-parseOpenExtend :: Bool -> LexParser (DataDef,Bool)
-parseOpenExtend allowVal
-  =   do{ specialId "open"; return (DataDefOpen, False) }
-  <|> do{ specialId "extend"; return (DataDefOpen, True) }
-  <|> (if (allowVal)
-       then (do{ specialId "value"; return (DataDefValue 0 0, False) } <|> return (DataDefNormal, False))
-       else return (DataDefNormal, False))
-  <?> ""
 
 typeKindParams
    = do (tpars,rng) <- anglesRanged tbinders
@@ -763,17 +762,15 @@ newtype EffectDecl = EffectDecl (Visibility, Visibility, Range, Range,
 
 parseEffectDecl :: Visibility -> LexParser EffectDecl
 parseEffectDecl dvis =
-  do (vis,defvis,vrng,erng,doc) <-
+  do (vis,defvis,vrng,erng,doc,singleShot,sort) <-
         (try $
-          do rng     <- keyword "abstract"
-             (trng,doc) <- dockeywordEffect
-             return (Public,Private,rng,trng,doc)
-          <|>
-          do (vis,vrng) <- visibility dvis
+          do (vis,defVis,vrng) <-     do{ (v,vr) <- visibility dvis; return (v,v,vr) }
+                                  <|> do{ vr <- keyword "abstract"; return (Public,Private,vr) }
+             singleShot <- do{ specialId "linear"; return True} <|> return False
+             sort       <- do{ keyword "rec"; return Retractive} <|> return Inductive
              (erng,doc) <- dockeywordEffect
-             return (vis,vis,vrng,erng,doc))
-     sort <- do{ keyword "rec"; return Retractive} <|> return Inductive
-     singleShot <- do{ specialId "linear"; return True} <|> return False
+             return (vis,vis,vrng,erng,doc,singleShot,sort))
+                  
      (do isResource <- do{ keywordResource; return True} <|> return False
          (effectId,irng) <- typeid
          (tpars,kind,prng) <- typeKindParams
@@ -1283,20 +1280,20 @@ operationDecl opCount vis foralls docEffect hndName mbResource effTp hndTp hndTp
 
 pureDecl :: Visibility -> LexParser UserDef
 pureDecl dvis
-  = do (vis,vrng,rng,doc,isVal) <- try $ do (vis,vrng) <- visibility dvis
-                                            (do (rng,doc) <- dockeywordFun; return (vis,vrng,rng,doc,False)
-                                             <|>
-                                             do (rng,doc) <- dockeyword "val"; return (vis,vrng,rng,doc,True))
-       (if isVal then valDecl else funDecl) (combineRange vrng rng) doc vis
+  = do (vis,vrng,rng,doc,inline,isVal) 
+          <- try $ do (vis,vrng) <- visibility dvis
+                      inline <- parseInline
+                      (do (rng,doc) <- dockeywordFun; return (vis,vrng,rng,doc,inline,False)
+                       <|>
+                       do (rng,doc) <- dockeyword "val"; return (vis,vrng,rng,doc,inline,True))
+       (if isVal then valDecl else funDecl) (combineRange vrng rng) doc vis inline
        -- valueDecl vrng vis <|> functionDecl vrng vis
 
-valueDecl vrng vis
-  = do (rng,doc) <- dockeyword "val"
-       valDecl (combineRange vrng rng) doc vis
-
 functionDecl vrng vis
-  = do (rng,doc) <- dockeywordFun
-       funDecl (combineRange vrng rng) doc vis
+  = do (rng,doc,inline) <- try $ do inline <- parseInline
+                                    (rng,doc) <- dockeywordFun
+                                    return (rng,doc,inline)
+       funDecl (combineRange vrng rng) doc vis inline
 
 varDecl
   = do (vrng,doc) <- dockeyword "var"
@@ -1306,17 +1303,15 @@ varDecl
        return (Def (bind body) (combineRanged vrng body) Private DefVar InlineNever doc)
 
 
-valDecl rng doc vis
-  = do inline <- parseInline
-       bind <- binder rng
+valDecl rng doc vis inline
+  = do bind <- binder rng
        keyword "="
        body <- blockexpr
        return (Def (bind body) (combineRanged rng body) vis DefVal inline doc)
 
-funDecl rng doc vis
+funDecl rng doc vis inline
   = do spars <- squantifier
        -- tpars <- aquantifier  -- todo: store somewhere
-       inline <- parseInline
        (name,nameRng) <- funid
        (tpars,pars,parsRng,mbtres,preds,ann) <- funDef
        body   <- bodyexpr

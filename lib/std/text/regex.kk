@@ -15,7 +15,7 @@ module std/text/regex
 
 import std/num/int32
 
-extern include {
+include extern {
   cs file "regex-inline.cs"
   js file "regex-inline.js"
 }
@@ -41,7 +41,7 @@ extern groups-index( groups : any, index : int32 ) : string {
   js inline "((#1)[#2] != null ? (#1)[#2] : '')"
 } 
 
-extern inline groups-matched-on( groups : any, index : int32 ) : int32 {
+inline extern groups-matched-on( groups : any, index : int32 ) : int32 {
   cs "RegEx.GroupsMatchedOn"
   js inline "(#1[#2] ? 1 : 0)"  // mmm, doesn't catch empty group match.. but FireFox does not distinguish those :-(
 } 
@@ -171,15 +171,15 @@ public fun regex-alt( regexs :list<string>, ignorecase :bool = False, multiline 
   Regex(regex-create-alt(regexs.vector,if (ignorecase) then one else zero, if (multiline) then one else zero));
 }
 
-private extern inline length( s : string ) : int32 {
+private inline extern length( s : string ) : int32 {
   cs inline "#1.Length"
   js inline "#1.length"
 }
 
-private extern inline substr( s : string, start : int32 ) : string {
+private inline extern substr( s : string, start : int32 ) : string {
   js inline "(#1).substr(#2)"
 }
-private extern inline substr( s : string, start : int32, len : int32 ) : string {
+private inline extern substr( s : string, start : int32, len : int32 ) : string {
   js inline "(#1).substr(#2,#3)"
 }
 

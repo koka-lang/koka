@@ -21,7 +21,7 @@ import std/time/instant
 import std/time/utc
 import std/time/date
 
-extern include {
+include extern {
   c  file "calendar-inline.c"
   cs file "calendar-inline.cs"
   js file "calendar-inline.js"
@@ -278,7 +278,7 @@ fun earth-timestamp-to-instant( t : timestamp, tz : timezone, ts : timescale ) :
                  }
                }
              }
-   iz
+  iz
 }
 
 public fun cal-timestamp( cal : calendar, ts : timescale, d : date, c : clock  ) : timestamp {

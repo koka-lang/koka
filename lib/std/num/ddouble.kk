@@ -180,8 +180,8 @@ Internally a `:ddouble` _d_ is represented as a pair of `:double`s, _hi_ and _lo
 such that the number represented by _d_ is _hi_+_lo_, where \|_lo_\| &le; 0.5&middot;ulp(_hi_).
 */
 abstract struct ddouble(
-	hi : double,
-	lo : double
+  hi : double,
+  lo : double
 )
 
 // Create a `:ddouble` from a `:double`.
@@ -223,9 +223,7 @@ fun ddouble-int-exp( i : int, e : int ) : ddouble {
       // otherwise use 2 initial 14 digits and a trailing value
       val (mid,z) = y.cdivmod-exp10(py)
       val pz = py - 14
-      val x = if (pz <= 0) then (z,0) else (z.cdiv-exp10(pz), pz)
-      val lo = x.fst
-      val plo = x.snd
+      val (lo,plo) = if (pz <= 0) then (z,0) else (z.cdiv-exp10(pz), pz)
       //trace("ddouble-i: " + i.show + ", hi:" + hi.show + ", mid: " + mid.show + ", lo: " + lo.show)
       //trace("  px: " + px.show + ", py : " + py.show + ", plo: " + plo.show + ", e: " + e.show )
       small-exp( hi, px + e) + (small-exp( mid, py + e) + small-exp( lo, plo + e))
@@ -583,7 +581,7 @@ public fun double( x : ddouble ) : double {
 
 // Convert a `:ddouble` to the nearest integer (rounding to the nearest even number in case of a tie)
 public fun int( x : ddouble, nonfin : int = 0 ) : int {
-	if (!x.finite?) then nonfin else x.round.decimal.int
+  if (!x.finite?) then nonfin else x.round.decimal.int
 }
 
 // Round a `:ddouble` to the nearest integer, rounding to the nearest even number in case of a tie.
@@ -706,20 +704,20 @@ fun mul-exp10( x : ddouble, exp : int ) : ddouble {
 // Decode a `:ddouble` `d` into two doubles `(hi,lo)` such that `d` equals  `hi`+`lo`,
 // where `lo` &le; 0.5&middot;ulp(`hi`).
 public fun decode( d : ddouble ) : (double,double) {
-	(d.hi,d.lo)
+  (d.hi,d.lo)
 }
 
 // Encode a `:ddouble` `d` from two doubles `(hi,lo)` such that `d` equals  `hi`+`lo`.
 public fun encode( hi : double, lo : double ) : ddouble {
-	hi.ddouble + lo.ddouble
+  hi.ddouble + lo.ddouble
 }
 
 // Convert a `:ddouble` to a `:decimal` up to a given precision `prec` (= `-1`).
 // A negative precision converts precisely. Returns 0 for non-finite `:ddouble`'s.
 public fun decimal( x : ddouble, prec : int = -1 ) : decimal {
-	if (!x.finite?)
-		then 0.decimal
-		else x.hi.decimal(prec) + x.lo.decimal(prec)
+  if (!x.finite?)
+    then 0.decimal
+    else x.hi.decimal(prec) + x.lo.decimal(prec)
 }
 
 /* Show a `:ddouble` `x` precisely as the sum of two `:double`s
@@ -739,9 +737,9 @@ i.e. `x == x.show-hex.ddouble`.
 .
 */
 public fun show-hex( x : ddouble, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) : string {
-	if (!x.finite?)
-		then x.hi.show
-		else x.hi.show-hex(width,use-capitals,pre) + " + " + x.lo.show-hex(width,use-capitals,pre)
+  if (!x.finite?)
+    then x.hi.show
+    else x.hi.show-hex(width,use-capitals,pre) + " + " + x.lo.show-hex(width,use-capitals,pre)
 }
 
 // Show a `:ddouble` `x` with a given precision `prec` (=`-31`).
@@ -751,9 +749,9 @@ public fun show-hex( x : ddouble, width : int = 1, use-capitals : bool = True, p
 // This uses `show-fixed` when the exponent of `x` in scientific notation is larger than -5
 // and smaller than the precision (or 15 in case of a negative precision), otherwise it uses `show-exp`.
 public fun show( x : ddouble, prec : int = dd-default-prec ) : string {
-	if (!x.finite?)
-		then x.hi.show
-		else x.decimal.show(prec)
+  if (!x.finite?)
+    then x.hi.show
+    else x.decimal.show(prec)
 }
 
 /* Show a ddouble `x` with a given precision `prec` (=`-31`) in scientific notation.
@@ -774,9 +772,9 @@ it is positive exactly `prec` digits are used.
 .
 */
 public fun show-exp( x : ddouble, prec : int = dd-default-prec ) : string {
-	if (!x.finite?)
-		then x.hi.show
-		else x.decimal.show-exp(prec)
+  if (!x.finite?)
+    then x.hi.show
+    else x.decimal.show-exp(prec)
 }
 
 /* Show a ddouble `x` with a given precision `prec` (=`-31`) in fixed-point notation.
@@ -796,17 +794,17 @@ while for a positive precision, exactly `prec` digits are used.
 .
 */
 public fun show-fixed( x : ddouble, prec : int = dd-default-prec ) : string {
-	if (!x.finite?)
-		then x.hi.show
-		else x.decimal.show-fixed(prec)
+  if (!x.finite?)
+    then x.hi.show
+    else x.decimal.show-fixed(prec)
 }
 
 // Show a `:ddouble` as the sum of  `:double`s with an optional precision.
 // Note: use `show-hex` for reliable round-trip parsing.
 public fun show-sum( x : ddouble, prec : int = -17 ) : string {
-	if (!x.finite?)
-		then x.hi.show
-		else x.hi.show(prec) + " + " + x.lo.show(prec)
+  if (!x.finite?)
+    then x.hi.show
+    else x.hi.show(prec) + " + " + x.lo.show(prec)
 }
 
 
@@ -825,39 +823,39 @@ public fun ddouble( s : string ) : ddouble {
 // Parse a floating point number with up to 31 digits precision.
 // Returns `Nothing` on invalid input.
 public fun parse-ddouble( s  : string ) : maybe<ddouble> {
-	val t = s.trim
-	match(t.find(rx-ddouble)) {
-		Just(cap) -> {
-			val whole	= cap.groups[1]
-			val frac	= cap.groups[2].trim-right("0")
-			val exp	= cap.groups[3].parse-int.default(0)
-			val w	= (whole + frac).parse-int.default(0)
-			val e	= exp - frac.count
-			val x	= ddouble-int-exp(w,e)
-			// trace("parse: s: " + s + "\n  w: " + w.show + ", e: " + e.show + "\n  wx: " + w.ddouble.show-sum + ", x: " + x.show + "\n  " + x.show-sum)
-			Just(x)
-		}
-		Nothing -> match(t.find(rx-special)) {
-			Just(cap) -> {
-				val special =	if (!cap.groups[1].empty?) then dd-nan
-											 elif (cap.groups[2] == "-") then dd-neginf
-											 else dd-posinf
-			  Just(special)
-			}
-			Nothing -> match(t.find(rx-double-sum)) {
-				Just(cap) -> {
-					match(cap.groups[1].parse-double) {
-						Just(hi) -> match (cap.groups[2].parse-double) {
-							Just(lo) -> Just( hi.ddouble + lo.ddouble )
-							Nothing -> Nothing
-						}
-						Nothing -> Nothing
-					}
-				}
-				Nothing -> Nothing
-			}
-		}
-	}
+  val t = s.trim
+  match(t.find(rx-ddouble)) {
+    Just(cap) -> {
+      val whole	= cap.groups[1]
+      val frac	= cap.groups[2].trim-right("0")
+      val exp	= cap.groups[3].parse-int.default(0)
+      val w	= (whole + frac).parse-int.default(0)
+      val e	= exp - frac.count
+      val x	= ddouble-int-exp(w,e)
+      // trace("parse: s: " + s + "\n  w: " + w.show + ", e: " + e.show + "\n  wx: " + w.ddouble.show-sum + ", x: " + x.show + "\n  " + x.show-sum)
+      Just(x)
+    }
+    Nothing -> match(t.find(rx-special)) {
+      Just(cap) -> {
+        val special =	if (!cap.groups[1].empty?) then dd-nan
+                       elif (cap.groups[2] == "-") then dd-neginf
+                       else dd-posinf
+        Just(special)
+      }
+      Nothing -> match(t.find(rx-double-sum)) {
+        Just(cap) -> {
+          match(cap.groups[1].parse-double) {
+            Just(hi) -> match (cap.groups[2].parse-double) {
+              Just(lo) -> Just( hi.ddouble + lo.ddouble )
+              Nothing -> Nothing
+            }
+            Nothing -> Nothing
+          }
+        }
+        Nothing -> Nothing
+      }
+    }
+  }
 }
 
 val rx-ddouble = regex(@"^([\-\+]?\d+)(?:\.(\d*))?(?:[eE]([\-\+]?\d+))?$")
@@ -866,31 +864,31 @@ val rx-special = regex(@"^(nan)|([\+\-])?inf(?:inity)?$",ignorecase=True)
 */
 
 public fun parse-ddouble( s  : string ) : maybe<ddouble> {
-	s.trim.to-lower.slice.parse-eof(pddouble).maybe
+  s.trim.to-lower.slice.parse-eof(pddouble).maybe
 }
 
 public fun pddouble() : parse ddouble {
-	(pddouble-sum || pddouble-normal)
+  (pddouble-sum || pddouble-normal)
 }
 
 fun pddouble-sum() : parse ddouble {
-	val hi = pdouble()
-	if (!hi.finite?) return hi.ddouble   // NaN or +-Infinity
-	pstring(" + ")
-	val lo = pdouble()
-	return (hi.ddouble + lo.ddouble)
+  val hi = pdouble()
+  if (!hi.finite?) return hi.ddouble   // NaN or +-Infinity
+  pstring(" + ")
+  val lo = pdouble()
+  return (hi.ddouble + lo.ddouble)
 }
 
 fun pddouble-normal() : parse ddouble {
-	val neg   = sign()
-	val whole	= digits() 
-	val frac	= optional("", { char('.'); digits() } ).trim-right("0")
-	val exp	  = optional(0, { char('e'); pint() } )
-	val w	= ((if (neg) then "-" else "") + whole + frac).parse-int.default(0)
-	val e	= exp - frac.count
-	val x = ddouble-int-exp(w,e)
-	// trace("parse-normal: w: " + w.show + ", e: " + e.show + "\n  wx: " + w.ddouble.show-sum + ", x: " + x.show + "\n  " + x.show-sum)	
-	x
+  val neg   = sign()
+  val whole = digits() 
+  val frac  = optional("", { char('.'); digits() } ).trim-right("0")
+  val exp   = optional(0, { char('e'); pint() } )
+  val w = ((if (neg) then "-" else "") + whole + frac).parse-int.default(0)
+  val e = exp - frac.count
+  val x = ddouble-int-exp(w,e)
+  // trace("parse-normal: w: " + w.show + ", e: " + e.show + "\n  wx: " + w.ddouble.show-sum + ", x: " + x.show + "\n  " + x.show-sum)	
+  x
 }
 
 /*------------------------------------------------------

@@ -215,9 +215,12 @@ posMove8 :: Pos -> Char -> Pos
 posMove8 (Pos s o l c) ch
   = let o1 = if o < 0 then o else o+1 in
     case ch of
-      '\t' -> Pos s o1 l (((c+7) `div` 8)*8+1) 
+      '\t' -> Pos s o1 l (((c+tabSize-1) `div` tabSize)*tabSize+1) 
       '\n' -> Pos s o1 (l+1) 1
       _    -> Pos s o1 l (c+1)
+
+tabSize :: Int
+tabSize = 2  -- always 2 in Koka 
 
 {--------------------------------------------------------------------------
   Ranges

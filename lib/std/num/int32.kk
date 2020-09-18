@@ -26,7 +26,7 @@ fun show( i : int32 ) : string {
 // Convert a `:double` to an `:int32`. The double is clamped to the
 // minimum or maximum `:int32` value if it is outside the range. A `nan` is
 // mapped to `0`.
-extern inline int32 : (double) -> int32 {
+inline extern int32 : (double) -> int32 {
   cs "Primitive.DoubleToInt32"
   js "$std_core._double_to_int32"
 }
@@ -61,7 +61,7 @@ fun uint32( i : int ) : int32 {
 
 // Convert an `:int32` to an `:int` but interpret the `:int32` as a 32-bit unsigned value.
 fun uint( i : int32 ) : int {
-	if (i.neg?) then 0x100000000 + i.int else i.int
+  if (i.neg?) then 0x100000000 + i.int else i.int
 }
 
 // Show an `:int32` in hexadecimal notation interpreted as an unsigned 32-bit value.
@@ -72,25 +72,25 @@ fun show-hex32( i : int32, width : int = 8, use-capitals : bool = True, pre : st
   std/core/show-hex(i.uint,width,use-capitals,pre)
 }
 
-extern inline (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)"; js inline "(#1 <= #2)" }
-extern inline (==) : (int32,int32) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
-extern inline (!=) : (int32,int32) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-extern inline (>=) : (int32,int32) -> bool  { inline "(#1 >= #2)"; js inline "(#1 >= #2)"}
-extern inline (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"; js inline "(#1 < #2)" }
-extern inline (>)  : (int32,int32) -> bool  { inline "(#1 > #2)"; js inline "(#1 > #2)" }
+inline extern (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)"; js inline "(#1 <= #2)" }
+inline extern (==) : (int32,int32) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
+inline extern (!=) : (int32,int32) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
+inline extern (>=) : (int32,int32) -> bool  { inline "(#1 >= #2)"; js inline "(#1 >= #2)"}
+inline extern (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"; js inline "(#1 < #2)" }
+inline extern (>)  : (int32,int32) -> bool  { inline "(#1 > #2)"; js inline "(#1 > #2)" }
 
-extern inline (+)  : (int32,int32) -> int32 { inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
-extern inline (-)  : (int32,int32) -> int32 { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
+inline extern (+)  : (int32,int32) -> int32 { inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
+inline extern (-)  : (int32,int32) -> int32 { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
 
-extern inline neg?( i : int32 ) : bool {
+inline extern neg?( i : int32 ) : bool {
   inline "(#1)<0"
 }
 
-extern inline pos?( i : int32 ) : bool {
+inline extern pos?( i : int32 ) : bool {
   inline "0<=(#1)"
 }
 
-extern inline zero?( i : int32 ) : bool {
+inline extern zero?( i : int32 ) : bool {
   inline "0==(#1)"
 }
 
@@ -122,7 +122,7 @@ fun dec( i : int32 ) : int32 {
 }
 
 // Multiply two 32-bit integers.
-extern inline (*) : (int32,int32) -> int32 {
+inline extern (*) : (int32,int32) -> int32 {
   inline "#1*#2";
   js "$std_core._int32_multiply"
 }
@@ -156,35 +156,35 @@ fun abs0( i : int32 ) : int32
 
 
 // Take the bitwise _and_ of two `:int32`s
-extern inline and : (int32,int32) -> int32 {
+inline extern and : (int32,int32) -> int32 {
   inline "(#1 & #2)";
 }
 
 // Take the bitwise _or_ of two `:int32`s
-extern inline or : (int32,int32) -> int32 {
+inline extern or : (int32,int32) -> int32 {
   inline "(#1 | #2)";
 }
 
 // Take the bitwise _xor_ of two `:int32`s
-extern inline (^) : (int32,int32) -> int32 {
+inline extern (^) : (int32,int32) -> int32 {
   inline "(#1 ^ #2)";
 }
 
 // Bitwise _not_ of an `:int32`, i.e. flips all bits.
-extern inline not : ( i : int32 ) -> int32  {
+inline extern not : ( i : int32 ) -> int32  {
   inline "(~#1)"
 }
 
 
 // Shift an `:int32` `i` to the left by `n` bits.
 // Returns `i` when `n` is negative, or `0` when `n >= bitsInt`.
-extern inline shl : (int32,int32) -> int32 {
+inline extern shl : (int32,int32) -> int32 {
   inline "(#1 << #2)"
 }
 
 // Logical shift an `:int32` to the right by `n` bits. Shift in zeros from the left.
 // Returns `i` when `n` is negative, or `0` when `n >= bitsInt`.
-extern inline shr : (int32,int32) -> int32 {
+inline extern shr : (int32,int32) -> int32 {
   c inline "((int32_t)((uint32_t)#1 >> #2))"
   cs inline "(Int32)(((UInt32)#1)>>#2)"
   js inline "(#1>>>#2)"
@@ -192,7 +192,7 @@ extern inline shr : (int32,int32) -> int32 {
 
 // Arithmetic shift an `:int32` to the right by `n` bits. Preserves the sign bit.
 // Returns `i` when `n` is negative. When `n >= bitsInt` returns either `-1` when `i<0`, or `0` when `i>=0`.
-extern inline sar : (int32,int32) -> int32 {
+inline extern sar : (int32,int32) -> int32 {
   c inline "(#1 >> #2)"
   cs inline "(#1>>#2)"
   js inline "(#1>>#2)"
@@ -224,31 +224,31 @@ fun max( i : int32, j : int32 ) : int32 { if (i >= j) then i else j }
 
 
 // Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.
-extern inline cdiv : (int32,int32) -> exn int32 {
+inline extern cdiv : (int32,int32) -> exn int32 {
   inline "(#1 / #2)";
   js "$std_core._int32_cdiv"
 }
 
 // Truncated modulus (as in C). See also `(%):(x : int32, y : int32) -> int32`.
-extern inline cmod : (int32,int32) -> exn int32 {
+inline extern cmod : (int32,int32) -> exn int32 {
   inline "(#1 % #2)";
   js "$std_core._int32_cmod"
 }
 
 // Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.
-private extern inline unsafe-cdiv : (int32,int32) -> int32 {
+private inline extern unsafe-cdiv : (int32,int32) -> int32 {
   inline "(#1 / #2)"
   js inline "((#1/#2)|0)"
 }
 
 // Truncated modulus (as in C). See also `(%):(x : int32, y : int32) -> int32`.
-private extern inline unsafe-cmod : (int32,int32) -> int32 {
+private inline extern unsafe-cmod : (int32,int32) -> int32 {
   inline "(#1 % #2)"
   js inline "((#1 % #2)|0)"
 }
 
 // Convert an 32-bit integer to a double.
-extern inline double : (int32) -> double { 
+inline extern double : (int32) -> double { 
   c inline "((double)(#1))"
   cs inline "(double)(#1)"
   js inline "(#1)" 

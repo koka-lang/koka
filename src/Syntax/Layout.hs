@@ -12,6 +12,7 @@
 module Syntax.Layout( layout, testFile, combineLineComments ) where
 
 import Data.Char(isSpace)
+import Data.List(partition)
 import Common.Range hiding (after)
 
 -----------------------------------------------------------
@@ -47,7 +48,10 @@ layout semiInsert lexemes
               semi checkComments $ 
               lexemes
     in -- trace (unlines (map show (take 100 ls))) $
-       seq (length ls) ls          
+       seq (length ls) ls
+
+isLexError (Lexeme _ (LexError {})) = True
+isLexError _ = False
 
 removeWhite :: [Lexeme] -> [Lexeme]
 removeWhite lexemes
@@ -99,19 +103,29 @@ associateComments lexs
           (Lexeme r1 (LexComment (comment@('/':'/':'.':cs))) : ls) | not (any isSpace (trimRight cs))
              -> Lexeme r1 (LexSpecial (trimRight comment)) : scan ls
           -- comment association
-          (Lexeme r1 (LexComment comment) : Lexeme r2 (LexKeyword k _) : ls)
+          (Lexeme r1 (LexComment comment) : Lexeme r2 (LexKeyword k _) : ls)  
             | k `elem` docKeyword && adjacent comment r1 r2 
              -> Lexeme r1 (LexComment comment) : Lexeme r2 (LexKeyword k comment) : scan ls
-          (Lexeme r1 (LexComment comment) : Lexeme rv (LexKeyword kv docv) : Lexeme r2 (LexKeyword k _) : ls)
-            | kv `elem` ["public","private","abstract"] && 
-              k `elem` docKeyword && adjacent comment r1 r2
-             -> Lexeme r1 (LexComment comment) : Lexeme rv (LexKeyword kv docv) : Lexeme r2 (LexKeyword k comment) : scan ls
+          (Lexeme r1 (LexComment comment) : l : Lexeme r2 (LexKeyword k _) : ls)  -- public type, inline fun
+            | k `elem` docKeyword && adjacent comment r1 r2 && isAttr l
+            -> Lexeme r1 (LexComment comment) : l : Lexeme r2 (LexKeyword k comment) : scan ls
+          (Lexeme r1 (LexComment comment) : l1 : l2 : Lexeme r2 (LexKeyword k _) : ls) -- private inline fun, public value type
+            | k `elem` docKeyword && adjacent comment r1 r2 && isAttr l1 && isAttr l2
+            -> Lexeme r1 (LexComment comment) : l1 : l2 : Lexeme r2 (LexKeyword k comment) : scan ls             
           -- other
           (l:ls)
              -> l : scan ls
           [] -> []
       where
-        docKeyword = ["fun","function","val","type","cotype","rectype","effect","struct","con","alias","extern","external","module"]
+        docKeyword = ["fun","function","val"
+                     ,"type","cotype","rectype","effect","struct","con","alias"
+                     ,"extern","external","module"
+                     ]                     
+
+        isAttr l   = case l of  -- just approximate is ok
+                      Lexeme _ (LexKeyword{}) -> True
+                      Lexeme _ (LexId{})      -> True
+                      _ -> False
 
         adjacent comment r1 r2
           = case (reverse comment) of
@@ -178,11 +192,18 @@ indentLayout (l:ls) = tail $
 brace :: Int ->   [Int] -> Range -> [Lexeme] -> [Lexeme]
 brace layout layouts prevRng []
   = [Lexeme (after prevRng) LexInsSemi] -- end of file
+brace layout layouts prevRng lexemes@(lexeme@(Lexeme _ (LexError{})):ls)  -- ignore errors
+  = lexeme : brace layout layouts prevRng ls
 brace layout layouts prevRng lexemes@(lexeme@(Lexeme rng lex):ls)
   = case lex of
       LexSpecial "{"
         -> case ls of
              [] -> check layout layouts prevRng lexemes
+             (err@(Lexeme _ (LexError{})) : Lexeme rng2 lex2 : _)
+                -> let layoutNew = startCol rng2
+                   in  [err] ++ 
+                       checkNewLayout layoutNew rng2 lex2 ++
+                       check layoutNew (layout:layouts) rng lexemes
              (Lexeme rng2 lex2 : _)
                 -> let layoutNew = startCol rng2
                    in  checkNewLayout layoutNew rng2 lex2 ++
