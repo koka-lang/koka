@@ -192,7 +192,7 @@ task("grammar",[],function(testfile)
   jake.cpR(gdir,outputDir);
 
   // command("cd " + outdir + " && bison -vd -W -Wno-empty-rule -Wno-deprecated parser.y 2>&1", function() {
-  command("cd " + outdir + " && bison -vd -W -Wno-empty-rule parser.y 2>&1", function() {
+  command("cd " + outdir + " && bison -vd -W -Wno-empty-rule -Wcounterexamples parser.y 2>&1", function() {
     command("cd " + outdir + " && flex -8 lexer.lex 2>&1", function() {
       command( "cd " + outdir + " && ghc -no-hs-main -o koka-parser lex.yy.c parser.tab.c", function () {
         if (testfile==null) complete();

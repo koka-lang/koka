@@ -48,8 +48,8 @@ void printDecl( const char* sort, const char* name );
 %token <String> STRING
 %token <Char>   CHAR
 
-%token APP   /* '(' for applications */
-%token IDX   /* '[' for indexing */
+/* %token APP  */ /* '(' for applications */
+/* %token IDX  */ /* '[' for indexing */
 
 %token IF THEN ELSE ELIF
 %token MATCH
@@ -75,20 +75,20 @@ void printDecl( const char* sort, const char* name );
 
 %token REC IFACE INSTANCE
 
-%token ID_INLINE ID_INCLUDE
+%token ID_INLINE ID_NOINLINE ID_INCLUDE
 %token ID_C ID_CS ID_JS ID_FILE
 %token ID_LINEAR ID_OPEN ID_EXTEND ID_BEHIND
-%token ID_NOINLINE
+%token ID_VALUE ID_REFERENCE
 
 %type <Id>  varid conid qvarid qconid op
 %type <Id>  identifier qidentifier qoperator qconstructor
 %type <Id>  funid typeid modulepath binder
-%type <Id>  valdecl fundecl aliasdecl typedecl externdecl puredecl
+%type <Id>  fundecl aliasdecl typedecl externdecl puredecl
 
 /* these are non-reserved words but have special meaning after
    an extern or type declaration. If seen, we should 'shift' instead of reduce.
    The following declaration make Bison prefer a shift in those situations */
-/* %nonassoc ID_INLINE ID_INCLUDE ID_OPEN ID_LINEAR */
+/* %nonassoc ID_NOINLINE ID_INLINE ID_INCLUDE ID_OPEN ID_LINEAR  */
 
 /* precedence declarations are in increasing order,
    e.g. the last precedence declaration have the highest precedence.
@@ -102,13 +102,14 @@ void printDecl( const char* sort, const char* name );
 %precedence THEN
 %precedence ELSE ELIF
 
+
 %%
 
 /* ---------------------------------------------------------
 -- Program
 ----------------------------------------------------------*/
 program     : semis visibility MODULE modulepath moduledecl  { printDecl("module",$4); }
-            | moduledecl    |                                 { printDecl("module","main"); }
+            | moduledecl                                     { printDecl("module","main"); }
             ;
 
 moduledecl  : '{' semis modulebody '}' semis
@@ -132,7 +133,8 @@ visibility  : PUBLIC
             | /* empty */
             ;
 
-semis1      : semis
+semis1      : semis1 semi
+            | semi
             ;
 
 semis       : semis semi
@@ -142,8 +144,6 @@ semis       : semis semi
 semi        : ';'
             | SEMI
             ;
-
-lparen      : APP | '(';
 
 
 /* ---------------------------------------------------------
@@ -191,15 +191,16 @@ topdecl     : visibility puredecl                             { printDecl("value
 ----------------------------------------------------------*/
 
 externdecl  : EXTERN funid externtype externbody               { $$ = $2; }
-            | EXTERN ID_INLINE funid externtype externbody     { $$ = $3; }                    %prec ID_INLINE
-            | EXTERN ID_INCLUDE externincbody                  { $$ = "<extern include>"; }    %prec ID_INCLUDE
+            | EXTERN ID_INLINE funid externtype externbody     { $$ = $3; }                        
+            | EXTERN ID_INCLUDE externincbody                  { $$ = "<extern include>"; } 
             ;
 
 externtype  : ':' typescheme
-            | typeparams lparen parameters ')' annotres
+            | typeparams '(' parameters ')' annotres
             ;
 
 externbody  : '{' semis externstats1 '}'
+            | '{' '}'
             ;
 
 externstats1: externstats1 externstat semis1
@@ -243,11 +244,13 @@ aliasdecl   : ALIAS typeid typeparams kannot '=' type     { $$ = $2; }
             ;
 
 typedecl    : typesort typeid typeparams kannot typebody              { $$ = $2; }
-            | typesort ID_OPEN varid typeparams kannot typebody       { $$ = $3; }  %prec ID_OPEN
-            | typesort ID_EXTEND varid typeparams kannot typebody     { $$ = $3; }  %prec ID_EXTEND
+            | typesort ID_OPEN varid typeparams kannot typebody       { $$ = $3; } 
+            | typesort ID_EXTEND varid typeparams kannot typebody     { $$ = $3; } 
+            | typesort ID_VALUE varid typeparams kannot typebody      { $$ = $3; } 
+            | typesort ID_REFERENCE varid typeparams kannot typebody  { $$ = $3; } 
             | STRUCT typeid typeparams kannot  conparams              { $$ = $2; }
             | EFFECT typeid typeparams kannot opdecls                 { $$ = $2; }
-            | EFFECT ID_LINEAR varid typeparams kannot opdecls        { $$ = $3; }  %prec ID_LINEAR
+            | EFFECT ID_LINEAR varid typeparams kannot opdecls        { $$ = $3; } 
             ;
 
 typesort    : TYPE | COTYPE | RECTYPE
@@ -272,7 +275,7 @@ commas1     : commas ','
             ;
 
 
-constructors: constructors1 semis
+constructors: constructors1 semis1
             | /* empty */
             ;
 
@@ -288,8 +291,8 @@ con         : CON
             | /* empty */
             ;
 
-conparams   : lparen conpars1 ')'
-            | lparen ')'
+conparams   : '(' conpars1 ')'
+            | '(' ')'
             | /* empty */
             ;
 
@@ -310,30 +313,31 @@ conpar      : paramid ':' paramtype
 
 opdecls     : '{' semis operations '}'
 
-operations  : operations operation semis
+operations  : operations operation semis1
             | /* empty */
             ;
 
 operation   : visibility VAL identifier typeparams ':' tatomic
-            | visibility FUN identifier typeparams lparen parameters ')' ':' tatomic
-            | visibility CONTROL identifier typeparams lparen parameters ')' ':' tatomic
+            | visibility FUN identifier typeparams '(' parameters ')' ':' tatomic
+            | visibility CONTROL identifier typeparams '(' parameters ')' ':' tatomic
             ;
              
 
 /* ---------------------------------------------------------
 -- Pure Declarations
 ----------------------------------------------------------*/
-puredecl    : VAL pureattr valdecl                   { $$ = $3; }
-            | FUN pureattr fundecl                 { $$ = $3; }
+puredecl    : VAL binder '=' blockexpr             { $$ = $2; }
+            | VAL inline binder '=' blockexpr      { $$ = $3; }
+            | FUN funid fundef bodyexpr            { $$ = $2; }
+            | FUN inline funid fundef bodyexpr     { $$ = $3; }
             ;
 
-pureattr    : ID_INLINE
+fundecl     : funid fundef bodyexpr    { $$ = $1; }
+            ;
+
+
+inline      : ID_INLINE      
             | ID_NOINLINE
-            | /* nothing */
-            ;
-
-
-valdecl     : binder '=' blockexpr          { $$ = $1; }
             ;
 
 binder      : identifier                    { $$ = $1; }
@@ -345,11 +349,7 @@ funid       : identifier         { $$ = $1; }
             | STRING             { $$ = $1; }
             ;
 
-
-fundecl     : some funid fundef bodyexpr    { $$ = $2; }
-            ;
-
-fundef      : typeparams lparen parameters ')' annotres qualifier
+fundef      : typeparams '(' parameters ')' annotres qualifier
             ;
 
 
@@ -435,7 +435,7 @@ noretfunexpr: ifexpr
 matchexpr   : MATCH atom '{' semis matchrules '}'
             ;
 
-funexpr     : FUNX fundef block
+funexpr     : FUN fundef block
             | block                    /* zero-argument function */
             ;
 
@@ -471,8 +471,8 @@ fappexpr    : fappexpr funexpr
             ;
 */
 
-appexpr     : appexpr APP arguments ')'             /* application */
-            | appexpr IDX arguments ']'             /* index expression */
+appexpr     : appexpr '(' arguments ')'             /* application */
+            | appexpr '[' arguments ']'             /* index expression */
             | appexpr '.' atom                      /* dot application */
             | appexpr funexpr                       /* trailing function application */
             | atom
@@ -573,6 +573,8 @@ varid       : ID
             | ID_EXTEND       { $$ = "extend"; }
             | ID_LINEAR       { $$ = "linear"; }
             | ID_BEHIND       { $$ = "behind"; }
+            | ID_VALUE        { $$ = "value"; }
+            | ID_REFERENCE    { $$ = "reference"; }
             /* | ID_NAMED        { $$ = "named"; } */
             ;
 
@@ -596,7 +598,7 @@ op          : OP
 -- Matching
 ----------------------------------------------------------*/
 
-matchrules  : matchrules1 semis
+matchrules  : matchrules1 semis1
             | /* empty */
             ;
 
@@ -625,7 +627,7 @@ apattern    : pattern annot                      /* annotated pattern */
 
 pattern     : identifier
             | conid
-            | conid APP patargs ')'
+            | conid '(' patargs ')'
             | '(' apatterns ')'                  /* unit, parenthesized, and tuple pattern */
             | '[' apatterns ']'                  /* list pattern */
             | apattern AS identifier             /* named pattern */
@@ -665,7 +667,7 @@ withexpr    : WITH withnobind IN expr          /* bind ambient */
             /* deprecated */
             | HANDLER withhandle opclauses
             /* deprecated */
-            | HANDLE withhandle '(' arguments1 ')' handlerpars opclauses
+            | HANDLE withhandle '(' arguments1 ')' /* handlerpars*/ opclauses
             ;
 
 withbind    : binder '=' INSTANCE witheff opclauses
@@ -673,13 +675,14 @@ withbind    : binder '=' INSTANCE witheff opclauses
             ;
 
 withnobind  : witheff opclauses
-            | INSTANCE witheff APP qidentifier ')' opclauses
+            | INSTANCE witheff '(' qidentifier ')' opclauses
             ;
 
 /* deprecated */
 withhandle  : witheff
-            | INSTANCE witheff APP qidentifier ')'
+            /* | INSTANCE witheff '(' qidentifier ')'
             | INSTANCE witheff
+            */
             ;
 
 witheff     : '<' anntype '>'
@@ -687,12 +690,12 @@ witheff     : '<' anntype '>'
             ;
 
 
-handlerpars : lparen parameters ')'
+handlerpars : '(' parameters ')'
             | /* empty */
             ;
 
 opclauses   : opclause
-            | '{' semis opclauses1 semis '}'
+            | '{' semis opclauses1 semis1 '}'
             | '{' semis '}'
             ;
 
@@ -704,11 +707,11 @@ opclause    : VAL qidentifier '=' expr
             | VAL qidentifier ':' type '=' expr
             | FUN qidentifier opargs bodyexpr
             | CONTROL qidentifier opargs bodyexpr
-            | RETURN lparen oparg ')' bodyexpr
+            | RETURN '(' oparg ')' bodyexpr
             | RETURN paramid bodyexpr
             ;
 
-opargs      : lparen opargs0 ')'
+opargs      : '(' opargs0 ')'
             | /* empty */
             ;
 
@@ -747,12 +750,6 @@ typescheme  : someforalls tarrow qualifier        /* used for type annotations *
 type        : FORALL typeparams1 tarrow qualifier
             | tarrow qualifier
             ;
-
-
-some        : SOME typeparams1
-            | /* empty */
-            ;
-
 
 someforalls : SOME typeparams1 FORALL typeparams1
             | SOME typeparams1

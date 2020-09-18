@@ -216,17 +216,19 @@ fun ddouble-int-exp( i : int, e : int ) : ddouble {
     val py   = px - 14
     if (py <= 0) then {
       // if 28 or less digits we can convert with two doubles
-	  // trace("ddouble-i: " + i.show + ", hi:" + hi.show + ",  lo: " + y.show)
+      // trace("ddouble-i: " + i.show + ", hi:" + hi.show + ",  lo: " + y.show)
       small-exp(hi, px + e) + small-exp( y, e)
     }
     else {
       // otherwise use 2 initial 14 digits and a trailing value
       val (mid,z) = y.cdivmod-exp10(py)
       val pz = py - 14
-	  val (lo,plo) = if (pz <= 0) then (z,0) else (z.cdiv-exp10(pz), pz)
+      val x = if (pz <= 0) then (z,0) else (z.cdiv-exp10(pz), pz)
+      val lo = x.fst
+      val plo = x.snd
       //trace("ddouble-i: " + i.show + ", hi:" + hi.show + ", mid: " + mid.show + ", lo: " + lo.show)
-	  //trace("  px: " + px.show + ", py : " + py.show + ", plo: " + plo.show + ", e: " + e.show )
-	  small-exp( hi, px + e) + (small-exp( mid, py + e) + small-exp( lo, plo + e))
+      //trace("  px: " + px.show + ", py : " + py.show + ", plo: " + plo.show + ", e: " + e.show )
+      small-exp( hi, px + e) + (small-exp( mid, py + e) + small-exp( lo, plo + e))
     }
   }
 }

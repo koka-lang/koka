@@ -59,7 +59,7 @@ type value any
 type reuse
 
 extern no-reuse() : reuse {
-  c inline "NULL"
+  c inline  "NULL"
   js inline "null"
 }
 
@@ -108,7 +108,7 @@ type global :: H
 
 // Optional is used internally by the compiler to pass optional arguments.
 // It is usually displayed as `:?a` for some type `:a`.
-type value optional<a> {
+type optional<a> {
   // The `Optional` constructor is used when an optional argument is given.
   con Optional(value:a)
   // `None` is used when an optional argument is not provided.

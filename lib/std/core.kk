@@ -1120,8 +1120,8 @@ fun exp10( exp : int ) : int {
 // Raise an integer `i` to the power of `exp`.
 extern pow( i : int, exp : int ) : int {
   c  "kk_integer_pow"
-	cs "Primitive.IntPow"
-	js "_int_pow"
+  cs "Primitive.IntPow"
+  js "_int_pow"
 }
 
 // Raise an integer `i` to the power of `exp`.

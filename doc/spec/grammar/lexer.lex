@@ -136,8 +136,10 @@ abstract                  { return ABSTRACT; }
 extern                    { return EXTERN; }
 external                  { return EXTERN; }
 
-function[\(\<]            { yyless(7); return FUNX; }
-fun[\(\<]                 { yyless(3); return FUNX; }
+  /*
+  function[\(\<]            { yyless(7); return FUNX; }
+  fun[\(\<]                 { yyless(3); return FUNX; }
+  */
 
 function                  { return FUN; }
 fun                       { return FUN; }
@@ -168,6 +170,8 @@ open                      { return ID_OPEN; }
 behind                    { return ID_BEHIND; }
 extend                    { return ID_EXTEND; }
 linear                    { return ID_LINEAR;  }
+value                     { return ID_VALUE;  }
+reference                 { return ID_REFERENCE;  }
 
 handle                    { return HANDLE; }
 handler                   { return HANDLER; }
@@ -493,8 +497,8 @@ static bool isAppToken( Token token ) {
 #endif
 
 #ifdef CHECK_BALANCED
-  static Token closeTokens[] = { ')', '}', ']', ')', ']', 0 };
-  static Token openTokens[]  = { '(', '{', '[', APP, IDX, 0 };
+  static Token closeTokens[] = { ')', '}', ']', /* ')', ']',*/ 0 };
+  static Token openTokens[]  = { '(', '{', '[', /* APP, IDX,*/ 0 };
 
   Token isCloseBrace( Token token ) {
     int i = find(closeTokens,token);
@@ -529,9 +533,11 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
     token = yylex( lval, loc, scanner );
     *loc = updateLoc( scanner );
 
+    /*
     // this is to avoid needing semicolons
     if (token=='(' && isAppToken(yyextra->previous)) token = APP;
     if (token=='[' && isAppToken(yyextra->previous)) token = IDX;
+    */
 
     // skip whitespace
     while (token == LEX_WHITE || token == LEX_COMMENT) {
