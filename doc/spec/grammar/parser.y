@@ -190,17 +190,21 @@ topdecl     : visibility puredecl                             { printDecl("value
 -- External declarations
 ----------------------------------------------------------*/
 
-externdecl  : EXTERN funid externtype externbody               { $$ = $2; }
-            | EXTERN ID_INLINE funid externtype externbody     { $$ = $3; }                        
-            | EXTERN ID_INCLUDE externincbody                  { $$ = "<extern include>"; } 
+externdecl  : inlineattr EXTERN funid externtype externbody    { $$ = $3; }
+            | ID_INCLUDE EXTERN externincbody                  { $$ = "<extern include>"; } 
             ;
+            
+inlineattr  : ID_INLINE
+            | ID_NOINLINE
+            | /* empty 
+            ;            
 
 externtype  : ':' typescheme
             | typeparams '(' parameters ')' annotres
             ;
 
 externbody  : '{' semis externstats1 '}'
-            | '{' '}'
+            | '{' semis '}'
             ;
 
 externstats1: externstats1 externstat semis1

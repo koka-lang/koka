@@ -11,6 +11,7 @@
 -----------------------------------------------------------------------------
 module Syntax.Layout( layout, testFile, combineLineComments ) where
 
+import Data.Char(isSpace)
 import Common.Range hiding (after)
 
 -----------------------------------------------------------
@@ -37,13 +38,13 @@ testEx fname input
 layout :: Bool -> [Lexeme] -> [Lexeme]
 layout semiInsert lexemes
   = let semi f = if semiInsert then f else id
-        ls =  -- semi indentLayout $ 
+        ls =  semi indentLayout $ 
               -- semi lineLayout $
               removeWhite $ 
               associateComments $
               removeWhiteSpace $ 
               combineLineComments $ 
-              -- semi checkComments $ 
+              semi checkComments $ 
               lexemes
     in -- trace (unlines (map show (take 100 ls))) $
        seq (length ls) ls          
@@ -94,6 +95,10 @@ associateComments lexs
   where
     scan lexs
       = case lexs of
+          -- special comments
+          (Lexeme r1 (LexComment (comment@('/':'/':'.':cs))) : ls) | not (any isSpace (trimRight cs))
+             -> Lexeme r1 (LexSpecial (trimRight comment)) : scan ls
+          -- comment association
           (Lexeme r1 (LexComment comment) : Lexeme r2 (LexKeyword k _) : ls)
             | k `elem` docKeyword && adjacent comment r1 r2 
              -> Lexeme r1 (LexComment comment) : Lexeme r2 (LexKeyword k comment) : scan ls
@@ -101,6 +106,7 @@ associateComments lexs
             | kv `elem` ["public","private","abstract"] && 
               k `elem` docKeyword && adjacent comment r1 r2
              -> Lexeme r1 (LexComment comment) : Lexeme rv (LexKeyword kv docv) : Lexeme r2 (LexKeyword k comment) : scan ls
+          -- other
           (l:ls)
              -> l : scan ls
           [] -> []
@@ -112,7 +118,9 @@ associateComments lexs
               '\n':_ -> posLine (rangeEnd r1) == posLine (rangeStart r2)
               _      -> posLine (rangeEnd r1) == posLine (rangeStart r2) - 1
 
-
+trimRight s
+  = reverse (dropWhile isSpace (reverse s))
+  
 -----------------------------------------------------------
 -- Combine adjacent line comments into one  block comment (for html output)
 -----------------------------------------------------------
@@ -217,7 +225,7 @@ check layout layouts prevRng (lexeme@(Lexeme rng lex):ls)
     insertSemi
       = if (newline && indent == layout)
          then case lex of
-                 LexSpecial s    |  s `elem` ["{","]",")"] -> []
+                 LexSpecial s    |  s `elem` ["{",",","]",")"] -> []
                  LexKeyword k _  |  k `elem` ["then","else","elif"] -> []
                  _ -> [Lexeme (after prevRng) LexInsSemi]
          else []
@@ -267,6 +275,8 @@ semiInsert (Lexeme prevRng prevLex) lexemes
           LexSpecial s   -> s `elem` ["{",")","]"]
           LexOp s        -> show s == ">"
           _              -> False
+          
+
 -----------------------------------------------------------
 -- Identify module identifiers: assumes no whitespace
 -----------------------------------------------------------
@@ -313,5 +323,3 @@ scanImport count modules lexemes
       (LexId id : lexs)
         -> scanImports (count+1) (id : modules) lexs
       _ -> scanImports count modules lexemes -- just ignore
-
-

@@ -20,7 +20,7 @@ module Syntax.Parse( parseProgramFromFile
 
                    , visibility, modulepath, importAlias
                    , tbinderId, constructorId, funid, paramid
-                   , braced, semiBraces, semis, semiColons
+                   , braced, semiBraces, semis, semiColons1, semiBraced
                    , angles, anglesCommas, parensCommas, parens, curlies
                    , semiColon, lparen, rparen, langle, rangle, comma, lapp, lidx, bar
                    , qtypeid, qvarid, qconid, qidop, identifier, qoperator, varid, idop
@@ -221,6 +221,7 @@ braced p
   = do lcurly
        many semiColon
        x <- p
+       many semiColon
        rcurly
        return x
   <|>
@@ -1386,7 +1387,7 @@ block
        stmts1 <- semis statement
        stmts2 <- do rng2 <- keyword "return"
                     e <- expr
-                    semiColons
+                    many semiColon
                     return [StatExpr (makeReturn rng2 e)]
                  <|>
                     return []
@@ -2027,7 +2028,7 @@ funblock
        return (Lam [] exp (getRange exp))
 
 funexpr
-  = do rng <- keyword "fun.anon" <|> keyword "function.anon"  <?> "(anonymous) fun"
+  = do rng <- keyword "fun" <|> keyword "fn"
        spars <- squantifier
        (tpars,pars,parsRng,mbtres,preds,ann) <- funDef
        body <- block
@@ -2600,7 +2601,7 @@ semiBracesRanged :: LexParser a -> LexParser ([a],Range)
 semiBracesRanged p
   = do rng1 <- lcurly
        many semiColon
-       xs <- sepEndBy p semiColons
+       xs <- sepEndBy p semiColons1
        rng2 <- rcurly
        return (xs,combineRange rng1 rng2)
 
@@ -2608,15 +2609,24 @@ semiBracesRanged1 :: LexParser a -> LexParser ([a],Range)
 semiBracesRanged1 p
   = do rng1 <- lcurly
        many semiColon
-       xs <- sepEndBy1 p semiColons
+       xs <- sepEndBy1 p semiColons1
        rng2 <- rcurly
        return (xs,combineRange rng1 rng2)
+       
+semiBraced :: LexParser a -> LexParser a
+semiBraced p
+  = do rng1 <- lcurly
+       many semiColon
+       x <- p
+       many semiColon
+       rng2 <- rcurly
+       return x
 
 semis p
-  = sepEndBy p semiColons
+  = sepEndBy p semiColons1
 
-semiColons
-  = many semiColon
+semiColons1
+  = many1 semiColon
 
 anglesRanged p
   = bracketed langle rangle (,) p
@@ -2659,8 +2669,8 @@ bracketed open close f p
 -----------------------------------------------------------
 -- Lexical tokens
 -----------------------------------------------------------
-lapp     = special "(.apply" <?> show "("
-lidx     = special "[.index" <?> show "["
+lapp     = lparen      -- special "(.apply" <?> show "("
+lidx     = special "[" -- special "[.index" <?> show "["
 lparen   = special "(" -- <|> liparen
 rparen   = special ")"
 langle   = specialOp "<"

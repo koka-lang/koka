@@ -113,8 +113,8 @@ program :-
 
 
 -- fun/function followed by '(' or '<'
-<0> "fun" [\(\<]          { less 3 $ constant $ LexKeyword "fun.anon" "" }
-<0> "function" [\(\<]     { less 8 $ constant $ LexKeyword "function.anon" "" }
+-- <0> "fun" [\(\<]          { less 3 $ constant $ LexKeyword "fun.anon" "" }
+-- <0> "function" [\(\<]     { less 8 $ constant $ LexKeyword "function.anon" "" }
 
 -- qualified identifiers
 <0> @qconid               { string $ LexCons . newQName }
@@ -490,10 +490,13 @@ lexing source lineNo input
                                        seq range $ Lexeme range ltoken : go st2{ startPos = pos st2, previousLex = ltoken }
 
         lparen token prev
-          = case token of
+          = token 
+          {-
+            case token of
               LexSpecial "("  | isApplyToken prev -> LexSpecial "(.apply"  -- application
               LexSpecial "["  | isApplyToken prev -> LexSpecial "[.index"  -- indexing
               _ -> token
+          -}
 
         isApplyToken prev
           = case prev of

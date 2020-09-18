@@ -46,7 +46,7 @@ type ParseInlines = Gamma -> Error [InlineDef]
 parseCore :: FilePath -> IO (Error (Core, ParseInlines))
 parseCore fname
   = do input <- readInput fname
-       return (lexParse True (requalify . allowDotIds) program fname 1 input)
+       return (lexParse False (requalify . allowDotIds) program fname 1 input)
 
 requalify :: [Lexeme] -> [Lexeme]
 requalify lexs
@@ -141,7 +141,7 @@ pmodule
 
                   defs      <- semis (defDecl env2)
                   externals <- semis (externDecl env2)
-                  inlines   <- do specialId ".inline"
+                  inlines   <- do special "//.inline-section" <?> ""
                                   lexemes <- getInput
                                   setInput []
                                   return lexemes
@@ -423,10 +423,10 @@ parseForall env
 
 parseFun :: Env -> LexParser Expr
 parseFun env
-  = do keyword "fun.anon"
+  = do keyword "fun"
        eff    <- angles (ptype env) <|> return typeTotal
        (env1,params) <- parameters env
-       body   <- curlies (parseExpr env1)
+       body   <- semiBraced (parseExpr env1)
        return (Lam [TName name tp | (name,tp) <- params] eff body)
 
 parseMatch :: Env -> LexParser Expr

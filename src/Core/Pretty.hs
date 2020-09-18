@@ -77,7 +77,7 @@ prettyCore env0 inlineDefs core@(Core name imports fixDefs typeDefGroups defGrou
       , separator "inline definitions"
       , if (coreInlineMax env0 < 0 || not (coreIface env0) || null inlineDefs)
          then []
-         else [text ".inline"] ++
+         else [text "//.inline-section"] ++
               -- map (prettyInlineDefGroup env1{coreInlineMax = coreInlineMax env0}) defGroups
                map (prettyInlineDef env1) inlineDefs
       ]
@@ -122,7 +122,7 @@ prettyFixDef env (FixDef name fixity)
        FixInfix fix assoc -> ppAssoc assoc <+> pretty fix
        FixPrefix          -> text "prefix"
        FixPostfix         -> text "postfix")
-    <+> prettyDefName env name
+    <+> prettyDefName env name <.> semi
   where
     ppAssoc AssocLeft    = text "infixl"
     ppAssoc AssocRight   = text "infixr"
@@ -141,7 +141,7 @@ prettyExternal env (External name tp body vis nameRng doc)
     keyword env "external" <+> prettyDefName env name <+> text ":" <+> prettyType env tp <+> prettyEntries body
   where
     prettyEntries [(Default,content)] = keyword env "= inline" <+> prettyLit env (LitString content) <.> semi
-    prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "}"
+    prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "};"
     prettyEntry (target,content)      = ppTarget env target <.> keyword env "inline" <+> prettyLit env (LitString content) <.> semi
 
 prettyExternal env (ExternalInclude includes range)
@@ -270,7 +270,7 @@ prettyExpr env lam@(Lam tnames eff expr)
     keyword env "fun" <.>
       (if isTypeTotal eff then empty else text "<" <.> prettyType env' eff <.> text ">") <.>
       tupled [prettyTName env' tname | tname <- tnames] <.> text "{" <-->
-      tab (prettyExpr env expr) <-->
+      tab (prettyExpr env expr <.> semi) <-->
       text "}"
   where
     env'  = env { prec = precTop }
