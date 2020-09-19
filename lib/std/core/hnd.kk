@@ -10,7 +10,7 @@
 
    Internal primitives to implement evidence based algebraic
    effect handlers. These are emitted by the compiler during evidence
-   translation.
+   translation and this module is always implicitly imported.
 */
 public module std/core/hnd
 

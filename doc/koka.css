@@ -10,15 +10,19 @@
 @import url('https://fonts.googleapis.com/css?family=Roboto+Slab:300,400,700');
 
 body.madoko,body.koka,.serif,.sans-serif,.comment {
-  font-family: 'Nunito','Cambria', "Times New Roman", "Liberation Serif", "Times", serif;
+  font-family: 'Nunito', 'Calibri', serif;
   font-size  : 110%;
 }
 
 .sans-serif { 
-  font-family: 'Nunito', 'Segoe UI', 'DejaVu Sans', sans-serif;
+  font-family: 'Nunito', 'Segoe UI', 'Calibri', sans-serif;
 }
 .sans-section { 
-  font-family: 'Nunito', 'Century Gothic', 'Apple Gothic', 'Optima', 'URW Gothic L',  sans-serif; 
+  font-family: 'Nunito', 'Century Gothic', 'Apple Gothic',  sans-serif; 
+}
+
+pre.koka, code.koka, .koka.doc .header {
+  background-color: #e4e0e0;
 }
 
 /* Text size and margins for screen & print */
@@ -27,8 +31,8 @@ body.madoko,body.koka,.serif,.sans-serif,.comment {
     max-width  : 62em;
     margin     : 1em auto;
     padding    : 0em 1em 45em 1em; /* so a link to the end always puts the definition on top of the screen */
-    line-height: 1.4;
-    background-color: #fbf8f8;
+    line-height: 1.45;
+    background-color: #f4f0f0;
   }
   .koka.doc p {
     text-align: left;
@@ -38,7 +42,7 @@ body.madoko,body.koka,.serif,.sans-serif,.comment {
 @media screen and (max-device-width: 1022px) {
   body.madoko,body.koka {
     padding: 0em 0.5em 40em 0.5em;
-    margin: 0pt;
+    margin: 1em;
   }
 }
 
@@ -71,7 +75,10 @@ body {
 
 
 h1 { 
-  font-size: 175%; 
+  font-size: 150%; 
+}
+h1.mo, h1 .mo, h1 .toc-link {
+  color: inherit !important;
 }
 
 /* Fix monospace display (see http://code.stephenmorley.org/html-and-css/fixing-browsers-broken-monospace-font-handling/) */
@@ -81,18 +88,20 @@ h1 {
 code, code.koka, .koka .code, .madoko code,
 pre, pre.koka, .madoko pre,
 .monospace { 
-  font-family: "Roboto Mono", Consolas, "Andale Mono WT", "Andale Mono", Lucida Console, Monaco, monospace,monospace;
+  font-family: "Roboto Mono", Consolas, "Menlo", "Andale Mono", Lucida Console, Monaco, monospace,monospace;
 }
 
-code, code.koka, .koka .code, .madoko code 
-{ 
-  font-size: 0.9em;
-  border-radius: 3px;
+.koka .code {   /* header and toc code */
+  font-size: 0.9em;        /* more even with text */
+}
+
+code, code.koka, .koka .code, .madoko code { 
+  border-radius: 4px;
   padding: 0pt 0.2ex;
 }
 
 pre code code, .madoko pre code code {
-  font-size: 1em;
+  xfont-size: 1em;
 }
 
 /* source code blocks */
@@ -141,15 +150,12 @@ pre code code, .madoko pre code code {
   white-space: pre-wrap 
 }
 
-pre.koka.source, code.koka, .koka.doc .header {
-  background-color: #EAE8E8;
-}
 pre.koka.source {
   border: 1px solid gray;
 }
 
 .madoko pre.koka.source {
-  font-size: 0.9em;
+  xfont-size: 0.9em;
 }
 
 .koka.doc .comment p {
@@ -275,7 +281,7 @@ h1.koka.module
       }
 
 .koka .toc-link 
-      { font-size: 12pt
+      { font-size: 0.75em
       ; float: right
       ; color: navy
       }
@@ -313,7 +319,12 @@ h1.koka.module
       ; border: 1px solid #AAA
       ; border-width: 1px 0px 0px 1px
       }
-  
+
+.koka.doc .synopsis {
+  font-size: 1.5em;
+  margin-top: -0.5em;
+  margin-bottom: 0.25em;
+}  
 /*
 .koka.doc.header,
 .koka.doc.decl,
@@ -352,7 +363,7 @@ div.nested {
       ; float: left;
       ; clear: none;
       /* ; margin-bottom: 1.5em;  */
-      ; padding: 0.5ex 1.5ex 1ex 0.5ex
+      ; padding: 0.5ex 2em 1ex 0.5ex
       /* ; width: 10.5em; */
       ; white-space: nowrap
       ; border-bottom: 1px solid #AAA
@@ -374,22 +385,26 @@ div.nested {
 }
 
 /* Index documentation */
+.koka table.index {
+  border: 1px solid #AAA;
+}
+
 .koka.doc table.index td {
   vertical-align: top;
-  padding-right: 1.5em;
+  padding-right: 2.5em;
   padding-bottom: 0.5ex;
 }
 
 .koka.doc table.index .nested1 {
-  margin-left: 1.5ex;
+  margin-left: 2em;
 }
 
 .koka.doc table.index .nested2 {
-  margin-left: 2.75ex;
+  margin-left: 3em;
 }
 
 .koka.doc table.index .nested3 {
-  margin-left: 4ex;
+  margin-left: 4em;
 }
 
 /* Print in black&white. Commented out for now  */

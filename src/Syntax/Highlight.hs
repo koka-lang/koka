@@ -244,9 +244,10 @@ highlightLexeme transform fmt ctx0 (Lexeme rng lex) lexs
     showId :: Name -> String
     showId name
       = if (nameId name == "!" || nameId name == "~") then showPlain name
-        else case nameId name of  
+        else show name {-
+             case nameId name of  
               (c:cs)  | not (isAlphaNum c || c == '_' || c == '(') -> "(" ++ show name ++ ")"
-              _       -> show name
+              _       -> show name -}
 
     showOp :: Name -> String
     showOp name

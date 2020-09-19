@@ -8,7 +8,7 @@
 
 /* UTC time scales and leap second support.
 
-# UTC time calculation
+# UTC time calculation 
 
 The world's standard time scale is Universal Coordinated Time ([UTC]).
 UTC is directly based on International Atomic Time ([TAI])

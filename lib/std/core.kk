@@ -6,15 +6,17 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/* This module defines standard operations that are always available.
+/* Core functions.
 
+   This module is implicitly imported and all functions and types
+   are always available.
    Some types and operations are required to be defined for the compiler
-   to work correctly (i.e. types like `:int` or `:list`)
+   to work correctly (i.e. types like `:exn` or `:list`)
 */
 public module std/core
 
 public import std/core/types
-public import std/core/hnd
+public import std/core/hnd 
 
 infixr 80  (^)
 infixl 70  (*), (%), (/), cdiv, cmod

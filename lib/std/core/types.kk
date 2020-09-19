@@ -6,9 +6,11 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/* Defines core types.
+/* Core types.
 
-   Some types and operations are required to be defined for the compiler
+   This module is implicitly imported and all functions and types
+   are always available. 
+   These types are required to be defined for the compiler
    to work correctly (i.e. types like `:int` or `:div`)
 */
 public module std/core/types

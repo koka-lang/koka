@@ -6,7 +6,7 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
  
-// Operations on 32-bit two's complement signed integers.
+// 32-bit signed integers.
 public module std/num/int32
 
 // The maximal integer value before overflow happens
@@ -264,28 +264,29 @@ fun (~)(i : int32) : total int32 {
   return (0.int32 - i)
 }
 
-// Euclidean-0 division.
-// Euclidean division is defined as: For any `D`  and `d`  where `d!=0` , we have:
-//
-// 1. `D == d*(D/d) + (D%d)`
-// 2. `D%d`  is always positive where `0 <= D%d < abs(d)`
-//
-// Moreover, Euclidean-0 is a total function, for the case where `d==0`  we have
-// that `D%0 == D`  and `D/0 == 0` . So property (1) still holds, but not property (2).
-//
-// Useful laws that hold for Euclidean-0 division:
-//
-// * `D/(-d) == -(D/d)`
-// * `D%(-d) == D%d`
-// * `D/(2^n) == sar(D,n)         `  (with `0 <= n <= 31`  and `2^n`  means `2`  to the power of `n` )
-// * `D%(2^n) == D & ((2^n) - 1)  `  (with `0 <= n <= 31`  and `2^n`  means `2`  to the power of `n` )
-//
-// Note that an int32eresting edge case is `minInt / -1` which equals `minInt` since in modulo 32-bit
-// arithmetic `minInt == -1 * minInt == -1 * (minInt / -1) + (minInt % -1)` satisfying property (1).
-// Of course `(minInt + 1) / -1` is again positive (namely `maxInt`).
-//
-// See also _Division and modulus for computer scientists, Daan Leijen, 2001_ for further information
-// available at: <http://research.microsoft.com/pubs/151917/divmodnote.pdf> .
+/* 
+Euclidean-0 division.
+Euclidean division is defined as: For any `D`  and `d`  where `d!=0` , we have:
+
+1. `D == d*(D/d) + (D%d)`
+2. `D%d`  is always positive where `0 <= D%d < abs(d)`
+
+Moreover, Euclidean-0 is a total function, for the case where `d==0`  we have
+that `D%0 == D`  and `D/0 == 0` . So property (1) still holds, but not property (2).
+Useful laws that hold for Euclidean-0 division:
+
+* `D/(-d) == -(D/d)`
+* `D%(-d) == D%d`
+* `D/(2^n) == sar(D,n)         `  (with `0 <= n <= 31`)
+* `D%(2^n) == D & ((2^n) - 1)  `  (with `0 <= n <= 31`)
+
+Note that an interesting edge case is `min-int32 / -1` which equals `min-int32` since in modulo 32-bit
+arithmetic `min-int32 == -1 * min-int32 == -1 * (min-int32 / -1) + (min-int32 % -1)` satisfying property (1).
+Of course `(min-int32 + 1) / -1` is again positive (namely `max-int32`).
+
+See also _Division and modulus for computer scientists, Daan Leijen, 2001_ 
+[pdf](http://research.microsoft.com/pubs/151917/divmodnote.pdf) .
+*/
 fun (/)( x : int32, y : int32 ) : int32
 {
   if (y == 0.int32) then return 0.int32

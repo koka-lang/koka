@@ -6,7 +6,7 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/* Various operations on a 64-bit IEEE `:double`.
+/* 64-bit IEEE double floating point numbers.
 
 */
 public module std/num/double

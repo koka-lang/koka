@@ -6,7 +6,7 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-// Operations on arbitrary precision decimal numbers.
+// Arbitrary precision decimal numbers.
 module std/num/decimal
 
 import std/text/parse
