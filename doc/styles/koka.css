@@ -11,7 +11,7 @@
 
 /* Text size and margins for screen & print */
 @media screen {
-  body.madoko {
+  body.madoko,body.koka {
     font-family: 'Nunito','Cambria', "Times New Roman", "Liberation Serif", "Times", serif;
     max-width  : 62em;
     margin     : 1em auto;
@@ -25,6 +25,12 @@
   }
 }
 
+@media screen and (max-device-width: 1022px) {
+  body.madoko,body.koka {
+    font-size: 150%;
+    padding: 0em 0.5em 40em 0.5em;
+  }
+}
 
 @media print {
   body {
