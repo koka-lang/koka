@@ -32,7 +32,7 @@ fun state( init, action ) {
 fun amb(action) {
   handle(action) {
     return x -> [x]
-    flip()   -> append( resume(False), resume(True) )
+    flip()   -> resume(False) + resume(True)
   }
 }
 

@@ -871,17 +871,31 @@ inferHandler propagated expect handlerSort handlerScoped
 inferHandler propagated expect handlerSort handlerScoped
              mbEffect [] initially ret finally branches hrng rng
   = do heff <- (inferHandledEffect hrng handlerSort mbEffect branches)
+  
+       -- infer the result type to improve inference
+       res  <- case (propagated,ret) of
+                (Nothing,Just expr) -> do (tp,_,_) <- inferExpr propagated Instantiated expr
+                                          case splitFunScheme tp of 
+                                            Just (_,_,_,_,retTp) -> return retTp
+                                            _ -> Op.freshTVar kindStar Meta
+                (Just (retTp,_),_) -> return retTp
+                _ -> Op.freshTVar kindStar Meta
+       eff  <- Op.freshTVar kindEffect Meta
+       resumeArgs <- mapM (\_ -> Op.freshTVar kindStar Meta) branches  -- TODO: get operation result types to improve inference
+       
+       -- construct the handler
        let isResource = isHandlerResource handlerSort
            effectName = effectNameFromLabel heff
 
            -- create expressions for each clause
            handlerCon = App (Var (toConstructorName (toHandlerName effectName)) False hrng) clauses rng
-           clauses    = map clause (sortBy opName branches)
+           clauses    = map clause (zip (sortBy opName branches) resumeArgs)
            opName b1 b2 = compare (show (unqualify (hbranchName b1))) (show (unqualify (hbranchName b2)))
-           clause (HandlerBranch opName pars body raw rkind nameRng patRng)
+           clause (HandlerBranch opName pars body raw rkind nameRng patRng, resumeArg)
                       = let (clauseName, cparams) = case rkind of
                                 ResumeTail      -> (nameClause "tail" (length pars), pars)
-                                ResumeNormal    -> (nameClause "control" (length pars), pars ++ [ValueBinder (newName "resume") Nothing () nameRng patRng])
+                                ResumeNormal    -> let resumeTp = TFun [(nameNil,resumeArg)] eff res
+                                                   in (nameClause "control" (length pars), pars ++ [ValueBinder (newName "resume") (Just resumeTp) () nameRng patRng])
                                 ResumeNormalRaw -> (nameClause "control-raw" (length pars), pars ++ [ValueBinder (newName "rcontext") Nothing () nameRng patRng])
                                 _               -> failure $ "Type.Infer.inferHandler: unexpected resume kind: " ++ show rkind
                             cparamsx = map (\b -> case b of
@@ -1868,7 +1882,7 @@ inferVar propagated expect name rng isRhs
        if (isTypeLocalVar tp && isRhs)
         then do (tp1,eff1,core1) <- inferExpr propagated expect (App (Var nameLocalGet False rng) [(Nothing,App (Var nameByref False rng) [(Nothing,Var name False rng)] rng)] rng)
                 addRangeInfo rng (RM.Id qname (RM.NIValue tp1) False)
-                traceDoc $ \env -> text " deref" <+> pretty name <+> text "to" <+> ppType env tp1
+                -- traceDoc $ \env -> text " deref" <+> pretty name <+> text "to" <+> ppType env tp1
                 return (tp1,eff1,core1)
         else case info of
          InfoVal{ infoIsVar = True }  | isRhs  -- is it a right-hand side variable?

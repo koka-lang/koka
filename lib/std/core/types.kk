@@ -1,3 +1,16 @@
+/*---------------------------------------------------------------------------
+  Copyright 2012-2020 Daan Leijen, Microsoft Corporation.
+
+  This is free software; you can redistribute it and/or modify it under the
+  terms of the Apache License, Version 2.0. A copy of the License can be
+  found in the file "license.txt" at the root of this distribution.
+---------------------------------------------------------------------------*/
+
+/* Defines core types.
+
+   Some types and operations are required to be defined for the compiler
+   to work correctly (i.e. types like `:int` or `:div`)
+*/
 public module std/core/types
 
 infixr 30  (&&)
