@@ -1,0 +1,342 @@
+Description: 
+    Provides an automatically expanding table-of-contents
+    in a side-panel next to the main content.
+    The TOC must be in a `SidePanel` block, while all
+    the other content must be in a `MainPanel`.
+
+Side Panel Width: 24rem
+Side Panel Margin Top: 0rem
+
+toc.toc-contents {
+  before:clear;
+}
+
+Css Header:
+    /* ---------------------------------------------
+      Center document in the viewport
+    ----------------------------------------------*/
+    body.madoko {
+      margin: 0pt;
+      padding: 0pt;
+      max-width: 100%;
+    }
+    .body {
+      width: 80em;
+      max-width: 90%;
+      margin: 1em;
+    }
+    .preview .body {
+      width: 98%;
+      max-width: 100%;
+      margin: 0.25em auto;
+    }
+    
+    
+    /* -----------------------------------------
+       Settings for a wide viewport:
+       The contents are shown in the side panel
+       on the left side.
+    -------------------------------------------- */    
+    @media screen and (min-width: 1024px) {
+      body.madoko {
+        padding-right: 8%; /* looks more balanced with sidepanel */
+      }
+      .body {
+        margin: 1em auto 1em 10%;
+      }
+      .sidepanel {
+        float     : right;
+        width     : &side-panel-width; ; 
+        position  : fixed;
+        top       : &side-panel-margin-top; ;
+        max-height: 95%;
+        overflow-y: auto;
+      }
+      .mainpanel, .footnotes, .titleblock {
+        margin-left: calc(&side-panel-width; + 6rem + 2px + 1rem);
+      }
+      .tocblock2, .tocblock3 {
+        display:none;
+      }
+      .tocblock.auto-expands, .tocblock.click-expands {
+        display:block;
+      }
+      .expand-all .tocblock1, .expand-all .tocblock2 {
+        display:block;
+      }     
+      
+      /*
+      .tocitem.current::after {
+        content: "\00A0\25CF";
+      }
+      */
+      .tocitem.current .heading-label {
+        font-weight: bold;
+      }      
+      span.unexpanded, span.expanded {
+        display: inline-block;
+        width: 1.25em;
+        margin-left: -1.25em;
+        font-family: "Segoe UI Symbol", Symbola, serif;
+        font-size: 70%;
+        cursor: pointer;
+        vertical-align: 0.1em;
+      }
+      span.unexpanded::before {
+        content: "\25B6";
+      }
+      .expand-all span.expanded, span.expanded::before {
+        content: "\25BC";
+      }
+    }
+    
+    /* ---------------------------------------------------
+       Set margins and padding for side panel and sections
+    ------------------------------------------------------ */
+    .sidepanel, .mainpanel section, .footnotes {
+      padding: 1rem 1rem 1rem 2rem;
+      xborder: 1px solid gray;
+    }
+    .sidepanel .tocblock {
+      font-size  : 95%;
+      white-space: nowrap;
+    }
+    .sidepanel .toc, .sidepanel h2, .sidepanel h1 {
+      margin-top: 0pt;
+    }
+    .footnotes {
+      padding-top: 0.5em; 
+    }
+    .footnotes>hr {
+      display:none;
+    }
+    section,.sidepanel {
+      margin-bottom: 1em;
+    }
+    
+    /* -----------------------------------
+       Nice scrollbar for toc
+    ----------------------------------- */
+    .sidepanel::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }     
+    /* Track */
+    .sidepanel::-webkit-scrollbar-track {
+        -webkit-box-shadow: inset 0 0 4px rgba(0,0,0,0.3); 
+        -webkit-border-radius: 6px;
+        border-radius: 6px;
+    }    
+    /* Handle */
+    .sidepanel::-webkit-scrollbar-thumb {
+        -webkit-border-radius: 6px;
+        border-radius: 6px;
+        background: lightgray; 
+        -webkit-box-shadow: inset 0 0 4px rgba(0,0,0,0.5); 
+    }
+    .sidepanel::-webkit-scrollbar-thumb:window-inactive {
+      background: gainsboro; 
+    }
+    .madoko .toc > .tocblock .tocblock .tocblock {
+      margin-left: 1.5em;
+    }
+    .madoko .toc a {
+      color: #444; 
+    }
+
+JS Footer:
+    // ---------------------------------------------
+    // Classname helpers
+    // ---------------------------------------------
+    function hasClassName(elem,cname) {
+      if (elem==null) return false;
+      var regex = new RegExp("\\s*\\b" + cname + "\\b","g");
+      return regex.test(elem.className);
+    }
+    
+    function removeClassName(elem,cname) {
+      var regex = new RegExp("\\s*\\b" + cname + "\\b","g");
+      elem.className = elem.className.replace( regex, "" );
+    }
+    
+    function addClassName(elem,cname) {
+      if (!hasClassName(elem,cname)) elem.className = elem.className + " " + cname;
+    }
+    
+    function toggleClassName(elem,cname) {
+      var regex = new RegExp("\\s*\\b" + cname + "\\b","g");
+      var classes = elem.className;
+      if (regex.test(classes)) {
+        elem.className = classes.replace( regex, "" );
+        return false;
+      }
+      else {
+        elem.className = classes + " " + cname;
+        return true;
+      }
+    }
+    
+    // ---------------------------------------------
+    // Reliable offset determination
+    // ---------------------------------------------
+    
+    function getWindowOffset(elem) {
+      var box;
+      if (elem.getBoundingClientRect) {
+        box = elem.getBoundingClientRect();
+      }
+      else if (elem.offsetParent && elem.offsetParent.getBoundingClientRect) {
+        // text node
+        box = elem.offsetParent.getBoundingClientRect();
+        box.top = box.top + elem.offsetTop;
+        box.left = box.left + elem.offsetLeft;
+      }
+      else {
+        box = { top: 0, left : 0 };
+      }
+      return box;
+    }
+    
+    // Return the viewport position: -1 (before), 0 (visible), 1 (after)
+    function viewportPosition(elem) {
+      var pos = getWindowOffset(elem)
+      if (pos.top < 0 || pos.left < 0) 
+        return -1;
+      else if (pos.top > (window.innerHeight || document.documentElement.clientHeight) ||
+               pos.left > (window.innerWidth || document.documentElement.clientWidth)) 
+        return 1;
+      else 
+        return 0;
+    }
+    
+    // ---------------------------------------------
+    // Expand the toc sections and align headers with the toc.
+    // ---------------------------------------------
+    
+    var side = document.getElementsByClassName("sidepanel")[0];
+    var afterScroll = null;
+    
+    // Align a heading at the top of the page with the toc
+    function alignHeading( elem ) {
+      var ofs     = getWindowOffset(elem).top;
+      var sideofs = getWindowOffset(side).top;
+      if (ofs >= 0 && ofs < sideofs) {
+        window.scrollBy(0, ofs - sideofs);
+      } 
+    }
+    
+    // Expand, or unexpand, one toc item
+    // The class is 'auto-expands' or 'click-expands'; the latter is sticky
+    // as it is user induced and will not be automatically unexpanded.
+    function itemExpand(item,cls,expand) {
+      // get possible toc block (that follows the item)
+      var tocblock = item.nextElementSibling;
+      if (tocblock==null || !hasClassName(tocblock,"tocblock")) return;
+     
+      // set expand class
+      if (expand===undefined) expand = !hasClassName(tocblock,"expands");
+      if (cls===undefined) cls = "auto-expands" 
+      if (cls==="click-expands") removeClassName(tocblock,"auto-expands");
+      if (expand && !hasClassName(tocblock,cls)) {
+        toggleClassName(tocblock,cls); 
+      }
+      else if (!expand && hasClassName(tocblock,cls)) {
+        toggleClassName(tocblock,cls);
+        item.firstElementChild.className = "unexpanded";
+      }
+      
+      // set expansion icon
+      if (hasClassName(tocblock,"auto-expands") || hasClassName(tocblock,"click-expands")) {
+        item.firstElementChild.className = "expanded";   
+      }
+      else {
+        item.firstElementChild.className = "unexpanded";
+      }
+    }
+    
+    // Expand a single item in the toc (and unexpand others).
+    function itemExpandOne(item) {
+      // unexpand anything that was expanded
+      [].forEach.call( document.querySelectorAll(".tocitem"), function(item) {
+        removeClassName(item,"current");
+        itemExpand(item,"auto-expands",false);      
+      });
+      addClassName(item,"current");
+      // expand the chain of parent blocks
+      var tocblock = null;
+      var toc = item.nextElementSibling;
+      if (toc && hasClassName(toc,"tocblock")) { 
+        tocblock = toc;
+      }
+      else {
+        tocblock = item.parentElement;
+      }
+      while(tocblock != null && !hasClassName(tocblock,"toc")) {
+        if (hasClassName(tocblock,"tocblock")) {
+          item = tocblock.previousElementSibling;
+          if (item != null) itemExpand(item,"auto-expands",true);
+        }
+        tocblock = tocblock.parentElement;
+      }
+    }
+    
+    // Auto expand the toc at current  position in the document 
+    function expandToc() {
+      // find the first section heading that is visible in the viewport 
+      var current = null;
+      [].every.call( document.querySelectorAll(".tocitem"), function(item) {
+        var target = document.getElementById( item.getAttribute("data-toc-target") );
+        var pos = viewportPosition(target);
+        if (pos <= 0) current = item;
+        return (pos < 0);
+      });
+      // if found, expand the corresponding item
+      if (current != null) itemExpandOne(current);
+    }
+    
+    document.addEventListener("load", function(ev) { expandToc(); });
+    document.addEventListener("resize", function(ev) { expandToc(); });
+    
+    // fire at end of scrolling
+    var scrollHandler = null;
+    document.addEventListener("scroll", function(ev) {
+      if (scrollHandler) clearTimeout(scrollHandler);
+      scrollHandler = setTimeout( function() {
+        scrollHandler = null;
+        if (afterScroll) {
+          afterScroll();
+          afterScroll = null;
+        }
+        else {
+          expandToc();
+        }
+      }, 50 );
+    });
+    
+    // ---------------------------------------------
+    // Install event handlers for all items in the TOC
+    // ---------------------------------------------
+    [].forEach.call( document.querySelectorAll(".tocitem"), function(item) {
+      // only for toc items with a target
+      var target = document.getElementById( item.getAttribute("data-toc-target") );
+      if (!target) return;
+      
+      // ensure every tocblock has a expansion icon in front
+      // (the optional nested tocblock follows the item)
+      var tocblock = null;
+      var toc = item.nextElementSibling;  
+      if (toc && hasClassName(toc,"tocblock")) { 
+        tocblock = toc;
+        item.innerHTML = "<span class='unexpanded'></span>" + item.innerHTML;   
+      } 
+      
+      // on a click
+      item.addEventListener( "click", function() {
+        // expand this toc item and set expansion icon
+        itemExpand(item,"click-expands");
+        // after navigation, align the heading with the toc
+        afterScroll = (function() {
+          alignHeading(target);
+        });    
+      }); 
+    });

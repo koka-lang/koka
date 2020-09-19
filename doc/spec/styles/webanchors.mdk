@@ -1,0 +1,37 @@
+Description: 
+   Provides popup anchor links to headings in a web page.
+   This makes it easier for others to link to specific sections
+   in a large web manual or book.
+
+anchor symbol: &#x1F517;
+
+@if html {
+  h0, h1, h2, h3 {
+    before: "[&anchor-symbol;](#&id;){.entity-anchor}"
+  }
+}
+
+Css Header:
+    h0:hover .entity-anchor,
+    h1:hover .entity-anchor,
+    h2:hover .entity-anchor,
+    h3:hover .entity-anchor {
+      display: inline-block;
+    }
+    
+    a.entity-anchor {
+      color: black;
+    }
+    
+    a.localref.entity-anchor:hover {
+      text-decoration: none;
+    }
+    
+    .entity-anchor {
+      display: none;
+      width: 1em;
+      margin: 0pt;
+      margin-left: -1em;
+      font-family: "Segoe UI Symbol", Symbola, serif;
+      font-size: 80%;
+    }
