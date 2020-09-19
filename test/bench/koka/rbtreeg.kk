@@ -1,6 +1,10 @@
 // Adapted from https://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap.lean
 
-type color { Red Black }
+type color { 
+  Red 
+  Black 
+}
+
 type tree {
   con Leaf()
   con Node(color: color, lchild: tree, key: int, value: bool, rchild: tree)
