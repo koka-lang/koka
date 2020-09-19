@@ -70,7 +70,7 @@
   text-align: left;
 }
 
-.madoko .footnote { 
+.madoko .footnote {
   margin-left: 1em;
 }
 .madoko .footnote-before {
@@ -184,9 +184,9 @@
 }
 
 .madoko ul.list-style-type-dash > li:before {
-    content: "\2013"; 
+    content: "\2013";
     position: absolute;
-    margin-left: -1em; 
+    margin-left: -1em;
 }
 
 /* Tables */
@@ -246,6 +246,17 @@
 }
 
 
+.madoko span.math-rendering {
+  display:inline-block;
+  width:8em;
+  overflow-x:auto;
+  font-size:70%;
+}
+
+.madoko span.math-rendering::-webkit-scrollbar {
+  width:4px;
+}
+
 /*---------------------------------------------------------------------------
   Default style for syntax highlighting
 ---------------------------------------------------------------------------*/
@@ -277,7 +288,7 @@ body.madoko, .madoko .serif {
 }
 
 
-body.madoko {  
+body.madoko {
   -webkit-text-size-adjust: 100%;       /* so math displays well on mobile devices */
   text-rendering: optimizeLegibility;
 }
@@ -285,7 +296,7 @@ body.madoko {
 body.madoko {
   max-width: 88ex; /* about 88 characters */
   margin: 1em auto;
-  padding: 0em 2em;  
+  padding: 0em 2em;
 }
 
 body.preview.madoko {
@@ -297,24 +308,24 @@ body.preview.madoko {
 }
 
 /* style headings nicer, especially h5 and h6 */
-.madoko h1, .madoko h2, .madoko h3, .madoko h4 { 
-  margin-top: 1.22em; 
+.madoko h1, .madoko h2, .madoko h3, .madoko h4 {
+  margin-top: 1.22em;
   margin-bottom: 1ex;
 }
-.madoko h1+p, .madoko h2+p, .madoko h3+p, .madoko h4+p, .madoko h5+p  { 
-  margin-top: 1ex;    
+.madoko h1+p, .madoko h2+p, .madoko h3+p, .madoko h4+p, .madoko h5+p  {
+  margin-top: 1ex;
 }
-.madoko h5, .madoko h6 { 
+.madoko h5, .madoko h6 {
   margin-top: 1ex;
   font-size: 1em;
 }
-.madoko h5 { 
+.madoko h5 {
   margin-bottom: 0.5ex;
 }
 .madoko h5 + p {
   margin-top: 0.5ex;
 }
-.madoko h6 { 
+.madoko h6 {
   margin-bottom: 0pt;
 }
 .madoko h6 + p {
@@ -323,7 +334,7 @@ body.preview.madoko {
 
 
 /* Fix monospace display (see http://code.stephenmorley.org/html-and-css/fixing-browsers-broken-monospace-font-handling/) */
-.madoko pre, .madoko code, .madoko kbd, .madoko samp, .madoko tt, 
+.madoko pre, .madoko code, .madoko kbd, .madoko samp, .madoko tt,
 .madoko .monospace, .madoko .token-indent, .madoko .reveal pre, .madoko .reveal code, .madoko .email {
   font-family: Consolas,"Andale Mono WT","Andale Mono",Lucida Console,Monaco,monospace,monospace;
   font-size: 0.85em;
@@ -369,7 +380,7 @@ body.preview.madoko {
 
 @media only screen and (max-device-width:1024px) {
   body.madoko {
-    padding: 0em 0.5em;    
+    padding: 0em 0.5em;
   }
   .madoko li {
     text-align: left;

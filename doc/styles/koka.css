@@ -5,18 +5,26 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
+@import url('https://fonts.googleapis.com/css?family=Nunito:400,400italic,700,700italic');
+@import url('https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic');
+@import url('https://fonts.googleapis.com/css?family=Roboto+Slab:300,400,700');
 
 /* Text size and margins for screen & print */
 @media screen {
-  body {
-    max-width: 52em;
-    margin: 1em auto;
-    padding: 0em 1ex 45em 1ex; /* so a link to the end always puts the definition on top of the screen */
+  body.madoko {
+    font-family: 'Nunito','Cambria', "Times New Roman", "Liberation Serif", "Times", serif;
+    max-width  : 62em;
+    margin     : 1em auto;
+    padding    : 0em 1em 45em 1em; /* so a link to the end always puts the definition on top of the screen */
+    font-size  : 110%;
+    line-height: 1.4;
+    background-color: #fcfafa;
   }
   .koka.doc p {
     text-align: left;
   }
 }
+
 
 @media print {
   body {
@@ -46,13 +54,13 @@ body {
 }
 
 .sans-serif { 
-  font-family: 'Noto Sans', 'Segoe UI', 'DejaVu Sans', sans-serif;
+  font-family: 'Nunito', 'Segoe UI', 'DejaVu Sans', sans-serif;
 }
 
 body,
 .koka .comment,
 .serif {
-  font-family: 'Noto Serif', Cambria, "Times New Roman", "Liberation Serif", "Times", serif;
+  font-family: 'Nunito', Cambria, "Times New Roman", "Liberation Serif", "Times", serif;
 }
 
 h1 { 
@@ -60,7 +68,7 @@ h1 {
 }
 
 .sans-section { 
-  font-family: 'Century Gothic', 'Apple Gothic', 'Optima', 'URW Gothic L',  sans-serif; 
+  font-family: 'Nunito', 'Century Gothic', 'Apple Gothic', 'Optima', 'URW Gothic L',  sans-serif; 
 }
 
 /* Fix monospace display (see http://code.stephenmorley.org/html-and-css/fixing-browsers-broken-monospace-font-handling/) */
@@ -75,7 +83,7 @@ pre, pre.koka, .madoko pre,
 
 code, code.koka, .koka .code, .madoko code 
 { 
-  font-size: 0.95em;
+  font-size: 0.9em;
 }
 
 pre code code, .madoko pre code code {
@@ -84,9 +92,12 @@ pre code code, .madoko pre code code {
 
 /* source code blocks */
 .koka.codeblock,
-.koka.preblock,
-.koka.source  { 
+.koka.preblock { 
   padding: 0.5ex 1ex 0.5ex 1ex;
+}
+
+.koka.source  { 
+  padding: 0.5ex 1em 0.5ex 1em;
 }
 
 .koka.source.unchecked {
@@ -125,9 +136,18 @@ pre code code, .madoko pre code code {
   white-space: pre-wrap 
 }
 
+pre.koka.source {
+  background-color: #F2F0F0;
+  border: 1px solid gray;
+}
+
+.madoko pre.koka.source {
+  font-size: 0.9em;
+}
+
 .koka.doc .comment p {
   margin: 0pt;
-  margin-bottom: 0.5ex;
+  margin-bottom: 0.25ex;
 }
 
 /* Used for online tutorials */
@@ -349,7 +369,8 @@ div.nested {
 /* Index documentation */
 .koka.doc table.index td {
   vertical-align: top;
-  padding-right: 1em;
+  padding-right: 1.5em;
+  padding-bottom: 0.5ex;
 }
 
 .koka.doc table.index .nested1 {
