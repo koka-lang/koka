@@ -346,7 +346,7 @@ fmtName :: Name -> String
 fmtName name
   = let (pname,postfix) = canonicalSplit name
         pre = case nameId pname of
-              (c:cs)  | not (isAlphaNum c || c == '_' || c == '[' || c=='(') -> "(" ++ fmtNameString (show pname) ++ ")"
+              (c:cs)  | not (isAlphaNum c || c == '_' || c == '[' || c=='(') -> "(" ++ fmtNameString (showPlain pname) ++ ")"
               _       -> fmtNameString (show pname)
         post = if null postfix then "" else cspan "postfix" postfix
     in pre++post

@@ -9,16 +9,26 @@
 @import url('https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic');
 @import url('https://fonts.googleapis.com/css?family=Roboto+Slab:300,400,700');
 
+body.madoko,body.koka,.serif,.sans-serif,.comment {
+  font-family: 'Nunito','Cambria', "Times New Roman", "Liberation Serif", "Times", serif;
+  font-size  : 110%;
+}
+
+.sans-serif { 
+  font-family: 'Nunito', 'Segoe UI', 'DejaVu Sans', sans-serif;
+}
+.sans-section { 
+  font-family: 'Nunito', 'Century Gothic', 'Apple Gothic', 'Optima', 'URW Gothic L',  sans-serif; 
+}
+
 /* Text size and margins for screen & print */
 @media screen {
   body.madoko,body.koka {
-    font-family: 'Nunito','Cambria', "Times New Roman", "Liberation Serif", "Times", serif;
     max-width  : 62em;
     margin     : 1em auto;
     padding    : 0em 1em 45em 1em; /* so a link to the end always puts the definition on top of the screen */
-    font-size  : 110%;
     line-height: 1.4;
-    background-color: #fcfafa;
+    background-color: #fbf8f8;
   }
   .koka.doc p {
     text-align: left;
@@ -59,22 +69,9 @@ body {
   color: black;
 }
 
-.sans-serif { 
-  font-family: 'Nunito', 'Segoe UI', 'DejaVu Sans', sans-serif;
-}
-
-body,
-.koka .comment,
-.serif {
-  font-family: 'Nunito', Cambria, "Times New Roman", "Liberation Serif", "Times", serif;
-}
 
 h1 { 
   font-size: 175%; 
-}
-
-.sans-section { 
-  font-family: 'Nunito', 'Century Gothic', 'Apple Gothic', 'Optima', 'URW Gothic L',  sans-serif; 
 }
 
 /* Fix monospace display (see http://code.stephenmorley.org/html-and-css/fixing-browsers-broken-monospace-font-handling/) */
@@ -90,6 +87,8 @@ pre, pre.koka, .madoko pre,
 code, code.koka, .koka .code, .madoko code 
 { 
   font-size: 0.9em;
+  border-radius: 3px;
+  padding: 0pt 0.2ex;
 }
 
 pre code code, .madoko pre code code {
@@ -142,8 +141,10 @@ pre code code, .madoko pre code code {
   white-space: pre-wrap 
 }
 
+pre.koka.source, code.koka, .koka.doc .header {
+  background-color: #EAE8E8;
+}
 pre.koka.source {
-  background-color: #F2F0F0;
   border: 1px solid gray;
 }
 
@@ -265,7 +266,7 @@ a.pp a.pp:hover .pc
 
 /* Documentation */
 .koka.doc>pre.source {
-  background-color: #F0F0F0;
+  xbackground-color: #F0F0F0;
   border: 1px solid #AAA;
 }
 
@@ -280,7 +281,7 @@ h1.koka.module
       }
 
 .koka.doc .header
-      { background: #F0F0F0
+      { xbackground: #F0F0F0
       ; padding: 0.25ex
       ; padding-left: 0.5ex
       ; margin-top: 0px

@@ -5,7 +5,7 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
-
+ 
 // Operations on 32-bit two's complement signed integers.
 public module std/num/int32
 
