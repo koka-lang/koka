@@ -94,10 +94,6 @@ void printDecl( const char* sort, const char* name );
    e.g. the last precedence declaration have the highest precedence.
 */
 
-/* resolve s/r conflict by shifting on IN so the IN binds to the closest WITH.*/
-%precedence WITH
-%precedence IN
-
 /* resolve s/r conflict by shifting on ELSE so the ELSE binds to the closest IF.*/
 %precedence THEN
 %precedence ELSE ELIF
@@ -422,12 +418,14 @@ expr        : withexpr
 
 statexpr    : ifexpr
             | matchexpr
+            | handlerexpr
             | opexpr
             | returnexpr
             ;
 
 noretfunexpr: ifexpr
             | matchexpr
+            | handlerexpr
             | withexpr
             | opexpr
             ;
@@ -653,46 +651,22 @@ patarg      : identifier '=' apattern            /* named argument */
 /* ---------------------------------------------------------
 -- Handlers
 ----------------------------------------------------------*/
-withstat    : WITH noretfunexpr                /* application to anonymous fun */
-            | WITH binder '=' noretfunexpr     /* application to fun */
-            | WITH withbind                    /* bind ambient */
-            /* deprecated */
-            | HANDLER withhandle opclauses
-            /* deprecated */
-            | HANDLE withhandle '(' arguments1 ')' handlerpars opclauses
+handlerexpr : HANDLER witheff opclauses
+            | HANDLER INSTANCE witheff opclauses
+            | HANDLE witheff '(' expr ')' opclauses            
+            | HANDLE INSTANCE witheff '(' expr ')' opclauses            
             ;
 
-withexpr    : WITH withnobind IN expr          /* bind ambient */
-            | WITH withnobind      %prec WITH  /* bind as function if not followed by IN */
-            | WITH binder '=' INSTANCE witheff opclauses IN expr  /* bind instance */
-            | WITH INSTANCE witheff opclauses  /* fresh ambient as function */
-            /* deprecated */
-            | HANDLER withhandle opclauses
-            /* deprecated */
-            | HANDLE withhandle '(' arguments1 ')' /* handlerpars*/ opclauses
+withstat    : WITH noretfunexpr                
+            | WITH witheff opclauses            
+            | WITH binder '=' noretfunexpr     
+            | WITH binder '=' INSTANCE witheff opclauses            
             ;
 
-withbind    : binder '=' INSTANCE witheff opclauses
-            | withnobind
-            ;
-
-withnobind  : witheff opclauses
-            | INSTANCE witheff '(' qidentifier ')' opclauses
-            ;
-
-/* deprecated */
-withhandle  : witheff
-            /* | INSTANCE witheff '(' qidentifier ')'
-            | INSTANCE witheff
-            */
+withexpr    : withstat IN expr
             ;
 
 witheff     : '<' anntype '>'
-            | /* empty */
-            ;
-
-
-handlerpars : '(' parameters ')'
             | /* empty */
             ;
 
