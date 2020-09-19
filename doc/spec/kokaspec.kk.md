@@ -67,20 +67,15 @@ body {
   font-family: 'Nunito', 'Segoe UI', sans-serif;
 }
 
-
-Html Header   : 
-  <!-- NO_CLICK_TRACKING -->
-  <!--
-    Copyright 2012-2016 Microsoft Corporation.
-   
-    This is free software; you can redistribute it and/or modify it under the
-    terms of the Apache License, Version 2.0. A copy of the License can be
-    found in the file "license.txt" at the root of this distribution.
-  -->
+[koka-logo]: images/koka-logo.png { max-height: 120px; padding-left:1rem; }
 
 [TITLE]
 
+~ Begin FlexBody
+
 ~ Begin SidePanel
+
+![koka-logo]
 
 [TOC]
 
@@ -111,3 +106,5 @@ Html Header   :
 ~ 
 
 ~ End MainPanel
+
+~ End FlexBody

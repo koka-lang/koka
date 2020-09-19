@@ -333,20 +333,13 @@ operation   : visibility VAL identifier typeparams ':' tatomic
              
 
 /* ---------------------------------------------------------
--- Pure Declarations
+-- Pure (top-level) Declarations
 ----------------------------------------------------------*/
-puredecl    : VAL binder '=' blockexpr             { $$ = $2; }
-            | VAL inline binder '=' blockexpr      { $$ = $3; }
-            | FUN funid fundef bodyexpr            { $$ = $2; }
-            | FUN inline funid fundef bodyexpr     { $$ = $3; }
+puredecl    : inlineattr VAL binder '=' blockexpr      { $$ = $3; }
+            | inlineattr FUN funid fundef bodyexpr     { $$ = $3; }
             ;
 
 fundecl     : funid fundef bodyexpr    { $$ = $1; }
-            ;
-
-
-inline      : ID_INLINE      
-            | ID_NOINLINE
             ;
 
 binder      : identifier                    { $$ = $1; }

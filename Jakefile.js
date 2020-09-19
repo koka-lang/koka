@@ -221,6 +221,7 @@ task("spec", ["compiler"], function(mode) {
   var outspec   = path.join(outspecx,"js");
   var outstyles = path.join(outspec,"styles");
   var outscripts = path.join(outspec,"scripts");
+  var outimages = path.join(outspec,"images");
   var specdir   = path.join("doc","spec");
   var docflags  = "--htmlcss=styles/madoko.css;styles/koka.css " + ((mode === "publish") ? "--htmlbases=" + docsite + " " : "");
   var cmd = mainExe + " -c -l --outdir=" + outspecx + " -i" + specdir + " --html " + docflags + kokaFlags + " ";
@@ -231,7 +232,9 @@ task("spec", ["compiler"], function(mode) {
       // copy style files
       jake.mkdirP(outstyles);
       jake.mkdirP(outscripts);
+      jake.mkdirP(outimages);
       jake.cpR(path.join("doc","koka.css"),outstyles);
+      jake.cpR(path.join("doc","logo","koka-logo.png"),outimages);
       var files = new jake.FileList().include(path.join(specdir,"styles/*.css"))
                                      .include(path.join(specdir,"styles/*.mdk"))
                                      .toArray();

@@ -24,7 +24,7 @@
   }
 }
 
-@media (max-width: 1022px) {
+@media (max-device-width: 1022px) {
   body {
     font-size: 160%;
   }
