@@ -1,8 +1,6 @@
 
 <!DOCTYPE html>
 <html>
-<!-- NO_CLICK_TRACKING -->
-
 <head>
 <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
 
@@ -10,21 +8,22 @@
 <link rel="stylesheet" type="text/css" href="styles/madoko.css" />
 <link rel="stylesheet" type="text/css" href="styles/koka.css" />
 
-<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Noto+Serif:400,400italic,700,700italic" />
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Nunito:400,400italic,700,700italic" />
 <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic" />
 
 <title>std/num/random documentation</title>
 </head>
 
-<body class="koka doc body"><div class="madoko">
+<body class="koka doc body madoko">
 <h1><a class="link" href="https://koka-lang.github.io/koka/doc/std_num_random-source.html"><span class="mo">std<span class="fslash">/</span>num<span class="fslash">/</span>random</span></a><a class="link" href="toc.html"><span class="toc-link">&#x25b2;toc</span></a></h1>
-<div class="toc code"><ul class="toc"><li><a class="link" href="#type_space_random"><span class="kw">type</span>&nbsp;<span class="tp">random</span></a>
+<div class="toc code"><ul class="toc"><li><a class="link" href="#type_space_random"><span class="kw">effect</span>&nbsp;<span class="tp">random</span></a>
 </li><li>&nbsp;</li><li><a class="link" href="#choose"><span class="kw">fun</span>&nbsp;choose</a></li><li><a class="link" href="#pseudo_random"><span class="kw">fun</span>&nbsp;pseudo<span class="dash">-</span>random</a></li><li><a class="link" href="#random_bool"><span class="kw">fun</span>&nbsp;random<span class="dash">-</span>bool</a></li><li><a class="link" href="#random_double"><span class="kw">fun</span>&nbsp;random<span class="dash">-</span>double</a></li><li><a class="link" href="#random_int"><span class="kw">fun</span>&nbsp;random<span class="dash">-</span>int</a></li><li><a class="link" href="#random_int32"><span class="kw">fun</span>&nbsp;random<span class="dash">-</span>int32</a></li></ul><ul class="toc"><li><a class="link" href="#srandom_bool"><span class="kw">fun</span>&nbsp;srandom<span class="dash">-</span>bool</a></li><li><a class="link" href="#srandom_double"><span class="kw">fun</span>&nbsp;srandom<span class="dash">-</span>double</a></li><li><a class="link" href="#srandom_int"><span class="kw">fun</span>&nbsp;srandom<span class="dash">-</span>int</a></li><li><a class="link" href="#srandom_int32"><span class="kw">fun</span>&nbsp;srandom<span class="dash">-</span>int32</a></li><li><a class="link" href="#srandom_strong_ques_"><span class="kw">fun</span>&nbsp;srandom<span class="dash">-</span>strong?</a></li><li><a class="link" href="#strong_random"><span class="kw">fun</span>&nbsp;strong<span class="dash">-</span>random</a></li></ul></div>
 <div class="doc koka comment">
 
-<p class="p noindent"> Random numbers.
+<p class="p noindent"><h1 class="synopsis">Random numbers.
+</h1>.
 </p></div>
-<div class="decl" id="type_space_random"><div class="header code"><span class="def"><span class="kw">type</span>&nbsp;<span class="tp"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_num_random-source.html#type_space_random"><span class="tp">random</span><span class="pc"><span class="mo">std<span class="fslash">/</span>num<span class="fslash">/</span>random<span class="fslash last">/</span></span>random: <span class="tp">HX</span></span></a></span></span><span class="tp"></span></div><div class="doc koka comment">
+<div class="decl" id="type_space_random"><div class="header code"><span class="def"><span class="kw">effect</span>&nbsp;<span class="tp"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_num_random-source.html#type_space_random"><span class="tp">random</span><span class="pc"><span class="mo">std<span class="fslash">/</span>num<span class="fslash">/</span>random<span class="fslash last">/</span></span>random: <span class="tp">HX</span></span></a></span></span><span class="tp"></span></div><div class="doc koka comment">
 
 <p class="p noindent">   <code class="koka"><a class="pp" href="#type_space_random"><span class="tp">random</span><span class="pc"><span class="mo">std<span class="fslash">/</span>num<span class="fslash">/</span>random<span class="fslash last">/</span></span>random: <span class="tp">HX</span></span></a></code> effect.
 </p></div></div>
@@ -86,7 +85,7 @@
    numbers are indeed based on a strong random source.
 </p></div></div>
 <div class="decl" id="-private-imports"><div class="header code"><span class="def"><span class="kw">private import</span>&nbsp;<span class="code"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types</span></span></a></span>, <span class="code"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_hnd.html"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>hnd</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>hnd</span></span></a></span>, <span class="code"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html"><span class="mo">std<span class="fslash">/</span>core</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core</span></span></a></span>, <span class="code"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_num_int32.html"><span class="mo">std<span class="fslash">/</span>num<span class="fslash">/</span>int32</span><span class="pc"><span class="mo">std<span class="fslash">/</span>num<span class="fslash">/</span>int32</span></span></a></span>, <span class="code"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_text_parse.html"><span class="mo">std<span class="fslash">/</span>text<span class="fslash">/</span>parse</span><span class="pc"><span class="mo">std<span class="fslash">/</span>text<span class="fslash">/</span>parse</span></span></a></span>, <span class="code"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_num_double.html"><span class="mo">std<span class="fslash">/</span>num<span class="fslash">/</span>double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>num<span class="fslash">/</span>double</span></span></a></span></span></div></div>
-</div></body>
+</body>
 </html>
 
 <span data-line=""></span>

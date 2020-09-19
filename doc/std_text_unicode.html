@@ -1,8 +1,6 @@
 
 <!DOCTYPE html>
 <html>
-<!-- NO_CLICK_TRACKING -->
-
 <head>
 <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
 
@@ -10,20 +8,20 @@
 <link rel="stylesheet" type="text/css" href="styles/madoko.css" />
 <link rel="stylesheet" type="text/css" href="styles/koka.css" />
 
-<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Noto+Serif:400,400italic,700,700italic" />
+<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Nunito:400,400italic,700,700italic" />
 <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic" />
 
 <title>std/text/unicode documentation</title>
 </head>
 
-<body class="koka doc body"><div class="madoko">
+<body class="koka doc body madoko">
 <h1><a class="link" href="https://koka-lang.github.io/koka/doc/std_text_unicode-source.html"><span class="mo">std<span class="fslash">/</span>text<span class="fslash">/</span>unicode</span></a><a class="link" href="toc.html"><span class="toc-link">&#x25b2;toc</span></a></h1>
 <div class="toc code"><ul class="toc"><li><a class="link" href="#type_space_grapheme"><span class="kw">alias</span>&nbsp;<span class="tp">grapheme</span></a>
 </li><li><a class="link" href="#type_space_normalization"><span class="kw">type</span>&nbsp;<span class="tp">normalization</span></a>
 </li><li class="nested"><a class="link" href="#con_space_NFC"><span class="kw">con</span>&nbsp;<span class="co">NFC</span></a></li><li class="nested"><a class="link" href="#con_space_NFD"><span class="kw">con</span>&nbsp;<span class="co">NFD</span></a></li><li class="nested"><a class="link" href="#con_space_NFKC"><span class="kw">con</span>&nbsp;<span class="co">NFKC</span></a></li><li class="nested"><a class="link" href="#con_space_NFKD"><span class="kw">con</span>&nbsp;<span class="co">NFKD</span></a></li><li class="nested"><a class="link" href="#nfc_ques_"><span class="kw">fun</span>&nbsp;nfc?</a></li><li class="nested"><a class="link" href="#nfd_ques_"><span class="kw">fun</span>&nbsp;nfd?</a></li><li class="nested"><a class="link" href="#nfkc_ques_"><span class="kw">fun</span>&nbsp;nfkc?</a></li></ul><ul class="toc"><li class="nested"><a class="link" href="#nfkd_ques_"><span class="kw">fun</span>&nbsp;nfkd?</a></li><li>&nbsp;</li><li><a class="link" href="#combining_ques_"><span class="kw">fun</span>&nbsp;combining?</a></li><li><a class="link" href="#graphemes"><span class="kw">fun</span>&nbsp;graphemes</a></li><li><a class="link" href="#normalize"><span class="kw">fun</span>&nbsp;normalize</a></li><li><a class="link" href="#width"><span class="kw">fun</span>&nbsp;width</a></li><li><a class="link" href="#width_1"><span class="kw">fun</span>&nbsp;width</a></li></ul></div>
 <div class="doc koka comment">
 
-<p class="p noindent"> Basic unicode support.
+<p class="p noindent"><h1 class="synopsis">Basic unicode support.</h1>.
 </p></div>
 <div class="decl" id="type_space_grapheme"><div class="header code"><span class="def"><span class="kw">alias</span>&nbsp;<span class="tp"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_text_unicode-source.html#type_space_grapheme"><span class="tp">grapheme</span><span class="pc"><span class="mo">std<span class="fslash">/</span>text<span class="fslash">/</span>unicode<span class="fslash last">/</span></span>grapheme: <span class="tp">V</span></span></a></span></span><span class="tp"></span>&nbsp;<span class="kw">=</span>&nbsp;<a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a></div><div class="doc koka comment">
 
@@ -83,7 +81,7 @@
 <p class="p noindent">   Return the total column-width of a string.
 </p></div></div>
 <div class="decl" id="-private-imports"><div class="header code"><span class="def"><span class="kw">private import</span>&nbsp;<span class="code"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types</span></span></a></span>, <span class="code"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_hnd.html"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>hnd</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>hnd</span></span></a></span>, <span class="code"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html"><span class="mo">std<span class="fslash">/</span>core</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core</span></span></a></span></span></div></div>
-</div></body>
+</body>
 </html>
 
 <span data-line=""></span>

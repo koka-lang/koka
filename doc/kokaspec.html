@@ -304,22 +304,25 @@
   @import url('https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic');
   @import url('https://fonts.googleapis.com/css?family=Roboto+Slab:300,400,700');
   body.madoko,body.koka,.serif,.sans-serif,.comment {
-    font-family: 'Nunito','Cambria', "Times New Roman", "Liberation Serif", "Times", serif;
+    font-family: 'Nunito', 'Calibri', serif;
     font-size  : 110%;
   }
   .sans-serif { 
-    font-family: 'Nunito', 'Segoe UI', 'DejaVu Sans', sans-serif;
+    font-family: 'Nunito', 'Segoe UI', 'Calibri', sans-serif;
   }
   .sans-section { 
-    font-family: 'Nunito', 'Century Gothic', 'Apple Gothic', 'Optima', 'URW Gothic L',  sans-serif; 
+    font-family: 'Nunito', 'Century Gothic', 'Apple Gothic',  sans-serif; 
+  }
+  pre.koka, code.koka, .koka.doc .header {
+    background-color: #e4e0e0;
   }
   @media screen {
     body.madoko,body.koka {
       max-width  : 62em;
       margin     : 1em auto;
       padding    : 0em 1em 45em 1em; 
-      line-height: 1.4;
-      background-color: #fbf8f8;
+      line-height: 1.45;
+      background-color: #f4f0f0;
     }
     .koka.doc p {
       text-align: left;
@@ -328,7 +331,7 @@
   @media screen and (max-device-width: 1022px) {
     body.madoko,body.koka {
       padding: 0em 0.5em 40em 0.5em;
-      margin: 0pt;
+      margin: 1em;
     }
   }
   @media print {
@@ -350,7 +353,10 @@
     color: black;
   }
   h1 { 
-    font-size: 175%; 
+    font-size: 150%; 
+  }
+  h1.mo, h1 .mo, h1 .toc-link {
+    color: inherit !important;
   }
   .koka.source,
   .koka.codeblock,
@@ -358,16 +364,17 @@
   code, code.koka, .koka .code, .madoko code,
   pre, pre.koka, .madoko pre,
   .monospace { 
-    font-family: "Roboto Mono", Consolas, "Andale Mono WT", "Andale Mono", Lucida Console, Monaco, monospace,monospace;
+    font-family: "Roboto Mono", Consolas, "Menlo", "Andale Mono", Lucida Console, Monaco, monospace,monospace;
   }
-  code, code.koka, .koka .code, .madoko code 
-  { 
-    font-size: 0.9em;
-    border-radius: 3px;
+  .koka .code {   
+    font-size: 0.9em;        
+  }
+  code, code.koka, .koka .code, .madoko code { 
+    border-radius: 4px;
     padding: 0pt 0.2ex;
   }
   pre code code, .madoko pre code code {
-    font-size: 1em;
+    xfont-size: 1em;
   }
   .koka.codeblock,
   .koka.preblock { 
@@ -403,14 +410,11 @@
   .koka.pre, pre { 
     white-space: pre-wrap 
   }
-  pre.koka.source, code.koka, .koka.doc .header {
-    background-color: #EAE8E8;
-  }
   pre.koka.source {
     border: 1px solid gray;
   }
   .madoko pre.koka.source {
-    font-size: 0.9em;
+    xfont-size: 0.9em;
   }
   .koka.doc .comment p {
     margin: 0pt;
@@ -502,7 +506,7 @@
         { font-weight: normal
         }
   .koka .toc-link 
-        { font-size: 12pt
+        { font-size: 0.75em
         ; float: right
         ; color: navy
         }
@@ -533,6 +537,11 @@
         ; border: 1px solid #AAA
         ; border-width: 1px 0px 0px 1px
         }
+  .koka.doc .synopsis {
+    font-size: 1.5em;
+    margin-top: -0.5em;
+    margin-bottom: 0.25em;
+  }  
   div.nested { 
     margin: 1.25em 0em 1.25em 1em 
   }
@@ -549,7 +558,7 @@
         ; margin: 0em
         ; float: left;
         ; clear: none;
-        ; padding: 0.5ex 1.5ex 1ex 0.5ex
+        ; padding: 0.5ex 2em 1ex 0.5ex
         ; white-space: nowrap
         ; border-bottom: 1px solid #AAA
         }
@@ -564,19 +573,22 @@
     margin: 1em 0em;
     padding: 1em 0em;
   }
+  .koka table.index {
+    border: 1px solid #AAA;
+  }
   .koka.doc table.index td {
     vertical-align: top;
-    padding-right: 1.5em;
+    padding-right: 2.5em;
     padding-bottom: 0.5ex;
   }
   .koka.doc table.index .nested1 {
-    margin-left: 1.5ex;
+    margin-left: 2em;
   }
   .koka.doc table.index .nested2 {
-    margin-left: 2.75ex;
+    margin-left: 3em;
   }
   .koka.doc table.index .nested3 {
-    margin-left: 4ex;
+    margin-left: 4em;
   }
   
     </style>
@@ -591,7 +603,7 @@
   code, .madoko code,
   pre, .madoko pre,
   .koka.source.unchecked {
-    background-color: #EDEBEB;
+    background-color: #EAE8E8;
   }
   pre, .madoko pre,
   .koka.source,
@@ -1743,7 +1755,7 @@ fun fib2(n)
 
 
 <p class="p noindent">The <code class="koka"><span class="kw">var</span></code> declaration declares a variable that can be assigned too using the
-<code class="koka"><span class="op">((:=))</span></code> operator. In contrast, a regular equality sign, as in <code class="koka">y0 <span class="kw">=</span> y</code>
+<code class="koka"><span class="op">(:=)</span></code> operator. In contrast, a regular equality sign, as in <code class="koka">y0 <span class="kw">=</span> y</code>
 introduces an immutable value <code class="koka">y0</code>. For clarity, one can actually write <code class="koka"><span class="kw">val</span> y0 <span class="kw">=</span> y</code>
 for such declaration too but we usually leave out the <code class="koka"><span class="kw">val</span></code> keyword.
 </p>
