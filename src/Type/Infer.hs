@@ -855,8 +855,9 @@ inferHandler :: Maybe (Type,Range) -> Expect -> HandlerSort (Expr Type) -> Handl
                       -> Maybe Effect
                       -> [ValueBinder (Maybe Type) ()] -> Maybe (Expr Type) -> Maybe (Expr Type) -> Maybe (Expr Type)
                       -> [HandlerBranch Type] -> Range -> Range -> Inf (Type,Effect,Core.Expr)
+-- just a return clause
 inferHandler propagated expect handlerSort handlerScoped
-             mbEffect localPars initially ret finally [] hrng rng
+             mbEffect localPars Nothing ret Nothing [] hrng rng             
   = do let retExpr = case ret of
                        Nothing -> Var nameIdentity False hrng
                        Just expr -> expr
@@ -864,6 +865,7 @@ inferHandler propagated expect handlerSort handlerScoped
            handlerExpr= Lam [ValueBinder (newHiddenName "action") Nothing Nothing rng rng] handleExpr hrng
        inferExpr propagated expect handlerExpr
 
+-- Regular handler
 inferHandler propagated expect handlerSort handlerScoped
              mbEffect (_:localPars) initially ret finally branches hrng rng
   = do contextError hrng rng (text "Type.Infer.inferHandler: TODO: not supporting local parameters") []
@@ -910,12 +912,29 @@ inferHandler propagated expect handlerSort handlerScoped
                           Nothing -> let argName = (newHiddenName "x")
                                      in Lam [ValueBinder argName Nothing Nothing rng rng] (Var argName False rng) hrng -- don't pass `id` as it needs to be opened
                           Just expr -> expr
-           handleExpr = App (Var handleName False rng) [(Nothing,handlerCon),(Nothing,handleRet),(Nothing,Var (newHiddenName "action") False rng)] hrng
-           handlerExpr= Lam [ValueBinder (newHiddenName "action") Nothing Nothing rng rng] handleExpr hrng
+           handleExpr action = App (Var handleName False rng) [(Nothing,handlerCon),(Nothing,handleRet),(Nothing,action)] hrng
+           handlerExpr= Lam [ValueBinder (newHiddenName "action") Nothing Nothing rng rng]
+                            (handleExpr (Var (newHiddenName "action") False rng)) hrng
 
        -- and check the handle expression
-       inferExpr propagated expect handlerExpr
+       hres@(htp,_,_) <- inferExpr propagated expect handlerExpr
+       
+       -- insert a mask<local> over the action?
+       case splitFunScheme(htp) of
+         Just ([],[],[(_,TFun [] actionEff actionResTp)],heff,hresTp) | containsLocalEffect heff
+           -> do -- traceDoc $ \penv -> text "handler: found local:" <+> ppType penv htp
+                 hp <- Op.freshTVar kindHeap Meta
+                 let maskExpr = Lam [] (Inject (TApp typeLocal [hp]) (Var (newHiddenName "action") False rng) False hrng) hrng
+                     handlerExprMask = Lam [ValueBinder (newHiddenName "action") Nothing Nothing rng rng] 
+                                         (handleExpr maskExpr) hrng
+                 inferExpr propagated expect handlerExprMask  -- and re-infer :-)                                         
+         _ -> do -- traceDoc $ \penv -> text "handler: no local " <+> ppType penv htp
+                 return hres
 
+containsLocalEffect eff
+  = let (ls,tl) = extractOrderedEffect eff
+    in not (null (filter (\l -> labelName l == nameTpLocal) ls))
+         
 
 {-
   = do -- analyze propagated type

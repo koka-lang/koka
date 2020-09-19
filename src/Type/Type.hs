@@ -43,7 +43,7 @@ module Type.Type (-- * Types
                   , typeDivergent, typeTotal, typePartial
                   , typeList, typeVector, typeApp, typeRef, typeNull, typeOptional, typeMakeTuple
                   , isOptional, makeOptional, unOptional
-                  , typeReuse
+                  , typeReuse, typeLocal
 
                   --, handledToLabel
                   , tconHandled, tconHandled1
@@ -568,6 +568,10 @@ labelNameEx tp
 typePartial :: Type
 typePartial
   = TApp tconHandled [TCon (TypeCon nameTpPartial kindHandled)]
+
+typeLocal :: Type
+typeLocal
+  = TCon (TypeCon nameTpLocal kindLocal)
 
 
 typeCps :: Type

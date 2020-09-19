@@ -22,24 +22,12 @@ fun foo() : <amb,state<int>> bool {
 }         
 
 fun state( init, action ) {
-  var s := init    
+  var s : int := init   
   with {
     return(x)  { (x,s) }
     fun get()  { s }
     fun set(i) { s := i }
   }
-  with mask<local>
-  action()
-}
-
-fun statex( init, action ) {
-  var s := init    
-  with {    
-    return(x)  { (x,s) }
-    fun get()  { s }
-    fun set(i) { s := i }
-  }
-  with mask<local>
   action()
 }
 

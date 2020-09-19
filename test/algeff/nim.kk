@@ -210,9 +210,9 @@ val state-param = handler(s) {
 
 fun state(init,action) {
   var s := init
-  handle({mask<local>(action)}) {
-    get()  -> resume(s)
-    put(x) -> { s := x; resume(()) }
+  handle(action) {
+    fun get()  { s }
+    fun put(x) { s := x }
   }
 }
 

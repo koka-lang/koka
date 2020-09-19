@@ -85,9 +85,9 @@ val state-param = handler(s) {
 }
 */
 
-fun statex(init, action) {
+fun state_old_style(init, action) {
   var s := init
-  handle({mask<local>(action)}) {
+  handle(action) {
     return x -> (x,s)
     get()    -> { resume(s) }
     put(x)   -> { s := x; resume(()) }
@@ -96,11 +96,12 @@ fun statex(init, action) {
 
 fun state(init, action) {
   var s := init
-  handle({mask<local>(action)}) {
+  with {                           // with { .. }; <stats>  === (handler{...}){<stats>}
     return x   { (x,s) }
     fun get()  { s }
     fun put(x) { s := x  }
   }
+  action()
 }
 
 fun test3() {
