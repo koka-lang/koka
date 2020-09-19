@@ -52,10 +52,11 @@ void printDecl( const char* sort, const char* name );
 /* %token IDX  */ /* '[' for indexing */
 
 %token IF THEN ELSE ELIF
+%token WITH IN
 %token MATCH
 %token RARROW
 
-%token FUN FUNX VAL VAR
+%token FUN FUNX VAL VAR CONTROL
 %token TYPE COTYPE RECTYPE STRUCT
 %token ALIAS CON
 %token FORALL EXISTS SOME
@@ -70,8 +71,8 @@ void printDecl( const char* sort, const char* name );
 %token LE ASSIGN DCOLON EXTEND
 %token RETURN
 
-%token HANDLER HANDLE EFFECT MASK
-%token WITH IN CONTROL OVERRIDE
+%token HANDLER HANDLE EFFECT MASK OVERRIDE
+%token INITIALLY FINALLY
 
 %token REC IFACE INSTANCE
 
@@ -85,15 +86,7 @@ void printDecl( const char* sort, const char* name );
 %type <Id>  funid typeid modulepath binder
 %type <Id>  fundecl aliasdecl typedecl externdecl puredecl
 
-/* these are non-reserved words but have special meaning after
-   an extern or type declaration. If seen, we should 'shift' instead of reduce.
-   The following declaration make Bison prefer a shift in those situations */
-/* %nonassoc ID_NOINLINE ID_INLINE ID_INCLUDE ID_OPEN ID_LINEAR  */
-
-/* precedence declarations are in increasing order,
-   e.g. the last precedence declaration have the highest precedence.
-*/
-
+/* precedence declarations are in increasing order, i.e. the last precedence declaration has the highest precedence. */
 /* resolve s/r conflict by shifting on ELSE so the ELSE binds to the closest IF.*/
 %precedence THEN
 %precedence ELSE ELIF
@@ -243,23 +236,27 @@ externinline: ID_INLINE
 aliasdecl   : ALIAS typeid typeparams kannot '=' type     { $$ = $2; }
             ;
 
-typedecl    : typesort typeid typeparams kannot typebody              { $$ = $2; }
-            | typeattr STRUCT typeid typeparams kannot  conparams     { $$ = $3; }
-            | EFFECT typeid typeparams kannot opdecls                 { $$ = $2; }
-            | ID_LINEAR EFFECT varid typeparams kannot opdecls        { $$ = $3; } 
+typedecl    : typesort typeid typeparams kannot typebody          { $$ = $2; }
+            | typemod STRUCT typeid typeparams kannot conparams   { $$ = $3; }
+            | effectmod EFFECT varid typeparams kannot opdecls    { $$ = $3; }            
+            | effectmod EFFECT typeparams kannot operation        { $$ = "<operation>"; }
             ;
 
-typesort    : typeattr TYPE 
+typesort    : typemod TYPE 
             | ID_OPEN TYPE
             | ID_EXTEND TYPE
             | COTYPE 
             | RECTYPE
             ;
             
-typeattr    : ID_VALUE 
+typemod     : ID_VALUE 
             | ID_REFERENCE
             | /* empty */
             ;            
+            
+effectmod   : ID_LINEAR
+            | /* empty */ 
+            ;
 
 typebody    : '{' semis constructors '}'
             | /* empty */
@@ -296,20 +293,25 @@ con         : CON
             | /* empty */
             ;
 
-conparams   : '(' conpars1 ')'
-            | '(' ')'
+conparams   : '(' conpars1 ')'  /* deprecated */
+            | '{' semis sconpars '}'
+            | /* empty */
+            ;
+
+sconpars    : sconpars conpar semis1
             | /* empty */
             ;
 
 conpars1    : conpars1 ',' conpar
             | conpar
             ;
-
+            
 conpar      : paramid ':' paramtype
             | paramid ':' paramtype '=' expr
             | ':' paramtype
             | ':' paramtype '=' expr
             ;
+
 
 /* ---------------------------------------------------------
 -- Effect declarations
@@ -317,6 +319,7 @@ conpar      : paramid ':' paramtype
 
 
 opdecls     : '{' semis operations '}'
+            ;
 
 operations  : operations operation semis1
             | /* empty */
@@ -651,23 +654,27 @@ patarg      : identifier '=' apattern            /* named argument */
 /* ---------------------------------------------------------
 -- Handlers
 ----------------------------------------------------------*/
-handlerexpr : HANDLER witheff opclauses
+handlerexpr : HANDLER override witheff opclauses
+            | HANDLE override witheff '(' expr ')' opclauses            
             | HANDLER INSTANCE witheff opclauses
-            | HANDLE witheff '(' expr ')' opclauses            
             | HANDLE INSTANCE witheff '(' expr ')' opclauses            
             ;
-
-withstat    : WITH noretfunexpr                
-            | WITH witheff opclauses            
-            | WITH binder '=' noretfunexpr     
-            | WITH binder '=' INSTANCE witheff opclauses            
-            ;
-
-withexpr    : withstat IN expr
+            
+override    : OVERRIDE
+            | /* empty */
             ;
 
 witheff     : '<' anntype '>'
             | /* empty */
+            ;
+
+withstat    : WITH noretfunexpr                           
+            | WITH binder '=' noretfunexpr     
+            | WITH override witheff opclauses             /* shorthand for handler */
+            | WITH binder '=' INSTANCE witheff opclauses  /* shorthand for handler instance */        
+            ;
+
+withexpr    : withstat IN expr
             ;
 
 opclauses   : opclause
@@ -684,7 +691,9 @@ opclause    : VAL qidentifier '=' expr
             | FUN qidentifier opargs bodyexpr
             | CONTROL qidentifier opargs bodyexpr
             | RETURN '(' oparg ')' bodyexpr
-            | RETURN paramid bodyexpr
+            | RETURN paramid bodyexpr               /* deprecated */
+            | FINALLY bodyexpr
+            | INITIALLY bodyexpr
             ;
 
 opargs      : '(' opargs0 ')'

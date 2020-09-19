@@ -141,9 +141,8 @@ external                  { return EXTERN; }
   fun[\(\<]                 { yyless(3); return FUNX; }
   */
 
-function                  { return FUN; }
 fun                       { return FUN; }
-
+control                   { return CONTROL; }
 val                       { return VAL; }
 var                       { return VAR; }
 con                       { return CON; }
@@ -152,6 +151,9 @@ if                        { return IF;}
 then                      { return THEN; }
 else                      { return ELSE;}
 elif                      { return ELIF;}
+with                      { return WITH; }
+in                        { return IN; }
+
 
 match                     { return MATCH;}
 return                    { return RETURN;}
@@ -177,18 +179,17 @@ handle                    { return HANDLE; }
 handler                   { return HANDLER; }
 effect                    { return EFFECT; }
 ambient                   { return EFFECT; }
-mask                      { return MASK; }
 
-with                      { return WITH; }
-in                        { return IN; }
-control                   { return CONTROL; }
+mask                      { return MASK; }
+initially                 { return INITIALLY; }
+finally                   { return FINALLY; }
 override                  { return OVERRIDE; }
+instance                  { return INSTANCE; }
+
 
   /* unused reserved identifiers */
 rec                       { return REC; }
-
 interface                 { return IFACE; }
-instance                  { return INSTANCE; }
 
   /* reserved operators */
 :                         { return ':';    }
