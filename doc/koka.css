@@ -24,11 +24,6 @@
   }
 }
 
-@media (max-device-width: 1022px) {
-  body {
-    font-size: 160%;
-  }
-}
 
 @media print {
   body {
