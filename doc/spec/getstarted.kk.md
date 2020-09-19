@@ -1,6 +1,6 @@
 # Getting started
 
-Welcome to the Koka book. This provides an overview and
+Welcome to an tour of Koka. This provides an overview and
 formal specification of the language. 
 For more background information, see:
 
@@ -18,90 +18,150 @@ For more background information, see:
 [kokaproject]: http://research.microsoft.com/en-us/projects/koka {target='_top'}
 [rise4fun]: http://rise4fun.com/koka/tutorial
 
-
 ## Installing the compiler
 
 At this point there are no binary releases of Koka and you need to build
-the compiler yourself. Fortunately, Koka has few dependencies and builds
-without problems on most common platforms, &eg; Windows, MacOSX, and
+the compiler yourself. Fortunately, Koka has few dependencies and should build
+without problems on most common platforms, e.g. Windows (including WSL), macOS X, and
 Unix.
 
 The following programs are required to build Koka:
 
-* The [Haskell platform](http://www.haskell.org/platform) (version 7.4 or later).
-* The [NodeJS](http://nodejs.org) runtime (version 4.2 LTS or later).
-* Some version of [Git](https://help.github.com/articles/set-up-git/) for version control.
+* [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
+  (use `> curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS X)
+* [CMake](https://cmake.org/download/) to compile the generated C files.  
+  (use `> sudo apt-get install cmake` on Ubuntu, `> brew install cmake` on macOS X).
+* Optional: The [Ninja](https://ninja-build.org/) build system for faster build times.  
+  (required on Windows, use `> sudo apt-get install ninja-build` on Ubuntu, `> brew install ninja` on macOS X).
+* Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
 
-All these programs are very easy to install on most platforms.
-Now we can build Koka itself: 
+Building Koka (note the `--recursive` flag):
 
-1. First clone the Koka sources with algebraic effects support:
+    > git clone --recursive https://github.com/koka-lang/koka
+    > cd koka
+    > stack build
 
-       > git clone https://github.com/koka-lang/koka.git 
+You can also use `stack build --fast` to build a debug version of the compiler.
+You can invoke the compiler now as: (this takes a while as it needs to build the core libraries as well)
 
-   You can also use the flag ``-b dev`` to get the latest development version.
+    > stack exec koka -- -c test/algeff/common
+    compile: test/algeff/common.kk
+    loading: std/core
+    loading: std/core/types
+    loading: std/core/hnd
+    check  : test/algeff/common
+    cmake --build "out\Debug\cbuild" --target test_algeff_common
+    ...
+    [5/5] Linking C executable test_algeff_common.exe
+    compiled: out\Debug\test_algeff_common.exe
 
-2. Go to the newly created Koka directory:
+and run the resulting executable:
 
-       > cd koka
+    > out\Debug\test_algeff_common.exe
+    42
+    Hello there, there
+    hi
+    hi
+    1
+    2
+    [False,True,True,False]
+    ([False,False,True,True,False],2)
 
-3. Install any needed Node libraries using the Node package manager: 
+If you leave out the `-c` flag, Koka will execute the compiled program automatically.
+The `-O2` flag builds an optimized program. Let's try it on a functional implementation
+of balanced insertion in a red-black tree balanced ([`rbtree.kk`](test/bench/koka/rbtree.kk))
 
-       > npm install
+    > stack exec koka -- -O2 -c test/bench/koka/rbtree32.kk
+    ...
+    cmake --build "out/RelWithDebInfo/cbuild" --target test_bench_koka_rbtree32
+    [15/15] Linking C executable test_bench_koka_rbtree32
+    compiled: out/RelWithDebInfo/test_bench_koka_rbtree32
 
-   If you are running on MacOSX or Unix, you may have to run this as
-   ``sudo npm install`` so that the ``npm`` package manager has enough
-  permissions to install the ``jake`` and ``madoko`` tools.
+    > time out/RelWithDebInfo/test_bench_koka_rbtree32
+    420000
+    real    0m1.132s
 
-4. Finally, build the compiler and run the Koka interactive environment:
-       > jake
+We can compare this against an in-place updating C++ implementation using `stl::map`
+([`rbtree.cpp`](test/bench/cpp/rbtree.cpp)) (which uses the GNU
+[`RBTree`](https://sourceware.org/git/?p=glibc.git;a=blob;f=misc/tsearch.c;h=cdc401a4e5411221ab2feb2baf8745991bde7868;hb=HEAD) implementation internally):
 
-   You can type ``jake help`` to see an overview of all make targets.
+    > g++ --std=c++17 -o cpp_rbtree -O3 test/bench/cpp/rbtree.cpp
+    > time ./cpp_rbtree
+    420000
+    real    0m1.096s
+    ...
 
-The excellent [Sublime](http://www.sublimetext.com) text editor is recommended
+The close performance to C++ here is a result of [Perceus](#perceus) automatically
+tranforming the fast path of the pure functional rebalancing to use mostly in-place updates,
+closely mimicking the imperative rebalancing code of the hand optimized C++ library.
+
+Without giving any input files, the interpreter runs by default:
+
+    > stack exec koka
+
+The [Atom](https://atom.io/) text editor is recommended
 to edit Koka programs. You can install support for Koka programs using
 
-    > jake sublime
+    > jake atom
 
-After this ``.kk`` files will be properly highlighted. It is also
-recommended to use the newly installed ``snow`` color theme which is
-designed to work well with Koka files.
+(or use `jake sublime`) for the [Sublime](http://www.sublimetext.com) editor).
+If `node` is not installed, you can also copy the grammar files
+manually from the `support/atom` directory to `~/.atom/packages/language-koka`.
 
 
 ## Running the interactive compiler
 
-After running a plain ``jake`` command, the Koka interactive environment will start:
+After running the plain ``stack exec koka`` command, the Koka interactive environment will start:
 ````
-__          _
-| |        | |
-| | __ ___ | | __ __ _
-| |/ // _ \| |/ // _` | welcome to the koka interpreter
-|   <| (_) |   <| (_| | version 0.7.0-dev (debug), Jun 30 2016
-|_|\_\\___/|_|\_\\__,_| type :? for help
+ _          _           ____
+| |        | |         |__  \
+| | __ ___ | | __ __ _  __) |
+| |/ // _ \| |/ // _` || ___/ welcome to the koka interpreter
+|   <| (_) |   <| (_| ||____| version 2.0.0-alpha, Aug 23 2020, libc 64-bit
+|_|\_\\___/|_|\_\\__,_|       type :? for help
 
 loading: std/core
+loading: std/core/types
+loading: std/core/hnd
+
+>
 ````
 Now you can test some expressions:
 
     > println("hi koka")
+    loading: std/core
+    loading: std/core/types
+    loading: std/core/hnd
+    check  : interactive
+    cmake --build "out\Debug\cbuild" --target interactive
+    [2/2] Linking C executable interactive.exe
+    compiled: out\Debug\interactive.exe
+
     hi koka
 
     > :t "hi"
-    \(`:string`\)
+    string
 
     > :t println("hi")
-    \(`:console ()`\)
+    console ()
 
 Or load a demo:
 
-    > :l demo/collatz
-    compile: lib/demo/collatz.kk
-    check  : demo/collatz
+    > :l test/medium/fibonacci
+    compile: test/medium/fibonacci.kk
+    loading: std/core
+    loading: std/core/types
+    loading: std/core/hnd
+    check  : test/medium/fibonacci
     modules:
-      demo/collatz
+      test/medium/fibonacci
 
     > main()
-    Collatz(27) took 111 steps.
+    cmake --build "out/Debug/cbuild" --target interactive
+    [2/2] Linking C executable interactive
+    compiled: out/Debug/interactive
+
+    The 10000th fibonacci number is 33644764876431783266621612005107543310302148460680063906564769974680081442166662368155595513633734025582065332680836159373734790483865268263040892463056431887354544369559827491606602099884183933864652731300088830269235673613135117579297437854413752130520504347701602264758318906527890855154366159582987279682987510631200575428783453215515103870818298969791613127856265033195487140214287532698187962046936097879900350962302291026368131493195275630227837628441540360584402572114334961180023091208287046088923962328835461505776583271252546093591128203925285393434620904245248929403901706233888991085841065183173360437470737908552631764325733993712871937587746897479926305837065742830161637408969178426378624212835258112820516370298089332099905707920064367426202389783111470054074998459250360633560933883831923386783056136435351892133279732908133732642652633989763922723407882928177953580570993691049175470808931841056146322338217465637321248226383092103297701648054726243842374862411453093812206564914032751086643394517512161526545361333111314042436854805106765843493523836959653428071768775328348234345557366719731392746273629108210679280784718035329131176778924659089938635459327894523777674406192240337638674004021330343297496902028328145933418826817683893072003634795623117103101291953169794607632737589253530772552375943788434504067715555779056450443016640119462580972216729758615026968443146952034614932291105970676243268515992834709891284706740862008587135016260312071903172086094081298321581077282076353186624611278245537208532365305775956430072517744315051539600905168603220349163222640885248852433158051534849622434848299380905070483482449327453732624567755879089187190803662058009594743150052402532709746995318770724376825907419939632265984147498193609285223945039707165443156421328157688908058783183404917434556270520223564846495196112460268313970975069382648706613264507665074611512677522748621598642530711298441182622661057163515069260029861704945425047491378115154139941550671256271197133252763631939606902895650288268608362241082050562430701794976171121233066073310059947366875
 
 And quit the interpreter:
 
@@ -110,57 +170,55 @@ And quit the interpreter:
     Before the effect one believes in different causes than one does after the effect.
      -- Friedrich Nietzsche
 
-You can also run examples in the browser by setting the host:
-
-    > :set --host=browser
-    > 1+2
-
-Some browser specific demo to try is for example ``demo/dom/conway.kk``.
 
 ## Algebraic effect handlers
 
-A novel feature of Koka is a compiled and typed implementation of algebraic 
-effect handlers (described in detail in [@Leijen:algeff]).
-In the interactive environment, you can load various demo files with algebraic 
-effects which are located in the ``test/algeff`` directory. This is by default
-included in the search path, so we can load them directly using
-the _load_ (``:l``) command:
+A novel feature of Koka is a compiled and typed implementation of algebraic
+effect handlers (described in detail in [[3]](#references)).
+In the interactive environment, you can load various demo files with algebraic
+effects which are located in the ``test/algeff`` directory.
 
-    > :l scoped
+    > :f test/algeff/common
 
+where ``:f`` forces a recompile (versus ``:l`` which avoids a recompile if possible).
 Use the ``:?`` command to get an overview of all commands. After
-loading the ``scoped`` demo, we can run it directly from the interpreter:
-    
-    > :l scoped
-    compile: test/algeff/scoped.kk
-    check  : scoped
+loading the ``common`` demo, we can run it directly from the interpreter:
+
+    > :f test/algeff/common
+    loading: test/algeff/common
+    loading: std/core
+    loading: std/core/types
+    loading: std/core/hnd
     modules:
-      scoped
-    
-    > main()
-    [[3],[2,1],[1,2],[1,1,1]]
-    (state=12, [[3],[2,1],[1,2],[1,1,1]])
-    [(state=1, [3]),(state=5, [2,1]),(state=5, [1,2]),(state=9, [1,1,1])]
-    [[3]]
-    [42]
+      test/algeff/common
+
+    > :t test2    
+    () -> console ()
+
+    > test2()
+    loading: std/core
+    loading: std/core/types
+    loading: std/core/hnd
+    loading: test/algeff/common
+    check  : interactive
+    cmake --build "out/Debug/cbuild" --target interactive
+    [2/2] Linking C executable interactive
+    compiled: out/Debug/interactive
+
+    Hello there, there
 
 Some interesting demos are:
 
 * ``common.kk``: Various examples from the paper "_Algebraic Effects for
-  Functional Programming_" [@Leijen:algeff]. Shows how to implement
+  Functional Programming_" [[3]](#references). Shows how to implement
   common control-flow abstractions like exceptions, state, iterators,
   ambiguity, and asynchronous programming.
 
-* ``scoped.kk``: Various examples from the paper "_Effect handlers in
-  Scope_" [@Wu:hscope].
-
 * ``nim.kk``: Various examples from the paper "_Liberating effects with
-  rows and handlers_" [@Lindley:liberate].
+  rows and handlers_" [[1]](#references).
 
-* ``async*.kk``: Various asynchronous effect examples.
 
-* ``parser.kk``: Implements parser combinators as an effect.
-
+<!--
 ## A primer on effect handlers
 
 Another small demo is ``effs2`` that demonstrates the ambiguity
@@ -278,3 +336,6 @@ predict the outcomes of running the tests?
     
     > test3()
     \(`[False,False]`\)
+
+
+-->

@@ -3,9 +3,6 @@ Sub Title     : An Introduction and Specification of the Koka language.
 Heading Base  : 1
 Heading Depth : 4
 Toc Depth     : 4
-Css           : https://fonts.googleapis.com/css?family=Nunito:400,400italic,700,700italic
-Css           : https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic
-Css           : https://fonts.googleapis.com/css?family=Roboto+Slab:300,400,700
 Css           : styles/koka.css
 Css           : styles/kokaspec.css 
 Script        : scripts/kokaspec.js
@@ -20,10 +17,6 @@ Description   : Koka Language Specification
 ~bar          : before='|' 
 ~many         : before='{ ' after=' }'
 ~opt          : before='[ ' after=' ]'
-xlapp          : &#x2987;
-xlidx          : &#12310;
-lapp          : _lapp_
-lidx          : _lidx_
 
 toc {
   .expand-all;
@@ -59,12 +52,12 @@ h4 {
   @h1-h2-h3-h4: upper-alpha;
 }
 
-body {
-  font-family: 'Nunito','Cambria', "Times New Roman", "Liberation Serif", "Times", serif;
-}
-
 .toc, h1, h2, h3, h4, h5 {
   font-family: 'Nunito', 'Segoe UI', sans-serif;
+}
+
+li {
+  margin-bottom: 1ex;
 }
 
 [koka-logo]: images/koka-logo.png { max-height: 120px; padding-left:1rem; }

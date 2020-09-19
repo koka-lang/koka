@@ -11,12 +11,13 @@
 
 /* Text size and margins for screen & print */
 @media screen {
-  body {
-    max-width: 62em;
-    margin: 1em auto;
-    padding: 0em 1em 45em 1em; /* so a link to the end always puts the definition on top of the screen */
-    font-size: 110%;
-    line-height: 1.35;
+  body.madoko,body.koka {
+    font-family: 'Nunito','Cambria', "Times New Roman", "Liberation Serif", "Times", serif;
+    max-width  : 62em;
+    margin     : 1em auto;
+    padding    : 0em 1em 45em 1em; /* so a link to the end always puts the definition on top of the screen */
+    font-size  : 110%;
+    line-height: 1.4;
     background-color: #fcfafa;
   }
   .koka.doc p {
@@ -24,6 +25,12 @@
   }
 }
 
+@media screen and (max-device-width: 1022px) {
+  body.madoko,body.koka {
+    padding: 0em 0.5em 40em 0.5em;
+    margin: 0pt;
+  }
+}
 
 @media print {
   body {
