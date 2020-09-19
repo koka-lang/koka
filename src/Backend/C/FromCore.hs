@@ -1392,8 +1392,9 @@ genPatternTest doTest gfree (exprDoc,pattern)
 
 patternVarFree  pat
   = case pat of
-      PatWild  -> True
-      PatLit{} -> True 
+      PatWild              -> True
+      PatLit (LitFloat _)  -> True 
+      PatLit (LitChar _)   -> True
       _ -> False
 
 genNextPatterns :: (Doc -> Doc -> Doc) -> Doc -> Type -> [Pattern] -> [(Doc,Pattern)]
