@@ -9,7 +9,7 @@
 /*
 This is the main index of the standard Koka libraries.
 
-The draft language specification can be found <a href="kokaspec.html">here</a>.
+See the [Koka manual](kokaspec.html) for further information on the Koka language.
 */
 module toc
 

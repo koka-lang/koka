@@ -1,5 +1,4 @@
-Title         : A Tour of Koka
-Sub Title     : An Introduction and Specification of the Koka language.
+Title         : The Koka Manual
 Heading Base  : 1
 Heading Depth : 4
 Toc Depth     : 4

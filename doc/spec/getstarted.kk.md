@@ -1,7 +1,6 @@
 # Getting started
 
-Welcome to an tour of Koka. This provides an overview and
-formal specification of the language. 
+Welcome to Koka. This manual provides an overview and formal specification of the language. 
 For more background information, see:
 
 * The [library documentation][libraries].

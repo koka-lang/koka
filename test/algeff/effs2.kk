@@ -22,32 +22,42 @@ fun foo() : <amb,state<int>> bool {
 }         
 
 fun state( init, action ) {
-  var s := init
-  handle({mask<local>(action)}) {
+  var s := init    
+  with {
+    return(x)  { (x,s) }
     fun get()  { s }
     fun set(i) { s := i }
   }
+  with mask<local>
+  action()
 }
 
-fun amb(action) {
-  handle(action) {
-    return x -> [x]
-    flip()   -> resume(False) + resume(True)
+fun statex( init, action ) {
+  var s := init    
+  with {    
+    return(x)  { (x,s) }
+    fun get()  { s }
+    fun set(i) { s := i }
   }
+  with mask<local>
+  action()
 }
 
+val amb = with {
+  return(x)      { [x] }
+  control flip() { resume(False) + resume(True) }
+}
 
 fun test1() {
   amb(xor)
 }
 
-
 fun test2()  {
-  state(0){ amb(foo) }
+  state(0){ amb(foo) }.fst
 }
 
 fun test3()  {
-  amb{ state(0,foo) }
+  amb{ state(0,foo) }.map(fst)
 }
 
 fun main() {
