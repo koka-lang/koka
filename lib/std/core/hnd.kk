@@ -56,12 +56,17 @@ private extern fresh-marker-int() : int32 {
   js inline "$marker_unique++"
 }
 
+private extern fresh-marker-named-int() : int32 {
+  c inline "-kk_marker_unique(kk_context())"
+  js inline "-($marker_unique++)"
+}
+
 private fun fresh-marker() : marker<e,r> {
   Marker(fresh-marker-int())
 }
 
-private fun marker-none() : marker<e,r> {
-  Marker(zero32())
+private fun fresh-marker-named() : marker<e,r> {
+  Marker(fresh-marker-named-int())
 }
 
 // -------------------------------------------
@@ -303,25 +308,15 @@ public noinline fun ".hhandle"( tag:htag<h>, h : h<e,r>, ret: a -> e r, action :
   prompt(w0,w1,ev,m,ret,cast-ev0(action)())
 }
 
-//public fun ".hhandle"( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : () -> e1 a ) : e r {
-//  return hidden-handle(tag,h,ret,action);
-//}
-
-//public fun hidden-handler( tag:htag<h>, h : h<e,r>, ret: a -> e r ) : ((action : () -> e1 a ) -> e r) {
-//  (fun(action){ hidden-handle(tag,h,ret,action) })
-//}
-
 // -------------------------------------------
 // named handler
 // -------------------------------------------
 
-abstract struct hname<h>( ev : ev<h> )
-
-public fun ".named-handle"( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : ev<h> -> e a ) : e r {
-  val m = marker-none()
+public noinline fun ".named-handle"( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : ev<h> -> e a ) : e r {
+  val m = fresh-marker-named()            // unique (negative) marker, but never gets inserted into the evidence vector
   val w0 = evv-get()
   val ev = Ev(tag,m,h,w0)
-  prompt(w0,w0,ev,m,ret,action(ev)) // TODO: needs special prompt that does not insert on resume (but does update the context in ev)
+  prompt(w0,w0,ev,m,ret,action(ev))
 }
 
 // -------------------------------------------

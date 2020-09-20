@@ -71,7 +71,7 @@ import Core.Simplify( uniqueSimplify )
 import qualified Syntax.RangeMap as RM
 
 trace s x =
-  -- Lib.Trace.trace s
+  Lib.Trace.trace s
     x
 
 traceDoc fdoc = do penv <- getPrettyEnv
@@ -892,6 +892,7 @@ inferHandler propagated expect handlerSort handlerScoped
        resumeArgs <- mapM (\_ -> Op.freshTVar kindStar Meta) branches  -- TODO: get operation result types to improve inference
        
        -- construct the handler
+       traceDoc $ \penv -> text "infer handler: heff:" <+> ppType penv heff
        let isResource = isHandlerResource handlerSort
            effectName = effectNameFromLabel heff
 
@@ -904,6 +905,7 @@ inferHandler propagated expect handlerSort handlerScoped
                                              in (nameClause "control" (length pars), pars ++ [ValueBinder (newName "resume") (Just resumeTp) () nameRng patRng])
                           ResumeNormalRaw -> (nameClause "control-raw" (length pars), pars ++ [ValueBinder (newName "rcontext") Nothing () nameRng patRng])
                           _               -> failure $ "Type.Infer.inferHandler: unexpected resume kind: " ++ show rkind                  
+                 traceDoc $ \penv -> text "resolving:" <+> text (showPlain opName) <+> text ", under effect:" <+> text (showPlain effectName)
                  (_,gtp,_) <- resolveFunName (if isQualified opName then opName else qualify (qualifier effectName) opName)
                                                (CtxFunArgs (length pars) []) patRng nameRng -- todo: resolve more specific with known types?
                  (tp,_,_)  <- instantiate nameRng gtp 

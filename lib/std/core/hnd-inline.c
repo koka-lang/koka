@@ -39,7 +39,7 @@ struct kk_std_core_hnd__ev_s* kk_ev_none(kk_context_t* ctx) {
     ev_none_singleton = kk_std_core_hnd__new_Ev(
       kk_reuse_null,
       kk_std_core_hnd__new_Htag(kk_string_empty(),ctx), // tag ""
-      kk_std_core_hnd__new_Marker(-1,ctx),              // marker -1
+      kk_std_core_hnd__new_Marker(0,ctx),              // marker 0
       kk_box_null,                                      // no handler
       kk_vector_empty(),
       ctx
@@ -73,13 +73,16 @@ kk_std_core_hnd__ev kk_evv_lookup( struct kk_std_core_hnd_Htag htag, kk_context_
 
 kk_evv_t kk_evv_insert(kk_evv_t evvd, kk_std_core_hnd__ev evd, kk_context_t* ctx) {
   struct kk_std_core_hnd_Ev* ev = kk_std_core_hnd__as_Ev(evd);
-  // update ev
+  // update ev with parent evidence vector (either at init, or due to non-scoped resumptions)
   int32_t marker = ev->_field2.m;
-  if (marker < 0) { kk_basetype_drop(evd,ctx); return evvd; } // ev-none 
+  if (marker==0) { kk_basetype_drop(evd,ctx); return evvd; } // ev-none
   kk_evv_drop(ev->_field4,ctx);
   ev->_field4 = kk_datatype_dup(evvd);
-  if (marker==0) { kk_basetype_drop(evd,ctx); return evvd; } // zero marker means this evidence should not be inserted into the evidence vector
-  // insert ev
+  if (marker<0) { // negative marker is used for named evidence; this means this evidence should not be inserted into the evidence vector
+    kk_basetype_drop(evd,ctx); 
+    return evvd; 
+  } 
+  // for regular handler evidence, insert ev
   size_t n;
   kk_box_t single;
   const kk_box_t* evv1 = kk_evv_as_vec(evvd, &n, &single);

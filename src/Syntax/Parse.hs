@@ -832,12 +832,21 @@ makeEffectDecl decl =
       docEffect  = "`:" ++ show id ++ "` effect"
       docx       = (if (doc/="") then doc else "// " ++ docEffect)
 
-      effTpDecl  = if isResource
-                    then Synonym  ename tpars (makeTpApp (TpCon nameTpEv rng) [makeTpApp (tpCon hndTpName) (map tpVar tpars) rng] rng) rng vis docx
+      (effTpDecl,wrapAction)  
+                = if isResource
+                    then -- Synonym ename tpars (makeTpApp (TpCon nameTpEv rng) [makeTpApp (tpCon hndTpName) (map tpVar tpars) rng] rng) rng vis docx
+                         let evTp  = makeTpApp (TpCon nameTpEv rng) [makeTpApp (tpCon hndTpName) (map tpVar tpars) rng] rng
+                             evName  = newName "ev"
+                             evFld = ValueBinder evName evTp Nothing irng rng
+                             evCon = UserCon (toConstructorName id) [] [(Private,evFld)] Nothing irng rng Private ""
+                         in (DataType ename tpars [evCon] rng vis Inductive (DataDefValue 0 0) False docx
+                            ,(\action -> Lam [ValueBinder evName Nothing Nothing irng rng] 
+                                                  (App (action) [(Nothing,App (Var (toConstructorName id) False rng) [(Nothing,Var evName False rng)] rng)] rng) 
+                                                  rng))
                     else let -- add a private constructor that refers to the handler type to get a proper recursion check
                              hndfld = ValueBinder nameNil hndTp Nothing irng rng
                              hndcon = UserCon (toConstructorName id) [hndEffTp,hndResTp] [(Private,hndfld)] Nothing irng rng Private ""
-                         in DataType ename tpars [hndcon] rng vis Inductive DataDefNormal False docx
+                         in (DataType ename tpars [hndcon] rng vis Inductive DataDefNormal False docx, \action -> action)
 
       -- declare the effect handler type
       kindEffect = KindCon nameKindEffect irng
@@ -870,7 +879,7 @@ makeEffectDecl decl =
       -- parse the operations and return the constructor fields and function definitions
       opCount = length operations
       (opFields,opSelects,opDefs,opValDefs)
-          = unzip4 $ map (operationDecl opCount vis tpars docEffect hndName mbResource effTp (tpCon hndTpName)
+          = unzip4 $ map (operationDecl opCount vis tpars docEffect hndName id mbResource effTp (tpCon hndTpName)
                                                  ([hndEffTp,hndResTp]) extraEffects)
                                                  (zip [0..opCount-1] (sortBy cmpName operations))
       cmpName op1 op2 = compare (getOpName op1) (getOpName op2)
@@ -904,7 +913,7 @@ makeEffectDecl decl =
       arguments  = [(Nothing, Var tagName False irng),
                     (Nothing, Var (newName "hnd") False irng),
                     (Nothing, Var (newName "ret") False irng),
-                    (Nothing, Var (newName "action") False irng)]
+                    (Nothing, wrapAction (Var (newName "action") False irng))]
       handleDef  =  Def (ValueBinder handleName () handleBody irng rng)
                         rng vis (DefFun) InlineNever ("// handler for the " ++ docEffect)
 
@@ -962,9 +971,9 @@ parseFunOpDecl vis =
 
 
 -- smart constructor for operations
-operationDecl :: Int -> Visibility -> [UserTypeBinder] -> String -> Name -> Maybe UserType -> UserType -> UserType -> [UserTypeBinder] ->
+operationDecl :: Int -> Visibility -> [UserTypeBinder] -> String -> Name -> Name -> Maybe UserType -> UserType -> UserType -> [UserTypeBinder] ->
              [UserType] -> (Int,OpDecl) -> (ValueBinder UserType (Maybe UserExpr), UserDef, UserDef, Maybe UserDef)
-operationDecl opCount vis foralls docEffect hndName mbResource effTp hndTp hndTpVars extraEffects (opIndex,op)
+operationDecl opCount vis foralls docEffect hndName effName mbResource effTp hndTp hndTpVars extraEffects (opIndex,op)
   = let -- teff     = makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
            OpDecl (doc,id,idrng,linear,exists0,pars,prng,mbteff,tres) = op
            opEffTp  = case mbResource of
@@ -1053,7 +1062,12 @@ operationDecl opCount vis foralls docEffect hndName mbResource effTp hndTp hndTp
                         innerBody
                           = App perform (
                                [(Nothing, if isResource
-                                           then Var resourceName False nameRng
+                                           then Case (Var resourceName False nameRng)
+                                                 [Branch (PatCon (toConstructorName effName) 
+                                                                 [(Nothing,PatVar (ValueBinder (newName "ev") Nothing (PatWild nameRng) nameRng rng))]
+                                                                 nameRng rng) 
+                                                         [Guard guardTrue (Var (newName "ev") False nameRng)]
+                                                 ] rng
                                            else App (Var nameEvvAt False nameRng) [(Nothing,zeroIdx)] nameRng),
                                 (Nothing, Var selectId False nameRng)]
                                ++ arguments) rng
