@@ -1227,7 +1227,8 @@ block
                                 in Bind (Def (ValueBinder (newName "_") () e r r) r Private DefVal InlineAuto "") exp r
     combine (StatVar def) exp = let (ValueBinder name () expr nameRng rng) = defBinder def
                                 in  App (Var nameLocal False rng)
-                                        [(Nothing, expr),
+                                        -- put in dummy annotation to make it the first argument to infer (so it can be propagated)
+                                        [(Nothing, Ann expr (promoteType (TpVar (newName "_") rng)) rng), 
                                          (Nothing,Lam [ValueBinder name Nothing Nothing nameRng nameRng] exp (combineRanged def exp))]
                                          (defRange def)
 
@@ -1252,7 +1253,11 @@ statement
        return (StatVar var) -- (StatFun (\body -> Bind var body (combineRanged var body)))
   <|>
     do f <- withstat
-       return (StatFun f)
+       (do keyword "in"
+           e <- blockexpr
+           return (StatExpr (f e))
+        <|> 
+           return (StatFun f))
   <|>
     do exp <- basicexpr <|> returnexpr
        return (StatExpr exp)
@@ -1378,8 +1383,8 @@ basicexpr
 withexpr :: LexParser UserExpr
 withexpr
   = do f <- withstat
-       keyword "IN"
-       e <- expr
+       keyword "in"
+       e <- blockexpr
        return (f e)
 
 bfunexpr

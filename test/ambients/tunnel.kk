@@ -67,7 +67,7 @@ possible to reverse this behaviour and use it by default, with an `unmask` if
 we want the other behaviour? This would mimic the tunneling solution.
 
 Note 2: In contrast as claimed in the paper, Reynold's parametricity *does* hold as
-both functions have a differend type.
+both functions have a different type.
 */
 fun fiterate(t,f) {
   match(t) {

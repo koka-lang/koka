@@ -3,7 +3,8 @@
 // --------------------------------------------------------
 // public module common
 
-import std/os/readline
+// import std/os/readline
+import std/num/random
 
 // --------------------------------------------------------
 //  Exceptions
@@ -69,11 +70,13 @@ fun counter() {
 }
 
 // using parameterized state
+/*
 val state-param = handler(s) {
   return x -> (x,s)
   get()    -> resume(s,s)
   put(s')  -> resume((),s')
 }
+*/
 
 // using builtin local variables
 fun state(init, action) {
@@ -136,9 +139,9 @@ fun xor() : flip bool {
   (p||q) && not(p&&q)
 }
 
-val coinflip = with fun flip() { random-bool() }
+val coinflip = handler { fun flip() { srandom-bool() } }
 
-val amb = with {
+val amb = handler {
   return x      { [x] }
   control flip() { resume(False) + resume(True) }
 }
@@ -171,6 +174,7 @@ fun test7() {
 // --------------------------------------------------------
 //  An asynchronous effect
 // --------------------------------------------------------
+/*
 fun ask-age() {
   println("what is your name?")
   val name = readline()           // asynchronous!
@@ -187,11 +191,11 @@ fun ask-age-err() {
     raise("ouch!")
     println("hello " + name)
   }
-  fun(err) {
+  fn(err) {
     println("error: " + err )
   }
 }
-
+*/
 
 // --------------------------------------------------------
 //  Testing

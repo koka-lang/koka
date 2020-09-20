@@ -9,7 +9,7 @@
 ambient<s> val get : s
 ambient<s> control set(x : s) : ()
 
-fun local( init, action ) { // : (a,() -> <set<a>,get<a>|e> b) -> e b
+fun xlocal( init, action ) { // : (a,() -> <set<a>,get<a>|e> b) -> e b
   with val get = init
   with control set(x){
     mask<get> {
@@ -37,14 +37,14 @@ fun printn() {
 }
 
 fun test1() {
-  with local(5)
+  with xlocal(5)
   printn()
 }
 
 fun test2() : int {
   // this tests if the inject behind is working correctly:
   with val get = 41
-  with local(0)
+  with xlocal(0)
   set(get + 1)
   (0 + get + mask<get>{get})  // = 42!
 }
@@ -56,7 +56,7 @@ fun local-closed1( init : s, action : () -> <get<s>,get<s>,set<s>> a ) : <get<s>
   with val get = init
   with control set(x) {
     with val get = x
-    fun k() : <get<_>,get<_>> _ { resume(()) } // help type inference... :-(
+    fun k(){ resume(()) } 
     k()
   }
   action()
@@ -66,7 +66,7 @@ fun local-closed2( init : s, action : () -> <get<s>,set<s>> a ) : <> a {
   with val get = init
   with control set(x) {
     with val get = x
-    fun k() : <get<_>> _ { resume(()) }  // help type inference ... :-(
+    fun k(){ resume(()) } 
     k()
   }
   action()

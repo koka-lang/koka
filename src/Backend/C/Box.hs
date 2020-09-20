@@ -248,7 +248,7 @@ boxBindExprAsValue :: Type -> Type -> Expr -> (Expr -> Unique Expr) -> Unique Ex
 boxBindExprAsValue fromTp toTp expr action  | isTotal expr
   = action expr
 boxBindExprAsValue fromTp toTp expr action
-  = trace ("box coerce with yield extension: " ++ show expr) $
+  = -- trace ("box coerce with yield extension: " ++ show expr) $
     do v    <- uniqueTName "bv" fromTp
        body <- action (Var v InfoNone)
        return (Let [DefNonRec (makeTDef v expr)] body)

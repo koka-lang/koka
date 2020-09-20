@@ -91,8 +91,6 @@ void printDecl( const char* sort, const char* name );
 %precedence THEN
 %precedence ELSE ELIF
 
-
-
 %%
 
 /* ---------------------------------------------------------
@@ -399,7 +397,8 @@ statements1 : statements1 statement semis1
             ;
 
 statement   : decl
-            | withstat            
+            | withstat    
+            | withstat IN blockexpr        
             | returnexpr 
             | basicexpr  
             ;
@@ -673,13 +672,13 @@ witheff     : '<' anntype '>'
             | /* empty */
             ;
 
-withstat    : WITH basicexpr                             
+withstat    : WITH basicexpr
             | WITH binder '=' basicexpr                  
-            | WITH override witheff opclauses            /* shorthand for handler */
-            | WITH binder '=' INSTANCE witheff opclauses /* shorthand for handler instance */        
+            | WITH override witheff opclauses             /* shorthand for handler */
+            | WITH binder '=' INSTANCE witheff opclauses  /* shorthand for handler instance */ 
             ;
 
-withexpr    : withstat IN expr 
+withexpr    : withstat IN blockexpr 
             /* | withstat */ 
             ;
 
