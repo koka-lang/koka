@@ -16,7 +16,7 @@ effect parse {
   fun satisfy( pred : sslice -> total maybe<(a,sslice)> ) : maybe<a>
   control fail(msg : string) : a
   control pick() : bool
-  fun current-input : sslice
+  fun current-input() : sslice
 }
 
 fun starts-with( s : string, p : () -> parse a )  : maybe<(a,sslice)> {

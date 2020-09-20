@@ -182,10 +182,13 @@ effect                    { return EFFECT; }
 ambient                   { return EFFECT; }
 
 mask                      { return MASK; }
-initially                 { return INITIALLY; }
-finally                   { return FINALLY; }
 override                  { return OVERRIDE; }
 instance                  { return INSTANCE; }
+
+  /*
+  initially                 { return INITIALLY; }
+  finally                   { return FINALLY; }
+  */
 
 
   /* unused reserved identifiers */

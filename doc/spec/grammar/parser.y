@@ -340,10 +340,10 @@ operation   : visibility VAL identifier typeparams ':' tatomic
 -- Pure (top-level) Declarations
 ----------------------------------------------------------*/
 puredecl    : inlineattr VAL binder '=' blockexpr      { $$ = $3; }
-            | inlineattr FUN funid fundef bodyexpr     { $$ = $3; }
+            | inlineattr FUN funid funparam bodyexpr   { $$ = $3; }
             ;
 
-fundecl     : funid fundef bodyexpr    { $$ = $1; }
+fundecl     : funid funparam bodyexpr         { $$ = $1; }
             ;
 
 binder      : identifier                    { $$ = $1; }
@@ -355,7 +355,7 @@ funid       : identifier         { $$ = $1; }
             | STRING             { $$ = $1; }
             ;
 
-fundef      : typeparams '(' parameters ')' annotres qualifier
+funparam      : typeparams '(' parameters ')' annotres qualifier
             ;
 
 
@@ -439,11 +439,11 @@ basicexpr   : ifexpr
 matchexpr   : MATCH atom '{' semis matchrules '}'
             ;
 
-funexpr     : FUN fundef block
+funexpr     : FUN funparam block
             | block                    /* zero-argument function */
             ;
 
-fnexpr      : FN fundef block          /* always anonymous function */
+fnexpr      : FN funparam block          /* always anonymous function */
             ;
 
 returnexpr  : RETURN expr
