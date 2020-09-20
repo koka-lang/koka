@@ -903,7 +903,7 @@ makeEffectDecl decl =
                         makeTpFun actionArgTp handleEff (tpVar handleRetTp) rng)
                     ] (tpVar hndEffTp) (tpVar hndResTp) rng
       actionArgTp= if isResource
-                    then [(newName "name",effTp)] -- makeTpApp effTp (map tpVar tpars) rng)]
+                    then [(newName "hname",effTp)] -- makeTpApp effTp (map tpVar tpars) rng)]
                     else []
       handleBody = Ann (Lam params handleInner rng) handleTp rng
       handleInner= App (Var (if isResource then nameNamedHandle else nameHandle) False rng) arguments rng
@@ -1074,7 +1074,7 @@ operationDecl opCount vis foralls docEffect hndName effName mbResource effTp hnd
 
 
                         zeroIdx        = App (Var nameSizeT False nameRng) [(Nothing,Lit (LitInt 0 nameRng))] nameRng
-                        resourceName   = newHiddenName "name"
+                        resourceName   = newHiddenName "hname"
                         resourceBinder = ValueBinder resourceName effTp  Nothing idrng rng
                         perform        = Var (namePerform (length pars)) False nameRng
 
@@ -1463,6 +1463,8 @@ matchexpr
        return (Case tst branches (combineRange rng rng2))
   <|> handlerExpr
 
+-- TODO: fix parsing to match grammar precisely
+-- TODO: remove parameterized handlers
 handlerExpr
   = do rng <- keyword "handle"
        mbEff <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
