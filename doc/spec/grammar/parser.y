@@ -56,7 +56,7 @@ void printDecl( const char* sort, const char* name );
 %token MATCH
 %token RARROW
 
-%token FUN FUNX VAL VAR CONTROL
+%token FUN FN VAL VAR CONTROL
 %token TYPE COTYPE RECTYPE STRUCT
 %token ALIAS CON
 %token FORALL EXISTS SOME
@@ -90,6 +90,7 @@ void printDecl( const char* sort, const char* name );
 /* resolve s/r conflict by shifting on ELSE so the ELSE binds to the closest IF.*/
 %precedence THEN
 %precedence ELSE ELIF
+
 
 
 %%
@@ -241,7 +242,8 @@ typedecl    : typesort typeid typeparams kannot typebody          { $$ = $2; }
             | effectmod EFFECT varid typeparams kannot opdecls    { $$ = $3; }                       
             | effectmod EFFECT typeparams kannot operation        { $$ = "<operation>"; }
             | REC TYPE typeid typeparams kannot typebody          { $$ = $3; }
-            | REC EFFECT varid typeparams kannot opdecls          { $$ = $3; }                       
+            | REC EFFECT varid typeparams kannot opdecls          { $$ = $3; }           
+            | effectmod EFFECT INSTANCE varid typeparams kannot IN type opdecls { $$ = $4; }            
             ;
 
 typesort    : typemod TYPE 
@@ -397,8 +399,9 @@ statements1 : statements1 statement semis1
             ;
 
 statement   : decl
-            | withstat
-            | statexpr
+            | withstat            
+            | returnexpr 
+            | basicexpr  
             ;
 
 decl        : FUN fundecl
@@ -418,23 +421,18 @@ blockexpr   : expr              /* a block is not interpreted as an anonymous fu
             ;
 
 expr        : withexpr
-            | funexpr
-            | statexpr
+            | funexpr            
+            | returnexpr 
+            | basicexpr
             ;
 
-statexpr    : ifexpr
+basicexpr   : ifexpr
+            | fnexpr
             | matchexpr
             | handlerexpr
-            | opexpr
-            | returnexpr
+            | opexpr           
             ;
 
-noretfunexpr: ifexpr
-            | matchexpr
-            | handlerexpr
-            | withexpr
-            | opexpr
-            ;
 
 /* keyword expressions */
 
@@ -443,6 +441,9 @@ matchexpr   : MATCH atom '{' semis matchrules '}'
 
 funexpr     : FUN fundef block
             | block                    /* zero-argument function */
+            ;
+
+fnexpr      : FN fundef block          /* always anonymous function */
             ;
 
 returnexpr  : RETURN expr
@@ -481,6 +482,7 @@ appexpr     : appexpr '(' arguments ')'             /* application */
             | appexpr '[' arguments ']'             /* index expression */
             | appexpr '.' atom                      /* dot application */
             | appexpr funexpr                       /* trailing function application */
+            | appexpr fnexpr                        /* trailing function application */
             | atom
             ;
 
@@ -671,13 +673,14 @@ witheff     : '<' anntype '>'
             | /* empty */
             ;
 
-withstat    : WITH noretfunexpr                           
-            | WITH binder '=' noretfunexpr     
-            | WITH override witheff opclauses             /* shorthand for handler */
-            | WITH binder '=' INSTANCE witheff opclauses  /* shorthand for handler instance */        
+withstat    : WITH basicexpr                             
+            | WITH binder '=' basicexpr                  
+            | WITH override witheff opclauses            /* shorthand for handler */
+            | WITH binder '=' INSTANCE witheff opclauses /* shorthand for handler instance */        
             ;
 
-withexpr    : withstat IN expr
+withexpr    : withstat IN expr 
+            /* | withstat */ 
             ;
 
 opclauses   : opclause

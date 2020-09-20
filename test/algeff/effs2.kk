@@ -31,7 +31,7 @@ fun state( init, action ) {
   action()
 }
 
-val amb = with {
+val amb = handler {
   return(x)      { [x] }
   control flip() { resume(False) + resume(True) }
 }

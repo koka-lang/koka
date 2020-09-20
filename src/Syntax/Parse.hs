@@ -1244,16 +1244,17 @@ statement
   = do funs <- many1 (functionDecl rangeNull Private)
        return (StatFun (\body -> Let (DefRec funs) body (combineRanged funs body)))
   <|>
-    do fun <- localValueDecl <|> localUseDecl <|> localUsingDecl
+    do fun <- localValueDecl -- <|> localUseDecl <|> localUsingDecl
        return (StatFun fun) -- (\body -> -- Let (DefNonRec val) body (combineRanged val body)
                             --              Bind val body (combineRanged val body)  ))
   <|>
     do var <- varDecl
        return (StatVar var) -- (StatFun (\body -> Bind var body (combineRanged var body)))
   <|>
-    do localWithDecl
+    do f <- withstat
+       return (StatFun f)
   <|>
-    do exp <- nofunexpr
+    do exp <- basicexpr <|> returnexpr
        return (StatExpr exp)
        {-
        case exp of
@@ -1289,6 +1290,7 @@ localValueDecl
     unParens (PatParens p _) = unParens(p)
     unParens p               = p
 
+{-
 localUseDecl
   = do krng <- keyword "use"
        warnDeprecated "use" "with"
@@ -1307,28 +1309,23 @@ localUsingDecl
        warnDeprecated "using" "with"
        e    <- blockexpr
        return $ applyToContinuation krng [] e
-
-localWithDecl
-  = do krng    <- keyword "with"
+-}
+withstat :: LexParser (UserExpr -> UserExpr)
+withstat
+  = do krng <- keyword "with"
        (do par  <- try $ do p <- parameter False
                             keyword "="
                             return p
-           e   <- (do try (lookAhead (keywordResource))
+           e   <- (do -- try (lookAhead (keywordResource))
                       handlerExprX False krng
-                   <|>
-                   blockexpr)
-           return (StatFun (applyToContinuation krng [promoteValueBinder par] e))
+                   <|> basicexpr)
+           return (applyToContinuation krng [promoteValueBinder par] e)
         <|>
-        do e <- withexpr
-           return (StatFun (applyToContinuation krng [] e))
-        <|>
-        do handler <- handlerExprX False krng
-           (do keyword "in"
-               e <- blockexpr
-               let thunked = Lam [] e (getRange e)
-               return (StatExpr (App handler [(Nothing, thunked)] (combineRanged krng e)))
-            <|>
-             return (StatFun (applyToContinuation krng [] handler))))
+        do e <- (do -- try (lookAhead (keywordResource))
+                    handlerExprX False krng
+                 <|> basicexpr)
+           return (applyToContinuation krng [] e)
+        )        
   where
      promoteValueBinder binder
        = case binderType binder of
@@ -1363,39 +1360,58 @@ bodyexpr
   <|>
     block
 
+blockexpr :: LexParser UserExpr   -- like expr but a block `{..}` is interpreted as statements 
+blockexpr
+  = withexpr <|> bfunexpr <|> returnexpr <|> basicexpr 
+  <?> "expression"
+
 expr :: LexParser UserExpr
 expr
-  = ifexpr <|> matchexpr <|> funexpr <|> funblock <|> opexpr
+  = withexpr <|> funexpr <|> returnexpr <|> basicexpr 
   <?> "expression"
 
-blockexpr :: LexParser UserExpr
-blockexpr
-  = ifexpr <|> noifexpr
-  <?> "expression"
-
-noifexpr :: LexParser UserExpr
-noifexpr
-  = returnexpr <|> matchexpr <|> funexpr <|> block <|> opexpr
-
-nofunexpr :: LexParser UserExpr
-nofunexpr
-  = ifexpr <|> returnexpr <|> matchexpr <|> opexpr
-  <?> "expression"
+basicexpr :: LexParser UserExpr
+basicexpr
+  = ifexpr <|> fnexpr <|> matchexpr <|> handlerExpr <|> opexpr 
+    
 
 withexpr :: LexParser UserExpr
 withexpr
-  = ifexpr <|> matchexpr <|> opexpr
-  <?> "expression"
+  = do f <- withstat
+       keyword "IN"
+       e <- expr
+       return (f e)
 
+bfunexpr
+  = block <|> lambda "fun"
+
+funexpr
+  = funblock <|> lambda "fun"
+
+fnexpr 
+  = lambda "fn"
+  
+funblock
+  = do exp <- block
+       return (Lam [] exp (getRange exp))
+
+lambda kw
+  = do rng <- keyword kw
+       spars <- squantifier
+       (tpars,pars,parsRng,mbtres,preds,ann) <- funDef
+       body <- block
+       let fun = promote spars tpars preds mbtres
+                  (Lam pars body (combineRanged rng body))
+       return (ann fun)
 
 ifexpr
   = do rng <- keyword "if"
        tst <- parens expr
        optional (keyword "then")
-       texpr   <- noifexpr
+       texpr   <- blockexpr
        eexprs  <- many elif
        eexpr   <- do keyword "else"
-                     noifexpr
+                     blockexpr
                   <|>
                      return (Var nameUnit False (after (combineRanged texpr (map snd eexprs))))
        let fullMatch = foldr match eexpr ((tst,texpr):eexprs)
@@ -1412,7 +1428,7 @@ ifexpr
       = do keyword "elif"
            tst <- parens expr
            optional (keyword "then")
-           texpr <- noifexpr
+           texpr <- blockexpr
            return (tst,texpr)
 
 returnexpr
@@ -1429,8 +1445,7 @@ matchexpr
   <|> handlerExpr
 
 handlerExpr
-  = -- TODO deprecate handle syntax in favor of "with" expression syntax
-    do rng <- keyword "handle"
+  = do rng <- keyword "handle"
        mbEff <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
        scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
        hsort   <- handlerSort
@@ -1438,36 +1453,24 @@ handlerExpr
        expr <- handlerExprXX True rng mbEff scoped HandlerNoOverride hsort
        return (App expr args (combineRanged rng expr))
   <|>
-    do (rng,handler) <- do rng <- keyword "with"
-                           handler <- handlerExprX False rng
-                           return (rng,handler)
-                        <|>
-                        do rng <- keyword "handler"
-                           handler <- handlerExprX True rng
-                           return (rng,handler)
-
-       (do keyword "in"
-           action  <- blockexpr
-           let thunked = Lam [] action (getRange action)
-           return (App handler [(Nothing, thunked)] (combineRanged rng action))
-        <|>
-        return handler)
+    do rng <- keyword "handler"
+       handlerExprX True rng
 
 handlerExprX braces rng
-  = do mbEff   <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
-       scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
+  = do scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
        override<- do{ keyword "override"; return HandlerOverride } <|> return HandlerNoOverride
        hsort   <- handlerSort
+       mbEff   <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
        handlerExprXX braces rng mbEff scoped override hsort
 
-handlerSort =     do keywordResource
-                     override <- do lapp
-                                    (name,rng) <- qidentifier
-                                    rparen
-                                    return (Just (Var name False rng))
-                                 <|> return Nothing
-                     return (HandlerResource override)
-              <|> return HandlerNormal
+handlerSort = do keywordResource
+                 overrideId <- do lapp
+                                  (name,rng) <- qidentifier
+                                  rparen
+                                  return (Just (Var name False rng))
+                               <|> return Nothing
+                 return (HandlerResource overrideId)
+             <|> return HandlerNormal
 
 
 
@@ -1810,7 +1813,7 @@ appexpr
            return (\exp -> App exp (args) (combineRanged exp rng1))
 
     funapps
-      = do fs <- many1 bfunexpr
+      = do fs <- many1 (funexpr <|> fnexpr)
            return (\arg0 -> injectApply arg0 fs)
       where
         injectApply expr []
@@ -1832,22 +1835,6 @@ argument
                            <|>
                               return (Nothing,exp)
          _              -> return (Nothing,exp)
-
-bfunexpr
-  = funblock <|> funexpr
-
-funblock
-  = do exp <- block
-       return (Lam [] exp (getRange exp))
-
-funexpr
-  = do rng <- keyword "fn" <|> keyword "fun"
-       spars <- squantifier
-       (tpars,pars,parsRng,mbtres,preds,ann) <- funDef
-       body <- block
-       let fun = promote spars tpars preds mbtres
-                  (Lam pars body (combineRanged rng body))
-       return (ann fun)
 
 
 {--------------------------------------------------------------------------
@@ -1920,7 +1907,7 @@ makeCons rng x xs = makeApp (Var nameCons False rng) [x,xs]
 injectExpr :: LexParser UserExpr
 injectExpr
   = do (rng, mkInj) <- injectType
-       (do exp <- parens expr <|> funblock
+       (do exp <- parens expr <|> funblock      -- need apply or the escape check may fail if it becomes a separate lambda
            return (mkInj exp)
         <|>
         do let name = newHiddenName "mask-action"

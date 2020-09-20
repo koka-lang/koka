@@ -142,6 +142,7 @@ external                  { return EXTERN; }
   */
 
 fun                       { return FUN; }
+fn                        { return FN; }
 control                   { return CONTROL; }
 val                       { return VAL; }
 var                       { return VAR; }
