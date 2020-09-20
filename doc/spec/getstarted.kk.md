@@ -27,20 +27,20 @@ Unix.
 The following programs are required to build Koka:
 
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
-  (use `> curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS X)
+  (use ``> curl -sSL https://get.haskellstack.org/ | sh`` on Unix and macOS X)
 * [CMake](https://cmake.org/download/) to compile the generated C files.  
-  (use `> sudo apt-get install cmake` on Ubuntu, `> brew install cmake` on macOS X).
+  (use ``> sudo apt-get install cmake`` on Ubuntu, ``> brew install cmake`` on macOS X).
 * Optional: The [Ninja](https://ninja-build.org/) build system for faster build times.  
-  (required on Windows, use `> sudo apt-get install ninja-build` on Ubuntu, `> brew install ninja` on macOS X).
+  (required on Windows, use ``> sudo apt-get install ninja-build`` on Ubuntu, ``> brew install ninja`` on macOS X).
 * Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
 
-Building Koka (note the `--recursive` flag):
+Building Koka (note the ``--recursive`` flag):
 
     > git clone --recursive https://github.com/koka-lang/koka
     > cd koka
     > stack build
 
-You can also use `stack build --fast` to build a debug version of the compiler.
+You can also use ``stack build --fast`` to build a debug version of the compiler.
 You can invoke the compiler now as: (this takes a while as it needs to build the core libraries as well)
 
     > stack exec koka -- -c test/algeff/common
@@ -66,8 +66,8 @@ and run the resulting executable:
     [False,True,True,False]
     ([False,False,True,True,False],2)
 
-If you leave out the `-c` flag, Koka will execute the compiled program automatically.
-The `-O2` flag builds an optimized program. Let's try it on a functional implementation
+If you leave out the ``-c`` flag, Koka will execute the compiled program automatically.
+The ``-O2`` flag builds an optimized program. Let's try it on a functional implementation
 of balanced insertion in a red-black tree balanced ([`rbtree.kk`](test/bench/koka/rbtree.kk))
 
     > stack exec koka -- -O2 -c test/bench/koka/rbtree32.kk
@@ -80,9 +80,9 @@ of balanced insertion in a red-black tree balanced ([`rbtree.kk`](test/bench/kok
     420000
     real    0m1.132s
 
-We can compare this against an in-place updating C++ implementation using `stl::map`
-([`rbtree.cpp`](test/bench/cpp/rbtree.cpp)) (which uses the GNU
-[`RBTree`](https://sourceware.org/git/?p=glibc.git;a=blob;f=misc/tsearch.c;h=cdc401a4e5411221ab2feb2baf8745991bde7868;hb=HEAD) implementation internally):
+We can compare this against an in-place updating C++ implementation using ``stl::map``
+([``rbtree.cpp``](test/bench/cpp/rbtree.cpp)) (which uses the GNU
+[``RBTree``](https://sourceware.org/git/?p=glibc.git;a=blob;f=misc/tsearch.c;h=cdc401a4e5411221ab2feb2baf8745991bde7868;hb=HEAD) implementation internally):
 
     > g++ --std=c++17 -o cpp_rbtree -O3 test/bench/cpp/rbtree.cpp
     > time ./cpp_rbtree
@@ -103,9 +103,9 @@ to edit Koka programs. You can install support for Koka programs using
 
     > jake atom
 
-(or use `jake sublime`) for the [Sublime](http://www.sublimetext.com) editor).
-If `node` is not installed, you can also copy the grammar files
-manually from the `support/atom` directory to `~/.atom/packages/language-koka`.
+(or use ``jake sublime``) for the [Sublime](http://www.sublimetext.com) editor).
+If ``node`` is not installed, you can also copy the grammar files
+manually from the ``support/atom`` directory to ``~/.atom/packages/language-koka``.
 
 
 ## Running the interactive compiler
