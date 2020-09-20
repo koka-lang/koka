@@ -546,15 +546,15 @@ dataTypeDecl dvis =
     tpCon tb = TpCon (tbinderName tb) (tbinderRange tb)
 
 structDecl dvis =
-   do (vis,defvis,vrng,trng,doc) <-
+   do (vis,defvis,ddef,vrng,trng,doc) <-
         (try $
-          do rng     <- keyword "abstract"
+          do (vis,dvis,rng) <-     do{ rng <- keyword "abstract"; return (Public,Private,rng) }
+                               <|> do{ (vis,rng) <- visibility dvis; return (vis,vis,rng) }
+             ddef           <-     do { specialId "value"; return (DataDefValue 0 0) }
+                               <|> do { specialId "reference"; return (DataDefNormal) } 
+                               <|> do { return DataDefNormal }
              (trng,doc) <- dockeyword "struct"
-             return (Public,Private,rng,trng,doc)
-          <|>
-          do (vis,vrng) <- visibility dvis
-             (trng,doc) <- dockeyword "struct"
-             return (vis,vis,vrng,trng,doc))
+             return (vis,dvis,ddef,rng,trng,doc))
 
       tbind <- tbinderDef
       tpars <- angles tbinders <|> return []
@@ -565,7 +565,7 @@ structDecl dvis =
       let (tid,rng) = getRName name
           conId     = toConstructorName tid
           (usercon,creators) = makeUserCon conId tpars resTp [] pars rng (combineRange rng prng) defvis doc
-      return (DataType name tpars [usercon] (combineRanges [vrng,trng,rng,prng]) vis Inductive DataDefNormal False doc, creators)
+      return (DataType name tpars [usercon] (combineRanges [vrng,trng,rng,prng]) vis Inductive ddef False doc, creators)
 
 tpVar tb = TpVar (tbinderName tb) (tbinderRange tb)
 tpCon tb = TpCon (tbinderName tb) (tbinderRange tb)
@@ -584,11 +584,14 @@ enum
 
 typeDeclKind :: LexParser (DataKind,Range,String,DataDef, Bool)
 typeDeclKind
-  = do (rng,doc) <- dockeyword "rectype" 
-       return (Retractive,rng,doc,DataDefNormal,False)
-  <|>
-    do (rng,doc) <- dockeyword "cotype" 
+  = do (rng,doc) <- dockeyword "cotype" 
        return (CoInductive,rng,doc,DataDefNormal,False)
+  <|>
+    try(
+    do (rng1)     <- keyword "rec"
+       (rng2,doc) <- dockeyword "type" 
+       return (Retractive,combineRanges [rng1,rng2],doc,DataDefNormal,False)
+    )
   <|>
     try(
     do (ddef,isExtend) <-     do { specialId "open"; return (DataDefOpen, False) }
@@ -645,9 +648,9 @@ makeUserCon con foralls resTp exists pars nameRng rng vis doc
     isJust _        = False
 
 conPars defVis
-  = parensCommasRng (lparen <|> lapp) (conBinder defVis)
-  <|>
-    return ([],rangeNull)
+  =   semiBracesRanged (conBinder defVis) 
+  <|> parensCommasRng (conBinder defVis)   -- deprecated  
+  <|> return ([],rangeNull)
 
 conBinder defVis
   = do (vis,vrng)    <- visibility defVis
@@ -793,22 +796,19 @@ parseEffectDecl dvis =
       )
 
 dockeywordEffect
-  = dockeyword "effect" <|> dockeyword "context" <|> dockeyword "implicit" <|> dockeyword "ambient" 
+  = dockeyword "effect" <|> dockeyword "context" <|> dockeyword "ambient" 
 
 keywordResource
-  = keyword "instance" <|> keyword "named" <|> keyword "dynamic"
+  = keyword "instance"
 
 keywordFun
-  = keywordOr "fun" ["function"]
+  = keyword "fun" 
 
 dockeywordFun
-  = dockeywordOr "fun" ["function"]
-
-keywordExtern
-  = keywordOr "extern" ["external"]
+  = dockeyword "fun" 
 
 keywordInject
-  = keyword "mask" <|> keyword "inject"
+  = keywordOr "mask" ["inject"]
 
 makeEffectDecl :: EffectDecl -> [TopDef]
 makeEffectDecl decl =
@@ -1170,7 +1170,7 @@ typeparams
 
 parameters :: Bool -> LexParser ([ValueBinder (Maybe UserType) (Maybe UserExpr)],Range)
 parameters allowDefaults
-  = parensCommasRng (lparen <|> lapp) (parameter allowDefaults)
+  = parensCommasRng (parameter allowDefaults)
 
 parameter :: Bool -> LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr))
 parameter allowDefaults
@@ -1434,7 +1434,7 @@ handlerExpr
        mbEff <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
        scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
        hsort   <- handlerSort
-       args <- parensCommas lparen argument
+       args <- parensCommas argument
        expr <- handlerExprXX True rng mbEff scoped HandlerNoOverride hsort
        return (App expr args (combineRanged rng expr))
   <|>
@@ -1697,7 +1697,7 @@ handlerOp defaultResumeKind pars
 
 opParams :: LexParser ([ValueBinder (Maybe UserType) ()],Range)
 opParams
-  = parensCommasRng (lparen <|> lapp) opParam <|> return ([],rangeNull)
+  = parensCommasRng opParam <|> return ([],rangeNull)
 
 opParam :: LexParser (ValueBinder (Maybe UserType) ())
 opParam
@@ -1841,7 +1841,7 @@ funblock
        return (Lam [] exp (getRange exp))
 
 funexpr
-  = do rng <- keyword "fun" <|> keyword "fn"
+  = do rng <- keyword "fn" <|> keyword "fun"
        spars <- squantifier
        (tpars,pars,parsRng,mbtres,preds,ann) <- funDef
        body <- block
@@ -1974,7 +1974,7 @@ patAs
 patAtom :: LexParser UserPattern
 patAtom
   = do (name,rng) <- qconstructor
-       (ps,r) <- parensCommasRng (lparen <|> lapp) namedPattern <|> return ([],rangeNull)
+       (ps,r) <- parensCommasRng namedPattern <|> return ([],rangeNull)
        return (PatCon name ps rng (combineRanged rng r))
   <|>
     do (name,rng) <- identifier
@@ -1989,7 +1989,7 @@ patAtom
   <|>
     do listPattern
   <|>
-    do (ps,rng) <- parensCommasRng lparen namedPattern
+    do (ps,rng) <- parensCommasRng namedPattern
        case ps of
          [p] -> return (PatParens (snd p) rng)
          _   -> return (PatCon (nameTuple (length ps)) ps rng rng)
@@ -2361,7 +2361,7 @@ kindAnnot
 --------------------------------------------------------------------------}
 pkind :: LexParser UserKind
 pkind
-  = do params <- parensCommas lparen pkind
+  = do params <- parensCommas pkind
        keyword "->"
        res    <- pkind
        return (foldr KindArrow res params)
@@ -2451,8 +2451,8 @@ anglesCommas p
 angles p
   = bracketed langle rangle const p
 
-parensCommas lpar p
-  = parensx lpar const (sepBy p comma)
+parensCommas p
+  = parensx lparen const (sepBy p comma)
 
 parensRng p
   = parensx lparen (,) p
@@ -2460,8 +2460,8 @@ parensRng p
 parens p
   = parensx lparen const p
 
-parensCommasRng lpar p
-  = parensx lpar (,) (sepBy p comma)
+parensCommasRng p
+  = parensx lparen (,) (sepBy p comma)
 
 parensx lpar f p
   = bracketed lpar rparen f p

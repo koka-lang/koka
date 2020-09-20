@@ -238,8 +238,10 @@ aliasdecl   : ALIAS typeid typeparams kannot '=' type     { $$ = $2; }
 
 typedecl    : typesort typeid typeparams kannot typebody          { $$ = $2; }
             | typemod STRUCT typeid typeparams kannot conparams   { $$ = $3; }
-            | effectmod EFFECT varid typeparams kannot opdecls    { $$ = $3; }            
+            | effectmod EFFECT varid typeparams kannot opdecls    { $$ = $3; }                       
             | effectmod EFFECT typeparams kannot operation        { $$ = "<operation>"; }
+            | REC TYPE typeid typeparams kannot typebody          { $$ = $3; }
+            | REC EFFECT varid typeparams kannot opdecls          { $$ = $3; }                       
             ;
 
 typesort    : typemod TYPE 
@@ -257,6 +259,7 @@ typemod     : ID_VALUE
 effectmod   : ID_LINEAR
             | /* empty */ 
             ;
+
 
 typebody    : '{' semis constructors '}'
             | /* empty */
@@ -293,7 +296,7 @@ con         : CON
             | /* empty */
             ;
 
-conparams   : '(' conpars1 ')'  /* deprecated */
+conparams   : '(' conpars1 ')'          /* deprecated */
             | '{' semis sconpars '}'
             | /* empty */
             ;

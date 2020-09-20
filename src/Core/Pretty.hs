@@ -138,7 +138,7 @@ prettyExternal env (External name tp body vis nameRng doc) | coreIface env && is
 prettyExternal env (External name tp body vis nameRng doc)
   = prettyComment env doc $
     prettyVis env vis $
-    keyword env "external" <+> prettyDefName env name <+> text ":" <+> prettyType env tp <+> prettyEntries body
+    keyword env "extern" <+> prettyDefName env name <+> text ":" <+> prettyType env tp <+> prettyEntries body
   where
     prettyEntries [(Default,content)] = keyword env "= inline" <+> prettyLit env (LitString content) <.> semi
     prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "};"

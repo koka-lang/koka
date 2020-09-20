@@ -110,10 +110,6 @@ program :-
 <0> "//" $symbol*         { next linecom $ more id }
 <0> ^\# $symbol*          { next linedir $ more id }
 
- 
--- fun/function followed by '(' or '<'
--- <0> "fun" [\(\<]          { less 3 $ constant $ LexKeyword "fun.anon" "" }
--- <0> "function" [\(\<]     { less 8 $ constant $ LexKeyword "function.anon" "" }
 
 -- qualified identifiers
 <0> @qconid               { string $ LexCons . newQName }
@@ -258,34 +254,28 @@ reservedNames :: Set.Set String
 reservedNames
   = Set.fromList $
     [ "infix", "infixr", "infixl", "prefix", "postfix"
-    , "type", "cotype", "rectype", "alias"
+    , "type", "cotype", "alias"
     , "struct", "enum", "con"
-    , "fun", "val", "var"
-    , "extern"
-
+    , "fun", "extern", "val", "var", "control", "fn"
+    , "if", "then", "else", "elif"
+    , "return", "match", "with", "in"
+    , "forall", "exists", "some"
+    , "private", "public", "abstract"
+    , "module", "import", "as"
+    
     -- effect handlers
-    , "implicit", "ambient", "context" {- alternative names for implicit -}
-    , "control"
-    , "with"
-    , "instance", "named" {- alternative names for resource -}
+    , "handler", "handle"
+    , "effect", "ambient", "context" {- alternative names for effect -}
+    , "instance"
     , "mask", "override"
+    -- , "finally", "initially"
 
     -- deprecated
     -- alternative names for backwards paper compatability
-    , "effect"              -- use implicit
-    , "handle", "handler"   -- use with instead
-    , "inject"              -- use mask
-    , "use", "using"        -- use with instead
-    , "function"            -- use fun
-    , "external"            -- use extern
-    , "dynamic"             -- use resource
-
-
-    -- , "finally", "initially"
-    , "if", "then", "else", "elif", "return", "match"
-    , "forall", "exists", "some"
-    , "private", "public", "abstract"
-    , "module", "import", "as", "in"
+    , "inject"       -- use mask
+    , "use", "using" -- use with instead
+    , "function"     -- use fun
+    
     , "="
     , "."
     , ":"

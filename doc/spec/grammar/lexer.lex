@@ -124,9 +124,9 @@ infixr                    { return INFIXR; }
 
 type                      { return TYPE; }
 cotype                    { return COTYPE; }
-rectype                   { return RECTYPE; }
 alias                     { return ALIAS; }
 struct                    { return STRUCT; }
+rec                       { return REC; }
 
 forall                    { return FORALL; }
 exists                    { return EXISTS; }
@@ -188,7 +188,6 @@ instance                  { return INSTANCE; }
 
 
   /* unused reserved identifiers */
-rec                       { return REC; }
 interface                 { return IFACE; }
 
   /* reserved operators */

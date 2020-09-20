@@ -323,7 +323,7 @@ pdefSort
 externDecl :: Env -> LexParser External
 externDecl env
   = do (vis,doc)  <- try $ do (vis,_) <- visibility Public
-                              (_,doc) <- dockeyword "external"
+                              (_,doc) <- dockeyword "extern"
                               return (vis,doc)
        (name,_) <- (funid)
        -- trace ("core def: " ++ show name) $ return ()
@@ -394,7 +394,7 @@ parseApp env
        parseApplies expr
   where
     parseApplies expr
-      = do args <- parensCommas (lparen <|> lapp) (parseExpr env)
+      = do args <- parensCommas (parseExpr env)
            parseApplies (App expr args)
         <|>
         do tps  <- angles (ptype env `sepBy` comma)
@@ -432,7 +432,7 @@ parseFun env
 parseMatch :: Env -> LexParser Expr
 parseMatch env
   = do keyword "match"
-       args <- parensCommas (lparen <|> lapp) (parseExpr env)
+       args <- parensCommas (parseExpr env)
        branches <- semiBraces (parseBranch env)
        return (Case args branches)
 
@@ -606,7 +606,7 @@ qualifiedConId
 
 parameters :: Env -> LexParser (Env, [(Name,Type)])
 parameters env
-  = do params <- parensCommas (lparen <|> lapp) (parameter env)
+  = do params <- parensCommas (parameter env)
                  <|> return []
        let env' = foldl envExtendLocal env params
        return (env',params)
@@ -826,7 +826,7 @@ tid env
 
 pkind :: LexParser Kind
 pkind
-  = do params <- parensCommas lparen pkind
+  = do params <- parensCommas pkind
        keyword "->"
        res    <- pkind
        return (foldr kindFun res params)
