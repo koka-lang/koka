@@ -305,7 +305,6 @@
   @import url('https://fonts.googleapis.com/css?family=Roboto+Slab:300,400,700');
   body.madoko,body.koka,.serif,.sans-serif,.comment {
     font-family: 'Nunito', 'Calibri', serif;
-    font-size  : 110%;
   }
   .sans-serif { 
     font-family: 'Nunito', 'Segoe UI', 'Calibri', sans-serif;
@@ -321,7 +320,7 @@
       max-width  : 62em;
       margin     : 1em auto;
       padding    : 0em 1em 45em 1em; 
-      line-height: 1.45;
+      line-height: 1.4;
       background-color: #f4f0f0;
     }
     .koka.doc p {
@@ -332,7 +331,6 @@
     body.madoko,body.koka {
       padding: 0em 0.5em 40em 0.5em;
       margin: 1em;
-      font-size: 100%;
     }
   }
   @media print {
@@ -604,7 +602,7 @@
   code, .madoko code,
   pre, .madoko pre,
   .koka.source.unchecked {
-    background-color: #EAE8E8;
+    background-color: #E4E0E0;
   }
   pre, .madoko pre,
   .koka.source,
@@ -950,23 +948,23 @@ Unix.
 </p>
 <ul class="ul list-star compact">
 <li class="li ul-li list-star-li compact-li" style="margin-bottom:1ex"><a href="https://docs.haskellstack.org/">Stack</a> to run the Haskell compiler.<br>
-(use <code class="koka"><span class="op">&#62;</span> curl <span class="op"><span class="minus">-</span></span>sSL https<span class="tp kw op">:</span></code> on Unix and macOS X)
+(use <code class="code code2">&gt; curl -sSL https://get.haskellstack.org/ | sh</code> on Unix and macOS X)
 </li>
 <li class="li ul-li list-star-li compact-li" style="margin-bottom:1ex"><a href="https://cmake.org/download/">CMake</a> to compile the generated C files.<br>
-(use <code class="koka"><span class="op">&#62;</span> sudo apt<span class="dash">-</span>get install cmake</code> on Ubuntu, <code class="koka"><span class="op">&#62;</span> brew install cmake</code> on macOS X).
+(use <code class="code code2">&gt; sudo apt-get install cmake</code> on Ubuntu, <code class="code code2">&gt; brew install cmake</code> on macOS X).
 </li>
 <li class="li ul-li list-star-li compact-li" style="margin-bottom:1ex">Optional: The&nbsp;<a href="https://ninja-build.org/">Ninja</a> build system for faster build times.<br>
-(required on Windows, use <code class="koka"><span class="op">&#62;</span> sudo apt<span class="dash">-</span>get install ninja<span class="dash">-</span>build</code> on Ubuntu, <code class="koka"><span class="op">&#62;</span> brew install ninja</code> on macOS X).
+(required on Windows, use <code class="code code2">&gt; sudo apt-get install ninja-build</code> on Ubuntu, <code class="code code2">&gt; brew install ninja</code> on macOS X).
 </li>
 <li class="li ul-li list-star-li compact-li" style="margin-bottom:1ex">Optional: the&nbsp;<a href="http://nodejs.org">NodeJS</a> runtime if using the Javascript backend.
 </li></ul>
 
-<p class="p noindent">Building Koka (note the <code class="koka"><span class="op">--</span>recursive</code> flag):
+<p class="p noindent">Building Koka (note the <code class="code code2">--recursive</code> flag):
 </p>
 <pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; git clone --recursive https://github.com/koka-lang/koka</code></strong></span>
 <span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; cd koka</code></strong></span>
 <span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; stack build</code></strong></span></code></pre>
-<p class="p noindent para-continued">You can also use <code class="koka">stack build <span class="op">--</span>fast</code> to build a debug version of the compiler.
+<p class="p noindent para-continued">You can also use <code class="code code2">stack build --fast</code> to build a debug version of the compiler.
 You can invoke the compiler now as: (this takes a while as it needs to build the core libraries as well)
 </p>
 <pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; stack exec koka -- -c test/algeff/common</code></strong></span>
@@ -990,8 +988,8 @@ hi
 2
 [False,True,True,False]
 ([False,False,True,True,False],2)</code></pre>
-<p class="p noindent para-continued">If you leave out the <code class="koka"><span class="op"><span class="minus">-</span></span>c</code> flag, Koka will execute the compiled program automatically.
-The <code class="koka"><span class="op"><span class="minus">-</span></span><span class="co">O2</span></code> flag builds an optimized program. Let&#39;s try it on a functional implementation
+<p class="p noindent para-continued">If you leave out the <code class="code code2">-c</code> flag, Koka will execute the compiled program automatically.
+The <code class="code code2">-O2</code> flag builds an optimized program. Let&#39;s try it on a functional implementation
 of balanced insertion in a red-black tree balanced (<a href="test/bench/koka/rbtree.kk"><code class="koka">rbtree<span class="kw op">.</span>kk</code></a>)
 </p>
 <pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; stack exec koka -- -O2 -c test/bench/koka/rbtree32.kk</code></strong></span>
@@ -1003,9 +1001,9 @@ compiled: out/RelWithDebInfo/test_bench_koka_rbtree32
 <span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; time out/RelWithDebInfo/test_bench_koka_rbtree32</code></strong></span>
 420000
 real    0m1.132s</code></pre>
-<p class="p noindent para-continued">We can compare this against an in-place updating C++ implementation using <code class="koka">stl<span class="tp sp">::</span><span class="tp">map</span></code>
-(<a href="test/bench/cpp/rbtree.cpp"><code class="koka">rbtree<span class="kw op">.</span>cpp</code></a>) (which uses the GNU
-<a href="https://sourceware.org/git/?p=glibc.git;a=blob;f=misc/tsearch.c;h=cdc401a4e5411221ab2feb2baf8745991bde7868;hb=HEAD"><code class="koka"><span class="co">RBTree</span></code></a> implementation internally):
+<p class="p noindent para-continued">We can compare this against an in-place updating C++ implementation using <code class="code code2">stl::map</code>
+(<a href="test/bench/cpp/rbtree.cpp"><code class="code code2">rbtree.cpp</code></a>) (which uses the GNU
+<a href="https://sourceware.org/git/?p=glibc.git;a=blob;f=misc/tsearch.c;h=cdc401a4e5411221ab2feb2baf8745991bde7868;hb=HEAD"><code class="code code2">RBTree</code></a> implementation internally):
 </p>
 <pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; g++ --std=c++17 -o cpp_rbtree -O3 test/bench/cpp/rbtree.cpp</code></strong></span>
 <span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; time ./cpp_rbtree</code></strong></span>
@@ -1023,9 +1021,9 @@ closely mimicking the imperative rebalancing code of the hand optimized C++ libr
 to edit Koka programs. You can install support for Koka programs using
 </p>
 <pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; jake atom</code></strong></span></code></pre>
-<p class="p noindent para-continued">(or use <code class="koka">jake sublime</code>) for the&nbsp;<a href="http://www.sublimetext.com">Sublime</a> editor).
-If <code class="koka">node</code> is not installed, you can also copy the grammar files
-manually from the <code class="koka"><a class="doc link" href="https://koka-lang.github.io/koka/doc/support.html#atom">support<span class="fslash">/</span>atom</a></code> directory to <code class="koka"><span class="op">~</span><span class="op"><span class="divide">/</span></span><span class="kw op">.</span><a class="doc link" href="https://koka-lang.github.io/koka/doc/atom_packages.html#language_koka">atom<span class="fslash">/</span>packages<span class="fslash">/</span>language<span class="dash">-</span>koka</a></code>.
+<p class="p noindent para-continued">(or use <code class="code code2">jake sublime</code>) for the&nbsp;<a href="http://www.sublimetext.com">Sublime</a> editor).
+If <code class="code code2">node</code> is not installed, you can also copy the grammar files
+manually from the <code class="code code2">support/atom</code> directory to <code class="code code2">~/.atom/packages/language-koka</code>.
 </p><h2 id="sec-running-the-interactive-compiler" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-running-the-interactive-compiler" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">1.2</span>.&#8194;</span>Running the interactive compiler</h2>
 <p class="p noindent">After running the plain <code class="code code2">stack exec koka</code> command, the Koka interactive environment will start:
 </p>
@@ -2916,7 +2914,9 @@ be in agreement with that implementation.
 <div class="bibl" style="bbl-file:./kokaspec-bib.bbl.mdk"><h1 id="sec-references" class="clearnum h1 heading-references" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">References</h1>
 <div class="bibliography bib-numeric" data-hanging-indent="0" data-cite-style="numeric:&#39;[&#39;,&#39;]&#39;,&#39;, &#39;" data-style="madoko-numeric" style="bibstyle:madoko-numeric">
 <div id="leijen:msfp" class="bibitem" data-cite-year="2014" data-cite-authors="Leijen" data-cite-authors-long="Leijen" data-cite-label="1" data-line="koka.bib:29" style="text-indent:-2rem;margin-left:2rem;searchterm:Koka%3A%20Programming%20with%20Row%20Polymorphic%20Effect%20Types%20Leijen%2C%202014;spellcheck:false;bibitem-label:\5C [1\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[1]</span>Daan Leijen. &#8220;Koka: Programming with Row Polymorphic Effect Types.&#8221; In <em class="em-low1">Mathematically Structured Functional Programming 2014</em>. EPTCS.&#160;Mar. 2014. <span class="bib-urlpre"><span class="etype">arXiv:</span></span><a href="http://arxiv.org/abs/1406.2061" class="bib-url">1406.2061</a>.&nbsp;<a href="http://www.bing.com/search?q=Koka%3A%20Programming%20with%20Row%20Polymorphic%20Effect%20Types%20Leijen%2C%202014" class="bibsearch">&#128270;</a></div>
-<div id="leijen:algeff" class="bibitem" data-cite-year="2016" data-cite-authors="Leijen" data-cite-authors-long="Leijen" data-cite-label="2" data-line="koka.bib:40" style="text-indent:-2rem;margin-left:2rem;searchterm:Algebraic%20Effects%20for%20Functional%20Programming%20Leijen%2C%202016;spellcheck:false;bibitem-label:\5C [2\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[2]</span>Daan Leijen. <em class="em-low1">Algebraic Effects for Functional Programming</em>. MSR-TR-2016-29. Microsoft Research. Aug. 2016. <a href="https://www.microsoft.com/en-us/research/publication/algebraic-effects-for-functional-programming" class="bib-url texturl monospace">https://&#8203;www.&#8203;microsoft.&#8203;com/&#8203;en-&#8203;us/&#8203;research/&#8203;publication/&#8203;algebraic-&#8203;effects-&#8203;for-&#8203;functional-&#8203;programming</a>. Extended version of [@Leijen:algeffpopl].&nbsp;<a href="http://www.bing.com/search?q=Algebraic%20Effects%20for%20Functional%20Programming%20Leijen%2C%202016" class="bibsearch">&#128270;</a></div></div></div><h1 id="sec-appendix" class="clearnum h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Appendix</h1><h1 id="sec-full-grammar-specification" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-full-grammar-specification" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">A</span>.&#8194;</span>Full grammar specification</h1><h2 id="sec:full-lexical" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec:full-lexical" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">A.1</span>.&#8194;</span>Lexical syntax</h2>
+<div id="leijen:algeff" class="bibitem" data-cite-year="2016" data-cite-authors="Leijen" data-cite-authors-long="Leijen" data-cite-label="2" data-line="koka.bib:40" style="text-indent:-2rem;margin-left:2rem;searchterm:Algebraic%20Effects%20for%20Functional%20Programming%20Leijen%2C%202016;spellcheck:false;bibitem-label:\5C [2\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[2]</span>Daan Leijen. <em class="em-low1">Algebraic Effects for Functional Programming</em>. MSR-TR-2016-29. Microsoft Research. Aug. 2016. <a href="https://www.microsoft.com/en-us/research/publication/algebraic-effects-for-functional-programming" class="bib-url texturl monospace">https://&#8203;www.&#8203;microsoft.&#8203;com/&#8203;en-&#8203;us/&#8203;research/&#8203;publication/&#8203;algebraic-&#8203;effects-&#8203;for-&#8203;functional-&#8203;programming</a>. Extended version of&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#leijen:algeffpopl" title="Type Directed Compilation of Row-Typed Algebraic Effects
+Leijen, 2017" class="bibref localref" style="target-element:bibitem"><span class="cite-number">3</span></a>]</span>.&nbsp;<a href="http://www.bing.com/search?q=Algebraic%20Effects%20for%20Functional%20Programming%20Leijen%2C%202016" class="bibsearch">&#128270;</a></div>
+<div id="leijen:algeffpopl" class="bibitem" data-cite-year="2017" data-cite-authors="Leijen" data-cite-authors-long="Leijen" data-cite-label="3" data-line="koka.bib:51" style="text-indent:-2rem;margin-left:2rem;searchterm:Type%20Directed%20Compilation%20of%20RowTyped%20Algebraic%20Effects%20Leijen%2C%202017;spellcheck:false;bibitem-label:\5C [3\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[3]</span>Daan Leijen. &#8220;Type Directed Compilation of Row-Typed Algebraic Effects.&#8221; In <em class="em-low1">Proceedings of Principles of Programming Languages (POPL’17)</em>. Paris, France. Jan. 2017.&nbsp;<a href="http://www.bing.com/search?q=Type%20Directed%20Compilation%20of%20RowTyped%20Algebraic%20Effects%20Leijen%2C%202017" class="bibsearch">&#128270;</a></div></div></div><h1 id="sec-appendix" class="clearnum h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Appendix</h1><h1 id="sec-full-grammar-specification" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-full-grammar-specification" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">A</span>.&#8194;</span>Full grammar specification</h1><h2 id="sec:full-lexical" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec:full-lexical" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">A.1</span>.&#8194;</span>Lexical syntax</h2>
 <div id="full-lexical" class="div"></div><h2 id="sec:full-grammar" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec:full-grammar" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">A.2</span>.&#8194;</span>Context-free syntax</h2>
 <div id="full-grammar" class="div"></div></div></div><span data-line=""></span></div>
 </body>
