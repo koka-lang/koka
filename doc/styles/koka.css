@@ -93,7 +93,7 @@ pre, pre.koka, .madoko pre,
 }
 
 .koka .code {   /* header and toc code */
-  font-size: 0.9em;        /* more even with text */
+  font-size: 90%;        /* more even with text */
 }
 
 code, code.koka, .koka .code, .madoko code { 
@@ -282,7 +282,7 @@ h1.koka.module
       }
 
 .koka .toc-link 
-      { font-size: 0.75em
+      { font-size: 75%
       ; float: right
       ; color: navy
       }
@@ -322,7 +322,7 @@ h1.koka.module
       }
 
 .koka.doc .synopsis {
-  font-size: 1.5em;
+  font-size: 150%;
   margin-top: -0.5em;
   margin-bottom: 0.25em;
 }  
