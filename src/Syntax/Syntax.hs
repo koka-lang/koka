@@ -207,7 +207,7 @@ data Expr t
   | Ann    (Expr t) t Range
   | Case   (Expr t) [Branch t]   Range
   | Parens (Expr t)              Range
-  | Handler (HandlerSort (Expr t)) HandlerScope HandlerOverride
+  | Handler HandlerSort HandlerScope HandlerOverride
                   (Maybe t) [ValueBinder (Maybe t) ()]
                   (Maybe (Expr t)) (Maybe (Expr t)) (Maybe (Expr t)) [HandlerBranch t] Range Range
   | Inject t (Expr t) Bool {-behind?-} Range
@@ -225,8 +225,7 @@ data HandlerBranch t
   = HandlerBranch{ hbranchName :: Name
                  , hbranchPars :: [ValueBinder (Maybe t) ()]
                  , hbranchExpr :: Expr t
-                 , hbranchRaw  :: Bool
-                 , hbranchResumeKind :: ResumeKind
+                 , hbranchSort :: OperationSort
                  , hbranchNameRange :: Range
                  , hbranchPatRange  :: Range
                  }

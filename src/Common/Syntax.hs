@@ -21,7 +21,8 @@ module Common.Syntax( Visibility(..)
                     , DataDef(..)
                     , dataDefIsRec, dataDefIsOpen, dataDefIsValue
                     , HandlerSort(..)
-                    , isHandlerResource, isHandlerNormal
+                    , isHandlerInstance, isHandlerNormal
+                    , OperationSort(..)
                     , Platform(..), platform32, platform64, platformCS, platformJS
                     , alignedSum, alignedAdd, alignUp
                     ) where
@@ -82,23 +83,33 @@ isPrivate Private = True
 isPrivate _       = False
 
 
-data HandlerSort e
-  = HandlerNormal | HandlerResource (Maybe e)
+data HandlerSort
+  = HandlerNormal | HandlerInstance
   deriving (Eq)
 
-instance Show (HandlerSort e) where
+instance Show (HandlerSort) where
   show hsort = case hsort of
-                 HandlerNormal -> "Normal"
-                 HandlerResource Nothing -> "Instance"
-                 HandlerResource _       -> "OverrideInstance" 
+                 HandlerNormal -> "normal"
+                 HandlerInstance -> "instance"
 
-isHandlerResource (HandlerResource _) = True
-isHandlerResource _ = False
+isHandlerInstance (HandlerInstance) = True
+isHandlerInstance _ = False
 
 isHandlerNormal (HandlerNormal) = True
 isHandlerNormal _ = False
 
 
+data OperationSort 
+  = OpVal | OpFun | OpControlRaw | OpControl
+  deriving (Eq,Ord)
+  
+instance Show OperationSort where
+  show opsort = case opsort of
+                  OpVal -> "val"
+                  OpFun -> "fun"
+                  OpControlRaw -> "rcontrol"
+                  OpControl -> "control"
+  
 {--------------------------------------------------------------------------
   DataKind
 --------------------------------------------------------------------------}

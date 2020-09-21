@@ -564,17 +564,19 @@ infExpr expr
                                               Nothing  -> return Nothing
                                               Just eff -> do eff' <- infResolveX eff (Check "Handler types must be effect constants (of kind X)" hrng) hrng
                                                              return (Just eff')
+                                   {-
                                    hsort' <- case hsort of
                                                HandlerResource (Just rexpr)
                                                 -> do rexpr' <- infExpr rexpr
                                                       return (HandlerResource (Just rexpr'))
-                                               HandlerResource Nothing -> return $ HandlerResource Nothing
+                                               HandlerInstance -> return HandlerInstance
                                                HandlerNormal -> return HandlerNormal
+                                               -}
                                    ret' <- infExprMaybe ret
                                    reinit' <- infExprMaybe reinit
                                    final'  <- infExprMaybe final
                                    ops' <- mapM infHandlerBranch ops
-                                   return (Handler hsort' scoped override meff' pars' reinit' ret' final' ops' hrng rng)
+                                   return (Handler hsort scoped override meff' pars' reinit' ret' final' ops' hrng rng)
       Inject tp expr b range-> do expr' <- infExpr expr
                                   tp'   <- infResolveX tp (Check "Can only inject effect constants (of kind X)" range) range
                                   -- trace ("resolve ann: " ++ show (pretty tp')) $
@@ -601,10 +603,10 @@ infPat pat
                                     return (PatParens pat' range)
 
 
-infHandlerBranch (HandlerBranch name pars expr isRaw brType nameRng rng)
+infHandlerBranch (HandlerBranch name pars expr opSort nameRng rng)
   = do pars' <- mapM infHandlerValueBinder pars
        expr' <- infExpr expr
-       return (HandlerBranch name pars' expr' isRaw brType nameRng rng)
+       return (HandlerBranch name pars' expr' opSort nameRng rng)
 
 infBranch (Branch pattern guards)
   = do pattern'<- infPat pattern

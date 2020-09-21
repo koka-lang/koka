@@ -334,6 +334,7 @@ task("atom", function() {
     jake.cpR(path.join("support","atom","package.json"),pkg);
     jake.cpR(path.join("support","atom","grammars"),pkg);
     jake.cpR(path.join("support","atom","styles"),pkg);
+    jake.cpR(path.join("support","atom","settings"),pkg);
   }
 });
 

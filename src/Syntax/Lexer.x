@@ -256,7 +256,7 @@ reservedNames
     [ "infix", "infixr", "infixl", "prefix", "postfix"
     , "type", "cotype", "alias"
     , "struct", "enum", "con"
-    , "fun", "extern", "val", "var", "control", "fn"
+    , "val", "fun", "fn", "extern", "var", "control", "rcontrol"
     , "if", "then", "else", "elif"
     , "return", "match", "with", "in"
     , "forall", "exists", "some"
