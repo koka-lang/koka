@@ -22,7 +22,7 @@ module Common.Syntax( Visibility(..)
                     , dataDefIsRec, dataDefIsOpen, dataDefIsValue
                     , HandlerSort(..)
                     , isHandlerInstance, isHandlerNormal
-                    , OperationSort(..)
+                    , OperationSort(..), readOperationSort
                     , Platform(..), platform32, platform64, platformCS, platformJS
                     , alignedSum, alignedAdd, alignUp
                     ) where
@@ -109,6 +109,15 @@ instance Show OperationSort where
                   OpFun -> "fun"
                   OpControlRaw -> "rcontrol"
                   OpControl -> "control"
+  
+readOperationSort :: String -> Maybe OperationSort
+readOperationSort s 
+  = case s of 
+      "val" -> Just OpVal
+      "fun" -> Just OpFun
+      "rcontrol" -> Just OpControlRaw
+      "control"  -> Just OpControl
+      _ -> Nothing
   
 {--------------------------------------------------------------------------
   DataKind

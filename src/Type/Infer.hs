@@ -983,36 +983,46 @@ inferHandledEffect rng handlerSort mbeff ops
 checkCoverage :: Range -> Effect -> Name -> [HandlerBranch Type] -> Inf ()
 checkCoverage rng effect handlerConName branches
   = do (_,gconTp,conRepr,conInfo) <- resolveConName handlerConName Nothing rng
-       let modName = qualifier handlerConName
-           opNames = map (qualify modName . fieldToOpName . fst)  (conInfoParams conInfo)
-           branchNames = map (qualify modName . branchToOpName . hbranchName) branches
-       checkCoverageOf rng opNames opNames branchNames
+       let opNames = map (fieldToOpName . fst)  (conInfoParams conInfo)
+           branchNames = map branchToOpName branches
+       checkCoverageOf rng (map fst opNames) opNames branchNames
        return ()
   where
-    fieldToOpName fname
-      = newQualified (nameModule fname) (drop 7 (nameId fname))  -- drop "clause-"
-    branchToOpName bname
-      = if (isValueOperationName bname)     -- .val-<op>
-         then fromValueOperationsName bname
-         else bname
+    modName = qualifier handlerConName
         
-    checkCoverageOf :: Range -> [Name] -> [Name] -> [Name] -> Inf ()
+    fieldToOpName fname
+      = let (pre,post)      = span (/='-') (nameId fname)
+            (opSort,opName) = case (readOperationSort pre,post) of
+                                (Just opSort, _:opName) -> (opSort,opName)
+                                _ -> failure $ "Type.Infer.checkCoverage: illegal operation field name: " ++ show fname ++ " in " ++ show handlerConName
+        in (qualify modName (newQualified (nameModule fname) opName), opSort)
+      
+    branchToOpName hbranch
+      = (qualify modName $
+         if (isValueOperationName (hbranchName hbranch))     -- .val-<op>
+          then fromValueOperationsName (hbranchName hbranch) else hbranchName hbranch,
+         hbranchSort hbranch)
+        
+    checkCoverageOf :: Range -> [Name] -> [(Name,OperationSort)] -> [(Name,OperationSort)] -> Inf ()
     checkCoverageOf rng allOpNames opNames branchNames
-      = -- trace ("check coverage: " ++ show opNames ++ " vs. " ++ show branchNames) $
+      = trace ("check coverage: " ++ show opNames ++ " vs. " ++ show branchNames) $
         do env <- getPrettyEnv
            case opNames of
             [] -> if null branchNames
                    then return ()
                    -- should not occur if branches typechecked previously
-                   else case (filter (\name -> not (name `elem` allOpNames)) branchNames) of
-                          (name:_) -> termError rng (text "operator" <+> ppOpName env name <+>
+                   else case (filter (\(bname,bsort) -> not (bname `elem` allOpNames)) branchNames) of
+                          ((bname,bsort):_) -> termError rng (text "operator" <+> ppOpName env bname <+>
                                                      text "is not part of the handled effect") effect
                                                       [] -- hints
                           _        -> infError rng (text "some operators are handled multiple times for effect " <+> ppType env effect)
-            (opName:opNames')
-              -> do let (matches,branchNames') = partition (==opName) branchNames
+            ((opName,opSort):opNames')
+              -> do let (matches,branchNames') = partition (\(bname,_) -> bname==opName) branchNames
                     case matches of
-                      [m] -> return ()
+                      [(bname,bsort)] 
+                          -> if (bsort > opSort)
+                              then infWarning rng (text "operation" <+> ppOpName env opName <+> text "is declared as '" <.> text (show opSort) <.> text "' but handled here using '" <.> text (show bsort) <.> text "'")
+                              else return ()
                       []  -> infError rng (text "operator" <+> ppOpName env opName <+> text "is not handled")
                       _   -> infError rng (text "operator" <+> ppOpName env opName <+> text "is handled multiple times")
                     checkCoverageOf rng allOpNames opNames' branchNames'

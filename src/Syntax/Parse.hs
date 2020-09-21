@@ -962,7 +962,12 @@ operationDecl opCount vis foralls docEffect hndName effName mbInstanceUmb effTp 
            forallParams= [TpVar (tbinderName par) idrng | par <- foralls]
            tpParams    = forallParams ++ [TpVar (tbinderName par) idrng | par <- exists]
 
-           clauseId    = prepend "clause-" (if (isValueOperationName id) then fromValueOperationsName id else id)
+
+           makeClauseFieldName :: OperationSort -> Name -> Name
+           makeClauseFieldName opSort name
+             = prepend (show opSort ++ "-") (if (isValueOperationName name) then fromValueOperationsName name else name)
+             
+           clauseId    = makeClauseFieldName opSort id 
            (clauseName,clauseParsTp) 
                        = if (length pars <= 2) -- set by std/core/hnd
                           then (nameTpClause (length pars), [binderType par | (vis,par) <- pars])
@@ -994,13 +999,12 @@ operationDecl opCount vis foralls docEffect hndName effName mbInstanceUmb effTp 
                           hndParam  = ValueBinder hndArg Nothing Nothing idrng rng
 
                           innerBody = Case (Var hndArg False rng) [branch] rng
-                          fld       = prepend "clause-" id
                           branch    = Branch (PatCon (toConstructorName hndName) patterns rng rng) 
-                                             [Guard guardTrue (Var fld False rng)]
+                                             [Guard guardTrue (Var clauseId False rng)]
                           i          = opIndex
                           fieldCount = opCount
                           patterns  = [(Nothing,PatWild rng) | _ <- [0..i-1]]
-                                      ++ [(Nothing,PatVar (ValueBinder fld Nothing (PatWild rng) rng rng))]
+                                      ++ [(Nothing,PatVar (ValueBinder clauseId Nothing (PatWild rng) rng rng))]
                                       ++ [(Nothing,PatWild rng) | _ <- [i+1..fieldCount-1]]
                       in def
 
