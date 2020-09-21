@@ -734,13 +734,13 @@ parseEffectDecl dvis =
                                     return (Just tp)
                                  <|>
                                     return (Just (TpCon nameTpInst irng))
-         (operations, xrng) <- semiBracesRanged (parseOpDecl defvis)
+         (operations, xrng) <- semiBracesRanged (parseOpDecl singleShot defvis)
          return $ -- trace ("parsed effect decl " ++ show effectId ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show isInstance ++ " " ++ show tpars ++ " " ++ show kind ++ " " ++ show mbInstance) $
           EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, isInstance, effectId, irng, 
                            tpars, kind, prng, mbInstanceUmb, operations)
       <|>
       do (tpars,kind,prng) <- typeKindParams
-         op@(OpDecl (doc,opId,idrng,linear,opSort,exists0,pars,prng,mbteff,tres)) <- parseOpDecl vis
+         op@(OpDecl (doc,opId,idrng,linear,opSort,exists0,pars,prng,mbteff,tres)) <- parseOpDecl singleShot vis
          let mbInstance = Nothing
              effectId   = if isValueOperationName opId then fromValueOperationsName opId else opId
          return $ -- trace ("parsed effect decl " ++ show opId ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show linear ) $
@@ -884,8 +884,8 @@ effectDecl dvis = do
   decl <- parseEffectDecl dvis
   return $ makeEffectDecl decl
 
-parseOpDecl :: Visibility -> LexParser OpDecl
-parseOpDecl vis = parseValOpDecl vis <|> parseFunOpDecl vis
+parseOpDecl :: Bool -> Visibility -> LexParser OpDecl
+parseOpDecl linear vis = parseValOpDecl vis <|> parseFunOpDecl linear vis
 
 -- effect NAME { val op = ... }
 -- TODO annotate the operation as "value operation" to
@@ -902,13 +902,15 @@ parseValOpDecl vis =
        Just etp -> fail "an explicit effect in result type of an operation is not allowed (yet)"
      return $ OpDecl (doc, toValueOperationName id,idrng,True,OpVal,[],[],idrng,mbteff,tres)
 
-parseFunOpDecl :: Visibility -> LexParser OpDecl
-parseFunOpDecl vis =
+parseFunOpDecl :: Bool -> Visibility -> LexParser OpDecl
+parseFunOpDecl linear vis =
   do ((rng0,doc),opSort) <- do rdoc <- dockeywordFun
                                return (rdoc,OpFun) 
                            <|>
                             do rdoc <- dockeyword "control"
-                               return (rdoc,OpControl)
+                               if (linear) 
+                                then fail "'control' operations are invalid for a linear effect"
+                                else return (rdoc,OpControl)
      (id,idrng)   <- identifier
      exists0      <- typeparams
      (pars,prng)  <- conPars vis

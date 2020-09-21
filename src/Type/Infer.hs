@@ -14,7 +14,7 @@
 module Type.Infer (inferTypes, coreVarInfoFromNameInfo ) where
 
 import qualified Lib.Trace
-import Data.List(partition,sortBy)
+import Data.List(partition,sortBy,sortOn)
 import qualified Data.List(find)
 import Data.Ord(comparing)
 import Data.Maybe(catMaybes)
@@ -932,12 +932,23 @@ inferHandler propagated expect handlerSort handlerScoped
                             (handleExpr (Var actionName False rng)) hrng
 
        -- and check the handle expression
-       hres@(htp,_,_) <- inferExpr propagated expect handlerExpr
+       hres@(xhtp,_,_) <- inferExpr propagated expect handlerExpr
+       htp <- subst xhtp
        
+       -- extract handler effect
+       penv <- getPrettyEnv               
+       let heffect = case splitFunScheme(htp) of
+                        Just ([],[],_,heff,hresTp) -> heff
+                        _ -> failure $ "Type.Infer.inferHandler: unexpected handler type: " ++ show (ppType penv htp)
+      
+       if (not (effectIsLinear heff))
+        then return ()
+        else checkLinearity effectName heffect branches hrng rng
+      
        -- insert a mask<local> over the action?
-       case splitFunScheme(htp) of
-         Just ([],[],[(_,TFun _ actionEff actionResTp)],heff,hresTp) | containsLocalEffect heff
-           -> do -- traceDoc $ \penv -> text "handler: found local:" <+> ppType penv htp
+       if (not (containsLocalEffect heff))
+         then return hres
+         else do -- traceDoc $ \penv -> text "handler: found local:" <+> ppType penv htp
                  hp <- Op.freshTVar kindHeap Meta
                  let handlerExprMask 
                         = if isInstance
@@ -950,12 +961,38 @@ inferHandler propagated expect handlerSort handlerScoped
                            else Lam [ValueBinder actionName Nothing Nothing rng rng] 
                                   (handleExpr (Lam [] (Inject (TApp typeLocal [hp]) (Var actionName False rng) False hrng) hrng)) hrng
                  inferExpr propagated expect handlerExprMask  -- and re-infer :-)                                         
-         _ -> do -- traceDoc $ \penv -> text "handler: no local " <+> ppType penv htp
-                 return hres
-
+         
 containsLocalEffect eff
   = let (ls,tl) = extractOrderedEffect eff
     in not (null (filter (\l -> labelName l == nameTpLocal) ls))
+
+checkLinearity effectName heffect branches hrng rng
+  = do checkLinearClauses 
+       checkLinearEffect
+  where
+    checkLinearClauses 
+      = mapM_ check branches
+      where
+        check hbranch 
+          = if (hbranchSort hbranch <= OpFun) then return () 
+             else do penv <- getPrettyEnv
+                     contextError rng (hbranchPatRange hbranch) 
+                        (text "operation" <+> ppName penv (hbranchName hbranch) <+>
+                         text ("needs to be linear but is handled in a non-linear way (as '" ++ show (hbranchSort hbranch) ++ "')"))
+                        [(text "hint",text "use a 'val' or 'fun' operation clause instead")]
+        
+    checkLinearEffect 
+      = do let (effs,tl) = extractEffectExtend heffect
+           --traceDoc $ \env -> text "operation" <+> text (show opName) <+> text ": " <+> niceType env effBranch -- hsep (map (\tp -> niceType env tp) effs)
+           case (dropWhile effectIsLinear effs) of
+             (e:_) -> do penv <- getPrettyEnv
+                         contextError rng hrng
+                            (text "handler for" <+> (ppName penv effectName) <+>
+                             text "needs to be linear but uses a non-linear effect:" <+> ppType penv e)
+                            [(text "hint",text "ensure only linear effects are used in a handler")]
+             [] -> return ()
+
+    
          
 -- Infer the handled effect from looking at the operation clauses
 inferHandledEffect :: Range -> HandlerSort -> Maybe Effect -> [HandlerBranch Type] -> Inf (Effect)
@@ -1005,7 +1042,7 @@ checkCoverage rng effect handlerConName branches
         
     checkCoverageOf :: Range -> [Name] -> [(Name,OperationSort)] -> [(Name,OperationSort)] -> Inf ()
     checkCoverageOf rng allOpNames opNames branchNames
-      = trace ("check coverage: " ++ show opNames ++ " vs. " ++ show branchNames) $
+      = -- trace ("check coverage: " ++ show opNames ++ " vs. " ++ show branchNames) $
         do env <- getPrettyEnv
            case opNames of
             [] -> if null branchNames
@@ -1020,7 +1057,9 @@ checkCoverage rng effect handlerConName branches
               -> do let (matches,branchNames') = partition (\(bname,_) -> bname==opName) branchNames
                     case matches of
                       [(bname,bsort)] 
-                          -> if (bsort > opSort)
+                          -> if (opSort==OpVal && bsort /= opSort)
+                              then infError rng (text "cannot handle a 'val' operation" <+> ppOpName env opName <+> text "with" <+> squotes (text (show bsort)))
+                             else if (bsort > opSort)
                               then infWarning rng (text "operation" <+> ppOpName env opName <+> text "is declared as '" <.> text (show opSort) <.> text "' but handled here using '" <.> text (show bsort) <.> text "'")
                               else return ()
                       []  -> infError rng (text "operator" <+> ppOpName env opName <+> text "is not handled")

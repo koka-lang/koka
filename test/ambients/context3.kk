@@ -68,7 +68,7 @@ fun emit4(action) {
   action()
 }
 
-context fun abort() : ()
+context control abort() : ()
 
 fun pretty-abort(action) {
   with pretty-emit
