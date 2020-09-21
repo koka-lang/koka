@@ -268,7 +268,7 @@ data DataRepr = -- value types
               | DataAsMaybe         -- one constructor with fields, and one singleton
               | DataStruct          -- compatible constructors (all raw or regular types) and possibly singletons (need tag)
               -- non-value types
-              | DataSingle          -- only one constructor (no tag needed)
+              | DataSingle{ hasSingletons :: Bool } -- only one constructor (no tag needed), hasSingletons true if it is a singleton as well
               | DataAsList          -- one constructor with fields, and one singleton (don't need a tag, for example can distinguish pointer vs enum)
               | DataSingleNormal    -- one constructor with fields, and multiple singletons (distinguish one pointer vs enums)
               | DataNormal{ hasSingletons :: Bool }
@@ -348,7 +348,7 @@ getDataReprEx getIsValue info
                                 then DataIso
                                else if (isValue && null singletons && not (dataInfoIsRec info))
                                 then DataSingleStruct
-                                else DataSingle
+                                else DataSingle (not (null singletons))
                in (dataRepr
                   ,[if (isValue && length (conInfoParams conInfo) == 1) then ConIso typeName dataRepr
                     else if length singletons == 1 then ConSingleton typeName dataRepr

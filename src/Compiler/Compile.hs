@@ -269,12 +269,13 @@ compileModuleOrFile :: Terminal -> Flags -> Modules -> String -> Bool -> IO (Err
 compileModuleOrFile term flags modules fname force
   | any (not . validModChar) fname = compileFile term flags modules Object fname
   | otherwise
-    = do let modName = newName fname
+    = -- trace ("compileModuleOrFile: " ++ show fname ++ ", modules: " ++ show (map modName modules)) $
+      do let modName = newName fname
          exist <- searchModule flags "" modName
          case (exist) of
           Just (fpath) -> compileModule term (if force then flags{ forceModule = fpath } else flags)
                                       modules modName
-          Nothing -> do fexist <- searchSourceFile flags "" fname
+          _       -> do fexist <- searchSourceFile flags "" fname
                         runIOErr $
                          case (fexist) of
                           Just (root,stem)
@@ -305,9 +306,10 @@ makeRelativeToPaths paths fname
 
 compileModule :: Terminal -> Flags -> Modules -> Name -> IO (Error Loaded)
 compileModule term flags modules name  -- todo: take force into account
-  = runIOErr $ -- trace ("compileModule: " ++ show name) $
+  = runIOErr $   
     do let imp = ImpProgram (Import name name rangeNull Private)
        loaded <- resolveImports name term flags "" initialLoaded{ loadedModules = modules } [imp]
+       -- trace ("compileModule: loaded modules: " ++ show (map modName (loadedModules loaded))) $ return ()
        case filter (\m -> modName m == name) (loadedModules loaded) of
          (mod:_) -> return loaded{ loadedModule = mod }
          []      -> fail $ "Compiler.Compile.compileModule: module not found in imports: " ++ show name ++ " not in " ++ show (map (show . modName) (loadedModules loaded))
@@ -324,6 +326,7 @@ compileProgram term flags modules compileTarget fname program
 compileProgramFromFile :: Terminal -> Flags -> Modules -> CompileTarget () -> FilePath -> FilePath -> IOErr Loaded
 compileProgramFromFile term flags modules compileTarget rootPath stem
   = do let fname = joinPath rootPath stem
+       -- trace ("compileProgramFromFile: " ++ show fname ++ ", modules: " ++ show (map modName modules)) $ return ()
        liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "compile:") <+> color (colorSource (colorScheme flags)) (text (normalizeWith '/' fname)))
        liftIO $ termPhase term ("parsing " ++ fname)
        exist <- liftIO $ doesFileExist fname
@@ -356,7 +359,7 @@ isExecutable _ = False
 
 compileProgram' :: Terminal -> Flags -> Modules -> CompileTarget () -> FilePath -> UserProgram -> IOErr Loaded
 compileProgram' term flags modules compileTarget fname program
-  = do -- liftIO $ termPhase term ("resolve " ++ show (getName program))
+  = do liftIO $ termPhase term ("compile program' " ++ show (getName program))
        ftime <- liftIO (getFileTimeOrCurrent fname)
        let name   = getName program
            outIFace = outName flags (showModName name) ++ ifaceExtension
@@ -374,6 +377,7 @@ compileProgram' term flags modules compileTarget fname program
        -- trace ("compile file: " ++ show fname ++ "\n time: "  ++ show ftime ++ "\n latest: " ++ show (loadedLatest loaded)) $ return ()
        liftIO $ termPhase term ("resolve imports " ++ show (getName program))
        loaded1 <- resolveImports (getName program) term flags (dirname fname) loaded (map ImpProgram (programImports program))
+       -- trace (" loaded modules: " ++ show (map modName (loadedModules loaded1))) $ return ()
        -- trace ("inlines: "  ++ show (loadedInlines loaded1)) $ return ()
        if (name /= nameInteractiveModule || verbose flags > 0)
         then liftIO $ termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "check  :") <+>
@@ -434,6 +438,7 @@ compileProgram' term flags modules compileTarget fname program
 
        loaded4 <- liftIO $ codeGen term flags' newTarget loaded3
        -- liftIO $ termDoc term (text $ show (loadedGamma loaded3))
+       -- trace (" final loaded modules: " ++ show (map modName (loadedModules loaded4))) $ return ()
        return loaded4{ loadedModules = addOrReplaceModule (loadedModule loaded4) (loadedModules loaded4) }
 
 checkUnhandledEffects :: Flags -> Loaded -> Name -> Range -> Type -> Error (Maybe (UserExpr -> UserExpr))
@@ -487,55 +492,6 @@ impFullName :: ModImport -> Name
 impFullName (ImpProgram imp)  = importFullName imp
 impFullName (ImpCore cimp)    = Core.importName cimp
 
-{-
-resolveImports :: Terminal -> Flags -> FilePath -> Loaded -> [ModImport] -> IOErr (Loaded,[[Module]])
-resolveImports term flags currentDir loaded []
-  = return (loaded,[])
-resolveImports term flags currentDir loaded (imp:imps)
-  = do trace ("resolve module: " ++ show (impName imp) ++ ", loaded: " ++ show (map modName (loadedModules loaded))) $ return ()
-       (mod,modules) <- resolveModule term flags currentDir (loadedModules loaded) imp
-       let (loaded1,errs) = loadedImportModule (maxStructFields flags) loaded mod (getRange imp) (impName imp)
-       trace ("import module: " ++ show (impName imp)) $ return ()
-       let loaded2        = loaded1{ loadedModules = modules }
-           -- impsPub        = filter (\imp -> Core.importVis imp == Public) $ Core.coreProgImports $ modCore mod
-       mapM_ (\err -> liftError (errorMsg err)) errs
-       -- trace ("impsPub: " ++ show [show (Core.importName imp) ++ ": " ++ Core.importPackage imp | imp <- impsPub]) $ return ()
-       trace ("resolve public imports of module: " ++ show (impName imp)) $ return ()
-       (loaded3,pubMods) <- resolvePubImports flags loaded2 mod
-       trace ("resolve further imports (from  module: " ++ show (impName imp) ++ ")") $ return ()
-       (loaded4,modss) <- resolveImports term flags currentDir loaded3 imps
-       -- trace ("\n\n--------------------\nmodule " ++ show (impName imp) ++ ":\n " ++ show (loadedGamma loaded4)) $ return ()
-       -- inlineDefs <- liftError $ (modInlines mod) (loadedGamma loaded4) -- process inlines after pub imports
-       return (loaded4,pubMods:modss)
-
-resolvePubImports :: Flags -> Loaded -> Module -> IOErr (Loaded,[Module])
-resolvePubImports flags loaded0 mod
-  = do let imports = Core.coreProgImports $ modCore mod
-           pubImports = filter (\imp -> Core.importVis imp == Public) imports
-       ifaces <- mapM findImp pubImports
-       let (loaded1,imps,errs) = foldl loadPubImport (loaded0,[],[])  (zip ifaces pubImports)
-       mapM_ (\err -> liftError (errorMsg err)) errs
-       return (loaded1,mod:imps)
-  where
-    modules = loadedModules loaded0
-    modNames = map modName modules
-
-    findImp imp
-      = do mbiface <- liftIO $ searchOutputIface flags (Core.importName imp)
-           case mbiface of
-             Just iface -> return iface
-             Nothing -> liftError $
-                        errorMsg (ErrorGeneral rangeNull (text "Unable to find interface file for:" <+> pretty (Core.importName imp)))
-
-    loadPubImport :: (Loaded,[Module],[ErrorMessage]) -> (FilePath,Core.Import) -> (Loaded,[Module],[ErrorMessage])
-    loadPubImport (loaded,imps,errs0) (iface,imp)
-      = trace ("lookup pub import: " ++ iface ++ ", name: " ++ show (Core.importName imp) ++ "\n  " ++ show (map modName modules)) $
-        case lookupImport iface modules of
-          Just impMod | True -- modName impMod /= Core.importName imp
-                      -> let (loadedImp,errs1) = loadedImportModule (maxStructFields flags) loaded impMod rangeNull (Core.importName imp)
-                         in (loadedImp,impMod:imps,errs0) --  ++ errs1)
-          _ -> trace " pub not found" $ (loaded,imps,errs0)
--}
 
 resolveImports :: Name -> Terminal -> Flags -> FilePath -> Loaded -> [ModImport] -> IOErr (Loaded)
 resolveImports mname term flags currentDir loaded0 imports0
@@ -679,7 +635,7 @@ resolveModule term flags currentDir modules mimp
           do loadedImp <- compileProgramFromFile term flags modules1 Object root fname
              let mod = loadedModule loadedImp
                  allmods = addOrReplaceModule mod modules
-             return (mod, allmods {-loadedModules loadedImp-})
+             return (mod, loadedModules loadedImp)
 
       loadFromIface iface root stem
         = -- trace ("loadFromIFace: " ++  iface ++ ": " ++ root ++ "/" ++ stem ++ "\n in modules: " ++ show (map modName modules)) $

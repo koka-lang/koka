@@ -89,8 +89,8 @@ data HandlerSort e
 instance Show (HandlerSort e) where
   show hsort = case hsort of
                  HandlerNormal -> "Normal"
-                 HandlerResource Nothing -> "FreshResource"
-                 HandlerResource _       -> "Resource"
+                 HandlerResource Nothing -> "Instance"
+                 HandlerResource _       -> "OverrideInstance" 
 
 isHandlerResource (HandlerResource _) = True
 isHandlerResource _ = False
@@ -112,6 +112,7 @@ instance Show DataKind where
 
 data DataDef = DataDefValue{ rawFields :: Int, scanFields :: Int }
              | DataDefNormal
+             | DataDefAuto   -- Value or Normal; determined by kind inference
              | DataDefRec
              | DataDefOpen
              deriving Eq
@@ -119,14 +120,15 @@ data DataDef = DataDefValue{ rawFields :: Int, scanFields :: Int }
 instance Show DataDef where
   show dd = case dd of
               DataDefValue m n -> "val(raw:" ++ show m ++ ",scan:" ++ show n ++ ")"
-              DataDefNormal    -> "normal"
+              DataDefNormal{}  -> "normal"
               DataDefRec       -> "rec"
               DataDefOpen      -> "open"
 
 dataDefIsRec ddef
   = case ddef of
-      DataDefValue{} -> False
-      DataDefNormal  -> False
+      DataDefValue{}   -> False
+      DataDefNormal    -> False
+      DataDefAuto      -> False
       _  -> True
 
 dataDefIsOpen ddef

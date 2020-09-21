@@ -214,7 +214,7 @@ typeDecl env
   = do (vis,(ddef0,isExtend,sort,doc)) <- try $ do (vis,_) <- visibility Public
                                                    info <- typeSort
                                                    return (vis,info)
-       ddef       <- do keyword "rec"
+       ddef       <- do keyword "rec"  
                         return (case ddef0 of
                                   DataDefNormal -> DataDefRec
                                   _ -> ddef0)

@@ -80,13 +80,13 @@ fun pretty-abort(action) {
 ambient control choice() : bool
 
 fun pretty-all(action) {
-  with control choice() { resume(True) + resume(False) }
+  with control choice() { resume(True) + (resume(False) : list<_>) }
   [pretty-abort(action)]
 }
 
 
 fun pretty-all2(action) {
-  with control choice() { resume(True) + resume(False)  }
+  with control choice() { resume(True) + (resume(False) : list<_>) }
   with return(x) { [x] }
   pretty-abort(action)
 }

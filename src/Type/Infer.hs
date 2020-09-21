@@ -900,8 +900,7 @@ inferHandler propagated expect handlerSort handlerScoped
        resumeArgs <- mapM (\_ -> Op.freshTVar kindStar Meta) branches  -- TODO: get operation result types to improve inference
        
        -- construct the handler
-       traceDoc $ \penv -> text "infer handler: heff:" <+> ppType penv heff
-
+       -- traceDoc $ \penv -> text "infer handler: heff:" <+> ppType penv heff <+> text ", propagated:" <+> (case propagated of { Nothing  -> text "none"; Just (tp,_)  -> ppType penv tp })
        let -- create expressions for each clause
            opName b1 b2 = compare (show (unqualify (hbranchName b1))) (show (unqualify (hbranchName b2)))
            clause (HandlerBranch opName pars body raw rkind nameRng patRng, resumeArg)
@@ -911,12 +910,13 @@ inferHandler propagated expect handlerSort handlerScoped
                                              in (nameClause "control" (length pars), pars ++ [ValueBinder (newName "resume") (Just resumeTp) () nameRng patRng])
                           ResumeNormalRaw -> (nameClause "control-raw" (length pars), pars ++ [ValueBinder (newName "rcontext") Nothing () nameRng patRng])
                           _               -> failure $ "Type.Infer.inferHandler: unexpected resume kind: " ++ show rkind                  
-                 traceDoc $ \penv -> text "resolving:" <+> text (showPlain opName) <+> text ", under effect:" <+> text (showPlain effectName)
+                 -- traceDoc $ \penv -> text "resolving:" <+> text (showPlain opName) <+> text ", under effect:" <+> text (showPlain effectName)
                  (_,gtp,_) <- resolveFunName (if isQualified opName then opName else qualify (qualifier effectName) opName)
                                                (CtxFunArgs (length pars) []) patRng nameRng -- todo: resolve more specific with known types?
                  (tp,_,_)  <- instantiate nameRng gtp 
                  let parTps = case splitFunType tp of 
-                                Just (tpars,_,_) -> map (Just . snd) tpars ++ repeat Nothing  -- TODO: propagate result type as well?
+                                Just (tpars,_,_) -> (if (isResource) then tail else id) $ -- drop the first parameter of an op for an instance (as it is the instance name)
+                                                    map (Just . snd) tpars ++ repeat Nothing  -- TODO: propagate result type as well?
                                 _ -> failure $ "Type.Infer.inferHandler: bad operation type: " ++ show opName ++ ": " ++ show (pretty gtp)
                      cparamsx = map (\(b,mbtp) -> case b of
                                                     ValueBinder name Nothing _ nameRng rng -> ValueBinder name mbtp Nothing nameRng rng
@@ -930,26 +930,34 @@ inferHandler propagated expect handlerSort handlerScoped
                         in if null clauses then hcon else App hcon clauses rng
                          
            -- create handler expression
+           actionName = newHiddenName "action"               
            handleName = makeHiddenName "handle" effectName
            handleRet  = case ret of
                           Nothing -> let argName = (newHiddenName "x")
                                      in Lam [ValueBinder argName Nothing Nothing rng rng] (Var argName False rng) hrng -- don't pass `id` as it needs to be opened
                           Just expr -> expr
            handleExpr action = App (Var handleName False rng) [(Nothing,handlerCon),(Nothing,handleRet),(Nothing,action)] hrng
-           handlerExpr= Lam [ValueBinder (newHiddenName "action") Nothing Nothing rng rng]
-                            (handleExpr (Var (newHiddenName "action") False rng)) hrng
+           handlerExpr= Lam [ValueBinder actionName Nothing Nothing rng rng]
+                            (handleExpr (Var actionName False rng)) hrng
 
        -- and check the handle expression
        hres@(htp,_,_) <- inferExpr propagated expect handlerExpr
        
        -- insert a mask<local> over the action?
        case splitFunScheme(htp) of
-         Just ([],[],[(_,TFun [] actionEff actionResTp)],heff,hresTp) | containsLocalEffect heff
+         Just ([],[],[(_,TFun _ actionEff actionResTp)],heff,hresTp) | containsLocalEffect heff
            -> do -- traceDoc $ \penv -> text "handler: found local:" <+> ppType penv htp
                  hp <- Op.freshTVar kindHeap Meta
-                 let maskExpr = Lam [] (Inject (TApp typeLocal [hp]) (Var (newHiddenName "action") False rng) False hrng) hrng
-                     handlerExprMask = Lam [ValueBinder (newHiddenName "action") Nothing Nothing rng rng] 
-                                         (handleExpr maskExpr) hrng
+                 let handlerExprMask 
+                        = if isResource
+                           then let instName   = newHiddenName "hname"
+                                in Lam [ValueBinder actionName Nothing Nothing rng rng] 
+                                    (handleExpr (Lam [ValueBinder instName Nothing Nothing rng rng] 
+                                                   (Inject (TApp typeLocal [hp]) 
+                                                      (Lam [] (App (Var actionName False rng) [(Nothing,Var instName False rng)] rng) rng) 
+                                                      False hrng) hrng)) hrng
+                           else Lam [ValueBinder actionName Nothing Nothing rng rng] 
+                                  (handleExpr (Lam [] (Inject (TApp typeLocal [hp]) (Var actionName False rng) False hrng) hrng)) hrng
                  inferExpr propagated expect handlerExprMask  -- and re-infer :-)                                         
          _ -> do -- traceDoc $ \penv -> text "handler: no local " <+> ppType penv htp
                  return hres
@@ -970,7 +978,7 @@ inferHandledEffect rng handlerSort mbeff ops
                 (rho,_,_) <- instantiate nameRng tp
                 case splitFunType rho of
                   Just((opname,rtp):_,_,_) | isHandlerResource handlerSort && opname == newHiddenName "hname"
-                                -> do traceDoc $ \env -> text "effect instance: " <+> ppType env rtp
+                                -> do -- traceDoc $ \env -> text "effect instance: " <+> ppType env rtp
                                       return rtp
                   Just(_,eff,_) | not (isHandlerResource handlerSort)
                                 -> case extractEffectExtend eff of
@@ -986,12 +994,16 @@ checkCoverage rng effect handlerConName branches
   = do (_,gconTp,conRepr,conInfo) <- resolveConName handlerConName Nothing rng
        let modName = qualifier handlerConName
            opNames = map (qualify modName . fieldToOpName . fst)  (conInfoParams conInfo)
-           branchNames = map (qualify modName . hbranchName) branches
+           branchNames = map (qualify modName . branchToOpName . hbranchName) branches
        checkCoverageOf rng opNames opNames branchNames
        return ()
   where
     fieldToOpName fname
       = newQualified (nameModule fname) (drop 7 (nameId fname))  -- drop "clause-"
+    branchToOpName bname
+      = if (isValueOperationName bname)     -- .val-<op>
+         then fromValueOperationsName bname
+         else bname
         
     checkCoverageOf :: Range -> [Name] -> [Name] -> [Name] -> Inf ()
     checkCoverageOf rng allOpNames opNames branchNames
@@ -1664,7 +1676,7 @@ inferApp propagated expect fun nargs rng
                                            resolveFunName name (CtxFunArgs (length fixed) (map (fst . fst) named)) rng nameRange
                                            return (Just Nothing)  -- error
                           [(_,info)] -> return (Just (Just (infoType info, rng))) -- known type
-                          _          -> return Nothing -- many matches
+                          _          -> return Nothing -- many matches                
                 _ -> return (Just Nothing) -- fun first
        case amb of
          Nothing   -> inferAppFromArgsX fixed named
@@ -2262,13 +2274,16 @@ checkLocalScope = Check "a reference to a local variable escapes it's scope"
 
 isAmbiguous :: NameContext -> Expr Type -> Inf Bool
 isAmbiguous ctx expr
-  = case rootExpr expr of
+  = case expr of
       (Var name isOp nameRange)
         -> do matches <- lookupNameEx (const True) name ctx nameRange
               case matches of
                 []  -> return False
                 [_] -> return False
                 _   -> return True
+      -- Handler{}        -> return True
+      Parens (Lam{}) _ -> return True -- make parenthesized lambdas later in inference
+      Parens body _    -> isAmbiguous ctx body
       _ -> return False
 
 

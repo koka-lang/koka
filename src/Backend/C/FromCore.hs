@@ -968,6 +968,7 @@ dataReprMayHaveSingletons dataRepr
   = case dataRepr of
       DataAsList        -> True
       DataSingleNormal  -> True
+      (DataSingle hasSingletons) -> hasSingletons
       (DataNormal hasSingletons) -> hasSingletons
       -- DataOpen          -> True
       _                 -> False

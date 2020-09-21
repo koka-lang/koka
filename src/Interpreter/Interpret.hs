@@ -266,7 +266,7 @@ loadFilesErr term startSt fileNames force
     walk :: [Module] -> State -> [FilePath] -> IO (Error State)
     walk imports st files
       = case files of
-          []  -> do if (not (null imports))
+          []  -> do if (not (null imports) && verbose (flags st) > 0)
                       then do messageInfoLn st "modules:"
                               sequence_ [messageLn st ("  " ++ show (modName mod) {- ++ ": " ++ show (modTime mod) -})
                                         | mod <- imports {- loadedModules (loaded0 st) -} ]

@@ -2628,6 +2628,7 @@ inline extern inject-local<a,h,e>( action : () -> e a ) : total (() -> <local<h>
 
 // Assign to an entry in a local `:vector` variable.
 inline extern [] : forall<s,a,e> ( self : local-var<s,vector<a>>, index : int, assigned : a ) -> <local<s>,exn|e> () {
+  c  "kk_ref_vector_assign"    // todo: improve this
   cs inline "(#1)[(int)#2] = #3"
   js inline "(#1)[#2] = #3"
 }

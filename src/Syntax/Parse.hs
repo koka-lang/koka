@@ -551,8 +551,8 @@ structDecl dvis =
           do (vis,dvis,rng) <-     do{ rng <- keyword "abstract"; return (Public,Private,rng) }
                                <|> do{ (vis,rng) <- visibility dvis; return (vis,vis,rng) }
              ddef           <-     do { specialId "value"; return (DataDefValue 0 0) }
-                               <|> do { specialId "reference"; return (DataDefNormal) } 
-                               <|> do { return DataDefNormal }
+                               <|> do { specialId "reference"; return DataDefNormal } 
+                               <|> do { return DataDefAuto }
              (trng,doc) <- dockeyword "struct"
              return (vis,dvis,ddef,rng,trng,doc))
 
@@ -597,8 +597,8 @@ typeDeclKind
     do (ddef,isExtend) <-     do { specialId "open"; return (DataDefOpen, False) }
                           <|> do { specialId "extend"; return (DataDefOpen, True) }
                           <|> do { specialId "value"; return (DataDefValue 0 0, False) }
-                          <|> do { specialId "reference"; return (DataDefNormal, False) } --todo: respect reference keyword
-                          <|> return (DataDefNormal, False)
+                          <|> do { specialId "reference"; return (DataDefNormal, False) } 
+                          <|> return (DataDefAuto, False)
        (rng,doc) <- dockeyword "type"      
        return (Inductive,rng,doc,ddef,isExtend))
 
@@ -846,7 +846,7 @@ makeEffectDecl decl =
                     else let -- add a private constructor that refers to the handler type to get a proper recursion check
                              hndfld = ValueBinder nameNil hndTp Nothing irng rng
                              hndcon = UserCon (toConstructorName id) [hndEffTp,hndResTp] [(Private,hndfld)] Nothing irng rng Private ""
-                         in (DataType ename tpars [hndcon] rng vis Inductive DataDefNormal False docx, \action -> action)
+                         in (DataType ename tpars [hndcon] rng vis Inductive DataDefAuto False docx, \action -> action)
 
       -- declare the effect handler type
       kindEffect = KindCon nameKindEffect irng
@@ -1241,9 +1241,10 @@ block
                                 in Bind (Def (ValueBinder (newName "_") () e r r) r Private DefVal InlineAuto "") exp r
     combine (StatVar def) exp = let (ValueBinder name () expr nameRng rng) = defBinder def
                                 in  App (Var nameLocal False rng)
-                                        -- put in dummy annotation to make it the first argument to infer (so it can be propagated)
-                                        [(Nothing, Ann expr (promoteType (TpVar (newName "_") rng)) rng), 
-                                         (Nothing,Lam [ValueBinder name Nothing Nothing nameRng nameRng] exp (combineRanged def exp))]
+                                        -- put parens over the lambda so it comes later during type inference (so the type of expr can be propagated in)
+                                        -- see test/ambient/ambient3
+                                        [(Nothing, expr), 
+                                         (Nothing, Parens (Lam [ValueBinder name Nothing Nothing nameRng nameRng] exp (combineRanged def exp)) rng)]
                                          (defRange def)
 
 makeReturn r0 e
@@ -1352,7 +1353,7 @@ withstat
            _ -> binder
 
 applyToContinuation rng params expr body
-  = let fun = Lam params body (combineRanged rng body)
+  = let fun = Parens (Lam params body (combineRanged rng body)) rng -- Parens makes it last in type inference so types can better propagate (ambients/heap1)
         funarg = [(Nothing,fun)]
         fullrange = combineRanged rng expr
     in case unParens expr of
@@ -1485,11 +1486,11 @@ handlerExprX braces rng
        handlerExprXX braces rng mbEff scoped override hsort
 
 handlerSort = do keywordResource
-                 overrideId <- do lapp
+                 overrideId <- {-do lapp
                                   (name,rng) <- qidentifier
                                   rparen
                                   return (Just (Var name False rng))
-                               <|> return Nothing
+                               <|> -} return Nothing
                  return (HandlerResource overrideId)
              <|> return HandlerNormal
 
@@ -1504,30 +1505,41 @@ handlerExprXX braces rng mbEff scoped override hsort
        let fullrange = combineRanges [rng,rng1,rng2]
        let (clauses, binders) = extractBinders clausesAndBinders
        (mbReinit,ret,final,ops) <- partitionClauses clauses pars rng
-       let reinitFun = case mbReinit of
-                         Nothing -> Nothing
-                         Just reinit -> Just $
-                           if (null pars)
-                            then Var (getName reinit) False rng
-                            else let argName = newHiddenName "local"
-                                     rng = getRange reinit
-                                     app = App (Var (getName reinit) False rng)
-                                              [(Nothing,App (Var nameJust False rng)
-                                                            [(Nothing,Var argName False rng)] rng)] rng
-                                 in Lam [ValueBinder argName Nothing Nothing rng rng] app rng
-           handler = Handler hsort scoped override mbEff pars reinitFun ret final ops
-                       (combineRanged rng pars) fullrange
-           hasDefaults = any (isJust.binderExpr) dpars
-       case mbReinit of
-         Nothing
-          | hasDefaults -> return $ binders $ handlerAddDefaults dpars handler
-          | otherwise   -> return $ binders $ handler
-         Just reinit
-          | hasDefaults -> fail "A handler with an 'initially' clause cannot have default values for the local parameters"
-          | otherwise   -> case pars of
-                             [par] -> return $ binders $ handlerAddReinit1 reinit par handler
-                             []    -> return $ binders $ handlerAddReinit reinit handler -- fail "A handler with an 'initially' clause must have local parameters"
-                             _     -> fail "A handler with an 'initially' clause can only have one local paramter (for now)"
+       case (mbEff,ops,final,mbReinit) of
+         (Nothing,[],Nothing,Nothing) -- no ops, and no annotation: this is not a handler; just apply return/finally/initially
+           -> do -- TODO: handle final and initially as well
+                 -- TODO: error on override/scoped/instance?
+                 let handlerExpr f = Lam [ValueBinder (newHiddenName "action") Nothing Nothing rng rng] 
+                                         (f (Var (newHiddenName "action") False rng)) fullrange
+                     retExpr = case ret of
+                                 Nothing -> id
+                                 Just f  -> \actionExpr -> App f [(Nothing,App actionExpr [] fullrange)] fullrange                                 
+                 return (binders $ handlerExpr retExpr)
+                                 
+         _ -> do let reinitFun = case mbReinit of
+                                   Nothing -> Nothing
+                                   Just reinit -> Just $
+                                     if (null pars)
+                                      then Var (getName reinit) False rng
+                                      else let argName = newHiddenName "local"
+                                               rng = getRange reinit
+                                               app = App (Var (getName reinit) False rng)
+                                                        [(Nothing,App (Var nameJust False rng)
+                                                                      [(Nothing,Var argName False rng)] rng)] rng
+                                           in Lam [ValueBinder argName Nothing Nothing rng rng] app rng
+                     handler = Handler hsort scoped override mbEff pars reinitFun ret final ops
+                                 (combineRanged rng pars) fullrange
+                     hasDefaults = any (isJust.binderExpr) dpars
+                 case mbReinit of
+                   Nothing
+                    | hasDefaults -> return $ binders $ handlerAddDefaults dpars handler
+                    | otherwise   -> return $ binders $ handler
+                   Just reinit
+                    | hasDefaults -> fail "A handler with an 'initially' clause cannot have default values for the local parameters"
+                    | otherwise   -> case pars of
+                                       [par] -> return $ binders $ handlerAddReinit1 reinit par handler
+                                       []    -> return $ binders $ handlerAddReinit reinit handler -- fail "A handler with an 'initially' clause must have local parameters"
+                                       _     -> fail "A handler with an 'initially' clause can only have one local paramter (for now)"
 
 handlerParams :: LexParser ([ValueBinder (Maybe UserType) ()],[ValueBinder (Maybe UserType) (Maybe UserExpr)],Range)
 handlerParams

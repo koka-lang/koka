@@ -815,19 +815,21 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
               else return ()
        -- value types
        ddef' <- case ddef of
+                  DataDefNormal
+                    -> return (if (isRec) then DataDefRec else DataDefNormal)
                   DataDefValue _ _ | isRec
                     -> do addError range (text "Type" <+> nameDoc <+> text "cannot be declared as a value type since it is recursive.")
                           return ddef
-                  DataDefNormal | isRec
+                  DataDefAuto | isRec
                     -> return DataDefRec
                   DataDefOpen
                     -> return DataDefOpen
                   DataDefRec 
                     -> return DataDefRec
-                  _ -- Value or Normal and not recursive
+                  _ -- Value or auto, and not recursive
                     -> -- determine the raw fields and total size
                        do platform <- getPlatform
-                          dd <- toDefValues platform (ddef/=DataDefNormal) qname nameDoc infos
+                          dd <- toDefValues platform (ddef/=DataDefAuto) qname nameDoc infos
                           case (ddef,dd) of  -- note: m = raw, n = scan
                             (DataDefValue _ _, DataDefValue m n)
                               -> if (hasKindStarResult (getKind typeResult))
@@ -837,7 +839,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                             (DataDefValue _ _, DataDefNormal)
                               -> do addError range (text "Type" <+> nameDoc <+> text "cannot be used as a value type.")  -- should never happen?
                                     return DataDefNormal
-                            (DataDefNormal, DataDefValue m n) 
+                            (DataDefAuto, DataDefValue m n) 
                               -> if ((m + (n*sizePtr platform)) <= 3*(sizePtr platform) 
                                       && hasKindStarResult (getKind typeResult)
                                       && (sort /= Retractive))

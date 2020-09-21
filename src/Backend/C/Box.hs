@@ -387,7 +387,7 @@ patBox tpPat tpRes pat
   = PatCon (TName nameBoxCon (conInfoType boxConInfo)) [pat] boxConRepr [tpPat] [] tpRes boxConInfo True
 
 boxConRepr :: ConRepr
-boxConRepr = ConSingle nameTpBox DataSingle 0
+boxConRepr = ConSingle nameTpBox (DataSingle False) 0
 
 boxConInfo :: ConInfo
 boxConInfo 

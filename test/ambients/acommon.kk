@@ -121,7 +121,7 @@ fun test4() {
 }
 
 fun test4b() {
-  with return x { () }
+  with return(x){ () }
   with amb
   with foreach( fun(x:int) { if (flip()) then println(x) else println("flip false " + x.show); (x<=1) } )
   [1,2,3].iterate
