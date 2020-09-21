@@ -56,8 +56,8 @@ void printDecl( const char* sort, const char* name );
 %token MATCH
 %token RARROW
 
-%token FUN FN VAL VAR CONTROL
-%token TYPE COTYPE RECTYPE STRUCT
+%token FUN FN VAL VAR CONTROL RCONTROL
+%token TYPE COTYPE STRUCT
 %token ALIAS CON
 %token FORALL EXISTS SOME
 
@@ -247,8 +247,7 @@ typedecl    : typesort typeid typeparams kannot typebody          { $$ = $2; }
 typesort    : typemod TYPE 
             | ID_OPEN TYPE
             | ID_EXTEND TYPE
-            | COTYPE 
-            | RECTYPE
+            | COTYPE
             ;
             
 typemod     : ID_VALUE 
@@ -695,6 +694,7 @@ opclause    : VAL qidentifier '=' expr
             | VAL qidentifier ':' type '=' expr
             | FUN qidentifier opargs bodyexpr
             | CONTROL qidentifier opargs bodyexpr
+            | RCONTROL qidentifier opargs bodyexpr
             | RETURN '(' oparg ')' bodyexpr
             | RETURN paramid bodyexpr               /* deprecated */
             | FINALLY bodyexpr

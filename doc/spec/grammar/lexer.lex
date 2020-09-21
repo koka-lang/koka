@@ -143,7 +143,6 @@ external                  { return EXTERN; }
 
 fun                       { return FUN; }
 fn                        { return FN; }
-control                   { return CONTROL; }
 val                       { return VAL; }
 var                       { return VAR; }
 con                       { return CON; }
@@ -154,8 +153,6 @@ else                      { return ELSE;}
 elif                      { return ELIF;}
 with                      { return WITH; }
 in                        { return IN; }
-
-
 match                     { return MATCH;}
 return                    { return RETURN;}
 
@@ -164,6 +161,19 @@ import                    { return IMPORT;}
 public                    { return PUBLIC;}
 private                   { return PRIVATE;}
 as                        { return AS;}
+
+control                   { return CONTROL; }
+rcontrol                  { return RCONTROL; }
+handle                    { return HANDLE; }
+handler                   { return HANDLER; }
+effect                    { return EFFECT; }
+ambient                   { return EFFECT; }
+context                   { return EFFECT; }
+
+mask                      { return MASK; }
+override                  { return OVERRIDE; }
+instance                  { return INSTANCE; }
+
 
 inline                    { return ID_INLINE;  }
 noinline                  { return ID_NOINLINE;} 
@@ -175,15 +185,6 @@ extend                    { return ID_EXTEND; }
 linear                    { return ID_LINEAR;  }
 value                     { return ID_VALUE;  }
 reference                 { return ID_REFERENCE;  }
-
-handle                    { return HANDLE; }
-handler                   { return HANDLER; }
-effect                    { return EFFECT; }
-ambient                   { return EFFECT; }
-
-mask                      { return MASK; }
-override                  { return OVERRIDE; }
-instance                  { return INSTANCE; }
 
   /*
   initially                 { return INITIALLY; }
