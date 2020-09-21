@@ -237,7 +237,7 @@ and state effect:
 The `effs2.kk` module starts by defining the `:amb` effect:
 ```
 effect amb {
-  fun flip() : bool
+  control flip() : bool
 }
 ```
 This declares `amb` as a new effect with a single operation `flip`.

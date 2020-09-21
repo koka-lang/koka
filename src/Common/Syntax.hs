@@ -143,6 +143,7 @@ instance Show DataDef where
               DataDefNormal{}  -> "normal"
               DataDefRec       -> "rec"
               DataDefOpen      -> "open"
+              DataDefAuto      -> "auto"
 
 dataDefIsRec ddef
   = case ddef of

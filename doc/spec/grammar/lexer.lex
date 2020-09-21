@@ -134,7 +134,6 @@ some                      { return SOME; }
 
 abstract                  { return ABSTRACT; }
 extern                    { return EXTERN; }
-external                  { return EXTERN; }
 
   /*
   function[\(\<]            { yyless(7); return FUNX; }
