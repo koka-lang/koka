@@ -119,7 +119,7 @@ grammar will draw it's lexemes from the _lex_ production.
 | _idfinal_    | ::=   | ``?`` []{.bar} [``'``]{.many}                                                                 |                         |
 | &nbsp;       |       |                                                                                               |                         |
 | _reserved_   | ::=   | `infix` []{.bar} `infixr` []{.bar} `infixl` []{.bar} `prefix`                                 |                         |
-|              | &bar; | `type` []{.bar} `cotype` []{.bar} `struct` []{.bar}  `alias`                         |                         |
+|              | &bar; | `type` []{.bar} `cotype` []{.bar} `struct` []{.bar}  `alias`                                  |                         |
 |              | &bar; | `con` []{.bar} `rec`                                                                          |                         |
 |              | &bar; | `forall` []{.bar} `exists` []{.bar} `some`                                                    |                         |
 |              | &bar; | `fun` []{.bar} `fn` []{.bar} `val` []{.bar} `var` []{.bar} `extern`                           |                         |
@@ -135,6 +135,7 @@ grammar will draw it's lexemes from the _lex_ production.
 | _specialid_  | ::=   | `open` []{.bar} `extend` []{.bar} `behind`                                                    |                         |
 |              | &bar; | `linear` []{.bar} `value` []{.bar} `reference`                                                |                         |
 |              | &bar; | `inline` []{.bar} `noinline` []{.bar} `include` []{.bar} `import`                             |                         |
+|              | &bar; | `js` []{.bar} `c`  []{.bar} `file`                                                            |                         |
 {.grammar .lex}
 
 Identifiers always start with a letter, may contain underscores and

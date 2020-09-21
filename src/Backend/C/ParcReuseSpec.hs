@@ -114,6 +114,17 @@ ruSpecialize :: Expr -> TName -> Pattern -> Expr -> Reuse Expr
 ruSpecialize allocAt reuseName reusePat conApp
   = -- TODO: generate reuse specialized code by matching reusePat with the conApp
     -- conApp will be (App (Con _ _) [args]) or (App (TApp (Con _ _) targs) args))
+    --  Cons@r(2,dup(xs)) ~> dup(xs); Cons@r(2,xs)
+    --                    ~> dup(xs); if (r!=NULL) then{ r->tail = xs; r->head = 2; r } else { Cons(2,xs)  ===  p = alloc(n); p->tail = xs; p->head=2; p }
+    {-
+    r@ C' p1 ... pN   
+    C a1 ... aN
+    
+    *is C == C' ?
+    *match each p_i with a_i: if p_i is a variable x  and a_i == x or dup(x)  -> good
+    *profitable? if at least one field is reused? other measures?
+    *bind each argument that is not a "value"  
+    -}
     return (App allocAt [Var reuseName (InfoReuse reusePat), conApp])
   
 
