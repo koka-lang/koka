@@ -681,55 +681,6 @@ constructorId
 -----------------------------------------------------------
 
 type Param = (Visibility, ValueBinder UserType (Maybe UserExpr))
-{-
---
--- Implicit Parameter Declarations
---
-newtype ImplicitDecl = ImplicitDecl (Visibility, Visibility, Range, Range, String, Name, Range,Bool,
-                                    [TypeBinder UserKind], UserKind, [Param], Range, Maybe UserType, UserType)
-
-implicitDecl :: Visibility -> LexParser [TopDef]
-implicitDecl dvis = do
-  impl <- parseImplicitDecl dvis
-  return $ makeImplicitDecl impl
-
--- TODO what about existential type params? (exists0 is ignored atm)
-parseImplicitDecl :: Visibility -> LexParser ImplicitDecl
-parseImplicitDecl dvis = do
-  (vis,defvis,vrng,erng,doc) <-
-         (try $ do
-             (vis,vrng) <- visibility dvis
-             (erng,doc) <- dockeyword "implicit"
-             return (vis,vis,vrng,erng,doc))
-  (tpars,kind,prng) <- typeKindParams
-  OpDecl (doc,id,idrng,linear,exists0,pars,prng,mbteff,tres) <- parseOpDecl vis
-  return $ ImplicitDecl (vis,defvis,vrng,erng,doc,id,idrng,linear,tpars,kind,pars,prng,mbteff,tres)
-
-makeImplicitDecl :: ImplicitDecl -> [TopDef]
-makeImplicitDecl (ImplicitDecl (vis,defvis,vrng,erng,doc,id,irng,linear,tpars,kind,pars,prng,mbteff,tres)) =
-  let sort = Inductive
-      isResource = False
-      mbResource = Nothing
-      effectName = if isValueOperationName id then fromValueOperationsName id else id
-      opName = id
-      op   = -- trace ("synthesizing operation " ++ show opName ++ " : (" ++ show tres ++ ")") $
-             OpDecl ("", opName, vrng, linear, [], pars, rangeNull, mbteff, tres)
-      decl = -- trace ("synthesizing effect decl " ++ show effectName ++ " " ++ show sort) $
-             EffectDecl (vis,defvis,vrng,erng,doc,sort,linear,isResource,
-                          effectName,irng,tpars,kind,prng,mbResource,[op])
-  in makeEffectDecl decl
--}
---
--- Handling Implicit Parameters
---
-
--- resumeCall e [params] = "resume(e, params...)"
-{-
-resumeCall :: UserExpr -> [ValueBinder t e] -> Range -> UserExpr
-resumeCall expr pars rng
-  = App (Var (newName "resume") False rng) ((Nothing, expr) : (map paramToArg pars)) rng where
-    paramToArg p = (Nothing, Var (binderName p) False rng)
--}
 
 -- given a name and an expression, this function generates
 -- - a binder for a fresh name (let's say `val x$name$3 = expr; body`), binding the expression
@@ -1336,14 +1287,10 @@ withstat
        (do par  <- try $ do p <- parameter False
                             keyword "="
                             return p
-           e   <- (do -- try (lookAhead (keywordResource))
-                      handlerExprX False krng
-                   <|> basicexpr)
+           e   <- basicexpr <|> handlerExprX krng
            return (applyToContinuation krng [promoteValueBinder par] e)
         <|>
-        do e <- (do -- try (lookAhead (keywordResource))
-                    handlerExprX False krng
-                 <|> basicexpr)
+        do e <- basicexpr <|> handlerExprX krng
            return (applyToContinuation krng [] e)
         )        
   where
@@ -1393,7 +1340,7 @@ expr
 basicexpr :: LexParser UserExpr
 basicexpr
   = ifexpr <|> fnexpr <|> matchexpr <|> handlerExpr <|> opexpr 
-    
+  <?> "(basic) expression"
 
 withexpr :: LexParser UserExpr
 withexpr
@@ -1465,47 +1412,39 @@ matchexpr
   <|> handlerExpr
 
 -- TODO: fix parsing to match grammar precisely
--- TODO: remove parameterized handlers
 handlerExpr
   = do rng <- keyword "handle"
-       mbEff <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
        scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
-       hsort   <- handlerSort
-       args <- parensCommas argument
-       expr <- handlerExprXX True rng mbEff scoped HandlerNoOverride hsort
-       return (App expr args (combineRanged rng expr))
+       (hsort,override,mbEff) <- handlerSort
+       arg  <- parens argument
+       expr <- handlerClauses rng mbEff scoped override hsort
+       return (App expr [arg] (combineRanged rng expr))
   <|>
     do rng <- keyword "handler"
-       handlerExprX True rng
+       handlerExprX rng
 
-handlerExprX braces rng
-  = do scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
-       override<- do{ keyword "override"; return HandlerOverride } <|> return HandlerNoOverride
-       hsort   <- handlerSort
-       mbEff   <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
-       handlerExprXX braces rng mbEff scoped override hsort
+handlerExprX rng
+  = do scoped  <- do{ keyword "scoped"; return HandlerScoped } <|> return HandlerNoScope
+       (hsort,override,mbEff) <- handlerSort
+       handlerClauses rng mbEff scoped override hsort
 
-handlerSort = do keywordResource
-                 overrideId <- {-do lapp
-                                  (name,rng) <- qidentifier
-                                  rparen
-                                  return (Just (Var name False rng))
-                               <|> -} return Nothing
-                 return (HandlerResource overrideId)
-             <|> return HandlerNormal
+handlerSort 
+  = do (hsort,override) 
+           <- do keywordResource
+                 return (HandlerResource Nothing, HandlerNoOverride)
+             <|> 
+              do override <- do{ keyword "override"; return HandlerOverride } <|> return HandlerNoOverride
+                 return (HandlerNormal, override)
+       mbEff <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
+       return (hsort,override,mbEff)
 
-
-
-handlerExprXX braces rng mbEff scoped override hsort
-  = do (pars,dpars,rng1) <- handlerParams -- if braces then handlerParams else return ([],[],rng) -- parensCommas lp handlerPar <|> return []
-       -- remove default values of parameters
-       let xpars = [par{binderExpr = Nothing} | par <- pars]
-           bodyParser = if braces || not (null xpars) then bracedOps else handlerOps
-       (clausesAndBinders,rng2)  <- bodyParser xpars
-       let fullrange = combineRanges [rng,rng1,rng2]
+handlerClauses :: Range -> Maybe UserType -> HandlerScope -> HandlerOverride -> HandlerSort UserExpr -> LexParser UserExpr
+handlerClauses rng mbEff scoped override hsort
+  = do (clausesAndBinders,rng2) <- opClauses
+       let fullrange = combineRanges [rng,rng2]
        let (clauses, binders) = extractBinders clausesAndBinders
-       (mbReinit,ret,final,ops) <- partitionClauses clauses pars rng
-       case (mbEff,ops,final,mbReinit) of
+       (reinit,ret,final,ops) <- partitionClauses clauses rng
+       case (mbEff,ops,final,reinit) of
          (Nothing,[],Nothing,Nothing) -- no ops, and no annotation: this is not a handler; just apply return/finally/initially
            -> do -- TODO: handle final and initially as well
                  -- TODO: error on override/scoped/instance?
@@ -1516,111 +1455,14 @@ handlerExprXX braces rng mbEff scoped override hsort
                                  Just f  -> \actionExpr -> App f [(Nothing,App actionExpr [] fullrange)] fullrange                                 
                  return (binders $ handlerExpr retExpr)
                                  
-         _ -> do let reinitFun = case mbReinit of
-                                   Nothing -> Nothing
-                                   Just reinit -> Just $
-                                     if (null pars)
-                                      then Var (getName reinit) False rng
-                                      else let argName = newHiddenName "local"
-                                               rng = getRange reinit
-                                               app = App (Var (getName reinit) False rng)
-                                                        [(Nothing,App (Var nameJust False rng)
-                                                                      [(Nothing,Var argName False rng)] rng)] rng
-                                           in Lam [ValueBinder argName Nothing Nothing rng rng] app rng
-                     handler = Handler hsort scoped override mbEff pars reinitFun ret final ops
-                                 (combineRanged rng pars) fullrange
-                     hasDefaults = any (isJust.binderExpr) dpars
-                 case mbReinit of
-                   Nothing
-                    | hasDefaults -> return $ binders $ handlerAddDefaults dpars handler
-                    | otherwise   -> return $ binders $ handler
-                   Just reinit
-                    | hasDefaults -> fail "A handler with an 'initially' clause cannot have default values for the local parameters"
-                    | otherwise   -> case pars of
-                                       [par] -> return $ binders $ handlerAddReinit1 reinit par handler
-                                       []    -> return $ binders $ handlerAddReinit reinit handler -- fail "A handler with an 'initially' clause must have local parameters"
-                                       _     -> fail "A handler with an 'initially' clause can only have one local paramter (for now)"
-
-handlerParams :: LexParser ([ValueBinder (Maybe UserType) ()],[ValueBinder (Maybe UserType) (Maybe UserExpr)],Range)
-handlerParams
-  = do optional (specialId "local")
-       (pars,rng) <- parameters True {-allow defaults-} <|> return ([],rangeNull)
-       let hpars  = [p{ binderExpr = () } | p <- pars]
-       return (hpars, pars, rng)
-
-handlerAddReinit1 :: UserDef -> (ValueBinder (Maybe UserType) ()) -> UserExpr -> UserExpr
-handlerAddReinit1 reinit par handler
-  =let rng  = getRange par
-       pinit = App (Var (getName reinit) False rng) [(Nothing,Var nameNothing False rng)] rng
-       dpars = [par{ binderExpr = Just(pinit) }]
-       --pdef = Def (ValueBinder (binderName par) () pinit rng rng) rng Private DefVal ""
-       aname = newHiddenName "action"
-   in Let (DefNonRec reinit)
-        (Lam [ValueBinder aname Nothing Nothing rng rng]
-             (App handler [(Nothing, pinit),(Nothing,Var aname False rng)] rng)
-             rng) rng
-
-handlerAddReinit :: UserDef -> UserExpr -> UserExpr
-handlerAddReinit reinit handler
- =let rng   = getRange reinit
-      init0 = App (Var (getName reinit) False rng) [] rng
-      iname = newHiddenName "init"
-      initDef = Def (ValueBinder iname () init0 rng rng) rng Private DefVal InlineAuto ""
-      aname = newHiddenName "action"
-  in Let (DefNonRec reinit)
-      (Bind initDef handler rng) rng
-
-handlerAddDefaults :: [ValueBinder (Maybe UserType) (Maybe UserExpr)] -> UserExpr -> UserExpr
-handlerAddDefaults dpars handler
-  =  let rng    = getRange (head dpars) -- safe as dpars is non-empty
-         apar   = ValueBinder (newHiddenName "action") Nothing Nothing rng rng
-         -- rename parameters without defaults to later rebind them
-         xpars  = [case binderExpr p of
-                     --Nothing -> p{binderName = makeHiddenName "par" (binderName p)}
-                     Nothing -> p
-                     Just _  -> p
-                  | p <- dpars]
-         -- for parameters without defaults, use vars bound in outer function
-         xargs  = [(Nothing,
-                    case binderExpr p of
-                      Nothing -> Var (binderName p) False rng
-                      Just e  -> e) |  p <- xpars]
-                  ++
-                  [(Nothing, (Var (binderName apar) False rng) )]
-         -- parameters without defaults
-         xxpars = [p | p <- xpars, isNothing (binderExpr p)]
-         -- TODO is there a reason why we evaluate the handler once?
---          hname  = newHiddenName "handler"
---          hdef   = Def (ValueBinder hname () handler rng rng) rng Private DefVal ""
---          hlam   = Let (DefNonRec hdef) (Lam (xxpars ++ [apar]) (App (Var hname False rng) xargs rng) rng) rng
-     in (Lam (xxpars ++ [apar]) (App handler xargs rng) rng)
-
--- eta expand to defer initialization of vals to handler usage
-handlerEtaExpand :: [ValueBinder (Maybe UserType) ()] -> UserExpr -> UserExpr
-handlerEtaExpand pars handler
-   = let rng      = getRange pars
-         aname    = newHiddenName "action"
-         abinder  = ValueBinder aname Nothing Nothing rng rng
-         avar     = (Nothing, Var aname False rng)
-         -- renaming pars here prevents them from being accessible in val-initializations
-         pnames   = map binderName pars -- [makeHiddenName "par" (binderName p) | p <- pars]
-         pbinders = [ValueBinder pname Nothing Nothing rng rng | pname <- pnames]
-         pvars    = [(Nothing, Var pname False rng) | pname <- pnames]
-     in Lam (pbinders ++ [abinder])
-            (App handler (pvars ++ [avar]) rng)
-             rng
-
-makeNull expr
-  = let rng = getRange expr
-    in App (Var nameMakeNull False rng) [(Nothing,expr)] rng
-
-constNull rng
-  = Var nameConstNull False rng
+         _ -> do let handlerExpr = Handler hsort scoped override mbEff [] reinit ret final ops rng fullrange
+                 return (binders handlerExpr)
+                   
 
 
 data Clause = ClauseRet UserExpr
             | ClauseFinally UserExpr
-            | ClauseInitially UserDef
+            | ClauseInitially UserExpr
             | ClauseBranch UserHandlerBranch
 
 instance Ranged Clause where
@@ -1634,8 +1476,8 @@ extractBinders = foldr extractBinder ([], id) where
   extractBinder (clause, Nothing) (cs, binders) = (clause : cs, binders)
   extractBinder (clause, Just binder) (cs, binders) = (clause : cs, binders . binder)
 
-partitionClauses ::  [Clause] -> [ValueBinder (Maybe UserType) ()] -> Range -> LexParser (Maybe UserDef,Maybe UserExpr,Maybe UserExpr,[UserHandlerBranch])
-partitionClauses clauses pars rng
+partitionClauses ::  [Clause] -> Range -> LexParser (Maybe UserExpr,Maybe UserExpr,Maybe UserExpr,[UserHandlerBranch])
+partitionClauses clauses rng
   = do let (reinits,rets,finals,ops) = separate ([],[],[],[]) clauses
        ret <- case rets of
                 [r] -> return (Just r)
@@ -1660,21 +1502,21 @@ partitionClauses clauses pars rng
           ClauseBranch op   -> separate (reinits,rets,finals,op:ops) clauses
 
 -- either a single op without braces, or multiple ops within braces
-handlerOps xpars
-  =   semiBracesRanged (handlerOp  ResumeTail xpars)
-  <|> singleOp ResumeTail xpars
-
-bracedOps xpars
-  = semiBracesRanged (handlerOp ResumeNormal xpars)
-
-singleOp defaultResumeKind xpars
-  = do (op, bind) <- handlerOp defaultResumeKind xpars
-       return ([(op, bind)], getRange op)
-
+opClauses :: LexParser ([(Clause, Maybe (UserExpr -> UserExpr))],Range)
+opClauses 
+  =   semiBracesRanged handlerOp 
+  <|> singleOp 
+  <|> do lparen
+         fail "unexpected '(': local parameters are no longer supported, use a local 'var' instead"
+  <|> return ([],rangeNull)
+  where
+    singleOp 
+      = do (op, bind) <- handlerOp
+           return ([(op, bind)], getRange op)
 
 -- returns a clause and potentially a binder as transformation on the handler
-handlerOp :: ResumeKind -> [ValueBinder (Maybe UserType) (Maybe UserExpr)] -> LexParser (Clause, Maybe (UserExpr -> UserExpr))
-handlerOp defaultResumeKind pars
+handlerOp :: LexParser (Clause, Maybe (UserExpr -> UserExpr))
+handlerOp 
   = do rng <- keyword "return"
        (name,prng,tp) <- do (name,prng) <- paramid
                             tp         <- optionMaybe typeAnnotPar
@@ -1689,21 +1531,11 @@ handlerOp defaultResumeKind pars
   <|>
     do rng <- specialId "finally"
        expr <- bodyexpr
-       return (ClauseFinally (Lam pars expr (combineRanged rng expr)), Nothing)
+       return (ClauseFinally (Lam [] expr (combineRanged rng expr)), Nothing)
   <|>
     do rng <- specialId "initially"
        expr <- bodyexpr
-       let -- locals are passed as a maybe value to initially clauses
-           mpars = [p{binderType = case (binderType p) of
-                                     Nothing -> Nothing
-                                     Just tp -> Just (TpApp (TpCon nameTpMaybe (getRange tp)) [tp] (getRange tp))
-                     }
-                    | p <- pars]
-           drng = combineRanged rng expr
-           lam = Lam mpars expr drng
-           name = newHiddenName "reinit"
-           def  = Def (ValueBinder name () lam drng drng) drng Private (DefFun) InlineAuto ""
-       return (ClauseInitially def, Nothing)
+       return (ClauseInitially (Lam [] expr (combineRanged rng expr)), Nothing)
   -- TODO is "raw" needed for value definitions?
   <|>
     do keyword "val"
@@ -1711,20 +1543,20 @@ handlerOp defaultResumeKind pars
        keyword "="
        expr <- blockexpr
        let (binder,resumeExpr) = bindExprToVal name nameRng expr
-       return (ClauseBranch (HandlerBranch (toValueOperationName name) [] (resumeExpr pars) False ResumeTail nameRng nameRng), Just binder)
+       return (ClauseBranch (HandlerBranch (toValueOperationName name) [] (resumeExpr []) False ResumeTail nameRng nameRng), Just binder)
   <|>
-    do resumeKind <- do keyword "control"
-                        optional (keyword "fun")
-                        isRaw <- optional (specialId "raw")
+    do isRaw <- optional (keyword "unsafe")
+       resumeKind <- do keyword "control"
                         return (if isRaw then ResumeNormalRaw else ResumeNormal)
                      <|>
-                     if (defaultResumeKind==ResumeTail)
-                      then do keyword "fun"
-                              return ResumeTail
-                      else do hasFun <- optional (keyword "fun")
-                              isRaw <- optional (specialId "raw")
-                              return (if isRaw then ResumeNormalRaw else if hasFun then ResumeTail else defaultResumeKind)
-
+                     do keyword "fun"
+                        return ResumeTail
+                     <|>
+                     -- deprecated
+                     do lookAhead qidentifier
+                        pos <- getPosition
+                        pwarning $ "warning " ++ show pos ++ ": using a bare operation is deprecated.\n  hint: start with 'val', 'fun', or 'control' instead."
+                        return (if isRaw then ResumeNormalRaw else ResumeNormal)
        (name, nameRng) <- qidentifier
        (oppars,prng) <- opParams
        expr <- bodyexpr

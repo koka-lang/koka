@@ -163,7 +163,7 @@ fun testPc2() {
 // --------------------------------------------------------
 
 effect choose {
-  fun choose() : bool
+  control choose() : bool
 }
 
 fun bobChooses(m) {
@@ -173,7 +173,7 @@ fun bobChooses(m) {
 
 val allResults = handler {
   return x -> [x]
-  choose() -> ((resume(True) + resume(False)):list<_>)
+  control choose() -> resume(True) + resume(False)
 }
 
 fun testChoose() {

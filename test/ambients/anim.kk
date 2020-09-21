@@ -6,6 +6,7 @@
 // --------------------------------------------------------
 // Definition of players
 // --------------------------------------------------------
+import std/num/random
 
 type player {
   Bob
@@ -54,7 +55,7 @@ fun game(n) {
 // Perfect strategy
 // --------------------------------------------------------
 
-val perfect = with fun move(_p,n) { max(1,n%4) }
+val perfect = handler fun move(_p,n) { max(1,n%4) }
 
 fun testPerfect1() {
   with perfect
@@ -79,7 +80,7 @@ fun validMoves(n) {
   [1,2,3].filter( fun(m) { m <= n })
 }
 
-val gametree = with {
+val gametree = handler {
   return x  { Winner(x) }
   control move(p,n) {
     val moves    = validMoves(n)
@@ -113,9 +114,9 @@ fun testGt() {
 
 ambient fun cheat(player:player) : a
 
-val cheatReport =  with fun cheat(p) { error(p.show + " cheated!") }
+val cheatReport = handler fun cheat(p) { throw(p.show + " cheated!") }
 
-val check = with control move(p,n) {
+val check = handler control move(p,n) {
   val m = move(p,n)
   if (validMoves(n).find(fun(i) { i == m }).bool)
    then resume(m)
@@ -138,7 +139,7 @@ fun testuse() {
 // Cheating strategy
 // --------------------------------------------------------
 
-val pc = with fun move(p,n) {
+val pc = handler fun move(p,n) {
   match(p){
     Alice -> max(1,n%4)
     Bob   -> n
@@ -176,7 +177,7 @@ fun bobChooses(m) {
   if (choose()) then pc(m) else perfect(m)
 }
 
-val allResults = with {
+val allResults = handler {
   return(x)       { [x] }
   control choose() { resume(True) + resume(False) }
 }
@@ -187,10 +188,10 @@ fun testChoose()  {
   [game(7)]   // [bob,alice]
 }
 
-val coin = with fun choose() { random() > 0.5 }
+val coin = handler fun choose() { srandom-double() > 0.5 }
 
 fun testCoin() {
-  with fun choose() { random() > 0.5 }
+  with fun choose() { srandom-double() > 0.5 }
   with bobChooses
   game(7)
 }
@@ -203,12 +204,6 @@ fun testCoin() {
 ambient state<s> {
   fun get() : s;
   fun put(x : s) : ()
-}
-
-
-val state-param = handler(s) {
-  get()    -> resume(s,s)
-  put(t)   -> resume((),t)
 }
 
 
@@ -225,7 +220,7 @@ alias gstate = list<(player,int)>
 
 val s0 = [(Alice,0),(Bob,0)]
 
-val scoreUpdater = with return(p) { put(updateScore(p,get())); p }
+val scoreUpdater = handler return(p) { put(updateScore(p,get())); p }
 
 fun updateScore( p : player, gs : gstate ) : gstate {
   gs.mymap fun(qs) {
@@ -234,7 +229,7 @@ fun updateScore( p : player, gs : gstate ) : gstate {
   }
 }
 
-val printer = with return(x) { printBoard(get()); x }
+val printer = handler return(x) { printBoard(get()); x }
 
 fun printBoard( gs : gstate ) : io () {
   gs.mymap( fun(ps) {

@@ -267,7 +267,8 @@ reservedNames
     , "handler", "handle"
     , "effect", "ambient", "context" {- alternative names for effect -}
     , "instance"
-    , "mask", "override"
+    , "mask", "override", "scoped"
+    , "unsafe"
     -- , "finally", "initially"
 
     -- deprecated

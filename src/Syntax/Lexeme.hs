@@ -144,7 +144,8 @@ showLex lex
       LexIdOp id    -> "identifier (operator) \"" ++ show id ++ "\""
       LexWildCard id-> "wildcard \"" ++ show id ++ "\""
       LexModule id _  -> "module \"" ++ show id ++ "\""
-      LexKeyword k d-> "keyword " ++ k ++ (if null d then "" else " (" ++ d ++ ")")                    
+      LexKeyword k d-> -- "keyword " ++ k 
+                       "\"" ++ k ++ "\"" ++ (if null d then "" else " (" ++ d ++ ")")   
       LexSpecial s  -> "\"" ++ s ++ "\""                    
       LexComment s  -> "comment \"" ++ s ++ "\""
       LexWhite w    -> "white"

@@ -52,6 +52,7 @@ fun test2() : int {
 // If we make the effect row closed, we can guarantee absence of
 // `inject<get>` expressions in the action and thus make it safe
 // without using the `inject behind` primitive.
+/*
 fun local-closed1( init : s, action : () -> <get<s>,get<s>,set<s>> a ) : <get<s>> a {
   with val get = init
   with control set(x) {
@@ -62,6 +63,7 @@ fun local-closed1( init : s, action : () -> <get<s>,get<s>,set<s>> a ) : <get<s>
   action()
 }
 
+
 fun local-closed2( init : s, action : () -> <get<s>,set<s>> a ) : <> a {
   with val get = init
   with control set(x) {
@@ -71,7 +73,7 @@ fun local-closed2( init : s, action : () -> <get<s>,set<s>> a ) : <> a {
   }
   action()
 }
-
+*/
 
 fun main() {
   test1()

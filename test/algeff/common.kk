@@ -11,7 +11,7 @@ public module common
 // --------------------------------------------------------
 
 effect exc {
-  fun raise(s : string ) : a
+  control raise(s : string ) : a
 }
 
 fun safe-div(x,y) {
@@ -20,7 +20,7 @@ fun safe-div(x,y) {
 
 fun catch(action,h) {
   handle(action) {
-    raise(s) -> h(s)
+    control raise(s){ h(s) }
   }
 }
 
@@ -29,8 +29,8 @@ fun zerodiv(x,y) {
 }
 
 val to-maybe = handler {
-  return x -> Just(x)
-  raise(_s) -> Nothing
+  return (x){ Just(x) }
+  control raise(_s){ Nothing }
 }
 
 fun test1() {
@@ -52,7 +52,7 @@ fun hello() {
 }
 
 val always-there = handler {
-  getstr() -> resume("there")
+  fun getstr(){ "there" }
 }
 
 fun test2() {
@@ -77,27 +77,19 @@ fun counter() {
   }
 }
 
-/*
-val state-param = handler(s) {
-  return x -> (x,s)
-  get()    -> resume(s,s)
-  put(s')  -> resume((),s')
-}
-*/
-
 fun state_old_style(init, action) {
   var s := init
   handle(action) {
-    return x -> (x,s)
-    get()    -> { resume(s) }
-    put(x)   -> { s := x; resume(()) }
+    return (x) { (x,s) }
+    fun get()  { s }
+    fun put(x) { s := x }
   }
 }
 
 fun state(init, action) {
   var s := init
   with {                           // with { .. }; <stats>  === (handler{...}){<stats>}
-    return x   { (x,s) }
+    return (x) { (x,s) }
     fun get()  { s }
     fun put(x) { s := x  }
   }
@@ -114,7 +106,7 @@ fun test3() {
 // --------------------------------------------------------
 
 effect yield<a> {
-  fun yield( item : a ) : ()
+  control yield( item : a ) : ()
 }
 
 fun iterate(xs : list<a> ) : yield<a> () {
@@ -127,8 +119,8 @@ fun iterate(xs : list<a> ) : yield<a> () {
 // note: due to a technicality in cps translation we need to specify 'incpsx' for now. to be fixed soon.
 fun foreach( f : a -> e bool, action : () -> <yield<a>|e> () ) : e () {
   handle(action) {
-    return x -> ()
-    yield(x) -> if (f(x) /*incps1(f,x)*/) then resume(()) else ()
+    return (x) -> ()
+    control yield(x) -> if (f(x) /*incps1(f,x)*/) then resume(()) else ()
   }
 }
 
@@ -149,7 +141,7 @@ fun test4b() {
 // --------------------------------------------------------
 
 effect amb {
-  fun flip() : bool
+  control flip() : bool
 }
 
 fun xor() : amb bool {
@@ -163,8 +155,8 @@ fun xor() : amb bool {
 //}
 
 val amb = handler {
-  return x -> [x]
-  flip()   -> resume(False) + (resume(True) : list<_>)
+  return (x)     -> [x]
+  control flip() -> resume(False) + resume(True)
 }
 
 fun test5() {

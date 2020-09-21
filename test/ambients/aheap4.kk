@@ -3,8 +3,8 @@ ambient heap {
 }
 
 ambient instance ref<a> in heap {
-	fun get() : a
-	fun set( value : a ) : ()
+  fun get() : a
+  fun set( value : a ) : ()
   control free() : ()
 }
 
@@ -37,7 +37,7 @@ fun heap( action ) {
   with control new-ref(init) {
     with-ref(init,resume)
   }
-	action()
+  action()
 }
 
 
@@ -46,15 +46,15 @@ fun escape() : heap ref<string> {
 }
 
 fun main() {
-	with heap
-	val r1 = new-ref(40)
-	val r2 = escape()
-	println( r1.get + r2.get.count)
+  with heap
+  val r1 = new-ref(40)
+  val r2 = escape()
+  println( r1.get + r2.get.count)
 }
 
 fun example1() {
-	with heap
-	with r1 : ref<int> = with-ref(40)
+  with heap
+  with r1 : ref<int> = with-ref(40)
   val r2 = escape()
   val x = r1.get
   r1.free
