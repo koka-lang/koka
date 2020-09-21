@@ -2,8 +2,8 @@ context val width : int
 
 fun f() {
   //with val width = 78
-  val g = with val width = 80 in (fun(){ width + 1 })
-  val h = fun() { with val width = 80 in width + 1 }
+  val g = with val width = 80 in fn(){ width + 1 }
+  val h = fn(){ with val width = 80 in width + 1 }
   g().println
   h().println
 }
@@ -62,7 +62,7 @@ context fun total() : int
 
 fun emit4(action) {
   var out := ""
-  with return(x) { out }
+  with return(x)   { out }
   with fun emit(s) { out := out + s + "\n" }
   with fun total() { out.count }
   action()
@@ -79,13 +79,13 @@ fun pretty-abort(action) {
 context control choice() : bool
 
 fun pretty-all(action) {
-  with control choice() { resume(True) + (resume(False) : list<string>) }
+  with control choice() { append(resume(True), resume(False)) }
   [pretty-abort(action)]
 }
 
 
 fun pretty-all2(action) {
-  with control choice() { resume(True) + (resume(False) : list<string>) }
+  with control choice() { append(resume(True), resume(False)) }
   with return(x) { [x] }
   pretty-abort(action)
 }
