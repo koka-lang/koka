@@ -938,7 +938,7 @@ inferHandler propagated expect handlerSort handlerScoped
        -- extract handler effect
        penv <- getPrettyEnv               
        let heffect = case splitFunScheme(htp) of
-                        Just ([],[],_,heff,hresTp) -> heff
+                        Just (_,_,_,heff,hresTp) -> heff
                         _ -> failure $ "Type.Infer.inferHandler: unexpected handler type: " ++ show (ppType penv htp)
       
        if (not (effectIsLinear heff))
@@ -946,8 +946,9 @@ inferHandler propagated expect handlerSort handlerScoped
         else checkLinearity effectName heffect branches hrng rng
       
        -- insert a mask<local> over the action?
-       if (not (containsLocalEffect heff))
-         then return hres
+       if (not (containsLocalEffect heffect))
+         then do -- traceDoc $ \penv -> text "handler: no local in:" <+> ppType penv htp
+                 return hres
          else do -- traceDoc $ \penv -> text "handler: found local:" <+> ppType penv htp
                  hp <- Op.freshTVar kindHeap Meta
                  let handlerExprMask 
