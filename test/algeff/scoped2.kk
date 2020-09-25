@@ -5,7 +5,7 @@
 // but now using a choice operator that chooses directly from a list.
 // --------------------------------------------------------------
 effect nondet {
-  fun choice(xs : list<a>) : a
+  control choice(xs : list<a>) : a
 }
 
 fun fail() {
@@ -43,10 +43,13 @@ effect state<s> {
   fun put(i:s) : ()
 }
 
-val state = handler(i) {
-  return x   -> (i,x)
-  control get()  -> resume(i,i)
-  control put(j) -> resume((),j)
+fun state(init,action) {
+  var s := init
+  handle(action) {
+    return (x) -> (s,x)
+    fun get()  -> s
+    fun put(i) -> s := i
+  }
 }
 
 fun incr(i = 1) : state<int> () {
@@ -107,8 +110,8 @@ fun untilJust( xs : list<a>, f : a -> e maybe<b> ) : e maybe<b> {
 }
 
 val solution = handler {
-  return x   -> Just(x)
-  control raw choice(xs) { xs.untilJust( fun(x) { context.resume(x) }) }
+  return (x){ Just(x) }
+  rcontrol choice(xs) { xs.untilJust( fun(x) { rcontext.resume(x) }) }
 }
 
 fun show(m : maybe<list<int>> ) : string {

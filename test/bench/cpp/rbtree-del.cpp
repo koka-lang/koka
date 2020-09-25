@@ -16,10 +16,12 @@ struct nat_lt_fn {
 typedef std::map<nat, bool, nat_lt_fn> map;
 
 map mk_map(unsigned n) {
+    unsigned top = n;
     map m;
     while (n > 0) {
         --n;
         m.insert(std::make_pair(nat(n), n%10 == 0));
+        if (n%4==0) m.erase(n + nat(top - n)/4);  // erase quarter up
     }
     return m;
 }

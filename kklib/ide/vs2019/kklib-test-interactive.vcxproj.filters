@@ -28,5 +28,11 @@
     <ClCompile Include="..\..\..\out\Debug\std_time_instant.c" />
     <ClCompile Include="..\..\..\out\Debug\std_time_timer.c" />
     <ClCompile Include="..\..\..\out\Debug\std_time_timestamp.c" />
+    <ClCompile Include="..\..\..\out\Debug\test_algeff_scoped.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_chrono.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_utc.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_text_unicode.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_os_flags.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_os_env.c" />
   </ItemGroup>
 </Project>
