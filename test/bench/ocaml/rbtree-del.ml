@@ -57,7 +57,7 @@ match (l,r) with
 | (Node(Red,lx,kx,vx,Node(Red,ly,ky,vy,ry)), _) -> Node (Red, Node (Black,lx,kx,vx,ly),ky,vy,Node (Black,ry,k,v,r))
 | (_,Node (Red,lx,kx,vx, Node (Red,ly,ky,vy,ry))) -> Node (Red, Node (Black,l,k,v,lx), kx, vx, Node (Black,ly, ky, vy, ry))
 | (_,Node (Red,Node (Red,ly,ky,vy,ry),kx,vx,rx)) -> Node (Red, Node (Black, l, k, v, ly), ky, vy, Node (Black, ry, kx, vx, rx))
-| (_,_) -> Node (Black,l,k,v,r)
+| _ -> Node (Black,l,k,v,r)
 
 
 let subl t =
@@ -65,6 +65,7 @@ match t with
 | Node(Black,l,k,v,r) -> Node (Red,l,k,v,r) ;;
 
 let del_bal_left l k v r =
+(*
 match l with
 | Node(Red,ly,ky,vy,ry) -> Node (Red, Node (Black,ly,ky,vy,ry),k,v,r)
 | _ -> (match r with
@@ -72,15 +73,15 @@ match l with
         | Node(Red, Node (Black,ly,ky,vy,ry),kx,vx,rx) -> Node (Red, Node (Black,l,k,v,ly) ,ky, vy, balance ry kx vx (subl rx))
         (*| _ -> Node(Black,l,k,v,r) *)
        );;
-
-(*
+*)
 match (l,r) with
 | (Node(Red,ly,ky,vy,ry),_)   -> Node (Red, Node (Black,ly,ky,vy,ry),k,v,r)
 | (_,Node(Black,lx,kx,vx,rx)) -> balance l k v (Node (Red,lx,kx,vx,rx))
 | (_,Node(Red,Node(Black,ly,ky,vy,ry),kx,vx,rx)) -> Node (Red, Node (Black,l,k,v,ly) ,ky, vy, balance ry kx vx (subl rx) )  ;;
-*)
+
 
 let del_bal_right l k v r = 
+(*
 match r with 
 | Node(Red,ly,ky,vy,ry) -> Node(Red,l,k,v,Node (Black,ly,ky,vy,ry))
 | _ -> (match l with
@@ -88,13 +89,12 @@ match r with
         | Node(Red,lx,kx,vx,Node(Black,ly,ky,vy,ry)) -> Node (Red, balance (subl lx) kx vx ly, ky, vy, Node (Black,ry,k,v,r))
         (*| _ -> Node(Black,l,k,v,r)*)
         );;
-
-(*
+*)
 match (l,r) with 
 | (_,Node(Red,ly,ky,vy,ry))   -> Node(Red,l,k,v,Node (Black,ly,ky,vy,ry))
 | (Node(Black,lx,kx,vx,rx),_) -> balance (Node (Red,lx,kx,vx,rx)) k v r         
 | (Node(Red,lx,kx,vx,Node(Black,ly,ky,vy,ry)),_) -> Node (Red, balance (subl lx) kx vx ly, ky, vy, Node (Black,ry,k,v,r))  ;;
-*)
+
 
 let rec fuse l r =
 match (l,r) with
@@ -118,9 +118,9 @@ match t with
 let rec delete t key =
 match t with 
 | Node(_,l,k,v,r) 
-   -> if (k < key) then (if (is_bnode l) then del_bal_left (delete l key) k v r
+   -> if (key < k) then (if (is_bnode l) then del_bal_left (delete l key) k v r
                                          else Node(Red,delete l key,k,v,r))
-      else if (k > key) then (if (is_bnode r) then del_bal_right l k v (delete r key)
+      else if (key > k) then (if (is_bnode r) then del_bal_right l k v (delete r key)
                                               else Node(Red,l,k,v,delete r key))
       else fuse l r
 | Leaf -> Leaf ;;
@@ -131,11 +131,11 @@ match n with
 | Leaf -> d
 | Node(_, l, k, v, r) -> fold f r (f k v (fold f l d));;
 
-let rec mk_map_aux total n t =
-if n = 0 then t
+let rec mk_map_aux total n t0 =
+if n == 0 then t0
 else let n1 = n-1 in
-     let t1 = insert t n1 (n1 mod 10 == 0) in
-     let t2 = if (n1 mod 4 == 0) then delete t1 (n1 + (total - n1)/4) else t1 in
+     let t1 = insert t0 n1 (n1 mod 10 == 0) in
+     let t2 = (if (n1 mod 4 == 0) then delete t1 (n1 + ((total - n1)/4)) else t1) in
      mk_map_aux total n1 t2;;
 
 let mk_map n = mk_map_aux n n Leaf;;
