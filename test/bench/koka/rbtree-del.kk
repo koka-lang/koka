@@ -1,4 +1,15 @@
-// Adapted from https://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap.lean
+/*
+  Benchmark red-black trees. 
+  Adapted from https://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap.lean
+  Algorithms based on:
+out/  
+  * Chris Okasaki, \"Red-Black Trees in a Functional Setting\",
+    Journal of Functional Programming, 9(4), pp 471-477, July 1999
+    <http://www.eecs.usma.edu/webs/people/okasaki/pubs.html#jfp99>
+
+  * Stefan Kahrs, \"Red-black trees with types\",
+    Journal of functional programming, 11(04), pp 425-432, July 2001
+*/    
 
 //-----------------------------------------------------------------------------
 // Red black tree definition
@@ -84,23 +95,6 @@ fun insert(t: tree, k: int, v: bool): tree {
 // Adapted from Stefan Kahrs algorithm in "Red black trees with types", JFP, July 2001.
 //-----------------------------------------------------------------------------
 
-fun fuse(l : tree, r : tree) : pure tree {  // todo: improve exn/div checking for multi patterns
-  match((l,r)) {
-    (Leaf,_) -> r
-    (_,Leaf) -> l
-    (Node(Black,lx,kx,vx,rx),Node(Black,ly,ky,vy,ry)) -> match(fuse(rx,ly)) {
-      Node(Red,lz,kz,vz,rz) -> Node(Red,Node(Black,lx,kx,vx,lz),kz,vz,Node(Black,rz,ky,vy,ry))
-      z -> del-bal-left(lx,kx,vx,Node(Black,z,ky,vy,ry))
-    }
-    (Node(Red,lx,kx,vx,rx),Node(Red,ly,ky,vy,ry)) -> match(fuse(rx,ly)) {
-      Node(Red,lz,kz,vz,rz) -> Node(Red,Node(Red,lx,kx,vx,lz),kz,vz,Node(Red,rz,ky,vy,ry))
-      z -> Node(Red,lx,kx,vx,Node(Red,z,ky,vy,ry))
-    }
-    (_,Node(Red,ly,ky,vy,ry)) -> Node(Red,fuse(l,ly),ky,vy,ry)
-    (Node(Red,lx,kx,vx,rx),_) -> Node(Red,lx,kx,vx,fuse(rx,r))
-  }
-}
-
 fun balance( l : tree, k : int, v : bool, r : tree ) : tree {
   match((l,r)) {
     (Node(Red,lx,kx,vx,rx), Node(Red,ly,ky,vy,ry))
@@ -117,32 +111,52 @@ fun balance( l : tree, k : int, v : bool, r : tree ) : tree {
   } 
 }
 
-fun subl( t : tree ) : exn tree {
+fun subl( t : tree ) : tree {
   match(t) {
     Node(Black,l,k,v,r) -> Node(Red,l,k,v,r)
+    _ -> t
   }
 }
 
-fun del-bal-left( l : tree, k : int, v : bool, r : tree ) : exn tree {
+fun del-bal-left( l : tree, k : int, v : bool, r : tree ) : tree {
   match((l,r)) {
     (Node(Red,ly,ky,vy,ry),_)   -> Node(Red,Node(Black,ly,ky,vy,ry),k,v,r)
     (_,Node(Black,lx,kx,vx,rx)) -> balance(l,k,v,Node(Red,lx,kx,vx,rx))
     (_,Node(Red,Node(Black,ly,ky,vy,ry),kx,vx,rx))
       -> Node(Red,Node(Black,l,k,v,ly),ky,vy,balance(ry,kx,vx,rx.subl))
-    // _ -> Node(Black,l,k,v,r) // should not happen
+    _ -> Node(Black,l,k,v,r) // should not happen
   }
 }
 
 
-fun del-bal-right( l : tree, k : int, v : bool, r : tree ) : exn tree {
+fun del-bal-right( l : tree, k : int, v : bool, r : tree ) : tree {
   match((l,r)) {
     (_,Node(Red,ly,ky,vy,ry))   -> Node(Red,l,k,v,Node(Black,ly,ky,vy,ry))
     (Node(Black,lx,kx,vx,rx),_) -> balance(Node(Red,lx,kx,vx,rx),k,v,r)         
     (Node(Red,lx,kx,vx,Node(Black,ly,ky,vy,ry)),_) 
       -> Node(Red,balance(lx.subl,kx,vx,ly),ky,vy,Node(Black,ry,k,v,r))
-    // _ -> Node(Black,l,k,v,r) // should not happen
+    _ -> Node(Black,l,k,v,r) // should not happen
   }
 }
+
+fun fuse(l : tree, r : tree) : div tree {  // todo: improve exn/div checking for multi patterns
+  match((l,r)) {
+    (Leaf,_) -> r
+    (_,Leaf) -> l
+    (Node(Black,lx,kx,vx,rx),Node(Black,ly,ky,vy,ry)) -> match(fuse(rx,ly)) {
+      Node(Red,lz,kz,vz,rz) -> Node(Red,Node(Black,lx,kx,vx,lz),kz,vz,Node(Black,rz,ky,vy,ry))
+      z -> del-bal-left(lx,kx,vx,Node(Black,z,ky,vy,ry))
+    }
+    (Node(Red,lx,kx,vx,rx),Node(Red,ly,ky,vy,ry)) -> match(fuse(rx,ly)) {
+      Node(Red,lz,kz,vz,rz) -> Node(Red,Node(Red,lx,kx,vx,lz),kz,vz,Node(Red,rz,ky,vy,ry))
+      z -> Node(Red,lx,kx,vx,Node(Red,z,ky,vy,ry))
+    }
+    (_,Node(Red,ly,ky,vy,ry)) -> Node(Red,fuse(l,ly),ky,vy,ry)
+    (Node(Red,lx,kx,vx,rx),_) -> Node(Red,lx,kx,vx,fuse(rx,r))
+    _ -> Leaf // should not happen
+  }
+}
+
 
 fun is-bnode(t : tree) : bool {
   match(t) {
@@ -151,7 +165,8 @@ fun is-bnode(t : tree) : bool {
   }
 }
 
-fun delete( t : tree, key : int ) : pure tree {
+
+fun delete( t : tree, key : int ) : div tree {
   match(t) {
     Node(_,l,k,v,r) -> match(compare(key,k)) {
       Lt -> if (l.is-bnode()) then del-bal-left(l.delete(key),k,v,r)
@@ -265,14 +280,14 @@ fun delete( t : tree, k : int ) : div tree {
 //-----------------------------------------------------------------------------
 
 
-fun fold(t: tree, b: a, f: (int, bool, a) -> a): a {
+fun fold(t: tree, b: a, f: (int, bool, a) -> a) : a {
   match (t) {
     Leaf                -> b
     Node(_, l, k, v, r) -> r.fold( f(k, v, l.fold(b, f)), f)
   }
 }
 
-fun make-tree-aux(total : int, n: int, t: tree): pure tree {
+fun make-tree-aux(total : int, n: int, t: tree): div tree {
   if (n <= 0) then t else {
     val n1 = n - 1
     val t1 = insert(t, n1, n1 % 10 == 0)
@@ -281,12 +296,12 @@ fun make-tree-aux(total : int, n: int, t: tree): pure tree {
   }
 }
 
-fun make-tree(n: int): pure tree {
+fun make-tree(n: int): div tree {
   make-tree-aux(n, n, Leaf)
 }
 
-fun main() {
-  val m = make-tree(4200000); // todo: read first command line arg for size
-  val v = m.fold(0) fun(k,v,r){ if (v) then r + 1 else r }
+fun main()  {
+  val t = make-tree(4200000); // todo: read first command line arg for size
+  val v = t.fold(0) fn(k,v,r){ if (v) then r + 1 else r }
   v.println
 }

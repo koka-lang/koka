@@ -86,7 +86,8 @@ fun insert(t: tree, k: int32, v: bool): tree {
 // Adapted from Stefan Kahrs algorithm in "Red black trees with types", JFP, July 2001.
 //-----------------------------------------------------------------------------
 
-fun fuse(l : tree, r : tree) : pure tree {  // todo: improve exn/div checking for multi patterns
+
+fun fuse(l : tree, r : tree) : div tree {  // todo: improve exn/div checking for multi patterns
   match((l,r)) {
     (Leaf,_) -> r
     (_,Leaf) -> l
@@ -100,6 +101,7 @@ fun fuse(l : tree, r : tree) : pure tree {  // todo: improve exn/div checking fo
     }
     (_,Node(Red,ly,ky,vy,ry)) -> Node(Red,fuse(l,ly),ky,vy,ry)
     (Node(Red,lx,kx,vx,rx),_) -> Node(Red,lx,kx,vx,fuse(rx,r))
+    _ -> Leaf // should not happen
   }
 }
 
@@ -119,30 +121,31 @@ fun balance( l : tree, k : int32, v : bool, r : tree ) : tree {
   } 
 }
 
-fun subl( t : tree ) : exn tree {
+fun subl( t : tree ) : tree {
   match(t) {
     Node(Black,l,k,v,r) -> Node(Red,l,k,v,r)
+    _ -> t // should not happen
   }
 }
 
-fun del-bal-left( l : tree, k : int32, v : bool, r : tree ) : exn tree {
+fun del-bal-left( l : tree, k : int32, v : bool, r : tree ) : tree {
   match((l,r)) {
     (Node(Red,ly,ky,vy,ry),_)   -> Node(Red,Node(Black,ly,ky,vy,ry),k,v,r)
     (_,Node(Black,lx,kx,vx,rx)) -> balance(l,k,v,Node(Red,lx,kx,vx,rx))
     (_,Node(Red,Node(Black,ly,ky,vy,ry),kx,vx,rx))
       -> Node(Red,Node(Black,l,k,v,ly),ky,vy,balance(ry,kx,vx,rx.subl))
-    // _ -> Node(Black,l,k,v,r) // should not happen
+    _ -> Node(Black,l,k,v,r) // should not happen
   }
 }
 
 
-fun del-bal-right( l : tree, k : int32, v : bool, r : tree ) : exn tree {
+fun del-bal-right( l : tree, k : int32, v : bool, r : tree ) : tree {
   match((l,r)) {
     (_,Node(Red,ly,ky,vy,ry))   -> Node(Red,l,k,v,Node(Black,ly,ky,vy,ry))
     (Node(Black,lx,kx,vx,rx),_) -> balance(Node(Red,lx,kx,vx,rx),k,v,r)         
     (Node(Red,lx,kx,vx,Node(Black,ly,ky,vy,ry)),_) 
       -> Node(Red,balance(lx.subl,kx,vx,ly),ky,vy,Node(Black,ry,k,v,r))
-    // _ -> Node(Black,l,k,v,r) // should not happen
+    _ -> Node(Black,l,k,v,r) // should not happen
   }
 }
 
@@ -153,7 +156,7 @@ fun is-bnode(t : tree) : bool {
   }
 }
 
-fun delete( t : tree, key : int32 ) : pure tree {
+fun delete( t : tree, key : int32 ) : div tree {
   match(t) {
     Node(_,l,k,v,r) -> match(compare(key,k)) {
       Lt -> if (l.is-bnode()) then del-bal-left(l.delete(key),k,v,r)
@@ -180,7 +183,7 @@ fun fold(t: tree, b: a, f: (int32, bool, a) -> a): a {
   }
 }
 
-fun make-tree-aux(total : int32, n: int32, t: tree): pure tree {
+fun make-tree-aux(total : int32, n: int32, t: tree): div tree {
   if (n <= 0.int32) then t else {
     val n1 = n.dec
     val t1 = insert(t, n1, n1 % 10.int32 == zero)
@@ -189,7 +192,7 @@ fun make-tree-aux(total : int32, n: int32, t: tree): pure tree {
   }
 }
 
-fun make-tree(n: int32): pure tree {
+fun make-tree(n: int32): div tree {
   make-tree-aux(n, n, Leaf)
 }
 
