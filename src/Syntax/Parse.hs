@@ -1381,7 +1381,7 @@ lambda kw
 
 ifexpr
   = do rng <- keyword "if"
-       tst <- parens expr
+       tst <- atom -- parens expr
        optional (keyword "then")
        texpr   <- blockexpr
        eexprs  <- many elif
@@ -1401,7 +1401,7 @@ ifexpr
   where
     elif
       = do keyword "elif"
-           tst <- parens expr
+           tst <- atom -- parens expr
            optional (keyword "then")
            texpr <- blockexpr
            return (tst,texpr)
@@ -1414,7 +1414,7 @@ returnexpr
 
 matchexpr
   = do rng <- keyword "match"
-       tst <- parens expr  -- todo: multiple patterns
+       tst <- atom  -- allows tuples for multi pattern match
        (branches,rng2) <- semiBracesRanged1 branch
        return (Case tst branches (combineRange rng rng2))
   <|> handlerExpr

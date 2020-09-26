@@ -301,7 +301,7 @@ bottomUp expr@(App (TypeApp (Var isValidK _) _) [arg])  | getName isValidK == na
       App _ _ -> exprTrue
       _ -> expr
 
--- case on singleton constructor
+-- case of known constructor
 bottomUp expr@(Case [con@(Con name repr)] bs)
   = case matchBranches con bs of
       Just b -> b

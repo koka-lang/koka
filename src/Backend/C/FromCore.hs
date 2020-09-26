@@ -1320,7 +1320,7 @@ genPattern doTest gfree dpatterns genBody
        ndoc <- genPattern doTest gfree nextPatterns genBody
        if (null tests)
         then return (vcat (locals ++ [ndoc]))
-        else return (text "if" <+> parensIf (hcat (punctuate (text "&&") tests))
+        else return (text "if" <+> parensIf (hcat (punctuate (text " && ") tests))
                       <+> block (vcat (locals ++ [ndoc])))
 
 genPatternTest :: Bool -> TNames -> (Doc,Pattern) -> Asm [([Doc],[Doc],[(Doc,Pattern)])]

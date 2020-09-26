@@ -1,4 +1,15 @@
-// Adapted from https://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap.lean
+/*
+  Benchmark red-black trees. 
+  Adapted from https://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap.lean
+  Algorithms based on:
+out/  
+  * Chris Okasaki, \"Red-Black Trees in a Functional Setting\",
+    Journal of Functional Programming, 9(4), pp 471-477, July 1999
+    <http://www.eecs.usma.edu/webs/people/okasaki/pubs.html#jfp99>
+
+  * Stefan Kahrs, \"Red-black trees with types\",
+    Journal of functional programming, 11(04), pp 425-432, July 2001
+*/
 
 import std/num/int32
 
@@ -87,21 +98,25 @@ fun insert(t: tree, k: int32, v: bool): tree {
 //-----------------------------------------------------------------------------
 
 
-fun fuse(l : tree, r : tree) : div tree {  // todo: improve exn/div checking for multi patterns
-  match((l,r)) {
-    (Leaf,_) -> r
-    (_,Leaf) -> l
-    (Node(Black,lx,kx,vx,rx),Node(Black,ly,ky,vy,ry)) -> match(fuse(rx,ly)) {
-      Node(Red,lz,kz,vz,rz) -> Node(Red,Node(Black,lx,kx,vx,lz),kz,vz,Node(Black,rz,ky,vy,ry))
-      z -> del-bal-left(lx,kx,vx,Node(Black,z,ky,vy,ry))
+fun fuse(l : tree, r : tree) : tree {  
+  match(l) {
+    Leaf -> r
+    Node(Black,lx,kx,vx,rx) -> match(r) {
+      Leaf -> l
+      Node(Black,ly,ky,vy,ry) -> match(fuse(rx,ly)) {
+        Node(Red,lz,kz,vz,rz) -> Node(Red,Node(Black,lx,kx,vx,lz),kz,vz,Node(Black,rz,ky,vy,ry))
+        z -> del-bal-left(lx,kx,vx,Node(Black,z,ky,vy,ry))
+      }
+      Node(Red,ly,ky,vy,ry) -> Node(Red,fuse(l,ly),ky,vy,ry)
     }
-    (Node(Red,lx,kx,vx,rx),Node(Red,ly,ky,vy,ry)) -> match(fuse(rx,ly)) {
-      Node(Red,lz,kz,vz,rz) -> Node(Red,Node(Red,lx,kx,vx,lz),kz,vz,Node(Red,rz,ky,vy,ry))
-      z -> Node(Red,lx,kx,vx,Node(Red,z,ky,vy,ry))
+    Node(Red,lx,kx,vx,rx) -> match(r) {
+      Leaf -> l
+      Node(Red,ly,ky,vy,ry) -> match(fuse(rx,ly)) {
+        Node(Red,lz,kz,vz,rz) -> Node(Red,Node(Red,lx,kx,vx,lz),kz,vz,Node(Red,rz,ky,vy,ry))
+        z -> Node(Red,lx,kx,vx,Node(Red,z,ky,vy,ry))
+      }
+      _ -> Node(Red,lx,kx,vx,fuse(rx,r))
     }
-    (_,Node(Red,ly,ky,vy,ry)) -> Node(Red,fuse(l,ly),ky,vy,ry)
-    (Node(Red,lx,kx,vx,rx),_) -> Node(Red,lx,kx,vx,fuse(rx,r))
-    _ -> Leaf // should not happen
   }
 }
 
