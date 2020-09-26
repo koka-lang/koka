@@ -300,7 +300,7 @@ fun make-tree-aux(total : int32, n: int32, t: tree): div tree {
   if (n <= 0.int32) then t else {
     val n1 = n.dec
     val t1 = insert(t, n1, n1 % 10.int32 == zero)
-    val t2 = if (n1%4.int32 == zero) then delete(t1, n1 + (total - n1)/4.int32) else t1
+    val t2 = if (n1%4.int32 == zero) then delete(t1, n1 + (total - n1)/5.int32) else t1
     make-tree-aux(total, n1, t2)    
   }
 }

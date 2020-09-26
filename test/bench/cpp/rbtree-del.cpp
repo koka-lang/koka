@@ -21,7 +21,7 @@ map mk_map(unsigned n) {
     while (n > 0) {
         --n;
         m.insert(std::make_pair(nat(n), n%10 == 0));
-        if (n%4==0) m.erase(n + nat(top - n)/4);  // erase quarter up
+        if (n%4==0) m.erase(n + nat(top - n)/5);  
     }
     return m;
 }

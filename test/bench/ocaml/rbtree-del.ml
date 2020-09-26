@@ -208,7 +208,7 @@ let rec mk_map_aux total n t0 =
 if n == 0 then t0
 else let n1 = n-1 in
      let t1 = insert t0 n1 (n1 mod 10 == 0) in
-     let t2 = (if (n1 mod 4 == 0) then delete t1 (n1 + ((total - n1)/4)) else t1) in
+     let t2 = (if (n1 mod 4 == 0) then delete t1 (n1 + ((total - n1)/5)) else t1) in
      mk_map_aux total n1 t2;;
 
 let mk_map n = mk_map_aux n n Leaf;;

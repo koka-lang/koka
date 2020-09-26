@@ -311,7 +311,7 @@ fun make-tree-aux(total : int, n: int, t: tree) : div tree {
   if (n <= 0) then t else {
     val n1 = n - 1
     val t1 = insert(t, n1, n1 % 10 == 0)
-    val t2 = if (n1%4 == 0) then delete(t1, n1 + (total - n1)/4) else t1
+    val t2 = if (n1%4 == 0) then delete(t1, n1 + (total - n1)/5) else t1
     make-tree-aux(total, n1, t2)    
   }
 }
