@@ -243,7 +243,7 @@ kk_decl_export void  kk_main_end(kk_context_t* ctx) {
     size_t page_reclaim;
     size_t peak_commit;
     kk_process_info(&user_time, &sys_time, &peak_rss, &page_faults, &page_reclaim, &peak_commit);
-    kk_info_message("elapsed: %ld.%03lds, user: %ld.%03lds, sys: %ld.%03lds, rss: %lu%s", 
+    kk_info_message("elapsed: %ld.%03lds, user: %ld.%03lds, sys: %ld.%03lds, rss: %lu%s\n", 
                     (long)(wall_time/1000000), (long)((wall_time%1000000)/1000), 
                     user_time/1000, user_time%1000, sys_time/1000, sys_time%1000, 
                     (peak_rss > 10*1024*1024 ? peak_rss/(1024*1024) : peak_rss/1024),
