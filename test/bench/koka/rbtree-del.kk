@@ -1,6 +1,8 @@
 /*
   Benchmark red-black trees. 
   Adapted from https://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap.lean
+  and from: https://hackage.haskell.org/package/llrbtree-0.1.1/docs/src/Data-Set-RBTree.html#delete
+
   Algorithms based on:
 out/  
   * Chris Okasaki, \"Red-Black Trees in a Functional Setting\",
@@ -90,6 +92,7 @@ fun insert(t: tree, k: int, v: bool): tree {
     else ins(t, k, v)
 }
 
+/*
 //-----------------------------------------------------------------------------
 // Deletion
 // Adapted from Stefan Kahrs algorithm in "Red black trees with types", JFP, July 2001.
@@ -183,7 +186,7 @@ fun is-bnode(t : tree) : bool {
   }
 }
 
-fun delete( t : tree, key : int ) : tree {
+fun delete( t : tree, key : int ) : div tree {
   match (t) {
     Node(_,l,k,v,r) -> match(compare(key,k)) {
       Lt -> if (l.is-bnode()) then del-bal-left(l.delete(key),k,v,r)
@@ -195,12 +198,13 @@ fun delete( t : tree, key : int ) : tree {
     Leaf -> Leaf
   }
 }
+*/
 
-
-/*
-// From: https://hackage.haskell.org/package/llrbtree-0.1.1/docs/src/Data-Set-RBTree.html#delete
-// This one is a tad faster
-struct del{ t : tree; b : bool }
+//-----------------------------------------------------------------------------
+// Deletion
+// Adapted from: https://hackage.haskell.org/package/llrbtree-0.1.1/docs/src/Data-Set-RBTree.html#delete
+//-----------------------------------------------------------------------------
+struct del{ tree : tree; balance? : bool }
 
 fun set-red(t: tree) : tree {
   match(t) {
@@ -216,7 +220,7 @@ fun make-black(t : tree ) : del {
   }
 }
 
-inline fun unbalance-left( c : color, l : tree, k : int, v : bool, r : tree ) : del {
+fun rebalance-left( c : color, l : tree, k : int, v : bool, r : tree ) : del {
   match(l) {
     Node(Black) -> Del( balance-left(set-red(l),k,v,r), c.black? )
     Node(Red,lx,kx,vx,rx) -> Del( Node(Black,lx,kx,vx,balance-left(set-red(rx),k,v,r)), False )
@@ -224,7 +228,7 @@ inline fun unbalance-left( c : color, l : tree, k : int, v : bool, r : tree ) : 
   }
 }
 
-inline fun unbalance-right( c : color, l : tree, k : int, v : bool, r : tree ) : del {
+fun rebalance-right( c : color, l : tree, k : int, v : bool, r : tree ) : del {
   match(r) {
     Node(Black) -> Del( balance-right(l,k,v,set-red(r)), c.black? )
     Node(Red,lx,kx,vx,rx) -> Del( Node(Black,balance-right(l,k,v,set-red(lx)),kx,vx,rx), False )
@@ -232,7 +236,7 @@ inline fun unbalance-right( c : color, l : tree, k : int, v : bool, r : tree ) :
   }
 }
 
-struct delmin{ del : del; key: int; min : bool }
+struct delmin{ del : del; min-key: int; min-val : bool }
 
 fun delete-min(t : tree) : tree {
   match(t.del-min) {
@@ -254,7 +258,7 @@ fun del-min( t : tree ) : delmin {
     }
     Node(c,l,k,v,r) {
       match(l.del-min) {
-        Delmin(Del(lx,True),kx,vx)  -> Delmin(unbalance-right(c,lx,k,v,r),kx,vx)
+        Delmin(Del(lx,True),kx,vx)  -> Delmin(rebalance-right(c,lx,k,v,r),kx,vx)
         Delmin(Del(lx,False),kx,vx) -> Delmin(Del(Node(c,lx,k,v,r),False),kx,vx)
       }
     }
@@ -264,24 +268,24 @@ fun del-min( t : tree ) : delmin {
 
 fun del( t : tree, k : int ) : del {
   match(t) {
+    Leaf -> Del(Leaf,False)    
     Node(cx,lx,kx,vx,rx) -> match(compare(k,kx)) {
       Lt -> match(lx.del(k)) {
-        Del(ly,True)  -> unbalance-right(cx,ly,kx,vx,rx)
+        Del(ly,True)  -> rebalance-right(cx,ly,kx,vx,rx)
         Del(ly,False) -> Del(Node(cx,ly,kx,vx,rx),False)
       }
       Gt -> match(rx.del(k)) {
-        Del(ry,True)  -> unbalance-left(cx,lx,kx,vx,ry)
+        Del(ry,True)  -> rebalance-left(cx,lx,kx,vx,ry)
         Del(ry,False) -> Del(Node(cx,lx,kx,vx,ry),False)
       }
       Eq -> match(rx) {
         Leaf -> if (cx.black?) then lx.make-black else Del(lx,False)
         _    -> match(rx.del-min) {
-          Delmin(Del(ry,True),ky,vy) -> unbalance-left(cx,lx,ky,vy,ry)
+          Delmin(Del(ry,True),ky,vy) -> rebalance-left(cx,lx,ky,vy,ry)
           Delmin(Del(ry,False),ky,vy) -> Del(Node(cx,lx,ky,vy,ry),False)
         }
       }
     }
-    Leaf -> Del(Leaf,False)    
   }
 }
 
@@ -290,7 +294,6 @@ fun delete( t : tree, k : int ) : div tree {
     Del(tx,_) -> tx.set-black
   }
 }
-*/
 
 //-----------------------------------------------------------------------------
 // Benchmark

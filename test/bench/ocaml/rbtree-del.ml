@@ -4,9 +4,9 @@ type color =
 | Red
 | Black;;
 
-type node =
+type tree =
 | Leaf
-| Node of color * node * int * bool * node;;
+| Node of color * tree * int * bool * tree;;
 
 let balance_left n kv vv t =
 match n with
@@ -51,6 +51,8 @@ let insert t k v =
 if is_red t then set_black (ins t k v)
 else ins t k v;;
 
+
+(*
 let balance l k v r =
 match (l,r) with
 | (Node(Red,lx,kx,vx,rx), Node(Red,ly,ky,vy,ry)) -> Node (Red, Node (Black,lx,kx,vx,rx),k,v,Node (Black,ly,ky,vy,ry))
@@ -124,6 +126,77 @@ match t with
                                               else Node(Red,l,k,v,delete r key))
       else fuse l r
 | Leaf -> Leaf ;;
+*)
+
+let is_black c =
+match (c) with
+| Black -> true
+| _ -> false ;;
+
+type del = 
+| Del of tree * bool ;;
+
+let set_red t =
+match t with
+| Node(_, l, k, v, r) -> Node (Red, l, k, v, r)
+| _ -> t;;
+
+let make_black t =
+match t with
+| Node(Red,l,k,v,r) -> Del(Node(Black,l,k,v,r),false)
+| _                 -> Del(t,true) ;;
+
+let rebalance_left c l k v r =
+match l with
+| Node(Black,_,_,_,_) -> Del( balance_left (set_red l) k v r, is_black c )
+| Node(Red,lx,kx,vx,rx) -> Del( Node(Black,lx,kx,vx, balance_left (set_red rx) k v r), false ) ;;
+(* | _ -> Del(Node(Black,l,k,v,r),False) *)
+
+let rebalance_right c l k v r =
+match(r) with
+| Node(Black,_,_,_,_) -> Del( balance_right l k v (set_red r), is_black c )
+| Node(Red,lx,kx,vx,rx) -> Del( Node(Black,balance_right l k v (set_red lx),kx,vx,rx), false ) ;;
+(* _ -> Del(Node(Black,l,k,v,r),False)  // cannot happen *)
+
+type delmin = 
+| Delmin of del * int * bool ;;
+
+  
+let rec del_min t = 
+match(t) with 
+| Node(Black,Leaf,k,v,r) -> (match(r) with 
+        | Leaf -> Delmin(Del(Leaf,true),k,v)
+        | _    -> Delmin(Del(set_black r,false),k,v))
+| Node(Red,Leaf,k,v,r) -> Delmin(Del(r,false),k,v)
+| Node(c,l,k,v,r) -> (match(del_min l) with
+        | Delmin(Del(lx,true),kx,vx)  -> Delmin(rebalance_right c lx k v r,kx,vx)
+        | Delmin(Del(lx,false),kx,vx) -> Delmin(Del(Node(c,lx,k,v,r),false),kx,vx)) ;;
+(* | Leaf -> Delmin(Del(t,false),0,false) // cannot happen    *)
+
+let delete_min t =
+match (del_min t) with
+| Delmin(Del(tx,_),_,_) -> set_black tx ;;
+
+
+let rec del t k =
+match(t) with
+| Leaf -> Del(Leaf,false)    
+| Node(cx,lx,kx,vx,rx) 
+    -> (if (k < kx) then (match(del lx k) with
+          | Del(ly,true)  -> rebalance_right cx ly kx vx rx
+          | Del(ly,false) -> Del(Node(cx,ly,kx,vx,rx),false))
+        else if (k > kx) then (match(del rx k) with
+          | Del(ry,true)  -> rebalance_left cx lx kx vx ry
+          | Del(ry,false) -> Del(Node(cx,lx,kx,vx,ry),false))
+        else (match rx with
+          | Leaf -> if (is_black cx) then make_black lx else Del(lx,false)
+          | _    -> (match(del_min rx) with 
+                      | Delmin(Del(ry,true),ky,vy) -> rebalance_left cx lx ky vy ry
+                      | Delmin(Del(ry,false),ky,vy) -> Del(Node(cx,lx,ky,vy,ry),false)))) ;;
+
+let delete t k =
+match (del t k) with
+| Del(tx,_) -> set_black tx
 
 
 let rec fold f n d =
