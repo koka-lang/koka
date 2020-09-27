@@ -167,6 +167,12 @@ static void kklib_init(void) {
 // The thread local context; usually passed explicitly for efficiency.
 static kk_decl_thread kk_context_t* context;
 
+
+static struct { kk_block_t _block; kk_integer_t cfc; } kk_evv_empty_static = {
+  { KK_HEADER_STATIC(1,KK_TAG_EVV_VECTOR) }, { (~(KU64(0)<<2)|1) /*==-1 smallint*/}
+};
+kk_ptr_t kk_evv_empty_singleton = &kk_evv_empty_static._block;
+
 // Get the thread local context (also initializes on demand)
 kk_context_t* kk_get_context(void) {
   kk_context_t* ctx = context;
@@ -179,7 +185,7 @@ kk_context_t* kk_get_context(void) {
 #else
   ctx = (kk_context_t*)calloc(1, sizeof(kk_context_t));
 #endif
-  ctx->evv = kk_vector_empty();
+  ctx->evv = kk_block_dup(kk_evv_empty_singleton);
   ctx->thread_id = (uintptr_t)(&context);
   ctx->unique = kk_integer_one;
   context = ctx;
@@ -190,7 +196,7 @@ kk_context_t* kk_get_context(void) {
 
 static void free_context(void) {
   if (context != NULL) {
-    kk_vector_drop(context->evv, context);
+    kk_block_drop(context->evv, context);
     kk_basetype_free(context->kk_box_any);
     // kk_basetype_drop_assert(context->kk_box_any, KK_TAG_BOX_ANY, context);
     // TODO: process delayed_free

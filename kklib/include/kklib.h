@@ -245,6 +245,13 @@ typedef kk_datatype_t kk_vector_t;
 // Strong random number context (using chacha20)
 struct kk_random_ctx_s;
 
+// High precision duration.
+typedef struct kk_duration_s {
+  double seconds;
+  double second_fraction;
+} kk_duration_t;
+
+
 // Box any is used when yielding
 typedef struct kk_box_any_s {
   kk_block_t  _block;
@@ -269,18 +276,15 @@ typedef struct kk_yield_s {
                                           // entry points to its composition.
 } kk_yield_t;
 
-// High precision duration.
-typedef struct kk_duration_s {
-  double seconds;
-  double second_fraction;
-} kk_duration_t;
+extern kk_ptr_t kk_evv_empty_singleton;
+
 
 // The thread local context.
 // The fields `yielding`, `heap` and `evv` should come first for efficiency
 typedef struct kk_context_s {
   uint8_t        yielding;         // are we yielding to a handler? 0:no, 1:yielding, 2:yielding_final (e.g. exception) // put first for efficiency
   kk_heap_t      heap;             // the (thread-local) heap to allocate in; todo: put in a register?
-  kk_vector_t    evv;              // the current evidence vector for effect handling: vector for size 0 and N>1, direct evidence for one element vector
+  kk_ptr_t       evv;              // the current evidence vector for effect handling: vector for size 0 and N>1, direct evidence for one element vector
   kk_yield_t     yield;            // inlined yield structure (for efficiency)
   int32_t        marker_unique;    // unique marker generation
   kk_block_t*    delayed_free;     // list of blocks that still need to be freed

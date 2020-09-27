@@ -866,7 +866,7 @@ genDupDropCallX prim tp args
   = case cType tp of
       CFun _ _   -> [(primName_t prim "function_t") <.> args]
       CBox       -> [(primName_t prim "box_t") <.> args]
-      CPrim val   | val == "kk_integer_t" || val == "kk_string_t" || val == "kk_vector_t" || val == "kk_ref_t" || val == "kk_reuse_t" || val == "kk_box_t"
+      CPrim val   | val == "kk_integer_t" || val == "kk_string_t" || val == "kk_vector_t" || val == "kk_evv_t" || val == "kk_ref_t" || val == "kk_reuse_t" || val == "kk_box_t"
                   -> [(primName_t prim val) <.> args]
                   | otherwise
                   -> -- trace ("** skip dup/drop call: " ++ pre val ++ ": " ++ show args) $
@@ -1073,8 +1073,10 @@ cTypeCon c
          then CPrim "kk_integer_t"
         else if (name == nameTpString)
          then CPrim "kk_string_t"
-        else if (name == nameTpVector ||  name == nameTpEvv)
+        else if (name == nameTpVector)
          then CPrim "kk_vector_t"
+        else if (name ==  nameTpEvv)
+         then CPrim "kk_evv_t"
         else if (name == nameTpChar)
          then CPrim "kk_char_t"  -- 32-bit unicode point
         else if (name == nameTpInt32)
