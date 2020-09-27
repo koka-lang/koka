@@ -36,6 +36,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameTpLocalVar, nameTpLocal, nameRunLocal, nameLocalGet, nameLocalSet, nameLocalNew, nameLocal
                       , nameTpValueOp, nameClause, nameIdentity
                       , nameMaskAt, nameMaskBuiltin, nameEvvIndex, nameHTag, nameTpHTag
+                      , nameInt32
                        )
 import Common.Range
 import Common.Unique
@@ -919,7 +920,15 @@ inferHandler propagated expect handlerSort handlerScoped
        clauses <- mapM clause (zip (sortBy opName branches) resumeArgs)
        let handlerCon = let hcon = Var handlerConName False hrng
                         in if null clauses then hcon else App hcon clauses rng
-                         
+           handlerCfc = (\i -> App (Var nameInt32 False rng) [(Nothing,Lit (LitInt i rng))] rng) $
+                        if (null branches) then 1 --linear
+                                           else foldr1 cfcLub (map hbranchCfc branches)
+                      where
+                        cfcLub x y   = if ((x==0&&y==1)||(x==1&&y==0)) then 2 else max x y
+                        hbranchCfc b = case hbranchSort b of -- todo: more refined analysis
+                                        OpVal -> 1
+                                        OpFun -> 1
+                                        _     -> 3 --multi/wild
            -- create handler expression
            actionName = newHiddenName "action"               
            handleName = makeHiddenName "handle" effectName
@@ -927,7 +936,8 @@ inferHandler propagated expect handlerSort handlerScoped
                           Nothing -> let argName = (newHiddenName "x")
                                      in Lam [ValueBinder argName Nothing Nothing rng rng] (Var argName False rng) hrng -- don't pass `id` as it needs to be opened
                           Just expr -> expr
-           handleExpr action = App (Var handleName False rng) [(Nothing,handlerCon),(Nothing,handleRet),(Nothing,action)] hrng
+           handleExpr action = App (Var handleName False rng) 
+                                [(Nothing,handlerCfc),(Nothing,handlerCon),(Nothing,handleRet),(Nothing,action)] hrng
            handlerExpr= Lam [ValueBinder actionName Nothing Nothing rng rng]
                             (handleExpr (Var actionName False rng)) hrng
 

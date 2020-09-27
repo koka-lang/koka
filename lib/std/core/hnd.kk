@@ -39,8 +39,17 @@ public fun hidden-htag( tag : string ) {
   Htag(tag)
 }
 
+// control flow context:
+//
+// - 0 never resumes
+// - 1 resumes always exactly once
+// - 2 resumes never or once
+// - 3 resumes never, once, or multiple times
+public alias cfc= int32
+  
+
 abstract type ev<h> {
-  con Ev<e,r>(:htag<h>, :marker<e,r>, :h<e,r>, :evv<e>)
+  con Ev<e,r>(:htag<h>, :marker<e,r>, :h<e,r>, :cfc, :evv<e>)
 }
 
 private type evv<e::E>;
@@ -155,6 +164,11 @@ private extern evv-swap-create( indices : vector<ev-index> ) : e evv<e> {
 private inline extern ev-none<e,h>() : e ev<h> {
   c  "kk_ev_none"
   js "ev_none"
+}
+
+public inline extern ".evv-affine?"() : bool {
+  c inline "kk_evv_cfc()<=2"
+  js inline "$std_core_hnd._evv_cfc()<=2"
 }
 
 // -------------------------------------------
@@ -297,11 +311,11 @@ private fun prompt( w0 : evv<e0>,  w1 : evv<e0>, ev : ev<h>, m : marker<e0,r>, r
   }
 }
 
-public noinline fun ".hhandle"( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : () -> e1 a ) : e r {
+public noinline fun ".hhandle"( tag:htag<h>, cfc: cfc, h : h<e,r>, ret: a -> e r, action : () -> e1 a ) : e r {
   // insert new evidence for our handler
   val w0 = evv-get()        
   val m  = fresh-marker()
-  val ev = Ev(tag,m,h,w0)
+  val ev = Ev(tag,m,h,cfc,w0)
   val w1 = evv-insert(w0,ev)
   evv-set(w1)
   // call action first (this may be yielding), then check the result
@@ -312,10 +326,10 @@ public noinline fun ".hhandle"( tag:htag<h>, h : h<e,r>, ret: a -> e r, action :
 // named handler
 // -------------------------------------------
 
-public noinline fun ".named-handle"( tag:htag<h>, h : h<e,r>, ret: a -> e r, action : ev<h> -> e a ) : e r {
+public noinline fun ".named-handle"( tag:htag<h>, cfc: cfc, h : h<e,r>, ret: a -> e r, action : ev<h> -> e a ) : e r {
   val m = fresh-marker-named()            // unique (negative) marker, but never gets inserted into the evidence vector
   val w0 = evv-get()
-  val ev = Ev(tag,m,h,w0)
+  val ev = Ev(tag,m,h,cfc,w0)
   prompt(w0,w0,ev,m,ret,action(ev))
 }
 
@@ -436,7 +450,7 @@ private inline extern cast-ev2( f : (marker<e1,r>,ev<h>,a1,a2) -> e1 b) : e ((ma
 
 public fun ".perform1"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,h,e1,r>), x : a ) : e b {
   match(ev) {
-    Ev(_tag,m,h,_w) -> match(h.op) {
+    Ev(_tag,m,h,_c,_w) -> match(h.op) {
       Clause1(f) -> cast-ev1(f)(m,ev,x)
     }
   }
@@ -444,7 +458,7 @@ public fun ".perform1"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,h,
 
 private fun evv-swap-with(ev : ev<h>) {
   match(ev) {
-    Ev(_tag,_m,_h,w) -> evv-swap(w)
+    Ev(_tag,_m,_h,_c,w) -> evv-swap(w)
   }
 } 
 
@@ -518,7 +532,7 @@ abstract type clause0<b,h,e,r> {
 
 public fun ".perform0"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause0<b,h,e1,r>) ) : e b {
   match(ev) {
-    Ev(_tag,m,h,_w) -> match(h.op) {
+    Ev(_tag,m,h,_c,_w) -> match(h.op) {
       Clause0(f) -> cast-ev0(f)(m,ev)
     }
   }
@@ -610,7 +624,7 @@ public fun clause-tail-noyield2<e,r,a1,a2,b>(op : (a1,a2) -> e b) : clause2<a1,a
 
 public fun ".perform2"( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> clause2<a,b,c,h,e1,r>), x : a, y : b ) : e c {
   match(evx) {
-    Ev(_tag,m,h,_w) -> match(h.op) {
+    Ev(_tag,m,h,_c,_w) -> match(h.op) {
       Clause2(f) -> cast-ev2(f)(m,evx,x,y)
     }
   }
@@ -628,7 +642,7 @@ public fun clause-never2( op : (a1,a2) -> e r ) : clause2<a1,a2,b,h,e,r> {
 // For interal use
 private fun xperform1( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,h,e1,r>), x : a ) : e b {
   match(ev) {
-    Ev(_tag,m,h,_w) -> match(h.op) {
+    Ev(_tag,m,h,_c,_w) -> match(h.op) {
       Clause1(f) -> cast-ev1(f)(m,ev,x)
     }
   }

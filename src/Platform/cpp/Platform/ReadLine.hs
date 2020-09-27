@@ -97,7 +97,7 @@ withReadLine historyPath io
        writeIORef vhistory h0
        x <- io
        h1 <- readIORef vhistory
-       if (null historyFile) then return () else H.writeHistory historyFile (H.stifleHistory (Just 20) h1)
+       if (null historyFile) then return () else H.writeHistory historyFile (H.stifleHistory (Just 64) h1)
        return x       
 
 readLine roots prompt 

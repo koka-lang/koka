@@ -850,7 +850,8 @@ makeEffectDecl decl =
                     else makeEffectExtend irng effTp (tpVar hndEffTp) :: UserType
       handleTp   = quantify QForall (tpars ++ [handleRetTp,hndEffTp,hndResTp]) $
                    makeTpFun [
-                    ((newName "hnd"), TpApp (TpCon hndName rng) (map tpVar (tpars ++ [hndEffTp,hndResTp])) rng),
+                    (newName "cfc", TpCon nameTpInt32 rng),
+                    (newName "hnd", TpApp (TpCon hndName rng) (map tpVar (tpars ++ [hndEffTp,hndResTp])) rng),
                     (newName "ret", makeTpFun [(newName "res",tpVar handleRetTp)] (tpVar hndEffTp) (tpVar hndResTp) rng),
                     (newName "action",
                         makeTpFun actionArgTp handleEff (tpVar handleRetTp) rng)
@@ -860,10 +861,12 @@ makeEffectDecl decl =
                     else []
       handleBody = Ann (Lam params handleInner rng) handleTp rng
       handleInner= App (Var (if isInstance then nameNamedHandle else nameHandle) False rng) arguments rng
-      params     = [ValueBinder (newName "hnd") Nothing Nothing irng rng,
+      params     = [ValueBinder (newName "cfc") Nothing Nothing irng rng,
+                    ValueBinder (newName "hnd") Nothing Nothing irng rng,
                     ValueBinder (newName "ret") Nothing Nothing irng rng,
                     ValueBinder (newName "action") Nothing Nothing irng rng]
       arguments  = [(Nothing, Var tagName False irng),
+                    (Nothing, Var (newName "cfc") False irng),
                     (Nothing, Var (newName "hnd") False irng),
                     (Nothing, Var (newName "ret") False irng),
                     (Nothing, wrapAction (Var (newName "action") False irng))]

@@ -179,6 +179,7 @@
     <ClCompile Include="..\..\..\out\Debug\std_time_timer.c" />
     <ClCompile Include="..\..\..\out\Debug\std_time_timestamp.c" />
     <ClCompile Include="..\..\..\out\Debug\std_time_utc.c" />
+    <ClCompile Include="..\..\..\out\Debug\test_algeff_common.c" />
     <ClCompile Include="..\..\..\out\Debug\test_algeff_scoped.c" />
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_effects_dash_and_dash_types.c" />
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_exn_dash_get.c" />

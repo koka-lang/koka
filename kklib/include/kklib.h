@@ -52,6 +52,7 @@ typedef enum kk_tag_e {
   KK_TAG_FLOAT,       // boxed IEEE float  (32-bit)  (on 32-bit platforms)
   KK_TAG_CFUNPTR,     // C function pointer
   KK_TAG_SIZE_T,      // boxed size_t
+  KK_TAG_EVV_VECTOR,  // evidence vector (used in std/core/hnd)
   // raw tags have a free function together with a `void*` to the data
   KK_TAG_CPTR_RAW,    // full void* (must be first, see kk_tag_is_raw())
   KK_TAG_STRING_RAW,  // pointer to a valid UTF8 string
@@ -805,7 +806,7 @@ static inline void kk_datatype_decref(kk_datatype_t d, kk_context_t* ctx) {
 
 
 #define kk_datatype_from_base(b)               (kk_datatype_from_ptr(&(b)->_block))
-#define kk_datatype_from_constructor(b)        (kk_datatype_from_base(&(b)->base))
+#define kk_datatype_from_constructor(b)        (kk_datatype_from_base(&(b)->_base))
 #define kk_datatype_as(tp,v)                   (kk_block_as(tp,kk_datatype_as_ptr(v)))
 #define kk_datatype_as_assert(tp,v,tag)        (kk_block_assert(tp,kk_datatype_as_ptr(v),tag))
 

@@ -34,5 +34,6 @@
     <ClCompile Include="..\..\..\out\Debug\std_text_unicode.c" />
     <ClCompile Include="..\..\..\out\Debug\std_os_flags.c" />
     <ClCompile Include="..\..\..\out\Debug\std_os_env.c" />
+    <ClCompile Include="..\..\..\out\Debug\test_algeff_common.c" />
   </ItemGroup>
 </Project>

@@ -12,35 +12,51 @@ typedef datatype_t kk_std_core_hnd__ev;
 struct kk_std_core_hnd_Ev {
   kk_std_core_hnd__htag _field1;
   kk_box_t _field3;
-  kk_std_core_hnd__evv _field4;
+  int32_t _field4;  // control flow context
+  kk_std_core_hnd__evv _field5;
   kk_std_core_hnd__marker _field2;
 };
 */
 
-static inline struct kk_std_core_hnd_Ev* kk_ev_unbox(kk_box_t b, kk_context_t* ctx) {
-  return kk_std_core_hnd__as_Ev(kk_std_core_hnd__ev_unbox(b,ctx));
+static kk_evv_vector_t kk_evv_vector_alloc(size_t length, int32_t cfc, kk_context_t* ctx) {
+  kk_assert_internal(length>=0);
+  kk_evv_vector_t v = (kk_evv_vector_t)kk_block_alloc(sizeof(struct kk_evv_vector_s) + (length-1)*sizeof(void*), length + 1 /* cfc */, KK_TAG_EVV_VECTOR, ctx);
+  v->cfc = kk_integer_from_int32(cfc,ctx);
+  return v;
 }
 
-static inline kk_box_t* kk_evv_as_vec(kk_evv_t evv, size_t* len, kk_box_t* single) {  
-  if (kk_evv_is_vector(evv)) {
-    return kk_vector_buf(evv,len);
+static kk_std_core_hnd__ev* kk_evv_vector_buf(kk_evv_vector_t vec, size_t* len) {  
+  if (len != NULL) { *len = kk_block_scan_fsize(&vec->_block) - 1; }
+  return &vec->vec[0];
+}
+
+static kk_std_core_hnd__ev* kk_evv_as_vec(kk_evv_t evv, size_t* len, kk_std_core_hnd__ev* single) {  
+  if (kk_evv_is_empty(evv)) {
+    *len = 0;
+    return NULL;
+  }
+  else if (kk_evv_is_vector(evv)) {
+    kk_evv_vector_t vec = kk_datatype_as_assert(kk_evv_vector_t, evv, KK_TAG_EVV_VECTOR);
+    *len = kk_block_scan_fsize(&vec->_block) - 1;
+    return &vec->vec[0];
   }
   else {
     // single evidence
-    *single = kk_datatype_box(evv);
+    *single = kk_datatype_as_assert(kk_std_core_hnd__ev,evv,(kk_tag_t)(1));
     *len = 1;
     return single;
   }
 }
 
-struct kk_std_core_hnd__ev_s* kk_ev_none(kk_context_t* ctx) {
+kk_std_core_hnd__ev kk_ev_none(kk_context_t* ctx) {
   static kk_std_core_hnd__ev ev_none_singleton;
   if (ev_none_singleton==NULL) {
     ev_none_singleton = kk_std_core_hnd__new_Ev(
       kk_reuse_null,
       kk_std_core_hnd__new_Htag(kk_string_empty(),ctx), // tag ""
-      kk_std_core_hnd__new_Marker(0,ctx),              // marker 0
+      kk_std_core_hnd__new_Marker(0,ctx),               // marker 0
       kk_box_null,                                      // no handler
+      1,                                                // linear
       kk_vector_empty(),
       ctx
     );      
@@ -52,10 +68,10 @@ struct kk_std_core_hnd__ev_s* kk_ev_none(kk_context_t* ctx) {
 size_t kk_evv_index( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx ) {
   // todo: drop htag?
   size_t len;
-  kk_box_t single;
-  kk_box_t* vec = kk_evv_as_vec(ctx->evv,&len,&single);
+  kk_std_core_hnd__ev single;
+  kk_std_core_hnd__ev* vec = kk_evv_as_vec(ctx->evv,&len,&single);
   for(size_t i = 0; i < len; i++) {
-    struct kk_std_core_hnd_Ev* ev = kk_ev_unbox(vec[i],ctx);
+    struct kk_std_core_hnd_Ev* ev = kk_std_core_hnd__as_Ev(vec[i]);
     if (kk_string_cmp_borrow(htag._field1,ev->_field1._field1) <= 0) return i; // break on insertion point
   }
   //string_t evvs = kk_evv_show(dup_datatype_as(kk_evv_t,ctx->evv),ctx);
@@ -70,43 +86,86 @@ kk_std_core_hnd__ev kk_evv_lookup( struct kk_std_core_hnd_Htag htag, kk_context_
   return kk_evv_at(idx,ctx);
 }
 
+static inline int32_t kk_cfc_lub(int32_t cfc1, int32_t cfc2) {
+  if (cfc1 < 0) return cfc2;
+  else if (cfc1+cfc2 == 1) return 2;
+  else if (cfc1>cfc2) return cfc1;
+  else return cfc2;
+}
+
+static int32_t kk_evv_cfc_of_borrow(kk_evv_t evv, kk_context_t* ctx) {
+  if (kk_evv_is_vector(evv)) {
+    kk_evv_vector_t vec = kk_datatype_as_assert(kk_evv_vector_t, evv, KK_TAG_EVV_VECTOR);
+    return kk_integer_clamp32(vec->cfc,ctx);
+  }
+  else {
+    kk_assert_internal(!kk_evv_is_empty(evv));
+    struct kk_std_core_hnd_Ev* ev = kk_datatype_as_assert(struct kk_std_core_hnd_Ev*,evv,(kk_tag_t)(1));
+    return ev->_field4;
+  }
+}
+
+int32_t kk_evv_cfc(kk_context_t* ctx) {
+  return kk_evv_cfc_of_borrow(ctx->evv,ctx);
+}
+
+static void kk_evv_update_cfc_borrow(kk_evv_t evv, int32_t cfc, kk_context_t* ctx) {
+  kk_assert_internal(!kk_evv_is_empty(evv)); // should never happen (as named handlers are always in some context)
+  if (kk_evv_is_vector(evv)) {
+    kk_evv_vector_t vec = kk_datatype_as_assert(kk_evv_vector_t, evv, KK_TAG_EVV_VECTOR);
+    vec->cfc = kk_integer_from_int32(kk_cfc_lub(kk_integer_clamp32(vec->cfc,ctx),cfc), ctx);
+  }
+  else {
+    struct kk_std_core_hnd_Ev* ev = kk_datatype_as_assert(struct kk_std_core_hnd_Ev*,evv,(kk_tag_t)(1));
+    ev->_field4 = kk_cfc_lub(ev->_field4,cfc);
+  }
+}
 
 kk_evv_t kk_evv_insert(kk_evv_t evvd, kk_std_core_hnd__ev evd, kk_context_t* ctx) {
   struct kk_std_core_hnd_Ev* ev = kk_std_core_hnd__as_Ev(evd);
   // update ev with parent evidence vector (either at init, or due to non-scoped resumptions)
   int32_t marker = ev->_field2.m;
   if (marker==0) { kk_basetype_drop(evd,ctx); return evvd; } // ev-none
-  kk_evv_drop(ev->_field4,ctx);
-  ev->_field4 = kk_datatype_dup(evvd);
+  kk_evv_drop(ev->_field5,ctx);
+  ev->_field5 = kk_datatype_dup(evvd);
   if (marker<0) { // negative marker is used for named evidence; this means this evidence should not be inserted into the evidence vector
+    kk_evv_update_cfc_borrow(evvd,ev->_field4,ctx); // update cfc in-place for named evidence
     kk_basetype_drop(evd,ctx); 
     return evvd; 
   } 
   // for regular handler evidence, insert ev
   size_t n;
-  kk_box_t single;
-  const kk_box_t* evv1 = kk_evv_as_vec(evvd, &n, &single);
-  const kk_vector_t vec2 = kk_vector_alloc(n+1,kk_box_null,ctx);
-  kk_box_t* const evv2 = kk_vector_buf(vec2,NULL);
-  size_t i;
-  for(i = 0; i < n; i++) {
-    kk_box_t evb1 = evv1[i];
-    const struct kk_std_core_hnd_Ev* ev1 = kk_ev_unbox(evb1,ctx);
-    if (kk_string_cmp_borrow(ev->_field1._field1,ev1->_field1._field1) <= 0) break;
-    evv2[i] = kk_box_dup(evb1); // use dup_datatype for efficiency?
+  kk_std_core_hnd__ev single;
+  kk_std_core_hnd__ev* const evv1 = kk_evv_as_vec(evvd, &n, &single);
+  if (n == 0) {
+    // use ev directly as the evidence vector
+    kk_datatype_drop(evvd, ctx);
+    return kk_datatype_from_ptr(&evd->_block);
   }
-  evv2[i] = kk_basetype_box(evd);
-  for(; i < n; i++) {
-    evv2[i+1] = kk_box_dup(evv1[i]);  // use dup_datatype for efficiency?
+  else {
+    // create evidence vector
+    const int32_t cfc = kk_cfc_lub(kk_evv_cfc_of_borrow(evvd, ctx), ev->_field4);
+    kk_evv_vector_t vec2 = kk_evv_vector_alloc(n+1, cfc, ctx);
+    kk_std_core_hnd__ev* const evv2 = kk_evv_vector_buf(vec2, NULL);
+    size_t i;
+    for (i = 0; i < n; i++) {
+      struct kk_std_core_hnd_Ev* ev1 = kk_std_core_hnd__as_Ev(evv1[i]);
+      if (kk_string_cmp_borrow(ev->_field1._field1, ev1->_field1._field1) <= 0) break;
+      evv2[i] = kk_std_core_hnd__ev_dup(&ev1->_base);
+    }
+    evv2[i] = evd;
+    for (; i < n; i++) {
+      evv2[i+1] = kk_std_core_hnd__ev_dup(evv1[i]);
+    }
+    kk_datatype_drop(evvd, ctx);  // assigned to evidence already
+    return kk_datatype_from_base(vec2);
   }
-  kk_datatype_drop(evvd,ctx);  // assigned to evidence already
-  return vec2;
 }
 
 kk_evv_t kk_evv_delete(kk_evv_t evvd, size_t index, bool behind, kk_context_t* ctx) {
   size_t n;
-  kk_box_t single;
-  const kk_box_t* evv1 = kk_evv_as_vec(evvd, &n, &single);
+  kk_std_core_hnd__ev single;
+  const kk_std_core_hnd__ev* evv1 = kk_evv_as_vec(evvd, &n, &single);
   if (n <= 1) {
     kk_datatype_drop(evvd,ctx);
     return kk_evv_total(ctx);
@@ -114,23 +173,31 @@ kk_evv_t kk_evv_delete(kk_evv_t evvd, size_t index, bool behind, kk_context_t* c
   if (behind) index++;
   kk_assert_internal(index < n);  
   // todo: copy without dupping (and later dropping) when possible
-  const kk_vector_t vec2 = kk_vector_alloc(n-1,kk_box_null,ctx);  
-  kk_box_t* const evv2 = kk_vector_buf(vec2,NULL);
+  const int32_t cfc1 = kk_evv_cfc_of_borrow(evvd,ctx);
+  kk_evv_vector_t const vec2 = kk_evv_vector_alloc(n-1,cfc1,ctx);  
+  kk_std_core_hnd__ev* const evv2 = kk_evv_vector_buf(vec2,NULL);
   size_t i;
   for(i = 0; i < index; i++) {
-    evv2[i] = kk_box_dup(evv1[i]);  // todo: use box_datatype for efficiency?
+    evv2[i] = kk_std_core_hnd__ev_dup(evv1[i]);  
   }
   for(; i < n-1; i++) {
-    evv2[i] = kk_box_dup(evv1[i+1]);
+    evv2[i] = kk_std_core_hnd__ev_dup(evv1[i+1]);
+  }  
+  struct kk_std_core_hnd_Ev* ev = kk_std_core_hnd__as_Ev(evv1[index]);
+  if (ev->_field4 >= cfc1) {
+    int32_t cfc = kk_std_core_hnd__as_Ev(evv2[0])->_field4;
+    for(i = 1; i < n-1; i++) {
+      cfc = kk_cfc_lub(cfc,kk_std_core_hnd__as_Ev(evv2[i])->_field4);
+    }
+    vec2->cfc = kk_integer_from_int32(cfc,ctx);
   }
   kk_datatype_drop(evvd,ctx);
-  return vec2;
+  return kk_datatype_from_base(vec2);
 }
 
 kk_string_t kk_evv_show(kk_evv_t evv, kk_context_t* ctx) {
   return kk_string_alloc_dup("(not yet implemented: kk_evv_show)",ctx);
 }
-
 
 
 /*-----------------------------------------------------------------------
