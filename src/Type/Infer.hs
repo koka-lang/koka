@@ -54,7 +54,7 @@ import Kind.Newtypes
 import Kind.ImportMap
 
 import Type.Type
-import Type.Kind( handledToLabel, getKind )
+import Type.Kind( handledToLabel, getKind, labelIsLinear )
 import Type.Pretty
 import Type.Assumption
 import Type.TypeVar
@@ -951,7 +951,7 @@ inferHandler propagated expect handlerSort handlerScoped
                         Just (_,_,_,heff,hresTp) -> heff
                         _ -> failure $ "Type.Infer.inferHandler: unexpected handler type: " ++ show (ppType penv htp)
       
-       if (not (effectIsLinear heff))
+       if (not (labelIsLinear heff))
         then return ()
         else checkLinearity effectName heffect branches hrng rng
       
@@ -995,7 +995,7 @@ checkLinearity effectName heffect branches hrng rng
     checkLinearEffect 
       = do let (effs,tl) = extractEffectExtend heffect
            --traceDoc $ \env -> text "operation" <+> text (show opName) <+> text ": " <+> niceType env effBranch -- hsep (map (\tp -> niceType env tp) effs)
-           case (dropWhile effectIsLinear effs) of
+           case (dropWhile labelIsLinear effs) of
              (e:_) -> do penv <- getPrettyEnv
                          contextError rng hrng
                             (text "handler for" <+> (ppName penv effectName) <+>
@@ -1105,18 +1105,7 @@ effectNameFromLabel effect
       TApp (TCon tc) targs -> typeConName tc
       _ -> failure ("Type.Infer.effectNameFromLabel: invalid effect: " ++ show effect)
 
-effectIsLinear :: Effect -> Bool
-effectIsLinear effect
-  = case expandSyn effect of
-      TApp (TCon tc) [hx] | (typeConName tc == nameTpHandled1)
-        -> True
-      TApp (TCon tc) [hx] | typeConName tc /= nameTpHandled
-        -- allow `alloc<global>` etc.
-        -> let k = getKind effect
-           in (isKindLabel k || isKindEffect k)
-      TCon _   -- builtin effects
-        -> True
-      _ -> False
+
 
 {-
   = do -- analyze propagated type
@@ -1378,7 +1367,7 @@ inferHandlerBranches handlerSort handledEffect unused_localPars locals retInTp
        (effectTagName,_,effectTagInfo) <- resolveName (toOpenTagName handledEffectName) (Just (typeString,exprRng)) exprRng
        let effectTagCore = coreExprFromNameInfo effectTagName effectTagInfo
            handlerKindCore = Core.Lit $ Core.LitInt $
-                             if (effectIsLinear handledEffect) then 1 else 0
+                             if (labelIsLinear handledEffect) then 1 else 0
        return (handlerTp, branchesCore, makeHandlerTp, effectTagCore,
                 handlerKindCore, nameMakeHandler handlerSort (length locals),
                 resourceArgs)
@@ -1547,7 +1536,7 @@ inferHandlerBranch handlerSort branchTp expect locals handledEffect effectName  
 
        -- check operations of linear effect behave as expected
        smbranchRho  <- subst mbranchRho
-       if (not (isHandlerResource handlerSort) && effectIsLinear handledEffect)
+       if (not (isHandlerResource handlerSort) && labelIsLinear handledEffect)
         then (if (rk > ResumeTail)
                then termError rng (text "operation" <+> text (show opName) <+>
                         text ("needs to be linear but resumes in a non-linear way (as " ++ show rk ++ ")")) handledEffect
@@ -1556,7 +1545,7 @@ inferHandlerBranch handlerSort branchTp expect locals handledEffect effectName  
                       let Just (_,_,TApp _ (effBranch:_)) = splitFunType smbranchRho
                       let (effs,tl) = extractEffectExtend effBranch
                       --traceDoc $ \env -> text "operation" <+> text (show opName) <+> text ": " <+> niceType env effBranch -- hsep (map (\tp -> niceType env tp) effs)
-                      case (dropWhile effectIsLinear effs) of
+                      case (dropWhile labelIsLinear effs) of
                          (e:_) ->
                           termError rng (text "operation" <+> text (show opName) <+>
                                         text ("needs to be linear but uses non-linear effects")) e

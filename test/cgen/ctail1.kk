@@ -5,9 +5,9 @@ fun mapx( xs : list<a>, f : a -> b ) : list<b> {
   }
 }
 
-fun append(xs : list<a>, ys :list<a> ) : list<a> {
+fun appendx(xs : list<a>, ys :list<a> ) : list<a> {
   match(xs) {
-    Cons(x,xx) -> Cons(x,append(xx,ys))
+    Cons(x,xx) -> Cons(x,appendx(xx,ys))
     Nil        -> ys
   }
 }

@@ -23,9 +23,17 @@ typedef struct kk_evv_vector_s {
 
 typedef kk_ptr_t kk_evv_t;   // either a kk_evv_vector_t, or a single evidence
 
+static inline kk_evv_t kk_evv_dup(kk_evv_t evv) {
+  return kk_block_dup(evv);  
+}
+
+static inline void kk_evv_drop(kk_evv_t evv, kk_context_t* ctx) {
+  kk_block_drop(evv,ctx);
+}
+
 static inline kk_evv_t kk_evv_empty(kk_context_t* ctx) {
   KK_UNUSED(ctx);
-  return kk_evv_empty_singleton;
+  return kk_evv_dup(kk_evv_empty_singleton);
 }
 
 static inline bool kk_evv_is_empty(kk_evv_t evv) {
@@ -44,14 +52,6 @@ static inline struct kk_std_core_hnd__ev_s* kk_evv_as_ev( kk_evv_t evv ) {
 static inline kk_evv_vector_t kk_evv_as_vector( kk_evv_t evv ) {
   kk_assert_internal(kk_evv_is_vector(evv));
   return (kk_evv_vector_t)evv;
-}
-
-static inline kk_evv_t kk_evv_dup(kk_evv_t evv) {
-  return kk_block_dup(evv);  
-}
-
-static inline void kk_evv_drop(kk_evv_t evv, kk_context_t* ctx) {
-  kk_block_drop(evv,ctx);
 }
 
 static inline struct kk_std_core_hnd__ev_s* kk_evv_at( size_t i, kk_context_t* ctx ) {

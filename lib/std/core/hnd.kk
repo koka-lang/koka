@@ -166,8 +166,8 @@ private inline extern ev-none<e,h>() : e ev<h> {
   js "ev_none"
 }
 
-public inline extern ".evv-affine?"() : bool {
-  c inline "kk_evv_cfc()<=2"
+public extern ".evv-is-affine"() : bool {
+  c inline "kk_evv_cfc(kk_context())<=2"
   js inline "$std_core_hnd._evv_cfc()<=2"
 }
 

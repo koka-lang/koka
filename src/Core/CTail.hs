@@ -25,6 +25,7 @@ import qualified Data.IntMap as M
 import Kind.Kind
 import Kind.Newtypes
 import Type.Type
+import Type.Kind (effectIsAffine )
 import qualified Type.Pretty as Pretty
 import Type.Assumption hiding (InfoExternal)-- Gamma
 
@@ -84,13 +85,34 @@ ctailDef topLevel def
                      
                  cdefExpr <- withContext ctailTName (Just ctailTSlot) $
                              ctailExpr True (makeCDefExpr ctailTSlot (defExpr def))
-                 expr     <- withContext ctailTName Nothing $
-                             do doInline <- getOptCtailInline
-                                if (doInline) then ctailExpr True (defExpr def)
-                                              else ctailWrapper ctailTSlot (defExpr def)
+                  
                  let cdef = def{ defName = ctailName, defType = ctailType, defExpr = cdefExpr }
-                 return [DefRec [cdef,def{defExpr = expr}]] -- {defExpr=expr}])
+                     needsMulti = not (effectIsAffine teff)
+                     ctailMultiName = makeHiddenName "ctailm" (defName def)
+                     ctailMultiTName = TName ctailMultiName (defType def)
+                     ctailMultiVar  = Var ctailMultiTName (InfoArity (length tforall) (length targs)) 
+                     
+                 wrapExpr <- withContext ctailTName Nothing $
+                             do doInline <- getOptCtailInline
+                                if (doInline && not needsMulti) 
+                                  then ctailExpr True (defExpr def)
+                                  else ctailWrapper ctailTSlot 
+                                        (if needsMulti then Just ctailMultiVar else Nothing)
+                                        (defExpr def)
 
+                  -- todo: check if rec is needed (only if there are non-tail calls left over)                                              
+                 if (not needsMulti)
+                   then -- for sure, each op resumes at most once
+                        return [ DefRec [cdef, def{defExpr = wrapExpr }] ]
+                   else -- some ops may resume more than once
+                        -- todo: generate tail calling function for multi-resume; for now 
+                        --       we just use the body as is.
+                        return $ [ DefRec [cdef
+                                          , def{defName = ctailMultiName
+                                               ,defExpr = [(defTName def,ctailMultiVar)] |~> defExpr def }
+                                          , def{defExpr = wrapExpr }
+                                          ] ]
+           
        
 makeCDefExpr :: TName -> Expr -> Expr       
 makeCDefExpr slot (TypeLam targs body)  = TypeLam targs (makeCDefExpr slot body)
@@ -117,26 +139,38 @@ hasRefType tp
 -- Create a wrapper: this costs one allocation but prevents code duplication
 ----------------------------------------------------------------------------
       
-ctailWrapper :: TName -> Expr -> CTail Expr       
-ctailWrapper slot (TypeLam targs (Lam args eff body)) 
-  = do body' <- ctailWrapperBody (typeOf body) slot targs args
+ctailWrapper :: TName -> Maybe Expr -> Expr -> CTail Expr       
+ctailWrapper slot mbMulti (TypeLam targs (Lam args eff body)) 
+  = do body' <- ctailWrapperBody (typeOf body) slot mbMulti targs args
        return (TypeLam targs (Lam args eff body'))
-ctailWrapper slot (Lam args eff body)   
-  = do body' <- ctailWrapperBody (typeOf body) slot [] args
+ctailWrapper slot mbMulti (Lam args eff body)   
+  = do body' <- ctailWrapperBody (typeOf body) slot mbMulti [] args
        return (Lam args eff body')
-ctailWrapper slot body                 
+ctailWrapper slot mbMulti body                 
   = failure $ "Core.CTail.ctailWrapper: illegal ctail function shape: " ++ show body
   
-ctailWrapperBody :: Type -> TName -> [TypeVar] -> [TName] -> CTail Expr
-ctailWrapperBody resTp slot targs args
+ctailWrapperBody :: Type -> TName -> Maybe Expr -> [TypeVar] -> [TName] -> CTail Expr
+ctailWrapperBody resTp slot mbMulti targs args
   = do tailVar <- getCTailFun
        let accDecl  = makeTDef slot (makeCTailAlloc resTp)
            tailCall = App (makeTypeApp tailVar [TVar tv | tv <- targs]) [Var name InfoNone | name <- args ++ [slot]]
            accGet   = makeCTailGet resTp slot 
-       return (Let [DefNonRec accDecl
-                   ,DefNonRec (makeDef nameNil tailCall)
-                   ]accGet)
-                
+           ctailCall = (Let  [ DefNonRec accDecl
+                             , DefNonRec (makeDef nameNil tailCall)
+                             ] accGet)
+       case mbMulti of
+         Nothing -> return ctailCall
+         Just ctailMultiVar
+           -> -- call either ctail or the regular code
+              do let -- ctailMultiVar  = Var ctailMultiTName (InfoArity (length targs) (length args))
+                     ctailMultiCall = App (makeTypeApp ctailMultiVar [TVar tv | tv <- targs]) [Var name InfoNone | name <- args]
+                 return (makeIfIsAffine ctailCall ctailMultiCall)
+      
+makeIfIsAffine :: Expr -> Expr -> Expr
+makeIfIsAffine onTrue onFalse
+  = makeIfExpr (App (Var tnameEvvIsAffine (InfoArity 0 0)) []) onTrue onFalse
+  where
+    tnameEvvIsAffine = TName nameEvvIsAffine (TFun [] typeTotal typeBool)
       
 --------------------------------------------------------------------------
 -- Does there exist a tail call definition?

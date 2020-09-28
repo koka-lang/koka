@@ -93,7 +93,7 @@ kk_decl_export double kk_timer_ticks(double* secs_frac, kk_context_t* ctx) {
   double frac;
   double secs = kk_timer_ticks_prim(&frac, ctx);
   // init previous and delta
-  if (ctx->timer_prev.seconds == 0) {
+  if (ctx->timer_prev.seconds == 0 && ctx->timer_prev.second_fraction == 0) {
     ctx->timer_prev.seconds = secs;
     ctx->timer_prev.second_fraction = frac;
     ctx->timer_delta.seconds = secs;

@@ -11,13 +11,51 @@ module Type.Kind ( HasKind( getKind )
                  , getHandledEffect, getHandledEffectX, isHandledEffect
                  , containsHandledEffect
                  , extractHandledEffect
+                 , labelIsLinear
+                 , effectIsAffine
                  ) where
 
 import Data.Maybe( isJust )
-import Common.NamePrim( nameTpHandled, nameTpHandled1 )
+import Common.NamePrim( nameTpHandled, nameTpHandled1, nameTpPartial )
 import Common.Failure( failure )
 import Kind.Kind
 import Type.Type
+
+
+effectIsAffine :: Effect -> Bool 
+effectIsAffine eff
+  = let (labs,tl) = extractOrderedEffect eff
+    in (isEffectEmpty tl && all labelIsAffine labs)
+         
+
+labelIsLinear :: Effect -> Bool
+labelIsLinear effect
+  = case expandSyn effect of
+      TApp (TCon tc) [hx] | (typeConName tc == nameTpHandled1)
+        -> True
+      TApp (TCon tc) [hx] | typeConName tc /= nameTpHandled
+        -- allow `alloc<global>` etc.
+        -> let k = getKind effect
+           in (isKindLabel k || isKindEffect k)
+      TCon (TypeCon cname _)   -- builtin effects
+        -> True  -- too liberal? (does not include exn)
+      _ -> False
+      
+labelIsAffine :: Effect -> Bool
+labelIsAffine effect
+  = case expandSyn effect of
+      TApp (TCon tc) [hx] | (typeConName tc == nameTpHandled1)
+        -> True
+      TApp (TCon tc) [TCon tcx] | (typeConName tc == nameTpHandled && typeConName tcx == nameTpPartial)
+        -- allow exn
+        -> True
+      TApp (TCon tc) [hx] | typeConName tc /= nameTpHandled
+        -- allow `alloc<global>` etc.
+        -> let k = getKind effect
+           in (isKindLabel k || isKindEffect k)
+      TCon _   -- builtin effects
+        -> True
+      _ -> False      
 
 extractHandledEffect eff
   = let (ls,tl) = extractOrderedEffect eff

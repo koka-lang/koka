@@ -46,7 +46,8 @@ module Common.NamePrim
           , nameMaskAt, nameMaskBuiltin
           , isClauseTailName, nameClauseTailNoYield
           , nameTpEvIndex, nameYielding, nameYieldExtend
-
+          , nameEvvIsAffine
+          
           --
           , nameUnsafeTotal
           , nameIntConst, nameInt32, nameSizeT
@@ -57,7 +58,7 @@ module Common.NamePrim
           , nameKeepMatch, nameDropMatch, nameReuseMatch
           , nameTpReuse, nameDropReuse, nameFreeReuse
           , nameReuseNull, nameAssignReuse, nameReuse, nameReuseIsValid
-          , nameAllocAt, nameConFieldsAssign
+          , nameAllocAt, nameConFieldsAssign          
           
           -- * CTail optimization
           , nameTpCTail
@@ -276,6 +277,7 @@ nameMaskBuiltin = coreHndName ".mask-builtin"
 nameOpenAt i    = coreHndName (".open-at" ++ show i)
 nameOpenNone i  = coreHndName (".open-none" ++ show i)
 nameOpen i      = coreHndName (".open" ++ show i)
+nameEvvIsAffine = coreHndName (".evv-is-affine")
 
 nameHandle      = coreHndName ".hhandle"
 nameNamedHandle = coreHndName ".named-handle"
