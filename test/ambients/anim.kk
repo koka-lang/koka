@@ -14,9 +14,10 @@ type player {
 }
 
 fun (==)(p1, p2) {
-  match(p1) {
-    Bob   -> p2.bob?
-    Alice -> p2.alice?
+  match(p1,p2) {
+    (Bob,Bob) -> True
+    (Alice,Alice) -> True
+    _ -> False
   }
 }
 

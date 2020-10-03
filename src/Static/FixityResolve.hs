@@ -234,14 +234,14 @@ resolveTerms xs ops@(op:_) []
 resolveTerms xs ops (Term t:tt)
   = resolveTerms (t:xs) ops tt
 
-{-
+
 -- prefix operator
 resolveTerms xs ops (Oper t@(Op (Var name _ _) FixPrefix):tt)
   = push xs ops tt t
+
 -- postfix operator
 resolveTerms xs ops ts@(Oper t@(Op op FixPostfix):tt)
   = push xs ops tt t
--}
 
 -- infix operator
 resolveTerms xs ops ts@(Oper t@(Op op (FixInfix prec assoc)):tt)
