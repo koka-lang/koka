@@ -61,7 +61,7 @@ fun uint32( i : int ) : int32 {
 
 // Convert an `:int32` to an `:int` but interpret the `:int32` as a 32-bit unsigned value.
 fun uint( i : int32 ) : int {
-  if (i.neg?) then 0x100000000 + i.int else i.int
+  if (i.is-neg) then 0x100000000 + i.int else i.int
 }
 
 // Show an `:int32` in hexadecimal notation interpreted as an unsigned 32-bit value.
@@ -82,15 +82,15 @@ inline extern (>)  : (int32,int32) -> bool  { inline "(#1 > #2)"; js inline "(#1
 inline extern (+)  : (int32,int32) -> int32 { inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
 inline extern (-)  : (int32,int32) -> int32 { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
 
-inline extern neg?( i : int32 ) : bool {
+inline extern is-neg( i : int32 ) : bool {
   inline "(#1)<0"
 }
 
-inline extern pos?( i : int32 ) : bool {
+inline extern is-pos( i : int32 ) : bool {
   inline "0<=(#1)"
 }
 
-inline extern zero?( i : int32 ) : bool {
+inline extern is-zero( i : int32 ) : bool {
   inline "0==(#1)"
 }
 
@@ -98,16 +98,16 @@ val zero = 0.int32
 val one  = 1.int32
 
 fun sign( i : int32 ) : order {
-  if (i.pos?) then Gt elif (i.neg?) then Lt else Eq
+  if (i.is-pos) then Gt elif (i.is-neg) then Lt else Eq
 }
 
 // Returns `true` if the integer `i`  is an odd number.
-fun odd?( i : int32 ) : bool {
+fun is-odd( i : int32 ) : bool {
   return (and(i,1.int32)==1.int32);
 }
 
 // Returns `true` if the integer `i`  is an even number.
-fun even?( i : int32 ) : bool {
+fun is-even( i : int32 ) : bool {
   return (and(i,1.int32)==0.int32);
 }
 
@@ -139,7 +139,7 @@ fun compare( x : int32, y : int32) : order
 // (since the negation of `min-int32` equals itself and is still negative)
 fun abs( i : int32 ) : exn int32
 {
-  if (!i.neg?) then i
+  if (!i.is-neg) then i
   elif (i > min-int32.int32) then negate(i)
   else throw( "std/num/int32/abs: cannot make min-int32 into a positive int32 without overflow" )
 }
@@ -149,7 +149,7 @@ fun abs( i : int32 ) : exn int32
 // (since the negation of `min-int32` equals itself and is still negative)
 fun abs0( i : int32 ) : int32
 {
-  if (!i.neg?) then i
+  if (!i.is-neg) then i
   elif (i > min-int32.int32) then negate(i)
   else 0.int32
 }
@@ -201,7 +201,7 @@ inline extern sar : (int32,int32) -> int32 {
 // Bitwise rotate an `:int32` `n` bits to the left.
 // Does not rotate when `n` is negative.
 fun rotl( i : int32, n : int32 ) : int32 {
-  if (n.neg?) return i;
+  if (n.is-neg) return i;
   val r = and(n,bits-int32.dec)  // modulo bits in an int32
   or(shl(i,r),shr(i,bits-int32 - r))
 }
@@ -209,7 +209,7 @@ fun rotl( i : int32, n : int32 ) : int32 {
 // Bitwise rotate an `:int32` `n` bits to the right.
 // Does not rotate when `n` is negative.
 fun rotr( i : int32, n : int32 ) : int32 {
-  if (n.neg?) return i;
+  if (n.is-neg) return i;
   val r = and(n,bits-int32.dec)  // modulo bits in an int32
   or(shr(i,r),shl(i,bits-int32 - r))
 }
@@ -308,11 +308,11 @@ fun (%)( x : int32, y : int32 ) : int32
 }
 
 fun divmod(x:int32,y:int32) : (int32,int32) {
-  if (y.zero?) then return (zero,zero)
+  if (y.is-zero) then return (zero,zero)
   val q = unsafe-cdiv(x,y)
   val r = unsafe-cmod(x,y)
-  if (!r.neg?) then (q,r)
-  elif (y.pos?) then (q.dec, r+y)
+  if (!r.is-neg) then (q,r)
+  elif (y.is-pos) then (q.dec, r+y)
   else (q.inc,r - y)
 }
 

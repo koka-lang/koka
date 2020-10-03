@@ -247,8 +247,15 @@ fun tail( xs : list<a> ) : list<a> {
   }
 }
 
+// Is the list empty?
+fun is-empty( xs : list<a> ) : bool {
+  match(xs) {
+    Nil -> True
+    _   -> False
+  }
+}
 
-// A `:stream` is a co-inductive type reprenting an infinite list of elements.
+// A `:stream` is a co-inductive type representing an infinite list of elements.
 cotype stream<a> {
   con Next(head:a, tail: stream<a> )
 }
@@ -911,23 +918,23 @@ fun (+)(c : char, d : char) : total char { (c.int + d.int).char }
 fun (-)(c : char, d : char) : total char { (c.int - d.int).char }
 
 // Is the character a lower-case ASCII character ?
-fun lower?( c : char ) : bool { c >= 'a' && c <= 'z' }
+fun is-lower( c : char ) : bool { c >= 'a' && c <= 'z' }
 // Is the character an upper-case ASCII character ?
-fun upper?( c : char ) : bool { c >= 'A' && c <= 'Z' }
+fun is-upper( c : char ) : bool { c >= 'A' && c <= 'Z' }
 // Is the character an ASCII digit ?
-fun digit?( c : char ) : bool { c >= '0' && c <= '9' }
+fun is-digit( c : char ) : bool { c >= '0' && c <= '9' }
 // Is the character an ASCII hexa-decimal digit ?
-fun hex-digit?( c : char ) : bool { c.digit? || (c >= 'a' && c <= 'f') || (c >= 'A'  && c <= 'F') }
-// Is the character an ASCII letter ?
-fun alpha?( c : char ) : bool { c.lower? || c.upper? }
+fun is-hex-digit( c : char ) : bool { c.is-digit || (c >= 'a' && c <= 'f') || (c >= 'A'  && c <= 'F') }
+// Is the character an ASCII letter is-
+fun is-alpha( c : char ) : bool { c.is-lower || c.is-upper }
 // Is the character ASCII letter or digit?
-fun alpha-num?( c : char ) : bool { c.alpha? || c.digit? }
+fun is-alpha-num( c : char ) : bool { c.is-alpha || c.is-digit }
 // Is the character an ASCII character, e.g. `c <= '\x7F'`  ?
-fun ascii?( c : char )     : bool { c <= '\x7F' }
+fun is-ascii( c : char )     : bool { c <= '\x7F' }
 // Is the character an ASCII control character, e.g. `c < ' '`  ?
-fun control?( c : char )   : bool { c < ' ' }
+fun is-control( c : char )   : bool { c < ' ' }
 // Tests if a character is an element of `" \t\n\r"`
-fun white?( c : char )     : bool { c == ' ' || c == '\t' || c == '\n' || c == '\r' }
+fun is-white( c : char )     : bool { c == ' ' || c == '\t' || c == '\n' || c == '\r' }
 
 
 // ----------------------------------------------------------------------------
@@ -1085,14 +1092,14 @@ inline extern double : (int) -> double  {
 }
 
 // Is this an odd integer?
-inline extern odd?   : ( int ) -> bool  {
+inline extern is-odd   : ( int ) -> bool  {
   c  "kk_integer_is_odd"
   cs inline "!(#1.IsEven)"
   js "$std_core._int_isodd"
 }
 
 // Is this equal to zero?
-inline extern zero?  : ( int ) -> bool  {
+inline extern is-zero  : ( int ) -> bool  {
   c  "kk_integer_is_zero"
   cs inline "(#1.IsZero)"
   js "$std_core._int_iszero"
@@ -1137,7 +1144,7 @@ fun exp2( exp : int ) : int {
 }
 
 // Return the number of ending `0` digits of `i`. Return `0` when `i==0`.
-extern exp10?( i : int ) : int {
+extern is-exp10( i : int ) : int {
   c  "kk_integer_ctz"
   cs "Primitive.IntCountPow10"
   js "_int_count_pow10"
@@ -1171,17 +1178,17 @@ fun cdivmod-exp10( i : int, n : int ) : (int,int) {
 
 fun divmod-exp10( i : int, n : int ) : (int,int) {
   val (cq,cr) = cdivmod-exp10(i,n)
-  if (!cr.neg?) then (cq,cr) else (cq.dec, cr + exp10(n))
+  if (!cr.is-neg) then (cq,cr) else (cq.dec, cr + exp10(n))
 }
 
 // Is this an even integer?
-fun even?(i:int) : bool { !odd?(i) }
+fun is-even(i:int) : bool { !is-odd(i) }
 
 // Is the integer positive (stricly greater than zero)
-fun pos?(i : int ) : bool { i.sign == Gt }
+fun is-pos(i : int ) : bool { i.sign == Gt }
 
 // Is the integer negative (stricly smaller than zero)
-fun neg?(i : int ) : bool { i.sign == Lt }
+fun is-neg(i : int ) : bool { i.sign == Lt }
 
 inline extern sign(i : int ) : order {
   c  inline "kk_int_as_order(kk_integer_signum(#1,kk_context()),kk_context())"
@@ -1257,8 +1264,8 @@ private inline extern (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)"; js in
 private inline extern (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"; js inline "(#1 < #2)" }
 private inline extern (+)  : (int32,int32) -> int32 { inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
 private inline extern (-)  : (int32,int32) -> int32 { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
-private inline extern pos?( i : int32 ) : bool { inline "(#1>0)" }
-private inline extern neg?( i : int32 ) : bool { inline "(#1<0)" }
+private inline extern is-pos( i : int32 ) : bool { inline "(#1>0)" }
+private inline extern is-neg( i : int32 ) : bool { inline "(#1<0)" }
 
 private fun incr( i : int32 ) : int32 {
   i + 1.int32
@@ -1295,9 +1302,9 @@ private inline extern (<=) : (size_t,size_t) -> bool   { inline "(#1 <= #2)" }
 private inline extern (<)  : (size_t,size_t) -> bool   { inline "(#1 < #2)" }
 private inline extern (+)  : (size_t,size_t) -> size_t { inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
 private inline extern (-)  : (size_t,size_t) -> size_t { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
-private inline extern pos?( i : size_t ) : bool { inline "(#1 > 0)" }
-private inline extern neg?( i : size_t ) : bool { inline "(#1 < 0)" }
-private extern zero?( i : size_t ) : bool { inline "(#1 == 0)" }
+private inline extern is-pos( i : size_t ) : bool { inline "(#1 > 0)" }
+private inline extern is-neg( i : size_t ) : bool { inline "(#1 < 0)" }
+private extern is-zero( i : size_t ) : bool { inline "(#1 == 0)" }
 private extern decr(i : size_t ) : size_t { inline "(#1 - 1)" }
 private extern incr(i : size_t ) : size_t { inline "(#1 + 1)" }
 
@@ -1309,7 +1316,7 @@ private extern incr(i : size_t ) : size_t { inline "(#1 + 1)" }
 // Parse an integer using `parseInt`. If an illegal digit character is encountered the
 // `default` value is returned. An empty string will also result in `default`.
 fun parse-int-default( s : string, default : int = 0, hex : bool = False ) : int {
-  if (s.empty?) then default else s.parse-int(hex).maybe(default) }
+  if (s.is-empty) then default else s.parse-int(hex).maybe(default) }
 
 // Parse an integer after trimming whitespace.
 // If an illegal digit character is encountered `Nothing` is returned.
@@ -1353,17 +1360,17 @@ fun compare( x : double, y : double) : order
 
 
 // Is the value negative?
-fun neg?( d : double ) : bool {
+fun is-neg( d : double ) : bool {
   d < 0.0
 }
 
 // Is the value positive?
-fun pos?( d : double ) : bool {
+fun is-pos( d : double ) : bool {
   d > 0.0
 }
 
 // Is the value zero?
-fun zero?( d : double ) : bool {
+fun is-zero( d : double ) : bool {
   d == 0.0
 }
 
@@ -1524,7 +1531,7 @@ extern (+)(x : string, y : string) : string {
 
 // Choose a non-empty string
 fun (||)( x : string, y : string ) : string {
-  if (x.empty?) then y else x
+  if (x.is-empty) then y else x
 }
 
 // Length returns the length in the platform specific encoding (and should not be exported)
@@ -1582,13 +1589,13 @@ fun slice( s : string ) : sslice {
 val empty = Sslice("",0.size_t,0.size_t)
 
 // Is a slice empty?
-fun empty?( slice : sslice ) : bool {
-  !slice.len.pos?
+fun is-empty( slice : sslice ) : bool {
+  !slice.len.is-pos
 }
 
 // Is a slice not empty?
-fun notempty?( slice : sslice ) : bool {
-  slice.len.pos?
+fun is-notempty( slice : sslice ) : bool {
+  slice.len.is-pos
 }
 
 // Return the first character of a string as a string (or the empty string)
@@ -1702,7 +1709,7 @@ private inline extern xindex-of(s : string, sub : string ) : size_t {
 // the position just following the substring `sub`.
 fun find( s : string, sub : string ) : maybe<sslice> {
   val i = s.xindex-of(sub)
-  if (i.zero?) then Nothing else Just(Sslice(s,i.decr,sub.length))
+  if (i.is-zero) then Nothing else Just(Sslice(s,i.decr,sub.length))
 }
 
 // Does string `s`  contain the string `sub`  ?
@@ -1715,7 +1722,7 @@ private inline extern xlast-index-of(s : string, sub : string ) : size_t {
 // Return the last index of substring `sub` in `s` if it occurs.
 fun find-last( s : string, sub : string ) : maybe<sslice> {
   val i = s.xlast-index-of(sub)
-  if (i.zero?) then Nothing else Just(Sslice(s,i.decr,sub.length))
+  if (i.is-zero) then Nothing else Just(Sslice(s,i.decr,sub.length))
 }
 
 private inline extern xstarts-with: (s : string, pre : string ) -> bool {
@@ -1776,7 +1783,7 @@ fun truncate( s : string, count : int ) : string  {
 
 // Trim off a substring `sub` while `s` starts with that string.
 fun trim-left( s : string, sub : string ) : string {
-  if (sub.empty?) return s
+  if (sub.is-empty) return s
   match(s.starts-with(sub)) {
     Just(slice) -> trim-left(unsafe-decreasing(slice.string),sub)
     Nothing -> s
@@ -1785,7 +1792,7 @@ fun trim-left( s : string, sub : string ) : string {
 
 // Trim off a substring `sub` while `s` ends with that string.
 fun trim-right( s : string, sub : string ) : string {
-  if (sub.empty?) return s
+  if (sub.is-empty) return s
   match(s.ends-with(sub)) {
     Just(slice) -> trim-right(unsafe-decreasing(slice.string),sub)
     Nothing -> s
@@ -1812,18 +1819,18 @@ fun string( ms : maybe<string> ) : string {
 }
 
 // Is a string empty?
-fun empty?( s : string ) : bool {
+fun is-empty( s : string ) : bool {
   s == ""
 }
 
 // Is a string not empty?
-fun notempty?( s : string ) : bool {
+fun is-notempty( s : string ) : bool {
   s != ""
 }
 
 // Transform a string to a maybe type, using `Nothing` for an empty string
 fun maybe( s : string ) : maybe<string> {
-    if (s.empty?) then Nothing else Just(s)
+    if (s.is-empty) then Nothing else Just(s)
 }
 
 
@@ -2472,7 +2479,7 @@ fun throw( message: string, info : exception-info = ExnError ) : exn a {
 // Raise a pattern match exception. This is function is used internally by the
 // compiler to generate error messages on pattern match failures.
 fun error-pattern(location : string, definition : string) : exn a {
-  throw(location + (if (definition.empty?) then "" else (": " + definition)) + ": pattern match failure",
+  throw(location + (if (definition.is-empty) then "" else (": " + definition)) + ": pattern match failure",
          ExnPattern(location,definition))
 }
 

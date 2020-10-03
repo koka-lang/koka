@@ -214,7 +214,7 @@ public fun use-timescale( i : instant, tscale : timescale ) : instant {
 // Round an instant to a certain precision (`prec` is number of digits of the fraction of the second).\
 // Takes special care for instants that use a UTC timescale to round into leap seconds if appropriate.
 public fun round-to-prec(i : instant, prec : int ) : instant {
-  if (prec.neg?) then i
+  if (prec.is-neg) then i
   elif (i.ts.has-leap-seconds)
    // Round on TAI representation instead; assumes the leap second time scale has TAI SI seconds (which UTC has)
    // TODO: optimize to first see if rounding makes a difference and only than use TAI rounding
@@ -303,7 +303,7 @@ public fun show( i : instant, max-prec : int = 9, secs-width : int = 1 ) : strin
 // Internal: show an instant as a raw timestamp in a given precision, postfixed with the time scale name.
 public fun show-raw( i : instant, max-prec : int = 9, secs-width : int = 1, unit : string = "" ) : string {
   i.since.ts-show(max-prec,secs-width,unit)
-   + (if (i.ts.name.empty? || i.ts.name=="TAI") then "" else " " + i.ts.name)
+   + (if (i.ts.name.is-empty || i.ts.name=="TAI") then "" else " " + i.ts.name)
 }
 
 /*----------------------------------------------------------------------------

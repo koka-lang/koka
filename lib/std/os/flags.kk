@@ -43,7 +43,7 @@ public fun test( cmdargs )
   val header = "usage:\n program [options] files\n\noptions:"
   // testflags.usageInfo( header ).println
   val (flags,args,errs) = parse( Myflags(), myflags, cmdargs )
-  if (errs.nil?) {
+  if (errs.is-nil) {
     println( "\nsuccess!" );
     println( "flags: " + flags.show-flags)
     println( "arguments: " + args.join(" ") );
@@ -113,7 +113,7 @@ public fun test( cmdargs )
   val header = "usage:\n program [options] files\n\noptions:"
   // testflags.usageInfo( header ).println
   val (flags,args,errs) = parse( Myflags(), myflags, cmdargs )
-  if (errs.nil?) {
+  if (errs.is-nil) {
     println( "\nsuccess!" );
     println( "flags: " + flags.show-flags)
     println( "arguments: " + args.join(" ") );
@@ -229,7 +229,7 @@ public fun parse( initial : a, flags : list<flag<a>>, args : list<string>, order
     opts.foreach fun(opt) {
       match(opt) {
         End -> done := True
-        Arg(_) | ordering.preorder? -> done := True
+        Arg(_) | ordering.is-preorder -> done := True
         _   -> ()
       }      
     }
@@ -252,9 +252,9 @@ public fun parse( initial : a, flags : list<flag<a>>, args : list<string>, order
 fun process-next( arg : string, flags : list<flag<a>> ) : list<flag-kind<a>>
 {
   match(arg.starts-with("--")) {
-    Just(slice) -> if (slice.empty?) then [End] else [parse-long(slice.string,flags)]      
+    Just(slice) -> if (slice.is-empty) then [End] else [parse-long(slice.string,flags)]      
     _ -> match(arg.starts-with("-")) {
-      Just(slice) | slice.notempty? -> parse-shorts(slice.string,flags)
+      Just(slice) | !slice.is-empty -> parse-shorts(slice.string,flags)
       _ -> [Arg(arg)]
     }
   }  
@@ -288,7 +288,7 @@ fun parse-long( s : string, flags : list<flag<a>> ) : total flag-kind<a>
                     opt.long-names.map(to-lower).any( fun(name) { 
                       name.starts-with(flagname).bool || name.starts-with(baseflagname).bool 
                  })})
-  val applicable = if (exacts.nil?) then prefixes else exacts
+  val applicable = if (exacts.is-nil) then prefixes else exacts
   
   match(applicable) {
     Nil -> error-unknown(optstr) 
@@ -306,13 +306,13 @@ fun parse-long( s : string, flags : list<flag<a>> ) : total flag-kind<a>
           Req(parse,help)
             -> if (negated)
                 then error-negate(baseflagname)
-               elif (flagarg.notempty?)
+               elif (flagarg.is-notempty)
                 then Flg(fun(o) { parse(o,flagarg) })
                 else error-required(help,optstr)
           Opt(parse)
             -> if (negated)
                 then error-negate(baseflagname)
-               elif (flagarg.notempty?)
+               elif (flagarg.is-notempty)
                 then Flg(fun(o) { parse(o,Just(flagarg)) })
                 else Flg(fun(o) { parse(o,Nothing) } )
       }
@@ -338,13 +338,13 @@ fun parse-shorts( s : string,  flags : list<flag<a>> ) : list<flag-kind<a>>
                 -> Just(Flg(fun(o){ set(o,True) }))
               Req(parse,help) -> {
                 val arg = s.first.advance(i).after.string
-                if (arg.notempty?)
+                if (arg.is-notempty)
                  then { done := True; Just(Flg(fun(o){ parse(o,arg) })) }
                  else Just(error-required(help,optstr))
               }
               Opt(parse) -> {
                 val arg = s.first.advance(i).after.string
-                if (arg.notempty? )
+                if (arg.is-notempty )
                  then { done := True; Just(Flg(fun(o){ parse(o,Just(arg)) })) }
                  else Just(Flg(fun(o){parse(o,Nothing)}))
               }

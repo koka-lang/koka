@@ -543,7 +543,7 @@ fun utc-from-tai( leaps : leaps-table, tai-since : duration ) : timestamp {
   // check if we crossed over a leap-second moment
   val diff  = (dtai0 - dtai1)
   // `inleap` is `True` if this time falls in the leap second gap itself
-  val hasgap = (diff.round-to-prec(3).pos?)  // round to disregard a difference due to `drift`
+  val hasgap = (diff.round-to-prec(3).is-pos)  // round to disregard a difference due to `drift`
   val inleap = (hasgap && utc-to-delta-tai(leaps,utc0 + diff) != dtai1)
 
   if (!inleap) then utc0 + diff else utc0.add-leap-seconds(diff)
@@ -679,8 +679,8 @@ abstract struct leap-adjust(
 val leaps-table0 = Leaps-table(epoch,[])
 val zero : leap-adjust = Leap-adjust(timestamp0,timespan0,timestamp0,zero)
 
-fun zero?( la : leap-adjust ) : bool {
-  la.offset.zero? && la.drift.zero?
+fun is-zero( la : leap-adjust ) : bool {
+  la.offset.is-zero && la.drift.is-zero
 }
 
 public fun show( l : leap-adjust ) : string {
@@ -721,7 +721,7 @@ fun find-leap-adjust( utc : utc-timestamp, leaps : list<leap-adjust> ) : leap-ad
 // Get the leap-second adjustment _delta-tai_ (= TAI - UTC).
 // Needs the timestamp to handle _drift_.
 fun delta-tai( la : leap-adjust, utc : utc-timestamp ) : timespan {
-  if (la.drift.zero?) then la.offset else {
+  if (la.drift.is-zero) then la.offset else {
     // pre 1972 is a rubber leap second
     val days = (utc.timespan-noleap - la.drift-start.timespan-noleap) / solar-secs-per-day
     la.offset + (la.drift * days)

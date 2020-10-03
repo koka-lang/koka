@@ -91,18 +91,18 @@ public fun fraction( d : duration ) : double {
 }
 
 // Is this a negative duration?
-public fun neg?( d : duration ) : bool {
-  d.secs.neg?
+public fun is-neg( d : duration ) : bool {
+  d.secs.is-neg
 }
 
 // Is this a zero duration?
-public fun zero?(  d : duration  ) : bool {
-  d.secs.zero?
+public fun is-zero(  d : duration  ) : bool {
+  d.secs.is-zero
 }
 
 // Is this a positive duration?
-public fun pos?( d : duration ) : bool {
-  d.secs.pos?
+public fun is-pos( d : duration ) : bool {
+  d.secs.is-pos
 }
 
 // Compare two `:duration`s.

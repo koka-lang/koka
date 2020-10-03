@@ -193,7 +193,7 @@ public fun ddouble( d : double ) : ddouble {
 val maxprecise : int = 9007199254740991
 val minprecise : int = ~maxprecise
 
-fun precise?(i : int ) : bool {
+fun is-precise(i : int ) : bool {
   (i >= minprecise && i <= maxprecise)
 }
 
@@ -207,7 +207,7 @@ public fun ddouble( i : int ) : ddouble {
 }
 
 fun ddouble-int-exp( i : int, e : int ) : ddouble {
-  if (i.precise?) then small-exp( i, e ) else {
+  if (i.is-precise) then small-exp( i, e ) else {
     // ensure we convert at least 31 (and at most 42) digits precisely
     val p    = i.count-digits
     val x    = i
@@ -232,7 +232,7 @@ fun ddouble-int-exp( i : int, e : int ) : ddouble {
 }
 fun small-exp( i : int, e : int ) {
   val dd = i.double.ddouble
-  if (e.zero?) then dd else dd.mul-exp10(e)
+  if (e.is-zero) then dd else dd.mul-exp10(e)
 }
 
 
@@ -327,51 +327,51 @@ public val ten  = ddouble(10.0)
 
 val two         = ddouble(2.0)
 
-// Is this `:ddouble` equal to zero?
-public fun zero?( x : ddouble ) : bool {
-  x.hi.zero?
+// Is this `:ddouble` equal to is-zero
+public fun is-zero( x : ddouble ) : bool {
+  x.hi.is-zero
 }
 
 // Is this `:ddouble` negative?
-public fun neg?( x : ddouble ) : bool {
-  x.hi.neg?
+public fun is-neg( x : ddouble ) : bool {
+  x.hi.is-neg
 }
 
 // Is this `:ddouble` positive?
-public fun pos?( x : ddouble ) : bool {
-  x.hi.pos?
+public fun is-pos( x : ddouble ) : bool {
+  x.hi.is-pos
 }
 
 // Return the sign of the `:ddouble`.
-public fun sign?( x : ddouble ) : order {
+public fun is-sign( x : ddouble ) : order {
   if (x.hi==0.0) then Eq
   elif (x.hi < 0.0) then Lt
   else Gt
 }
 
 // Is this `:ddouble` not-a-number?
-public fun nan?( x : ddouble ) : bool {
-  x.hi.nan? || x.lo.nan?
+public fun is-nan( x : ddouble ) : bool {
+  x.hi.is-nan || x.lo.is-nan
 }
 
-// Is this a finite `:ddouble`? (i.e. not `nan?` or `inf?`)
-public fun finite?( x : ddouble ) : bool {
-  x.hi.finite? && x.lo.finite?
+// Is this a finite `:ddouble`? (i.e. not `is-nan` or `is-inf`)
+public fun is-finite( x : ddouble ) : bool {
+  x.hi.is-finite && x.lo.is-finite
 }
 
 // Is this an infinite value.
-public fun inf?( x : ddouble ) : bool {
-  x.hi.inf?
+public fun is-inf( x : ddouble ) : bool {
+  x.hi.is-inf
 }
 
 // Does `x` equal positive infinity?
-public fun posinf?( x : ddouble ) : bool {
-  x.hi.posinf?
+public fun is-posinf( x : ddouble ) : bool {
+  x.hi.is-posinf
 }
 
 // Does `x` equal negative infinity?
-public fun neginf?( x : ddouble ) : bool {
-  x.hi.neginf?
+public fun is-neginf( x : ddouble ) : bool {
+  x.hi.is-neginf
 }
 
 
@@ -414,28 +414,28 @@ fun sum( x : double, y : double ) : edouble {
   val z    = x + y
   val diff = z - x
   val err  = (x - (z - diff)) + (y - diff)
-  Edouble(z, if (z.finite?) then err else z)
+  Edouble(z, if (z.is-finite) then err else z)
 }
 
 fun dsum( x : double, y : double ) : ddouble {
   val z    = x + y
   val diff = z - x
   val err  = (x - (z - diff)) + (y - diff)
-  Ddouble(z, if (z.finite?) then err else z)
+  Ddouble(z, if (z.is-finite) then err else z)
 }
 
 // As `sum` but with `x.abs >= y.abs`
 fun quicksum( x : double, y : double ) : edouble {
   val z   = x + y
   val err = y - (z - x)
-  Edouble(z, if (z.finite?) then err else z)
+  Edouble(z, if (z.is-finite) then err else z)
 }
 
 fun dquicksum( x : double, y : double ) : ddouble {
-  if (!x.finite?) return ddouble(x)
+  if (!x.is-finite) return ddouble(x)
   val z   = x + y
   val err = y - (z - x)
-  Ddouble(z, if (z.finite?) then err else z)
+  Ddouble(z, if (z.is-finite) then err else z)
 }
 
 // Add two `:ddouble`s
@@ -460,7 +460,7 @@ public fun (-)( x : ddouble, y : ddouble ) : ddouble {
 
 // Return the absolute value.
 public fun abs( x : ddouble ) : ddouble {
-  if (x.neg?) then ~x else x
+  if (x.is-neg) then ~x else x
 }
 
 // Increment by one.
@@ -505,14 +505,14 @@ fun prod( x : double, y : double ) : edouble {
   val (xhi,xlo) = split(x)
   val (yhi,ylo) = split(y)
   val err = ((xhi*yhi - z) + (xhi*ylo + xlo*yhi)) + (xlo*ylo)
-  Edouble(z,if (z.finite?) then err else z)
+  Edouble(z,if (z.is-finite) then err else z)
 }
 
 fun prodsqr( x : double ) : edouble {
   val z = x*x
   val (h,l) = split(x)
   val err = ((h*h - z) + (2.0*h*l)) + (l*l)
-  Edouble(z,if (z.finite?) then err else z)
+  Edouble(z,if (z.is-finite) then err else z)
 }
 
 // `prod` & `prodsqr` can also be implemented using 'fused multiply add'
@@ -548,7 +548,7 @@ public fun sqr( x : ddouble ) : ddouble {
 // Divide two `:ddouble`s
 public fun (/)( x : ddouble, y : ddouble ) : ddouble {
   val q1 = ddouble(x.hi / y.hi)
-  if (!q1.finite? || !y.hi.finite?) return q1
+  if (!q1.is-finite || !y.hi.is-finite) return q1
   val r1 = x - (y * q1)
   val q2 = ddouble(r1.hi / y.hi)
   val r2 = r1 - (y * q2)
@@ -581,7 +581,7 @@ public fun double( x : ddouble ) : double {
 
 // Convert a `:ddouble` to the nearest integer (rounding to the nearest even number in case of a tie)
 public fun int( x : ddouble, nonfin : int = 0 ) : int {
-  if (!x.finite?) then nonfin else x.round.decimal.int
+  if (!x.is-finite) then nonfin else x.round.decimal.int
 }
 
 // Round a `:ddouble` to the nearest integer, rounding to the nearest even number in case of a tie.
@@ -589,8 +589,8 @@ public fun round( x : ddouble ) : ddouble {
   val r = x.hi.round
   val diff = r - x.hi
   if (diff == 0.0) then dquicksum(r,x.lo.round)
-  elif (diff == 0.5 && x.lo.neg?) then ddouble(r - 1.0)
-  elif (diff == -0.5 && x.lo.pos?) then ddouble(r + 1.0)
+  elif (diff == 0.5 && x.lo.is-neg) then ddouble(r - 1.0)
+  elif (diff == -0.5 && x.lo.is-pos) then ddouble(r + 1.0)
   else ddouble(r)
 }
 
@@ -614,7 +614,7 @@ public fun ceiling( x : ddouble ) : ddouble {
 
 // Round towards zero.
 public fun truncate( x : ddouble ) : ddouble {
-  if (x.neg?) then x.ceiling else x.floor
+  if (x.is-neg) then x.ceiling else x.floor
 }
 
 
@@ -651,12 +651,12 @@ public fun ldexp( x : ddouble, exp : int ) : ddouble {
 
 fun npwr-acc( x : ddouble, acc : ddouble, n : int ) : ddouble {
   if (n <= 0) then acc
-  elif (n.even?) then npwr-acc( sqr(x), acc, unsafe-decreasing(n/2) )
+  elif (n.is-even) then npwr-acc( sqr(x), acc, unsafe-decreasing(n/2) )
   else npwr-acc( x, x*acc, unsafe-decreasing(n.dec))
 }
 
 fun npwr( x : ddouble, n : int ) : ddouble {
-  if (n==0) then (if (x.zero?) then dd-nan else one)
+  if (n==0) then (if (x.is-zero) then dd-nan else one)
   elif (n==1) then x
   else x.npwr-acc(one,n)
 }
@@ -664,7 +664,7 @@ fun npwr( x : ddouble, n : int ) : ddouble {
 // Return `x` to the power of `n`.
 fun powi( x : ddouble, n : int ) : ddouble {
   val p = npwr(x,n.abs)
-  if (n.neg?) then (one / p) else p
+  if (n.is-neg) then (one / p) else p
 }
 
 // Return 10 to the power of `exp`.
@@ -694,7 +694,7 @@ public fun ddouble-exp( i : int, exp : int ) : ddouble {
 }
 
 fun mul-exp10( x : ddouble, exp : int ) : ddouble {
-  if (exp.zero?) then x else x * powi10(exp)
+  if (exp.is-zero) then x else x * powi10(exp)
 }
 
 /*------------------------------------------------------
@@ -715,7 +715,7 @@ public fun encode( hi : double, lo : double ) : ddouble {
 // Convert a `:ddouble` to a `:decimal` up to a given precision `prec` (= `-1`).
 // A negative precision converts precisely. Returns 0 for non-finite `:ddouble`'s.
 public fun decimal( x : ddouble, prec : int = -1 ) : decimal {
-  if (!x.finite?)
+  if (!x.is-finite)
     then 0.decimal
     else x.hi.decimal(prec) + x.lo.decimal(prec)
 }
@@ -737,7 +737,7 @@ i.e. `x == x.show-hex.ddouble`.
 .
 */
 public fun show-hex( x : ddouble, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) : string {
-  if (!x.finite?)
+  if (!x.is-finite)
     then x.hi.show
     else x.hi.show-hex(width,use-capitals,pre) + " + " + x.lo.show-hex(width,use-capitals,pre)
 }
@@ -749,7 +749,7 @@ public fun show-hex( x : ddouble, width : int = 1, use-capitals : bool = True, p
 // This uses `show-fixed` when the exponent of `x` in scientific notation is larger than -5
 // and smaller than the precision (or 15 in case of a negative precision), otherwise it uses `show-exp`.
 public fun show( x : ddouble, prec : int = dd-default-prec ) : string {
-  if (!x.finite?)
+  if (!x.is-finite)
     then x.hi.show
     else x.decimal.show(prec)
 }
@@ -772,7 +772,7 @@ it is positive exactly `prec` digits are used.
 .
 */
 public fun show-exp( x : ddouble, prec : int = dd-default-prec ) : string {
-  if (!x.finite?)
+  if (!x.is-finite)
     then x.hi.show
     else x.decimal.show-exp(prec)
 }
@@ -794,7 +794,7 @@ while for a positive precision, exactly `prec` digits are used.
 .
 */
 public fun show-fixed( x : ddouble, prec : int = dd-default-prec ) : string {
-  if (!x.finite?)
+  if (!x.is-finite)
     then x.hi.show
     else x.decimal.show-fixed(prec)
 }
@@ -802,7 +802,7 @@ public fun show-fixed( x : ddouble, prec : int = dd-default-prec ) : string {
 // Show a `:ddouble` as the sum of  `:double`s with an optional precision.
 // Note: use `show-hex` for reliable round-trip parsing.
 public fun show-sum( x : ddouble, prec : int = -17 ) : string {
-  if (!x.finite?)
+  if (!x.is-finite)
     then x.hi.show
     else x.hi.show(prec) + " + " + x.lo.show(prec)
 }
@@ -837,7 +837,7 @@ public fun parse-ddouble( s  : string ) : maybe<ddouble> {
     }
     Nothing -> match(t.find(rx-special)) {
       Just(cap) -> {
-        val special =	if (!cap.groups[1].empty?) then dd-nan
+        val special =	if (!cap.groups[1].is-empty) then dd-nan
                        elif (cap.groups[2] == "-") then dd-neginf
                        else dd-posinf
         Just(special)
@@ -873,7 +873,7 @@ public fun pddouble() : parse ddouble {
 
 fun pddouble-sum() : parse ddouble {
   val hi = pdouble()
-  if (!hi.finite?) return hi.ddouble   // NaN or +-Infinity
+  if (!hi.is-finite) return hi.ddouble   // NaN or +-Infinity
   pstring(" + ")
   val lo = pdouble()
   return (hi.ddouble + lo.ddouble)
@@ -906,8 +906,8 @@ public fun sqrt( x : ddouble ) : ddouble {
   // From the QD library:
   // Use Karp's strategy: if a is an approximation to sqrt(x), then
   // sqrt(x) = x*a + (x - (x*a)^2) * a/2
-  if (x.zero?) then zero
-  elif (x.neg?) then dd-nan
+  if (x.is-zero) then zero
+  elif (x.is-neg) then dd-nan
   else {
     val a  = 1.0 / sqrt(x.hi)
     val t1 = x.hi * a
@@ -922,13 +922,13 @@ public fun sqrt( x : ddouble ) : ddouble {
 public fun nroot( x : ddouble, n : int ) : ddouble {
   if (n==2) then x.sqrt
   elif (n==1) then x
-  elif (n<=0 || (n.even? && x.neg?)) then dd-nan
-  elif (x.zero?) then zero
+  elif (n<=0 || (n.is-even && x.is-neg)) then dd-nan
+  elif (x.is-zero) then zero
   else {
     val r = x.abs
     val a0 = exp( ~log(r.hi) / n.double ).ddouble
     val a1 = a0 + ((a0 * (one - r * powi(a0,n))) / n.ddouble)
-    (if (x.hi.neg?) then ~one else one) / a1
+    (if (x.hi.is-neg) then ~one else one) / a1
   }
 }
 
@@ -970,7 +970,7 @@ public fun exp( x : ddouble ) : ddouble {
 
   if (x.hi <= -709.0) then zero
   elif (x.hi >= 709.0) then dd-posinf
-  elif (x.zero?) then one
+  elif (x.is-zero) then one
   elif (x==one) then dd-e
   else {
     val m : int = floor( (x.hi / dd-log2.hi) + 0.5 ).int
@@ -1033,7 +1033,7 @@ public fun log( x : ddouble ) : ddouble {
   if (x <= zero) then (if (x==zero) then dd-neginf else dd-nan)
   elif (x == one) then zero
   elif (x == dd-e) then one
-  elif (x.posinf?) then x
+  elif (x.is-posinf) then x
   else {
     val a0 = log(x.hi).ddouble // approximate
     val a1 = a0 + (x * exp(~a0) - one)
@@ -1063,10 +1063,10 @@ public fun pow( x : ddouble, y : ddouble ) : ddouble {
 // Avoids potential imprecision for small `x` where adding `1.0` explicitly
 // may lead to rounding errors.
 public fun log1p( x : ddouble ) : ddouble {
-  if (x.posinf?) then x else {
+  if (x.is-posinf) then x else {
     val y = one + x
     val z = y - one
-    if (z.zero?) then x else {
+    if (z.is-zero) then x else {
       log(y) * (x / z)
     }
   }
@@ -1075,7 +1075,7 @@ public fun log1p( x : ddouble ) : ddouble {
 // Return `exp(x - 1.0)`.
 // Avoids rounding errors for values of `x` very close to `1.0`.
 public fun expm1( x : ddouble ) : ddouble {
-  if (x.posinf?) then x else {
+  if (x.is-posinf) then x else {
     val y = exp(x)
     if (y==one) then x else {
       val ym = y - one
@@ -1097,7 +1097,7 @@ fun exp2m1( x : ddouble ) : ddouble {
 public fun logaddexp( x : ddouble, y : ddouble ) : ddouble {
   if (x==y) then x + dd-log2 else {
     val z = x - y
-    if (z.pos?) then x + log1p(exp(~z))
+    if (z.is-pos) then x + log1p(exp(~z))
                 else y + log1p(exp(z))
   }
 }
@@ -1107,7 +1107,7 @@ public fun logaddexp( x : ddouble, y : ddouble ) : ddouble {
 public fun logaddexp2( x : ddouble, y : ddouble ) : ddouble {
   if (x==y) then x + one else {
     val z = x - y
-    if (z.pos?) then x + log2p1(exp2(~z))
+    if (z.is-pos) then x + log2p1(exp2(~z))
                 else y + log2p1(exp2(z))
   }
 }
@@ -1118,7 +1118,7 @@ public fun logaddexp2( x : ddouble, y : ddouble ) : ddouble {
 public fun nearly-eq( x : ddouble, y : ddouble, epsilon : ddouble = dd-epsilon8 ) : bool {
   if (x == y) return True
   val diff = (x - y).abs
-  if (x.zero? || y.zero? || diff < dd-min) {
+  if (x.is-zero || y.is-zero || diff < dd-min) {
     // very close to zero, scale the epsilon for subnormal numbers
     (two*diff < (epsilon * dd-min))
   }
@@ -1167,7 +1167,7 @@ public fun hypot( x : ddouble, y : ddouble ) : ddouble {
   val yy = abs(y)
   val lo = min(xx,yy)
   val hi = max(xx,yy)
-  if (hi.zero?) then zero else {
+  if (hi.is-zero) then zero else {
     val z  = lo / hi
     hi * sqrt( one + z*z )
   }
@@ -1180,7 +1180,7 @@ public fun hypot( x : ddouble, y : ddouble, z : ddouble ) : ddouble {
   val yy = abs(y)
   val zz = abs(z)
   val hi = max(max(xx,yy),zz)
-  if (hi.zero?) then zero else {
+  if (hi.is-zero) then zero else {
     hi * sqrt( sqr(xx / hi) + sqr(yy / hi) + sqr(zz / hi) )
   }
 }
@@ -1190,7 +1190,7 @@ public fun hypot( x : ddouble, y : ddouble, z : ddouble ) : ddouble {
 // for precision.
 public fun hypot( xs : list<ddouble> ) : ddouble {
   val hi = xs.abs-max
-  if (hi.zero?) then zero else {
+  if (hi.is-zero) then zero else {
     hi * xs.map(fun(x){ sqr(x / hi) }).sum.sqrt
   }
 }
@@ -1311,7 +1311,7 @@ val sin16-table : vector<ddouble> = [
 
 // Return `x` with the sign of `y`.
 public fun with-sign-of( x : ddouble, y : ddouble ) : ddouble {
-  if (y.neg?) then ~(x.abs) else x.abs
+  if (y.is-neg) then ~(x.abs) else x.abs
 }
 
 
@@ -1327,7 +1327,7 @@ public fun asin( x : ddouble ) : ddouble {
 public fun acos( x : ddouble ) : ddouble {
   val a = x.abs
   if (a > one) then dd-nan
-  elif (a == one) then (if (x.pos?) then zero else dd-pi)
+  elif (a == one) then (if (x.is-pos) then zero else dd-pi)
   else atan2( sqrt(one - x.sqr), x )
 }
 
@@ -1338,17 +1338,17 @@ public fun atan( x : ddouble ) : ddouble {
 
 // The arc-tangent of a point (`x`,`y`). Returns the angle with respect to the x-axis in radians between -&pi; and &pi;.
 public fun atan2( y : ddouble, x : ddouble ) : ddouble {
-  if (x.zero?) {
-    if (y.zero?) then zero /* dd-nan */ else dd-pi2.with-sign-of(y)
+  if (x.is-zero) {
+    if (y.is-zero) then zero /* dd-nan */ else dd-pi2.with-sign-of(y)
   }
-  elif (y.zero?) then {
-    if (x.pos?) then zero else dd-pi
+  elif (y.is-zero) then {
+    if (x.is-pos) then zero else dd-pi
   }
   elif (x == y) then {
-    if (y.pos?) then dd-pi4 else ~dd-pi34
+    if (y.is-pos) then dd-pi4 else ~dd-pi34
   }
   elif (x == ~y) then {
-    if (y.pos?) then dd-pi34 else ~dd-pi4
+    if (y.is-pos) then dd-pi34 else ~dd-pi4
   }
   else {
     val r = sqrt( x.sqr + y.sqr )
@@ -1365,10 +1365,10 @@ public fun atan2( y : ddouble, x : ddouble ) : ddouble {
 
 // The hyperbolic sine of `x`.
 public fun sinh( x : ddouble ) : ddouble {
-  if (x.zero?) then zero
+  if (x.is-zero) then zero
   elif (x.abs.double > 0.05) then {
     val ex = x.exp
-    if (!ex.finite?) then ex else ( ex - (one / ex)).half
+    if (!ex.is-finite) then ex else ( ex - (one / ex)).half
   }
   else {
     // small x so use Taylor series to avoid cancellation
@@ -1379,10 +1379,10 @@ public fun sinh( x : ddouble ) : ddouble {
 
 // The hyperbolic cosine of `x`.
 public fun cosh( x : ddouble ) : ddouble {
-  if (x.zero?) then one
+  if (x.is-zero) then one
   elif (x.abs.double > 0.05) then {
     val ex = x.exp
-    if (!ex.finite?) then ex else (ex + (one / ex)).half
+    if (!ex.is-finite) then ex else (ex + (one / ex)).half
   }
   else {
     val s = x.sinh
@@ -1392,12 +1392,12 @@ public fun cosh( x : ddouble ) : ddouble {
 
 // The hyperbolic tangent of `x`.
 public fun tanh( x : ddouble ) : ddouble {
-  if (x.zero?) then zero
+  if (x.is-zero) then zero
   elif (x.abs.double > 0.05) then {
     val ex = x.exp
     val iex = one / ex
-    if (ex.zero?) then ~one
-    elif (ex.posinf?) then one
+    if (ex.is-zero) then ~one
+    elif (ex.is-posinf) then one
     else ((ex - iex) / (ex + iex))
   }
   else {

@@ -71,7 +71,7 @@ public fun (==)( tz1 : timezone, tz2 : timezone ) : bool {
 }
 
 // Is this the UTC timezone?
-public fun tz-utc?( tz : timezone ) : bool {
+public fun is-tz-utc( tz : timezone ) : bool {
   tz == tz-utc
 }
 
@@ -83,12 +83,12 @@ public fun tz-utc?( tz : timezone ) : bool {
 // For example, `tz-fixed(-1,30)` gives a time zone offset of -90 minutes, "UTC-1:30".
 // Returns `tz-utc` if both `hours` and `mins` are zero.
 public fun tz-fixed( hours: int, mins : int = 0, name : string = "", abbrv : string = "", hourwidth : int = 1 ) : timezone {
-  if (hours.zero? && mins.zero?) then return tz-utc
-  val xmins = if (hours.pos?) then mins.abs elif (hours.neg?) then (mins.abs).negate else mins
+  if (hours.is-zero && mins.is-zero) then return tz-utc
+  val xmins = if (hours.is-pos) then mins.abs elif (hours.is-neg) then (mins.abs).negate else mins
   val secs  = hours*3600 + xmins*60
-  val tzname = name || ("UTC" + (if (secs.neg?) then "-" else "+")
+  val tzname = name || ("UTC" + (if (secs.is-neg) then "-" else "+")
                           + hours.abs.show.pad-left(hourwidth,'0')
-                          + (if (mins.zero?) then "" else ":" + mins.abs.show.pad-left(2,'0')))
+                          + (if (mins.is-zero) then "" else ":" + mins.abs.show.pad-left(2,'0')))
   val delta  = duration(secs)
   tz-fixed(tzname,delta,abbrv)
 }
@@ -96,7 +96,7 @@ public fun tz-fixed( hours: int, mins : int = 0, name : string = "", abbrv : str
 fun tz-fixed( name : string, delta : duration, abbrv : string = "" ) : timezone {
   Timezone( name,
     fun(i) { (delta,abbrv) },
-    fun(i) { if (delta.zero?) then Just(i) else Nothing }
+    fun(i) { if (delta.is-zero) then Just(i) else Nothing }
   )
 }
 
@@ -264,7 +264,7 @@ fun earth-timestamp-to-dc( t : timestamp, tzdelta: timespan, days-to-date: (int)
 fun earth-timestamp-to-instant( t : timestamp, tz : timezone, ts : timescale ) : instant {
   // do timezone adjustment ignoring leap seconds (TODO: check correctness)
   val i    = ts.instant(t)
-  val iz   = if (tz.tz-utc?) then i else {
+  val iz   = if (tz.is-tz-utc) then i else {
                match((tz.utc-inverse)(i)) {
                  Just(inv) -> inv
                  Nothing -> {
@@ -363,7 +363,7 @@ public fun year-shift-earth-calendar( name : string, long-name: string,
 // Also needs an `epoch-shift` that gives the number of days from the
 // calendar epoch to the date ``2000-01-01``. By default this is `730119`
 // which corresponds to a ``0001-01-01`` ISO calendar epoch. The
-// `has-year-zero?` (=`True`) parameter is used when the calendar has a
+// `has-year-zero` (=`True`) parameter is used when the calendar has a
 // year zero. The `month-prefix` (=`""`) is used for displaying numeric
 // months (and is `"W"` for `cal-iso-week` for example). The `show-era` function
 // can be given to display an era for a given date. Finally the `ts` (=`ts-ti`)
@@ -374,12 +374,12 @@ public fun solar-calendar( name : string, long-name: string,
                     days-before-month: (year:int, month:int) -> int,
                     days-to-month    : (year:int, doy: int ) -> int,
                     epoch-shift   : int = 730119,
-                    has-year-zero?: bool = True,
+                    has-year-zero : bool = True,
                     month-prefix  : string = "",
                     show-era      : (date)->string = fun(d){ "" } ) : calendar
 {
   fun date-to-days( d : date ) : int {
-    val y = if (has-year-zero? || d.year.pos?) then d.year else d.year.inc
+    val y = if (has-year-zero || d.year.is-pos) then d.year else d.year.inc
     days-before-year( y ) + days-before-month( y, d.month )
      + d.day.dec - epoch-shift
   }
@@ -389,7 +389,7 @@ public fun solar-calendar( name : string, long-name: string,
     val (y,doy) = days-to-yeardoy( days )
     val month   = days-to-month(y, doy)
     val day     = (doy - days-before-month(y, month)) + 1
-    val year    = if (has-year-zero? || y.pos?) then y else y.dec
+    val year    = if (has-year-zero || y.is-pos) then y else y.dec
     Date(year,month,day)
   }
 
@@ -413,7 +413,7 @@ public fun solar-calendar( name : string, long-name: string,
 // Also needs an `epoch-shift` that gives the number of days from the
 // calendar epoch to the date ``2000-01-01``. By default this is `730119`
 // which corresponds to a ``0001-01-01`` ISO calendar epoch. The
-// `has-year-zero?` (=`True`) parameter is used when the calendar has a
+// `has-year-zero` (=`True`) parameter is used when the calendar has a
 // year zero. The `month-prefix` (=`""`) is used for displaying numeric
 // months (and is `"W"` for `cal-iso-week` for example). The `show-era` function
 // can be given to display an era for a given date. Finally the `ts` (=`ts-utc`)
@@ -424,7 +424,7 @@ public fun solar-ecalendar(  name : string, long-name: string,
                       days-before-month: (year:int, month:int) -> int,
                       days-to-month    : (year:int, doy: int ) -> int,
                       epoch-shift   : int = 730119,
-                      has-year-zero?: bool = True,
+                      has-year-zero : bool = True,
                       month-prefix  : string = "",
                       show-era      : (date)->string = fun(d){ "" } )  : calendar
 {
@@ -439,7 +439,7 @@ public fun solar-ecalendar(  name : string, long-name: string,
   solar-calendar(name,long-name,
     days-before-year, days-to-yeardoy,
     days-before-month, days-to-month,
-    epoch-shift, has-year-zero?, month-prefix, show-era
+    epoch-shift, has-year-zero, month-prefix, show-era
   )
 }
 
@@ -517,8 +517,8 @@ public val cal-gregorian = solar-ecalendar(
   "GC", "Gregorian",
   iso-days-before-year, iso-estimate-year,
   iso-days-before-month, iso-doy-to-month,
-  has-year-zero? = False,
-  show-era = fun(d:date){ if (d.year.neg?) then "BCE" else "CE" }
+  has-year-zero = False,
+  show-era = fun(d:date){ if (d.year.is-neg) then "BCE" else "CE" }
 )
 
 fun iso-days-before-month( year : int, month : int ) : int {
@@ -531,11 +531,11 @@ fun iso-doy-to-month( year : int, doy : int ) : int {
   (12*(doy + adj) + 373)/367
 }
 
-fun iso-adjust( before-march? : bool, year : int ) : int {
-  if (before-march?) then 0 elif (iso-is-leap?(year)) then 1 else 2
+fun iso-adjust( is-before-march : bool, year : int ) : int {
+  if (is-before-march) then 0 elif (iso-is-leap(year)) then 1 else 2
 }
 
-fun iso-is-leap?( year : int ) {
+fun iso-is-leap( year : int ) {
   (year%4 == 0) && (year%100 != 0 || year%400 == 0)
 }
 

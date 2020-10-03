@@ -116,48 +116,48 @@ private extern make-neginf() : double {
 
 
 // Is this value equal to NaN ?
-inline extern nan? : (double) -> bool {
+inline extern is-nan : (double) -> bool {
   c  inline "isnan(#1)"
   cs "double.IsNaN"
   js "isNaN"
 }
 
 // Is this value equal to negative or positive infinity ?
-extern inf? : (double) -> bool {
+extern is-inf : (double) -> bool {
   c  inline "isinf(#1)"
   cs "double.IsInfinity"
   js inline "((#1) === Infinity || (#1) === -Infinity)"
 }
 
 // Is this value equal to positive infinity ?
-inline extern posinf? : (double) -> bool {
+inline extern is-posinf : (double) -> bool {
   c  inline "((#1)==INFINITY)"
   cs "double.IsPositiveInfinity"
   js inline "((#1) === Infinity)"
 }
 
 // Is this value equal to negative infinity ?
-inline extern neginf? : (double) -> bool {
+inline extern is-neginf : (double) -> bool {
   c inline "((#1)==-INFINITY)"
   cs "double.IsNegativeInfinity"
   js inline "((#1) === -Infinity)"
 }
 
 // Is this a finite number (i.e. not `nan` or infinity)
-inline extern finite?( d : double ) : bool {
+inline extern is-finite( d : double ) : bool {
   c  inline "isfinite(#1)"
   cs inline "(!double.IsNaN(#1) && !double.IsInfinity(#1))"
   js "isFinite"
 }
 
 // Is this a negative zero value?
-fun negzero?( d : double ) : bool {
-  (d==0.0 && neginf?(1.0 / d))
+fun is-negzero( d : double ) : bool {
+  (d==0.0 && is-neginf(1.0 / d))
 }
 
 // Is this a [subnormal](https://en.wikipedia.org/wiki/Denormal_number) value?
 // (i.e. `0 < d.abs < dbl-min`)
-fun subnormal?( d :double ) : bool  {
+fun is-subnormal( d :double ) : bool  {
   (d != 0.0 && d.abs < dbl-min)
 }
 
@@ -281,7 +281,7 @@ fun exp2( p : double ) : double {
 // Avoids potential imprecision for small `x` where adding `1.0` explicitly
 // may lead to rounding errors.
 fun log1p( x : double ) : double {
-  if (x.posinf?) then x else {
+  if (x.is-posinf) then x else {
     val y = 1.0 + x
     val z = y - 1.0
     if (z==0.0) then x else {
@@ -293,7 +293,7 @@ fun log1p( x : double ) : double {
 // Return `exp(x - 1.0)`.
 // Avoids rounding errors for values of `x` very close to `1.0`.
 fun expm1( x : double ) : double {
-  if (x.posinf?) then x else {
+  if (x.is-posinf) then x else {
     val y = exp(x)
     if (y==1.0) then x
     elif (y - 1.0 == -1.0) then -1.0
@@ -375,19 +375,19 @@ extern double-from-bits( lo : int32, hi : int32 ) : double {
 fun double-from-bits( lo : int32, hi : int32 ) : double {
   val hifrac = hi & 0xFFFFF.int32
   val exp  = (hi.shr(20.int32) & 0x07FF.int32)
-  val pos? = hi.shr(31.int32).zero?
-  val p = if (lo.zero? && hifrac.zero?) then {
-            if (exp.zero?) then 0.0
+  val is-pos = hi.shr(31.int32).zero?
+  val p = if (lo.is-zero && hifrac.is-zero) then {
+            if (exp.is-zero) then 0.0
             elif (exp==0x7FF.int32) then posinf
             else exp2( (exp - 1023.int32).double )
           }
           else {
             val frac = lo.double + 0x1.0p32 * hifrac.double
-            if (exp.zero?) then frac * exp2( -1074.0 )  // denormalized number
+            if (exp.is-zero) then frac * exp2( -1074.0 )  // denormalized number
             elif (exp==0x7FF.int32) then nan
             else (1.0 + frac * 0x1.0p-52) * exp2( (exp - 1023.int32).double )
           }
-  if (pos?) then p else ~p
+  if (is-pos) then p else ~p
 }
 */
 
@@ -412,10 +412,10 @@ private val one-p1023 = 0x1.0p1023
 private val one-m1022 = 0x1.0p-1022   // = dbl-min
 private fun mul-exp2( x : double, e : int ) : double {  x * exp2(e) }
 
-// 'Load exponent': returns `x`&middot;2^`e`^ for a `finite?` `x` and
+// 'Load exponent': returns `x`&middot;2^`e`^ for a `is-finite` `x` and
 // otherwise `x` itself. See also `encode` which loads an integer mantissa.
 fun ldexp( x : double, e : int ) : double {
-  if (!finite?(x)) then x
+  if (!is-finite(x)) then x
   elif (e >= -1022) then {
     if (e <= 1023) then mul-exp2(x,e)  // usually this branch
     elif (e <= 2046) then mul-exp2( x*one-p1023, e - 1023 )
@@ -434,14 +434,14 @@ fun ldexp( x : double, e : int ) : double {
 // always either 0 or in the range [2^52^, 2^53^). See also `frexp`.
 fun decode( d : double ) : (int,int) {
   if (d==0.0) then (0,0)
-  elif (d.subnormal?) then decode-normalized(d * 0x1.0p54, -54)
+  elif (d.is-subnormal) then decode-normalized(d * 0x1.0p54, -54)
   else decode-normalized(d,0)
 }
 
 // decode a normalized double (i.e. not subnormal)
 private fun decode-normalized( d : double, e-adjust : int = 0 ) : (int,int) {
   val (lo,hi)  = double-to-bits(d)
-  val sign  = if (hi.neg?) then -1 else 1
+  val sign  = if (hi.is-neg) then -1 else 1
   val exp  = and(hi.shr(20.int32),0x7FF.int32).int - 1043
   val man  = and(hi,0xFFFFF.int32).int + 0x100000
   (sign*(man * 0x100000000 + lo.uint), exp - 32 + e-adjust)
@@ -453,7 +453,7 @@ private fun decode-normalized( d : double, e-adjust : int = 0 ) : (int,int) {
 // one of `0.0`, `-0.0`, `neginf`, `posinf`, or `nan`.
 // See also `decode` which  decodes to an integer mantissa.
 fun frexp( x : double ) : (double, int) {
-  if (!x.finite? || x.negzero?) return (x,0)
+  if (!x.is-finite || x.is-negzero) return (x,0)
   val (m,e) = x.decode
   (m.double * 0x1.0p-53, e + 53  )
 }
@@ -487,13 +487,13 @@ exponent after the `p` is the _decimal_ power of 2.
 .
 */
 fun show-hex( d : double, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) : string {
-  if (!d.finite?) then d.show else {
+  if (!d.is-finite) then d.show else {
     val (m,e)  = d.decode
     val man  = m.abs.show-hex(1,use-capitals,"")
     val exp0  = e + 4*(man.count - 1)
     val exp  = (if (exp0 >= 0) then "+" else "") + exp0.show
     val frac  = man.tail.trim-right("0").pad-right(max(1,width),'0')
-    val sign  = if (d.neg? || d.negzero?) then "-" else ""
+    val sign  = if (d.is-neg || d.is-negzero) then "-" else ""
     sign + pre + man.head + "." + frac + "p" +  exp
   }
 }

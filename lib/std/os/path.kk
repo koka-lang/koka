@@ -96,7 +96,7 @@ fun split-parts( parts : list<string> ) : (string,list<string>) {
 // `"/foo//./bar/../test.txt".path.string -> "/foo/test.txt"`
 public fun string( p : path ) : string {
   val s = p.root + p.parts.reverse.join("/")
-  if (s.empty?) then "." else s
+  if (s.is-empty) then "." else s
 }
 
 // Show a path as a string.
@@ -106,23 +106,23 @@ public fun show( p : path ) : string {
 
 
 // Is a path empty?
-public fun empty?( p : path ) : bool {
-  p.root.empty? && p.parts.nil?
+public fun is-empty( p : path ) : bool {
+  p.root.is-empty && p.parts.is-nil
 }
 
 // Is a path relative?
-public fun relative?( p : path ) : bool {
-  p.root.empty?
+public fun is-relative( p : path ) : bool {
+  p.root.is-empty
 }
 
 // Is a path absolute?
-public fun absolute?( p : path ) : bool {
-  !p.relative?
+public fun is-absolute( p : path ) : bool {
+  !p.is-relative
 }
 
 // Create a normalized `:path` from a path string.
 public fun path( s : string ) : path {
-  if (s.empty?) return Path("",[])
+  if (s.is-empty) return Path("",[])
   val t = s.replace-all("\\","/")
   match(t.starts-with(proot)) {
     Nothing          -> path-parts("",t)
@@ -141,7 +141,7 @@ fun path-split( parts : list<string>, dirs : list<string> ) : list<string>  {
 }
 fun push-dir( dir : string, dirs : list<string> ) : list<string> {
   if (dir=="." || dir=="")       then dirs
-  elif (dir==".." && dirs.cons?) then dirs.tail
+  elif (dir==".." && dirs.is-cons) then dirs.tail
   else Cons(dir,dirs)
 }
 
@@ -161,8 +161,8 @@ public fun paths( s : string ) : list<path> {
 fun paths-collect( ps : list<string> ) : list<path> {
   match(ps) {
     Cons(root,Cons(part,rest)) // match on windows 'c:\' parts
-      | root.count==1 && root.head-char.default(' ').alpha? &&
-        part.notempty? && "/\\".contains(part.head)
+      | root.count==1 && root.head-char.default(' ').is-alpha &&
+        !part.is-empty && "/\\".contains(part.head)
       -> Cons( path(root+":"+part), paths-collect(rest))
     Cons(part,rest) -> Cons( path(part), paths-collect(rest))
     Nil             -> Nil
@@ -180,7 +180,7 @@ public fun (+)(p1 : path, p2: path) : path {
 
 // Return the first path if it is not empty, otherwise return the second one.
 public fun (||)(p1 : path, p2: path) : path {
-  if (p1.empty?) then p2 else p1
+  if (p1.is-empty) then p2 else p1
 }
 
 // Combine multiple paths using `(+)`.
@@ -219,13 +219,13 @@ public fun change-ext( p : path, extname : string ) : path {
 
 // If a path has no extension, set it to the provided one.
 public fun default-ext( p : path, newext : string ) : path {
-  if (p.extname.empty?) then p.change-ext(newext) else p
+  if (p.extname.is-empty) then p.change-ext(newext) else p
 }
 
 // Change the stem name of a path
 public fun change-stem( p : path, stemname : string ) : path {
   val ext = p.extname
-  p.change-base( stemname + (if (ext.empty?) then "" else "." + ext) )
+  p.change-base( stemname + (if (ext.is-empty) then "" else "." + ext) )
 }
 
 // Change the base name of a path

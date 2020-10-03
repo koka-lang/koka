@@ -107,7 +107,7 @@ fun satisfy-fail( msg : string, pred : sslice -> maybe<(a,sslice)> ) : parse a {
 }
 
 fun eof() : parse () {
-  match(satisfy(fun(s){ if (s.empty?) then Just(((),s)) else Nothing })) {
+  match(satisfy(fun(s){ if (s.is-empty) then Just(((),s)) else Nothing })) {
     Nothing -> fail("expecting end-of-input")
     Just    -> ()
   }
@@ -164,28 +164,28 @@ fun char( c : char ) : parse char {
 }
 
 fun no-digit() : parse char {
-  char-is("not a digit", fun(c){ !c.digit? })
+  char-is("not a digit", fun(c){ !c.is-digit })
 }
 
 fun digit() : parse int {
-  val c = char-is("digit", digit?)
+  val c = char-is("digit", is-digit)
   (c - '0').int
 }
 
 fun alpha() : parse char {
-  char-is("alpha", alpha?)
+  char-is("alpha", is-alpha)
 }
 
 fun alpha-num() : parse char {
-  char-is("alpha-num", alpha-num?)
+  char-is("alpha-num", is-alpha-num)
 }
 
 fun white() : parse char {
-  char-is("", white?)
+  char-is("", is-white)
 }
 
 fun whitespace() : parse string {
-  chars-are("", white?).string  
+  chars-are("", is-white).string  
 }
 
 fun whitespace0() : parse string {
@@ -193,7 +193,7 @@ fun whitespace0() : parse string {
 }
 
 fun digits() : parse string {
-  chars-are("digit", digit? ).string
+  chars-are("digit", is-digit ).string
 }
 
 fun digits0() : parse string {
@@ -259,7 +259,7 @@ fun one-of-or( chars : string, default : char ) : parse char {
 //private val rx-hexfloat	= regex(@"^([\-\+]?0[xX][0-9a-fA-F]+)(?:\.([0-9a-fA-F]+))?(?:[pP]([\-\+]?\d+))?$")
 
 fun hex-digits() : parse string {
-  chars-are("digit", hex-digit? ).string
+  chars-are("digit", is-hex-digit ).string
 }
 
 /*

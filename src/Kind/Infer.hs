@@ -249,7 +249,7 @@ synTester :: DataInfo -> ConInfo -> [DefGroup Type]
 synTester info con | isHiddenName (conInfoName con)
   = []
 synTester info con
-  = let name = (postpend "?" (toVarName (unqualify (conInfoName con))))
+  = let name = (prepend "is-" (toVarName (unqualify (conInfoName con))))
         arg = unqualify $ dataInfoName info
         rc  = conInfoRange con
 

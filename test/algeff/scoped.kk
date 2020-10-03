@@ -161,7 +161,7 @@ effect symbol {
 fun parse(input : string, action : () -> <nondet,symbol|e> a) : <nondet|e> a {
   var cs := input
   handle(action) {
-    return x -> if (cs.empty?) then x else fail()
+    return x -> if (cs.is-empty) then x else fail()
     control symbol(s) -> match(cs.starts-with(s)) {
       Nothing   { fail() }
       Just(rest){ cs := rest.string; resume(s) }

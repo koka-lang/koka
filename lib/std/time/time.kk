@@ -96,7 +96,7 @@ public fun max( i : time, j : time ) : time {
 
 // Round a time to a specified second precision.
 public fun round-to-prec( t : time, prec : int ) : time {
-  if (prec.neg?) then return t
+  if (prec.is-neg) then return t
   val c    = t.clock
   val secs = c.seconds.round-to-prec(prec)
   val ri   = t.instant.round-to-prec(prec)
@@ -122,13 +122,13 @@ public fun show-raw( tp : time, prec : int = 9 ) : string {
   tp.date.show(tp.calendar.month-prefix)
    + "T" + tp.clock.show(prec)
    + show-tzdelta(tp.tzdelta )
-   + (if (tp.tzabbrv.numeric?) then "" else " (" + tp.tzabbrv + ")")
-   + (if (tp.calendar.name.empty? || tp.calendar.month-prefix.notempty?) then "" else " " + tp.calendar.name)
-   + (if (tsname.empty? || tsname == "UTC") then "" else " " + tsname)
+   + (if (tp.tzabbrv.is-numeric) then "" else " (" + tp.tzabbrv + ")")
+   + (if (tp.calendar.name.is-empty || tp.calendar.month-prefix.is-notempty) then "" else " " + tp.calendar.name)
+   + (if (tsname.is-empty || tsname == "UTC") then "" else " " + tsname)
 }
 
-fun numeric?( abbrv : string ) : bool {
-  (abbrv.empty? || abbrv.head=="+" || abbrv.head=="-")
+fun is-numeric( abbrv : string ) : bool {
+  (abbrv.is-empty || abbrv.head=="+" || abbrv.head=="-")
 }
 
 fun show-date(d : date) : string {
@@ -141,10 +141,10 @@ fun show-date(d : date) : string {
 // Optional `hrwidth` to give the minimal width of the hour field (=`2`).
 public fun show-tzdelta(delta : duration, utc : string = "Z", hmsep : string = ":", hrwidth : int = 2) : string {
   val dt = delta.seconds.int
-  if (dt.zero?) return utc
+  if (dt.is-zero) return utc
   val (mins,secs) = divmod(dt.abs,60)
-  val tz   = (if (dt.neg?) then "-" else "+") + (mins/60).show0(hrwidth) + hmsep + (mins%60).show0
-  val tzs  = if (secs.zero?) then "" else ":" + secs.show0
+  val tz   = (if (dt.is-neg) then "-" else "+") + (mins/60).show0(hrwidth) + hmsep + (mins%60).show0
+  val tzs  = if (secs.is-zero) then "" else ":" + secs.show0
   tz + tzs
 }
 
