@@ -1643,7 +1643,8 @@ opexpr :: LexParser UserExpr
 opexpr
   = do e1 <- prefixexpr
        (do ess <- many1(do{ op <- operatorVar; e2 <- prefixexpr; return [op,e2]; })
-           return (App (Var nameOpExpr True rangeNull) [(Nothing,e) | e <- e1 : concat ess] (combineRanged e1 (concat ess)))
+           return (App (Var nameOpExpr True rangeNull) 
+                    [(Nothing,e) | e <- e1 : concat ess] (combineRanged e1 (concat ess)))
         <|>
            return e1)
 

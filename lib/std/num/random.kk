@@ -26,7 +26,7 @@ fun ".default-random"(action : () -> <random,ndet|e> a) : <ndet|e> a {
 }
 
 // Pick random numbers from a the best strong random source in the OS.
-// (e.g. like `/dev/urandom`, `arc4random` etc.). Use `srandom-strong?` to test if the 
+// (e.g. like `/dev/urandom`, `arc4random` etc.). Use `srandom-is-strong` to test if the 
 // numbers are indeed based on a strong random source.
 fun strong-random(action : () -> <random,ndet|e> a) : <ndet|e> a {
   with fun random-int32() { srandom-int32() }
@@ -125,7 +125,7 @@ extern srandom-double : () -> ndet double   {
 }
 
 // Are the strong random numbers generated from a strong random source? (like /dev/urandom)
-extern srandom-strong?: () -> ndet bool  {
+extern srandom-is-strong: () -> ndet bool  {
   c  "kk_srandom_is_strong"
   js "_srandom_is_strong"
 }

@@ -27,7 +27,7 @@ include extern {
 //--------------------------------------------------------------
 
 // Is this a combining character? 
-public fun combining?( c : char ) : bool {
+public fun is-combining( c : char ) : bool {
   val i = c.int
   ((i >= 0x0300 && i <= 0x036F) ||
    (i >= 0x1AB0 && i <= 0x1AFF) ||
@@ -39,7 +39,7 @@ public fun combining?( c : char ) : bool {
 // Join combining characters with their base into a grapheme.
 fun join-combining( cs : list<char>, comb : list<char> = [], acc : list<grapheme> = []) : list<grapheme> {
   match(cs) {
-    Cons(c,cc) -> if (c.combining?) 
+    Cons(c,cc) -> if (c.is-combining) 
                    then cc.join-combining( Cons(c,comb), acc )
                    else cc.join-combining( [c], consrev(comb,acc) )
     Nil        -> consrev(comb,acc).reverse
@@ -98,8 +98,8 @@ public fun normalize( s  : string, norm : normalization = NFC ) : string {
 // Return the column-width of a unicode character.
 // Equivalent to ``wcwidth``
 public fun width( c : char ) : int {
-  if (zero-widths.force.contains?(c.int)) then 0
-  elif (asian-wide.force.contains?(c.int)) then 2
+  if (zero-widths.force.contains(c.int)) then 0
+  elif (asian-wide.force.contains(c.int)) then 2
   else 1
 }
 
@@ -202,13 +202,13 @@ type rtree {
 }
 
 // Is a value contained in a range tree?
-fun contains?( t : rtree, i : int ) : bool {
+fun contains( t : rtree, i : int ) : bool {
   match(t) {
     Tip -> True
     Bin(lo,hi,l,r) -> {
       if (i < lo || i > hi)
        then False
-       else l.contains?(i) || r.contains?(i)
+       else l.contains(i) || r.contains(i)
     }
   }
 }

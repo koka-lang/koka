@@ -23,7 +23,7 @@ infixl 70  (*), (%), (/), cdiv, cmod
 infixl 60  (+), (-)
 infix  40  (!=), (==), (<=), (>=), (<), (>)
 
-// prefix     (!), (-)
+// prefix     (!), (-) 
 
 
 include extern {
