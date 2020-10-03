@@ -53,7 +53,7 @@ import Kind.Synonym
 
 import Type.Type
 import Type.Assumption
-import Type.TypeVar( tvsIsEmpty, ftv, subNew, (|->) )
+import Type.TypeVar( tvsIsEmpty, ftv, subNew, (|->), tvsMember, tvsList )
 import Type.Pretty
 import Type.Kind( getKind )
 
@@ -175,8 +175,11 @@ synCopyCon modName info con
 
         fullTp = let (vars,preds,rho) = splitPredType (conInfoType con)
                  in case splitFunType rho of
-                      Just (args,eff,res) -> TForall vars preds (TFun ([(argName,res)] ++ [(name,if name==nameNil then t else makeOptional t) | (name,t) <- args]) eff res)
-                      Nothing             -> TForall vars preds (TFun [(argName,rho)] typeTotal rho)    -- for unary constructors, like unit
+                      Just (args,eff,res) 
+                        -> TForall vars preds (TFun ([(argName,res)] ++ [(name,if not (hasAccessor name t con) 
+                                                                                 then t else makeOptional t) | (name,t) <- args]) eff res)
+                      Nothing             
+                        -> TForall vars preds (TFun [(argName,rho)] typeTotal rho)    -- for unary constructors, like unit
 
         var n = Var n False rc
         app x []  = x
@@ -184,29 +187,35 @@ synCopyCon modName info con
 
         argName  = newName ".this"
 
-        params = [ValueBinder name Nothing (if isFieldName name then Nothing else (Just (app (var name) [var argName]))) rc rc| (name,t) <- conInfoParams con]
+        params = [ValueBinder name Nothing (if not (hasAccessor name t con) then Nothing else (Just (app (var name) [var argName]))) rc rc| (name,t) <- conInfoParams con]
         expr = Lam ([ValueBinder argName Nothing Nothing rc rc] ++ params) body rc
         body = app (var (conInfoName con)) [var name | (name,tp) <- conInfoParams con]
         def  = DefNonRec (Def (ValueBinder nameCopy () (Ann expr fullTp rc) rc rc) rc (dataInfoVis info) (DefFun) InlineAuto "")
     in def
 
+hasAccessor :: Name -> Type -> ConInfo -> Bool
+hasAccessor name tp cinfo
+  = not (isFieldName name || name==nameNil) &&  -- named?
+    (let tvs = ftv tp          -- and no existentials?
+     in all (\tv -> not (tvsMember tv tvs)) (conInfoExists cinfo))
+
 synAccessors :: Name -> DataInfo -> [DefGroup Type]
 synAccessors modName info
-  = let paramss = map (\conInfo -> zipWith (\(name,tp) (pvis,rng) -> (name,(tp,rng,pvis)))
+  = let paramss = map (\conInfo -> zipWith (\(name,tp) (pvis,rng) -> (name,(tp,rng,pvis,conInfo)))
                                    (conInfoParams conInfo) (zip (conInfoParamVis conInfo) (conInfoParamRanges conInfo)))
                       (dataInfoConstrs info)
 
-        fields :: [(Name,(Type,Range,Visibility))]
-        fields  = filter occursOnAll $
+        fields :: [(Name,(Type,Range,Visibility,ConInfo))]
+        fields  = filter occursOnAllConstrs $
                   nubBy (\x y -> fst x == fst y) $
-                  filter (not . isFieldName . fst) $
+                  filter (\(name,(tp,_,_,cinfo)) -> hasAccessor name tp cinfo) $
                   concat paramss
 
-        occursOnAll (name,(tp,rng,pvis))
-          = all (\ps -> any (\(n,(t,_,_)) -> n == name && t == tp) ps) paramss
-
-        synAccessor :: (Name,(Type,Range,Visibility)) -> DefGroup Type
-        synAccessor (name,(tp,rng,visibility))
+        occursOnAllConstrs (name,(tp,rng,pvis,_))
+          = all (\ps -> any (\(n,(t,_,_,_)) -> n == name && t == tp) ps) paramss
+          
+        synAccessor :: (Name,(Type,Range,Visibility,ConInfo)) -> DefGroup Type
+        synAccessor (name,(tp,rng,visibility,cinfo))
           = let dataName = unqualify $ dataInfoName info
                 arg = if (all isAlphaNum (show dataName))
                        then dataName else newName ".this"

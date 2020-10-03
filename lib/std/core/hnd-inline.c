@@ -10,11 +10,11 @@
 /*
 typedef datatype_t kk_std_core_hnd__ev;
 struct kk_std_core_hnd_Ev {
-  kk_std_core_hnd__htag _field1;
-  kk_box_t _field3;
-  int32_t _field4;  // control flow context
-  kk_std_core_hnd__evv _field5;
-  kk_std_core_hnd__marker _field2;
+  kk_std_core_hnd__htag htag;
+  kk_box_t hnd;
+  int32_t cfc;  // control flow context
+  kk_std_core_hnd__evv hevv;
+  kk_std_core_hnd__marker marker;
 };
 */
 
@@ -68,10 +68,10 @@ size_t kk_evv_index( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx ) {
   kk_std_core_hnd__ev* vec = kk_evv_as_vec(ctx->evv,&len,&single);
   for(size_t i = 0; i < len; i++) {
     struct kk_std_core_hnd_Ev* ev = kk_std_core_hnd__as_Ev(vec[i]);
-    if (kk_string_cmp_borrow(htag._field1,ev->_field1._field1) <= 0) return i; // break on insertion point
+    if (kk_string_cmp_borrow(htag.tagname,ev->htag.tagname) <= 0) return i; // break on insertion point
   }
   //string_t evvs = kk_evv_show(dup_datatype_as(kk_evv_t,ctx->evv),ctx);
-  //fatal_error(EFAULT,"cannot find tag '%s' in: %s", string_cbuf_borrow(htag._field1), string_cbuf_borrow(evvs));
+  //fatal_error(EFAULT,"cannot find tag '%s' in: %s", string_cbuf_borrow(htag.htag), string_cbuf_borrow(evvs));
   //drop_string_t(evvs,ctx);  
   return len;
 }
@@ -101,7 +101,7 @@ static int32_t kk_evv_cfc_of_borrow(kk_evv_t evv, kk_context_t* ctx) {
   }
   else {
     struct kk_std_core_hnd_Ev* ev = kk_evv_as_Ev(evv);
-    return ev->_field4;
+    return ev->cfc;
   }
 }
 
@@ -117,19 +117,19 @@ static void kk_evv_update_cfc_borrow(kk_evv_t evv, int32_t cfc, kk_context_t* ct
   }
   else {
     struct kk_std_core_hnd_Ev* ev = kk_evv_as_Ev(evv);
-    ev->_field4 = kk_cfc_lub(ev->_field4,cfc);
+    ev->cfc = kk_cfc_lub(ev->cfc,cfc);
   }
 }
 
 kk_evv_t kk_evv_insert(kk_evv_t evvd, kk_std_core_hnd__ev evd, kk_context_t* ctx) {
   struct kk_std_core_hnd_Ev* ev = kk_std_core_hnd__as_Ev(evd);
   // update ev with parent evidence vector (either at init, or due to non-scoped resumptions)
-  int32_t marker = ev->_field2.m;
+  int32_t marker = ev->marker.m;
   if (marker==0) { kk_std_core_hnd__ev_drop(evd,ctx); return evvd; } // ev-none
-  kk_evv_drop(ev->_field5,ctx);
-  ev->_field5 = kk_evv_dup(evvd);
+  kk_evv_drop(ev->hevv,ctx);
+  ev->hevv = kk_evv_dup(evvd);
   if (marker<0) { // negative marker is used for named evidence; this means this evidence should not be inserted into the evidence vector
-    kk_evv_update_cfc_borrow(evvd,ev->_field4,ctx); // update cfc in-place for named evidence
+    kk_evv_update_cfc_borrow(evvd,ev->cfc,ctx); // update cfc in-place for named evidence
     kk_std_core_hnd__ev_drop(evd,ctx); 
     return evvd; 
   } 
@@ -144,13 +144,13 @@ kk_evv_t kk_evv_insert(kk_evv_t evvd, kk_std_core_hnd__ev evd, kk_context_t* ctx
   }
   else {
     // create evidence vector
-    const int32_t cfc = kk_cfc_lub(kk_evv_cfc_of_borrow(evvd, ctx), ev->_field4);
+    const int32_t cfc = kk_cfc_lub(kk_evv_cfc_of_borrow(evvd, ctx), ev->cfc);
     kk_evv_vector_t vec2 = kk_evv_vector_alloc(n+1, cfc, ctx);
     kk_std_core_hnd__ev* const evv2 = kk_evv_vector_buf(vec2, NULL);
     size_t i;
     for (i = 0; i < n; i++) {
       struct kk_std_core_hnd_Ev* ev1 = kk_std_core_hnd__as_Ev(evv1[i]);
-      if (kk_string_cmp_borrow(ev->_field1._field1, ev1->_field1._field1) <= 0) break;
+      if (kk_string_cmp_borrow(ev->htag.tagname, ev1->htag.tagname) <= 0) break;
       evv2[i] = kk_std_core_hnd__ev_dup(&ev1->_base);
     }
     evv2[i] = evd;
@@ -184,10 +184,10 @@ kk_evv_t kk_evv_delete(kk_evv_t evvd, size_t index, bool behind, kk_context_t* c
     evv2[i] = kk_std_core_hnd__ev_dup(evv1[i+1]);
   }  
   struct kk_std_core_hnd_Ev* ev = kk_std_core_hnd__as_Ev(evv1[index]);
-  if (ev->_field4 >= cfc1) {
-    int32_t cfc = kk_std_core_hnd__as_Ev(evv2[0])->_field4;
+  if (ev->cfc >= cfc1) {
+    int32_t cfc = kk_std_core_hnd__as_Ev(evv2[0])->cfc;
     for(i = 1; i < n-1; i++) {
-      cfc = kk_cfc_lub(cfc,kk_std_core_hnd__as_Ev(evv2[i])->_field4);
+      cfc = kk_cfc_lub(cfc,kk_std_core_hnd__as_Ev(evv2[i])->cfc);
     }
     vec2->cfc = kk_integer_from_int32(cfc,ctx);
   }

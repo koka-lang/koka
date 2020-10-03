@@ -28,7 +28,7 @@ include extern {
 private struct marker<e::E,a>(m:int32)
 
 abstract type htag<h::(E,V)->V> {
-  Htag(:string)
+  Htag(tagname:string)
 }
 
 public fun ".new-htag"( tag : string ) {
@@ -40,16 +40,18 @@ public fun hidden-htag( tag : string ) {
 }
 
 // control flow context:
-//
-// - 0 never resumes
-// - 1 resumes always exactly once
-// - 2 resumes never or once
-// - 3 resumes never, once, or multiple times
-public alias cfc= int32
+//                 -1: none: bottom
+//                   /          \
+// 0: except: never resumes   1: linear: resumes exactly once 
+//                   \          /
+//           2: affine: resumes never or once 
+//                        |
+//     3: multi: resumes never, once, or multiple times
+public alias cfc = int32
   
 
 abstract type ev<h> {
-  con Ev<e,r>(:htag<h>, :marker<e,r>, :h<e,r>, :cfc, :evv<e>)
+  con Ev<e,r>(htag:htag<h>, marker:marker<e,r>, hnd:h<e,r>, cfc:cfc, hevv:evv<e>)
 }
 
 private type evv<e::E>;
