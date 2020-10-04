@@ -93,7 +93,7 @@ Digit           [0-9]
 Hex             [0-9a-fA-F]
 Space           [ \t]
 Newline         [\r]?[\n]
-Final           [\'\?]
+Final           [\']
 /* for editor highlighting ' */
 
 GraphicChar     [ \x21-\x26\x28-\[\]-\x7E]

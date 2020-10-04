@@ -116,7 +116,7 @@ grammar will draw it's lexemes from the _lex_ production.
 | &nbsp;       |       |                                                                                               |                         |
 | _idtail_     | ::=   | [_idchar_]{.many} [_idfinal_]{.opt}                                                           |                         |
 | _idchar_     | ::=   | _letter_ []{.bar} _digit_ []{.bar} ``_`` []{.bar} ``-``                                       |                         |
-| _idfinal_    | ::=   | ``?`` []{.bar} [``'``]{.many}                                                                 |                         |
+| _idfinal_    | ::=   | [``'``]{.many}                                                                 |                         |
 | &nbsp;       |       |                                                                                               |                         |
 | _reserved_   | ::=   | `infix` []{.bar} `infixr` []{.bar} `infixl` []{.bar} `prefix`                                 |                         |
 |              | &bar; | `type` []{.bar} `cotype` []{.bar} `struct` []{.bar}  `alias`                                  |                         |
@@ -139,7 +139,7 @@ grammar will draw it's lexemes from the _lex_ production.
 {.grammar .lex}
 
 Identifiers always start with a letter, may contain underscores and
-dashes, and can end with a question mark or primes. 
+dashes, and can end with prime ticks. 
 Like in Haskell, constructors always begin with an uppercase
 letter while regular identifiers are lowercase. The rationale is to 
 visibly distinguish constants from variables in pattern matches. 
@@ -148,7 +148,7 @@ Here are some example of valid identifiers:
 x
 concat1
 visit-left
-nil?
+is-nil
 x'
 Cons
 True  
@@ -447,8 +447,8 @@ line flag for that mode should be ``--nosemi``.
 
 ### The layout algorithm
 
-Here we define the layout algorithm formally. A nice property of the layout
-algorithm is that it is performed on the token stream in between lexing
+A nice property of the layout
+algorithm is that it is performed on the token stream in-between lexing
 and parsing, and is independent of both. In particular, there are no intricate dependencies with the parser
 that lead to bizarrely complex layout rules, as is the case in languages like
 [Haskell] or [JavaScript].
