@@ -146,7 +146,8 @@ pre code code, .madoko pre code code {
 .koka.preblock,
 .koka.code, code,
 .koka.pre, pre { 
-  white-space: pre-wrap 
+  xwhite-space: pre-wrap;
+  overflow-x: auto;
 }
 
 pre.koka.source {
