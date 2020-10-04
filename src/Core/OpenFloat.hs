@@ -38,10 +38,10 @@ import qualified Core.Core as Core
 import Core.Pretty
 
 trace s x =
-   -- Lib.Trace.trace s
+   Lib.Trace.trace s
     x
     
-enable = False  -- set to True to enable the transformation
+enable = True  -- set to True to enable the transformation
 
 openFloat :: Pretty.Env -> Gamma -> Int -> DefGroups -> (DefGroups,Int)
 openFloat penv gamma u defs
