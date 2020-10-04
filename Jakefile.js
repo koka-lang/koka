@@ -468,6 +468,7 @@ var hsModules = [
   "Core.BindingGroups",
   "Core.UnReturn",
   "Core.CTail",
+  "Core.OpenFloat",
   "Core.OpenResolve",
   "Core.Monadic",
   "Core.AnalysisResume",

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 952dcdece5fead78ebcba9432801e2ee80696242543966519d3ff7c98aa7890c
+-- hash: b89fa37a690d8bc67fca7dd82ad958ca4d34d8ee47d5768d2f8a3131168314fb
 
 name:           koka
 version:        2.0.0.0
@@ -69,6 +69,7 @@ executable koka
       Core.Inlines
       Core.Monadic
       Core.MonadicLift
+      Core.OpenFloat
       Core.OpenResolve
       Core.Parse
       Core.Pretty

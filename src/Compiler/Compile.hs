@@ -54,6 +54,7 @@ import Syntax.Colorize        ( colorize )
 import Core.GenDoc            ( genDoc )
 import Core.Check             ( checkCore )
 import Core.UnReturn          ( unreturn )
+import Core.OpenFloat         ( openFloat )
 import Core.OpenResolve       ( openResolve )
 import Core.FunLift           ( liftFunctions )
 import Core.Monadic           ( monTransform )
@@ -880,11 +881,19 @@ inferCheck loaded flags line coreImports program1
                        return (cdefs)
 
        -- traceDefGroups "monadic" coreDefsMon
+       
+       -- float .open calls
+       let (coreDefsOF,uniqueOF) = if isPrimitiveModule then (coreDefsMon,uniqueMon)
+                                    else openFloat penv gamma uniqueMon coreDefsMon
+       when (coreCheck flags) $ -- trace "open resolve core check" $
+                                Core.Check.checkCore True False penv uniqueOF gamma coreDefsOF
+       -- traceDefGroups "open float" coreDefsOF
+
 
        -- resolve phantom .open
-       let coreDefsOR = if isPrimitiveModule then coreDefsMon
-                         else openResolve penv gamma coreDefsMon
-           uniqueOR   = uniqueMon
+       let coreDefsOR = if isPrimitiveModule then coreDefsOF
+                         else openResolve penv gamma coreDefsOF
+           uniqueOR   = uniqueOF
        when (coreCheck flags) $ -- trace "open resolve core check" $
                                 Core.Check.checkCore True False penv uniqueOR gamma coreDefsOR
 
