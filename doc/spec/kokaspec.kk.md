@@ -67,13 +67,15 @@ li {
 
 ~ Begin SidePanel
 
-![koka-logo]
+[![koka-logo]](https://github.com/koka-lang/koka)
 
 [TOC]
 
 ~ End SidePanel
 
-~ Begin MainPanel
+~ Begin MainPanel 
+
+~ Begin MainContent
 
 [INCLUDE=getstarted.kk.md]
 
@@ -96,6 +98,8 @@ li {
 
 ~ div {#full-grammar}
 ~ 
+
+~ End MainContent
 
 ~ End MainPanel
 

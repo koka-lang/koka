@@ -407,7 +407,7 @@ fun bar()
     "list",
     "elements",
   ]
-  if (odd?(3*3)) 
+  if (is-odd(3*3)) 
   {
     print("odd")
   }
