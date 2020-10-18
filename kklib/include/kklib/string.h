@@ -144,7 +144,7 @@ static inline kk_string_t kk_string_alloc_raw_len(size_t len, const char* s, boo
   if (len == 0 || s==NULL) return kk_string_empty();
   kk_assert_internal(s[len]==0 && strlen(s)==len);
   struct kk_string_raw_s* str = kk_block_alloc_as(struct kk_string_raw_s, 0, KK_TAG_STRING_RAW, ctx);
-  str->free = (free ? &kk_free : NULL);
+  str->free = (free ? &kk_free_fun : NULL);
   str->cstr = (const uint8_t*)s;
   str->length = len;
   // todo: kk_assert valid UTF8 in debug mode
