@@ -424,7 +424,7 @@ fun take( xs : list<a>, n : int ) : list<a> {
 fun drop( xs : list<a>, n : int ) : list<a> {
   match(xs) {
     Cons(_,xx) | n > 0 -> drop(xx, n - 1)
-    _ -> Nil    
+    _ -> xs    
   }
 }
 
