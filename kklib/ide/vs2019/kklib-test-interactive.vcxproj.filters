@@ -35,5 +35,6 @@
     <ClCompile Include="..\..\..\out\Debug\std_os_flags.c" />
     <ClCompile Include="..\..\..\out\Debug\std_os_env.c" />
     <ClCompile Include="..\..\..\out\Debug\test_algeff_common.c" />
+    <ClCompile Include="..\..\..\out\Debug\test_effbayes_benchmark.c" />
   </ItemGroup>
 </Project>

@@ -89,10 +89,10 @@ fun random-int() : random int {
   random-int32().int
 }
 
-// Return a random double in the range [0,1) using 48-bits of randomness
+// Return a random double in the range [0,1) using 52-bits of randomness
 fun random-double() : random double {
   val lo = random-int32()
-  val hi = random-int32().shr(16.int32).or(0x3FF00000.int32)
+  val hi = random-int32().shr(12.int32).or(0x3FF00000.int32)
   (double-from-bits(lo,hi) - 1.0)
 }
 
@@ -118,7 +118,7 @@ extern srandom-int32: () -> ndet int32  {
   js "_srandom_int32"
 }
 
-// Return a strong random `:double` in the range [0,1) using 48-bits of randomness
+// Return a strong random `:double` in the range [0,1) using 52-bits of randomness
 extern srandom-double : () -> ndet double   {
   c  inline "kk_srandom_double(kk_context())"
   js "_srandom_double"
