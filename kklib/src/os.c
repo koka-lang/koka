@@ -66,6 +66,47 @@ fail:
 }
 
 /*--------------------------------------------------------------------------------------------------
+  mkdir
+--------------------------------------------------------------------------------------------------*/
+
+#if defined(_MSC_VER) || defined(__MINGW32__)
+#include <direct.h>
+#define os_mkdir(p,m)  _mkdir(p)
+#else
+#include <sys/types.h>
+#include <sys/stat.h>
+#define os_mkdir(p,m)  mkdir(p,m)
+#endif
+
+#ifndef S_IRWXU
+#define S_IRWXU  (7)
+#endif
+
+kk_decl_export int kk_os_ensure_path(kk_string_t path, int mode, kk_context_t* ctx) 
+{
+  int err = 0;
+  if (mode < 0) mode = S_IRWXU;
+  path = kk_string_copy(path, ctx); // copy so we can mutate
+  char* cpath = (char*)kk_string_cbuf_borrow(path);
+  char* p = cpath;
+  do {
+    char c = *p;
+    if (c == 0 || c == '/' || c == '\\') {
+      *p = 0; 
+      int res = os_mkdir(cpath, mode);
+      *p = c;
+      if (res != 0 && errno != EEXIST) {
+        err = errno;
+      }
+    }
+  } while (err == 0 && *p++ != 0);
+
+  kk_string_drop(path, ctx);
+  return err;
+}
+
+
+/*--------------------------------------------------------------------------------------------------
   Args
 --------------------------------------------------------------------------------------------------*/
 

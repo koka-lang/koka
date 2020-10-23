@@ -16,3 +16,9 @@ static inline kk_std_core__error kk_os_write_text_file_error( kk_string_t path, 
   const int err = kk_os_write_text_file(path,content,ctx); 
   return kk_error_from_errno(err,kk_unit_box(kk_Unit),ctx);
 }
+
+static inline kk_std_core__error kk_os_ensure_path_error( kk_string_t path, kk_integer_t mode, kk_context_t* ctx ) {
+  int m  = kk_integer_clamp32(mode,ctx);
+  const int err = kk_os_ensure_path(path,m,ctx); 
+  return kk_error_from_errno(err,kk_unit_box(kk_Unit),ctx);
+}
