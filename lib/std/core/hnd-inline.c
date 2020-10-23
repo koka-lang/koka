@@ -145,6 +145,7 @@ kk_evv_t kk_evv_insert(kk_evv_t evvd, kk_std_core_hnd__ev evd, kk_context_t* ctx
   else {
     // create evidence vector
     const int32_t cfc = kk_cfc_lub(kk_evv_cfc_of_borrow(evvd, ctx), ev->cfc);
+    ev->cfc = cfc; // update in place
     kk_evv_vector_t vec2 = kk_evv_vector_alloc(n+1, cfc, ctx);
     kk_std_core_hnd__ev* const evv2 = kk_evv_vector_buf(vec2, NULL);
     size_t i;
@@ -194,6 +195,41 @@ kk_evv_t kk_evv_delete(kk_evv_t evvd, size_t index, bool behind, kk_context_t* c
   kk_evv_drop(evvd,ctx);
   return &vec2->_block;
 }
+
+kk_evv_t kk_evv_create(kk_evv_t evv1, kk_vector_t indices, kk_context_t* ctx) {
+  size_t len;
+  kk_box_t* elems = kk_vector_buf(indices,&len); // borrows
+  kk_evv_vector_t evv2 = kk_evv_vector_alloc(len,kk_evv_cfc_of_borrow(evv1,ctx),ctx);
+  kk_std_core_hnd__ev* buf2 = kk_evv_vector_buf(evv2,NULL);
+  kk_assert_internal(kk_evv_is_vector(evv1));
+  size_t len1;
+  kk_std_core_hnd__ev single;
+  kk_std_core_hnd__ev* buf1 = kk_evv_as_vec(evv1,&len1,&single);
+  for(size_t i = 0; i < len; i++) {
+    size_t idx = kk_size_unbox(elems[i],ctx);
+    kk_assert_internal(idx < len1);
+    buf2[i] = kk_std_core_hnd__ev_dup( buf1[idx] );
+  }
+  kk_vector_drop(indices,ctx);
+  kk_evv_drop(evv1,ctx);
+  return &evv2->_block;
+}
+
+kk_evv_t kk_evv_swap_create( kk_vector_t indices, kk_context_t* ctx ) {
+  size_t len;
+  kk_box_t* vec = kk_vector_buf(indices,&len);
+  if (len==0) {
+    kk_vector_drop(indices,ctx);
+    return kk_evv_swap_create0(ctx);
+  }
+  if (len==1) {
+    size_t i = kk_size_unbox(vec[0],ctx);
+    kk_vector_drop(indices,ctx);
+    return kk_evv_swap_create1(i,ctx);
+  }
+  return kk_evv_swap( kk_evv_create(kk_evv_dup(ctx->evv),indices,ctx), ctx );
+}
+
 
 kk_string_t kk_evv_show(kk_evv_t evv, kk_context_t* ctx) {
   return kk_string_alloc_dup("(not yet implemented: kk_evv_show)",ctx);
@@ -366,41 +402,6 @@ kk_unit_t  kk_evv_guard(kk_evv_t evv, kk_context_t* ctx) {
     kk_fatal_error(EFAULT,"trying to resume outside the (handler) scope of the original handler");
   }
   return kk_Unit;
-}
-
-
-kk_evv_t kk_evv_create(kk_evv_t evv1, kk_vector_t indices, kk_context_t* ctx) {
-  size_t len;
-  kk_box_t* elems = kk_vector_buf(indices,&len); // borrows
-  kk_evv_vector_t evv2 = kk_evv_vector_alloc(len,-1,ctx);
-  kk_std_core_hnd__ev* buf2 = kk_evv_vector_buf(evv2,NULL);
-  kk_assert_internal(kk_evv_is_vector(evv1));
-  size_t len1;
-  kk_std_core_hnd__ev single;
-  kk_std_core_hnd__ev* buf1 = kk_evv_as_vec(evv1,&len1,&single);
-  for(size_t i = 0; i < len; i++) {
-    size_t idx = kk_size_unbox(elems[i],ctx);
-    kk_assert_internal(idx < len1);
-    buf2[i] = kk_std_core_hnd__ev_dup( buf1[idx] );
-  }
-  kk_vector_drop(indices,ctx);
-  kk_evv_drop(evv1,ctx);
-  return &evv2->_block;
-}
-
-kk_evv_t kk_evv_swap_create( kk_vector_t indices, kk_context_t* ctx ) {
-  size_t len;
-  kk_box_t* vec = kk_vector_buf(indices,&len);
-  if (len==0) {
-    kk_vector_drop(indices,ctx);
-    return kk_evv_swap_create0(ctx);
-  }
-  if (len==1) {
-    size_t i = kk_size_unbox(vec[0],ctx);
-    kk_vector_drop(indices,ctx);
-    return kk_evv_swap_create1(i,ctx);
-  }
-  return kk_evv_swap( kk_evv_create(kk_evv_dup(ctx->evv),indices,ctx), ctx );
 }
 
 typedef struct yield_info_s {
