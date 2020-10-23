@@ -584,7 +584,7 @@ kk_decl_export bool kk_integer_parse(const char* s, kk_integer_t* res, kk_contex
         d = 10*d + ((kk_intx_t)c - '0');
       }
     }
-    for (size_t z = 0; z < zero_digits; z++) {
+    for (;  digits < dec_digits; digits++) {  // zero digits
       d *= 10;
     }
     if (is_neg) d = -d;
