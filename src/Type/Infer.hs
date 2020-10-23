@@ -898,6 +898,7 @@ inferHandler propagated expect handlerSort handlerScoped
             = do let (clauseName, cparams) = case opSort of
                           OpVal        -> (nameClause "tail" (length pars), pars)
                           OpFun        -> (nameClause "tail" (length pars), pars)
+                          OpExcept     -> (nameClause "never" (length pars), pars)
                           OpControl    -> let resumeTp = TFun [(nameNil,resumeArg)] eff res
                                           in (nameClause "control" (length pars), pars ++ [ValueBinder (newName "resume") (Just resumeTp) () nameRng patRng])
                           OpControlRaw -> (nameClause "control-raw" (length pars), pars ++ [ValueBinder (newName "rcontext") Nothing () nameRng patRng])
@@ -926,9 +927,10 @@ inferHandler propagated expect handlerSort handlerScoped
                       where
                         cfcLub x y   = if ((x==0&&y==1)||(x==1&&y==0)) then 2 else max x y
                         hbranchCfc b = case hbranchSort b of -- todo: more refined analysis
-                                        OpVal -> 1
-                                        OpFun -> 1
-                                        _     -> 3 --multi/wild
+                                        OpVal    -> 1
+                                        OpFun    -> 1
+                                        OpExcept -> 0
+                                        _        -> 3 --multi/wild
            -- create handler expression
            actionName = newHiddenName "action"               
            handleName = makeHiddenName "handle" effectName

@@ -2438,12 +2438,12 @@ fun todo( message : string ) : () {
 // Exceptions
 effect exn {
   // Throw an exception
-  control throw-exn( exn : exception ) : a
+  except throw-exn( exn : exception ) : a
 }
 
 fun ".default-exn"(action) {
   handle( action ) {
-    control throw-exn( exn : exception ) {
+    except throw-exn( exn : exception ) {
       "uncaught exception: ".prints
       show(exn).println
     }
@@ -2486,7 +2486,7 @@ fun error-pattern(location : string, definition : string) : exn a {
 // Catch any exception raised in `action` and handle it.
 // Use `on-exn` or `on-exit` when appropiate.
 fun try( action : () -> <exn|e> a, hndl: exception -> e a ) : e a {
-  with control throw-exn(exn){ hndl(exn) }
+  with except throw-exn(exn){ hndl(exn) }
   action()
 }
 
