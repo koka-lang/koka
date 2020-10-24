@@ -3,7 +3,7 @@ import std/os/file
 import std/os/env
 import std/os/flags
 
-val header = "usage:\n stack exec koka -- kkinstall [-- [options]]\n\noptions:"
+val header = "usage:\n stack exec koka -- util/install [-- [options]]\n\noptions:"
 
 struct iflags {
   prefixdir : string = ""
@@ -29,7 +29,7 @@ public fun process-flags() : <ndet,console> maybe<iflags> {
 
 fun main() {
   if (!is-file("koka.cabal".path)) {
-    println("you can only run install from the koka root directory")
+    println("you can only run 'util/install' from the koka root directory")
     println(flag-descs.usage(header))
     return ()
   }
@@ -46,10 +46,10 @@ fun main() {
 
 fun install( prefixdir : path ) {
   // Install paths
-  val koka      = koka-exe-path()  
-  val version   = "v" + koka-version(koka)
-  val bindir = prefixdir + "bin".path
-  val libdir = prefixdir + "lib/koka".path + version.path
+  val koka    = koka-exe-path()  
+  val version = "v" + koka-version(koka)
+  val bindir  = prefixdir + "bin".path
+  val libdir  = prefixdir + "lib/koka".path + version.path
   
   println("installing koka:")
   println("  bin: " + bindir.string)
@@ -62,21 +62,24 @@ fun install( prefixdir : path ) {
   copy-file-to-dir(koka, bindir)
   
   // Copy std libs
+  val stdlibdir = libdir + "lib".path
   println("copy standard libraries...")
-  copy-directory("lib/std".path, libdir + "lib/std".path)
-  copy-file-to-dir("lib/toc.kk".path, libdir + "lib".path)
-  copy-file-to-dir("lib/package.std.json".path, libdir + "lib".path)
+  copy-directory("lib/std".path, stdlibdir + "std".path)
+  copy-file-to-dir("lib/toc.kk".path, stdlibdir)
+  copy-file-to-dir("lib/package.std.json".path, stdlibdir)
   
   // Copy kklib
+  val kklibdir = libdir + "kklib".path
   println("copy kklib runtime...")
-  copy-directory("kklib/src".path, libdir + "kklib/src".path)
-  copy-directory("kklib/include".path, libdir + "kklib/include".path)
-  copy-directory("kklib/mimalloc".path, libdir + "kklib/mimalloc".path)
-  copy-file-to-dir("kklib/CMakeLists.txt".path, libdir + "kklib".path)
-  copy-file-to-dir("kklib/kkmain.cmake".path, libdir + "kklib".path)
+  copy-directory("kklib/src".path, kklibdir + "src".path)
+  copy-directory("kklib/include".path, kklibdir + "include".path)
+  copy-directory("kklib/mimalloc".path, kklibdir + "mimalloc".path)
+  copy-file-to-dir("kklib/CMakeLists.txt".path, kklibdir)
+  copy-file-to-dir("kklib/kkmain.cmake".path, kklibdir)
   
   // Copy contrib
   val contribdir = libdir + "contrib".path
+  println("copy contrib...")
   ensure-dir(contribdir)
   copy-file-to-dir("contrib/biginteger.js".path, contribdir)
     

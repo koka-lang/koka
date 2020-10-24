@@ -124,7 +124,8 @@ data Flags
          , coreCheck        :: Bool
          , enableMon        :: Bool
          , semiInsert       :: Bool
-         , installDir       :: FilePath
+         , libDir           :: FilePath
+         , binDir           :: FilePath
          , kklibDir         :: FilePath
          , stdlibDir        :: FilePath
          , packages         :: Packages
@@ -180,9 +181,10 @@ flagsNull
           False -- coreCheck
           True  -- enableMonadic
           True  -- semi colon insertion
-          ""    -- install dir
-          ""    -- kklib dir   /kklib
-          ""    -- stdlib dir  /lib
+          ""    -- bin dir
+          ""    -- lib dir
+          ""    -- kklib dir   <lib>/kklib
+          ""    -- stdlib dir  <lib>/lib
           packagesEmpty -- packages
           "" -- forceModule
           True -- debug
@@ -426,24 +428,49 @@ processOptions flags0 opts
                         else if (null files) then ModeInteractive files
                                              else ModeCompiler files
              in do pkgs <- discoverPackages (outDir flags)
-                   installDir <- getInstallDir
-                   (stdlibDir,kklibDir) 
-                          <- do exist <- doesFileExist (joinPath installDir "lib/toc.kk")
-                                if (exist)
-                                  then -- from local repo
-                                       return (joinPath installDir "lib", 
-                                               joinPath installDir "kklib")  
-                                  else -- from install
-                                       return (joinPath installDir ("lib/koka/v" ++ version ++ "/lib"),
-                                               joinPath installDir ("lib/koka/v" ++ version ++ "/kklib"))
-                       
+                   (binDir,libDir,kklibDir,stdlibDir) <- getKokaDirs
                    return (flags{ packages    = pkgs,
-                                  installDir  = normalizeWith '/' installDir,
-                                  kklibDir    = normalizeWith '/' kklibDir,
-                                  stdlibDir   = normalizeWith '/' stdlibDir,
-                                  includePath = normalizeWith '/' stdlibDir : includePath flags }
+                                  binDir      = binDir,
+                                  libDir      = libDir,
+                                  kklibDir    = kklibDir,
+                                  stdlibDir   = stdlibDir,
+                                  includePath = stdlibDir : includePath flags }
                           ,mode)
         else invokeError errs
+
+getKokaDirs :: IO (FilePath,FilePath,FilePath, FilePath)
+getKokaDirs 
+  = do bin        <- getProgramPath
+       let binDir  = dirname bin
+           rootDir = rootDirFrom binDir
+       libDir0    <- getEnvVar "KOKA_LIB_DIR"
+       libDir     <- if (not (null libDir0)) then return libDir0 else 
+                     do exist <- doesFileExist (joinPath rootDir "lib/toc.kk")
+                        if (exist)
+                          then return rootDir -- from local repo                               
+                          else return (joinPath rootDir ("lib/koka/v" ++ version))  -- from install
+       kklibDir0  <- getEnvVar "KOKA_KKLIB_DIR"
+       let kklibDir = if (null kklibDir0) then joinPath libDir "kklib" else kklibDir0
+       stdlibDir0 <- getEnvVar "KOKA_STDLIB_DIR"
+       let stdlibDir = if (null stdlibDir0) then joinPath libDir "lib" else stdlibDir0
+       return (normalizeWith '/' binDir,
+               normalizeWith '/' libDir,
+               normalizeWith '/' kklibDir,
+               normalizeWith '/' stdlibDir)
+
+rootDirFrom :: FilePath -> FilePath
+rootDirFrom binDir
+ = case reverse (splitPath binDir) of
+     -- stack build
+     ("bin":_:"install":".stack-work":es)     -> joinPaths (reverse es)
+     ("bin":_:_:"install":".stack-work":es)   -> joinPaths (reverse es)
+     ("bin":_:_:_:"install":".stack-work":es) -> joinPaths (reverse es)
+     -- install
+     ("bin":es)   -> joinPaths (reverse es)
+     -- jake build
+     (_:"out":es) -> joinPaths (reverse es)
+     _            -> binDir
+    
 
 extractFlags :: Flags -> [Option] -> Flags
 extractFlags flagsInit options
@@ -463,9 +490,8 @@ extractErrors options
 getEnvOptions :: IO [String]
 getEnvOptions
   = do csc <- getEnvCsc
-       idir<- getInstallDir
        xss <- mapM getEnvOption environment
-       return (concat ({- ["--install-dir=" ++ idir]:-} csc:xss))
+       return (concat (csc:xss))
   where
     getEnvOption (envName,_,extract,_)
       = do s <- getEnvVar envName
@@ -581,9 +607,10 @@ versionMessage flags
     (if null (compiler ++ buildVariant) then "" else " (" ++ compiler ++ " " ++ buildVariant ++ " version)")
   , ""
   ])
-  <-> text "install:" <+> text (installDir flags)
-  <-> text "stdlib :" <+> text (stdlibDir flags)
-  <-> text "kklib  :" <+> text (kklibDir flags)
+  <-> text "bin   :" <+> text (binDir flags)
+  <-> text "lib   :" <+> text (libDir flags)  
+  <-> text "stdlib:" <+> text (stdlibDir flags)
+  <-> text "kklib :" <+> text (kklibDir flags)
   <->
   (color DarkGray $ vcat $ map text
   [ "Copyright (c) 2012-2020 Microsoft Corporation, by Daan Leijen."

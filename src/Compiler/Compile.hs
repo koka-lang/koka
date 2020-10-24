@@ -1164,10 +1164,9 @@ codeGenJS term flags modules compileTarget outBase core
             termPhase term ("generate index html: " ++ outHtml)
             writeDoc outHtml contentHtml
             -- copy amdefine
-            installDir <- getInstallDir
             let copyNodeModules fname
                   = let nname = "node_modules/" ++ fname
-                    in copyTextIfNewer (rebuild flags) (joinPath installDir nname) (outName flags nname)
+                    in copyTextIfNewer (rebuild flags) (joinPath (libDir flags) nname) (outName flags nname)
             mapM_ copyNodeModules ["amdefine/amdefine.js","amdefine/package.json",
                                    "requirejs/require.js","requirejs/package.json"]
 
@@ -1266,10 +1265,9 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                 
                 cmakeConfig = (cmake flags) ++ " -E chdir " ++ dquote targetDir
                                ++ " " ++ (cmake flags) ++ cmakeGeneratorFlag ++ cmakeConfigTypeFlag
-                               -- ++ " -Dkklib_DIR=" ++ dquote (kklibInstallDir ++ "/cmake")
                                ++ " -Dkk_invokedir=" ++ currentDir
-                               ++ " -Dkk_installdir=" ++ installDir flags
-                               ++ " -Dkklib_installdir=" ++ kklibDir flags
+                               ++ " -Dkk_libdir=" ++ libDir flags
+                               ++ " -Dkk_kklibdir=" ++ kklibDir flags
                                ++ (if (rebuild flags) then " -DKK_REBUILD=ON" else "")
                                ++ " " ++ cmakeArgs flags
                                ++ " ../.."

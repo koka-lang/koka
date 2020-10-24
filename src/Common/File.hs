@@ -14,7 +14,7 @@ module Common.File(
                     getEnvPaths, getEnvVar
                   , searchPaths, searchPathsEx
                   , runSystem, runSystemRaw
-                  , getProgramPath, getInstallDir
+                  , getProgramPath
 
                   -- * Strings
                   , startsWith, endsWith, splitOn
@@ -293,26 +293,6 @@ copyTextIfNewerWith always srcName outName transform
        if (ord == GT)
         then do copyTextFileWith srcName outName transform
         else do return ()
-
-
-getInstallDir :: IO FilePath
-getInstallDir
-  = do p <- getProgramPath
-       let d  = dirname p
-           ds = splitPath d
-           result = case reverse ds of
-                      -- stack build
-                      ("bin":_:"install":".stack-work":es)     -> joinPaths (reverse es)
-                      ("bin":_:_:"install":".stack-work":es)   -> joinPaths (reverse es)
-                      ("bin":_:_:_:"install":".stack-work":es) -> joinPaths (reverse es)
-                      -- install
-                      ("bin":es)   -> joinPaths (reverse es)
-                      -- jake build
-                      (_:"out":es) -> joinPaths (reverse es)
-                      _            -> d
-       -- trace ("install-dir: " ++ result ++ ": " ++ show ds) $
-       return result
-
 
 
 getProgramPath :: IO FilePath
