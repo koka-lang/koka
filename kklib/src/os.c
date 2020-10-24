@@ -68,6 +68,13 @@ fail:
   return (errno != 0 ? errno : -1);
 }
 
+
+
+/*--------------------------------------------------------------------------------------------------
+  Directories
+--------------------------------------------------------------------------------------------------*/
+
+
 /*--------------------------------------------------------------------------------------------------
   mkdir
 --------------------------------------------------------------------------------------------------*/
@@ -114,11 +121,6 @@ kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ct
   kk_string_drop(path, ctx);
   return err;
 }
-
-
-/*--------------------------------------------------------------------------------------------------
-  Directories
---------------------------------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------------------------------
   Copy File
@@ -198,18 +200,15 @@ kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, kk_context
 #include <sys/stat.h>
 
 #ifdef WIN32
-#define stat _stat
+#define stat    _stat
 #define S_IFDIR _S_IFDIR
 #define S_IFREG _S_IFREG
 #endif
 
 static bool kk_os_is_directory_cstr(const char* path) {
-  bool is_dir = false;
   struct stat finfo = { 0 };
-  if (stat(path, &finfo) == 0) {
-    is_dir = ((finfo.st_mode & S_IFDIR) != 0);
-  }
-  return is_dir;
+  if (stat(path, &finfo) != 0) return false;
+  return ((finfo.st_mode & S_IFDIR) != 0);
 }
 
 kk_decl_export bool kk_os_is_directory(kk_string_t path, kk_context_t* ctx) {
@@ -218,12 +217,14 @@ kk_decl_export bool kk_os_is_directory(kk_string_t path, kk_context_t* ctx) {
   return is_dir;
 }
 
-kk_decl_export bool kk_os_is_file(kk_string_t path, kk_context_t* ctx) {
-  bool is_file = false;
+static bool kk_os_is_file_cstr(const char* path) {
   struct stat finfo = { 0 };
-  if (stat(kk_string_cbuf_borrow(path), &finfo) == 0) {
-    is_file = ((finfo.st_mode & S_IFREG) != 0);
-  }
+  if (stat(path, &finfo) != 0) return false;
+  return ((finfo.st_mode & S_IFREG) != 0);
+}
+
+kk_decl_export bool kk_os_is_file(kk_string_t path, kk_context_t* ctx) {
+  bool is_file = kk_os_is_file_cstr(kk_string_cbuf_borrow(path));
   kk_string_drop(path, ctx);
   return is_file;
 }
@@ -325,7 +326,7 @@ kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, 
 
 
 /*--------------------------------------------------------------------------------------------------
-  Args
+  Run system command
 --------------------------------------------------------------------------------------------------*/
 
 #if defined(WIN32) || defined(__MINGW32__) 
@@ -486,15 +487,15 @@ kk_decl_export size_t kk_os_path_max(void) {
   Realpath
 --------------------------------------------------------------------------------------------------*/
 
-static kk_string_t kk_os_realpathx(const char* fname, kk_context_t* ctx);
+static kk_string_t kk_os_realpath_cstr(const char* fname, kk_context_t* ctx);
 
 #if defined(_WIN32)
 #include <Windows.h>
-static kk_string_t kk_os_realpathx(const char* fname, kk_context_t* ctx) {
+static kk_string_t kk_os_realpath_cstr(const char* fname, kk_context_t* ctx) {
   char buf[264];
   DWORD res = GetFullPathNameA(fname, 264, buf, NULL);
-  if (res >= 264) {
-    // path too long
+  if (res >= 264 || res == 0) {  
+    // path too long or failure
     // TODO: use GetFullPathNameW to allow longer file names?
     return kk_string_alloc_dup(fname, ctx);
   }
@@ -505,23 +506,23 @@ static kk_string_t kk_os_realpathx(const char* fname, kk_context_t* ctx) {
 
 #elif defined(__linux__) || defined(__CYGWIN__) || defined(__sun) || defined(unix) || defined(__unix__) || defined(__unix) || defined(__MACH__)
 #include <limits.h>
-static kk_string_t kk_os_realpathx(const char* fname, kk_context_t* ctx) {
+static kk_string_t kk_os_realpath_cstr(const char* fname, kk_context_t* ctx) {
   char* rpath   = realpath(fname, NULL);
-  kk_string_t s = kk_string_alloc_dup(rpath, ctx);
+  kk_string_t s = kk_string_alloc_dup( (rpath!=NULL ? rpath : fname), ctx);
   free(rpath);
   return s;
 }
 
 #else
 #pragma message("realpath ignored on this platform")
-static kk_string_t kk_os_realpathx(const char* fname, kk_context_t* ctx) {
+static kk_string_t kk_os_realpath_cstr(const char* fname, kk_context_t* ctx) {
   KK_UNUSED(ctx);
   return kk_string_alloc_dup(fname,ctx);
 }
 #endif
 
 kk_decl_export kk_string_t kk_os_realpath(kk_string_t fname, kk_context_t* ctx) {
-  kk_string_t p = kk_os_realpathx(kk_string_cbuf_borrow(fname), ctx);
+  kk_string_t p = kk_os_realpath_cstr(kk_string_cbuf_borrow(fname), ctx);
   kk_string_drop(fname, ctx);
   return p;
 }
@@ -539,13 +540,6 @@ kk_decl_export kk_string_t kk_os_realpath(kk_string_t fname, kk_context_t* ctx) 
 #include <unistd.h>
 #endif
 
-static bool kk_os_file_exists(const char* fname) {
-#if defined(_WIN32)
-  return (_access(fname, 4 /* R_OK */) == 0);
-#else
-  return (access(fname, F_OK) == 0);
-#endif
-}
 
 static kk_string_t kk_os_searchpathx(const char* paths, const char* fname, kk_context_t* ctx) {
   if (paths==NULL || fname==NULL || fname[0]==0) return kk_string_empty();
@@ -566,8 +560,8 @@ static kk_string_t kk_os_searchpathx(const char* paths, const char* fname, kk_co
     memcpy(buf + plen + 1, fname, fnamelen);
     buf[plen+1+fnamelen] = 0;
     p = (r == pend ? r : r + 1);
-    if (kk_os_file_exists(buf)) {
-      s = kk_os_realpathx(buf, ctx);
+    if (kk_os_is_file_cstr(buf)) {
+      s = kk_os_realpath_cstr(buf, ctx);
       break;
     }
   }
@@ -586,7 +580,7 @@ static kk_string_t kk_os_app_path_generic(kk_context_t* ctx) {
 #endif
      ) {
     // absolute path
-    return kk_os_realpathx(p, ctx);
+    return kk_os_realpath_cstr(p, ctx);
   }
   else if (strchr(p,'/') != NULL
 #ifdef _WIN32
@@ -601,7 +595,7 @@ static kk_string_t kk_os_app_path_generic(kk_context_t* ctx) {
   else {
     // basename, try to prefix with all entries in PATH
     kk_string_t s = kk_os_searchpathx(getenv("PATH"), p, ctx);
-    if (kk_string_is_empty_borrow(s)) s = kk_os_realpathx(p,ctx);
+    if (kk_string_is_empty_borrow(s)) s = kk_os_realpath_cstr(p,ctx);
     return s;
   }
 }
@@ -612,7 +606,11 @@ kk_decl_export kk_string_t kk_os_app_path(kk_context_t* ctx) {
   char buf[264];
   DWORD len = GetModuleFileNameA(NULL, buf, 264);
   buf[min(len,263)] = 0;
-  if (len < 264) {
+  if (len == 0) { 
+    // fail, fall back
+    return kk_os_app_path_generic(ctx);
+  }
+  else if (len < 264) {
     // success
     return kk_string_alloc_dup(buf, ctx);
   }
@@ -626,7 +624,9 @@ kk_decl_export kk_string_t kk_os_app_path(kk_context_t* ctx) {
       kk_string_drop(s, ctx);
       return kk_os_app_path_generic(ctx);
     }
-    return kk_string_adjust_length(s, len, ctx);
+    else {
+      return kk_string_adjust_length(s, len, ctx);
+    }
   }
 }
 #elif defined(__MACH__)
@@ -659,7 +659,7 @@ kk_string_t kk_os_app_path(kk_context_t* ctx) {
 #endif
 
 kk_string_t kk_os_app_path(kk_context_t* ctx) {
-  kk_string_t s = kk_os_realpathx(KK_PROC_SELF,ctx);
+  kk_string_t s = kk_os_realpath_cstr(KK_PROC_SELF,ctx);
   if (strcmp(kk_string_cbuf_borrow(s), KK_PROC_SELF)==0) {
     // failed? try generic search
     return kk_os_app_path_generic(ctx);
