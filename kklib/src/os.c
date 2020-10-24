@@ -166,7 +166,7 @@ static int os_copy_file(const char* from, const char* to) {
 
   int err = 0;
 #if defined(__APPLE__) || defined(__FreeBSD__)
-  if (fcopyfile(input, output, 0, COPYFILE_ALL) != 0) {
+  if (fcopyfile(inp, out, 0, COPYFILE_ALL) != 0) {
     err = errno;
   }
 #else
