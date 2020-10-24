@@ -143,25 +143,19 @@ The close performance to C++ here is a result of [Perceus](#perceus) automatical
 tranforming the fast path of the pure functional rebalancing to use mostly in-place updates,
 closely mimicking the imperative rebalancing code of the hand optimized C++ library.
 
-Without giving any input files, the interpreter runs by default:
-```
-> stack exec koka
-```
-
 The [Atom](https://atom.io/) text editor is recommended
-to edit Koka programs. You can install support for Koka programs using
+to edit Koka programs. You can install support for Koka programs in Atom by 
+running the `util/atom.kk` script:
 
-`> jake atom`
-
-(or use `jake sublime`) for the [Sublime](http://www.sublimetext.com) editor).
-If `node` is not installed, you can also copy the grammar files
-manually from the `support/atom` directory to `~/.atom/packages/language-koka`.
+`> stack exec koka -- util/atom`
 
 
 ## Running the interactive compiler
 
-After running the plain ``stack exec koka`` command, the Koka interactive environment will start:
+Without giving any input files, the interactive interpreter runs by default:
 ````
+> stack exec koka
+
  _          _           ____
 | |        | |         |__  \
 | | __ ___ | | __ __ _  __) |
