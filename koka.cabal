@@ -4,10 +4,10 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 952dcdece5fead78ebcba9432801e2ee80696242543966519d3ff7c98aa7890c
+-- hash: d8f47323199bace713f21d6fad7769c52ddfc42430905ac1c06e3cad9e152093
 
 name:           koka
-version:        2.0.0.0
+version:        2.0.0
 description:    Please see the README on GitHub at <https://github.com/koka-lang/koka#readme>
 homepage:       https://github.com/koka-lang/koka#readme
 bug-reports:    https://github.com/koka-lang/koka/issues

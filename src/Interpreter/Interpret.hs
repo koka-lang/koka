@@ -219,7 +219,7 @@ command st cmd
                        ModeHelp     -> do doc <- commandLineHelp (flags st)
                                           messagePrettyLn st doc
                                           interpreterEx st
-                       ModeVersion  -> do showVersion (printer st)
+                       ModeVersion  -> do showVersion (flags st) (printer st)
                                           messageLn st ""
                                           interpreter st
                        ModeCompiler files     -> setFlags files
@@ -447,7 +447,7 @@ showCommand st cmd
       ShowHelp         -> do messagePrettyLn st (commandHelp (colorSchemeFromFlags (flags st)))
                              showEnv (flags st) (printer st)
 
-      ShowVersion      -> do showVersion (printer st)
+      ShowVersion      -> do showVersion (flags st) (printer st)
                              messageLn st ""
 
       ShowKindSigs     -> let kgamma = {- loadedDiff kgammaDiff -} loadedKGamma (loaded st)

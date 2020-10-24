@@ -1214,13 +1214,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       case mbEntry of
        Nothing -> return Nothing
        Just _ ->
-         do let kklibDir        = installDir flags ++ "/kklib"
-                kklibInstallDir = kklibDir ++ "/out/install"
-                
-                cmakeConfigType     = configType flags
-                cmakeConfigTypeFlag = " -DCMAKE_BUILD_TYPE=" ++ cmakeConfigType
-
-            cmakeGeneratorFlag  -- prefer Ninja if available
+         do cmakeGeneratorFlag  -- prefer Ninja if available
               <- if onWindows then return " -G Ninja"  -- we must use Ninja on windows (as we cannot handle multi-config cmake)
                   else do paths   <- getEnvPaths "PATH"
                           mbNinja <- searchPaths paths [exeExtension] "ninja"
@@ -1230,10 +1224,10 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                             Nothing    -> return ""
               
             checkCMake term flags
-            -- installKKLib term flags kklibDir kklibInstallDir cmakeGeneratorFlag cmakeConfigTypeFlag configType
             currentDir <- getCurrentDirectory
-            installDir <- getInstallDir
-
+            -- kklibInstallDir = joinPath kklibDir "out/install"            
+            -- installKKLib term flags kklibDir kklibInstallDir cmakeGeneratorFlag cmakeConfigTypeFlag configType
+            
             let mainModName= showModName (Core.coreProgName core0)
                 mainName   = if null (exeName flags) then mainModName else exeName flags
 
@@ -1266,20 +1260,23 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             let -- using -S and -B is more neat, but not available before cmake 3.15 (so we use chdir)
                 cmakeLists  = outDir flags ++ "/CMakeLists.txt"
                 cmakeInc    = joinPath (outDir flags) (mainModName ++ ".cmake")
-            
+                
+                cmakeConfigType     = configType flags
+                cmakeConfigTypeFlag = " -DCMAKE_BUILD_TYPE=" ++ cmakeConfigType
+                
                 cmakeConfig = (cmake flags) ++ " -E chdir " ++ dquote targetDir
                                ++ " " ++ (cmake flags) ++ cmakeGeneratorFlag ++ cmakeConfigTypeFlag
                                -- ++ " -Dkklib_DIR=" ++ dquote (kklibInstallDir ++ "/cmake")
                                ++ " -Dkk_invokedir=" ++ currentDir
-                               ++ " -Dkk_installdir=" ++ installDir
+                               ++ " -Dkk_installdir=" ++ installDir flags
+                               ++ " -Dkklib_installdir=" ++ kklibDir flags
                                ++ (if (rebuild flags) then " -DKK_REBUILD=ON" else "")
                                ++ " " ++ cmakeArgs flags
                                ++ " ../.."
                                
-                cmakeBuild  = (cmake flags) ++ " --build " ++ dquote targetDir ++ " --target " ++ mainName
+                cmakeBuild  = (cmake flags) ++ " --build " ++ dquote targetDir ++ " --target " ++ mainName  
                 
-                kklibDir    = (joinPath installDir "kklib")
-                kkmainCmake = (joinPath kklibDir "kkmain.cmake")
+                kkmainCmake = joinPath (kklibDir flags) "kkmain.cmake"
                 
             -- write top CMakeLists
             copyTextIfNewerWith (rebuild flags) kkmainCmake cmakeLists 
@@ -1306,8 +1303,9 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                   
             termDoc term $ text "compiled:" <+> text (normalize finalExe)
             let cmdflags = if (showElapsed flags) then " --kktime" else ""
-            return (Just (runSystem (dquote finalExe ++ cmdflags)))
+            return (Just (runSystem (dquote finalExe ++ cmdflags ++ " " ++ execOpts flags)))
 
+{-
 installKKLib :: Terminal -> Flags -> FilePath -> FilePath -> String -> String -> String -> IO ()
 installKKLib term flags kklibDir kklibInstallDir cmakeGeneratorFlag cmakeConfigType configType
   = do let cmakeFile =  kklibInstallDir ++ "/cmake/kklib-config-" ++ configType ++ ".cmake"
@@ -1326,6 +1324,7 @@ installKKLib term flags kklibDir kklibInstallDir cmakeGeneratorFlag cmakeConfigT
                 runSystemEcho cmakeConfig
                 runSystemEcho cmakeBuild
                 runSystemEcho cmakeInstall
+-}
 
 -- emit helpful messages if dependencies are not installed (cmake etc)
 checkCMake :: Terminal -> Flags -> IO ()

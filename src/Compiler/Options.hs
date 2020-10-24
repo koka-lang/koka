@@ -24,6 +24,7 @@ module Compiler.Options( -- * Command line options
 import Data.Char              ( toUpper )
 import Data.List              ( intersperse )
 import System.Environment     ( getArgs )
+import System.Directory ( doesFileExist )
 import Platform.GetOptions
 import Platform.Config        ( pathDelimiter, version, compiler, buildTime, buildVariant, exeExtension, programName )
 import Lib.PPrint
@@ -94,6 +95,7 @@ data Flags
          , showTypeSigs     :: Bool
          , showElapsed      :: Bool
          , evaluate         :: Bool
+         , execOpts         :: String
          , library          :: Bool
          , target           :: Target
          , host             :: Host
@@ -123,6 +125,8 @@ data Flags
          , enableMon        :: Bool
          , semiInsert       :: Bool
          , installDir       :: FilePath
+         , kklibDir         :: FilePath
+         , stdlibDir        :: FilePath
          , packages         :: Packages
          , forceModule      :: FilePath
          , debug            :: Bool      -- emit debug info
@@ -147,6 +151,7 @@ flagsNull
           False -- typesigs
           False -- show elapsed time
           True  -- executes
+          ""    -- execution options
           False -- library
           C     -- target
           Node  -- js host
@@ -176,6 +181,8 @@ flagsNull
           True  -- enableMonadic
           True  -- semi colon insertion
           ""    -- install dir
+          ""    -- kklib dir   /kklib
+          ""    -- stdlib dir  /lib
           packagesEmpty -- packages
           "" -- forceModule
           True -- debug
@@ -405,10 +412,14 @@ getOptions extra
 
 processOptions :: Flags -> [String] -> IO (Flags,Mode)
 processOptions flags0 opts
-  = let (options,files,errs0) = getOpt Permute optionsAll opts
+  = let (preOpts,postOpts) = span (/="--") opts
+        flags1 = case postOpts of
+                   [] -> flags0
+                   (_:rest) -> flags0{ execOpts = concat (map (++" ") rest) }                   
+        (options,files,errs0) = getOpt Permute optionsAll preOpts
         errs = errs0 ++ extractErrors options
     in if (null errs)
-        then let flags = extractFlags flags0 options
+        then let flags = extractFlags flags1 options
                  mode = if (any isHelp options) then ModeHelp
                         else if (any isVersion options) then ModeVersion
                         else if (any isInteractive options) then ModeInteractive files
@@ -416,9 +427,21 @@ processOptions flags0 opts
                                              else ModeCompiler files
              in do pkgs <- discoverPackages (outDir flags)
                    installDir <- getInstallDir
-                   return (flags{ packages = pkgs,
-                                  installDir = normalizeWith '/' installDir,
-                                  includePath = joinPath installDir "lib":includePath flags }
+                   (stdlibDir,kklibDir) 
+                          <- do exist <- doesFileExist (joinPath installDir "lib/toc.kk")
+                                if (exist)
+                                  then -- from local repo
+                                       return (joinPath installDir "lib", 
+                                               joinPath installDir "kklib")  
+                                  else -- from install
+                                       return (joinPath installDir ("lib/koka/v" ++ version ++ "/lib"),
+                                               joinPath installDir ("lib/koka/v" ++ version ++ "/kklib"))
+                       
+                   return (flags{ packages    = pkgs,
+                                  installDir  = normalizeWith '/' installDir,
+                                  kklibDir    = normalizeWith '/' kklibDir,
+                                  stdlibDir   = normalizeWith '/' stdlibDir,
+                                  includePath = normalizeWith '/' stdlibDir : includePath flags }
                           ,mode)
         else invokeError errs
 
@@ -546,21 +569,24 @@ environmentInfo colors
             else return (name,text s)
 
 
-showVersion :: Printer p => p -> IO ()
-showVersion p
-  = writePrettyLn p versionMessage
+showVersion :: Printer p => Flags -> p -> IO ()
+showVersion flags p
+  = writePrettyLn p (versionMessage flags)
 
-versionMessage :: Doc
-versionMessage
+versionMessage :: Flags -> Doc
+versionMessage flags
   =
   (vcat $ map text $
   [ capitalize programName ++ " " ++ version ++ ", " ++ buildTime ++
     (if null (compiler ++ buildVariant) then "" else " (" ++ compiler ++ " " ++ buildVariant ++ " version)")
   , ""
   ])
+  <-> text "install:" <+> text (installDir flags)
+  <-> text "stdlib :" <+> text (stdlibDir flags)
+  <-> text "kklib  :" <+> text (kklibDir flags)
   <->
   (color DarkGray $ vcat $ map text
-  [ "Copyright (c) 2012-2016 Microsoft Corporation, by Daan Leijen."
+  [ "Copyright (c) 2012-2020 Microsoft Corporation, by Daan Leijen."
   , "This program is free software; see the source for copying conditions."
   , "This program is distributed in the hope that it will be useful,"
   , "but without any warranty; without even the implied warranty"
