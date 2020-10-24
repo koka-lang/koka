@@ -81,14 +81,17 @@ fail:
 #define os_mkdir(p,m)  mkdir(p,m)
 #endif
 
-#ifndef S_IRWXU
-#define S_IRWXU  (7)
-#endif
 
 kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ctx) 
 {
   int err = 0;
-  if (mode < 0) mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+  if (mode < 0) {
+#if defined(S_IRWXU)
+    mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+#else
+    mode = 0755;
+#endif
+  }
   path = kk_string_copy(path, ctx); // copy so we can mutate
   char* cpath = (char*)kk_string_cbuf_borrow(path);
   char* p = cpath;
@@ -156,7 +159,7 @@ static int os_copy_file(const char* from, const char* to) {
     close(inp);
     return errno;
   }      
-  if ((out = creat(to, finfo.st_mode)) == -1) {
+  if ((out = creat(to, finfo.st_mode)) == -1) {  // keep the mode
     close(inp);
     return errno;
   }
