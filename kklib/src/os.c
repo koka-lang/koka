@@ -10,6 +10,9 @@
 #endif
 #include "kklib.h"
 
+
+static bool kk_os_is_directory_cstr(const char* path);
+
 /*--------------------------------------------------------------------------------------------------
   Text files
 --------------------------------------------------------------------------------------------------*/
@@ -85,19 +88,23 @@ fail:
 kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ctx) 
 {
   int err = 0;
-  if (mode < 0) mode = S_IRWXU;
+  if (mode < 0) mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
   path = kk_string_copy(path, ctx); // copy so we can mutate
   char* cpath = (char*)kk_string_cbuf_borrow(path);
   char* p = cpath;
   do {
     char c = *p;
     if (c == 0 || c == '/' || c == '\\') {
-      *p = 0; 
-      int res = os_mkdir(cpath, mode);
-      *p = c;
-      if (res != 0 && errno != EEXIST) {
-        err = errno;
+      *p = 0;
+      if (cpath[0]!=0) {
+	if (!kk_os_is_directory_cstr(cpath)) {
+          int res = os_mkdir(cpath, mode);
+          if (res != 0 && errno != EEXIST) {
+            err = errno;
+	  }
+	}
       }
+      *p = c;
     }
   } while (err == 0 && *p++ != 0);
 
@@ -129,6 +136,8 @@ static int os_copy_file(const char* from, const char* to) {
   }
 }
 #else
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #if defined(__APPLE__) || defined(__FreeBSD__)
@@ -139,10 +148,15 @@ static int os_copy_file(const char* from, const char* to) {
 
 static int os_copy_file(const char* from, const char* to) {
   int inp, out;
+  struct stat finfo = { 0 };
   if ((inp = open(from, O_RDONLY)) == -1) {
     return errno;
   }
-  if ((out = creat(to, 0660)) == -1) {
+  if (fstat(inp, &finfo) < 0) { 
+    close(inp);
+    return errno;
+  }      
+  if ((out = creat(to, finfo.st_mode)) == -1) {
     close(inp);
     return errno;
   }
@@ -155,8 +169,6 @@ static int os_copy_file(const char* from, const char* to) {
 #else
   // Linux
   off_t copied = 0;
-  struct stat finfo = { 0 };
-  fstat(inp, &finfo);
   if (sendfile(out, inp, &copied, finfo.st_size) == -1) {
     err = errno;
   }
@@ -188,13 +200,18 @@ kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, kk_context
 #define S_IFREG _S_IFREG
 #endif
 
-kk_decl_export bool kk_os_is_directory(kk_string_t path, kk_context_t* ctx) {
+static bool kk_os_is_directory_cstr(const char* path) {
   bool is_dir = false;
   struct stat finfo = { 0 };
-  if (stat(kk_string_cbuf_borrow(path), &finfo) == 0) {
-    is_dir = ((finfo.st_mode & _S_IFDIR) != 0);
+  if (stat(path, &finfo) == 0) {
+    is_dir = ((finfo.st_mode & S_IFDIR) != 0);
   }
-  kk_string_drop(path, ctx);
+  return is_dir;
+}
+
+kk_decl_export bool kk_os_is_directory(kk_string_t path, kk_context_t* ctx) {
+  bool is_dir = kk_os_is_directory_cstr(kk_string_cbuf_borrow(path));
+  kk_string_drop(path,ctx);
   return is_dir;
 }
 
@@ -202,7 +219,7 @@ kk_decl_export bool kk_os_is_file(kk_string_t path, kk_context_t* ctx) {
   bool is_file = false;
   struct stat finfo = { 0 };
   if (stat(kk_string_cbuf_borrow(path), &finfo) == 0) {
-    is_file = ((finfo.st_mode & _S_IFREG) != 0);
+    is_file = ((finfo.st_mode & S_IFREG) != 0);
   }
   kk_string_drop(path, ctx);
   return is_file;
@@ -246,7 +263,7 @@ static const char* os_direntry_name(dir_entry* entry) {
 #define dir_entry  struct dirent*
 static bool os_findnext(dir_cursor d, dir_entry* entry, int* err) {
   *entry = readdir(d);
-  *err = (*entry != NULL ? 0 : errno);
+  *err = (*entry != NULL || errno == ENOENT ? 0 : errno);
   return (*entry != NULL);
 }
 static bool os_findfirst(const char* path, dir_cursor* d, dir_entry* entry, int* err, kk_context_t* ctx) {
@@ -326,6 +343,7 @@ kk_decl_export int kk_os_run_command(kk_string_t cmd, kk_string_t* output, kk_co
     buf[1024] = 0; // paranoia
     out = kk_string_cat_fromc(out, buf, ctx);
   }
+  if (feof(f)) errno = 0;
   pclose(f);
   *output = out;
   return errno;

@@ -38,14 +38,6 @@ public fun copy-directory( dir : path, to : path ) : <file,pure> () {
   dirs.foreach( fn(d){ copy-directory( d, to + d.nodir ) } )
 }
 
-fun error( errs : list<error<()>> ) : error<()> {
-  match(errs) {
-    Nil           -> Ok(())
-    Cons(Ok,rest) -> error(rest)
-    Cons(err)     -> err
-  }
-}
-
 // Read a text file synchronously (using UTF8 encoding)
 public fun read-text-file( path : path ) : <file,exn> string {
   match(read-text-file-err(path.string)) {
