@@ -268,12 +268,12 @@ Some interesting demos are:
 
 # Installing the compiler
 
-The Koka compiler can be installed using:
+The Koka compiler can be installed locally using:
 ```
 > stack exec koka -- util/install
 ```
 
-You can now directly invoke `koka`:
+such that you can now directly invoke `koka`:
 
 ```
 > koka --version
