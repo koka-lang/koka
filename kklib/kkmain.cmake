@@ -28,12 +28,13 @@ set(CMAKE_RELWITHDEBINFO_POSTFIX "d")
 if(NOT DEFINED kk_invokedir)
   set(kk_invokedir "${CMAKE_CURRENT_LIST_DIR}/..")
 endif()
-if(NOT DEFINED kk_libdir)
-  set(kk_libdir "${kk_invokedir}")
-endif()
 if(NOT DEFINED kk_kklibdir)
-  set(kk_kklibdir "${kk_libdir}/kklib")
+  set(kk_kklibdir "${kk_invokedir}/kklib")
 endif()
+if(NOT DEFINED kk_libdir)
+  set(kk_libdir "${kk_kklibdir}/..")
+endif()
+
 # message(STATUS "local build dir : ${CMAKE_CURRENT_LIST_DIR}")
 
 # -----------------------------------------------------------------------------

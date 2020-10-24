@@ -1266,7 +1266,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                 cmakeConfig = (cmake flags) ++ " -E chdir " ++ dquote targetDir
                                ++ " " ++ (cmake flags) ++ cmakeGeneratorFlag ++ cmakeConfigTypeFlag
                                ++ " -Dkk_invokedir=" ++ currentDir
-                               ++ " -Dkk_libdir=" ++ libDir flags
+                               -- ++ " -Dkk_libdir=" ++ libDir flags
                                ++ " -Dkk_kklibdir=" ++ kklibDir flags
                                ++ (if (rebuild flags) then " -DKK_REBUILD=ON" else "")
                                ++ " " ++ cmakeArgs flags
