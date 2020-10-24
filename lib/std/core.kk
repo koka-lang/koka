@@ -424,7 +424,7 @@ fun take( xs : list<a>, n : int ) : list<a> {
 fun drop( xs : list<a>, n : int ) : list<a> {
   match(xs) {
     Cons(_,xx) | n > 0 -> drop(xx, n - 1)
-    _ -> Nil    
+    _ -> xs    
   }
 }
 
@@ -590,11 +590,11 @@ fun remove( xs : list<a>, pred : a -> bool ) : list<a> {
 // Partition a list in two lists where the first list contains
 // those elements that satisfy the given predicate `pred`.
 // For example: `partition([1,2,3],odd?) == ([1,3],[2])`
-fun partition( xs : list<a>, pred : a -> bool ) : (list<a>,list<a>) {
+fun partition( xs : list<a>, pred : a -> e bool ) : e (list<a>,list<a>) {
   partition-acc( xs, pred, Nil, Nil)
 }
 
-private fun partition-acc( xs : list<a>, pred : a -> bool, acc1 : list<a>, acc2 : list<a> ) : (list<a>, list<a>) {
+private fun partition-acc( xs : list<a>, pred : a -> e bool, acc1 : list<a>, acc2 : list<a> ) : e (list<a>, list<a>) {
   match(xs) {
     Nil -> (acc1.reverse, acc2.reverse)
     Cons(x,xx) -> if (pred(x))
@@ -2438,12 +2438,12 @@ fun todo( message : string ) : () {
 // Exceptions
 effect exn {
   // Throw an exception
-  control throw-exn( exn : exception ) : a
+  except throw-exn( exn : exception ) : a
 }
 
 fun ".default-exn"(action) {
   handle( action ) {
-    control throw-exn( exn : exception ) {
+    except throw-exn( exn : exception ) {
       "uncaught exception: ".prints
       show(exn).println
     }
@@ -2486,7 +2486,7 @@ fun error-pattern(location : string, definition : string) : exn a {
 // Catch any exception raised in `action` and handle it.
 // Use `on-exn` or `on-exit` when appropiate.
 fun try( action : () -> <exn|e> a, hndl: exception -> e a ) : e a {
-  with control throw-exn(exn){ hndl(exn) }
+  with except throw-exn(exn){ hndl(exn) }
   action()
 }
 

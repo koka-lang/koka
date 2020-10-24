@@ -35,8 +35,15 @@ kk_function_t kk_function_null(kk_context_t* ctx) {
 
 
 // null functions
-void kk_free_fun_null(void* p) {
+void kk_free_fun_null(void* p, kk_block_t* b) {
   KK_UNUSED(p);
+  KK_UNUSED(b);
+}
+
+// free memory
+void kk_free_fun(void* p, kk_block_t* b) {
+  KK_UNUSED(b);
+  kk_free(p);
 }
 
 

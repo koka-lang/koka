@@ -4,8 +4,7 @@ Welcome to Koka. This manual provides an overview and formal specification of th
 For more background information, see:
 
 * The [library documentation][libraries].
-* The [Koka research page][kokaproject] and the [slides] of a talk presented Lang.Next (April 2012).
-* The [source code][kokarepo] of the Koka compiler.
+* The [github repository][kokarepo].
 * The article _Algebraic Effects for Functional Programming_ [@Leijen:algeff] about the algebraic effects in Koka.
 * An article about the type system and semantics of Koka [@Leijen:msfp].
 
@@ -68,7 +67,7 @@ and run the resulting executable:
 
 If you leave out the ``-c`` flag, Koka will execute the compiled program automatically.
 The ``-O2`` flag builds an optimized program. Let's try it on a functional implementation
-of balanced insertion in a red-black tree balanced ([`rbtree.kk`](test/bench/koka/rbtree.kk))
+of balanced insertion in a red-black tree balanced ([`rbtree.kk`](https://github.com/koka-lang/koka/tree/master/test/bench/koka/rbtree.kk))
 
     > stack exec koka -- -O2 -c test/bench/koka/rbtree32.kk
     ...
@@ -81,8 +80,8 @@ of balanced insertion in a red-black tree balanced ([`rbtree.kk`](test/bench/kok
     real    0m1.132s
 
 We can compare this against an in-place updating C++ implementation using ``stl::map``
-([``rbtree.cpp``](test/bench/cpp/rbtree.cpp)) (which uses the GNU
-[``RBTree``](https://sourceware.org/git/?p=glibc.git;a=blob;f=misc/tsearch.c;h=cdc401a4e5411221ab2feb2baf8745991bde7868;hb=HEAD) implementation internally):
+([``rbtree.cpp``](https://github.com/koka-lang/koka/tree/master/test/bench/cpp/rbtree.cpp)) (which uses the GNU C++
+[``tree.cc``](https://code.woboq.org/gcc/libstdc++-v3/src/c++98/tree.cc.html) implementation internally):
 
     > g++ --std=c++17 -o cpp_rbtree -O3 test/bench/cpp/rbtree.cpp
     > time ./cpp_rbtree
@@ -91,7 +90,7 @@ We can compare this against an in-place updating C++ implementation using ``stl:
     ...
 
 The close performance to C++ here is a result of [Perceus](#perceus) automatically
-tranforming the fast path of the pure functional rebalancing to use mostly in-place updates,
+transforming the fast path of the pure functional rebalancing to use mostly in-place updates,
 closely mimicking the imperative rebalancing code of the hand optimized C++ library.
 
 Without giving any input files, the interpreter runs by default:

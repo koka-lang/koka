@@ -25,7 +25,7 @@ fun extend(queen : int32, acc : solutions, xss : solutions ) : div solutions {
 }
 
 fun findSolutions( n : int32, queen : int32 ) : div solutions {
-  if (queen.zero?) 
+  if (queen.is-zero) 
    then [[]]
    else extend(n,[], findSolutions(n,queen.dec))  
 }

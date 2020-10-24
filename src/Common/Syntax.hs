@@ -100,13 +100,14 @@ isHandlerNormal _ = False
 
 
 data OperationSort 
-  = OpVal | OpFun | OpControlRaw | OpControl
+  = OpVal | OpFun | OpExcept | OpControlRaw | OpControl
   deriving (Eq,Ord)
   
 instance Show OperationSort where
   show opsort = case opsort of
                   OpVal -> "val"
                   OpFun -> "fun"
+                  OpExcept -> "except"
                   OpControlRaw -> "rcontrol"
                   OpControl -> "control"
   
@@ -115,6 +116,7 @@ readOperationSort s
   = case s of 
       "val" -> Just OpVal
       "fun" -> Just OpFun
+      "except"   -> Just OpExcept
       "rcontrol" -> Just OpControlRaw
       "control"  -> Just OpControl
       _ -> Nothing

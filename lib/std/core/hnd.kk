@@ -173,6 +173,7 @@ public extern ".evv-is-affine"() : bool {
   js inline "$std_core_hnd._evv_cfc()<=2"
 }
 
+
 // -------------------------------------------
 // Internal Yielding
 // -------------------------------------------

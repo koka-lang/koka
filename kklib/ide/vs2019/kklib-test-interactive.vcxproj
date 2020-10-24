@@ -157,6 +157,8 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\out\Debug\effects_dash_and_dash_types.c" />
+    <ClCompile Include="..\..\..\out\Debug\exn_dash_get.c" />
     <ClCompile Include="..\..\..\out\Debug\interactive.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core_hnd.c" />
@@ -181,6 +183,10 @@
     <ClCompile Include="..\..\..\out\Debug\std_time_utc.c" />
     <ClCompile Include="..\..\..\out\Debug\test_algeff_common.c" />
     <ClCompile Include="..\..\..\out\Debug\test_algeff_scoped.c" />
+    <ClCompile Include="..\..\..\out\Debug\test_effbayes_benchmark.c" />
+    <ClCompile Include="..\..\..\out\Debug\test_effbayes_climate_dash_change.c" />
+    <ClCompile Include="..\..\..\out\Debug\test_effbayes_climate_dash_experiments.c" />
+    <ClCompile Include="..\..\..\out\Debug\test_effbayes_data_preprocessing.c" />
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_effects_dash_and_dash_types.c" />
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_exn_dash_get.c" />
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_exponents.c" />
@@ -188,6 +194,7 @@
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_main.c" />
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_model_dash_resources.c" />
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_output_dash_and_dash_plot.c" />
+    <ClCompile Include="..\..\..\out\Debug\test_effbayes_pmmh.c" />
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_sampling.c" />
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_sequential.c" />
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_trace.c" />

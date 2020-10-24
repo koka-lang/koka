@@ -73,7 +73,7 @@ mainMode flags mode p
      ModeHelp
       -> showHelp flags p
      ModeVersion
-      -> showVersion p
+      -> showVersion flags p
      ModeCompiler files
       -> mapM_ (compile p flags) files
      ModeInteractive files

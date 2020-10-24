@@ -117,7 +117,7 @@ associateComments lexs
              -> l : scan ls
           [] -> []
       where
-        docKeyword = ["fun","function","val"
+        docKeyword = ["fun","function","val","control","rcontrol","except"
                      ,"type","cotype","rectype","effect","struct","con","alias"
                      ,"extern","external","module"
                      ]                     
