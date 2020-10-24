@@ -590,11 +590,11 @@ fun remove( xs : list<a>, pred : a -> bool ) : list<a> {
 // Partition a list in two lists where the first list contains
 // those elements that satisfy the given predicate `pred`.
 // For example: `partition([1,2,3],odd?) == ([1,3],[2])`
-fun partition( xs : list<a>, pred : a -> bool ) : (list<a>,list<a>) {
+fun partition( xs : list<a>, pred : a -> e bool ) : e (list<a>,list<a>) {
   partition-acc( xs, pred, Nil, Nil)
 }
 
-private fun partition-acc( xs : list<a>, pred : a -> bool, acc1 : list<a>, acc2 : list<a> ) : (list<a>, list<a>) {
+private fun partition-acc( xs : list<a>, pred : a -> e bool, acc1 : list<a>, acc2 : list<a> ) : e (list<a>, list<a>) {
   match(xs) {
     Nil -> (acc1.reverse, acc2.reverse)
     Cons(x,xx) -> if (pred(x))

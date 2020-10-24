@@ -163,6 +163,19 @@ kk_string_t kk_string_cat(kk_string_t s1, kk_string_t s2, kk_context_t* ctx) {
   return t;
 }
 
+kk_string_t kk_string_cat_fromc(kk_string_t s1, const char* s2, kk_context_t* ctx) {
+  if (s2 == NULL || *s2 == 0) return s1;
+  const size_t len1 = kk_string_len_borrow(s1);
+  const size_t len2 = strlen(s2);
+  kk_string_t t = kk_string_alloc_buf(len1 + len2, ctx);
+  uint8_t* p = (uint8_t*)kk_string_buf_borrow(t);
+  memcpy(p, kk_string_buf_borrow(s1), len1);
+  memcpy(p+len1, s2, len2);
+  kk_assert_internal(p[len1+len2] == 0);
+  kk_string_drop(s1, ctx);
+  return t;
+}
+
 kk_vector_t kk_string_splitv(kk_string_t s, kk_string_t sep, kk_context_t* ctx) {
   return kk_string_splitv_atmost(s, sep, UINT32_MAX, ctx);
 }

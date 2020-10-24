@@ -42,13 +42,15 @@ message(STATUS "local build dir : ${CMAKE_CURRENT_LIST_DIR}")
 # kklib support library
 # -----------------------------------------------------------------------------
 
-if (KK_USE_KKLIB_PACKAGE MATCHES ON)
+if (KK_USE_KKLIB_PACKAGE MATCHES ON) 
   # use installed kklib as a package
   find_package(kklib 1.0 REQUIRED)
 else()  
   # We copy the sources and compile as part of the modules (so all configuration is consistent).
-  if (NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/kklib/CMakeLists.txt" OR (KK_REBUILD MATCHES ON))
-    message(STATUS "install: kklib")
+  if ((NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/kklib/CMakeLists.txt") OR
+      (KK_REBUILD MATCHES ON) OR
+      ("${kklib_installdir}/CMakeLists.txt" IS_NEWER_THAN "${CMAKE_CURRENT_LIST_DIR}/kklib/CMakeLists.txt"))
+    message(STATUS "install kklib from: ${kklib_installdir}" )
     execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory "${kklib_installdir}/src" "${CMAKE_CURRENT_LIST_DIR}/kklib/src")
     execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory "${kklib_installdir}/include" "${CMAKE_CURRENT_LIST_DIR}/kklib/include")
     execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory "${kklib_installdir}/mimalloc" "${CMAKE_CURRENT_LIST_DIR}/kklib/mimalloc")

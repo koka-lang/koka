@@ -1024,6 +1024,20 @@ static inline kk_vector_t kk_vector_unbox(kk_box_t v, kk_context_t* ctx) {
 }
 
 
+static inline kk_vector_t kk_vector_realloc(kk_vector_t vec, size_t newlen, kk_box_t def, kk_context_t* ctx) {
+  size_t len;
+  kk_box_t* src = kk_vector_buf(vec, &len);
+  if (len == newlen) return vec;
+  kk_vector_t vdest = kk_vector_alloc(newlen, def, ctx);
+  kk_box_t* dest    = kk_vector_buf(vdest,NULL);
+  const size_t n = (len > newlen ? newlen : len);
+  for (size_t i = 0; i < n; i++) {
+    dest[i] = kk_box_dup(src[i]);
+  }
+  kk_vector_drop(vec, ctx);
+  return vdest;
+}
+
 /*--------------------------------------------------------------------------------------
   References
 --------------------------------------------------------------------------------------*/

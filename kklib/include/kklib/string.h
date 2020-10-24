@@ -432,6 +432,7 @@ static inline bool kk_string_is_neq(kk_string_t s1, kk_string_t s2, kk_context_t
 }
 
 kk_decl_export kk_string_t kk_string_cat(kk_string_t s1, kk_string_t s2, kk_context_t* ctx);
+kk_decl_export kk_string_t kk_string_cat_fromc(kk_string_t s1, const char* s2, kk_context_t* ctx);
 
 kk_decl_export kk_string_t kk_string_from_char(kk_char_t c, kk_context_t* ctx);
 kk_decl_export kk_string_t kk_string_from_chars(kk_vector_t v, kk_context_t* ctx);

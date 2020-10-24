@@ -82,7 +82,7 @@ fail:
 #define S_IRWXU  (7)
 #endif
 
-kk_decl_export int kk_os_ensure_path(kk_string_t path, int mode, kk_context_t* ctx) 
+kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ctx) 
 {
   int err = 0;
   if (mode < 0) mode = S_IRWXU;
@@ -104,6 +104,240 @@ kk_decl_export int kk_os_ensure_path(kk_string_t path, int mode, kk_context_t* c
   kk_string_drop(path, ctx);
   return err;
 }
+
+
+/*--------------------------------------------------------------------------------------------------
+  Directories
+--------------------------------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------------------------------
+  Copy File
+--------------------------------------------------------------------------------------------------*/
+
+#if defined(WIN32) || defined(__MINGW32__)
+#include <Windows.h>
+static int os_copy_file(const char* from, const char* to) {
+  if (!CopyFileA(from, to, FALSE)) {
+    DWORD err = GetLastError();
+    if (err == ERROR_FILE_NOT_FOUND) return ENOENT;
+    else if (err == ERROR_ACCESS_DENIED) return EPERM;
+    else if (err == ERROR_PATH_NOT_FOUND) return ENOTDIR;
+    else return EINVAL;
+  }
+  else {
+    return 0;
+  }
+}
+#else
+#include <fcntl.h>
+#include <unistd.h>
+#if defined(__APPLE__) || defined(__FreeBSD__)
+#include <copyfile.h>
+#else
+#include <sys/sendfile.h>
+#endif
+
+static int os_copy_file(const char* from, const char* to) {
+  int inp, out;
+  if ((inp = open(from, O_RDONLY)) == -1) {
+    return errno;
+  }
+  if ((out = creat(to, 0660)) == -1) {
+    close(inp);
+    return errno;
+  }
+
+  int err = 0;
+#if defined(__APPLE__) || defined(__FreeBSD__)
+  if (fcopyfile(input, output, 0, COPYFILE_ALL) != 0) {
+    err = errno;
+  }
+#else
+  // Linux
+  off_t copied = 0;
+  struct stat finfo = { 0 };
+  fstat(inp, &finfo);
+  if (sendfile(out, inp, &copied, finfo.st_size) == -1) {
+    err = errno;
+  }
+#endif
+
+  close(inp);
+  close(out);
+  return err;
+}
+#endif
+
+kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, kk_context_t* ctx) {
+  int err = os_copy_file(kk_string_cbuf_borrow(from), kk_string_cbuf_borrow(to));
+  kk_string_drop(from,ctx);
+  kk_string_drop(to,ctx);
+  return err;
+}
+
+
+/*--------------------------------------------------------------------------------------------------
+  Stat directory
+--------------------------------------------------------------------------------------------------*/
+#include <sys/types.h>
+#include <sys/stat.h>
+
+#ifdef WIN32
+#define stat _stat
+#define S_IFDIR _S_IFDIR
+#define S_IFREG _S_IFREG
+#endif
+
+kk_decl_export bool kk_os_is_directory(kk_string_t path, kk_context_t* ctx) {
+  bool is_dir = false;
+  struct stat finfo = { 0 };
+  if (stat(kk_string_cbuf_borrow(path), &finfo) == 0) {
+    is_dir = ((finfo.st_mode & _S_IFDIR) != 0);
+  }
+  kk_string_drop(path, ctx);
+  return is_dir;
+}
+
+kk_decl_export bool kk_os_is_file(kk_string_t path, kk_context_t* ctx) {
+  bool is_file = false;
+  struct stat finfo = { 0 };
+  if (stat(kk_string_cbuf_borrow(path), &finfo) == 0) {
+    is_file = ((finfo.st_mode & _S_IFREG) != 0);
+  }
+  kk_string_drop(path, ctx);
+  return is_file;
+}
+
+/*--------------------------------------------------------------------------------------------------
+  List directory
+--------------------------------------------------------------------------------------------------*/
+
+#if defined(WIN32)
+#include <io.h>
+#define dir_cursor intptr_t
+#define dir_entry  struct _finddata_t
+static bool os_findfirst(const char* path, dir_cursor* d, dir_entry* entry, int* err, kk_context_t* ctx) {
+  kk_string_t s = kk_string_alloc_buf(strlen(path) + 2, ctx);
+  char* buf = (char*)kk_string_buf_borrow(s);
+  strcpy(buf, path);
+  strcat(buf, "/*");
+  *d = _findfirst(buf, entry);
+  kk_string_drop(s,ctx);
+  bool ok = (*d != -1);
+  *err = (ok ? 0 : errno);
+  return ok;
+}
+static bool os_findnext(dir_cursor d, dir_entry* entry, int* err) {
+  bool ok = (_findnext(d, entry) == 0);
+  *err = (ok || errno == ENOENT ? 0 : errno);
+  return ok;
+}
+static void os_findclose(dir_cursor d) {
+  _findclose(d);
+}
+static const char* os_direntry_name(dir_entry* entry) {
+  return entry->name;
+}
+
+#else
+#include <sys/types.h>
+#include <dirent.h>
+#define dir_cursor DIR*
+#define dir_entry  struct dirent*
+static bool os_findnext(dir_cursor d, dir_entry* entry, int* err) {
+  *entry = readdir(d);
+  *err = (*entry != NULL ? 0 : errno);
+  return (*entry != NULL);
+}
+static bool os_findfirst(const char* path, dir_cursor* d, dir_entry* entry, int* err, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+  *d = opendir(path);
+  if (*d == NULL) {
+    *err = errno;
+    return false;
+  }
+  else {
+    return os_findnext(*d, entry, err);
+  }
+}
+static void os_findclose(dir_cursor d) {
+  closedir(d);
+}
+static const char* os_direntry_name(dir_entry* entry) {
+  return (*entry)->d_name;
+}
+#endif
+
+kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, kk_context_t* ctx) {
+  dir_cursor d;
+  dir_entry entry;
+  int err;
+  bool ok = os_findfirst(kk_string_cbuf_borrow(dir), &d, &entry, &err, ctx);
+  kk_string_drop(dir,ctx);
+  if (!ok) {
+    *contents = kk_vector_empty();
+    return err;
+  }
+
+  size_t count = 0;
+  size_t len = 100;
+  kk_vector_t vec = kk_vector_alloc(len, kk_integer_box(kk_integer_from_small(0)), ctx);
+  
+  do {
+    const char* cname = os_direntry_name(&entry);
+    if (cname != NULL && strcmp(cname, ".") != 0 && strcmp(cname, "..") != 0) {
+      // push name
+      if (count == len) {
+        // realloc vector
+        const size_t newlen = (len > 1000 ? len + 1000 : 2*len);
+        vec = kk_vector_realloc(vec, newlen, kk_integer_box(kk_integer_from_small(0)), ctx);
+        len = newlen;
+      }
+      (kk_vector_buf(vec, NULL))[count] = kk_string_box(kk_string_alloc_dup(cname, ctx));
+      count++;
+    }
+  } while (os_findnext(d, &entry, &err));
+  os_findclose(d);
+  
+  *contents = kk_vector_realloc(vec, count, kk_box_null, ctx);
+  return err;
+}
+
+
+/*--------------------------------------------------------------------------------------------------
+  Args
+--------------------------------------------------------------------------------------------------*/
+
+#if defined(WIN32) || defined(__MINGW32__) 
+#define popen  _popen
+#define pclose _pclose
+#define POPEN_READ  "rt"
+#else
+#define POPEN_READ  "r"
+#endif
+
+kk_decl_export int kk_os_run_command(kk_string_t cmd, kk_string_t* output, kk_context_t* ctx) {
+  FILE* f = popen(kk_string_cbuf_borrow(cmd), POPEN_READ);
+  kk_string_drop(cmd, ctx);
+  if (f==NULL) return errno;
+  kk_string_t out = kk_string_empty();
+  char buf[1025];
+  while (fgets(buf, 1024, f) != NULL) {
+    buf[1024] = 0; // paranoia
+    out = kk_string_cat_fromc(out, buf, ctx);
+  }
+  pclose(f);
+  *output = out;
+  return errno;
+}
+
+kk_decl_export int kk_os_run_system(kk_string_t cmd, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+  int exitcode = system(kk_string_cbuf_borrow(cmd));
+  kk_string_drop(cmd, ctx);
+  return exitcode;
+}
+
 
 
 /*--------------------------------------------------------------------------------------------------

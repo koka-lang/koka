@@ -13,7 +13,7 @@ option(KK_BUILD_TEST        "Build test target" OFF)
 # Language options
 # -----------------------------------------------------------------------------
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 11) 
 set(CMAKE_C_STANDARD_REQUIRED YES)
 set(CMAKE_C_EXTENSIONS NO)
 
