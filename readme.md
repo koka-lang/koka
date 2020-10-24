@@ -64,7 +64,7 @@ Main branches:
                This version still supports more features (like named handlers and `std/async`) and should compile examples from published papers.
 
 
-## Installing the compiler
+## Running the compiler
 
 At this point there are no binary releases of Koka and you need to build
 the compiler yourself. Fortunately, Koka has few dependencies and should build
@@ -113,6 +113,7 @@ hi
 [False,True,True,False]
 ([False,False,True,True,False],2)
 ```
+(note: on Windows you may need to run in the stack environment as `> stack exec out\Debug\test_algeff_common.exe`)
 
 If you leave out the `-c` flag, Koka will execute the compiled program automatically.
 The `-O2` flag builds an optimized program. Let's try it on a functional implementation
@@ -129,8 +130,8 @@ compiled: out/RelWithDebInfo/test_bench_koka_rbtree32
 real    0m1.132s
 ```
 We can compare this against an in-place updating C++ implementation using `stl::map`
-([`rbtree.cpp`](test/bench/cpp/rbtree.cpp)) (which uses the GNU
-[`RBTree`](https://sourceware.org/git/?p=glibc.git;a=blob;f=misc/tsearch.c;h=cdc401a4e5411221ab2feb2baf8745991bde7868;hb=HEAD) implementation internally):
+([`rbtree.cpp`](test/bench/cpp/rbtree.cpp)) (which uses the
+[`tree.cc`](https://code.woboq.org/gcc/libstdc++-v3/src/c++98/tree.cc.html) implementation internally):
 ```
 > g++ --std=c++17 -o cpp_rbtree -O3 test/bench/cpp/rbtree.cpp
 > time ./cpp_rbtree
@@ -165,7 +166,7 @@ After running the plain ``stack exec koka`` command, the Koka interactive enviro
 | |        | |         |__  \
 | | __ ___ | | __ __ _  __) |
 | |/ // _ \| |/ // _` || ___/ welcome to the koka interpreter
-|   <| (_) |   <| (_| ||____| version 2.0.0-alpha, Aug 23 2020, libc 64-bit
+|   <| (_) |   <| (_| ||____| version 2.0.1, Oct 24 2020, libc 64-bit
 |_|\_\\___/|_|\_\\__,_|       type :? for help
 
 loading: std/core
@@ -265,16 +266,80 @@ Some interesting demos are:
 * ``nim.kk``: Various examples from the paper "_Liberating effects with
   rows and handlers_" [[1]](#references).
 
+# Installing the compiler
+
+The Koka compiler can be installed using:
+```
+> stack exec koka -- util/install
+```
+
+You can now directly invoke `koka`:
+
+```
+> koka --version
+```
+
+compile and run programs:
+
+```
+> koka -O2 --showelapsed test/bench/koka/nqueens
+...
+73712
+info: elapsed: 1.395s, user: 1.375s, sys: 0.031s, rss: 96mb
+```
+
+or run the interpreter:
+
+```
+> koka 
+```
+
+## Install on Unix and macOS
+
+Koka is by default installed for the current user in `<prefix>/bin/koka` 
+and `<prefix>/lib/koka/v2.x.x`.
+On Unix and macOS, the default installation prefix is `~/.local` and it is 
+recommended to add `~/.local/bin` to the search path 
+(e.g. add `export PATH=$PATH:~/.local/bin` to your `~/.bashrc` or `~/.zshrc`). 
+
+Note: installing to `/usr/local` cannot be done directly as it needs elevated 
+privileges. A workaround is to copy the local install afterwards as:
+```
+> sudo cp -r ~/.local/* /usr/local
+```
+
+## Install on Windows
+
+On Windows, the default install is to the userprofile `%APPDATA%\local` which
+is usually already on the search path as `stack` is installed there as well.
+
+However, when using `koka` you need to have a C compiler (when
+using `stack exec koka` the C compiler supplied with Ghc is used (`mingw`)
+but that is not generally available). You can either run `koka` from a 
+[Visual Studio](https://visualstudio.microsoft.com/downloads) 
+[command prompt](https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019)
+(and thus use the `msvc` compiler) or install the [`clang`](https://releases.llvm.org) compiler.
+
 
 # Benchmarks
 
 There is a standard benchmark suite. It is still basic but more benchmarks
-with effect handlers are coming. We only test on Linux and the benchmarks
-need `gcc`, `ghc` (should be there already), `ocamlopt` (use `sudo apt-get install ocaml`),
-and `swiftc` in the path. (On Linux (or WSL)
-the Swift compiler can be downloaded [here](https://swift.org/download/)
-and the benchmarks expect `switfc` to be installed at `/opt/swift/bin`).
-The benchmarks are build using:
+with effect handlers are coming. We only test on (Ubuntu) Linux and the benchmarks
+need `gcc` (should be there already), and:
+
+- `ghc` (use `sudo apt-get install ghc`), 
+- `ocamlopt` (use `sudo apt-get install ocaml`), and
+- `swiftc`. The Swift compiler can be downloaded [here](https://swift.org/download/).
+   The benchmarks expect `switfc` to be installed at `/opt/swift/bin`,
+   so unpack and copy everything under `swift-.../usr` to `/opt/swift/bin`:
+   ```
+   > tar -xzf swift-5.3-RELEASE-ubuntu20.04.tar.gz
+   > cd swift-5.3-RELEASE-ubuntu20.04/usr
+   > sudo mkdir /opt/swift
+   > sudo cp -r * /opt/swift
+   ```
+
+The benchmarks can now be build using:
 
 ```
 > cd test/bench
