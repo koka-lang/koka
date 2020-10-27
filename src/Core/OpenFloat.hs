@@ -75,6 +75,10 @@ fltDef def
 fltExpr :: Expr -> Flt Expr
 fltExpr expr
   = case expr of
+    {-
+    App eopen@(TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [f] | getName open == nameEffectOpen
+        -> resOpen env eopen effFrom effTo tpFrom tpTo f
+    -}
     App f args
       -> do args' <- mapM fltExpr args
             f' <- fltExpr f
