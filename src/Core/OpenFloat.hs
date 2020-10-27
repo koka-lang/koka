@@ -40,14 +40,14 @@ import Core.Pretty
 trace s x =
    Lib.Trace.trace s
     x
-    
+
 enable = True  -- set to True to enable the transformation
 
 openFloat :: Pretty.Env -> Gamma -> Int -> DefGroups -> (DefGroups,Int)
 openFloat penv gamma u defs
   = runFlt penv gamma u $
     fltDefGroups defs
-    
+
 
 {--------------------------------------------------------------------------
   transform definition groups
@@ -60,7 +60,7 @@ fltDefGroup (DefRec defs) next
   = do defs' <- mapM fltDef defs
        dgs <- next
        return (DefRec defs':dgs)
-       
+
 fltDefGroup (DefNonRec def) next
  = do def' <- fltDef def
       dgs <-  next
@@ -81,7 +81,7 @@ fltExpr expr
             return (App f' args')
 
     Lam args eff body
-      -> do -- fltTraceDoc $ \env -> text "not effectful lambda:" <+> niceType env eff
+      -> do traceDoc $ \env -> text "lambda:" <+> niceType env eff
             body' <- fltExpr body
             return (Lam args eff body')
 
