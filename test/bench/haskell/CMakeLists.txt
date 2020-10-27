@@ -5,7 +5,7 @@ else ()
   find_program(GHC ghc REQUIRED)
 endif ()
 
-set(sources cfold.hs deriv.hs nqueens.hs rbtree.hs rbtree2.hs rbtree_ck.hs)
+set(sources cfold.hs deriv.hs nqueens.hs rbtree.hs rbtree2.hs rbtree-ck.hs)
 foreach (source IN LISTS sources)
   get_filename_component(name "${source}" NAME_WE)
   set(name "hs-${name}")
