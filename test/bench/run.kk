@@ -75,8 +75,10 @@ fun main() {
   })
 
   // emit latex chart
-  val chart-elapsed = chart("time", norm-elapsed, test-names, lang-ntests, 2.0)
-  val chart-rss     = chart("rss", norm-rss, test-names, lang-ntests, 2.0)
+  val ymax       = 2.0
+  val chart-desc = "AMD 3600XT 6-core 3.5Ghz\\Ubuntu 20.04, Gcc 9.3.0"
+  val chart-elapsed = chart("time", norm-elapsed, test-names, lang-ntests, ymax, chart-desc)
+  val chart-rss     = chart("rss", norm-rss, test-names, lang-ntests, ymax, chart-desc)
   println("\n--- chart elapsed ---------------")
   println(chart-elapsed)
   println("\n--- chart rss ---------------")
@@ -88,10 +90,10 @@ fun main() {
 // ----------------------------------------------------
 // Latex chart
 // ----------------------------------------------------
-fun chart( kind : string, norm : test -> double, test-names : list<string>, lang-ntests : list<(string,list<test>)>, ymax : double = 2.0 ) : string {
+fun chart( kind : string, norm : test -> double, test-names : list<string>, lang-ntests : list<(string,list<test>)>, ymax : double = 2.0, desc : string = "" ) : string {
   [ tikz-header(test-names,".bench" + kind)
-  , lang-ntests.flatmap(fn(l){ tikz-data(kind, norm, l) })
-  , tikz-picture(kind, test-names,lang-ntests.map(fst))
+  , lang-ntests.flatmap(fn(l){ tikz-data(kind, norm, l, ymax = ymax ) })
+  , tikz-picture(kind, test-names, lang-ntests.map(fst), ymax = ymax, desc = desc )
   , tikz-footer(test-names) ].concat.join("\n")
 }
 
@@ -107,7 +109,7 @@ fun tikz-footer( test-names : list<string> ) : list<string> {
   [ "~ End Snippet" ]
 }
 
-fun tikz-picture( kind : string, test-names : list<string>, lang-names : list<string>, ymax : double = 2.0, height:string = "6cm", width:string = "9cm" ) {
+fun tikz-picture( kind : string, test-names : list<string>, lang-names : list<string>, ymax : double = 2.0, desc : string = "", height:string = "6cm", width:string = "9cm" ) {
   val n = test-names.length - 1
   val header = [
     @"\begin{tikzpicture}\sffamily",
@@ -115,9 +117,13 @@ fun tikz-picture( kind : string, test-names : list<string>, lang-names : list<st
     @"  \draw (axis cs:-0.5,1) -- (axis cs:" + n.show + ".5,1);"
   ]
   val mid = lang-names.map(fn(l){ @"  \draw" + kind + @"{\color" + kind + l + @"{0}}{\data" + kind + l + "};"})
-  val legend = [@"  \legend{" + lang-names.map(fn(l){ "\\lang" + l }).join(",") + "};"]
-  val footer = [@"\end{axis}",@"\end{tikzpicture}"]
-  (header + mid + legend + footer)
+  val footer = [
+     @"  \legend{" + lang-names.map(fn(l){ "\\lang" + l }).join(",") + "};",
+     if (desc.is-empty) then "" else @"  \chartdesc{" + desc.replace-all("\n",@"\\") + "};",
+     @"\end{axis}",
+     @"\end{tikzpicture}"
+  ]
+  (header + mid + footer)
 }
 
 
