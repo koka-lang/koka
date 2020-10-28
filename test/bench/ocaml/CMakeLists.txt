@@ -1,6 +1,6 @@
 find_program(ocamlopt "ocamlopt" REQUIRED)
 
-set(sources cfold.ml deriv.ml nqueens.ml rbtree.ml rbtree_ck.ml)
+set(sources cfold.ml deriv.ml nqueens.ml rbtree.ml rbtree-ck.ml)
 foreach (source IN LISTS sources)
   get_filename_component(name "${source}" NAME_WE)
   set(name "ml-${name}")

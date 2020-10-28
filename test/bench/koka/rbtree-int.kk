@@ -1,5 +1,4 @@
 // Adapted from https://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap.lean
-import std/num/int32
 
 type color { 
   Red 
@@ -7,9 +6,10 @@ type color {
 }
 
 type tree {
-  Leaf()
-  Node(color: color, lchild: tree, key: int32, value: bool, rchild: tree)
+  Leaf
+  Node(color: color, left: tree, key: int, value: bool, right: tree)
 }
+
 
 fun is-red(t : tree) : bool {
   match(t) {
@@ -18,7 +18,7 @@ fun is-red(t : tree) : bool {
   }
 }
 
-fun balance-left(l:tree, k: int32, v: bool, r: tree): tree {
+fun balance-left(l:tree, k: int, v: bool, r: tree): tree {
   match(l) {
     Leaf -> Leaf
     Node(_, Node(Red, lx, kx, vx, rx), ky, vy, ry)
@@ -30,7 +30,7 @@ fun balance-left(l:tree, k: int32, v: bool, r: tree): tree {
   }
 }
 
-fun balance-right(l: tree, k: int32, v: bool, r: tree): tree {
+fun balance-right(l: tree, k: int, v: bool, r: tree): tree {
   match(r) {
     Leaf -> Leaf
     Node(_, Node(Red, lx, kx, vx, rx), ky, vy, ry)
@@ -42,7 +42,7 @@ fun balance-right(l: tree, k: int32, v: bool, r: tree): tree {
   }
 }
 
-fun ins(t: tree, k: int32, v: bool): tree {
+fun ins(t: tree, k: int, v: bool): tree {
   match(t) {
     Leaf -> Node(Red, Leaf, k, v, Leaf)
     Node(Red, l, kx, vx, r)
@@ -65,32 +65,32 @@ fun set-black(t: tree) : tree {
   }
 }
 
-fun insert(t: tree, k: int32, v: bool): tree {
+fun insert(t: tree, k: int, v: bool): tree {
   if (is-red(t))
     then set-black(ins(t, k, v))
     else ins(t, k, v)
 }
 
-fun fold(t: tree, b: a, f: (int32, bool, a) -> a) : a {
+fun fold(t: tree, b: a, f: (int, bool, a) -> a): a {
   match (t) {
     Leaf                -> b
     Node(_, l, k, v, r) -> r.fold( f(k, v, l.fold(b, f)), f)
   }
 }
 
-fun make-tree-aux(n: int32, m: tree): div tree {
-  if (n <= 0.int32) then m else {
-    val n1 = n.dec
-    make-tree-aux(n1, insert(m, n1, n1 % 10.int32 == 0.int32))
+fun make-tree-aux(n: int, m: tree): div tree {
+  if (n <= 0) then m else {
+    val n1 = n - 1
+    make-tree-aux(n1, insert(m, n1, n1 % 10 == 0))
   }
 }
 
-fun make-tree(n: int32): div tree {
+fun make-tree(n: int): div tree {
   make-tree-aux(n, Leaf)
 }
 
 fun main() {
-  val m = make-tree(4200000.int32); // todo: read first command line arg for size
-  val v = m.fold(0.int32) fun(k, v, r:int32) { if (v) then r.inc else r }
-  v.show.println
+  val m = make-tree(4200000); // todo: read first command line arg for size
+  val v = m.fold(0) fun(k,v,r){ if (v) then r + 1 else r }
+  v.println
 }
