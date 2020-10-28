@@ -1,13 +1,61 @@
 import std/num/double
 import std/os/file
 import std/os/path
+import std/os/env
+import std/os/flags
 
-val test-names = ["rbtree","rbtree-ck","deriv","nqueens","cfold"]
-val lang-names = [
+// ----------------------------------------------------
+// Flags
+// ----------------------------------------------------
+
+val all-test-names = ["rbtree","rbtree-ck","deriv","nqueens","cfold"]
+val all-lang-names = [
   ("koka","kk"),("ocaml","ml"),
   ("haskell","hs"),("swift","sw"),
   ("cpp","cpp")
 ]
+
+struct iflags {
+  tests : string = ""
+  langs : string = ""
+  chart : bool = False
+}
+
+val flag-descs : list<flag<iflags>> = {
+  fun set-tests( f : iflags, s : string ) : iflags { f(tests = s) }
+  fun set-langs( f : iflags, s : string ) : iflags { f(langs = s) }
+  fun set-chart( f : iflags, b : bool ) : iflags { f(chart = b) }
+  [ Flag( "t", ["test"], Req(set-tests,"test"), "comma separated list of tests" ),
+    Flag( "l", ["lang"], Req(set-langs,"lang"),  "comma separated list of languages"),
+    Flag( "c", ["chart"], Bool(set-chart),        "generate latex chart")
+  ]
+}
+
+fun flag-usage() {
+  flag-descs.usage("usage:\n koka run -- [options]\n\noptions:").println
+  println([
+    "\nnotes:",
+    "  tests    : " + all-test-names.join(", "),
+    "  languages: " + all-lang-names.map(snd).join(", ")
+  ].unlines)
+}
+
+public fun process-flags() : <ndet,console> maybe<iflags> {
+  val (flags,args,errs) = parse( Iflags(), flag-descs, get-args() )
+  if (errs.is-nil && args.is-nil) {
+    Just(flags)
+  }
+  else {
+    println( errs.join("\n") )
+    flag-usage()
+    Nothing
+  }
+}
+
+
+// ----------------------------------------------------
+// Test structure
+// ----------------------------------------------------
 
 struct test {
   name: string
@@ -32,10 +80,22 @@ fun show-norm( test : test ) {
 // ----------------------------------------------------
 // main
 // ----------------------------------------------------
+public fun main() {
+  match (process-flags()) {
+    Nothing -> ()
+    Just(flags) {
+      val test-names = if (flags.tests.is-empty) then all-test-names
+                        else flags.tests.split(",")
+      val lang-names = if (flags.langs.is-empty) then all-lang-names
+                        else all-lang-names.filter(fn(l){ flags.langs.contains(l.snd) })
+      run-tests(test-names,lang-names,flags.chart)
+    }
+  }
+}
 
-fun main() {
-  println("tests: " + test-names.join(", "))
-  println("lang : " + lang-names.map(fst).join(", "))
+fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen-chart : bool ) {
+  println("tests    : " + test-names.join(", "))
+  println("languages: " + lang-names.map(fst).join(", "))
 
   // run tests
   val alltests = test-names.flatmap fn(test-name){
@@ -52,6 +112,9 @@ fun main() {
     println("\n--- " + test-name + " ----------------")
     println(tests.map(show).join("\n"))
   }
+
+  // exit if koka is not part of the tests (since we need it to normalize)
+  if (!lang-names.map(fst).join(",").contains("koka")) return ()
 
   // normalize tests
   val all-ntests = test-names.flatmap fn(test-name){
@@ -75,14 +138,16 @@ fun main() {
   })
 
   // emit latex chart
-  val ymax       = 2.0
-  val chart-desc = "AMD 3600XT 6-core 3.5Ghz\\Ubuntu 20.04, Gcc 9.3.0"
-  val chart-elapsed = chart("time", norm-elapsed, test-names, lang-ntests, ymax, chart-desc)
-  val chart-rss     = chart("rss", norm-rss, test-names, lang-ntests, ymax, chart-desc)
-  println("\n--- chart elapsed ---------------")
-  println(chart-elapsed)
-  println("\n--- chart rss ---------------")
-  println(chart-rss)
+  if (gen-chart) {
+    val ymax       = 2.0
+    val chart-desc = "AMD 3600XT 6-core 3.5Ghz\\Ubuntu 20.04, Gcc 9.3.0"
+    val chart-elapsed = chart("time", norm-elapsed, test-names, lang-ntests, ymax, chart-desc)
+    val chart-rss     = chart("rss", norm-rss, test-names, lang-ntests, ymax, chart-desc)
+    println("\n--- chart elapsed ---------------")
+    println(chart-elapsed)
+    println("\n--- chart rss ---------------")
+    println(chart-rss)
+  }
   ()
 }
 

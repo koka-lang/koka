@@ -58,15 +58,15 @@ type Map = Tree Int Bool
 
 mk_Map_aux :: Int -> Int -> Map -> [Map] -> [Map]
 mk_Map_aux freq 0 m acc = m:acc
-mk_Map_aux freq n m acc = 
+mk_Map_aux freq n m acc =
   let m' = (insert m n (n `mod` 10 == 0))
-  in mk_Map_aux freq (n-1) m' (if ((n`mod`freq)==0) then m':acc else acc)
+  in seq m' $ mk_Map_aux freq (n-1) m' (if ((n`mod`freq)==0) then m':acc else acc)
 
 mk_Map freq n = mk_Map_aux freq n Leaf []
 
 main = do
   -- [arg] <- getArgs
   -- let n :: Int = read arg
-  let ms = mk_Map 5 4200000 
+  let ms = mk_Map 5 4200000
   let v = fold (\_ v r -> if v then r + 1 else r) (head ms) 0
   print v
