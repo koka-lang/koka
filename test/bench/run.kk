@@ -12,7 +12,7 @@ val all-test-names = ["rbtree","rbtree-ck","deriv","nqueens","cfold"]
 val all-lang-names = [
   ("koka","kk"),("ocaml","ml"),
   ("haskell","hs"),("swift","sw"),
-  ("cpp","cpp")
+  ("java","jv"),("cpp","cpp")
 ]
 
 struct iflags {
@@ -87,7 +87,7 @@ public fun main() {
       val test-names = if (flags.tests.is-empty) then all-test-names
                         else flags.tests.split(",")
       val lang-names = if (flags.langs.is-empty) then all-lang-names
-                        else all-lang-names.filter(fn(l){ flags.langs.contains(l.snd) })
+                        else all-lang-names.filter(fn(l){ flags.langs.contains(l.snd) || flags.langs.contains(l.fst) })
       run-tests(test-names,lang-names,flags.chart)
     }
   }
@@ -140,7 +140,7 @@ fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen
   // emit latex chart
   if (gen-chart) {
     val ymax       = 2.0
-    val chart-desc = "AMD 3600XT 6-core 3.5Ghz\\Ubuntu 20.04, Gcc 9.3.0"
+    val chart-desc = @"AMD 3600XT 6-core 3.5Ghz\\Ubuntu 20.04, Gcc 9.3.0"
     val chart-elapsed = chart("time", norm-elapsed, test-names, lang-ntests, ymax, chart-desc)
     val chart-rss     = chart("rss", norm-rss, test-names, lang-ntests, ymax, chart-desc)
     println("\n--- chart elapsed ---------------")
@@ -219,10 +219,14 @@ fun run-test( test-name : string, langt : (string,string) ) : io test {
   val pre  = lang.pad-left(3) + ", " + test-name.pad-left(12) + ", "
   val dir  = if (lang-long=="koka") then "koka/out/RelWithDebInfo" else lang-long
   val base = lang + "-" + test-name
-  val prog = dir + "/" + base
+  val prog = if (lang-long=="java")
+              then "java --class-path=" + dir + " " + test-name.replace-all("-","")
+              else dir + "/" + base
+  val progpath = if (lang-long=="java") then (dir.path + (test-name.replace-all("-","") + ".class").path)
+                  else prog.path
   println("\nrun: " + prog)
 
-  if (!is-file(prog.path)) {
+  if (!is-file(progpath)) {
     return Test(test-name,lang,err="NA")
   }
 
