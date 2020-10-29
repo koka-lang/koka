@@ -333,7 +333,7 @@ need `gcc` (should be there already), and:
    > sudo cp -r * /opt/swift
    ```
 - `javac`/`java`. We used these [instructions](https://computingforgeeks.com/install-oracle-java-openjdk-14-on-ubuntu-debian-linux/)
-   to install the Java 15 Hotspot compiler.
+   to install the Java SE 15 Hotspot compiler (note: the intstructions are for Java SE 14 but we use 15 in our benchmarks).
 
 The benchmarks can now be build using:
 
