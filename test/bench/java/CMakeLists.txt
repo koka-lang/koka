@@ -1,6 +1,6 @@
 find_program(javac "javac" REQUIRED)
 
-set(sources rbtree.java rbtreeck.java)
+set(sources rbtree.java rbtreeck.java nqueens.java)
 foreach (source IN LISTS sources)
   get_filename_component(name "${source}" NAME_WE)
 
