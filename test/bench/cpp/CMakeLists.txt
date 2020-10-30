@@ -12,4 +12,4 @@ foreach (source IN ITEMS rbtree.cpp rbtree-ck.cpp nqueens.cpp)
   set_tests_properties(${name} PROPERTIES LABELS cpp)
 endforeach ()
 
-target_compile_options(cpp-rbtreec PUBLIC -fpermissive)
+# target_compile_options(cpp-rbtreec PUBLIC -fpermissive)

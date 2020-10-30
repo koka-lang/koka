@@ -12,7 +12,9 @@ val all-test-names = ["rbtree","rbtree-ck","deriv","nqueens","cfold"]
 val all-lang-names = [
   ("koka","kk"),("ocaml","ml"),
   ("haskell","hs"),("swift","sw"),
-  ("java","jv"),("cpp","cpp")
+  ("java","jv"),
+  ("kokax","kkx"),
+  ("cpp","cpp")
 ]
 
 struct iflags {
@@ -217,7 +219,9 @@ fun tikz-data( kind:string, norm : test -> double, lang-ntests : (string,list<te
 fun run-test( test-name : string, langt : (string,string) ) : io test {
   val (lang-long,lang) = langt
   val pre  = lang.pad-left(3) + ", " + test-name.pad-left(12) + ", "
-  val dir  = if (lang-long=="koka") then "koka/out/RelWithDebInfo" else lang-long
+  val dir  = if (lang=="kk") then "koka/out/RelWithDebInfo"
+             elif (lang=="kkx") then "koka/outx/RelWithDebInfo"
+             else lang-long
   val base = lang + "-" + test-name
   val prog = if (lang-long=="java")
               then "java --class-path=" + dir + " " + test-name.replace-all("-","")
