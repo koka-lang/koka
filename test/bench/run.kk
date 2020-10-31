@@ -21,15 +21,18 @@ struct iflags {
   tests : string = ""
   langs : string = ""
   chart : bool = False
+  iter  : int  = 1
 }
 
 val flag-descs : list<flag<iflags>> = {
   fun set-tests( f : iflags, s : string ) : iflags { f(tests = s) }
   fun set-langs( f : iflags, s : string ) : iflags { f(langs = s) }
   fun set-chart( f : iflags, b : bool ) : iflags { f(chart = b) }
+  fun set-iter( f : iflags, i : string ) : iflags { f(iter = i.parse-int().default(1)) }
   [ Flag( "t", ["test"], Req(set-tests,"test"), "comma separated list of tests" ),
     Flag( "l", ["lang"], Req(set-langs,"lang"),  "comma separated list of languages"),
-    Flag( "c", ["chart"], Bool(set-chart),        "generate latex chart")
+    Flag( "c", ["chart"], Bool(set-chart),       "generate latex chart"),
+    Flag( "i", ["iter"], Req(set-iter,"N"),      "use N iterations per test"),
   ]
 }
 
@@ -63,19 +66,27 @@ struct test {
   name: string
   lang: string
   elapsed: double = 0.0
+  elapsed-sdev : double = 0.0
   rss: int = 0
   err: string = ""
   norm-elapsed: double = 0.0
   norm-rss: double = 0.0
+  norm-elapsed-sdev : double = 0.0
 }
 
 fun show( test : test ) {
-  val xs = if (test.err.is-empty) then [test.elapsed.core/show(2) + "s",test.rss.core/show + "kb"] else ["error: " + test.err]
+  val xs = if (test.err.is-empty) then [
+    test.elapsed.core/show(2) + "s ~" + test.elapsed-sdev.core/show(3),
+    test.rss.core/show + "kb"
+  ] else ["error: " + test.err]
   ([test.name,test.lang.pad-left(3)] + xs).join(", ")
 }
 
 fun show-norm( test : test ) {
-  val xs = if (test.err.is-empty) then [test.norm-elapsed.core/show(2) + "x", test.norm-rss.core/show(2) + "x"] else ["error: " + test.err]
+  val xs = if (test.err.is-empty) then [
+      test.norm-elapsed.core/show(2) + "x ~" + test.elapsed-sdev.core/show(3),
+      test.norm-rss.core/show(2) + "x"
+    ] else ["error: " + test.err]
   ([test.name,test.lang.pad-left(3)] + xs).join(", ")
 }
 
@@ -90,19 +101,19 @@ public fun main() {
                         else flags.tests.split(",")
       val lang-names = if (flags.langs.is-empty) then all-lang-names
                         else all-lang-names.filter(fn(l){ flags.langs.contains(l.snd) || flags.langs.contains(l.fst) })
-      run-tests(test-names,lang-names,flags.chart)
+      run-tests(test-names,lang-names,flags.chart,flags.iter)
     }
   }
 }
 
-fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen-chart : bool ) {
+fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen-chart : bool, iterations : int ) {
   println("tests    : " + test-names.join(", "))
   println("languages: " + lang-names.map(fst).join(", "))
 
   // run tests
   val alltests = test-names.flatmap fn(test-name){
                    lang-names.map fn(lang){
-                     run-test( test-name, lang )
+                     run-test( test-name, lang, iterations )
                    }
                  }
 
@@ -125,8 +136,10 @@ fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen
     // normalize to koka
     val koka = match(tests.filter(fn(t){t.lang == "kk"})) { Cons(t,Nil) -> t }
     val ntests = tests.map fn(t) {
-      t(norm-elapsed = if (koka.elapsed==0.0) then 1.0 else t.elapsed / koka.elapsed,
-        norm-rss     = if (koka.rss==0)       then 1.0 else t.rss.double / koka.rss.double)
+      val norm = if (koka.elapsed==0.0) then 1.0 else t.elapsed / koka.elapsed
+      t(norm-elapsed = norm,
+        norm-rss     = if (koka.rss==0) then 1.0 else t.rss.double / koka.rss.double,
+        norm-elapsed-sdev = norm * t.elapsed-sdev)
     }
     println("\n--- normalized " + test-name + " ----------------")
     println(ntests.map(show-norm).join("\n"))
@@ -142,9 +155,9 @@ fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen
   // emit latex chart
   if (gen-chart) {
     val ymax       = 2.0
-    val chart-desc = @"AMD 3600XT 6-core 3.5Ghz\\Ubuntu 20.04, Gcc 9.3.0"
-    val chart-elapsed = chart("time", norm-elapsed, test-names, lang-ntests, ymax, chart-desc)
-    val chart-rss     = chart("rss", norm-rss, test-names, lang-ntests, ymax, chart-desc)
+    val chart-desc = @"6-core AMD 3600XT at 3.8Ghz\\Ubuntu 20.04, Gcc 9.3.0"
+    val chart-elapsed = chart("time", norm-elapsed, norm-elapsed-sdev, test-names, lang-ntests, ymax, chart-desc)
+    val chart-rss     = chart("rss", norm-rss, fn(t){ 0.0 }, test-names, lang-ntests, ymax, chart-desc)
     println("\n--- chart elapsed ---------------")
     println(chart-elapsed)
     println("\n--- chart rss ---------------")
@@ -157,9 +170,9 @@ fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen
 // ----------------------------------------------------
 // Latex chart
 // ----------------------------------------------------
-fun chart( kind : string, norm : test -> double, test-names : list<string>, lang-ntests : list<(string,list<test>)>, ymax : double = 2.0, desc : string = "" ) : string {
+fun chart( kind : string, norm : test -> double, norm-sdev : test -> double, test-names : list<string>, lang-ntests : list<(string,list<test>)>, ymax : double = 2.0, desc : string = "" ) : string {
   [ tikz-header(test-names,".bench" + kind)
-  , lang-ntests.flatmap(fn(l){ tikz-data(kind, norm, l, ymax = ymax ) })
+  , lang-ntests.flatmap(fn(l){ tikz-data(kind, norm, norm-sdev, l, ymax = ymax ) })
   , tikz-picture(kind, test-names, lang-ntests.map(fst), ymax = ymax, desc = desc )
   , tikz-footer(test-names) ].concat.join("\n")
 }
@@ -179,6 +192,7 @@ fun tikz-footer( test-names : list<string> ) : list<string> {
 fun tikz-picture( kind : string, test-names : list<string>, lang-names : list<string>, ymax : double = 2.0, desc : string = "", height:string = "6cm", width:string = "9cm" ) {
   val n = test-names.length - 1
   val header = [
+    @"",
     @"\begin{tikzpicture}\sffamily",
     @"\begin{axis}[Chart" + kind + ",ymax=" + ymax.show(1) + ",height=" + height + ",xmax=" + n.show + ".5,width=" + width + "]",
     @"  \draw (axis cs:-0.5,1) -- (axis cs:" + n.show + ".5,1);"
@@ -194,16 +208,16 @@ fun tikz-picture( kind : string, test-names : list<string>, lang-names : list<st
 }
 
 
-fun tikz-data( kind:string, norm : test -> double, lang-ntests : (string,list<test>), ymax : double = 2.0 ) : list<string> {
+fun tikz-data( kind:string, norm : test -> double, norm-sdev : test -> double, lang-ntests : (string,list<test>), ymax : double = 2.0 ) : list<string> {
   val (lang,ntests) = lang-ntests
   ["",
    @"\pgfplotstableread{"] +
     ntests.map-indexed(fn(i,t){
       if (t.err.is-empty) then {
         [i.show,
-         if (t.norm <= ymax) then t.norm.show(3) else ymax.show(3),
-         "0.000",
-         t.norm.show(2) // else @"{\outerlabel{" + t.norm-elapsed.show(2) + "}}"
+         if (t.norm <= ymax) then t.norm.show-fixed(3) else ymax.show-fixed(3),
+         if (t.norm > ymax || t.norm-sdev < 0.001) then "0.000" else t.norm-sdev.show-fixed(3),
+         t.norm.show-fixed(2) // else @"{\outerlabel{" + t.norm-elapsed.show(2) + "}}"
         ].join(" ")
       }
       else (i.show + @" 0.100 0.000 " + (if (i==0) then "0" elif (t.err=="NA") then "{NA}" else @"{\ensuremath{\times}}"))
@@ -216,7 +230,7 @@ fun tikz-data( kind:string, norm : test -> double, lang-ntests : (string,list<te
 // Run a single test
 // ----------------------------------------------------
 
-fun run-test( test-name : string, langt : (string,string) ) : io test {
+fun run-test( test-name : string, langt : (string,string), iterations : int ) : io test {
   val (lang-long,lang) = langt
   val pre  = lang.pad-left(3) + ", " + test-name.pad-left(12) + ", "
   val dir  = if (lang=="kk") then "koka/out/RelWithDebInfo"
@@ -234,21 +248,55 @@ fun run-test( test-name : string, langt : (string,string) ) : io test {
     return Test(test-name,lang,err="NA")
   }
 
+  val results = list(1,iterations)
+                .map( fn(i){ execute-test(i,base,prog)} )
+                .map( fn(r){
+                   match(r) {
+                     Left(err)            -> Test(test-name,lang,err=err)
+                     Right((elapsed,rss)) -> Test(test-name,lang,elapsed = elapsed, rss = rss)
+                 }})
+  match(results.filter(fn(t){ !t.err.is-empty })) {
+    Cons(t) -> return t
+    _       -> ()
+  }
+
+  // filter out worst time if more than 2 iterations
+  val slowest  = results.map(fn(t){ t.elapsed }).maximum
+  val m        = results.filter(fn(t){ t.elapsed == slowest }).length
+  val resultsf = if (m==1 && results.length > 2)
+                   then results.filter(fn(t){ t.elapsed < slowest })
+                   else results
+  // take the average of the rest
+  val n        = resultsf.length
+  val test     = resultsf.foldl1( fn(t1,t2){ t1( elapsed = t1.elapsed + t2.elapsed, rss = t1.rss + t2.rss ) } )
+
+  // calc. stddev
+  val avg   = test.elapsed / n.double
+  val sdev  = sqrt( resultsf.map( fn(t){ sqr(t.elapsed - avg) } ).sum / n.double )
+
+  test( elapsed = avg, elapsed-sdev = sdev, rss = test.rss / n )
+}
+
+fun test-sum( t1 : test, t2 : test) : test {
+  t1( elapsed = t1.elapsed + t2.elapsed, rss = t1.rss + t2.rss )
+}
+
+fun execute-test( run : int, base : string, prog : string ) : io either<string,(double,int)> {
   val timef= "time-" + base + ".txt"
   val cmd  = "/usr/bin/time -f'%e,%M' -o" + timef + " " + prog
   val out  = run-command(cmd).exn
   print(out)
   val time = read-text-file(timef.path).trim
   match(time.split("\n")) {
-    Nil            -> Test(test-name,lang,err="no output")
-    Cons(err,Cons) -> Test(test-name,lang,err=err)
+    Nil            -> Left("no output")
+    Cons(err,Cons) -> Left(err)
     Cons(tim,Nil) {
       match(tim.split(",")) {
         Cons(elapsed,Cons(rss,Nil)) {
-          println("elapsed: " + elapsed + "s, rss: " + rss + "kb" )
-          Test(test-name,lang,parse-double(elapsed).default(0.0),parse-int(rss).default(0))
+          println(run.show + ": elapsed: " + elapsed + "s, rss: " + rss + "kb" )
+          Right( (parse-double(elapsed).default(0.0), parse-int(rss).default(0)) )
         }
-        _ -> Test(test-name,lang,err="bad format")
+        _ -> Left("bad format")
       }
     }
   }
