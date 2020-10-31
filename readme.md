@@ -119,13 +119,13 @@ If you leave out the `-c` flag, Koka will execute the compiled program automatic
 The `-O2` flag builds an optimized program. Let's try it on a functional implementation
 of balanced insertion in a red-black tree balanced ([`rbtree.kk`](test/bench/koka/rbtree.kk))
 ```
-> stack exec koka -- -O2 -c test/bench/koka/rbtree32.kk
+> stack exec koka -- -O2 -c test/bench/koka/rbtree.kk
 ...
-cmake --build "out/RelWithDebInfo/cbuild" --target test_bench_koka_rbtree32
-[15/15] Linking C executable test_bench_koka_rbtree32
-compiled: out/RelWithDebInfo/test_bench_koka_rbtree32
+cmake --build "out/RelWithDebInfo/cbuild" --target test_bench_koka_rbtree
+[15/15] Linking C executable test_bench_koka_rbtree
+compiled: out/RelWithDebInfo/test_bench_koka_rbtree
 
-> time out/RelWithDebInfo/test_bench_koka_rbtree32
+> time out/RelWithDebInfo/test_bench_koka_rbtree
 420000
 real    0m1.132s
 ```
