@@ -132,11 +132,12 @@ data Flags
          , forceModule      :: FilePath
          , debug            :: Bool      -- emit debug info
          , optimize         :: Int       -- optimization level; 0 or less is off
-         , optInlineMax     :: Int         
-         , optctail         :: Bool   
-         , optctailInline   :: Bool 
+         , optInlineMax     :: Int
+         , optctail         :: Bool
+         , optctailInline   :: Bool
          , parcReuse        :: Bool
          , parcSpecialize   :: Bool
+         , parcReuseSpec    :: Bool
          }
 
 flagsNull :: Flags
@@ -156,7 +157,7 @@ flagsNull
           False -- library
           C     -- target
           Node  -- js host
-          platform64  
+          platform64
           5     -- simplify passes
           10    -- simplify dup max (must be at least 10 to inline partial applications across binds)
           defaultColorScheme
@@ -194,6 +195,7 @@ flagsNull
           False -- optctailInline
           True -- parc reuse
           True -- parc specialize
+          True -- parc reuse specialize
 
 isHelp Help = True
 isHelp _    = False
@@ -251,7 +253,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["showjs"]         (\b f -> f{showAsmJS=b})         "show generated javascript"
  , flag   []    ["showc"]          (\b f -> f{showAsmC=b})          "show generated C"
  , flag   []    ["core"]           (\b f -> f{genCore=b})          "generate a core file"
- , flag   []    ["checkcore"]      (\b f -> f{coreCheck=b})         "check generated core" 
+ , flag   []    ["checkcore"]      (\b f -> f{coreCheck=b})         "check generated core"
  -- , flag   []    ["show-coreF"]      (\b f -> f{showCoreF=b})        "show coreF"
  , emptyline
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
@@ -270,7 +272,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fflag       ["monadic"]   (\b f -> f{enableMon=b})         "enable monadic translation"
  , hide $ flag []     ["semi"]      (\b f -> f{semiInsert=b})        "insert semicolons based on layout"
  , hide $ fflag       ["parcreuse"] (\b f -> f{parcReuse=b})         "enable in-place update analysis"
- , hide $ fflag       ["parcspec"]  (\b f -> f{parcSpecialize=b})    "enable reference count specialization"
+ , hide $ fflag       ["parcspec"]  (\b f -> f{parcSpecialize=b})    "enable drop specialization"
+ , hide $ fflag       ["parcrspec"] (\b f -> f{parcReuseSpec=b})     "enable reuse specialization"
  , hide $ fflag       ["optctail"]  (\b f -> f{optctail=b})          "enable con-tail optimization (TRMC)"
  , hide $ fflag       ["optctailinline"]  (\b f -> f{optctailInline=b})  "enable con-tail inlining (increases code size)"
  ]
@@ -284,23 +287,23 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   flag short long f desc
     = ([Option short long (NoArg (Flag (f True))) desc]
       ,[Option [] (map ("no-" ++) long) (NoArg (Flag (f False))) ""])
-  
+
   numOption def optarg short long f desc
     = ([Option short long (OptArg (\mbs -> Flag (numOptionX def f mbs)) optarg) desc]
       ,[Option [] (map ("no-" ++) long) (NoArg (Flag (f (-1)))) ""])
 
-  -- feature flags    
+  -- feature flags
   fflag long f desc
     = ([Option [] (map ("f"++) long) (NoArg (Flag (f True))) desc]
-      ,[Option [] (map ("fno-" ++) long) (NoArg (Flag (f False))) ""])  
+      ,[Option [] (map ("fno-" ++) long) (NoArg (Flag (f False))) ""])
 
   fnum def optarg long f desc
     = ([Option [] (map ("f"++) long) (OptArg (\mbs -> Flag (numOptionX def f mbs)) optarg) desc]
       ,[Option [] (map ("fno-" ++) long) (NoArg (Flag (f (-1)))) ""])
 
-  hide (vis,hidden) 
+  hide (vis,hidden)
     = ([],vis ++ hidden)
-              
+
   numOptionX def f mbs
     = case mbs of
         Nothing -> f def
@@ -319,9 +322,9 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
   configstr short long opts f desc
     = config short long (map (\s -> (s,s)) opts) f desc
-    
+
   targetFlag t f
-    = f{ target=t, platform=case t of 
+    = f{ target=t, platform=case t of
                               JS -> platformJS
                               CS -> platformCS
                               _  -> platform64  }
@@ -360,7 +363,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
   redirectFlag s
     = Flag (\f -> f{ redirectOutput = s })
-    
+
   cmakeFlag s
       = Flag (\f -> f{ cmake = s })
 
@@ -417,7 +420,7 @@ processOptions flags0 opts
   = let (preOpts,postOpts) = span (/="--") opts
         flags1 = case postOpts of
                    [] -> flags0
-                   (_:rest) -> flags0{ execOpts = concat (map (++" ") rest) }                   
+                   (_:rest) -> flags0{ execOpts = concat (map (++" ") rest) }
         (options,files,errs0) = getOpt Permute optionsAll preOpts
         errs = errs0 ++ extractErrors options
     in if (null errs)
@@ -439,15 +442,15 @@ processOptions flags0 opts
         else invokeError errs
 
 getKokaDirs :: IO (FilePath,FilePath,FilePath, FilePath)
-getKokaDirs 
+getKokaDirs
   = do bin        <- getProgramPath
        let binDir  = dirname bin
            rootDir = rootDirFrom binDir
        libDir0    <- getEnvVar "KOKA_LIB_DIR"
-       libDir     <- if (not (null libDir0)) then return libDir0 else 
+       libDir     <- if (not (null libDir0)) then return libDir0 else
                      do exist <- doesFileExist (joinPath rootDir "lib/toc.kk")
                         if (exist)
-                          then return rootDir -- from local repo                               
+                          then return rootDir -- from local repo
                           else return (joinPath rootDir ("lib/koka/v" ++ version))  -- from install
        kklibDir0  <- getEnvVar "KOKA_KKLIB_DIR"
        let kklibDir = if (null kklibDir0) then joinPath libDir "kklib" else kklibDir0
@@ -470,7 +473,7 @@ rootDirFrom binDir
      -- jake build
      (_:"out":es) -> joinPaths (reverse es)
      _            -> binDir
-    
+
 
 extractFlags :: Flags -> [Option] -> Flags
 extractFlags flagsInit options
@@ -608,7 +611,7 @@ versionMessage flags
   , ""
   ])
   <-> text "bin   :" <+> text (binDir flags)
-  <-> text "lib   :" <+> text (libDir flags)  
+  <-> text "lib   :" <+> text (libDir flags)
   <-> text "stdlib:" <+> text (stdlibDir flags)
   <-> text "kklib :" <+> text (kklibDir flags)
   <->

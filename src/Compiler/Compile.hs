@@ -41,7 +41,7 @@ import Common.Range           -- ( Range, sourceName )
 import Common.Name            -- ( Name, newName, qualify, asciiEncode )
 import Common.NamePrim        ( nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync, nameTpInst )
 import Common.Error
-import Common.File            
+import Common.File
 import Common.ColorScheme
 import Common.Message         ( table )
 import Common.Syntax
@@ -306,7 +306,7 @@ makeRelativeToPaths paths fname
 
 compileModule :: Terminal -> Flags -> Modules -> Name -> IO (Error Loaded)
 compileModule term flags modules name  -- todo: take force into account
-  = runIOErr $   
+  = runIOErr $
     do let imp = ImpProgram (Import name name rangeNull Private)
        loaded <- resolveImports name term flags "" initialLoaded{ loadedModules = modules } [imp]
        -- trace ("compileModule: loaded modules: " ++ show (map modName (loadedModules loaded))) $ return ()
@@ -708,9 +708,9 @@ searchOutputIface flags name
 
 searchSource :: Flags -> FilePath -> Name -> IO (Maybe (FilePath,FilePath,Name {-full mod name relative to root-}))
 searchSource flags currentDir name
-  = do mbFile <- searchSourceFile flags currentDir (show name) 
+  = do mbFile <- searchSourceFile flags currentDir (show name)
        case mbFile of
-        Just (root,stem) 
+        Just (root,stem)
           -> let mname = case dirname stem of
                            ""  -> name
                            pre -> -- trace ("searchSource: " ++ showTupled name ++ ", " ++ show pre ++ ", " ++ show (pathToModuleName pre)) $
@@ -838,7 +838,7 @@ inferCheck loaded flags line coreImports program1
        -- remove return statements
        coreDefsUR <- unreturn penv coreDefs0
        -- let coreDefsUR = coreDefs0
-       when (coreCheck flags) $ -- trace "return core check" $ 
+       when (coreCheck flags) $ -- trace "return core check" $
                                 Core.Check.checkCore False False penv unique4 gamma coreDefsUR
 
        let showDef def = show (Core.Pretty.prettyDef ((prettyEnvFromFlags flags){coreShowDef=True}) def)
@@ -848,34 +848,34 @@ inferCheck loaded flags line coreImports program1
 
        -- lifting recursive functions to top level
        let (coreDefsLifted,uniqueLift) = liftFunctions penv unique4 coreDefsUR
-       when (coreCheck flags) $ -- trace "lift functions core check" $ 
+       when (coreCheck flags) $ -- trace "lift functions core check" $
                                 Core.Check.checkCore True True penv uniqueLift gamma coreDefsLifted
 
        -- simplify core
        let (coreDefsSimp0,uniqueSimp0) = simplifyDefs False (simplify flags) (0) uniqueLift penv coreDefsLifted
-       
+
        -- traceDefGroups "lifted" coreDefsSimp0
-       
-           
+
+
        -- constructor tail optimization
        let (coreDefsCTail,uniqueCTail)
-                  = if (optctail flags)  
+                  = if (optctail flags)
                      then ctailOptimize penv (platform flags) newtypes gamma (optctailInline flags) coreDefsSimp0 uniqueSimp0
                      else (coreDefsSimp0,uniqueSimp0)
-                     
+
        -- traceDefGroups "ctail" coreDefsCTail
 
        -- do monadic effect translation (i.e. insert binds)
        let uniqueMon = uniqueCTail
        let isPrimitiveModule = Core.coreProgName coreProgram1 == newName "std/core/types" ||
-                               Core.coreProgName coreProgram1 == newName "std/core/hnd" 
+                               Core.coreProgName coreProgram1 == newName "std/core/hnd"
        coreDefsMon
            <- if (not (enableMon flags) || isPrimitiveModule)
                then return (coreDefsCTail)
                else do cdefs <- Core.Monadic.monTransform penv coreDefsCTail
                        -- recheck cps transformed core
                        when (coreCheck flags) $
-                          -- trace "monadic core check" $ 
+                          -- trace "monadic core check" $
                           Core.Check.checkCore False False penv uniqueCTail gamma cdefs
                        return (cdefs)
 
@@ -905,8 +905,8 @@ inferCheck loaded flags line coreImports program1
                               return (cdefs0,unique0) -- $ simplifyDefs False 1 unique4a penv cdefs
 
        -- traceDefGroups "open resolve simplified" coreDefsSimp
-       
-       {-                               
+
+       {-
        -- do monadic effect translation (i.e. insert binds)
        let uniqueMon = uniqueSimp
        coreDefsMon
@@ -922,15 +922,15 @@ inferCheck loaded flags line coreImports program1
 
        traceDefGroups "monadic" coreDefsMon
        -}
-       
+
        let (coreDefsMonL,uniqueMonL) = monadicLift penv uniqueSimp coreDefsSimp
-       when (coreCheck flags) $ -- trace "monadic lift core check" $ 
+       when (coreCheck flags) $ -- trace "monadic lift core check" $
                                 Core.Check.checkCore True True penv uniqueMonL gamma coreDefsMonL
        -- traceDefGroups "monadic lift" coreDefsMonL
 
        -- do an inlining pass
        let (coreDefsInl,uniqueInl) = inlineDefs penv uniqueMonL (loadedInlines loaded3) coreDefsMonL
-       when (coreCheck flags) $ -- trace "inlined functions core check" $ 
+       when (coreCheck flags) $ -- trace "inlined functions core check" $
                                 Core.Check.checkCore True True penv uniqueInl gamma coreDefsInl
 
        -- and one more simplify
@@ -1055,9 +1055,9 @@ codeGen term flags compileTarget loaded
        when ((evaluate flags && isExecutable compileTarget)) $
         compilerCatch "program" term () $
           case mbRun of
-            Just run -> do termPhase term $ "evaluate" 
+            Just run -> do termPhase term $ "evaluate"
                            termDoc term $ space
-                           run                           
+                           run
             _        -> termDoc term $ space
 
        return loaded1 -- { loadedArities = arities, loadedExternals = externals }
@@ -1197,8 +1197,9 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                       Executable name tp -> Just (name,isAsyncFunction tp)
                       _                  -> Nothing
       let -- (core,unique) = parcCore (prettyEnvFromFlags flags) newtypes unique0 core0
-          (cdoc,hdoc,bcore) = cFromCore sourceDir (prettyEnvFromFlags flags) (platform flags) 
-                                newtypes unique0 (parcReuse flags) (parcSpecialize flags) mbEntry core0
+          (cdoc,hdoc,bcore) = cFromCore sourceDir (prettyEnvFromFlags flags) (platform flags)
+                                newtypes unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
+                                mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } [] bcore
       writeDocW 120 (outBase ++ ".c.core") bcoreDoc
       when (showCore flags) $
@@ -1208,7 +1209,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       writeDocW 120 outC (cdoc <.> linebreak)
       writeDocW 120 outH (hdoc <.> linebreak)
       when (showAsmC flags) (termDoc term (hdoc <//> cdoc))
-      
+
       -- compile and link?
       case mbEntry of
        Nothing -> return Nothing
@@ -1221,12 +1222,12 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                             Just ninja -> do -- termDoc term $ text "found ninja:" <+> pretty ninja
                                              return " -G Ninja"
                             Nothing    -> return ""
-              
+
             checkCMake term flags
             currentDir <- getCurrentDirectory
-            -- kklibInstallDir = joinPath kklibDir "out/install"            
+            -- kklibInstallDir = joinPath kklibDir "out/install"
             -- installKKLib term flags kklibDir kklibInstallDir cmakeGeneratorFlag cmakeConfigTypeFlag configType
-            
+
             let mainModName= showModName (Core.coreProgName core0)
                 mainName   = if null (exeName flags) then mainModName else exeName flags
 
@@ -1250,7 +1251,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
 
             let csourceDir = outName flags ""              -- out/<config>
                 cbuildDir  = outName flags "cbuild"        -- out/<config>/cbuild
-                
+
                 targetDir  = cbuildDir
                 targetBase = joinPath cbuildDir mainName   -- out/<config>/cbuild/<mainName>.exe
                 targetExe  = targetBase ++ exeExtension    -- out/<config>/cbuild/<mainName>.exe
@@ -1259,10 +1260,10 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             let -- using -S and -B is more neat, but not available before cmake 3.15 (so we use chdir)
                 cmakeLists  = outDir flags ++ "/CMakeLists.txt"
                 cmakeInc    = joinPath (outDir flags) (mainModName ++ ".cmake")
-                
+
                 cmakeConfigType     = configType flags
                 cmakeConfigTypeFlag = " -DCMAKE_BUILD_TYPE=" ++ cmakeConfigType
-                
+
                 cmakeConfig = (cmake flags) ++ " -E chdir " ++ dquote targetDir
                                ++ " " ++ (cmake flags) ++ cmakeGeneratorFlag ++ cmakeConfigTypeFlag
                                ++ " -Dkk_invokedir=" ++ currentDir
@@ -1271,13 +1272,13 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                                ++ (if (rebuild flags) then " -DKK_REBUILD=ON" else "")
                                ++ " " ++ cmakeArgs flags
                                ++ " ../.."
-                               
-                cmakeBuild  = (cmake flags) ++ " --build " ++ dquote targetDir ++ " --target " ++ mainName  
-                
+
+                cmakeBuild  = (cmake flags) ++ " --build " ++ dquote targetDir ++ " --target " ++ mainName
+
                 kkmainCmake = joinPath (kklibDir flags) "kkmain.cmake"
-                
+
             -- write top CMakeLists
-            copyTextIfNewerWith (rebuild flags) kkmainCmake cmakeLists 
+            copyTextIfNewerWith (rebuild flags) kkmainCmake cmakeLists
                   (\content -> "# generated from " ++ kkmainCmake ++ "; do not edit this file\n" ++ content)
 
             -- write module CMakeLists
@@ -1298,7 +1299,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             -- build
             termPhase term ("compiling and linking C files")
             runSystemEcho cmakeBuild
-                  
+
             termDoc term $ text "compiled:" <+> text (normalize finalExe)
             let cmdflags = if (showElapsed flags) then " --kktime" else ""
             return (Just (runSystem (dquote finalExe ++ cmdflags ++ " " ++ execOpts flags)))
@@ -1419,13 +1420,13 @@ dquote s
 outName :: Flags -> FilePath -> FilePath
 outName flags s
   = joinPath (buildDir flags) s
-     
+
 buildDir :: Flags -> FilePath
-buildDir flags 
+buildDir flags
   = if (null (outDir flags))
      then configType flags
      else joinPath (outDir flags) (configType flags)
-         
+
 configType :: Flags -> String
 configType flags
   = if (target flags == C)
@@ -1435,9 +1436,9 @@ configType flags
                     then "RelWithDebInfo"
                     else "Release")
      else (show (target flags))
-      
 
-     
+
+
 
 posixOutName flags s
  = normalizeWith '/' (outName flags s)
