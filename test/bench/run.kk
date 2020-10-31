@@ -76,7 +76,7 @@ struct test {
 
 fun show( test : test ) {
   val xs = if (test.err.is-empty) then [
-    test.elapsed.core/show(2) + "s ~" + test.elapsed-sdev.core/show(3),
+    test.elapsed.core/show(2) + "s ~" + test.elapsed-sdev.core/show-fixed(3),
     test.rss.core/show + "kb"
   ] else ["error: " + test.err]
   ([test.name,test.lang.pad-left(3)] + xs).join(", ")
@@ -84,7 +84,7 @@ fun show( test : test ) {
 
 fun show-norm( test : test ) {
   val xs = if (test.err.is-empty) then [
-      test.norm-elapsed.core/show(2) + "x ~" + test.elapsed-sdev.core/show(3),
+      test.norm-elapsed.core/show(2) + "x ~" + test.elapsed-sdev.core/show-fixed(3),
       test.norm-rss.core/show(2) + "x"
     ] else ["error: " + test.err]
   ([test.name,test.lang.pad-left(3)] + xs).join(", ")
