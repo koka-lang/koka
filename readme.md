@@ -319,12 +319,12 @@ but that is not generally available). You can either run `koka` from a
 
 There is a standard benchmark suite. It is still basic but more benchmarks
 with effect handlers are coming. We only test on (Ubuntu) Linux and the benchmarks
-need `gcc` (should be there already), and:
+need `gcc` (should be there already) together with:
 
-- `ghc` (use `sudo apt-get install ghc`),
-- `ocamlopt` (use `sudo apt-get install ocaml`), and
+- `ghc` (use `sudo apt install ghc`),
+- `ocamlopt` (use `sudo apt install ocaml`), and
 - `swiftc`. The Swift compiler can be downloaded [here](https://swift.org/download/).
-   The benchmarks expect `switfc` to be installed at `/opt/swift/bin`,
+   The benchmarks expect `swiftc` to be installed at `/opt/swift/bin`,
    so unpack and copy everything under `swift-.../usr` to `/opt/swift/bin`:
    ```
    > tar -xzf swift-5.3-RELEASE-ubuntu20.04.tar.gz
@@ -333,7 +333,7 @@ need `gcc` (should be there already), and:
    > sudo cp -r * /opt/swift
    ```
 - `javac`/`java`. We used these [instructions](https://computingforgeeks.com/install-oracle-java-openjdk-14-on-ubuntu-debian-linux/)
-   to install the Java SE 15 Hotspot compiler (note: the intstructions are for Java SE 14 but we use 15 in our benchmarks).
+   to install the Java SE 15 Hotspot compiler (note: the instructions are for Java SE 14 but we use 15 in our benchmarks).
 
 The benchmarks can now be build using:
 
@@ -343,6 +343,11 @@ The benchmarks can now be build using:
 > cd build
 > cmake .. -DCMAKE_BUILD_TYPE=Release
 > cmake --build .
+```
+
+For some benchmarks, like `cfold`, we may need a large stack, so it may be good to raise the limit:
+```
+> ulimit -s unlimited
 ```
 
 We can then run all benchmarks as:
