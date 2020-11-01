@@ -238,7 +238,7 @@ fun run-test( test-name : string, langt : (string,string), iterations : int ) : 
              else lang-long
   val base = lang + "-" + test-name
   val prog = if (lang-long=="java")
-              then "java --class-path=" + dir + " " + test-name.replace-all("-","")
+              then "java --enable-preview --class-path=" + dir + " " + test-name.replace-all("-","")
               else dir + "/" + base
   val progpath = if (lang-long=="java") then (dir.path + (test-name.replace-all("-","") + ".class").path)
                   else prog.path
