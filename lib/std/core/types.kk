@@ -9,7 +9,7 @@
 /* Core types.
 
    This module is implicitly imported and all functions and types
-   are always available. 
+   are always available.
    These types are required to be defined for the compiler
    to work correctly (i.e. types like `:int` or `:div`)
 */
@@ -21,7 +21,7 @@ infixr 20  (||)
 include extern {
   js file "types-inline.js"
 }
-  
+
 // ----------------------------------------------------------------------------
 // Core types
 // ----------------------------------------------------------------------------
@@ -45,7 +45,7 @@ value type double
 // See the [``std/int32``](std_int32.html) module for operations on 32-bit integers.
 value type int32
 
-// A signed integer equal to `size_t` in C. 
+// A signed integer equal to `size_t` in C.
 // Provides no operations but is used mostly for interaction with external code.
 // The Javascript backend uses `int32` for this.
 value type size_t
@@ -118,29 +118,6 @@ type global :: H
 
 
 // ----------------------------------------------------------------------------
-// Internal types
-// ----------------------------------------------------------------------------
-
-// Optional is used internally by the compiler to pass optional arguments.
-// It is usually displayed as `:?a` for some type `:a`.
-type optional<a> {
-  // The `Optional` constructor is used when an optional argument is given.
-  con Optional(value:a)
-  // `None` is used when an optional argument is not provided.
-  con None
-}
-
-// Handled effects are lifted to an atomic effect using the `:handled` type constructor
-type handled    :: HX -> X;
-
-// Linear effects are lifted to an atomic effect using the `:handled1` type constructor
-type handled1   :: HX1 -> X;
-
-// The `:inst` effect is the default umbrella effect for effect instances
-type inst :: HX
-
-
-// ----------------------------------------------------------------------------
 // Standard Data types
 // ----------------------------------------------------------------------------
 
@@ -188,6 +165,22 @@ type order {
   Lt
   Eq
   Gt
+}
+
+/*
+// Explicitly box values using the `Box` constructor.
+value type box<a> {
+  con Box( unbox : a )
+}
+*/
+
+// Explicitly heap allocate using the `Hbox` constructor.
+reference type hbox<a> {
+  con Hbox( unhbox : a )
+}
+
+fun hbox( x : a ) : hbox<a> {
+  Hbox(x)
 }
 
 // ----------------------------------------------------------------------------
@@ -334,16 +327,39 @@ fun unsafe-no-div( action : () -> <div|e> a ) : e a {
 }
 
 // ----------------------------------------------------------------------------
-// These primitives are used by the compiler for 
+// Internal types
+// ----------------------------------------------------------------------------
+
+// Optional is used internally by the compiler to pass optional arguments.
+// It is usually displayed as `:?a` for some type `:a`.
+type optional<a> {
+  // The `Optional` constructor is used when an optional argument is given.
+  con Optional( value : a )
+  // `None` is used when an optional argument is not provided.
+  con None
+}
+
+// Handled effects are lifted to an atomic effect using the `:handled` type constructor
+type handled    :: HX -> X;
+
+// Linear effects are lifted to an atomic effect using the `:handled1` type constructor
+type handled1   :: HX1 -> X;
+
+// The `:inst` effect is the default umbrella effect for effect instances
+type inst :: HX
+
+
+// ----------------------------------------------------------------------------
+// These primitives are used by the compiler for
 // _tail recursion module cons_ (TRMC) optimization.
 // ----------------------------------------------------------------------------
 
 // _Internal_. Internal type for _tail recursion module cons_ (TRMC) optimization.
-value type ctail<a>  
+value type ctail<a>
 
 inline extern ".ctail-hole"() : a { }
 inline extern ".ctail-create"(obj : a, cname : string, field : string) : ctail<a> { }
 inline extern ".ctail-next"(acc : ctail<a>, res : a, obj : a, cname : string , field : string ) : ctail<a> { }
 inline extern ".ctail-set"( acc : ctail<a>, res : a ) : () { }
-inline extern ".ctail-get"( acc : ctail<a> ) : a { }
-inline extern ".ctail-alloc"() : ctail<a> { }
+
+inline extern ".ctail-hbox-create"(obj : hbox<a>) : ctail<a> { }  // implemented in backend

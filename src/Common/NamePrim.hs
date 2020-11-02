@@ -47,7 +47,7 @@ module Common.NamePrim
           , isClauseTailName, nameClauseTailNoYield
           , nameTpEvIndex, nameYielding, nameYieldExtend
           , nameEvvIsAffine
-          
+
           --
           , nameUnsafeTotal
           , nameIntConst, nameInt32, nameSizeT
@@ -58,8 +58,8 @@ module Common.NamePrim
           , nameKeepMatch, nameDropMatch, nameReuseMatch
           , nameTpReuse, nameDropReuse, nameFreeReuse
           , nameReuseNull, nameAssignReuse, nameReuse, nameReuseIsValid
-          , nameAllocAt, nameConFieldsAssign          
-          
+          , nameAllocAt, nameConFieldsAssign
+
           -- * CTail optimization
           , nameTpCTail
           , nameCTailSet
@@ -67,7 +67,8 @@ module Common.NamePrim
           , nameCTailCreate
           , nameCTailHole
           , nameCTailAlloc
-          , nameCTailGet
+          , nameCTailHboxCreate
+          , nameTpHbox, nameHboxCon, nameHbox, nameUnhbox
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -249,11 +250,11 @@ nameTpBuilder   = qualify (newName "std/text/string") (newName "builder")
 
 nameTpCTail       = ctailName "ctail"
 nameCTailSet      = ctailName ".ctail-set"
-nameCTailNext     = ctailName ".ctail-next" 
+nameCTailNext     = ctailName ".ctail-next"
 nameCTailCreate   = ctailName ".ctail-create"
 nameCTailHole     = ctailName ".ctail-hole"
 nameCTailAlloc    = ctailName ".ctail-alloc"
-nameCTailGet      = ctailName ".ctail-get"
+nameCTailHboxCreate  = ctailName ".ctail-hbox-create"
 
 ctailName name    = coreTypesName name
 
@@ -379,10 +380,17 @@ nameTpString    = coreTypesName "string"
 nameTpAny       = coreTypesName "any"
 nameTpVector    = coreTypesName "vector"
 
+-- These are internal only inserted by the boxing phase
 nameTpBox       = coreTypesName ".Box"
 nameBoxCon      = coreTypesName ".Box"
 nameBox         = coreTypesName ".box"
 nameUnbox       = coreTypesName ".unbox"
+
+-- Explicit heap allocation; used by TRMC (in `Core.CTail`)
+nameTpHbox      = coreTypesName "hbox"
+nameHboxCon     = coreTypesName "Hbox"
+nameUnhbox      = coreTypesName "unhbox"
+nameHbox        = coreTypesName "hbox"
 
 nameTpReuse     = coreTypesName "reuse"
 nameReuseNull   = coreTypesName "no-reuse"
@@ -428,7 +436,7 @@ nameCoreTypes   = newName "std/core/types"
 nameDict        = newName "std/data/dict"
 
 isSystemCoreName name
-  = let m = nameModule name 
+  = let m = nameModule name
     in  m `elem` [nameId nameSystemCore, nameId nameCoreHnd, nameId nameCoreTypes]
 
 {--------------------------------------------------------------------------

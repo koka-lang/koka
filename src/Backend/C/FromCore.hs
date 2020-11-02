@@ -815,6 +815,7 @@ genHole name info dataRepr
   = emitToH $
     text "static inline" <+> ppName name <+> ppName name <.> text "_hole()" <+> block (
       text "return" <+>
+      -- holes must be trace-able and look like values (least-significant-bit==1)
       (if (dataReprMayHaveSingletons dataRepr)
         then text "kk_datatype_from_tag((kk_tag_t)0)"
         else parens (ppName name) <.> text "(1)"
@@ -1669,25 +1670,44 @@ genAppNormal (Var (TName conFieldsAssign typeAssign) _) (Var reuseName (InfoConF
 
 -- special: ctail
 genAppNormal v@(Var ctailCreate (InfoConField conName fieldName)) [App (Var dup _) [Var con _]]  | getName ctailCreate == nameCTailCreate && getName dup == nameDup
-  = do let doc = genFieldAddress con conName fieldName
+  = do let doc = genFieldAddress con (getName conName) fieldName
        -- TODO: drop? or add borrowing
        return ([],doc)
 
 genAppNormal v@(Var ctailCreate (InfoConField conName fieldName)) [Var con _]  | getName ctailCreate == nameCTailCreate
  = do let drop = map (<.> semi) (genDupDropCall False (typeOf con) (ppName (getName con)))
-          doc = genFieldAddress con conName fieldName
+          doc = genFieldAddress con (getName conName) fieldName
+      -- TODO: drop? or add borrowing
+      return (drop, doc)
+
+
+genAppNormal v@(Var ctailHboxCreate _) [App (Var dup _) [Var con _]]  | getName ctailHboxCreate == nameCTailHboxCreate && getName dup == nameDup
+  = do let  addr = genFieldAddress con nameHboxCon nameUnhbox
+            resTp = case splitFunScheme (typeOf ctailHboxCreate) of  -- .ctail<a>
+                      Nothing -> failure ("Backend.C.FromCore.genAppNormal.ctailHboxCreate: not a function type" ++ show ctailHboxCreate)
+                      Just (_,_,_,_,resTp0) -> resTp0
+            doc = parens (ppType resTp) <.> addr
+       return ([],doc)
+
+genAppNormal v@(Var ctailHboxCreate _) [Var con _]  | getName ctailHboxCreate == nameCTailHboxCreate
+ = do let drop = map (<.> semi) (genDupDropCall False (typeOf con) (ppName (getName con)))
+          addr = genFieldAddress con nameHboxCon nameUnhbox
+          resTp = case splitFunScheme (typeOf ctailHboxCreate) of  -- .ctail<a>
+                    Nothing -> failure ("Backend.C.FromCore.genAppNormal.ctailHboxCreate: not a function type" ++ show ctailHboxCreate)
+                    Just (_,_,_,_,resTp0) -> resTp0
+          doc = parens (ppType resTp) <.> addr
       -- TODO: drop? or add borrowing
       return (drop, doc)
 
 genAppNormal v@(Var ctailNext (InfoConField conName fieldName)) [Var slot InfoNone, App (Var dup _) [Var res _], Var con _]  | getName ctailNext == nameCTailNext, getName dup == nameDup
  = do let assign = text "*" <.> ppName (getName slot) <+> text "=" <+> ppName (getName res)
-          next   = genFieldAddress con conName fieldName
+          next   = genFieldAddress con (getName conName) fieldName
       return ([],tupled [assign,next])
 
 genAppNormal v@(Var ctailNext (InfoConField conName fieldName)) [Var slot InfoNone, Var res _, Var con _]  | getName ctailNext == nameCTailNext
  = do let drop   = genDupDropCall False (typeOf con) (ppName (getName con))
           assign = text "*" <.> ppName (getName slot) <+> text "=" <+> ppName (getName res)
-          next   = genFieldAddress con conName fieldName
+          next   = genFieldAddress con (getName conName) fieldName
       -- TODO: drop? or add borrowing
       return ([], tupled (drop ++ [assign,next]))
 
@@ -1724,9 +1744,9 @@ genAppNormal f args
                        return (fdecls ++ decls, text "kk_function_call" <.> tupled [cresTp,cargTps,fdoc,arguments (fdoc:argDocs)])
 
 
-genFieldAddress :: TName -> TName -> Name -> Doc
+genFieldAddress :: TName -> Name -> Name -> Doc
 genFieldAddress conVar conName fieldName
-  = parens (text "&" <.> conAsNameX (getName conName) <.> parens (ppName (getName conVar)) <.> text "->" <.> ppName fieldName)
+  = parens (text "&" <.> conAsNameX (conName) <.> parens (ppName (getName conVar)) <.> text "->" <.> ppName (unqualify fieldName))
 
 
 genAppSpecial :: Expr -> [Expr] -> Asm (Maybe Doc)
@@ -1866,6 +1886,7 @@ genExprExternal tname formats [] | getName tname == nameCTailHole
 genExprExternal tname formats [accDoc,argDoc] | getName tname == nameCTailSet
   = return ([],text "*" <.> parens accDoc <+> text "=" <+> argDoc)
 
+{-
 -- special case: ctail get
 genExprExternal tname formats [accDoc] | getName tname == nameCTailGet
   = case (typeOf tname) of
@@ -1875,6 +1896,7 @@ genExprExternal tname formats [accDoc] | getName tname == nameCTailGet
                           <+> text "kk_free" <.> parens accDoc <.> semi
               return ([rdecl], r)
       _ -> failure $"Backend.C.FromCore.genExprExternal.CTailGet: illegal type: " ++ show (pretty (typeOf tname))
+-}
 
 -- special case: ctail alloc
 genExprExternal tname formats [] | getName tname == nameCTailAlloc
