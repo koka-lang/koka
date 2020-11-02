@@ -1680,22 +1680,13 @@ genAppNormal v@(Var ctailCreate (InfoConField conName fieldName)) [Var con _]  |
       -- TODO: drop? or add borrowing
       return (drop, doc)
 
-
 genAppNormal v@(Var ctailHboxCreate _) [App (Var dup _) [Var con _]]  | getName ctailHboxCreate == nameCTailHboxCreate && getName dup == nameDup
-  = do let  addr = genFieldAddress con nameHboxCon nameUnhbox
-            resTp = case splitFunScheme (typeOf ctailHboxCreate) of  -- .ctail<a>
-                      Nothing -> failure ("Backend.C.FromCore.genAppNormal.ctailHboxCreate: not a function type" ++ show ctailHboxCreate)
-                      Just (_,_,_,_,resTp0) -> resTp0
-            doc = parens (ppType resTp) <.> addr
+  = do let doc = genFieldAddressHbox (typeOf ctailHboxCreate) con
        return ([],doc)
 
 genAppNormal v@(Var ctailHboxCreate _) [Var con _]  | getName ctailHboxCreate == nameCTailHboxCreate
  = do let drop = map (<.> semi) (genDupDropCall False (typeOf con) (ppName (getName con)))
-          addr = genFieldAddress con nameHboxCon nameUnhbox
-          resTp = case splitFunScheme (typeOf ctailHboxCreate) of  -- .ctail<a>
-                    Nothing -> failure ("Backend.C.FromCore.genAppNormal.ctailHboxCreate: not a function type" ++ show ctailHboxCreate)
-                    Just (_,_,_,_,resTp0) -> resTp0
-          doc = parens (ppType resTp) <.> addr
+          doc  = genFieldAddressHbox (typeOf ctailHboxCreate) con
       -- TODO: drop? or add borrowing
       return (drop, doc)
 
@@ -1742,6 +1733,15 @@ genAppNormal f args
                                                                            [text "kk_context_t*"]))
                                                _ -> failure $ ("Backend.C.genAppNormal: expecting function type: " ++ show (pretty (typeOf f)))
                        return (fdecls ++ decls, text "kk_function_call" <.> tupled [cresTp,cargTps,fdoc,arguments (fdoc:argDocs)])
+
+
+genFieldAddressHbox :: Type -> TName -> Doc
+genFieldAddressHbox createTp conVar
+  = let addr = genFieldAddress conVar nameHboxCon nameUnhbox
+        resTp = case splitFunScheme createTp of  -- .ctail<a>
+                  Nothing -> failure ("Backend.C.FromCore.genAppNormal.genFieldAddressHbox: not a function type" ++ show createTp)
+                  Just (_,_,_,_,resTp0) -> resTp0
+    in parens (ppType resTp) <.> addr
 
 
 genFieldAddress :: TName -> Name -> Name -> Doc
@@ -1896,7 +1896,6 @@ genExprExternal tname formats [accDoc] | getName tname == nameCTailGet
                           <+> text "kk_free" <.> parens accDoc <.> semi
               return ([rdecl], r)
       _ -> failure $"Backend.C.FromCore.genExprExternal.CTailGet: illegal type: " ++ show (pretty (typeOf tname))
--}
 
 -- special case: ctail alloc
 genExprExternal tname formats [] | getName tname == nameCTailAlloc
@@ -1904,6 +1903,7 @@ genExprExternal tname formats [] | getName tname == nameCTailAlloc
       TFun _ _ tres@(TApp _ [tp])
         -> do return ([], parens (parens (ppType tres) <.> text "kk_malloc(sizeof(" <.> ppType tp <.> text "),kk_context())"))
       _ -> failure $"Backend.C.FromCore.genExprExternal.CTailAlloc: illegal type: " ++ show (pretty (typeOf tname))
+-}
 
 -- normal external
 genExprExternal tname formats argDocs0

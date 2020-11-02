@@ -668,7 +668,13 @@ genExpr expr
      -- special case: ctail create
      App (Var ctailCreate (InfoConField conName fieldName)) [Var con _] | getName ctailCreate == nameCTailCreate
        -> do conDoc <- genTName con
-             return (empty,text "{value:" <+> conDoc <.> text ", field: \"" <.> ppName fieldName <.> text "\"}")
+             return (empty,text "{value:" <+> conDoc <.> text ", field: \"" <.> ppName (unqualify fieldName) <.> text "\"}")
+
+     -- special case: ctail hbox create
+     App (Var ctailHboxCreate _) [Var con _] | getName ctailHboxCreate == nameCTailHboxCreate
+       -> do conDoc <- genTName con
+             return (empty,text "{value:" <+> conDoc <.> text ", field: \"" <.> ppName (unqualify nameUnhbox) <.> text "\"}")
+
 
      App f args
        -> {- case splitFunScheme (typeOf f) of
@@ -884,13 +890,13 @@ genExprExternalPrim tname formats [accDoc,resDoc] | getName tname == nameCTailSe
 -- special case: ctail get
 genExprExternalPrim tname formats [accDoc] | getName tname == nameCTailGet
   = return ([], accDoc <.> text ".result.value")
--}
 
 -- special case: ctail alloc
 genExprExternalPrim tname formats [] | getName tname == nameCTailAlloc
   = do res <- genVarName "res"
        return ([text "var" <+> res <+> text "=" <+> text "{ value: undefined }" <.> semi],
                text "{ value:" <+> res <.> text ", field: \"value\", result:" <+> res <+> text "}")
+-}
 
 -- normal external
 genExprExternalPrim tname formats argDocs0

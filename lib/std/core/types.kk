@@ -361,5 +361,4 @@ inline extern ".ctail-hole"() : a { }
 inline extern ".ctail-create"(obj : a, cname : string, field : string) : ctail<a> { }
 inline extern ".ctail-next"(acc : ctail<a>, res : a, obj : a, cname : string , field : string ) : ctail<a> { }
 inline extern ".ctail-set"( acc : ctail<a>, res : a ) : () { }
-
-inline extern ".ctail-hbox-create"(obj : hbox<a>) : ctail<a> { }  // implemented in backend
+inline extern ".ctail-hbox-create"(obj : hbox<a>) : ctail<a> { }

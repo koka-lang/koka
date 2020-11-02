@@ -66,7 +66,6 @@ module Common.NamePrim
           , nameCTailNext
           , nameCTailCreate
           , nameCTailHole
-          , nameCTailAlloc
           , nameCTailHboxCreate
           , nameTpHbox, nameHboxCon, nameHbox, nameUnhbox
 
@@ -253,7 +252,6 @@ nameCTailSet      = ctailName ".ctail-set"
 nameCTailNext     = ctailName ".ctail-next"
 nameCTailCreate   = ctailName ".ctail-create"
 nameCTailHole     = ctailName ".ctail-hole"
-nameCTailAlloc    = ctailName ".ctail-alloc"
 nameCTailHboxCreate  = ctailName ".ctail-hbox-create"
 
 ctailName name    = coreTypesName name

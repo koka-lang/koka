@@ -408,13 +408,6 @@ makeCTailSet slot expr
     funType = TFun [(nameNil,typeOf slot),(nameNil,typeOf expr)] typeTotal typeUnit
 
 
-makeCTailAlloc :: Type -> Expr
-makeCTailAlloc tp
-  = App (Var (TName nameCTailAlloc funType) (InfoExternal [])) []
-  where
-    funType = TFun [] typeTotal (makeSlotType tp)
-
-
 makeSlotType :: Type -> Type
 makeSlotType tp
   = TApp (TCon (TypeCon nameTpCTail (kindFun kindStar kindStar))) [tp]
