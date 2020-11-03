@@ -66,7 +66,7 @@ module Core.Core ( -- Data structures
                    , getDataRepr, getDataReprEx, dataInfoIsValue
                    , getConRepr
                    , dataReprIsValue, conReprIsValue
-                   , VarInfo(..), isInfoArity 
+                   , VarInfo(..), isInfoArity
                    , infoIsRefCounted, infoIsLocal
 
                    , isMonType, isMonEffect
@@ -91,7 +91,7 @@ import Common.Unique
 import Common.Id
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
                         nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameSizeT, nameBox, nameUnbox,
-                        nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit, nameTpCTail)
+                        nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit, nameTpCTail, nameTpCField)
 import Common.Syntax
 import Kind.Kind
 import Type.Type
@@ -319,7 +319,7 @@ getDataRepr info
 
 getConRepr :: DataInfo -> ConInfo -> ConRepr
 getConRepr dataInfo conInfo
-  = let (_,creprs) = getDataRepr dataInfo 
+  = let (_,creprs) = getDataRepr dataInfo
     in case [crepr | (ci,crepr) <- zip (dataInfoConstrs dataInfo) creprs, conInfoName ci == conInfoName conInfo] of
          [crepr] -> crepr
          _ -> failure ("Core.Core: getConRepr: constructor not in the datatype: " ++ show (dataInfoName dataInfo, conInfoName conInfo))
@@ -338,8 +338,8 @@ getDataReprEx getIsValue info
          -- TODO: only for C#? check this during kind inference?
          -- else if (hasExistentials)
          --  then (DataNormal, map (\con -> ConNormal typeName) conInfos)
-         else if (isValue 
-                    && (null (dataInfoParams info) || typeName == nameTpCTail) 
+         else if (isValue
+                    && (null (dataInfoParams info) || typeName == nameTpCTail || typeName == nameTpCField)
                     && all (\con -> null (conInfoParams con)) conInfos)
           then (DataEnum,map (const (ConEnum typeName DataEnum)) conInfos)
          else if (length conInfos == 1)
@@ -462,25 +462,25 @@ defGroupsTNames :: DefGroups -> TNames
 defGroupsTNames group = foldr S.union S.empty (map defGroupTNames group)
 
 data VarInfo
-  = InfoNone  
+  = InfoNone
   | InfoArity Int Int               -- #Type parameters, #parameters
   | InfoExternal [(Target,String)]  -- inline body
-  | InfoReuse Pattern               
+  | InfoReuse Pattern
   | InfoConField TName Name         -- constructor name, field name
-  
+
 instance Show VarInfo where
   show info = case info of
-                InfoNone  
+                InfoNone
                   -> ""
-                InfoReuse pat 
+                InfoReuse pat
                   -> "reuse:<pat>"
-                InfoConField conName fieldName    
+                InfoConField conName fieldName
                   -> "field:" ++ show conName ++ "." ++ show fieldName
-                InfoArity m n  
+                InfoArity m n
                   -> "arity:" ++ show (m,n)
-                InfoExternal formats 
+                InfoExternal formats
                   -> "external:" ++ show formats
-                
+
 
 infoArity (InfoArity m n) = n
 infoArity (_)             = 0
@@ -812,7 +812,7 @@ freshName prefix
        return (newName $ prefix ++ "." ++ show id)
 
 openEffectExpr :: Effect -> Effect -> Type -> Type -> Expr -> Expr
-openEffectExpr effFrom effTo tpFrom tpTo expr  
+openEffectExpr effFrom effTo tpFrom tpTo expr
   = if (hasNoEffectExpr expr)
      then expr
      else --trace ("open effect: " ++ show (map pretty [effFrom,effTo,tpFrom,tpTo])) $
@@ -826,7 +826,7 @@ openEffectExpr effFrom effTo tpFrom tpTo expr
     e2      = TypeVar (-4) kindEffect Bound
 
     hasNoEffectExpr expr
-      = case expr of 
+      = case expr of
           TypeApp e targs -> hasNoEffectExpr e
           Lit{} -> True
           Con{} -> True

@@ -1135,6 +1135,8 @@ cTypeCon c
          then CPrim "kk_reuse_t"
         else if (name == nameTpCTail)
          then CPrim "kk_ctail_t"
+        else if (name == nameTpCField)
+         then CPrim "kk_box_t*"
         else CData (typeClassName name)
 
 
@@ -1638,7 +1640,8 @@ genApp f args
   = do sapp <- genAppSpecial f args
        case sapp of
          Just app -> return ([],app)
-         Nothing  -> genAppNormal f args
+         Nothing  -> trace ("genAppNormal: " ++ show (f,args)) $
+                     genAppNormal f args
 
 
 genAppNormal :: Expr -> [Expr] -> Asm ([Doc],Doc)
@@ -1669,6 +1672,19 @@ genAppNormal (Var (TName conFieldsAssign typeAssign) _) (Var reuseName (InfoConF
        return (decls ++ [tmpDecl] ++ assigns, result)
 
 -- special: ctail
+genAppNormal (Var unbox _) [App (Var cfieldHole _) []] | getName cfieldHole == nameCFieldHole && getName unbox == nameUnbox
+  = return ([],ppType (resultType (typeOf unbox)) <.> text "_hole()")
+
+genAppNormal (Var cfieldOf _) [App (Var box _) [App (Var dup _) [Var con _]], Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameCFieldOf && getName dup == nameDup
+  = do let doc = genFieldAddress con (readQualified conName) (readQualified fieldName)
+       return ([],text "(kk_box_t*)" <.> parens doc)
+{-
+genAppNormal v@(Var ctailCreate (InfoConField conName fieldName)) [Var con _]  | getName ctailCreate == nameCTailCreate
+ = do let drop = map (<.> semi) (genDupDropCall False (typeOf con) (ppName (getName con)))
+          doc = genFieldAddress con (getName conName) fieldName
+      -- TODO: drop? or add borrowing
+      return (drop, doc)
+-}
 genAppNormal v@(Var ctailCreate (InfoConField conName fieldName)) [App (Var dup _) [Var con _]]  | getName ctailCreate == nameCTailCreate && getName dup == nameDup
   = do let doc = genFieldAddress con (getName conName) fieldName
        -- TODO: drop? or add borrowing
@@ -1882,9 +1898,33 @@ genExprExternal tname formats [] | getName tname == nameCTailHole
   = case typeOf tname of
       (TFun [] _ tres) -> return ([],ppType tres <.> text "_hole()")
 
+-- special case: cfield hole
+genExprExternal tname formats [] | getName tname == nameCFieldHole
+  = return ([],ppType (resultType (typeOf tname)) <.> text "_hole()")
+
+-- special case: cfield set
+genExprExternal tname formats [fieldDoc,argDoc] | getName tname == nameCFieldSet
+  = return ([],text "*" <.> parens fieldDoc <+> text "=" <+> argDoc)
+
+
 -- special case: ctail set
 genExprExternal tname formats [accDoc,argDoc] | getName tname == nameCTailSet
   = return ([],text "*" <.> parens accDoc <+> text "=" <+> argDoc)
+
+{-
+-- special case: ctail set-blink
+genExprExternal tname formats [accDoc,argDoc] | getName tname == nameCTailSetBLink
+  = return ([],text "*" <.> parens (text "(kk_std_core_types__blink_*)" <.> parens accDoc)
+                 <+> text "=" <+> argDoc)
+
+-- special case: ctail get-blink
+genExprExternal tname formats [accDoc] | getName tname == nameCTailGetBLink
+  = do let doc = parens $
+                  text "kk_is_hole" <.> parens (text "*" <.> parens accDoc) <+> text "?"
+                    <+> "kk_std_core_types__new_BNil" <.> arguments [] <+> text ":"
+                    <+> "(kk_std_core_types__blink_)" <.> parens (text "*" <.> parens accDoc)
+       return ([], doc)
+  -}
 
 {-
 -- special case: ctail get
@@ -2442,3 +2482,9 @@ constdecl = text "const"
 tparameters :: [TName] -> Doc
 tparameters tnames
   = ntparameters [(name,tp) | TName name tp <- tnames]
+
+resultType :: Type -> Type
+resultType tp
+  = case splitFunScheme tp of
+      Just (_,_,_,_,resTp) -> resTp
+      _ -> failure ("Backend.C.FromCore.resultType: not a function type: " ++ show (pretty tp))

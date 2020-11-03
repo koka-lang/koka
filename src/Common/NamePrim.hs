@@ -69,6 +69,12 @@ module Common.NamePrim
           , nameCTailHboxCreate
           , nameTpHbox, nameHboxCon, nameHbox, nameUnhbox
 
+          , nameTpCField
+          , nameCFieldHole
+          , nameCFieldSet
+          , nameCFieldOf
+
+
           -- * Constructors
           , nameTrue, nameFalse
           , nameJust, nameNothing
@@ -255,6 +261,13 @@ nameCTailHole     = ctailName ".ctail-hole"
 nameCTailHboxCreate  = ctailName ".ctail-hbox-create"
 
 ctailName name    = coreTypesName name
+
+nameTpCField      = cfieldName "cfield"
+nameCFieldHole    = cfieldName "cfield-hole"
+nameCFieldSet     = cfieldName "cfield-set"
+nameCFieldOf      = cfieldName "cfield-of"
+
+cfieldName name   = qualify (newName "test/cgen/ctail1a") (newName name)
 
 {--------------------------------------------------------------------------
   std/core/hnd
