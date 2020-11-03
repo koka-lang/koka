@@ -793,7 +793,10 @@ inferCheck loaded flags line coreImports program1
               (loadedUnique loaded)
               program1
 
-       let  gamma0  = gammaUnions [loadedGamma loaded
+       let  isPrimitiveModule = Core.coreProgName coreProgram1 == newName "std/core/types" ||
+                                Core.coreProgName coreProgram1 == newName "std/core/hnd"
+
+            gamma0  = gammaUnions [loadedGamma loaded
                                   ,extractGamma (isValueFromFlags flags) True coreProgram1
                                   ,extractGammaImports (importsList (loadedImportMap loaded)) (getName program1)
                                   ]
@@ -831,6 +834,7 @@ inferCheck loaded flags line coreImports program1
               (loadedUnique loaded3)
               defs
 
+
        -- make sure generated core is valid
        if (not (coreCheck flags)) then return ()
         else -- trace "initial core check" $
@@ -864,37 +868,35 @@ inferCheck loaded flags line coreImports program1
                      then ctailOptimize penv (platform flags) newtypes gamma (optctailInline flags) coreDefsSimp0 uniqueSimp0
                      else (coreDefsSimp0,uniqueSimp0)
 
-       -- traceDefGroups "ctail" coreDefsCTail
-
-       -- do monadic effect translation (i.e. insert binds)
-       let uniqueMon = uniqueCTail
-       let isPrimitiveModule = Core.coreProgName coreProgram1 == newName "std/core/types" ||
-                               Core.coreProgName coreProgram1 == newName "std/core/hnd"
-       coreDefsMon
-           <- if (not (enableMon flags) || isPrimitiveModule)
-               then return (coreDefsCTail)
-               else do cdefs <- Core.Monadic.monTransform penv coreDefsCTail
-                       -- recheck cps transformed core
-                       when (coreCheck flags) $
-                          -- trace "monadic core check" $
-                          Core.Check.checkCore False False penv uniqueCTail gamma cdefs
-                       return (cdefs)
-
-       traceDefGroups "monadic" coreDefsMon
+       traceDefGroups "ctail" coreDefsCTail
 
        -- float .open calls
-       let (coreDefsOF,uniqueOF) = if isPrimitiveModule then (coreDefsMon,uniqueMon)
-                                    else openFloat penv gamma uniqueMon coreDefsMon
+       let (coreDefsOF,uniqueOF) = if isPrimitiveModule then (coreDefsCTail,uniqueCTail)
+                                    else openFloat penv gamma uniqueCTail coreDefsCTail
        when (coreCheck flags) $ -- trace "open resolve core check" $
                                 Core.Check.checkCore True False penv uniqueOF gamma coreDefsOF
 
        traceDefGroups "open float" coreDefsOF
 
 
+       -- do monadic effect translation (i.e. insert binds)
+       let uniqueMon = uniqueOF
+       coreDefsMon
+           <- if (not (enableMon flags) || isPrimitiveModule)
+               then return (coreDefsOF)
+               else do cdefs <- Core.Monadic.monTransform penv coreDefsOF
+                       -- recheck cps transformed core
+                       when (coreCheck flags) $
+                          -- trace "monadic core check" $
+                          Core.Check.checkCore False False penv uniqueMon gamma cdefs
+                       return (cdefs)
+
+       -- traceDefGroups "monadic" coreDefsMon
+
        -- resolve phantom .open
-       let coreDefsOR = if isPrimitiveModule then coreDefsOF
-                         else openResolve penv gamma coreDefsOF
-           uniqueOR   = uniqueOF
+       let coreDefsOR = if isPrimitiveModule then coreDefsMon
+                         else openResolve penv gamma coreDefsMon
+           uniqueOR   = uniqueMon
        when (coreCheck flags) $ -- trace "open resolve core check" $
                                 Core.Check.checkCore True False penv uniqueOR gamma coreDefsOR
 
