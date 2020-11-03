@@ -1,13 +1,13 @@
 // Test named ambient instances
 
-ambient heap<s::S> { }
+effect heap<s::S> { }
 
 fun heap( action: forall<s> () -> <heap<s>|e> a ) : e a {
   with<heap> {}
   action()
 }
 
-ambient instance ref<s::S,a::V> in heap<s> {
+effect instance ref<s::S,a::V> in heap<s> {
   fun get() : a
   fun set( value : a ) : ()
 }
