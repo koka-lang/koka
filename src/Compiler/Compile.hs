@@ -856,7 +856,7 @@ inferCheck loaded flags line coreImports program1
        let (coreDefsSimp0,uniqueSimp0) = simplifyDefs False (simplify flags) (0) uniqueLift penv coreDefsLifted
 
        -- traceDefGroups "lifted" coreDefsSimp0
-       
+
 
        -- constructor tail optimization
        let (coreDefsCTail,uniqueCTail)
@@ -1208,7 +1208,8 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                       _                  -> Nothing
       let -- (core,unique) = parcCore (prettyEnvFromFlags flags) newtypes unique0 core0
           (cdoc,hdoc,bcore) = cFromCore sourceDir (prettyEnvFromFlags flags) (platform flags)
-                                newtypes unique0 (parcReuse flags) (parcSpecialize flags) mbEntry core0
+                                newtypes unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
+                                mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } [] bcore
       writeDocW 120 (outBase ++ ".c.core") bcoreDoc
       when (showCore flags) $

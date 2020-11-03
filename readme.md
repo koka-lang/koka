@@ -119,13 +119,13 @@ If you leave out the `-c` flag, Koka will execute the compiled program automatic
 The `-O2` flag builds an optimized program. Let's try it on a functional implementation
 of balanced insertion in a red-black tree balanced ([`rbtree.kk`](test/bench/koka/rbtree.kk))
 ```
-> stack exec koka -- -O2 -c test/bench/koka/rbtree32.kk
+> stack exec koka -- -O2 -c test/bench/koka/rbtree.kk
 ...
-cmake --build "out/RelWithDebInfo/cbuild" --target test_bench_koka_rbtree32
-[15/15] Linking C executable test_bench_koka_rbtree32
-compiled: out/RelWithDebInfo/test_bench_koka_rbtree32
+cmake --build "out/RelWithDebInfo/cbuild" --target test_bench_koka_rbtree
+[15/15] Linking C executable test_bench_koka_rbtree
+compiled: out/RelWithDebInfo/test_bench_koka_rbtree
 
-> time out/RelWithDebInfo/test_bench_koka_rbtree32
+> time out/RelWithDebInfo/test_bench_koka_rbtree
 420000
 real    0m1.132s
 ```
@@ -144,7 +144,7 @@ tranforming the fast path of the pure functional rebalancing to use mostly in-pl
 closely mimicking the imperative rebalancing code of the hand optimized C++ library.
 
 The [Atom](https://atom.io/) text editor is recommended
-to edit Koka programs. You can install support for Koka programs in Atom by 
+to edit Koka programs. You can install support for Koka programs in Atom by
 running the `util/atom.kk` script:
 
 `> stack exec koka -- util/atom`
@@ -285,18 +285,18 @@ info: elapsed: 1.395s, user: 1.375s, sys: 0.031s, rss: 96mb
 or run the interpreter:
 
 ```
-> koka 
+> koka
 ```
 
 ## Install on Unix and macOS
 
-Koka is by default installed for the current user in `<prefix>/bin/koka` 
+Koka is by default installed for the current user in `<prefix>/bin/koka`
 and `<prefix>/lib/koka/v2.x.x`.
-On Unix and macOS, the default installation prefix is `~/.local` and it is 
-recommended to add `~/.local/bin` to the search path 
-(e.g. add `export PATH=$PATH:~/.local/bin` to your `~/.bashrc` or `~/.zshrc`). 
+On Unix and macOS, the default installation prefix is `~/.local` and it is
+recommended to add `~/.local/bin` to the search path
+(e.g. add `export PATH=$PATH:~/.local/bin` to your `~/.bashrc` or `~/.zshrc`).
 
-Note: installing to `/usr/local` cannot be done directly as it needs elevated 
+Note: installing to `/usr/local` cannot be done directly as it needs elevated
 privileges. A workaround is to copy the local install afterwards as:
 ```
 > sudo cp -r ~/.local/* /usr/local
@@ -309,8 +309,8 @@ is usually already on the search path as `stack` is installed there as well.
 
 However, when using `koka` you need to have a C compiler (when
 using `stack exec koka` the C compiler supplied with Ghc is used (`mingw`)
-but that is not generally available). You can either run `koka` from a 
-[Visual Studio](https://visualstudio.microsoft.com/downloads) 
+but that is not generally available). You can either run `koka` from a
+[Visual Studio](https://visualstudio.microsoft.com/downloads)
 [command prompt](https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019)
 (and thus use the `msvc` compiler) or install the [`clang`](https://releases.llvm.org) compiler.
 
@@ -319,12 +319,12 @@ but that is not generally available). You can either run `koka` from a
 
 There is a standard benchmark suite. It is still basic but more benchmarks
 with effect handlers are coming. We only test on (Ubuntu) Linux and the benchmarks
-need `gcc` (should be there already), and:
+need `gcc` (should be there already) together with:
 
-- `ghc` (use `sudo apt-get install ghc`), 
-- `ocamlopt` (use `sudo apt-get install ocaml`), and
+- `ghc` (use `sudo apt install ghc`),
+- `ocamlopt` (use `sudo apt install ocaml`), and
 - `swiftc`. The Swift compiler can be downloaded [here](https://swift.org/download/).
-   The benchmarks expect `switfc` to be installed at `/opt/swift/bin`,
+   The benchmarks expect `swiftc` to be installed at `/opt/swift/bin`,
    so unpack and copy everything under `swift-.../usr` to `/opt/swift/bin`:
    ```
    > tar -xzf swift-5.3-RELEASE-ubuntu20.04.tar.gz
@@ -332,6 +332,8 @@ need `gcc` (should be there already), and:
    > sudo mkdir /opt/swift
    > sudo cp -r * /opt/swift
    ```
+- `javac`/`java`. We used these [instructions](https://computingforgeeks.com/install-oracle-java-openjdk-14-on-ubuntu-debian-linux/)
+   to install the Java SE 15 Hotspot compiler (note: the instructions are for Java SE 14 but we use 15 in our benchmarks).
 
 The benchmarks can now be build using:
 
@@ -341,6 +343,11 @@ The benchmarks can now be build using:
 > cd build
 > cmake .. -DCMAKE_BUILD_TYPE=Release
 > cmake --build .
+```
+
+For some benchmarks, like `cfold`, we may need a large stack, so it may be good to raise the limit:
+```
+> ulimit -s unlimited
 ```
 
 We can then run all benchmarks as:
@@ -368,6 +375,18 @@ Test project /home/daan/dev/koka/test/bench/build
 100% tests passed, 0 tests failed out of 4
 ...
 ```
+
+We can also run the tests using the `test/bench/run.kk` script instead of
+using `ctest`. For example, from the `build` directory, we can run all benchmarks as:
+```
+> koka ../run
+```
+Use the `--lang` or `--test` options to specify a comma separated list of
+languages or benchmarks:
+```
+> koka ../run -- --lang=koka,ocaml  --test=rbtree,rbtree-ck
+```
+
 
 # Testing
 

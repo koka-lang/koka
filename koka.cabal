@@ -101,7 +101,6 @@ executable koka
       Syntax.Layout
       Syntax.Lexeme
       Syntax.Lexer
-      Syntax.Lexer
       Syntax.Parse
       Syntax.Promote
       Syntax.RangeMap

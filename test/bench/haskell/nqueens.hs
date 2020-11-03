@@ -1,4 +1,4 @@
-data List a = Nil | Cons a (List a)
+data List a = Nil | Cons !a !(List a)
 
 len xs
   = len' xs 0
@@ -36,5 +36,5 @@ find_solutions n k
 queens n
   = len (find_solutions n n)
 
-main 
+main
   = print (queens 13)

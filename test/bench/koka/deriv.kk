@@ -81,7 +81,7 @@ fun count(e:expr) : int {
 
 fun nest_aux(s,f,n,x) {
   if (n == 0) then x else {
-    val y = f(s - n, x) 
+    val y = f(s - n, x)
     nest_aux(s,f,n - 1,y)
   }
 }
@@ -98,7 +98,7 @@ fun deriv(i : int, f : expr) {
 
 fun main() {
   val x = Var("x")
-  val f = powr(x,x) 
-  nest(deriv,10,f) 
+  val f = powr(x,x)
+  nest(deriv,10,f)
   println("done")
 }

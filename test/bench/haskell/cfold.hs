@@ -54,7 +54,7 @@ eval (Mul l r) = eval l * eval r
 
 main :: IO ()
 main =
-  let e  = (mk_expr 19 1) in
+  let e  = (mk_expr 20 1) in
   let v₁ = eval e in
   let v₂ = eval (const_folding (reassoc e)) in
   putStrLn (show v₁ ++ " " ++ show v₂)

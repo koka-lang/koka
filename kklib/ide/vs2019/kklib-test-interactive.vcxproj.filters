@@ -37,10 +37,8 @@
     <ClCompile Include="..\..\..\out\Debug\test_algeff_common.c" />
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_benchmark.c" />
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_pmmh.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_data_preprocessing.c" />
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_climate_dash_change.c" />
-    <ClCompile Include="..\..\..\out\Debug\exn_dash_get.c" />
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_climate_dash_experiments.c" />
-    <ClCompile Include="..\..\..\out\Debug\effects_dash_and_dash_types.c" />
+    <ClCompile Include="..\..\..\out\Debug\test_effbayes_preprocessing.c" />
   </ItemGroup>
 </Project>
