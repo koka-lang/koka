@@ -656,8 +656,8 @@ genExpr expr
 
      -- special: cfield-set
      App (TypeApp (Var cfieldOf _) [_]) [Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameCFieldOf
-       -> return (empty,text "{value:" <+> ppName (readQualified conName)
-                         <.> text ", field: \"" <.> ppName (unqualify (readQualified fieldName)) <.> text "\"}")
+       -> do conDoc <- genTName con
+             return (empty,text "{value:" <+> conDoc <.> text ", field: \"" <.> ppName (unqualify (readQualified fieldName)) <.> text "\"}")
 
      App f args
        -> {- case splitFunScheme (typeOf f) of
