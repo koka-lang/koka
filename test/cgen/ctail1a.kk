@@ -10,7 +10,7 @@ inline extern cfield-hole() : a { }
 inline extern cfield-set( field : cfield<a>, res : a ) : () { }
 inline extern cfield-of( obj : a, conname : string, fieldname : string ) : cfield<a> { }
 
-inline fun ctail-nil() : ctail<a> {
+fun ctail-nil() : ctail<a> {
   CTailNil
 }
 
@@ -42,7 +42,7 @@ reference type blink<a> {
   BNil
 }
 
-inline fun ctail-blink( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
+noinline fun ctail-blink( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
   match(acc) {
     CTail(last,blink) {
       cfield-set-blink(field, BLink(last,blink))
@@ -85,7 +85,7 @@ inline fun ctail-resolve( forward : bool, acc : ctail<a>, rest : a ) : a {
 }
 
 
-fun ctail-mapf( xs : list<a>, f : a -> b, acc : ctail<list<b>> ) : list<b> {
+fun ctail-mapf( xs : list<a>, f : a -> e b, acc : ctail<list<b>> ) : e list<b> {
   match(xs) {
     Cons(x,xx) {
       val hd    = Cons(f(x),cfield-hole())
@@ -96,7 +96,7 @@ fun ctail-mapf( xs : list<a>, f : a -> b, acc : ctail<list<b>> ) : list<b> {
   }
 }
 
-fun mapf( xs : list<a>, f : a -> b ) : list<b> {
+fun mapf( xs : list<a>, f : a -> e b ) : e list<b> {
   ctail-mapf(xs,f,CTailNil)
 }
 
@@ -130,26 +130,77 @@ fun mapx( xs : list<a>, f : a -> b ) : list<b> {
   ctail-mapx(xs,f,True,CTailNil)
 }
 
-fun tmap( xs : list<a>, f : a -> b ) : list<b> {
+fun tmap( xs : list<a>, f : a -> e b ) : e list<b> {
   match(xs) {
     Cons(x,xx) -> Cons(f(x),tmap(xx,f))
     Nil        -> Nil
   }
 }
 
+effect out {
+  control out(s : string) : ()
+}
+
+
 fun main() {
   //list(1,10000000).tmap(inc).sum.println
   //list(1,10000000).mapb(inc).sum.println
   //list(1,10000000).mapx(inc).sum.println
   //list(1,10000000).map(inc).sum.println
+  //testMany()
+  //testControl()
+  testMulti()
+}
 
+fun testMany() {
   val xs = list(1,5)
   var i := 0
   for(1,10000000) fn(j){
     i := i + xs.tmap(inc).length
   }
   println(i)
+}
 
+fun testControl() {
+  with control out(s:string) {
+    println(s); resume(())
+  }
+  list(1,10).tmap(fn(i:int){ if (i.is-odd) i.show.out; i+1 }).sum.println
+}
+
+effect nondet {
+  control flip() : bool
+  control fail() : a
+}
+
+fun knapsack(w : int, vs : list<int> ) : <nondet,div> list<int> {
+  if (w < 0)    then fail()
+  elif (w == 0) then []
+  else {
+    val v = select(vs)
+    Cons(v,knapsack(w - v, vs))
+  }
+}
+
+fun select(xs) {
+  match(xs) {
+    Nil        -> fail()
+    Cons(x,xx) -> if (flip()) then x else select(xx)
+  }
+}
+
+val solutions = handler {
+  return  x      -> [x]
+  control fail() -> []
+  control flip() -> resume(True) + resume(False)
+}
+
+fun show( xss : list<list<int>> ) : string {
+  xss.show-list(fun(xs) { xs.show-list(core/show) } )
+}
+
+fun testMulti() {
+  solutions{ knapsack(3,[3,2,1]) }
 }
 
 /*

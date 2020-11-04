@@ -89,7 +89,7 @@ ctailDef topLevel def
                  let cdef = def{ defName = ctailName, defType = ctailType, defExpr = cdefExpr }
                      needsMulti = not (effectIsAffine teff)
                      ctailMultiName  = makeHiddenName "ctailm" (defName def)
-                     ctailMultiTName = TName ctailMultiName (defType def)
+                     ctailMultiTName = TName ctailMultiName ctailType
                      ctailMultiVar   = Var ctailMultiTName (InfoArity (length tforall) (length targs))
 
                  wrapExpr <- withContext ctailTName True Nothing $
@@ -145,7 +145,7 @@ ctailWrapper slot mbMulti body
 
 ctailWrapperBody :: Type -> TName -> Maybe Expr -> [TypeVar] -> [TName] -> CTail Expr
 ctailWrapperBody resTp slot mbMulti targs args
-  = do tailVar   <- getCTailFun
+  = do tailVar <- getCTailFun
        let  ctailCall  = App (makeTypeApp tailVar [TVar tv | tv <- targs])
                            ([Var name InfoNone | name <- args] ++ [makeCTailNil resTp])
        case mbMulti of
@@ -217,8 +217,9 @@ ctailExpr top expr
 
           TypeApp body targs
             -> do expr' <- ctailExpr top body
+                  forward <- getForward
                   case expr' of
-                    App v@(Var ctailSet _) [acc,arg] | getName ctailSet == nameCTailSet
+                    App v@(TypeApp (Var ctailResolve _) _) [acc,arg] | getName ctailResolve == nameCTailResolve forward
                       -> return (App v [acc,TypeApp arg targs])   -- push down typeapp into ctail set
                     _ -> return (TypeApp expr' targs)
 
@@ -278,9 +279,9 @@ ctailTryArg dname cname mbC mkApp field []  = return (mkApp [])  -- not found
 ctailTryArg dname cname mbC mkApp field (rarg:rargs)
   = case rarg of
       App f@(TypeApp (Var name info) targs) fargs
-       | (dname == name) -> ctailFoundArg cname mbC mkAppNew field f fargs
+       | (dname == name) -> ctailFoundArg cname mbC mkAppNew field (\v acc -> App (TypeApp v targs) (fargs ++ [acc])) (typeOf rarg) --f fargs
       App f@(Var name info) fargs
-       | (dname == name) -> ctailFoundArg cname mbC mkAppNew field f fargs
+       | (dname == name) -> ctailFoundArg cname mbC mkAppNew field (\v acc -> App (v) (fargs ++ [acc])) (typeOf rarg) --f fargs
 
       -- recurse into other con
       App f@(TypeApp (Con cname2 _) _) fargs  | tnamesMember dname (fv fargs) && all isTotal rargs
@@ -304,14 +305,15 @@ ctailTryArg dname cname mbC mkApp field (rarg:rargs)
 -- Found a tail call inside a constructor application
 --------------------------------------------------------------------------
 
-ctailFoundArg :: TName -> Maybe TName -> ([Expr] -> (DefGroups,Expr)) -> Int -> Expr -> [Expr] -> CTail (DefGroups,Expr)
-ctailFoundArg cname mbC mkApp field f fargs
+ctailFoundArg :: TName -> Maybe TName -> ([Expr] -> (DefGroups,Expr)) -> Int ->
+                  (Expr -> Expr -> Expr) -> Type {- Expr -> [Expr] -} -> CTail (DefGroups,Expr)
+ctailFoundArg cname mbC mkConsApp field mkTailApp resTp -- f fargs
   = do -- ctailTrace $ "found arg: " ++ show cname ++ ", " ++ show mbC ++ ", " ++ show field
        ctailVar  <- getCTailFun
        (_,fieldName) <- getFieldName cname field
-       let tp    = typeOf (App f fargs)
-           hole  = makeCFieldHole tp
-           (defs,cons)  = mkApp [hole]
+       let -- tp    = typeOf (App f fargs)
+           hole  = makeCFieldHole resTp
+           (defs,cons)  = mkConsApp [hole]
        consName  <- uniqueTName (typeOf cons)
        mbSlot <- getCTailSlot
        case mbSlot of
@@ -327,8 +329,8 @@ ctailFoundArg cname mbC mkApp field f fargs
                            ,Var consName InfoNone) -}
          Just slot
            -> do forward <- getForward
-                 let link = makeCTailLink forward slot consName (maybe consName id mbC) cname fieldName tp
-                     ctailCall   = App ctailVar (fargs ++ [link])
+                 let link = makeCTailLink forward slot consName (maybe consName id mbC) cname fieldName resTp
+                     ctailCall   = mkTailApp ctailVar link -- App ctailVar (fargs ++ [link])
                  return $ (defs ++ [DefNonRec (makeTDef consName cons)]
                           ,ctailCall)
 
@@ -377,11 +379,13 @@ makeCTailLink forward slot resName objName conName fieldName tp
 
 makeCTailResolve :: Bool -> TName -> Expr -> Expr
 makeCTailResolve forward slot expr
-  = App (TypeApp (Var (TName (nameCTailResolve forward) funType) (InfoArity 1 2)) [typeOf expr])
+  = App (TypeApp (Var (TName (nameCTailResolve forward) funType) (InfoArity 1 2)) [tp])
         [Var slot InfoNone, expr]
   where
+    tp = case typeOf slot of
+           TApp _ [t] -> t
     funType = TForall [a] [] (TFun [(nameNil,TApp typeCTail [TVar a]),(nameNil,TVar a)] typeTotal (TVar a))
-    a = TypeVar 0 kindStar Bound
+    a = TypeVar (-1) kindStar Bound
 
 
 --------------------------------------------------------------------------

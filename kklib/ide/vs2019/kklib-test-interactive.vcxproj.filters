@@ -41,5 +41,6 @@
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_climate_dash_experiments.c" />
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_preprocessing.c" />
     <ClCompile Include="..\..\..\out\Debug\test_cgen_ctail3b.c" />
+    <ClCompile Include="..\..\..\out\Debug\test_cgen_ctail1a.c" />
   </ItemGroup>
 </Project>

@@ -1680,6 +1680,11 @@ genAppNormal (Var cfieldOf _) [App (Var box _) [App (Var dup _) [Var con _]], Li
   = do let doc = genFieldAddress con (readQualified conName) (readQualified fieldName)
        return ([],text "(kk_box_t*)" <.> parens doc)
 
+genAppNormal (Var cfieldOf _) [App (Var box _) [Var con _], Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameCFieldOf
+ = do let drop = map (<.> semi) (genDupDropCall False (typeOf con) (ppName (getName con)))
+          doc = genFieldAddress con (readQualified conName) (readQualified fieldName)
+      return (drop,text "(kk_box_t*)" <.> parens doc)
+
 {-
 genAppNormal v@(Var ctailCreate (InfoConField conName fieldName)) [Var con _]  | getName ctailCreate == nameCTailCreate
  = do let drop = map (<.> semi) (genDupDropCall False (typeOf con) (ppName (getName con)))

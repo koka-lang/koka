@@ -7,7 +7,7 @@
 -----------------------------------------------------------------------------
 
 -----------------------------------------------------------------------------
--- 
+--
 -----------------------------------------------------------------------------
 
 module Core.MonadicLift( monadicLift ) where
@@ -73,11 +73,11 @@ liftDefGroup False (DefRec defs)
   = do defs' <- mapM (liftDef False) defs
        return [DefRec defs']
 
-       
+
 liftDef :: Bool -> Def -> Lift Def
 liftDef topLevel def
  = withCurrentDef def $
-   do expr' <- if topLevel 
+   do expr' <- if topLevel
                 then do (_,iexpr') <- liftExprInl topLevel (defExpr def)
                         return iexpr'
                 else liftExpr topLevel (defExpr def)
@@ -96,7 +96,7 @@ liftExprInl topLevel expr =
          do (body',ibody')  <- liftExprInl False body
             bexpr'          <- liftExpr False bexpr
             f <- liftLocalFun (Lam [arg] eff body') typeTotal
-            let bind = App tpApp [bexpr',f]            
+            let bind = App tpApp [bexpr',f]
                 ibind = App (TypeApp (Var (TName nameBind2 typeBind2) (InfoArity 3 3)) [tpArg,tpRes,tpEff])
                             [bexpr',f,(Lam [arg] eff ibody')]
                 typeBind2 = TForall [a,b,e] [] (typeFun [(nameNil,TVar a),
@@ -107,7 +107,7 @@ liftExprInl topLevel expr =
                             b = TypeVar (1) kindStar Bound
                             e = TypeVar (2) kindEffect Bound
             return (bind,ibind)
-            
+
     Let defgs body
       -> do defgs' <- liftDefGroups False defgs
             (body',ibody') <- liftExprInl False body
@@ -117,7 +117,7 @@ liftExprInl topLevel expr =
       -> do exprs' <- mapM (liftExpr False) exprs
             (bs',ibs') <- unzip <$> mapM liftBranchInl bs
             return (Case exprs' bs', Case exprs' ibs')
-            
+
     TypeLam tvars body
       -> do (body',ibody') <- liftExprInl topLevel body
             return (TypeLam tvars body', TypeLam tvars ibody')
@@ -125,11 +125,11 @@ liftExprInl topLevel expr =
     TypeApp body tps
       -> do (body',ibody') <- liftExprInl topLevel body
             return (TypeApp body' tps, TypeApp ibody' tps)
-            
-    Lam args eff body  
+
+    Lam args eff body
       -> do (body',ibody') <- liftExprInl False body
             return (Lam args eff body', Lam args eff ibody')
-            
+
     _ -> do expr' <- liftExpr topLevel expr
             return (expr',expr')
 
@@ -145,8 +145,8 @@ liftGuardInl (Guard guard body)
        (body',ibody')  <- liftExprInl False body
        return (Guard guard' body', Guard guard' ibody')
 
-            
-            
+
+
 
 liftExpr :: Bool -> Expr -> Lift Expr
 liftExpr topLevel expr =
@@ -162,7 +162,7 @@ liftExpr topLevel expr =
             args' <- mapM (liftExpr False) args
             return (App f' args')
 
-    Lam args eff body  
+    Lam args eff body
       -> do body' <- liftExpr False body
             let expr' = Lam args eff body'
             return expr'
@@ -198,7 +198,7 @@ liftLocalFun expr eff
 
 makeDef :: [TName] -> [TypeVar] -> Expr -> Lift (Expr, Def)
 makeDef fvs tvs expr
-  = do -- liftTrace (show expr)
+  = do -- traceDoc $ \penv -> (text "makeDef:" <+> prettyExpr penv{coreShowTypes=True} expr)
        (name,inl) <- uniqueNameCurrentDef
        let (callExpr,lifted) = (etaExpr name, liftedDef name inl)
        -- traceDoc $ \penv -> text "lifting:" <+> ppName penv name <.> colon <+> text "tvs:" <+> tupled (map (ppTypeVar penv) tvs) <//> prettyExpr penv expr <//> text "to:" <+> prettyDef penv{coreShowDef=True} lifted
@@ -218,7 +218,8 @@ makeDef fvs tvs expr
     allargs  = [Var tname InfoNone | tname <- allpars]
 
     liftedFun = addTypeLambdas alltpars $ Lam allpars eff body
-    liftedTp  = typeOf liftedFun
+    liftedTp  = -- trace ("makeDef: liftedFun: " ++ show (prettyExpr defaultEnv{coreShowTypes=True} expr) ++ "\nraw: " ++ show expr) $
+                typeOf liftedFun
     liftedDef name inl = Def name liftedTp liftedFun Private DefFun InlineNever rangeNull "// monadic lift"
 
     funExpr name
