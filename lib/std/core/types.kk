@@ -355,10 +355,80 @@ type inst :: HX
 // ----------------------------------------------------------------------------
 
 // _Internal_. Internal type for _tail recursion module cons_ (TRMC) optimization.
-value type ctail<a>
+value type cfield<a>
 
-inline extern ".ctail-hole"() : a { }
-inline extern ".ctail-create"(obj : a, cname : string, field : string) : ctail<a> { }
-inline extern ".ctail-next"(acc : ctail<a>, res : a, obj : a, cname : string , field : string ) : ctail<a> { }
-inline extern ".ctail-set"( acc : ctail<a>, res : a ) : () { }
-inline extern ".ctail-hbox-create"(obj : hbox<a>) : ctail<a> { }
+abstract value type ctail<a> {
+  con CTail( :a, :cfield<a> )
+  con CTailNil
+}
+
+inline extern cfield-hole() : a { }
+inline extern cfield-set( field : cfield<a>, res : a ) : () { }
+inline extern cfield-of( obj : a, conname : string, fieldname : string ) : cfield<a> { }
+
+fun ctail-nil() : ctail<a> {
+  CTailNil
+}
+
+noinline fun ctail-flink( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
+  match(acc) {
+    CTail(head,flink) {
+      cfield-set(flink,res)
+      CTail(head,field)
+    }
+    CTailNil -> CTail(res,field)
+  }
+}
+
+inline fun ctail-fresolve( acc : ctail<a>, rest : a ) : a {
+  match(acc) {
+    CTail(head,flink) {
+      cfield-set(flink,rest)
+      head
+    }
+    CTailNil -> rest
+  }
+}
+
+inline extern cfield-set-blink( field : cfield<a>, blink : blink<a> ) : () { }
+inline extern cfield-get-blink( field : cfield<a> ) : blink<a> { }
+
+private reference type blink<a> {
+  BLink( _node : a, _blink : cfield<a> )
+  BNil
+}
+
+noinline fun ctail-blink( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
+  match(acc) {
+    CTail(last,blink) {
+      cfield-set-blink(field, BLink(last,blink))
+      CTail(res,field)
+    }
+    CTailNil -> {
+      // ctail-set(field, ctail-hole())  // already done
+      CTail(res,field)
+    }
+  }
+}
+
+private fun ctail-blink-resolve( blink : blink<a>, rest : a ) : a {
+  match(blink) {
+    BLink(node,field) {
+      val next = cfield-get-blink(field)
+      cfield-set(field, rest)
+      ctail-blink-resolve( unsafe-decreasing(next), node )
+    }
+    BNil -> rest
+  }
+}
+
+inline fun ctail-bresolve( acc : ctail<a>, rest : a ) : a {
+  match(acc) {
+    CTail(node,field) {
+      val next = cfield-get-blink(field)
+      cfield-set(field, rest)
+      ctail-blink-resolve( next, node )
+    }
+    CTailNil -> rest
+  }
+}

@@ -1,89 +1,4 @@
 
-value type cfield<a>
-
-value type ctail<a> {
-  con CTail( :a, :cfield<a> )
-  con CTailNil
-}
-
-inline extern cfield-hole() : a { }
-inline extern cfield-set( field : cfield<a>, res : a ) : () { }
-inline extern cfield-of( obj : a, conname : string, fieldname : string ) : cfield<a> { }
-
-fun ctail-nil() : ctail<a> {
-  CTailNil
-}
-
-noinline fun ctail-flink( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
-  match(acc) {
-    CTail(head,flink) {
-      cfield-set(flink,res)
-      CTail(head,field)
-    }
-    CTailNil -> CTail(res,field)
-  }
-}
-
-inline fun ctail-fresolve( acc : ctail<a>, rest : a ) : a {
-  match(acc) {
-    CTail(head,flink) {
-      cfield-set(flink,rest)
-      head
-    }
-    CTailNil -> rest
-  }
-}
-
-inline extern cfield-set-blink( field : cfield<a>, blink : blink<a> ) : () { }
-inline extern cfield-get-blink( field : cfield<a> ) : blink<a> { }
-
-reference type blink<a> {
-  BLink( _node : a, _blink : cfield<a> )
-  BNil
-}
-
-noinline fun ctail-blink( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
-  match(acc) {
-    CTail(last,blink) {
-      cfield-set-blink(field, BLink(last,blink))
-      CTail(res,field)
-    }
-    CTailNil -> {
-      // ctail-set(field, ctail-hole())  // already done
-      CTail(res,field)
-    }
-  }
-}
-
-private fun ctail-blink-resolve( blink : blink<a>, rest : a ) : a {
-  match(blink) {
-    BLink(node,field) {
-      val next = cfield-get-blink(field)
-      cfield-set(field, rest)
-      ctail-blink-resolve( unsafe-decreasing(next), node )
-    }
-    BNil -> rest
-  }
-}
-
-inline fun ctail-bresolve( acc : ctail<a>, rest : a ) : a {
-  match(acc) {
-    CTail(node,field) {
-      val next = cfield-get-blink(field)
-      cfield-set(field, rest)
-      ctail-blink-resolve( next, node )
-    }
-    CTailNil -> rest
-  }
-}
-
-inline fun ctail-link( forward : bool, acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
-  if (forward) then ctail-flink(acc,res,field) else ctail-blink(acc,res,field)
-}
-inline fun ctail-resolve( forward : bool, acc : ctail<a>, rest : a ) : a {
-  if (forward) then ctail-fresolve(acc,rest) else ctail-bresolve(acc,rest)
-}
-
 
 fun ctail-mapf( xs : list<a>, f : a -> e b, acc : ctail<list<b>> ) : e list<b> {
   match(xs) {
@@ -97,7 +12,7 @@ fun ctail-mapf( xs : list<a>, f : a -> e b, acc : ctail<list<b>> ) : e list<b> {
 }
 
 fun mapf( xs : list<a>, f : a -> e b ) : e list<b> {
-  ctail-mapf(xs,f,CTailNil)
+  ctail-mapf(xs,f,ctail-nil())
 }
 
 fun ctail-mapb( xs : list<a>, f : a -> b, acc : ctail<list<b>> ) : list<b> {
@@ -112,25 +27,11 @@ fun ctail-mapb( xs : list<a>, f : a -> b, acc : ctail<list<b>> ) : list<b> {
 }
 
 fun mapb( xs : list<a>, f : a -> b ) : list<b> {
-  ctail-mapb(xs,f,CTailNil)
+  ctail-mapb(xs,f,ctail-nil())
 }
 
-fun ctail-mapx( xs : list<a>, f : a -> b, forward : bool, acc : ctail<list<b>> ) : list<b> {
-  match(xs) {
-    Cons(x,xx) {
-      val hd    = Cons(f(x),cfield-hole())
-      val field = cfield-of(hd,"std/core/Cons","tail")
-      ctail-mapx( xx, f, forward, ctail-link(forward,acc,hd,field) )
-    }
-    Nil -> ctail-resolve(forward,acc,Nil)
-  }
-}
 
-fun mapx( xs : list<a>, f : a -> b ) : list<b> {
-  ctail-mapx(xs,f,True,CTailNil)
-}
-
-fun tmap( xs : list<a>, f : a -> e b ) : e list<b> {
+fun tmap( xs : list<a>, f : a -> b ) : list<b> {
   match(xs) {
     Cons(x,xx) -> Cons(f(x),tmap(xx,f))
     Nil        -> Nil
@@ -143,15 +44,16 @@ effect out {
 
 
 fun main() {
-  //list(1,10000000).tmap(inc).sum.println
+  list(1,10000000).tmap(inc).sum.println
   //list(1,10000000).mapb(inc).sum.println
   //list(1,10000000).mapx(inc).sum.println
   //list(1,10000000).map(inc).sum.println
   //testMany()
   //testControl()
-  testMulti()
+  //testMulti()
 }
 
+/*
 fun testMany() {
   val xs = list(1,5)
   var i := 0
@@ -167,10 +69,23 @@ fun testControl() {
   }
   list(1,10).tmap(fn(i:int){ if (i.is-odd) i.show.out; i+1 }).sum.println
 }
-
+*/
 effect nondet {
   control flip() : bool
   control fail() : a
+}
+
+fun ctail-knapsack(w : int, vs : list<int>, acc : list<int> -> list<int> ) : <nondet,div> list<int> {
+  if (w < 0)    then fail()
+  elif (w == 0) then acc([])
+  else {
+    val v = select(vs)
+    ctail-knapsack(w - v, vs, fn(res){ Cons(v,res) })
+    // Cons(v,knapsack(w - v, vs))
+  }
+}
+fun tknapsack(w : int, vs : list<int> ) : <nondet,div> list<int> {
+  ctail-knapsack(w,vs,id)
 }
 
 fun knapsack(w : int, vs : list<int> ) : <nondet,div> list<int> {
@@ -200,7 +115,7 @@ fun show( xss : list<list<int>> ) : string {
 }
 
 fun testMulti() {
-  solutions{ knapsack(3,[3,2,1]) }
+  solutions{ tknapsack(3,[3,2,1]) }
 }
 
 /*

@@ -256,7 +256,7 @@ nameTpDict      = qualify nameDict (newName "dict")
 nameTpBuilder   = qualify (newName "std/text/string") (newName "builder")
 
 
-nameTpCTail       = ctailName "ctail"
+nameTpCTail       = ctailName "ctail-old"
 nameCTailSet      = ctailName ".ctail-set"
 nameCTailNext     = ctailName ".ctail-next"
 nameCTailCreate   = ctailName ".ctail-create"
@@ -276,7 +276,7 @@ nameCTailNil             = cfieldName "ctail-nil"
 nameCTailLink forward    = cfieldName (if forward then "ctail-flink" else "ctail-blink")
 nameCTailResolve forward = cfieldName (if forward then "ctail-fresolve" else "ctail-bresolve")
 
-cfieldName name   = qualify (newName "test/cgen/ctail1a") (newName name)
+cfieldName name   = coreTypesName name
 
 {--------------------------------------------------------------------------
   std/core/hnd
