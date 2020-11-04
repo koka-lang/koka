@@ -226,7 +226,7 @@ ctailExpr top expr
                   case (expr',mbSlot) of
                     (App v@(Var ctailmSlot _) [arg], Just slot) | getName ctailmSlot == getName slot
                       -> return (App v [TypeApp arg targs])   -- push down typeapp
-                    (App v@(TypeApp (Var ctailResolve _) _) [acc,arg],_) | getName ctailResolve == nameCTailFResolve
+                    (App v@(TypeApp (Var ctailResolve _) _) [acc,arg],_) | getName ctailResolve == nameCTailResolve
                       -> return (App v [acc,TypeApp arg targs])   -- push down typeapp into ctail set
                     _ -> return (TypeApp expr' targs)
 
@@ -335,7 +335,7 @@ ctailFoundArg cname mbC mkConsApp field mkTailApp resTp -- f fargs
                                hole  = makeCFieldHole resTp
                                (defs,cons)  = mkConsApp [hole]
                            consName  <- uniqueTName (typeOf cons)
-                           let link = makeCTailFLink slot consName (maybe consName id mbC) cname fieldName resTp
+                           let link = makeCTailLink slot consName (maybe consName id mbC) cname fieldName resTp
                                ctailCall   = mkTailApp ctailVar link -- App ctailVar (fargs ++ [link])
                            return $ (defs ++ [DefNonRec (makeTDef consName cons)]
                                     ,ctailCall)
@@ -371,10 +371,10 @@ makeCFieldOf objName conName fieldName tp
     a = TypeVar 0 kindStar Bound
 
 
-makeCTailFLink :: TName -> TName -> TName -> TName -> Name -> Type -> Expr
-makeCTailFLink slot resName objName conName fieldName tp
+makeCTailLink :: TName -> TName -> TName -> TName -> Name -> Type -> Expr
+makeCTailLink slot resName objName conName fieldName tp
   = let fieldOf = makeCFieldOf objName conName fieldName tp
-    in  App (TypeApp (Var (TName nameCTailFLink funType) (InfoArity 1 3)) [tp])
+    in  App (TypeApp (Var (TName nameCTailLink funType) (InfoArity 1 3)) [tp])
             [Var slot InfoNone, Var resName InfoNone, fieldOf]
   where
     funType = TForall [a] [] (TFun [(nameNil,TApp typeCTail [TVar a]),
@@ -387,7 +387,7 @@ makeCTailResolve :: Bool -> TName -> Expr -> Expr
 makeCTailResolve True slot expr   -- slot `a -> a` is an accumulating function; apply to resolve
   = App (Var slot InfoNone) [expr]
 makeCTailResolve False slot expr  -- slot is a `ctail<a>`
-  = App (TypeApp (Var (TName nameCTailFResolve funType) (InfoArity 1 2)) [tp])
+  = App (TypeApp (Var (TName nameCTailResolve funType) (InfoArity 1 2)) [tp])
         [Var slot InfoNone, expr]
   where
     tp = case typeOf slot of

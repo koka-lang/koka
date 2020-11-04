@@ -61,21 +61,13 @@ module Common.NamePrim
           , nameAllocAt, nameConFieldsAssign
 
           -- * CTail optimization
-          , nameTpCTail
-          , nameCTailSet
-          , nameCTailNext
-          , nameCTailCreate
-          , nameCTailHole
-          , nameCTailHboxCreate
-          , nameTpHbox, nameHboxCon, nameHbox, nameUnhbox
-
           , nameTpCField, nameTpCTailAcc
           , nameCFieldHole
           , nameCFieldSet
           , nameCFieldOf
           , nameCTailNil
-          , nameCTailFLink
-          , nameCTailFResolve
+          , nameCTailLink
+          , nameCTailResolve
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -254,26 +246,14 @@ nameTpMDict     = qualify nameDict (newName "mdict")
 nameTpDict      = qualify nameDict (newName "dict")
 nameTpBuilder   = qualify (newName "std/text/string") (newName "builder")
 
-
-nameTpCTail       = ctailName "ctail-old"
-nameCTailSet      = ctailName ".ctail-set"
-nameCTailNext     = ctailName ".ctail-next"
-nameCTailCreate   = ctailName ".ctail-create"
-nameCTailHole     = ctailName ".ctail-hole"
-nameCTailHboxCreate  = ctailName ".ctail-hbox-create"
-
-ctailName name    = coreTypesName name
-
 nameTpCTailAcc    = cfieldName "ctail"
 nameTpCField      = cfieldName "cfield"
-nameCFieldHole    = cfieldName "cfield-hole"
-nameCFieldSet     = cfieldName "cfield-set"
-nameCFieldOf      = cfieldName "cfield-of"
-nameCTailNil      = cfieldName "ctail-nil"
-nameCTailFLink    = cfieldName "ctail-flink"
-nameCTailFResolve = cfieldName "ctail-fresolve"
-
-
+nameCFieldHole    = cfieldName ".cfield-hole"
+nameCFieldSet     = cfieldName "cfield-set"   -- private (not hidden)
+nameCFieldOf      = cfieldName ".cfield-of"
+nameCTailNil      = cfieldName ".ctail-nil"
+nameCTailLink     = cfieldName ".ctail-link"
+nameCTailResolve  = cfieldName ".ctail-resolve"
 cfieldName name   = coreTypesName name
 
 {--------------------------------------------------------------------------
@@ -403,12 +383,6 @@ nameTpBox       = coreTypesName ".Box"
 nameBoxCon      = coreTypesName ".Box"
 nameBox         = coreTypesName ".box"
 nameUnbox       = coreTypesName ".unbox"
-
--- Explicit heap allocation; used by TRMC (in `Core.CTail`)
-nameTpHbox      = coreTypesName "hbox"
-nameHboxCon     = coreTypesName "Hbox"
-nameUnhbox      = coreTypesName "unhbox"
-nameHbox        = coreTypesName "hbox"
 
 nameTpReuse     = coreTypesName "reuse"
 nameReuseNull   = coreTypesName "no-reuse"

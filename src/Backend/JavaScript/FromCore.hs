@@ -654,27 +654,10 @@ genExpr expr
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameSizeT && isSmallInt i
        -> return (empty, pretty i)
 
-     -- special case: ctail next
-     App (Var ctailNext (InfoConField conName fieldName)) [Var slot InfoNone, Var res _, Var con _]  | getName ctailNext == nameCTailNext
-       -> do accDoc <- genTName slot
-             resDoc <- genTName res
-             conDoc <- genTName con
-             let assign    = accDoc <.> text ".value[" <.> accDoc <.> text ".field] =" <+> resDoc -- <.> semi
-                 reuse     = accDoc <.> text ".value =" <+> conDoc
-                 nextField = accDoc <.> text ".field =" <+> dquotes (ppName fieldName)
-                 next      = accDoc
-             return (empty,tupled [assign,reuse,nextField,next])
-
-     -- special case: ctail create
-     App (Var ctailCreate (InfoConField conName fieldName)) [Var con _] | getName ctailCreate == nameCTailCreate
-       -> do conDoc <- genTName con
-             return (empty,text "{value:" <+> conDoc <.> text ", field: \"" <.> ppName (unqualify fieldName) <.> text "\"}")
-
-     -- special case: ctail hbox create
-     App (Var ctailHboxCreate _) [Var con _] | getName ctailHboxCreate == nameCTailHboxCreate
-       -> do conDoc <- genTName con
-             return (empty,text "{value:" <+> conDoc <.> text ", field: \"" <.> ppName (unqualify nameUnhbox) <.> text "\"}")
-
+     -- special: cfield-set
+     App (TypeApp (Var cfieldOf _) [_]) [Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameCFieldOf
+       -> return (empty,text "{value:" <+> ppName (readQualified conName)
+                         <.> text ", field: \"" <.> ppName (unqualify (readQualified fieldName)) <.> text "\"}")
 
      App f args
        -> {- case splitFunScheme (typeOf f) of
@@ -877,26 +860,14 @@ genExprExternal tname formats argDocs0
                                    <.> text "()"
                          in return ([],try)
 
--- special case: ctail hole
+-- special case: cfield-hole
 genExprExternalPrim :: TName -> [(Target,String)] -> [Doc] -> Asm ([Doc],Doc)
-genExprExternalPrim tname formats [] | getName tname == nameCTailHole
+genExprExternalPrim tname formats [] | getName tname == nameCFieldHole
   = return ([],text "undefined")
 
--- special case: ctail set (accumulator is implemented as {value:<obj>, field:<string>})
-genExprExternalPrim tname formats [accDoc,resDoc] | getName tname == nameCTailSet
+-- special case: cfield-set (field is implemented as {value:<obj>, field:<string>})
+genExprExternalPrim tname formats [accDoc,resDoc] | getName tname == nameCFieldSet
   = return ([], tupled [accDoc <.> text ".value[" <.> accDoc <.> text ".field] =" <+> resDoc, text "$std_core_types._Unit_"])
-
-{-
--- special case: ctail get
-genExprExternalPrim tname formats [accDoc] | getName tname == nameCTailGet
-  = return ([], accDoc <.> text ".result.value")
-
--- special case: ctail alloc
-genExprExternalPrim tname formats [] | getName tname == nameCTailAlloc
-  = do res <- genVarName "res"
-       return ([text "var" <+> res <+> text "=" <+> text "{ value: undefined }" <.> semi],
-               text "{ value:" <+> res <.> text ", field: \"value\", result:" <+> res <+> text "}")
--}
 
 -- normal external
 genExprExternalPrim tname formats argDocs0

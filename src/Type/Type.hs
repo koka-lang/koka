@@ -42,7 +42,7 @@ module Type.Type (-- * Types
 
                   , typeDivergent, typeTotal, typePartial
                   , typeList, typeVector, typeApp, typeRef, typeNull, typeOptional, typeMakeTuple
-                  , typeHbox, typeCTail, typeCField
+                  , typeCTail, typeCField
                   , isOptional, makeOptional, unOptional
                   , typeReuse, typeLocal
 
@@ -749,13 +749,6 @@ isTypeBool _         = False
 isTypeUnit (TCon tc) = tc == tconUnit
 isTypeUnit _         = False
 
-typeHbox :: Tau
-typeHbox
-  = TCon tconHbox
-
-tconHbox :: TypeCon
-tconHbox
-  = TypeCon nameTpHbox (kindFun kindStar kindStar)
 
 -- | Type of ctail
 typeCTail :: Tau

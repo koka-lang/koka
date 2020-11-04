@@ -426,6 +426,16 @@ static inline bool kk_box_is_any(kk_box_t b) {
 }
 
 
+static inline kk_box_t kk_box_box(kk_box_t b, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+  return b;
+}
+
+static inline kk_box_t kk_box_unbox(kk_box_t b, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+  return b;
+}
+
 // C pointers
 
 // A function to free a raw C pointer, raw bytes, or raw string.

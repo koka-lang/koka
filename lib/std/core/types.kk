@@ -167,12 +167,10 @@ type order {
   Gt
 }
 
-/*
 // Explicitly box values using the `Box` constructor.
 value type box<a> {
   con Box( unbox : a )
 }
-*/
 
 // Explicitly heap allocate using the `Hbox` constructor.
 reference type hbox<a> {
@@ -182,6 +180,7 @@ reference type hbox<a> {
 fun hbox( x : a ) : hbox<a> {
   Hbox(x)
 }
+
 
 // ----------------------------------------------------------------------------
 // Standard functions
@@ -355,35 +354,41 @@ type inst :: HX
 // ----------------------------------------------------------------------------
 
 // _Internal_. Internal type for _tail recursion module cons_ (TRMC) optimization.
+// Holds the address to a field of type `:a` in a constructor.
 value type cfield<a>
 
+// _Internal_. Internal type for _tail recursion module cons_ (TRMC) optimization.
 abstract value type ctail<a> {
   con CTail( :a, :cfield<a> )
   con CTailNil
 }
 
-inline extern cfield-hole() : a { }
-inline extern cfield-set( field : cfield<a>, res : a ) : () { }
-inline extern cfield-of( obj : a, conname : string, fieldname : string ) : cfield<a> { }
-
-fun ctail-nil() : ctail<a> {
+fun ".ctail-nil"() : ctail<a> {
   CTailNil
 }
 
-inline fun ctail-flink( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
+inline extern ".cfield-hole"() : a { }
+inline extern ".cfield-of"( obj : a, conname : string, fieldname : string ) : cfield<a> { }
+private inline extern cfield-set( field : cfield<a>, res : a ) : () { }
+
+inline fun ".cfield-set"( field : cfield<a>, res : a ) : () {
+  cfield-set(field,res)
+}
+
+inline fun ".ctail-link"( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
   match(acc) {
-    CTail(head,flink) {
-      cfield-set(flink,res)
+    CTail(head,last) {
+      cfield-set(last,res)
       CTail(head,field)
     }
     CTailNil -> CTail(res,field)
   }
 }
 
-inline fun ctail-fresolve( acc : ctail<a>, rest : a ) : a {
+inline fun ".ctail-resolve"( acc : ctail<a>, rest : a ) : a {
   match(acc) {
-    CTail(head,flink) {
-      cfield-set(flink,rest)
+    CTail(head,last) {
+      cfield-set(last,rest)
       head
     }
     CTailNil -> rest

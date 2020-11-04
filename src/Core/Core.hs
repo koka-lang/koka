@@ -91,7 +91,7 @@ import Common.Unique
 import Common.Id
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
                         nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameSizeT, nameBox, nameUnbox,
-                        nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit, nameTpCTail, nameTpCField)
+                        nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit, nameTpCField)
 import Common.Syntax
 import Kind.Kind
 import Type.Type
@@ -339,7 +339,7 @@ getDataReprEx getIsValue info
          -- else if (hasExistentials)
          --  then (DataNormal, map (\con -> ConNormal typeName) conInfos)
          else if (isValue
-                    && (null (dataInfoParams info) || typeName == nameTpCTail || typeName == nameTpCField)
+                    && (null (dataInfoParams info) || typeName == nameTpCField)
                     && all (\con -> null (conInfoParams con)) conInfos)
           then (DataEnum,map (const (ConEnum typeName DataEnum)) conInfos)
          else if (length conInfos == 1)
