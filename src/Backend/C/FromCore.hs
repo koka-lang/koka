@@ -1913,6 +1913,11 @@ genExprExternal tname formats [] | getName tname == nameCFieldHole
 genExprExternal tname formats [fieldDoc,argDoc] | getName tname == nameCFieldSet
   = return ([],text "*" <.> parens fieldDoc <+> text "=" <+> argDoc)
 
+{-
+-- special case: ctail set
+genExprExternal tname formats [accDoc,argDoc] | getName tname == nameCTailSet
+  = return ([],text "*" <.> parens accDoc <+> text "=" <+> argDoc)
+
 -- special case: cfield set-blink
 genExprExternal tname formats [fieldDoc,argDoc] | getName tname == nameCFieldSetBlink
   = return ([],text "*" <.> parens fieldDoc <+> text "=" <+> text "kk_datatype_box" <.> parens argDoc)
@@ -1920,10 +1925,8 @@ genExprExternal tname formats [fieldDoc,argDoc] | getName tname == nameCFieldSet
 -- special case: cfield get-blink
 genExprExternal tname formats [fieldDoc] | getName tname == nameCFieldGetBlink
   = return ([],text "kk_datatype_unbox" <.> parens (text "*" <.> parens fieldDoc))
+-}
 
--- special case: ctail set
-genExprExternal tname formats [accDoc,argDoc] | getName tname == nameCTailSet
-  = return ([],text "*" <.> parens accDoc <+> text "=" <+> argDoc)
 
 {-
 -- special case: ctail set-blink

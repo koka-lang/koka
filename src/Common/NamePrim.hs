@@ -73,10 +73,9 @@ module Common.NamePrim
           , nameCFieldHole
           , nameCFieldSet
           , nameCFieldOf
-          , nameCFieldSetBlink, nameCFieldGetBlink
           , nameCTailNil
-          , nameCTailLink
-          , nameCTailResolve
+          , nameCTailFLink
+          , nameCTailFResolve
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -270,11 +269,10 @@ nameTpCField      = cfieldName "cfield"
 nameCFieldHole    = cfieldName "cfield-hole"
 nameCFieldSet     = cfieldName "cfield-set"
 nameCFieldOf      = cfieldName "cfield-of"
-nameCFieldSetBlink= cfieldName "cfield-set-blink"
-nameCFieldGetBlink= cfieldName "cfield-get-blink"
-nameCTailNil             = cfieldName "ctail-nil"
-nameCTailLink forward    = cfieldName (if forward then "ctail-flink" else "ctail-blink")
-nameCTailResolve forward = cfieldName (if forward then "ctail-fresolve" else "ctail-bresolve")
+nameCTailNil      = cfieldName "ctail-nil"
+nameCTailFLink    = cfieldName "ctail-flink"
+nameCTailFResolve = cfieldName "ctail-fresolve"
+
 
 cfieldName name   = coreTypesName name
 

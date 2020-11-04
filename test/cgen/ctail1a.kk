@@ -15,21 +15,6 @@ fun mapf( xs : list<a>, f : a -> e b ) : e list<b> {
   ctail-mapf(xs,f,ctail-nil())
 }
 
-fun ctail-mapb( xs : list<a>, f : a -> b, acc : ctail<list<b>> ) : list<b> {
-  match(xs) {
-    Cons(x,xx) {
-      val hd    = Cons(f(x),cfield-hole())
-      val field = cfield-of(hd,"std/core/Cons","tail")
-      ctail-mapb( xx, f, ctail-blink(acc,hd,field) )
-    }
-    Nil -> ctail-bresolve(acc,Nil)
-  }
-}
-
-fun mapb( xs : list<a>, f : a -> b ) : list<b> {
-  ctail-mapb(xs,f,ctail-nil())
-}
-
 
 fun tmap( xs : list<a>, f : a -> b ) : list<b> {
   match(xs) {
@@ -48,13 +33,13 @@ fun main() {
   //list(1,10000000).mapb(inc).sum.println
   //list(1,10000000).mapx(inc).sum.println
   //list(1,10000000).map(inc).sum.println
-  //testMany()
-  //testControl()
-  //testMulti()
+  //test-many()
+  //test-control()
+  //test-multi()
 }
 
 /*
-fun testMany() {
+fun test-many() {
   val xs = list(1,5)
   var i := 0
   for(1,10000000) fn(j){
@@ -63,7 +48,7 @@ fun testMany() {
   println(i)
 }
 
-fun testControl() {
+fun test-control() {
   with control out(s:string) {
     println(s); resume(())
   }
@@ -114,8 +99,8 @@ fun show( xss : list<list<int>> ) : string {
   xss.show-list(fun(xs) { xs.show-list(core/show) } )
 }
 
-fun testMulti() {
-  solutions{ tknapsack(3,[3,2,1]) }
+fun test-multi() {
+  solutions{ knapsack(3,[3,2,1]) }
 }
 
 /*

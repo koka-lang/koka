@@ -21,6 +21,16 @@ fun ileave( xs : list<a>, ys : list<a> ) : div list<a> {
 
 fun main() {
   list(1,10000000).mapx(inc).sum.println
+  //test-many()
+}
+
+fun test-many() {
+  val xs = list(1,5)
+  var i := 0
+  for(1,10000000) fn(j){
+    i := i + xs.mapx(inc).length
+  }
+  println(i)
 }
 
 /*

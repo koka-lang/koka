@@ -370,7 +370,7 @@ fun ctail-nil() : ctail<a> {
   CTailNil
 }
 
-noinline fun ctail-flink( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
+inline fun ctail-flink( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
   match(acc) {
     CTail(head,flink) {
       cfield-set(flink,res)
@@ -385,49 +385,6 @@ inline fun ctail-fresolve( acc : ctail<a>, rest : a ) : a {
     CTail(head,flink) {
       cfield-set(flink,rest)
       head
-    }
-    CTailNil -> rest
-  }
-}
-
-inline extern cfield-set-blink( field : cfield<a>, blink : blink<a> ) : () { }
-inline extern cfield-get-blink( field : cfield<a> ) : blink<a> { }
-
-private reference type blink<a> {
-  BLink( _node : a, _blink : cfield<a> )
-  BNil
-}
-
-noinline fun ctail-blink( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
-  match(acc) {
-    CTail(last,blink) {
-      cfield-set-blink(field, BLink(last,blink))
-      CTail(res,field)
-    }
-    CTailNil -> {
-      // ctail-set(field, ctail-hole())  // already done
-      CTail(res,field)
-    }
-  }
-}
-
-private fun ctail-blink-resolve( blink : blink<a>, rest : a ) : a {
-  match(blink) {
-    BLink(node,field) {
-      val next = cfield-get-blink(field)
-      cfield-set(field, rest)
-      ctail-blink-resolve( unsafe-decreasing(next), node )
-    }
-    BNil -> rest
-  }
-}
-
-inline fun ctail-bresolve( acc : ctail<a>, rest : a ) : a {
-  match(acc) {
-    CTail(node,field) {
-      val next = cfield-get-blink(field)
-      cfield-set(field, rest)
-      ctail-blink-resolve( next, node )
     }
     CTailNil -> rest
   }
