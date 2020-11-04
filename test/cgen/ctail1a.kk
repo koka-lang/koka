@@ -14,7 +14,7 @@ inline fun ctail-nil() : ctail<a> {
   CTailNil
 }
 
-inline fun ctail-flink( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
+noinline fun ctail-flink( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
   match(acc) {
     CTail(head,flink) {
       cfield-set(flink,res)
@@ -130,19 +130,26 @@ fun mapx( xs : list<a>, f : a -> b ) : list<b> {
   ctail-mapx(xs,f,True,CTailNil)
 }
 
+fun tmap( xs : list<a>, f : a -> b ) : list<b> {
+  match(xs) {
+    Cons(x,xx) -> Cons(f(x),tmap(xx,f))
+    Nil        -> Nil
+  }
+}
+
 fun main() {
-  list(1,10000000).mapf(inc).sum.println
+  //list(1,10000000).tmap(inc).sum.println
   //list(1,10000000).mapb(inc).sum.println
   //list(1,10000000).mapx(inc).sum.println
   //list(1,10000000).map(inc).sum.println
-  /*
+
   val xs = list(1,5)
   var i := 0
   for(1,10000000) fn(j){
-    i := i + xs.mapf(inc).length
+    i := i + xs.tmap(inc).length
   }
   println(i)
-  */
+
 }
 
 /*

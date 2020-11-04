@@ -11,7 +11,7 @@
 -- Tail Recursive Modulo Cons implementation (called "ctail")
 -----------------------------------------------------------------------------
 
-module Core.CTail ( ctailOptimize, uctailOptimize, isCTailOp ) where
+module Core.CTail ( ctailOptimize, uctailOptimize ) where
 
 import Lib.Trace (trace)
 import Control.Monad
@@ -76,42 +76,36 @@ ctailDef topLevel def
          Nothing -> return [DefRec [def]]
          Just (tforall,tpreds,targs,teff,tres)
            -> do -- ctailTrace "- has reference type result"
-                 let ctailSlotType = makeSlotType tres
+                 let ctailSlotType = TApp typeCTail [tres]
                      ctailName = makeHiddenName "ctail" (defName def)
                      ctailSlot = newHiddenName "acc"
-                     ctailType = tForall tforall tpreds (TFun (targs ++ [(ctailSlot,ctailSlotType)]) teff typeUnit)
+                     ctailType = tForall tforall tpreds (TFun (targs ++ [(ctailSlot,ctailSlotType)]) teff tres)
                      ctailTName= TName ctailName ctailType
                      ctailTSlot= TName ctailSlot ctailSlotType
 
-                 cdefExpr <- withContext ctailTName (Just ctailTSlot) $
+                 cdefExpr <- withContext ctailTName True (Just ctailTSlot) $
                              ctailExpr True (makeCDefExpr ctailTSlot (defExpr def))
 
                  let cdef = def{ defName = ctailName, defType = ctailType, defExpr = cdefExpr }
                      needsMulti = not (effectIsAffine teff)
-                     ctailMultiName = makeHiddenName "ctailm" (defName def)
+                     ctailMultiName  = makeHiddenName "ctailm" (defName def)
                      ctailMultiTName = TName ctailMultiName (defType def)
-                     ctailMultiVar  = Var ctailMultiTName (InfoArity (length tforall) (length targs))
+                     ctailMultiVar   = Var ctailMultiTName (InfoArity (length tforall) (length targs))
 
-                 wrapExpr <- withContext ctailTName Nothing $
-                             do doInline <- getOptCtailInline
-                                if (doInline && not needsMulti)
-                                  then ctailExpr True (defExpr def)
-                                  else ctailWrapper ctailTSlot
-                                        (if needsMulti then Just ctailMultiVar else Nothing)
-                                        (defExpr def)
+                 wrapExpr <- withContext ctailTName True Nothing $
+                             do ctailWrapper ctailTSlot
+                                  (if needsMulti then Just ctailMultiVar else Nothing)
+                                  (defExpr def)
 
                   -- todo: check if rec is needed (only if there are non-tail calls left over)
                  if (not needsMulti)
                    then -- for sure, each op resumes at most once
                         return [ DefRec [cdef, def{defExpr = wrapExpr }] ]
-                   else -- some ops may resume more than once
-                        -- todo: generate tail calling function for multi-resume; for now
-                        --       we just use the body as is.
-                        return $ [ DefRec [cdef
-                                          , def{defName = ctailMultiName
-                                               ,defExpr = [(defTName def,ctailMultiVar)] |~> defExpr def }
-                                          , def{defExpr = wrapExpr }
-                                          ] ]
+                   else -- some ops may resume more than once; specialize for those
+                        do cdefMultiExpr <- withContext ctailMultiTName False (Just ctailTSlot) $
+                                             ctailExpr True (makeCDefExpr ctailTSlot (defExpr def))
+                           let cdefMulti = def{ defName = ctailMultiName, defType = ctailType, defExpr = cdefMultiExpr }
+                           return $ [ DefRec [cdef, cdefMulti, def{defExpr = wrapExpr} ] ]
 
 
 makeCDefExpr :: TName -> Expr -> Expr
@@ -152,21 +146,15 @@ ctailWrapper slot mbMulti body
 ctailWrapperBody :: Type -> TName -> Maybe Expr -> [TypeVar] -> [TName] -> CTail Expr
 ctailWrapperBody resTp slot mbMulti targs args
   = do tailVar   <- getCTailFun
-       let resName   = newHiddenName "ctail-res"
-           hboxDecl  = makeDef resName (makeHbox (makeCTailHole resTp))
-           slotDecl  = makeTDef slot (makeCTailHboxCreate (defTName hboxDecl) resTp)
-           tailCall  = App (makeTypeApp tailVar [TVar tv | tv <- targs]) [Var name InfoNone | name <- args ++ [slot]]
-           unhbox    = makeHunbox resTp (Var (defTName hboxDecl) InfoNone)
-           ctailCall = (Let  [ DefNonRec hboxDecl
-                             , DefNonRec slotDecl
-                             , DefNonRec (makeDef nameNil tailCall)
-                             ] unhbox)
+       let  ctailCall  = App (makeTypeApp tailVar [TVar tv | tv <- targs])
+                           ([Var name InfoNone | name <- args] ++ [makeCTailNil resTp])
        case mbMulti of
          Nothing -> return ctailCall
          Just ctailMultiVar
            -> -- call either ctail or the regular code
               do let -- ctailMultiVar  = Var ctailMultiTName (InfoArity (length targs) (length args))
-                     ctailMultiCall = App (makeTypeApp ctailMultiVar [TVar tv | tv <- targs]) [Var name InfoNone | name <- args]
+                     ctailMultiCall = App (makeTypeApp ctailMultiVar [TVar tv | tv <- targs])
+                                          ([Var name InfoNone | name <- args] ++ [makeCTailNil resTp])
                  return (makeIfIsAffine ctailCall ctailMultiCall)
 
 makeIfIsAffine :: Expr -> Expr -> Expr
@@ -176,30 +164,6 @@ makeIfIsAffine onTrue onFalse
     tnameEvvIsAffine = TName nameEvvIsAffine (TFun [] typeTotal typeBool)
 
 
-
-makeHunbox :: Type -> Expr -> Expr
-makeHunbox tp expr
-  = App (TypeApp (Var (TName nameUnhbox unhboxType) (InfoArity 1 1)) [tp]) [expr]
-  where
-
-makeHbox :: Expr -> Expr
-makeHbox expr
-  = App (TypeApp (Var (TName nameHbox hboxType) (InfoArity 1 1)) [typeOf expr]) [expr]
-
-hboxType :: Type
-hboxType = hboxConType
-
-hboxConType :: Type
-hboxConType =
-    TForall [a] [] (TFun [(nameNil,TVar a)] typeTotal (TApp typeHbox [TVar a]))
-  where
-    a = TypeVar (0) kindStar Bound
-
-unhboxType :: Type
-unhboxType =
-    TForall [a] [] (TFun [(nameNil,TApp typeHbox [TVar a])] typeTotal (TVar a))
-  where
-    a = TypeVar (0) kindStar Bound
 --------------------------------------------------------------------------
 -- Does there exist a tail call definition?
 --------------------------------------------------------------------------
@@ -277,7 +241,8 @@ ctailExpr top expr
       = do mbSlot <- getCTailSlot
            case mbSlot of
               Nothing   -> return body
-              Just slot -> return (makeCTailSet slot body)
+              Just slot -> do forward <- getForward
+                              return (makeCTailResolve forward slot body)
 
     handleConApp dname cname f fargs
       = do (defs,body) <- ctailTryArg dname cname Nothing (\args -> ([],App f args)) (length fargs) (reverse fargs)
@@ -345,21 +310,25 @@ ctailFoundArg cname mbC mkApp field f fargs
        ctailVar  <- getCTailFun
        (_,fieldName) <- getFieldName cname field
        let tp    = typeOf (App f fargs)
-           hole  = makeCTailHole tp
+           hole  = makeCFieldHole tp
            (defs,cons)  = mkApp [hole]
        consName  <- uniqueTName (typeOf cons)
        mbSlot <- getCTailSlot
        case mbSlot of
          Nothing
-           -> do let resolveSlot = makeCTailCreate (maybe consName id mbC) cname fieldName tp
-                     ctailCall   = App ctailVar (fargs ++ [resolveSlot])
+           -> failure "Core.CTail.ctailFoundArg: inlined trmc is not supported"
+           {-
+              do forward <- getForward
+                 let resolve = makeCTailResolve forward (maybe consName id mbC) cname fieldName tp
+                     ctailCall   = App ctailVar (fargs ++ [resolve])
                  return $ (defs ++
                            [DefNonRec (makeTDef consName cons),
                             DefNonRec (makeDef nameNil ctailCall)]
-                           ,Var consName InfoNone)
+                           ,Var consName InfoNone) -}
          Just slot
-           -> do let resolveNext = makeCTailNext slot consName (maybe consName id mbC) cname fieldName tp
-                     ctailCall   = App ctailVar (fargs ++ [resolveNext])
+           -> do forward <- getForward
+                 let link = makeCTailLink forward slot consName (maybe consName id mbC) cname fieldName tp
+                     ctailCall   = App ctailVar (fargs ++ [link])
                  return $ (defs ++ [DefNonRec (makeTDef consName cons)]
                           ,ctailCall)
 
@@ -368,50 +337,51 @@ ctailFoundArg cname mbC mkApp field f fargs
 -- Primitives
 --------------------------------------------------------------------------
 
-isCTailOp :: Name -> Bool
-isCTailOp name
-  = name `elem` [nameCTailHole,nameCTailCreate,nameCTailNext,nameCTailSet]
-
-makeCTailHole :: Type -> Expr
-makeCTailHole tp
-  = App (Var (TName nameCTailHole funType) (InfoExternal [])) []
+makeCFieldHole :: Type -> Expr
+makeCFieldHole tp
+  = App (TypeApp (Var (TName nameCFieldHole funType) (InfoExternal [])) [tp]) []
   where
-    funType = TFun [] typeTotal tp
+    funType = TForall [a] [] (TFun [] typeTotal (TVar a))
+    a = TypeVar 0 kindStar Bound
 
 
-makeCTailCreate :: TName -> TName -> Name -> Type -> Expr
-makeCTailCreate objName conName fieldName tp
-  = App (Var (TName nameCTailCreate funType) (InfoConField conName fieldName)) [Var objName InfoNone]
+makeCTailNil :: Type -> Expr
+makeCTailNil tp
+  = App (TypeApp (Var (TName nameCTailNil funType) (InfoArity 1 0)) [tp]) []
   where
-    funType = TFun [(nameNil,typeOf objName)] typeTotal (makeSlotType tp)
+    funType = TForall [a] [] (TFun [] typeTotal (TApp typeCTail [TVar a]))
+    a = TypeVar 0 kindStar Bound
 
 
-makeCTailHboxCreate :: TName -> Type -> Expr
-makeCTailHboxCreate objName tp
-  = App (Var (TName nameCTailHboxCreate funType) (InfoArity 0 1)) [Var objName InfoNone]
+makeCFieldOf :: TName -> TName -> Name -> Type -> Expr
+makeCFieldOf objName conName fieldName tp
+  = App (TypeApp (Var (TName nameCFieldOf funType) (InfoExternal [])) [tp])
+        [Var objName InfoNone, Lit (LitString (showTupled (getName conName))), Lit (LitString (showTupled fieldName))]
   where
-    funType = TFun [(nameNil,typeOf objName)] typeTotal (makeSlotType tp)
+    funType = TForall [a] [] (TFun [(nameNil,TVar a),(nameNil,typeString),(nameNil,typeString)]
+                                   typeTotal (TApp typeCField [TVar a]))
+    a = TypeVar 0 kindStar Bound
 
 
-makeCTailNext :: TName -> TName -> TName -> TName -> Name -> Type -> Expr
-makeCTailNext slot resName objName conName fieldName tp
-  = App (Var (TName nameCTailNext funType) (InfoConField conName fieldName))
-        [Var slot InfoNone, Var resName InfoNone, Var objName InfoNone]
+makeCTailLink :: Bool -> TName -> TName -> TName -> TName -> Name -> Type -> Expr
+makeCTailLink forward slot resName objName conName fieldName tp
+  = let fieldOf = makeCFieldOf objName conName fieldName tp
+    in  App (TypeApp (Var (TName (nameCTailLink forward) funType) (InfoArity 1 3)) [tp])
+            [Var slot InfoNone, Var resName InfoNone, fieldOf]
   where
-    funType = TFun [(nameNil,typeOf slot),(nameNil,typeOf resName),(nameNil,typeOf objName)] typeTotal (makeSlotType tp)
+    funType = TForall [a] [] (TFun [(nameNil,TApp typeCTail [TVar a]),
+                                    (nameNil,TVar a),
+                                    (nameNil,TApp typeCField [TVar a])] typeTotal (TApp typeCTail [TVar a]))
+    a = TypeVar 0 kindStar Bound
 
-makeCTailSet :: TName -> Expr -> Expr
-makeCTailSet slot expr
-  = App (Var (TName nameCTailSet funType) (InfoExternal []))
-        [Var slot InfoNone,expr]  -- danger: not fully applied Con
+
+makeCTailResolve :: Bool -> TName -> Expr -> Expr
+makeCTailResolve forward slot expr
+  = App (TypeApp (Var (TName (nameCTailResolve forward) funType) (InfoArity 1 2)) [typeOf expr])
+        [Var slot InfoNone, expr]
   where
-    funType = TFun [(nameNil,typeOf slot),(nameNil,typeOf expr)] typeTotal typeUnit
-
-
-makeSlotType :: Type -> Type
-makeSlotType tp
-  = TApp (TCon (TypeCon nameTpCTail (kindFun kindStar kindStar))) [tp]
-
+    funType = TForall [a] [] (TFun [(nameNil,TApp typeCTail [TVar a]),(nameNil,TVar a)] typeTotal (TVar a))
+    a = TypeVar 0 kindStar Bound
 
 
 --------------------------------------------------------------------------
@@ -447,7 +417,8 @@ data Env = Env { currentDef :: [Def],
                  gamma :: Gamma,
                  ctailInline :: Bool,
                  ctailName :: TName,
-                 ctailSlot :: Maybe TName
+                 ctailSlot :: Maybe TName,
+                 forward :: Bool
                }
 
 data CTailState = CTailState { uniq :: Int }
@@ -476,15 +447,15 @@ getSt = get
 ctailRun :: Pretty.Env -> Platform -> Newtypes -> Gamma -> Bool -> CTail a -> Unique a
 ctailRun penv platform newtypes gamma ctailInline (CTail action)
   = withUnique $ \u ->
-      let env = Env [] penv platform newtypes gamma ctailInline (TName nameNil typeUnit) Nothing
+      let env = Env [] penv platform newtypes gamma ctailInline (TName nameNil typeUnit) Nothing True
           st = CTailState u
           (val, st') = runState (runReaderT action env) st
        in (val, uniq st')
 
 
-withContext :: TName -> Maybe TName -> CTail a -> CTail a
-withContext name mbSlot action
-  = withEnv (\env -> env{ ctailName = name, ctailSlot = mbSlot }) action
+withContext :: TName -> Bool -> Maybe TName -> CTail a -> CTail a
+withContext name forward mbSlot action
+  = withEnv (\env -> env{ ctailName = name, ctailSlot = mbSlot, forward = forward }) action
 
 getCTailFun :: CTail Expr
 getCTailFun
@@ -497,6 +468,10 @@ getCTailFun
 getCTailSlot :: CTail (Maybe TName)
 getCTailSlot
   = ctailSlot <$> getEnv
+
+getForward :: CTail Bool
+getForward
+  = forward <$> getEnv
 
 getFieldName :: TName -> Int -> CTail (Expr,Name)
 getFieldName cname field

@@ -69,11 +69,14 @@ module Common.NamePrim
           , nameCTailHboxCreate
           , nameTpHbox, nameHboxCon, nameHbox, nameUnhbox
 
-          , nameTpCField
+          , nameTpCField, nameTpCTailAcc
           , nameCFieldHole
           , nameCFieldSet
           , nameCFieldOf
           , nameCFieldSetBlink, nameCFieldGetBlink
+          , nameCTailNil
+          , nameCTailLink
+          , nameCTailResolve
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -262,12 +265,16 @@ nameCTailHboxCreate  = ctailName ".ctail-hbox-create"
 
 ctailName name    = coreTypesName name
 
+nameTpCTailAcc    = cfieldName "ctail"
 nameTpCField      = cfieldName "cfield"
 nameCFieldHole    = cfieldName "cfield-hole"
 nameCFieldSet     = cfieldName "cfield-set"
 nameCFieldOf      = cfieldName "cfield-of"
 nameCFieldSetBlink= cfieldName "cfield-set-blink"
 nameCFieldGetBlink= cfieldName "cfield-get-blink"
+nameCTailNil             = cfieldName "ctail-nil"
+nameCTailLink forward    = cfieldName (if forward then "ctail-flink" else "ctail-blink")
+nameCTailResolve forward = cfieldName (if forward then "ctail-fresolve" else "ctail-bresolve")
 
 cfieldName name   = qualify (newName "test/cgen/ctail1a") (newName name)
 

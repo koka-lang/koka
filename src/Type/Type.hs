@@ -41,7 +41,8 @@ module Type.Type (-- * Types
                   , isEffectEmpty, isEffectFixed, shallowEffectExtend, shallowExtractEffectExtend
 
                   , typeDivergent, typeTotal, typePartial
-                  , typeList, typeVector, typeApp, typeRef, typeNull, typeOptional, typeMakeTuple, typeHbox
+                  , typeList, typeVector, typeApp, typeRef, typeNull, typeOptional, typeMakeTuple
+                  , typeHbox, typeCTail, typeCField
                   , isOptional, makeOptional, unOptional
                   , typeReuse, typeLocal
 
@@ -756,6 +757,23 @@ tconHbox :: TypeCon
 tconHbox
   = TypeCon nameTpHbox (kindFun kindStar kindStar)
 
+-- | Type of ctail
+typeCTail :: Tau
+typeCTail
+  = TCon tconCTail
+
+tconCTail :: TypeCon
+tconCTail
+  = TypeCon nameTpCTailAcc (kindFun kindStar kindStar)
+
+-- | Type of cfield
+typeCField :: Tau
+typeCField
+  = TCon tconCField
+
+tconCField :: TypeCon
+tconCField
+  = TypeCon nameTpCField (kindFun kindStar kindStar)
 
 -- | Type of vectors (@[]@)
 typeVector :: Tau
