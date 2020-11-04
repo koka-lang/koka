@@ -73,7 +73,7 @@ module Common.NamePrim
           , nameCFieldHole
           , nameCFieldSet
           , nameCFieldOf
-
+          , nameCFieldSetBlink, nameCFieldGetBlink
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -266,6 +266,8 @@ nameTpCField      = cfieldName "cfield"
 nameCFieldHole    = cfieldName "cfield-hole"
 nameCFieldSet     = cfieldName "cfield-set"
 nameCFieldOf      = cfieldName "cfield-of"
+nameCFieldSetBlink= cfieldName "cfield-set-blink"
+nameCFieldGetBlink= cfieldName "cfield-get-blink"
 
 cfieldName name   = qualify (newName "test/cgen/ctail1a") (newName name)
 

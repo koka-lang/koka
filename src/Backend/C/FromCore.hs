@@ -1640,7 +1640,7 @@ genApp f args
   = do sapp <- genAppSpecial f args
        case sapp of
          Just app -> return ([],app)
-         Nothing  -> trace ("genAppNormal: " ++ show (f,args)) $
+         Nothing  -> -- trace ("genAppNormal: " ++ show (f,args)) $
                      genAppNormal f args
 
 
@@ -1671,13 +1671,15 @@ genAppNormal (Var (TName conFieldsAssign typeAssign) _) (Var reuseName (InfoConF
            result   = conBaseCastName (getName conName) <.> parens tmp
        return (decls ++ [tmpDecl] ++ assigns, result)
 
--- special: ctail
+-- special: cfield-hole
 genAppNormal (Var unbox _) [App (Var cfieldHole _) []] | getName cfieldHole == nameCFieldHole && getName unbox == nameUnbox
   = return ([],ppType (resultType (typeOf unbox)) <.> text "_hole()")
 
+-- special: cfield-of
 genAppNormal (Var cfieldOf _) [App (Var box _) [App (Var dup _) [Var con _]], Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameCFieldOf && getName dup == nameDup
   = do let doc = genFieldAddress con (readQualified conName) (readQualified fieldName)
        return ([],text "(kk_box_t*)" <.> parens doc)
+
 {-
 genAppNormal v@(Var ctailCreate (InfoConField conName fieldName)) [Var con _]  | getName ctailCreate == nameCTailCreate
  = do let drop = map (<.> semi) (genDupDropCall False (typeOf con) (ppName (getName con)))
@@ -1906,6 +1908,13 @@ genExprExternal tname formats [] | getName tname == nameCFieldHole
 genExprExternal tname formats [fieldDoc,argDoc] | getName tname == nameCFieldSet
   = return ([],text "*" <.> parens fieldDoc <+> text "=" <+> argDoc)
 
+-- special case: cfield set-blink
+genExprExternal tname formats [fieldDoc,argDoc] | getName tname == nameCFieldSetBlink
+  = return ([],text "*" <.> parens fieldDoc <+> text "=" <+> text "kk_datatype_box" <.> parens argDoc)
+
+-- special case: cfield get-blink
+genExprExternal tname formats [fieldDoc] | getName tname == nameCFieldGetBlink
+  = return ([],text "kk_datatype_unbox" <.> parens (text "*" <.> parens fieldDoc))
 
 -- special case: ctail set
 genExprExternal tname formats [accDoc,argDoc] | getName tname == nameCTailSet

@@ -24,7 +24,7 @@ inline fun ctail-flink( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> 
   }
 }
 
-fun ctail-fresolve( acc : ctail<a>, rest : a ) : a {
+inline fun ctail-fresolve( acc : ctail<a>, rest : a ) : a {
   match(acc) {
     CTail(head,flink) {
       cfield-set(flink,rest)
@@ -34,16 +34,15 @@ fun ctail-fresolve( acc : ctail<a>, rest : a ) : a {
   }
 }
 
-/*
-inline extern cfield-set-blink( field : ctail<a>, blink : blink<a> ) : () { }
-inline extern cfield-get-blink( field : ctail<a> ) : blink<a> { }
+inline extern cfield-set-blink( field : cfield<a>, blink : blink<a> ) : () { }
+inline extern cfield-get-blink( field : cfield<a> ) : blink<a> { }
 
-type blink<a> {
-  BLink( _node : a, _blink : ctail<a> )
+reference type blink<a> {
+  BLink( _node : a, _blink : cfield<a> )
   BNil
 }
 
-inline fun ctail-blink( acc : ctail<a>, res : a, field : cfield<a> ) {
+inline fun ctail-blink( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
   match(acc) {
     CTail(last,blink) {
       cfield-set-blink(field, BLink(last,blink))
@@ -59,15 +58,15 @@ inline fun ctail-blink( acc : ctail<a>, res : a, field : cfield<a> ) {
 private fun ctail-blink-resolve( blink : blink<a>, rest : a ) : a {
   match(blink) {
     BLink(node,field) {
-      val next = ctail-get-blink(field)
+      val next = cfield-get-blink(field)
       cfield-set(field, rest)
-      ctail-blink-resolve( next, node )
+      ctail-blink-resolve( unsafe-decreasing(next), node )
     }
     BNil -> rest
   }
 }
 
-fun ctail-bresolve( acc : ctail<a>, rest : a ) : a {
+inline fun ctail-bresolve( acc : ctail<a>, rest : a ) : a {
   match(acc) {
     CTail(node,field) {
       val next = cfield-get-blink(field)
@@ -77,26 +76,73 @@ fun ctail-bresolve( acc : ctail<a>, rest : a ) : a {
     CTailNil -> rest
   }
 }
-*/
 
-fun tmap( xs : list<a>, f : a -> b, acc : ctail<list<b>> ) : list<b> {
+inline fun ctail-link( forward : bool, acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
+  if (forward) then ctail-flink(acc,res,field) else ctail-blink(acc,res,field)
+}
+inline fun ctail-resolve( forward : bool, acc : ctail<a>, rest : a ) : a {
+  if (forward) then ctail-fresolve(acc,rest) else ctail-bresolve(acc,rest)
+}
+
+
+fun ctail-mapf( xs : list<a>, f : a -> b, acc : ctail<list<b>> ) : list<b> {
   match(xs) {
     Cons(x,xx) {
       val hd    = Cons(f(x),cfield-hole())
       val field = cfield-of(hd,"std/core/Cons","tail")
-      tmap( xx, f, ctail-flink(acc,hd,field) )
+      ctail-mapf( xx, f, ctail-flink(acc,hd,field) )
     }
     Nil -> ctail-fresolve(acc,Nil)
   }
 }
 
-fun mapx( xs : list<a>, f : a -> b ) : list<b> {
-  tmap(xs,f,CTailNil)
+fun mapf( xs : list<a>, f : a -> b ) : list<b> {
+  ctail-mapf(xs,f,CTailNil)
 }
 
+fun ctail-mapb( xs : list<a>, f : a -> b, acc : ctail<list<b>> ) : list<b> {
+  match(xs) {
+    Cons(x,xx) {
+      val hd    = Cons(f(x),cfield-hole())
+      val field = cfield-of(hd,"std/core/Cons","tail")
+      ctail-mapb( xx, f, ctail-blink(acc,hd,field) )
+    }
+    Nil -> ctail-bresolve(acc,Nil)
+  }
+}
+
+fun mapb( xs : list<a>, f : a -> b ) : list<b> {
+  ctail-mapb(xs,f,CTailNil)
+}
+
+fun ctail-mapx( xs : list<a>, f : a -> b, forward : bool, acc : ctail<list<b>> ) : list<b> {
+  match(xs) {
+    Cons(x,xx) {
+      val hd    = Cons(f(x),cfield-hole())
+      val field = cfield-of(hd,"std/core/Cons","tail")
+      ctail-mapx( xx, f, forward, ctail-link(forward,acc,hd,field) )
+    }
+    Nil -> ctail-resolve(forward,acc,Nil)
+  }
+}
+
+fun mapx( xs : list<a>, f : a -> b ) : list<b> {
+  ctail-mapx(xs,f,True,CTailNil)
+}
 
 fun main() {
-  list(1,10000000).mapx(inc).sum.println
+  list(1,10000000).mapf(inc).sum.println
+  //list(1,10000000).mapb(inc).sum.println
+  //list(1,10000000).mapx(inc).sum.println
+  //list(1,10000000).map(inc).sum.println
+  /*
+  val xs = list(1,5)
+  var i := 0
+  for(1,10000000) fn(j){
+    i := i + xs.mapf(inc).length
+  }
+  println(i)
+  */
 }
 
 /*
