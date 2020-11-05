@@ -253,10 +253,11 @@ ctailExpr top expr
                               return (makeCTailResolve isMulti slot body)
 
     handleConApp dname cname f fargs
-      = do (defs,body) <- ctailTryArg dname cname Nothing (\args -> ([],App f args)) (length fargs) (reverse fargs)
-           if (null defs)
-            then tailResult body
-            else return $ makeLet defs body
+      = do let mkCons args = bindArgs args $ (\xs -> return ([],App f xs))
+           mbExpr <- ctailTryArg dname cname Nothing mkCons (length fargs) (reverse fargs)
+           case mbExpr of
+             Nothing          -> tailResult (App f fargs)
+             Just (defs,expr) -> return (makeLet defs expr)
 
     handleTailCall mkCall
       = do mbSlot <- getCTailSlot
@@ -264,6 +265,18 @@ ctailExpr top expr
              Nothing   -> return expr -- not in ctail variant
              Just slot -> do ctailVar <- getCTailFun   -- do a tail call with the current slot
                              return (mkCall ctailVar (Var slot InfoNone))
+
+bindArgs :: [Expr] -> ([Expr] -> CTail ([DefGroup],Expr)) -> CTail ([DefGroup],Expr)
+bindArgs args use
+  = do (defss,args') <- unzip <$> mapM bindArg args
+       (defs,expr) <- use args'
+       return (concat defss ++ defs, expr)
+  where
+    bindArg :: Expr -> CTail ([DefGroup],Expr)
+    bindArg arg
+      = if (isTotal arg) then return ([],arg)
+         else do x <- uniqueTName (typeOf arg)
+                 return ([DefNonRec (makeTDef x arg)],Var x InfoNone)
 
 
 ctailBranch :: Branch -> CTail Branch
@@ -281,14 +294,18 @@ ctailGuard (Guard test expr)  -- expects patAdded in depth-order
 -- See if the tailcall is inside a (nested) constructor application
 --------------------------------------------------------------------------
 
-ctailTryArg :: TName -> TName -> Maybe TName -> ([Expr] -> (DefGroups,Expr)) -> Int -> [Expr] -> CTail (DefGroups,Expr)
-ctailTryArg dname cname mbC mkApp field []  = return (mkApp [])  -- not found
+ctailTryArg :: TName -> TName -> Maybe TName -> ([Expr] -> CTail ([DefGroup],Expr)) -> Int -> [Expr] -> CTail (Maybe ([DefGroup],Expr))
+ctailTryArg dname cname mbC mkApp field []  = return Nothing
 ctailTryArg dname cname mbC mkApp field (rarg:rargs)
   = case rarg of
       App f@(TypeApp (Var name info) targs) fargs
-       | (dname == name) -> ctailFoundArg cname mbC mkAppNew field (\v acc -> App (TypeApp v targs) (fargs ++ [acc])) (typeOf rarg) --f fargs
+       | (dname == name) -> do expr <- ctailFoundArg cname mbC mkAppNew field
+                                      (\v acc -> App (TypeApp v targs) (fargs ++ [acc])) (typeOf rarg) --f farg
+                               return (Just expr)
       App f@(Var name info) fargs
-       | (dname == name) -> ctailFoundArg cname mbC mkAppNew field (\v acc -> App (v) (fargs ++ [acc])) (typeOf rarg) --f fargs
+       | (dname == name) -> do expr <- ctailFoundArg cname mbC mkAppNew field
+                                        (\v acc -> App (v) (fargs ++ [acc])) (typeOf rarg) --f fargs
+                               return (Just expr)
 
       -- recurse into other con
       App f@(TypeApp (Con cname2 _) _) fargs  | tnamesMember dname (fv fargs) && all isTotal rargs
@@ -300,20 +317,20 @@ ctailTryArg dname cname mbC mkApp field (rarg:rargs)
              ctailTryArg dname cname2 (Just x) (mkAppNested x f) (length fargs) (reverse fargs)
 
       _ -> if (isTotal rarg) then ctailTryArg dname cname mbC (\args -> mkApp (args ++ [rarg])) (field-1) rargs
-                             else return orig
+                             else return Nothing
   where
-    orig     = (mkApp (reverse (rarg:rargs)))
     mkAppNew = (\args -> mkApp (reverse rargs ++ args))
-    mkAppNested x f = (\args -> let (defs,expr) = mkApp (reverse rargs ++ [Var x InfoNone])
-                                in ([DefNonRec (makeTDef x (App f args))]++defs, expr))
+    mkAppNested x f
+       = (\args -> do (defs,expr) <- bindArgs (reverse rargs) $ \xs -> mkApp (xs ++ [Var x InfoNone])
+                      return ([DefNonRec (makeTDef x (App f args))]++defs, expr))
 
 
 --------------------------------------------------------------------------
 -- Found a tail call inside a constructor application
 --------------------------------------------------------------------------
 
-ctailFoundArg :: TName -> Maybe TName -> ([Expr] -> (DefGroups,Expr)) -> Int ->
-                  (Expr -> Expr -> Expr) -> Type {- Expr -> [Expr] -} -> CTail (DefGroups,Expr)
+ctailFoundArg :: TName -> Maybe TName -> ([Expr] -> CTail ([DefGroup],Expr)) -> Int ->
+                  (Expr -> Expr -> Expr) -> Type {- Expr -> [Expr] -} -> CTail ([DefGroup],Expr)
 ctailFoundArg cname mbC mkConsApp field mkTailApp resTp -- f fargs
   = -- ctailTrace $ "found arg: " ++ show cname ++ ", " ++ show mbC ++ ", " ++ show field
     do mbSlot <- getCTailSlot
@@ -325,16 +342,15 @@ ctailFoundArg cname mbC mkConsApp field mkTailApp resTp -- f fargs
                  ctailVar  <- getCTailFun
                  if isMulti
                    then do x <- uniqueTName resTp
-                           let (defs,cons) = mkConsApp [Var x InfoNone]
-                               acc         = Lam [x] typeTotal ((App (Var slot InfoNone) [cons]))
-                           f <- uniqueTName (typeOf acc)
-                           let ctailCall   = mkTailApp ctailVar (Var f InfoNone)
-                           return (defs ++ [DefNonRec (makeTDef f acc)],ctailCall)  -- note: don't return empty defs
+                           (defs,cons) <- mkConsApp [Var x InfoNone]
+                           let acc = Lam [x] typeTotal ((App (Var slot InfoNone) [cons]))
+                           let ctailCall   = mkTailApp ctailVar acc
+                           return (defs,ctailCall)
                    else do (_,fieldName) <- getFieldName cname field
                            let -- tp    = typeOf (App f fargs)
                                hole  = makeCFieldHole resTp
-                               (defs,cons)  = mkConsApp [hole]
-                           consName  <- uniqueTName (typeOf cons)
+                           (defs,cons) <- mkConsApp [hole]
+                           consName    <- uniqueTName (typeOf cons)
                            let link = makeCTailLink slot consName (maybe consName id mbC) cname fieldName resTp
                                ctailCall   = mkTailApp ctailVar link -- App ctailVar (fargs ++ [link])
                            return $ (defs ++ [DefNonRec (makeTDef consName cons)]
