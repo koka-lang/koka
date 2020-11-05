@@ -1269,6 +1269,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                                ++ " -Dkk_invokedir=" ++ currentDir
                                -- ++ " -Dkk_libdir=" ++ libDir flags
                                ++ " -Dkk_kklibdir=" ++ kklibDir flags
+                               ++ " -Dkk_target=" ++ mainModName
                                ++ (if (rebuild flags) then " -DKK_REBUILD=ON" else "")
                                ++ " " ++ cmakeArgs flags
                                ++ " ../.."
@@ -1286,8 +1287,10 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             mbContent <- readTextFile cmakeInc
             case mbContent of
               Just content | (content == cmakeContent && not (rebuild flags))
-                -> return ()  -- avoid changing if not needed
-              _ -> writeFile cmakeInc cmakeContent
+                -> do -- termDoc term $ text "keep previous CMakeLists.txt"
+                      return ()  -- avoid changing if not needed
+              _ -> do -- termDoc term $ text "update CMakeLists.txt"
+                      writeFile cmakeInc cmakeContent
 
             -- configure?
             hasCache     <- doesFileExist (targetDir ++ "/CMakeCache.txt")

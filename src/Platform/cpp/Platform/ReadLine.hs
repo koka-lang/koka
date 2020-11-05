@@ -34,19 +34,19 @@ readLineEx   :: [FilePath] -> String -> IO () -> IO (Maybe String)
 addHistory   :: String -> IO ()
 
 
-#if (READLINE==2) 
+#if (READLINE==2)
 
 withReadLine historyFile io
-  = do R.initialize 
+  = do R.initialize
        R.setCompletionEntryFunction (Just (\input -> return []))
        io
 
 readLine roots prompt
-  = do line <- readLines 
-       return (Just line) 
+  = do line <- readLines
+       return (Just line)
   where
     readLines :: IO String
-    readLines 
+    readLines
       = do mbline <- R.readline prompt
            let line = case mbline of Just s   -> s
                                      Nothing  -> ""
@@ -87,36 +87,36 @@ addHistory line
   = return ()
 
 #else
-  
+
 vhistory :: IORef H.History
 vhistory = unsafePerformIO $ newIORef H.emptyHistory
-  
+
 withReadLine historyPath io
   = do let historyFile = if (null historyPath) then "" else (historyPath ++ "/.koka-history")
-       h0 <- if (null historyFile) then return H.emptyHistory else H.readHistory historyFile 
+       h0 <- if (null historyFile) then return H.emptyHistory else H.readHistory historyFile
        writeIORef vhistory h0
        x <- io
        h1 <- readIORef vhistory
        if (null historyFile) then return () else H.writeHistory historyFile (H.stifleHistory (Just 64) h1)
-       return x       
+       return x
 
-readLine roots prompt 
+readLine roots prompt
   = readLineEx roots prompt (do{ putStr prompt; hFlush stdout})
 
 readLineEx roots prompt putPrompt
-  = do putPrompt 
+  = do putPrompt
        h0 <- readIORef vhistory
-       (mbline,h1) <- R.runInputT (R.setComplete (completeModuleName roots) 
+       (mbline,h1) <- R.runInputT (R.setComplete (completeModuleName roots)
                                    (R.defaultSettings{R.autoAddHistory = False })) $
                       do R.putHistory h0
                          line <- readLines
                          h1 <- R.getHistory
                          return (Just line, h1)
        writeIORef vhistory h1
-       return mbline                         
+       return mbline
   where
     readLines :: R.InputT IO String
-    readLines 
+    readLines
       = do input <- R.getInputLine ""
            case input of
              Just line -> case reverse line of
@@ -128,23 +128,23 @@ readLineEx roots prompt putPrompt
 
 addHistory line
   = do h <- readIORef vhistory
-       writeIORef vhistory (H.addHistory line h)
-  
-  
+       writeIORef vhistory (H.addHistoryRemovingAllDupes line h)
+
+
 completeModuleName :: [FilePath] -> C.CompletionFunc IO
 completeModuleName roots
-  = C.completeQuotedWord (Just '\\') "\"'" (listModules roots) $ 
+  = C.completeQuotedWord (Just '\\') "\"'" (listModules roots) $
     C.completeWord (Just '\\') ("\"\'" ++ C.filenameWordBreakChars) (listModules roots)
-    
+
 listModules :: [FilePath] -> String -> IO [C.Completion]
 listModules roots pre
   = do cs  <- C.listFiles pre
        css <- mapM (\root -> do cs <- C.listFiles (root ++ "/" ++ pre)
                                 return [c{ C.replacement = drop (length root + 1) (C.replacement c) } | c <- cs]
-                   ) roots  
-       let norm s  = map (\c -> if (c=='\\') then '/' else c) s                 
-       return [c{ C.replacement = norm (C.replacement c)} | 
-               c <- (cs ++ concat css), 
+                   ) roots
+       let norm s  = map (\c -> if (c=='\\') then '/' else c) s
+       return [c{ C.replacement = norm (C.replacement c)} |
+               c <- (cs ++ concat css),
                not (C.isFinished c) {-dir-} || take 3 (reverse (C.replacement c)) == "kk." ]
-    
+
 #endif

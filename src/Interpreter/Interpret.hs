@@ -544,7 +544,7 @@ getCommand st
        -- messageInfoLn st ("cmd: " ++ show input)
        let cmd   = readCommand input
        case cmd of
-         Quit     -> return ()
+         -- Quit     -> return ()
          Error _  -> return ()
          _        | null input -> return ()
                   | otherwise  -> addHistory input
@@ -563,7 +563,7 @@ remark st s
 terminal :: State -> Terminal
 terminal st
   = Terminal (messageErrorMsgLn st)
-             (if (verbose (flags st) > 1) 
+             (if (verbose (flags st) > 1)
                then (\s -> withColor (printer st) DarkGray (message st (s ++ "\n"))) else (\_ -> return ()))
              (messagePrettyLn st)  -- (\_ -> return ()) --
              (messageScheme st)
@@ -649,15 +649,15 @@ messageHeader st
         text " _          _           ____"
        ,text "| |        | |         |__  \\"
        ,text "| | __ ___ | | __ __ _  __) |"
-       ,text "| |/ // _ \\| |/ // _` || ___/ " <.> welcome 
+       ,text "| |/ // _ \\| |/ // _` || ___/ " <.> welcome
        ,text "|   <| (_) |   <| (_| ||____| "  <.> headerVersion
-       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|       "  <.> color (colorSource colors) (text "type :? for help")       
+       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|       "  <.> color (colorSource colors) (text "type :? for help")
        ]
-    headerVersion = text $ "version " ++ version ++ 
-                           (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", " 
+    headerVersion = text $ "version " ++ version ++
+                           (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", "
                            ++ buildDate ++ targetMsg
     welcome       = text ("welcome to the " ++ Config.programName ++ " interpreter")
-    targetMsg      
+    targetMsg
       = case (target (flags st)) of
           C  -> ", libc " ++ show (8*sizePtr (platform (flags st))) ++ "-bit"
           JS -> ", node"
