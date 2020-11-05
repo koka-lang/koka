@@ -1269,12 +1269,15 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                                ++ " -Dkk_invokedir=" ++ currentDir
                                -- ++ " -Dkk_libdir=" ++ libDir flags
                                ++ " -Dkk_kklibdir=" ++ kklibDir flags
-                               ++ " -Dkk_target=" ++ mainModName
+                               -- ++ " -Dkk_target=" ++ mainModName
                                ++ (if (rebuild flags) then " -DKK_REBUILD=ON" else "")
                                ++ " " ++ cmakeArgs flags
                                ++ " ../.."
 
-                cmakeBuild  = (cmake flags) ++ " --build " ++ dquote targetDir ++ " --target " ++ mainName
+                cmakeBuild  = (cmake flags)
+                                -- ++ " -Dkk_target=" ++ mainModName
+                                ++ " --build " ++ dquote targetDir
+                                ++ " --target " ++ mainName
 
                 kkmainCmake = joinPath (kklibDir flags) "kkmain.cmake"
 

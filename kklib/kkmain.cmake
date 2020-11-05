@@ -49,7 +49,7 @@ else()
   if ((KK_REBUILD MATCHES ON) OR
       (NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/kklib/include/kklib.h") OR
       ("${kk_kklibdir}/include/kklib.h" IS_NEWER_THAN "${CMAKE_CURRENT_LIST_DIR}/kklib/include/kklib.h"))
-    message(STATUS "install kklib from: ${kk_kklibdir}" ) 
+    message(STATUS "install kklib from: ${kk_kklibdir}" )
     execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory "${kk_kklibdir}/src" "${CMAKE_CURRENT_LIST_DIR}/kklib/src")
     execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory "${kk_kklibdir}/include" "${CMAKE_CURRENT_LIST_DIR}/kklib/include")
     execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory "${kk_kklibdir}/mimalloc" "${CMAKE_CURRENT_LIST_DIR}/kklib/mimalloc")
@@ -62,7 +62,8 @@ endif()
 # modules: include all `<module>.cmake` files
 # -----------------------------------------------------------------------------
 
-if (DEFINED kk_target)
+if (NOT ("${kk_target}" STREQUAL ""))
+  message(STATUS "target : '${kk_target}'")
   include("${kk_target}.cmake")
 else()
   file(GLOB kkmain_cmake_modules "*.cmake")
