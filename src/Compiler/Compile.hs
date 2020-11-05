@@ -947,7 +947,7 @@ inferCheck loaded flags line coreImports program1
                                 Core.Check.checkCore True True penv unique0 gamma cdefs0
                               return (cdefs0,unique0) -- $ simplifyDefs False 1 unique4a penv cdefs
 
-       -- traceDefGroups "monadic lift simplified" coreDefsSimp2
+       -- traceDefGroups "inlined simplified" coreDefsSimp2
 
 {-
        -- and one more simplify

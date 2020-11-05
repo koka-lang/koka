@@ -221,7 +221,7 @@ static inline void kk_block_set_invalid(kk_block_t* b) {
 }
 
 static inline bool kk_block_is_valid(kk_block_t* b) {
-  return (b != NULL && kk_block_field(b, 0).box != KK_BLOCK_INVALID); // already freed!
+  return (b != NULL && ((uintptr_t)b&1)==0 && kk_block_field(b, 0).box != KK_BLOCK_INVALID); // already freed!
 }
 
 /*--------------------------------------------------------------------------------------

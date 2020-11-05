@@ -11,7 +11,7 @@
 -- constructor reuse analysis
 -----------------------------------------------------------------------------
 
-module Backend.C.ParcReuse ( parcReuseCore, 
+module Backend.C.ParcReuse ( parcReuseCore,
                              genDropReuse,
                              orderConFieldsEx, newtypesDataDefRepr, isDataStructLike,
                              constructorSizeOf
@@ -88,7 +88,7 @@ ruExpr expr
       TypeApp body targs
         -> (`TypeApp` targs) <$> ruExpr body
       Lam pars eff body
-        -> Lam pars eff <$> ruExpr body
+        -> Lam pars eff <$> withNoneAvailable (ruExpr body)
       App fn args
         -> liftM2 App (ruExpr fn) (mapM ruExpr args)
 
@@ -110,12 +110,12 @@ ruTryReuseCon :: TName -> ConRepr -> Expr -> Reuse Expr
 ruTryReuseCon cname repr conApp
   = do newtypes <- getNewtypes
        platform <- getPlatform
-       let (size,_) = constructorSizeOf platform newtypes cname repr 
+       let (size,_) = constructorSizeOf platform newtypes cname repr
        available <- getAvailable
        -- ruTrace $ "try reuse: " ++ show (getName cname) ++ ": " ++ show size
        case M.lookup size available of
          Just (rinfo0:rinfos0)
-           -> do let (rinfo,rinfos) = pick cname rinfo0 rinfos0 
+           -> do let (rinfo,rinfos) = pick cname rinfo0 rinfos0
                  setAvailable (M.insert size rinfos available)
                  return (genAllocAt rinfo conApp)
          _ -> return conApp
@@ -124,7 +124,7 @@ ruTryReuseCon cname repr conApp
     -- todo: match also common fields/arguments to help specialized reuse
     pick cname rinfo []
       = (rinfo,[])
-    pick cname rinfo@(ReuseInfo name (PatCon{patConName})) rinfos  | patConName == cname 
+    pick cname rinfo@(ReuseInfo name (PatCon{patConName})) rinfos  | patConName == cname
       = (rinfo,rinfos)
     pick cname rinfo (rinfo':rinfos)
       = let (r,rs) = pick cname rinfo' rinfos in (r,rinfo:rs)
@@ -138,11 +138,11 @@ ruBranches branches
 
 ruBranch :: Branch -> Reuse (Branch, Available)
 ruBranch (Branch pats guards)
-  = isolateAvailable $ 
+  = isolateAvailable $
     do pats' <- mapM patAddNames pats
        reuses <- concat <$> mapM ruPattern pats'  -- must be in depth order for Parc
        added <- mapM addAvailable reuses
-       (guards', avs)  <- unzip <$> mapM (ruGuard added) guards      
+       (guards', avs)  <- unzip <$> mapM (ruGuard added) guards
        setAvailable (availableIntersect avs)
        return (Branch pats' guards')
   where
@@ -172,9 +172,9 @@ ruPattern (PatVar tname pat@PatCon{patConName,patConPatterns,patConRepr,patTypeA
        if (getName patConName == nameBoxCon)
         then return reuses  -- don't reuse boxes
         else  do newtypes <- getNewtypes
-                 platform <- getPlatform                 
+                 platform <- getPlatform
                  -- use type scheme of con, not the instantiated type, to calculate the correct size
-                 let (size,scan) = constructorSizeOf platform newtypes (TName (conInfoName ci) (conInfoType ci)) patConRepr 
+                 let (size,scan) = constructorSizeOf platform newtypes (TName (conInfoName ci) (conInfoType ci)) patConRepr
                  if size > 0
                    then do -- ruTrace $ "add for reuse: " ++ show (getName tname) ++ ": " ++ show size
                            return ((ReuseInfo tname pat, size, scan):reuses)
@@ -201,10 +201,10 @@ ruTryReuse (rName, patName, size, scan)
                  setAvailable (M.insert size rest av)
                  return Nothing
          _ -> return (Just (makeTDef rName (genDropReuse patName (makeInt32 (toInteger scan)))))
-    
+
 -- Generate a reuse of a constructor
 genDropReuse :: TName -> Expr {- : int32 -} -> Expr
-genDropReuse tname scan 
+genDropReuse tname scan
   = App (Var (TName nameDropReuse funTp) (InfoExternal [(C, "drop_reuse(#1,#2,kk_context())")]))
         [Var tname InfoNone, scan]
   where
@@ -344,10 +344,10 @@ setAvailable :: Available -> Reuse ()
 setAvailable = updateAvailable . const
 
 availableIntersect :: [Available] -> Available
-availableIntersect 
+availableIntersect
   = M.unionsWith intersect
   where
-    intersect xs ys 
+    intersect xs ys
       = [r | r@(ReuseInfo rname _) <- xs, rname `elem` map reuseName ys]
 
 --
@@ -388,13 +388,13 @@ ruTrace msg
 
 -- return the allocated size of a constructor. Return 0 for value types or singletons
 constructorSizeOf :: Platform -> Newtypes -> TName -> ConRepr -> (Int {- byte size -}, Int {- scan fields -})
-constructorSizeOf platform newtypes conName conRepr 
+constructorSizeOf platform newtypes conName conRepr
   = case splitFunScheme (typeOf conName) of
-      Just (_,_,tpars,_,_) 
+      Just (_,_,tpars,_,_)
         -> constructorSize platform newtypes conRepr (map snd tpars)
       _ -> -- trace ("constructor not a function: " ++ show conName ++ ": " ++ show (pretty (typeOf conName))) $
            (0,0)
-  
+
 
 -- return the allocated size of a constructor. Return 0 for value types or singletons
 constructorSize :: Platform -> Newtypes -> ConRepr -> [Type] -> (Int {- byte size -}, Int {- scan fields -})
@@ -407,8 +407,8 @@ constructorSize platform newtypes conRepr paramTypes
         in if dataReprIsValue dataRepr
             then (0,scan)
             else (size,scan)
-          
-      
+
+
 -- order constructor fields of constructors with raw field so the regular fields come first to be scanned.
 -- return the ordered fields, the byte size of the allocation, and the scan count (including tags)
 orderConFieldsEx :: Platform -> Newtypes -> Bool -> [(Name,Type)] -> ([(Name,Type)],Int,Int)

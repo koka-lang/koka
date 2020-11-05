@@ -1,4 +1,4 @@
-module nqueens32
+module nqueens
 import std/num/int32
 
 alias solution = list<int32>
@@ -25,9 +25,9 @@ fun extend(queen : int32, acc : solutions, xss : solutions ) : div solutions {
 }
 
 fun findSolutions( n : int32, queen : int32 ) : div solutions {
-  if (queen.is-zero) 
+  if (queen.is-zero)
    then [[]]
-   else extend(n,[], findSolutions(n,queen.dec))  
+   else extend(n,[], findSolutions(n,queen.dec))
 }
 
 public fun queens( n : int32 ) : div int {

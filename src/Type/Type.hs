@@ -42,6 +42,7 @@ module Type.Type (-- * Types
 
                   , typeDivergent, typeTotal, typePartial
                   , typeList, typeVector, typeApp, typeRef, typeNull, typeOptional, typeMakeTuple
+                  , typeCTail, typeCField
                   , isOptional, makeOptional, unOptional
                   , typeReuse, typeLocal
 
@@ -748,6 +749,24 @@ isTypeBool _         = False
 isTypeUnit (TCon tc) = tc == tconUnit
 isTypeUnit _         = False
 
+
+-- | Type of ctail
+typeCTail :: Tau
+typeCTail
+  = TCon tconCTail
+
+tconCTail :: TypeCon
+tconCTail
+  = TypeCon nameTpCTailAcc (kindFun kindStar kindStar)
+
+-- | Type of cfield
+typeCField :: Tau
+typeCField
+  = TCon tconCField
+
+tconCField :: TypeCon
+tconCField
+  = TypeCon nameTpCField (kindFun kindStar kindStar)
 
 -- | Type of vectors (@[]@)
 typeVector :: Tau

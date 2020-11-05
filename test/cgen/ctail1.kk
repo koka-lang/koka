@@ -20,8 +20,8 @@ fun ileave( xs : list<a>, ys : list<a> ) : div list<a> {
 }
 
 fun main() {
-  //list(1,10000000).mapx(inc).sum.println
-  test-many()
+  list(1,10000000).mapx(inc).sum.println
+  //test-many()
 }
 
 fun test-many() {

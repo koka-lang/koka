@@ -221,7 +221,7 @@ prettyInlineDef env (InlineDef name expr isRec cost)
     <+> text ("// inline size: " ++ show cost)
     <.> linebreak <.> indent 2 (text "=" <+> prettyExpr env{coreShowVis=False,coreShowDef=True} expr) <.> semi
   where
-    isFun = case expr of 
+    isFun = case expr of
               TypeLam _ (Lam _ _ _) -> True
               Lam _ _ _             -> True
               _                     -> False
@@ -336,7 +336,8 @@ prettyExpr env (Case exprs branches)
     tab (prettyBranches env branches) <--> text "}"
 
 prettyVar env tname
-  = prettyName env (getName tname) -- <.> braces (ppType env{ prec = precTop } (typeOf tname))
+  = prettyName env (getName tname)
+    -- <.> braces (ppType env{ prec = precTop } (typeOf tname))
 
 {--------------------------------------------------------------------------
   Case branches

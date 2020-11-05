@@ -1,4 +1,4 @@
-module nqueens
+module nqueens-int
 
 alias solution = list<int>
 alias solutions = list<list<int>>
@@ -24,9 +24,9 @@ fun extend(queen : int, acc : solutions, xss : solutions ) : div solutions {
 }
 
 fun findSolutions( n : int, queen : int ) : div solutions {
-  if (queen == 0) 
+  if (queen == 0)
    then [[]]
-   else extend(n,[], findSolutions(n,queen - 1))  
+   else extend(n,[], findSolutions(n,queen - 1))
 }
 
 public fun queens( n : int ) : div int {
@@ -36,4 +36,3 @@ public fun queens( n : int ) : div int {
 public fun main() {
   queens(13).println
 }
-
