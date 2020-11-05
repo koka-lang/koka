@@ -161,7 +161,7 @@ flagsNull
           5     -- simplify passes
           10    -- simplify dup max (must be at least 10 to inline partial applications across binds)
           defaultColorScheme
-          "out"    -- out-dir
+          ("out/v" ++ version) -- out-dir
           []
           "csc"
           "node"
