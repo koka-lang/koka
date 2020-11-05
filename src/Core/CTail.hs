@@ -300,11 +300,11 @@ ctailTryArg dname cname mbC mkApp field (rarg:rargs)
   = case rarg of
       App f@(TypeApp (Var name info) targs) fargs
        | (dname == name) -> do expr <- ctailFoundArg cname mbC mkAppNew field
-                                      (\v acc -> App (TypeApp v targs) (fargs ++ [acc])) (typeOf rarg) --f farg
+                                         (\v acc -> App (TypeApp v targs) (fargs ++ [acc])) (typeOf rarg) --f farg
                                return (Just expr)
       App f@(Var name info) fargs
        | (dname == name) -> do expr <- ctailFoundArg cname mbC mkAppNew field
-                                        (\v acc -> App (v) (fargs ++ [acc])) (typeOf rarg) --f fargs
+                                         (\v acc -> App (v) (fargs ++ [acc])) (typeOf rarg) --f fargs
                                return (Just expr)
 
       -- recurse into other con
