@@ -59,7 +59,7 @@ libExtension  = ".lib"
 libPrefix     = ""
 pathSep       = '\\'
 pathDelimiter = ';'
-#elif defined(__MACOSX__) || defined(__MACH__)
+#elif defined(DARWIN) || defined(__MACOSX__) || defined(__MACH__)
 dllExtension  = ".dylib"
 objExtension  = ".o"
 libExtension  = ".a"

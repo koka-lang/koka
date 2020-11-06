@@ -73,6 +73,8 @@ executables:
     when:
       - condition: os(windows)
         cpp-options: -DWINDOWS
+      - condition: os(darwin)
+        cpp-options: -DDARWIN
 
 tests:
   koka-test:

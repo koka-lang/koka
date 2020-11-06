@@ -285,18 +285,27 @@ fun test-sum( t1 : test, t2 : test) : test {
 
 fun execute-test( run : int, base : string, prog : string ) : io either<string,(double,int)> {
   val timef= "time-" + base + ".txt"
-  val cmd  = "/usr/bin/time -f'%e,%M' -o" + timef + " " + prog
+  val cmd  = if (get-env("SHELL").default("").contains("zsh"))
+               then "/usr/bin/time -l 2> " + timef + " " + prog
+               else "/usr/bin/time -f'%e %M' -o" + timef + " " + prog
   val out  = run-command(cmd).exn
   print(out)
   val time = read-text-file(timef.path).trim
-  match(time.split("\n")) {
-    Nil            -> Left("no output")
-    Cons(err,Cons) -> Left(err)
-    Cons(tim,Nil) {
-      match(tim.split(",")) {
-        Cons(elapsed,Cons(rss,Nil)) {
+  if (time=="") return Left("no output")
+  match(time.list) {
+    Nil -> Left("no output")
+    Cons(d) | !d.is-digit -> Left(time)  // error
+    _ -> {
+      val parts = time.replace-all("\n"," ").replace-all("\t"," ").split(" ").filter(fn(p){ !p.is-empty })
+      // println( parts.join(",") )
+      match(parts) {
+        Cons(elapsed,Cons(rss,Nil)) { // linux
           println(run.show + ": elapsed: " + elapsed + "s, rss: " + rss + "kb" )
           Right( (parse-double(elapsed).default(0.0), parse-int(rss).default(0)) )
+        }
+        Cons(elapsed,Cons("real",Cons(_,Cons(_user,Cons(_,Cons(_sys,Cons(rss,_))))))) {  // on macOS
+          println(run.show + ": elapsed: " + elapsed + "s, rss: " + rss + "b" )
+          Right( (parse-double(elapsed).default(0.0), parse-int(rss).default(0)/1024) )
         }
         _ -> Left("bad format")
       }

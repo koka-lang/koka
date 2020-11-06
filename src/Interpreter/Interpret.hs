@@ -564,7 +564,7 @@ terminal :: State -> Terminal
 terminal st
   = Terminal (messageErrorMsgLn st)
              (if (verbose (flags st) > 1)
-               then (\s -> withColor (printer st) DarkGray (message st (s ++ "\n"))) else (\_ -> return ()))
+               then (\s -> withColor (printer st) (colorSource (colorSchemeFromFlags (flags st))) (message st (s ++ "\n"))) else (\_ -> return ()))
              (messagePrettyLn st)  -- (\_ -> return ()) --
              (messageScheme st)
              (messagePrettyLn st)

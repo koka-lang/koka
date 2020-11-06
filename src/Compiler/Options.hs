@@ -27,7 +27,7 @@ import Data.List              ( intersperse )
 import System.Environment     ( getArgs )
 import System.Directory ( doesFileExist )
 import Platform.GetOptions
-import Platform.Config        ( pathDelimiter, version, compiler, buildTime, buildVariant, exeExtension, libExtension, libPrefix, objExtension, programName )
+import Platform.Config
 import Lib.PPrint
 import Lib.Printer
 import Common.Failure         ( raiseIO )
@@ -657,7 +657,8 @@ ccFromPath flags path
         cc0     | (name `startsWith` "clang-cl") = clangcl
                 | (name `startsWith` "mingw") = mingw
                 | (name `startsWith` "clang") = clang
-                | (name `startsWith` "gcc")   = if onWindows then mingw else gcc
+                | (name `startsWith` "gcc")   = if onWindows then mingw
+                                                else gcc
                 | (name `startsWith` "cl")    = msvc
                 | (name `startsWith` "icc")   = gcc
                 | (name == "cc") = generic
@@ -691,7 +692,9 @@ unquote s
                       | otherwise = scanq q (c:acc) cs
    scanq q acc []     = [reverse acc]
 
-
+onMacOS :: Bool
+onMacOS
+  = (dllExtension == ".dylib")
 
 onWindows :: Bool
 onWindows
@@ -702,6 +705,7 @@ detectCC
   = do paths <- getEnvPaths "PATH"
        (name,path) <- do envCC <- getEnvVar "CC"
                          findCC paths ((if (envCC=="") then [] else [envCC]) ++
+                                       (if (onMacOS) then ["clang"] else []) ++
                                        ["gcc","clang-cl","cl","clang","icc","cc","g++","clang++"])
        return path
 
@@ -815,7 +819,7 @@ versionMessage flags
   <-> text "kklib :" <+> text (kklibDir flags)
   <-> text "cc    :" <+> text (ccPath (ccomp flags))
   <->
-  (color DarkGray $ vcat $ map text
+  (color Gray $ vcat $ map text
   [ "Copyright (c) 2012-2020 Microsoft Corporation, by Daan Leijen."
   , "This program is free software; see the source for copying conditions."
   , "This program is distributed in the hope that it will be useful,"

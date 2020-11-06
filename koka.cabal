@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6619614ffd3dd6691f46460fcc8aa6741bc7acc376947cc702acc1de3a6e208e
+-- hash: 0d1db6174bacf18c264115753c94bb601e4122ed505d7ebdaccd8b076d4618c8
 
 name:           koka
 version:        2.0.3
@@ -149,6 +149,8 @@ executable koka
     , time
   if os(windows)
     cpp-options: -DWINDOWS
+  if os(darwin)
+    cpp-options: -DDARWIN
   default-language: Haskell2010
 
 test-suite koka-test
