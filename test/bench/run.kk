@@ -235,8 +235,8 @@ fun tikz-data( kind:string, norm : test -> double, norm-sdev : test -> double, l
 fun run-test( test-name : string, langt : (string,string), iterations : int ) : io test {
   val (lang-long,lang) = langt
   val pre  = lang.pad-left(3) + ", " + test-name.pad-left(12) + ", "
-  val dir  = if (lang=="kk") then "koka/out/RelWithDebInfo"
-             elif (lang=="kkx") then "koka/outx/RelWithDebInfo"
+  val dir  = if (lang=="kk") then "koka/out/bench"
+             elif (lang=="kkx") then "koka/outx/bench"
              else lang-long
   val base = lang + "-" + test-name
   val prog = if (lang-long=="java")

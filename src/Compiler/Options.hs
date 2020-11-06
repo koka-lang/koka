@@ -105,6 +105,7 @@ data Flags
          , simplifyMaxDup   :: Int
          , colorScheme      :: ColorScheme
          , outDir           :: FilePath
+         , outBuildDir      :: FilePath
          , includePath      :: [FilePath]
          , csc              :: FileName
          , node             :: FileName
@@ -165,6 +166,7 @@ flagsNull
           10    -- simplify dup max (must be at least 10 to inline partial applications across binds)
           defaultColorScheme
           ("out/v" ++ version) -- out-dir
+          ("")     -- build dir
           []
           "csc"
           "node"
@@ -237,6 +239,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
  , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (0=default, 2=full)"
  , flag   ['D'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)"
+ , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     "build into <dir> (overrides --outdir)"
 
  , emptyline
  , flag   []    ["html"]            (\b f -> f{outHtml = if b then 2 else 0}) "generate documentation"
@@ -354,6 +357,9 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
   outDirFlag s
     = Flag (\f -> f{ outDir = s })
+
+  buildDirFlag s
+    = Flag (\f -> f{ outBuildDir = s })
 
   exeNameFlag s
     = Flag (\f -> f{ exeName = s })
@@ -583,8 +589,8 @@ ccGcc name path
   = let dquote s = "\"" ++ s ++ "\""
     in CC name path ""
         [(Debug,"-g -O1"),
-         (Release,"-O2 -DNDEBUG"),
-         (RelWithDebInfo,"-O2 -g -DNDEBUG")]
+         (Release,"-O2 -flto -DNDEBUG"),
+         (RelWithDebInfo,"-O2 -flto -g -DNDEBUG")]
         (gnuWarn ++ " -Wno-unused-but-set-variable")
         ("-c" ++ (if onWindows then "" else " -D_GNU_SOURCE"))
         ""

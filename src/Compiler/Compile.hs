@@ -1271,7 +1271,8 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                                color (colorSource (colorScheme flags)) (text mainName))
             runCommand term flags (ccPath cc) clink
 
-            termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>  color (colorSource (colorScheme flags)) (text (normalize mainExe))
+            termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
+                                  color (colorSource (colorScheme flags)) (text (normalize mainExe))
             let cmdflags = if (showElapsed flags) then " --kktime" else ""
             return (Just (runSystem (dquote mainExe ++ cmdflags ++ " " ++ execOpts flags)))
 
@@ -1499,9 +1500,11 @@ outName flags s
 
 buildDir :: Flags -> FilePath
 buildDir flags
-  = if (null (outDir flags))
-     then configType flags
-     else joinPath (outDir flags) (configType flags)
+  = if (null (outBuildDir flags))
+     then if (null (outDir flags))
+           then configType flags
+           else joinPath (outDir flags) (configType flags)
+     else outBuildDir flags
 
 configType :: Flags -> String
 configType flags
