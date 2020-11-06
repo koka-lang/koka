@@ -1,5 +1,5 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2020 Microsoft Corporation.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
@@ -706,7 +706,7 @@ detectCC
        (name,path) <- do envCC <- getEnvVar "CC"
                          findCC paths ((if (envCC=="") then [] else [envCC]) ++
                                        (if (onMacOS) then ["clang"] else []) ++
-                                       ["gcc","clang-cl","cl","clang","icc","cc","g++","clang++"])
+                                       ["gcc","cl","clang-cl","clang","icc","cc","g++","clang++"])
        return path
 
 findCC :: [FilePath] -> [FilePath] -> IO (String,FilePath)
