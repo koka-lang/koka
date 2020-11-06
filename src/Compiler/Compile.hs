@@ -74,7 +74,8 @@ import Type.Kind              ( containsHandledEffect, getHandledEffectX, extrac
 import Type.Assumption        ( gammaLookupQ, extractGamma, infoType, NameInfo(..), gammaUnions, extractGammaImports, gammaLookup, gammaMap )
 import Type.Infer             ( inferTypes )
 import Type.Pretty hiding     ( verbose )
-import Compiler.Options       ( Flags(..), prettyEnvFromFlags, colorSchemeFromFlags, prettyIncludePath, isValueFromFlags )
+import Compiler.Options       ( Flags(..), CC(..), BuildType(..), buildType, ccFlagsBuildFromFlags,
+                                prettyEnvFromFlags, colorSchemeFromFlags, prettyIncludePath, isValueFromFlags )
 
 import Compiler.Module
 
@@ -390,7 +391,7 @@ compileProgram' term flags modules compileTarget fname program
                               in if (modName mod == name) then []
                                   else [Core.Import (modName mod) (modPackagePath mod) vis (Core.coreProgDoc (modCore mod))]
        loaded2 <- liftError $ typeCheck loaded1 flags 0 coreImports program
-       liftIO $ termPhase term ("codegen " ++ show (getName program) ++ ", ccomp: " ++ (ccomp flags))
+       liftIO $ termPhase term ("codegen " ++ show (getName program))
        (newTarget,loaded3) <- liftError $
            case compileTarget of
              Executable entryName _
@@ -1211,7 +1212,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       when (showAsmC flags) (termDoc term (hdoc <//> cdoc))
 
       -- compile
-      let cc = ccFromFlags flags
+      let cc = ccomp flags
           ccompile = [ccFlags cc
                      ,ccFlagsWarn cc
                      ,ccFlagsCompile cc
@@ -1223,7 +1224,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                      [ccTargetObj cc outBase
                      ,outC]
 
-      runCommand (ccPath cc) ccompile
+      runCommand term flags (ccPath cc) ccompile
 
       -- compile and link?
       case mbEntry of
@@ -1248,7 +1249,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                 mainExe    = outName flags mainName
 
             -- build kklib for the specifield build variant
-            cmakeLib term flags "kklib" (ccLibFile cc "kklib") (kklibDir flags) cmakeGeneratorFlag
+            cmakeLib term flags cc "kklib" (ccLibFile cc "kklib") (kklibDir flags) cmakeGeneratorFlag
 
             let objs   = [outName flags (ccObjFile cc (showModName mname)) | mname <- (map modName modules ++ [Core.coreProgName core0])]
                 clink  = -- concat $ intersperse " " $
@@ -1256,16 +1257,19 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                          ,ccFlagsLink cc
                          ,ccFlagsBuildFromFlags cc flags
                          ,ccTargetExe cc mainExe
-                         ] ++ objs ++
-                         [ccAddLib cc (normalizeWith '/' (outName flags (ccLibFile cc "kklib")))
-                         ,ccAddSysLib cc "bcrypt"
-                         ,ccAddSysLib cc "psapi"
-                         ,ccAddSysLib cc "advapi32"]
+                         ]
+                         ++
+                         objs
+                         ++
+                         [ccAddLib cc (normalizeWith '/' (outName flags (ccLibFile cc "kklib")))]
+                         ++
+                         (map (ccAddSysLib cc) (if onWindows then ["bcrypt","psapi","advapi32"]
+                                                             else ["m","pthread"]))
 
 
             termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "linking:") <+>
                                color (colorSource (colorScheme flags)) (text mainName))
-            runCommand (ccPath cc) clink
+            runCommand term flags (ccPath cc) clink
 
             termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>  color (colorSource (colorScheme flags)) (text (normalize mainExe))
             let cmdflags = if (showElapsed flags) then " --kktime" else ""
@@ -1354,8 +1358,8 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             return (Just (runSystem (dquote finalExe ++ cmdflags ++ " " ++ execOpts flags)))
 -}
 
-cmakeLib :: Terminal -> Flags -> String -> FilePath -> FilePath -> String -> IO ()
-cmakeLib term flags libName libFile libSourceDir cmakeGeneratorFlag
+cmakeLib :: Terminal -> Flags -> CC -> String -> FilePath -> FilePath -> String -> IO ()
+cmakeLib term flags cc libName libFile libSourceDir cmakeGeneratorFlag
   = do let libPath = outName flags libFile
        exist <- doesFileExist libPath
        if (exist && not (rebuild flags)) then return ()
@@ -1369,7 +1373,8 @@ cmakeLib term flags libName libFile libSourceDir cmakeGeneratorFlag
                                        (case (buildType flags) of
                                            Debug -> "Debug"
                                            RelWithDebInfo -> "RelWithDebInfo"
-                                           Release -> "Release")
+                                           Release -> "Release") ++
+                                       " -DCMAKE_C_COMPILER=" ++ (basename (ccPath cc))
                      cmakeConfig = (cmake flags) ++ " -E chdir " ++ dquote cmakeDir   -- see above for chdir
                                     ++ " " ++ cmake flags ++ cmakeGeneratorFlag ++ cmakeConfigType
                                     ++ " -DCMAKE_INSTALL_PREFIX=" ++ (buildDir flags)
@@ -1412,85 +1417,6 @@ checkCMake term flags
                                    return ()
 
 
-data CC = CC{  ccName :: String,
-               ccPath :: FilePath,
-               ccFlags      :: String,
-               ccFlagsBuild :: [(BuildType,String)],
-               ccFlagsWarn  :: String,
-               ccFlagsCompile :: String,
-               ccFlagsLink    :: String,
-               ccIncludeDir :: FilePath -> String,
-               ccTargetObj :: FilePath -> String,
-               ccTargetExe :: FilePath -> String,
-               ccAddSysLib :: String -> String,
-               ccAddLib    :: FilePath -> String,
-               ccAddDef   :: String -> String,
-               ccLibFile :: String -> String,
-               ccObjFile :: String -> String
-            }
-
-data BuildType = Debug | Release | RelWithDebInfo
-               deriving (Eq)
-
-instance Show BuildType where
-  show Debug          = "debug"
-  show Release        = "release"
-  show RelWithDebInfo = "drelease"
-
-ccFlagsBuildFromFlags :: CC -> Flags -> String
-ccFlagsBuildFromFlags cc flags
-  = case lookup (buildType flags) (ccFlagsBuild cc) of
-      Just s -> s
-      Nothing -> ""
-
-ccFromFlags :: Flags -> CC
-ccFromFlags flags
-  = let path = ccomp flags
-        name = basename path
-        gnuwarn = ("-Wall -Wextra -Wno-unknown-pragmas -Wno-unused-parameter -Wno-unused-variable -Wno-unused-value" ++
-                   " -Wno-missing-field-initializers -Wpointer-arith -Wshadow -Wstrict-aliasing")
-
-        gcc   = CC name path ""
-                    [(Debug,"-g -O1"),(Release,"-O3 -flto -DNDEBUG"),(RelWithDebInfo,"-O2 -flto -g -DNDEBUG")]
-                    (gnuwarn ++ " -Wno-unused-but-set-variable")
-                    "-c" ""
-                    (\idir -> "-I " ++ dquote idir)
-                    (\fname -> "-o " ++ dquote ((notext fname) ++ ".o"))
-                    (\out -> "-o " ++ dquote out)
-                    (\syslib -> "-l" ++ syslib)
-                    (\lib -> dquote lib)
-                    (\def -> "-D" ++ def)
-                    (\lib -> "lib" ++ lib ++ ".a")
-                    (\obj -> obj ++ ".o")
-
-        clang = gcc{ ccFlagsWarn = gnuwarn ++ " -Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align" }
-        generic = gcc{ ccFlagsWarn = "" }
-
-        msvc  = CC name path "-DWIN32"
-                   [(Debug,"-MDd -Zi -Ob0 -Od -RTC1"),
-                    (Release,"-MD -O2 -Ob2 -DNDEBUG"),
-                    (RelWithDebInfo,"-MD -Zi -O2 -Ob1 -DNDEBUG")]
-                   "-Wall" "-TC -c" ""
-                   (\idir -> "-I " ++ dquote idir)
-                   (\fname -> "-Fo" ++ ((notext fname) ++ ".obj"))
-                   (\out -> "-Fe" ++  out ++ ".exe")
-                   (\syslib -> syslib ++ ".lib")
-                   (\lib -> dquote lib)
-                   (\def -> "-D" ++ def)
-                   (\lib -> lib ++ ".lib")
-                   (\obj -> obj ++ ".obj")
-
-        clangcl  = msvc{ ccName = name ++ "-cl",
-                         ccPath = notext path ++ "-cl",
-                         ccFlagsWarn = ccFlagsWarn clang ++ " -Wno-extra-semi-stmt -Wno-extra-semi -Wno-strict-prototypes -Wno-sign-conversion -Wno-unused-command-line-argument"
-                       }
-                
-        cc = if (name `startsWith` "clang") then (if onWindows then clangcl else clang)
-                 else if (name == "cc") then generic
-                 else if (name == "cl") then msvc
-                 else gcc
-    in cc
-
 
 onWindows :: Bool
 onWindows
@@ -1500,10 +1426,11 @@ runSystemEcho cmd
   = trace ("> " ++ cmd) $
     runSystem cmd
 
-runCommand cmd args
-  = trace ("> " ++ concat (intersperse " " (cmd:args))) $
-    let xargs = concatMap dequote args
-    in runCmd cmd xargs
+runCommand term flags cmd args
+  = do when (verbose flags >= 2) $
+         termPhase term ("> " ++ concat (intersperse " " (cmd:args)))
+       let xargs = concatMap dequote args
+       runCmd cmd xargs
   where
     dequote ('\"':s)  | last s == '\"' = [init s]
     dequote s         = map unquote (words s)
@@ -1579,17 +1506,10 @@ buildDir flags
 configType :: Flags -> String
 configType flags
   = let pre  = if (target flags == C)
-                 then (basename (ccomp flags))
+                 then ccName (ccomp flags)
                  else (show (target flags))
     in pre ++ "-" ++ show (buildType flags)
 
-buildType :: Flags -> BuildType
-buildType flags
-  = if optimize flags <= 0
-      then Debug
-      else if debug flags
-             then RelWithDebInfo
-             else Release
 
 
 posixOutName flags s

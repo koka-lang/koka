@@ -660,6 +660,7 @@ messageHeader st
     targetMsg
       = case (target (flags st)) of
           C  -> ", libc " ++ show (8*sizePtr (platform (flags st))) ++ "-bit"
+                ++ " (" ++ (ccName (ccomp (flags st))) ++ ")"
           JS -> ", node"
           CS -> ", .net"
           _  -> ""

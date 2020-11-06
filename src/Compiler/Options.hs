@@ -18,15 +18,16 @@ module Compiler.Options( -- * Command line options
                        , colorSchemeFromFlags
                        , prettyIncludePath
                        , isValueFromFlags
+                       , CC(..), BuildType(..), ccFlagsBuildFromFlags, buildType
                        ) where
 
 
-import Data.Char              ( toUpper )
+import Data.Char              ( toUpper, isAlpha )
 import Data.List              ( intersperse )
 import System.Environment     ( getArgs )
 import System.Directory ( doesFileExist )
 import Platform.GetOptions
-import Platform.Config        ( pathDelimiter, version, compiler, buildTime, buildVariant, exeExtension, programName )
+import Platform.Config        ( pathDelimiter, version, compiler, buildTime, buildVariant, exeExtension, libExtension, libPrefix, objExtension, programName )
 import Lib.PPrint
 import Lib.Printer
 import Common.Failure         ( raiseIO )
@@ -109,7 +110,8 @@ data Flags
          , node             :: FileName
          , cmake            :: FileName
          , cmakeArgs        :: String
-         , ccomp            :: FilePath
+         , ccompPath        :: FilePath
+         , ccomp            :: CC
          , editor           :: String
          , redirectOutput   :: FileName
          , outHtml          :: Int
@@ -168,7 +170,8 @@ flagsNull
           "node"
           "cmake"
           ""       -- cmake args
-          ""       -- ccomp
+          ""       -- ccompPath
+          (ccGcc "gcc" "gcc")
           ""       -- editor
           ""
           0        -- out html
@@ -356,7 +359,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
     = Flag (\f -> f{ exeName = s })
 
   ccFlag s
-    = Flag (\f -> f{ ccomp = s })
+    = Flag (\f -> f{ ccompPath = s })
 
   cscFlag s
     = Flag (\f -> f{ csc = s })
@@ -438,13 +441,15 @@ processOptions flags0 opts
                                              else ModeCompiler files
              in do pkgs <- discoverPackages (outDir flags)
                    (binDir,libDir,kklibDir,stdlibDir) <- getKokaDirs
-                   ccmd <- if (ccomp flags == "") then detectCC else return (ccomp flags)
+                   ccmd <- if (ccompPath flags == "") then detectCC else return (ccompPath flags)
+                   cc   <- ccFromPath ccmd
                    return (flags{ packages    = pkgs,
                                   binDir      = binDir,
                                   libDir      = libDir,
                                   kklibDir    = kklibDir,
                                   stdlibDir   = stdlibDir,
-                                  ccomp       = ccmd,
+                                  ccompPath      = ccmd,
+                                  ccomp       = cc,
                                   includePath = stdlibDir : includePath flags }
                           ,mode)
         else invokeError errs
@@ -531,11 +536,117 @@ getEnvOptions
   Detect C compiler
 --------------------------------------------------------------------------}
 
+data CC = CC{  ccName :: String,
+               ccPath :: FilePath,
+               ccFlags      :: String,
+               ccFlagsBuild :: [(BuildType,String)],
+               ccFlagsWarn  :: String,
+               ccFlagsCompile :: String,
+               ccFlagsLink    :: String,
+               ccIncludeDir :: FilePath -> String,
+               ccTargetObj :: FilePath -> String,
+               ccTargetExe :: FilePath -> String,
+               ccAddSysLib :: String -> String,
+               ccAddLib    :: FilePath -> String,
+               ccAddDef   :: String -> String,
+               ccLibFile :: String -> String,
+               ccObjFile :: String -> String
+            }
+
+data BuildType = Debug | Release | RelWithDebInfo
+               deriving (Eq)
+
+instance Show BuildType where
+  show Debug          = "debug"
+  show Release        = "release"
+  show RelWithDebInfo = "drelease"
+
+buildType :: Flags -> BuildType
+buildType flags
+  = if optimize flags <= 0
+      then Debug
+      else if debug flags
+             then RelWithDebInfo
+             else Release
+
+ccFlagsBuildFromFlags :: CC -> Flags -> String
+ccFlagsBuildFromFlags cc flags
+  = case lookup (buildType flags) (ccFlagsBuild cc) of
+      Just s -> s
+      Nothing -> ""
+
+gnuWarn = ("-Wall -Wextra -Wno-unknown-pragmas -Wno-unused-parameter -Wno-unused-variable -Wno-unused-value" ++
+           " -Wno-missing-field-initializers -Wpointer-arith -Wshadow -Wstrict-aliasing")
+
+ccGcc,ccMsvc :: String -> FilePath -> CC
+ccGcc name path
+  = let dquote s = "\"" ++ s ++ "\""
+    in CC name path ""
+        [(Debug,"-g -O1"),
+         (Release,"-O2 -DNDEBUG"),
+         (RelWithDebInfo,"-O2 -g -DNDEBUG")]
+        (gnuWarn ++ " -Wno-unused-but-set-variable")
+        ("-c" ++ (if onWindows then "" else " -D_GNU_SOURCE"))
+        ""
+        (\idir -> "-I " ++ dquote idir)
+        (\fname -> "-o " ++ dquote ((notext fname) ++ objExtension))
+        (\out -> "-o " ++ dquote out)
+        (\syslib -> "-l" ++ syslib)
+        (\lib -> dquote lib)
+        (\def -> "-D" ++ def)
+        (\lib -> libPrefix ++ lib ++ libExtension)
+        (\obj -> obj ++ objExtension)
+
+ccMsvc name path
+  = let dquote s = "\"" ++ s ++ "\""
+    in CC name path "-DWIN32 -nologo"
+         [(Debug,"-MDd -Zi -Ob0 -Od -RTC1"),
+          (Release,"-MD -O2 -Ob2 -DNDEBUG"),
+          (RelWithDebInfo,"-MD -Zi -O2 -Ob1 -DNDEBUG")]
+         "-W3" "-TC -c" ""
+         (\idir -> "-I " ++ dquote idir)
+         (\fname -> "-Fo" ++ ((notext fname) ++ objExtension))
+         (\out -> "-Fe" ++  out ++ exeExtension)
+         (\syslib -> syslib ++ libExtension)
+         (\lib -> dquote lib)
+         (\def -> "-D" ++ def)
+         (\lib -> libPrefix ++ lib ++ libExtension)
+         (\obj -> obj ++ objExtension)
+
+
+ccFromPath :: FilePath -> IO CC
+ccFromPath path
+  = let name    = -- reverse $ dropWhile (not . isAlpha) $ reverse $
+                  basename path
+        gcc     = ccGcc name path
+        mingw   = gcc{ ccName = "mingw", ccLibFile = \lib -> "lib" ++ lib ++ ".a" }
+        clang   = gcc{ ccFlagsWarn = gnuWarn ++ " -Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align" }
+        generic = gcc{ ccFlagsWarn = "" }
+        msvc    = ccMsvc name path
+        clangcl = msvc{ ccFlagsWarn = ccFlagsWarn clang ++ " -Wno-extra-semi-stmt -Wno-extra-semi -Wno-strict-prototypes -Wno-sign-conversion",
+                        ccFlagsLink = ccFlagsLink clang ++ " -Wno-unused-command-line-argument"
+                      }
+
+        cc      | (name `startsWith` "clang-cl") = clangcl
+                | (name `startsWith` "mingw") = mingw
+                | (name `startsWith` "clang") = clang
+                | (name `startsWith` "gcc")   = if onWindows then mingw else gcc
+                | (name `startsWith` "cl")    = msvc
+                | (name `startsWith` "icc")   = gcc
+                | (name == "cc") = generic
+                | otherwise      = gcc
+    in return cc
+
+onWindows :: Bool
+onWindows
+  = (exeExtension == ".exe")
+
 detectCC :: IO String
 detectCC
   = do paths <- getEnvPaths "PATH"
        (name,path) <- do envCC <- getEnvVar "CC"
-                         findCC paths ((if (envCC=="") then [] else [envCC]) ++ ["gcc","clang","cl","icc","cc","g++","clang++"])
+                         findCC paths ((if (envCC=="") then [] else [envCC]) ++
+                                       ["gcc","cl","clang-cl","clang","icc","cc","g++","clang++"])
        return path
 
 findCC :: [FilePath] -> [FilePath] -> IO (String,FilePath)
@@ -646,6 +757,7 @@ versionMessage flags
   <-> text "lib   :" <+> text (libDir flags)
   <-> text "stdlib:" <+> text (stdlibDir flags)
   <-> text "kklib :" <+> text (kklibDir flags)
+  <-> text "cc    :" <+> text (ccPath (ccomp flags))
   <->
   (color DarkGray $ vcat $ map text
   [ "Copyright (c) 2012-2020 Microsoft Corporation, by Daan Leijen."

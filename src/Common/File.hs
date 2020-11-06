@@ -90,7 +90,7 @@ basename :: FileName -> FileName
 basename fname
   = case dropWhile (/='.') (reverse (notdir fname)) of
       '.':rbase -> reverse rbase
-      _         -> fname
+      _         -> notdir fname
 
 
 -- | Get the file extension
