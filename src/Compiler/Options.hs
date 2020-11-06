@@ -109,6 +109,7 @@ data Flags
          , node             :: FileName
          , cmake            :: FileName
          , cmakeArgs        :: String
+         , ccomp            :: FilePath
          , editor           :: String
          , redirectOutput   :: FileName
          , outHtml          :: Int
@@ -167,6 +168,7 @@ flagsNull
           "node"
           "cmake"
           ""       -- cmake args
+          ""       -- ccomp
           ""       -- editor
           ""
           0        -- out html
@@ -259,6 +261,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
  , option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"
  , option []    ["cmakeargs"]       (ReqArg cmakeArgsFlag "args")   "pass <args> to cmake"
+ , option []    ["cc"]              (ReqArg ccFlag "cmd")           "use <cmd> as the C backend compiler "
  , option []    ["csc"]             (ReqArg cscFlag "cmd")          "use <cmd> as the csharp backend compiler "
  , option []    ["node"]            (ReqArg nodeFlag "cmd")         "use <cmd> to execute node"
  , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors"
@@ -352,6 +355,9 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   exeNameFlag s
     = Flag (\f -> f{ exeName = s })
 
+  ccFlag s
+    = Flag (\f -> f{ ccomp = s })
+
   cscFlag s
     = Flag (\f -> f{ csc = s })
 
@@ -432,11 +438,13 @@ processOptions flags0 opts
                                              else ModeCompiler files
              in do pkgs <- discoverPackages (outDir flags)
                    (binDir,libDir,kklibDir,stdlibDir) <- getKokaDirs
+                   ccmd <- if (ccomp flags == "") then detectCC else return (ccomp flags)
                    return (flags{ packages    = pkgs,
                                   binDir      = binDir,
                                   libDir      = libDir,
                                   kklibDir    = kklibDir,
                                   stdlibDir   = stdlibDir,
+                                  ccomp       = ccmd,
                                   includePath = stdlibDir : includePath flags }
                           ,mode)
         else invokeError errs
@@ -517,6 +525,30 @@ getEnvOptions
                       Nothing  -> return []
                       Just csc -> return ["--csc=" ++ csc ]
             else return ["--csc="++ joinPaths [fw,fv,"csc"]]
+
+
+{--------------------------------------------------------------------------
+  Detect C compiler
+--------------------------------------------------------------------------}
+
+detectCC :: IO String
+detectCC
+  = do paths <- getEnvPaths "PATH"
+       (name,path) <- do envCC <- getEnvVar "CC"
+                         findCC paths ((if (envCC=="") then [] else [envCC]) ++ ["gcc","clang","cl","icc","cc","g++","clang++"])
+       return path
+
+findCC :: [FilePath] -> [FilePath] -> IO (String,FilePath)
+findCC paths []
+  = do -- putStrLn "warning: cannot find C compiler -- default to 'gcc'"
+       return ("gcc","gcc")
+findCC paths (name:rest)
+  = do mbPath <- searchPaths paths [exeExtension] name
+       case mbPath of
+         Nothing   -> findCC paths rest
+         Just path -> return (name,path)
+
+
 
 {--------------------------------------------------------------------------
   Show options

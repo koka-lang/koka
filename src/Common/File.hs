@@ -13,7 +13,7 @@ module Common.File(
                   -- * System
                     getEnvPaths, getEnvVar
                   , searchPaths, searchPathsEx
-                  , runSystem, runSystemRaw
+                  , runSystem, runSystemRaw, runCmd
                   , getProgramPath
 
                   -- * Strings
@@ -45,7 +45,7 @@ import Platform.Config  ( pathSep, pathDelimiter, sourceExtension )
 import qualified Platform.Runtime as B ( copyBinaryFile, exCatch )
 import Common.Failure   ( raiseIO, catchIO )
 
-import System.Process   ( system )
+import System.Process   ( system, rawSystem )
 import System.Exit      ( ExitCode(..) )
 import System.Environment ( getEnvironment, getProgName )
 import System.Directory ( doesFileExist, doesDirectoryExist
@@ -227,6 +227,13 @@ runSystem command
 runSystemEx command
   = system (normalize command)
 
+runCmd :: String -> [String] -> IO ()
+runCmd cmd args
+  = do exitCode <- rawSystem cmd args
+       case exitCode of
+          ExitFailure i -> raiseIO ("command failed:\n " ++ concat (intersperse " " (cmd:args)))
+          ExitSuccess   -> return ()
+
 -- | Compare two file modification times (uses 0 for non-existing files)
 fileTimeCompare :: FilePath -> FilePath -> IO Ordering
 fileTimeCompare fname1 fname2
@@ -246,7 +253,7 @@ maxFileTimes times
 readTextFile :: FilePath -> IO (Maybe String)
 readTextFile fpath
   = B.exCatch (do content <- readFile fpath
-                  return (seq (last content) $ Just content)) 
+                  return (seq (last content) $ Just content))
               (\exn -> return Nothing)
 
 copyTextFile :: FilePath -> FilePath -> IO ()
