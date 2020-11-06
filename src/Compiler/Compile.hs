@@ -1279,8 +1279,8 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
 
             termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
                                   color (colorSource (colorScheme flags)) (text (normalize mainExe))
-            let cmdflags = if (showElapsed flags) then "--kktime" else ""
-            return (Just (runCommand term flags ([mainExe, cmdflags] ++ unquote (execOpts flags))))
+            let cmdflags = if (showElapsed flags) then " --kktime" else ""
+            return (Just (runSystemEcho term flags (dquote mainExe ++ cmdflags ++ " " ++ execOpts flags))) -- use shell for proper rss accounting
 
 
 

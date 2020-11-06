@@ -663,8 +663,8 @@ ccFromPath flags path
                 | (name == "cc") = generic
                 | otherwise      = gcc
 
-        cc = cc{ ccFlagsCompile = ccFlagsCompile cc0 ++ unquote (ccompCompileArgs flags)
-               , ccFlagsLink    = ccFlagsLink cc0 ++ unquote (ccompLinkArgs flags) }
+        cc = cc0{ ccFlagsCompile = ccFlagsCompile cc0 ++ unquote (ccompCompileArgs flags)
+                , ccFlagsLink    = ccFlagsLink cc0 ++ unquote (ccompLinkArgs flags) }
 
     in if (asan flags)
          then if (not (ccName cc `startsWith` "clang"))
