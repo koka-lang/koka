@@ -142,6 +142,7 @@ data Flags
          , parcReuse        :: Bool
          , parcSpecialize   :: Bool
          , parcReuseSpec    :: Bool
+         , asan             :: Bool
          }
 
 flagsNull :: Flags
@@ -203,6 +204,7 @@ flagsNull
           True -- parc reuse
           True -- parc specialize
           True -- parc reuse specialize
+          False -- use asan
 
 isHelp Help = True
 isHelp _    = False
@@ -239,7 +241,6 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
  , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (0=default, 2=full)"
  , flag   ['D'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)"
- , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     "build into <dir> (overrides --outdir)"
 
  , emptyline
  , flag   []    ["html"]            (\b f -> f{outHtml = if b then 2 else 0}) "generate documentation"
@@ -260,10 +261,11 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["showcs"]         (\b f -> f{showAsmCS=b})         "show generated c#"
  , flag   []    ["showjs"]         (\b f -> f{showAsmJS=b})         "show generated javascript"
  , flag   []    ["showc"]          (\b f -> f{showAsmC=b})          "show generated C"
- , flag   []    ["core"]           (\b f -> f{genCore=b})          "generate a core file"
+ , flag   []    ["core"]           (\b f -> f{genCore=b})           "generate a core file"
  , flag   []    ["checkcore"]      (\b f -> f{coreCheck=b})         "check generated core"
  -- , flag   []    ["show-coreF"]      (\b f -> f{showCoreF=b})        "show coreF"
  , emptyline
+ , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     "build into <dir> (instead of <outdir>/<config>)"
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
  , option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"
  , option []    ["cmakeargs"]       (ReqArg cmakeArgsFlag "args")   "pass <args> to cmake"
@@ -275,6 +277,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , configstr [] ["console"]      ["ansi","html","raw"] (\s f -> f{console=s})   "console output format"
 --  , option []    ["install-dir"]     (ReqArg installDirFlag "dir")       "set the install directory explicitly"
 
+ , hide $ fflag       ["asan"]      (\b f -> f{asan=b})              "compile with address sanitizer (clang only)"
  , hide $ fnum 3 "n"  ["simplify"]  (\i f -> f{simplify=i})          "enable 'n' core simplification passes"
  , hide $ fnum 10 "n" ["maxdup"]    (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
  , hide $ fnum 10 "n" ["inline"]    (\i f -> f{optInlineMax=i})      "set 'n' as maximum inline threshold (=10)"
@@ -448,7 +451,7 @@ processOptions flags0 opts
              in do pkgs <- discoverPackages (outDir flags)
                    (binDir,libDir,kklibDir,stdlibDir) <- getKokaDirs
                    ccmd <- if (ccompPath flags == "") then detectCC else return (ccompPath flags)
-                   cc   <- ccFromPath ccmd
+                   cc   <- ccFromPath (asan flags) ccmd 
                    return (flags{ packages    = pkgs,
                                   binDir      = binDir,
                                   libDir      = libDir,
@@ -620,8 +623,8 @@ ccMsvc name path
          (\obj -> obj ++ objExtension)
 
 
-ccFromPath :: FilePath -> IO CC
-ccFromPath path
+ccFromPath :: Bool -> FilePath -> IO CC
+ccFromPath asan path
   = let name    = -- reverse $ dropWhile (not . isAlpha) $ reverse $
                   basename path
         gcc     = ccGcc name path
@@ -641,7 +644,14 @@ ccFromPath path
                 | (name `startsWith` "icc")   = gcc
                 | (name == "cc") = generic
                 | otherwise      = gcc
-    in return cc
+    in if (asan)
+         then if (not (ccName cc `startsWith` "clang"))
+                then do putStrLn "warning: can only use address sanitizer with clang (ignored)"
+                        return cc
+                else do return cc{ ccName         = ccName cc ++ "-asan"
+                                 , ccFlagsCompile = ccFlagsCompile cc ++ " -fsanitize=address"
+                                 , ccFlagsLink    = ccFlagsLink cc ++ " -fsanitize=address" }
+         else return cc
 
 onWindows :: Bool
 onWindows

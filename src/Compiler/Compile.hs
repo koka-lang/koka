@@ -1219,7 +1219,8 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                      ,ccFlagsBuildFromFlags cc flags
                      ,ccIncludeDir cc (kklibDir flags ++ "/include")]
                      ++
-                     map (ccAddDef cc) ["KK_MIMALLOC","KK_STATIC_LIB","MI_MAX_ALIGN_SIZE=8"]
+                     map (ccAddDef cc) ((if (asan flags) then [] else ["KK_MIMALLOC","MI_MAX_ALIGN_SIZE=8"])
+                                        ++ ["KK_STATIC_LIB"])
                      ++
                      [ccTargetObj cc outBase
                      ,outC]
@@ -1379,6 +1380,7 @@ cmakeLib term flags cc libName libFile libSourceDir cmakeGeneratorFlag
                      cmakeConfig = (cmake flags) ++ " -E chdir " ++ dquote cmakeDir   -- see above for chdir
                                     ++ " " ++ cmake flags ++ cmakeGeneratorFlag ++ cmakeConfigType
                                     ++ " -DCMAKE_INSTALL_PREFIX=" ++ (buildDir flags)
+                                    ++ (if (asan flags) then " -DKK_DEBUG_SAN=address" else "")
                                     ++ " " ++ dquote libSourceDir
                      cmakeBuild  = cmake flags ++ " --build " ++ dquote cmakeDir
                      -- cmakeInstall= cmake flags ++ " --build " ++ dquote cmakeDir ++ " --target install"   -- switch "--install" is not available before cmake 3.15
