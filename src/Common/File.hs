@@ -17,7 +17,7 @@ module Common.File(
                   , getProgramPath
 
                   -- * Strings
-                  , startsWith, endsWith, splitOn
+                  , startsWith, endsWith, splitOn, trim
 
                   -- * File names
                   , FileName
@@ -73,6 +73,9 @@ splitOn pred xs
       = case (span (not . pred) xs) of
           (pre,post) -> normalize (pre:acc) (dropWhile pred post)
 
+
+trim s
+  = reverse $ dropWhile isSpace $ reverse $ dropWhile isSpace $ s
 
 isLiteralDoc :: FileName -> Bool
 isLiteralDoc fname

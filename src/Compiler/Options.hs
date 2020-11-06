@@ -18,11 +18,11 @@ module Compiler.Options( -- * Command line options
                        , colorSchemeFromFlags
                        , prettyIncludePath
                        , isValueFromFlags
-                       , CC(..), BuildType(..), ccFlagsBuildFromFlags, buildType
+                       , CC(..), BuildType(..), ccFlagsBuildFromFlags, buildType, unquote
                        ) where
 
 
-import Data.Char              ( toUpper, isAlpha )
+import Data.Char              ( toUpper, isAlpha, isSpace )
 import Data.List              ( intersperse )
 import System.Environment     ( getArgs )
 import System.Directory ( doesFileExist )
@@ -112,6 +112,9 @@ data Flags
          , cmake            :: FileName
          , cmakeArgs        :: String
          , ccompPath        :: FilePath
+         , ccompCompileArgs :: String
+         , ccompLinkArgs    :: String
+         , ccompLinkLibs    :: String
          , ccomp            :: CC
          , editor           :: String
          , redirectOutput   :: FileName
@@ -174,6 +177,9 @@ flagsNull
           "cmake"
           ""       -- cmake args
           ""       -- ccompPath
+          ""       -- ccomp args
+          ""       -- clink args
+          ""       -- clink libs
           (ccGcc "gcc" "gcc")
           ""       -- editor
           ""
@@ -265,11 +271,14 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["checkcore"]      (\b f -> f{coreCheck=b})         "check generated core"
  -- , flag   []    ["show-coreF"]      (\b f -> f{showCoreF=b})        "show coreF"
  , emptyline
- , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     "build into <dir> (instead of <outdir>/<config>)"
+ , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     "build into <dir> (default: <outdir>/<cfg>)"
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
  , option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"
  , option []    ["cmakeargs"]       (ReqArg cmakeArgsFlag "args")   "pass <args> to cmake"
  , option []    ["cc"]              (ReqArg ccFlag "cmd")           "use <cmd> as the C backend compiler "
+ , option []    ["ccargs"]          (ReqArg ccCompileArgs "args")   "pass <args> to C backend compiler "
+ , option []    ["cclinkargs"]      (ReqArg ccLinkArgs "args")      "pass <args> to C backend linker "
+ , option []    ["cclibs"]          (ReqArg ccLinkLibs "libs")      "link with comma separated <libs>"
  , option []    ["csc"]             (ReqArg cscFlag "cmd")          "use <cmd> as the csharp backend compiler "
  , option []    ["node"]            (ReqArg nodeFlag "cmd")         "use <cmd> to execute node"
  , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors"
@@ -370,6 +379,13 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   ccFlag s
     = Flag (\f -> f{ ccompPath = s })
 
+  ccCompileArgs s
+    = Flag (\f -> f{ ccompCompileArgs = s })
+  ccLinkArgs s
+    = Flag (\f -> f{ ccompLinkArgs = s })
+  ccLinkLibs s
+    = Flag (\f -> f{ ccompLinkLibs = s })
+
   cscFlag s
     = Flag (\f -> f{ csc = s })
 
@@ -451,7 +467,7 @@ processOptions flags0 opts
              in do pkgs <- discoverPackages (outDir flags)
                    (binDir,libDir,kklibDir,stdlibDir) <- getKokaDirs
                    ccmd <- if (ccompPath flags == "") then detectCC else return (ccompPath flags)
-                   cc   <- ccFromPath (asan flags) ccmd 
+                   cc   <- ccFromPath flags ccmd
                    return (flags{ packages    = pkgs,
                                   binDir      = binDir,
                                   libDir      = libDir,
@@ -545,21 +561,23 @@ getEnvOptions
   Detect C compiler
 --------------------------------------------------------------------------}
 
-data CC = CC{  ccName :: String,
-               ccPath :: FilePath,
-               ccFlags      :: String,
-               ccFlagsBuild :: [(BuildType,String)],
-               ccFlagsWarn  :: String,
-               ccFlagsCompile :: String,
-               ccFlagsLink    :: String,
-               ccIncludeDir :: FilePath -> String,
-               ccTargetObj :: FilePath -> String,
-               ccTargetExe :: FilePath -> String,
-               ccAddSysLib :: String -> String,
-               ccAddLib    :: FilePath -> String,
-               ccAddDef   :: String -> String,
-               ccLibFile :: String -> String,
-               ccObjFile :: String -> String
+type Args = [String]
+
+data CC = CC{  ccName       :: String,
+               ccPath       :: FilePath,
+               ccFlags      :: Args,
+               ccFlagsBuild :: [(BuildType,Args)],
+               ccFlagsWarn  :: Args,
+               ccFlagsCompile :: Args,
+               ccFlagsLink    :: Args,
+               ccIncludeDir :: FilePath -> Args,
+               ccTargetObj  :: FilePath -> Args,
+               ccTargetExe  :: FilePath -> Args,
+               ccAddSysLib  :: String -> Args,
+               ccAddLib     :: FilePath -> Args,
+               ccAddDef     :: String -> Args,
+               ccLibFile    :: String -> FilePath,
+               ccObjFile    :: String -> FilePath
             }
 
 data BuildType = Debug | Release | RelWithDebInfo
@@ -578,65 +596,65 @@ buildType flags
              then RelWithDebInfo
              else Release
 
-ccFlagsBuildFromFlags :: CC -> Flags -> String
+ccFlagsBuildFromFlags :: CC -> Flags -> Args
 ccFlagsBuildFromFlags cc flags
   = case lookup (buildType flags) (ccFlagsBuild cc) of
       Just s -> s
-      Nothing -> ""
+      Nothing -> []
 
-gnuWarn = ("-Wall -Wextra -Wno-unknown-pragmas -Wno-unused-parameter -Wno-unused-variable -Wno-unused-value" ++
-           " -Wno-missing-field-initializers -Wpointer-arith -Wshadow -Wstrict-aliasing")
+gnuWarn = words "-Wall -Wextra -Wno-unknown-pragmas -Wno-unused-parameter -Wno-unused-variable -Wno-unused-value" ++
+          words "-Wno-missing-field-initializers -Wpointer-arith -Wshadow -Wstrict-aliasing"
 
 ccGcc,ccMsvc :: String -> FilePath -> CC
 ccGcc name path
-  = let dquote s = "\"" ++ s ++ "\""
-    in CC name path ""
-        [(Debug,"-g -O1"),
-         (Release,"-O2 -flto -DNDEBUG"),
-         (RelWithDebInfo,"-O2 -flto -g -DNDEBUG")]
-        (gnuWarn ++ " -Wno-unused-but-set-variable")
-        ("-c" ++ (if onWindows then "" else " -D_GNU_SOURCE"))
-        ""
-        (\idir -> "-I " ++ dquote idir)
-        (\fname -> "-o " ++ dquote ((notext fname) ++ objExtension))
-        (\out -> "-o " ++ dquote out)
-        (\syslib -> "-l" ++ syslib)
-        (\lib -> dquote lib)
-        (\def -> "-D" ++ def)
+  = CC name path []
+        [(Debug,         words "-g -O1"),
+         (Release,       words "-O2 -flto -DNDEBUG"),
+         (RelWithDebInfo,words "-O2 -flto -g -DNDEBUG")]
+        (gnuWarn ++ ["-Wno-unused-but-set-variable"])
+        (["-c"] ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
+        []
+        (\idir -> ["-I",idir])
+        (\fname -> ["-o", (notext fname) ++ objExtension])
+        (\out -> ["-o",out])
+        (\syslib -> ["-l" ++ syslib])
+        (\lib -> [lib])
+        (\def -> ["-D" ++ def])
         (\lib -> libPrefix ++ lib ++ libExtension)
         (\obj -> obj ++ objExtension)
 
 ccMsvc name path
-  = let dquote s = "\"" ++ s ++ "\""
-    in CC name path "-DWIN32 -nologo"
-         [(Debug,"-MDd -Zi -Ob0 -Od -RTC1"),
-          (Release,"-MD -O2 -Ob2 -DNDEBUG"),
-          (RelWithDebInfo,"-MD -Zi -O2 -Ob1 -DNDEBUG")]
-         "-W3" "-TC -c" ""
-         (\idir -> "-I " ++ dquote idir)
-         (\fname -> "-Fo" ++ ((notext fname) ++ objExtension))
-         (\out -> "-Fe" ++  out ++ exeExtension)
-         (\syslib -> syslib ++ libExtension)
-         (\lib -> dquote lib)
-         (\def -> "-D" ++ def)
+  = CC name path ["-DWIN32","-nologo"]
+         [(Debug,words "-MDd -Zi -Ob0 -Od -RTC1"),
+          (Release,words "-MD -O2 -Ob2 -DNDEBUG"),
+          (RelWithDebInfo,words "-MD -Zi -O2 -Ob1 -DNDEBUG")]
+         ["-W3"]
+         ["-TC","-c"]
+         []
+         (\idir -> ["-I",idir])
+         (\fname -> ["-Fo" ++ ((notext fname) ++ objExtension)])
+         (\out -> ["-Fe" ++  out ++ exeExtension])
+         (\syslib -> [syslib ++ libExtension])
+         (\lib -> [lib])
+         (\def -> ["-D" ++ def])
          (\lib -> libPrefix ++ lib ++ libExtension)
          (\obj -> obj ++ objExtension)
 
 
-ccFromPath :: Bool -> FilePath -> IO CC
-ccFromPath asan path
+ccFromPath :: Flags -> FilePath -> IO CC
+ccFromPath flags path
   = let name    = -- reverse $ dropWhile (not . isAlpha) $ reverse $
                   basename path
         gcc     = ccGcc name path
         mingw   = gcc{ ccName = "mingw", ccLibFile = \lib -> "lib" ++ lib ++ ".a" }
-        clang   = gcc{ ccFlagsWarn = gnuWarn ++ " -Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align" }
-        generic = gcc{ ccFlagsWarn = "" }
+        clang   = gcc{ ccFlagsWarn = gnuWarn ++ words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align" }
+        generic = gcc{ ccFlagsWarn = [] }
         msvc    = ccMsvc name path
-        clangcl = msvc{ ccFlagsWarn = ccFlagsWarn clang ++ " -Wno-extra-semi-stmt -Wno-extra-semi -Wno-strict-prototypes -Wno-sign-conversion",
-                        ccFlagsLink = ccFlagsLink clang ++ " -Wno-unused-command-line-argument"
+        clangcl = msvc{ ccFlagsWarn = ccFlagsWarn clang ++ words "-Wno-extra-semi-stmt -Wno-extra-semi -Wno-strict-prototypes -Wno-sign-conversion",
+                        ccFlagsLink = ccFlagsLink clang ++ words "-Wno-unused-command-line-argument"
                       }
 
-        cc      | (name `startsWith` "clang-cl") = clangcl
+        cc0     | (name `startsWith` "clang-cl") = clangcl
                 | (name `startsWith` "mingw") = mingw
                 | (name `startsWith` "clang") = clang
                 | (name `startsWith` "gcc")   = if onWindows then mingw else gcc
@@ -644,14 +662,36 @@ ccFromPath asan path
                 | (name `startsWith` "icc")   = gcc
                 | (name == "cc") = generic
                 | otherwise      = gcc
-    in if (asan)
+
+        cc = cc{ ccFlagsCompile = ccFlagsCompile cc0 ++ unquote (ccompCompileArgs flags)
+               , ccFlagsLink    = ccFlagsLink cc0 ++ unquote (ccompLinkArgs flags) }
+
+    in if (asan flags)
          then if (not (ccName cc `startsWith` "clang"))
                 then do putStrLn "warning: can only use address sanitizer with clang (ignored)"
                         return cc
                 else do return cc{ ccName         = ccName cc ++ "-asan"
-                                 , ccFlagsCompile = ccFlagsCompile cc ++ " -fsanitize=address"
-                                 , ccFlagsLink    = ccFlagsLink cc ++ " -fsanitize=address" }
+                                 , ccFlagsCompile = ccFlagsCompile cc ++ ["-fsanitize=address"]
+                                 , ccFlagsLink    = ccFlagsLink cc ++ ["-fsanitize=address"] }
          else return cc
+
+-- unquote a shell argument string (as well as we can)
+unquote :: String -> [String]
+unquote s
+ = filter (not . null) (scan "" s)
+ where
+   scan acc (c:cs) | c == '\"' || c == '\''     = reverse acc : scanq c "" cs
+                   | c == '\\' && not (null cs) = scan (head cs:acc) (tail cs)
+                   | isSpace c = reverse acc : scan "" (dropWhile isSpace cs)
+                   | otherwise = scan (c:acc) cs
+   scan acc []     = [reverse acc]
+
+   scanq q acc (c:cs) | c == q    = reverse acc : scan "" cs
+                      | c == '\\' && (not (null cs)) = scanq q (head cs:acc) (tail cs)
+                      | otherwise = scanq q (c:acc) cs
+   scanq q acc []     = [reverse acc]
+
+
 
 onWindows :: Bool
 onWindows
@@ -662,7 +702,7 @@ detectCC
   = do paths <- getEnvPaths "PATH"
        (name,path) <- do envCC <- getEnvVar "CC"
                          findCC paths ((if (envCC=="") then [] else [envCC]) ++
-                                       ["gcc","cl","clang-cl","clang","icc","cc","g++","clang++"])
+                                       ["gcc","clang-cl","cl","clang","icc","cc","g++","clang++"])
        return path
 
 findCC :: [FilePath] -> [FilePath] -> IO (String,FilePath)
