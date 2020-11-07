@@ -18,7 +18,7 @@ module Platform.Config where
 {-# NOINLINE buildTime #-}
 
 programName :: String
-#ifdef MAIN  
+#ifdef MAIN
 programName = MAIN
 #else
 programName = "koka"
@@ -56,12 +56,14 @@ exeExtension  = ".exe"
 dllExtension  = ".dll"
 objExtension  = ".obj"
 libExtension  = ".lib"
+libPrefix     = ""
 pathSep       = '\\'
 pathDelimiter = ';'
-#elif defined(__MACOSX__) || defined(__MACH__)
+#elif defined(DARWIN) || defined(__MACOSX__) || defined(__MACH__)
 dllExtension  = ".dylib"
 objExtension  = ".o"
 libExtension  = ".a"
+libPrefix     = "lib"
 exeExtension  = ""
 pathSep       = '/'
 pathDelimiter = ':'
@@ -69,6 +71,7 @@ pathDelimiter = ':'
 dllExtension  = ".so"
 objExtension  = ".o"
 libExtension  = ".a"
+libPrefix     = "lib"
 exeExtension  = ""
 pathSep       = '/'
 pathDelimiter = ':'

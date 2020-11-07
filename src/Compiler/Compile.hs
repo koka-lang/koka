@@ -29,7 +29,7 @@ module Compiler.Compile( -- * Compile
                        ) where
 
 import Lib.Trace              ( trace )
-import Data.Char              ( isAlphaNum, toLower )
+import Data.Char              ( isAlphaNum, toLower, isSpace )
 
 import System.Directory       ( createDirectoryIfMissing, canonicalizePath, getCurrentDirectory )
 import Data.List              ( isPrefixOf, intersperse )
@@ -74,14 +74,15 @@ import Type.Kind              ( containsHandledEffect, getHandledEffectX, extrac
 import Type.Assumption        ( gammaLookupQ, extractGamma, infoType, NameInfo(..), gammaUnions, extractGammaImports, gammaLookup, gammaMap )
 import Type.Infer             ( inferTypes )
 import Type.Pretty hiding     ( verbose )
-import Compiler.Options       ( Flags(..), prettyEnvFromFlags, colorSchemeFromFlags, prettyIncludePath, isValueFromFlags )
+import Compiler.Options       ( Flags(..), CC(..), BuildType(..), buildType, ccFlagsBuildFromFlags, unquote,
+                                prettyEnvFromFlags, colorSchemeFromFlags, prettyIncludePath, isValueFromFlags )
 
 import Compiler.Module
 
 -- needed for code generation
 import Data.Char              ( toUpper )
 import Lib.PPrint             hiding (dquote)
-import Platform.Config        ( exeExtension, dllExtension, libExtension, objExtension, pathSep, sourceExtension )
+import Platform.Config        ( exeExtension, dllExtension, libPrefix, libExtension, objExtension, pathSep, sourceExtension )
 
 import Backend.CSharp.FromCore    ( csharpFromCore )
 import Backend.JavaScript.FromCore( javascriptFromCore )
@@ -1099,9 +1100,9 @@ codeGenCSDll term flags modules compileTarget outBase core
            debugFlags = (if (debug flags) then "-debug " else "") ++ (if (optimize flags >= 1) then "-optimize " else "")
        let cmd = (csc flags ++ " " ++ debugFlags ++ targetFlags ++ " -nologo -warn:4 " ++ searchFlags ++ linkFlags ++ dquote outcs)
        -- trace cmd $ return ()
-       runSystem cmd
+       runSystemEcho term flags cmd
        -- run the program
-       return (Just (runSystem targetName))
+       return (Just (runSystemEcho term flags targetName))
 
 -- Generate C# through CS files without generating dll's
 codeGenCS :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO()))
@@ -1127,10 +1128,9 @@ codeGenCS term flags modules compileTarget outBase core
                  targetFlags= "-t:exe -out:" ++ targetName ++ " "
                  debugFlags = (if (debug flags) then "-debug -define:DEBUG " else "") ++ (if (optimize flags >= 1) then "-optimize " else "")
              let cmd = (csc flags ++ " " ++ targetFlags ++ debugFlags ++ " -nologo -warn:4 " ++ searchFlags ++ linkFlags ++ sources)
-             trace cmd $ return ()
-             runSystem cmd
+             runSystemEcho term flags cmd
              -- run the program
-             return (Just (runSystem targetName))
+             return (Just (runSystemEcho term flags targetName))
 
 
 codeGenJS :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO ()))
@@ -1180,9 +1180,9 @@ codeGenJS term flags modules compileTarget outBase core
             -}
             case host flags of
               Browser ->
-               do return (Just (runSystem (dquote outHtml ++ " &")))
+               do return (Just (runSystemEcho term flags (dquote outHtml ++ " &")))
               _ ->
-               do return (Just (runSystem ("node --stack-size=100000 " ++ outjs)))
+               do return (Just (runCommand term flags ["node","--stack-size=100000",outjs]))
 
 
 
@@ -1210,18 +1210,37 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       writeDocW 120 outH (hdoc <.> linebreak)
       when (showAsmC flags) (termDoc term (hdoc <//> cdoc))
 
+      -- compile
+      let cc = ccomp flags
+          ccompile = concat $
+                     [ [ccPath cc]
+                     , ccFlags cc
+                     , ccFlagsWarn cc
+                     , ccFlagsCompile cc
+                     , ccFlagsBuildFromFlags cc flags
+                     , ccIncludeDir cc (kklibDir flags ++ "/include")]
+                     ++
+                     map (ccAddDef cc) ((if (asan flags) then [] else ["KK_MIMALLOC","MI_MAX_ALIGN_SIZE=8"])
+                                        ++ ["KK_STATIC_LIB"])
+                     ++
+                     [ ccTargetObj cc outBase
+                     , [outC]
+                     ]
+
+      runCommand term flags ccompile
+
       -- compile and link?
       case mbEntry of
        Nothing -> return Nothing
        Just _ ->
          do cmakeGeneratorFlag  -- prefer Ninja if available
-              <- if onWindows then return " -G Ninja"  -- we must use Ninja on windows (as we cannot handle multi-config cmake)
+              <- if onWindows then return ["-G","Ninja"]  -- we must use Ninja on windows (as we cannot handle multi-config cmake)
                   else do paths   <- getEnvPaths "PATH"
                           mbNinja <- searchPaths paths [exeExtension] "ninja"
                           case mbNinja of
                             Just ninja -> do -- termDoc term $ text "found ninja:" <+> pretty ninja
-                                             return " -G Ninja"
-                            Nothing    -> return ""
+                                             return ["-G","Ninja"]
+                            Nothing    -> return []
 
             checkCMake term flags
             currentDir <- getCurrentDirectory
@@ -1230,7 +1249,42 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
 
             let mainModName= showModName (Core.coreProgName core0)
                 mainName   = if null (exeName flags) then mainModName else exeName flags
+                mainExe    = outName flags mainName
 
+            -- build kklib for the specifield build variant
+            cmakeLib term flags cc "kklib" (ccLibFile cc "kklib") (kklibDir flags) cmakeGeneratorFlag
+
+            let objs   = [outName flags (ccObjFile cc (showModName mname)) | mname <- (map modName modules ++ [Core.coreProgName core0])]
+                libs   = map trim (splitOn (==',') (ccompLinkLibs flags)) ++
+                         (if onWindows then ["bcrypt","psapi","advapi32"]
+                                       else ["m","pthread"])
+                clink  = concat $
+                         [ [ccPath cc]
+                         , ccFlags cc
+                         , ccFlagsLink cc
+                         , ccFlagsBuildFromFlags cc flags
+                         , ccTargetExe cc mainExe
+                         ]
+                         ++
+                         [objs]
+                         ++
+                         [ccAddLib cc (normalizeWith '/' (outName flags (ccLibFile cc "kklib")))]
+                         ++
+                         (map (ccAddSysLib cc) libs)
+
+
+            termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "linking:") <+>
+                               color (colorSource (colorScheme flags)) (text mainName))
+            runCommand term flags clink
+
+            termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
+                                  color (colorSource (colorScheme flags)) (text (normalize mainExe))
+            let cmdflags = if (showElapsed flags) then " --kktime" else ""
+            return (Just (runSystemEcho term flags (dquote mainExe ++ cmdflags ++ " " ++ execOpts flags))) -- use shell for proper rss accounting
+
+
+
+{-
                 sources    = text "set(" <.> text mainName <.> text "_csources" <->
                              indent 2 (vcat (map text ["${CMAKE_BUILD_TYPE}/" ++ (showModName mname ++ ".c") |
                                         mname <- (map modName modules ++ [Core.coreProgName core0])])) <->
@@ -1309,27 +1363,44 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             termDoc term $ text "compiled:" <+> text (normalize finalExe)
             let cmdflags = if (showElapsed flags) then " --kktime" else ""
             return (Just (runSystem (dquote finalExe ++ cmdflags ++ " " ++ execOpts flags)))
-
-{-
-installKKLib :: Terminal -> Flags -> FilePath -> FilePath -> String -> String -> String -> IO ()
-installKKLib term flags kklibDir kklibInstallDir cmakeGeneratorFlag cmakeConfigType configType
-  = do let cmakeFile =  kklibInstallDir ++ "/cmake/kklib-config-" ++ configType ++ ".cmake"
-       exist <- doesFileExist cmakeFile
-       if (exist && not (rebuild flags)) then return ()
-        else do termPhase term ("building kklib library")
-                let cmakeDir    = (kklibDir ++ "/out/" ++ configType)
-                    cmakeConfig = (cmake flags) ++ " -E chdir " ++ dquote cmakeDir   -- see above for chdir
-                                   ++ " " ++ cmake flags ++ cmakeGeneratorFlag ++ cmakeConfigType
-                                   ++ " -DCMAKE_INSTALL_PREFIX=" ++ kklibInstallDir
-                                   ++ " " ++ dquote kklibDir
-                    cmakeBuild  = cmake flags ++ " --build " ++ dquote cmakeDir
-                    cmakeInstall= cmake flags ++ " --build " ++ dquote cmakeDir ++ " --target install"   -- switch "--install" is not available before cmake 3.15
-
-                createDirectoryIfMissing True cmakeDir
-                runSystemEcho cmakeConfig
-                runSystemEcho cmakeBuild
-                runSystemEcho cmakeInstall
 -}
+
+cmakeLib :: Terminal -> Flags -> CC -> String -> FilePath -> FilePath -> [String] -> IO ()
+cmakeLib term flags cc libName libFile libSourceDir cmakeGeneratorFlag
+  = do let libPath = outName flags libFile
+       exist <- doesFileExist libPath
+       if (exist && not (rebuild flags)) then return ()
+         else -- todo: check for installed binaries for the library
+              do termDoc term $ color (colorInterpreter (colorScheme flags)) (text ("cmake  :")) <+>
+                                 color (colorSource (colorScheme flags)) (text libName) <+>
+                                  color (colorInterpreter (colorScheme flags)) (text "from:") <+>
+                                   color (colorSource (colorScheme flags)) (text libSourceDir)
+                 let cmakeDir    = outName flags libName
+                     cmakeConfigType = "-DCMAKE_BUILD_TYPE=" ++
+                                       (case (buildType flags) of
+                                           Debug -> "Debug"
+                                           RelWithDebInfo -> "RelWithDebInfo"
+                                           Release -> "Release")
+                     cmakeConfig =  [ cmake flags
+                                    , "-E", "chdir", cmakeDir   -- see above for chdir
+                                    , cmake flags
+                                    ]
+                                    ++ cmakeGeneratorFlag ++
+                                    [ cmakeConfigType
+                                    , "-DCMAKE_C_COMPILER=" ++ (basename (ccPath cc))
+                                    , "-DCMAKE_INSTALL_PREFIX=" ++ (buildDir flags)
+                                    , (if (asan flags) then "-DKK_DEBUG_SAN=address" else "")
+                                    ]
+                                    ++ unquote (cmakeArgs flags) ++
+                                    [ libSourceDir ]
+
+                     cmakeBuild  = [cmake flags, "--build", cmakeDir]
+                     -- cmakeInstall= cmake flags ++ " --build " ++ dquote cmakeDir ++ " --target install"   -- switch "--install" is not available before cmake 3.15
+                 createDirectoryIfMissing True cmakeDir
+                 runCommand term flags cmakeConfig
+                 runCommand term flags cmakeBuild
+                 copyBinaryFile (cmakeDir ++ "/" ++ libFile) libPath
+
 
 -- emit helpful messages if dependencies are not installed (cmake etc)
 checkCMake :: Terminal -> Flags -> IO ()
@@ -1361,13 +1432,23 @@ checkCMake term flags
                                    return ()
 
 
+
 onWindows :: Bool
 onWindows
   = (exeExtension == ".exe")
 
-runSystemEcho cmd
-  = trace ("> " ++ cmd) $
-    runSystem cmd
+runSystemEcho :: Terminal -> Flags -> String -> IO ()
+runSystemEcho term flags cmd
+  = do when (verbose flags >= 2) $
+         termPhase term ("shell> " ++ cmd)
+       runSystem cmd
+
+runCommand :: Terminal -> Flags -> [String] -> IO ()
+runCommand term flags cargs@(cmd:args)
+  = do when (verbose flags >= 2) $
+         termPhase term ("command> " ++ cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
+       runCmd cmd (filter (not . null) args)
+
 
 joinWith sep xs
   = concat (intersperse sep xs)
@@ -1429,20 +1510,18 @@ outName flags s
 
 buildDir :: Flags -> FilePath
 buildDir flags
-  = if (null (outDir flags))
-     then configType flags
-     else joinPath (outDir flags) (configType flags)
+  = if (null (outBuildDir flags))
+     then if (null (outDir flags))
+           then configType flags
+           else joinPath (outDir flags) (configType flags)
+     else outBuildDir flags
 
 configType :: Flags -> String
 configType flags
-  = if (target flags == C)
-     then (if optimize flags <= 0
-             then "Debug"
-             else if debug flags
-                    then "RelWithDebInfo"
-                    else "Release")
-     else (show (target flags))
-
+  = let pre  = if (target flags == C)
+                 then ccName (ccomp flags)
+                 else (show (target flags))
+    in pre ++ "-" ++ show (buildType flags)
 
 
 
