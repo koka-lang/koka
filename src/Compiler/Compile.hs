@@ -75,7 +75,8 @@ import Type.Assumption        ( gammaLookupQ, extractGamma, infoType, NameInfo(.
 import Type.Infer             ( inferTypes )
 import Type.Pretty hiding     ( verbose )
 import Compiler.Options       ( Flags(..), CC(..), BuildType(..), buildType, ccFlagsBuildFromFlags, unquote,
-                                prettyEnvFromFlags, colorSchemeFromFlags, prettyIncludePath, isValueFromFlags )
+                                prettyEnvFromFlags, colorSchemeFromFlags, prettyIncludePath, isValueFromFlags,
+                                buildDir, outName )
 
 import Compiler.Module
 
@@ -1503,26 +1504,6 @@ showModName name
 
 dquote s
   = "\"" ++ s ++ "\""
-
-outName :: Flags -> FilePath -> FilePath
-outName flags s
-  = joinPath (buildDir flags) s
-
-buildDir :: Flags -> FilePath
-buildDir flags
-  = if (null (outBuildDir flags))
-     then if (null (outDir flags))
-           then configType flags
-           else joinPath (outDir flags) (configType flags)
-     else outBuildDir flags
-
-configType :: Flags -> String
-configType flags
-  = let pre  = if (target flags == C)
-                 then ccName (ccomp flags)
-                 else (show (target flags))
-    in pre ++ "-" ++ show (buildType flags)
-
 
 
 posixOutName flags s
