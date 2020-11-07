@@ -37,9 +37,8 @@ and it is our goal to generally fall within a factor 2&times; of C++ performance
 
 For more background information, see:
 
-* The [A tour of Koka][kokabook] for a specification of the Koka language and a primer on algebraic effect handlers.
+* The [Koka manual][kokabook] for a specification of the Koka language and a primer on algebraic effect handlers.
 * The [library documentation][libraries].
-* The [Koka research page][kokaproject].
 * The article _Algebraic Effects for Functional Programming_ [[3]](#references) about the algebraic effects in Koka.
 
 [kokabook]: https://koka-lang.github.io/koka/doc/kokaspec.html  
@@ -75,7 +74,7 @@ The following programs are required to build Koka:
 
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
   (use `> curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS X)
-* [CMake](https://cmake.org/download/) to compile the generated C files.  
+* [CMake](https://cmake.org/download/) to compile the C runtime library.  
   (use `> sudo apt-get install cmake` on Ubuntu, `> brew install cmake` on macOS X).
 * Optional: The [Ninja](https://ninja-build.org/) build system for faster build times.  
   (required on Windows, use `> sudo apt-get install ninja-build` on Ubuntu, `> brew install ninja` on macOS X).
@@ -95,15 +94,12 @@ compile: test/algeff/common.kk
 loading: std/core
 loading: std/core/types
 loading: std/core/hnd
-check  : test/algeff/common
-cmake --build "out\Debug\cbuild" --target test_algeff_common
-...
-[5/5] Linking C executable test_algeff_common.exe
-compiled: out\Debug\test_algeff_common.exe
+linking: test_algeff_common
+created: out\v2.0.3\mingw-debug\test_algeff_common
 ```
 and run the resulting executable:
 ```
-> out\Debug\test_algeff_common.exe
+> out\v2.0.3\mingw-debug\test_algeff_common
 42
 Hello there, there
 hi
@@ -121,11 +117,11 @@ of balanced insertion in a red-black tree balanced ([`rbtree.kk`](test/bench/kok
 ```
 > stack exec koka -- -O2 -c test/bench/koka/rbtree.kk
 ...
-cmake --build "out/RelWithDebInfo/cbuild" --target test_bench_koka_rbtree
-[15/15] Linking C executable test_bench_koka_rbtree
-compiled: out/RelWithDebInfo/test_bench_koka_rbtree
+check  : test/bench/koka/rbtree
+linking: test_bench_koka_rbtree
+created: out\v2.0.3\mingw-drelease\test_bench_koka_rbtree
 
-> time out/RelWithDebInfo/test_bench_koka_rbtree
+> time out\v2.0.3\mingw-drelease\test_bench_koka_rbtree
 420000
 real    0m1.132s
 ```
@@ -155,12 +151,11 @@ running the `util/atom.kk` script:
 Without giving any input files, the interactive interpreter runs by default:
 ````
 > stack exec koka
-
  _          _           ____
 | |        | |         |__  \
 | | __ ___ | | __ __ _  __) |
 | |/ // _ \| |/ // _` || ___/ welcome to the koka interpreter
-|   <| (_) |   <| (_| ||____| version 2.0.1, Oct 24 2020, libc 64-bit
+|   <| (_) |   <| (_| ||____| version 2.0.3, Nov  6 2020, libc 64-bit (mingw)
 |_|\_\\___/|_|\_\\__,_|       type :? for help
 
 loading: std/core
@@ -172,13 +167,10 @@ loading: std/core/hnd
 Now you can test some expressions:
 
     > println("hi koka")
-    loading: std/core
-    loading: std/core/types
-    loading: std/core/hnd
     check  : interactive
-    cmake --build "out\Debug\cbuild" --target interactive
-    [2/2] Linking C executable interactive.exe
-    compiled: out\Debug\interactive.exe
+    check  : interactive
+    linking: interactive
+    created: out\v2.0.3\mingw-debug\interactive
 
     hi koka
 
@@ -198,11 +190,12 @@ Or load a demo:
     check  : test/medium/fibonacci
     modules:
       test/medium/fibonacci
-
+      
     > main()
-    cmake --build "out/Debug/cbuild" --target interactive
-    [2/2] Linking C executable interactive
-    compiled: out/Debug/interactive
+    check  : interactive
+    check  : interactive
+    linking: interactive
+    created: out\v2.0.3\mingw-debug\interactive
 
     The 10000th fibonacci number is 33644764876431783266621612005107543310302148460680063906564769974680081442166662368155595513633734025582065332680836159373734790483865268263040892463056431887354544369559827491606602099884183933864652731300088830269235673613135117579297437854413752130520504347701602264758318906527890855154366159582987279682987510631200575428783453215515103870818298969791613127856265033195487140214287532698187962046936097879900350962302291026368131493195275630227837628441540360584402572114334961180023091208287046088923962328835461505776583271252546093591128203925285393434620904245248929403901706233888991085841065183173360437470737908552631764325733993712871937587746897479926305837065742830161637408969178426378624212835258112820516370298089332099905707920064367426202389783111470054074998459250360633560933883831923386783056136435351892133279732908133732642652633989763922723407882928177953580570993691049175470808931841056146322338217465637321248226383092103297701648054726243842374862411453093812206564914032751086643394517512161526545361333111314042436854805106765843493523836959653428071768775328348234345557366719731392746273629108210679280784718035329131176778924659089938635459327894523777674406192240337638674004021330343297496902028328145933418826817683893072003634795623117103101291953169794607632737589253530772552375943788434504067715555779056450443016640119462580972216729758615026968443146952034614932291105970676243268515992834709891284706740862008587135016260312071903172086094081298321581077282076353186624611278245537208532365305775956430072517744315051539600905168603220349163222640885248852433158051534849622434848299380905070483482449327453732624567755879089187190803662058009594743150052402532709746995318770724376825907419939632265984147498193609285223945039707165443156421328157688908058783183404917434556270520223564846495196112460268313970975069382648706613264507665074611512677522748621598642530711298441182622661057163515069260029861704945425047491378115154139941550671256271197133252763631939606902895650288268608362241082050562430701794976171121233066073310059947366875
 
@@ -239,14 +232,10 @@ loading the ``common`` demo, we can run it directly from the interpreter:
     () -> console ()
 
     > test2()
-    loading: std/core
-    loading: std/core/types
-    loading: std/core/hnd
-    loading: test/algeff/common
     check  : interactive
-    cmake --build "out/Debug/cbuild" --target interactive
-    [2/2] Linking C executable interactive
-    compiled: out/Debug/interactive
+    check  : interactive
+    linking: interactive
+    created: out\v2.0.3\mingw-debug\interactive
 
     Hello there, there
 
@@ -309,20 +298,23 @@ is usually already on the search path as `stack` is installed there as well.
 
 However, when using `koka` you need to have a C compiler (when
 using `stack exec koka` the C compiler supplied with Ghc is used (`mingw`)
-but that is not generally available). You can either run `koka` from a
+but that is not generally available). Generally, you need to run `koka` from a
 [Visual Studio](https://visualstudio.microsoft.com/downloads)
 [command prompt](https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019)
-(and thus use the `msvc` compiler) or install the [`clang`](https://releases.llvm.org) compiler.
+in order to link correctly with the Windows system libraries.
+Koka can use either the `msvc` compiler (default), or the [`clang-cl`](https://releases.llvm.org) compiler
+(use the `--cc=clang-cl` option with Koka). 
 
 
 # Benchmarks
 
 There is a standard benchmark suite. It is still basic but more benchmarks
-with effect handlers are coming. We only test on (Ubuntu) Linux and the benchmarks
-need `gcc` (should be there already) together with:
+with effect handlers are coming. The suite can run on (Ubuntu Linux), WSL2, and macOSX, 
+and the benchmarks need: 
 
-- `ghc` (use `sudo apt install ghc`),
-- `ocamlopt` (use `sudo apt install ocaml`), and
+- `gcc`. Should be there, otherwise use `sudo apt install gcc`,
+- `ghc`. Use `sudo apt install ghc`,
+- `ocamlopt`. Use `sudo apt install ocaml`, 
 - `swiftc`. The Swift compiler can be downloaded [here](https://swift.org/download/).
    The benchmarks expect `swiftc` to be installed at `/opt/swift/bin`,
    so unpack and copy everything under `swift-.../usr` to `/opt/swift/bin`:
@@ -333,7 +325,17 @@ need `gcc` (should be there already) together with:
    > sudo cp -r * /opt/swift
    ```
 - `javac`/`java`. We used these [instructions](https://computingforgeeks.com/install-oracle-java-openjdk-14-on-ubuntu-debian-linux/)
-   to install the Java SE 15 Hotspot compiler (note: the instructions are for Java SE 14 but we use 15 in our benchmarks).
+   to install the Java SE 15 Hotspot compiler:
+   ```
+   > sudo apt update
+   > sudo add-apt-repository ppa:linuxuprising/java
+   > sudo apt -y install oracle-java15-installer
+   > sudo apt -y install oracle-java15-set-default
+   > java --version
+   java 15.0.1 2020-10-20
+   Java(TM) SE Runtime Environment (build 15.0.1+9-18)
+   Java HotSpot(TM) 64-Bit Server VM (build 15.0.1+9-18, mixed mode, sharing)
+   ```
 
 The benchmarks can now be build using:
 
@@ -377,7 +379,8 @@ Test project /home/daan/dev/koka/test/bench/build
 ```
 
 We can also run the tests using the `test/bench/run.kk` script instead of
-using `ctest`. For example, from the `build` directory, we can run all benchmarks as:
+using `ctest` which also measures peak working set and calculates
+normalized scores. For example, from the `build` directory, we can run all benchmarks as:
 ```
 > koka ../run
 ```
@@ -386,7 +389,8 @@ languages or benchmarks:
 ```
 > koka ../run -- --lang=koka,ocaml  --test=rbtree,rbtree-ck
 ```
-
+The `-i<N>` switch runs `N` iterations on each benchmark and calculates
+the average and the error interval.
 
 # Testing
 
@@ -467,12 +471,8 @@ The following is the immediate todo list to be completed in the coming months:
 - Port all libray modules, in particular `std/text/regex` (using PCRE), `std/os/file`, and `std/async` (using `libuv`).
 - Run the full test suite again.
 - Remove dependency on `Jakefile` and use `stack` only.
-- Support local state inside a handler without needing `mask<local>`.
-- Support named effect handlers again.
 - Improve syntax for ambient values, functions, and control.
-- Improve syntax for applications (now disallows whitespace between the function and arguments).
 - Run the Bayesian machine learning program with large parameters.
-- Tune code generation better; the output is still too large.
 
 And future projects:
 
