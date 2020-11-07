@@ -160,9 +160,9 @@ fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen
     val chart-desc = @"6-core AMD 3600XT at 3.8Ghz\\Ubuntu 20.04, Gcc 9.3.0"
     val chart-elapsed = chart("time", norm-elapsed, norm-elapsed-sdev, test-names, lang-ntests, ymax, chart-desc)
     val chart-rss     = chart("rss", norm-rss, fn(t){ 0.0 }, test-names, lang-ntests, ymax, chart-desc)
-    println("\n--- chart elapsed ---------------")
+    println("\n<!-- chart elapsed --------------- -->")
     println(chart-elapsed)
-    println("\n--- chart rss ---------------")
+    println("\n<!-- chart rss --------------- -->")
     println(chart-rss)
   }
   ()
@@ -201,8 +201,9 @@ fun tikz-picture( kind : string, test-names : list<string>, lang-names : list<st
   ]
   val mid = lang-names.map(fn(l){ @"  \draw" + kind + @"{\color" + kind + l + @"{0}}{\data" + kind + l + "};"})
   val footer = [
-     @"  \legend{" + lang-names.map(fn(l){ "\\lang" + l }).join(",") + "};",
-     if (desc.is-empty) then "" else @"  \chartdesc{" + desc.replace-all("\n",@"\\") + "};",
+     if (kind=="time") then @"  \legend{" + lang-names.map(fn(l){ "\\lang" + l }).join(",") + "};"
+                       else "",
+     // if (desc.is-empty) then "" else @"  \chartdesc{" + desc.replace-all("\n",@"\\") + "};",
      @"\end{axis}",
      @"\end{tikzpicture}"
   ]
