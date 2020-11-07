@@ -18,7 +18,9 @@ module Compiler.Options( -- * Command line options
                        , colorSchemeFromFlags
                        , prettyIncludePath
                        , isValueFromFlags
-                       , CC(..), BuildType(..), ccFlagsBuildFromFlags, buildType, unquote
+                       , CC(..), BuildType(..), ccFlagsBuildFromFlags
+                       , buildType, unquote
+                       , outName, configType, buildDir
                        ) where
 
 
@@ -588,6 +590,26 @@ instance Show BuildType where
   show Release        = "release"
   show RelWithDebInfo = "drelease"
 
+outName :: Flags -> FilePath -> FilePath
+outName flags s
+  = joinPath (buildDir flags) s
+
+buildDir :: Flags -> FilePath
+buildDir flags
+  = if (null (outBuildDir flags))
+     then if (null (outDir flags))
+           then configType flags
+           else outDir flags ++ "/" ++ configType flags
+     else outBuildDir flags
+
+configType :: Flags -> String
+configType flags
+  = let pre  = if (target flags == C)
+                 then ccName (ccomp flags)
+                 else (show (target flags))
+    in pre ++ "-" ++ show (buildType flags)
+
+
 buildType :: Flags -> BuildType
 buildType flags
   = if optimize flags <= 0
@@ -817,6 +839,7 @@ versionMessage flags
   <-> text "lib   :" <+> text (libDir flags)
   <-> text "stdlib:" <+> text (stdlibDir flags)
   <-> text "kklib :" <+> text (kklibDir flags)
+  <-> text "build :" <+> text (buildDir flags)
   <-> text "cc    :" <+> text (ccPath (ccomp flags))
   <->
   (color Gray $ vcat $ map text
