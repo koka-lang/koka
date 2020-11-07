@@ -194,7 +194,7 @@ task("grammar",[],function(testfile)
   // command("cd " + outdir + " && bison -vd -W -Wno-empty-rule -Wno-deprecated parser.y 2>&1", function() {
   command("cd " + outdir + " && bison -vd -W -Wno-empty-rule -Wcounterexamples parser.y 2>&1", function() {
     command("cd " + outdir + " && flex -8 lexer.lex 2>&1", function() {
-      command( "cd " + outdir + " && ghc -no-hs-main -o koka-parser lex.yy.c parser.tab.c", function () {
+      command( "cd " + outdir + " && stack exec ghc -- -no-hs-main -o koka-parser lex.yy.c parser.tab.c", function () {
         if (testfile==null) complete();
          else {
             console.log("testing..")
@@ -476,7 +476,7 @@ var hsModules = [
   "Core.MonadicLift",
   "Core.Inlines",
   "Core.Inline",
-  
+
   "Type.Infer",
 
   "Backend.CSharp.FromCore",
