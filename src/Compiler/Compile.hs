@@ -301,9 +301,11 @@ compileFile term flags modules compileTarget fpath
 -- if it is not relative to the paths, return dirname/notdir
 makeRelativeToPaths :: [FilePath] -> FilePath -> (FilePath,FilePath)
 makeRelativeToPaths paths fname
-  = case findMaximalPrefix paths fname of
-      Just (n,root) -> (root,drop n fname)
-      _             -> ("", fname)
+  = let (root,stem) = case findMaximalPrefix paths fname of
+                        Just (n,root) -> (root,drop n fname)
+                        _             -> ("", fname)
+    in -- trace ("relative path of " ++ fname ++ " = " ++ show (root,stem)) $
+       (root,stem)
 
 
 compileModule :: Terminal -> Flags -> Modules -> Name -> IO (Error Loaded)
@@ -715,14 +717,14 @@ searchSource flags currentDir name
         Just (root,stem)
           -> let mname = case dirname stem of
                            ""  -> name
-                           pre -> -- trace ("searchSource: " ++ showTupled name ++ ", " ++ show pre ++ ", " ++ show (pathToModuleName pre)) $
+                           pre -> -- trace ("found source: " ++ showTupled name ++ ", root: " ++ root ++ ", " ++ show pre ++ ", " ++ show (pathToModuleName pre)) $
                                   mergeCommonPath (pathToModuleName pre) name
              in return (Just (root,stem,mname))
         _ -> return Nothing
 
 searchSourceFile :: Flags -> FilePath -> FilePath -> IO (Maybe (FilePath,FilePath))
 searchSourceFile flags currentDir fname
-  = do -- trace ("search source: " ++ postfix ++ " from " ++ currentDir) $ return ()
+  = do -- trace ("search source: " ++ fname ++ " from " ++ concat (intersperse ", " (currentDir:includePath flags))) $ return ()
        mbP <- searchPathsEx (currentDir : includePath flags) [sourceExtension,sourceExtension++".md"] fname
        case mbP of
          Just (root,stem) | root == currentDir

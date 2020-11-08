@@ -161,7 +161,7 @@ joinPaths :: [FilePath] -> FilePath
 joinPaths dirs
   = concat
   $ filterPathSepDup
-  $ intersperse [pathSep]
+  $ intersperse ['/']
   $ normalize
   $ filter (not . null)
   $ concatMap splitPath dirs
@@ -181,7 +181,7 @@ joinPaths dirs
 -- | Normalize path separators
 normalize :: FilePath -> FilePath
 normalize path
-  = normalizeWith pathSep path
+  = normalizeWith '/' path
 
 -- | Normalize path separators with a specified path separator
 normalizeWith :: Char -> FilePath -> FilePath
@@ -228,7 +228,7 @@ runSystem command
          ExitSuccess   -> return ()
 
 runSystemEx command
-  = system (normalize command)
+  = system (normalizeWith pathSep command)
 
 runCmd :: String -> [String] -> IO ()
 runCmd cmd args

@@ -232,7 +232,9 @@ mergeCommonPath :: Name -> Name -> Name
 mergeCommonPath mname name
   = let ns = splitModuleName name
         ms = splitModuleName mname
-    in unsplitModuleName (merge ms ns)
+        new = unsplitModuleName (merge ms ns)
+    in -- trace( "merge common: " ++ show (mname,name) ++ " -> " ++ show new) $
+       new
   where
     merge (m:ms) (n:ns) | m==n && and (zipWith (==) ms ns) = (m:ms) ++ (drop (length ms) ns)
     merge (m:ms) ns     = m : merge ms ns
