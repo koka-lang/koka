@@ -1,6 +1,6 @@
 # Getting started
 
-Welcome to Koka. This manual provides an overview and formal specification of the language. 
+Welcome to Koka. This manual provides an overview and formal specification of the language.
 For more background information, see:
 
 * The [library documentation][libraries].
@@ -12,7 +12,7 @@ For more background information, see:
 [langspec]: https://koka-lang.github.io/koka/doc/kokaspec.html  {target='_top'}
 [libraries]: https://koka-lang.github.io/koka/doc/toc.html {target='_top'}
 [slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf {target='_top'}
-[kokarepo]: https://github.com/koka-lang/koka {target='_top'} 
+[kokarepo]: https://github.com/koka-lang/koka {target='_top'}
 [kokaproject]: http://research.microsoft.com/en-us/projects/koka {target='_top'}
 [rise4fun]: http://rise4fun.com/koka/tutorial
 
@@ -227,7 +227,7 @@ and state effect:
     check  : effs2
     modules:
       effs1
-    
+
     > main()
     \(`[False,True,True,False]`\)
     \(`[False,False,True,True,False]`\)
@@ -254,8 +254,8 @@ returns a boolean.
 Next, let's write a handler for this effect:
 ```
 val amb = handler {
-  return x -> [x]
-  flip()   -> append(resume(False), resume(True))
+  return x       -> [x]
+  control flip() -> append(resume(False), resume(True))
 }
 ```
 When a `flip` operation is issued, this handler will catch it
@@ -268,7 +268,7 @@ removes the `amb` effect from its argument, and return a list of results:
     > :t amb
     \(|`:forall<a,e> (action : () -> <amb|e> a) -> e list<a>`\)
 
-We can now run the `xor` function using the `amb` handler to 
+We can now run the `xor` function using the `amb` handler to
 handle the `flip` operations:
 
 ```
@@ -296,7 +296,7 @@ Next we define a function that uses both ambiguity and the state
 effect:
 ```
 fun foo() : <amb,state<int>> bool {
-  val p = flip() 
+  val p = flip()
   val i = get()
   set(i+1)
   if (i>0 && p) then xor() else False
@@ -307,7 +307,7 @@ The handler for the `:state` effect uses a local variable:
 fun state(init : a, action : () -> <state<a>|e> b ) : e b {
   var s := init
   handle({mask<local>(action)}) {
-    fun get()  -> s 
+    fun get()  -> s
     fun set(i) -> s := i
   }
 }
@@ -331,7 +331,7 @@ predict the outcomes of running the tests?
 
     > test2()
     \(`[False,False,True,True,False]`\)
-    
+
     > test3()
     \(`[False,False]`\)
 

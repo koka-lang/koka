@@ -16,14 +16,14 @@
 public module std/core
 
 public import std/core/types
-public import std/core/hnd 
+public import std/core/hnd
 
 infixr 80  (^)
 infixl 70  (*), (%), (/), cdiv, cmod
 infixl 60  (+), (-)
 infix  40  (!=), (==), (<=), (>=), (<), (>)
 
-// prefix     (!), (-) 
+// prefix     (!), (-)
 
 
 include extern {
@@ -80,7 +80,7 @@ alias io-total = <ndet,console,net,file,ui,st<global>>
 alias io-noexn = <div,io-total>
 
 // The `:io` effect is used for functions that perform arbitrary I/O operations.
-alias io = <exn,io-noexn>  
+alias io = <exn,io-noexn>
 
 // ----------------------------------------------------------------------------
 // Masking
@@ -179,6 +179,7 @@ fun default( m : maybe<a>, nothing : a ) : a {
 fun unjust( m : maybe<a> ) : exn a {
   match(m) {
     Just(x) -> x
+    Nothing -> throw("unexpected Nothing in std/core/unjust")
   }
 }
 
@@ -416,7 +417,7 @@ fun unzip( xs : list<(a,b)> ) : (list<a>,list<b>) {
 fun take( xs : list<a>, n : int ) : list<a> {
   match(xs) {
     Cons(x,xx) | n > 0 -> Cons(x, take(xx, n - 1))
-    _ -> Nil    
+    _ -> Nil
   }
 }
 
@@ -424,7 +425,7 @@ fun take( xs : list<a>, n : int ) : list<a> {
 fun drop( xs : list<a>, n : int ) : list<a> {
   match(xs) {
     Cons(_,xx) | n > 0 -> drop(xx, n - 1)
-    _ -> xs    
+    _ -> xs
   }
 }
 
@@ -523,6 +524,7 @@ fun foldl(xs,z,f) {
 fun foldl1(xs : list<a>, f : (a,a) -> <exn|e> a) : <exn|e> a {
   match(xs) {
     Cons(x,xx) -> xx.foldl(x,f)
+    Nil        -> throw("unexpected Nil in std/core/foldl1")
   }
 }
 
@@ -532,7 +534,7 @@ fun foldr1(xs : list<a>, f : (a,a) -> <exn|e> a) : <exn|e> a {
 
 // Create a list of `n`  repeated elementes `x`
 fun replicate( x : a, n : int ) : list<a> {
-  if (n > 0) 
+  if (n > 0)
    then Cons(x, replicate(x,unsafe-decreasing(n.dec)))
    else Nil
 }
@@ -576,7 +578,7 @@ fun drop-while( xs : list<a>, predicate : a -> e bool ) : e list<a> {
 fun filter( xs : list<a>, pred : a -> e bool ) : e list<a> {
   match(xs) {
     Cons(x,xx) -> if (pred(x)) then Cons(x,xx.filter(pred)) else xx.filter(pred)
-    Nil -> Nil    
+    Nil -> Nil
   }
 }
 
@@ -715,7 +717,7 @@ fun foreach-indexed( xs : list<a>, action : (int,a) -> e () ) : e ()
     val j = i; // don't dereference `i` inside the inject
     mask<local>{action(j,x)}
     i := i+1
-  } 
+  }
 }
 
 // Insert a separator `sep`  between all elements of a list `xs` .
@@ -854,8 +856,8 @@ fun init( xs : list<a> ) : list<a> {
 // Get (zero-based) element `n`  of a list. Return a `:maybe` type.
 fun []( xs : list<a>, n : int ) : maybe<a> {
   match(xs) {
-    Cons(x,xx) -> if (n>0) then xx[n - 1] 
-                  elif (n==0) then Just(x) 
+    Cons(x,xx) -> if (n>0) then xx[n - 1]
+                  elif (n==0) then Just(x)
                   else Nothing
     Nil -> Nothing
   }
@@ -866,7 +868,7 @@ fun all( xs : list<a>, predicate : a -> e bool ) : e bool
 {
   match(xs) {
     Cons(x,xx) -> if (predicate(x)) then xx.all(predicate) else False
-    Nil -> True    
+    Nil -> True
   }
 }
 
@@ -876,7 +878,7 @@ fun any( xs : list<a>, predicate : a -> e bool ) : e bool
 {
   match(xs) {
     Cons(x,xx) -> if (predicate(x)) then True else xx.any(predicate)
-    Nil -> False    
+    Nil -> False
   }
 }
 

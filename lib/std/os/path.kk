@@ -178,6 +178,11 @@ public fun (+)(p1 : path, p2: path) : path {
   Path(p1.root,p2.parts + p1.parts)
 }
 
+// Convenience function that adds a string path.
+public fun (+)(p1 : path, p2: string) : path {
+  Path(p1.root,p2.path.parts + p1.parts)
+}
+
 // Return the first path if it is not empty, otherwise return the second one.
 public fun (||)(p1 : path, p2: path) : path {
   if (p1.is-empty) then p2 else p1
@@ -208,7 +213,7 @@ public fun noext( p : path ) : path {
   p.change-ext("")
 }
 
-// Change the extension of a path. 
+// Change the extension of a path.
 // Only adds a dot if the extname does not already start with a dot.
 public fun change-ext( p : path, extname : string ) : path {
   val (basename,dirs) = p.parts.split-parts
