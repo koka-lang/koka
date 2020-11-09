@@ -15,9 +15,14 @@ var Diff   = require("diff");
 
 console.log(["warning: using 'jake' is deprecated; use 'stack' instead:",
              "> stack build                                   # builds koka",
+             ""
              "> stack exec koka                               # run the koka interpreter",
              "> stack exec koka -- --target=js                # with javascript target",
              "> stack exec koka -- -c test/bench/koka/rbtree  # compile rbtree benchmark",
+             ""
+             "> stack exec koka -- util/install               # install koka locally",
+             "> stack exec koka -- util/atom                  # install atom support",
+             "> stack exec koka -- util/docspec               # generate documentation",
              ""
             ].join("\n"));
 
@@ -194,7 +199,7 @@ task("grammar",[],function(testfile)
   // command("cd " + outdir + " && bison -vd -W -Wno-empty-rule -Wno-deprecated parser.y 2>&1", function() {
   command("cd " + outdir + " && bison -vd -W -Wno-empty-rule -Wcounterexamples parser.y 2>&1", function() {
     command("cd " + outdir + " && flex -8 lexer.lex 2>&1", function() {
-      command( "cd " + outdir + " && ghc -no-hs-main -o koka-parser lex.yy.c parser.tab.c", function () {
+      command( "cd " + outdir + " && stack exec ghc -- -no-hs-main -o koka-parser lex.yy.c parser.tab.c", function () {
         if (testfile==null) complete();
          else {
             console.log("testing..")
@@ -477,7 +482,7 @@ var hsModules = [
   "Core.MonadicLift",
   "Core.Inlines",
   "Core.Inline",
-  
+
   "Type.Infer",
 
   "Backend.CSharp.FromCore",

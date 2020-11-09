@@ -1,5 +1,5 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2020 Microsoft Corporation.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
@@ -18,15 +18,18 @@ module Compiler.Options( -- * Command line options
                        , colorSchemeFromFlags
                        , prettyIncludePath
                        , isValueFromFlags
+                       , CC(..), BuildType(..), ccFlagsBuildFromFlags
+                       , buildType, unquote
+                       , outName, configType, buildDir
                        ) where
 
 
-import Data.Char              ( toUpper )
+import Data.Char              ( toUpper, isAlpha, isSpace )
 import Data.List              ( intersperse )
 import System.Environment     ( getArgs )
 import System.Directory ( doesFileExist )
 import Platform.GetOptions
-import Platform.Config        ( pathDelimiter, version, compiler, buildTime, buildVariant, exeExtension, programName )
+import Platform.Config
 import Lib.PPrint
 import Lib.Printer
 import Common.Failure         ( raiseIO )
@@ -104,11 +107,17 @@ data Flags
          , simplifyMaxDup   :: Int
          , colorScheme      :: ColorScheme
          , outDir           :: FilePath
+         , outBuildDir      :: FilePath
          , includePath      :: [FilePath]
          , csc              :: FileName
          , node             :: FileName
          , cmake            :: FileName
          , cmakeArgs        :: String
+         , ccompPath        :: FilePath
+         , ccompCompileArgs :: String
+         , ccompLinkArgs    :: String
+         , ccompLinkLibs    :: String
+         , ccomp            :: CC
          , editor           :: String
          , redirectOutput   :: FileName
          , outHtml          :: Int
@@ -138,6 +147,7 @@ data Flags
          , parcReuse        :: Bool
          , parcSpecialize   :: Bool
          , parcReuseSpec    :: Bool
+         , asan             :: Bool
          }
 
 flagsNull :: Flags
@@ -161,12 +171,18 @@ flagsNull
           5     -- simplify passes
           10    -- simplify dup max (must be at least 10 to inline partial applications across binds)
           defaultColorScheme
-          "out"    -- out-dir
+          ("out/v" ++ version) -- out-dir
+          ("")     -- build dir
           []
           "csc"
           "node"
           "cmake"
           ""       -- cmake args
+          ""       -- ccompPath
+          ""       -- ccomp args
+          ""       -- clink args
+          ""       -- clink libs
+          (ccGcc "gcc" "gcc")
           ""       -- editor
           ""
           0        -- out html
@@ -196,6 +212,7 @@ flagsNull
           True -- parc reuse
           True -- parc specialize
           True -- parc reuse specialize
+          False -- use asan
 
 isHelp Help = True
 isHelp _    = False
@@ -252,13 +269,18 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["showcs"]         (\b f -> f{showAsmCS=b})         "show generated c#"
  , flag   []    ["showjs"]         (\b f -> f{showAsmJS=b})         "show generated javascript"
  , flag   []    ["showc"]          (\b f -> f{showAsmC=b})          "show generated C"
- , flag   []    ["core"]           (\b f -> f{genCore=b})          "generate a core file"
+ , flag   []    ["core"]           (\b f -> f{genCore=b})           "generate a core file"
  , flag   []    ["checkcore"]      (\b f -> f{coreCheck=b})         "check generated core"
  -- , flag   []    ["show-coreF"]      (\b f -> f{showCoreF=b})        "show coreF"
  , emptyline
+ , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     "build into <dir> (default: <outdir>/<cfg>)"
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
  , option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"
  , option []    ["cmakeargs"]       (ReqArg cmakeArgsFlag "args")   "pass <args> to cmake"
+ , option []    ["cc"]              (ReqArg ccFlag "cmd")           "use <cmd> as the C backend compiler "
+ , option []    ["ccargs"]          (ReqArg ccCompileArgs "args")   "pass <args> to C backend compiler "
+ , option []    ["cclinkargs"]      (ReqArg ccLinkArgs "args")      "pass <args> to C backend linker "
+ , option []    ["cclibs"]          (ReqArg ccLinkLibs "libs")      "link with comma separated <libs>"
  , option []    ["csc"]             (ReqArg cscFlag "cmd")          "use <cmd> as the csharp backend compiler "
  , option []    ["node"]            (ReqArg nodeFlag "cmd")         "use <cmd> to execute node"
  , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors"
@@ -266,6 +288,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , configstr [] ["console"]      ["ansi","html","raw"] (\s f -> f{console=s})   "console output format"
 --  , option []    ["install-dir"]     (ReqArg installDirFlag "dir")       "set the install directory explicitly"
 
+ , hide $ fflag       ["asan"]      (\b f -> f{asan=b})              "compile with address sanitizer (clang only)"
  , hide $ fnum 3 "n"  ["simplify"]  (\i f -> f{simplify=i})          "enable 'n' core simplification passes"
  , hide $ fnum 10 "n" ["maxdup"]    (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
  , hide $ fnum 10 "n" ["inline"]    (\i f -> f{optInlineMax=i})      "set 'n' as maximum inline threshold (=10)"
@@ -349,8 +372,21 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   outDirFlag s
     = Flag (\f -> f{ outDir = s })
 
+  buildDirFlag s
+    = Flag (\f -> f{ outBuildDir = s })
+
   exeNameFlag s
     = Flag (\f -> f{ exeName = s })
+
+  ccFlag s
+    = Flag (\f -> f{ ccompPath = s })
+
+  ccCompileArgs s
+    = Flag (\f -> f{ ccompCompileArgs = s })
+  ccLinkArgs s
+    = Flag (\f -> f{ ccompLinkArgs = s })
+  ccLinkLibs s
+    = Flag (\f -> f{ ccompLinkLibs = s })
 
   cscFlag s
     = Flag (\f -> f{ csc = s })
@@ -432,11 +468,15 @@ processOptions flags0 opts
                                              else ModeCompiler files
              in do pkgs <- discoverPackages (outDir flags)
                    (binDir,libDir,kklibDir,stdlibDir) <- getKokaDirs
+                   ccmd <- if (ccompPath flags == "") then detectCC else return (ccompPath flags)
+                   cc   <- ccFromPath flags ccmd
                    return (flags{ packages    = pkgs,
                                   binDir      = binDir,
                                   libDir      = libDir,
                                   kklibDir    = kklibDir,
                                   stdlibDir   = stdlibDir,
+                                  ccompPath      = ccmd,
+                                  ccomp       = cc,
                                   includePath = stdlibDir : includePath flags }
                           ,mode)
         else invokeError errs
@@ -517,6 +557,191 @@ getEnvOptions
                       Nothing  -> return []
                       Just csc -> return ["--csc=" ++ csc ]
             else return ["--csc="++ joinPaths [fw,fv,"csc"]]
+
+
+{--------------------------------------------------------------------------
+  Detect C compiler
+--------------------------------------------------------------------------}
+
+type Args = [String]
+
+data CC = CC{  ccName       :: String,
+               ccPath       :: FilePath,
+               ccFlags      :: Args,
+               ccFlagsBuild :: [(BuildType,Args)],
+               ccFlagsWarn  :: Args,
+               ccFlagsCompile :: Args,
+               ccFlagsLink    :: Args,
+               ccIncludeDir :: FilePath -> Args,
+               ccTargetObj  :: FilePath -> Args,
+               ccTargetExe  :: FilePath -> Args,
+               ccAddSysLib  :: String -> Args,
+               ccAddLib     :: FilePath -> Args,
+               ccAddDef     :: String -> Args,
+               ccLibFile    :: String -> FilePath,
+               ccObjFile    :: String -> FilePath
+            }
+
+data BuildType = Debug | Release | RelWithDebInfo
+               deriving (Eq)
+
+instance Show BuildType where
+  show Debug          = "debug"
+  show Release        = "release"
+  show RelWithDebInfo = "drelease"
+
+outName :: Flags -> FilePath -> FilePath
+outName flags s
+  = joinPath (buildDir flags) s
+
+buildDir :: Flags -> FilePath
+buildDir flags
+  = if (null (outBuildDir flags))
+     then if (null (outDir flags))
+           then configType flags
+           else outDir flags ++ "/" ++ configType flags
+     else outBuildDir flags
+
+configType :: Flags -> String
+configType flags
+  = let pre  = if (target flags == C)
+                 then ccName (ccomp flags)
+                 else (show (target flags))
+    in pre ++ "-" ++ show (buildType flags)
+
+
+buildType :: Flags -> BuildType
+buildType flags
+  = if optimize flags <= 0
+      then Debug
+      else if debug flags
+             then RelWithDebInfo
+             else Release
+
+ccFlagsBuildFromFlags :: CC -> Flags -> Args
+ccFlagsBuildFromFlags cc flags
+  = case lookup (buildType flags) (ccFlagsBuild cc) of
+      Just s -> s
+      Nothing -> []
+
+gnuWarn = words "-Wall -Wextra -Wno-unknown-pragmas -Wno-unused-parameter -Wno-unused-variable -Wno-unused-value" ++
+          words "-Wno-missing-field-initializers -Wpointer-arith -Wshadow -Wstrict-aliasing"
+
+ccGcc,ccMsvc :: String -> FilePath -> CC
+ccGcc name path
+  = CC name path []
+        [(Debug,         words "-g -O1"),
+         (Release,       words "-O2 -flto -DNDEBUG"),
+         (RelWithDebInfo,words "-O2 -flto -g -DNDEBUG")]
+        (gnuWarn ++ ["-Wno-unused-but-set-variable"])
+        (["-c"] ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
+        []
+        (\idir -> ["-I",idir])
+        (\fname -> ["-o", (notext fname) ++ objExtension])
+        (\out -> ["-o",out])
+        (\syslib -> ["-l" ++ syslib])
+        (\lib -> [lib])
+        (\def -> ["-D" ++ def])
+        (\lib -> libPrefix ++ lib ++ libExtension)
+        (\obj -> obj ++ objExtension)
+
+ccMsvc name path
+  = CC name path ["-DWIN32","-nologo"]
+         [(Debug,words "-MDd -Zi -Ob0 -Od -RTC1"),
+          (Release,words "-MD -O2 -Ob2 -DNDEBUG"),
+          (RelWithDebInfo,words "-MD -Zi -O2 -Ob1 -DNDEBUG")]
+         ["-W3"]
+         ["-TC","-c"]
+         []
+         (\idir -> ["-I",idir])
+         (\fname -> ["-Fo" ++ ((notext fname) ++ objExtension)])
+         (\out -> ["-Fe" ++  out ++ exeExtension])
+         (\syslib -> [syslib ++ libExtension])
+         (\lib -> [lib])
+         (\def -> ["-D" ++ def])
+         (\lib -> libPrefix ++ lib ++ libExtension)
+         (\obj -> obj ++ objExtension)
+
+
+ccFromPath :: Flags -> FilePath -> IO CC
+ccFromPath flags path
+  = let name    = -- reverse $ dropWhile (not . isAlpha) $ reverse $
+                  basename path
+        gcc     = ccGcc name path
+        mingw   = gcc{ ccName = "mingw", ccLibFile = \lib -> "lib" ++ lib ++ ".a" }
+        clang   = gcc{ ccFlagsWarn = gnuWarn ++ words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align" }
+        generic = gcc{ ccFlagsWarn = [] }
+        msvc    = ccMsvc name path
+        clangcl = msvc{ ccFlagsWarn = ccFlagsWarn clang ++ words "-Wno-extra-semi-stmt -Wno-extra-semi -Wno-strict-prototypes -Wno-sign-conversion",
+                        ccFlagsLink = ccFlagsLink clang ++ words "-Wno-unused-command-line-argument"
+                      }
+
+        cc0     | (name `startsWith` "clang-cl") = clangcl
+                | (name `startsWith` "mingw") = mingw
+                | (name `startsWith` "clang") = clang
+                | (name `startsWith` "gcc")   = if onWindows then mingw
+                                                else gcc
+                | (name `startsWith` "cl")    = msvc
+                | (name `startsWith` "icc")   = gcc
+                | (name == "cc") = generic
+                | otherwise      = gcc
+
+        cc = cc0{ ccFlagsCompile = ccFlagsCompile cc0 ++ unquote (ccompCompileArgs flags)
+                , ccFlagsLink    = ccFlagsLink cc0 ++ unquote (ccompLinkArgs flags) }
+
+    in if (asan flags)
+         then if (not (ccName cc `startsWith` "clang"))
+                then do putStrLn "warning: can only use address sanitizer with clang (ignored)"
+                        return cc
+                else do return cc{ ccName         = ccName cc ++ "-asan"
+                                 , ccFlagsCompile = ccFlagsCompile cc ++ ["-fsanitize=address"]
+                                 , ccFlagsLink    = ccFlagsLink cc ++ ["-fsanitize=address"] }
+         else return cc
+
+-- unquote a shell argument string (as well as we can)
+unquote :: String -> [String]
+unquote s
+ = filter (not . null) (scan "" s)
+ where
+   scan acc (c:cs) | c == '\"' || c == '\''     = reverse acc : scanq c "" cs
+                   | c == '\\' && not (null cs) = scan (head cs:acc) (tail cs)
+                   | isSpace c = reverse acc : scan "" (dropWhile isSpace cs)
+                   | otherwise = scan (c:acc) cs
+   scan acc []     = [reverse acc]
+
+   scanq q acc (c:cs) | c == q    = reverse acc : scan "" cs
+                      | c == '\\' && (not (null cs)) = scanq q (head cs:acc) (tail cs)
+                      | otherwise = scanq q (c:acc) cs
+   scanq q acc []     = [reverse acc]
+
+onMacOS :: Bool
+onMacOS
+  = (dllExtension == ".dylib")
+
+onWindows :: Bool
+onWindows
+  = (exeExtension == ".exe")
+
+detectCC :: IO String
+detectCC
+  = do paths <- getEnvPaths "PATH"
+       (name,path) <- do envCC <- getEnvVar "CC"
+                         findCC paths ((if (envCC=="") then [] else [envCC]) ++
+                                       (if (onMacOS) then ["clang"] else []) ++
+                                       ["gcc","cl","clang-cl","clang","icc","cc","g++","clang++"])
+       return path
+
+findCC :: [FilePath] -> [FilePath] -> IO (String,FilePath)
+findCC paths []
+  = do -- putStrLn "warning: cannot find C compiler -- default to 'gcc'"
+       return ("gcc","gcc")
+findCC paths (name:rest)
+  = do mbPath <- searchPaths paths [exeExtension] name
+       case mbPath of
+         Nothing   -> findCC paths rest
+         Just path -> return (name,path)
+
+
 
 {--------------------------------------------------------------------------
   Show options
@@ -614,8 +839,10 @@ versionMessage flags
   <-> text "lib   :" <+> text (libDir flags)
   <-> text "stdlib:" <+> text (stdlibDir flags)
   <-> text "kklib :" <+> text (kklibDir flags)
+  <-> text "build :" <+> text (buildDir flags)
+  <-> text "cc    :" <+> text (ccPath (ccomp flags))
   <->
-  (color DarkGray $ vcat $ map text
+  (color Gray $ vcat $ map text
   [ "Copyright (c) 2012-2020 Microsoft Corporation, by Daan Leijen."
   , "This program is free software; see the source for copying conditions."
   , "This program is distributed in the hope that it will be useful,"

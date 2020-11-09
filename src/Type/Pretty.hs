@@ -402,8 +402,8 @@ ppTypeName env name
 ppNameEx env name
   = if (fullNames env)
      then pretty name
-     else if (context env == qualifier name 
-               || ((qualifier name == nameSystemCore || qualifier name == nameCoreTypes) && not (coreIface env)) 
+     else if (context env == qualifier name
+               || ((qualifier name == nameSystemCore || qualifier name == nameCoreTypes) && not (coreIface env))
                || isNameTuple name)
            then pretty (unqualify name)
            else -- if coreIface env

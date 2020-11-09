@@ -47,7 +47,7 @@ module Common.NamePrim
           , isClauseTailName, nameClauseTailNoYield
           , nameTpEvIndex, nameYielding, nameYieldExtend
           , nameEvvIsAffine
-          
+
           --
           , nameUnsafeTotal
           , nameIntConst, nameInt32, nameSizeT
@@ -58,16 +58,16 @@ module Common.NamePrim
           , nameKeepMatch, nameDropMatch, nameReuseMatch
           , nameTpReuse, nameDropReuse, nameFreeReuse
           , nameReuseNull, nameAssignReuse, nameReuse, nameReuseIsValid
-          , nameAllocAt, nameConFieldsAssign          
-          
+          , nameAllocAt, nameConFieldsAssign
+
           -- * CTail optimization
-          , nameTpCTail
-          , nameCTailSet
-          , nameCTailNext
-          , nameCTailCreate
-          , nameCTailHole
-          , nameCTailAlloc
-          , nameCTailGet
+          , nameTpCField, nameTpCTailAcc
+          , nameCFieldHole
+          , nameCFieldSet
+          , nameCFieldOf
+          , nameCTailNil
+          , nameCTailLink
+          , nameCTailResolve
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -246,16 +246,15 @@ nameTpMDict     = qualify nameDict (newName "mdict")
 nameTpDict      = qualify nameDict (newName "dict")
 nameTpBuilder   = qualify (newName "std/text/string") (newName "builder")
 
-
-nameTpCTail       = ctailName "ctail"
-nameCTailSet      = ctailName ".ctail-set"
-nameCTailNext     = ctailName ".ctail-next" 
-nameCTailCreate   = ctailName ".ctail-create"
-nameCTailHole     = ctailName ".ctail-hole"
-nameCTailAlloc    = ctailName ".ctail-alloc"
-nameCTailGet      = ctailName ".ctail-get"
-
-ctailName name    = coreTypesName name
+nameTpCTailAcc    = cfieldName "ctail"
+nameTpCField      = cfieldName "cfield"
+nameCFieldHole    = cfieldName ".cfield-hole"
+nameCFieldSet     = cfieldName "cfield-set"   -- private (not hidden)
+nameCFieldOf      = cfieldName ".cfield-of"
+nameCTailNil      = cfieldName ".ctail-nil"
+nameCTailLink     = cfieldName ".ctail-link"
+nameCTailResolve  = cfieldName ".ctail-resolve"
+cfieldName name   = coreTypesName name
 
 {--------------------------------------------------------------------------
   std/core/hnd
@@ -379,6 +378,7 @@ nameTpString    = coreTypesName "string"
 nameTpAny       = coreTypesName "any"
 nameTpVector    = coreTypesName "vector"
 
+-- These are internal only inserted by the boxing phase
 nameTpBox       = coreTypesName ".Box"
 nameBoxCon      = coreTypesName ".Box"
 nameBox         = coreTypesName ".box"
@@ -428,7 +428,7 @@ nameCoreTypes   = newName "std/core/types"
 nameDict        = newName "std/data/dict"
 
 isSystemCoreName name
-  = let m = nameModule name 
+  = let m = nameModule name
     in  m `elem` [nameId nameSystemCore, nameId nameCoreHnd, nameId nameCoreTypes]
 
 {--------------------------------------------------------------------------

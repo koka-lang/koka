@@ -175,10 +175,10 @@ synCopyCon modName info con
 
         fullTp = let (vars,preds,rho) = splitPredType (conInfoType con)
                  in case splitFunType rho of
-                      Just (args,eff,res) 
-                        -> TForall vars preds (TFun ([(argName,res)] ++ [(name,if not (hasAccessor name t con) 
+                      Just (args,eff,res)
+                        -> TForall vars preds (TFun ([(argName,res)] ++ [(name,if not (hasAccessor name t con)
                                                                                  then t else makeOptional t) | (name,t) <- args]) eff res)
-                      Nothing             
+                      Nothing
                         -> TForall vars preds (TFun [(argName,rho)] typeTotal rho)    -- for unary constructors, like unit
 
         var n = Var n False rc
@@ -213,7 +213,7 @@ synAccessors modName info
 
         occursOnAllConstrs (name,(tp,rng,pvis,_))
           = all (\ps -> any (\(n,(t,_,_,_)) -> n == name && t == tp) ps) paramss
-          
+
         synAccessor :: (Name,(Type,Range,Visibility,ConInfo)) -> DefGroup Type
         synAccessor (name,(tp,rng,visibility,cinfo))
           = let dataName = unqualify $ dataInfoName info
@@ -239,12 +239,12 @@ synAccessors modName info
                       in case lookup name (zip (map fst (conInfoParams con)) [0..]) of
                         Just i
                           -> let patterns = [(Nothing,PatWild r) | _ <- [0..i-1]] ++ [(Nothing,PatVar (ValueBinder fld Nothing (PatWild r) r r))] ++ [(Nothing,PatWild r) | _ <- [i+1..length (conInfoParams con)-1]]
-                             in [(conInfoVis con,Branch (PatCon (conInfoName con) patterns r r) 
+                             in [(conInfoVis con,Branch (PatCon (conInfoName con) patterns r r)
                                                         [Guard guardTrue (Var fld False r)])]
                         Nothing -> []
                 defaultBranch
                   = if isPartial
-                     then [Branch (PatWild rng) 
+                     then [Branch (PatWild rng)
                              [Guard guardTrue (App (Var namePatternMatchError False rng) [(Nothing,msg) | msg <- messages] rng)]]
                      else []
                 messages
@@ -442,12 +442,12 @@ formatCall tp (target,ExternalCall fname)
 
     formatCS
       = fname ++ typeArguments ++ arguments
-      
+
     formatC
       = fname ++ argumentsC
     argumentsC
       = "(" ++ concat (intersperse "," (["#" ++ show i | i <- [1..argumentCount]] ++ ctx)) ++ ")"
-    ctx 
+    ctx
       = if (fname `startsWith` "kk_") then ["kk_context()"] else []
 
 
@@ -622,7 +622,7 @@ infBranch (Branch pattern guards)
        guards' <- mapM infGuard guards
        return (Branch pattern' guards')
 
-infGuard (Guard test body)       
+infGuard (Guard test body)
   = do test' <- infExpr test
        body' <- infExpr body
        return (Guard test' body')
@@ -835,7 +835,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                     -> return DataDefRec
                   DataDefOpen
                     -> return DataDefOpen
-                  DataDefRec 
+                  DataDefRec
                     -> return DataDefRec
                   _ -- Value or auto, and not recursive
                     -> -- determine the raw fields and total size
@@ -850,8 +850,8 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                             (DataDefValue _ _, DataDefNormal)
                               -> do addError range (text "Type" <+> nameDoc <+> text "cannot be used as a value type.")  -- should never happen?
                                     return DataDefNormal
-                            (DataDefAuto, DataDefValue m n) 
-                              -> if ((m + (n*sizePtr platform)) <= 3*(sizePtr platform) 
+                            (DataDefAuto, DataDefValue m n)
+                              -> if ((m + (n*sizePtr platform)) <= 3*(sizePtr platform)
                                       && hasKindStarResult (getKind typeResult)
                                       && (sort /= Retractive))
                                   then -- trace ("default to value: " ++ show name ++ ": " ++ show (m,n)) $
@@ -888,7 +888,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
 
     -- note: (m = raw, n = scan)
     maxDataDefs :: Platform -> Name -> Bool -> Doc -> [(Int,Int)] -> KInfer DataDef
-    maxDataDefs platform name False nameDoc []  = return DataDefNormal      
+    maxDataDefs platform name False nameDoc []  = return DataDefNormal
     maxDataDefs platform name True nameDoc []  -- primitive abstract value type with no constructors
       = do let ptrSize = 8
                size  = if (name == nameTpChar || name == nameTpInt32 || name == nameTpFloat32)
@@ -899,16 +899,16 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                         then 2
                        else if (name == nameTpInt8 || name == nameTpByte)
                         then 1
-                       else if (name == nameTpAny || name == nameTpCTail)
+                       else if (name == nameTpAny || name == nameTpCField)
                         then (sizePtr platform)
                        else if (name == nameTpSizeT)
                         then (sizeSize platform)
                         else 0
-           m <- if (size <= 0) 
+           m <- if (size <= 0)
                   then do addWarning range (text "Type:" <+> nameDoc <+> text "is declared as a primitive value type but has no known compilation size, assuming size" <+> pretty (sizePtr platform))
                           return (sizePtr platform)
                   else return size
-           return (DataDefValue m 0)                     
+           return (DataDefValue m 0)
     maxDataDefs platform name isVal nameDoc [(m,n)] = return (DataDefValue m n)
     maxDataDefs platform name isVal nameDoc (dd:dds)
       = do dd2 <- maxDataDefs platform name isVal nameDoc dds
@@ -917,11 +917,11 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
              ((m,n), DataDefValue 0 0)    -> return (DataDefValue m n)
              ((m1,0), DataDefValue m2 0)  -> return (DataDefValue (max m1 m2) 0)
              ((0,n1), DataDefValue 0 n2)  -> return (DataDefValue 0 (max n1 n2))
-             ((m1,n1), DataDefValue m2 n2) 
+             ((m1,n1), DataDefValue m2 n2)
                -- TODO: mixed raw is ok?
                -- | m1 == m2  -> return (DataDefValue m1 (max n1 n2))
                | n1 == n2 -> return (DataDefValue (max m1 m2) n1)
-               | otherwise -> 
+               | otherwise ->
                  do if (isVal)
                       then -- addError range (text "Type:" <+> nameDoc <+> text "is declared as a value type but has multiple constructors which varying raw types and regular types." <->
                             --                text "hint: value types with multiple constructors must all use the same number of regular types when mixed with raw types (use 'box' to use a raw type as a regular type).")

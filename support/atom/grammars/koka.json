@@ -382,11 +382,11 @@
           "2": { "name": "entity.name.function.koka" }
         }
       },
-      
+
      "decl_val":
        { "match": "((((?:inline|noinline)?\\s*val)\\s+))(([\\.a-z][\\w\\-]*[\\'\\?]*(?:\\.\\d+)?)|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\))\\s*"
        , "captures": {
-           "3": { "name": "keyword.declaration.val.koka" }, 
+           "3": { "name": "keyword.declaration.val.koka" },
            "5": { "name": "entity.name.val.koka" }
          }
        },
@@ -415,7 +415,7 @@
 
     "top_type":
       { "begin": "(:(?![$%&\\*\\+@!\\\\\\^~=\\.:\\-\\|<>]))|(where|iff|when)(?![\\w\\-])"
-      , "end": "(?=[,\\)\\{\\}\\[\\]=;\"`]|  |(infix|infixr|infixl|type|cotype|rectype|effect|context|ambient(?:\\s+rec)?|alias|interface|extern|fn|fun|function|val|except|rcontrol|control|var|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|public|private|abstract)(?![\\w\\-?']))"
+      , "end": "(?=[,\\)\\{\\}\\[\\]=;\"`]|  |(infix|infixr|infixl|type|cotype|rectype|(?:effect|context|ambient)(?:\\s+instance)?|alias|interface|extern|fn|fun|function|val|except|rcontrol|control|var|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|public|private|abstract)(?![\\w\\-?']))"
       , "beginCaptures": { "1" : { "name": "entity.name.class.type.koka" },
                            "2" : { "name": "keyword.koka" } }
       , "endCaptures": { "0" : { "name": "invalid.keyword.koka" }}
@@ -426,7 +426,7 @@
 
 
     "top_type_type":
-      { "begin": "((?:cotype|(?:(?:value|reference|open|extend|rec)?\\s*type))|(?:(?:rec|linear)\\s+)?(?:effect|context|ambient))\\s+(?!fn|fun|val|except|rcontrol|control)([a-z][\\w\\-]+|<>|<\\|>|\\(,*\\))"
+      { "begin": "((?:cotype|(?:(?:value|reference|open|extend|rec)?\\s*type))|(?:(?:rec|linear)\\s+)?(?:effect|context|ambient)(?:\\s+instance)?)\\s+(?!fn|fun|val|except|rcontrol|control)([a-z][\\w\\-]+|<>|<\\|>|\\(,*\\))"
       , "end": "(?=[\\)\\{\\}\\[\\]=;\"`]|  [\\r\\n]|(infix|infixr|infixl|type|cotype|rectype|effect|context|ambient|alias|interface|extern|fn|fun|function|val|var|except|rcontrol|control|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|public|private|abstract|value|reference|open|extend|inline|noinline)(?![\\w\\-?']))"
       , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" }
                          , "2" : { "name": "entity.name.class.type.koka" }}

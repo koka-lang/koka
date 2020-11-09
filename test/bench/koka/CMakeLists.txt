@@ -11,18 +11,20 @@ foreach (source IN LISTS sources)
   set(name "kk-${basename}")
   set(namex "kkx-${basename}")
 
-  set(out_path "${CMAKE_CURRENT_BINARY_DIR}/out/RelWithDebInfo/cbuild/${name}")
-  set(outx_path "${CMAKE_CURRENT_BINARY_DIR}/outx/RelWithDebInfo/cbuild/${namex}")
+  set(out_dir   "${CMAKE_CURRENT_BINARY_DIR}/out/bench")
+  set(outx_dir  "${CMAKE_CURRENT_BINARY_DIR}/outx/bench")
+  set(out_path  "${out_dir}/${name}")
+  set(outx_path "${outx_dir}/${namex}")
 
   add_custom_command(
     OUTPUT  ${out_path}
-    COMMAND ${koka} --target=c --outname=${name} -v -O2 -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> -c "${source}"
+    COMMAND ${koka} --target=c --builddir=${out_dir} --outname=${name} -v -O2 -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> -c "${source}"
     DEPENDS ${source}
     VERBATIM)
 
   add_custom_command(
     OUTPUT  ${outx_path}
-    COMMAND ${koka} --target=c --outdir=outx --outname=${namex} -v -O2 --fno-parcreuse --fno-parcspec -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> -c "${source}"
+    COMMAND ${koka} --target=c --builddir=${outx_dir} --outname=${namex} -v -O2 --fno-parcreuse --fno-parcspec -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> -c "${source}"
     DEPENDS ${source}
     VERBATIM)
 

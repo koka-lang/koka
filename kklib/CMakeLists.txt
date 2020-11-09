@@ -13,15 +13,15 @@ option(KK_BUILD_TEST        "Build test target" OFF)
 # Language options
 # -----------------------------------------------------------------------------
 
-set(CMAKE_C_STANDARD 11) 
+set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED YES)
 set(CMAKE_C_EXTENSIONS NO)
 
 set(CMAKE_C_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
 
-set(CMAKE_DEBUG_POSTFIX "-debug")
-set(CMAKE_RELWITHDEBINFO_POSTFIX "d")
+# set(CMAKE_DEBUG_POSTFIX "-debug")
+# set(CMAKE_RELWITHDEBINFO_POSTFIX "d")
 
 # -----------------------------------------------------------------------------
 # Main target
@@ -40,30 +40,30 @@ set(kklib_sources
     src/string.c
     src/time.c
     )
-    
+
 # properties library; these are used for all koka compiled C sources
 add_library(kklib-flags INTERFACE)
 
 # extra option configuration
 include("${CMAKE_CURRENT_LIST_DIR}/../kklib-options.cmake" OPTIONAL)
 
-if(NOT (KK_DEBUG_SAN MATCHES OFF)) 
+if(NOT (KK_DEBUG_SAN MATCHES OFF))
   if(CMAKE_C_COMPILER_ID MATCHES "Clang")
     message(STATUS "Build with ${KK_DEBUG_SAN} sanitizer (and switch KK_MIMALLOC to OFF)")
     target_compile_options(kklib-flags INTERFACE -fsanitize=${KK_DEBUG_SAN} -g -O1)
     target_link_libraries(kklib-flags INTERFACE -fsanitize=${KK_DEBUG_SAN})
     set(KK_MIMALLOC OFF)
   else()
-    message(WARNING "Can only use ${KK_DEBUG_SAN} sanitizer with clang (KK_DEBUG_SAN is ignored)")    
+    message(WARNING "Can only use ${KK_DEBUG_SAN} sanitizer with clang (KK_DEBUG_SAN is ignored)")
   endif()
 endif()
 
-if(KK_DEBUG_FULL MATCHES ON) 
+if(KK_DEBUG_FULL MATCHES ON)
   target_compile_definitions(kklib-flags INTERFACE KK_DEBUG_FULL=1)
 endif()
 
 if(KK_MIMALLOC MATCHES ON)
-  list(APPEND kklib_sources mimalloc/src/static.c)      
+  list(APPEND kklib_sources mimalloc/src/static.c)
 endif()
 
 
@@ -94,9 +94,9 @@ target_compile_definitions(kklib-flags INTERFACE KK_MIMALLOC=1)
   endif()
   if(WIN32)
      target_link_libraries(kklib-flags INTERFACE psapi bcrypt)
-  else()   
+  else()
      target_link_libraries(kklib-flags INTERFACE pthread)
-  endif()   
+  endif()
 endif()
 
 
@@ -123,15 +123,15 @@ install(DIRECTORY include/
         FILES_MATCHING PATTERN "*.h")
 
 if(KK_MIMALLOC MATCHES ON)
-if(KK_MIMALLOC_INLINE MATCHES ON)  
+if(KK_MIMALLOC_INLINE MATCHES ON)
 install(DIRECTORY mimalloc/include/
         DESTINATION include
         FILES_MATCHING PATTERN "mimalloc*.h")
-else()        
+else()
 install(DIRECTORY mimalloc/include/
         DESTINATION include
         FILES_MATCHING PATTERN "mimalloc.h")
-endif()        
+endif()
 endif()
 
 write_basic_package_version_file(kklib-config-version.cmake COMPATIBILITY SameMajorVersion)
@@ -142,7 +142,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kklib-config-version.cmake
 # -----------------------------------------------------------------------------
 # Testing
 # -----------------------------------------------------------------------------
-if(KK_BUILD_TEST MATCHES ON)    
+if(KK_BUILD_TEST MATCHES ON)
   set(test_sources
       test/main.c
       test/time.c

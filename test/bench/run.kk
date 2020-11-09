@@ -160,9 +160,9 @@ fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen
     val chart-desc = @"6-core AMD 3600XT at 3.8Ghz\\Ubuntu 20.04, Gcc 9.3.0"
     val chart-elapsed = chart("time", norm-elapsed, norm-elapsed-sdev, test-names, lang-ntests, ymax, chart-desc)
     val chart-rss     = chart("rss", norm-rss, fn(t){ 0.0 }, test-names, lang-ntests, ymax, chart-desc)
-    println("\n--- chart elapsed ---------------")
+    println("\n<!-- chart elapsed --------------- -->")
     println(chart-elapsed)
-    println("\n--- chart rss ---------------")
+    println("\n<!-- chart rss --------------- -->")
     println(chart-rss)
   }
   ()
@@ -201,8 +201,9 @@ fun tikz-picture( kind : string, test-names : list<string>, lang-names : list<st
   ]
   val mid = lang-names.map(fn(l){ @"  \draw" + kind + @"{\color" + kind + l + @"{0}}{\data" + kind + l + "};"})
   val footer = [
-     @"  \legend{" + lang-names.map(fn(l){ "\\lang" + l }).join(",") + "};",
-     if (desc.is-empty) then "" else @"  \chartdesc{" + desc.replace-all("\n",@"\\") + "};",
+     if (kind=="time") then @"  \legend{" + lang-names.map(fn(l){ "\\lang" + l }).join(",") + "};"
+                       else "",
+     // if (desc.is-empty) then "" else @"  \chartdesc{" + desc.replace-all("\n",@"\\") + "};",
      @"\end{axis}",
      @"\end{tikzpicture}"
   ]
@@ -235,12 +236,14 @@ fun tikz-data( kind:string, norm : test -> double, norm-sdev : test -> double, l
 fun run-test( test-name : string, langt : (string,string), iterations : int ) : io test {
   val (lang-long,lang) = langt
   val pre  = lang.pad-left(3) + ", " + test-name.pad-left(12) + ", "
-  val dir  = if (lang=="kk") then "koka/out/RelWithDebInfo"
-             elif (lang=="kkx") then "koka/outx/RelWithDebInfo"
+  val dir  = if (lang=="kk") then "koka/out/bench"
+             elif (lang=="kkx") then "koka/outx/bench"
              else lang-long
   val base = lang + "-" + test-name
   val prog = if (lang-long=="java")
-              then "java --enable-preview --class-path=" + dir + " " + test-name.replace-all("-","")
+              then "java --enable-preview --class-path=" + dir + " "
+                    + (if (test-name=="cfold") then "-Xss128m " else "") 
+                    + test-name.replace-all("-","")
               else dir + "/" + base
   val progpath = if (lang-long=="java") then (dir.path + (test-name.replace-all("-","") + ".class").path)
                   else prog.path
@@ -285,18 +288,27 @@ fun test-sum( t1 : test, t2 : test) : test {
 
 fun execute-test( run : int, base : string, prog : string ) : io either<string,(double,int)> {
   val timef= "time-" + base + ".txt"
-  val cmd  = "/usr/bin/time -f'%e,%M' -o" + timef + " " + prog
+  val cmd  = if (get-env("SHELL").default("").contains("zsh"))
+               then "/usr/bin/time -l 2> " + timef + " " + prog
+               else "/usr/bin/time -f'%e %M' -o" + timef + " " + prog
   val out  = run-command(cmd).exn
   print(out)
   val time = read-text-file(timef.path).trim
-  match(time.split("\n")) {
-    Nil            -> Left("no output")
-    Cons(err,Cons) -> Left(err)
-    Cons(tim,Nil) {
-      match(tim.split(",")) {
-        Cons(elapsed,Cons(rss,Nil)) {
+  if (time=="") return Left("no output")
+  match(time.list) {
+    Nil -> Left("no output")
+    Cons(d) | !d.is-digit -> Left(time)  // error
+    _ -> {
+      val parts = time.replace-all("\n"," ").replace-all("\t"," ").split(" ").filter(fn(p){ !p.is-empty })
+      // println( parts.join(",") )
+      match(parts) {
+        Cons(elapsed,Cons(rss,Nil)) { // linux
           println(run.show + ": elapsed: " + elapsed + "s, rss: " + rss + "kb" )
           Right( (parse-double(elapsed).default(0.0), parse-int(rss).default(0)) )
+        }
+        Cons(elapsed,Cons("real",Cons(_,Cons(_user,Cons(_,Cons(_sys,Cons(rss,_))))))) {  // on macOS
+          println(run.show + ": elapsed: " + elapsed + "s, rss: " + rss + "b" )
+          Right( (parse-double(elapsed).default(0.0), parse-int(rss).default(0)/1024) )
         }
         _ -> Left("bad format")
       }

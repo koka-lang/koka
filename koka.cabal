@@ -7,7 +7,7 @@ cabal-version: 1.12
 -- hash: b89fa37a690d8bc67fca7dd82ad958ca4d34d8ee47d5768d2f8a3131168314fb
 
 name:           koka
-version:        2.0.1
+version:        2.0.3
 description:    Please see the README on GitHub at <https://github.com/koka-lang/koka#readme>
 homepage:       https://github.com/koka-lang/koka#readme
 bug-reports:    https://github.com/koka-lang/koka/issues
@@ -128,7 +128,7 @@ executable koka
       src/Platform/cpp
   other-extensions: CPP OverloadedStrings
   ghc-options: -rtsopts
-  cpp-options: -DMAIN="koka" -DVARIANT="release" -DVERSION="2.0.1"
+  cpp-options: -DMAIN="koka" -DVARIANT="release" -DVERSION="2.0.3"
   include-dirs:
       src/Platform/cpp/Platform
   c-sources:
@@ -150,6 +150,8 @@ executable koka
     , time
   if os(windows)
     cpp-options: -DWINDOWS
+  if os(darwin)
+    cpp-options: -DDARWIN
   default-language: Haskell2010
 
 test-suite koka-test

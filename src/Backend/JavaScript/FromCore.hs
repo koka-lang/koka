@@ -79,7 +79,7 @@ genModule mbMain imports core
                                  then (text " " <-> text "// main entry:" <->
                                        text "$std_async_.async_handle" <.> parens (ppName (unqualify name)) <.> semi
                                       ,[(text "./std_async", text "$std_async_")])
-                                 else-} 
+                                 else-}
                                       (text " " <-> text "// main entry:" <->
                                        ppName (unqualify name) <.> text "($std_core.id);" -- pass id for possible cps translated main
                                       ,[]))
@@ -242,7 +242,7 @@ genTypeDef (Data info isExtend)
           do let args = map ppName (map fst (conInfoParams c))
              name <- genName (conInfoName c)
              penv <- getPrettyEnv
-             let singletonValue val 
+             let singletonValue val
                      = constdecl <+> name <+> text "=" <+>
                          text val <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
              if (conInfoName c == nameTrue)
@@ -255,15 +255,15 @@ genTypeDef (Data info isExtend)
                    -> constdecl <+> name <+> text "=" <+> int (conTag repr) <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
                 ConSingleton _ _ _ | conInfoName c == nameOptionalNone
                    -> singletonValue "undefined"
-                ConSingleton _ DataAsMaybe _ 
+                ConSingleton _ DataAsMaybe _
                    -> singletonValue "null"
-                ConSingleton _ DataAsList _ 
+                ConSingleton _ DataAsList _
                    -> singletonValue "null"
                 -- tagless
                 ConIso{}     -> genConstr penv c repr name args []
                 ConSingle{}  -> genConstr penv c repr name args []
                 ConAsCons{}  -> genConstr penv c repr name args []
-                ConAsJust{}  -> genConstr penv c repr name args []                
+                ConAsJust{}  -> genConstr penv c repr name args []
                 -- normal with tag
                 _            -> genConstr penv c repr name args [(tagField, getConTag modName c repr)]
           ) $ zip (dataInfoConstrs $ info) conReprs
@@ -568,11 +568,11 @@ genMatch result scrutinees branches
                        | getName tn == nameOptionalNone
                        -> [debugWrap "genTest: optional none" $ scrutinee <+> text "=== undefined"]
                      ConSingleton _ DataAsMaybe _
-                       -> [debugWrap "genTest: maybe like nothing" $ scrutinee <+> text "=== null"] -- <+> ppName (getName tn)]  
+                       -> [debugWrap "genTest: maybe like nothing" $ scrutinee <+> text "=== null"] -- <+> ppName (getName tn)]
                      ConSingleton _ DataAsList _
-                       -> [debugWrap "genTest: list like nil" $ scrutinee <+> text "=== null"] -- <+> ppName (getName tn)]  
+                       -> [debugWrap "genTest: list like nil" $ scrutinee <+> text "=== null"] -- <+> ppName (getName tn)]
                      ConSingleton _ _ tag
-                       -> [debugWrap "genTest: singleton" $ scrutinee <.> dot <.> tagField <+> text "===" <+> int tag]                          
+                       -> [debugWrap "genTest: singleton" $ scrutinee <.> dot <.> tagField <+> text "===" <+> int tag]
                      ConSingle{} -- always succeeds, but need to test the fields
                        -> concatMap
                             (\(field,fieldName) -> genTest modName (
@@ -582,17 +582,17 @@ genMatch result scrutinees branches
 
                      ConIso{} -- always success
                        -> []
-                     ConAsJust{conAsNothing=nothing}                       
+                     ConAsJust{conAsNothing=nothing}
                        | getName tn == nameOptional
                        -> [scrutinee <+> text "!== undefined"] ++ concatMap (\field -> genTest modName (scrutinee,field) ) fields
                        | otherwise
-                       -> let conTest    = debugWrap "genTest: asJust" $ scrutinee <+> text "!== null" -- <+> ppName nothing 
+                       -> let conTest    = debugWrap "genTest: asJust" $ scrutinee <+> text "!== null" -- <+> ppName nothing
                               fieldTests = concatMap
                                              (\(field,fieldName) -> genTest modName (scrutinee <.> dot <.> fieldName, field) )
                                              (zip fields (map (ppName . fst) (conInfoParams info)) )
                           in (conTest:fieldTests)
-                     ConAsCons{conAsNil=nil}                       
-                       -> let conTest    = debugWrap "genTest: asCons" $ scrutinee <+> text "!== null" -- <+> ppName nil 
+                     ConAsCons{conAsNil=nil}
+                       -> let conTest    = debugWrap "genTest: asCons" $ scrutinee <+> text "!== null" -- <+> ppName nil
                               fieldTests = concatMap
                                              (\(field,fieldName) -> genTest modName (scrutinee <.> dot <.> fieldName, field) )
                                              (zip fields (map (ppName . fst) (conInfoParams info)) )
@@ -653,22 +653,11 @@ genExpr expr
        -> return (empty, pretty i)
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameSizeT && isSmallInt i
        -> return (empty, pretty i)
-     
-     -- special case: ctail next
-     App (Var ctailNext (InfoConField conName fieldName)) [Var slot InfoNone, Var res _, Var con _]  | getName ctailNext == nameCTailNext
-       -> do accDoc <- genTName slot 
-             resDoc <- genTName res
-             conDoc <- genTName con
-             let assign    = accDoc <.> text ".value[" <.> accDoc <.> text ".field] =" <+> resDoc -- <.> semi
-                 reuse     = accDoc <.> text ".value =" <+> conDoc
-                 nextField = accDoc <.> text ".field =" <+> dquotes (ppName fieldName)              
-                 next      = accDoc
-             return (empty,tupled [assign,reuse,nextField,next])
-     
-     -- special case: ctail create
-     App (Var ctailCreate (InfoConField conName fieldName)) [Var con _] | getName ctailCreate == nameCTailCreate
+
+     -- special: cfield-set
+     App (TypeApp (Var cfieldOf _) [_]) [Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameCFieldOf
        -> do conDoc <- genTName con
-             return (empty,text "{value:" <+> conDoc <.> text ", field: \"" <.> ppName fieldName <.> text "\"}")
+             return (empty,text "{value:" <+> conDoc <.> text ", field: \"" <.> ppName (unqualify (readQualified fieldName)) <.> text "\"}")
 
      App f args
        -> {- case splitFunScheme (typeOf f) of
@@ -871,25 +860,15 @@ genExprExternal tname formats argDocs0
                                    <.> text "()"
                          in return ([],try)
 
--- special case: ctail hole
+-- special case: cfield-hole
 genExprExternalPrim :: TName -> [(Target,String)] -> [Doc] -> Asm ([Doc],Doc)
-genExprExternalPrim tname formats [] | getName tname == nameCTailHole
+genExprExternalPrim tname formats [] | getName tname == nameCFieldHole
   = return ([],text "undefined")
-    
--- special case: ctail set (accumulator is implemented as {value:<obj>, field:<string>})
-genExprExternalPrim tname formats [accDoc,resDoc] | getName tname == nameCTailSet
-  = return ([], tupled [accDoc <.> text ".value[" <.> accDoc <.> text ".field] =" <+> resDoc, text "$std_core_types._Unit_"])
-  
--- special case: ctail get
-genExprExternalPrim tname formats [accDoc] | getName tname == nameCTailGet
-  = return ([], accDoc <.> text ".result.value")
 
--- special case: ctail alloc
-genExprExternalPrim tname formats [] | getName tname == nameCTailAlloc  
-  = do res <- genVarName "res" 
-       return ([text "var" <+> res <+> text "=" <+> text "{ value: undefined }" <.> semi], 
-               text "{ value:" <+> res <.> text ", field: \"value\", result:" <+> res <+> text "}")
-    
+-- special case: cfield-set (field is implemented as {value:<obj>, field:<string>})
+genExprExternalPrim tname formats [accDoc,resDoc] | getName tname == nameCFieldSet
+  = return ([], tupled [accDoc <.> text ".value[" <.> accDoc <.> text ".field] =" <+> resDoc, text "$std_core_types._Unit_"])
+
 -- normal external
 genExprExternalPrim tname formats argDocs0
   = let name = getName tname

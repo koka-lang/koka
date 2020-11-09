@@ -15,6 +15,7 @@ module Common.Name
           , showName        -- show with quotes
           , showPlain
           , showTupled, readTupled -- show and read back reliably
+          , readQualified
           , labelNameCompare
           , toHiddenUniqueName
           , newName, newQualified
@@ -152,13 +153,16 @@ instance Pretty Name where
 
 showTupled (Name m _ n _)
   = show (m,n)
-  
+
 readTupled s
   = let (m,n) = ((read s) :: (String,String))
     in newQualified m n
 
-
-
+readQualified s
+  = if (take 1 s == "(")
+     then readTupled s
+     else let (n,m) = span (/='/') (reverse s)
+          in newQualified (reverse (drop 1 m)) (reverse n)
 
 
 -- | Show quotes around the name
@@ -225,10 +229,12 @@ unsplitModuleName xs
   = newName (concat (intersperse "/" (map show xs)))
 
 mergeCommonPath :: Name -> Name -> Name
-mergeCommonPath mname name 
+mergeCommonPath mname name
   = let ns = splitModuleName name
         ms = splitModuleName mname
-    in unsplitModuleName (merge ms ns)         
+        new = unsplitModuleName (merge ms ns)
+    in -- trace( "merge common: " ++ show (mname,name) ++ " -> " ++ show new) $
+       new
   where
     merge (m:ms) (n:ns) | m==n && and (zipWith (==) ms ns) = (m:ms) ++ (drop (length ms) ns)
     merge (m:ms) ns     = m : merge ms ns
@@ -283,7 +289,7 @@ isHiddenName name
 makeHiddenName s name
   = {-case nameId xname of
       c:cs | not (isAlpha c || c `elem` "()[]") -> newQualified (nameModule xname) ("." ++ s ++ "-" ++ asciiEncode False (c:cs)) -- hidden operator
-      _    -> 
+      _    ->
     -} prepend ("." ++ s ++ "-") xname
   where
     xname = case nameId name of
@@ -301,7 +307,7 @@ toUniqueName :: Int -> Name -> Name
 toUniqueName i name
   = newQualified (nameModule name) $
     reverse (insert (reverse (nameId name)))
-  where 
+  where
     insert (c:cs) | c `elem` "'?" = c : insert cs
     insert cs     = reverse (show i) ++ cs
 
@@ -508,7 +514,7 @@ moduleNameToPath name
 pathToModuleName :: FilePath -> Name
 pathToModuleName path
   = newName (decode path)
-  where 
+  where
     -- TODO: do proper decoding
     decode s
       = case s of
@@ -518,10 +524,10 @@ pathToModuleName path
           ('\\':cs)    -> '/':decode cs
           (c:cs)       -> c:decode cs
           []           -> ""
-    
 
 
-      
+
+
 {---------------------------------------------------------------
   Ascii encode a name
   - on module names  '/' becomes '_'
