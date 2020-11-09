@@ -1,6 +1,6 @@
 /* Shows the use of named effect handlers under an umbrella effect.
-   This is used here to encode
-   a local heap with first-class references that can be dynamically created.
+   This is used here to encode a local heap with first-class
+   mutable references that can be dynamically created.
    Through rank-2 types, we can prevent references from escaping their
    heap and being accessed in another heap.
 
@@ -27,7 +27,7 @@ effect instance ref<s,a> in heap<s> {  // named under umbrella effect `:heap`
 // private (named) handler instance for a reference
 fun with-ref(init,action) {
   var s := init
-  with r = instance {
+  with r = instance {                  // create a named handler
     fun get() { s }
     fun set(x){ s := x }
   }
