@@ -1,4 +1,6 @@
 /* Shows how to associate a resource with a handler using rank-2 polymorphism.
+   This example is inspired by the "packed ref" example from Derek Dryer's
+   Milner Award lecture at POPL'18 (https://www.youtube.com/watch?v=8Xyk_dGcAwk).
 */
 module vec
 
