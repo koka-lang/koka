@@ -213,9 +213,9 @@ prettyInlineDef env isRec def@(Def name scheme expr vis sort inl nameRng doc)
 
 prettyInlineDef :: Env ->  InlineDef -> Doc
 prettyInlineDef env (InlineDef name expr isRec cost)
-  = keyword env (if isFun then "fun" else "val")
-    <.> (if (cost <= 0) then (space <.> keyword env "inline") else empty)
-    <.> (if isRec then (space <.> keyword env "rec") else empty)
+  =     (if isRec then (keyword env "recursive ") else empty)
+    <.> (if (cost <= 0) then (keyword env "inline ") else empty)
+    <.> keyword env (if isFun then "fun" else "val")
     <+> (if nameIsNil name then text "_" else prettyDefName env name)
     -- <+> text ":" <+> prettyType env scheme
     <+> text ("// inline size: " ++ show cost)

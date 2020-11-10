@@ -23,7 +23,7 @@ fun twice(f) {
   f()
 }
 
-pub fun test1() {
+public fun test1() {
   with twice
   with twice
   println("hi")
@@ -48,7 +48,7 @@ fun test1-expanded() {
     ````
 */
 
-pub fun test2() {
+public fun test2() {
   with x = list(1,10).map
   println(x)
 }
@@ -69,7 +69,7 @@ fun use-ask() {
 }
 
 
-pub fun test3() {
+public fun test3() {
   with handler{ val ask = 21 }
   println(use-ask())
 }
@@ -94,7 +94,7 @@ fun test3-expanded() {
    ````
 */
 
-pub fun test4() {
+public fun test4() {
   with val ask = 21
   println(use-ask())
 }
@@ -105,7 +105,7 @@ fun test4-expanded() {
   })
 }
 
-pub fun main() {
+public fun main() {
   test1()
   test2()
   test3()

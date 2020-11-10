@@ -257,7 +257,7 @@ fun is-empty( xs : list<a> ) : bool {
 }
 
 // A `:stream` is a co-inductive type representing an infinite list of elements.
-cotype stream<a> {
+co type stream<a> {
   con Next(head:a, tail: stream<a> )
 }
 

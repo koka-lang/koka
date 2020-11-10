@@ -40,7 +40,7 @@ fun to-maybe(action) {
   Just(action())
 }
 
-pub fun test1() {
+public fun test1() {
   zerodiv(10,0).println
 }
 
@@ -58,7 +58,7 @@ fun hello() {
   println("Hello " + name + ", " + input())  // "Hello <input>, <input>"
 }
 
-pub fun test2() {
+public fun test2() {
   with fun input() { "there" }   // handle input; a `fun` operation resumes implicitly
   hello()
 }
@@ -94,7 +94,7 @@ fun state(init, action) {
   action()
 }
 
-pub fun test3() {
+public fun test3() {
   state(1,counter).snd
 }
 
@@ -117,7 +117,7 @@ fun foreach( f : a -> e bool, action : () -> <yield<a>|e> () ) : e () {
   action()
 }
 
-pub fun test4() {
+public fun test4() {
   foreach fn(x:int) {
     println(x)
     (x<=1)
@@ -159,7 +159,7 @@ val amb = handler {
   control flip(){ resume(False) + resume(True) }
 }
 
-pub fun test5() {
+public fun test5() {
   amb(xor).show.println
 }
 
@@ -175,18 +175,18 @@ fun surprising() : <flip,state<int>> bool {
   if (i>0 && p) then xor() else False
 }
 
-pub fun test6() {
+public fun test6() {
   state(0){ amb(surprising) }.show.println
 }
 
-pub fun test7() {
+public fun test7() {
   amb{ state(0,surprising) }.show.println
 }
 
 // --------------------------------------------------------
 //  Testing
 // --------------------------------------------------------
-pub fun main() {
+public fun main() {
   test1()
   test2()
   test3()

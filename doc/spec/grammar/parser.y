@@ -57,7 +57,7 @@ void printDecl( const char* sort, const char* name );
 %token RARROW
 
 %token FUN FN VAL VAR CONTROL RCONTROL EXCEPT
-%token TYPE STRUCT EFFECT COTYPE RECTYPE RECEFFECT
+%token TYPE STRUCT EFFECT
 %token ALIAS CON
 %token FORALL EXISTS SOME
 
@@ -74,6 +74,7 @@ void printDecl( const char* sort, const char* name );
 %token HANDLER HANDLE NAMED MASK OVERRIDE
 %token IFACE UNSAFE
 
+%token ID_CO ID_REC
 %token ID_INLINE ID_NOINLINE ID_INCLUDE
 %token ID_C ID_CS ID_JS ID_FILE
 %token ID_LINEAR ID_OPEN ID_EXTEND
@@ -248,8 +249,8 @@ typedecl    : typesort typeid typeparams kannot typebody          { $$ = $2; }
 typesort    : typemod TYPE
             | ID_OPEN TYPE
             | ID_EXTEND TYPE
-            | COTYPE
-            | RECTYPE
+            | ID_CO TYPE
+            | ID_REC TYPE
             ;
 
 typemod     : ID_VALUE
@@ -262,8 +263,8 @@ namedsort   : NAMED effectsort
             ;
 
 effectsort  : EFFECT
-            | RECEFFECT
-            | ID_LINEAR EFFECT
+            | ID_REC EFFECT
+            | ID_LINEAR ID_REC EFFECT
             ;
 
 
@@ -595,10 +596,8 @@ varid       : ID
             | ID_SCOPED       { $$ = "scoped"; }
             | ID_INITIALLY    { $$ = "initially"; }
             | ID_FINALLY      { $$ = "finally"; }
-            /*
             | ID_REC          { $$ = "rec"; }
             | ID_CO           { $$ = "co"; }
-            */
             /* | ID_NAMED        { $$ = "named"; } */
             ;
 

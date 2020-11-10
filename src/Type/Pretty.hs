@@ -224,16 +224,16 @@ prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name ki
     (prettyComment env0 doc $
       (if publicOnly then empty else ppVis env0 vis) <.>
       let env = env0{ nice = niceTypeExtendVars (args) (nice env0) } in
-      (case datakind of
-         Inductive -> keyword env "type"
-         CoInductive -> keyword env "cotype"
-         Retractive  -> keyword env "rectype") <+>
       (if isExtend then keyword env "extend "
         else case datadef of
-               DataDefRec -> text "rec "
+               DataDefRec -> text "recursive "
                DataDefOpen -> text "open "
                DataDefValue m n -> text ("value{" ++ show m ++ "," ++ show n ++ "} ")
                _ -> empty) <.>
+      (case datakind of
+         Inductive -> keyword env "type"
+         CoInductive -> keyword env "co type"
+         Retractive  -> keyword env "rec type") <+>  -- this "rec" means a retractive type
       -- ppVis env vis <+>
       ppName env name <.>
       (if null args then empty else space <.> angled (map (ppTypeVar env) args)) <.>

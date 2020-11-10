@@ -3,7 +3,7 @@ module syntax/basic
 
 // Named function declarations use `fun`
 // while anonymous function expressions use `fn`
-pub fun test1() {
+public fun test1() {
   map( list(1,5), fn(i){ println(i) } )
 }
 
@@ -14,14 +14,14 @@ pub fun test1() {
 // e.f(e1,...,eN)  ~>  f(e,e1,...,eN)
 // ````
 // This is also called _dot chaining_ (and part of Koka since 2012)
-pub fun test2() {
+public fun test2() {
   list(1,5).map( fn(i){ println(i) } )
 }
 
 // `fn` function arguments can be put outside the parenthesis following the call:
 // `f(e1,...,eN) fn(x){ ... }  ~>  f(e1,...,eN, fn(x){ ... })`
 // This is also called _trailing lambdas_ (and Koka was the first language to have this)
-pub fun test3() {
+public fun test3() {
   list(1,5).map fn(i){
     println(i)
   }
@@ -38,14 +38,14 @@ fun twice(f) {
   f()
 }
 
-pub fun test4() {
+public fun test4() {
   twice { println("hi") }
   // == twice( fn(){ println("hi" ) } )
 }
 
 // This syntax enable many control-flow operations to be defined as functions,
 // like `while`:
-pub fun test5() {
+public fun test5() {
   var i := 0
   while{ i < 10 } {
     i := i + 1
@@ -65,6 +65,6 @@ pub fun test5() {
 // `e2` is evaluated and passed to the result of `f(e1)`
 // while in the second form both `e1` and `e2` are evaluated
 // before calling `f`.
-pub fun main() {
+public fun main() {
   [21,21].foldl(0,(+)).println
 }

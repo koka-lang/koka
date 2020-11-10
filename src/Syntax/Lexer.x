@@ -254,15 +254,18 @@ reservedNames :: Set.Set String
 reservedNames
   = Set.fromList $
     [ "infix", "infixr", "infixl", "prefix", "postfix"
-    , "type", "cotype", "rectype", "alias", "rec"
+    , "type", "alias"
     , "struct", "enum", "con"
     , "val", "fun", "fn", "extern", "var"
     , "control", "rcontrol", "except"
     , "if", "then", "else", "elif"
     , "return", "match", "with", "in"
     , "forall", "exists", "some"
-    , "private", "pub", "abstract"
+    , "private", "public", "abstract"
     , "module", "import", "as"
+
+    -- alternatives
+    , "pub"
 
     -- effect handlers
     , "handler", "handle"
@@ -276,7 +279,6 @@ reservedNames
     -- deprecated
     -- alternative names for backwards paper compatability
     , "ambient", "context" -- use effcet
-    , "public"       -- use pub
     , "inject"       -- use mask
     , "use", "using" -- use with instead
     , "function"     -- use fun

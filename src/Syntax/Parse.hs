@@ -584,13 +584,11 @@ enum
 
 typeDeclKind :: LexParser (DataKind,Range,String,DataDef, Bool)
 typeDeclKind
-  = do (rng,doc) <- dockeyword "cotype"
-       return (CoInductive,rng,doc,DataDefNormal,False)
-  <|>
-    try(
-    do (rng1)     <- keyword "rec"
-       (rng2,doc) <- dockeyword "type"
-       return (Retractive,combineRanges [rng1,rng2],doc,DataDefNormal,False)
+  = try(
+    do (rng1,kind) <-     do{ rng <- specialId "rec"; return (rng,Retractive) }
+                      <|> do{ rng <- specialId "co"; return (rng,CoInductive) }
+       (rng2,doc)  <- dockeyword "type"
+       return (kind,combineRanges [rng1,rng2],doc,DataDefNormal,False)
     )
   <|>
     try(
@@ -721,10 +719,10 @@ parseEffectDecl dvis =
           do (vis,defVis,vrng) <-     do{ (v,vr) <- visibility dvis; return (v,v,vr) }
                                   <|> do{ vr <- keyword "abstract"; return (Public,Private,vr) }
              isInstance <- do{ keyword "named"; return True } <|> return False
-             (erng,doc,sort,singleShot) <-      do{ (rng,doc) <- dockeyword "receffect"; return  (rng,doc,Retractive,False) }
-                                            <|> do singleShot <- do{ specialId "linear"; return True } <|> return False
-                                                   (rng,doc)  <- dockeyword "effect"
-                                                   return  (rng,doc,Inductive,singleShot)
+             (rng1,singleShot) <- do{ rng <- specialId "linear"; return (rng,True) } <|> return (rangeNull,False)
+             sort              <- do{ specialId "rec"; return Retractive } <|> return Inductive
+             (rng2,doc)        <- dockeyword "effect"
+             let erng = combineRange rng1 rng2
              return (vis,vis,vrng,erng,doc,singleShot,sort,isInstance))
      (do (effectId,irng) <- typeid
          (tpars,kind,prng) <- typeKindParams

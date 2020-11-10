@@ -46,7 +46,7 @@ fun dynamic-ref(init) {
   x
 }
 
-pub fun main() {
+public fun main() {
   with heap
   val r1 = new-ref(41)
   val r2 = dynamic-ref(True)

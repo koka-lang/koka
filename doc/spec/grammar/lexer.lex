@@ -123,8 +123,6 @@ infixl                    { return INFIXL; }
 infixr                    { return INFIXR; }
 
 type                      { return TYPE; }
-cotype                    { return COTYPE; }
-rectype                   { return RECTYPE; }
 alias                     { return ALIAS; }
 struct                    { return STRUCT; }
 
@@ -168,7 +166,9 @@ except                    { return EXCEPT; }
 handle                    { return HANDLE; }
 handler                   { return HANDLER; }
 effect                    { return EFFECT; }
-receffect                 { return RECEFFECT; }
+
+rec                       { return ID_REC; }
+co                        { return ID_CO; }
 
 mask                      { return MASK; }
 override                  { return OVERRIDE; }

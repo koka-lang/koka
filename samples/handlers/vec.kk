@@ -8,13 +8,13 @@ module vec
 abstract type ix<s::S> { Ix(index :int) }
 
 // A vector of strings
-pub effect vec<s::S> {
+public effect vec<s::S> {
   fun push( s : string ) : ix<s>
   fun lookup( ix : ix<s> ) : string
 }
 
 // Create a `vec` handler that safely only handles its own indices (parameterized by `:s`)
-pub fun vec(action : forall<s> () -> <vec<s>|e> a ) : e a {  // rank-2 signature required
+public fun vec(action : forall<s> () -> <vec<s>|e> a ) : e a {  // rank-2 signature required
   var xs : list<string> := []
   with {
     fun push( s ) { val i = xs.length; xs := xs + [s]; Ix(i) }
@@ -23,7 +23,7 @@ pub fun vec(action : forall<s> () -> <vec<s>|e> a ) : e a {  // rank-2 signature
   action()
 }
 
-pub fun main() {
+public fun main() {
   with vec
   val ix = push("hello")
   println( lookup(ix) + " world" )
