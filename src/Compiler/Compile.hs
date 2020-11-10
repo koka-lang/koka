@@ -1281,7 +1281,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             runCommand term flags clink
 
             termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
-                                  color (colorSource (colorScheme flags)) (text (normalize mainExe))
+                                  color (colorSource (colorScheme flags)) (text (normalizeWith pathSep mainExe))
             let cmdflags = if (showElapsed flags) then " --kktime" else ""
             return (Just (runSystemEcho term flags (dquote mainExe ++ cmdflags ++ " " ++ execOpts flags))) -- use shell for proper rss accounting
 

@@ -56,8 +56,8 @@ void printDecl( const char* sort, const char* name );
 %token MATCH
 %token RARROW
 
-%token FUN FN VAL VAR CONTROL RCONTROL
-%token TYPE COTYPE STRUCT
+%token FUN FN VAL VAR CONTROL RCONTROL EXCEPT
+%token TYPE STRUCT EFFECT COTYPE RECTYPE RECEFFECT
 %token ALIAS CON
 %token FORALL EXISTS SOME
 
@@ -71,15 +71,16 @@ void printDecl( const char* sort, const char* name );
 %token LE ASSIGN DCOLON EXTEND
 %token RETURN
 
-%token HANDLER HANDLE EFFECT MASK OVERRIDE
-%token INITIALLY FINALLY
-
-%token REC IFACE INSTANCE
+%token HANDLER HANDLE NAMED MASK OVERRIDE
+%token IFACE UNSAFE
 
 %token ID_INLINE ID_NOINLINE ID_INCLUDE
 %token ID_C ID_CS ID_JS ID_FILE
-%token ID_LINEAR ID_OPEN ID_EXTEND ID_BEHIND
-%token ID_VALUE ID_REFERENCE
+%token ID_LINEAR ID_OPEN ID_EXTEND
+%token ID_BEHIND
+%token ID_VALUE ID_REFERENCE ID_SCOPED
+%token ID_INITIALLY ID_FINALLY
+
 
 %type <Id>  varid conid qvarid qconid op
 %type <Id>  identifier qidentifier qoperator qconstructor
@@ -179,13 +180,13 @@ topdecl     : visibility puredecl                             { printDecl("value
 ----------------------------------------------------------*/
 
 externdecl  : inlineattr EXTERN funid externtype externbody    { $$ = $3; }
-            | ID_INCLUDE EXTERN externincbody                  { $$ = "<extern include>"; } 
+            | ID_INCLUDE EXTERN externincbody                  { $$ = "<extern include>"; }
             ;
-            
+
 inlineattr  : ID_INLINE
             | ID_NOINLINE
-            | /* empty */ 
-            ;            
+            | /* empty */
+            ;
 
 externtype  : ':' typescheme
             | typeparams '(' parameters ')' annotres
@@ -237,27 +238,34 @@ aliasdecl   : ALIAS typeid typeparams kannot '=' type     { $$ = $2; }
 
 typedecl    : typesort typeid typeparams kannot typebody          { $$ = $2; }
             | typemod STRUCT typeid typeparams kannot conparams   { $$ = $3; }
-            | effectmod EFFECT varid typeparams kannot opdecls    { $$ = $3; }                       
-            | effectmod EFFECT typeparams kannot operation        { $$ = "<operation>"; }
-            | REC TYPE typeid typeparams kannot typebody          { $$ = $3; }
-            | REC EFFECT varid typeparams kannot opdecls          { $$ = $3; }           
-            | effectmod EFFECT INSTANCE varid typeparams kannot IN type opdecls { $$ = $4; }            
+            | effectsort varid typeparams kannot opdecls          { $$ = $2; }
+            | effectsort typeparams kannot operation              { $$ = "<operation>"; }
+            | namedsort varid typeparams kannot opdecls           { $$ = $2; }
+            | namedsort typeparams kannot operation               { $$ = "<operation>"; }
+            | namedsort varid typeparams kannot IN type opdecls   { $$ = $2; }  /* error on SCOPED (?) */
             ;
 
-typesort    : typemod TYPE 
+typesort    : typemod TYPE
             | ID_OPEN TYPE
             | ID_EXTEND TYPE
             | COTYPE
+            | RECTYPE
             ;
-            
-typemod     : ID_VALUE 
+
+typemod     : ID_VALUE
             | ID_REFERENCE
             | /* empty */
-            ;            
-            
-effectmod   : ID_LINEAR
-            | /* empty */ 
             ;
+
+namedsort   : NAMED effectsort
+            | NAMED ID_SCOPED effectsort
+            ;
+
+effectsort  : EFFECT
+            | RECEFFECT
+            | ID_LINEAR EFFECT
+            ;
+
 
 
 typebody    : '{' semis constructors '}'
@@ -307,11 +315,13 @@ sconpars    : sconpars conpar semis1
 conpars1    : conpars1 ',' conpar
             | conpar
             ;
-            
+
 conpar      : paramid ':' paramtype
             | paramid ':' paramtype '=' expr
+            /*
             | ':' paramtype
             | ':' paramtype '=' expr
+            */
             ;
 
 
@@ -329,9 +339,10 @@ operations  : operations operation semis1
 
 operation   : visibility VAL identifier typeparams ':' tatomic
             | visibility FUN identifier typeparams '(' parameters ')' ':' tatomic
+            | visibility EXCEPT identifier typeparams '(' parameters ')' ':' tatomic
             | visibility CONTROL identifier typeparams '(' parameters ')' ':' tatomic
             ;
-             
+
 
 /* ---------------------------------------------------------
 -- Pure (top-level) Declarations
@@ -396,10 +407,10 @@ statements1 : statements1 statement semis1
             ;
 
 statement   : decl
-            | withstat    
-            | withstat IN blockexpr        
-            | returnexpr 
-            | basicexpr  
+            | withstat
+            | withstat IN blockexpr
+            | returnexpr
+            | basicexpr
             ;
 
 decl        : FUN fundecl
@@ -407,7 +418,7 @@ decl        : FUN fundecl
             | VAR binder ASSIGN blockexpr   /* local variable declaration */
             ;
 
-            
+
 /* ---------------------------------------------------------
 -- Expressions
 ----------------------------------------------------------*/
@@ -419,8 +430,8 @@ blockexpr   : expr              /* a block is not interpreted as an anonymous fu
             ;
 
 expr        : withexpr
-            | funexpr            
-            | returnexpr 
+            | funexpr
+            | returnexpr
             | basicexpr
             ;
 
@@ -428,7 +439,7 @@ basicexpr   : ifexpr
             | fnexpr
             | matchexpr
             | handlerexpr
-            | opexpr           
+            | opexpr
             ;
 
 
@@ -581,6 +592,13 @@ varid       : ID
             | ID_BEHIND       { $$ = "behind"; }
             | ID_VALUE        { $$ = "value"; }
             | ID_REFERENCE    { $$ = "reference"; }
+            | ID_SCOPED       { $$ = "scoped"; }
+            | ID_INITIALLY    { $$ = "initially"; }
+            | ID_FINALLY      { $$ = "finally"; }
+            /*
+            | ID_REC          { $$ = "rec"; }
+            | ID_CO           { $$ = "co"; }
+            */
             /* | ID_NAMED        { $$ = "named"; } */
             ;
 
@@ -658,11 +676,11 @@ patarg      : identifier '=' apattern            /* named argument */
 -- Handlers
 ----------------------------------------------------------*/
 handlerexpr : HANDLER override witheff opclauses
-            | HANDLE override witheff '(' expr ')' opclauses            
-            | HANDLER INSTANCE witheff opclauses
-            | HANDLE INSTANCE witheff '(' expr ')' opclauses            
+            | HANDLE override witheff '(' expr ')' opclauses
+            | NAMED HANDLER witheff opclauses
+            | NAMED HANDLE witheff '(' expr ')' opclauses
             ;
-            
+
 override    : OVERRIDE
             | /* empty */
             ;
@@ -672,13 +690,13 @@ witheff     : '<' anntype '>'
             ;
 
 withstat    : WITH basicexpr
-            | WITH binder '=' basicexpr                  
-            | WITH override witheff opclauses             /* shorthand for handler */
-            | WITH binder '=' INSTANCE witheff opclauses  /* shorthand for handler instance */ 
+            | WITH binder '=' basicexpr
+            | WITH override witheff opclauses          /* shorthand for handler */
+            | WITH binder '=' NAMED witheff opclauses  /* shorthand for named handler */
             ;
 
-withexpr    : withstat IN blockexpr 
-            /* | withstat */ 
+withexpr    : withstat IN blockexpr
+            /* | withstat */
             ;
 
 opclauses   : opclause
@@ -686,19 +704,23 @@ opclauses   : opclause
             | '{' semis '}'
             ;
 
-opclauses1  : opclauses1 semis1 opclause
+opclauses1  : opclauses1 semis1 opclausex
+            | opclausex
+            ;
+
+opclausex   : ID_FINALLY bodyexpr
+            | ID_INITIALLY bodyexpr
             | opclause
             ;
 
 opclause    : VAL qidentifier '=' expr
             | VAL qidentifier ':' type '=' expr
             | FUN qidentifier opargs bodyexpr
+            | EXCEPT qidentifier opargs bodyexpr
             | CONTROL qidentifier opargs bodyexpr
             | RCONTROL qidentifier opargs bodyexpr
             | RETURN '(' oparg ')' bodyexpr
             | RETURN paramid bodyexpr               /* deprecated */
-            | FINALLY bodyexpr
-            | INITIALLY bodyexpr
             ;
 
 opargs      : '(' opargs0 ')'

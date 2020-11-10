@@ -8,7 +8,7 @@
 
 /* UTC time scales and leap second support.
 
-# UTC time calculation 
+# UTC time calculation
 
 The world's standard time scale is Universal Coordinated Time ([UTC]).
 UTC is directly based on International Atomic Time ([TAI])
@@ -295,7 +295,7 @@ import std/time/duration
 import std/time/instant
 
 // Return the UTC timescale with the latest leap second information.
-public ambient fun utc() : timescale
+public effect fun utc() : timescale
 
 public fun ".default-utc"( action : () -> <utc|e> a) : e a {
   with fun utc() { ts-ti }
@@ -785,7 +785,7 @@ public fun parse-leap-seconds( leaps : string ) : leaps-table {
 }
 
 fun parse-leap( line : string ) : maybe<leap-adjust> {
-  if (line.trim-left(" ").starts-with("#").bool) 
+  if (line.trim-left(" ").starts-with("#").bool)
    then Nothing
    else line.slice.parse(pleap).maybe
 }
@@ -884,11 +884,11 @@ private fun parse-leap-expire( leaps : string, adjusts : list<leap-adjust>) : in
   val utc-expires = leaps.lines.flatmap-maybe(parse-expire)
   val utc-expire  = utc-expires.head.default(la-final.utc-start + (182*isolar-secs-per-day).timespan)  // default: 6 months after last leap second
   ts-tai.instant( utc-expire - ntp2000 + la-final.offset ) // interpret as TAI to avoid recursion.
-}  
+}
 
 // val rxexpire = regex(@"^[ \t]*#@[ \t]*(\d+)[ \t]*(?:#.*)?$", multiLine=True)
 fun parse-expire( line : string ) : maybe<timestamp> {
-  if (line.trim-left(" ").starts-with("#@").bool) 
+  if (line.trim-left(" ").starts-with("#@").bool)
    then line.slice.parse(pexpire).maybe
    else Nothing
 }
@@ -977,7 +977,7 @@ val default-leap-seconds-pre72 = @"
   1968 FEB  1 =JD 2439887.5  TAI-UTC=   4.2131700 S + (MJD - 39126.) X 0.002592 S"
 
 
-/* 
+/*
 private fun parse-leap-expire( leaps : string, adjusts : list<leap-adjust>) : instant {
 val la-final    = adjusts.head.default(zero)
 val utc-expire  = leaps.find(rxexpire).map fun(cap) {

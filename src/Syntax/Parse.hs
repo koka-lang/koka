@@ -716,17 +716,17 @@ newtype EffectDecl = EffectDecl (Visibility, Visibility, Range, Range,
 
 parseEffectDecl :: Visibility -> LexParser EffectDecl
 parseEffectDecl dvis =
-  do (vis,defvis,vrng,erng,doc,singleShot,sort) <-
+  do (vis,defvis,vrng,erng,doc,singleShot,sort,isInstance) <-
         (try $
           do (vis,defVis,vrng) <-     do{ (v,vr) <- visibility dvis; return (v,v,vr) }
                                   <|> do{ vr <- keyword "abstract"; return (Public,Private,vr) }
-             singleShot <- do{ specialId "linear"; return True} <|> return False
-             sort       <- do{ keyword "rec"; return Retractive} <|> return Inductive
-             (erng,doc) <- dockeywordEffect
-             return (vis,vis,vrng,erng,doc,singleShot,sort))
-
-     (do isInstance <- do{ keywordInstance; return True} <|> return False
-         (effectId,irng) <- typeid
+             isInstance <- do{ keyword "named"; return True } <|> return False
+             (erng,doc,sort,singleShot) <-      do{ (rng,doc) <- dockeyword "receffect"; return  (rng,doc,Retractive,False) }
+                                            <|> do singleShot <- do{ specialId "linear"; return True } <|> return False
+                                                   (rng,doc)  <- dockeyword "effect"
+                                                   return  (rng,doc,Inductive,singleShot)
+             return (vis,vis,vrng,erng,doc,singleShot,sort,isInstance))
+     (do (effectId,irng) <- typeid
          (tpars,kind,prng) <- typeKindParams
          mbInstanceUmb <- if (not isInstance) then return Nothing
                             else do keyword "in"
@@ -749,10 +749,7 @@ parseEffectDecl dvis =
       )
 
 dockeywordEffect
-  = dockeyword "effect" <|> dockeyword "context" <|> dockeyword "ambient"
-
-keywordInstance
-  = keyword "instance"
+  = dockeywordOr "effect" ["context", "ambient"]
 
 keywordFun
   = keyword "fun"
@@ -1303,10 +1300,10 @@ withstat
        (do par  <- try $ do p <- parameter False
                             keyword "="
                             return p
-           e   <- basicexpr <|> handlerExprX krng
+           e   <- basicexpr <|> handlerExprStat krng HandlerInstance
            return (applyToContinuation krng [promoteValueBinder par] e)
         <|>
-        do e <- basicexpr <|> handlerExprX krng
+        do e <- basicexpr <|> handlerExprStat krng HandlerNormal
            return (applyToContinuation krng [] e)
         )
   where
@@ -1427,32 +1424,41 @@ matchexpr
        return (Case tst branches (combineRange rng rng2))
   <|> handlerExpr
 
--- TODO: fix parsing to match grammar precisely
+-- TODO: fix parsing of handlers to match the grammar precisely
 handlerExpr
-  = do rng <- keyword "handle"
-       scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
-       (hsort,override,mbEff) <- handlerSort
-       arg  <- parens argument
-       expr <- handlerClauses rng mbEff scoped override hsort
-       return (App expr [arg] (combineRanged rng expr))
-  <|>
-    do rng <- keyword "handler"
-       handlerExprX rng
+  = do (rng0,hsort) <- do { rng <- keyword "named"; return (rng,HandlerInstance) }
+                       <|> return (rangeNull,HandlerNormal)
+       (do rng1 <- keyword "handle"
+           let rng = combineRange rng0 rng1
+           scoped  <- do{ specialId "scoped"; return HandlerScoped } <|> return HandlerNoScope
+           (override,mbEff) <- handlerOverride hsort
+           arg  <- parens argument
+           expr <- handlerClauses rng mbEff scoped override hsort
+           return (App expr [arg] (combineRanged rng expr))
+        <|>
+        do rng1 <- keyword "handler"
+           let rng = combineRange rng0 rng1
+           handlerExprX rng hsort)
 
-handlerExprX rng
-  = do scoped  <- do{ keyword "scoped"; return HandlerScoped } <|> return HandlerNoScope
-       (hsort,override,mbEff) <- handlerSort
+handlerExprStat rng HandlerInstance
+  = do keyword "named"
+       optional (keyword "handler")
+       handlerExprX rng HandlerInstance
+
+handlerExprStat rng HandlerNormal
+  = do handlerExprX rng HandlerNormal
+
+handlerExprX rng hsort
+  = do scoped <- do{ keyword "scoped"; return HandlerScoped } <|> return HandlerNoScope
+       (override,mbEff) <- handlerOverride hsort
        handlerClauses rng mbEff scoped override hsort
 
-handlerSort
-  = do (hsort,override)
-           <- do keywordInstance
-                 return (HandlerInstance, HandlerNoOverride)
-             <|>
-              do override <- do{ keyword "override"; return HandlerOverride } <|> return HandlerNoOverride
-                 return (HandlerNormal, override)
-       mbEff <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
-       return (hsort,override,mbEff)
+handlerOverride hsort
+  = do override <- if (hsort == HandlerNormal)
+                     then do{ keyword "override"; return HandlerOverride } <|> return HandlerNoOverride
+                     else return HandlerNoOverride
+       mbEff    <- do{ eff <- angles ptype; return (Just (promoteType eff)) } <|> return Nothing
+       return (override,mbEff)
 
 handlerClauses :: Range -> Maybe UserType -> HandlerScope -> HandlerOverride -> HandlerSort -> LexParser UserExpr
 handlerClauses rng mbEff scoped override hsort
@@ -1470,7 +1476,6 @@ handlerClauses rng mbEff scoped override hsort
                                  Nothing -> id
                                  Just f  -> \actionExpr -> App f [(Nothing,App actionExpr [] fullrange)] fullrange
                  return (binders $ handlerExpr retExpr)
-
          _ -> do let handlerExpr = Handler hsort scoped override mbEff [] reinit ret final ops rng fullrange
                  return (binders handlerExpr)
 
@@ -1520,7 +1525,7 @@ partitionClauses clauses rng
 -- either a single op without braces, or multiple ops within braces
 opClauses :: LexParser ([(Clause, Maybe (UserExpr -> UserExpr))],Range)
 opClauses
-  =   semiBracesRanged handlerOp
+  =   semiBracesRanged handlerOpX
   <|> singleOp
   <|> do lparen
          fail "unexpected '(': local parameters are no longer supported, use a local 'var' instead"
@@ -1529,6 +1534,18 @@ opClauses
     singleOp
       = do (op, bind) <- handlerOp
            return ([(op, bind)], getRange op)
+
+handlerOpX :: LexParser (Clause, Maybe (UserExpr -> UserExpr))
+handlerOpX
+  = do rng <- specialId "finally"
+       expr <- bodyexpr
+       return (ClauseFinally (Lam [] expr (combineRanged rng expr)), Nothing)
+  <|>
+    do rng <- specialId "initially"
+       expr <- bodyexpr
+       return (ClauseInitially (Lam [] expr (combineRanged rng expr)), Nothing)
+  <|>
+    handlerOp
 
 -- returns a clause and potentially a binder as transformation on the handler
 handlerOp :: LexParser (Clause, Maybe (UserExpr -> UserExpr))
@@ -1544,14 +1561,6 @@ handlerOp
                             return (name,prng,tp))
        expr <- bodyexpr
        return (ClauseRet (Lam [ValueBinder name tp Nothing prng (combineRanged prng tp)] expr (combineRanged rng expr)), Nothing)
-  <|>
-    do rng <- specialId "finally"
-       expr <- bodyexpr
-       return (ClauseFinally (Lam [] expr (combineRanged rng expr)), Nothing)
-  <|>
-    do rng <- specialId "initially"
-       expr <- bodyexpr
-       return (ClauseInitially (Lam [] expr (combineRanged rng expr)), Nothing)
   -- TODO is "raw" needed for value definitions?
   <|>
     do keyword "val"

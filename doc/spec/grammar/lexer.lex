@@ -124,9 +124,9 @@ infixr                    { return INFIXR; }
 
 type                      { return TYPE; }
 cotype                    { return COTYPE; }
+rectype                   { return RECTYPE; }
 alias                     { return ALIAS; }
 struct                    { return STRUCT; }
-rec                       { return REC; }
 
 forall                    { return FORALL; }
 exists                    { return EXISTS; }
@@ -157,42 +157,42 @@ return                    { return RETURN;}
 
 module                    { return MODULE;}
 import                    { return IMPORT;}
+pub                       { return PUBLIC;}
 public                    { return PUBLIC;}
 private                   { return PRIVATE;}
 as                        { return AS;}
 
 control                   { return CONTROL; }
 rcontrol                  { return RCONTROL; }
+except                    { return EXCEPT; }
 handle                    { return HANDLE; }
 handler                   { return HANDLER; }
 effect                    { return EFFECT; }
-ambient                   { return EFFECT; }
-context                   { return EFFECT; }
+receffect                 { return RECEFFECT; }
 
 mask                      { return MASK; }
 override                  { return OVERRIDE; }
-instance                  { return INSTANCE; }
-
+named                     { return NAMED; }
 
 inline                    { return ID_INLINE;  }
-noinline                  { return ID_NOINLINE;} 
+noinline                  { return ID_NOINLINE;}
 include                   { return ID_INCLUDE; }
 
 open                      { return ID_OPEN; }
-behind                    { return ID_BEHIND; }
 extend                    { return ID_EXTEND; }
 linear                    { return ID_LINEAR;  }
 value                     { return ID_VALUE;  }
 reference                 { return ID_REFERENCE;  }
+scoped                    { return ID_SCOPED; }
+behind                    { return ID_BEHIND; }
 
-  /*
-  initially                 { return INITIALLY; }
-  finally                   { return FINALLY; }
-  */
+initially                 { return ID_INITIALLY; }
+finally                   { return ID_FINALLY; }
 
 
   /* unused reserved identifiers */
 interface                 { return IFACE; }
+unsafe                    { return UNSAFE; }
 
   /* reserved operators */
 :                         { return ':';    }

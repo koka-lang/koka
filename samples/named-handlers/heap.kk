@@ -19,7 +19,7 @@ effect heap<s> {
   control new-ref(init:a) : ref<s,a>
 }
 
-effect instance ref<s,a> in heap<s> {  // named under umbrella effect `:heap`
+named effect ref<s,a> in heap<s> {  // named under umbrella effect `:heap`
   fun get() : a                        // `:(ref<s,a>)   -> <heap<s>,pure> a`
   fun set( value : a ) : ()            // `:(ref<s,a>,a) -> <heap<s>,pure> ()`
 }
@@ -27,7 +27,7 @@ effect instance ref<s,a> in heap<s> {  // named under umbrella effect `:heap`
 // private (named) handler instance for a reference
 fun with-ref(init,action) {
   var s := init
-  with r = instance {                  // create a named handler
+  with r = named handler {
     fun get() { s }
     fun set(x){ s := x }
   }
