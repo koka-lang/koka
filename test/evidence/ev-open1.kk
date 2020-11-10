@@ -8,8 +8,7 @@ noinline fun calc(i : int) : int {
 
 fun test1() : <output> int {
   msg("hi")
-  val x = calc(2)
-  calc(x)
+  calc(2) + calc(3)
 }
 
 fun main() {

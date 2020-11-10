@@ -79,6 +79,11 @@ fltExpr expr
     App eopen@(TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [f] | getName open == nameEffectOpen
         -> resOpen env eopen effFrom effTo tpFrom tpTo f
     -}
+    App f [e1,e2]
+      -> do e1' <- fltExpr e1
+            e2' <- fltExpr e2
+            f'  <- fltExpr f
+            optApp f' e1' e2'
     App f args
       -> do args' <- mapM fltExpr args
             f' <- fltExpr f
@@ -122,6 +127,21 @@ fltGuard (Guard guard body)
        body'  <- fltExpr body
        return $ Guard guard' body'
 
+
+optApp :: Expr -> Expr -> Expr -> Flt Expr
+optApp ef@(App (TypeApp topen1@(Var open0 _) [effFrom0,effTo0,tpFrom0,tpTo0]) [f])
+       ee1@(App (App (TypeApp (Var open1 _) [effFrom1,effTo1,tpFrom1,tpTo1]) [e1]) [arg1])
+       ee2@(App (App (TypeApp (Var open2 _) [effFrom2,effTo2,tpFrom2,tpTo2]) [e2]) [arg2])
+   | getName open0 == nameEffectOpen && getName open1 == nameEffectOpen && getName open2 == nameEffectOpen
+     && matchType effFrom0 effFrom1 && matchType effFrom1 effFrom2
+     && matchType effTo0 effTo1 && matchType effTo1 effTo2
+   = do traceDoc $ \penv -> text "found it!"
+        return $ App (TypeApp topen1 [effFrom0,effTo0,tpFrom0,tpTo0])
+                    [Lam [] effFrom0
+                       (App f [App e1 [arg1], App e2 [arg2]])]
+
+optApp f e1 e2
+   = do return (App f [e1,e2])
 
 {--------------------------------------------------------------------------
   Flt monad
