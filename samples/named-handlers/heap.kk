@@ -36,7 +36,7 @@ fun with-ref(init,action) {
 
 // handler for a local heap
 fun heap(action : forall<s> () -> <heap<s>|e> a) : e a {  // required rank-2 signature
-  with control new-ref(init) { with-ref(init,resume) }
+  with control new-ref(init){ with-ref(init,resume) }
   action()
 }
 

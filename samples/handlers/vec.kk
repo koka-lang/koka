@@ -4,7 +4,7 @@
 */
 module vec
 
-// Abstract type of indices in a scope `:s` (with the scope kind `:S`)
+// Abstract type of indices in a scope `:s` (with the scope kind `::S`)
 abstract type ix<s::S> { Ix(index :int) }
 
 // A vector of strings

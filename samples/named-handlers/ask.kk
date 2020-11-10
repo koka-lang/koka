@@ -8,7 +8,7 @@
 module ask
 
 named effect reader {   // named handler for files
-  fun ask() : string       // `:(reader)   -> <exn> string`
+  fun ask() : string    // `:(reader)   -> <exn> string`
 }
 
 // A reader handler

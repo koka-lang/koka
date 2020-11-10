@@ -226,7 +226,7 @@ alias gstate = list<(player,int)>
 
 val s0 = [(Alice,0),(Bob,0)]
 
-val score-updater = handler return(p){ put(update-score(p,get())); p }
+val score-updater = handler return p { put(update-score(p,get())); p }
 
 fun update-score( p : player, gs : gstate ) : gstate {
   gs.map fn(qs) {
@@ -235,7 +235,7 @@ fun update-score( p : player, gs : gstate ) : gstate {
   }
 }
 
-val printer = handler return(x){ print-board(get()); x }
+val printer = handler return x { print-board(get()); x }
 
 fun print-board( gs : gstate ) : io () {
   gs.map( fn(ps) {
