@@ -19,9 +19,9 @@ public struct time-locale(
   lang-name       : string,                            
   day-names       : list<string>,
   month-names     : list<string>,
-  month-names-short: list<string> = month-names.map(fun(m) { m.first(3).string }),
-  day-names-short : list<string>  = day-names.map(fun(m) { m.first(3).string }),
-  day-names-min   : list<string>  = day-names.map(fun(m) { m.first(2).string }),
+  month-names-short: list<string> = month-names.map(fn(m) { m.first(3).string }),
+  day-names-short : list<string>  = day-names.map(fn(m) { m.first(3).string }),
+  day-names-min   : list<string>  = day-names.map(fn(m) { m.first(2).string }),
   format-t        : string = "HH:mm",
   format-tt       : string = "HH:mm:ss",
   format-l        : string = "YYYY-MM-DD",
@@ -106,5 +106,5 @@ val locales = [
 // Use `time-locale-iso` if no particular match is found.
 // Supports ``de``,``en``,``es``,``fr``,``nl`` and ``en-iso``.
 public fun get-time-locale( locale : string ) : time-locale {
-  locales.find(fun(l) { locale.starts-with(l.lang-name).bool }).default(time-locale-en-iso)
+  locales.find(fn(l) { locale.starts-with(l.lang-name).bool }).default(time-locale-en-iso)
 }

@@ -62,7 +62,7 @@ public fun (==)( c1 : calendar, c2 : calendar ) : bool {
 public struct timezone(
   name    : string,
   private utc-delta  : (instant) -> (duration,string),
-  private utc-inverse: (instant) -> maybe<instant> = fun(i) { Nothing }
+  private utc-inverse: (instant) -> maybe<instant> = fn(i) { Nothing }
 )
 
 // Same timezone?
@@ -95,8 +95,8 @@ public fun tz-fixed( hours: int, mins : int = 0, name : string = "", abbrv : str
 
 fun tz-fixed( name : string, delta : duration, abbrv : string = "" ) : timezone {
   Timezone( name,
-    fun(i) { (delta,abbrv) },
-    fun(i) { if (delta.is-zero) then Just(i) else Nothing }
+    fn(i) { (delta,abbrv) },
+    fn(i) { if (delta.is-zero) then Just(i) else Nothing }
   )
 }
 
@@ -108,7 +108,7 @@ public fun tz-local() : ndet timezone {
   val tz = local-get-timezone()  // get it once so the `Timezone` itself is immutable!
   Timezone(
     "",
-    fun(i) {
+    fn(i) {
       val (ofs,abbrv) = local-utc-delta(tz, i.unix-timestamp.double)
       (duration(ofs),abbrv)
     }
@@ -239,7 +239,7 @@ public fun earth-calendar(
               days-to-date  : (days:int) -> date,
               date-to-days  : date -> int,
               month-prefix  : string = "",
-              show-era      : (date)->string = fun(d){ "" }
+              show-era      : (date)->string = fn(d){ "" }
               // ts   : timescale = ts-ti
             ) : calendar
 {
@@ -333,7 +333,7 @@ public fun combine-earth-calendars( name : string, long-name : string,
 public fun year-shift-earth-calendar( name : string, long-name: string,
                                 year-shift : int, cal : calendar,
                                 month-prefix  : string = "",
-                                show-era      : (date)->string = fun(d){ "" }
+                                show-era      : (date)->string = fn(d){ "" }
                              ) : calendar
 {
   fun shift-days-to-date( days : int ) : date {
@@ -376,7 +376,7 @@ public fun solar-calendar( name : string, long-name: string,
                     epoch-shift   : int = 730119,
                     has-year-zero : bool = True,
                     month-prefix  : string = "",
-                    show-era      : (date)->string = fun(d){ "" } ) : calendar
+                    show-era      : (date)->string = fn(d){ "" } ) : calendar
 {
   fun date-to-days( d : date ) : int {
     val y = if (has-year-zero || d.year.is-pos) then d.year else d.year.inc
@@ -426,7 +426,7 @@ public fun solar-ecalendar(  name : string, long-name: string,
                       epoch-shift   : int = 730119,
                       has-year-zero : bool = True,
                       month-prefix  : string = "",
-                      show-era      : (date)->string = fun(d){ "" } )  : calendar
+                      show-era      : (date)->string = fn(d){ "" } )  : calendar
 {
   fun days-to-yeardoy(days:int) : (int,int) {
     val (approx,safe) = estimate-year(days)
@@ -518,7 +518,7 @@ public val cal-gregorian = solar-ecalendar(
   iso-days-before-year, iso-estimate-year,
   iso-days-before-month, iso-doy-to-month,
   has-year-zero = False,
-  show-era = fun(d:date){ if (d.year.is-neg) then "BCE" else "CE" }
+  show-era = fn(d:date){ if (d.year.is-neg) then "BCE" else "CE" }
 )
 
 fun iso-days-before-month( year : int, month : int ) : int {

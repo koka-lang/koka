@@ -5,7 +5,7 @@ fun foo( action : () -> e int ) : e int {
     error("test")
     60
   }
-  fun(exn) {
+  fn(exn) {
     52
   }
 }

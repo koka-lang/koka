@@ -55,7 +55,7 @@ fun inlineConditional1(x : bool) : int {
 /* optimizations to do: inline with conditional expression
    desired output: 
 
-   var inlineConditional1 = fun(x) {
+   var inlineConditional1 = fn(x) {
      return x?0:1;
    };
 */
@@ -70,7 +70,7 @@ fun dontCheckLastCase(x: list<int>) : int {
 /* optimizations to do: don't pattern match in last case, since core guarantees full coverage
    desired output: 
 
-    var dontCheckLastCase = fun(x /* system_core._list<int> */) {
+    var dontCheckLastCase = fn(x /* system_core._list<int> */) {
       if(x[0] === 2) {
         return 0;
       }

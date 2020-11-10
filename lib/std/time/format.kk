@@ -267,7 +267,7 @@ fun format-list( t : time, fmt : list<char>, locale : time-locale ) : string {
 fun format-pat( t : time, h : char, fmt : list<char>, locale : time-locale ) : (string,list<char>) {
   if (h=='"' || h=='\'') {
     // extract escaped part
-    val (quoted,end) = fmt.span( fun(c) { c!=h } )
+    val (quoted,end) = fmt.span( fn(c) { c!=h } )
     match(end) {
       Nil          -> (h.string, fmt)
       Cons(_,rest) -> (quoted.string, rest)
@@ -275,9 +275,9 @@ fun format-pat( t : time, h : char, fmt : list<char>, locale : time-locale ) : (
   }
   elif(h.is-alpha) {
     // match pattern
-    val (hs,rest) = fmt.span(fun(c){c==h})
+    val (hs,rest) = fmt.span(fn(c){c==h})
     val n = hs.length + 1
-    formats.foreach-while fun(pattern) {
+    formats.foreach-while fn(pattern) {
       val (c,m,f) = pattern
       if (c!=h) then Nothing else Just((f(t,min(n,m),locale), rest))
     }.default( ("",rest) ) // ignore if no match
@@ -287,7 +287,7 @@ fun format-pat( t : time, h : char, fmt : list<char>, locale : time-locale ) : (
 
 /*
 fun expand-locales( fmt : string, locale : time-locale ) : string {
-  fmt.replace-all(rx-locale) fun(cap) {
+  fmt.replace-all(rx-locale) fn(cap) {
     val n = cap.matched.count
     if (cap.groups[1] != "") then {
       cap.matched
@@ -302,7 +302,7 @@ fun expand-locales( fmt : string, locale : time-locale ) : string {
         nfmt
       }
       else {
-        nfmt.replace-all(rx-long, fun(capl) { capl.matched.tail })
+        nfmt.replace-all(rx-long, fn(capl) { capl.matched.tail })
       }
     }
   }
@@ -332,7 +332,7 @@ fun plocale( locale : time-locale ) : parse string {
 
 fun pquoted(quote : char) : parse string {
   char(quote)
-  val s = optional(""){ chars-are("",fun(c){ c != quote } ).string }
+  val s = optional(""){ chars-are("",fn(c){ c != quote } ).string }
   char(quote)
   return (quote.string + s + quote.string)
 }

@@ -78,7 +78,7 @@ type gtree {
 }
 
 fun validMoves(n) {
-  [1,2,3].filter( fun(m) { m <= n })
+  [1,2,3].filter( fn(m) { m <= n })
 }
 
 val gametree = handler {
@@ -98,7 +98,7 @@ fun show(gt :gtree) : div string {
 fun showGt(gt :gtree, indent:int) : _ string {
   val showi = (show : (int) -> string)
   match(gt) {
-    Take(p,moves) -> p.show + moves.show-list(fun(x) { "\n" + " ".repeat(indent) +  x.fst.core/show + " -> " + x.snd.showGt(indent+2) })
+    Take(p,moves) -> p.show + moves.show-list(fn(x) { "\n" + " ".repeat(indent) +  x.fst.core/show + " -> " + x.snd.showGt(indent+2) })
     Winner(p)     -> p.show + " wins"
   }
 }
@@ -119,7 +119,7 @@ val cheatReport = handler fun cheat(p) { throw(p.show + " cheated!") }
 
 val check = handler control move(p,n) {
   val m = move(p,n)
-  if (validMoves(n).find(fun(i) { i == m }).bool)
+  if (validMoves(n).find(fn(i) { i == m }).bool)
    then resume(m)
    else cheat(p)
 }
@@ -224,7 +224,7 @@ val s0 = [(Alice,0),(Bob,0)]
 val scoreUpdater = handler return(p) { put(updateScore(p,get())); p }
 
 fun updateScore( p : player, gs : gstate ) : gstate {
-  gs.mymap fun(qs) {
+  gs.mymap fn(qs) {
     val (q,s) = qs
     if (p==q) then (q,s+1) else qs
   }
@@ -233,7 +233,7 @@ fun updateScore( p : player, gs : gstate ) : gstate {
 val printer = handler return(x) { printBoard(get()); x }
 
 fun printBoard( gs : gstate ) : io () {
-  gs.mymap( fun(ps) {
+  gs.mymap( fn(ps) {
     ps.fst.show + " -> " + ps.snd.show
   }).join("\n").println
 }

@@ -108,14 +108,14 @@ public fun test-show() {
 -------------------------------------------------------*/
 
 public fun test-int10() {
-  for(2,308) fun(i){
+  for(2,308) fn(i){
     val expect = "1e+" + i.show
     check("int" + i.show, expect) { ddouble-exp(1,i).show-exp(-29) }
   }
 }
 
 public fun test-int99() {
-  for(2,30) fun(i) {
+  for(2,30) fn(i) {
     val expect8 = "9." + repeat("9",i - 2) + "8e+" + i.dec.show
     check-rte("int" + i.show, expect8) { ddouble-exp(1,i).dec.dec }
     val expect9 = "9." + repeat("9",i.dec) + "e+" + i.dec.show
@@ -137,12 +137,12 @@ public fun test-big() {
   val pi290 = dd-pi * ddouble-exp(1,290)
   val s     = dd-pi.show-exp(digits)
   //trace( "s: " + s + ", len: " + s.count.show)
-  list(0,17).foldl(pi290) fun(x:ddouble,i:int) {
+  list(0,17).foldl(pi290) fn(x:ddouble,i:int) {
     val expect = s + "e+" + (i + 290).show
     check("big" + i.show, expect) { x.show-exp(digits)}
     x*ten
   }
-  list(0,17).foldl(~pi290) fun(x:ddouble,i:int) {
+  list(0,17).foldl(~pi290) fn(x:ddouble,i:int) {
     val expect = "-" + s + "e+" + (i + 290).show
     check("small" + i.show, expect) { x.show-exp(digits)}
     x*ten
@@ -164,7 +164,7 @@ public fun test-sin() {
     "0.82687954053200256025588742910921814121272496784779",
     "-0.30561438888825214136091003523250697423185004386181"]
     .map(ddouble)
-  exact-sin.foreach-indexed( fun(i : int, esin : ddouble) {
+  exact-sin.foreach-indexed( fn(i : int, esin : ddouble) {
     val x = ddouble("0.0001") * ddouble-exp(1,i)
     val s = sin(x)
     check-prec( "esin" + i.show + ": sin(" + x.show  + "): ", esin, s, ddouble-exp(1,-30) * (if (x <= one) then one else 1000.ddouble) )
@@ -185,7 +185,7 @@ public fun test-atan() {
     "1.5697963271282297525647978820048308980869637651333",
     "1.5706963267952299525626550249873704896065212085332"]
    .map(ddouble)
-  exact-atan.foreach-indexed( fun(i : int, eatan : ddouble) {
+  exact-atan.foreach-indexed( fn(i : int, eatan : ddouble) {
     val x = ddouble("0.0001") * ddouble-exp(1,i)
     val a = atan(x)
     check-prec( "eatan" + i.show + ": atan(" + x.show  + "): ", eatan, a, ddouble-exp(1,-31) * (if (x <= one) then one else 1000.ddouble) )
@@ -196,28 +196,28 @@ val posnums   = [1.0e-12,1.0e-8,1.0e-6,0.1,0.25,0.5,0.75,0.9,0.99999999,1.0,1.00
 val posexotic = [0.5*sqrt(2.0),atan(1.0),sqrt(2.0)]
 val exotic    = posexotic.map((~)).reverse + posexotic
 val nums      = posnums.map((~)).reverse + [0.0] + posnums + exotic
-val pinums    = nums.map( fun(d){ d*pi } ) + exotic
+val pinums    = nums.map( fn(d){ d*pi } ) + exotic
 
 public fun test-trig() {
-  test-double-fun( "tan", tan, tan, pinums )
-  test-double-fun( "sin", sin, sin, pinums )
-  test-double-fun( "cos", cos, cos, pinums )
-  test-double-fun( "tanh", tanh, tanh, pinums )
-  test-double-fun( "sinh", sinh, sinh, pinums )
-  test-double-fun( "cosh", cosh, cosh, pinums )
+  test-double-fn( "tan", tan, tan, pinums )
+  test-double-fn( "sin", sin, sin, pinums )
+  test-double-fn( "cos", cos, cos, pinums )
+  test-double-fn( "tanh", tanh, tanh, pinums )
+  test-double-fn( "sinh", sinh, sinh, pinums )
+  test-double-fn( "cosh", cosh, cosh, pinums )
 }
 
 public fun test-atrig() {
-  test-double-fun( "atan", atan, atan, nums )
-  test-double-fun( "asin", asin, asin, nums )
-  test-double-fun( "acos", acos, acos, nums )
-  test-double-fun( "atanh", atanh, atanh, nums )
-  test-double-fun( "asinh", asinh, asinh, nums )
-  test-double-fun( "acosh", acosh, acosh, nums )
+  test-double-fn( "atan", atan, atan, nums )
+  test-double-fn( "asin", asin, asin, nums )
+  test-double-fn( "acos", acos, acos, nums )
+  test-double-fn( "atanh", atanh, atanh, nums )
+  test-double-fn( "asinh", asinh, asinh, nums )
+  test-double-fn( "acosh", acosh, acosh, nums )
 }
 
-public fun test-double-fun( name : string, fd : double -> double, fdd : ddouble -> ddouble, nums : list<double> ) : io () {
-  nums.foreach-indexed( fun( i:int, x : double ) {
+public fun test-double-fn( name : string, fd : double -> double, fdd : ddouble -> ddouble, nums : list<double> ) : io () {
+  nums.foreach-indexed( fn( i:int, x : double ) {
     val d = x.fd
     val dd = x.ddouble.fdd
     check-prec( name + "(" + x.show(3) + ")", d.ddouble, dd,

@@ -30,5 +30,5 @@ fun mapIndexedPeekX(xs : list<a>, f : (idx : int, value : a, rest : list<a> ) ->
 }
 
 fun main() {
-  [1,2].mapIndexedPeekX( fun(idx,x:int,xs) { x+idx }).show.println
+  [1,2].mapIndexedPeekX( fn(idx,x:int,xs) { x+idx }).show.println
 }

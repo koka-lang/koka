@@ -89,7 +89,7 @@ fun main() {
 
 fun show-solutions( xss : solutions ) : io () {
   println(xss.length.show)
-  xss.foreach fun(xs) {
+  xss.foreach fn(xs) {
     println(" " + xs.show)
   }  
 }

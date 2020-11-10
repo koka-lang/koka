@@ -22,7 +22,7 @@ fun foo() : <amb,state<int>> bool {
     set(i+1)
     if (i>0 && p) then xor() else False
   }
-  fun(exn) { True }
+  fn(exn) { True }
 }
 
 

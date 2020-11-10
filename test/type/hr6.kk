@@ -7,4 +7,4 @@ fun f(x : int -> int) {
 }
 
 // val wrong = g(f)  // invariant
-val ok = g( fun(x : forall<a> a -> a) { f(x) } )
+val ok = g( fn(x : forall<a> a -> a) { f(x) } )

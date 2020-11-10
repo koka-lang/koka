@@ -10,7 +10,7 @@
 /*
 Access to the program environment and commmand line arguments.
 
-Print the environment: `get-env().map(fun(p) { p.fst + "=" + p.snd }).join("\n").print`
+Print the environment: `get-env().map(fn(p) { p.fst + "=" + p.snd }).join("\n").print`
 */
 module std/os/env
 
@@ -42,7 +42,7 @@ public fun get-env() : ndet env  {
 // Returns the value of an environment variable `name` (or `Nothing` if not present)
 public fun get-env( name : string ) : ndet maybe<string>
 {
-  get-env().lookup(fun(nm){ nm == name })
+  get-env().lookup(fn(nm){ nm == name })
 }
 
 val argv : delayed<<ndet>,list<string>> = delay{ os-get-argv().list }

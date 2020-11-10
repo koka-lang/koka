@@ -13,7 +13,7 @@ fun handle-exc( h : exc-hnd<e,r>, ret: a -> e r, action : () -> e a) : e r {
   hidden-handle(exc-tag,h,ret,action)
 }
 
-val cls-fun = (fun(s,k){ Nothing })
+val cls-fun = (fn(s,k){ Nothing })
 val to-maybe-cls = clause-control1(cls-fun)
 val to-maybe-hnd = Exc-hnd(to-maybe-cls)
 

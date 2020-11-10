@@ -22,7 +22,7 @@ fun rcatch(action,h) {
 }
 
 fun zerodiv(x,y) {
-  rcatch( { safe-div(x,y) }, fun(s) { 0 } )
+  rcatch( { safe-div(x,y) }, fn(s) { 0 } )
 }
 
 fun to-maybe(action) {
@@ -113,7 +113,7 @@ fun foreach( f : a -> e bool, action : () -> <yield<a>|e> () ) : e () {
 }
 
 fun test4() {
-  foreach fun(x:int) {
+  foreach fn(x:int) {
     println(x)
     (x<=1)
   }
@@ -123,7 +123,7 @@ fun test4() {
 fun test4b() {
   with return(x){ () }
   with amb
-  with foreach( fun(x:int) { if (flip()) then println(x) else println("flip false " + x.show); (x<=1) } )
+  with foreach( fn(x:int) { if (flip()) then println(x) else println("flip false " + x.show); (x<=1) } )
   [1,2,3].iterate
 }
 
@@ -212,7 +212,7 @@ fun main() {
 }
 
 fun show( xs : list<(bool,int)> ) : string  {
-  xs.show-list(fun(x) { x.show-tuple(show,show) })
+  xs.show-list(fn(x) { x.show-tuple(show,show) })
 }
 
 fun show( x : (list<bool>,int) ) : string  {

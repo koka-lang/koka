@@ -144,7 +144,7 @@ public fun test-exp() {
   check-rt("exp1",expect,31) { dd-e.sqr }
   check-rt("exp2",expect,30) { exp(2.ddouble) }
   check-rt("exp3",expect,30) {
-    list(-3,4).map( fun(i) {
+    list(-3,4).map( fn(i) {
       exp((4*i).dec.ddouble / 4.ddouble)
     }).foldl(one,(*))
   }
@@ -156,7 +156,7 @@ public fun test-exp() {
 */
 public fun test-sincos() {
   [1,2,4,3,5,6,7,8,9,10,1000,10000000000]
-    .foreach-indexed(fun(i,r) {
+    .foreach-indexed(fn(i,r) {
       check-sincos(i, dd-twopi / r.ddouble)
       check-sincos(i, ~dd-twopi / r.ddouble)
     })

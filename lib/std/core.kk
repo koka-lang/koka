@@ -110,7 +110,7 @@ fun apply(f,x) {
 
 // Compose two funs `f` and `g`.
 fun o(f,g) {
-  (fun(x){ f(g(x)) })
+  (fn(x){ f(g(x)) })
 }
 
 // The `ignore` function ignores its argument.
@@ -120,7 +120,7 @@ fun ignore( x : a ) : () {
 
 // Return a 'constant' function that ignores its argument and always returns the same result
 fun const( default : a ) : total (( x : b ) -> a) {
-  (fun(_){ default })
+  (fn(_){ default })
 }
 
 
@@ -509,7 +509,7 @@ fun append(xs : list<a>, ys : list<a> ) : list<a> {
 // Fold a list from the right, i.e. `foldr([1,2],0,(+)) == 1+(2+0)`
 // Note, `foldr` is less efficient than `foldl` as it reverses the list first.
 fun foldr(xs,z,f) {
-  xs.reverse.foldl(z,fun(x,y){f(y,x)})
+  xs.reverse.foldl(z,fn(x,y){f(y,x)})
 }
 
 // Fold a list from the left, i.e. `foldl([1,2],0,(+)) == (0+1)+2`
@@ -586,7 +586,7 @@ fun filter( xs : list<a>, pred : a -> e bool ) : e list<a> {
 // Remove those elements of a list that satisfy the given predicate `pred`.
 // For example: `remove([1,2,3],odd?) == [2]`
 fun remove( xs : list<a>, pred : a -> bool ) : list<a> {
-  xs.filter( fun(x) { !pred(x) } )
+  xs.filter( fn(x) { !pred(x) } )
 }
 
 // Partition a list in two lists where the first list contains
@@ -607,7 +607,7 @@ private fun partition-acc( xs : list<a>, pred : a -> e bool, acc1 : list<a>, acc
 
 
 // Retain only those elements of a list that satisfy the given predicate `pred`.
-// For example: `filterMap([1,2,3],fun(i) { if (i.odd?) then Nothing else Just(i*i) }) == [4]`
+// For example: `filterMap([1,2,3],fn(i) { if (i.odd?) then Nothing else Just(i*i) }) == [4]`
 fun filter-map( xs : list<a>, pred : a -> e maybe<b> ) : e list<b> {
   match(xs) {
     Nil -> Nil
@@ -620,7 +620,7 @@ fun filter-map( xs : list<a>, pred : a -> e maybe<b> ) : e list<b> {
 
 // Find the first element satisfying some predicate
 fun find( xs : list<a>, pred : a -> bool ) : maybe<a> {
-  xs.foreach-while fun(x) {
+  xs.foreach-while fn(x) {
     if (pred(x)) then Just(x) else Nothing
   }
 }
@@ -634,7 +634,7 @@ fun find-maybe( xs : list<a>, pred : a -> maybe<b> ) : maybe<b>
 // Lookup the first element satisfying some predicate
 fun lookup( xs : list<(a,b)>, pred : a -> bool ) : maybe<b>
 {
-  xs.foreach-while fun(kv) {
+  xs.foreach-while fn(kv) {
     if (pred(kv.fst)) then Just(kv.snd) else Nothing
   }
 }
@@ -713,7 +713,7 @@ fun map-while( xs : list<a>, action : (a) -> e maybe<b> ) : e list<b>
 fun foreach-indexed( xs : list<a>, action : (int,a) -> e () ) : e ()
 {
   var i := 0
-  xs.foreach fun(x){
+  xs.foreach fn(x){
     val j = i; // don't dereference `i` inside the inject
     mask<local>{action(j,x)}
     i := i+1
@@ -1225,7 +1225,7 @@ fun maximum( xs : list<int>, default : int = 0 ) : int
 // Return the sum of a list of integers
 fun sum( xs : list<int> ) : int
 {
-  xs.foldl( 0, fun(x,y) { x + y } )
+  xs.foldl( 0, fn(x,y) { x + y } )
 }
 
 // Transform an integer to a maybe type, using `Nothing` for `0`
@@ -1696,7 +1696,7 @@ fun foreach-while( slice : sslice, action : (c : char) -> e maybe<a> ) : e maybe
 
 // Apply a function for each character in a string slice.
 fun foreach( slice : sslice, action : (c:char) -> e ()) : e () {
-  foreach-while(slice, fun(c) { action(c); Nothing })
+  foreach-while(slice, fn(c) { action(c); Nothing })
   ()
 }
 
@@ -1905,7 +1905,7 @@ fun head-char( s : string ) : maybe<char> {
 fun count( s : string, pred : (char) -> bool ) : int
 {
   var cnt := 0
-  s.foreach fun(c) {
+  s.foreach fn(c) {
     if (pred(c)) then cnt := cnt+1
   }
   cnt
@@ -2030,12 +2030,12 @@ private inline extern lengthz : forall<a> (v : vector<a> ) -> size_t  {
 
 // Create a new vector of length `n`  with initial elements `default` .
 fun vector(n : int, default : a) : vector<a> {
-  vector-initz(n.size_t, fun(_i){ default } )
+  vector-initz(n.size_t, fn(_i){ default } )
 }
 
 // Create a new vector of length `n`  with initial elements given by function `f` .
 fun vector-init( n : int, f : int -> a ) : vector<a> {
-  vector-initz( n.size_t, fun(i) { f(i.int) } )
+  vector-initz( n.size_t, fn(i) { f(i.int) } )
 }
 
 // Create a new vector of length `n`  with initial elements given by function `f` .
@@ -2054,16 +2054,16 @@ inline extern vector : forall<a> () -> vector<a> {
 
 // Invoke a function `f` for each element in a vector `v`
 fun foreach( v : vector<a>, f : (a) -> e () ) : e () {
-  v.foreach-indexedz( fun(x,_) { f(x) })
+  v.foreach-indexedz( fn(x,_) { f(x) })
 }
 
 // Invoke a function `f` for each element in a vector `v`
 fun foreach-indexed( v : vector<a>, f : (a,int) -> e () ) : e () {
-  foreach-indexedz( v, fun(x,i) { f(x,i.int) } )
+  foreach-indexedz( v, fn(x,i) { f(x,i.int) } )
 }
 
 private fun foreach-indexedz( v : vector<a>, f : (a,size_t) -> e () ) : e () {
-  forz( 0.size_t, v.lengthz.decr ) fun(i) {
+  forz( 0.size_t, v.lengthz.decr ) fn(i) {
     f(v.unsafe-idx(i),i)
   }
 }
@@ -2071,7 +2071,7 @@ private fun foreach-indexedz( v : vector<a>, f : (a,size_t) -> e () ) : e () {
 // Invoke a function `f` for each element in a vector `v`.
 // If `f` returns `Just`, the iteration is stopped early and the result is returned.
 fun foreach-while( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b> {
-  for-whilez( 0.size_t, v.lengthz.decr ) fun(i) {
+  for-whilez( 0.size_t, v.lengthz.decr ) fn(i) {
     f(v.unsafe-idx(i))
   }
 }
@@ -2079,7 +2079,7 @@ fun foreach-while( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b> {
 // Apply a total function `f` to each element in a vector `v`
 fun map( v : vector<a>, f : a -> e b ) : e vector<b> {
   val w = unsafe-vector(v.length.size_t)
-  v.foreach-indexedz fun(x,i) {
+  v.foreach-indexedz fn(x,i) {
     unsafe-assign(w,i,f(x))
   }
   w
@@ -2507,12 +2507,12 @@ type error<a> {
 
 // Transform an exception effect to an  `:error` type.
 fun try( action : () -> <exn|e> a ) : e error<a> {
-  try({ Ok(action()) }, fun(exn){ Error(exn) })
+  try({ Ok(action()) }, fn(exn){ Error(exn) })
 }
 
 // Return a default value when an exception is raised
 fun try-default( value : a , action : () -> <exn|e> a ) : e a {
-  try( action, fun(_) { value })
+  try( action, fn(_) { value })
 }
 
 // Transform an `:error` type back to an `exn` effect.
@@ -2555,7 +2555,7 @@ fun either( t : error<a> ) : either<exception,a> {
 /*
 // Set a `hndler` that is called only when an exception is raised in the `action` block.
 fun on-exn( hndler : exception -> <exn|e> (), action : () -> <exn|e> a ) : <exn|e> a {
-  // prim-try-some( action, fun(exn){ hndler(exn); throw(exn) })
+  // prim-try-some( action, fn(exn){ hndler(exn); throw(exn) })
   match(mask<exn>{ try(action) }) {
     TryOk(x)    { x }
     TryExn(exn) { hndler(exn); throw(exn) }
@@ -2648,7 +2648,7 @@ inline extern [] : forall<s,a,e> ( self : local-var<s,vector<a>>, index : int, a
 fun once( calc : () -> a ) : (() -> a) {
   unsafe-total {
     var value := Nothing
-    return fun() {
+    return fn() {
       unsafe-total {
         match(value) {
           Just(y) -> y
@@ -2716,7 +2716,7 @@ fun while( predicate : () -> <div|e> bool, action : () -> <div|e> () ) : <div|e>
 // The `repeat` fun executes `action`  `n`  times.
 fun repeat( n : int, action : () -> e () ) : e ()
 {
-  for(1,n) fun(i) { action() }
+  for(1,n) fn(i) { action() }
 }
 
 // Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).

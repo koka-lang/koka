@@ -125,7 +125,7 @@ val rxNonGroup = regex(@"[^\\\[(]+|\\[\s\S]?|\(\?|\[(?:[^\\\]]|\\.)*\]")
 // Return first group that was matched (or -1 if nothing was matched) 
 public fun first-matched?( groups : groups, start : int = 1, end : int = 10 ) : int
 {
-  match (list(start,end).find(fun(i) { groups.matched?(i) })) {
+  match (list(start,end).find(fn(i) { groups.matched?(i) })) {
     Nothing -> ~1
     Just(i) -> i
   }
@@ -200,7 +200,7 @@ public fun find-all( s :string,  regex :regex ) : list<matched>
 
 fun replace-ex( s :string, regex :regex, repl :(matched :matched) -> e string, all :bool = False) : e string
 {
-  return regex-replace-fun(regex.obj, s, repl, if (all) then one else zero, zero);
+  return regex-replace-fn(regex.obj, s, repl, if (all) then one else zero, zero);
 }
 
 fun replace-ex( s :string, regex :regex, repl :string, all :bool = False) : string

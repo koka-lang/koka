@@ -127,7 +127,7 @@ fun optchar(c : char ) : parse char {
 }
 
 fun num( n : int ) : parse int {
-  count(n,digit).foldl(0, fun(d,x){ x*10 + d })
+  count(n,digit).foldl(0, fn(d,x){ x*10 + d })
 }
 
 /*

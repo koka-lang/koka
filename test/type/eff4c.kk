@@ -5,5 +5,5 @@ fun ioapp( f ) : _e () {
 }
 
 fun test() {
-  ioapp(fun(){ () })
+  ioapp(fn(){ () })
 }

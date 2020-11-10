@@ -4,5 +4,5 @@ fun ioapp( f : () -> <io|e> () ) : <io|e> () {
 }
 
 fun test() {
-  ioapp(fun(){ () })
+  ioapp(fn(){ () })
 }

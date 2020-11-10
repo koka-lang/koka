@@ -96,7 +96,7 @@ val solutions = handler {
 }
 
 fun show( xss : list<list<int>> ) : string {
-  xss.show-list(fun(xs) { xs.show-list(core/show) } )
+  xss.show-list(fn(xs) { xs.show-list(core/show) } )
 }
 
 fun test-multi() {

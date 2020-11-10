@@ -59,7 +59,7 @@ fun parse( input0 : sslice, p : () -> <parse|e> a ) : e parse-error<a> {
     control fail(msg)   { ParseError(msg,input) }
     fun satisfy(pred) {
       val inp = input
-      val m = fun() : total _ { pred(inp) }
+      val m = fn() : total _ { pred(inp) }
       match(m()) {
         Just((x,cap)) { input := cap; Just(x) }
         Nothing       { Nothing }
@@ -107,7 +107,7 @@ fun satisfy-fail( msg : string, pred : sslice -> maybe<(a,sslice)> ) : parse a {
 }
 
 fun eof() : parse () {
-  match(satisfy(fun(s){ if (s.is-empty) then Just(((),s)) else Nothing })) {
+  match(satisfy(fn(s){ if (s.is-empty) then Just(((),s)) else Nothing })) {
     Nothing -> fail("expecting end-of-input")
     Just    -> ()
   }
@@ -115,7 +115,7 @@ fun eof() : parse () {
 
 
 fun char-is( msg :string, pred : char -> bool ) : parse char {
-  satisfy-fail(msg) fun(slice) {
+  satisfy-fail(msg) fn(slice) {
     match(slice.next) {
       Just((c,rest)) | pred(c) -> Just((c,rest))
       _ -> Nothing
@@ -132,7 +132,7 @@ private fun next-while0( slice : sslice, pred : char -> bool, acc : list<char> )
 
 
 fun chars-are( msg :string, pred : char -> bool ) : parse list<char> {
-  satisfy-fail(msg) fun(slice) { 
+  satisfy-fail(msg) fn(slice) { 
     match( slice.next-while0(pred,[]) ) {
       ([],_) -> Nothing
       (xs,rest) -> Just((xs,rest))
@@ -151,7 +151,7 @@ private fun next-match( slice : sslice, cs : list<char> ) : maybe<sslice> {
 }
 
 fun pstring( s : string ) : parse string {
-  satisfy-fail(s) fun(slice) {
+  satisfy-fail(s) fn(slice) {
     match (slice.next-match(s.list)) {
       Just(rest) -> Just((s,rest))
       Nothing    -> Nothing
@@ -160,11 +160,11 @@ fun pstring( s : string ) : parse string {
 }
 
 fun char( c : char ) : parse char {
-  char-is( show(c), fun(c0){ c == c0 } )
+  char-is( show(c), fn(c0){ c == c0 } )
 }
 
 fun no-digit() : parse char {
-  char-is("not a digit", fun(c){ !c.is-digit })
+  char-is("not a digit", fn(c){ !c.is-digit })
 }
 
 fun digit() : parse int {
@@ -217,16 +217,16 @@ fun pint() : parse int {
 
 
 fun none-of( chars : string ) : parse char {
-  char-is("", fun(c){ !chars.contains(c.string)  })
+  char-is("", fn(c){ !chars.contains(c.string)  })
 }
 
 fun none-of-many1( chars : string ) : parse string {
-  chars-are("", fun(c){ !chars.contains(c.string)  }).string
+  chars-are("", fn(c){ !chars.contains(c.string)  }).string
 }
 
 fun one-of( chars : string ) : parse char {
-  char-is(chars, fun(c){ chars.contains(c.string)  })
-  // chars.list.map(fun(c){ (fun(){ char(c) } ) }).choose
+  char-is(chars, fn(c){ chars.contains(c.string)  })
+  // chars.list.map(fn(c){ (fn(){ char(c) } ) }).choose
 }
 
 private fun many-acc( p : parser<e,a>, acc : list<a> ) : <parse|e> list<a> {

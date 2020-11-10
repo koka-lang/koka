@@ -18,7 +18,7 @@ fun half(action) {
 ambient val emitx : ((s:string) -> io ())
 
 fun emit1(action) {
-  with val emitx = fun( s : string ){ s.println }
+  with val emitx = fn( s : string ){ s.println }
   action()
 }
 
@@ -93,11 +93,11 @@ fun pretty-all2(action) {
 
 fun state2(init,action) {
   val f = with {
-            control get()  { (fun(s) { resume(s)(s) }) }
-            control set(x) { (fun(s) { resume(())(x) }) }
+            control get()  { (fn(s) { resume(s)(s) }) }
+            control set(x) { (fn(s) { resume(())(x) }) }
           } in {
             val x = action()
-            (fun(s) { x })
+            (fn(s) { x })
           }
   f(init)
 }

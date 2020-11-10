@@ -13,12 +13,12 @@ ambient instance ref<a> in heap {
 fun with-ref(init : a, action : (ref<a>) -> <inst|e> b ) : <inst|e> b {
   fun f() {
     with r = instance {
-      control get()  { (fun(s) { resume(s)(s) }) }
-      control set(x) { (fun(s) { resume(())(x)}) }
-      control free() { (fun(s) { resume-shallow(())(s) }) }
+      control get()  { (fn(s) { resume(s)(s) }) }
+      control set(x) { (fn(s) { resume(())(x)}) }
+      control free() { (fn(s) { resume-shallow(())(s) }) }
     }
     val x = action(r)
-    (fun(s){ x })
+    (fn(s){ x })
   }
   f()(init)
 }

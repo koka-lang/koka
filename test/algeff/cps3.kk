@@ -9,7 +9,7 @@ fun compose1(f,g) {
 
 
 fun compose2(f,g) {
-  return fun(x) {
+  return fn(x) {
     f(g(x))
   }
 }

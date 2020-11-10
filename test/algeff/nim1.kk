@@ -75,7 +75,7 @@ type gtree {
 }
 
 fun validMoves(n) {
-  [1,2,3].filter( fun(m) { m <= n })
+  [1,2,3].filter( fn(m) { m <= n })
 }
 
 val gametree = handler {
@@ -95,7 +95,7 @@ fun show(gt :gtree) : div string {
 fun showGt(gt :gtree, indent:int) : _ string {
   val showi = (show : (int) -> string)
   match(gt) {
-    Take(p,moves) -> p.show + moves.showList(fun(x) { "\n" + string(indent,' ') +  x.fst.core/show + " -> " + x.snd.showGt(indent+2) })
+    Take(p,moves) -> p.show + moves.showList(fn(x) { "\n" + string(indent,' ') +  x.fst.core/show + " -> " + x.snd.showGt(indent+2) })
     Winner(p)     -> p.show + " wins"
   }
 }
@@ -122,7 +122,7 @@ val check = handler {
   return x  -> x
   move(p,n) -> {
     val m = move(p,n)
-    if (validMoves(n).find(fun(i) { i == m }).bool)
+    if (validMoves(n).find(fn(i) { i == m }).bool)
      then resume(m)
      else cheat(p)
   }
@@ -213,7 +213,7 @@ val scoreUpdater = handler {
   }
 }
 fun updateScore( p : player, gs : gstate ) : gstate {
-  gs.mymap fun(qs) {
+  gs.mymap fn(qs) {
     val (q,s) = qs
     if (p==q) then (q,s+1) else qs
   }
@@ -227,7 +227,7 @@ val printer = handler {
 }
 
 fun printBoard( gs : gstate ) : io () {
-  gs.mymap( fun(ps) {
+  gs.mymap( fn(ps) {
     ps.fst.show + " -> " + ps.snd.show 
   }).join("\n").println
 }

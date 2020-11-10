@@ -10,4 +10,4 @@ fun id5<a>(x : a ) : a
   x
 }
 
-val id6 : forall<a> a -> a = fun(x) { x }
+val id6 : forall<a> a -> a = fn(x) { x }

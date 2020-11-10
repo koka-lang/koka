@@ -569,7 +569,7 @@ fun sum( xs : list<double> ) : double
 {
   var total := 0.0
   var comp  := 0.0
-  xs.foreach fun(x) {
+  xs.foreach fn(x) {
     val t = total + x
     val c = if (total.abs >= x.abs) then (total - t) + x else (x - t) + total
     comp  := comp + c
@@ -609,7 +609,7 @@ fun hypot( x : double, y : double, z : double ) : double {
 fun hypot( xs : list<double> ) : double {
   val hi = xs.abs-max
   if (hi==0.0) then 0.0 else {
-    hi * xs.map(fun(x){ sqr(x / hi) }).sum.sqrt
+    hi * xs.map(fn(x){ sqr(x / hi) }).sum.sqrt
   }
 }
 
@@ -625,7 +625,7 @@ fun abs-max( x : double, y : double ) : double {
 
 // The maximum of a list of absolute values.
 fun abs-max( xs : list<double> ) : double {
-  xs.foldl(0.0,fun(m,x){ max(abs(x),m) })
+  xs.foldl(0.0,fn(m,x){ max(abs(x),m) })
 }
 
 //-----------------------------------------

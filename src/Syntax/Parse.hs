@@ -1079,7 +1079,10 @@ pureDecl dvis
                       inline <- parseInline
                       (do (rng,doc) <- dockeywordFun; return (vis,vrng,rng,doc,inline,False)
                        <|>
-                       do (rng,doc) <- dockeyword "val"; return (vis,vrng,rng,doc,inline,True))
+                       do (rng,doc) <- dockeyword "val"; return (vis,vrng,rng,doc,inline,True)
+                       <|>
+                       do keyword "fn"
+                          fail "hint: use 'fun' to start a named function definition (and 'fn' for anonymous functions)")
        (if isVal then valDecl else funDecl) (combineRange vrng rng) doc vis inline
        -- valueDecl vrng vis <|> functionDecl vrng vis
 
@@ -1361,20 +1364,20 @@ withexpr
        return (f e)
 
 bfunexpr
-  = block <|> lambda "fun"
+  = block <|> lambda ["fun"]
 
 funexpr
-  = funblock <|> lambda "fun"
+  = funblock <|> lambda ["fun"]
 
 fnexpr
-  = lambda "fn"
+  = lambda []
 
 funblock
   = do exp <- block
        return (Lam [] exp (getRange exp))
 
-lambda kw
-  = do rng <- keyword kw
+lambda alts
+  = do rng <- keywordOr "fn" alts
        spars <- squantifier
        (tpars,pars,parsRng,mbtres,preds,ann) <- funDef
        body <- block

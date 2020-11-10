@@ -111,7 +111,7 @@ public fun test() {
 
 public fun garciawachs( xs : list1<(a,int)> ) : div tree<a>
 {
-  val refs   = xs.map(fst).map( fun(x) { (x, ref(0)) } )
+  val refs   = xs.map(fst).map( fn(x) { (x, ref(0)) } )
   val wleafs = zip( refs.map(Leaf), xs.map(snd) )
 
   val tree = balance(wleafs)
