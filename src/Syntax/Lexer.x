@@ -254,41 +254,45 @@ reservedNames :: Set.Set String
 reservedNames
   = Set.fromList $
     [ "infix", "infixr", "infixl", "prefix", "postfix"
-    , "type", "cotype", "alias"
+    , "type", "cotype", "alias", "rec"
     , "struct", "enum", "con"
     , "val", "fun", "fn", "extern", "var"
     , "control", "rcontrol", "except"
     , "if", "then", "else", "elif"
     , "return", "match", "with", "in"
     , "forall", "exists", "some"
-    , "private", "public", "abstract"
+    , "private", "pub", "abstract"
     , "module", "import", "as"
-    
+
     -- effect handlers
     , "handler", "handle"
-    , "effect", "ambient", "context" {- alternative names for effect -}
+    , "effect"
     , "instance"
-    , "mask", "override", "scoped"
-    , "unsafe"
+    , "mask"
+    , "override"
+    , "scoped"
+    , "unsafe"       -- future
     -- , "finally", "initially"
 
     -- deprecated
     -- alternative names for backwards paper compatability
+    , "ambient", "context" -- use effcet
+    , "public"       -- use pub
     , "inject"       -- use mask
     , "use", "using" -- use with instead
     , "function"     -- use fun
-    
+
+    -- future reserved
+    , "interface"
+    , "unsafe"
+
+    -- operators
     , "="
     , "."
     , ":"
     , "->"
     , ":="
     , "|"
-
-    -- for core interfaces
-    , "rec"
-    -- future reserved
-    , "interface"
     ]
 
 symbols :: [Char]
@@ -363,7 +367,7 @@ isMalformed s
       c:cs       -> isMalformed cs
       []         -> False
 
-messageMalformed 
+messageMalformed
   = "malformed identifier: a dash must be preceded by a letter or digit, and followed by a letter"
 
 ------------------------------------------------------------------------------
@@ -484,7 +488,7 @@ lexing source lineNo input
                                        seq range $ Lexeme range ltoken : go st2{ startPos = pos st2, previousLex = ltoken }
 
         lparen token prev
-          = token 
+          = token
           {-
             case token of
               LexSpecial "("  | isApplyToken prev -> LexSpecial "(.apply"  -- application
