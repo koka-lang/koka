@@ -1,6 +1,5 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.7)
 project(kklib VERSION 1.0 LANGUAGES C)
-cmake_policy(SET CMP0077 NEW)  # allow override of options in parent projects
 enable_testing()
 
 option(KK_MIMALLOC          "Use the mimalloc allocator" ON)
