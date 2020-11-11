@@ -420,14 +420,14 @@ private fun finalize(cont : (() -> b) -> e r, res : a) : e a {
 private inline extern add(i : int, j : int) : int {
   c  "kk_integer_add"
   cs inline "(#1 + #2)"
-  js "$std_core._int_add"
+  js inline "(#1 + #2)" // "$std_core._int_add"
 }
 
 // are two integers equal?
 private inline extern eq(x : int, y : int) : bool  {
   c  "kk_integer_eq"
   cs inline "(#1 == #2)"
-  js "$std_core._int_eq"
+  js inline "(#1 == #2)" // $std_core._int_eq"
 }
 
 
@@ -443,11 +443,11 @@ private fun initially-prompt( init : (int) -> e (), res : a ) : e a {
     yield-cont(fn(cont,x){
       val cnt = unsafe-st{ !count }()    // increase counter on every resumption
       unsafe-st{ count := add(cnt,1) }()
-      if (eq(cnt,0)) then cont(x) else {  // for every resume after the first, run the initializer
+      if (eq(cnt,0)) then () else {  // for every resume after the first, run the initializer
         val r = init(cnt)
-        if (yielding()) return yield-extend( fn(_ret){ cont(x) })
-        cont(x)
+        if (yielding()) return yield-extend( fn(_ret){ initially-prompt(unsafe-decreasing(init), cont(x)) })
       }
+      initially-prompt(unsafe-decreasing(init), cont(x))
     })
   }
   else res

@@ -168,10 +168,8 @@
     <ClCompile Include="..\..\..\out\Debug\std_num_random.c" />
     <ClCompile Include="..\..\..\out\Debug\std_os_env.c" />
     <ClCompile Include="..\..\..\out\Debug\std_os_file.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_os_flags.c" />
     <ClCompile Include="..\..\..\out\Debug\std_os_path.c" />
     <ClCompile Include="..\..\..\out\Debug\std_text_parse.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_text_unicode.c" />
     <ClCompile Include="..\..\..\out\Debug\std_time_chrono.c" />
     <ClCompile Include="..\..\..\out\Debug\std_time_date.c" />
     <ClCompile Include="..\..\..\out\Debug\std_time_duration.c" />
@@ -179,10 +177,6 @@
     <ClCompile Include="..\..\..\out\Debug\std_time_timer.c" />
     <ClCompile Include="..\..\..\out\Debug\std_time_timestamp.c" />
     <ClCompile Include="..\..\..\out\Debug\std_time_utc.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_algeff_common.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_algeff_scoped.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_cgen_ctail1a.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_cgen_ctail3b.c" />
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_benchmark.c" />
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_climate_dash_change.c" />
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_climate_dash_experiments.c" />
@@ -198,6 +192,7 @@
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_sampling.c" />
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_sequential.c" />
     <ClCompile Include="..\..\..\out\Debug\test_effbayes_trace.c" />
+    <ClCompile Include="..\..\..\out\Debug\test_finally_file1.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

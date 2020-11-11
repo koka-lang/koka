@@ -1,5 +1,5 @@
 // File handling with initially and finally
-effect control flip() : bool  
+effect control flip() : bool
 
 // files are named handlers (and thus scoped)
 named effect file {
@@ -19,10 +19,10 @@ fun foo() {
 
 fun open-file(fname,action) {
   var h := 0                             // low-level file handle
+  with initially( fn(i){ println("initially: " + i.show + ", h: " + h.show); h := fopen(fname) } )
+  with finally { println("finally, h: " + h.show); fclose(h); h := 0 }
   with f = named handler {
     fun write(s) { fwrite(h,s) }         // files as a named instance
-    initially(i) { h := fopen(fname) }
-    finally      { fclose(h); h := 0 }
   }
   action(f)  // note: name `f` stays stable unlike `h` which gets re-initialized
 }

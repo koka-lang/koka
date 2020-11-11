@@ -2438,7 +2438,7 @@ fun todo( message : string ) : () {
 // ----------------------------------------------------------------------------
 
 // The `:inst` effect is the default umbrella effect for effect instances
-effect inst { }
+type inst :: X
 
 
 // Exceptions
@@ -2691,7 +2691,7 @@ fun unsafe-nodiv( action : () -> <div|e> a ) : e a
 // Non determinism
 // ----------------------------------------------------------------------------
 
-private val unique-count : ref<global,int> = unsafe-total { ref(0) }
+private noinline val unique-count : ref<global,int> = unsafe-total { ref(0) }
 
 // Returns a unique integer (modulo 32-bits).
 fun unique() : ndet int
