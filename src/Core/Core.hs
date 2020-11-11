@@ -78,6 +78,8 @@ module Core.Core ( -- Data structures
                    -- * Canonical names
                    -- , canonicalName, nonCanonicalName, canonicalSplit
                    , infoArity, infoTypeArity
+
+                   , Deps, dependencies
                    ) where
 
 import Data.Char( isDigit )
@@ -726,6 +728,7 @@ tnamesRemove names set
 tnamesMember :: TName -> TNames -> Bool
 tnamesMember tname tnames = S.member tname tnames
 
+
 instance Eq TName where
   (TName name1 tp1) == (TName name2 tp2)  = (name1 == name2) --  && matchType tp1 tp2)
 
@@ -972,3 +975,76 @@ splitTForall tp
   = case expandSyn tp of
       (TForall tvs _ tp) -> (tvs, tp) -- TODO what about the rest of the variables and preds?
       _ ->  failure ("Core.Core.splitTForall: Expected forall: " ++ show (pretty tp))
+
+
+type Deps = S.Set Name
+
+depsUnions xs = foldr S.union S.empty xs
+
+depTName :: TName -> Deps
+depTName tname = depName (getName tname)
+
+depName :: Name -> Deps
+depName name
+  = if (isQualified name) then S.singleton (qualifier name) else S.empty
+
+dependencies :: [InlineDef] -> Core -> Deps
+dependencies inlineDefs core
+  = S.union (inlineDependencies inlineDefs) (coreDependencies core)
+
+inlineDependencies :: [InlineDef] -> Deps
+inlineDependencies inlineDefs
+  = depsUnions (map (depExpr . inlineExpr) inlineDefs)
+
+coreDependencies :: Core -> Deps
+coreDependencies (Core{coreProgName = mname, coreProgImports = imports, coreProgTypeDefs = tdefs, coreProgDefs = defs})
+  = let deps = S.filter (mname /=) $
+               depsUnions [-- S.fromList (map importName imports),
+                           depsUnions (map depTDef (flattenTypeDefGroups tdefs)),
+                           depsUnions (map depDef (flattenDefGroups defs))]
+    in -- trace ("dependencies for " ++ show mname ++ ": " ++ show (S.elems deps)) $
+       deps
+
+depTDef :: TypeDef -> Deps
+depTDef (Synonym info) = depType (synInfoType info)
+depTDef (Data info _)  = depsUnions (map (depType . conInfoType) (dataInfoConstrs info))
+
+depType :: Type -> Deps
+depType tp
+  = case tp of
+      TForall vars preds rho  -> depType rho
+      TFun args eff tp        -> depsUnions (map depType (tp:eff:map snd args))
+      TCon tc                 -> depName (typeConName tc)
+      TVar _                  -> S.empty
+      TApp tp tps             -> depsUnions (map depType (tp:tps))
+      TSyn syn args tp        -> depsUnions (map depType (tp:args))
+
+depDef :: Def -> Deps
+depDef def  = depsUnions [depType (defType def), depExpr (defExpr def)]
+
+depExpr :: Expr -> Deps
+depExpr expr
+  = case expr of
+      Var tname info     -> depTName tname
+      Lam tname eff body -> S.union (depType eff) (depExpr body)
+      App e args         -> depsUnions (map depExpr (e:args))
+      TypeLam tvs e      -> depExpr e
+      TypeApp e tps      -> depsUnions (depExpr e : map depType tps)
+      Con tname repr     -> depTName tname
+      Lit lit            -> S.empty
+      Let defGroups body -> depsUnions (depExpr body : map depDef (flattenDefGroups defGroups))
+      Case exprs branches -> depsUnions (map depExpr exprs ++ map depBranch branches)
+
+depBranch (Branch patterns guards)
+  = depsUnions (map depPat patterns ++ map depGuard guards)
+
+depGuard (Guard test expr)
+  = S.union (depExpr test) (depExpr expr)
+
+depPat pat
+  = case pat of
+      PatCon{patConName=tname,patConPatterns=pats}
+        -> depsUnions (depTName tname : map depPat pats)
+      PatVar tname pat
+        -> depPat pat
+      _ -> S.empty

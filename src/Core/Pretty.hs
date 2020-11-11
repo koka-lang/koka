@@ -13,6 +13,7 @@ module Core.Pretty( prettyCore, prettyExpr, prettyPattern, prettyDef, prettyDefs
 
 import Lib.Trace
 import Data.Char( isAlphaNum )
+import qualified Data.Set as S
 import Common.Name
 import Common.ColorScheme
 import Common.Syntax
@@ -63,7 +64,7 @@ prettyCore env0 inlineDefs core@(Core name imports fixDefs typeDefGroups defGrou
     prettyDefName env name <->
     (vcat $ concat $
       [ separator "import declarations"
-      , map (prettyImport envX) (imports) -- ++ extraImports)
+      , map (prettyImport envX) (imports)
       , separator "fixity declarations"
       , map (prettyFixDef envX) fixDefs
       , separator "local imported aliases"
@@ -91,6 +92,9 @@ prettyCore env0 inlineDefs core@(Core name imports fixDefs typeDefGroups defGrou
   where
     separator msg = if (not (coreIface env0)) then []
                      else [text " ", text "//------------------------------", text ("//#kki: " ++ msg), text " "]
+
+    --realImports = let deps = dependencies inlineDefs core
+    --              in filter (\imp -> S.member (importName imp) deps) imports
 
     allDefs     = flattenDefGroups defGroups
     allTypeDefs = flattenTypeDefGroups typeDefGroups

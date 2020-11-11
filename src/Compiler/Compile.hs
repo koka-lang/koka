@@ -33,6 +33,7 @@ import Data.Char              ( isAlphaNum, toLower, isSpace )
 
 import System.Directory       ( createDirectoryIfMissing, canonicalizePath, getCurrentDirectory )
 import Data.List              ( isPrefixOf, intersperse )
+import qualified Data.Set as S
 import Control.Applicative
 import Control.Monad          ( ap, when )
 import Common.Failure
@@ -393,7 +394,19 @@ compileProgram' term flags modules compileTarget fname program
                                           (imp:_) -> importVis imp -- TODO: get max
                               in if (modName mod == name) then []
                                   else [Core.Import (modName mod) (modPackagePath mod) vis (Core.coreProgDoc (modCore mod))]
-       loaded2 <- liftError $ typeCheck loaded1 flags 0 coreImports program
+       loaded2a <- liftError $ typeCheck loaded1 flags 0 coreImports program
+
+       -- cull imports to only the real dependencies
+       let mod = loadedModule loaded2a
+           inlineDefs = case (modInlines mod) of
+                          Right defs -> defs
+                          Left _     -> []
+           deps  = Core.dependencies inlineDefs (modCore mod)
+           imps  = filter (\imp -> S.member (Core.importName imp) deps) (Core.coreProgImports (modCore mod))
+           mod'  = mod{ modCore = (modCore mod){ Core.coreProgImports = imps } }
+           loaded2 = loaded2a{ loadedModule = mod' }
+
+       -- codegen
        liftIO $ termPhase term ("codegen " ++ show (getName program))
        (newTarget,loaded3) <- liftError $
            case compileTarget of

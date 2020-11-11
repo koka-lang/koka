@@ -5,7 +5,7 @@ public fun main() {
   println("The " + n.show + "th fibonacci number is " + fibonacci(10000).show)
 }
 
-public fun fibonacci(n : int) : div int {
+fun fibonacci(n : int) : div int {
   fib(n, 0, 1)
 }
 

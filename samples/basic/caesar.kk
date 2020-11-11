@@ -1,7 +1,5 @@
 /* Ceasar encoding/decoding.
 */
-public module caesar
-
 import std/num/double
 
 fun encode( s : string, shift : int = 3)
@@ -63,11 +61,11 @@ fun uncaesar( s : string ) : string
   s.encode( shift )
 }
 
-public fun test-uncaesar() {
+fun test-uncaesar() {
   println( uncaesar( "nrnd lv d ixq odqjxdjh" ) )
 }
 
-public fun main() {
+fun main() {
   val s = "Koka is a well-typed language"
   println( "plain  : " + s)
   println( "encoded: " + s.caesar)

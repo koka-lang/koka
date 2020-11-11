@@ -4,14 +4,14 @@
    This shows how effect types can safely encapsulate the mutating algorithm.
 */
 
-public fun main() {
+fun main() {
   test().println
 }
 
 //----------------------------------------------------
 // Trees
 //----------------------------------------------------
-public type tree<a> {
+type tree<a> {
   con Leaf(value :a)
   con Node(left :tree<a>, right :tree<a>)
 }
@@ -98,13 +98,13 @@ fun build( depth :int, xs :list1<(a,ref<h,int>)> ) : <read<h>,div> (tree<a>,list
   }
 }
 
-public fun test() {
+fun test() {
   val wlist = Cons1(("a",3), [("b",2),("c",1),("d",4),("e",5)])
   val tree  = wlist.garciawachs()
   tree.show()
 }
 
-public fun garciawachs( xs : list1<(a,int)> ) : div tree<a> {
+fun garciawachs( xs : list1<(a,int)> ) : div tree<a> {
   val refs   = xs.map(fst).map( fn(x){ (x, ref(0)) } )
   val wleafs = zip( refs.map(Leaf), xs.map(snd) )
   val tree   = balance(wleafs)
