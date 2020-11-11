@@ -108,7 +108,12 @@ public fun test3() {
 // --------------------------------------------------------
 
 // Now we use general `control` as we want to enable breaking
-// the interation (and thus not resume).
+// the interation (and thus not resume). Equivalent to:
+// ````
+// effect yield<a> {
+//   control yield( item : a ) : ()
+// }
+// ````
 effect<a> control yield( item : a ) : ()
 
 fun iterate(xs : list<a> ) : yield<a> () {
@@ -132,7 +137,7 @@ public fun test4() {
 }
 
 fun test4b() {
-  with return x { () }               // just force final result to ()
+  with return(x) { () }               // just force final result to ()
   with amb
   with foreach fn(x:int) {
     if (flip()) then println(x)
@@ -161,7 +166,7 @@ val coinflip = handler {
 
 // handler that returns all possible outcomes
 val amb = handler {
-  return  x     { [x] }
+  return(x)     { [x] }
   control flip(){ resume(False) + resume(True) }
 }
 

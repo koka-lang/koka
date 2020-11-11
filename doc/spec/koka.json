@@ -12,18 +12,23 @@
 
   "keywords": [
     "infix", "infixr", "infixl", 
-    "type", "cotype", "rectype", "alias", 
+    "type", "alias", 
     "struct", "enum", "con",
-    "fun", "function", "val", "var", "extern", "external",
+    "fun", "fn", "val", "var", "extern",
     "if", "then", "else", "elif", "return", "match",
     "forall", "exists", "some", "with",
-    "private", "public", "private",
+    "private", "public", "abstract",
     "module", "import", "as",
     "=", ".", ":", ":=", "->",
-    "rec",
-    "try", "yield",
-    "effect", "handle", "handler",
-    "interface", "instance"
+    "rec","co","open","extend",
+    "value","reference","linear",
+    "with","initially","finally",
+    "effect", "handle", "handler","named",
+    "control", "rcontrol",
+    "mask","behind",
+    "interface", "instance","override",
+    "try", "yield","unsafe",
+    "inline","noinline"    
   ],
 
   "extraKeywords": [

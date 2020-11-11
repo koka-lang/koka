@@ -11,7 +11,7 @@
 %define api.pure
 
 %{
-typedef void*        yyscan_t;
+typedef void* yyscan_t;
 %}
 
 %parse-param { yyscan_t scanner }
@@ -237,34 +237,31 @@ externinline: ID_INLINE
 aliasdecl   : ALIAS typeid typeparams kannot '=' type     { $$ = $2; }
             ;
 
-typedecl    : typesort typeid typeparams kannot typebody          { $$ = $2; }
-            | typemod STRUCT typeid typeparams kannot conparams   { $$ = $3; }
-            | effectsort varid typeparams kannot opdecls          { $$ = $2; }
-            | effectsort typeparams kannot operation              { $$ = "<operation>"; }
-            | namedsort varid typeparams kannot opdecls           { $$ = $2; }
-            | namedsort typeparams kannot operation               { $$ = "<operation>"; }
-            | namedsort varid typeparams kannot IN type opdecls   { $$ = $2; }  /* error on SCOPED (?) */
+typedecl    : typemod TYPE typeid typeparams kannot typebody      { $$ = $3; }
+            | structmod STRUCT typeid typeparams kannot conparams { $$ = $3; }
+            | effectmod EFFECT varid typeparams kannot opdecls          { $$ = $3; }
+            | effectmod EFFECT typeparams kannot operation              { $$ = "<operation>"; }
+            | NAMED effectmod EFFECT varid typeparams kannot opdecls           { $$ = $4; }
+            | NAMED effectmod EFFECT typeparams kannot operation               { $$ = "<operation>"; }
+            | NAMED effectmod EFFECT varid typeparams kannot IN type opdecls   { $$ = $4; }  /* error on SCOPED (?) */
             ;
 
-typesort    : typemod TYPE
-            | ID_OPEN TYPE
-            | ID_EXTEND TYPE
-            | ID_CO TYPE
-            | ID_REC TYPE
+typemod     : structmod
+            | ID_OPEN
+            | ID_EXTEND
+            | ID_CO
+            | ID_REC
             ;
 
-typemod     : ID_VALUE
+structmod   : ID_VALUE
             | ID_REFERENCE
             | /* empty */
             ;
 
-namedsort   : NAMED effectsort
-            | NAMED ID_SCOPED effectsort
-            ;
-
-effectsort  : EFFECT
-            | ID_REC EFFECT
-            | ID_LINEAR ID_REC EFFECT
+effectmod   : ID_REC
+            | ID_LINEAR
+            | ID_LINEAR ID_REC
+            | /* empty */
             ;
 
 
@@ -427,11 +424,11 @@ bodyexpr    : RARROW blockexpr
             | block
             ;
 
-blockexpr   : expr              /* a block is not interpreted as an anonymous function but as grouping */
+blockexpr   : expr              /* a `block` is not interpreted as an anonymous function but as statement grouping */
             ;
 
 expr        : withexpr
-            | funexpr
+            | block             /* interpreted as an anonymous function (except if coming from `blockexpr`) */
             | returnexpr
             | basicexpr
             ;
@@ -449,9 +446,11 @@ basicexpr   : ifexpr
 matchexpr   : MATCH atom '{' semis matchrules '}'
             ;
 
+/*
 funexpr     : FUN funparam block
-            | block                    /* zero-argument function */
+            | block
             ;
+*/
 
 fnexpr      : FN funparam block          /* always anonymous function */
             ;
@@ -491,7 +490,7 @@ fappexpr    : fappexpr funexpr
 appexpr     : appexpr '(' arguments ')'             /* application */
             | appexpr '[' arguments ']'             /* index expression */
             | appexpr '.' atom                      /* dot application */
-            | appexpr funexpr                       /* trailing function application */
+            | appexpr block                         /* trailing function application */
             | appexpr fnexpr                        /* trailing function application */
             | atom
             ;
@@ -690,8 +689,8 @@ witheff     : '<' anntype '>'
 
 withstat    : WITH basicexpr
             | WITH binder '=' basicexpr
-            | WITH override witheff opclauses          /* shorthand for handler */
-            | WITH binder '=' NAMED witheff opclauses  /* shorthand for named handler */
+            | WITH override witheff opclauses    /* shorthand for handler */
+            | WITH binder '=' witheff opclauses  /* shorthand for named handler */
             ;
 
 withexpr    : withstat IN blockexpr
