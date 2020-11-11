@@ -2437,6 +2437,10 @@ fun todo( message : string ) : () {
 // Exceptions
 // ----------------------------------------------------------------------------
 
+// The `:inst` effect is the default umbrella effect for effect instances
+effect inst { }
+
+
 // Exceptions
 effect exn {
   // Throw an exception

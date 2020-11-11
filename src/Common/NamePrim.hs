@@ -47,6 +47,7 @@ module Common.NamePrim
           , isClauseTailName, nameClauseTailNoYield
           , nameTpEvIndex, nameYielding, nameYieldExtend
           , nameEvvIsAffine
+          , nameInitially, nameFinally
 
           --
           , nameUnsafeTotal
@@ -237,6 +238,7 @@ nameConEv       = preludeName "Ev"
 nameTpNull      = preludeName "null"
 nameTpIO        = preludeName "io"
 
+nameTpInst      = preludeName "inst"
 nameTpPartial   = preludeName "exn"
 nameTpPure      = preludeName "pure"
 
@@ -286,6 +288,9 @@ nameYieldExtend = coreHndName "yield-extend"
 nameBind        = coreHndName "yield-bind" -- preludeName "bind"
 nameBind2       = coreHndName "yield-bind2"
 nameEffectOpen  = coreHndName ".open" -- preludeName ".open"
+
+nameInitially   = coreHndName "initially"
+nameFinally     = coreHndName "finally"
 
 nameClauseTailNoYield n = coreHndName ("clause-tail-noyield" ++ show n)
 
@@ -342,7 +347,6 @@ nameOr          = coreTypesName "||"
 
 nameTpHandled   = coreTypesName "handled"
 nameTpHandled1  = coreTypesName "handled1"
-nameTpInst      = coreTypesName "inst"
 
 nameIdentity    = coreTypesName "id"
 

@@ -1467,19 +1467,33 @@ handlerClauses rng mbEff scoped override hsort
        let fullrange = combineRanges [rng,rng2]
        let (clauses, binders) = extractBinders clausesAndBinders
        (reinit,ret,final,ops) <- partitionClauses clauses rng
-       case (mbEff,ops,final,reinit) of
-         (Nothing,[],Nothing,Nothing) -- no ops, and no annotation: this is not a handler; just apply return/finally/initially
-           -> do -- TODO: handle final and initially as well
-                 -- TODO: error on override/scoped/instance?
-                 let handlerExpr f = Lam [ValueBinder (newHiddenName "action") Nothing Nothing rng rng]
-                                         (f (Var (newHiddenName "action") False rng)) fullrange
-                     retExpr = case ret of
-                                 Nothing -> id
-                                 Just f  -> \actionExpr -> App f [(Nothing,App actionExpr [] fullrange)] fullrange
-                 return (binders $ handlerExpr retExpr)
-         _ -> do let handlerExpr = Handler hsort scoped override mbEff [] reinit ret final ops rng fullrange
-                 return (binders handlerExpr)
+       handler <- case (mbEff,ops) of
+                   (Nothing,[]) -- no ops, and no annotation: this is not a handler; just apply return
+                     -> do -- TODO: error on override/scoped/instance?
+                           let handlerExpr f = Lam [ValueBinder (newHiddenName "action") Nothing Nothing rng rng]
+                                                   (f (Var (newHiddenName "action") False rng)) fullrange
+                               retExpr = case ret of
+                                           Nothing -> id
+                                           Just f  -> \actionExpr -> App f [(Nothing,App actionExpr [] fullrange)] fullrange
+                           return (binders $ handlerExpr retExpr)
+                   _ -> do let handlerExpr = Handler hsort scoped override mbEff [] reinit ret final ops rng fullrange
+                           return (binders handlerExpr)
+       return $ applyMaybe fullrange reinit final handler
 
+applyMaybe :: Range -> Maybe UserExpr -> Maybe UserExpr -> UserExpr -> UserExpr
+applyMaybe rng Nothing Nothing f  = f
+applyMaybe rng reinit final f
+  = Lam [ValueBinder (newHiddenName "act") Nothing Nothing rng rng] bodyI rng
+  where
+    bodyI = case reinit of
+              Nothing  -> bodyF
+              Just ini -> App (Var nameInitially False rng) [(Nothing,ini),(Nothing,Lam [] bodyF rng)] rng
+
+    bodyF = case final of
+              Nothing  -> applyH
+              Just fin -> App (Var nameFinally False rng) [(Nothing,fin),(Nothing,Lam [] applyH rng)] rng
+
+    applyH = App f [(Nothing,Var (newHiddenName "act") False rng)] rng             
 
 
 data Clause = ClauseRet UserExpr
@@ -1543,8 +1557,13 @@ handlerOpX
        return (ClauseFinally (Lam [] expr (combineRanged rng expr)), Nothing)
   <|>
     do rng <- specialId "initially"
+       (name,prng,tp) <- (parens $
+                          do (name,prng) <- paramid
+                             tp         <- optionMaybe typeAnnotPar
+                             return (name,prng,tp))
+                         <|> return (newName "_",rng,Nothing)
        expr <- bodyexpr
-       return (ClauseInitially (Lam [] expr (combineRanged rng expr)), Nothing)
+       return (ClauseInitially (Lam [ValueBinder name tp Nothing prng (combineRanged rng tp)] expr (combineRanged rng expr)), Nothing)
   <|>
     handlerOp
 

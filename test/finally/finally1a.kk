@@ -2,7 +2,7 @@
 
 fun bar() {
   println("action")
-  error("ouch")
+  throw("ouch")
   42
 }
 

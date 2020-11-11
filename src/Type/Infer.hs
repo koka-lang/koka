@@ -935,7 +935,7 @@ inferHandler propagated expect handlerSort handlerScoped
            -- create handler expression
            actionName = newHiddenName "action"
            handleName = makeHiddenName "handle" effectName
-           handleRet  = case ret of
+           handleRet  = case ret of -- todo: optimize return by using maybe<a->b> value in case no clause was given?
                           Nothing -> let argName = (newHiddenName "x")
                                      in Lam [ValueBinder argName Nothing Nothing rng rng] (Var argName False rng) hrng -- don't pass `id` as it needs to be opened
                           Just expr -> expr

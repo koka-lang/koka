@@ -6,7 +6,7 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/* Core types. 
+/* Core types.
 
    This module is implicitly imported and all functions and types
    are always available.
@@ -213,6 +213,7 @@ inline extern (!)  : (bool) -> bool  { inline "!(#1)" }
 // needed for markers in `std/core/hnd`.
 inline extern zero32() : int32 { inline "0" }
 
+
 // ----------------------------------------------------------------------------
 // References
 // ----------------------------------------------------------------------------
@@ -344,8 +345,6 @@ type handled    :: HX -> X;
 // Linear effects are lifted to an atomic effect using the `:handled1` type constructor
 type handled1   :: HX1 -> X;
 
-// The `:inst` effect is the default umbrella effect for effect instances
-type inst :: HX
 
 
 // ----------------------------------------------------------------------------

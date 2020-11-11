@@ -9,18 +9,19 @@ fun bar() {
   42
 }
 
-fun foo() 
-{
-  handle(bar) (i : int = 42) {
-    return x -> { 
+fun foo() {
+  var i := 41
+  with handler {
+    fun inc(){ i := i+1; i }
+    return (x){
       println("return, local: " + i.show )
       x
     }
-    finally  -> {
+    finally {
       println("finally, local: " + i.show)
     }
-    inc() -> resume(i,i+1)
   }
+  bar()
 }
 
 fun main() {

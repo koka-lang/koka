@@ -250,7 +250,7 @@
       },
 
     "branch":
-      { "match":"(finally|initially)\\s*(?=->|{)"
+      { "match":"(finally|initially)\\s*(?=->|[\\{\\(])"
       , "name": "keyword.other.koka"
       },
 

@@ -21,6 +21,7 @@ include extern {
   js file "hnd-inline.js"
 }
 
+
 // -------------------------------------------
 // Internal types
 // -------------------------------------------
@@ -42,13 +43,13 @@ public fun hidden-htag( tag : string ) {
 // control flow context:
 //                 -1: none: bottom
 //                   /          \
-// 0: except: never resumes   1: linear: resumes exactly once 
+// 0: except: never resumes   1: linear: resumes exactly once
 //                   \          /
-//           2: affine: resumes never or once 
+//           2: affine: resumes never or once
 //                        |
 //     3: multi: resumes never, once, or multiple times
 public alias cfc = int32
-  
+
 
 abstract type ev<h> {
   con Ev<e,r>(htag:htag<h>, marker:marker<e,r>, hnd:h<e,r>, cfc:cfc, hevv:evv<e>)
@@ -229,9 +230,9 @@ private extern yield-to-final( m : marker<e1,r>, clause : ((() -> b) -> e1 r) ->
 private noinline fun yield-to( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e1 b {
   val w0 = evv-get()
   val g : () -> _b = yield-to-prim(m, clause)
-  yield-extend fn(f){ 
+  yield-extend fn(f){
     // val keep1 = guard(w0)  // check the evidence is correctly restored
-    f() 
+    f()
   }
 }
 
@@ -239,12 +240,12 @@ public type yield-info
 
 private extern yield-capture() : e yield-info {
   c "kk_yield_capture"
-  js "$std_core_hnd._yield_capture"
+  js "_yield_capture"
 }
 
 public extern unsafe-reyield(yld : yield-info) : e a {
   c "kk_yield_reyield"
-  js "$std_core_hnd._reyield"
+  js "_reyield"
 }
 
 // -------------------------------------------
@@ -280,7 +281,7 @@ private extern resume-final() : a {
 private fun prompt( w0 : evv<e0>,  w1 : evv<e0>, ev : ev<h>, m : marker<e0,r>, ret: a -> e0 r, result : a ) : e0 r
 {
   guard(w1)
-  evv-set(w0)  // restore the previous evidence vector  
+  evv-set(w0)  // restore the previous evidence vector
   match(yield-prompt(m)) {
     Pure {
       // returning
@@ -292,12 +293,12 @@ private fun prompt( w0 : evv<e0>,  w1 : evv<e0>, ev : ev<h>, m : marker<e0,r>, r
     }
     Yielding {
       // regular yield, install a continuation
-      yield-cont(fn(cont,res){ 
+      yield-cont(fn(cont,res){
         // we resume, continue under a fresh a prompt again
         val w0' = evv-get()  // if not using scoped resumptions, w0' may be different from w0
         val w1' = if (evv-eq(w0,w0')) then w1 else evv-insert(w0',ev)
         evv-set(w1')
-        prompt(w0',w1',ev,unsafe-decreasing(m),ret,cont(res)); 
+        prompt(w0',w1',ev,unsafe-decreasing(m),ret,cont(res));
       })
     }
     Yield(clause,cont) {
@@ -316,7 +317,7 @@ private fun prompt( w0 : evv<e0>,  w1 : evv<e0>, ev : ev<h>, m : marker<e0,r>, r
 
 public noinline fun ".hhandle"( tag:htag<h>, cfc: cfc, h : h<e,r>, ret: a -> e r, action : () -> e1 a ) : e r {
   // insert new evidence for our handler
-  val w0 = evv-get()        
+  val w0 = evv-get()
   val m  = fresh-marker()
   val ev = Ev(tag,m,h,cfc,w0)
   val w1 = evv-insert(w0,ev)
@@ -382,7 +383,7 @@ public fun local-var(init:a, action: (l:local-var<s,a>) -> <local<s>|e> b ) : <l
 
 
 // -------------------------------------------
-// Finally/Initially
+// Finally
 // -------------------------------------------
 
 public fun finally( fin : () -> e (), action : () -> e a ) : e a {
@@ -390,10 +391,19 @@ public fun finally( fin : () -> e (), action : () -> e a ) : e a {
 }
 
 private fun finally-prompt(fin : () -> e (), res : a ) : e a {
-  if (yielding-non-final()) return yield-cont(fn(cont,x){ finally-prompt(unsafe-decreasing(fin),cont(x)) })
-  fin()
-  if (yielding()) return yield-extend( fn(_x){ res } )
-  res
+  if (!yielding()) {
+    fin()
+    res
+  }
+  else if (yielding-non-final()) {
+    yield-cont(fn(cont,x){ finally-prompt(unsafe-decreasing(fin),cont(x)) })
+  }
+  else {
+    val yld = yield-capture()
+    fin()
+    if (yielding()) return yield-extend( fn(_x){ unsafe-reyield(yld) } )
+    unsafe-reyield(yld)
+  }
 }
 
 private fun finalize(cont : (() -> b) -> e r, res : a) : e a {
@@ -401,7 +411,26 @@ private fun finalize(cont : (() -> b) -> e r, res : a) : e a {
   val w = evv-get()
   prompt(w,w,ev-none(),m,id, yield-bind( cont( { yield-to-final(m,fn(_k){ res }) } ), fn(_x){ res } ))  // TODO: special prompt that does not insert on resume?
 }
-/*
+
+// -------------------------------------------
+// Initially
+// -------------------------------------------
+
+// add integers
+private inline extern add(i : int, j : int) : int {
+  c  "kk_integer_add"
+  cs inline "(#1 + #2)"
+  js "$std_core._int_add"
+}
+
+// are two integers equal?
+private inline extern eq(x : int, y : int) : bool  {
+  c  "kk_integer_eq"
+  cs inline "(#1 == #2)"
+  js "$std_core._int_eq"
+}
+
+
 public fun initially(init : (int) -> e (), action : () -> e a ) : e a {
   init(0)
   if (yielding()) return yield-extend(fn(_ret){ initially-prompt(init,action()) })
@@ -409,21 +438,21 @@ public fun initially(init : (int) -> e (), action : () -> e a ) : e a {
 }
 
 private fun initially-prompt( init : (int) -> e (), res : a ) : e a {
-  if (yielding-non-final()) then return unsafe-total {
-    val count = ref(0);
-    return yield-cont(fn(cont,x){
-      val cnt = !count                   // increase counter on every resumption
-      count := cnt + 1
-      if (cnt == 0) then cont(x) else {  // for every resume after the first, run the initializer
-        val r = inject-st{init(cnt)}
+  if (yielding-non-final()) then {
+    val count = unsafe-st{ref(0)}()
+    yield-cont(fn(cont,x){
+      val cnt = unsafe-st{ !count }()    // increase counter on every resumption
+      unsafe-st{ count := add(cnt,1) }()
+      if (eq(cnt,0)) then cont(x) else {  // for every resume after the first, run the initializer
+        val r = init(cnt)
         if (yielding()) return yield-extend( fn(_ret){ cont(x) })
         cont(x)
       }
     })
   }
-  res
+  else res
 }
-*/
+
 
 // -------------------------------------------
 // Resume context
@@ -463,7 +492,7 @@ private fun evv-swap-with(ev : ev<h>) {
   match(ev) {
     Ev(_tag,_m,_h,_c,w) -> evv-swap(w)
   }
-} 
+}
 
 private fun under1( ev : ev<h>, op : a -> e b, x : a ) : e b {
   val w0 = evv-swap-with(ev)
