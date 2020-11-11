@@ -1372,7 +1372,10 @@ cmakeLib :: Terminal -> Flags -> CC -> String -> FilePath -> FilePath -> [String
 cmakeLib term flags cc libName libFile libSourceDir cmakeGeneratorFlag
   = do let libPath = outName flags libFile
        exist <- doesFileExist libPath
-       if (exist && not (rebuild flags)) then return ()
+       newer <- if (not exist) then return True
+                 else do cmp <- fileTimeCompare (libSourceDir ++ "/include/kklib.h") libPath
+                         return (cmp==GT)
+       if (not newer && not (rebuild flags)) then return ()
          else -- todo: check for installed binaries for the library
               do termDoc term $ color (colorInterpreter (colorScheme flags)) (text ("cmake  :")) <+>
                                  color (colorSource (colorScheme flags)) (text libName) <+>

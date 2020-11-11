@@ -412,7 +412,7 @@ static inline bool kk_string_is_empty(kk_string_t s, kk_context_t* ctx) {
 
 
 kk_decl_export size_t kk_decl_pure kk_string_count(kk_string_t str);  // number of code points
-
+kk_decl_export size_t kk_decl_pure kk_string_count_pattern_borrow(kk_string_t str, kk_string_t pattern);
 kk_decl_export int kk_string_cmp_borrow(kk_string_t str1, kk_string_t str2);
 kk_decl_export int kk_string_cmp(kk_string_t str1, kk_string_t str2, kk_context_t* ctx);
 kk_decl_export int kk_string_icmp_borrow(kk_string_t str1, kk_string_t str2);             // ascii case insensitive
