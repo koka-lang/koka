@@ -106,8 +106,8 @@ data Flags
          , simplify         :: Int
          , simplifyMaxDup   :: Int
          , colorScheme      :: ColorScheme
-         , outDir           :: FilePath
-         , outBuildDir      :: FilePath
+         , outDir           :: FilePath      --  out
+         , outBuildDir      :: FilePath      --  actual build output: <outDir>/v2.x.x/<ccomp>-<variant>
          , includePath      :: [FilePath]
          , csc              :: FileName
          , node             :: FileName
@@ -133,10 +133,10 @@ data Flags
          , coreCheck        :: Bool
          , enableMon        :: Bool
          , semiInsert       :: Bool
-         , libDir           :: FilePath
-         , binDir           :: FilePath
-         , kklibDir         :: FilePath
-         , stdlibDir        :: FilePath
+         , localBinDir      :: FilePath  -- directory of koka executable
+         , localDir         :: FilePath  -- install prefix: /usr/local
+         , localLibDir      :: FilePath  -- precompiled object files: <prefix>/lib/koka/v2.x.x  /<cc>-<config>/libkklib.a, /<cc>-<config>/std_core.kki, ...
+         , localShareDir    :: FilePath  -- sources: <prefix>/share/koka/v2.x.x  /lib/std, /lib/samples, /kklib
          , packages         :: Packages
          , forceModule      :: FilePath
          , debug            :: Bool      -- emit debug info
@@ -198,10 +198,10 @@ flagsNull
           False -- coreCheck
           True  -- enableMonadic
           True  -- semi colon insertion
-          ""    -- bin dir
-          ""    -- lib dir
-          ""    -- kklib dir   <lib>/kklib
-          ""    -- stdlib dir  <lib>/lib
+          ""    -- koka executable dir
+          ""    -- prefix dir (default: <program-dir>/..)
+          ""    -- localLib dir
+          ""    -- localShare dir
           packagesEmpty -- packages
           "" -- forceModule
           True -- debug
@@ -467,39 +467,38 @@ processOptions flags0 opts
                         else if (null files) then ModeInteractive files
                                              else ModeCompiler files
              in do pkgs <- discoverPackages (outDir flags)
-                   (binDir,libDir,kklibDir,stdlibDir) <- getKokaDirs
+                   (localDir,localLibDir,localShareDir,localBinDir) <- getKokaDirs
                    ccmd <- if (ccompPath flags == "") then detectCC else return (ccompPath flags)
                    cc   <- ccFromPath flags ccmd
                    return (flags{ packages    = pkgs,
-                                  binDir      = binDir,
-                                  libDir      = libDir,
-                                  kklibDir    = kklibDir,
-                                  stdlibDir   = stdlibDir,
-                                  ccompPath      = ccmd,
+                                  localBinDir = localBinDir,
+                                  localDir    = localDir,
+                                  localLibDir = localLibDir,
+                                  localShareDir = localShareDir,
+                                  ccompPath   = ccmd,
                                   ccomp       = cc,
-                                  includePath = stdlibDir : includePath flags }
+                                  includePath = (localShareDir ++ "/lib") : includePath flags }
                           ,mode)
         else invokeError errs
 
-getKokaDirs :: IO (FilePath,FilePath,FilePath, FilePath)
+getKokaDirs :: IO (FilePath,FilePath,FilePath,FilePath)
 getKokaDirs
   = do bin        <- getProgramPath
        let binDir  = dirname bin
            rootDir = rootDirFrom binDir
+       isRootRepo <- doesFileExist (joinPath rootDir "koka.cabal")
        libDir0    <- getEnvVar "KOKA_LIB_DIR"
-       libDir     <- if (not (null libDir0)) then return libDir0 else
-                     do exist <- doesFileExist (joinPath rootDir "lib/toc.kk")
-                        if (exist)
-                          then return rootDir -- from local repo
-                          else return (joinPath rootDir ("lib/koka/v" ++ version))  -- from install
-       kklibDir0  <- getEnvVar "KOKA_KKLIB_DIR"
-       let kklibDir = if (null kklibDir0) then joinPath libDir "kklib" else kklibDir0
-       stdlibDir0 <- getEnvVar "KOKA_STDLIB_DIR"
-       let stdlibDir = if (null stdlibDir0) then joinPath libDir "lib" else stdlibDir0
-       return (normalizeWith '/' binDir,
+       shareDir0  <- getEnvVar "KOKA_SHARE_DIR"
+       let libDir   = if (not (null libDir0)) then libDir0
+                      else if (isRootRepo) then joinPath rootDir "out"
+                      else joinPath rootDir ("lib/koka/v" ++ version)
+           shareDir = if (not (null shareDir0)) then shareDir0
+                      else if (isRootRepo) then rootDir
+                      else joinPath rootDir ("share/koka/v" ++ version)
+       return (normalizeWith '/' rootDir,
                normalizeWith '/' libDir,
-               normalizeWith '/' kklibDir,
-               normalizeWith '/' stdlibDir)
+               normalizeWith '/' shareDir,
+               normalizeWith '/' binDir)
 
 rootDirFrom :: FilePath -> FilePath
 rootDirFrom binDir
@@ -508,7 +507,7 @@ rootDirFrom binDir
      ("bin":_:"install":".stack-work":es)     -> joinPaths (reverse es)
      ("bin":_:_:"install":".stack-work":es)   -> joinPaths (reverse es)
      ("bin":_:_:_:"install":".stack-work":es) -> joinPaths (reverse es)
-     -- install
+     -- regular install
      ("bin":es)   -> joinPaths (reverse es)
      -- jake build
      (_:"out":es) -> joinPaths (reverse es)
@@ -578,8 +577,8 @@ data CC = CC{  ccName       :: String,
                ccAddSysLib  :: String -> Args,
                ccAddLib     :: FilePath -> Args,
                ccAddDef     :: String -> Args,
-               ccLibFile    :: String -> FilePath,
-               ccObjFile    :: String -> FilePath
+               ccLibFile    :: String -> FilePath,  -- make lib file name
+               ccObjFile    :: String -> FilePath   -- make object file namen
             }
 
 data BuildType = Debug | Release | RelWithDebInfo
@@ -594,7 +593,7 @@ outName :: Flags -> FilePath -> FilePath
 outName flags s
   = joinPath (buildDir flags) s
 
-buildDir :: Flags -> FilePath
+buildDir :: Flags -> FilePath    -- usually <outDir>/v2.x.x/<config>
 buildDir flags
   = if (null (outBuildDir flags))
      then if (null (outDir flags))
@@ -602,7 +601,7 @@ buildDir flags
            else outDir flags ++ "/" ++ configType flags
      else outBuildDir flags
 
-configType :: Flags -> String
+configType :: Flags -> String   -- for example: clang-debug, js-release
 configType flags
   = let pre  = if (target flags == C)
                  then ccName (ccomp flags)
@@ -835,10 +834,9 @@ versionMessage flags
     (if null (compiler ++ buildVariant) then "" else " (" ++ compiler ++ " " ++ buildVariant ++ " version)")
   , ""
   ])
-  <-> text "bin   :" <+> text (binDir flags)
-  <-> text "lib   :" <+> text (libDir flags)
-  <-> text "stdlib:" <+> text (stdlibDir flags)
-  <-> text "kklib :" <+> text (kklibDir flags)
+  <-> text "bin   :" <+> text (localBinDir flags)
+  <-> text "lib   :" <+> text (localLibDir flags)
+  <-> text "share :" <+> text (localShareDir flags)
   <-> text "build :" <+> text (buildDir flags)
   <-> text "cc    :" <+> text (ccPath (ccomp flags))
   <->

@@ -1182,7 +1182,7 @@ codeGenJS term flags modules compileTarget outBase core
             -- copy amdefine
             let copyNodeModules fname
                   = let nname = "node_modules/" ++ fname
-                    in copyTextIfNewer (rebuild flags) (joinPath (libDir flags) nname) (outName flags nname)
+                    in copyTextIfNewer (rebuild flags) (joinPath (localShareDir flags) nname) (outName flags nname)
             mapM_ copyNodeModules ["amdefine/amdefine.js","amdefine/package.json",
                                    "requirejs/require.js","requirejs/package.json"]
 
@@ -1234,7 +1234,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                      , ccFlagsWarn cc
                      , ccFlagsCompile cc
                      , ccFlagsBuildFromFlags cc flags
-                     , ccIncludeDir cc (kklibDir flags ++ "/include")]
+                     , ccIncludeDir cc (localShareDir flags ++ "/kklib/include")]
                      ++
                      map (ccAddDef cc) ((if (asan flags) then [] else ["KK_MIMALLOC","MI_MAX_ALIGN_SIZE=8"])
                                         ++ ["KK_STATIC_LIB"])
@@ -1267,8 +1267,8 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                 mainName   = if null (exeName flags) then mainModName else exeName flags
                 mainExe    = outName flags mainName
 
-            -- build kklib for the specifield build variant
-            cmakeLib term flags cc "kklib" (ccLibFile cc "kklib") (kklibDir flags) cmakeGeneratorFlag
+            -- build kklib for the specified build variant
+            cmakeLib term flags cc "kklib" (ccLibFile cc "kklib") cmakeGeneratorFlag
 
             let objs   = [outName flags (ccObjFile cc (showModName mname)) | mname <- (map modName modules ++ [Core.coreProgName core0])]
                 libs   = map trim (splitOn (==',') (ccompLinkLibs flags)) ++
@@ -1381,11 +1381,12 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             return (Just (runSystem (dquote finalExe ++ cmdflags ++ " " ++ execOpts flags)))
 -}
 
-cmakeLib :: Terminal -> Flags -> CC -> String -> FilePath -> FilePath -> [String] -> IO ()
-cmakeLib term flags cc libName {-kklib-} libFile {-libkklib.a-} libSourceDir cmakeGeneratorFlag
+cmakeLib :: Terminal -> Flags -> CC -> String -> FilePath -> [String] -> IO ()
+cmakeLib term flags cc libName {-kklib-} libFile {-libkklib.a-} cmakeGeneratorFlag
   = do let libPath = outName flags libFile  {-out/v2.x.x/clang-debug/libkklib.a-}
        exist <- doesFileExist libPath
-       let binLibPath = libDir flags ++ "/" ++ configType flags ++ "/" ++ libFile
+       let binLibPath = joinPath (localLibDir flags) (configType flags ++ "/" ++ libFile)
+       let srcLibDir  = joinPath (localShareDir flags) (libName)
        binExist <- doesFileExist binLibPath
        binNewer <- if (not binExist) then return False
                    else if (not exist) then return True
@@ -1393,7 +1394,7 @@ cmakeLib term flags cc libName {-kklib-} libFile {-libkklib.a-} libSourceDir cma
                            return (cmp==GT)
        srcNewer <- if (binNewer) then return False -- no need to check
                    else if (not exist) then return True
-                   else do cmp <- fileTimeCompare (libSourceDir ++ "/include/kklib.h") libPath
+                   else do cmp <- fileTimeCompare (srcLibDir ++ "/include/kklib.h") libPath
                            return (cmp==GT)
        -- putStrLn ("binLibPath: " ++ binLibPath ++ ", newer: " ++ show binNewer)
        if (not binNewer && not srcNewer && not (rebuild flags)) then return ()
@@ -1404,7 +1405,7 @@ cmakeLib term flags cc libName {-kklib-} libFile {-libkklib.a-} libSourceDir cma
                 do termDoc term $ color (colorInterpreter (colorScheme flags)) (text ("cmake  :")) <+>
                                    color (colorSource (colorScheme flags)) (text libName) <+>
                                     color (colorInterpreter (colorScheme flags)) (text "from:") <+>
-                                     color (colorSource (colorScheme flags)) (text libSourceDir)
+                                     color (colorSource (colorScheme flags)) (text srcLibDir)
                    let cmakeDir    = outName flags libName
                        cmakeConfigType = "-DCMAKE_BUILD_TYPE=" ++
                                          (case (buildType flags) of
@@ -1422,7 +1423,7 @@ cmakeLib term flags cc libName {-kklib-} libFile {-libkklib.a-} libSourceDir cma
                                       , (if (asan flags) then "-DKK_DEBUG_SAN=address" else "")
                                       ]
                                       ++ unquote (cmakeArgs flags) ++
-                                      [ libSourceDir ]
+                                      [ srcLibDir ]
 
                        cmakeBuild  = [cmake flags, "--build", cmakeDir]
                        -- cmakeInstall= cmake flags ++ " --build " ++ dquote cmakeDir ++ " --target install"   -- switch "--install" is not available before cmake 3.15
