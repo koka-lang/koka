@@ -668,12 +668,12 @@ resolveModule term flags currentDir modules mimp
                        -> do loadMessage "loading:"
                              ftime  <- liftIO $ getFileTime iface
                              (core,parseInlines) <- lift $ parseCore iface
-                             -- liftIO $ copyIFaceToOutputDir term flags iface
-                             let mod = Module (Core.coreName core) iface (joinPath root stem) pkgQname pkgLocal []
+                             outIFace <- liftIO $ copyIFaceToOutputDir term flags iface
+                             let mod = Module (Core.coreName core) outIFace (joinPath root stem) pkgQname pkgLocal []
                                                 Nothing -- (error ("getting program from core interface: " ++ iface))
                                                   core (Left parseInlines) Nothing ftime
                              return mod
-             loadFromModule iface root stem mod
+             loadFromModule (modPath mod){-iface-} root stem mod
 
       loadFromModule iface root source mod
         = -- trace ("load from module: " ++ iface ++ ": " ++ root ++ "/" ++ source) $
@@ -687,7 +687,7 @@ resolveModule term flags currentDir modules mimp
              if (latest >= modTime mod
                   && not (null source)) -- happens if no source is present but (package) depencies have updated...
                then loadFromSource resolved1 root source -- load from source after all
-               else do liftIO $ copyIFaceToOutputDir term flags iface (modPackageQPath mod) imports
+               else do liftIO $ copyPkgIFaceToOutputDir term flags iface (modPackageQPath mod) imports
                        let allmods = addOrReplaceModule mod resolved1
                        return (mod{ modSourcePath = joinPath root source }, allmods)
 
@@ -721,7 +721,10 @@ searchOutputIface flags name
            iface = joinPath (buildDir flags) postfix
        exist <- doesFileExist iface
        -- trace ("search output iface: " ++ show name ++ ": " ++ iface ++ " (" ++ (if exist then "found" else "not found" ) ++ ")") $ return ()
-       return (if exist then (Just iface) else Nothing)
+       if exist then return (Just iface)
+         else do let libIface = joinPaths [localLibDir flags, configType flags, postfix]
+                 libExist <- doesFileExist libIface
+                 return (if (libExist) then ({-trace ("found lib iface: " ++ libIface) $ -} Just libIface) else Nothing)
 
 searchSource :: Flags -> FilePath -> Name -> IO (Maybe (FilePath,FilePath,Name {-full mod name relative to root-}))
 searchSource flags currentDir name
@@ -1484,21 +1487,44 @@ runCommand term flags cargs@(cmd:args)
 joinWith sep xs
   = concat (intersperse sep xs)
 
-copyIFaceToOutputDir :: Terminal -> Flags -> FilePath -> PackageName -> [Module] -> IO ()
-copyIFaceToOutputDir term flags iface targetPath imported
+copyIFaceToOutputDir :: Terminal -> Flags -> FilePath -> IO FilePath
+copyIFaceToOutputDir term flags iface
   -- | host flags == Node && target flags == JS = return ()
   -- | otherwise
-  = do let outName = joinPaths [buildDir flags, targetPath, notdir iface]
-       copyTextIfNewer (rebuild flags) iface outName
+  = do let outIFace = outName flags (notdir iface)
+           withExt fname ext = notext fname ++ ext
+       -- trace ("copy iface: " ++ iface ++ " to " ++ outIFace) $ return ()
+       copyTextIfNewer (rebuild flags) iface outIFace
        if (CS == target flags)
         then do let libSrc = notext iface ++ dllExtension
-                let libOut = notext outName ++ dllExtension
+                let libOut = notext outIFace ++ dllExtension
                 copyBinaryIfNewer (rebuild flags) libSrc libOut
         else return ()
        if (JS == target flags)
         then do let jsSrc = notext iface ++ ".js"
-                let jsOut = notext outName ++ ".js"
-                copyTextFileWith  jsSrc jsOut (packagePatch iface (targetPath) imported)
+                let jsOut = notext outIFace ++ ".js"
+                -- copyTextFileWith  jsSrc jsOut (packagePatch iface (targetPath) imported)
+                copyTextIfNewer (rebuild flags) jsSrc jsOut
+        else return ()
+       if (C == target flags)
+        then do copyTextIfNewer (rebuild flags) (withExt iface ".c") (withExt outIFace ".c")
+                copyTextIfNewer (rebuild flags) (withExt iface ".h") (withExt outIFace ".h")
+                let cc = ccomp flags
+                copyBinaryIfNewer (rebuild flags) (ccObjFile cc (notext iface)) (ccObjFile cc (notext outIFace))
+        else return ()
+       return outIFace
+
+copyPkgIFaceToOutputDir :: Terminal -> Flags -> FilePath -> PackageName -> [Module] -> IO ()
+copyPkgIFaceToOutputDir term flags iface targetPath imported
+  -- | host flags == Node && target flags == JS = return ()
+  -- | otherwise
+  = do outIFace <- copyIFaceToOutputDir term flags iface
+       if (JS == target flags)
+        then do let outJs = notext outIFace ++ ".js"
+                content <- readTextFile outJs
+                case content of
+                  Nothing -> return ()
+                  Just content -> writeTextFile outJs (packagePatch iface (targetPath) imported content)
         else return ()
 
 packagePatch :: FilePath -> PackageName -> [Module] -> (String -> String)

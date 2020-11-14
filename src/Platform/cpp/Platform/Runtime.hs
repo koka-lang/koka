@@ -12,7 +12,7 @@
 -----------------------------------------------------------------------------
 module Platform.Runtime( exCatch
                        , unsafePerformIO
-                       , finally                       
+                       , finally
                        , copyBinaryFile
                        ) where
 
@@ -25,10 +25,11 @@ import Control.Exception( finally )
 import qualified Control.Exception as Ex
 
 import qualified Data.ByteString as B
+import System.Directory
 
 exCatch :: IO a -> (String -> IO a) -> IO a
 exCatch io handler
-  = {- 
+  = {-
     Ex.catch io (\err -> handler (userError (case Ex.userErrors err of
                                                Just msg -> msg
                                                Nothing  -> show err)))
@@ -40,8 +41,9 @@ exCatch io handler
 
 copyBinaryFile :: FilePath -> FilePath -> IO ()
 copyBinaryFile src dest
-  = do content <- B.readFile src
-       B.writeFile dest content
+  = copyFileWithMetadata src dest
+    -- do content <- B.readFile src
+    --   B.writeFile dest content
 
 #else
 import System.IO( withBinaryFile, hGetContents, hPutStr, IOMode(..) )

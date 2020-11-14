@@ -81,6 +81,10 @@ fun install( prefixdir : path, cc : string, version : string ) {
   copy-file-to-dir("lib/toc.kk".path, stdlibdir)
   copy-file-to-dir("lib/package.std.json".path, stdlibdir)
 
+  // Copy samples
+  println("copy samples...")
+  copy-directory("samples".path, stdlibdir + "samples")
+
   // Copy kklib
   val kklibdir = sharedir + "kklib"
   println("copy kklib runtime...")
@@ -131,10 +135,12 @@ fun koka-exe-path() : <file,exn> path {
   throw("unable to find koka executable: use '> stack build' first.\n  (" + exe.string + ")")
 }
 
+/*
 fun koka-version( koka : path ) : <file,exn> string {
   val out = run-command(koka.string + " --version").exn
   out.list.drop-while(fn(c){ !is-white(c) }).take-while(fn(c){ c != ',' && c != '\n' }).string.trim
 }
+*/
 
 fun get-default-prefix() : <file,exn> path {
   val out = run-command("stack path --local-bin").exn

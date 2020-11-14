@@ -34,7 +34,7 @@ module Common.File(
                   , FileTime, fileTime0, maxFileTime, maxFileTimes
                   , fileTimeCompare, getFileTime
                   , getFileTimeOrCurrent, getCurrentTime
-                  , readTextFile
+                  , readTextFile, writeTextFile
                   , copyTextFile, copyTextIfNewer, copyTextIfNewerWith, copyTextFileWith
                   , copyBinaryFile, copyBinaryIfNewer
                   ) where
@@ -49,7 +49,7 @@ import System.Process   ( system, rawSystem )
 import System.Exit      ( ExitCode(..) )
 import System.Environment ( getEnvironment, getProgName )
 import System.Directory ( doesFileExist, doesDirectoryExist
-                        , copyFile
+                        , copyFile, copyFileWithMetadata
                         , getCurrentDirectory, getDirectoryContents
                         , createDirectoryIfMissing, canonicalizePath )
 
@@ -259,12 +259,16 @@ readTextFile fpath
                   return (seq (last content) $ Just content))
               (\exn -> return Nothing)
 
+writeTextFile :: FilePath -> String -> IO ()
+writeTextFile fpath content
+  = writeFile fpath content
+
 copyTextFile :: FilePath -> FilePath -> IO ()
 copyTextFile src dest
   = if (src == dest)
      then return ()
      else catchIO (do createDirectoryIfMissing True (dirname dest)
-                      copyFile src dest)
+                      copyFileWithMetadata src dest)
             (error ("could not copy file " ++ show src ++ " to " ++ show dest))
 
 copyTextFileWith :: FilePath -> FilePath -> (String -> String) -> IO ()
@@ -272,8 +276,10 @@ copyTextFileWith src dest transform
   = if (src == dest)
      then return ()
      else catchIO (do createDirectoryIfMissing True (dirname dest)
+                      ftime   <- getFileTime src
                       content <- readFile src
-                      writeFile dest (transform content))
+                      writeFile dest (transform content)
+                      setFileTime dest ftime)
             (error ("could not copy file " ++ show src ++ " to " ++ show dest))
 
 copyBinaryFile :: FilePath -> FilePath -> IO ()
@@ -284,7 +290,9 @@ copyBinaryFile src dest
 
 copyBinaryIfNewer :: Bool -> FilePath -> FilePath -> IO ()
 copyBinaryIfNewer always srcName outName
-  = do ord <- if always then return GT else fileTimeCompare srcName outName
+  = do ord <- if (srcName == outName) then return EQ
+              else if always then return GT
+              else fileTimeCompare srcName outName
        if (ord == GT)
         then do copyBinaryFile srcName outName
         else do -- putStrLn $ "no copy for: " ++ srcName ++ " to " ++ outName
@@ -292,14 +300,18 @@ copyBinaryIfNewer always srcName outName
 
 copyTextIfNewer :: Bool -> FilePath -> FilePath -> IO ()
 copyTextIfNewer always srcName outName
-  = do ord <- if always then return GT else fileTimeCompare srcName outName
+  = do ord <- if (srcName == outName) then return EQ
+              else if always then return GT
+              else fileTimeCompare srcName outName
        if (ord == GT)
         then do copyTextFile srcName outName
         else do return ()
 
 copyTextIfNewerWith :: Bool -> FilePath -> FilePath -> (String -> String) -> IO ()
 copyTextIfNewerWith always srcName outName transform
-  = do ord <- if always then return GT else fileTimeCompare srcName outName
+  = do ord <- if (srcName == outName) then return EQ
+              else if always then return GT
+              else fileTimeCompare srcName outName
        if (ord == GT)
         then do copyTextFileWith srcName outName transform
         else do return ()
