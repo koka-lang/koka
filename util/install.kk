@@ -55,54 +55,71 @@ fun install( prefixdir : path, cc : string, version : string ) {
   val koka    = koka-exe-path()
   val bindir  = prefixdir + "bin".path
   val libdir  = prefixdir + "lib/koka".path + version.path
+  val sharedir= prefixdir + "share/koka".path + version.path
 
   println("installing koka:")
-  println("  bin: " + bindir.string)
-  println("  lib: " + libdir.string)
-  println("  cc : " + cc)
-  println("  ver: " + version)
+  println("  bin    : " + bindir.string)
+  println("  lib    : " + libdir.string)
+  println("  share  : " + sharedir.string)
+  println("  cc     : " + cc)
+  println("  version: " + version)
   ensure-dir(bindir)
   ensure-dir(libdir)
+  ensure-dir(sharedir)
 
   // Build kklib versions
-  [Debug,DRelease,Release].foreach(build-kklib)
+  [Debug,DRelease,Release].foreach fn(v){ build-kklib(cc,v) }
 
   // Copy Koka
   println("copy koka executable...")
   copy-file-to-dir(koka, bindir)
 
   // Copy std libs
-  val stdlibdir = libdir + "lib".path
+  val stdlibdir = sharedir + "lib"
   println("copy standard libraries...")
-  copy-directory("lib/std".path, stdlibdir + "std".path)
+  copy-directory("lib/std".path, stdlibdir + "std")
   copy-file-to-dir("lib/toc.kk".path, stdlibdir)
   copy-file-to-dir("lib/package.std.json".path, stdlibdir)
 
   // Copy kklib
-  val kklibdir = libdir + "kklib".path
+  val kklibdir = sharedir + "kklib"
   println("copy kklib runtime...")
-  copy-directory("kklib/src".path, kklibdir + "src".path)
-  copy-directory("kklib/include".path, kklibdir + "include".path)
-  copy-directory("kklib/mimalloc".path, kklibdir + "mimalloc".path)
+  copy-directory("kklib/src".path, kklibdir + "src")
+  copy-directory("kklib/include".path, kklibdir + "include")
+  copy-directory("kklib/mimalloc".path, kklibdir + "mimalloc")
   copy-file-to-dir("kklib/CMakeLists.txt".path, kklibdir)
   copy-file-to-dir("kklib/kkmain.cmake".path, kklibdir)
 
   // Copy contrib
-  val contribdir = libdir + "contrib".path
+  val contribdir = sharedir + "contrib"
   println("copy contrib...")
   ensure-dir(contribdir)
   copy-file-to-dir("contrib/biginteger.js".path, contribdir)
 
   // Copy kklib binaries
   [Debug,DRelease,Release].foreach fn(variant){
+    println("copying standard library: " + variant.show)
     val vardir = cc + "-" + variant.show
-    val kkbindir = kklibdir + ".." + vardir
+    val objdir = libdir + vardir
+    val outdir = "out".path + version + vardir
     val kklib  = if (partsep()=="\\" && cc!="mingw") then "kklib.lib" else "libkklib.a"  // todo: detect OS
-    ensure-dir(kkbindir)
-    copy-file-to-dir( "out".path + version + vardir + kklib, kkbindir )
+    ensure-dir(objdir)
+    copy-file-to-dir( outdir + kklib, objdir )
+    val all = list-directory(outdir)
+    val files = all.filter(fn(f){ !is-directory(f) })
+    val objs = files.filter(fn(f){ f.basename.starts-with("std_").bool && f.extname != "core" })
+    objs.foreach fn(obj){
+      // println("copy " + obj.string)
+      copy-file-to-dir( obj, objdir )
+    }
   }
 
   println("done installing.")
+  println("  bin    : " + bindir.string)
+  println("  lib    : " + libdir.string)
+  println("  share  : " + sharedir.string)
+  println("  cc     : " + cc)
+  println("  version: " + version)
 }
 
 fun koka-exe-path() : <file,exn> path {
@@ -138,13 +155,13 @@ fun show( v : variant ) : string {
   }
 }
 
-fun build-kklib(v : variant) : io () {
+fun build-kklib(cc : string, v : variant) : io () {
   println("build kklib: " + v.show + "...")
   val extra = match(v) {
     Debug    -> ""
     DRelease -> "-O2"
     Release  -> "-O2 --no-debug"
   }
-  val code = run-system("stack exec koka -- -v0 " + extra + " util/minimal")
+  val code = run-system("stack exec koka -- --cc=" + cc + " " + extra + " util/link-std")
   if (code != 0) throw("error: " + code.show)
 }
