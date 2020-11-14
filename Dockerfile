@@ -11,7 +11,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends cmake \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
-RUN git clone --recursive https://github.com/koka-lang/koka -b dev
+RUN git clone --recursive https://github.com/koka-lang/koka  -b dev
 WORKDIR /build/koka
 RUN stack build
 RUN stack exec koka -- util/install -- --prefix=/usr/local
@@ -25,5 +25,8 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=build /usr/local/ /usr/local/
 COPY --from=build /build/koka/out/ /out/
-RUN touch -am /out/*/*/*.*
+COPY --from=build /build/koka/samples/ /samples/
+RUN touch -am /out/*/*/std_core_types.kki
+RUN touch -am /out/*/*/std_core_hnd.kki
+RUN touch -am /out/*/*/std_core.kki
 CMD ["koka"]
