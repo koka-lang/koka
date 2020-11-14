@@ -24,4 +24,6 @@ RUN apt-get update \
       nodejs ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=build /usr/local/ /usr/local/
+COPY --from=build /build/koka/out/ /out/
+RUN touch -am /out/*/*/*.*
 CMD ["koka"]

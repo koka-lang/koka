@@ -643,7 +643,7 @@ resolveModule term flags currentDir modules mimp
                         loadFromSource modules root stem
                 Nothing ->
                   -- trace ("module " ++ show (name) ++ " not yet loaded") $
-                  if (not (rebuild flags) && srcpath /= forceModule flags && ifaceTime > sourceTime)
+                  if (not (rebuild flags) && srcpath /= forceModule flags && ifaceTime >= sourceTime)
                     then loadFromIface iface root stem
                     else loadFromSource modules root stem
 
@@ -684,7 +684,7 @@ resolveModule term flags currentDir modules mimp
              (imports,resolved1) <- resolveImportModules name term flags (dirname iface) modules (map ImpCore (Core.coreProgImports (modCore mod)))
              let latest = maxFileTimes (map modTime imports)
              -- trace ("loaded iface: " ++ show iface ++ "\n time: "  ++ show (modTime mod) ++ "\n latest: " ++ show (latest)) $ return ()
-             if (latest > modTime mod
+             if (latest >= modTime mod
                   && not (null source)) -- happens if no source is present but (package) depencies have updated...
                then loadFromSource resolved1 root source -- load from source after all
                else do liftIO $ copyIFaceToOutputDir term flags iface (modPackageQPath mod) imports
