@@ -77,7 +77,7 @@ import Type.Infer             ( inferTypes )
 import Type.Pretty hiding     ( verbose )
 import Compiler.Options       ( Flags(..), CC(..), BuildType(..), buildType, ccFlagsBuildFromFlags, unquote,
                                 prettyEnvFromFlags, colorSchemeFromFlags, prettyIncludePath, isValueFromFlags,
-                                buildDir, outName )
+                                buildDir, outName, configType )
 
 import Compiler.Module
 
@@ -1382,43 +1382,54 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
 -}
 
 cmakeLib :: Terminal -> Flags -> CC -> String -> FilePath -> FilePath -> [String] -> IO ()
-cmakeLib term flags cc libName libFile libSourceDir cmakeGeneratorFlag
-  = do let libPath = outName flags libFile
+cmakeLib term flags cc libName {-kklib-} libFile {-libkklib.a-} libSourceDir cmakeGeneratorFlag
+  = do let libPath = outName flags libFile  {-out/v2.x.x/clang-debug/libkklib.a-}
        exist <- doesFileExist libPath
-       newer <- if (not exist) then return True
-                 else do cmp <- fileTimeCompare (libSourceDir ++ "/include/kklib.h") libPath
-                         return (cmp==GT)
-       if (not newer && not (rebuild flags)) then return ()
-         else -- todo: check for installed binaries for the library
-              do termDoc term $ color (colorInterpreter (colorScheme flags)) (text ("cmake  :")) <+>
-                                 color (colorSource (colorScheme flags)) (text libName) <+>
-                                  color (colorInterpreter (colorScheme flags)) (text "from:") <+>
-                                   color (colorSource (colorScheme flags)) (text libSourceDir)
-                 let cmakeDir    = outName flags libName
-                     cmakeConfigType = "-DCMAKE_BUILD_TYPE=" ++
-                                       (case (buildType flags) of
-                                           Debug -> "Debug"
-                                           RelWithDebInfo -> "RelWithDebInfo"
-                                           Release -> "Release")
-                     cmakeConfig =  [ cmake flags
-                                    , "-E", "chdir", cmakeDir   -- see above for chdir
-                                    , cmake flags
-                                    ]
-                                    ++ cmakeGeneratorFlag ++
-                                    [ cmakeConfigType
-                                    , "-DCMAKE_C_COMPILER=" ++ (basename (ccPath cc))
-                                    , "-DCMAKE_INSTALL_PREFIX=" ++ (buildDir flags)
-                                    , (if (asan flags) then "-DKK_DEBUG_SAN=address" else "")
-                                    ]
-                                    ++ unquote (cmakeArgs flags) ++
-                                    [ libSourceDir ]
+       let binLibPath = libDir flags ++ "/" ++ configType flags ++ "/" ++ libFile
+       binExist <- doesFileExist binLibPath
+       binNewer <- if (not binExist) then return False
+                   else if (not exist) then return True
+                   else do cmp <- fileTimeCompare binLibPath libPath
+                           return (cmp==GT)
+       srcNewer <- if (binNewer) then return False -- no need to check
+                   else if (not exist) then return True
+                   else do cmp <- fileTimeCompare (libSourceDir ++ "/include/kklib.h") libPath
+                           return (cmp==GT)
+       -- putStrLn ("binLibPath: " ++ binLibPath ++ ", newer: " ++ show binNewer)
+       if (not binNewer && not srcNewer && not (rebuild flags)) then return ()
+         else if (binNewer)
+           then -- use pre-compiled installed binary
+                copyBinaryFile binLibPath libPath
+           else -- todo: check for installed binaries for the library
+                do termDoc term $ color (colorInterpreter (colorScheme flags)) (text ("cmake  :")) <+>
+                                   color (colorSource (colorScheme flags)) (text libName) <+>
+                                    color (colorInterpreter (colorScheme flags)) (text "from:") <+>
+                                     color (colorSource (colorScheme flags)) (text libSourceDir)
+                   let cmakeDir    = outName flags libName
+                       cmakeConfigType = "-DCMAKE_BUILD_TYPE=" ++
+                                         (case (buildType flags) of
+                                             Debug -> "Debug"
+                                             RelWithDebInfo -> "RelWithDebInfo"
+                                             Release -> "Release")
+                       cmakeConfig =  [ cmake flags
+                                      , "-E", "chdir", cmakeDir   -- see above for chdir
+                                      , cmake flags
+                                      ]
+                                      ++ cmakeGeneratorFlag ++
+                                      [ cmakeConfigType
+                                      , "-DCMAKE_C_COMPILER=" ++ (basename (ccPath cc))
+                                      , "-DCMAKE_INSTALL_PREFIX=" ++ (buildDir flags)
+                                      , (if (asan flags) then "-DKK_DEBUG_SAN=address" else "")
+                                      ]
+                                      ++ unquote (cmakeArgs flags) ++
+                                      [ libSourceDir ]
 
-                     cmakeBuild  = [cmake flags, "--build", cmakeDir]
-                     -- cmakeInstall= cmake flags ++ " --build " ++ dquote cmakeDir ++ " --target install"   -- switch "--install" is not available before cmake 3.15
-                 createDirectoryIfMissing True cmakeDir
-                 runCommand term flags cmakeConfig
-                 runCommand term flags cmakeBuild
-                 copyBinaryFile (cmakeDir ++ "/" ++ libFile) libPath
+                       cmakeBuild  = [cmake flags, "--build", cmakeDir]
+                       -- cmakeInstall= cmake flags ++ " --build " ++ dquote cmakeDir ++ " --target install"   -- switch "--install" is not available before cmake 3.15
+                   createDirectoryIfMissing True cmakeDir
+                   runCommand term flags cmakeConfig
+                   runCommand term flags cmakeBuild
+                   copyBinaryFile (cmakeDir ++ "/" ++ libFile) libPath
 
 
 -- emit helpful messages if dependencies are not installed (cmake etc)
