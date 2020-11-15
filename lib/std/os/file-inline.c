@@ -13,18 +13,18 @@ static kk_std_core__error kk_os_read_text_file_error( kk_string_t path, kk_conte
 }
 
 static kk_std_core__error kk_os_write_text_file_error( kk_string_t path, kk_string_t content, kk_context_t* ctx ) {
-  const int err = kk_os_write_text_file(path,content,ctx); 
+  const int err = kk_os_write_text_file(path,content,ctx);
   return kk_error_from_errno(err,kk_unit_box(kk_Unit),ctx);
 }
 
 static kk_std_core__error kk_os_ensure_dir_error( kk_string_t path, kk_integer_t mode, kk_context_t* ctx ) {
   int m  = kk_integer_clamp32(mode,ctx);
-  const int err = kk_os_ensure_dir(path,m,ctx); 
+  const int err = kk_os_ensure_dir(path,m,ctx);
   return kk_error_from_errno(err,kk_unit_box(kk_Unit),ctx);
 }
 
-static kk_std_core__error kk_os_copy_file_error( kk_string_t from, kk_string_t to, kk_context_t* ctx ) {
-  const int err = kk_os_copy_file(from,to,ctx);
+static kk_std_core__error kk_os_copy_file_error( kk_string_t from, kk_string_t to, bool preserve_mtime, kk_context_t* ctx ) {
+  const int err = kk_os_copy_file(from,to,preserve_mtime,ctx);
   return kk_error_from_errno(err,kk_unit_box(kk_Unit),ctx);
 }
 

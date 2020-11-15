@@ -128,7 +128,7 @@ kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ct
 
 #if defined(WIN32) || defined(__MINGW32__)
 #include <Windows.h>
-static int os_copy_file(const char* from, const char* to) {
+static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
   if (!CopyFileA(from, to, FALSE)) {
     DWORD err = GetLastError();
     if (err == ERROR_FILE_NOT_FOUND) return ENOENT;
@@ -145,7 +145,8 @@ static int os_copy_file(const char* from, const char* to) {
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <utime.h>
+#include <sys/time.h>
+
 #if defined(__APPLE__) || defined(__FreeBSD__)
 #include <copyfile.h>
 #else
@@ -184,16 +185,20 @@ static int os_copy_file(const char* from, const char* to) {
   close(out);
 
   // maintain access/mod time
-  struct utimbuf utim;
-  utim.actime = finfo.st_atime;
-  utim.modtime = finfo.st_mtime;
-  utime(to, &utim);
+  if (preserve_mtime) {
+    struct timeval times[2];
+    times[0].tv_sec  = finfo.st_atim.tv_sec;
+    times[0].tv_nsec = finfo.st_atim.tv_nsec;
+    times[1].tv_sec  = finfo.st_mtim.tv_sec;
+    times[1].tv_nsec = finfo.st_mtim.tv_nsec;
+    utimes(to, times);
+  }
   return err;
 }
 #endif
 
-kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, kk_context_t* ctx) {
-  int err = os_copy_file(kk_string_cbuf_borrow(from), kk_string_cbuf_borrow(to));
+kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, bool preserve_mtime, kk_context_t* ctx) {
+  int err = os_copy_file(kk_string_cbuf_borrow(from), kk_string_cbuf_borrow(to), preserve_mtime );
   kk_string_drop(from,ctx);
   kk_string_drop(to,ctx);
   return err;

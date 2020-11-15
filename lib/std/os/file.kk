@@ -48,7 +48,7 @@ public fun read-text-file( path : path ) : <file,exn> string {
 
 // Write a text file synchronously (using UTF8 encoding)
 public fun write-text-file( path : path, content : string, create-dir : bool = True ) : <file,exn> ()  {
-  if (create-dir) then ensure-dir(path.nobase) 
+  if (create-dir) then ensure-dir(path.nobase)
   match(write-text-file-err(path.string,content)) {
     Error(exn) -> Error(exn.prepend("unable to write text file " + path.show)).throw
     _ -> ()
@@ -88,8 +88,8 @@ public fun copy-file-to-dir( from : path, dir : path ) : <file,exn> () {
 }
 
 // Copy a file.
-public fun copy-file( from : path, to : path ) : <file,exn> () {
-  match (prim-copy-file(from.string, to.string)) {
+public fun copy-file( from : path, to : path, preserve-mtime : bool = True ) : <file,exn> () {
+  match (prim-copy-file(from.string, to.string, preserve-mtime )) {
     Error(exn) -> Error(exn.prepend("unable to copy " + from.show + " to " + to.show)).throw
     _ -> ()
   }
@@ -115,7 +115,7 @@ extern ensure-dir-err( path : string, mode : int ) : file error<()> {
   c "kk_os_ensure_dir_error"
 }
 
-extern prim-copy-file( from : string, to : string ) : file error<()> {
+extern prim-copy-file( from : string, to : string, preserve-mtime : bool ) : file error<()> {
   c "kk_os_copy_file_error"
 }
 
