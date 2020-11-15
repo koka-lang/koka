@@ -7,13 +7,15 @@ val header = "usage:\n stack exec koka -- util/install [-- [options]]\n\noptions
 
 struct iflags {
   prefixdir : string = ""
+  minimal   : bool   = False
 }
 
 val flag-descs : list<flag<iflags>> = {
-  fun set-prefix( f : iflags, s : string ) : iflags {
-    f(prefixdir = s)
-  }
-  [ Flag( "", ["prefix"], Req(set-prefix,"DIR"), "set prefix directory ('/usr/local')" ) ]
+  fun set-prefix( f : iflags, s : string ) : iflags { f(prefixdir = s) }
+  fun set-minimal( f : iflags, b : bool ) : iflags  { f(minimal = b) }
+  [ Flag( "", ["prefix"], Req(set-prefix,"DIR"), "set prefix directory ('/usr/local')" ),
+    Flag( "m", ["minimal"], Bool(set-minimal), "use minimal install (more quick)" )
+  ]
 }
 
 public fun process-flags() : <ndet,console> maybe<iflags> {
@@ -43,14 +45,14 @@ fun main() {
       match(app-path().dirparts.reverse) {
         (Cons(_,Cons(variant,Cons(version)))) {
            val cc = variant.trim-right("-debug")
-           install( predir, cc, version)
+           install( predir, cc, version, flags.minimal )
         }
       }
     }
   }
 }
 
-fun install( prefixdir : path, cc : string, version : string ) {
+fun install( prefixdir : path, cc : string, version : string, minimal : bool ) {
   // Install paths
   val koka    = koka-exe-path()
   val bindir  = prefixdir + "bin".path
@@ -68,7 +70,7 @@ fun install( prefixdir : path, cc : string, version : string ) {
   ensure-dir(sharedir)
 
   // Build kklib versions
-  [Debug,DRelease,Release].foreach fn(v){ build-kklib(cc,v) }
+  [Debug,DRelease,Release].foreach fn(v){ build-kklib(cc,v,minimal) }
 
   // Copy Koka
   println("copy koka executable...")
@@ -161,13 +163,14 @@ fun show( v : variant ) : string {
   }
 }
 
-fun build-kklib(cc : string, v : variant) : io () {
+fun build-kklib(cc : string, v : variant, minimal : bool) : io () {
   println("build kklib: " + v.show + "...")
   val extra = match(v) {
     Debug    -> ""
     DRelease -> "-O2"
     Release  -> "-O2 --no-debug"
   }
-  val code = run-system("stack exec koka -- --cc=" + cc + " " + extra + " util/link-std")
+  val prog = if (minimal) then "util/link-min" else "util/link-std"
+  val code = run-system( ["stack exec koka", "--", "--cc=" + cc, extra, prog].join(" "))
   if (code != 0) throw("error: " + code.show)
 }

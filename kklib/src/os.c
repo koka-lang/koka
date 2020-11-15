@@ -129,7 +129,7 @@ kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ct
 #if defined(WIN32) || defined(__MINGW32__)
 #include <Windows.h>
 static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
-  KK_UNUSED(preserve_mtime)
+  KK_UNUSED(preserve_mtime);
   if (!CopyFileA(from, to, FALSE)) {
     DWORD err = GetLastError();
     if (err == ERROR_FILE_NOT_FOUND) return ENOENT;
