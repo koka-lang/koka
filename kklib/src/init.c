@@ -225,7 +225,7 @@ static void free_context(void) {
 kk_decl_export kk_context_t* kk_main_start(int argc, char** argv) {
   kk_context_t* ctx = kk_get_context();
   // process kklib options
-  if (argv != NULL && argc > 1) {
+  if (argv != NULL && argc >= 1) {
     size_t i;
     for (i = 1; i < (size_t)argc; i++) {   // argv[0] is the program name
       const char* arg = argv[i];

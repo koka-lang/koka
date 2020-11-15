@@ -595,8 +595,8 @@ static kk_string_t kk_os_searchpathx(const char* paths, const char* fname, kk_co
 
 // generic application path by using argv[0] and looking at the current working directory and the PATH environment.
 static kk_string_t kk_os_app_path_generic(kk_context_t* ctx) {
-  const char* p = ctx->argv[0];
-  if (p==0 || strlen(p)==0) return kk_string_empty();
+  const char* p = (ctx->argc > 0 ? ctx->argv[0] : NULL);
+  if (p==NULL || strlen(p)==0) return kk_string_empty();
 
   if (p[0]=='/'
 #ifdef _WIN32
