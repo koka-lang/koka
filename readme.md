@@ -280,7 +280,9 @@ or run the interpreter:
 ## Install on Unix and macOS
 
 Koka is by default installed for the current user in `<prefix>/bin/koka`,
-`<prefix>/lib/koka/v2.x.x`, and `<prefix>/share/koka/v2.x.x`.
+(with architecture specific files under `<prefix>/lib/koka/v2.x.x`
+and libraries and samples under `<prefix>/share/koka/v2.x.x`).
+
 On Unix and macOS, the default installation prefix is `~/.local` and it is
 recommended to add `~/.local/bin` to the search path
 (e.g. add `export PATH=$PATH:~/.local/bin` to your `~/.bashrc` or `~/.zshrc`).
@@ -304,7 +306,7 @@ Generally, you need to install and run `koka` from a
 [Visual Studio](https://visualstudio.microsoft.com/downloads)
 [command prompt](https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019)
 in order to link correctly with the Windows system libraries.
-Koka can use either the `msvc` compiler (default), or the [`clang-cl`](https://releases.llvm.org) compiler
+Koka can use either the `cl` compiler (default), or the [`clang-cl`](https://releases.llvm.org) compiler
 (use the `--cc=clang-cl` option with Koka).
 To install, run from a VS command prompt:
 ```
@@ -315,8 +317,8 @@ or
 > stack exec koka -- --cc=cl util/install
 ```
 
-Generally, for Koka code, `mingw` generates the fastest code, closely followed `clang-cl`, and than `cl`:
-
+Generally, for Koka code, `mingw` (`gcc`) optimizes best, closely followed `clang-cl`.
+On a 3.8Gz AMD 3600XT, with `mingw` 7.2.0, `clang-cl` 11.0.0, and `cl` 19.28 we get:
 ```
 > stack exec out\v2.0.5\mingw-release\test_bench_koka_rbtree -- --kktime
 420000
