@@ -454,11 +454,11 @@ kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
     const char* p = env[i];
     const char* pname = p;
     while (*p != '=' && *p != 0) { p++; }
-    buf[2*i] = kk_string_box(kk_string_alloc_len((p - pname), pname, ctx));
+    buf[2*i] = kk_string_box(kk_string_alloc_dupn((size_t)(p - pname), pname, ctx));
     p++; // skip '='
     const char* pvalue = p;
     while (*p != 0) { p++; }
-    buf[2*i + 1] = kk_string_box(kk_string_alloc_len((p - pvalue), pvalue, ctx));
+    buf[2*i + 1] = kk_string_box(kk_string_alloc_dupn((size_t)(p - pvalue), pvalue, ctx));
   }
   return v;
 }
