@@ -107,8 +107,10 @@ static inline kk_string_t kk_string_dup(kk_string_t str) {
   Strings operations
 --------------------------------------------------------------------------------------*/
 
-// Allocate a string of `len` characters. Adds a terminating zero at the end.
-static inline kk_string_t kk_string_alloc_len(size_t len, const char* s, kk_context_t* ctx) {
+// Allocate a string of `len` bytes. `s` must be at least `len` bytes of valid UTF8, or NULL.
+// Adds a terminating zero at the end.
+static inline kk_string_t kk_string_alloc_len_unsafe(size_t len, const char* s, kk_context_t* ctx) {
+kk_assert_internal(s == NULL || strlen(s) >= len);
   if (len == 0) {
     return kk_string_empty();
   }
@@ -133,13 +135,22 @@ static inline kk_string_t kk_string_alloc_len(size_t len, const char* s, kk_cont
 }
 
 static inline kk_string_t kk_string_alloc_buf(size_t len, kk_context_t* ctx) {
-  return kk_string_alloc_len(len, NULL, ctx);
+  return kk_string_alloc_len_unsafe(len, NULL, ctx);
 }
 
 static inline kk_string_t kk_string_alloc_dup(const char* s, kk_context_t* ctx) {
-  return (s==NULL ? kk_string_alloc_len(0, "", ctx) : kk_string_alloc_len(strlen(s), s, ctx));
+  if (s == NULL) return kk_string_empty();
+  return kk_string_alloc_len_unsafe(strlen(s), s, ctx);
 }
 
+static inline kk_string_t kk_string_alloc_dupn(size_t maxlen, const char* s, kk_context_t* ctx) {
+  if (s == NULL || maxlen == 0) return kk_string_empty();
+  size_t n;
+  for(n = 0; n < maxlen && s[n] != 0; n++) { };
+  return kk_string_alloc_len_unsafe(n, s, ctx);
+}
+
+// Raw string that directly points to an external buffer.
 static inline kk_string_t kk_string_alloc_raw_len(size_t len, const char* s, bool free, kk_context_t* ctx) {
   if (len == 0 || s==NULL) return kk_string_empty();
   kk_assert_internal(s[len]==0 && strlen(s)==len);
@@ -206,7 +217,7 @@ static inline kk_string_t kk_string_copy(kk_string_t str, kk_context_t* ctx) {
     return str;
   }
   else {
-    kk_string_t tstr = kk_string_alloc_len(kk_string_len_borrow(str), kk_string_cbuf_borrow(str), ctx);
+    kk_string_t tstr = kk_string_alloc_dup( kk_string_cbuf_borrow(str), ctx);
     kk_string_drop(str, ctx);
     return tstr;
   }

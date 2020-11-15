@@ -417,11 +417,11 @@ kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
   for(size_t i = 0; i < count; i++) {
     const char* pname = p;
     while (*p != '=' && *p != 0) { p++; }
-    buf[2*i] = kk_string_box( kk_string_alloc_len((p - pname), pname, ctx) );
+    buf[2*i] = kk_string_box( kk_string_alloc_dupn((p - pname), pname, ctx) );
     p++; // skip '='
     const char* pvalue = p;
     while (*p != 0) { p++; }
-    buf[2*i + 1] = kk_string_box(kk_string_alloc_len((p - pvalue), pvalue, ctx));
+    buf[2*i + 1] = kk_string_box(kk_string_alloc_dupn((p - pvalue), pvalue, ctx));
     p++;
   }
   FreeEnvironmentStringsA(env);
@@ -611,8 +611,9 @@ static kk_string_t kk_os_app_path_generic(kk_context_t* ctx) {
 #endif
     ) {
     // relative path, combine with "./"
-    kk_string_t s = kk_string_alloc_len(strlen(p) + 2, "./", ctx);
-    strcat((char*)kk_string_cbuf_borrow(s)+2, p);
+    kk_string_t s = kk_string_alloc_buf( strlen(p) + 2, ctx);
+    strcpy((char*)kk_string_cbuf_borrow(s), "./" );
+    strcpy((char*)kk_string_cbuf_borrow(s)+2, p);
     return kk_os_realpath(s, ctx);
   }
   else {
@@ -640,7 +641,7 @@ kk_decl_export kk_string_t kk_os_app_path(kk_context_t* ctx) {
   else {
     // not enough space in the buffer, try again with larger buffer
     size_t slen = kk_os_path_max();
-    kk_string_t s = kk_string_alloc_len(slen, NULL, ctx);
+    kk_string_t s = kk_string_alloc_buf(slen, ctx);
     len = GetModuleFileNameA(NULL, (char*)kk_string_cbuf_borrow(s), (DWORD)slen+1);
     if (len > slen) {
       // failed again, use fall back
@@ -720,7 +721,8 @@ kk_decl_export kk_string_t kk_os_home_dir(kk_context_t* ctx) {
   const char* hd = getenv("HOMEDRIVE");
   const char* hp = getenv("HOMEPATH");
   if (hd!=NULL && hp!=NULL) {
-    kk_string_t s = kk_string_alloc_len(strlen(hd) + strlen(hp), hd, ctx);
+    kk_string_t s = kk_string_alloc_buf(strlen(hd) + strlen(hp), ctx);
+    strcpy((char*)kk_string_cbuf_borrow(s), hd);
     strcat((char*)kk_string_cbuf_borrow(s), hp);
     return s;
   }
@@ -736,7 +738,8 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx) {
 #ifdef _WIN32
   const char* ad = getenv("LOCALAPPDATA");
   if (ad!=NULL) {
-    kk_string_t s = kk_string_alloc_len(strlen(ad) + 5, ad, ctx);
+    kk_string_t s = kk_string_alloc_buf(strlen(ad) + 5, ctx);
+    strcpy((char*)kk_string_cbuf_borrow(s), ad);
     strcat((char*)kk_string_cbuf_borrow(s), "\\Temp");
     return s;
   }

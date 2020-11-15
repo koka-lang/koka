@@ -234,7 +234,7 @@ kk_vector_t kk_string_splitv_atmost(kk_string_t s, kk_string_t sep, size_t n, kk
     }
     kk_assert_internal(r != NULL && r >= p);
     size_t len = (size_t)(r - p);
-    ss[i] = kk_string_box(kk_string_alloc_len(len, p, ctx));
+    ss[i] = kk_string_box(kk_string_alloc_dupn(len, p, ctx));
     p = r + seplen;  // advance
   }
   kk_assert_internal(p <= pend);
@@ -283,7 +283,7 @@ kk_string_t kk_string_replace_atmost(kk_string_t s, kk_string_t pat, kk_string_t
     
     // allocate
     size_t newlen = plen - (count * ppat_len) + (count * prep_len);
-    t = kk_string_alloc_len(newlen, NULL, ctx);
+    t = kk_string_alloc_buf(newlen, ctx);
     char* q = (char*)kk_string_cbuf_borrow(t);
     while (count > 0) {
       count--;
@@ -312,7 +312,7 @@ kk_string_t kk_string_repeat(kk_string_t str, size_t n, kk_context_t* ctx) {
   const char* s = kk_string_cbuf_borrow(str);
   size_t len = strlen(s);
   if (len == 0) return kk_string_empty();
-  kk_string_t tstr = kk_string_alloc_len(len*n, NULL, ctx); // TODO: check overflow
+  kk_string_t tstr = kk_string_alloc_buf(len*n, ctx); // TODO: check overflow
   char* t = (char*)kk_string_cbuf_borrow(tstr);
   for (size_t i = 0; i < n; i++) {
     strcpy(t, s);
@@ -446,7 +446,7 @@ kk_string_t  kk_string_trim_left(kk_string_t str, kk_context_t* ctx) {
   for ( ; *p != 0 && ascii_iswhite(*p); p++) { }
   if (p == s) return str;           // no trim needed
   const size_t tlen = len - (size_t)(p - s);      // todo: if s is unique and tlen close to slen, move inplace?
-  kk_string_t tstr = kk_string_alloc_len(tlen, p, ctx);
+  kk_string_t tstr = kk_string_alloc_dupn(tlen, p, ctx);
   kk_string_drop(str, ctx);
   return tstr;
 }
@@ -458,7 +458,7 @@ kk_string_t  kk_string_trim_right(kk_string_t str, kk_context_t* ctx) {
   for (; p >= s && ascii_iswhite(*p); p--) {}
   const size_t tlen = (size_t)(p - s) + 1;
   if (len == tlen) return str;  // no trim needed
-  kk_string_t tstr = kk_string_alloc_len(tlen, s, ctx);
+  kk_string_t tstr = kk_string_alloc_dupn(tlen, s, ctx);
   kk_string_drop(str, ctx);
   return tstr;
 }
@@ -485,7 +485,8 @@ kk_string_t kk_string_adjust_length(kk_string_t str, size_t newlen, kk_context_t
   }
   else {
     // full copy
-    kk_string_t tstr = kk_string_alloc_len(newlen, kk_string_cbuf_borrow(str), ctx);
+    kk_string_t tstr = kk_string_alloc_buf(newlen,ctx);
+    strncpy( (char*)kk_string_cbuf_borrow, kk_string_cbuf_borrow(str), newlen );
     kk_string_drop(str, ctx);
     return tstr;
   }
