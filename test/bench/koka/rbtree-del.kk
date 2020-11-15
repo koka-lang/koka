@@ -1,24 +1,24 @@
 /*
-  Benchmark red-black trees. 
+  Benchmark red-black trees.
   Adapted from https://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap.lean
   and from: https://hackage.haskell.org/package/llrbtree-0.1.1/docs/src/Data-Set-RBTree.html#delete
 
   Algorithms based on:
-out/  
+out/
   * Chris Okasaki, \"Red-Black Trees in a Functional Setting\",
     Journal of Functional Programming, 9(4), pp 471-477, July 1999
     <http://www.eecs.usma.edu/webs/people/okasaki/pubs.html#jfp99>
 
   * Stefan Kahrs, \"Red-black trees with types\",
     Journal of functional programming, 11(04), pp 425-432, July 2001
-*/    
+*/
 
 //-----------------------------------------------------------------------------
 // Red black tree definition
 //-----------------------------------------------------------------------------
-type color { 
-  Red 
-  Black 
+type color {
+  Red
+  Black
 }
 
 type tree {
@@ -75,7 +75,7 @@ fun ins(t: tree, k: int, v: bool): tree {
                                           else Node(Black, ins(l, k, v), kx, vx, r))
          elif (k == kx) then Node(Black, l, k, v, r)
          elif (is-red(r)) then balance-right(l, kx, vx, ins(r,k,v))
-         else Node(Black, l, kx, vx, ins(r, k, v))  
+         else Node(Black, l, kx, vx, ins(r, k, v))
   }
 }
 
@@ -102,16 +102,16 @@ fun balance( l : tree, k : int, v : bool, r : tree ) : tree {
   match (l,r) {
     (Node(Red,lx,kx,vx,rx), Node(Red,ly,ky,vy,ry))
       -> Node(Red,Node(Black,lx,kx,vx,rx),k,v,Node(Black,ly,ky,vy,ry))
-    (Node(Red,lx,kx,vx,rx), Node(Red,ly,ky,vy,ry)) 
+    (Node(Red,lx,kx,vx,rx), Node(Red,ly,ky,vy,ry))
       -> Node(Red,Node(Black,lx,kx,vx,rx),k,v,Node(Black,ly,ky,vy,ry))
-    (Node(Red,lx,kx,vx,Node(Red,ly,ky,vy,ry)), _) 
+    (Node(Red,lx,kx,vx,Node(Red,ly,ky,vy,ry)), _)
       -> Node(Red,Node(Black,lx,kx,vx,ly),ky,vy,Node (Black,ry,k,v,r))
-    (_,Node(Red,lx,kx,vx, Node (Red,ly,ky,vy,ry))) 
+    (_,Node(Red,lx,kx,vx, Node (Red,ly,ky,vy,ry)))
       -> Node(Red,Node(Black,l,k,v,lx),kx,vx,Node(Black,ly,ky,vy,ry))
-    (_,Node(Red,Node(Red,ly,ky,vy,ry),kx,vx,rx)) 
+    (_,Node(Red,Node(Red,ly,ky,vy,ry),kx,vx,rx))
       -> Node(Red,Node(Black,l,k,v,ly),ky,vy,Node(Black,ry,kx,vx,rx))
     _ -> Node(Black,l,k,v,r)
-  } 
+  }
 }
 
 fun subl( t : tree ) : tree {
@@ -124,8 +124,8 @@ fun subl( t : tree ) : tree {
 fun del-bal-right( l : tree, k : int, v : bool, r : tree ) : tree {
   match (l,r) {
     (_,Node(Red,ly,ky,vy,ry))   -> Node(Red,l,k,v,Node(Black,ly,ky,vy,ry))
-    (Node(Black,lx,kx,vx,rx),_) -> balance(Node(Red,lx,kx,vx,rx),k,v,r)         
-    (Node(Red,lx,kx,vx,Node(Black,ly,ky,vy,ry)),_) 
+    (Node(Black,lx,kx,vx,rx),_) -> balance(Node(Red,lx,kx,vx,rx),k,v,r)
+    (Node(Red,lx,kx,vx,Node(Black,ly,ky,vy,ry)),_)
       -> Node(Red,balance(lx.subl,kx,vx,ly),ky,vy,Node(Black,ry,k,v,r))
     _ -> Node(Black,l,k,v,r) // should not happen
   }
@@ -141,7 +141,7 @@ fun del-bal-left( l : tree, k : int, v : bool, r : tree ) : tree {
   }
 }
 
-fun fuse(l : tree, r : tree) : tree {  
+fun fuse(l : tree, r : tree) : tree {
   match(l) {
     Leaf -> r
     Node(Black,lx,kx,vx,rx) -> match(r) {
@@ -204,7 +204,7 @@ fun delete( t : tree, key : int ) : div tree {
 // Deletion
 // Adapted from: https://hackage.haskell.org/package/llrbtree-0.1.1/docs/src/Data-Set-RBTree.html#delete
 //-----------------------------------------------------------------------------
-struct del{ tree : tree; balance? : bool }
+struct del{ tree : tree; is-balanced : bool }
 
 fun set-red(t: tree) : tree {
   match(t) {
@@ -216,13 +216,13 @@ fun set-red(t: tree) : tree {
 fun make-black(t : tree ) : del {
   match(t) {
     Node(Red,l,k,v,r) -> Del(Node(Black,l,k,v,r),False)
-    _                 -> Del(t,True) 
+    _                 -> Del(t,True)
   }
 }
 
 fun rebalance-left( c : color, l : tree, k : int, v : bool, r : tree ) : del {
   match(l) {
-    Node(Black) -> Del( balance-left(set-red(l),k,v,r), c.black? )
+    Node(Black) -> Del( balance-left(set-red(l),k,v,r), c.is-black )
     Node(Red,lx,kx,vx,rx) -> Del( Node(Black,lx,kx,vx,balance-left(set-red(rx),k,v,r)), False )
     _ -> Del(Node(Black,l,k,v,r),False)  // cannot happen
   }
@@ -230,7 +230,7 @@ fun rebalance-left( c : color, l : tree, k : int, v : bool, r : tree ) : del {
 
 fun rebalance-right( c : color, l : tree, k : int, v : bool, r : tree ) : del {
   match(r) {
-    Node(Black) -> Del( balance-right(l,k,v,set-red(r)), c.black? )
+    Node(Black) -> Del( balance-right(l,k,v,set-red(r)), c.is-black )
     Node(Red,lx,kx,vx,rx) -> Del( Node(Black,balance-right(l,k,v,set-red(lx)),kx,vx,rx), False )
     _ -> Del(Node(Black,l,k,v,r),False)  // cannot happen
   }
@@ -262,13 +262,13 @@ fun del-min( t : tree ) : delmin {
         Delmin(Del(lx,False),kx,vx) -> Delmin(Del(Node(c,lx,k,v,r),False),kx,vx)
       }
     }
-    Leaf -> Delmin(Del(t,False),0,False) // cannot happen    
+    Leaf -> Delmin(Del(t,False),0,False) // cannot happen
   }
 }
 
 fun del( t : tree, k : int ) : del {
   match(t) {
-    Leaf -> Del(Leaf,False)    
+    Leaf -> Del(Leaf,False)
     Node(cx,lx,kx,vx,rx) -> match(compare(k,kx)) {
       Lt -> match(lx.del(k)) {
         Del(ly,True)  -> rebalance-right(cx,ly,kx,vx,rx)
@@ -279,7 +279,7 @@ fun del( t : tree, k : int ) : del {
         Del(ry,False) -> Del(Node(cx,lx,kx,vx,ry),False)
       }
       Eq -> match(rx) {
-        Leaf -> if (cx.black?) then lx.make-black else Del(lx,False)
+        Leaf -> if (cx.is-black) then lx.make-black else Del(lx,False)
         _    -> match(rx.del-min) {
           Delmin(Del(ry,True),ky,vy) -> rebalance-left(cx,lx,ky,vy,ry)
           Delmin(Del(ry,False),ky,vy) -> Del(Node(cx,lx,ky,vy,ry),False)
@@ -312,7 +312,7 @@ fun make-tree-aux(total : int, n: int, t: tree) : div tree {
     val n1 = n - 1
     val t1 = insert(t, n1, n1 % 10 == 0)
     val t2 = if (n1%4 == 0) then delete(t1, n1 + (total - n1)/5) else t1
-    make-tree-aux(total, n1, t2)    
+    make-tree-aux(total, n1, t2)
   }
 }
 

@@ -1,9 +1,9 @@
 // Adapted from https://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap.lean
 import std/num/int32
 
-type color { 
-  Red 
-  Black 
+type color {
+  Red
+  Black
 }
 
 type tree {
@@ -54,7 +54,7 @@ fun ins(t: tree, k: int32, v: bool): tree {
                                           else Node(Black, ins(l, k, v), kx, vx, r))
          elif (k == kx) then Node(Black, l, k, v, r)
          elif (is-red(r)) then balance-right(l, kx, vx, ins(r,k,v))
-         else Node(Black, l, kx, vx, ins(r, k, v))  
+         else Node(Black, l, kx, vx, ins(r, k, v))
   }
 }
 
@@ -91,6 +91,6 @@ fun make-tree(n: int32): div tree {
 
 fun main() {
   val m = make-tree(4200000.int32); // todo: read first command line arg for size
-  val v = m.fold(0.int32) fun(k, v, r:int32) { if (v) then r.inc else r }
+  val v = m.fold(0.int32) fn(k, v, r:int32) { if (v) then r.inc else r }
   v.show.println
 }

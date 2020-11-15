@@ -1,4 +1,6 @@
-// Adapted from https://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap.lean
+/* Example of red-black tree balanced insertion.
+   See also the bench marks in `test/bench/koka`
+*/
 
 type color {
   Red
@@ -90,7 +92,7 @@ fun make-tree(n: int): div tree {
 }
 
 fun main() {
-  val m = make-tree(4200000); // todo: read first command line arg for size
+  val m = make-tree(1000000);
   val v = m.fold(0) fn(k,v,r){ if (v) then r + 1 else r }
   v.println
 }
