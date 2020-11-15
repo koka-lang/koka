@@ -35,7 +35,7 @@ public fun check-round-trip( name : string, x : ddouble ) : io ddouble {
 
 public fun check-prec( name : string, expect : ddouble, res : ddouble, eps : ddouble = ddouble-exp(1,-15) ) : io () {
   val pre = name.pad-right(8,' ') + ": "
-  if (expect.finite?) then {
+  if (expect.is-finite) then {
     val delta  = (res - expect).abs
     if (delta < eps) then {
       println(pre + "ok: " + res.show + ", dt: " + delta.show(6)  )

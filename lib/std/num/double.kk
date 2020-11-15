@@ -221,6 +221,13 @@ fun round-to-prec( d : double, prec : int  ) : double {
   }
 }
 
+// fused multiply-add. Computes `(x*y)+z` as if to infinite precision
+// with only the final result rounded back to a `:double`.
+extern fmadd( x : double, y : double, z : double ) : double {
+  c  "fma"
+  js "_fmadd"
+  cs "Math.FusedMultiplyAdd"
+}
 
 //-----------------------------------------
 // Powers
