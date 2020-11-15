@@ -55,6 +55,11 @@ Special thanks to:
 - [Alex Reinking](https://alexreinking.com/): for the ongoing work on the [Perceus](#perceus) reference counting analysis.
 - And all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, and Edsko de Vries.
 
+Releases:
+- `v2.0.5`, Nov 15 2020: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support
+            direct C compilation, local install support.
+- `v2.0.0`, Aug 21 2020: initial v2 release.
+
 Main branches:
 - `master`: latest stable version.
 - `dev`: current development branch -- submit PR's to this branch.
@@ -88,41 +93,39 @@ Building Koka (note the `--recursive` flag):
 You can also use `stack build --fast` to build a debug version of the compiler.
 You can invoke the compiler now as: (this takes a while as it needs to build the core libraries as well)
 ```
-> stack exec koka -- -c test/algeff/common
-compile: test/algeff/common.kk
+> stack exec koka -- -c samples/basic/caesar.kk
+compile: samples/basic/caesar.kk
 loading: std/core
 loading: std/core/types
 loading: std/core/hnd
-linking: test_algeff_common
-created: out\v2.0.3\mingw-debug\test_algeff_common
+loading: std/num/double
+loading: std/text/parse
+loading: std/num/int32
+check  : samples/basic/caesar
+linking: samples_basic_caesar
+created: out\v2.0.5\mingw-debug\samples_basic_caesar
 ```
 and run the resulting executable:
 ```
-> out\v2.0.3\mingw-debug\test_algeff_common
-42
-Hello there, there
-hi
-hi
-1
-2
-[False,True,True,False]
-([False,False,True,True,False],2)
+> out\v2.0.5\mingw-debug\samples_basic_caesar
+plain  : Koka is a well-typed language
+encoded: Krnd lv d zhoo-wbshg odqjxdjh
+cracked: Koka is a well-typed language
 ```
-(note: on Windows you may need to run in the stack environment as `> stack exec out\Debug\test_algeff_common.exe`)
+(note: on Windows you may need to run in the stack environment as `> stack exec out\v2.0.5\mingw-debug\samples_basic_caesar.exe`)
 
-If you leave out the `-c` flag, Koka will execute the compiled program automatically.
+If you leave out the `-c` flag, Koka executes the compiled program as well.
 The `-O2` flag builds an optimized program. Let's try it on a functional implementation
 of balanced insertion in a red-black tree balanced ([`rbtree.kk`](test/bench/koka/rbtree.kk))
 ```
 > stack exec koka -- -O2 -c test/bench/koka/rbtree.kk
 ...
-check  : test/bench/koka/rbtree
 linking: test_bench_koka_rbtree
-created: out\v2.0.3\mingw-drelease\test_bench_koka_rbtree
+created: out/v2.0.5/gcc-drelease/test_bench_koka_rbtree
 
-> time out\v2.0.3\mingw-drelease\test_bench_koka_rbtree
+> time out/v2.0.5/gcc-drelease/test_bench_koka_rbtree
 420000
-real    0m1.132s
+real    0m0.987s
 ```
 We can compare this against an in-place updating C++ implementation using `stl::map`
 ([`rbtree.cpp`](test/bench/cpp/rbtree.cpp)) (which uses the
@@ -135,7 +138,7 @@ real    0m1.096s
 ...
 ```
 The close performance to C++ here is a result of [Perceus](#perceus) automatically
-tranforming the fast path of the pure functional rebalancing to use mostly in-place updates,
+transforming the fast path of the pure functional rebalancing to use mostly in-place updates,
 closely mimicking the imperative rebalancing code of the hand optimized C++ library.
 
 The [Atom](https://atom.io/) text editor is recommended
@@ -154,7 +157,7 @@ Without giving any input files, the interactive interpreter runs by default:
 | |        | |         |__  \
 | | __ ___ | | __ __ _  __) |
 | |/ // _ \| |/ // _` || ___/ welcome to the koka interpreter
-|   <| (_) |   <| (_| ||____| version 2.0.3, Nov  6 2020, libc 64-bit (mingw)
+|   <| (_) |   <| (_| ||____| version 2.0.5, Nov 13 2020, libc 64-bit (mingw)
 |_|\_\\___/|_|\_\\__,_|       type :? for help
 
 loading: std/core
@@ -169,7 +172,7 @@ Now you can test some expressions:
     check  : interactive
     check  : interactive
     linking: interactive
-    created: out\v2.0.3\mingw-debug\interactive
+    created: out\v2.0.5\mingw-debug\interactive
 
     hi koka
 
@@ -181,20 +184,20 @@ Now you can test some expressions:
 
 Or load a demo:
 
-    > :l test/medium/fibonacci
-    compile: test/medium/fibonacci.kk
+    > :l samples/basic/fibonacci
+    compile: samples/basic/fibonacci.kk
     loading: std/core
     loading: std/core/types
     loading: std/core/hnd
-    check  : test/medium/fibonacci
+    check  : samples/basic/fibonacci
     modules:
-      test/medium/fibonacci
+      samples/basic/fibonacci
 
     > main()
     check  : interactive
     check  : interactive
     linking: interactive
-    created: out\v2.0.3\mingw-debug\interactive
+    created: out\v2.0.5\mingw-debug\interactive
 
     The 10000th fibonacci number is 33644764876431783266621612005107543310302148460680063906564769974680081442166662368155595513633734025582065332680836159373734790483865268263040892463056431887354544369559827491606602099884183933864652731300088830269235673613135117579297437854413752130520504347701602264758318906527890855154366159582987279682987510631200575428783453215515103870818298969791613127856265033195487140214287532698187962046936097879900350962302291026368131493195275630227837628441540360584402572114334961180023091208287046088923962328835461505776583271252546093591128203925285393434620904245248929403901706233888991085841065183173360437470737908552631764325733993712871937587746897479926305837065742830161637408969178426378624212835258112820516370298089332099905707920064367426202389783111470054074998459250360633560933883831923386783056136435351892133279732908133732642652633989763922723407882928177953580570993691049175470808931841056146322338217465637321248226383092103297701648054726243842374862411453093812206564914032751086643394517512161526545361333111314042436854805106765843493523836959653428071768775328348234345557366719731392746273629108210679280784718035329131176778924659089938635459327894523777674406192240337638674004021330343297496902028328145933418826817683893072003634795623117103101291953169794607632737589253530772552375943788434504067715555779056450443016640119462580972216729758615026968443146952034614932291105970676243268515992834709891284706740862008587135016260312071903172086094081298321581077282076353186624611278245537208532365305775956430072517744315051539600905168603220349163222640885248852433158051534849622434848299380905070483482449327453732624567755879089187190803662058009594743150052402532709746995318770724376825907419939632265984147498193609285223945039707165443156421328157688908058783183404917434556270520223564846495196112460268313970975069382648706613264507665074611512677522748621598642530711298441182622661057163515069260029861704945425047491378115154139941550671256271197133252763631939606902895650288268608362241082050562430701794976171121233066073310059947366875
 
@@ -205,27 +208,35 @@ And quit the interpreter:
     Before the effect one believes in different causes than one does after the effect.
      -- Friedrich Nietzsche
 
+The `samples/syntax` and `samples/basic` contain various basic Koka examples to
+start with.
+
 
 ## Algebraic effect handlers
 
 A novel feature of Koka is a compiled and typed implementation of algebraic
 effect handlers (described in detail in [[3]](#references)).
 In the interactive environment, you can load various demo files with algebraic
-effects which are located in the ``test/algeff`` directory.
+effects which are located in the ``samples/handlers`` directory.
 
-    > :f test/algeff/common
+    > :f samples/handlers/basic
 
 where ``:f`` forces a recompile (versus ``:l`` which avoids a recompile if possible).
 Use the ``:?`` command to get an overview of all commands. After
 loading the ``common`` demo, we can run it directly from the interpreter:
 
     > :f test/algeff/common
-    loading: test/algeff/common
+    compile: samples/handlers/basic.kk
     loading: std/core
     loading: std/core/types
     loading: std/core/hnd
+    loading: std/num/random
+    loading: std/num/int32
+    loading: std/num/double
+    loading: std/text/parse
+    check  : samples/handlers/basic
     modules:
-      test/algeff/common
+      samples/handlers/basic
 
     > :t test2    
     () -> console ()
@@ -234,19 +245,20 @@ loading the ``common`` demo, we can run it directly from the interpreter:
     check  : interactive
     check  : interactive
     linking: interactive
-    created: out\v2.0.3\mingw-debug\interactive
+    created: out\v2.0.5\mingw-debug\interactive
 
     Hello there, there
 
 Some interesting demos are:
 
-* ``common.kk``: Various examples from the paper "_Algebraic Effects for
+* ``basic.kk``: Various examples from the paper "_Algebraic Effects for
   Functional Programming_" [[3]](#references). Shows how to implement
   common control-flow abstractions like exceptions, state, iterators,
   ambiguity, and asynchronous programming.
 
 * ``nim.kk``: Various examples from the paper "_Liberating effects with
   rows and handlers_" [[1]](#references).
+
 
 # Installing the compiler
 
@@ -255,7 +267,7 @@ The Koka compiler can be installed locally by running the `util/install.kk` scri
 > stack exec koka -- util/install
 ```
 This takes a while as it pre-compiles the standard libraries in three build
-variants (`debug`, `drelease`, and `release`).
+variants (`debug`, `drelease` (release with debug info), and `release`).
 After installation, you can now directly invoke `koka`:
 
 ```
@@ -308,7 +320,7 @@ Generally, you need to install and run `koka` from a
 in order to link correctly with the Windows system libraries.
 Koka can use either the `cl` compiler (default), or the [`clang-cl`](https://releases.llvm.org) compiler
 (use the `--cc=clang-cl` option with Koka).
-To install, run from a VS command prompt:
+To install for a specific compiler, use this flag when running `util/install` as well (from a VS command prompt):
 ```
 > stack exec koka -- --cc=clang-cl util/install
 ```
