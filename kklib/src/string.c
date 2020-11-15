@@ -69,6 +69,32 @@ int kk_string_icmp(kk_string_t str1, kk_string_t str2, kk_context_t* ctx) {
 }
 
 
+kk_decl_export kk_string_t kk_string_alloc_len_unsafe(size_t len, const char* s, kk_context_t* ctx) {
+  kk_assert_internal(s == NULL || strlen(s) >= len);
+  if (len == 0) {
+    return kk_string_empty();
+  }
+  else if (len < KK_STRING_SMALL_MAX) {
+    kk_string_small_t str = kk_block_alloc_as(struct kk_string_small_s, 0, KK_TAG_STRING_SMALL, ctx);
+    str->u.str_value = 0;
+    if (s != NULL && len > 0) {
+      memcpy(&str->u.str[0], s, len);
+    }
+    return kk_datatype_from_base(&str->_base);
+  }
+  else {
+    kk_string_normal_t str = kk_block_assert(kk_string_normal_t, kk_block_alloc_any(sizeof(struct kk_string_normal_s) - 1 /* char str[1] */ + len + 1 /* 0 terminator */, 0, KK_TAG_STRING, ctx), KK_TAG_STRING);
+    if (s != NULL && len > 0) {
+      memcpy(&str->str[0], s, len);
+    }
+    str->length = len;
+    str->str[len] = 0;
+    // todo: kk_assert valid UTF8 in debug mode
+    return kk_datatype_from_base(&str->_base);
+  }
+}
+
+
 // Count code points in a UTF8 string.
 size_t kk_decl_pure kk_string_count(kk_string_t str) {
   const uint8_t* s = kk_string_buf_borrow(str);

@@ -6,7 +6,7 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/* Core functions.
+/* Core functions. 
 
    This module is implicitly imported and all functions and types
    are always available.

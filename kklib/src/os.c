@@ -612,8 +612,9 @@ static kk_string_t kk_os_app_path_generic(kk_context_t* ctx) {
     ) {
     // relative path, combine with "./"
     kk_string_t s = kk_string_alloc_buf( strlen(p) + 2, ctx);
-    strcpy((char*)kk_string_cbuf_borrow(s), "./" );
-    strcpy((char*)kk_string_cbuf_borrow(s)+2, p);
+    char* cs = (char*)kk_string_cbuf_borrow(s);
+    strcpy(cs, "./" );
+    strcat(cs, p);
     return kk_os_realpath(s, ctx);
   }
   else {

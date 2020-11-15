@@ -107,32 +107,9 @@ static inline kk_string_t kk_string_dup(kk_string_t str) {
   Strings operations
 --------------------------------------------------------------------------------------*/
 
-// Allocate a string of `len` bytes. `s` must be at least `len` bytes of valid UTF8, or NULL.
-// Adds a terminating zero at the end.
-static inline kk_string_t kk_string_alloc_len_unsafe(size_t len, const char* s, kk_context_t* ctx) {
-kk_assert_internal(s == NULL || strlen(s) >= len);
-  if (len == 0) {
-    return kk_string_empty();
-  }
-  else if (len < KK_STRING_SMALL_MAX) {
-    kk_string_small_t str = kk_block_alloc_as(struct kk_string_small_s, 0, KK_TAG_STRING_SMALL, ctx);
-    str->u.str_value = 0;
-    if (s != NULL && len > 0) {
-      memcpy(&str->u.str[0], s, len);
-    }
-    return kk_datatype_from_base(&str->_base);
-  }
-  else {
-    kk_string_normal_t str = kk_block_assert(kk_string_normal_t, kk_block_alloc_any(sizeof(struct kk_string_normal_s) - 1 /* char str[1] */ + len + 1 /* 0 terminator */, 0, KK_TAG_STRING, ctx), KK_TAG_STRING);
-    if (s != NULL && len > 0) {
-      memcpy(&str->str[0], s, len);
-    }
-    str->length = len;
-    str->str[len] = 0;
-    // todo: kk_assert valid UTF8 in debug mode
-    return kk_datatype_from_base(&str->_base);
-  }
-}
+// Allocate a string of `len` bytes. `s` must be at least `len` bytes of valid UTF8, or NULL. Adds a terminating zero at the end.
+kk_decl_export kk_string_t kk_string_alloc_len_unsafe(size_t len, const char* s, kk_context_t* ctx);
+kk_decl_export kk_string_t kk_string_adjust_length(kk_string_t str, size_t newlen, kk_context_t* ctx);
 
 static inline kk_string_t kk_string_alloc_buf(size_t len, kk_context_t* ctx) {
   return kk_string_alloc_len_unsafe(len, NULL, ctx);
@@ -226,11 +203,6 @@ static inline kk_string_t kk_string_copy(kk_string_t str, kk_context_t* ctx) {
 static inline bool kk_string_ptr_eq_borrow(kk_string_t s1, kk_string_t s2) {
   return (kk_datatype_eq(s1, s2));
 }
-
-
-
-kk_decl_export kk_string_t kk_string_adjust_length(kk_string_t str, size_t newlen, kk_context_t* ctx);
-
 
 static inline bool kk_string_is_empty_borrow(kk_string_t s) {
   return (kk_string_len_borrow(s) == 0);

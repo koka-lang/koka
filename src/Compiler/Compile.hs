@@ -1220,7 +1220,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                                 newtypes unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
                                 mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } [] bcore
-      writeDocW 120 (outBase ++ ".c.core") bcoreDoc
+      -- writeDocW 120 (outBase ++ ".c.core") bcoreDoc
       when (showCore flags) $
         do termDoc term bcoreDoc
 
