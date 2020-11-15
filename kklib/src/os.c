@@ -129,6 +129,7 @@ kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ct
 #if defined(WIN32) || defined(__MINGW32__)
 #include <Windows.h>
 static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
+  KK_UNUSED(preserve_mtime)
   if (!CopyFileA(from, to, FALSE)) {
     DWORD err = GetLastError();
     if (err == ERROR_FILE_NOT_FOUND) return ENOENT;
@@ -153,7 +154,7 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
 #include <sys/sendfile.h>
 #endif
 
-static int os_copy_file(const char* from, const char* to) {
+static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
   int inp, out;
   struct stat finfo = { 0 };
   if ((inp = open(from, O_RDONLY)) == -1) {
@@ -188,9 +189,9 @@ static int os_copy_file(const char* from, const char* to) {
   if (preserve_mtime) {
     struct timeval times[2];
     times[0].tv_sec  = finfo.st_atim.tv_sec;
-    times[0].tv_nsec = finfo.st_atim.tv_nsec;
+    times[0].tv_usec = finfo.st_atim.tv_nsec / 1000;
     times[1].tv_sec  = finfo.st_mtim.tv_sec;
-    times[1].tv_nsec = finfo.st_mtim.tv_nsec;
+    times[1].tv_usec = finfo.st_mtim.tv_nsec / 1000;
     utimes(to, times);
   }
   return err;

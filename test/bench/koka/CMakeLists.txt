@@ -22,6 +22,7 @@ foreach (source IN LISTS sources)
     DEPENDS ${source}
     VERBATIM)
 
+  # --fno-optctail
   add_custom_command(
     OUTPUT  ${outx_path}
     COMMAND ${koka} --target=c --builddir=${outx_dir} --outname=${namex} -v -O2 --fno-parcreuse --fno-parcspec -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> -c "${source}"
