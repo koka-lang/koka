@@ -103,13 +103,13 @@ private extern make-nan() : double {
 }
 
 private extern make-posinf() : double {
-  c  inline "(double)INFINITY"
+  c  inline "HUGE_VAL"
   cs inline "double.PositiveInfinity"
   js inline "Infinity"
 }
 
 private extern make-neginf() : double {
-  c  inline "-((double)INFINITY)"
+  c  inline "-HUGE_VAL"
   cs inline "double.NegativeInfinity"
   js inline "-Infinity"
 }
@@ -131,14 +131,14 @@ extern is-inf : (double) -> bool {
 
 // Is this value equal to positive infinity ?
 inline extern is-posinf : (double) -> bool {
-  c  inline "((#1)==INFINITY)"
+  c  inline "(isinf(#1) && !signbit(#1))"
   cs "double.IsPositiveInfinity"
   js inline "((#1) === Infinity)"
 }
 
 // Is this value equal to negative infinity ?
 inline extern is-neginf : (double) -> bool {
-  c inline "((#1)==-INFINITY)"
+  c inline "(isinf(#1) && signbit(#1))"
   cs "double.IsNegativeInfinity"
   js inline "((#1) === -Infinity)"
 }
@@ -533,8 +533,8 @@ private fun pdecdouble() : parse double {
   val frac = optional("", { char('.'); digits0() }).trim-right("0")
   val exp : int = optional( 0, { one-of("eE"); pint() })
   //val m : int = (man + frac).parse-int-default(0)
-  //val e : int = exp - frac.count  
-  //m.double * exp10(e.double)  
+  //val e : int = exp - frac.count
+  //m.double * exp10(e.double)
   cur.string.prim-parse-double  // more precision than simple multiply
 }
 

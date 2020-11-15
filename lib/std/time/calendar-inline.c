@@ -21,11 +21,11 @@ static long kk_local_utc_delta(double unix_secs, kk_string_t* ptzname, kk_contex
   // get the UTC delta in a somewhat portable way...
   bool isdst = false;
   const time_t t = (time_t)unix_secs;
-  #if defined(_GNU_SOURCE) 
+  #if defined(_GNU_SOURCE)
     // GNU libc has the tm_zone and tm_gmtoff fields
     struct tm loctm;
     localtime_r(&t, &loctm);
-    isdst = (loctm.tm_isdst != 0);    
+    isdst = (loctm.tm_isdst != 0);
     const time_t loct = t - loctm.tm_gmtoff + (isdst ? 3600 : 0);
   #elif defined(_WIN32) && !defined(__MINGW32__)
     struct tm gmtm;
@@ -36,7 +36,7 @@ static long kk_local_utc_delta(double unix_secs, kk_string_t* ptzname, kk_contex
     isdst = (loctm.tm_isdst != 0);
   #elif defined(__STDC_LIB_EXT1__)
     struct tm gmtm;
-    gmtime_s(&t, &gmtm);             
+    gmtime_s(&t, &gmtm);
     const time_t loct = mktime(&gmtm);   // interpret gmt as local time
     struct tm loctm;
     localtime_s(&t, &loctm);
@@ -62,17 +62,17 @@ static long kk_local_utc_delta(double unix_secs, kk_string_t* ptzname, kk_contex
     #else
       // give up :-(
       * ptzname = kk_string_empty();
-    #endif    
+    #endif
   }
   return (long)utc_delta;
 }
 
 
-kk_std_time_calendar__local_timezone kk_local_get_timezone(kk_context_t* ctx) {
+static kk_std_time_calendar__local_timezone kk_local_get_timezone(kk_context_t* ctx) {
   return kk_datatype_from_tag((kk_tag_t)1); // dummy value; we cannot store the local timezone as it is a global :-(
 }
 
-kk_std_core_types__tuple2_ kk_local_get_utc_delta_tuple(kk_std_time_calendar__local_timezone tz, double unix_secs, kk_context_t* ctx) {
+static kk_std_core_types__tuple2_ kk_local_get_utc_delta_tuple(kk_std_time_calendar__local_timezone tz, double unix_secs, kk_context_t* ctx) {
   kk_string_t tzname;
   long utc_delta = kk_local_utc_delta(unix_secs, &tzname, ctx);
   return kk_std_core_types__new_dash__lp__comma__rp_( kk_double_box((double)utc_delta,ctx), kk_string_box(tzname), ctx );
