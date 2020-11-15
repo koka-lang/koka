@@ -661,7 +661,7 @@ kk_decl_export kk_string_t kk_os_app_path(kk_context_t* ctx) {
 #include <unistd.h>
 kk_string_t kk_os_app_path(kk_context_t* ctx) {
   pid_t pid = getpid();
-  kk_string_t s = kk_string_alloc_len(PROC_PIDPATHINFO_MAXSIZE, NULL, ctx);
+  kk_string_t s = kk_string_alloc_buf(PROC_PIDPATHINFO_MAXSIZE, ctx);
   int ret = proc_pidpath(pid, (char*)kk_string_cbuf_borrow(s), PROC_PIDPATHINFO_MAXSIZE /* must be this value or the call fails */);
   if (ret > 0) {
     // failed, use fall back
