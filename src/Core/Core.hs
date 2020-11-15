@@ -999,7 +999,7 @@ inlineDependencies inlineDefs
 coreDependencies :: Core -> Deps
 coreDependencies (Core{coreProgName = mname, coreProgImports = imports, coreProgTypeDefs = tdefs, coreProgDefs = defs})
   = let deps = S.filter (mname /=) $
-               depsUnions [-- S.fromList (map importName imports),
+               depsUnions [S.fromList (map importName (filter (isPublic . importVis) imports)),
                            depsUnions (map depTDef (flattenTypeDefGroups tdefs)),
                            depsUnions (map depDef (flattenDefGroups defs))]
     in -- trace ("dependencies for " ++ show mname ++ ": " ++ show (S.elems deps)) $
