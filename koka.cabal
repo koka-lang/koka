@@ -4,10 +4,10 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 04f728f82b5bacba96470ea8c36c2e68687ddd1c6231559d330a212398078ac7
+-- hash: 54940eb8282eacf872942a484d7914c1b97095a33f0136f3a31163289fac27b6
 
 name:           koka
-version:        2.0.5
+version:        2.0.6
 description:    Please see the README on GitHub at <https://github.com/koka-lang/koka#readme>
 homepage:       https://github.com/koka-lang/koka#readme
 bug-reports:    https://github.com/koka-lang/koka/issues
@@ -127,7 +127,7 @@ executable koka
       src/Platform/cpp
   other-extensions: CPP OverloadedStrings
   ghc-options: -rtsopts
-  cpp-options: -DMAIN="koka" -DVARIANT="release" -DVERSION="2.0.5"
+  cpp-options: -DMAIN="koka" -DVARIANT="release" -DVERSION="2.0.6"
   include-dirs:
       src/Platform/cpp/Platform
   c-sources:
