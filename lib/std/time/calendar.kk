@@ -86,11 +86,11 @@ public fun tz-fixed( hours: int, mins : int = 0, name : string = "", abbrv : str
   if (hours.is-zero && mins.is-zero) then return tz-utc
   val xmins = if (hours.is-pos) then mins.abs elif (hours.is-neg) then (mins.abs).negate else mins
   val secs  = hours*3600 + xmins*60
-  val tzname = name || ("UTC" + (if (secs.is-neg) then "-" else "+")
-                          + hours.abs.show.pad-left(hourwidth,'0')
-                          + (if (mins.is-zero) then "" else ":" + mins.abs.show.pad-left(2,'0')))
+  val tzonename = name || ("UTC" + (if (secs.is-neg) then "-" else "+")
+                            + hours.abs.show.pad-left(hourwidth,'0')
+                            + (if (mins.is-zero) then "" else ":" + mins.abs.show.pad-left(2,'0')))
   val delta  = duration(secs)
-  tz-fixed(tzname,delta,abbrv)
+  tz-fixed(tzonename,delta,abbrv)
 }
 
 fun tz-fixed( name : string, delta : duration, abbrv : string = "" ) : timezone {

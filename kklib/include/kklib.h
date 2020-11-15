@@ -1037,7 +1037,7 @@ static inline kk_vector_t kk_vector_realloc(kk_vector_t vec, size_t newlen, kk_b
   kk_vector_drop(vec, ctx);
   return vdest;
 } 
-
+ 
 /*--------------------------------------------------------------------------------------
   References
 --------------------------------------------------------------------------------------*/
