@@ -10,8 +10,7 @@
 # Koka: a function-oriented language with effect inference
 
 _Note: Koka v2 is a research language that currently under heavy development with the new evidence translation and C backend -- various
-features may be lacking, documentation may be outdated, not all tests will run, and there may be bugs.
-Use the branch [`v1-master`](https://github.com/koka-lang/koka/tree/v1-master) to use the older stable Koka v1 with the Javascript backend._
+features may be lacking, documentation may be outdated, not all tests will run, and there may be bugs._
 
 Koka is a strongly typed, strict functional language which tracks the (side) _effects_ of every function in its type.
 Koka syntax is Javascript/C like,
@@ -190,7 +189,7 @@ Or load a demo:
     check  : test/medium/fibonacci
     modules:
       test/medium/fibonacci
-      
+
     > main()
     check  : interactive
     check  : interactive
@@ -255,7 +254,8 @@ The Koka compiler can be installed locally by running the `util/install.kk` scri
 ```
 > stack exec koka -- util/install
 ```
-
+This takes a while as it pre-compiles the standard libraries in three build
+variants (`debug`, `drelease`, and `release`).
 After installation, you can now directly invoke `koka`:
 
 ```
@@ -279,8 +279,8 @@ or run the interpreter:
 
 ## Install on Unix and macOS
 
-Koka is by default installed for the current user in `<prefix>/bin/koka`
-and `<prefix>/lib/koka/v2.x.x`.
+Koka is by default installed for the current user in `<prefix>/bin/koka`,
+`<prefix>/lib/koka/v2.x.x`, and `<prefix>/share/koka/v2.x.x`.
 On Unix and macOS, the default installation prefix is `~/.local` and it is
 recommended to add `~/.local/bin` to the search path
 (e.g. add `export PATH=$PATH:~/.local/bin` to your `~/.bashrc` or `~/.zshrc`).
@@ -298,23 +298,48 @@ is usually already on the search path as `stack` is installed there as well.
 
 However, when using `koka` you need to have a C compiler (when
 using `stack exec koka` the C compiler supplied with Ghc is used (`mingw`)
-but that is not generally available). Generally, you need to run `koka` from a
+but that is not generally available).
+
+Generally, you need to install and run `koka` from a
 [Visual Studio](https://visualstudio.microsoft.com/downloads)
 [command prompt](https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019)
 in order to link correctly with the Windows system libraries.
 Koka can use either the `msvc` compiler (default), or the [`clang-cl`](https://releases.llvm.org) compiler
-(use the `--cc=clang-cl` option with Koka). 
+(use the `--cc=clang-cl` option with Koka).
+To install, run from a VS command prompt:
+```
+> stack exec koka -- --cc=clang-cl util/install
+```
+or
+```
+> stack exec koka -- --cc=cl util/install
+```
 
+Generally, for Koka code, `mingw` generates the fastest code, closely followed `clang-cl`, and than `cl`:
+
+```
+> stack exec out\v2.0.5\mingw-release\test_bench_koka_rbtree -- --kktime
+420000
+info: elapsed: 0.624s, user: 0.625s, sys: 0.000s, rss: 163mb
+
+> out\v2.0.5\clang-cl-release\test_bench_koka_rbtree --kktime
+420000
+info: elapsed: 0.727s, user: 0.734s, sys: 0.000s, rss: 164mb
+
+> out\v2.0.5\cl-release\test_bench_koka_rbtree --kktime
+420000
+info: elapsed: 1.483s, user: 1.484s, sys: 0.000s, rss: 164mb
+```
 
 # Benchmarks
 
 There is a standard benchmark suite. It is still basic but more benchmarks
-with effect handlers are coming. The suite can run on (Ubuntu Linux), WSL2, and macOSX, 
-and the benchmarks need: 
+with effect handlers are coming. The suite can run on (Ubuntu Linux), WSL2, and macOSX,
+and the benchmarks need:
 
 - `gcc`. Should be there, otherwise use `sudo apt install gcc`,
 - `ghc`. Use `sudo apt install ghc`,
-- `ocamlopt`. Use `sudo apt install ocaml`, 
+- `ocamlopt`. Use `sudo apt install ocaml`,
 - `swiftc`. The Swift compiler can be downloaded [here](https://swift.org/download/).
    The benchmarks expect `swiftc` to be installed at `/opt/swift/bin`,
    so unpack and copy everything under `swift-.../usr` to `/opt/swift/bin`:
