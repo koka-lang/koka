@@ -11,10 +11,12 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends cmake \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
-RUN git clone --recursive https://github.com/koka-lang/koka  -b dev
+RUN git clone --recursive https://github.com/koka-lang/koka  -b  dev
 WORKDIR /build/koka
 RUN stack build
-RUN stack exec koka -- util/install -- --prefix=/usr/local
+RUN stack exec koka -- util/install -- --prefix=/build/local
+WORKDIR /build/local
+RUN tar -cvzf koka-install.tar bin lib share
 
 FROM debian:stretch
 RUN apt-get update \
@@ -23,10 +25,7 @@ RUN apt-get update \
       cmake make ninja-build \
       nodejs ca-certificates \
  && rm -rf /var/lib/apt/lists/*
-COPY --from=build /usr/local/ /usr/local/
-COPY --from=build /build/koka/out/ /out/
-COPY --from=build /build/koka/samples/ /samples/
-RUN touch -am /out/*/*/std_core_types.kki
-RUN touch -am /out/*/*/std_core_hnd.kki
-RUN touch -am /out/*/*/std_core.kki
+COPY --from=build /build/local/koka-install.tar /usr/local
+WORKDIR /usr/local
+RUN tar -xzvf koka-install.tar
 CMD ["koka"]

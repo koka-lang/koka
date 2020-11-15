@@ -145,6 +145,7 @@ static int os_copy_file(const char* from, const char* to) {
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <utime.h>
 #if defined(__APPLE__) || defined(__FreeBSD__)
 #include <copyfile.h>
 #else
@@ -181,6 +182,12 @@ static int os_copy_file(const char* from, const char* to) {
 
   close(inp);
   close(out);
+
+  // maintain access/mod time
+  struct utimbuf utim;
+  utim.actime = finfo.st_atime;
+  utim.modtime = finfo.st_mtime;
+  utime(to, &utim);
   return err;
 }
 #endif
