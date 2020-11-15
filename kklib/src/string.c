@@ -111,7 +111,7 @@ size_t kk_decl_pure kk_string_count_pattern_borrow(kk_string_t str, kk_string_t 
   if (kk_string_is_empty_borrow(pattern)) return kk_string_len_borrow(str);
   const char* pat = kk_string_cbuf_borrow(pattern);
   const char* s   = kk_string_cbuf_borrow(str);
-  size_t len = kk_string_len_borrow(str);
+  
   //todo: optimize by doing backward search?
   //todo: fix it for embedded 0's? perhaps not as we use encoded 0's in our UTF8 encoding.
   size_t count = 0;

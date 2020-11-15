@@ -102,22 +102,23 @@ kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ct
   path = kk_string_copy(path, ctx); // copy so we can mutate
   char* cpath = (char*)kk_string_cbuf_borrow(path);
   char* p = cpath;
-  do {
-    char c = *p;
-    if (c == 0 || c == '/' || c == '\\') {
-      *p = 0;
-      if (cpath[0]!=0) {
-	if (!kk_os_is_directory_cstr(cpath)) {
-          int res = os_mkdir(cpath, mode);
-          if (res != 0 && errno != EEXIST) {
-            err = errno;
+  if (cpath != NULL) {  // avoid warnings
+    do {
+      char c = *p;
+      if (c == 0 || c == '/' || c == '\\') {
+        *p = 0;
+        if (cpath[0]!=0) {
+	  if (!kk_os_is_directory_cstr(cpath)) {
+            int res = os_mkdir(cpath, mode);
+            if (res != 0 && errno != EEXIST) {
+              err = errno;
+	    }
 	  }
-	}
+        }
+        *p = c;
       }
-      *p = c;
-    }
-  } while (err == 0 && *p++ != 0);
-
+    } while (err == 0 && *p++ != 0);
+  }
   kk_string_drop(path, ctx);
   return err;
 }
@@ -156,6 +157,8 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
 
 static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
   int inp, out;
+
+  // stat and create/overwrite target
   struct stat finfo = { 0 };
   if ((inp = open(from, O_RDONLY)) == -1) {
     return errno;
@@ -169,31 +172,38 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
     return errno;
   }
 
+  // copy contents
   int err = 0;
 #if defined(__APPLE__) || defined(__FreeBSD__)
   if (fcopyfile(inp, out, 0, COPYFILE_ALL) != 0) {
     err = errno;
   }
-#else
+#elif defined(__linux__)
   // Linux
   off_t copied = 0;
   if (sendfile(out, inp, &copied, finfo.st_size) == -1) {
     err = errno;
   }
-#endif
-
-  close(inp);
-  close(out);
 
   // maintain access/mod time
-  if (preserve_mtime) {
-    struct timeval times[2];
-    times[0].tv_sec  = finfo.st_atim.tv_sec;
-    times[0].tv_usec = finfo.st_atim.tv_nsec / 1000;
-    times[1].tv_sec  = finfo.st_mtim.tv_sec;
-    times[1].tv_usec = finfo.st_mtim.tv_nsec / 1000;
-    utimes(to, times);
+  if (err == 0 && preserve_mtime) {
+    struct timespec times[2];
+    times[0].tv_sec = finfo.st_atim.tv_sec;
+    times[0].tv_nsec = finfo.st_atim.tv_nsec;
+    times[1].tv_sec = finfo.st_mtim.tv_sec;
+    times[1].tv_nsec = finfo.st_mtim.tv_nsec;
+    futimens(out, times);  // in <sys/stat.h>
   }
+#else
+#pragma message("define file copy for this platform")
+#endif
+
+  // close file descriptors
+  close(inp);
+  if (close(out) == -1) {
+    if (err==0) err = errno;
+  };
+
   return err;
 }
 #endif
