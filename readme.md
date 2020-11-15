@@ -225,7 +225,7 @@ where ``:f`` forces a recompile (versus ``:l`` which avoids a recompile if possi
 Use the ``:?`` command to get an overview of all commands. After
 loading the ``common`` demo, we can run it directly from the interpreter:
 
-    > :f test/algeff/common
+    > :f samples/handlers/basic
     compile: samples/handlers/basic.kk
     loading: std/core
     loading: std/core/types
