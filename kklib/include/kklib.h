@@ -277,8 +277,8 @@ typedef struct kk_yield_s {
 } kk_yield_t;
 
 extern kk_ptr_t kk_evv_empty_singleton;
- 
-      
+
+     
 // The thread local context.
 // The fields `yielding`, `heap` and `evv` should come first for efficiency
 typedef struct kk_context_s {

@@ -168,7 +168,6 @@ target_compile_options(
   INTERFACE
     $<${gnu_like}:
       -Wall
-      -Wextra
       -Wno-unknown-pragmas
       -Wno-unused-parameter
       -Wno-unused-variable
@@ -180,7 +179,9 @@ target_compile_options(
     $<$<C_COMPILER_ID:GNU>:
       -Wno-unused-but-set-variable>
     $<$<C_COMPILER_ID:Clang>:
-      -Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align>
+      -Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros
+      -Wno-cast-align -Wno-format-nonliteral -Wno-float-equal
+      -Wno-missing-noreturn>
 )
 
 # Use O1 even in debug mode

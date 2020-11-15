@@ -27,15 +27,16 @@ kk_decl_export int kk_os_read_text_file(kk_string_t path, kk_string_t* result, k
   // find length
   if (f==NULL) goto fail;
   if (fseek(f, 0, SEEK_END) != 0) goto fail;
-  long fsize = ftell(f);
-  if (fsize<0) goto fail;
+  const long sfsize = ftell(f);
+  if (sfsize<0) goto fail;
+  const size_t fsize = (size_t)sfsize;
   if (fseek(f, 0, SEEK_SET) != 0) goto fail;  // rewind
 
   // pre-allocate and read at most length
   s = kk_string_alloc_buf(fsize, ctx);
   size_t nread = fread((char*)kk_string_cbuf_borrow(s), 1, fsize, f);
   if (ferror(f)) goto fail;
-  if (nread < (size_t)fsize) { kk_string_adjust_length(s, nread, ctx); }
+  if (nread < fsize) { kk_string_adjust_length(s, nread, ctx); }
   fclose(f); f = NULL;
 
   // TODO: validate UTF8 to UTF8
@@ -417,11 +418,11 @@ kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
   for(size_t i = 0; i < count; i++) {
     const char* pname = p;
     while (*p != '=' && *p != 0) { p++; }
-    buf[2*i] = kk_string_box( kk_string_alloc_dupn((p - pname), pname, ctx) );
+    buf[2*i] = kk_string_box( kk_string_alloc_dupn((size_t)(p - pname), pname, ctx) );
     p++; // skip '='
     const char* pvalue = p;
     while (*p != 0) { p++; }
-    buf[2*i + 1] = kk_string_box(kk_string_alloc_dupn((p - pvalue), pvalue, ctx));
+    buf[2*i + 1] = kk_string_box(kk_string_alloc_dupn((size_t)(p - pvalue), pvalue, ctx));
     p++;
   }
   FreeEnvironmentStringsA(env);

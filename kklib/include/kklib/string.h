@@ -123,7 +123,7 @@ static inline kk_string_t kk_string_alloc_dup(const char* s, kk_context_t* ctx) 
 static inline kk_string_t kk_string_alloc_dupn(size_t maxlen, const char* s, kk_context_t* ctx) {
   if (s == NULL || maxlen == 0) return kk_string_empty();
   size_t n;
-  for(n = 0; n < maxlen && s[n] != 0; n++) { };
+  for(n = 0; n < maxlen && s[n] != 0; n++) { }
   return kk_string_alloc_len_unsafe(n, s, ctx);
 }
 

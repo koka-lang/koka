@@ -512,7 +512,7 @@ kk_string_t kk_string_adjust_length(kk_string_t str, size_t newlen, kk_context_t
   else {
     // full copy
     kk_string_t tstr = kk_string_alloc_buf(newlen,ctx);
-    strncpy( (char*)kk_string_cbuf_borrow, kk_string_cbuf_borrow(str), newlen );
+    strncpy( (char*)kk_string_cbuf_borrow(tstr), kk_string_cbuf_borrow(str), newlen );
     kk_string_drop(str, ctx);
     return tstr;
   }
