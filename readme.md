@@ -488,9 +488,9 @@ In particular, we use aggressive static analysis to insert _precise_ reference c
 it is no longer live (and in particular, we do not hold on to memory based on lexical scope as in almost all reference counting implementations
 in the wild, like Swift, Python, C++ `shared_ptr` etc).
 
-[Perceus](https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf)  
-stands for _Precise automatic reference counting with reuse and specialization_: the _reuse_ component transform functional
-style pattern matches into _in-place update_ when possible, while _specialization_ specialize the reference counting based on the call sites and
+[Perceus](https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf) stands
+for _Precise automatic reference counting with reuse and specialization_: the _reuse_ component transform functional style pattern matches 
+into _in-place update_ when possible, while _specialization_ specialize the reference counting based on the call sites and
 removes most rc operations in the fast path. For example, a simple `map` function:
 ```koka
 fun map( xs : list<a>, f : a -> e b ) : e list<b> {
