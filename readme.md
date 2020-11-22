@@ -511,12 +511,12 @@ The following is the immediate todo list to be completed in the coming months:
 
 - Port all libray modules, in particular `std/text/regex` (using PCRE), `std/os/file`, and `std/async` (using `libuv`).
 - Run the full test suite again.
-- Remove dependency on `Jakefile` and use `stack` only.
-- Improve syntax for ambient values, functions, and control.
-- Run the Bayesian machine learning program with large parameters.
+- Run the Bayesian probalistic machine learning program with large parameters.
 
 And future projects:
 
+- Improve documentation, landing page etc. Help would be appreciated :-)
+- Create binary installers for Linux, macOS, and Windows.
 - Implement inline specialization where functions like `map`, `fold` etc get specialized for the function with which they are called.
 - Various standard optimizations like case-of-case, join points, case-of-known constructor, etc.
 - Borrowing analysis for Perceus.
