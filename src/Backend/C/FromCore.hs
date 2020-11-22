@@ -327,6 +327,8 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
                                 if (clen > 0)
                                  then emitToC (text "kk_define_string_literal" <.> tupled [decl,ppName name,pretty clen,cstr] {- <.> semi -})
                                  else emitToC (text "kk_define_string_literal_empty" <.> tupled [decl, ppName name])
+                                when (isPublic vis) $
+                                 emitToH (linebreak <.> text "extern" <+> ppType typeString <+> ppName name <.> semi)
                         -- special case for doubles
                         Lit lit@(LitFloat f)
                           -> do let flt  = ppLit lit

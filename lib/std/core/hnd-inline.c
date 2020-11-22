@@ -25,12 +25,12 @@ static kk_evv_vector_t kk_evv_vector_alloc(size_t length, int32_t cfc, kk_contex
   return v;
 }
 
-static kk_std_core_hnd__ev* kk_evv_vector_buf(kk_evv_vector_t vec, size_t* len) {  
+static kk_std_core_hnd__ev* kk_evv_vector_buf(kk_evv_vector_t vec, size_t* len) {
   if (len != NULL) { *len = kk_block_scan_fsize(&vec->_block) - 1; }
   return &vec->vec[0];
 }
 
-static kk_std_core_hnd__ev* kk_evv_as_vec(kk_evv_t evv, size_t* len, kk_std_core_hnd__ev* single) {  
+static kk_std_core_hnd__ev* kk_evv_as_vec(kk_evv_t evv, size_t* len, kk_std_core_hnd__ev* single) {
   if (kk_evv_is_vector(evv)) {
     kk_evv_vector_t vec = kk_evv_as_vector(evv);
     *len = kk_block_scan_fsize(&vec->_block) - 1;
@@ -55,7 +55,7 @@ kk_std_core_hnd__ev kk_ev_none(kk_context_t* ctx) {
       -1,                                               // bot
       kk_evv_empty(ctx),
       ctx
-    );      
+    );
   }
   return kk_std_core_hnd__ev_dup(ev_none_singleton);
 }
@@ -72,7 +72,7 @@ size_t kk_evv_index( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx ) {
   }
   //string_t evvs = kk_evv_show(dup_datatype_as(kk_evv_t,ctx->evv),ctx);
   //fatal_error(EFAULT,"cannot find tag '%s' in: %s", string_cbuf_borrow(htag.htag), string_cbuf_borrow(evvs));
-  //drop_string_t(evvs,ctx);  
+  //drop_string_t(evvs,ctx);
   return len;
 }
 
@@ -130,9 +130,9 @@ kk_evv_t kk_evv_insert(kk_evv_t evvd, kk_std_core_hnd__ev evd, kk_context_t* ctx
   ev->hevv = kk_evv_dup(evvd);
   if (marker<0) { // negative marker is used for named evidence; this means this evidence should not be inserted into the evidence vector
     kk_evv_update_cfc_borrow(evvd,ev->cfc,ctx); // update cfc in-place for named evidence
-    kk_std_core_hnd__ev_drop(evd,ctx); 
-    return evvd; 
-  } 
+    kk_std_core_hnd__ev_drop(evd,ctx);
+    return evvd;
+  }
   // for regular handler evidence, insert ev
   size_t n;
   kk_std_core_hnd__ev single;
@@ -172,18 +172,18 @@ kk_evv_t kk_evv_delete(kk_evv_t evvd, size_t index, bool behind, kk_context_t* c
     return kk_evv_total(ctx);
   }
   if (behind) index++;
-  kk_assert_internal(index < n);  
+  kk_assert_internal(index < n);
   // todo: copy without dupping (and later dropping) when possible
   const int32_t cfc1 = kk_evv_cfc_of_borrow(evvd,ctx);
-  kk_evv_vector_t const vec2 = kk_evv_vector_alloc(n-1,cfc1,ctx);  
+  kk_evv_vector_t const vec2 = kk_evv_vector_alloc(n-1,cfc1,ctx);
   kk_std_core_hnd__ev* const evv2 = kk_evv_vector_buf(vec2,NULL);
   size_t i;
   for(i = 0; i < index; i++) {
-    evv2[i] = kk_std_core_hnd__ev_dup(evv1[i]);  
+    evv2[i] = kk_std_core_hnd__ev_dup(evv1[i]);
   }
   for(; i < n-1; i++) {
     evv2[i] = kk_std_core_hnd__ev_dup(evv1[i+1]);
-  }  
+  }
   struct kk_std_core_hnd_Ev* ev = kk_std_core_hnd__as_Ev(evv1[index]);
   if (ev->cfc >= cfc1) {
     int32_t cfc = kk_std_core_hnd__as_Ev(evv2[0])->cfc;
@@ -241,7 +241,7 @@ kk_string_t kk_evv_show(kk_evv_t evv, kk_context_t* ctx) {
 -----------------------------------------------------------------------*/
 
 struct kcompose_fun_s {
-  struct kk_function_s _base;  
+  struct kk_function_s _base;
   kk_box_t      count;
   kk_function_t conts[1];
 };
@@ -250,7 +250,7 @@ struct kcompose_fun_s {
 static kk_box_t kcompose( kk_function_t fself, kk_box_t x, kk_context_t* ctx) {
   struct kcompose_fun_s* self = kk_function_as(struct kcompose_fun_s*,fself);
   kk_intx_t count = kk_intx_unbox(self->count);
-  kk_function_t* conts = &self->conts[0];  
+  kk_function_t* conts = &self->conts[0];
   // call each continuation in order
   for(kk_intx_t i = 0; i < count; i++) {
     // todo: take uniqueness of fself into account to avoid dup_function
@@ -260,10 +260,10 @@ static kk_box_t kcompose( kk_function_t fself, kk_box_t x, kk_context_t* ctx) {
       // if yielding, `yield_next` all continuations that still need to be done
       while(++i < count) {
         // todo: if fself is unique, we could copy without dup?
-        kk_yield_extend(kk_function_dup(conts[i]),ctx);        
+        kk_yield_extend(kk_function_dup(conts[i]),ctx);
       }
       kk_function_drop(fself,ctx);
-      // kk_box_drop(x,ctx);  // don't drop as we were yielding 
+      // kk_box_drop(x,ctx);  // don't drop as we were yielding
       return kk_box_any(ctx); // return yielding
     }
   }
@@ -271,16 +271,16 @@ static kk_box_t kcompose( kk_function_t fself, kk_box_t x, kk_context_t* ctx) {
   return x;
 }
 
-static kk_function_t new_kcompose( kk_function_t* conts, kk_intx_t count, kk_context_t* ctx ) {
-  if (count<=0) return kk_function_id(ctx);
+static kk_function_t new_kcompose( kk_function_t* conts, size_t count, kk_context_t* ctx ) {
+  if (count==0) return kk_function_id(ctx);
   if (count==1) return conts[0];
-  struct kcompose_fun_s* f = kk_block_as(struct kcompose_fun_s*, 
-                               kk_block_alloc(sizeof(struct kcompose_fun_s) - sizeof(kk_function_t) + (count*sizeof(kk_function_t)), 
+  struct kcompose_fun_s* f = kk_block_as(struct kcompose_fun_s*,
+                               kk_block_alloc(sizeof(struct kcompose_fun_s) - sizeof(kk_function_t) + (count*sizeof(kk_function_t)),
                                  2 + count /* scan size */, KK_TAG_FUNCTION, ctx));
   f->_base.fun = kk_cfun_ptr_box(&kcompose,ctx);
-  f->count = kk_intx_box(count);
+  f->count = kk_enum_box(count);
   memcpy(f->conts, conts, count * sizeof(kk_function_t));
-  return (&f->_base);                              
+  return (&f->_base);
 }
 
 /*-----------------------------------------------------------------------
@@ -306,7 +306,7 @@ kk_box_t kk_yield_extend( kk_function_t next, kk_context_t* ctx ) {
   return kk_box_any(ctx);
 }
 
-// cont_apply: \x -> f(cont,x) 
+// cont_apply: \x -> f(cont,x)
 struct cont_apply_fun_s {
   struct kk_function_s _base;
   kk_function_t f;
@@ -316,9 +316,9 @@ struct cont_apply_fun_s {
 static kk_box_t cont_apply( kk_function_t fself, kk_box_t x, kk_context_t* ctx ) {
   struct cont_apply_fun_s* self = kk_function_as(struct cont_apply_fun_s*, fself);
   kk_function_t f = self->f;
-  kk_function_t cont = self->cont;  
+  kk_function_t cont = self->cont;
   kk_drop_match(self,{kk_function_dup(f);kk_function_dup(cont);},{},ctx);
-  return kk_function_call( kk_box_t, (kk_function_t, kk_function_t, kk_box_t, kk_context_t* ctx), f, (f, cont, x, ctx));  
+  return kk_function_call( kk_box_t, (kk_function_t, kk_function_t, kk_box_t, kk_context_t* ctx), f, (f, cont, x, ctx));
 }
 
 static kk_function_t kk_new_cont_apply( kk_function_t f, kk_function_t cont, kk_context_t* ctx ) {
@@ -346,7 +346,7 @@ kk_box_t kk_yield_cont( kk_function_t f, kk_context_t* ctx ) {
 
 kk_function_t kk_yield_to( struct kk_std_core_hnd_Marker m, kk_function_t clause, kk_context_t* ctx ) {
   kk_yield_t* yield = &ctx->yield;
-  kk_assert_internal(!kk_yielding(ctx)); // already yielding  
+  kk_assert_internal(!kk_yielding(ctx)); // already yielding
   ctx->yielding = KK_YIELD_NORMAL;
   yield->marker = m.m;
   yield->clause = clause;
@@ -406,17 +406,17 @@ kk_unit_t  kk_evv_guard(kk_evv_t evv, kk_context_t* ctx) {
 
 typedef struct yield_info_s {
   struct kk_std_core_hnd__yield_info_s _base;
-  kk_function_t clause;          
+  kk_function_t clause;
   kk_function_t conts[KK_YIELD_CONT_MAX];
-  size_t     conts_count;     
-  int32_t    marker;          
+  size_t     conts_count;
+  int32_t    marker;
   uint8_t    yielding;
 }* yield_info_t;
 
-kk_std_core_hnd__yield_info kk_yield_capture(kk_context_t* ctx) {  
+kk_std_core_hnd__yield_info kk_yield_capture(kk_context_t* ctx) {
   kk_assert_internal(kk_yielding(ctx));
   yield_info_t yld = kk_block_alloc_as(struct yield_info_s, 1 + KK_YIELD_CONT_MAX, (kk_tag_t)1, ctx);
-  yld->clause = ctx->yield.clause; 
+  yld->clause = ctx->yield.clause;
   size_t i = 0;
   for( ; i < ctx->yield.conts_count; i++) {
     yld->conts[i] = ctx->yield.conts[i];
@@ -434,7 +434,7 @@ kk_std_core_hnd__yield_info kk_yield_capture(kk_context_t* ctx) {
 
 kk_box_t kk_yield_reyield( kk_std_core_hnd__yield_info yldinfo, kk_context_t* ctx) {
   kk_assert_internal(!kk_yielding(ctx));
-  yield_info_t yld = kk_datatype_as_assert(yield_info_t, yldinfo, (kk_tag_t)1);  
+  yield_info_t yld = kk_datatype_as_assert(yield_info_t, yldinfo, (kk_tag_t)1);
   ctx->yield.clause = kk_function_dup(yld->clause);
   ctx->yield.marker = yld->marker;
   ctx->yield.conts_count = yld->conts_count;

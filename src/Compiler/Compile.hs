@@ -40,7 +40,7 @@ import Common.Failure
 import Lib.Printer            ( withNewFilePrinter )
 import Common.Range           -- ( Range, sourceName )
 import Common.Name            -- ( Name, newName, qualify, asciiEncode )
-import Common.NamePrim        ( nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync, nameTpInst )
+import Common.NamePrim        ( nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync, nameTpNamed )
 import Common.Error
 import Common.File
 import Common.ColorScheme
@@ -467,7 +467,7 @@ checkUnhandledEffects flags loaded name range tp
               combine eff Nothing ls
       _ -> return Nothing
   where
-    exclude = [nameTpCps,nameTpInst] -- nameTpAsync
+    exclude = [nameTpCps,nameTpNamed] -- nameTpAsync
 
     combine :: Effect -> Maybe (UserExpr -> UserExpr) -> [Effect] -> Error (Maybe (UserExpr -> UserExpr))
     combine eff mf [] = return mf

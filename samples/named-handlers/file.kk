@@ -14,6 +14,7 @@ named effect file {
   fun read-line() : string   // `:(file)   -> <exn> a`
 }
 
+
 // a (named) handler instance for files
 fun file(fname,action) {
   var content := read-text-file(fname.path).lines

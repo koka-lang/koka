@@ -710,7 +710,7 @@ newtype OpDecl = OpDecl (String, Name, Range, Bool {-linear-}, OperationSort, [T
 -- EffectDeclHeader
 newtype EffectDecl = EffectDecl (Visibility, Visibility, Range, Range,
                                  String, DataKind, Bool {-linear-}, Bool {-instance?-}, Name, Range, [TypeBinder UserKind],
-                                 UserKind, Range, Maybe UserType {- instance umbrella -}, [OpDecl])
+                                 UserKind, Range, Maybe [UserType] {- instance umbrella -}, [OpDecl])
 
 parseEffectDecl :: Visibility -> LexParser EffectDecl
 parseEffectDecl dvis =
@@ -729,9 +729,11 @@ parseEffectDecl dvis =
          mbInstanceUmb <- if (not isInstance) then return Nothing
                             else do keyword "in"
                                     tp <- ptype
-                                    return (Just tp)
+                                    return (Just [tp,TpCon nameTpPartial irng])
                                  <|>
-                                    return (Just (TpCon nameTpInst irng))
+                                    return (Just [TpCon nameTpPartial irng])
+                                    -- todo: still need to add TpNamed for the JavaScript backend?
+                                    -- return (Just (TpCon nameTpNamed irng))  -- todo: needed only if not using exn?
          (operations, xrng) <- semiBracesRanged (parseOpDecl singleShot defvis)
          return $ -- trace ("parsed effect decl " ++ show effectId ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show isInstance ++ " " ++ show tpars ++ " " ++ show kind ++ " " ++ show mbInstance) $
           EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, isInstance, effectId, irng,
@@ -819,10 +821,7 @@ makeEffectDecl decl =
 
 
       --extendConName = toEffectConName (tbinderName ename)
-      extraEffects = (case mbInstanceUmb of
-                        Just _  -> [TpCon nameTpPartial irng]
-                        Nothing -> []) ++
-                     (if (sort==Retractive) then [TpCon nameTpDiv irng] else [])
+      extraEffects = (if (sort==Retractive) then [TpCon nameTpDiv irng] else [])
 
       -- parse the operations and return the constructor fields and function definitions
       opCount = length operations
@@ -929,15 +928,15 @@ parseFunOpDecl linear vis =
 
 
 -- smart constructor for operations
-operationDecl :: Int -> Visibility -> [UserTypeBinder] -> String -> Name -> Name -> Maybe UserType -> UserType -> UserType -> [UserTypeBinder] ->
+operationDecl :: Int -> Visibility -> [UserTypeBinder] -> String -> Name -> Name -> Maybe [UserType] -> UserType -> UserType -> [UserTypeBinder] ->
              [UserType] -> (Int,OpDecl) -> (ValueBinder UserType (Maybe UserExpr), UserDef, UserDef, Maybe UserDef)
 operationDecl opCount vis foralls docEffect hndName effName mbInstanceUmb effTp hndTp hndTpVars extraEffects (opIndex,op)
   = let -- teff     = makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
            OpDecl (doc,id,idrng,linear,opSort,exists0,pars,prng,mbteff,tres) = op
-           opEffTp  = case mbInstanceUmb of
-                        Nothing  -> effTp
-                        Just rtp -> rtp
-           teff0    = foldr (makeEffectExtend idrng) (makeEffectEmpty idrng) (opEffTp:extraEffects)
+           opEffTps = case mbInstanceUmb of
+                        Nothing   -> [effTp]
+                        Just rtps -> rtps
+           teff0    = foldr (makeEffectExtend idrng) (makeEffectEmpty idrng) (opEffTps ++ extraEffects)
            rng      = combineRanges [idrng,prng,getRange tres]
            nameA    = newName ".a"
            tpVarA   = TpVar nameA idrng
@@ -1493,7 +1492,7 @@ applyMaybe rng reinit final f
               Nothing  -> applyH
               Just fin -> App (Var nameFinally False rng) [(Nothing,fin),(Nothing,Lam [] applyH rng)] rng
 
-    applyH = App f [(Nothing,Var (newHiddenName "act") False rng)] rng             
+    applyH = App f [(Nothing,Var (newHiddenName "act") False rng)] rng
 
 
 data Clause = ClauseRet UserExpr

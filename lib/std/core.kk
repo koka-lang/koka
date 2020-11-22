@@ -6,7 +6,7 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/* Core functions. 
+/* Core functions.
 
    This module is implicitly imported and all functions and types
    are always available.
@@ -51,7 +51,7 @@ include extern {
 // An alias for the empty effect.
 alias total = <>
 
-// The console effect signifies that a function may read or write to the console.
+// The console effect signifies that a function may write to the console.
 type console :: X
 
 // An alias for pure effects: a pure function always returns the same result
@@ -64,8 +64,8 @@ type global-scope :: S
 // The `:net` effect signifies a function may access the network
 type net :: X
 
-// The `:file` effect signifies a function may access the file system
-type file :: X
+// The `:fsys` effect signifies a function may access the file system
+type fsys :: X
 
 // The `:ui` effect signifies a function may access the graphics system
 type ui :: X
@@ -74,7 +74,7 @@ type ui :: X
 type blocking :: X
 
 // The `:io-total` effect is used for functions that perform arbitrary I/O operations, but are terminating without raising exceptions.
-alias io-total = <ndet,console,net,file,ui,st<global>>
+alias io-total = <ndet,console,net,fsys,ui,st<global>>
 
 // The `:io-noexn` effect is used for functions that perform arbitrary I/O operations, but raise no exceptions
 alias io-noexn = <div,io-total>
@@ -2437,8 +2437,8 @@ fun todo( message : string ) : () {
 // Exceptions
 // ----------------------------------------------------------------------------
 
-// The `:inst` effect is the default umbrella effect for effect instances
-type inst :: X
+// The `:named` effect is the default umbrella effect for named effects
+type nmd :: X
 
 
 // Exceptions
