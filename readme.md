@@ -53,8 +53,8 @@ Enjoy,
   Daan Leijen
 
 Special thanks to:
-- [Ningning Xie](https://xnning.github.io/): for her work on the theory and practice of [evidence translation](#evidence-translation) for algebraic effect handlers [6](#references).
-- [Alex Reinking](https://alexreinking.com/): for the ongoing work on the [Perceus](#perceus) reference counting analysis [8](#references).
+- [Ningning Xie](https://xnning.github.io/) for her work on the theory and practice of [evidence translation](#evidence-translation) for algebraic effect handlers [[6]](#references) and the formalization of Perceus reference counting [[8]](#references).
+- [Alex Reinking](https://alexreinking.com/) for the implementation of the [Perceus](#perceus) reference counting analysis [[8]](#references).
 - And all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
 
 Releases:
