@@ -30,7 +30,9 @@ compositional control-flow abstractions as a library; this includes advanced abs
 ambient state, backtracking parser combinators, probablistic programming, Bayesian machine learning, etc. Algebraic effect handlers subsume (free)
 monads, and are compositional without needing lifting or monad transformers.
 
-Recent work on [evidence translation](#evidence-translation) and [Perceus](#perceus) precise compiler guided reference counting enable Koka to compile directly
+Recent work on [evidence translation](https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently-with-proofs-5f0b7d860b387.pdf) 
+and [Perceus](https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf) 
+precise compiler guided reference counting enable Koka to compile directly
 to plain C code _without needing a garbage collector_ or runtime system. Initial performance benchmarks are promising (see below),
 and it is our goal to generally fall within a factor 2&times; of C++ performance without needing manual memory management.
 
@@ -51,9 +53,9 @@ Enjoy,
   Daan Leijen
 
 Special thanks to:
-- [Ningning Xie](https://xnning.github.io/): for her work on the theory and practice of [evidence translation](#evidence-translation) for algebraic effect handlers [6].
-- [Alex Reinking](https://alexreinking.com/): for the ongoing work on the [Perceus](#perceus) reference counting analysis.
-- And all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, and Edsko de Vries.
+- [Ningning Xie](https://xnning.github.io/): for her work on the theory and practice of [evidence translation](#evidence-translation) for algebraic effect handlers [6](#references).
+- [Alex Reinking](https://alexreinking.com/): for the ongoing work on the [Perceus](#perceus) reference counting analysis [8](#references).
+- And all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
 
 Releases:
 - `v2.0.5`, Nov 15 2020: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support
@@ -463,9 +465,9 @@ There are two crucial ingredients to make this possible: evidence translation an
 
 ## Evidence translation
 
-As described in the paper _Effect Handlers, Evidently_, Xie _et al._ [6] show how to translate algebraic effect handlers at compilation
+As described in the paper _Effect Handlers, Evidently_, Xie _et al._ [[6]](#references) show how to translate algebraic effect handlers at compilation
 time down to pure lambda calculus where all control flow is explicit again. This is done by Koka to remove any dependence on
-runtime mechanisms like split-stacks (as in Multi-core OCaml) or C stack copying [7]. Moreover, as the evidence for each handler
+runtime mechanisms like split-stacks (as in Multi-core OCaml) or C stack copying [[7]](#references). Moreover, as the evidence for each handler
 is passed down to the call site, all _tail-resumptive_ operations can be executed in-place without needing to do an expensive
 yield- and resume. This makes the cost of tail-resumptive operations on effects comparable to a virtual method call.
 
@@ -486,7 +488,8 @@ In particular, we use aggressive static analysis to insert _precise_ reference c
 it is no longer live (and in particular, we do not hold on to memory based on lexical scope as in almost all reference counting implementations
 in the wild, like Swift, Python, C++ `shared_ptr` etc).
 
-_Perceus_  stands for _Precise automatic reference counting with reuse and specialization_: the _reuse_ component transform functional
+[Perceus](https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf)  
+stands for _Precise automatic reference counting with reuse and specialization_: the _reuse_ component transform functional
 style pattern matches into _in-place update_ when possible, while _specialization_ specialize the reference counting based on the call sites and
 removes most rc operations in the fast path. For example, a simple `map` function:
 ```koka
@@ -501,7 +504,6 @@ will update the list _in place_ (reusing the `Cons` nodes that are matched) if t
 This dynamically adjust the program from in-place update to persistence and is the main reason why it can approach the performance of
 hand-optimized C++ on the red-black tree benchmark.
 
-Talk and paper are coming soon...
 
 # Things to do
 
@@ -543,3 +545,6 @@ The 25th ACM SIGPLAN International Conference on Functional Programming (ICFP), 
 
 7. Ningning Xie and Daan Leijen. &ldquo;Effect Handlers in Haskell, Evidently&rdquo; The 13th ACM SIGPLAN International Haskell Symposium, August 2020.
 [pdf](https://www.microsoft.com/en-us/research/uploads/prod/2020/07/effev.pdf)
+
+8. Alex Reinking, Ningning Xie, Leonardo de Moura, and Daan Leijen: &ldquo; Perceus: Garbage Free Reference Counting with Reuse&rdquo; MSR-TR-2020-42, Nov 22, 2020.
+[pdf](https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf)
