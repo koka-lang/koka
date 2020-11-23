@@ -1094,7 +1094,7 @@ freeInGamma :: Inf Tvs
 freeInGamma
   = do env <- getEnv
        sub <- getSub
-       return (fuv (sub |-> (infgamma env)))
+       return (ftv (sub |-> (infgamma env)))  -- TODO: fuv?
 
 splitPredicates :: Tvs -> Inf [Evidence]
 splitPredicates free

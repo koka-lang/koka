@@ -830,8 +830,8 @@ makeEffectDecl decl =
 
 
       --extendConName = toEffectConName (tbinderName ename)
-      extraEffects = (if (isScoped && isInstance) then [TpApp (TpCon nameTpScope irng)
-                                                           [TpVar (tbinderName tb) irng | tb <- tparsScoped] irng] else [])
+      scopeEff    = TpApp (TpCon nameTpScope irng) [TpVar (tbinderName tb) irng | tb <- tparsScoped] irng
+      extraEffects = (if (isScoped && isInstance) then [scopeEff] else [])
                      ++
                      (if (sort==Retractive) then [TpCon nameTpDiv irng] else [])
 
@@ -853,7 +853,9 @@ makeEffectDecl decl =
       handleRetTp= TypeBinder (newHiddenName "b") kindStar irng irng
       handleName = toHandleName id
       handleEff  = if isInstance
-                    then tpVar hndEffTp
+                    then if (isScoped)
+                           then makeEffectExtend irng scopeEff (tpVar hndEffTp)
+                           else tpVar hndEffTp
                     else makeEffectExtend irng effTp (tpVar hndEffTp) :: UserType
       actionTp   = makeTpFun actionArgTp handleEff (tpVar handleRetTp) rng
       handleTp   = quantify QForall (tparsNonScoped ++ [handleRetTp,hndEffTp,hndResTp]) $

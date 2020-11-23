@@ -330,11 +330,11 @@ public noinline fun ".hhandle"( tag:htag<h>, cfc: cfc, h : h<e,r>, ret: a -> e r
 // named handler
 // -------------------------------------------
 
-public noinline fun ".named-handle"( tag:htag<h>, cfc: cfc, h : h<e,r>, ret: a -> e r, action : ev<h> -> e a ) : e r {
+public noinline fun ".named-handle"( tag:htag<h>, cfc: cfc, h : h<e,r>, ret: a -> e r, action : ev<h> -> e1 a ) : e r {
   val m = fresh-marker-named()            // unique (negative) marker, but never gets inserted into the evidence vector
   val w0 = evv-get()
   val ev = Ev(tag,m,h,cfc,w0)
-  prompt(w0,w0,ev,m,ret,action(ev))
+  prompt(w0,w0,ev,m,ret,cast-ev1(action)(ev))
 }
 
 // -------------------------------------------

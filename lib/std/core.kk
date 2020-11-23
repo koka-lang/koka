@@ -1696,7 +1696,7 @@ fun foreach-while( slice : sslice, action : (c : char) -> e maybe<a> ) : e maybe
 
 // Apply a function for each character in a string slice.
 fun foreach( slice : sslice, action : (c:char) -> e ()) : e () {
-  foreach-while(slice, fn(c) { action(c); Nothing })
+  foreach-while(slice, fn(c){ action(c); Nothing })
   ()
 }
 
@@ -2440,7 +2440,7 @@ fun todo( message : string ) : () {
 // The `:named` effect is the default umbrella effect for named effects
 type nmd :: X
 
-type scope :: S -> HX1
+type scope :: S -> X
 
 // Exceptions
 effect exn {
