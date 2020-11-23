@@ -830,7 +830,10 @@ makeEffectDecl decl =
 
 
       --extendConName = toEffectConName (tbinderName ename)
-      extraEffects = (if (sort==Retractive) then [TpCon nameTpDiv irng] else [])
+      extraEffects = (if (isScoped && isInstance) then [TpApp (TpCon nameTpScope irng)
+                                                           [TpVar (tbinderName tb) irng | tb <- tparsScoped] irng] else [])
+                     ++
+                     (if (sort==Retractive) then [TpCon nameTpDiv irng] else [])
 
       -- parse the operations and return the constructor fields and function definitions
       opCount = length operations
@@ -956,9 +959,6 @@ operationDecl opCount vis foralls forallsNonScoped docEffect hndName effName mbI
            nameA    = newName ".a"
            tpVarA   = TpVar nameA idrng
            isInstance = isJust mbInstanceUmb
-           isUmbInstance = case mbInstanceUmb of
-                              Just (_:_) -> True
-                              _ -> False
 
            --nameE    = newName ".e"
            --tpBindE  = TypeBinder nameE (KindCon nameKindLabel idrng) idrng idrng

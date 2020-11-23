@@ -2440,6 +2440,7 @@ fun todo( message : string ) : () {
 // The `:named` effect is the default umbrella effect for named effects
 type nmd :: X
 
+type scope :: S -> HX1
 
 // Exceptions
 effect exn {

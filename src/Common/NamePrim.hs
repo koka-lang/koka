@@ -95,7 +95,7 @@ module Common.NamePrim
           , nameTpHandlerBranch0, nameTpHandlerBranch1
           , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
           , nameTpValueOp
-          , nameTpNamed
+          , nameTpNamed, nameTpScope
 
 
           , nameTpAsync, nameTpAsyncX
@@ -239,6 +239,7 @@ nameTpNull      = preludeName "null"
 nameTpIO        = preludeName "io"
 
 nameTpNamed     = preludeName "nmd"
+nameTpScope     = preludeName "scope"
 nameTpPartial   = preludeName "exn"
 nameTpPure      = preludeName "pure"
 
