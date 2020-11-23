@@ -838,7 +838,7 @@ makeEffectDecl decl =
       -- parse the operations and return the constructor fields and function definitions
       opCount = length operations
       (opFields,opSelects,opDefs,opValDefs)
-          = unzip4 $ map (operationDecl opCount vis tpars tparsNonScoped docEffect hndName
+          = unzip4 $ map (operationDecl opCount vis tparsScoped tparsNonScoped docEffect hndName
                                                  id mbInstanceUmb effTp (tpCon hndTpName)
                                                  ([hndEffTp,hndResTp]) extraEffects)
                                                  (zip [0..opCount-1] (sortBy cmpName operations))
@@ -950,8 +950,9 @@ operationDecl :: Int -> Visibility -> [UserTypeBinder] -> [UserTypeBinder] ->
                  String -> Name -> Name -> Maybe [UserType] -> UserType -> UserType -> [UserTypeBinder] ->
                  [UserType] -> (Int,OpDecl) ->
                  (ValueBinder UserType (Maybe UserExpr), UserDef, UserDef, Maybe UserDef)
-operationDecl opCount vis foralls forallsNonScoped docEffect hndName effName mbInstanceUmb effTp hndTp hndTpVars extraEffects (opIndex,op)
+operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effName mbInstanceUmb effTp hndTp hndTpVars extraEffects (opIndex,op)
   = let -- teff     = makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
+           foralls  = forallsScoped ++ forallsNonScoped
            OpDecl (doc,id,idrng,linear,opSort,exists0,pars,prng,mbteff,tres) = op
            opEffTps = case mbInstanceUmb of
                         Nothing   -> [effTp]
@@ -1004,7 +1005,7 @@ operationDecl opCount vis foralls forallsNonScoped docEffect hndName effName mbI
                                      ++ [makeTpApp hndTp (map tpVar forallsNonScoped) rng]
                                      ++ map tpVar hndTpVars)
                                    rng
-           clauseTp    = quantify QForall exists $ clauseRhoTp
+           clauseTp    = quantify QForall (exists ++ forallsScoped) $ clauseRhoTp
 
            conField    = -- trace ("con field: " ++ show clauseId) $
                          ValueBinder clauseId clauseTp Nothing idrng rng
@@ -1015,7 +1016,7 @@ operationDecl opCount vis foralls forallsNonScoped docEffect hndName effName mbI
                           nameRng   = idrng
                           binder    = ValueBinder selectId () body nameRng nameRng
                           body      = Ann (Lam [hndParam] innerBody rng) fullTp rng
-                          fullTp    = quantify QForall (forallsNonScoped ++ exists ++ hndTpVars) $
+                          fullTp    = quantify QForall (foralls ++ exists ++ hndTpVars) $
                                       makeTpFun [(hndArg,makeTpApp hndTp (map tpVar (forallsNonScoped ++ hndTpVars)) rng)]
                                                  (makeTpTotal rng) clauseRhoTp rng
 
@@ -1332,10 +1333,10 @@ withstat
            Just tp -> binder{ binderType = Just (promoteType tp)}
            _ -> binder
 
-applyToContinuation rng params expr body
-  = let fun = Parens (Lam params body (combineRanged rng body)) rng -- Parens makes it last in type inference so types can better propagate (ambients/heap1)
+applyToContinuation wrng params expr body
+  = let fun = Parens (Lam params body (combineRanged wrng body)) (getRange body) -- Parens makes it last in type inference so types can better propagate (ambients/heap1)
         funarg = [(Nothing,fun)]
-        fullrange = combineRanged rng expr
+        fullrange = combineRanged wrng fun
     in case unParens expr of
       App f args range -> App f (args ++ funarg) fullrange
       atom             -> App atom funarg fullrange

@@ -569,7 +569,7 @@ inferExpr propagated expect (Lam binders body rng)
 
        -- check skolem escape
        sftp0 <- subst (typeFun pars stopEff tp)
-       checkSkolemEscape rng sftp0 Nothing skolems tvsEmpty
+       -- checkSkolemEscape rng sftp0 Nothing skolems tvsEmpty  -- TODO: not having this check improves error messages but is it really safe?
 
        -- substitute back skolems to meta variables
        let subSkolems = subNew [(tv,TVar tv{typevarFlavour=Meta}) | tv <- skolems]
@@ -885,7 +885,7 @@ inferHandler propagated expect handlerSort handlerScoped
            effectName = effectNameFromLabel heff
            handlerConName = toConstructorName (toHandlerName effectName)
 
-       traceDoc $ \penv -> text "checking handler: " <+> ppType penv heff
+       -- traceDoc $ \penv -> text "checking handler: " <+> ppType penv heff
 
        -- check operations
        checkCoverage rng heff handlerConName branches
@@ -955,13 +955,15 @@ inferHandler propagated expect handlerSort handlerScoped
                              (handleExpr (Var actionName False rng)) hrng
 
        -- extract the action type for the case where it is higher-ranked (for scoped effects)
+       -- this way we can annotate the action parameter with a higher-rank type if needed
+       -- so it is propagated automatically.
        penv <- getPrettyEnv
        (_,handleTp,_)  <- resolveFunName handleName CtxNone rng rng
        (handleRho,_,_) <- instantiate rng handleTp
        let actionTp = case splitFunType handleRho of
                         Just ([_,_,_,actionTp],effTp,resTp) -> snd actionTp
                         _ -> failure ("Type.Infer: unexpected handler type: " ++ show (ppType penv handleRho))
-       traceDoc $ \penv -> text " action type is" <+> ppType penv actionTp
+       -- traceDoc $ \penv -> text " action type is" <+> ppType penv actionTp
        let handlerExpr = Lam [ValueBinder actionName (Just actionTp) Nothing rng rng]
                          (handleExpr (Var actionName False rng)) hrng
 

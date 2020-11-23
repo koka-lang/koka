@@ -15,13 +15,13 @@
 */
 module heap
 
-effect heap<s> {
+scoped effect heap<s::S> {
   control new-ref(init:a) : ref<s,a>
 }
 
-named effect ref<s,a> in heap<s> {  // named under umbrella effect `:heap`
-  fun get() : a                        // `:(ref<s,a>)   -> <heap<s>,pure> a`
-  fun set( value : a ) : ()            // `:(ref<s,a>,a) -> <heap<s>,pure> ()`
+named effect ref<s::S,a::V> in heap<s> {  // named under umbrella effect `:heap`
+  fun get() : a                           // `:(ref<s,a>)   -> <heap<s>,pure> a`
+  fun set( value : a ) : ()               // `:(ref<s,a>,a) -> <heap<s>,pure> ()`
 }
 
 // private (named) handler instance for a reference

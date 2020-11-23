@@ -664,7 +664,9 @@ checkSkolemEscape rng tp mhint skolems extraFree
          then return ()
          else do stp <- subst tp
                  let escaped = [v | v <- skolems, tvsMember v allfree]
-                 termError rng (text "abstract type(s) escape(s) into the context") (stp) (maybe [] (\hint -> [(text "hint",hint)]) mhint)
+                 termError rng (text "abstract type(s) escape(s) into the context") (stp)
+                               (maybe [(text "hint",text "give a higher-rank type annotation to a function parameter?")]
+                                      (\hint -> [(text "hint",hint)]) mhint)
 
 
 
@@ -742,7 +744,7 @@ unifyError' env context range err tp1 tp2
           NoMatch     -> (nameType ++ "s do not match",[])
           NoMatchKind -> ("kinds do not match",[])
           NoMatchPred -> ("predicates do not match",[])
-          NoSubsume   -> ("type is not polymorphic enough",[(text "hint",text "give a type annotation to a function parameter?")])
+          NoSubsume   -> ("type is not polymorphic enough",[(text "hint",text "give a higher-rank type annotation to a function parameter?")])
           NoEntail    -> ("predicates cannot be resolved",[])
           Infinite    -> ("types do not match (due to an infinite type)",[(text "hint",text "give a type to the function definition?")])
           NoMatchEffect{}-> ("effects do not match",[])
