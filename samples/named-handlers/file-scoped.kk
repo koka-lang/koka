@@ -26,26 +26,16 @@ fun file(fname : string, action : forall<s> file<s> -> <scope<s>|e> a ) : e a {
   action(f)
 }
 
-
 fun read-both( f1 : file<s1>, f2 : file<s2> ) : <console,scope<s1>,scope<s2>|e> () {
   println( f1.read-line() + "\n" + f2.read-line() )
 }
 
-
-
 public fun main() {
-  file("package.yaml")
-    fn(f1) {
-      file("stack.yaml")
-        fn(f2) {
-          //println( f1.read-line() + "\n" + f2.read-line() )
-          println( f2.read-line() + "\n" + f1.read-line() )
-          //read-both(f2,f1)
-        }
-    }
-  //println(f1.read-line())
-
-  //read-both(f1,f2)
+  with f1 = file("package.yaml")
+  with f2 = file("stack.yaml")
+  println( f1.read-line() + "\n" + f2.read-line() )
+  //println( f2.read-line() + "\n" + f1.read-line() )
+  //read-both(f2,f1)
   //wrong-escape()()
 }
 

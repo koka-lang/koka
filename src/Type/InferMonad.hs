@@ -57,7 +57,7 @@ module Type.InferMonad( Inf, InfGamma
                       , Context(..)
                       , inferUnify, inferUnifies
                       , inferSubsume
-                      , withSkolemized
+                      , withSkolemized, checkSkolemEscape
 
                       , typeError
                       , contextError
@@ -638,6 +638,9 @@ withSkolemized :: Range -> Type -> Maybe Doc -> (Type -> [TypeVar] -> Inf (a,Tvs
 withSkolemized rng tp mhint action
   = do (xvars,_,xrho,_) <- Op.skolemizeEx rng tp
        (x,extraFree) <- action xrho xvars
+       checkSkolemEscape rng xrho mhint xvars extraFree
+       return x
+       {-
        --sub <- getSub
        free <- freeInGamma
        let allfree = tvsUnion free extraFree
@@ -648,6 +651,23 @@ withSkolemized rng tp mhint action
                  let escaped = [v | v <- xvars, tvsMember v allfree]
                  termError rng (text "abstract type(s) escape(s) into the context") (sxrho) (maybe [] (\hint -> [(text "hint",hint)]) mhint)
        return x
+       -}
+
+checkSkolemEscape :: Range -> Type -> Maybe Doc -> [TypeVar] -> Tvs -> Inf ()
+checkSkolemEscape rng tp mhint [] extraFree
+  = return ()
+checkSkolemEscape rng tp mhint skolems extraFree
+  = do free <- freeInGamma
+       let allfree = tvsUnion free extraFree
+           --escaped = fsv $ [tp  | (tv,tp) <- subList sub, tvsMember tv allfree]
+       if (tvsDisjoint (tvsNew skolems) allfree)
+         then return ()
+         else do stp <- subst tp
+                 let escaped = [v | v <- skolems, tvsMember v allfree]
+                 termError rng (text "abstract type(s) escape(s) into the context") (stp) (maybe [] (\hint -> [(text "hint",hint)]) mhint)
+
+
+
 
 doUnify :: Unify a -> Inf (Either UnifyError a)
 doUnify u

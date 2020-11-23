@@ -520,7 +520,7 @@ inferIsolated contextRange range body inf
 inferExpr :: Maybe (Type,Range) -> Expect -> Expr Type -> Inf (Type,Effect,Core.Expr)
 inferExpr propagated expect (Lam binders body rng)
   = isNamedLam $ \isNamed ->
-    do traceDoc $ \env -> text " inferExpr.Lam:" <+> pretty (show expect) <+> text ", propagated:" <+> ppProp env propagated
+    do -- traceDoc $ \env -> text " inferExpr.Lam:" <+> pretty (show expect) <+> text ", propagated:" <+> ppProp env propagated
        (propArgs,propEff,propBody,skolems,expectBody) <- matchFun (length binders) propagated
 
        let binders0 = [case binderType binder of
@@ -554,7 +554,7 @@ inferExpr propagated expect (Lam binders body rng)
        topEff <- case propEff of
                    Nothing -> do -- traceDoc $ \env -> text (" inferExpr.Lam. no prop eff")
                                  subst eff
-                   Just (topEff,r) -> do traceDoc (\env -> text (" inferExpr.Lam.propEff: ") <+> ppType env eff <+> text ", top: " <+> ppType env topEff)
+                   Just (topEff,r) -> do -- traceDoc (\env -> text (" inferExpr.Lam.propEff: ") <+> ppType env eff <+> text ", top: " <+> ppType env topEff)
                                           -- inferUnifies (checkEffect rng) [(r,topEff),(getRange body,eff)]
                                          inferUnify (checkEffectSubsume rng) r eff topEff
                                          return topEff
@@ -567,10 +567,14 @@ inferExpr propagated expect (Lam binders body rng)
        stopEff <- subst topEff
        let pars = optPars
 
+       -- check skolem escape
        sftp0 <- subst (typeFun pars stopEff tp)
+       checkSkolemEscape rng sftp0 Nothing skolems tvsEmpty
+
+       -- substitute back skolems to meta variables
        let subSkolems = subNew [(tv,TVar tv{typevarFlavour=Meta}) | tv <- skolems]
            sftp1 = subSkolems |-> sftp0
-       traceDoc $ \env -> text " inferExpr.Lam: fun type:" <+> ppType env sftp1
+       -- traceDoc $ \env -> text " inferExpr.Lam: fun type:" <+> ppType env sftp1
        (ftp,fcore) <- maybeGeneralize rng (getRange body) typeTotal expect sftp1 bodyCore2
        -- traceDoc $ \env -> text " inferExpr.Lam: subst fun type:" <+> ppType env ftp
 
@@ -2556,7 +2560,11 @@ matchFunTypeArgs context fun tp fixed named
     matchNamed pars []
       = do if (all (isOptional . snd . snd) pars)
             then return [(j,(i,makeOptionalNone)) | (i,(j,(name,tpar))) <- zip [(length fixed + length named)..] pars]
-            else do typeError context range (text "function has not enough arguments") tp []
+            else do let hints = case rootExpr fun of
+                                  (Var name isOp nameRange) | name == newName "resume"
+                                    -> [(text "hint", text "cannot use \"resume\" inside a val/fun/except clause")]
+                                  _ -> []
+                    typeError context range (text "function has not enough arguments") tp hints
                     return []
 
     extract name acc []
@@ -2670,7 +2678,7 @@ matchFun nArgs mbType
                             -> let m = length args
                                in -- can happen: see test/type/wrong/hm4 and hm4a
                                   --assertion ("Type.Infer.matchFun: expecting " ++ show nArgs ++ " arguments but found propagated " ++ show m ++ " arguments!") (nArgs >= m) $
-                                  do traceDoc $ \penv -> text "  matchfun.args: " <+> tupled (map (ppType penv . snd) args)
+                                  do -- traceDoc $ \penv -> text "  matchfun.args: " <+> tupled (map (ppType penv . snd) args)
                                      return (take nArgs (map Just args ++ replicate (nArgs - m) Nothing),
                                                Just (eff,rng), Just (res,rng), skolems,
                                                  if isRho res then Instantiated else Generalized False)
