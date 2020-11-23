@@ -877,6 +877,8 @@ inferHandler propagated expect handlerSort handlerScoped
            effectName = effectNameFromLabel heff
            handlerConName = toConstructorName (toHandlerName effectName)
 
+       traceDoc $ \penv -> text "checking handler: " <+> ppType penv heff
+
        -- check operations
        checkCoverage rng heff handlerConName branches
 
@@ -941,17 +943,27 @@ inferHandler propagated expect handlerSort handlerScoped
                           Just expr -> expr
            handleExpr action = App (Var handleName False rng)
                                 [(Nothing,handlerCfc),(Nothing,handlerCon),(Nothing,handleRet),(Nothing,action)] hrng
-           handlerExpr= Lam [ValueBinder actionName Nothing Nothing rng rng]
-                            (handleExpr (Var actionName False rng)) hrng
+           xhandlerExpr= Lam [ValueBinder actionName Nothing Nothing rng rng]
+                             (handleExpr (Var actionName False rng)) hrng
+
+       -- extract the action type for the case where it is higher-ranked (for scoped effects)
+       penv <- getPrettyEnv
+       (_,handleTp,_)  <- resolveFunName handleName CtxNone rng rng
+       (handleRho,_,_) <- instantiate rng handleTp
+       let actionTp = case splitFunType handleRho of
+                        Just ([_,_,_,actionTp],effTp,resTp) -> snd actionTp
+                        _ -> failure ("Type.Infer: unexpected handler type: " ++ show (ppType penv handleRho))
+       -- traceDoc $ \penv -> text "handler type is" <+> ppType penv handlerTp
+       let handlerExpr = Lam [ValueBinder actionName (Just actionTp) Nothing rng rng]
+                         (handleExpr (Var actionName False rng)) hrng
 
        -- and check the handle expression
        hres@(xhtp,_,_) <- inferExpr propagated expect handlerExpr
        htp <- subst xhtp
 
        -- extract handler effect
-       penv <- getPrettyEnv
-       let heffect = case splitFunScheme(htp) of
-                        Just (_,_,_,heff,hresTp) -> heff
+       let (actionTp1,heffect) = case splitFunScheme(htp) of
+                        Just (_,_,[arg],heff,hresTp) -> (snd arg,heff)
                         _ -> failure $ "Type.Infer.inferHandler: unexpected handler type: " ++ show (ppType penv htp)
 
        if (not (labelIsLinear heff))
@@ -964,21 +976,29 @@ inferHandler propagated expect handlerSort handlerScoped
                  return hres
          else do -- traceDoc $ \penv -> text "handler: found local:" <+> ppType penv htp
                  hp <- Op.freshTVar kindHeap Meta
-                 let handlerExprMask
+                 let actionTp2  = removeLocalEffect penv actionTp1
+                     handlerExprMask
                         = if isInstance
                            then let instName   = newHiddenName "hname"
-                                in Lam [ValueBinder actionName Nothing Nothing rng rng]
+                                in Lam [ValueBinder actionName (Just actionTp2) Nothing rng rng]
                                     (handleExpr (Lam [ValueBinder instName Nothing Nothing rng rng]
                                                    (Inject (TApp typeLocal [hp])
                                                       (Lam [] (App (Var actionName False rng) [(Nothing,Var instName False rng)] rng) rng)
                                                       False hrng) hrng)) hrng
-                           else Lam [ValueBinder actionName Nothing Nothing rng rng]
+                           else Lam [ValueBinder actionName (Just actionTp2) Nothing rng rng]
                                   (handleExpr (Lam [] (Inject (TApp typeLocal [hp]) (Var actionName False rng) False hrng) hrng)) hrng
                  inferExpr propagated expect handlerExprMask  -- and re-infer :-)
 
 containsLocalEffect eff
   = let (ls,tl) = extractOrderedEffect eff
     in not (null (filter (\l -> labelName l == nameTpLocal) ls))
+
+removeLocalEffect penv funTp
+  = case splitFunScheme  funTp of
+      Just (foralls,[],argTps,eff,resTp)
+        -> let (ls,tl) = extractOrderedEffect eff
+           in quantifyType foralls (TFun argTps (foldr effectExtend tl (filter (\l -> labelName l /= nameTpLocal) ls)) resTp)
+      _ -> failure $ "Type.Infer.removeLocaEffect: unexpected type:" ++ show (ppType penv funTp)
 
 checkLinearity effectName heffect branches hrng rng
   = do checkLinearClauses

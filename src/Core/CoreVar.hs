@@ -149,9 +149,9 @@ instance HasExprVar Expr where
                               in Lam tnames eff (sub' |~> expr)
       Var tname info       -> fromMaybe expr (lookup tname sub)
       App e1 e2            -> App (sub |~> e1) (sub |~> e2)
-      TypeLam typeVars exp -> assertion ("Core.HasExprVar.Expr.|~>.TypeLam: " ++ show typeVars ++ ",\n " ++ show sub ++ "\n " ++ show expr)
+      TypeLam typeVars exp -> {- assertion ("CoreVar.HasExprVar.Expr.|~>.TypeLam: typevars: " ++ show typeVars ++ ",\n sub: " ++ show sub ++ "\n expr:" ++ show expr)
                                         (all (\tv -> not (tvsMember tv (ftv (map snd sub)))) typeVars
-                                          || all (\name -> not (S.member name (fv exp) )) (map fst sub)) $
+                                          || all (\name -> not (S.member name (fv exp) )) (map fst sub)) $ -}
                               TypeLam typeVars (sub |~> exp)
       TypeApp expr tp      -> TypeApp (sub |~> expr) tp
       Con tname repr       -> expr

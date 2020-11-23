@@ -709,21 +709,23 @@ newtype OpDecl = OpDecl (String, Name, Range, Bool {-linear-}, OperationSort, [T
 
 -- EffectDeclHeader
 newtype EffectDecl = EffectDecl (Visibility, Visibility, Range, Range,
-                                 String, DataKind, Bool {-linear-}, Bool {-instance?-}, Name, Range, [TypeBinder UserKind],
+                                 String, DataKind, Bool {-linear-}, Bool {-instance?-}, Bool {-scoped?-},
+                                 Name, Range, [TypeBinder UserKind],
                                  UserKind, Range, Maybe [UserType] {- instance umbrella -}, [OpDecl])
 
 parseEffectDecl :: Visibility -> LexParser EffectDecl
 parseEffectDecl dvis =
-  do (vis,defvis,vrng,erng,doc,singleShot,sort,isInstance) <-
+  do (vis,defvis,vrng,erng,doc,singleShot,sort,isInstance,isScoped) <-
         (try $
           do (vis,defVis,vrng) <-     do{ (v,vr) <- visibility dvis; return (v,v,vr) }
                                   <|> do{ vr <- keyword "abstract"; return (Public,Private,vr) }
              isInstance <- do{ keyword "named"; return True } <|> return False
+             isScoped   <- do{ specialId "scoped"; return True } <|> return False
              (rng1,singleShot) <- do{ rng <- specialId "linear"; return (rng,True) } <|> return (rangeNull,False)
              sort              <- do{ specialId "rec"; return Retractive } <|> return Inductive
              (rng2,doc)        <- dockeyword "effect"
              let erng = combineRange rng1 rng2
-             return (vis,vis,vrng,erng,doc,singleShot,sort,isInstance))
+             return (vis,vis,vrng,erng,doc,singleShot,sort,isInstance,isScoped))
      (do (effectId,irng) <- typeid
          (tpars,kind,prng) <- typeKindParams
          mbInstanceUmb <- if (not isInstance) then return Nothing
@@ -731,12 +733,13 @@ parseEffectDecl dvis =
                                     tp <- ptype
                                     return (Just [tp,TpCon nameTpPartial irng])
                                  <|>
-                                    return (Just [TpCon nameTpPartial irng])
+                                    return (if (isScoped) then Just []
+                                                          else Just [TpCon nameTpPartial irng])
                                     -- todo: still need to add TpNamed for the JavaScript backend?
                                     -- return (Just (TpCon nameTpNamed irng))  -- todo: needed only if not using exn?
          (operations, xrng) <- semiBracesRanged (parseOpDecl singleShot defvis)
          return $ -- trace ("parsed effect decl " ++ show effectId ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show isInstance ++ " " ++ show tpars ++ " " ++ show kind ++ " " ++ show mbInstance) $
-          EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, isInstance, effectId, irng,
+          EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, isInstance, isScoped, effectId, irng,
                            tpars, kind, prng, mbInstanceUmb, operations)
       <|>
       do (tpars,kind,prng) <- typeKindParams
@@ -744,7 +747,7 @@ parseEffectDecl dvis =
          let mbInstance = Nothing
              effectId   = if isValueOperationName opId then fromValueOperationsName opId else opId
          return $ -- trace ("parsed effect decl " ++ show opId ++ " " ++ show sort ++ " " ++ show singleShot ++ " " ++ show linear ) $
-          EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot||linear, False, effectId, idrng,
+          EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot||linear, False, isScoped, effectId, idrng,
                            tpars, kind, prng, mbInstance, [op])
       )
 
@@ -762,7 +765,13 @@ keywordInject
 
 makeEffectDecl :: EffectDecl -> [TopDef]
 makeEffectDecl decl =
-  let (EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, isInstance, id, irng, tpars, kind, prng, mbInstanceUmb, operations)) = decl
+  let (EffectDecl (vis, defvis, vrng, erng, doc, sort, singleShot, isInstance, isScoped,
+                    id, irng, tpars, kind, prng, mbInstanceUmb, operations)) = decl
+      (tparsScoped, tparsNonScoped)
+         = if (isScoped)
+            then (take 1 tpars, drop 1 tpars)
+            else ([], tpars)
+
       infkind = case kind of
                  KindNone -> foldr KindArrow
                                (KindCon (if isInstance then nameKindStar else
@@ -785,7 +794,7 @@ makeEffectDecl decl =
       (effTpDecl,wrapAction)
                 = if isInstance
                     then -- Synonym ename tpars (makeTpApp (TpCon nameTpEv rng) [makeTpApp (tpCon hndTpName) (map tpVar tpars) rng] rng) rng vis docx
-                         let evTp  = makeTpApp (TpCon nameTpEv rng) [makeTpApp (tpCon hndTpName) (map tpVar tpars) rng] rng
+                         let evTp  = makeTpApp (TpCon nameTpEv rng) [makeTpApp (tpCon hndTpName) (map tpVar tparsNonScoped) rng] rng
                              evName  = newName "ev"
                              evFld = ValueBinder evName evTp Nothing irng rng
                              evCon = UserCon (toConstructorName id) [] [(Private,evFld)] Nothing irng rng Private ""
@@ -805,7 +814,7 @@ makeEffectDecl decl =
       hndEffTp   = TypeBinder (newHiddenName "e") (KindCon nameKindEffect irng) irng irng
       hndResTp   = TypeBinder (newHiddenName "r") kindStar irng irng
       hndTpName  = TypeBinder hndName KindNone irng irng
-      hndTp      = makeTpApp (tpCon hndTpName) (map tpVar (tpars ++ [hndEffTp,hndResTp])) rng
+      hndTp      = makeTpApp (tpCon hndTpName) (map tpVar (tparsNonScoped ++ [hndEffTp,hndResTp])) rng
 
       -- declare the effect tag
       tagName    = toEffectTagName id
@@ -815,7 +824,7 @@ makeEffectDecl decl =
                                [(Nothing,Lit (LitString (show id ++ "." ++ basename (sourceName (rangeSource irng))) irng))]
                                irng)
                           (quantify QForall tpars
-                            (makeTpApp (TpCon nameTpHTag irng) [makeTpApp (TpCon hndName irng) (map tpVar tpars) irng] irng))
+                            (makeTpApp (TpCon nameTpHTag irng) [makeTpApp (TpCon hndName irng) (map tpVar tparsNonScoped) irng] irng))
                          irng)
                         irng irng) irng vis DefVal InlineNever ("// runtime tag for the " ++ docEffect)
 
@@ -826,14 +835,15 @@ makeEffectDecl decl =
       -- parse the operations and return the constructor fields and function definitions
       opCount = length operations
       (opFields,opSelects,opDefs,opValDefs)
-          = unzip4 $ map (operationDecl opCount vis tpars docEffect hndName id mbInstanceUmb effTp (tpCon hndTpName)
+          = unzip4 $ map (operationDecl opCount vis tpars tparsNonScoped docEffect hndName
+                                                 id mbInstanceUmb effTp (tpCon hndTpName)
                                                  ([hndEffTp,hndResTp]) extraEffects)
                                                  (zip [0..opCount-1] (sortBy cmpName operations))
       cmpName op1 op2 = compare (getOpName op1) (getOpName op2)
       getOpName (OpDecl (doc,opId,idrng,linear,opSort,exists0,pars,prng,mbteff,tres)) = show (unqualify opId)
 
       hndCon     = UserCon (toConstructorName hndName) [] [(Public,fld) | fld <- opFields] Nothing irng rng vis ""
-      hndTpDecl  = DataType hndTpName (tpars ++ [hndEffTp,hndResTp]) [hndCon] rng vis sort DataDefNormal False ("// handlers for the " ++ docEffect)
+      hndTpDecl  = DataType hndTpName (tparsNonScoped ++ [hndEffTp,hndResTp]) [hndCon] rng vis sort DataDefNormal False ("// handlers for the " ++ docEffect)
 
       -- declare the handle function
 
@@ -842,13 +852,16 @@ makeEffectDecl decl =
       handleEff  = if isInstance
                     then tpVar hndEffTp
                     else makeEffectExtend irng effTp (tpVar hndEffTp) :: UserType
-      handleTp   = quantify QForall (tpars ++ [handleRetTp,hndEffTp,hndResTp]) $
+      actionTp   = makeTpFun actionArgTp handleEff (tpVar handleRetTp) rng
+      handleTp   = quantify QForall (tparsNonScoped ++ [handleRetTp,hndEffTp,hndResTp]) $
                    makeTpFun [
                     (newName "cfc", TpCon nameTpInt32 rng),
-                    (newName "hnd", TpApp (TpCon hndName rng) (map tpVar (tpars ++ [hndEffTp,hndResTp])) rng),
+                    (newName "hnd", TpApp (TpCon hndName rng) (map tpVar (tparsNonScoped ++ [hndEffTp,hndResTp])) rng),
                     (newName "ret", makeTpFun [(newName "res",tpVar handleRetTp)] (tpVar hndEffTp) (tpVar hndResTp) rng),
                     (newName "action",
-                        makeTpFun actionArgTp handleEff (tpVar handleRetTp) rng)
+                        if (isScoped)
+                          then quantify QForall tparsScoped actionTp
+                          else actionTp)
                     ] (tpVar hndEffTp) (tpVar hndResTp) rng
       actionArgTp= if isInstance
                     then [(newName "hname",effTp)] -- makeTpApp effTp (map tpVar tpars) rng)]
@@ -928,9 +941,11 @@ parseFunOpDecl linear vis =
 
 
 -- smart constructor for operations
-operationDecl :: Int -> Visibility -> [UserTypeBinder] -> String -> Name -> Name -> Maybe [UserType] -> UserType -> UserType -> [UserTypeBinder] ->
-             [UserType] -> (Int,OpDecl) -> (ValueBinder UserType (Maybe UserExpr), UserDef, UserDef, Maybe UserDef)
-operationDecl opCount vis foralls docEffect hndName effName mbInstanceUmb effTp hndTp hndTpVars extraEffects (opIndex,op)
+operationDecl :: Int -> Visibility -> [UserTypeBinder] -> [UserTypeBinder] ->
+                 String -> Name -> Name -> Maybe [UserType] -> UserType -> UserType -> [UserTypeBinder] ->
+                 [UserType] -> (Int,OpDecl) ->
+                 (ValueBinder UserType (Maybe UserExpr), UserDef, UserDef, Maybe UserDef)
+operationDecl opCount vis foralls forallsNonScoped docEffect hndName effName mbInstanceUmb effTp hndTp hndTpVars extraEffects (opIndex,op)
   = let -- teff     = makeEffectExtend rangeNull effTp (makeEffectEmpty rangeNull)
            OpDecl (doc,id,idrng,linear,opSort,exists0,pars,prng,mbteff,tres) = op
            opEffTps = case mbInstanceUmb of
@@ -941,6 +956,9 @@ operationDecl opCount vis foralls docEffect hndName effName mbInstanceUmb effTp 
            nameA    = newName ".a"
            tpVarA   = TpVar nameA idrng
            isInstance = isJust mbInstanceUmb
+           isUmbInstance = case mbInstanceUmb of
+                              Just (_:_) -> True
+                              _ -> False
 
            --nameE    = newName ".e"
            --tpBindE  = TypeBinder nameE (KindCon nameKindLabel idrng) idrng idrng
@@ -955,7 +973,7 @@ operationDecl opCount vis foralls docEffect hndName effName mbInstanceUmb effTp 
            -- for now add a divergence effect to named effects/resources when there are type variables...
            -- this is too conservative though; we should generate the `ediv` constraint instead but
            -- that is a TODO for now
-           teff     = if (not (null (foralls ++ exists)) && isInstance && all notDiv extraEffects)
+           teff     = if (not (null (forallsNonScoped ++ exists)) && isInstance && all notDiv extraEffects)
                        then makeEffectExtend idrng (TpCon nameTpDiv idrng) teff0
                        else teff0
                     where
@@ -963,7 +981,7 @@ operationDecl opCount vis foralls docEffect hndName effName mbInstanceUmb effTp 
                       notDiv _              = True
 
            -- create a constructor field for the operation as `clauseId : clauseN<a1,..,aN,b,e,r>`
-           forallParams= [TpVar (tbinderName par) idrng | par <- foralls]
+           forallParams= [TpVar (tbinderName par) idrng | par <- forallsNonScoped]
            tpParams    = forallParams ++ [TpVar (tbinderName par) idrng | par <- exists]
 
 
@@ -981,7 +999,7 @@ operationDecl opCount vis foralls docEffect hndName effName mbInstanceUmb effTp 
 
            clauseRhoTp = makeTpApp (TpCon clauseName rng)
                                    (clauseParsTp ++ [tres]
-                                     ++ [makeTpApp hndTp (map tpVar foralls) rng]
+                                     ++ [makeTpApp hndTp (map tpVar forallsNonScoped) rng]
                                      ++ map tpVar hndTpVars)
                                    rng
            clauseTp    = quantify QForall exists $ clauseRhoTp
@@ -995,8 +1013,8 @@ operationDecl opCount vis foralls docEffect hndName effName mbInstanceUmb effTp 
                           nameRng   = idrng
                           binder    = ValueBinder selectId () body nameRng nameRng
                           body      = Ann (Lam [hndParam] innerBody rng) fullTp rng
-                          fullTp    = quantify QForall (foralls ++ exists ++ hndTpVars) $
-                                      makeTpFun [(hndArg,makeTpApp hndTp (map tpVar (foralls ++ hndTpVars)) rng)]
+                          fullTp    = quantify QForall (forallsNonScoped ++ exists ++ hndTpVars) $
+                                      makeTpFun [(hndArg,makeTpApp hndTp (map tpVar (forallsNonScoped ++ hndTpVars)) rng)]
                                                  (makeTpTotal rng) clauseRhoTp rng
 
                           hndArg    = newName "hnd"

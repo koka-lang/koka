@@ -273,7 +273,6 @@ reservedNames
     , "named"
     , "mask"
     , "override"
-    , "scoped"
     , "unsafe"       -- future
 
     -- deprecated

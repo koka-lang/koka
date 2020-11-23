@@ -283,9 +283,9 @@ isolate :: Range -> Tvs -> [Evidence] -> Effect -> Inf ([Evidence],Effect, Core.
 {-
 isolate rng free ps eff  | src `endsWith` "std/core/hnd.kk"
   = return (ps,eff,id)
-  where 
+  where
     src = normalizeWith '/' (sourceName (rangeSource rng))
--}    
+-}
 isolate rng free ps eff
   = -- trace ("isolate: " ++ show eff ++ " with free " ++ show (tvsList free)) $
     let (ls,tl) = extractOrderedEffect eff
@@ -706,7 +706,7 @@ unifyError' env context range err tp1 tp2
 
     nomatch
       = case err of
-          NoSubsume       -> [(text "is less polymorph as",nice1)]
+          NoSubsume       -> [(text "is less general than",nice1)]
           NoEntail        -> [(text "is not entailed by",nice1)]
           NoArgMatch _ _  -> []
           _               -> [(text ("expected " ++ nameType),nice1)]
@@ -722,9 +722,9 @@ unifyError' env context range err tp1 tp2
           NoMatch     -> (nameType ++ "s do not match",[])
           NoMatchKind -> ("kinds do not match",[])
           NoMatchPred -> ("predicates do not match",[])
-          NoSubsume   -> ("type is not polymorph enough",[])
+          NoSubsume   -> ("type is not polymorphic enough",[(text "hint",text "give a type annotation to a function parameter?")])
           NoEntail    -> ("predicates cannot be resolved",[])
-          Infinite    -> ("types do not match (due to an infinite type)",[(text "hint",text "annotate the function definition?")])
+          Infinite    -> ("types do not match (due to an infinite type)",[(text "hint",text "give a type to the function definition?")])
           NoMatchEffect{}-> ("effects do not match",[])
           NoArgMatch n m -> if (m<0)
                              then ("only functions can be applied",[])
