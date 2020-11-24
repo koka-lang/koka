@@ -11,7 +11,7 @@ import std/os/path
 import std/os/file
 
 named scoped effect file<s::S> {
-  fun read-line() : string   // `: (file) -> a`
+  fun read-line() : string   // `: (f : file<s>) -> scope<s> string`
 }
 
 // a handler instance for files
@@ -35,7 +35,7 @@ public fun main() {
   with f2 = file("stack.yaml")
   println( f1.read-line() + "\n" + f2.read-line() )
   //println( f2.read-line() + "\n" + f1.read-line() )
-  //read-both(f2,f1)
+  //read-both(f1,f2)
   //wrong-escape()()
 }
 
