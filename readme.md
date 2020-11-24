@@ -12,6 +12,8 @@
 _Note: Koka v2 is a research language that currently under heavy development with the new evidence translation and C backend -- various
 features may be lacking, documentation may be outdated, not all tests will run, and there may be bugs._
 
+_Latest release: v2.0.6, Nov 23 2020_
+
 Koka is a strongly typed, strict functional language which tracks the (side) _effects_ of every function in its type.
 Koka syntax is Javascript/C like,
 the evaluation is strict like OCaml/C, and the type- and effect system is Haskell like, where pure and effectful computations are distinguished.
@@ -56,6 +58,7 @@ Special thanks to:
 - And all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, and Edsko de Vries.
 
 Releases:
+- `v2.0.6`, Nov 23 2020: more small fixes, improved scoped handlers, improved higher-rank type propagation, more samples.
 - `v2.0.5`, Nov 15 2020: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support
             direct C compilation, local install support.
 - `v2.0.0`, Aug 21 2020: initial v2 release.
