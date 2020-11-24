@@ -468,7 +468,9 @@ processOptions flags0 opts
                                              else ModeCompiler files
              in do pkgs <- discoverPackages (outDir flags)
                    (localDir,localLibDir,localShareDir,localBinDir) <- getKokaDirs
-                   ccmd <- if (ccompPath flags == "") then detectCC else return (ccompPath flags)
+                   ccmd <- if (ccompPath flags == "") then detectCC
+                           else if (ccompPath flags == "mingw") then return "gcc"
+                           else return (ccompPath flags)
                    cc   <- ccFromPath flags ccmd
                    return (flags{ packages    = pkgs,
                                   localBinDir = localBinDir,
