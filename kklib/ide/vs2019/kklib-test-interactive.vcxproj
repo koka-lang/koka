@@ -158,6 +158,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\out\Debug\interactive.c" />
+    <ClCompile Include="..\..\..\out\Debug\samples_named_dash_handlers_file_dash_scoped.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core_hnd.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core_types.c" />
@@ -170,14 +171,6 @@
     <ClCompile Include="..\..\..\out\Debug\std_os_file.c" />
     <ClCompile Include="..\..\..\out\Debug\std_os_path.c" />
     <ClCompile Include="..\..\..\out\Debug\std_text_parse.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_time_chrono.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_time_date.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_time_duration.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_time_instant.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_time_timer.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_time_timestamp.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_time_utc.c" />
-    <ClCompile Include="..\..\..\out\Debug\samples_basic_caesar.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

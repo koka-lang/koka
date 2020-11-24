@@ -16,7 +16,7 @@ module Type.Kind ( HasKind( getKind )
                  ) where
 
 import Data.Maybe( isJust )
-import Common.NamePrim( nameTpHandled, nameTpHandled1, nameTpPartial )
+import Common.NamePrim( nameTpHandled, nameTpHandled1, nameTpPartial, nameTpScope )
 import Common.Failure( failure )
 import Kind.Kind
 import Type.Type
@@ -97,6 +97,9 @@ getHandledEffectX exclude tp
       TApp (TCon (TypeCon hxName _)) _
         | isKindHandled (getKind tp)  && not (hxName `elem` exclude) -> Just (ResumeMany,hxName)
         | isKindHandled1 (getKind tp) && not (hxName `elem` exclude) -> Just (ResumeOnce,hxName)
+        -- For named & scoped handlers
+        -- TODO: use scope and scope1 to support linear named + scoped effect handlers. 
+        | hxName == nameTpScope  && not (hxName `elem` exclude) -> Just (ResumeMany,hxName)
       TCon (TypeCon hxName kind)
         | isKindHandled kind  && not (hxName `elem` exclude) -> Just (ResumeMany,hxName)
         | isKindHandled1 kind && not (hxName `elem` exclude) -> Just (ResumeOnce,hxName)
