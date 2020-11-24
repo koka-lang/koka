@@ -426,7 +426,7 @@
 
 
     "top_type_type":
-      { "begin": "((?:(?:value|reference|open|extend|rec|co)?\\s*type)|(?:(?:rec|linear)\\s+)?(?:effect|context|ambient))\\s+(?!fn|fun|val|except|rcontrol|control)([a-z][\\w\\-]+|<>|<\\|>|\\(,*\\))"
+      { "begin": "((?:(?:value|reference|open|extend|rec|co)?\\s*type)|(?:named\\s+)?(?:scoped\\s+)?(?:linear\\s+)?(?:rec\\s+)?(?:effect|context|ambient))\\s+(?!fn|fun|val|except|rcontrol|control)([a-z][\\w\\-]+|<>|<\\|>|\\(,*\\))"
       , "end": "(?=[\\)\\{\\}\\[\\]=;\"`]|  [\\r\\n]|(infix|infixr|infixl|type|co|rec|effect|context|ambient|alias|interface|extern|fn|fun|function|val|var|except|rcontrol|control|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|pub|public|private|abstract|value|reference|open|extend|inline|noinline)(?![\\w\\-?']))"
       , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" }
                          , "2" : { "name": "entity.name.class.type.koka" }}

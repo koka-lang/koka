@@ -10,7 +10,7 @@ module file-scoped
 import std/os/path
 import std/os/file
 
-named scoped linear effect file<s::S> {
+named scoped effect file<s::S> {
   fun read-line() : string   // `: (file) -> a`
 }
 
