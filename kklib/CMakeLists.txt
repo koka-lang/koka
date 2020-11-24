@@ -166,8 +166,9 @@ set(unix     $<OR:$<PLATFORM_ID:Linux>,$<PLATFORM_ID:Darwin>>)
 target_compile_options(
   kklib-flags
   INTERFACE
+    $<$<C_COMPILER_ID:Clang>:-Wno-everything> # for clang-cl, next line switches to Wall again
     $<${gnu_like}:
-      -Wall
+      -Wall -Wextra
       -Wno-unknown-pragmas
       -Wno-unused-parameter
       -Wno-unused-variable
@@ -176,23 +177,23 @@ target_compile_options(
       -Wpointer-arith
       -Wshadow
       -Wstrict-aliasing>
-    $<$<C_COMPILER_ID:GNU>:
-      -Wno-unused-but-set-variable>
-    $<$<C_COMPILER_ID:Clang>:
-      -Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros
-      -Wno-cast-align -Wno-format-nonliteral -Wno-float-equal
-      -Wno-missing-noreturn>
+#    $<$<C_COMPILER_ID:GNU>:
+#      -Wno-unused-but-set-variable>
+#    $<$<C_COMPILER_ID:Clang>:
+#      -Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros
+#      -Wno-cast-align -Wno-format-nonliteral -Wno-float-equal
+#      -Wno-missing-noreturn>
 )
 
 # Use O1 even in debug mode
 #if (NOT KK_DEBUG_FULL)
-  target_compile_options(kklib-flags INTERFACE $<$<AND:$<CONFIG:Debug>,${gnu_like}>:-O1>)
+target_compile_options(kklib-flags INTERFACE $<$<AND:$<CONFIG:Debug>,${gnu_like}>:-O1>)
 #endif()
 
 # Platform-specific definitions
 target_compile_definitions(kklib-flags INTERFACE $<${unix}:_GNU_SOURCE>)
 
-# Additional libraries
+# Additional libraries: math
 target_link_libraries(kklib-flags INTERFACE $<${unix}:m>)
 
 include("${CMAKE_CURRENT_LIST_DIR}/../kklib.cmake" OPTIONAL)

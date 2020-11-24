@@ -128,7 +128,7 @@ fun install( prefixdir : path, cc : string, version : string, minimal : bool ) {
   println("  version: " + version)
 }
 
-fun koka-exe-path() : <file,exn> path {
+fun koka-exe-path() : <fsys,exn> path {
   val out = run-command("stack path --local-install-root").exn
   val exe = out.trim.path + "bin/koka".path
   if (exe.is-file) return exe
@@ -144,7 +144,7 @@ fun koka-version( koka : path ) : <file,exn> string {
 }
 */
 
-fun get-default-prefix() : <file,exn> path {
+fun get-default-prefix() : <fsys,exn> path {
   val out = run-command("stack path --local-bin").exn
   out.trim.path.nobase
 }
@@ -171,6 +171,8 @@ fun build-kklib(cc : string, v : variant, minimal : bool) : io () {
     Release  -> "-O2 --no-debug"
   }
   val prog = if (minimal) then "util/link-min" else "util/link-std"
-  val code = run-system( ["stack exec koka", "--", "--cc=" + cc, extra, prog].join(" "))
+  val cmd  = ["stack exec koka", "--", "--cc=" + cc, extra, prog].join(" ")
+  println("> "  + cmd)
+  val code = run-system( cmd )
   if (code != 0) throw("error: " + code.show)
 }
