@@ -69,7 +69,7 @@ Main branches:
 - `master`: latest stable version.
 - `dev`: current development branch -- submit PR's to this branch.
 - `v1-master`: last stable version of Koka v1: this is Koka with the Javascript (and C#) backend which does not use evidence translation.
-               This version still supports more features (like named handlers and `std/async`) and should compile examples from published papers.
+               This version supports `std/async` and should compile examples from published papers.
 
 
 ## Running the compiler
