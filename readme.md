@@ -9,10 +9,10 @@
 
 # Koka: a function-oriented language with effect inference
 
-_Note: Koka v2 is a research language that currently under heavy development with the new evidence translation and C backend -- documentation may be outdated, 
+_Note: Koka v2 is a research language that currently under heavy development with the new evidence translation and C backend -- documentation may be outdated,
 and not all tests will run._
 
-_Latest release: v2.0.6, Nov 23 2020_
+_Latest release: v2.0.7, Nov 23 2020_
 
 Koka is a strongly typed, strict functional language which tracks the (side) _effects_ of every function in its type.
 Koka syntax is Javascript/C like,
@@ -32,8 +32,8 @@ compositional control-flow abstractions as a library; this includes advanced abs
 ambient state, backtracking parser combinators, probablistic programming, Bayesian machine learning, etc. Algebraic effect handlers subsume (free)
 monads, and are compositional without needing lifting or monad transformers.
 
-Recent work on [evidence translation](https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently-with-proofs-5f0b7d860b387.pdf) 
-and [Perceus](https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf) 
+Recent work on [evidence translation](https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently-with-proofs-5f0b7d860b387.pdf)
+and [Perceus](https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf)
 precise compiler guided reference counting enable Koka to compile directly
 to plain C code _without needing a garbage collector_ or runtime system. Initial performance benchmarks are promising (see below),
 and it is our goal to generally fall within a factor 2&times; of C++ performance without needing manual memory management.
@@ -60,7 +60,7 @@ Special thanks to:
 - And all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
 
 Releases:
-- `v2.0.6`, Nov 23 2020: more small fixes, improved scoped handlers, improved higher-rank type propagation, more samples.
+- `v2.0.7`, Nov 23 2020: more small fixes, improved scoped handlers, improved higher-rank type propagation, more samples.
 - `v2.0.5`, Nov 15 2020: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support
             direct C compilation, local install support.
 - `v2.0.0`, Aug 21 2020: initial v2 release.
@@ -492,7 +492,7 @@ it is no longer live (and in particular, we do not hold on to memory based on le
 in the wild, like Swift, Python, C++ `shared_ptr` etc).
 
 [Perceus](https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf) stands
-for _Precise automatic reference counting with reuse and specialization_: the _reuse_ component transform functional style pattern matches 
+for _Precise automatic reference counting with reuse and specialization_: the _reuse_ component transform functional style pattern matches
 into _in-place update_ when possible, while _specialization_ specialize the reference counting based on the call sites and
 removes most rc operations in the fast path. For example, a simple `map` function:
 ```koka
