@@ -3,6 +3,7 @@ VERSION="v2.0.8"
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
+FORCE=""
 KOKA_TEMP_DIR=""        # empty creates one dynamically
 KOKA_DIST_BASE_URL="https://github.com/koka-lang/koka/releases/download"
 KOKA_DIST_URL=""        # $KOKA_DIST_BASE_URL/$VERSION
@@ -56,7 +57,7 @@ sudocmd() {
     # echo "sudo cmd: not set: $USE_SUDO: $@"
     if command -v sudo >/dev/null; then
       echo
-      echo "Need to use 'sudo' for further installation to $PREFIX"
+      echo "Need to use 'sudo' for further $MODE at $PREFIX"
       echo
       USE_SUDO="always"
       sudo -k  # -k: Disable cached credentials (force prompt for password).
@@ -103,7 +104,10 @@ while : ; do
         VERSION="$1";;
     -v=*|--version=*)
         VERSION="$flag_arg";;
-    -u|--uninstall)
+    -u)
+        MODE="uninstall";;
+    --uninstall)
+        FORCE="yes"
         MODE="uninstall";;
     -h|--help|-\?|help|\?)
         echo "./install.sh [options]"
@@ -199,36 +203,36 @@ apt_get_install() {
     fi
   done
   if [ "$missing" = "" ]; then
-    info "already installed!"
-  elif ! sudocmd "install required system dependencies" apt-get install -y ${QUIET:+-qq}$missing; then
+    info "packages already installed"
+  elif ! sudocmd apt-get install -y ${QUIET:+-qq}$missing; then
     die "\ninstalling apt packages failed ($@).  Please run 'apt-get update' and try again."
   fi
 }
 
 # Install packages using dnf
 dnf_install() {
-  if ! sudocmd "install required system dependencies" dnf install -y ${QUIET:+-q} "$@"; then
+  if ! sudocmd dnf install -y ${QUIET:+-q} "$@"; then
     die "\ninstalling dnf packages failed ($@).  Please run 'dnf check-update' and try again."
   fi
 }
 
 # Install packages using yum
 yum_install() {
-  if ! sudocmd "install required system dependencies" yum install -y ${QUIET:+-q} "$@"; then
+  if ! sudocmd yum install -y ${QUIET:+-q} "$@"; then
     die "\ninstalling yum packages failed ($@).  Please run 'yum check-update' and try again."
   fi
 }
 
 # Install packages using apk
 apk_install() {
-  if ! sudocmd "install required system dependencies" apk add --update ${QUIET:+-q} "$@"; then
+  if ! sudocmd apk add --update ${QUIET:+-q} "$@"; then
     die "\ninstalling apk packages failed ($@).  Please run 'apk update' and try again."
   fi
 }
 
 # Install packages using pkg
 pkg_install() {
-  if ! sudocmd "install required system dependencies" pkg install -y "$@"; then
+  if ! sudocmd pkg install -y "$@"; then
     die "\ninstalling pkg packages failed ($@).  Please run 'pkg update' and try again."
   fi
 }
@@ -251,7 +255,7 @@ install_packages() {
 install_dependencies() {
   info "installing dependencies.."
   if has_cmd apt-get ; then
-    apt_get_install gcc make cmake tar wget
+    apt_get_install build-essential gcc make cmake tar wget
   elif has_cmd dnf ; then
     dnf_install gcc make cmake tar wget
   elif has_cmd yum ; then
@@ -270,7 +274,7 @@ install_dependencies() {
 
 download_file() {
   case "$1" in
-    ftp://|http://|https://)
+    ftp://*|http://*|https://*)
       if has_cmd wget ; then
         if ! wget ${QUIET:+-q} "-O$2" "$1"; then
           die "wget download failed: $1"
@@ -346,13 +350,15 @@ install_dist() {
 
 uninstall() {
   # confirm uninstall (todo: add force option?)
-  read -r -p "Uninstalling koka version $VERSION. Are you sure? [yN] " input
-  case $input in
-    [yY][eE][sS]|[yY])
-       info "uninstalling..";;
-    *) echo "No"
-       die "Uninstall canceled";;
-  esac
+  if [ -z "$FORCE" ] ; then
+    read -r -p "Uninstalling koka version $VERSION. Are you sure? [yN] " input
+    case $input in
+      [yY][eE][sS]|[yY])
+         info "uninstalling..";;
+      *) echo "No"
+         die "Uninstall canceled";;
+    esac
+  fi
 
   # uninstall share
   info "- uninstall $KOKA_SHARE_DIR/$VERSION"
