@@ -7,8 +7,7 @@ FORCE=""
 KOKA_TEMP_DIR=""        # empty creates one dynamically
 KOKA_DIST_BASE_URL="https://github.com/koka-lang/koka/releases/download"
 KOKA_DIST_URL=""              # $KOKA_DIST_BASE_URL/$VERSION
-KOKA_DIST_SOURCE=""           # $KOKA_DIST_URL/<compiler>-<os>-<arch>.tar.gz
-KOKA_DIST_GENERIC_SOURCE=""   # $KOKA_DIST_URL/<os>-<arch>.tar.gz
+KOKA_DIST_SOURCE=""           # $KOKA_DIST_URL/koka-$VERSION-<osarch>.tar.gz
 
 # KOKA_DIST_URL="."
 
@@ -116,7 +115,7 @@ while : ; do
         echo "  -q, --quiet           suppress output"
         echo "  -u, --uninstall       uninstall koka ($VERSION)"
         echo "  -p, --prefix=<dir>    prefix directory ($PREFIX)"
-        echo "  -s, --source=<url>    full source url ($KOKA_DIST_BASE_URL/$VERSION/<os>-<arch>.tar.gz)"
+        echo "  -s, --source=<url>    full source url ($KOKA_DIST_BASE_URL/$VERSION/koka-$VERSION-<osarch>.tar.gz)"
         echo "      --url=<url>       download url ($KOKA_DIST_BASE_URL/$VERSION)"
         echo "      --version=<ver>   version tag ($VERSION)"
         echo ""
@@ -187,33 +186,10 @@ detect_osarch() {
   esac
 }
 
-detect_compiler() {
-  case "$(uname)" in
-    [Dd]arwin)
-       CLANGVER=`clang --version | sed -n 's/^Apple clang version \([0-9]*\).*/\1/p'`
-       COMPILER="clang$CLANGVER";;
-    *)
-       if has_cmd gcc ; then
-         GCCVER=`gcc --version | sed -n 's/^gcc .* \([0-9]*\).*/\1/p'`
-         COMPILER="gcc$GCCVER"
-       elif has_cmd clang ; then
-         CLANGVER=`clang --version | sed -n 's/^clang version \([0-9]*\).*/\1/p'`
-         COMPILER="clang$CLANGVER"
-       fi;;
-  esac
-}
-
 if [ -z "$KOKA_DIST_SOURCE" ] ; then
   detect_osarch
-  detect_compiler
-  if [ -z "$COMPILER" ] ; then
-    KOKA_DIST_SOURCE="$KOKA_DIST_URL/koka-$VERSION-$OSARCH.tar.gz"
-  else
-    KOKA_DIST_GENERIC_SOURCE="$KOKA_DIST_URL/koka-$VERSION-$OSARCH.tar.gz"
-    KOKA_DIST_SOURCE="$KOKA_DIST_URL/koka-$VERSION-$COMPILER-$OSARCH.tar.gz"
-  fi
+  KOKA_DIST_SOURCE="$KOKA_DIST_URL/koka-$VERSION-$OSARCH.tar.gz"
 fi
-
 
 # ---------------------------------------------------------
 # various package managers
@@ -279,13 +255,13 @@ install_packages() {
 install_dependencies() {
   info "installing dependencies.."
   if has_cmd apt-get ; then
-    apt_get_install build-essential libtinfo5 gcc make cmake tar curl
+    apt_get_install build-essential gcc make cmake tar curl
   elif has_cmd dnf ; then
-    dnf_install build-essential libtinfo5 gcc make cmake tar curl
+    dnf_install build-essential gcc make cmake tar curl
   elif has_cmd yum ; then
-    yum_install build-essential libtinfo5 gcc make cmake tar curl
+    yum_install build-essential gcc make cmake tar curl
   elif has_cmd apk ; then
-    apk_install build-essential libtinfo5 gcc make cmake tar curl
+    apk_install build-essential gcc make cmake tar curl
   else
     info "unable to install dependencies; continuing.."
   fi
@@ -297,33 +273,15 @@ install_dependencies() {
 # ---------------------------------------------------------
 
 download_dist() {
-  case "$KOKA_DIST_SOURCE" in
+  case "$1" in
     ftp://*|http://*|https://*)
       if has_cmd curl ; then
-        if ! curl ${QUIET:+-sS} -f -L -o "$1" "$KOKA_DIST_SOURCE"; then
-          if [ -z "$KOKA_DIST_GENERIC_SOURCE" ] ; then
-            die "curl download failed: $KOKA_DIST_SOURCE"
-          else
-            info ""
-            info "binary download not available:\n  $KOKA_DIST_SOURCE\n"
-            info "trying generic distribution instead..\n"
-            if ! curl ${QUIET:+-sS} -f -L -o "$1" "$KOKA_DIST_GENERIC_SOURCE"; then
-              die "curl download failed: $KOKA_DIST_GENERIC_SOURCE"
-            fi
-          fi
+        if ! curl ${QUIET:+-sS} -f -L -o "$2" "$1"; then
+          die "curl download failed: $1"
         fi
       elif has_cmd wget ; then
-        if ! wget ${QUIET:+-q} "-O$1" "$KOKA_DIST_SOURCE"; then
-          if [ -z "$KOKA_DIST_GENERIC_SOURCE" ] ; then
-            die "wget download failed: $KOKA_DIST_SOURCE"
-          else
-            info ""
-            info "binary download not available:\n  $KOKA_DIST_SOURCE\n"
-            info "trying generic distribution instead..\n"
-            if ! wget ${QUIET:+-q} "-O$1" "$KOKA_DIST_GENERIC_SOURCE"; then
-              die "wget download failed: $KOKA_DIST_GENERIC_SOURCE"
-            fi
-          fi
+        if ! wget ${QUIET:+-q} "-O$2" "$1"; then
+          die "wget download failed: $1"
         fi
       else
         die "Neither curl nor wget is available; install one to continue."
@@ -338,7 +296,7 @@ download_dist() {
 
 install_dist() {
   info "Download $KOKA_DIST_SOURCE to $KOKA_TEMP_DIR"
-  download_dist "$KOKA_TEMP_DIR/koka-dist.tar.gz"
+  download_dist "$KOKA_DIST_SOURCE" "$KOKA_TEMP_DIR/koka-dist.tar.gz"
   info "Unpacking.."
   if ! tar -xzf "$KOKA_TEMP_DIR/koka-dist.tar.gz" -C "$KOKA_TEMP_DIR"; then
     die "Extraction failed."

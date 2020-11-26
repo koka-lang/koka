@@ -632,8 +632,8 @@ ccGcc,ccMsvc :: String -> FilePath -> CC
 ccGcc name path
   = CC name path []
         [(Debug,         words "-g -O1"),
-         (Release,       words "-O2 -flto -DNDEBUG"),
-         (RelWithDebInfo,words "-O2 -flto -g -DNDEBUG")]
+         (Release,       words "-O2 -DNDEBUG"),
+         (RelWithDebInfo,words "-O2 -g -DNDEBUG")]
         (gnuWarn ++ ["-Wno-unused-but-set-variable"])
         (["-c"] ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
         []
