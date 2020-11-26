@@ -6,8 +6,9 @@ QUIET=""
 FORCE=""
 KOKA_TEMP_DIR=""        # empty creates one dynamically
 KOKA_DIST_BASE_URL="https://github.com/koka-lang/koka/releases/download"
-KOKA_DIST_URL=""        # $KOKA_DIST_BASE_URL/$VERSION
-KOKA_DIST_SOURCE=""     # $KOKA_DIST_URL/<os>-<arch>.tar.gz
+KOKA_DIST_URL=""              # $KOKA_DIST_BASE_URL/$VERSION
+KOKA_DIST_SOURCE=""           # $KOKA_DIST_URL/<compiler>-<os>-<arch>.tar.gz
+KOKA_DIST_GENERIC_SOURCE=""   # $KOKA_DIST_URL/<os>-<arch>.tar.gz
 
 # KOKA_DIST_URL="."
 
@@ -145,6 +146,7 @@ fi
 ARCHBITS="64"
 ARCH=""
 OSARCH=""
+COMPILER=""
 
 detect_arch_bits() {
   if has_cmd getconf ; then
@@ -185,9 +187,31 @@ detect_osarch() {
   esac
 }
 
+detect_compiler() {
+  case "$(uname)" in
+    [Dd]arwin)
+       CLANGVER=`clang --version | sed -n 's/^Apple clang version \([0-9]*\).*/\1/p'`
+       COMPILER="clang$CLANGVER";;
+    *)
+       if has_cmd gcc ; then
+         GCCVER=`gcc --version | sed -n 's/^gcc .* \([0-9]*\).*/\1/p'`
+         COMPILER="gcc$GCCVER"
+       elif has_cmd clang ; then
+         CLANGVER=`clang --version | sed -n 's/^clang version \([0-9]*\).*/\1/p'`
+         COMPILER="clang$CLANGVER"
+       fi;;
+  esac
+}
+
 if [ -z "$KOKA_DIST_SOURCE" ] ; then
   detect_osarch
-  KOKA_DIST_SOURCE="$KOKA_DIST_URL/koka-$VERSION-$OSARCH.tar.gz"
+  detect_compiler
+  if [ -z "$COMPILER" ] ; then
+    KOKA_DIST_SOURCE="$KOKA_DIST_URL/koka-$VERSION-$OSARCH.tar.gz"
+  else
+    KOKA_DIST_GENERIC_SOURCE="$KOKA_DIST_URL/koka-$VERSION-$OSARCH.tar.gz"
+    KOKA_DIST_SOURCE="$KOKA_DIST_URL/koka-$VERSION-$COMPILER-$OSARCH.tar.gz"
+  fi
 fi
 
 
@@ -255,13 +279,13 @@ install_packages() {
 install_dependencies() {
   info "installing dependencies.."
   if has_cmd apt-get ; then
-    apt_get_install build-essential gcc make cmake tar wget
+    apt_get_install build-essential libtinfo5 gcc make cmake tar curl
   elif has_cmd dnf ; then
-    dnf_install gcc make cmake tar wget
+    dnf_install build-essential libtinfo5 gcc make cmake tar curl
   elif has_cmd yum ; then
-    yum_install gcc make cmake tar wget
+    yum_install build-essential libtinfo5 gcc make cmake tar curl
   elif has_cmd apk ; then
-    apk_install gcc make cmake tar wget
+    apk_install build-essential libtinfo5 gcc make cmake tar curl
   else
     info "unable to install dependencies; continuing.."
   fi
@@ -272,16 +296,34 @@ install_dependencies() {
 # actual install
 # ---------------------------------------------------------
 
-download_file() {
-  case "$1" in
+download_dist() {
+  case "$KOKA_DIST_SOURCE" in
     ftp://*|http://*|https://*)
-      if has_cmd wget ; then
-        if ! wget ${QUIET:+-q} "-O$2" "$1"; then
-          die "wget download failed: $1"
+      if has_cmd curl ; then
+        if ! curl ${QUIET:+-sS} -f -L -o "$1" "$KOKA_DIST_SOURCE"; then
+          if [ -z "$KOKA_DIST_GENERIC_SOURCE" ] ; then
+            die "curl download failed: $KOKA_DIST_SOURCE"
+          else
+            info ""
+            info "binary download not available:\n  $KOKA_DIST_SOURCE\n"
+            info "trying generic distribution instead..\n"
+            if ! curl ${QUIET:+-sS} -f -L -o "$1" "$KOKA_DIST_GENERIC_SOURCE"; then
+              die "curl download failed: $KOKA_DIST_GENERIC_SOURCE"
+            fi
+          fi
         fi
-      elif has_cmd curl ; then
-        if ! curl ${QUIET:+-sS} -L -o "$2" "$1"; then
-          die "curl download failed: $1"
+      elif has_cmd wget ; then
+        if ! wget ${QUIET:+-q} "-O$1" "$KOKA_DIST_SOURCE"; then
+          if [ -z "$KOKA_DIST_GENERIC_SOURCE" ] ; then
+            die "wget download failed: $KOKA_DIST_SOURCE"
+          else
+            info ""
+            info "binary download not available:\n  $KOKA_DIST_SOURCE\n"
+            info "trying generic distribution instead..\n"
+            if ! wget ${QUIET:+-q} "-O$1" "$KOKA_DIST_GENERIC_SOURCE"; then
+              die "wget download failed: $KOKA_DIST_GENERIC_SOURCE"
+            fi
+          fi
         fi
       else
         die "Neither curl nor wget is available; install one to continue."
@@ -296,7 +338,7 @@ download_file() {
 
 install_dist() {
   info "Download $KOKA_DIST_SOURCE to $KOKA_TEMP_DIR"
-  download_file "$KOKA_DIST_SOURCE" "$KOKA_TEMP_DIR/koka-dist.tar.gz"
+  download_dist "$KOKA_TEMP_DIR/koka-dist.tar.gz"
   info "Unpacking.."
   if ! tar -xzf "$KOKA_TEMP_DIR/koka-dist.tar.gz" -C "$KOKA_TEMP_DIR"; then
     die "Extraction failed."
@@ -334,12 +376,16 @@ install_dist() {
 
   # copy libraries
   info "- install koka pre-compiled libraries to $KOKA_LIB_DIR/$VERSION"
-  if ! sudocmd cp -p -r "$KOKA_TEMP_DIR/lib" "$PREFIX/" ; then
-    die "Cannot copy pre-compiled libraries to $KOKA_TEMP_DIR/lib"
+  if [ -d "$KOKA_TEMP_DIR/lib" ] ; then
+    if ! sudocmd cp -p -r "$KOKA_TEMP_DIR/lib" "$PREFIX/" ; then
+      die "Cannot copy pre-compiled libraries to $KOKA_TEMP_DIR/lib"
+    fi
+  else
+    info "  (generic distribution does not contain precompiled libraries)"
   fi
   info "- install koka source libraries to $KOKA_SHARE_DIR/$VERSION"
   if ! sudocmd cp -p -r "$KOKA_TEMP_DIR/share" "$PREFIX/" ; then
-    die "Cannot copy pre-compiled libraries to $KOKA_TEMP_DIR/share"
+    die "Cannot copy libraries to $KOKA_TEMP_DIR/share"
   fi
 }
 
