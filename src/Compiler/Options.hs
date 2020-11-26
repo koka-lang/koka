@@ -729,7 +729,7 @@ detectCC
        (name,path) <- do envCC <- getEnvVar "CC"
                          findCC paths ((if (envCC=="") then [] else [envCC]) ++
                                        (if (onMacOS) then ["clang"] else []) ++
-                                       ["gcc","cl","clang-cl","clang","icc","cc","g++","clang++"])
+                                       ["gcc","clang-cl","cl","clang","icc","cc","g++","clang++"])
        return path
 
 findCC :: [FilePath] -> [FilePath] -> IO (String,FilePath)
