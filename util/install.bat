@@ -6,19 +6,11 @@ set _KOKA_VERSION=v2.0.8
 if not "%~1" == "" ( set _KOKA_PREFIX=%1)
 if not "%~2" == "" ( set _KOKA_VERSION=%2)
 
-set _KOKA_DIST_SOURCE_URL=https://github.com/koka-lang/koka/releases/download/%_KOKA_VERSION%/koka-%_KOKA_VERSION%-clang11-win-x86_64.tar.gz
-set _KOKA_DIST_GENERIC_SOURCE_URL=https://github.com/koka-lang/koka/releases/download/%_KOKA_VERSION%/koka-%_KOKA_VERSION%-win-x86_64.tar.gz
+set _KOKA_DIST_SOURCE_URL=https://github.com/koka-lang/koka/releases/download/%_KOKA_VERSION%/koka-%_KOKA_VERSION%-win-x86_64.tar.gz
 
 echo Downloading koka %_KOKA_VERSION% binary distribution..
 echo   %_KOKA_DIST_SOURCE_URL%
 curl -f -L -o %TEMP%\koka-dist.tar.gz %_KOKA_DIST_SOURCE_URL%
-if errorlevel 22 (
-   rem notfound; try generic version
-   echo.
-   echo Unable to download pre-compiled distribution; trying generic version..
-   echo   %_KOKA_DIST_GENERIC_SOURCE_URL%
-   curl -f -L -o %TEMP%\koka-dist.tar.gz %_KOKA_DIST_GENERIC_SOURCE_URL%
-)
 if errorlevel 1 (
   echo "curl error: %ERRORLEVEL%"
   goto:eof
