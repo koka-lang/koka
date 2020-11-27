@@ -332,7 +332,7 @@ install_dist() {
   # install editor support
   if [ -d "~/.atom/packages" ] ; then
     KOKA_ATOM_DIR="$KOKA_TEMP_DIR/share/koka/$VERSION/contrib/atom"
-    if [ -d "$KOKA_ATOM_DIR"]
+    if [ -d "$KOKA_ATOM_DIR"] ; then
       info "- install atom editor support"
       if ! mkdir "~/.atom/packages/language-koka" ; then
         info "  (failed to install atom support)"
