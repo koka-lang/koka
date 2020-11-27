@@ -267,13 +267,27 @@ Some interesting demos are:
 
 # Installing the compiler
 
-The Koka compiler can be installed locally by running the `util/install.kk` script:
+Look for the latest binary distribution in the [releases](releases).
+
+## Installing from source
+
+You can also build a local distribution bundle yourself from source and install that.
+The `util/bundle.kk` script creates a local distribution:
 ```
-> stack exec koka -- util/install
+> stack exec koka -- util/bundle
+...
+distribution bundle created.
+  bundle : dist/koka-v2.0.9-linux-amd64.tar.gz
+  cc     : gcc
+  version: v2.0.9
 ```
 This takes a while as it pre-compiles the standard libraries in three build
 variants (`debug`, `drelease` (release with debug info), and `release`).
-After installation, you can now directly invoke `koka`:
+After generating the bundle, it can be installed locally as:
+```
+> util/install.sh -b dist/koka-v2.0.9-linux-amd64.tar.gz
+```
+(use `util/install.bat` on Windows). After installation, you can now directly invoke `koka`:
 
 ```
 > koka --version
@@ -300,23 +314,13 @@ Koka is by default installed for the current user in `<prefix>/bin/koka`,
 (with architecture specific files under `<prefix>/lib/koka/v2.x.x`
 and libraries and samples under `<prefix>/share/koka/v2.x.x`).
 
-On Unix and macOS, the default installation prefix is `~/.local` and it is
-recommended to add `~/.local/bin` to the search path
-(e.g. add `export PATH=$PATH:~/.local/bin` to your `~/.bashrc` or `~/.zshrc`).
-
-Note: installing to `/usr/local` cannot be done directly as it needs elevated
-privileges. A workaround is to copy the local install afterwards as:
-```
-> sudo cp -r ~/.local/* /usr/local
-```
-
 ## Install on Windows
 
 On Windows, the default install is to the userprofile `%APPDATA%\local` which
 is usually already on the search path as `stack` is installed there as well.
 
 However, when using `koka` you need to have a C compiler (when
-using `stack exec koka` the C compiler supplied with Ghc is used (`mingw`)
+using `stack exec koka` the C compiler supplied with `ghc` is used (`mingw`)
 but that is not generally available).
 
 Generally, you need to install and run `koka` from a
@@ -325,13 +329,13 @@ Generally, you need to install and run `koka` from a
 in order to link correctly with the Windows system libraries.
 Koka can use either the `cl` compiler (default), or the [`clang-cl`](https://releases.llvm.org) compiler
 (use the `--cc=clang-cl` option with Koka).
-To install for a specific compiler, use this flag when running `util/install` as well (from a VS command prompt):
+To install for a specific compiler, use this flag when running `util/bundle` as well (from a VS command prompt):
 ```
-> stack exec koka -- --cc=clang-cl util/install
+> stack exec koka -- --cc=clang-cl util/bundle
 ```
 or
 ```
-> stack exec koka -- --cc=cl util/install
+> stack exec koka -- --cc=cl util/bundle
 ```
 
 Generally, for Koka code, `mingw` (`gcc`) optimizes best, closely followed `clang-cl`.
