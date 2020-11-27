@@ -345,6 +345,19 @@ install_dist() {
   if ! sudocmd cp -p -r "$KOKA_TEMP_DIR/share" "$PREFIX/" ; then
     die "Cannot copy libraries to $KOKA_TEMP_DIR/share"
   fi
+
+  # install editor support
+  if [ -d "~/.atom/packages" ] ; then
+    KOKA_ATOM_DIR="$KOKA_TEMP_DIR/share/koka/$VERSION/contrib/atom"
+    if [ -d "$KOKA_ATOM_DIR"]
+      info "- install atom editor support"
+      if ! mkdir "~/.atom/packages/language-koka" ; then
+        info "  (failed to install atom support)"
+      elif ! cp -p -r "$KOKA_ATOM_DIR/*" "~/.atom/packages/language-koka/" ; then
+        info "  (failed to copy atom support files)"
+      fi
+    fi
+  fi
 }
 
 

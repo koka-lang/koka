@@ -130,16 +130,16 @@ public fun path( s : string ) : path {
   }
 }
 fun path-parts( root : string, s : string, dirs : list<string> = [] ) : path {
-  val parts = s.split("/").path-split(dirs)
+  val parts = s.split("/").push-parts(dirs)
   Path(root,parts)
 }
-fun path-split( parts : list<string>, dirs : list<string> ) : list<string>  {
+fun push-parts( parts : list<string>, dirs : list<string> ) : list<string>  {
   match(parts) {
-    Cons(part,rest) -> path-split(rest, push-dir(part,dirs))
+    Cons(part,rest) -> push-parts(rest, push-part(part,dirs))
     Nil -> dirs
   }
 }
-fun push-dir( dir : string, dirs : list<string> ) : list<string> {
+fun push-part( dir : string, dirs : list<string> ) : list<string> {
   if (dir=="." || dir=="")       then dirs
   elif (dir==".." && dirs.is-cons) then dirs.tail
   else Cons(dir,dirs)
@@ -175,12 +175,12 @@ fun paths-collect( ps : list<string> ) : list<path> {
 // `"/a/foo.txt" + "/b/bar.txt"  === "/a/foo.txt/b/bar.txt"`\
 // `"c:/foo" + "d:/bar"          === "c:/foo/bar"`
 public fun (+)(p1 : path, p2: path) : path {
-  Path(p1.root,p2.parts + p1.parts)
+  Path(p1.root,push-parts(p2.parts.reverse, p1.parts))
 }
 
 // Convenience function that adds a string path.
 public fun (+)(p1 : path, p2: string) : path {
-  Path(p1.root,p2.path.parts + p1.parts)
+  p1 + p2.path
 }
 
 // Return the first path if it is not empty, otherwise return the second one.

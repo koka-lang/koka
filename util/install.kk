@@ -9,13 +9,16 @@ val header = "usage:\n stack exec koka -- util/install [-- [options]]\n\noptions
 struct iflags {
   prefixdir : string = ""
   minimal   : bool   = False
+  dist      : bool   = True
 }
 
 val flag-descs : list<flag<iflags>> = {
   fun set-prefix( f : iflags, s : string ) : iflags { f(prefixdir = s) }
   fun set-minimal( f : iflags, b : bool ) : iflags  { f(minimal = b) }
+  fun set-install( f : iflags, b : bool ) : iflags  { f(dist = !b) }
   [ Flag( "", ["prefix"], Req(set-prefix,"DIR"), "set prefix directory ('/usr/local')" ),
-    Flag( "m", ["minimal"], Bool(set-minimal), "use minimal install (more quick)" )
+    Flag( "m", ["minimal"], Bool(set-minimal), "use minimal install (more quick)" ),
+    Flag( "i", ["install"], Bool(set-install), "install directly without creating a distribution"),
   ]
 }
 
@@ -40,20 +43,20 @@ fun main() {
     Nothing -> ()
     Just(flags) -> {
       val predir = if (flags.prefixdir.is-empty)
-                    then get-default-prefix()
+                    then get-default-prefix(flags.dist)
                     else flags.prefixdir.path
       // get version and compiler from the install script itself
       match(app-path().dirparts.reverse) {
         (Cons(_,Cons(variant,Cons(version)))) {
            val cc = variant.trim-right("-debug")
-           install( predir, cc, version, flags.minimal )
+           install( predir, cc, version, flags.dist, flags.minimal )
         }
       }
     }
   }
 }
 
-fun install( prefixdir : path, cc : string, version : string, minimal : bool ) {
+fun install( prefixdir : path, cc : string, version : string, dist : bool, minimal : bool ) {
   // Install paths
   val koka    = koka-exe-path()
   val bindir  = prefixdir + "bin".path
@@ -71,7 +74,7 @@ fun install( prefixdir : path, cc : string, version : string, minimal : bool ) {
   ensure-dir(sharedir)
 
   // Build kklib versions
-  [Debug,DRelease,Release].foreach fn(v){ build-kklib(cc,v,minimal) }
+  [Debug,DRelease,Release].foreach fn(v){ build-kklib(cc,v,dist,minimal) }
 
   // Copy Koka
   println("copy koka executable...")
@@ -102,23 +105,24 @@ fun install( prefixdir : path, cc : string, version : string, minimal : bool ) {
   println("copy contrib...")
   ensure-dir(contribdir)
   copy-file-to-dir("contrib/biginteger.js".path, contribdir)
+  copy-directory("support/atom".path, contribdir + "atom")
 
   // Copy kklib binaries
   [Debug,DRelease,Release].foreach fn(variant){
     println("copying standard library: " + variant.show)
-    val vardir = cc + "-" + variant.show
-    val objdir = libdir + vardir
-    val outdir = "out".path + version + vardir
-    val kklib  = if (partsep()=="\\" && cc!="mingw") then "kklib.lib" else "libkklib.a"  // todo: detect OS
-    ensure-dir(objdir)
-    copy-file-to-dir( outdir + kklib, objdir )
-    val all = list-directory(outdir)
-    val files = all.filter(fn(f){ !is-directory(f) })
-    val objs = files.filter(fn(f){ f.basename.starts-with("std_").bool && f.extname != "core" })
-    objs.foreach fn(obj){
-      // println("copy " + obj.string)
-      copy-file-to-dir( obj, objdir )
+    copy-kklib(variant, libdir, cc, version)
+    if (dist && cc=="clang-cl") {
+      copy-kklib(variant, libdir, "cl", version)
     }
+  }
+
+  if (dist) {
+    // tar the result
+    val tarname = prefixdir + ".." + ("koka-" + get-postfix() + ".tar.gz")
+    val tarcmd = ["tar -czf",tarname.show,"-C",prefixdir.show,"bin","lib","share"].join(" ")
+    println("> " + tarcmd)
+    run-system(tarcmd)
+    ()
   }
 
   println("done installing.")
@@ -145,9 +149,18 @@ fun koka-version( koka : path ) : <file,exn> string {
 }
 */
 
-fun get-default-prefix() : io path {
-  val out = run-system-read("stack path --local-bin").exn
-  out.trim.path.nobase
+fun get-default-prefix(dist : bool) : io path {
+  if (dist) then {
+    "dist".path + ("local-" + get-postfix())
+  }
+  else {
+    val out = run-system-read("stack path --local-bin").exn
+    out.trim.path.nobase
+  }
+}
+
+fun get-postfix() : io string {
+  ["v"+get-compiler-version(), get-os-name(), get-cpu-arch()].join("-")
 }
 
 type variant {
@@ -164,7 +177,23 @@ fun show( v : variant ) : string {
   }
 }
 
-fun build-kklib(cc : string, v : variant, minimal : bool) : io () {
+fun copy-kklib( variant : variant, libdir : path, cc : string, version : string ) : io () {
+  val vardir = cc + "-" + variant.show
+  val objdir = libdir + vardir
+  val outdir = "out".path + version + vardir
+  val kklib  = if (get-os-name()=="windows") then "kklib.lib" else "libkklib.a"
+  ensure-dir(objdir)
+  copy-file-to-dir( outdir + kklib, objdir )
+  val all = list-directory(outdir)
+  val files = all.filter(fn(f){ !is-directory(f) })
+  val objs = files.filter(fn(f){ f.basename.starts-with("std_").bool && f.extname != "core" })
+  objs.foreach fn(obj){
+    // println("copy " + obj.string)
+    copy-file-to-dir( obj, objdir )
+  }
+}
+
+fun build-kklib(cc : string, v : variant, dist : bool, minimal : bool) : io () {
   println("build kklib: " + v.show + "...")
   val extra = match(v) {
     Debug    -> ""
@@ -176,4 +205,12 @@ fun build-kklib(cc : string, v : variant, minimal : bool) : io () {
   println("> "  + cmd)
   val code = run-system( cmd )
   if (code != 0) throw("error: " + code.show)
+
+  if (dist && cc=="clang-cl") {
+    // also generate cl binaries on windows
+    val clcmd  = ["stack exec koka", "--", "--cc=cl", extra, prog].join(" ")
+    println("> "  + clcmd)
+    run-system( clcmd )
+    ()
+  }
 }
