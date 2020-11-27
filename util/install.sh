@@ -142,35 +142,18 @@ fi
 # ---------------------------------------------------------
 
 # determines the the CPU's instruction set
-ARCHBITS="64"
 ARCH=""
 OSARCH=""
 COMPILER=""
 
-detect_arch_bits() {
-  if has_cmd getconf ; then
-    if getconf LONG_BIT | grep -q 64 ; then
-      ARCHBITS=64
-    else
-      ARCHBITS=32
-    fi
-  else
-    case "$(uname -m)" in
-      *64) ARCHBITS=64;;
-      *)   ARCHBITS=32;;
-    esac
-  fi
-}
-
 detect_arch() {
-  if arch | grep -Eq 'armv[78]l?' ; then
-    ARCH="arm32"
-  elif arch | grep -q aarch64 ; then
-    ARCH="aarch64"
-  else
-    detect_arch_bits
-    ARCH="x86_$ARCHBITS"
-  fi
+  ARCH="$(arch)"
+  case "$ARCH" in
+    arm*)      ARCH="arm";;
+    aarch64*)  ARCH="aarch64";;
+    x86_64*)   ARCH="amd64";;
+    x86*|i[35678]86*)  ARCH="x86";;
+  esac
 }
 
 detect_osarch() {
@@ -181,8 +164,8 @@ detect_osarch() {
     [Dd]arwin)
       OSARCH="osx-$ARCH";;
     *)
-      info "warning: unable to detect os, assuming linux"
-      OSARCH="linux-$ARCH";;
+      info "warning: unable to detect os, assuming unix"
+      OSARCH="unix-$ARCH";;
   esac
 }
 
