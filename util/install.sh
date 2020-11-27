@@ -379,7 +379,9 @@ uninstall() {
         info "unable to remove $KOKA_LIB_DIR/$VERSION; continuing.."
       fi
     fi
+    info "remove $KOKA_LIB_DIR"
     sudocmd rmdir "$KOKA_LIB_DIR" 2>/dev/null # remove if empty
+    info "ok"
   fi
 
 

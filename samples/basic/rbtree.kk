@@ -91,8 +91,16 @@ fun make-tree(n: int): div tree {
   make-tree-aux(n, Leaf)
 }
 
-fun main() {
-  val m = make-tree(1000000);
+fun test(n : int) {
+  val m = make-tree(n);
   val v = m.fold(0) fn(k,v,r){ if (v) then r + 1 else r }
   v.println
+}
+
+fun bench() {
+  test(4200000)
+}
+
+fun main() {
+  test(1000000);
 }
