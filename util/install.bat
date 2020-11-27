@@ -24,7 +24,7 @@ if not "%_KOKA_DIST_SOURCE%" == "" goto unpack
 set _KOKA_DIST_SOURCE=%TEMP%\koka-dist.tar.gz
 
 if "%_KOKA_DIST_SOURCE_URL%" == "" (
-  set _KOKA_DIST_SOURCE_URL=https://github.com/koka-lang/koka/releases/download/%_KOKA_VERSION%/koka-%_KOKA_VERSION%-win-x86_64.tar.gz
+  set _KOKA_DIST_SOURCE_URL=https://github.com/koka-lang/koka/releases/download/%_KOKA_VERSION%/koka-%_KOKA_VERSION%-windows-amd64.tar.gz
 )
 
 echo Downloading koka %_KOKA_VERSION% binary distribution..

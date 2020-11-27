@@ -147,7 +147,7 @@ OSARCH=""
 COMPILER=""
 
 detect_arch() {
-  ARCH="$(arch)"
+  ARCH="$(uname -m)"
   case "$ARCH" in
     arm*)      ARCH="arm";;
     aarch64*)  ARCH="aarch64";;
