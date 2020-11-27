@@ -18,7 +18,7 @@ val flag-descs : list<flag<iflags>> = {
   fun set-install( f : iflags, b : bool ) : iflags  { f(dist = !b) }
   [ Flag( "m", ["minimal"], Bool(set-minimal), "use minimal install (more quick)" ),
     Flag( "i", ["install"], Bool(set-install), "install directly without creating a distribution bundle"),
-    Flag( "", ["prefix"], Req(set-prefix,"DIR"), "set prefix directory for install ('~/.local')" )      
+    Flag( "", ["prefix"], Req(set-prefix,"DIR"), "set prefix directory for install ('~/.local')" )
   ]
 }
 
@@ -62,12 +62,20 @@ fun install( prefixdir : path, cc : string, version : string, dist : bool, minim
   val bindir  = prefixdir + "bin".path
   val libdir  = prefixdir + "lib/koka".path + version.path
   val sharedir= prefixdir + "share/koka".path + version.path
+  val tarname = (prefixdir + ".." + ("koka-" + get-postfix() + ".tar.gz")).string
 
-  println("installing koka:")
-  println("  bin    : " + bindir.string)
-  println("  lib    : " + libdir.string)
-  println("  share  : " + sharedir.string)
-  println("  cc     : " + cc)
+  if (dist) then {
+    println("creating koka distribution bundle:")
+    println("  bundle : " + tarname)
+    println("  cc     : " + cc + (if (cc=="clang-cl") then ", cl" else ""))
+  }
+  else {
+    println("installing koka:" )
+    println("  bin    : " + bindir.string)
+    println("  lib    : " + libdir.string)
+    println("  share  : " + sharedir.string)
+    println("  cc     : " + cc)    
+  }
   println("  version: " + version)
   ensure-dir(bindir)
   ensure-dir(libdir)
@@ -118,18 +126,24 @@ fun install( prefixdir : path, cc : string, version : string, dist : bool, minim
 
   if (dist) {
     // tar the result
-    val tarname = prefixdir + ".." + ("koka-" + get-postfix() + ".tar.gz")
-    val tarcmd = ["tar -czf",tarname.show,"-C",prefixdir.show,"bin","lib","share"].join(" ")
+    val tarcmd = ["tar -czf",tarname,"-C",prefixdir.show,"bin","lib","share"].join(" ")
     println("> " + tarcmd)
     run-system(tarcmd)
     ()
   }
 
-  println("done installing.")
-  println("  bin    : " + bindir.string)
-  println("  lib    : " + libdir.string)
-  println("  share  : " + sharedir.string)
-  println("  cc     : " + cc)
+  if (dist) {
+    println("distribution bundle created.")
+    println("  bundle : " + tarname)
+    println("  cc     : " + cc + (if (cc=="clang-cl") then ", cl" else ""))
+  }
+  else {
+    println("done installing.")
+    println("  bin    : " + bindir.string)
+    println("  lib    : " + libdir.string)
+    println("  share  : " + sharedir.string)
+    println("  cc     : " + cc)
+  }
   println("  version: " + version)
 }
 
