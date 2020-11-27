@@ -267,7 +267,7 @@ Some interesting demos are:
 
 # Installing the compiler
 
-Look for the latest binary distribution in the [releases](releases).
+Look for the latest binary distribution in the [releases](https://github.com/koka-lang/koka/releases).
 
 ## Installing from source
 
