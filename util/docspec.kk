@@ -1,5 +1,7 @@
 import std/os/path
 import std/os/file
+import std/os/dir
+import std/os/process
 
 fun main() {
   build(publish=False)

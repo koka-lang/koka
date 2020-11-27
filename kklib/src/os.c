@@ -752,3 +752,128 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx) {
   return kk_string_alloc_dup("/tmp", ctx);
 #endif
 }
+
+/*--------------------------------------------------------------------------------------------------
+  Environment
+--------------------------------------------------------------------------------------------------*/
+
+kk_string_t kk_os_kernel(kk_context_t* ctx) {
+  const char* kernel = "unknown";
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+  #if defined(__MINGW32__)
+  kernel = "windows-mingw";
+  #else
+  kernel = "windows";
+  #endif
+#elif defined(__linux__)
+  kernel = "linux";
+#elif defined(__APPLE__)
+  #include <TargetConditionals.h>
+  #if TARGET_IPHONE_SIMULATOR
+    kernel = "ios";
+  #elif TARGET_OS_IPHONE
+    kernel = "ios";
+  #elif TARGET_OS_MAC
+    kernel = "osx";
+  #else
+    kernel = "osx";  // unknown?
+  #endif
+#elif defined(__ANDROID__)
+  kernel = "android";
+#elif defined(__CYGWIN__) && !defined(_WIN32)
+  kernel = "unix-cygwin";
+#elif defined(__hpux)
+  kernel = "unix-hpux";
+#elif defined(_AIX)
+  kernel = "unix-aix";
+#elif defined(__sun) && defined(__SVR4)
+  kernel = "unix-solaris";
+#elif defined(unix) || defined(__unix__) 
+  #include <sys/param.h>
+  #if defined(__FreeBSD__)
+  kernel = "unix-freebsd";
+  #elif defined(__OpenBSD__)
+  kernel = "unix-openbsd";
+  #elif defined(__DragonFly__)
+  kernel = "unix-dragonfly";
+  #elif defined(__HAIKU__)
+  kernel = "unix-haiku";
+  #elif defined(BSD)
+  kernel = "unix-bsd"; 
+  #else
+  kernel = "unix";
+  #endif
+#elif defined(_POSIX_VERSION)
+  kernel = "posix"
+#endif
+  return kk_string_alloc_dup(kernel, ctx);
+}
+
+kk_string_t kk_os_arch(int* ptrdiff_bits, int* size_bits, kk_context_t* ctx) {
+  char* arch = "unknown";
+#if defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) || defined(_M_AMD64)
+  arch = "amd64";
+#elif defined(__i386__) || defined(__i386) || defined(_M_IX86) || defined(_X86_) || defined(__X86__)
+  arch = "x86";
+#elif defined(__aarch64__) || defined(_M_ARM64)
+  arch = "aarch64";
+#elif defined(__arm__) || defined(_ARM) || defined(_M_ARM)  || defined(_M_ARMT) || defined(__arm)
+  arch = "arm";
+#elif defined(__riscv) || defined(_M_RISCV)
+  arch = "riscv";
+#elif defined(__alpha__) || defined(_M_ALPHA) || defined(__alpha)
+  arch = "alpha";
+#elif defined(__powerpc) || defined(__powerpc__) || defined(_M_PPC) || defined(__ppc)
+  arch = "powerpc";
+#elif defined(__hppa__)
+  arch = "hppa";
+#elif defined(__m68k__)
+  arch = "m68k";
+#elif defined(__mips__)
+  arch = "mips";
+#elif defined(__sparc__) || defined(__sparc)
+  arch = "sparc";
+#endif
+  if (ptrdiff_bits != NULL) *ptrdiff_bits = 8 * sizeof(ptrdiff_t);
+  if (size_bits != NULL)    *size_bits = 8 * sizeof(size_t);
+  return kk_string_alloc_dup(arch, ctx);
+}
+
+kk_string_t kk_compiler_version(kk_context_t* ctx) {
+#if defined(KK_COMP_VERSION)
+  const char* version = KK_COMP_VERSION;
+#else
+  const char* version = "2.x.x";
+#endif
+  return kk_string_alloc_dup(version,ctx);
+}
+
+// note: assumes unistd/Windows etc is already included (like for file copy)
+int kk_os_processor_count(kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+  int cpu_count = 1;
+#if defined(_WIN32)
+  SYSTEM_INFO sysinfo;
+  GetSystemInfo(&sysinfo);
+  cpu_count = (int)sysinfo.dwNumberOfProcessors;
+#elif defined(_SC_NPROCESSORS_ONLN)
+  cpu_count = sysconf(_SC_NPROCESSORS_ONLN);
+#elif defined(_SC_NPROCESSORS_CONF)
+  cpu_count = sysconf(_SC_NPROCESSORS_CONF);
+#elif defined(HW_AVAILCPU)
+  int mib[4];
+  size_t len = sizeof(cpu_count);
+  mib[0] = CTL_HW;
+  mib[1] = HW_AVAILCPU;  
+  sysctl(mib, 2, &cpu_count, &len, NULL, 0);
+  #if defined(HW_NCPU)
+  if (cpu_count < 1) {
+    mib[1] = HW_NCPU;
+    sysctl(mib, 2, &cpu_count, &len, NULL, 0);
+  }
+  #endif 
+#elif defined(MPC_GETNUMSPUS)
+  cpu_count = mpctl(MPC_GETNUMSPUS, NULL, NULL);
+#endif
+  return (cpu_count < 1 ? 1 : cpu_count);
+}

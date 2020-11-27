@@ -1,5 +1,6 @@
 import std/os/path
-import std/os/file
+import std/os/dir
+import std/os/process
 import std/os/env
 import std/os/flags
 
@@ -128,8 +129,8 @@ fun install( prefixdir : path, cc : string, version : string, minimal : bool ) {
   println("  version: " + version)
 }
 
-fun koka-exe-path() : <fsys,exn> path {
-  val out = run-command("stack path --local-install-root").exn
+fun koka-exe-path() : io path {
+  val out = run-system-read("stack path --local-install-root").exn
   val exe = out.trim.path + "bin/koka".path
   if (exe.is-file) return exe
   val win = exe.change-ext(".exe")
@@ -139,13 +140,13 @@ fun koka-exe-path() : <fsys,exn> path {
 
 /*
 fun koka-version( koka : path ) : <file,exn> string {
-  val out = run-command(koka.string + " --version").exn
+  val out = run-system-read(koka.string + " --version").exn
   out.list.drop-while(fn(c){ !is-white(c) }).take-while(fn(c){ c != ',' && c != '\n' }).string.trim
 }
 */
 
-fun get-default-prefix() : <fsys,exn> path {
-  val out = run-command("stack path --local-bin").exn
+fun get-default-prefix() : io path {
+  val out = run-system-read("stack path --local-bin").exn
   out.trim.path.nobase
 }
 

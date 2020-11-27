@@ -8,6 +8,10 @@ option(KK_DEBUG_SAN         "Compile with specified sanitizer (thread,memory,add
 option(KK_DEBUG_FULL        "Use full internal debug assertions" OFF)
 option(KK_BUILD_TEST        "Build test target" OFF)
 
+if(NOT DEFINED KK_COMP_VERSION)
+  set(KK_COMP_VERSION "2.x.x")
+endif()  
+
 # -----------------------------------------------------------------------------
 # Language options
 # -----------------------------------------------------------------------------
@@ -72,7 +76,7 @@ endif()
 # support library
 add_library(kklib STATIC ${kklib_sources})
 
-target_compile_definitions(kklib PUBLIC KK_STATIC_LIB)
+target_compile_definitions(kklib PUBLIC KK_STATIC_LIB=1 KK_COMP_VERSION="${KK_COMP_VERSION}")
 target_include_directories(kklib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(kklib PUBLIC kklib-flags)
 if(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND "x${CMAKE_C_SIMULATE_ID}" STREQUAL "xMSVC")

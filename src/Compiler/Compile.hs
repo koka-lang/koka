@@ -84,7 +84,7 @@ import Compiler.Module
 -- needed for code generation
 import Data.Char              ( toUpper )
 import Lib.PPrint             hiding (dquote)
-import Platform.Config        ( exeExtension, dllExtension, libPrefix, libExtension, objExtension, pathSep, sourceExtension )
+import Platform.Config        ( version, exeExtension, dllExtension, libPrefix, libExtension, objExtension, pathSep, sourceExtension )
 
 import Backend.CSharp.FromCore    ( csharpFromCore )
 import Backend.JavaScript.FromCore( javascriptFromCore )
@@ -1423,6 +1423,7 @@ cmakeLib term flags cc libName {-kklib-} libFile {-libkklib.a-} cmakeGeneratorFl
                                       [ cmakeConfigType
                                       , "-DCMAKE_C_COMPILER=" ++ (basename (ccPath cc))
                                       , "-DCMAKE_INSTALL_PREFIX=" ++ (buildDir flags)
+                                      , "-DKK_COMP_VERSION=" ++ version
                                       , (if (asan flags) then "-DKK_DEBUG_SAN=address" else "")
                                       ]
                                       ++ unquote (cmakeArgs flags) ++

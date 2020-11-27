@@ -2,6 +2,8 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
+#define KKLIB_BUILD 3
+
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.
 
