@@ -1,9 +1,9 @@
 @echo off
 
+set _KOKA_VERSION=v2.0.9
+set _KOKA_PREFIX=%APPDATA%\local
 set _KOKA_DIST_SOURCE=
 set _KOKA_DIST_SOURCE_URL=
-set _KOKA_PREFIX=%APPDATA%\local
-set _KOKA_VERSION=v2.0.9
 
 :cmds
 if "%~1" == "" goto cont
@@ -11,9 +11,9 @@ if "%~1" == "" goto cont
   if "%~1" == "--version" (set _KOKA_VERSION=%2)
   if "%~1" == "-p"        (set _KOKA_PREFIX=%2)
   if "%~1" == "--prefix"  (set _KOKA_PREFIX=%2)
-  if "%~1" == "-s"        (set _KOKA_DIST_SOURCE=%2)
-  if "%~1" == "--source"  (set _KOKA_DIST_SOURCE=%2)
-  if "%~1" == "--url"     (set _KOKA_DIST_SOURCE_URL=%2)  
+  if "%~1" == "-b"        (set _KOKA_DIST_SOURCE=%2)
+  if "%~1" == "--bundle"  (set _KOKA_DIST_SOURCE=%2)
+  if "%~1" == "--url"     (set _KOKA_DIST_SOURCE_URL=%2)
 shift
 shift
 goto cmds

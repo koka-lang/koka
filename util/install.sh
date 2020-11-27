@@ -1,5 +1,5 @@
 #!/bin/sh -e
-VERSION="v2.0.8"
+VERSION="v2.0.9"
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
@@ -96,9 +96,9 @@ while : ; do
         PREFIX="$flag_arg";;
     -u=*|--url=*)
         KOKA_DIST_URL="$flag_arg";;
-    -s) shift
+    -b) shift
         KOKA_DIST_SOURCE="$1";;
-    -s=*|--source=*)
+    -b=*|--bundle=*)
         KOKA_DIST_SOURCE="$flag_arg";;
     -v) shift
         VERSION="$1";;
@@ -112,12 +112,12 @@ while : ; do
     -h|--help|-\?|help|\?)
         echo "./install.sh [options]"
         echo ""
-        echo "  -q, --quiet           suppress output"
-        echo "  -u, --uninstall       uninstall koka ($VERSION)"
-        echo "  -p, --prefix=<dir>    prefix directory ($PREFIX)"
-        echo "  -s, --source=<url>    full source url ($KOKA_DIST_BASE_URL/$VERSION/koka-$VERSION-<osarch>.tar.gz)"
-        echo "      --url=<url>       download url ($KOKA_DIST_BASE_URL/$VERSION)"
-        echo "      --version=<ver>   version tag ($VERSION)"
+        echo "  -q, --quiet              suppress output"
+        echo "  -u, --uninstall          uninstall koka ($VERSION)"
+        echo "  -p, --prefix=<dir>       prefix directory ($PREFIX)"
+        echo "  -b, --bundle=<file|url>  full bundle location ($KOKA_DIST_BASE_URL/$VERSION/koka-$VERSION-<os>-<arch>.tar.gz)"
+        echo "      --url=<url>          download url ($KOKA_DIST_BASE_URL/$VERSION)"
+        echo "      --version=<ver>      version tag ($VERSION)"
         echo ""
         exit 0;;
     *) echo "warning: unknown option \"$1\"." 1>&2

@@ -4,7 +4,7 @@ import std/os/process
 import std/os/env
 import std/os/flags
 
-val header = "usage:\n stack exec koka -- util/install [-- [options]]\n\noptions:"
+val header = "usage:\n stack exec koka -- util/bundle [-- [options]]\n\noptions:"
 
 struct iflags {
   prefixdir : string = ""
@@ -16,9 +16,9 @@ val flag-descs : list<flag<iflags>> = {
   fun set-prefix( f : iflags, s : string ) : iflags { f(prefixdir = s) }
   fun set-minimal( f : iflags, b : bool ) : iflags  { f(minimal = b) }
   fun set-install( f : iflags, b : bool ) : iflags  { f(dist = !b) }
-  [ Flag( "", ["prefix"], Req(set-prefix,"DIR"), "set prefix directory ('/usr/local')" ),
-    Flag( "m", ["minimal"], Bool(set-minimal), "use minimal install (more quick)" ),
-    Flag( "i", ["install"], Bool(set-install), "install directly without creating a distribution"),
+  [ Flag( "m", ["minimal"], Bool(set-minimal), "use minimal install (more quick)" ),
+    Flag( "i", ["install"], Bool(set-install), "install directly without creating a distribution bundle"),
+    Flag( "", ["prefix"], Req(set-prefix,"DIR"), "set prefix directory for install ('~/.local')" )      
   ]
 }
 
