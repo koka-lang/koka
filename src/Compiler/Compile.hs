@@ -402,7 +402,7 @@ compileProgram' term flags modules compileTarget fname program
                           Right defs -> defs
                           Left _     -> []
            deps  = Core.dependencies inlineDefs (modCore mod)
-           imps  = filter (\imp -> S.member (Core.importName imp) deps) (Core.coreProgImports (modCore mod))
+           imps  = filter (\imp -> isPublic (Core.importVis imp) || S.member (Core.importName imp) deps) (Core.coreProgImports (modCore mod))
            mod'  = mod{ modCore = (modCore mod){ Core.coreProgImports = imps } }
            loaded2 = loaded2a{ loadedModule = mod' }
 

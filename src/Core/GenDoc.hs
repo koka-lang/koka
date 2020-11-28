@@ -40,7 +40,9 @@ import Syntax.RangeMap( mangle, mangleTypeName, mangleConName )
 
 genDoc :: Printer p => Env -> KGamma -> Gamma -> Core -> p -> IO ()
 genDoc env kgamma gamma core p
-  | noDeclarations && all (\imp -> importVis imp == Private) (coreProgImports core) && not (null (coreProgImports core))
+  | noDeclarations
+    -- && all (\imp -> importVis imp == Private) (coreProgImports core)
+    && not (null (coreProgImports core))
   = -- trace ("genIndex: " ++ show (coreProgName core, noDeclarations, map importVis (coreProgImports core))) $
     htmlBody $
     do writeLn p $ ptag "h1" "module" $ fmtName (coreProgName core)
@@ -252,10 +254,10 @@ synopsis env kgamma gamma doc
 showModuleDoc :: Env -> KGamma -> Gamma -> String -> String
 showModuleDoc env kgamma gamma doc
   = let (pre,post) = splitModuleDoc doc
-    in showDoc env kgamma gamma 
+    in showDoc env kgamma gamma
         (doctag "h1" "synopsis" pre ++ "\n\n" ++ post)
 
-    
+
 indent n s
   = span ("nested" ++ show n) s
 
@@ -265,7 +267,7 @@ splitModuleDoc doc
   = let (pre,post) = extract "" $
                       dropWhile isSpace $
                       removeComment doc
-    in (capitalize $ pre, 
+    in (capitalize $ pre,
         dropWhile (\c -> (c=='.' || isSpace c)) post)
   where
     extract acc s
@@ -275,7 +277,7 @@ splitModuleDoc doc
                          _           -> extract ('\n':acc) cs
           (c:cs)    -> extract (c:acc) cs
           []        -> (reverse acc,"")
-    
+
 --------------------------------------------------------------------------
 --  TOC
 --------------------------------------------------------------------------
@@ -300,7 +302,7 @@ fmtTypeDefTOC (Data info@DataInfo{ dataInfoSort = Inductive, dataInfoConstrs = [
 fmtTypeDefTOC (Data info isExtend, defs)  -- todo: handle extend
   = [doctag "li" "" $
      (doctag "a" ("link\" href=\"#" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
-      cspan "keyword" (if (hasKindLabelResult (dataInfoKind info)) then "effect" else show (dataInfoSort info)) 
+      cspan "keyword" (if (hasKindLabelResult (dataInfoKind info)) then "effect" else show (dataInfoSort info))
        ++ "&nbsp;" ++ span "type" (niceTypeName (dataInfoName info))) ++ "\n"]
     ++ map fmtConTOC constructors
     ++ map (fmtDefTOC True) defs
@@ -433,8 +435,8 @@ fmtTypeDef env kgamma gamma (Data info isExtend, defs) -- TODO: show extend corr
     env' = niceEnv env (dataInfoParams info)
     fmtTVars = map (showType env' kgamma gamma . TVar) (dataInfoParams info)
 
-    dataInfo = if (hasKindLabelResult (dataInfoKind info)) 
-                then "effect" 
+    dataInfo = if (hasKindLabelResult (dataInfoKind info))
+                then "effect"
                 else (show (dataInfoSort info) ++
                        (if (isExtend) then "&nbsp;extend"
                         else if (dataInfoIsOpen info) then "&nbsp;open"

@@ -13,25 +13,25 @@ See the [Koka manual](kokaspec.html) for further information on the Koka languag
 */
 module toc
 
-import std/os/env
-import std/os/flags
-import std/os/path
-import std/os/file
-import std/os/dir
-import std/os/process
+public import std/os/env
+public import std/os/flags
+public import std/os/path
+public import std/os/file
+public import std/os/dir
+public import std/os/process
 
-import std/text/parse
+public import std/text/parse
 // import std/text/regex
-import std/text/unicode
+public import std/text/unicode
 
-import std/num/decimal
-import std/num/ddouble
-import std/num/double
-import std/num/int32
-import std/num/random
+public import std/num/decimal
+public import std/num/ddouble
+public import std/num/double
+public import std/num/int32
+public import std/num/random
 
-import std/time
-// import std/time/astro
-import std/time/timestamp
-// import std/time/timezone
-// import std/time/ut1
+public import std/time
+public import std/time/astro
+public import std/time/timestamp
+// public import std/time/timezone
+// public import std/time/ut1
