@@ -1,4 +1,4 @@
-<img align="left" width="100" height="100" src="doc/logo/koka-logo-v2-800.png"/>
+<img align="left" width="100" height="100" src="doc/logo/koka-logo-400.png"/>
 
 <!--
 [<img align="right" src="https://travis-ci.org/koka-lang/koka.svg?branch=master"/>](https://travis-ci.org/koka-lang/koka)
@@ -72,9 +72,9 @@ Releases:
 # Install
 
 For Linux and macOS on x86 64-bit, you can install Koka using:
-```
+````
 > curl -sSL https://github.com/koka-lang/koka/releases/download/v2.0.9/install.sh | sh
-```
+````
 After installation, verify if Koka installed correctly:
 ````
 > koka
@@ -88,66 +88,66 @@ After installation, verify if Koka installed correctly:
 loading: std/core
 loading: std/core/types
 loading: std/core/hnd
->
 ````
-Type `:q` to exit the interpreter.
+
+Type ``:q`` to exit the interpreter.
 
 For detailed instructions and other platforms (including Windows) see the [releases] page.
 It is also straightforward to build the compiler [from source][build].
 
-# Running the compiler
+## Running the compiler
 
 You can compile a Koka source using `-c` (note that all `samples` are pre-installed):
-```
-> koka -c samples/basic/caesar.kk
-compile: samples/basic/caesar.kk
-loading: std/core
-loading: std/core/types
-loading: std/core/hnd
-loading: std/num/double
-loading: std/text/parse
-loading: std/num/int32
-check  : samples/basic/caesar
-linking: samples_basic_caesar
-created: out/v2.0.9/gcc-debug/samples_basic_caesar
-```
+
+    > koka -c samples/basic/caesar.kk
+    compile: samples/basic/caesar.kk
+    loading: std/core
+    loading: std/core/types
+    loading: std/core/hnd
+    loading: std/num/double
+    loading: std/text/parse
+    loading: std/num/int32
+    check  : samples/basic/caesar
+    linking: samples_basic_caesar
+    created: out/v2.0.9/gcc-debug/samples_basic_caesar
+
 and run the resulting executable:
-```
-> out/v2.0.9/gcc-debug/samples_basic_caesar
-plain  : Koka is a well-typed language
-encoded: Krnd lv d zhoo-wbshg odqjxdjh
-cracked: Koka is a well-typed language
-```
 
-The `-O2` flag builds an optimized program. Let's try it on a functional implementation
-of balanced insertion in a red-black tree ([`rbtree.kk`](test/bench/koka/rbtree.kk))
+    > out/v2.0.9/gcc-debug/samples_basic_caesar
+    plain  : Koka is a well-typed language
+    encoded: Krnd lv d zhoo-wbshg odqjxdjh
+    cracked: Koka is a well-typed language
+
+
+The ``-O2`` flag builds an optimized program. Let's try it on a functional implementation
+of balanced insertion in a red-black tree ([`rbtree.kk`](https://github.com/koka-lang/koka/tree/master/test/bench/koka/rbtree.kk))
 (the following two examples are only available if you checked out the Koka source):
-```
-> koka -O2 -c test/bench/koka/rbtree.kk
-...
-linking: test_bench_koka_rbtree
-created: out/v2.0.9/gcc-drelease/test_bench_koka_rbtree
 
-> time out/v2.0.9/gcc-drelease/test_bench_koka_rbtree
-420000
-real    0m0.680s
-...
-```
-We can compare this against an in-place updating C++ implementation using `stl::map`
-([`rbtree.cpp`](test/bench/cpp/rbtree.cpp)) (which uses the
-[`tree.cc`](https://code.woboq.org/gcc/libstdc++-v3/src/c++98/tree.cc.html) implementation internally):
-```
-> g++ --std=c++17 -o cpp_rbtree -O3 test/bench/cpp/rbtree.cpp
-> time ./cpp_rbtree
-420000
-real    0m0.916s
-...
-```
+    > koka -O2 -c test/bench/koka/rbtree.kk
+    ...
+    linking: test_bench_koka_rbtree
+    created: out/v2.0.9/gcc-drelease/test_bench_koka_rbtree
+
+    > time out/v2.0.9/gcc-drelease/test_bench_koka_rbtree
+    420000
+    real    0m0.680s
+    ...
+
+We can compare this against an in-place updating C++ implementation using ``stl::map``
+([``rbtree.cpp``](https://github.com/koka-lang/koka/tree/master/test/bench/cpp/rbtree.cpp)) (which uses the
+[``tree.cc``](https://code.woboq.org/gcc/libstdc++-v3/src/c++98/tree.cc.html) implementation internally):
+
+    > g++ --std=c++17 -o cpp_rbtree -O3 test/bench/cpp/rbtree.cpp
+    > time ./cpp_rbtree
+    420000
+    real    0m0.916s
+    ...
+
 The excellent performance relative to C++ here (on an AMD 3600XT) is the result of Perceus automatically
 transforming the fast path of the pure functional rebalancing to use mostly in-place updates,
 closely mimicking the imperative rebalancing code of the hand optimized C++ library.
 
-# Running the interactive compiler
+## Running the interactive compiler
 
 Without giving any input files, the interactive interpreter runs by default:
 ````
@@ -162,9 +162,9 @@ Without giving any input files, the interactive interpreter runs by default:
 loading: std/core
 loading: std/core/types
 loading: std/core/hnd
-
 >
 ````
+
 Now you can test some expressions:
 
     > println("hi koka")
@@ -181,7 +181,7 @@ Now you can test some expressions:
     > :t println("hi")
     console ()
 
-Or load a demo (use `tab` completion to avoid typing too much):
+Or load a demo (use ``tab`` completion to avoid typing too much):
 
     > :l samples/basic/fibonacci
     compile: samples/basic/fibonacci.kk
@@ -207,11 +207,11 @@ And quit the interpreter:
     I think of my body as a side effect of my mind.
       -- Carrie Fisher (1956)
 
-The `samples/syntax` and `samples/basic` directories contain various basic Koka examples to start with. If you type:
-```
-:l samples/
-```
-in the interpreter, you can use `tab` `tab` to see the available sample files and directories.
+The ``samples/syntax`` and ``samples/basic`` directories contain various basic Koka examples to start with. If you type:
+
+    > :l samples/
+
+in the interpreter, you can ``tab`` twice to see the available sample files and directories.
 
 
 ## Algebraic effect handlers
@@ -254,7 +254,7 @@ Some interesting demos are:
 
 * ``nim.kk``: Various examples from the paper "_Liberating effects with
   rows and handlers_" [[1]](#references).
-  
+
 * ``scoped.kk``: Examples from the paper "_Effect Handlers in Scope_" [[5]](#references).
 
 # Benchmarks
@@ -274,12 +274,12 @@ we tried to select mature comparison systems that use a range of memory
 reclamation techniques and are considered best-in-class. The systems we
 compare are, Koka 2.0.3 (compiling the generated C code with gcc 9.3.0),
 [OCaml](https://ocaml.org) 4.08.1, [Haskell](https://www.haskell.org) GHC 8.6.5,
-[Swift](https://swift.org/) 5.3, [Java](https://www.java.com) SE 15.0.1 with the Hotspot G1 collector, 
+[Swift](https://swift.org/) 5.3, [Java](https://www.java.com) SE 15.0.1 with the Hotspot G1 collector,
 and [C++](http://www.cplusplus.org).
 
 <img align="right" width="400" src="doc/bench-amd3600-nov-2020.png">
 
-The benchmarks are all available in [`test/bench`](test/bench) (see below for 
+The benchmarks are all available in [`test/bench`](test/bench) (see below for
 build instructions), and all
 stress memory allocation with little computation:
 `rbtree` (inserts 42 million items into a red-black tree),
@@ -308,7 +308,7 @@ margin -- both in execution time and peak working set.
 Clearly, these benchmarks are allocation heavy but it is encouraging
 to see this initial performance from Koka.
 
-A full discussion of these benchmarks and systems can be found 
+A full discussion of these benchmarks and systems can be found
 in the [Perceus] report.
 
 
@@ -335,7 +335,7 @@ You can also use `stack build --fast` to build a debug version of the compiler.
 
 ## Installing from source
 
-You can also build a local distribution bundle yourself from source and install 
+You can also build a local distribution bundle yourself from source and install
 that locally. The `util/bundle.kk` script creates a local distribution:
 ```
 > stack exec koka -- util/bundle
@@ -403,7 +403,7 @@ info: elapsed: 1.483s, user: 1.484s, sys: 0.000s, rss: 164mb
 
 ## Build and run benchmarks
 
-There is a standard benchmark suite (discussed in detail in [Perceus] paper). 
+There is a standard benchmark suite (discussed in detail in [Perceus] paper).
 It is still basic but more benchmarks
 with effect handlers are coming. The suite can run on (Ubuntu Linux), WSL2, and macOSX,
 and the benchmarks need:
@@ -530,7 +530,7 @@ we can statically track which values may become shared across threads and avoid 
 finally 3) due to the explicit control-flow we can do deep analysis on variable life times.
 
 In particular, we use aggressive static analysis to insert _precise_ reference count instructions where memory is freed as soon as
-it is no longer live. We call this _garbage free_ reference counting. In particular, we do not hold on to memory based on 
+it is no longer live. We call this _garbage free_ reference counting. In particular, we do not hold on to memory based on
 lexical scope as in almost all reference counting implementations in the wild, like Swift, Nim, Python, C++ with `shared_ptr`, Rust with `Rc<T>` etc).
 
 [Perceus](https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf) stands

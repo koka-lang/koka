@@ -31,7 +31,8 @@ public import std/num/int32
 public import std/num/random
 
 public import std/time
-public import std/time/astro
 public import std/time/timestamp
+// public import std/time/astro
+// public import std/time/download
 // public import std/time/timezone
 // public import std/time/ut1

@@ -70,6 +70,6 @@ fun run-echo(cmd : string) : io () {
   }
   else {
     println("> " + cmd)
-    println("error: " + exit-code.show )
+    throw("error: " + exit-code.show )
   }
 }

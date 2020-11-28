@@ -1,4 +1,4 @@
-# An overview of Koka
+# A Tour of Koka { #tour }
 
 This is a short introduction to the Koka programming language meant for
 programmers familiar with languages like C++, C#, or JavaScript.
@@ -406,7 +406,7 @@ fun fib3(n)
   val x = ref(0)
   val y = ref(1)
   repeat(n) {
-    val y0 = !y 
+    val y0 = !y
     y := !x + !y
     x := y0
   }

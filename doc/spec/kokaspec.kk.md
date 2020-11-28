@@ -3,9 +3,9 @@ Heading Base  : 1
 Heading Depth : 4
 Toc Depth     : 4
 Css           : styles/koka.css
-Css           : styles/kokaspec.css 
+Css           : styles/kokaspec.css
 Script        : scripts/kokaspec.js
-Colorizer     : unchecked.json 
+Colorizer     : unchecked.json
 Colorizer     : koka.json
 Bibliography  : koka.bib
 Description   : Koka Language Specification
@@ -13,7 +13,7 @@ Description   : Koka Language Specification
 [INCLUDE=styles/webanchors]
 [INCLUDE=styles/webtoc]
 
-~bar          : before='|' 
+~bar          : before='|'
 ~many         : before='{ ' after=' }'
 ~opt          : before='[ ' after=' ]'
 
@@ -30,7 +30,7 @@ toc.toc-contents {
 }
 
 .pre-indented, .console {
-  replace: "/^( *>.*)/\(**``\1``**\)/mg";
+  replace: "/^( *>[^\n\r]+)/\(**``\1``**\)/mg";
 }
 
 @if preview {
@@ -39,9 +39,9 @@ toc.toc-contents {
   }
 
   .pre-fenced3 {
-    border-left: 0.5ex solid green; 
+    border-left: 0.5ex solid green;
   }
-  
+
   .token.predefined {
     color: navy;
   }
@@ -73,7 +73,7 @@ li {
 
 ~ End SidePanel
 
-~ Begin MainPanel 
+~ Begin MainPanel
 
 ~ Begin MainContent
 
@@ -87,17 +87,17 @@ li {
 
 # Appendix {-; toc:clear; }
 
-# Full grammar specification { @h1:'A'; } 
+# Full grammar specification { @h1:'A'; }
 
 ## Lexical syntax { #sec:full-lexical }
 
 ~ div {#full-lexical}
-~ 
+~
 
 ## Context-free syntax  { #sec:full-grammar }
 
 ~ div {#full-grammar}
-~ 
+~
 
 ~ End MainContent
 
