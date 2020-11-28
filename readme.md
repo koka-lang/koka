@@ -12,7 +12,7 @@
 _Note: Koka v2 is a research language that currently under heavy development with the new evidence translation and C backend -- documentation may be outdated,
 and not all tests will run._
 
-_Latest release_: v2.0.9, Nov 27, 2020 [Install](#install)
+_Latest release_: v2.0.9, Nov 27, 2020, [Install now](#install)
 
 Koka is a strongly typed, strict functional language which tracks the (side) _effects_ of every function in its type.
 Koka syntax is Javascript/C like,
@@ -64,17 +64,10 @@ Special thanks to:
 - And all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
 
 Releases:
-- `v2.0.9`, Nov 27 2020: now with binary [releases] for Windows, macOS, and Linux.
-- `v2.0.7`, Nov 23 2020: more small fixes, improved scoped handlers, improved higher-rank type propagation, more samples.
-- `v2.0.5`, Nov 15 2020: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support
-            direct C compilation, local install support.
-- `v2.0.0`, Aug 21 2020: initial v2 release.
-
-Main branches:
-- `master`: latest stable version.
-- `dev`: current development branch -- submit PR's to this branch.
-- `v1-master`: last stable version of Koka v1: this is Koka with the Javascript (and C#) backend which does not use evidence translation.
-               This version supports `std/async` and should compile examples from published papers.
+- `v2.0.9`, 2020-11-27: now with binary [releases] for Windows, macOS, and Linux.
+- `v2.0.7`, 2020-11-23: more small fixes, improved scoped handlers, improved higher-rank type propagation, more samples.
+- `v2.0.5`, 2020-11-15: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support, direct C compilation, local install support.
+- `v2.0.0`, 2020-08-21: initial v2 release.
 
 # Install
 
@@ -583,6 +576,12 @@ The following is the immediate todo list to be completed in the coming months:
 - Functions with a pattern match in the argument.
 
 Contact me if you are interested in tackling some of these :-)
+
+Main branches:
+- `master`: latest stable version.
+- `dev`: current development branch -- submit PR's to this branch.
+- `v1-master`: last stable version of Koka v1: this is Koka with the Javascript (and C#) backend which does not use evidence translation.
+               This version supports `std/async` and should compile examples from published papers.
 
 
 # References
