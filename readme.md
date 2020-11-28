@@ -12,7 +12,7 @@
 _Note: Koka v2 is a research language that currently under heavy development with the new evidence translation and C backend -- documentation may be outdated,
 and not all tests will run._
 
-_Latest release_: v2.0.9, Nov 27, 2020, [Install now](#install)
+_Latest release_: v2.0.9, 2020-11-27, [Install](#install)
 
 Koka is a strongly typed, strict functional language which tracks the (side) _effects_ of every function in its type.
 Koka syntax is Javascript/C like,
