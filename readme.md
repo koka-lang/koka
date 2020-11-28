@@ -561,22 +561,25 @@ hand-optimized C++ on the balanced tree benchmark.
 
 Please help develop Koka: there are many opportunities to improve Koka or do research with Koka. We need:
 
-- Visual Studio Code, Emacs, and Vim syntax highlighting.
+- Emacs and Vim syntax highlighting.
 - Improve documentation, landing page etc. Make it easier for people to contribute.
 - More examples
 - Many library modules are incomplete (like `std/os/file`) or missing (like `std/data/map`).
 
 More advanced projects:
 
-- Package management of Koka modules.
+- A language server for Visual Studio Code and Atom. Koka can already generate a typed [range map](src/Syntax/RangeMap.hs) so this
+  should be managable.
+- Package management of Koka modules.a
 - Implement inline specialization where functions like `map`, `fold` etc get specialized for the function with which they are called.
+  This is an important optimization for functional style languages to reduce the allocation of lambda's.
 - Various standard optimizations like case-of-case, join points, case-of-known constructor, etc.
 - Borrowing analysis for Perceus.
 - Known reference count specialization.
 
 The following is the immediate todo list to be completed in the coming months:
 
-- Port all libray modules, in particular `std/text/regex` (using PCRE), `std/os/file`, and `std/async` (using `libuv`).
+- Port all libray modules, in particular `std/text/regex` (using PCRE), and `std/async` (using `libuv`).
 - Run the full test suite again.
 - Run the Bayesian probalistic machine learning program with large parameters.
 - Improve compilation of local state to use local variables directly (in C).
