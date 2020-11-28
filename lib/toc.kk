@@ -13,6 +13,10 @@ See the [Koka manual](kokaspec.html) for further information on the Koka languag
 */
 module toc
 
+public import std/core/types
+public import std/core/hnd
+public import std/core
+
 public import std/os/env
 public import std/os/flags
 public import std/os/path

@@ -43,7 +43,7 @@ genDoc env kgamma gamma core p
   | noDeclarations
     -- && all (\imp -> importVis imp == Private) (coreProgImports core)
     && not (null (coreProgImports core))
-  = -- trace ("genIndex: " ++ show (coreProgName core, noDeclarations, map importVis (coreProgImports core))) $
+  = -- trace ("genIndex: " ++ show (coreProgName core, map showImport (coreProgImports core))) $
     htmlBody $
     do writeLn p $ ptag "h1" "module" $ fmtName (coreProgName core)
        writeLn p $ showDoc env kgamma gamma (coreProgDoc core)
@@ -191,6 +191,9 @@ genDoc env kgamma gamma core p
            pre
            mapM_ (writeLn p) htmlFooter
 
+
+showImport imp
+  = show (importVis imp) ++ " " ++ show (importName imp)
 
 --------------------------------------------------------------------------
 --  Index

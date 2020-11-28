@@ -1,10 +1,38 @@
 import std/os/path
+import std/os/flags
+import std/os/env
 import std/os/file
 import std/os/dir
 import std/os/process
 
+val header = "usage:\n stack exec koka -- util/docs [-- [options]]\n\noptions:"
+
+struct iflags {
+  publish  : bool  = False
+}
+
+val flag-descs : list<flag<iflags>> = {
+  fun set-publish( f : iflags, b : bool ) : iflags  { f(publish = b) }
+  [ Flag( "p", ["publish"], Bool(set-publish), "publish to ../koka-pages directory" )
+  ]
+}
+
+public fun process-flags() : <ndet,console> maybe<iflags> {
+  val (flags,args,errs) = parse( Iflags(), flag-descs, get-args() )
+  if (errs.is-nil && args.is-nil) {
+    Just(flags)
+  }
+  else {
+    println( errs.join("\n") + "\n" + flag-descs.usage(header) )
+    Nothing
+  }
+}
+
 fun main() {
-  build(publish=True)
+  match (process-flags()) {
+    Nothing -> ()
+    Just(flags) -> build(flags.publish)
+  }
 }
 
 fun build( publish : bool ) : io () {

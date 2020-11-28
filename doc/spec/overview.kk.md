@@ -20,11 +20,7 @@ fun main() {
 }
 ```
 Koka uses familiar curly-braces syntax where `//` starts a line
-comment. Functions are declared using the `fun` keyword.
-
-If you are reading this on [Rise4Fun], you can click the _load in editor_
-button in the upper right corner of the example to load it into the
-editor and run the program.
+comment. Functions are declared using the `fun` keyword (and anonymous functions with `fn`).
 
 Here is another short example program that encodes a string using the
 _Caesar cipher_, where each lower-case letter in a string is replaced by the letter
