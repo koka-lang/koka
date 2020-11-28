@@ -33,7 +33,7 @@ ambient state, backtracking parser combinators, probablistic programming, Bayesi
 monads, and are compositional without needing lifting or monad transformers.
 
 Recent work on [evidence translation](https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently-with-proofs-5f0b7d860b387.pdf)
-and [Perceus](https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf)
+and [Perceus]
 precise compiler guided reference counting enable Koka to compile directly
 to plain C code _without needing a garbage collector_ or runtime system. Initial performance benchmarks are promising (see below),
 and it is our goal to generally fall within a factor 2&times; of C++ performance without needing manual memory management.
@@ -52,6 +52,8 @@ For more background information, see:
 [rise4fun]: http://rise4fun.com/koka/tutorial
 [releases]: https://github.com/koka-lang/koka/releases
 [build]: #build-from-source
+[Perceus]: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf
+[vsprompt]: https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019
 
 Enjoy,
   Daan Leijen
@@ -98,11 +100,11 @@ loading: std/core/hnd
 Type `:q` to exit the interpreter.
 
 For detailed instructions and other platforms (including Windows) see the [releases] page.
-You can also build the compiler from [source quite easily][build]
+You can also build the compiler from [source quite easily][build].
 
 ## Running the compiler
 
-You can compile a Koka source using `-c` (without `-c` it executes the program as well):
+You can compile a Koka source using `-c`:
 ```
 > koka -c samples/basic/caesar.kk
 compile: samples/basic/caesar.kk
@@ -128,7 +130,7 @@ The `-O2` flag builds an optimized program. Let's try it on a functional impleme
 of balanced insertion in a red-black tree balanced ([`rbtree.kk`](test/bench/koka/rbtree.kk))
 (note that the following two examples are only available if you checked out the Koka source):
 ```
-> koka -- -O2 -c test/bench/koka/rbtree.kk
+> koka -O2 -c test/bench/koka/rbtree.kk
 ...
 linking: test_bench_koka_rbtree
 created: out/v2.0.9/gcc-drelease/test_bench_koka_rbtree
@@ -136,6 +138,7 @@ created: out/v2.0.9/gcc-drelease/test_bench_koka_rbtree
 > time out/v2.0.9/gcc-drelease/test_bench_koka_rbtree
 420000
 real    0m0.680s
+...
 ```
 We can compare this against an in-place updating C++ implementation using `stl::map`
 ([`rbtree.cpp`](test/bench/cpp/rbtree.cpp)) (which uses the
@@ -147,7 +150,7 @@ We can compare this against an in-place updating C++ implementation using `stl::
 real    0m0.916s
 ...
 ```
-The close performance to C++ here is a result of [Perceus](#perceus) automatically
+The close performance to C++ here (on an AMD 3600XT) is the result of [Perceus](#perceus) automatically
 transforming the fast path of the pure functional rebalancing to use mostly in-place updates,
 closely mimicking the imperative rebalancing code of the hand optimized C++ library.
 
@@ -185,7 +188,7 @@ Now you can test some expressions:
     > :t println("hi")
     console ()
 
-Or load a demo:
+Or load a demo (use `tab` completion to avoid typing too much):
 
     > :l samples/basic/fibonacci
     compile: samples/basic/fibonacci.kk
@@ -211,13 +214,11 @@ And quit the interpreter:
     I think of my body as a side effect of my mind.
       -- Carrie Fisher (1956)
 
-The `samples/syntax` and `samples/basic` directories contain various basic Koka examples to start with.
-
-If you type:
+The `samples/syntax` and `samples/basic` directories contain various basic Koka examples to start with. If you type:
 ```
 :l samples/
 ```
-in the interpreter you use `tab`-completion to see the available sample files.
+in the interpreter, you can use `tab` `tab` to see the available sample files and directories.
 
 
 ## Algebraic effect handlers
@@ -310,21 +311,6 @@ After generating the bundle, it can be installed locally as:
 > koka --version
 ```
 
-compile and run programs:
-
-```
-> koka -O2 --showelapsed test/bench/koka/nqueens
-...
-73712
-info: elapsed: 1.395s, user: 1.375s, sys: 0.031s, rss: 96mb
-```
-
-or run the interpreter:
-
-```
-> koka
-```
-
 ## Install on Unix and macOS
 
 Koka is by default installed for the current user in `<prefix>/bin/koka`,
@@ -341,8 +327,7 @@ using `stack exec koka` the C compiler supplied with `ghc` is used (`mingw`)
 but that is not generally available).
 
 Generally, you need to install and run `koka` from a
-[Visual Studio](https://visualstudio.microsoft.com/downloads)
-[command prompt](https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019)
+[Visual Studio x64 toolset](vsprompt) command prompt.
 in order to link correctly with the Windows system libraries.
 Koka can use either the `cl` compiler (default), or the [`clang-cl`](https://releases.llvm.org) compiler
 (use the `--cc=clang-cl` option with Koka).
