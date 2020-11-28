@@ -9,7 +9,7 @@
 
 # Koka: a function-oriented language with effect inference
 
-_Note: Koka v2 is a research language that currently under heavy development with the new evidence translation and C backend -- documentation may be outdated,
+_Note: Koka v2 is a research language that currently under heavy development with the new C backend -- documentation may be outdated,
 and not all tests will run._
 
 _Latest release_: v2.0.9, 2020-11-27, [Install](#install)
