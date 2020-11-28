@@ -76,7 +76,7 @@ Main branches:
 - `v1-master`: last stable version of Koka v1: this is Koka with the Javascript (and C#) backend which does not use evidence translation.
                This version supports `std/async` and should compile examples from published papers.
 
-## Install
+# Install
 
 For Linux and macOS on x86 64-bit, you can install Koka using:
 ```
@@ -102,7 +102,7 @@ Type `:q` to exit the interpreter.
 For detailed instructions and other platforms (including Windows) see the [releases] page.
 You can also build the compiler from [source quite easily][build].
 
-## Running the compiler
+# Running the compiler
 
 You can compile a Koka source using `-c` (note that all `samples` are pre-installed):
 ```
@@ -127,7 +127,7 @@ cracked: Koka is a well-typed language
 ```
 
 The `-O2` flag builds an optimized program. Let's try it on a functional implementation
-of balanced insertion in a red-black tree balanced ([`rbtree.kk`](test/bench/koka/rbtree.kk))
+of balanced insertion in a red-black tree ([`rbtree.kk`](test/bench/koka/rbtree.kk))
 (the following two examples are only available if you checked out the Koka source):
 ```
 > koka -O2 -c test/bench/koka/rbtree.kk
@@ -150,11 +150,11 @@ We can compare this against an in-place updating C++ implementation using `stl::
 real    0m0.916s
 ...
 ```
-The close performance to C++ here (on an AMD 3600XT) is the result of [Perceus](#perceus) automatically
+The excellent performance relative to C++ here (on an AMD 3600XT) is the result of [Perceus](#perceus) automatically
 transforming the fast path of the pure functional rebalancing to use mostly in-place updates,
 closely mimicking the imperative rebalancing code of the hand optimized C++ library.
 
-## Running the interactive compiler
+# Running the interactive compiler
 
 Without giving any input files, the interactive interpreter runs by default:
 ````
