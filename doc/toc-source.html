@@ -16,7 +16,7 @@
 <body class="koka doc body madoko">
 <pre class="koka source"><span class="comment">/&#42;---------------------------------------------------------------------------
   Copyright 2012,2020 Daan Leijen, Microsoft Corporation.
- 
+
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
@@ -29,26 +29,29 @@ See the [Koka manual](kokaspec.html) for further information on the Koka languag
 &#42;/</span>
 <span class="kw">module</span> toc
 
-<span class="kw">import</span> env
-<span class="kw">import</span> file
-<span class="kw">import</span> flags
-<span class="kw">import</span> path
+<span class="kw">public</span> <span class="kw">import</span> env
+<span class="kw">public</span> <span class="kw">import</span> flags
+<span class="kw">public</span> <span class="kw">import</span> path
+<span class="kw">public</span> <span class="kw">import</span> file
+<span class="kw">public</span> <span class="kw">import</span> dir
+<span class="kw">public</span> <span class="kw">import</span> process
 
-<span class="kw">import</span> parse
+<span class="kw">public</span> <span class="kw">import</span> parse
 <span class="comment">// import std/text/regex
-</span><span class="kw">import</span> unicode
+</span><span class="kw">public</span> <span class="kw">import</span> unicode
 
-<span class="kw">import</span> decimal
-<span class="kw">import</span> ddouble
-<span class="kw">import</span> double
-<span class="kw">import</span> int32
-<span class="kw">import</span> random
+<span class="kw">public</span> <span class="kw">import</span> decimal
+<span class="kw">public</span> <span class="kw">import</span> ddouble
+<span class="kw">public</span> <span class="kw">import</span> double
+<span class="kw">public</span> <span class="kw">import</span> int32
+<span class="kw">public</span> <span class="kw">import</span> random
 
-<span class="kw">import</span> time
-<span class="comment">// import std/time/astro
-</span><span class="kw">import</span> timestamp
-<span class="comment">// import std/time/timezone
-// import std/time/ut1
+<span class="kw">public</span> <span class="kw">import</span> time
+<span class="kw">public</span> <span class="kw">import</span> timestamp
+<span class="comment">// public import std/time/astro
+// public import std/time/download
+// public import std/time/timezone
+// public import std/time/ut1
 </span></pre>
 
 </body>
