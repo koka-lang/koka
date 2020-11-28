@@ -334,9 +334,10 @@ install_dist() {
     KOKA_ATOM_DIR="$KOKA_TEMP_DIR/share/koka/$VERSION/contrib/atom"
     if [ -d $KOKA_ATOM_DIR ] ; then
       info "- install atom editor support"
-      if ! mkdir ~/.atom/packages/language-koka ; then
-        info "  (failed to install atom support)"
-      elif ! cp -p -r $KOKA_ATOM_DIR/* ~/.atom/packages/language-koka/ ; then
+      if [ ! -d ~/.atom/packages/language-koka ] ; then
+        mkdir ~/.atom/packages/language-koka
+      fi
+      if ! cp -p -r $KOKA_ATOM_DIR/* ~/.atom/packages/language-koka/ ; then
         info "  (failed to copy atom support files)"
       else 
         info "  (restart atom to take effect)"
