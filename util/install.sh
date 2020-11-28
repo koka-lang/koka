@@ -330,25 +330,29 @@ install_dist() {
   fi
 
   # install Atom editor support
-  if [ -d "~/.atom/packages" ] ; then
+  if [ -d ~/.atom/packages ] ; then
     KOKA_ATOM_DIR="$KOKA_TEMP_DIR/share/koka/$VERSION/contrib/atom"
-    if [ -d "$KOKA_ATOM_DIR"] ; then
+    if [ -d $KOKA_ATOM_DIR ] ; then
       info "- install atom editor support"
-      if ! mkdir "~/.atom/packages/language-koka" ; then
+      if ! mkdir ~/.atom/packages/language-koka ; then
         info "  (failed to install atom support)"
-      elif ! cp -p -r "$KOKA_ATOM_DIR/*" "~/.atom/packages/language-koka/" ; then
+      elif ! cp -p -r $KOKA_ATOM_DIR/* ~/.atom/packages/language-koka/ ; then
         info "  (failed to copy atom support files)"
+      else 
+        info "  (restart atom to take effect)"
       fi
     fi
   fi
   
   # install Visual Studio Code editor support
-  if [ -d "~/.vscode/extensions" ] ; then
+  if [ -d ~/.vscode/extensions ] ; then
     KOKA_VSCODE_DIR="$KOKA_TEMP_DIR/share/koka/$VERSION/contrib/vscode"
-    if [ -d "$KOKA_VSCODE_DIR"] ; then
+    if [ -d $KOKA_VSCODE_DIR ] ; then
       info "- install vscode editor support"
-      if ! cp -p -r "$KOKA_VSCODE_DIR/*" "~/.vscode/extensions/" ; then
+      if ! cp -p -r $KOKA_VSCODE_DIR/* $HOME/.vscode/extensions/ ; then
         info "  (failed to copy vscode support files)"
+      else    
+        info "  (restart vscode to take effect)"
       fi
     fi
   fi
