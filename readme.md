@@ -40,7 +40,7 @@ and it is our goal to generally fall within a factor 2&times; of C++ performance
 
 For more background information, see:
 
-* The [Koka manual][kokabook] for a [tour] of the Koka language and its specification.
+* The [Koka manual][kokabook] for a tour of the Koka language and its specification.
 * The [library documentation][libraries].
 * The article _Algebraic Effects for Functional Programming_ [[3]](#references) about the algebraic effects in Koka.
 
