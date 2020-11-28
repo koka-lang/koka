@@ -9,10 +9,10 @@
 
 # Koka: a function-oriented language with effect inference
 
-_Note: Koka v2 is a research language that currently under heavy development with the new evidence translation and C backend -- documentation may be outdated,
+_Note: Koka v2 is a research language that currently under heavy development with the new C backend -- documentation may be outdated,
 and not all tests will run._
 
-_Latest release: v2.0.7, Nov 23 2020_
+_Latest release_: v2.0.9, 2020-11-27 ([Install](#install)).
 
 Koka is a strongly typed, strict functional language which tracks the (side) _effects_ of every function in its type.
 Koka syntax is Javascript/C like,
@@ -33,9 +33,9 @@ ambient state, backtracking parser combinators, probablistic programming, Bayesi
 monads, and are compositional without needing lifting or monad transformers.
 
 Recent work on [evidence translation](https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently-with-proofs-5f0b7d860b387.pdf)
-and [Perceus](https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf)
+and [Perceus]
 precise compiler guided reference counting enable Koka to compile directly
-to plain C code _without needing a garbage collector_ or runtime system. Initial performance benchmarks are promising (see below),
+to plain C code _without needing a garbage collector_ or runtime system. Initial performance [benchmarks](#benchmarks) are promising,
 and it is our goal to generally fall within a factor 2&times; of C++ performance without needing manual memory management.
 
 For more background information, see:
@@ -50,55 +50,56 @@ For more background information, see:
 [kokarepo]: https://github.com/koka-lang/koka
 [kokaproject]: http://research.microsoft.com/en-us/projects/koka
 [rise4fun]: http://rise4fun.com/koka/tutorial
+[releases]: https://github.com/koka-lang/koka/releases
+[build]: #build-from-source
+[Perceus]: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf
+[vsprompt]: https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019
 
 Enjoy,
   Daan Leijen
 
 Special thanks to:
-- [Ningning Xie](https://xnning.github.io/) for her work on the theory and practice of [evidence translation](#evidence-translation) for algebraic effect handlers [[6]](#references) and the formalization of Perceus reference counting [[8]](#references).
-- [Alex Reinking](https://alexreinking.com/) for the implementation of the [Perceus](#perceus) reference counting analysis [[8]](#references).
+- [Ningning Xie](https://xnning.github.io/) for her work on the theory and practice of evidence translation [[6]](#references) and the formalization of Perceus reference counting [[8]](#references).
+- [Alex Reinking](https://alexreinking.com/) for the implementation of the Perceus reference counting analysis [[8]](#references).
 - And all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
 
 Releases:
-- `v2.0.7`, Nov 23 2020: more small fixes, improved scoped handlers, improved higher-rank type propagation, more samples.
-- `v2.0.5`, Nov 15 2020: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support
-            direct C compilation, local install support.
-- `v2.0.0`, Aug 21 2020: initial v2 release.
+- `v2.0.9`, 2020-11-27: now with binary [releases] for Windows, macOS, and Linux.
+- `v2.0.7`, 2020-11-23: more small fixes, improved scoped handlers, improved higher-rank type propagation, more samples.
+- `v2.0.5`, 2020-11-15: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support, direct C compilation, local install support.
+- `v2.0.0`, 2020-08-21: initial v2 release.
 
-Main branches:
-- `master`: latest stable version.
-- `dev`: current development branch -- submit PR's to this branch.
-- `v1-master`: last stable version of Koka v1: this is Koka with the Javascript (and C#) backend which does not use evidence translation.
-               This version supports `std/async` and should compile examples from published papers.
+# Install
 
-
-## Running the compiler
-
-At this point there are no binary releases of Koka and you need to build
-the compiler yourself. Fortunately, Koka has few dependencies and should build
-without problems on most common platforms, e.g. Windows (including WSL), macOS X, and
-Unix.
-
-The following programs are required to build Koka:
-
-* [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
-  (use `> curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS X)
-* [CMake](https://cmake.org/download/) to compile the C runtime library.  
-  (use `> sudo apt-get install cmake` on Ubuntu, `> brew install cmake` on macOS X).
-* Optional: The [Ninja](https://ninja-build.org/) build system for faster build times.  
-  (required on Windows, use `> sudo apt-get install ninja-build` on Ubuntu, `> brew install ninja` on macOS X).
-* Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
-
-Building Koka (note the `--recursive` flag):
+For Linux and macOS on x86 64-bit, you can install Koka using:
 ```
-> git clone --recursive https://github.com/koka-lang/koka
-> cd koka
-> stack build
+> curl -sSL https://github.com/koka-lang/koka/releases/download/v2.0.9/install.sh | sh
 ```
-You can also use `stack build --fast` to build a debug version of the compiler.
-You can invoke the compiler now as: (this takes a while as it needs to build the core libraries as well)
+After installation, verify if Koka installed correctly:
+````
+> koka
+ _          _           ____
+| |        | |         |__  \
+| | __ ___ | | __ __ _  __) |
+| |/ // _ \| |/ // _` || ___/ welcome to the koka interpreter
+|   <| (_) |   <| (_| ||____| version 2.0.9, Nov 27 2020, libc 64-bit (gcc)
+|_|\_\\___/|_|\_\\__,_|       type :? for help
+
+loading: std/core
+loading: std/core/types
+loading: std/core/hnd
+>
+````
+Type `:q` to exit the interpreter.
+
+For detailed instructions and other platforms (including Windows) see the [releases] page.
+It is also straightforward to build the compiler [from source][build].
+
+# Running the compiler
+
+You can compile a Koka source using `-c` (note that all `samples` are pre-installed):
 ```
-> stack exec koka -- -c samples/basic/caesar.kk
+> koka -c samples/basic/caesar.kk
 compile: samples/basic/caesar.kk
 loading: std/core
 loading: std/core/types
@@ -108,29 +109,29 @@ loading: std/text/parse
 loading: std/num/int32
 check  : samples/basic/caesar
 linking: samples_basic_caesar
-created: out\v2.0.5\mingw-debug\samples_basic_caesar
+created: out/v2.0.9/gcc-debug/samples_basic_caesar
 ```
 and run the resulting executable:
 ```
-> out\v2.0.5\mingw-debug\samples_basic_caesar
+> out/v2.0.9/gcc-debug/samples_basic_caesar
 plain  : Koka is a well-typed language
 encoded: Krnd lv d zhoo-wbshg odqjxdjh
 cracked: Koka is a well-typed language
 ```
-(note: on Windows you may need to run in the stack environment as `> stack exec out\v2.0.5\mingw-debug\samples_basic_caesar.exe`)
 
-If you leave out the `-c` flag, Koka executes the compiled program as well.
 The `-O2` flag builds an optimized program. Let's try it on a functional implementation
-of balanced insertion in a red-black tree balanced ([`rbtree.kk`](test/bench/koka/rbtree.kk))
+of balanced insertion in a red-black tree ([`rbtree.kk`](test/bench/koka/rbtree.kk))
+(the following two examples are only available if you checked out the Koka source):
 ```
-> stack exec koka -- -O2 -c test/bench/koka/rbtree.kk
+> koka -O2 -c test/bench/koka/rbtree.kk
 ...
 linking: test_bench_koka_rbtree
-created: out/v2.0.5/gcc-drelease/test_bench_koka_rbtree
+created: out/v2.0.9/gcc-drelease/test_bench_koka_rbtree
 
-> time out/v2.0.5/gcc-drelease/test_bench_koka_rbtree
+> time out/v2.0.9/gcc-drelease/test_bench_koka_rbtree
 420000
-real    0m0.987s
+real    0m0.680s
+...
 ```
 We can compare this against an in-place updating C++ implementation using `stl::map`
 ([`rbtree.cpp`](test/bench/cpp/rbtree.cpp)) (which uses the
@@ -139,30 +140,23 @@ We can compare this against an in-place updating C++ implementation using `stl::
 > g++ --std=c++17 -o cpp_rbtree -O3 test/bench/cpp/rbtree.cpp
 > time ./cpp_rbtree
 420000
-real    0m1.096s
+real    0m0.916s
 ...
 ```
-The close performance to C++ here is a result of [Perceus](#perceus) automatically
+The excellent performance relative to C++ here (on an AMD 3600XT) is the result of Perceus automatically
 transforming the fast path of the pure functional rebalancing to use mostly in-place updates,
 closely mimicking the imperative rebalancing code of the hand optimized C++ library.
 
-The [Atom](https://atom.io/) text editor is recommended
-to edit Koka programs. You can install support for Koka programs in Atom by
-running the `util/atom.kk` script:
-
-`> stack exec koka -- util/atom`
-
-
-## Running the interactive compiler
+# Running the interactive compiler
 
 Without giving any input files, the interactive interpreter runs by default:
 ````
-> stack exec koka
+> koka
  _          _           ____
 | |        | |         |__  \
 | | __ ___ | | __ __ _  __) |
 | |/ // _ \| |/ // _` || ___/ welcome to the koka interpreter
-|   <| (_) |   <| (_| ||____| version 2.0.5, Nov 13 2020, libc 64-bit (mingw)
+|   <| (_) |   <| (_| ||____| version 2.0.9, Nov 27 2020, libc 64-bit (gcc)
 |_|\_\\___/|_|\_\\__,_|       type :? for help
 
 loading: std/core
@@ -177,7 +171,7 @@ Now you can test some expressions:
     check  : interactive
     check  : interactive
     linking: interactive
-    created: out\v2.0.5\mingw-debug\interactive
+    created: out\v2.0.9\mingw-debug\interactive
 
     hi koka
 
@@ -187,7 +181,7 @@ Now you can test some expressions:
     > :t println("hi")
     console ()
 
-Or load a demo:
+Or load a demo (use `tab` completion to avoid typing too much):
 
     > :l samples/basic/fibonacci
     compile: samples/basic/fibonacci.kk
@@ -202,7 +196,7 @@ Or load a demo:
     check  : interactive
     check  : interactive
     linking: interactive
-    created: out\v2.0.5\mingw-debug\interactive
+    created: out\v2.0.9\mingw-debug\interactive
 
     The 10000th fibonacci number is 33644764876431783266621612005107543310302148460680063906564769974680081442166662368155595513633734025582065332680836159373734790483865268263040892463056431887354544369559827491606602099884183933864652731300088830269235673613135117579297437854413752130520504347701602264758318906527890855154366159582987279682987510631200575428783453215515103870818298969791613127856265033195487140214287532698187962046936097879900350962302291026368131493195275630227837628441540360584402572114334961180023091208287046088923962328835461505776583271252546093591128203925285393434620904245248929403901706233888991085841065183173360437470737908552631764325733993712871937587746897479926305837065742830161637408969178426378624212835258112820516370298089332099905707920064367426202389783111470054074998459250360633560933883831923386783056136435351892133279732908133732642652633989763922723407882928177953580570993691049175470808931841056146322338217465637321248226383092103297701648054726243842374862411453093812206564914032751086643394517512161526545361333111314042436854805106765843493523836959653428071768775328348234345557366719731392746273629108210679280784718035329131176778924659089938635459327894523777674406192240337638674004021330343297496902028328145933418826817683893072003634795623117103101291953169794607632737589253530772552375943788434504067715555779056450443016640119462580972216729758615026968443146952034614932291105970676243268515992834709891284706740862008587135016260312071903172086094081298321581077282076353186624611278245537208532365305775956430072517744315051539600905168603220349163222640885248852433158051534849622434848299380905070483482449327453732624567755879089187190803662058009594743150052402532709746995318770724376825907419939632265984147498193609285223945039707165443156421328157688908058783183404917434556270520223564846495196112460268313970975069382648706613264507665074611512677522748621598642530711298441182622661057163515069260029861704945425047491378115154139941550671256271197133252763631939606902895650288268608362241082050562430701794976171121233066073310059947366875
 
@@ -210,11 +204,14 @@ And quit the interpreter:
 
     > :q
 
-    Before the effect one believes in different causes than one does after the effect.
-     -- Friedrich Nietzsche
+    I think of my body as a side effect of my mind.
+      -- Carrie Fisher (1956)
 
-The `samples/syntax` and `samples/basic` contain various basic Koka examples to
-start with.
+The `samples/syntax` and `samples/basic` directories contain various basic Koka examples to start with. If you type:
+```
+:l samples/
+```
+in the interpreter, you can use `tab` `tab` to see the available sample files and directories.
 
 
 ## Algebraic effect handlers
@@ -232,13 +229,7 @@ loading the ``common`` demo, we can run it directly from the interpreter:
 
     > :f samples/handlers/basic
     compile: samples/handlers/basic.kk
-    loading: std/core
-    loading: std/core/types
-    loading: std/core/hnd
-    loading: std/num/random
-    loading: std/num/int32
-    loading: std/num/double
-    loading: std/text/parse
+    ...
     check  : samples/handlers/basic
     modules:
       samples/handlers/basic
@@ -263,16 +254,89 @@ Some interesting demos are:
 
 * ``nim.kk``: Various examples from the paper "_Liberating effects with
   rows and handlers_" [[1]](#references).
+  
+* ``scoped.kk``: Examples from the paper "_Effect Handlers in Scope_" [[5]](#references).
+
+# Benchmarks
+
+These are initial benchmarks of Koka v2 with [Perceus] reference counting
+versus state-of-the-art memory reclamation implementations in
+various other languages. Since we compare across languages we need to
+interpret these results with care -- the results depend not only on memory
+reclamation but also on the different optimizations performed by each
+compiler and how well we can translate each benchmark to that particular
+language. We view these results therefore mostly as _evidence that the
+current Koka implementation of reference counting is viable and can be competitive_
+and _not_ as a direct comparison of absolute performance between languages and systems.
+
+As such, we select here only benchmarks that stress memory allocation, and
+we tried to select mature comparison systems that use a range of memory
+reclamation techniques and are considered best-in-class. The systems we
+compare are, Koka 2.0.3 (compiling the generated C code with gcc 9.3.0),
+[OCaml](https://ocaml.org) 4.08.1, [Haskell](https://www.haskell.org) GHC 8.6.5,
+[Swift](https://swift.org/) 5.3, [Java](https://www.java.com) SE 15.0.1 with the Hotspot G1 collector, 
+and [C++](http://www.cplusplus.org).
+
+<img align="right" width="400" src="doc/bench-amd3600-nov-2020.png">
+
+The benchmarks are all available in [`test/bench`](test/bench) (see below for 
+build instructions), and all
+stress memory allocation with little computation:
+`rbtree` (inserts 42 million items into a red-black tree),
+`rbtree-ck` (a variant of `rbtree` that keeps a list of every 5th
+subtree and thus shares many subtrees), `deriv`
+(the symbolic derivative of a large expression),
+`nqueens` (calculates all solutions for the n-queens problem of size 13
+into a list, and returns the length of that list where the solution lists
+share many sub-solutions), and `cfold` (constant-folding over a large symbolic expression).
+
+Note: in C++, without automatic memory management, many benchmarks are
+difficult to express directly as they use persistent and
+partially shared data structures. To implement these faithfully would
+essentially require manual reference counting. Instead, we use C++ as
+our performance baseline: we either use in-place updates
+without supporting persistence (as in `rbtree` which uses ``std::map``)
+or we do not reclaim memory at all (as in `deriv`, `nqueens`, and `cfold`).
+
+The execution times and peak working set averaged over 10 runs and normalized to Koka are in
+the figure on the right (on a 3.8Ghz AMD3600XT on Ubuntu 20.04, Nov 2020).
+
+We can see that even though Koka has currently few
+optimizations besides the reference counting ones, it performs very well
+compared to these mature systems, often outperforming by a significant
+margin -- both in execution time and peak working set.
+Clearly, these benchmarks are allocation heavy but it is encouraging
+to see this initial performance from Koka.
+
+A full discussion of these benchmarks and systems can be found 
+in the [Perceus] report.
 
 
-# Installing the compiler
+# Build from source
 
-Look for the latest binary distribution in the [releases](https://github.com/koka-lang/koka/releases).
+Koka has few dependencies and should build from source
+without problems on most common platforms, e.g. Windows (including WSL), macOS X, and
+Unix. The following programs are required to build Koka:
+
+* [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
+  (use `> curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS X)
+* [CMake](https://cmake.org/download/) to compile the Koka C support library.  
+  (use `> sudo apt-get install cmake` on Ubuntu, `> brew install cmake` on macOS X).
+* Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
+* On Windows you need [Visual Studio](https://visualstudio.microsoft.com/downloads/) (for the windows SDK).
+
+Build the compiler (note the `--recursive` flag):
+```
+> git clone --recursive https://github.com/koka-lang/koka
+> cd koka
+> stack build
+```
+You can also use `stack build --fast` to build a debug version of the compiler.
 
 ## Installing from source
 
-You can also build a local distribution bundle yourself from source and install that.
-The `util/bundle.kk` script creates a local distribution:
+You can also build a local distribution bundle yourself from source and install 
+that locally. The `util/bundle.kk` script creates a local distribution:
 ```
 > stack exec koka -- util/bundle
 ...
@@ -293,41 +357,24 @@ After generating the bundle, it can be installed locally as:
 > koka --version
 ```
 
-compile and run programs:
-
-```
-> koka -O2 --showelapsed test/bench/koka/nqueens
-...
-73712
-info: elapsed: 1.395s, user: 1.375s, sys: 0.031s, rss: 96mb
-```
-
-or run the interpreter:
-
-```
-> koka
-```
-
-## Install on Unix and macOS
+## Source install on Unix and macOS
 
 Koka is by default installed for the current user in `<prefix>/bin/koka`,
 (with architecture specific files under `<prefix>/lib/koka/v2.x.x`
 and libraries and samples under `<prefix>/share/koka/v2.x.x`).
 
-## Install on Windows
+## Source install on Windows
 
 On Windows, the default install is to the userprofile `%APPDATA%\local` which
 is usually already on the search path as `stack` is installed there as well.
-
 However, when using `koka` you need to have a C compiler (when
 using `stack exec koka` the C compiler supplied with `ghc` is used (`mingw`)
 but that is not generally available).
 
 Generally, you need to install and run `koka` from a
-[Visual Studio](https://visualstudio.microsoft.com/downloads)
-[command prompt](https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019)
+[Visual Studio x64 toolset](vsprompt) command prompt.
 in order to link correctly with the Windows system libraries.
-Koka can use either the `cl` compiler (default), or the [`clang-cl`](https://releases.llvm.org) compiler
+Koka can use either the `cl` compiler (default), or the [`clang-cl`](https://releases.llvm.org/download.html) compiler
 (use the `--cc=clang-cl` option with Koka).
 To install for a specific compiler, use this flag when running `util/bundle` as well (from a VS command prompt):
 ```
@@ -354,9 +401,10 @@ info: elapsed: 0.727s, user: 0.734s, sys: 0.000s, rss: 164mb
 info: elapsed: 1.483s, user: 1.484s, sys: 0.000s, rss: 164mb
 ```
 
-# Benchmarks
+## Build and run benchmarks
 
-There is a standard benchmark suite. It is still basic but more benchmarks
+There is a standard benchmark suite (discussed in detail in [Perceus] paper). 
+It is still basic but more benchmarks
 with effect handlers are coming. The suite can run on (Ubuntu Linux), WSL2, and macOSX,
 and the benchmarks need:
 
@@ -440,7 +488,8 @@ languages or benchmarks:
 The `-i<N>` switch runs `N` iterations on each benchmark and calculates
 the average and the error interval.
 
-# Testing
+
+## Testing
 
 To run tests, use stack:
 
@@ -452,20 +501,8 @@ To run tests, use stack:
 > stack test --test-arguments="--match /parc/ --mode new" # Combined
 ```
 
-# Environment
-
-## Windows
-
-On Windows, Koka's C backend can compile with the Stack-supplied MinGW compiler.
-However, the MinGW runtime libraries are not added to the PATH by default. In
-this case, you can prefix any command with `stack exec` (not just those that
-Stack itself built). For example, to use Intel VTune to profile a Koka program:
-
-```
-stack exec "C:\Program Files (x86)\IntelSWTools\VTune Profiler 2020\bin64\vtune-gui.exe"
-```
-
-# More on Evidence Translation and Perceus
+<!--
+# Evidence Translation and Perceus
 
 Koka compiles directly to plain C code without needing a garbage collector or runtime system.
 There are two crucial ingredients to make this possible: evidence translation and Perceus.
@@ -480,20 +517,21 @@ yield- and resume. This makes the cost of tail-resumptive operations on effects 
 
 ## Perceus
 
-Even a pure core intermediate language with explicit control flow is not yet good enough to compile to C directly: without manual memory
+Even a purely functional core intermediate language with explicit control flow is not yet enough to compile to C directly: without manual memory
 management functional languages still need a (tracing) garbage collector (like OCaml or Haskell). A well performing concurrent generational
 garbage collector is very hard to build and is invasive as it needs to be able to scan the roots and stack. Even the best garbage collectors
 still suffer from unpredictable latencies (especially with large live sets) and tend to require (much) more memory than achievable with
 manual memory management (as with C/C++ and Rust).
 
-With Koka we took a new approach based on reference counting. The usual wisdom is that  reference counting does not perform well due to various factors but
+With Koka we took a novel approach based on reference counting. The usual wisdom is that  reference counting does not perform well due to various factors but
 in Koka we believe we can do better: 1) we know that all inductive and co-inductive datatypes are never cyclic so we can identify potential cycle introducing
 datatypes statically (like mutable references, and these are not so often used in mostly functional Koka), 2) again due to the strict type system
 we can statically track which values may become shared across threads and avoid expensive atomic operations for the majority of operations, and
 finally 3) due to the explicit control-flow we can do deep analysis on variable life times.
+
 In particular, we use aggressive static analysis to insert _precise_ reference count instructions where memory is freed as soon as
-it is no longer live (and in particular, we do not hold on to memory based on lexical scope as in almost all reference counting implementations
-in the wild, like Swift, Python, C++ `shared_ptr` etc).
+it is no longer live. We call this _garbage free_ reference counting. In particular, we do not hold on to memory based on 
+lexical scope as in almost all reference counting implementations in the wild, like Swift, Nim, Python, C++ with `shared_ptr`, Rust with `Rc<T>` etc).
 
 [Perceus](https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf) stands
 for _Precise automatic reference counting with reuse and specialization_: the _reuse_ component transform functional style pattern matches
@@ -509,30 +547,41 @@ fun map( xs : list<a>, f : a -> e b ) : e list<b> {
 ```
 will update the list _in place_ (reusing the `Cons` nodes that are matched) if the list happens to be not shared (and makes a copy otherwise).
 This dynamically adjust the program from in-place update to persistence and is the main reason why it can approach the performance of
-hand-optimized C++ on the red-black tree benchmark.
+hand-optimized C++ on the balanced tree benchmark.
+-->
 
+# Tasks
 
-# Things to do
+Please help develop Koka: there are many opportunities to improve Koka or do research with Koka. We need:
+
+- Visual Studio Code, Emacs, and Vim syntax highlighting.
+- Improve documentation, landing page etc. Make it easier for people to contribute.
+- More examples
+- Many library modules are incomplete (like `std/os/file`) or missing (like `std/data/map`).
+
+More advanced projects:
+
+- Package management of Koka modules.
+- Implement inline specialization where functions like `map`, `fold` etc get specialized for the function with which they are called.
+- Various standard optimizations like case-of-case, join points, case-of-known constructor, etc.
+- Borrowing analysis for Perceus.
+- Known reference count specialization.
 
 The following is the immediate todo list to be completed in the coming months:
 
 - Port all libray modules, in particular `std/text/regex` (using PCRE), `std/os/file`, and `std/async` (using `libuv`).
 - Run the full test suite again.
 - Run the Bayesian probalistic machine learning program with large parameters.
-
-And future projects:
-
-- Improve documentation, landing page etc. Help would be appreciated :-)
-- Create binary installers for Linux, macOS, and Windows.
-- Implement inline specialization where functions like `map`, `fold` etc get specialized for the function with which they are called.
-- Various standard optimizations like case-of-case, join points, case-of-known constructor, etc.
-- Borrowing analysis for Perceus.
-- Known reference count specialization.
 - Improve compilation of local state to use local variables directly (in C).
-- Package management of Koka modules.
 - Functions with a pattern match in the argument.
 
 Contact me if you are interested in tackling some of these :-)
+
+Main branches:
+- `master`: latest stable version.
+- `dev`: current development branch -- submit PR's to this branch.
+- `v1-master`: last stable version of Koka v1: this is Koka with the Javascript (and C#) backend which does not use evidence translation.
+               This version supports `std/async` and should compile examples from published papers.
 
 
 # References
