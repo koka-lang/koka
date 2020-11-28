@@ -418,6 +418,7 @@ if [ "$MODE" = "uninstall" ] ; then
   info ""
   info "--------------------------------------------------"
   info "uninstall successful of $PREFIX/bin/koka-$VERSION"
+  info ""
 else
   install_dependencies
   make_temp_dir
@@ -427,5 +428,6 @@ else
   info ""
   info "--------------------------------------------------"
   info "installation successful to $PREFIX/bin/koka"
+  info "type 'koka' to enter the interactive interpreter"
   info ""
 fi
