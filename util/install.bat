@@ -49,12 +49,17 @@ if errorlevel 1 (
   goto:eof
 )
 
-if exist "%HOMEDRIVE%%HOMEPATH%\.atom\packages" (
+if exist "%USERPROFILE%\.atom\packages" (
   echo Install Atom editor support..
-  if not exist "%HOMEDRIVE%%HOMEPATH%\.atom\packages\language-koka" (
-    mkdir "%HOMEDRIVE%%HOMEPATH%\.atom\packages\language-koka"
+  if not exist "%USERPROFILE%\.atom\packages\language-koka" (
+    mkdir "%USERPROFILE%\.atom\packages\language-koka"
   )
-  xcopy /Y /Q /S "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%\contrib\atom\*" "%HOMEDRIVE%%HOMEPATH%\.atom\packages\language-koka"
+  xcopy /Y /Q /S "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%\contrib\atom\*" "%USERPROFILE%\.atom\packages\language-koka"
+)
+
+if exist "%USERPROFILE%\.vscode\extensions" (
+  echo Install Visual Studio Code editor support..
+  xcopy /Y /Q /S "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%\contrib\vscode\*" "%USERPROFILE%\.vscode\extensions"
 )
 
 echo -----------------------------------------------------------------------

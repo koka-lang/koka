@@ -329,7 +329,7 @@ install_dist() {
     die "Cannot copy libraries to $KOKA_TEMP_DIR/share"
   fi
 
-  # install editor support
+  # install Atom editor support
   if [ -d "~/.atom/packages" ] ; then
     KOKA_ATOM_DIR="$KOKA_TEMP_DIR/share/koka/$VERSION/contrib/atom"
     if [ -d "$KOKA_ATOM_DIR"] ; then
@@ -338,6 +338,17 @@ install_dist() {
         info "  (failed to install atom support)"
       elif ! cp -p -r "$KOKA_ATOM_DIR/*" "~/.atom/packages/language-koka/" ; then
         info "  (failed to copy atom support files)"
+      fi
+    fi
+  fi
+  
+  # install Visual Studio Code editor support
+  if [ -d "~/.vscode/extensions" ] ; then
+    KOKA_VSCODE_DIR="$KOKA_TEMP_DIR/share/koka/$VERSION/contrib/vscode"
+    if [ -d "$KOKA_VSCODE_DIR"] ; then
+      info "- install vscode editor support"
+      if ! cp -p -r "$KOKA_VSCODE_DIR/*" "~/.vscode/extensions/" ; then
+        info "  (failed to copy vscode support files)"
       fi
     fi
   fi

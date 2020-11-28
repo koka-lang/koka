@@ -118,6 +118,7 @@ fun install( prefixdir : path, cc : string, version : string, dist : bool, post 
   ensure-dir(contribdir)
   copy-file-to-dir("contrib/biginteger.js".path, contribdir)
   copy-directory("support/atom".path, contribdir + "atom")
+  copy-directory("support/vscode".path, contribdir + "vscode")
 
   // Copy kklib binaries
   [Debug,DRelease,Release].foreach fn(variant){
