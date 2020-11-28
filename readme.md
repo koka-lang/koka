@@ -59,8 +59,8 @@ Enjoy,
   Daan Leijen
 
 Special thanks to:
-- [Ningning Xie](https://xnning.github.io/) for her work on the theory and practice of [evidence translation](#evidence-translation) [[6]](#references) and the formalization of Perceus reference counting [[8]](#references).
-- [Alex Reinking](https://alexreinking.com/) for the implementation of the [Perceus](#perceus) reference counting analysis [[8]](#references).
+- [Ningning Xie](https://xnning.github.io/) for her work on the theory and practice of evidence translation [[6]](#references) and the formalization of Perceus reference counting [[8]](#references).
+- [Alex Reinking](https://alexreinking.com/) for the implementation of the Perceus reference counting analysis [[8]](#references).
 - And all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
 
 Releases:
@@ -150,7 +150,7 @@ We can compare this against an in-place updating C++ implementation using `stl::
 real    0m0.916s
 ...
 ```
-The excellent performance relative to C++ here (on an AMD 3600XT) is the result of [Perceus](#perceus) automatically
+The excellent performance relative to C++ here (on an AMD 3600XT) is the result of Perceus automatically
 transforming the fast path of the pure functional rebalancing to use mostly in-place updates,
 closely mimicking the imperative rebalancing code of the hand optimized C++ library.
 
@@ -364,17 +364,16 @@ After generating the bundle, it can be installed locally as:
 > koka --version
 ```
 
-## Install on Unix and macOS
+## Source install on Unix and macOS
 
 Koka is by default installed for the current user in `<prefix>/bin/koka`,
 (with architecture specific files under `<prefix>/lib/koka/v2.x.x`
 and libraries and samples under `<prefix>/share/koka/v2.x.x`).
 
-## Install on Windows
+## Source install on Windows
 
 On Windows, the default install is to the userprofile `%APPDATA%\local` which
 is usually already on the search path as `stack` is installed there as well.
-
 However, when using `koka` you need to have a C compiler (when
 using `stack exec koka` the C compiler supplied with `ghc` is used (`mingw`)
 but that is not generally available).
@@ -509,7 +508,7 @@ To run tests, use stack:
 > stack test --test-arguments="--match /parc/ --mode new" # Combined
 ```
 
-
+<!--
 # Evidence Translation and Perceus
 
 Koka compiles directly to plain C code without needing a garbage collector or runtime system.
@@ -556,6 +555,7 @@ fun map( xs : list<a>, f : a -> e b ) : e list<b> {
 will update the list _in place_ (reusing the `Cons` nodes that are matched) if the list happens to be not shared (and makes a copy otherwise).
 This dynamically adjust the program from in-place update to persistence and is the main reason why it can approach the performance of
 hand-optimized C++ on the balanced tree benchmark.
+-->
 
 # Tasks
 
