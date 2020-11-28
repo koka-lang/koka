@@ -9,11 +9,14 @@ val header = "usage:\n stack exec koka -- util/docs [-- [options]]\n\noptions:"
 
 struct iflags {
   publish  : bool  = False
+  version  : string = ""
 }
 
 val flag-descs : list<flag<iflags>> = {
   fun set-publish( f : iflags, b : bool ) : iflags  { f(publish = b) }
-  [ Flag( "p", ["publish"], Bool(set-publish), "publish to ../koka-pages directory" )
+  fun set-version( f : iflags, s : string ) : iflags  { f(version = s) }
+  [ Flag( "p", ["publish"], Bool(set-publish), "publish to ../koka-pages directory" ),
+    Flag( "v", ["version"], Req(set-version,"<version>"), "latest koka version" )
   ]
 }
 
@@ -31,11 +34,11 @@ public fun process-flags() : <ndet,console> maybe<iflags> {
 fun main() {
   match (process-flags()) {
     Nothing -> ()
-    Just(flags) -> build(flags.publish)
+    Just(flags) -> build(flags.publish, flags.version || get-compiler-version())
   }
 }
 
-fun build( publish : bool ) : io () {
+fun build( publish : bool, version : string ) : io () {
   val docsite  = "https://koka-lang.github.io/koka/doc/"
   val doclocal = "../koka-pages/doc".path
 
@@ -69,8 +72,8 @@ fun build( publish : bool ) : io () {
              filter(fn(p){ p.string.ends-with(".xmp.html").bool }).
              map(fn(p){ p.nodir.string })
   println("run madoko...")
-  run-echo( "cd " + outspec.string + " && madoko --odir=. -v -mline-no:false -mlogo:false "
-             + xmps.join(" ") + " kokaspec.md" )
+  run-echo( "cd " + outspec.string + " && madoko --odir=. -v -mline-no:false -mlogo:false -mkokaversion:" + version
+             + " " + xmps.join(" ") + " kokaspec.md" )
   copy-file-to-dir(outspec + "madoko.css", outstyles)
   if (publish) {
     println("copy files to output folder: " + doclocal.string)

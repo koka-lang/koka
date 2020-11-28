@@ -11,12 +11,10 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends cmake \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
-RUN git clone --recursive https://github.com/koka-lang/koka -b master
+RUN git clone --recursive https://github.com/koka-lang/koka -b dev
 WORKDIR /build/koka
 RUN stack build
-RUN stack exec koka -- util/install -- --prefix=/build/local
-WORKDIR /build/local
-RUN tar -cvzf koka-install.tar bin lib share
+RUN stack exec koka -- util/bundle -- --postfix=docker
 
 FROM debian:stretch
 RUN apt-get update \
@@ -25,7 +23,7 @@ RUN apt-get update \
       cmake make ninja-build \
       nodejs ca-certificates \
  && rm -rf /var/lib/apt/lists/*
-COPY --from=build /build/local/koka-install.tar /usr/local
+COPY --from=build /build/koka/dist/koka-docker.tar /usr/local
 WORKDIR /usr/local
-RUN tar -xzvf koka-install.tar
+RUN tar -xzvf koka-docker.tar
 CMD ["koka"]

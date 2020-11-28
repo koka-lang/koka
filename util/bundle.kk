@@ -8,17 +8,20 @@ val header = "usage:\n stack exec koka -- util/bundle [-- [options]]\n\noptions:
 
 struct iflags {
   prefixdir : string = ""
+  postfixtag: string = ""
   minimal   : bool   = False
   dist      : bool   = True
 }
 
 val flag-descs : list<flag<iflags>> = {
   fun set-prefix( f : iflags, s : string ) : iflags { f(prefixdir = s) }
+  fun set-postfix( f : iflags, s : string ) : iflags { f(postfixtag = s) }
   fun set-minimal( f : iflags, b : bool ) : iflags  { f(minimal = b) }
   fun set-install( f : iflags, b : bool ) : iflags  { f(dist = !b) }
   [ Flag( "m", ["minimal"], Bool(set-minimal), "use minimal install (more quick)" ),
     Flag( "i", ["install"], Bool(set-install), "install directly without creating a distribution bundle"),
-    Flag( "", ["prefix"], Req(set-prefix,"DIR"), "set prefix directory for install ('~/.local')" )
+    Flag( "", ["prefix"], Req(set-prefix,"DIR"), "set prefix directory for install ('~/.local')" ),
+    Flag( "", ["postfix"], Req(set-postfix,"POST"), "set postfix instead of <version>-<os>-<arch>")
   ]
 }
 
@@ -42,27 +45,28 @@ fun main() {
   match (process-flags()) {
     Nothing -> ()
     Just(flags) -> {
+      val post   = flags.postfixtag || get-default-postfix()
       val predir = if (flags.prefixdir.is-empty)
-                    then get-default-prefix(flags.dist)
+                    then get-default-prefix(flags.dist, post)
                     else flags.prefixdir.path
       // get version and compiler from the install script itself
       match(app-path().dirparts.reverse) {
         (Cons(_,Cons(variant,Cons(version)))) {
            val cc = variant.trim-right("-debug")
-           install( predir, cc, version, flags.dist, flags.minimal )
+           install( predir, cc, version, flags.dist, post, flags.minimal )
         }
       }
     }
   }
 }
 
-fun install( prefixdir : path, cc : string, version : string, dist : bool, minimal : bool ) {
+fun install( prefixdir : path, cc : string, version : string, dist : bool, post : string, minimal : bool ) {
   // Install paths
   val koka    = koka-exe-path()
   val bindir  = prefixdir + "bin".path
   val libdir  = prefixdir + "lib/koka".path + version.path
   val sharedir= prefixdir + "share/koka".path + version.path
-  val tarname = (prefixdir + ".." + ("koka-" + get-postfix() + ".tar.gz")).string
+  val tarname = (prefixdir + ".." + ("koka-" + post + ".tar.gz")).string
 
   if (dist) then {
     println("creating koka distribution bundle:")
@@ -74,7 +78,7 @@ fun install( prefixdir : path, cc : string, version : string, dist : bool, minim
     println("  bin    : " + bindir.string)
     println("  lib    : " + libdir.string)
     println("  share  : " + sharedir.string)
-    println("  cc     : " + cc)    
+    println("  cc     : " + cc)
   }
   println("  version: " + version)
   ensure-dir(bindir)
@@ -163,9 +167,9 @@ fun koka-version( koka : path ) : <file,exn> string {
 }
 */
 
-fun get-default-prefix(dist : bool) : io path {
+fun get-default-prefix(dist : bool, post : string) : io path {
   if (dist) then {
-    "dist".path + ("local-" + get-postfix())
+    "dist".path + ("local-" + post)
   }
   else {
     val out = run-system-read("stack path --local-bin").exn
@@ -173,7 +177,7 @@ fun get-default-prefix(dist : bool) : io path {
   }
 }
 
-fun get-postfix() : io string {
+fun get-default-postfix() : io string {
   ["v"+get-compiler-version(), get-os-name(), get-cpu-arch()].join("-")
 }
 

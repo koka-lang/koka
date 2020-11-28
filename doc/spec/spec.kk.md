@@ -1,7 +1,7 @@
 
 # Koka language specification
 
-This is the draft language specification of the Koka language, version v2.0.9\
+This is the draft language specification of the Koka language, version v&kokaversion;\
 Currently only the lexical and context-free grammar are specified.
 The [standard libraries][stdlib] are documented separately.
 
