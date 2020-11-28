@@ -306,7 +306,7 @@ without supporting persistence (as in `rbtree` which uses ``std::map``)
 or we do not reclaim memory at all (as in `deriv`, `nqueens`, and `cfold`).
 
 The execution times and peak working set averaged over 10 runs and normalized to Koka are in
-the figure on the right (on a 3.8Ghz AMD3600XT on Ubuntu 20.04).
+the figure on the right (on a 3.8Ghz AMD3600XT on Ubuntu 20.04, Nov 2020).
 
 We can see that even though Koka has currently few
 optimizations besides the reference counting ones, it performs very well
