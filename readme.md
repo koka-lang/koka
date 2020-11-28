@@ -40,11 +40,12 @@ and it is our goal to generally fall within a factor 2&times; of C++ performance
 
 For more background information, see:
 
-* The [Koka manual][kokabook] for a specification of the Koka language and a primer on algebraic effect handlers.
+* The [Koka manual][kokabook] for a [tour] of the Koka language and its specification.
 * The [library documentation][libraries].
 * The article _Algebraic Effects for Functional Programming_ [[3]](#references) about the algebraic effects in Koka.
 
 [kokabook]: https://koka-lang.github.io/koka/doc/kokaspec.html  
+[tour]: https://koka-lang.github.io/koka/doc/kokaspec.html#tour
 [libraries]: https://koka-lang.github.io/koka/doc/toc.html
 [slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf
 [kokarepo]: https://github.com/koka-lang/koka
@@ -256,6 +257,13 @@ Some interesting demos are:
   rows and handlers_" [[1]](#references).
 
 * ``scoped.kk``: Examples from the paper "_Effect Handlers in Scope_" [[5]](#references).
+
+
+## What next?
+
+* Read a [Tour of Koka][tour] in the Koka manual.
+* Check the [library][libraries] documentation.
+* Write some cool Koka programs :-)
 
 
 # Benchmarks
