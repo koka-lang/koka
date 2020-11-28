@@ -104,7 +104,7 @@ You can also build the compiler from [source quite easily][build].
 
 ## Running the compiler
 
-You can compile a Koka source using `-c`:
+You can compile a Koka source using `-c` (note that all `samples` are pre-installed):
 ```
 > koka -c samples/basic/caesar.kk
 compile: samples/basic/caesar.kk
@@ -128,7 +128,7 @@ cracked: Koka is a well-typed language
 
 The `-O2` flag builds an optimized program. Let's try it on a functional implementation
 of balanced insertion in a red-black tree balanced ([`rbtree.kk`](test/bench/koka/rbtree.kk))
-(note that the following two examples are only available if you checked out the Koka source):
+(the following two examples are only available if you checked out the Koka source):
 ```
 > koka -O2 -c test/bench/koka/rbtree.kk
 ...
@@ -269,17 +269,16 @@ Some interesting demos are:
 
 Koka has few dependencies and should build from source
 without problems on most common platforms, e.g. Windows (including WSL), macOS X, and
-Unix.
-
-The following programs are required to build Koka:
+Unix. The following programs are required to build Koka:
 
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
   (use `> curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS X)
 * [CMake](https://cmake.org/download/) to compile the Koka C support library.  
   (use `> sudo apt-get install cmake` on Ubuntu, `> brew install cmake` on macOS X).
 * Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
+* On Windows you need [Visual Studio](https://visualstudio.microsoft.com/downloads/) (for the windows SDK).
 
-Building Koka (note the `--recursive` flag):
+Build the compiler (note the `--recursive` flag):
 ```
 > git clone --recursive https://github.com/koka-lang/koka
 > cd koka
@@ -329,7 +328,7 @@ but that is not generally available).
 Generally, you need to install and run `koka` from a
 [Visual Studio x64 toolset](vsprompt) command prompt.
 in order to link correctly with the Windows system libraries.
-Koka can use either the `cl` compiler (default), or the [`clang-cl`](https://releases.llvm.org) compiler
+Koka can use either the `cl` compiler (default), or the [`clang-cl`](https://releases.llvm.org/download.html) compiler
 (use the `--cc=clang-cl` option with Koka).
 To install for a specific compiler, use this flag when running `util/bundle` as well (from a VS command prompt):
 ```
@@ -455,7 +454,7 @@ To run tests, use stack:
 ```
 
 
-# More on Evidence Translation and Perceus
+# Evidence Translation and Perceus
 
 Koka compiles directly to plain C code without needing a garbage collector or runtime system.
 There are two crucial ingredients to make this possible: evidence translation and Perceus.
@@ -470,20 +469,21 @@ yield- and resume. This makes the cost of tail-resumptive operations on effects 
 
 ## Perceus
 
-Even a pure core intermediate language with explicit control flow is not yet good enough to compile to C directly: without manual memory
+Even a purely functional core intermediate language with explicit control flow is not yet enough to compile to C directly: without manual memory
 management functional languages still need a (tracing) garbage collector (like OCaml or Haskell). A well performing concurrent generational
 garbage collector is very hard to build and is invasive as it needs to be able to scan the roots and stack. Even the best garbage collectors
 still suffer from unpredictable latencies (especially with large live sets) and tend to require (much) more memory than achievable with
 manual memory management (as with C/C++ and Rust).
 
-With Koka we took a new approach based on reference counting. The usual wisdom is that  reference counting does not perform well due to various factors but
+With Koka we took a novel approach based on reference counting. The usual wisdom is that  reference counting does not perform well due to various factors but
 in Koka we believe we can do better: 1) we know that all inductive and co-inductive datatypes are never cyclic so we can identify potential cycle introducing
 datatypes statically (like mutable references, and these are not so often used in mostly functional Koka), 2) again due to the strict type system
 we can statically track which values may become shared across threads and avoid expensive atomic operations for the majority of operations, and
 finally 3) due to the explicit control-flow we can do deep analysis on variable life times.
+
 In particular, we use aggressive static analysis to insert _precise_ reference count instructions where memory is freed as soon as
-it is no longer live (and in particular, we do not hold on to memory based on lexical scope as in almost all reference counting implementations
-in the wild, like Swift, Python, C++ `shared_ptr` etc).
+it is no longer live. We call this _garbage free_ reference counting. In particular, we do not hold on to memory based on 
+lexical scope as in almost all reference counting implementations in the wild, like Swift, Nim, Python, C++ with `shared_ptr`, Rust with `Rc<T>` etc).
 
 [Perceus](https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf) stands
 for _Precise automatic reference counting with reuse and specialization_: the _reuse_ component transform functional style pattern matches
@@ -499,27 +499,31 @@ fun map( xs : list<a>, f : a -> e b ) : e list<b> {
 ```
 will update the list _in place_ (reusing the `Cons` nodes that are matched) if the list happens to be not shared (and makes a copy otherwise).
 This dynamically adjust the program from in-place update to persistence and is the main reason why it can approach the performance of
-hand-optimized C++ on the red-black tree benchmark.
+hand-optimized C++ on the balanced tree benchmark.
 
+# Tasks
 
-# Things to do
+Please help develop Koka: there are many opportunities to improve Koka or do research with Koka. We need:
+
+- Visual Studio Code, Emacs, and Vim syntax highlighting.
+- Improve documentation, landing page etc. Make it easier for people to contribute.
+- More examples
+- Many library modules are incomplete (like `std/os/file`) or missing (like `std/data/map`).
+
+More advanced projects:
+
+- Package management of Koka modules.
+- Implement inline specialization where functions like `map`, `fold` etc get specialized for the function with which they are called.
+- Various standard optimizations like case-of-case, join points, case-of-known constructor, etc.
+- Borrowing analysis for Perceus.
+- Known reference count specialization.
 
 The following is the immediate todo list to be completed in the coming months:
 
 - Port all libray modules, in particular `std/text/regex` (using PCRE), `std/os/file`, and `std/async` (using `libuv`).
 - Run the full test suite again.
 - Run the Bayesian probalistic machine learning program with large parameters.
-
-And future projects:
-
-- Improve documentation, landing page etc. Help would be appreciated :-)
-- Create binary installers for Linux, macOS, and Windows.
-- Implement inline specialization where functions like `map`, `fold` etc get specialized for the function with which they are called.
-- Various standard optimizations like case-of-case, join points, case-of-known constructor, etc.
-- Borrowing analysis for Perceus.
-- Known reference count specialization.
 - Improve compilation of local state to use local variables directly (in C).
-- Package management of Koka modules.
 - Functions with a pattern match in the argument.
 
 Contact me if you are interested in tackling some of these :-)
