@@ -304,14 +304,14 @@
 
     "constructor":
       { "match": "[A-Z][\\w\\-]*[\\'\\?]*|\\(,+\\)"
-      , "name": "support.constant.media.other.constructor.koka"
+      , "name": "entity.name.tag.css.constant.other.constructor.koka"
       },
 
     "qconstructor" :
       { "match": "((?:[a-z][\\w\\-]*/)+)([A-Z][\\w\\-]*[\\'\\?]*)"
       , "captures": {
           "1": { "name": "entity.name.class.module.koka"},
-          "2": { "name": "support.constant.media.other.constructor.koka" }
+          "2": { "name": "entity.name.tag.css.constant.other.constructor.koka" }
         }
       },
 
@@ -332,7 +332,7 @@
 
     "type_variable" :
       { "match": "([a-z][0-9]*|_[\\w\\-]*[\\'\\?]*|self)(?!\\w)"
-      , "name": "entity.name.class.type.typevar.koka"
+      , "name": "entity.name.class.type.typevar.koka markup.italic"
       },
 
     "type_identifier" :
