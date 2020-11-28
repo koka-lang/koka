@@ -1,8 +1,3 @@
-<!--madoko
-~bar          : before='|'
-~many         : before='{ ' after=' }'
-~opt          : before='[ ' after=' ]'
--->
 
 # Koka language specification
 

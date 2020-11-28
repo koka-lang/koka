@@ -4,7 +4,7 @@ This is a short introduction to the Koka programming language meant for
 programmers familiar with languages like C++, C#, or JavaScript.
 
 Koka is a _function-oriented_ language that separates pure values from
-side-effecting computations (The word 'koka' (or &#x52B9;&#x679C;) means
+side-effecting computations (The word 'k&omacron;ka' (or &#x52B9;&#x679C;) means
 "effect" or "effective" in Japanese). Koka is also
 flexible and `fun`: Koka has many features that help programmers to easily
 change their data types and code organization correctly even in large-scale
@@ -96,7 +96,8 @@ what error Koka produces.
 
 ## Anonymous functions {#sec-anon}
 
-Koka also allows for anonymous function expressions. For example, instead of
+Koka also allows for anonymous function expressions using the `fn` keyword.
+For example, instead of
 declaring the `encode-char` function, we could just have passed it directly to
 the `map` function as a function expression:
 
@@ -128,12 +129,12 @@ fun print10()
 }
 ```
 
-which is desugared to `for( 1, 10, fun(i){ println(i) } )`. In fact, since we
+which is desugared to `for( 1, 10, fn(i){ println(i) } )`. In fact, since we
 pass the `i` argument directly to `println`, we can also the function itself
 directly, and write `for(1,10,println)`.
 
 Anonymous functions without any arguments can be shortened further by leaving
-out the `fun` keyword and just using braces directly. Here is an example using
+out the `fn` keyword and just using braces directly. Here is an example using
 the `repeat` function:
 
 ```
@@ -147,7 +148,7 @@ fun printhi10()
 }
 ```
 
-where the body desugars to `repeat( 10, fun(){println(``hi``)} )`. The is
+where the body desugars to `repeat( 10, fn(){println(``hi``)} )`. The is
 especially convenient for the `while` loop since this is not a built-in
 operator in Koka but just a regular function:
 
@@ -326,14 +327,14 @@ fun main() { looptest() }
 ////
 fun looptest()
 {
-  while { odd?(srandom-int()) }
+  while { is-odd(srandom-int()) }
   {
     throw("odd")
   }
 }
 ```
 
-In the above program, Koka infers that the predicate ``odd(random-int())`` has
+In the above program, Koka infers that the predicate ``odd(srandom-int())`` has
 effect `: <ndet|e1> ` while the action has effect `: <exn|e2> ` for some `:e1` and `:e2`.
 When applying `while`, those
 effects are unified to the type `: <exn,ndet,div|e3> ` for some `:e3` (which can
@@ -717,5 +718,5 @@ Todo
 
 For the purposes of equational reasoning and termination checking, a `type`
 declaration is limited to finite inductive types. There are two more
-declarations, namely `cotype` and `rectype` that allow for co-inductive types,
+declarations, namely `co type` and `rec type` that allow for co-inductive types,
 and arbitrary recursive types respectively.
