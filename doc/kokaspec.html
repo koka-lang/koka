@@ -1114,7 +1114,7 @@ rows and handlers</em>&#8221;&nbsp;<a href="#references" class="localref">[1]</a
 programmers familiar with languages like C++, C#, or JavaScript.
 </p>
 <p class="p indent">Koka is a <em class="em-low1">function-oriented</em> language that separates pure values from
-side-effecting computations (The word &#8216;koka&#8217; (or &#x52B9;&#x679C;) means
+side-effecting computations (The word &#8216;k&#333;ka&#8217; (or &#x52B9;&#x679C;) means
 &#8220;effect&#8221; or &#8220;effective&#8221; in Japanese). Koka is also
 flexible and <code class="koka"><span class="kw">fun</span></code>: Koka has many features that help programmers to easily
 change their data types and code organization correctly even in large-scale
@@ -1217,7 +1217,8 @@ and <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/
 Try to load the example in the editor and remove the annotation to see
 what error Koka produces.
 </p><h2 id="sec-anon" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-anon" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.4</span>.&#8194;</span>Anonymous functions</h2>
-<p class="p noindent">Koka also allows for anonymous function expressions. For example, instead of
+<p class="p noindent">Koka also allows for anonymous function expressions using the <code class="koka"><span class="kw">fn</span></code> keyword.
+For example, instead of
 declaring the <code class="koka">encode<span class="dash">-</span>char</code> function, we could just have passed it directly to
 the <code class="koka">map</code> function as a function expression:
 </p><pre class="koka source"><span class="plaincode">fun encode2( s : string, shift : int )
@@ -1264,12 +1265,12 @@ fun print10()
 
 
 
-<p class="p noindent">which is desugared to <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#for">for<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>for: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">start</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">,</span> <span class="tp tpp">end</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">,</span> <span class="tp tpp">action</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp">int</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp sp">(</span><span class="tp sp">)</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a>( <span class="number">1</span>, <span class="number">10</span>, <span class="kw">fun</span>(i){ println(i) } )</code>. In fact, since we
+<p class="p noindent">which is desugared to <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#for">for<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>for: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">start</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">,</span> <span class="tp tpp">end</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">,</span> <span class="tp tpp">action</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp">int</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp sp">(</span><span class="tp sp">)</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a>( <span class="number">1</span>, <span class="number">10</span>, <span class="kw">fn</span>(i){ println(i) } )</code>. In fact, since we
 pass the <code class="koka">i</code> argument directly to <code class="koka">println</code>, we can also the function itself
 directly, and write <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#for">for<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>for: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">start</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">,</span> <span class="tp tpp">end</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">,</span> <span class="tp tpp">action</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp">int</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp sp">(</span><span class="tp sp">)</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a>(<span class="number">1</span>,<span class="number">10</span>,println)</code>.
 </p>
 <p class="p indent">Anonymous functions without any arguments can be shortened further by leaving
-out the <code class="koka"><span class="kw">fun</span></code> keyword and just using braces directly. Here is an example using
+out the <code class="koka"><span class="kw">fn</span></code> keyword and just using braces directly. Here is an example using
 the <code class="koka">repeat</code> function:
 </p><pre class="koka source"><span class="plaincode">fun main() { printhi10() }
 
@@ -1289,7 +1290,7 @@ fun printhi10()
 
 
 
-<p class="p noindent">where the body desugars to <code class="koka">repeat( <span class="number">10</span>, <span class="kw">fun</span>(){println(</code><code class="koka">hi</code><code class="koka">)} )</code>. The is
+<p class="p noindent">where the body desugars to <code class="koka">repeat( <span class="number">10</span>, <span class="kw">fn</span>(){println(</code><code class="koka">hi</code><code class="koka">)} )</code>. The is
 especially convenient for the <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#while">while<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>while: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">predicate</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp">div</span><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp">bool</span><span class="tp sp">,</span> <span class="tp tpp">action</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp">div</span><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp sp">)</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp">div</span><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a></code> loop since this is not a built-in
 operator in Koka but just a regular function:
 </p><pre class="koka source"><span class="plaincode">fun main() { print11() }
@@ -1500,14 +1501,14 @@ fun main() { looptest() }
 
 fun looptest()
 {
-  while { odd?(srandom-int()) }
+  while { is-odd(srandom-int()) }
   {
     throw("odd")
   }
 }
 </span><span class="nicecode"><span class="kw">fun</span> looptest()
 {
-  while { odd<span class="op">?</span>(srandom<span class="dash">-</span>int()) }
+  while { is<span class="dash">-</span>odd(srandom<span class="dash">-</span>int()) }
   {
     throw(<span class="st">"odd"</span>)
   }
@@ -1516,7 +1517,7 @@ fun looptest()
 
 
 
-<p class="p noindent">In the above program, Koka infers that the predicate <code class="code code2">odd(random-int())</code> has
+<p class="p noindent">In the above program, Koka infers that the predicate <code class="code code2">odd(srandom-int())</code> has
 effect <code class="koka"><span class="tp sp">&#60;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_ndet"><span class="tp">ndet</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>ndet: <span class="tp">X</span></span></a><span class="tp kw op">|</span><span class="tp tv">e1</span><span class="tp sp">&#62;</span></code> while the action has effect <code class="koka"><span class="tp sp">&#60;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_exn"><span class="tp">exn</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>exn: <span class="tp">HX</span></span></a><span class="tp kw op">|</span><span class="tp tv">e2</span><span class="tp sp">&#62;</span></code> for some <code class="koka"><span class="tp tv">e1</span></code> and <code class="koka"><span class="tp tv">e2</span></code>.
 When applying <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#while">while<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>while: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">predicate</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp">div</span><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp">bool</span><span class="tp sp">,</span> <span class="tp tpp">action</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp">div</span><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp sp">)</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp">div</span><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a></code>, those
 effects are unified to the type <code class="koka"><span class="tp sp">&#60;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_exn"><span class="tp">exn</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>exn: <span class="tp">HX</span></span></a><span class="tp sp">,</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_ndet"><span class="tp">ndet</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>ndet: <span class="tp">X</span></span></a><span class="tp sp">,</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_div"><span class="tp">div</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>div: <span class="tp">X</span></span></a><span class="tp kw op">|</span><span class="tp tv">e3</span><span class="tp sp">&#62;</span></code> for some <code class="koka"><span class="tp tv">e3</span></code> (which can
@@ -2011,14 +2012,8 @@ our earlier <code class="koka"><a class="pp" href="#type_space_person"><span cla
 </p><h2 id="sec-inductive-co-inductive-and-recursive-types" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-inductive-co-inductive-and-recursive-types" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">2.16</span>.&#8194;</span>Inductive, co-inductive, and recursive types</h2>
 <p class="p noindent">For the purposes of equational reasoning and termination checking, a <code class="koka"><span class="tp kw">type</span></code>
 declaration is limited to finite inductive types. There are two more
-declarations, namely <code class="koka">cotype</code> and <code class="koka">rectype</code> that allow for co-inductive types,
+declarations, namely <code class="koka">co <span class="tp kw">type</span></code> and <code class="koka">rec <span class="tp kw">type</span></code> that allow for co-inductive types,
 and arbitrary recursive types respectively.
-</p>
-<p class="p indent">~bar          : before=&#8216;|&#8217;
-</p>
-<p class="p indent">~many         : before=&#8216;{ &#8217; after=&#39; }&#39;
-</p>
-<p class="p indent">~opt          : before=&#39;[ &#39; after=&#39; ]&#39;
 </p><h1 id="sec-koka-language-specification" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-koka-language-specification" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3</span>.&#8194;</span>Koka language specification</h1>
 <p class="p noindent">This is the draft language specification of the Koka language, version v2.0.9<br>
 Currently only the lexical and context-free grammar are specified.
