@@ -49,7 +49,7 @@ For more background information, see:
 [slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf
 [kokarepo]: https://github.com/koka-lang/koka
 [kokaproject]: http://research.microsoft.com/en-us/projects/koka
-[rise4fun]: http://rise4fun.com/koka/tutorial
+
 [releases]: https://github.com/koka-lang/koka/releases
 [build]: #build-from-source
 [Perceus]: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf
@@ -70,11 +70,10 @@ Releases:
 - `v2.0.0`, 2020-08-21: initial v2 release.
 
 # Install
-
 For Linux and macOS on x86 64-bit, you can install Koka using:
-```
+````
 > curl -sSL https://github.com/koka-lang/koka/releases/download/v2.0.9/install.sh | sh
-```
+````
 After installation, verify if Koka installed correctly:
 ````
 > koka
@@ -88,66 +87,66 @@ After installation, verify if Koka installed correctly:
 loading: std/core
 loading: std/core/types
 loading: std/core/hnd
->
 ````
-Type `:q` to exit the interpreter.
+
+Type ``:q`` to exit the interpreter.
 
 For detailed instructions and other platforms (including Windows) see the [releases] page.
 It is also straightforward to build the compiler [from source][build].
 
-# Running the compiler
+## Running the compiler
 
-You can compile a Koka source using `-c` (note that all `samples` are pre-installed):
-```
-> koka -c samples/basic/caesar.kk
-compile: samples/basic/caesar.kk
-loading: std/core
-loading: std/core/types
-loading: std/core/hnd
-loading: std/num/double
-loading: std/text/parse
-loading: std/num/int32
-check  : samples/basic/caesar
-linking: samples_basic_caesar
-created: out/v2.0.9/gcc-debug/samples_basic_caesar
-```
+You can compile a Koka source using `-c` (note that all [`samples`](https://github.com/koka-lang/koka/tree/master/samples) are pre-installed):
+
+    > koka -c samples/basic/caesar.kk
+    compile: samples/basic/caesar.kk
+    loading: std/core
+    loading: std/core/types
+    loading: std/core/hnd
+    loading: std/num/double
+    loading: std/text/parse
+    loading: std/num/int32
+    check  : samples/basic/caesar
+    linking: samples_basic_caesar
+    created: out/v2.0.9/gcc-debug/samples_basic_caesar
+
 and run the resulting executable:
-```
-> out/v2.0.9/gcc-debug/samples_basic_caesar
-plain  : Koka is a well-typed language
-encoded: Krnd lv d zhoo-wbshg odqjxdjh
-cracked: Koka is a well-typed language
-```
 
-The `-O2` flag builds an optimized program. Let's try it on a functional implementation
-of balanced insertion in a red-black tree ([`rbtree.kk`](test/bench/koka/rbtree.kk))
+    > out/v2.0.9/gcc-debug/samples_basic_caesar
+    plain  : Koka is a well-typed language
+    encoded: Krnd lv d zhoo-wbshg odqjxdjh
+    cracked: Koka is a well-typed language
+
+
+The ``-O2`` flag builds an optimized program. Let's try it on a functional implementation
+of balanced insertion in a red-black tree ([`rbtree.kk`](https://github.com/koka-lang/koka/tree/master/test/bench/koka/rbtree.kk))
 (the following two examples are only available if you checked out the Koka source):
-```
-> koka -O2 -c test/bench/koka/rbtree.kk
-...
-linking: test_bench_koka_rbtree
-created: out/v2.0.9/gcc-drelease/test_bench_koka_rbtree
 
-> time out/v2.0.9/gcc-drelease/test_bench_koka_rbtree
-420000
-real    0m0.680s
-...
-```
-We can compare this against an in-place updating C++ implementation using `stl::map`
-([`rbtree.cpp`](test/bench/cpp/rbtree.cpp)) (which uses the
-[`tree.cc`](https://code.woboq.org/gcc/libstdc++-v3/src/c++98/tree.cc.html) implementation internally):
-```
-> g++ --std=c++17 -o cpp_rbtree -O3 test/bench/cpp/rbtree.cpp
-> time ./cpp_rbtree
-420000
-real    0m0.916s
-...
-```
+    > koka -O2 -c test/bench/koka/rbtree.kk
+    ...
+    linking: test_bench_koka_rbtree
+    created: out/v2.0.9/gcc-drelease/test_bench_koka_rbtree
+
+    > time out/v2.0.9/gcc-drelease/test_bench_koka_rbtree
+    420000
+    real    0m0.680s
+    ...
+
+We can compare this against an in-place updating C++ implementation using ``stl::map``
+([``rbtree.cpp``](https://github.com/koka-lang/koka/tree/master/test/bench/cpp/rbtree.cpp)) (which uses the
+[``tree.cc``](https://code.woboq.org/gcc/libstdc++-v3/src/c++98/tree.cc.html) implementation internally):
+
+    > g++ --std=c++17 -o cpp_rbtree -O3 test/bench/cpp/rbtree.cpp
+    > time ./cpp_rbtree
+    420000
+    real    0m0.916s
+    ...
+
 The excellent performance relative to C++ here (on an AMD 3600XT) is the result of Perceus automatically
 transforming the fast path of the pure functional rebalancing to use mostly in-place updates,
 closely mimicking the imperative rebalancing code of the hand optimized C++ library.
 
-# Running the interactive compiler
+## Running the interactive compiler
 
 Without giving any input files, the interactive interpreter runs by default:
 ````
@@ -162,9 +161,9 @@ Without giving any input files, the interactive interpreter runs by default:
 loading: std/core
 loading: std/core/types
 loading: std/core/hnd
-
 >
 ````
+
 Now you can test some expressions:
 
     > println("hi koka")
@@ -181,7 +180,7 @@ Now you can test some expressions:
     > :t println("hi")
     console ()
 
-Or load a demo (use `tab` completion to avoid typing too much):
+Or load a demo (use ``tab`` completion to avoid typing too much):
 
     > :l samples/basic/fibonacci
     compile: samples/basic/fibonacci.kk
@@ -207,11 +206,12 @@ And quit the interpreter:
     I think of my body as a side effect of my mind.
       -- Carrie Fisher (1956)
 
-The `samples/syntax` and `samples/basic` directories contain various basic Koka examples to start with. If you type:
-```
-:l samples/
-```
-in the interpreter, you can use `tab` `tab` to see the available sample files and directories.
+The ``samples/syntax`` and ``samples/basic`` directories contain various basic Koka examples to start with. If you type:
+
+    > :l samples/
+
+in the interpreter, you can ``tab`` twice to see the available sample files and directories.
+Use ``:s`` to see the source of a loaded module.
 
 
 ## Algebraic effect handlers
@@ -254,8 +254,9 @@ Some interesting demos are:
 
 * ``nim.kk``: Various examples from the paper "_Liberating effects with
   rows and handlers_" [[1]](#references).
-  
+
 * ``scoped.kk``: Examples from the paper "_Effect Handlers in Scope_" [[5]](#references).
+
 
 # Benchmarks
 
