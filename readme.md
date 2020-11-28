@@ -35,7 +35,7 @@ monads, and are compositional without needing lifting or monad transformers.
 Recent work on [evidence translation](https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently-with-proofs-5f0b7d860b387.pdf)
 and [Perceus]
 precise compiler guided reference counting enable Koka to compile directly
-to plain C code _without needing a garbage collector_ or runtime system. Initial performance benchmarks are promising (see below),
+to plain C code _without needing a garbage collector_ or runtime system. Initial performance [benchmarks](#benchmarks) are promising,
 and it is our goal to generally fall within a factor 2&times; of C++ performance without needing manual memory management.
 
 For more background information, see:
@@ -264,6 +264,60 @@ Some interesting demos are:
   
 * ``scoped.kk``: Examples from the paper "_Effect Handlers in Scope_" [[5]](#references).
 
+# Benchmarks
+
+These are initial benchmarks of Koka v2 with [Perceus] reference counting
+versus state-of-the-art memory reclamation implementations in
+various other languages. Since we compare across languages we need to
+interpret these results with care -- the results depend not only on memory
+reclamation but also on the different optimizations performed by each
+compiler and how well we can translate each benchmark to that particular
+language. We view these results therefore mostly as _evidence that the
+current Koka implementation of reference counting is viable and can be competitive_
+and _not_ as a direct comparison of absolute performance between languages and systems.
+
+As such, we select here only benchmarks that stress memory allocation, and
+we tried to select mature comparison systems that use a range of memory
+reclamation techniques and are considered best-in-class. The systems we
+compare are, Koka 2.0.3 (compiling the generated C code with gcc 9.3.0),
+[OCaml](https://ocaml.org) 4.08.1, [Haskell](https://www.haskell.org) GHC 8.6.5,
+[Swift](https://swift.org/) 5.3, [Java](https://www.java.com) SE 15.0.1 with the Hotspot G1 collector, 
+and [C++](http://www.cplusplus.org).
+
+<img align="right" width="400" src="doc/bench-amd3600-nov-2020.png">
+
+The benchmarks are all available in [`test/bench`](test/bench) (see below for 
+build instructions), and all
+stress memory allocation with little computation:
+`rbtree` (inserts 42 million items into a red-black tree),
+`rbtree-ck` (a variant of `rbtree` that keeps a list of every 5th
+subtree and thus shares many subtrees), `deriv`
+(the symbolic derivative of a large expression),
+`nqueens` (calculates all solutions for the n-queens problem of size 13
+into a list, and returns the length of that list where the solution lists
+share many sub-solutions), and `cfold` (constant-folding over a large symbolic expression).
+
+Note: in C++, without automatic memory management, many benchmarks are
+difficult to express directly as they use persistent and
+partially shared data structures. To implement these faithfully would
+essentially require manual reference counting. Instead, we use C++ as
+our performance baseline: we either use in-place updates
+without supporting persistence (as in `rbtree` which uses ``std::map``)
+or we do not reclaim memory at all (as in `deriv`, `nqueens`, and `cfold`).
+
+The execution times and peak working set averaged over 10 runs and normalized to Koka are in
+the figure on the right (on a 3.8Ghz AMD3600XT on Ubuntu 20.04).
+
+We can see that even though Koka has currently few
+optimizations besides the reference counting ones, it performs very well
+compared to these mature systems, often outperforming by a significant
+margin -- both in execution time and peak working set.
+Clearly, these benchmarks are allocation heavy but it is encouraging
+to see this initial performance from Koka.
+
+A full discussion of these benchmarks and systems can be found 
+in the [Perceus] report.
+
 
 # Build from source
 
@@ -355,7 +409,7 @@ info: elapsed: 0.727s, user: 0.734s, sys: 0.000s, rss: 164mb
 info: elapsed: 1.483s, user: 1.484s, sys: 0.000s, rss: 164mb
 ```
 
-## Benchmarks
+## Build and run benchmarks
 
 There is a standard benchmark suite (discussed in detail in [Perceus] paper). 
 It is still basic but more benchmarks
@@ -441,6 +495,7 @@ languages or benchmarks:
 ```
 The `-i<N>` switch runs `N` iterations on each benchmark and calculates
 the average and the error interval.
+
 
 ## Testing
 
