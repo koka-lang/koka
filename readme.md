@@ -93,7 +93,7 @@ loading: std/core/hnd
 Type `:q` to exit the interpreter.
 
 For detailed instructions and other platforms (including Windows) see the [releases] page.
-You can also build the compiler from [source quite easily][build].
+It is also straightforward to build the compiler [from source][build].
 
 # Running the compiler
 
