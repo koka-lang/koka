@@ -20,7 +20,7 @@ the evaluation is strict like OCaml/C, and the type- and effect system is Haskel
 The precise effect typing gives Koka rock-solid semantics backed by well-studied category theory, which makes Koka particularly easy to reason
 about for both humans and compilers. (Given the importance of effect typing, the name Koka was derived from the Japanese word for _effective_ ([Kōka](https://translate.google.com/#view=home&op=translate&sl=auto&tl=en&text=%E5%8A%B9%E6%9E%9C), 効果)).
 
-<img align="right" width="300" src="doc/snippet-rbtree.png"/>
+<img align="right" width="400" src="doc/snippet-rbtree.png"/>
 
 A function without any effect is called _total_ and corresponds to mathematically total functions -- a good place to be.
 Then we have effects for partial functions that can raise exceptions, as _exn_, and potentially non-terminating functions as _div_ (divergent).
