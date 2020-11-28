@@ -357,7 +357,8 @@ info: elapsed: 1.483s, user: 1.484s, sys: 0.000s, rss: 164mb
 
 ## Benchmarks
 
-There is a standard benchmark suite. It is still basic but more benchmarks
+There is a standard benchmark suite (discussed in detail in [Perceus] paper). 
+It is still basic but more benchmarks
 with effect handlers are coming. The suite can run on (Ubuntu Linux), WSL2, and macOSX,
 and the benchmarks need:
 
