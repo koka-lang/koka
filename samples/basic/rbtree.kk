@@ -12,7 +12,6 @@ type tree {
   Node(color: color, left: tree, key: int, value: bool, right: tree)
 }
 
-
 fun is-red(t : tree) : bool {
   match(t) {
     Node(Red) -> True

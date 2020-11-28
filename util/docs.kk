@@ -4,7 +4,7 @@ import std/os/dir
 import std/os/process
 
 fun main() {
-  build(publish=False)
+  build(publish=True)
 }
 
 fun build( publish : bool ) : io () {

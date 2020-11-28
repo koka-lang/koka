@@ -47,7 +47,7 @@ It is also straightforward to build the compiler [from source][build].
 
 ## Running the compiler
 
-You can compile a Koka source using `-c` (note that all `samples` are pre-installed):
+You can compile a Koka source using `-c` (note that all [`samples`](https://github.com/koka-lang/koka/tree/master/samples) are pre-installed):
 
     > koka -c samples/basic/caesar.kk
     compile: samples/basic/caesar.kk
@@ -162,6 +162,7 @@ The ``samples/syntax`` and ``samples/basic`` directories contain various basic K
     > :l samples/
 
 in the interpreter, you can ``tab`` twice to see the available sample files and directories.
+Use ``:s`` to see the source of a loaded module.
 
 
 ## Algebraic effect handlers

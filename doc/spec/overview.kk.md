@@ -107,7 +107,7 @@ the `map` function as a function expression:
 ```
 fun encode2( s : string, shift : int )
 {
-  s.map( fun(c) {
+  s.map( fn(c) {
     if (c < 'a' || c > 'z') return c
     val base = (c - 'a').int
     val rot  = (base + shift) % 26
@@ -126,7 +126,7 @@ fun main() { print10() }
 ////
 fun print10()
 {
-  for(1,10) fun(i) {
+  for(1,10) fn(i) {
     println(i)
   }
 }
@@ -481,27 +481,27 @@ fun rotate( xs, n ) {
 fun freqs( s : string ) : list<double>
 {
   val lowers = list('a','z')
-  val occurs = lowers.map( fun(c){ s.count(c.string) })
+  val occurs = lowers.map( fn(c){ s.count(c.string) })
   val total  = occurs.sum
-  occurs.map( fun(i){ percent(i,total) } )
+  occurs.map( fn(i){ percent(i,total) } )
 }
 
 // Calculate how well two frequency tables match according
 // to the _chi-square_ statistic.
 fun chisqr( xs : list<double>, ys : list<double> ) : double
 {
-  zipwith(xs,ys, fun(x,y){ ((x - y)^2.0)/y } ).foldr(0.0,(+))
+  zipwith(xs,ys, fn(x,y){ ((x - y)^2.0)/y } ).foldr(0.0,(+))
 }
 
 // Crack a Caesar encoded string
 fun uncaesar( s : string ) : string
 {
   val table  = freqs(s)                   // build a frequency table for `s`
-  val chitab = list(0,25).map( fun(n) {   // build a list of chisqr numbers for each shift between 0 and 25
+  val chitab = list(0,25).map( fn(n) {    // build a list of chisqr numbers for each shift between 0 and 25
                   chisqr( table.rotate(n), english )
                })
   val min    = chitab.minimum()           // find the mininal element
-  val shift  = chitab.index-of( fun(f){ f == min } ).negate  // and use its position as our shift
+  val shift  = chitab.index-of( fn(f){ f == min } ).negate  // and use its position as our shift
   s.encode( shift )
 }
 
