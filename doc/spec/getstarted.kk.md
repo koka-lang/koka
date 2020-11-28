@@ -32,7 +32,7 @@ After installation, verify if Koka installed correctly:
 | |        | |         |__  \
 | | __ ___ | | __ __ _  __) |
 | |/ // _ \| |/ // _` || ___/ welcome to the koka interpreter
-|   <| (_) |   <| (_| ||____| version 2.0.9, Nov 27 2020, libc 64-bit (gcc)
+|   <| (_) |   <| (_| ||____| version 2.0.10, Nov 28 2020, libc 64-bit (gcc)
 |_|\_\\___/|_|\_\\__,_|       type :? for help
 
 loading: std/core
