@@ -40,16 +40,17 @@ and it is our goal to generally fall within a factor 2&times; of C++ performance
 
 For more background information, see:
 
-* The [Koka manual][kokabook] for a specification of the Koka language and a primer on algebraic effect handlers.
+* The [Koka manual][kokabook] for a tour of the Koka language and its specification.
 * The [library documentation][libraries].
 * The article _Algebraic Effects for Functional Programming_ [[3]](#references) about the algebraic effects in Koka.
 
 [kokabook]: https://koka-lang.github.io/koka/doc/kokaspec.html  
+[tour]: https://koka-lang.github.io/koka/doc/kokaspec.html#tour
 [libraries]: https://koka-lang.github.io/koka/doc/toc.html
 [slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf
 [kokarepo]: https://github.com/koka-lang/koka
 [kokaproject]: http://research.microsoft.com/en-us/projects/koka
-[rise4fun]: http://rise4fun.com/koka/tutorial
+
 [releases]: https://github.com/koka-lang/koka/releases
 [build]: #build-from-source
 [Perceus]: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf
@@ -70,10 +71,9 @@ Releases:
 - `v2.0.0`, 2020-08-21: initial v2 release.
 
 # Install
-
 For Linux and macOS on x86 64-bit, you can install Koka using:
 ````
-> curl -sSL https://github.com/koka-lang/koka/releases/download/v2.0.9/install.sh | sh
+> curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh
 ````
 After installation, verify if Koka installed correctly:
 ````
@@ -258,6 +258,14 @@ Some interesting demos are:
 
 * ``scoped.kk``: Examples from the paper "_Effect Handlers in Scope_" [[5]](#references).
 
+
+## What next?
+
+* Read a [Tour of Koka][tour] in the Koka manual.
+* Check the [library][libraries] documentation.
+* Write some cool Koka programs :-)
+
+
 # Benchmarks
 
 These are initial benchmarks of Koka v2 with [Perceus] reference counting
@@ -331,10 +339,11 @@ Build the compiler (note the `--recursive` flag):
 > git clone --recursive https://github.com/koka-lang/koka
 > cd koka
 > stack build
+> stack exec koka
 ```
 You can also use `stack build --fast` to build a debug version of the compiler.
 
-## Installing from source
+## Source install
 
 You can also build a local distribution bundle yourself from source and install
 that locally. The `util/bundle.kk` script creates a local distribution:
@@ -357,9 +366,6 @@ After generating the bundle, it can be installed locally as:
 ```
 > koka --version
 ```
-
-## Source install on Unix and macOS
-
 Koka is by default installed for the current user in `<prefix>/bin/koka`,
 (with architecture specific files under `<prefix>/lib/koka/v2.x.x`
 and libraries and samples under `<prefix>/share/koka/v2.x.x`).
@@ -377,7 +383,7 @@ Generally, you need to install and run `koka` from a
 in order to link correctly with the Windows system libraries.
 Koka can use either the `cl` compiler (default), or the [`clang-cl`](https://releases.llvm.org/download.html) compiler
 (use the `--cc=clang-cl` option with Koka).
-To install for a specific compiler, use this flag when running `util/bundle` as well (from a VS command prompt):
+To bundle for a specific compiler, use this flag when running `util/bundle` as well (from a VS command prompt):
 ```
 > stack exec koka -- --cc=clang-cl util/bundle
 ```
