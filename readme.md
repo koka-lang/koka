@@ -73,7 +73,7 @@ Releases:
 # Install
 For Linux and macOS on x86 64-bit, you can install Koka using:
 ````
-> curl -sSL https://github.com/koka-lang/koka/releases/download/v2.0.9/install.sh | sh
+> curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh
 ````
 After installation, verify if Koka installed correctly:
 ````
