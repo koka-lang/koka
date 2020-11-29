@@ -69,7 +69,9 @@ Releases:
 - `v2.0.5`, 2020-11-15: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support, direct C compilation, local install support.
 - `v2.0.0`, 2020-08-21: initial v2 release.
 
+<!--
 <img align="right" width="200" src="doc/system-logos.png">
+-->
 
 # Install
 
