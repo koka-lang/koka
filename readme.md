@@ -122,28 +122,27 @@ and run the resulting executable:
     cracked: Koka is a well-typed language
 
 
-The ``-O2`` flag builds an optimized program. Let's try it on a functional implementation
-of balanced insertion in a red-black tree ([`rbtree.kk`](https://github.com/koka-lang/koka/tree/master/test/bench/koka/rbtree.kk))
-(the following two examples are only available if you checked out the Koka source):
+The ``-O2`` flag builds an optimized program. Let's try it on a purely functional implementation
+of balanced insertion in a red-black tree ([`rbtree.kk`](https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk):
 
-    > koka -O2 -c test/bench/koka/rbtree.kk
+    > koka -O2 -c samples/basic/rbtree.kk
     ...
-    linking: test_bench_koka_rbtree
-    created: out/v2.0.9/gcc-drelease/test_bench_koka_rbtree
+    linking: samples_basic_rbtree
+    created: out/v2.0.10/gcc-drelease/samples_basic_rbtree
 
-    > time out/v2.0.9/gcc-drelease/test_bench_koka_rbtree
+    > time out/v2.0.10/gcc-drelease/samples_basic_rbtree
     420000
-    real    0m0.680s
+    real    0m0.750s
     ...
 
 We can compare this against an in-place updating C++ implementation using ``stl::map``
-([``rbtree.cpp``](https://github.com/koka-lang/koka/tree/master/test/bench/cpp/rbtree.cpp)) (which uses the
-[``tree.cc``](https://code.woboq.org/gcc/libstdc++-v3/src/c++98/tree.cc.html) implementation internally):
+([``rbtree.cpp``](https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.cpp)) (which also uses a
+[red-black tree](https://code.woboq.org/gcc/libstdc++-v3/src/c++98/tree.cc.html) internally):
 
-    > g++ --std=c++17 -o cpp_rbtree -O3 test/bench/cpp/rbtree.cpp
-    > time ./cpp_rbtree
+    > clang++ --std=c++17 -o cpp-rbtree -O3 samples/basic/rbtree.cpp
+    > time ./cpp-rbtree
     420000
-    real    0m0.916s
+    real    0m0.864s
     ...
 
 The excellent performance relative to C++ here (on an AMD 3600XT) is the result of Perceus automatically
