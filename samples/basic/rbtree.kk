@@ -1,5 +1,5 @@
-/* Example of red-black tree balanced insertion.
-   See also the bench marks in `test/bench/koka`
+/* Example of red-black tree<a> balanced insertion.
+   See also the benchmarks in `test/bench/koka`
 */
 
 type color {
@@ -7,19 +7,19 @@ type color {
   Black
 }
 
-type tree {
+type tree<a> {
   Leaf
-  Node(color: color, left: tree, key: int, value: bool, right: tree)
+  Node(color : color, left : tree<a>, key : int, value : a, right : tree<a>)
 }
 
-fun is-red(t : tree) : bool {
+fun is-red(t : tree<a>) : bool {
   match(t) {
     Node(Red) -> True
     _         -> False
   }
 }
 
-fun balance-left(l:tree, k: int, v: bool, r: tree): tree {
+fun balance-left(l:tree<a>, k: int, v: a, r: tree<a>): tree<a> {
   match(l) {
     Leaf -> Leaf
     Node(_, Node(Red, lx, kx, vx, rx), ky, vy, ry)
@@ -31,7 +31,7 @@ fun balance-left(l:tree, k: int, v: bool, r: tree): tree {
   }
 }
 
-fun balance-right(l: tree, k: int, v: bool, r: tree): tree {
+fun balance-right(l: tree<a>, k: int, v: a, r: tree<a>): tree<a> {
   match(r) {
     Leaf -> Leaf
     Node(_, Node(Red, lx, kx, vx, rx), ky, vy, ry)
@@ -43,7 +43,7 @@ fun balance-right(l: tree, k: int, v: bool, r: tree): tree {
   }
 }
 
-fun ins(t: tree, k: int, v: bool): tree {
+fun ins(t: tree<a>, k: int, v: a): tree<a> {
   match(t) {
     Leaf -> Node(Red, Leaf, k, v, Leaf)
     Node(Red, l, kx, vx, r)
@@ -59,47 +59,47 @@ fun ins(t: tree, k: int, v: bool): tree {
   }
 }
 
-fun set-black(t: tree) : tree {
+fun set-black(t: tree<a>) : tree<a> {
   match(t) {
     Node(_, l, k, v, r) -> Node(Black, l, k, v, r)
     _ -> t
   }
 }
 
-fun insert(t: tree, k: int, v: bool): tree {
+// Tree insertion
+fun insert(t : tree<a>, k : int, v : a) : tree<a> {
   if (is-red(t))
     then set-black(ins(t, k, v))
     else ins(t, k, v)
 }
 
-fun fold(t: tree, b: a, f: (int, bool, a) -> a): a {
+// Fold the elements of a tree
+fun fold(t : tree<a>, b : b, f : (int, a, b) -> b) : b {
   match (t) {
     Leaf                -> b
     Node(_, l, k, v, r) -> r.fold( f(k, v, l.fold(b, f)), f)
   }
 }
 
-fun make-tree-aux(n: int, m: tree): div tree {
-  if (n <= 0) then m else {
+// Make a boolean tree
+fun make-tree-aux(n : int, t : tree<bool>) : div tree<bool> {
+  if (n <= 0) then t else {
     val n1 = n - 1
-    make-tree-aux(n1, insert(m, n1, n1 % 10 == 0))
+    make-tree-aux(n1, insert(t, n1, n1 % 10 == 0))
   }
 }
 
-fun make-tree(n: int): div tree {
+fun make-tree(n : int) : div tree<bool> {
   make-tree-aux(n, Leaf)
 }
 
-fun test(n : int) {
+// Benchmark for `n` insertions
+fun bench(n : int) {
   val m = make-tree(n);
   val v = m.fold(0) fn(k,v,r){ if (v) then r + 1 else r }
   v.println
 }
 
-fun bench() {
-  test(4200000)
-}
-
 fun main() {
-  test(1000000);
+  bench(4200000);
 }
