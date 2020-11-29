@@ -59,7 +59,7 @@ li {
   margin-bottom: 1ex;
 }
 
-[koka-logo]: images/koka-logo.png { max-height: 120px; padding-left:1.5rem; }
+[koka-logo]: images/koka-logo.png { max-height: 120px; padding:1rem 1rem 1rem 1.5rem; }
 
 [TITLE]
 

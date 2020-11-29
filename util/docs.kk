@@ -10,13 +10,16 @@ val header = "usage:\n stack exec koka -- util/docs [-- [options]]\n\noptions:"
 struct iflags {
   publish  : bool  = False
   version  : string = ""
+  speconly : bool  = False
 }
 
 val flag-descs : list<flag<iflags>> = {
   fun set-publish( f : iflags, b : bool ) : iflags  { f(publish = b) }
+  fun set-speconly( f : iflags, b : bool ) : iflags  { f(speconly = b) }
   fun set-version( f : iflags, s : string ) : iflags  { f(version = s) }
   [ Flag( "p", ["publish"], Bool(set-publish), "publish to ../koka-pages directory" ),
-    Flag( "v", ["version"], Req(set-version,"<version>"), "latest koka version" )
+    Flag( "v", ["version"], Req(set-version,"<version>"), "latest koka version" ),
+    Flag( "s", ["speconly"], Bool(set-speconly), "specification only")
   ]
 }
 
@@ -34,11 +37,11 @@ public fun process-flags() : <ndet,console> maybe<iflags> {
 fun main() {
   match (process-flags()) {
     Nothing -> ()
-    Just(flags) -> build(flags.publish, flags.version || get-compiler-version())
+    Just(flags) -> build(flags.publish, flags.version || get-compiler-version(), flags.speconly)
   }
 }
 
-fun build( publish : bool, version : string ) : io () {
+fun build( publish : bool, version : string, speconly : bool ) : io () {
   val docsite  = "https://koka-lang.github.io/koka/doc/"
   val doclocal = "../koka-pages/doc".path
 
@@ -50,8 +53,10 @@ fun build( publish : bool, version : string ) : io () {
   val specdir   = "doc/spec".path
   val docflags  = "--htmlcss=styles/madoko.css;styles/koka.css " + (if (publish) then "--htmlbases=" + docsite + " " else "")
   val cmd = "stack exec koka -- -c -l --target=js --outdir=" + outspecx.string + " -i" + specdir.string + " --html " + docflags
-  println("compile standard libraries...")
-  run-echo(cmd + " toc.kk")
+  if (!speconly) {
+    println("compile standard libraries...")
+    run-echo(cmd + " toc.kk")
+  }
   println("compile documentation inlined code...")
   run-echo(cmd + " kokaspec.kk.md spec.kk.md getstarted.kk.md overview.kk.md")
   println("patch kokaspec.md")
