@@ -55,22 +55,48 @@ if exist "%USERPROFILE%\.atom\packages" (
     mkdir "%USERPROFILE%\.atom\packages\language-koka"
   )
   xcopy /Y /Q /S "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%\contrib\atom\*" "%USERPROFILE%\.atom\packages\language-koka"
+  set  "KOKA-EDITOR=atom %%f:%%l:%%c"
+  setx KOKA-EDITOR "atom %%f:%%l:%%c" > nul
 )
 
 if exist "%USERPROFILE%\.vscode\extensions" (
-  echo Install Visual Studio Code editor support..
+  echo Install VS Code editor support..
   xcopy /Y /Q /S "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%\contrib\vscode\*" "%USERPROFILE%\.vscode\extensions"
+  set  "KOKA-EDITOR=code --goto %%f:%%l:%%c"
+  setx KOKA-EDITOR "code --goto %%f:%%l:%%c" > nul
 )
 
+
+if "%KOKA-VERSION%" == "" goto done
+if "%KOKA-VERSION%" == "%_KOKA_VERSION%" goto done
+if not exist "%_KOKA_PREFIX%\share\koka\%KOKA-VERSION%" goto done
+
+:uprompt
+echo.
+set _koka_answer=N
+set /p "_koka_answer=Found previous koka version %KOKA-VERSION%, Uninstall? [yN] " 
+if /i "%_koka_answer:~,1%" NEQ "Y" goto done
+
+:uninstall
+echo Uninstall older koka version %KOKA-VERSION%..
+if exist "%_KOKA_PREFIX%\bin\koka-%KOKA-VERSION%.exe" (del /Q /P "%_KOKA_PREFIX%\bin\koka-%KOKA-VERSION%.exe")
+rmdir /S  "%_KOKA_PREFIX%\lib\koka\%KOKA-VERSION%"
+rmdir /S  "%_KOKA_PREFIX%\share\koka\%KOKA-VERSION%"
+
+:done
+
+set  KOKA-VERSION=%_KOKA_VERSION%
+setx KOKA-VERSION %_KOKA_VERSION% > null
+
+echo.
 echo -----------------------------------------------------------------------
-echo Installed koka to: %_KOKA_PREFIX%\bin\koka
+echo Installed koka %_KOKA_VERSION% to: %_KOKA_PREFIX%\bin\koka
 
 echo "%PATH%" | find "%_KOKA_PREFIX%\bin" >nul
 if errorlevel 1 (
-  rem not in PATH
   set "PATH=%PATH%;%_KOKA_PREFIX%\bin"
   echo.
-  echo ** Please add "%_KOKA_PREFIX\bin" to you PATH environment variable. **
+  echo *** Please add "%_KOKA_PREFIX\bin" to you PATH environment variable. ***
 )
 
 echo -----------------------------------------------------------------------
