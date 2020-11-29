@@ -69,7 +69,9 @@ Releases:
 - `v2.0.5`, 2020-11-15: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support, direct C compilation, local install support.
 - `v2.0.0`, 2020-08-21: initial v2 release.
 
+<!--
 <img align="right" width="200" src="doc/system-logos.png">
+-->
 
 # Install
 
@@ -288,7 +290,7 @@ compare are, Koka 2.0.3 (compiling the generated C code with gcc 9.3.0),
 [Swift](https://swift.org/) 5.3, [Java](https://www.java.com) SE 15.0.1 with the Hotspot G1 collector,
 and [C++](http://www.cplusplus.org).
 
-<img align="right" width="400" src="doc/bench-amd3600-nov-2020.png">
+<img align="right" width="400" src="doc/bench-amd3600-nov-2020.png" style="border:1px solid black">
 
 The benchmarks are all available in [`test/bench`](test/bench) (see below for
 build instructions), and all
