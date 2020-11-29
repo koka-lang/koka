@@ -4,12 +4,12 @@ MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
 FORCE=""
+
 KOKA_TEMP_DIR=""        # empty creates one dynamically
 KOKA_DIST_BASE_URL="https://github.com/koka-lang/koka/releases/download"
 KOKA_DIST_URL=""              # $KOKA_DIST_BASE_URL/$VERSION
 KOKA_DIST_SOURCE=""           # $KOKA_DIST_URL/koka-$VERSION-<osarch>.tar.gz
 
-# KOKA_DIST_URL="."
 
 # ---------------------------------------------------------
 # helper functions
@@ -370,11 +370,9 @@ install_dist() {
         info "  (failed to copy atom support files)"
       else 
         info "  Please restart Atom for Koka syntax highlighting to take effect."
-        info "  Also add the following to your ~/.bashrc file to use Atom from the Koka interpreter:"
-        info "  > export koka-editor=atom %f:%l:%c"
       fi
     fi
-  fi
+  fi  
   
   # install Visual Studio Code editor support
   if [ -d ~/.vscode/extensions ] ; then
@@ -385,8 +383,6 @@ install_dist() {
         info "  (failed to copy vscode support files)"
       else    
         info "  Please restart VS Code for Koka syntax highlighting to take effect."
-        info "  Also add the following to your ~/.bashrc file to use VS code from the Koka interpreter:"
-        info "  > export koka-editor=code --goto %f:%l:%c"
       fi
     fi
   fi

@@ -433,9 +433,9 @@ readHtmlBases s
 -- | Environment table
 environment :: [ (String, String, (String -> [String]), String) ]
 environment
-  = [ -- ("koka-dir",     "dir",     dirEnv,       "The install directory")
-      ("koka-options", "options", flagsEnv,     "Add <options> to the command line")
-    , ("koka-editor",  "command", editorEnv,    "Use <cmd> as the editor (substitutes %l, %c, and %s)")
+  = [ -- ("koka_dir",     "dir",     dirEnv,       "The install directory")
+      ("koka_options", "options", flagsEnv,     "Add <options> to the command line")
+    , ("koka_editor",  "command", editorEnv,    "Use <cmd> as the editor (substitutes %l, %c, and %f)")
     ]
   where
     flagsEnv s      = [s]
@@ -466,7 +466,10 @@ processOptions flags0 opts
                         else if (any isInteractive options) then ModeInteractive files
                         else if (null files) then ModeInteractive files
                                              else ModeCompiler files
-             in do pkgs <- discoverPackages (outDir flags)
+             in do ed   <- if (null (editor flags))
+                            then detectEditor 
+                            else return (editor flags)
+                   pkgs <- discoverPackages (outDir flags)
                    (localDir,localLibDir,localShareDir,localBinDir) <- getKokaDirs
                    ccmd <- if (ccompPath flags == "") then detectCC
                            else if (ccompPath flags == "mingw") then return "gcc"
@@ -479,6 +482,7 @@ processOptions flags0 opts
                                   localShareDir = localShareDir,
                                   ccompPath   = ccmd,
                                   ccomp       = cc,
+                                  editor      = ed,
                                   includePath = (localShareDir ++ "/lib") : includePath flags }
                           ,mode)
         else invokeError errs
@@ -489,8 +493,8 @@ getKokaDirs
        let binDir  = dirname bin
            rootDir = rootDirFrom binDir
        isRootRepo <- doesFileExist (joinPath rootDir "koka.cabal")
-       libDir0    <- getEnvVar "KOKA_LIB_DIR"
-       shareDir0  <- getEnvVar "KOKA_SHARE_DIR"
+       libDir0    <- getEnvVar "koka_lib_dir"
+       shareDir0  <- getEnvVar "koka_share_dir"
        let libDir   = if (not (null libDir0)) then libDir0
                       else if (isRootRepo) then joinPath rootDir "out"
                       else joinPath rootDir ("lib/koka/v" ++ version)
@@ -743,6 +747,21 @@ findCC paths (name:rest)
          Just path -> return (name,path)
 
 
+
+detectEditor :: IO String
+detectEditor
+  = do paths <- getEnvPaths "PATH"
+       findEditor paths [("code","--goto %f:%l:%c"),("atom","%f:%l:%c")]
+       
+findEditor :: [FilePath] -> [(String,String)] -> IO String
+findEditor paths []
+  = do -- putStrLn "warning: cannot find editor"
+       return ""
+findEditor paths ((name,options):rest)
+  = do mbPath <- searchPaths paths [exeExtension] name
+       case mbPath of
+         Nothing -> findEditor paths rest
+         Just _  -> return (name ++ " " ++ options)
 
 {--------------------------------------------------------------------------
   Show options
