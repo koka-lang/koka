@@ -90,6 +90,8 @@ while : ; do
     "") break;;
     -q|--quiet)
         QUIET="yes";;
+    -f|--force)
+        FORCE="yes";;    
     -p) shift
         PREFIX="$1";;
     -p=*|--prefix=*)
@@ -105,7 +107,7 @@ while : ; do
     -v=*|--version=*)
         VERSION="$flag_arg";;
     -u)
-        MODE="uninstall";;
+        MODE="uninstall";;    
     --uninstall)
         FORCE="yes"
         MODE="uninstall";;
@@ -113,6 +115,7 @@ while : ; do
         echo "./install.sh [options]"
         echo ""
         echo "  -q, --quiet              suppress output"
+        echo "  -f, --force              continue without prompting"
         echo "  -u, --uninstall          uninstall koka ($VERSION)"
         echo "  -p, --prefix=<dir>       prefix directory ($PREFIX)"
         echo "  -b, --bundle=<file|url>  full bundle location ($KOKA_DIST_BASE_URL/$VERSION/koka-$VERSION-<os>-<arch>.tar.gz)"
@@ -125,15 +128,27 @@ while : ; do
   shift
 done
 
-# defaults
-KOKA_SHARE_DIR="$PREFIX/share/koka"
-KOKA_LIB_DIR="$PREFIX/lib/koka"
-KOKA_BIN_DIR="$PREFIX/bin"
-KOKA_EXE="$KOKA_BIN_DIR/koka-$VERSION"
-KOKA_SYMLINK="$KOKA_BIN_DIR/koka"
-
 if [ -z "$KOKA_DIST_URL" ] ; then
   KOKA_DIST_URL="$KOKA_DIST_BASE_URL/$VERSION"
+fi
+
+
+# ---------------------------------------------------------
+# Check for previous koka installation
+# ---------------------------------------------------------
+
+KOKA_PREV_EXE=
+KOKA_PREV_VERSION=
+KOKA_PREV_PREFIX=
+if which koka > null ; then
+  KOKA_PREV_EXE="$(which koka)"
+  if [ -e "$KOKA_PREV_EXE" ] ; then 
+    KOKA_PREV_PREFIX="${KOKA_PREV_EXE%/bin/koka*}"
+    KOKA_PREV_VERSION="$($KOKA_PREV_EXE --version)"  # get version info
+    KOKA_PREV_VERSION="${KOKA_PREV_VERSION%%,*}"     # remove everything after the first ,
+    KOKA_PREV_VERSION="v${KOKA_PREV_VERSION#Koka }"   # remove Koka prefix 
+    echo "found previous koka version $KOKA_PREV_VERSION (installed at: $KOKA_PREV_PREFIX)"
+  fi
 fi
 
 
@@ -173,6 +188,7 @@ if [ -z "$KOKA_DIST_SOURCE" ] ; then
   detect_osarch
   KOKA_DIST_SOURCE="$KOKA_DIST_URL/koka-$VERSION-$OSARCH.tar.gz"
 fi
+
 
 # ---------------------------------------------------------
 # various package managers
@@ -277,7 +293,21 @@ download_dist() {
   esac
 }
 
+# -----------------------------------------------------
+# install a distribution
+# install_dist <prefix> <version>
+# -----------------------------------------------------
 install_dist() {
+  # set parameters  
+  prefix="$1"
+  version="$2"
+  koka_share_dir="$prefix/share/koka"
+  koka_lib_dir="$prefix/lib/koka"
+  koka_bin_dir="$prefix/bin"
+  koka_exe="$koka_bin_dir/koka-$version"
+  koka_symlink="$koka_bin_dir/koka"
+
+  # download/copy
   info "Download $KOKA_DIST_SOURCE to $KOKA_TEMP_DIR"
   download_dist "$KOKA_DIST_SOURCE" "$KOKA_TEMP_DIR/koka-dist.tar.gz"
   info "Unpacking.."
@@ -285,59 +315,59 @@ install_dist() {
     die "Extraction failed."
   fi
 
-  info "Installing koka to $PREFIX"
+  info "Installing koka to $prefix"  
 
   # install the exe and figure out whether to use sudo for the rest
-  info "- install koka executable to $KOKA_EXE"
-  if [ ! -d "$KOKA_BIN_DIR" ] ; then
-    if ! mkdir -p "$KOKA_BIN_DIR" ; then
-      if ! sudocmd mkdir -p "$KOKA_BIN_DIR" ; then
-        die "Cannot create $KOKA_BIN_DIR installation directory"
+  info "- install koka executable to $koka_exe"
+  if [ ! -d "$koka_bin_dir" ] ; then
+    if ! mkdir -p "$koka_bin_dir" ; then
+      if ! sudocmd mkdir -p "$koka_bin_dir" ; then
+        die "Cannot create $koka_bin_dir installation directory"
       fi
     fi
   fi
-  if ! install -c -m 0755 "$KOKA_TEMP_DIR/bin/koka" "$KOKA_EXE" 2>/dev/null; then
-    if ! sudocmd install -c -o 0 -g 0 -m 0755 "$KOKA_TEMP_DIR/bin/koka" "$KOKA_EXE"; then
-      die "Installation of koka to $KOKA_EXE has failed"
+  if ! install -c -m 0755 "$KOKA_TEMP_DIR/bin/koka" "$koka_exe" 2>/dev/null; then
+    if ! sudocmd install -c -o 0 -g 0 -m 0755 "$KOKA_TEMP_DIR/bin/koka" "$koka_exe"; then
+      die "Installation of koka to $koka_exe has failed"
     fi
   else
     USE_SUDO="never"
   fi
 
   # install symlink
-  info "- install koka executable symlink to $KOKA_SYMLINK"
-  if [ -L "$KOKA_SYMLINK" ]; then
-    if ! sudocmd rm -f "$KOKA_SYMLINK"; then
+  info "- install koka executable symlink to $koka_symlink"
+  if [ -L "$koka_symlink" ]; then
+    if ! sudocmd rm -f "$koka_symlink"; then
       info "unable to remove old koka executable; continuing.."
     fi
   fi
-  if ! sudocmd ln -s "$KOKA_EXE" "$KOKA_SYMLINK"; then
-    info "unable to create symbolic link to koka-$VERSION executable; continuing.."
+  if ! sudocmd ln -s "$koka_exe" "$koka_symlink"; then
+    info "unable to create symbolic link to koka-$version executable; continuing.."
   fi
 
   # copy libraries
-  info "- install koka pre-compiled libraries to $KOKA_LIB_DIR/$VERSION"
+  info "- install koka pre-compiled libraries to $koka_lib_dir/$version"
   if [ -d "$KOKA_TEMP_DIR/lib" ] ; then
-    if ! sudocmd cp -p -r "$KOKA_TEMP_DIR/lib" "$PREFIX/" ; then
+    if ! sudocmd cp -p -r "$KOKA_TEMP_DIR/lib" "$prefix/" ; then
       die "Cannot copy pre-compiled libraries to $KOKA_TEMP_DIR/lib"
     fi
   else
     info "  (generic distribution does not contain precompiled libraries)"
   fi
-  info "- install koka source libraries to $KOKA_SHARE_DIR/$VERSION"
-  if ! sudocmd cp -p -r "$KOKA_TEMP_DIR/share" "$PREFIX/" ; then
+  info "- install koka source libraries to $koka_share_dir/$version"
+  if ! sudocmd cp -p -r "$KOKA_TEMP_DIR/share" "$prefix/" ; then
     die "Cannot copy libraries to $KOKA_TEMP_DIR/share"
   fi
 
   # install Atom editor support
   if [ -d ~/.atom/packages ] ; then
-    KOKA_ATOM_DIR="$KOKA_TEMP_DIR/share/koka/$VERSION/contrib/atom"
-    if [ -d $KOKA_ATOM_DIR ] ; then
+    KOKA_ATOM_DIR="$KOKA_TEMP_DIR/share/koka/$version/contrib/atom"
+    if [ -d $koka_atom_dir ] ; then
       info "- install atom editor support"
       if [ ! -d ~/.atom/packages/language-koka ] ; then
         mkdir ~/.atom/packages/language-koka
       fi
-      if ! cp -p -r $KOKA_ATOM_DIR/* ~/.atom/packages/language-koka/ ; then
+      if ! cp -p -r $koka_atom_dir/* ~/.atom/packages/language-koka/ ; then
         info "  (failed to copy atom support files)"
       else 
         info "  (restart atom to take effect)"
@@ -347,13 +377,15 @@ install_dist() {
   
   # install Visual Studio Code editor support
   if [ -d ~/.vscode/extensions ] ; then
-    KOKA_VSCODE_DIR="$KOKA_TEMP_DIR/share/koka/$VERSION/contrib/vscode"
-    if [ -d $KOKA_VSCODE_DIR ] ; then
+    KOKA_VSCODE_DIR="$KOKA_TEMP_DIR/share/koka/$version/contrib/vscode"
+    if [ -d $koka_vscode_dir ] ; then
       info "- install vscode editor support"
-      if ! cp -p -r $KOKA_VSCODE_DIR/* $HOME/.vscode/extensions/ ; then
+      if ! cp -p -r $koka_vscode_dir/* $HOME/.vscode/extensions/ ; then
         info "  (failed to copy vscode support files)"
       else    
-        info "  (restart vscode to take effect)"
+        info "  Please restart vscode for koka syntax highlighting to take effect."
+        info "  Also add the following to your ~/.bashrc file to use vscode from the Koka interpreter:"
+        info "  > export koka-editor=code --goto %f:%l:%c"
       fi
     fi
   fi
@@ -361,64 +393,62 @@ install_dist() {
 
 
 # ---------------------------------------------------------
-# uninstall
+# uninstall <prefix> <version>
 # ---------------------------------------------------------
 
 uninstall() {
-  # confirm uninstall (todo: add force option?)
-  if [ -z "$FORCE" ] ; then
-    read -r -p "Uninstalling koka version $VERSION. Are you sure? [yN] " input
-    case $input in
-      [yY][eE][sS]|[yY])
-         info "uninstalling..";;
-      *) echo "No"
-         die "Uninstall canceled";;
-    esac
-  fi
+  # set parameters
+  prefix="$1"
+  version="$2"
+  koka_share_dir="$prefix/share/koka"
+  koka_lib_dir="$prefix/lib/koka"
+  koka_bin_dir="$prefix/bin"
+  koka_exe="$koka_bin_dir/koka-$version"
+  koka_symlink="$koka_bin_dir/koka"
 
   # uninstall share
-  info "- uninstall $KOKA_SHARE_DIR/$VERSION"
-  if [ -d "$KOKA_SHARE_DIR/$VERSION" ] ; then
-    if ! rm -rf "$KOKA_SHARE_DIR/$VERSION" 2>/dev/null ; then
-      if ! sudocmd rm -rf "$KOKA_SHARE_DIR/$VERSION" ; then
-        info "unable to remove $KOKA_SHARE_DIR/$VERSION; continuing.."
+  info "- uninstall $koka_share_dir/$version"
+  if [ -d "$koka_share_dir/$version" ] ; then
+    if ! rm -rf "$koka_share_dir/$version" 2>/dev/null ; then
+      if ! sudocmd rm -rf "$koka_share_dir/$version" ; then
+        info "unable to remove $koka_share_dir/$version; continuing.."
       fi
     fi
-    sudocmd rmdir "$KOKA_SHARE_DIR" 2>/dev/null # remove if empty
+    sudocmd rmdir "$koka_share_dir" 2>/dev/null # remove if empty
   fi
 
   # uninstall lib
-  info "- uninstall $KOKA_LIB_DIR/$VERSION"
-  if [ -d "$KOKA_LIB_DIR/$VERSION" ] ; then
-    if ! rm -rf "$KOKA_LIB_DIR/$VERSION" 2>/dev/null ; then
-      if ! sudocmd rm -rf "$KOKA_LIB_DIR/$VERSION" ; then
-        info "unable to remove $KOKA_LIB_DIR/$VERSION; continuing.."
+  info "- uninstall $koka_lib_dir/$version"
+  if [ -d "$koka_lib_dir/$version" ] ; then
+    if ! rm -rf "$koka_lib_dir/$version" 2>/dev/null ; then
+      if ! sudocmd rm -rf "$koka_lib_dir/$version" ; then
+        info "unable to remove $koka_lib_dir/$version; continuing.."
       fi
     fi
-    info "remove $KOKA_LIB_DIR"
-    sudocmd rmdir "$KOKA_LIB_DIR" 2>/dev/null # remove if empty
+    info "remove $koka_lib_dir"
+    sudocmd rmdir "$koka_lib_dir" 2>/dev/null # remove if empty
     info "ok"
   fi
 
 
   # uninstall executable
-  info "- uninstall executable $KOKA_EXE"
-  if [ -f "$KOKA_EXE" ] ; then
-    if ! rm -f "$KOKA_EXE" 2>/dev/null ; then
-      if ! sudocmd rm -f "$KOKA_EXE" ; then
-        info "unable to remove $KOKA_EXE; continuing.."
+  info "- uninstall executable $koka_exe"
+  if [ -f "$koka_exe" ] ; then
+    if ! rm -f "$koka_exe" 2>/dev/null ; then
+      if ! sudocmd rm -f "$koka_exe" ; then
+        info "unable to remove $koka_exe; continuing.."
       fi
     fi
   fi
 
-  if [ -L "$KOKA_SYMLINK" ] ; then
-    symlink_target="`readlink $KOKA_SYMLINK`"
-    # echo "links to: $symlink_target vs. $KOKA_EXE"
-    if [ "$symlink_target" = "$KOKA_EXE" ] ; then
-      info "- uninstall symbolic link $KOKA_SYMLINK"
-      if ! rm -f "$KOKA_SYMLINK" 2>/dev/null ; then
-        if ! sudocmd rm -f "$KOKA_SYMLINK" ; then
-          info "unable to remove $KOKA_SYMLINK; continuing.."
+  if [ -L "$koka_symlink" ] ; then
+    symlink_target="`readlink $koka_symlink`"
+    # echo "links to: $symlink_target vs. $koka_exe"
+    if [ "$symlink_target" = "$koka_exe" ] ; then
+      info "- uninstall symbolic link $koka_symlink"
+      if ! rm -f "$koka_symlink" 2>/dev/null ; then
+        if ! sudocmd rm -f "$koka_symlink" ; then
+          info "unable to remove $koka_symlink; continuing.."
         fi
       fi
     fi
@@ -430,16 +460,50 @@ uninstall() {
 # ---------------------------------------------------------
 
 if [ "$MODE" = "uninstall" ] ; then
-  uninstall
+  
+  # confirm uninstall 
+  if [ -z "$FORCE" ] ; then
+    read -r -p "Uninstalling koka version $version. Are you sure? [yN] " input
+    case $input in
+      [yY][eE][sS]|[yY])
+         info "uninstalling..";;
+      *) echo "No"
+         die "Uninstall canceled";;
+    esac
+  fi
+
+  # uninstall
+  uninstall $PREFIX $VERSION
   info ""
   info "--------------------------------------------------"
   info "uninstall successful of $PREFIX/bin/koka-$VERSION"
   info ""
+
 else
+
+  # install
   install_dependencies
   make_temp_dir
   trap cleanup_temp_dir EXIT
-  install_dist
+  install_dist $PREFIX $VERSION
+  echo "installed"
+
+  # remove previous install?
+  if [ ! -z "$KOKA_PREV_VERSION" ] ; then
+      input=Y
+      if [ -z "$FORCE" ] ; then
+        read -r -p "Found previous koka version $KOKA_PREV_VERSION. Would you like to remove this version? [yN] " input
+      fi
+      case $input in
+        [yY][eE][sS]|[yY])
+          info "uninstalling previous koka version $KOKA_PREV_VERSION.."
+          uninstall $KOKA_PREV_PREFIX $KOKA_PREV_VERSION
+          info "uninstall successful of koka $KOKA_PREV_VERSION";;
+        *) echo "No"
+          info "uninstall of previous koka version is canceled";;
+      esac
+    fi
+  fi
 
   info ""
   info "--------------------------------------------------"
