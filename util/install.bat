@@ -4,9 +4,18 @@ set _KOKA_VERSION=v2.0.11
 set _KOKA_PREFIX=%APPDATA%\local
 set _KOKA_DIST_SOURCE=
 set _KOKA_DIST_SOURCE_URL=
+set _KOKA_UNINSTALL=
 
 :cmds
 if "%~1" == "" goto cont
+  if "%~1" == "-u"        (
+    set _KOKA_UNINSTALL=Y
+    goto boolflag
+  )
+  if "%~1" == "--uninstall"        (
+    set _KOKA_UNINSTALL=Y
+    goto boolflag
+  )
   if "%~1" == "-v"        (set _KOKA_VERSION=%2)
   if "%~1" == "--version" (set _KOKA_VERSION=%2)
   if "%~1" == "-p"        (set _KOKA_PREFIX=%2)
@@ -15,14 +24,17 @@ if "%~1" == "" goto cont
   if "%~1" == "--bundle"  (set _KOKA_DIST_SOURCE=%2)
   if "%~1" == "--url"     (set _KOKA_DIST_SOURCE_URL=%2)
 shift
+:boolflag
 shift
 goto cmds
 :cont
 
+if "%_KOKA_UNINSTALL%" == "Y" goto uninstall
+
+
 if not "%_KOKA_DIST_SOURCE%" == "" goto unpack
 
 set _KOKA_DIST_SOURCE=%TEMP%\koka-dist.tar.gz
-
 if "%_KOKA_DIST_SOURCE_URL%" == "" (
   set _KOKA_DIST_SOURCE_URL=https://github.com/koka-lang/koka/releases/download/%_KOKA_VERSION%/koka-%_KOKA_VERSION%-windows-amd64.tar.gz
 )
@@ -71,20 +83,42 @@ if "%KOKA-VERSION%" == "" goto done
 if "%KOKA-VERSION%" == "%_KOKA_VERSION%" goto done
 if not exist "%_KOKA_PREFIX%\share\koka\%KOKA-VERSION%" goto done
 
-:uprompt
 echo.
 set _koka_answer=N
 set /p "_koka_answer=Found previous koka version %KOKA-VERSION%, Uninstall? [yN] " 
 if /i "%_koka_answer:~,1%" NEQ "Y" goto done
 
-:uninstall
+:uninstallprev
 echo Uninstall older koka version %KOKA-VERSION%..
-if exist "%_KOKA_PREFIX%\bin\koka-%KOKA-VERSION%.exe" (del /Q /P "%_KOKA_PREFIX%\bin\koka-%KOKA-VERSION%.exe")
-rmdir /S  "%_KOKA_PREFIX%\lib\koka\%KOKA-VERSION%"
-rmdir /S  "%_KOKA_PREFIX%\share\koka\%KOKA-VERSION%"
+if exist "%_KOKA_PREFIX%\bin\koka-%KOKA-VERSION%.exe" (del /Q "%_KOKA_PREFIX%\bin\koka-%KOKA-VERSION%.exe")
+rmdir /S /Q "%_KOKA_PREFIX%\lib\koka\%KOKA-VERSION%"
+rmdir /S /Q "%_KOKA_PREFIX%\share\koka\%KOKA-VERSION%"
+goto done
+
+
+:uninstall
+echo Uninstall koka version %_KOKA_VERSION%
+
+if not exist "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%" (
+  echo Cannot find koka version %_KOKA_VERSION% at %_KOKA_PREFIX%
+  echo Done. 
+  goto end
+)
+
+echo.
+set _koka_answer=N
+set /p "_koka_answer=Removing koka version %_KOKA_VERSION%, Are you sure? [yN] " 
+if /i "%_koka_answer:~,1%" NEQ "Y" goto end
+
+echo Uninstalling..
+if exist "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe" (del /Q "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe")
+rmdir /S /Q "%_KOKA_PREFIX%\lib\koka\%_KOKA_VERSION%"
+rmdir /S /Q "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%"
+echo Done.
+goto end
+
 
 :done
-
 set  KOKA-VERSION=%_KOKA_VERSION%
 setx KOKA-VERSION %_KOKA_VERSION% > null
 
@@ -100,3 +134,4 @@ if errorlevel 1 (
 )
 
 echo -----------------------------------------------------------------------
+:end
