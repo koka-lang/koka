@@ -161,7 +161,7 @@ pre code code, .madoko pre code code {
 }
 
 pre.koka.source {
-  border: 1px solid gray;
+  border: 1px solid #ccc;
 }
 
 .madoko pre.koka.source {

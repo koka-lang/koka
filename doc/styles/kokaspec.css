@@ -14,7 +14,8 @@ pre, .madoko pre,
 pre, .madoko pre,
 .koka.source,
 .koka.source.unchecked {
-  border-left: 0.5ex solid #BBB; 
+  border: 1px solid #CCC;
+  border-left: 0.5ex solid #CCC; 
   padding: 0.5ex 1ex 0.5ex 2ex;
 }
 
