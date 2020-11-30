@@ -46,6 +46,12 @@ pre.koka, code.koka, .koka.doc .header {
   }
 }
 
+@media screen and (min-device-width: 2048px) {
+  html {
+    font-size:120%;
+  }
+}
+
 
 @media print {
   body {
