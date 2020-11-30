@@ -40,10 +40,12 @@ pre.koka, code.koka, .koka.doc .header {
 
 @media screen and (max-device-width: 1022px) {
   body.madoko,body.koka {
+    max-width: 100%;
     padding: 0em 0.5em 40em 0.5em;
     margin: 1em;
   }
 }
+
 
 @media print {
   body {
@@ -63,12 +65,14 @@ pre.koka, code.koka, .koka.doc .header {
 
 
 
+
 /* source code font styles: 
    font stack designed for windows, mac, and linux.
    see also: http://www.apaddedcell.com/sites/www.apaddedcell.com/files/fonts-article/final/index.html
 */
 body {
   -webkit-text-size-adjust: 100%; /* so math displays well on mobile devices */  
+  text-size-adjust:100%;
   color: black;
 }
 

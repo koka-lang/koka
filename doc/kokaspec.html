@@ -328,6 +328,7 @@
   }
   @media screen and (max-device-width: 1022px) {
     body.madoko,body.koka {
+      max-width: 100%;
       padding: 0em 0.5em 40em 0.5em;
       margin: 1em;
     }
@@ -348,6 +349,7 @@
   }
   body {
     -webkit-text-size-adjust: 100%;   
+    text-size-adjust:100%;
     color: black;
   }
   h1 { 
@@ -721,7 +723,6 @@
         }
         .body {
           margin: 1em;
-          margin-left: 0em;
         }
         
         .maincontent {
@@ -742,8 +743,7 @@
         -------------------------------------------- */    
         @media screen and (min-width: 1024px) {
           .body {
-            margin: 1em;        
-            margin-left: 0em;
+            margin: 1em;
           }
           .maincontent {
             width: 60em;
@@ -797,8 +797,7 @@
            Set margins and padding for side panel and sections
         ------------------------------------------------------ */
         .sidepanel, .mainpanel section, .footnotes {
-          padding: 0rem 1rem 0rem 3rem;
-          xborder: 1px solid gray;
+          padding: 0rem 1rem 0rem 2rem;
         }
         .sidepanel .tocblock {
           font-size  : 95%;
