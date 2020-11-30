@@ -229,7 +229,7 @@ fmtComment com
       ComPreBlock fmt -> span "comment-preblock" (escapes fmt)
       ComType fmts    -> span "comment-code" (concat fmts)
       ComCode fmts    -> span "comment-code" (concat fmts)
-      ComCodeBlock fmts  -> span "comment-codeblock" (concat fmts)
+      ComCodeBlock cls fmts  -> span "comment-codeblock" (concat fmts)
 -}
 
 
@@ -412,7 +412,7 @@ fmtComment mbRangeMap env kgamma gamma com
       ComPre fmt      -> prefixspan "pre" (escapes fmt)
       ComPreBlock fmt -> prefixBlockTag "pre" "preblock" (escapes fmt)
       ComCode lexs s   -> ptag "code" prefix (fmtLexs lexs)
-      ComCodeBlock lexs s -> prefixBlockTag "pre" ("source unchecked") (span "plaincode" (escapes s) ++ span "nicecode" (fmtLexs lexs))
+      ComCodeBlock cls lexs s -> prefixBlockTag "pre" ("source unchecked " ++ cls) (span "plaincode" (escapes s) ++ span "nicecode" (fmtLexs lexs))
       ComCodeLit cls lexs s   -> prefixBlockTag "pre" ("source " ++ cls) (span "plaincode" (escapes s) ++ span "nicecode" (fmtLitLexs lexs))
       ComIndent n     -> concat (replicate n "&nbsp;")
       ComPar          -> "<br>"

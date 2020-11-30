@@ -1,15 +1,57 @@
 
-# Why Koka { #why; }
+# Why Koka? { #why; }
+
+There are many new languages being designed, but only seldomly
+they bring a fundamental new concept, like Haskell did with
+pure programming, or Rust with borrow checking. 
+Koka brings novel semantics through _effect typing_, _effect handlers_,
+and _Perceus_ memory management:
+
+* The core of Koka consists of a small set of well-studied language
+  features, like first-class functions, a polymorphic type- and effect
+  system, algebraic data types, and effect handlers. Each of these is
+  composable and avoid the addition of
+  "special" extensions by being as general as possible.
+
+  [Read more about the _minimal but general_ design][#why-mingen]{.learn}
+
+* Koka tracks the (side) _effects_ of every
+  function in its type, where pure and effectful computations are
+  distinguished. The precise effect typing gives Koka _rock-solid
+  semantics_ backed by well-studied category theory, which makes Koka
+  particularly easy to reason about for both humans and compilers.
+
+  [Read more about effect types][#why-effects]{.learn}
+
+* Effect handlers let you define advanced control abstractions,
+  like exceptions, async/await, or probabilistic programs, 
+  as a user library in a typed and composable way.
+
+  [Read more about effect handlers][#why-handlers]{.learn}
+
+* Perceus is an advanced compilation method for reference counting.
+  This lets Koka compile directly to C code _without needing
+  a garbage collector or runtime system_! This also gives Koka 
+  excellent performance in practice.
+
+  [Read more about Perceus reference counting][#why-perceus]{.learn}
+
+* Through Perceus, Koka can do reuse analysis and optimize 
+  functional-style programs to use in-place updates.
+
+  [Read more about reuse analysis][#why-fbip]{.learn}
+
+  &nbsp;
 
 
 ## Minimal but General { #why-mingen; }
 
 The _min-gen_ design principle: Koka has a minimal core set of
-orthogonal, well-studied language features -- but where each of these is
+orthogonal, well-studied language features -- but each of these is
 as general and _composable_ as possible, such that we do not need further
 "special" extensions. Core features include first-class functions,
-higher-rank impredicative polymorphic types, algebraic data types, and
-effect handlers.
+a higher-rank impredicative polymorphic type- and effect system, 
+algebraic data types, and effect handlers.
 
 ```{.aside}
 fun hello-ten() {
@@ -147,16 +189,94 @@ yielded: 3
 {.learn}
 
 
-## Perceus: Garbage-free Reference Counting  { #why-perceus; }
+## Perceus Optimized Reference Counting  { #why-perceus; }
 
-![fig-bench]
+[![perceus3]](https://en.wikipedia.org/wiki/Perseus_with_the_Head_of_Medusa)
 
-[fig-bench]: https://github.com/koka-lang/koka/raw/master/doc/bench-amd3600-nov-2020.png { width:40%; float:right; margin:0em 0em 1em 2em; }
+[perceus3]: images/perceus3.jpg "Perseus by Benvenuto Cellini" { width:20%; float:right; margin:1em 0em 1em 2em; border:1px solid #888; }
+
+[evidence-paper]: https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently-with-proofs-5f0b7d860b387.pdf
+[Perceus]: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf
+[rbtree]: https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk
+[test-bench]: https://github.com/koka-lang/koka/tree/master/test/bench
+
+Perceus is the compiler optimized reference counting technique that Koka
+uses for automatic memory management. This
+enables Koka to compile directly to plain C code _without needing a
+garbage collector or runtime system_!
+
+Perceus uses extensive static analysis to aggressively optimize the
+reference counts. Here the strong semantic foundation of Koka helps a
+lot: inductive data types cannot form cycles, and potential sharing
+across threads can be reliably determined.
+
+Normally we need to make a fundamental choice when managing memory: 
+
+- We either use manual memory management (C, C++, Rust) and we get 
+  the best performance but at a significant programming burden,
+- Or, we use garbage collection (OCaml, C#, Java, Go, etc.) but
+  but now we need a runtime system and pay a price in performance,
+  memory usage, and unpredictable latencies.
+
+With Perceus, we hope to cross this gap and our goal is to 
+be within 2x of the performance of C/C++. Initial benchmarks are
+encouraging and show Koka to be close to C performance on various
+memory intensive benchmarks.
+
+[See benchmarks](https://github.com/koka-lang/koka#Benchmarks)
+{.learn}
+
+[Read the Perceus paper][Perceus]
+{.learn}
+
+## Reuse Analysis { #why-fbip; }
+
+Perceus also performs _reuse analysis_ as part of reference
+counting analysis. This pairs pattern matches with constructors of the
+same size and reuses them _in-place_ if possible. Take for example,
+the `map` function over lists:
+```unchecked 
+fun map( xs : list<a>, f : a -> e b ) : e list<b> {
+  match(xs) {
+    Cons(x,xx) -> Cons( f(x), map(xx,f) )
+    Nil        -> Nil
+  }
+}
+```
+Here the matched `Cons` can be reused by the new `Cons`
+in the branch. This means if we map over a list that is not shared, 
+like `list(1,100000).map(sqr).sum`,
+then the list is updated _in-place_ without any extra allocation.
+This is very effective for many functional style programs.
+
+For example, the [`rbtree.kk`][rbtree] sample implements purely
+functional balanced insertion into a red-black tree. 
+Normally, a functional program would copy the spine of the tree
+on every insertion while rebalancing, but with Perceus the 
+rebalancing is done in-place in the fast path (and degrades
+gracefully to copying if the tree or subtrees are shared).
+
+This leads to a new programming technique we call FBIP:
+_functional but in-place_. Just like tail-recursion allows us
+to express loops with regular function calls, reuse analysis 
+allows us to express many imperative algorithms in a purely
+functional style. 
+
+[Learn more about FBIP][#sec-fbip]
+{.learn}
+
+
+[Read the Perceus paper on reuse analysis][Perceus]
+{.learn}
+
+
+
+
+
 
 # A Tour of Koka { #tour }
 
-This is a short introduction to the Koka programming language meant for
-programmers familiar with languages like C++, C#, or JavaScript.
+This is a short introduction to the Koka programming language.
 
 Koka is a _function-oriented_ language that separates pure values from
 side-effecting computations (The word 'k&omacron;ka' (or &#x52B9;&#x679C;) means
@@ -164,7 +284,7 @@ side-effecting computations (The word 'k&omacron;ka' (or &#x52B9;&#x679C;) means
 flexible and `fun`: Koka has many features that help programmers to easily
 change their data types and code organization correctly even in large-scale
 programs, while having a small strongly-typed language core with a familiar
-JavaScript like syntax.
+brace syntax.
 
 ## Basics { #sec-basics }
 
@@ -889,6 +1009,6 @@ and arbitrary recursive types respectively.
 
 Todo
 
-## FBIP: Functional but In-Place
+## FBIP: Functional but In-Place { #sec-fbip; }
 
 Todo

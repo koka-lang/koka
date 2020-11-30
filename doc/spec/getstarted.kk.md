@@ -1,12 +1,18 @@
 # Getting started
 
-Welcome to Koka. This manual provides an overview and formal specification of the language.
-For more background information, see:
+Welcome to Koka -- a beautiful functional language with effect types and excellent performance. 
 
-* The [library documentation][libraries].
-* The [github repository][kokarepo].
-* The article _Algebraic Effects for Functional Programming_ [@Leijen:algeff] about the algebraic effect handlers in Koka.
-* An article about the type system and semantics of Koka [@Leijen:msfp].
+[Why Koka?][#why]{.learn}
+[Install Koka][#install]{.learn}
+[Browse the Github repo][kokarepo]{.learn}
+[Browse the Library documentation][libraries]{.learn}
+
+Note: Koka v2 is a research language that is currently under heavy development. 
+Nevertheless, the language is stable and the compiler
+implements the full specification. The main things lacking at the moment are 
+libraries and IDE integration. 
+
+
 
 [langspec]: https://koka-lang.github.io/koka/doc/kokaspec.html  {target='_top'}
 [libraries]: https://koka-lang.github.io/koka/doc/toc.html {target='_top'}
@@ -19,7 +25,7 @@ For more background information, see:
 [Perceus]: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf
 [vsprompt]: https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019
 
-## Installing the compiler
+## Installing the compiler { #install }
 
 For Linux and macOS on x86 64-bit, you can install Koka using:
 ````
@@ -165,7 +171,36 @@ directories contain various basic Koka examples to start with. If you type:
 in the interpreter, you can ``tab`` twice to see the available sample files and directories.
 Use ``:s`` to see the source of a loaded module.
 
+If you use VS Code or Atom, or if you set the ``koka_editor`` environment variable,
+you can type ``:e`` in the interactive prompt to edit your program further. For example,
 
+    > :l samples/basic/caesar
+    ...
+    check  : samples/basic/caesar
+    modules:
+        samples/basic/caesar
+
+    > :e 
+    
+    <edit the source and reload>
+
+    > :r
+    ...
+    check  : samples/basic/caesar
+    modules:
+        samples/basic/caesar
+
+    > main()
+    
+
+What next?
+
+[Why Koka?][#why]{.learn}
+[Basic Koka synax][#sec-basics]{.learn}
+[Browse the Library documentation][libraries]{.learn}
+
+
+<!--
 ## Algebraic effect handlers
 
 A novel feature of Koka is a compiled and typed implementation of algebraic
@@ -208,3 +243,4 @@ Some interesting demos are:
   rows and handlers_" [[1]](#references).
 
 * ``scoped.kk``: Examples from the paper "_Effect Handlers in Scope_" [[5]](#references).
+-->

@@ -66,13 +66,14 @@ fun build( publish : bool, version : string, speconly : bool ) : io () {
   ensure-dir(outstyles)
   ensure-dir(outimages)
   ensure-dir(outscripts)
+  copy-directory(specdir + "images", outimages)
+  copy-directory(specdir + "styles", outstyles)
+  copy-directory(specdir + "scripts", outscripts)
   copy-file-to-dir("doc/koka.css".path, outstyles)
   copy-file-to-dir("doc/logo/koka-logo.png".path, outimages)
   copy-file-to-dir(specdir + "koka.bib", outspec)
   copy-file-to-dir("lib/std/time/timescales.png".path, outspec)
-  copy-directory(specdir + "styles", outstyles)
-  copy-directory(specdir + "scripts", outscripts)
-
+  
   val xmps = list-directory(outspec).
              filter(fn(p){ p.string.ends-with(".xmp.html").bool }).
              map(fn(p){ p.nodir.string })
