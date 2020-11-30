@@ -97,11 +97,15 @@ h1.mo, h1 .mo, h1 .toc-link {
 code, code.koka, .koka .code, .madoko code,
 pre, pre.koka, .madoko pre,
 .monospace { 
-  font-family: "Roboto Mono", Consolas, "Menlo", "Andale Mono", Lucida Console, Monaco, monospace,monospace;
+  font-family: Consolas, "Menlo", "Andale Mono", Lucida Console, Monaco, "Roboto Mono", monospace,monospace;
+}
+
+.madoko pre, .madoko code, .madoko kbd, .madoko samp, .madoko tt, .madoko .monospace, .madoko .token-indent, .madoko .reveal pre, .madoko .reveal code, .madoko .email {
+  font-size: 0.95em;
 }
 
 .koka .code {   /* header and toc code */
-  font-size: 90%;        /* more even with text */
+  xfont-size: 90%;        /* more even with text */
 }
 
 code, code.koka, .koka .code, .madoko code { 
