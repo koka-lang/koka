@@ -363,12 +363,15 @@ install_dist() {
     koka_atom_dir="$KOKA_TEMP_DIR/share/koka/$version/contrib/atom"
     if [ -d $koka_atom_dir ] ; then
       info "- install atom editor support"
-      if [ ! -d ~/.atom/packages/language-koka ] ; then
+      if [ -d ~/.atom/packages/language-koka ] ; then
+        restart_msg="no"
+      else
         mkdir ~/.atom/packages/language-koka
+        restart_msg="yes"
       fi
       if ! cp -p -r $koka_atom_dir/* ~/.atom/packages/language-koka/ ; then
         info "  (failed to copy atom support files)"
-      else 
+      elif "$restart_msg" = "yes" ; then 
         info "  Please restart Atom for Koka syntax highlighting to take effect."
       fi
     fi
@@ -379,9 +382,14 @@ install_dist() {
     koka_vscode_dir="$KOKA_TEMP_DIR/share/koka/$version/contrib/vscode"
     if [ -d $koka_vscode_dir ] ; then
       info "- install vscode editor support"
-      if ! cp -p -r $koka_vscode_dir/* $HOME/.vscode/extensions/ ; then
+      if [ -d ~/.vscode/extensions/koka.language-koka ] ; then
+        restart_msg="no"
+      else
+        restart_msg="yes"
+      fi
+      if ! cp -p -r $koka_vscode_dir/* ~/.vscode/extensions/ ; then
         info "  (failed to copy vscode support files)"
-      else    
+      elif "$restart_msg" = "yes" ; then    
         info "  Please restart VS Code for Koka syntax highlighting to take effect."
       fi
     fi
