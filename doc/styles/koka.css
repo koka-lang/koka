@@ -31,7 +31,7 @@ pre.koka, code.koka, .koka.doc .header {
     margin     : 1em auto;
     padding    : 0em 1em 45em 1em; /* so a link to the end always puts the definition on top of the screen */
     line-height: 1.4;
-    background-color: #f8f6f4;
+    /* background-color: #f8f6f4; */
   }
   .koka.doc p {
     text-align: left;
