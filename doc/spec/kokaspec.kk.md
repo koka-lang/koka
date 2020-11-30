@@ -33,6 +33,19 @@ toc.toc-contents {
   replace: "/^( *>[^\n\r]+)/\(**``\1``**\)/mg";
 }
 
+.button {
+  border: 1px solid #AAA;
+  margin: 0ex 1ex 1ex 0ex;
+  display: inline-block;
+  padding: 1ex;
+  background-color: #fffdf0;  
+}
+
+.learn {
+  .button;
+}
+
+
 @if preview {
   .code1 {
     border-bottom: 1px solid green;

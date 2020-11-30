@@ -22,7 +22,6 @@ Css Header:
     }
     .body {
       margin: 1em;
-      margin-left: 0em;
     }
     
     .maincontent {
@@ -43,8 +42,7 @@ Css Header:
     -------------------------------------------- */    
     @media screen and (min-width: 1024px) {
       .body {
-        margin: 1em;        
-        margin-left: 0em;
+        margin: 1em;
       }
       .maincontent {
         width: 60em;
@@ -98,8 +96,7 @@ Css Header:
        Set margins and padding for side panel and sections
     ------------------------------------------------------ */
     .sidepanel, .mainpanel section, .footnotes {
-      padding: 0rem 1rem 0rem 3rem;
-      xborder: 1px solid gray;
+      padding: 0rem 1rem 0rem 2rem;
     }
     .sidepanel .tocblock {
       font-size  : 95%;

@@ -660,7 +660,6 @@ ignored.
 |               |       | `with` _binder_ `=` _basicexpr_                                             |                                        |
 |               |       | `with` [`override`]{.opt} _heff_  _opclauses_                               | (with a handler)                       |
 |               |       | `with` _binder_ `=` _heff_  _opclauses_                                     | (with a named andler)                  |
-
 {.grammar .parse}
 
 ### Operator expressions

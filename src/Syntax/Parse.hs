@@ -785,7 +785,8 @@ makeEffectDecl decl =
                  then effTpH
                  else TpApp (TpCon (if singleShot then nameTpHandled1 else nameTpHandled) (tbinderRange ename))
                        [effTpH] irng
-      rng     = combineRanges [vrng,erng,irng]
+                             
+      rng     = irng -- combineRanges [vrng,erng,irng]  -- or the rangemap for literal koka docs goes wrong
 
       -- declare the effect type (for resources, generate a hidden constructor to check the types)
       docEffect  = "`:" ++ show id ++ "` effect"
@@ -1008,7 +1009,7 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effNa
            clauseTp    = quantify QForall (exists ++ forallsScoped) $ clauseRhoTp
 
            conField    = -- trace ("con field: " ++ show clauseId) $
-                         ValueBinder clauseId clauseTp Nothing idrng rng
+                         ValueBinder clauseId clauseTp Nothing  idrng rng
 
            -- create an operation selector explicitly so we can hide the handler constructor
            selectId    = toOpSelectorName id
