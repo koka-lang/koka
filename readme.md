@@ -19,36 +19,25 @@ What sets Koka apart is _effect typing_, _effect handlers_, and _Perceus_ memory
 
 * The core of Koka consists of a small set of well-studied language
   features, like first-class functions, a polymorphic type- and effect
-  system, algebraic data types, and effect handlers. Each of these is
-  composable and avoid the addition of
-  "special" extensions by being as general as possible.  
-  [Read more about the _minimal but general_ design][why-mingen]
-
+  system, algebraic data types, and effect handlers.   
 * Koka tracks the (side) _effects_ of every
   function in its type, where pure and effectful computations are
   distinguished. The precise effect typing gives Koka _rock-solid
   semantics_ backed by well-studied category theory, which makes Koka
   particularly easy to reason about for both humans and compilers.  
-  [Read more about effect types][why-effects]
-
 * Effect handlers let you define advanced control abstractions,
   like exceptions, async/await, or probabilistic programs, 
-  as a user library in a typed and composable way.  
-  [Read more about effect handlers][why-handlers]
-
-* Perceus is an advanced compilation method for reference counting.
-  This lets Koka compile directly to C code _without needing
+  as a user library in a typed and composable way.
+* [Perceus] is an advanced compilation method for reference counting.
+  Together with evidence translation, this lets Koka compile directly to C code _without needing
   a garbage collector or runtime system_! This also gives Koka 
-  excellent performance in practice.  
-  [Read more about Perceus reference counting][why-perceus]
-
+  excellent performance in practice (see the [benchmarks](#benchmarks).
 * Through Perceus, Koka can do reuse analysis and optimize 
-  functional-style programs to use in-place updates.  
-  [Read more about reuse analysis][why-fbip]
-
+  functional-style programs to use in-place updates.
 
 For more background information, see:
 
+* [Why Koka?][why]
 * The [Koka manual][kokabook] for a tour of the Koka language and its specification.
 * The [Library documentation][libraries].
 
@@ -80,8 +69,9 @@ For more background information, see:
 [why-effects]: https://koka-lang.github.io/koka/doc/kokaspec.html#why-effects
 [why-handlers]: https://koka-lang.github.io/koka/doc/kokaspec.html#why-handlers
 [why-perceus]: https://koka-lang.github.io/koka/doc/kokaspec.html#why-perceus
-[why-fbip]: http://koka-lang.org/doc/kokaspec.html#why-fbip
+[why-fbip]: http://koka-lang.github.io/koka/doc/kokaspec.html#why-fbip
 
+[why]: https://koka-lang.github.io/koka/doc/kokaspec.html#why
 [kokabook]: https://koka-lang.github.io/koka/doc/kokaspec.html  
 [tour]: https://koka-lang.github.io/koka/doc/kokaspec.html#tour
 [libraries]: https://koka-lang.github.io/koka/doc/toc.html
