@@ -21,7 +21,7 @@ body.madoko,body.koka,.serif,.sans-serif,.comment {
 }
 
 pre.koka, code.koka, .koka.doc .header {
-  background-color: #f0f2f4;
+  background-color: #f2f4f6;
 }
 
 /* Text size and margins for screen & print */
@@ -161,7 +161,7 @@ pre code code, .madoko pre code code {
 }
 
 pre.koka.source {
-  border: 1px solid #ccc;
+  border: 1px solid #CCC;
 }
 
 .madoko pre.koka.source {
@@ -282,8 +282,7 @@ a.pp a.pp:hover .pc
 
 /* Documentation */
 .koka.doc>pre.source {
-  xbackground-color: #F0F0F0;
-  border: 1px solid #AAA;
+  border: 1px solid #CCC;
 }
 
 h1.koka.module
@@ -297,8 +296,7 @@ h1.koka.module
       }
 
 .koka.doc .header
-      { xbackground: #F0F0F0
-      ; padding: 0.25ex
+      { padding: 0.25ex
       ; padding-left: 0.5ex
       ; margin-top: 0px
       ; margin-bottom: 0.5em
