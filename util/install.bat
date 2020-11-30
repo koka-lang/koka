@@ -67,32 +67,32 @@ if exist "%USERPROFILE%\.atom\packages" (
     mkdir "%USERPROFILE%\.atom\packages\language-koka"
   )
   xcopy /Y /Q /S "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%\contrib\atom\*" "%USERPROFILE%\.atom\packages\language-koka"
-  set  "KOKA-EDITOR=atom %%f:%%l:%%c"
-  setx KOKA-EDITOR "atom %%f:%%l:%%c" > nul
+  set  "koka_editor=atom %%f:%%l:%%c"
+  setx koka_editor "atom %%f:%%l:%%c" > nul
 )
 
 if exist "%USERPROFILE%\.vscode\extensions" (
   echo Install VS Code editor support..
   xcopy /Y /Q /S "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%\contrib\vscode\*" "%USERPROFILE%\.vscode\extensions"
-  set  "KOKA-EDITOR=code --goto %%f:%%l:%%c"
-  setx KOKA-EDITOR "code --goto %%f:%%l:%%c" > nul
+  set  "koka_editor=code --goto %%f:%%l:%%c"
+  setx koka_editor "code --goto %%f:%%l:%%c" > nul
 )
 
 
-if "%KOKA-VERSION%" == "" goto done
-if "%KOKA-VERSION%" == "%_KOKA_VERSION%" goto done
-if not exist "%_KOKA_PREFIX%\share\koka\%KOKA-VERSION%" goto done
+if "%koka_version%" == "" goto done
+if "%koka_version%" == "%_KOKA_VERSION%" goto done
+if not exist "%_KOKA_PREFIX%\share\koka\%koka_version%" goto done
 
 echo.
 set _koka_answer=N
-set /p "_koka_answer=Found previous koka version %KOKA-VERSION%, Uninstall? [yN] " 
+set /p "_koka_answer=Found previous koka version %koka_version%, Uninstall? [yN] " 
 if /i "%_koka_answer:~,1%" NEQ "Y" goto done
 
 :uninstallprev
-echo Uninstall older koka version %KOKA-VERSION%..
-if exist "%_KOKA_PREFIX%\bin\koka-%KOKA-VERSION%.exe" (del /Q "%_KOKA_PREFIX%\bin\koka-%KOKA-VERSION%.exe")
-rmdir /S /Q "%_KOKA_PREFIX%\lib\koka\%KOKA-VERSION%"
-rmdir /S /Q "%_KOKA_PREFIX%\share\koka\%KOKA-VERSION%"
+echo Uninstall older koka version %koka_version%..
+if exist "%_KOKA_PREFIX%\bin\koka-%koka_version%.exe" (del /Q "%_KOKA_PREFIX%\bin\koka-%koka_version%.exe")
+rmdir /S /Q "%_KOKA_PREFIX%\lib\koka\%koka_version%"
+rmdir /S /Q "%_KOKA_PREFIX%\share\koka\%koka_version%"
 goto done
 
 
@@ -119,8 +119,8 @@ goto end
 
 
 :done
-set  KOKA-VERSION=%_KOKA_VERSION%
-setx KOKA-VERSION %_KOKA_VERSION% > null
+set  koka_version=%_KOKA_VERSION%
+setx koka_version %_KOKA_VERSION% > null
 
 echo.
 echo -----------------------------------------------------------------------
