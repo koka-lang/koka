@@ -21,7 +21,7 @@ body.madoko,body.koka,.serif,.sans-serif,.comment {
 }
 
 pre.koka, code.koka, .koka.doc .header {
-  background-color: #e4e2e0;
+  background-color: #f0f2f4;
 }
 
 /* Text size and margins for screen & print */
