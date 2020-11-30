@@ -651,7 +651,7 @@ messageHeader st
        ,text "| | __ ___ | | __ __ _  __) |"
        ,text "| |/ // _ \\| |/ // _` || ___/ " <.> welcome
        ,text "|   <| (_) |   <| (_| ||____| "  <.> headerVersion
-       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|       "  <.> color (colorSource colors) (text "type :? for help")
+       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|       "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")
        ]
     headerVersion = text $ "version " ++ version ++
                            (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", "

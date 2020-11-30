@@ -125,13 +125,16 @@ setx koka_version %_KOKA_VERSION% > null
 echo.
 echo -----------------------------------------------------------------------
 echo Installed koka %_KOKA_VERSION% to: %_KOKA_PREFIX%\bin\koka
+echo.
 
 echo "%PATH%" | find "%_KOKA_PREFIX%\bin" >nul
 if errorlevel 1 (
   set "PATH=%PATH%;%_KOKA_PREFIX%\bin"
   echo.
   echo *** Please add "%_KOKA_PREFIX\bin" to you PATH environment variable. ***
+  echo.
 )
 
-echo -----------------------------------------------------------------------
+echo Type 'koka' to enter the interactive compiler.
+echo.
 :end

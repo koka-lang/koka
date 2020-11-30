@@ -90,6 +90,7 @@ fun build( publish : bool, version : string, speconly : bool ) : io () {
       copy-file-to-dir(p,doclocal)
     }
     copy-directory(outstyles,doclocal + "styles")
+    copy-directory(outimages,doclocal + "images")
   }
   println("done.")
 }

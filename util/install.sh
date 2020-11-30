@@ -525,6 +525,7 @@ else
   info ""
   info "--------------------------------------------------"
   info "Installed Koka $VERSION at $PREFIX/bin/koka"
-  info "Type 'koka' to enter the interactive interpreter"
+  info ""
+  info "Type 'koka' to enter the interactive compiler"
   info ""
 fi
