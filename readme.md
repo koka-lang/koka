@@ -10,7 +10,7 @@
 # Koka: a function-oriented language with effect inference
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
-_Latest release_: v2.0.10, 2020-11-28 ([Install](#install)).
+_Latest release_: v2.0.11, 2020-11-29 ([Install](#install)).
 
 Koka is a strongly typed, strict functional language which tracks the (side) _effects_ of every function in its type.
 Koka syntax is Javascript/C like,
@@ -63,7 +63,7 @@ Special thanks to:
 - And all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
 
 Releases:
-- `v2.0.10`, 2020-11-28: syntax highlighting support for Visual Studio Code and Atom.
+- `v2.0.11`, 2020-11-29: syntax highlighting support for VS Code and Atom, improved uninstall.
 - `v2.0.9`, 2020-11-27: now with binary [releases] for Windows, macOS, and Linux.
 - `v2.0.7`, 2020-11-23: more small fixes, improved scoped handlers, improved higher-rank type propagation, more samples.
 - `v2.0.5`, 2020-11-15: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support, direct C compilation, local install support.
@@ -87,7 +87,7 @@ After installation, verify if Koka installed correctly:
 | |        | |         |__  \
 | | __ ___ | | __ __ _  __) |
 | |/ // _ \| |/ // _` || ___/ welcome to the koka interpreter
-|   <| (_) |   <| (_| ||____| version 2.0.10, Nov 28 2020, libc 64-bit (gcc)
+|   <| (_) |   <| (_| ||____| version 2.0.11, Nov 29 2020, libc 64-bit (gcc)
 |_|\_\\___/|_|\_\\__,_|       type :? for help
 
 loading: std/core
