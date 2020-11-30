@@ -470,8 +470,8 @@ if [ "$MODE" = "uninstall" ] ; then
   
   # confirm uninstall 
   if [ -z "$FORCE" ] ; then
-    read -r -p "Uninstalling koka version $version. Are you sure? [yN] " input
-    case $input in
+    read -p "Uninstalling koka version $version. Are you sure? [yN] " choice </dev/tty
+    case $choice in
       [yY][eE][sS]|[yY])
          info "Uninstalling..";;
       *) echo "No"
@@ -497,12 +497,14 @@ else
 
   # remove previous install?
   if [ ! -z "$KOKA_PREV_VERSION" ] && [ ! "$KOKA_PREV_VERSION" = "$VERSION" ] ; then
-    info ""
-    input=Y
+    echo ""
     if [ -z "$FORCE" ] ; then
-      read -r -p "Found previous koka version $KOKA_PREV_VERSION. Would you like to remove this version? [yN] " input
+      info "Found previous koka version $KOKA_PREV_VERSION."
+      read -p "Would you like to remove this version? [yN] " choice </dev/tty
+    else
+      choice="Y"
     fi
-    case $input in
+    case $choice in
       [yY][eE][sS]|[yY])
         info "Uninstalling previous koka version $KOKA_PREV_VERSION"
         uninstall $KOKA_PREV_PREFIX $KOKA_PREV_VERSION
