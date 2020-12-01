@@ -80,6 +80,7 @@ fun build( publish : bool, version : string, speconly : bool ) : io () {
   println("run madoko...")
   run-echo( "cd " + outspec.string + " && madoko --odir=. -v -mline-no:false -mlogo:false -mkokaversion:" + version
              + " " + xmps.join(" ") + " kokaspec.md" )
+             
   copy-file-to-dir(outspec + "madoko.css", outstyles)
   if (publish) {
     println("copy files to output folder: " + doclocal.string)

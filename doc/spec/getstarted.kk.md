@@ -1,3 +1,5 @@
+[<img align="right" src="https://badges.gitter.im/koka-lang/koka.svg"/>](https://gitter.im/koka-lang/koka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 # Getting started
 
 Welcome to Koka -- a beautiful functional language with effect types and handlers.
@@ -28,24 +30,24 @@ libraries and IDE integration.
 ## Installing the compiler { #install }
 
 For Linux and macOS on x86 64-bit, you can install Koka using:
-````
-> curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh
-````
+
+    \(> **curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &bar; sh**\)
+
 This also installs syntax highlighting for the VS Code and Atom editors.
 After installation, verify if Koka installed correctly:
-````
-> koka
- _          _           ____
-| |        | |         |__  \
-| | __ ___ | | __ __ _  __) |
-| |/ // _ \| |/ // _` || ___/ welcome to the koka interpreter
-|   <| (_) |   <| (_| ||____| version 2.0.10, Nov 28 2020, libc 64-bit (gcc)
-|_|\_\\___/|_|\_\\__,_|       type :? for help
 
-loading: std/core
-loading: std/core/types
-loading: std/core/hnd
-````
+    > koka
+     _          _           ____
+    | |        | |         |__  \
+    | | __ ___ | | __ __ _  __) |
+    | |/ // _ \| |/ // _' || ___/ welcome to the koka interpreter
+    |   <| (_) |   <| (_| ||____| version 2.0.10, Nov 28 2020, libc 64-bit (gcc)
+    |_|\_\\___/|_|\_\\__,_|       type :? for help
+
+    loading: std/core
+    loading: std/core/types
+    loading: std/core/hnd
+    >
 
 Type ``:q`` to exit the interpreter.
 
@@ -76,7 +78,7 @@ and run the resulting executable:
     cracked: Koka is a well-typed language
 
 The ``-O2`` flag builds an optimized program. Let's try it on a purely functional implementation
-of balanced insertion in a red-black tree ([`rbtree.kk`](https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk):
+of balanced insertion in a red-black tree ([`rbtree.kk`](https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk)):
 
     > koka -O2 -c samples/basic/rbtree.kk
     ...
@@ -106,20 +108,19 @@ closely mimicking the imperative rebalancing code of the hand optimized C++ libr
 ## Running the interactive compiler
 
 Without giving any input files, the interactive interpreter runs by default:
-````
-> koka
- _          _           ____
-| |        | |         |__  \
-| | __ ___ | | __ __ _  __) |
-| |/ // _ \| |/ // _` || ___/ welcome to the koka interpreter
-|   <| (_) |   <| (_| ||____| version 2.0.9, Nov 27 2020, libc 64-bit (gcc)
-|_|\_\\___/|_|\_\\__,_|       type :? for help
 
-loading: std/core
-loading: std/core/types
-loading: std/core/hnd
->
-````
+    > koka
+     _          _           ____
+    | |        | |         |__  \
+    | | __ ___ | | __ __ _  __) |
+    | |/ // _ \| |/ // _' || ___/ welcome to the koka interpreter
+    |   <| (_) |   <| (_| ||____| version 2.0.9, Nov 27 2020, libc 64-bit (gcc)
+    |_|\_\\___/|_|\_\\__,_|       type :? for help
+
+    loading: std/core
+    loading: std/core/types
+    loading: std/core/hnd
+    >
 
 Now you can test some expressions:
 
