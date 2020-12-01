@@ -86,11 +86,13 @@ table .kw, table .tp, table .co,
 
 .button {  
   display: inline-block;
+  border: 1px solid #AAA;
+  margin: 0ex 1ex 1ex 0ex;
+  padding: 1ex;
+  background-color: #fffdf0;  
   transition: all 0.5s;
   cursor: pointer;
-  margin-top: 0ex;
-  xbox-shadow: 2px 2px 0px #888;
-  xborder-radius: 0.5ex;
+  margin-top: 0ex;  
 }
 
 .button:hover {
