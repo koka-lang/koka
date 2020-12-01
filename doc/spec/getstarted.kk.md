@@ -197,7 +197,7 @@ you can type ``:e`` in the interactive prompt to edit your program further. For 
 What next?
 
 [Why Koka?][#why]{.learn}
-[Basic Koka synax][#sec-basics]{.learn}
+[Basic Koka syntax][#sec-basics]{.learn}
 [Browse the Library documentation][libraries]{.learn}
 
 
