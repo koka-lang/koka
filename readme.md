@@ -296,7 +296,7 @@ reclamation techniques and are considered best-in-class. The systems we
 compare are, Koka 2.0.3 (compiling the generated C code with gcc 9.3.0),
 [OCaml](https://ocaml.org) 4.08.1, [Haskell](https://www.haskell.org) GHC 8.6.5,
 [Swift](https://swift.org/) 5.3, [Java](https://www.java.com) SE 15.0.1 with the Hotspot G1 collector,
-and [C++](http://www.cplusplus.org).
+and [C++](http://www.cplusplus.org) gcc 9.3.0.
 
 <img align="right" width="400" src="doc/bench-amd3600-nov-2020.png" style="border:1px solid black">
 
