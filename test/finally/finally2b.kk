@@ -4,7 +4,7 @@ effect state {
 }
 
 effect exc {
-  fun raise( s : string ) : a
+  except raise( s : string ) : a
 }
 
 fun bar() {
@@ -15,24 +15,23 @@ fun bar() {
 
 fun foo() : _ int
 {
-  handle(bar) (i : int = 42) {
-    return x -> {
+  var i := 41
+  handle(bar) {
+    return (x){
       println("return, local: " + i.show )
       x
     }
-    finally  -> {
+    finally {
       println("finally, local: " + i.show)
     }
-    fun inc() -> resume(i,i+1)
+    control inc(){ 43 }   // no resume.. should invoke finalizers
   }
 }
 
 fun main() {
   handle(foo) {
-    return x -> println( "result: " + (x:int).show )
-    raise(msg) -> {
-      println("raised: " + msg)
-    }
-    finally -> println("exc finalize")
+    return (x){ println( "result: " + (x:int).show ) }
+    except raise(msg){ println("raised: " + msg) }
+    finally { println("exc finalize") }
   }
 }

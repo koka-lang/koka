@@ -52,16 +52,16 @@ public fun test3() : console int {
 //   `resume` function that can be used to resume at the call-site
 //   of the operation (see `handlers/basic`)
 // - `except`:
-//   `except op(<args>){ <body> }  ==  control op(<args>){ <body> }`
+//   `except op(<args>){ <body> }  ~>  control op(<args>){ <body> }`
 //   is equivalent to control but does not bind `resume` and thus
 //   can never resume. It is more efficient than general `control`.
 // - `fun`:
-//   `fun op(<args>{ <body> })  ==  control op(<args>){ resume (<body>) }`
+//   `fun op(<args>{ <body> })  ~>  control op(<args>){ resume (<body>) }`
 //   The `fun` operation clause always resumes once at with the result
 //   of the body (we call this _tail resumptive_). This is very efficiently
 //   implemented and most operations should use `fun` if possible.
 // - `val`:
-//   `val op = <expr>  == val x = <expr>; ... ; control op(){ resume(x) }`
+//   `val op = <expr>  ~> val x = <expr>; ... ; control op(){ resume(x) }`
 //   An operation that always resumes with a constant. As efficient
 //   as `fun` operations.
 

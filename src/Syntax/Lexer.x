@@ -254,7 +254,7 @@ reservedNames :: Set.Set String
 reservedNames
   = Set.fromList $
     [ "infix", "infixr", "infixl", "prefix", "postfix"
-    , "type", "cotype", "alias"
+    , "type", "alias"
     , "struct", "enum", "con"
     , "val", "fun", "fn", "extern", "var"
     , "control", "rcontrol", "except"
@@ -263,32 +263,37 @@ reservedNames
     , "forall", "exists", "some"
     , "private", "public", "abstract"
     , "module", "import", "as"
-    
+
+    -- alternatives
+    , "pub"
+
     -- effect handlers
     , "handler", "handle"
-    , "effect", "ambient", "context" {- alternative names for effect -}
-    , "instance"
-    , "mask", "override", "scoped"
-    , "unsafe"
-    -- , "finally", "initially"
+    , "effect", "receffect"
+    , "named"
+    , "mask"
+    , "override"
+    , "unsafe"       -- future
 
     -- deprecated
     -- alternative names for backwards paper compatability
+    , "ambient", "context" -- use effcet
     , "inject"       -- use mask
     , "use", "using" -- use with instead
     , "function"     -- use fun
-    
+    , "instance"     -- use named
+
+    -- future reserved
+    , "interface"
+    , "unsafe"
+
+    -- operators
     , "="
     , "."
     , ":"
     , "->"
     , ":="
     , "|"
-
-    -- for core interfaces
-    , "rec"
-    -- future reserved
-    , "interface"
     ]
 
 symbols :: [Char]
@@ -363,7 +368,7 @@ isMalformed s
       c:cs       -> isMalformed cs
       []         -> False
 
-messageMalformed 
+messageMalformed
   = "malformed identifier: a dash must be preceded by a letter or digit, and followed by a letter"
 
 ------------------------------------------------------------------------------
@@ -484,7 +489,7 @@ lexing source lineNo input
                                        seq range $ Lexeme range ltoken : go st2{ startPos = pos st2, previousLex = ltoken }
 
         lparen token prev
-          = token 
+          = token
           {-
             case token of
               LexSpecial "("  | isApplyToken prev -> LexSpecial "(.apply"  -- application

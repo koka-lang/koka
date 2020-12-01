@@ -6,9 +6,9 @@ effect state<s> {
 }
 
 val state = handler {
-  return x -> fun(s) { x }     
-  get()    -> fun(s) { resume(s)(s) }
-  set(t)   -> fun(s) { resume(())(t) }
+  return x -> fn(s) { x }     
+  get()    -> fn(s) { resume(s)(s) }
+  set(t)   -> fn(s) { resume(())(t) }
 }
 
 fun test() {

@@ -64,7 +64,7 @@ fun test-day( day : int ) {
 }
 
 fun test( years : int = 500 ) {
-  for-days( ~years, years ) fun(day){
+  for-days( ~years, years ) fn(day){
     test-day(day)
   }
   println("ok.")
@@ -72,10 +72,10 @@ fun test( years : int = 500 ) {
 
 fun for-days( ylo : int, yhi : int, action : int -> <io,utc> () ) : <io,utc> () {
   println("days in years: " + ylo.show + " up to " + yhi.show)
-  for(ylo,yhi) fun(y) {
+  for(ylo,yhi) fn(y) {
     val base = y*366 - 730119  // test round the year zero
     println("year: " + time(2000,1,base).year.show)
-    for(0,365) fun(day) { action(base + day)}
+    for(0,365) fn(day) { action(base + day)}
   }
 }
 

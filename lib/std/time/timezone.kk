@@ -62,7 +62,7 @@ public fun load-timezones( fname : path = path(""),
     (try{
        Just(parse-packed-zones(s))
      }
-     fun(exn) {
+     fn(exn) {
        trace("failed parse: " + exn.show)
        Nothing
      })
@@ -98,7 +98,7 @@ public struct timezone-period(
 val timezone-period0 = Timezone-period( Nothing, "UTC", zero )
 
 // The time zone info for the UTC time zone.
-val tzi-utc : timezone-info = Timezone-info( "UTC", 0, fun(){ [] } )
+val tzi-utc : timezone-info = Timezone-info( "UTC", 0, fn(){ [] } )
 
 // Find the DST offset for a particular instant `i` given a list of time zone periods
 fun find-offset( i : instant, periods : list<timezone-period> ) : timezone-period {
@@ -121,13 +121,13 @@ public fun timezone( tzi : timezone-info ) : timezone {
   calendar/Timezone(
     tzi.name,
     utc-offset,
-    fun(i) { Nothing }
+    fn(i) { Nothing }
   )
 }
 
 // Show a time zone period.
 public fun show( tzp : timezone-period) : string {
-  tzp.abbrv.pad-right(4) + " " + tzp.offset.show-tzdelta(utc="+00:00") + " from " + tzp.start.map(fun(i){ i.time.show }).default("-infinity")
+  tzp.abbrv.pad-right(4) + " " + tzp.offset.show-tzdelta(utc="+00:00") + " from " + tzp.start.map(fn(i){ i.time.show }).default("-infinity")
 }
 
 // Show time zone information.
@@ -150,28 +150,28 @@ public fun parse-packed-zones( s : string ) : exn timezones {
     Nothing   -> error("invalid timezone data; cannot find zones array.")
     Just(cap) -> cap.groups[1].trim
   }
-  val zonesarr = zonesfld.lines.map( fun(line) {
+  val zonesarr = zonesfld.lines.map( fn(line) {
     match(line.find(rxzone)) {
       Nothing   -> error("invalid timezone info:\n  " + line)
       Just(cap) -> cap.groups[1]
     }
   })
   val zones = zonesarr.map(parse-packed-zone)
-  val zdict = zones.map(fun(tzi){ (tzi.name.normalize, tzi) }).dict
+  val zdict = zones.map(fn(tzi){ (tzi.name.normalize, tzi) }).dict
 
   // links
   val linksfld = match(s.find(rxlinks)) {
     Nothing   -> error("invalid timezone data; cannot find links array.")
     Just(cap) -> cap.groups[1].trim
   }
-  val links = linksfld.lines.map( fun(line) {
+  val links = linksfld.lines.map( fn(line) {
     match(line.find(rxlink)) {
       Nothing   -> error("invalid timezone link:\n  " + line)
       Just(cap) -> (cap.groups[1],cap.groups[2])
     }
   })
 
-  val ldict = links.map( fun(link) {
+  val ldict = links.map( fn(link) {
     val (key,other) = link
     match(zdict[key.normalize]) {
       Nothing  -> error("invalid timezone link: unknown time zone: " + key.normalize + ", to: " + other + ", " + zdict.keys.join("\n"))
@@ -210,25 +210,25 @@ fun parse-packed-periods( name : string, sabbrs : string, soffsets :string, sind
     val indices = sindices.list.map(digit60)
     val xdiffs  = sxdiffs.split(" ").filter(notempty?).map(parse-fixed-base60)
     fun from-indices( xs : list<a>, def : a ) : list<a> {
-      indices.map( fun(idx) {xs[idx].default(def) }).reverse
+      indices.map( fn(idx) {xs[idx].default(def) }).reverse
     }
     val (start0,diffs) = match(xdiffs) {
       Nil -> (0.0,[])
       Cons(start,rest) -> (start * 60.0, Cons(0.0,rest))
     }
     if (diffs.length + 1 != indices.length ) error("invalid timezone data:\n  diffs: " + sxdiffs + "\n  ind  : " + sindices  )
-    val endings = diffs.foldl((start0,[]), fun(acc:(double,list<maybe<instant>>),diff) {
+    val endings = diffs.foldl((start0,[]), fn(acc:(double,list<maybe<instant>>),diff) {
                     val iu = acc.fst + diff*60.0
                     val i = unix-instant(iu)
                     (iu,Cons(Just(i),acc.snd))
                   }).snd
-    val ofsabrs  = indices.reverse.map( fun(i) { (offsets[i].default(0.0), abbrs[i].default("") ) } )
-    val periods  = zipwith( endings + [Nothing], ofsabrs, fun(start,ofsabbr) {
+    val ofsabrs  = indices.reverse.map( fn(i) { (offsets[i].default(0.0), abbrs[i].default("") ) } )
+    val periods  = zipwith( endings + [Nothing], ofsabrs, fn(start,ofsabbr) {
                      Timezone-period(start,ofsabbr.snd, duration(ofsabbr.fst * ~60.0))
                    })
     periods
   }
-  fun(exn) {
+  fn(exn) {
     trace("invalid timezone database entry for " + name.show + ":\n " + exn.show)
     []
   }
@@ -240,7 +240,7 @@ fun parse-fixed-base60( s : string ) : exn double {
     Just(cap) -> {
       val sign = if (cap.groups[1]=="-") then ~1 else 1
       val num  = parse-base60(cap.groups[2])
-      val frac = cap.groups[3].list.foldr(0.0, fun(d,n) {
+      val frac = cap.groups[3].list.foldr(0.0, fn(d,n) {
                     (n + d.digit60.double) / 60.0
                  })
       (sign.double * num.double) + frac
@@ -255,7 +255,7 @@ fun parse-base60( s : string ) : exn int {
     Nothing -> error("invalid base60 number: " + s)
     Just(cap) -> {
       val sign = if (cap.groups[1]=="-") then ~1 else 1
-      val num  = cap.groups[2].list.foldl(0, fun(n,d) {
+      val num  = cap.groups[2].list.foldl(0, fn(n,d) {
                     n*60 + d.digit60
                   })
       sign*num
@@ -281,7 +281,7 @@ abstract struct timezones( tzones : dict<timezone-info> )
 
 // Create time zone information from a list of `:timezone-info`.
 public fun timezones( zones : list<timezone-info> ) {
-  Timezones( zones.map(fun(tzi) { (tzi.name.normalize, tzi) }).dict )
+  Timezones( zones.map(fn(tzi) { (tzi.name.normalize, tzi) }).dict )
 }
 
 // Empty `:timezones`.
@@ -303,7 +303,7 @@ val rxsep = regex(@"[\/\\\s\-_]+")
 
 // Return all available IANA time zone identifiers.
 public fun timezone-names( tzs : timezones ) : list<string> {
-  tzs.tzones.list.map(fun(kv) { kv.snd.name })
+  tzs.tzones.list.map(fn(kv) { kv.snd.name })
 }
 
 // Return a `:timezone-info` for a IANA time zone identifier (if it exists)
@@ -324,20 +324,20 @@ public fun timezone( tzs : timezones, tz-name : string, def : timezone = tz-utc 
 ----------------------------------------------------------------------------*/
 
 fun sample-dates( year : int ) : list<instant> {
-  list(year - 1, year).flatmap( fun(y) {
-    list(0,3).map( fun(m) { ts-ti.instant(y,m*4,15) } )
+  list(year - 1, year).flatmap( fn(y) {
+    list(0,3).map( fn(m) { ts-ti.instant(y,m*4,15) } )
   })
 }
 
 fun sample-offsets( dates : list<instant>, tz : timezone ) : list<duration> {
-  dates.map( fun(i) {
+  dates.map( fn(i) {
     i.time(tz=tz).tzdelta
   })
 }
 
 fun match-offsets( dates : list<instant>, offsets : list<duration>, tz : timezone ) : bool {
   val offsets2 = dates.sample-offsets(tz)
-  zipwith(offsets,offsets2,fun(x,y) { x == y }).all(id)
+  zipwith(offsets,offsets2,fn(x,y) { x == y }).all(id)
 }
 
 // Guess the local timezone. Not as reliable as `tz-local` but will contain
@@ -350,10 +350,10 @@ public fun guess-local-timezone( tzs : timezones, default : maybe<timezone> = No
       val year    = time-now(ts-ti).year
       val dates   = sample-dates(year)
       val offsets = dates.sample-offsets(tz-local())
-      val matches = tzs.tzones.list.map(snd).filter( fun(tzi){
+      val matches = tzs.tzones.list.map(snd).filter( fn(tzi){
         (!tzi.aliased &&  dates.match-offsets(offsets,tzi.timezone))
       })
-      // trace("timezone guess matches: " + matches.show-list(fun(tzi){ tzi.show }))
+      // trace("timezone guess matches: " + matches.show-list(fn(tzi){ tzi.show }))
       match(matches) {
         Nil -> match(default) {
           Nothing  -> tz-local()
@@ -361,7 +361,7 @@ public fun guess-local-timezone( tzs : timezones, default : maybe<timezone> = No
         }
         Cons(tz1,rest) -> {
           val pick = ref(tz1)
-          rest.foreach fun(tz) {
+          rest.foreach fn(tz) {
             if (tz.population == 0 || (tz.population > (!pick).population && (!pick).population > 0)) {
               pick := tz
             }

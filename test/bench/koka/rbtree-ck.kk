@@ -1,8 +1,8 @@
 // Adapted from https://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap-checkpoint.lean
 
-type color { 
-  Red 
-  Black 
+type color {
+  Red
+  Black
 }
 
 type tree {
@@ -50,7 +50,7 @@ fun is-red(t : tree) : bool {
 
 fun ins(t: tree, kx: int, vx: bool): tree {
   match(t) {
-    Leaf 
+    Leaf
       -> Node(Red, Leaf, kx, vx, Leaf)
     Node(Red, a, ky, vy, b)
       -> if (kx < ky) then Node(Red, ins(a, kx, vx), ky, vy, b)
@@ -61,7 +61,7 @@ fun ins(t: tree, kx: int, vx: bool): tree {
                                            else Node(Black, ins(a, kx, vx), ky, vy, b))
          elif (kx == ky) then Node(Black, a, kx, vx, b)
          elif (is-red(b)) then balance2(a, ky, vy, ins(b, kx, vx))
-         else Node(Black, a, ky, vy, ins(b, kx, vx))  
+         else Node(Black, a, ky, vy, ins(b, kx, vx))
   }
 
   /* match(t) {
@@ -105,6 +105,6 @@ fun make-tree(freq : int, n: int): div list<tree> {
 
 fun main() {
   val trees = make-tree(5,4200000); // todo: read first command line arg for size
-  val v = trees.head(Leaf).fold(0) fun(k,v,r){ if (v) then r + 1 else r }
+  val v = trees.head(Leaf).fold(0) fn(k,v,r){ if (v) then r + 1 else r }
   v.println
 }

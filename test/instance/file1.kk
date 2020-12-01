@@ -12,13 +12,13 @@ ambient instance file<s::S> in filesys<s> {
 }
 
 fun fake-file(content,action) {
-  with f = instance fun read() { content }  // ~> (with new { fun read() {..} })(fun(f) { ... })
+  with f = instance fun read() { content }  // ~> (with new { fun read() {..} })(fn(f) { ... })
   action(f)
 }
 
 fun main() {
   with<filesys> { }                // ~> with with<filesys> { }
-  with f = fake-file( "hi" )       // ~> fake-file("hi", fun(f) { ... } }
+  with f = fake-file( "hi" )       // ~> fake-file("hi", fn(f) { ... } }
   with g = fake-file("there")
   println(f.read() + g.read())
 }

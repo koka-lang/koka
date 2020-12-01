@@ -16,7 +16,7 @@ val test3a = ids.map(xauto)
 fun test4()  { apply(head,ids) }
 fun test4a() { apply(tail,ids) }
 
-fun test5()  { apply(fun(xs:list<list<forall<a> a -> a>>){ xs.map(head) },single(ids)) }
+fun test5()  { apply(fn(xs:list<list<forall<a> a -> a>>){ xs.map(head) },single(ids)) }
 
 fun test6()  { choose(id,auto) }
 fun test6a() { choose(auto,id) }

@@ -13,22 +13,24 @@ import std/num/random
 //  Exceptions
 // --------------------------------------------------------
 
-// An effect `:raise` with a single `control` operation `raise`.
+// An effect `:raise` with a single control operation `raise`.
 // This is equivalent to writing:
 // ```
 // effect raise {
-//   control raise(s:string) : a
+//   except raise(s:string) : a
 // }
 // ```
-effect control raise(s : string ) : a
+// We use `except` instead of general `control` as we ensure
+// that this particular operation will never resume.
+effect except raise(s : string ) : a
 
 fun safe-div(x,y) {
   if (y==0) then raise("division by zero") else x / y
 }
 
 fun rcatch(action,h) {
-  with control raise(s){ h(s) }     // handle `raise` with function `h`
-  action()                          // in `action()`
+  with except raise(s){ h(s) }     // handle `raise` with function `h`
+  action()                         // in `action()`
 }
 
 fun zerodiv(x,y) {
@@ -36,7 +38,7 @@ fun zerodiv(x,y) {
 }
 
 fun to-maybe(action) {
-  with control raise(_s) { Nothing }
+  with except raise(_s) { Nothing }
   Just(action())
 }
 
@@ -51,6 +53,8 @@ public fun test1() {
 // --------------------------------------------------------
 
 // Declare an effect `:input` with a single operation `input`.
+// We use `fun` instead of general `control` to ensure that all handlers
+// will always resume (at most once) with the result.
 effect fun input() : string
 
 fun hello() {
@@ -103,6 +107,13 @@ public fun test3() {
 //  Iterators
 // --------------------------------------------------------
 
+// Now we use general `control` as we want to enable breaking
+// the interation (and thus not resume). Equivalent to:
+// ````
+// effect yield<a> {
+//   control yield( item : a ) : ()
+// }
+// ````
 effect<a> control yield( item : a ) : ()
 
 fun iterate(xs : list<a> ) : yield<a> () {
@@ -113,7 +124,7 @@ fun iterate(xs : list<a> ) : yield<a> () {
 }
 
 fun foreach( f : a -> e bool, action : () -> <yield<a>|e> () ) : e () {
-  with control yield(x) { if (f(x)) then resume(()) else () }
+  with control yield(x){ if (f(x)) then resume(()) else () }   // resume is explicit in a `control` operation
   action()
 }
 
@@ -126,7 +137,7 @@ public fun test4() {
 }
 
 fun test4b() {
-  with return (x){ () }
+  with return(x) { () }               // just force final result to ()
   with amb
   with foreach fn(x:int) {
     if (flip()) then println(x)
@@ -150,12 +161,12 @@ fun xor() : flip bool {
 
 // handler that randomly flips
 val coinflip = handler {
-  fun flip(){ srandom-bool() }
+  fun flip(){ srandom-bool() }     // we can still define an operation as `fun` even if declared as `control`
 }
 
 // handler that returns all possible outcomes
 val amb = handler {
-  return x      { [x] }
+  return(x)     { [x] }
   control flip(){ resume(False) + resume(True) }
 }
 

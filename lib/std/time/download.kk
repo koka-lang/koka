@@ -104,7 +104,7 @@ public fun load-leaps-table( fname : path = path(""),
   val xurl   = (if (url=="auto") then "https://www.ietf.org/timezones/data/leap-seconds.list" else url)
   fun parse( leaps : string ) : maybe<leaps-table> { Just(parse-leap-seconds(leaps))}
   val leaps-table
-    = load-latest( xfname, xurl, parse, fun(lt:leaps-table){ Just(lt.expire) },
+    = load-latest( xfname, xurl, parse, fn(lt:leaps-table){ Just(lt.expire) },
                Just(leaps-table-ti),
                download-timeout=download-timeout,download-delay=download-delay,
                error-prefix="load IETF leap seconds table",
@@ -130,7 +130,7 @@ public fun load-leaps-table( fname : path = path(""),
 public fun load-latest( fname  : path,
                          url    : string,
                          parse  : string -> maybe<a>,
-                         expire : a -> maybe<instant> = fun(_){ Nothing },
+                         expire : a -> maybe<instant> = fn(_){ Nothing },
                          current: maybe<a> = Nothing,
                          download-timeout: duration = 5.seconds,
                          download-delay: duration = 2.weeks,
@@ -220,7 +220,7 @@ public fun load-latest( fname  : path,
 // Set the optional parameter `verbose` to `True` to see trace messages on downloads or errors.
 public fun download-latest(  url   : string,
                              parse : string -> maybe<a>,
-                             expire : a -> maybe<instant> = fun(_){ Nothing },
+                             expire : a -> maybe<instant> = fn(_){ Nothing },
                              cache  : path = path(""),
                              current: maybe<a> = Nothing,
                              download-timeout: duration = 5.seconds,
@@ -260,5 +260,5 @@ public fun download-latest(  url   : string,
       _ -> warn("invalid data")
     }
     //}
-  } fun(exn) { warn(exn.show) }
+  } fn(exn) { warn(exn.show) }
 }

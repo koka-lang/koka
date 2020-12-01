@@ -25,7 +25,7 @@ fun catch(action,h) {
 }
 
 fun zerodiv(x,y) {
-  common/catch( { safe-div(x,y) }, fun(s) { 42 } )
+  common/catch( { safe-div(x,y) }, fn(s) { 42 } )
 }
 
 val to-maybe = handler {
@@ -125,7 +125,7 @@ fun foreach( f : a -> e bool, action : () -> <yield<a>|e> () ) : e () {
 }
 
 fun test4() {
-  foreach fun(x:int) {
+  foreach fn(x:int) {
     println(x)
     (x<=1)
   }
@@ -133,7 +133,7 @@ fun test4() {
 }
 
 fun test4b() {
-  amb{ foreach( fun(x:int) { if (flip()) then println(x) else println("false"); (x<=1) }, { [1,2,3].iterate } ) }
+  amb{ foreach( fn(x:int) { if (flip()) then println(x) else println("false"); (x<=1) }, { [1,2,3].iterate } ) }
 }
 
 // --------------------------------------------------------
@@ -204,7 +204,7 @@ fun ask-age-err() {
     raise("ouch!")
     println("hello " + name)
   }
-  fun(err) {
+  fn(err) {
     println("error: " + err )
   }
 }
@@ -224,7 +224,7 @@ fun main() {
 }
 
 fun show( xs : list<(bool,int)> ) : string  {
-  xs.show-list(fun(x) { x.show-tuple(show,show) })
+  xs.show-list(fn(x) { x.show-tuple(show,show) })
 }
 
 fun show( x : (list<bool>,int) ) : string  {

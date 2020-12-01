@@ -211,14 +211,9 @@ pfixity
 --------------------------------------------------------------------------}
 typeDecl :: Env -> LexParser (TypeDef,Env)
 typeDecl env
-  = do (vis,(ddef0,isExtend,sort,doc)) <- try $ do (vis,_) <- visibility Public
+  = do (vis,(ddef,isExtend,sort,doc))  <- try $ do (vis,_) <- visibility Public
                                                    info <- typeSort
                                                    return (vis,info)
-       ddef       <- do keyword "rec"  
-                        return (case ddef0 of
-                                  DataDefNormal -> DataDefRec
-                                  _ -> ddef0)
-                     <|> return ddef0
        tname <- if (isExtend)
                  then do (name,_) <- qtypeid
                          return name
@@ -269,22 +264,27 @@ conDecl tname foralls sort env
 
 typeSort :: LexParser (DataDef, Bool, DataKind,String)
 typeSort
-  = do let f kw sort = do (_,doc) <- dockeyword kw
-                          (ddef,isExtend) <- parseOpenExtendX
-                          return (ddef,isExtend,sort,doc)
-       (f "type" Inductive <|> f "cotype" CoInductive <|> f "rectype" Retractive)
+  = do isRecursive <- do{ specialId "recursive"; return True } <|> return False
+       (ddef0,isExtend,sort) <- parseTypeMod
+       (_,doc) <- dockeyword "type"
+       let ddef = case (isRecursive, ddef0) of
+                    (True,DataDefNormal) -> DataDefRec
+                    _ -> ddef0
+       return (ddef,isExtend,sort,doc)
 
-parseOpenExtendX :: LexParser (DataDef,Bool)
-parseOpenExtendX
- =   do{ specialId "open"; return (DataDefOpen, False) }
- <|> do{ specialId "extend"; return (DataDefOpen, True) }
+parseTypeMod :: LexParser (DataDef,Bool,DataKind)
+parseTypeMod
+ =   do{ specialId "open"; return (DataDefOpen, False, Inductive) }
+ <|> do{ specialId "extend"; return (DataDefOpen, True, Inductive) }
  <|> do specialId "value"
         (m,n) <- braced $ do (m,_) <- integer
                              comma
                              (n,_) <- integer
                              return (m,n)
-        return (DataDefValue (fromInteger m) (fromInteger n), False)
- <|> return (DataDefNormal, False)
+        return (DataDefValue (fromInteger m) (fromInteger n), False, Inductive)
+ <|> do{ specialId "co"; return (DataDefNormal, False, CoInductive) }
+ <|> do{ specialId "rec"; return (DataDefNormal, False, Retractive) }
+ <|> return (DataDefNormal, False, Inductive)
  <?> ""
 
 {--------------------------------------------------------------------------
@@ -293,11 +293,11 @@ parseOpenExtendX
 
 defDecl :: Env -> LexParser Def
 defDecl env
-  = do (vis,sort,doc) <- try $ do (vis,_) <- visibility Public
-                                  (sort,doc) <- pdefSort
-                                  return (vis,sort,doc)
+  = do (vis,sort,inl,doc) <- try $ do (vis,_) <- visibility Public
+                                      (sort,inl,isRec,doc) <- pdefSort
+                                      return (vis,sort,inl,doc)
        (name,_) <- funid <|> idop
-       inl      <- parseInline
+       -- inl      <- parseInline
        -- trace ("core def: " ++ show name) $ return ()
        keyword ":"
        tp       <- ptype env
@@ -306,16 +306,18 @@ defDecl env
                    vis sort inl rangeNull doc)
 
 pdefSort
-  = do (_,doc) <- dockeyword "fun"
-       _       <- do { specialOp "**"; return ()}
-                  <|>
-                  do { specialOp "*"; return () }
-                  <|>
-                  return ()
-       return (DefFun ,doc)
-  <|>
-    do (_,doc) <- dockeyword "val"
-       return (DefVal,doc)
+  = do isRec <- do{ specialId "recursive"; return True } <|> return False
+       inl <- parseInline
+       (do (_,doc) <- dockeyword "fun"
+           _       <- do { specialOp "**"; return ()}
+                      <|>
+                      do { specialOp "*"; return () }
+                      <|>
+                      return ()
+           return (DefFun,inl,isRec,doc)
+        <|>
+        do (_,doc) <- dockeyword "val"
+           return (DefVal,inl,False,doc))
 
 {--------------------------------------------------------------------------
   External definitions
@@ -350,7 +352,7 @@ externalEntry
 externalTarget
   = do specialId "c"
        return C
-  <|> 
+  <|>
     do specialId "cs"
        return CS
   <|>
@@ -365,10 +367,8 @@ externalTarget
 --------------------------------------------------------------------------}
 inlineDef :: Env -> LexParser InlineDef
 inlineDef env
-  = do (sort,doc) <- pdefSort
-       inl        <- parseInline
-       isRec      <- do keyword "rec"; return True
-                     <|> return False
+  = do (sort,inl,isRec,doc) <- pdefSort
+       -- inl        <- parseInline
        -- trace ("core inline def: " ++ show name) $ return ()
        (name,_) <- funid
        expr <- parseBody env
@@ -481,9 +481,9 @@ parseDefGroups0 env
 
 parseDefGroup :: Env -> LexParser (Env,DefGroup)
 parseDefGroup env
-  = do (sort,doc) <- pdefSort
+  = do (sort,inl,isRec,doc) <- pdefSort
        (name,_)   <- funid <|> wildcard
-       inl        <- parseInline
+       -- inl        <- parseInline
        tp         <- typeAnnot env
        expr       <- parseBody env
        return (envExtendLocal env (name,tp), DefNonRec (Def name tp expr Private sort inl rangeNull doc))
@@ -528,7 +528,7 @@ parsePattern env
            parsePatVar env' pat
         <|>
            return (env',pat))
-    
+
 parsePatternBasic  :: Env -> LexParser (Env,Pattern)
 parsePatternBasic env
   = parsePatCon env <|> parsePatVar env PatWild <|> parsePatLit env <|> parsePatWild env

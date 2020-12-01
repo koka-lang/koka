@@ -362,7 +362,7 @@ unifyPred _ _
 unifyEffect tp1 tp2
   = do (ls1,tl1) <- extractNormalizeEffect tp1
        (ls2,tl2) <- extractNormalizeEffect tp2
-       (ds1,ds2) <- unifyLabels ls1 ls2
+       (ds1,ds2) <- unifyLabels ls1 ls2 (isEffectEmpty tl1) (isEffectEmpty tl2)
        case (expandSyn tl1, expandSyn tl2) of
          (TVar (TypeVar id1 kind1 Meta), TVar (TypeVar id2 kind2 Meta)) | id1 == id2 && not (null ds1 && null ds2)
              -> do -- trace ("unifyEffect: unification of " ++ show (tp1,tp2) ++ " is infinite") $ return ()
@@ -402,8 +402,8 @@ unifyEffectVar tv1 tp2
 
 
 -- | Unify lists of ordered labels; return the differences.
-unifyLabels :: [Tau] -> [Tau] -> Unify ([Tau],[Tau])
-unifyLabels ls1 ls2
+unifyLabels :: [Tau] -> [Tau] -> Bool -> Bool -> Unify ([Tau],[Tau])
+unifyLabels ls1 ls2 closed1 closed2
   = case (ls1,ls2) of
       ([],[])
         -> return ([],[])
@@ -412,16 +412,28 @@ unifyLabels ls1 ls2
       ([],(_:_))
         -> return (ls2,[])
       (l1:ll1, l2:ll2)
-        -> case compareLabel l1 l2 of
-            LT ->do (ds1,ds2) <- unifyLabels ll1 ls2
+        -> let (name1,i1,args1) = labelNameEx l1
+               (name2,i2,args2) = labelNameEx l2
+           in case {-compareLabel l1 l2-} labelNameCompare name1 name2 of
+            LT ->do (ds1,ds2) <- unifyLabels ll1 ls2 closed1 closed2
                     return (ds1,l1:ds2)
-            GT ->do (ds1,ds2) <- unifyLabels ls1 ll2
+            GT ->do (ds1,ds2) <- unifyLabels ls1 ll2 closed2 closed2
                     return (l2:ds1,ds2)
             EQ -> -- labels are equal
-                 do unify l1 l2  -- for heap effects and kind checks
-                    ll1' <- subst ll1
-                    ll2' <- subst ll2
-                    unifyLabels ll1 ll2
+                  case (args1,args2) of
+                    ([TVar (TypeVar id1 kind1 sort1)], [TVar (TypeVar id2 kind2 sort2)])
+                       | isKindScope kind1 && isKindScope kind2 && id1 /= id2 &&
+                          sort1 == Skolem && sort2 == Skolem
+                      -> if (id1 < id2)
+                           then do (ds1,ds2) <- unifyLabels ll1 ls2 closed1 closed2
+                                   return (ds1,l1:ds2)
+                           else do (ds1,ds2) <- unifyLabels ls2 ll2 closed1 closed2
+                                   return (l2:ds1,ds2)
+                    _ ->
+                         do unify l1 l2  -- for heap effects and kind checks
+                            ll1' <- subst ll1
+                            ll2' <- subst ll2
+                            unifyLabels ll1 ll2 closed1 closed2
 
 compareLabel l1 l2
   = let (name1,i1,_) = labelNameEx l1
@@ -512,7 +524,7 @@ subst :: HasTypeVar a => a -> Unify a
 subst x
   = do sub <- getSubst
        return (sub |-> x)
-       
+
 withError :: (UnifyError -> UnifyError) -> Unify a -> Unify a
 withError f (Unify u)
   = Unify (\st1 -> case (u st1) of

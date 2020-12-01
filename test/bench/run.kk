@@ -2,6 +2,8 @@ import std/num/double
 import std/os/file
 import std/os/path
 import std/os/env
+import std/os/dir
+import std/os/process
 import std/os/flags
 
 // ----------------------------------------------------
@@ -242,7 +244,7 @@ fun run-test( test-name : string, langt : (string,string), iterations : int ) : 
   val base = lang + "-" + test-name
   val prog = if (lang-long=="java")
               then "java --enable-preview --class-path=" + dir + " "
-                    + (if (test-name=="cfold") then "-Xss128m " else "") 
+                    + (if (test-name=="cfold") then "-Xss128m " else "")
                     + test-name.replace-all("-","")
               else dir + "/" + base
   val progpath = if (lang-long=="java") then (dir.path + (test-name.replace-all("-","") + ".class").path)
@@ -291,7 +293,7 @@ fun execute-test( run : int, base : string, prog : string ) : io either<string,(
   val cmd  = if (get-env("SHELL").default("").contains("zsh"))
                then "/usr/bin/time -l 2> " + timef + " " + prog
                else "/usr/bin/time -f'%e %M' -o" + timef + " " + prog
-  val out  = run-command(cmd).exn
+  val out  = run-system-read(cmd).exn
   print(out)
   val time = read-text-file(timef.path).trim
   if (time=="") return Left("no output")

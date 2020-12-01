@@ -33,5 +33,5 @@ Css Header:
       margin: 0pt;
       margin-left: -1em;
       font-family: "Segoe UI Symbol", Symbola, serif;
-      font-size: 80%;
+      font-size: 70%;
     }

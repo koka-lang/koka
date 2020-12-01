@@ -7,5 +7,5 @@ fun mapx( xs : list<a>, f : a -> e b ) : e list<b> {
 }
 
 fun main() {
-  list(1,10).mapx(fun(i){ i.println; i+1 }).sum.println
+  list(1,10).mapx(fn(i){ i.println; i+1 }).sum.println
 }

@@ -26,7 +26,7 @@ kk_decl_export int  kk_os_read_text_file(kk_string_t path, kk_string_t* result, 
 kk_decl_export int  kk_os_write_text_file(kk_string_t path, kk_string_t content, kk_context_t* ctx);
 
 kk_decl_export int  kk_os_ensure_dir(kk_string_t dir, int mode, kk_context_t* ctx);
-kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, kk_context_t* ctx);
+kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, bool preserve_mtime, kk_context_t* ctx);
 kk_decl_export bool kk_os_is_directory(kk_string_t path, kk_context_t* ctx);
 kk_decl_export bool kk_os_is_file(kk_string_t path, kk_context_t* ctx);
 kk_decl_export int  kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, kk_context_t* ctx);
@@ -40,5 +40,9 @@ kk_decl_export double kk_timer_resolution(kk_context_t* ctx);
 kk_decl_export double kk_time_unix_now(double* secs_frac, kk_context_t* ctx);
 kk_decl_export double kk_time_resolution(kk_context_t* ctx);
 
+kk_decl_export kk_string_t kk_os_kernel(kk_context_t* ctx);
+kk_decl_export kk_string_t kk_os_arch(int* ptrdiff_bits, int* size_bits, kk_context_t* ctx);
+kk_decl_export kk_string_t kk_compiler_version(kk_context_t* ctx);
+kk_decl_export int         kk_os_processor_count(kk_context_t* ctx);
 
 #endif // include guard

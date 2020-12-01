@@ -16,17 +16,17 @@ module Type.Kind ( HasKind( getKind )
                  ) where
 
 import Data.Maybe( isJust )
-import Common.NamePrim( nameTpHandled, nameTpHandled1, nameTpPartial )
+import Common.NamePrim( nameTpHandled, nameTpHandled1, nameTpPartial, nameTpScope )
 import Common.Failure( failure )
 import Kind.Kind
 import Type.Type
 
 
-effectIsAffine :: Effect -> Bool 
+effectIsAffine :: Effect -> Bool
 effectIsAffine eff
   = let (labs,tl) = extractOrderedEffect eff
     in (isEffectEmpty tl && all labelIsAffine labs)
-         
+
 
 labelIsLinear :: Effect -> Bool
 labelIsLinear effect
@@ -37,10 +37,11 @@ labelIsLinear effect
         -- allow `alloc<global>` etc.
         -> let k = getKind effect
            in (isKindLabel k || isKindEffect k)
-      TCon (TypeCon cname _)   -- builtin effects
-        -> True  -- too liberal? (does not include exn)
+      TCon tc@(TypeCon cname _)  -- builtin effects?
+        -> let k = getKind tc
+           in (isKindLabel k || isKindEffect k)  -- too liberal? (does not include exn)
       _ -> False
-      
+
 labelIsAffine :: Effect -> Bool
 labelIsAffine effect
   = case expandSyn effect of
@@ -55,7 +56,7 @@ labelIsAffine effect
            in (isKindLabel k || isKindEffect k)
       TCon _   -- builtin effects
         -> True
-      _ -> False      
+      _ -> False
 
 extractHandledEffect eff
   = let (ls,tl) = extractOrderedEffect eff
@@ -96,6 +97,9 @@ getHandledEffectX exclude tp
       TApp (TCon (TypeCon hxName _)) _
         | isKindHandled (getKind tp)  && not (hxName `elem` exclude) -> Just (ResumeMany,hxName)
         | isKindHandled1 (getKind tp) && not (hxName `elem` exclude) -> Just (ResumeOnce,hxName)
+        -- For named & scoped handlers
+        -- TODO: use scope and scope1 to support linear named + scoped effect handlers. 
+        | hxName == nameTpScope  && not (hxName `elem` exclude) -> Just (ResumeMany,hxName)
       TCon (TypeCon hxName kind)
         | isKindHandled kind  && not (hxName `elem` exclude) -> Just (ResumeMany,hxName)
         | isKindHandled1 kind && not (hxName `elem` exclude) -> Just (ResumeOnce,hxName)
@@ -130,7 +134,7 @@ instance HasKind Type where
         TVar v         -> getKind v
         TCon c         -> getKind c
         TSyn syn xs tp -> -- getKind tp {- this is wrong for partially applied type synonym arguments, see "kind/alias3" test -}
-                          -- if (null xs) then getKind tp else 
+                          -- if (null xs) then getKind tp else
                           kindApply xs (getKind syn)
         TApp tp args   -> kindApply args (getKind tp)
                           {- case collect [] (getKind tp) of

@@ -1,6 +1,6 @@
 set(sources cfold.kk deriv.kk nqueens.kk nqueens-int.kk
             rbtree-poly.kk rbtree.kk rbtree-int.kk
-            rbtree-ck.kk rbtreeg.kk)
+            rbtree-ck.kk)
 
 # stack exec koka -- --target=c -O2 -c $(readlink -f ../cfold.kk) -o cfold
 find_program(koka "stack" REQUIRED)
@@ -22,6 +22,7 @@ foreach (source IN LISTS sources)
     DEPENDS ${source}
     VERBATIM)
 
+  # --fno-optctail
   add_custom_command(
     OUTPUT  ${outx_path}
     COMMAND ${koka} --target=c --builddir=${outx_dir} --outname=${namex} -v -O2 --fno-parcreuse --fno-parcspec -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> -c "${source}"

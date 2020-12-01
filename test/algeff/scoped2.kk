@@ -23,11 +23,11 @@ fun knapsack(w : int, vs : list<int> ) : <nondet,div> list<int> {
 
 val solutions = handler {
   return x   -> [x]
-  control choice(xs) -> xs.flatmap(fun(x){ resume(x) })
+  control choice(xs) -> xs.flatmap(fn(x){ resume(x) })
 }
 
 fun show( xss : list<list<int>> ) : string {
-  xss.show-list(fun(xs) { xs.show-list(core/show) } )
+  xss.show-list(fn(xs) { xs.show-list(core/show) } )
 }
 
 fun test1() {
@@ -78,7 +78,7 @@ fun show(x : (int,list<list<int>>)) : string {
 }
 
 fun show(xs : list<(int,list<int>)>) : string {
-  xs.show-list fun(x) {
+  xs.show-list fn(x) {
     "(state=" + x.fst.show + ", " + x.snd.show + ")"
   }
 }
@@ -111,7 +111,7 @@ fun untilJust( xs : list<a>, f : a -> e maybe<b> ) : e maybe<b> {
 
 val solution = handler {
   return (x){ Just(x) }
-  rcontrol choice(xs) { xs.untilJust( fun(x) { rcontext.resume(x) }) }
+  rcontrol choice(xs) { xs.untilJust( fn(x) { rcontext.resume(x) }) }
 }
 
 fun show(m : maybe<list<int>> ) : string {

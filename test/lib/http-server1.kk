@@ -17,7 +17,7 @@ fun main() : <async,io> () {
 		println("end of program")
 		()
 	}
-	fun(exn) {
+	fn(exn) {
 		println("exn happened: " + exn.show)
 	}
 }

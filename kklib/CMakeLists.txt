@@ -1,6 +1,5 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.7)
 project(kklib VERSION 1.0 LANGUAGES C)
-cmake_policy(SET CMP0077 NEW)  # allow override of options in parent projects
 enable_testing()
 
 option(KK_MIMALLOC          "Use the mimalloc allocator" ON)
@@ -8,6 +7,10 @@ option(KK_MIMALLOC_INLINE   "Use the inlined branch of mimalloc allocator" OFF)
 option(KK_DEBUG_SAN         "Compile with specified sanitizer (thread,memory,address,undefined) (clang only)" OFF)
 option(KK_DEBUG_FULL        "Use full internal debug assertions" OFF)
 option(KK_BUILD_TEST        "Build test target" OFF)
+
+if(NOT DEFINED KK_COMP_VERSION)
+  set(KK_COMP_VERSION "2.x.x")
+endif()  
 
 # -----------------------------------------------------------------------------
 # Language options
@@ -73,7 +76,7 @@ endif()
 # support library
 add_library(kklib STATIC ${kklib_sources})
 
-target_compile_definitions(kklib PUBLIC KK_STATIC_LIB)
+target_compile_definitions(kklib PUBLIC KK_STATIC_LIB=1 KK_COMP_VERSION="${KK_COMP_VERSION}")
 target_include_directories(kklib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(kklib PUBLIC kklib-flags)
 if(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND "x${CMAKE_C_SIMULATE_ID}" STREQUAL "xMSVC")
@@ -167,9 +170,9 @@ set(unix     $<OR:$<PLATFORM_ID:Linux>,$<PLATFORM_ID:Darwin>>)
 target_compile_options(
   kklib-flags
   INTERFACE
+    $<$<C_COMPILER_ID:Clang>:-Wno-everything> # for clang-cl, next line switches to Wall again
     $<${gnu_like}:
-      -Wall
-      -Wextra
+      -Wall -Wextra
       -Wno-unknown-pragmas
       -Wno-unused-parameter
       -Wno-unused-variable
@@ -178,21 +181,23 @@ target_compile_options(
       -Wpointer-arith
       -Wshadow
       -Wstrict-aliasing>
-    $<$<C_COMPILER_ID:GNU>:
-      -Wno-unused-but-set-variable>
-    $<$<C_COMPILER_ID:Clang>:
-      -Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align>
+#    $<$<C_COMPILER_ID:GNU>:
+#      -Wno-unused-but-set-variable>
+#    $<$<C_COMPILER_ID:Clang>:
+#      -Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros
+#      -Wno-cast-align -Wno-format-nonliteral -Wno-float-equal
+#      -Wno-missing-noreturn>
 )
 
 # Use O1 even in debug mode
 #if (NOT KK_DEBUG_FULL)
-  target_compile_options(kklib-flags INTERFACE $<$<AND:$<CONFIG:Debug>,${gnu_like}>:-O1>)
+target_compile_options(kklib-flags INTERFACE $<$<AND:$<CONFIG:Debug>,${gnu_like}>:-O1>)
 #endif()
 
 # Platform-specific definitions
 target_compile_definitions(kklib-flags INTERFACE $<${unix}:_GNU_SOURCE>)
 
-# Additional libraries
+# Additional libraries: math
 target_link_libraries(kklib-flags INTERFACE $<${unix}:m>)
 
 include("${CMAKE_CURRENT_LIST_DIR}/../kklib.cmake" OPTIONAL)

@@ -90,6 +90,7 @@ htmlHeader env title
     ,"<html>"
     ,"<head>"
     ,"<meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\" />"
+    ,"<meta name=\"viewport\" content=\"initial-scale=1.0\" />"
     ,""
     ,"<style type=\"text/css\">.koka .plaincode, .koka a.pp .pc { display: none; } .koka a.pp { color: inherit; text-decoration: none; }</style>"
     , unlines (map linkCss (undelimPaths (htmlCss env)))
@@ -228,7 +229,7 @@ fmtComment com
       ComPreBlock fmt -> span "comment-preblock" (escapes fmt)
       ComType fmts    -> span "comment-code" (concat fmts)
       ComCode fmts    -> span "comment-code" (concat fmts)
-      ComCodeBlock fmts  -> span "comment-codeblock" (concat fmts)
+      ComCodeBlock cls fmts  -> span "comment-codeblock" (concat fmts)
 -}
 
 
@@ -411,8 +412,8 @@ fmtComment mbRangeMap env kgamma gamma com
       ComPre fmt      -> prefixspan "pre" (escapes fmt)
       ComPreBlock fmt -> prefixBlockTag "pre" "preblock" (escapes fmt)
       ComCode lexs s   -> ptag "code" prefix (fmtLexs lexs)
-      ComCodeBlock lexs s -> prefixBlockTag "pre" ("source unchecked") (span "plaincode" (escapes s) ++ span "nicecode" (fmtLexs lexs))
-      ComCodeLit lexs s   -> prefixBlockTag "pre" ("source") (span "plaincode" (escapes s) ++ span "nicecode" (fmtLitLexs lexs))
+      ComCodeBlock cls lexs s -> prefixBlockTag "pre" ("source unchecked " ++ cls) (span "plaincode" (escapes s) ++ span "nicecode" (fmtLexs lexs))
+      ComCodeLit cls lexs s   -> prefixBlockTag "pre" ("source " ++ cls) (span "plaincode" (escapes s) ++ span "nicecode" (fmtLitLexs lexs))
       ComIndent n     -> concat (replicate n "&nbsp;")
       ComPar          -> "<br>"
   where

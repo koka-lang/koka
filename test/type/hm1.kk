@@ -15,5 +15,5 @@ fun test2() {
   single(hm1/id)
 }
 
-fun test3()  { choose(fun(x,y){x},fun(x,y){y}) }
+fun test3()  { choose(fn(x,y){x},fn(x,y){y}) }
 fun test4(f) { choose(core/id,f) }

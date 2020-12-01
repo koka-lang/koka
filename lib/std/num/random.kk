@@ -58,7 +58,7 @@ private fun sfc-step( sfc : sfc ) : (int32,sfc) {
 
 private fun sfc-init( seed : int ) : sfc {
   val sfc0 = Sfc(0.int32, seed.int32, (seed / 0x100000000).int32, 1.int32)
-  fold-int32( 0.int32, 12.int32, sfc0, fun(_,s){ sfc-step(s).snd } )  // step 12 times
+  fold-int32( 0.int32, 12.int32, sfc0, fn(_,s){ sfc-step(s).snd } )  // step 12 times
 }
 
 // Use pseudo random numbers given some initial `seed`. At most

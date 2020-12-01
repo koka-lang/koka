@@ -7,13 +7,13 @@
 */
 module ask
 
-effect instance reader {   // named handler for files
-  fun ask() : string       // `:(reader)   -> <exn> string`
+named effect reader {   // named handler for files
+  fun ask() : string    // `:(reader)   -> <exn> string`
 }
 
 // A reader handler
 fun reader( msg, action ) {
-  with r = instance {
+  with r = named handler {
     fun ask(){ msg }
   }
   action(r)

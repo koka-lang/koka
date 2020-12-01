@@ -1,35 +1,36 @@
 // Test initially
 effect amb {
-	fun flip() : bool
+  control flip() : bool
 }
 
 val amb = handler {
-	return x -> [x]
-	fun flip() -> resume(True) + resume(False)
+  return  (x)    -> [x]
+  control flip() -> resume(True) + resume(False)
 }
 
 fun bar() {
-	println("action: " + flip().show );
-	42
+  println("action: " + flip().show );
+  42
 }
 
 fun foo()
 {
-	handle(bar) (l : int) {
-		initially -> {
-			println("initially")
-			0
-		}
-		return x -> {
-			println("return, local=" + l.show)
-			x
-		}
-		finally  -> {
-			println("finally, local=" + l.show)
-		}
-	}
+  var i := 42
+  with handler {
+    initially (r){
+      println("initially: " + r.show)
+    }
+    return (x){
+      println("return, local=" + i.show)
+      x
+    }
+    finally {
+      println("finally, local=" + i.show)
+    }
+  }
+  bar()
 }
 
 fun main() {
-	amb(foo).map(show).join(",").println 
+  amb(foo).map(show).join(",").println
 }

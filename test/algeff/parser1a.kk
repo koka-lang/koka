@@ -72,7 +72,7 @@ val parse : forall<a,e> (string, () -> <parse,many|e> a) -> <many|e> (a,string)
 
 
 fun char(p : char -> bool) : parse char {
-  satisfy( fun(input) {
+  satisfy( fn(input) {
     val sc = input.head
     match (sc.list) {
       [c] | p(c) -> Just((c,input.tail))
@@ -83,7 +83,7 @@ fun char(p : char -> bool) : parse char {
 
 // Expression parsers
 fun symbol(c : char) : parse () {
-  char( fun(d) { c == d })
+  char( fn(d) { c == d })
   ()
 }
 
@@ -96,7 +96,7 @@ fun alpha() : parse int {
 }
 
 fun number() {
-  many1(digit).foldl(0, fun(n,d) { 10*n + d })
+  many1(digit).foldl(0, fn(n,d) { 10*n + d })
 }
 
 fun expr() : <div,mparse> int {
@@ -150,7 +150,7 @@ fun main() {
 
 // Some show functions
 fun show-parse( xs : list<(a,string)>, f : a -> string ) : string {
-  xs.show-list fun(r) {
+  xs.show-list fn(r) {
     r.show-tuple(f,show)
   }
 }
@@ -160,5 +160,5 @@ fun show-parse-int( xs : list<(int,string)> ) : string {
 }
 
 fun show-parse-ints( xs : list<(list<int>,string)> ) : string {
-  xs.show-parse( fun(is) { is.show-list(show) } )
+  xs.show-parse( fn(is) { is.show-list(show) } )
 }

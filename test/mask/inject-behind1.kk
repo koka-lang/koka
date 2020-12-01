@@ -33,11 +33,11 @@ fun bar(f,action) {
     try {
       f(action)
     }
-    fun(exn) {
+    fn(exn) {
       println("caught on inner level: " + exn.message)
     }
   }
-  fun(exn) {
+  fn(exn) {
     println("caught on outer level: " + exn.message)
   }
 }

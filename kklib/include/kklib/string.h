@@ -107,39 +107,27 @@ static inline kk_string_t kk_string_dup(kk_string_t str) {
   Strings operations
 --------------------------------------------------------------------------------------*/
 
-// Allocate a string of `len` characters. Adds a terminating zero at the end.
-static inline kk_string_t kk_string_alloc_len(size_t len, const char* s, kk_context_t* ctx) {
-  if (len == 0) {
-    return kk_string_empty();
-  }
-  else if (len < KK_STRING_SMALL_MAX) {
-    kk_string_small_t str = kk_block_alloc_as(struct kk_string_small_s, 0, KK_TAG_STRING_SMALL, ctx);
-    str->u.str_value = 0;
-    if (s != NULL && len > 0) {
-      memcpy(&str->u.str[0], s, len);
-    }
-    return kk_datatype_from_base(&str->_base);
-  }
-  else {
-    kk_string_normal_t str = kk_block_assert(kk_string_normal_t, kk_block_alloc_any(sizeof(struct kk_string_normal_s) - 1 /* char str[1] */ + len + 1 /* 0 terminator */, 0, KK_TAG_STRING, ctx), KK_TAG_STRING);
-    if (s != NULL && len > 0) {
-      memcpy(&str->str[0], s, len);
-    }
-    str->length = len;
-    str->str[len] = 0;
-    // todo: kk_assert valid UTF8 in debug mode
-    return kk_datatype_from_base(&str->_base);
-  }
-}
+// Allocate a string of `len` bytes. `s` must be at least `len` bytes of valid UTF8, or NULL. Adds a terminating zero at the end.
+kk_decl_export kk_string_t kk_string_alloc_len_unsafe(size_t len, const char* s, kk_context_t* ctx);
+kk_decl_export kk_string_t kk_string_adjust_length(kk_string_t str, size_t newlen, kk_context_t* ctx);
 
 static inline kk_string_t kk_string_alloc_buf(size_t len, kk_context_t* ctx) {
-  return kk_string_alloc_len(len, NULL, ctx);
+  return kk_string_alloc_len_unsafe(len, NULL, ctx);
 }
 
 static inline kk_string_t kk_string_alloc_dup(const char* s, kk_context_t* ctx) {
-  return (s==NULL ? kk_string_alloc_len(0, "", ctx) : kk_string_alloc_len(strlen(s), s, ctx));
+  if (s == NULL) return kk_string_empty();
+  return kk_string_alloc_len_unsafe(strlen(s), s, ctx);
 }
 
+static inline kk_string_t kk_string_alloc_dupn(size_t maxlen, const char* s, kk_context_t* ctx) {
+  if (s == NULL || maxlen == 0) return kk_string_empty();
+  size_t n;
+  for(n = 0; n < maxlen && s[n] != 0; n++) { }
+  return kk_string_alloc_len_unsafe(n, s, ctx);
+}
+
+// Raw string that directly points to an external buffer.
 static inline kk_string_t kk_string_alloc_raw_len(size_t len, const char* s, bool free, kk_context_t* ctx) {
   if (len == 0 || s==NULL) return kk_string_empty();
   kk_assert_internal(s[len]==0 && strlen(s)==len);
@@ -206,7 +194,7 @@ static inline kk_string_t kk_string_copy(kk_string_t str, kk_context_t* ctx) {
     return str;
   }
   else {
-    kk_string_t tstr = kk_string_alloc_len(kk_string_len_borrow(str), kk_string_cbuf_borrow(str), ctx);
+    kk_string_t tstr = kk_string_alloc_dup( kk_string_cbuf_borrow(str), ctx);
     kk_string_drop(str, ctx);
     return tstr;
   }
@@ -215,11 +203,6 @@ static inline kk_string_t kk_string_copy(kk_string_t str, kk_context_t* ctx) {
 static inline bool kk_string_ptr_eq_borrow(kk_string_t s1, kk_string_t s2) {
   return (kk_datatype_eq(s1, s2));
 }
-
-
-
-kk_decl_export kk_string_t kk_string_adjust_length(kk_string_t str, size_t newlen, kk_context_t* ctx);
-
 
 static inline bool kk_string_is_empty_borrow(kk_string_t s) {
   return (kk_string_len_borrow(s) == 0);
@@ -412,7 +395,7 @@ static inline bool kk_string_is_empty(kk_string_t s, kk_context_t* ctx) {
 
 
 kk_decl_export size_t kk_decl_pure kk_string_count(kk_string_t str);  // number of code points
-
+kk_decl_export size_t kk_decl_pure kk_string_count_pattern_borrow(kk_string_t str, kk_string_t pattern);
 kk_decl_export int kk_string_cmp_borrow(kk_string_t str1, kk_string_t str2);
 kk_decl_export int kk_string_cmp(kk_string_t str1, kk_string_t str2, kk_context_t* ctx);
 kk_decl_export int kk_string_icmp_borrow(kk_string_t str1, kk_string_t str2);             // ascii case insensitive

@@ -31,7 +31,7 @@ val solutions = handler {
 }
 
 fun show( xss : list<list<int>> ) : string {
-  xss.show-list(fun(xs) { xs.show-list(core/show) } )
+  xss.show-list(fn(xs) { xs.show-list(core/show) } )
 }
 
 fun test1() {
@@ -80,7 +80,7 @@ fun show(x : (int,list<list<int>>)) : string {
 }
 
 fun show(xs : list<(int,list<int>)>) : string {
-  xs.show-list fun(x) {
+  xs.show-list fn(x) {
     "(state=" + x.fst.show + ", " + x.snd.show + ")"
   }
 }
@@ -253,7 +253,7 @@ fun hbcall(action : () -> <exn,div,cutfail,nondet> _) {
 
 fun hecall(action : () -> <pure,cutfail,nondet> _) { //: <pure,cutfail,nondet> (() -> <pure,cutfail,nondet,cps> a) {
   handle(action) {
-    return x -> fun(_){ x }
+    return x -> fn(_){ x }
     ecall()  -> resume
     bcall()  -> hecall{ call{ hecall{ uncps{ resume(()) } } }}
   }

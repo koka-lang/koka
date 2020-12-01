@@ -9,12 +9,13 @@
 code, .madoko code,
 pre, .madoko pre,
 .koka.source.unchecked {
-  background-color: #E4E0E0;
+  background-color: #f8f7f6;
 }
 pre, .madoko pre,
 .koka.source,
 .koka.source.unchecked {
-  border-left: 0.5ex solid #BBB; 
+  border: 1px solid #CCC;
+  border-left: 0.5ex solid #CCC; 
   padding: 0.5ex 1ex 0.5ex 2ex;
 }
 
@@ -81,4 +82,27 @@ table .kw, table .tp, table .co,
   vertical-align: center;
   margin-right: 10px;
   font-size: 16pt;
+}
+
+.button {  
+  display: inline-block;
+  transition: all 0.5s;
+  cursor: pointer;
+  margin-top: 0ex;
+  xbox-shadow: 2px 2px 0px #888;
+  xborder-radius: 0.5ex;
+}
+
+.button:hover {
+  background-color: #f0fff0 !important;
+}
+
+.button a:hover {
+  text-decoration: none !important;
+}
+
+.aside {
+  float: right;
+  width: 50%;
+  margin: 0em 0em 1ex 2em;
 }

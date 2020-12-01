@@ -75,12 +75,12 @@ fun main() {
    use x = f(e1,..,en)
    ...
 ~>
-   f(e1,..,en,fun(x){ ... })
+   f(e1,..,en,fn(x){ ... })
 
 
    using f(e1,..,en)
    ...
 ~>
-   f(e1,..,en,fun(){ ... })
+   f(e1,..,en,fn(){ ... })
 
 */

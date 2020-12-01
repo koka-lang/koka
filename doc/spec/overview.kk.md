@@ -1,17 +1,294 @@
-# An overview of Koka
 
-This is a short introduction to the Koka programming language meant for
-programmers familiar with languages like C++, C#, or JavaScript.
+# Why Koka? { #why; }
+
+There are many new languages being designed, but only seldomly
+they bring a fundamental new concept, like Haskell did with
+pure programming, or Rust with borrow checking. 
+Koka brings novel semantics through _effect typing_, _effect handlers_,
+and _Perceus_ memory management:
+
+* The core of Koka consists of a small set of well-studied language
+  features, like first-class functions, a polymorphic type- and effect
+  system, algebraic data types, and effect handlers. Each of these is
+  composable and avoid the addition of
+  "special" extensions by being as general as possible.
+
+  [Read more about the _minimal but general_ design][#why-mingen]{.learn}
+
+* Koka tracks the (side) _effects_ of every
+  function in its type, where pure and effectful computations are
+  distinguished. The precise effect typing gives Koka _rock-solid
+  semantics_ backed by well-studied category theory, which makes Koka
+  particularly easy to reason about for both humans and compilers.
+
+  [Read more about effect types][#why-effects]{.learn}
+
+* Effect handlers let you define advanced control abstractions,
+  like exceptions, async/await, or probabilistic programs, 
+  as a user library in a typed and composable way.
+
+  [Read more about effect handlers][#why-handlers]{.learn}
+
+* Perceus is an advanced compilation method for reference counting.
+  This lets Koka compile directly to C code _without needing
+  a garbage collector or runtime system_! This also gives Koka 
+  excellent performance in practice.
+
+  [Read more about Perceus reference counting][#why-perceus]{.learn}
+
+* Through Perceus, Koka can do reuse analysis and optimize 
+  functional-style programs to use in-place updates.
+
+  [Read more about reuse analysis][#why-fbip]{.learn}
+
+  &nbsp;
+
+
+## Minimal but General { #why-mingen; }
+
+The _min-gen_ design principle: Koka has a minimal core set of
+orthogonal, well-studied language features -- but each of these is
+as general and _composable_ as possible, such that we do not need further
+"special" extensions. Core features include first-class functions,
+a higher-rank impredicative polymorphic type- and effect system, 
+algebraic data types, and effect handlers.
+
+```{.aside}
+fun hello-ten() {
+  var i := 0
+  while { i < 10 } {
+    println("hello")
+    i := i + 1
+  }
+}
+```
+
+As an example of the _min-gen_ philosophy, Koka implements most
+control-flow primitives as regular functions. An anonymous function can
+be written as `fn(){ <body> }`; but as a syntactic convenience, any
+function without arguments can be shortened further to use just braces,
+as `{ <body> }`.
+
+We can write a `while` loop now using regular
+function calls as shown in the example,
+where the call to `while` is desugared to
+`while(fn(){ i < 10}, fn(){ ... })`. 
+
+This also naturally leads to
+_consistency_: an expression between _parenthesis_ is always evaluated
+before a function call, whereas an expression between _braces_ (ah,
+_suspenders_!) is suspended and may be never evaluated or more than once
+(as in our example). This is inconsistent in most other languages where
+often the predicate of a `while` loop is written in parenthesis but may
+be evaluated multiple times.
+
+[Learn more about basic syntax](#sec-basics)
+{.learn}
+
+## Effect Typing { #why-effects; }
+
+Koka infers and tracks the effect of every function in its type -- 
+and a function type has 3 parts: the argument types, the effect type, 
+and the type of the result. For example: 
+```unchecked
+fun sqr    : (int)     -> total int       // mathematical total function    
+fun divide : (int,int) -> exn int         // may raise an exception (partial)  
+fun turing : (tape)    -> div int         // may not terminate (diverge)  
+fun print  : (string)  -> console ()      // may write to the console  
+fun rand   : ()        -> ndet int        // non-deterministic  
+```
+
+The precise effect typing gives Koka _rock-solid semantics_ backed
+by well-studied category theory, which makes Koka particularly easy to
+reason about for both humans and compilers. (Given the importance of
+effect typing, the name Koka was derived from the Japanese word for
+_effective_
+([K&omacron;ka](https://translate.google.com/#view=home&op=translate&sl=auto&tl=en&text=%E5%8A%B9%E6%9E%9C),
+&#x52B9;&#x679C;)).
+
+A function without any effect is called `:total` and corresponds to
+mathematically total functions -- a good place to be. Then we have
+effects for partial functions that can raise exceptions, as _exn_, and
+potentially non-terminating functions as `:div` (divergent). The
+combination of `:exn` and `:div` is called `:pure` as that corresponds to
+Haskell's notion of purity. On top of that we find mutability (as `:st`)
+up to full non-deterministic side effects in `:io`. 
+
+Effects can be polymorphic as well. Consider mapping a function over
+a list:
+```unchecked
+fun map( xs : list<a>, f : a -> e b ) : e list<b> {
+  match(xs) {
+    Cons(x,xx) -> Cons( f(x), map(xx,f) )
+    Nil        -> Nil
+  }
+}
+```
+Single letter types are polymorphic (aka, _generic_), and Koka infers
+that you map from a list of elements `:a` to a list of elements of
+type `:b`. Since `map` itself has no intrinsic effect, the effect 
+of applying `map` is exactly the effect of the function `f` that
+is applied, namely `:e`. 
+
+[Learn more about effect types][#sec-effect-types]
+{.learn}
+
+## Effect Handlers  { #why-handlers; }
+
+Another example of the _min-gen_ design principle: instead of
+various special language and compiler extensions to support exceptions,
+generators, async/await etc., Koka has full support for 
+algebraic effect handlers -- these lets you define advanced control
+abstractions like async/await as a user library in a typed and 
+composable way.
+
+Here is an example of an effect definition with
+one operation to yield `:int` values:
+```
+effect yield {
+  control yield( i : int ) : bool
+}
+```
+Once the effect is declared, we can use it 
+for example to yield the elements of a list:
+```
+fun traverse( xs : list<int> ) : yield () {
+  match(xs) {
+    Cons(x,xx) -> { yield(x); traverse(xx) }
+    Nil        -> ()
+  }
+}
+```
+Here we see that `traverse` has the `:yield` effect,
+and we need to _handle_ it. This is much like defining an
+exception handler, except we can receive values (here an `:int`),
+and we can _resume_ with a result (which we ignore in our example):
+```
+fun print-elems() : console () {
+  with control yield(i){
+    println("yielded " + i.show)
+    resume(True)
+  }
+  traverse([1,2,3])
+}
+```
+The `with` statement binds the handler for `:yield` over the
+rest of the scope, in this case `traverse([1,2,3])`. 
+Note how the handler eliminates the `:yield` effect -- and replaces
+it with a `:console` effect. When we run the example, we get:
+````
+yielded: 1
+yielded: 2
+yielded: 3
+```` 
+
+[Learn more about `with` statements][#sec-with]
+{.learn}
+
+[Learn more about effect handlers][#sec-handlers]
+{.learn}
+
+
+## Perceus Optimized Reference Counting  { #why-perceus; }
+
+[![perceus3]](https://en.wikipedia.org/wiki/Perseus_with_the_Head_of_Medusa)
+
+[perceus3]: images/perceus3.jpg "Perseus by Benvenuto Cellini" { width:20%; float:right; margin:1em 0em 1em 2em; border:1px solid #888; }
+
+[evidence-paper]: https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently-with-proofs-5f0b7d860b387.pdf
+[Perceus]: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf
+[rbtree]: https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk
+[test-bench]: https://github.com/koka-lang/koka/tree/master/test/bench
+
+Perceus is the compiler optimized reference counting technique that Koka
+uses for automatic memory management. This
+enables Koka to compile directly to plain C code _without needing a
+garbage collector or runtime system_!
+
+Perceus uses extensive static analysis to aggressively optimize the
+reference counts. Here the strong semantic foundation of Koka helps a
+lot: inductive data types cannot form cycles, and potential sharing
+across threads can be reliably determined.
+
+Normally we need to make a fundamental choice when managing memory: 
+
+- We either use manual memory management (C, C++, Rust) and we get 
+  the best performance but at a significant programming burden,
+- Or, we use garbage collection (OCaml, C#, Java, Go, etc.) but
+  but now we need a runtime system and pay a price in performance,
+  memory usage, and unpredictable latencies.
+
+With Perceus, we hope to cross this gap and our goal is to 
+be within 2x of the performance of C/C++. Initial benchmarks are
+encouraging and show Koka to be close to C performance on various
+memory intensive benchmarks.
+
+[See benchmarks](https://github.com/koka-lang/koka#Benchmarks)
+{.learn}
+
+[Read the Perceus paper][Perceus]
+{.learn}
+
+## Reuse Analysis { #why-fbip; }
+
+Perceus also performs _reuse analysis_ as part of reference
+counting analysis. This pairs pattern matches with constructors of the
+same size and reuses them _in-place_ if possible. Take for example,
+the `map` function over lists:
+```unchecked 
+fun map( xs : list<a>, f : a -> e b ) : e list<b> {
+  match(xs) {
+    Cons(x,xx) -> Cons( f(x), map(xx,f) )
+    Nil        -> Nil
+  }
+}
+```
+Here the matched `Cons` can be reused by the new `Cons`
+in the branch. This means if we map over a list that is not shared, 
+like `list(1,100000).map(sqr).sum`,
+then the list is updated _in-place_ without any extra allocation.
+This is very effective for many functional style programs.
+
+For example, the [`rbtree.kk`][rbtree] sample implements purely
+functional balanced insertion into a red-black tree. 
+Normally, a functional program would copy the spine of the tree
+on every insertion while rebalancing, but with Perceus the 
+rebalancing is done in-place in the fast path (and degrades
+gracefully to copying if the tree or subtrees are shared).
+
+This leads to a new programming technique we call FBIP:
+_functional but in-place_. Just like tail-recursion allows us
+to express loops with regular function calls, reuse analysis 
+allows us to express many imperative algorithms in a purely
+functional style. 
+
+[Learn more about FBIP][#sec-fbip]
+{.learn}
+
+
+[Read the Perceus paper on reuse analysis][Perceus]
+{.learn}
+
+
+
+
+
+
+# A Tour of Koka { #tour }
+
+This is a short introduction to the Koka programming language.
 
 Koka is a _function-oriented_ language that separates pure values from
-side-effecting computations (The word 'koka' (or &#x52B9;&#x679C;) means
+side-effecting computations (The word 'k&omacron;ka' (or &#x52B9;&#x679C;) means
 "effect" or "effective" in Japanese). Koka is also
 flexible and `fun`: Koka has many features that help programmers to easily
 change their data types and code organization correctly even in large-scale
 programs, while having a small strongly-typed language core with a familiar
-JavaScript like syntax.
+brace syntax.
 
-## Hello world
+## Basics { #sec-basics }
+
+### Hello world
 
 As usual, we start with the familiar _Hello world_ program:<span id=`examplemain`></span>
 ```
@@ -20,11 +297,7 @@ fun main() {
 }
 ```
 Koka uses familiar curly-braces syntax where `//` starts a line
-comment. Functions are declared using the `fun` keyword.
-
-If you are reading this on [Rise4Fun], you can click the _load in editor_
-button in the upper right corner of the example to load it into the
-editor and run the program.
+comment. Functions are declared using the `fun` keyword (and anonymous functions with `fn`).
 
 Here is another short example program that encodes a string using the
 _Caesar cipher_, where each lower-case letter in a string is replaced by the letter
@@ -58,7 +331,7 @@ generally leave out an explicit `return` keyword.
 Similarly, Koka's grammar is constructed in such a way that no semi-colons
 are needed to separate statements.
 
-## Dot selection {#sec-dot}
+### Dot selection {#sec-dot}
 
 Koka is a _function-oriented_ language where _functions_ and _data_ form the
 core of the language (in contrast to objects for example). In particular, the
@@ -80,7 +353,7 @@ function that takes that type as its first argument. In most object-oriented
 languages one would need to add that method to the class definition itself
 which is not always possible if such class came as a library for example.
 
-## Types
+### Types
 
 Koka is also strongly typed. It uses a powerful type inference engine to
 infer most types, and types generally do not get in the way. In
@@ -98,16 +371,17 @@ and `:string` types and the program is ambiguous without an annotation.
 Try to load the example in the editor and remove the annotation to see
 what error Koka produces.
 
-## Anonymous functions {#sec-anon}
+### Anonymous functions {#sec-anon}
 
-Koka also allows for anonymous function expressions. For example, instead of
+Koka also allows for anonymous function expressions using the `fn` keyword.
+For example, instead of
 declaring the `encode-char` function, we could just have passed it directly to
 the `map` function as a function expression:
 
 ```
 fun encode2( s : string, shift : int )
 {
-  s.map( fun(c) {
+  s.map( fn(c) {
     if (c < 'a' || c > 'z') return c
     val base = (c - 'a').int
     val rot  = (base + shift) % 26
@@ -126,18 +400,18 @@ fun main() { print10() }
 ////
 fun print10()
 {
-  for(1,10) fun(i) {
+  for(1,10) fn(i) {
     println(i)
   }
 }
 ```
 
-which is desugared to `for( 1, 10, fun(i){ println(i) } )`. In fact, since we
+which is desugared to `for( 1, 10, fn(i){ println(i) } )`. In fact, since we
 pass the `i` argument directly to `println`, we can also the function itself
 directly, and write `for(1,10,println)`.
 
 Anonymous functions without any arguments can be shortened further by leaving
-out the `fun` keyword and just using braces directly. Here is an example using
+out the `fn` keyword and just using braces directly. Here is an example using
 the `repeat` function:
 
 ```
@@ -151,7 +425,7 @@ fun printhi10()
 }
 ```
 
-where the body desugars to `repeat( 10, fun(){println(``hi``)} )`. The is
+where the body desugars to `repeat( 10, fn(){println(``hi``)} )`. The is
 especially convenient for the `while` loop since this is not a built-in
 operator in Koka but just a regular function:
 
@@ -172,6 +446,138 @@ parenthesis: Koka makes it always explicit whether code is evaluated
 before a function is called (in between parenthesis), or whether
 code is evaluated (potentially
 multiple times) by the called function instead (in between braces).
+
+### With Statements { #sec-with; }
+
+Todo.
+
+### Optional and Named Parameters
+
+Being a function-oriented language, Koka has powerful support for function
+calls where it supports both optional and named parameters. For example, the
+function `replace-all` takes a string, a ``pattern`` pattern, and
+a replacement string ``repl``:
+
+```
+fun main() { println(world()) }
+////
+fun world()
+{
+  replace-all("hi there", "there", "world")  // returns "hi world"
+}
+```
+
+Using named parameters, we can also write the function call as:
+
+```
+fun main() { println(world2()) }
+////
+fun world2()
+{
+  return "hi there".replace-all( repl="world", pattern="there" )
+}
+```
+
+Optional parameters let you specify default values for parameters that do not
+need to be provided at a call-site.  As an example, let's define a function
+`sublist` that takes a list, a ``start`` position, and the length ``len`` of the desired
+sublist.  We can make the ``len`` parameter optional and by default return all
+elements following the ``start`` position by picking the length of the input list by
+default:
+
+```
+fun main() { println( ['a','b','c'].sublist(1).string ) }
+////
+fun sublist( xs : list<a>, start : int,
+                  len : int = xs.length ) : list<a>
+{
+  if (start <= 0) return xs.take(len)
+  match(xs) {
+    Nil -> Nil
+    Cons(_,xx) -> xx.sublist(start - 1, len)
+  }
+}
+```
+
+Hover over the `sublist` identifier to see its full type, where the ``len``
+parameter has gotten an optional `:int` type signified by the question mark:
+`:?int`.
+
+### A larger example: cracking Caesar encoding
+
+
+```
+fun main() { test-uncaesar() }
+
+fun encode( s : string, shift : int )
+{
+  function encode-char(c) {
+    if (c < 'a' || c > 'z') return c
+    val base = (c - 'a').int
+    val rot  = (base + shift) % 26
+    (rot.char + 'a')
+  }
+
+  s.map(encode-char)
+}
+////
+// The letter frequency table for English
+val english = [8.2,1.5,2.8,4.3,12.7,2.2,
+               2.0,6.1,7.0,0.2,0.8,4.0,2.4,
+               6.7,7.5,1.9,0.1, 6.0,6.3,9.1,
+               2.8,1.0,2.4,0.2,2.0,0.1]
+
+// Small helper functions
+fun percent( n : int, m : int ) {
+  100.0 * (n.double / m.double)
+}
+
+fun rotate( xs, n ) {
+  xs.drop(n) + xs.take(n)
+}
+
+// Calculate a frequency table for a string
+fun freqs( s : string ) : list<double>
+{
+  val lowers = list('a','z')
+  val occurs = lowers.map( fn(c){ s.count(c.string) })
+  val total  = occurs.sum
+  occurs.map( fn(i){ percent(i,total) } )
+}
+
+// Calculate how well two frequency tables match according
+// to the _chi-square_ statistic.
+fun chisqr( xs : list<double>, ys : list<double> ) : double
+{
+  zipwith(xs,ys, fn(x,y){ ((x - y)^2.0)/y } ).foldr(0.0,(+))
+}
+
+// Crack a Caesar encoded string
+fun uncaesar( s : string ) : string
+{
+  val table  = freqs(s)                   // build a frequency table for `s`
+  val chitab = list(0,25).map( fn(n) {    // build a list of chisqr numbers for each shift between 0 and 25
+                  chisqr( table.rotate(n), english )
+               })
+  val min    = chitab.minimum()           // find the mininal element
+  val shift  = chitab.index-of( fn(f){ f == min } ).negate  // and use its position as our shift
+  s.encode( shift )
+}
+
+fun test-uncaesar() {
+  println( uncaesar( "nrnd lv d ixq odqjxdjh" ) )
+}
+```
+
+The `val` keyword declares a static value. In the example, the value `english`
+is a list of floating point numbers (of type `:double `) denoting the average
+frequency for each letter. The function `freqs` builds a frequency table for a
+specific string, while the function `chisqr` calculates how well two frequency
+tables match. In the function `crack` these functions are used to find a
+`shift` value that results in a string whose frequency table matches the
+`english` one the closest -- and we use that to decode the string. Let's try
+it out in the editor!
+
 
 ## Effect types
 
@@ -234,7 +640,7 @@ fun square6( x : int ) : _e int
 
 Hover over `square6` to see the inferred effect for `:_e`
 
-## Semantics of effects
+### Semantics of effects
 
 The inferred effects are not just considered as some extra type information on
 functions. On the contrary, through the inference of effects, Koka has a very
@@ -268,7 +674,7 @@ separate out nicely behaved parts, which is essential for many domains, like
 safe LINQ queries, parallel tasks, tier-splitting, sand-boxed mobile code,
 etc.
 
-## Combining effects
+### Combining effects
 
 Often, a function contains multiple effects, for example:
 
@@ -290,7 +696,7 @@ inferred is really `: <pure,ndet> ` where `:pure` is a type alias defined as
 alias pure = <div,exn>
 ```
 
-## Polymorphic effects
+### Polymorphic effects
 
 Many functions are polymorphic in their effect. For example, the
 `map:forall<a,b,e> (xs : list<a>, f : (a) -> e b) -> e list<b> ` function
@@ -330,21 +736,21 @@ fun main() { looptest() }
 ////
 fun looptest()
 {
-  while { odd?(srandom-int()) }
+  while { is-odd(srandom-int()) }
   {
     throw("odd")
   }
 }
 ```
 
-In the above program, Koka infers that the predicate ``odd(random-int())`` has
+In the above program, Koka infers that the predicate ``odd(srandom-int())`` has
 effect `: <ndet|e1> ` while the action has effect `: <exn|e2> ` for some `:e1` and `:e2`.
 When applying `while`, those
 effects are unified to the type `: <exn,ndet,div|e3> ` for some `:e3` (which can
 be seen by hovering over the `looptest` identifier)
 
 
-## Isolated state {#sec-runst}
+### Isolated state {#sec-runst}
 
 The Fibonacci numbers are a sequence where each subsequent Fibonacci number is
 the sum of the previous two, where `fib(0) == 0` and `fib(1) == 1`. We can
@@ -406,7 +812,7 @@ fun fib3(n)
   val x = ref(0)
   val y = ref(1)
   repeat(n) {
-    val y0 = !y 
+    val y0 = !y
     y := !x + !y
     x := y0
   }
@@ -442,136 +848,11 @@ final algorithm itself behaves like a pure function, see the
 
   [garsiaWachs]: http://www.rise4fun.com/koka/garsiaWachs {target='_top'}
 
-## A larger example: cracking Caesar encoding
 
-Enough about effects and imperative updates. Let's look at some more functional examples :-)
-For example, cracking Caesar encoded strings:
+## Data Types
 
-```
-fun main() { test-uncaesar() }
 
-fun encode( s : string, shift : int )
-{
-  function encode-char(c) {
-    if (c < 'a' || c > 'z') return c
-    val base = (c - 'a').int
-    val rot  = (base + shift) % 26
-    (rot.char + 'a')
-  }
-
-  s.map(encode-char)
-}
-////
-// The letter frequency table for English
-val english = [8.2,1.5,2.8,4.3,12.7,2.2,
-               2.0,6.1,7.0,0.2,0.8,4.0,2.4,
-               6.7,7.5,1.9,0.1, 6.0,6.3,9.1,
-               2.8,1.0,2.4,0.2,2.0,0.1]
-
-// Small helper functions
-fun percent( n : int, m : int ) {
-  100.0 * (n.double / m.double)
-}
-
-fun rotate( xs, n ) {
-  xs.drop(n) + xs.take(n)
-}
-
-// Calculate a frequency table for a string
-fun freqs( s : string ) : list<double>
-{
-  val lowers = list('a','z')
-  val occurs = lowers.map( fun(c){ s.count(c.string) })
-  val total  = occurs.sum
-  occurs.map( fun(i){ percent(i,total) } )
-}
-
-// Calculate how well two frequency tables match according
-// to the _chi-square_ statistic.
-fun chisqr( xs : list<double>, ys : list<double> ) : double
-{
-  zipwith(xs,ys, fun(x,y){ ((x - y)^2.0)/y } ).foldr(0.0,(+))
-}
-
-// Crack a Caesar encoded string
-fun uncaesar( s : string ) : string
-{
-  val table  = freqs(s)                   // build a frequency table for `s`
-  val chitab = list(0,25).map( fun(n) {   // build a list of chisqr numbers for each shift between 0 and 25
-                  chisqr( table.rotate(n), english )
-               })
-  val min    = chitab.minimum()           // find the mininal element
-  val shift  = chitab.index-of( fun(f){ f == min } ).negate  // and use its position as our shift
-  s.encode( shift )
-}
-
-fun test-uncaesar() {
-  println( uncaesar( "nrnd lv d ixq odqjxdjh" ) )
-}
-```
-
-The `val` keyword declares a static value. In the example, the value `english`
-is a list of floating point numbers (of type `:double `) denoting the average
-frequency for each letter. The function `freqs` builds a frequency table for a
-specific string, while the function `chisqr` calculates how well two frequency
-tables match. In the function `crack` these functions are used to find a
-`shift` value that results in a string whose frequency table matches the
-`english` one the closest -- and we use that to decode the string. Let's try
-it out in the editor!
-
-## Optional and named parameters
-
-Being a function-oriented language, Koka has powerful support for function
-calls where it supports both optional and named parameters. For example, the
-function `replace-all` takes a string, a ``pattern`` pattern, and
-a replacement string ``repl``:
-
-```
-fun main() { println(world()) }
-////
-fun world()
-{
-  replace-all("hi there", "there", "world")  // returns "hi world"
-}
-```
-
-Using named parameters, we can also write the function call as:
-
-```
-fun main() { println(world2()) }
-////
-fun world2()
-{
-  return "hi there".replace-all( repl="world", pattern="there" )
-}
-```
-
-Optional parameters let you specify default values for parameters that do not
-need to be provided at a call-site.  As an example, let's define a function
-`sublist` that takes a list, a ``start`` position, and the length ``len`` of the desired
-sublist.  We can make the ``len`` parameter optional and by default return all
-elements following the ``start`` position by picking the length of the input list by
-default:
-
-```
-fun main() { println( ['a','b','c'].sublist(1).string ) }
-////
-fun sublist( xs : list<a>, start : int,
-                  len : int = xs.length ) : list<a>
-{
-  if (start <= 0) return xs.take(len)
-  match(xs) {
-    Nil -> Nil
-    Cons(_,xx) -> xx.sublist(start - 1, len)
-  }
-}
-```
-
-Hover over the `sublist` identifier to see its full type, where the ``len``
-parameter has gotten an optional `:int` type signified by the question mark:
-`:?int`.
-
-## Structs
+### Structs
 
 An important aspect of a function-oriented language is to be able to define
 rich data types over which the functions work. A common data type is that of a
@@ -597,7 +878,7 @@ Also, Koka automatically generates accessor functions for each field in a
 struct (or other data type), and we can access the `age` of a `:person` as
 `gaga.age` (which is of course just syntactic sugar for `age(gaga)`).
 
-## Copying
+### Copying
 
 By default, all structs (and other data types) are _immutable_. Instead of
 directly mutating a field in a struct, we usually return a new struct where
@@ -641,7 +922,7 @@ copy function, as in `p.copy( age = p.age+1 )`. Again, there are no special
 rules for record updates and everything is just function calls with optional
 and named parameters.
 
-## More data types
+### Alternatives (or Unions)
 
 Koka also supports algebraic data types where there are multiple alternatives.
 For example, here is an enumeration:
@@ -713,13 +994,21 @@ type person {
 }
 ```
 
-## Matching
+### Matching
 
 Todo
 
-## Inductive, co-inductive, and recursive types
+### Inductive, co-inductive, and recursive types
 
 For the purposes of equational reasoning and termination checking, a `type`
 declaration is limited to finite inductive types. There are two more
-declarations, namely `cotype` and `rectype` that allow for co-inductive types,
+declarations, namely `co type` and `rec type` that allow for co-inductive types,
 and arbitrary recursive types respectively.
+
+## Effect Handlers { #sec-handlers }
+
+Todo
+
+## FBIP: Functional but In-Place { #sec-fbip; }
+
+Todo

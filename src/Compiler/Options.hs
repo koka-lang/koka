@@ -106,8 +106,8 @@ data Flags
          , simplify         :: Int
          , simplifyMaxDup   :: Int
          , colorScheme      :: ColorScheme
-         , outDir           :: FilePath
-         , outBuildDir      :: FilePath
+         , outDir           :: FilePath      --  out
+         , outBuildDir      :: FilePath      --  actual build output: <outDir>/v2.x.x/<ccomp>-<variant>
          , includePath      :: [FilePath]
          , csc              :: FileName
          , node             :: FileName
@@ -133,10 +133,10 @@ data Flags
          , coreCheck        :: Bool
          , enableMon        :: Bool
          , semiInsert       :: Bool
-         , libDir           :: FilePath
-         , binDir           :: FilePath
-         , kklibDir         :: FilePath
-         , stdlibDir        :: FilePath
+         , localBinDir      :: FilePath  -- directory of koka executable
+         , localDir         :: FilePath  -- install prefix: /usr/local
+         , localLibDir      :: FilePath  -- precompiled object files: <prefix>/lib/koka/v2.x.x  /<cc>-<config>/libkklib.a, /<cc>-<config>/std_core.kki, ...
+         , localShareDir    :: FilePath  -- sources: <prefix>/share/koka/v2.x.x  /lib/std, /lib/samples, /kklib
          , packages         :: Packages
          , forceModule      :: FilePath
          , debug            :: Bool      -- emit debug info
@@ -198,10 +198,10 @@ flagsNull
           False -- coreCheck
           True  -- enableMonadic
           True  -- semi colon insertion
-          ""    -- bin dir
-          ""    -- lib dir
-          ""    -- kklib dir   <lib>/kklib
-          ""    -- stdlib dir  <lib>/lib
+          ""    -- koka executable dir
+          ""    -- prefix dir (default: <program-dir>/..)
+          ""    -- localLib dir
+          ""    -- localShare dir
           packagesEmpty -- packages
           "" -- forceModule
           True -- debug
@@ -433,9 +433,9 @@ readHtmlBases s
 -- | Environment table
 environment :: [ (String, String, (String -> [String]), String) ]
 environment
-  = [ -- ("koka-dir",     "dir",     dirEnv,       "The install directory")
-      ("koka-options", "options", flagsEnv,     "Add <options> to the command line")
-    , ("koka-editor",  "command", editorEnv,    "Use <cmd> as the editor (substitutes %l, %c, and %s)")
+  = [ -- ("koka_dir",     "dir",     dirEnv,       "The install directory")
+      ("koka_options", "options", flagsEnv,     "Add <options> to the command line")
+    , ("koka_editor",  "command", editorEnv,    "Use <cmd> as the editor (substitutes %l, %c, and %f)")
     ]
   where
     flagsEnv s      = [s]
@@ -466,40 +466,45 @@ processOptions flags0 opts
                         else if (any isInteractive options) then ModeInteractive files
                         else if (null files) then ModeInteractive files
                                              else ModeCompiler files
-             in do pkgs <- discoverPackages (outDir flags)
-                   (binDir,libDir,kklibDir,stdlibDir) <- getKokaDirs
-                   ccmd <- if (ccompPath flags == "") then detectCC else return (ccompPath flags)
+             in do ed   <- if (null (editor flags))
+                            then detectEditor 
+                            else return (editor flags)
+                   pkgs <- discoverPackages (outDir flags)
+                   (localDir,localLibDir,localShareDir,localBinDir) <- getKokaDirs
+                   ccmd <- if (ccompPath flags == "") then detectCC
+                           else if (ccompPath flags == "mingw") then return "gcc"
+                           else return (ccompPath flags)
                    cc   <- ccFromPath flags ccmd
                    return (flags{ packages    = pkgs,
-                                  binDir      = binDir,
-                                  libDir      = libDir,
-                                  kklibDir    = kklibDir,
-                                  stdlibDir   = stdlibDir,
-                                  ccompPath      = ccmd,
+                                  localBinDir = localBinDir,
+                                  localDir    = localDir,
+                                  localLibDir = localLibDir,
+                                  localShareDir = localShareDir,
+                                  ccompPath   = ccmd,
                                   ccomp       = cc,
-                                  includePath = stdlibDir : includePath flags }
+                                  editor      = ed,
+                                  includePath = (localShareDir ++ "/lib") : includePath flags }
                           ,mode)
         else invokeError errs
 
-getKokaDirs :: IO (FilePath,FilePath,FilePath, FilePath)
+getKokaDirs :: IO (FilePath,FilePath,FilePath,FilePath)
 getKokaDirs
   = do bin        <- getProgramPath
        let binDir  = dirname bin
            rootDir = rootDirFrom binDir
-       libDir0    <- getEnvVar "KOKA_LIB_DIR"
-       libDir     <- if (not (null libDir0)) then return libDir0 else
-                     do exist <- doesFileExist (joinPath rootDir "lib/toc.kk")
-                        if (exist)
-                          then return rootDir -- from local repo
-                          else return (joinPath rootDir ("lib/koka/v" ++ version))  -- from install
-       kklibDir0  <- getEnvVar "KOKA_KKLIB_DIR"
-       let kklibDir = if (null kklibDir0) then joinPath libDir "kklib" else kklibDir0
-       stdlibDir0 <- getEnvVar "KOKA_STDLIB_DIR"
-       let stdlibDir = if (null stdlibDir0) then joinPath libDir "lib" else stdlibDir0
-       return (normalizeWith '/' binDir,
+       isRootRepo <- doesFileExist (joinPath rootDir "koka.cabal")
+       libDir0    <- getEnvVar "koka_lib_dir"
+       shareDir0  <- getEnvVar "koka_share_dir"
+       let libDir   = if (not (null libDir0)) then libDir0
+                      else if (isRootRepo) then joinPath rootDir "out"
+                      else joinPath rootDir ("lib/koka/v" ++ version)
+           shareDir = if (not (null shareDir0)) then shareDir0
+                      else if (isRootRepo) then rootDir
+                      else joinPath rootDir ("share/koka/v" ++ version)
+       return (normalizeWith '/' rootDir,
                normalizeWith '/' libDir,
-               normalizeWith '/' kklibDir,
-               normalizeWith '/' stdlibDir)
+               normalizeWith '/' shareDir,
+               normalizeWith '/' binDir)
 
 rootDirFrom :: FilePath -> FilePath
 rootDirFrom binDir
@@ -508,7 +513,7 @@ rootDirFrom binDir
      ("bin":_:"install":".stack-work":es)     -> joinPaths (reverse es)
      ("bin":_:_:"install":".stack-work":es)   -> joinPaths (reverse es)
      ("bin":_:_:_:"install":".stack-work":es) -> joinPaths (reverse es)
-     -- install
+     -- regular install
      ("bin":es)   -> joinPaths (reverse es)
      -- jake build
      (_:"out":es) -> joinPaths (reverse es)
@@ -578,8 +583,8 @@ data CC = CC{  ccName       :: String,
                ccAddSysLib  :: String -> Args,
                ccAddLib     :: FilePath -> Args,
                ccAddDef     :: String -> Args,
-               ccLibFile    :: String -> FilePath,
-               ccObjFile    :: String -> FilePath
+               ccLibFile    :: String -> FilePath,  -- make lib file name
+               ccObjFile    :: String -> FilePath   -- make object file namen
             }
 
 data BuildType = Debug | Release | RelWithDebInfo
@@ -594,7 +599,7 @@ outName :: Flags -> FilePath -> FilePath
 outName flags s
   = joinPath (buildDir flags) s
 
-buildDir :: Flags -> FilePath
+buildDir :: Flags -> FilePath    -- usually <outDir>/v2.x.x/<config>
 buildDir flags
   = if (null (outBuildDir flags))
      then if (null (outDir flags))
@@ -602,7 +607,7 @@ buildDir flags
            else outDir flags ++ "/" ++ configType flags
      else outBuildDir flags
 
-configType :: Flags -> String
+configType :: Flags -> String   -- for example: clang-debug, js-release
 configType flags
   = let pre  = if (target flags == C)
                  then ccName (ccomp flags)
@@ -631,8 +636,8 @@ ccGcc,ccMsvc :: String -> FilePath -> CC
 ccGcc name path
   = CC name path []
         [(Debug,         words "-g -O1"),
-         (Release,       words "-O2 -flto -DNDEBUG"),
-         (RelWithDebInfo,words "-O2 -flto -g -DNDEBUG")]
+         (Release,       words "-O2 -DNDEBUG"),
+         (RelWithDebInfo,words "-O2 -g -DNDEBUG")]
         (gnuWarn ++ ["-Wno-unused-but-set-variable"])
         (["-c"] ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
         []
@@ -672,7 +677,7 @@ ccFromPath flags path
         clang   = gcc{ ccFlagsWarn = gnuWarn ++ words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align" }
         generic = gcc{ ccFlagsWarn = [] }
         msvc    = ccMsvc name path
-        clangcl = msvc{ ccFlagsWarn = ccFlagsWarn clang ++ words "-Wno-extra-semi-stmt -Wno-extra-semi -Wno-strict-prototypes -Wno-sign-conversion",
+        clangcl = msvc{ ccFlagsWarn = ccFlagsWarn clang ++ words "-Wno-extra-semi-stmt -Wno-extra-semi -Wno-float-equal",
                         ccFlagsLink = ccFlagsLink clang ++ words "-Wno-unused-command-line-argument"
                       }
 
@@ -728,7 +733,7 @@ detectCC
        (name,path) <- do envCC <- getEnvVar "CC"
                          findCC paths ((if (envCC=="") then [] else [envCC]) ++
                                        (if (onMacOS) then ["clang"] else []) ++
-                                       ["gcc","cl","clang-cl","clang","icc","cc","g++","clang++"])
+                                       ["gcc","clang-cl","cl","clang","icc","cc","g++","clang++"])
        return path
 
 findCC :: [FilePath] -> [FilePath] -> IO (String,FilePath)
@@ -742,6 +747,21 @@ findCC paths (name:rest)
          Just path -> return (name,path)
 
 
+
+detectEditor :: IO String
+detectEditor
+  = do paths <- getEnvPaths "PATH"
+       findEditor paths [("code","--goto %f:%l:%c"),("atom","%f:%l:%c")]
+       
+findEditor :: [FilePath] -> [(String,String)] -> IO String
+findEditor paths []
+  = do -- putStrLn "warning: cannot find editor"
+       return ""
+findEditor paths ((name,options):rest)
+  = do mbPath <- searchPaths paths [exeExtension] name
+       case mbPath of
+         Nothing -> findEditor paths rest
+         Just _  -> return (name ++ " " ++ options)
 
 {--------------------------------------------------------------------------
   Show options
@@ -835,10 +855,9 @@ versionMessage flags
     (if null (compiler ++ buildVariant) then "" else " (" ++ compiler ++ " " ++ buildVariant ++ " version)")
   , ""
   ])
-  <-> text "bin   :" <+> text (binDir flags)
-  <-> text "lib   :" <+> text (libDir flags)
-  <-> text "stdlib:" <+> text (stdlibDir flags)
-  <-> text "kklib :" <+> text (kklibDir flags)
+  <-> text "bin   :" <+> text (localBinDir flags)
+  <-> text "lib   :" <+> text (localLibDir flags)
+  <-> text "share :" <+> text (localShareDir flags)
   <-> text "build :" <+> text (buildDir flags)
   <-> text "cc    :" <+> text (ccPath (ccomp flags))
   <->

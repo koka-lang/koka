@@ -1,8 +1,8 @@
 // Adapted from https://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap.lean
 
-type color { 
-  Red 
-  Black 
+type color {
+  Red
+  Black
 }
 
 type tree<k,v> {
@@ -61,7 +61,7 @@ fun ins(t: tree<int,v>, k: int, v: v): tree<int,v> {
                                           else Node(Black, ins(l, k, v), kx, vx, r))
          elif (k == kx) then Node(Black, l, k, v, r)
          elif (is-red(r)) then balance-right(l, kx, vx, ins(r,k,v))
-         else Node(Black, l, kx, vx, ins(r, k, v))  
+         else Node(Black, l, kx, vx, ins(r, k, v))
   }
 }
 
@@ -92,6 +92,6 @@ fun make-tree(n: int): div tree<int,bool> {
 
 fun main() {
   val m = make-tree(4200000); // todo: read first command line arg for size
-  val v = m.fold(0) fun(k, v, r) { if (v) then r + 1 else r }
+  val v = m.fold(0) fn(k, v, r) { if (v) then r + 1 else r }
   v.println
 }

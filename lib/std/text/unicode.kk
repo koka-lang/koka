@@ -106,7 +106,7 @@ public fun width( c : char ) : int {
 // Return the total column-width of a string.
 public fun width( s : string ) : int {
   var total := 0
-  s.foreach( fun(c) {
+  s.foreach( fn(c) {
     total := total + c.width
   })
   total

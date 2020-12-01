@@ -3,7 +3,7 @@
 ambient heap<s::S> {
 }
 
-val heap = fun(action:forall<s> () -> <heap<s>|_e> _a) {
+val heap = fn(action:forall<s> () -> <heap<s>|_e> _a) {
   with<heap<_s>> { }
   action()
 }

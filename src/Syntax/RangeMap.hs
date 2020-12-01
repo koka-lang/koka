@@ -79,11 +79,11 @@ instance Show RangeInfo where
 instance Enum RangeInfo where
   fromEnum r
     = case r of
-        Decl _ _ _ -> 0
+        Decl _ _ _ -> 0 
         Block _    -> 1
         Error _    -> 4
         Warning _  -> 3
-        Id _ _ _     -> 2
+        Id _ _ _   -> 2
 
   toEnum i
     = failure "Syntax.RangeMap.toEnum"

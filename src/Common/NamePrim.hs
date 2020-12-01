@@ -47,6 +47,7 @@ module Common.NamePrim
           , isClauseTailName, nameClauseTailNoYield
           , nameTpEvIndex, nameYielding, nameYieldExtend
           , nameEvvIsAffine
+          , nameInitially, nameFinally
 
           --
           , nameUnsafeTotal
@@ -94,7 +95,7 @@ module Common.NamePrim
           , nameTpHandlerBranch0, nameTpHandlerBranch1
           , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
           , nameTpValueOp
-          , nameTpInst
+          , nameTpNamed, nameTpScope
 
 
           , nameTpAsync, nameTpAsyncX
@@ -237,6 +238,8 @@ nameConEv       = preludeName "Ev"
 nameTpNull      = preludeName "null"
 nameTpIO        = preludeName "io"
 
+nameTpNamed     = preludeName "nmd"
+nameTpScope     = preludeName "scope"
 nameTpPartial   = preludeName "exn"
 nameTpPure      = preludeName "pure"
 
@@ -286,6 +289,9 @@ nameYieldExtend = coreHndName "yield-extend"
 nameBind        = coreHndName "yield-bind" -- preludeName "bind"
 nameBind2       = coreHndName "yield-bind2"
 nameEffectOpen  = coreHndName ".open" -- preludeName ".open"
+
+nameInitially   = coreHndName "initially"
+nameFinally     = coreHndName "finally"
 
 nameClauseTailNoYield n = coreHndName ("clause-tail-noyield" ++ show n)
 
@@ -342,7 +348,6 @@ nameOr          = coreTypesName "||"
 
 nameTpHandled   = coreTypesName "handled"
 nameTpHandled1  = coreTypesName "handled1"
-nameTpInst      = coreTypesName "inst"
 
 nameIdentity    = coreTypesName "id"
 

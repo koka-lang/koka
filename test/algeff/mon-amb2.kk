@@ -77,8 +77,8 @@ fun compose( c : comp<a,e,c>, f : c -> e free<e,b> ) : comp<a,e,b> {
 // ----------------------------------------------------------------------------
 
 fun xor() : e free<e,bool> {
-  bind( flip(), fun(p) {
-    bind( flip(), fun(q) {
+  bind( flip(), fn(p) {
+    bind( flip(), fn(q) {
       unit( p||q && not(p&&q))
     })
   })
@@ -87,9 +87,9 @@ fun xor() : e free<e,bool> {
 
                    
 fun foo() : e free<e,bool> {
-  bind( flip(), fun(p) {
-    bind( get(), fun(i) {
-      bind( set(i+1), fun(_) {
+  bind( flip(), fn(p) {
+    bind( get(), fn(i) {
+      bind( set(i+1), fn(_) {
           if (i >= 0 && p) then xor() else unit(False)
       })
     })
@@ -115,8 +115,8 @@ fun amb_result(x : a ) : e free<e,list<a>> {
 }
 
 fun amb_flip( cont : bool -> e free<e,list<a>> ) : e free<e,list<a>> {
-  bind( cont(False), fun(i) { 
-    bind( cont(True), fun(j) {
+  bind( cont(False), fn(i) { 
+    bind( cont(True), fn(j) {
       unit(i+j)
     })
   })
@@ -201,7 +201,7 @@ fun show1( x : (list<bool>,int) ) {
 }
                    
 fun show2( xs : list<(bool,int)> ) {
-  "[" + xs.map(fun(x){ "(" + x.fst.show + "," + x.snd.show + ")"}).join(",") + "]"
+  "[" + xs.map(fn(x){ "(" + x.fst.show + "," + x.snd.show + ")"}).join(",") + "]"
 }
                    
 fun test1() = state_handler(amb_handler(foo()),1).pure.show1

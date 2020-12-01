@@ -40,7 +40,7 @@ fun xleapdays-upto(gyear : int) : int {
 
 
 fun test-gdays(years : int = 400) {
-  for-days(years) fun(day) {
+  for-days(years) fn(day) {
     val d = instant-at-mjd( fixed((day - gmjd-epoch-shift) - 366), ts-utc ).time.date
     //xcheck("gday " + day.show + ", " + d.show, d.year.show) { gyear-of(day).show }
     val (y,_doy) = xdoy-of(day)
@@ -205,26 +205,26 @@ fun xcheck( msg : string, expect : string, chk :() -> io string ) : io () {
 
 
 fun verify-id1w(years=400) {
-  for-weekdates(years) fun(wd : weekdate) {
+  for-weekdates(years) fn(wd : weekdate) {
     xcheck("isow-date", wd.show ) { wd.date.isow-date-to-days.isow-days-to-date.weekdate.show }
   }
 }
 
 fun verify-id1m(years=400) {
-  for-monthdates(years) fun(date) {
+  for-monthdates(years) fn(date) {
     xcheck("isom-date", date.show ) { date.isom-date-to-days.isom-days-to-date.show }
   }
 }
 
 fun verify-id2w(years=400) {
-  for-days(years) fun(days) {
+  for-days(years) fn(days) {
     val d = days.isow-days-to-date
     xcheck("isw-days: " + d.weekdate.show, days.show) { d.isow-date-to-days.show }
   }
 }
 
 fun verify-id2m(years=400) {
-  for-days(years) fun(days) {
+  for-days(years) fn(days) {
     val d = days.isom-days-to-date
     xcheck("isom-days: " + d.show, days.show) { d.isom-date-to-days.show }
   }
@@ -236,9 +236,9 @@ fun verify-id2m(years=400) {
 ----------------------------------------------------------------------------*/
 
 fun for-weekdates(years=400, action : (weekdate) -> io ()) : io () {
-  for(~years,years) fun(year) {
-    for(1,year.lastweek) fun(week) {
-      for(1,7) fun(wday) {
+  for(~years,years) fn(year) {
+    for(1,year.lastweek) fn(week) {
+      for(1,7) fn(wday) {
         action(Weekdate(year,week,weekday(wday)))
       }
     }
@@ -247,9 +247,9 @@ fun for-weekdates(years=400, action : (weekdate) -> io ()) : io () {
 
 
 fun for-monthdates(years=400, action : (date) -> io ()) : io () {
-  for(~years,years) fun(year) {
-    for(1,12) fun(month) {
-      for(1,month.lastday) fun(day) {
+  for(~years,years) fn(year) {
+    for(1,12) fn(month) {
+      for(1,month.lastday) fn(day) {
         action(Date(year,month,day))
       }
     }
@@ -257,9 +257,9 @@ fun for-monthdates(years=400, action : (date) -> io ()) : io () {
 }
 
 fun for-days(years=400, action : (int) -> io ()) : io () {  
-  for(~years,years) fun(y) {
+  for(~years,years) fn(y) {
     val base = y*366
-    for(0,365) fun(day) { action(base + day) }
+    for(0,365) fn(day) { action(base + day) }
   }
 }
 
@@ -276,12 +276,12 @@ fun group-by( xs : list<a>, n : int ) : list<list<a>> {
 }
 
 fun show( xs : list<(int,int)> ) : string {
-  show( xs.map(fun(kv) { (kv.fst.show.pad-left(3,' '),kv.snd.show.pad-left(3,' ')) }), 7)
+  show( xs.map(fn(kv) { (kv.fst.show.pad-left(3,' '),kv.snd.show.pad-left(3,' ')) }), 7)
 }
 
 fun show( xs : list<(string,string)>, grp : int = 1 ) : string {
-  xs.group-by(grp).map( fun(ys) {
-    ys.map(fun(kv) { kv.fst + "->" + kv.snd }).join(", ")
+  xs.group-by(grp).map( fn(ys) {
+    ys.map(fn(kv) { kv.fst + "->" + kv.snd }).join(", ")
   }).join(",\n")
 }
 
@@ -315,7 +315,7 @@ fun test-week-dates() {
       (Date(2010,01,01),Weekdate(2009,53,Fri),Date(2009,12,36)),
       (Date(2010,01,02),Weekdate(2009,53,Sat),Date(2009,12,37)),
       (Date(2010,01,03),Weekdate(2009,53,Sun),Date(2009,12,38))]
-  dates.foreach( fun(dwdmd) {
+  dates.foreach( fn(dwdmd) {
     val (d,wd,md) = dwdmd
     val ds = d.show
     val wds = wd.show
@@ -344,8 +344,8 @@ fun test-week-in-years() {
 201, 207, 212, 218, 224, 229, 235, 240, 246, 252, 257, 263, 268, 274, 280, 285, 291, 296,
 303, 308, 314, 320, 325, 331, 336, 342, 348, 353, 359, 364, 370, 376, 381, 387, 392, 398
   ]
-  list(2000,2399).foreach( fun(year) {
-    val weeks = if (long-years.find(fun(y) { (2000+y)==year }).bool) then 53 else 52
+  list(2000,2399).foreach( fn(year) {
+    val weeks = if (long-years.find(fn(y) { (2000+y)==year }).bool) then 53 else 52
     check("year-" + year.show, weeks.show) { time(year).weeks-in-year.show }
 
     check("isow-" + year.show, weeks.show) { 
@@ -362,8 +362,8 @@ fun test-week-in-years() {
 
 
 fun test-day-in-year() {
-  list(1999,2004).foreach(fun(year) {
-    list(1,365).foreach( fun(doy) {
+  list(1999,2004).foreach(fn(year) {
+    list(1,365).foreach( fn(doy) {
       val d = Date(year,1,doy)
       check("doy-" + time(d).show, doy.show) { time(d).day-of-year.show }
     })

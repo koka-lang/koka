@@ -479,6 +479,8 @@ public fun dec( x : ddouble ) :ddouble {
 /*------------------------------------------------------
    Multiply and divide
 ------------------------------------------------------*/
+
+/*
 val splitter = 0x1.0000002p+27 // 134217729.0 = 2^27 + 1
 val splitbound  =  0x1.0p996 // 6.696928794914171e+299  = 2^996   // Note, QD seems one bit off
 val two28 = 0x1.0p28 // 268435456.0 = 2^28
@@ -514,12 +516,12 @@ fun prodsqr( x : double ) : edouble {
   val err = ((h*h - z) + (2.0*h*l)) + (l*l)
   Edouble(z,if (z.is-finite) then err else z)
 }
+*/
 
-// `prod` & `prodsqr` can also be implemented using 'fused multiply add'
-/*
+// often called `twoproduct` in literature (see [@shewchuk])
 fun prod( x : double, y : double ) : edouble {
   val z = x*y
-  err = fmadd(x,y,~z)
+  val err = fmadd(x,y,~z)
   Edouble(z,err)
 }
 
@@ -528,7 +530,7 @@ fun prodsqr( x : double ) : edouble {
   val err = fmadd(x,x,~z)
   Edouble(z,err)
 }
-*/
+
 
 // Multiply two `:ddouble`s
 public fun (*)( x : ddouble, y : ddouble ) : ddouble {
@@ -881,13 +883,13 @@ fun pddouble-sum() : parse ddouble {
 
 fun pddouble-normal() : parse ddouble {
   val neg   = sign()
-  val whole = digits() 
+  val whole = digits()
   val frac  = optional("", { char('.'); digits() } ).trim-right("0")
   val exp   = optional(0, { char('e'); pint() } )
   val w = ((if (neg) then "-" else "") + whole + frac).parse-int.default(0)
   val e = exp - frac.count
   val x = ddouble-int-exp(w,e)
-  // trace("parse-normal: w: " + w.show + ", e: " + e.show + "\n  wx: " + w.ddouble.show-sum + ", x: " + x.show + "\n  " + x.show-sum)	
+  // trace("parse-normal: w: " + w.show + ", e: " + e.show + "\n  wx: " + w.ddouble.show-sum + ", x: " + x.show + "\n  " + x.show-sum)
   x
 }
 
@@ -1151,7 +1153,7 @@ public fun sum( xs : list<ddouble> ) : ddouble
 {
   var total := zero
   var comp  := zero
-  xs.foreach fun(x) {
+  xs.foreach fn(x) {
     val t = total + x
     val c = if (total.abs >= x.abs) then (total - t) + x else (x - t) + total
     comp  := comp + c
@@ -1191,7 +1193,7 @@ public fun hypot( x : ddouble, y : ddouble, z : ddouble ) : ddouble {
 public fun hypot( xs : list<ddouble> ) : ddouble {
   val hi = xs.abs-max
   if (hi.is-zero) then zero else {
-    hi * xs.map(fun(x){ sqr(x / hi) }).sum.sqrt
+    hi * xs.map(fn(x){ sqr(x / hi) }).sum.sqrt
   }
 }
 
@@ -1203,7 +1205,7 @@ fun abs-max( x : ddouble, y : ddouble ) : ddouble {
 
 // The maximum of a list of absolute values.
 fun abs-max( xs : list<ddouble> ) : ddouble {
-  xs.foldr(zero,fun(x,m){ max(abs(x),m) })
+  xs.foldr(zero,fn(x,m){ max(abs(x),m) })
 }
 
 
@@ -1268,7 +1270,7 @@ public fun sincos( rad : ddouble ) : (ddouble,ddouble) {
   val s2 = s.sqr
 
   // Use the Chebyshev series for best precision.
-  val sins = s * ch-factors.foldl(zero) fun(acc,f) { f + acc*s2 }
+  val sins = s * ch-factors.foldl(zero) fn(acc,f) { f + acc*s2 }
   val coss = (one - sins.sqr).sqrt
 
   // sinb = sin(b*pi/16)

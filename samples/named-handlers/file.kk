@@ -10,14 +10,15 @@ module file
 import std/os/path
 import std/os/file
 
-effect instance file {       // named handler for files
+named effect file {
   fun read-line() : string   // `:(file)   -> <exn> a`
 }
+
 
 // a (named) handler instance for files
 fun file(fname,action) {
   var content := read-text-file(fname.path).lines
-  with f = instance {        // create a named handler
+  with f = named handler {
     fun read-line() {
       match(content) {
         Nil        { "" }

@@ -104,7 +104,7 @@ kk_string_t kk_string_from_list(kk_std_core__list cs, kk_context_t* ctx) {
     xs = cons->tail;
   }
   // allocate and copy the characters
-  kk_string_t s = kk_string_alloc_len(len,0,ctx);
+  kk_string_t s = kk_string_alloc_buf(len,ctx);
   uint8_t* p = (uint8_t*)kk_string_buf_borrow(s);
   xs = cs;
   while (kk_std_core__is_Cons(xs)) {
@@ -149,8 +149,8 @@ kk_string_t kk_slice_to_string( kk_std_core__sslice  sslice, kk_context_t* ctx )
     return sslice.str;
   }
   else {
-    // if not, we copy
-    kk_string_t s = kk_string_alloc_len(sslice.len, (const char*)start, ctx);
+    // if not, we copy len bytes
+    kk_string_t s = kk_string_alloc_dupn(sslice.len, (const char*)start, ctx);
     kk_std_core__sslice_drop(sslice,ctx);
     return s;
   }

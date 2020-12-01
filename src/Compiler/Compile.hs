@@ -33,13 +33,14 @@ import Data.Char              ( isAlphaNum, toLower, isSpace )
 
 import System.Directory       ( createDirectoryIfMissing, canonicalizePath, getCurrentDirectory )
 import Data.List              ( isPrefixOf, intersperse )
+import qualified Data.Set as S
 import Control.Applicative
 import Control.Monad          ( ap, when )
 import Common.Failure
 import Lib.Printer            ( withNewFilePrinter )
 import Common.Range           -- ( Range, sourceName )
 import Common.Name            -- ( Name, newName, qualify, asciiEncode )
-import Common.NamePrim        ( nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync, nameTpInst )
+import Common.NamePrim        ( nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync, nameTpNamed )
 import Common.Error
 import Common.File
 import Common.ColorScheme
@@ -77,14 +78,14 @@ import Type.Infer             ( inferTypes )
 import Type.Pretty hiding     ( verbose )
 import Compiler.Options       ( Flags(..), CC(..), BuildType(..), buildType, ccFlagsBuildFromFlags, unquote,
                                 prettyEnvFromFlags, colorSchemeFromFlags, prettyIncludePath, isValueFromFlags,
-                                buildDir, outName )
+                                buildDir, outName, configType )
 
 import Compiler.Module
 
 -- needed for code generation
 import Data.Char              ( toUpper )
 import Lib.PPrint             hiding (dquote)
-import Platform.Config        ( exeExtension, dllExtension, libPrefix, libExtension, objExtension, pathSep, sourceExtension )
+import Platform.Config        ( version, exeExtension, dllExtension, libPrefix, libExtension, objExtension, pathSep, sourceExtension )
 
 import Backend.CSharp.FromCore    ( csharpFromCore )
 import Backend.JavaScript.FromCore( javascriptFromCore )
@@ -394,7 +395,20 @@ compileProgram' term flags modules compileTarget fname program
                                           (imp:_) -> importVis imp -- TODO: get max
                               in if (modName mod == name) then []
                                   else [Core.Import (modName mod) (modPackagePath mod) vis (Core.coreProgDoc (modCore mod))]
-       loaded2 <- liftError $ typeCheck loaded1 flags 0 coreImports program
+       loaded2a <- liftError $ typeCheck loaded1 flags 0 coreImports program
+
+       -- cull imports to only the real dependencies
+       let mod = loadedModule loaded2a
+           inlineDefs = case (modInlines mod) of
+                          Right defs -> defs
+                          Left _     -> []
+           deps  = Core.dependencies inlineDefs (modCore mod)
+           imps  = filter (\imp -> isPublic (Core.importVis imp) || Core.importName imp == nameSystemCore
+                                    || S.member (Core.importName imp) deps) (Core.coreProgImports (modCore mod))
+           mod'  = mod{ modCore = (modCore mod){ Core.coreProgImports = imps } }
+           loaded2 = loaded2a{ loadedModule = mod' }
+
+       -- codegen
        liftIO $ termPhase term ("codegen " ++ show (getName program))
        (newTarget,loaded3) <- liftError $
            case compileTarget of
@@ -455,7 +469,7 @@ checkUnhandledEffects flags loaded name range tp
               combine eff Nothing ls
       _ -> return Nothing
   where
-    exclude = [nameTpCps,nameTpInst] -- nameTpAsync
+    exclude = [nameTpCps,nameTpNamed] -- nameTpAsync
 
     combine :: Effect -> Maybe (UserExpr -> UserExpr) -> [Effect] -> Error (Maybe (UserExpr -> UserExpr))
     combine eff mf [] = return mf
@@ -631,7 +645,7 @@ resolveModule term flags currentDir modules mimp
                         loadFromSource modules root stem
                 Nothing ->
                   -- trace ("module " ++ show (name) ++ " not yet loaded") $
-                  if (not (rebuild flags) && srcpath /= forceModule flags && ifaceTime > sourceTime)
+                  if (not (rebuild flags) && srcpath /= forceModule flags && ifaceTime >= sourceTime)
                     then loadFromIface iface root stem
                     else loadFromSource modules root stem
 
@@ -656,12 +670,12 @@ resolveModule term flags currentDir modules mimp
                        -> do loadMessage "loading:"
                              ftime  <- liftIO $ getFileTime iface
                              (core,parseInlines) <- lift $ parseCore iface
-                             -- liftIO $ copyIFaceToOutputDir term flags iface
-                             let mod = Module (Core.coreName core) iface (joinPath root stem) pkgQname pkgLocal []
+                             outIFace <- liftIO $ copyIFaceToOutputDir term flags iface
+                             let mod = Module (Core.coreName core) outIFace (joinPath root stem) pkgQname pkgLocal []
                                                 Nothing -- (error ("getting program from core interface: " ++ iface))
                                                   core (Left parseInlines) Nothing ftime
                              return mod
-             loadFromModule iface root stem mod
+             loadFromModule (modPath mod){-iface-} root stem mod
 
       loadFromModule iface root source mod
         = -- trace ("load from module: " ++ iface ++ ": " ++ root ++ "/" ++ source) $
@@ -672,10 +686,10 @@ resolveModule term flags currentDir modules mimp
              (imports,resolved1) <- resolveImportModules name term flags (dirname iface) modules (map ImpCore (Core.coreProgImports (modCore mod)))
              let latest = maxFileTimes (map modTime imports)
              -- trace ("loaded iface: " ++ show iface ++ "\n time: "  ++ show (modTime mod) ++ "\n latest: " ++ show (latest)) $ return ()
-             if (latest > modTime mod
+             if (latest >= modTime mod
                   && not (null source)) -- happens if no source is present but (package) depencies have updated...
                then loadFromSource resolved1 root source -- load from source after all
-               else do liftIO $ copyIFaceToOutputDir term flags iface (modPackageQPath mod) imports
+               else do liftIO $ copyPkgIFaceToOutputDir term flags iface (modPackageQPath mod) imports
                        let allmods = addOrReplaceModule mod resolved1
                        return (mod{ modSourcePath = joinPath root source }, allmods)
 
@@ -709,7 +723,10 @@ searchOutputIface flags name
            iface = joinPath (buildDir flags) postfix
        exist <- doesFileExist iface
        -- trace ("search output iface: " ++ show name ++ ": " ++ iface ++ " (" ++ (if exist then "found" else "not found" ) ++ ")") $ return ()
-       return (if exist then (Just iface) else Nothing)
+       if exist then return (Just iface)
+         else do let libIface = joinPaths [localLibDir flags, configType flags, postfix]
+                 libExist <- doesFileExist libIface
+                 return (if (libExist) then ({-trace ("found lib iface: " ++ libIface) $ -} Just libIface) else Nothing)
 
 searchSource :: Flags -> FilePath -> Name -> IO (Maybe (FilePath,FilePath,Name {-full mod name relative to root-}))
 searchSource flags currentDir name
@@ -1181,7 +1198,7 @@ codeGenJS term flags modules compileTarget outBase core
             -- copy amdefine
             let copyNodeModules fname
                   = let nname = "node_modules/" ++ fname
-                    in copyTextIfNewer (rebuild flags) (joinPath (libDir flags) nname) (outName flags nname)
+                    in copyTextIfNewer (rebuild flags) (joinPath (localShareDir flags) nname) (outName flags nname)
             mapM_ copyNodeModules ["amdefine/amdefine.js","amdefine/package.json",
                                    "requirejs/require.js","requirejs/package.json"]
 
@@ -1216,7 +1233,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                                 newtypes unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
                                 mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } [] bcore
-      writeDocW 120 (outBase ++ ".c.core") bcoreDoc
+      -- writeDocW 120 (outBase ++ ".c.core") bcoreDoc
       when (showCore flags) $
         do termDoc term bcoreDoc
 
@@ -1233,7 +1250,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                      , ccFlagsWarn cc
                      , ccFlagsCompile cc
                      , ccFlagsBuildFromFlags cc flags
-                     , ccIncludeDir cc (kklibDir flags ++ "/include")]
+                     , ccIncludeDir cc (localShareDir flags ++ "/kklib/include")]
                      ++
                      map (ccAddDef cc) ((if (asan flags) then [] else ["KK_MIMALLOC","MI_MAX_ALIGN_SIZE=8"])
                                         ++ ["KK_STATIC_LIB"])
@@ -1266,8 +1283,8 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                 mainName   = if null (exeName flags) then mainModName else exeName flags
                 mainExe    = outName flags mainName
 
-            -- build kklib for the specifield build variant
-            cmakeLib term flags cc "kklib" (ccLibFile cc "kklib") (kklibDir flags) cmakeGeneratorFlag
+            -- build kklib for the specified build variant
+            cmakeLib term flags cc "kklib" (ccLibFile cc "kklib") cmakeGeneratorFlag
 
             let objs   = [outName flags (ccObjFile cc (showModName mname)) | mname <- (map modName modules ++ [Core.coreProgName core0])]
                 libs   = map trim (splitOn (==',') (ccompLinkLibs flags)) ++
@@ -1293,7 +1310,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             runCommand term flags clink
 
             termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
-                                  color (colorSource (colorScheme flags)) (text (normalize mainExe))
+                                  color (colorSource (colorScheme flags)) (text (normalizeWith pathSep mainExe))
             let cmdflags = if (showElapsed flags) then " --kktime" else ""
             return (Just (runSystemEcho term flags (dquote mainExe ++ cmdflags ++ " " ++ execOpts flags))) -- use shell for proper rss accounting
 
@@ -1380,41 +1397,57 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             return (Just (runSystem (dquote finalExe ++ cmdflags ++ " " ++ execOpts flags)))
 -}
 
-cmakeLib :: Terminal -> Flags -> CC -> String -> FilePath -> FilePath -> [String] -> IO ()
-cmakeLib term flags cc libName libFile libSourceDir cmakeGeneratorFlag
-  = do let libPath = outName flags libFile
+cmakeLib :: Terminal -> Flags -> CC -> String -> FilePath -> [String] -> IO ()
+cmakeLib term flags cc libName {-kklib-} libFile {-libkklib.a-} cmakeGeneratorFlag
+  = do let libPath = outName flags libFile  {-out/v2.x.x/clang-debug/libkklib.a-}
        exist <- doesFileExist libPath
-       if (exist && not (rebuild flags)) then return ()
-         else -- todo: check for installed binaries for the library
-              do termDoc term $ color (colorInterpreter (colorScheme flags)) (text ("cmake  :")) <+>
-                                 color (colorSource (colorScheme flags)) (text libName) <+>
-                                  color (colorInterpreter (colorScheme flags)) (text "from:") <+>
-                                   color (colorSource (colorScheme flags)) (text libSourceDir)
-                 let cmakeDir    = outName flags libName
-                     cmakeConfigType = "-DCMAKE_BUILD_TYPE=" ++
-                                       (case (buildType flags) of
-                                           Debug -> "Debug"
-                                           RelWithDebInfo -> "RelWithDebInfo"
-                                           Release -> "Release")
-                     cmakeConfig =  [ cmake flags
-                                    , "-E", "chdir", cmakeDir   -- see above for chdir
-                                    , cmake flags
-                                    ]
-                                    ++ cmakeGeneratorFlag ++
-                                    [ cmakeConfigType
-                                    , "-DCMAKE_C_COMPILER=" ++ (basename (ccPath cc))
-                                    , "-DCMAKE_INSTALL_PREFIX=" ++ (buildDir flags)
-                                    , (if (asan flags) then "-DKK_DEBUG_SAN=address" else "")
-                                    ]
-                                    ++ unquote (cmakeArgs flags) ++
-                                    [ libSourceDir ]
+       let binLibPath = joinPath (localLibDir flags) (configType flags ++ "/" ++ libFile)
+       let srcLibDir  = joinPath (localShareDir flags) (libName)
+       binExist <- doesFileExist binLibPath
+       binNewer <- if (not binExist) then return False
+                   else if (not exist) then return True
+                   else do cmp <- fileTimeCompare binLibPath libPath
+                           return (cmp==GT)
+       srcNewer <- if (binNewer) then return False -- no need to check
+                   else if (not exist) then return True
+                   else do cmp <- fileTimeCompare (srcLibDir ++ "/include/kklib.h") libPath
+                           return (cmp==GT)
+       -- putStrLn ("binLibPath: " ++ binLibPath ++ ", newer: " ++ show binNewer)
+       if (not binNewer && not srcNewer && not (rebuild flags)) then return ()
+         else if (binNewer)
+           then -- use pre-compiled installed binary
+                copyBinaryFile binLibPath libPath
+           else -- todo: check for installed binaries for the library
+                do termDoc term $ color (colorInterpreter (colorScheme flags)) (text ("cmake  :")) <+>
+                                   color (colorSource (colorScheme flags)) (text libName) <+>
+                                    color (colorInterpreter (colorScheme flags)) (text "from:") <+>
+                                     color (colorSource (colorScheme flags)) (text srcLibDir)
+                   let cmakeDir    = outName flags libName
+                       cmakeConfigType = "-DCMAKE_BUILD_TYPE=" ++
+                                         (case (buildType flags) of
+                                             Debug -> "Debug"
+                                             RelWithDebInfo -> "RelWithDebInfo"
+                                             Release -> "Release")
+                       cmakeConfig =  [ cmake flags
+                                      , "-E", "chdir", cmakeDir   -- see above for chdir
+                                      , cmake flags
+                                      ]
+                                      ++ cmakeGeneratorFlag ++
+                                      [ cmakeConfigType
+                                      , "-DCMAKE_C_COMPILER=" ++ (basename (ccPath cc))
+                                      , "-DCMAKE_INSTALL_PREFIX=" ++ (buildDir flags)
+                                      , "-DKK_COMP_VERSION=" ++ version
+                                      , (if (asan flags) then "-DKK_DEBUG_SAN=address" else "")
+                                      ]
+                                      ++ unquote (cmakeArgs flags) ++
+                                      [ srcLibDir ]
 
-                     cmakeBuild  = [cmake flags, "--build", cmakeDir]
-                     -- cmakeInstall= cmake flags ++ " --build " ++ dquote cmakeDir ++ " --target install"   -- switch "--install" is not available before cmake 3.15
-                 createDirectoryIfMissing True cmakeDir
-                 runCommand term flags cmakeConfig
-                 runCommand term flags cmakeBuild
-                 copyBinaryFile (cmakeDir ++ "/" ++ libFile) libPath
+                       cmakeBuild  = [cmake flags, "--build", cmakeDir]
+                       -- cmakeInstall= cmake flags ++ " --build " ++ dquote cmakeDir ++ " --target install"   -- switch "--install" is not available before cmake 3.15
+                   createDirectoryIfMissing True cmakeDir
+                   runCommand term flags cmakeConfig
+                   runCommand term flags cmakeBuild
+                   copyBinaryFile (cmakeDir ++ "/" ++ libFile) libPath
 
 
 -- emit helpful messages if dependencies are not installed (cmake etc)
@@ -1468,21 +1501,44 @@ runCommand term flags cargs@(cmd:args)
 joinWith sep xs
   = concat (intersperse sep xs)
 
-copyIFaceToOutputDir :: Terminal -> Flags -> FilePath -> PackageName -> [Module] -> IO ()
-copyIFaceToOutputDir term flags iface targetPath imported
+copyIFaceToOutputDir :: Terminal -> Flags -> FilePath -> IO FilePath
+copyIFaceToOutputDir term flags iface
   -- | host flags == Node && target flags == JS = return ()
   -- | otherwise
-  = do let outName = joinPaths [buildDir flags, targetPath, notdir iface]
-       copyTextIfNewer (rebuild flags) iface outName
+  = do let outIFace = outName flags (notdir iface)
+           withExt fname ext = notext fname ++ ext
+       -- trace ("copy iface: " ++ iface ++ " to " ++ outIFace) $ return ()
+       copyTextIfNewer (rebuild flags) iface outIFace
        if (CS == target flags)
         then do let libSrc = notext iface ++ dllExtension
-                let libOut = notext outName ++ dllExtension
+                let libOut = notext outIFace ++ dllExtension
                 copyBinaryIfNewer (rebuild flags) libSrc libOut
         else return ()
        if (JS == target flags)
         then do let jsSrc = notext iface ++ ".js"
-                let jsOut = notext outName ++ ".js"
-                copyTextFileWith  jsSrc jsOut (packagePatch iface (targetPath) imported)
+                let jsOut = notext outIFace ++ ".js"
+                -- copyTextFileWith  jsSrc jsOut (packagePatch iface (targetPath) imported)
+                copyTextIfNewer (rebuild flags) jsSrc jsOut
+        else return ()
+       if (C == target flags)
+        then do copyTextIfNewer (rebuild flags) (withExt iface ".c") (withExt outIFace ".c")
+                copyTextIfNewer (rebuild flags) (withExt iface ".h") (withExt outIFace ".h")
+                let cc = ccomp flags
+                copyBinaryIfNewer (rebuild flags) (ccObjFile cc (notext iface)) (ccObjFile cc (notext outIFace))
+        else return ()
+       return outIFace
+
+copyPkgIFaceToOutputDir :: Terminal -> Flags -> FilePath -> PackageName -> [Module] -> IO ()
+copyPkgIFaceToOutputDir term flags iface targetPath imported
+  -- | host flags == Node && target flags == JS = return ()
+  -- | otherwise
+  = do outIFace <- copyIFaceToOutputDir term flags iface
+       if (JS == target flags)
+        then do let outJs = notext outIFace ++ ".js"
+                content <- readTextFile outJs
+                case content of
+                  Nothing -> return ()
+                  Just content -> writeTextFile outJs (packagePatch iface (targetPath) imported content)
         else return ()
 
 packagePatch :: FilePath -> PackageName -> [Module] -> (String -> String)

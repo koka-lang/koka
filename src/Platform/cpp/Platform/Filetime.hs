@@ -14,11 +14,12 @@ module Platform.Filetime( FileTime
                        , getCurrentTime
                        , getFileTime
                        , getFileTimeOrCurrent
+                       , setFileTime
                        , fileTime0
                        , fileTimeToPicoseconds
                        ) where
 
-import System.Directory( getModificationTime )
+import System.Directory( getModificationTime, setModificationTime )
 import Platform.Runtime( exCatch )
 
 #if __GLASGOW_HASKELL__ >= 706
@@ -69,6 +70,11 @@ getFileTime fname
   = do getModificationTime fname
     `exCatch` \_ -> do -- putStrLn $ "filetime: 0 for : " ++ fname
                        return fileTime0
+
+-- | Set the file modification time
+setFileTime :: FilePath -> FileTime -> IO ()
+setFileTime fname ftime
+ = setModificationTime fname ftime
 
 -- | returns the file modification time or the current time if it does not exist.
 getFileTimeOrCurrent :: FilePath -> IO FileTime

@@ -71,8 +71,8 @@ fmtPrint cscheme p token
           ComUrl url    -> withColor p (colorSource cscheme)  $ write p url
           ComLine s     -> withColor p (colorComment cscheme) $ write p s
           ComCode lexs s -> fmtLexs CtxNormal lexs
-          ComCodeBlock lexs s -> do{ write p "\n"; fmtLexs CtxNormal lexs; write p "\n" }
-          ComCodeLit lexs s   -> do{ write p "\n"; fmtLexs CtxNormal lexs; write p "\n" }
+          ComCodeBlock cls lexs s -> do{ write p "\n"; fmtLexs CtxNormal lexs; write p "\n" }
+          ComCodeLit cls lexs s   -> do{ write p "\n"; fmtLexs CtxNormal lexs; write p "\n" }
           ComPar        -> return ()
           ComIndent n   -> write p (replicate n ' ')
       where
@@ -159,8 +159,8 @@ data TokenComment a
   | ComUrl String 
   | ComLine String
   | ComCode [a] String
-  | ComCodeBlock [a] String
-  | ComCodeLit   [a] String
+  | ComCodeBlock String [a] String
+  | ComCodeLit String [a] String
   | ComPar
   | ComIndent !Int
   deriving (Eq,Ord)
@@ -178,8 +178,8 @@ commentFlatten f coms
           ComUrl url  -> [f url]
           ComLine s   -> [f s]
           ComCode xs s -> xs
-          ComCodeBlock xs s -> xs
-          ComCodeLit xs s -> xs
+          ComCodeBlock cls xs s -> xs
+          ComCodeLit cls xs s -> xs
           ComPar -> []
           ComIndent n -> [f (replicate n ' ')]
 
@@ -265,8 +265,8 @@ highlightLexeme transform fmt ctx0 (Lexeme rng lex) lexs
           ComPreBlock s     -> ComPreBlock s
           ComLine s         -> ComLine s
           ComCode lexs s      -> ComCode (highlightLexemes transform fmt CtxNormal [] (transform lexs)) s
-          ComCodeBlock lexs s -> ComCodeBlock (highlightLexemes transform fmt CtxNormal [] (transform lexs)) s
-          ComCodeLit lexs s   -> ComCodeLit (highlightLexemes transform fmt CtxNormal [] (transform lexs)) s
+          ComCodeBlock cls lexs s -> ComCodeBlock cls (highlightLexemes transform fmt CtxNormal [] (transform lexs)) s
+          ComCodeLit cls lexs s   -> ComCodeLit cls (highlightLexemes transform fmt CtxNormal [] (transform lexs)) s
           ComPar            -> ComPar
           ComIndent n       -> ComIndent n
 
@@ -355,8 +355,12 @@ lexComment sourceName lineNo content
       | c /= '`' = scanCode n ComCode (ComText (reverse acc) : lacc) "" (c:rest)                                   
       | c == ':' = scanCode n ComCode (ComText (reverse (acc)) : lacc) ":" rest      
     scan n lacc acc ('`':'`':'`':c:rest) | whiteLine acc && c /= '`'
-      = let (pre,post) = span (/='\n') (c:rest)
-            comCode = if (pre == "unchecked") then ComCodeBlock else ComCodeLit
+      = let (pre,xpost) = span (\c -> c /= '\n' && c /= '{' && c /= ' ') (c:rest)
+            (attr,post) = span (\c -> c /= '\n') xpost
+            cls = case dropWhile (/='.') attr of 
+                    []    -> ""
+                    (_:cs) -> takeWhile isAlphaNum cs
+            comCode = if (pre == "unchecked") then ComCodeBlock cls else ComCodeLit cls
         in if (pre=="unchecked" || pre=="koka" || pre=="")
             then scanCodeBlock (n+1) comCode (n+1) (ComText (reverse (dropLine acc)) : lacc) [] (dropLine post)
             else scanPreBlock 3 n (ComText (reverse ("```" ++ pre ++ acc)) : lacc) [] post
@@ -432,7 +436,7 @@ lexComment sourceName lineNo content
 
     -- code block
     scanCodeBlock n com m lacc acc ('/':'/':'/':'/':rest) | (onLine acc rest)
-                                                = scanCodeBlock2 (n+1) ComCodeLit (n+1) lacc (reverse (acc)) "" (dropLine rest)
+                                                = scanCodeBlock2 (n+1) (ComCodeLit "") (n+1) lacc (reverse (acc)) "" (dropLine rest)
     scanCodeBlock n com m lacc acc ('`':'`':'`':rest)   | onLine acc rest
                                                 = endCodeBlock (n+1) com m lacc "" acc (dropLine rest)
     scanCodeBlock n com m lacc acc (c:rest)     = scanCodeBlock (if (c=='\n') then n+1 else n) com m lacc (c:acc) rest

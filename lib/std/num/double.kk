@@ -103,13 +103,13 @@ private extern make-nan() : double {
 }
 
 private extern make-posinf() : double {
-  c  inline "(double)INFINITY"
+  c  inline "HUGE_VAL"
   cs inline "double.PositiveInfinity"
   js inline "Infinity"
 }
 
 private extern make-neginf() : double {
-  c  inline "-((double)INFINITY)"
+  c  inline "-HUGE_VAL"
   cs inline "double.NegativeInfinity"
   js inline "-Infinity"
 }
@@ -131,14 +131,14 @@ extern is-inf : (double) -> bool {
 
 // Is this value equal to positive infinity ?
 inline extern is-posinf : (double) -> bool {
-  c  inline "((#1)==INFINITY)"
+  c  inline "(isinf(#1) && !signbit(#1))"
   cs "double.IsPositiveInfinity"
   js inline "((#1) === Infinity)"
 }
 
 // Is this value equal to negative infinity ?
 inline extern is-neginf : (double) -> bool {
-  c inline "((#1)==-INFINITY)"
+  c inline "(isinf(#1) && signbit(#1))"
   cs "double.IsNegativeInfinity"
   js inline "((#1) === -Infinity)"
 }
@@ -221,6 +221,13 @@ fun round-to-prec( d : double, prec : int  ) : double {
   }
 }
 
+// fused multiply-add. Computes `(x*y)+z` as if to infinite precision
+// with only the final result rounded back to a `:double`.
+extern fmadd( x : double, y : double, z : double ) : double {
+  c  "fma"
+  js "_fmadd"
+  cs "Math.FusedMultiplyAdd"
+}
 
 //-----------------------------------------
 // Powers
@@ -533,8 +540,8 @@ private fun pdecdouble() : parse double {
   val frac = optional("", { char('.'); digits0() }).trim-right("0")
   val exp : int = optional( 0, { one-of("eE"); pint() })
   //val m : int = (man + frac).parse-int-default(0)
-  //val e : int = exp - frac.count  
-  //m.double * exp10(e.double)  
+  //val e : int = exp - frac.count
+  //m.double * exp10(e.double)
   cur.string.prim-parse-double  // more precision than simple multiply
 }
 
@@ -569,7 +576,7 @@ fun sum( xs : list<double> ) : double
 {
   var total := 0.0
   var comp  := 0.0
-  xs.foreach fun(x) {
+  xs.foreach fn(x) {
     val t = total + x
     val c = if (total.abs >= x.abs) then (total - t) + x else (x - t) + total
     comp  := comp + c
@@ -609,7 +616,7 @@ fun hypot( x : double, y : double, z : double ) : double {
 fun hypot( xs : list<double> ) : double {
   val hi = xs.abs-max
   if (hi==0.0) then 0.0 else {
-    hi * xs.map(fun(x){ sqr(x / hi) }).sum.sqrt
+    hi * xs.map(fn(x){ sqr(x / hi) }).sum.sqrt
   }
 }
 
@@ -625,7 +632,7 @@ fun abs-max( x : double, y : double ) : double {
 
 // The maximum of a list of absolute values.
 fun abs-max( xs : list<double> ) : double {
-  xs.foldl(0.0,fun(m,x){ max(abs(x),m) })
+  xs.foldl(0.0,fn(m,x){ max(abs(x),m) })
 }
 
 //-----------------------------------------

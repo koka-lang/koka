@@ -179,7 +179,7 @@ typedef int32_t         kk_ssize_t;
 // that `sizeof(kk_intx_t) == max(sizeof(long),sizeof(size_t))`. 
 // Note: we cannot use `long` for this as it is sometimes too short 
 // (as on Windows on 64-bit where it is 32 bits)
-// or sometimes too long (as on some segmented architectures). 
+// Similarly, `size_t` is sometimes too short on segmented architectures.
 // Also, on some architectures `sizeof(void*) < sizeof(long)` (like the x32 ABI), or 
 // `sizeof(void*) > sizeof(size_t)` (with segmented architectures).
 #if (ULONG_MAX < SIZE_MAX)

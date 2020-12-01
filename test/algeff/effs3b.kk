@@ -16,7 +16,7 @@ fun xor() : amb bool {
 }
 
 fun xorss() {
-  val xs = mmap( fun(i) { xors() }, [1,2] )
+  val xs = mmap( fn(i) { xors() }, [1,2] )
   xs.join(",")
 }
 

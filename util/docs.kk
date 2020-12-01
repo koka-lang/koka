@@ -1,11 +1,47 @@
 import std/os/path
+import std/os/flags
+import std/os/env
 import std/os/file
+import std/os/dir
+import std/os/process
 
-fun main() {
-  build(publish=False)
+val header = "usage:\n stack exec koka -- util/docs [-- [options]]\n\noptions:"
+
+struct iflags {
+  publish  : bool  = False
+  version  : string = ""
+  speconly : bool  = False
 }
 
-fun build( publish : bool ) : io () {
+val flag-descs : list<flag<iflags>> = {
+  fun set-publish( f : iflags, b : bool ) : iflags  { f(publish = b) }
+  fun set-speconly( f : iflags, b : bool ) : iflags  { f(speconly = b) }
+  fun set-version( f : iflags, s : string ) : iflags  { f(version = s) }
+  [ Flag( "p", ["publish"], Bool(set-publish), "publish to ../koka-pages directory" ),
+    Flag( "v", ["version"], Req(set-version,"<version>"), "latest koka version" ),
+    Flag( "s", ["speconly"], Bool(set-speconly), "specification only")
+  ]
+}
+
+public fun process-flags() : <ndet,console> maybe<iflags> {
+  val (flags,args,errs) = parse( Iflags(), flag-descs, get-args() )
+  if (errs.is-nil && args.is-nil) {
+    Just(flags)
+  }
+  else {
+    println( errs.join("\n") + "\n" + flag-descs.usage(header) )
+    Nothing
+  }
+}
+
+fun main() {
+  match (process-flags()) {
+    Nothing -> ()
+    Just(flags) -> build(flags.publish, flags.version || get-compiler-version(), flags.speconly)
+  }
+}
+
+fun build( publish : bool, version : string, speconly : bool ) : io () {
   val docsite  = "https://koka-lang.github.io/koka/doc/"
   val doclocal = "../koka-pages/doc".path
 
@@ -17,8 +53,10 @@ fun build( publish : bool ) : io () {
   val specdir   = "doc/spec".path
   val docflags  = "--htmlcss=styles/madoko.css;styles/koka.css " + (if (publish) then "--htmlbases=" + docsite + " " else "")
   val cmd = "stack exec koka -- -c -l --target=js --outdir=" + outspecx.string + " -i" + specdir.string + " --html " + docflags
-  println("compile standard libraries...")
-  run-echo(cmd + " toc.kk")
+  if (!speconly) {
+    println("compile standard libraries...")
+    run-echo(cmd + " toc.kk")
+  }
   println("compile documentation inlined code...")
   run-echo(cmd + " kokaspec.kk.md spec.kk.md getstarted.kk.md overview.kk.md")
   println("patch kokaspec.md")
@@ -28,19 +66,20 @@ fun build( publish : bool ) : io () {
   ensure-dir(outstyles)
   ensure-dir(outimages)
   ensure-dir(outscripts)
+  copy-directory(specdir + "images", outimages)
+  copy-directory(specdir + "styles", outstyles)
+  copy-directory(specdir + "scripts", outscripts)
   copy-file-to-dir("doc/koka.css".path, outstyles)
   copy-file-to-dir("doc/logo/koka-logo.png".path, outimages)
   copy-file-to-dir(specdir + "koka.bib", outspec)
   copy-file-to-dir("lib/std/time/timescales.png".path, outspec)
-  copy-directory(specdir + "styles", outstyles)
-  copy-directory(specdir + "scripts", outscripts)
-
+  
   val xmps = list-directory(outspec).
              filter(fn(p){ p.string.ends-with(".xmp.html").bool }).
              map(fn(p){ p.nodir.string })
   println("run madoko...")
-  run-echo( "cd " + outspec.string + " && madoko --odir=. -v -mline-no:false -mlogo:false "
-             + xmps.join(" ") + " kokaspec.md" )
+  run-echo( "cd " + outspec.string + " && madoko --odir=. -v -mline-no:false -mlogo:false -mkokaversion:" + version
+             + " " + xmps.join(" ") + " kokaspec.md" )
   copy-file-to-dir(outspec + "madoko.css", outstyles)
   if (publish) {
     println("copy files to output folder: " + doclocal.string)
@@ -51,6 +90,7 @@ fun build( publish : bool ) : io () {
       copy-file-to-dir(p,doclocal)
     }
     copy-directory(outstyles,doclocal + "styles")
+    copy-directory(outimages,doclocal + "images")
   }
   println("done.")
 }
@@ -68,6 +108,6 @@ fun run-echo(cmd : string) : io () {
   }
   else {
     println("> " + cmd)
-    println("error: " + exit-code.show )
+    throw("error: " + exit-code.show )
   }
 }

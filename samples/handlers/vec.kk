@@ -4,10 +4,10 @@
 */
 module vec
 
-// Abstract type of indices in a scope `:s` (with the scope kind `:S`)
+// Abstract type of indices in a scope `:s` (with the scope kind `::S`)
 abstract type ix<s::S> { Ix(index :int) }
 
-// A vector of strings
+// A vector of strings  (with a parameter of kind "scope")
 public effect vec<s::S> {
   fun push( s : string ) : ix<s>
   fun lookup( ix : ix<s> ) : string

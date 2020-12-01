@@ -282,7 +282,7 @@ loadFilesErr term startSt fileNames force
                              then compileFile term (flags st) (loadedModules (loaded0 st)) Object fname
                              else compileModule term (flags st) (loadedModules (loaded0 st)) (newName fname)
                              -}
-                             compileModuleOrFile term (flags st) (loadedModules (loaded0 st)) fname force
+                             compileModuleOrFile term (flags st) [] {- (loadedModules (loaded0 st)) -} fname force
                    ; case checkError err of
                        Left msg
                           -> do messageErrorMsgLnLn st msg
@@ -513,7 +513,7 @@ runEditorAt ::  State -> FilePath -> Int -> Int -> IO ()
 runEditorAt st fpath line col
   = let command  = replace line col (editor (flags st)) fpath
     in if null (editor (flags st))
-        then raiseIO ("no editor specified. (use the \"koka-editor\" environment variable?)")
+        then raiseIO ("no editor specified. (use the \"koka_editor\" environment variable?)")
         else runSystem command
 
 replace :: Int -> Int -> FilePath -> String -> String
@@ -651,7 +651,7 @@ messageHeader st
        ,text "| | __ ___ | | __ __ _  __) |"
        ,text "| |/ // _ \\| |/ // _` || ___/ " <.> welcome
        ,text "|   <| (_) |   <| (_| ||____| "  <.> headerVersion
-       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|       "  <.> color (colorSource colors) (text "type :? for help")
+       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|       "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")
        ]
     headerVersion = text $ "version " ++ version ++
                            (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", "

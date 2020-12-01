@@ -3,9 +3,9 @@ Heading Base  : 1
 Heading Depth : 4
 Toc Depth     : 4
 Css           : styles/koka.css
-Css           : styles/kokaspec.css 
+Css           : styles/kokaspec.css
 Script        : scripts/kokaspec.js
-Colorizer     : unchecked.json 
+Colorizer     : unchecked.json
 Colorizer     : koka.json
 Bibliography  : koka.bib
 Description   : Koka Language Specification
@@ -13,7 +13,7 @@ Description   : Koka Language Specification
 [INCLUDE=styles/webanchors]
 [INCLUDE=styles/webtoc]
 
-~bar          : before='|' 
+~bar          : before='|'
 ~many         : before='{ ' after=' }'
 ~opt          : before='[ ' after=' ]'
 
@@ -30,8 +30,21 @@ toc.toc-contents {
 }
 
 .pre-indented, .console {
-  replace: "/^( *>.*)/\(**``\1``**\)/mg";
+  replace: "/^( *>[^\n\r]+)/\(**``\1``**\)/mg";
 }
+
+.button {
+  border: 1px solid #AAA;
+  margin: 0ex 1ex 1ex 0ex;
+  display: inline-block;
+  padding: 1ex;
+  background-color: #fffdf0;  
+}
+
+.learn {
+  .button;
+}
+
 
 @if preview {
   .code1 {
@@ -39,9 +52,9 @@ toc.toc-contents {
   }
 
   .pre-fenced3 {
-    border-left: 0.5ex solid green; 
+    border-left: 0.5ex solid green;
   }
-  
+
   .token.predefined {
     color: navy;
   }
@@ -59,7 +72,7 @@ li {
   margin-bottom: 1ex;
 }
 
-[koka-logo]: images/koka-logo.png { max-height: 120px; padding-left:1rem; }
+[koka-logo]: images/koka-logo.png { max-height: 120px; padding:1rem 1rem 1rem 1.5rem; }
 
 [TITLE]
 
@@ -73,7 +86,7 @@ li {
 
 ~ End SidePanel
 
-~ Begin MainPanel 
+~ Begin MainPanel
 
 ~ Begin MainContent
 
@@ -87,17 +100,17 @@ li {
 
 # Appendix {-; toc:clear; }
 
-# Full grammar specification { @h1:'A'; } 
+# Full grammar specification { @h1:'A'; }
 
 ## Lexical syntax { #sec:full-lexical }
 
 ~ div {#full-lexical}
-~ 
+~
 
 ## Context-free syntax  { #sec:full-grammar }
 
 ~ div {#full-grammar}
-~ 
+~
 
 ~ End MainContent
 
