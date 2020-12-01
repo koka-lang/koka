@@ -14,12 +14,13 @@ _Latest release_: v2.0.11, 2020-11-29 ([Install](#install)).
 
 <a href="https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk"><img align="right" width="350" src="doc/snippet-rbtree.png"/></a>
 
-Koka is a functional language with clean syntax and excellent performance.
-What sets Koka apart is _effect typing_, _effect handlers_, and _Perceus_ memory management:
+Koka is a strongly typed functional-style language with clean syntax and excellent performance.
+What sets Koka apart is _effect typing_, _effect handlers_, 
+and _Perceus_ memory management:
 
 * The core of Koka consists of a small set of well-studied language
-  features, like first-class functions, a polymorphic type- and effect
-  system, algebraic data types, and effect handlers.   
+  features, like first-class functions, a higher-rank polymorphic type- and effect
+  system, algebraic data types, and effect handlers.
 * Koka tracks the (side) _effects_ of every
   function in its type, where pure and effectful computations are
   distinguished. The precise effect typing gives Koka _rock-solid
@@ -30,10 +31,9 @@ What sets Koka apart is _effect typing_, _effect handlers_, and _Perceus_ memory
   as a user library in a typed and composable way.
 * [Perceus] is an advanced compilation method for reference counting.
   Together with [evidence translation][evidence], this lets Koka compile directly to C code _without needing
-  a garbage collector or runtime system_. This also gives Koka 
-  excellent performance in practice (see the [benchmarks](#benchmarks)).
-* Through Perceus, Koka can do reuse analysis and optimize 
-  functional-style programs to use in-place updates.
+  a garbage collector or runtime system_. 
+  Perceus also performs reuse analysis and optimizes
+  functional-style programs to use in-place updates when possible (see the [benchmarks](#benchmarks)).
 
 For more information, see:
 
