@@ -1,6 +1,6 @@
 # Getting started
 
-Welcome to Koka -- a beautiful functional language with effect types and excellent performance. 
+Welcome to Koka -- a beautiful functional language with effect types and handlers.
 
 [Why Koka?][#why]{.learn}
 [Install Koka][#install]{.learn}
@@ -31,6 +31,7 @@ For Linux and macOS on x86 64-bit, you can install Koka using:
 ````
 > curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh
 ````
+This also installs syntax highlighting for the VS Code and Atom editors.
 After installation, verify if Koka installed correctly:
 ````
 > koka
