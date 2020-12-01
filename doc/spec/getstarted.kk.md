@@ -2,7 +2,7 @@
 
 # Getting started
 
-Welcome to Koka -- a beautiful functional language with effect types and handlers.
+Welcome to Koka -- a functional-style language with effect types and handlers.
 
 [Why Koka?][#why]{.learn}
 [Install Koka][#install]{.learn}

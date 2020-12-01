@@ -2,8 +2,8 @@
 # Why Koka? { #why; }
 
 There are many new languages being designed, but only seldomly
-they bring a fundamental new concept, like Haskell did with
-pure programming, or Rust with borrow checking. 
+they bring fundamentally new concepts, such as Haskell with
+pure versus monadic programming, or Rust with borrow checking. 
 Koka brings novel semantics through _effect typing_, _effect handlers_,
 and _Perceus_ memory management:
 
@@ -46,7 +46,7 @@ and _Perceus_ memory management:
 
 ## Minimal but General { #why-mingen; }
 
-The _min-gen_ design principle: Koka has a minimal core set of
+Koka has a small core set of
 orthogonal, well-studied language features -- but each of these is
 as general and _composable_ as possible, such that we do not need further
 "special" extensions. Core features include first-class functions,
@@ -63,7 +63,7 @@ fun hello-ten() {
 }
 ```
 
-As an example of the _min-gen_ philosophy, Koka implements most
+As an example of the _min-gen_ design principle, Koka implements most
 control-flow primitives as regular functions. An anonymous function can
 be written as `fn(){ <body> }`; but as a syntactic convenience, any
 function without arguments can be shortened further to use just braces,
@@ -72,7 +72,7 @@ as `{ <body> }`.
 We can write a `while` loop now using regular
 function calls as shown in the example,
 where the call to `while` is desugared to
-`while(fn(){ i < 10}, fn(){ ... })`. 
+`while( fn(){ i < 10 }, fn(){ ... } )`. 
 
 This also naturally leads to
 _consistency_: an expression between _parenthesis_ is always evaluated
@@ -268,9 +268,6 @@ functional style.
 
 [Read the Perceus paper on reuse analysis][Perceus]
 {.learn}
-
-
-
 
 
 
