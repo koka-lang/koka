@@ -25,13 +25,13 @@ What sets Koka apart is _effect typing_, _effect handlers_, and _Perceus_ memory
   distinguished. The precise effect typing gives Koka _rock-solid
   semantics_ backed by well-studied category theory, which makes Koka
   particularly easy to reason about for both humans and compilers.  
-* Effect handlers let you define advanced control abstractions,
+* _Effect handlers_ let you define advanced control abstractions,
   like exceptions, async/await, or probabilistic programs, 
   as a user library in a typed and composable way.
 * [Perceus] is an advanced compilation method for reference counting.
-  Together with evidence translation, this lets Koka compile directly to C code _without needing
-  a garbage collector or runtime system_! This also gives Koka 
-  excellent performance in practice (see the [benchmarks](#benchmarks).
+  Together with [evidence translation][evidence], this lets Koka compile directly to C code _without needing
+  a garbage collector or runtime system_. This also gives Koka 
+  excellent performance in practice (see the [benchmarks](#benchmarks)).
 * Through Perceus, Koka can do reuse analysis and optimize 
   functional-style programs to use in-place updates.
 
@@ -79,6 +79,7 @@ For more background information, see:
 [kokarepo]: https://github.com/koka-lang/koka
 [kokaproject]: http://research.microsoft.com/en-us/projects/koka
 
+[evidence]: https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently.pdf
 [releases]: https://github.com/koka-lang/koka/releases
 [build]: #build-from-source
 [Perceus]: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf
