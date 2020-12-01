@@ -45,22 +45,22 @@ fun build( publish : bool, version : string, speconly : bool ) : io () {
   val docsite  = "https://koka-lang.github.io/koka/doc/"
   val doclocal = "../koka-pages/doc".path
 
-  val outspecx  = "out/spec".path;
-  val outspec   = outspecx + "js-debug"
+  val outspec  = "out/spec".path;
+  //val outspec   = outspecx + "js-debug"
   val outstyles = outspec + "styles"
   val outscripts = outspec + "scripts"
   val outimages = outspec + "images"
   val specdir   = "doc/spec".path
   val docflags  = "--htmlcss=styles/madoko.css;styles/koka.css " + (if (publish) then "--htmlbases=" + docsite + " " else "")
-  val cmd = "stack exec koka -- -c -l --target=js --outdir=" + outspecx.string + " -i" + specdir.string + " --html " + docflags
+  val cmd = "stack exec koka -- -c -l --builddir=" + outspec.string + " -i" + specdir.string + " --html " + docflags
   if (!speconly) {
     println("compile standard libraries...")
     run-echo(cmd + " toc.kk")
   }
   println("compile documentation inlined code...")
-  run-echo(cmd + " kokaspec.kk.md spec.kk.md getstarted.kk.md overview.kk.md")
-  println("patch kokaspec.md")
-  file-replace-all(outspec + "kokaspec.md", ".kk.md", ".md");
+  run-echo(cmd + " manual.kk.md getstarted.kk.md overview.kk.md tour.kk.md spec.kk.md")
+  println("patch manual.md")
+  file-replace-all(outspec + "manual.md", ".kk.md", ".md");
 
   println("copy web files...")
   ensure-dir(outstyles)
@@ -79,7 +79,7 @@ fun build( publish : bool, version : string, speconly : bool ) : io () {
              map(fn(p){ p.nodir.string })
   println("run madoko...")
   run-echo( "cd " + outspec.string + " && madoko --odir=. -v -mline-no:false -mlogo:false -mkokaversion:" + version
-             + " " + xmps.join(" ") + " kokaspec.md" )
+             + " " + xmps.join(" ") + " manual.md" )
              
   copy-file-to-dir(outspec + "madoko.css", outstyles)
   if (publish) {

@@ -3,8 +3,8 @@ Heading Base  : 1
 Heading Depth : 4
 Toc Depth     : 4
 Css           : styles/koka.css
-Css           : styles/kokaspec.css
-Script        : scripts/kokaspec.js
+Css           : styles/manual.css
+Script        : scripts/manual.js
 Colorizer     : unchecked.json
 Colorizer     : koka.json
 Bibliography  : koka.bib
@@ -93,6 +93,8 @@ li {
 [INCLUDE=getstarted.kk.md]
 
 [INCLUDE=overview.kk.md]
+
+[INCLUDE=tour.kk.md]
 
 [INCLUDE=spec.kk.md]
 
