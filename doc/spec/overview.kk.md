@@ -224,6 +224,10 @@ be within 2x of the performance of C/C++. Initial benchmarks are
 encouraging and show Koka to be close to C performance on various
 memory intensive benchmarks.
 
+![perceus-perf]
+
+[perceus-perf]: images/perceus-perf.png { border:1px solid #AAA; max-width: 95%; }
+
 [See benchmarks](https://github.com/koka-lang/koka#Benchmarks)
 {.learn}
 
