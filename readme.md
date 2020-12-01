@@ -7,19 +7,41 @@
 
 &nbsp;
 
-# Koka: a function-oriented language with effect inference
+# Koka: a function-oriented language with effect types and handlers
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
 _Latest release_: v2.0.11, 2020-11-29 ([Install](#install)).
 
-Koka is a strongly typed, strict functional language which tracks the (side) _effects_ of every function in its type.
-Koka syntax is Javascript/C like,
-the evaluation is strict like OCaml/C, and the type- and effect system is Haskell like, where pure and effectful computations are distinguished.
-The precise effect typing gives Koka rock-solid semantics backed by well-studied category theory, which makes Koka particularly easy to reason
-about for both humans and compilers. (Given the importance of effect typing, the name Koka was derived from the Japanese word for _effective_ ([Kōka](https://translate.google.com/#view=home&op=translate&sl=auto&tl=en&text=%E5%8A%B9%E6%9E%9C), 効果)).
-
 <a href="https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk"><img align="right" width="350" src="doc/snippet-rbtree.png"/></a>
 
+Koka is a beautiful functional language with clean syntax and excellent performance.
+What sets Koka apart is _effect typing_, _effect handlers_, and _Perceus_ memory management:
+
+* The core of Koka consists of a small set of well-studied language
+  features, like first-class functions, a polymorphic type- and effect
+  system, algebraic data types, and effect handlers.   
+* Koka tracks the (side) _effects_ of every
+  function in its type, where pure and effectful computations are
+  distinguished. The precise effect typing gives Koka _rock-solid
+  semantics_ backed by well-studied category theory, which makes Koka
+  particularly easy to reason about for both humans and compilers.  
+* _Effect handlers_ let you define advanced control abstractions,
+  like exceptions, async/await, or probabilistic programs, 
+  as a user library in a typed and composable way.
+* [Perceus] is an advanced compilation method for reference counting.
+  Together with [evidence translation][evidence], this lets Koka compile directly to C code _without needing
+  a garbage collector or runtime system_. This also gives Koka 
+  excellent performance in practice (see the [benchmarks](#benchmarks)).
+* Through Perceus, Koka can do reuse analysis and optimize 
+  functional-style programs to use in-place updates.
+
+For more information, see:
+
+* [Why Koka?][why]
+* The [Koka manual][kokabook] for a tour of the Koka language and its specification.
+* The [Library documentation][libraries].
+
+<!--
 A function without any effect is called _total_ and corresponds to mathematically total functions -- a good place to be.
 Then we have effects for partial functions that can raise exceptions, as _exn_, and potentially non-terminating functions as _div_ (divergent).
 The combination of _exn_ and _div_ is called _pure_ as that corresponds to Haskell's notion of purity. On top of that we find
@@ -41,7 +63,15 @@ For more background information, see:
 * The [Koka manual][kokabook] for a tour of the Koka language and its specification.
 * The [library documentation][libraries].
 * The article _Algebraic Effects for Functional Programming_ [[3]](#references) about the algebraic effects in Koka.
+-->
 
+[why-mingen]: https://koka-lang.github.io/koka/doc/kokaspec.html#why-mingen
+[why-effects]: https://koka-lang.github.io/koka/doc/kokaspec.html#why-effects
+[why-handlers]: https://koka-lang.github.io/koka/doc/kokaspec.html#why-handlers
+[why-perceus]: https://koka-lang.github.io/koka/doc/kokaspec.html#why-perceus
+[why-fbip]: http://koka-lang.github.io/koka/doc/kokaspec.html#why-fbip
+
+[why]: https://koka-lang.github.io/koka/doc/kokaspec.html#why
 [kokabook]: https://koka-lang.github.io/koka/doc/kokaspec.html  
 [tour]: https://koka-lang.github.io/koka/doc/kokaspec.html#tour
 [libraries]: https://koka-lang.github.io/koka/doc/toc.html
@@ -49,6 +79,7 @@ For more background information, see:
 [kokarepo]: https://github.com/koka-lang/koka
 [kokaproject]: http://research.microsoft.com/en-us/projects/koka
 
+[evidence]: https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently.pdf
 [releases]: https://github.com/koka-lang/koka/releases
 [build]: #build-from-source
 [Perceus]: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf
@@ -218,55 +249,32 @@ The ``samples/syntax`` and ``samples/basic`` directories contain various basic K
 in the interpreter, you can ``tab`` twice to see the available sample files and directories.
 Use ``:s`` to see the source of a loaded module.
 
+If you use VS Code or Atom, or if you set the ``koka_editor`` environment variable,
+you can type ``:e`` in the interactive prompt to edit your program further. For example,
 
-## Algebraic effect handlers
-
-A novel feature of Koka is a compiled and typed implementation of algebraic
-effect handlers (described in detail in [[3]](#references)).
-In the interactive environment, you can load various demo files with algebraic
-effects which are located in the ``samples/handlers`` directory.
-
-    > :f samples/handlers/basic
-
-where ``:f`` forces a recompile (versus ``:l`` which avoids a recompile if possible).
-Use the ``:?`` command to get an overview of all commands. After
-loading the ``common`` demo, we can run it directly from the interpreter:
-
-    > :f samples/handlers/basic
-    compile: samples/handlers/basic.kk
+    > :l samples/basic/caesar
     ...
-    check  : samples/handlers/basic
+    check  : samples/basic/caesar
     modules:
-      samples/handlers/basic
+        samples/basic/caesar
 
-    > :t test2    
-    () -> console ()
+    > :e 
+    
+    <edit the source and reload>
 
-    > test2()
-    check  : interactive
-    check  : interactive
-    linking: interactive
-    created: out\v2.0.5\mingw-debug\interactive
+    > :r
+    ...
+    check  : samples/basic/caesar
+    modules:
+        samples/basic/caesar
 
-    Hello there, there
-
-Some interesting demos are:
-
-* ``basic.kk``: Various examples from the paper "_Algebraic Effects for
-  Functional Programming_" [[3]](#references). Shows how to implement
-  common control-flow abstractions like exceptions, state, iterators,
-  ambiguity, and asynchronous programming.
-
-* ``nim.kk``: Various examples from the paper "_Liberating effects with
-  rows and handlers_" [[1]](#references).
-
-* ``scoped.kk``: Examples from the paper "_Effect Handlers in Scope_" [[5]](#references).
-
+    > main()
 
 ## What next?
 
+* Read about the [core concepts][why] of Koka.
 * Read a [Tour of Koka][tour] in the Koka manual.
-* Check the [library][libraries] documentation.
+* Check the [Libraries][libraries] documentation.
 * Write some cool Koka programs :-)
 
 
