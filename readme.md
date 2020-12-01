@@ -7,7 +7,7 @@
 
 &nbsp;
 
-# Koka: a functional language with effect types and handlers
+# Koka: a functional language with effects and handlers
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
 _Latest release_: v2.0.11, 2020-11-29 ([Install](#install)).
