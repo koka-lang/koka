@@ -35,7 +35,7 @@ What sets Koka apart is _effect typing_, _effect handlers_, and _Perceus_ memory
 * Through Perceus, Koka can do reuse analysis and optimize 
   functional-style programs to use in-place updates.
 
-For more background information, see:
+For more information, see:
 
 * [Why Koka?][why]
 * The [Koka manual][kokabook] for a tour of the Koka language and its specification.
@@ -249,55 +249,32 @@ The ``samples/syntax`` and ``samples/basic`` directories contain various basic K
 in the interpreter, you can ``tab`` twice to see the available sample files and directories.
 Use ``:s`` to see the source of a loaded module.
 
+If you use VS Code or Atom, or if you set the ``koka_editor`` environment variable,
+you can type ``:e`` in the interactive prompt to edit your program further. For example,
 
-## Algebraic effect handlers
-
-A novel feature of Koka is a compiled and typed implementation of algebraic
-effect handlers (described in detail in [[3]](#references)).
-In the interactive environment, you can load various demo files with algebraic
-effects which are located in the ``samples/handlers`` directory.
-
-    > :f samples/handlers/basic
-
-where ``:f`` forces a recompile (versus ``:l`` which avoids a recompile if possible).
-Use the ``:?`` command to get an overview of all commands. After
-loading the ``common`` demo, we can run it directly from the interpreter:
-
-    > :f samples/handlers/basic
-    compile: samples/handlers/basic.kk
+    > :l samples/basic/caesar
     ...
-    check  : samples/handlers/basic
+    check  : samples/basic/caesar
     modules:
-      samples/handlers/basic
+        samples/basic/caesar
 
-    > :t test2    
-    () -> console ()
+    > :e 
+    
+    <edit the source and reload>
 
-    > test2()
-    check  : interactive
-    check  : interactive
-    linking: interactive
-    created: out\v2.0.5\mingw-debug\interactive
+    > :r
+    ...
+    check  : samples/basic/caesar
+    modules:
+        samples/basic/caesar
 
-    Hello there, there
-
-Some interesting demos are:
-
-* ``basic.kk``: Various examples from the paper "_Algebraic Effects for
-  Functional Programming_" [[3]](#references). Shows how to implement
-  common control-flow abstractions like exceptions, state, iterators,
-  ambiguity, and asynchronous programming.
-
-* ``nim.kk``: Various examples from the paper "_Liberating effects with
-  rows and handlers_" [[1]](#references).
-
-* ``scoped.kk``: Examples from the paper "_Effect Handlers in Scope_" [[5]](#references).
-
+    > main()
 
 ## What next?
 
+* Read about the [core concepts][why] of Koka.
 * Read a [Tour of Koka][tour] in the Koka manual.
-* Check the [library][libraries] documentation.
+* Check the [Libraries][libraries] documentation.
 * Write some cool Koka programs :-)
 
 
