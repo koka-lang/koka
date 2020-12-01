@@ -14,7 +14,7 @@ _Latest release_: v2.0.11, 2020-11-29 ([Install](#install)).
 
 <a href="https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk"><img align="right" width="350" src="doc/snippet-rbtree.png"/></a>
 
-Koka is a beautiful functional language with clean syntax and excellent performance.
+Koka is a functional language with clean syntax and excellent performance.
 What sets Koka apart is _effect typing_, _effect handlers_, and _Perceus_ memory management:
 
 * The core of Koka consists of a small set of well-studied language
