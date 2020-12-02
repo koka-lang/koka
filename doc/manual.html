@@ -1051,7 +1051,7 @@ real    0m0.864s
 transforming the fast path of the pure functional rebalancing to use mostly in-place updates,
 closely mimicking the imperative rebalancing code of the hand optimized C++ library.
 </p><h2 id="sec-running-the-interactive-compiler" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-running-the-interactive-compiler" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">1.3</span>.&#8194;</span>Running the interactive compiler</h2>
-<p class="p noindent">Without giving any input files, the interactive interpreter runs by default:
+<p class="p noindent">Without giving any input files, the interactive environment runs by default:
 </p>
 <pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; koka</code></strong></span>
  _          _           ____
@@ -2249,15 +2249,15 @@ fun fib2(n) {
 
 <p class="p noindent">In contrast to <code class="koka"><span class="kw">val</span></code> declarations that bind an immutable value (as in <code class="koka"><span class="kw">val</span> y0 <span class="kw">=</span> y</code>),
 the <code class="koka"><span class="kw">var</span></code> declaration declare a mutable variable, where the <code class="koka"><span class="op">(:=)</span></code> operator 
-can assign a new value to the variable.
-</p>
-<p class="p indent">Internally, the <code class="koka"><span class="kw">var</span></code> declarations use a <em class="em-low1">state</em> effect handler which ensures
+can assign a new value to the variable. Internally, the <code class="koka"><span class="kw">var</span></code> declarations use 
+a <em class="em-low1">state</em> effect handler which ensures
 that the state has the proper semantics even if resuming multiple times.
+</p><!--
 However, that also means that mutable local variables are not quite first-class
 and we cannot pass them as parameters to other functions for example (as they
 are always dereferenced). You will also get a type error if a local variable
 escapes through a function expression, for example:
-</p><pre class="koka source unchecked"><span class="plaincode">fun wrong() : (() -&gt; console ()) {
+<pre class="koka source unchecked"><span class="plaincode">fun wrong() : (() -&gt; console ()) {
   var x := 1
   (fn(){ x := x + 1; println(x) })
 }
@@ -2266,10 +2266,11 @@ escapes through a function expression, for example:
   (<span class="kw">fn</span>(){ x <span class="kw op">:=</span> x <span class="op">+</span> <span class="number">1</span>; println(x) })
 }
 </span></pre>
+is statically rejected as the reference to the local variable escapes its scope.
+-->
 
 
-<p class="p noindent">is statically rejected as the reference to the local variable escapes its scope.
-</p>
+
 <p class="p button learn indent" style="border:1px solid #AAA;margin:0ex 1ex 1ex 0ex;display:inline-block;padding:1ex;background-color:#fffdf0">Read more about state and multiple resumptions[??]</p><h3 id="sec-runst" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-runst" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.2.5</span>.&#8194;</span>Reference Cells and Isolated state</h3>
 <p class="p noindent">Koka also has heap allocated mutable reference cells. 
 A reference to an
