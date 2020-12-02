@@ -120,7 +120,7 @@ goto end
 
 :done
 set  koka_version=%_KOKA_VERSION%
-setx koka_version %_KOKA_VERSION% > null
+setx koka_version %_KOKA_VERSION% >nul
 
 echo.
 echo -----------------------------------------------------------------------
