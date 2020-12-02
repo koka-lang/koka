@@ -33,7 +33,7 @@ common use cases, but uses accurate and precise time representations and algorit
 In particular, it handles accurate leap seconds, time zones, multiple calendars,
 and astronomical time scales.
 Internally time is represented by a 128-bit &#96;:ddouble&#96; giving it a very high range
-and precision (up to 31 decimal digits, see the &#96;std/time/instant&#96; module for more
+and precision (up to 31 decimal digits, see the &#96;module std/time/instant&#96; module for more
 information). As such, we believe this library is one of the most accurate time
 libraries around.
 
@@ -45,13 +45,13 @@ Core concepts are:
 get the &#96;:duration&#96; between them. Instants are usually represented as the number
 of fractional SI seconds since the &#96;epoch&#96; (2000-01-01Z), but can be represented
 in different time scales for efficiency. For example, there is the TAI time scale (&#96;ts-tai&#96;),
-standard UTC (&#96;ts-ti&#96;), or astronomical time scales like terrestrial time (&#96;std/time/astro/ts-tt&#96;).
+standard UTC (&#96;ts-ti&#96;), or astronomical time scales like terrestrial time (&#96;module std/time/astro&#96;).
 
 &#42; A &#96;:time&#96; is a human readable &#96;:date&#96; (year, month, day), and &#96;:clock&#96; (hour, minutes, seconds)
 in a particular &#96;:calendar&#96; (usually the standard ISO calendar) and time zone.
 Instants can be converted to time values and back. We can add logical years, months, or
 days to a &#96;:time&#96;, or get the difference between times in days etc. See the
-&#96;std/time/time&#96; module for more information.
+&#96;module std/time/time&#96; module for more information.
 
 The current time, in the UTC timezone (&#96;tz-utc&#96;) using the ISO calendar (&#96;cal-iso&#96;):
 
@@ -73,7 +73,7 @@ We can also get the current instant in time as the number of SI seconds since th
 &gt; now()
 539106063.980999947s
 &#96;&#96;&#96;
-See &#96;std/time/chrono&#96; for more information on system time.
+See &#96;module std/time/chrono&#96; for more information on system time.
 
 Calendar times can be constructed by giving a year, month (1-based), and day of the month (1-based)
 and optional hour, minutes, seconds, fraction of the second, timezone (&#96;tz-utc&#96;) and
