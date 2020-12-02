@@ -69,7 +69,7 @@ int kk_string_icmp(kk_string_t str1, kk_string_t str2, kk_context_t* ctx) {
 }
 
 
-kk_decl_export kk_string_t kk_string_alloc_len_unsafe(size_t len, const char* s, kk_context_t* ctx) {
+kk_decl_export kk_decl_noinline kk_string_t kk_string_alloc_len_unsafe(size_t len, const char* s, kk_context_t* ctx) {
   kk_assert_internal(s == NULL || strlen(s) >= len);
   if (len == 0) {
     return kk_string_empty();

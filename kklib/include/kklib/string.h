@@ -145,7 +145,7 @@ static inline kk_string_t kk_string_alloc_raw(const char* s, bool free, kk_conte
 }
 
 static inline const uint8_t* kk_string_buf_borrow(const kk_string_t str) {
-  static const uint8_t empty[1] = { 0 };
+  static const uint8_t empty[64] = { 0 };
   if (kk_datatype_is_singleton(str)) {
     return empty;
   }
