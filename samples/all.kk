@@ -2,7 +2,7 @@ module samples/all
 
 import basic/caesar
 import basic/fibonacci
-import basic/garcia-wachs
+import basic/garsia-wachs
 
 import syntax/basic
 import syntax/effect
@@ -22,5 +22,5 @@ import named-handlers/heap
 
 public fun main() {
   fibonacci/main()
-  garcia-wachs/main()
+  garsia-wachs/main()
 }
