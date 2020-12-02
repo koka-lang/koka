@@ -432,8 +432,11 @@ frequency for each letter. The function `freqs` builds a frequency table for a
 specific string, while the function `chisqr` calculates how well two frequency
 tables match. In the function `crack` these functions are used to find a
 `shift` value that results in a string whose frequency table matches the
-`english` one the closest -- and we use that to decode the string. Let's try
-it out in the editor!
+`english` one the closest -- and we use that to decode the string. 
+You can try out this example directly in the interactive environment:
+````
+> :l samples/basic/caesar.kk
+````
 
 
 ## Effect types
@@ -450,28 +453,10 @@ deterministic, read and write to the heap, and do any input/output operations.
 Here are some examples of effectful functions:
 
 ```
-fun square1( x : int ) : total int
-{
-  return x*x
-}
-
-fun square2( x : int ) : io int
-{
-  println( "a not so secret side-effect" )
-  return x*x
-}
-
-fun square3( x : int ) : div int
-{
-  square3( x )
-  return x*x
-}
-
-fun square4( x : int ) : exn int
-{
-  throw( "oops" )
-  return x*x
-}
+fun square1( x : int ) : total int   { x*x }
+fun square2( x : int ) : console int { println( "a not so secret side-effect" ); x*x }
+fun square3( x : int ) : div int     { x * square3( x ) }
+fun square4( x : int ) : exn int     { throw( "oops" ); x*x }
 ```
 
 When the effect is `:total` we usually leave it out in the type annotation.
@@ -481,17 +466,16 @@ For example, when we write:
 fun square5( x : int ) : int { x*x }
 ```
 
-Then the assumed effect is `:total`. Sometimes, we write an effectful
+the assumed effect is `:total`. Sometimes, we write an effectful
 function, but are not interested in explicitly writing down its effect type.
 In that case, we can use a _wildcard type_ which stands for some inferred
 type. A wildcard type is denoted by writing an identifier prefixed with an
 underscore, or even just an underscore by itself:
 
 ```
-fun square6( x : int ) : _e int
-{
-  println("I did not want to write down the io effect")
-  return x*x
+fun square6( x : int ) : _e int {
+  println("I did not want to write down the \"console\" effect")
+  x*x
 }
 ```
 
@@ -507,20 +491,20 @@ mathematical function that describes its denotational semantics_. For example,
 using &#x301A;`:t`&#x301B; to translate a type `:t` into its corresponding
 mathematical type signature, we have:
 
-|--------------------------------------------| --------------| ---------------------------------------------------------------------------|
-|&#x301A;`:int -> total int `&#x301B;        | =&nbsp;&nbsp; | &#8484;~32~ &rarr; &#8484;~32~                                             |
-|&#x301A;`:int -> exn int `&#x301B;          | =             | &#8484;~32~ &rarr; (1 + &#8484;~32~)                                       |
-|&#x301A;`:int -> pure int `&#x301B;         | =             | &#8484;~32~ &rarr; (1 + &#8484;~32~)~&#8869;~                              |
-|&#x301A;`:int -> <st<h>,pure> int `&#x301B; | =             | (_Heap_ &times; &#8484;~32~) &rarr; (_Heap_ &times; (1 + &#8484;~32~))~&#8869;~|
+|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ~~~~~~~~~~~~~~| ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|
+|&#x301A;`:int -> total int `&#x301B;        | =&nbsp;&nbsp; | $\mathbb{Z} \rightarrow \mathbb{Z}$                              |
+|&#x301A;`:int -> exn int `&#x301B;          | =             | $\mathbb{Z} \rightarrow (\mathbb{Z} + 1)$ |
+|&#x301A;`:int -> pure int `&#x301B;         | =             | $\mathbb{Z} \rightarrow (\mathbb{Z} + 1)_\bot$ |
+|&#x301A;`:int -> <st<h>,pure> int `&#x301B; | =             | $(\mathbb{Z} \times \mathbb{H}) \rightarrow ((\mathbb{Z} + 1) \times \mathbb{H})_\bot$ |
 
-In the above translation, we use _1 + t_ as a sum
-where we have either a unit 1 (i.e. exception) or a type _t_, and we use
-_Heap &times; t_ for a product consisting of a pair of a
-heap and a type _t_. From the above correspondence, we can immediately see that
+In the above translation, we use $1 + \tau$ as a sum
+where we have either a unit $1$ (i.e. exception) or a type $\tau$, and we use
+$\mathbb{H}\times \tau$ for a product consisting of a pair of a
+heap and a type $\tau$. From the above correspondence, we can immediately see that
 a `:total` function is truly total in the mathematical sense, while a stateful
 function (`:st<h> `) that can raise exceptions or not terminate (`:pure`)
-takes an implicit heap parameter, and either does not terminate (&#8869;) or
-returns an updated heap together with either a value or an exception (`1`).
+takes an implicit heap parameter, and either does not terminate ($\bot$) or
+returns an updated heap together with either a value or an exception ($1$).
 
 We believe that this semantic correspondence is the true power of full effect
 types and it enables effective equational reasoning about the code by a
@@ -531,15 +515,15 @@ separate out nicely behaved parts, which is essential for many domains, like
 safe LINQ queries, parallel tasks, tier-splitting, sand-boxed mobile code,
 etc.
 
+
 ### Combining effects
 
 Often, a function contains multiple effects, for example:
 
 ```unchecked
-fun combine-effects()
-{
+fun combine-effects() {
   val i = srandom-int() // non-deterministic
-  error("hi")           // exception raising
+  throw("oops")         // exception raising
   combine-effects()     // and non-terminating
 }
 ```
@@ -552,6 +536,7 @@ inferred is really `: <pure,ndet> ` where `:pure` is a type alias defined as
 ```unchecked
 alias pure = <div,exn>
 ```
+
 
 ### Polymorphic effects
 
@@ -591,23 +576,19 @@ Take for example the following loop
 import std/num/random
 fun main() { looptest() }
 ////
-fun looptest()
-{
-  while { is-odd(srandom-int()) }
-  {
+fun looptest() {
+  while { is-odd(srandom-int()) } {
     throw("odd")
   }
 }
 ```
 
-In the above program, Koka infers that the predicate ``odd(srandom-int())`` has
+Koka infers that the predicate ``odd(srandom-int())`` has
 effect `: <ndet|e1> ` while the action has effect `: <exn|e2> ` for some `:e1` and `:e2`.
 When applying `while`, those
-effects are unified to the type `: <exn,ndet,div|e3> ` for some `:e3` (which can
-be seen by hovering over the `looptest` identifier)
+effects are unified to the type `: <exn,ndet,div|e3> ` for some `:e3`.
 
-
-### Isolated state {#sec-runst}
+### Local Mutable Variables
 
 The Fibonacci numbers are a sequence where each subsequent Fibonacci number is
 the sum of the previous two, where `fib(0) == 0` and `fib(1) == 1`. We can
@@ -616,8 +597,7 @@ easily calculate Fibonacci numbers using a recursive function:
 ```
 fun main() { println(fib(10)) }
 ////
-fun fib(n : int) : div int
-{
+fun fib(n : int) : div int {
   if (n <= 0)   then 0
   elif (n == 1) then 1
   else fib(n - 1) + fib(n - 2)
@@ -636,36 +616,41 @@ iterate `n` times:
 ```
 fun main() { println(fib2(10)) }
 ////
-fun fib2(n)
-{
-  var x : int := 0
+fun fib2(n) {
+  var x := 0
   var y := 1
   repeat(n) {
     val y0 = y
     y := x+y
     x := y0
   }
-  return x
+  x
 }
 ```
 
-The `var` declaration declares a variable that can be assigned too using the
-`(:=)` operator. In contrast, a regular equality sign, as in `y0 = y`
-introduces an immutable value `y0`. For clarity, one can actually write `val y0 = y`
-for such declaration too but we usually leave out the `val` keyword.
+The `var` declaration declares a mutable variable, where
+the `(:=)` operator can assign a new value. 
+In contrast, `val` declarations bind an immutable value (as in `val y0 = y`). 
 
-Local variables declared using `var` are actually syntactic sugar for
-allocating explicit references to mutable cells. A reference to a mutable
-integer is allocated using `r = ref(0)` (since the reference itself is
+Internally, the `var` declaration use a _state_ effect handler which ensures
+that the state has the proper semantics even if resuming multiple times.
+
+[Read more about state and multiple resumptions][#sec-multi-resume]
+{.learn}
+
+
+### Reference Cells and Isolated state {#sec-runst}
+
+Koka also has heap allocated mutable reference cells. 
+A reference to an
+integer is allocated using `val r = ref(0)` (since the reference itself is
 actually a value!), and can be dereferenced using the bang operator, as ``!r``.
-The desugared version of our previously Fibonacci function can be written
-using explicit references as
+We can write the Fibonacci function using reference cells as:
 
 ```
 fun main() { println(fib3(10)) }
 ////
-fun fib3(n)
-{
+fun fib3(n) {
   val x = ref(0)
   val y = ref(1)
   repeat(n) {
@@ -677,9 +662,11 @@ fun fib3(n)
 }
 ```
 
-As we can see, using `var` declarations is quite convenient since such
-declaration automatically adds a dereferencing operator to all occurrences
-except on the left-hand side of an assignment.
+As we can see, using `var` declarations are generally preferred as these 
+behave better under multiple resumptions, but also are syntactically more
+concise as they do not need a dereferencing operator. (Nevertheless, we 
+still need reference cells as those are first-class while `var` variables
+cannot be passed to other functions.)
 
 When we look at the types inferred for the references, we see that `x` and `y`
 have type `:ref<h,int> ` which stands for a reference to a mutable value of
@@ -701,9 +688,9 @@ Haskell) to discard the `:st<h> ` effect.
 The Garsia-Wachs algorithm is nice example where side-effects are used
 internally across function definitions and data structures, but where the
 final algorithm itself behaves like a pure function, see the
-``lib/demo/garsiaWachs.kk`` example in the distribution.
+[``samples/basic/garsia-wachs.kk``][garsia-wachs].
 
-  [garsiaWachs]: http://www.rise4fun.com/koka/garsiaWachs {target='_top'}
+[garsia-wachs]: https://github.com/koka-lang/koka/tree/master/samples/basic/garsia-wachs.kk {target='_top'}
 
 
 ## Data Types
