@@ -1517,10 +1517,14 @@ list_t map( list_t xs, function_t f) {
 <pre class="para-block aside pre-fenced pre-fenced4 language-cpp lang-cpp cpp colorized" style="display:block"><code><span style="color:teal">void</span> map( list_t xs, function_t f, list_t* res) {
   <span style="color:blue">while</span> (is_Cons(xs)) {
     <span style="color:blue">if</span> (is_unique(xs)) {  <span style="color:darkgreen">// if xs is not shared..</span>
-      xs-&gt;head = apply(dup(f),xs-&gt;head);
-      *res = xs;          <span style="color:darkgreen">// update previous node in-place</span>
-      res = &amp;xs-&gt;tail;    <span style="color:darkgreen">// set the result address for the next node</span>
-      xs = xs-&gt;tail;      <span style="color:darkgreen">// .. and continue with the next node</span>
+      box_t y = apply(dup(f),xs-&gt;head);      
+      <span style="color:blue">if</span> (yielding()) { ... } <span style="color:darkgreen">// if f yielded an effect operation..</span>
+      <span style="color:blue">else</span> {
+        xs-&gt;head = y;      
+        *res = xs;          <span style="color:darkgreen">// update previous node in-place</span>
+        res = &amp;xs-&gt;tail;    <span style="color:darkgreen">// set the result address for the next node</span>
+        xs = xs-&gt;tail;      <span style="color:darkgreen">// .. and continue with the next node</span>
+      }
     }
     <span style="color:blue">else</span> { ... }          <span style="color:darkgreen">// slow path allocates fresh nodes</span>
   }
@@ -1528,8 +1532,8 @@ list_t map( list_t xs, function_t f) {
 }</code></pre>
 <p class="p noindent para-continued">Moreover, the Koka compiler also implements <em class="em-low1">tail-recursion modulo cons</em> (TRMC)
 and instead of using a recursive call, the function is eventually optimized 
-into a tight in-place updating loop for the fast path, similar to 
-the C code example on the right.
+into an in-place updating loop for the fast path, similar to 
+the C code example on the right. 
 </p>
 <p class="p indent">Importantly, the reuse optimization is guaranteed
 and a programmer can see when the optimization applies.
