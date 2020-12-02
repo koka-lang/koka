@@ -65,15 +65,15 @@ For more background information, see:
 * The article _Algebraic Effects for Functional Programming_ [[3]](#references) about the algebraic effects in Koka.
 -->
 
-[why-mingen]: https://koka-lang.github.io/koka/doc/kokaspec.html#why-mingen
-[why-effects]: https://koka-lang.github.io/koka/doc/kokaspec.html#why-effects
-[why-handlers]: https://koka-lang.github.io/koka/doc/kokaspec.html#why-handlers
-[why-perceus]: https://koka-lang.github.io/koka/doc/kokaspec.html#why-perceus
-[why-fbip]: http://koka-lang.github.io/koka/doc/kokaspec.html#why-fbip
+[why-mingen]: https://koka-lang.github.io/koka/doc/manual.html#why-mingen
+[why-effects]: https://koka-lang.github.io/koka/doc/manual.html#why-effects
+[why-handlers]: https://koka-lang.github.io/koka/doc/manual.html#why-handlers
+[why-perceus]: https://koka-lang.github.io/koka/doc/manual.html#why-perceus
+[why-fbip]: http://koka-lang.github.io/koka/doc/manual.html#why-fbip
 
-[why]: https://koka-lang.github.io/koka/doc/kokaspec.html#why
-[kokabook]: https://koka-lang.github.io/koka/doc/kokaspec.html  
-[tour]: https://koka-lang.github.io/koka/doc/kokaspec.html#tour
+[why]: https://koka-lang.github.io/koka/doc/manual.html#why
+[kokabook]: https://koka-lang.github.io/koka/doc/manual.html  
+[tour]: https://koka-lang.github.io/koka/doc/manual.html#tour
 [libraries]: https://koka-lang.github.io/koka/doc/toc.html
 [slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf
 [kokarepo]: https://github.com/koka-lang/koka
