@@ -28,7 +28,7 @@ Core concepts are:
 get the `:duration` between them. Instants are usually represented as the number
 of fractional SI seconds since the `epoch` (2000-01-01Z), but can be represented
 in different time scales for efficiency. For example, there is the TAI time scale (`ts-tai`),
-standard UTC (`ts-ti`), or astronomical time scales like terrestrial time (`module std/time/astro/ts-tt`).
+standard UTC (`ts-ti`), or astronomical time scales like terrestrial time (`module std/time/astro`).
 
 * A `:time` is a human readable `:date` (year, month, day), and `:clock` (hour, minutes, seconds)
 in a particular `:calendar` (usually the standard ISO calendar) and time zone.
@@ -56,7 +56,7 @@ We can also get the current instant in time as the number of SI seconds since th
 > now()
 539106063.980999947s
 ```
-See `std/time/chrono` for more information on system time.
+See `module std/time/chrono` for more information on system time.
 
 Calendar times can be constructed by giving a year, month (1-based), and day of the month (1-based)
 and optional hour, minutes, seconds, fraction of the second, timezone (`tz-utc`) and
