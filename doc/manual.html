@@ -2220,8 +2220,8 @@ prove that this recursive function always terminates, which leads to
 inclusion of the divergence effect <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_div"><span class="tp">div</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>div: <span class="tp">X</span></span></a></code> in the result type.
 </p>
 <p class="p indent">Here is another version of the Fibonacci function but this time
-implemented using local state. We use the <code class="koka">repeat</code> function to
-iterate <code class="koka">n</code> times:
+implemented using local mutable variables. 
+We use the <code class="koka">repeat</code> function to iterate <code class="koka">n</code> times:
 </p><pre class="koka source"><span class="plaincode">fun main() { println(fib2(10)) }
 
 fun fib2(n) {
@@ -2247,13 +2247,28 @@ fun fib2(n) {
 </span></pre>
 
 
-
-<p class="p noindent">The <code class="koka"><span class="kw">var</span></code> declaration declares a mutable variable, where
-the <code class="koka"><span class="op">(:=)</span></code> operator can assign a new value. 
-In contrast, <code class="koka"><span class="kw">val</span></code> declarations bind an immutable value (as in <code class="koka"><span class="kw">val</span> y0 <span class="kw">=</span> y</code>). 
+<p class="p noindent">In contrast to <code class="koka"><span class="kw">val</span></code> declarations that bind an immutable value (as in <code class="koka"><span class="kw">val</span> y0 <span class="kw">=</span> y</code>),
+the <code class="koka"><span class="kw">var</span></code> declaration declare a mutable variable, where the <code class="koka"><span class="op">(:=)</span></code> operator 
+can assign a new value to the variable.
 </p>
-<p class="p indent">Internally, the <code class="koka"><span class="kw">var</span></code> declaration use a <em class="em-low1">state</em> effect handler which ensures
+<p class="p indent">Internally, the <code class="koka"><span class="kw">var</span></code> declarations use a <em class="em-low1">state</em> effect handler which ensures
 that the state has the proper semantics even if resuming multiple times.
+However, that also means that mutable local variables are not quite first-class
+and we cannot pass them as parameters to other functions for example (as they
+are always dereferenced). You will also get a type error if a local variable
+escapes through a function expression, for example:
+</p><pre class="koka source unchecked"><span class="plaincode">fun wrong() : (() -&gt; console ()) {
+  var x := 1
+  (fn(){ x := x + 1; println(x) })
+}
+</span><span class="nicecode"><span class="kw">fun</span> wrong() <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_console"><span class="tp">console</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>console: <span class="tp">X</span></span></a> <span class="tp sp">(</span><span class="tp sp">)</span><span class="tp sp">)</span> {
+  <span class="kw">var</span> x <span class="kw op">:=</span> <span class="number">1</span>
+  (<span class="kw">fn</span>(){ x <span class="kw op">:=</span> x <span class="op">+</span> <span class="number">1</span>; println(x) })
+}
+</span></pre>
+
+
+<p class="p noindent">is statically rejected as the reference to the local variable escapes its scope.
 </p>
 <p class="p button learn indent" style="border:1px solid #AAA;margin:0ex 1ex 1ex 0ex;display:inline-block;padding:1ex;background-color:#fffdf0">Read more about state and multiple resumptions[??]</p><h3 id="sec-runst" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-runst" class="entity-anchor localref">&#x1F517;</a><span class="heading-before"><span class="heading-label">3.2.5</span>.&#8194;</span>Reference Cells and Isolated state</h3>
 <p class="p noindent">Koka also has heap allocated mutable reference cells. 
