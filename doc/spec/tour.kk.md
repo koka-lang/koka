@@ -610,8 +610,8 @@ inclusion of the divergence effect `:div` in the result type.
 
 
 Here is another version of the Fibonacci function but this time
-implemented using local state. We use the `repeat` function to
-iterate `n` times:
+implemented using local mutable variables. 
+We use the `repeat` function to iterate `n` times:
 
 ```
 fun main() { println(fib2(10)) }
@@ -627,13 +627,24 @@ fun fib2(n) {
   x
 }
 ```
+In contrast to `val` declarations that bind an immutable value (as in `val y0 = y`),
+the `var` declaration declare a mutable variable, where the `(:=)` operator 
+can assign a new value to the variable.
 
-The `var` declaration declares a mutable variable, where
-the `(:=)` operator can assign a new value. 
-In contrast, `val` declarations bind an immutable value (as in `val y0 = y`). 
-
-Internally, the `var` declaration use a _state_ effect handler which ensures
+Internally, the `var` declarations use a _state_ effect handler which ensures
 that the state has the proper semantics even if resuming multiple times.
+However, that also means that mutable local variables are not quite first-class
+and we cannot pass them as parameters to other functions for example (as they
+are always dereferenced). You will also get a type error if a local variable
+escapes through a function expression, for example:
+```unchecked
+fun wrong() : (() -> console ()) {
+  var x := 1
+  (fn(){ x := x + 1; println(x) })
+}
+```
+is statically rejected as the reference to the local variable escapes its scope.
+
 
 [Read more about state and multiple resumptions][#sec-multi-resume]
 {.learn}
