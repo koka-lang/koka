@@ -134,6 +134,7 @@ data Env     = Env{ showKinds      :: Bool
                   , fullNames :: Bool
 
                   -- should not really belong here. Contains link bases for documentation generation (see Syntax.Colorize)
+                  , colorizing:: Bool
                   , htmlBases :: [(String,String)]
                   , htmlCss   :: String
                   , htmlJs    :: String
@@ -154,7 +155,8 @@ data Env     = Env{ showKinds      :: Bool
 defaultEnv :: Env
 defaultEnv
   = Env False False defaultColorScheme niceEmpty (precTop-1) M.empty (newName "Main") (importsEmpty) False
-        []
+        False
+        []        
         ("styles/" ++ programName ++ ".css") -- [("System.","file://c:/users/daan/dev/koka/out/lib/")]
         ("scripts/" ++ programName ++ "-highlight.js")
         False -- coreIface
@@ -360,8 +362,8 @@ ppType env tp
                        ppType env{prec=precArrow} res
 
       TApp (TCon con) [arg]
-                    -- | typeConName con == nameTpOptional
-                    -- -> text "?" <.> ppType env{prec=precAtom} arg
+                    | typeConName con == nameTpOptional && colorizing env
+                    -> text "?" <.> ppType env{prec=precAtom} arg
                     | (typeConName con == nameTpHandled || typeConName con == nameTpHandled1) && not (coreIface env)
                     -> ppType env arg
       TApp (TCon (TypeCon name _)) args | isNameTuple (name)

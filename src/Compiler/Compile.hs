@@ -1052,17 +1052,18 @@ codeGen term flags compileTarget loaded
        let fullHtml = outHtml flags > 1
            outHtmlFile  = outBase ++ "-source.html"
            source   = maybe sourceNull programSource (modProgram mod)
+           cenv     = env{ colorizing=True }
        if (isLiteralDoc (sourceName source)) -- .kk.md
         then do termPhase term "write html document"
                 withNewFilePrinter (outBase ++ ".md") $ \printer ->
-                 colorize (modRangeMap mod) env (loadedKGamma loaded) (loadedGamma loaded) fullHtml (sourceName source) 1 (sourceBString source) printer
+                 colorize (modRangeMap mod) cenv (loadedKGamma loaded) (loadedGamma loaded) fullHtml (sourceName source) 1 (sourceBString source) printer
         else when (outHtml flags > 0) $
               do termPhase term "write html source"
                  withNewFilePrinter outHtmlFile $ \printer ->
-                  colorize (modRangeMap mod) env (loadedKGamma loaded) (loadedGamma loaded) fullHtml (sourceName source) 1 (sourceBString source) printer
+                  colorize (modRangeMap mod) cenv (loadedKGamma loaded) (loadedGamma loaded) fullHtml (sourceName source) 1 (sourceBString source) printer
                  termPhase term "write html documentation"
                  withNewFilePrinter (outBase ++ ".xmp.html") $ \printer ->
-                  genDoc env (loadedKGamma loaded) (loadedGamma loaded) (modCore mod) printer
+                  genDoc cenv (loadedKGamma loaded) (loadedGamma loaded) (modCore mod) printer
 
        mbRun <- backend term flags (loadedModules loaded)  compileTarget  outBase (modCore mod)
 
