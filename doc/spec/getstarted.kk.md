@@ -22,10 +22,14 @@ libraries and IDE integration.
 [kokarepo]: https://github.com/koka-lang/koka {target='_top'}
 [kokaproject]: http://research.microsoft.com/en-us/projects/koka {target='_top'}
 
+[samples]: https://github.com/koka-lang/koka/tree/master/samples
+[rbtree]: https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk
+[evidence-paper]: https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently-with-proofs-5f0b7d860b387.pdf
+[Perceus]: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf
 [releases]: https://github.com/koka-lang/koka/releases
 [build]: https://github.com/koka-lang/koka/#build-from-source
-[Perceus]: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf
 [vsprompt]: https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019
+
 
 ## Installing the compiler { #install }
 
@@ -56,7 +60,7 @@ It is also straightforward to build the compiler [from source][build].
 
 ## Running the compiler
 
-You can compile a Koka source using `-c` (note that all [`samples`](https://github.com/koka-lang/koka/tree/master/samples) are pre-installed):
+You can compile a Koka source using `-c` (note that all [`samples`][samples] are pre-installed):
 
     > koka -c samples/basic/caesar.kk
     compile: samples/basic/caesar.kk
@@ -107,7 +111,7 @@ closely mimicking the imperative rebalancing code of the hand optimized C++ libr
 
 ## Running the interactive compiler
 
-Without giving any input files, the interactive interpreter runs by default:
+Without giving any input files, the interactive environment runs by default:
 
     > koka
      _          _           ____

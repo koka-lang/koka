@@ -1,3 +1,6 @@
+~ MathDefs
+\newcommand{\pdv}[1]{\frac{\partial{}}{\partial{#1}}}
+~
 
 # A Tour of Koka { #tour }
 
@@ -206,17 +209,29 @@ public fun test-with1() {
 The `with` statement essentially puts all statements that follow it into 
 an anynomous function block and passes that as the last parameter. In general:
 
+~~ begin row
 ```unchecked
-with f(e1,...,eN)      ~>    f(e1,...,eN, fn(){ <body> })
+with f(e1,...,eN)
 <body>
 ```
+&mapsto;
+```unchecked
+f(e1,...,eN, fn(){ <body> })
+```
+~~ end row
 
 Moreover, a `with` statement can also bind a variable parameter as:
 
+~ row
 ```unchecked
-with x = f(e1,...,eN)   ~>   f(e1,...,eN, fn(x){ <body> })
+with x = f(e1,...,eN)
 <body>
 ```
+&mapsto;
+```unchecked
+f(e1,...,eN, fn(x){ <body> })
+```
+~
 
 Here is an examply using `foreach` to span over the rest of the function body:
 
@@ -285,18 +300,32 @@ public fun test-ask1() {
 Moreover, as a convenience, we can leave out the `handler` keyword 
 when it follows the `with` keyword, where:
 
+~ row
 ```unchecked
-with { <ops> }    ~>    with handler{ <ops> }
+with { <ops> }
 ```
+&mapsto;
+```unchecked
+with handler{ <ops> }
+```
+~
 
 and for effects with just one operation (like `:ask`), this leads to the following
 desugaring:
 
+~ row
 ```unchecked
-with val op = <expr>            ~>   with handler{ val op = <expr> }
-with fun op(x){ <stats> }       ~>   with handler{ fun op(x){ <stats> } }
-with control op(x){ <stats> }   ~>   with handler{ control op(x){ <stats> } }
+with val op = <expr> 
+with fun op(x){ <stats> }
+with control op(x){ <stats> }
 ```
+&mapsto;
+```unchecked
+with handler{ val op = <expr> }
+with handler{ fun op(x){ <stats> } }
+with handler{ control op(x){ <stats> } }
+```
+~
 
 Using this, we can write the previous example in a more concise and natural way as:
 
@@ -627,12 +656,13 @@ fun fib2(n) {
   x
 }
 ```
-In contrast to `val` declarations that bind an immutable value (as in `val y0 = y`),
-the `var` declaration declare a mutable variable, where the `(:=)` operator 
-can assign a new value to the variable.
-
-Internally, the `var` declarations use a _state_ effect handler which ensures
+In contrast to a `val` declaration that binds an immutable value (as in `val y0 = y`),
+a `var` declaration declares a _mutable_ variable, where the `(:=)` operator 
+can assign a new value to the variable. Internally, the `var` declarations use 
+a _state_ effect handler which ensures
 that the state has the proper semantics even if resuming multiple times.
+
+<!--
 However, that also means that mutable local variables are not quite first-class
 and we cannot pass them as parameters to other functions for example (as they
 are always dereferenced). You will also get a type error if a local variable
@@ -644,7 +674,7 @@ fun wrong() : (() -> console ()) {
 }
 ```
 is statically rejected as the reference to the local variable escapes its scope.
-
+-->
 
 [Read more about state and multiple resumptions][#sec-multi-resume]
 {.learn}
@@ -715,23 +745,25 @@ _struct_ or _record_. Here is an example of a struct that contains information
 about a person:
 
 ```
-struct person( age : int,
-               name : string,
-               realname : string = name )
+struct person { 
+  age : int
+  name : string
+  realname : string = name
+}
 
-val gaga = Person( 25, "Lady Gaga" )
+val brian = Person( 29, "Brian" )
 ```
 
 Every `struct` (and other data types) come with constructor functions to
-create instances, as in `Person(25,``Gaga``)`. Moreover, these
+create instances, as in `Person(19,"Brian")`. Moreover, these
 constructors can use named arguments so we can also call the constructor
-as `Person( name = "Lady Gaga", age = 25, realname = "Stefani Joanne Angelina Germanotta" )`
-which is quite close regular record syntax but without any special rules;
+as `Person( name = "Brian", age = 19, realname = "Brian H. Griffin" )`
+which is quite close to regular record syntax but without any special rules;
 it is just functions all the way down!
 
 Also, Koka automatically generates accessor functions for each field in a
 struct (or other data type), and we can access the `age` of a `:person` as
-`gaga.age` (which is of course just syntactic sugar for `age(gaga)`).
+`brian.age` (which is of course just syntactic sugar for `age(brian)`).
 
 ### Copying
 
@@ -741,40 +773,41 @@ the fields are updated. For example, here is a `birthday` function that
 increments the `age` field:
 
 ```
-fun main() { println( gaga.birthday.age ) }
+fun main() { println( brian.birthday.age ) }
 
-struct person( age : int, name : string, realname : string = name )
+struct person { 
+  age : int
+  name : string
+  realname : string = name 
+}
 
-val gaga = Person( 25, "Lady Gaga" )
+val brian = Person( 29, "Brian" )
 ////
-fun birthday( p : person ) : person  
-{
-  return p( age = p.age + 1 )
+fun birthday( p : person ) : person {
+  p( age = p.age + 1 )
 }
 ```
 
 Here, `birthday` returns a fresh `:person` which is equal to `p` but with the
-`age` incremented. The syntax ``p(...)`` is sugar for calling the copy constructor of
+`age` incremented. The syntax ``p(...)`` is syntactic sugar for calling the copy constructor of
 a `:person`. This constructor is also automatically generated for each data
-type, and is basically defined as:
+type, and is internally generated as:
 
 ```
-fun main() { println( gaga.copy().age ) }
+fun main() { println( brian.copy().age ) }
 
 struct person( age : int, name : string, realname : string = name )
 
-val gaga = Person( 25, "Lady Gaga" )
+val brian = Person( 29, "Brian" )
 ////
-fun copy( p, age = p.age, name = p.name,
-               rname = p.realname )
-{
-  return Person(age, name, rname)
+fun copy( p, age = p.age, name = p.name, realname = p.realname ) {
+  return Person(age, name, realname)
 }
 ```
 
-When arguments follow a data value, as in ``p( age = age + 1)``, it is desugared to call this
-copy function, as in `p.copy( age = p.age+1 )`. Again, there are no special
-rules for record updates and everything is just function calls with optional
+When arguments follow a data value, as in ``p( age = age + 1)``, it is expanded to call this
+copy function, as in `p.copy( age = p.age+1 )`. In adherence with the _min-gen_ principle,
+there are no special rules for record updates but using plain function calls with optional
 and named parameters.
 
 ### Alternatives (or Unions)
@@ -825,7 +858,7 @@ tail list (`Cons`):
 ```unchecked
 type list<a> {
   Nil
-  Cons( head : a, tail : list<a> )
+  Cons{ head : a; tail : list<a> }
 }
 ```
 
@@ -837,8 +870,7 @@ We can now also see that `struct` types are just syntactic sugar for regular a
 our earlier `:person` struct, defined as
 
 ```unchecked
-struct person( age : int, name : string,
-               realname : string = name )
+struct person{ age : int; name : string; realname : string = name }
 ```
 
 desugars to:
@@ -866,4 +898,226 @@ Todo
 
 ## FBIP: Functional but In-Place { #sec-fbip; }
 
-Todo
+With [Perceus][#why-fbip] reuse analysis we can
+write algorithms that dynamically adapt to use in-place mutation when
+possible (and use copying when used persistently). Importantly,
+you can rely on this optimization happening, &eg; see
+the `match` patterns and pair them to same-sized constructors in each branch.
+
+This style of programming leads to a new paradigm that we call FBIP:
+"functional but in place". Just like tail-call optimization lets us
+describe loops in terms of regular function calls, reuse analysis lets us
+describe in-place mutating imperative algorithms in a purely functional
+way (and get persistence as well).
+
+
+### Tree Rebalancing
+
+As an example, we consider
+insertion into a red-black tree [@guibas1978dichromatic]. 
+A polymorphic version of this example is part of the [``samples``][samples] directory when you have
+installed Koka and can be loaded as ``:l`` [``samples/basic/rbtree``][rbtree].
+We define red-black trees as:
+```unchecked
+type color { 
+  Red 
+  Black 
+}
+
+type tree {
+  Leaf
+  Node(color: color, left: tree, key: int, value: bool, right: tree)
+}
+```
+The red-black tree has the invariant that the number of black nodes from
+the root to any of the leaves is the same, and that a red node is never a
+parent of red node. Together this ensures that the trees are always
+balanced. When inserting nodes, the invariants need to be maintained by
+rebalancing the nodes when needed. Okasaki's algorithm [@Okasaki:rbtree]
+implements this elegantly and functionally:
+```unchecked
+fun balance-left( l : tree, k : int, v : bool, r : tree ): tree {
+  match(l) {
+    Node(_, Node(Red, lx, kx, vx, rx), ky, vy, ry)
+      -> Node(Red, Node(Black, lx, kx, vx, rx), ky, vy, Node(Black, ry, k, v, r))
+    ...
+}
+
+fun ins( t : tree, k : int, v : bool ): tree {
+  match(t) {
+    Leaf -> Node(Red, Leaf, k, v, Leaf)
+    Node(Red, l, kx, vx, r)             
+      -> if (k < kx) then Node(Red, ins(l, k, v), kx, vx, r)
+         ...
+    Node(Black, l, kx, vx, r)
+      -> if (k < kx && is-red(l)) then balance-left(ins(l,k,v), kx, vx, r)
+         ...
+}
+```
+
+The Koka compiler will inline the `balance-left` function. At that point,
+every matched `Node` constructor in the `ins` function has a corresponding `Node` allocation --
+if we consider all branches we can see that we either match one `Node`
+and allocate one, or we match three nodes deep and allocate three. Every 
+`Node` is actually reused in the fast path without doing any allocations!
+When studying the generated code, we can see the Perceus assigns the 
+fields in the nodes in the fast path _in-place_ much like the 
+usual non-persistent rebalancing algorithm in C would do.
+
+Essentially this means that for a unique tree, the purely functional
+algorithm above adapts at runtime to an in-place mutating re-balancing
+algorithm (without any further allocation). Moreover, if we use the tree
+_persistently_ [@Okasaki:purefun], and the tree is shared or has
+shared parts, the algorithm adapts to copying exactly the shared _spine_
+of the tree (and no more), while still rebalancing in place for any
+unshared parts.
+
+
+### Morris Traversal
+
+As another example of FBIP, consider mapping a function `f` over
+all elements in a binary tree in-order as shown in the `tmap-inorder` example:
+
+```
+type tree {
+  Tip
+  Bin( left: tree, value : int, right: tree )
+}
+
+fun tmap-inorder( t : tree, f : int -> int ) : tree {
+  match(t) {
+    Bin(l,x,r) -> Bin( l.tmap-inorder(f), f(x), r.tmap-inorder(f) )
+    Tip        -> Tip 
+  }
+}
+```
+
+This is already quite efficient as all the `Bin` and `Tip` nodes are
+reused in-place when `t` is unique. However, the `tmap` function is not
+tail-recursive and thus uses as much stack space as the depth of the
+tree.
+
+````cpp {.aside}
+void inorder( tree* root, void (*f)(tree* t) ) {
+  tree* cursor = root;
+  while (cursor != NULL /* Tip */) {
+    if (cursor->left == NULL) {
+      // no left tree, go down the right
+      f(cursor->value);
+      cursor = cursor->right;
+    } else {
+      // has a left tree
+      tree* pre = cursor->left;  // find the predecessor
+      while(pre->right != NULL && pre->right != cursor) {
+        pre = pre->right;
+      }
+      if (pre->right == NULL) {
+        // first visit, remember to visit right tree
+        pre->right = cursor;
+        cursor = cursor->left;
+      } else {
+        // already set, restore
+        f(cursor->value);
+        pre->right = NULL;
+        cursor = cursor->right;
+      } 
+    } 
+  } 
+}
+````
+
+In 1968, Knuth posed the problem of visiting a tree in-order while using
+no extra stack- or heap space [@Knuth:aocp1] (For readers not familiar
+with the problem it might be fun to try this in your favorite imperative
+language first and see that it is not easy to do). Since then, numerous
+solutions have appeared in the literature. A particularly elegant
+solution was proposed by @Morris:tree. This is an in-place mutating
+algorithm that swaps pointers in the tree to "remember" which parts are
+unvisited. It is beyond this tutorial to give a full explanation, but a C
+implementation is shown here on the side. The traversal
+essentially uses a _right-threaded_ tree to keep track of which nodes to
+visit. The algorithm is subtle, though. Since it transforms the tree into
+an intermediate graph, we need to state invariants over the so-called
+_Morris loops_ [@Mateti:morris] to prove its correctness.
+
+We can derive a functional and more intuitive solution using the FBIP
+technique. We start by defining an explicit _visitor_ data structure
+that keeps track of which parts of the tree we still need to visit. In
+Koka we define this data type as `:visitor`:
+```
+type visitor {
+  Done
+  BinR( right:tree, value : int, visit : visitor )
+  BinL( left:tree, value : int, visit : visitor )
+}
+```
+
+(As an aside, 
+Conor McBride [@Mcbride:derivative] describes how we can
+generically derive a _zipper_ [@Huet:zipper] visitor for any
+recursive type $\mu x. F$ as a list of the derivative of that type,
+namely $@list (\pdv{x} F\mid_{x =\mu x.F})$.
+In our case, the algebraic representation of the inductive `:tree`
+type is $\mu x. 1 + x\times int\times x  \,\cong\, \mu x. 1 + x^2\times int$.
+Calculating the derivative $@list (\pdv{x} (1 + x^2\times int) \mid_{x = tree})$
+and by further simplification, 
+we get $\mu x. 1 + (tree\times int\times x) + (tree\times int\times x)$,
+which corresponds exactly to our `:visitor` datatype.)
+
+We also keep track of which `:direction` in the tree 
+we are going, either `Up` or `Down` the tree.
+
+```
+type direction { 
+  Up 
+  Down 
+}
+```
+
+We start our traversal by going downward into the tree with an empty
+visitor, expressed as `tmap(f, t, Done, Down)`:
+
+```
+fun tmap( f : int -> int, t : tree, visit : visitor, d : direction ) {
+  match(d) {
+    Down -> match(t) {    // going down a left spine
+      Bin(l,x,r) -> tmap(f,l,BinR(r,x,visit),Down) // A
+      Tip        -> tmap(f,Tip,visit,Up)           // B
+    }
+    Up -> match(visit) {  // go up through the visitor
+      Done        -> t                             // C
+      BinR(r,x,v) -> tmap(f,r,BinL(t,f(x),v),Down) // D
+      BinL(l,x,v) -> tmap(f,Bin(l,x,t),v,Up)       // E
+    } 
+  } 
+}
+```
+ 
+The key idea is that we
+are either `Done` (`C`), or, on going downward in a left spine we
+remember all the right trees we still need to visit in a `BinR` (`A`) or,
+going upward again (`B`), we remember the left tree that we just
+constructed as a `BinL` while visiting right trees (`D`). When we come
+back up (`E`), we restore the original tree with the result values. Note
+that we apply the function `f` to the saved value in branch `D` (as we
+visit _in-order_), but the functional implementation makes it easy to
+specify a _pre-order_ traversal by applying `f` in branch `A`, or a
+_post-order_ traversal by applying `f` in branch `E`.
+
+Looking at each branch we can see that each `Bin` matches up with a
+`BinR`, each `BinR` with a `BinL`, and finally each `BinL` with a `Bin`.
+Since they all have the same size, if the tree is unique, each branch
+updates the tree nodes _in-place_ at runtime without any allocation,
+where the `:visitor` structure is effectively overlaid over the tree
+nodes while traversing the tree. Since all `tmap` calls are tail calls,
+this also compiles to a tight loop and thus needs no extra stack- or heap
+space.
+
+Finally, just like with re-balancing tree insertion, the algorithm as
+specified is still purely functional: it uses in-place updating when a
+unique tree is passed, but it also adapts gracefully to the persistent
+case where the input tree is shared, or where parts of the input tree are
+shared, making a single copy of those parts of the tree.
+
+[Read the Perceus technical report][Perceus]
+{.learn}

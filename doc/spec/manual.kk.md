@@ -4,11 +4,14 @@ Heading Depth : 3
 Toc Depth     : 3
 Css           : styles/koka.css
 Css           : styles/manual.css
+Css           : https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css
 Script        : scripts/manual.js
 Colorizer     : unchecked.json
 Colorizer     : koka.json
 Bibliography  : koka.bib
 Description   : Koka Language Specification
+Mapsto        : [$\rightsquigarrow$]{.mapsto}
+
 [INCLUDE=book]
 [INCLUDE=styles/webanchors]
 [INCLUDE=styles/webtoc]
@@ -25,6 +28,10 @@ toc.toc-contents {
   before:clear;
 }
 
+.math-inline {
+  input: mathpre;
+}
+
 .pre-fenced3, .code1 {
   language: koka;
 }
@@ -33,12 +40,10 @@ toc.toc-contents {
   replace: "/^( *>[^\n\r]+)/\(**``\1``**\)/mg";
 }
 
-.button {
-  border: 1px solid #AAA;
-  margin: 0ex 1ex 1ex 0ex;
-  display: inline-block;
-  padding: 1ex;
-  background-color: #fffdf0;  
+.mapsto {
+  padding: 0ex 1em;
+  align-self: center;
+  font-size: 125%;
 }
 
 .learn {

@@ -7,7 +7,7 @@ anchor symbol: &#x1F517;
 
 @if html {
   h0, h1, h2, h3 {
-    before: "[&anchor-symbol;](#&id;){.entity-anchor}"
+    before: "[](#&id;){.entity-anchor .fa .fa-link}"
   }
 }
 
@@ -29,9 +29,9 @@ Css Header:
     
     .entity-anchor {
       display: none;
-      width: 1em;
+      width: 1.5em;
       margin: 0pt;
-      margin-left: -1em;
-      font-family: "Segoe UI Symbol", Symbola, serif;
-      font-size: 70%;
+      margin-left: -1.5em;
+      xfont-family: "Segoe UI Symbol", Symbola, serif;
+      font-size: 75% !important;
     }

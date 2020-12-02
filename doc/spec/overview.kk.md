@@ -99,17 +99,16 @@ fun print  : (string)  -> console ()      // may write to the console
 fun rand   : ()        -> ndet int        // non-deterministic  
 ```
 
-The precise effect typing gives Koka _rock-solid semantics_ backed
+The precise effect typing gives Koka rock-solid semantics backed
 by well-studied category theory, which makes Koka particularly easy to
 reason about for both humans and compilers. (Given the importance of
 effect typing, the name Koka was derived from the Japanese word for
 _effective_
-([K&omacron;ka](https://translate.google.com/#view=home&op=translate&sl=auto&tl=en&text=%E5%8A%B9%E6%9E%9C),
-&#x52B9;&#x679C;)).
+(&#x52B9;&#x679C;,[K&omacron;ka](https://translate.google.com/#view=home&op=translate&sl=auto&tl=en&text=%E5%8A%B9%E6%9E%9C))).
 
 A function without any effect is called `:total` and corresponds to
 mathematically total functions -- a good place to be. Then we have
-effects for partial functions that can raise exceptions, as _exn_, and
+effects for partial functions that can raise exceptions (`:exn`), and
 potentially non-terminating functions as `:div` (divergent). The
 combination of `:exn` and `:div` is called `:pure` as that corresponds to
 Haskell's notion of purity. On top of that we find mutability (as `:st`)
@@ -196,15 +195,12 @@ yielded: 3
 
 [perceus3]: images/perceus3.jpg "Perseus by Benvenuto Cellini" { width:20%; float:right; margin:1em 0em 1em 2em; border:1px solid #888; }
 
-[evidence-paper]: https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently-with-proofs-5f0b7d860b387.pdf
-[Perceus]: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf
-[rbtree]: https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk
 [test-bench]: https://github.com/koka-lang/koka/tree/master/test/bench
 
 Perceus is the compiler optimized reference counting technique that Koka
-uses for automatic memory management. This
-enables Koka to compile directly to plain C code _without needing a
-garbage collector or runtime system_!
+uses for automatic memory management [@Perceus:tech]. This
+enables Koka to compile directly to plain C code without needing a
+garbage collector or runtime system!
 
 Perceus uses extensive static analysis to aggressively optimize the
 reference counts. Here the strong semantic foundation of Koka helps a
@@ -231,7 +227,7 @@ memory intensive benchmarks.
 [See benchmarks](https://github.com/koka-lang/koka#Benchmarks)
 {.learn}
 
-[Read the Perceus paper][Perceus]
+[Read the Perceus technical report][Perceus]
 {.learn}
 
 ## Reuse Analysis { #why-fbip; }
@@ -248,19 +244,54 @@ fun map( xs : list<a>, f : a -> e b ) : e list<b> {
   }
 }
 ```
+
 Here the matched `Cons` can be reused by the new `Cons`
 in the branch. This means if we map over a list that is not shared, 
 like `list(1,100000).map(sqr).sum`,
 then the list is updated _in-place_ without any extra allocation.
 This is very effective for many functional style programs.
 
-For example, the [`rbtree.kk`][rbtree] sample implements purely
-functional balanced insertion into a red-black tree. 
-Normally, a functional program would copy the spine of the tree
-on every insertion while rebalancing, but with Perceus the 
-rebalancing is done in-place in the fast path (and degrades
-gracefully to copying if the tree or subtrees are shared).
+<!--
+The corresponding C code that is generated for the fast path becomes similar to:
 
+````cpp
+list_t map( list_t xs, function_t f) {
+  if (is_Cons(xs)) {
+    if (is_unique(xs)) {
+      xs->head = apply(dup(f),xs->head);
+      xs->tail = map(xs->tail,f);
+      return xs;
+    }
+    else { ... }
+  }
+  else {
+    return Nil;
+  }
+}
+````
+-->
+````cpp {.aside}
+void map( list_t xs, function_t f, list_t* res) {
+  while (is_Cons(xs)) {
+    if (is_unique(xs)) {  // if xs is not shared..
+      xs->head = apply(dup(f),xs->head);
+      *res = xs;          // update previous node in-place
+      res = &xs->tail;    // set the result address for the next node
+      xs = xs->tail;      // .. and continue with the next node
+    }
+    else { ... }          // slow path allocates fresh nodes
+  }
+  *res = Nil;  
+}
+````
+
+Moreover, the Koka compiler also implements _tail-recursion modulo cons_ (TRMC)
+and instead of using a recursive call, the function is eventually optimized 
+into a tight in-place updating loop for the fast path, similar to 
+the C code example on the right.
+
+Importantly, the reuse optimization is guaranteed
+and a programmer can see when the optimization applies.
 This leads to a new programming technique we call FBIP:
 _functional but in-place_. Just like tail-recursion allows us
 to express loops with regular function calls, reuse analysis 
@@ -271,7 +302,7 @@ functional style.
 {.learn}
 
 
-[Read the Perceus paper on reuse analysis][Perceus]
+[Read the Perceus report on reuse analysis][Perceus]
 {.learn}
 
 

@@ -16,4 +16,14 @@ function genFullGrammar() {
   divGrammar.innerHTML="<table class='grammar'>\n" + fullParse + "</table>";
 }
 
-window.onload = function() { genFullGrammar() };
+window.onload = function() {   
+  genFullGrammar() 
+  const locals = document.querySelectorAll("a:not(.localref)");
+  locals.forEach( function(link){
+    const child = link.firstElementChild
+    const ctag = (child==null ? "" : child.tagName)
+    if (ctag != "IMG" && ctag != "SPAN") {  // no image or code links
+      link.innerHTML = link.innerHTML + "<i class=\"fa fa-external-link\"></i>";
+    }
+  });
+};
