@@ -53,8 +53,6 @@ single character `c`. The final statement `s.map(encode-char)` applies the
 new string where each character is Caesar encoded. The result of the final
 statement in a function is also the return value of that function, and you can
 generally leave out an explicit `return` keyword.
-Similarly, Koka's grammar is constructed in such a way that no semi-colons
-are needed to separate statements.
 
 ### Dot selection {#sec-dot}
 
@@ -78,7 +76,7 @@ function that takes that type as its first argument. In most object-oriented
 languages one would need to add that method to the class definition itself
 which is not always possible if such class came as a library for example.
 
-### Types
+### Type Inference
 
 Koka is also strongly typed. It uses a powerful type inference engine to
 infer most types, and types generally do not get in the way. In
@@ -96,11 +94,11 @@ and `:string` types and the program is ambiguous without an annotation.
 Try to load the example in the editor and remove the annotation to see
 what error Koka produces.
 
-### Anonymous functions {#sec-anon}
+### Anonymous Functions and Trailing Lambdas {#sec-anon}
 
 Koka also allows for anonymous function expressions using the `fn` keyword.
 For example, instead of
-declaring the `encode-char` function, we could just have passed it directly to
+declaring the `encode-char` function, we can also pass it directly to
 the `map` function as a function expression:
 
 ```
@@ -116,8 +114,9 @@ fun encode2( s : string, shift : int )
 ```
 
 It is a bit annoying we had to put the final right-parenthesis after the last
-brace. As a convenience, Koka allows anonymous functions to _follow_
-the function call instead. For example, here is how we can print the numbers
+brace in the previous example. As a convenience, Koka allows anonymous functions to _follow_
+the function call instead -- this is also known as _trailing lambdas_. 
+For example, here is how we can print the numbers
 ``1`` to ``10``:
 
 ```
@@ -131,12 +130,12 @@ fun print10()
 }
 ```
 
-which is desugared to `for( 1, 10, fn(i){ println(i) } )`. In fact, since we
-pass the `i` argument directly to `println`, we can also the function itself
-directly, and write `for(1,10,println)`.
+which is desugared to `for( 1, 10, fn(i){ println(i) } )`. (In fact, since we
+pass the `i` argument directly to `println`, we could have also passed the function itself
+directly, and write `for(1,10,println)`.)
 
 Anonymous functions without any arguments can be shortened further by leaving
-out the `fn` keyword and just using braces directly. Here is an example using
+out the `fn` keyword as well and just use braces directly. Here is an example using
 the `repeat` function:
 
 ```
@@ -152,7 +151,7 @@ fun printhi10()
 
 where the body desugars to `repeat( 10, fn(){println(``hi``)} )`. The is
 especially convenient for the `while` loop since this is not a built-in
-operator in Koka but just a regular function:
+control flow construct but just a regular function:
 
 ```
 fun main() { print11() }
@@ -167,27 +166,162 @@ fun print11() {
 ```
 
 Note how the first argument to `while` is in braces instead of the usual
-parenthesis: Koka makes it always explicit whether code is evaluated
-before a function is called (in between parenthesis), or whether
-code is evaluated (potentially
-multiple times) by the called function instead (in between braces).
+parenthesis. In Koka, an expression between _parenthesis_ is always evaluated
+before a function call, whereas an expression between _braces_ (ah,
+_suspenders_!) is suspended and may be never evaluated or more than once
+(as in our example). 
+
 
 ### With Statements { #sec-with; }
 
-Todo.
+To the best of our knowledge, Koka was the first language to have
+generalized _dot notation_ and _trailing lambdas_. Another novel 
+syntactical feature is the `with` statement.
+With the ease of passing a function block as a parameter, these
+often become nested. For example:
+```
+fun twice(f) {
+  f()
+  f()
+}
+
+fun test-twice() {
+  twice fn(){
+    twice fn(){
+      println("hi")
+    }
+  }
+}
+```
+where `"hi"` is printed four times. Using the `with` statement 
+we can write this more concisely as:
+```
+public fun test-with1() {
+  with twice
+  with twice
+  println("hi")
+}
+```
+
+The `with` statement essentially puts all statements that follow it into 
+an anynomous function block and passes that as the last parameter. In general:
+
+```unchecked
+with f(e1,...,eN)      ~>    f(e1,...,eN, fn(){ <body> })
+<body>
+```
+
+Moreover, a `with` statement can also bind a variable parameter as:
+
+```unchecked
+with x = f(e1,...,eN)   ~>   f(e1,...,eN, fn(x){ <body> })
+<body>
+```
+
+Here is an examply using `foreach` to span over the rest of the function body:
+
+```
+public fun test-with2() {
+  with x = list(1,10).foreach
+  println(x)
+}
+```
+
+which desugars to `list(1,10).foreach( fn(x){ println(x) } )`. 
+This is a bit reminiscent of Haskell ``do`` notation. 
+Using the `with` statement this way may look a bit strange at first
+but is very convenient in practice -- it helps thinking of `with` as
+a closure over the rest of the lexical scope. 
+
+#### With Finally
+
+As a final example, the `finally` function takes as it first argument a
+function that is run when exiting the scope -- either normally, 
+or through an "exception" (&ie; when an effect operation does not resume).
+Again, `with` is a natural fit:
+
+```
+fun test-finally() {
+  with finally{ println("exiting..") }
+  println("entering..")
+  throw("oops") + 42
+}
+```
+which desugars to `finally(fn(){ println(...) }), fn(){ println("entering"); throw("oops") + 42 })`,
+and prints:
+
+````
+entering..
+exiting..
+uncaught exception: oops
+````
+
+This is another example of the _min-gen_ principle: many languages have
+have special built-in support for this kind of pattern, like a ``defer`` statement, but in Koka
+it is all just function applications with minimal syntactic sugar.
+
+
+#### With Handlers  { #sec-with-handlers; }
+
+The `with` statement is especially useful in combination with 
+effect handlers. Generally, a `handler` takes as its last argument
+a function block so it can be used directly with `with`. Here
+is an example where an effect handler declares a dynamically bound
+value:
+```
+effect val ask : int
+
+fun use-ask() {
+  ask + ask
+}
+
+public fun test-ask1() {
+  with handler{ val ask = 21 }
+  println( use-ask() )
+}
+```
+(where the `with` desugars to `(handler{ val ask = 21 })( fn(){ println(use-ask()) } )`).
+
+Moreover, as a convenience, we can leave out the `handler` keyword 
+when it follows the `with` keyword, where:
+
+```unchecked
+with { <ops> }    ~>    with handler{ <ops> }
+```
+
+and for effects with just one operation (like `:ask`), this leads to the following
+desugaring:
+
+```unchecked
+with val op = <expr>            ~>   with handler{ val op = <expr> }
+with fun op(x){ <stats> }       ~>   with handler{ fun op(x){ <stats> } }
+with control op(x){ <stats> }   ~>   with handler{ control op(x){ <stats> } }
+```
+
+Using this, we can write the previous example in a more concise and natural way as:
+
+```unchecked
+public fun test-ask2() {
+  with val ask = 21
+  println(use-ask())
+}
+```
+
+[Read more about effect handlers][#sec-handlers]
+{.learn}
+
 
 ### Optional and Named Parameters
 
 Being a function-oriented language, Koka has powerful support for function
 calls where it supports both optional and named parameters. For example, the
-function `replace-all` takes a string, a ``pattern`` pattern, and
-a replacement string ``repl``:
+function `replace-all` takes a string, a pattern (named ``pattern``), and
+a replacement string (named ``repl``):
 
 ```
 fun main() { println(world()) }
 ////
-fun world()
-{
+fun world() {
   replace-all("hi there", "there", "world")  // returns "hi world"
 }
 ```
@@ -197,9 +331,8 @@ Using named parameters, we can also write the function call as:
 ```
 fun main() { println(world2()) }
 ////
-fun world2()
-{
-  return "hi there".replace-all( repl="world", pattern="there" )
+fun world2() {
+  "hi there".replace-all( repl="world", pattern="there" )
 }
 ```
 
@@ -213,12 +346,10 @@ default:
 ```
 fun main() { println( ['a','b','c'].sublist(1).string ) }
 ////
-fun sublist( xs : list<a>, start : int,
-                  len : int = xs.length ) : list<a>
-{
+fun sublist( xs : list<a>, start : int, len : int = xs.length ) : list<a> {
   if (start <= 0) return xs.take(len)
   match(xs) {
-    Nil -> Nil
+    Nil        -> Nil
     Cons(_,xx) -> xx.sublist(start - 1, len)
   }
 }
@@ -227,6 +358,7 @@ fun sublist( xs : list<a>, start : int,
 Hover over the `sublist` identifier to see its full type, where the ``len``
 parameter has gotten an optional `:int` type signified by the question mark:
 `:?int`.
+
 
 ### A larger example: cracking Caesar encoding
 

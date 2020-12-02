@@ -219,14 +219,14 @@ Normally we need to make a fundamental choice when managing memory:
   but now we need a runtime system and pay a price in performance,
   memory usage, and unpredictable latencies.
 
+![perceus-perf]
+
 With Perceus, we hope to cross this gap and our goal is to 
 be within 2x of the performance of C/C++. Initial benchmarks are
 encouraging and show Koka to be close to C performance on various
 memory intensive benchmarks.
 
-![perceus-perf]
-
-[perceus-perf]: images/perceus-perf.png { border:1px solid #AAA; max-width: 95%; }
+[perceus-perf]: images/perceus-perf-bw.png { border:1px solid #AAA; width:40%; float:right; margin: 0em 0em 0.25em 1em; }
 
 [See benchmarks](https://github.com/koka-lang/koka#Benchmarks)
 {.learn}

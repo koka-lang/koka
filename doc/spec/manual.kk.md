@@ -1,7 +1,7 @@
 Title         : The Koka Manual
 Heading Base  : 1
-Heading Depth : 4
-Toc Depth     : 4
+Heading Depth : 3
+Toc Depth     : 3
 Css           : styles/koka.css
 Css           : styles/manual.css
 Script        : scripts/manual.js
