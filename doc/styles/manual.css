@@ -108,3 +108,25 @@ table .kw, table .tp, table .co,
   width: 50%;
   margin: 0em 0em 1ex 2em;
 }
+
+.lang-cpp code::before {
+	content: "c++";
+	float: right;
+	color: #999;
+	border: 1px solid #AAA;
+  padding: 0ex 0.2ex;
+  margin-right: -0.5ex;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.fa-external-link {
+  font-size: 75% !important;
+  padding-left: 0.75ex;
+}
+
+.row {
+  display: flex;
+}

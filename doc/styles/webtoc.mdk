@@ -33,7 +33,30 @@ Css Header:
       max-width: 100%;
       margin: 0.25em auto;
     }
-    
+    .tocblock2, .tocblock3 {
+      display:none;
+    }
+    .tocblock.click-expands {
+      display:block;
+    }
+    .expand-all .tocblock1, .expand-all .tocblock2 {
+      display:block;
+    }
+    span.unexpanded, span.expanded {
+      display: inline-block;
+      width: 1.25em;
+      margin-left: -1.25em;
+      font-family: "Segoe UI Symbol", Symbola, serif;
+      font-size: 70%;
+      cursor: pointer;
+      vertical-align: 0.1em;
+    }
+    span.unexpanded::before {
+      content: "\25B6";
+    }
+    .expand-all span.expanded, span.expanded::before {
+      content: "\25BC";
+    }
     
     /* -----------------------------------------
        Settings for a wide viewport:
@@ -61,35 +84,13 @@ Css Header:
       .mainpanel, .footnotes, .titleblock {
         margin-left: calc(&side-panel-width; + 6rem + 2px + 1rem);
         margin-right: 10%;
+      }            
+      .tocblock.auto-expands {
+        display: block;
       }
-      .tocblock2, .tocblock3 {
-        display:none;
-      }
-      .tocblock.auto-expands, .tocblock.click-expands {
-        display:block;
-      }
-      .expand-all .tocblock1, .expand-all .tocblock2 {
-        display:block;
-      }     
-            
       .tocitem.current {
         font-weight: bold;
-      }      
-      span.unexpanded, span.expanded {
-        display: inline-block;
-        width: 1.25em;
-        margin-left: -1.25em;
-        font-family: "Segoe UI Symbol", Symbola, serif;
-        font-size: 70%;
-        cursor: pointer;
-        vertical-align: 0.1em;
-      }
-      span.unexpanded::before {
-        content: "\25B6";
-      }
-      .expand-all span.expanded, span.expanded::before {
-        content: "\25BC";
-      }
+      }            
     }
     
     /* ---------------------------------------------------
