@@ -22,7 +22,7 @@ window.onload = function() {
   locals.forEach( function(link){
     const child = link.firstElementChild
     const ctag = (child==null ? "" : child.tagName)
-    if (ctag != "IMG" && ctag != "SPAN") {  // no image or code links
+    if (link.className.indexOf("bib") < 0 && ctag != "IMG" && ctag != "SPAN") {  // no bib, image or code links
       link.innerHTML = link.innerHTML + "<i class=\"fa fa-external-link\"></i>";
     }
   });

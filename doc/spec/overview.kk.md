@@ -1,11 +1,11 @@
 
 # Why Koka? { #why; }
 
-There are many new languages being designed, but only seldomly
-they bring fundamentally new concepts (such as Haskell with
-pure versus monadic programming, or Rust with borrow checking). 
+There are many new languages being designed, but only few
+bring fundamentally new concepts -- like Haskell with
+pure versus monadic programming, or Rust with borrow checking.
 
-Koka stands apart through _effect typing_, _effect handlers_,
+Koka distinguishes itself through _effect typing_, _effect handlers_,
 and _Perceus_ memory management:
 
 * The core of Koka consists of a small set of well-studied language
@@ -198,9 +198,10 @@ yielded: 3
 [test-bench]: https://github.com/koka-lang/koka/tree/master/test/bench
 
 Perceus is the compiler optimized reference counting technique that Koka
-uses for automatic memory management [@Perceus:tech]. This
+uses for automatic memory management [@Perceus:tech]. This (together
+with evidence translation [@Xie:evidently])
 enables Koka to compile directly to plain C code without needing a
-garbage collector or runtime system!
+garbage collector or runtime system.
 
 Perceus uses extensive static analysis to aggressively optimize the
 reference counts. Here the strong semantic foundation of Koka helps a
@@ -274,10 +275,14 @@ list_t map( list_t xs, function_t f) {
 void map( list_t xs, function_t f, list_t* res) {
   while (is_Cons(xs)) {
     if (is_unique(xs)) {  // if xs is not shared..
-      xs->head = apply(dup(f),xs->head);
-      *res = xs;          // update previous node in-place
-      res = &xs->tail;    // set the result address for the next node
-      xs = xs->tail;      // .. and continue with the next node
+      box_t y = apply(dup(f),xs->head);      
+      if (yielding()) { ... } // if f yielded an effect operation..
+      else {
+        xs->head = y;      
+        *res = xs;          // update previous node in-place
+        res = &xs->tail;    // set the result address for the next node
+        xs = xs->tail;      // .. and continue with the next node
+      }
     }
     else { ... }          // slow path allocates fresh nodes
   }
@@ -287,8 +292,8 @@ void map( list_t xs, function_t f, list_t* res) {
 
 Moreover, the Koka compiler also implements _tail-recursion modulo cons_ (TRMC)
 and instead of using a recursive call, the function is eventually optimized 
-into a tight in-place updating loop for the fast path, similar to 
-the C code example on the right.
+into an in-place updating loop for the fast path, similar to 
+the C code example on the right. 
 
 Importantly, the reuse optimization is guaranteed
 and a programmer can see when the optimization applies.

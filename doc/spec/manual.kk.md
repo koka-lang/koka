@@ -1,4 +1,5 @@
 Title         : The Koka Manual
+Title Note    : [(&date;)]{font-size:75%}
 Heading Base  : 1
 Heading Depth : 3
 Toc Depth     : 3
