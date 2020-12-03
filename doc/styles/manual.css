@@ -4,11 +4,16 @@
 
 .koka.source, .madoko .koka.source {
   border-left: 0.5ex solid green;
-} 
+}
+
+body.madoko {
+  margin: 0em !important;
+}
 
 code, .madoko code,
 pre, .madoko pre,
-.koka.source.unchecked {
+.koka.source.unchecked,
+.sidepanel {
   background-color: #f8f7f6;
 }
 pre, .madoko pre,
