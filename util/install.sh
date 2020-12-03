@@ -1,14 +1,14 @@
 #!/bin/sh -e
-VERSION="v2.0.12"
+VERSION="v2.0.13"
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
 FORCE=""
 
-KOKA_TEMP_DIR=""        # empty creates one dynamically
 KOKA_DIST_BASE_URL="https://github.com/koka-lang/koka/releases/download"
-KOKA_DIST_URL=""              # $KOKA_DIST_BASE_URL/$VERSION
-KOKA_DIST_SOURCE=""           # $KOKA_DIST_URL/koka-$VERSION-<osarch>.tar.gz
+KOKA_DIST_URL=""        # $KOKA_DIST_BASE_URL/$VERSION
+KOKA_DIST_SOURCE=""     # $KOKA_DIST_URL/koka-$VERSION-<os>-<arch>.tar.gz
+KOKA_TEMP_DIR=""        # empty creates one dynamically
 
 
 # ---------------------------------------------------------
