@@ -118,8 +118,8 @@ After installation, verify if Koka installed correctly:
 | |        | |         |__  \
 | | __ ___ | | __ __ _  __) |
 | |/ // _ \| |/ // _` || ___/ welcome to the koka interpreter
-|   <| (_) |   <| (_| ||____| version 2.0.11, Nov 29 2020, libc 64-bit (gcc)
-|_|\_\\___/|_|\_\\__,_|       type :? for help
+|   <| (_) |   <| (_| ||____| version 2.0.12, Dec  2, 2020, libc 64-bit (gcc)
+|_|\_\\___/|_|\_\\__,_|       type :? for help, and :q to quit
 
 loading: std/core
 loading: std/core/types
