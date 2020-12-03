@@ -172,7 +172,7 @@ We can compare this against an in-place updating C++ implementation using ``stl:
 ([``rbtree.cpp``](https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.cpp)) (which also uses a
 [red-black tree](https://code.woboq.org/gcc/libstdc++-v3/src/c++98/tree.cc.html) internally):
 
-    > clang++ --std=c++17 -o cpp-rbtree -O3 samples/basic/rbtree.cpp
+    > clang++ --std=c++17 -o cpp-rbtree -O3 /usr/local/share/koka/v2.0.12/lib/samples/basic/rbtree.cpp
     > time ./cpp-rbtree
     420000
     real    0m0.864s
