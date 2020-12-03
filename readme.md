@@ -10,7 +10,7 @@
 # Koka: a functional language with effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
-_Latest release_: v2.0.11, 2020-11-29 ([Install](#install)).
+_Latest release_: v2.0.12, 2020-12-02 ([Install](#install)).
 
 <a href="https://github.com/koka-lang/koka/tree/master/samples/handlers/yield.kk"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -94,7 +94,7 @@ Special thanks to:
 - And all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
 
 Releases:
-- `v2.0.11`, 2020-11-29: syntax highlighting support for VS Code and Atom, improved uninstall.
+- `v2.0.12`, 2020-12-02: syntax highlighting support for VS Code and Atom, improved uninstall, more samples.
 - `v2.0.9`, 2020-11-27: now with binary [releases] for Windows, macOS, and Linux.
 - `v2.0.7`, 2020-11-23: more small fixes, improved scoped handlers, improved higher-rank type propagation, more samples.
 - `v2.0.5`, 2020-11-15: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support, direct C compilation, local install support.
