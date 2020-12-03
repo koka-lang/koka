@@ -10,7 +10,7 @@
 # Koka: a functional language with effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
-_Latest release_: v2.0.11, 2020-11-29 ([Install](#install)).
+_Latest release_: v2.0.12, 2020-12-02 ([Install](#install)).
 
 <a href="https://github.com/koka-lang/koka/tree/master/samples/handlers/yield.kk"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -94,7 +94,7 @@ Special thanks to:
 - And all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
 
 Releases:
-- `v2.0.11`, 2020-11-29: syntax highlighting support for VS Code and Atom, improved uninstall.
+- `v2.0.12`, 2020-12-02: syntax highlighting support for VS Code and Atom, improved uninstall, more samples.
 - `v2.0.9`, 2020-11-27: now with binary [releases] for Windows, macOS, and Linux.
 - `v2.0.7`, 2020-11-23: more small fixes, improved scoped handlers, improved higher-rank type propagation, more samples.
 - `v2.0.5`, 2020-11-15: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support, direct C compilation, local install support.
@@ -118,8 +118,8 @@ After installation, verify if Koka installed correctly:
 | |        | |         |__  \
 | | __ ___ | | __ __ _  __) |
 | |/ // _ \| |/ // _` || ___/ welcome to the koka interpreter
-|   <| (_) |   <| (_| ||____| version 2.0.11, Nov 29 2020, libc 64-bit (gcc)
-|_|\_\\___/|_|\_\\__,_|       type :? for help
+|   <| (_) |   <| (_| ||____| version 2.0.12, Dec  2, 2020, libc 64-bit (gcc)
+|_|\_\\___/|_|\_\\__,_|       type :? for help, and :q to quit
 
 loading: std/core
 loading: std/core/types
@@ -172,7 +172,7 @@ We can compare this against an in-place updating C++ implementation using ``stl:
 ([``rbtree.cpp``](https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.cpp)) (which also uses a
 [red-black tree](https://code.woboq.org/gcc/libstdc++-v3/src/c++98/tree.cc.html) internally):
 
-    > clang++ --std=c++17 -o cpp-rbtree -O3 samples/basic/rbtree.cpp
+    > clang++ --std=c++17 -o cpp-rbtree -O3 /usr/local/share/koka/v2.0.12/lib/samples/basic/rbtree.cpp
     > time ./cpp-rbtree
     420000
     real    0m0.864s
