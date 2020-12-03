@@ -281,21 +281,21 @@ it is all just function applications with minimal syntactic sugar.
 The `with` statement is especially useful in combination with 
 effect handlers. Generally, a `handler` takes as its last argument
 a function block so it can be used directly with `with`. Here
-is an example where an effect handler declares a dynamically bound
-value:
+is an example where an effect handler declares the dynamically bound
+`width` value:
 ```
-effect val ask : int
+effect val width : int
 
-fun use-ask() {
-  ask + ask
+fun hello() {
+  "hello world!".truncate(width)
 }
 
-public fun test-ask1() {
-  with handler{ val ask = 21 }
-  println( use-ask() )
+public fun test-width1() {
+  with handler{ val width = 5 }
+  println(hello())
 }
 ```
-(where the `with` desugars to `(handler{ val ask = 21 })( fn(){ println(use-ask()) } )`).
+(where the `with` desugars to `(handler{ val width = 5 })( fn(){ println(hello()) } )`).
 
 Moreover, as a convenience, we can leave out the `handler` keyword 
 when it follows the `with` keyword, where:
@@ -310,7 +310,7 @@ with handler{ <ops> }
 ```
 ~
 
-and for effects with just one operation (like `:ask`), this leads to the following
+and for effects with just one operation (like `:width`), this leads to the following
 desugaring:
 
 ~ row
@@ -330,9 +330,9 @@ with handler{ control op(x){ <stats> } }
 Using this, we can write the previous example in a more concise and natural way as:
 
 ```unchecked
-public fun test-ask2() {
-  with val ask = 21
-  println(use-ask())
+public fun test-width2() {
+  with val width = 5
+  println(hello())
 }
 ```
 
@@ -617,7 +617,7 @@ effect `: <ndet|e1> ` while the action has effect `: <exn|e2> ` for some `:e1` a
 When applying `while`, those
 effects are unified to the type `: <exn,ndet,div|e3> ` for some `:e3`.
 
-### Local Mutable Variables
+### Local Mutable Variables  { #sec-var; }
 
 The Fibonacci numbers are a sequence where each subsequent Fibonacci number is
 the sum of the previous two, where `fib(0) == 0` and `fib(1) == 1`. We can
@@ -894,7 +894,257 @@ and arbitrary recursive types respectively.
 
 ## Effect Handlers { #sec-handlers }
 
-Todo
+Effect handlers [@Pretnar:handlers;@Leijen:algeff] are a novel way to 
+define control-flow abstractions and dynamic binding as user defined 
+handlers -- no need anymore to add special compiler extensions for
+exceptions, iterators, async-await, probabilistic programming, etc. 
+Moreover, these handlers can be composed freely so the interaction between,
+say, async-await and exceptions as well-defined. 
+
+### An Exception Effect
+
+Let's start with defining an exception effect of our own. The `effect`
+declaration defines a new type together with _operations_, for now
+we use a `control` operation:
+```
+effect exc {
+  control raise( msg : string ) : a
+}
+```
+We can already use the operation once its signature is declared:
+```
+fun my-divide( x : int, y : int ) : exc int {
+  if (y==0) then raise("div-by-zero") else x / y
+}
+```
+where we see that the `my-divide` function gets the `:exc` effect
+(since we use `raise` in the body). We can now provide _handle_ the
+effect by giving a concrete definition for what `raise` means.
+For example, we may always return a default value:
+```
+fun exc-same() : int {
+  with handler {
+    control raise(msg){ 42 }
+  }
+  my-divide(1,0) + 4
+}
+```
+If we run this in the interative environment, we get `42` as the result.
+When a `raise` is called, it will _yield_ to the innermost handler, unwind
+the stack, and evaluate the operation definition -- in this case just directly
+returning `42` from `exc-same`. Now we can see why it is called a _control_
+operation as `raise` changes control-flow and yields right back to its innermost
+handler from the original call site.
+
+Note that `handler{ <ops> }` is a function that expects a function 
+argument over which the handler is scoped, as `(handler{ <ops> })(action)`,
+and thus the `with` statement is very useful for this. 
+This occurs often, and for single operations we can leave out the `handler` keyword 
+and just write:
+```unchecked
+fun exc-same() : int {
+  with control raise(msg){ 42 }
+  my-divide(1,0) + 4
+}
+```
+
+[Read more about `with` statements][#sec-with]
+{.learn}
+
+### A Reader Effect
+
+The power of effect handlers is not just that we can _yield_ to the innermost
+handler, but that we can also _resume_ back to the call site with a result.
+This essentially provides statically typed dynamic binding and is the essence
+of effect handlers. 
+
+Let's define a `:ask` effect that allows us to get a contextual value:
+```
+effect ask<a> {
+  control ask() : a
+}
+
+fun add-twice() : ask<int> int {
+  ask() + ask()
+}
+```
+
+The `add-twice` function can ask for numbers but it is unaware of how these
+are provided -- the effect signature just specifies an contextual API.
+We can handle it by always resuming with a constant for example:
+```
+fun ask-const() : int {
+  with control ask(){ resume(21) }
+  add-twice()
+}
+```
+where `ask-const()` evaluates to `42`. Or by returning random values, like:
+```unchecked
+fun ask-random() : random int {
+  with control ask(){ resume(random-int()) }
+  add-twice()
+}
+```
+where `ask-random()` now handled the `:ask<int>` effect, but itself now has
+`:random` effect (see `module std/num/random`).
+The `resume` function is implicitly bound by a `control` operation and resumes
+back to the call-site with the given result. 
+
+As we saw in the exception example, we do
+not need to call `resume` and can also directly return in our scope. For example, we 
+may only want to handle a `ask` once, but after that give up:
+```
+fun ask-once() : int {
+  var count := 0
+  with control ask() { 
+    count := count + 1
+    if (count <= 1) then resume(42) else 0 
+  }
+  add-twice()
+}
+```
+Here `ask-once()` evaluates to `0` since the second call to `ask` does not resume.
+
+[Read more about `var` mutable variables][#sec-var]
+{.learn}
+
+### Tail-Resumptive Operations  { #sec-opfun; }
+
+A `control` operation is one of the most general ways to define operations since
+we get a first-class `resume` function. However, almost all operations in practice turn out
+to be _tail-resumptive_: that is, they resume exactly _once_ with their final result
+value. To make this more convenient, we can declare `fun` operations that do this
+by construction, &ie;
+~ begin row
+```unchecked
+with fun op(<args>){ <body> }
+```
+&mapsto;
+```unchecked
+with control op(<args>){ resume( <body> ) }
+```
+~ end row
+
+This means we can write our earlier `ask-random` example more concisely as:
+```unchecked
+fun ask-random() : random int {
+  with fun ask(){ random-int() }
+  add-twice()
+}
+```
+This also conveys better that even though `ask` is dynamically bound, it behaves
+just like a regular function without changing the control-flow. 
+
+Moreover, operations declared as `fun` get special treatment and the Koka compiler
+can optimize them. The compiler uses (generalized) _evidence translation_  [@Xie:evidently]
+to pass down handler information to each call-site. At the call to `ask` in `add-twice`,
+it selects the handler from the evidence vector and, since it can see the operation is
+a tail-resumptive `fun`, it calls it directly (without needing to yield upward
+to the handler and capture the stack). This gives `fun` operations a performance cost very
+similar to _virtual method calls_ which can be very efficient.
+
+For even a bit more performance, you can also declare upfront that any operation
+definition must be tail-resumptive, as:
+```unchecked
+effect ask<a> {
+  fun ask() : a
+}
+```
+This restricts all handler definitions for the `:ask` effect to use `fun` definitions
+for the `ask` operation. However, it increases the ability to reason about the code,
+and the compiler can optimize such calls a bit more as it no longer needs to check at
+run-time if the handler defines the operation as tail-resumptive.
+
+### Value Operations { #sec-opval; }
+
+A common subset of operations always tail-resume with a single value; these are
+essentially dynamically bound variables (but statically typed!). Such operations
+can be declared as a `val` with the following translation:
+
+~ begin row
+```unchecked
+with val v = <expr>
+```
+&mapsto;
+```unchecked
+val x = <expr>
+with fun v(){ x }
+```
+&mapsto;
+```unchecked
+val x = <expr>
+with control v(){ resume(x) }
+```
+~ end row
+
+For an example of the use of value operations, consider a 
+pretty printer that produces pretty strings from documents:
+
+```unchecked
+fun pretty( d : doc ) : string
+```
+
+Unfortunately, it has a hard-coded maximum display width deep
+down in the code:
+
+```unchecked
+if (line.length > 40) then ...
+```
+
+To abstract over the width we have a couple of choices: we 
+could make the width a regular parameter but now we need to 
+explicitly add the parameter to all functions in the library
+and manually thread them around. Another option is a global
+mutable variable but that leaks side-effects and is non-modular.
+
+Or we make it into a value operation instead:
+
+```unchecked
+effect val width : int
+```
+
+This also allows us to refer to the `width` operation as if is a 
+regular value (even though internally it invokes the operation).
+So, the check for the width in the pretty printer can be written as:
+```unchecked
+if (line.length > width) then ...
+```
+
+When using the pretty printer we can bind the `width` as a
+regular effect handler:
+
+```unchecked
+fun pretty-thin(d : doc) : string {
+  with val width = 40
+  pretty(d)
+}
+```
+
+### A Writer Effect { #sec-writer; }
+
+
+### Side-effect Isolation { #sec-isolate; }
+
+### Resuming more than once { #sec-multi-resume; }
+
+### Initially and Finally { #sec-resource; }
+
+#### Raw Control { #sec-rcontrol; }
+
+~ Note
+Use `rcontrol` for raw control operations which do not automatically
+finalize; this gives true first-class resumption contexts (as `rcontext`) but need
+to be used with care.
+~
+
+### Linear Effects { #sec-linear; }
+
+~ Note
+Use `linear effect` to declare effects whose operations are always tail-resumptive
+(and thus resume exactly once). This removes monadic translation for such effects and
+can make code that uses only linear effects more compact and efficient.
+~
+
 
 ## FBIP: Functional but In-Place { #sec-fbip; }
 
@@ -910,6 +1160,10 @@ describe loops in terms of regular function calls, reuse analysis lets us
 describe in-place mutating imperative algorithms in a purely functional
 way (and get persistence as well).
 
+~ Note
+FBIP is still active research. In particular we'd like to add ways to add 
+annotations to ensure reuse is taking place.
+~
 
 ### Tree Rebalancing
 
