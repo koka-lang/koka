@@ -339,8 +339,10 @@ public fun test-width2() {
 [Read more about effect handlers][#sec-handlers]
 {.learn}
 
+[Read more about `val` operations][#sec-opval]
+{.learn}
 
-### Optional and Named Parameters
+### Optional and Named Parameters  { #sec-default; }
 
 Being a function-oriented language, Koka has powerful support for function
 calls where it supports both optional and named parameters. For example, the
@@ -918,29 +920,43 @@ fun my-divide( x : int, y : int ) : exc int {
 }
 ```
 where we see that the `my-divide` function gets the `:exc` effect
-(since we use `raise` in the body). We can now provide _handle_ the
+(since we use `raise` in the body). We can now _handle_ the
 effect by giving a concrete definition for what `raise` means.
 For example, we may always return a default value:
 ```
 fun exc-same() : int {
   with handler {
     control raise(msg){ 42 }
-  }
-  my-divide(1,0) + 4
+  } 
+  my-divide(1,0) + 4  
 }
 ```
-If we run this in the interative environment, we get `42` as the result.
-When a `raise` is called, it will _yield_ to the innermost handler, unwind
+The call `exc-same()` evaluates to `42`.
+When a `raise` is called (in `my-divide`), it will _yield_ to the innermost handler, unwind
 the stack, and evaluate the operation definition -- in this case just directly
 returning `42` from `exc-same`. Now we can see why it is called a _control_
 operation as `raise` changes control-flow and yields right back to its innermost
 handler from the original call site.
 
-Note that `handler{ <ops> }` is a function that expects a function 
+Note that the `handler{ <ops> }` expression is a function that expects a function 
 argument over which the handler is scoped, as `(handler{ <ops> })(action)`,
-and thus the `with` statement is very useful for this. 
-This occurs often, and for single operations we can leave out the `handler` keyword 
-and just write:
+and thus the `with` statement is very useful for this.  
+As a syntactic convenience, for single operations we can leave out the `handler` keyword 
+and translate as:
+~ begin row
+```unchecked
+with control op(<args>){ <body> }
+```
+&mapsto;
+```unchecked
+with handler { 
+  control op(<args>){ <body> }
+}
+```
+~ end row
+
+So, we can write the previous example more concisely as:
+
 ```unchecked
 fun exc-same() : int {
   with control raise(msg){ 42 }
@@ -955,10 +971,9 @@ fun exc-same() : int {
 
 The power of effect handlers is not just that we can _yield_ to the innermost
 handler, but that we can also _resume_ back to the call site with a result.
-This essentially provides statically typed dynamic binding and is the essence
-of effect handlers. 
 
-Let's define a `:ask` effect that allows us to get a contextual value:
+Let's define a `:ask<a>` effect that allows us to get a contextual value of type `:a`:
+
 ```
 effect ask<a> {
   control ask() : a
@@ -972,19 +987,23 @@ fun add-twice() : ask<int> int {
 The `add-twice` function can ask for numbers but it is unaware of how these
 are provided -- the effect signature just specifies an contextual API.
 We can handle it by always resuming with a constant for example:
+
 ```
 fun ask-const() : int {
   with control ask(){ resume(21) }
   add-twice()
 }
 ```
+
 where `ask-const()` evaluates to `42`. Or by returning random values, like:
+
 ```unchecked
 fun ask-random() : random int {
   with control ask(){ resume(random-int()) }
   add-twice()
 }
 ```
+
 where `ask-random()` now handled the `:ask<int>` effect, but itself now has
 `:random` effect (see `module std/num/random`).
 The `resume` function is implicitly bound by a `control` operation and resumes
@@ -993,6 +1012,7 @@ back to the call-site with the given result.
 As we saw in the exception example, we do
 not need to call `resume` and can also directly return in our scope. For example, we 
 may only want to handle a `ask` once, but after that give up:
+
 ```
 fun ask-once() : int {
   var count := 0
@@ -1003,10 +1023,13 @@ fun ask-once() : int {
   add-twice()
 }
 ```
-Here `ask-once()` evaluates to `0` since the second call to `ask` does not resume.
+
+Here `ask-once()` evaluates to `0` since the second call to `ask` does not resume,
+(and returns directly `0` in the `ask-once` context).
 
 [Read more about `var` mutable variables][#sec-var]
 {.learn}
+
 
 ### Tail-Resumptive Operations  { #sec-opfun; }
 
@@ -1021,17 +1044,22 @@ with fun op(<args>){ <body> }
 ```
 &mapsto;
 ```unchecked
-with control op(<args>){ resume( <body> ) }
+with control op(<args>){ val f = fn(){ <body> }; resume( f() ) }
 ```
 ~ end row
 
-This means we can write our earlier `ask-random` example more concisely as:
+(The translation is defined via an intermediate function so `return` works correctly).
+
+With this syntactic sugar, we can write our earlier `ask-random` example 
+using a `fun` operation instead:
+
 ```unchecked
 fun ask-random() : random int {
   with fun ask(){ random-int() }
   add-twice()
 }
 ```
+
 This also conveys better that even though `ask` is dynamically bound, it behaves
 just like a regular function without changing the control-flow. 
 
@@ -1045,15 +1073,18 @@ similar to _virtual method calls_ which can be very efficient.
 
 For even a bit more performance, you can also declare upfront that any operation
 definition must be tail-resumptive, as:
+
 ```unchecked
 effect ask<a> {
   fun ask() : a
 }
 ```
+
 This restricts all handler definitions for the `:ask` effect to use `fun` definitions
 for the `ask` operation. However, it increases the ability to reason about the code,
 and the compiler can optimize such calls a bit more as it no longer needs to check at
 run-time if the handler defines the operation as tail-resumptive.
+
 
 ### Value Operations { #sec-opval; }
 
@@ -1097,7 +1128,7 @@ explicitly add the parameter to all functions in the library
 and manually thread them around. Another option is a global
 mutable variable but that leaks side-effects and is non-modular.
 
-Or we make it into a value operation instead:
+Or, we can define it as a value operation instead:
 
 ```unchecked
 effect val width : int
@@ -1106,6 +1137,7 @@ effect val width : int
 This also allows us to refer to the `width` operation as if is a 
 regular value (even though internally it invokes the operation).
 So, the check for the width in the pretty printer can be written as:
+
 ```unchecked
 if (line.length > width) then ...
 ```
@@ -1120,8 +1152,147 @@ fun pretty-thin(d : doc) : string {
 }
 ```
 
+Note that we did not need to change the structure of the 
+original library functions. However the types of the functions
+still change to include the `:width` effect as these now
+require the `width` value to be handled at some point.
+
+
 ### A Writer Effect { #sec-writer; }
 
+As another example, a _writer_ effect is quite common where
+values are collected by a handler. For example, we can
+define an `:emit` effect to emit messages:
+```
+effect fun emit( msg : string ) : ()
+
+fun emit-hello-world() : emit () {
+  emit("hello")
+  emit("world")
+}
+```
+
+We can define for example a handler that prints the 
+emitted messages directly to the console:
+
+```
+fun emit-console() : console () {
+  with fun emit(msg){ println(msg) }
+  emit-hello-world()
+}
+```
+
+or collect all messages as a list of lines:
+
+```
+fun emit-collect() : string {
+  var lines := []
+  with {
+    return(x){ lines.reverse.join("\n") }
+    fun emit(msg){ lines := Cons(msg,lines) }
+  }
+  emit-hello-world()
+}
+```
+
+### A State Effect { #sec-state; }
+
+A state effect defines operations over a common state.
+In its most general form it has just a `set` and `get` operation:
+
+```
+effect state<a> {
+  fun get() : a
+  fun set( x : a ) : ()
+}
+
+fun sumdown( sum : int = 0 ) : <state<int>,div> int {
+  val i = get()
+  if (i <= 0) then sum else {
+    set( i - 1 )
+    sumdown( sum + i )
+  }
+}
+```
+
+We can define a state handler most easily by using `var` declarations:
+
+```
+fun var-state( init : int ) : div int {
+  var st := init
+  with handler {
+    fun get(){ st }
+    fun set(i){ st := i }
+  }
+  sumdown()
+}
+```
+
+where `var-state(10)` evaluates to `55`. 
+
+[Read more about default parameters][#sec-default]
+{.learn}
+
+[Read more about `var` mutable variables][#sec-var]
+{.learn}
+
+### Return Operations { #sec-return; }
+
+Building on the previous state example, suppose we also like
+to return the final state. One way to do this is to `get` the
+final state and pair it with the final answer, as:
+
+```
+fun pair-state1( init : int ) : div (int,int) {
+  var st := init
+  with handler {
+    fun get(){ st }
+    fun set(i){ st := i }
+  }
+  (sumdown(), get())
+}
+```
+
+where `pair-state1` evaluates to `(55,0)`.  This is not
+always easy to do though and we can define `return` operations 
+to generally transform the final result of a handler. Using
+`return` we can define the previous example as:
+
+```
+fun pair-state2( init : int ) : div (int,int) {
+  var st := init
+  with handler {
+    return(x){ (x,st) }
+    fun get(){ st }
+    fun set(i){ st := i }
+  }
+  sumdown()
+}
+```
+
+where all internal state is encapsulated in the handler.
+We can take this to the extreme with a handler that just
+contains a `return` operation: such handler handles no effect
+at all but only transforms the final result of a function.
+For example, we can define the previous example also with
+a separate `return` handler as:
+
+```
+fun pair-state3( init : int ) : div (int,int) {
+  var st := init
+  with return(x){ (x,st) }
+  with handler {
+    fun get(){ st }
+    fun set(i){ st := i }
+  }
+  sumdown()
+}
+```
+
+Here it as a bit contrived but it can make certain
+programs more concise in their definition.
+
+### Combining Effects { #sec-combine; }
 
 ### Side-effect Isolation { #sec-isolate; }
 

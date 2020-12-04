@@ -93,11 +93,14 @@ table .kw, table .tp, table .co,
   display: inline-block;
   border: 1px solid #AAA;
   margin: 0ex 1ex 1ex 0ex;
-  padding: 1ex;
-  background-color: #fffdf0;  
+  padding: 1ex;  
   transition: all 0.5s;
   cursor: pointer;
   margin-top: 0ex;  
+}
+
+.button, .row .koka.source.unchecked {
+  background-color: #fffdf0;  
 }
 
 .button:hover {

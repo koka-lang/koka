@@ -82,6 +82,7 @@ li {
   font-style: italic;
 }
 
+
 [koka-logo]: images/koka-logo.png { max-height: 120px; padding:1rem 1rem 1rem 1.5rem; }
 
 ~ Begin MainHeader
