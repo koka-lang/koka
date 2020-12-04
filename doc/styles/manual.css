@@ -99,7 +99,7 @@ table .kw, table .tp, table .co,
   margin-top: 0ex;  
 }
 
-.button, .row .koka.source.unchecked {
+.button, .translate .koka.source.unchecked, .translate pre {
   background-color: #fffdf0;  
 }
 
@@ -135,6 +135,6 @@ html {
   padding-left: 0.75ex;
 }
 
-.row {
+.translate {
   display: flex;
 }
