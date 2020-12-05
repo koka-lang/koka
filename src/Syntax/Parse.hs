@@ -867,7 +867,7 @@ makeEffectDecl decl =
       actionTp   = makeTpFun actionArgTp handleEff (tpVar handleRetTp) grng
       handleTp   = quantify QForall (tparsNonScoped ++ [handleRetTp,hndEffTp,hndResTp]) $
                    makeTpFun [
-                    (newName "cfc", TpCon nameTpInt32 grng),
+                    (newName "cfc", TpCon nameTpInt32 krng),
                     (newName "hnd", TpApp (TpCon hndName grng) (map tpVar (tparsNonScoped ++ [hndEffTp,hndResTp])) grng),
                     (newName "ret", makeTpFun [(newName "res",tpVar handleRetTp)] (tpVar hndEffTp) (tpVar hndResTp) grng),
                     (newName "action",
@@ -889,7 +889,7 @@ makeEffectDecl decl =
                     (Nothing, Var (newName "hnd") False krng),
                     (Nothing, Var (newName "ret") False krng),
                     (Nothing, wrapAction (Var (newName "action") False krng))]
-      handleDef  =  Def (ValueBinder handleName () handleBody krng grng)
+      handleDef  =  Def (ValueBinder handleName () handleBody irng rng)
                         grng vis (DefFun) InlineNever ("// handler for the " ++ docEffect)
 
    in [DefType effTpDecl, DefValue tagDef, DefType hndTpDecl, DefValue handleDef]

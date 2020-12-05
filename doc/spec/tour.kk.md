@@ -2,6 +2,12 @@
 \newcommand{\pdv}[1]{\frac{\partial{}}{\partial{#1}}}
 ~
 
+~ hidden
+```
+import std/num/random
+```
+~
+
 # A Tour of Koka { #tour }
 
 This is a short introduction to the Koka programming language.
@@ -556,7 +562,7 @@ etc.
 
 Often, a function contains multiple effects, for example:
 
-```unchecked
+```
 fun combine-effects() {
   val i = srandom-int() // non-deterministic
   throw("oops")         // exception raising
@@ -608,10 +614,7 @@ effects of predicate and action are extended automatically until they match.
 This ensures we take the union of the effects in the predicate and action.
 Take for example the following loop
 
-```unchecked
-import std/num/random
-fun main() { looptest() }
-////
+```
 fun looptest() {
   while { is-odd(srandom-int()) } {
     throw("odd")
@@ -817,7 +820,7 @@ copy function, as in `p.copy( age = p.age+1 )`. In adherence with the _min-gen_ 
 there are no special rules for record updates but using plain function calls with optional
 and named parameters.
 
-### Alternatives (or Unions)
+### Alternatives (or Unions)  { #sec-union; }
 
 Koka also supports algebraic data types where there are multiple alternatives.
 For example, here is an enumeration:
@@ -857,7 +860,7 @@ type number {
 }
 ```
 
-We can create such number by writing `integer(1)` or `infinity`. Moreover,
+We can create such number by writing `Integer(1)` or `Infinity`. Moreover,
 data types can be polymorphic and recursive. Here is the definition of the
 `:list` type which is either empty (`Nil`) or is a head element followed by a
 tail list (`Cons`):
@@ -873,7 +876,21 @@ Koka automatically generates accessor functions for each named parameter. For
 lists for example, we can access the head of a list as `Cons(1,Nil).head`.
 
 We can now also see that `struct` types are just syntactic sugar for regular a
-`type` with a single constructor of the same name as the type. For example,
+`type` with a single constructor of the same name as the type:
+
+~ translate
+```undefined
+struct tp { <fields> }
+```
+&mapsto;
+```undefined
+type tp { 
+  con Tp { <fields> }
+}
+```
+~
+
+For example,
 our earlier `:person` struct, defined as
 
 ```unchecked
@@ -884,7 +901,7 @@ desugars to:
 
 ```unchecked
 type person {
-  Person( age : int, name : string, realname : string = name )
+  Person{ age : int; name : string; realname : string = name }
 }
 ```
 
@@ -914,41 +931,45 @@ Let's start with defining an exception effect of our own. The `effect`
 declaration defines a new type together with _operations_, for now
 we use a `control` operation:
 ```
-effect exc {
+effect raise {
   control raise( msg : string ) : a
 }
 ```
-We can already use the operation once its signature is declared:
+
+This defines an effect type `:raise` together with an operation
+`raise` of type `:(msg : string) -> raise a`. With the effect signature 
+declared, we can already use the operations:
 ```
-fun exc-divide( x : int, y : int ) : exc int {
+fun safe-divide( x : int, y : int ) : raise int {
   if (y==0) then raise("div-by-zero") else x / y
 }
 ```
-where we see that the `exc-divide` function gets the `:exc` effect
+where we see that the `safe-divide` function gets the `:raise` effect
 (since we use `raise` in the body). We can now _handle_ the
 effect by giving a concrete definition for what `raise` means.
 For example, we may always return a default value:
 ```
-fun exc-same() : int {
+fun raise-const() : int {
   with handler {
     control raise(msg){ 42 }
   } 
-  8 + exc-divide(1,0)
+  8 + safe-divide(1,0)
 }
 ```
-The call `exc-same()` evaluates to `42` (_not_ `50`).
-When a `raise` is called (in `exc-divide`), it will _yield_ to the innermost handler, unwind
-the stack, and evaluate the operation definition -- in this case just directly
+The call `raise-const()` evaluates to `42` (_not_ `50`).
+When a `raise` is called (in `safe-divide`), it will _yield_ to the innermost handler, unwind
+the stack, and only then evaluate the operation definition -- in this case just directly
 returning `42` from the point where the handler is defined. 
 Now we can see why it is called a _control_
-operation as `raise` changes control-flow and yields right back to its innermost
-handler from the original call site.
+operation as `raise` changes the regular linear control-flow and yields right 
+back to its innermost handler from the original call site.
 
 Note that the `handler{ <ops> }` expression is a function that expects a function 
 argument over which the handler is scoped, as `(handler{ <ops> })(action)`,
 and thus the `with` statement is very useful for this.  
+
 As a syntactic convenience, for single operations we can leave out the `handler` keyword 
-and translate as:
+which is translated as:
 ~ translate
 ```unchecked
 with control op(<args>){ <body> }
@@ -961,19 +982,44 @@ with handler {
 ```
 ~
 
-So, we can write the previous example more concisely as:
+With this, we can write the previous example more concisely as:
 
-```unchecked
-fun exc-same() : int {
+```
+fun raise-const1() : int {
   with control raise(msg){ 42 }
-  8 + exc-divide(1,0)
+  8 + safe-divide(1,0)
 }
 ```
 
-(which eventually expands to `(handler{ control raise(msg){ 42 } })(fn(){ 8 + exc-divide(1,0) })`).
+(which eventually expands to `(handler{ control raise(msg){ 42 } })(fn(){ 8 + safe-divide(1,0) })`).
+
+We have a similar syntactic convenience for effects with one operation where the 
+name of the effect and operation are the same. Just like a `struct` we can 
+define an effect as its operation which implicitly declares an effect of the 
+same name:
+~ translate
+```unchecked
+effect control op(<parameters>) : <result-type>
+```
+&mapsto;
+```unchecked
+effect op {
+  control op(<parameters>) : <result-type>
+}
+```
+~
+
+Using this, we can also declare our `:raise` effect more concisely as:
+```unchecked
+effect control raise( msg : string ) : a
+```
 
 [Read more about `with` statements][#sec-with]
 {.learn}
+
+[Read more about `struct` declarations][#sec-data]
+{.learn}
+
 
 ### Resuming  { #sec-resume; }
 
@@ -983,7 +1029,7 @@ handler, but that we can also _resume_ back to the call site with a result.
 Let's define a `:ask<a>` effect that allows us to get a contextual value of type `:a`:
 
 ```
-effect ask<a> {
+effect ask<a> {                  // or: effect<a> control ask() : a
   control ask() : a
 }
 
@@ -1005,7 +1051,7 @@ fun ask-const() : int {
 
 where `ask-const()` evaluates to `42`. Or by returning random values, like:
 
-```unchecked
+```
 fun ask-random() : random int {
   with control ask(){ resume(random-int()) }
   add-twice()
@@ -1018,7 +1064,7 @@ The `resume` function is implicitly bound by a `control` operation and resumes
 back to the call-site with the given result. 
 
 As we saw in the exception example, we do
-not need to call `resume` and can also directly return in our scope. For example, we 
+not need to call `resume` and can also directly return into our handler scope. For example, we 
 may only want to handle a `ask` once, but after that give up:
 
 ```
@@ -1036,6 +1082,7 @@ Here `ask-once()` evaluates to `0` since the second call to `ask` does not resum
 (and returns directly `0` in the `ask-once` context). This pattern can for example
 be used to implement the concept of _fuel_ in a setting where a computation is 
 only allowed to take a limited amount of steps.
+
 
 [Read more about `var` mutable variables][#sec-var]
 {.learn}
@@ -1121,15 +1168,26 @@ with control v(){ resume(x) }
 For an example of the use of value operations, consider a 
 pretty printer that produces pretty strings from documents:
 
+~ hidden
+```
+alias doc = string
+fun pretty( d : doc ) : width string {
+  d.truncate(width)
+}
+```
+~
+
 ```unchecked
 fun pretty( d : doc ) : string
 ```
 
-Unfortunately, it has a hard-coded maximum display width deep
-down in the code:
+Unfortunately, it has a hard-coded maximum display width of `40` deep
+down in the code of `pretty`:
 
 ```unchecked
-if (line.length > 40) then ...
+fun pretty-internal( line : string ) : string {
+  line.truncate(40)
+}
 ```
 
 To abstract over the width we have a couple of choices: we 
@@ -1148,14 +1206,16 @@ This also allows us to refer to the `width` operation as if is a
 regular value (even though internally it invokes the operation).
 So, the check for the width in the pretty printer can be written as:
 
-```unchecked
-if (line.length > width) then ...
+```
+fun pretty-internal( line : string ) : width string {
+  line.truncate(width)
+}
 ```
 
 When using the pretty printer we can bind the `width` as a
 regular effect handler:
 
-```unchecked
+```
 fun pretty-thin(d : doc) : string {
   with val width = 40
   pretty(d)
@@ -1168,7 +1228,7 @@ still change to include the `:width` effect as these now
 require the `width` value to be handled at some point.
 For example, the type of `pretty` becomes:
 ```unchecked
-fun pretty( d : doc ) : width int
+fun pretty( d : doc ) : width string
 ```
 as is requires the `:width` effect to be handled (aka,
 the "dynamic binding for `width : int` to be in defined", 
@@ -1310,7 +1370,7 @@ fun pair-state3( init : int ) : div (int,int) {
 Here it as a bit contrived but it can make certain
 programs more concise in their definition.
 
-### Combining Effects { #sec-combine; }
+### Combining Handlers { #sec-combine; }
 
 ### Masking Effects { #sec-mask; }
 

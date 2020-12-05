@@ -810,7 +810,7 @@ inferExpr propagated expect (Lit lit)
 inferExpr propagated expect (Parens expr name rng)
   = do (tp,eff,core) <- inferExpr propagated expect expr
        if (name /= nameNil) 
-         then addRangeInfo rng (RM.Id name (RM.NIValue tp) True)
+         then do addRangeInfo rng (RM.Id name (RM.NIValue tp) True)
          else return ()
        return (tp,eff,core)
 
@@ -931,26 +931,19 @@ inferHandler propagated expect handlerSort handlerScoped
                                                     ValueBinder name annTp _ nameRng rng   -> ValueBinder name annTp Nothing nameRng rng)
                                 $ zip (cparams :: [ValueBinder (Maybe Type) ()]) (parTps)
                      frng = combineRanged nameRng body
-                     -- addRangeInfo nameRng (RM.Id opName (RM.NIValue tp) True)  -- TODO: add afterwards for koka docs 
-                     -- cname = opName
-                     capp  = {-
-                             Let (DefNonRec (Def (ValueBinder cname () (Lam cparamsx body frng) nameRng frng) nameRng Private DefFun InlineAuto "")) 
-                                  (App (Var clauseName False rangeNull) [(Nothing,Var cname False nameRng)] nameRng) nameRng
-                             -}
-                             {-
-                             App (Var clauseName False hrng) 
-                                 [(Nothing,
-                                     Bind (Def (ValueBinder cname () (Lam cparamsx body frng) nameRng frng) nameRng Private DefFun InlineAuto "") 
-                                       (Var cname False nameRng) nameRng
-                                 )] nameRng
-                             -}
-                             App (Var clauseName False hrng) [(Nothing,Parens (Lam cparamsx body nameRng) opName nameRng)] frng
+                     -- use Parens for better rangeMap info
+                     cname = case opSort of
+                               OpVal -> fromValueOperationsName opName
+                               _     -> opName                               
+                     capp  = App (Var clauseName False hrng) [(Nothing,Parens (Lam cparamsx body nameRng) cname nameRng)] frng
                  return (Nothing, capp) 
 
        clauses <- mapM clause (zip (sortBy opName branches) resumeArgs)
+
+       let grng = rangeNull
        let handlerCon = let hcon = Var handlerConName False hrng
                         in if null clauses then hcon else App hcon clauses rng
-           handlerCfc = (\i -> App (Var nameInt32 False rng) [(Nothing,Lit (LitInt i rng))] rng) $
+           handlerCfc = (\i -> App (Var nameInt32 False grng) [(Nothing,Lit (LitInt i grng))] grng) $
                         if (null branches) then 1 --linear
                                            else foldr1 cfcLub (map hbranchCfc branches)
                       where
@@ -969,8 +962,8 @@ inferHandler propagated expect handlerSort handlerScoped
                           Just expr -> expr
            handleExpr action = App (Var handleName False rng)
                                 [(Nothing,handlerCfc),(Nothing,handlerCon),(Nothing,handleRet),(Nothing,action)] hrng
-           xhandlerExpr= Lam [ValueBinder actionName Nothing Nothing rng rng]
-                             (handleExpr (Var actionName False rng)) hrng
+           
+           
 
        -- extract the action type for the case where it is higher-ranked (for scoped effects)
        -- this way we can annotate the action parameter with a higher-rank type if needed
@@ -982,8 +975,8 @@ inferHandler propagated expect handlerSort handlerScoped
                         Just ([_,_,_,actionTp],effTp,resTp) -> snd actionTp
                         _ -> failure ("Type.Infer: unexpected handler type: " ++ show (ppType penv handleRho))
        -- traceDoc $ \penv -> text " action type is" <+> ppType penv actionTp
-       let handlerExpr = Lam [ValueBinder actionName (Just actionTp) Nothing rng rng]
-                         (handleExpr (Var actionName False rng)) hrng
+       let handlerExpr = Parens (Lam [ValueBinder actionName (Just actionTp) Nothing rng rng]
+                                     (handleExpr (Var actionName False rng)) hrng) (newName "handler") rng
 
        -- and check the handle expression
        hres@(xhtp,_,_) <- inferExpr propagated expect handlerExpr
@@ -2018,7 +2011,8 @@ inferVar propagated expect name rng isRhs
                  addRangeInfo rng (RM.Id qname (RM.NIValue tp1) False)
                  return (tp1,eff1,core1)
          InfoVal{} | isValueOperation tp
-           -> inferExpr propagated expect (App (Var (toValueOperationName qname) False rng) [] rng)
+           -> do addRangeInfo rng (RM.Id qname (RM.NIValue tp) True)
+                 inferExpr propagated expect (App (Var (toValueOperationName qname) False rangeNull) [] rangeNull)                 
          _ -> --  inferVarX propagated expect name rng qname1 tp1 info1
               do let coreVar = coreExprFromNameInfo qname info
                  -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> text (show info) <.> text ":" <+> ppType env tp
