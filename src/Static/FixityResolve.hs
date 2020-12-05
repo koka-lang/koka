@@ -99,8 +99,8 @@ resolveExpr expr
       Case   expr brs range  -> do expr' <- resolveExpr expr
                                    brs'   <- mapM resolveBranch brs
                                    return (Case expr' brs' range)
-      Parens expr range      -> do expr' <- resolveExpr expr
-                                   return (Parens expr' range)
+      Parens expr name range -> do expr' <- resolveExpr expr
+                                   return (Parens expr' name range)
       Handler shallow scoped override eff pars reinit ret final ops hrng rng
                              -> do ret' <- resolveExprMaybe ret
                                    reinit' <- resolveExprMaybe reinit

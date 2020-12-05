@@ -99,7 +99,7 @@ table .kw, table .tp, table .co,
   margin-top: 0ex;  
 }
 
-.button, .row .koka.source.unchecked {
+.button, .translate .koka.source.unchecked, .translate pre {
   background-color: #fffdf0;  
 }
 
@@ -135,6 +135,16 @@ html {
   padding-left: 0.75ex;
 }
 
-.row {
+.translate {
   display: flex;
+}
+
+.madoka h2, .madoko h3, .madoko h4 {
+  margin-top: 2em;
+}
+.madoko h3 {
+  font-size: 130%;
+}
+.madoko h4 {
+  font-size: 110%;
 }

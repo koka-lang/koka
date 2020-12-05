@@ -565,8 +565,8 @@ infExpr expr
       Case   expr brs range  -> do expr' <- infExpr expr
                                    brs'   <- mapM infBranch brs
                                    return (Case expr' brs' range)
-      Parens expr range      -> do expr' <- infExpr expr
-                                   return (Parens expr' range)
+      Parens expr name range -> do expr' <- infExpr expr
+                                   return (Parens expr' name range)
       Handler hsort scoped override meff pars reinit ret final ops hrng rng
                              -> do pars' <- mapM infHandlerValueBinder pars
                                    meff' <- case meff of

@@ -506,7 +506,7 @@ inferIsolated contextRange range body inf
    where
      hasVarDecl expr
        = case expr of
-           Parens x _ -> hasVarDecl x
+           Parens x _ _ -> hasVarDecl x
            Let _ x _  -> hasVarDecl x
            Bind _ x _ -> hasVarDecl x
            Ann x _ _  -> hasVarDecl x
@@ -807,8 +807,12 @@ inferExpr propagated expect (Lit lit)
        return (tp,eff,core)
 
 
-inferExpr propagated expect (Parens expr rng)
-  = inferExpr propagated expect expr
+inferExpr propagated expect (Parens expr name rng)
+  = do (tp,eff,core) <- inferExpr propagated expect expr
+       if (name /= nameNil) 
+         then addRangeInfo rng (RM.Id name (RM.NIValue tp) True)
+         else return ()
+       return (tp,eff,core)
 
 inferExpr propagated expect (Inject label expr behind rng)
   = do eff0 <- freshEffect
@@ -911,8 +915,8 @@ inferHandler propagated expect handlerSort handlerScoped
                           OpFun        -> (nameClause "tail" (length pars), pars)
                           OpExcept     -> (nameClause "never" (length pars), pars)
                           OpControl    -> let resumeTp = TFun [(nameNil,resumeArg)] eff res
-                                          in (nameClause "control" (length pars), pars ++ [ValueBinder (newName "resume") (Just resumeTp) () nameRng patRng])
-                          OpControlRaw -> (nameClause "control-raw" (length pars), pars ++ [ValueBinder (newName "rcontext") Nothing () nameRng patRng])
+                                          in (nameClause "control" (length pars), pars ++ [ValueBinder (newName "resume") (Just resumeTp) () hrng patRng])
+                          OpControlRaw -> (nameClause "control-raw" (length pars), pars ++ [ValueBinder (newName "rcontext") Nothing () hrng patRng])
                           -- _            -> failure $ "Type.Infer.inferHandler: unexpected resume kind: " ++ show rkind
                  -- traceDoc $ \penv -> text "resolving:" <+> text (showPlain opName) <+> text ", under effect:" <+> text (showPlain effectName)
                  (_,gtp,_) <- resolveFunName (if isQualified opName then opName else qualify (qualifier effectName) opName)
@@ -927,7 +931,21 @@ inferHandler propagated expect handlerSort handlerScoped
                                                     ValueBinder name annTp _ nameRng rng   -> ValueBinder name annTp Nothing nameRng rng)
                                 $ zip (cparams :: [ValueBinder (Maybe Type) ()]) (parTps)
                      frng = combineRanged nameRng body
-                 return (Nothing, App (Var clauseName False nameRng) [(Nothing,Lam cparamsx body frng)] frng)
+                     -- addRangeInfo nameRng (RM.Id opName (RM.NIValue tp) True)  -- TODO: add afterwards for koka docs 
+                     -- cname = opName
+                     capp  = {-
+                             Let (DefNonRec (Def (ValueBinder cname () (Lam cparamsx body frng) nameRng frng) nameRng Private DefFun InlineAuto "")) 
+                                  (App (Var clauseName False rangeNull) [(Nothing,Var cname False nameRng)] nameRng) nameRng
+                             -}
+                             {-
+                             App (Var clauseName False hrng) 
+                                 [(Nothing,
+                                     Bind (Def (ValueBinder cname () (Lam cparamsx body frng) nameRng frng) nameRng Private DefFun InlineAuto "") 
+                                       (Var cname False nameRng) nameRng
+                                 )] nameRng
+                             -}
+                             App (Var clauseName False hrng) [(Nothing,Parens (Lam cparamsx body nameRng) opName nameRng)] frng
+                 return (Nothing, capp) 
 
        clauses <- mapM clause (zip (sortBy opName branches) resumeArgs)
        let handlerCon = let hcon = Var handlerConName False hrng
@@ -2355,8 +2373,8 @@ isAmbiguous ctx expr
                 [_] -> return False
                 _   -> return True
       -- Handler{}        -> return True
-      Parens (Lam{}) _ -> return True -- make parenthesized lambdas later in inference
-      Parens body _    -> isAmbiguous ctx body
+      Parens (Lam{}) _ _ -> return True -- make parenthesized lambdas later in inference
+      Parens body _ _    -> isAmbiguous ctx body
       _ -> return False
 
 
@@ -2365,8 +2383,8 @@ rootExpr expr
       -- Let defs e _ -> rootExpr e
       -- Bind def e _ -> rootExpr e
       -- Ann e t r  -> rootExpr e  -- better to do FunFirst in this case
-      Parens e r -> rootExpr e
-      _          -> expr
+      Parens e _ r -> rootExpr e
+      _            -> expr
 
 
 
@@ -2413,7 +2431,7 @@ pickArgument args
        return (annots ++ nonvars ++ args3 ++ map snd ambargs)
 
 -- | Is an expression annotated?
-isAnnot (Parens expr rng)     = isAnnot expr
+isAnnot (Parens expr _ rng)   = isAnnot expr
 isAnnot (Ann expr tp rng)     = True
 isAnnot (Let defs body rng)   = isAnnot body
 isAnnot (Bind defs body rng)  = isAnnot body

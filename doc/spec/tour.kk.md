@@ -189,11 +189,11 @@ fun twice(f) {
 }
 
 fun test-twice() {
-  twice fn(){
-    twice fn(){
+  twice( fn(){
+    twice( fn(){
       println("hi")
-    }
-  }
+    })
+  })
 }
 ```
 where `"hi"` is printed four times. Using the `with` statement 
@@ -209,7 +209,7 @@ public fun test-with1() {
 The `with` statement essentially puts all statements that follow it into 
 an anynomous function block and passes that as the last parameter. In general:
 
-~~ begin row
+~ translate
 ```unchecked
 with f(e1,...,eN)
 <body>
@@ -218,11 +218,11 @@ with f(e1,...,eN)
 ```unchecked
 f(e1,...,eN, fn(){ <body> })
 ```
-~~ end row
+~
 
 Moreover, a `with` statement can also bind a variable parameter as:
 
-~ row
+~ translate
 ```unchecked
 with x = f(e1,...,eN)
 <body>
@@ -284,23 +284,23 @@ a function block so it can be used directly with `with`. Here
 is an example where an effect handler declares the dynamically bound
 `width` value:
 ```
-effect val width : int
+effect fun emit(msg : string) : ()
 
 fun hello() {
-  "hello world!".truncate(width)
+  emit("hello world!")
 }
 
-public fun test-width1() {
-  with handler{ val width = 5 }
-  println(hello())
+public fun emit-console1() {
+  with handler{ fun emit(msg){ println(msg) } }
+  hello()
 }
 ```
-(where the `with` desugars to `(handler{ val width = 5 })( fn(){ println(hello()) } )`).
+(where the `with` desugars to `(handler{ fun emit(msg){ println(msg) })( fn(){ hello() } )`).
 
 Moreover, as a convenience, we can leave out the `handler` keyword 
 when it follows the `with` keyword, where:
 
-~ row
+~ translate
 ```unchecked
 with { <ops> }
 ```
@@ -310,31 +310,36 @@ with handler{ <ops> }
 ```
 ~
 
-and for effects with just one operation (like `:width`), this leads to the following
+and for effects with just one operation (like `:emit`), this leads to the following
 desugaring:
 
-~ row
+~ translate
 ```unchecked
 with val op = <expr> 
-with fun op(x){ <stats> }
-with control op(x){ <stats> }
+with fun op(x){ <body> }
+with except op(x){ <body> }
+with control op(x){ <body> }
 ```
 &mapsto;
 ```unchecked
 with handler{ val op = <expr> }
-with handler{ fun op(x){ <stats> } }
-with handler{ control op(x){ <stats> } }
+with handler{ fun op(x){ <body> } }
+with handler{ except op(x){ <body> } }
+with handler{ control op(x){ <body> } }
 ```
 ~
 
 Using this, we can write the previous example in a more concise and natural way as:
 
-```unchecked
-public fun test-width2() {
-  with val width = 5
-  println(hello())
+```
+public fun emit-console2() {
+  with fun emit(msg){ println(msg) }
+  hello()
 }
 ```
+
+Intuitively, we can view the handler `with fun emit` as a dynamic binding of the function `emit`
+over the rest of the scope.
 
 [Read more about effect handlers][#sec-handlers]
 {.learn}
@@ -903,7 +908,7 @@ exceptions, iterators, async-await, probabilistic programming, etc.
 Moreover, these handlers can be composed freely so the interaction between,
 say, async-await and exceptions as well-defined. 
 
-### An Exception Effect
+### Handling 
 
 Let's start with defining an exception effect of our own. The `effect`
 declaration defines a new type together with _operations_, for now
@@ -915,11 +920,11 @@ effect exc {
 ```
 We can already use the operation once its signature is declared:
 ```
-fun my-divide( x : int, y : int ) : exc int {
+fun exc-divide( x : int, y : int ) : exc int {
   if (y==0) then raise("div-by-zero") else x / y
 }
 ```
-where we see that the `my-divide` function gets the `:exc` effect
+where we see that the `exc-divide` function gets the `:exc` effect
 (since we use `raise` in the body). We can now _handle_ the
 effect by giving a concrete definition for what `raise` means.
 For example, we may always return a default value:
@@ -928,13 +933,14 @@ fun exc-same() : int {
   with handler {
     control raise(msg){ 42 }
   } 
-  my-divide(1,0) + 4  
+  8 + exc-divide(1,0)
 }
 ```
-The call `exc-same()` evaluates to `42`.
-When a `raise` is called (in `my-divide`), it will _yield_ to the innermost handler, unwind
+The call `exc-same()` evaluates to `42` (_not_ `50`).
+When a `raise` is called (in `exc-divide`), it will _yield_ to the innermost handler, unwind
 the stack, and evaluate the operation definition -- in this case just directly
-returning `42` from `exc-same`. Now we can see why it is called a _control_
+returning `42` from the point where the handler is defined. 
+Now we can see why it is called a _control_
 operation as `raise` changes control-flow and yields right back to its innermost
 handler from the original call site.
 
@@ -943,7 +949,7 @@ argument over which the handler is scoped, as `(handler{ <ops> })(action)`,
 and thus the `with` statement is very useful for this.  
 As a syntactic convenience, for single operations we can leave out the `handler` keyword 
 and translate as:
-~ begin row
+~ translate
 ```unchecked
 with control op(<args>){ <body> }
 ```
@@ -953,21 +959,23 @@ with handler {
   control op(<args>){ <body> }
 }
 ```
-~ end row
+~
 
 So, we can write the previous example more concisely as:
 
 ```unchecked
 fun exc-same() : int {
   with control raise(msg){ 42 }
-  my-divide(1,0) + 4
+  8 + exc-divide(1,0)
 }
 ```
+
+(which eventually expands to `(handler{ control raise(msg){ 42 } })(fn(){ 8 + exc-divide(1,0) })`).
 
 [Read more about `with` statements][#sec-with]
 {.learn}
 
-### A Reader Effect
+### Resuming  { #sec-resume; }
 
 The power of effect handlers is not just that we can _yield_ to the innermost
 handler, but that we can also _resume_ back to the call site with a result.
@@ -1025,20 +1033,22 @@ fun ask-once() : int {
 ```
 
 Here `ask-once()` evaluates to `0` since the second call to `ask` does not resume,
-(and returns directly `0` in the `ask-once` context).
+(and returns directly `0` in the `ask-once` context). This pattern can for example
+be used to implement the concept of _fuel_ in a setting where a computation is 
+only allowed to take a limited amount of steps.
 
 [Read more about `var` mutable variables][#sec-var]
 {.learn}
 
 
-### Tail-Resumptive Operations  { #sec-opfun; }
+### Tail-Resumptive Operations { #sec-opfun; }
 
 A `control` operation is one of the most general ways to define operations since
 we get a first-class `resume` function. However, almost all operations in practice turn out
 to be _tail-resumptive_: that is, they resume exactly _once_ with their final result
 value. To make this more convenient, we can declare `fun` operations that do this
 by construction, &ie;
-~ begin row
+~ translate
 ```unchecked
 with fun op(<args>){ <body> }
 ```
@@ -1046,16 +1056,16 @@ with fun op(<args>){ <body> }
 ```unchecked
 with control op(<args>){ val f = fn(){ <body> }; resume( f() ) }
 ```
-~ end row
+~
 
 (The translation is defined via an intermediate function so `return` works correctly).
 
-With this syntactic sugar, we can write our earlier `ask-random` example 
+With this syntactic sugar, we can write our earlier `ask-const` example 
 using a `fun` operation instead:
 
-```unchecked
-fun ask-random() : random int {
-  with fun ask(){ random-int() }
+```
+fun ask-const2() : int {
+  with fun ask(){ 21 }
   add-twice()
 }
 ```
@@ -1086,13 +1096,13 @@ and the compiler can optimize such calls a bit more as it no longer needs to che
 run-time if the handler defines the operation as tail-resumptive.
 
 
-### Value Operations { #sec-opval; }
+#### Value Operations { #sec-opval; }
 
 A common subset of operations always tail-resume with a single value; these are
 essentially dynamically bound variables (but statically typed!). Such operations
 can be declared as a `val` with the following translation:
 
-~ begin row
+~ translate
 ```unchecked
 with val v = <expr>
 ```
@@ -1106,7 +1116,7 @@ with fun v(){ x }
 val x = <expr>
 with control v(){ resume(x) }
 ```
-~ end row
+~
 
 For an example of the use of value operations, consider a 
 pretty printer that produces pretty strings from documents:
@@ -1130,7 +1140,7 @@ mutable variable but that leaks side-effects and is non-modular.
 
 Or, we can define it as a value operation instead:
 
-```unchecked
+```
 effect val width : int
 ```
 
@@ -1156,16 +1166,24 @@ Note that we did not need to change the structure of the
 original library functions. However the types of the functions
 still change to include the `:width` effect as these now
 require the `width` value to be handled at some point.
+For example, the type of `pretty` becomes:
+```unchecked
+fun pretty( d : doc ) : width int
+```
+as is requires the `:width` effect to be handled (aka,
+the "dynamic binding for `width : int` to be in defined", 
+aka, the "`:width` capability").
 
 
-### A Writer Effect { #sec-writer; }
+#### A Writer Effect { #sec-writer; }
 
 As another example, a _writer_ effect is quite common where
 values are collected by a handler. For example, we can
 define an `:emit` effect to emit messages:
-```
+```unchecked
 effect fun emit( msg : string ) : ()
-
+```
+```
 fun emit-hello-world() : emit () {
   emit("hello")
   emit("world")
@@ -1195,7 +1213,7 @@ fun emit-collect() : string {
 }
 ```
 
-### A State Effect { #sec-state; }
+#### A State Effect { #sec-state; }
 
 A state effect defines operations over a common state.
 In its most general form it has just a `set` and `get` operation:
@@ -1294,6 +1312,8 @@ programs more concise in their definition.
 
 ### Combining Effects { #sec-combine; }
 
+### Masking Effects { #sec-mask; }
+
 ### Side-effect Isolation { #sec-isolate; }
 
 ### Resuming more than once { #sec-multi-resume; }
@@ -1312,6 +1332,7 @@ to be used with care.
 
 ~ Note
 Use `linear effect` to declare effects whose operations are always tail-resumptive
+and use only linear effects themselves
 (and thus resume exactly once). This removes monadic translation for such effects and
 can make code that uses only linear effects more compact and efficient.
 ~
