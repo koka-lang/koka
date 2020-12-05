@@ -810,8 +810,8 @@ makeEffectDecl decl =
                                                   (App (action) [(Nothing,App (Var (toConstructorName id) False rng) [(Nothing,Var evName False rng)] rng)] rng)
                                                   rng))
                     else let -- add a private constructor that refers to the handler type to get a proper recursion check
-                             hndfld = ValueBinder nameNil hndTp Nothing irng rng
-                             hndcon = UserCon (toConstructorName id) [hndEffTp,hndResTp] [(Private,hndfld)] Nothing irng rng Private ""
+                             hndfld = ValueBinder nameNil hndTp Nothing irng irng
+                             hndcon = UserCon (toConstructorName id) [hndEffTp,hndResTp] [(Private,hndfld)] Nothing irng irng Private ""
                          in (DataType ename tpars [hndcon] rng vis Inductive DataDefAuto False docx, \action -> action)
 
       -- declare the effect handler type

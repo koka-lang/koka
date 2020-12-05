@@ -2004,7 +2004,11 @@ inferVar propagated expect name rng isRhs
        -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> colon <+> ppType env tp
        if (isTypeLocalVar tp && isRhs)
         then do -- traceDoc $ \penv -> text "localvar:" <+> pretty name <+> text ":" <+> ppType penv tp
-                (tp1,eff1,core1) <- inferExpr propagated expect (App (Var nameLocalGet False rng) [(Nothing,App (Var nameByref False rng) [(Nothing,Var name False rng)] rng)] rng)
+                let irng = extendRange rng (-1)
+                (tp1,eff1,core1) <- inferExpr propagated expect (Parens (App (Var nameLocalGet False irng) 
+                                                                             [(Nothing,App (Var nameByref False irng) 
+                                                                                           [(Nothing,Var name False irng)] irng)] irng)
+                                                                        name rng)
                 addRangeInfo rng (RM.Id qname (RM.NIValue tp1) False)
                 -- traceDoc $ \env -> text " deref" <+> pretty name <+> text "to" <+> ppType env tp1
                 return (tp1,eff1,core1)
