@@ -138,3 +138,13 @@ html {
 .translate {
   display: flex;
 }
+
+.madoka h2, .madoko h3, .madoko h4 {
+  margin-top: 2em;
+}
+.madoko h3 {
+  font-size: 130%;
+}
+.madoko h4 {
+  font-size: 110%;
+}
