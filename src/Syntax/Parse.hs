@@ -1090,11 +1090,11 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effNa
            -- create a temporary value definition for type checking
            opValDef = if isValueOperationName id then
                          let opName  = fromValueOperationsName id
-                             qualTpe = promoteType (TpApp (TpCon nameTpValueOp idrng) [tres] idrng)
-                             phantom = App (Var namePhantom False idrng) [] idrng
-                             annot   = Ann phantom qualTpe idrng
-                         in Just $ Def (ValueBinder opName () annot idrng idrng)
-                                        idrng vis DefVal InlineNever "// phantom definition for value operations"
+                             qualTpe = promoteType (TpApp (TpCon nameTpValueOp krng) [tres] krng)
+                             phantom = App (Var namePhantom False krng) [] krng
+                             annot   = Ann phantom qualTpe krng
+                         in Just $ Def (ValueBinder opName () annot idrng krng)
+                                        krng vis DefVal InlineNever "// phantom definition for value operations"
 
                        else Nothing
 
