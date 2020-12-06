@@ -154,27 +154,27 @@ for example to yield the elements of a list:
 ```
 fun traverse( xs : list<int> ) : yield () {
   match(xs) {
-    Cons(x,xx) -> { yield(x); traverse(xx) }
+    Cons(x,xx) -> if (yield(x)) then traverse(xx) else ()
     Nil        -> ()
   }
 }
 ```
-Here we see that `traverse` has the `:yield` effect,
-and we need to _handle_ it. This is much like defining an
-exception handler, except we can receive values (here an `:int`),
-and we can _resume_ with a result (which we ignore in our example):
+The `traverse` function calls `yield` and therefore gets the `:yield` effect in its type,
+and if we want to use `traverse`, we need to _handle_ the `:yield` effect. 
+This is much like defining an exception handler, except we can receive values (here an `:int`),
+and we can _resume_ with a result (which determines if we keep traversing):
 ```
 fun print-elems() : console () {
   with control yield(i){
     println("yielded " + i.show)
-    resume(True)
+    resume(i<4)
   }
-  traverse([1,2,3])
+  traverse([1,2,3,4])
 }
 ```
 The `with` statement binds the handler for `:yield` over the
-rest of the scope, in this case `traverse([1,2,3])`. 
-Note how the handler eliminates the `:yield` effect -- and replaces
+rest of the scope, in this case `traverse([1,2,3,4])`. 
+Note how the handler discharges the `:yield` effect -- and replaces
 it with a `:console` effect. When we run the example, we get:
 ````
 yielded: 1
