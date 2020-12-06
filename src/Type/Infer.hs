@@ -720,11 +720,26 @@ inferExpr propagated expect (Handler handlerSort scoped HandlerOverride mbEff pa
           -> do termError rng (text "cannot determine the effect type for the override") typeTotal []
                 inferHandler propagated expect handlerSort scoped mbEff pars reinit ret final branches hrng rng
          Just heff -> -}
+       {-
        let h = (Handler handlerSort scoped HandlerNoOverride mbEff pars reinit ret final branches hrng rng)
            name = newHiddenName "override-action"
            binder = ValueBinder name Nothing Nothing rng rng
            var    = Var name False rng
            lam    = Lam [binder] (Inject heff (Lam [] (App h [(Nothing,var)] rng) rng) False rng) rng
+       inferExpr propagated expect lam
+       -}
+       let h = (Handler handlerSort scoped HandlerNoOverride mbEff pars reinit ret final branches hrng rng)
+           actionName = newHiddenName "override-action"
+           actionVar  = Var actionName False rng
+           actionBind = ValueBinder actionName Nothing Nothing rng rng
+           mask   = if (isHandlerInstance handlerSort) 
+                      then let instName = newHiddenName "override-inst"
+                               instBind = ValueBinder instName Nothing Nothing rng rng
+                               instVar  = Var instName False rng
+                               instLam  = Lam [] (App actionVar [(Nothing,instVar)] rng) rng
+                           in Lam [instBind] (Inject heff instLam True rng) rng  -- mask behind
+                      else Lam [] (Inject heff actionVar True rng) rng  -- mask behind
+           lam    = Lam [actionBind] (App h [(Nothing,mask)] rng) rng           
        inferExpr propagated expect lam
 
 inferExpr propagated expect (Case expr branches rng)

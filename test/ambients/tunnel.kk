@@ -8,7 +8,7 @@ type tree<a> {
   con Leaf
 }
 
-ambient<a> control yield(value:a) : ()
+effect<a> control yield(value:a) : ()
 
 // An in-order iterator for trees
 fun iterate(t) {
@@ -118,14 +118,14 @@ fun fsize2(t,f) {
 // Use either implementation (Figure 3)
 fun test3a() {
   val fsize = fsize1
-  fun g(x:int) { yield(x); even?(x) }
+  fun g(x:int) { yield(x); is-even(x) }
   with fun yield(x:int) { print(x) }
   tree5.fsize(g)
 }
 
 fun test3b() {
   val fsize = fsize2
-  fun g(x:int) { yield(x); even?(x) }
+  fun g(x:int) { yield(x); is-even(x) }
   with fun yield(x:int) { print(x) }
   tree5.fsize(g)
 }
