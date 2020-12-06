@@ -880,11 +880,11 @@ We can now also see that `struct` types are just syntactic sugar for regular a
 `type` with a single constructor of the same name as the type:
 
 ~ translate
-```undefined
+```unchecked
 struct tp { <fields> }
 ```
 &mapsto;
-```undefined
+```unchecked
 type tp { 
   con Tp { <fields> }
 }
@@ -1325,6 +1325,45 @@ This is a total handler and only discharges the `:emit` effect.
 [Read more about `var` mutable variables][#sec-var]
 {.learn}
 
+As another example, consider a generic `catch` handler that
+applies an handling function when `:raise` is called on our
+exception example:
+
+```
+fun catch( hnd : (string) -> e a, action : () -> <raise|e> a ) : e a {
+  with control raise(msg){ hnd(msg) }
+  action()
+}
+```
+
+We can use it now conveniently with a `with` statement to handle
+exceptional situations:
+
+```
+fun catch-example() {
+  with catch fn(msg){ println("error: " + msg); 42 }
+  safe-divide(1,0)
+}
+```
+
+~ advanced
+The `catch` handler has an interesting type where the action can
+have a `:raise` effect (`: () -> <raise|e> a`) and maybe further effects `:e`,
+while the handling function `hnd` only has effect `:e`. Now consider
+supplying a handing function that itself calls `raise`: in that case, the 
+type of `catch` would be instantiated to: `: (hnd: (string) -> <raise> a, action : () -> <raise, raise> a ) : <raise> a`.
+This is correct: the (outer) `:raise` effect of `action` is handled and discharged, but since
+the handling function `hnd` can still cause `raise` to be called, the final effect still contains `:raise`.
+
+Here we see that Koka allows _duplicate_ effect labels [@Leijen:scopedlabels] where `action` has
+an instantiated `: <raise,raise>` effect type.
+These kind of types occur naturally in the presence of polymorphic effects, and there is a natural correspondence
+to the structure of the evidence vectors at runtime (with entries for each nested effect handler). 
+Intuitively, the `action` effect expresses that 
+its outer (left-most) `:raise` is handled, but that there may be other exceptions that are not handled -- in this 
+case from the handling function `hnd`, but they can also be _masked_ exceptions (as described in Section [#sec-mask]).
+~
+
 
 ### Return Operations { #sec-return; }
 
@@ -1355,6 +1394,8 @@ fun div42() {
 
 [Read more about _dot_ expressions][#sec-dot]
 {.learn}
+
+
 
 #### A State Effect { #sec-state; }
 
@@ -1451,7 +1492,8 @@ with regard to other approaches:
    type rules with _answer_ types (as the type of `shift` depends on the context of its matching `reset`).
 2. _The scope of an effect handler is delimited_ by the handler definition. This is just like `shift`/`reset` 
    but unlike ``call/cc``. Delimiting the scope of a resumption has various good properties, like efficient
-   implementation strategies, but also that it allows for modular composition.
+   implementation strategies, but also that it allows for modular composition 
+   (see also Oleg Kiselyov's ["against call/cc"](http://okmij.org/ftp/continuations/against-callcc.html)).
 3. _Effect handlers can be composed freely_. This is unlike general _monads_ which need monad transformers to 
    compose in particular ways. Essentially effect handlers can compose freely because every effect handler
    can be expressed eventually as an instance of a _free monad_ which _do_ compose. This also means means that
@@ -1507,9 +1549,188 @@ fun raise-state(init) : maybe<(int,int)> {
 }
 ```
 
-
-
 ### Masking Effects { #sec-mask; }
+
+Similar to masking signals in Unix, we can mask effects to not be handled by
+their innermost effect handler. The expression `mask<eff>(action)` modularly masks
+any effect operations in `:eff` inside the `action`. For example,
+consider two nested handlers for the `emit` operation:
+
+```
+fun mask-emit() {
+  with fun emit(msg){ println("outer:" + msg) }
+  with fun emit(msg){ println("inner:" + msg) }
+  emit("hi")
+  mask<emit>{ emit("there") }
+}
+```
+If we call `mask-emit()` it prints:
+````
+inner: hi
+outer: there
+````
+The second call to `emit` is masked and therefore it skips the innermost
+handler and is handled subsequently by the outer handler (&ie; mask only
+masks an operation once for its innermost handler). 
+
+The type of `mask<l>` for some effect label `:l` is `: (action: () -> e a) -> <l|e> a`
+where it injects the effect `:l` in the final effect result `:<l|e>` (even
+thought the `mask` itself never
+actually performs any operation in `:l` -- it only masks any operations
+of `:l` in `action`).
+
+This type usually leads to duplicate effect labels, for example,
+the effect of `mask<emit>{ emit("there") }` is `: <emit,emit>` signifying
+that there need to be two handlers for `:emit`: in this case, one to skip 
+over, and one to subsequently handle the masked operation.
+
+
+#### Effect Abstraction
+
+The previous example is not very useful, but generally we can 
+use `mask` to hide internal effect handling from higher-order functions.
+For example, consider the following function that needs to handle
+internal exceptions:
+
+```
+fun mask-print( action : () -> e int ) : e int {
+  with control raise(msg){ 42 }
+  val x = mask<raise>(action)
+  if (x.is-odd) then raise("wrong")   // internal exception
+  x
+}  
+```
+
+Here the type of `mask-print` does not expose at all that we handle the `:raise`
+effect internally for specific code and it is fully abstract -- even if the action itself would call `raise`,
+it would neatly skip the internal handler due to the `mask<raise>` expression.
+
+If we would leave out the `mask`, and call `action()` directly, then the inferred
+type of `action` would be `: () -> <raise|e> int` instead, showing that the `:raise`
+effect would be handled. 
+Note though that this usually the desired behaviour since in the majority of cases 
+we _want_ to handle the effects in a particular way when defining handler abstractions. 
+The cases where `mask` is needed are much less common in our experience.
+
+(Note: there is other work on "tunneling" or "lexically scoped" effects which switches
+the default behaviour of Koka (where masking becomes the default). 
+We generally reject this approach as this usually
+requires a form of dependent typing where a type annotation on `action` 
+changes whether the term is masked or not. It is also unclear if one can express
+the `ppstate` example in that approach.)
+
+~ advanced
+
+#### State as a Combined Effect
+
+Another nice use-case for `mask` occurs when modeling state directly using
+effect handlers without using mutable local variables [@Biernacki:care]. We can do this
+using two separate operations `peek` and `poke`:
+
+```
+effect<a> val peek : a                 // get the state
+effect<a> control poke( x : a ) : ()   // set the state to x
+```
+
+We can now define a generic state handler as:
+
+```
+fun ppstate( init : a, action : () -> <peek<a>,poke<a>|e> b ) : e b {
+  with val peek = init
+  with control poke( x ) {
+    mask<peek> {
+      with val peek = x
+      resume(())
+    }
+  }
+  action()
+}
+```
+In the handler for `poke` we resume under a fresh handler for `peek` that
+is bound to the new state. This means though there will be an ever increasing
+"stack" of handlers for `peek`. To keep the type from growing infinitely, we
+need to mask out any potential operation to a previous handler of `peek` which
+is why the `mask` is needed. (Another way of looking at this is to just follow
+the typing: `action` has a `:peek` effect, and unifies with the effect of
+the `poke` operation definition. Since it handles its own `:peek` effect, it needs
+to be injected back in with a `mask`.)
+
+(Note: since the handler stack grows indefinitely on every `poke` this example
+is mostly of theoretical interest. However, we are looking into a _stack smashing_
+technique where we detect at runtime that a `mask` can discard a handler frame
+from the stack.)
+
+~
+
+### Overriding Handlers
+
+A common use for masking is to override handlers. For example, consider
+overriding the behavour of `emit`:
+
+```
+fun emit-quoted1( action : () -> <emit,emit|e> a ) : <emit|e> a {
+  with fun emit(msg){ emit("\"" + msg + "\"" ) }
+  action()
+}
+```
+
+Here, the handler for `emit` calls itself `emit` to actually emit the newly
+quoted string. The effect type inferred for `emit-quoted` is `: (action : () -> <emit,emit|e> a) -> <emit|e> a`.
+This is not the nicest type as it exposes that `action` is evaluated under (at least) two
+`:emit` handlers (and someone could use `mask` inside `action` to use the outer `:emit` handler).
+
+The `override` keyword keeps the type nice and fully overrides the
+previous handler which is no longer accessible from `action`:
+
+```
+fun emit-quoted2( action : () -> <emit|e> a ) : <emit|e> a {
+  with override fun emit(msg){ emit("\"" + msg + "\"" ) }
+  action()
+}
+```
+
+This of course applies to any handler or value, for example,
+to temporarily increase the `width` while pretty printing, 
+we can override the `width` as:
+```
+fun extra-wide( action ) {
+  with override val width = 2*width
+  action()
+}
+```
+
+
+~ advanced
+
+#### Mask Behind
+
+Unfortunately, we cannot modularly define overriding with just `mask`; if we 
+add `mask` outside of the `emit` handler, the `emit` call inside the operation 
+definition would get masked and skip our intended handler. On the other hand,
+if we add `mask` just over `action` all its `emit` calls would be masked for
+our intended handler! 
+
+For this situation, there is another primitive that only "masks the masks".
+The expression `mask behind<l>` has type `: (() -> <l|e> a) -> <l,l|e> a`
+and only masks any masked operations but not the direct ones. The `override`
+keyword is defined in terms of this primitive:
+
+~~ translate
+```unchecked
+with override handler<l> { <ops> }
+<body>
+```
+&mapsto;
+```unchecked
+(handler<l> { <ops> })(mask behind<l>{ <body> })
+```
+~~
+
+This ensures any operation calls in ``<body>`` go the newly defined
+handler while any masked operations are masked one more level and skip
+both of the two innermost handlers.
+~
+
 
 ### Side-effect Isolation { #sec-isolate; }
 
