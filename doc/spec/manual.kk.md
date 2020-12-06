@@ -51,7 +51,6 @@ toc.toc-contents {
   .button;
 }
 
-
 @if preview {
   .code1 {
     border-bottom: 1px solid green;
@@ -82,6 +81,19 @@ li {
   font-style: italic;
 }
 
+.advanced {
+  border: 1px solid #AAA;
+  padding: 0em 1em;
+  before: "[advanced]{.advanced-label}";
+}
+
+.advanced-label {
+  display: block;
+  float: left;
+  margin: -1.5em 0em -1em -1em;
+  font-size: 70%;
+  color: #999;
+}
 
 [koka-logo]: images/koka-logo.png { max-height: 120px; padding:1rem 1rem 1rem 1.5rem; }
 

@@ -1,3 +1,4 @@
+
 ~ MathDefs
 \newcommand{\pdv}[1]{\frac{\partial{}}{\partial{#1}}}
 ~
@@ -1120,13 +1121,15 @@ fun ask-const2() : int {
 This also conveys better that even though `ask` is dynamically bound, it behaves
 just like a regular function without changing the control-flow. 
 
-Moreover, operations declared as `fun` get special treatment and the Koka compiler
-can optimize them. The compiler uses (generalized) _evidence translation_  [@Xie:evidently]
+Moreover, operations declared as `fun` are much more efficient than general
+`control` operations. The Koka compiler uses (generalized) _evidence translation_  [@Xie:evidently]
 to pass down handler information to each call-site. At the call to `ask` in `add-twice`,
-it selects the handler from the evidence vector and, since it can see the operation is
-a tail-resumptive `fun`, it calls it directly (without needing to yield upward
-to the handler and capture the stack). This gives `fun` operations a performance cost very
-similar to _virtual method calls_ which can be very efficient.
+it selects the handler from the evidence vector and when the operation is
+a tail-resumptive `fun`, it calls it directly as a regular function (except with an adjucted evidence
+vector for its context). Unlike a general `control` operation, there is no need to yield upward
+to the handler, capture the stack, and eventually resume again. 
+This gives `fun` (and `val`) operations a performance cost very similar to _virtual method calls_ 
+which can be very efficient.
 
 For even a bit more performance, you can also declare upfront that any operation
 definition must be tail-resumptive, as:
@@ -1140,7 +1143,7 @@ effect ask<a> {
 This restricts all handler definitions for the `:ask` effect to use `fun` definitions
 for the `ask` operation. However, it increases the ability to reason about the code,
 and the compiler can optimize such calls a bit more as it no longer needs to check at
-run-time if the handler defines the operation as tail-resumptive.
+run-time if the handler happens to define the operation as tail-resumptive.
 
 
 #### Value Operations { #sec-opval; }
@@ -1235,7 +1238,7 @@ the "dynamic binding for `width : int` to be in defined",
 aka, the "`:width` capability").
 
 
-#### A Writer Effect { #sec-writer; }
+### Abstracting Handlers
 
 As another example, a _writer_ effect is quite common where
 values are collected by a handler. For example, we can
@@ -1244,7 +1247,7 @@ define an `:emit` effect to emit messages:
 effect fun emit( msg : string ) : ()
 ```
 ```
-fun emit-hello-world() : emit () {
+fun ehello() : emit () {
   emit("hello")
   emit("world")
 }
@@ -1254,28 +1257,108 @@ We can define for example a handler that prints the
 emitted messages directly to the console:
 
 ```
-fun emit-console() : console () {
+fun ehello-console() : console () {
   with fun emit(msg){ println(msg) }
-  emit-hello-world()
+  ehello()
 }
 ```
 
-or collect all messages as a list of lines:
+Here the handler is define directly, but we can also abstract the handler for
+emitting to the console into a separate function:
 
 ```
-fun emit-collect() : string {
+fun emit-console( action ) {
+  with fun emit(msg){ println(msg) }
+  action()
+} 
+```
+
+where `emit-console` has the inferred type `:(action : () -> <emit,console|e> a) -> <console|e> a` (hover 
+over the source to see the inferred types) where
+the action can have use the effects `:emit`, `:console`, and any other effects `:e`, 
+and where the final effect is just `: <console|e>` as the `:emit` effect
+is discharged by the handler.
+
+Note, we could have written the above too as:
+```
+val emit-console2 = handler {
+  fun emit(msg){ println(msg) }
+}
+```
+since a `handler{ ... }` expression is a function itself (and thus a _value_). 
+Generally we prefer the earlier definition though as it allows further parameters
+like an initial state.
+
+Since `with` works generally, we can use the abstracted handlers just like
+regular handlers, and our earlier example can be written as:
+
+```
+fun ehello-console2() : console () {
+  with emit-console
+  ehello()
+}
+```
+(which expands to `emit-console( fn(){ ehello() } )`).
+Another useful handler may collect all emitted messages as a list of lines:
+
+```
+fun emit-collect( action : () -> <emit|e> () ) : e string {
   var lines := []
-  with {
+  with handler {
     return(x){ lines.reverse.join("\n") }
     fun emit(msg){ lines := Cons(msg,lines) }
   }
-  emit-hello-world()
+  action()
+}
+
+fun ehello-commit() : string {
+  with emit-collect
+  ehello()
 }
 ```
 
+This is a total handler and only discharges the `:emit` effect.
+
+[Read more about the `with` statement][#sec-with]
+{.learn}
+
+[Read more about `var` mutable variables][#sec-var]
+{.learn}
+
+
+### Return Operations { #sec-return; }
+
+In the previous `emit-collect` example we saw the use of 
+a `return` operation. Such operation changes the final
+result of the action of a handler. 
+For example, consider our earlier used-defined exception effect `:raise`.
+We can define a general handler that transforms any exceptional
+action into one that returns a `:maybe` type:
+
+```
+fun raise-maybe( action : () -> <raise|e> a ) : e maybe<a> {
+  with handler {
+    return(x){ Just(x) }           // normal return: wrap in Just
+    control raise(msg){ Nothing }  // exception: return Nothing directly
+  }
+  action()
+}
+
+fun div42() {
+  (raise-maybe{ safe-divide(1,0) }).default(42)
+}
+```
+(where the body of `div42` desugars to `default( raise-maybe(fn(){ safe-divide(1,0) }), 42 )`).
+
+[Read more about function block expressions][#sec-anon]
+{.learn}
+
+[Read more about _dot_ expressions][#sec-dot]
+{.learn}
+
 #### A State Effect { #sec-state; }
 
-A state effect defines operations over a common state.
+For more examples of the use of `return` operations, we look at a the state effect.
 In its most general form it has just a `set` and `get` operation:
 
 ```
@@ -1293,84 +1376,138 @@ fun sumdown( sum : int = 0 ) : <state<int>,div> int {
 }
 ```
 
-We can define a state handler most easily by using `var` declarations:
+We can define a generic state handler most easily by using `var` declarations:
 
 ```
-fun var-state( init : int ) : div int {
+fun state( init : a, action : () -> <state<a>|e> b ) : e b {
   var st := init
   with handler {
     fun get(){ st }
     fun set(i){ st := i }
   }
-  sumdown()
+  action()
 }
 ```
 
-where `var-state(10)` evaluates to `55`. 
+where `state(10){ sumdown() }` evaluates to `55`. 
 
 [Read more about default parameters][#sec-default]
+{.learn}
+
+[Read more about _trailing lambdas_][#sec-anon]
 {.learn}
 
 [Read more about `var` mutable variables][#sec-var]
 {.learn}
 
-### Return Operations { #sec-return; }
 
 Building on the previous state example, suppose we also like
-to return the final state. One way to do this is to `get` the
-final state and pair it with the final answer, as:
+to return the final state. A nice way to do this is to 
+use a return operation again to pair the final result with the final state: 
 
 ```
-fun pair-state1( init : int ) : div (int,int) {
+fun pstate( init : a, action : () -> <state<a>|e> b ) : e (b,a) {
   var st := init
   with handler {
+    return(x){ (x,st) }      // pair with the final state
     fun get(){ st }
     fun set(i){ st := i }
   }
-  (sumdown(), get())
+  action()
 }
 ```
+where `pstate(10){ sumdown() }` evaluates to `(55,0)`.  
 
-where `pair-state1` evaluates to `(55,0)`.  This is not
-always easy to do though and we can define `return` operations 
-to generally transform the final result of a handler. Using
-`return` we can define the previous example as:
-
-```
-fun pair-state2( init : int ) : div (int,int) {
-  var st := init
-  with handler {
-    return(x){ (x,st) }
-    fun get(){ st }
-    fun set(i){ st := i }
-  }
-  sumdown()
-}
-```
-
-where all internal state is encapsulated in the handler.
-We can take this to the extreme with a handler that just
-contains a `return` operation: such handler handles no effect
+~ advanced
+It is even possible to have a handler that only
+contains a single `return` operation: such handler handles no effect
 at all but only transforms the final result of a function.
 For example, we can define the previous example also with
 a separate `return` handler as:
 
 ```
-fun pair-state3( init : int ) : div (int,int) {
+fun pstate2( init : a, action : () -> <state<a>|e> b ) : e (b,a) {
   var st := init
   with return(x){ (x,st) }
   with handler {
     fun get(){ st }
     fun set(i){ st := i }
   }
-  sumdown()
+  action()
 }
 ```
 
 Here it as a bit contrived but it can make certain
 programs more concise in their definition.
+~
 
 ### Combining Handlers { #sec-combine; }
+
+~ advanced
+What makes effect handlers a good control-flow abstraction? There are three fundamental advantages 
+with regard to other approaches:
+
+1. _Effect handlers can have simple (Hindley-Milner) types_. This unlike `shift`/`reset` for example as that needs 
+   type rules with _answer_ types (as the type of `shift` depends on the context of its matching `reset`).
+2. _The scope of an effect handler is delimited_ by the handler definition. This is just like `shift`/`reset` 
+   but unlike ``call/cc``. Delimiting the scope of a resumption has various good properties, like efficient
+   implementation strategies, but also that it allows for modular composition.
+3. _Effect handlers can be composed freely_. This is unlike general _monads_ which need monad transformers to 
+   compose in particular ways. Essentially effect handlers can compose freely because every effect handler
+   can be expressed eventually as an instance of a _free monad_ which _do_ compose. This also means means that
+   some monads cannot be expressed as an effect handler (namely the non-algebraic ones). A particular example
+   of this is the continuation monad (which can express ``call/cc``).
+
+The Koka compiler internally uses monads and `shift`/`reset` to compile effect handlers though, and
+it compiles handlers into to an internal free monad based on multi-prompt delimited control [@Gunter:mprompt]. 
+By inlining the monadic _bind_ we are able to generate efficient C code that only allocates continuations 
+in the case one is actually yielding up to a general `control` operation.
+~
+
+A great property of effect handlers is that they can be freely composed together. 
+For example, suppose we have a function 
+that calls `raise` if the state is an odd number:
+
+```
+fun no-odds() : <raise,state<int>> int {
+  val i = get()
+  if (i.is-odd) then raise("no odds") else {
+    set(i / 2)
+    i
+  }
+}
+```
+
+then we can compose a `pstate` and `raise-maybe` handler together
+to handle the effects:
+
+```
+fun state-raise(init) : (maybe<int>,int) {
+  with pstate(init)  
+  with raise-maybe  
+  no-odds()
+}
+```
+
+where both the `:state<int>` and `:raise` effects are discharged by the respective handlers.
+Note the type reflects that we always return a pair with as a first element either
+`Nothing` (if `raise` was called) or a `Just` with the final result, and as the second element
+the final state. This corresponds to how we usually combine state and exceptions where the 
+state (or heap) has set to the state at the point the exception happened.
+
+However, if we combine the handlers in the opposite order, we get a form of transactional
+state where we either get an exception (and no final state), or we get a pair of the 
+result with the final state:
+
+```
+fun raise-state(init) : maybe<(int,int)> {
+  with raise-maybe  
+  with pstate(init)  
+  no-odds()
+}
+```
+
+
 
 ### Masking Effects { #sec-mask; }
 
