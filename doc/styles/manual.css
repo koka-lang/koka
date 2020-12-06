@@ -99,7 +99,7 @@ table .kw, table .tp, table .co,
   margin-top: 0ex;  
 }
 
-.button, .translate .koka.source.unchecked, .translate pre {
+.button {
   background-color: #fffdf0;  
 }
 
@@ -109,6 +109,10 @@ table .kw, table .tp, table .co,
 
 .button a:hover {
   text-decoration: none !important;
+}
+
+.translate .koka.source.unchecked, .translate pre {
+  background-color: #f0f6fd;  
 }
 
 .aside {
