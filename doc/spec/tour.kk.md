@@ -969,6 +969,9 @@ Note that the `handler{ <ops> }` expression is a function that expects a functio
 argument over which the handler is scoped, as `(handler{ <ops> })(action)`,
 and thus the `with` statement is very useful for this.  
 
+[Read more about `with` statements][#sec-with]
+{.learn}
+
 As a syntactic convenience, for single operations we can leave out the `handler` keyword 
 which is translated as:
 ~ translate
@@ -983,7 +986,7 @@ with handler {
 ```
 ~
 
-With this, we can write the previous example more concisely as:
+With this translation, we can write the previous example more concisely as:
 
 ```
 fun raise-const1() : int {
@@ -992,12 +995,12 @@ fun raise-const1() : int {
 }
 ```
 
-(which eventually expands to `(handler{ control raise(msg){ 42 } })(fn(){ 8 + safe-divide(1,0) })`).
+which eventually expands to `(handler{ control raise(msg){ 42 } })(fn(){ 8 + safe-divide(1,0) })`.
 
 We have a similar syntactic convenience for effects with one operation where the 
 name of the effect and operation are the same. Just like a `struct` we can 
-define an effect as its operation which implicitly declares an effect of the 
-same name:
+define an effect by just declaring its operation which implicitly declares 
+an effect of the same name:
 ~ translate
 ```unchecked
 effect control op(<parameters>) : <result-type>
@@ -1010,16 +1013,10 @@ effect op {
 ```
 ~
 
-Using this, we can also declare our `:raise` effect more concisely as:
+That means we can declare our `:raise` effect more concisely as:
 ```unchecked
 effect control raise( msg : string ) : a
 ```
-
-[Read more about `with` statements][#sec-with]
-{.learn}
-
-[Read more about `struct` declarations][#sec-data]
-{.learn}
 
 
 ### Resuming  { #sec-resume; }
