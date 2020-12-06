@@ -2732,6 +2732,7 @@ back to its innermost handler from the original call site.
 argument over which the handler is scoped, as <code class="koka">(<span class="kw">handler</span>{ <span class="op">&#60;</span>ops<span class="op">&#62;</span> })(action)</code>,
 and thus the <code class="koka"><span class="kw">with</span></code> statement is very useful for this.  
 </p>
+<p class="p learn button indent"><a href="#sec-with" title="3.1.5.&#8194;With Statements" class="localref" style="target-element:h3">Read more about <code class="koka"><span class="kw">with</span></code> statements</a></p>
 <p class="p indent">As a syntactic convenience, for single operations we can leave out the <code class="koka"><span class="kw">handler</span></code> keyword 
 which is translated as:
 </p>
@@ -2749,7 +2750,7 @@ which is translated as:
 }
 </span></pre>
 </div>
-<p class="p noindent">With this, we can write the previous example more concisely as:
+<p class="p noindent">With this translation, we can write the previous example more concisely as:
 </p><pre class="koka source"><span class="plaincode">fun raise-const1() : int {
   with control raise(msg){ 42 }
   8 + safe-divide(1,0)
@@ -2762,12 +2763,12 @@ which is translated as:
 
 
 
-<p class="p noindent">(which eventually expands to <code class="koka">(<span class="kw">handler</span>{ <span class="kw">control</span> raise(msg){ <span class="number">42</span> } })(<span class="kw">fn</span>(){ <span class="number">8</span> <span class="op">+</span> <a class="pp" href="#safe_divide">safe<span class="dash">-</span>divide<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>safe<span class="dash">-</span>divide: <span class="tp sp">(</span><span class="tp tpp">x</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">,</span> <span class="tp tpp">y</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">raise</span> <span class="tp">int</span></span></a>(<span class="number">1</span>,<span class="number">0</span>) })</code>).
+<p class="p noindent">which eventually expands to <code class="koka">(<span class="kw">handler</span>{ <span class="kw">control</span> raise(msg){ <span class="number">42</span> } })(<span class="kw">fn</span>(){ <span class="number">8</span> <span class="op">+</span> <a class="pp" href="#safe_divide">safe<span class="dash">-</span>divide<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>safe<span class="dash">-</span>divide: <span class="tp sp">(</span><span class="tp tpp">x</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">,</span> <span class="tp tpp">y</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">raise</span> <span class="tp">int</span></span></a>(<span class="number">1</span>,<span class="number">0</span>) })</code>.
 </p>
 <p class="p indent">We have a similar syntactic convenience for effects with one operation where the 
 name of the effect and operation are the same. Just like a <code class="koka"><span class="tp kw">struct</span></code> we can 
-define an effect as its operation which implicitly declares an effect of the 
-same name:
+define an effect by just declaring its operation which implicitly declares 
+an effect of the same name:
 </p>
 <div class="translate"><pre class="koka source unchecked"><span class="plaincode">effect control op(&lt;parameters&gt;) : &lt;result-type&gt;
 </span><span class="nicecode"><span class="tp kw">effect</span> <span class="kw">control</span> op(<span class="op">&lt;</span>parameters<span class="op">&gt;</span>) <span class="tp kw op">:</span> <span class="tp sp">&lt;</span><span class="tp">result<span class="dash">-</span>type</span><span class="tp sp">&gt;</span>
@@ -2783,15 +2784,14 @@ same name:
 }
 </span></pre>
 </div>
-<p class="p noindent">Using this, we can also declare our <code class="koka"><a class="pp" href="#type_space_raise"><span class="tp">raise</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>raise: <span class="tp">HX</span></span></a></code> effect more concisely as:
+<p class="p noindent">That means we can declare our <code class="koka"><a class="pp" href="#type_space_raise"><span class="tp">raise</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>raise: <span class="tp">HX</span></span></a></code> effect more concisely as:
 </p><pre class="koka source unchecked"><span class="plaincode">effect control raise( msg : string ) : a
 </span><span class="nicecode"><span class="tp kw">effect</span> <span class="kw">control</span> raise( msg <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a> ) <span class="tp kw op">:</span> <span class="tp tv">a</span>
 </span></pre>
 
 
 
-<p class="p learn button noindent"><a href="#sec-with" title="3.1.5.&#8194;With Statements" class="localref" style="target-element:h3">Read more about <code class="koka"><span class="kw">with</span></code> statements</a></p>
-<p class="p learn button indent">Read more about <code class="koka"><span class="tp kw">struct</span></code> declarations[??]</p><h3 id="sec-resume" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-resume" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">3.4.2</span>.&#8194;</span>Resuming</h3>
+<h3 id="sec-resume" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-resume" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">3.4.2</span>.&#8194;</span>Resuming</h3>
 <p class="p noindent">The power of effect handlers is not just that we can <em class="em-low1">yield</em> to the innermost
 handler, but that we can also <em class="em-low1">resume</em> back to the call site with a result.
 </p>
