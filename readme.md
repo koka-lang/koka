@@ -38,7 +38,7 @@ and _Perceus_ memory management:
 For more information, see:
 
 * [Why Koka?][why]
-* The [Koka manual][kokabook] for a tour of the Koka language and its specification.
+* The [Koka book][kokabook] for a tour of the Koka language and its specification.
 * The [Library documentation][libraries].
 
 <!--
@@ -60,20 +60,20 @@ and it is our goal to generally fall within a factor 2&times; of C++ performance
 
 For more background information, see:
 
-* The [Koka manual][kokabook] for a tour of the Koka language and its specification.
+* The [Koka book][kokabook] for a tour of the Koka language and its specification.
 * The [library documentation][libraries].
 * The article _Algebraic Effects for Functional Programming_ [[3]](#references) about the algebraic effects in Koka.
 -->
 
-[why-mingen]: https://koka-lang.github.io/koka/doc/manual.html#why-mingen
-[why-effects]: https://koka-lang.github.io/koka/doc/manual.html#why-effects
-[why-handlers]: https://koka-lang.github.io/koka/doc/manual.html#why-handlers
-[why-perceus]: https://koka-lang.github.io/koka/doc/manual.html#why-perceus
-[why-fbip]: http://koka-lang.github.io/koka/doc/manual.html#why-fbip
+[why-mingen]: https://koka-lang.github.io/koka/doc/book.html#why-mingen
+[why-effects]: https://koka-lang.github.io/koka/doc/book.html#why-effects
+[why-handlers]: https://koka-lang.github.io/koka/doc/book.html#why-handlers
+[why-perceus]: https://koka-lang.github.io/koka/doc/book.html#why-perceus
+[why-fbip]: http://koka-lang.github.io/koka/doc/book.html#why-fbip
 
-[why]: https://koka-lang.github.io/koka/doc/manual.html#why
-[kokabook]: https://koka-lang.github.io/koka/doc/manual.html  
-[tour]: https://koka-lang.github.io/koka/doc/manual.html#tour
+[why]: https://koka-lang.github.io/koka/doc/book.html#why
+[kokabook]: https://koka-lang.github.io/koka/doc/book.html  
+[tour]: https://koka-lang.github.io/koka/doc/book.html#tour
 [libraries]: https://koka-lang.github.io/koka/doc/toc.html
 [slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf
 [kokarepo]: https://github.com/koka-lang/koka
@@ -273,7 +273,7 @@ you can type ``:e`` in the interactive prompt to edit your program further. For 
 ## What next?
 
 * Read about the [core concepts][why] of Koka.
-* Read a [Tour of Koka][tour] in the Koka manual.
+* Read a [Tour of Koka][tour] in the Koka book.
 * Check the [Libraries][libraries] documentation.
 * Write some cool Koka programs :-)
 
