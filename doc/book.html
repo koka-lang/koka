@@ -2738,7 +2738,7 @@ Also note that <code class="koka"><a class="pp" href="#raise_const">raise<span c
 </p>
 <p class="p indent">The <code class="koka"><span class="kw">handler</span>{ <span class="op">&#60;</span>ops<span class="op">&#62;</span> }</code> expression is a function that itself expects a function 
 argument over which the handler is scoped, as in <code class="koka">(<span class="kw">handler</span>{ <span class="op">&#60;</span>ops<span class="op">&#62;</span> })(action)</code>.
-This works well in combination with the&nbsp;<a href="#sec-with" title="3.1.5.&#8194;With Statements" class="localref" style="target-element:h3"><code class="koka"><span class="kw">with</span></code> statement</a> of course.
+This works well in combination with the <code class="koka"><span class="kw">with</span></code> statement of course.
 As a syntactic convenience, for single operations we can leave out the <code class="koka"><span class="kw">handler</span></code> keyword 
 which is translated as:
 </p>
@@ -2802,8 +2802,7 @@ its operation which implicitly declares an effect type of the same name:
 
 
 
-
-<h3 id="sec-resume" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-resume" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">3.4.2</span>.&#8194;</span>Resuming</h3>
+<p class="p learn button noindent"><a href="#sec-with" title="3.1.5.&#8194;With Statements" class="localref" style="target-element:h3">Read more about the <code class="koka"><span class="kw">with</span></code> statement</a></p><h3 id="sec-resume" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-resume" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">3.4.2</span>.&#8194;</span>Resuming</h3>
 <p class="p noindent">The power of effect handlers is not just that we can <em class="em-low1">yield</em> to the innermost
 handler, but that we can also <em class="em-low1">resume</em> back to the call site with a result.
 </p>
