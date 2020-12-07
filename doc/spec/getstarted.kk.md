@@ -1,3 +1,5 @@
+[![perceus3]](https://en.wikipedia.org/wiki/Perseus_with_the_Head_of_Medusa)
+
 [<img align="right" src="https://badges.gitter.im/koka-lang/koka.svg"/>](https://gitter.im/koka-lang/koka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 
