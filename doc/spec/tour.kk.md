@@ -257,7 +257,7 @@ a closure over the rest of the lexical scope.
 
 #### With Finally
 
-As a final example, the `finally` function takes as it first argument a
+As another example, the `finally` function takes as it first argument a
 function that is run when exiting the scope -- either normally, 
 or through an "exception" (&ie; when an effect operation does not resume).
 Again, `with` is a natural fit:
@@ -286,10 +286,9 @@ it is all just function applications with minimal syntactic sugar.
 #### With Handlers  { #sec-with-handlers; }
 
 The `with` statement is especially useful in combination with 
-effect handlers. Generally, a `handler` takes as its last argument
-a function block so it can be used directly with `with`. Here
-is an example where an effect handler declares the dynamically bound
-`width` value:
+effect handlers. Generally, a `handler{ <ops> }` expression takes 
+as its last argument a function block so it can be used directly with `with`. 
+Here is an example of an effect handler for emitting messages:
 ```
 effect fun emit(msg : string) : ()
 
@@ -302,23 +301,10 @@ public fun emit-console1() {
   hello()
 }
 ```
-(where the `with` desugars to `(handler{ fun emit(msg){ println(msg) })( fn(){ hello() } )`).
+In this example, the `with` desugars to `(handler{ fun emit(msg){ println(msg) })( fn(){ hello() } )`.
 
 Moreover, as a convenience, we can leave out the `handler` keyword 
-when it follows the `with` keyword, where:
-
-~ translate
-```unchecked
-with { <ops> }
-```
-&mapsto;
-```unchecked
-with handler{ <ops> }
-```
-~
-
-and for effects with just one operation (like `:emit`), this leads to the following
-desugaring:
+for effects that define just one operation (like `:emit`):
 
 ~ translate
 ```unchecked
@@ -353,6 +339,7 @@ over the rest of the scope.
 
 [Read more about `val` operations][#sec-opval]
 {.learn}
+
 
 ### Optional and Named Parameters  { #sec-default; }
 
@@ -973,7 +960,7 @@ Also note that `raise-const` is `:total` again and the handler discharged the
 
 The `handler{ <ops> }` expression is a function that itself expects a function 
 argument over which the handler is scoped, as in `(handler{ <ops> })(action)`.
-This works well in combination with the [`with` statement][#sec-with] of course.
+This works well in combination with the `with` statement of course.
 As a syntactic convenience, for single operations we can leave out the `handler` keyword 
 which is translated as:
 ~ translate
@@ -1019,6 +1006,10 @@ That means we can declare our `:raise` effect signature also more concisely as:
 effect control raise( msg : string ) : a
 ```
 
+&bigskip;
+
+[Read more about the `with` statement][#sec-with]
+{.learn}
 
 
 ### Resuming  { #sec-resume; }
