@@ -1896,7 +1896,7 @@ Using the <code class="koka"><span class="kw">with</span></code> statement this 
 but is very convenient in practice &#8211; it helps thinking of <code class="koka"><span class="kw">with</span></code> as
 a closure over the rest of the lexical scope. 
 </p><h4 id="sec-with-finally" class="h4" data-heading-depth="4" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">With Finally</h4>
-<p class="p noindent">As a final example, the <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_hnd.html#finally">finally<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>hnd<span class="fslash last">/</span></span>finally: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">fin</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp sp">(</span><span class="tp sp">)</span><span class="tp sp">,</span> <span class="tp tpp">action</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp tv">a</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp tv">a</span></span></a></code> function takes as it first argument a
+<p class="p noindent">As another example, the <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_hnd.html#finally">finally<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>hnd<span class="fslash last">/</span></span>finally: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">fin</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp sp">(</span><span class="tp sp">)</span><span class="tp sp">,</span> <span class="tp tpp">action</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp tv">a</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp tv">a</span></span></a></code> function takes as it first argument a
 function that is run when exiting the scope &#8211; either normally, 
 or through an &#8220;exception&#8221; (i.e. when an effect operation does not resume).
 Again, <code class="koka"><span class="kw">with</span></code> is a natural fit:
@@ -1924,10 +1924,9 @@ have special built-in support for this kind of pattern, like a <code class="code
 it is all just function applications with minimal syntactic sugar.
 </p><h4 id="sec-with-handlers" class="h4" data-heading-depth="4" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">With Handlers</h4>
 <p class="p noindent">The <code class="koka"><span class="kw">with</span></code> statement is especially useful in combination with 
-effect handlers. Generally, a <code class="koka"><span class="kw">handler</span></code> takes as its last argument
-a function block so it can be used directly with <code class="koka"><span class="kw">with</span></code>. Here
-is an example where an effect handler declares the dynamically bound
-<code class="koka">width</code> value:
+effect handlers. Generally, a <code class="koka"><span class="kw">handler</span>{ <span class="op">&#60;</span>ops<span class="op">&#62;</span> }</code> expression takes 
+as its last argument a function block so it can be used directly with <code class="koka"><span class="kw">with</span></code>. 
+Here is an example of an effect handler for emitting messages:
 </p><pre class="koka source"><span class="plaincode">effect fun emit(msg : string) : ()
 
 fun hello() {
@@ -1951,26 +1950,10 @@ public fun emit-console1() {
 </span></pre>
 
 
-<p class="p noindent">(where the <code class="koka"><span class="kw">with</span></code> desugars to <code class="koka">(<span class="kw">handler</span>{ <span class="kw">fun</span> emit(msg){ println(msg) })( <span class="kw">fn</span>(){ <a class="pp" href="#hello">hello<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>hello: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">emit</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a>() } )</code>).
+<p class="p noindent">In this example, the <code class="koka"><span class="kw">with</span></code> desugars to <code class="koka">(<span class="kw">handler</span>{ <span class="kw">fun</span> emit(msg){ println(msg) })( <span class="kw">fn</span>(){ <a class="pp" href="#hello">hello<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>hello: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">emit</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a>() } )</code>.
 </p>
 <p class="p indent">Moreover, as a convenience, we can leave out the <code class="koka"><span class="kw">handler</span></code> keyword 
-when it follows the <code class="koka"><span class="kw">with</span></code> keyword, where:
-</p>
-<div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
-</p>
-<div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">with { &lt;ops&gt; }
-</span><span class="nicecode"><span class="kw">with</span> { <span class="op">&lt;</span>ops<span class="op">&gt;</span> }
-</span></pre>
-
-
-<p class="p noindent"><span class="mapsto" style="padding:0ex 1em;align-self:center;font-size:125%"><svg  class="math-inline math-render-svg math" style="vertical-align:-0.0210em;height:0.4371em;width:1.0890em" viewBox='88.468 57.872 10.371 4.163'><desc>$\mathpre{\rightsquigarrow}$</desc><g id='math-f156e3'><use x='88.667' y='61.836' xlink:href='#g4-32'/></g></svg></span>
-</p><pre class="koka source unchecked"><span class="plaincode">with handler{ &lt;ops&gt; }
-</span><span class="nicecode"><span class="kw">with</span> <span class="kw">handler</span>{ <span class="op">&lt;</span>ops<span class="op">&gt;</span> }
-</span></pre>
-</div></div>
-<p class="p noindent">and for effects with just one operation (like <code class="koka"><a class="pp" href="#type_space_emit"><span class="tp">emit</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>emit: <span class="tp">HX</span></span></a></code>), this leads to the following
-desugaring:
+for effects that define just one operation (like <code class="koka"><a class="pp" href="#type_space_emit"><span class="tp">emit</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>emit: <span class="tp">HX</span></span></a></code>):
 </p>
 <div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
 <p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
