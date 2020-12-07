@@ -9,14 +9,14 @@ import std/num/random
 ```
 ~
 
-# A Tour of Koka { #tour }
+# A Tour of &koka; { #tour }
 
-This is a short introduction to the Koka programming language.
+This is a short introduction to the &koka; programming language.
 
-Koka is a _function-oriented_ language that separates pure values from
+&koka; is a _function-oriented_ language that separates pure values from
 side-effecting computations (The word 'k&omacron;ka' (or &#x52B9;&#x679C;) means
-"effect" or "effective" in Japanese). Koka is also
-flexible and `fun`: Koka has many features that help programmers to easily
+"effect" or "effective" in Japanese). &koka; is also
+flexible and `fun`: &koka; has many features that help programmers to easily
 change their data types and code organization correctly even in large-scale
 programs, while having a small strongly-typed language core with a familiar
 brace syntax.
@@ -31,7 +31,7 @@ fun main() {
   println("Hello world!") // println output
 }
 ```
-Koka uses familiar curly-braces syntax where `//` starts a line
+&koka; uses familiar curly-braces syntax where `//` starts a line
 comment. Functions are declared using the `fun` keyword (and anonymous functions with `fn`).
 
 Here is another short example program that encodes a string using the
@@ -66,7 +66,7 @@ generally leave out an explicit `return` keyword.
 
 ### Dot selection {#sec-dot}
 
-Koka is a _function-oriented_ language where _functions_ and _data_ form the
+&koka; is a _function-oriented_ language where _functions_ and _data_ form the
 core of the language (in contrast to objects for example). In particular, the
 expression `s.encode(3)` does _not_ select the `encode` method from the
 `:string` object, but it is simply syntactic sugar for the function call
@@ -88,12 +88,12 @@ which is not always possible if such class came as a library for example.
 
 ### Type Inference
 
-Koka is also strongly typed. It uses a powerful type inference engine to
+&koka; is also strongly typed. It uses a powerful type inference engine to
 infer most types, and types generally do not get in the way. In
 particular, you can always leave out the types of any local variables.
 This is the case for example for ``base`` and ``rot`` values in the
 previous example; hover with the mouse over the example to see the types
-that were inferred by Koka. Generally, it is good practice though to
+that were inferred by &koka;. Generally, it is good practice though to
 write type annotations for function parameters and the function result
 since it both helps with type inference, and it provides useful
 documentation with better feedback from the compiler.
@@ -102,11 +102,11 @@ For the `encode` function it is actually essential to give the type of
 the `s` parameter: since the `map` function is defined for both `:list`
 and `:string` types and the program is ambiguous without an annotation.
 Try to load the example in the editor and remove the annotation to see
-what error Koka produces.
+what error &koka; produces.
 
 ### Anonymous Functions and Trailing Lambdas {#sec-anon}
 
-Koka also allows for anonymous function expressions using the `fn` keyword.
+&koka; also allows for anonymous function expressions using the `fn` keyword.
 For example, instead of
 declaring the `encode-char` function, we can also pass it directly to
 the `map` function as a function expression:
@@ -124,7 +124,7 @@ fun encode2( s : string, shift : int )
 ```
 
 It is a bit annoying we had to put the final right-parenthesis after the last
-brace in the previous example. As a convenience, Koka allows anonymous functions to _follow_
+brace in the previous example. As a convenience, &koka; allows anonymous functions to _follow_
 the function call instead -- this is also known as _trailing lambdas_. 
 For example, here is how we can print the numbers
 ``1`` to ``10``:
@@ -176,7 +176,7 @@ fun print11() {
 ```
 
 Note how the first argument to `while` is in braces instead of the usual
-parenthesis. In Koka, an expression between _parenthesis_ is always evaluated
+parenthesis. In &koka;, an expression between _parenthesis_ is always evaluated
 before a function call, whereas an expression between _braces_ (ah,
 _suspenders_!) is suspended and may be never evaluated or more than once
 (as in our example). 
@@ -184,7 +184,7 @@ _suspenders_!) is suspended and may be never evaluated or more than once
 
 ### With Statements { #sec-with; }
 
-To the best of our knowledge, Koka was the first language to have
+To the best of our knowledge, &koka; was the first language to have
 generalized _dot notation_ and _trailing lambdas_. Another novel 
 syntactical feature is the `with` statement.
 With the ease of passing a function block as a parameter, these
@@ -279,7 +279,7 @@ uncaught exception: oops
 ````
 
 This is another example of the _min-gen_ principle: many languages have
-have special built-in support for this kind of pattern, like a ``defer`` statement, but in Koka
+have special built-in support for this kind of pattern, like a ``defer`` statement, but in &koka;
 it is all just function applications with minimal syntactic sugar.
 
 
@@ -343,7 +343,7 @@ over the rest of the scope.
 
 ### Optional and Named Parameters  { #sec-default; }
 
-Being a function-oriented language, Koka has powerful support for function
+Being a function-oriented language, &koka; has powerful support for function
 calls where it supports both optional and named parameters. For example, the
 function `replace-all` takes a string, a pattern (named ``pattern``), and
 a replacement string (named ``repl``):
@@ -471,7 +471,7 @@ You can try out this example directly in the interactive environment:
 
 ## Effect types
 
-A novel part about Koka is that it automatically infers all the _side effects_
+A novel part about &koka; is that it automatically infers all the _side effects_
 that occur in a function. The absence of any effect is denoted as `:total` (or
 `<>`) and corresponds to pure mathematical functions. If a function can raise
 an exception the effect is `:exn`, and if a function may not terminate the
@@ -514,9 +514,9 @@ Hover over `square6` to see the inferred effect for `:_e`
 ### Semantics of effects
 
 The inferred effects are not just considered as some extra type information on
-functions. On the contrary, through the inference of effects, Koka has a very
+functions. On the contrary, through the inference of effects, &koka; has a very
 strong connection to its denotational semantics. In particular, _the full type
-of a Koka functions corresponds directly to the type signature of the
+of a &koka; functions corresponds directly to the type signature of the
 mathematical function that describes its denotational semantics_. For example,
 using &#x301A;`:t`&#x301B; to translate a type `:t` into its corresponding
 mathematical type signature, we have:
@@ -540,7 +540,7 @@ We believe that this semantic correspondence is the true power of full effect
 types and it enables effective equational reasoning about the code by a
 programmer. For almost all other existing programming languages, even the most
 basic semantics immediately include complex effects like heap manipulation and
-divergence. In contrast, Koka allows a layered semantics where we can easily
+divergence. In contrast, &koka; allows a layered semantics where we can easily
 separate out nicely behaved parts, which is essential for many domains, like
 safe LINQ queries, parallel tasks, tier-splitting, sand-boxed mobile code,
 etc.
@@ -610,7 +610,7 @@ fun looptest() {
 }
 ```
 
-Koka infers that the predicate ``odd(srandom-int())`` has
+&koka; infers that the predicate ``odd(srandom-int())`` has
 effect `: <ndet|e1> ` while the action has effect `: <exn|e2> ` for some `:e1` and `:e2`.
 When applying `while`, those
 effects are unified to the type `: <exn,ndet,div|e3> ` for some `:e3`.
@@ -680,7 +680,7 @@ is statically rejected as the reference to the local variable escapes its scope.
 
 ### Reference Cells and Isolated state {#sec-runst}
 
-Koka also has heap allocated mutable reference cells. 
+&koka; also has heap allocated mutable reference cells. 
 A reference to an
 integer is allocated using `val r = ref(0)` (since the reference itself is
 actually a value!), and can be dereferenced using the bang operator, as ``!r``.
@@ -719,7 +719,7 @@ Clearly, the effect of the body of `fib3` is `:st<h> `; but when we hover over
 Indeed, even though `fib3` is stateful inside, its side-effects can
 never be observed. It turns out that we can safely discard the `:st<h> `
 effect whenever the heap type `:h` cannot be referenced outside this function,
-i.e. it is not part of an argument or return type. More formally, the Koka
+i.e. it is not part of an argument or return type. More formally, the &koka;
 compiler proves this by showing that a function is fully polymorphic in the
 heap type `:h` and applies the `run` function (corresponding to ``runST`` in
 Haskell) to discard the `:st<h> ` effect.
@@ -759,7 +759,7 @@ as `Person( name = "Brian", age = 19, realname = "Brian H. Griffin" )`
 which is quite close to regular record syntax but without any special rules;
 it is just functions all the way down!
 
-Also, Koka automatically generates accessor functions for each field in a
+Also, &koka; automatically generates accessor functions for each field in a
 struct (or other data type), and we can access the `age` of a `:person` as
 `brian.age` (which is of course just syntactic sugar for `age(brian)`).
 
@@ -810,7 +810,7 @@ and named parameters.
 
 ### Alternatives (or Unions)  { #sec-union; }
 
-Koka also supports algebraic data types where there are multiple alternatives.
+&koka; also supports algebraic data types where there are multiple alternatives.
 For example, here is an enumeration:
 
 ```unchecked
@@ -860,7 +860,7 @@ type list<a> {
 }
 ```
 
-Koka automatically generates accessor functions for each named parameter. For
+&koka; automatically generates accessor functions for each named parameter. For
 lists for example, we can access the head of a list as `Cons(1,Nil).head`.
 
 We can now also see that `struct` types are just syntactic sugar for regular a
@@ -1112,7 +1112,7 @@ This also conveys better that even though `ask` is dynamically bound, it behaves
 just like a regular function without changing the control-flow. 
 
 Moreover, operations declared as `fun` are much more efficient than general
-`control` operations. The Koka compiler uses (generalized) _evidence translation_  [@Xie:evidently]
+`control` operations. The &koka; compiler uses (generalized) _evidence translation_  [@Xie:evidently]
 to pass down handler information to each call-site. At the call to `ask` in `add-twice`,
 it selects the handler from the evidence vector and when the operation is
 a tail-resumptive `fun`, it calls it directly as a regular function (except with an adjucted evidence
@@ -1345,7 +1345,7 @@ type of `catch` would be instantiated to: `: (hnd: (string) -> <raise> a, action
 This is correct: the (outer) `:raise` effect of `action` is handled and discharged, but since
 the handling function `hnd` can still cause `raise` to be called, the final effect still contains `:raise`.
 
-Here we see that Koka allows _duplicate_ effect labels [@Leijen:scopedlabels] where `action` has
+Here we see that &koka; allows _duplicate_ effect labels [@Leijen:scopedlabels] where `action` has
 an instantiated `: <raise,raise>` effect type.
 These kind of types occur naturally in the presence of polymorphic effects, and there is a natural correspondence
 to the structure of the evidence vectors at runtime (with entries for each nested effect handler). 
@@ -1491,7 +1491,7 @@ with regard to other approaches:
    some monads cannot be expressed as an effect handler (namely the non-algebraic ones). A particular example
    of this is the continuation monad (which can express ``call/cc``).
 
-The Koka compiler internally uses monads and `shift`/`reset` to compile effect handlers though, and
+The &koka; compiler internally uses monads and `shift`/`reset` to compile effect handlers though, and
 it compiles handlers into to an internal free monad based on multi-prompt delimited control [@Gunter:mprompt]. 
 By inlining the monadic _bind_ we are able to generate efficient C code that only allocates continuations 
 in the case one is actually yielding up to a general `control` operation.
@@ -1771,7 +1771,7 @@ annotations to ensure reuse is taking place.
 As an example, we consider
 insertion into a red-black tree [@guibas1978dichromatic]. 
 A polymorphic version of this example is part of the [``samples``][samples] directory when you have
-installed Koka and can be loaded as ``:l`` [``samples/basic/rbtree``][rbtree].
+installed &koka; and can be loaded as ``:l`` [``samples/basic/rbtree``][rbtree].
 We define red-black trees as:
 ```unchecked
 type color { 
@@ -1810,7 +1810,7 @@ fun ins( t : tree, k : int, v : bool ): tree {
 }
 ```
 
-The Koka compiler will inline the `balance-left` function. At that point,
+The &koka; compiler will inline the `balance-left` function. At that point,
 every matched `Node` constructor in the `ins` function has a corresponding `Node` allocation --
 if we consider all branches we can see that we either match one `Node`
 and allocate one, or we match three nodes deep and allocate three. Every 
@@ -1898,7 +1898,7 @@ _Morris loops_ [@Mateti:morris] to prove its correctness.
 We can derive a functional and more intuitive solution using the FBIP
 technique. We start by defining an explicit _visitor_ data structure
 that keeps track of which parts of the tree we still need to visit. In
-Koka we define this data type as `:visitor`:
+&koka; we define this data type as `:visitor`:
 ```
 type visitor {
   Done

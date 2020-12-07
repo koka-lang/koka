@@ -1,14 +1,14 @@
 
-# Why Koka? { #why; }
+# Why &koka;? { #why; }
 
 There are many new languages being designed, but only few
 bring fundamentally new concepts -- like Haskell with
 pure versus monadic programming, or Rust with borrow checking.
 
-Koka distinguishes itself through _effect typing_, _effect handlers_,
+&koka; distinguishes itself through _effect typing_, _effect handlers_,
 and _Perceus_ memory management:
 
-* The core of Koka consists of a small set of well-studied language
+* The core of &koka; consists of a small set of well-studied language
   features, like first-class functions, a polymorphic type- and effect
   system, algebraic data types, and effect handlers. Each of these is
   composable and avoid the addition of
@@ -16,10 +16,10 @@ and _Perceus_ memory management:
 
   [Read more about the _minimal but general_ design][#why-mingen]{.learn}
 
-* Koka tracks the (side) _effects_ of every
+* &koka; tracks the (side) _effects_ of every
   function in its type, where pure and effectful computations are
-  distinguished. The precise effect typing gives Koka _rock-solid
-  semantics_ backed by well-studied category theory, which makes Koka
+  distinguished. The precise effect typing gives &koka; _rock-solid
+  semantics_ backed by well-studied category theory, which makes &koka;
   particularly easy to reason about for both humans and compilers.
 
   [Read more about effect types][#why-effects]{.learn}
@@ -31,13 +31,13 @@ and _Perceus_ memory management:
   [Read more about effect handlers][#why-handlers]{.learn}
 
 * Perceus is an advanced compilation method for reference counting.
-  This lets Koka compile directly to C code _without needing
-  a garbage collector or runtime system_! This also gives Koka 
+  This lets &koka; compile directly to C code _without needing
+  a garbage collector or runtime system_! This also gives &koka; 
   excellent performance in practice.
 
   [Read more about Perceus reference counting][#why-perceus]{.learn}
 
-* Through Perceus, Koka can do reuse analysis and optimize 
+* Through Perceus, &koka; can do reuse analysis and optimize 
   functional-style programs to use in-place updates.
 
   [Read more about reuse analysis][#why-fbip]{.learn}
@@ -47,7 +47,7 @@ and _Perceus_ memory management:
 
 ## Minimal but General { #why-mingen; }
 
-Koka has a small core set of
+&koka; has a small core set of
 orthogonal, well-studied language features -- but each of these is
 as general and _composable_ as possible, such that we do not need further
 "special" extensions. Core features include first-class functions,
@@ -64,7 +64,7 @@ fun hello-ten() {
 }
 ```
 
-As an example of the _min-gen_ design principle, Koka implements most
+As an example of the _min-gen_ design principle, &koka; implements most
 control-flow primitives as regular functions. An anonymous function can
 be written as `fn(){ <body> }`; but as a syntactic convenience, any
 function without arguments can be shortened further to use just braces,
@@ -88,7 +88,7 @@ be evaluated multiple times.
 
 ## Effect Typing { #why-effects; }
 
-Koka infers and tracks the effect of every function in its type -- 
+&koka; infers and tracks the effect of every function in its type -- 
 and a function type has 3 parts: the argument types, the effect type, 
 and the type of the result. For example: 
 ```unchecked
@@ -99,12 +99,12 @@ fun print  : (string)  -> console ()      // may write to the console
 fun rand   : ()        -> ndet int        // non-deterministic  
 ```
 
-The precise effect typing gives Koka rock-solid semantics backed
-by well-studied category theory, which makes Koka particularly easy to
+The precise effect typing gives &koka; rock-solid semantics backed
+by well-studied category theory, which makes &koka; particularly easy to
 reason about for both humans and compilers. (Given the importance of
-effect typing, the name Koka was derived from the Japanese word for
+effect typing, the name &koka; was derived from the Japanese word for
 _effective_
-(&#x52B9;&#x679C;,[K&omacron;ka](https://translate.google.com/#view=home&op=translate&sl=auto&tl=en&text=%E5%8A%B9%E6%9E%9C))).
+(&#x52B9;&#x679C;, &#12371;&#12358;&#12363;, [K&omacron;ka](https://translate.google.com/#view=home&op=translate&sl=auto&tl=en&text=%E5%8A%B9%E6%9E%9C))).
 
 A function without any effect is called `:total` and corresponds to
 mathematically total functions -- a good place to be. Then we have
@@ -124,7 +124,7 @@ fun map( xs : list<a>, f : a -> e b ) : e list<b> {
   }
 }
 ```
-Single letter types are polymorphic (aka, _generic_), and Koka infers
+Single letter types are polymorphic (aka, _generic_), and &koka; infers
 that you map from a list of elements `:a` to a list of elements of
 type `:b`. Since `map` itself has no intrinsic effect, the effect 
 of applying `map` is exactly the effect of the function `f` that
@@ -137,7 +137,7 @@ is applied, namely `:e`.
 
 Another example of the _min-gen_ design principle: instead of
 various special language and compiler extensions to support exceptions,
-generators, async/await etc., Koka has full support for 
+generators, async/await etc., &koka; has full support for 
 algebraic effect handlers -- these lets you define advanced control
 abstractions like async/await as a user library in a typed and 
 composable way.
@@ -193,18 +193,18 @@ yielded: 3
 
 [![perceus3]](https://en.wikipedia.org/wiki/Perseus_with_the_Head_of_Medusa)
 
-[perceus3]: images/perceus3.jpg "Perseus by Benvenuto Cellini" { width:20%; float:right; margin:1em 0em 1em 2em; border:1px solid #888; }
+[perceus3]: images/perceus3.jpg "Perseus by Benvenuto Cellini" { width:20%; float:right; margin:1em 0em 1em 2em; border:1px solid #222; }
 
 [test-bench]: https://github.com/koka-lang/koka/tree/master/test/bench
 
-Perceus is the compiler optimized reference counting technique that Koka
+Perceus is the compiler optimized reference counting technique that &koka;
 uses for automatic memory management [@Perceus:tech]. This (together
 with evidence translation [@Xie:evidently])
-enables Koka to compile directly to plain C code without needing a
+enables &koka; to compile directly to plain C code without needing a
 garbage collector or runtime system.
 
 Perceus uses extensive static analysis to aggressively optimize the
-reference counts. Here the strong semantic foundation of Koka helps a
+reference counts. Here the strong semantic foundation of &koka; helps a
 lot: inductive data types cannot form cycles, and potential sharing
 across threads can be reliably determined.
 
@@ -220,7 +220,7 @@ Normally we need to make a fundamental choice when managing memory:
 
 With Perceus, we hope to cross this gap and our goal is to 
 be within 2x of the performance of C/C++. Initial benchmarks are
-encouraging and show Koka to be close to C performance on various
+encouraging and show &koka; to be close to C performance on various
 memory intensive benchmarks.
 
 [perceus-perf]: images/perceus-perf-bw.png { border:1px solid #AAA; width:40%; float:right; margin: 0em 0em 0.25em 1em; }
@@ -290,7 +290,7 @@ void map( list_t xs, function_t f, list_t* res) {
 }
 ````
 
-Moreover, the Koka compiler also implements _tail-recursion modulo cons_ (TRMC)
+Moreover, the &koka; compiler also implements _tail-recursion modulo cons_ (TRMC)
 and instead of using a recursive call, the function is eventually optimized 
 into an in-place updating loop for the fast path, similar to 
 the C code example on the right. 
