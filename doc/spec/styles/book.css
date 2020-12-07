@@ -99,7 +99,7 @@ table .kw, table .tp, table .co,
   margin-top: 0ex;  
 }
 
-.button {
+.button, .translate {
   background-color: #fffdf0;  
 }
 
@@ -112,7 +112,11 @@ table .kw, table .tp, table .co,
 }
 
 .translate .koka.source.unchecked, .translate pre {
-  background-color: #f0f6fd;  
+  xbackground-color: #f0f6fd;  
+}
+
+.translate pre {
+  margin: 0.5em 0em;
 }
 
 .aside {
@@ -139,7 +143,7 @@ html {
   padding-left: 0.75ex;
 }
 
-.translate {
+.translate-row {
   display: flex;
 }
 

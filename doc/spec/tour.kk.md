@@ -946,8 +946,12 @@ fun safe-divide( x : int, y : int ) : raise int {
 }
 ```
 where we see that the `safe-divide` function gets the `:raise` effect
-(since we use `raise` in the body). We can now _handle_ the
-effect by giving a concrete definition for what `raise` means.
+(since we use the `raise` operation in the body). Such an effect
+type means that we can only evaluate the function in a context
+where `:raise` is _handled_ (in other words, where it is "dynamically bound", or
+where we &ldquo;have the `:raise` capability&rdquo;).
+
+We can _handle_ the effect by giving a concrete definition for the `raise` operation.
 For example, we may always return a default value:
 ```
 fun raise-const() : int {
@@ -957,21 +961,19 @@ fun raise-const() : int {
   8 + safe-divide(1,0)
 }
 ```
-The call `raise-const()` evaluates to `42` (_not_ `50`).
-When a `raise` is called (in `safe-divide`), it will _yield_ to the innermost handler, unwind
+The call `raise-const()` evaluates to `42` (not `50`).
+When a `raise` is called (in `safe-divide`), it will _yield_ to its innermost handler, unwind
 the stack, and only then evaluate the operation definition -- in this case just directly
 returning `42` from the point where the handler is defined. 
 Now we can see why it is called a _control_
 operation as `raise` changes the regular linear control-flow and yields right 
-back to its innermost handler from the original call site.
+back to its innermost handler from the original call site. 
+Also note that `raise-const` is `:total` again and the handler discharged the
+`:raise` effect.
 
-Note that the `handler{ <ops> }` expression is a function that expects a function 
-argument over which the handler is scoped, as `(handler{ <ops> })(action)`,
-and thus the `with` statement is very useful for this.  
-
-[Read more about `with` statements][#sec-with]
-{.learn}
-
+The `handler{ <ops> }` expression is a function that itself expects a function 
+argument over which the handler is scoped, as in `(handler{ <ops> })(action)`.
+This works well in combination with the [`with` statement][#sec-with] of course.
 As a syntactic convenience, for single operations we can leave out the `handler` keyword 
 which is translated as:
 ~ translate
@@ -998,9 +1000,8 @@ fun raise-const1() : int {
 which eventually expands to `(handler{ control raise(msg){ 42 } })(fn(){ 8 + safe-divide(1,0) })`.
 
 We have a similar syntactic convenience for effects with one operation where the 
-name of the effect and operation are the same. Just like a `struct` we can 
-define an effect by just declaring its operation which implicitly declares 
-an effect of the same name:
+name of the effect and operation are the same. We can define such an effect by just declaring 
+its operation which implicitly declares an effect type of the same name:
 ~ translate
 ```unchecked
 effect control op(<parameters>) : <result-type>
@@ -1013,10 +1014,11 @@ effect op {
 ```
 ~
 
-That means we can declare our `:raise` effect more concisely as:
+That means we can declare our `:raise` effect signature also more concisely as:
 ```unchecked
 effect control raise( msg : string ) : a
 ```
+
 
 
 ### Resuming  { #sec-resume; }
@@ -1231,7 +1233,7 @@ For example, the type of `pretty` becomes:
 fun pretty( d : doc ) : width string
 ```
 as is requires the `:width` effect to be handled (aka,
-the "dynamic binding for `width : int` to be in defined", 
+the "dynamic binding for `width : int` to be defined", 
 aka, the "`:width` capability").
 
 
@@ -1476,7 +1478,8 @@ fun pstate2( init : a, action : () -> <state<a>|e> b ) : e (b,a) {
 ```
 
 Here it as a bit contrived but it can make certain
-programs more concise in their definition.
+programs more concise in their definition, see 
+for example [@Lindley:liberate].
 ~
 
 ### Combining Handlers { #sec-combine; }
@@ -1605,16 +1608,10 @@ it would neatly skip the internal handler due to the `mask<raise>` expression.
 If we would leave out the `mask`, and call `action()` directly, then the inferred
 type of `action` would be `: () -> <raise|e> int` instead, showing that the `:raise`
 effect would be handled. 
-Note though that this usually the desired behaviour since in the majority of cases 
+Note that this usually the desired behaviour since in the majority of cases 
 we _want_ to handle the effects in a particular way when defining handler abstractions. 
 The cases where `mask` is needed are much less common in our experience.
 
-(Note: there is other work on "tunneling" or "lexically scoped" effects which switches
-the default behaviour of Koka (where masking becomes the default). 
-We generally reject this approach as this usually
-requires a form of dependent typing where a type annotation on `action` 
-changes whether the term is masked or not. It is also unclear if one can express
-the `ppstate` example in that approach.)
 
 ~ advanced
 
@@ -1737,20 +1734,26 @@ both of the two innermost handlers.
 
 #### Raw Control { #sec-rcontrol; }
 
-~ Note
+~ Todo
 Use `rcontrol` for raw control operations which do not automatically
 finalize; this gives true first-class resumption contexts (as `rcontext`) but need
-to be used with care.
+to be used with care. With `rcontrol` one can use the implicitly bound
+resumption context `rcontext` to either resume (as `rcontext.resume(x)`),
+or to finalize a resumption (as `rcontext.finalize`) which runs all
+`finally` handlers to clean up resources.
 ~
 
 ### Linear Effects { #sec-linear; }
 
-~ Note
+~ Todo
 Use `linear effect` to declare effects whose operations are always tail-resumptive
 and use only linear effects themselves
 (and thus resume exactly once). This removes monadic translation for such effects and
 can make code that uses only linear effects more compact and efficient.
 ~
+
+### Named and Scoped Handlers { #sec-namedh; }
+
 
 
 ## FBIP: Functional but In-Place { #sec-fbip; }

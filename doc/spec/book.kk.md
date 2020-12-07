@@ -82,12 +82,21 @@ li {
 }
 
 .advanced {
-  border: 1px solid #AAA;
-  padding: 0em 1em;
-  before: "[advanced]{.advanced-label}";
+  .boxed;
+  before: "[advanced]{.boxed-label}";
 }
 
-.advanced-label {
+.translate {
+  .boxed;
+  replace: "[translation]{.boxed-label}&nl;~begin translate-row&nl;&source;&nl;~end translate-row&nl;";
+}
+
+.boxed {
+  border: 1px solid #AAA;
+  padding: 0em 1em;  
+}
+
+.boxed-label {
   display: block;
   float: left;
   margin: -1.5em 0em -1em -1em;
