@@ -1,4 +1,4 @@
-Title         : The Koka Manual
+Title         : The Koka Programming Language
 Title Note    : [(Daan Leijen, &date;)]{font-size:75%}
 Heading Base  : 1
 Heading Depth : 3
