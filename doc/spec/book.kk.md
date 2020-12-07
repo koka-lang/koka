@@ -4,9 +4,9 @@ Heading Base  : 1
 Heading Depth : 3
 Toc Depth     : 3
 Css           : styles/koka.css
-Css           : styles/manual.css
+Css           : styles/book.css
 Css           : https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css
-Script        : scripts/manual.js
+Script        : scripts/book.js
 Colorizer     : unchecked.json
 Colorizer     : koka.json
 Bibliography  : koka.bib
@@ -119,7 +119,7 @@ li {
 
 [INCLUDE=getstarted.kk.md]
 
-[INCLUDE=overview.kk.md]
+[INCLUDE=why.kk.md]
 
 [INCLUDE=tour.kk.md]
 
