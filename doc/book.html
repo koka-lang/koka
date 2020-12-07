@@ -502,7 +502,7 @@
     left:2ex;
     padding: 0.2ex 0.75ex 0.2ex 0.5ex;
     border:1px solid black;
-    background: #FFFFE8;   
+    background: #fffdf0;   
     white-space: pre;
   }
   a.pp a.pp:hover .pc
@@ -684,7 +684,7 @@
     cursor: pointer;
     margin-top: 0ex;  
   }
-  .button {
+  .button, .translate {
     background-color: #fffdf0;  
   }
   .button:hover {
@@ -694,7 +694,10 @@
     text-decoration: none !important;
   }
   .translate .koka.source.unchecked, .translate pre {
-    background-color: #f0f6fd;  
+    xbackground-color: #f0f6fd;  
+  }
+  .translate pre {
+    margin: 0.5em 0em;
   }
   .aside {
     float: right;
@@ -716,7 +719,7 @@
     font-size: 75% !important;
     padding-left: 0.75ex;
   }
-  .translate {
+  .translate-row {
     display: flex;
   }
   .madoka h2, .madoko h3, .madoko h4 {
@@ -990,7 +993,8 @@
 <div class="tocitem tocitem3" data-toc-target-elem="h3" data-toc-target="sec-isolate" data-toc-depth="3" data-toc-line="[3.4.9]{.heading-label}.&#8194;Side-effect Isolation" style="toctarget:sec-isolate"><a href="#sec-isolate" class="localref"><span class="heading-label">3.4.9</span>.&#8194;Side-effect Isolation</a></div>
 <div class="tocitem tocitem3" data-toc-target-elem="h3" data-toc-target="sec-multi-resume" data-toc-depth="3" data-toc-line="[3.4.10]{.heading-label}.&#8194;Resuming more than once" style="toctarget:sec-multi-resume"><a href="#sec-multi-resume" class="localref"><span class="heading-label">3.4.10</span>.&#8194;Resuming more than once</a></div>
 <div class="tocitem tocitem3" data-toc-target-elem="h3" data-toc-target="sec-resource" data-toc-depth="3" data-toc-line="[3.4.11]{.heading-label}.&#8194;Initially and Finally" style="toctarget:sec-resource"><a href="#sec-resource" class="localref"><span class="heading-label">3.4.11</span>.&#8194;Initially and Finally</a></div>
-<div class="tocitem tocitem3" data-toc-target-elem="h3" data-toc-target="sec-linear" data-toc-depth="3" data-toc-line="[3.4.12]{.heading-label}.&#8194;Linear Effects" style="toctarget:sec-linear"><a href="#sec-linear" class="localref"><span class="heading-label">3.4.12</span>.&#8194;Linear Effects</a></div></div>
+<div class="tocitem tocitem3" data-toc-target-elem="h3" data-toc-target="sec-linear" data-toc-depth="3" data-toc-line="[3.4.12]{.heading-label}.&#8194;Linear Effects" style="toctarget:sec-linear"><a href="#sec-linear" class="localref"><span class="heading-label">3.4.12</span>.&#8194;Linear Effects</a></div>
+<div class="tocitem tocitem3" data-toc-target-elem="h3" data-toc-target="sec-namedh" data-toc-depth="3" data-toc-line="[3.4.13]{.heading-label}.&#8194;Named and Scoped Handlers" style="toctarget:sec-namedh"><a href="#sec-namedh" class="localref"><span class="heading-label">3.4.13</span>.&#8194;Named and Scoped Handlers</a></div></div>
 <div class="tocitem tocitem2" data-toc-target-elem="h2" data-toc-target="sec-fbip" data-toc-depth="2" data-toc-line="[3.5]{.heading-label}.&#8194;FBIP: Functional but In-Place" style="toctarget:sec-fbip"><a href="#sec-fbip" class="localref"><span class="heading-label">3.5</span>.&#8194;FBIP: Functional but In-Place</a></div>
 <div class="tocblock tocblock3">
 <div class="tocitem tocitem3" data-toc-target-elem="h3" data-toc-target="sec-tree-rebalancing" data-toc-depth="3" data-toc-line="[3.5.1]{.heading-label}.&#8194;Tree Rebalancing" style="toctarget:sec-tree-rebalancing"><a href="#sec-tree-rebalancing" class="localref"><span class="heading-label">3.5.1</span>.&#8194;Tree Rebalancing</a></div>
@@ -1474,9 +1478,9 @@ yielded: 3</code></pre>
 </p>
 <p class="p noindent">Perceus is the compiler optimized reference counting technique that Koka
 uses for automatic memory management&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#perceus:tech" title="Perceus: Garbage-Free Reference Counting with Reuse
-Reinking, Xie, Moura, and Leijen, 2020" class="bibref localref" style="target-element:bibitem"><span class="cite-number">14</span></a>]</span>. This (together
+Reinking, Xie, Moura, and Leijen, 2020" class="bibref localref" style="target-element:bibitem"><span class="cite-number">15</span></a>]</span>. This (together
 with evidence translation&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#xie:evidently" title="Effect Handlers, Evidently
-Xie, Brachthäuser, Schuster, Hillerström, and Leijen, 2020" class="bibref localref" style="target-element:bibitem"><span class="cite-number">15</span></a>]</span>)
+Xie, Brachthäuser, Schuster, Hillerström, and Leijen, 2020" class="bibref localref" style="target-element:bibitem"><span class="cite-number">16</span></a>]</span>)
 enables Koka to compile directly to plain C code without needing a
 garbage collector or runtime system.
 </p>
@@ -1841,7 +1845,10 @@ we can write this more concisely as:
 <p class="p noindent">The <code class="koka"><span class="kw">with</span></code> statement essentially puts all statements that follow it into 
 an anynomous function block and passes that as the last parameter. In general:
 </p>
-<div class="translate"><pre class="koka source unchecked"><span class="plaincode">with f(e1,...,eN)
+<div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
+<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
+</p>
+<div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">with f(e1,...,eN)
 &lt;body&gt;
 </span><span class="nicecode"><span class="kw">with</span> f(e1,<span class="op">...</span>,eN)
 <span class="op">&lt;</span>body<span class="op">&gt;</span>
@@ -1852,10 +1859,13 @@ an anynomous function block and passes that as the last parameter. In general:
 </p><pre class="koka source unchecked"><span class="plaincode">f(e1,...,eN, fn(){ &lt;body&gt; })
 </span><span class="nicecode">f(e1,<span class="op">...</span>,eN, <span class="kw">fn</span>(){ <span class="op">&lt;</span>body<span class="op">&gt;</span> })
 </span></pre>
-</div>
+</div></div>
 <p class="p noindent">Moreover, a <code class="koka"><span class="kw">with</span></code> statement can also bind a variable parameter as:
 </p>
-<div class="translate"><pre class="koka source unchecked"><span class="plaincode">with x = f(e1,...,eN)
+<div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
+<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
+</p>
+<div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">with x = f(e1,...,eN)
 &lt;body&gt;
 </span><span class="nicecode"><span class="kw">with</span> x <span class="kw">=</span> f(e1,<span class="op">...</span>,eN)
 <span class="op">&lt;</span>body<span class="op">&gt;</span>
@@ -1866,7 +1876,7 @@ an anynomous function block and passes that as the last parameter. In general:
 </p><pre class="koka source unchecked"><span class="plaincode">f(e1,...,eN, fn(x){ &lt;body&gt; })
 </span><span class="nicecode">f(e1,<span class="op">...</span>,eN, <span class="kw">fn</span>(x){ <span class="op">&lt;</span>body<span class="op">&gt;</span> })
 </span></pre>
-</div>
+</div></div>
 <p class="p noindent">Here is an examply using <code class="koka">foreach</code> to span over the rest of the function body:
 </p><pre class="koka source"><span class="plaincode">public fun test-with2() {
   with x = list(1,10).foreach
@@ -1946,7 +1956,10 @@ public fun emit-console1() {
 <p class="p indent">Moreover, as a convenience, we can leave out the <code class="koka"><span class="kw">handler</span></code> keyword 
 when it follows the <code class="koka"><span class="kw">with</span></code> keyword, where:
 </p>
-<div class="translate"><pre class="koka source unchecked"><span class="plaincode">with { &lt;ops&gt; }
+<div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
+<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
+</p>
+<div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">with { &lt;ops&gt; }
 </span><span class="nicecode"><span class="kw">with</span> { <span class="op">&lt;</span>ops<span class="op">&gt;</span> }
 </span></pre>
 
@@ -1955,11 +1968,14 @@ when it follows the <code class="koka"><span class="kw">with</span></code> keywo
 </p><pre class="koka source unchecked"><span class="plaincode">with handler{ &lt;ops&gt; }
 </span><span class="nicecode"><span class="kw">with</span> <span class="kw">handler</span>{ <span class="op">&lt;</span>ops<span class="op">&gt;</span> }
 </span></pre>
-</div>
+</div></div>
 <p class="p noindent">and for effects with just one operation (like <code class="koka"><a class="pp" href="#type_space_emit"><span class="tp">emit</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>emit: <span class="tp">HX</span></span></a></code>), this leads to the following
 desugaring:
 </p>
-<div class="translate"><pre class="koka source unchecked"><span class="plaincode">with val op = &lt;expr&gt; 
+<div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
+<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
+</p>
+<div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">with val op = &lt;expr&gt; 
 with fun op(x){ &lt;body&gt; }
 with except op(x){ &lt;body&gt; }
 with control op(x){ &lt;body&gt; }
@@ -1980,7 +1996,7 @@ with handler{ control op(x){ &lt;body&gt; } }
 <span class="kw">with</span> <span class="kw">handler</span>{ <span class="kw">except</span> op(x){ <span class="op">&lt;</span>body<span class="op">&gt;</span> } }
 <span class="kw">with</span> <span class="kw">handler</span>{ <span class="kw">control</span> op(x){ <span class="op">&lt;</span>body<span class="op">&gt;</span> } }
 </span></pre>
-</div>
+</div></div>
 <p class="p noindent">Using this, we can write the previous example in a more concise and natural way as:
 </p><pre class="koka source"><span class="plaincode">public fun emit-console2() {
   with fun emit(msg){ println(msg) }
@@ -2627,7 +2643,10 @@ lists for example, we can access the head of a list as <code class="koka"><a cla
 <p class="p indent">We can now also see that <code class="koka"><span class="tp kw">struct</span></code> types are just syntactic sugar for regular a
 <code class="koka"><span class="tp kw">type</span></code> with a single constructor of the same name as the type:
 </p>
-<div class="translate"><pre class="koka source unchecked"><span class="plaincode">struct tp { &lt;fields&gt; }
+<div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
+<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
+</p>
+<div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">struct tp { &lt;fields&gt; }
 </span><span class="nicecode"><span class="tp kw">struct</span> <span class="tp">tp</span> { <span class="op">&lt;</span>fields<span class="op">&gt;</span> }
 </span></pre>
 
@@ -2640,7 +2659,7 @@ lists for example, we can access the head of a list as <code class="koka"><a cla
   <span class="kw">con</span> <span class="co">Tp</span> { <span class="op">&lt;</span>fields<span class="op">&gt;</span> }
 }
 </span></pre>
-</div>
+</div></div>
 <p class="p noindent">For example,
 our earlier <code class="koka"><a class="pp" href="#type_space_person"><span class="tp">person</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>person: <span class="tp">V</span></span></a></code> struct, defined as
 </p><pre class="koka source unchecked"><span class="plaincode">struct person{ age : int; name : string; realname : string = name }
@@ -2668,8 +2687,8 @@ declarations, namely <code class="koka">co <span class="tp kw">type</span></code
 and arbitrary recursive types respectively.
 </p><h2 id="sec-handlers" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-handlers" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">3.4</span>.&#8194;</span>Effect Handlers</h2>
 <p class="p noindent">Effect handlers&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#leijen:algeff" title="Type Directed Compilation of Row-typed Algebraic Effects
-Leijen, 2017" class="bibref localref" style="target-element:bibitem"><span class="cite-number">7</span></a>, <a href="#pretnar:handlers" title="Handlers of Algebraic Effects
-Plotkin and Pretnar, 2009" class="bibref localref" style="target-element:bibitem"><span class="cite-number">13</span></a>]</span> are a novel way to 
+Leijen, 2017" class="bibref localref" style="target-element:bibitem"><span class="cite-number">8</span></a>, <a href="#pretnar:handlers" title="Handlers of Algebraic Effects
+Plotkin and Pretnar, 2009" class="bibref localref" style="target-element:bibitem"><span class="cite-number">14</span></a>]</span> are a novel way to 
 define control-flow abstractions and dynamic binding as user defined 
 handlers &#8211; no need anymore to add special compiler extensions for
 exceptions, iterators, async-await, probabilistic programming, etc. 
@@ -2702,8 +2721,12 @@ declared, we can already use the operations:
 
 
 <p class="p noindent">where we see that the <code class="koka"><a class="pp" href="#safe_divide">safe<span class="dash">-</span>divide<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>safe<span class="dash">-</span>divide: <span class="tp sp">(</span><span class="tp tpp">x</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">,</span> <span class="tp tpp">y</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">raise</span> <span class="tp">int</span></span></a></code> function gets the <code class="koka"><a class="pp" href="#type_space_raise"><span class="tp">raise</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>raise: <span class="tp">HX</span></span></a></code> effect
-(since we use <code class="koka">raise</code> in the body). We can now <em class="em-low1">handle</em> the
-effect by giving a concrete definition for what <code class="koka">raise</code> means.
+(since we use the <code class="koka">raise</code> operation in the body). Such an effect
+type means that we can only evaluate the function in a context
+where <code class="koka"><a class="pp" href="#type_space_raise"><span class="tp">raise</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>raise: <span class="tp">HX</span></span></a></code> is <em class="em-low1">handled</em> (in other words, where it is &#8220;dynamically bound&#8221;, or
+where we &#8220;have the <code class="koka"><a class="pp" href="#type_space_raise"><span class="tp">raise</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>raise: <span class="tp">HX</span></span></a></code> capability&#8221;).
+</p>
+<p class="p indent">We can <em class="em-low1">handle</em> the effect by giving a concrete definition for the <code class="koka">raise</code> operation.
 For example, we may always return a default value:
 </p><pre class="koka source"><span class="plaincode">fun raise-const() : int {
   with handler {
@@ -2720,23 +2743,26 @@ For example, we may always return a default value:
 </span></pre>
 
 
-<p class="p noindent">The call <code class="koka"><a class="pp" href="#raise_const">raise<span class="dash">-</span>const<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>raise<span class="dash">-</span>const: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">int</span></span></a>()</code> evaluates to <code class="koka"><span class="number">42</span></code> (<em class="em-low1">not</em> <code class="koka"><span class="number">50</span></code>).
-When a <code class="koka">raise</code> is called (in <code class="koka"><a class="pp" href="#safe_divide">safe<span class="dash">-</span>divide<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>safe<span class="dash">-</span>divide: <span class="tp sp">(</span><span class="tp tpp">x</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">,</span> <span class="tp tpp">y</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">raise</span> <span class="tp">int</span></span></a></code>), it will <em class="em-low1">yield</em> to the innermost handler, unwind
+<p class="p noindent">The call <code class="koka"><a class="pp" href="#raise_const">raise<span class="dash">-</span>const<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>raise<span class="dash">-</span>const: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">int</span></span></a>()</code> evaluates to <code class="koka"><span class="number">42</span></code> (not <code class="koka"><span class="number">50</span></code>).
+When a <code class="koka">raise</code> is called (in <code class="koka"><a class="pp" href="#safe_divide">safe<span class="dash">-</span>divide<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>safe<span class="dash">-</span>divide: <span class="tp sp">(</span><span class="tp tpp">x</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">,</span> <span class="tp tpp">y</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">raise</span> <span class="tp">int</span></span></a></code>), it will <em class="em-low1">yield</em> to its innermost handler, unwind
 the stack, and only then evaluate the operation definition &#8211; in this case just directly
 returning <code class="koka"><span class="number">42</span></code> from the point where the handler is defined. 
 Now we can see why it is called a <em class="em-low1">control</em>
 operation as <code class="koka">raise</code> changes the regular linear control-flow and yields right 
-back to its innermost handler from the original call site.
+back to its innermost handler from the original call site. 
+Also note that <code class="koka"><a class="pp" href="#raise_const">raise<span class="dash">-</span>const<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>raise<span class="dash">-</span>const: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">int</span></span></a></code> is <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_total"><span class="tp">total</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>total: <span class="tp">E</span></span></a></code> again and the handler discharged the
+<code class="koka"><a class="pp" href="#type_space_raise"><span class="tp">raise</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>raise: <span class="tp">HX</span></span></a></code> effect.
 </p>
-<p class="p indent">Note that the <code class="koka"><span class="kw">handler</span>{ <span class="op">&#60;</span>ops<span class="op">&#62;</span> }</code> expression is a function that expects a function 
-argument over which the handler is scoped, as <code class="koka">(<span class="kw">handler</span>{ <span class="op">&#60;</span>ops<span class="op">&#62;</span> })(action)</code>,
-and thus the <code class="koka"><span class="kw">with</span></code> statement is very useful for this.  
-</p>
-<p class="p learn button indent"><a href="#sec-with" title="3.1.5.&#8194;With Statements" class="localref" style="target-element:h3">Read more about <code class="koka"><span class="kw">with</span></code> statements</a></p>
-<p class="p indent">As a syntactic convenience, for single operations we can leave out the <code class="koka"><span class="kw">handler</span></code> keyword 
+<p class="p indent">The <code class="koka"><span class="kw">handler</span>{ <span class="op">&#60;</span>ops<span class="op">&#62;</span> }</code> expression is a function that itself expects a function 
+argument over which the handler is scoped, as in <code class="koka">(<span class="kw">handler</span>{ <span class="op">&#60;</span>ops<span class="op">&#62;</span> })(action)</code>.
+This works well in combination with the&nbsp;<a href="#sec-with" title="3.1.5.&#8194;With Statements" class="localref" style="target-element:h3"><code class="koka"><span class="kw">with</span></code> statement</a> of course.
+As a syntactic convenience, for single operations we can leave out the <code class="koka"><span class="kw">handler</span></code> keyword 
 which is translated as:
 </p>
-<div class="translate"><pre class="koka source unchecked"><span class="plaincode">with control op(&lt;args&gt;){ &lt;body&gt; }
+<div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
+<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
+</p>
+<div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">with control op(&lt;args&gt;){ &lt;body&gt; }
 </span><span class="nicecode"><span class="kw">with</span> <span class="kw">control</span> op(<span class="op">&lt;</span>args<span class="op">&gt;</span>){ <span class="op">&lt;</span>body<span class="op">&gt;</span> }
 </span></pre>
 
@@ -2749,7 +2775,7 @@ which is translated as:
   <span class="kw">control</span> op(<span class="op">&lt;</span>args<span class="op">&gt;</span>){ <span class="op">&lt;</span>body<span class="op">&gt;</span> }
 }
 </span></pre>
-</div>
+</div></div>
 <p class="p noindent">With this translation, we can write the previous example more concisely as:
 </p><pre class="koka source"><span class="plaincode">fun raise-const1() : int {
   with control raise(msg){ 42 }
@@ -2766,11 +2792,13 @@ which is translated as:
 <p class="p noindent">which eventually expands to <code class="koka">(<span class="kw">handler</span>{ <span class="kw">control</span> raise(msg){ <span class="number">42</span> } })(<span class="kw">fn</span>(){ <span class="number">8</span> <span class="op">+</span> <a class="pp" href="#safe_divide">safe<span class="dash">-</span>divide<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>safe<span class="dash">-</span>divide: <span class="tp sp">(</span><span class="tp tpp">x</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">,</span> <span class="tp tpp">y</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">raise</span> <span class="tp">int</span></span></a>(<span class="number">1</span>,<span class="number">0</span>) })</code>.
 </p>
 <p class="p indent">We have a similar syntactic convenience for effects with one operation where the 
-name of the effect and operation are the same. Just like a <code class="koka"><span class="tp kw">struct</span></code> we can 
-define an effect by just declaring its operation which implicitly declares 
-an effect of the same name:
+name of the effect and operation are the same. We can define such an effect by just declaring 
+its operation which implicitly declares an effect type of the same name:
 </p>
-<div class="translate"><pre class="koka source unchecked"><span class="plaincode">effect control op(&lt;parameters&gt;) : &lt;result-type&gt;
+<div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
+<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
+</p>
+<div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">effect control op(&lt;parameters&gt;) : &lt;result-type&gt;
 </span><span class="nicecode"><span class="tp kw">effect</span> <span class="kw">control</span> op(<span class="op">&lt;</span>parameters<span class="op">&gt;</span>) <span class="tp kw op">:</span> <span class="tp sp">&lt;</span><span class="tp">result<span class="dash">-</span>type</span><span class="tp sp">&gt;</span>
 </span></pre>
 
@@ -2783,11 +2811,12 @@ an effect of the same name:
   <span class="kw">control</span> op(<span class="op">&lt;</span>parameters<span class="op">&gt;</span>) <span class="tp kw op">:</span> <span class="tp sp">&lt;</span><span class="tp">result<span class="dash">-</span>type</span><span class="tp sp">&gt;</span>
 }
 </span></pre>
-</div>
-<p class="p noindent">That means we can declare our <code class="koka"><a class="pp" href="#type_space_raise"><span class="tp">raise</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>raise: <span class="tp">HX</span></span></a></code> effect more concisely as:
+</div></div>
+<p class="p noindent">That means we can declare our <code class="koka"><a class="pp" href="#type_space_raise"><span class="tp">raise</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>raise: <span class="tp">HX</span></span></a></code> effect signature also more concisely as:
 </p><pre class="koka source unchecked"><span class="plaincode">effect control raise( msg : string ) : a
 </span><span class="nicecode"><span class="tp kw">effect</span> <span class="kw">control</span> raise( msg <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a> ) <span class="tp kw op">:</span> <span class="tp tv">a</span>
 </span></pre>
+
 
 
 
@@ -2882,7 +2911,10 @@ to be <em class="em-low1">tail-resumptive</em>: that is, they resume exactly <em
 value. To make this more convenient, we can declare <code class="koka"><span class="kw">fun</span></code> operations that do this
 by construction, i.e.
 </p>
-<div class="translate"><pre class="koka source unchecked"><span class="plaincode">with fun op(&lt;args&gt;){ &lt;body&gt; }
+<div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
+<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
+</p>
+<div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">with fun op(&lt;args&gt;){ &lt;body&gt; }
 </span><span class="nicecode"><span class="kw">with</span> <span class="kw">fun</span> op(<span class="op">&lt;</span>args<span class="op">&gt;</span>){ <span class="op">&lt;</span>body<span class="op">&gt;</span> }
 </span></pre>
 
@@ -2891,7 +2923,7 @@ by construction, i.e.
 </p><pre class="koka source unchecked"><span class="plaincode">with control op(&lt;args&gt;){ val f = fn(){ &lt;body&gt; }; resume( f() ) }
 </span><span class="nicecode"><span class="kw">with</span> <span class="kw">control</span> op(<span class="op">&lt;</span>args<span class="op">&gt;</span>){ <span class="kw">val</span> f <span class="kw">=</span> <span class="kw">fn</span>(){ <span class="op">&lt;</span>body<span class="op">&gt;</span> }; <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_hnd.html#resume">resume<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>hnd<span class="fslash last">/</span></span>resume: <span class="tp kw">forall</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">,</span><span class="tp tv">b</span><span class="tp sp">&gt;</span> <span class="tp sp">(</span><span class="tp tpp">r</span> <span class="tp kw op">:</span> <span class="tp">resume<span class="dash">-</span>context</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">,</span><span class="tp tv">b</span><span class="tp sp">&gt;</span><span class="tp sp">,</span> <span class="tp tpp">x</span> <span class="tp kw op">:</span> <span class="tp tv">a</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp tv">e</span> <span class="tp tv">b</span></span></a>( f() ) }
 </span></pre>
-</div>
+</div></div>
 <p class="p noindent">(The translation is defined via an intermediate function so <code class="koka"><span class="kw">return</span></code> works correctly).
 </p>
 <p class="p indent">With this syntactic sugar, we can write our earlier <code class="koka"><a class="pp" href="#ask_const">ask<span class="dash">-</span>const<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>ask<span class="dash">-</span>const: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp">int</span></span></a></code> example 
@@ -2913,7 +2945,7 @@ just like a regular function without changing the control-flow.
 </p>
 <p class="p indent">Moreover, operations declared as <code class="koka"><span class="kw">fun</span></code> are much more efficient than general
 <code class="koka"><span class="kw">control</span></code> operations. The Koka compiler uses (generalized) <em class="em-low1">evidence translation</em>&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#xie:evidently" title="Effect Handlers, Evidently
-Xie, Brachthäuser, Schuster, Hillerström, and Leijen, 2020" class="bibref localref" style="target-element:bibitem"><span class="cite-number">15</span></a>]</span>
+Xie, Brachthäuser, Schuster, Hillerström, and Leijen, 2020" class="bibref localref" style="target-element:bibitem"><span class="cite-number">16</span></a>]</span>
 to pass down handler information to each call-site. At the call to <code class="koka">ask</code> in <code class="koka"><a class="pp" href="#add_twice">add<span class="dash">-</span>twice<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>add<span class="dash">-</span>twice: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">(</span><span class="tp">ask</span><span class="tp sp">&#60;</span><span class="tp">int</span><span class="tp sp">&#62;</span><span class="tp sp">)</span> <span class="tp">int</span></span></a></code>,
 it selects the handler from the evidence vector and when the operation is
 a tail-resumptive <code class="koka"><span class="kw">fun</span></code>, it calls it directly as a regular function (except with an adjucted evidence
@@ -2943,7 +2975,10 @@ run-time if the handler happens to define the operation as tail-resumptive.
 essentially dynamically bound variables (but statically typed!). Such operations
 can be declared as a <code class="koka"><span class="kw">val</span></code> with the following translation:
 </p>
-<div class="translate"><pre class="koka source unchecked"><span class="plaincode">with val v = &lt;expr&gt;
+<div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
+<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
+</p>
+<div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">with val v = &lt;expr&gt;
 </span><span class="nicecode"><span class="kw">with</span> <span class="kw">val</span> v <span class="kw">=</span> <span class="op">&lt;</span>expr<span class="op">&gt;</span>
 </span></pre>
 
@@ -2962,7 +2997,7 @@ with control v(){ resume(x) }
 </span><span class="nicecode"><span class="kw">val</span> x <span class="kw">=</span> <span class="op">&lt;</span>expr<span class="op">&gt;</span>
 <span class="kw">with</span> <span class="kw">control</span> v(){ <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_hnd.html#resume">resume<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>hnd<span class="fslash last">/</span></span>resume: <span class="tp kw">forall</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">,</span><span class="tp tv">b</span><span class="tp sp">&gt;</span> <span class="tp sp">(</span><span class="tp tpp">r</span> <span class="tp kw op">:</span> <span class="tp">resume<span class="dash">-</span>context</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">,</span><span class="tp tv">b</span><span class="tp sp">&gt;</span><span class="tp sp">,</span> <span class="tp tpp">x</span> <span class="tp kw op">:</span> <span class="tp tv">a</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp tv">e</span> <span class="tp tv">b</span></span></a>(x) }
 </span></pre>
-</div>
+</div></div>
 <p class="p noindent">For an example of the use of value operations, consider a 
 pretty printer that produces pretty strings from documents:
 </p><pre class="koka source unchecked"><span class="plaincode">fun pretty( d : doc ) : string
@@ -3034,7 +3069,7 @@ For example, the type of <code class="koka"><a class="pp" href="#pretty">pretty<
 
 
 <p class="p noindent">as is requires the <code class="koka"><a class="pp" href="#type_space_width"><span class="tp">width</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>width: <span class="tp">HX1</span></span></a></code> effect to be handled (aka,
-the &quot;dynamic binding for <code class="koka">width <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a></code> to be in defined&#8220;, 
+the &quot;dynamic binding for <code class="koka">width <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a></code> to be defined&#8220;, 
 aka, the &#8221;<code class="koka"><a class="pp" href="#type_space_width"><span class="tp">width</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>width: <span class="tp">HX1</span></span></a></code> capability&quot;).
 </p><h3 id="sec-abstracting-handlers" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-abstracting-handlers" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">3.4.4</span>.&#8194;</span>Abstracting Handlers</h3>
 <p class="p noindent">As another example, a <em class="em-low1">writer</em> effect is quite common where
@@ -3183,8 +3218,8 @@ exceptional situations:
 
 
 
-<div class="advanced" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="advanced-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">advanced</span>The <code class="koka">catch</code> handler has an interesting type where the action can
+<div class="advanced boxed" style="border:1px solid #AAA;padding:0em 1em">
+<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">advanced</span>The <code class="koka">catch</code> handler has an interesting type where the action can
 have a <code class="koka"><a class="pp" href="#type_space_raise"><span class="tp">raise</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>raise: <span class="tp">HX</span></span></a></code> effect (<code class="koka"><span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><a class="pp" href="#type_space_raise"><span class="tp">raise</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>raise: <span class="tp">HX</span></span></a><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp tv">a</span></code>) and maybe further effects <code class="koka"><span class="tp tv">e</span></code>,
 while the handling function <code class="koka">hnd</code> only has effect <code class="koka"><span class="tp tv">e</span></code>. Now consider
 supplying a handing function that itself calls <code class="koka">raise</code>: in that case, the 
@@ -3193,7 +3228,7 @@ This is correct: the (outer) <code class="koka"><a class="pp" href="#type_space_
 the handling function <code class="koka">hnd</code> can still cause <code class="koka">raise</code> to be called, the final effect still contains <code class="koka"><a class="pp" href="#type_space_raise"><span class="tp">raise</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>raise: <span class="tp">HX</span></span></a></code>.
 </p>
 <p class="p indent">Here we see that Koka allows <em class="em-low1">duplicate</em> effect labels&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#leijen:scopedlabels" title="Extensible records with scoped labels
-Leijen, 2005" class="bibref localref" style="target-element:bibitem"><span class="cite-number">6</span></a>]</span> where <code class="koka">action</code> has
+Leijen, 2005" class="bibref localref" style="target-element:bibitem"><span class="cite-number">7</span></a>]</span> where <code class="koka">action</code> has
 an instantiated <code class="koka"><span class="tp sp">&#60;</span><a class="pp" href="#type_space_raise"><span class="tp">raise</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>raise: <span class="tp">HX</span></span></a><span class="tp sp">,</span><a class="pp" href="#type_space_raise"><span class="tp">raise</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>raise: <span class="tp">HX</span></span></a><span class="tp sp">&#62;</span></code> effect type.
 These kind of types occur naturally in the presence of polymorphic effects, and there is a natural correspondence
 to the structure of the evidence vectors at runtime (with entries for each nested effect handler). 
@@ -3317,8 +3352,8 @@ use a return operation again to pair the final result with the final state:
 
 <p class="p noindent">where <code class="koka"><a class="pp" href="#pstate">pstate<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>pstate: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">b</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">init</span> <span class="tp kw op">:</span> <span class="tp tv">a</span><span class="tp sp">,</span> <span class="tp tpp">action</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp">state</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">&#62;</span><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp tv">b</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp sp">(</span><span class="tp tv">b</span><span class="tp sp">,</span> <span class="tp tv">a</span><span class="tp sp">)</span></span></a>(<span class="number">10</span>){ <a class="pp" href="#sumdown">sumdown<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>sumdown: <span class="tp sp">(</span><span class="tp tpp">sum</span> <span class="tp kw op">:</span> <span class="tp op">?</span><span class="tp">int</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp">div</span><span class="tp sp">,</span><span class="tp">state</span><span class="tp sp">&#60;</span><span class="tp">int</span><span class="tp sp">&#62;</span><span class="tp sp">&#62;</span> <span class="tp">int</span></span></a>() }</code> evaluates to <code class="koka">(<span class="number">55</span>,<span class="number">0</span>)</code>.  
 </p>
-<div class="advanced" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="advanced-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">advanced</span>It is even possible to have a handler that only
+<div class="advanced boxed" style="border:1px solid #AAA;padding:0em 1em">
+<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">advanced</span>It is even possible to have a handler that only
 contains a single <code class="koka"><span class="kw">return</span></code> operation: such handler handles no effect
 at all but only transforms the final result of a function.
 For example, we can define the previous example also with
@@ -3346,9 +3381,11 @@ a separate <code class="koka"><span class="kw">return</span></code> handler as:
 
 
 <p class="p noindent">Here it as a bit contrived but it can make certain
-programs more concise in their definition.</p></div><h3 id="sec-combine" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-combine" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">3.4.6</span>.&#8194;</span>Combining Handlers</h3>
-<div class="advanced" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="advanced-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">advanced</span>What makes effect handlers a good control-flow abstraction? There are three fundamental advantages 
+programs more concise in their definition, see 
+for example&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#lindley:liberate" title="Liberating Effects with Rows and Handlers
+Hillerstr&#246;m and Lindley, 2016" class="bibref localref" style="target-element:bibitem"><span class="cite-number">4</span></a>]</span>.</p></div><h3 id="sec-combine" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-combine" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">3.4.6</span>.&#8194;</span>Combining Handlers</h3>
+<div class="advanced boxed" style="border:1px solid #AAA;padding:0em 1em">
+<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">advanced</span>What makes effect handlers a good control-flow abstraction? There are three fundamental advantages 
 with regard to other approaches:
 </p>
 <ol class="ol compact">
@@ -3497,19 +3534,12 @@ it would neatly skip the internal handler due to the <code class="koka"><span cl
 <p class="p indent">If we would leave out the <code class="koka"><span class="kw">mask</span></code>, and call <code class="koka">action()</code> directly, then the inferred
 type of <code class="koka">action</code> would be <code class="koka"><span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><a class="pp" href="#type_space_raise"><span class="tp">raise</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>raise: <span class="tp">HX</span></span></a><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a></code> instead, showing that the <code class="koka"><a class="pp" href="#type_space_raise"><span class="tp">raise</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>raise: <span class="tp">HX</span></span></a></code>
 effect would be handled. 
-Note though that this usually the desired behaviour since in the majority of cases 
+Note that this usually the desired behaviour since in the majority of cases 
 we <em class="em-low1">want</em> to handle the effects in a particular way when defining handler abstractions. 
 The cases where <code class="koka"><span class="kw">mask</span></code> is needed are much less common in our experience.
 </p>
-<p class="p indent">(Note: there is other work on &#8220;tunneling&#8221; or &#8220;lexically scoped&#8221; effects which switches
-the default behaviour of Koka (where masking becomes the default). 
-We generally reject this approach as this usually
-requires a form of dependent typing where a type annotation on <code class="koka">action</code> 
-changes whether the term is masked or not. It is also unclear if one can express
-the <code class="koka"><a class="pp" href="#ppstate">ppstate<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>ppstate: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">b</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">init</span> <span class="tp kw op">:</span> <span class="tp tv">a</span><span class="tp sp">,</span> <span class="tp tpp">action</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp">peek</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">&#62;</span><span class="tp sp">,</span><span class="tp">poke</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">&#62;</span><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp tv">b</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp tv">b</span></span></a></code> example in that approach.)
-</p>
-<div class="advanced" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="advanced-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">advanced</span>
+<div class="advanced boxed" style="border:1px solid #AAA;padding:0em 1em">
+<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">advanced</span>
 </p><h4 id="sec-state-as-a-combined-effect" class="h4" data-heading-depth="4" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">State as a Combined Effect</h4>
 <p class="p noindent">Another nice use-case for <code class="koka"><span class="kw">mask</span></code> occurs when modeling state directly using
 effect handlers without using mutable local variables&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#biernacki:care" title="Handle with Care: Relational Interpretation of Algebraic Effects and Handlers
@@ -3610,8 +3640,8 @@ we can override the <code class="koka">width</code> as:
 
 
 
-<div class="advanced" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="advanced-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">advanced</span>
+<div class="advanced boxed" style="border:1px solid #AAA;padding:0em 1em">
+<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">advanced</span>
 </p><h4 id="sec-mask-behind" class="h4" data-heading-depth="4" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Mask Behind</h4>
 <p class="p noindent">Unfortunately, we cannot modularly define overriding with just <code class="koka"><span class="kw">mask</span></code>; if we 
 add <code class="koka"><span class="kw">mask</span></code> outside of the <code class="koka">emit</code> handler, the <code class="koka">emit</code> call inside the operation 
@@ -3624,7 +3654,10 @@ The expression <code class="koka"><span class="kw">mask</span> behind<span class
 and only masks any masked operations but not the direct ones. The <code class="koka"><span class="kw">override</span></code>
 keyword is defined in terms of this primitive:
 </p>
-<div class="translate"><pre class="koka source unchecked"><span class="plaincode">with override handler&lt;l&gt; { &lt;ops&gt; }
+<div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
+<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
+</p>
+<div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">with override handler&lt;l&gt; { &lt;ops&gt; }
 &lt;body&gt;
 </span><span class="nicecode"><span class="kw">with</span> <span class="kw">override</span> <span class="kw">handler</span><span class="op">&lt;</span>l<span class="op">&gt;</span> { <span class="op">&lt;</span>ops<span class="op">&gt;</span> }
 <span class="op">&lt;</span>body<span class="op">&gt;</span>
@@ -3635,21 +3668,24 @@ keyword is defined in terms of this primitive:
 </p><pre class="koka source unchecked"><span class="plaincode">(handler&lt;l&gt; { &lt;ops&gt; })(mask behind&lt;l&gt;{ &lt;body&gt; })
 </span><span class="nicecode">(<span class="kw">handler</span><span class="op">&lt;</span>l<span class="op">&gt;</span> { <span class="op">&lt;</span>ops<span class="op">&gt;</span> })(<span class="kw">mask</span> behind<span class="op">&lt;</span>l<span class="op">&gt;</span>{ <span class="op">&lt;</span>body<span class="op">&gt;</span> })
 </span></pre>
-</div>
+</div></div>
 <p class="p noindent">This ensures any operation calls in <code class="code code2">&lt;body&gt;</code> go the newly defined
 handler while any masked operations are masked one more level and skip
 both of the two innermost handlers.</p></div><h3 id="sec-isolate" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-isolate" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">3.4.9</span>.&#8194;</span>Side-effect Isolation</h3><h3 id="sec-multi-resume" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-multi-resume" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">3.4.10</span>.&#8194;</span>Resuming more than once</h3><h3 id="sec-resource" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-resource" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">3.4.11</span>.&#8194;</span>Initially and Finally</h3><h4 id="sec-rcontrol" class="h4" data-heading-depth="4" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Raw Control</h4>
-<div class="note" style="display:block;font-style:italic">
-<p class="p noindent"><span class="note-before"><strong class="strong-star2"><span class="note-caption">Note</span></strong>.
+<div class="todo note" style="display:block;font-style:italic">
+<p class="p noindent"><span class="note-before"><strong class="strong-star2"><span class="note-caption">Todo</span></strong>.
 </span>Use <code class="koka"><span class="kw">rcontrol</span></code> for raw control operations which do not automatically
 finalize; this gives true first-class resumption contexts (as <code class="koka">rcontext</code>) but need
-to be used with care.</p></div><h3 id="sec-linear" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-linear" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">3.4.12</span>.&#8194;</span>Linear Effects</h3>
-<div class="note" style="display:block;font-style:italic">
-<p class="p noindent"><span class="note-before"><strong class="strong-star2"><span class="note-caption">Note</span></strong>.
+to be used with care. With <code class="koka"><span class="kw">rcontrol</span></code> one can use the implicitly bound
+resumption context <code class="koka">rcontext</code> to either resume (as <code class="koka">rcontext<span class="kw op">.</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_hnd.html#resume">resume<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>hnd<span class="fslash last">/</span></span>resume: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">,</span><span class="tp tv">b</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">r</span> <span class="tp kw op">:</span> <span class="tp">resume<span class="dash">-</span>context</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">,</span><span class="tp tv">b</span><span class="tp sp">&#62;</span><span class="tp sp">,</span> <span class="tp tpp">x</span> <span class="tp kw op">:</span> <span class="tp tv">a</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp tv">b</span></span></a>(x)</code>),
+or to finalize a resumption (as <code class="koka">rcontext<span class="kw op">.</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_hnd.html#finalize">finalize<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>hnd<span class="fslash last">/</span></span>finalize: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">b</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">,</span><span class="tp tv">c</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">r</span> <span class="tp kw op">:</span> <span class="tp">resume<span class="dash">-</span>context</span><span class="tp sp">&#60;</span><span class="tp tv">b</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">,</span><span class="tp tv">c</span><span class="tp sp">&#62;</span><span class="tp sp">,</span> <span class="tp tpp">x</span> <span class="tp kw op">:</span> <span class="tp tv">a</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp tv">a</span></span></a></code>) which runs all
+<code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_hnd.html#finally">finally<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>hnd<span class="fslash last">/</span></span>finally: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">fin</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp sp">(</span><span class="tp sp">)</span><span class="tp sp">,</span> <span class="tp tpp">action</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp tv">a</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp tv">a</span></span></a></code> handlers to clean up resources.</p></div><h3 id="sec-linear" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-linear" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">3.4.12</span>.&#8194;</span>Linear Effects</h3>
+<div class="todo note" style="display:block;font-style:italic">
+<p class="p noindent"><span class="note-before"><strong class="strong-star2"><span class="note-caption">Todo</span></strong>.
 </span>Use <code class="koka">linear <span class="tp kw">effect</span></code> to declare effects whose operations are always tail-resumptive
 and use only linear effects themselves
 (and thus resume exactly once). This removes monadic translation for such effects and
-can make code that uses only linear effects more compact and efficient.</p></div><h2 id="sec-fbip" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-fbip" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">3.5</span>.&#8194;</span>FBIP: Functional but In-Place</h2>
+can make code that uses only linear effects more compact and efficient.</p></div><h3 id="sec-namedh" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-namedh" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">3.4.13</span>.&#8194;</span>Named and Scoped Handlers</h3><h2 id="sec-fbip" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-fbip" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">3.5</span>.&#8194;</span>FBIP: Functional but In-Place</h2>
 <p class="p noindent">With&nbsp;<a href="#why-fbip" title="2.5.&#8194;Reuse Analysis" class="localref" style="target-element:h2">Perceus</a> reuse analysis we can
 write algorithms that dynamically adapt to use in-place mutation when
 possible (and use copying when used persistently). Importantly,
@@ -3698,7 +3734,7 @@ the root to any of the leaves is the same, and that a red node is never a
 parent of red node. Together this ensures that the trees are always
 balanced. When inserting nodes, the invariants need to be maintained by
 rebalancing the nodes when needed. Okasaki&#39;s algorithm&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#okasaki:rbtree" title="Red-black trees in a functional setting
-Okasaki, 1999a" class="bibref localref" style="target-element:bibitem"><span class="cite-number">11</span></a>]</span>
+Okasaki, 1999a" class="bibref localref" style="target-element:bibitem"><span class="cite-number">12</span></a>]</span>
 implements this elegantly and functionally:
 </p><pre class="koka source unchecked"><span class="plaincode">fun balance-left( l : tree, k : int, v : bool, r : tree ): tree {
   match(l) {
@@ -3751,7 +3787,7 @@ usual non-persistent rebalancing algorithm in C would do.
 algorithm above adapts at runtime to an in-place mutating re-balancing
 algorithm (without any further allocation). Moreover, if we use the tree
 <em class="em-low1">persistently</em>&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#okasaki:purefun" title="Purely Functional Data Structures
-Okasaki, 1999b" class="bibref localref" style="target-element:bibitem"><span class="cite-number">12</span></a>]</span>, and the tree is shared or has
+Okasaki, 1999b" class="bibref localref" style="target-element:bibitem"><span class="cite-number">13</span></a>]</span>, and the tree is shared or has
 shared parts, the algorithm adapts to copying exactly the shared <em class="em-low1">spine</em>
 of the tree (and no more), while still rebalancing in place for any
 unshared parts.
@@ -3817,12 +3853,12 @@ tree.
 }</code></pre>
 <p class="p noindent para-continued">In 1968, Knuth posed the problem of visiting a tree in-order while using
 no extra stack- or heap space&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#knuth:aocp1" title="The Art of Computer Programming, Volume 1 (3rd Ed.): Fundamental Algorithms
-Knuth, 1997" class="bibref localref" style="target-element:bibitem"><span class="cite-number">5</span></a>]</span> (For readers not familiar
+Knuth, 1997" class="bibref localref" style="target-element:bibitem"><span class="cite-number">6</span></a>]</span> (For readers not familiar
 with the problem it might be fun to try this in your favorite imperative
 language first and see that it is not easy to do). Since then, numerous
 solutions have appeared in the literature. A particularly elegant
 solution was proposed by&nbsp;<span class="textual citations" style="target-element:bibitem"><span class="cite-authors">Morris</span>&#160;[<a href="#morris:tree" title="Traversing binary trees simply and cheaply
-Morris, 1979" class="bibref localref" style="target-element:bibitem"><span class="cite-number">10</span></a>]</span>. This is an in-place mutating
+Morris, 1979" class="bibref localref" style="target-element:bibitem"><span class="cite-number">11</span></a>]</span>. This is an in-place mutating
 algorithm that swaps pointers in the tree to &#8220;remember&#8221; which parts are
 unvisited. It is beyond this tutorial to give a full explanation, but a C
 implementation is shown here on the side. The traversal
@@ -3830,7 +3866,7 @@ essentially uses a <em class="em-low1">right-threaded</em> tree to keep track of
 visit. The algorithm is subtle, though. Since it transforms the tree into
 an intermediate graph, we need to state invariants over the so-called
 <em class="em-low1">Morris loops</em>&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#mateti:morris" title="Morris&#39; tree traversal algorithm reconsidered
-Mateti and Manghirmalani, 1988" class="bibref localref" style="target-element:bibitem"><span class="cite-number">8</span></a>]</span> to prove its correctness.
+Mateti and Manghirmalani, 1988" class="bibref localref" style="target-element:bibitem"><span class="cite-number">9</span></a>]</span> to prove its correctness.
 </p>
 <p class="p indent">We can derive a functional and more intuitive solution using the FBIP
 technique. We start by defining an explicit <em class="em-low1">visitor</em> data structure
@@ -3852,9 +3888,9 @@ Koka we define this data type as <code class="koka"><a class="pp" href="#type_sp
 
 <p class="p noindent">(As an aside, 
 Conor McBride&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#mcbride:derivative" title="The Derivative of a Regular Type is its Type of One-Hole Contexts
-McBride, 2001" class="bibref localref" style="target-element:bibitem"><span class="cite-number">9</span></a>]</span> describes how we can
+McBride, 2001" class="bibref localref" style="target-element:bibitem"><span class="cite-number">10</span></a>]</span> describes how we can
 generically derive a <em class="em-low1">zipper</em>&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#huet:zipper" title="The Zipper
-Huet, 1997" class="bibref localref" style="target-element:bibitem"><span class="cite-number">4</span></a>]</span> visitor for any
+Huet, 1997" class="bibref localref" style="target-element:bibitem"><span class="cite-number">5</span></a>]</span> visitor for any
 recursive type <svg  class="math-inline math-render-svg math" style="vertical-align:-0.2337em;height:0.9600em;width:2.6295em" viewBox='34.67 54.829 25.043 9.143'><desc>$\mathpre{\mu \mathid{x}.~\mathid{F}}$</desc><g id='math-7b2e55'><use x='34.869' y='61.836' xlink:href='#g7-22'/><use x='40.872' y='61.836' xlink:href='#g2-120'/><use x='46.693' y='61.836' xlink:href='#g7-58'/><use x='51.675' y='61.836' xlink:href='#g2-70'/></g></svg> as a list of the derivative of that type,
 namely <svg  class="math-inline math-render-svg math" style="vertical-align:-0.3935em;height:1.3230em;width:8.5050em" viewBox='88.468 52.871 81 12.6'><desc>$\mathpre{\mathkw{list}~(\pdv{\mathid{x}}~\mathid{F}\mid_{\mathid{x}~=\mu \mathid{x}.\mathid{F}})}$</desc><g id='math-f5b205'><use x='88.667' y='61.836' xlink:href='#g0-108'/><use x='91.047' y='61.836' xlink:href='#g0-105'/><use x='93.427' y='61.836' xlink:href='#g0-115'/><use x='97.246' y='61.836' xlink:href='#g0-116'/><use x='103.058' y='61.836' xlink:href='#g9-40'/><use x='110.453' y='57.913' xlink:href='#g8-64'/><rect x='108.128' y='59.146' height='.398' width='9.333'/><use x='108.128' y='65.271' xlink:href='#g8-64'/><use x='112.811' y='65.271' xlink:href='#g1-120'/><use x='120.871' y='61.836' xlink:href='#g2-70'/><use x='131.467' y='61.836' xlink:href='#g5-106'/><use x='134.234' y='63.33' xlink:href='#g1-120'/><use x='140.698' y='63.33' xlink:href='#g10-61'/><use x='146.814' y='63.33' xlink:href='#g8-22'/><use x='151.659' y='63.33' xlink:href='#g1-120'/><use x='156.309' y='63.33' xlink:href='#g8-58'/><use x='158.675' y='63.33' xlink:href='#g1-70'/><use x='165.384' y='61.836' xlink:href='#g9-41'/></g></svg>.
 In our case, the algebraic representation of the inductive <code class="koka"><a class="pp" href="#type_space_tree"><span class="tp">tree</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>tree: <span class="tp">V</span></span></a></code>
@@ -4674,18 +4710,19 @@ be in agreement with that implementation.
 <div id="biernacki:care" class="bibitem" data-cite-year="2017" data-cite-authors="Biernacki et al." data-cite-authors-long="Biernacki, Pir&#243;g, Polesiuk, and Sieczkowski" data-cite-label="1" data-line="koka.bib:219" style="text-indent:-2rem;margin-left:2rem;searchterm:Handle%20with%20Care%3A%20Relational%20Interpretation%20of%20Algebraic%20Effects%20and%20Handlers%20Biernacki%2C%20Pir%26oacute%3Bg%2C%20Polesiuk%2C%20and%20Sieczkowski%2C%202017;spellcheck:false;bibitem-label:\5C [1\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[1]</span>Dariusz Biernacki, Maciej Pir&#243;g, Piotr Polesiuk, and Filip Sieczkowski. &#8220;Handle with Care: Relational Interpretation of Algebraic Effects and Handlers.&#8221; <em class="em-low1">Proc. ACM Program. Lang.</em> 2 (POPL’17 issue): 8:1–8:30. Dec. 2017. doi:<a href="https://dx.doi.org/10.1145/3158096" class="bib-doi" style="font-size:smaller">10.1145/3158096</a>.&nbsp;<a href="http://www.bing.com/search?q=Handle%20with%20Care%3A%20Relational%20Interpretation%20of%20Algebraic%20Effects%20and%20Handlers%20Biernacki%2C%20Pir%26oacute%3Bg%2C%20Polesiuk%2C%20and%20Sieczkowski%2C%202017" class="bibsearch">&#128270;</a></div>
 <div id="guibas1978dichromatic" class="bibitem" data-cite-year="1978" data-cite-authors="Guibas and Sedgewick" data-cite-authors-long="Guibas and Sedgewick" data-cite-label="2" data-line="koka.bib:75" style="text-indent:-2rem;margin-left:2rem;searchterm:A%20dichromatic%20framework%20for%20balanced%20trees%20Guibas%20and%20Sedgewick%2C%201978;spellcheck:false;bibitem-label:\5C [2\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[2]</span>Leo J Guibas, and Robert Sedgewick. &#8220;A Dichromatic Framework for Balanced Trees.&#8221; In <em class="em-low1">19th Annual Symposium on Foundations of Computer Science (sfcs 1978)</em>, 8–21. IEEE.&#160;1978.&nbsp;<a href="http://www.bing.com/search?q=A%20dichromatic%20framework%20for%20balanced%20trees%20Guibas%20and%20Sedgewick%2C%201978" class="bibsearch">&#128270;</a></div>
 <div id="gunter:mprompt" class="bibitem" data-cite-year="1995" data-cite-authors="Gunter et al." data-cite-authors-long="Gunter, R&#233;my, and Riecke" data-cite-label="3" data-line="koka.bib:197" style="text-indent:-2rem;margin-left:2rem;searchterm:A%20Generalization%20of%20Exceptions%20and%20Control%20in%20MLlike%20Languages%20Gunter%2C%20R%26eacute%3Bmy%2C%20and%20Riecke%2C%201995;spellcheck:false;bibitem-label:\5C [3\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[3]</span>Carl A.&#160;Gunter, Didier R&#233;my, and Jon G.&#160;Riecke. &#8220;A Generalization of Exceptions and Control in ML-like Languages.&#8221; In <em class="em-low1">Proceedings of the Seventh International Conference on Functional Programming Languages and Computer Architecture</em>, 12–23. FPCA ’95. ACM, La Jolla, California, USA.&#160;1995. doi:<a href="https://dx.doi.org/10.1145/224164.224173" class="bib-doi" style="font-size:smaller">10.1145/224164.224173</a>.&nbsp;<a href="http://www.bing.com/search?q=A%20Generalization%20of%20Exceptions%20and%20Control%20in%20MLlike%20Languages%20Gunter%2C%20R%26eacute%3Bmy%2C%20and%20Riecke%2C%201995" class="bibsearch">&#128270;</a></div>
-<div id="huet:zipper" class="bibitem" data-cite-year="1997" data-cite-authors="Huet" data-cite-authors-long="Huet" data-cite-label="4" data-line="koka.bib:40" style="text-indent:-2rem;margin-left:2rem;searchterm:The%20Zipper%20Huet%2C%201997;spellcheck:false;bibitem-label:\5C [4\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[4]</span>G&#233;rard P.&#160;Huet. &#8220;The Zipper.&#8221; <em class="em-low1">Journal of Functional Programming</em> 7 (5): 549–554. 1997.&nbsp;<a href="http://www.bing.com/search?q=The%20Zipper%20Huet%2C%201997" class="bibsearch">&#128270;</a></div>
-<div id="knuth:aocp1" class="bibitem" data-cite-year="1997" data-cite-authors="Knuth" data-cite-authors-long="Knuth" data-cite-label="5" data-line="koka.bib:84" style="text-indent:-2rem;margin-left:2rem;searchterm:The%20Art%20of%20Computer%20Programming%2C%20Volume%201%203rd%20Ed.%3A%20Fundamental%20Algorithms%20Knuth%2C%201997;spellcheck:false;bibitem-label:\5C [5\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[5]</span>Donald E.&#160;Knuth. <em class="em-low1">The Art of Computer Programming, Volume 1 (3rd Ed.): Fundamental Algorithms</em>. Addison Wesley Longman Publishing Co., Inc. 1997.&nbsp;<a href="http://www.bing.com/search?q=The%20Art%20of%20Computer%20Programming%2C%20Volume%201%203rd%20Ed.%3A%20Fundamental%20Algorithms%20Knuth%2C%201997" class="bibsearch">&#128270;</a></div>
-<div id="leijen:scopedlabels" class="bibitem" data-cite-year="2005" data-cite-authors="Leijen" data-cite-authors-long="Leijen" data-cite-label="6" data-line="koka.bib:211" style="text-indent:-2rem;margin-left:2rem;searchterm:Extensible%20records%20with%20scoped%20labels%20Leijen%2C%202005;spellcheck:false;bibitem-label:\5C [6\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[6]</span>Daan Leijen. &#8220;Extensible Records with Scoped Labels.&#8221; In <em class="em-low1">Proceedings of the 2005 Symposium on Trends in Functional Programming</em>, 297–312. 2005.&nbsp;<a href="http://www.bing.com/search?q=Extensible%20records%20with%20scoped%20labels%20Leijen%2C%202005" class="bibsearch">&#128270;</a></div>
-<div id="leijen:algeff" class="bibitem" data-cite-year="2017" data-cite-authors="Leijen" data-cite-authors-long="Leijen" data-cite-label="7" data-line="koka.bib:184" style="text-indent:-2rem;margin-left:2rem;searchterm:Type%20Directed%20Compilation%20of%20Rowtyped%20Algebraic%20Effects%20Leijen%2C%202017;spellcheck:false;bibitem-label:\5C [7\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[7]</span>Daan Leijen. &#8220;Type Directed Compilation of Row-Typed Algebraic Effects.&#8221; In <em class="em-low1">Proceedings of the 44th ACM SIGPLAN Symposium on Principles of Programming Languages (POPL’17)</em>, 486–499. Paris, France. Jan. 2017. doi:<a href="https://dx.doi.org/10.1145/3009837.3009872" class="bib-doi" style="font-size:smaller">10.1145/3009837.3009872</a>.&nbsp;<a href="http://www.bing.com/search?q=Type%20Directed%20Compilation%20of%20Rowtyped%20Algebraic%20Effects%20Leijen%2C%202017" class="bibsearch">&#128270;</a></div>
-<div id="mateti:morris" class="bibitem" data-cite-year="1988" data-cite-authors="Mateti and Manghirmalani" data-cite-authors-long="Mateti and Manghirmalani" data-cite-label="8" data-line="koka.bib:51" style="text-indent:-2rem;margin-left:2rem;searchterm:Morris&#39;%20tree%20traversal%20algorithm%20reconsidered%20Mateti%20and%20Manghirmalani%2C%201988;spellcheck:false;bibitem-label:\5C [8\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[8]</span>Prabhaker Mateti, and Ravi Manghirmalani. &#8220;Morris’ Tree Traversal Algorithm Reconsidered.&#8221; <em class="em-low1">Science of Computer Programming</em> 11 (1): 29–43. 1988. doi:<a href="https://dx.doi.org/10.1016/0167-6423%2888%2990063-9" class="bib-doi" style="font-size:smaller">10.1016/0167-6423(88)90063-9</a>.&nbsp;<a href="http://www.bing.com/search?q=Morris&#39;%20tree%20traversal%20algorithm%20reconsidered%20Mateti%20and%20Manghirmalani%2C%201988" class="bibsearch">&#128270;</a></div>
-<div id="mcbride:derivative" class="bibitem" data-cite-year="2001" data-cite-authors="McBride" data-cite-authors-long="McBride" data-cite-label="9" data-line="koka.bib:32" style="text-indent:-2rem;margin-left:2rem;searchterm:The%20Derivative%20of%20a%20Regular%20Type%20is%20its%20Type%20of%20OneHole%20Contexts%20McBride%2C%202001;spellcheck:false;bibitem-label:\5C [9\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[9]</span>Conor McBride. &#8220;The Derivative of a Regular Type Is Its Type of One-Hole Contexts.&#8221; 2001. <a href="http://strictlypositive.org/diff.pdf" class="bib-url texturl monospace">http://&#8203;strictlypositive.&#8203;org/&#8203;diff.&#8203;pdf</a>. (Extended Abstract).&nbsp;<a href="http://www.bing.com/search?q=The%20Derivative%20of%20a%20Regular%20Type%20is%20its%20Type%20of%20OneHole%20Contexts%20McBride%2C%202001" class="bibsearch">&#128270;</a></div>
-<div id="morris:tree" class="bibitem" data-cite-year="1979" data-cite-authors="Morris" data-cite-authors-long="Morris" data-cite-label="10" data-line="koka.bib:92" style="text-indent:-2rem;margin-left:2rem;searchterm:Traversing%20binary%20trees%20simply%20and%20cheaply%20Morris%2C%201979;spellcheck:false;bibitem-label:\5C [10\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[10]</span>Joseph M.&#160;Morris. &#8220;Traversing Binary Trees Simply and Cheaply.&#8221; <em class="em-low1">Information Processing Letters</em> 9 (5): 197–200. 1979. doi:<a href="https://dx.doi.org/10.1016/0020-0190%2879%2990068-1" class="bib-doi" style="font-size:smaller">10.1016/0020-0190(79)90068-1</a>.&nbsp;<a href="http://www.bing.com/search?q=Traversing%20binary%20trees%20simply%20and%20cheaply%20Morris%2C%201979" class="bibsearch">&#128270;</a></div>
-<div id="okasaki:rbtree" class="bibitem" data-cite-year="1999a" data-cite-authors="Okasaki" data-cite-authors-long="Okasaki" data-cite-label="11" data-line="koka.bib:63" style="text-indent:-2rem;margin-left:2rem;searchterm:Redblack%20trees%20in%20a%20functional%20setting%20Okasaki%2C%201999a;spellcheck:false;bibitem-label:\5C [11\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[11]</span>Chris Okasaki. &#8220;Red-Black Trees in a Functional Setting.&#8221; <em class="em-low1">Journal of Functional Programming</em> 9 (4). Cambridge University Press: 471–477. 1999. doi:<a href="https://dx.doi.org/10.1017/S0956796899003494" class="bib-doi" style="font-size:smaller">10.1017/S0956796899003494</a>.&nbsp;<a href="http://www.bing.com/search?q=Redblack%20trees%20in%20a%20functional%20setting%20Okasaki%2C%201999a" class="bibsearch">&#128270;</a></div>
-<div id="okasaki:purefun" class="bibitem" data-cite-year="1999b" data-cite-authors="Okasaki" data-cite-authors-long="Okasaki" data-cite-label="12" data-line="koka.bib:162" style="text-indent:-2rem;margin-left:2rem;searchterm:Purely%20Functional%20Data%20Structures%20Okasaki%2C%201999b;spellcheck:false;bibitem-label:\5C [12\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[12]</span>Chris Okasaki. <em class="em-low1">Purely Functional Data Structures</em>. Colombia University, New York. Jun. 1999.&nbsp;<a href="http://www.bing.com/search?q=Purely%20Functional%20Data%20Structures%20Okasaki%2C%201999b" class="bibsearch">&#128270;</a></div>
-<div id="pretnar:handlers" class="bibitem" data-cite-year="2009" data-cite-authors="Plotkin and Pretnar" data-cite-authors-long="Plotkin and Pretnar" data-cite-label="13" data-line="koka.bib:172" style="text-indent:-2rem;margin-left:2rem;searchterm:Handlers%20of%20Algebraic%20Effects%20Plotkin%20and%20Pretnar%2C%202009;spellcheck:false;bibitem-label:\5C [13\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[13]</span>Gordon D.&#160;Plotkin, and Matija Pretnar. &#8220;Handlers of Algebraic Effects.&#8221; In <em class="em-low1">18th European Symposium on Programming Languages and Systems</em>, 80–94. ESOP’09. York, UK.&#160;Mar. 2009. doi:<a href="https://dx.doi.org/10.1007/978-3-642-00590-9_7" class="bib-doi" style="font-size:smaller">10.1007/978-3-642-00590-9_7</a>.&nbsp;<a href="http://www.bing.com/search?q=Handlers%20of%20Algebraic%20Effects%20Plotkin%20and%20Pretnar%2C%202009" class="bibsearch">&#128270;</a></div>
-<div id="perceus:tech" class="bibitem" data-cite-year="2020" data-cite-authors="Reinking et al." data-cite-authors-long="Reinking, Xie, Moura, and Leijen" data-cite-label="14" data-line="koka.bib:1" style="text-indent:-2rem;margin-left:2rem;searchterm:Perceus%3A%20GarbageFree%20Reference%20Counting%20with%20Reuse%20Reinking%2C%20Xie%2C%20Moura%2C%20and%20Leijen%2C%202020;spellcheck:false;bibitem-label:\5C [14\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[14]</span>Alex Reinking, Ningning Xie, Leonardo de Moura, and Daan Leijen. <em class="em-low1">Perceus: Garbage-Free Reference Counting with Reuse</em>. MSR-TR-2020-42. Microsoft Research. Nov. 2020. <a href="https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf" class="bib-url texturl monospace">https://&#8203;www.&#8203;microsoft.&#8203;com/&#8203;en-&#8203;us/&#8203;research/&#8203;uploads/&#8203;prod/&#8203;2020/&#8203;11/&#8203;perceus-&#8203;tr-&#8203;v1.&#8203;pdf</a>.&nbsp;<a href="http://www.bing.com/search?q=Perceus%3A%20GarbageFree%20Reference%20Counting%20with%20Reuse%20Reinking%2C%20Xie%2C%20Moura%2C%20and%20Leijen%2C%202020" class="bibsearch">&#128270;</a></div>
-<div id="xie:evidently" class="bibitem" data-cite-year="2020" data-cite-authors="Xie et al." data-cite-authors-long="Xie, Brachthäuser, Schuster, Hillerström, and Leijen" data-cite-label="15" data-line="koka.bib:11" style="text-indent:-2rem;margin-left:2rem;searchterm:Effect%20Handlers%2C%20Evidently%20Xie%2C%20Brachth%C3%A4user%2C%20Schuster%2C%20Hillerstr%C3%B6m%2C%20and%20Leijen%2C%202020;spellcheck:false;bibitem-label:\5C [15\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[15]</span>Ningning Xie, Jonathan Brachthäuser, Phillip Schuster, Daniel Hillerström, and Daan Leijen. &#8220;Effect Handlers, Evidently.&#8221; In <em class="em-low1">Proceedings of the 25th ACM SIGPLAN International Conference on Functional Programming (ICFP’2020)</em>. ICFP ’20. Jersey City, NJ.&#160;Aug. 2020.&nbsp;<a href="http://www.bing.com/search?q=Effect%20Handlers%2C%20Evidently%20Xie%2C%20Brachth%C3%A4user%2C%20Schuster%2C%20Hillerstr%C3%B6m%2C%20and%20Leijen%2C%202020" class="bibsearch">&#128270;</a></div></div></div><h1 id="sec-appendix" class="clearnum h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Appendix</h1><h1 id="sec-full-grammar-specification" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-full-grammar-specification" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">A</span>.&#8194;</span>Full grammar specification</h1><h2 id="sec:full-lexical" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec:full-lexical" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">A.1</span>.&#8194;</span>Lexical syntax</h2>
+<div id="lindley:liberate" class="bibitem" data-cite-year="2016" data-cite-authors="Hillerstr&#246;m and Lindley" data-cite-authors-long="Hillerstr&#246;m and Lindley" data-cite-label="4" data-line="koka.bib:236" style="text-indent:-2rem;margin-left:2rem;searchterm:Liberating%20Effects%20with%20Rows%20and%20Handlers%20Hillerstr%26ouml%3Bm%20and%20Lindley%2C%202016;spellcheck:false;bibitem-label:\5C [4\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[4]</span>Daniel Hillerstr&#246;m, and Sam Lindley. &#8220;Liberating Effects with Rows and Handlers.&#8221; In <em class="em-low1">Proceedings of the 1st International Workshop on Type-Driven Development</em>, 15–27. TyDe 2016. Nara, Japan. 2016. doi:<a href="https://dx.doi.org/10.1145/2976022.2976033" class="bib-doi" style="font-size:smaller">10.1145/2976022.2976033</a>.&nbsp;<a href="http://www.bing.com/search?q=Liberating%20Effects%20with%20Rows%20and%20Handlers%20Hillerstr%26ouml%3Bm%20and%20Lindley%2C%202016" class="bibsearch">&#128270;</a></div>
+<div id="huet:zipper" class="bibitem" data-cite-year="1997" data-cite-authors="Huet" data-cite-authors-long="Huet" data-cite-label="5" data-line="koka.bib:40" style="text-indent:-2rem;margin-left:2rem;searchterm:The%20Zipper%20Huet%2C%201997;spellcheck:false;bibitem-label:\5C [5\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[5]</span>G&#233;rard P.&#160;Huet. &#8220;The Zipper.&#8221; <em class="em-low1">Journal of Functional Programming</em> 7 (5): 549–554. 1997.&nbsp;<a href="http://www.bing.com/search?q=The%20Zipper%20Huet%2C%201997" class="bibsearch">&#128270;</a></div>
+<div id="knuth:aocp1" class="bibitem" data-cite-year="1997" data-cite-authors="Knuth" data-cite-authors-long="Knuth" data-cite-label="6" data-line="koka.bib:84" style="text-indent:-2rem;margin-left:2rem;searchterm:The%20Art%20of%20Computer%20Programming%2C%20Volume%201%203rd%20Ed.%3A%20Fundamental%20Algorithms%20Knuth%2C%201997;spellcheck:false;bibitem-label:\5C [6\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[6]</span>Donald E.&#160;Knuth. <em class="em-low1">The Art of Computer Programming, Volume 1 (3rd Ed.): Fundamental Algorithms</em>. Addison Wesley Longman Publishing Co., Inc. 1997.&nbsp;<a href="http://www.bing.com/search?q=The%20Art%20of%20Computer%20Programming%2C%20Volume%201%203rd%20Ed.%3A%20Fundamental%20Algorithms%20Knuth%2C%201997" class="bibsearch">&#128270;</a></div>
+<div id="leijen:scopedlabels" class="bibitem" data-cite-year="2005" data-cite-authors="Leijen" data-cite-authors-long="Leijen" data-cite-label="7" data-line="koka.bib:211" style="text-indent:-2rem;margin-left:2rem;searchterm:Extensible%20records%20with%20scoped%20labels%20Leijen%2C%202005;spellcheck:false;bibitem-label:\5C [7\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[7]</span>Daan Leijen. &#8220;Extensible Records with Scoped Labels.&#8221; In <em class="em-low1">Proceedings of the 2005 Symposium on Trends in Functional Programming</em>, 297–312. 2005.&nbsp;<a href="http://www.bing.com/search?q=Extensible%20records%20with%20scoped%20labels%20Leijen%2C%202005" class="bibsearch">&#128270;</a></div>
+<div id="leijen:algeff" class="bibitem" data-cite-year="2017" data-cite-authors="Leijen" data-cite-authors-long="Leijen" data-cite-label="8" data-line="koka.bib:184" style="text-indent:-2rem;margin-left:2rem;searchterm:Type%20Directed%20Compilation%20of%20Rowtyped%20Algebraic%20Effects%20Leijen%2C%202017;spellcheck:false;bibitem-label:\5C [8\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[8]</span>Daan Leijen. &#8220;Type Directed Compilation of Row-Typed Algebraic Effects.&#8221; In <em class="em-low1">Proceedings of the 44th ACM SIGPLAN Symposium on Principles of Programming Languages (POPL’17)</em>, 486–499. Paris, France. Jan. 2017. doi:<a href="https://dx.doi.org/10.1145/3009837.3009872" class="bib-doi" style="font-size:smaller">10.1145/3009837.3009872</a>.&nbsp;<a href="http://www.bing.com/search?q=Type%20Directed%20Compilation%20of%20Rowtyped%20Algebraic%20Effects%20Leijen%2C%202017" class="bibsearch">&#128270;</a></div>
+<div id="mateti:morris" class="bibitem" data-cite-year="1988" data-cite-authors="Mateti and Manghirmalani" data-cite-authors-long="Mateti and Manghirmalani" data-cite-label="9" data-line="koka.bib:51" style="text-indent:-2rem;margin-left:2rem;searchterm:Morris&#39;%20tree%20traversal%20algorithm%20reconsidered%20Mateti%20and%20Manghirmalani%2C%201988;spellcheck:false;bibitem-label:\5C [9\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[9]</span>Prabhaker Mateti, and Ravi Manghirmalani. &#8220;Morris’ Tree Traversal Algorithm Reconsidered.&#8221; <em class="em-low1">Science of Computer Programming</em> 11 (1): 29–43. 1988. doi:<a href="https://dx.doi.org/10.1016/0167-6423%2888%2990063-9" class="bib-doi" style="font-size:smaller">10.1016/0167-6423(88)90063-9</a>.&nbsp;<a href="http://www.bing.com/search?q=Morris&#39;%20tree%20traversal%20algorithm%20reconsidered%20Mateti%20and%20Manghirmalani%2C%201988" class="bibsearch">&#128270;</a></div>
+<div id="mcbride:derivative" class="bibitem" data-cite-year="2001" data-cite-authors="McBride" data-cite-authors-long="McBride" data-cite-label="10" data-line="koka.bib:32" style="text-indent:-2rem;margin-left:2rem;searchterm:The%20Derivative%20of%20a%20Regular%20Type%20is%20its%20Type%20of%20OneHole%20Contexts%20McBride%2C%202001;spellcheck:false;bibitem-label:\5C [10\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[10]</span>Conor McBride. &#8220;The Derivative of a Regular Type Is Its Type of One-Hole Contexts.&#8221; 2001. <a href="http://strictlypositive.org/diff.pdf" class="bib-url texturl monospace">http://&#8203;strictlypositive.&#8203;org/&#8203;diff.&#8203;pdf</a>. (Extended Abstract).&nbsp;<a href="http://www.bing.com/search?q=The%20Derivative%20of%20a%20Regular%20Type%20is%20its%20Type%20of%20OneHole%20Contexts%20McBride%2C%202001" class="bibsearch">&#128270;</a></div>
+<div id="morris:tree" class="bibitem" data-cite-year="1979" data-cite-authors="Morris" data-cite-authors-long="Morris" data-cite-label="11" data-line="koka.bib:92" style="text-indent:-2rem;margin-left:2rem;searchterm:Traversing%20binary%20trees%20simply%20and%20cheaply%20Morris%2C%201979;spellcheck:false;bibitem-label:\5C [11\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[11]</span>Joseph M.&#160;Morris. &#8220;Traversing Binary Trees Simply and Cheaply.&#8221; <em class="em-low1">Information Processing Letters</em> 9 (5): 197–200. 1979. doi:<a href="https://dx.doi.org/10.1016/0020-0190%2879%2990068-1" class="bib-doi" style="font-size:smaller">10.1016/0020-0190(79)90068-1</a>.&nbsp;<a href="http://www.bing.com/search?q=Traversing%20binary%20trees%20simply%20and%20cheaply%20Morris%2C%201979" class="bibsearch">&#128270;</a></div>
+<div id="okasaki:rbtree" class="bibitem" data-cite-year="1999a" data-cite-authors="Okasaki" data-cite-authors-long="Okasaki" data-cite-label="12" data-line="koka.bib:63" style="text-indent:-2rem;margin-left:2rem;searchterm:Redblack%20trees%20in%20a%20functional%20setting%20Okasaki%2C%201999a;spellcheck:false;bibitem-label:\5C [12\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[12]</span>Chris Okasaki. &#8220;Red-Black Trees in a Functional Setting.&#8221; <em class="em-low1">Journal of Functional Programming</em> 9 (4). Cambridge University Press: 471–477. 1999. doi:<a href="https://dx.doi.org/10.1017/S0956796899003494" class="bib-doi" style="font-size:smaller">10.1017/S0956796899003494</a>.&nbsp;<a href="http://www.bing.com/search?q=Redblack%20trees%20in%20a%20functional%20setting%20Okasaki%2C%201999a" class="bibsearch">&#128270;</a></div>
+<div id="okasaki:purefun" class="bibitem" data-cite-year="1999b" data-cite-authors="Okasaki" data-cite-authors-long="Okasaki" data-cite-label="13" data-line="koka.bib:162" style="text-indent:-2rem;margin-left:2rem;searchterm:Purely%20Functional%20Data%20Structures%20Okasaki%2C%201999b;spellcheck:false;bibitem-label:\5C [13\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[13]</span>Chris Okasaki. <em class="em-low1">Purely Functional Data Structures</em>. Colombia University, New York. Jun. 1999.&nbsp;<a href="http://www.bing.com/search?q=Purely%20Functional%20Data%20Structures%20Okasaki%2C%201999b" class="bibsearch">&#128270;</a></div>
+<div id="pretnar:handlers" class="bibitem" data-cite-year="2009" data-cite-authors="Plotkin and Pretnar" data-cite-authors-long="Plotkin and Pretnar" data-cite-label="14" data-line="koka.bib:172" style="text-indent:-2rem;margin-left:2rem;searchterm:Handlers%20of%20Algebraic%20Effects%20Plotkin%20and%20Pretnar%2C%202009;spellcheck:false;bibitem-label:\5C [14\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[14]</span>Gordon D.&#160;Plotkin, and Matija Pretnar. &#8220;Handlers of Algebraic Effects.&#8221; In <em class="em-low1">18th European Symposium on Programming Languages and Systems</em>, 80–94. ESOP’09. York, UK.&#160;Mar. 2009. doi:<a href="https://dx.doi.org/10.1007/978-3-642-00590-9_7" class="bib-doi" style="font-size:smaller">10.1007/978-3-642-00590-9_7</a>.&nbsp;<a href="http://www.bing.com/search?q=Handlers%20of%20Algebraic%20Effects%20Plotkin%20and%20Pretnar%2C%202009" class="bibsearch">&#128270;</a></div>
+<div id="perceus:tech" class="bibitem" data-cite-year="2020" data-cite-authors="Reinking et al." data-cite-authors-long="Reinking, Xie, Moura, and Leijen" data-cite-label="15" data-line="koka.bib:1" style="text-indent:-2rem;margin-left:2rem;searchterm:Perceus%3A%20GarbageFree%20Reference%20Counting%20with%20Reuse%20Reinking%2C%20Xie%2C%20Moura%2C%20and%20Leijen%2C%202020;spellcheck:false;bibitem-label:\5C [15\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[15]</span>Alex Reinking, Ningning Xie, Leonardo de Moura, and Daan Leijen. <em class="em-low1">Perceus: Garbage-Free Reference Counting with Reuse</em>. MSR-TR-2020-42. Microsoft Research. Nov. 2020. <a href="https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf" class="bib-url texturl monospace">https://&#8203;www.&#8203;microsoft.&#8203;com/&#8203;en-&#8203;us/&#8203;research/&#8203;uploads/&#8203;prod/&#8203;2020/&#8203;11/&#8203;perceus-&#8203;tr-&#8203;v1.&#8203;pdf</a>.&nbsp;<a href="http://www.bing.com/search?q=Perceus%3A%20GarbageFree%20Reference%20Counting%20with%20Reuse%20Reinking%2C%20Xie%2C%20Moura%2C%20and%20Leijen%2C%202020" class="bibsearch">&#128270;</a></div>
+<div id="xie:evidently" class="bibitem" data-cite-year="2020" data-cite-authors="Xie et al." data-cite-authors-long="Xie, Brachthäuser, Schuster, Hillerström, and Leijen" data-cite-label="16" data-line="koka.bib:11" style="text-indent:-2rem;margin-left:2rem;searchterm:Effect%20Handlers%2C%20Evidently%20Xie%2C%20Brachth%C3%A4user%2C%20Schuster%2C%20Hillerstr%C3%B6m%2C%20and%20Leijen%2C%202020;spellcheck:false;bibitem-label:\5C [16\5C ]"><span class="bibitem-before" style="padding-right:0.5em;display: inline-block; width:calc(2rem - 0.5em);display: inline-block; text-align:right;font-size:90%">[16]</span>Ningning Xie, Jonathan Brachthäuser, Phillip Schuster, Daniel Hillerström, and Daan Leijen. &#8220;Effect Handlers, Evidently.&#8221; In <em class="em-low1">Proceedings of the 25th ACM SIGPLAN International Conference on Functional Programming (ICFP’2020)</em>. ICFP ’20. Jersey City, NJ.&#160;Aug. 2020.&nbsp;<a href="http://www.bing.com/search?q=Effect%20Handlers%2C%20Evidently%20Xie%2C%20Brachth%C3%A4user%2C%20Schuster%2C%20Hillerstr%C3%B6m%2C%20and%20Leijen%2C%202020" class="bibsearch">&#128270;</a></div></div></div><h1 id="sec-appendix" class="clearnum h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Appendix</h1><h1 id="sec-full-grammar-specification" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-full-grammar-specification" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">A</span>.&#8194;</span>Full grammar specification</h1><h2 id="sec:full-lexical" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec:full-lexical" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">A.1</span>.&#8194;</span>Lexical syntax</h2>
 <div id="full-lexical" class="div"></div><h2 id="sec:full-grammar" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec:full-grammar" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">A.2</span>.&#8194;</span>Context-free syntax</h2>
 <div id="full-grammar" class="div"></div></div></div></div><span data-line=""></span></div>
 <svg id='math-svg-paths' style='display:none' version='1.1' viewBox='0 0 0 0' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
