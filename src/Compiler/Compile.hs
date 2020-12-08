@@ -150,6 +150,7 @@ instance Monad IOErr where
 
 
 instance MonadFail IOErr where
+  fail = IOErr . return . fail
 
 bindIO :: IO (Error a) -> (a -> IO (Error b)) -> IO (Error b)
 bindIO io f
