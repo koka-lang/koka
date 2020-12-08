@@ -31,6 +31,7 @@ import Type.TypeVar
 import Type.Pretty() 
 
 newtype RangeMap = RM [(Range,RangeInfo)]
+  deriving Show
 
 mangleConName :: Name -> Name
 mangleConName name
