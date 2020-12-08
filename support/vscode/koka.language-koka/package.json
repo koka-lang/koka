@@ -5,7 +5,7 @@
 	"version": "2.0.0",
 	"publisher": "koka-lang",
 	"engines": {
-		"vscode": "^1.0.0"
+		"vscode": "^1.41.0"
 	},
 	"icon": "images/koka-logo-filled.png",
 	"galleryBanner": {
@@ -52,6 +52,11 @@
 					"type": "boolean",
 					"default": true,
 					"description": "Set to 'false' to disable automatically increasing indent on newlines after '{', 'match' etc."
+				},
+				"koka.executablePath": {
+					"type": "string",
+					"default": "koka",
+					"description": "The path to the Koka executable"
 				}
 			}
 		},
@@ -75,12 +80,20 @@
 				"language": "koka",
 				"scopeName": "source.koka",
 				"path": "./syntaxes/koka.json"
-			}			
+			}
 		]
 	},
 	"scripts": {
+		"build": "tsc -p .",
+		"watch": "tsc -w -p .",
+		"update-vscode": "node ./node_modules/vscode/bin/install"
 	},
 	"devDependencies": {
-		"vscode": "^1.0.0"
+		"@types/node": "^14.14.10",
+		"typescript": "^4.1.2",
+		"vscode": "^1.1.37"
+	},
+	"dependencies": {
+		"vscode-languageclient": "^6.1.3"
 	}
 }
