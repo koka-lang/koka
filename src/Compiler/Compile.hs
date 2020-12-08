@@ -808,7 +808,7 @@ inferCheck loaded flags line coreImports program1
               (isValueFromFlags flags)
               (colorSchemeFromFlags flags)
               (platform flags)
-              (if (outHtml flags > 0) then Just rangeMapNew else Nothing)
+              (if genRangeMap flags then Just rangeMapNew else Nothing)
               (loadedImportMap loaded)
               (loadedKGamma loaded)
               (loadedSynonyms loaded)

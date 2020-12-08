@@ -135,6 +135,7 @@ data Flags
          , coreCheck        :: Bool
          , enableMon        :: Bool
          , semiInsert       :: Bool
+         , genRangeMap      :: Bool
          , localBinDir      :: FilePath  -- directory of koka executable
          , localDir         :: FilePath  -- install prefix: /usr/local
          , localLibDir      :: FilePath  -- precompiled object files: <prefix>/lib/koka/v2.x.x  /<cc>-<config>/libkklib.a, /<cc>-<config>/std_core.kki, ...
@@ -200,6 +201,7 @@ flagsNull
           False -- coreCheck
           True  -- enableMonadic
           True  -- semi colon insertion
+          False -- generate range map
           ""    -- koka executable dir
           ""    -- prefix dir (default: <program-dir>/..)
           ""    -- localLib dir
@@ -490,7 +492,8 @@ processOptions flags0 opts
                                   ccompPath   = ccmd,
                                   ccomp       = cc,
                                   editor      = ed,
-                                  includePath = (localShareDir ++ "/lib") : includePath flags }
+                                  includePath = (localShareDir ++ "/lib") : includePath flags,
+                                  genRangeMap = outHtml flags > 0 || any isLanguageServer options }
                           ,mode)
         else invokeError errs
 
