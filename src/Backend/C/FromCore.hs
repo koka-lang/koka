@@ -2026,6 +2026,8 @@ instance Monad Asm where
                                     (x,st1) -> case f x of
                                                  Asm b -> b env st1)
 
+instance MonadFail Asm where
+
 runAsm :: Int -> Env -> Asm a -> (a,Doc,Doc)
 runAsm uniq initEnv (Asm asm)
   = case asm initEnv (initSt uniq) of

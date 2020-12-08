@@ -149,6 +149,8 @@ instance Monad IOErr where
                                    Left msg  -> return (errorMsg msg  ))
 
 
+instance MonadFail IOErr where
+
 bindIO :: IO (Error a) -> (a -> IO (Error b)) -> IO (Error b)
 bindIO io f
   = do err <- io
