@@ -424,8 +424,7 @@ fun rotate( xs, n ) {
 }
 
 // Calculate a frequency table for a string
-fun freqs( s : string ) : list<double>
-{
+fun freqs( s : string ) : list<double> {
   val lowers = list('a','z')
   val occurs = lowers.map( fn(c){ s.count(c.string) })
   val total  = occurs.sum
@@ -434,14 +433,12 @@ fun freqs( s : string ) : list<double>
 
 // Calculate how well two frequency tables match according
 // to the _chi-square_ statistic.
-fun chisqr( xs : list<double>, ys : list<double> ) : double
-{
+fun chisqr( xs : list<double>, ys : list<double> ) : double {
   zipwith(xs,ys, fn(x,y){ ((x - y)^2.0)/y } ).foldr(0.0,(+))
 }
 
 // Crack a Caesar encoded string
-fun uncaesar( s : string ) : string
-{
+fun uncaesar( s : string ) : string {
   val table  = freqs(s)                   // build a frequency table for `s`
   val chitab = list(0,25).map( fn(n) {    // build a list of chisqr numbers for each shift between 0 and 25
                   chisqr( table.rotate(n), english )

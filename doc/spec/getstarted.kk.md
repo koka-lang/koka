@@ -9,7 +9,7 @@ Welcome to &koka; -- a functional-style language with effect types and handlers.
 [Why &koka;?][#why]{.learn}
 [Install &koka;][#install]{.learn}
 [Browse the Github repo][kokarepo]{.learn}
-[Browse the Library documentation][libraries]{.learn}
+[Browse the Libraries][libraries]{.learn}
 
 Note: &koka; v2 is a research language that is currently under heavy development. 
 Nevertheless, the language is stable and the compiler

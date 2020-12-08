@@ -12,7 +12,7 @@ Colorizer     : koka.json
 Bibliography  : koka.bib
 Description   : Koka Language Specification
 Mapsto        : [$\rightsquigarrow$]{.mapsto}
-Koka          : K&omacron;ka
+Koka          : Koka
 
 [INCLUDE=book]
 [INCLUDE=styles/webanchors]
