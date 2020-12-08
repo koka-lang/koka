@@ -1529,6 +1529,7 @@ instance Monad Asm where
                                                  Asm b -> b env st1)
 
 instance MonadFail Asm where
+  fail = error
 
 runAsm :: Env -> Asm () -> Doc
 runAsm initEnv (Asm asm)
