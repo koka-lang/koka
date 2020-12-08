@@ -42,7 +42,7 @@
 	"activationEvents": [
 		"onLanguage:koka"
 	],
-	"main": "./out/src/extension",
+	"main": "./out/extension",
 	"contributes": {
 		"configuration": {
 			"type": "object",
