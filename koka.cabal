@@ -88,6 +88,7 @@ executable koka
       Kind.Pretty
       Kind.Synonym
       Kind.Unify
+      LanguageServer.Run
       Lib.JSON
       Lib.PPrint
       Lib.Printer

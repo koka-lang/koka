@@ -75,8 +75,9 @@ prettyIncludePath flags
 data Mode
   = ModeHelp
   | ModeVersion
-  | ModeCompiler    { files :: [FilePath] }
-  | ModeInteractive { files :: [FilePath] }
+  | ModeCompiler       { files :: [FilePath] }
+  | ModeInteractive    { files :: [FilePath] }
+  | ModeLanguageServer { files :: [FilePath] }
 
 data Option
   = Interactive
