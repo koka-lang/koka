@@ -53,10 +53,15 @@
 					"default": true,
 					"description": "Set to 'false' to disable automatically increasing indent on newlines after '{', 'match' etc."
 				},
-				"koka.executablePath": {
+				"koka.languageServer.enabled": {
+					"type": "boolean",
+					"default": false,
+					"description": "Set to 'true' to enable smarter language support (e.g. hover, code completion, ...) for Koka. Requires specifying the path to the Koka compiler under 'koka.languageServer.path'."
+				},
+				"koka.languageServer.path": {
 					"type": "string",
 					"default": "koka",
-					"description": "The path to the Koka executable"
+					"description": "The path to the Koka compiler (by default the extension assumes that 'koka' is on your PATH)"
 				}
 			}
 		},
