@@ -15,13 +15,12 @@ import qualified Data.Text               as T
 import Language.LSP.Server
 import qualified Language.LSP.Types      as J
 import qualified Language.LSP.Types.Lens as J
-import Syntax.RangeMap                   ( rangeMapLookup )
+import Syntax.RangeMap                   ( rangeMapFindAt )
 
 handlers :: Flags -> Handlers (LspM ())
 handlers flags = mconcat
   [ requestHandler J.STextDocumentHover $ \req responder -> do
       let J.HoverParams doc pos _ = req ^. J.params
-          range = J.Range pos pos
           -- TODO: Use the VFS recompile when the user types
           --       (instead of on every hover)
           uri = doc ^. J.uri
@@ -33,7 +32,7 @@ handlers flags = mconcat
                   -- TODO: Handle errors
                   let l = fst $ fromRight' $ checkError loaded
                   rmap <- modRangeMap $ loadedModule l
-                  rinfo <- fst <$> (listToMaybe $ fst $ rangeMapLookup (fromLspRange uri range) rmap)
+                  rinfo <- rangeMapFindAt (fromLspPos uri pos) rmap
                   -- TODO: Improve rendering of the range info
                   let hc = J.HoverContents $ J.markedUpContent "koka" $ T.pack $ show rinfo
                       hover = J.Hover hc $ Just $ J.Range pos pos
