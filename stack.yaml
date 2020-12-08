@@ -1,9 +1,13 @@
-resolver: lts-14.27
+resolver: lts-16.24
 
 packages:
 - '.'
 
 extra-deps:
+- constraints-extras-0.3.0.2
+- dependent-map-0.4.0.0
+- dependent-sum-0.7.1.0
+- dependent-sum-template-0.1.0.3
 - some-1.0.1
 - stylish-haskell-0.11.0.0
 - hlint-2.1.26
