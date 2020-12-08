@@ -20,8 +20,7 @@ module Syntax.RangeMap( RangeMap, RangeInfo(..), NameInfo(..)
 -- import Lib.Trace
 import Data.Char    ( isSpace )
 import Common.Failure 
-import Data.List    (sortBy, groupBy)
-import Data.Maybe   (listToMaybe)
+import Data.List    (sortBy, groupBy, minimumBy)
 import Lib.PPrint
 import Common.Range
 import Common.Name
@@ -165,8 +164,13 @@ rangeMapLookup r (RM rm)
         cmp (_,ri1) (_,ri2) = compare (fromEnum ri1) (fromEnum ri2)
 
 rangeMapFindAt :: Pos -> RangeMap -> Maybe (Range, RangeInfo)
-rangeMapFindAt pos (RM rm) = listToMaybe $ filter (containsPos . fst) rm
-  where containsPos rng = rangeStart rng <= pos && rangeEnd rng >= pos
+rangeMapFindAt pos (RM rm)
+  = shortestRange $ filter (containsPos . fst) rm
+  where
+    containsPos rng   = rangeStart rng <= pos && rangeEnd rng >= pos
+    shortestRange []  = Nothing
+    shortestRange rs  = Just $ minimumBy cmp rs
+    cmp (r1,_) (r2,_) = compare (rangeLength r1) (rangeLength r2)
 
 instance HasTypeVar RangeMap where
   sub `substitute` (RM rm)
