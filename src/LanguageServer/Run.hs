@@ -12,7 +12,7 @@ runLanguageServer :: Flags -> [FilePath] -> IO ()
 runLanguageServer flags files = void $ runServer $ ServerDefinition
   { onConfigurationChange = const $ pure $ Right ()
   , doInitialize = \env _ -> pure $ Right env
-  , staticHandlers = handlers
+  , staticHandlers = handlers flags
   , interpretHandler = \env -> Iso (runLspT env) liftIO
   , options = defaultOptions
   }
