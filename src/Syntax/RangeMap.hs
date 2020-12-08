@@ -164,8 +164,8 @@ rangeMapLookup r (RM rm)
         eq (_,ri1) (_,ri2)  = (EQ == compare ((fromEnum ri1) `div` 10) ((fromEnum ri2) `div` 10))
         cmp (_,ri1) (_,ri2) = compare (fromEnum ri1) (fromEnum ri2)
 
-rangeMapFindAt :: Pos -> RangeMap -> Maybe RangeInfo
-rangeMapFindAt pos (RM rm) = listToMaybe $ snd <$> filter (containsPos . fst) rm
+rangeMapFindAt :: Pos -> RangeMap -> Maybe (Range, RangeInfo)
+rangeMapFindAt pos (RM rm) = listToMaybe $ filter (containsPos . fst) rm
   where containsPos rng = rangeStart rng <= pos && rangeEnd rng >= pos
 
 instance HasTypeVar RangeMap where

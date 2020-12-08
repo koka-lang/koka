@@ -32,10 +32,10 @@ handlers flags = mconcat
                   -- TODO: Handle errors
                   let l = fst $ fromRight' $ checkError loaded
                   rmap <- modRangeMap $ loadedModule l
-                  rinfo <- rangeMapFindAt (fromLspPos uri pos) rmap
+                  (r, rinfo) <- rangeMapFindAt (fromLspPos uri pos) rmap
                   -- TODO: Improve rendering of the range info
                   let hc = J.HoverContents $ J.markedUpContent "koka" $ T.pack $ show rinfo
-                      hover = J.Hover hc $ Just $ J.Range pos pos
+                      hover = J.Hover hc $ Just $ toLspRange r
                   return hover
       responder $ Right rsp
   ]
