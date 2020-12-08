@@ -20,6 +20,7 @@ dependencies:
   - cond
   - containers
   - directory
+  - lsp
   - mtl
   - parsec
   - process

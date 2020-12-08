@@ -7,6 +7,7 @@ extra-deps:
 - stylish-haskell-0.11.0.0
 - hlint-2.1.26
 - haskeline-0.8.0.0
+- lsp-1.0.0.1
 
 flags:
   haskeline:
