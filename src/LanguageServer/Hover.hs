@@ -13,7 +13,9 @@ import Compiler.Options                  ( Flags )
 import Compiler.Module                   ( loadedModule, modRangeMap )
 import Data.Maybe                        ( fromJust )
 import qualified Data.Text               as T
-import Language.LSP.Server
+import qualified Data.Map                as M
+import Language.LSP.Diagnostics
+import Language.LSP.Server               ( requestHandler, publishDiagnostics, Handlers, LspM )
 import qualified Language.LSP.Types      as J
 import qualified Language.LSP.Types.Lens as J
 import LanguageServer.Conversions
@@ -23,21 +25,25 @@ import Syntax.RangeMap                   ( rangeMapFindAt, RangeInfo (..), NameI
 hoverHandler :: Flags -> Handlers (LspM ())
 hoverHandler flags = requestHandler J.STextDocumentHover $ \req responder -> do
   let J.HoverParams doc pos _ = req ^. J.params
-      -- TODO: Use the VFS and recompile when the user types
-      --       (instead of on every hover)
       uri = doc ^. J.uri
+      normUri = J.toNormalizedUri uri
       -- TODO: Handle error
       filePath = fromJust $ J.uriToFilePath uri
-  -- TODO: Recompile and generate diagnostics in conjunction
-  --       with the VFS (see above) and in a separate handler
+  -- TODO: Use the VFS and recompile (and generate diagnostics)
+  --       when the user types (instead of on every hover)
+  --       Also, this should happen in a separate module, not here.
   loaded <- liftIO $ compileModuleOrFile terminal flags [] filePath False
-  let rsp = do
+  let diags = toLspDiagnostics loaded
+      diagsBySrc = partitionBySource diags
+      maxDiags = 100
+      rsp = do
               l <- rightToMaybe $ fst <$> checkError loaded
               rmap <- modRangeMap $ loadedModule l
               (r, rinfo) <- rangeMapFindAt (fromLspPos uri pos) rmap
               let hc = J.HoverContents $ J.markedUpContent "koka" $ T.pack $ formatHoverContents rinfo
                   hover = J.Hover hc $ Just $ toLspRange r
               return hover
+  publishDiagnostics maxDiags normUri (Just 0) diagsBySrc
   responder $ Right rsp
 
 formatHoverContents :: RangeInfo -> String

@@ -31,6 +31,7 @@ toLspDiagnostics err = case E.checkError err of
 toLspErrorDiagnostics :: E.ErrorMessage -> [J.Diagnostic]
 toLspErrorDiagnostics e = case e of
   E.ErrorGeneral r doc  -> [makeDiagnostic J.DsError r doc]
+  E.ErrorParse   r doc  -> [makeDiagnostic J.DsError r doc]
   E.ErrorStatic  rds    -> map (uncurry $ makeDiagnostic J.DsError) rds
   E.ErrorKind    rds    -> map (uncurry $ makeDiagnostic J.DsError) rds
   E.ErrorType    rds    -> map (uncurry $ makeDiagnostic J.DsError) rds
