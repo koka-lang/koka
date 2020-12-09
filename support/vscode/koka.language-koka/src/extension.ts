@@ -5,10 +5,12 @@ export function activate(context: vscode.ExtensionContext) {
     const config = vscode.workspace.getConfiguration('koka');
 
     if (config.get('languageServer.enabled')) {
-        const executablePath = config.get('languageServer.path') as string;
         const serverOptions: ServerOptions = {
-            command: executablePath,
-            args: ["--language-server"]
+            command: config.get('languageServer.command'),
+            options: {
+                shell: true,
+                cwd: config.get('languageServer.cwd') || null
+            }
         };
         const clientOptions: LanguageClientOptions = {
             documentSelector: [
