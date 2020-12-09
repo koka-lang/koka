@@ -18,9 +18,7 @@ import qualified Language.LSP.Types      as J
 import qualified Language.LSP.Types.Lens as J
 import LanguageServer.Conversions
 import Lib.PPrint                        ( Pretty (..) )
-import Syntax.Colorize                   ( signature )
 import Syntax.RangeMap                   ( rangeMapFindAt, RangeInfo (..), NameInfo (..) )
-import Type.Pretty                       ( defaultEnv )
 
 hoverHandler :: Flags -> Handlers (LspM ())
 hoverHandler flags = requestHandler J.STextDocumentHover $ \req responder -> do
@@ -30,15 +28,13 @@ hoverHandler flags = requestHandler J.STextDocumentHover $ \req responder -> do
       uri = doc ^. J.uri
       -- TODO: Handle error
       filePath = fromJust $ J.uriToFilePath uri
-  -- TODO: Generate diagnostics from compilation results,
-  --       ideally in conjunction with the VFS (see above)
+  -- TODO: Recompile and generate diagnostics in conjunction
+  --       with the VFS (see above) and in a separate handler
   loaded <- liftIO $ compileModuleOrFile terminal flags [] filePath False
   let rsp = do
-              -- TODO: Handle errors
-              let l = fst $ fromRight' $ checkError loaded
+              l <- rightToMaybe $ fst <$> checkError loaded
               rmap <- modRangeMap $ loadedModule l
               (r, rinfo) <- rangeMapFindAt (fromLspPos uri pos) rmap
-              -- TODO: Improve rendering of the range info
               let hc = J.HoverContents $ J.markedUpContent "koka" $ T.pack $ formatHoverContents rinfo
                   hover = J.Hover hc $ Just $ toLspRange r
               return hover
@@ -58,9 +54,9 @@ formatHoverContents rinfo = case rinfo of
   Error doc           -> "Error: " ++ show doc
   Warning doc         -> "Warning: " ++ show doc
 
-fromRight' :: Show a => Either a b -> b
-fromRight' (Right x) = x
-fromRight' (Left e)  = error $ "fromRight' failed: " ++ show e
+rightToMaybe :: Either a b -> Maybe b
+rightToMaybe (Right x) = Just x
+rightToMaybe (Left _)  = Nothing
 
 -- TODO: Emit messages via LSP's logging mechanism
 terminal :: Terminal
