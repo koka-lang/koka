@@ -13,8 +13,7 @@ import Compiler.Options                  ( Flags )
 import Compiler.Module                   ( loadedModule, modRangeMap )
 import Data.Maybe                        ( fromJust )
 import qualified Data.Text               as T
-import qualified Data.Map                as M
-import Language.LSP.Diagnostics
+import Language.LSP.Diagnostics          ( partitionBySource )
 import Language.LSP.Server               ( requestHandler, publishDiagnostics, flushDiagnosticsBySource, Handlers, LspM )
 import qualified Language.LSP.Types      as J
 import qualified Language.LSP.Types.Lens as J
