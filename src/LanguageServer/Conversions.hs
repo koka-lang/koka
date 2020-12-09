@@ -1,3 +1,6 @@
+-----------------------------------------------------------------------------
+-- Conversions between LSP types and internal types, e.g. positions/ranges
+-----------------------------------------------------------------------------
 module LanguageServer.Conversions( toLspPos
                                  , toLspRange
                                  , fromLspPos ) where
