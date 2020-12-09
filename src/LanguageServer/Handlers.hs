@@ -9,8 +9,7 @@ import qualified Common.Range            as R
 import Compiler.Compile                  ( compileModuleOrFile, Terminal (..) )
 import Compiler.Options                  ( Flags )
 import Compiler.Module                   ( loadedModule, modRangeMap )
-import Data.Either                       ( fromRight )
-import Data.Maybe                        ( listToMaybe, fromJust )
+import Data.Maybe                        ( fromJust )
 import qualified Data.Text               as T
 import Language.LSP.Server
 import qualified Language.LSP.Types      as J
@@ -46,7 +45,7 @@ fromRight' (Right x) = x
 fromRight' (Left e)  = error $ "fromRight' failed: " ++ show e
 
 toLspPos :: R.Pos -> J.Position
-toLspPos p = J.Position ((R.posLine p) - 1) ((R.posColumn p) - 1) -- LSP positions are zero-based
+toLspPos p = J.Position (R.posLine p - 1) (R.posColumn p - 1) -- LSP positions are zero-based
 
 toLspRange :: R.Range -> J.Range
 toLspRange r = J.Range (J.Position l1 c1) (J.Position l2 $ c2 + 1) -- LSP range ends are exclusive
