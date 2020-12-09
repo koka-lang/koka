@@ -12,9 +12,15 @@ import Compiler.Module                   ( loadedModule, modRangeMap )
 import Data.Maybe                        ( fromJust )
 import qualified Data.Text               as T
 import Language.LSP.Server
+import Lib.PPrint                        ( Pretty (..) )
 import qualified Language.LSP.Types      as J
 import qualified Language.LSP.Types.Lens as J
-import Syntax.RangeMap                   ( rangeMapFindAt )
+import Syntax.Colorize                   ( signature )
+import Syntax.RangeMap                   ( rangeMapFindAt, RangeInfo (..), NameInfo (..) )
+import Type.Pretty                       ( defaultEnv )
+
+-- TODO: Factor out handlers into individual modules
+-- (e.g. LanguageServer.Handlers.Hover, etc)
 
 handlers :: Flags -> Handlers (LspM ())
 handlers flags = mconcat
@@ -34,11 +40,25 @@ handlers flags = mconcat
                   rmap <- modRangeMap $ loadedModule l
                   (r, rinfo) <- rangeMapFindAt (fromLspPos uri pos) rmap
                   -- TODO: Improve rendering of the range info
-                  let hc = J.HoverContents $ J.markedUpContent "koka" $ T.pack $ show rinfo
+                  let hc = J.HoverContents $ J.markedUpContent "koka" $ T.pack $ formatHoverContents rinfo
                       hover = J.Hover hc $ Just $ toLspRange r
                   return hover
       responder $ Right rsp
   ]
+
+formatHoverContents :: RangeInfo -> String
+formatHoverContents rinfo = case rinfo of
+  Id qname info isdef -> show (pretty qname) ++ " : " ++ case info of
+    NIValue tp  -> show $ pretty tp
+    NICon tp    -> show $ pretty tp
+    NITypeCon k -> show $ pretty k
+    NITypeVar k -> show $ pretty k
+    NIModule    -> "module"
+    NIKind      -> "kind"
+  Decl s name mname   -> s ++ " " ++ show (pretty name)
+  Block s             -> s
+  Error doc           -> "Error: " ++ show doc
+  Warning doc         -> "Warning: " ++ show doc
 
 fromRight' :: Show a => Either a b -> b
 fromRight' (Right x) = x
