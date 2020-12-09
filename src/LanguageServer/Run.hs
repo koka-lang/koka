@@ -5,7 +5,6 @@ import Compiler.Options          ( Flags )
 import Control.Monad             ( void )
 import Control.Monad.IO.Class    ( liftIO )
 import Language.LSP.Server
-import Language.LSP.Types
 import LanguageServer.Handlers
 
 runLanguageServer :: Flags -> [FilePath] -> IO ()
