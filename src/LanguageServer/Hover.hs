@@ -15,7 +15,7 @@ import Data.Maybe                        ( fromJust )
 import qualified Data.Text               as T
 import qualified Data.Map                as M
 import Language.LSP.Diagnostics
-import Language.LSP.Server               ( requestHandler, publishDiagnostics, Handlers, LspM )
+import Language.LSP.Server               ( requestHandler, publishDiagnostics, flushDiagnosticsBySource, Handlers, LspM )
 import qualified Language.LSP.Types      as J
 import qualified Language.LSP.Types.Lens as J
 import LanguageServer.Conversions
@@ -33,7 +33,8 @@ hoverHandler flags = requestHandler J.STextDocumentHover $ \req responder -> do
   --       when the user types (instead of on every hover)
   --       Also, this should happen in a separate module, not here.
   loaded <- liftIO $ compileModuleOrFile terminal flags [] filePath False
-  let diags = toLspDiagnostics loaded
+  let diagSrc = T.pack "koka"
+      diags = toLspDiagnostics diagSrc loaded
       diagsBySrc = partitionBySource diags
       maxDiags = 100
       rsp = do
@@ -43,7 +44,9 @@ hoverHandler flags = requestHandler J.STextDocumentHover $ \req responder -> do
               let hc = J.HoverContents $ J.markedUpContent "koka" $ T.pack $ formatHoverContents rinfo
                   hover = J.Hover hc $ Just $ toLspRange r
               return hover
-  publishDiagnostics maxDiags normUri (Just 0) diagsBySrc
+  if null diags
+    then flushDiagnosticsBySource maxDiags (Just diagSrc)
+    else publishDiagnostics maxDiags normUri (Just 0) diagsBySrc
   responder $ Right rsp
 
 formatHoverContents :: RangeInfo -> String

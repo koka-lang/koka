@@ -23,27 +23,27 @@ toLspRange r = J.Range (J.Position l1 c1) (J.Position l2 $ c2 + 1) -- LSP range 
     J.Position l1 c1 = toLspPos $ R.rangeStart r
     J.Position l2 c2 = toLspPos $ R.rangeEnd r
 
-toLspDiagnostics :: E.Error a -> [J.Diagnostic]
-toLspDiagnostics err = case E.checkError err of
-  Right (_, ws) -> map (uncurry toLspWarningDiagnostic) ws
-  Left  e ->       toLspErrorDiagnostics e
+toLspDiagnostics :: J.DiagnosticSource -> E.Error a -> [J.Diagnostic]
+toLspDiagnostics src err = case E.checkError err of
+  Right (_, ws) -> map (uncurry $ toLspWarningDiagnostic src) ws
+  Left  e ->       toLspErrorDiagnostics src e
 
-toLspErrorDiagnostics :: E.ErrorMessage -> [J.Diagnostic]
-toLspErrorDiagnostics e = case e of
-  E.ErrorGeneral r doc  -> [makeDiagnostic J.DsError r doc]
-  E.ErrorParse   r doc  -> [makeDiagnostic J.DsError r doc]
-  E.ErrorStatic  rds    -> map (uncurry $ makeDiagnostic J.DsError) rds
-  E.ErrorKind    rds    -> map (uncurry $ makeDiagnostic J.DsError) rds
-  E.ErrorType    rds    -> map (uncurry $ makeDiagnostic J.DsError) rds
-  E.ErrorWarning rds e' -> map (uncurry $ makeDiagnostic J.DsError) rds ++ toLspErrorDiagnostics e'
-  E.ErrorIO      doc    -> [makeDiagnostic J.DsError R.rangeNull doc]
+toLspErrorDiagnostics :: J.DiagnosticSource -> E.ErrorMessage -> [J.Diagnostic]
+toLspErrorDiagnostics src e = case e of
+  E.ErrorGeneral r doc  -> [makeDiagnostic J.DsError src r doc]
+  E.ErrorParse   r doc  -> [makeDiagnostic J.DsError src r doc]
+  E.ErrorStatic  rds    -> map (uncurry $ makeDiagnostic J.DsError src) rds
+  E.ErrorKind    rds    -> map (uncurry $ makeDiagnostic J.DsError src) rds
+  E.ErrorType    rds    -> map (uncurry $ makeDiagnostic J.DsError src) rds
+  E.ErrorWarning rds e' -> map (uncurry $ makeDiagnostic J.DsError src) rds ++ toLspErrorDiagnostics src e'
+  E.ErrorIO      doc    -> [makeDiagnostic J.DsError src R.rangeNull doc]
   E.ErrorZero           -> []
 
-toLspWarningDiagnostic :: R.Range -> Doc -> J.Diagnostic
+toLspWarningDiagnostic :: J.DiagnosticSource -> R.Range -> Doc -> J.Diagnostic
 toLspWarningDiagnostic = makeDiagnostic J.DsWarning
 
-makeDiagnostic :: J.DiagnosticSeverity -> R.Range -> Doc -> J.Diagnostic
-makeDiagnostic s r doc = J.Diagnostic (toLspRange r) (Just s) Nothing Nothing (T.pack $ show doc) Nothing Nothing
+makeDiagnostic :: J.DiagnosticSeverity -> J.DiagnosticSource -> R.Range -> Doc -> J.Diagnostic
+makeDiagnostic s src r doc = J.Diagnostic (toLspRange r) (Just s) Nothing (Just src) (T.pack $ show doc) Nothing Nothing
 
 fromLspPos :: J.Uri -> J.Position -> R.Pos
 fromLspPos uri (J.Position l c) = R.makePos src (-1) (l + 1) (c + 1)
