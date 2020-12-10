@@ -40,6 +40,7 @@ For more information, see:
 * [Why Koka?][why]
 * The [Koka book][kokabook] for a tour of the Koka language and its specification.
 * The [Library documentation][libraries].
+* Help with [development](#tasks)
 
 <!--
 A function without any effect is called _total_ and corresponds to mathematically total functions -- a good place to be.
@@ -580,9 +581,11 @@ Please help develop Koka: there are many opportunities to improve Koka or do res
 
 More advanced projects:
 
+- Update the JavaScript backend to 1) use proper modules instead of amdefine, 2) use the new bigints instead of bigint.js,
+  and 3) add support for int64. This requires mostly changes to `Backend/JS/FromCore.hs` together with `lib/core/core-inline.js`.
 - A language server for Visual Studio Code and Atom. Koka can already generate a typed [range map](src/Syntax/RangeMap.hs) so this
   should be managable.
-- Package management of Koka modules.a
+- Package management of Koka modules.
 - Implement inline specialization where functions like `map`, `fold` etc get specialized for the function with which they are called.
   This is an important optimization for functional style languages to reduce the allocation of lambda's.
 - Various standard optimizations like case-of-case, join points, case-of-known constructor, etc.
