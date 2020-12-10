@@ -809,7 +809,7 @@ kk_string_t kk_os_kernel(kk_context_t* ctx) {
   return kk_string_alloc_dup(kernel, ctx);
 }
 
-kk_string_t kk_os_arch(int* ptrdiff_bits, int* size_bits, int* intptr_bits, kk_context_t* ctx) {
+kk_string_t kk_os_arch(kk_context_t* ctx) {
   char* arch = "unknown";
 #if defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) || defined(_M_AMD64)
   arch = "amd64";
@@ -834,9 +834,6 @@ kk_string_t kk_os_arch(int* ptrdiff_bits, int* size_bits, int* intptr_bits, kk_c
 #elif defined(__sparc__) || defined(__sparc)
   arch = "sparc";
 #endif
-  if (ptrdiff_bits != NULL) *ptrdiff_bits = 8 * sizeof(ptrdiff_t);
-  if (size_bits != NULL)    *size_bits = 8 * sizeof(size_t);
-  if (intptr_bits != NULL)  *intptr_bits = 8 * sizeof(intptr_t);
   return kk_string_alloc_dup(arch, ctx);
 }
 

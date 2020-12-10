@@ -84,7 +84,7 @@ public extern get-os-name() : ndet string {
 
 // Return the main processor architecture: amd64, x86, arm64, arm, riscv, alpha, powerpc, etc.
 public extern get-cpu-arch() : ndet string {
-  c inline "kk_os_arch(NULL,NULL,NULL,kk_context())"
+  c "kk_os_arch"
   js inline "$std_core.host()"
 }
 
@@ -98,4 +98,30 @@ public extern get-cpu-count() : ndet int {
 public extern get-compiler-version() : ndet string {
   c "kk_compiler_version"
   js inline "\"2\""
+}
+
+// Return the processor architecture natural machine word size in bits.
+//
+// Note: Usually this equals the `get-cpu-object-bits` and `get-cpu-address-bits` on modern cpu's 
+// but they can differ on segmented architectures.
+// For example, on the old x86 FAR-NEAR model, the addresses are 32-bit but the maximum object size is 16-bit.
+// Or on the more recent-[x32 ABI](https://en.wikipedia.org/wiki/X32_ABI) 
+// the addresses and objects are 32-bits but the architecture has 64-bit registers.
+public extern get-cpu-arch-bits() : ndet int {
+  c inline "kk_integer_from_size_t(CHAR_BIT*(sizeof(size_t) > sizeof(long) ? sizeof(size_t) : sizeof(long)),kk_context())"
+  js inline "32"
+}
+
+// Return the processor maximum object size in bits (`8*sizeof(size_t)`). This is usually
+// equal to the `get-cpu-arch-bits` but may be different on segmented architectures. 
+public extern get-cpu-object-bits() : ndet int {
+  c inline "kk_integer_from_size_t(CHAR_BIT*sizeof(size_t),kk_context())"
+  js inline "32"
+}
+
+// Return the processor maximum address size in bits (`8*sizeof(void*)`). This is usually
+// equal to the `get-cpu-arch-bits` but may be different on segmented architectures. 
+public extern get-cpu-address-bits() : ndet int {
+  c inline "kk_integer_from_size_t(CHAR_BIT*sizeof(void*),kk_context())"
+  js inline "32"
 }
