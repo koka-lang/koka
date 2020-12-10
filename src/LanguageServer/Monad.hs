@@ -8,14 +8,16 @@ module LanguageServer.Monad( LSState (..)
                            , runLSM
                            ) where
 
-import Compiler.Module         ( Loaded )
-import Control.Concurrent.MVar ( MVar, newMVar, takeMVar, putMVar, modifyMVar )
-import Control.Monad.Reader    ( ReaderT, runReaderT, ask )
-import Control.Monad.Trans     ( lift, liftIO )
+import Compiler.Module                   ( Loaded )
+import Control.Concurrent.MVar           ( MVar, newMVar, takeMVar, putMVar, modifyMVar )
+import Control.Monad.Reader              ( ReaderT, runReaderT, ask )
+import Control.Monad.Trans               ( lift, liftIO )
+import qualified Data.Map                as M
 import Language.LSP.Server
+import qualified Language.LSP.Types      as J
 
 -- The language server's state, e.g. holding loaded/compiled modules.
-data LSState = LSState { lsLoaded :: Maybe Loaded }
+data LSState = LSState { lsLoaded :: M.Map J.NormalizedUri Loaded }
 
 -- The monad holding (thread-safe) state used by the language server.
 type LSM = LspT () (ReaderT (MVar LSState) IO)
@@ -39,19 +41,19 @@ modifyLSState m = do
   liftIO $ modifyMVar stVar $ \s -> return (m s, ())
 
 -- Fetches the loaded state holding compiled modules
-getLoaded :: LSM (Maybe Loaded)
+getLoaded :: LSM (M.Map J.NormalizedUri Loaded)
 getLoaded = lsLoaded <$> getLSState
 
 -- Replaces the loaded state holding compiled modules
-putLoaded :: Maybe Loaded -> LSM ()
+putLoaded :: M.Map J.NormalizedUri Loaded -> LSM ()
 putLoaded l = modifyLSState $ \s -> s { lsLoaded = l }
 
 -- Updates the loaded state holding compiled modules
-modifyLoaded :: (Maybe Loaded -> Maybe Loaded) -> LSM ()
+modifyLoaded :: (M.Map J.NormalizedUri Loaded -> M.Map J.NormalizedUri Loaded) -> LSM ()
 modifyLoaded m = modifyLSState $ \s -> s { lsLoaded = m $ lsLoaded s }
 
 -- Runs the language server's state monad.
 runLSM :: LSM a -> LanguageContextEnv () -> IO a
 runLSM lsm cfg = do
-  stVar <- newMVar $ LSState { lsLoaded = Nothing }
+  stVar <- newMVar $ LSState { lsLoaded = M.empty }
   runReaderT (runLspT cfg lsm) stVar
