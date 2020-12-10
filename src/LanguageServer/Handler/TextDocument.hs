@@ -37,13 +37,11 @@ didChangeHandler flags = notificationHandler J.STextDocumentDidChange $ \_not ->
 didSaveHandler :: Flags -> Handlers LSM
 didSaveHandler flags = notificationHandler J.STextDocumentDidSave $ \not -> do
   let uri = not ^. J.params . J.textDocument . J.uri
-  sendNotification J.SWindowLogMessage $ J.LogMessageParams J.MtInfo "Did save"
   recompileFile flags uri
 
 didCloseHandler :: Flags -> Handlers LSM
 didCloseHandler flags = notificationHandler J.STextDocumentDidClose $ \_not -> do
   -- TODO: Remove file from LSM state?
-  sendNotification J.SWindowLogMessage $ J.LogMessageParams J.MtInfo "Did close"
   return ()
 
 -- Recompiles the given file, stores the compilation result in LSM's state
