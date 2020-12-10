@@ -163,9 +163,9 @@ COMPILER=""
 detect_arch() {
   ARCH="$(uname -m)"
   case "$ARCH" in
-    arm*)      ARCH="arm";;
-    aarch64*)  ARCH="aarch64";;
-    x86_64*)   ARCH="amd64";;
+    arm64*|aarch64*)   ARCH="arm64";;
+    arm*)              ARCH="arm";;
+    x86_64*)           ARCH="amd64";;
     x86*|i[35678]86*)  ARCH="x86";;
   esac
 }
