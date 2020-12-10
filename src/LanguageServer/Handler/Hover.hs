@@ -18,10 +18,11 @@ import Language.LSP.Server               ( requestHandler, publishDiagnostics, f
 import qualified Language.LSP.Types      as J
 import qualified Language.LSP.Types.Lens as J
 import LanguageServer.Conversions
+import LanguageServer.Monad              ( LSM )
 import Lib.PPrint                        ( Pretty (..) )
 import Syntax.RangeMap                   ( rangeMapFindAt, RangeInfo (..), NameInfo (..) )
 
-hoverHandler :: Flags -> Handlers (LspM ())
+hoverHandler :: Flags -> Handlers LSM
 hoverHandler flags = requestHandler J.STextDocumentHover $ \req responder -> do
   let J.HoverParams doc pos _ = req ^. J.params
       uri = doc ^. J.uri

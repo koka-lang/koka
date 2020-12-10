@@ -9,8 +9,9 @@ import Language.LSP.Server
 import LanguageServer.Handler.Hover        ( hoverHandler )
 import LanguageServer.Handler.Initialized  ( initializedHandler )
 import LanguageServer.Handler.TextDocument ( didOpenHandler, didChangeHandler, didSaveHandler, didCloseHandler )
+import LanguageServer.Monad                ( LSM )
 
-handlers :: Flags -> Handlers (LspM ())
+handlers :: Flags -> Handlers LSM
 handlers flags = mconcat
   [ initializedHandler flags
   , didOpenHandler flags
