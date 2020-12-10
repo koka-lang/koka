@@ -44,10 +44,11 @@
 </li><li><a class="link" href="#type_space_int"><span class="kw">type</span>&nbsp;<span class="tp">int</span></a>
 </li><li><a class="link" href="#type_space_int16"><span class="kw">type</span>&nbsp;<span class="tp">int16</span></a>
 </li><li><a class="link" href="#type_space_int32"><span class="kw">type</span>&nbsp;<span class="tp">int32</span></a>
-</li><li class="nested"><a class="link" href="#zero32"><span class="kw">fun</span>&nbsp;zero32</a></li><li><a class="link" href="#type_space_int8"><span class="kw">type</span>&nbsp;<span class="tp">int8</span></a>
+</li><li class="nested"><a class="link" href="#zero32"><span class="kw">fun</span>&nbsp;zero32</a></li><li><a class="link" href="#type_space_int64"><span class="kw">type</span>&nbsp;<span class="tp">int64</span></a>
+</li><li><a class="link" href="#type_space_int8"><span class="kw">type</span>&nbsp;<span class="tp">int8</span></a>
 </li><li><a class="link" href="#type_space_local"><span class="kw">effect</span>&nbsp;<span class="tp">local</span></a>
 </li><li><a class="link" href="#type_space_local_var"><span class="kw">type</span>&nbsp;<span class="tp">local<span class="dash">-</span>var</span></a>
-</li><li class="nested"><a class="link" href="#local_get"><span class="kw">fun</span>&nbsp;local<span class="dash">-</span>get</a></li><li class="nested"><a class="link" href="#local_new"><span class="kw">fun</span>&nbsp;local<span class="dash">-</span>new</a></li></ul><ul class="toc"><li class="nested"><a class="link" href="#local_set"><span class="kw">fun</span>&nbsp;local<span class="dash">-</span>set</a></li><li><a class="link" href="#type_space_maybe"><span class="kw">type</span>&nbsp;<span class="tp">maybe</span></a>
+</li><li class="nested"><a class="link" href="#local_get"><span class="kw">fun</span>&nbsp;local<span class="dash">-</span>get</a></li></ul><ul class="toc"><li class="nested"><a class="link" href="#local_new"><span class="kw">fun</span>&nbsp;local<span class="dash">-</span>new</a></li><li class="nested"><a class="link" href="#local_set"><span class="kw">fun</span>&nbsp;local<span class="dash">-</span>set</a></li><li><a class="link" href="#type_space_maybe"><span class="kw">type</span>&nbsp;<span class="tp">maybe</span></a>
 </li><li class="nested"><a class="link" href="#con_space_Just"><span class="kw">con</span>&nbsp;<span class="co">Just</span></a></li><li class="nested"><a class="link" href="#con_space_Nothing"><span class="kw">con</span>&nbsp;<span class="co">Nothing</span></a></li><li class="nested"><a class="link" href="#is_just"><span class="kw">fun</span>&nbsp;is<span class="dash">-</span>just</a></li><li class="nested"><a class="link" href="#is_nothing"><span class="kw">fun</span>&nbsp;is<span class="dash">-</span>nothing</a></li><li><a class="link" href="#type_space_ndet"><span class="kw">effect</span>&nbsp;<span class="tp">ndet</span></a>
 </li><li><a class="link" href="#type_space_optional"><span class="kw">type</span>&nbsp;<span class="tp">optional</span></a>
 </li><li class="nested"><a class="link" href="#con_space_None"><span class="kw">con</span>&nbsp;<span class="co">None</span></a></li><li class="nested"><a class="link" href="#con_space_Optional"><span class="kw">con</span>&nbsp;<span class="co">Optional</span></a></li><li class="nested"><a class="link" href="#is_none"><span class="kw">fun</span>&nbsp;is<span class="dash">-</span>none</a></li><li class="nested"><a class="link" href="#is_optional"><span class="kw">fun</span>&nbsp;is<span class="dash">-</span>optional</a></li><li><a class="link" href="#type_space_order"><span class="kw">type</span>&nbsp;<span class="tp">order</span></a>
@@ -58,8 +59,8 @@
 </li><li><a class="link" href="#type_space_st"><span class="kw">alias</span>&nbsp;<span class="tp">st</span></a>
 </li><li><a class="link" href="#type_space_string"><span class="kw">type</span>&nbsp;<span class="tp">string</span></a>
 </li><li><a class="link" href="#type_space_uint8"><span class="kw">type</span>&nbsp;<span class="tp">uint8</span></a>
-</li><li><a class="link" href="#type_space_vector"><span class="kw">type</span>&nbsp;<span class="tp">vector</span></a>
-</li></ul><ul class="toc"><li><a class="link" href="#type_space_void"><span class="kw">type</span>&nbsp;<span class="tp">void</span></a>
+</li></ul><ul class="toc"><li><a class="link" href="#type_space_vector"><span class="kw">type</span>&nbsp;<span class="tp">vector</span></a>
+</li><li><a class="link" href="#type_space_void"><span class="kw">type</span>&nbsp;<span class="tp">void</span></a>
 </li><li><a class="link" href="#type_space_write"><span class="kw">effect</span>&nbsp;<span class="tp">write</span></a>
 </li><li>&nbsp;</li><li><a class="link" href="#byref"><span class="kw">fun</span>&nbsp;byref</a></li><li><a class="link" href="#id"><span class="kw">fun</span>&nbsp;id</a></li><li><a class="link" href="#local_scope"><span class="kw">fun</span>&nbsp;local<span class="dash">-</span>scope</a></li><li><a class="link" href="#run"><span class="kw">fun</span>&nbsp;run</a></li><li><a class="link" href="#unsafe_decreasing"><span class="kw">fun</span>&nbsp;unsafe<span class="dash">-</span>decreasing</a></li><li><a class="link" href="#unsafe_no_div"><span class="kw">fun</span>&nbsp;unsafe<span class="dash">-</span>no<span class="dash">-</span>div</a></li><li><a class="link" href="#unsafe_no_ndet"><span class="kw">fun</span>&nbsp;unsafe<span class="dash">-</span>no<span class="dash">-</span>ndet</a></li><li><a class="link" href="#unsafe_total"><span class="kw">fun</span>&nbsp;unsafe<span class="dash">-</span>total</a></li></ul></div>
 <div class="doc koka comment">
@@ -220,7 +221,7 @@
 
 <p class="p noindent">   A 32-bit IEEE 754 floating point value.
    Not supported by the Javascript backend
-   Provides no operations but is used mostly for interaction with external code.
+   Provides currently no operations but is used mostly for interaction with external code.
 </p></div></div>
 <div class="decl" id="type_space_global"><div class="header code"><span class="def"><span class="kw">type</span>&nbsp;<span class="tp"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_global"><span class="tp">global</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>global: <span class="tp">H</span></span></a></span></span><span class="tp"></span></div><div class="doc koka comment">
 
@@ -255,20 +256,25 @@
 <div class="decl" id="type_space_int16"><div class="header code"><span class="def"><span class="kw">type</span>&nbsp;<span class="tp"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_int16"><span class="tp">int16</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int16: <span class="tp">V</span></span></a></span></span><span class="tp"></span></div><div class="doc koka comment">
 
 <p class="p noindent">   A 16-bit signed integer (represented in two&#39;s complement).
-   Provides no operations but is used mostly for interaction with external code.
+   Provides currently no operations but is used mostly for interaction with external code.
 </p></div></div>
 <div class="decl" id="type_space_int32"><div class="header code"><span class="def"><span class="kw">type</span>&nbsp;<span class="tp"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_int32"><span class="tp">int32</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int32: <span class="tp">V</span></span></a></span></span><span class="tp"></span></div><div class="doc koka comment">
 
 <p class="p noindent">   A 32-bit signed integer (represented in two&#39;s complement).
-   See the&nbsp;<a href="std_int32.html"><code class="code code2">std/int32</code></a> module for operations on 32-bit integers.
+   See the <code class="koka"><a class="doc link" href="https://koka-lang.github.io/koka/doc/std_num_int32.html"><span class="mo">std<span class="fslash">/</span>num<span class="fslash">/</span>int32</span></a></code> module for operations on 32-bit integers.
 </p></div><div class="nested"><div class="decl" id="zero32"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_core_types-source.html#zero32">zero32</a></span>()<span class="tp sp">:</span>&nbsp;<a class="pp" href="#type_space_int32"><span class="tp">int32</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int32: <span class="tp">V</span></span></a></div><div class="doc koka comment">
 
 <p class="p noindent">   needed for markers in <code class="koka"><a class="doc link" href="https://koka-lang.github.io/koka/doc/std_core.html#hnd">std<span class="fslash">/</span>core<span class="fslash">/</span>hnd</a></code>.
 </p></div></div></div></div>
+<div class="decl" id="type_space_int64"><div class="header code"><span class="def"><span class="kw">type</span>&nbsp;<span class="tp"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_int64"><span class="tp">int64</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int64: <span class="tp">V</span></span></a></span></span><span class="tp"></span></div><div class="doc koka comment">
+
+<p class="p noindent">   A 64-bit signed integer (represented in two&#39;s complement).
+   Provides currently no operations but support is on the way.
+</p></div></div>
 <div class="decl" id="type_space_int8"><div class="header code"><span class="def"><span class="kw">type</span>&nbsp;<span class="tp"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_int8"><span class="tp">int8</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int8: <span class="tp">V</span></span></a></span></span><span class="tp"></span></div><div class="doc koka comment">
 
 <p class="p noindent">   A 8-bit signed integer (represented in two&#39;s complement).
-   Provides no operations but is used mostly for interaction with external code.
+   Provides currently no operations but is used mostly for interaction with external code.
 </p></div></div>
 <div class="decl" id="type_space_local"><div class="header code"><span class="def"><span class="kw">effect</span>&nbsp;<span class="tp"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_local"><span class="tp">local</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>local: <span class="tp">H</span> <span class="tp kw op">-></span> <span class="tp">X</span></span></a></span></span><span class="tp">&lt;<span class="tp tv">h</span>&gt;</span></div><div class="doc koka comment">
 
@@ -352,9 +358,9 @@
 </p></div><div class="nested"><div class="decl" id="no_reuse"><div class="header code"><span class="def"><span class="kw">fun</span>&nbsp;<a class="link" href="std_core_types-source.html#no_reuse">no<span class="dash">-</span>reuse</a></span>()<span class="tp sp">:</span>&nbsp;<a class="pp" href="#type_space_reuse"><span class="tp">reuse</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>reuse: <span class="tp">V</span></span></a></div></div></div></div>
 <div class="decl" id="type_space_size__t"><div class="header code"><span class="def"><span class="kw">type</span>&nbsp;<span class="tp"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_size__t"><span class="tp">size&#95;t</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>size&#95;t: <span class="tp">V</span></span></a></span></span><span class="tp"></span></div><div class="doc koka comment">
 
-<p class="p noindent">   A signed integer equal to <code class="koka">size&#95;t</code> in C.
-   Provides no operations but is used mostly for interaction with external code.
-   The Javascript backend uses <code class="koka">int32</code> for this.
+<p class="p noindent">   An unsigned integer equal to <code class="koka">size&#95;t</code> in C.
+   Provides currently no operations but is used mostly for interaction with external code.
+   The Javascript backend uses (unsigned) <code class="koka">int32</code> for this.
 </p></div></div>
 <div class="decl" id="type_space_st"><div class="header code"><span class="def"><span class="kw">alias</span>&nbsp;<span class="tp"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_st"><span class="tp">st</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>st: <span class="tp">H</span> <span class="tp kw op">-></span> <span class="tp">E</span></span></a></span></span><span class="tp">&lt;<span class="tp tv">h</span>&gt;</span>&nbsp;<span class="kw">=</span>&nbsp;<span class="tp sp">&lt;</span><a class="pp" href="#type_space_read"><span class="tp">read</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>read: <span class="tp">H</span> <span class="tp kw op">-></span> <span class="tp">X</span></span></a><span class="tp sp">&lt;</span><span class="tp tv">h</span><span class="tp sp">&gt;</span><span class="tp sp">,</span><a class="pp" href="#type_space_write"><span class="tp">write</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>write: <span class="tp">H</span> <span class="tp kw op">-></span> <span class="tp">X</span></span></a><span class="tp sp">&lt;</span><span class="tp tv">h</span><span class="tp sp">&gt;</span><span class="tp sp">,</span><a class="pp" href="#type_space_alloc"><span class="tp">alloc</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>alloc: <span class="tp">H</span> <span class="tp kw op">-></span> <span class="tp">X</span></span></a><span class="tp sp">&lt;</span><span class="tp tv">h</span><span class="tp sp">&gt;</span><span class="tp sp">&gt;</span></div><div class="doc koka comment">
 
@@ -372,7 +378,7 @@
 <div class="decl" id="type_space_uint8"><div class="header code"><span class="def"><span class="kw">type</span>&nbsp;<span class="tp"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_uint8"><span class="tp">uint8</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>uint8: <span class="tp">V</span></span></a></span></span><span class="tp"></span></div><div class="doc koka comment">
 
 <p class="p noindent">   A 8-bit unsigned integer (represented in two&#39;s complement).
-   Provides no operations but is used mostly for interaction with external code.
+   Provides currently no operations but is used mostly for interaction with external code.
 </p></div></div>
 <div class="decl" id="type_space_vector"><div class="header code"><span class="def"><span class="kw">type</span>&nbsp;<span class="tp"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_vector"><span class="tp">vector</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>vector: <span class="tp">V</span> <span class="tp kw op">-></span> <span class="tp">V</span></span></a></span></span><span class="tp">&lt;<span class="tp tv">a</span>&gt;</span></div><div class="doc koka comment">
 
