@@ -6,7 +6,7 @@ module LanguageServer.Handlers( handlers
 
 import Compiler.Options                  ( Flags )
 import Language.LSP.Server
-import LanguageServer.Hover              ( hoverHandler )
+import LanguageServer.Handler.Hover      ( hoverHandler )
 
 handlers :: Flags -> Handlers (LspM ())
 handlers flags = mconcat

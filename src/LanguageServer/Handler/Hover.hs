@@ -2,8 +2,8 @@
 -- The hover request handler
 -----------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
-module LanguageServer.Hover( hoverHandler
-                           ) where
+module LanguageServer.Handler.Hover( hoverHandler
+                                   ) where
 
 import Control.Lens                      ( (^.) )
 import Control.Monad.IO.Class            ( liftIO )
