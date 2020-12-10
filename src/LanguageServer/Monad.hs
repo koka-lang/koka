@@ -10,7 +10,7 @@ module LanguageServer.Monad( LSState (..)
                            ) where
 
 import Compiler.Module                   ( Loaded )
-import Control.Concurrent.MVar           ( MVar, newMVar, takeMVar, putMVar, modifyMVar )
+import Control.Concurrent.MVar           ( MVar, newMVar, readMVar, putMVar, modifyMVar )
 import Control.Monad.Reader              ( ReaderT, runReaderT, ask )
 import Control.Monad.Trans               ( lift, liftIO )
 import qualified Data.Map                as M
@@ -33,7 +33,7 @@ type LSM = LspT () (ReaderT (MVar LSState) IO)
 getLSState :: LSM LSState
 getLSState = do
   stVar <- lift ask
-  liftIO $ takeMVar stVar
+  liftIO $ readMVar stVar
 
 -- Replaces the language server's state inside the LSM monad
 putLSState :: LSState -> LSM ()
