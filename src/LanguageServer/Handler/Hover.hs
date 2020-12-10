@@ -10,7 +10,7 @@ import Compiler.Options                  ( Flags )
 import Compiler.Module                   ( loadedModule, modRangeMap )
 import qualified Data.Map                as M
 import qualified Data.Text               as T
-import Language.LSP.Server               ( requestHandler, Handlers )
+import Language.LSP.Server               ( sendNotification, requestHandler, Handlers )
 import qualified Language.LSP.Types      as J
 import qualified Language.LSP.Types.Lens as J
 import LanguageServer.Conversions        ( toLspRange, fromLspPos )

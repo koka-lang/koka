@@ -54,13 +54,16 @@ recompileFile flags uri = do
       -- TODO: Handle error
       filePath = fromJust $ J.uriToFilePath uri
 
+  -- TODO: Abstract the logging calls in a better way
   sendNotification J.SWindowLogMessage $ J.LogMessageParams J.MtInfo $ "Recompiling " <> T.pack filePath
 
   -- TODO: Use VFS to fetch the file's contents to provide
   --       'live' results as the user types
   loaded <- liftIO $ compileModuleOrFile terminal flags [] filePath False
   case checkError loaded of
-    Right (l, _) -> modifyLoaded $ M.insert normUri l
+    Right (l, _) -> do
+      modifyLoaded $ M.insert normUri l
+      sendNotification J.SWindowLogMessage $ J.LogMessageParams J.MtInfo $ "Successfully compiled " <> T.pack filePath
     Left _       -> return ()
 
   let diagSrc = T.pack "koka"

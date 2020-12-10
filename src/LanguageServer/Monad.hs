@@ -2,6 +2,7 @@
 -- The language server's monad that holds state (e.g. loaded/compiled modules)
 -----------------------------------------------------------------------------
 module LanguageServer.Monad( LSState (..)
+                           , defaultLSState, newLSStateVar
                            , LSM
                            , getLSState, putLSState, modifyLSState
                            , getLoaded, putLoaded, modifyLoaded
@@ -18,6 +19,12 @@ import qualified Language.LSP.Types      as J
 
 -- The language server's state, e.g. holding loaded/compiled modules.
 data LSState = LSState { lsLoaded :: M.Map J.NormalizedUri Loaded }
+
+defaultLSState :: LSState
+defaultLSState = LSState { lsLoaded = M.empty }
+
+newLSStateVar :: IO (MVar LSState)
+newLSStateVar = newMVar defaultLSState
 
 -- The monad holding (thread-safe) state used by the language server.
 type LSM = LspT () (ReaderT (MVar LSState) IO)
@@ -53,7 +60,5 @@ modifyLoaded :: (M.Map J.NormalizedUri Loaded -> M.Map J.NormalizedUri Loaded) -
 modifyLoaded m = modifyLSState $ \s -> s { lsLoaded = m $ lsLoaded s }
 
 -- Runs the language server's state monad.
-runLSM :: LSM a -> LanguageContextEnv () -> IO a
-runLSM lsm cfg = do
-  stVar <- newMVar $ LSState { lsLoaded = M.empty }
-  runReaderT (runLspT cfg lsm) stVar
+runLSM :: LSM a -> MVar LSState -> LanguageContextEnv () -> IO a
+runLSM lsm stVar cfg = runReaderT (runLspT cfg lsm) stVar

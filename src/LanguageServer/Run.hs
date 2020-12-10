@@ -10,19 +10,22 @@ import Control.Monad.IO.Class            ( liftIO )
 import Language.LSP.Server
 import qualified Language.LSP.Types      as J
 import LanguageServer.Handlers
-import LanguageServer.Monad              ( runLSM )
+import LanguageServer.Monad              ( runLSM, newLSStateVar )
 
 runLanguageServer :: Flags -> [FilePath] -> IO ()
-runLanguageServer flags files = void $ runServer $ ServerDefinition
-  { onConfigurationChange = const $ pure $ Right ()
-  , doInitialize = \env _ -> pure $ Right env
-  , staticHandlers = handlers flags
-  , interpretHandler = \env -> Iso (`runLSM` env) liftIO
-  , options = defaultOptions
-    { textDocumentSync = Just syncOptions
+runLanguageServer flags files = do
+  state <- newLSStateVar
+  void $ runServer $ ServerDefinition
+    { onConfigurationChange = const $ pure $ Right ()
+    , doInitialize = \env _ -> pure $ Right env
+    , staticHandlers = handlers flags
+    , interpretHandler = \env -> Iso (\lsm -> runLSM lsm state env) liftIO
+    , options = defaultOptions
+      { textDocumentSync = Just syncOptions
+      }
     }
-  }
-  where syncOptions = J.TextDocumentSyncOptions
+  where 
+    syncOptions = J.TextDocumentSyncOptions
                         (Just True) -- open/close notifications
                         (Just J.TdSyncIncremental) -- changes
                         (Just False) -- will save
