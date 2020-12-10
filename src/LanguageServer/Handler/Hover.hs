@@ -1,5 +1,5 @@
 -----------------------------------------------------------------------------
--- The hover request handler
+-- The LSP handler that provides hover tooltips
 -----------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
 module LanguageServer.Handler.Hover( hoverHandler
