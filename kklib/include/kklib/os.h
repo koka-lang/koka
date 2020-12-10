@@ -41,7 +41,7 @@ kk_decl_export double kk_time_unix_now(double* secs_frac, kk_context_t* ctx);
 kk_decl_export double kk_time_resolution(kk_context_t* ctx);
 
 kk_decl_export kk_string_t kk_os_kernel(kk_context_t* ctx);
-kk_decl_export kk_string_t kk_os_arch(int* ptrdiff_bits, int* size_bits, kk_context_t* ctx);
+kk_decl_export kk_string_t kk_os_arch(int* ptrdiff_bits, int* size_bits, int* intptr_bits, kk_context_t* ctx);
 kk_decl_export kk_string_t kk_compiler_version(kk_context_t* ctx);
 kk_decl_export int         kk_os_processor_count(kk_context_t* ctx);
 

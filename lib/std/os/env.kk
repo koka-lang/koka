@@ -76,15 +76,15 @@ public fun get-args() : ndet list<string> {
 }
 
 // Return the main OS name: windows, linux, ios, osx, unix, posix, unknown.
-// Sometimes has a _dash_ subsystem, like: unix-<freebsd,openbsd,dragonfly,bsd>, and windows-mingw.
+// Sometimes has a _dash_ subsystem, like: unix-\<freebsd,openbsd,dragonfly,bsd\>, and windows-mingw.
 public extern get-os-name() : ndet string {
   c  "kk_os_kernel"
   js inline "$std_core.host()"
 }
 
-// Return the main processor architecture: amd64, x86, aarch64, arm, riscv, alpha, powerpc, etc.
+// Return the main processor architecture: amd64, x86, arm64, arm, riscv, alpha, powerpc, etc.
 public extern get-cpu-arch() : ndet string {
-  c inline "kk_os_arch(NULL,NULL,kk_context())"
+  c inline "kk_os_arch(NULL,NULL,NULL,kk_context())"
   js inline "$std_core.host()"
 }
 
