@@ -1,6 +1,7 @@
 -----------------------------------------------------------------------------
 -- Conversions between LSP types and internal types, e.g. positions/ranges
 -----------------------------------------------------------------------------
+{-# LANGUAGE OverloadedStrings #-}
 module LanguageServer.Conversions( -- * Conversions to LSP types
                                    toLspPos, toLspRange, toLspLocation
                                  , toLspDiagnostics, toLspErrorDiagnostics, toLspWarningDiagnostic
@@ -47,7 +48,16 @@ toLspWarningDiagnostic :: J.DiagnosticSource -> R.Range -> Doc -> J.Diagnostic
 toLspWarningDiagnostic = makeDiagnostic J.DsWarning
 
 makeDiagnostic :: J.DiagnosticSeverity -> J.DiagnosticSource -> R.Range -> Doc -> J.Diagnostic
-makeDiagnostic s src r doc = J.Diagnostic (toLspRange r) (Just s) Nothing (Just src) (T.pack $ show doc) Nothing Nothing
+makeDiagnostic s src r doc = J.Diagnostic range severity code source message tags related
+  where
+    range = toLspRange r
+    severity = Just s
+    code = Nothing
+    source = Just src
+    message = T.pack $ show doc
+    tags | "is unused" `T.isInfixOf` message = Just $ J.List [J.DtUnnecessary]
+         | otherwise                         = Nothing
+    related = Nothing
 
 fromLspPos :: J.Uri -> J.Position -> R.Pos
 fromLspPos uri (J.Position l c) = R.makePos src (-1) (l + 1) (c + 1)
