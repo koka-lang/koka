@@ -894,12 +894,70 @@ type person {
 
 Todo
 
-### Inductive, co-inductive, and recursive types
+### Extensible Data Types
+
+Todo
+
+### Inductive, Co-inductive, and Recursive Types
 
 For the purposes of equational reasoning and termination checking, a `type`
 declaration is limited to finite inductive types. There are two more
 declarations, namely `co type` and `rec type` that allow for co-inductive types,
 and arbitrary recursive types respectively.
+
+
+### Value Types
+
+Value types are (non-recursive) data types that are not heap allocated
+but passed on the stack as a value. Since data types are immutable, semantically
+these types are equivalent but value types can be more efficient as they
+avoid heap allocation and reference counting (or more expensive as they need copying 
+instead of sharing a reference). 
+
+By default, any non-recursive inductive datatype of a size upto 3 machine words (= 24 bytes 
+on a 64-bit platform) is treated as a value type. For example, tuples and 3-tuples
+are passed and returned by value. Usually, that means that such tuples are for
+example returned in registers when compiling with optimization.
+
+We can also force a type to be compiled as a value type by using the `value` keyword
+in front of a `type` or `struct` declaration:
+```
+value struct argb{ alpha: int; red: int; green: int; blue: int }
+```
+
+~ begin advanced
+
+#### Boxing
+
+To support generic polymorphism, sometimes value types are _boxed_. For example, a list
+is polymorpic in its elements. That means that if we construct a list of tuples, like
+`[(1,True)]`, that the element `(1,2)` will be boxed and heap allocated -- essentially 
+the compiler transforms this expression into `[Box((1,True)]` internally.
+
+Note that for regular data types and `:int`'s boxing is free (as in isomorphic). Moreover, value types
+up to 63 bits (on a 64-bit platform) are boxed in-place and do not require heap allocation
+(like `:int32`). The `:double` type is also specialized; by default the Koka compiler
+only heap allocates negative doubles for boxing while positive doubles are boxed in-place.
+(this can be configured though to only heap allocate doubles for boxing when their absolute value is
+outside of the range 2^-511^ up to 2^512^).
+
+For performance sensitive code we may specialize certain polymorphic datatypes to
+reduce allocations due to boxing. For example:
+
+```
+type mylist{ 
+  con MyCons{ head1: int; head2: bool; mytail: mylist }
+  con MyNil
+}
+```
+
+Our previous example becomes `MyCons(1,True,MyNil)` now and is more efficient as it only needs
+one allocation for the `MyCons` without an indirection to a tuple.
+In the future we hope to extend Koka to perform specialization automatically or by
+using special directives.
+
+~ end advanced
+
 
 ## Effect Handlers { #sec-handlers }
 
