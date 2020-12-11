@@ -66,8 +66,9 @@ instance HasSymbols UserTypeDef where
       n = tbinderName b
       r = typeDefRange td
       k = case td of
-        Synonym {..}  -> J.SkInterface
-        DataType {..} -> J.SkStruct
+        Synonym {..}                                       -> J.SkInterface
+        DataType {typeDefConstrs = ctrs} | length ctrs > 1 -> J.SkEnum
+                                         | otherwise       -> J.SkStruct
       cs = case td of
         DataType {typeDefConstrs = ctrs} -> symbols ctrs
         _                                -> []
@@ -76,7 +77,9 @@ instance HasSymbols UserUserCon where
   symbols c = [makeSymbol n k r []]
     where
       n = userconName c
-      k = J.SkConstructor
+      ps = userconParams c
+      k | not (null ps) = J.SkConstructor
+        | otherwise     = J.SkEnumMember
       r = userconRange c
 
 -- Value definition instances
