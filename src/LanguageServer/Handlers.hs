@@ -4,13 +4,14 @@
 module LanguageServer.Handlers( handlers
                               ) where
 
-import Compiler.Options                    ( Flags )
+import Compiler.Options                      ( Flags )
 import Language.LSP.Server
-import LanguageServer.Handler.Definition   ( definitionHandler )
-import LanguageServer.Handler.Hover        ( hoverHandler )
-import LanguageServer.Handler.Initialized  ( initializedHandler )
-import LanguageServer.Handler.TextDocument ( didOpenHandler, didChangeHandler, didSaveHandler, didCloseHandler )
-import LanguageServer.Monad                ( LSM )
+import LanguageServer.Handler.Definition     ( definitionHandler )
+import LanguageServer.Handler.DocumentSymbol ( documentSymbolHandler )
+import LanguageServer.Handler.Hover          ( hoverHandler )
+import LanguageServer.Handler.Initialized    ( initializedHandler )
+import LanguageServer.Handler.TextDocument   ( didOpenHandler, didChangeHandler, didSaveHandler, didCloseHandler )
+import LanguageServer.Monad                  ( LSM )
 
 handlers :: Flags -> Handlers LSM
 handlers flags = mconcat
@@ -21,4 +22,5 @@ handlers flags = mconcat
   , didCloseHandler flags
   , hoverHandler flags
   , definitionHandler flags
+  , documentSymbolHandler flags
   ]

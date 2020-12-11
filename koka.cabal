@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: e49592c76478bc9535bae83e91e85693c5779e268ebe6fc6b8d516e136500c50
+-- hash: fdf4c8bb43f4c24997e884ce244d2a532524da0da6b0324235dee4f88ed71fb7
 
 name:           koka
 version:        2.0.13
@@ -90,6 +90,7 @@ executable koka
       Kind.Unify
       LanguageServer.Conversions
       LanguageServer.Handler.Definition
+      LanguageServer.Handler.DocumentSymbol
       LanguageServer.Handler.Hover
       LanguageServer.Handler.Initialized
       LanguageServer.Handler.TextDocument
