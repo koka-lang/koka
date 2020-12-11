@@ -9,9 +9,10 @@
 // Parsing of time strings.
 module std/time/parse
 
-import std/text/regex
+import std/text/parse
 import std/num/ddouble
 import std/time/duration
+import std/time/instant
 import std/time/date
 import std/time/calendar
 import std/time/calendars  // iso-week, iso-month
@@ -54,6 +55,82 @@ And also parses the ISO month dates (see `cal-iso-month`):
 ````
 .
 */
+
+public fun parse-iso( s : string, calendar : calendar = cal-iso ) : <utc> maybe<time> {
+  s.slice.parse-eof( { piso(calendar) } ).maybe 
+}
+
+fun piso(calendar : calendar) : <parse,utc> time {
+  val year = num(4)
+  dash()
+  val (date,cal) = choose([
+    { val m = num(2)   // month-day
+      dash()
+      val d = num(2)
+      (Date(year,m,d),calendar)
+    },
+    { char('W')       // ISO week-day
+      val w = num(2)
+      dash()
+      val d = optional(1){ num(1) }
+      (Date(year,w,d),cal-iso-week)
+    }, 
+    { val d = num(3)  // ISO day of year
+      (Date(year,1,d),calendar)
+    },
+    { char('M')
+      val m = num(2)   // ISO month-day
+      dash()
+      val d = num(2)
+      (Date(year,m,d),cal-iso-month)
+    },
+    { char('M')         // ISO month day-of-year
+      val d = num(3)
+      (Date(year,1,d),cal-iso-month)
+    }      
+  ]) 
+  optional(time(date,cal=cal)){ ptime(date,cal) }
+}
+
+fun ptime(date : date, cal : calendar) : <parse,utc> time {
+  one-of("T ")
+  val hour = num(2)
+  colon()
+  val min = optional(0){num(2)}
+  colon()
+  val secs = optional(zero) { val s = num(2) 
+                              val f = optional(""){ one-of(".,"); digits() }
+                              (s.ddouble + (if (f.is-empty) then zero else ("0." + f).parse-ddouble.default(zero))) } 
+  val tzone = choose([
+                { val sign = one-of("+-")
+                  val tzhour = num(2)
+                  colon()
+                  val tzmin = num(2)
+                  tz-fixed( if (sign=='-') then tzhour.negate else tzhour, tzmin )
+                }, 
+                { optional('Z'){ char('Z') }; tz-utc }
+              ])
+  val clk = Clock(hour,min,secs)
+  time(date,clk,tz=tzone,cal=cal)
+}
+
+fun dash() : parse char {
+  optchar('-')
+}
+
+fun colon() : parse char {
+  optchar(':')
+}
+
+fun optchar(c : char ) : parse char {
+  optional(c,{char(c)})
+}
+
+fun num( n : int ) : parse int {
+  count(n,digit).foldl(0, fn(d,x){ x*10 + d })
+}
+
+/*
 public fun parse-iso( s : string, calendar : calendar = cal-iso ) : <utc> maybe<time> {
   match(s.find(rx-iso-date)) {
     Nothing -> Nothing
@@ -134,3 +211,4 @@ fun month-from-name( mname : string ) : maybe<int> {
   }
   search(time-locale-en-iso.month-names,1)
 }
+*/

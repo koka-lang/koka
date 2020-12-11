@@ -45,7 +45,7 @@ extern inline js-asinh( d : double ) : double {
 
 fun check-eq( name : string, nums : list<double>, f : double -> double, g : double -> double) {
   val xs = nums + nums.map((~))
-  xs.foreach fun(x:double) {
+  xs.foreach fn(x:double) {
     val fx = f(x)
     val gx = g(x)
     check(name + ": " + x.show, fx.show(14), gx.show(14))

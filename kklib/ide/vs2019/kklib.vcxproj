@@ -122,6 +122,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <CompileAs>CompileAsC</CompileAs>
+      <FloatingPointModel>Strict</FloatingPointModel>
     </ClCompile>
     <PostBuildEvent>
       <Command>
@@ -182,6 +183,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <CompileAs>CompileAsC</CompileAs>
+      <FloatingPointModel>Strict</FloatingPointModel>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -208,6 +210,7 @@
     </ClCompile>
     <ClCompile Include="..\..\src\bits.c" />
     <ClCompile Include="..\..\src\box.c" />
+    <ClCompile Include="..\..\src\os.c" />
     <ClCompile Include="..\..\src\process.c" />
     <ClCompile Include="..\..\src\random.c" />
     <ClCompile Include="..\..\src\ref.c" />
@@ -216,6 +219,7 @@
     </ClCompile>
     <ClCompile Include="..\..\src\init.c" />
     <ClCompile Include="..\..\src\string.c" />
+    <ClCompile Include="..\..\src\time.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(ProjectDir)..\..\include\kklib.h" />
@@ -223,6 +227,7 @@
     <ClInclude Include="..\..\include\kklib\atomic.h" />
     <ClInclude Include="..\..\include\kklib\bits.h" />
     <ClInclude Include="..\..\include\kklib\box.h" />
+    <ClInclude Include="..\..\include\kklib\os.h" />
     <ClInclude Include="..\..\include\kklib\platform.h" />
     <ClInclude Include="..\..\include\kklib\process.h" />
     <ClInclude Include="..\..\include\kklib\random.h" />

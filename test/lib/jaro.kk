@@ -6,11 +6,11 @@ module jaro
 import std/text/string
 
 public fun main() {
-  run-tests(jaro-distance,fun(s,t){ jaro-winkler-distance(s,t) })
+  run-tests(jaro-distance,fn(s,t){ jaro-winkler-distance(s,t) })
 }
 
 public fun run-tests(jaro,jarow) {
-  jaro-tests.foreach fun(test) {
+  jaro-tests.foreach fn(test) {
     val (s,t,jscore,jwscore) = test
     println(s.show + " - " + t.show)
     print-test( jaro(s,t), jscore, "jaro")

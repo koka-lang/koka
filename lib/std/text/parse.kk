@@ -16,8 +16,16 @@ effect parse {
   fun satisfy( pred : sslice -> total maybe<(a,sslice)> ) : maybe<a>
   control fail(msg : string) : a
   control pick() : bool
-  fun current-input : sslice
+  fun current-input() : sslice
 }
+
+fun starts-with( s : string, p : () -> parse a )  : maybe<(a,sslice)> {
+  match (s.slice.parse(p)) {
+    ParseOk(x,rest) -> Just((x,rest))
+    _               -> Nothing
+  }
+}
+
 
 type parse-error<a> {
   ParseOk( result: a, rest : sslice )
@@ -51,7 +59,7 @@ fun parse( input0 : sslice, p : () -> <parse|e> a ) : e parse-error<a> {
     control fail(msg)   { ParseError(msg,input) }
     fun satisfy(pred) {
       val inp = input
-      val m = fun() : total _ { pred(inp) }
+      val m = fn() : total _ { pred(inp) }
       match(m()) {
         Just((x,cap)) { input := cap; Just(x) }
         Nothing       { Nothing }
@@ -79,6 +87,10 @@ fun (||)( p1 : parser<e,a>, p2 : parser<e,a> ) : <parse|e> a {
   if (pick()) then p1() else p2()
 }
 
+fun optional( default : a, p : parser<e,a> ) : <parse|e> a {
+  (p || ({ default }))
+}
+
 fun choose( ps : list<parser<e,a>> ) : <parse|e> a {
   match(ps) {
     Nil -> fail("no further alternatives")
@@ -95,7 +107,7 @@ fun satisfy-fail( msg : string, pred : sslice -> maybe<(a,sslice)> ) : parse a {
 }
 
 fun eof() : parse () {
-  match(satisfy(fun(s){ if (s.empty?) then Just(((),s)) else Nothing })) {
+  match(satisfy(fn(s){ if (s.is-empty) then Just(((),s)) else Nothing })) {
     Nothing -> fail("expecting end-of-input")
     Just    -> ()
   }
@@ -103,7 +115,7 @@ fun eof() : parse () {
 
 
 fun char-is( msg :string, pred : char -> bool ) : parse char {
-  satisfy-fail(msg) fun(slice) {
+  satisfy-fail(msg) fn(slice) {
     match(slice.next) {
       Just((c,rest)) | pred(c) -> Just((c,rest))
       _ -> Nothing
@@ -111,16 +123,17 @@ fun char-is( msg :string, pred : char -> bool ) : parse char {
   }
 }
 
-private fun next-while( slice : sslice, pred : char -> bool, acc : list<char> ) : (list<char>,sslice) {
+private fun next-while0( slice : sslice, pred : char -> bool, acc : list<char> ) : (list<char>,sslice) {
   match(slice.next) {
-    Just((c,rest)) | pred(c) -> next-while(unsafe-decreasing(rest), pred, Cons(c,acc) )
+    Just((c,rest)) | pred(c) -> next-while0(unsafe-decreasing(rest), pred, Cons(c,acc) )
     _ -> (acc.reverse,slice)
   }
 }
 
+
 fun chars-are( msg :string, pred : char -> bool ) : parse list<char> {
-  satisfy-fail(msg) fun(slice) { 
-    match( slice.next-while(pred,[]) ) {
+  satisfy-fail(msg) fn(slice) { 
+    match( slice.next-while0(pred,[]) ) {
       ([],_) -> Nothing
       (xs,rest) -> Just((xs,rest))
     }
@@ -138,7 +151,7 @@ private fun next-match( slice : sslice, cs : list<char> ) : maybe<sslice> {
 }
 
 fun pstring( s : string ) : parse string {
-  satisfy-fail(s) fun(slice) {
+  satisfy-fail(s) fn(slice) {
     match (slice.next-match(s.list)) {
       Just(rest) -> Just((s,rest))
       Nothing    -> Nothing
@@ -147,16 +160,44 @@ fun pstring( s : string ) : parse string {
 }
 
 fun char( c : char ) : parse char {
-  char-is( show(c), fun(c0){ c == c0 } )
+  char-is( show(c), fn(c0){ c == c0 } )
+}
+
+fun no-digit() : parse char {
+  char-is("not a digit", fn(c){ !c.is-digit })
 }
 
 fun digit() : parse int {
-  val c = char-is("digit", digit?)
+  val c = char-is("digit", is-digit)
   (c - '0').int
 }
 
+fun alpha() : parse char {
+  char-is("alpha", is-alpha)
+}
+
+fun alpha-num() : parse char {
+  char-is("alpha-num", is-alpha-num)
+}
+
+fun white() : parse char {
+  char-is("", is-white)
+}
+
+fun whitespace() : parse string {
+  chars-are("", is-white).string  
+}
+
+fun whitespace0() : parse string {
+  optional("", whitespace)
+}
+
 fun digits() : parse string {
-  chars-are("digit", digit? ).string
+  chars-are("digit", is-digit ).string
+}
+
+fun digits0() : parse string {
+  optional("0", digits)
 }
 
 fun sign() : parse bool {
@@ -174,22 +215,51 @@ fun pint() : parse int {
   if (neg) then ~i else i
 }
 
-fun optional( default : a, p : parser<e,a> ) : <parse|e> a {
-  (p || ({ default }))
+
+fun none-of( chars : string ) : parse char {
+  char-is("", fn(c){ !chars.contains(c.string)  })
+}
+
+fun none-of-many1( chars : string ) : parse string {
+  chars-are("", fn(c){ !chars.contains(c.string)  }).string
 }
 
 fun one-of( chars : string ) : parse char {
-  chars.list.map(fun(c){ (fun(){ char(c) } ) }).choose
+  char-is(chars, fn(c){ chars.contains(c.string)  })
+  // chars.list.map(fn(c){ (fn(){ char(c) } ) }).choose
+}
+
+private fun many-acc( p : parser<e,a>, acc : list<a> ) : <parse|e> list<a> {
+  ({ val x = p(); many-acc(unsafe-decreasing(p),Cons(x,acc)) }) || ({ acc.reverse })
+}
+
+fun many( p : parser<e,a> ) : <parse|e> list<a> {
+  many-acc(p,[])
+}
+
+fun many1( p : parser<e,a> ) : <parse|e> list<a> {
+  Cons(p(), many(p))
+}
+
+private fun count-acc( n : int, acc : list<a>, p : parser<e,a> ) : <parse|e> list<a> {
+  if (n <= 0) then acc.reverse else {
+    val x = p()
+    count-acc(unsafe-decreasing(n - 1), Cons(x,acc), p)
+  }  
+}
+
+fun count( n : int, p : parser<e,a> ) : <parse|e> list<a> {
+  count-acc(n, [], p)
 }
 
 fun one-of-or( chars : string, default : char ) : parse char {
-  optional( default, { one-of(chars) } )
+  optional( default){ one-of(chars) }
 }
 //private val rx-float	= regex(@"^([\-\+])?(\d+(?:\.\d+)?(?:[eE][\-\+]\d+)?)$")
 //private val rx-hexfloat	= regex(@"^([\-\+]?0[xX][0-9a-fA-F]+)(?:\.([0-9a-fA-F]+))?(?:[pP]([\-\+]?\d+))?$")
 
 fun hex-digits() : parse string {
-  chars-are("digit", hex-digit? ).string
+  chars-are("digit", is-hex-digit ).string
 }
 
 /*

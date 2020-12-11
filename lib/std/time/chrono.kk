@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------------
-   Copyright (C) 2012-2019 Microsoft Corporation
+   Copyright (C) 2012-2019,2020 Daan Leijen, Microsoft Corporation
 
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
@@ -15,7 +15,8 @@ import std/time/duration
 import std/time/instant
 import std/time/utc
 
-extern include {
+include extern {
+  c  file "chrono-inline.c"
   cs file "chrono-inline.cs"
   js file "chrono-inline.js"
 }
@@ -61,6 +62,7 @@ public fun now-in( ts : timescale = ts-ti) : ndet instant {
 // and can be larger than one to indicate leap seconds.
 // This still needs to be adjusted to our epoch and taking account of leap seconds.
 extern unix-now() : ndet (double,double) {
+  c  "kk_time_unix_now_tuple"
   cs "_Chrono.UnixNow"
   js "_unix_now"
 }
@@ -71,6 +73,7 @@ public fun now-resolution() : ndet duration {
 }
 
 extern xnow-resolution() : ndet double {
+  c "kk_time_resolution"
   cs "_Chrono.NowResolution"
   js "_now_resolution"
 }

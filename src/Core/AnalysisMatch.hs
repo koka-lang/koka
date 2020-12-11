@@ -13,7 +13,7 @@ module Core.AnalysisMatch( analyzeBranches ) where
 
 
 import Lib.Trace
-import Lib.PPrint( Doc, text, pretty, (<+>) )
+import Lib.PPrint
 import Common.Syntax( Target(..) )
 import Common.Id
 import Common.Name
@@ -55,10 +55,15 @@ isComplete :: (ConInfo,[Match]) -> Bool
 isComplete (_,cmatches)  = all isMatchComplete cmatches
 
 instance Show Match where
-  show (Match cinfos cmatches)  = "match: " ++ show (map conInfoName cinfos) ++ ",\n" ++
-                                  unlines [" " ++ show (conInfoName cinfo) ++ ": " ++
-                                            unlines ["  " ++ show cmatch | cmatch <- ms] | (cinfo,ms) <- cmatches] 
-  show (MatchComplete _) = "_"                                   
+  show match = show (pretty match)
+  
+instance Pretty Match where
+  pretty (Match cinfos cmatches)  
+    = text "match:" <+> list (map (pretty . conInfoName) cinfos)
+      <-> (indent 2 $ vcat [pretty (conInfoName cinfo) <.> colon <->
+                         (indent 2 (vcat [pretty i <.> dot <+> pretty cmatch | (cmatch,i) <- zip ms [(1::Int)..]])) 
+                        | (cinfo,ms) <- cmatches]) 
+  pretty (MatchComplete _) = text "<complete>"                                   
 
 type Warnings = [(Range,Doc)]
 
@@ -173,7 +178,7 @@ updateOneMatch _ _                = failure $ "Core.AnalysisMatch:updateOneMatch
   
 makeMatch :: [ConInfo] -> [(ConInfo,[Match])] -> Match
 makeMatch cinfos cmatches
-  = -- seq cmatches $
+  = seq cmatches $
     -- trace ("**make match: " ++ show (map conInfoName cinfos) ++ ":\n" ++ show cmatches) $
     if (not (null cinfos) && length cinfos == length cmatches && all isComplete cmatches)
      then MatchComplete cinfos

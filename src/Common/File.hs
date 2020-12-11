@@ -13,11 +13,11 @@ module Common.File(
                   -- * System
                     getEnvPaths, getEnvVar
                   , searchPaths, searchPathsEx
-                  , runSystem, runSystemRaw
+                  , runSystem, runSystemRaw, runCmd
                   , getInstallDir
 
                   -- * Strings
-                  , startsWith, endsWith, splitOn
+                  , startsWith, endsWith, splitOn, trim
 
                   -- * File names
                   , FileName
@@ -34,7 +34,7 @@ module Common.File(
                   , FileTime, fileTime0, maxFileTime, maxFileTimes
                   , fileTimeCompare, getFileTime
                   , getFileTimeOrCurrent, getCurrentTime
-                  , readTextFile
+                  , readTextFile, writeTextFile
                   , copyTextFile, copyTextIfNewer, copyTextIfNewerWith, copyTextFileWith
                   , copyBinaryFile, copyBinaryIfNewer
                   ) where
@@ -45,11 +45,11 @@ import Platform.Config  ( pathSep, pathDelimiter, sourceExtension )
 import qualified Platform.Runtime as B ( copyBinaryFile, exCatch )
 import Common.Failure   ( raiseIO, catchIO )
 
-import System.Process   ( system )
+import System.Process   ( system, rawSystem )
 import System.Exit      ( ExitCode(..) )
 import System.Environment ( getEnvironment, getExecutablePath )
 import System.Directory ( doesFileExist, doesDirectoryExist
-                        , copyFile
+                        , copyFile, copyFileWithMetadata
                         , getCurrentDirectory, getDirectoryContents
                         , createDirectoryIfMissing, canonicalizePath )
 
@@ -73,6 +73,9 @@ splitOn pred xs
           (pre,post) -> normalize (pre:acc) (dropWhile pred post)
 
 
+trim s
+  = reverse $ dropWhile isSpace $ reverse $ dropWhile isSpace $ s
+
 isLiteralDoc :: FileName -> Bool
 isLiteralDoc fname
   = endsWith fname (sourceExtension ++ ".md") ||
@@ -89,7 +92,7 @@ basename :: FileName -> FileName
 basename fname
   = case dropWhile (/='.') (reverse (notdir fname)) of
       '.':rbase -> reverse rbase
-      _         -> fname
+      _         -> notdir fname
 
 
 -- | Get the file extension
@@ -157,7 +160,7 @@ joinPaths :: [FilePath] -> FilePath
 joinPaths dirs
   = concat
   $ filterPathSepDup
-  $ intersperse [pathSep]
+  $ intersperse ['/']
   $ normalize
   $ filter (not . null)
   $ concatMap splitPath dirs
@@ -177,7 +180,7 @@ joinPaths dirs
 -- | Normalize path separators
 normalize :: FilePath -> FilePath
 normalize path
-  = normalizeWith pathSep path
+  = normalizeWith '/' path
 
 -- | Normalize path separators with a specified path separator
 normalizeWith :: Char -> FilePath -> FilePath
@@ -224,7 +227,14 @@ runSystem command
          ExitSuccess   -> return ()
 
 runSystemEx command
-  = system (normalize command)
+  = system (normalizeWith pathSep command)
+
+runCmd :: String -> [String] -> IO ()
+runCmd cmd args
+  = do exitCode <- rawSystem cmd args
+       case exitCode of
+          ExitFailure i -> raiseIO ("command failed:\n " ++ concat (intersperse " " (cmd:args)))
+          ExitSuccess   -> return ()
 
 -- | Compare two file modification times (uses 0 for non-existing files)
 fileTimeCompare :: FilePath -> FilePath -> IO Ordering
@@ -245,15 +255,19 @@ maxFileTimes times
 readTextFile :: FilePath -> IO (Maybe String)
 readTextFile fpath
   = B.exCatch (do content <- readFile fpath
-                  return (seq (last content) $ Just content)) 
+                  return (seq (last content) $ Just content))
               (\exn -> return Nothing)
+
+writeTextFile :: FilePath -> String -> IO ()
+writeTextFile fpath content
+  = writeFile fpath content
 
 copyTextFile :: FilePath -> FilePath -> IO ()
 copyTextFile src dest
   = if (src == dest)
      then return ()
      else catchIO (do createDirectoryIfMissing True (dirname dest)
-                      copyFile src dest)
+                      copyFileWithMetadata src dest)
             (error ("could not copy file " ++ show src ++ " to " ++ show dest))
 
 copyTextFileWith :: FilePath -> FilePath -> (String -> String) -> IO ()
@@ -261,8 +275,10 @@ copyTextFileWith src dest transform
   = if (src == dest)
      then return ()
      else catchIO (do createDirectoryIfMissing True (dirname dest)
+                      ftime   <- getFileTime src
                       content <- readFile src
-                      writeFile dest (transform content))
+                      writeFile dest (transform content)
+                      setFileTime dest ftime)
             (error ("could not copy file " ++ show src ++ " to " ++ show dest))
 
 copyBinaryFile :: FilePath -> FilePath -> IO ()
@@ -273,7 +289,9 @@ copyBinaryFile src dest
 
 copyBinaryIfNewer :: Bool -> FilePath -> FilePath -> IO ()
 copyBinaryIfNewer always srcName outName
-  = do ord <- if always then return GT else fileTimeCompare srcName outName
+  = do ord <- if (srcName == outName) then return EQ
+              else if always then return GT
+              else fileTimeCompare srcName outName
        if (ord == GT)
         then do copyBinaryFile srcName outName
         else do -- putStrLn $ "no copy for: " ++ srcName ++ " to " ++ outName
@@ -281,14 +299,18 @@ copyBinaryIfNewer always srcName outName
 
 copyTextIfNewer :: Bool -> FilePath -> FilePath -> IO ()
 copyTextIfNewer always srcName outName
-  = do ord <- if always then return GT else fileTimeCompare srcName outName
+  = do ord <- if (srcName == outName) then return EQ
+              else if always then return GT
+              else fileTimeCompare srcName outName
        if (ord == GT)
         then do copyTextFile srcName outName
         else do return ()
 
 copyTextIfNewerWith :: Bool -> FilePath -> FilePath -> (String -> String) -> IO ()
 copyTextIfNewerWith always srcName outName transform
-  = do ord <- if always then return GT else fileTimeCompare srcName outName
+  = do ord <- if (srcName == outName) then return EQ
+              else if always then return GT
+              else fileTimeCompare srcName outName
        if (ord == GT)
         then do copyTextFileWith srcName outName transform
         else do return ()
@@ -311,7 +333,6 @@ getInstallDir
                       _            -> d
        -- trace ("install-dir: " ++ result ++ ": " ++ show ds) $
        return result
-
 
 commonPathPrefix :: FilePath -> FilePath -> FilePath
 commonPathPrefix s1 s2

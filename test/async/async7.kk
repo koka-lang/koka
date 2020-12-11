@@ -28,7 +28,7 @@ fun test() {
     val xs = interleaved( [f,g] )
     println("hi " + xs.join(","))
   }
-   fun(exn) {
+   fn(exn) {
     println("exception thrown: " + exn.show)
   }
 }

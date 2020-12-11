@@ -11,7 +11,7 @@ public module common
 // --------------------------------------------------------
 
 effect exc {
-  fun raise(s : string ) : a
+  control raise(s : string ) : a
 }
 
 fun safe-div(x,y) {
@@ -20,17 +20,17 @@ fun safe-div(x,y) {
 
 fun catch(action,h) {
   handle(action) {
-    raise(s) -> h(s)
+    control raise(s){ h(s) }
   }
 }
 
 fun zerodiv(x,y) {
-  common/catch( { safe-div(x,y) }, fun(s) { 42 } )
+  common/catch( { safe-div(x,y) }, fn(s) { 42 } )
 }
 
 val to-maybe = handler {
-  return x -> Just(x)
-  raise(_s) -> Nothing
+  return (x){ Just(x) }
+  control raise(_s){ Nothing }
 }
 
 fun test1() {
@@ -52,7 +52,7 @@ fun hello() {
 }
 
 val always-there = handler {
-  getstr() -> resume("there")
+  fun getstr(){ "there" }
 }
 
 fun test2() {
@@ -77,30 +77,23 @@ fun counter() {
   }
 }
 
-/*
-val state-param = handler(s) {
-  return x -> (x,s)
-  get()    -> resume(s,s)
-  put(s')  -> resume((),s')
-}
-*/
-
-fun statex(init, action) {
+fun state_old_style(init, action) {
   var s := init
-  handle({mask<local>(action)}) {
-    return x -> (x,s)
-    get()    -> { resume(s) }
-    put(x)   -> { s := x; resume(()) }
+  handle(action) {
+    return (x) { (x,s) }
+    fun get()  { s }
+    fun put(x) { s := x }
   }
 }
 
 fun state(init, action) {
   var s := init
-  handle({mask<local>(action)}) {
-    return x   { (x,s) }
+  with {                           // with { .. }; <stats>  === (handler{...}){<stats>}
+    return (x) { (x,s) }
     fun get()  { s }
     fun put(x) { s := x  }
   }
+  action()
 }
 
 fun test3() {
@@ -113,7 +106,7 @@ fun test3() {
 // --------------------------------------------------------
 
 effect yield<a> {
-  fun yield( item : a ) : ()
+  control yield( item : a ) : ()
 }
 
 fun iterate(xs : list<a> ) : yield<a> () {
@@ -126,13 +119,13 @@ fun iterate(xs : list<a> ) : yield<a> () {
 // note: due to a technicality in cps translation we need to specify 'incpsx' for now. to be fixed soon.
 fun foreach( f : a -> e bool, action : () -> <yield<a>|e> () ) : e () {
   handle(action) {
-    return x -> ()
-    yield(x) -> if (f(x) /*incps1(f,x)*/) then resume(()) else ()
+    return (x) -> ()
+    control yield(x) -> if (f(x) /*incps1(f,x)*/) then resume(()) else ()
   }
 }
 
 fun test4() {
-  foreach fun(x:int) {
+  foreach fn(x:int) {
     println(x)
     (x<=1)
   }
@@ -140,7 +133,7 @@ fun test4() {
 }
 
 fun test4b() {
-  amb{ foreach( fun(x:int) { if (flip()) then println(x) else println("false"); (x<=1) }, { [1,2,3].iterate } ) }
+  amb{ foreach( fn(x:int) { if (flip()) then println(x) else println("false"); (x<=1) }, { [1,2,3].iterate } ) }
 }
 
 // --------------------------------------------------------
@@ -148,7 +141,7 @@ fun test4b() {
 // --------------------------------------------------------
 
 effect amb {
-  fun flip() : bool
+  control flip() : bool
 }
 
 fun xor() : amb bool {
@@ -162,8 +155,8 @@ fun xor() : amb bool {
 //}
 
 val amb = handler {
-  return x -> [x]
-  flip()   -> resume(False) + (resume(True) : list<_>)
+  return (x)     -> [x]
+  control flip() -> resume(False) + resume(True)
 }
 
 fun test5() {
@@ -211,7 +204,7 @@ fun ask-age-err() {
     raise("ouch!")
     println("hello " + name)
   }
-  fun(err) {
+  fn(err) {
     println("error: " + err )
   }
 }
@@ -231,7 +224,7 @@ fun main() {
 }
 
 fun show( xs : list<(bool,int)> ) : string  {
-  xs.show-list(fun(x) { x.show-tuple(show,show) })
+  xs.show-list(fn(x) { x.show-tuple(show,show) })
 }
 
 fun show( x : (list<bool>,int) ) : string  {

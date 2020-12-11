@@ -16,7 +16,7 @@ common use cases, but uses accurate and precise time representations and algorit
 In particular, it handles accurate leap seconds, time zones, multiple calendars,
 and astronomical time scales.
 Internally time is represented by a 128-bit `:ddouble` giving it a very high range
-and precision (up to 31 decimal digits, see the `std/time/instant` module for more
+and precision (up to 31 decimal digits, see the `module std/time/instant` module for more
 information). As such, we believe this library is one of the most accurate time
 libraries around.
 
@@ -28,13 +28,13 @@ Core concepts are:
 get the `:duration` between them. Instants are usually represented as the number
 of fractional SI seconds since the `epoch` (2000-01-01Z), but can be represented
 in different time scales for efficiency. For example, there is the TAI time scale (`ts-tai`),
-standard UTC (`ts-ti`), or astronomical time scales like terrestrial time (`std/time/astro/ts-tt`).
+standard UTC (`ts-ti`), or astronomical time scales like terrestrial time (`module std/time/astro`).
 
 * A `:time` is a human readable `:date` (year, month, day), and `:clock` (hour, minutes, seconds)
 in a particular `:calendar` (usually the standard ISO calendar) and time zone.
 Instants can be converted to time values and back. We can add logical years, months, or
 days to a `:time`, or get the difference between times in days etc. See the
-`std/time/time` module for more information.
+`module std/time/time` module for more information.
 
 The current time, in the UTC timezone (`tz-utc`) using the ISO calendar (`cal-iso`):
 
@@ -56,7 +56,7 @@ We can also get the current instant in time as the number of SI seconds since th
 > now()
 539106063.980999947s
 ```
-See `std/time/chrono` for more information on system time.
+See `module std/time/chrono` for more information on system time.
 
 Calendar times can be constructed by giving a year, month (1-based), and day of the month (1-based)
 and optional hour, minutes, seconds, fraction of the second, timezone (`tz-utc`) and
@@ -179,7 +179,9 @@ public import std/time/utc
 public import std/time/chrono
 public import std/time/timer
 
-public import std/time/download
+// For now not supported until we move to async
+// public import std/time/download
+
 public import std/time/date
 public import std/time/calendar
 public import std/time/calendars

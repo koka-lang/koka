@@ -14,14 +14,14 @@ module Kind.Kind( -- * Kinds
                   , KindCon
                  -- * Standard kinds
                   , kindStar, kindPred, kindEffect, kindArrow, kindScope, kindHeap
-                  , kindHandled, kindHandled1
+                  , kindHandled, kindHandled1, kindLocal
                   , kindFun, kindLabel, extractKindFun, kindFunN
                   , builtinKinds
                   , kindCon, kindConOver
                   , isKindFun
                   , isKindStar
-                  , isKindEffect, isKindHandled, isKindHandled1, isKindScope, isKindLabel
-                  , hasKindStarResult
+                  , isKindEffect, isKindHandled, isKindHandled1, isKindScope, isKindLabel, isKindAnyLabel
+                  , hasKindStarResult, hasKindLabelResult
                   , kindAddArg
                   ) where
 
@@ -51,6 +51,11 @@ data Flavour  = Bound
 hasKindStarResult :: Kind -> Bool
 hasKindStarResult kind
   = isKindStar (snd (extractKindFun kind))
+
+hasKindLabelResult :: Kind -> Bool
+hasKindLabelResult kind
+  = isKindAnyLabel (snd (extractKindFun kind))
+  
 
 {--------------------------------------------------------------------------
   Standard kinds
@@ -93,7 +98,10 @@ kindHeap :: Kind
 kindHeap
   = KCon nameKindHeap
 
-
+kindLocal :: Kind
+kindLocal 
+  = kindFun kindHeap kindLabel
+  
 kindHandled :: Kind
 kindHandled
   = KCon nameKindHandled
@@ -152,6 +160,10 @@ isKindHandled1 k
   = k == kindHandled1
 isKindScope k
   = k == kindScope
+
+isKindAnyLabel :: Kind -> Bool
+isKindAnyLabel k 
+  = isKindHandled k || isKindHandled1 k || isKindLabel k
 
 -- | Standard kind constants with their kind.
 builtinKinds :: [(Name,Kind)]

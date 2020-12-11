@@ -105,6 +105,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <SupportJustMyCode>false</SupportJustMyCode>
       <PreprocessorDefinitions>KK_DEBUG_FULL=1;KK_STATIC_LIB=1;KK_MIMALLOC=1;</PreprocessorDefinitions>
+      <FloatingPointModel>Strict</FloatingPointModel>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -141,6 +142,7 @@
       <PreprocessorDefinitions>NDEBUG=1;KK_STATIC_LIB=1;KK_MIMALLOC=1;_MBCS;%(PreprocessorDefinitions);NDEBUG</PreprocessorDefinitions>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <BufferSecurityCheck>true</BufferSecurityCheck>
+      <FloatingPointModel>Strict</FloatingPointModel>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -156,12 +158,18 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\out\Debug\interactive.c" />
+    <ClCompile Include="..\..\..\out\Debug\samples_named_dash_handlers_file_dash_scoped.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core_hnd.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core_types.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_num_ddouble.c" />
     <ClCompile Include="..\..\..\out\Debug\std_num_decimal.c" />
     <ClCompile Include="..\..\..\out\Debug\std_num_double.c" />
     <ClCompile Include="..\..\..\out\Debug\std_num_int32.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_num_random.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_os_env.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_os_file.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_os_path.c" />
     <ClCompile Include="..\..\..\out\Debug\std_text_parse.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

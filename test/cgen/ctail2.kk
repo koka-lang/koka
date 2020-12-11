@@ -5,3 +5,7 @@ fun mapx( xs : list<a>, f : a -> e b ) : e list<b> {
     Nil        -> Nil
   }
 }
+
+fun main() {
+  list(1,10).mapx(fn(i){ i.println; i+1 }).sum.println
+}

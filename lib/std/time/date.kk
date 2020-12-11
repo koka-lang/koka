@@ -34,7 +34,7 @@ public fun weekdate( year : int, month: int, weekday : weekday ) : date {
 
 // Show a year in ISO format (using 5+ digits and explicit sign for years < 0 or years > 9999)).
 public fun show-year( year : int ) : string {
-  val (ysign,ywidth) = if (year > 9999) then ("+",5) elif (year.neg?) then ("-",5) else ("",4)
+  val (ysign,ywidth) = if (year > 9999) then ("+",5) elif (year.is-neg) then ("-",5) else ("",4)
   ysign + year.abs.show0(ywidth)
 }
 
@@ -117,8 +117,8 @@ public fun clock( seconds : ddouble, leap : int) : clock {
 public val clock0 = Clock(0,0,zero)
 
 // Is this a zero clock?
-public fun zero?( c : clock ) : bool {
-  (c.hours.zero? && c.minutes.zero? && c.seconds.zero?)
+public fun is-zero( c : clock ) : bool {
+  (c.hours.is-zero && c.minutes.is-zero && c.seconds.is-zero)
 }
 
 // Return the total seconds of a `:clock` assuming 60 seconds per

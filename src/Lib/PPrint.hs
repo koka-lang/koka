@@ -57,6 +57,10 @@ module Lib.PPrint
         , writePretty, writePrettyLn
         , writeDoc, writeDocW
         , isEmptyDoc
+        
+        , dstartsWith
+        , dendsWith
+        , dcontains
         ) where
 
 
@@ -342,6 +346,68 @@ flatten (Column f)      = Column (flatten . f)
 flatten (Nesting f)     = Nesting (flatten . f)
 flatten (Colored f c d) = Colored f c (flatten d)
 flatten other           = other                     --Empty,Char,Text
+
+
+dcontains :: Doc -> (Char -> Bool) -> Bool
+dcontains doc pred
+  = any (any pred) (texts doc)
+
+dstartsWith :: Doc -> String -> Bool
+dstartsWith doc ""  = True
+dstartsWith doc pre
+  = dstartsWithT (texts doc) pre (length pre)
+  
+dstartsWithT [] pre n  = (n==0)
+dstartsWithT (s:xs) pre n 
+  = let m = length s
+    in if (m >= n) 
+        then (take n s == pre)
+        else (take m pre == s && dstartsWithT xs (drop m pre) (n - m)) 
+
+dendsWith :: Doc -> String -> Bool
+dendsWith doc ""  = True
+dendsWith doc post
+  = dendsWithT (rtexts doc) (reverse post) (length post)
+  
+dendsWithT [] rpost n  = (n==0)
+dendsWithT (s:xs) rpost n 
+  = let m = length s
+    in if (m >= n) 
+        then (take n s == rpost)
+        else (take m rpost == s && dendsWithT xs (drop m rpost) (n - m)) 
+
+    
+texts :: Doc -> [String]  -- lazy list of text fragments
+texts doc
+  = case doc of
+      Empty       -> []
+      Char c      -> [[c]]
+      Text s      -> [s]
+      Line break  -> if break then [] else ["\n"]
+      Union x y   -> texts x
+      Cat x y     -> texts x ++ texts y
+      Nest i x    -> texts x
+      Column f    -> texts (f 0)
+      Nesting f   -> texts (f 0)
+      Colored f c d -> texts d
+      _             -> []
+      
+
+rtexts :: Doc -> [String]  -- lazy list of reversed text fragments
+rtexts doc
+  = case doc of
+      Empty       -> []
+      Char c      -> [[c]]
+      Text s      -> [reverse s]
+      Line break  -> if break then [] else ["\n"]
+      Union x y   -> rtexts x
+      Cat x y     -> rtexts y ++ rtexts x
+      Nest i x    -> rtexts x
+      Column f    -> rtexts (f 0)
+      Nesting f   -> rtexts (f 0)
+      Colored f c d -> rtexts d
+      _             -> []
+
 
 -----------------------------------------------------------
 -- Renderers

@@ -333,8 +333,8 @@ public val ts-tdb : timescale = ts-tdb-create(tdb-delta)
 // to create a new TDB timescale if you need more precision.
 public fun ts-tdb-create( tdb-minus-tt : timestamp -> timespan ) : timescale {
   timescale("TDB",
-    fun(tai:duration)  { tai-to-tdb(tai,tdb-minus-tt) },
-    fun(tdb:timestamp) { tdb-to-tai(tdb,tdb-minus-tt) }
+    fn(tai:duration)  { tai-to-tdb(tai,tdb-minus-tt) },
+    fn(tdb:timestamp) { tdb-to-tai(tdb,tdb-minus-tt) }
   )
 }
 
@@ -375,7 +375,7 @@ public val ts-tcb : timescale = ts-tcb-create(ts-tdb)
 // -6.55&times;10^-5^.
 public fun ts-tcb-create( tstdb : timescale ) : timescale {
   timescale( "TCB",
-    fun(tai:duration)  { tai-to-tcb(tai, tstdb) },
-    fun(tcb:timestamp) { tcb-to-tai(tcb, tstdb) }
+    fn(tai:duration)  { tai-to-tcb(tai, tstdb) },
+    fn(tcb:timestamp) { tcb-to-tai(tcb, tstdb) }
   )
 }

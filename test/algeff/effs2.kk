@@ -21,33 +21,31 @@ fun foo() : <amb,state<int>> bool {
   if (i>0 && p) then xor() else False
 }         
 
-fun state_handle() {
-  handler(i) {
-    return x -> x
-    get()    -> resume(i,i)
-    set(j)   -> resume((),j) 
+fun state( init, action ) {
+  var s : int := init   
+  with {
+    return(x)  { (x,s) }
+    fun get()  { s }
+    fun set(i) { s := i }
   }
+  action()
 }
 
-fun amb_handle() {
-  handler {
-    return x -> [x]
-    flip()   -> resume(False) + resume(True)
-  }
+val amb = handler {
+  return(x)      { [x] }
+  control flip() { resume(False) + resume(True) }
 }
-
 
 fun test1() {
-  amb_handle()(xor)
+  amb(xor)
 }
 
-
 fun test2()  {
-  state_handle()(0){amb_handle()(foo)}
+  state(0){ amb(foo) }.fst
 }
 
 fun test3()  {
-  amb_handle()({state_handle()(0,foo)})
+  amb{ state(0,foo) }.map(fst)
 }
 
 fun main() {

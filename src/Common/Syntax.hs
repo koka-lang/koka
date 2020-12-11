@@ -21,7 +21,8 @@ module Common.Syntax( Visibility(..)
                     , DataDef(..)
                     , dataDefIsRec, dataDefIsOpen, dataDefIsValue
                     , HandlerSort(..)
-                    , isHandlerResource, isHandlerNormal
+                    , isHandlerInstance, isHandlerNormal
+                    , OperationSort(..), readOperationSort
                     , Platform(..), platform32, platform64, platformCS, platformJS
                     , alignedSum, alignedAdd, alignUp
                     ) where
@@ -82,23 +83,44 @@ isPrivate Private = True
 isPrivate _       = False
 
 
-data HandlerSort e
-  = HandlerNormal | HandlerResource (Maybe e)
+data HandlerSort
+  = HandlerNormal | HandlerInstance
   deriving (Eq)
 
-instance Show (HandlerSort e) where
+instance Show (HandlerSort) where
   show hsort = case hsort of
-                 HandlerNormal -> "Normal"
-                 HandlerResource Nothing -> "FreshResource"
-                 HandlerResource _       -> "Resource"
+                 HandlerNormal -> "normal"
+                 HandlerInstance -> "instance"
 
-isHandlerResource (HandlerResource _) = True
-isHandlerResource _ = False
+isHandlerInstance (HandlerInstance) = True
+isHandlerInstance _ = False
 
 isHandlerNormal (HandlerNormal) = True
 isHandlerNormal _ = False
 
 
+data OperationSort 
+  = OpVal | OpFun | OpExcept | OpControlRaw | OpControl
+  deriving (Eq,Ord)
+  
+instance Show OperationSort where
+  show opsort = case opsort of
+                  OpVal -> "val"
+                  OpFun -> "fun"
+                  OpExcept -> "except"
+                  OpControlRaw -> "rcontrol"
+                  OpControl -> "control"
+  
+readOperationSort :: String -> Maybe OperationSort
+readOperationSort s 
+  = case s of 
+      "val" -> Just OpVal
+      "fun" -> Just OpFun
+      "except"   -> Just OpExcept
+      "rcontrol" -> Just OpControlRaw
+      "control"  -> Just OpControl
+      _ -> Nothing
+  
 {--------------------------------------------------------------------------
   DataKind
 --------------------------------------------------------------------------}
@@ -112,6 +134,7 @@ instance Show DataKind where
 
 data DataDef = DataDefValue{ rawFields :: Int, scanFields :: Int }
              | DataDefNormal
+             | DataDefAuto   -- Value or Normal; determined by kind inference
              | DataDefRec
              | DataDefOpen
              deriving Eq
@@ -119,14 +142,16 @@ data DataDef = DataDefValue{ rawFields :: Int, scanFields :: Int }
 instance Show DataDef where
   show dd = case dd of
               DataDefValue m n -> "val(raw:" ++ show m ++ ",scan:" ++ show n ++ ")"
-              DataDefNormal    -> "normal"
+              DataDefNormal{}  -> "normal"
               DataDefRec       -> "rec"
               DataDefOpen      -> "open"
+              DataDefAuto      -> "auto"
 
 dataDefIsRec ddef
   = case ddef of
-      DataDefValue{} -> False
-      DataDefNormal  -> False
+      DataDefValue{}   -> False
+      DataDefNormal    -> False
+      DataDefAuto      -> False
       _  -> True
 
 dataDefIsOpen ddef

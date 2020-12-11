@@ -14,7 +14,6 @@ User code should use `:std/time/duration/duration`s and `:std/time/instant/insta
 */
 module std/time/timestamp
 
-//import std/text/regex
 import std/num/ddouble
 import std/num/int32
 import std/time/date
@@ -28,7 +27,7 @@ public alias timespan = ddouble
 public val timespan0 : timespan = zero
 
 public fun timespan( seconds : int, frac : double = 0.0 ) : timespan {
-  if (frac.zero?) then ddouble(seconds) else ddouble(seconds) + ddouble(frac)
+  if (frac.is-zero) then ddouble(seconds) else ddouble(seconds) + ddouble(frac)
 }
 
 public fun timespan( secs : double ) : timespan {
@@ -161,8 +160,8 @@ public fun round-to-prec(t : timestamp, prec : int ) : timestamp {
 
 // Add `leaps` leap seconds to the timestamp.
 public fun add-leap-seconds( ts : timestamp, leaps : timespan ) : timestamp {
-  if (!leaps.pos?) then ts // + leaps // if negative, add as normal seconds
-  elif (leaps < 1.timespan && ts.leap.zero?)
+  if (!leaps.is-pos) then ts // + leaps // if negative, add as normal seconds
+  elif (leaps < 1.timespan && ts.leap.is-zero)
    then Timestamp( (ts.since - 1.timespan) + leaps, 1.int32)
    else Timestamp( ts.since + leaps.fraction, ts.leap32 + leaps.truncate.int.int32 )
 }
@@ -209,7 +208,7 @@ public fun (-)( ts : timestamp, t : timespan ) : timestamp {
 
 // Show a time stamp.
 public fun ts-show( ts : timestamp, max-prec : int = 9, secs-width : int = 1, unit : string = "" ) : string {
-  val l = if (ts.leap.zero?) then "" else " (+" + ts.leap.show + " leap)"
+  val l = if (ts.leap.is-zero) then "" else " (+" + ts.leap.show + " leap)"
   ts.since.show-seconds(max-prec,secs-width,unit) + l
 }
 

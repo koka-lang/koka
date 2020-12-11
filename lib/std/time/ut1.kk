@@ -114,7 +114,7 @@ public fun load-iersA( basename : string = "finals2000A",
   val fname-daily  = basename + ".daily"
   val finals-daily = load-iersA-daily( fname-daily, baseurl + fname-daily,
                                        download-delay, download-timeout, verbose )
-  (fun(i:instant) {
+  (fn(i:instant) {
     match(finals-daily(i)) {
       Nothing -> finals-all(i)
       just    -> just
@@ -172,13 +172,13 @@ fun load-latest-iersA( fname : path, url   : string,
 {
   val xfname = if (fname.dirname.empty?) then appdir() + path("config") + fname else fname
   val xurl   = if (url=="auto") then usno-url + fname.basename else url
-  val dtt    = load-latest( xfname, xurl, parse-iersA, fun(dtt:dut-table){ Just(dtt.expire) },
+  val dtt    = load-latest( xfname, xurl, parse-iersA, fn(dtt:dut-table){ Just(dtt.expire) },
                             download-timeout=download-timeout,download-delay=download-delay,
                             error-prefix="load IERS A data (" + fname.basename + ")",
                             verbose=verbose
                           )
   val ts-utc = ts-utc-load(verbose=verbose)
-  (fun(i:instant){ dut-deltat(ts-utc, dtt,i) })
+  (fn(i:instant){ dut-deltat(ts-utc, dtt,i) })
 }
 
 
@@ -229,7 +229,7 @@ fun parse-iersA( s : string ) : maybe<dut-table> {
                 }
   val mbexp   = s.find(rx-finals-expire) // first prediction date
   val caps    = s.find-all(rx-finals-dut)
-  val entries = caps.map-acc(fun(cap){ cap.groups[1].parse-double.maybe(0.0) }).vector
+  val entries = caps.map-acc(fn(cap){ cap.groups[1].parse-double.maybe(0.0) }).vector
 
   val end     = start + entries.length.double
   val expire  = (match(mbexp) {
@@ -237,7 +237,7 @@ fun parse-iersA( s : string ) : maybe<dut-table> {
                   Nothing   -> end - 365.0  // guess one year early
                 }).instant-at-mjd(ts-ti)
   //trace("finals2000A expire: " + expire.time.show)
-  //trace("entries: " + entries.list.map(fun(d){ show(d) }).join("\n"))
+  //trace("entries: " + entries.list.map(fn(d){ show(d) }).join("\n"))
   //trace("finals: " + entries.length.show + ", start: " + start.show + ", end: " + end.show )
   Just(Dut-table(expire,start,end,entries))
 }
@@ -279,8 +279,8 @@ fun ut1-to-tai( t : timestamp, dt-override : (i : instant) -> maybe<duration> ) 
 // outside its range so the builtin methods can be used in that case (see `deltat`)
 public fun ts-ut1-create( dt : (i : instant) -> maybe<duration> = deltat-none ) : timescale {
   timescale("UT1",
-    fun(i) { tai-to-ut1(i,dt) },
-    fun(t) { ut1-to-tai(t,dt) }
+    fn(i) { tai-to-ut1(i,dt) },
+    fn(t) { ut1-to-tai(t,dt) }
   )
 }
 
@@ -333,8 +333,8 @@ fun ut2-to-tai( t : timestamp, dt-override : (i : instant) -> maybe<duration> ) 
 // outside its range so the builtin methods can be used in that case (see `deltat`)
 public fun ts-ut2-create( dt : (i : instant) -> maybe<duration> = deltat-none ) : timescale {
   timescale("UT2",
-    fun(i) { tai-to-ut2(i,dt) },
-    fun(t) { ut2-to-tai(t,dt) }
+    fn(i) { tai-to-ut2(i,dt) },
+    fn(t) { ut2-to-tai(t,dt) }
   )
 }
 
@@ -491,7 +491,7 @@ fun end( tb : deltat-table ) : double {
 fun parse-deltat( determined : string = "", predicted : string = "") : ((year:double) -> maybe<double>) {
   val det  = parse-determined(determined)
   val pred = parse-predicted(predicted)
-  (fun(year:double) {
+  (fn(year:double) {
     match(det.interpolate(year)) {
       Nothing -> pred.interpolate(year)
       jdt     -> jdt
@@ -503,8 +503,8 @@ fun parse-deltat( determined : string = "", predicted : string = "") : ((year:do
 fun parse-predicted( s : string ) : deltat-table {
   val caps = s.find-all(rx-predict)
   if (caps.nil?) return deltat-table-empty
-  val start = caps.head.map(fun(cap){ cap.groups[1] }).default("").parse-double.maybe(2000.0)
-  val entries = caps.map(fun(cap){ cap.groups[2].parse-double.maybe(0.0) }).vector
+  val start = caps.head.map(fn(cap){ cap.groups[1] }).default("").parse-double.maybe(2000.0)
+  val entries = caps.map(fn(cap){ cap.groups[2].parse-double.maybe(0.0) }).vector
   Deltat-table(start,4.0,entries)
 }
 val rx-predict = regex(@"^\s*\d+\.\d+\s*(\d+\.\d+)\s*(\d+(?:\.\d*)?)", multiline=True)
@@ -512,9 +512,9 @@ val rx-predict = regex(@"^\s*\d+\.\d+\s*(\d+\.\d+)\s*(\d+(?:\.\d*)?)", multiline
 fun parse-determined( s : string ) : deltat-table {
   val caps  = s.find-all(rx-determined)
   if (caps.nil?) then return deltat-table-empty
-  val (y,m) = caps.head.map(fun(cap){ (cap.groups[1],cap.groups[2]) }).default(("",""))
+  val (y,m) = caps.head.map(fn(cap){ (cap.groups[1],cap.groups[2]) }).default(("",""))
   val start = y.parse-double.maybe(2000.0) + ((m.parse-double.maybe(1.0) - 1.0)/12.0)
-  val entries = caps.map(fun(cap){ cap.groups[4].parse-double.maybe(0.0) }).vector
+  val entries = caps.map(fn(cap){ cap.groups[4].parse-double.maybe(0.0) }).vector
   Deltat-table(start,12.0,entries)
 }
 val rx-determined = regex(@"^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+(?:\.\d*)?)", multiline=True)
@@ -522,7 +522,7 @@ val rx-determined = regex(@"^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+(?:\.\d*)?)", multil
 
 fun parse-historic( start: double, s : string ) : deltat-table {
   val caps = s.replace-all(rxcomment,"").find-all(rxdouble)
-  val entries = caps.map(fun(cap){ cap.matched.parse-double.maybe(0.0) }).vector
+  val entries = caps.map(fn(cap){ cap.matched.parse-double.maybe(0.0) }).vector
   Deltat-table(start,2.0,entries)
 }
 val rxdouble = regex(@"-?\d+(?:\.\d+)?")

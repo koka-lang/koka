@@ -1,6 +1,6 @@
 // test lifting of cps functions
 fun myid() : ((x:a) -> e a) {
-  return fun(x){ x }
+  return fn(x){ x }
 }
 
 val hs : forall<e> list<int -> e int> = [myid()]

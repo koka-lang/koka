@@ -26,7 +26,7 @@ fun check(name : string, tst : () -> ndet bool ) : io () {
 public fun show-leap-steps(ts-utc : timescale) {
   val steps = get-leap-steps()
   var dlast := Date(0,0,0)
-  val rows = steps.map( fun(step) {
+  val rows = steps.map( fn(step) {
     val (ts,ofs1,ofs2,(base,dstart,delta)) = step
     val prec = 6
     val diff = (ofs2 - ofs1).round-to-prec(prec)

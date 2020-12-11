@@ -13,9 +13,10 @@ type player {
 }
 
 fun (==)(p1, p2) {
-  match(p1) {
-    Bob   -> p2.bob?
-    Alice -> p2.alice?
+  match(p1,p2) {
+    (Bob,Bob) -> True
+    (Alice,Alice) -> True
+    _ -> False
   }
 }
 
@@ -78,7 +79,7 @@ type gtree {
 }
 
 fun validMoves(n) {
-  [1,2,3].filter( fun(m) { m <= n })
+  [1,2,3].filter( fn(m) { m <= n })
 }
 
 val gametree = handler {
@@ -98,7 +99,7 @@ fun show(gt :gtree) : div string {
 fun showGt(gt :gtree, indent:int) : _ string {
   val showi = (show : (int) -> string)
   match(gt) {
-    Take(p,moves) -> p.show + moves.show-list(fun(x) { "\n" + " ".repeat(indent) +  x.fst.core/show + " -> " + x.snd.showGt(indent+2) })
+    Take(p,moves) -> p.show + moves.show-list(fn(x) { "\n" + " ".repeat(indent) +  x.fst.core/show + " -> " + x.snd.showGt(indent+2) })
     Winner(p)     -> p.show + " wins"
   }
 }
@@ -117,13 +118,13 @@ effect cheating {
 }
 
 val cheatReport = handler {
-  fun cheat(p) { error((p:player).show + " cheated!") }
+  fun cheat(p) { throw((p:player).show + " cheated!") }
 }
 
 val check = handler {
   fun move(p,n) {
     val m = move(p,n)
-    if (validMoves(n).find(fun(i) { i == m }).bool)
+    if (validMoves(n).find(fn(i) { i == m }).bool)
      then m
      else cheat(p)
   }
@@ -163,7 +164,7 @@ fun testPc2() {
 // --------------------------------------------------------
 
 effect choose {
-  fun choose() : bool
+  control choose() : bool
 }
 
 fun bobChooses(m) {
@@ -173,7 +174,7 @@ fun bobChooses(m) {
 
 val allResults = handler {
   return x -> [x]
-  choose() -> ((resume(True) + resume(False)):list<_>)
+  control choose() -> resume(True) + resume(False)
 }
 
 fun testChoose() {
@@ -210,9 +211,9 @@ val state-param = handler(s) {
 
 fun state(init,action) {
   var s := init
-  handle({mask<local>(action)}) {
-    get()  -> resume(s)
-    put(x) -> { s := x; resume(()) }
+  handle(action) {
+    fun get()  { s }
+    fun put(x) { s := x }
   }
 }
 
@@ -227,7 +228,7 @@ val scoreUpdater = handler {
   }
 }
 fun updateScore( p : player, gs : gstate ) : gstate {
-  gs.mymap fun(qs) {
+  gs.mymap fn(qs) {
     val (q,s) = qs
     if (p==q) then (q,s+1) else qs
   }
@@ -241,7 +242,7 @@ val printer = handler {
 }
 
 fun printBoard( gs : gstate ) : io () {
-  gs.mymap( fun(ps) {
+  gs.mymap( fn(ps) {
     ps.fst.show + " -> " + ps.snd.show
   }).join("\n").println
 }

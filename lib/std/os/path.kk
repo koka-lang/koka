@@ -32,9 +32,9 @@ the `realpath` function should be used (which has the `:io` effect though).
 */
 module std/os/path
 
-import std/text/regex
+import std/text/parse
 
-extern include {
+include extern {
   cs file "path-inline.cs"
   js file "path-inline.js"
 }
@@ -96,7 +96,7 @@ fun split-parts( parts : list<string> ) : (string,list<string>) {
 // `"/foo//./bar/../test.txt".path.string -> "/foo/test.txt"`
 public fun string( p : path ) : string {
   val s = p.root + p.parts.reverse.join("/")
-  if (s.empty?) then "." else s
+  if (s.is-empty) then "." else s
 }
 
 // Show a path as a string.
@@ -106,46 +106,49 @@ public fun show( p : path ) : string {
 
 
 // Is a path empty?
-public fun empty?( p : path ) : bool {
-  p.root.empty? && p.parts.nil?
+public fun is-empty( p : path ) : bool {
+  p.root.is-empty && p.parts.is-nil
 }
 
 // Is a path relative?
-public fun relative?( p : path ) : bool {
-  p.root.empty?
+public fun is-relative( p : path ) : bool {
+  p.root.is-empty
 }
 
 // Is a path absolute?
-public fun absolute?( p : path ) : bool {
-  !p.relative?
+public fun is-absolute( p : path ) : bool {
+  !p.is-relative
 }
 
 // Create a normalized `:path` from a path string.
 public fun path( s : string ) : path {
-  if (s.empty?) return Path("",[])
-  match(s.find(rx-root)) {
-    Nothing    -> path-parts("",s)
-    Just(capr) -> path-parts(capr.groups[1] + "/",capr.slice.after.string)
+  if (s.is-empty) return Path("",[])
+  val t = s.replace-all("\\","/")
+  match(t.starts-with(proot)) {
+    Nothing          -> path-parts("",t)
+    Just((eof,rest)) -> path-parts(rest.before.string + (if (eof) then "/" else ""),rest.string)
   }
 }
 fun path-parts( root : string, s : string, dirs : list<string> = [] ) : path {
-  val parts = s.split(rx-partsep).path-split(dirs)
+  val parts = s.split("/").push-parts(dirs)
   Path(root,parts)
 }
-fun path-split( parts : list<string>, dirs : list<string> ) : list<string>  {
+fun push-parts( parts : list<string>, dirs : list<string> ) : list<string>  {
   match(parts) {
-    Cons(part,rest) -> path-split(rest, push-dir(part,dirs))
+    Cons(part,rest) -> push-parts(rest, push-part(part,dirs))
     Nil -> dirs
   }
 }
-fun push-dir( dir : string, dirs : list<string> ) : list<string> {
+fun push-part( dir : string, dirs : list<string> ) : list<string> {
   if (dir=="." || dir=="")       then dirs
-  elif (dir==".." && dirs.cons?) then dirs.tail
+  elif (dir==".." && dirs.is-cons) then dirs.tail
   else Cons(dir,dirs)
 }
 
-val rx-partsep = regex(@"[/\\]")
-val rx-root= regex(@"^([a-zA-Z]:|(?:\\\\|//)[^/\\]+)?(?:[/\\]|$)")
+fun proot() : parse bool {
+  ({ alpha(); char(':'); () }) || ({char('/'); many1({none-of("/")}); () })
+  ({ char('/'); False }) || ({ eof(); True })
+}
 
 // Parse a list of paths seperated by colon (`':'`) or semi-colon (`';'`)
 //
@@ -153,22 +156,18 @@ val rx-root= regex(@"^([a-zA-Z]:|(?:\\\\|//)[^/\\]+)?(?:[/\\]|$)")
 // In particular, a single letter path followed by an absolute path, e.g. ``c:/foo:/bar`` is
 // parsed as ``c:/foo`` and ``/bar``.
 public fun paths( s : string ) : list<path> {
-  s.split(rx-pathsep).paths-split
+  s.replace-all(";",":").split(":").paths-collect
 }
-fun paths-split( ps : list<string> ) : list<path> {
+fun paths-collect( ps : list<string> ) : list<path> {
   match(ps) {
-    Cons(root,Cons(colon,Cons(part,rest))) // match on windows 'c:\' parts
-      | colon==":" && root.count==1 && root.head-char.default(' ').alpha? &&
-        part.notempty? && "/\\".contains(part.head)
-      -> Cons( path(root+":"+part), paths-split(rest))
-    Cons(part,rest)
-      | part==";" || part==":" || part==""
-      -> paths-split(rest)
-    Cons(part,rest) -> Cons( path(part), paths-split(rest))
+    Cons(root,Cons(part,rest)) // match on windows 'c:\' parts
+      | root.count==1 && root.head-char.default(' ').is-alpha &&
+        !part.is-empty && "/\\".contains(part.head)
+      -> Cons( path(root+":"+part), paths-collect(rest))
+    Cons(part,rest) -> Cons( path(part), paths-collect(rest))
     Nil             -> Nil
   }
 }
-val rx-pathsep = regex(@"([;:])")
 
 // Add two paths together. \
 // Keeps the root of `p1` and discards the root name of `p2`.\
@@ -176,12 +175,17 @@ val rx-pathsep = regex(@"([;:])")
 // `"/a/foo.txt" + "/b/bar.txt"  === "/a/foo.txt/b/bar.txt"`\
 // `"c:/foo" + "d:/bar"          === "c:/foo/bar"`
 public fun (+)(p1 : path, p2: path) : path {
-  Path(p1.root,p2.parts + p1.parts)
+  Path(p1.root,push-parts(p2.parts.reverse, p1.parts))
+}
+
+// Convenience function that adds a string path.
+public fun (+)(p1 : path, p2: string) : path {
+  p1 + p2.path
 }
 
 // Return the first path if it is not empty, otherwise return the second one.
 public fun (||)(p1 : path, p2: path) : path {
-  if (p1.empty?) then p2 else p1
+  if (p1.is-empty) then p2 else p1
 }
 
 // Combine multiple paths using `(+)`.
@@ -210,23 +214,23 @@ public fun noext( p : path ) : path {
 }
 
 // Change the extension of a path.
+// Only adds a dot if the extname does not already start with a dot.
 public fun change-ext( p : path, extname : string ) : path {
   val (basename,dirs) = p.parts.split-parts
   val (stemname,_)    = basename.split-base
-  val newext = if (extname.contains(rx-nodot)) then extname else "." + extname
+  val newext = if (extname.starts-with(".").bool) then extname else "." + extname
   path-parts(p.root, stemname+newext, dirs)
 }
-val rx-nodot = regex(@"^(?:$|[\./\\])")
 
 // If a path has no extension, set it to the provided one.
 public fun default-ext( p : path, newext : string ) : path {
-  if (p.extname.empty?) then p.change-ext(newext) else p
+  if (p.extname.is-empty) then p.change-ext(newext) else p
 }
 
 // Change the stem name of a path
 public fun change-stem( p : path, stemname : string ) : path {
   val ext = p.extname
-  p.change-base( stemname + (if (ext.empty?) then "" else "." + ext) )
+  p.change-base( stemname + (if (ext.is-empty) then "" else "." + ext) )
 }
 
 // Change the base name of a path
@@ -273,6 +277,7 @@ public fun realpath( s : string ) : io path {
 }
 
 extern xrealpath( p : string ) : io string {
+  c  "kk_os_realpath"
   cs "System.IO.Path.GetFullPath"
   js "_get_realpath"
 }
@@ -280,12 +285,14 @@ extern xrealpath( p : string ) : io string {
 
 // Return the OS specific directory separator (`"/"` or `"\\"`)
 public extern partsep() : ndet string {
+  c  "kk_os_dir_sep"
   cs "System.IO.Path.DirectorySeparatorChar.ToString"
   js "_get_partsep"
 }
 
 // Return the OS specific path separator (`';'` or `':'`)
 public extern pathsep() : ndet string {
+  c  "kk_os_path_sep"
   cs "System.IO.Path.PathSeparator.ToString"
   js "_get_pathsep"
 }
@@ -296,6 +303,7 @@ public fun app-path() : io path {
 }
 
 extern xapp-path() : io string {
+  c "kk_os_app_path"
   cs inline "System.Reflection.Assembly.GetEntryAssembly().Location"
   js "_get_apppath"
 }
@@ -315,6 +323,7 @@ public fun homedir() : io path {
 }
 
 extern xhomedir() : io string {
+  c  "kk_os_home_dir"
   cs "_Path.GetHomeDir"
   js "_get_homedir"
 }
@@ -325,6 +334,7 @@ public fun tempdir() : io path {
 }
 
 extern xtempdir() : io string {
+  c  "kk_os_temp_dir"
   cs "System.IO.Path.GetTempPath"
   js "_get_tempdir"
 }

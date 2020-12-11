@@ -14,7 +14,7 @@ module Compiler.Module( Module(..), Modules, moduleNull
                       , loadedImportModule
                       , loadedName
                       , loadedLatest
-                      , addOrReplaceModule
+                      , addOrReplaceModule, removeModule
                       , modPackageName -- , modPackageQName
                       , modPackagePath, modPackageQPath
                       , PackageName
@@ -149,7 +149,9 @@ addOrReplaceModule mod (m:ms)
      then mod:ms
      else m : addOrReplaceModule mod ms
 
-
+removeModule :: Name -> Modules -> Modules
+removeModule name modules
+  = filter (\m -> modName m /= name) modules
 
 extractFixities :: Core.Core -> Fixities
 extractFixities core

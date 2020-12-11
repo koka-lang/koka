@@ -93,7 +93,7 @@ Digit           [0-9]
 Hex             [0-9a-fA-F]
 Space           [ \t]
 Newline         [\r]?[\n]
-Final           [\'\?]
+Final           [\']
 /* for editor highlighting ' */
 
 GraphicChar     [ \x21-\x26\x28-\[\]-\x7E]
@@ -123,8 +123,6 @@ infixl                    { return INFIXL; }
 infixr                    { return INFIXR; }
 
 type                      { return TYPE; }
-cotype                    { return COTYPE; }
-rectype                   { return RECTYPE; }
 alias                     { return ALIAS; }
 struct                    { return STRUCT; }
 
@@ -134,14 +132,14 @@ some                      { return SOME; }
 
 abstract                  { return ABSTRACT; }
 extern                    { return EXTERN; }
-external                  { return EXTERN; }
 
-function[\(\<]            { yyless(7); return FUNX; }
-fun[\(\<]                 { yyless(3); return FUNX; }
+  /*
+  function[\(\<]            { yyless(7); return FUNX; }
+  fun[\(\<]                 { yyless(3); return FUNX; }
+  */
 
-function                  { return FUN; }
 fun                       { return FUN; }
-
+fn                        { return FN; }
 val                       { return VAL; }
 var                       { return VAR; }
 con                       { return CON; }
@@ -150,40 +148,51 @@ if                        { return IF;}
 then                      { return THEN; }
 else                      { return ELSE;}
 elif                      { return ELIF;}
-
+with                      { return WITH; }
+in                        { return IN; }
 match                     { return MATCH;}
 return                    { return RETURN;}
 
 module                    { return MODULE;}
 import                    { return IMPORT;}
+pub                       { return PUBLIC;}
 public                    { return PUBLIC;}
 private                   { return PRIVATE;}
 as                        { return AS;}
 
+control                   { return CONTROL; }
+rcontrol                  { return RCONTROL; }
+except                    { return EXCEPT; }
+handle                    { return HANDLE; }
+handler                   { return HANDLER; }
+effect                    { return EFFECT; }
+
+rec                       { return ID_REC; }
+co                        { return ID_CO; }
+
+mask                      { return MASK; }
+override                  { return OVERRIDE; }
+named                     { return NAMED; }
+
 inline                    { return ID_INLINE;  }
+noinline                  { return ID_NOINLINE;}
 include                   { return ID_INCLUDE; }
 
 open                      { return ID_OPEN; }
-behind                    { return ID_BEHIND; }
 extend                    { return ID_EXTEND; }
 linear                    { return ID_LINEAR;  }
+value                     { return ID_VALUE;  }
+reference                 { return ID_REFERENCE;  }
+scoped                    { return ID_SCOPED; }
+behind                    { return ID_BEHIND; }
 
-handler                   { return HANDLER; }
-handle                    { return HANDLE; }
-effect                    { return EFFECT; }
-ambient                   { return EFFECT; }
-mask                      { return MASK; }
+initially                 { return ID_INITIALLY; }
+finally                   { return ID_FINALLY; }
 
-with                      { return WITH; }
-in                        { return IN; }
-control                   { return CONTROL; }
-override                  { return OVERRIDE; }
 
   /* unused reserved identifiers */
-rec                       { return REC; }
-
 interface                 { return IFACE; }
-instance                  { return INSTANCE; }
+unsafe                    { return UNSAFE; }
 
   /* reserved operators */
 :                         { return ':';    }
@@ -203,6 +212,7 @@ instance                  { return INSTANCE; }
 file                      { return ID_FILE;    }
 cs                        { return ID_CS;      }
 js                        { return ID_JS;      }
+c                         { return ID_C;       }
 
   /* Special symbols (cannot be an operator) */
 \)                        { return ')'; }
@@ -491,8 +501,8 @@ static bool isAppToken( Token token ) {
 #endif
 
 #ifdef CHECK_BALANCED
-  static Token closeTokens[] = { ')', '}', ']', ')', ']', 0 };
-  static Token openTokens[]  = { '(', '{', '[', APP, IDX, 0 };
+  static Token closeTokens[] = { ')', '}', ']', /* ')', ']',*/ 0 };
+  static Token openTokens[]  = { '(', '{', '[', /* APP, IDX,*/ 0 };
 
   Token isCloseBrace( Token token ) {
     int i = find(closeTokens,token);
@@ -527,9 +537,11 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
     token = yylex( lval, loc, scanner );
     *loc = updateLoc( scanner );
 
+    /*
     // this is to avoid needing semicolons
     if (token=='(' && isAppToken(yyextra->previous)) token = APP;
     if (token=='[' && isAppToken(yyextra->previous)) token = IDX;
+    */
 
     // skip whitespace
     while (token == LEX_WHITE || token == LEX_COMMENT) {

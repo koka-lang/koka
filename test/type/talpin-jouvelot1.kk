@@ -21,7 +21,7 @@ val id3 = nop(rid, id)
 
 fun foo4(z) {
   fun id4(x) {
-    val t = if (True) z else (fun(y){ var r := x; y })
+    val t = if (True) z else (fn(y){ var r := x; y })
     return x
   }
   id4(id4)
@@ -30,7 +30,7 @@ fun foo4(z) {
 fun foo5(f) {
   fun id5(y) {
     val r = ref(y)
-    val t = if(True) then (fun(z){ if(True) then r else ref(y); z }) else f
+    val t = if(True) then (fn(z){ if(True) then r else ref(y); z }) else f
     y
   }
   id5(id5)
@@ -38,11 +38,11 @@ fun foo5(f) {
 
 fun etaRef(f) {
   val r = ref(f)
-  if(True) f else (fun(x : ref<_h,_t>){ val s = if(True) r else ref(f); !x})
+  if(True) f else (fn(x : ref<_h,_t>){ val s = if(True) r else ref(f); !x})
 }
 
 fun t1() { id1(id1) }
 fun t2() { id2(id2) }
 fun t3() { id3(id3) }
 
-val t4 = if (True) (fun(x){x}) else (fun(x) { !(ref(x)) })
+val t4 = if (True) (fn(x){x}) else (fn(x) { !(ref(x)) })

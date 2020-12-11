@@ -9,8 +9,10 @@
 // Formatting of time into a string.
 module std/time/format
 
-import std/text/regex
+import std/text/parse
 import std/num/ddouble
+import std/time/timestamp
+import std/time/duration
 import std/time/instant
 import std/time/date
 import std/time/calendar
@@ -90,7 +92,7 @@ fun format-year( t : time, n : int, locale : time-locale ) : string {
   }
   else {
     val y = t.year.abs.showl(n)
-    if (t.year.neg?) then "-" + y else "+" + y
+    if (t.year.is-neg) then "-" + y else "+" + y
   }
 }
 
@@ -122,7 +124,7 @@ fun format-hours12( t : time, n : int, locale : time-locale ) : string {
 }
 
 fun format-calname( t : time, n : int, locale : time-locale) : string {
-  if (t.calendar.month-prefix.notempty?) then ""
+  if (t.calendar.month-prefix.is-notempty) then ""
    elif (n==2) then t.calendar.long-name
    else t.calendar.name
 }
@@ -138,12 +140,12 @@ fun format-upper-ampm( t : time, n : int, locale : time-locale ) : string {
 
 fun format-frac( t : time, n : int, locale : time-locale ) : string {
   val frac = t.seconds.fraction
-  if (frac.zero?) then "" else frac.show-fixed(n).tail
+  if (frac.is-zero) then "" else frac.show-fixed(n).tail
 }
 
 fun format-frac0( t : time, n : int, locale : time-locale ) : string {
   val frac = t.seconds.fraction
-  if (frac.zero?) then "" else frac.show-fixed(n).tail.pad-right(n+1,'0')
+  if (frac.is-zero) then "" else frac.show-fixed(n).tail.pad-right(n+1,'0')
 }
 
 fun format-tz-offset( t : time, n : int, hmsep : string, utc : string ) : string {
@@ -265,17 +267,17 @@ fun format-list( t : time, fmt : list<char>, locale : time-locale ) : string {
 fun format-pat( t : time, h : char, fmt : list<char>, locale : time-locale ) : (string,list<char>) {
   if (h=='"' || h=='\'') {
     // extract escaped part
-    val (quoted,end) = fmt.span( fun(c) { c!=h } )
+    val (quoted,end) = fmt.span( fn(c) { c!=h } )
     match(end) {
       Nil          -> (h.string, fmt)
       Cons(_,rest) -> (quoted.string, rest)
     }
   }
-  elif(h.alpha?) {
+  elif(h.is-alpha) {
     // match pattern
-    val (hs,rest) = fmt.span(fun(c){c==h})
+    val (hs,rest) = fmt.span(fn(c){c==h})
     val n = hs.length + 1
-    formats.foreach-while fun(pattern) {
+    formats.foreach-while fn(pattern) {
       val (c,m,f) = pattern
       if (c!=h) then Nothing else Just((f(t,min(n,m),locale), rest))
     }.default( ("",rest) ) // ignore if no match
@@ -283,8 +285,9 @@ fun format-pat( t : time, h : char, fmt : list<char>, locale : time-locale ) : (
   else (h.string,fmt) // return as-is
 }
 
+/*
 fun expand-locales( fmt : string, locale : time-locale ) : string {
-  fmt.replace-all(rx-locale) fun(cap) {
+  fmt.replace-all(rx-locale) fn(cap) {
     val n = cap.matched.count
     if (cap.groups[1] != "") then {
       cap.matched
@@ -299,13 +302,57 @@ fun expand-locales( fmt : string, locale : time-locale ) : string {
         nfmt
       }
       else {
-        nfmt.replace-all(rx-long, fun(capl) { capl.matched.tail })
+        nfmt.replace-all(rx-long, fn(capl) { capl.matched.tail })
       }
     }
   }
 }
 val rx-locale = regex(@"('[^']*'|""[^""]*"")|(t+)|(L+)|(l+)")
 val rx-long   = regex(@"dddd+|MMMM+|DD(?!D)")
+*/
+
+fun expand-locales( fmt : string, locale : time-locale ) : string {
+  fmt.slice.parse-eof( { plocales(locale) } ).maybe.default(fmt)
+}
+
+fun plocales( locale : time-locale ) : parse string {
+  many({plocale(locale)}).join
+}
+
+fun plocale( locale : time-locale ) : parse string {  
+  choose([
+    { none-of-many1("'\"tLl") },
+    { pquoted('\'') },
+    { pquoted('\"') },
+    { plocale-t(locale) },
+    { plocale-l(locale,'L') },
+    { plocale-l(locale,'l') }
+  ])
+}
+
+fun pquoted(quote : char) : parse string {
+  char(quote)
+  val s = optional(""){ chars-are("",fn(c){ c != quote } ).string }
+  char(quote)
+  return (quote.string + s + quote.string)
+}
+
+fun plocale-t( locale : time-locale ) : parse string {  
+  char('t')
+  optional(locale.format-t){ char('t'); locale.format-tt }
+}
+
+fun plocale-l( locale : time-locale, l : char ) : parse string {  
+  val ls = many1{ char(l) }
+  val n = ls.length
+  val nfmt = if (n>=4) then locale.format-llll elif (n==3) then locale.format-lll
+               elif (n==2) then locale.format-ll else locale.format-l
+  if (l=='L')
+   then nfmt
+   else nfmt.replace-all("dd","d").replace-all("dd","ddd")
+            .replace-all("MM","M").replace-all("MM","MMM")
+            .replace-all("DD","D").replace-all("DD","DDD")
+}
 
 fun showl( i : int, width : int = 2 ) : string {
   i.show.pad-left(width,'0')

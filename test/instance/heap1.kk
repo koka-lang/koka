@@ -24,6 +24,6 @@ fun new-ref(init,action) {
 fun main() {
   with heap
   with r1 = new-ref(40)
-  with r2 : ref<_,string> = new-ref("hi")
+  with r2 = new-ref("hi")
   println(r1.get + r2.get.count)
 }

@@ -10,7 +10,7 @@
 
 
 /* -----------------------------------------------------------
-  Deterministic pseudo random number generation. Fast but not secure.  
+  Deterministic pseudo random number generation. Fast but not secure.
 ----------------------------------------------------------- */
 
 // pseudo random number context (using pcg)
@@ -20,7 +20,7 @@ typedef struct kk_pcg_ctx_s {
 } kk_pcg_ctx_t;
 
 // Pseudo random number using PCG by Melissa E. O'Neill.
-// It combines a linear congruential generator (CG) with an output permutation 
+// It combines a linear congruential generator (CG) with an output permutation
 // function (P) and has good statictical properties (and passes PractRand and Big-crush[2]).
 // Note: another good multiplier is KU32(0xF13283AD) [1] which is more efficient on
 // 32-bit architectures as that can be implemented in 64x32-bit multiply instead
@@ -29,7 +29,7 @@ typedef struct kk_pcg_ctx_s {
 // [2]: https://www.pcg-random.org/pdf/hmc-cs-2014-0905.pdf
 static inline uint32_t pcg_uint32(kk_pcg_ctx_t* rnd) {
   const uint64_t state0 = rnd->state;
-  rnd->state = (state0 * KU64(0x5851F42D4C957F2D)) + rnd->stream;  
+  rnd->state = (state0 * KU64(0x5851F42D4C957F2D)) + rnd->stream;
   const uint32_t x = (uint32_t)(((state0 >> 18) ^ state0) >> 27);
   const uint32_t rot = (uint32_t)(state0 >> 59);
   return kk_bits_rotr32(x, rot);
@@ -87,7 +87,7 @@ static void sfc_init(uint64_t seed, kk_sfc_ctx_t* rnd) {
 Secure pseudo random numbers based on chacha-20/8
 We use our own PRNG to keep predictable performance of random number generation
 and to avoid implementations that use a lock. We only use the OS provided
-random source to initialize the initial seeds. 
+random source to initialize the initial seeds.
 -----------------------------------------------------------------------------*/
 
 /* ----------------------------------------------------------------------------
@@ -139,7 +139,7 @@ static inline void chacha_block(const size_t rounds, uint32_t* input, uint32_t* 
   for (size_t i = 0; i < 16; i++) {
     output[i] = x[i] + input[i];
   }
-  
+
   // increment the counter for the next round
   input[12] += 1;
   if (input[12] == 0) {
@@ -343,8 +343,8 @@ static bool os_random_buf(void* buf, size_t buf_len) {
 
 #if defined(_WIN32)
 #include <Windows.h>
-#elif defined(__XAPPLE__)  // TODO: kk_mach_time.h includes kk_vm_types.h which (re)defines `kk_integer_t`...
-#include <mach/kk_mach_time.h>
+#elif defined(__APPLE__)  
+#include <mach/mach_time.h>
 #else
 #include <time.h>
 #endif
@@ -357,13 +357,13 @@ static uint64_t os_random_weak(uint64_t extra_seed) {
     QueryPerformanceCounter(&pcount);
     x ^= (uint64_t)(pcount.QuadPart);
   #elif defined(__APPLE__)
-    x ^= (uint64_t)mach_absolute_time();
+    x ^= mach_absolute_time();
   #else
     struct timespec time;
     clock_gettime(CLOCK_MONOTONIC, &time);
     x ^= kk_bits_rotl64((uint64_t)time.tv_sec, 32);
     x ^= (uint64_t)time.tv_nsec;
-  #endif  
+  #endif
   kk_assert_internal(x != 0);
   return x;
 }

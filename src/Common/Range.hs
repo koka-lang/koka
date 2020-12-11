@@ -16,7 +16,7 @@ module Common.Range
           , Range, showFullRange
           , makeRange, rangeNull, combineRange, rangeEnd, rangeStart
           , Ranged( getRange ), combineRanged
-          , combineRangeds, combineRanges
+          , combineRangeds, combineRanges, extendRange
           , Source(Source,sourceName, sourceBString), sourceText, sourceFromRange
           , posSource
           , rangeSource
@@ -215,9 +215,12 @@ posMove8 :: Pos -> Char -> Pos
 posMove8 (Pos s o l c) ch
   = let o1 = if o < 0 then o else o+1 in
     case ch of
-      '\t' -> Pos s o1 l (((c+7) `div` 8)*8+1) 
+      '\t' -> Pos s o1 l (((c+tabSize-1) `div` tabSize)*tabSize+1) 
       '\n' -> Pos s o1 (l+1) 1
       _    -> Pos s o1 l (c+1)
+
+tabSize :: Int
+tabSize = 2  -- always 2 in Koka 
 
 {--------------------------------------------------------------------------
   Ranges
@@ -291,6 +294,9 @@ minPos p1 p2  = if (p1 <= p2) then p1 else p2
 maxPos :: Pos -> Pos -> Pos
 maxPos p1 p2 = if (p1 <= p2) then p2 else p1
 
+extendRange :: Range -> Int -> Range
+extendRange (Range start end) ofs
+  = Range start (end{ posColumn = posColumn end + ofs })
 
 {--------------------------------------------------------------------------
   Ranged class

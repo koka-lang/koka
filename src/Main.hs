@@ -73,7 +73,7 @@ mainMode flags mode p
      ModeHelp
       -> showHelp flags p
      ModeVersion
-      -> showVersion p
+      -> showVersion flags p
      ModeCompiler files
       -> mapM_ (compile p flags) files
      ModeInteractive files
@@ -112,7 +112,8 @@ compile p flags fname
   where
     term
       = Terminal (putErrorMessage p (showSpan flags) cscheme)
-                 (if (verbose flags > 1) then putStrLn else (\_ -> return ()))
+                 (if (verbose flags > 1) then (\msg -> withColor p (colorSource cscheme) (writeLn p msg)) 
+                                         else (\_ -> return ()))
                  (if (verbose flags > 0) then writePrettyLn p else (\_ -> return ()))
                  (putScheme p (prettyEnv flags nameNil importsEmpty))
                  (writePrettyLn p)

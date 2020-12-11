@@ -1,6 +1,5 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.7)
 project(kklib VERSION 1.0 LANGUAGES C)
-cmake_policy(SET CMP0077 NEW)  # allow override of options in parent projects
 enable_testing()
 
 option(KK_MIMALLOC          "Use the mimalloc allocator" ON)
@@ -8,6 +7,10 @@ option(KK_MIMALLOC_INLINE   "Use the inlined branch of mimalloc allocator" OFF)
 option(KK_DEBUG_SAN         "Compile with specified sanitizer (thread,memory,address,undefined) (clang only)" OFF)
 option(KK_DEBUG_FULL        "Use full internal debug assertions" OFF)
 option(KK_BUILD_TEST        "Build test target" OFF)
+
+if(NOT DEFINED KK_COMP_VERSION)
+  set(KK_COMP_VERSION "2.x.x")
+endif()  
 
 # -----------------------------------------------------------------------------
 # Language options
@@ -20,48 +23,50 @@ set(CMAKE_C_EXTENSIONS NO)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
 
-set(CMAKE_DEBUG_POSTFIX "-debug")
-set(CMAKE_RELWITHDEBINFO_POSTFIX "d")
+# set(CMAKE_DEBUG_POSTFIX "-debug")
+# set(CMAKE_RELWITHDEBINFO_POSTFIX "d")
 
 # -----------------------------------------------------------------------------
 # Main target
 # -----------------------------------------------------------------------------
 set(kklib_targets kklib kklib-flags)
 set(kklib_sources
-    src/process.c
     src/bits.c
     src/box.c
     src/init.c
     src/integer.c
+    src/os.c
+    src/process.c
     src/random.c
     src/refcount.c
     src/ref.c
     src/string.c
+    src/time.c
     )
-    
+
 # properties library; these are used for all koka compiled C sources
 add_library(kklib-flags INTERFACE)
 
 # extra option configuration
 include("${CMAKE_CURRENT_LIST_DIR}/../kklib-options.cmake" OPTIONAL)
 
-if(NOT (KK_DEBUG_SAN MATCHES OFF)) 
+if(NOT (KK_DEBUG_SAN MATCHES OFF))
   if(CMAKE_C_COMPILER_ID MATCHES "Clang")
     message(STATUS "Build with ${KK_DEBUG_SAN} sanitizer (and switch KK_MIMALLOC to OFF)")
     target_compile_options(kklib-flags INTERFACE -fsanitize=${KK_DEBUG_SAN} -g -O1)
     target_link_libraries(kklib-flags INTERFACE -fsanitize=${KK_DEBUG_SAN})
     set(KK_MIMALLOC OFF)
   else()
-    message(WARNING "Can only use ${KK_DEBUG_SAN} sanitizer with clang (KK_DEBUG_SAN is ignored)")    
+    message(WARNING "Can only use ${KK_DEBUG_SAN} sanitizer with clang (KK_DEBUG_SAN is ignored)")
   endif()
 endif()
 
-if(KK_DEBUG_FULL MATCHES ON) 
+if(KK_DEBUG_FULL MATCHES ON)
   target_compile_definitions(kklib-flags INTERFACE KK_DEBUG_FULL=1)
 endif()
 
 if(KK_MIMALLOC MATCHES ON)
-  list(APPEND kklib_sources mimalloc/src/static.c)      
+  list(APPEND kklib_sources mimalloc/src/static.c)
 endif()
 
 
@@ -71,7 +76,7 @@ endif()
 # support library
 add_library(kklib STATIC ${kklib_sources})
 
-target_compile_definitions(kklib PUBLIC KK_STATIC_LIB)
+target_compile_definitions(kklib PUBLIC KK_STATIC_LIB=1 KK_COMP_VERSION="${KK_COMP_VERSION}")
 target_include_directories(kklib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_link_libraries(kklib PUBLIC kklib-flags)
 if(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND "x${CMAKE_C_SIMULATE_ID}" STREQUAL "xMSVC")
@@ -92,9 +97,9 @@ target_compile_definitions(kklib-flags INTERFACE KK_MIMALLOC=1)
   endif()
   if(WIN32)
      target_link_libraries(kklib-flags INTERFACE psapi bcrypt)
-  else()   
+  else()
      target_link_libraries(kklib-flags INTERFACE pthread)
-  endif()   
+  endif()
 endif()
 
 
@@ -121,15 +126,15 @@ install(DIRECTORY include/
         FILES_MATCHING PATTERN "*.h")
 
 if(KK_MIMALLOC MATCHES ON)
-if(KK_MIMALLOC_INLINE MATCHES ON)  
+if(KK_MIMALLOC_INLINE MATCHES ON)
 install(DIRECTORY mimalloc/include/
         DESTINATION include
         FILES_MATCHING PATTERN "mimalloc*.h")
-else()        
+else()
 install(DIRECTORY mimalloc/include/
         DESTINATION include
         FILES_MATCHING PATTERN "mimalloc.h")
-endif()        
+endif()
 endif()
 
 write_basic_package_version_file(kklib-config-version.cmake COMPATIBILITY SameMajorVersion)
@@ -140,7 +145,7 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kklib-config-version.cmake
 # -----------------------------------------------------------------------------
 # Testing
 # -----------------------------------------------------------------------------
-if(KK_BUILD_TEST MATCHES ON)    
+if(KK_BUILD_TEST MATCHES ON)
   set(test_sources
       test/main.c
       test/time.c
@@ -165,9 +170,9 @@ set(unix     $<OR:$<PLATFORM_ID:Linux>,$<PLATFORM_ID:Darwin>>)
 target_compile_options(
   kklib-flags
   INTERFACE
+    $<$<C_COMPILER_ID:Clang>:-Wno-everything> # for clang-cl, next line switches to Wall again
     $<${gnu_like}:
-      -Wall
-      -Wextra
+      -Wall -Wextra
       -Wno-unknown-pragmas
       -Wno-unused-parameter
       -Wno-unused-variable
@@ -176,21 +181,23 @@ target_compile_options(
       -Wpointer-arith
       -Wshadow
       -Wstrict-aliasing>
-    $<$<C_COMPILER_ID:GNU>:
-      -Wno-unused-but-set-variable>
-    $<$<C_COMPILER_ID:Clang>:
-      -Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align>
+#    $<$<C_COMPILER_ID:GNU>:
+#      -Wno-unused-but-set-variable>
+#    $<$<C_COMPILER_ID:Clang>:
+#      -Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros
+#      -Wno-cast-align -Wno-format-nonliteral -Wno-float-equal
+#      -Wno-missing-noreturn>
 )
 
 # Use O1 even in debug mode
 #if (NOT KK_DEBUG_FULL)
-  target_compile_options(kklib-flags INTERFACE $<$<AND:$<CONFIG:Debug>,${gnu_like}>:-O1>)
+target_compile_options(kklib-flags INTERFACE $<$<AND:$<CONFIG:Debug>,${gnu_like}>:-O1>)
 #endif()
 
 # Platform-specific definitions
 target_compile_definitions(kklib-flags INTERFACE $<${unix}:_GNU_SOURCE>)
 
-# Additional libraries
+# Additional libraries: math
 target_link_libraries(kklib-flags INTERFACE $<${unix}:m>)
 
 include("${CMAKE_CURRENT_LIST_DIR}/../kklib.cmake" OPTIONAL)

@@ -88,14 +88,13 @@ colorize mbRangeMap env kgamma gamma fullHtml sourceName lineNo input p  | other
 htmlHeader env title
   = ["<!DOCTYPE html>"
     ,"<html>"
-    ,"<!-- NO_CLICK_TRACKING -->" -- for MS website
-    ,""
     ,"<head>"
     ,"<meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\" />"
+    ,"<meta name=\"viewport\" content=\"initial-scale=1.0\" />"
     ,""
     ,"<style type=\"text/css\">.koka .plaincode, .koka a.pp .pc { display: none; } .koka a.pp { color: inherit; text-decoration: none; }</style>"
     , unlines (map linkCss (undelimPaths (htmlCss env)))
-    ,"<link rel=\"stylesheet\" type=\"text/css\" href=\"https://fonts.googleapis.com/css?family=Noto+Serif:400,400italic,700,700italic\" />"
+    ,"<link rel=\"stylesheet\" type=\"text/css\" href=\"https://fonts.googleapis.com/css?family=Nunito:400,400italic,700,700italic\" />"
     ,"<link rel=\"stylesheet\" type=\"text/css\" href=\"https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic\" />"
     ,if (null (htmlJs env)) then ""
       else if (extname (htmlJs env) == "require")
@@ -104,13 +103,13 @@ htmlHeader env title
     ,"<title>" ++ title ++ " documentation</title>"
     ,"</head>"
     ,""
-    ,"<body class=\"" ++ prefix ++ "doc body\"><div class=\"madoko\">"
+    ,"<body class=\"" ++ prefix ++ "doc body madoko\">"
     ]
   where
     linkCss cssPath = "<link rel=\"stylesheet\" type=\"text/css\" href=\"" ++ cssPath ++ "\" />"
 
 htmlFooter
-  = ["</div></body>"
+  = ["</body>"
     ,"</html>"
     ]
 
@@ -230,7 +229,7 @@ fmtComment com
       ComPreBlock fmt -> span "comment-preblock" (escapes fmt)
       ComType fmts    -> span "comment-code" (concat fmts)
       ComCode fmts    -> span "comment-code" (concat fmts)
-      ComCodeBlock fmts  -> span "comment-codeblock" (concat fmts)
+      ComCodeBlock cls fmts  -> span "comment-codeblock" (concat fmts)
 -}
 
 
@@ -345,9 +344,12 @@ fmtTypeName name
 fmtName :: Name -> String
 fmtName name
   = let (pname,postfix) = canonicalSplit name
-        pre = case nameId pname of
-              (c:cs)  | not (isAlphaNum c || c == '_' || c == '[' || c=='(') -> "(" ++ fmtNameString (show pname) ++ ")"
+        pre = fmtNameString (show pname)
+              {-
+              case nameId pname of
+              (c:cs)  | not (isAlphaNum c || c == '_' || c == '[' || c=='(') -> "(" ++ fmtNameString (showPlain pname) ++ ")"
               _       -> fmtNameString (show pname)
+              -}
         post = if null postfix then "" else cspan "postfix" postfix
     in pre++post
 
@@ -410,8 +412,8 @@ fmtComment mbRangeMap env kgamma gamma com
       ComPre fmt      -> prefixspan "pre" (escapes fmt)
       ComPreBlock fmt -> prefixBlockTag "pre" "preblock" (escapes fmt)
       ComCode lexs s   -> ptag "code" prefix (fmtLexs lexs)
-      ComCodeBlock lexs s -> prefixBlockTag "pre" ("source unchecked") (span "plaincode" (escapes s) ++ span "nicecode" (fmtLexs lexs))
-      ComCodeLit lexs s   -> prefixBlockTag "pre" ("source") (span "plaincode" (escapes s) ++ span "nicecode" (fmtLitLexs lexs))
+      ComCodeBlock cls lexs s -> prefixBlockTag "pre" ("source unchecked " ++ cls) (span "plaincode" (escapes s) ++ span "nicecode" (fmtLexs lexs))
+      ComCodeLit cls lexs s   -> prefixBlockTag "pre" ("source " ++ cls) (span "plaincode" (escapes s) ++ span "nicecode" (fmtLitLexs lexs))
       ComIndent n     -> concat (replicate n "&nbsp;")
       ComPar          -> "<br>"
   where

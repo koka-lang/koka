@@ -40,7 +40,7 @@ fun plot( f : (double -> double) ) : string {
   val rgt = 4.0
   val steps = 100
   val stp = (rgt - lft) / steps.double
-  list-join(steps) fun(i:int) {
+  list-join(steps) fn(i:int) {
     val x = lft + (stp * i.double)
     val y = f( x )
     "[" + x.show(6) + "," + y.show(6) + "]"
@@ -48,7 +48,7 @@ fun plot( f : (double -> double) ) : string {
 }
 
 fun example-plot() {
-  plot( fun(x){ 2.0 * x } )
+  plot( fn(x){ 2.0 * x } )
 }
 
 // --------------------------------------------------------------------
@@ -87,26 +87,26 @@ fun normal(mean, sdv ) {
 alias model<a>   = () -> <sample,score> a
 alias regression = model<double -> double>
 
-val homogeneous-linear : regression = fun() {
+val homogeneous-linear : regression = fn() {
   val a = normal(0.0,2.0)
-  (fun(x){ a * x })
+  (fn(x){ a * x })
 }
 
-val linear : regression = fun() {
+val linear : regression = fn() {
   val a = normal(0.0,2.0)
   val b = normal(0.0,2.0)
-  (fun(x){ a * x + b })
+  (fn(x){ a * x + b })
 }
 
-val homogeneous-cubic : regression = fun() {
+val homogeneous-cubic : regression = fn() {
   val a = normal(0.0,2.0)
   val b = normal(0.0,2.0)
   val c = normal(0.0,2.0)
-  (fun(x){ a * x * x + b * x + c })
+  (fn(x){ a * x * x + b * x + c })
 }
 
 fun plot-reg() {
-  list-join(50) fun(i) {
+  list-join(50) fn(i) {
     with random-sampler
     with fun score(_s) { () }
     plot( homogeneous-linear() )
@@ -121,7 +121,7 @@ fun normal-pdf(mean : double, sdv : double, x : double) : rplus {
             / (sdv * sqrt(dbl-twopi)) )
 }
 
-val fitted-specific : regression = fun() {
+val fitted-specific : regression = fn() {
   val a = normal(0.0,2.0)
   fun f(x) { a * x }
   normal-pdf( f(1.0), 0.25, 1.1).score
@@ -133,9 +133,9 @@ val fitted-specific : regression = fun() {
 // More generally
 val dataset = [(1.0, 1.1), (2.0, 1.9), (3.0, 2.7)]
 
-fun fit(reg : regression, data : list<(double,double)>) : regression = fun(){
+fun fit(reg : regression, data : list<(double,double)>) : regression = fn(){
   val f : double -> double = reg()
-  data.foreach fun(xy){
+  data.foreach fn(xy){
     val (x,y) = xy  // or `xy.fst`, `xy.snd `
     normal-pdf( f(x), 0.25, y ).score
   }
@@ -156,7 +156,7 @@ fun weighted( action : () -> <score|e> a) : e (rplus, a) {
 }
 
 fun plot-weighted-fitted() {
-  list-join(15) fun(i) {
+  list-join(15) fn(i) {
     with return(x:(rplus,string)) { x.snd }
     with random-sampler
     with weighted
@@ -172,7 +172,7 @@ fun plot-weighted-fitted() {
 alias list-dist<a> = list<(rplus,a)>
 
 fun populate(k:int, model: model<a> ) : sample list-dist<a> {
-  list(1,k) fun(i){
+  list(1,k) fn(i){
     with weighted
     score(one / k.rplus)
     model()
@@ -180,12 +180,12 @@ fun populate(k:int, model: model<a> ) : sample list-dist<a> {
 }
 
 fun sum-weights( ld : list-dist<a> ) : rplus {
-  ld.foldl(zero, fun(acc,wx){ acc + wx.fst })
+  ld.foldl(zero, fn(acc,wx){ acc + wx.fst })
 }
 
 fun normalise(pop : list-dist<a>) : list-dist<a> {
   val total = pop.sum-weights
-  pop.map(fun(wx){ (wx.fst / total, wx.snd) })
+  pop.map(fn(wx){ (wx.fst / total, wx.snd) })
 }
 
 fun weighted-choice( ld : list-dist<a>, default : a ) : <sample> a {
@@ -205,8 +205,8 @@ fun weighted-choice( ld : list-dist<a>, default : a ) : <sample> a {
 
 
 fun plot-population(histogram : list<(rplus,double -> double)>) : <sample> string {
-  val negligible = histogram.filter( fun(wx){ wx.fst.double < 0.00001 }).length
-  list-join(15) fun(i){
+  val negligible = histogram.filter( fn(wx){ wx.fst.double < 0.00001 }).length
+  list-join(15) fn(i){
     val f = weighted-choice(histogram,id)
     plot(f)
   }
@@ -237,14 +237,14 @@ alias thunk<a> = () -> <score,sample> a  // todo: make it polymorphic in `e`
 fun yield-on-score(action : () -> <score,sample> a) : <score,sample> thunk<a> {
   with control score(w) {
     score(w)
-    ({ resume(())() })   // or (fun(){ resume(()) })
+    ({ resume(())() })   // or (fn(){ resume(()) })
   }
   val x = action()
   ({ x })
 }
 
 fun advance(thunks : list-dist<thunk<a>> ) : sample list-dist<thunk<a>> {
-  thunks.map fun(wt) {
+  thunks.map fn(wt) {
     val (w,t) = wt
     with weighted
     score(w)
@@ -254,7 +254,7 @@ fun advance(thunks : list-dist<thunk<a>> ) : sample list-dist<thunk<a>> {
 }
 
 fun trun( thunks : list-dist<thunk<a>> ) : sample list-dist<a> {
-  thunks.map fun(wt) {
+  thunks.map fn(wt) {
     val (w,t) = wt
     with weighted
     score(w)
@@ -272,7 +272,7 @@ fun plot-smc() : <ndet> string {
   val particle-count = 1000
   val steps     = 4
   val pop       = populate(particle-count,score-fitted)
-  val thunks    = list(1,steps).foldl(pop, fun(p,i) { p.resample(fun(){id}).advance } )
+  val thunks    = list(1,steps).foldl(pop, fn(p,i) { p.resample(fn(){id}).advance } )
   val histogram = thunks.trun
   histogram.plot-population()
 }

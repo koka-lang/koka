@@ -50,11 +50,11 @@ fun show( r : either<string,(int,int)> ) : total string {
 }
 
 fun unit(x : a) : stexn<a> {
-  return fun(s) { Right((x,s))}
+  return fn(s) { Right((x,s))}
 }
 
 fun (>>=)( m : stexn<a>, f : a -> stexn<b> ) : stexn<b> {
-  return fun(s0) { 
+  return fn(s0) { 
     match(m(s0)) {
       Right((x,s1)) -> f(x)(s1)
       Left(str)     -> Left(str)
@@ -63,21 +63,21 @@ fun (>>=)( m : stexn<a>, f : a -> stexn<b> ) : stexn<b> {
 }
 
 fun tick() {
-  return fun(s) { Right(((),s+1))}
+  return fn(s) { Right(((),s+1))}
 }
 
 fun failure(err) {
-  return fun(s) { Left(err) }
+  return fn(s) { Left(err) }
 }
 
 fun eval( e : expr ) : stexn<int> {
   match(e) {
     Int(i)   -> unit(i)
     Div(x,y) ->
-      tick() >>= (fun(_){
-        eval(x) >>= (fun(i) {
-          eval(y) >>= (fun(j) {
-            (if (j==0) then failure("division by zero") else unit(())) >>= (fun(_){
+      tick() >>= (fn(_){
+        eval(x) >>= (fn(i) {
+          eval(y) >>= (fn(j) {
+            (if (j==0) then failure("division by zero") else unit(())) >>= (fn(_){
                unit( i / j )
       })})})}) 
   }

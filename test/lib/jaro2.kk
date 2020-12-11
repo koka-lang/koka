@@ -5,7 +5,7 @@ import std/data/array
 import jaro
 
 fun main() {
-  jaro/run-tests( jaro-distance, fun(s,t) { jaro-winkler-distance(s,t) } )
+  jaro/run-tests( jaro-distance, fn(s,t) { jaro-winkler-distance(s,t) } )
 }
 
 fun jaro-winkler-distance( s : string, t : string, boost-threshold : double = 0.7 ) : double {
@@ -40,9 +40,9 @@ fun jaro-match( s : string, t : string, lim : int ) : (int,int) {
     var lastmatch := 0;
     var i := 0;                   // character index of `c`
     var j := 0;                   // character index of `d`
-    s.foreach fun(c) {
+    s.foreach fn(c) {
       j := max(0, i - lim)        
-      view.foreach-while fun(d) {
+      view.foreach-while fn(d) {
         if (c != d || matched[j % viewlen]) {
           j := j + 1
           Nothing

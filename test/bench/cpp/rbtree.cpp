@@ -1,6 +1,7 @@
 // Using standard STL to test the red-black tree in C++
 // In glibc this uses eventually: <https://sourceware.org/git/?p=glibc.git;a=blob;f=misc/tsearch.c>
 // (Highly optimized in-place red-black tree using the low pointer bit to encode color information.)
+// In some implementations this uses <https://code.woboq.org/gcc/libstdc++-v3/src/c++98/tree.cc.html>
 #include <iostream>
 #include <map>
 #include <algorithm>

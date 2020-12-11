@@ -1,0 +1,86 @@
+{
+	"name": "language-koka",
+	"displayName": "Koka Syntax Highlighting",
+	"description": "Syntax support for the Koka programming language.",
+	"version": "2.0.0",
+	"publisher": "koka-lang",
+	"engines": {
+		"vscode": "^1.0.0"
+	},
+	"icon": "images/koka-logo-filled.png",
+	"galleryBanner": {
+		"color": "#293845",
+		"theme": "dark"
+	},
+	"files": [
+		"syntaxes/*.json",
+		"images/",
+		"README.md"
+	],
+	"keywords": [
+		"language",
+		"koka",
+		"highlight",
+		"syntax",
+		"effect",
+		"handler"
+	],
+	"license": "MIT",
+	"homepage": "https://github.com/koka-lang/koka",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/koka-lang/koka"
+	},
+	"bugs": {
+		"url": "https://github.com/koka-lang/koka/issues"
+	},
+	"categories": [
+		"Programming Languages",
+		"Koka",
+		"Effects"
+	],
+	"activationEvents": [
+		"onLanguage:koka"
+	],
+	"main": "./out/src/extension",
+	"contributes": {
+		"configuration": {
+			"type": "object",
+			"title": "Koka configuration",
+			"properties": {
+				"koka.indentationRules.enabled": {
+					"type": "boolean",
+					"default": true,
+					"description": "Set to 'false' to disable automatically increasing indent on newlines after '{', 'match' etc."
+				}
+			}
+		},
+		"languages": [
+			{
+				"id": "koka",
+				"aliases": [
+					"Koka",
+					"koka-lang"
+				],
+				"extensions": [
+					".kk",
+					".kki",
+					".core"
+				],
+				"configuration": "./koka-configuration.json"
+			}
+		],
+		"grammars": [
+			{
+				"language": "koka",
+				"scopeName": "source.koka",
+				"path": "./syntaxes/koka.json"
+			}			
+		]
+	},
+	"scripts": {
+	},
+	"devDependencies": {
+		"vscode": "^1.0.0"
+	}
+}

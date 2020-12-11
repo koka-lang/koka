@@ -4,7 +4,7 @@
 // bar uses the functions in xs as plain char
 // => functions in boxed position must unbox/box their arguments/result
 
-val xs : list<((char,char))->char> = [fun(t:(char,char)){t.fst}]
+val xs : list<((char,char))->char> = [fn(t:(char,char)){t.fst}]
 
 fun noinline foo( x : a, fs : list<((a,a)) -> a> ) : a {
   match(fs) {

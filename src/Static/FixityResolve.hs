@@ -99,8 +99,8 @@ resolveExpr expr
       Case   expr brs range  -> do expr' <- resolveExpr expr
                                    brs'   <- mapM resolveBranch brs
                                    return (Case expr' brs' range)
-      Parens expr range      -> do expr' <- resolveExpr expr
-                                   return (Parens expr' range)
+      Parens expr name range -> do expr' <- resolveExpr expr
+                                   return (Parens expr' name range)
       Handler shallow scoped override eff pars reinit ret final ops hrng rng
                              -> do ret' <- resolveExprMaybe ret
                                    reinit' <- resolveExprMaybe reinit
@@ -234,14 +234,14 @@ resolveTerms xs ops@(op:_) []
 resolveTerms xs ops (Term t:tt)
   = resolveTerms (t:xs) ops tt
 
-{-
+
 -- prefix operator
 resolveTerms xs ops (Oper t@(Op (Var name _ _) FixPrefix):tt)
   = push xs ops tt t
+
 -- postfix operator
 resolveTerms xs ops ts@(Oper t@(Op op FixPostfix):tt)
   = push xs ops tt t
--}
 
 -- infix operator
 resolveTerms xs ops ts@(Oper t@(Op op (FixInfix prec assoc)):tt)

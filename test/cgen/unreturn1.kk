@@ -6,7 +6,7 @@ fun foo1(b) {
 
 // checks if a mix of U and I in a match is handled to a I case (see Core.UnReturn.urTopDef)
 val bar1 = match(True) {
-  True -> (fun(x) { if (random-bool()) return 42; println("hi");  x })
+  True -> (fn(x) { if (random-bool()) return 42; println("hi");  x })
   False -> id
 }
 

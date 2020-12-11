@@ -9,7 +9,7 @@ fun addord(x,y) {
   match(x) {
     Zero    -> y
     Succ(s) -> Succ(addord(s,y))
-    Lim(f)  -> Lim( fun(i:int) { addord( f(i), y ) } )
+    Lim(f)  -> Lim( fn(i:int) { addord( f(i), y ) } )
   }
 }
 

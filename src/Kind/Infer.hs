@@ -53,7 +53,7 @@ import Kind.Synonym
 
 import Type.Type
 import Type.Assumption
-import Type.TypeVar( tvsIsEmpty, ftv, subNew, (|->) )
+import Type.TypeVar( tvsIsEmpty, ftv, subNew, (|->), tvsMember, tvsList )
 import Type.Pretty
 import Type.Kind( getKind )
 
@@ -175,8 +175,11 @@ synCopyCon modName info con
 
         fullTp = let (vars,preds,rho) = splitPredType (conInfoType con)
                  in case splitFunType rho of
-                      Just (args,eff,res) -> TForall vars preds (TFun ([(argName,res)] ++ [(name,if name==nameNil then t else makeOptional t) | (name,t) <- args]) eff res)
-                      Nothing             -> TForall vars preds (TFun [(argName,rho)] typeTotal rho)    -- for unary constructors, like unit
+                      Just (args,eff,res)
+                        -> TForall vars preds (TFun ([(argName,res)] ++ [(name,if not (hasAccessor name t con)
+                                                                                 then t else makeOptional t) | (name,t) <- args]) eff res)
+                      Nothing
+                        -> TForall vars preds (TFun [(argName,rho)] typeTotal rho)    -- for unary constructors, like unit
 
         var n = Var n False rc
         app x []  = x
@@ -184,29 +187,35 @@ synCopyCon modName info con
 
         argName  = newName ".this"
 
-        params = [ValueBinder name Nothing (if isFieldName name then Nothing else (Just (app (var name) [var argName]))) rc rc| (name,t) <- conInfoParams con]
+        params = [ValueBinder name Nothing (if not (hasAccessor name t con) then Nothing else (Just (app (var name) [var argName]))) rc rc| (name,t) <- conInfoParams con]
         expr = Lam ([ValueBinder argName Nothing Nothing rc rc] ++ params) body rc
         body = app (var (conInfoName con)) [var name | (name,tp) <- conInfoParams con]
         def  = DefNonRec (Def (ValueBinder nameCopy () (Ann expr fullTp rc) rc rc) rc (dataInfoVis info) (DefFun) InlineAuto "")
     in def
 
+hasAccessor :: Name -> Type -> ConInfo -> Bool
+hasAccessor name tp cinfo
+  = not (isFieldName name || name==nameNil) &&  -- named?
+    (let tvs = ftv tp          -- and no existentials?
+     in all (\tv -> not (tvsMember tv tvs)) (conInfoExists cinfo))
+
 synAccessors :: Name -> DataInfo -> [DefGroup Type]
 synAccessors modName info
-  = let paramss = map (\conInfo -> zipWith (\(name,tp) (pvis,rng) -> (name,(tp,rng,pvis)))
+  = let paramss = map (\conInfo -> zipWith (\(name,tp) (pvis,rng) -> (name,(tp,rng,pvis,conInfo)))
                                    (conInfoParams conInfo) (zip (conInfoParamVis conInfo) (conInfoParamRanges conInfo)))
                       (dataInfoConstrs info)
 
-        fields :: [(Name,(Type,Range,Visibility))]
-        fields  = filter occursOnAll $
+        fields :: [(Name,(Type,Range,Visibility,ConInfo))]
+        fields  = filter occursOnAllConstrs $
                   nubBy (\x y -> fst x == fst y) $
-                  filter (not . isFieldName . fst) $
+                  filter (\(name,(tp,_,_,cinfo)) -> hasAccessor name tp cinfo) $
                   concat paramss
 
-        occursOnAll (name,(tp,rng,pvis))
-          = all (\ps -> any (\(n,(t,_,_)) -> n == name && t == tp) ps) paramss
+        occursOnAllConstrs (name,(tp,rng,pvis,_))
+          = all (\ps -> any (\(n,(t,_,_,_)) -> n == name && t == tp) ps) paramss
 
-        synAccessor :: (Name,(Type,Range,Visibility)) -> DefGroup Type
-        synAccessor (name,(tp,rng,visibility))
+        synAccessor :: (Name,(Type,Range,Visibility,ConInfo)) -> DefGroup Type
+        synAccessor (name,(tp,rng,visibility,cinfo))
           = let dataName = unqualify $ dataInfoName info
                 arg = if (all isAlphaNum (show dataName))
                        then dataName else newName ".this"
@@ -230,12 +239,12 @@ synAccessors modName info
                       in case lookup name (zip (map fst (conInfoParams con)) [0..]) of
                         Just i
                           -> let patterns = [(Nothing,PatWild r) | _ <- [0..i-1]] ++ [(Nothing,PatVar (ValueBinder fld Nothing (PatWild r) r r))] ++ [(Nothing,PatWild r) | _ <- [i+1..length (conInfoParams con)-1]]
-                             in [(conInfoVis con,Branch (PatCon (conInfoName con) patterns r r) 
+                             in [(conInfoVis con,Branch (PatCon (conInfoName con) patterns r r)
                                                         [Guard guardTrue (Var fld False r)])]
                         Nothing -> []
                 defaultBranch
                   = if isPartial
-                     then [Branch (PatWild rng) 
+                     then [Branch (PatWild rng)
                              [Guard guardTrue (App (Var namePatternMatchError False rng) [(Nothing,msg) | msg <- messages] rng)]]
                      else []
                 messages
@@ -249,7 +258,7 @@ synTester :: DataInfo -> ConInfo -> [DefGroup Type]
 synTester info con | isHiddenName (conInfoName con)
   = []
 synTester info con
-  = let name = (postpend "?" (toVarName (unqualify (conInfoName con))))
+  = let name = (prepend "is-" (toVarName (unqualify (conInfoName con))))
         arg = unqualify $ dataInfoName info
         rc  = conInfoRange con
 
@@ -433,12 +442,12 @@ formatCall tp (target,ExternalCall fname)
 
     formatCS
       = fname ++ typeArguments ++ arguments
-      
+
     formatC
       = fname ++ argumentsC
     argumentsC
       = "(" ++ concat (intersperse "," (["#" ++ show i | i <- [1..argumentCount]] ++ ctx)) ++ ")"
-    ctx 
+    ctx
       = if (fname `startsWith` "kk_") then ["kk_context()"] else []
 
 
@@ -556,25 +565,27 @@ infExpr expr
       Case   expr brs range  -> do expr' <- infExpr expr
                                    brs'   <- mapM infBranch brs
                                    return (Case expr' brs' range)
-      Parens expr range      -> do expr' <- infExpr expr
-                                   return (Parens expr' range)
+      Parens expr name range -> do expr' <- infExpr expr
+                                   return (Parens expr' name range)
       Handler hsort scoped override meff pars reinit ret final ops hrng rng
                              -> do pars' <- mapM infHandlerValueBinder pars
                                    meff' <- case meff of
                                               Nothing  -> return Nothing
                                               Just eff -> do eff' <- infResolveX eff (Check "Handler types must be effect constants (of kind X)" hrng) hrng
                                                              return (Just eff')
+                                   {-
                                    hsort' <- case hsort of
                                                HandlerResource (Just rexpr)
                                                 -> do rexpr' <- infExpr rexpr
                                                       return (HandlerResource (Just rexpr'))
-                                               HandlerResource Nothing -> return $ HandlerResource Nothing
+                                               HandlerInstance -> return HandlerInstance
                                                HandlerNormal -> return HandlerNormal
+                                               -}
                                    ret' <- infExprMaybe ret
                                    reinit' <- infExprMaybe reinit
                                    final'  <- infExprMaybe final
                                    ops' <- mapM infHandlerBranch ops
-                                   return (Handler hsort' scoped override meff' pars' reinit' ret' final' ops' hrng rng)
+                                   return (Handler hsort scoped override meff' pars' reinit' ret' final' ops' hrng rng)
       Inject tp expr b range-> do expr' <- infExpr expr
                                   tp'   <- infResolveX tp (Check "Can only inject effect constants (of kind X)" range) range
                                   -- trace ("resolve ann: " ++ show (pretty tp')) $
@@ -601,17 +612,17 @@ infPat pat
                                     return (PatParens pat' range)
 
 
-infHandlerBranch (HandlerBranch name pars expr isRaw brType nameRng rng)
+infHandlerBranch (HandlerBranch name pars expr opSort nameRng rng)
   = do pars' <- mapM infHandlerValueBinder pars
        expr' <- infExpr expr
-       return (HandlerBranch name pars' expr' isRaw brType nameRng rng)
+       return (HandlerBranch name pars' expr' opSort nameRng rng)
 
 infBranch (Branch pattern guards)
   = do pattern'<- infPat pattern
        guards' <- mapM infGuard guards
        return (Branch pattern' guards')
 
-infGuard (Guard test body)       
+infGuard (Guard test body)
   = do test' <- infExpr test
        body' <- infExpr body
        return (Guard test' body')
@@ -815,19 +826,21 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
               else return ()
        -- value types
        ddef' <- case ddef of
+                  DataDefNormal
+                    -> return (if (isRec) then DataDefRec else DataDefNormal)
                   DataDefValue _ _ | isRec
                     -> do addError range (text "Type" <+> nameDoc <+> text "cannot be declared as a value type since it is recursive.")
                           return ddef
-                  DataDefNormal | isRec
+                  DataDefAuto | isRec
                     -> return DataDefRec
                   DataDefOpen
                     -> return DataDefOpen
-                  DataDefRec 
+                  DataDefRec
                     -> return DataDefRec
-                  _ -- Value or Normal and not recursive
+                  _ -- Value or auto, and not recursive
                     -> -- determine the raw fields and total size
                        do platform <- getPlatform
-                          dd <- toDefValues platform (ddef/=DataDefNormal) qname nameDoc infos
+                          dd <- toDefValues platform (ddef/=DataDefAuto) qname nameDoc infos
                           case (ddef,dd) of  -- note: m = raw, n = scan
                             (DataDefValue _ _, DataDefValue m n)
                               -> if (hasKindStarResult (getKind typeResult))
@@ -837,8 +850,8 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                             (DataDefValue _ _, DataDefNormal)
                               -> do addError range (text "Type" <+> nameDoc <+> text "cannot be used as a value type.")  -- should never happen?
                                     return DataDefNormal
-                            (DataDefNormal, DataDefValue m n) 
-                              -> if ((m + (n*sizePtr platform)) <= 3*(sizePtr platform) 
+                            (DataDefAuto, DataDefValue m n)
+                              -> if ((m + (n*sizePtr platform)) <= 3*(sizePtr platform)
                                       && hasKindStarResult (getKind typeResult)
                                       && (sort /= Retractive))
                                   then -- trace ("default to value: " ++ show name ++ ": " ++ show (m,n)) $
@@ -875,7 +888,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
 
     -- note: (m = raw, n = scan)
     maxDataDefs :: Platform -> Name -> Bool -> Doc -> [(Int,Int)] -> KInfer DataDef
-    maxDataDefs platform name False nameDoc []  = return DataDefNormal      
+    maxDataDefs platform name False nameDoc []  = return DataDefNormal
     maxDataDefs platform name True nameDoc []  -- primitive abstract value type with no constructors
       = do let ptrSize = 8
                size  = if (name == nameTpChar || name == nameTpInt32 || name == nameTpFloat32)
@@ -886,16 +899,16 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                         then 2
                        else if (name == nameTpInt8 || name == nameTpByte)
                         then 1
-                       else if (name == nameTpAny || name == nameTpCTail)
+                       else if (name == nameTpAny || name == nameTpCField)
                         then (sizePtr platform)
                        else if (name == nameTpSizeT)
                         then (sizeSize platform)
                         else 0
-           m <- if (size <= 0) 
+           m <- if (size <= 0)
                   then do addWarning range (text "Type:" <+> nameDoc <+> text "is declared as a primitive value type but has no known compilation size, assuming size" <+> pretty (sizePtr platform))
                           return (sizePtr platform)
                   else return size
-           return (DataDefValue m 0)                     
+           return (DataDefValue m 0)
     maxDataDefs platform name isVal nameDoc [(m,n)] = return (DataDefValue m n)
     maxDataDefs platform name isVal nameDoc (dd:dds)
       = do dd2 <- maxDataDefs platform name isVal nameDoc dds
@@ -904,11 +917,11 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
              ((m,n), DataDefValue 0 0)    -> return (DataDefValue m n)
              ((m1,0), DataDefValue m2 0)  -> return (DataDefValue (max m1 m2) 0)
              ((0,n1), DataDefValue 0 n2)  -> return (DataDefValue 0 (max n1 n2))
-             ((m1,n1), DataDefValue m2 n2) 
+             ((m1,n1), DataDefValue m2 n2)
                -- TODO: mixed raw is ok?
                -- | m1 == m2  -> return (DataDefValue m1 (max n1 n2))
                | n1 == n2 -> return (DataDefValue (max m1 m2) n1)
-               | otherwise -> 
+               | otherwise ->
                  do if (isVal)
                       then -- addError range (text "Type:" <+> nameDoc <+> text "is declared as a value type but has multiple constructors which varying raw types and regular types." <->
                             --                text "hint: value types with multiple constructors must all use the same number of regular types when mixed with raw types (use 'box' to use a raw type as a regular type).")

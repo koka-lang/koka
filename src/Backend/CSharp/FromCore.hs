@@ -508,7 +508,7 @@ isInline expr
 isAtomic expr
   = case expr of
       Lit _          -> True
-      Var _ InfoNone -> True
+      Var _ info     -> infoIsLocal info
       Con _ _        -> True
       _              -> False
 
@@ -829,16 +829,15 @@ genExprBasic expr
        case expr of
           Var tname info
             -> case info of
-                 InfoNone
-                  -> do defName <- getCurrentDef
-                        {- if (getName tname == defName)
-                         then result (text "this")  -- recursive call to a first-class function: this only works because we disallow polymorphic recursive local definitions
-                         else -}
-                        result (ppQName ctx (getName tname))
                  InfoArity m n
                   -> genStatic tname m n [] Nothing
                  InfoExternal format
                   -> genExternal tname format [] []
+                 _ -> do defName <- getCurrentDef
+                         {- if (getName tname == defName)
+                          then result (text "this")  -- recursive call to a first-class function: this only works because we disallow polymorphic recursive local definitions
+                          else -}
+                         result (ppQName ctx (getName tname))                  
           Con tname repr
             -> genCon tname repr [] []
           App e es
@@ -1001,7 +1000,7 @@ ppLocalVar ctx tp name
 isStatement :: Expr -> Bool
 isStatement expr
   = case expr of
-      App (Var _ InfoNone) _     -> False
+      App (Var _ info) _     -> not (infoIsLocal info)
       App _ _     -> True
       Let _ body  -> isStatement body
       _           -> False

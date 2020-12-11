@@ -7,7 +7,7 @@ type expr {
 }
 
 fun mk_expr( n : int, v : int ) : div expr {
-  if (n==0) 
+  if (n==0)
    then (if (v==0) then Var(1) else Val(v))
    else Add( mk_expr(n - 1, v+1), mk_expr(n - 1, max(v - 1,0)) )
  }
@@ -76,7 +76,7 @@ fun eval(e : expr) : int {
 }
 
 fun main() : <div,console> () {
-  val e = mk_expr(19,1)
+  val e = mk_expr(20,1)
   val v1 = eval(e)
   val v2 = e.reassoc.cfold.eval
   println( v1.show )

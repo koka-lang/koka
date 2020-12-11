@@ -28,6 +28,25 @@
 #define kk_decl_externc    extern
 #endif
 
+#ifdef __STDC_VERSION__
+#if (__STDC_VERSION__ >= 201112L)
+#define KK_C11
+#elif (__STDC_VERSION__ >= 199901L) 
+#define KK_C99
+#endif
+#endif
+
+#ifdef __cplusplus
+#if (__cplusplus >= 201703L)
+#define KK_CPP17
+#elif (__cplusplus >= 201402L)
+#define KK_CPP14
+#elif (__cplusplus >= 201103L)
+#define KK_CPP11
+#endif
+#endif
+
+
 #if ((defined(__cplusplus) && __cplusplus >= 201103L)) || (_MSC_VER > 1900)  // C++11
 #define kk_constexpr      constexpr
 #else
@@ -160,7 +179,7 @@ typedef int32_t         kk_ssize_t;
 // that `sizeof(kk_intx_t) == max(sizeof(long),sizeof(size_t))`. 
 // Note: we cannot use `long` for this as it is sometimes too short 
 // (as on Windows on 64-bit where it is 32 bits)
-// or sometimes too long (as on some segmented architectures). 
+// Similarly, `size_t` is sometimes too short on segmented architectures.
 // Also, on some architectures `sizeof(void*) < sizeof(long)` (like the x32 ABI), or 
 // `sizeof(void*) > sizeof(size_t)` (with segmented architectures).
 #if (ULONG_MAX < SIZE_MAX)

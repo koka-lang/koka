@@ -14,6 +14,7 @@ module Kind.InferKind ( InfKind(..)
                       , infKindFunN
                       , ppInfKind, niceInfKinds
                       , infExtractKindFun
+                      , isInfKindScope
 
                       , InfKGamma
 
@@ -65,6 +66,12 @@ infKindFun k1 k2
 
 infKindFunN kinds k
   = foldr infKindFun k kinds
+
+
+isInfKindScope infk
+    = case infk of
+        KICon k -> isKindScope k
+        _ -> False
 
 
 -- | Lift KApp nodes to KIApp

@@ -10,8 +10,8 @@ val reader-one = handler { fun ask(){ 1 } }
 val reader-two = handler { fun ask(){ 2 } }
 
 val hevil = handler { 
-  return x { (fun(){ x }) }
-  control evil() { (fun(){ resume(())() } ) } 
+  return x { (fn(){ x }) }
+  control evil() { (fn(){ resume(())() } ) } 
 }
 
 fun test() : <reader,evil> int {
@@ -37,7 +37,7 @@ effect outer {
 }
 
 val outer = handler {
-  control ret(){ (fun(){ resume(())() }) }
+  control ret(){ (fn(){ resume(())() }) }
 }
 
 // special reader that can "change" 
@@ -56,7 +56,7 @@ fun xreader(action) {
 
 // evil coordinates the change
 val xevil = handler{ 
-  return x { (fun(){ x }) }
+  return x { (fn(){ x }) }
   control evil() { 
     ret()       // capture resumption to outer (which returns a full resumption)
     xinc()      // if resumed (through outer), change the reader    

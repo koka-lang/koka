@@ -82,8 +82,8 @@ between 0x001 and 0xFFE. The ranges of IEEE double values are:
 ----------------------------------------------------------------*/
 
 #define KK_USE_NAN_BOX   (0)                  // strategy A(1) by default
-// #define KK_USE_NAN_BOX   (KK_INTPTR_SIZE==8)  // strategy B is only possible on 64-bit platforms
-// #define KK_BOX_DOUBLE_IF_NEG                  // strategy A2
+//#define KK_USE_NAN_BOX   (KK_INTPTR_SIZE==8)  // strategy B is only possible on 64-bit platforms
+//#define KK_BOX_DOUBLE_IF_NEG (1)              // strategy A2
 
 // Forward declarations
 static inline bool         kk_box_is_ptr(kk_box_t b);
@@ -105,8 +105,10 @@ static inline bool kk_box_eq(kk_box_t b1, kk_box_t b2) {
 }
 
 // We cannot store NULL as a pointer (`kk_ptr_t`); use `box_null` instead
-#define kk_box_null   (_kk_box_new(~KUP(0)))  // -1 value
+#define kk_box_null       (_kk_box_new(~KUP(0)))  // -1 value
 
+// null initializer
+#define kk_box_null_init  {~KUP(0)}
 
 // the _fast versions can apply if you are sure it is not a double
 static inline bool _kk_box_is_ptr_fast(kk_box_t b) {
@@ -130,7 +132,7 @@ static inline bool kk_box_is_any(kk_box_t b);
 #define KK_MIN_BOXED_UINT (0)
 
 
-#if !KK_USE_NAN_BOX
+#if !(KK_USE_NAN_BOX)
 double   kk_double_unbox_heap(kk_box_t b, kk_context_t* ctx);
 kk_box_t kk_double_box_heap(double d, kk_context_t* ctx);
 #endif
@@ -391,7 +393,7 @@ typedef struct kk_boxed_value_s {
 #define kk_valuetype_unbox_(tp,p,x,box,ctx) \
   do { \
     if (kk_unlikely(kk_box_is_any(box))) { \
-      _p = NULL; \
+      p = NULL; \
       const size_t kk__max_scan_fsize = sizeof(tp)/sizeof(kk_box_t); \
       kk_box_t* _fields = (kk_box_t*)(&x); \
       for (size_t i = 0; i < kk__max_scan_fsize; i++) { _fields[i] = kk_box_any(ctx);  } \
@@ -399,14 +401,15 @@ typedef struct kk_boxed_value_s {
     } \
     else { \
       p = kk_basetype_unbox_as_assert(kk_boxed_value_t, box, KK_TAG_BOX); \
-      x = *((tp*)(&p->data)); \
+      memcpy(&x,&p->data,sizeof(tp)); /* avoid aliasing warning,  x = *((tp*)(&p->data)); */ \
     } \
   } while(0)
 
 #define kk_valuetype_box(tp,x,val,scan_fsize,ctx)  \
   do { \
     kk_boxed_value_t p = kk_block_assert(kk_boxed_value_t, kk_block_alloc(sizeof(kk_block_t) + sizeof(tp), scan_fsize, KK_TAG_BOX, ctx), KK_TAG_BOX); \
-    *((tp*)(&p->data)) = val;  \
+    const tp valx = val;               /* ensure we can take the address */ \
+    memcpy(&p->data,&valx,sizeof(tp)); /* avoid aliasing warning: *((tp*)(&p->data)) = val; */ \
     x = kk_basetype_box(p); \
   } while(0)
 
@@ -423,11 +426,22 @@ static inline bool kk_box_is_any(kk_box_t b) {
 }
 
 
+static inline kk_box_t kk_box_box(kk_box_t b, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+  return b;
+}
+
+static inline kk_box_t kk_box_unbox(kk_box_t b, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+  return b;
+}
+
 // C pointers
 
 // A function to free a raw C pointer, raw bytes, or raw string.
-typedef void (kk_free_fun_t)(void*);
-kk_decl_export void kk_free_fun_null(void* p);
+typedef void (kk_free_fun_t)(void* p, kk_block_t* block);
+kk_decl_export void kk_free_fun_null(void* p, kk_block_t* block);
+kk_decl_export void kk_free_fun(void* p, kk_block_t* block);
 
 // "raw" types: first field is pointer to a free function, the next field a pointer to raw C data
 typedef struct kk_cptr_raw_s {

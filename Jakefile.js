@@ -15,9 +15,14 @@ var Diff   = require("diff");
 
 console.log(["warning: using 'jake' is deprecated; use 'stack' instead:",
              "> stack build                                   # builds koka",
+             ""
              "> stack exec koka                               # run the koka interpreter",
              "> stack exec koka -- --target=js                # with javascript target",
              "> stack exec koka -- -c test/bench/koka/rbtree  # compile rbtree benchmark",
+             ""
+             "> stack exec koka -- util/install               # install koka locally",
+             "> stack exec koka -- util/atom                  # install atom support",
+             "> stack exec koka -- util/docspec               # generate documentation",
              ""
             ].join("\n"));
 
@@ -192,9 +197,9 @@ task("grammar",[],function(testfile)
   jake.cpR(gdir,outputDir);
 
   // command("cd " + outdir + " && bison -vd -W -Wno-empty-rule -Wno-deprecated parser.y 2>&1", function() {
-  command("cd " + outdir + " && bison -vd -W -Wno-empty-rule parser.y 2>&1", function() {
+  command("cd " + outdir + " && bison -vd -W -Wno-empty-rule -Wcounterexamples parser.y 2>&1", function() {
     command("cd " + outdir + " && flex -8 lexer.lex 2>&1", function() {
-      command( "cd " + outdir + " && ghc -no-hs-main -o koka-parser lex.yy.c parser.tab.c", function () {
+      command( "cd " + outdir + " && stack exec ghc -- -no-hs-main -o koka-parser lex.yy.c parser.tab.c", function () {
         if (testfile==null) complete();
          else {
             console.log("testing..")
@@ -217,12 +222,14 @@ var doclocal = (process.env.doclocal || "..\\koka-pages\\doc"); // \\\\research\
 desc("generate the language specification")
 task("spec", ["compiler"], function(mode) {
   jake.logger.log("build language specification");
-  var outspec   = path.join(outputDir,"spec");
+  var outspecx  = path.join(outputDir,"spec");
+  var outspec   = path.join(outspecx,"js");
   var outstyles = path.join(outspec,"styles");
   var outscripts = path.join(outspec,"scripts");
+  var outimages = path.join(outspec,"images");
   var specdir   = path.join("doc","spec");
   var docflags  = "--htmlcss=styles/madoko.css;styles/koka.css " + ((mode === "publish") ? "--htmlbases=" + docsite + " " : "");
-  var cmd = mainExe + " -c -l --outdir=" + outspec +  " -i" + specdir + " --html " + docflags + kokaFlags + " ";
+  var cmd = mainExe + " -c -l --outdir=" + outspecx + " -i" + specdir + " --html " + docflags + kokaFlags + " ";
   command(cmd + "kokaspec.kk.md spec.kk.md getstarted.kk.md overview.kk.md", function() {
     command(cmd + "toc.kk", function() {
       // fix up includes
@@ -230,7 +237,9 @@ task("spec", ["compiler"], function(mode) {
       // copy style files
       jake.mkdirP(outstyles);
       jake.mkdirP(outscripts);
+      jake.mkdirP(outimages);
       jake.cpR(path.join("doc","koka.css"),outstyles);
+      jake.cpR(path.join("doc","logo","koka-logo.png"),outimages);
       var files = new jake.FileList().include(path.join(specdir,"styles/*.css"))
                                      .include(path.join(specdir,"styles/*.mdk"))
                                      .toArray();
@@ -247,7 +256,7 @@ task("spec", ["compiler"], function(mode) {
       // process xmp.html to html using madoko
       var xmpFiles = new jake.FileList().include(path.join(outspec,"*.xmp.html"))
                                         .include(path.join(outspec,"kokaspec.md"))
-                                        .toArray().join(" ").replace(new RegExp("out[\\/\\\\]spec[\\/\\\\]","g"),"");
+                                        .toArray().join(" ").replace(new RegExp("out[\\/\\\\]spec[\\/\\\\]js[\\/\\\\]","g"),"");
       console.log(xmpFiles)
       command("cd " + outspec + " && " + cmdMarkdown + " --odir=." + " -v -mline-no:false -mlogo:false " + xmpFiles, function () {
         jake.cpR(path.join(outspec,"madoko.css"),outstyles);
@@ -330,6 +339,7 @@ task("atom", function() {
     jake.cpR(path.join("support","atom","package.json"),pkg);
     jake.cpR(path.join("support","atom","grammars"),pkg);
     jake.cpR(path.join("support","atom","styles"),pkg);
+    jake.cpR(path.join("support","atom","settings"),pkg);
   }
 });
 
@@ -471,7 +481,7 @@ var hsModules = [
   "Core.MonadicLift",
   "Core.Inlines",
   "Core.Inline",
-  
+
   "Type.Infer",
 
   "Backend.CSharp.FromCore",
@@ -479,6 +489,7 @@ var hsModules = [
   "Backend.C.Box",
   "Backend.C.ParcReuse",
   "Backend.C.Parc",
+  "Backend.C.ParcReuseSpec",
   "Backend.C.FromCore",
 
   "Syntax.Colorize",

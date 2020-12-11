@@ -46,23 +46,23 @@ fun amb-flip() : <amb|e> bool {
   hidden-perform0(hidden-evv-lookup(amb-tag),op-flip)
 }
 
-val h = amb-handler( Amb-hnd( clause-control0( fun(k) {
+val h = amb-handler( Amb-hnd( clause-control0( fn(k) {
             with xs : list<_> = yield-bind(k(False))
             with ys = yield-bind( k(True) )
             xs + ys
-         })), fun(x){ [x] } )
+         })), fn(x){ [x] } )
 
 fun amb(action) {
   h(action)
 }
 
 fun amb2(action) {
-  amb-handle( Amb-hnd( clause-control0( fun(k) {
+  amb-handle( Amb-hnd( clause-control0( fn(k) {
                 with xs : list<_> = yield-bind(k(False))
                 with ys = yield-bind( k(True) )
                 xs + ys
               })),
-              fun(x){ [x] },
+              fn(x){ [x] },
               action )
 }
 
@@ -92,7 +92,7 @@ fun read() {
 }
 
 fun reader(init,action) {
-  read-handle( Reader-hnd( clause-control0(fun(k){ k(init) } )), id, action)
+  read-handle( Reader-hnd( clause-control0(fn(k){ k(init) } )), id, action)
 }
 
 // State
@@ -119,8 +119,8 @@ fun state-set( x : a ) : <state<a>|e> () {
 fun state(init : s, action : () -> <state<s>|e> a) : e a {
   with s = hnd/local-var(init)
   state-handle(State-hnd(
-    clause-tail-noyield0( fun(){ s } ),
-    clause-tail-noyield1( fun(x){ s := x }) ),
+    clause-tail-noyield0( fn(){ s } ),
+    clause-tail-noyield1( fn(x){ s := x }) ),
     id, { mask<local>(action) } )
 }
 
@@ -168,8 +168,8 @@ fun test-amb-state() : list<int> {  // 1,1,1,1
 fun state-x(init,action) {
   with s = hnd/local-var(init)
   state-handle(State-hnd(
-    clause-tail0( fun(){ read() } ),
-    clause-tail-noyield1( fun(x){ s := x }) ),
+    clause-tail0( fn(){ read() } ),
+    clause-tail-noyield1( fn(x){ s := x }) ),
     id, action)
 }
 

@@ -1,283 +1,254 @@
+
+[<img align="right" src="https://badges.gitter.im/koka-lang/koka.svg"/>](https://gitter.im/koka-lang/koka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
+
 # Getting started
 
-Welcome to the Koka book. This provides an overview and
-formal specification of the language. 
-For more background information, see:
+Welcome to &koka; -- a functional-style language with effect types and handlers.
 
-* The [library documentation][libraries].
-* The [Koka research page][kokaproject] and the [slides] of a talk presented Lang.Next (April 2012).
-* The [source code][kokarepo] of the Koka compiler.
-* The article _Algebraic Effects for Functional Programming_ [@Leijen:algeff] about the algebraic effects in Koka.
-* An article about the type system and semantics of Koka [@Leijen:msfp].
+[Why &koka;?][#why]{.learn}
+[Install &koka;][#install]{.learn}
+[The Github repo][kokarepo]{.learn}
+[Browse the Libraries][libraries]{.learn}
+
+Note: &koka; v2 is a research language that is currently under heavy development. 
+Nevertheless, the language is stable and the compiler
+implements the full specification. The main things lacking at the moment are 
+libraries and IDE integration. 
+
 
 
 [langspec]: https://koka-lang.github.io/koka/doc/kokaspec.html  {target='_top'}
 [libraries]: https://koka-lang.github.io/koka/doc/toc.html {target='_top'}
 [slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf {target='_top'}
-[kokarepo]: https://github.com/koka-lang/koka {target='_top'} 
+[kokarepo]: https://github.com/koka-lang/koka {target='_top'}
 [kokaproject]: http://research.microsoft.com/en-us/projects/koka {target='_top'}
-[rise4fun]: http://rise4fun.com/koka/tutorial
+
+[samples]: https://github.com/koka-lang/koka/tree/master/samples
+[rbtree]: https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk
+[evidence-paper]: https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently-with-proofs-5f0b7d860b387.pdf
+[Perceus]: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf
+[releases]: https://github.com/koka-lang/koka/releases
+[build]: https://github.com/koka-lang/koka/#build-from-source
+[vsprompt]: https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019
 
 
-## Installing the compiler
+## Installing the compiler { #install }
 
-At this point there are no binary releases of Koka and you need to build
-the compiler yourself. Fortunately, Koka has few dependencies and builds
-without problems on most common platforms, &eg; Windows, MacOSX, and
-Unix.
+For Linux and macOS on x86 64-bit, you can install &koka; using:
 
-The following programs are required to build Koka:
+    \(> **curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &bar; sh**\)
 
-* The [Haskell platform](http://www.haskell.org/platform) (version 7.4 or later).
-* The [NodeJS](http://nodejs.org) runtime (version 4.2 LTS or later).
-* Some version of [Git](https://help.github.com/articles/set-up-git/) for version control.
+This also installs syntax highlighting for the VS Code and Atom editors.
+After installation, verify if &koka; installed correctly:
 
-All these programs are very easy to install on most platforms.
-Now we can build Koka itself: 
+    > koka
+     _          _           ____
+    | |        | |         |__  \
+    | | __ ___ | | __ __ _  __) |
+    | |/ // _ \| |/ // _' || ___/ welcome to the koka interpreter
+    |   <| (_) |   <| (_| ||____| version 2.0.10, Nov 28 2020, libc 64-bit (gcc)
+    |_|\_\\___/|_|\_\\__,_|       type :? for help
 
-1. First clone the Koka sources with algebraic effects support:
+    loading: std/core
+    loading: std/core/types
+    loading: std/core/hnd
+    >
 
-       > git clone https://github.com/koka-lang/koka.git 
+Type ``:q`` to exit the interpreter.
 
-   You can also use the flag ``-b dev`` to get the latest development version.
+For detailed instructions and other platforms (including Windows) see the [releases] page.
+It is also straightforward to build the compiler [from source][build].
 
-2. Go to the newly created Koka directory:
+## Running the compiler
 
-       > cd koka
+You can compile a &koka; source using `-c` (note that all [`samples`][samples] are pre-installed):
 
-3. Install any needed Node libraries using the Node package manager: 
+    > koka -c samples/basic/caesar.kk
+    compile: samples/basic/caesar.kk
+    loading: std/core
+    loading: std/core/types
+    loading: std/core/hnd
+    loading: std/num/double
+    loading: std/text/parse
+    loading: std/num/int32
+    check  : samples/basic/caesar
+    linking: samples_basic_caesar
+    created: out/v2.0.9/gcc-debug/samples_basic_caesar
 
-       > npm install
+and run the resulting executable:
 
-   If you are running on MacOSX or Unix, you may have to run this as
-   ``sudo npm install`` so that the ``npm`` package manager has enough
-  permissions to install the ``jake`` and ``madoko`` tools.
+    > out/v2.0.9/gcc-debug/samples_basic_caesar
+    plain  : Koka is a well-typed language
+    encoded: Krnd lv d zhoo-wbshg odqjxdjh
+    cracked: Koka is a well-typed language
 
-4. Finally, build the compiler and run the Koka interactive environment:
-       > jake
+The ``-O2`` flag builds an optimized program. Let's try it on a purely functional implementation
+of balanced insertion in a red-black tree ([`rbtree.kk`](https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk)):
 
-   You can type ``jake help`` to see an overview of all make targets.
+    > koka -O2 -c samples/basic/rbtree.kk
+    ...
+    linking: samples_basic_rbtree
+    created: out/v2.0.10/gcc-drelease/samples_basic_rbtree
 
-The excellent [Sublime](http://www.sublimetext.com) text editor is recommended
-to edit Koka programs. You can install support for Koka programs using
+    > time out/v2.0.10/gcc-drelease/samples_basic_rbtree
+    420000
+    real    0m0.750s
+    ...
 
-    > jake sublime
+We can compare this against an in-place updating C++ implementation using ``stl::map``
+([``rbtree.cpp``](https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.cpp)) (which also uses a
+[red-black tree](https://code.woboq.org/gcc/libstdc++-v3/src/c++98/tree.cc.html) internally):
 
-After this ``.kk`` files will be properly highlighted. It is also
-recommended to use the newly installed ``snow`` color theme which is
-designed to work well with Koka files.
+    > clang++ --std=c++17 -o cpp-rbtree -O3 /usr/local/share/koka/v2.0.12/samples/basic/rbtree.cpp
+    > time ./cpp-rbtree
+    420000
+    real    0m0.864s
+    ...
+
+The excellent performance relative to C++ here (on an AMD 3600XT) is the result of Perceus automatically
+transforming the fast path of the pure functional rebalancing to use mostly in-place updates,
+closely mimicking the imperative rebalancing code of the hand optimized C++ library.
 
 
 ## Running the interactive compiler
 
-After running a plain ``jake`` command, the Koka interactive environment will start:
-````
-__          _
-| |        | |
-| | __ ___ | | __ __ _
-| |/ // _ \| |/ // _` | welcome to the koka interpreter
-|   <| (_) |   <| (_| | version 0.7.0-dev (debug), Jun 30 2016
-|_|\_\\___/|_|\_\\__,_| type :? for help
+Without giving any input files, the interactive environment runs by default:
 
-loading: std/core
-````
+    > koka
+     _          _           ____
+    | |        | |         |__  \
+    | | __ ___ | | __ __ _  __) |
+    | |/ // _ \| |/ // _' || ___/ welcome to the koka interpreter
+    |   <| (_) |   <| (_| ||____| version 2.0.9, Nov 27 2020, libc 64-bit (gcc)
+    |_|\_\\___/|_|\_\\__,_|       type :? for help
+
+    loading: std/core
+    loading: std/core/types
+    loading: std/core/hnd
+    >
+
 Now you can test some expressions:
 
     > println("hi koka")
+    check  : interactive
+    check  : interactive
+    linking: interactive
+    created: out\v2.0.9\mingw-debug\interactive
+
     hi koka
 
     > :t "hi"
-    \(`:string`\)
+    string
 
     > :t println("hi")
-    \(`:console ()`\)
+    console ()
 
-Or load a demo:
+Or load a demo (use ``tab`` completion to avoid typing too much):
 
-    > :l demo/collatz
-    compile: lib/demo/collatz.kk
-    check  : demo/collatz
+    > :l samples/basic/fibonacci
+    compile: samples/basic/fibonacci.kk
+    loading: std/core
+    loading: std/core/types
+    loading: std/core/hnd
+    check  : samples/basic/fibonacci
     modules:
-      demo/collatz
+      samples/basic/fibonacci
 
     > main()
-    Collatz(27) took 111 steps.
+    check  : interactive
+    check  : interactive
+    linking: interactive
+    created: out\v2.0.9\mingw-debug\interactive
+
+    The 10000th fibonacci number is 33644764876431783266621612005107543310302148460680063906564769974680081442166662368155595513633734025582065332680836159373734790483865268263040892463056431887354544369559827491606602099884183933864652731300088830269235673613135117579297437854413752130520504347701602264758318906527890855154366159582987279682987510631200575428783453215515103870818298969791613127856265033195487140214287532698187962046936097879900350962302291026368131493195275630227837628441540360584402572114334961180023091208287046088923962328835461505776583271252546093591128203925285393434620904245248929403901706233888991085841065183173360437470737908552631764325733993712871937587746897479926305837065742830161637408969178426378624212835258112820516370298089332099905707920064367426202389783111470054074998459250360633560933883831923386783056136435351892133279732908133732642652633989763922723407882928177953580570993691049175470808931841056146322338217465637321248226383092103297701648054726243842374862411453093812206564914032751086643394517512161526545361333111314042436854805106765843493523836959653428071768775328348234345557366719731392746273629108210679280784718035329131176778924659089938635459327894523777674406192240337638674004021330343297496902028328145933418826817683893072003634795623117103101291953169794607632737589253530772552375943788434504067715555779056450443016640119462580972216729758615026968443146952034614932291105970676243268515992834709891284706740862008587135016260312071903172086094081298321581077282076353186624611278245537208532365305775956430072517744315051539600905168603220349163222640885248852433158051534849622434848299380905070483482449327453732624567755879089187190803662058009594743150052402532709746995318770724376825907419939632265984147498193609285223945039707165443156421328157688908058783183404917434556270520223564846495196112460268313970975069382648706613264507665074611512677522748621598642530711298441182622661057163515069260029861704945425047491378115154139941550671256271197133252763631939606902895650288268608362241082050562430701794976171121233066073310059947366875
 
 And quit the interpreter:
 
     > :q
 
-    Before the effect one believes in different causes than one does after the effect.
-     -- Friedrich Nietzsche
+    I think of my body as a side effect of my mind.
+      -- Carrie Fisher (1956)
 
-You can also run examples in the browser by setting the host:
+The [``samples/syntax``](https://github.com/koka-lang/koka/tree/master/samples/syntax)
+and [``samples/basic``](https://github.com/koka-lang/koka/tree/master/samples/basic) 
+directories contain various basic &koka; examples to start with. If you type:
 
-    > :set --host=browser
-    > 1+2
+    > :l samples/
 
-Some browser specific demo to try is for example ``demo/dom/conway.kk``.
+in the interpreter, you can ``tab`` twice to see the available sample files and directories.
+Use ``:s`` to see the source of a loaded module.
 
+If you use VS Code or Atom, or if you set the ``koka_editor`` environment variable,
+you can type ``:e`` in the interactive prompt to edit your program further. For example,
+
+    > :l samples/basic/caesar
+    ...
+    check  : samples/basic/caesar
+    modules:
+        samples/basic/caesar
+
+    > :e 
+    
+    <edit the source and reload>
+
+    > :r
+    ...
+    check  : samples/basic/caesar
+    modules:
+        samples/basic/caesar
+
+    > main()
+    
+
+What next?
+
+[Why &koka;?][#why]{.learn}
+[Basic &koka; syntax][#sec-basics]{.learn}
+[Browse the Library documentation][libraries]{.learn}
+
+
+<!--
 ## Algebraic effect handlers
 
-A novel feature of Koka is a compiled and typed implementation of algebraic 
-effect handlers (described in detail in [@Leijen:algeff]).
-In the interactive environment, you can load various demo files with algebraic 
-effects which are located in the ``test/algeff`` directory. This is by default
-included in the search path, so we can load them directly using
-the _load_ (``:l``) command:
+A novel feature of &koka; is a compiled and typed implementation of algebraic
+effect handlers (described in detail in [[3]](#references)).
+In the interactive environment, you can load various demo files with algebraic
+effects which are located in the [``samples/handlers``](https://github.com/koka-lang/koka/tree/master/samples/handlers) directory.
 
-    > :l scoped
+    > :f samples/handlers/basic
 
+where ``:f`` forces a recompile (versus ``:l`` which avoids a recompile if possible).
 Use the ``:?`` command to get an overview of all commands. After
-loading the ``scoped`` demo, we can run it directly from the interpreter:
-    
-    > :l scoped
-    compile: test/algeff/scoped.kk
-    check  : scoped
+loading the ``common`` demo, we can run it directly from the interpreter:
+
+    > :f samples/handlers/basic
+    compile: samples/handlers/basic.kk
+    ...
+    check  : samples/handlers/basic
     modules:
-      scoped
-    
-    > main()
-    [[3],[2,1],[1,2],[1,1,1]]
-    (state=12, [[3],[2,1],[1,2],[1,1,1]])
-    [(state=1, [3]),(state=5, [2,1]),(state=5, [1,2]),(state=9, [1,1,1])]
-    [[3]]
-    [42]
+      samples/handlers/basic
+
+    > :t test2    
+    () -> console ()
+
+    > test2()
+    check  : interactive
+    check  : interactive
+    linking: interactive
+    created: out\v2.0.5\mingw-debug\interactive
+
+    Hello there, there
 
 Some interesting demos are:
 
-* ``common.kk``: Various examples from the paper "_Algebraic Effects for
-  Functional Programming_" [@Leijen:algeff]. Shows how to implement
+* ``basic.kk``: Various examples from the paper "_Algebraic Effects for
+  Functional Programming_" [[3]](#references). Shows how to implement
   common control-flow abstractions like exceptions, state, iterators,
   ambiguity, and asynchronous programming.
 
-* ``scoped.kk``: Various examples from the paper "_Effect handlers in
-  Scope_" [@Wu:hscope].
-
 * ``nim.kk``: Various examples from the paper "_Liberating effects with
-  rows and handlers_" [@Lindley:liberate].
+  rows and handlers_" [[1]](#references).
 
-* ``async*.kk``: Various asynchronous effect examples.
-
-* ``parser.kk``: Implements parser combinators as an effect.
-
-## A primer on effect handlers
-
-Another small demo is ``effs2`` that demonstrates the ambiguity
-and state effect:
-
-    > :l effs2
-    compile: test/algeff/effs2.kk
-    check  : effs2
-    modules:
-      effs1
-    
-    > main()
-    \(`[False,True,True,False]`\)
-    \(`[False,False,True,True,False]`\)
-    \(`[False,False]`\)
-
-The `effs2.kk` module starts by defining the `:amb` effect:
-```
-effect amb {
-  fun flip() : bool
-}
-```
-This declares `amb` as a new effect with a single operation `flip`.
-We can use this as:
-```
-fun xor() : amb bool {
-  val p = flip()
-  val q = flip()
-  (p||q) && not(p&&q)
-}
-```
-where the type of `xor` reflects that it has a `amb` effect and
-returns a boolean.
-
-Next, let's write a handler for this effect:
-```
-val amb = handler {
-  return x -> [x]
-  flip()   -> resume(False) + resume(True)
-}
-```
-When a `flip` operation is issued, this handler will catch it
-dynamically. In the above handler, we resume twice: once with a `False`
-value as the result for `flip`, and once with a `True` value. The
-`return` clause wraps the final result in a list which are concatenated
-by the `flip` handler. The type of the `amb` handler is a function that
-removes the `amb` effect from its argument, and return a list of results:
-
-    > :t amb
-    \(|`:forall<a,e> (action : () -> <amb|e> a) -> e list<a>`\)
-
-We can now run the `xor` function using the `amb` handler to 
-handle the `flip` operations:
-
-```
-fun test1() {
-  amb(xor).show.println
-}
-```
-Here we used _dot_ syntax introduced in Section [#sec-dot]. If we run
-`test1` in the interpreter, we see all possible results:
-
-    > test1()
-    \(`[False,True,True,False]`\)
-
-\
-** Adding state**\
-Let's combine the ambiguity effect with state. The definition
-of the state effect is polymorphic in its value:
-```
-effect state<s> {
-  fun get()    : s
-  fun set(i:s) : ()
-}
-```
-Next we define a function that uses both ambiguity and the state
-effect:
-```
-fun foo() : <amb,state<int>> bool {
-  val p = flip() 
-  val i = get()
-  set(i+1)
-  if (i>0 && p) then xor() else False
-}
-```
-The handler for the `:state` effect takes a local parameter that
-is propagated through the `resume` function (as its second argument):
-```
-val state = handler(i) {
-  return x -> x
-  get()    -> resume(i,i)
-  set(j)   -> resume((),j)
-}
-```
-The type of the `state` handler takes an initial state as an extra argument too: 
-
-    > :t state
-    \(|`:forall<a,b,e>. () -> ((i : a, action : () -> <state<a>|e> b) -> e b)`\)
-
-We can now combine the ambiguity handler with the state handler in
-two ways (see Section [#sec-anon] for a primer on anonymous function syntax):
-```
-fun test2()  {
-  state(0){ amb(foo) }
-}
-
-fun test3()  {
-  amb{ state(0,foo) }
-}
-```
-In `test2` the state handler is outside and every ambiguity execution
-modifies the same global state. In `test3` the state handler is inside
-and every ambiguity execution has its own local state instead. Can you
-predict the outcomes of running the tests?
-
-    > test2()
-    \(`[False,False,True,True,False]`\)
-    
-    > test3()
-    \(`[False,False]`\)
+* ``scoped.kk``: Examples from the paper "_Effect Handlers in Scope_" [[5]](#references).
+-->

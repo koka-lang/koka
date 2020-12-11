@@ -1,6 +1,6 @@
 {
-  "homepage": "https://github.com/koka-lang",
+  "homepage": "https://github.com/koka-lang/koka",
   "name": "language-koka",
   "description": "Koka language highlighting",
-  "version": "1.0.0"
+  "version": "2.0.0"
 }

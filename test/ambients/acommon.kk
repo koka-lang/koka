@@ -3,7 +3,8 @@
 // --------------------------------------------------------
 // public module common
 
-import std/os/readline
+// import std/os/readline
+import std/num/random
 
 // --------------------------------------------------------
 //  Exceptions
@@ -21,7 +22,7 @@ fun rcatch(action,h) {
 }
 
 fun zerodiv(x,y) {
-  rcatch( { safe-div(x,y) }, fun(s) { 0 } )
+  rcatch( { safe-div(x,y) }, fn(s) { 0 } )
 }
 
 fun to-maybe(action) {
@@ -69,11 +70,13 @@ fun counter() {
 }
 
 // using parameterized state
+/*
 val state-param = handler(s) {
   return x -> (x,s)
   get()    -> resume(s,s)
   put(s')  -> resume((),s')
 }
+*/
 
 // using builtin local variables
 fun state(init, action) {
@@ -110,7 +113,7 @@ fun foreach( f : a -> e bool, action : () -> <yield<a>|e> () ) : e () {
 }
 
 fun test4() {
-  foreach fun(x:int) {
+  foreach fn(x:int) {
     println(x)
     (x<=1)
   }
@@ -118,9 +121,9 @@ fun test4() {
 }
 
 fun test4b() {
-  with return x { () }
+  with return(x){ () }
   with amb
-  with foreach( fun(x:int) { if (flip()) then println(x) else println("flip false " + x.show); (x<=1) } )
+  with foreach( fn(x:int) { if (flip()) then println(x) else println("flip false " + x.show); (x<=1) } )
   [1,2,3].iterate
 }
 
@@ -136,9 +139,9 @@ fun xor() : flip bool {
   (p||q) && not(p&&q)
 }
 
-val coinflip = with fun flip() { random-bool() }
+val coinflip = handler { fun flip() { srandom-bool() } }
 
-val amb = with {
+val amb = handler {
   return x      { [x] }
   control flip() { resume(False) + resume(True) }
 }
@@ -171,6 +174,7 @@ fun test7() {
 // --------------------------------------------------------
 //  An asynchronous effect
 // --------------------------------------------------------
+/*
 fun ask-age() {
   println("what is your name?")
   val name = readline()           // asynchronous!
@@ -187,11 +191,11 @@ fun ask-age-err() {
     raise("ouch!")
     println("hello " + name)
   }
-  fun(err) {
+  fn(err) {
     println("error: " + err )
   }
 }
-
+*/
 
 // --------------------------------------------------------
 //  Testing
@@ -208,7 +212,7 @@ fun main() {
 }
 
 fun show( xs : list<(bool,int)> ) : string  {
-  xs.show-list(fun(x) { x.show-tuple(show,show) })
+  xs.show-list(fn(x) { x.show-tuple(show,show) })
 }
 
 fun show( x : (list<bool>,int) ) : string  {
