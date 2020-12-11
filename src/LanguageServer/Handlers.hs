@@ -6,6 +6,7 @@ module LanguageServer.Handlers( handlers
 
 import Compiler.Options                    ( Flags )
 import Language.LSP.Server
+import LanguageServer.Handler.Definition   ( definitionHandler )
 import LanguageServer.Handler.Hover        ( hoverHandler )
 import LanguageServer.Handler.Initialized  ( initializedHandler )
 import LanguageServer.Handler.TextDocument ( didOpenHandler, didChangeHandler, didSaveHandler, didCloseHandler )
@@ -19,4 +20,5 @@ handlers flags = mconcat
   , didSaveHandler flags
   , didCloseHandler flags
   , hoverHandler flags
+  , definitionHandler flags
   ]
