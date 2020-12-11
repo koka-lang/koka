@@ -44,19 +44,18 @@ didCloseHandler flags = notificationHandler J.STextDocumentDidClose $ \_not -> d
   -- TODO: Remove file from LSM state?
   return ()
 
--- Recompiles the given file, stores the compilation result in LSM's state
--- and emits diagnostics.
+-- Recompiles the given file, stores the compilation result in
+-- LSM's state and emits diagnostics.
 recompileFile :: Flags -> J.Uri -> LSM ()
 recompileFile flags uri = do
   let normUri = J.toNormalizedUri uri
-      -- TODO: Handle error
-      filePath = fromJust $ J.uriToFilePath uri
+      filePath = fromJust $ J.uriToFilePath uri -- TODO: Handle error
 
-  -- TODO: Abstract the logging calls in a better way
-  sendNotification J.SWindowLogMessage $ J.LogMessageParams J.MtInfo $ "Recompiling " <> T.pack filePath
-
+  -- Recompile the file
   -- TODO: Use VFS to fetch the file's contents to provide
   --       'live' results as the user types
+  -- TODO: Abstract the logging calls in a better way
+  sendNotification J.SWindowLogMessage $ J.LogMessageParams J.MtInfo $ "Recompiling " <> T.pack filePath
   loaded <- liftIO $ compileModuleOrFile terminal flags [] filePath False
   case checkError loaded of
     Right (l, _) -> do
@@ -64,6 +63,7 @@ recompileFile flags uri = do
       sendNotification J.SWindowLogMessage $ J.LogMessageParams J.MtInfo $ "Successfully compiled " <> T.pack filePath
     Left _       -> return ()
 
+  -- Emit the diagnostics (errors and warnings)
   let diagSrc = T.pack "koka"
       diags = toLspDiagnostics diagSrc loaded
       diagsBySrc = partitionBySource diags
