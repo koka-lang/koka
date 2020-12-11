@@ -5,9 +5,9 @@
 module LanguageServer.Handler.Hover( hoverHandler
                                    ) where
 
-import Control.Lens                      ( (^.) )
 import Compiler.Options                  ( Flags )
 import Compiler.Module                   ( loadedModule, modRangeMap )
+import Control.Lens                      ( (^.) )
 import qualified Data.Map                as M
 import qualified Data.Text               as T
 import Language.LSP.Server               ( sendNotification, requestHandler, Handlers )

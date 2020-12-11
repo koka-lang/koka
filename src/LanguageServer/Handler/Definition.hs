@@ -5,9 +5,9 @@
 module LanguageServer.Handler.Definition( definitionHandler
                                         ) where
 
-import Control.Lens                      ( (^.) )
 import Compiler.Options                  ( Flags )
 import Compiler.Module                   ( loadedModule, modRangeMap, Loaded (..) )
+import Control.Lens                      ( (^.) )
 import qualified Data.Map                as M
 import Data.Maybe                        ( maybeToList )
 import Kind.Constructors                 ( conInfoRange, constructorsLookup )
