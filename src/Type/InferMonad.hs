@@ -661,9 +661,9 @@ checkSkolemEscape rng tp mhint skolems extraFree
   = do free <- freeInGamma
        let allfree = tvsUnion free extraFree
            --escaped = fsv $ [tp  | (tv,tp) <- subList sub, tvsMember tv allfree]
-       penv <- getPrettyEnv
-       trace (show (text "checkSkolemEscape:" <+> tupled [Pretty.ppType penv tp, pretty skolems, pretty (tvsList allfree)])) $
-        if (tvsDisjoint (tvsNew skolems) allfree)
+       -- penv <- getPrettyEnv
+       -- trace (show (text "checkSkolemEscape:" <+> tupled [Pretty.ppType penv tp, pretty skolems, pretty (tvsList allfree)])) $
+       if (tvsDisjoint (tvsNew skolems) allfree)
          then return ()
          else do stp <- subst tp
                  let escaped = [v | v <- skolems, tvsMember v allfree]
