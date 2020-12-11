@@ -11,6 +11,7 @@ import Compiler.Module                   ( loadedModule, modRangeMap, Loaded (..
 import qualified Data.Map                as M
 import Data.Maybe                        ( maybeToList )
 import Kind.Constructors                 ( conInfoRange, constructorsLookup )
+import Kind.Newtypes                     ( newtypesLookupAny, dataInfoRange )
 import Language.LSP.Server               ( requestHandler, Handlers )
 import qualified Language.LSP.Types      as J
 import qualified Language.LSP.Types.Lens as J
@@ -35,8 +36,10 @@ findDefinitions :: Loaded -> RangeInfo -> [J.Location]
 findDefinitions loaded rinfo = case rinfo of
   Id qname _ _        -> let rngs = map infoRange (gammaLookupQ qname gamma)
                                  ++ map conInfoRange (maybeToList $ constructorsLookup qname constrs)
+                                 ++ map dataInfoRange (maybeToList $ newtypesLookupAny qname newtypes)
                          in map toLspLocation rngs
   _                   -> []
   where
     gamma = loadedGamma loaded
     constrs = loadedConstructors loaded
+    newtypes = loadedNewtypes loaded
