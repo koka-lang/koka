@@ -760,7 +760,7 @@ inferExpr propagated expect (Case expr branches rng)
        -- ensure branches match
        let rngs = map (getRange . branchGuards) branches
            brngs = map getRange branches
-       resTp  <- inferUnifyTypes checkMatch (zip tps (zip brngs rngs))
+       resTp  <- inferUnifyTypes checkMatch (zip tps (zip brngs rngs))       
        -- resEff <- addTopMorphisms rng ((getRange expr,ceff):(zip rngs effs))
        {-
        resEff <- inferUnifies (checkEffect rng) ((getRange expr,ceff):(zip rngs effs))
@@ -2239,12 +2239,13 @@ inferPattern matchType branchRange (PatParens pat range) withPattern inferPart
   = inferPattern matchType branchRange pat withPattern inferPart
 
 inferPattern matchType branchRange (PatLit lit) withPattern inferPart
-  = let pat = case lit of
-                LitInt i _  -> (Core.PatLit (Core.LitInt i))
-                LitChar c _  -> (Core.PatLit (Core.LitChar c))
-                LitFloat f _  -> (Core.PatLit (Core.LitFloat f))
-                LitString s _  -> (Core.PatLit (Core.LitString s))
-    in do (btpeffs,x) <- inferPart []
+  = let (pat,tp) = case lit of
+                    LitInt i _  -> (Core.PatLit (Core.LitInt i), typeInt)
+                    LitChar c _  -> (Core.PatLit (Core.LitChar c), typeChar)
+                    LitFloat f _  -> (Core.PatLit (Core.LitFloat f), typeFloat)
+                    LitString s _  -> (Core.PatLit (Core.LitString s), typeString)
+    in do inferUnify (checkLitMatch (getRange lit)) branchRange tp matchType
+          (btpeffs,x) <- inferPart []
           res <- withPattern pat x
           return (btpeffs,res)
 {-
@@ -2357,6 +2358,7 @@ checkRec        = Check "recursive invocations do not match the assumed type; ad
 checkGuardTotal = Check "guard expressions must be total"
 checkGuardBool  = Check "guard expressions must be of a boolean type"
 checkConMatch   = Check "constructor must have the same the type as the matched term"
+checkLitMatch   = Check "literal pattern does not match the type of the matched term"
 checkConTotal   = Check "constructor in a pattern must have a total effect type"
 checkLit        = Check "literal does not match the expected type"
 checkOptional   = Check "default value does not match the parameter type"
