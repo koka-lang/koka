@@ -13,7 +13,7 @@ import Compiler.Options                  ( Flags )
 import Compiler.Module                   ( modProgram, loadedModule, Loaded (..) )
 import Control.Lens                      ( (^.) )
 import qualified Data.Map                as M
-import Data.Maybe                        ( catMaybes,  maybeToList )
+import Data.Maybe                        ( maybeToList )
 import qualified Data.Text               as T
 import Language.LSP.Server               ( requestHandler, Handlers )
 import qualified Language.LSP.Types      as J
@@ -43,17 +43,20 @@ class HasSymbols a where
 instance HasSymbols a => HasSymbols (Maybe a) where
   symbols = maybe [] symbols
 
+instance HasSymbols a => HasSymbols [a] where
+  symbols = (symbols =<<)
+
 instance HasSymbols () where
   symbols = const []
 
 instance HasSymbols UserProgram where
-  symbols prog = (symbols =<< programTypeDefs prog) ++ (symbols =<< programDefs prog)
+  symbols prog = symbols (programTypeDefs prog) ++ symbols (programDefs prog)
 
 -- Type definition instances
 
 instance HasSymbols UserTypeDefGroup where
   symbols tdg = case tdg of
-    TypeDefRec tds   -> symbols =<< tds
+    TypeDefRec tds   -> symbols tds
     TypeDefNonRec td -> symbols td
 
 instance HasSymbols UserTypeDef where
@@ -66,7 +69,7 @@ instance HasSymbols UserTypeDef where
         Synonym {..}  -> J.SkInterface
         DataType {..} -> J.SkStruct
       cs = case td of
-        DataType {typeDefConstrs = ctrs} -> symbols =<< ctrs
+        DataType {typeDefConstrs = ctrs} -> symbols ctrs
         _                                -> []
 
 instance HasSymbols UserUserCon where
@@ -80,7 +83,7 @@ instance HasSymbols UserUserCon where
 
 instance HasSymbols UserDefGroup where
   symbols dg = case dg of
-    DefRec    ds -> symbols =<< ds
+    DefRec    ds -> symbols ds
     DefNonRec d  -> symbols d
 
 instance HasSymbols UserDef where
@@ -105,17 +108,17 @@ instance HasSymbols e => HasSymbols (ValueBinder t e) where
 
 instance HasSymbols UserExpr where
   symbols ex = case ex of
-    Lam bs e _                          -> (symbols =<< bs) ++ symbols e
+    Lam bs e _                          -> symbols bs ++ symbols e
     Let dg e _                          -> symbols dg ++ symbols e
     Bind d e _                          -> symbols d ++ symbols e
-    App e nes _                         -> symbols e ++ (symbols . snd =<< nes)
+    App e nes _                         -> symbols e ++ symbols (map snd nes)
     Ann e _ _                           -> symbols e
-    Case e bs _                         -> symbols e ++ (symbols =<< bs)
+    Case e bs _                         -> symbols e ++ symbols bs
     Parens e _ _                        -> symbols e
-    Handler _ _ _ _ bs e1 e2 e3 hbs _ _ -> (symbols =<< bs) ++ symbols e1
-                                                            ++ symbols e2
-                                                            ++ symbols e3
-                                                            ++ (symbols =<< hbs)
+    Handler _ _ _ _ bs e1 e2 e3 hbs _ _ -> symbols bs ++ symbols e1
+                                                      ++ symbols e2
+                                                      ++ symbols e3
+                                                      ++ symbols hbs
     Inject _ e _ _                      -> symbols e
     _                                   -> [] -- TODO: Handle other types of (nested) expressions
 
@@ -125,10 +128,11 @@ instance HasSymbols UserHandlerBranch where
       n = hbranchName hb
       r = hbranchNameRange hb
       e = hbranchExpr hb
-      cs = (symbols =<< hbranchPars hb) ++ symbols e
+      ps = hbranchPars hb
+      cs = symbols ps ++ symbols e
 
 instance HasSymbols UserBranch where
-  symbols b = symbols p ++ (symbols =<< gs)
+  symbols b = symbols p ++ symbols gs
     where
       p = branchPattern b
       gs = branchGuards b
@@ -145,7 +149,7 @@ instance HasSymbols UserPattern where
                            r = binderRange b
                        in [makeSymbol n J.SkConstant r []]
     PatAnn p _ _    -> symbols p
-    PatCon _ ps _ _ -> symbols . snd =<< ps
+    PatCon _ ps _ _ -> symbols $ map snd ps
     PatParens p _   -> symbols p
     _ -> []
 
