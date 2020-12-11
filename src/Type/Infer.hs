@@ -86,7 +86,7 @@ inferTypes :: Env -> Maybe RM.RangeMap -> Synonyms -> Newtypes -> Constructors -
 inferTypes prettyEnv mbRangeMap syns newTypes cons imports gamma0 context uniq0 defs
   = -- error "Type.Infer.inferTypes: not yet implemented"
     -- return (gamma0,[],uniq0)
-    do ((gamma1, coreDefs),uniq1,mbRm) <- runInfer prettyEnv mbRangeMap syns newTypes imports gamma0 context uniq0
+    do ((gamma1, coreDefs),uniq1,mbRm) <- runInfer prettyEnv mbRangeMap syns newTypes imports gamma0 context (uniq0 + 10 {- to not clash with at least 10 bound type variables -})
                                           (inferDefGroups True (arrange defs))
        return (gamma1,coreDefs,uniq1,mbRm)
   where
@@ -520,7 +520,7 @@ inferIsolated contextRange range body inf
 inferExpr :: Maybe (Type,Range) -> Expect -> Expr Type -> Inf (Type,Effect,Core.Expr)
 inferExpr propagated expect (Lam binders body rng)
   = isNamedLam $ \isNamed ->
-    do -- traceDoc $ \env -> text " inferExpr.Lam:" <+> pretty (show expect) <+> text ", propagated:" <+> ppProp env propagated
+    do traceDoc $ \env -> text " inferExpr.Lam:" <+> pretty (show expect) <+> text ", propagated:" <+> ppProp env propagated
        (propArgs,propEff,propBody,skolems,expectBody) <- matchFun (length binders) propagated
 
        let binders0 = [case binderType binder of
@@ -569,7 +569,8 @@ inferExpr propagated expect (Lam binders body rng)
 
        -- check skolem escape
        sftp0 <- subst (typeFun pars stopEff tp)
-       -- checkSkolemEscape rng sftp0 Nothing skolems tvsEmpty  -- TODO: not having this check improves error messages but is it really safe?
+       traceDoc $ \env -> text " inferExpr.Lam: check skolems:" <+> ppType env sftp0 <+> text ", " <+> pretty skolems
+       checkSkolemEscape rng sftp0 Nothing skolems tvsEmpty  -- TODO: not having this check improves error messages but is it really safe?
 
        -- substitute back skolems to meta variables
        let subSkolems = subNew [(tv,TVar tv{typevarFlavour=Meta}) | tv <- skolems]
@@ -2009,7 +2010,7 @@ inferVar propagated expect name rng isRhs  | isConstructorName name
 inferVar propagated expect name rng isRhs
   = -- trace("inferVar; " ++ show name) $
     do (qname,tp,info) <- resolveName name propagated rng
-       -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> colon <+> ppType env tp
+       -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> colon <+> ppType env{showIds=True} tp
        if (isTypeLocalVar tp && isRhs)
         then do -- traceDoc $ \penv -> text "localvar:" <+> pretty name <+> text ":" <+> ppType penv tp
                 let irng = extendRange rng (-1)
@@ -2034,7 +2035,7 @@ inferVar propagated expect name rng isRhs
                  addRangeInfo rng (RM.Id (infoCanonicalName qname info) (RM.NIValue tp) False)
                  (itp,coref) <- maybeInstantiate rng expect tp
                  sitp <- subst itp
-                 -- traceDoc $ \env -> (text "Type.Infer.Var: " <+> pretty name <.> colon <+> ppType env sitp)
+                 -- traceDoc $ \env -> (text " Type.Infer.Var: " <+> pretty name <.> colon <+> ppType env{showIds=True} sitp)
                  eff <- freshEffect
                  return (itp,eff,coref coreVar)
 
@@ -2703,7 +2704,9 @@ matchFun nArgs mbType
       Nothing       -> return (replicate nArgs Nothing,Nothing,Nothing,[],Instantiated)
       Just (tp,rng) -> do -- (rho,_,_) <- instantiate rng tp
                           -- let skolems = []
+                          traceDoc $ \penv -> text "matchFun: " <+> ppType penv{showKinds=True,showIds=True} tp
                           (skolems,_,rho,_) <- Op.skolemizeEx rng tp
+                          traceDoc $ \penv -> text " skolemized: " <+> ppType penv rho
                           -- let sub = subNew [(tv,TVar (tv{typevarFlavour=Meta})) | tv <- skolems]
                           case splitFunType rho of
                            Nothing

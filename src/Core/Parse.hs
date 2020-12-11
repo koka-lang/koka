@@ -423,7 +423,7 @@ parseForall env
 
 parseFun :: Env -> LexParser Expr
 parseFun env
-  = do keyword "fun"
+  = do keyword "fn"
        eff    <- angles (ptype env) <|> return typeTotal
        (env1,params) <- parameters env
        body   <- semiBraced (parseExpr env1)

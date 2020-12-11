@@ -124,6 +124,7 @@ type TvScheme = M.Map TypeVar (Prec -> Doc)
 
 -- | Pretty print environment for types.
 data Env     = Env{ showKinds      :: Bool
+                  , showIds        :: Bool -- show id numbers
                   , expandSynonyms :: Bool
                   , colors  :: ColorScheme
                   , nice    :: Nice
@@ -154,7 +155,8 @@ data Env     = Env{ showKinds      :: Bool
 -- | Default pretty print environment
 defaultEnv :: Env
 defaultEnv
-  = Env False False defaultColorScheme niceEmpty (precTop-1) M.empty (newName "Main") (importsEmpty) False
+  = Env False False False 
+        defaultColorScheme niceEmpty (precTop-1) M.empty (newName "Main") (importsEmpty) False
         False
         []        
         ("styles/" ++ programName ++ ".css") -- [("System.","file://c:/users/daan/dev/koka/out/lib/")]
@@ -389,7 +391,9 @@ ppFun env arrow args effect result
 
 ppParam :: Env -> (Name,Type) -> Doc
 ppParam env (name,tp)
-  = (if (not (nameIsNil name || isFieldName name)) then (color (colorParameter (colors env)) (ppNameEx env name <.> text " : ")) else empty)
+  = (if (not (nameIsNil name || isFieldName name || isWildcard name)) 
+      then (color (colorParameter (colors env)) (ppNameEx env (unqualify name) <.> text " : ")) 
+      else empty)
     <.> ppType env tp
 
 
@@ -442,10 +446,10 @@ ppTypeVar :: Env -> TypeVar -> Doc
 ppTypeVar env (TypeVar id kind flavour)
     = colorByKindDef env kind colorTypeVar $
       wrapKind (showKinds env) env kind $
-       (case flavour of
+      (case flavour of
          Meta   -> text "_"
          Skolem -> if (coreIface env) then text "__" else text "$"
-         _      -> empty) <.> nicePretty (nice env) id -- <.> text (":" ++ show id)
+         _      -> empty) <.> nicePretty (nice env) id <.> (if (showIds env) then text ("=" ++ show id) else empty)
 
 ppTypeCon :: Env -> TypeCon -> Doc
 ppTypeCon env (TypeCon name kind)

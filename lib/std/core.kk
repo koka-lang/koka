@@ -2652,14 +2652,14 @@ inline extern [] : forall<s,a,e> ( self : local-var<s,vector<a>>, index : int, a
 // returns the cached result.
 fun once( calc : () -> a ) : (() -> a) {
   unsafe-total {
-    var value := Nothing
+    val r = ref(Nothing)
     return fn() {
       unsafe-total {
-        match(value) {
-          Just(y) -> y
+        match(!r) {
+          Just(x) -> x
           Nothing -> {
             val x = calc()
-            value := Just(x)
+            r := Just(x)
             x
           }
         }
