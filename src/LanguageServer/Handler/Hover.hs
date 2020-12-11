@@ -45,7 +45,3 @@ formatHoverContents rinfo = case rinfo of
   Block s             -> s
   Error doc           -> "Error: " ++ show doc
   Warning doc         -> "Warning: " ++ show doc
-
-rightToMaybe :: Either a b -> Maybe b
-rightToMaybe (Right x) = Just x
-rightToMaybe (Left _)  = Nothing
