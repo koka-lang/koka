@@ -2,7 +2,7 @@
 -- The LSP handler that provides a document symbol tree
 -- (sometimes presented as 'outline' in the client's GUI)
 -----------------------------------------------------------------------------
-{-# LANGUAGE OverloadedStrings, FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings, FlexibleInstances, RecordWildCards #-}
 module LanguageServer.Handler.DocumentSymbol( documentSymbolHandler
                                             ) where
 
@@ -40,14 +40,43 @@ findDocumentSymbols loaded = do
 class HasSymbols a where
   symbols :: a -> [J.DocumentSymbol]
 
-instance HasSymbols UserProgram where
-  symbols prog = symbols =<< programDefs prog
-
 instance HasSymbols a => HasSymbols (Maybe a) where
   symbols = maybe [] symbols
 
 instance HasSymbols () where
   symbols = const []
+
+instance HasSymbols UserProgram where
+  symbols prog = (symbols =<< programTypeDefs prog) ++ (symbols =<< programDefs prog)
+
+-- Type definition instances
+
+instance HasSymbols UserTypeDefGroup where
+  symbols tdg = case tdg of
+    TypeDefRec tds   -> symbols =<< tds
+    TypeDefNonRec td -> symbols td
+
+instance HasSymbols UserTypeDef where
+  symbols td = [makeSymbol n k r cs]
+    where
+      b = typeDefBinder td
+      n = tbinderName b
+      r = typeDefRange td
+      k = case td of
+        Synonym {..}  -> J.SkInterface
+        DataType {..} -> J.SkStruct
+      cs = case td of
+        DataType {typeDefConstrs = ctrs} -> symbols =<< ctrs
+        _                                -> []
+
+instance HasSymbols UserUserCon where
+  symbols c = [makeSymbol n k r []]
+    where
+      n = userconName c
+      k = J.SkConstructor
+      r = userconRange c
+
+-- Value definition instances
 
 instance HasSymbols UserDefGroup where
   symbols dg = case dg of
@@ -63,7 +92,7 @@ instance HasSymbols UserDef where
         DefVal -> J.SkConstant
         DefVar -> J.SkVariable
       n = binderName b
-      r = binderRange b
+      r = defRange d
       cs = symbols $ binderExpr b
 
 instance HasSymbols e => HasSymbols (ValueBinder t e) where
