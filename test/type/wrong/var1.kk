@@ -1,6 +1,6 @@
 fun escape() {
   var i := 1
-  fn(){ i := i + 1; i }  
+  fn(){ i := i + 1; i }
 }
 
 fun main() {
