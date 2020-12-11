@@ -33,6 +33,8 @@ definitionHandler flags = requestHandler J.STextDocumentDefinition $ \req respon
                 findDefinitions l rinfo
   responder $ Right $ J.InR $ J.InL $ J.List defs
 
+-- Finds the definition locations of the element
+-- represented by the given range info.
 findDefinitions :: Loaded -> RangeInfo -> [J.Location]
 findDefinitions loaded rinfo = case rinfo of
   Id qname _ _        -> let rngs = map infoRange (gammaLookupQ qname gamma)

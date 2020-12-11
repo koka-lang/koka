@@ -32,6 +32,7 @@ hoverHandler flags = requestHandler J.STextDocumentHover $ \req responder -> do
                return hover
   responder $ Right rsp
 
+-- Pretty-prints type/kind information to a hover tooltip
 formatHoverContents :: RangeInfo -> String
 formatHoverContents rinfo = case rinfo of
   Id qname info isdef -> show (pretty qname) ++ " : " ++ case info of
