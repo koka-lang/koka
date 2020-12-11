@@ -43,6 +43,12 @@ class HasSymbols a where
 instance HasSymbols UserProgram where
   symbols prog = symbols =<< programDefs prog
 
+instance HasSymbols a => HasSymbols (Maybe a) where
+  symbols = maybe [] symbols
+
+instance HasSymbols () where
+  symbols = const []
+
 instance HasSymbols UserDefGroup where
   symbols dg = case dg of
     DefRec    ds -> symbols =<< ds
@@ -60,16 +66,37 @@ instance HasSymbols UserDef where
       r = binderRange b
       cs = symbols $ binderExpr b
 
+instance HasSymbols e => HasSymbols (ValueBinder t e) where
+  symbols b = [makeSymbol n k r cs]
+    where
+      k = J.SkConstant
+      n = binderName b
+      r = binderRange b
+      cs = symbols $ binderExpr b
+
 instance HasSymbols UserExpr where
   symbols ex = case ex of
-    Let dg e _     -> symbols dg ++ symbols e
-    Bind d e _     -> symbols d ++ symbols e
-    App e nes _    -> symbols e ++ (symbols . snd =<< nes)
-    Ann e _ _      -> symbols e
-    Case e bs _    -> symbols e ++ (symbols =<< bs)
-    Parens e _ _   -> symbols e
-    Inject _ e _ _ -> symbols e
-    _              -> [] -- TODO: Handle other types of (nested) expressions
+    Lam bs e _                          -> (symbols =<< bs) ++ symbols e
+    Let dg e _                          -> symbols dg ++ symbols e
+    Bind d e _                          -> symbols d ++ symbols e
+    App e nes _                         -> symbols e ++ (symbols . snd =<< nes)
+    Ann e _ _                           -> symbols e
+    Case e bs _                         -> symbols e ++ (symbols =<< bs)
+    Parens e _ _                        -> symbols e
+    Handler _ _ _ _ bs e1 e2 e3 hbs _ _ -> (symbols =<< bs) ++ symbols e1
+                                                            ++ symbols e2
+                                                            ++ symbols e3
+                                                            ++ (symbols =<< hbs)
+    Inject _ e _ _                      -> symbols e
+    _                                   -> [] -- TODO: Handle other types of (nested) expressions
+
+instance HasSymbols UserHandlerBranch where
+  symbols hb = [makeSymbol n J.SkFunction r cs]
+    where
+      n = hbranchName hb
+      r = hbranchNameRange hb
+      e = hbranchExpr hb
+      cs = (symbols =<< hbranchPars hb) ++ symbols e
 
 instance HasSymbols UserBranch where
   symbols b = symbols p ++ (symbols =<< gs)
