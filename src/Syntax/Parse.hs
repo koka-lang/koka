@@ -1516,7 +1516,7 @@ handlerClauses rng mbEff scoped override hsort
                                            Nothing -> id
                                            Just f  -> \actionExpr -> App f [(Nothing,App actionExpr [] fullrange)] fullrange
                            return (binders $ handlerExpr retExpr)
-                   _ -> do let handlerExpr = Handler hsort scoped override mbEff [] reinit ret final ops rng fullrange
+                   _ -> do let handlerExpr = Handler hsort scoped override Nothing mbEff [] reinit ret final ops rng fullrange
                            return (binders handlerExpr)
        return $ applyMaybe fullrange reinit final handler
 

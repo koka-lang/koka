@@ -74,7 +74,7 @@ fun emit4(action) {
   with return(x)   { out }
   with fun emit(s) { out := out + s + "\n" }
   with fun total() { out.count }
-  mask<local>(action)
+  action()
 }
 
 effect control abort() : ()
@@ -136,19 +136,15 @@ struct graph()
 struct rose(v : vertex, sub : list<rose> )
 
 
-effect mark {
-  fun marked( v : vertex ) : bool
-  fun mark( v : vertex ) : ()
-  fun children( v : vertex ) : list<vertex>
-}
+effect fun marked( v : vertex ) : bool
+effect fun mark( v : vertex ) : ()
+effect fun children( v : vertex ) : list<vertex>
 
 fun dfs( g : graph, vs : list<vertex> ) : pure list<rose> {
   var visited := vector(g.bound,False)
-  with handler {
-    fun children(v) { g.gchildren(v) }
-    fun marked(v)   { visited[v] }
-    fun mark(v)     { visited[v] := True }
-  }
+  with fun children(v) { g.gchildren(v) }
+  with fun marked(v)   { visited[v] }
+  with fun mark(v)     { visited[v] := True }
   dfs-loop(vs)
 }
 

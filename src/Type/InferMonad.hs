@@ -35,6 +35,7 @@ module Type.InferMonad( Inf, InfGamma
                       , withDefName
                       , currentDefName
                       , isNamedLam
+                      , getLocalVars
 
                       -- * Misc.
                       , allowReturn, isReturnAllowed
@@ -1366,6 +1367,11 @@ lookupNameN name fixed named range
                           return []
          _          -> return matches
 -}
+
+getLocalVars :: Inf [(Name,Type)]
+getLocalVars
+  = do env <- getEnv
+       return (filter (isTypeLocalVar . snd) (infgammaList (infgamma env)))
 
 lookupInfName :: Name -> Inf (Maybe (Name,Type))
 lookupInfName name
