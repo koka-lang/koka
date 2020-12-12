@@ -95,6 +95,7 @@ Special thanks to:
 - And all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
 
 Releases:
+- `v2.0.14`, 2020-12-11: bug fixes, improved var escape checking.
 - `v2.0.12`, 2020-12-02: syntax highlighting support for VS Code and Atom, improved uninstall, more samples.
 - `v2.0.9`, 2020-11-27: now with binary [releases] for Windows, macOS, and Linux.
 - `v2.0.7`, 2020-11-23: more small fixes, improved scoped handlers, improved higher-rank type propagation, more samples.
