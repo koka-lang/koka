@@ -301,8 +301,8 @@ and [C++](http://www.cplusplus.org) gcc 9.3.0.
 
 <img align="right" width="400" src="doc/bench-amd3600-nov-2020.png" style="border:1px solid black">
 
-The benchmarks are all available in [`test/bench`](test/bench) (see below for
-build instructions), and all
+The benchmarks are all available in [`test/bench`](test/bench) (see the
+readme there for build instructions), and all
 stress memory allocation with little computation:
 `rbtree` (inserts 42 million items into a red-black tree),
 `rbtree-ck` (a variant of `rbtree` that keeps a list of every 5th
@@ -332,6 +332,45 @@ to see this initial performance from Koka.
 
 A full discussion of these benchmarks and systems can be found
 in the [Perceus] report.
+
+
+# Tasks
+
+Please help develop Koka: there are many opportunities to improve Koka or do research with Koka. We need:
+
+- Emacs and Vim syntax highlighting.
+- Improve documentation, landing page etc. Make it easier for people to contribute.
+- More examples
+- Many library modules are incomplete (like `std/os/file`) or missing (like `std/data/map`).
+
+More advanced projects:
+
+- Update the JavaScript backend to 1) use proper modules instead of amdefine, 2) use the new bigints instead of bigint.js,
+  and 3) add support for int64. This requires mostly changes to `Backend/JS/FromCore.hs` together with `lib/core/core-inline.js`.
+- A language server for Visual Studio Code and Atom. Koka can already generate a typed [range map](src/Syntax/RangeMap.hs) so this
+  should be managable.
+- Package management of Koka modules.
+- Implement inline specialization where functions like `map`, `fold` etc get specialized for the function with which they are called.
+  This is an important optimization for functional style languages to reduce the allocation of lambda's.
+- Various standard optimizations like case-of-case, join points, case-of-known constructor, etc.
+- Borrowing analysis for Perceus.
+- Known reference count specialization.
+
+The following is the immediate todo list to be completed in the coming months:
+
+- Port all libray modules, in particular `std/text/regex` (using PCRE), and `std/async` (using `libuv`).
+- Run the full test suite again.
+- Run the Bayesian probalistic machine learning program with large parameters.
+- Improve compilation of local state to use local variables directly (in C).
+- Functions with a pattern match in the argument.
+
+Contact me if you are interested in tackling some of these :-)
+
+Main branches:
+- `master`: latest stable version.
+- `dev`: current development branch -- submit PR's to this branch.
+- `v1-master`: last stable version of Koka v1: this is Koka with the Javascript (and C#) backend which does not use evidence translation.
+               This version supports `std/async` and should compile examples from published papers.
 
 
 # Build from source
@@ -421,192 +460,6 @@ info: elapsed: 0.727s, user: 0.734s, sys: 0.000s, rss: 164mb
 info: elapsed: 1.483s, user: 1.484s, sys: 0.000s, rss: 164mb
 ```
 
-## Build and run benchmarks
-
-There is a standard benchmark suite (discussed in detail in [Perceus] paper).
-It is still basic but more benchmarks
-with effect handlers are coming. The suite can run on (Ubuntu Linux), WSL2, and macOSX,
-and the benchmarks need:
-
-- `gcc`. Should be there, otherwise use `sudo apt install gcc`,
-- `ghc`. Use `sudo apt install ghc`,
-- `ocamlopt`. Use `sudo apt install ocaml`,
-- `swiftc`. The Swift compiler can be downloaded [here](https://swift.org/download/).
-   The benchmarks expect `swiftc` to be installed at `/opt/swift/bin`,
-   so unpack and copy everything under `swift-.../usr` to `/opt/swift/bin`:
-   ```
-   > tar -xzf swift-5.3-RELEASE-ubuntu20.04.tar.gz
-   > cd swift-5.3-RELEASE-ubuntu20.04/usr
-   > sudo mkdir /opt/swift
-   > sudo cp -r * /opt/swift
-   ```
-- `javac`/`java`. We used these [instructions](https://computingforgeeks.com/install-oracle-java-openjdk-14-on-ubuntu-debian-linux/)
-   to install the Java SE 15 Hotspot compiler:
-   ```
-   > sudo apt update
-   > sudo add-apt-repository ppa:linuxuprising/java
-   > sudo apt -y install oracle-java15-installer
-   > sudo apt -y install oracle-java15-set-default
-   > java --version
-   java 15.0.1 2020-10-20
-   Java(TM) SE Runtime Environment (build 15.0.1+9-18)
-   Java HotSpot(TM) 64-Bit Server VM (build 15.0.1+9-18, mixed mode, sharing)
-   ```
-
-The benchmarks can now be build using:
-
-```
-> cd test/bench
-> mkdir build
-> cd build
-> cmake .. -DCMAKE_BUILD_TYPE=Release
-> cmake --build .
-```
-
-For some benchmarks, like `cfold`, we may need a large stack, so it may be good to raise the limit:
-```
-> ulimit -s unlimited
-```
-
-We can then run all benchmarks as:
-```
-> ctest .
-```
-Or only run benchmarks for one language with `-L <lang>`:
-```
-> ctest -L koka
-```
-Or run specific benchmarks using `-R <regex>`,
-like the symbolic derivative benchmark:
-```
-> ctest -R deriv      
-Test project /home/daan/dev/koka/test/bench/build
-    Start  4: hs-deriv
-1/4 Test  #4: hs-deriv .........................   Passed    2.29 sec
-    Start 10: kk-deriv
-2/4 Test #10: kk-deriv .........................   Passed    1.25 sec
-    Start 19: ml-deriv
-3/4 Test #19: ml-deriv .........................   Passed    1.73 sec
-    Start 25: sw-deriv
-4/4 Test #25: sw-deriv .........................   Passed    2.88 sec
-
-100% tests passed, 0 tests failed out of 4
-...
-```
-
-We can also run the tests using the `test/bench/run.kk` script instead of
-using `ctest` which also measures peak working set and calculates
-normalized scores. For example, from the `build` directory, we can run all benchmarks as:
-```
-> koka ../run
-```
-Use the `--lang` or `--test` options to specify a comma separated list of
-languages or benchmarks:
-```
-> koka ../run -- --lang=koka,ocaml  --test=rbtree,rbtree-ck
-```
-The `-i<N>` switch runs `N` iterations on each benchmark and calculates
-the average and the error interval.
-
-
-## Testing
-
-To run tests, use stack:
-
-```
-> stack test                                              # All tests
-> stack test --test-arguments="--match /parc/"            # One category
-> stack test --test-arguments="--mode new"                # Create output files
-> stack test --test-arguments="--mode update"             # Update output files
-> stack test --test-arguments="--match /parc/ --mode new" # Combined
-```
-
-<!--
-# Evidence Translation and Perceus
-
-Koka compiles directly to plain C code without needing a garbage collector or runtime system.
-There are two crucial ingredients to make this possible: evidence translation and Perceus.
-
-## Evidence translation
-
-As described in the paper _Effect Handlers, Evidently_, Xie _et al._ [[6]](#references) show how to translate algebraic effect handlers at compilation
-time down to pure lambda calculus where all control flow is explicit again. This is done by Koka to remove any dependence on
-runtime mechanisms like split-stacks (as in Multi-core OCaml) or C stack copying [[7]](#references). Moreover, as the evidence for each handler
-is passed down to the call site, all _tail-resumptive_ operations can be executed in-place without needing to do an expensive
-yield- and resume. This makes the cost of tail-resumptive operations on effects comparable to a virtual method call.
-
-## Perceus
-
-Even a purely functional core intermediate language with explicit control flow is not yet enough to compile to C directly: without manual memory
-management functional languages still need a (tracing) garbage collector (like OCaml or Haskell). A well performing concurrent generational
-garbage collector is very hard to build and is invasive as it needs to be able to scan the roots and stack. Even the best garbage collectors
-still suffer from unpredictable latencies (especially with large live sets) and tend to require (much) more memory than achievable with
-manual memory management (as with C/C++ and Rust).
-
-With Koka we took a novel approach based on reference counting. The usual wisdom is that  reference counting does not perform well due to various factors but
-in Koka we believe we can do better: 1) we know that all inductive and co-inductive datatypes are never cyclic so we can identify potential cycle introducing
-datatypes statically (like mutable references, and these are not so often used in mostly functional Koka), 2) again due to the strict type system
-we can statically track which values may become shared across threads and avoid expensive atomic operations for the majority of operations, and
-finally 3) due to the explicit control-flow we can do deep analysis on variable life times.
-
-In particular, we use aggressive static analysis to insert _precise_ reference count instructions where memory is freed as soon as
-it is no longer live. We call this _garbage free_ reference counting. In particular, we do not hold on to memory based on
-lexical scope as in almost all reference counting implementations in the wild, like Swift, Nim, Python, C++ with `shared_ptr`, Rust with `Rc<T>` etc).
-
-[Perceus](https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf) stands
-for _Precise automatic reference counting with reuse and specialization_: the _reuse_ component transform functional style pattern matches
-into _in-place update_ when possible, while _specialization_ specialize the reference counting based on the call sites and
-removes most rc operations in the fast path. For example, a simple `map` function:
-```koka
-fun map( xs : list<a>, f : a -> e b ) : e list<b> {
-  match(xs) {
-    Cons(x,xx) -> Cons( f(x), map(xx,f) )
-    Nil        -> Nil
-  }
-}
-```
-will update the list _in place_ (reusing the `Cons` nodes that are matched) if the list happens to be not shared (and makes a copy otherwise).
-This dynamically adjust the program from in-place update to persistence and is the main reason why it can approach the performance of
-hand-optimized C++ on the balanced tree benchmark.
--->
-
-# Tasks
-
-Please help develop Koka: there are many opportunities to improve Koka or do research with Koka. We need:
-
-- Emacs and Vim syntax highlighting.
-- Improve documentation, landing page etc. Make it easier for people to contribute.
-- More examples
-- Many library modules are incomplete (like `std/os/file`) or missing (like `std/data/map`).
-
-More advanced projects:
-
-- Update the JavaScript backend to 1) use proper modules instead of amdefine, 2) use the new bigints instead of bigint.js,
-  and 3) add support for int64. This requires mostly changes to `Backend/JS/FromCore.hs` together with `lib/core/core-inline.js`.
-- A language server for Visual Studio Code and Atom. Koka can already generate a typed [range map](src/Syntax/RangeMap.hs) so this
-  should be managable.
-- Package management of Koka modules.
-- Implement inline specialization where functions like `map`, `fold` etc get specialized for the function with which they are called.
-  This is an important optimization for functional style languages to reduce the allocation of lambda's.
-- Various standard optimizations like case-of-case, join points, case-of-known constructor, etc.
-- Borrowing analysis for Perceus.
-- Known reference count specialization.
-
-The following is the immediate todo list to be completed in the coming months:
-
-- Port all libray modules, in particular `std/text/regex` (using PCRE), and `std/async` (using `libuv`).
-- Run the full test suite again.
-- Run the Bayesian probalistic machine learning program with large parameters.
-- Improve compilation of local state to use local variables directly (in C).
-- Functions with a pattern match in the argument.
-
-Contact me if you are interested in tackling some of these :-)
-
-Main branches:
-- `master`: latest stable version.
-- `dev`: current development branch -- submit PR's to this branch.
-- `v1-master`: last stable version of Koka v1: this is Koka with the Javascript (and C#) backend which does not use evidence translation.
-               This version supports `std/async` and should compile examples from published papers.
 
 
 # References
