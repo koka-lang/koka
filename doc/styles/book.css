@@ -167,10 +167,10 @@ html {
 
 .banners .banner {
   width: calc(50% - 2.5em);
-  min-width: 16em;
+  min-width: 18em;
   padding: 0em 1em;
   margin-bottom: 1em;
-  border: 1px solid #AAA;
+  /* border: 1px solid #AAA; */
   /* background-color: #faf9f8; */
   /* border-radius: 1em; */
 }
@@ -192,3 +192,13 @@ html {
 	/* margin: 0ex aute; */
 	display: block;
 	margin: 0pt;
+}
+
+/*
+.sidepanel {
+  background: linear-gradient(0.25turn,#105A65,#1095a4);
+}
+.sidepanel, .sidepanel a {
+	color: white !important;
+}
+*/
