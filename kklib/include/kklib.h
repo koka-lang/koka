@@ -2,6 +2,8 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
+#define KKLIB_BUILD 7
+
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.
 
@@ -52,6 +54,7 @@ typedef enum kk_tag_e {
   KK_TAG_FLOAT,       // boxed IEEE float  (32-bit)  (on 32-bit platforms)
   KK_TAG_CFUNPTR,     // C function pointer
   KK_TAG_SIZE_T,      // boxed size_t
+  KK_TAG_EVV_VECTOR,  // evidence vector (used in std/core/hnd)
   // raw tags have a free function together with a `void*` to the data
   KK_TAG_CPTR_RAW,    // full void* (must be first, see kk_tag_is_raw())
   KK_TAG_STRING_RAW,  // pointer to a valid UTF8 string
@@ -220,7 +223,7 @@ static inline void kk_block_set_invalid(kk_block_t* b) {
 }
 
 static inline bool kk_block_is_valid(kk_block_t* b) {
-  return (b != NULL && kk_block_field(b, 0).box != KK_BLOCK_INVALID); // already freed!
+  return (b != NULL && ((uintptr_t)b&1)==0 && kk_block_field(b, 0).box != KK_BLOCK_INVALID); // already freed!
 }
 
 /*--------------------------------------------------------------------------------------
@@ -243,6 +246,13 @@ typedef kk_datatype_t kk_vector_t;
 
 // Strong random number context (using chacha20)
 struct kk_random_ctx_s;
+
+// High precision duration.
+typedef struct kk_duration_s {
+  double seconds;
+  double second_fraction;
+} kk_duration_t;
+
 
 // Box any is used when yielding
 typedef struct kk_box_any_s {
@@ -268,18 +278,15 @@ typedef struct kk_yield_s {
                                           // entry points to its composition.
 } kk_yield_t;
 
-// High precision duration.
-typedef struct kk_duration_s {
-  double seconds;
-  double second_fraction;
-} kk_duration_t;
+extern kk_ptr_t kk_evv_empty_singleton;
 
+     
 // The thread local context.
 // The fields `yielding`, `heap` and `evv` should come first for efficiency
 typedef struct kk_context_s {
   uint8_t        yielding;         // are we yielding to a handler? 0:no, 1:yielding, 2:yielding_final (e.g. exception) // put first for efficiency
   kk_heap_t      heap;             // the (thread-local) heap to allocate in; todo: put in a register?
-  kk_vector_t    evv;              // the current evidence vector for effect handling: vector for size 0 and N>1, direct evidence for one element vector
+  kk_ptr_t       evv;              // the current evidence vector for effect handling: vector for size 0 and N>1, direct evidence for one element vector
   kk_yield_t     yield;            // inlined yield structure (for efficiency)
   int32_t        marker_unique;    // unique marker generation
   kk_block_t*    delayed_free;     // list of blocks that still need to be freed
@@ -805,7 +812,7 @@ static inline void kk_datatype_decref(kk_datatype_t d, kk_context_t* ctx) {
 
 
 #define kk_datatype_from_base(b)               (kk_datatype_from_ptr(&(b)->_block))
-#define kk_datatype_from_constructor(b)        (kk_datatype_from_base(&(b)->base))
+#define kk_datatype_from_constructor(b)        (kk_datatype_from_base(&(b)->_base))
 #define kk_datatype_as(tp,v)                   (kk_block_as(tp,kk_datatype_as_ptr(v)))
 #define kk_datatype_as_assert(tp,v,tag)        (kk_block_assert(tp,kk_datatype_as_ptr(v),tag))
 
@@ -878,6 +885,14 @@ static inline kk_integer_t kk_gen_unique(kk_context_t* ctx) {
 }
 
 
+kk_decl_export void kk_fatal_error(int err, const char* msg, ...);
+kk_decl_export void kk_warning_message(const char* msg, ...);
+kk_decl_export void kk_info_message(const char* msg, ...);
+
+static inline void kk_unsupported_external(const char* msg) {
+  kk_fatal_error(ENOSYS, "unsupported external: %s", msg);
+}
+
 
 /*--------------------------------------------------------------------------------------
   Value tags
@@ -932,6 +947,99 @@ static inline kk_function_t kk_function_dup(kk_function_t f) {
 }
 
 
+
+/*--------------------------------------------------------------------------------------
+  Vector
+--------------------------------------------------------------------------------------*/
+
+typedef struct kk_vector_large_s {  // always use a large block for a vector so the offset to the elements is fixed
+  struct kk_block_large_s _base;
+  kk_box_t                vec[1];               // vec[(large_)scan_fsize]
+} *kk_vector_large_t;
+
+
+static inline kk_vector_t kk_vector_empty(void) {
+  return kk_datatype_from_tag(1);
+}
+
+static inline kk_vector_large_t kk_vector_as_large(kk_vector_t v) {
+  if (kk_datatype_is_singleton(v)) {
+    return NULL;
+  }
+  else {
+    return kk_datatype_as_assert(kk_vector_large_t, v, KK_TAG_VECTOR);
+  }
+}
+
+static inline void kk_vector_drop(kk_vector_t v, kk_context_t* ctx) {
+  kk_datatype_drop(v, ctx);
+}
+
+static inline kk_vector_t kk_vector_dup(kk_vector_t v) {
+  return kk_datatype_dup(v);
+}
+
+static inline kk_vector_t kk_vector_alloc(size_t length, kk_box_t def, kk_context_t* ctx) {
+  if (length==0) {
+    return kk_vector_empty();
+  }
+  else {
+    kk_vector_large_t v = (kk_vector_large_t)kk_block_large_alloc(sizeof(struct kk_vector_large_s) + (length-1)*sizeof(kk_box_t), length + 1 /* kk_large_scan_fsize */, KK_TAG_VECTOR, ctx);
+    if (def.box != kk_box_null.box) {
+      for (size_t i = 0; i < length; i++) {
+        v->vec[i] = def;
+      }
+    }
+    return kk_datatype_from_base(&v->_base);
+  }
+}
+
+static inline size_t kk_vector_len(const kk_vector_t vd) {
+  kk_vector_large_t v = kk_vector_as_large(vd);
+  if (v==NULL) return 0;
+  size_t len = kk_enum_unbox(v->_base.large_scan_fsize) - 1;
+  kk_assert_internal(len + 1 == kk_block_scan_fsize(&v->_base._block));
+  kk_assert_internal(len + 1 != 0);
+  return len;
+}
+
+static inline kk_box_t* kk_vector_buf(kk_vector_t vd, size_t* len) {
+  if (len != NULL) *len = kk_vector_len(vd);
+  kk_vector_large_t v = kk_vector_as_large(vd);
+  if (v==NULL) return NULL;
+  return &(v->vec[0]);
+}
+
+static inline kk_box_t kk_vector_at(const kk_vector_t v, size_t i) {
+  kk_assert(i < kk_vector_len(v));
+  return kk_box_dup(kk_vector_buf(v, NULL)[i]);
+}
+
+static inline kk_box_t kk_vector_box(kk_vector_t v, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+  return kk_datatype_box(v);
+}
+
+static inline kk_vector_t kk_vector_unbox(kk_box_t v, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+  return kk_datatype_unbox(v);
+}
+
+
+static inline kk_vector_t kk_vector_realloc(kk_vector_t vec, size_t newlen, kk_box_t def, kk_context_t* ctx) {
+  size_t len;
+  kk_box_t* src = kk_vector_buf(vec, &len);
+  if (len == newlen) return vec;
+  kk_vector_t vdest = kk_vector_alloc(newlen, def, ctx);
+  kk_box_t* dest    = kk_vector_buf(vdest,NULL);
+  const size_t n = (len > newlen ? newlen : len);
+  for (size_t i = 0; i < n; i++) {
+    dest[i] = kk_box_dup(src[i]);
+  }
+  kk_vector_drop(vec, ctx);
+  return vdest;
+} 
+ 
 /*--------------------------------------------------------------------------------------
   References
 --------------------------------------------------------------------------------------*/
@@ -1001,14 +1109,28 @@ static inline kk_unit_t kk_ref_set(kk_ref_t r, kk_box_t value, kk_context_t* ctx
   return kk_Unit;
 }
 
-
-kk_decl_export void kk_fatal_error(int err, const char* msg, ...);
-kk_decl_export void kk_warning_message(const char* msg, ...);
-kk_decl_export void kk_info_message(const char* msg, ...);
-
-static inline void kk_unsupported_external(const char* msg) {
-  kk_fatal_error(ENOSYS,"unsupported external: %s", msg);
+static inline kk_unit_t kk_ref_vector_assign(kk_ref_t r, kk_integer_t idx, kk_box_t value, kk_context_t* ctx) {
+  if (kk_likely(r->_block.header.thread_shared == 0)) {
+    // fast path
+    kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
+    kk_vector_t v = kk_vector_unbox(b, ctx);
+    size_t len;
+    kk_box_t* p = kk_vector_buf(v, &len);
+    size_t i = kk_integer_clamp_size_t(idx,ctx);
+    if (i < len) {
+      kk_box_drop(p[i], ctx);
+      p[i] = value;
+    }  // TODO: return status for out-of-bounds access
+    kk_ref_drop(r, ctx);    // TODO: make references borrowed
+    return kk_Unit;
+  }
+  else {
+    // thread shared
+    kk_unsupported_external("kk_ref_vector_assign with a thread-shared reference");
+    return kk_Unit;
+  }
 }
+
 
 
 /*--------------------------------------------------------------------------------------
@@ -1025,82 +1147,6 @@ static inline kk_unit_t kk_unit_unbox(kk_box_t u) {
   return kk_Unit; // (kk_unit_t)kk_enum_unbox(u);
 }
 
-/*--------------------------------------------------------------------------------------
-  Vector
---------------------------------------------------------------------------------------*/
-
-typedef struct kk_vector_large_s {  // always use a large block for a vector so the offset to the elements is fixed
-  struct kk_block_large_s _base;
-  kk_box_t                vec[1];               // vec[(large_)scan_fsize]
-} *kk_vector_large_t;
-
-
-static inline kk_vector_t kk_vector_empty(void) {
-  return kk_datatype_from_tag(1);
-}
-
-static inline kk_vector_large_t kk_vector_as_large(kk_vector_t v) {
-  if (kk_datatype_is_singleton(v)) {
-    return NULL;
-  }
-  else {
-    return kk_datatype_as_assert(kk_vector_large_t, v, KK_TAG_VECTOR);
-  }
-}
-
-static inline void kk_vector_drop(kk_vector_t v, kk_context_t* ctx) {
-  kk_datatype_drop(v, ctx);
-}
-
-static inline kk_vector_t kk_vector_dup(kk_vector_t v) {
-  return kk_datatype_dup(v);
-}
-
-static inline kk_vector_t kk_vector_alloc(size_t length, kk_box_t def, kk_context_t* ctx) {
-  if (length==0) {
-    return kk_vector_empty();
-  }
-  else {
-    kk_vector_large_t v = (kk_vector_large_t)kk_block_large_alloc(sizeof(struct kk_vector_large_s) + (length-1)*sizeof(kk_box_t), length + 1 /* kk_large_scan_fsize */, KK_TAG_VECTOR, ctx);
-    if (def.box != kk_box_null.box) {
-      for (size_t i = 0; i < length; i++) {
-        v->vec[i] = def;
-      }
-    }
-    return kk_datatype_from_base(&v->_base);
-  }
-}
-
-static inline size_t kk_vector_len(const kk_vector_t vd) {
-  kk_vector_large_t v = kk_vector_as_large(vd);
-  if (v==NULL) return 0;
-  size_t len = kk_enum_unbox( v->_base.large_scan_fsize ) - 1;
-  kk_assert_internal(len + 1 == kk_block_scan_fsize(&v->_base._block));
-  kk_assert_internal(len + 1 != 0);
-  return len;
-}
-
-static inline kk_box_t* kk_vector_buf(kk_vector_t vd, size_t* len) {
-  if (len != NULL) *len = kk_vector_len(vd);
-  kk_vector_large_t v = kk_vector_as_large(vd);
-  if (v==NULL) return NULL;
-  return &(v->vec[0]);
-}
-
-static inline kk_box_t kk_vector_at(const kk_vector_t v, size_t i) {
-  kk_assert(i < kk_vector_len(v));
-  return kk_box_dup(kk_vector_buf(v,NULL)[i]);
-}
-
-static inline kk_box_t kk_vector_box(kk_vector_t v, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
-  return kk_datatype_box(v);
-}
-
-static inline kk_vector_t kk_vector_unbox(kk_box_t v, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
-  return kk_datatype_unbox(v);
-}
 
 /*--------------------------------------------------------------------------------------
   Bytes

@@ -13,6 +13,7 @@ module Core.Pretty( prettyCore, prettyExpr, prettyPattern, prettyDef, prettyDefs
 
 import Lib.Trace
 import Data.Char( isAlphaNum )
+import qualified Data.Set as S
 import Common.Name
 import Common.ColorScheme
 import Common.Syntax
@@ -63,7 +64,7 @@ prettyCore env0 inlineDefs core@(Core name imports fixDefs typeDefGroups defGrou
     prettyDefName env name <->
     (vcat $ concat $
       [ separator "import declarations"
-      , map (prettyImport envX) (imports) -- ++ extraImports)
+      , map (prettyImport envX) (imports)
       , separator "fixity declarations"
       , map (prettyFixDef envX) fixDefs
       , separator "local imported aliases"
@@ -77,7 +78,7 @@ prettyCore env0 inlineDefs core@(Core name imports fixDefs typeDefGroups defGrou
       , separator "inline definitions"
       , if (coreInlineMax env0 < 0 || not (coreIface env0) || null inlineDefs)
          then []
-         else [text ".inline"] ++
+         else [text "//.inline-section"] ++
               -- map (prettyInlineDefGroup env1{coreInlineMax = coreInlineMax env0}) defGroups
                map (prettyInlineDef env1) inlineDefs
       ]
@@ -91,6 +92,9 @@ prettyCore env0 inlineDefs core@(Core name imports fixDefs typeDefGroups defGrou
   where
     separator msg = if (not (coreIface env0)) then []
                      else [text " ", text "//------------------------------", text ("//#kki: " ++ msg), text " "]
+
+    --realImports = let deps = dependencies inlineDefs core
+    --              in filter (\imp -> S.member (importName imp) deps) imports
 
     allDefs     = flattenDefGroups defGroups
     allTypeDefs = flattenTypeDefGroups typeDefGroups
@@ -122,7 +126,7 @@ prettyFixDef env (FixDef name fixity)
        FixInfix fix assoc -> ppAssoc assoc <+> pretty fix
        FixPrefix          -> text "prefix"
        FixPostfix         -> text "postfix")
-    <+> prettyDefName env name
+    <+> prettyDefName env name <.> semi
   where
     ppAssoc AssocLeft    = text "infixl"
     ppAssoc AssocRight   = text "infixr"
@@ -138,10 +142,10 @@ prettyExternal env (External name tp body vis nameRng doc) | coreIface env && is
 prettyExternal env (External name tp body vis nameRng doc)
   = prettyComment env doc $
     prettyVis env vis $
-    keyword env "external" <+> prettyDefName env name <+> text ":" <+> prettyType env tp <+> prettyEntries body
+    keyword env "extern" <+> prettyDefName env name <+> text ":" <+> prettyType env tp <+> prettyEntries body
   where
     prettyEntries [(Default,content)] = keyword env "= inline" <+> prettyLit env (LitString content) <.> semi
-    prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "}"
+    prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "};"
     prettyEntry (target,content)      = ppTarget env target <.> keyword env "inline" <+> prettyLit env (LitString content) <.> semi
 
 prettyExternal env (ExternalInclude includes range)
@@ -213,15 +217,15 @@ prettyInlineDef env isRec def@(Def name scheme expr vis sort inl nameRng doc)
 
 prettyInlineDef :: Env ->  InlineDef -> Doc
 prettyInlineDef env (InlineDef name expr isRec cost)
-  = keyword env (if isFun then "fun" else "val")
-    <.> (if (cost <= 0) then (space <.> keyword env "inline") else empty)
-    <.> (if isRec then (space <.> keyword env "rec") else empty)
+  =     (if isRec then (keyword env "recursive ") else empty)
+    <.> (if (cost <= 0) then (keyword env "inline ") else empty)
+    <.> keyword env (if isFun then "fun" else "val")
     <+> (if nameIsNil name then text "_" else prettyDefName env name)
     -- <+> text ":" <+> prettyType env scheme
     <+> text ("// inline size: " ++ show cost)
     <.> linebreak <.> indent 2 (text "=" <+> prettyExpr env{coreShowVis=False,coreShowDef=True} expr) <.> semi
   where
-    isFun = case expr of 
+    isFun = case expr of
               TypeLam _ (Lam _ _ _) -> True
               Lam _ _ _             -> True
               _                     -> False
@@ -270,7 +274,7 @@ prettyExpr env lam@(Lam tnames eff expr)
     keyword env "fun" <.>
       (if isTypeTotal eff then empty else text "<" <.> prettyType env' eff <.> text ">") <.>
       tupled [prettyTName env' tname | tname <- tnames] <.> text "{" <-->
-      tab (prettyExpr env expr) <-->
+      tab (prettyExpr env expr <.> semi) <-->
       text "}"
   where
     env'  = env { prec = precTop }
@@ -336,7 +340,8 @@ prettyExpr env (Case exprs branches)
     tab (prettyBranches env branches) <--> text "}"
 
 prettyVar env tname
-  = prettyName env (getName tname) -- <.> braces (ppType env{ prec = precTop } (typeOf tname))
+  = prettyName env (getName tname)
+    -- <.> braces (ppType env{ prec = precTop } (typeOf tname))
 
 {--------------------------------------------------------------------------
   Case branches

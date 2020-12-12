@@ -40,7 +40,7 @@ fun test-week-dates() {
       (Date(2010,01,01),weekdate(2009,53,Fri),Date(2009,12,36)),
       (Date(2010,01,02),weekdate(2009,53,Sat),Date(2009,12,37)),
       (Date(2010,01,03),weekdate(2009,53,Sun),Date(2009,12,38))]
-  dates.foreach( fun(dwdmd) {
+  dates.foreach( fn(dwdmd) {
     val (d,wd,md) = dwdmd
     val ds = d.show
     val wds = wd.show
@@ -68,8 +68,8 @@ fun test-week-in-years() {
 201, 207, 212, 218, 224, 229, 235, 240, 246, 252, 257, 263, 268, 274, 280, 285, 291, 296,
 303, 308, 314, 320, 325, 331, 336, 342, 348, 353, 359, 364, 370, 376, 381, 387, 392, 398
   ]
-  list(2000,2399).foreach( fun(year) {
-    val weeks = if (long-years.find(fun(y) { (2000+y)==year }).bool) then 53 else 52
+  list(2000,2399).foreach( fn(year) {
+    val weeks = if (long-years.find(fn(y) { (2000+y)==year }).bool) then 53 else 52
     // check("year-" + year.show, weeks.show) { time(year).weeks-in-year.show }
 
     check("isow-" + year.show, weeks.show) {
@@ -86,8 +86,8 @@ fun test-week-in-years() {
 
 
 fun test-day-in-year() {
-  list(1999,2004).foreach(fun(year) {
-    list(1,365).foreach( fun(doy) {
+  list(1999,2004).foreach(fn(year) {
+    list(1,365).foreach( fn(doy) {
       val d = Date(year,1,doy)
       val t = time(d)
       check("doy-" + t.show, doy.show) { t.day-of-year.show }

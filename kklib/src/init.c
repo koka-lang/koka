@@ -5,6 +5,7 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
+//#define _CRT_SECURE_NO_WARNINGS
 #include "kklib.h"
 #include <stdarg.h>
 #ifdef _WIN32
@@ -34,8 +35,15 @@ kk_function_t kk_function_null(kk_context_t* ctx) {
 
 
 // null functions
-void kk_free_fun_null(void* p) {
+void kk_free_fun_null(void* p, kk_block_t* b) {
   KK_UNUSED(p);
+  KK_UNUSED(b);
+}
+
+// free memory
+void kk_free_fun(void* p, kk_block_t* b) {
+  KK_UNUSED(b);
+  kk_free(p);
 }
 
 
@@ -154,6 +162,9 @@ static void kklib_init(void) {
   __has_lzcnt  = ((cpu_info[2] & (KI32(1)<<5)) != 0);
 #endif
   atexit(&kklib_done);
+  //fexcept_t fexn;
+  //fesetexceptflag(&fexn, FE_ALL_EXCEPT);
+  //_controlfp(_EM_INEXACT|_EM_OVERFLOW|_EM_UNDERFLOW, _MCW_EM);
 }
 
 /*--------------------------------------------------------------------------------------------------
@@ -162,6 +173,12 @@ static void kklib_init(void) {
 
 // The thread local context; usually passed explicitly for efficiency.
 static kk_decl_thread kk_context_t* context;
+
+
+static struct { kk_block_t _block; kk_integer_t cfc; } kk_evv_empty_static = {
+  { KK_HEADER_STATIC(1,KK_TAG_EVV_VECTOR) }, { (KIP(-1)^0x02) /*==-1 smallint*/}
+};
+kk_ptr_t kk_evv_empty_singleton = &kk_evv_empty_static._block;
 
 // Get the thread local context (also initializes on demand)
 kk_context_t* kk_get_context(void) {
@@ -175,7 +192,7 @@ kk_context_t* kk_get_context(void) {
 #else
   ctx = (kk_context_t*)calloc(1, sizeof(kk_context_t));
 #endif
-  ctx->evv = kk_vector_empty();
+  ctx->evv = kk_block_dup(kk_evv_empty_singleton);
   ctx->thread_id = (uintptr_t)(&context);
   ctx->unique = kk_integer_one;
   context = ctx;
@@ -186,7 +203,7 @@ kk_context_t* kk_get_context(void) {
 
 static void free_context(void) {
   if (context != NULL) {
-    kk_vector_drop(context->evv, context);
+    kk_block_drop(context->evv, context);
     kk_basetype_free(context->kk_box_any);
     // kk_basetype_drop_assert(context->kk_box_any, KK_TAG_BOX_ANY, context);
     // TODO: process delayed_free
@@ -208,7 +225,7 @@ static void free_context(void) {
 kk_decl_export kk_context_t* kk_main_start(int argc, char** argv) {
   kk_context_t* ctx = kk_get_context();
   // process kklib options
-  if (argv != NULL && argc > 1) {
+  if (argv != NULL && argc >= 1) {
     size_t i;
     for (i = 1; i < (size_t)argc; i++) {   // argv[0] is the program name
       const char* arg = argv[i];
@@ -239,7 +256,7 @@ kk_decl_export void  kk_main_end(kk_context_t* ctx) {
     size_t page_reclaim;
     size_t peak_commit;
     kk_process_info(&user_time, &sys_time, &peak_rss, &page_faults, &page_reclaim, &peak_commit);
-    kk_info_message("elapsed: %ld.%03lds, user: %ld.%03lds, sys: %ld.%03lds, rss: %lu%s", 
+    kk_info_message("elapsed: %ld.%03lds, user: %ld.%03lds, sys: %ld.%03lds, rss: %lu%s\n", 
                     (long)(wall_time/1000000), (long)((wall_time%1000000)/1000), 
                     user_time/1000, user_time%1000, sys_time/1000, sys_time%1000, 
                     (peak_rss > 10*1024*1024 ? peak_rss/(1024*1024) : peak_rss/1024),

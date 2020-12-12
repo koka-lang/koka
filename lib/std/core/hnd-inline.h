@@ -12,31 +12,58 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 struct kk_std_core_hnd__ev_s;
-typedef kk_vector_t kk_evv_t;         // either a vector, or a single evidence
+static inline struct kk_std_core_hnd__ev_s* kk_std_core_hnd__ev_dup(struct kk_std_core_hnd__ev_s* _x);
 
-static inline bool kk_evv_is_vector(kk_evv_t evv) {
-  return (kk_datatype_is_singleton(evv) || kk_datatype_has_tag(evv,KK_TAG_VECTOR));
-}
+typedef struct kk_evv_vector_s {  
+  struct kk_block_s             _block;
+  kk_integer_t                  cfc;       // control flow context (0-3) as a small int
+  struct kk_std_core_hnd__ev_s* vec[1];
+} *kk_evv_vector_t;
+
+
+typedef kk_ptr_t kk_evv_t;   // either a kk_evv_vector_t, or a single evidence
 
 static inline kk_evv_t kk_evv_dup(kk_evv_t evv) {
-  return kk_datatype_dup(evv);  
+  return kk_block_dup(evv);  
 }
 
 static inline void kk_evv_drop(kk_evv_t evv, kk_context_t* ctx) {
-  kk_datatype_drop(evv,ctx);
+  kk_block_drop(evv,ctx);
+}
+
+static inline kk_evv_t kk_evv_empty(kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+  return kk_evv_dup(kk_evv_empty_singleton);
+}
+
+static inline bool kk_evv_is_empty(kk_evv_t evv) {
+  return (evv == kk_evv_empty_singleton);
+}
+
+static inline bool kk_evv_is_vector(kk_evv_t evv) {
+  return kk_block_has_tag(evv,KK_TAG_EVV_VECTOR);
+}
+
+static inline struct kk_std_core_hnd__ev_s* kk_evv_as_ev( kk_evv_t evv ) {
+  kk_assert_internal(!kk_evv_is_vector(evv));
+  return (struct kk_std_core_hnd__ev_s*)evv;
+}
+
+static inline kk_evv_vector_t kk_evv_as_vector( kk_evv_t evv ) {
+  kk_assert_internal(kk_evv_is_vector(evv));
+  return (kk_evv_vector_t)evv;
 }
 
 static inline struct kk_std_core_hnd__ev_s* kk_evv_at( size_t i, kk_context_t* ctx ) {
-  // todo: make this faster by 1) use a value type for `ev`, and 2) inline the evv at the end of the context?
-  const kk_evv_t evv = ctx->evv;
-  if (kk_evv_is_vector(evv)) {
-    return kk_basetype_unbox_as(struct kk_std_core_hnd__ev_s*,kk_vector_at(evv,i));
-  }
-  else {    
+  kk_evv_t evv = ctx->evv;
+  if (!kk_evv_is_vector(evv)) {  // evv is a single evidence
     kk_assert_internal(i==0);
-    kk_assert_internal(kk_datatype_is_ptr(evv));
-    kk_evv_dup(evv);
-    return kk_datatype_as(struct kk_std_core_hnd__ev_s*, evv); // single evidence    
+    return kk_evv_as_ev(kk_evv_dup(evv));
+  }
+  else {  // evv as a vector
+    kk_assert_internal(i < (kk_block_scan_fsize(evv) - 1));
+    kk_evv_vector_t vec = kk_evv_as_vector(evv);
+    return kk_std_core_hnd__ev_dup(vec->vec[i]); 
   }
 }
 
@@ -51,20 +78,20 @@ static inline kk_unit_t kk_evv_set(kk_evv_t evv, kk_context_t* ctx) {
 }
 
 static inline kk_evv_t kk_evv_swap(kk_evv_t evv, kk_context_t* ctx) {
-  kk_vector_t evv0 = ctx->evv;
+  kk_ptr_t evv0 = ctx->evv;
   ctx->evv = evv;
   return evv0;
 }
 
 static inline bool kk_evv_eq(kk_evv_t evv1, kk_evv_t evv2, kk_context_t* ctx) {  // TODO:make borrowing
-  bool eq = kk_datatype_eq(evv1,evv2);  
+  bool eq = (evv1 == evv2);
   kk_evv_drop(evv1,ctx);
   kk_evv_drop(evv2,ctx);
   return eq;
 }
 
 static inline kk_evv_t kk_evv_total(kk_context_t* ctx) {
-  return kk_vector_empty();
+  return kk_evv_empty(ctx);
 }
 
 static inline kk_evv_t kk_evv_swap_create0(kk_context_t* ctx) {
@@ -74,7 +101,7 @@ static inline kk_evv_t kk_evv_swap_create0(kk_context_t* ctx) {
 static inline kk_evv_t kk_evv_swap_create1(size_t i, kk_context_t* ctx) {
   kk_evv_t evv0 = ctx->evv;  
   if (kk_evv_is_vector(evv0)) {
-    ctx->evv = kk_datatype_from_ptr(kk_ptr_unbox(kk_vector_at(evv0,i))); // set single evidence
+    ctx->evv = (kk_block_t*)kk_evv_at(i, ctx); // cast as ev struct is not defined yet 
     return evv0;
   }
   else {      
@@ -83,7 +110,6 @@ static inline kk_evv_t kk_evv_swap_create1(size_t i, kk_context_t* ctx) {
   }
 }
 
-
 struct kk_std_core_hnd_Htag;
 struct kk_std_core_hnd_Marker;
 struct kk_std_core_hnd_yld_s;
@@ -91,6 +117,7 @@ struct kk_std_core_hnd_yld_s;
 
 struct kk_std_core_hnd__ev_s* kk_ev_none(kk_context_t* cxt);
 struct kk_std_core_hnd__ev_s* kk_evv_lookup( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx );
+int32_t         kk_evv_cfc(kk_context_t* ctx);
 size_t          kk_evv_index( struct kk_std_core_hnd_Htag htag, kk_context_t* ctx );
 kk_evv_t        kk_evv_create(kk_evv_t evv, kk_vector_t indices, kk_context_t* ctx);
 kk_evv_t        kk_evv_insert(kk_evv_t evv, struct kk_std_core_hnd__ev_s* ev, kk_context_t* ctx);

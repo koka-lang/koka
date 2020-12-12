@@ -19,7 +19,7 @@ fun main() {
                test-ovf, test-underfl, test-denormal,
                test-denormal-big].concat
 
-  tests.foreach-indexed fun(i,t) {
+  tests.foreach-indexed fn(i,t) {
     match(t) {
       Ldexp(frac,exp,exp2,expect) -> {
         val x0 = ldexp(frac,exp)

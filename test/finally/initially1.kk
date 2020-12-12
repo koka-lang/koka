@@ -1,27 +1,28 @@
 // Test initially
 
 fun bar() {
-	println("action");
-	42
+  println("action");
+  42
 }
 
 fun foo()
 {
-	handle(bar) (l : int) {
-		initially -> {
-			println("initially")
-			0
-		}
-		return x -> {
-			println("return, local=" + l.show)
-			x
-		}
-		finally  -> {
-			println("finally, local=" + l.show)
-		}
-	}
+  var i := 42
+  with handler {
+    initially (r){
+      println("initially: " + r.show)
+    }
+    return (x){
+      println("return, local=" + i.show)
+      x
+    }
+    finally {
+      println("finally, local=" + i.show)
+    }
+  }
+  bar()
 }
 
 fun main() {
-	foo().println
+  foo().println
 }

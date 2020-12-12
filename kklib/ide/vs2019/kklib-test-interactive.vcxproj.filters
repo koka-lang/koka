@@ -12,21 +12,8 @@
     <ClCompile Include="..\..\..\out\Debug\std_num_ddouble.c" />
     <ClCompile Include="..\..\..\out\Debug\std_num_decimal.c" />
     <ClCompile Include="..\..\..\out\Debug\std_num_double.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_effects_dash_and_dash_types.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_exn_dash_get.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_exponents.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_handlers.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_main.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_model_dash_resources.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_output_dash_and_dash_plot.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_sampling.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_sequential.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_trace.c" />
     <ClCompile Include="..\..\..\out\Debug\std_num_random.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_time_date.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_time_duration.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_time_instant.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_time_timer.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_time_timestamp.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_os_env.c" />
+    <ClCompile Include="..\..\..\out\Debug\samples_named_dash_handlers_file_dash_scoped.c" />
   </ItemGroup>
 </Project>

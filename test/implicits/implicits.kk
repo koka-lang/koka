@@ -4,8 +4,8 @@ implicit val width : int
 
 fun f() {
   //with val width = 78
-  val g = with val width = 80 in (fun(){ width + 1 })
-  val h = fun() { with val width = 80 in width + 1 }
+  val g = with val width = 80 in (fn(){ width + 1 })
+  val h = fn() { with val width = 80 in width + 1 }
   g().println
   h().println
 }
@@ -19,7 +19,7 @@ fun half(action) {
 implicit val emitx : ((s:string) -> io ())
 
 fun emit1(action) {
-  with val emitx = fun( s : string ){ s.println }
+  with val emitx = fn( s : string ){ s.println }
   action()
 }
 
@@ -94,11 +94,11 @@ fun pretty-all2(action) {
 
 fun state2(init,action) {
   val f = with {
-            control get()  { (fun(s) { resume(s)(s) }) }
-            control set(x) { (fun(s) { resume(())(x) }) }
+            control get()  { (fn(s) { resume(s)(s) }) }
+            control set(x) { (fn(s) { resume(())(x) }) }
           } in {
             val x = action()
-            (fun(s) { x })
+            (fn(s) { x })
           }
   f(init)
 }

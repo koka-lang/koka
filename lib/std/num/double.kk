@@ -6,7 +6,7 @@
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/* Various operations on a 64-bit IEEE `:double`.
+/* 64-bit IEEE double floating point numbers.
 
 */
 public module std/num/double
@@ -14,9 +14,9 @@ public module std/num/double
 import std/text/parse
 import std/num/int32
 
-extern include {
-	c file "double-inline.h"
-	js file "double-inline.js"
+include extern {
+  c file "double-inline.h"
+  js file "double-inline.js"
 }
 
 
@@ -97,68 +97,68 @@ val neginf : double = make-neginf()
 //-----------------------------------------
 
 private extern make-nan() : double {
-	c  inline "(double)NAN"
-	cs inline "double.NaN"
-	js inline "NaN"
+  c  inline "(double)NAN"
+  cs inline "double.NaN"
+  js inline "NaN"
 }
 
 private extern make-posinf() : double {
-	c  inline "(double)INFINITY"
-	cs inline "double.PositiveInfinity"
-	js inline "Infinity"
+  c  inline "HUGE_VAL"
+  cs inline "double.PositiveInfinity"
+  js inline "Infinity"
 }
 
 private extern make-neginf() : double {
-	c  inline "-((double)INFINITY)"
-	cs inline "double.NegativeInfinity"
-	js inline "-Infinity"
+  c  inline "-HUGE_VAL"
+  cs inline "double.NegativeInfinity"
+  js inline "-Infinity"
 }
 
 
 // Is this value equal to NaN ?
-extern inline nan? : (double) -> bool {
-	c  inline "isnan(#1)"
+inline extern is-nan : (double) -> bool {
+  c  inline "isnan(#1)"
   cs "double.IsNaN"
   js "isNaN"
 }
 
 // Is this value equal to negative or positive infinity ?
-extern inf? : (double) -> bool {
-	c  inline "isinf(#1)"
+extern is-inf : (double) -> bool {
+  c  inline "isinf(#1)"
   cs "double.IsInfinity"
   js inline "((#1) === Infinity || (#1) === -Infinity)"
 }
 
 // Is this value equal to positive infinity ?
-extern inline posinf? : (double) -> bool {
-	c  inline "((#1)==INFINITY)"
+inline extern is-posinf : (double) -> bool {
+  c  inline "(isinf(#1) && !signbit(#1))"
   cs "double.IsPositiveInfinity"
   js inline "((#1) === Infinity)"
 }
 
 // Is this value equal to negative infinity ?
-extern inline neginf? : (double) -> bool {
-	c inline "((#1)==-INFINITY)"
+inline extern is-neginf : (double) -> bool {
+  c inline "(isinf(#1) && signbit(#1))"
   cs "double.IsNegativeInfinity"
   js inline "((#1) === -Infinity)"
 }
 
 // Is this a finite number (i.e. not `nan` or infinity)
-extern inline finite?( d : double ) : bool {
-	c  inline "isfinite(#1)"
+inline extern is-finite( d : double ) : bool {
+  c  inline "isfinite(#1)"
   cs inline "(!double.IsNaN(#1) && !double.IsInfinity(#1))"
   js "isFinite"
 }
 
 // Is this a negative zero value?
-fun negzero?( d : double ) : bool {
-	(d==0.0 && neginf?(1.0 / d))
+fun is-negzero( d : double ) : bool {
+  (d==0.0 && is-neginf(1.0 / d))
 }
 
 // Is this a [subnormal](https://en.wikipedia.org/wiki/Denormal_number) value?
 // (i.e. `0 < d.abs < dbl-min`)
-fun subnormal?( d :double ) : bool  {
-	(d != 0.0 && d.abs < dbl-min)
+fun is-subnormal( d :double ) : bool  {
+  (d != 0.0 && d.abs < dbl-min)
 }
 
 
@@ -169,22 +169,22 @@ fun subnormal?( d :double ) : bool  {
 
 // Round a double to its nearest integral value.
 // If the value is halfway between two integers, the value is rounded to the even one.
-extern inline round : (d:double) -> double {
-	c  "round"              // assume the rounding mode is set correctly by kklib
+inline extern round : (d:double) -> double {
+  c  "round"              // assume the rounding mode is set correctly by kklib
   cs "Math.Round"
   js "$std_core._double_round"
 }
 
 // Return the largest integer equal or less than `d`
-extern inline floor : (d:double) -> double {
-	c  "floor"
+inline extern floor : (d:double) -> double {
+  c  "floor"
   cs "Math.Floor"
   js "Math.floor"
 }
 
 // Return the smallest integer equal or larger than `d`
-extern inline ceiling : (d:double) -> double {
-	c  "ceil"
+inline extern ceiling : (d:double) -> double {
+  c  "ceil"
   cs "Math.Ceiling"
   js "Math.ceil"
 }
@@ -221,6 +221,13 @@ fun round-to-prec( d : double, prec : int  ) : double {
   }
 }
 
+// fused multiply-add. Computes `(x*y)+z` as if to infinite precision
+// with only the final result rounded back to a `:double`.
+extern fmadd( x : double, y : double, z : double ) : double {
+  c  "fma"
+  js "_fmadd"
+  cs "Math.FusedMultiplyAdd"
+}
 
 //-----------------------------------------
 // Powers
@@ -229,23 +236,23 @@ fun round-to-prec( d : double, prec : int  ) : double {
 // Return the square root of a value `d`
 // Returns `nan` if `d == nan`  or if `d`  is negative.
 // Returns `inf` if `d == inf` .
-extern inline sqrt : (d:double) -> double {
-	c  "sqrt"
+inline extern sqrt : (d:double) -> double {
+  c  "sqrt"
   cs "Math.Sqrt"
   js "Math.sqrt"
 }
 
 
 // Return the `d` raised to the power of `p`.
-extern inline pow : (d:double, p:double) -> double  {
-	c  "pow"
+inline extern pow : (d:double, p:double) -> double  {
+  c  "pow"
   cs "Math.Pow"
   js "Math.pow"
 }
 
 // Return the natural logarithm (in base _e_)  of a `:double` `d`
-extern inline log : (d:double) -> double  {
-	c  "log"
+inline extern log : (d:double) -> double  {
+  c  "log"
   cs "Math.Log"
   js "Math.log"
 }
@@ -261,8 +268,8 @@ fun log2( d : double ) : double {
 }
 
 // Return _e_ to the power of `p`.
-extern inline exp( p : double ) : double {
-	c  "exp"
+inline extern exp( p : double ) : double {
+  c  "exp"
   cs "Math.Exp"
   js "Math.exp"
 }
@@ -281,7 +288,7 @@ fun exp2( p : double ) : double {
 // Avoids potential imprecision for small `x` where adding `1.0` explicitly
 // may lead to rounding errors.
 fun log1p( x : double ) : double {
-  if (x.posinf?) then x else {
+  if (x.is-posinf) then x else {
     val y = 1.0 + x
     val z = y - 1.0
     if (z==0.0) then x else {
@@ -293,7 +300,7 @@ fun log1p( x : double ) : double {
 // Return `exp(x - 1.0)`.
 // Avoids rounding errors for values of `x` very close to `1.0`.
 fun expm1( x : double ) : double {
-  if (x.posinf?) then x else {
+  if (x.is-posinf) then x else {
     val y = exp(x)
     if (y==1.0) then x
     elif (y - 1.0 == -1.0) then -1.0
@@ -322,10 +329,10 @@ fun logaddexp( x : double, y : double ) : double {
 // Returns `log2( exp2(x) + exp2(y) )`.
 // Avoids overlow/underflow errors.
 fun logaddexp2( x : double, y : double ) : double {
-	if (x==y) then x + 1.0 else {
-	val z = x - y
-	if (z > 0.0)	then x + log2p1(exp2(~z))
-		else y + log2p1(exp2(z))
+  if (x==y) then x + 1.0 else {
+    val z = x - y
+    if (z > 0.0)  then x + log2p1(exp2(~z))
+      else y + log2p1(exp2(z))
   }
 }
 
@@ -357,7 +364,7 @@ fun (~=)(x : double, y : double ) : bool {
 
 // Low-level: return the `(lo,hi)` bits of a 64-bit double.
 extern double-to-bits( d : double ) : (int32,int32) {
-	c  "kk_double_to_bits"
+  c  "kk_double_to_bits"
   cs "Primitive.DoubleToBits"
   js "_double_to_bits"
 }
@@ -365,7 +372,7 @@ extern double-to-bits( d : double ) : (int32,int32) {
 
 // Low-level: create a `:double` from the given `lo` and `hi` 32-bits.
 extern double-from-bits( lo : int32, hi : int32 ) : double {
-	c  "kk_double_from_bits"
+  c  "kk_double_from_bits"
   cs "Primitive.DoubleFromBits"
   js "_double_from_bits"
 }
@@ -375,19 +382,19 @@ extern double-from-bits( lo : int32, hi : int32 ) : double {
 fun double-from-bits( lo : int32, hi : int32 ) : double {
   val hifrac = hi & 0xFFFFF.int32
   val exp  = (hi.shr(20.int32) & 0x07FF.int32)
-  val pos? = hi.shr(31.int32).zero?
-  val p = if (lo.zero? && hifrac.zero?) then {
-            if (exp.zero?) then 0.0
+  val is-pos = hi.shr(31.int32).zero?
+  val p = if (lo.is-zero && hifrac.is-zero) then {
+            if (exp.is-zero) then 0.0
             elif (exp==0x7FF.int32) then posinf
             else exp2( (exp - 1023.int32).double )
           }
           else {
             val frac = lo.double + 0x1.0p32 * hifrac.double
-            if (exp.zero?) then frac * exp2( -1074.0 )  // denormalized number
+            if (exp.is-zero) then frac * exp2( -1074.0 )  // denormalized number
             elif (exp==0x7FF.int32) then nan
             else (1.0 + frac * 0x1.0p-52) * exp2( (exp - 1023.int32).double )
           }
-  if (pos?) then p else ~p
+  if (is-pos) then p else ~p
 }
 */
 
@@ -395,9 +402,9 @@ fun double-from-bits( lo : int32, hi : int32 ) : double {
 // Uses efficient bit conversion for exponents between  -1022 and 1023 and
 // otherwise falls back to the regular `exp2` function converting `e` to a double.
 fun exp2( e : int ) : double {
-	if (e >= -1022 && e <= 1023)
-		then double-from-bits(zero, (1023 + e).int32.shl(20.int32))
-		else exp2( e.double )
+  if (e >= -1022 && e <= 1023)
+    then double-from-bits(zero, (1023 + e).int32.shl(20.int32))
+    else exp2( e.double )
 }
 
 
@@ -405,17 +412,17 @@ fun exp2( e : int ) : double {
 // such that `man`&middot;2^`exp`^ =  `d` exactly (if it is representable
 // by a `:double`). See also `ldexp`.
 fun encode( man : int, exp : int ) : double {
-	ldexp(man.double,exp)
+  ldexp(man.double,exp)
 }
 
 private val one-p1023 = 0x1.0p1023
 private val one-m1022 = 0x1.0p-1022   // = dbl-min
 private fun mul-exp2( x : double, e : int ) : double {  x * exp2(e) }
 
-// 'Load exponent': returns `x`&middot;2^`e`^ for a `finite?` `x` and
+// 'Load exponent': returns `x`&middot;2^`e`^ for a `is-finite` `x` and
 // otherwise `x` itself. See also `encode` which loads an integer mantissa.
 fun ldexp( x : double, e : int ) : double {
-  if (!finite?(x)) then x
+  if (!is-finite(x)) then x
   elif (e >= -1022) then {
     if (e <= 1023) then mul-exp2(x,e)  // usually this branch
     elif (e <= 2046) then mul-exp2( x*one-p1023, e - 1023 )
@@ -433,18 +440,18 @@ fun ldexp( x : double, e : int ) : double {
 // such that `m`&middot;2^`e`^ =  `d` exactly. The mantissa `m` is
 // always either 0 or in the range [2^52^, 2^53^). See also `frexp`.
 fun decode( d : double ) : (int,int) {
-	if (d==0.0) then (0,0)
-	elif (d.subnormal?) then decode-normalized(d * 0x1.0p54, -54)
-	else decode-normalized(d,0)
+  if (d==0.0) then (0,0)
+  elif (d.is-subnormal) then decode-normalized(d * 0x1.0p54, -54)
+  else decode-normalized(d,0)
 }
 
 // decode a normalized double (i.e. not subnormal)
 private fun decode-normalized( d : double, e-adjust : int = 0 ) : (int,int) {
-	val (lo,hi)	= double-to-bits(d)
-	val sign	= if (hi.neg?) then -1 else 1
-	val exp	= and(hi.shr(20.int32),0x7FF.int32).int - 1043
-	val man	= and(hi,0xFFFFF.int32).int + 0x100000
-	(sign*(man * 0x100000000 + lo.uint), exp - 32 + e-adjust)
+  val (lo,hi)  = double-to-bits(d)
+  val sign  = if (hi.is-neg) then -1 else 1
+  val exp  = and(hi.shr(20.int32),0x7FF.int32).int - 1043
+  val man  = and(hi,0xFFFFF.int32).int + 0x100000
+  (sign*(man * 0x100000000 + lo.uint), exp - 32 + e-adjust)
 }
 
 // 'Fraction/exponent': return the normalized fraction `f` and exponent `exp`
@@ -453,9 +460,9 @@ private fun decode-normalized( d : double, e-adjust : int = 0 ) : (int,int) {
 // one of `0.0`, `-0.0`, `neginf`, `posinf`, or `nan`.
 // See also `decode` which  decodes to an integer mantissa.
 fun frexp( x : double ) : (double, int) {
-	if (!x.finite? || x.negzero?) return (x,0)
-	val (m,e) = x.decode
-	(m.double * 0x1.0p-53, e + 53  )
+  if (!x.is-finite || x.is-negzero) return (x,0)
+  val (m,e) = x.decode
+  (m.double * 0x1.0p-53, e + 53  )
 }
 
 
@@ -487,15 +494,15 @@ exponent after the `p` is the _decimal_ power of 2.
 .
 */
 fun show-hex( d : double, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) : string {
-	if (!d.finite?) then d.show else {
-		val (m,e)	= d.decode
-		val man	= m.abs.show-hex(1,use-capitals,"")
-		val exp0	= e + 4*(man.count - 1)
-		val exp	= (if (exp0 >= 0) then "+" else "") + exp0.show
-		val frac	= man.tail.trim-right("0").pad-right(max(1,width),'0')
-		val sign	= if (d.neg? || d.negzero?) then "-" else ""
-		sign + pre + man.head + "." + frac + "p" +  exp
-	}
+  if (!d.is-finite) then d.show else {
+    val (m,e)  = d.decode
+    val man  = m.abs.show-hex(1,use-capitals,"")
+    val exp0  = e + 4*(man.count - 1)
+    val exp  = (if (exp0 >= 0) then "+" else "") + exp0.show
+    val frac  = man.tail.trim-right("0").pad-right(max(1,width),'0')
+    val sign  = if (d.is-neg || d.is-negzero) then "-" else ""
+    sign + pre + man.head + "." + frac + "p" +  exp
+  }
 }
 
 //-----------------------------------------
@@ -507,7 +514,7 @@ fun show-hex( d : double, width : int = 1, use-capitals : bool = True, pre : str
 // Also allows floats in [hexadecimal notation](https://books.google.com/books?id=FgMsCwAAQBAJ&pg=PA41) (`0xA.Fp-10`) that can
 // be represented precisely (and are the preferred _round trip_ format).
 fun parse-double( s : string ) : maybe<double> {
-	s.trim.to-lower.slice.parse-eof(pdouble).maybe
+  s.trim.to-lower.slice.parse-eof(pdouble).maybe
 }
 
 fun pdouble() : parse double {
@@ -528,26 +535,26 @@ private fun phexdouble() : parse double {
 }
 
 private fun pdecdouble() : parse double {
-	val cur  = current-input()
-	val man  = digits()
-	val frac = optional("", { char('.'); digits0() }).trim-right("0")
+  val cur  = current-input()
+  val man  = digits()
+  val frac = optional("", { char('.'); digits0() }).trim-right("0")
   val exp : int = optional( 0, { one-of("eE"); pint() })
-	//val m : int = (man + frac).parse-int-default(0)
-  //val e : int = exp - frac.count  
-  //m.double * exp10(e.double)	
-	cur.string.prim-parse-double  // more precision than simple multiply
+  //val m : int = (man + frac).parse-int-default(0)
+  //val e : int = exp - frac.count
+  //m.double * exp10(e.double)
+  cur.string.prim-parse-double  // more precision than simple multiply
 }
 
 private fun pspecial() : parse double {
-	[{ pstring("nan"); nan },
-	 { pstring("infinity"); posinf },
-	 { pstring("inf"); posinf }
-	].choose
+  [{ pstring("nan"); nan },
+   { pstring("infinity"); posinf },
+   { pstring("inf"); posinf }
+  ].choose
 }
 
 // Return `nan` on failure
 private extern prim-parse-double( s : string ) : double {
-	c  "kk_prim_parse_double"
+  c  "kk_prim_parse_double"
   cs "Primitive.DoubleParse"
   js "parseFloat"
 }
@@ -569,7 +576,7 @@ fun sum( xs : list<double> ) : double
 {
   var total := 0.0
   var comp  := 0.0
-  xs.foreach fun(x) {
+  xs.foreach fn(x) {
     val t = total + x
     val c = if (total.abs >= x.abs) then (total - t) + x else (x - t) + total
     comp  := comp + c
@@ -609,7 +616,7 @@ fun hypot( x : double, y : double, z : double ) : double {
 fun hypot( xs : list<double> ) : double {
   val hi = xs.abs-max
   if (hi==0.0) then 0.0 else {
-    hi * xs.map(fun(x){ sqr(x / hi) }).sum.sqrt
+    hi * xs.map(fn(x){ sqr(x / hi) }).sum.sqrt
   }
 }
 
@@ -625,7 +632,7 @@ fun abs-max( x : double, y : double ) : double {
 
 // The maximum of a list of absolute values.
 fun abs-max( xs : list<double> ) : double {
-  xs.foldl(0.0,fun(m,x){ max(abs(x),m) })
+  xs.foldl(0.0,fn(m,x){ max(abs(x),m) })
 }
 
 //-----------------------------------------
@@ -646,71 +653,71 @@ fun rad( deg : double ) : double {
 }
 
 // Return the sine of an angle in radians `d`.
-extern inline sin( d : double ) : double {
-	c  "sin"
+inline extern sin( d : double ) : double {
+  c  "sin"
   cs "Math.Sin"
   js "Math.sin"
 }
 
 // Return the cosine of an angle in radians `d`.
-extern inline cos( d : double ) : double {
-	c  "cos"
+inline extern cos( d : double ) : double {
+  c  "cos"
   cs "Math.Cos"
   js "Math.cos"
 }
 
 // Return the tangent of an angle in radians `d`.
-extern inline tan( d : double ) : double {
-	c  "tan"
+inline extern tan( d : double ) : double {
+  c  "tan"
   cs "Math.Tan"
   js "Math.tan"
 }
 // Return the arc-tangent of `d`
-extern inline atan( d : double ) : double {
-	c  "atan"
+inline extern atan( d : double ) : double {
+  c  "atan"
   cs "Math.Atan"
   js "Math.atan"
 }
 
 // Return the arc-tangent of a point (`x`,`y`).
-extern inline atan2( x : double, y : double ) : double {
-	c  "atan2"
+inline extern atan2( x : double, y : double ) : double {
+  c  "atan2"
   cs "Math.Atan2"
   js "Math.atan2"
 }
 
 // Return the arc-cosine of `d`
-extern inline acos( d : double ) : double {
-	c  "acos"
+inline extern acos( d : double ) : double {
+  c  "acos"
   cs "Math.Acos"
   js "Math.acos"
 }
 
 // Return the arc-sine of `d`
-extern inline asin( d : double ) : double {
-	c  "asin"
+inline extern asin( d : double ) : double {
+  c  "asin"
   cs "Math.Asin"
   js "Math.asin"
 }
 
 
 // The hyperbolic tangent of `d`
-extern inline tanh( d : double ) : double {
-	c  "tanh"
+inline extern tanh( d : double ) : double {
+  c  "tanh"
   cs "Math.Tanh"
   js "Math.tanh"
 }
 
 // The hyperbolic cosine of `d`
-extern inline cosh( d : double ) : double {
-	c  "cosh"
+inline extern cosh( d : double ) : double {
+  c  "cosh"
   cs "Math.Cosh"
   js "Math.cosh"
 }
 
 // The hyperbolic sine of `d`
-extern inline sinh( d : double ) : double {
-	c  "sinh"
+inline extern sinh( d : double ) : double {
+  c  "sinh"
   cs "Math.Sinh"
   js "Math.sinh"
 }

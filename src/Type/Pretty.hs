@@ -134,6 +134,7 @@ data Env     = Env{ showKinds      :: Bool
                   , fullNames :: Bool
 
                   -- should not really belong here. Contains link bases for documentation generation (see Syntax.Colorize)
+                  , colorizing:: Bool
                   , htmlBases :: [(String,String)]
                   , htmlCss   :: String
                   , htmlJs    :: String
@@ -154,7 +155,8 @@ data Env     = Env{ showKinds      :: Bool
 defaultEnv :: Env
 defaultEnv
   = Env False False defaultColorScheme niceEmpty (precTop-1) M.empty (newName "Main") (importsEmpty) False
-        []
+        False
+        []        
         ("styles/" ++ programName ++ ".css") -- [("System.","file://c:/users/daan/dev/koka/out/lib/")]
         ("scripts/" ++ programName ++ "-highlight.js")
         False -- coreIface
@@ -224,16 +226,16 @@ prettyDataInfo env0 showBody publicOnly isExtend info@(DataInfo datakind name ki
     (prettyComment env0 doc $
       (if publicOnly then empty else ppVis env0 vis) <.>
       let env = env0{ nice = niceTypeExtendVars (args) (nice env0) } in
-      (case datakind of
-         Inductive -> keyword env "type"
-         CoInductive -> keyword env "cotype"
-         Retractive  -> keyword env "rectype") <+>
       (if isExtend then keyword env "extend "
         else case datadef of
-               DataDefRec -> text "rec "
+               DataDefRec -> text "recursive "
                DataDefOpen -> text "open "
                DataDefValue m n -> text ("value{" ++ show m ++ "," ++ show n ++ "} ")
                _ -> empty) <.>
+      (case datakind of
+         Inductive -> keyword env "type"
+         CoInductive -> keyword env "co type"
+         Retractive  -> keyword env "rec type") <+>  -- this "rec" means a retractive type
       -- ppVis env vis <+>
       ppName env name <.>
       (if null args then empty else space <.> angled (map (ppTypeVar env) args)) <.>
@@ -360,8 +362,8 @@ ppType env tp
                        ppType env{prec=precArrow} res
 
       TApp (TCon con) [arg]
-                    -- | typeConName con == nameTpOptional
-                    -- -> text "?" <.> ppType env{prec=precAtom} arg
+                    | typeConName con == nameTpOptional && colorizing env
+                    -> text "?" <.> ppType env{prec=precAtom} arg
                     | (typeConName con == nameTpHandled || typeConName con == nameTpHandled1) && not (coreIface env)
                     -> ppType env arg
       TApp (TCon (TypeCon name _)) args | isNameTuple (name)
@@ -402,8 +404,8 @@ ppTypeName env name
 ppNameEx env name
   = if (fullNames env)
      then pretty name
-     else if (context env == qualifier name 
-               || ((qualifier name == nameSystemCore || qualifier name == nameCoreTypes) && not (coreIface env)) 
+     else if (context env == qualifier name
+               || ((qualifier name == nameSystemCore || qualifier name == nameCoreTypes) && not (coreIface env))
                || isNameTuple name)
            then pretty (unqualify name)
            else -- if coreIface env

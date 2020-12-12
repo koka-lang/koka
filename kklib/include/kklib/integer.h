@@ -252,7 +252,9 @@ static inline void kk_integer_drop(kk_integer_t i, kk_context_t* ctx) {
 }
 
 kk_decl_export bool          kk_integer_parse(const char* num, kk_integer_t* result, kk_context_t* ctx);
+kk_decl_export bool          kk_integer_hex_parse(const char* s, kk_integer_t* res, kk_context_t* ctx);
 kk_decl_export kk_integer_t  kk_integer_from_str(const char* num, kk_context_t* ctx); // for known correct string number (returns 0 on wrong string)
+
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_from_big(kk_intx_t i, kk_context_t* ctx);         // for possibly large i
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_from_big64(int64_t i, kk_context_t* ctx);     // for possibly large i
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_from_bigu64(uint64_t i, kk_context_t* ctx);   // for possibly large i

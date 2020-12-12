@@ -219,7 +219,7 @@ command st cmd
                        ModeHelp     -> do doc <- commandLineHelp (flags st)
                                           messagePrettyLn st doc
                                           interpreterEx st
-                       ModeVersion  -> do showVersion (printer st)
+                       ModeVersion  -> do showVersion (flags st) (printer st)
                                           messageLn st ""
                                           interpreter st
                        ModeCompiler files     -> setFlags files
@@ -266,7 +266,7 @@ loadFilesErr term startSt fileNames force
     walk :: [Module] -> State -> [FilePath] -> IO (Error State)
     walk imports st files
       = case files of
-          []  -> do if (not (null imports))
+          []  -> do if (not (null imports) && verbose (flags st) > 0)
                       then do messageInfoLn st "modules:"
                               sequence_ [messageLn st ("  " ++ show (modName mod) {- ++ ": " ++ show (modTime mod) -})
                                         | mod <- imports {- loadedModules (loaded0 st) -} ]
@@ -282,7 +282,7 @@ loadFilesErr term startSt fileNames force
                              then compileFile term (flags st) (loadedModules (loaded0 st)) Object fname
                              else compileModule term (flags st) (loadedModules (loaded0 st)) (newName fname)
                              -}
-                             compileModuleOrFile term (flags st) (loadedModules (loaded0 st)) fname force
+                             compileModuleOrFile term (flags st) [] {- (loadedModules (loaded0 st)) -} fname force
                    ; case checkError err of
                        Left msg
                           -> do messageErrorMsgLnLn st msg
@@ -447,7 +447,7 @@ showCommand st cmd
       ShowHelp         -> do messagePrettyLn st (commandHelp (colorSchemeFromFlags (flags st)))
                              showEnv (flags st) (printer st)
 
-      ShowVersion      -> do showVersion (printer st)
+      ShowVersion      -> do showVersion (flags st) (printer st)
                              messageLn st ""
 
       ShowKindSigs     -> let kgamma = {- loadedDiff kgammaDiff -} loadedKGamma (loaded st)
@@ -513,7 +513,7 @@ runEditorAt ::  State -> FilePath -> Int -> Int -> IO ()
 runEditorAt st fpath line col
   = let command  = replace line col (editor (flags st)) fpath
     in if null (editor (flags st))
-        then raiseIO ("no editor specified. (use the \"koka-editor\" environment variable?)")
+        then raiseIO ("no editor specified. (use the \"koka_editor\" environment variable?)")
         else runSystem command
 
 replace :: Int -> Int -> FilePath -> String -> String
@@ -544,7 +544,7 @@ getCommand st
        -- messageInfoLn st ("cmd: " ++ show input)
        let cmd   = readCommand input
        case cmd of
-         Quit     -> return ()
+         -- Quit     -> return ()
          Error _  -> return ()
          _        | null input -> return ()
                   | otherwise  -> addHistory input
@@ -563,8 +563,8 @@ remark st s
 terminal :: State -> Terminal
 terminal st
   = Terminal (messageErrorMsgLn st)
-             (if (verbose (flags st) > 1) 
-               then (\s -> withColor (printer st) DarkGray (message st (s ++ "\n"))) else (\_ -> return ()))
+             (if (verbose (flags st) > 1)
+               then (\s -> withColor (printer st) (colorSource (colorSchemeFromFlags (flags st))) (message st (s ++ "\n"))) else (\_ -> return ()))
              (messagePrettyLn st)  -- (\_ -> return ()) --
              (messageScheme st)
              (messagePrettyLn st)
@@ -649,17 +649,18 @@ messageHeader st
         text " _          _           ____"
        ,text "| |        | |         |__  \\"
        ,text "| | __ ___ | | __ __ _  __) |"
-       ,text "| |/ // _ \\| |/ // _` || ___/ " <.> welcome 
+       ,text "| |/ // _ \\| |/ // _` || ___/ " <.> welcome
        ,text "|   <| (_) |   <| (_| ||____| "  <.> headerVersion
-       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|       "  <.> color (colorSource colors) (text "type :? for help")       
+       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|       "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")
        ]
-    headerVersion = text $ "version " ++ version ++ 
-                           (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", " 
+    headerVersion = text $ "version " ++ version ++
+                           (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", "
                            ++ buildDate ++ targetMsg
     welcome       = text ("welcome to the " ++ Config.programName ++ " interpreter")
-    targetMsg      
+    targetMsg
       = case (target (flags st)) of
           C  -> ", libc " ++ show (8*sizePtr (platform (flags st))) ++ "-bit"
+                ++ " (" ++ (ccName (ccomp (flags st))) ++ ")"
           JS -> ", node"
           CS -> ", .net"
           _  -> ""

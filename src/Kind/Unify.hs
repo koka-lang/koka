@@ -12,7 +12,7 @@ module Kind.Unify( Context(..), unify, mgu, match ) where
 
 import Lib.PPrint
 import Common.Range
-import Common.Message( docFromRange, table) 
+import Common.Message( docFromRange, table)
 
 import Kind.Kind
 import Kind.InferKind
@@ -48,16 +48,21 @@ kindError colors context range err kind1 kind2
     (rangeContext,expected,extra)
       = case context of
           Check msg range -> (range,"expected kind",[(text "because", text msg)])
-          Infer range     -> (range,"expected kind", [])
+          Infer range     -> (range,"expected kind",inferExtra)
+
+    inferExtra
+      = if (isInfKindScope kind1 || isInfKindScope kind2)
+         then [(text "hint", text "scoped effects need a first type parameter annotated with kind \"::S\"")]
+         else []
 
     [niceKind1,niceKind2]
       = niceInfKinds colors [kind1,kind2]
 
-    message  
+    message
       = case err of
           InfiniteKind -> "Invalid type (due to an infinite kind)"
           _            -> "Invalid type"
-                 
+
 
 
 
@@ -72,7 +77,7 @@ mgu :: InfKind -> InfKind -> Unify
 -- constants
 mgu (KIVar id1) (KIVar id2)  | id1 == id2
   = Ok ksubEmpty
-mgu (KICon kind1) (KICon kind2)  
+mgu (KICon kind1) (KICon kind2)
   = if (match kind1 kind2)
      then Ok ksubEmpty
      else NoMatch
@@ -101,7 +106,7 @@ mgu _ _
   = NoMatch
 
 unifyVar id kind
-  = if kvsMember id (fkv kind) 
+  = if kvsMember id (fkv kind)
      then InfiniteKind
      else Ok (ksubSingle id kind)
 
@@ -109,8 +114,3 @@ match :: Kind -> Kind -> Bool
 match (KCon c1) (KCon c2)         = (c1 == c2)
 match (KApp k1 k2) (KApp l1 l2)   = (match k1 l1) && (match k2 l2)
 match _ _ = False
-
-
-
-
-

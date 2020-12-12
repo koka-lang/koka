@@ -5,9 +5,9 @@ fun mapx( xs : list<a>, f : a -> b ) : list<b> {
   }
 }
 
-fun append(xs : list<a>, ys :list<a> ) : list<a> {
+fun appendx(xs : list<a>, ys :list<a> ) : list<a> {
   match(xs) {
-    Cons(x,xx) -> Cons(x,append(xx,ys))
+    Cons(x,xx) -> Cons(x,appendx(xx,ys))
     Nil        -> ys
   }
 }
@@ -20,19 +20,29 @@ fun ileave( xs : list<a>, ys : list<a> ) : div list<a> {
 }
 
 fun main() {
-  list(1,10).mapx(inc).sum.println
+  list(1,10000000).mapx(inc).sum.println
+  //test-many()
+}
+
+fun test-many() {
+  val xs = list(1,5)
+  var i := 0
+  for(1,10000000) fn(j){
+    i := i + xs.mapx(inc).length
+  }
+  println(i)
 }
 
 /*
-get{ 
-  x <- ref->value  
+get{
+  x <- ref->value
   dup(x)
 }
 
 set(y){
   x <- ref->value
   ref->value=y
-  drop(x)  
+  drop(x)
 }
 */
 /*
@@ -64,14 +74,14 @@ fun spinemap(f : int -> int, t : tree, spine : spine) : div tree {
   }
 }
 
-fun binmap( f : int -> int, t : tree, spine : spine) : div tree 
+fun binmap( f : int -> int, t : tree, spine : spine) : div tree
 {
   match(t) {
     Bin(l,r) {
-      binmap(f,l,BinR(r,spine))  // reuse bin      
+      binmap(f,l,BinR(r,spine))  // reuse bin
     }
     Tip(x) {
-      spinemap(f,Tip(f(x)),spine)      
+      spinemap(f,Tip(f(x)),spine)
     }
   }
 }
@@ -82,11 +92,11 @@ type direction {
 }
 
 fun sbmap(f : int -> int, t : tree, spine : spine, d : direction) : div tree {
-  if (d.down?) {      
+  if (d.down?) {
     // do down the left spine
     match(t) {
       Bin(l,r) {
-        sbmap(f,l,BinR(r,spine),Down)  // go down left, and remember the right subtrees 
+        sbmap(f,l,BinR(r,spine),Down)  // go down left, and remember the right subtrees
       }
       Tip(x) {
         sbmap(f,Tip(f(x)),spine,Up)    // go up through the saved spine
@@ -96,7 +106,7 @@ fun sbmap(f : int -> int, t : tree, spine : spine, d : direction) : div tree {
   else {
     // go up through the saved spine
     match(spine) {
-      Done      -> t                  
+      Done      -> t
       BinR(r,s) -> sbmap(f,r,BinL(t,s),Down)   // down into a right subtree, and remember to Bin later
       BinL(l,s) -> sbmap(f, Bin(l,t), s, Up)   // restore a Bin node and keep going up
     }
@@ -104,7 +114,7 @@ fun sbmap(f : int -> int, t : tree, spine : spine, d : direction) : div tree {
 }
 
 
-fun bmap( f : int -> int, t : tree) : div tree 
+fun bmap( f : int -> int, t : tree) : div tree
 {
   match(t) {
     Bin(l,r) -> Bin(bmap(f,l),bmap(f,r))

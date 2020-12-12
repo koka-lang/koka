@@ -1,4 +1,3 @@
-import std/text/regex
 
 // ambient Value Bindings
 ambient val cwd : string
@@ -81,7 +80,7 @@ fun ex4() {
 }
 
 fun ex5() {
-  with val cwd = "/var/lib"
+  with val cwd = "/var/lib/"
   with control read-file(f) { resume("dummy contents for " + f) }
   cd("var") {
     cd("lib") {

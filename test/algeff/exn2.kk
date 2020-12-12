@@ -25,7 +25,7 @@ fun foo() : <amb,state<int>,io> bool {
       if (i>0 && p) then xor() else False
     }
   }
-  fun(exn) { False }
+  fn(exn) { False }
 }
 
 

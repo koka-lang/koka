@@ -92,7 +92,7 @@ fun format-year( t : time, n : int, locale : time-locale ) : string {
   }
   else {
     val y = t.year.abs.showl(n)
-    if (t.year.neg?) then "-" + y else "+" + y
+    if (t.year.is-neg) then "-" + y else "+" + y
   }
 }
 
@@ -124,7 +124,7 @@ fun format-hours12( t : time, n : int, locale : time-locale ) : string {
 }
 
 fun format-calname( t : time, n : int, locale : time-locale) : string {
-  if (t.calendar.month-prefix.notempty?) then ""
+  if (t.calendar.month-prefix.is-notempty) then ""
    elif (n==2) then t.calendar.long-name
    else t.calendar.name
 }
@@ -140,12 +140,12 @@ fun format-upper-ampm( t : time, n : int, locale : time-locale ) : string {
 
 fun format-frac( t : time, n : int, locale : time-locale ) : string {
   val frac = t.seconds.fraction
-  if (frac.zero?) then "" else frac.show-fixed(n).tail
+  if (frac.is-zero) then "" else frac.show-fixed(n).tail
 }
 
 fun format-frac0( t : time, n : int, locale : time-locale ) : string {
   val frac = t.seconds.fraction
-  if (frac.zero?) then "" else frac.show-fixed(n).tail.pad-right(n+1,'0')
+  if (frac.is-zero) then "" else frac.show-fixed(n).tail.pad-right(n+1,'0')
 }
 
 fun format-tz-offset( t : time, n : int, hmsep : string, utc : string ) : string {
@@ -267,17 +267,17 @@ fun format-list( t : time, fmt : list<char>, locale : time-locale ) : string {
 fun format-pat( t : time, h : char, fmt : list<char>, locale : time-locale ) : (string,list<char>) {
   if (h=='"' || h=='\'') {
     // extract escaped part
-    val (quoted,end) = fmt.span( fun(c) { c!=h } )
+    val (quoted,end) = fmt.span( fn(c) { c!=h } )
     match(end) {
       Nil          -> (h.string, fmt)
       Cons(_,rest) -> (quoted.string, rest)
     }
   }
-  elif(h.alpha?) {
+  elif(h.is-alpha) {
     // match pattern
-    val (hs,rest) = fmt.span(fun(c){c==h})
+    val (hs,rest) = fmt.span(fn(c){c==h})
     val n = hs.length + 1
-    formats.foreach-while fun(pattern) {
+    formats.foreach-while fn(pattern) {
       val (c,m,f) = pattern
       if (c!=h) then Nothing else Just((f(t,min(n,m),locale), rest))
     }.default( ("",rest) ) // ignore if no match
@@ -287,7 +287,7 @@ fun format-pat( t : time, h : char, fmt : list<char>, locale : time-locale ) : (
 
 /*
 fun expand-locales( fmt : string, locale : time-locale ) : string {
-  fmt.replace-all(rx-locale) fun(cap) {
+  fmt.replace-all(rx-locale) fn(cap) {
     val n = cap.matched.count
     if (cap.groups[1] != "") then {
       cap.matched
@@ -302,7 +302,7 @@ fun expand-locales( fmt : string, locale : time-locale ) : string {
         nfmt
       }
       else {
-        nfmt.replace-all(rx-long, fun(capl) { capl.matched.tail })
+        nfmt.replace-all(rx-long, fn(capl) { capl.matched.tail })
       }
     }
   }
@@ -332,7 +332,7 @@ fun plocale( locale : time-locale ) : parse string {
 
 fun pquoted(quote : char) : parse string {
   char(quote)
-  val s = optional(""){ chars-are("",fun(c){ c != quote } ).string }
+  val s = optional(""){ chars-are("",fn(c){ c != quote } ).string }
   char(quote)
   return (quote.string + s + quote.string)
 }

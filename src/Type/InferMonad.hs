@@ -57,7 +57,7 @@ module Type.InferMonad( Inf, InfGamma
                       , Context(..)
                       , inferUnify, inferUnifies
                       , inferSubsume
-                      , withSkolemized
+                      , withSkolemized, checkSkolemEscape
 
                       , typeError
                       , contextError
@@ -283,9 +283,9 @@ isolate :: Range -> Tvs -> [Evidence] -> Effect -> Inf ([Evidence],Effect, Core.
 {-
 isolate rng free ps eff  | src `endsWith` "std/core/hnd.kk"
   = return (ps,eff,id)
-  where 
+  where
     src = normalizeWith '/' (sourceName (rangeSource rng))
--}    
+-}
 isolate rng free ps eff
   = -- trace ("isolate: " ++ show eff ++ " with free " ++ show (tvsList free)) $
     let (ls,tl) = extractOrderedEffect eff
@@ -638,6 +638,9 @@ withSkolemized :: Range -> Type -> Maybe Doc -> (Type -> [TypeVar] -> Inf (a,Tvs
 withSkolemized rng tp mhint action
   = do (xvars,_,xrho,_) <- Op.skolemizeEx rng tp
        (x,extraFree) <- action xrho xvars
+       checkSkolemEscape rng xrho mhint xvars extraFree
+       return x
+       {-
        --sub <- getSub
        free <- freeInGamma
        let allfree = tvsUnion free extraFree
@@ -648,6 +651,25 @@ withSkolemized rng tp mhint action
                  let escaped = [v | v <- xvars, tvsMember v allfree]
                  termError rng (text "abstract type(s) escape(s) into the context") (sxrho) (maybe [] (\hint -> [(text "hint",hint)]) mhint)
        return x
+       -}
+
+checkSkolemEscape :: Range -> Type -> Maybe Doc -> [TypeVar] -> Tvs -> Inf ()
+checkSkolemEscape rng tp mhint [] extraFree
+  = return ()
+checkSkolemEscape rng tp mhint skolems extraFree
+  = do free <- freeInGamma
+       let allfree = tvsUnion free extraFree
+           --escaped = fsv $ [tp  | (tv,tp) <- subList sub, tvsMember tv allfree]
+       if (tvsDisjoint (tvsNew skolems) allfree)
+         then return ()
+         else do stp <- subst tp
+                 let escaped = [v | v <- skolems, tvsMember v allfree]
+                 termError rng (text "abstract type(s) escape(s) into the context") (stp)
+                               (maybe [(text "hint",text "give a higher-rank type annotation to a function parameter?")]
+                                      (\hint -> [(text "hint",hint)]) mhint)
+
+
+
 
 doUnify :: Unify a -> Inf (Either UnifyError a)
 doUnify u
@@ -706,7 +728,7 @@ unifyError' env context range err tp1 tp2
 
     nomatch
       = case err of
-          NoSubsume       -> [(text "is less polymorph as",nice1)]
+          NoSubsume       -> [(text "is less general than",nice1)]
           NoEntail        -> [(text "is not entailed by",nice1)]
           NoArgMatch _ _  -> []
           _               -> [(text ("expected " ++ nameType),nice1)]
@@ -722,9 +744,9 @@ unifyError' env context range err tp1 tp2
           NoMatch     -> (nameType ++ "s do not match",[])
           NoMatchKind -> ("kinds do not match",[])
           NoMatchPred -> ("predicates do not match",[])
-          NoSubsume   -> ("type is not polymorph enough",[])
+          NoSubsume   -> ("type is not polymorphic enough",[(text "hint",text "give a higher-rank type annotation to a function parameter?")])
           NoEntail    -> ("predicates cannot be resolved",[])
-          Infinite    -> ("types do not match (due to an infinite type)",[(text "hint",text "annotate the function definition?")])
+          Infinite    -> ("types do not match (due to an infinite type)",[(text "hint",text "give a type to the function definition?")])
           NoMatchEffect{}-> ("effects do not match",[])
           NoArgMatch n m -> if (m<0)
                              then ("only functions can be applied",[])
@@ -1094,7 +1116,7 @@ freeInGamma :: Inf Tvs
 freeInGamma
   = do env <- getEnv
        sub <- getSub
-       return (fuv (sub |-> (infgamma env)))
+       return (ftv (sub |-> (infgamma env)))  -- TODO: fuv?
 
 splitPredicates :: Tvs -> Inf [Evidence]
 splitPredicates free

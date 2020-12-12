@@ -6,6 +6,7 @@
 // --------------------------------------------------------
 // Definition of players
 // --------------------------------------------------------
+import std/num/random
 
 type player {
   Bob
@@ -13,9 +14,10 @@ type player {
 }
 
 fun (==)(p1, p2) {
-  match(p1) {
-    Bob   -> p2.bob?
-    Alice -> p2.alice?
+  match(p1,p2) {
+    (Bob,Bob) -> True
+    (Alice,Alice) -> True
+    _ -> False
   }
 }
 
@@ -54,7 +56,7 @@ fun game(n) {
 // Perfect strategy
 // --------------------------------------------------------
 
-val perfect = with fun move(_p,n) { max(1,n%4) }
+val perfect = handler fun move(_p,n) { max(1,n%4) }
 
 fun testPerfect1() {
   with perfect
@@ -76,10 +78,10 @@ type gtree {
 }
 
 fun validMoves(n) {
-  [1,2,3].filter( fun(m) { m <= n })
+  [1,2,3].filter( fn(m) { m <= n })
 }
 
-val gametree = with {
+val gametree = handler {
   return x  { Winner(x) }
   control move(p,n) {
     val moves    = validMoves(n)
@@ -96,7 +98,7 @@ fun show(gt :gtree) : div string {
 fun showGt(gt :gtree, indent:int) : _ string {
   val showi = (show : (int) -> string)
   match(gt) {
-    Take(p,moves) -> p.show + moves.show-list(fun(x) { "\n" + " ".repeat(indent) +  x.fst.core/show + " -> " + x.snd.showGt(indent+2) })
+    Take(p,moves) -> p.show + moves.show-list(fn(x) { "\n" + " ".repeat(indent) +  x.fst.core/show + " -> " + x.snd.showGt(indent+2) })
     Winner(p)     -> p.show + " wins"
   }
 }
@@ -113,11 +115,11 @@ fun testGt() {
 
 ambient fun cheat(player:player) : a
 
-val cheatReport =  with fun cheat(p) { error(p.show + " cheated!") }
+val cheatReport = handler fun cheat(p) { throw(p.show + " cheated!") }
 
-val check = with control move(p,n) {
+val check = handler control move(p,n) {
   val m = move(p,n)
-  if (validMoves(n).find(fun(i) { i == m }).bool)
+  if (validMoves(n).find(fn(i) { i == m }).bool)
    then resume(m)
    else cheat(p)
 }
@@ -138,7 +140,7 @@ fun testuse() {
 // Cheating strategy
 // --------------------------------------------------------
 
-val pc = with fun move(p,n) {
+val pc = handler fun move(p,n) {
   match(p){
     Alice -> max(1,n%4)
     Bob   -> n
@@ -176,7 +178,7 @@ fun bobChooses(m) {
   if (choose()) then pc(m) else perfect(m)
 }
 
-val allResults = with {
+val allResults = handler {
   return(x)       { [x] }
   control choose() { resume(True) + resume(False) }
 }
@@ -187,10 +189,10 @@ fun testChoose()  {
   [game(7)]   // [bob,alice]
 }
 
-val coin = with fun choose() { random() > 0.5 }
+val coin = handler fun choose() { srandom-double() > 0.5 }
 
 fun testCoin() {
-  with fun choose() { random() > 0.5 }
+  with fun choose() { srandom-double() > 0.5 }
   with bobChooses
   game(7)
 }
@@ -203,12 +205,6 @@ fun testCoin() {
 ambient state<s> {
   fun get() : s;
   fun put(x : s) : ()
-}
-
-
-val state-param = handler(s) {
-  get()    -> resume(s,s)
-  put(t)   -> resume((),t)
 }
 
 
@@ -225,19 +221,19 @@ alias gstate = list<(player,int)>
 
 val s0 = [(Alice,0),(Bob,0)]
 
-val scoreUpdater = with return(p) { put(updateScore(p,get())); p }
+val scoreUpdater = handler return(p) { put(updateScore(p,get())); p }
 
 fun updateScore( p : player, gs : gstate ) : gstate {
-  gs.mymap fun(qs) {
+  gs.mymap fn(qs) {
     val (q,s) = qs
     if (p==q) then (q,s+1) else qs
   }
 }
 
-val printer = with return(x) { printBoard(get()); x }
+val printer = handler return(x) { printBoard(get()); x }
 
 fun printBoard( gs : gstate ) : io () {
-  gs.mymap( fun(ps) {
+  gs.mymap( fn(ps) {
     ps.fst.show + " -> " + ps.snd.show
   }).join("\n").println
 }

@@ -11,13 +11,13 @@ val reader-one = handler { fun ask() { 1 } }
 // forall<a,e>. (() -> <evil/evil|e> (() -> e a)) -> e (() -> e a)
 //forall<a,e>. (() -> <evil/evil|e> (() -> e a)) -> e (() -> e a)
 val hevil = handler { 
-  control evil() { (fun(){ resume(())() } ) } 
+  control evil() { (fn(){ resume(())() } ) } 
 }
 
 fun test() : <evil,reader> (() -> int) {
   val x = ask()
   evil() // Commenting out this line produces an error
-  (fun(){ x })
+  (fn(){ x })
 }
 
 fun non-scoped() : int {

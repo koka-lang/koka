@@ -165,8 +165,8 @@ dependencyExpr modName expr
       Case expr branches rng -> let (depExpr,fv1) = dependencyExpr modName expr
                                     (depBranches,fv2) = dependencyBranches dependencyBranch modName branches
                                 in (Case depExpr depBranches rng, S.union fv1 fv2)
-      Parens expr rng      -> let (depExpr, fv) = dependencyExpr modName expr
-                              in (Parens depExpr rng, fv)
+      Parens expr name rng -> let (depExpr, fv) = dependencyExpr modName expr
+                              in (Parens depExpr name rng, fv)
 --      Con    name isop range -> (expr, S.empty)
       Lit    lit           -> (expr, S.empty)
       Handler shallow scoped override eff pars reinit ret final ops hrng rng

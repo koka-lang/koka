@@ -144,14 +144,9 @@ showLex lex
       LexIdOp id    -> "identifier (operator) \"" ++ show id ++ "\""
       LexWildCard id-> "wildcard \"" ++ show id ++ "\""
       LexModule id _  -> "module \"" ++ show id ++ "\""
-      LexKeyword k d-> "keyword " ++ k ++ postfix ++ (if null d then "" else " (" ++ d ++ ")")
-                    where postfix = if (k=="fun" || k=="function") then "<space> "
-                                     else if (k=="fun.anon") then "<nospace> "
-                                     else ""
-      LexSpecial s  -> prefix ++ "\"" ++ s ++ "\""
-                    where prefix = if (s=="(.apply" || s=="[.index") then "<nospace>"
-                                    else ""
-
+      LexKeyword k d-> -- "keyword " ++ k 
+                       "\"" ++ k ++ "\"" ++ (if null d then "" else " (" ++ d ++ ")")   
+      LexSpecial s  -> "\"" ++ s ++ "\""                    
       LexComment s  -> "comment \"" ++ s ++ "\""
       LexWhite w    -> "white"
       LexInsLCurly  -> "start of statements"

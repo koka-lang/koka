@@ -208,7 +208,11 @@ topDown expr@(App (TypeApp (TypeLam tpars (Lam pars eff body)) targs) args) | le
        newNames <- mapM uniqueTName [TName nm (tsub |-> tp) | (TName nm tp) <- pars]
        let sub     = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]           
            -- argsopt = replicate (length pars - length args) (Var (TName nameOptionalNone typeAny) InfoNone)
-       -- trace ("topdown fun: " ++ show expr ++ "\n") $ return ()
+           {-
+       tbody <- trace ("topdown fun: " ++ show expr ++ "\n"
+                       ++ show (map pretty targs) ++ "\n"
+                       ++ show (map (pretty . typevarKind) tpars)) $ (return $! (substitute tsub body))
+                       -}
        topDown $
           Let (zipWith makeDef newNames args) (sub |~> (substitute tsub body))       
   where
@@ -297,7 +301,7 @@ bottomUp expr@(App (TypeApp (Var isValidK _) _) [arg])  | getName isValidK == na
       App _ _ -> exprTrue
       _ -> expr
 
--- case on singleton constructor
+-- case of known constructor
 bottomUp expr@(Case [con@(Con name repr)] bs)
   = case matchBranches con bs of
       Just b -> b

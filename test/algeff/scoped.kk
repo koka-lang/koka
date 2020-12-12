@@ -4,8 +4,8 @@
 // --------------------------------------------------------------
 
 effect nondet {
-  fun flip() : bool
-  fun fail() : a
+  control flip() : bool
+  control fail() : a
 }
 
 fun knapsack(w : int, vs : list<int> ) : <nondet,div> list<int> {
@@ -25,13 +25,13 @@ fun select(xs) {
 }
 
 val solutions = handler {
-  return x -> [x]
-  fail()   -> []
-  flip()   -> resume(True) + resume(False)
+  return  x      -> [x]
+  control fail() -> []
+  control flip() -> resume(True) + resume(False)
 }
 
 fun show( xss : list<list<int>> ) : string {
-  xss.show-list(fun(xs) { xs.show-list(core/show) } )
+  xss.show-list(fn(xs) { xs.show-list(core/show) } )
 }
 
 fun test1() {
@@ -47,10 +47,14 @@ effect state<s> {
   fun put(i:s) : ()
 }
 
-val state = handler(i) {
-  return x -> (i,x)
-  get()    -> resume(i,i)
-  put(j)   -> resume((),j)
+fun state(init,action) {
+  var s := init
+  with {
+    return x   -> (s,x)
+    fun get()  -> s
+    fun put(i) -> s := i
+  }
+  action()
 }
 
 fun incr(i = 1) : state<int> () {
@@ -66,9 +70,9 @@ fun global(s,action) {
 }
 
 val choices = handler {
-  return x -> x
-  fail()   -> fail()
-  flip()   -> { incr(); resume(flip()) }
+  return x       -> x
+  control fail() -> fail()
+  control flip() -> { incr(); resume(flip()) }
 }
 
 fun show(x : (int,list<list<int>>)) : string {
@@ -76,7 +80,7 @@ fun show(x : (int,list<list<int>>)) : string {
 }
 
 fun show(xs : list<(int,list<int>)>) : string {
-  xs.show-list fun(x) {
+  xs.show-list fn(x) {
     "(state=" + x.fst.show + ", " + x.snd.show + ")"
   }
 }
@@ -94,7 +98,7 @@ fun test3() {
 // --------------------------------------------------------------
 
 effect cutfail {
-  fun cutfail() : a
+  control cutfail() : a
 }
 
 fun cut() {
@@ -102,16 +106,36 @@ fun cut() {
 }
 
 val hcutfail = handler{
-  return x  -> x
-  cutfail() -> fail()
+  return x          -> x
+  control cutfail() -> fail()
 }
 
 // collect creates thunks of continuations,
 // only `cutfail` will `fail` and cut the choices short
-val collect = handler(q=fail) {
-  return x -> if (flip()) then x else q()
-  fail     -> q()
-  flip()   -> resume(True,{resume(False,q)})
+fun collect(action) { 
+  var q := [fail]
+  with {
+    return x       -> {
+      if (flip()) then x else {
+        match(q) {
+          Nil -> fail()
+          Cons(p,ps) -> { q := ps; p() }
+        }
+      }
+    }
+    control fail   -> {
+      match(q) {
+        Nil -> fail()
+        Cons(p,ps) -> { q := ps; p() }
+      }
+    }
+    control flip() -> {
+      q := Cons({resume(False)},q)
+      resume(True)
+      // resume(True,{resume(False,p))
+    }
+  }
+  action()
 }
 
 fun call(p) {
@@ -131,17 +155,19 @@ fun test4() {
 // --------------------------------------------------------------
 
 effect symbol {
-  fun symbol(s : string) : string
+  control symbol(s : string) : string
 }
 
-val parse = handler(cs:string) {
-  return x -> if (cs.empty?) then x else fail()
-  symbol(s)-> match(cs.starts-with(s)) {
-                Nothing     -> fail()
-                Just(rest)  -> resume(rest.string,s)
-              }
+fun parse(input : string, action : () -> <nondet,symbol|e> a) : <nondet|e> a {
+  var cs := input
+  handle(action) {
+    return x -> if (cs.is-empty) then x else fail()
+    control symbol(s) -> match(cs.starts-with(s)) {
+      Nothing   { fail() }
+      Just(rest){ cs := rest.string; resume(s) }
+    }  
+  }
 }
-
 
 val digits = list(0,9).map(show)
 
@@ -200,6 +226,7 @@ fun test5() {
 }
 
 
+
 // --------------------------------------------------------------
 // Scoped handlers
 // --------------------------------------------------------------
@@ -226,7 +253,7 @@ fun hbcall(action : () -> <exn,div,cutfail,nondet> _) {
 
 fun hecall(action : () -> <pure,cutfail,nondet> _) { //: <pure,cutfail,nondet> (() -> <pure,cutfail,nondet,cps> a) {
   handle(action) {
-    return x -> fun(_){ x }
+    return x -> fn(_){ x }
     ecall()  -> resume
     bcall()  -> hecall{ call{ hecall{ uncps{ resume(()) } } }}
   }

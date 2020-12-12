@@ -35,7 +35,7 @@ fun check-round-trip( name : string, x : ddouble ) : io ddouble {
 
 fun check-prec( name : string, expect : ddouble, res : ddouble, eps : ddouble = ddouble-exp(1,-15) ) : io () {
   val pre = name.pad-right(8,' ') + ": "
-  if (expect.finite?) then {
+  if (expect.is-finite) then {
     val delta  = (res - expect).abs
     if (delta < eps) then {
       println(pre + "ok: " + res.show + ", dt: " + delta.show(6)  )
@@ -144,7 +144,7 @@ public fun test-exp() {
   check-rt("exp1",expect,31) { dd-e.sqr }
   check-rt("exp2",expect,30) { exp(2.ddouble) }
   check-rt("exp3",expect,30) {
-    list(-3,4).map( fun(i) {
+    list(-3,4).map( fn(i) {
       exp((4*i).dec.ddouble / 4.ddouble)
     }).foldl(one,(*))
   }
@@ -156,7 +156,7 @@ public fun test-exp() {
 */
 public fun test-sincos() {
   [1,2,4,3,5,6,7,8,9,10,1000,10000000000]
-    .foreach-indexed(fun(i,r) {
+    .foreach-indexed(fn(i,r) {
       check-sincos(i, dd-twopi / r.ddouble)
       check-sincos(i, ~dd-twopi / r.ddouble)
     })
@@ -170,11 +170,11 @@ public fun check-sincos( i : int, x : ddouble ) {
   val c1 = cos(x)
   val s2 = sin(x1) * cos(x2) + cos(x1) * sin(x2)
   val c2 = cos(x1) * cos(x2) - sin(x1) * sin(x2)
-  check-prec("sin(" + x.show + ")", s1, s2, ddouble-exp(1,-31))  
+  check-prec("sin(" + x.show + ")", s1, s2, ddouble-exp(1,-31))
   check-prec("cos(" + x.show + ")", c1, c2, ddouble-exp(1,-31))
 
   // check not too much error with respect to the double computation
-  check-prec( "dsin" + i.show, sin(x.double).ddouble, s1, ddouble-exp(1,-15) )  
+  check-prec( "dsin" + i.show, sin(x.double).ddouble, s1, ddouble-exp(1,-15) )
   check-prec( "dcos" + i.show, cos(x.double).ddouble, c1, ddouble-exp(1,-15) )
 }
 

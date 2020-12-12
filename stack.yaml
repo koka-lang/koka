@@ -1,7 +1,12 @@
 resolver: lts-16.12
 packages:
 - '.'
+
 extra-deps:
 - stylish-haskell-0.11.0.0
 - hlint-2.1.26
 - haskeline-0.8.0.0
+
+flags:
+  haskeline:
+    terminfo: false

@@ -3,7 +3,7 @@ find_program(swiftc "swiftc" REQUIRED
                    $ENV{SWIFT_ROOT}/bin
                    /usr/local/swift/bin)
 
-set(sources binarytrees.swift cfold.swift deriv.swift qsort.swift rbtree.swift rbtree_ck.swift)
+set(sources binarytrees.swift cfold.swift deriv.swift qsort.swift rbtree.swift rbtree-ck.swift nqueens.swift)
 foreach (source IN LISTS sources)
   get_filename_component(name "${source}" NAME_WE)
   set(name "sw-${name}")

@@ -45,7 +45,9 @@ module Common.NamePrim
           , nameIdentity
           , nameMaskAt, nameMaskBuiltin
           , isClauseTailName, nameClauseTailNoYield
-          , nameTpEvIndex, nameYielding
+          , nameTpEvIndex, nameYielding, nameYieldExtend
+          , nameEvvIsAffine
+          , nameInitially, nameFinally
 
           --
           , nameUnsafeTotal
@@ -58,15 +60,15 @@ module Common.NamePrim
           , nameTpReuse, nameDropReuse, nameFreeReuse
           , nameReuseNull, nameAssignReuse, nameReuse, nameReuseIsValid
           , nameAllocAt, nameConFieldsAssign
-          
+
           -- * CTail optimization
-          , nameTpCTail
-          , nameCTailSet
-          , nameCTailNext
-          , nameCTailCreate
-          , nameCTailHole
-          , nameCTailAlloc
-          , nameCTailGet
+          , nameTpCField, nameTpCTailAcc
+          , nameCFieldHole
+          , nameCFieldSet
+          , nameCFieldOf
+          , nameCTailNil
+          , nameCTailLink
+          , nameCTailResolve
 
           -- * Constructors
           , nameTrue, nameFalse
@@ -93,7 +95,7 @@ module Common.NamePrim
           , nameTpHandlerBranch0, nameTpHandlerBranch1
           , nameMakeNull, nameConstNull, nameReturnNull, nameReturnNull1
           , nameTpValueOp
-          , nameTpInst
+          , nameTpNamed, nameTpScope
 
 
           , nameTpAsync, nameTpAsyncX
@@ -107,7 +109,7 @@ module Common.NamePrim
 
           , nameTpRef, nameRef
           , nameTpLocalVar, nameTpLocal
-          , nameLocal, nameRunLocal, nameLocalSet, nameLocalGet
+          , nameLocal, nameRunLocal, nameLocalSet, nameLocalGet, nameLocalNew
 
 
           , nameTpOptional
@@ -236,6 +238,8 @@ nameConEv       = preludeName "Ev"
 nameTpNull      = preludeName "null"
 nameTpIO        = preludeName "io"
 
+nameTpNamed     = preludeName "nmd"
+nameTpScope     = preludeName "scope"
 nameTpPartial   = preludeName "exn"
 nameTpPure      = preludeName "pure"
 
@@ -245,16 +249,15 @@ nameTpMDict     = qualify nameDict (newName "mdict")
 nameTpDict      = qualify nameDict (newName "dict")
 nameTpBuilder   = qualify (newName "std/text/string") (newName "builder")
 
-
-nameTpCTail       = ctailName "ctail"
-nameCTailSet      = ctailName ".ctail-set"
-nameCTailNext     = ctailName ".ctail-next" 
-nameCTailCreate   = ctailName ".ctail-create"
-nameCTailHole     = ctailName ".ctail-hole"
-nameCTailAlloc    = ctailName ".ctail-alloc"
-nameCTailGet      = ctailName ".ctail-get"
-
-ctailName name    = coreTypesName name
+nameTpCTailAcc    = cfieldName "ctail"
+nameTpCField      = cfieldName "cfield"
+nameCFieldHole    = cfieldName ".cfield-hole"
+nameCFieldSet     = cfieldName "cfield-set"   -- private (not hidden)
+nameCFieldOf      = cfieldName ".cfield-of"
+nameCTailNil      = cfieldName ".ctail-nil"
+nameCTailLink     = cfieldName ".ctail-link"
+nameCTailResolve  = cfieldName ".ctail-resolve"
+cfieldName name   = coreTypesName name
 
 {--------------------------------------------------------------------------
   std/core/hnd
@@ -276,14 +279,19 @@ nameMaskBuiltin = coreHndName ".mask-builtin"
 nameOpenAt i    = coreHndName (".open-at" ++ show i)
 nameOpenNone i  = coreHndName (".open-none" ++ show i)
 nameOpen i      = coreHndName (".open" ++ show i)
+nameEvvIsAffine = coreHndName (".evv-is-affine")
 
 nameHandle      = coreHndName ".hhandle"
 nameNamedHandle = coreHndName ".named-handle"
 
 nameYielding    = coreHndName "yielding"
+nameYieldExtend = coreHndName "yield-extend"
 nameBind        = coreHndName "yield-bind" -- preludeName "bind"
 nameBind2       = coreHndName "yield-bind2"
 nameEffectOpen  = coreHndName ".open" -- preludeName ".open"
+
+nameInitially   = coreHndName "initially"
+nameFinally     = coreHndName "finally"
 
 nameClauseTailNoYield n = coreHndName ("clause-tail-noyield" ++ show n)
 
@@ -320,8 +328,8 @@ nameTpRef       = coreTypesName "ref"
 nameTpLocalVar  = coreTypesName "local-var"
 nameTpLocal     = coreTypesName "local"
 nameRef         = coreTypesName "ref"
+nameLocalNew    = coreTypesName "local-new"
 nameLocal       = coreHndName   "local-var"
-                  -- coreTypesName "local-var"
 nameRunLocal    = coreTypesName "local-scope"
 
 nameTpTotal     = preludeName "total"
@@ -340,7 +348,6 @@ nameOr          = coreTypesName "||"
 
 nameTpHandled   = coreTypesName "handled"
 nameTpHandled1  = coreTypesName "handled1"
-nameTpInst      = coreTypesName "inst"
 
 nameIdentity    = coreTypesName "id"
 
@@ -376,6 +383,7 @@ nameTpString    = coreTypesName "string"
 nameTpAny       = coreTypesName "any"
 nameTpVector    = coreTypesName "vector"
 
+-- These are internal only inserted by the boxing phase
 nameTpBox       = coreTypesName ".Box"
 nameBoxCon      = coreTypesName ".Box"
 nameBox         = coreTypesName ".box"
@@ -425,7 +433,7 @@ nameCoreTypes   = newName "std/core/types"
 nameDict        = newName "std/data/dict"
 
 isSystemCoreName name
-  = let m = nameModule name 
+  = let m = nameModule name
     in  m `elem` [nameId nameSystemCore, nameId nameCoreHnd, nameId nameCoreTypes]
 
 {--------------------------------------------------------------------------

@@ -48,7 +48,7 @@ $symbol   = [\$\%\&\*\+\~\!\\\^\#\=\.\:\-\?\|\<\>]
 $special  = [\(\)\[\]\{\}\;\,]
 $anglebar = [\<\>\|]
 $angle    = [\<\>]
-$finalid  = [\'\?]
+$finalid  = [\']
 $charesc  = [nrt\\\'\"]    -- "
 
 -----------------------------------------------------------
@@ -105,16 +105,11 @@ $charesc  = [nrt\\\'\"]    -- "
 program :-
 -- white space
 <0> $space+               { string $ LexWhite }
-<0> $tab+               		{ string $ LexWhite }
 <0> @newline              { constant $ LexWhite "\n" }
 <0> "/*" $symbol*         { next comment $ more id }
 <0> "//" $symbol*         { next linecom $ more id }
 <0> ^\# $symbol*          { next linedir $ more id }
 
-
--- fun/function followed by '(' or '<'
-<0> "fun" [\(\<]          { less 3 $ constant $ LexKeyword "fun.anon" "" }
-<0> "function" [\(\<]     { less 8 $ constant $ LexKeyword "function.anon" "" }
 
 -- qualified identifiers
 <0> @qconid               { string $ LexCons . newQName }
@@ -163,6 +158,7 @@ program :-
 <0> \'.\'                 { string $ \s -> LexError ("illegal character literal: " ++ show (head (tail s))) }
 
 -- catch errors
+<0> $tab+                 { string $ \s -> LexError ("tab characters: configure your editor to use spaces instead (soft tab)") }
 <0> .                     { string $ \s -> LexError ("illegal character: " ++ show s ++ (if (s=="\t") then " (replace tabs with spaces)" else "")) }
 
 --------------------------
@@ -258,45 +254,46 @@ reservedNames :: Set.Set String
 reservedNames
   = Set.fromList $
     [ "infix", "infixr", "infixl", "prefix", "postfix"
-    , "type", "cotype", "rectype", "alias"
+    , "type", "alias"
     , "struct", "enum", "con"
-    , "fun", "val", "var"
-    , "extern"
+    , "val", "fun", "fn", "extern", "var"
+    , "control", "rcontrol", "except"
+    , "if", "then", "else", "elif"
+    , "return", "match", "with", "in"
+    , "forall", "exists", "some"
+    , "private", "public", "abstract"
+    , "module", "import", "as"
+
+    -- alternatives
+    , "pub"
 
     -- effect handlers
-    , "implicit", "ambient", "context" {- alternative names for implicit -}
-    , "control"
-    , "with"
-    , "instance", "named" {- alternative names for resource -}
-    , "mask", "override"
+    , "handler", "handle"
+    , "effect", "receffect"
+    , "named"
+    , "mask"
+    , "override"
+    , "unsafe"       -- future
 
     -- deprecated
     -- alternative names for backwards paper compatability
-    , "effect"              -- use implicit
-    , "handle", "handler"   -- use with instead
-    , "inject"              -- use mask
-    , "use", "using"        -- use with instead
-    , "function"            -- use fun
-    , "external"            -- use extern
-    , "dynamic"             -- use resource
+    , "ambient", "context" -- use effcet
+    , "inject"       -- use mask
+    , "use", "using" -- use with instead
+    , "function"     -- use fun
+    , "instance"     -- use named
 
+    -- future reserved
+    , "interface"
+    , "unsafe"
 
-    -- , "finally", "initially"
-    , "if", "then", "else", "elif", "return", "match"
-    , "forall", "exists", "some"
-    , "private", "public", "abstract"
-    , "module", "import", "as", "in"
+    -- operators
     , "="
     , "."
     , ":"
     , "->"
     , ":="
     , "|"
-
-    -- for core interfaces
-    , "rec"
-    -- future reserved
-    , "interface"
     ]
 
 symbols :: [Char]
@@ -371,7 +368,9 @@ isMalformed s
       c:cs       -> isMalformed cs
       []         -> False
 
-messageMalformed = "malformed identifier: a dash must be preceded by a letter or digit, and followed by a letter"
+messageMalformed
+  = "malformed identifier: a dash must be preceded by a letter or digit, and followed by a letter"
+
 ------------------------------------------------------------------------------
 -- Lexer state and actions
 ------------------------------------------------------------------------------
@@ -490,10 +489,13 @@ lexing source lineNo input
                                        seq range $ Lexeme range ltoken : go st2{ startPos = pos st2, previousLex = ltoken }
 
         lparen token prev
-          = case token of
+          = token
+          {-
+            case token of
               LexSpecial "("  | isApplyToken prev -> LexSpecial "(.apply"  -- application
               LexSpecial "["  | isApplyToken prev -> LexSpecial "[.index"  -- indexing
               _ -> token
+          -}
 
         isApplyToken prev
           = case prev of

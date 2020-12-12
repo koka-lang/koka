@@ -5,7 +5,7 @@ import std/data/array
 import jaro
 
 fun main() {
-  jaro/run-tests( jaro-distance, fun(s,t) { jaro-winkler-distance(s,t) } ) 
+  jaro/run-tests( jaro-distance, fn(s,t) { jaro-winkler-distance(s,t) } ) 
 }
 
 
@@ -36,10 +36,10 @@ fun jaro-match( v : vector<char>, w : vector<char>, lim : int ) : (int,int) {
     var transposes := 0
     var matches    := 0
     var lastmatch  := 0
-    v.foreach-indexed fun(c,i) {
+    v.foreach-indexed fn(c,i) {
       val start = max(0,i - lim)
       val end   = min(w.length - 1, i + lim)
-      for-while(start,end) fun(j) {
+      for-while(start,end) fn(j) {
         if (w[j] != c || matched[j]) Nothing
         else {
           matched[j] := True

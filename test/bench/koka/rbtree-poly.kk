@@ -1,44 +1,13 @@
 // Adapted from https://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap.lean
 
-type color { Red Black }
+type color {
+  Red
+  Black
+}
+
 type tree<k,v> {
   con Leaf()
   con Node(color: color, lchild: tree<k,v>, key: k, value: v, rchild: tree<k,v>)
-}
-
-fun fold(t: tree<k,v>, b: a, f: (k, v, a) -> a): a {
-  match (t) {
-    Leaf
-      -> /* drop(f,t) */
-         b
-    Node(_, l, k, v, r)
-      -> /* dup(k,l,r) drop(t) */
-         r.fold((/* dup */ f)(k, v, l.fold(b, f)), f)
-  }
-}
-
-fun balance1(kv: k, vv: v, t: tree<k,v>, s: tree<k,v>): tree<k,v> {
-  match(s) {
-    Node(_, Node(Red, l, kx, vx, r1), ky, vy, r2)
-      -> Node(Red, Node(Black, l, kx, vx, r1), ky, vy, Node(Black, r2, kv, vv, t))
-    Node(_, l1, ky, vy, Node(Red, l2, kx, vx, r))
-      -> Node(Red, Node(Black, l1, ky, vy, l2), kx, vx, Node(Black, r, kv, vv, t))
-    Node(_, l, ky, vy, r)
-      -> Node(Black, Node(Red, l, ky, vy, r), kv, vv, t)
-    _ -> Leaf
-  }
-}
-
-fun balance2(t: tree<k,v>, kv: k, vv: v, s: tree<k,v>): tree<k,v> {
-  match(s) {
-    Node(_, Node(Red, l, kx1, vx1, r1), ky, vy, r2)
-      -> Node(Red, Node(Black, t, kv, vv, l), kx1, vx1, Node(Black, r1, ky, vy, r2))
-    Node(_, l1, ky, vy, Node(Red, l2, kx2, vx2, r2))
-      -> Node(Red, Node(Black, t, kv, vv, l1), ky, vy, Node(Black, l2, kx2, vx2, r2))
-    Node(_, l, ky, vy, r)
-      -> Node(Black, t, kv, vv, Node(Red, l, ky, vy, r))
-    _ -> Leaf
-  }
 }
 
 fun is-red(t : tree<k,v>) : bool {
@@ -48,36 +17,54 @@ fun is-red(t : tree<k,v>) : bool {
   }
 }
 
-fun ins(t: tree<int,v>, kx: int, vx: v): tree<int,v> {
-  match(t) {
-    Leaf 
-      -> Node(Red, Leaf, kx, vx, Leaf)
-    Node(Red, a, ky, vy, b)
-      -> if (kx < ky) then Node(Red, ins(a, kx, vx), ky, vy, b)
-         elif (kx == ky) then Node(Red, a, kx, vx, b)
-         else Node(Red, a, ky, vy, ins(b, kx, vx))
-    Node(Black, a, ky, vy, b)
-      -> if (kx < ky && is-red(a)) then balance1(ky, vy, b, ins(a, kx, vx))
-         elif (kx < ky) then Node(Black, ins(a, kx, vx), ky, vy, b)
-         elif (kx == ky) then Node(Black, a, kx, vx, b)
-         elif (is-red(b)) then balance2(a, ky, vy, ins(b, kx, vx))
-         else Node(Black, a, ky, vy, ins(b, kx, vx))
+fun fold(t: tree<k,v>, b: a, f: (k, v, a) -> a): a {
+  match (t) {
+    Leaf -> b
+    Node(_, l, k, v, r)
+      -> r.fold( f(k, v, l.fold(b, f)), f)
   }
-
-  /* match(t) {
-    Leaf -> Node(Red, Leaf, kx, vx, Leaf)
-    Node(Red, a, ky, vy, b)
-      | kx < ky  -> Node(Red, ins(a, kx, vx), ky, vy, b)
-      | kx == ky -> Node(Red, a, kx, vx, b)
-      | True -> Node(Red, a, ky, vy, ins(b, kx, vx))
-    Node(Black, a, ky, vy, b)
-      | kx < ky && isRed(a) -> balance1(ky, vy, b, ins(a, kx, vx))
-      | kx < ky -> Node(Black, ins(a, kx, vx), ky, vy, b)
-      | kx == ky -> Node(Black, a, kx, vx, b)
-      | isRed(b) -> balance2(a, ky, vy, ins(b, kx, vx))
-      | True -> Node(Black, a, ky, vy, ins(b, kx, vx))
-  } */
 }
+
+fun balance-left(l:tree<k,v>, k: k, v: v, r: tree<k,v>): tree<k,v> {
+  match(l) {
+    Leaf -> Leaf
+    Node(_, Node(Red, lx, kx, vx, rx), ky, vy, ry)
+      -> Node(Red, Node(Black, lx, kx, vx, rx), ky, vy, Node(Black, ry, k, v, r))
+    Node(_, ly, ky, vy, Node(Red, lx, kx, vx, rx))
+      -> Node(Red, Node(Black, ly, ky, vy, lx), kx, vx, Node(Black, rx, k, v, r))
+    Node(_, lx, kx, vx, rx)
+      -> Node(Black, Node(Red, lx, kx, vx, rx), k, v, r)
+  }
+}
+
+fun balance-right(l: tree<k,v>, k: k, v: v, r: tree<k,v>): tree<k,v> {
+  match(r) {
+    Leaf -> Leaf
+    Node(_, Node(Red, lx, kx, vx, rx), ky, vy, ry)
+      -> Node(Red, Node(Black, l, k, v, lx), kx, vx, Node(Black, rx, ky, vy, ry))
+    Node(_, lx, kx, vx, Node(Red, ly, ky, vy, ry))
+      -> Node(Red, Node(Black, l, k, v, lx), kx, vx, Node(Black, ly, ky, vy, ry))
+    Node(_, lx, kx, vx, rx)
+      -> Node(Black, l, k, v, Node(Red, lx, kx, vx, rx))
+  }
+}
+
+fun ins(t: tree<int,v>, k: int, v: v): tree<int,v> {
+  match(t) {
+    Leaf -> Node(Red, Leaf, k, v, Leaf)
+    Node(Red, l, kx, vx, r)
+      -> if (k < kx) then Node(Red, ins(l, k, v), kx, vx, r)
+         elif (k == kx) then Node(Red, l, k, v, r)
+         else Node(Red, l, kx, vx, ins(r, k, v))
+    Node(Black, l, kx, vx, r)
+      -> if (k < kx) then (if (is-red(l)) then balance-left(ins(l,k,v), kx, vx, r)
+                                          else Node(Black, ins(l, k, v), kx, vx, r))
+         elif (k == kx) then Node(Black, l, k, v, r)
+         elif (is-red(r)) then balance-right(l, kx, vx, ins(r,k,v))
+         else Node(Black, l, kx, vx, ins(r, k, v))
+  }
+}
+
 
 fun set-black(t: tree<k,v>) : tree<k,v> {
   match(t) {
@@ -105,6 +92,6 @@ fun make-tree(n: int): div tree<int,bool> {
 
 fun main() {
   val m = make-tree(4200000); // todo: read first command line arg for size
-  val v = m.fold(0) fun(k, v, r) { if (v) then r + 1 else r }
+  val v = m.fold(0) fn(k, v, r) { if (v) then r + 1 else r }
   v.println
 }

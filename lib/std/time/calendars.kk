@@ -45,7 +45,7 @@ public val cal-coptic = solar-ecalendar(
   coptic-days-before-year, coptic-estimate-year, // coptic-days-to-yeardoy,
   coptic-days-before-month, coptic-doy-to-month,
   epoch-shift = 626515,  // 2001-01-01 - 284-08-29 Julian
-  show-era = fun(d:date){ if (d.year.pos?) then "A.M." else "" }  // Anno Martyrum
+  show-era = fn(d:date){ if (d.year.is-pos) then "A.M." else "" }  // Anno Martyrum
 )
 
 fun coptic-days-before-month( year : int, month : int ) : int {
@@ -304,8 +304,8 @@ public val cal-julian = solar-ecalendar(
   julian-days-before-year, julian-estimate-year,
   julian-days-before-month, julian-doy-to-month,
   epoch-shift    = 730121, // 2000-01-01 - 0000-12-30  // 730121 + 366
-  has-year-zero? = False,
-  show-era       = fun(d:date){ if (d.year.neg?) then "BC" else "AD" }
+  has-year-zero  = False,
+  show-era       = fn(d:date){ if (d.year.is-neg) then "BC" else "AD" }
 )
 
 fun julian-days-before-month( year : int, month : int ) : int {
@@ -318,8 +318,8 @@ fun julian-doy-to-month( year : int, doy : int ) : int {
   (12*(doy + adj) + 373)/367
 }
 
-fun julian-adjust( before-march? : bool, year : int ) : int {
-  if (before-march?) then 0 elif (year%4==0) then 1 else 2
+fun julian-adjust( is-before-march : bool, year : int ) : int {
+  if (is-before-march) then 0 elif (year%4==0) then 1 else 2
 }
 
 fun julian-days-before-year( year : int ) {

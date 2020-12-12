@@ -66,7 +66,7 @@ module Core.Core ( -- Data structures
                    , getDataRepr, getDataReprEx, dataInfoIsValue
                    , getConRepr
                    , dataReprIsValue, conReprIsValue
-                   , VarInfo(..), isInfoArity 
+                   , VarInfo(..), isInfoArity
                    , infoIsRefCounted, infoIsLocal
 
                    , isMonType, isMonEffect
@@ -78,6 +78,8 @@ module Core.Core ( -- Data structures
                    -- * Canonical names
                    -- , canonicalName, nonCanonicalName, canonicalSplit
                    , infoArity, infoTypeArity
+
+                   , Deps, dependencies
                    ) where
 
 import Data.Char( isDigit )
@@ -91,7 +93,7 @@ import Common.Unique
 import Common.Id
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
                         nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameSizeT, nameBox, nameUnbox,
-                        nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit, nameTpCTail)
+                        nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit, nameTpCField)
 import Common.Syntax
 import Kind.Kind
 import Type.Type
@@ -268,7 +270,7 @@ data DataRepr = -- value types
               | DataAsMaybe         -- one constructor with fields, and one singleton
               | DataStruct          -- compatible constructors (all raw or regular types) and possibly singletons (need tag)
               -- non-value types
-              | DataSingle          -- only one constructor (no tag needed)
+              | DataSingle{ hasSingletons :: Bool } -- only one constructor (no tag needed), hasSingletons true if it is a singleton as well
               | DataAsList          -- one constructor with fields, and one singleton (don't need a tag, for example can distinguish pointer vs enum)
               | DataSingleNormal    -- one constructor with fields, and multiple singletons (distinguish one pointer vs enums)
               | DataNormal{ hasSingletons :: Bool }
@@ -319,7 +321,7 @@ getDataRepr info
 
 getConRepr :: DataInfo -> ConInfo -> ConRepr
 getConRepr dataInfo conInfo
-  = let (_,creprs) = getDataRepr dataInfo 
+  = let (_,creprs) = getDataRepr dataInfo
     in case [crepr | (ci,crepr) <- zip (dataInfoConstrs dataInfo) creprs, conInfoName ci == conInfoName conInfo] of
          [crepr] -> crepr
          _ -> failure ("Core.Core: getConRepr: constructor not in the datatype: " ++ show (dataInfoName dataInfo, conInfoName conInfo))
@@ -338,8 +340,8 @@ getDataReprEx getIsValue info
          -- TODO: only for C#? check this during kind inference?
          -- else if (hasExistentials)
          --  then (DataNormal, map (\con -> ConNormal typeName) conInfos)
-         else if (isValue 
-                    && (null (dataInfoParams info) || typeName == nameTpCTail) 
+         else if (isValue
+                    && (null (dataInfoParams info) || typeName == nameTpCField)
                     && all (\con -> null (conInfoParams con)) conInfos)
           then (DataEnum,map (const (ConEnum typeName DataEnum)) conInfos)
          else if (length conInfos == 1)
@@ -348,7 +350,7 @@ getDataReprEx getIsValue info
                                 then DataIso
                                else if (isValue && null singletons && not (dataInfoIsRec info))
                                 then DataSingleStruct
-                                else DataSingle
+                                else DataSingle (not (null singletons))
                in (dataRepr
                   ,[if (isValue && length (conInfoParams conInfo) == 1) then ConIso typeName dataRepr
                     else if length singletons == 1 then ConSingleton typeName dataRepr
@@ -462,25 +464,25 @@ defGroupsTNames :: DefGroups -> TNames
 defGroupsTNames group = foldr S.union S.empty (map defGroupTNames group)
 
 data VarInfo
-  = InfoNone  
+  = InfoNone
   | InfoArity Int Int               -- #Type parameters, #parameters
   | InfoExternal [(Target,String)]  -- inline body
-  | InfoReuse Pattern               
+  | InfoReuse Pattern
   | InfoConField TName Name         -- constructor name, field name
-  
+
 instance Show VarInfo where
   show info = case info of
-                InfoNone  
+                InfoNone
                   -> ""
-                InfoReuse pat 
+                InfoReuse pat
                   -> "reuse:<pat>"
-                InfoConField conName fieldName    
+                InfoConField conName fieldName
                   -> "field:" ++ show conName ++ "." ++ show fieldName
-                InfoArity m n  
+                InfoArity m n
                   -> "arity:" ++ show (m,n)
-                InfoExternal formats 
+                InfoExternal formats
                   -> "external:" ++ show formats
-                
+
 
 infoArity (InfoArity m n) = n
 infoArity (_)             = 0
@@ -726,6 +728,7 @@ tnamesRemove names set
 tnamesMember :: TName -> TNames -> Bool
 tnamesMember tname tnames = S.member tname tnames
 
+
 instance Eq TName where
   (TName name1 tp1) == (TName name2 tp2)  = (name1 == name2) --  && matchType tp1 tp2)
 
@@ -812,7 +815,7 @@ freshName prefix
        return (newName $ prefix ++ "." ++ show id)
 
 openEffectExpr :: Effect -> Effect -> Type -> Type -> Expr -> Expr
-openEffectExpr effFrom effTo tpFrom tpTo expr  
+openEffectExpr effFrom effTo tpFrom tpTo expr
   = if (hasNoEffectExpr expr)
      then expr
      else --trace ("open effect: " ++ show (map pretty [effFrom,effTo,tpFrom,tpTo])) $
@@ -826,7 +829,7 @@ openEffectExpr effFrom effTo tpFrom tpTo expr
     e2      = TypeVar (-4) kindEffect Bound
 
     hasNoEffectExpr expr
-      = case expr of 
+      = case expr of
           TypeApp e targs -> hasNoEffectExpr e
           Lit{} -> True
           Con{} -> True
@@ -883,7 +886,7 @@ instance HasType Expr where
            | length args == length targs || length targs == 0 -> tres
            | length args > length targs  -> typeOf (App (Var (TName (newName "tmp") tres) InfoNone) (drop (length targs) args))
            | otherwise -> TFun (drop (length args) targs) eff tres
-        _ -> failure ("Core.Core.typeOf.App: Expected function: " ++ show (pretty (typeOf fun))) -- ++ " in the application " ++ show (expr))
+        _ -> error ("Core.Core.typeOf.App: Expected function: " ++ show (pretty (typeOf fun)) ++ show (map (pretty . typeOf) args))  -- ++ " in the application " ++ show expr
 
   -- Type lambdas
   typeOf (TypeLam xs expr)
@@ -972,3 +975,76 @@ splitTForall tp
   = case expandSyn tp of
       (TForall tvs _ tp) -> (tvs, tp) -- TODO what about the rest of the variables and preds?
       _ ->  failure ("Core.Core.splitTForall: Expected forall: " ++ show (pretty tp))
+
+
+type Deps = S.Set Name
+
+depsUnions xs = foldr S.union S.empty xs
+
+depTName :: TName -> Deps
+depTName tname = depName (getName tname)
+
+depName :: Name -> Deps
+depName name
+  = if (isQualified name) then S.singleton (qualifier name) else S.empty
+
+dependencies :: [InlineDef] -> Core -> Deps
+dependencies inlineDefs core
+  = S.union (inlineDependencies inlineDefs) (coreDependencies core)
+
+inlineDependencies :: [InlineDef] -> Deps
+inlineDependencies inlineDefs
+  = depsUnions (map (depExpr . inlineExpr) inlineDefs)
+
+coreDependencies :: Core -> Deps
+coreDependencies (Core{coreProgName = mname, coreProgImports = imports, coreProgTypeDefs = tdefs, coreProgDefs = defs})
+  = let deps = S.filter (mname /=) $
+               depsUnions [S.fromList (map importName (filter (isPublic . importVis) imports)),
+                           depsUnions (map depTDef (flattenTypeDefGroups tdefs)),
+                           depsUnions (map depDef (flattenDefGroups defs))]
+    in -- trace ("dependencies for " ++ show mname ++ ": " ++ show (S.elems deps)) $
+       deps
+
+depTDef :: TypeDef -> Deps
+depTDef (Synonym info) = depType (synInfoType info)
+depTDef (Data info _)  = depsUnions (map (depType . conInfoType) (dataInfoConstrs info))
+
+depType :: Type -> Deps
+depType tp
+  = case tp of
+      TForall vars preds rho  -> depType rho
+      TFun args eff tp        -> depsUnions (map depType (tp:eff:map snd args))
+      TCon tc                 -> depName (typeConName tc)
+      TVar _                  -> S.empty
+      TApp tp tps             -> depsUnions (map depType (tp:tps))
+      TSyn syn args tp        -> depsUnions (map depType (tp:args))
+
+depDef :: Def -> Deps
+depDef def  = depsUnions [depType (defType def), depExpr (defExpr def)]
+
+depExpr :: Expr -> Deps
+depExpr expr
+  = case expr of
+      Var tname info     -> depTName tname
+      Lam tname eff body -> S.union (depType eff) (depExpr body)
+      App e args         -> depsUnions (map depExpr (e:args))
+      TypeLam tvs e      -> depExpr e
+      TypeApp e tps      -> depsUnions (depExpr e : map depType tps)
+      Con tname repr     -> depTName tname
+      Lit lit            -> S.empty
+      Let defGroups body -> depsUnions (depExpr body : map depDef (flattenDefGroups defGroups))
+      Case exprs branches -> depsUnions (map depExpr exprs ++ map depBranch branches)
+
+depBranch (Branch patterns guards)
+  = depsUnions (map depPat patterns ++ map depGuard guards)
+
+depGuard (Guard test expr)
+  = S.union (depExpr test) (depExpr expr)
+
+depPat pat
+  = case pat of
+      PatCon{patConName=tname,patConPatterns=pats}
+        -> depsUnions (depTName tname : map depPat pats)
+      PatVar tname pat
+        -> depPat pat
+      _ -> S.empty

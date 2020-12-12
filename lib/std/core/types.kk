@@ -1,9 +1,24 @@
+/*---------------------------------------------------------------------------
+  Copyright 2012-2020 Daan Leijen, Microsoft Corporation.
+
+  This is free software; you can redistribute it and/or modify it under the
+  terms of the Apache License, Version 2.0. A copy of the License can be
+  found in the file "license.txt" at the root of this distribution.
+---------------------------------------------------------------------------*/
+
+/* Core types.
+
+   This module is implicitly imported and all functions and types
+   are always available.
+   These types are required to be defined for the compiler
+   to work correctly (i.e. types like `:int` or `:div`)
+*/
 public module std/core/types
 
 infixr 30  (&&)
 infixr 20  (||)
 
-extern include {
+include extern {
   js file "types-inline.js"
 }
 
@@ -24,42 +39,42 @@ type string
 
 // A 64-bit IEEE 754 floating point value.
 // See also `std/num/double` for more operations on `:double`s.
-type value double
+value type double
 
 // A 32-bit signed integer (represented in two's complement).
 // See the [``std/int32``](std_int32.html) module for operations on 32-bit integers.
-type value int32
+value type int32
 
-// A signed integer equal to `size_t` in C. 
+// A signed integer equal to `size_t` in C.
 // Provides no operations but is used mostly for interaction with external code.
 // The Javascript backend uses `int32` for this.
-type value size_t
+value type size_t
 
 // A 8-bit unsigned integer (represented in two's complement).
 // Provides no operations but is used mostly for interaction with external code.
-type value uint8
+value type uint8
 
 // A 8-bit signed integer (represented in two's complement).
 // Provides no operations but is used mostly for interaction with external code.
-type value int8
+value type int8
 
 // A 16-bit signed integer (represented in two's complement).
 // Provides no operations but is used mostly for interaction with external code.
-type value int16
+value type int16
 
 // A 32-bit IEEE 754 floating point value.
 // Not supported by the Javascript backend
 // Provides no operations but is used mostly for interaction with external code.
-type value float32
+value type float32
 
 // An any type. Used for extern calls
-type value any
+value type any
 
 // Internal type used for in-place update of unique pattern matches
 type reuse
 
 extern no-reuse() : reuse {
-  c inline "NULL"
+  c inline  "NULL"
   js inline "null"
 }
 
@@ -68,7 +83,7 @@ extern no-reuse() : reuse {
 // This is different from a unicode _grapheme_ which represents a single displayed
 // symbol and can consists of multiple codepoints due to combining characters and marks.
 // (see also the [``std/text/unicode``](std_text_unicode.html) module.)
-type value char
+value type char
 
 // The _total_ effect represents the absence of any effect.
 type <> :: E
@@ -100,29 +115,6 @@ alias st<h> = <read<h>, write<h>, alloc<h>>
 
 // The `:global` heap is a special heap constant to denote the global shared heap
 type global :: H
-
-
-// ----------------------------------------------------------------------------
-// Internal types
-// ----------------------------------------------------------------------------
-
-// Optional is used internally by the compiler to pass optional arguments.
-// It is usually displayed as `:?a` for some type `:a`.
-type value optional<a> {
-  // The `Optional` constructor is used when an optional argument is given.
-  con Optional(value:a)
-  // `None` is used when an optional argument is not provided.
-  con None
-}
-
-// Handled effects are lifted to an atomic effect using the `:handled` type constructor
-type handled    :: HX -> X;
-
-// Linear effects are lifted to an atomic effect using the `:handled1` type constructor
-type handled1   :: HX1 -> X;
-
-// The `:inst` effect is the default umbrella effect for effect instances
-type inst :: HX
 
 
 // ----------------------------------------------------------------------------
@@ -175,6 +167,21 @@ type order {
   Gt
 }
 
+// Explicitly box values using the `Box` constructor.
+value type box<a> {
+  con Box( unbox : a )
+}
+
+// Explicitly heap allocate using the `Hbox` constructor.
+reference type hbox<a> {
+  con Hbox( unhbox : a )
+}
+
+fun hbox( x : a ) : hbox<a> {
+  Hbox(x)
+}
+
+
 // ----------------------------------------------------------------------------
 // Standard functions
 // ----------------------------------------------------------------------------
@@ -193,18 +200,19 @@ fun (||)( x : bool, y : bool) : bool { // inlined in the compiler for short-circ
   if (x) then True else y
 }
 
-// extern inline (&&) : (bool,bool) -> bool  { inline "(#1 && #2)" }
-// extern inline (||) : (bool,bool) -> bool  { inline "(#1 || #2)" }
+// inline extern (&&) : (bool,bool) -> bool  { inline "(#1 && #2)" }
+// inline extern (||) : (bool,bool) -> bool  { inline "(#1 || #2)" }
 
 // for efficiency we use extern here (for now)
 // fun (!)( b : bool ) : bool = if (x) then false else true
 // fun not( b : bool ) : bool = if (x) then false else true
 
-extern inline not  : (bool) -> bool  { inline "!(#1)" }
-extern inline (!)  : (bool) -> bool  { inline "!(#1)" }
+inline extern not  : (bool) -> bool  { inline "!(#1)" }
+inline extern (!)  : (bool) -> bool  { inline "!(#1)" }
 
 // needed for markers in `std/core/hnd`.
-extern inline zero32() : int32 { inline "0" }
+inline extern zero32() : int32 { inline "0" }
+
 
 // ----------------------------------------------------------------------------
 // References
@@ -226,32 +234,33 @@ type ediv :: (X,V,E) -> P
 type ref :: (H,V) -> V
 
 // Allocate a fresh reference with an initial value.
-extern inline ref : forall<h,a> (value:a) -> alloc<h> ref<h,a> {
+inline extern ref : forall<h,a> (value:a) -> alloc<h> ref<h,a> {
   c inline "kk_ref_alloc(#1,kk_context())"
   cs inline "new Ref<##1,##2>(#1)"
   js inline "{ value: #1 }"
 }
 
 // Assign a new value to a reference.
-extern inline set  : forall<h,a> (ref: ref<h,a>, assigned: a) -> <write<h>> () {
+inline extern set  : forall<h,a> (ref: ref<h,a>, assigned: a) -> <write<h>> () {
   c inline "kk_ref_set(#1,#2,kk_context())"
-  cs inline "#1.Set(#2)";
+  cs inline "#1.Set(#2)"
   js inline "((#1).value = #2)"
 }
 
 // Read the value of reference.
-extern inline (!) : forall<h,a,e> (ref: ref<h,a>) -> <read<h>|e> a with(hdiv<h,a,e>)  {
+inline extern (!) : forall<h,a,e> (ref: ref<h,a>) -> <read<h>|e> a with(hdiv<h,a,e>)  {
   c inline "kk_ref_get(#1,kk_context())"
-  cs inline "#1.Value";
-  js inline "((#1).value)";
+  cs inline "#1.Value"
+  js inline "((#1).value)"
 }
+
 
 // If a heap effect is unobservable, the heap effect can be erased by using the `run` fun.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
-extern inline run : forall<e,a> ( action : forall<h> () -> <alloc<h>,read<h>,write<h> | e> a ) -> e a  {
+inline extern run : forall<e,a> ( action : forall<h> () -> <alloc<h>,read<h>,write<h> | e> a ) -> e a  {
   c  "(kk_function_call(kk_box_t,(kk_function_t,kk_context_t*),#1,(#1,kk_context())))"
-  cs inline "Primitive.Run<##2>(#1)";
-  js inline "((#1)())";
+  cs inline "Primitive.Run<##2>(#1)"
+  js inline "((#1)())"
 }
 
 // ----------------------------------------------------------------------------
@@ -263,21 +272,21 @@ type local :: (H) -> X
 type local-var :: (H,V) -> V
 
 // Allocate a fresh local with an initial value.
-extern inline local-new : forall<s,a> (value:a) -> local<s> local-var<s,a> {
+inline extern local-new : forall<s,a> (value:a) -> local<s> local-var<s,a> {
   c inline "kk_ref_alloc(#1,kk_context())"
   cs inline "new Ref<##1,##2>(#1)"
   js inline "{ value: #1 }"
 }
 
 // Assign a new value to a local variable
-extern inline local-set  : forall<s,a,l> (v: local-var<s,a>, assigned: a) -> <local<s>> () {
+inline extern local-set  : forall<s,a,l> (v: local-var<s,a>, assigned: a) -> <local<s>> () {
   c inline "(kk_ref_set(#1,#2,kk_context()))"
   cs inline "#1.Set(#2)";
   js inline "((#1).value = #2)"
 }
 
 // Read the value of a local variable.
-extern inline local-get : forall<s,a,e> (v: local-var<s,a>) -> <local<s>|e> a with(hdiv<s,a,e>)  {
+inline extern local-get : forall<s,a,e> (v: local-var<s,a>) -> <local<s>|e> a with(hdiv<s,a,e>)  {
   c inline "(kk_ref_get(#1,kk_context()))"
   cs inline "#1.Value";
   js inline "((#1).value)";
@@ -285,22 +294,22 @@ extern inline local-get : forall<s,a,e> (v: local-var<s,a>) -> <local<s>|e> a wi
 
 // If local mutation is unobservable, the `:local` effect can be erased by using the `local-scope` function.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
-extern inline local-scope : forall<e,a> ( action : forall<h> () -> <local<h> | e> a) -> e a  {
+inline extern local-scope : forall<e,a> ( action : forall<h> () -> <local<h> | e> a) -> e a  {
   c  "(kk_function_call(kk_box_t,(kk_function_t,kk_context_t*),#1,(#1,kk_context())))"
   cs inline "Primitive.Run<##2>(#1)";
   js inline "((#1)())";
 }
 
-extern inline byref(loc : a) : a { inline "#1" }
+inline extern byref(loc : a) : a { inline "#1" }
 
 // ----------------------------------------------------------------------------
 // Unsafe: todo: move to separate module
 // ----------------------------------------------------------------------------
 
 // _Unsafe_. Mark a function parameter as decreasing to suppress the non-termination effect (`:div`).
-extern inline unsafe-decreasing( x : a ) : a { inline "#1" }
+inline extern unsafe-decreasing( x : a ) : a { inline "#1" }
 
-private extern inline unsafe-total-cast : forall<e,a> ( action : () -> e a ) -> (() -> a) { inline "#1" }
+private inline extern unsafe-total-cast : forall<e,a> ( action : () -> e a ) -> (() -> a) { inline "#1" }
 
 // _Unsafe_. This function calls a function and pretends it did not have any effect at all.
 fun unsafe-total( action : () -> e a ) : a {
@@ -318,16 +327,69 @@ fun unsafe-no-div( action : () -> <div|e> a ) : e a {
 }
 
 // ----------------------------------------------------------------------------
-// These primitives are used by the compiler for 
+// Internal types
+// ----------------------------------------------------------------------------
+
+// Optional is used internally by the compiler to pass optional arguments.
+// It is usually displayed as `:?a` for some type `:a`.
+type optional<a> {
+  // The `Optional` constructor is used when an optional argument is given.
+  con Optional( value : a )
+  // `None` is used when an optional argument is not provided.
+  con None
+}
+
+// Handled effects are lifted to an atomic effect using the `:handled` type constructor
+type handled    :: HX -> X;
+
+// Linear effects are lifted to an atomic effect using the `:handled1` type constructor
+type handled1   :: HX1 -> X;
+
+
+
+// ----------------------------------------------------------------------------
+// These primitives are used by the compiler for
 // _tail recursion module cons_ (TRMC) optimization.
 // ----------------------------------------------------------------------------
 
 // _Internal_. Internal type for _tail recursion module cons_ (TRMC) optimization.
-type value ctail<a>
+// Holds the address to a field of type `:a` in a constructor.
+value type cfield<a>
 
-extern inline ".ctail-hole"() : a { }
-extern inline ".ctail-create"(obj : a, cname : string, field : string) : ctail<a> { }
-extern inline ".ctail-next"(acc : ctail<a>, res : a, obj : a, cname : string , field : string ) : ctail<a> { }
-extern inline ".ctail-set"( acc : ctail<a>, res : a ) : () { }
-extern inline ".ctail-get"( acc : ctail<a> ) : a { }
-extern inline ".ctail-alloc"() : ctail<a> { }
+// _Internal_. Internal type for _tail recursion module cons_ (TRMC) optimization.
+abstract value type ctail<a> {
+  con CTail( :a, :cfield<a> )
+  con CTailNil
+}
+
+fun ".ctail-nil"() : ctail<a> {
+  CTailNil
+}
+
+inline extern ".cfield-hole"() : a { }
+inline extern ".cfield-of"( obj : a, conname : string, fieldname : string ) : cfield<a> { }
+private inline extern cfield-set( field : cfield<a>, res : a ) : () { }
+
+inline fun ".cfield-set"( field : cfield<a>, res : a ) : () {
+  cfield-set(field,res)
+}
+
+inline fun ".ctail-link"( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
+  match(acc) {
+    CTail(head,last) {
+      cfield-set(last,res)
+      CTail(head,field)
+    }
+    CTailNil -> CTail(res,field)
+  }
+}
+
+inline fun ".ctail-resolve"( acc : ctail<a>, rest : a ) : a {
+  match(acc) {
+    CTail(head,last) {
+      cfield-set(last,rest)
+      head
+    }
+    CTailNil -> rest
+  }
+}

@@ -148,7 +148,7 @@ fun prompt( w0:evv<e0>, w1:evv<e1>, m : marker<e0,r>, res : r ) : e0 r
     }
     Yielding(final) {
       // evv-set(w0)  // only needed if we do evidence expected check
-      if (final) then res else yield-cont(fun(cont,res){ prompt(w0,w1,unsafe-decreasing(m),cont(res)); })
+      if (final) then res else yield-cont(fn(cont,res){ prompt(w0,w1,unsafe-decreasing(m),cont(res)); })
     }
     Yield(clause,mbcont) {
       fun deep(x){
@@ -180,7 +180,7 @@ public fun ihandle( tag:htag<h>, h : h<e,r>, action : () -> e1 r ) : e r {
 fun prompt-local-var(r:ref<h,a>, res : b  ) : <div,st<h>,local<h>|e> b {
   if (!yielding()) return res;
   val v = !r
-  yield-extend(fun(x){ r := v; prompt-local-var(r,x) } )
+  yield-extend(fn(x){ r := v; prompt-local-var(r,x) } )
 }
 
 fun ilocal-var(init:a, action: (l:local-var<s,a>) -> <local<s>|e> b ) : <local<s>|e> b {
@@ -200,7 +200,7 @@ fun finally( fin : () -> e (), action : () -> e a ) : e a {
 }
 
 fun finally-prompt(fin : () -> e (), res : a ) : e a {
-  if (yielding-non-final()) return yield-cont(fun(cont,x){ finally-prompt(unsafe-decreasing(fin),cont(x)) })
+  if (yielding-non-final()) return yield-cont(fn(cont,x){ finally-prompt(unsafe-decreasing(fin),cont(x)) })
   fin()
   res
 }
@@ -216,7 +216,7 @@ extern undefined() : a {
 fun finalize(cont : (() -> a) -> e b) : e () {
   val m : marker<_e,_b> = fresh-marker()
   val w = evv-get()
-  prompt(w,w,m, unit(cont( { yield-to(m,fun(_k){ () }, True)() } )))
+  prompt(w,w,m, unit(cont( { yield-to(m,fn(_k){ () }, True)() } )))
 }
 
 // -------------------------------------------
@@ -233,7 +233,7 @@ fun under1( w : evv<e>, op : a -> e b, x : a ) : e b {
   evv-set(w)
   val y = op(x)
   // evv-set(w0)   // only needed before yielding for evidence expected check in prompt
-  if (yielding()) return yield-extend(fun(yy){ evv-set(w0); yy })
+  if (yielding()) return yield-extend(fn(yy){ evv-set(w0); yy })
   evv-set(w0)
   y
 }
@@ -244,22 +244,22 @@ fun op-control( op : (x:a, k: b -> e r) -> e r ) : op<a,b,e,r> {
 }
 
 fun op-tail(op : a -> e b) : op<a,b,e,r> {
-  Tail( fun(w,x){ under1(w,op,x) } )
+  Tail( fn(w,x){ under1(w,op,x) } )
 }
 
 fun op-tail-noyield(op : a -> e b) : op<a,b,e,r> {
-  Tail( fun(w,x){ op(x) } )
+  Tail( fn(w,x){ op(x) } )
 }
 
 fun op-constant(v : b) : op<(),b,e,r> {
-  Tail( fun(_w,_x){ v } )
+  Tail( fn(_w,_x){ v } )
 }
 
 public fun iperform( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> op<a,b,e1,r>), x : a ) : e b {
   match(ev) {
     Ev(_tag,m,h,w) -> match(h.op) {
       Tail(clause)    -> unsafe-coerce(clause)(w,x)
-      Control(clause) -> yield-to(m,fun(k){ clause(x,k) },False)
+      Control(clause) -> yield-to(m,fn(k){ clause(x,k) },False)
     }
   }
 }
@@ -273,7 +273,7 @@ fun under2( w : evv<e>, op : (a1,a2) -> e b, x1 : a1, x2 : a2 ) : e b {
   val w0 = evv-get()
   evv-set(w)
   val z = op(x1,x2)
-  if (yielding()) return yield-extend(fun(zz){ evv-set(w0); zz })
+  if (yielding()) return yield-extend(fn(zz){ evv-set(w0); zz })
   evv-set(w0)
   z
 }
@@ -283,18 +283,18 @@ fun op-control2( op : (x1:a1, x2:a2, k: b -> e r) -> e r ) : op2<a1,a2,b,e,r> {
 }
 
 fun op-tail2(op : (a1,a2) -> e b) : op2<a1,a2,b,e,r> {
-  Tail2( fun(w,x,y){ under2(w,op,x,y) } )
+  Tail2( fn(w,x,y){ under2(w,op,x,y) } )
 }
 
 fun op-tail-noyield2(op : (a1,a2) -> e b) : op2<a1,a2,b,e,r> {
-  Tail2( fun(w,x,y){ op(x,y) } )
+  Tail2( fn(w,x,y){ op(x,y) } )
 }
 
 public fun iperform2( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> op2<a,b,c,e1,r>), x : a, y : b ) : e c {
   match(evx) {
     Ev(_tag,m,h,w) -> match(h.op) {
       Tail2(clause)    -> unsafe-coerce(clause)(w,x,y)
-      Control2(clause) -> yield-to(m,fun(k){ clause(x,y,k) },False)
+      Control2(clause) -> yield-to(m,fn(k){ clause(x,y,k) },False)
     }
   }
 }
@@ -304,21 +304,21 @@ fun under3( w : evv<e>, op : (a1,a2,a3) -> e b, x1 : a1, x2 : a2, x3 : a3 ) : e 
   val w0 = evv-get()
   evv-set(w)
   val z = op(x1,x2,x3)
-  if (yielding()) return yield-extend(fun(zz){ evv-set(w0); zz })
+  if (yielding()) return yield-extend(fn(zz){ evv-set(w0); zz })
   evv-set(w0)
   z
 }
 
 fun op-control3( op : (x1:a1, x2:a2, x3:a3, k: b -> e r) -> e r ) : op<(a1,a2,a3),b,e,r> {
-  Control( fun(x:(_,_,_),k){ op(x.fst,x.snd,x.thd,k) } )
+  Control( fn(x:(_,_,_),k){ op(x.fst,x.snd,x.thd,k) } )
 }
 
 fun op-tail3(op : (a1,a2,a3) -> e b) : op<(a1,a2,a3),b,e,r> {
-  Tail( fun(w,x:(_,_,_)){ under3(w,op,x.fst,x.snd,x.thd) } )
+  Tail( fn(w,x:(_,_,_)){ under3(w,op,x.fst,x.snd,x.thd) } )
 }
 
 fun op-tail-noyield3(op : (a1,a2,a3) -> e b) : op<(a1,a2,a3),b,e,r> {
-  Tail( fun(w,x:(_,_,_)){ op(x.fst,x.snd,x.thd) } )
+  Tail( fn(w,x:(_,_,_)){ op(x.fst,x.snd,x.thd) } )
 }
 
 
@@ -342,7 +342,7 @@ fun amb-flip( i : int ) : <amb|e> bool {
   iperform(evv-select(i,amb-tag),op-flip,())
 }
 
-val h = Amb-hnd( op-control( fun(x,k){
+val h = Amb-hnd( op-control( fn(x,k){
             with xs : list<_> = yield-bind(k(False))
             with ys = yield-bind( k(True) )
             xs + ys
@@ -380,7 +380,7 @@ fun read(i:int) {
 }
 
 fun reader(init,action) {
-  read-handle( Reader-hnd( op-control( fun(x,k){ k(init) } )), action)
+  read-handle( Reader-hnd( op-control( fn(x,k){ k(init) } )), action)
 }
 
 // State
@@ -405,7 +405,7 @@ fun state-set( ev : ev<state-hnd<a>>, x : a ) : <state<a>|e> () {
 
 fun state(init : s, action : () -> <state<s>|e> a) : e a {
   with s = ilocal-var(init)
-  state-handle(State-hnd( op-tail-noyield( fun(x){ s } ), op-tail-noyield( fun(x){ s := x }) ), { mask<local>(action) } )
+  state-handle(State-hnd( op-tail-noyield( fn(x){ s } ), op-tail-noyield( fn(x){ s := x }) ), { mask<local>(action) } )
 }
 
 public fun add21() : state<int> int {
@@ -453,7 +453,7 @@ fun test-amb-state() : list<int> {  // 1,1,1,1
 // Tests
 fun state-x(init,action) {
   with s = ilocal-var(init)
-  state-handle(State-hnd( op-tail( fun(x){ read(-1) } ), op-tail-noyield( fun(x){ s := x }) ), action)
+  state-handle(State-hnd( op-tail( fn(x){ read(-1) } ), op-tail-noyield( fn(x){ s := x }) ), action)
 }
 
 fun test-difficult() : int {
@@ -481,7 +481,7 @@ handle(action) {
 }
 ~>
 amb-handle( Amb-hnd(
-   Control( fun((x,y),k){k(True)}) )
+   Control( fn((x,y),k){k(True)}) )
    Tail()
   ,action
 )

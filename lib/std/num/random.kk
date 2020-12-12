@@ -13,7 +13,7 @@ public module std/num/random
 import std/num/int32
 import std/num/double
 
-extern include {
+include extern {
   js file "random-inline.js"
 }
 
@@ -26,7 +26,7 @@ fun ".default-random"(action : () -> <random,ndet|e> a) : <ndet|e> a {
 }
 
 // Pick random numbers from a the best strong random source in the OS.
-// (e.g. like `/dev/urandom`, `arc4random` etc.). Use `srandom-strong?` to test if the 
+// (e.g. like `/dev/urandom`, `arc4random` etc.). Use `srandom-is-strong` to test if the 
 // numbers are indeed based on a strong random source.
 fun strong-random(action : () -> <random,ndet|e> a) : <ndet|e> a {
   with fun random-int32() { srandom-int32() }
@@ -58,7 +58,7 @@ private fun sfc-step( sfc : sfc ) : (int32,sfc) {
 
 private fun sfc-init( seed : int ) : sfc {
   val sfc0 = Sfc(0.int32, seed.int32, (seed / 0x100000000).int32, 1.int32)
-  fold-int32( 0.int32, 12.int32, sfc0, fun(_,s){ sfc-step(s).snd } )  // step 12 times
+  fold-int32( 0.int32, 12.int32, sfc0, fn(_,s){ sfc-step(s).snd } )  // step 12 times
 }
 
 // Use pseudo random numbers given some initial `seed`. At most
@@ -89,9 +89,9 @@ fun random-int() : random int {
   random-int32().int
 }
 
-// Return a random double in the range [0,1) using 48-bits of randomness
+// Return a random double in the range [0,1) using 52-bits of randomness
 fun random-double() : random double {
-  val lo = random-int32().shl(4.int32)
+  val lo = random-int32()
   val hi = random-int32().shr(12.int32).or(0x3FF00000.int32)
   (double-from-bits(lo,hi) - 1.0)
 }
@@ -118,14 +118,14 @@ extern srandom-int32: () -> ndet int32  {
   js "_srandom_int32"
 }
 
-// Return a strong random `:double` in the range [0,1) using 48-bits of randomness
+// Return a strong random `:double` in the range [0,1) using 52-bits of randomness
 extern srandom-double : () -> ndet double   {
   c  inline "kk_srandom_double(kk_context())"
   js "_srandom_double"
 }
 
 // Are the strong random numbers generated from a strong random source? (like /dev/urandom)
-extern srandom-strong?: () -> ndet bool  {
+extern srandom-is-strong: () -> ndet bool  {
   c  "kk_srandom_is_strong"
   js "_srandom_is_strong"
 }

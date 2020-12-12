@@ -1,3 +1,3 @@
 fun test(x:int): (() -> int) {
-  return fun() { x }
+  return fn() { x }
 }

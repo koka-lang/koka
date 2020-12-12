@@ -40,8 +40,10 @@ import Syntax.RangeMap( mangle, mangleTypeName, mangleConName )
 
 genDoc :: Printer p => Env -> KGamma -> Gamma -> Core -> p -> IO ()
 genDoc env kgamma gamma core p
-  | noDeclarations && all (\imp -> importVis imp == Private) (coreProgImports core) && not (null (coreProgImports core))
-  = -- trace ("genIndex: " ++ show (coreProgName core, noDeclarations, map importVis (coreProgImports core))) $
+  | noDeclarations
+    -- && all (\imp -> importVis imp == Private) (coreProgImports core)
+    && not (null (coreProgImports core))
+  = -- trace ("genIndex: " ++ show (coreProgName core, map showImport (coreProgImports core))) $
     htmlBody $
     do writeLn p $ ptag "h1" "module" $ fmtName (coreProgName core)
        writeLn p $ showDoc env kgamma gamma (coreProgDoc core)
@@ -54,7 +56,7 @@ genDoc env kgamma gamma core p
                                  ++ (atag "toc.html" (span "toc-link" "&#x25b2;toc")))
        writeLn p $ doctag "div" "toc code" $ concatMap (doctag "ul" "toc") $ filter (not . null) $ map concat tocFmts
        -- writeLn p $ ptag "h2" "" "Description"
-       writeLn p $ showDoc env kgamma gamma (coreProgDoc core)
+       writeLn p $ showModuleDoc env kgamma gamma (coreProgDoc core)
        -- writeLn p $ ptag "h2" "" "Exports"
        mapM_ (writeLn p) (map (fmtPublicImport env kgamma gamma) publicImports)
        mapM_ (writeLn p) (map (fmtTypeDef env kgamma gamma) typeDefsDefs)
@@ -190,6 +192,9 @@ genDoc env kgamma gamma core p
            mapM_ (writeLn p) htmlFooter
 
 
+showImport imp
+  = show (importVis imp) ++ " " ++ show (importName imp)
+
 --------------------------------------------------------------------------
 --  Index
 --------------------------------------------------------------------------
@@ -247,11 +252,26 @@ fmtImport env kgamma gamma root name (imp)
 
 synopsis :: Env -> KGamma -> Gamma -> String -> String
 synopsis env kgamma gamma doc
-  = showDoc env kgamma gamma $
-    endWithDot $ capitalize $
-    fst $ extract "" $
-    dropWhile isSpace $
-    removeComment doc
+  = showDoc env kgamma gamma $ fst $ splitModuleDoc doc
+
+showModuleDoc :: Env -> KGamma -> Gamma -> String -> String
+showModuleDoc env kgamma gamma doc
+  = let (pre,post) = splitModuleDoc doc
+    in showDoc env kgamma gamma
+        (doctag "h1" "synopsis" pre ++ "\n\n" ++ post)
+
+
+indent n s
+  = span ("nested" ++ show n) s
+
+
+splitModuleDoc :: String -> (String,String)
+splitModuleDoc doc
+  = let (pre,post) = extract "" $
+                      dropWhile isSpace $
+                      removeComment doc
+    in (capitalize $ pre,
+        dropWhile (\c -> (c=='.' || isSpace c)) post)
   where
     extract acc s
       = case s of
@@ -260,11 +280,6 @@ synopsis env kgamma gamma doc
                          _           -> extract ('\n':acc) cs
           (c:cs)    -> extract (c:acc) cs
           []        -> (reverse acc,"")
-
-
-indent n s
-  = span ("nested" ++ show n) s
-
 
 --------------------------------------------------------------------------
 --  TOC
@@ -290,7 +305,8 @@ fmtTypeDefTOC (Data info@DataInfo{ dataInfoSort = Inductive, dataInfoConstrs = [
 fmtTypeDefTOC (Data info isExtend, defs)  -- todo: handle extend
   = [doctag "li" "" $
      (doctag "a" ("link\" href=\"#" ++ linkEncode (nameId (mangleTypeName (dataInfoName info)))) $
-      cspan "keyword" (show (dataInfoSort info)) ++ "&nbsp;" ++ span "type" (niceTypeName (dataInfoName info))) ++ "\n"]
+      cspan "keyword" (if (hasKindLabelResult (dataInfoKind info)) then "effect" else show (dataInfoSort info))
+       ++ "&nbsp;" ++ span "type" (niceTypeName (dataInfoName info))) ++ "\n"]
     ++ map fmtConTOC constructors
     ++ map (fmtDefTOC True) defs
   where
@@ -422,10 +438,12 @@ fmtTypeDef env kgamma gamma (Data info isExtend, defs) -- TODO: show extend corr
     env' = niceEnv env (dataInfoParams info)
     fmtTVars = map (showType env' kgamma gamma . TVar) (dataInfoParams info)
 
-    dataInfo = show (dataInfoSort info) ++
-               (if (isExtend) then "&nbsp;extend"
-                else if (dataInfoIsOpen info) then "&nbsp;open"
-                else "")
+    dataInfo = if (hasKindLabelResult (dataInfoKind info))
+                then "effect"
+                else (show (dataInfoSort info) ++
+                       (if (isExtend) then "&nbsp;extend"
+                        else if (dataInfoIsOpen info) then "&nbsp;open"
+                        else ""))
 
     constructors
       = filter (\con -> not (isHiddenName (conInfoName con))) $
