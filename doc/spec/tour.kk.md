@@ -1465,7 +1465,7 @@ fun sumdown( sum : int = 0 ) : <state<int>,div> int {
 We can define a generic state handler most easily by using `var` declarations:
 
 ```
-fun state( init : a, action : () -> <state<a>|e> b ) : e b {
+fun state( init : a, action : () -> <state<a>,div|e> b ) : <div|e> b {
   var st := init
   with handler {
     fun get(){ st }
@@ -1492,7 +1492,7 @@ to return the final state. A nice way to do this is to
 use a return operation again to pair the final result with the final state: 
 
 ```
-fun pstate( init : a, action : () -> <state<a>|e> b ) : e (b,a) {
+fun pstate( init : a, action : () -> <state<a>,div|e> b ) : <div|e> (b,a) {
   var st := init
   with handler {
     return(x){ (x,st) }      // pair with the final state
@@ -1512,7 +1512,7 @@ For example, we can define the previous example also with
 a separate `return` handler as:
 
 ```
-fun pstate2( init : a, action : () -> <state<a>|e> b ) : e (b,a) {
+fun pstate2( init : a, action : () -> <state<a>,div|e> b ) : <div|e> (b,a) {
   var st := init
   with return(x){ (x,st) }
   with handler {
@@ -1570,7 +1570,7 @@ then we can compose a `pstate` and `raise-maybe` handler together
 to handle the effects:
 
 ```
-fun state-raise(init) : (maybe<int>,int) {
+fun state-raise(init) : div (maybe<int>,int) {
   with pstate(init)  
   with raise-maybe  
   no-odds()
@@ -1588,7 +1588,7 @@ state where we either get an exception (and no final state), or we get a pair of
 result with the final state:
 
 ```
-fun raise-state(init) : maybe<(int,int)> {
+fun raise-state(init) : div maybe<(int,int)> {
   with raise-maybe  
   with pstate(init)  
   no-odds()

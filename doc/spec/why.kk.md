@@ -7,43 +7,49 @@ pure versus monadic programming, or Rust with borrow checking.
 
 &koka; distinguishes itself through _effect typing_, _effect handlers_,
 and _Perceus_ memory management:
+~ begin banners
+~ banner { caption:"Minimal but General" }
+The core of &koka; consists of a small set of well-studied language
+features, like first-class functions, a polymorphic type- and effect
+system, algebraic data types, and effect handlers. Each of these is
+composable and avoid the addition of
+"special" extensions by being as general as possible.\
+&nbsp;
 
-* The core of &koka; consists of a small set of well-studied language
-  features, like first-class functions, a polymorphic type- and effect
-  system, algebraic data types, and effect handlers. Each of these is
-  composable and avoid the addition of
-  "special" extensions by being as general as possible.
+[Read more about the _minimal but general_ design][#why-mingen]{.learn}
+~
+~ banner { caption:"Effect Types"}
+&koka; tracks the (side) _effects_ of every
+function in its type, where pure and effectful computations are
+distinguished. The precise effect typing gives &koka; _rock-solid
+semantics_ backed by well-studied category theory, which makes &koka;
+particularly easy to reason about for both humans and compilers.
 
-  [Read more about the _minimal but general_ design][#why-mingen]{.learn}
+[Read more about effect types][#why-effects]{.learn}
+~
+~ banner { caption:"Effect Handlers" }
+Effect handlers let you define advanced control abstractions,
+like exceptions, async/await, or probabilistic programs, 
+as a user library in a typed and composable way.\
+&nbsp;
 
-* &koka; tracks the (side) _effects_ of every
-  function in its type, where pure and effectful computations are
-  distinguished. The precise effect typing gives &koka; _rock-solid
-  semantics_ backed by well-studied category theory, which makes &koka;
-  particularly easy to reason about for both humans and compilers.
+[Read more about effect handlers][#why-handlers]{.learn}
+~
+~ banner { caption:"Perceus Reference Counting" }
+Perceus is an advanced compilation method for reference counting.
+This lets &koka; compile directly to C code _without needing
+a garbage collector or runtime system_! This also gives &koka; 
+excellent performance in practice.
 
-  [Read more about effect types][#why-effects]{.learn}
+[Read more about Perceus reference counting][#why-perceus]{.learn}
+~
+~ banner { caption:"Reuse Analysis" }
+Through Perceus, &koka; can do reuse analysis and optimize 
+functional-style programs to use in-place updates.
 
-* Effect handlers let you define advanced control abstractions,
-  like exceptions, async/await, or probabilistic programs, 
-  as a user library in a typed and composable way.
-
-  [Read more about effect handlers][#why-handlers]{.learn}
-
-* Perceus is an advanced compilation method for reference counting.
-  This lets &koka; compile directly to C code _without needing
-  a garbage collector or runtime system_! This also gives &koka; 
-  excellent performance in practice.
-
-  [Read more about Perceus reference counting][#why-perceus]{.learn}
-
-* Through Perceus, &koka; can do reuse analysis and optimize 
-  functional-style programs to use in-place updates.
-
-  [Read more about reuse analysis][#why-fbip]{.learn}
-
-  &nbsp;
-
+[Read more about reuse analysis][#why-fbip]{.learn}
+~
+~ end banners
 
 ## Minimal but General { #why-mingen; }
 

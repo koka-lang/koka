@@ -58,7 +58,7 @@ fun build( publish : bool, version : string, speconly : bool ) : io () {
     run-echo(cmd + " toc.kk")
   }
   println("compile documentation inlined code...")
-  run-echo(cmd + " book.kk.md getstarted.kk.md why.kk.md tour.kk.md spec.kk.md")
+  run-echo(cmd + " book.kk.md getstarted.kk.md why.kk.md tour.kk.md spec.kk.md landing.kk.md")
   println("patch book.md")
   file-replace-all(outspec + "book.md", ".kk.md", ".md");
 
@@ -73,13 +73,14 @@ fun build( publish : bool, version : string, speconly : bool ) : io () {
   copy-file-to-dir("doc/logo/koka-logo.png".path, outimages)
   copy-file-to-dir(specdir + "koka.bib", outspec)
   copy-file-to-dir("lib/std/time/timescales.png".path, outspec)
+  copy-file-to-dir("doc/spec/book-style.md".path, outspec)
   
   val xmps = list-directory(outspec).
              filter(fn(p){ p.string.ends-with(".xmp.html").bool }).
              map(fn(p){ p.nodir.string })
   println("run madoko...")
   run-echo( "cd " + outspec.string + " && madoko --odir=. -v -mline-no:false -mlogo:false -mkokaversion:" + version
-             + " " + xmps.join(" ") + " book.md" )
+             + " " + xmps.join(" ") + " book.md landing.md" )
              
   copy-file-to-dir(outspec + "madoko.css", outstyles)
   if (publish) {
