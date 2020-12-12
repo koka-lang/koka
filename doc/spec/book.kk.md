@@ -13,6 +13,7 @@ Bibliography  : koka.bib
 Description   : Koka Language Specification
 Mapsto        : [$\rightsquigarrow$]{.mapsto}
 Koka          : Koka
+ReadCollapse  : Read more about
 
 [INCLUDE=book]
 [INCLUDE=styles/webanchors]
@@ -24,7 +25,7 @@ Koka          : Koka
 ~opt          : before='[ ' after=' ]'
 
 
-[koka-logo]: images/koka-logo.png { max-height: 120px; padding:1rem 1rem 1rem 1.5rem; }
+[koka-logo]: images/koka-logo-filled.png { max-height: 120px; padding:1rem 1rem 1rem 1.5rem; }
 
 ~ Begin MainHeader
 
@@ -47,6 +48,14 @@ Koka          : Koka
 [TITLE]
 
 [INCLUDE=getstarted.kk.md]
+
+# Why &koka;? { #why; }
+
+There are many new languages being designed, but only few
+bring fundamentally new concepts -- like Haskell with
+pure versus monadic programming, or Rust with borrow checking.
+&koka; distinguishes itself through _effect typing_, _effect handlers_,
+and _Perceus_ memory management:
 
 [INCLUDE=why.kk.md]
 
