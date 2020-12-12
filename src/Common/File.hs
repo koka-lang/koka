@@ -14,7 +14,7 @@ module Common.File(
                     getEnvPaths, getEnvVar
                   , searchPaths, searchPathsEx
                   , runSystem, runSystemRaw, runCmd
-                  , getProgramPath
+                  , getInstallDir, getProgramPath
 
                   -- * Strings
                   , startsWith, endsWith, splitOn, trim
@@ -47,13 +47,12 @@ import Common.Failure   ( raiseIO, catchIO )
 
 import System.Process   ( system, rawSystem )
 import System.Exit      ( ExitCode(..) )
-import System.Environment ( getEnvironment, getProgName )
+import System.Environment ( getEnvironment, getExecutablePath )
 import System.Directory ( doesFileExist, doesDirectoryExist
                         , copyFile, copyFileWithMetadata
                         , getCurrentDirectory, getDirectoryContents
                         , createDirectoryIfMissing, canonicalizePath )
 
-import qualified Platform.Console as C (getProgramPath)
 import Lib.Trace
 import Platform.Filetime
 
@@ -317,22 +316,26 @@ copyTextIfNewerWith always srcName outName transform
         else do return ()
 
 
-getProgramPath :: IO FilePath
-getProgramPath
-  = do p <- C.getProgramPath  -- works on windows
-       if (not (null p))
-        then return p
-        else do name <- getProgName
-                if (null name)
-                 then return "main"
-                 else if (any isPathSep name)
-                  then return name
-                  else do paths <- getEnvPaths "PATH"
-                          mbp   <- searchPaths paths [] name  -- search along the PATH
-                          case mbp of
-                            Just fname -> return fname
-                            Nothing    -> return name
+getInstallDir :: IO FilePath
+getInstallDir
+  = do p <- getProgramPath
+       let d  = dirname p
+           ds = splitPath d
+           result = case reverse ds of
+                      -- stack build
+                      ("bin":_:"install":".stack-work":es)     -> joinPaths (reverse es)
+                      ("bin":_:_:"install":".stack-work":es)   -> joinPaths (reverse es)
+                      ("bin":_:_:_:"install":".stack-work":es) -> joinPaths (reverse es)
+                      -- install
+                      ("bin":es)   -> joinPaths (reverse es)
+                      -- jake build
+                      (_:"out":es) -> joinPaths (reverse es)
+                      _            -> d
+       -- trace ("install-dir: " ++ result ++ ": " ++ show ds) $
+       return result
 
+getProgramPath :: IO FilePath
+getProgramPath = getExecutablePath
 
 commonPathPrefix :: FilePath -> FilePath -> FilePath
 commonPathPrefix s1 s2

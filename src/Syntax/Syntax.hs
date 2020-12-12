@@ -206,11 +206,21 @@ data Expr t
   | Lit    Lit
   | Ann    (Expr t) t Range
   | Case   (Expr t) [Branch t]   Range
-  | Parens (Expr t)              Range
-  | Handler HandlerSort HandlerScope HandlerOverride
-                  (Maybe t) [ValueBinder (Maybe t) ()]
-                  (Maybe (Expr t)) (Maybe (Expr t)) (Maybe (Expr t)) [HandlerBranch t] Range Range
+  | Parens (Expr t)              Name Range
   | Inject t (Expr t) Bool {-behind?-} Range
+  | Handler{ hndlrSort         :: HandlerSort, 
+             hndlrScope        :: HandlerScope,
+             hndlrOverride     :: HandlerOverride,
+             hndlrAllowMask    :: Maybe Bool,
+             hndlrEffect       :: (Maybe t),
+             hndlrLocalPars    :: [ValueBinder (Maybe t) ()],
+             hndlrInitially    :: (Maybe (Expr t)),             
+             hndlrReturn       :: (Maybe (Expr t)),
+             hndlrFinally      :: (Maybe (Expr t)),
+             hndlrBranches     :: [HandlerBranch t],
+             hndlrDeclRange    :: Range,
+             hndlrRange        :: Range
+            }
 
 
 data HandlerOverride
@@ -341,8 +351,8 @@ instance Ranged (Expr t) where
         Lit    lit             -> getRange lit
         Ann    expr tp range   -> range
         Case   exprs branches range -> range
-        Parens expr range      -> range
-        Handler shallow scoped override eff pars reinit ret final ops hrng range -> range
+        Parens expr name range     -> range
+        Handler shallow scoped override _ eff pars reinit ret final ops hrng range -> range
         Inject tp expr behind range -> range
 
 instance Ranged Lit where

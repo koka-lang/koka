@@ -22,12 +22,10 @@ Css Header:
     }
     .body {
       margin: 1em;
-    }
-    
-    .maincontent {
+    }    
+    .maincontent, .mainheader {
       margin: 0pt auto;
-    }
-    
+    }    
     .preview .maincontent {
       width: 98%;
       max-width: 100%;
@@ -44,18 +42,21 @@ Css Header:
     }
     span.unexpanded, span.expanded {
       display: inline-block;
-      width: 1.25em;
-      margin-left: -1.25em;
-      font-family: "Segoe UI Symbol", Symbola, serif;
-      font-size: 70%;
+      width: 1em;
+      margin-left: -1em;
+      font-family: FontAwesome;
       cursor: pointer;
-      vertical-align: 0.1em;
+      text-align: center;
     }
     span.unexpanded::before {
-      content: "\25B6";
+      content: "\25B6";  /* triangle */
+      content: "\F0DA";  /* thick caret */      
+      content: "\F105";  /* caret */
     }
     .expand-all span.expanded, span.expanded::before {
-      content: "\25BC";
+      content: "\25BC";  /* triangle */
+      content: "\F0D7";  /* thick caret */
+      content: "\F107";  /* caret */
     }
     
     /* -----------------------------------------
@@ -64,12 +65,12 @@ Css Header:
        on the left side.
     -------------------------------------------- */    
     @media screen and (min-width: 1024px) {
-      .body {
-        margin: 1em;
-      }
       .maincontent {
         width: 60em;
         max-width: 100%;
+      }
+      .body {
+        margin: 0pt;
       }
       .sidepanel {
         float     : right;
@@ -81,10 +82,13 @@ Css Header:
         overflow-y: auto;
         border-right: 1px solid #AAA;          
       }
-      .mainpanel, .footnotes, .titleblock {
+      .mainpanel, .footnotes, .mainheader {
         margin-left: calc(&side-panel-width; + 6rem + 2px + 1rem);
         margin-right: 10%;
       }            
+      .mainheader {
+        padding-top: 2em;
+      }
       .tocblock.auto-expands {
         display: block;
       }
@@ -97,7 +101,7 @@ Css Header:
        Set margins and padding for side panel and sections
     ------------------------------------------------------ */
     .sidepanel, .mainpanel section, .footnotes {
-      padding: 0rem 1rem 0rem 2rem;
+      padding: 0rem 1rem 0rem 3rem;
     }
     .sidepanel .tocblock {
       font-size  : 95%;

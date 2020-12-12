@@ -16,7 +16,7 @@ module Common.Range
           , Range, showFullRange
           , makeRange, rangeNull, combineRange, rangeEnd, rangeStart
           , Ranged( getRange ), combineRanged
-          , combineRangeds, combineRanges
+          , combineRangeds, combineRanges, extendRange
           , Source(Source,sourceName, sourceBString), sourceText, sourceFromRange
           , posSource
           , rangeSource
@@ -294,6 +294,9 @@ minPos p1 p2  = if (p1 <= p2) then p1 else p2
 maxPos :: Pos -> Pos -> Pos
 maxPos p1 p2 = if (p1 <= p2) then p2 else p1
 
+extendRange :: Range -> Int -> Range
+extendRange (Range start end) ofs
+  = Range start (end{ posColumn = posColumn end + ofs })
 
 {--------------------------------------------------------------------------
   Ranged class

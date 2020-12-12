@@ -6,8 +6,8 @@
 // stack space.
 // --------------------------------------------------------------
 
-ambient<s> val get : s
-ambient<s> control set(x : s) : ()
+effect<s> val get : s
+effect<s> control set(x : s) : ()
 
 fun xlocal( init, action ) { // : (a,() -> <set<a>,get<a>|e> b) -> e b
   with val get = init

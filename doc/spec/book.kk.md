@@ -1,17 +1,18 @@
-Title         : The Koka Manual
-Title Note    : [(&date;)]{font-size:75%}
+Title         : The &koka; Programming Language
+Title Note    : [(Daan Leijen, &date;)]{font-size:75%}
 Heading Base  : 1
 Heading Depth : 3
 Toc Depth     : 3
 Css           : styles/koka.css
-Css           : styles/manual.css
+Css           : styles/book.css
 Css           : https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css
-Script        : scripts/manual.js
+Script        : scripts/book.js
 Colorizer     : unchecked.json
 Colorizer     : koka.json
 Bibliography  : koka.bib
 Description   : Koka Language Specification
 Mapsto        : [$\rightsquigarrow$]{.mapsto}
+Koka          : Koka
 
 [INCLUDE=book]
 [INCLUDE=styles/webanchors]
@@ -51,7 +52,6 @@ toc.toc-contents {
   .button;
 }
 
-
 @if preview {
   .code1 {
     border-bottom: 1px solid green;
@@ -78,9 +78,40 @@ li {
   margin-bottom: 1ex;
 }
 
+.note {
+  font-style: italic;
+}
+
+.advanced {
+  .boxed;
+  before: "[advanced]{.boxed-label}";
+}
+
+.translate {
+  .boxed;
+  replace: "[translation]{.boxed-label}&nl;~begin translate-row&nl;&source;&nl;~end translate-row&nl;";
+}
+
+.boxed {
+  border: 1px solid #AAA;
+  padding: 0em 1em;  
+}
+
+.boxed-label {
+  display: block;
+  float: left;
+  margin: -1.5em 0em -1em -1em;
+  font-size: 70%;
+  color: #999;
+}
+
 [koka-logo]: images/koka-logo.png { max-height: 120px; padding:1rem 1rem 1rem 1.5rem; }
 
+~ Begin MainHeader
+
 [TITLE]
+
+~ End MainHeader
 
 ~ Begin FlexBody
 
@@ -98,7 +129,7 @@ li {
 
 [INCLUDE=getstarted.kk.md]
 
-[INCLUDE=overview.kk.md]
+[INCLUDE=why.kk.md]
 
 [INCLUDE=tour.kk.md]
 

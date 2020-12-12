@@ -1,15 +1,22 @@
+
 ~ MathDefs
 \newcommand{\pdv}[1]{\frac{\partial{}}{\partial{#1}}}
 ~
 
-# A Tour of Koka { #tour }
+~ hidden
+```
+import std/num/random
+```
+~
 
-This is a short introduction to the Koka programming language.
+# A Tour of &koka; { #tour }
 
-Koka is a _function-oriented_ language that separates pure values from
+This is a short introduction to the &koka; programming language.
+
+&koka; is a _function-oriented_ language that separates pure values from
 side-effecting computations (The word 'k&omacron;ka' (or &#x52B9;&#x679C;) means
-"effect" or "effective" in Japanese). Koka is also
-flexible and `fun`: Koka has many features that help programmers to easily
+"effect" or "effective" in Japanese). &koka; is also
+flexible and `fun`: &koka; has many features that help programmers to easily
 change their data types and code organization correctly even in large-scale
 programs, while having a small strongly-typed language core with a familiar
 brace syntax.
@@ -24,7 +31,7 @@ fun main() {
   println("Hello world!") // println output
 }
 ```
-Koka uses familiar curly-braces syntax where `//` starts a line
+&koka; uses familiar curly-braces syntax where `//` starts a line
 comment. Functions are declared using the `fun` keyword (and anonymous functions with `fn`).
 
 Here is another short example program that encodes a string using the
@@ -59,7 +66,7 @@ generally leave out an explicit `return` keyword.
 
 ### Dot selection {#sec-dot}
 
-Koka is a _function-oriented_ language where _functions_ and _data_ form the
+&koka; is a _function-oriented_ language where _functions_ and _data_ form the
 core of the language (in contrast to objects for example). In particular, the
 expression `s.encode(3)` does _not_ select the `encode` method from the
 `:string` object, but it is simply syntactic sugar for the function call
@@ -81,12 +88,12 @@ which is not always possible if such class came as a library for example.
 
 ### Type Inference
 
-Koka is also strongly typed. It uses a powerful type inference engine to
+&koka; is also strongly typed. It uses a powerful type inference engine to
 infer most types, and types generally do not get in the way. In
 particular, you can always leave out the types of any local variables.
 This is the case for example for ``base`` and ``rot`` values in the
 previous example; hover with the mouse over the example to see the types
-that were inferred by Koka. Generally, it is good practice though to
+that were inferred by &koka;. Generally, it is good practice though to
 write type annotations for function parameters and the function result
 since it both helps with type inference, and it provides useful
 documentation with better feedback from the compiler.
@@ -95,11 +102,11 @@ For the `encode` function it is actually essential to give the type of
 the `s` parameter: since the `map` function is defined for both `:list`
 and `:string` types and the program is ambiguous without an annotation.
 Try to load the example in the editor and remove the annotation to see
-what error Koka produces.
+what error &koka; produces.
 
 ### Anonymous Functions and Trailing Lambdas {#sec-anon}
 
-Koka also allows for anonymous function expressions using the `fn` keyword.
+&koka; also allows for anonymous function expressions using the `fn` keyword.
 For example, instead of
 declaring the `encode-char` function, we can also pass it directly to
 the `map` function as a function expression:
@@ -117,7 +124,7 @@ fun encode2( s : string, shift : int )
 ```
 
 It is a bit annoying we had to put the final right-parenthesis after the last
-brace in the previous example. As a convenience, Koka allows anonymous functions to _follow_
+brace in the previous example. As a convenience, &koka; allows anonymous functions to _follow_
 the function call instead -- this is also known as _trailing lambdas_. 
 For example, here is how we can print the numbers
 ``1`` to ``10``:
@@ -169,7 +176,7 @@ fun print11() {
 ```
 
 Note how the first argument to `while` is in braces instead of the usual
-parenthesis. In Koka, an expression between _parenthesis_ is always evaluated
+parenthesis. In &koka;, an expression between _parenthesis_ is always evaluated
 before a function call, whereas an expression between _braces_ (ah,
 _suspenders_!) is suspended and may be never evaluated or more than once
 (as in our example). 
@@ -177,7 +184,7 @@ _suspenders_!) is suspended and may be never evaluated or more than once
 
 ### With Statements { #sec-with; }
 
-To the best of our knowledge, Koka was the first language to have
+To the best of our knowledge, &koka; was the first language to have
 generalized _dot notation_ and _trailing lambdas_. Another novel 
 syntactical feature is the `with` statement.
 With the ease of passing a function block as a parameter, these
@@ -189,11 +196,11 @@ fun twice(f) {
 }
 
 fun test-twice() {
-  twice fn(){
-    twice fn(){
+  twice( fn(){
+    twice( fn(){
       println("hi")
-    }
-  }
+    })
+  })
 }
 ```
 where `"hi"` is printed four times. Using the `with` statement 
@@ -209,7 +216,7 @@ public fun test-with1() {
 The `with` statement essentially puts all statements that follow it into 
 an anynomous function block and passes that as the last parameter. In general:
 
-~~ begin row
+~ translate
 ```unchecked
 with f(e1,...,eN)
 <body>
@@ -218,11 +225,11 @@ with f(e1,...,eN)
 ```unchecked
 f(e1,...,eN, fn(){ <body> })
 ```
-~~ end row
+~
 
 Moreover, a `with` statement can also bind a variable parameter as:
 
-~ row
+~ translate
 ```unchecked
 with x = f(e1,...,eN)
 <body>
@@ -250,7 +257,7 @@ a closure over the rest of the lexical scope.
 
 #### With Finally
 
-As a final example, the `finally` function takes as it first argument a
+As another example, the `finally` function takes as it first argument a
 function that is run when exiting the scope -- either normally, 
 or through an "exception" (&ie; when an effect operation does not resume).
 Again, `with` is a natural fit:
@@ -272,77 +279,71 @@ uncaught exception: oops
 ````
 
 This is another example of the _min-gen_ principle: many languages have
-have special built-in support for this kind of pattern, like a ``defer`` statement, but in Koka
+have special built-in support for this kind of pattern, like a ``defer`` statement, but in &koka;
 it is all just function applications with minimal syntactic sugar.
 
 
 #### With Handlers  { #sec-with-handlers; }
 
 The `with` statement is especially useful in combination with 
-effect handlers. Generally, a `handler` takes as its last argument
-a function block so it can be used directly with `with`. Here
-is an example where an effect handler declares a dynamically bound
-value:
+effect handlers. Generally, a `handler{ <ops> }` expression takes 
+as its last argument a function block so it can be used directly with `with`. 
+Here is an example of an effect handler for emitting messages:
 ```
-effect val ask : int
+effect fun emit(msg : string) : ()
 
-fun use-ask() {
-  ask + ask
+fun hello() {
+  emit("hello world!")
 }
 
-public fun test-ask1() {
-  with handler{ val ask = 21 }
-  println( use-ask() )
+public fun emit-console1() {
+  with handler{ fun emit(msg){ println(msg) } }
+  hello()
 }
 ```
-(where the `with` desugars to `(handler{ val ask = 21 })( fn(){ println(use-ask()) } )`).
+In this example, the `with` desugars to `(handler{ fun emit(msg){ println(msg) })( fn(){ hello() } )`.
 
 Moreover, as a convenience, we can leave out the `handler` keyword 
-when it follows the `with` keyword, where:
+for effects that define just one operation (like `:emit`):
 
-~ row
-```unchecked
-with { <ops> }
-```
-&mapsto;
-```unchecked
-with handler{ <ops> }
-```
-~
-
-and for effects with just one operation (like `:ask`), this leads to the following
-desugaring:
-
-~ row
+~ translate
 ```unchecked
 with val op = <expr> 
-with fun op(x){ <stats> }
-with control op(x){ <stats> }
+with fun op(x){ <body> }
+with except op(x){ <body> }
+with control op(x){ <body> }
 ```
 &mapsto;
 ```unchecked
 with handler{ val op = <expr> }
-with handler{ fun op(x){ <stats> } }
-with handler{ control op(x){ <stats> } }
+with handler{ fun op(x){ <body> } }
+with handler{ except op(x){ <body> } }
+with handler{ control op(x){ <body> } }
 ```
 ~
 
 Using this, we can write the previous example in a more concise and natural way as:
 
-```unchecked
-public fun test-ask2() {
-  with val ask = 21
-  println(use-ask())
+```
+public fun emit-console2() {
+  with fun emit(msg){ println(msg) }
+  hello()
 }
 ```
+
+Intuitively, we can view the handler `with fun emit` as a dynamic binding of the function `emit`
+over the rest of the scope.
 
 [Read more about effect handlers][#sec-handlers]
 {.learn}
 
+[Read more about `val` operations][#sec-opval]
+{.learn}
 
-### Optional and Named Parameters
 
-Being a function-oriented language, Koka has powerful support for function
+### Optional and Named Parameters  { #sec-default; }
+
+Being a function-oriented language, &koka; has powerful support for function
 calls where it supports both optional and named parameters. For example, the
 function `replace-all` takes a string, a pattern (named ``pattern``), and
 a replacement string (named ``repl``):
@@ -423,8 +424,7 @@ fun rotate( xs, n ) {
 }
 
 // Calculate a frequency table for a string
-fun freqs( s : string ) : list<double>
-{
+fun freqs( s : string ) : list<double> {
   val lowers = list('a','z')
   val occurs = lowers.map( fn(c){ s.count(c.string) })
   val total  = occurs.sum
@@ -433,14 +433,12 @@ fun freqs( s : string ) : list<double>
 
 // Calculate how well two frequency tables match according
 // to the _chi-square_ statistic.
-fun chisqr( xs : list<double>, ys : list<double> ) : double
-{
+fun chisqr( xs : list<double>, ys : list<double> ) : double {
   zipwith(xs,ys, fn(x,y){ ((x - y)^2.0)/y } ).foldr(0.0,(+))
 }
 
 // Crack a Caesar encoded string
-fun uncaesar( s : string ) : string
-{
+fun uncaesar( s : string ) : string {
   val table  = freqs(s)                   // build a frequency table for `s`
   val chitab = list(0,25).map( fn(n) {    // build a list of chisqr numbers for each shift between 0 and 25
                   chisqr( table.rotate(n), english )
@@ -470,7 +468,7 @@ You can try out this example directly in the interactive environment:
 
 ## Effect types
 
-A novel part about Koka is that it automatically infers all the _side effects_
+A novel part about &koka; is that it automatically infers all the _side effects_
 that occur in a function. The absence of any effect is denoted as `:total` (or
 `<>`) and corresponds to pure mathematical functions. If a function can raise
 an exception the effect is `:exn`, and if a function may not terminate the
@@ -513,9 +511,9 @@ Hover over `square6` to see the inferred effect for `:_e`
 ### Semantics of effects
 
 The inferred effects are not just considered as some extra type information on
-functions. On the contrary, through the inference of effects, Koka has a very
+functions. On the contrary, through the inference of effects, &koka; has a very
 strong connection to its denotational semantics. In particular, _the full type
-of a Koka functions corresponds directly to the type signature of the
+of a &koka; functions corresponds directly to the type signature of the
 mathematical function that describes its denotational semantics_. For example,
 using &#x301A;`:t`&#x301B; to translate a type `:t` into its corresponding
 mathematical type signature, we have:
@@ -539,7 +537,7 @@ We believe that this semantic correspondence is the true power of full effect
 types and it enables effective equational reasoning about the code by a
 programmer. For almost all other existing programming languages, even the most
 basic semantics immediately include complex effects like heap manipulation and
-divergence. In contrast, Koka allows a layered semantics where we can easily
+divergence. In contrast, &koka; allows a layered semantics where we can easily
 separate out nicely behaved parts, which is essential for many domains, like
 safe LINQ queries, parallel tasks, tier-splitting, sand-boxed mobile code,
 etc.
@@ -549,7 +547,7 @@ etc.
 
 Often, a function contains multiple effects, for example:
 
-```unchecked
+```
 fun combine-effects() {
   val i = srandom-int() // non-deterministic
   throw("oops")         // exception raising
@@ -601,10 +599,7 @@ effects of predicate and action are extended automatically until they match.
 This ensures we take the union of the effects in the predicate and action.
 Take for example the following loop
 
-```unchecked
-import std/num/random
-fun main() { looptest() }
-////
+```
 fun looptest() {
   while { is-odd(srandom-int()) } {
     throw("odd")
@@ -612,12 +607,12 @@ fun looptest() {
 }
 ```
 
-Koka infers that the predicate ``odd(srandom-int())`` has
+&koka; infers that the predicate ``odd(srandom-int())`` has
 effect `: <ndet|e1> ` while the action has effect `: <exn|e2> ` for some `:e1` and `:e2`.
 When applying `while`, those
 effects are unified to the type `: <exn,ndet,div|e3> ` for some `:e3`.
 
-### Local Mutable Variables
+### Local Mutable Variables  { #sec-var; }
 
 The Fibonacci numbers are a sequence where each subsequent Fibonacci number is
 the sum of the previous two, where `fib(0) == 0` and `fib(1) == 1`. We can
@@ -682,7 +677,7 @@ is statically rejected as the reference to the local variable escapes its scope.
 
 ### Reference Cells and Isolated state {#sec-runst}
 
-Koka also has heap allocated mutable reference cells. 
+&koka; also has heap allocated mutable reference cells. 
 A reference to an
 integer is allocated using `val r = ref(0)` (since the reference itself is
 actually a value!), and can be dereferenced using the bang operator, as ``!r``.
@@ -721,7 +716,7 @@ Clearly, the effect of the body of `fib3` is `:st<h> `; but when we hover over
 Indeed, even though `fib3` is stateful inside, its side-effects can
 never be observed. It turns out that we can safely discard the `:st<h> `
 effect whenever the heap type `:h` cannot be referenced outside this function,
-i.e. it is not part of an argument or return type. More formally, the Koka
+i.e. it is not part of an argument or return type. More formally, the &koka;
 compiler proves this by showing that a function is fully polymorphic in the
 heap type `:h` and applies the `run` function (corresponding to ``runST`` in
 Haskell) to discard the `:st<h> ` effect.
@@ -761,7 +756,7 @@ as `Person( name = "Brian", age = 19, realname = "Brian H. Griffin" )`
 which is quite close to regular record syntax but without any special rules;
 it is just functions all the way down!
 
-Also, Koka automatically generates accessor functions for each field in a
+Also, &koka; automatically generates accessor functions for each field in a
 struct (or other data type), and we can access the `age` of a `:person` as
 `brian.age` (which is of course just syntactic sugar for `age(brian)`).
 
@@ -810,9 +805,9 @@ copy function, as in `p.copy( age = p.age+1 )`. In adherence with the _min-gen_ 
 there are no special rules for record updates but using plain function calls with optional
 and named parameters.
 
-### Alternatives (or Unions)
+### Alternatives (or Unions)  { #sec-union; }
 
-Koka also supports algebraic data types where there are multiple alternatives.
+&koka; also supports algebraic data types where there are multiple alternatives.
 For example, here is an enumeration:
 
 ```unchecked
@@ -850,7 +845,7 @@ type number {
 }
 ```
 
-We can create such number by writing `integer(1)` or `infinity`. Moreover,
+We can create such number by writing `Integer(1)` or `Infinity`. Moreover,
 data types can be polymorphic and recursive. Here is the definition of the
 `:list` type which is either empty (`Nil`) or is a head element followed by a
 tail list (`Cons`):
@@ -862,11 +857,25 @@ type list<a> {
 }
 ```
 
-Koka automatically generates accessor functions for each named parameter. For
+&koka; automatically generates accessor functions for each named parameter. For
 lists for example, we can access the head of a list as `Cons(1,Nil).head`.
 
 We can now also see that `struct` types are just syntactic sugar for regular a
-`type` with a single constructor of the same name as the type. For example,
+`type` with a single constructor of the same name as the type:
+
+~ translate
+```unchecked
+struct tp { <fields> }
+```
+&mapsto;
+```unchecked
+type tp { 
+  con Tp { <fields> }
+}
+```
+~
+
+For example,
 our earlier `:person` struct, defined as
 
 ```unchecked
@@ -877,7 +886,7 @@ desugars to:
 
 ```unchecked
 type person {
-  Person( age : int, name : string, realname : string = name )
+  Person{ age : int; name : string; realname : string = name }
 }
 ```
 
@@ -885,16 +894,913 @@ type person {
 
 Todo
 
-### Inductive, co-inductive, and recursive types
+### Extensible Data Types
+
+Todo
+
+### Inductive, Co-inductive, and Recursive Types
 
 For the purposes of equational reasoning and termination checking, a `type`
 declaration is limited to finite inductive types. There are two more
 declarations, namely `co type` and `rec type` that allow for co-inductive types,
 and arbitrary recursive types respectively.
 
+
+### Value Types
+
+Value types are (non-recursive) data types that are not heap allocated
+but passed on the stack as a value. Since data types are immutable, semantically
+these types are equivalent but value types can be more efficient as they
+avoid heap allocation and reference counting (or more expensive as they need copying 
+instead of sharing a reference). 
+
+By default, any non-recursive inductive datatype of a size upto 3 machine words (= 24 bytes 
+on a 64-bit platform) is treated as a value type. For example, tuples and 3-tuples
+are passed and returned by value. Usually, that means that such tuples are for
+example returned in registers when compiling with optimization.
+
+We can also force a type to be compiled as a value type by using the `value` keyword
+in front of a `type` or `struct` declaration:
+```
+value struct argb{ alpha: int; red: int; green: int; blue: int }
+```
+
+~ begin advanced
+
+#### Boxing
+
+To support generic polymorphism, sometimes value types are _boxed_. For example, a list
+is polymorpic in its elements. That means that if we construct a list of tuples, like
+`[(1,True)]`, that the element `(1,2)` will be boxed and heap allocated -- essentially 
+the compiler transforms this expression into `[Box((1,True)]` internally.
+
+Note that for regular data types and `:int`'s boxing is free (as in isomorphic). Moreover, value types
+up to 63 bits (on a 64-bit platform) are boxed in-place and do not require heap allocation
+(like `:int32`). The `:double` type is also specialized; by default the Koka compiler
+only heap allocates negative doubles for boxing while positive doubles are boxed in-place.
+(this can be configured though to only heap allocate doubles for boxing when their absolute value is
+outside of the range 2^-511^ up to 2^512^).
+
+For performance sensitive code we may specialize certain polymorphic datatypes to
+reduce allocations due to boxing. For example:
+
+```
+type mylist{ 
+  con MyCons{ head1: int; head2: bool; mytail: mylist }
+  con MyNil
+}
+```
+
+Our previous example becomes `MyCons(1,True,MyNil)` now and is more efficient as it only needs
+one allocation for the `MyCons` without an indirection to a tuple.
+In the future we hope to extend Koka to perform specialization automatically or by
+using special directives.
+
+~ end advanced
+
+
 ## Effect Handlers { #sec-handlers }
 
-Todo
+Effect handlers [@Pretnar:handlers;@Leijen:algeff] are a novel way to 
+define control-flow abstractions and dynamic binding as user defined 
+handlers -- no need anymore to add special compiler extensions for
+exceptions, iterators, async-await, probabilistic programming, etc. 
+Moreover, these handlers can be composed freely so the interaction between,
+say, async-await and exceptions as well-defined. 
+
+### Handling 
+
+Let's start with defining an exception effect of our own. The `effect`
+declaration defines a new type together with _operations_, for now
+we use a `control` operation:
+```
+effect raise {
+  control raise( msg : string ) : a
+}
+```
+
+This defines an effect type `:raise` together with an operation
+`raise` of type `:(msg : string) -> raise a`. With the effect signature 
+declared, we can already use the operations:
+```
+fun safe-divide( x : int, y : int ) : raise int {
+  if (y==0) then raise("div-by-zero") else x / y
+}
+```
+where we see that the `safe-divide` function gets the `:raise` effect
+(since we use the `raise` operation in the body). Such an effect
+type means that we can only evaluate the function in a context
+where `:raise` is _handled_ (in other words, where it is "dynamically bound", or
+where we &ldquo;have the `:raise` capability&rdquo;).
+
+We can _handle_ the effect by giving a concrete definition for the `raise` operation.
+For example, we may always return a default value:
+```
+fun raise-const() : int {
+  with handler {
+    control raise(msg){ 42 }
+  } 
+  8 + safe-divide(1,0)
+}
+```
+The call `raise-const()` evaluates to `42` (not `50`).
+When a `raise` is called (in `safe-divide`), it will _yield_ to its innermost handler, unwind
+the stack, and only then evaluate the operation definition -- in this case just directly
+returning `42` from the point where the handler is defined. 
+Now we can see why it is called a _control_
+operation as `raise` changes the regular linear control-flow and yields right 
+back to its innermost handler from the original call site. 
+Also note that `raise-const` is `:total` again and the handler discharged the
+`:raise` effect.
+
+The `handler{ <ops> }` expression is a function that itself expects a function 
+argument over which the handler is scoped, as in `(handler{ <ops> })(action)`.
+This works well in combination with the `with` statement of course.
+As a syntactic convenience, for single operations we can leave out the `handler` keyword 
+which is translated as:
+~ translate
+```unchecked
+with control op(<args>){ <body> }
+```
+&mapsto;
+```unchecked
+with handler { 
+  control op(<args>){ <body> }
+}
+```
+~
+
+With this translation, we can write the previous example more concisely as:
+
+```
+fun raise-const1() : int {
+  with control raise(msg){ 42 }
+  8 + safe-divide(1,0)
+}
+```
+
+which eventually expands to `(handler{ control raise(msg){ 42 } })(fn(){ 8 + safe-divide(1,0) })`.
+
+We have a similar syntactic convenience for effects with one operation where the 
+name of the effect and operation are the same. We can define such an effect by just declaring 
+its operation which implicitly declares an effect type of the same name:
+~ translate
+```unchecked
+effect control op(<parameters>) : <result-type>
+```
+&mapsto;
+```unchecked
+effect op {
+  control op(<parameters>) : <result-type>
+}
+```
+~
+
+That means we can declare our `:raise` effect signature also more concisely as:
+```unchecked
+effect control raise( msg : string ) : a
+```
+
+&bigskip;
+
+[Read more about the `with` statement][#sec-with]
+{.learn}
+
+
+### Resuming  { #sec-resume; }
+
+The power of effect handlers is not just that we can _yield_ to the innermost
+handler, but that we can also _resume_ back to the call site with a result.
+
+Let's define a `:ask<a>` effect that allows us to get a contextual value of type `:a`:
+
+```
+effect ask<a> {                  // or: effect<a> control ask() : a
+  control ask() : a
+}
+
+fun add-twice() : ask<int> int {
+  ask() + ask()
+}
+```
+
+The `add-twice` function can ask for numbers but it is unaware of how these
+are provided -- the effect signature just specifies an contextual API.
+We can handle it by always resuming with a constant for example:
+
+```
+fun ask-const() : int {
+  with control ask(){ resume(21) }
+  add-twice()
+}
+```
+
+where `ask-const()` evaluates to `42`. Or by returning random values, like:
+
+```
+fun ask-random() : random int {
+  with control ask(){ resume(random-int()) }
+  add-twice()
+}
+```
+
+where `ask-random()` now handled the `:ask<int>` effect, but itself now has
+`:random` effect (see `module std/num/random`).
+The `resume` function is implicitly bound by a `control` operation and resumes
+back to the call-site with the given result. 
+
+As we saw in the exception example, we do
+not need to call `resume` and can also directly return into our handler scope. For example, we 
+may only want to handle a `ask` once, but after that give up:
+
+```
+fun ask-once() : int {
+  var count := 0
+  with control ask() { 
+    count := count + 1
+    if (count <= 1) then resume(42) else 0 
+  }
+  add-twice()
+}
+```
+
+Here `ask-once()` evaluates to `0` since the second call to `ask` does not resume,
+(and returns directly `0` in the `ask-once` context). This pattern can for example
+be used to implement the concept of _fuel_ in a setting where a computation is 
+only allowed to take a limited amount of steps.
+
+
+[Read more about `var` mutable variables][#sec-var]
+{.learn}
+
+
+### Tail-Resumptive Operations { #sec-opfun; }
+
+A `control` operation is one of the most general ways to define operations since
+we get a first-class `resume` function. However, almost all operations in practice turn out
+to be _tail-resumptive_: that is, they resume exactly _once_ with their final result
+value. To make this more convenient, we can declare `fun` operations that do this
+by construction, &ie;
+~ translate
+```unchecked
+with fun op(<args>){ <body> }
+```
+&mapsto;
+```unchecked
+with control op(<args>){ val f = fn(){ <body> }; resume( f() ) }
+```
+~
+
+(The translation is defined via an intermediate function so `return` works correctly).
+
+With this syntactic sugar, we can write our earlier `ask-const` example 
+using a `fun` operation instead:
+
+```
+fun ask-const2() : int {
+  with fun ask(){ 21 }
+  add-twice()
+}
+```
+
+This also conveys better that even though `ask` is dynamically bound, it behaves
+just like a regular function without changing the control-flow. 
+
+Moreover, operations declared as `fun` are much more efficient than general
+`control` operations. The &koka; compiler uses (generalized) _evidence translation_  [@Xie:evidently]
+to pass down handler information to each call-site. At the call to `ask` in `add-twice`,
+it selects the handler from the evidence vector and when the operation is
+a tail-resumptive `fun`, it calls it directly as a regular function (except with an adjucted evidence
+vector for its context). Unlike a general `control` operation, there is no need to yield upward
+to the handler, capture the stack, and eventually resume again. 
+This gives `fun` (and `val`) operations a performance cost very similar to _virtual method calls_ 
+which can be very efficient.
+
+For even a bit more performance, you can also declare upfront that any operation
+definition must be tail-resumptive, as:
+
+```unchecked
+effect ask<a> {
+  fun ask() : a
+}
+```
+
+This restricts all handler definitions for the `:ask` effect to use `fun` definitions
+for the `ask` operation. However, it increases the ability to reason about the code,
+and the compiler can optimize such calls a bit more as it no longer needs to check at
+run-time if the handler happens to define the operation as tail-resumptive.
+
+
+#### Value Operations { #sec-opval; }
+
+A common subset of operations always tail-resume with a single value; these are
+essentially dynamically bound variables (but statically typed!). Such operations
+can be declared as a `val` with the following translation:
+
+~ translate
+```unchecked
+with val v = <expr>
+```
+&mapsto;
+```unchecked
+val x = <expr>
+with fun v(){ x }
+```
+&mapsto;
+```unchecked
+val x = <expr>
+with control v(){ resume(x) }
+```
+~
+
+For an example of the use of value operations, consider a 
+pretty printer that produces pretty strings from documents:
+
+~ hidden
+```
+alias doc = string
+fun pretty( d : doc ) : width string {
+  d.truncate(width)
+}
+```
+~
+
+```unchecked
+fun pretty( d : doc ) : string
+```
+
+Unfortunately, it has a hard-coded maximum display width of `40` deep
+down in the code of `pretty`:
+
+```unchecked
+fun pretty-internal( line : string ) : string {
+  line.truncate(40)
+}
+```
+
+To abstract over the width we have a couple of choices: we 
+could make the width a regular parameter but now we need to 
+explicitly add the parameter to all functions in the library
+and manually thread them around. Another option is a global
+mutable variable but that leaks side-effects and is non-modular.
+
+Or, we can define it as a value operation instead:
+
+```
+effect val width : int
+```
+
+This also allows us to refer to the `width` operation as if is a 
+regular value (even though internally it invokes the operation).
+So, the check for the width in the pretty printer can be written as:
+
+```
+fun pretty-internal( line : string ) : width string {
+  line.truncate(width)
+}
+```
+
+When using the pretty printer we can bind the `width` as a
+regular effect handler:
+
+```
+fun pretty-thin(d : doc) : string {
+  with val width = 40
+  pretty(d)
+}
+```
+
+Note that we did not need to change the structure of the 
+original library functions. However the types of the functions
+still change to include the `:width` effect as these now
+require the `width` value to be handled at some point.
+For example, the type of `pretty` becomes:
+```unchecked
+fun pretty( d : doc ) : width string
+```
+as is requires the `:width` effect to be handled (aka,
+the "dynamic binding for `width : int` to be defined", 
+aka, the "`:width` capability").
+
+
+### Abstracting Handlers
+
+As another example, a _writer_ effect is quite common where
+values are collected by a handler. For example, we can
+define an `:emit` effect to emit messages:
+```unchecked
+effect fun emit( msg : string ) : ()
+```
+```
+fun ehello() : emit () {
+  emit("hello")
+  emit("world")
+}
+```
+
+We can define for example a handler that prints the 
+emitted messages directly to the console:
+
+```
+fun ehello-console() : console () {
+  with fun emit(msg){ println(msg) }
+  ehello()
+}
+```
+
+Here the handler is define directly, but we can also abstract the handler for
+emitting to the console into a separate function:
+
+```
+fun emit-console( action ) {
+  with fun emit(msg){ println(msg) }
+  action()
+} 
+```
+
+where `emit-console` has the inferred type `:(action : () -> <emit,console|e> a) -> <console|e> a` (hover 
+over the source to see the inferred types) where
+the action can have use the effects `:emit`, `:console`, and any other effects `:e`, 
+and where the final effect is just `: <console|e>` as the `:emit` effect
+is discharged by the handler.
+
+Note, we could have written the above too as:
+```
+val emit-console2 = handler {
+  fun emit(msg){ println(msg) }
+}
+```
+since a `handler{ ... }` expression is a function itself (and thus a _value_). 
+Generally we prefer the earlier definition though as it allows further parameters
+like an initial state.
+
+Since `with` works generally, we can use the abstracted handlers just like
+regular handlers, and our earlier example can be written as:
+
+```
+fun ehello-console2() : console () {
+  with emit-console
+  ehello()
+}
+```
+(which expands to `emit-console( fn(){ ehello() } )`).
+Another useful handler may collect all emitted messages as a list of lines:
+
+```
+fun emit-collect( action : () -> <emit|e> () ) : e string {
+  var lines := []
+  with handler {
+    return(x){ lines.reverse.join("\n") }
+    fun emit(msg){ lines := Cons(msg,lines) }
+  }
+  action()
+}
+
+fun ehello-commit() : string {
+  with emit-collect
+  ehello()
+}
+```
+
+This is a total handler and only discharges the `:emit` effect.
+
+[Read more about the `with` statement][#sec-with]
+{.learn}
+
+[Read more about `var` mutable variables][#sec-var]
+{.learn}
+
+As another example, consider a generic `catch` handler that
+applies an handling function when `:raise` is called on our
+exception example:
+
+```
+fun catch( hnd : (string) -> e a, action : () -> <raise|e> a ) : e a {
+  with control raise(msg){ hnd(msg) }
+  action()
+}
+```
+
+We can use it now conveniently with a `with` statement to handle
+exceptional situations:
+
+```
+fun catch-example() {
+  with catch fn(msg){ println("error: " + msg); 42 }
+  safe-divide(1,0)
+}
+```
+
+~ advanced
+The `catch` handler has an interesting type where the action can
+have a `:raise` effect (`: () -> <raise|e> a`) and maybe further effects `:e`,
+while the handling function `hnd` only has effect `:e`. Now consider
+supplying a handing function that itself calls `raise`: in that case, the 
+type of `catch` would be instantiated to: `: (hnd: (string) -> <raise> a, action : () -> <raise, raise> a ) : <raise> a`.
+This is correct: the (outer) `:raise` effect of `action` is handled and discharged, but since
+the handling function `hnd` can still cause `raise` to be called, the final effect still contains `:raise`.
+
+Here we see that &koka; allows _duplicate_ effect labels [@Leijen:scopedlabels] where `action` has
+an instantiated `: <raise,raise>` effect type.
+These kind of types occur naturally in the presence of polymorphic effects, and there is a natural correspondence
+to the structure of the evidence vectors at runtime (with entries for each nested effect handler). 
+Intuitively, the `action` effect expresses that 
+its outer (left-most) `:raise` is handled, but that there may be other exceptions that are not handled -- in this 
+case from the handling function `hnd`, but they can also be _masked_ exceptions (as described in Section [#sec-mask]).
+~
+
+
+### Return Operations { #sec-return; }
+
+In the previous `emit-collect` example we saw the use of 
+a `return` operation. Such operation changes the final
+result of the action of a handler. 
+For example, consider our earlier used-defined exception effect `:raise`.
+We can define a general handler that transforms any exceptional
+action into one that returns a `:maybe` type:
+
+```
+fun raise-maybe( action : () -> <raise|e> a ) : e maybe<a> {
+  with handler {
+    return(x){ Just(x) }           // normal return: wrap in Just
+    control raise(msg){ Nothing }  // exception: return Nothing directly
+  }
+  action()
+}
+
+fun div42() {
+  (raise-maybe{ safe-divide(1,0) }).default(42)
+}
+```
+(where the body of `div42` desugars to `default( raise-maybe(fn(){ safe-divide(1,0) }), 42 )`).
+
+[Read more about function block expressions][#sec-anon]
+{.learn}
+
+[Read more about _dot_ expressions][#sec-dot]
+{.learn}
+
+
+
+#### A State Effect { #sec-state; }
+
+For more examples of the use of `return` operations, we look at a the state effect.
+In its most general form it has just a `set` and `get` operation:
+
+```
+effect state<a> {
+  fun get() : a
+  fun set( x : a ) : ()
+}
+
+fun sumdown( sum : int = 0 ) : <state<int>,div> int {
+  val i = get()
+  if (i <= 0) then sum else {
+    set( i - 1 )
+    sumdown( sum + i )
+  }
+}
+```
+
+We can define a generic state handler most easily by using `var` declarations:
+
+```
+fun state( init : a, action : () -> <state<a>|e> b ) : e b {
+  var st := init
+  with handler {
+    fun get(){ st }
+    fun set(i){ st := i }
+  }
+  action()
+}
+```
+
+where `state(10){ sumdown() }` evaluates to `55`. 
+
+[Read more about default parameters][#sec-default]
+{.learn}
+
+[Read more about _trailing lambdas_][#sec-anon]
+{.learn}
+
+[Read more about `var` mutable variables][#sec-var]
+{.learn}
+
+
+Building on the previous state example, suppose we also like
+to return the final state. A nice way to do this is to 
+use a return operation again to pair the final result with the final state: 
+
+```
+fun pstate( init : a, action : () -> <state<a>|e> b ) : e (b,a) {
+  var st := init
+  with handler {
+    return(x){ (x,st) }      // pair with the final state
+    fun get(){ st }
+    fun set(i){ st := i }
+  }
+  action()
+}
+```
+where `pstate(10){ sumdown() }` evaluates to `(55,0)`.  
+
+~ advanced
+It is even possible to have a handler that only
+contains a single `return` operation: such handler handles no effect
+at all but only transforms the final result of a function.
+For example, we can define the previous example also with
+a separate `return` handler as:
+
+```
+fun pstate2( init : a, action : () -> <state<a>|e> b ) : e (b,a) {
+  var st := init
+  with return(x){ (x,st) }
+  with handler {
+    fun get(){ st }
+    fun set(i){ st := i }
+  }
+  action()
+}
+```
+
+Here it as a bit contrived but it can make certain
+programs more concise in their definition, see 
+for example [@Lindley:liberate].
+~
+
+### Combining Handlers { #sec-combine; }
+
+~ advanced
+What makes effect handlers a good control-flow abstraction? There are three fundamental advantages 
+with regard to other approaches:
+
+1. _Effect handlers can have simple (Hindley-Milner) types_. This unlike `shift`/`reset` for example as that needs 
+   type rules with _answer_ types (as the type of `shift` depends on the context of its matching `reset`).
+2. _The scope of an effect handler is delimited_ by the handler definition. This is just like `shift`/`reset` 
+   but unlike ``call/cc``. Delimiting the scope of a resumption has various good properties, like efficient
+   implementation strategies, but also that it allows for modular composition 
+   (see also Oleg Kiselyov's ["against call/cc"](http://okmij.org/ftp/continuations/against-callcc.html)).
+3. _Effect handlers can be composed freely_. This is unlike general _monads_ which need monad transformers to 
+   compose in particular ways. Essentially effect handlers can compose freely because every effect handler
+   can be expressed eventually as an instance of a _free monad_ which _do_ compose. This also means means that
+   some monads cannot be expressed as an effect handler (namely the non-algebraic ones). A particular example
+   of this is the continuation monad (which can express ``call/cc``).
+
+The &koka; compiler internally uses monads and `shift`/`reset` to compile effect handlers though, and
+it compiles handlers into to an internal free monad based on multi-prompt delimited control [@Gunter:mprompt]. 
+By inlining the monadic _bind_ we are able to generate efficient C code that only allocates continuations 
+in the case one is actually yielding up to a general `control` operation.
+~
+
+A great property of effect handlers is that they can be freely composed together. 
+For example, suppose we have a function 
+that calls `raise` if the state is an odd number:
+
+```
+fun no-odds() : <raise,state<int>> int {
+  val i = get()
+  if (i.is-odd) then raise("no odds") else {
+    set(i / 2)
+    i
+  }
+}
+```
+
+then we can compose a `pstate` and `raise-maybe` handler together
+to handle the effects:
+
+```
+fun state-raise(init) : (maybe<int>,int) {
+  with pstate(init)  
+  with raise-maybe  
+  no-odds()
+}
+```
+
+where both the `:state<int>` and `:raise` effects are discharged by the respective handlers.
+Note the type reflects that we always return a pair with as a first element either
+`Nothing` (if `raise` was called) or a `Just` with the final result, and as the second element
+the final state. This corresponds to how we usually combine state and exceptions where the 
+state (or heap) has set to the state at the point the exception happened.
+
+However, if we combine the handlers in the opposite order, we get a form of transactional
+state where we either get an exception (and no final state), or we get a pair of the 
+result with the final state:
+
+```
+fun raise-state(init) : maybe<(int,int)> {
+  with raise-maybe  
+  with pstate(init)  
+  no-odds()
+}
+```
+
+### Masking Effects { #sec-mask; }
+
+Similar to masking signals in Unix, we can mask effects to not be handled by
+their innermost effect handler. The expression `mask<eff>(action)` modularly masks
+any effect operations in `:eff` inside the `action`. For example,
+consider two nested handlers for the `emit` operation:
+
+```
+fun mask-emit() {
+  with fun emit(msg){ println("outer:" + msg) }
+  with fun emit(msg){ println("inner:" + msg) }
+  emit("hi")
+  mask<emit>{ emit("there") }
+}
+```
+If we call `mask-emit()` it prints:
+````
+inner: hi
+outer: there
+````
+The second call to `emit` is masked and therefore it skips the innermost
+handler and is handled subsequently by the outer handler (&ie; mask only
+masks an operation once for its innermost handler). 
+
+The type of `mask<l>` for some effect label `:l` is `: (action: () -> e a) -> <l|e> a`
+where it injects the effect `:l` in the final effect result `:<l|e>` (even
+thought the `mask` itself never
+actually performs any operation in `:l` -- it only masks any operations
+of `:l` in `action`).
+
+This type usually leads to duplicate effect labels, for example,
+the effect of `mask<emit>{ emit("there") }` is `: <emit,emit>` signifying
+that there need to be two handlers for `:emit`: in this case, one to skip 
+over, and one to subsequently handle the masked operation.
+
+
+#### Effect Abstraction
+
+The previous example is not very useful, but generally we can 
+use `mask` to hide internal effect handling from higher-order functions.
+For example, consider the following function that needs to handle
+internal exceptions:
+
+```
+fun mask-print( action : () -> e int ) : e int {
+  with control raise(msg){ 42 }
+  val x = mask<raise>(action)
+  if (x.is-odd) then raise("wrong")   // internal exception
+  x
+}  
+```
+
+Here the type of `mask-print` does not expose at all that we handle the `:raise`
+effect internally for specific code and it is fully abstract -- even if the action itself would call `raise`,
+it would neatly skip the internal handler due to the `mask<raise>` expression.
+
+If we would leave out the `mask`, and call `action()` directly, then the inferred
+type of `action` would be `: () -> <raise|e> int` instead, showing that the `:raise`
+effect would be handled. 
+Note that this usually the desired behaviour since in the majority of cases 
+we _want_ to handle the effects in a particular way when defining handler abstractions. 
+The cases where `mask` is needed are much less common in our experience.
+
+
+~ advanced
+
+#### State as a Combined Effect
+
+Another nice use-case for `mask` occurs when modeling state directly using
+effect handlers without using mutable local variables [@Biernacki:care]. We can do this
+using two separate operations `peek` and `poke`:
+
+```
+effect<a> val peek : a                 // get the state
+effect<a> control poke( x : a ) : ()   // set the state to x
+```
+
+We can now define a generic state handler as:
+
+```
+fun ppstate( init : a, action : () -> <peek<a>,poke<a>|e> b ) : e b {
+  with val peek = init
+  with control poke( x ) {
+    mask<peek> {
+      with val peek = x
+      resume(())
+    }
+  }
+  action()
+}
+```
+In the handler for `poke` we resume under a fresh handler for `peek` that
+is bound to the new state. This means though there will be an ever increasing
+"stack" of handlers for `peek`. To keep the type from growing infinitely, we
+need to mask out any potential operation to a previous handler of `peek` which
+is why the `mask` is needed. (Another way of looking at this is to just follow
+the typing: `action` has a `:peek` effect, and unifies with the effect of
+the `poke` operation definition. Since it handles its own `:peek` effect, it needs
+to be injected back in with a `mask`.)
+
+(Note: since the handler stack grows indefinitely on every `poke` this example
+is mostly of theoretical interest. However, we are looking into a _stack smashing_
+technique where we detect at runtime that a `mask` can discard a handler frame
+from the stack.)
+
+~
+
+### Overriding Handlers
+
+A common use for masking is to override handlers. For example, consider
+overriding the behavour of `emit`:
+
+```
+fun emit-quoted1( action : () -> <emit,emit|e> a ) : <emit|e> a {
+  with fun emit(msg){ emit("\"" + msg + "\"" ) }
+  action()
+}
+```
+
+Here, the handler for `emit` calls itself `emit` to actually emit the newly
+quoted string. The effect type inferred for `emit-quoted` is `: (action : () -> <emit,emit|e> a) -> <emit|e> a`.
+This is not the nicest type as it exposes that `action` is evaluated under (at least) two
+`:emit` handlers (and someone could use `mask` inside `action` to use the outer `:emit` handler).
+
+The `override` keyword keeps the type nice and fully overrides the
+previous handler which is no longer accessible from `action`:
+
+```
+fun emit-quoted2( action : () -> <emit|e> a ) : <emit|e> a {
+  with override fun emit(msg){ emit("\"" + msg + "\"" ) }
+  action()
+}
+```
+
+This of course applies to any handler or value, for example,
+to temporarily increase the `width` while pretty printing, 
+we can override the `width` as:
+```
+fun extra-wide( action ) {
+  with override val width = 2*width
+  action()
+}
+```
+
+
+~ advanced
+
+#### Mask Behind
+
+Unfortunately, we cannot modularly define overriding with just `mask`; if we 
+add `mask` outside of the `emit` handler, the `emit` call inside the operation 
+definition would get masked and skip our intended handler. On the other hand,
+if we add `mask` just over `action` all its `emit` calls would be masked for
+our intended handler! 
+
+For this situation, there is another primitive that only "masks the masks".
+The expression `mask behind<l>` has type `: (() -> <l|e> a) -> <l,l|e> a`
+and only masks any masked operations but not the direct ones. The `override`
+keyword is defined in terms of this primitive:
+
+~~ translate
+```unchecked
+with override handler<l> { <ops> }
+<body>
+```
+&mapsto;
+```unchecked
+(handler<l> { <ops> })(mask behind<l>{ <body> })
+```
+~~
+
+This ensures any operation calls in ``<body>`` go the newly defined
+handler while any masked operations are masked one more level and skip
+both of the two innermost handlers.
+~
+
+
+### Side-effect Isolation { #sec-isolate; }
+
+### Resuming more than once { #sec-multi-resume; }
+
+### Initially and Finally { #sec-resource; }
+
+#### Raw Control { #sec-rcontrol; }
+
+~ Todo
+Use `rcontrol` for raw control operations which do not automatically
+finalize; this gives true first-class resumption contexts (as `rcontext`) but need
+to be used with care. With `rcontrol` one can use the implicitly bound
+resumption context `rcontext` to either resume (as `rcontext.resume(x)`),
+or to finalize a resumption (as `rcontext.finalize`) which runs all
+`finally` handlers to clean up resources.
+~
+
+### Linear Effects { #sec-linear; }
+
+~ Todo
+Use `linear effect` to declare effects whose operations are always tail-resumptive
+and use only linear effects themselves
+(and thus resume exactly once). This removes monadic translation for such effects and
+can make code that uses only linear effects more compact and efficient.
+~
+
+### Named and Scoped Handlers { #sec-namedh; }
+
+
 
 ## FBIP: Functional but In-Place { #sec-fbip; }
 
@@ -910,13 +1816,17 @@ describe loops in terms of regular function calls, reuse analysis lets us
 describe in-place mutating imperative algorithms in a purely functional
 way (and get persistence as well).
 
+~ Note
+FBIP is still active research. In particular we'd like to add ways to add 
+annotations to ensure reuse is taking place.
+~
 
 ### Tree Rebalancing
 
 As an example, we consider
 insertion into a red-black tree [@guibas1978dichromatic]. 
 A polymorphic version of this example is part of the [``samples``][samples] directory when you have
-installed Koka and can be loaded as ``:l`` [``samples/basic/rbtree``][rbtree].
+installed &koka; and can be loaded as ``:l`` [``samples/basic/rbtree``][rbtree].
 We define red-black trees as:
 ```unchecked
 type color { 
@@ -955,7 +1865,7 @@ fun ins( t : tree, k : int, v : bool ): tree {
 }
 ```
 
-The Koka compiler will inline the `balance-left` function. At that point,
+The &koka; compiler will inline the `balance-left` function. At that point,
 every matched `Node` constructor in the `ins` function has a corresponding `Node` allocation --
 if we consider all branches we can see that we either match one `Node`
 and allocate one, or we match three nodes deep and allocate three. Every 
@@ -1043,7 +1953,7 @@ _Morris loops_ [@Mateti:morris] to prove its correctness.
 We can derive a functional and more intuitive solution using the FBIP
 technique. We start by defining an explicit _visitor_ data structure
 that keeps track of which parts of the tree we still need to visit. In
-Koka we define this data type as `:visitor`:
+&koka; we define this data type as `:visitor`:
 ```
 type visitor {
   Done

@@ -1,14 +1,14 @@
 #!/bin/sh -e
-VERSION="v2.0.12"
+VERSION="v2.0.14"
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
 FORCE=""
 
-KOKA_TEMP_DIR=""        # empty creates one dynamically
 KOKA_DIST_BASE_URL="https://github.com/koka-lang/koka/releases/download"
-KOKA_DIST_URL=""              # $KOKA_DIST_BASE_URL/$VERSION
-KOKA_DIST_SOURCE=""           # $KOKA_DIST_URL/koka-$VERSION-<osarch>.tar.gz
+KOKA_DIST_URL=""        # $KOKA_DIST_BASE_URL/$VERSION
+KOKA_DIST_SOURCE=""     # $KOKA_DIST_URL/koka-$VERSION-<os>-<arch>.tar.gz
+KOKA_TEMP_DIR=""        # empty creates one dynamically
 
 
 # ---------------------------------------------------------
@@ -163,9 +163,9 @@ COMPILER=""
 detect_arch() {
   ARCH="$(uname -m)"
   case "$ARCH" in
-    arm*)      ARCH="arm";;
-    aarch64*)  ARCH="aarch64";;
-    x86_64*)   ARCH="amd64";;
+    arm64*|aarch64*)   ARCH="arm64";;
+    arm*)              ARCH="arm";;
+    x86_64*)           ARCH="amd64";;
     x86*|i[35678]86*)  ARCH="x86";;
   esac
 }

@@ -232,8 +232,8 @@ unify (TApp t1 ts1) (TApp u1 us2)   -- | length ts1 != length us2
 
 -- functions
 unify (TFun args1 eff1 res1) (TFun args2 eff2 res2) | length args1 == length args2
-  = do withError (effErr) (unify eff1 eff2)
-       unifies (res1:map snd args1) (res2:map snd args2)
+  = do unifies (res1:map snd args1) (res2:map snd args2)
+       withError (effErr) (unify eff1 eff2)       
   where
     -- specialize to sub-part of the type for effect unification errors
     effErr NoMatch              = NoMatchEffect eff1 eff2
@@ -284,8 +284,10 @@ unify (TSyn _ _ tp1) tp2
 unify tp1 (TSyn _ _ tp2)
   = unify tp1 tp2
 
-
 -- no match
+unify (TVar (TypeVar _ kind Skolem)) (TVar (TypeVar _ _ Skolem))
+  = unifyError (NoMatchSkolem kind)
+
 unify tp1 tp2
   = -- trace ("no match: " ++  show (pretty tp1, pretty tp2)) $
     unifyError NoMatch
@@ -433,7 +435,7 @@ unifyLabels ls1 ls2 closed1 closed2
                          do unify l1 l2  -- for heap effects and kind checks
                             ll1' <- subst ll1
                             ll2' <- subst ll2
-                            unifyLabels ll1 ll2 closed1 closed2
+                            unifyLabels ll1' ll2' closed1 closed2
 
 compareLabel l1 l2
   = let (name1,i1,_) = labelNameEx l1
@@ -469,6 +471,7 @@ data UnifyError
   = NoMatch
   | NoMatchKind
   | NoMatchPred
+  | NoMatchSkolem Kind
   | NoMatchEffect Type Type
   | NoSubsume
   | NoEntail

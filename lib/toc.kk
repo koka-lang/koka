@@ -9,7 +9,7 @@
 /*
 This is the main index of the standard Koka libraries.
 
-See the [Koka manual](manual.html) for further information on the Koka language.
+See the [Koka book](book.html) for further information on the Koka language.
 */
 module toc
 
