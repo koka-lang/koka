@@ -14,7 +14,7 @@ module Common.File(
                     getEnvPaths, getEnvVar
                   , searchPaths, searchPathsEx
                   , runSystem, runSystemRaw, runCmd
-                  , getInstallDir
+                  , getInstallDir, getProgramPath
 
                   -- * Strings
                   , startsWith, endsWith, splitOn, trim
@@ -318,7 +318,7 @@ copyTextIfNewerWith always srcName outName transform
 
 getInstallDir :: IO FilePath
 getInstallDir
-  = do p <- getExecutablePath
+  = do p <- getProgramPath
        let d  = dirname p
            ds = splitPath d
            result = case reverse ds of
@@ -333,6 +333,9 @@ getInstallDir
                       _            -> d
        -- trace ("install-dir: " ++ result ++ ": " ++ show ds) $
        return result
+
+getProgramPath :: IO FilePath
+getProgramPath = getExecutablePath
 
 commonPathPrefix :: FilePath -> FilePath -> FilePath
 commonPathPrefix s1 s2
