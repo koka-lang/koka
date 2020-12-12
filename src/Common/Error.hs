@@ -135,10 +135,12 @@ instance Applicative Error where
 
 instance Monad Error where
   return x      = Ok x []
-  fail s        = Error (ErrorGeneral rangeNull (text s)) []
   e >>= f       = case e of 
                     Ok x w   -> addWarnings w (f x)
                     Error msg w -> Error msg w
+
+instance MonadFail Error where
+  fail s        = Error (ErrorGeneral rangeNull (text s)) []
 
 instance MonadPlus Error where
   mzero         = Error ErrorZero []
