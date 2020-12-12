@@ -1,5 +1,5 @@
 #!/bin/sh -e
-VERSION="v2.0.13"
+VERSION="v2.0.14"
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
