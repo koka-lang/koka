@@ -10,7 +10,7 @@
 # Koka: a functional language with effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
-_Latest release_: v2.0.12, 2020-12-02 ([Install](#install)).
+_Latest release_: v2.0.14, 2020-12-11 ([Install](#install)).
 
 <a href="https://github.com/koka-lang/koka/tree/master/samples/handlers/yield.kk"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
