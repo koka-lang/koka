@@ -1,11 +1,11 @@
-resolver: lts-16.12
+resolver: lts-16.24
 packages:
 - '.'
 
 extra-deps:
 - stylish-haskell-0.11.0.0
 - hlint-2.1.26
-- haskeline-0.8.0.0
+- haskeline-0.8.1.0
 
 flags:
   haskeline:
