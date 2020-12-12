@@ -1218,21 +1218,27 @@ block
                  <|>
                     return []
        rng2 <- rcurly
-       let localize = [] -- if (any isStatVar stmts1) then [StatFun localScope] else []
+       let localize = case anyStatVar stmts1 of 
+                        Just def -> [StatFun (localScope def)] 
+                        _        -> []
            stats = localize ++ stmts1 ++ stmts2
        case (reverse stats) of
          (StatExpr exp:_) -> return (Parens (foldr combine exp (init stats)) nameNil (combineRange rng1 rng2))
          []               -> return (Var nameUnit False (combineRange rng1 rng2))
          _                -> fail "Last statement in a block must be an expression"
   where
-    isStatVar (StatVar _) = True
-    isStatVar _           = False
+    anyStatVar (StatVar def:_) = Just def
+    anyStatVar (_:rest)        = anyStatVar rest
+    anyStatVar _               = Nothing
 
-    localScope :: UserExpr -> UserExpr
-    localScope exp = let rng = getRange exp
-                     in App (Var nameRunLocal False rng)
-                            [(Nothing,Lam [] exp rng)]
-                            rng
+
+    localScope :: UserDef -> UserExpr -> UserExpr
+    localScope vdef exp = let erng = getRange exp
+                              drng = getRange vdef
+                              nrng = binderNameRange (defBinder vdef)
+                          in App (Var nameRunLocal False nrng)
+                                  [(Nothing,Lam [] exp erng)]
+                                  drng
 
     combine :: Statement -> UserExpr -> UserExpr
     combine (StatFun f) exp   = f exp
@@ -1244,7 +1250,7 @@ block
                                         -- see test/ambient/ambient3
                                         [(Nothing, expr),
                                          (Nothing, Parens (Lam [ValueBinder name Nothing Nothing nameRng nameRng] exp (combineRanged def exp)) name rng)]
-                                         (defRange def)
+                                         (combineRanged rng exp)
 
 makeReturn r0 e
   = let r = getRange e
@@ -1510,7 +1516,7 @@ handlerClauses rng mbEff scoped override hsort
                                            Nothing -> id
                                            Just f  -> \actionExpr -> App f [(Nothing,App actionExpr [] fullrange)] fullrange
                            return (binders $ handlerExpr retExpr)
-                   _ -> do let handlerExpr = Handler hsort scoped override mbEff [] reinit ret final ops rng fullrange
+                   _ -> do let handlerExpr = Handler hsort scoped override Nothing mbEff [] reinit ret final ops rng fullrange
                            return (binders handlerExpr)
        return $ applyMaybe fullrange reinit final handler
 

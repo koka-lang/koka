@@ -1,12 +1,10 @@
 fun escape() {
-  local-var(1, fn(i) {
-    i := i + 1
-    (fn(){ i := i + 1; 10 })
-  })
+  var i := 1
+  fn(){ i := i + 1; i }
 }
 
 fun main() {
-  //val f = escape()
-  //f().println
-  //f().println 
+  val f = escape()
+  f().println
+  f().println 
 }
