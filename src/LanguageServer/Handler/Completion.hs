@@ -35,6 +35,10 @@ completionHandler flags = requestHandler J.STextDocumentCompletion $ \req respon
                  findCompletions l pf
   responder $ Right $ J.InL $ J.List items
 
+-- TODO: Make completions context-aware
+-- TODO: Complete local variables
+-- TODO: Show documentation comments in completion docs
+
 findCompletions :: Loaded -> PosPrefixInfo -> [J.CompletionItem]
 findCompletions loaded pfinfo = filter ((pf `T.isPrefixOf`) . (^. J.label)) completions
   where pf = prefixText pfinfo
