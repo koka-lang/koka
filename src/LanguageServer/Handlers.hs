@@ -6,6 +6,7 @@ module LanguageServer.Handlers( handlers
 
 import Compiler.Options                      ( Flags )
 import Language.LSP.Server
+import LanguageServer.Handler.Completion     ( completionHandler )
 import LanguageServer.Handler.Definition     ( definitionHandler )
 import LanguageServer.Handler.DocumentSymbol ( documentSymbolHandler )
 import LanguageServer.Handler.Hover          ( hoverHandler )
@@ -23,4 +24,5 @@ handlers flags = mconcat
   , hoverHandler flags
   , definitionHandler flags
   , documentSymbolHandler flags
+  , completionHandler flags
   ]

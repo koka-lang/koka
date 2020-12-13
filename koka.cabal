@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.31.2.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: fdf4c8bb43f4c24997e884ce244d2a532524da0da6b0324235dee4f88ed71fb7
+-- hash: 05735bf23830ba3e79a733b1af1ce1de608c17203e466c1377e589caac3a0a3d
 
 name:           koka
 version:        2.0.15
@@ -89,6 +89,7 @@ executable koka
       Kind.Synonym
       Kind.Unify
       LanguageServer.Conversions
+      LanguageServer.Handler.Completion
       LanguageServer.Handler.Definition
       LanguageServer.Handler.DocumentSymbol
       LanguageServer.Handler.Hover
