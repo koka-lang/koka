@@ -292,10 +292,14 @@ JS Footer:
     function expandToc() {
       // find the first section heading that is visible in the viewport 
       var current = null;
+      var curpos = 10000000;
       [].every.call( document.querySelectorAll(".tocitem"), function(item) {
         var target = document.getElementById( item.getAttribute("data-toc-target") );
         var pos = viewportPosition(target);
-        if (pos <= 0) current = item;
+        if (pos >= 0 && pos <= curpos) {
+          current = item;
+          curpos = pos;
+        }
         return (pos < 0);
       });
       // if found, expand the corresponding item
