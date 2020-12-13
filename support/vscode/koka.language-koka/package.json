@@ -1,7 +1,7 @@
 {
 	"name": "language-koka",
-	"displayName": "Koka Syntax Highlighting",
-	"description": "Syntax support for the Koka programming language.",
+	"displayName": "Koka",
+	"description": "IDE support for the Koka programming language.",
 	"version": "2.0.0",
 	"publisher": "koka-lang",
 	"engines": {
