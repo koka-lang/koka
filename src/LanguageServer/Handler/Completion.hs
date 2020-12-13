@@ -12,7 +12,7 @@ import Control.Lens                      ( (^.) )
 import qualified Data.Map                as M
 import Data.Maybe                        ( maybeToList )
 import qualified Data.Text               as T
-import Kind.Constructors                 ( Constructors )
+import Kind.Constructors                 ( Constructors, constructorsList )
 import Language.LSP.Server               ( getVirtualFile, requestHandler, Handlers )
 import Language.LSP.VFS                  ( PosPrefixInfo (..), getCompletionPrefix )
 import qualified Language.LSP.Types      as J
@@ -50,7 +50,8 @@ valueCompletions = map toItem . gammaList
   where toItem (n, _) = makeCompletionItem n J.CiFunction "" -- TODO: pretty-print type
 
 constructorCompletions :: Constructors -> [J.CompletionItem]
-constructorCompletions = const [] -- TODO
+constructorCompletions = map toItem . constructorsList
+  where toItem (n, _) = makeCompletionItem n J.CiConstructor "" -- TODO: pretty-print type
 
 makeCompletionItem :: Name -> J.CompletionItemKind -> String -> J.CompletionItem
 makeCompletionItem n k d = J.CompletionItem label kind tags detail doc deprecated
