@@ -97,7 +97,7 @@ table .kw, table .tp, table .co,
   transition: all 0.5s;
   cursor: pointer;
   margin-top: 0ex;  
-  border-radius: 1ex;
+  /* border-radius: 1ex; */
 }
 
 .button, .translate {
@@ -113,7 +113,7 @@ table .kw, table .tp, table .co,
 }
 
 .translate .koka.source.unchecked, .translate pre {
-  xbackground-color: #f0f6fd;  
+  /* background-color: #f0f6fd;  */
 }
 
 .translate pre {
@@ -166,10 +166,10 @@ html {
 }
 
 .banners .banner {
-  width: calc(50% - 2.5em);
+  width: calc(50% - 1.5em);
   min-width: 18em;
-  padding: 0em 1em;
   margin-bottom: 1em;
+  /* padding: 0em 1em; */
   /* border: 1px solid #AAA; */
   /* background-color: #faf9f8; */
   /* border-radius: 1em; */
