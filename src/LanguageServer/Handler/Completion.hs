@@ -44,7 +44,8 @@ findCompletions loaded pfinfo = filter ((pf `T.isPrefixOf`) . (^. J.label)) comp
         completions = valueCompletions gamma
                    ++ constructorCompletions constrs
                    ++ synonymCompletions syns
-                  --  ++ newtypeCompletions
+                -- TODO: Type completions, ideally only inside type expressions
+                -- ++ newtypeCompletions ntypes
 
 valueCompletions :: Gamma -> [J.CompletionItem]
 valueCompletions = map toItem . gammaList
