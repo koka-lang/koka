@@ -1,5 +1,5 @@
 #!/bin/sh -e
-VERSION="v2.0.13"
+VERSION="v2.0.15"
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
@@ -163,9 +163,9 @@ COMPILER=""
 detect_arch() {
   ARCH="$(uname -m)"
   case "$ARCH" in
-    arm*)      ARCH="arm";;
-    aarch64*)  ARCH="aarch64";;
-    x86_64*)   ARCH="amd64";;
+    arm64*|aarch64*)   ARCH="arm64";;
+    arm*)              ARCH="arm";;
+    x86_64*)           ARCH="amd64";;
     x86*|i[35678]86*)  ARCH="x86";;
   esac
 }
@@ -364,14 +364,14 @@ install_dist() {
     if [ -d $koka_atom_dir ] ; then
       info "- install atom editor support"
       if [ -d ~/.atom/packages/language-koka ] ; then
-        restart_msg="no"
+        need_restart=""
       else
         mkdir ~/.atom/packages/language-koka
-        restart_msg="yes"
+        need_restart="yes"
       fi
       if ! cp -p -r $koka_atom_dir/* ~/.atom/packages/language-koka/ ; then
         info "  (failed to copy atom support files)"
-      elif "$restart_msg" = "yes" ; then 
+      elif [ ! -z "$need_restart" ] ; then 
         info "  Please restart Atom for Koka syntax highlighting to take effect."
       fi
     fi
@@ -383,13 +383,13 @@ install_dist() {
     if [ -d $koka_vscode_dir ] ; then
       info "- install vscode editor support"
       if [ -d ~/.vscode/extensions/koka.language-koka ] ; then
-        restart_msg="no"
+        need_restart=""
       else
-        restart_msg="yes"
+        need_restart="yes"
       fi
       if ! cp -p -r $koka_vscode_dir/* ~/.vscode/extensions/ ; then
         info "  (failed to copy vscode support files)"
-      elif "$restart_msg" = "yes" ; then    
+      elif [ ! -z "$need_restart" ] ; then    
         info "  Please restart VS Code for Koka syntax highlighting to take effect."
       fi
     fi

@@ -424,8 +424,7 @@ fun rotate( xs, n ) {
 }
 
 // Calculate a frequency table for a string
-fun freqs( s : string ) : list<double>
-{
+fun freqs( s : string ) : list<double> {
   val lowers = list('a','z')
   val occurs = lowers.map( fn(c){ s.count(c.string) })
   val total  = occurs.sum
@@ -434,14 +433,12 @@ fun freqs( s : string ) : list<double>
 
 // Calculate how well two frequency tables match according
 // to the _chi-square_ statistic.
-fun chisqr( xs : list<double>, ys : list<double> ) : double
-{
+fun chisqr( xs : list<double>, ys : list<double> ) : double {
   zipwith(xs,ys, fn(x,y){ ((x - y)^2.0)/y } ).foldr(0.0,(+))
 }
 
 // Crack a Caesar encoded string
-fun uncaesar( s : string ) : string
-{
+fun uncaesar( s : string ) : string {
   val table  = freqs(s)                   // build a frequency table for `s`
   val chitab = list(0,25).map( fn(n) {    // build a list of chisqr numbers for each shift between 0 and 25
                   chisqr( table.rotate(n), english )
@@ -897,12 +894,70 @@ type person {
 
 Todo
 
-### Inductive, co-inductive, and recursive types
+### Extensible Data Types
+
+Todo
+
+### Inductive, Co-inductive, and Recursive Types
 
 For the purposes of equational reasoning and termination checking, a `type`
 declaration is limited to finite inductive types. There are two more
 declarations, namely `co type` and `rec type` that allow for co-inductive types,
 and arbitrary recursive types respectively.
+
+
+### Value Types
+
+Value types are (non-recursive) data types that are not heap allocated
+but passed on the stack as a value. Since data types are immutable, semantically
+these types are equivalent but value types can be more efficient as they
+avoid heap allocation and reference counting (or more expensive as they need copying 
+instead of sharing a reference). 
+
+By default, any non-recursive inductive datatype of a size upto 3 machine words (= 24 bytes 
+on a 64-bit platform) is treated as a value type. For example, tuples and 3-tuples
+are passed and returned by value. Usually, that means that such tuples are for
+example returned in registers when compiling with optimization.
+
+We can also force a type to be compiled as a value type by using the `value` keyword
+in front of a `type` or `struct` declaration:
+```
+value struct argb{ alpha: int; red: int; green: int; blue: int }
+```
+
+~ begin advanced
+
+#### Boxing
+
+To support generic polymorphism, sometimes value types are _boxed_. For example, a list
+is polymorpic in its elements. That means that if we construct a list of tuples, like
+`[(1,True)]`, that the element `(1,2)` will be boxed and heap allocated -- essentially 
+the compiler transforms this expression into `[Box((1,True)]` internally.
+
+Note that for regular data types and `:int`'s boxing is free (as in isomorphic). Moreover, value types
+up to 63 bits (on a 64-bit platform) are boxed in-place and do not require heap allocation
+(like `:int32`). The `:double` type is also specialized; by default the Koka compiler
+only heap allocates negative doubles for boxing while positive doubles are boxed in-place.
+(this can be configured though to only heap allocate doubles for boxing when their absolute value is
+outside of the range 2^-511^ up to 2^512^).
+
+For performance sensitive code we may specialize certain polymorphic datatypes to
+reduce allocations due to boxing. For example:
+
+```
+type mylist{ 
+  con MyCons{ head1: int; head2: bool; mytail: mylist }
+  con MyNil
+}
+```
+
+Our previous example becomes `MyCons(1,True,MyNil)` now and is more efficient as it only needs
+one allocation for the `MyCons` without an indirection to a tuple.
+In the future we hope to extend Koka to perform specialization automatically or by
+using special directives.
+
+~ end advanced
+
 
 ## Effect Handlers { #sec-handlers }
 
@@ -1410,7 +1465,7 @@ fun sumdown( sum : int = 0 ) : <state<int>,div> int {
 We can define a generic state handler most easily by using `var` declarations:
 
 ```
-fun state( init : a, action : () -> <state<a>|e> b ) : e b {
+fun state( init : a, action : () -> <state<a>,div|e> b ) : <div|e> b {
   var st := init
   with handler {
     fun get(){ st }
@@ -1437,7 +1492,7 @@ to return the final state. A nice way to do this is to
 use a return operation again to pair the final result with the final state: 
 
 ```
-fun pstate( init : a, action : () -> <state<a>|e> b ) : e (b,a) {
+fun pstate( init : a, action : () -> <state<a>,div|e> b ) : <div|e> (b,a) {
   var st := init
   with handler {
     return(x){ (x,st) }      // pair with the final state
@@ -1457,7 +1512,7 @@ For example, we can define the previous example also with
 a separate `return` handler as:
 
 ```
-fun pstate2( init : a, action : () -> <state<a>|e> b ) : e (b,a) {
+fun pstate2( init : a, action : () -> <state<a>,div|e> b ) : <div|e> (b,a) {
   var st := init
   with return(x){ (x,st) }
   with handler {
@@ -1515,7 +1570,7 @@ then we can compose a `pstate` and `raise-maybe` handler together
 to handle the effects:
 
 ```
-fun state-raise(init) : (maybe<int>,int) {
+fun state-raise(init) : div (maybe<int>,int) {
   with pstate(init)  
   with raise-maybe  
   no-odds()
@@ -1533,7 +1588,7 @@ state where we either get an exception (and no final state), or we get a pair of
 result with the final state:
 
 ```
-fun raise-state(init) : maybe<(int,int)> {
+fun raise-state(init) : div maybe<(int,int)> {
   with raise-maybe  
   with pstate(init)  
   no-odds()

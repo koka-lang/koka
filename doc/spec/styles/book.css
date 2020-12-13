@@ -97,6 +97,7 @@ table .kw, table .tp, table .co,
   transition: all 0.5s;
   cursor: pointer;
   margin-top: 0ex;  
+  border-radius: 1ex;
 }
 
 .button, .translate {
@@ -156,3 +157,38 @@ html {
 .madoko h4 {
   font-size: 110%;
 }
+
+.banners {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  /* justify-content: center; */
+}
+
+.banners .banner {
+  width: calc(50% - 2.5em);
+  min-width: 16em;
+  padding: 0em 1em;
+  margin-bottom: 1em;
+  border: 1px solid #AAA;
+  /* background-color: #faf9f8; */
+  /* border-radius: 1em; */
+}
+
+.banner p {
+  margin: 1ex 0ex;
+}
+
+.banner-caption {
+	display: block;
+	margin: 0pt auto 0.5ex 0pt;
+	font-weight: bold;
+  text-align: center;
+	/* border-bottom: 1px solid #AAA; */
+}
+
+.banner .button {
+	text-align: center;
+	/* margin: 0ex aute; */
+	display: block;
+	margin: 0pt;

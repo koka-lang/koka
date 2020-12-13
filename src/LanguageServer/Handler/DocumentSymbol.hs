@@ -111,19 +111,19 @@ instance HasSymbols e => HasSymbols (ValueBinder t e) where
 
 instance HasSymbols UserExpr where
   symbols ex = case ex of
-    Lam bs e _                          -> symbols bs ++ symbols e
-    Let dg e _                          -> symbols dg ++ symbols e
-    Bind d e _                          -> symbols d ++ symbols e
-    App e nes _                         -> symbols e ++ symbols (map snd nes)
-    Ann e _ _                           -> symbols e
-    Case e bs _                         -> symbols e ++ symbols bs
-    Parens e _ _                        -> symbols e
-    Handler _ _ _ _ bs e1 e2 e3 hbs _ _ -> symbols bs ++ symbols e1
-                                                      ++ symbols e2
-                                                      ++ symbols e3
-                                                      ++ symbols hbs
-    Inject _ e _ _                      -> symbols e
-    _                                   -> [] -- TODO: Handle other types of (nested) expressions
+    Lam bs e _                            -> symbols bs ++ symbols e
+    Let dg e _                            -> symbols dg ++ symbols e
+    Bind d e _                            -> symbols d ++ symbols e
+    App e nes _                           -> symbols e ++ symbols (map snd nes)
+    Ann e _ _                             -> symbols e
+    Case e bs _                           -> symbols e ++ symbols bs
+    Parens e _ _                          -> symbols e
+    Handler _ _ _ _ _ bs e1 e2 e3 hbs _ _ -> symbols bs ++ symbols e1
+                                                        ++ symbols e2
+                                                        ++ symbols e3
+                                                        ++ symbols hbs
+    Inject _ e _ _                        -> symbols e
+    _                                     -> [] -- TODO: Handle other types of (nested) expressions
 
 instance HasSymbols UserHandlerBranch where
   symbols hb = [makeSymbol n J.SkFunction r cs]

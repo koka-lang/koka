@@ -35,6 +35,7 @@ module Type.InferMonad( Inf, InfGamma
                       , withDefName
                       , currentDefName
                       , isNamedLam
+                      , getLocalVars
 
                       -- * Misc.
                       , allowReturn, isReturnAllowed
@@ -660,6 +661,8 @@ checkSkolemEscape rng tp mhint skolems extraFree
   = do free <- freeInGamma
        let allfree = tvsUnion free extraFree
            --escaped = fsv $ [tp  | (tv,tp) <- subList sub, tvsMember tv allfree]
+       -- penv <- getPrettyEnv
+       -- trace (show (text "checkSkolemEscape:" <+> tupled [Pretty.ppType penv tp, pretty skolems, pretty (tvsList allfree)])) $
        if (tvsDisjoint (tvsNew skolems) allfree)
          then return ()
          else do stp <- subst tp
@@ -744,6 +747,12 @@ unifyError' env context range err tp1 tp2
           NoMatch     -> (nameType ++ "s do not match",[])
           NoMatchKind -> ("kinds do not match",[])
           NoMatchPred -> ("predicates do not match",[])
+          NoMatchSkolem kind 
+                      -> ("abstract types do not match",if (not (null extra))
+                                                         then []
+                                                         else [(text "hint", if (isKindHeap kind || isKindScope kind)
+                                                                         then text "a local variable or reference escapes its scope?"
+                                                                         else text "an higher-rank type escapes its scope?")])
           NoSubsume   -> ("type is not polymorphic enough",[(text "hint",text "give a higher-rank type annotation to a function parameter?")])
           NoEntail    -> ("predicates cannot be resolved",[])
           Infinite    -> ("types do not match (due to an infinite type)",[(text "hint",text "give a type to the function definition?")])
@@ -1358,6 +1367,11 @@ lookupNameN name fixed named range
                           return []
          _          -> return matches
 -}
+
+getLocalVars :: Inf [(Name,Type)]
+getLocalVars
+  = do env <- getEnv
+       return (filter (isTypeLocalVar . snd) (infgammaList (infgamma env)))
 
 lookupInfName :: Name -> Inf (Maybe (Name,Type))
 lookupInfName name
