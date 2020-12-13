@@ -13,6 +13,7 @@ import qualified Data.Map                as M
 import Data.Maybe                        ( maybeToList )
 import qualified Data.Text               as T
 import Kind.Constructors                 ( Constructors, constructorsList )
+import Kind.Synonym                      ( Synonyms, SynInfo (..), synonymsToList )
 import Language.LSP.Server               ( getVirtualFile, requestHandler, Handlers )
 import Language.LSP.VFS                  ( PosPrefixInfo (..), getCompletionPrefix )
 import qualified Language.LSP.Types      as J
@@ -39,10 +40,10 @@ findCompletions loaded pfinfo = filter ((pf `T.isPrefixOf`) . (^. J.label)) comp
   where pf = prefixText pfinfo
         gamma = loadedGamma loaded
         constrs = loadedConstructors loaded
+        syns = loadedSynonyms loaded
         completions = valueCompletions gamma
                    ++ constructorCompletions constrs
-                  -- TODO:
-                  --  ++ synonymCompletions
+                   ++ synonymCompletions syns
                   --  ++ newtypeCompletions
 
 valueCompletions :: Gamma -> [J.CompletionItem]
@@ -52,6 +53,11 @@ valueCompletions = map toItem . gammaList
 constructorCompletions :: Constructors -> [J.CompletionItem]
 constructorCompletions = map toItem . constructorsList
   where toItem (n, _) = makeCompletionItem n J.CiConstructor "" -- TODO: pretty-print type
+
+synonymCompletions :: Synonyms -> [J.CompletionItem]
+synonymCompletions = map toItem . synonymsToList
+  where toItem sinfo = makeCompletionItem n J.CiInterface "" -- TODO: Add detail
+          where n = synInfoName sinfo
 
 makeCompletionItem :: Name -> J.CompletionItemKind -> String -> J.CompletionItem
 makeCompletionItem n k d = J.CompletionItem label kind tags detail doc deprecated
