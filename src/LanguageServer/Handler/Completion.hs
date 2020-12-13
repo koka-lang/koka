@@ -1,7 +1,7 @@
 -----------------------------------------------------------------------------
 -- The LSP handler that provides code completions
 -----------------------------------------------------------------------------
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 module LanguageServer.Handler.Completion( completionHandler
                                         ) where
 
@@ -12,7 +12,7 @@ import Control.Lens                      ( (^.) )
 import qualified Data.Map                as M
 import Data.Maybe                        ( maybeToList )
 import qualified Data.Text               as T
-import Kind.Constructors                 ( Constructors, constructorsList )
+import Kind.Constructors                 ( Constructors, ConInfo (..), constructorsList )
 import Kind.Synonym                      ( Synonyms, SynInfo (..), synonymsToList )
 import Language.LSP.Server               ( getVirtualFile, requestHandler, Handlers )
 import Language.LSP.VFS                  ( PosPrefixInfo (..), getCompletionPrefix )
@@ -49,11 +49,21 @@ findCompletions loaded pfinfo = filter ((pf `T.isPrefixOf`) . (^. J.label)) comp
 
 valueCompletions :: Gamma -> [J.CompletionItem]
 valueCompletions = map toItem . gammaList
-  where toItem (n, _) = makeCompletionItem n J.CiFunction "" -- TODO: pretty-print type
+  where toItem (n, ninfo) = makeCompletionItem n k "" -- TODO: pretty-print type
+          where k = case ninfo of
+                      InfoVal {..}      -> J.CiConstant
+                      InfoFun {..}      -> J.CiFunction
+                      InfoExternal {..} -> J.CiReference
+                      InfoImport {..}   -> J.CiModule
+                      InfoCon {infoCon=ConInfo {conInfoParams=ps}}| not (null ps) -> J.CiConstructor
+                                                                  | otherwise     -> J.CiEnumMember
 
 constructorCompletions :: Constructors -> [J.CompletionItem]
 constructorCompletions = map toItem . constructorsList
-  where toItem (n, _) = makeCompletionItem n J.CiConstructor "" -- TODO: pretty-print type
+  where toItem (n, cinfo) = makeCompletionItem n k "" -- TODO: pretty-print type
+          where ps = conInfoParams cinfo
+                k | not (null ps) = J.CiConstructor
+                  | otherwise     = J.CiEnumMember
 
 synonymCompletions :: Synonyms -> [J.CompletionItem]
 synonymCompletions = map toItem . synonymsToList
