@@ -1078,17 +1078,16 @@
 <div class="titlenote para-block" style="line-adjust:0"><span style="font-size:75%">(Daan Leijen, 2020-12-12)</span></div></div></div>
 <p class="p noindent para-continued"><a href="https://gitter.im/koka-lang/koka?utm_source=badge&amp;utm_medium=badge&amp;utm_campaign=pr-badge&amp;utm_content=badge"><img align="right" src="https://badges.gitter.im/koka-lang/koka.svg"/></a>
 </p><h1 id="sec-getting-started" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-getting-started" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">1</span>.&#8194;</span>Getting started</h1>
-<p class="p noindent">Welcome to Koka &#8211; a functional-style language with effect types and handlers.
+<p class="p noindent">Welcome to Koka &#8211; a strongly typed functional-style language with effect types and handlers.
 </p>
-<p class="p indent"><a href="#why" title="2.&#8194;Why Koka?" class="learn button localref" style="target-element:h1">Why Koka?</a>
-<a href="#install" title="1.1.&#8194;Installing the compiler" class="learn button localref" style="target-element:h2">Install Koka</a>
-<a href="https://github.com/koka-lang/koka" data-linkid="kokarepo" class="button learn" target="_top">The Github repo</a>
-<a href="https://koka-lang.github.io/koka/doc/toc.html" data-linkid="libraries" class="button learn" target="_top">Browse the Libraries</a>
-</p>
+<p class="p indent" style="text-align:left"><a href="#why" title="2.&#8194;Why Koka?" class="learn button localref" style="target-element:h1">Why Koka?</a>
+<a href="#install" title="1.1.&#8194;Installing the compiler" class="learn button localref" style="target-element:h2">Install</a>
+<a href="https://github.com/koka-lang/koka" data-linkid="kokarepo" class="button learn" target="_top">Github</a>
+<a href="https://koka-lang.github.io/koka/doc/toc.html" data-linkid="libraries" class="button learn" target="_top">Libraries</a></p>
 <p class="p indent">Note: Koka v2 is a research language that is currently under heavy development. 
 Nevertheless, the language is stable and the compiler
 implements the full specification. The main things lacking at the moment are 
-libraries and IDE integration. 
+libraries, package management, and deep IDE integration. 
 </p><h2 id="install" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#install" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">1.1</span>.&#8194;</span>Installing the compiler</h2>
 <p class="p noindent">For Linux and macOS on x86 64-bit, you can install Koka using:
 </p>
@@ -1398,7 +1397,8 @@ fun rand   : ()        -&gt; ndet int        // non-deterministic
 
 
 
-<p class="p noindent">The precise effect typing gives Koka rock-solid semantics backed
+<p class="p noindent">The precise effect typing gives Koka rock-solid semantics and deep 
+safety guarantees backed
 by well-studied category theory, which makes Koka particularly easy to
 reason about for both humans and compilers. (Given the importance of
 effect typing, the name Koka was derived from the Japanese word for

@@ -766,8 +766,9 @@
         .wide p, .wide h1 {
           color: white;
         }
-        .wide:first-child {
+        .wide.heading {
           margin-top:0pt;
+          padding:0pt;
           padding-top:2em;
         }
         .wide {
@@ -782,29 +783,31 @@
         .content, h1 {
           max-width: 62rem;
           margin: 0em auto;
-        }
-        .header1 {
-          padding-bottom:2em;
-          padding-top: 1em;
-        }
-        .heading .aside {
-          margin: 0em 0em 1em 1rem;
+          padding: 0em 1ex;
+        }   
+        .heading pre {
           font-size: 60% !important;
           width: 27em;
           border: 1px solid #AAA !important;
-          box-shadow: 1px 1px 3px #aaa;
+          box-shadow: 2px 2px 3px #aaa;
         }
-        xh1 {
-          border: 1px solid #aaa;
-          background-color: #faf9f8;
-          padding: 1ex;
+        .heading-title p {
+          text-align: left;
         }
-        .collapse {
+        .heading-side {
+          float: right;
+          clear: right;
+          margin: 0em 0em 1em 2em;
+        }
+        .banners .banner {
+          padding: 0ex;
+        }
+        .xcollapse {
           display:none;
           margin-top:-50vh;
           padding-top: 50vh;
         }
-        .collapse:target {
+        .xcollapse:target {
           display:block;
         }
         .heading-references {
@@ -815,9 +818,16 @@
 <body class="madoko">
 
 <div class="body madoko" style="line-adjust:0">
-<div class="wide">
+<div class="wide heading">
 <div class="content heading">
-<pre class="koka source aside"><span class="plaincode">// A generator effect with one operation
+
+<p class="p noindent"><a href="book.html" style="float:left;margin-right:1em"><img src="images/koka-logo-filled.png" alt="koka-logo" data-path="images/koka-logo-filled.png" data-linkid="koka-logo" style="max-height:120px;padding:0em"></a>
+<a href="https://gitter.im/koka-lang/koka?utm_source=badge&amp;utm_medium=badge&amp;utm_campaign=pr-badge&amp;utm_content=badge"><img align="right" src="https://badges.gitter.im/koka-lang/koka.svg"/></a>
+</p>
+<div class="heading-title">
+<p class="p noindent"><span style="font-size:200%;font-weight:bold;display:inline-block;padding-top:0.45em">Koka</span><br>
+<span style="font-size:140%;display:inline-block;margin:-0.25ex 0ex 0.1ex 0ex">A Functional Language with Effect Types and Handlers</span></p></div>
+<div class="heading-side"><pre class="koka source"><span class="plaincode">// A generator effect with one operation
 effect yield&lt;a&gt; {
   fun yield( x : a ) : ()
 }
@@ -856,34 +866,23 @@ fun main() : console () {
   <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#con_space_Cons"><span class="co">[</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>Cons: <span class="tp kw">forall</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">&gt;</span> <span class="tp sp">(</span><span class="tp tpp">head</span> <span class="tp kw op">:</span> <span class="tp tv">a</span><span class="tp sp">,</span> <span class="tp tpp">tail</span> <span class="tp kw op">:</span> <span class="tp">list</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">&gt;</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">list</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">&gt;</span></span></a><span class="number">1</span>,<span class="number">2</span>,<span class="number">3</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#con_space_Nil"><span class="co">]</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>Nil: <span class="tp kw">forall</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">&gt;</span> <span class="tp">list</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">&gt;</span></span></a><span class="kw op">.</span><a class="pp" href="#traverse">traverse<span class="pc"><span class="mo">landing<span class="fslash last">/</span></span>traverse: <span class="tp sp">(</span><span class="tp tpp">xs</span> <span class="tp kw op">:</span> <span class="tp">list</span><span class="tp sp">&lt;</span><span class="tp">int</span><span class="tp sp">&gt;</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp sp">(</span><span class="tp">yield</span><span class="tp sp">&lt;</span><span class="tp">int</span><span class="tp sp">&gt;</span><span class="tp sp">)</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a>
 </span>}
 </span></pre>
-
-
-<p class="p noindent"><a href="https://gitter.im/koka-lang/koka?utm_source=badge&amp;utm_medium=badge&amp;utm_campaign=pr-badge&amp;utm_content=badge"><img align="right" src="https://badges.gitter.im/koka-lang/koka.svg"/></a>
-</p>
-<div class="header1">
-<p class="p noindent"><a href="book.html" style="float:left;margin-right:1em"><img src="images/koka-logo-filled.png" alt="koka-logo" data-path="images/koka-logo-filled.png" data-linkid="koka-logo" style="max-height:120px;padding:0em"></a>
-</p>
-<p class="p indent"><span style="font-size:200%;font-weight:bold;display:inline-block;padding-top:0.45em">Koka</span><br>
-<span style="font-size:140%">A Functional Language with Effect Types and Handlers</span></p></div></div></div>
+</div></div></div>
 <div class="content">
 
 <p class="p noindent">Welcome to Koka &#8211; a strongly typed functional-style language with effect types and handlers.
 </p>
-<p class="p indent"><a href="#install" title="Install" class="learn button localref" style="target-element:h1">Install</a>
+<p class="p indent" style="text-align:left"><a href="#install" title="Install" class="learn button localref" style="target-element:h1">Install</a>
 <a href="https://koka-lang.github.io/koka/doc/book.html" data-linkid="kokabook" class="button learn" target="_top">Get Started</a>
 <a href="https://koka-lang.github.io/koka/doc/book.html" data-linkid="kokabook" class="button learn" target="_top">Documentation</a>
 <a href="https://github.com/koka-lang/koka" data-linkid="kokarepo" class="button learn" target="_top">Github</a>
-<a href="https://koka-lang.github.io/koka/doc/toc.html" data-linkid="libraries" class="button learn" target="_top">Libraries</a>
-</p>
+<a href="https://koka-lang.github.io/koka/doc/toc.html" data-linkid="libraries" class="button learn" target="_top">Libraries</a></p>
 <p class="p indent" style="font-size:small">Note: Koka v2 is a research language that is currently under heavy development. 
 Nevertheless, the language is stable and the compiler
 implements the full specification. The main things lacking at the moment are 
-libraries, package management, and IDE integration. </p>
-<p class="p indent"><span style="display:block;margin-bottom:2em"></span>
-</p>
-<p class="p indent"><span style="display:block;margin-bottom:2em"></span>
+libraries, package management, and deep IDE integration. </p>
+<p class="p indent">&#160;
 </p></div>
-<div class="wide"><h1 id="sec-why-koka" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Why Koka?</h1></div>
+<div class="wide"><h1 id="why" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Why Koka?</h1></div>
 <div class="content">
 
 <div class="banners">
@@ -894,7 +893,7 @@ system, algebraic data types, and effect handlers. Each of these is
 composable and avoid the addition of
 &#8220;special&#8221; extensions by being as general as possible.
 </p>
-<p class="p indent"><a href="#collapse-mingen" class="learn button localref" style="target-element:collapse">Expand the <em class="em-low1">minimal but general</em> design</a></p></div>
+<p class="p indent"><a href="#collapse-mingen" class="learn button localref" style="target-element:collapse">Read more about the <em class="em-low1">minimal but general</em> design</a></p></div>
 <div class="banner">
 <p class="p noindent"><span class="banner-caption">Effect Types</span>Koka tracks the (side) <em class="em-low1">effects</em> of every
 function in its type, where pure and effectful computations are
@@ -902,26 +901,56 @@ distinguished. The precise effect typing gives Koka <em class="em-low1">rock-sol
 semantics</em> backed by well-studied category theory, which makes Koka
 particularly easy to reason about for both humans and compilers.
 </p>
-<p class="p indent"><a href="#collapse-effects" class="learn button localref" style="target-element:collapse">Expand effect types</a></p></div>
+<p class="p indent"><a href="#collapse-effects" class="learn button localref" style="target-element:collapse">Read more about effect types</a></p></div>
 <div class="banner">
 <p class="p noindent"><span class="banner-caption">Effect Handlers</span>Effect handlers let you define advanced control abstractions,
 like exceptions, async/await, or probabilistic programs, 
 as a user library in a typed and composable way.<br>
 &#160;
 </p>
-<p class="p indent"><a href="#collapse-handlers" class="learn button localref" style="target-element:collapse">Expand effect handlers</a></p></div>
+<p class="p indent"><a href="#collapse-handlers" class="learn button localref" style="target-element:collapse">Read more about effect handlers</a></p></div>
 <div class="banner">
 <p class="p noindent"><span class="banner-caption">Perceus Reference Counting</span>Perceus is an advanced compilation method for reference counting.
 This lets Koka compile directly to C code <em class="em-low1">without needing
 a garbage collector or runtime system</em>! This also gives Koka 
 excellent performance in practice.
 </p>
-<p class="p indent"><a href="#collapse-perceus" class="learn button localref" style="target-element:collapse">Expand Perceus reference counting</a></p></div>
+<p class="p indent"><a href="#collapse-perceus" class="learn button localref" style="target-element:collapse">Read more about Perceus reference counting</a></p></div>
 <div class="banner">
 <p class="p noindent"><span class="banner-caption">Reuse Analysis</span>Through Perceus, Koka can do reuse analysis and optimize 
 functional-style programs to use in-place updates.
 </p>
-<p class="p indent"><a href="#collapse-fbip" class="learn button localref" style="target-element:collapse">Expand reuse analysis</a></p></div></div>
+<p class="p indent"><a href="#collapse-fbip" class="learn button localref" style="target-element:collapse">Read more about reuse analysis</a></p></div></div></div>
+<div class="wide"><h1 id="install" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Install</h1></div>
+<div class="content">
+<p class="p noindent">For Linux and macOS on x86 64-bit, you can install Koka using:
+</p>
+<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped">&gt; <strong class="strong-star2">curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &#124; sh</strong></span></code></pre>
+<p class="p noindent para-continued">This also installs syntax highlighting for the VS Code and Atom editors.
+</p>
+<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; koka</code></strong></span>
+ _          _           ____
+| |        | |         |__  \
+| | __ ___ | | __ __ _  __) |
+| |/ // _ \| |/ // _&#39; || ___/ welcome to the koka interpreter
+|   &lt;| (_) |   &lt;| (_| ||____| version 2.0.10, Nov 28 2020, libc 64-bit (gcc)
+|_|\_\\___/|_|\_\\__,_|       type :? for help
+
+loading: std/core
+loading: std/core/types
+loading: std/core/hnd
+&gt;</code></pre>
+<p class="p noindent para-continued">Type <code class="code code2">:q</code> to exit the interpreter.
+</p>
+<p class="p indent">For detailed instructions and other platforms (including Windows) see the&nbsp;<a href="https://github.com/koka-lang/koka/releases" data-linkid="releases">releases</a> page.
+It is also straightforward to build the compiler&nbsp;<a href="https://github.com/koka-lang/koka/#build-from-source" data-linkid="build">from source</a>.
+</p>
+<p class="p indent"><a href="book.html#install" class="learn button">Read more on running the compiler</a>
+<a href="book.html#tour" class="learn button">Read a Tour of the Koka language</a>
+</p></div>
+<div class="wide"><h1 id="sec-core-concepts" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Core Concepts</h1></div>
+<div class="content">
+
 <div id="collapse-mingen" class="collapse">
 <h2 id="why-mingen" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Minimal but General</h2>
 <p class="p noindent">Koka has a small core set of
@@ -987,7 +1016,8 @@ fun rand   : ()        -&gt; ndet int        // non-deterministic
 
 
 
-<p class="p noindent">The precise effect typing gives Koka rock-solid semantics backed
+<p class="p noindent">The precise effect typing gives Koka rock-solid semantics and deep 
+safety guarantees backed
 by well-studied category theory, which makes Koka particularly easy to
 reason about for both humans and compilers. (Given the importance of
 effect typing, the name Koka was derived from the Japanese word for
@@ -1210,33 +1240,6 @@ functional style.
 </p>
 <p class="p learn button indent"><a href="book.html#sec-fbip">Learn more about FBIP</a></p>
 <p class="p learn button indent"><a href="https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf" data-linkid="perceus">Read the Perceus report on reuse analysis</a></p></div></div>
-<div class="wide"><h1 id="install" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Install</h1></div>
-<div class="content">
-<p class="p noindent">For Linux and macOS on x86 64-bit, you can install Koka using:
-</p>
-<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped">&gt; <strong class="strong-star2">curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &#124; sh</strong></span></code></pre>
-<p class="p noindent para-continued">This also installs syntax highlighting for the VS Code and Atom editors.
-</p>
-<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; koka</code></strong></span>
- _          _           ____
-| |        | |         |__  \
-| | __ ___ | | __ __ _  __) |
-| |/ // _ \| |/ // _&#39; || ___/ welcome to the koka interpreter
-|   &lt;| (_) |   &lt;| (_| ||____| version 2.0.10, Nov 28 2020, libc 64-bit (gcc)
-|_|\_\\___/|_|\_\\__,_|       type :? for help
-
-loading: std/core
-loading: std/core/types
-loading: std/core/hnd
-&gt;</code></pre>
-<p class="p noindent para-continued">Type <code class="code code2">:q</code> to exit the interpreter.
-</p>
-<p class="p indent">For detailed instructions and other platforms (including Windows) see the&nbsp;<a href="https://github.com/koka-lang/koka/releases" data-linkid="releases">releases</a> page.
-It is also straightforward to build the compiler&nbsp;<a href="https://github.com/koka-lang/koka/#build-from-source" data-linkid="build">from source</a>.
-</p>
-<p class="p indent"><a href="book.html#install" class="learn button">Read more on running the compiler</a>
-<a href="book.html#tour" class="learn button">Read a Tour of the Koka language</a>
-</p></div>
 <div class="wide"><h1 id="sec-references" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">References</h1></div>
 <div class="content">
 <div class="bibl" style="bbl-file:./landing-bib.bbl.mdk"><h1 id="sec-references" class="clearnum h1 heading-references" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">References</h1>
