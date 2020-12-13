@@ -49,7 +49,7 @@ findCompletions loaded pfinfo = filter ((pf `T.isPrefixOf`) . (^. J.label)) comp
 
 valueCompletions :: Gamma -> [J.CompletionItem]
 valueCompletions = map toItem . gammaList
-  where toItem (n, ninfo) = makeCompletionItem n k "" -- TODO: pretty-print type
+  where toItem (n, ninfo) = makeCompletionItem n k d
           where k = case ninfo of
                       InfoVal {..}      -> J.CiConstant
                       InfoFun {..}      -> J.CiFunction
@@ -57,18 +57,21 @@ valueCompletions = map toItem . gammaList
                       InfoImport {..}   -> J.CiModule
                       InfoCon {infoCon=ConInfo {conInfoParams=ps}}| not (null ps) -> J.CiConstructor
                                                                   | otherwise     -> J.CiEnumMember
+                d = show $ pretty $ infoType ninfo
 
 constructorCompletions :: Constructors -> [J.CompletionItem]
 constructorCompletions = map toItem . constructorsList
-  where toItem (n, cinfo) = makeCompletionItem n k "" -- TODO: pretty-print type
+  where toItem (n, cinfo) = makeCompletionItem n k d
           where ps = conInfoParams cinfo
                 k | not (null ps) = J.CiConstructor
                   | otherwise     = J.CiEnumMember
+                d = show $ pretty $ conInfoType cinfo
 
 synonymCompletions :: Synonyms -> [J.CompletionItem]
 synonymCompletions = map toItem . synonymsToList
-  where toItem sinfo = makeCompletionItem n J.CiInterface "" -- TODO: Add detail
+  where toItem sinfo = makeCompletionItem n J.CiInterface d
           where n = synInfoName sinfo
+                d = show $ pretty $ synInfoType sinfo
 
 makeCompletionItem :: Name -> J.CompletionItemKind -> String -> J.CompletionItem
 makeCompletionItem n k d = J.CompletionItem label kind tags detail doc deprecated
