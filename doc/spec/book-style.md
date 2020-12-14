@@ -1,3 +1,6 @@
+adown: []{.fa .fa-angle-double-down}
+aup:   []{.fa .fa-angle-double-up}
+
 .title {
   font-size: xxx-large;
 }

@@ -12,7 +12,7 @@ Bibliography  : koka.bib
 Description   : Koka Language Specification
 Mapsto        : [$\rightsquigarrow$]{.mapsto}
 Koka          : Koka
-ReadCollapse  : Expand
+ReadCollapse  : Read more about
 Bibliography  : koka.bib
 
 Js Footer     :
@@ -37,45 +37,47 @@ Css Header    :
     .wide p, .wide h1 {
       color: white;
     }
-    .wide:first-child {
+    .wide.heading {
       margin-top:0pt;
+      padding:0pt;
       padding-top:2em;
     }
     .wide {
       margin: 2em 0em;
       padding: 1px;
-      background-color: #10606C;
-      background: linear-gradient(#105A65,#1095a4);
+      background-color: #FAF9F8;
       /* border: 1px solid #AAA;
          border-left: none;
          border-right: none; */
-    }
+    }    
     .content, h1 {
       max-width: 62rem;
       margin: 0em auto;
-    }
-    .header1 {
-      padding-bottom:2em;
-      padding-top: 1em;
-    }
-    .heading .aside {
-      margin: 0em 0em 1em 1rem;
-      font-size: 60% !important;
+      padding: 0em 1em;
+    }   
+    .heading pre {
+      font-size: 70% !important;
       width: 27em;
       border: 1px solid #AAA !important;
-      box-shadow: 1px 1px 3px #aaa;
+      box-shadow: 2px 2px 3px #aaa;
     }
-    xh1 {
-      border: 1px solid #aaa;
-      background-color: #faf9f8;
-      padding: 1ex;
+    .heading-title p {
+      text-align: left;
     }
-    .collapse {
+    .heading-side {
+      float: right;
+      clear: right;
+      margin: 0em 0em 1em 2em;
+    }
+    .banners .banner {
+      padding: 0ex;
+    }
+    .xcollapse {
       display:none;
       margin-top:-50vh;
       padding-top: 50vh;
     }
-    .collapse:target {
+    .xcollapse:target {
       display:block;
     }
     .heading-references {
@@ -84,7 +86,9 @@ Css Header    :
 
 
 [INCLUDE=book-style.md]
-
+body {
+  .colored  
+}
 
 [koka-logo]: images/koka-logo-filled.png { max-height: 120px; padding:0em; }
 [kokabook]: https://koka-lang.github.io/koka/doc/book.html  {target='_top'}
@@ -98,10 +102,20 @@ Css Header    :
 
 
 
-~ begin wide 
+~ begin wide { .heading }
 ~ begin content { .heading }
 
-```koka {.aside}
+
+[![koka-logo]](book.html){float:left; margin-right:1em;}
+[<img align="right" src="https://badges.gitter.im/koka-lang/koka.svg"/>](https://gitter.im/koka-lang/koka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
+~ heading-title 
+[Koka]{font-size:200%; font-weight:bold; display:inline-block; padding-top:0.45em; }\
+[A Functional Language with Effect Types and Handlers]{font-size:140%; display:inline-block; margin: -0.5ex 0ex 0.5ex 0ex; }
+~
+
+~ heading-side
+```
 // A generator effect with one operation
 effect yield<a> {
   fun yield( x : a ) : ()
@@ -122,49 +136,98 @@ fun main() : console () {
   [1,2,3].traverse
 }
 ```
-[<img align="right" src="https://badges.gitter.im/koka-lang/koka.svg"/>](https://gitter.im/koka-lang/koka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+~
 
-
-~~ Header1
-[![koka-logo]](book.html){float:left; margin-right:1em;}
-
-[Koka]{font-size:200%; font-weight:bold; display:inline-block; padding-top:0.45em; }\
-[A Functional Language with Effect Types and Handlers]{font-size:140%;}
-~~
 
 ~ end content
 ~ end wide
 
 ~ begin content
 
-
 Welcome to &koka; -- a strongly typed functional-style language with effect types and handlers.
 
-[Install][#install]{.learn}
+[Install &adown;][#install]{.learn}
 [Get Started][kokabook]{.learn}
-[The Koka Book][kokabook]{.learn}
+[Documentation][kokabook]{.learn}
 [Github][kokarepo]{.learn}
 [Libraries][libraries]{.learn}
+{text-align:left;}
 
+~ smaller { font-size:smaller; }
 Note: &koka; v2 is a research language that is currently under heavy development. 
 Nevertheless, the language is stable and the compiler
 implements the full specification. The main things lacking at the moment are 
-libraries, package management, and IDE integration. 
-{font-size:small;}
+libraries, package management, and deep IDE integration. 
 
-&bigskip;
+News:
 
-&bigskip;
+* 2020-12-12: Koka v2.0.14 [released][kokarepo].
+* 2020-12-02: Koka v2.0.12 [released][kokarepo].
+
+&nbsp;
+~
 
 ~ end content
 
 ~ wide
-# Why Koka?
+# Why Koka? { #why }
 ~
 
 ~ begin content
 
-[INCLUDE=why.md]
+
+~ begin banners
+~ banner { caption:"Minimal but General" }
+The core of &koka; consists of a small set of well-studied language
+features, like first-class functions, a polymorphic type- and effect
+system, algebraic data types, and effect handlers. Each of these is
+composable and avoid the addition of
+"special" extensions by being as general as possible.
+~
+
+~ banner { caption:"Effect Types"}
+&koka; tracks the (side) _effects_ of every
+function in its type, where pure and effectful computations are
+distinguished. The precise effect typing gives &koka; _rock-solid
+semantics_ backed by well-studied category theory, which makes &koka;
+particularly easy to reason about for both humans and compilers.
+~
+
+~ banner { caption:"Effect Handlers" }
+Effect handlers let you define advanced control abstractions,
+like exceptions, async/await, iterators, parsers, ambient
+state, or probabilistic programs, 
+as a user library in a typed and composable way.
+~
+
+~ banner { caption:"Perceus Reference Counting" }
+Perceus is an advanced compilation method for reference counting.
+This lets &koka; compile directly to C code _without needing
+a garbage collector or runtime system_! This also gives &koka; 
+excellent performance in practice.
+~
+
+~ banner { caption:"Reuse Analysis"}
+Perceus also enables _reuse analysis_ and lets &koka; optimize 
+functional-style programs to use in-place updates
+when possible. 
+<!--
+This makes many functional algorithms behave
+like their imperative counterparts on uniquely owned parameters while
+degrading gracefully to use copying when persistence is required.
+-->
+~
+
+~ banner { caption:"FBIP: Functional But In-Place"}
+Reuse analysis leads to a new style of programming that we call _FBIP_.
+Just like tail-recursion lets us write loops in terms of 
+function calls, reuse analysis lets us write many imperative 
+algorithms in a functional style.
+~
+
+~ end banners
+
+[Learn more about these core concepts](book.html#why){.learn}
 
 ~ end content
 
@@ -197,11 +260,13 @@ Type ``:q`` to exit the interpreter.
 For detailed instructions and other platforms (including Windows) see the [releases] page.
 It is also straightforward to build the compiler [from source][build].
 
-[Read more on running the compiler](book.html#install){.learn}
-[Read a Tour of the Koka language](book.html#tour){.learn}
+[Running the compiler](book.html#install){.learn}
+[A tour of the Koka language](book.html#tour){.learn}
 
 ~ end content
 
+
+<!--
 ~ wide
 # References
 ~
@@ -213,3 +278,4 @@ It is also straightforward to build the compiler [from source][build].
 ~ invisible
 [@Leijen:msfp;@Leijen:algefftr;@Leijen:algeff;@Xie:effev;@Leijen:scopedlabels;@Leijen:fcheap;@Leijen:async]
 ~
+-->

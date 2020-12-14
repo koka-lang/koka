@@ -15,10 +15,14 @@ Mapsto        : [$\rightsquigarrow$]{.mapsto}
 Koka          : Koka
 ReadCollapse  : Read more about
 
-[INCLUDE=book]
-[INCLUDE=styles/webanchors]
-[INCLUDE=styles/webtoc]
-[INCLUDE=book-style.md]
+[INCLUDE=./book.mdk]
+[INCLUDE=./styles/webanchors.mdk]
+[INCLUDE=./styles/webtoc.mdk]
+[INCLUDE=./book-style.md]
+
+body {
+  .colored
+}
 
 ~bar          : before='|'
 ~many         : before='{ ' after=' }'
@@ -28,6 +32,8 @@ ReadCollapse  : Read more about
 [koka-logo]: images/koka-logo-filled.png { max-height: 120px; padding:1rem 1rem 1rem 1.5rem; }
 
 ~ Begin MainHeader
+
+[TITLE]
 
 ~ End MainHeader
 
@@ -44,8 +50,6 @@ ReadCollapse  : Read more about
 ~ Begin MainPanel
 
 ~ Begin MainContent
-
-[TITLE]
 
 [INCLUDE=getstarted.kk.md]
 

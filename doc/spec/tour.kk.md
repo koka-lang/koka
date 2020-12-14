@@ -334,10 +334,10 @@ public fun emit-console2() {
 Intuitively, we can view the handler `with fun emit` as a dynamic binding of the function `emit`
 over the rest of the scope.
 
-[Read more about effect handlers][#sec-handlers]
+[Read more about effect handlers &adown;][#sec-handlers]
 {.learn}
 
-[Read more about `val` operations][#sec-opval]
+[Read more about `val` operations &adown;][#sec-opval]
 {.learn}
 
 
@@ -671,7 +671,7 @@ fun wrong() : (() -> console ()) {
 is statically rejected as the reference to the local variable escapes its scope.
 -->
 
-[Read more about state and multiple resumptions][#sec-multi-resume]
+[Read more about state and multiple resumptions &adown;][#sec-multi-resume]
 {.learn}
 
 
@@ -1063,7 +1063,7 @@ effect control raise( msg : string ) : a
 
 &bigskip;
 
-[Read more about the `with` statement][#sec-with]
+[Read more about the `with` statement &aup;][#sec-with]
 {.learn}
 
 
@@ -1130,7 +1130,7 @@ be used to implement the concept of _fuel_ in a setting where a computation is
 only allowed to take a limited amount of steps.
 
 
-[Read more about `var` mutable variables][#sec-var]
+[Read more about `var` mutable variables &aup;][#sec-var]
 {.learn}
 
 
@@ -1364,10 +1364,10 @@ fun ehello-commit() : string {
 
 This is a total handler and only discharges the `:emit` effect.
 
-[Read more about the `with` statement][#sec-with]
+[Read more about the `with` statement &aup;][#sec-with]
 {.learn}
 
-[Read more about `var` mutable variables][#sec-var]
+[Read more about `var` mutable variables &aup;][#sec-var]
 {.learn}
 
 As another example, consider a generic `catch` handler that
@@ -1434,10 +1434,10 @@ fun div42() {
 ```
 (where the body of `div42` desugars to `default( raise-maybe(fn(){ safe-divide(1,0) }), 42 )`).
 
-[Read more about function block expressions][#sec-anon]
+[Read more about function block expressions &aup;][#sec-anon]
 {.learn}
 
-[Read more about _dot_ expressions][#sec-dot]
+[Read more about _dot_ expressions &aup;][#sec-dot]
 {.learn}
 
 
@@ -1477,13 +1477,13 @@ fun state( init : a, action : () -> <state<a>,div|e> b ) : <div|e> b {
 
 where `state(10){ sumdown() }` evaluates to `55`. 
 
-[Read more about default parameters][#sec-default]
+[Read more about default parameters &aup;][#sec-default]
 {.learn}
 
-[Read more about _trailing lambdas_][#sec-anon]
+[Read more about _trailing lambdas_ &aup;][#sec-anon]
 {.learn}
 
-[Read more about `var` mutable variables][#sec-var]
+[Read more about `var` mutable variables &aup;][#sec-var]
 {.learn}
 
 

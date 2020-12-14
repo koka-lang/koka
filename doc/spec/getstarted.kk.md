@@ -1,21 +1,22 @@
-
+<!-- #00547D -->
 [<img align="right" src="https://badges.gitter.im/koka-lang/koka.svg"/>](https://gitter.im/koka-lang/koka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 
 # Getting started
 
-Welcome to &koka; -- a functional-style language with effect types and handlers.
+Welcome to &koka; -- a strongly typed functional-style language with effect types and handlers.
 
-[Why &koka;?][#why]{.learn}
-[Install &koka;][#install]{.learn}
-[The Github repo][kokarepo]{.learn}
-[Browse the Libraries][libraries]{.learn}
+[Why &koka;? &adown;][#why]{.learn}
+[A Tour of Koka &adown;][#tour]{.learn}
+[Install &adown;][#install]{.learn}
+[Github][kokarepo]{.learn}
+[Libraries][libraries]{.learn}
+{text-align:left;}
 
 Note: &koka; v2 is a research language that is currently under heavy development. 
 Nevertheless, the language is stable and the compiler
 implements the full specification. The main things lacking at the moment are 
-libraries and IDE integration. 
-
+libraries, package management, and deep IDE integration. 
 
 
 [langspec]: https://koka-lang.github.io/koka/doc/kokaspec.html  {target='_top'}
@@ -203,8 +204,7 @@ you can type ``:e`` in the interactive prompt to edit your program further. For 
 
 What next?
 
-[Why &koka;?][#why]{.learn}
-[Basic &koka; syntax][#sec-basics]{.learn}
+[Basic &koka; syntax &adown;][#sec-basics]{.learn}
 [Browse the Library documentation][libraries]{.learn}
 
 

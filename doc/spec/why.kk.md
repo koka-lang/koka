@@ -7,7 +7,7 @@ system, algebraic data types, and effect handlers. Each of these is
 composable and avoid the addition of
 "special" extensions by being as general as possible.
 
-[&ReadCollapse; the _minimal but general_ design][#collapse-mingen]{.learn}
+[&ReadCollapse; the _minimal but general_ design &adown;][#collapse-mingen]{.learn}
 ~
 ~ banner { caption:"Effect Types"}
 &koka; tracks the (side) _effects_ of every
@@ -16,7 +16,7 @@ distinguished. The precise effect typing gives &koka; _rock-solid
 semantics_ backed by well-studied category theory, which makes &koka;
 particularly easy to reason about for both humans and compilers.
 
-[&ReadCollapse; effect types][#collapse-effects]{.learn}
+[&ReadCollapse; effect types &adown;][#collapse-effects]{.learn}
 ~
 ~ banner { caption:"Effect Handlers" }
 Effect handlers let you define advanced control abstractions,
@@ -24,7 +24,7 @@ like exceptions, async/await, or probabilistic programs,
 as a user library in a typed and composable way.\
 &nbsp;
 
-[&ReadCollapse; effect handlers][#collapse-handlers]{.learn}
+[&ReadCollapse; effect handlers &adown;][#collapse-handlers]{.learn}
 ~
 ~ banner { caption:"Perceus Reference Counting" }
 Perceus is an advanced compilation method for reference counting.
@@ -32,14 +32,30 @@ This lets &koka; compile directly to C code _without needing
 a garbage collector or runtime system_! This also gives &koka; 
 excellent performance in practice.
 
-[&ReadCollapse; Perceus reference counting][#collapse-perceus]{.learn}
+[&ReadCollapse; Perceus reference counting &adown;][#collapse-perceus]{.learn}
 ~
 ~ banner { caption:"Reuse Analysis" }
 Through Perceus, &koka; can do reuse analysis and optimize 
 functional-style programs to use in-place updates.
 
-[&ReadCollapse; reuse analysis][#collapse-fbip]{.learn}
+[&ReadCollapse; reuse analysis &adown;][#collapse-fbip]{.learn}
 ~
+
+<!--
+This makes many functional algorithms behave
+like their imperative counterparts on uniquely owned parameters while
+degrading gracefully to use copying when persistence is required.
+-->
+
+~ banner { caption:"FBIP: Functional But In-Place"}
+Reuse analysis leads to a new style of programming that we call _FBIP_.
+Just like tail-recursion lets us write loops in terms of 
+function calls, reuse analysis lets us write many imperative 
+algorithms in a functional style.
+
+[&ReadCollapse; FBIP &adown;][#collapse-fbip]{.learn}
+~
+
 ~ end banners
 
 
@@ -83,7 +99,7 @@ _suspenders_!) is suspended and may be never evaluated or more than once
 often the predicate of a `while` loop is written in parenthesis but may
 be evaluated multiple times.
 
-[Learn more about basic syntax](book.html#sec-basics)
+[Learn more about basic syntax &adown;](book.html#sec-basics)
 {.learn}
 
 ~ end collapse
@@ -103,7 +119,8 @@ fun print  : (string)  -> console ()      // may write to the console
 fun rand   : ()        -> ndet int        // non-deterministic  
 ```
 
-The precise effect typing gives &koka; rock-solid semantics backed
+The precise effect typing gives &koka; rock-solid semantics and deep 
+safety guarantees backed
 by well-studied category theory, which makes &koka; particularly easy to
 reason about for both humans and compilers. (Given the importance of
 effect typing, the name &koka; was derived from the Japanese word for
@@ -134,7 +151,7 @@ type `:b`. Since `map` itself has no intrinsic effect, the effect
 of applying `map` is exactly the effect of the function `f` that
 is applied, namely `:e`. 
 
-[Learn more about effect types](book.html#sec-effect-types)
+[Learn more about effect types &adown;](book.html#sec-effect-types)
 {.learn}
 
 ~ end collapse
@@ -190,10 +207,10 @@ yielded: 2
 yielded: 3
 ```` 
 
-[Learn more about `with` statements](book.html#sec-with)
+[Learn more about `with` statements &adown;](book.html#sec-with)
 {.learn}
 
-[Learn more about effect handlers](book.html#sec-handlers)
+[Learn more about effect handlers &adown;](book.html#sec-handlers)
 {.learn}
 
 ~ end collapse
@@ -318,7 +335,7 @@ to express loops with regular function calls, reuse analysis
 allows us to express many imperative algorithms in a purely
 functional style. 
 
-[Learn more about FBIP](book.html#sec-fbip)
+[Learn more about FBIP &adown;](book.html#sec-fbip)
 {.learn}
 
 

@@ -58,7 +58,7 @@ fun build( publish : bool, version : string, speconly : bool ) : io () {
     run-echo(cmd + " toc.kk")
   }
   println("compile documentation inlined code...")
-  run-echo(cmd + " book.kk.md getstarted.kk.md why.kk.md tour.kk.md spec.kk.md landing.kk.md")
+  run-echo(cmd + " book.kk.md getstarted.kk.md why.kk.md tour.kk.md spec.kk.md index.kk.md")
   println("patch book.md")
   file-replace-all(outspec + "book.md", ".kk.md", ".md");
 
@@ -80,7 +80,7 @@ fun build( publish : bool, version : string, speconly : bool ) : io () {
              map(fn(p){ p.nodir.string })
   println("run madoko...")
   run-echo( "cd " + outspec.string + " && madoko --odir=. -v -mline-no:false -mlogo:false -mkokaversion:" + version
-             + " " + xmps.join(" ") + " book.md landing.md" )
+             + " " + xmps.join(" ") + " book.md index.md" )
              
   copy-file-to-dir(outspec + "madoko.css", outstyles)
   if (publish) {
