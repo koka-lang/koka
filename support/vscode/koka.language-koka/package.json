@@ -5,7 +5,7 @@
 	"version": "2.0.0",
 	"publisher": "koka-lang",
 	"engines": {
-		"vscode": "^1.41.0"
+		"vscode": "1.52.0"
 	},
 	"icon": "images/koka-logo-filled.png",
 	"galleryBanner": {
@@ -94,16 +94,15 @@
 		]
 	},
 	"scripts": {
-		"build": "tsc -p .",
-		"watch": "tsc -w -p .",
-		"update-vscode": "node ./node_modules/vscode/bin/install"
+		"build": "tsc",
+		"watch": "tsc -w"
 	},
 	"devDependencies": {
 		"@types/node": "^14.14.10",
-		"@types/vscode": "^1.1.37",
+		"@types/vscode": "1.52.0",
 		"typescript": "^4.1.2"
 	},
 	"dependencies": {
-		"vscode-languageclient": "^6.1.3"
+		"vscode-languageclient": "^7.0.0"
 	}
 }
