@@ -1,31 +1,1021 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en-US">
 <head>
-<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
-<meta http-equiv="refresh" content="1;URL='https://koka-lang.github.io/koka/doc/book.html'" />
-<title>Koka Redirect</title>
-<script>
-// use a script for redirection as well so we can maintain the hash
-if (window.location != null && typeof window.location.replace === "function") {
-  var url = "https://koka-lang.github.io/koka/doc/book.html";
-  if (window.location.hash) {
-    url += window.location.hash;  
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+  <meta name="generator" content="Madoko, version 1.2.3" />
+  <meta name="viewport" content="initial-scale=1.0" />
+  <meta name="description" content="Koka Language Specification" />
+  <title>The Koka Programming Language</title>
+  <style type="text/css"  class="link">
+  /*# sourceURL=madoko.css */
+  
+  .madoko .toc>.tocblock .tocblock .tocblock {
+    margin-left: 2.25em;
   }
-  window.location.replace(url);  
+  .madoko .toc>.tocblock .tocblock {
+    margin-left: 1.5em;
+  }
+  .madoko .toc-contents>.tocblock>.tocitem {
+    font-weight: bold;
+  }
+  .madoko .toc {
+    margin-top: 1em;
+  }
+  .madoko p.para-continue {
+    margin-bottom: 0pt;
+  }
+  .madoko .para-block+p {
+    margin-top: 0pt;
+  }
+  .madoko ul.para-block, .madoko ol.para-block {
+    margin-top: 0pt;
+    margin-bottom: 0pt;
+  }
+  .madoko ul.para-end, .madoko ol.para-end {
+    margin-bottom: 1em;
+  }
+  .madoko dl {
+    margin-left: 0em;
+  }
+  .madoko blockquote {
+    font-style: italic;
+  }
+  .madoko a.localref {
+    text-decoration: none;
+  }
+  .madoko a.localref:hover {
+    text-decoration: underline;
+  }
+  .madoko .footnotes {
+    font-size: smaller;
+    margin-top: 2em;
+  }
+  .madoko .footnotes hr {
+    width: 50%;
+    text-align: left;
+  }
+  .madoko .footnote {
+    margin-left: 1em;
+  }
+  .madoko .footnote-before {
+    margin-left: -1em;
+    width: 1em;
+    display: inline-block;
+  }
+  .madoko .align-center, .madoko .align-center>p {
+    text-align: center !important;
+  }
+  .madoko .align-center pre {
+    text-align: left;
+  }
+  .madoko .align-center>* {
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+  .madoko .align-left, .madoko .align-left>p {
+    text-align: left !important;
+  }
+  .madoko .align-left>* {
+    margin-left: 0pt !important;
+    margin-right: auto !important;
+  }
+  .madoko .align-right, .madoko .align-right>p {
+    text-align: right !important;
+  }
+  .madoko .align-right>* {
+    margin-left: auto !important;
+    margin-right: 0pt !important;
+  }
+  .madoko .align-center>table,
+  .madoko .align-left>table,
+  .madoko .align-right>table {
+    text-align: left !important;
+  }
+  .madoko .equation-before {
+    float: right;
+  }
+  .madoko .bibitem {
+    font-size: smaller;
+  }
+  .madoko .bibsearch {
+    font-size: x-small;
+    text-decoration:none;
+    color: black;
+    font-family: "Segoe UI Symbol", Symbola, serif;
+  }
+  .madoko .block, .madoko .figure, .madoko .bibitem, .madoko .equation, .madoko div.math {
+    margin-top: 1ex;
+    margin-bottom: 1ex;
+  }
+  .madoko .figure {
+    padding: 0.5em;
+    margin-left: 0pt;
+    margin-right: 0pt;
+  }
+  .madoko .hidden {
+    display: none;
+  }
+  .madoko .invisible {
+    visibility: hidden;
+  }
+  .madoko.preview .invisible {
+    visibility: visible;
+    opacity: 0.5;
+  }
+  .madoko code.code, .madoko span.code {
+    white-space: pre-wrap;
+  }
+  .madoko hr, hr.madoko {
+    border: none;
+    border-bottom: black solid 1px;
+    margin-bottom: 0.5ex;
+  }
+  .madoko .framed>*:first-child {
+    margin-top: 0pt;
+  }
+  .madoko .framed>*:last-child {
+    margin-bottom: 0pt;
+  }
+  .madoko ul.list-style-type-dash {
+      list-style-type: none !important;
+  }
+  .madoko ul.list-style-type-dash > li:before {
+      content: "\2013";
+      position: absolute;
+      margin-left: -1em;
+  }
+  .madoko table.madoko {
+    border-collapse: collapse;
+  }
+  .madoko td, .madoko th {
+    padding: 0ex 0.5ex;
+    margin: 0pt;
+    vertical-align: top;
+  }
+  .madoko .cell-border-left {
+    border-left: 1px solid black;
+  }
+  .madoko .cell-border-right {
+    border-right: 1px solid black;
+  }
+  .madoko thead>tr:first-child>.cell-line,
+  .madoko tbody:first-child>tr:first-child>.cell-line {
+    border-top: 1px solid black;
+    border-bottom: none;
+  }
+  .madoko .cell-line, .madoko .cell-double-line {
+    border-bottom: 1px solid black;
+    border-top: none;
+  }
+  .madoko .cell-double-line {
+    border-top: 1px solid black;
+    padding-top: 1.5px !important;
+  }
+  .madoko .input-mathpre .MathJax_Display {
+    text-align: left !important;
+  }
+  .madoko div.input-mathpre {
+    text-align: left;
+    margin-top: 1.5ex;
+    margin-bottom: 1ex;
+  }
+  .madoko .math-rendering {
+    text-align: left;
+    white-space: pre;
+    color: gray;
+  }
+  .madoko .mathdisplay {
+    text-align: center;
+  }
+  .madoko span.math-rendering {
+    display:inline-block;
+    width:8em;
+    overflow-x:auto;
+    font-size:70%;
+  }
+  .madoko span.math-rendering::-webkit-scrollbar {
+    width:4px;
+  }
+  .madoko .pretty table {
+    border-collapse: collapse;
+  }
+  .madoko .pretty td {
+    padding: 0em;
+  }
+  .madoko .pretty td.empty {
+    min-width: 1.5ex;
+  }
+  .madoko .pretty td.expander {
+    width: 100em;
+  }
+  body.madoko, .madoko .serif {
+    font-family: Cambria,"Times New Roman","Liberation Serif","Times",serif;
+  }
+  .madoko .sans-serif {
+    font-family: "Calibri", "Optima", sans-serif;
+  }
+  .madoko .symbol {
+    font-family: "Segoe UI Symbol", Symbola, serif;
+  }
+  body.madoko {
+    -webkit-text-size-adjust: 100%;       
+    text-rendering: optimizeLegibility;
+  }
+  body.madoko {
+    max-width: 88ex; 
+    margin: 1em auto;
+    padding: 0em 2em;
+  }
+  body.preview.madoko {
+    padding: 0em 1em;
+  }
+  .madoko p {
+    text-align: justify;
+  }
+  .madoko h1, .madoko h2, .madoko h3, .madoko h4 {
+    margin-top: 1.22em;
+    margin-bottom: 1ex;
+  }
+  .madoko h1+p, .madoko h2+p, .madoko h3+p, .madoko h4+p, .madoko h5+p  {
+    margin-top: 1ex;
+  }
+  .madoko h5, .madoko h6 {
+    margin-top: 1ex;
+    font-size: 1em;
+  }
+  .madoko h5 {
+    margin-bottom: 0.5ex;
+  }
+  .madoko h5 + p {
+    margin-top: 0.5ex;
+  }
+  .madoko h6 {
+    margin-bottom: 0pt;
+  }
+  .madoko h6 + p {
+    margin-top: 0pt;
+  }
+  .madoko pre, .madoko code, .madoko kbd, .madoko samp, .madoko tt,
+  .madoko .monospace, .madoko .token-indent, .madoko .reveal pre, .madoko .reveal code, .madoko .email {
+    font-family: Consolas,"Andale Mono WT","Andale Mono",Lucida Console,Monaco,monospace,monospace;
+    font-size: 0.85em;
+  }
+  .madoko pre code, .madoko .token-indent {
+    font-size: 0.95em;
+  }
+  .madoko pre code {
+    font-family: inherit !important;
+  }
+  .madoko ol.linenums li {
+    background-color: white;
+    list-style-type: decimal;
+  }
+  .madoko .remote {
+    background-color: #F0FFF0;
+  }
+  .madoko .remote + * {
+    margin-top: 0pt;
+  }
+  @media print {
+    body.madoko {
+      font-size: 10pt;
+    }
+    @page {
+      margin: 1in 1.5in;
+    }
+  }
+  @media only screen and (max-device-width:1024px) {
+    body.madoko {
+      padding: 0em 0.5em;
+    }
+    .madoko li {
+      text-align: left;
+    }
+  }
+  
+    </style>
+  <style type="text/css"  class="link">
+  /*# sourceURL=styles/koka.css */
+  
+  @import url('https://fonts.googleapis.com/css?family=Nunito:400,400italic,700,700italic');
+  @import url('https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic');
+  @import url('https://fonts.googleapis.com/css?family=Roboto+Slab:300,400,700');
+  body.madoko,body.koka,.serif,.sans-serif,.comment {
+    font-family: 'Nunito', 'Calibri', serif;
+  }
+  .sans-serif { 
+    font-family: 'Nunito', 'Segoe UI', 'Calibri', sans-serif;
+  }
+  .sans-section { 
+    font-family: 'Nunito', 'Century Gothic', 'Apple Gothic',  sans-serif; 
+  }
+  pre.koka, code.koka, .koka.doc .header {
+    background-color: #f8f7f6;
+  }
+  @media screen {
+    body.madoko,body.koka {
+      max-width  : 62em;
+      margin     : 1em auto;
+      padding    : 0em 1em 45em 1em; 
+      line-height: 1.4;
+    }
+    .koka.doc p {
+      text-align: left;
+    }
+  }
+  @media screen and (max-device-width: 1022px) {
+    body.madoko,body.koka {
+      max-width: 100%;
+      padding: 0em 0.5em 40em 0.5em;
+      margin: 1em;
+    }
+  }
+  @media screen and (min-device-width: 2048px) {
+    html {
+      font-size:120%;
+    }
+  }
+  @media print {
+    body {
+      font-size: 9pt;
+      margin: 0pt;
+    }
+    h2,h3,h4 { 
+      page-break-after: avoid; 
+    }  
+    p { 
+      text-align: justify;
+    }
+    @page:left  { margin: 8% 5% 8% 5%; }
+    @page:right { margin: 8% 5% 8% 5%; }
+  }
+  body {
+    -webkit-text-size-adjust: 100%;   
+    text-size-adjust:100%;
+    color: black;
+  }
+  h1 { 
+    font-size: 150%; 
+  }
+  h1.mo, h1 .mo, h1 .toc-link {
+    color: inherit !important;
+  }
+  .koka.source,
+  .koka.codeblock,
+  .koka.preblock, 
+  code, code.koka, .koka .code, .madoko code,
+  pre, pre.koka, .madoko pre,
+  .monospace { 
+    font-family: Consolas, "Menlo", "Andale Mono", Lucida Console, Monaco, "Roboto Mono", monospace,monospace;
+  }
+  .madoko pre, .madoko code, .madoko kbd, .madoko samp, .madoko tt, .madoko .monospace, .madoko .token-indent, .madoko .reveal pre, .madoko .reveal code, .madoko .email {
+    font-size: 0.95em;
+  }
+  .koka .code {   
+    xfont-size: 90%;        
+  }
+  code, code.koka, .koka .code, .madoko code { 
+    border-radius: 4px;
+    padding: 0pt 0.2ex;
+  }
+  pre code code, .madoko pre code code {
+    xfont-size: 1em;
+  }
+  .koka.codeblock,
+  .koka.preblock { 
+    padding: 0.5ex 1ex 0.5ex 1ex;
+  }
+  .koka.source  { 
+    padding: 0.5ex 1em 0.5ex 1em;
+  }
+  .koka.source.unchecked {
+  }
+  .koka.source-body .source {
+    margin-right: 1ex;
+  }
+  .koka .dash { 
+    margin-left: -0.25ex; margin-right: -0.25ex
+  }
+  .koka .minus {
+    font-weight: bold;
+  }
+  .koka .fslash {
+    font-size: 90%;  
+  }
+  .koka .fslash .last {
+    margin-right: 0.5ex;
+  }
+  .koka .postfix { 
+    color: gray 
+  }
+  .koka.source,
+  .koka.codeblock,
+  .koka.preblock,
+  .koka.code, code,
+  .koka.pre, pre { 
+    xwhite-space: pre-wrap;
+    overflow-x: auto;
+  }
+  pre.koka.source {
+    border: 1px solid #CCC;
+  }
+  .madoko pre.koka.source {
+    xfont-size: 0.9em;
+  }
+  .koka.doc .comment p {
+    margin: 0pt;
+    margin-bottom: 0.25ex;
+  }
+  .plaincode  { 
+    display: none;
+    white-space: pre-wrap;
+  }
+  .koka.source a:hover,
+  .koka.code a:hover, code.koka a:hover
+  .koka.pre a:hover, pre.koka a:hover { 
+    text-decoration: none 
+  }
+  .koka .type, .koka .tp          { color: teal }
+  .koka .keyword, .koka .kw       { color: blue }     
+  .koka .string, .koka .st        { color: maroon }
+  .koka .module, .koka .mo        { color: navy }
+  .koka .number, .koka .nu        { color: black }
+  .koka .constructor, .koka .co   {  color: purple }
+  .koka .namespace, .koka .mo     { color: navy }
+  .koka .comment                  { color: green }
+  .koka .type.typeparam, .koka .tp.tpp { color: #555 }
+  .koka .type.typevar, .koka .tp.tv    { font-style: italic }
+  .koka .type.keyword.operator, .koka .tp.kw.op { color: teal }
+  .koka.emph {
+    font-style: italic;
+    color: black;
+  }
+  .koka.preblock,     
+  .koka.codeblock
+        { display: block 
+        ; margin-top: 1ex
+        ; margin-bottom: 1ex
+        }
+  .koka.line
+        { display: block
+        ; border-bottom: 1px dotted
+        ; margin-top: 3px
+        ; width: 75%
+        }
+  .koka .error, 
+  .koka .warning { 
+    border-bottom: dotted;
+    border-width: 2px;
+  }
+  .koka .error    { border-color: red }
+  .koka .warning  { border-color: teal }
+  .koka .decl.type,
+  .koka .decl.cotype,
+  .koka .decl.rectype,
+  .koka .decl.fun,
+  .koka .decl.val,
+  .koka .decl.external { 
+  }
+  .koka .decl.alias,
+  .koka .decl.alias .koka .keywordop { 
+    color: teal 
+  }
+  a.pp    { 
+    position: relative;
+    text-decoration: none;
+    color: black;
+  }
+  .pc { 
+    display: none;
+  }
+  a.pp:hover  { 
+    z-index: 100;
+    text-decoration: none;
+  }
+  a.pp:hover .pc, .tooltip { 
+    display:block;
+    position:absolute;
+    top:1.5em;
+    left:2ex;
+    padding: 0.2ex 0.75ex 0.2ex 0.5ex;
+    border:1px solid black;
+    background: #fffdf0;   
+    white-space: pre;
+  }
+  a.pp a.pp:hover .pc
+    { top: 3em }
+  .koka.doc>pre.source {
+    border: 1px solid #CCC;
+  }
+  h1.koka.module
+        { font-weight: normal
+        }
+  .koka .toc-link 
+        { font-size: 75%
+        ; float: right
+        ; color: navy
+        }
+  .koka.doc .header
+        { padding: 0.25ex
+        ; padding-left: 0.5ex
+        ; margin-top: 0px
+        ; margin-bottom: 0.5em
+        }
+  .koka.doc .link 
+        { text-decoration: none
+        ; color: black
+        }
+  .koka.doc .doc.comment
+        { color: black;
+        }
+  .koka.doc .decl .decl
+        { margin-left: 1em 
+        }
+  .koka.doc .decl .comment
+        { margin: 0em 0em 0em 1em }
+  .koka.doc.body>.comment
+        { margin-bottom: 1em }
+  .koka.doc .decl, 
+  .koka.doc .con-decl
+        { margin-top: 1.2em
+        ; border: 1px solid #AAA
+        ; border-width: 1px 0px 0px 1px
+        }
+  .koka.doc .synopsis {
+    font-size: 150%;
+    margin-top: -0.5em;
+    margin-bottom: 0.25em;
+  }  
+  div.nested { 
+    margin: 1.25em 0em 1.25em 1em 
+  }
+  .koka.doc .nested .decl
+        { margin-left: 0em }  
+  .koka.doc .con-decl
+        { 
+        ; margin-left: 1em
+        ; margin-top: 0.5em
+        ; margin-bottom: 0.5em
+        }
+  .koka.doc ul.toc 
+        { list-style-type: none
+        ; margin: 0em
+        ; float: left;
+        ; clear: none;
+        ; padding: 0.5ex 2em 1ex 0.5ex
+        ; white-space: nowrap
+        ; border-bottom: 1px solid #AAA
+        }
+  .koka.doc ul.toc li.nested
+        { padding-left: 1em
+        }
+  .koka.doc div.toc 
+        { overflow: auto
+        ; width: 100%
+        }
+  .koka.doc div.toc+.doc {
+    margin: 1em 0em;
+    padding: 1em 0em;
+  }
+  .koka table.index {
+    border: 1px solid #AAA;
+  }
+  .koka.doc table.index td {
+    vertical-align: top;
+    padding-right: 2.5em;
+    padding-bottom: 0.5ex;
+  }
+  .koka.doc table.index .nested1 {
+    margin-left: 2em;
+  }
+  .koka.doc table.index .nested2 {
+    margin-left: 3em;
+  }
+  .koka.doc table.index .nested3 {
+    margin-left: 4em;
+  }
+  
+    </style>
+  <style type="text/css"  class="link">
+  /*# sourceURL=styles/book.css */
+  .tocitem {
+    font-weight: normal;
+  }
+  .koka.source, .madoko .koka.source {
+    border-left: 0.5ex solid green;
+  }
+  body.madoko {
+    margin: 0em !important;
+  }
+  code, .madoko code,
+  pre, .madoko pre,
+  .koka.source.unchecked,
+  .sidepanel {
+    background-color: #f8f7f6;
+  }
+  pre, .madoko pre,
+  .koka.source,
+  .koka.source.unchecked {
+    border: 1px solid #CCC;
+    border-left: 0.5ex solid #CCC; 
+    padding: 0.5ex 1ex 0.5ex 2ex;
+  }
+  code, .madoko code {
+    padding-right: 0.2ex;
+  }
+  .grammar table,
+  table.grammar  {   
+    margin: 0.5ex 0.5ex 0.5ex 2ex;
+    padding: 0.5ex 1ex 0.5ex 1ex;
+  }
+  .grammar .code,
+  .grammar code {
+    padding: 0pt;
+  }
+  .grammar .bar {
+    padding: 0ex 0.5ex;
+  }
+  .grammar td:nth-child(2) {
+    font-style: normal; 
+    padding: 0em 1ex;
+    text-align: center;
+  }
+  .grammar td:nth-child(4) {
+    font-style: normal; 
+    padding-left: 2ex;
+  }
+  .grammar td {
+    white-space: nowrap;
+  }
+  .grammar .code, .grammar code,
+  .grammar .pre, .grammar pre {
+    font-weight: bold;
+  }
+  table .kw, table .tp, table .co,
+  .grammar .keyword, .grammar .kw,
+  .grammar .type, .grammar .tp,
+  .grammar .constructor, .grammar .co {
+    color: black;
+  }
+  .nt {
+    font-style: italic;
+  }          
+  .opt, .many {   
+    padding: 0ex 0.5ex;
+  }
+  #toc {
+    display: none;
+  }
+  #toc-toggle {
+    cursor: pointer;
+    vertical-align: center;
+    margin-right: 10px;
+    font-size: 16pt;
+  }
+  .button {  
+    display: inline-block;
+    border: 1px solid #AAA;
+    margin: 0ex 1ex 1ex 0ex;
+    padding: 1ex;  
+    transition: all 0.25s;
+    cursor: pointer;
+    margin-top: 0ex;  
+    border-radius: 1ex;
+  }
+  .button, .translate {
+    background-color: #fffdf0;
+  }
+  .button:hover {
+    background-color: #b9dae8 !important;  
+  }
+  a.button, .button a {
+    text-decoration: none !important;
+  }
+  .translate .koka.source.unchecked, .translate pre {
+  }
+  .translate pre {
+    margin: 0.5em 0em;
+  }
+  .aside {
+    float: right;
+    width: 50%;
+    margin: 0em 0em 1ex 2em;
+  }
+  pre.lang-cpp::before {
+    content: "C++";
+    float: right;
+    margin-right: -0.5ex;
+  	color: #999;
+  	border: 1px solid #AAA;
+    padding: 0ex 0.2ex;  
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  .fa-external-link {
+    font-size: 75% !important;
+    padding-left: 0.75ex;
+  }
+  .translate-row {
+    display: flex;
+  }
+  .madoka h2, .madoko h3, .madoko h4 {
+    margin-top: 2em;
+  }
+  .madoko h3 {
+    font-size: 130%;
+  }
+  .madoko h4 {
+    font-size: 110%;
+  }
+  .banners {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  .banners .banner {
+    width: calc(50% - 1.5em);
+    min-width: 20em;
+    margin-bottom: 1em;
+  }
+  .banner p {
+    margin: 1ex 0ex;
+  }
+  .banner-caption {
+  	display: block;
+  	margin: 0pt auto 0.5ex 0pt;
+  	font-weight: bold;
+    text-align: center;
+  }
+  .banner .button {
+  	text-align: center;
+  	display: block;
+  	margin: 0pt;
+  }
+  .colored .wide, .colored .sidepanel {
+    background-color: #1b4253;
+  }
+  .colored .button {
+    background-color:#215166;
+  }
+  .grad.colored .wide, .grad.colored .sidepanel {
+    background: linear-gradient(#1b4253,#286179);
+  }
+  .colored .sidepanel, .colored .sidepanel a, .colored a.button, .colored .button a {
+    color: #e8e8e8 !important;
+  }
+  .colored .sidepanel .current a {
+    color: white !important;
+  }
+  .colored .button {
+    border:none;
+  }
+  .colored .button:hover {
+    background-color: #2e708d !important;  
+  }
+  .penrose.colored .wide, .penrose.colored .sidepanel {
+    background: url(images/penrose-tiling.png);
+  }
+  .fa-angle-double-down {
+    vertical-align: -0.1ex;
+  }
+    </style>
+  <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css"  class="link">
+  
+  <style>
+    body.madoko, .body.madoko {
+          max-width: 100%;
+          padding: 0pt;      
+        }
+        .wide p, .wide h1 {
+          color: white;
+        }
+        .wide.heading {
+          margin-top:0pt;
+          padding:0pt;
+          padding-top:2em;
+        }
+        .wide {
+          margin: 2em 0em;
+          padding: 1px;
+          background-color: #FAF9F8;
+          /* border: 1px solid #AAA;
+             border-left: none;
+             border-right: none; */
+        }    
+        .content, h1 {
+          max-width: 62rem;
+          margin: 0em auto;
+          padding: 0em 1em;
+        }   
+        .heading pre {
+          font-size: 70% !important;
+          width: 27em;
+          border: 1px solid #AAA !important;
+          box-shadow: 2px 2px 3px #aaa;
+        }
+        .heading-title p {
+          text-align: left;
+        }
+        .heading-side {
+          float: right;
+          clear: right;
+          margin: 0em 0em 1em 2em;
+        }
+        .banners .banner {
+          padding: 0ex;
+        }
+        .xcollapse {
+          display:none;
+          margin-top:-50vh;
+          padding-top: 50vh;
+        }
+        .xcollapse:target {
+          display:block;
+        }
+        .heading-references {
+          display:none !important;
+        }
+  </style>
+  </head>
+<body class="madoko">
+
+<div class="body madoko colored" style="line-adjust:0">
+<div class="wide heading">
+<div class="content heading">
+
+<p class="p noindent"><a href="book.html" style="float:left;margin-right:1em"><img src="images/koka-logo-filled.png" alt="koka-logo" data-path="images/koka-logo-filled.png" data-linkid="koka-logo" style="max-height:120px;padding:0em"></a>
+<a href="https://gitter.im/koka-lang/koka?utm_source=badge&amp;utm_medium=badge&amp;utm_campaign=pr-badge&amp;utm_content=badge"><img align="right" src="https://badges.gitter.im/koka-lang/koka.svg"/></a>
+</p>
+<div class="heading-title">
+<p class="p noindent"><span style="font-size:200%;font-weight:bold;display:inline-block;padding-top:0.45em">Koka</span><br>
+<span style="font-size:140%;display:inline-block;margin:-0.5ex 0ex 0.5ex 0ex">A Functional Language with Effect Types and Handlers</span></p></div>
+<div class="heading-side"><pre class="koka source"><span class="plaincode">// A generator effect with one operation
+effect yield&lt;a&gt; {
+  fun yield( x : a ) : ()
 }
-</script>
-</head>
 
-<body class="koka doc body" style="margin:1em 10%">
+// Traverse a list and yield the elements
+fun traverse( xs : list&lt;int&gt; ) : yield&lt;int&gt; () {
+  match(xs) {
+    Cons(x,xx) -&gt; { yield(x); traverse(xx) }
+    Nil        -&gt; ()
+  }
+}
 
+fun main() : console () {
+  with fun yield(i : int) {
+    println("yielded " + i.show)    
+  }
+  [1,2,3].traverse
+}
+</span><span class="nicecode"><span class="comment">// A generator effect with one operation
+</span><span class="decl-type" id="type_space_yield"><span class="tp kw">effect</span> <span class="decl-con" id="con_space_Yield"><a class="pp" href="#type_space_yield"><span class="tp">yield</span><span class="pc"><span class="mo">index<span class="fslash last">/</span></span>yield: <span class="tp">V</span> <span class="tp kw op">-></span> <span class="tp">HX</span></span></a></span></span><span class="tp sp">&lt;</span><a class="pp"><span class="tp">a</span><span class="pc">a: <span class="tp">V</span></span></a><span class="tp sp">&gt;</span> {
+  <span class="kw">fun</span> <span class="decl-fun" id="yield"><a class="pp" href="#yield">yield<span class="pc"><span class="mo">index<span class="fslash last">/</span></span>yield: <span class="tp kw">forall</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">&gt;</span> <span class="tp sp">(</span><span class="tp tpp">x</span> <span class="tp kw op">:</span> <span class="tp tv">a</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp sp">(</span><span class="tp">yield</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">&gt;</span><span class="tp sp">)</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a></span>( <a class="pp">x<span class="pc">x: <span class="tp op">$</span><span class="number">132</span></span></a> <span class="tp kw op">:</span> <a class="pp"><span class="tp tv">a</span><span class="pc">a: <span class="tp">V</span></span></a> ) <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space__lp__rp_"><span class="tp">(</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>(): <span class="tp">V</span></span></a><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space__lp__rp_"><span class="tp">)</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>(): <span class="tp">V</span></span></a>
+}
 
-<p>This page has moved.</p>
-<p>For more information see:</p>
-<ul>
-<li>The <a href="book.html">Koka book</a>.</li>
-<li>The Koka <a href="toc.html">library documentation</a></li>
-</ul>
+<span class="comment">// Traverse a list and yield the elements
+</span><span class="decl-fun" id="traverse"><span class="kw">fun</span> <a class="pp" href="#traverse">traverse<span class="pc"><span class="mo">index<span class="fslash last">/</span></span>traverse: <span class="tp sp">(</span><span class="tp tpp">xs</span> <span class="tp kw op">:</span> <span class="tp">list</span><span class="tp sp">&lt;</span><span class="tp">int</span><span class="tp sp">&gt;</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp sp">(</span><span class="tp">yield</span><span class="tp sp">&lt;</span><span class="tp">int</span><span class="tp sp">&gt;</span><span class="tp sp">)</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a>( <a class="pp">xs<span class="pc">xs: <span class="tp">list</span><span class="tp sp">&lt;</span><span class="tp">int</span><span class="tp sp">&gt;</span></span></a> <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_list"><span class="tp">list</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>list: <span class="tp">V</span> <span class="tp kw op">-></span> <span class="tp">V</span></span></a><span class="tp sp">&lt;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a><span class="tp sp">&gt;</span> ) <span class="tp kw op">:</span> <a class="pp" href="#type_space_yield"><span class="tp">yield</span><span class="pc"><span class="mo">index<span class="fslash last">/</span></span>yield: <span class="tp">V</span> <span class="tp kw op">-></span> <span class="tp">HX</span></span></a><span class="tp sp">&lt;</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a><span class="tp sp">&gt;</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space__lp__rp_"><span class="tp">(</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>(): <span class="tp">V</span></span></a><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space__lp__rp_"><span class="tp">)</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>(): <span class="tp">V</span></span></a> {
+  <span class="kw">match</span>(<a class="pp">xs<span class="pc">xs: <span class="tp">list</span><span class="tp sp">&lt;</span><span class="tp">int</span><span class="tp sp">&gt;</span></span></a>) {
+    <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#con_space_Cons"><span class="co">Cons</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>Cons: <span class="tp kw">forall</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">&gt;</span> <span class="tp sp">(</span><span class="tp tpp">head</span> <span class="tp kw op">:</span> <span class="tp tv">a</span><span class="tp sp">,</span> <span class="tp tpp">tail</span> <span class="tp kw op">:</span> <span class="tp">list</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">&gt;</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">list</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">&gt;</span></span></a>(<a class="pp">x<span class="pc">x: <span class="tp">int</span></span></a>,<a class="pp">xx<span class="pc">xx: <span class="tp">list</span><span class="tp sp">&lt;</span><span class="tp">int</span><span class="tp sp">&gt;</span></span></a>) <span class="kw op">-></span> { <a class="pp" href="#yield">yield<span class="pc"><span class="mo">index<span class="fslash last">/</span></span>yield: <span class="tp kw">forall</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">&gt;</span> <span class="tp sp">(</span><span class="tp tpp">x</span> <span class="tp kw op">:</span> <span class="tp tv">a</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp sp">(</span><span class="tp">yield</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">&gt;</span><span class="tp sp">)</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a>(<a class="pp">x<span class="pc">x: <span class="tp">int</span></span></a>); <a class="pp" href="#traverse">traverse<span class="pc"><span class="mo">index<span class="fslash last">/</span></span>traverse: <span class="tp sp">(</span><span class="tp tpp">xs</span> <span class="tp kw op">:</span> <span class="tp">list</span><span class="tp sp">&lt;</span><span class="tp">int</span><span class="tp sp">&gt;</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp sp">(</span><span class="tp">yield</span><span class="tp sp">&lt;</span><span class="tp">int</span><span class="tp sp">&gt;</span><span class="tp sp">)</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a>(<a class="pp">xx<span class="pc">xx: <span class="tp">list</span><span class="tp sp">&lt;</span><span class="tp">int</span><span class="tp sp">&gt;</span></span></a>) }
+    <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#con_space_Nil"><span class="co">Nil</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>Nil: <span class="tp kw">forall</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">&gt;</span> <span class="tp">list</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">&gt;</span></span></a>        <span class="kw op">-></span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#con_space__lp__rp_"><span class="co">(</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>(): <span class="tp sp">(</span><span class="tp sp">)</span></span></a><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#con_space__lp__rp_"><span class="co">)</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>(): <span class="tp sp">(</span><span class="tp sp">)</span></span></a>
+  }
+</span>}
 
+<span class="decl-fun" id="main"><span class="kw">fun</span> <a class="pp" href="#main">main<span class="pc"><span class="mo">index<span class="fslash last">/</span></span>main: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">console</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a>() <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_console"><span class="tp"><span class="effect">console</span></span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>console: <span class="tp">X</span></span></a> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space__lp__rp_"><span class="tp">(</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>(): <span class="tp">V</span></span></a><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space__lp__rp_"><span class="tp">)</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>(): <span class="tp">V</span></span></a> {
+  <a class="pp"><span class="kw">with</span><span class="pc">handler: <span class="tp sp">(</span><span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp sp">&lt;</span><span class="tp">yield</span><span class="tp sp">&lt;</span><span class="tp">int</span><span class="tp sp">&gt;</span><span class="tp sp">,</span><span class="tp">console</span><span class="tp sp">&gt;</span> <span class="tp sp">(</span><span class="tp sp">)</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">console</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a> <span class="kw">fun</span> <a class="pp">yield<span class="pc">yield: <span class="tp sp">(</span><span class="tp tpp">i</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">console</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a>(<a class="pp">i<span class="pc">i: <span class="tp">int</span></span></a> <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a>) {
+    <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#println">println<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>println: <span class="tp sp">(</span><span class="tp tpp">s</span> <span class="tp kw op">:</span> <span class="tp">string</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">console</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a>(<span class="st">"yielded "</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#_plus__6">+<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>(+)<span class="postfix">.6</span>: <span class="tp sp">(</span><span class="tp tpp">x</span> <span class="tp kw op">:</span> <span class="tp">string</span><span class="tp sp">,</span> <span class="tp tpp">y</span> <span class="tp kw op">:</span> <span class="tp">string</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">string</span></span></a> <a class="pp">i<span class="pc">i: <span class="tp">int</span></span></a><span class="kw op">.</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#show">show<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>show: <span class="tp sp">(</span><span class="tp tpp">i</span> <span class="tp kw op">:</span> <span class="tp">int</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">string</span></span></a>)    
+  }
+  <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#con_space_Cons"><span class="co">[</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>Cons: <span class="tp kw">forall</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">&gt;</span> <span class="tp sp">(</span><span class="tp tpp">head</span> <span class="tp kw op">:</span> <span class="tp tv">a</span><span class="tp sp">,</span> <span class="tp tpp">tail</span> <span class="tp kw op">:</span> <span class="tp">list</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">&gt;</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">list</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">&gt;</span></span></a><span class="number">1</span>,<span class="number">2</span>,<span class="number">3</span><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#con_space_Nil"><span class="co">]</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>Nil: <span class="tp kw">forall</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">&gt;</span> <span class="tp">list</span><span class="tp sp">&lt;</span><span class="tp tv">a</span><span class="tp sp">&gt;</span></span></a><span class="kw op">.</span><a class="pp" href="#traverse">traverse<span class="pc"><span class="mo">index<span class="fslash last">/</span></span>traverse: <span class="tp sp">(</span><span class="tp tpp">xs</span> <span class="tp kw op">:</span> <span class="tp">list</span><span class="tp sp">&lt;</span><span class="tp">int</span><span class="tp sp">&gt;</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp sp">(</span><span class="tp">yield</span><span class="tp sp">&lt;</span><span class="tp">int</span><span class="tp sp">&gt;</span><span class="tp sp">)</span> <span class="tp sp">(</span><span class="tp sp">)</span></span></a>
+</span>}
+</span></pre>
+</div></div></div>
+<div class="content">
+
+<p class="p noindent">Welcome to Koka &#8211; a strongly typed functional-style language with effect types and handlers.
+</p>
+<p class="p indent" style="text-align:left"><a href="#install" title="Install" class="learn button localref" style="target-element:h1">Install <span class="fa fa-angle-double-down"></span></a>
+<a href="https://koka-lang.github.io/koka/doc/book.html" data-linkid="kokabook" class="button learn" target="_top">Get Started</a>
+<a href="https://koka-lang.github.io/koka/doc/book.html" data-linkid="kokabook" class="button learn" target="_top">Documentation</a>
+<a href="https://github.com/koka-lang/koka" data-linkid="kokarepo" class="button learn" target="_top">Github</a>
+<a href="https://koka-lang.github.io/koka/doc/toc.html" data-linkid="libraries" class="button learn" target="_top">Libraries</a></p>
+<div class="smaller" style="font-size:smaller">
+<p class="p noindent">Note: Koka v2 is a research language that is currently under heavy development. 
+Nevertheless, the language is stable and the compiler
+implements the full specification. The main things lacking at the moment are 
+libraries, package management, and deep IDE integration. 
+</p>
+<p class="p indent">News:
+</p>
+<ul class="ul list-star compact">
+<li class="li ul-li list-star-li compact-li" style="margin-bottom:1ex">2020-12-12: Koka v2.0.14&nbsp;<a href="https://github.com/koka-lang/koka" data-linkid="kokarepo" target="_top">released</a>.
+</li>
+<li class="li ul-li list-star-li compact-li" style="margin-bottom:1ex">2020-12-02: Koka v2.0.12&nbsp;<a href="https://github.com/koka-lang/koka" data-linkid="kokarepo" target="_top">released</a>.
+</li></ul>
+
+<p class="p noindent">&#160;</p></div></div>
+<div class="wide"><h1 id="why" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Why Koka?</h1></div>
+<div class="content">
+
+<div class="banners">
+<div class="banner">
+<p class="p noindent"><span class="banner-caption">Minimal but General</span>The core of Koka consists of a small set of well-studied language
+features, like first-class functions, a polymorphic type- and effect
+system, algebraic data types, and effect handlers. Each of these is
+composable and avoid the addition of
+&#8220;special&#8221; extensions by being as general as possible.</p></div>
+<div class="banner">
+<p class="p noindent"><span class="banner-caption">Effect Types</span>Koka tracks the (side) <em class="em-low1">effects</em> of every
+function in its type, where pure and effectful computations are
+distinguished. The precise effect typing gives Koka <em class="em-low1">rock-solid
+semantics</em> backed by well-studied category theory, which makes Koka
+particularly easy to reason about for both humans and compilers.</p></div>
+<div class="banner">
+<p class="p noindent"><span class="banner-caption">Effect Handlers</span>Effect handlers let you define advanced control abstractions,
+like exceptions, async/await, iterators, parsers, ambient
+state, or probabilistic programs, 
+as a user library in a typed and composable way.</p></div>
+<div class="banner">
+<p class="p noindent"><span class="banner-caption">Perceus Reference Counting</span>Perceus is an advanced compilation method for reference counting.
+This lets Koka compile directly to C code <em class="em-low1">without needing
+a garbage collector or runtime system</em>! This also gives Koka 
+excellent performance in practice.</p></div>
+<div class="banner">
+<p class="p noindent"><span class="banner-caption">Reuse Analysis</span>Perceus also enables <em class="em-low1">reuse analysis</em> and lets Koka optimize 
+functional-style programs to use in-place updates
+when possible. 
+<!--
+This makes many functional algorithms behave
+like their imperative counterparts on uniquely owned parameters while
+degrading gracefully to use copying when persistence is required.
+--></p></div>
+<div class="banner">
+<p class="p noindent"><span class="banner-caption">FBIP: Functional But In-Place</span>Reuse analysis leads to a new style of programming that we call <em class="em-low1">FBIP</em>.
+Just like tail-recursion lets us write loops in terms of 
+function calls, reuse analysis lets us write many imperative 
+algorithms in a functional style.</p></div></div>
+<p class="p noindent"><a href="book.html#why" class="learn button">Learn more about these core concepts</a>
+</p></div>
+<div class="wide"><h1 id="install" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Install</h1></div>
+<div class="content">
+<p class="p noindent">For Linux and macOS on x86 64-bit, you can install Koka using:
+</p>
+<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped">&gt; <strong class="strong-star2">curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &#124; sh</strong></span></code></pre>
+<p class="p noindent para-continued">This also installs syntax highlighting for the VS Code and Atom editors.
+</p>
+<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; koka</code></strong></span>
+ _          _           ____
+| |        | |         |__  \
+| | __ ___ | | __ __ _  __) |
+| |/ // _ \| |/ // _&#39; || ___/ welcome to the koka interpreter
+|   &lt;| (_) |   &lt;| (_| ||____| version 2.0.10, Nov 28 2020, libc 64-bit (gcc)
+|_|\_\\___/|_|\_\\__,_|       type :? for help
+
+loading: std/core
+loading: std/core/types
+loading: std/core/hnd
+&gt;</code></pre>
+<p class="p noindent para-continued">Type <code class="code code2">:q</code> to exit the interpreter.
+</p>
+<p class="p indent">For detailed instructions and other platforms (including Windows) see the&nbsp;<a href="https://github.com/koka-lang/koka/releases" data-linkid="releases">releases</a> page.
+It is also straightforward to build the compiler&nbsp;<a href="https://github.com/koka-lang/koka/#build-from-source" data-linkid="build">from source</a>.
+</p>
+<p class="p indent"><a href="book.html#install" class="learn button">Running the compiler</a>
+<a href="book.html#tour" class="learn button">A tour of the Koka language</a>
+</p></div><!--
+~ wide
+# References
+~
+
+~ begin content
+~ Begin Bibl { id: ""; bib-id: ""; bbl-file: "./index-bib.bbl.mdk" }
+~ Begin Bibliography { .bib-numeric; caption:"0"}
+~ End Bibliography
+
+~ End Bibl
+
+~ end content
+
+~ invisible
+[@Leijen:msfp;@Leijen:algefftr;@Leijen:algeff;@Xie:effev;@Leijen:scopedlabels;@Leijen:fcheap;@Leijen:async]
+~
+-->
+
+<span data-line=""></span></div>
 </body>
+<script type="text/javascript">
+  window.onload = function() {   
+        const locals = document.querySelectorAll("a:not(.localref)");
+        const currentUrl = window.location.href.replace(/#.*$/,"");
+        locals.forEach( function(link){
+          const child = link.firstElementChild;
+          const ctag = (child==null ? "" : child.tagName);
+          const linkUrl = link.href.replace(/#.*$/,"");
+          if (linkUrl != currentUrl && link.className.indexOf("bib") < 0 && ctag != "IMG" && ctag != "SPAN") {  // no bib, image or code links
+            link.innerHTML = link.innerHTML + "<i class=\"fa fa-external-link\"></i>";
+          }
+        });
+      };
+</script>
+
 </html>

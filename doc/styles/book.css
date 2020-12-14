@@ -94,23 +94,27 @@ table .kw, table .tp, table .co,
   border: 1px solid #AAA;
   margin: 0ex 1ex 1ex 0ex;
   padding: 1ex;  
-  transition: all 0.5s;
+  transition: all 0.25s;
   cursor: pointer;
   margin-top: 0ex;  
-  /* border-radius: 1ex; */
+  border-radius: 1ex;
 }
 
 .button, .translate {
-  background-color: #fffdf0;  
+  background-color: #fffdf0;
+  /* background-color: #dfeef5; */
 }
+
 
 .button:hover {
-  background-color: #f0fff0 !important;
+  /* background-color: #fffad7 !important; */
+  background-color: #b9dae8 !important;  
 }
 
-.button a:hover {
+a.button, .button a {
   text-decoration: none !important;
 }
+
 
 .translate .koka.source.unchecked, .translate pre {
   /* background-color: #f0f6fd;  */
@@ -213,15 +217,32 @@ html {
      background: linear-gradient(#1b4253,#347fa0); */         
   background-color: #1b4253;
 }
+.colored .button {
+  background-color:#215166;
+}
+
 .grad.colored .wide, .grad.colored .sidepanel {
   background: linear-gradient(#1b4253,#286179);
 }
-.colored .sidepanel, .colored .sidepanel a {
+.colored .sidepanel, .colored .sidepanel a, .colored a.button, .colored .button a {
   color: #e8e8e8 !important;
 }
 .colored .sidepanel .current a {
   color: white !important;
 }
+
+.colored .button {
+  border:none;
+}
+.colored .button:hover {
+  /* background-color: #fffad7 !important; */
+  background-color: #2e708d !important;  
+}
+
 .penrose.colored .wide, .penrose.colored .sidepanel {
   background: url(images/penrose-tiling.png);
+}
+
+.fa-angle-double-down {
+  vertical-align: -0.1ex;
 }
