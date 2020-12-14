@@ -607,13 +607,14 @@
   .koka.source, .madoko .koka.source {
   }
   .madoko .koka.source:not(.unchecked)::before {
-    content: "\F00C";
     float: right;
     margin-right: -0.5ex;
-  	color: #999;
-    padding: 0ex 0.2ex;  
-    font-family: FontAwesome;
-    font-size:small;
+  	margin-top: -0.5ex;
+    color: #999;
+    padding: 0ex 0ex 0ex 0.2ex;  
+    content: "checked";
+    font-family: Nunito;
+    font-size: x-small;
   }
   body.madoko {
     margin: 0em !important;
