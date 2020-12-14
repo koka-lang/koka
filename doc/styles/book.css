@@ -167,7 +167,7 @@ html {
 
 .banners .banner {
   width: calc(50% - 1.5em);
-  min-width: 18em;
+  min-width: 20em;
   margin-bottom: 1em;
   /* padding: 0em 1em; */
   /* border: 1px solid #AAA; */
