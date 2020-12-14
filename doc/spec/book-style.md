@@ -66,24 +66,24 @@ li {
 }
 
 .advanced {
-  .boxed;
   before: "[advanced]{.boxed-label}";
+  border-left: 1px solid #AAA;
+  padding: 0em 0em 0em 1em;
+  margin: 1em 0em;
 }
 
 .translate {
-  .boxed;
-  replace: "[translation]{.boxed-label}&nl;~begin translate-row&nl;&source;&nl;~end translate-row&nl;";
-}
-
-.boxed {
+  replace: "translation&nl;{.boxed-label}&nl;~begin translate-row&nl;&source;&nl;~end translate-row&nl;";
   border: 1px solid #AAA;
   padding: 0em 1em;  
+  margin: 1em 0em;
 }
 
+
 .boxed-label {
+  tight: true;
+  margin: 0em 0em 0em -1em;
   display: block;
-  float: left;
-  margin: -1.5em 0em -1em -1em;
   font-size: 70%;
   color: #999;
 }

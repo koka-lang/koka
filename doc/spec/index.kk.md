@@ -154,17 +154,14 @@ Welcome to &koka; -- a strongly typed functional-style language with effect type
 {text-align:left;}
 
 ~ smaller { font-size:smaller; }
-Note: &koka; v2 is a research language that is currently under heavy development. 
+Note: &koka; v2 is a research language that is currently under development
+and not ready for production use. 
 Nevertheless, the language is stable and the compiler
 implements the full specification. The main things lacking at the moment are 
 libraries, package management, and deep IDE integration. 
 
-News:
+[INCLUDE=news]
 
-* 2020-12-12: Koka v2.0.14 [released][kokarepo].
-* 2020-12-02: Koka v2.0.12 [released][kokarepo].
-
-&nbsp;
 ~
 
 ~ end content
@@ -217,17 +214,21 @@ like their imperative counterparts on uniquely owned parameters while
 degrading gracefully to use copying when persistence is required.
 -->
 ~
-
+<!--
 ~ banner { caption:"FBIP: Functional But In-Place"}
 Reuse analysis leads to a new style of programming that we call _FBIP_.
 Just like tail-recursion lets us write loops in terms of 
 function calls, reuse analysis lets us write many imperative 
 algorithms in a functional style.
 ~
+-->
+
+~ banner { caption:"Learn more"}
+
+[Read more about these core concepts](book.html#why){.learn}
+~
 
 ~ end banners
-
-[Learn more about these core concepts](book.html#why){.learn}
 
 ~ end content
 

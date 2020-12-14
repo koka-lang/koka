@@ -21,7 +21,7 @@ body.madoko,body.koka,.serif,.sans-serif,.comment {
 }
 
 pre.koka, code.koka, .koka.doc .header {
-  background-color: #f8f7f6;
+  background-color: #f4f6f6;
 }
 
 /* Text size and margins for screen & print */
@@ -30,8 +30,7 @@ pre.koka, code.koka, .koka.doc .header {
     max-width  : 62em;
     margin     : 1em auto;
     padding    : 0em 1em 45em 1em; /* so a link to the end always puts the definition on top of the screen */
-    line-height: 1.4;
-    /* background-color: #f8f6f4; */
+    line-height: 1.4;    
   }
   .koka.doc p {
     text-align: left;

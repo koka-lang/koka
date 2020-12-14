@@ -8,8 +8,8 @@
 
 .madoko .koka.source:not(.unchecked)::before {
   float: right;
-  margin-right: -0.5ex;
-	margin-top: -0.5ex;
+  margin-right: -1ex;
+	margin-top: -1.4ex;
   color: #999;
   padding: 0ex 0ex 0ex 0.2ex;  
   content: "checked";
@@ -30,15 +30,18 @@ code, .madoko code,
 pre, .madoko pre,
 .koka.source.unchecked,
 .sidepanel {
-  background-color: #f8f7f6;
+  background-color: #f4f6f6;
 }
 pre, .madoko pre,
+pre.koka.source,
 .koka.source,
 .koka.source.unchecked {
-  border: 1px solid #CCC;
+  /* border: 1px solid #CCC; */
   /* border-left: 0.5ex solid #CCC; */
+  border: none;
   padding: 0.5ex 1ex 0.5ex 1ex;
 }
+
 
 code, .madoko code {
   padding-right: 0.2ex;
@@ -266,4 +269,12 @@ html {
 
 .fa-angle-double-down {
   vertical-align: -0.1ex;
+}
+
+.news-items {
+	height: 6em;
+	overflow-y: auto;
+	padding-top: 1ex;
+  margin-top: -1em;
+  /* border: 1px solid #ccc; */	
 }

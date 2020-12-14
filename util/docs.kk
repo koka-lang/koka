@@ -74,6 +74,7 @@ fun build( publish : bool, version : string, speconly : bool ) : io () {
   copy-file-to-dir(specdir + "koka.bib", outspec)
   copy-file-to-dir("lib/std/time/timescales.png".path, outspec)
   copy-file-to-dir("doc/spec/book-style.md".path, outspec)
+  copy-file-to-dir("doc/spec/news.mdk".path, outspec)
   
   val xmps = list-directory(outspec).
              filter(fn(p){ p.string.ends-with(".xmp.html").bool }).

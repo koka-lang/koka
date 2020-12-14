@@ -2,7 +2,7 @@
 [<img align="right" src="https://badges.gitter.im/koka-lang/koka.svg"/>](https://gitter.im/koka-lang/koka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 
-# Getting started
+# Getting started { #getstarted; }
 
 Welcome to &koka; -- a strongly typed functional-style language with effect types and handlers.
 
@@ -13,11 +13,16 @@ Welcome to &koka; -- a strongly typed functional-style language with effect type
 [Libraries][libraries]{.learn}
 {text-align:left;}
 
-Note: &koka; v2 is a research language that is currently under heavy development. 
+~ smaller { font-size:smaller; }
+Note: &koka; v2 is a research language that is currently under development
+and not ready for production use. 
 Nevertheless, the language is stable and the compiler
 implements the full specification. The main things lacking at the moment are 
 libraries, package management, and deep IDE integration. 
 
+[INCLUDE=news.mdk]
+
+~ 
 
 [langspec]: https://koka-lang.github.io/koka/doc/kokaspec.html  {target='_top'}
 [libraries]: https://koka-lang.github.io/koka/doc/toc.html {target='_top'}

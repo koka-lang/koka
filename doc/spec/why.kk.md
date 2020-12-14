@@ -47,6 +47,7 @@ like their imperative counterparts on uniquely owned parameters while
 degrading gracefully to use copying when persistence is required.
 -->
 
+<!--
 ~ banner { caption:"FBIP: Functional But In-Place"}
 Reuse analysis leads to a new style of programming that we call _FBIP_.
 Just like tail-recursion lets us write loops in terms of 
@@ -55,6 +56,7 @@ algorithms in a functional style.
 
 [&ReadCollapse; FBIP &adown;][#collapse-fbip]{.learn}
 ~
+-->
 
 ~ end banners
 
