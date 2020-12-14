@@ -1345,7 +1345,21 @@ excellent performance in practice.
 <p class="p noindent"><span class="banner-caption">Reuse Analysis</span>Through Perceus, Koka can do reuse analysis and optimize 
 functional-style programs to use in-place updates.
 </p>
-<p class="p indent"><a href="#collapse-fbip" class="learn button localref" style="target-element:collapse">Read more about reuse analysis</a></p></div></div>
+<p class="p indent"><a href="#collapse-fbip" class="learn button localref" style="target-element:collapse">Read more about reuse analysis</a></p></div><!--
+This makes many functional algorithms behave
+like their imperative counterparts on uniquely owned parameters while
+degrading gracefully to use copying when persistence is required.
+-->
+
+
+
+<div class="banner">
+<p class="p noindent"><span class="banner-caption">FBIP: Functional But In-Place</span>Reuse analysis leads to a new style of programming that we call <em class="em-low1">FBIP</em>.
+Just like tail-recursion lets us write loops in terms of 
+function calls, reuse analysis lets us write many imperative 
+algorithms in a functional style.
+</p>
+<p class="p indent"><a href="#collapse-fbip" class="learn button localref" style="target-element:collapse">Read more about FBIP</a></p></div></div>
 <div id="collapse-mingen" class="collapse">
 <h2 id="why-mingen" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#why-mingen" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">2.1</span>.&#8194;</span>Minimal but General</h2>
 <p class="p noindent">Koka has a small core set of
