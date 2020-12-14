@@ -751,7 +751,21 @@
   	display: block;
   	margin: 0pt;
   }
-  
+  .colored .wide, .colored .sidepanel {
+    background-color: #1b4253;
+  }
+  .grad.colored .wide, .grad.colored .sidepanel {
+    background: linear-gradient(#1b4253,#286179);
+  }
+  .colored .sidepanel, .colored .sidepanel a {
+    color: #e8e8e8 !important;
+  }
+  .colored .sidepanel .current a {
+    color: white !important;
+  }
+  .penrose.colored .wide, .penrose.colored .sidepanel {
+    background: url(images/penrose-tiling.png);
+  }
     </style>
   <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css"  class="link">
   
@@ -771,17 +785,11 @@
         .wide {
           margin: 2em 0em;
           padding: 1px;
-          /* teal */
-          /* background-color: #10606C;
-             background: linear-gradient(#105A65,#1095a4); */
-          /* slate teal */
-          background-color: #215166;
-          background: linear-gradient(#15323f,#2d708d);
-          background: linear-gradient(#1b4253,#347fa0);
+          background-color: #FAF9F8;
           /* border: 1px solid #AAA;
              border-left: none;
              border-right: none; */
-        }
+        }    
         .content, h1 {
           max-width: 62rem;
           margin: 0em auto;
@@ -819,7 +827,7 @@
   </head>
 <body class="madoko">
 
-<div class="body madoko" style="line-adjust:0">
+<div class="body madoko colored" style="line-adjust:0">
 <div class="wide heading">
 <div class="content heading">
 

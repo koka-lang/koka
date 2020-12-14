@@ -202,3 +202,26 @@ html {
 	color: white !important;
 }
 */
+
+.colored .wide, .colored .sidepanel {
+  /* teal */
+  /* background-color: #10606C;
+     background: linear-gradient(#105A65,#1095a4); */
+  /* slate teal */
+  /* background-color: #215166;
+     background: linear-gradient(#15323f,#2d708d);
+     background: linear-gradient(#1b4253,#347fa0); */         
+  background-color: #1b4253;
+}
+.grad.colored .wide, .grad.colored .sidepanel {
+  background: linear-gradient(#1b4253,#286179);
+}
+.colored .sidepanel, .colored .sidepanel a {
+  color: #e8e8e8 !important;
+}
+.colored .sidepanel .current a {
+  color: white !important;
+}
+.penrose.colored .wide, .penrose.colored .sidepanel {
+  background: url(images/penrose-tiling.png);
+}
