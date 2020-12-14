@@ -313,14 +313,14 @@
     font-family: 'Nunito', 'Century Gothic', 'Apple Gothic',  sans-serif; 
   }
   pre.koka, code.koka, .koka.doc .header {
-    background-color: #f8f7f6;
+    background-color: #f4f6f6;
   }
   @media screen {
     body.madoko,body.koka {
       max-width  : 62em;
       margin     : 1em auto;
       padding    : 0em 1em 45em 1em; 
-      line-height: 1.4;
+      line-height: 1.4;    
     }
     .koka.doc p {
       text-align: left;
@@ -608,8 +608,8 @@
   }
   .madoko .koka.source:not(.unchecked)::before {
     float: right;
-    margin-right: -0.5ex;
-  	margin-top: -0.5ex;
+    margin-right: -1ex;
+  	margin-top: -1.4ex;
     color: #999;
     padding: 0ex 0ex 0ex 0.2ex;  
     content: "checked";
@@ -623,12 +623,13 @@
   pre, .madoko pre,
   .koka.source.unchecked,
   .sidepanel {
-    background-color: #f8f7f6;
+    background-color: #f4f6f6;
   }
   pre, .madoko pre,
+  pre.koka.source,
   .koka.source,
   .koka.source.unchecked {
-    border: 1px solid #CCC;
+    border: none;
     padding: 0.5ex 1ex 0.5ex 1ex;
   }
   code, .madoko code {
@@ -793,6 +794,12 @@
   }
   .fa-angle-double-down {
     vertical-align: -0.1ex;
+  }
+  .news-items {
+  	height: 6em;
+  	overflow-y: auto;
+  	padding-top: 1ex;
+    margin-top: -1em;
   }
     </style>
   <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css"  class="link">
@@ -1003,7 +1010,7 @@
 <div class="titleblock align-center para-block" style="text-align:center;line-adjust:0">
 <div class="titleheader align-center" style="text-align:center;line-adjust:0">
 <div class="title para-block" style="font-weight:bold;margin-bottom:0.5ex;font-size:xxx-large;line-adjust:0">The Koka Programming Language</div>
-<div class="titlenote para-block" style="line-adjust:0"><span style="font-size:75%">(Daan Leijen, 2020-12-13)</span></div></div></div></div>
+<div class="titlenote para-block" style="line-adjust:0"><span style="font-size:75%">(Daan Leijen, 2020-12-14)</span></div></div></div></div>
 <div class="flexbody">
 
 <div class="sidepanel">
@@ -1012,7 +1019,7 @@
 </p><span data-line=""></span>
 <nav class="toc toc-contents expand-all" style="font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">
 <div class="tocblock tocblock1">
-<div class="tocitem tocitem1" data-toc-target-elem="h1" data-toc-target="sec-getting-started" data-toc-depth="1" data-toc-line="[1]{.heading-label}.&#8194;Getting started" style="toctarget:sec-getting-started"><a href="#sec-getting-started" class="localref"><span class="heading-label">1</span>.&#8194;Getting started</a></div>
+<div class="tocitem tocitem1" data-toc-target-elem="h1" data-toc-target="getstarted" data-toc-depth="1" data-toc-line="[1]{.heading-label}.&#8194;Getting started" style="toctarget:getstarted"><a href="#getstarted" class="localref"><span class="heading-label">1</span>.&#8194;Getting started</a></div>
 <div class="tocblock tocblock2">
 <div class="tocitem tocitem2" data-toc-target-elem="h2" data-toc-target="install" data-toc-depth="2" data-toc-line="[1.1]{.heading-label}.&#8194;Installing the compiler" style="toctarget:install"><a href="#install" class="localref"><span class="heading-label">1.1</span>.&#8194;Installing the compiler</a></div>
 <div class="tocitem tocitem2" data-toc-target-elem="h2" data-toc-target="sec-running-the-compiler" data-toc-depth="2" data-toc-line="[1.2]{.heading-label}.&#8194;Running the compiler" style="toctarget:sec-running-the-compiler"><a href="#sec-running-the-compiler" class="localref"><span class="heading-label">1.2</span>.&#8194;Running the compiler</a></div>
@@ -1116,7 +1123,7 @@
 
 
 <p class="p noindent"><a href="https://gitter.im/koka-lang/koka?utm_source=badge&amp;utm_medium=badge&amp;utm_campaign=pr-badge&amp;utm_content=badge"><img align="right" src="https://badges.gitter.im/koka-lang/koka.svg"/></a>
-</p><h1 id="sec-getting-started" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-getting-started" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">1</span>.&#8194;</span>Getting started</h1>
+</p><h1 id="getstarted" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#getstarted" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">1</span>.&#8194;</span>Getting started</h1>
 <p class="p noindent">Welcome to Koka &#8211; a strongly typed functional-style language with effect types and handlers.
 </p>
 <p class="p indent" style="text-align:left"><a href="#why" title="2.&#8194;Why Koka?" class="learn button localref" style="target-element:h1">Why Koka? <span class="fa fa-angle-double-down"></span></a>
@@ -1124,11 +1131,22 @@
 <a href="#install" title="1.1.&#8194;Installing the compiler" class="learn button localref" style="target-element:h2">Install <span class="fa fa-angle-double-down"></span></a>
 <a href="https://github.com/koka-lang/koka" data-linkid="kokarepo" class="button learn" target="_top">Github</a>
 <a href="https://koka-lang.github.io/koka/doc/toc.html" data-linkid="libraries" class="button learn" target="_top">Libraries</a></p>
-<p class="p indent">Note: Koka v2 is a research language that is currently under heavy development. 
+<div class="smaller" style="font-size:smaller">
+<p class="p noindent">Note: Koka v2 is a research language that is currently under development
+and not ready for production use. 
 Nevertheless, the language is stable and the compiler
 implements the full specification. The main things lacking at the moment are 
 libraries, package management, and deep IDE integration. 
-</p><h2 id="install" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#install" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">1.1</span>.&#8194;</span>Installing the compiler</h2>
+</p>
+<div class="news">
+<p class="p noindent">News:
+</p>
+<ul class="ul list-star news-items compact">
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2020-12-12: Koka v2.0.14&nbsp;<a href="https://github.com/koka-lang/koka" data-linkid="kokarepo" target="_top">released</a>.
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2020-12-02: Koka v2.0.12&nbsp;<a href="https://github.com/koka-lang/koka" data-linkid="kokarepo" target="_top">released</a>.
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2020-11-29: Perceus technical report publised (<a href="https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf" data-linkid="perceus">pdf</a>).</li></ul></div></div><h2 id="install" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#install" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">1.1</span>.&#8194;</span>Installing the compiler</h2>
 <p class="p noindent">For Linux and macOS on x86 64-bit, you can install Koka using:
 </p>
 <pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped">&gt; <strong class="strong-star2">curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &#124; sh</strong></span></code></pre>
@@ -1377,14 +1395,18 @@ degrading gracefully to use copying when persistence is required.
 -->
 
 
-
-<div class="banner">
-<p class="p noindent"><span class="banner-caption">FBIP: Functional But In-Place</span>Reuse analysis leads to a new style of programming that we call <em class="em-low1">FBIP</em>.
+<!--
+~ banner { caption:"FBIP: Functional But In-Place"}
+Reuse analysis leads to a new style of programming that we call _FBIP_.
 Just like tail-recursion lets us write loops in terms of 
 function calls, reuse analysis lets us write many imperative 
 algorithms in a functional style.
-</p>
-<p class="p indent"><a href="#collapse-fbip" class="learn button localref" style="target-element:collapse">Read more about FBIP <span class="fa fa-angle-double-down"></span></a></p></div></div>
+
+[&ReadCollapse; FBIP &adown;][#collapse-fbip]{.learn}
+~
+-->
+
+</div>
 <div id="collapse-mingen" class="collapse">
 <h2 id="why-mingen" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#why-mingen" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">2.1</span>.&#8194;</span>Minimal but General</h2>
 <p class="p noindent">Koka has a small core set of
@@ -1933,9 +1955,8 @@ we can write this more concisely as:
 <p class="p noindent">The <code class="koka"><span class="kw">with</span></code> statement essentially puts all statements that follow it into 
 an anynomous function block and passes that as the last parameter. In general:
 </p>
-<div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
-</p>
+<div class="translate" style="border:1px solid #AAA;padding:0em 1em;margin:1em 0em">
+<p class="p boxed-label noindent" style="margin:0em 0em 0em -1em;display:block;font-size:70%;color:#999">translation</p>
 <div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">with f(e1,...,eN)
 &lt;body&gt;
 </span><span class="nicecode"><span class="kw">with</span> f(e1,<span class="op">...</span>,eN)
@@ -1950,9 +1971,8 @@ an anynomous function block and passes that as the last parameter. In general:
 </div></div>
 <p class="p noindent">Moreover, a <code class="koka"><span class="kw">with</span></code> statement can also bind a variable parameter as:
 </p>
-<div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
-</p>
+<div class="translate" style="border:1px solid #AAA;padding:0em 1em;margin:1em 0em">
+<p class="p boxed-label noindent" style="margin:0em 0em 0em -1em;display:block;font-size:70%;color:#999">translation</p>
 <div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">with x = f(e1,...,eN)
 &lt;body&gt;
 </span><span class="nicecode"><span class="kw">with</span> x <span class="kw">=</span> f(e1,<span class="op">...</span>,eN)
@@ -2043,9 +2063,8 @@ public fun emit-console1() {
 <p class="p indent">Moreover, as a convenience, we can leave out the <code class="koka"><span class="kw">handler</span></code> keyword 
 for effects that define just one operation (like <code class="koka"><a class="pp" href="#type_space_emit"><span class="tp">emit</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>emit: <span class="tp">HX</span></span></a></code>):
 </p>
-<div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
-</p>
+<div class="translate" style="border:1px solid #AAA;padding:0em 1em;margin:1em 0em">
+<p class="p boxed-label noindent" style="margin:0em 0em 0em -1em;display:block;font-size:70%;color:#999">translation</p>
 <div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">with val op = &lt;expr&gt; 
 with fun op(x){ &lt;body&gt; }
 with except op(x){ &lt;body&gt; }
@@ -2708,9 +2727,8 @@ lists for example, we can access the head of a list as <code class="koka"><a cla
 <p class="p indent">We can now also see that <code class="koka"><span class="tp kw">struct</span></code> types are just syntactic sugar for regular a
 <code class="koka"><span class="tp kw">type</span></code> with a single constructor of the same name as the type:
 </p>
-<div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
-</p>
+<div class="translate" style="border:1px solid #AAA;padding:0em 1em;margin:1em 0em">
+<p class="p boxed-label noindent" style="margin:0em 0em 0em -1em;display:block;font-size:70%;color:#999">translation</p>
 <div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">struct tp { &lt;fields&gt; }
 </span><span class="nicecode"><span class="tp kw">struct</span> <span class="tp">tp</span> { <span class="op">&lt;</span>fields<span class="op">&gt;</span> }
 </span></pre>
@@ -2772,8 +2790,8 @@ in front of a <code class="koka"><span class="tp kw">type</span></code> or <code
 
 
 
-<div class="advanced boxed" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">advanced</span>
+<div class="advanced" style="border-left:1px solid #AAA;padding:0em 0em 0em 1em;margin:1em 0em">
+<p class="p noindent"><span class="boxed-label" style="margin:0em 0em 0em -1em;display:block;font-size:70%;color:#999">advanced</span>
 </p><h4 id="sec-boxing" class="h4" data-heading-depth="4" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Boxing</h4>
 <p class="p noindent">To support generic polymorphism, sometimes value types are <em class="em-low1">boxed</em>. For example, a list
 is polymorpic in its elements. That means that if we construct a list of tuples, like
@@ -2879,9 +2897,8 @@ This works well in combination with the <code class="koka"><span class="kw">with
 As a syntactic convenience, for single operations we can leave out the <code class="koka"><span class="kw">handler</span></code> keyword 
 which is translated as:
 </p>
-<div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
-</p>
+<div class="translate" style="border:1px solid #AAA;padding:0em 1em;margin:1em 0em">
+<p class="p boxed-label noindent" style="margin:0em 0em 0em -1em;display:block;font-size:70%;color:#999">translation</p>
 <div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">with control op(&lt;args&gt;){ &lt;body&gt; }
 </span><span class="nicecode"><span class="kw">with</span> <span class="kw">control</span> op(<span class="op">&lt;</span>args<span class="op">&gt;</span>){ <span class="op">&lt;</span>body<span class="op">&gt;</span> }
 </span></pre>
@@ -2915,9 +2932,8 @@ which is translated as:
 name of the effect and operation are the same. We can define such an effect by just declaring 
 its operation which implicitly declares an effect type of the same name:
 </p>
-<div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
-</p>
+<div class="translate" style="border:1px solid #AAA;padding:0em 1em;margin:1em 0em">
+<p class="p boxed-label noindent" style="margin:0em 0em 0em -1em;display:block;font-size:70%;color:#999">translation</p>
 <div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">effect control op(&lt;parameters&gt;) : &lt;result-type&gt;
 </span><span class="nicecode"><span class="tp kw">effect</span> <span class="kw">control</span> op(<span class="op">&lt;</span>parameters<span class="op">&gt;</span>) <span class="tp kw op">:</span> <span class="tp sp">&lt;</span><span class="tp">result<span class="dash">-</span>type</span><span class="tp sp">&gt;</span>
 </span></pre>
@@ -3032,9 +3048,8 @@ to be <em class="em-low1">tail-resumptive</em>: that is, they resume exactly <em
 value. To make this more convenient, we can declare <code class="koka"><span class="kw">fun</span></code> operations that do this
 by construction, i.e.
 </p>
-<div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
-</p>
+<div class="translate" style="border:1px solid #AAA;padding:0em 1em;margin:1em 0em">
+<p class="p boxed-label noindent" style="margin:0em 0em 0em -1em;display:block;font-size:70%;color:#999">translation</p>
 <div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">with fun op(&lt;args&gt;){ &lt;body&gt; }
 </span><span class="nicecode"><span class="kw">with</span> <span class="kw">fun</span> op(<span class="op">&lt;</span>args<span class="op">&gt;</span>){ <span class="op">&lt;</span>body<span class="op">&gt;</span> }
 </span></pre>
@@ -3096,9 +3111,8 @@ run-time if the handler happens to define the operation as tail-resumptive.
 essentially dynamically bound variables (but statically typed!). Such operations
 can be declared as a <code class="koka"><span class="kw">val</span></code> with the following translation:
 </p>
-<div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
-</p>
+<div class="translate" style="border:1px solid #AAA;padding:0em 1em;margin:1em 0em">
+<p class="p boxed-label noindent" style="margin:0em 0em 0em -1em;display:block;font-size:70%;color:#999">translation</p>
 <div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">with val v = &lt;expr&gt;
 </span><span class="nicecode"><span class="kw">with</span> <span class="kw">val</span> v <span class="kw">=</span> <span class="op">&lt;</span>expr<span class="op">&gt;</span>
 </span></pre>
@@ -3339,8 +3353,8 @@ exceptional situations:
 
 
 
-<div class="advanced boxed" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">advanced</span>The <code class="koka">catch</code> handler has an interesting type where the action can
+<div class="advanced" style="border-left:1px solid #AAA;padding:0em 0em 0em 1em;margin:1em 0em">
+<p class="p noindent"><span class="boxed-label" style="margin:0em 0em 0em -1em;display:block;font-size:70%;color:#999">advanced</span>The <code class="koka">catch</code> handler has an interesting type where the action can
 have a <code class="koka"><a class="pp" href="#type_space_raise"><span class="tp">raise</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>raise: <span class="tp">HX</span></span></a></code> effect (<code class="koka"><span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><a class="pp" href="#type_space_raise"><span class="tp">raise</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>raise: <span class="tp">HX</span></span></a><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp tv">a</span></code>) and maybe further effects <code class="koka"><span class="tp tv">e</span></code>,
 while the handling function <code class="koka">hnd</code> only has effect <code class="koka"><span class="tp tv">e</span></code>. Now consider
 supplying a handing function that itself calls <code class="koka">raise</code>: in that case, the 
@@ -3473,8 +3487,8 @@ use a return operation again to pair the final result with the final state:
 
 <p class="p noindent">where <code class="koka"><a class="pp" href="#pstate">pstate<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>pstate: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">b</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">init</span> <span class="tp kw op">:</span> <span class="tp tv">a</span><span class="tp sp">,</span> <span class="tp tpp">action</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp">state</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">&#62;</span><span class="tp sp">,</span><span class="tp">div</span><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp tv">b</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp">div</span><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tv">b</span><span class="tp sp">,</span> <span class="tp tv">a</span><span class="tp sp">)</span></span></a>(<span class="number">10</span>){ <a class="pp" href="#sumdown">sumdown<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>sumdown: <span class="tp sp">(</span><span class="tp tpp">sum</span> <span class="tp kw op">:</span> <span class="tp op">?</span><span class="tp">int</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp">div</span><span class="tp sp">,</span><span class="tp">state</span><span class="tp sp">&#60;</span><span class="tp">int</span><span class="tp sp">&#62;</span><span class="tp sp">&#62;</span> <span class="tp">int</span></span></a>() }</code> evaluates to <code class="koka">(<span class="number">55</span>,<span class="number">0</span>)</code>.  
 </p>
-<div class="advanced boxed" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">advanced</span>It is even possible to have a handler that only
+<div class="advanced" style="border-left:1px solid #AAA;padding:0em 0em 0em 1em;margin:1em 0em">
+<p class="p noindent"><span class="boxed-label" style="margin:0em 0em 0em -1em;display:block;font-size:70%;color:#999">advanced</span>It is even possible to have a handler that only
 contains a single <code class="koka"><span class="kw">return</span></code> operation: such handler handles no effect
 at all but only transforms the final result of a function.
 For example, we can define the previous example also with
@@ -3505,8 +3519,8 @@ a separate <code class="koka"><span class="kw">return</span></code> handler as:
 programs more concise in their definition, see 
 for example&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#lindley:liberate" title="Liberating Effects with Rows and Handlers
 Hillerstr&#246;m and Lindley, 2016" class="bibref localref" style="target-element:bibitem"><span class="cite-number">4</span></a>]</span>.</p></div><h3 id="sec-combine" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-combine" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">3.4.6</span>.&#8194;</span>Combining Handlers</h3>
-<div class="advanced boxed" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">advanced</span>What makes effect handlers a good control-flow abstraction? There are three fundamental advantages 
+<div class="advanced" style="border-left:1px solid #AAA;padding:0em 0em 0em 1em;margin:1em 0em">
+<p class="p noindent"><span class="boxed-label" style="margin:0em 0em 0em -1em;display:block;font-size:70%;color:#999">advanced</span>What makes effect handlers a good control-flow abstraction? There are three fundamental advantages 
 with regard to other approaches:
 </p>
 <ol class="ol compact">
@@ -3659,8 +3673,8 @@ Note that this usually the desired behaviour since in the majority of cases
 we <em class="em-low1">want</em> to handle the effects in a particular way when defining handler abstractions. 
 The cases where <code class="koka"><span class="kw">mask</span></code> is needed are much less common in our experience.
 </p>
-<div class="advanced boxed" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">advanced</span>
+<div class="advanced" style="border-left:1px solid #AAA;padding:0em 0em 0em 1em;margin:1em 0em">
+<p class="p noindent"><span class="boxed-label" style="margin:0em 0em 0em -1em;display:block;font-size:70%;color:#999">advanced</span>
 </p><h4 id="sec-state-as-a-combined-effect" class="h4" data-heading-depth="4" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">State as a Combined Effect</h4>
 <p class="p noindent">Another nice use-case for <code class="koka"><span class="kw">mask</span></code> occurs when modeling state directly using
 effect handlers without using mutable local variables&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#biernacki:care" title="Handle with Care: Relational Interpretation of Algebraic Effects and Handlers
@@ -3761,8 +3775,8 @@ we can override the <code class="koka">width</code> as:
 
 
 
-<div class="advanced boxed" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">advanced</span>
+<div class="advanced" style="border-left:1px solid #AAA;padding:0em 0em 0em 1em;margin:1em 0em">
+<p class="p noindent"><span class="boxed-label" style="margin:0em 0em 0em -1em;display:block;font-size:70%;color:#999">advanced</span>
 </p><h4 id="sec-mask-behind" class="h4" data-heading-depth="4" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Mask Behind</h4>
 <p class="p noindent">Unfortunately, we cannot modularly define overriding with just <code class="koka"><span class="kw">mask</span></code>; if we 
 add <code class="koka"><span class="kw">mask</span></code> outside of the <code class="koka">emit</code> handler, the <code class="koka">emit</code> call inside the operation 
@@ -3775,9 +3789,8 @@ The expression <code class="koka"><span class="kw">mask</span> behind<span class
 and only masks any masked operations but not the direct ones. The <code class="koka"><span class="kw">override</span></code>
 keyword is defined in terms of this primitive:
 </p>
-<div class="translate boxed" style="border:1px solid #AAA;padding:0em 1em">
-<p class="p noindent"><span class="boxed-label" style="display:block;float:left;margin:-1.5em 0em -1em -1em;font-size:70%;color:#999">translation</span>
-</p>
+<div class="translate" style="border:1px solid #AAA;padding:0em 1em;margin:1em 0em">
+<p class="p boxed-label noindent" style="margin:0em 0em 0em -1em;display:block;font-size:70%;color:#999">translation</p>
 <div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">with override handler&lt;l&gt; { &lt;ops&gt; }
 &lt;body&gt;
 </span><span class="nicecode"><span class="kw">with</span> <span class="kw">override</span> <span class="kw">handler</span><span class="op">&lt;</span>l<span class="op">&gt;</span> { <span class="op">&lt;</span>ops<span class="op">&gt;</span> }

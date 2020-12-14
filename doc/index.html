@@ -310,14 +310,14 @@
     font-family: 'Nunito', 'Century Gothic', 'Apple Gothic',  sans-serif; 
   }
   pre.koka, code.koka, .koka.doc .header {
-    background-color: #f8f7f6;
+    background-color: #f4f6f6;
   }
   @media screen {
     body.madoko,body.koka {
       max-width  : 62em;
       margin     : 1em auto;
       padding    : 0em 1em 45em 1em; 
-      line-height: 1.4;
+      line-height: 1.4;    
     }
     .koka.doc p {
       text-align: left;
@@ -605,8 +605,8 @@
   }
   .madoko .koka.source:not(.unchecked)::before {
     float: right;
-    margin-right: -0.5ex;
-  	margin-top: -0.5ex;
+    margin-right: -1ex;
+  	margin-top: -1.4ex;
     color: #999;
     padding: 0ex 0ex 0ex 0.2ex;  
     content: "checked";
@@ -620,12 +620,13 @@
   pre, .madoko pre,
   .koka.source.unchecked,
   .sidepanel {
-    background-color: #f8f7f6;
+    background-color: #f4f6f6;
   }
   pre, .madoko pre,
+  pre.koka.source,
   .koka.source,
   .koka.source.unchecked {
-    border: 1px solid #CCC;
+    border: none;
     padding: 0.5ex 1ex 0.5ex 1ex;
   }
   code, .madoko code {
@@ -791,6 +792,12 @@
   .fa-angle-double-down {
     vertical-align: -0.1ex;
   }
+  .news-items {
+  	height: 6em;
+  	overflow-y: auto;
+  	padding-top: 1ex;
+    margin-top: -1em;
+  }
     </style>
   <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css"  class="link">
   
@@ -912,20 +919,21 @@ fun main() : console () {
 <a href="https://github.com/koka-lang/koka" data-linkid="kokarepo" class="button learn" target="_top">Github</a>
 <a href="https://koka-lang.github.io/koka/doc/toc.html" data-linkid="libraries" class="button learn" target="_top">Libraries</a></p>
 <div class="smaller" style="font-size:smaller">
-<p class="p noindent">Note: Koka v2 is a research language that is currently under heavy development. 
+<p class="p noindent">Note: Koka v2 is a research language that is currently under development
+and not ready for production use. 
 Nevertheless, the language is stable and the compiler
 implements the full specification. The main things lacking at the moment are 
 libraries, package management, and deep IDE integration. 
 </p>
-<p class="p indent">News:
+<div class="news">
+<p class="p noindent">News:
 </p>
-<ul class="ul list-star compact">
-<li class="li ul-li list-star-li compact-li" style="margin-bottom:1ex">2020-12-12: Koka v2.0.14&nbsp;<a href="https://github.com/koka-lang/koka" data-linkid="kokarepo" target="_top">released</a>.
+<ul class="ul list-star news-items compact">
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2020-12-12: Koka v2.0.14&nbsp;<a href="https://github.com/koka-lang/koka" data-linkid="kokarepo" target="_top">released</a>.
 </li>
-<li class="li ul-li list-star-li compact-li" style="margin-bottom:1ex">2020-12-02: Koka v2.0.12&nbsp;<a href="https://github.com/koka-lang/koka" data-linkid="kokarepo" target="_top">released</a>.
-</li></ul>
-
-<p class="p noindent">&#160;</p></div></div>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2020-12-02: Koka v2.0.12&nbsp;<a href="https://github.com/koka-lang/koka" data-linkid="kokarepo" target="_top">released</a>.
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2020-11-29: Perceus technical report publised (<a href="https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf" data-linkid="perceus">pdf</a>).</li></ul></div></div></div>
 <div class="wide"><h1 id="why" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Why Koka?</h1></div>
 <div class="content">
 
@@ -960,14 +968,20 @@ when possible.
 This makes many functional algorithms behave
 like their imperative counterparts on uniquely owned parameters while
 degrading gracefully to use copying when persistence is required.
---></p></div>
-<div class="banner">
-<p class="p noindent"><span class="banner-caption">FBIP: Functional But In-Place</span>Reuse analysis leads to a new style of programming that we call <em class="em-low1">FBIP</em>.
+--></p></div><!--
+~ banner { caption:"FBIP: Functional But In-Place"}
+Reuse analysis leads to a new style of programming that we call _FBIP_.
 Just like tail-recursion lets us write loops in terms of 
 function calls, reuse analysis lets us write many imperative 
-algorithms in a functional style.</p></div></div>
-<p class="p noindent"><a href="book.html#why" class="learn button">Learn more about these core concepts</a>
-</p></div>
+algorithms in a functional style.
+~
+-->
+
+
+
+<div class="banner">
+<p class="p noindent"><span class="banner-caption">Learn more</span>
+<a href="book.html#why" class="learn button">Read more about these core concepts</a></p></div></div></div>
 <div class="wide"><h1 id="install" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Install</h1></div>
 <div class="content">
 <p class="p noindent">For Linux and macOS on x86 64-bit, you can install Koka using:
