@@ -605,7 +605,15 @@
     font-weight: normal;
   }
   .koka.source, .madoko .koka.source {
-    border-left: 0.5ex solid green;
+  }
+  .madoko .koka.source:not(.unchecked)::before {
+    content: "\F00C";
+    float: right;
+    margin-right: -0.5ex;
+  	color: #999;
+    padding: 0ex 0.2ex;  
+    font-family: FontAwesome;
+    font-size:small;
   }
   body.madoko {
     margin: 0em !important;
@@ -620,11 +628,14 @@
   .koka.source,
   .koka.source.unchecked {
     border: 1px solid #CCC;
-    border-left: 0.5ex solid #CCC; 
-    padding: 0.5ex 1ex 0.5ex 2ex;
+    padding: 0.5ex 1ex 0.5ex 1ex;
   }
   code, .madoko code {
     padding-right: 0.2ex;
+  }
+  .button code, .button code span {
+    background-color: inherit !important;
+    color: inherit !important;
   }
   .grammar table,
   table.grammar  {   
@@ -1268,8 +1279,7 @@ modules:
 </code></pre>
 <p class="p noindent para-continued">What next?
 </p>
-<p class="p indent"><a href="#why" title="2.&#8194;Why Koka?" class="learn button localref" style="target-element:h1">Why Koka?</a>
-<a href="#sec-basics" title="3.1.&#8194;Basics" class="learn button localref" style="target-element:h2">Basic Koka syntax</a>
+<p class="p indent"><a href="#sec-basics" title="3.1.&#8194;Basics" class="learn button localref" style="target-element:h2">Basic Koka syntax <span class="fa fa-angle-double-down"></span></a>
 <a href="https://koka-lang.github.io/koka/doc/toc.html" data-linkid="libraries" class="button learn" target="_top">Browse the Library documentation</a>
 </p><!--
 ## Algebraic effect handlers

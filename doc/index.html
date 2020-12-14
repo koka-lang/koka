@@ -602,7 +602,15 @@
     font-weight: normal;
   }
   .koka.source, .madoko .koka.source {
-    border-left: 0.5ex solid green;
+  }
+  .madoko .koka.source:not(.unchecked)::before {
+    content: "\F00C";
+    float: right;
+    margin-right: -0.5ex;
+  	color: #999;
+    padding: 0ex 0.2ex;  
+    font-family: FontAwesome;
+    font-size:small;
   }
   body.madoko {
     margin: 0em !important;
@@ -617,11 +625,14 @@
   .koka.source,
   .koka.source.unchecked {
     border: 1px solid #CCC;
-    border-left: 0.5ex solid #CCC; 
-    padding: 0.5ex 1ex 0.5ex 2ex;
+    padding: 0.5ex 1ex 0.5ex 1ex;
   }
   code, .madoko code {
     padding-right: 0.2ex;
+  }
+  .button code, .button code span {
+    background-color: inherit !important;
+    color: inherit !important;
   }
   .grammar table,
   table.grammar  {   
