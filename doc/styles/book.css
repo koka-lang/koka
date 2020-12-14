@@ -30,7 +30,7 @@ code, .madoko code,
 pre, .madoko pre,
 .koka.source.unchecked,
 .sidepanel {
-  background-color: #f4f6f6;
+  background-color: #f6f5f4;
 }
 pre, .madoko pre,
 pre.koka.source,
@@ -277,4 +277,8 @@ html {
 	padding-top: 1ex;
   margin-top: -1em;
   /* border: 1px solid #ccc; */	
+}
+
+.advanced h3, .advanced h4 {
+  margin-top: 0em;
 }
