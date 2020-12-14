@@ -12,7 +12,7 @@
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
 _Latest release_: v2.0.14, 2020-12-11 ([Install](#install)).
 
-<a href="https://koka-lang/github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
+<a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
 Koka is a strongly typed functional-style language with clean syntax and excellent performance.
 What sets Koka apart is _effect typing_, _effect handlers_, 
