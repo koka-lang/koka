@@ -11,6 +11,7 @@ import Compiler.Module                   ( Loaded (..) )
 import Control.Lens                      ( (^.) )
 import qualified Data.Map                as M
 import Data.Maybe                        ( maybeToList )
+import qualified Data.Set                as S
 import qualified Data.Text               as T
 import Kind.Constructors                 ( Constructors, ConInfo (..), constructorsList )
 import Kind.Synonym                      ( Synonyms, SynInfo (..), synonymsToList )
@@ -20,6 +21,7 @@ import qualified Language.LSP.Types      as J
 import qualified Language.LSP.Types.Lens as J
 import LanguageServer.Monad              ( LSM, getLoaded )
 import Lib.PPrint                        ( Pretty (..) )
+import Syntax.Lexer                      ( reservedNames )
 import Type.Assumption
 
 completionHandler :: Flags -> Handlers LSM
@@ -45,7 +47,8 @@ findCompletions loaded pfinfo = filter ((pf `T.isPrefixOf`) . (^. J.label)) comp
         gamma = loadedGamma loaded
         constrs = loadedConstructors loaded
         syns = loadedSynonyms loaded
-        completions = valueCompletions gamma
+        completions = keywordCompletions
+                   ++ valueCompletions gamma
                    ++ constructorCompletions constrs
                    ++ synonymCompletions syns
                 -- TODO: Type completions, ideally only inside type expressions
@@ -77,6 +80,10 @@ synonymCompletions = map toItem . synonymsToList
           where n = synInfoName sinfo
                 d = show $ pretty $ synInfoType sinfo
 
+keywordCompletions :: [J.CompletionItem]
+keywordCompletions = map toItem $ S.toList reservedNames
+  where toItem s = makeSimpleCompletionItem s J.CiKeyword
+
 makeCompletionItem :: Name -> J.CompletionItemKind -> String -> J.CompletionItem
 makeCompletionItem n k d = J.CompletionItem label kind tags detail doc deprecated
                                             preselect sortText filterText insertText
@@ -87,6 +94,28 @@ makeCompletionItem n k d = J.CompletionItem label kind tags detail doc deprecate
         tags = Nothing
         detail = Just $ T.pack d
         doc = Just $ J.CompletionDocString $ T.pack $ nameModule n
+        deprecated = Just False
+        preselect = Nothing
+        sortText = Nothing
+        filterText = Nothing
+        insertText = Nothing
+        insertTextFormat = Nothing
+        textEdit = Nothing
+        additionalTextEdits = Nothing
+        commitChars = Nothing
+        command = Nothing
+        xdata = Nothing
+
+makeSimpleCompletionItem :: String -> J.CompletionItemKind -> J.CompletionItem
+makeSimpleCompletionItem l k = J.CompletionItem label kind tags detail doc deprecated
+                                            preselect sortText filterText insertText
+                                            insertTextFormat textEdit additionalTextEdits
+                                            commitChars command xdata
+  where label = T.pack l
+        kind = Just k
+        tags = Nothing
+        detail = Nothing
+        doc = Nothing
         deprecated = Just False
         preselect = Nothing
         sortText = Nothing
