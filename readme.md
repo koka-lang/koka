@@ -14,9 +14,7 @@ _Latest release_: v2.0.14, 2020-12-11 ([Install](#install)).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
-Koka is a strongly typed functional-style language with clean syntax and excellent performance.
-What sets Koka apart is _effect typing_, _effect handlers_, 
-and _Perceus_ memory management:
+Koka is a strongly typed functional-style language with effect types and handlers.
 
 * The core of Koka consists of a small set of well-studied language
   features, like first-class functions, a higher-rank polymorphic type- and effect
@@ -42,29 +40,6 @@ For more information, see:
 * The [Library documentation][libraries].
 * Help with [development](#tasks)
 
-<!--
-A function without any effect is called _total_ and corresponds to mathematically total functions -- a good place to be.
-Then we have effects for partial functions that can raise exceptions, as _exn_, and potentially non-terminating functions as _div_ (divergent).
-The combination of _exn_ and _div_ is called _pure_ as that corresponds to Haskell's notion of purity. On top of that we find
-mutability (as _st_) up to full non-deterministic side effects in _io_.
-
-Koka also has full support for _algebraic effect handlers_. This enables powerful control-flow abstraction that allows users to define
-compositional control-flow abstractions as a library; this includes advanced abstractions like exceptions, iterators, async-await concurrency,
-ambient state, backtracking parser combinators, probablistic programming, Bayesian machine learning, etc. Algebraic effect handlers subsume (free)
-monads, and are compositional without needing lifting or monad transformers.
-
-Recent work on [evidence translation](https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently-with-proofs-5f0b7d860b387.pdf)
-and [Perceus]
-precise compiler guided reference counting enable Koka to compile directly
-to plain C code _without needing a garbage collector_ or runtime system. Initial performance [benchmarks](#benchmarks) are promising,
-and it is our goal to generally fall within a factor 2&times; of C++ performance without needing manual memory management.
-
-For more background information, see:
-
-* The [Koka book][kokabook] for a tour of the Koka language and its specification.
-* The [library documentation][libraries].
-* The article _Algebraic Effects for Functional Programming_ [[3]](#references) about the algebraic effects in Koka.
--->
 
 [why-mingen]: https://koka-lang.github.io/koka/doc/book.html#why-mingen
 [why-effects]: https://koka-lang.github.io/koka/doc/book.html#why-effects
