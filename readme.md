@@ -16,9 +16,9 @@ _Latest release_: v2.0.14, 2020-12-11 ([Install](#install)).
 
 Koka is a strongly typed functional-style language with effect types and handlers.
 
-* The core of Koka consists of a small set of well-studied language
-  features, like first-class functions, a higher-rank polymorphic type- and effect
-  system, algebraic data types, and effect handlers.
+* The core of Koka consists of a small set of well-studied language features, like first-class functions, 
+  a polymorphic type- and effect system, algebraic data types, and effect handlers. Each of these is 
+  composable and avoid the addition of “special” extensions by being as general as possible. 
 * Koka tracks the (side) _effects_ of every
   function in its type, where pure and effectful computations are
   distinguished. The precise effect typing gives Koka _rock-solid
@@ -27,11 +27,11 @@ Koka is a strongly typed functional-style language with effect types and handler
 * _Effect handlers_ let you define advanced control abstractions,
   like exceptions, async/await, or probabilistic programs, 
   as a user library in a typed and composable way.
-* [Perceus] is an advanced compilation method for reference counting.
+* [Perceus](https://koka-lang.github.io/koka/doc/book.html#why-perceus) is an advanced compilation method for reference counting.
   Together with [evidence translation][evidence], this lets Koka compile directly to C code _without needing
   a garbage collector or runtime system_. 
-  Perceus also performs reuse analysis and optimizes
-  functional-style programs to use in-place updates when possible (see the [benchmarks](#benchmarks)).
+  Perceus also performs [reuse analysis](https://koka-lang.github.io/koka/doc/book.html#why-fbip) and optimizes
+  functional-style programs to use in-place updates when possible.
 
 For more information, see:
 
