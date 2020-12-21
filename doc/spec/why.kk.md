@@ -7,7 +7,7 @@ system, algebraic data types, and effect handlers. Each of these is
 composable and avoid the addition of
 "special" extensions by being as general as possible.
 
-[&ReadCollapse; the _minimal but general_ design &adown;][#collapse-mingen]{.learn}
+[Read more about the _minimal but general_ design &adown;][#why-mingen]{.learn}
 ~
 ~ banner { caption:"Effect Types"}
 &koka; tracks the (side) _effects_ of every
@@ -16,7 +16,7 @@ distinguished. The precise effect typing gives &koka; _rock-solid
 semantics_ backed by well-studied category theory, which makes &koka;
 particularly easy to reason about for both humans and compilers.
 
-[&ReadCollapse; effect types &adown;][#collapse-effects]{.learn}
+[Read more about effect types &adown;][#why-effects]{.learn}
 ~
 ~ banner { caption:"Effect Handlers" }
 Effect handlers let you define advanced control abstractions,
@@ -24,7 +24,7 @@ like exceptions, async/await, or probabilistic programs,
 as a user library in a typed and composable way.\
 &nbsp;
 
-[&ReadCollapse; effect handlers &adown;][#collapse-handlers]{.learn}
+[Read more about effect handlers &adown;][#why-handlers]{.learn}
 ~
 ~ banner { caption:"Perceus Reference Counting" }
 Perceus is an advanced compilation method for reference counting.
@@ -32,13 +32,13 @@ This lets &koka; compile directly to C code _without needing
 a garbage collector or runtime system_! This also gives &koka; 
 excellent performance in practice.
 
-[&ReadCollapse; Perceus reference counting &adown;][#collapse-perceus]{.learn}
+[Read more about Perceus reference counting &adown;][#why-perceus]{.learn}
 ~
 ~ banner { caption:"Reuse Analysis" }
 Through Perceus, &koka; can do reuse analysis and optimize 
 functional-style programs to use in-place updates.
 
-[&ReadCollapse; reuse analysis &adown;][#collapse-fbip]{.learn}
+[Read more about reuse analysis &adown;][#why-fbip]{.learn}
 ~
 
 <!--
@@ -54,14 +54,13 @@ Just like tail-recursion lets us write loops in terms of
 function calls, reuse analysis lets us write many imperative 
 algorithms in a functional style.
 
-[&ReadCollapse; FBIP &adown;][#collapse-fbip]{.learn}
+[Read more about FBIP &adown;][#why-fbip]{.learn}
 ~
 -->
 
 ~ end banners
 
 
-~ begin collapse { #collapse-mingen; }
 
 ## Minimal but General { #why-mingen; }
 
@@ -104,9 +103,7 @@ be evaluated multiple times.
 [Learn more about basic syntax &adown;](book.html#sec-basics)
 {.learn}
 
-~ end collapse
 
-~ begin collapse { #collapse-effects; }
 
 ## Effect Typing { #why-effects; }
 
@@ -156,9 +153,6 @@ is applied, namely `:e`.
 [Learn more about effect types &adown;](book.html#sec-effect-types)
 {.learn}
 
-~ end collapse
-
-~ begin collapse { #collapse-handlers; }
 
 ## Effect Handlers  { #why-handlers; }
 
@@ -215,9 +209,6 @@ yielded: 3
 [Learn more about effect handlers &adown;](book.html#sec-handlers)
 {.learn}
 
-~ end collapse
-
-~ begin collapse { #collapse-perceus; }
 
 ## Perceus Optimized Reference Counting  { #why-perceus; }
 
@@ -261,9 +252,6 @@ memory intensive benchmarks.
 [Read the Perceus technical report][Perceus]
 {.learn}
 
-~ end collapse
-
-~ begin collapse { #collapse-fbip; }
 
 ## Reuse Analysis { #why-fbip; }
 
@@ -344,4 +332,3 @@ functional style.
 [Read the Perceus report on reuse analysis][Perceus]
 {.learn}
 
-~ end collapse

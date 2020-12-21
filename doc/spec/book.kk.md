@@ -13,7 +13,6 @@ Bibliography  : koka.bib
 Description   : Koka Language Specification
 Mapsto        : [$\rightsquigarrow$]{.mapsto}
 Koka          : Koka
-ReadCollapse  : Read more about
 
 [INCLUDE=./book.mdk]
 [INCLUDE=./styles/webanchors.mdk]

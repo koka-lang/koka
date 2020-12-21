@@ -9,6 +9,7 @@ Welcome to &koka; -- a strongly typed functional-style language with effect type
 [Why &koka;? &adown;][#why]{.learn}
 [A Tour of Koka &adown;][#tour]{.learn}
 [Install &adown;][#install]{.learn}
+[Discussion forum][forum]{.learn}
 [Github][kokarepo]{.learn}
 [Libraries][libraries]{.learn}
 {text-align:left;}
@@ -29,6 +30,7 @@ libraries, package management, and deep IDE integration.
 [slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf {target='_top'}
 [kokarepo]: https://github.com/koka-lang/koka {target='_top'}
 [kokaproject]: http://research.microsoft.com/en-us/projects/koka {target='_top'}
+[forum]: https://github.com/koka-lang/koka/discussions
 
 [samples]: https://github.com/koka-lang/koka/tree/master/samples
 [rbtree]: https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk

@@ -12,7 +12,6 @@ Bibliography  : koka.bib
 Description   : Koka Language Specification
 Mapsto        : [$\rightsquigarrow$]{.mapsto}
 Koka          : Koka
-ReadCollapse  : Read more about
 Bibliography  : koka.bib
 
 Js Footer     :
@@ -72,14 +71,6 @@ Css Header    :
     .banners .banner {
       padding: 0ex;
     }
-    .xcollapse {
-      display:none;
-      margin-top:-50vh;
-      padding-top: 50vh;
-    }
-    .xcollapse:target {
-      display:block;
-    }
     .heading-references {
       display:none !important;
     }
@@ -99,7 +90,7 @@ body {
 [releases]: https://github.com/koka-lang/koka/releases
 [build]: https://github.com/koka-lang/koka/#build-from-source
 [Perceus]: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf
-
+[forum]: https://github.com/koka-lang/koka/discussions
 
 
 ~ begin wide { .heading }
@@ -150,7 +141,6 @@ Welcome to &koka; -- a strongly typed functional-style language with effect type
 [Get Started][kokabook]{.learn}
 [Documentation][kokabook]{.learn}
 [Github][kokarepo]{.learn}
-[Libraries][libraries]{.learn}
 {text-align:left;}
 
 ~ smaller { font-size:smaller; }

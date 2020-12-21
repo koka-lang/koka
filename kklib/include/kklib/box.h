@@ -317,13 +317,15 @@ static inline kk_box_t kk_intx_box(kk_intx_t i) {
   return v;
 }
 
-static inline int16_t kk_int16_unbox(kk_box_t v) {
+static inline int16_t kk_int16_unbox(kk_box_t v, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
   kk_intx_t i = kk_intx_unbox(v);
   kk_assert_internal(i >= INT16_MIN && i <= INT16_MAX);
   return (int16_t)i;
 }
 
-static inline kk_box_t kk_int16_box(int16_t i) {
+static inline kk_box_t kk_int16_box(int16_t i, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
   return kk_intx_box(i);
 }
 
