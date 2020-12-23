@@ -269,7 +269,7 @@ fun test-finally() {
   throw("oops") + 42
 }
 ```
-which desugars to `finally(fn(){ println(...) }), fn(){ println("entering"); throw("oops") + 42 })`,
+which desugars to `finally(fn(){ println(...) }, fn(){ println("entering"); throw("oops") + 42 })`,
 and prints:
 
 ````
@@ -301,7 +301,7 @@ public fun emit-console1() {
   hello()
 }
 ```
-In this example, the `with` desugars to `(handler{ fun emit(msg){ println(msg) })( fn(){ hello() } )`.
+In this example, the `with` desugars to `(handler{ fun emit(msg){ println(msg) } })( fn(){ hello() } )`.
 
 Moreover, as a convenience, we can leave out the `handler` keyword 
 for effects that define just one operation (like `:emit`):
@@ -657,19 +657,19 @@ can assign a new value to the variable. Internally, the `var` declarations use
 a _state_ effect handler which ensures
 that the state has the proper semantics even if resuming multiple times.
 
-<!--
 However, that also means that mutable local variables are not quite first-class
 and we cannot pass them as parameters to other functions for example (as they
-are always dereferenced). You will also get a type error if a local variable
-escapes through a function expression, for example:
+are always dereferenced). The lifetime of mutable local variable cannot exceed
+its lexical scope. For example, you get a type error if a local variable
+escapes through a function expression:
 ```unchecked
 fun wrong() : (() -> console ()) {
   var x := 1
   (fn(){ x := x + 1; println(x) })
 }
 ```
-is statically rejected as the reference to the local variable escapes its scope.
--->
+This restriction allows for a clean semantics but also for (future) optimizations
+that are not possible for general mutable reference cells.
 
 [Read more about state and multiple resumptions &adown;][#sec-multi-resume]
 {.learn}
@@ -677,7 +677,7 @@ is statically rejected as the reference to the local variable escapes its scope.
 
 ### Reference Cells and Isolated state {#sec-runst}
 
-&koka; also has heap allocated mutable reference cells. 
+&koka; also has first-class heap allocated mutable reference cells. 
 A reference to an
 integer is allocated using `val r = ref(0)` (since the reference itself is
 actually a value!), and can be dereferenced using the bang operator, as ``!r``.
@@ -1715,7 +1715,7 @@ fun emit-quoted1( action : () -> <emit,emit|e> a ) : <emit|e> a {
 ```
 
 Here, the handler for `emit` calls itself `emit` to actually emit the newly
-quoted string. The effect type inferred for `emit-quoted` is `: (action : () -> <emit,emit|e> a) -> <emit|e> a`.
+quoted string. The effect type inferred for `emit-quoted1` is `: (action : () -> <emit,emit|e> a) -> <emit|e> a`.
 This is not the nicest type as it exposes that `action` is evaluated under (at least) two
 `:emit` handlers (and someone could use `mask` inside `action` to use the outer `:emit` handler).
 
@@ -1776,7 +1776,94 @@ both of the two innermost handlers.
 
 ### Resuming more than once { #sec-multi-resume; }
 
+Since `resume` is a first-class function (well, almost, see [raw control][#sec-rcontrol]),
+it is possible to store it in a list for example to implement a scheduler,
+but it is also possible to invoke it more than once. This can be used to
+implement backtracking or probabilistic programming models. 
+
+A common example of multiple resumptions is the `:choice` effect:
+
+```
+effect control choice() : bool
+
+fun xor() : choice bool {
+  val p = choice()
+  val q = choice()
+  if (p) then !q else q
+}
+```
+
+One possible implementation just uses random numbers:
+
+```
+fun choice-random(action : () -> <choice,random|e> a) : <random|e> a {
+  with fun choice(){ random-bool() }
+  action()
+}
+```
+
+Where `choice-random(xor)` returns `True` and `False` at random.
+
+However, we can also resume multiple times, once with `False` and once with `True`,
+to return _all_ possible outcomes. This also changes the handler type to return a _list_
+of all results of the action, and we need a [return clause][#sec-return] to wrap the result
+of the action in a singleton list:
+
+```
+fun choice-all(action : () -> <choice|e> a) : e list<a> {
+  with handler {
+    return(x){ [x] }
+    control choice(){ resume(False) + resume(True) }
+  }
+  action()
+}
+```
+where `choice-all(xor)` returns `[False,True,True,False]`.
+
+Resuming more than once interacts in interesting ways with the
+state effect. Consider the following example that uses both
+`:choice` and `:state`:
+
+```
+fun surprising() : <choice,state<int>> bool {
+  val p = choice()
+  val i = get()
+  set(i+1)
+  if (i>0 && p) then xor() else False
+}
+```
+
+We can combine the handlers in two interesting ways:
+
+```
+fun state-choice() : div (list<bool>,int) {
+  pstate(0){ choice-all(surprising) }
+}
+
+fun choice-state() : div list<(bool,int)> {
+  choice-all{ pstate(0,surprising) }
+}
+```
+
+In `state-choice()` the `pstate` is the outer handler and becomes like a global
+state over all resumption strands in `choice-all`, and thus after the first resume
+the `i>0 && p` condition in `surprising` is `True`, and we get `([False,False,True,True,False],2)`.
+
+In `choice-state()` the `pstate` is the inner handler and the state becomes local to each resumption
+strand in `choice-all`. Now `i` is always `0` at first and thus we get `[(False,1),(False,1)]`.
+
+~ advanced
+This example also shows how `var` state is correctly saved and restored on resumptions
+(as part of the stack) and this is essential to the correct composition of effect handlers. 
+If `var` declarations were instead heap allocated or captured by reference, they would no 
+longer be local to their scope and side effects could "leak" across different resumptions.
+~
+
+
 ### Initially and Finally { #sec-resource; }
+
+
+
 
 #### Raw Control { #sec-rcontrol; }
 
@@ -1800,7 +1887,9 @@ can make code that uses only linear effects more compact and efficient.
 
 ### Named and Scoped Handlers { #sec-namedh; }
 
-
+~ Todo
+See `samples/named-handlers`.
+~
 
 ## FBIP: Functional but In-Place { #sec-fbip; }
 
