@@ -150,9 +150,9 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
 #include <unistd.h>
 #include <sys/time.h>
 
-#if defined(__APPLE__) || defined(__FreeBSD__)
+#if defined(__APPLE__)
 #include <copyfile.h>
-#else
+#elif defined(__linux__)
 #include <sys/sendfile.h>
 #endif
 
@@ -175,7 +175,7 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
 
   // copy contents
   int err = 0;
-#if defined(__APPLE__) || defined(__FreeBSD__)
+#if defined(__APPLE__)
   if (fcopyfile(inp, out, 0, COPYFILE_ALL) != 0) {
     err = errno;
   }
@@ -195,7 +195,21 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
     times[1].tv_nsec = finfo.st_mtim.tv_nsec;
     futimens(out, times);  // in <sys/stat.h>
   }
-#else
+#elif defined(__FreeBSD__)
+  // FreeBSD
+  if (copy_file_range(inp, NULL, out, NULL, finfo.st_size, 0) < 0) {
+    err = errno;
+  }
+  // maintain access/mod time
+  if (err == 0 && preserve_mtime) {
+    struct timespec times[2];
+    times[0].tv_sec = finfo.st_atim.tv_sec;
+    times[0].tv_nsec = finfo.st_atim.tv_nsec;
+    times[1].tv_sec = finfo.st_mtim.tv_sec;
+    times[1].tv_nsec = finfo.st_mtim.tv_nsec;
+    futimens(out, times);  // in <sys/stat.h>
+  }
+#else 
 #pragma message("define file copy for this platform")
 #endif
 
