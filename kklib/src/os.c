@@ -232,9 +232,9 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
   // FreeBSD
   char *bufp, *p, *buf = NULL;
   size_t bufsize = 0;
+  off_t wtotal = 0;
   ssize_t wcount;
   size_t wresid;
-  off_t wtotal;
   int use_copy_file_range = 1, rcount = 0;
   // first try MMAP
   if (S_ISREG(finfo.st_mode) && finfo.st_size > 0 &&
@@ -242,7 +242,6 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
       (p = mmap(NULL, (size_t)finfo.st_size, PROT_READ,
        MAP_SHARED, inp, (off_t)0)) != MAP_FAILED) 
   {
-    wtotal = 0;
     for (bufp = p, wresid = finfo.st_size; ;
       bufp += wcount, wresid -= (size_t)wcount) {
       wcount = write(out, bufp, wresid);
@@ -255,7 +254,6 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
       if (wcount != (ssize_t)wresid) {
         err = EBADF;
       }
-      /* Some systems don't unmap on close(2). */
       if (munmap(p, finfo.st_size) < 0) {
         err = errno;
       }
@@ -263,10 +261,10 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
   else {
     // create buffer
     if (sysconf(_SC_PHYS_PAGES) > PHYSPAGES_THRESHOLD)
-      bufsize = BUFSIZE_MAX < MAXPHYS * 8 ? BUFSIZE_MAX : MAXPHYS;
+      bufsize = BUFSIZE_MAX < MAXPHYS * 8 ? BUFSIZE_MAX : MAXPHYS * 8;
     else
       bufsize = BUFSIZE_SMALL;
-    buf = malloc(bufsize);
+    buf = mi_malloc(bufsize);
     if (buf == NULL) {
       err = ENOMEM;
     }
@@ -287,6 +285,10 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
 
     if (rcount < 0) {
       err = EBADF;
+    }
+
+    if (buf != NULL) {
+      mi_free(buf);
     }
   }
   // maintain access/mod time
