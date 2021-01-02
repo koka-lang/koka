@@ -778,12 +778,14 @@ kk_string_t kk_os_app_path(kk_context_t* ctx) {
   }
 }
 
-#elif defined(__linux__) || defined(__CYGWIN__) || defined(__sun) || defined(__DragonFly__) || defined(__NetBSD__)
+#elif defined(__linux__) || defined(__CYGWIN__) || defined(__sun) || defined(__FreeBSD__) || defined(__DragonFly__) || defined(__NetBSD__)
 #if defined(__sun)
 #define KK_PROC_SELF "/proc/self/path/a.out"
 #elif defined(__NetBSD__)
 #define KK_PROC_SELF "/proc/curproc/exe"
-#elif defined(__DragonFly__)
+#elif defined(__DragonFly__) || defined(__FreeBSD__)
+// In FreeBSD, this path can be possibly not mounted
+// but it is okay to fall back to generic way. 
 #define KK_PROC_SELF "/proc/curproc/file"
 #else
 #define KK_PROC_SELF "/proc/self/exe"
