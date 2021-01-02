@@ -154,6 +154,39 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
 #include <copyfile.h>
 #elif defined(__linux__)
 #include <sys/sendfile.h>
+#elif defined(__FreeBSD__)
+// from https://github.com/freebsd/freebsd-src/blob/master/bin/cp/utils.c
+#include <sys/mman.h>
+#include <sys/param.h>
+#include <limits.h>
+#include <errno.h>
+//Memory strategy threshold, in pages: if physmem is larger then this, use a 
+//large buffer.
+#define PHYSPAGES_THRESHOLD (32*1024)
+// Maximum buffer size in bytes - do not allow it to grow larger than this. 
+#define BUFSIZE_MAX (2*1024*1024)
+// Small (default) buffer size in bytes. It's inefficient for this to be
+// smaller than MAXPHYS.
+#define BUFSIZE_SMALL (MAXPHYS)
+static int
+copy_fallback(int from_fd, int to_fd, char *buf, size_t bufsize)
+{
+	int rcount;
+	ssize_t wresid, wcount = 0;
+	char *bufp;
+
+	rcount = read(from_fd, buf, bufsize);
+	if (rcount <= 0)
+		return (rcount);
+	for (bufp = buf, wresid = rcount; ; bufp += wcount, wresid -= wcount) {
+		wcount = write(to_fd, bufp, wresid);
+		if (wcount <= 0)
+			break;
+		if (wcount >= (ssize_t)wresid)
+			break;
+	}
+	return (wcount < 0 ? wcount : rcount);
+}
 #endif
 
 static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
@@ -197,8 +230,64 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
   }
 #elif defined(__FreeBSD__)
   // FreeBSD
-  if (copy_file_range(inp, NULL, out, NULL, finfo.st_size, 0) < 0) {
-    err = errno;
+  char *bufp, *p, *buf = NULL;
+  size_t bufsize = 0;
+  ssize_t wcount;
+	size_t wresid;
+	off_t wtotal;
+  int use_copy_file_range = 1, rcount = 0;
+  // first try MMAP
+  if (S_ISREG(finfo.st_mode) && finfo.st_size > 0 &&
+		  finfo.st_size <= 8 * 1024 * 1024 &&
+		  (p = mmap(NULL, (size_t)finfo.st_size, PROT_READ,
+		   MAP_SHARED, inp, (off_t)0)) != MAP_FAILED) 
+  {
+		wtotal = 0;
+		for (bufp = p, wresid = finfo.st_size; ;
+			bufp += wcount, wresid -= (size_t)wcount) {
+			wcount = write(out, bufp, wresid);
+			if (wcount <= 0)
+				break;
+			wtotal += wcount;
+			if (wcount >= (ssize_t)wresid)
+					break;
+			}
+			if (wcount != (ssize_t)wresid) {
+				err = EBADF;
+			}
+			/* Some systems don't unmap on close(2). */
+			if (munmap(p, finfo.st_size) < 0) {
+				err = errno;
+			}
+	}
+  else {
+    // create buffer
+    if (sysconf(_SC_PHYS_PAGES) > PHYSPAGES_THRESHOLD)
+			bufsize = BUFSIZE_MAX < MAXPHYS * 8 ? BUFSIZE_MAX : MAXPHYS;
+		else
+			bufsize = BUFSIZE_SMALL;
+		buf = malloc(bufsize);
+		if (buf == NULL) {
+      err = ENOMEM;
+    }
+
+    do {
+			if (use_copy_file_range) {
+				rcount = copy_file_range(inp, NULL, out, NULL, bufsize, 0);
+				if (rcount < 0 && errno == EINVAL) {
+					// Prob a non-seekable FD
+					use_copy_file_range = 0;
+				}
+			}
+			if (!use_copy_file_range) {
+				rcount = copy_fallback(inp, out, buf, bufsize);
+			}
+			wtotal += rcount;
+		} while (rcount > 0);
+
+		if (rcount < 0) {
+			err = EBADF;
+		}
   }
   // maintain access/mod time
   if (err == 0 && preserve_mtime) {
