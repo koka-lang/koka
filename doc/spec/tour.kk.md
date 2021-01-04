@@ -255,7 +255,7 @@ Using the `with` statement this way may look a bit strange at first
 but is very convenient in practice -- it helps thinking of `with` as
 a closure over the rest of the lexical scope. 
 
-#### With Finally
+#### With Finally { #sec-with-finally; }
 
 As another example, the `finally` function takes as it first argument a
 function that is run when exiting the scope -- either normally, 
@@ -282,6 +282,7 @@ This is another example of the _min-gen_ principle: many languages have
 have special built-in support for this kind of pattern, like a ``defer`` statement, but in &koka;
 it is all just function applications with minimal syntactic sugar.
 
+[Read more about initially and finally handlers &adown;](#sec-resource){.learn}
 
 #### With Handlers  { #sec-with-handlers; }
 
@@ -1861,6 +1862,76 @@ longer be local to their scope and side effects could "leak" across different re
 
 
 ### Initially and Finally { #sec-resource; }
+
+With arbitrary effect handlers we need to be careful when interacting with external
+resources like files. Generally, operations can never resume (like exceptions),
+resume exactly once (giving the usual linear control flow), or resume more than once.
+To robustly handle the different cases, Koka provides the `finally` and `initially`
+functions. Suppose we have the following low-level file operations on file handles:
+
+```unchecked
+type fhandle
+fun fopen( path : string )   : <exn,filesys> fhandle
+fun hreadline( h : fhandle ) : <exn,filesys> string
+fun hclose( h : fhandle )    : <exn,filesys> ()
+```
+
+we can now declare a `fread` effect to read from a file:
+```unchecked
+effect fun fread() : string
+
+fun with-file( path : string, action : () -> <fread,exn,filesys|e> a ) : <exn,filesys|e> a {
+  val h = fopen(path)
+  with handler {
+    return(x){ hclose(h); x }
+    fun fread(){ hreadline(h) }
+  }
+  action()
+} 
+```
+
+However, as it stands it would fail to close the file handle if an exceptional
+effect inside `action` is used (that never resumes). The `finally` function 
+takes as its first argument a function that is always executed when either returning normally, or
+when unwinding for a non-resuming operation. So, a more robust way to write
+`with-file` is:
+```unchecked
+fun with-file( path : string, action : () -> <fread,exn,filesys|e> a ) : <exn,filesys|e> a {
+  val h = fopen(path)
+  with finally{ hclose(h) }
+  with fun fread(){ hreadline(h) }
+  action()
+} 
+```
+
+The current definition is robust for operations that never resume (like exceptions but generalized
+for any effect), or operations that resume once -- but there is still trouble when
+resuming more than once. If someone calls `choice` inside the `action`, the second time it 
+resumes the file handle will be closed again which is probably not intended. There is 
+active research into this to use the type system to statically prevent this from happening.
+
+Another way to work with multiple resumptions is to use the `initially` function.
+This function takes 2 arguments: the first argument is a function that is called 
+the first time `initially` is evaluated, and subsequently every time a resumption is
+resumed more than once. We can use this to implement various strategies to handle
+linear resources even for multiple resumptions. For files, it is not clear what is the
+best way to handle this, but one way would be to not close the file until all strands
+have finished:
+```unchecked
+fun with-file( path : string, action : () -> <fread,exn,filesys|e> a ) : <exn,filesys|e> a {
+  var count := 0
+  val h = fopen(path)
+  with initially( fn(rcount){ count := count+1 } )
+  with finally{ if (count==1) then hclose(h) else count := count - 1 }
+  with fun fread(){ hreadline(h) }
+  action()
+} 
+```
+
+~ advanced
+The `rcount` parameter is the resume count; it is `0` on the first evaluation of `initially`, and
+`>1` for every resume (for any operation) after the first one.
+~
 
 
 
