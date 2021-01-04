@@ -130,7 +130,8 @@ kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ct
 
 #if defined(WIN32) || defined(__MINGW32__)
 #include <Windows.h>
-static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
+static int os_copy_file(const char* from, const char* to, bool preserve_mtime, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
   KK_UNUSED(preserve_mtime);
   if (!CopyFileA(from, to, FALSE)) {
     DWORD err = GetLastError();
@@ -150,24 +151,121 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
 #include <unistd.h>
 #include <sys/time.h>
 
-#if defined(__APPLE__) || defined(__FreeBSD__)
+#if defined(__APPLE__)
 #include <copyfile.h>
-#else
+#elif defined(__linux__)
 #include <sys/sendfile.h>
 #endif
 
-static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
-  int inp, out;
+static int unix_read_retry(const int inp, char* buf, const ssize_t buflen, ssize_t* read_count) {
+  int err = 0;
+  ssize_t ofs = 0;
+  do {
+    int n = read(inp, buf + ofs, buflen - ofs);
+    if (n < 0) {
+      if (errno != EAGAIN && errno != EINTR) {
+        err = errno;
+        break;
+      }
+      // otherwise try again
+    }
+    else if (n == 0) { // eof
+      break;
+    }
+    else {
+      ofs += n;
+    }
+  } while (ofs < buflen);
+  if (read_count != NULL) {
+    *read_count = ofs;
+  }
+  return err;
+}
+
+static int unix_write_retry(const int out, const char* buf, const ssize_t len, ssize_t* write_count) {
+  int err = 0;
+  ssize_t ofs = 0;
+  do {
+    int n = write(out, buf + ofs, len - ofs);
+    if (n < 0) {
+      if (errno != EAGAIN && errno != EINTR) {
+        err = errno;
+        break;
+      }
+      // otherwise try again
+    }
+    else if (n == 0) { // treat as error to ensure progress
+      err = EINVAL;
+      break;
+    }
+    else {
+      ofs += n;
+    }
+  } while (ofs < len);
+  if (write_count != NULL) {
+    *write_count = ofs;
+  }
+  assert(ofs == len || err != 0);
+  return err;
+}
+
+
+static int unix_copy_file(const int inp, const int out, const ssize_t len, kk_context_t* ctx) {
+  int err = 0;
+
+#if defined(COPY_FR_COPY)
+  // try copy_file_range first
+  int err = 0;
+  loff_t off_in = 0;
+  loff_t off_out = 0;
+  while(off_in < len) {
+    ssize_t n = copy_file_range(inp, &off_in, out, &off_out, len - off_in, 0 /* flags */ );
+    if (n < 0) {
+      if (errno != EAGAIN && errno != EINTR) {
+        err = errno;
+        break;
+      }
+      // otherwise try again
+    }
+    else if (n == 0) {  // ensure progress
+      break;
+    }    
+  }
+  if (err != EINVAL || off_in > 0) return err;
+  // fall through if `copy_file_range` failed immediately with `EINVAL` (might be a non-seekable device)
+#endif
+
+  ssize_t buflen = 1024 * 1024; // max 1MiB buffer
+  if (buflen > len) buflen = len;
+  char* buf = kk_malloc(buflen, ctx);
+  if (buf == NULL) return ENOMEM;
+  ssize_t todo = len;
+  while (todo > 0) {
+    ssize_t read_count = 0;
+    err = unix_read_retry(inp, buf, (todo < buflen ? todo : buflen), &read_count);
+    if (err != 0 || read_count == 0) break;
+    ssize_t write_count = 0;
+    err = unix_write_retry(out, buf, read_count, &write_count);
+    if (err != 0) break; assert(write_count == read_count);
+    todo -= read_count;
+  }
+  kk_free(buf);
+  return err;
+}
+
+static int os_copy_file(const char* from, const char* to, bool preserve_mtime, kk_context_t* ctx) {
+  int inp = 0;
+  int out = 0;
 
   // stat and create/overwrite target
   struct stat finfo = { 0 };
   if ((inp = open(from, O_RDONLY)) == -1) {
     return errno;
   }
-  if (fstat(inp, &finfo) < 0) { 
+  if (fstat(inp, &finfo) < 0) {
     close(inp);
     return errno;
-  }      
+  }
   if ((out = creat(to, finfo.st_mode)) == -1) {  // keep the mode
     close(inp);
     return errno;
@@ -175,16 +273,24 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
 
   // copy contents
   int err = 0;
-#if defined(__APPLE__) || defined(__FreeBSD__)
+
+#if defined(__APPLE__)
+  // macOS
+  KK_UNUSED(ctx);
   if (fcopyfile(inp, out, 0, COPYFILE_ALL) != 0) {
     err = errno;
   }
-#elif defined(__linux__)
-  // Linux
+#else 
+  // Unix
+  #if defined(__linux__)
+  KK_UNUSED(ctx);
   off_t copied = 0;
   if (sendfile(out, inp, &copied, finfo.st_size) == -1) {
     err = errno;
   }
+  #else
+  err = unix_copy_file(inp, out, finfo.st_size, ctx);
+  #endif
 
   // maintain access/mod time
   if (err == 0 && preserve_mtime) {
@@ -195,14 +301,12 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
     times[1].tv_nsec = finfo.st_mtim.tv_nsec;
     futimens(out, times);  // in <sys/stat.h>
   }
-#else
-#pragma message("define file copy for this platform")
 #endif
 
   // close file descriptors
   close(inp);
   if (close(out) == -1) {
-    if (err==0) err = errno;
+    if (err == 0) err = errno;
   };
 
   return err;
@@ -210,7 +314,7 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime) {
 #endif
 
 kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, bool preserve_mtime, kk_context_t* ctx) {
-  int err = os_copy_file(kk_string_cbuf_borrow(from), kk_string_cbuf_borrow(to), preserve_mtime );
+  int err = os_copy_file(kk_string_cbuf_borrow(from), kk_string_cbuf_borrow(to), preserve_mtime, ctx );
   kk_string_drop(from,ctx);
   kk_string_drop(to,ctx);
   return err;
@@ -673,12 +777,12 @@ kk_string_t kk_os_app_path(kk_context_t* ctx) {
   }
 }
 
-#elif defined(__linux__) || defined(__CYGWIN__) || defined(__sun) || defined(__DragonFly__) || defined(__NetBSD__)
+#elif defined(__linux__) || defined(__CYGWIN__) || defined(__sun) || defined(__DragonFly__) || defined(__NetBSD__) || defined(__FreeBSD__)
 #if defined(__sun)
 #define KK_PROC_SELF "/proc/self/path/a.out"
 #elif defined(__NetBSD__)
 #define KK_PROC_SELF "/proc/curproc/exe"
-#elif defined(__DragonFly__)
+#elif defined(__DragonFly__) || defined(__FreeBSD__)
 #define KK_PROC_SELF "/proc/curproc/file"
 #else
 #define KK_PROC_SELF "/proc/self/exe"
