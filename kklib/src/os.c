@@ -155,8 +155,9 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime, k
 #include <copyfile.h>
 #elif defined(__linux__)
 #include <sys/sendfile.h>
-#endif
-
+#else
+// Generic Unix
+// Read at most `buflen` bytes from `inp` into `buf`. Return `0` on success (or an error code).
 static int unix_read_retry(const int inp, char* buf, const ssize_t buflen, ssize_t* read_count) {
   int err = 0;
   ssize_t ofs = 0;
@@ -182,6 +183,7 @@ static int unix_read_retry(const int inp, char* buf, const ssize_t buflen, ssize
   return err;
 }
 
+// Write at `len` bytes to `out` from `buf`. On error, `write_count` may be less than `len`.
 static int unix_write_retry(const int out, const char* buf, const ssize_t len, ssize_t* write_count) {
   int err = 0;
   ssize_t ofs = 0;
@@ -195,7 +197,7 @@ static int unix_write_retry(const int out, const char* buf, const ssize_t len, s
       // otherwise try again
     }
     else if (n == 0) { // treat as error to ensure progress
-      err = EINVAL;
+      err = EIO;
       break;
     }
     else {
@@ -232,7 +234,8 @@ static int unix_copy_file(const int inp, const int out, const ssize_t len, kk_co
     }    
   }
   if (err != EINVAL || off_in > 0) return err;
-  // fall through if `copy_file_range` failed immediately with `EINVAL` (might be a non-seekable device)
+  // fall through if `copy_file_range` failed immediately with `EINVAL` (might be a non-seekable device?)
+  err = 0;
 #endif
 
   ssize_t buflen = 1024 * 1024; // max 1MiB buffer
@@ -252,6 +255,7 @@ static int unix_copy_file(const int inp, const int out, const ssize_t len, kk_co
   kk_free(buf);
   return err;
 }
+#endif  // not __APPLE__ or __linux__
 
 static int os_copy_file(const char* from, const char* to, bool preserve_mtime, kk_context_t* ctx) {
   int inp = 0;
@@ -270,7 +274,7 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime, k
     close(inp);
     return errno;
   }
-
+  
   // copy contents
   int err = 0;
 
@@ -285,7 +289,7 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime, k
   #if defined(__linux__)
   KK_UNUSED(ctx);
   off_t copied = 0;
-  if (sendfile(out, inp, &copied, finfo.st_size) == -1) {
+  if (sendfile(out, inp, &copied, finfo.st_size) < 0) {
     err = errno;
   }
   #else
