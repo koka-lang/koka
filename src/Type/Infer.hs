@@ -19,6 +19,7 @@ import qualified Data.List(find)
 import Data.Ord(comparing)
 import Data.Maybe(catMaybes)
 import Lib.PPrint
+import Core.Pretty
 import Common.Failure
 import Common.Error
 import Common.Name
@@ -36,7 +37,7 @@ import Common.NamePrim( nameTpOptional, nameOptional, nameOptionalNone, nameCopy
                       , nameTpLocalVar, nameTpLocal, nameRunLocal, nameLocalGet, nameLocalSet, nameLocalNew, nameLocal
                       , nameTpValueOp, nameClause, nameIdentity
                       , nameMaskAt, nameMaskBuiltin, nameEvvIndex, nameHTag, nameTpHTag
-                      , nameInt32
+                      , nameInt32, nameOr, nameAnd, nameEffectOpen
                        )
 import Common.Range
 import Common.Unique
@@ -1211,21 +1212,24 @@ inferApp propagated expect fun nargs rng
                                                      -> checkLocalScope rng
                                                    _ -> Infer rng
                                     inferSubsumeN check rng (zip (map snd pars) (map snd iargs))
-
-           core <- if (monotonic (map fst iargs) || all Core.isTotal coreArgs)
-                    then return (coreApp fcore coreArgs)
-                    else do -- let bind in evaluation order
-                            vars <- mapM (\_ -> uniqueName "arg") iargs
-                            let vargs = zip vars [(i,carg) | (carg,(i,_)) <- zip coreArgs iargs]
-                                eargs = sortBy (\(_,(i,_)) (_,(j,_)) -> compare i j) vargs
-                                defs  = [Core.DefNonRec (Core.Def var (Core.typeOf arg) arg Core.Private DefVal InlineAuto rangeNull "") | (var,(_,arg)) <- eargs]
-                                cargs = [Core.Var (Core.TName var (Core.typeOf arg)) Core.InfoNone | (var,(_,arg)) <- vargs]
-                            if (Core.isTotal fcore)
-                             then return (Core.makeLet defs (coreApp fcore cargs))
-                             else do fname <- uniqueName "fun"
-                                     let fdef = Core.DefNonRec (Core.Def fname ftp fcore Core.Private DefFun InlineAuto rangeNull "")
-                                         fvar = Core.Var (Core.TName fname ftp) Core.InfoNone
-                                     return (Core.Let (fdef:defs) (coreApp fvar cargs))
+           -- traceDoc $ \env -> text "inferAppFunFirst:" <+> prettyExpr env fcore
+           core <- case shortCircuit fcore coreArgs of
+                    Just cexpr -> return cexpr
+                    Nothing -> 
+                      if (monotonic (map fst iargs) || all Core.isTotal coreArgs)
+                        then return (coreApp fcore coreArgs)
+                        else do -- let bind in evaluation order
+                                vars <- mapM (\_ -> uniqueName "arg") iargs
+                                let vargs = zip vars [(i,carg) | (carg,(i,_)) <- zip coreArgs iargs]
+                                    eargs = sortBy (\(_,(i,_)) (_,(j,_)) -> compare i j) vargs
+                                    defs  = [Core.DefNonRec (Core.Def var (Core.typeOf arg) arg Core.Private DefVal InlineAuto rangeNull "") | (var,(_,arg)) <- eargs]
+                                    cargs = [Core.Var (Core.TName var (Core.typeOf arg)) Core.InfoNone | (var,(_,arg)) <- vargs]
+                                if (Core.isTotal fcore)
+                                then return (Core.makeLet defs (coreApp fcore cargs))
+                                else do fname <- uniqueName "fun"
+                                        let fdef = Core.DefNonRec (Core.Def fname ftp fcore Core.Private DefFun InlineAuto rangeNull "")
+                                            fvar = Core.Var (Core.TName fname ftp) Core.InfoNone
+                                        return (Core.Let (fdef:defs) (coreApp fvar cargs))
            -- take top effect
            -- todo: sub effecting should add core terms
            -- topEff <- addTopMorphisms rng ((getRange fun, eff1):(rng,funEff):zip (map (getRange . snd) iargs) effArgs)
@@ -1238,7 +1242,7 @@ inferApp propagated expect fun nargs rng
            -- traceDoc $ \env -> text " inferAppFunFirst: inst or gen:" <+> pretty (show expect) <+> colon <+> ppType env funTp1 <.> text ", top eff: " <+> ppType env topEff
            (resTp,resCore) <- maybeInstantiateOrGeneralize rng (getRange fun) topEff expect funTp1 core
            --stopEff <- subst topEff
-           --traceDoc $ \env -> text " inferAppFunFirst: resTp:" <+> ppType env resTp <.> text ", top eff: " <+> ppType env stopEff
+           -- traceDoc $ \env -> text " inferAppFunFirst: resTp:" <+> ppType env resTp <.> text ", top eff: " <+> ppType env stopEff
            return (resTp,topEff,resCore )
 
     inferAppFromArgs :: [Expr Type] -> [((Name,Range),Expr Type)] -> Inf (Type,Effect,Core.Expr)
@@ -2211,3 +2215,23 @@ usesLocalsMb lvars (Just expr) = usesLocals lvars expr
 
 usesLocalsOp :: S.NameSet -> HandlerBranch Type -> Bool   
 usesLocalsOp lvars b = usesLocals lvars (hbranchExpr b)
+
+
+shortCircuit :: Core.Expr -> [Core.Expr] -> Maybe Core.Expr
+shortCircuit fun [expr1,expr2] 
+  = case fun of
+      Core.App (Core.TypeApp (Core.Var open _) _) [Core.Var name _]  | Core.getName open == nameEffectOpen && Core.getName name == nameAnd
+        -> exprAnd
+      Core.App (Core.TypeApp (Core.Var open _) _) [Core.Var name _]  | Core.getName open == nameEffectOpen && Core.getName name == nameOr
+        -> exprOr
+      Core.Var name _ | Core.getName name == nameAnd
+        -> exprAnd
+      Core.Var name _ | Core.getName name == nameOr
+        -> exprOr
+      _ -> Nothing 
+  where
+    exprAnd = Just (Core.makeIfExpr expr1 expr2 Core.exprFalse)
+    exprOr  = Just (Core.makeIfExpr expr1 Core.exprTrue expr2)
+
+shortCircuit fun args
+  = Nothing

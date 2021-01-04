@@ -145,14 +145,7 @@ topDown (Let dgs body)
                      -- dont inline
                      oc -> -- trace ("no inline: occurrences: " ++ show oc ++ ", size: " ++ show (sizeOfExpr se)) $
                            topDownLet sub (sdg:acc) dgs body
-            
 
-
--- short circuit && and ||
-topDown (App (Var op _) [expr1,expr2])  | getName op == nameAnd 
-  = topDown (makeIfExpr expr1 expr2 exprFalse)
-topDown (App (Var op _) [expr1,expr2])  | getName op == nameOr
-  = topDown (makeIfExpr expr1 exprTrue expr2)
                 
 -- Remove identity open applications; need to be done before open resolve to enable tail call optimization               
 topDown expr@(App app@(TypeApp (Var openName _) [effFrom,effTo,tpFrom,tpTo]) [arg])  
