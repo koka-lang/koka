@@ -63,7 +63,7 @@ boxDef :: Def -> Unique Def
 boxDef def
     = -- trace ("box def: " ++ show (defName def) ++ ": " ++ show (pretty (defType def)) ++ "\n" ++ show (prettyExpr Pretty.defaultEnv{Pretty.coreShowTypes=True} (defExpr def))) $
       do bexpr <- boxExpr (boxType (defType def)) (defExpr def)
-         expr  <- uniqueSimplify True {- unsafe -} 6 {- duplicationMax -} bexpr
+         expr  <- uniqueSimplify True {- unsafe -} False {-ndebug-} 6 {- duplicationMax -} bexpr
          return def{ defExpr = expr }
 
 -- add box/unbox such that the type of `expr` matches `BoxType`

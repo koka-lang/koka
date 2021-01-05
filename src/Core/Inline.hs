@@ -52,7 +52,7 @@ inlineDefs penv u inlines defs
     do --traceDoc $ \penv -> text "Core.Inline.inlineDefs:" <+> ppInlines penv inlines
        --inlDefGroups defs
        defs1 <- inlDefGroups defs
-       defs2 <- withUnique (\uniq -> simplifyDefs True 3 0 uniq penv defs1)
+       defs2 <- withUnique (\uniq -> simplifyDefs True False 3 0 uniq penv defs1)
        inlDefGroups defs2
 
 

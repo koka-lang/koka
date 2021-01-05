@@ -200,6 +200,7 @@ fun (||)( x : bool, y : bool) : bool { // inlined in the compiler for short-circ
   if (x) then True else y
 }
 
+
 // inline extern (&&) : (bool,bool) -> bool  { inline "(#1 && #2)" }
 // inline extern (||) : (bool,bool) -> bool  { inline "(#1 || #2)" }
 

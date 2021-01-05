@@ -296,3 +296,10 @@ kk_std_core__error kk_error_from_errno( int err, kk_box_t result, kk_context_t* 
     return kk_std_core__new_Error( kk_std_core__new_Exception( msg, kk_std_core__new_ExnSystem(kk_reuse_null, kk_integer_from_int(err,ctx), ctx), ctx), ctx );
   }
 }
+
+
+kk_unit_t kk_assert_fail( kk_string_t msg, kk_context_t* ctx ) {
+  kk_fatal_error(EINVAL, "assertion failed: %s\n", kk_string_cbuf_borrow(msg));
+  kk_string_drop(msg,ctx);
+  return kk_Unit;
+}

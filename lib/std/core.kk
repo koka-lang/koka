@@ -1630,7 +1630,7 @@ extern common-prefix(s : string, t : string, upto : int = -1 ) : sslice {
 // * `"abc".first.advance(3).string == ""`,
 // * `"abc".last.advance(-1).string == "b"`.
 //
-public extern advance( slice : sslice, count : int ) : sslice {
+extern advance( slice : sslice, count : int ) : sslice {
   c  "kk_slice_advance"
   cs "Primitive.SliceAdvance"
   js "_sslice_advance"
@@ -1861,14 +1861,14 @@ fun split( s : string, sep: string, n : int) : list<string> {
 }
 
 // Replace every occurrence of `pattern` to `repl` in a string.
-public inline extern replace-all( s : string, pattern : string, repl : string ) : string {
+inline extern replace-all( s : string, pattern : string, repl : string ) : string {
   c  "kk_string_replace_all"
   cs inline "(#1).Replace(#2,#3)";
   js inline @"(#1).replace(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'),#3)";
 }
 
 // Count occurences of `pattern` in a string.
-public inline extern count( s : string, pattern : string ) : int {
+inline extern count( s : string, pattern : string ) : int {
   c  "kk_string_count_pattern"
   cs inline "Primitive.Count(#1,#2)";
   js inline @"((#2) ? ((#1).match(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'))||[]).length : 0)";
@@ -2123,7 +2123,7 @@ abstract type delayed<e,a> {
 }
 
 // Create a new `:delayed` value.
-public fun delay( action : () -> e a ) : delayed<e,a> {
+fun delay( action : () -> e a ) : delayed<e,a> {
   unsafe-total{
     Delay(ref(Left(action)))
   }
@@ -2308,7 +2308,7 @@ private fun gprint( x : a ) : console () {
 private noinline val redirect : ref<global,maybe<(string) -> console ()>> = unsafe-total { ref(Nothing) }
 
 // redirect `print` and `println` calls to a specified function.
-public noinline fun print-redirect( print : (msg : string) -> console () ) : io ()
+noinline fun print-redirect( print : (msg : string) -> console () ) : io ()
 {
   redirect := Just(print);
 }
@@ -2408,30 +2408,31 @@ private val trace-enabled : ref<global,bool> = unsafe-total { ref(True) }
 // The behaviour is system dependent. On a browser and node it uses
 // `console.log`  by default.
 // Disabled if `notrace` is called.
-public fun trace( message : string ) : () {
+fun trace( message : string ) : () {
   unsafe-total {
     if (!trace-enabled) then xtrace(message)
   }
 }
 
-public fun trace-any( message : string, x : a ) : () {
+fun trace-any( message : string, x : a ) : () {
   unsafe-total {
     if (!trace-enabled) then xtrace-any(message,x)
   }
 }
 // Disable tracing completely.
-public noinline fun notrace() : st<global> () {
+noinline fun notrace() : st<global> () {
   trace-enabled := False
 }
 
-
-fun assert( message : string, condition : bool ) : () {
-  if (!condition) unsafe-noexn{ throw(message,ExnAssert) }
+private extern unsafe-assert-fail( msg : string ) : () {
+  c "kk_assert_fail"
+  js inline "throw new Error(\"assertion failed: \" + #1)"
 }
 
-fun todo( message : string ) : () {
-  unsafe-noexn{ throw(message,ExnTodo) }
+fun assert( message : string, condition : bool ) : () {  // Compiler removes assert calls in optimized builds
+  if (!condition) unsafe-assert-fail(message)  
 }
+
 
 // ----------------------------------------------------------------------------
 // Exceptions

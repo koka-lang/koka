@@ -332,7 +332,7 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
                             -> -- fix it up by adding the polymorphic type application
                                do assumedTpX <- subst assumedTp >>= normalize True -- resTp0
                                   -- resTpX <- subst resTp0 >>= normalize
-                                  simexpr <- liftUnique $ uniqueSimplify False 0 expr
+                                  simexpr <- liftUnique $ uniqueSimplify False False 0 expr
                                   coreX <- subst simexpr
                                   let -- coreX = simplify expr -- coref0 (Core.defExpr coreDef)
                                       mvars = [TypeVar id kind Bound | TypeVar id kind _ <- tvars]
@@ -355,13 +355,13 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
                                -}
                          (Just (_,_), _) | divergent  -- we added a divergent effect, fix up the occurrences of the assumed type
                             -> do assumedTpX <- normalize True assumedTp >>= subst -- resTp0
-                                  simResCore1 <- liftUnique $ uniqueSimplify False 0 resCore1
+                                  simResCore1 <- liftUnique $ uniqueSimplify False False 0 resCore1
                                   coreX <- subst simResCore1
                                   let resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
                                   return (resTp1, resCoreX)
                          (Just _,_)  -- ensure we insert the right info  (test: static/div2-ack)
                             -> do assumedTpX <- normalize True assumedTp >>= subst
-                                  simResCore1 <- liftUnique $ uniqueSimplify False 0 resCore1
+                                  simResCore1 <- liftUnique $ uniqueSimplify False False 0 resCore1
                                   coreX <- subst simResCore1
                                   let resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
                                   return (resTp1, resCoreX)
@@ -2227,7 +2227,7 @@ shortCircuit fun [expr1,expr2]
       Core.Var name _ | Core.getName name == nameAnd
         -> exprAnd
       Core.Var name _ | Core.getName name == nameOr
-        -> exprOr
+        -> exprOr      
       _ -> Nothing 
   where
     exprAnd = Just (Core.makeIfExpr expr1 expr2 Core.exprFalse)
