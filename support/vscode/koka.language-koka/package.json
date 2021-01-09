@@ -39,10 +39,6 @@
 		"Koka",
 		"Effects"
 	],
-	"activationEvents": [
-		"onLanguage:koka"
-	],
-	"main": "./out/src/extension",
 	"contributes": {
 		"configuration": {
 			"type": "object",
