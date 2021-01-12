@@ -35,7 +35,7 @@ libraries, package management, and deep IDE integration.
 [samples]: https://github.com/koka-lang/koka/tree/master/samples
 [rbtree]: https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk
 [evidence-paper]: https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently-with-proofs-5f0b7d860b387.pdf
-[Perceus]: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf
+[Perceus]: https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/
 [releases]: https://github.com/koka-lang/koka/releases
 [build]: https://github.com/koka-lang/koka/#build-from-source
 [vsprompt]: https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019
