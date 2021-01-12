@@ -58,7 +58,7 @@ For more information, see:
 [evidence]: https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently.pdf
 [releases]: https://github.com/koka-lang/koka/releases
 [build]: #build-from-source
-[Perceus]: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf
+[Perceus]: https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/
 [vsprompt]: https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019
 
 Enjoy,
