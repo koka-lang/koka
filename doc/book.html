@@ -1013,7 +1013,7 @@
 <div class="titleblock align-center para-block" style="text-align:center;line-adjust:0">
 <div class="titleheader align-center" style="text-align:center;line-adjust:0">
 <div class="title para-block" style="font-weight:bold;margin-bottom:0.5ex;font-size:xxx-large;line-adjust:0">The Koka Programming Language</div>
-<div class="titlenote para-block" style="line-adjust:0"><span style="font-size:75%">(Daan Leijen, 2020-12-23)</span></div></div></div></div>
+<div class="titlenote para-block" style="line-adjust:0"><span style="font-size:75%">(Daan Leijen, 2021-01-12)</span></div></div></div></div>
 <div class="flexbody">
 
 <div class="sidepanel">
@@ -1150,7 +1150,7 @@ libraries, package management, and deep IDE integration.
 </li>
 <li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2020-12-02: Koka v2.0.12 released.
 </li>
-<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2020-11-29: Perceus technical report publised (<a href="https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf" data-linkid="perceus">pdf</a>).</li></ul>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2020-11-29: Perceus technical report publised (<a href="https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/" data-linkid="perceus">pdf</a>).</li></ul>
 </div></div><h2 id="install" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#install" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">1.1</span>.&#8194;</span>Installing the compiler</h2>
 <p class="p noindent">For Linux and macOS on x86 64-bit, you can install Koka using:
 </p>
@@ -1613,7 +1613,7 @@ encouraging and show Koka to be close to C performance on various
 memory intensive benchmarks.
 </p>
 <p class="p learn button noindent"><a href="https://github.com/koka-lang/koka#Benchmarks">See benchmarks</a></p>
-<p class="p learn button indent"><a href="https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf" data-linkid="perceus">Read the Perceus technical report</a></p><h2 id="why-fbip" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#why-fbip" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">2.5</span>.&#8194;</span>Reuse Analysis</h2>
+<p class="p learn button indent"><a href="https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/" data-linkid="perceus">Read the Perceus technical report</a></p><h2 id="why-fbip" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#why-fbip" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">2.5</span>.&#8194;</span>Reuse Analysis</h2>
 <p class="p noindent">Perceus also performs <em class="em-low1">reuse analysis</em> as part of reference
 counting analysis. This pairs pattern matches with constructors of the
 same size and reuses them <em class="em-low1">in-place</em> if possible. Take for example,
@@ -1690,7 +1690,7 @@ allows us to express many imperative algorithms in a purely
 functional style. 
 </p>
 <p class="p learn button indent"><a href="book.html#sec-fbip">Learn more about FBIP <span class="fa fa-angle-double-down"></span></a></p>
-<p class="p learn button indent"><a href="https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf" data-linkid="perceus">Read the Perceus report on reuse analysis</a></p>
+<p class="p learn button indent"><a href="https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/" data-linkid="perceus">Read the Perceus report on reuse analysis</a></p>
 <div class="mathdefs input-mathdefs"></div><h1 id="tour" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#tour" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">3</span>.&#8194;</span>A Tour of Koka</h1>
 <p class="p noindent">This is a short introduction to the Koka programming language.
 </p>
@@ -4318,7 +4318,7 @@ unique tree is passed, but it also adapts gracefully to the persistent
 case where the input tree is shared, or where parts of the input tree are
 shared, making a single copy of those parts of the tree.
 </p>
-<p class="p learn button indent"><a href="https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf" data-linkid="perceus">Read the Perceus technical report</a></p><h1 id="sec-koka-language-specification" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-koka-language-specification" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">4</span>.&#8194;</span>Koka language specification</h1>
+<p class="p learn button indent"><a href="https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/" data-linkid="perceus">Read the Perceus technical report</a></p><h1 id="sec-koka-language-specification" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-koka-language-specification" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">4</span>.&#8194;</span>Koka language specification</h1>
 <p class="p noindent">This is the draft language specification of the Koka language, version v2.0.15<br>
 Currently only the lexical and context-free grammar are specified.
 The&nbsp;<a href="toc.html" data-linkid="stdlib">standard libraries</a> are documented separately.
