@@ -11,6 +11,7 @@
 module Syntax.Lexer(  lexing, lexer
                     , module Syntax.Lexeme
                     , readInput, extractLiterate
+                    , reservedNames
                     ) where
 
 import Lib.Trace

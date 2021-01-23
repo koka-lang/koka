@@ -151,7 +151,6 @@ instance Monad IOErr where
 instance MonadFail IOErr where
   fail = liftError . fail
 
-
 bindIO :: IO (Error a) -> (a -> IO (Error b)) -> IO (Error b)
 bindIO io f
   = do err <- io
@@ -808,7 +807,7 @@ inferCheck loaded flags line coreImports program1
               (isValueFromFlags flags)
               (colorSchemeFromFlags flags)
               (platform flags)
-              (if (outHtml flags > 0) then Just rangeMapNew else Nothing)
+              (if genRangeMap flags then Just rangeMapNew else Nothing)
               (loadedImportMap loaded)
               (loadedKGamma loaded)
               (loadedSynonyms loaded)

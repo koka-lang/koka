@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.31.2.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5566036dac3bd0ad45754486154ddd84027b16d81b584e00838c079caf6268eb
+-- hash: 05735bf23830ba3e79a733b1af1ce1de608c17203e466c1377e589caac3a0a3d
 
 name:           koka
 version:        2.0.15
@@ -88,6 +88,16 @@ executable koka
       Kind.Pretty
       Kind.Synonym
       Kind.Unify
+      LanguageServer.Conversions
+      LanguageServer.Handler.Completion
+      LanguageServer.Handler.Definition
+      LanguageServer.Handler.DocumentSymbol
+      LanguageServer.Handler.Hover
+      LanguageServer.Handler.Initialized
+      LanguageServer.Handler.TextDocument
+      LanguageServer.Handlers
+      LanguageServer.Monad
+      LanguageServer.Run
       Lib.JSON
       Lib.PPrint
       Lib.Printer
@@ -142,6 +152,8 @@ executable koka
     , containers
     , directory
     , haskeline
+    , lens
+    , lsp
     , mtl
     , parsec
     , process
@@ -173,6 +185,8 @@ test-suite koka-test
     , haskeline
     , hspec
     , hspec-core
+    , lens
+    , lsp
     , mtl
     , parsec
     , process

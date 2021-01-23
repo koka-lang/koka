@@ -75,11 +75,13 @@ prettyIncludePath flags
 data Mode
   = ModeHelp
   | ModeVersion
-  | ModeCompiler    { files :: [FilePath] }
-  | ModeInteractive { files :: [FilePath] }
+  | ModeCompiler       { files :: [FilePath] }
+  | ModeInteractive    { files :: [FilePath] }
+  | ModeLanguageServer { files :: [FilePath] }
 
 data Option
   = Interactive
+  | LanguageServer
   | Version
   | Help
   | Flag (Flags -> Flags)
@@ -133,6 +135,7 @@ data Flags
          , coreCheck        :: Bool
          , enableMon        :: Bool
          , semiInsert       :: Bool
+         , genRangeMap      :: Bool
          , localBinDir      :: FilePath  -- directory of koka executable
          , localDir         :: FilePath  -- install prefix: /usr/local
          , localLibDir      :: FilePath  -- precompiled object files: <prefix>/lib/koka/v2.x.x  /<cc>-<config>/libkklib.a, /<cc>-<config>/std_core.kki, ...
@@ -198,6 +201,7 @@ flagsNull
           False -- coreCheck
           True  -- enableMonadic
           True  -- semi colon insertion
+          False -- generate range map
           ""    -- koka executable dir
           ""    -- prefix dir (default: <program-dir>/..)
           ""    -- localLib dir
@@ -223,6 +227,9 @@ isVersion _      = False
 isInteractive Interactive = True
 isInteractive _ = False
 
+isLanguageServer LanguageServer = True
+isLanguageServer _ = False
+
 isValueFromFlags flags
  = dataInfoIsValue
 
@@ -239,6 +246,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  [ option ['?','h'] ["help"]            (NoArg Help)                "show this information"
  , option []    ["version"]         (NoArg Version)                 "show the compiler version"
  , option ['p'] ["prompt"]          (NoArg Interactive)             "interactive mode"
+ , option []    ["language-server"] (NoArg LanguageServer)          "language server mode"
  , flag   ['e'] ["execute"]         (\b f -> f{evaluate= b})        "compile and execute (default)"
  , flag   ['c'] ["compile"]         (\b f -> f{evaluate= not b})    "only compile, do not execute"
  , option ['i'] ["include"]         (OptArg includePathFlag "dirs") "add <dirs> to search path (empty resets)"
@@ -464,6 +472,7 @@ processOptions flags0 opts
                  mode = if (any isHelp options) then ModeHelp
                         else if (any isVersion options) then ModeVersion
                         else if (any isInteractive options) then ModeInteractive files
+                        else if (any isLanguageServer options) then ModeLanguageServer files
                         else if (null files) then ModeInteractive files
                                              else ModeCompiler files
              in do ed   <- if (null (editor flags))
@@ -483,7 +492,8 @@ processOptions flags0 opts
                                   ccompPath   = ccmd,
                                   ccomp       = cc,
                                   editor      = ed,
-                                  includePath = (localShareDir ++ "/lib") : includePath flags }
+                                  includePath = (localShareDir ++ "/lib") : includePath flags,
+                                  genRangeMap = outHtml flags > 0 || any isLanguageServer options }
                           ,mode)
         else invokeError errs
 
