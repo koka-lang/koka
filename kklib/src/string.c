@@ -74,12 +74,13 @@ kk_decl_export kk_decl_noinline kk_string_t kk_string_alloc_len_unsafe(size_t le
   if (len == 0) {
     return kk_string_empty();
   }
-  else if (len < KK_STRING_SMALL_MAX) {
+  else if (len <= KK_STRING_SMALL_MAX) {
     kk_string_small_t str = kk_block_alloc_as(struct kk_string_small_s, 0, KK_TAG_STRING_SMALL, ctx);
-    str->u.str_value = 0;
+    str->u.str_value = ~KUZ(0);
     if (s != NULL && len > 0) {
       memcpy(&str->u.str[0], s, len);
     }
+    str->u.str[len] = 0;
     return kk_datatype_from_base(&str->_base);
   }
   else {

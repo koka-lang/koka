@@ -33,18 +33,67 @@ static inline bool kk_ascii_is_hexdigit(char c) { return (kk_ascii_is_digit(c) |
 static inline bool kk_ascii_is_alpha(char c)    { return (kk_ascii_is_lower(c) || kk_ascii_is_upper(c)); }
 static inline bool kk_ascii_is_alphanum(char c) { return (kk_ascii_is_alpha(c) || kk_ascii_is_digit(c)); }
 
-/*--------------------------------------------------------------------------------------
+/*---------------------------------------------------------------------------------------------------------------
   Strings
-  Always point to valid modified-UTF8 characters.
-  Four kinds:
-  - singleton empty string
-  - small string of at most 8 utf8 bytes
-  - normal string of N utf8 bytes
-  - raw string pointing to a C buffer of utf8 bytes
-  These are not necessarily canonical (e.g. a normal or small string can have length 0 besides being empty)
---------------------------------------------------------------------------------------*/
+  Always point to valid utf-8 byte sequences ending with a 0 byte (not included in the length).
+  Since we stay strictly in valid utf-8, that means that strings can contain internal 0 characters
+  and we cannot generally use C string functions to manipulate our strings.
 
-// A string is modified UTF8 (with encoded zeros) ending with a '0' character.
+  There are four possible representations for strings:
+  
+  - singleton empty string
+  - small string of at most 7 utf-8 bytes
+  - normal string of utf-8 bytes
+  - raw string pointing to a buffer of utf-8 bytes
+  
+  These are not necessarily canonical (e.g. a normal or small string can have length 0 besides being empty)
+
+  ------
+  There few important cases where external text is not quite utf-8 or utf-16.
+  We call these "mutf-8" and "mutf-16" for "mostly" (or "mixed") utf-8/16:
+
+  - mutf-16: this is used in Windows file names and JavaScript. These are mostly utf-16 but
+    can contain invalid _lone_ parts of surrogate pairs.
+  
+  - mutf-8: this is mostly utf-8 but contains invalid utf-8 sequences, like overlong
+    sequences or lone continuation bytes. This can occur for examply by bad json encoding
+    containing binary data, but also as a result of a _locale_ that cannot be decoded properly.
+  
+  In particular for mutf-16 we would like to guarantee that decoding to utf-8 and encoding 
+  again to mutf-16 is an identity transformation; for example, we may list the contents
+  of a directory and then try to read each file. This means that we cannot replace invalid
+  codes in mutf-16 with a replacement character. One proposed solution for this is 
+  to use wtf-8 (used in Rust <https://github.com/rust-lang/rust/issues/12056#issuecomment-55786546>) 
+  instead of utf-8 internally. We like to use strict utf-8 internally though so we can always output valid 
+  utf-8 without further conversions. (also, new formats like wtf-8 often have tricky edge cases, like 
+  naively appending strings may change the interpretation of surrogate pairs in wtf-8)
+
+  Instead, we solve this by staying in strict utf-8 internally, but we reserve a
+  particular set of code-points to have a special meaning when converting to mutf-16 (or mutf-8).
+  For now, we use an (hopefully forever) unassigned range in the "supplementary special-purpose plane":
+  
+  - ED800 - EDFFF: corresponds to a lone half of a surrogate pair `x` where `x = code - E0000`.
+  - EE000 - EE07F: <unused>
+  - EE080 - EE0FF: corresponds to an invalid byte `b` in an invalid utf-8 sequence where `b = code - EE000`.
+                   (note: invalid bytes in utf-8 are always >= 0x80 so we need only a limited range).
+  
+  We call this the "raw range".
+  When decoding mutf-8 or mutf-16, we decode invalid sequences to these code points, and only when
+  decoding back to mutf-8 or mutf-16, we decode these code points specially again to make this an identity
+  transformation. _Otherwise these are just regular code points and valid utf-8 with no special treatment_.
+  Also, security wise this is good practice -- for example, we decode the overlong utf-8 sequence `0xC0 0x80` 
+  not to a 0 character, but to two raw code points: 0xEE0C0 0xEE080. This way, we maintain an identity 
+  transform while still preventing hidden embedded 0 characters.
+  
+  The advantage over using the replacement character is that we now retain full information what
+  the original (invalid) sequences were (and can thus do an identity transform). 
+  (Actually, to make it an identity transform, when decoding mutf-16 we need to not just decode lone 
+   surrogate halves to our raw range, but also surrogate pairs that happen to decode to our raw range, 
+   and similarly for mutf-8; so for both mutf-8 and mutf-16 input we also treat any code points in the 
+   raw range as an invalid sequence (which should be fine in practice as these are unassigned anyways). 
+------------------------------------------------------------------------------------------------------------*/
+
+// A string is valid utf-8 (with potentially internal '0' characters) ending with a '0' character.
 struct kk_string_s {
   kk_block_t _block;
 };
@@ -55,25 +104,27 @@ static inline kk_string_t kk_string_empty(void) {
   return kk_datatype_from_tag(1);
 }
 
-#define KK_STRING_SMALL_MAX (KUZ(8))
+#define KK_STRING_SMALL_MAX (KUZ(7))
 typedef struct kk_string_small_s {
   struct kk_string_s _base;
   union {
     uint64_t str_value;              
-    uint8_t  str[KK_STRING_SMALL_MAX];  // UTF8 string in-place ending in 0 of at most 8 bytes
+    uint8_t  str[KK_STRING_SMALL_MAX+1];  // utf-8 string in-place ending in 0 of at most 7 bytes
+                                          // (the ending zero is followed by 0xFF bytes to distinguish
+                                          //  the final zero from potential internal zero character)
   } u;
 } *kk_string_small_t;
 
 typedef struct kk_string_normal_s {
   struct kk_string_s _base;
   size_t  length;
-  uint8_t str[1];  // UTF8 string in-place of `length+1` bytes ending in 0
+  uint8_t str[1];                       // utf-8 string in-place of `length+1` bytes ending in 0
 } *kk_string_normal_t;
 
 typedef struct kk_string_raw_s {
   struct kk_string_s _base;
   kk_free_fun_t* free;     
-  const uint8_t* cstr;   // UTF8 string of `length+1` bytes ending in 0
+  const uint8_t* cstr;                  // utf-8 string of `length+1` bytes ending in 0
   size_t         length;
 } *kk_string_raw_t;
 
@@ -107,7 +158,7 @@ static inline kk_string_t kk_string_dup(kk_string_t str) {
   Strings operations
 --------------------------------------------------------------------------------------*/
 
-// Allocate a string of `len` bytes. `s` must be at least `len` bytes of valid UTF8, or NULL. Adds a terminating zero at the end.
+// Allocate a string of `len` bytes. `s` must be at least `len` bytes of valid utf-8, or NULL. Adds a terminating zero at the end.
 kk_decl_export kk_string_t kk_string_alloc_len_unsafe(size_t len, const char* s, kk_context_t* ctx);
 kk_decl_export kk_string_t kk_string_adjust_length(kk_string_t str, size_t newlen, kk_context_t* ctx);
 
@@ -175,11 +226,13 @@ static inline size_t kk_decl_pure kk_string_len_borrow(const kk_string_t str) {
   }
   else if (kk_datatype_has_tag(str,KK_TAG_STRING_SMALL)) {
     const kk_string_small_t s = kk_datatype_as_assert(const kk_string_small_t, str, KK_TAG_STRING_SMALL);
+    // a string of length N (<= 7) ends with an ending zero followed by (7 - N) trailing 0xFF bytes.
 #ifdef KK_ARCH_LITTLE_ENDIAN
-    return (KK_STRING_SMALL_MAX - (kk_bits_clz64(s->u.str_value)/8));
+    const size_t trailing = kk_bits_clz64(~(s->u.str_value)) / 8;
 #else
-    return (KK_STRING_SMALL_MAX - (kk_bits_ctz64(s->u.str_value)/8));
+    const size_t trailing = kk_bits_ctz64(~(s->u.str_value)) / 8;
 #endif
+    return (KK_STRING_SMALL_MAX - trailing);
   }
   else if (kk_datatype_has_tag(str,KK_TAG_STRING)) {
     return kk_datatype_as_assert(kk_string_normal_t, str, KK_TAG_STRING)->length;
@@ -221,7 +274,7 @@ static inline bool kk_utf8_is_cont(uint8_t c) {
 // Advance to the next codepoint. (does not advance past the end)
 // This should not validate, but advance to the next non-continuation byte.
 static inline const uint8_t* kk_utf8_next(const uint8_t* s) {
-  if (*s != 0) s++;                // skip first byte except if 0
+  if (*s != 0) s++;                   // skip first byte except if 0
   for (; kk_utf8_is_cont(*s); s++) {} // skip continuation bytes
   return s;
 }
@@ -229,7 +282,7 @@ static inline const uint8_t* kk_utf8_next(const uint8_t* s) {
 // Retreat to the previous codepoint. 
 // This should not validate, but backup to the previous non-continuation byte.
 static inline const uint8_t* kk_utf8_prev(const uint8_t* s) {
-  s--;                             // skip back at least 1 byte
+  s--;                                // skip back at least 1 byte
   for (; kk_utf8_is_cont(*s); s--) {} // skip while continuation bytes
   return s;
 }
