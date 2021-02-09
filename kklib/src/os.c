@@ -21,7 +21,13 @@ kk_decl_export int kk_os_read_text_file(kk_string_t path, kk_string_t* result, k
 {
   kk_string_t s = kk_string_empty();
   *result = s;
-  FILE* f = fopen(kk_string_cbuf_borrow(path), "rb");
+#ifdef _WIN32
+  wchar_t* wpath = kk_string_to_mutf16(path, ctx);
+  FILE* f = _wfopen(wpath, L"rb");
+  kk_free(wpath);
+#else
+  FILE* f = fopen(kk_string_cbuf_borrow(path,NULL), "rb");
+#endif
   kk_string_drop(path, ctx);
 
   // find length
@@ -34,13 +40,12 @@ kk_decl_export int kk_os_read_text_file(kk_string_t path, kk_string_t* result, k
 
   // pre-allocate and read at most length
   s = kk_string_alloc_buf(fsize, ctx);
-  size_t nread = fread((char*)kk_string_cbuf_borrow(s), 1, fsize, f);
+  size_t nread = fread((char*)kk_string_cbuf_borrow(s,NULL), 1, fsize, f);
   if (ferror(f)) goto fail;
   if (nread < fsize) { kk_string_adjust_length(s, nread, ctx); }
   fclose(f); f = NULL;
 
-  // TODO: validate UTF8 to UTF8
-  *result = s;
+  *result = kk_string_validate_mutf8(s, ctx);
   return 0;
 
 fail:

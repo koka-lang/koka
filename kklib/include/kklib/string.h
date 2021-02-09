@@ -93,6 +93,10 @@ static inline bool kk_ascii_is_alphanum(char c) { return (kk_ascii_is_alpha(c) |
    raw range as an invalid sequence (which should be fine in practice as these are unassigned anyways). 
 ------------------------------------------------------------------------------------------------------------*/
 
+#define KK_RAW_PLANE      ((kk_char_t)(0xE0000))
+#define KK_RAW_UTF8_OFS   (KK_RAW_PLANE + 0xE000)
+#define KK_RAW_UTF16_OFS  (KK_RAW_PLANE)
+
 // A string is valid utf-8 (with potentially internal '0' characters) ending with a '0' character.
 struct kk_string_s {
   kk_block_t _block;
@@ -159,23 +163,23 @@ static inline kk_string_t kk_string_dup(kk_string_t str) {
 --------------------------------------------------------------------------------------*/
 
 // Allocate a string of `len` bytes. `s` must be at least `len` bytes of valid utf-8, or NULL. Adds a terminating zero at the end.
-kk_decl_export kk_string_t kk_string_alloc_len_unsafe(size_t len, const char* s, kk_context_t* ctx);
+kk_decl_export kk_string_t kk_string_alloc_len_unsafe(size_t len, const uint8_t* s, kk_context_t* ctx);
 kk_decl_export kk_string_t kk_string_adjust_length(kk_string_t str, size_t newlen, kk_context_t* ctx);
 
 static inline kk_string_t kk_string_alloc_buf(size_t len, kk_context_t* ctx) {
   return kk_string_alloc_len_unsafe(len, NULL, ctx);
 }
 
-static inline kk_string_t kk_string_alloc_dup(const char* s, kk_context_t* ctx) {
+static inline kk_string_t kk_string_alloc_dup_unsafe(const char* s, kk_context_t* ctx) {
   if (s == NULL) return kk_string_empty();
-  return kk_string_alloc_len_unsafe(strlen(s), s, ctx);
+  return kk_string_alloc_len_unsafe(strlen(s), (uint8_t*)s, ctx);
 }
 
-static inline kk_string_t kk_string_alloc_dupn(size_t maxlen, const char* s, kk_context_t* ctx) {
+static inline kk_string_t kk_string_alloc_dupn_unsafe(size_t maxlen, const char* s, kk_context_t* ctx) {
   if (s == NULL || maxlen == 0) return kk_string_empty();
   size_t n;
   for(n = 0; n < maxlen && s[n] != 0; n++) { }
-  return kk_string_alloc_len_unsafe(n, s, ctx);
+  return kk_string_alloc_len_unsafe(n, (const uint8_t*)s, ctx);
 }
 
 // Raw string that directly points to an external buffer.
@@ -186,7 +190,7 @@ static inline kk_string_t kk_string_alloc_raw_len(size_t len, const char* s, boo
   str->free = (free ? &kk_free_fun : NULL);
   str->cstr = (const uint8_t*)s;
   str->length = len;
-  // todo: kk_assert valid UTF8 in debug mode
+  // todo: kk_assert valid utf-8 in debug mode
   return kk_datatype_from_base(&str->_base);
 }
 
@@ -195,51 +199,50 @@ static inline kk_string_t kk_string_alloc_raw(const char* s, bool free, kk_conte
   return kk_string_alloc_raw_len(strlen(s), s, free, ctx);
 }
 
-static inline const uint8_t* kk_string_buf_borrow(const kk_string_t str) {
+static inline const uint8_t* kk_string_buf_borrow(const kk_string_t str, size_t* len) {
   static const uint8_t empty[64] = { 0 };
   if (kk_datatype_is_singleton(str)) {
+    if (len != NULL) *len = 0;
     return empty;
   }
   kk_tag_t tag = kk_datatype_tag(str);
   if (tag == KK_TAG_STRING_SMALL) {
-    return &(kk_datatype_as_assert(kk_string_small_t, str, KK_TAG_STRING_SMALL)->u.str[0]);
+    const kk_string_small_t s = kk_datatype_as_assert(const kk_string_small_t, str, KK_TAG_STRING_SMALL);
+    if (len != NULL) {
+      // a small string of length N (<= 7) ends with an ending zero followed by (7 - N) trailing 0xFF bytes.
+      #ifdef KK_ARCH_LITTLE_ENDIAN
+      const size_t trailing = kk_bits_clz64(~(s->u.str_value)) / 8;
+      #else
+      const size_t trailing = kk_bits_ctz64(~(s->u.str_value)) / 8;
+      #endif
+      *len = (KK_STRING_SMALL_MAX - trailing);
+    }
+    return &s->u.str[0];
   }
   else if (tag == KK_TAG_STRING) {
-    return &(kk_datatype_as_assert(kk_string_normal_t, str, KK_TAG_STRING)->str[0]);
+    kk_string_normal_t s = kk_datatype_as_assert(kk_string_normal_t, str, KK_TAG_STRING);
+    if (len != NULL) *len = s->length;
+    return &s->str[0];
   }
   else {
-    return kk_datatype_as_assert(kk_string_raw_t, str, KK_TAG_STRING_RAW)->cstr;
+    kk_string_raw_t s = kk_datatype_as_assert(kk_string_raw_t, str, KK_TAG_STRING_RAW);
+    if (len != NULL) *len = s->length;
+    return s->cstr;
   }
 }
 
-static inline const char* kk_string_cbuf_borrow(const kk_string_t str) {
-  return (const char*)kk_string_buf_borrow(str);
+static inline const char* kk_string_cbuf_borrow(const kk_string_t str, size_t* len) {
+  return (const char*)kk_string_buf_borrow(str, len);
 }
 
 static inline int kk_string_cmp_cstr_borrow(const kk_string_t s, const char* t) {
-  return strcmp(kk_string_cbuf_borrow(s), t);
+  return strcmp(kk_string_cbuf_borrow(s,NULL), t);
 }
 
 static inline size_t kk_decl_pure kk_string_len_borrow(const kk_string_t str) {
-  if (kk_datatype_is_singleton(str)) {
-    return 0;
-  }
-  else if (kk_datatype_has_tag(str,KK_TAG_STRING_SMALL)) {
-    const kk_string_small_t s = kk_datatype_as_assert(const kk_string_small_t, str, KK_TAG_STRING_SMALL);
-    // a string of length N (<= 7) ends with an ending zero followed by (7 - N) trailing 0xFF bytes.
-#ifdef KK_ARCH_LITTLE_ENDIAN
-    const size_t trailing = kk_bits_clz64(~(s->u.str_value)) / 8;
-#else
-    const size_t trailing = kk_bits_ctz64(~(s->u.str_value)) / 8;
-#endif
-    return (KK_STRING_SMALL_MAX - trailing);
-  }
-  else if (kk_datatype_has_tag(str,KK_TAG_STRING)) {
-    return kk_datatype_as_assert(kk_string_normal_t, str, KK_TAG_STRING)->length;
-  }
-  else {
-    return kk_datatype_as_assert(kk_string_raw_t, str, KK_TAG_STRING_RAW)->length;
-  }
+  size_t len;
+  kk_string_buf_borrow(str, &len);
+  return len;
 }
 
 static inline kk_string_t kk_string_copy(kk_string_t str, kk_context_t* ctx) {
@@ -247,7 +250,9 @@ static inline kk_string_t kk_string_copy(kk_string_t str, kk_context_t* ctx) {
     return str;
   }
   else {
-    kk_string_t tstr = kk_string_alloc_dup( kk_string_cbuf_borrow(str), ctx);
+    size_t len;
+    const uint8_t* buf = kk_string_buf_borrow(str, &len);
+    kk_string_t tstr = kk_string_alloc_len_unsafe(len, buf, ctx);
     kk_string_drop(str, ctx);
     return tstr;
   }
@@ -263,10 +268,10 @@ static inline bool kk_string_is_empty_borrow(kk_string_t s) {
 
 
 /*--------------------------------------------------------------------------------------------------
-  UTF8 decoding/encoding
+  UTF-8 decoding/encoding
 --------------------------------------------------------------------------------------------------*/
 
-// Is this a UTF8 continuation byte? (0x80 <= b <= 0xBF, i.e. has the form 0x10xxxxxx)
+// Is this a utf-8 continuation byte? (0x80 <= b <= 0xBF, i.e. has the form 0x10xxxxxx)
 static inline bool kk_utf8_is_cont(uint8_t c) {
   return (((int8_t)c) <= -65); // we can determine this in a single _signed_ comparison
 }
@@ -274,7 +279,7 @@ static inline bool kk_utf8_is_cont(uint8_t c) {
 // Advance to the next codepoint. (does not advance past the end)
 // This should not validate, but advance to the next non-continuation byte.
 static inline const uint8_t* kk_utf8_next(const uint8_t* s) {
-  if (*s != 0) s++;                   // skip first byte except if 0
+  s++;                                // always skip first byte 
   for (; kk_utf8_is_cont(*s); s++) {} // skip continuation bytes
   return s;
 }
@@ -287,16 +292,12 @@ static inline const uint8_t* kk_utf8_prev(const uint8_t* s) {
   return s;
 }
 
-// Validating UTF8 decode; careful to only read beyond s[0] if valid.
-static inline kk_char_t kk_utf8_read_validate(const uint8_t* s, size_t* count) {
+// Validating mutf-8 decode; careful to only read beyond s[0] if valid.
+static inline kk_char_t kk_utf8_read_validate(const uint8_t* s, size_t* count, size_t* vcount) {
   uint8_t b = s[0];
   if (kk_likely(b <= 0x7F)) {
     *count = 1;
     return b;   // ASCII fast path
-  }
-  else if (b == 0xC0 && s[1] == 0x80) {
-    *count = 2;
-    return 0;   // Modified UTF8 encoded zero
   }
   // 2 byte encoding
   else if (b >= 0xC2 && b <= 0xDF && kk_utf8_is_cont(s[1])) {
@@ -305,7 +306,7 @@ static inline kk_char_t kk_utf8_read_validate(const uint8_t* s, size_t* count) {
     kk_assert_internal(c >= 0x80 && c <= 0x7FF);
     return c;
   }
-  // 3 byte encoding; reject overlong and UTF16 surrogate halves (0xD800 - 0xDFFF)
+  // 3 byte encoding; reject overlong and utf-16 surrogate halves (0xD800 - 0xDFFF)
   else if ((b == 0xE0 && s[1] >= 0xA0 && s[1] <= 0xBF && kk_utf8_is_cont(s[2]))
     || (b >= 0xE1 && b <= 0xEC && kk_utf8_is_cont(s[1]) && kk_utf8_is_cont(s[2])))
   {
@@ -324,17 +325,16 @@ static inline kk_char_t kk_utf8_read_validate(const uint8_t* s, size_t* count) {
     kk_assert_internal(c >= 0x10000 && c <= 0x10FFFF);
     return c;
   }
-  // invalid, skip continuation bytes
-  // note: we treat a full illegal sequence as 1 invalid codepoint (including its continuation bytes)
-  // this is important as it allows later to pre-allocate a buffer of the right size even if some
-  // sequences are invalid.
+  // invalid: advance just 1 byte and encode it in the "raw" range
   else {
-    *count = (size_t)(kk_utf8_next(s) - s);
-    return kk_char_replacement;
+    *count = 1;
+    if (vcount != NULL) *vcount = 4;
+    kk_assert_internal(b >= 0x80);
+    return (KK_RAW_UTF8_OFS + b);
   }
 }
 
-// Non-validating utf8 decoding of a single code point
+// Non-validating utf-8 decoding of a single code point
 static inline kk_char_t kk_utf8_read(const uint8_t* s, size_t* count) {
   kk_char_t b = *s;
   kk_char_t c;
@@ -342,11 +342,11 @@ static inline kk_char_t kk_utf8_read(const uint8_t* s, size_t* count) {
     *count = 1;
     c = b; // fast path ASCII
   }
-  else if (b <= 0xBF) { // invalid continuation byte (check is strictly not necessary as we don't validate..)
+  else if (b <= 0xC1) { // invalid continuation byte or invalid 0xC0, 0xC1 (check is strictly not necessary as we don't validate..)
     *count = (size_t)(kk_utf8_next(s) - s);  // skip to next
     c = kk_char_replacement;
   }
-  else if (b <= 0xDF) { // b >= 0xC0  // 2 bytes
+  else if (b <= 0xDF) { // b >= 0xC2  // 2 bytes
     *count = 2;
     c = (((b & 0x1F) << 6) | (s[1] & 0x3F));
   }
@@ -358,14 +358,16 @@ static inline kk_char_t kk_utf8_read(const uint8_t* s, size_t* count) {
     *count = 4;
     c = (((b & 0x07) << 18) | ((s[1] & 0x3F) << 12) | ((s[2] & 0x3F) << 6) | (s[3] & 0x3F));
   }
-  // invalid, skip continuation bytes
-  else {  // b >= 0xF5
-    *count = (size_t)(kk_utf8_next(s) - s);  // skip to next
-    c = kk_char_replacement;
-  }
+  // invalid, advance just 1 byte and encode it in the "raw" range
+  else {
+    *count = 1;
+    kk_assert_internal(b >= 0x80);
+    c = KK_RAW_UTF8_OFS + b;    
+  }  
 #if (DEBUG!=0)
   size_t dcount;
-  kk_assert_internal(c == kk_utf8_read_validate(s, &dcount));
+  size_t vcount;
+  kk_assert_internal(c == kk_utf8_read_validate(s, &dcount, &vcount));
   kk_assert_internal(*count == dcount);
 #endif
   return c;
@@ -373,10 +375,7 @@ static inline kk_char_t kk_utf8_read(const uint8_t* s, size_t* count) {
 
 // Number of bytes needed to represent a single code point
 static inline size_t kk_utf8_len(kk_char_t c) {
-  if (kk_unlikely(c == 0)) {
-    return 2;
-  }
-  else if (kk_likely(c <= 0x7F)) {
+  if (kk_likely(c <= 0x7F)) {
     return 1;
   }
   else if (c <= 0x07FF) {
@@ -393,15 +392,9 @@ static inline size_t kk_utf8_len(kk_char_t c) {
   }
 }
 
-// UTF8 encode a single codepoint
+// utf-8 encode a single codepoint
 static inline void kk_utf8_write(kk_char_t c, uint8_t* s, size_t* count) {
-  if (kk_unlikely(c == 0)) {
-    // modified UTF8 zero
-    *count = 2;
-    s[0] = 0xC0;
-    s[1] = 0x80;
-  }
-  else if (kk_likely(c <= 0x7F)) {
+  if (kk_likely(c <= 0x7F)) {
     *count = 1;
     s[0] = (uint8_t)c;
   }
@@ -433,6 +426,9 @@ static inline void kk_utf8_write(kk_char_t c, uint8_t* s, size_t* count) {
 }
 
 
+kk_decl_export uint16_t*    kk_string_to_mutf16(kk_string_t str, kk_context_t* ctx);
+kk_decl_export kk_string_t  kk_string_validate_mutf8(kk_string_t str, kk_context_t* ctx);
+
 /*--------------------------------------------------------------------------------------------------
   
 --------------------------------------------------------------------------------------------------*/
@@ -447,7 +443,8 @@ static inline bool kk_string_is_empty(kk_string_t s, kk_context_t* ctx) {
 }
 
 
-kk_decl_export size_t kk_decl_pure kk_string_count(kk_string_t str);  // number of code points
+kk_decl_export size_t kk_decl_pure kk_string_count_borrow(kk_string_t str);  // number of code points
+kk_decl_export size_t kk_decl_pure kk_string_count(kk_string_t str, kk_context_t* ctx);  // number of code points
 kk_decl_export size_t kk_decl_pure kk_string_count_pattern_borrow(kk_string_t str, kk_string_t pattern);
 kk_decl_export int kk_string_cmp_borrow(kk_string_t str1, kk_string_t str2);
 kk_decl_export int kk_string_cmp(kk_string_t str1, kk_string_t str2, kk_context_t* ctx);
