@@ -65,12 +65,12 @@ static inline bool kk_ascii_is_alphanum(char c) { return (kk_ascii_is_alpha(c) |
   codes in mutf-16 with a replacement character. One proposed solution for this is 
   to use wtf-8 (used in Rust <https://github.com/rust-lang/rust/issues/12056#issuecomment-55786546>) 
   instead of utf-8 internally. We like to use strict utf-8 internally though so we can always output valid 
-  utf-8 without further conversions. (also, new formats like wtf-8 often have tricky edge cases, like 
+  utf-8 without further conversions. (also, new formats like wtf-8 often have tricky edge cases, like   
   naively appending strings may change the interpretation of surrogate pairs in wtf-8)
 
   Instead, we solve this by staying in strict utf-8 internally, but we reserve a
   particular set of code-points to have a special meaning when converting to mutf-16 (or mutf-8).
-  For now, we use an (hopefully forever) unassigned range in the "supplementary special-purpose plane":
+  For now, we use an (hopefully forever) unassigned range in the "supplementary special-purpose plane" (14)
   
   - ED800 - EDFFF: corresponds to a lone half of a surrogate pair `x` where `x = code - E0000`.
   - EE000 - EE07F: <unused>
@@ -293,6 +293,9 @@ static inline const uint8_t* kk_utf8_prev(const uint8_t* s) {
 }
 
 // Validating mutf-8 decode; careful to only read beyond s[0] if valid.
+// `count` returns the number of bytes read. 
+// `vcount` is only set on an invalid sequence and return the number of bytes
+// needed for a replacement character -- this is always 4 since we use the raw range.
 static inline kk_char_t kk_utf8_read_validate(const uint8_t* s, size_t* count, size_t* vcount) {
   uint8_t b = s[0];
   if (kk_likely(b <= 0x7F)) {
@@ -360,6 +363,7 @@ static inline kk_char_t kk_utf8_read(const uint8_t* s, size_t* count) {
   }
   // invalid, advance just 1 byte and encode it in the "raw" range
   else {
+    kk_assert_internal(false);
     *count = 1;
     kk_assert_internal(b >= 0x80);
     c = KK_RAW_UTF8_OFS + b;    
@@ -388,7 +392,7 @@ static inline size_t kk_utf8_len(kk_char_t c) {
     return 4;
   }
   else {
-    return 3; // replacement
+    return 4; // replacement in the raw range
   }
 }
 
@@ -417,7 +421,8 @@ static inline void kk_utf8_write(kk_char_t c, uint8_t* s, size_t* count) {
     s[3] = (0x80 | (((uint8_t)c) & 0x3F));
   }
   else {
-    // invalid: encode 0xFFFD
+    // invalid: encode as 0xFFFD
+    kk_assert_internal(false);
     *count = 3;
     s[0] = 0xEF;
     s[1] = 0xBF;
@@ -426,8 +431,31 @@ static inline void kk_utf8_write(kk_char_t c, uint8_t* s, size_t* count) {
 }
 
 
-kk_decl_export uint16_t*    kk_string_to_mutf16(kk_string_t str, kk_context_t* ctx);
-kk_decl_export kk_string_t  kk_string_validate_mutf8(kk_string_t str, kk_context_t* ctx);
+/*--------------------------------------------------------------------------------------------------
+  utf-8 string conversion to mutf8 and mutf16
+--------------------------------------------------------------------------------------------------*/
+
+kk_decl_export uint16_t*      kk_string_to_mutf16_borrow(kk_string_t str, kk_context_t* ctx);
+kk_decl_export const uint8_t* kk_string_to_mutf8_borrow(kk_string_t str, bool* should_free, kk_context_t* ctx);
+kk_decl_export kk_string_t    kk_string_from_mutf8(kk_string_t str, kk_context_t* ctx);
+kk_decl_export kk_string_t    kk_string_from_mutf16(uint16_t* wstr, kk_context_t* ctx);
+kk_decl_export kk_string_t    kk_string_from_codepage(uint8_t* bstr, const uint16_t* codepage /*NULL==kk_codepage_latin*/, kk_context_t* ctx);
+
+extern const uint16_t kk_codepage_latin;     // windows-1252, latin
+
+#define kk_with_string_as_mutf16_borrow(str,wstr,ctx,action) \
+  do{ const uint16_t* wstr = kk_string_to_mutf16_borrow(str,ctx); \
+      action \
+      kk_free(wstr); \
+  } while(false); 
+
+#define kk_with_string_as_mutf8_borrow(str,ustr,ctx,action) \
+  do{ bool should_free_##ustr; \
+      const uint8_t* ustr = kk_string_to_mutf8_borrow(str,&should_free_##ustr,ctx); \
+      action \
+      if (should_free_##ustr) { kk_free(ustr); } \
+  } while(false); 
+
 
 /*--------------------------------------------------------------------------------------------------
   
