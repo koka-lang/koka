@@ -173,7 +173,10 @@ typedef int32_t         kk_ssize_t;
 #endif
 #define KK_SIZE_BITS   (8*KK_SIZE_SIZE)
 
-
+// off_t
+typedef int64_t     kk_off_t;
+#define KK_OFF_MAX  INT64_MAX
+#define KK_OFF_MIN  INT64_MIN
 
 // Abstract over the "natural machine word" as `kk_intx_t` such 
 // that `sizeof(kk_intx_t) == max(sizeof(long),sizeof(size_t))`. 

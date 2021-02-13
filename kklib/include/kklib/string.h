@@ -57,7 +57,8 @@ static inline bool kk_ascii_is_alphanum(char c) { return (kk_ascii_is_alpha(c) |
   
   - mutf-8: this is mostly utf-8 but contains invalid utf-8 sequences, like overlong
     sequences or lone continuation bytes. This can occur for examply by bad json encoding
-    containing binary data, but also as a result of a _locale_ that cannot be decoded properly.
+    containing binary data, but also as a result of a _locale_ that cannot be decoded properly,
+    or generally just random bytes.
   
   In particular for mutf-16 we would like to guarantee that decoding to utf-8 and encoding 
   again to mutf-16 is an identity transformation; for example, we may list the contents
@@ -86,7 +87,9 @@ static inline bool kk_ascii_is_alphanum(char c) { return (kk_ascii_is_alpha(c) |
   transform while still preventing hidden embedded 0 characters.
   
   The advantage over using the replacement character is that we now retain full information what
-  the original (invalid) sequences were (and can thus do an identity transform). 
+  the original (invalid) sequences were (and can thus do an identity transform) -- and we stay with
+  valid utf-8! (unlike wtf-8)
+  
   (Actually, to make it an identity transform, when decoding mutf-16 we need to not just decode lone 
    surrogate halves to our raw range, but also surrogate pairs that happen to decode to our raw range, 
    and similarly for mutf-8; so for both mutf-8 and mutf-16 input we also treat any code points in the 
@@ -163,23 +166,27 @@ static inline kk_string_t kk_string_dup(kk_string_t str) {
 --------------------------------------------------------------------------------------*/
 
 // Allocate a string of `len` bytes. `s` must be at least `len` bytes of valid utf-8, or NULL. Adds a terminating zero at the end.
-kk_decl_export kk_string_t kk_string_alloc_len_unsafe(size_t len, const uint8_t* s, kk_context_t* ctx);
+kk_decl_export kk_string_t kk_string_alloc_len_unsafe(size_t len, const uint8_t* s, uint8_t** buf, kk_context_t* ctx);
 kk_decl_export kk_string_t kk_string_adjust_length(kk_string_t str, size_t newlen, kk_context_t* ctx);
 
-static inline kk_string_t kk_string_alloc_buf(size_t len, kk_context_t* ctx) {
-  return kk_string_alloc_len_unsafe(len, NULL, ctx);
+static inline kk_string_t kk_string_alloc_buf(size_t len, uint8_t** buf, kk_context_t* ctx) {
+  return kk_string_alloc_len_unsafe(len, NULL, buf, ctx);
+}
+
+static inline kk_string_t kk_string_alloc_cbuf(size_t len, char** buf, kk_context_t* ctx) {
+  return kk_string_alloc_len_unsafe(len, NULL, (uint8_t**)buf, ctx);
 }
 
 static inline kk_string_t kk_string_alloc_dup_unsafe(const char* s, kk_context_t* ctx) {
   if (s == NULL) return kk_string_empty();
-  return kk_string_alloc_len_unsafe(strlen(s), (uint8_t*)s, ctx);
+  return kk_string_alloc_len_unsafe(strlen(s), (uint8_t*)s, NULL, ctx);
 }
 
 static inline kk_string_t kk_string_alloc_dupn_unsafe(size_t maxlen, const char* s, kk_context_t* ctx) {
   if (s == NULL || maxlen == 0) return kk_string_empty();
   size_t n;
   for(n = 0; n < maxlen && s[n] != 0; n++) { }
-  return kk_string_alloc_len_unsafe(n, (const uint8_t*)s, ctx);
+  return kk_string_alloc_len_unsafe(n, (const uint8_t*)s, NULL, ctx);
 }
 
 // Raw string that directly points to an external buffer.
@@ -200,7 +207,7 @@ static inline kk_string_t kk_string_alloc_raw(const char* s, bool free, kk_conte
 }
 
 static inline const uint8_t* kk_string_buf_borrow(const kk_string_t str, size_t* len) {
-  static const uint8_t empty[64] = { 0 };
+  static const uint8_t empty[16] = { 0 };
   if (kk_datatype_is_singleton(str)) {
     if (len != NULL) *len = 0;
     return empty;
@@ -252,7 +259,7 @@ static inline kk_string_t kk_string_copy(kk_string_t str, kk_context_t* ctx) {
   else {
     size_t len;
     const uint8_t* buf = kk_string_buf_borrow(str, &len);
-    kk_string_t tstr = kk_string_alloc_len_unsafe(len, buf, ctx);
+    kk_string_t tstr = kk_string_alloc_len_unsafe(len, buf, NULL, ctx);
     kk_string_drop(str, ctx);
     return tstr;
   }
@@ -438,23 +445,19 @@ static inline void kk_utf8_write(kk_char_t c, uint8_t* s, size_t* count) {
 kk_decl_export uint16_t*      kk_string_to_mutf16_borrow(kk_string_t str, kk_context_t* ctx);
 kk_decl_export const uint8_t* kk_string_to_mutf8_borrow(kk_string_t str, bool* should_free, kk_context_t* ctx);
 kk_decl_export kk_string_t    kk_string_from_mutf8(kk_string_t str, kk_context_t* ctx);
-kk_decl_export kk_string_t    kk_string_from_mutf16(uint16_t* wstr, kk_context_t* ctx);
-kk_decl_export kk_string_t    kk_string_from_codepage(uint8_t* bstr, const uint16_t* codepage /*NULL==kk_codepage_latin*/, kk_context_t* ctx);
+kk_decl_export kk_string_t    kk_string_from_mutf16(const uint16_t* wstr, kk_context_t* ctx);
 
-extern const uint16_t kk_codepage_latin;     // windows-1252, latin
+kk_decl_export kk_string_t    kk_string_from_codepage(const uint8_t* bstr, const uint16_t* codepage /*NULL==kk_codepage_latin*/, kk_context_t* ctx);
 
-#define kk_with_string_as_mutf16_borrow(str,wstr,ctx,action) \
-  do{ const uint16_t* wstr = kk_string_to_mutf16_borrow(str,ctx); \
-      action \
-      kk_free(wstr); \
-  } while(false); 
+extern const uint16_t kk_codepage_latin[256];     // windows-1252, latin
 
-#define kk_with_string_as_mutf8_borrow(str,ustr,ctx,action) \
-  do{ bool should_free_##ustr; \
-      const uint8_t* ustr = kk_string_to_mutf8_borrow(str,&should_free_##ustr,ctx); \
-      action \
-      if (should_free_##ustr) { kk_free(ustr); } \
-  } while(false); 
+#define kk_with_string_as_mutf16_borrow(str,wstr,ctx) /* { action } */ \
+  for( const uint16_t* wstr = kk_string_to_mutf16_borrow(str,ctx); wstr != NULL; wstr = (kk_free(wstr), NULL) )
+
+#define kk_with_string_as_mutf8_borrow(str,ustr,ctx) /* { action } */ \
+  bool should_free_##ustr; \
+  for( const uint8_t* ustr = kk_string_to_mutf8_borrow(str,&should_free_##ustr,ctx); ustr != NULL; \
+      ustr = (should_free_##ustr ? (kk_free(ustr), NULL) : NULL) )
 
 
 /*--------------------------------------------------------------------------------------------------

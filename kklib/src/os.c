@@ -10,164 +10,95 @@
 #endif
 #include "kklib.h"
 
-
-static bool kk_os_is_directory_cstr(const char* path);
-
 /*--------------------------------------------------------------------------------------------------
-  Text files
---------------------------------------------------------------------------------------------------*/
-
-kk_decl_export int kk_os_read_text_file(kk_string_t path, kk_string_t* result, kk_context_t* ctx)
-{
-  kk_string_t s = kk_string_empty();
-  *result = s;
-#ifdef _WIN32
-  wchar_t* wpath = kk_string_to_mutf16(path, ctx);
-  FILE* f = _wfopen(wpath, L"rb");
-  kk_free(wpath);
-#else
-  FILE* f = fopen(kk_string_cbuf_borrow(path,NULL), "rb");
-#endif
-  kk_string_drop(path, ctx);
-
-  // find length
-  if (f==NULL) goto fail;
-  if (fseek(f, 0, SEEK_END) != 0) goto fail;
-  const long sfsize = ftell(f);
-  if (sfsize<0) goto fail;
-  const size_t fsize = (size_t)sfsize;
-  if (fseek(f, 0, SEEK_SET) != 0) goto fail;  // rewind
-
-  // pre-allocate and read at most length
-  s = kk_string_alloc_buf(fsize, ctx);
-  size_t nread = fread((char*)kk_string_cbuf_borrow(s,NULL), 1, fsize, f);
-  if (ferror(f)) goto fail;
-  if (nread < fsize) { kk_string_adjust_length(s, nread, ctx); }
-  fclose(f); f = NULL;
-
-  *result = kk_string_validate_mutf8(s, ctx);
-  return 0;
-
-fail:
-  kk_string_drop(s, ctx);
-  if (f != NULL) fclose(f);
-  return (errno != 0 ? errno : -1);
-}
-
-kk_decl_export int kk_os_write_text_file(kk_string_t path, kk_string_t content, kk_context_t* ctx)
-{
-  FILE* f = fopen(kk_string_cbuf_borrow(path), "wb");
-  kk_string_drop(path, ctx);
-  if (f==NULL) goto fail;
-  size_t len = kk_string_len_borrow(content);
-  if (len > 0) {
-    size_t nwritten = fwrite(kk_string_cbuf_borrow(content), 1, len, f);
-    if (nwritten < len) goto fail;
-  }
-  fclose(f); f = NULL;
-  kk_string_drop(content,ctx);
-  return 0;
-
-fail:
-  kk_string_drop(content, ctx);
-  if (f != NULL) fclose(f);
-  return (errno != 0 ? errno : -1);
-}
-
-
-
-/*--------------------------------------------------------------------------------------------------
-  Directories
---------------------------------------------------------------------------------------------------*/
-
-
-/*--------------------------------------------------------------------------------------------------
-  mkdir
+  Posix abstraction layer
 --------------------------------------------------------------------------------------------------*/
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
-#include <direct.h>
-#define os_mkdir(p,m)  _mkdir(p)
-#else
-#include <sys/types.h>
-#include <sys/stat.h>
-#define os_mkdir(p,m)  mkdir(p,m)
-#endif
-
-
-kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ctx) 
-{
-  int err = 0;
-  if (mode < 0) {
-#if defined(S_IRWXU)
-    mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
-#else
-    mode = 0755;
-#endif
-  }
-  path = kk_string_copy(path, ctx); // copy so we can mutate
-  char* cpath = (char*)kk_string_cbuf_borrow(path);
-  char* p = cpath;
-  if (cpath != NULL) {  // avoid warnings
-    do {
-      char c = *p;
-      if (c == 0 || c == '/' || c == '\\') {
-        *p = 0;
-        if (cpath[0]!=0) {
-	  if (!kk_os_is_directory_cstr(cpath)) {
-            int res = os_mkdir(cpath, mode);
-            if (res != 0 && errno != EEXIST) {
-              err = errno;
-	    }
-	  }
-        }
-        *p = c;
-      }
-    } while (err == 0 && *p++ != 0);
-  }
-  kk_string_drop(path, ctx);
-  return err;
-}
-
-/*--------------------------------------------------------------------------------------------------
-  Copy File
---------------------------------------------------------------------------------------------------*/
-
-#if defined(WIN32) || defined(__MINGW32__)
-#include <Windows.h>
-static int os_copy_file(const char* from, const char* to, bool preserve_mtime, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
-  KK_UNUSED(preserve_mtime);
-  if (!CopyFileA(from, to, FALSE)) {
-    DWORD err = GetLastError();
-    if (err == ERROR_FILE_NOT_FOUND) return ENOENT;
-    else if (err == ERROR_ACCESS_DENIED) return EPERM;
-    else if (err == ERROR_PATH_NOT_FOUND) return ENOTDIR;
-    else return EINVAL;
-  }
-  else {
-    return 0;
-  }
-}
-#else
+#define _UNICODE
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <unistd.h>
-#include <sys/time.h>
-
-#if defined(__APPLE__)
-#include <copyfile.h>
-#elif defined(__linux__)
-#include <sys/sendfile.h>
 #else
-// Generic Unix
-// Read at most `buflen` bytes from `inp` into `buf`. Return `0` on success (or an error code).
-static int unix_read_retry(const int inp, char* buf, const ssize_t buflen, ssize_t* read_count) {
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <unistd.h>
+#include <fcntl.h>
+#endif
+
+typedef int kk_file_t;
+
+#ifdef _WIN32
+typedef struct _stat64  kk_stat_t;
+#else
+typedef struct stat_t   kk_stat_t;
+#endif
+
+static kk_file_t kk_posix_open(kk_string_t path, int mode, kk_context_t* ctx) {
+  kk_file_t f;
+#ifdef _WIN32
+  kk_with_string_as_mutf16_borrow(path, wpath, ctx) {
+    f = _wopen(wpath, mode);
+  }
+#else
+  kk_with_string_as_mutf8_borrow(path, bpath, ctx) {
+    f = open(bpath, mode);
+  }
+#endif
+  kk_string_drop(path,ctx);
+  return (f < 0 ? errno : f);
+}
+
+static int kk_posix_close(kk_file_t f) {
+  return (close(f) < 0 ? errno : 0);
+}
+
+static int kk_posix_fstat(kk_file_t f, kk_stat_t* st) {
+#ifdef _WIN32
+  return (_fstat64(f, st) < 0 ? errno : 0);
+#else
+  return (fstat(f, st) < 0 ? errno : 0);
+#endif
+}
+
+static int kk_posix_fsize(kk_file_t f, size_t* fsize) {
+  *fsize = 0;
+  kk_stat_t st;
+  int err = kk_posix_fstat(f, &st);
+  if (err != 0) return err;
+  *fsize = (size_t)st.st_size;
+  return 0;
+}
+
+static int kk_posix_stat(kk_string_t path, kk_stat_t* st, kk_context_t* ctx) {
   int err = 0;
-  ssize_t ofs = 0;
+#if defined(_WIN32) || defined(__MINGW32__)
+  kk_with_string_as_mutf16_borrow(path, wpath, ctx) {
+    if (_wstat64(wpath, st) < 0) err = errno;
+  }
+#else
+  kk_with_string_as_mutf8_borrow(path, cpath, ctx) {
+    if (stat(cpath, st) < 0) err = errno;
+  }
+#endif
+  if (err < 0) err = errno;
+  return err;
+}
+
+// Read at most `buflen` bytes from `inp` into `buf`. Return `0` on success (or an error code).
+static int kk_posix_read_retry(const kk_file_t inp, char* buf, const size_t buflen, size_t* read_count) {
+  int err = 0;
+  size_t ofs = 0;
   do {
-    int n = read(inp, buf + ofs, buflen - ofs);
+    size_t todo = buflen - ofs;
+    #ifdef _WIN32
+    if (todo > INT32_MAX) todo = INT32_MAX;  // on windows read in chunks of at most 2GiB
+    kk_ssize_t n = _read(inp, buf + ofs, (unsigned)(todo));
+    #else
+    if (todo > KK_SSIZE_MAX) todo = KK_SSIZE_MAX;
+    kk_ssize_t n = read(inp, buf + ofs, (kk_ssize_t)(todo));
+    #endif  
     if (n < 0) {
       if (errno != EAGAIN && errno != EINTR) {
         err = errno;
@@ -189,11 +120,18 @@ static int unix_read_retry(const int inp, char* buf, const ssize_t buflen, ssize
 }
 
 // Write at `len` bytes to `out` from `buf`. On error, `write_count` may be less than `len`.
-static int unix_write_retry(const int out, const char* buf, const ssize_t len, ssize_t* write_count) {
+static int kk_posix_write_retry(const kk_file_t out, const char* buf, const size_t len, size_t* write_count) {
   int err = 0;
-  ssize_t ofs = 0;
+  size_t ofs = 0;
   do {
-    int n = write(out, buf + ofs, len - ofs);
+    size_t todo = len - ofs;
+    #ifdef _WIN32
+    if (todo > INT32_MAX) todo = INT32_MAX;  // on windows write in chunks of at most 2GiB
+    kk_ssize_t n = _write(out, buf + ofs, (unsigned)(todo));
+    #else
+    if (todo > KK_SSIZE_MAX) todo = KK_SSIZE_MAX;
+    kk_ssize_t n = write(out, buf + ofs, (kk_ssize_t)todo);
+    #endif  
     if (n < 0) {
       if (errno != EAGAIN && errno != EINTR) {
         err = errno;
@@ -217,7 +155,152 @@ static int unix_write_retry(const int out, const char* buf, const ssize_t len, s
 }
 
 
-static int unix_copy_file(const int inp, const int out, const ssize_t len, kk_context_t* ctx) {
+/*--------------------------------------------------------------------------------------------------
+  Text files
+--------------------------------------------------------------------------------------------------*/
+
+kk_decl_export int kk_os_read_text_file(kk_string_t path, kk_string_t* result, kk_context_t* ctx)
+{
+  kk_file_t f = kk_posix_open(path, O_RDONLY, ctx);
+  if (f < 0) return errno;
+
+  size_t len;
+  int err = kk_posix_fsize(f, &len);
+  if (err != 0) {
+    kk_posix_close(f);
+    return err;
+  }
+  char* s;
+  kk_string_t str = kk_string_alloc_buf(len, &s, ctx);
+
+  size_t nread;
+  err = kk_posix_read_retry(f, s, len, &nread);
+  kk_posix_close(f);
+  if (err < 0) {
+    kk_string_drop(str, ctx);
+    return err;
+  }
+  if (nread < len) {
+    str = kk_string_adjust_length(str, nread, ctx);
+  }
+
+  *result = kk_string_from_mutf8(str, ctx);
+  return 0;
+}
+
+kk_decl_export int kk_os_write_text_file(kk_string_t path, kk_string_t content, kk_context_t* ctx)
+{
+  kk_file_t f = kk_posix_open(path, O_WRONLY, ctx);
+  if (f < 0) {
+    kk_string_drop(content, ctx);
+    return errno;
+  }
+  int err = 0;
+  size_t len;
+  const char* buf = kk_string_cbuf_borrow(content, &len);
+  if (len > 0) {
+    size_t nwritten;
+    err = kk_posix_write_retry(f, buf, len, &nwritten);
+    if (err == 0 && nwritten < len) err = EIO;
+  }
+  kk_string_drop(content, ctx);
+  kk_posix_close(f);
+  return err;
+}
+
+
+
+/*--------------------------------------------------------------------------------------------------
+  Directories
+--------------------------------------------------------------------------------------------------*/
+
+
+/*--------------------------------------------------------------------------------------------------
+  mkdir
+--------------------------------------------------------------------------------------------------*/
+
+kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ctx) 
+{
+  int err = 0;
+  if (mode < 0) {
+#if defined(S_IRWXU)
+    mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
+#else
+    mode = 0755;
+#endif
+  }
+
+  path = kk_string_copy(path, ctx); // copy so we can mutate
+#if defined(_WIN32) || defined(__MINGW32__)
+  kk_with_string_as_mutf16_borrow(path, cpath, ctx) {
+    uint16_t* p = cpath;
+#else
+  kk_with_string_as_mutf8_borrow(path, cpath, ctx) {
+    char* p = (char*)cpath;
+#endif
+    do {
+      char c = (char)(*p);
+      if (c == 0 || c == '/' || c == '\\') {
+        *p = 0;
+        if (cpath[0] != 0) {
+          kk_stat_t st = { 0 };
+          #if defined(_WIN32) || defined(__MINGW32__)
+          _wstat64(cpath, &st);
+          #else 
+          stat(cpath, &st);
+          #endif
+          bool isdir = ((st.st_mode & S_IFDIR) != 0);
+          if (!isdir) {
+            #if defined(_WIN32) || defined(__MINGW32__)
+            int res = _wmkdir(cpath);
+            #else 
+            int res = mkdir(cpath, mode);
+            #endif
+            if (res != 0 && errno != EEXIST) {
+              err = errno;
+            }
+          }
+        }
+        *p = c;
+      }
+    } while (err == 0 && *p++ != 0);
+  }
+  kk_string_drop(path, ctx);
+  return err;
+}
+
+/*--------------------------------------------------------------------------------------------------
+  Copy File
+--------------------------------------------------------------------------------------------------*/
+
+#if defined(_WIN32) || defined(__MINGW32__)
+#include <Windows.h>
+kk_decl_export int kk_os_copy_file(kk_string_t from, kk_string_t to, bool preserve_mtime, kk_context_t* ctx) {
+  KK_UNUSED(preserve_mtime);
+  int err = 0;
+  kk_with_string_as_mutf16_borrow(from, wfrom, ctx) {
+    kk_with_string_as_mutf16_borrow(to, wto, ctx) {
+      if (!CopyFileW(wfrom, wto, FALSE)) {
+        DWORD werr = GetLastError();
+        if (werr == ERROR_FILE_NOT_FOUND) err = ENOENT;
+        else if (werr == ERROR_ACCESS_DENIED) err = EPERM;
+        else if (werr == ERROR_PATH_NOT_FOUND) err = ENOTDIR;
+        else err = EINVAL;
+      }
+    }
+  }
+  kk_string_drop(from, ctx);
+  kk_string_drop(to, ctx);
+  return err;
+}
+#else
+
+#if defined(__APPLE__)
+#include <copyfile.h>
+#elif defined(__linux__)
+#include <sys/sendfile.h>
+#else
+static int kk_posix_copy_file(const int inp, const int out, const size_t len, kk_context_t* ctx) {
   int err = 0;
 
 #if defined(COPY_FR_COPY)
@@ -226,7 +309,9 @@ static int unix_copy_file(const int inp, const int out, const ssize_t len, kk_co
   loff_t off_in = 0;
   loff_t off_out = 0;
   while(off_in < len) {
-    ssize_t n = copy_file_range(inp, &off_in, out, &off_out, len - off_in, 0 /* flags */ );
+    size_t toread = len - off_in;
+    if (toread > SSIZE_MAX) toread = SSIZE_MAX;
+    ssize_t n = copy_file_range(inp, &off_in, out, &off_out, (ssize_t)toread, 0 /* flags */ );
     if (n < 0) {
       if (errno != EAGAIN && errno != EINTR) {
         err = errno;
@@ -243,18 +328,19 @@ static int unix_copy_file(const int inp, const int out, const ssize_t len, kk_co
   err = 0;
 #endif
 
-  ssize_t buflen = 1024 * 1024; // max 1MiB buffer
+  size_t buflen = 1024 * 1024; // max 1MiB buffer
   if (buflen > len) buflen = len;
   char* buf = kk_malloc(buflen, ctx);
   if (buf == NULL) return ENOMEM;
-  ssize_t todo = len;
+  size_t todo = len;
   while (todo > 0) {
-    ssize_t read_count = 0;
-    err = unix_read_retry(inp, buf, (todo < buflen ? todo : buflen), &read_count);
+    size_t toread = (todo > buflen ? buflen : todo);
+    size_t read_count = 0;
+    err = kk_posix_read_retry(inp, buf, toread, &read_count);
     if (err != 0 || read_count == 0) break;
-    ssize_t write_count = 0;
-    err = unix_write_retry(out, buf, read_count, &write_count);
-    if (err != 0) break; assert(write_count == read_count);
+    size_t write_count = 0;
+    err = kk_posix_write_retry(out, buf, read_count, &write_count);
+    if (err != 0) break; kk_assert(write_count == read_count);
     todo -= read_count;
   }
   kk_free(buf);
@@ -262,20 +348,22 @@ static int unix_copy_file(const int inp, const int out, const ssize_t len, kk_co
 }
 #endif  // not __APPLE__ or __linux__
 
-static int os_copy_file(const char* from, const char* to, bool preserve_mtime, kk_context_t* ctx) {
+kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, bool preserve_mtime, kk_context_t* ctx) {
   int inp = 0;
   int out = 0;
 
   // stat and create/overwrite target
   struct stat finfo = { 0 };
-  if ((inp = open(from, O_RDONLY)) == -1) {
+  if ((inp = kk_posix_open(from, O_RDONLY, ctx)) < 0) {
+    kk_string_drop(to, ctx);
     return errno;
   }
   if (fstat(inp, &finfo) < 0) {
     close(inp);
+    kk_string_drop(to, ctx);
     return errno;
   }
-  if ((out = creat(to, finfo.st_mode)) == -1) {  // keep the mode
+  if ((out = kk_posix_creat(to, finfo.st_mode)) < 0) {  // keep the mode
     close(inp);
     return errno;
   }
@@ -298,7 +386,7 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime, k
     err = errno;
   }
   #else
-  err = unix_copy_file(inp, out, finfo.st_size, ctx);
+  err = kk_posix_copy_file(inp, out, finfo.st_size, ctx);
   #endif
 
   // maintain access/mod time
@@ -322,48 +410,23 @@ static int os_copy_file(const char* from, const char* to, bool preserve_mtime, k
 }
 #endif
 
-kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, bool preserve_mtime, kk_context_t* ctx) {
-  int err = os_copy_file(kk_string_cbuf_borrow(from), kk_string_cbuf_borrow(to), preserve_mtime, ctx );
-  kk_string_drop(from,ctx);
-  kk_string_drop(to,ctx);
-  return err;
-}
-
 
 /*--------------------------------------------------------------------------------------------------
   Stat directory
 --------------------------------------------------------------------------------------------------*/
-#include <sys/types.h>
-#include <sys/stat.h>
-
-#ifdef WIN32
-#define stat    _stat
-#define S_IFDIR _S_IFDIR
-#define S_IFREG _S_IFREG
-#endif
-
-static bool kk_os_is_directory_cstr(const char* path) {
-  struct stat finfo = { 0 };
-  if (stat(path, &finfo) != 0) return false;
-  return ((finfo.st_mode & S_IFDIR) != 0);
-}
 
 kk_decl_export bool kk_os_is_directory(kk_string_t path, kk_context_t* ctx) {
-  bool is_dir = kk_os_is_directory_cstr(kk_string_cbuf_borrow(path));
-  kk_string_drop(path,ctx);
-  return is_dir;
-}
-
-static bool kk_os_is_file_cstr(const char* path) {
-  struct stat finfo = { 0 };
-  if (stat(path, &finfo) != 0) return false;
-  return ((finfo.st_mode & S_IFREG) != 0);
+  kk_stat_t st = { 0 };
+  int err = kk_posix_stat(path, &st, ctx);
+  if (err != 0) return false;
+  return ((st.st_mode & S_IFDIR) != 0);
 }
 
 kk_decl_export bool kk_os_is_file(kk_string_t path, kk_context_t* ctx) {
-  bool is_file = kk_os_is_file_cstr(kk_string_cbuf_borrow(path));
-  kk_string_drop(path, ctx);
-  return is_file;
+  kk_stat_t st = { 0 };
+  int err = kk_posix_stat(path, &st, ctx);
+  if (err != 0) return false;
+  return ((st.st_mode & S_IFREG) != 0);
 }
 
 /*--------------------------------------------------------------------------------------------------
@@ -373,28 +436,32 @@ kk_decl_export bool kk_os_is_file(kk_string_t path, kk_context_t* ctx) {
 #if defined(WIN32)
 #include <io.h>
 #define dir_cursor intptr_t
-#define dir_entry  struct _finddata_t
-static bool os_findfirst(const char* path, dir_cursor* d, dir_entry* entry, int* err, kk_context_t* ctx) {
-  kk_string_t s = kk_string_alloc_buf(strlen(path) + 2, ctx);
-  char* buf = (char*)kk_string_buf_borrow(s);
-  strcpy(buf, path);
-  strcat(buf, "/*");
-  *d = _findfirst(buf, entry);
-  kk_string_drop(s,ctx);
+#define dir_entry  struct _wfinddata64_t
+static bool os_findfirst(kk_string_t path, dir_cursor* d, dir_entry* entry, int* err, kk_context_t* ctx) {
+  kk_string_t spath = kk_string_cat_fromc(path, "\\*", ctx);
+  kk_with_string_as_mutf16_borrow(spath, wpath, ctx) {
+    *d = _wfindfirst(wpath, entry);
+  }
+  kk_string_drop(spath,ctx);
   bool ok = (*d != -1);
   *err = (ok ? 0 : errno);
   return ok;
 }
 static bool os_findnext(dir_cursor d, dir_entry* entry, int* err) {
-  bool ok = (_findnext(d, entry) == 0);
+  bool ok = (_wfindnext64(d, entry) == 0);
   *err = (ok || errno == ENOENT ? 0 : errno);
   return ok;
 }
 static void os_findclose(dir_cursor d) {
   _findclose(d);
 }
-static const char* os_direntry_name(dir_entry* entry) {
-  return entry->name;
+static kk_string_t os_direntry_name(dir_entry* entry, kk_context_t* ctx) {
+  if (entry->name == NULL || wcscmp(entry->name, L".") == 0 || wcscmp(entry->name, L"..") == 0) {
+    return kk_string_empty();
+  }
+  else {
+    return kk_string_from_mutf16(entry->name, ctx);
+  }
 }
 
 #else
@@ -407,9 +474,10 @@ static bool os_findnext(dir_cursor d, dir_entry* entry, int* err) {
   *err = (*entry != NULL || errno == ENOENT ? 0 : errno);
   return (*entry != NULL);
 }
-static bool os_findfirst(const char* path, dir_cursor* d, dir_entry* entry, int* err, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
-  *d = opendir(path);
+static bool os_findfirst(kk_string_t path, dir_cursor* d, dir_entry* entry, int* err, kk_context_t* ctx) {
+  kk_with_string_as_mutf8_borrow(path, cpath, ctx) {
+    *d = opendir(cpath);
+  }
   if (*d == NULL) {
     *err = errno;
     return false;
@@ -421,8 +489,14 @@ static bool os_findfirst(const char* path, dir_cursor* d, dir_entry* entry, int*
 static void os_findclose(dir_cursor d) {
   closedir(d);
 }
-static const char* os_direntry_name(dir_entry* entry) {
-  return (*entry)->d_name;
+static kk_string_t os_direntry_name(dir_entry* entry, kk_context_t* ctx) {
+  const char* dname = (*entry)->d_name;
+  if (dname == NULL || strcmp(dname, ".") == 0 || strcmp(dname, "..") == 0) {
+    return kk_string_empty();
+  }
+  else {
+    return kk_string_from_mutf8(dname, ctx);
+  }
 }
 #endif
 
@@ -430,8 +504,7 @@ kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, 
   dir_cursor d;
   dir_entry entry;
   int err;
-  bool ok = os_findfirst(kk_string_cbuf_borrow(dir), &d, &entry, &err, ctx);
-  kk_string_drop(dir,ctx);
+  bool ok = os_findfirst(dir, &d, &entry, &err, ctx);  
   if (!ok) {
     *contents = kk_vector_empty();
     return err;
@@ -442,8 +515,8 @@ kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, 
   kk_vector_t vec = kk_vector_alloc(len, kk_integer_box(kk_integer_from_small(0)), ctx);
   
   do {
-    const char* cname = os_direntry_name(&entry);
-    if (cname != NULL && strcmp(cname, ".") != 0 && strcmp(cname, "..") != 0) {
+    kk_string_t name = os_direntry_name(&entry, ctx);
+    if (!kk_string_is_empty(name,ctx)) {
       // push name
       if (count == len) {
         // realloc vector
@@ -451,8 +524,11 @@ kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, 
         vec = kk_vector_realloc(vec, newlen, kk_integer_box(kk_integer_from_small(0)), ctx);
         len = newlen;
       }
-      (kk_vector_buf(vec, NULL))[count] = kk_string_box(kk_string_alloc_dup(cname, ctx));
+      (kk_vector_buf(vec, NULL))[count] = kk_string_box(name);
       count++;
+    }
+    else {
+      kk_string_drop(name, ctx); // no-op as it is always empty
     }
   } while (os_findnext(d, &entry, &err));
   os_findclose(d);
@@ -466,16 +542,17 @@ kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, 
   Run system command
 --------------------------------------------------------------------------------------------------*/
 
-#if defined(WIN32) || defined(__MINGW32__) 
-#define popen  _popen
-#define pclose _pclose
-#define POPEN_READ  "rt"
-#else
-#define POPEN_READ  "r"
-#endif
-
 kk_decl_export int kk_os_run_command(kk_string_t cmd, kk_string_t* output, kk_context_t* ctx) {
-  FILE* f = popen(kk_string_cbuf_borrow(cmd), POPEN_READ);
+  FILE* f;
+  #if defined(_WIN32) || defined(__MINGW32__)
+  kk_with_string_as_mutf16_borrow(cmd, wcmd, ctx) {
+    f = _wpopen(wcmd, "rt"); // todo: maybe open as binary?
+  }
+  #else
+  kk_with_string_as_mutf8_borrow(cmd, ccmd, ctx) {
+    f = popen(ccmd, POPEN_READ);
+  }
+  #endif
   kk_string_drop(cmd, ctx);
   if (f==NULL) return errno;
   kk_string_t out = kk_string_empty();
@@ -491,8 +568,16 @@ kk_decl_export int kk_os_run_command(kk_string_t cmd, kk_string_t* output, kk_co
 }
 
 kk_decl_export int kk_os_run_system(kk_string_t cmd, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
-  int exitcode = system(kk_string_cbuf_borrow(cmd));
+  int exitcode;
+  #if defined(_WIN32) || defined(__MINGW32__)
+  kk_with_string_as_mutf16_borrow(cmd, wcmd, ctx) {
+    exitcode = _wsystem(wcmd);
+  }
+  #else
+  kk_with_string_as_mutf8_borrow(cmd, ccmd, ctx) {
+    exitcode = system(ccmd);
+  }
+  #endif
   kk_string_drop(cmd, ctx);
   return exitcode;
 }
