@@ -173,10 +173,20 @@ size_t kk_decl_pure kk_string_count(kk_string_t str, kk_context_t* ctx) {
  String conversion to/from mutf8
 --------------------------------------------------------------------------------------------------*/
 
+kk_string_t kk_string_alloc_from_mutf8(const char* str, kk_context_t* ctx) {
+  return kk_string_alloc_from_mutf8n(strlen(str), str, ctx);
+}
+
+
+kk_string_t kk_string_alloc_from_mutf8n(size_t len, const char* cstr, kk_context_t* ctx) {
+  kk_string_t str = kk_string_alloc_dupn_unsafe(len, cstr, ctx);
+  return kk_string_from_mutf8(str, ctx);
+}
+
 kk_string_t  kk_string_from_mutf8(kk_string_t str, kk_context_t* ctx) {
   // to avoid reallocation (to accommodate invalid sequences), we first check if
   // it is already valid utf-8 which should be very common; in that case we resurn the string as-is.
-  size_t len;
+  size_t len; // len in valid utf-8
   const uint8_t* const s = kk_string_buf_borrow(str, &len);
   const uint8_t* const end = s + len;
   bool valid = true;
@@ -342,10 +352,11 @@ uint16_t* kk_string_to_mutf16_borrow(kk_string_t str, kk_context_t* ctx) {
   return wstr;
 }
 
-kk_string_t kk_string_from_mutf16(const uint16_t* wstr, kk_context_t* ctx) {
+kk_string_t kk_string_alloc_from_mutf16n(size_t wlen, const uint16_t * wstr, kk_context_t * ctx) {
   // count utf-8 length
   size_t len = 0;
-  for (const uint16_t* p = wstr; *p != 0; p++) {
+  const uint16_t* const end = wstr + wlen;
+  for (const uint16_t* p = wstr; p < end; p++) {
     if (*p <= 0x7F) {
       len++;
     }
@@ -355,7 +366,7 @@ kk_string_t kk_string_from_mutf16(const uint16_t* wstr, kk_context_t* ctx) {
     else if (*p <= 0xD800 || *p > 0xDFFF) {
       len += 3;
     }
-    else if (*p <= 0xDBFF && (p[1] >= 0xDC00 && p[1] <= 0xDFFF)) {
+    else if (*p <= 0xDBFF && p+1 < end && (p[1] >= 0xDC00 && p[1] <= 0xDFFF)) {
       // valid surrogate
       len += 4;
       p++;  // skip the other half of the surrogate
@@ -370,7 +381,7 @@ kk_string_t kk_string_from_mutf16(const uint16_t* wstr, kk_context_t* ctx) {
   uint8_t* s;
   kk_string_t str = kk_string_alloc_buf(len, &s, ctx);  
   uint8_t* q = s;
-  for (const uint16_t* p = wstr; *p != 0; p++) {
+  for (const uint16_t* p = wstr; p < end; p++) {
     // optimize for ascii
     if (*p <= 0x7F) {
       *q++ = (uint8_t)*p;
@@ -380,7 +391,7 @@ kk_string_t kk_string_from_mutf16(const uint16_t* wstr, kk_context_t* ctx) {
       if (*p <= 0xD800) {
         c = *p;
       }
-      else if (*p <= 0xDBFF && (p[1] >= 0xDC00 && p[1] <= 0xDFFF)) {
+      else if (*p <= 0xDBFF && p+1 < end && (p[1] >= 0xDC00 && p[1] <= 0xDFFF)) {
         c = 0x10000 + (((kk_char_t)(p[0]) - 0xD800) << 10) + ((kk_char_t)(p[1]) - 0xDC00);
         p++;
       }
@@ -396,6 +407,10 @@ kk_string_t kk_string_from_mutf16(const uint16_t* wstr, kk_context_t* ctx) {
   *q = 0;
   kk_assert_internal(q == s + len && *q == 0);
   return str;
+}
+
+kk_string_t kk_string_alloc_from_mutf16(const uint16_t* wstr, kk_context_t* ctx) {
+  kk_string_from_mutf16n(wcslen(wstr), wstr, ctx);
 }
 
 /*--------------------------------------------------------------------------------------------------

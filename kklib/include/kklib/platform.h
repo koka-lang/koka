@@ -82,6 +82,7 @@
 #pragma warning(disable:4101)  // unreferenced local variable
 #pragma warning(disable:4204)  // non-constant aggregate initializer
 #pragma warning(disable:4068)  // unknown pragma
+#pragma warning(disable:4996)  // POSIX name deprecated
 #define kk_unlikely(x)     (x)
 #define kk_likely(x)       (x)
 #define kk_decl_const

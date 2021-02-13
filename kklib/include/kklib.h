@@ -384,12 +384,11 @@ static inline void* kk_realloc(void* p, size_t sz, kk_context_t* ctx) {
   return mi_heap_realloc(ctx->heap, p, sz);
 }
 
-static inline void kk_free(void* p) {
-  KK_UNUSED(p);
-  mi_free(p);
+static inline void kk_free(const void* p) {
+  mi_free((void*)p);
 }
 
-static inline void kk_free_local(void* p) {
+static inline void kk_free_local(const void* p) {
   kk_free(p);
 }
 #else

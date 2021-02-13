@@ -444,15 +444,20 @@ static inline void kk_utf8_write(kk_char_t c, uint8_t* s, size_t* count) {
 
 kk_decl_export uint16_t*      kk_string_to_mutf16_borrow(kk_string_t str, kk_context_t* ctx);
 kk_decl_export const uint8_t* kk_string_to_mutf8_borrow(kk_string_t str, bool* should_free, kk_context_t* ctx);
+
 kk_decl_export kk_string_t    kk_string_from_mutf8(kk_string_t str, kk_context_t* ctx);
-kk_decl_export kk_string_t    kk_string_from_mutf16(const uint16_t* wstr, kk_context_t* ctx);
+kk_decl_export kk_string_t    kk_string_alloc_from_mutf8(const char* str, kk_context_t* ctx);
+kk_decl_export kk_string_t    kk_string_alloc_from_mutf8n(size_t len, const char* str, kk_context_t* ctx);
+
+kk_decl_export kk_string_t    kk_string_alloc_from_mutf16(const uint16_t* wstr, kk_context_t* ctx);
+kk_decl_export kk_string_t    kk_string_alloc_from_mutf16n(size_t len, const uint16_t* wstr, kk_context_t* ctx);
 
 kk_decl_export kk_string_t    kk_string_from_codepage(const uint8_t* bstr, const uint16_t* codepage /*NULL==kk_codepage_latin*/, kk_context_t* ctx);
 
 extern const uint16_t kk_codepage_latin[256];     // windows-1252, latin
 
 #define kk_with_string_as_mutf16_borrow(str,wstr,ctx) /* { action } */ \
-  for( const uint16_t* wstr = kk_string_to_mutf16_borrow(str,ctx); wstr != NULL; wstr = (kk_free(wstr), NULL) )
+  for( const uint16_t* wstr = kk_string_to_mutf16_borrow(str,ctx); wstr != NULL; kk_free(wstr), wstr = NULL )
 
 #define kk_with_string_as_mutf8_borrow(str,ustr,ctx) /* { action } */ \
   bool should_free_##ustr; \
