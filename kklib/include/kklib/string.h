@@ -420,14 +420,14 @@ kk_decl_export kk_string_t    kk_string_alloc_from_codepage(const uint8_t* bstr,
 kk_decl_export kk_string_t    kk_string_convert_from_mutf8(kk_string_t str, kk_context_t* ctx);
 
 kk_decl_export uint16_t*      kk_string_to_mutf16_borrow(kk_string_t str, kk_context_t* ctx);
-kk_decl_export const uint8_t* kk_string_to_mutf8_borrow(kk_string_t str, bool* should_free, kk_context_t* ctx);
+kk_decl_export const char*    kk_string_to_mutf8_borrow(kk_string_t str, bool* should_free, kk_context_t* ctx);
 
 #define kk_with_string_as_mutf16_borrow(str,wstr,ctx) /* { action } */ \
   for( const uint16_t* wstr = kk_string_to_mutf16_borrow(str,ctx); wstr != NULL; kk_free(wstr), wstr = NULL )
 
 #define kk_with_string_as_mutf8_borrow(str,ustr,ctx) /* { action } */ \
   bool should_free_##ustr; \
-  for( const uint8_t* ustr = kk_string_to_mutf8_borrow(str,&should_free_##ustr,ctx); ustr != NULL; \
+  for( const char* ustr = kk_string_to_mutf8_borrow(str,&should_free_##ustr,ctx); ustr != NULL; \
       ustr = (should_free_##ustr ? (kk_free(ustr), NULL) : NULL) )
 
 

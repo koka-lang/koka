@@ -34,7 +34,7 @@ typedef int kk_file_t;
 #ifdef WIN32
 typedef struct _stat64  kk_stat_t;
 #else
-typedef struct stat_t   kk_stat_t;
+typedef struct stat     kk_stat_t;
 #endif
 
 static kk_file_t kk_posix_open(kk_string_t path, int mode, kk_context_t* ctx) {
@@ -49,6 +49,21 @@ static kk_file_t kk_posix_open(kk_string_t path, int mode, kk_context_t* ctx) {
   }
 #endif
   kk_string_drop(path,ctx);
+  return (f < 0 ? errno : f);
+}
+
+static kk_file_t kk_posix_creat(kk_string_t path, int mode, kk_context_t* ctx) {
+  kk_file_t f = 0;
+#ifdef WIN32
+  kk_with_string_as_mutf16_borrow(path, wpath, ctx) {
+    f = _wcreat(wpath, mode);
+  }
+#else
+  kk_with_string_as_mutf8_borrow(path, bpath, ctx) {
+    f = creat(bpath, mode);
+  }
+#endif
+  kk_string_drop(path, ctx);
   return (f < 0 ? errno : f);
 }
 
@@ -365,7 +380,7 @@ kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, bool prese
     kk_string_drop(to, ctx);
     return errno;
   }
-  if ((out = kk_posix_creat(to, finfo.st_mode)) < 0) {  // keep the mode
+  if ((out = kk_posix_creat(to, finfo.st_mode, ctx)) < 0) {  // keep the mode
     close(inp);
     return errno;
   }
@@ -503,7 +518,7 @@ static kk_string_t os_direntry_name(dir_entry* entry, kk_context_t* ctx) {
 #endif
 
 kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, kk_context_t* ctx) {
-  dir_cursor d;
+  dir_cursor d = 0;
   dir_entry entry;
   int err;
   bool ok = os_findfirst(dir, &d, &entry, &err, ctx);  
@@ -552,7 +567,7 @@ kk_decl_export int kk_os_run_command(kk_string_t cmd, kk_string_t* output, kk_co
   }
 #else
   kk_with_string_as_mutf8_borrow(cmd, ccmd, ctx) {
-    f = popen(ccmd, POPEN_READ);
+    f = popen(ccmd, "r");
   }
 #endif
   kk_string_drop(cmd, ctx);
@@ -774,10 +789,10 @@ kk_string_t kk_os_realpath(kk_string_t path, kk_context_t* ctx) {
 }
 
 #elif defined(__linux__) || defined(__CYGWIN__) || defined(__sun) || defined(unix) || defined(__unix__) || defined(__unix) || defined(__MACH__)
-kk_string_t kk_os_realpath(kk_string path, kk_context_t* ctx) {
+kk_string_t kk_os_realpath(kk_string_t path, kk_context_t* ctx) {
   kk_string_t s = kk_string_empty();
   kk_with_string_as_mutf8_borrow(path, cpath, ctx) {
-    const char* rpath = realpath(cpath, NULL);
+    char* rpath = realpath(cpath, NULL);
     s = kk_string_alloc_from_mutf8((rpath != NULL ? rpath : cpath), ctx);
     free(rpath);
   }
@@ -937,8 +952,8 @@ kk_string_t kk_os_app_path(kk_context_t* ctx) {
 #endif
 
 kk_string_t kk_os_app_path(kk_context_t* ctx) {
-  kk_string_t s = kk_os_realpath(kk_string_alloc_dup_unsafe(KK_PROC_SELF,ctx),ctx);
-  if (strcmp(kk_string_cbuf_borrow(s), KK_PROC_SELF)==0) {
+  kk_string_t s = kk_os_realpath(kk_string_alloc_dup_utf8(KK_PROC_SELF,ctx),ctx);
+  if (strcmp(kk_string_cbuf_borrow(s,NULL), KK_PROC_SELF)==0) {
     // failed? try generic search
     kk_string_drop(s, ctx);
     return kk_os_app_path_generic(ctx);
@@ -1010,7 +1025,7 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx)
 #if defined(WIN32)
   return kk_string_alloc_dup_utf8("c:\\tmp", ctx);
 #else
-  return kk_string_alloc_dup_unsafe("/tmp", ctx);
+  return kk_string_alloc_dup_utf8("/tmp", ctx);
 #endif
 }
 

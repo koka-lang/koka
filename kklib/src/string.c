@@ -45,6 +45,12 @@ static const uint8_t* kk_memmem(const uint8_t* s, size_t slen, const uint8_t* pa
   return NULL;
 }
 
+static size_t kk_wcslen(const uint16_t* wstr) {
+  if (wstr == NULL) return 0;
+  const uint16_t* p;
+  for (p = wstr; *p != 0; p++) { }
+  return (p - wstr);
+}
 
 int kk_string_cmp_borrow(kk_string_t str1, kk_string_t str2) {
   if (kk_string_ptr_eq_borrow(str1, str2)) return 0;
@@ -284,7 +290,7 @@ kk_string_t  kk_string_convert_from_mutf8(kk_string_t str, kk_context_t* ctx) {
   return tstr;
 }
 
-const uint8_t* kk_string_to_mutf8_borrow(kk_string_t str, bool* should_free, kk_context_t* ctx) {
+const char* kk_string_to_mutf8_borrow(kk_string_t str, bool* should_free, kk_context_t* ctx) {
   // to avoid allocation, we first check if none of the characters are in the raw range.
   size_t len;
   const uint8_t* const s = kk_string_buf_borrow(str, &len);
@@ -309,7 +315,7 @@ const uint8_t* kk_string_to_mutf8_borrow(kk_string_t str, bool* should_free, kk_
   kk_assert_internal(p == end);
   if (extra_count == 0) {
     *should_free = false;
-    return s;
+    return (const char*)s;
   }
 
   // contains raw bytes, allocate a buffer;
@@ -341,7 +347,7 @@ const uint8_t* kk_string_to_mutf8_borrow(kk_string_t str, bool* should_free, kk_
   kk_assert_internal(p == end);
   kk_assert_internal(q == bstr + blen && *q == 0);
   *should_free = true;
-  return bstr;
+  return (const char*)bstr;
 }
 
 
@@ -453,7 +459,7 @@ kk_string_t kk_string_alloc_from_mutf16n(size_t wlen, const uint16_t * wstr, kk_
 }
 
 kk_string_t kk_string_alloc_from_mutf16(const uint16_t* wstr, kk_context_t* ctx) {
-  return kk_string_alloc_from_mutf16n(wcslen(wstr), wstr, ctx);
+  return kk_string_alloc_from_mutf16n(kk_wcslen(wstr), wstr, ctx);
 }
 
 /*--------------------------------------------------------------------------------------------------
