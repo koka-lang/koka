@@ -991,6 +991,16 @@ static kk_string_t kk_double_show_spec(double d, int32_t prec, char spec, kk_con
   if (prec > 48) prec = 48;
   snprintf(fmt, 16, "%%.%i%c", (int)prec, spec);
   snprintf(buf, 64, fmt, d);
+  // check if it ends with a 0 exponent and remove if so. 
+  char* p = buf;
+  while (*p != 'e' && *p != 0) { p++; }
+  if (p[0] == 'e'
+      && (p[1] == '+' || p[1] == '-')
+      && (p[2] == '0')
+      && (p[3] == 0 || (p[3] == '0' && (p[4] == 0 || (p[4] == '0' && p[5] == 0))))) 
+  {
+    *p = 0; // remove exponent
+  }
   return kk_string_alloc_dup_utf8(buf, ctx);
 }
 
