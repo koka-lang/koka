@@ -51,14 +51,14 @@ static long kk_local_utc_delta(double unix_secs, kk_string_t* ptzname, kk_contex
   if (ptzname != NULL) {
     // getting the timezone name
     #if defined(_GNU_SOURCE)
-      *ptzname = kk_string_alloc_dup(loctm.tm_zone, ctx);
+      *ptzname = kk_string_alloc_from_mutf8(loctm.tm_zone, ctx);
     #elif (_POSIX_C_SOURCE >= 1) || _XOPEN_SOURCE || _POSIX_SOURCE || __MINGW32__ // tzname
-      *ptzname = kk_string_alloc_dup(tzname[isdst ? 1 : 0], ctx);
+      *ptzname = kk_string_alloc_from_mutf8(tzname[isdst ? 1 : 0], ctx);
     #elif defined(_WIN32)
       char tzonename[256];
       size_t tznamelen;
       _get_tzname(&tznamelen, tzonename, 255, isdst ? 1 : 0); tzonename[255] = 0;
-      *ptzname = kk_string_alloc_dup(tzonename, ctx);
+      *ptzname = kk_string_alloc_from_mutf8(tzonename, ctx);
     #else
       // give up :-(
       * ptzname = kk_string_empty();

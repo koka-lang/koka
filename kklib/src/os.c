@@ -52,6 +52,7 @@ static kk_file_t kk_posix_open(kk_string_t path, int mode, kk_context_t* ctx) {
   return (f < 0 ? errno : f);
 }
 
+#if !defined(WIN32)  // suppress warning
 static kk_file_t kk_posix_creat(kk_string_t path, int mode, kk_context_t* ctx) {
   kk_file_t f = 0;
 #ifdef WIN32
@@ -66,6 +67,7 @@ static kk_file_t kk_posix_creat(kk_string_t path, int mode, kk_context_t* ctx) {
   kk_string_drop(path, ctx);
   return (f < 0 ? errno : f);
 }
+#endif
 
 static int kk_posix_close(kk_file_t f) {
   return (close(f) < 0 ? errno : 0);
