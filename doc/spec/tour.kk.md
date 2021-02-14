@@ -1152,7 +1152,7 @@ with control op(<args>){ val f = fn(){ <body> }; resume( f() ) }
 ```
 ~
 
-(The translation is defined via an intermediate function so `return` works correctly).
+(The translation is defined via an intermediate function `f` so `return` works as expected).
 
 With this syntactic sugar, we can write our earlier `ask-const` example 
 using a `fun` operation instead:
@@ -1621,7 +1621,7 @@ handler and is handled subsequently by the outer handler (&ie; mask only
 masks an operation once for its innermost handler). 
 
 The type of `mask<l>` for some effect label `:l` is `: (action: () -> e a) -> <l|e> a`
-where it injects the effect `:l` in the final effect result `:<l|e>` (even
+where it injects the effect `:l` into the final effect result `: <l|e>` (even
 thought the `mask` itself never
 actually performs any operation in `:l` -- it only masks any operations
 of `:l` in `action`).
@@ -1850,8 +1850,9 @@ In `state-choice()` the `pstate` is the outer handler and becomes like a global
 state over all resumption strands in `choice-all`, and thus after the first resume
 the `i>0 && p` condition in `surprising` is `True`, and we get `([False,False,True,True,False],2)`.
 
-In `choice-state()` the `pstate` is the inner handler and the state becomes local to each resumption
-strand in `choice-all`. Now `i` is always `0` at first and thus we get `[(False,1),(False,1)]`.
+In `choice-state()` the `pstate` is the inner handler and becomes like transactional state,
+where the state becomes local to each resumption strand in `choice-all`.
+Now `i` is always `0` at first and thus we get `[(False,1),(False,1)]`.
 
 ~ advanced
 This example also shows how `var` state is correctly saved and restored on resumptions
@@ -1866,7 +1867,7 @@ longer be local to their scope and side effects could "leak" across different re
 With arbitrary effect handlers we need to be careful when interacting with external
 resources like files. Generally, operations can never resume (like exceptions),
 resume exactly once (giving the usual linear control flow), or resume more than once.
-To robustly handle the different cases, Koka provides the `finally` and `initially`
+To robustly handle these different cases, Koka provides the `finally` and `initially`
 functions. Suppose we have the following low-level file operations on file handles:
 
 ```unchecked
@@ -1876,7 +1877,7 @@ fun hreadline( h : fhandle ) : <exn,filesys> string
 fun hclose( h : fhandle )    : <exn,filesys> ()
 ```
 
-we can now declare a `fread` effect to read from a file:
+Using these primitives, we can declare a `fread` effect to read from a file:
 ```unchecked
 effect fun fread() : string
 
@@ -1891,7 +1892,8 @@ fun with-file( path : string, action : () -> <fread,exn,filesys|e> a ) : <exn,fi
 ```
 
 However, as it stands it would fail to close the file handle if an exceptional
-effect inside `action` is used (that never resumes). The `finally` function 
+effect inside `action` is used (i.e. or any operation that never resumes). 
+The `finally` function handles these situations, and
 takes as its first argument a function that is always executed when either returning normally, or
 when unwinding for a non-resuming operation. So, a more robust way to write
 `with-file` is:
@@ -1904,15 +1906,15 @@ fun with-file( path : string, action : () -> <fread,exn,filesys|e> a ) : <exn,fi
 } 
 ```
 
-The current definition is robust for operations that never resume (like exceptions but generalized
-for any effect), or operations that resume once -- but there is still trouble when
-resuming more than once. If someone calls `choice` inside the `action`, the second time it 
+The current definition is robust for operations that never resume, or operations that resume once 
+-- but there is still trouble when resuming more than once. If someone calls `choice` inside 
+the `action`, the second time it 
 resumes the file handle will be closed again which is probably not intended. There is 
-active research into this to use the type system to statically prevent this from happening.
+active research into using the type system to statically prevent this from happening.
 
 Another way to work with multiple resumptions is to use the `initially` function.
 This function takes 2 arguments: the first argument is a function that is called 
-the first time `initially` is evaluated, and subsequently every time a resumption is
+the first time `initially` is evaluated, and subsequently every time a particular resumption is
 resumed more than once. We can use this to implement various strategies to handle
 linear resources even for multiple resumptions. For files, it is not clear what is the
 best way to handle this, but one way would be to not close the file until all strands
