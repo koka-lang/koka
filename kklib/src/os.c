@@ -237,39 +237,46 @@ kk_decl_export int kk_os_write_text_file(kk_string_t path, kk_string_t content, 
 /*--------------------------------------------------------------------------------------------------
   mkdir
 --------------------------------------------------------------------------------------------------*/
+#if defined(WIN32)
+static bool kk_is_dir(const uint16_t* wpath) {
+  kk_stat_t st = { 0 };
+  _wstat64(wpath, &st);
+  return ((st.st_mode & S_IFDIR) != 0);
+}
+#else
+static bool kk_is_dir(const char* cpath) {
+  kk_stat_t st = { 0 };
+  stat(cpath, &st);
+  return ((st.st_mode & S_IFDIR) != 0);
+}
+#endif
 
 kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ctx) 
 {
   int err = 0;
   if (mode < 0) {
-#if defined(S_IRWXU)
+  #if defined(S_IRWXU)
     mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
-#else
+  #else
     mode = 0755;
-#endif
+  #endif
   }
 
   path = kk_string_copy(path, ctx); // copy so we can mutate
-#if defined(WIN32)
+  #if defined(WIN32)
   kk_with_string_as_mutf16_borrow(path, cpath, ctx) {
     uint16_t* p = (uint16_t*)cpath;
-#else
+  #else
   kk_with_string_as_mutf8_borrow(path, cpath, ctx) {
     char* p = (char*)cpath;
-#endif
-    do {
-      char c = (char)(*p);
-      if (c == 0 || c == '/' || c == '\\') {
-        *p = 0;
-        if (cpath[0] != 0) {
-          kk_stat_t st = { 0 };
-          #if defined(WIN32)
-          _wstat64(cpath, &st);
-          #else 
-          stat(cpath, &st);
-          #endif
-          bool isdir = ((st.st_mode & S_IFDIR) != 0);
-          if (!isdir) {
+  #endif
+    if (!kk_is_dir(cpath)) {  // quick initial test if the directory already exists
+      // if not, create each part of the path
+      do {
+        char c = (char)(*p);
+        if ((c == 0 && p != cpath) || c == '/' || c == '\\') {
+          *p = 0;
+          if (!kk_is_dir(cpath)) {
             #if defined(WIN32)
             int res = _wmkdir(cpath);
             #else 
@@ -279,10 +286,10 @@ kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ct
               err = errno;
             }
           }
+          *p = c;
         }
-        *p = c;
-      }
-    } while (err == 0 && *p++ != 0);
+      } while (err == 0 && *p++ != 0);
+    }
   }
   kk_string_drop(path, ctx);
   return err;
