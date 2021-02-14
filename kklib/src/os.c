@@ -482,7 +482,7 @@ static void os_findclose(dir_cursor d) {
   _findclose(d);
 }
 static kk_string_t os_direntry_name(dir_entry* entry, kk_context_t* ctx) {
-  if (entry->name == NULL || wcscmp(entry->name, L".") == 0 || wcscmp(entry->name, L"..") == 0) {
+  if ((entry->name == NULL) || wcscmp(entry->name, L".") == 0 || wcscmp(entry->name, L"..") == 0) {
     return kk_string_empty();
   }
   else {
