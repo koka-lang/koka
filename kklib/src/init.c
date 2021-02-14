@@ -8,7 +8,7 @@
 //#define _CRT_SECURE_NO_WARNINGS
 #include "kklib.h"
 #include <stdarg.h>
-#ifdef _WIN32
+#ifdef WIN32
 #include <Windows.h>
 #endif
 #include <locale.h>
@@ -153,7 +153,7 @@ static void kklib_init(void) {
   process_initialized = true;
   // for Koka, we need to be fully deterministic and careful when using C functionality that depends on global variables
   setlocale(LC_ALL, "C.utf8"); 
-#if defined(_WIN32) && defined(_CONSOLE)
+#if defined(WIN32) && (defined(_CONSOLE) || defined(__MINGW32__))
   SetConsoleOutputCP(65001);   // set the console to unicode instead of OEM page
 #endif
   //todo: do we need to set the IEEE floating point flags?

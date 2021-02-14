@@ -46,6 +46,9 @@
 #endif
 #endif
 
+#if defined(_WIN32) && !defined(WIN32)
+#define WIN32  1
+#endif
 
 #if ((defined(__cplusplus) && __cplusplus >= 201103L)) || (_MSC_VER > 1900)  // C++11
 #define kk_constexpr      constexpr

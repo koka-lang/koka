@@ -93,7 +93,7 @@ int kk_string_icmp(kk_string_t str1, kk_string_t str2, kk_context_t* ctx) {
 // `s` must be at least `len` bytes of valid utf-8, or NULL. Adds a terminating zero at the end.
 kk_decl_export kk_decl_noinline kk_string_t kk_string_alloc_len_unsafe(size_t len, const uint8_t* s, uint8_t** buf, kk_context_t* ctx) {
   // kk_assert_internal(s == NULL || strlen(s) >= len);  // s may contain embedded 0 characters
-  static const uint8_t empty[16] = { 0 };
+  static uint8_t empty[16] = { 0 };
   if (len == 0) {
     if (buf != NULL) *buf = empty;
     return kk_string_empty();
@@ -105,7 +105,7 @@ kk_decl_export kk_decl_noinline kk_string_t kk_string_alloc_len_unsafe(size_t le
       memcpy(&str->u.str[0], s, len);
     }
     str->u.str[len] = 0;
-    if (buf != NULL) *buf = str->u.str;
+    if (buf != NULL) *buf = &str->u.str[0];
     return kk_datatype_from_base(&str->_base);
   }
   else {
@@ -115,7 +115,7 @@ kk_decl_export kk_decl_noinline kk_string_t kk_string_alloc_len_unsafe(size_t le
     }
     str->length = len;
     str->str[len] = 0;
-    if (buf != NULL) *buf = str->str;
+    if (buf != NULL) *buf = &str->str[0];
     // todo: kk_assert valid utf-8 in debug mode
     return kk_datatype_from_base(&str->_base);
   }
@@ -179,17 +179,61 @@ kk_string_t kk_string_alloc_from_mutf8(const char* str, kk_context_t* ctx) {
 
 
 kk_string_t kk_string_alloc_from_mutf8n(size_t len, const char* cstr, kk_context_t* ctx) {
-  kk_string_t str = kk_string_alloc_dupn_unsafe(len, cstr, ctx);
-  return kk_string_from_mutf8(str, ctx);
+  kk_string_t str = kk_string_alloc_dupn_utf8(len, cstr, ctx);
+  return kk_string_convert_from_mutf8(str, ctx);
 }
 
-kk_string_t  kk_string_from_mutf8(kk_string_t str, kk_context_t* ctx) {
+// Validating mutf-8 decode; careful to only read beyond s[0] if valid.
+// `count` returns the number of bytes read. 
+// `vcount` is only set on an invalid sequence and return the number of bytes
+// needed for a replacement character -- this is always 4 since we use the raw range.
+inline kk_char_t kk_utf8_read_validate(const uint8_t* s, size_t* count, size_t* vcount) {
+  uint8_t b = s[0];
+  if (kk_likely(b <= 0x7F)) {
+    *count = 1;
+    return b;   // ASCII fast path
+  }
+  // 2 byte encoding
+  else if (b >= 0xC2 && b <= 0xDF && kk_utf8_is_cont(s[1])) {
+    *count = 2;
+    kk_char_t c = (((b & 0x1F) << 6) | (s[1] & 0x3F));
+    kk_assert_internal(c >= 0x80 && c <= 0x7FF);
+    return c;
+  }
+  // 3 byte encoding; reject overlong and utf-16 surrogate halves (0xD800 - 0xDFFF)
+  else if ((b == 0xE0 && s[1] >= 0xA0 && s[1] <= 0xBF && kk_utf8_is_cont(s[2]))
+    || (b >= 0xE1 && b <= 0xEC && kk_utf8_is_cont(s[1]) && kk_utf8_is_cont(s[2])))
+  {
+    *count = 3;
+    kk_char_t c = (((b & 0x0F) << 12) | ((s[1] & 0x3F) << 6) | (s[2] & 0x3F));
+    kk_assert_internal(c >= 0x800 && (c < 0x0D800 || c > 0xDFFF) && c <= 0xFFFF);
+    return c;
+  }
+  // 4 byte encoding; reject overlong and out of bounds (> 0x10FFFF)
+  else if ((b == 0xF0 && s[1] >= 0x90 && s[1] <= 0xBF && kk_utf8_is_cont(s[2]) && kk_utf8_is_cont(s[3]))
+    || (b >= 0xF1 && b <= 0xF3 && kk_utf8_is_cont(s[1]) && kk_utf8_is_cont(s[2]) && kk_utf8_is_cont(s[3]))
+    || (b == 0xF4 && s[1] >= 0x80 && s[1] <= 0x8F && kk_utf8_is_cont(s[2]) && kk_utf8_is_cont(s[3])))
+  {
+    *count = 4;
+    kk_char_t c = (((b & 0x07) << 18) | ((s[1] & 0x3F) << 12) | ((s[2] & 0x3F) << 6) | (s[3] & 0x3F));
+    kk_assert_internal(c >= 0x10000 && c <= 0x10FFFF);
+    return c;
+  }
+  // invalid: advance just 1 byte and encode it in the "raw" range
+  else {
+    *count = 1;
+    if (vcount != NULL) *vcount = 4;
+    kk_assert_internal(b >= 0x80);
+    return (KK_RAW_UTF8_OFS + b);
+  }
+}
+
+kk_string_t  kk_string_convert_from_mutf8(kk_string_t str, kk_context_t* ctx) {
   // to avoid reallocation (to accommodate invalid sequences), we first check if
   // it is already valid utf-8 which should be very common; in that case we resurn the string as-is.
   size_t len; // len in valid utf-8
   const uint8_t* const s = kk_string_buf_borrow(str, &len);
-  const uint8_t* const end = s + len;
-  bool valid = true;
+  const uint8_t* const end = s + len;  
   size_t vlen = 0;
   const uint8_t* p = s;
   while (p < end) {
@@ -208,7 +252,6 @@ kk_string_t  kk_string_from_mutf8(kk_string_t str, kk_context_t* ctx) {
         vlen += count;
       }
       else {
-        valid = false;
         vlen += vcount;
       }
     }
@@ -410,14 +453,34 @@ kk_string_t kk_string_alloc_from_mutf16n(size_t wlen, const uint16_t * wstr, kk_
 }
 
 kk_string_t kk_string_alloc_from_mutf16(const uint16_t* wstr, kk_context_t* ctx) {
-  kk_string_from_mutf16n(wcslen(wstr), wstr, ctx);
+  return kk_string_alloc_from_mutf16n(wcslen(wstr), wstr, ctx);
 }
 
 /*--------------------------------------------------------------------------------------------------
    Convert using a codepage
 --------------------------------------------------------------------------------------------------*/
 
-kk_string_t kk_string_from_codepage(const uint8_t* bstr, const uint16_t* codepage /*NULL==kk_codepage_latin*/, kk_context_t* ctx) {
+static const uint16_t kk_codepage_latin[256] = {     // windows-1252, latin1
+  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+  0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
+  0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F,
+  0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F,
+  0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F,
+  0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F,
+  0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F,
+  0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x7B, 0x7C, 0x7D, 0x7E, 0x7F,
+
+  0x20AC, 0xFFFD, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0xFFFD, 0x017D, 0xFFFD,
+  0xFFFD, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014, 0x20DC, 0x2122, 0x0161, 0x203A, 0x0153, 0xFFFD, 0x017E, 0x0178,
+  0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF,
+  0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6, 0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF,
+  0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF,
+  0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF,
+  0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF,
+  0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF
+};
+
+kk_string_t kk_string_alloc_from_codepage(const uint8_t* bstr, const uint16_t* codepage /*NULL==kk_codepage_latin*/, kk_context_t* ctx) {
   if (codepage == NULL) codepage = kk_codepage_latin;
   // determine utf-8 length
   size_t len = 0;
@@ -449,25 +512,6 @@ kk_string_t kk_string_from_codepage(const uint8_t* bstr, const uint16_t* codepag
   return str;
 };
 
-const uint16_t kk_codepage_latin[256] = {     // windows-1252, latin1
-  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-  0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
-  0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F,
-  0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F,  
-  0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F,
-  0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F,
-  0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F,
-  0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x7B, 0x7C, 0x7D, 0x7E, 0x7F,
-  
-  0x20AC, 0xFFFD, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0xFFFD, 0x017D, 0xFFFD,
-  0xFFFD, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014, 0x20DC, 0x2122, 0x0161, 0x203A, 0x0153, 0xFFFD, 0x017E, 0x0178,
-  0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF,
-  0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6, 0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF,  
-  0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF,  
-  0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF,
-  0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF,
-  0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF  
-};
 
 /*--------------------------------------------------------------------------------------------------
  String utilities
@@ -552,7 +596,7 @@ kk_string_t kk_string_cat(kk_string_t str1, kk_string_t str2, kk_context_t* ctx)
   return t;
 }
 
-kk_string_t kk_string_cat_fromc_unsafe(kk_string_t str1, const char* s2, kk_context_t* ctx) {
+kk_string_t kk_string_cat_from_utf8(kk_string_t str1, const char* s2, kk_context_t* ctx) {
   if (s2 == NULL || *s2 == 0) return str1;
   size_t len1;
   const uint8_t* s1 = kk_string_buf_borrow(str1,&len1);
@@ -941,7 +985,7 @@ static kk_string_t kk_double_show_spec(double d, int32_t prec, char spec, kk_con
   if (prec > 48) prec = 48;
   snprintf(fmt, 16, "%%.%i%c", (int)prec, spec);
   snprintf(buf, 64, fmt, d);
-  return kk_string_alloc_dup_unsafe(buf, ctx);
+  return kk_string_alloc_dup_utf8(buf, ctx);
 }
 
 kk_string_t kk_double_show_fixed(double d, int32_t prec, kk_context_t* ctx) {
@@ -968,13 +1012,13 @@ kk_string_t kk_show_any(kk_box_t b, kk_context_t* ctx) {
 #endif
   if (kk_box_is_value(b)) {
     snprintf(buf, 128, "value(%zi)", kk_intx_unbox(b));
-    return kk_string_alloc_dup_unsafe(buf, ctx);
+    return kk_string_alloc_dup_utf8(buf, ctx);
   }
   else if (b.box == kk_box_null.box) {
-    return kk_string_alloc_dup_unsafe("null", ctx);
+    return kk_string_alloc_dup_utf8("null", ctx);
   }
   else if (b.box == 0) {
-    return kk_string_alloc_dup_unsafe("ptr(NULL)", ctx);
+    return kk_string_alloc_dup_utf8("ptr(NULL)", ctx);
   }
   else {
     kk_block_t* p = kk_ptr_unbox(b);
@@ -991,13 +1035,13 @@ kk_string_t kk_show_any(kk_box_t b, kk_context_t* ctx) {
       kk_function_t fun = kk_block_assert(kk_function_t, p, KK_TAG_FUNCTION);
       snprintf(buf, 128, "function(0x%zx)", (uintptr_t)(kk_cptr_unbox(fun->fun)));
       kk_box_drop(b,ctx);
-      return kk_string_alloc_dup_unsafe(buf, ctx);
+      return kk_string_alloc_dup_utf8(buf, ctx);
     }
     else {
       // TODO: handle all builtin tags 
       snprintf(buf, 128, "ptr(0x%zx, tag: %i, rc: 0x%zx, scan: %zu)", (uintptr_t)p, tag, kk_block_refcount(p), kk_block_scan_fsize(p));
       kk_box_drop(b, ctx);
-      return kk_string_alloc_dup_unsafe(buf, ctx);
+      return kk_string_alloc_dup_utf8(buf, ctx);
     }
   }
 }

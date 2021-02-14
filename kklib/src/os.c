@@ -13,8 +13,8 @@
 /*--------------------------------------------------------------------------------------------------
   Posix abstraction layer
 --------------------------------------------------------------------------------------------------*/
-
-#if defined(_MSC_VER) || defined(__MINGW32__)
+  
+#if defined(WIN32)
 #define _UNICODE
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -31,7 +31,7 @@
 
 typedef int kk_file_t;
 
-#ifdef _WIN32
+#ifdef WIN32
 typedef struct _stat64  kk_stat_t;
 #else
 typedef struct stat_t   kk_stat_t;
@@ -39,7 +39,7 @@ typedef struct stat_t   kk_stat_t;
 
 static kk_file_t kk_posix_open(kk_string_t path, int mode, kk_context_t* ctx) {
   kk_file_t f = 0;
-#ifdef _WIN32
+#ifdef WIN32
   kk_with_string_as_mutf16_borrow(path, wpath, ctx) {
     f = _wopen(wpath, mode);
   }
@@ -57,7 +57,7 @@ static int kk_posix_close(kk_file_t f) {
 }
 
 static int kk_posix_fstat(kk_file_t f, kk_stat_t* st) {
-#ifdef _WIN32
+#ifdef WIN32
   return (_fstat64(f, st) < 0 ? errno : 0);
 #else
   return (fstat(f, st) < 0 ? errno : 0);
@@ -75,7 +75,7 @@ static int kk_posix_fsize(kk_file_t f, size_t* fsize) {
 
 static int kk_posix_stat(kk_string_t path, kk_stat_t* st, kk_context_t* ctx) {
   int err = 0;
-#if defined(_WIN32) || defined(__MINGW32__)
+#if defined(WIN32)
   kk_with_string_as_mutf16_borrow(path, wpath, ctx) {
     if (_wstat64(wpath, st) < 0) err = errno;
   }
@@ -94,7 +94,7 @@ static int kk_posix_read_retry(const kk_file_t inp, char* buf, const size_t bufl
   size_t ofs = 0;
   do {
     size_t todo = buflen - ofs;
-    #ifdef _WIN32
+    #ifdef WIN32
     if (todo > INT32_MAX) todo = INT32_MAX;  // on windows read in chunks of at most 2GiB
     kk_ssize_t n = _read(inp, buf + ofs, (unsigned)(todo));
     #else
@@ -127,7 +127,7 @@ static int kk_posix_write_retry(const kk_file_t out, const char* buf, const size
   size_t ofs = 0;
   do {
     size_t todo = len - ofs;
-    #ifdef _WIN32
+    #ifdef WIN32
     if (todo > INT32_MAX) todo = INT32_MAX;  // on windows write in chunks of at most 2GiB
     kk_ssize_t n = _write(out, buf + ofs, (unsigned)(todo));
     #else
@@ -186,7 +186,7 @@ kk_decl_export int kk_os_read_text_file(kk_string_t path, kk_string_t* result, k
     str = kk_string_adjust_length(str, nread, ctx);
   }
 
-  *result = kk_string_from_mutf8(str, ctx);
+  *result = kk_string_convert_from_mutf8(str, ctx);
   return 0;
 }
 
@@ -233,7 +233,7 @@ kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ct
   }
 
   path = kk_string_copy(path, ctx); // copy so we can mutate
-#if defined(_WIN32) || defined(__MINGW32__)
+#if defined(WIN32)
   kk_with_string_as_mutf16_borrow(path, cpath, ctx) {
     uint16_t* p = (uint16_t*)cpath;
 #else
@@ -246,14 +246,14 @@ kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ct
         *p = 0;
         if (cpath[0] != 0) {
           kk_stat_t st = { 0 };
-          #if defined(_WIN32) || defined(__MINGW32__)
+          #if defined(WIN32)
           _wstat64(cpath, &st);
           #else 
           stat(cpath, &st);
           #endif
           bool isdir = ((st.st_mode & S_IFDIR) != 0);
           if (!isdir) {
-            #if defined(_WIN32) || defined(__MINGW32__)
+            #if defined(WIN32)
             int res = _wmkdir(cpath);
             #else 
             int res = mkdir(cpath, mode);
@@ -275,7 +275,7 @@ kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ct
   Copy File
 --------------------------------------------------------------------------------------------------*/
 
-#if defined(_WIN32) || defined(__MINGW32__)
+#if defined(WIN32)
 #include <Windows.h>
 kk_decl_export int kk_os_copy_file(kk_string_t from, kk_string_t to, bool preserve_mtime, kk_context_t* ctx) {
   KK_UNUSED(preserve_mtime);
@@ -440,7 +440,7 @@ kk_decl_export bool kk_os_is_file(kk_string_t path, kk_context_t* ctx) {
 #define dir_cursor intptr_t
 #define dir_entry  struct _wfinddata64_t
 static bool os_findfirst(kk_string_t path, dir_cursor* d, dir_entry* entry, int* err, kk_context_t* ctx) {
-  kk_string_t spath = kk_string_cat_fromc(path, "\\*", ctx);
+  kk_string_t spath = kk_string_cat_from_utf8(path, "\\*", ctx);
   kk_with_string_as_mutf16_borrow(spath, wpath, ctx) {
     *d = _wfindfirsti64(wpath, entry);
   }
@@ -497,7 +497,7 @@ static kk_string_t os_direntry_name(dir_entry* entry, kk_context_t* ctx) {
     return kk_string_empty();
   }
   else {
-    return kk_string_from_mutf8(dname, ctx);
+    return kk_string_alloc_from_mutf8(dname, ctx);
   }
 }
 #endif
@@ -514,16 +514,16 @@ kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, 
 
   size_t count = 0;
   size_t len = 100;
-  kk_vector_t vec = kk_vector_alloc(len, kk_integer_box(kk_integer_from_small(0)), ctx);
+  kk_vector_t vec = kk_vector_alloc(len, kk_integer_box(kk_integer_zero), ctx);
   
   do {
     kk_string_t name = os_direntry_name(&entry, ctx);
-    if (!kk_string_is_empty(name,ctx)) {
+    if (!kk_string_is_empty_borrow(name)) {
       // push name
       if (count == len) {
         // realloc vector
         const size_t newlen = (len > 1000 ? len + 1000 : 2*len);
-        vec = kk_vector_realloc(vec, newlen, kk_integer_box(kk_integer_from_small(0)), ctx);
+        vec = kk_vector_realloc(vec, newlen, kk_integer_box(kk_integer_zero), ctx);
         len = newlen;
       }
       (kk_vector_buf(vec, NULL))[count] = kk_string_box(name);
@@ -546,7 +546,7 @@ kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, 
 
 kk_decl_export int kk_os_run_command(kk_string_t cmd, kk_string_t* output, kk_context_t* ctx) {
   FILE* f = NULL;
-#if defined(_WIN32) || defined(__MINGW32__)
+#if defined(WIN32)
   kk_with_string_as_mutf16_borrow(cmd, wcmd, ctx) {
     f = _wpopen(wcmd, L"rt"); // todo: maybe open as binary?
   }
@@ -561,10 +561,10 @@ kk_decl_export int kk_os_run_command(kk_string_t cmd, kk_string_t* output, kk_co
   char buf[1025];
   while (fgets(buf, 1024, f) != NULL) {
     buf[1024] = 0; // paranoia
-    out = kk_string_cat_fromc(out, buf, ctx);
+    out = kk_string_cat(out, kk_string_alloc_from_mutf8(buf,ctx), ctx);  // todo: avoid allocation
   }
   if (feof(f)) errno = 0;
-#if defined(_WIN32) || defined(__MINGW32__)
+#if defined(WIN32)
   _pclose(f);
 #else
   pclose(f);
@@ -575,7 +575,7 @@ kk_decl_export int kk_os_run_command(kk_string_t cmd, kk_string_t* output, kk_co
 
 kk_decl_export int kk_os_run_system(kk_string_t cmd, kk_context_t* ctx) {
   int exitcode = 0;
-  #if defined(_WIN32) || defined(__MINGW32__)
+  #if defined(WIN32)
   kk_with_string_as_mutf16_borrow(cmd, wcmd, ctx) {
     exitcode = _wsystem(wcmd);
   }
@@ -594,20 +594,41 @@ kk_decl_export int kk_os_run_system(kk_string_t cmd, kk_context_t* ctx) {
   Args
 --------------------------------------------------------------------------------------------------*/
 
-kk_decl_export kk_vector_t kk_os_get_argv(kk_context_t* ctx) {  // todo: wide characters on Windows
+#if defined(WIN32)
+#include <shellapi.h>
+kk_vector_t kk_os_get_argv(kk_context_t* ctx) {
+  if (ctx->argc == 0 || ctx->argv == NULL) return kk_vector_empty();
+  LPWSTR cmd = GetCommandLineW();
+  int iwargc = 0;
+  LPWSTR* wargv = CommandLineToArgvW(cmd, &iwargc);
+  size_t wargc = iwargc;
+  if (wargv==NULL) return kk_vector_empty();
+  size_t i = 0;
+  kk_assert_internal(ctx->argc <= wargc);
+  if (ctx->argc < (size_t)wargc) i = (size_t)wargc - ctx->argc;
+  kk_vector_t args = kk_vector_alloc(wargc, kk_box_null, ctx);
+  kk_box_t* buf = kk_vector_buf(args, NULL);
+  for ( ; i < wargc; i++) {
+    kk_string_t arg = kk_string_alloc_from_mutf16(wargv[i], ctx);
+    buf[i] = kk_string_box(arg);
+  }
+  LocalFree(wargv);
+  return args;
+}
+#else
+kk_vector_t kk_os_get_argv(kk_context_t* ctx) {  
   if (ctx->argc==0 || ctx->argv==NULL) return kk_vector_empty();
   kk_vector_t args = kk_vector_alloc(ctx->argc, kk_box_null, ctx);
   kk_box_t* buf = kk_vector_buf(args, NULL);
   for (size_t i = 0; i < ctx->argc; i++) {
-    kk_string_t arg = kk_string_alloc_dup_unsafe(ctx->argv[i], ctx);
-    arg = kk_string_from_mutf8(arg, ctx);
+    kk_string_t arg = kk_string_alloc_from_mutf8(ctx->argv[i], ctx);    
     buf[i] = kk_string_box(arg);
   }
   return args;
 }
+#endif
 
-
-#if defined _WIN32
+#if defined WIN32
 #include <Windows.h>
 kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
   const LPWCH env = GetEnvironmentStringsW();
@@ -662,12 +683,12 @@ kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
     const char* p = env[i];
     const char* pname = p;
     while (*p != '=' && *p != 0) { p++; }
-    kk_string_t name = kk_string_from_mutf8n((size_t)(p - pname), pname, ctx);
+    kk_string_t name = kk_string_alloc_from_mutf8n((size_t)(p - pname), pname, ctx);
     buf[2*i] = kk_string_box(name);
     p++; // skip '='
     const char* pvalue = p;
     while (*p != 0) { p++; }
-    kk_string_t val = kk_string_from_mutf8n((size_t)(p - pvalue), pvalue, ctx);
+    kk_string_t val = kk_string_alloc_from_mutf8n((size_t)(p - pvalue), pvalue, ctx);
     buf[2*i + 1] = kk_string_box(val);
   }
   return v;
@@ -680,7 +701,7 @@ kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
 --------------------------------------------------------------------------------------------------*/
 kk_decl_export size_t kk_os_path_max(void);
 
-#if defined(_WIN32)
+#if defined(WIN32)
 kk_decl_export size_t kk_os_path_max(void) {
   return 32*1024; // _MAX_PATH;
 }
@@ -721,16 +742,28 @@ kk_decl_export size_t kk_os_path_max(void) {
   Realpath
 --------------------------------------------------------------------------------------------------*/
 
-#if defined(_WIN32)
+#if defined(WIN32)
 kk_string_t kk_os_realpath(kk_string_t path, kk_context_t* ctx) {
   kk_string_t rpath = kk_string_empty();
   kk_with_string_as_mutf16_borrow(path, wpath, ctx) {
     uint16_t buf[264];
     DWORD res = GetFullPathNameW(wpath, 264, buf, NULL);
-    if (res >= 264 || res == 0) {
-      // path too long or failure
-      // TODO: allow longer file names?
+    if (res == 0) {
+      // failure
       rpath = kk_string_dup(path);
+    }
+    else if (res >= 264) {
+      DWORD pbuflen = res;
+      uint16_t* pbuf = (uint16_t*)kk_malloc(pbuflen * sizeof(uint16_t*), ctx);
+      res = GetFullPathNameW(wpath, pbuflen, pbuf, NULL);
+      if (res == 0 || res >= pbuflen) {
+        // failed again
+        rpath = kk_string_dup(path);
+      }
+      else {
+        rpath = kk_string_alloc_from_mutf16(pbuf, ctx);
+      }
+      kk_free(pbuf);
     }
     else {
       rpath = kk_string_alloc_from_mutf16(buf, ctx);
@@ -742,12 +775,13 @@ kk_string_t kk_os_realpath(kk_string_t path, kk_context_t* ctx) {
 
 #elif defined(__linux__) || defined(__CYGWIN__) || defined(__sun) || defined(unix) || defined(__unix__) || defined(__unix) || defined(__MACH__)
 kk_string_t kk_os_realpath(kk_string path, kk_context_t* ctx) {
-  char* rpath;
+  kk_string_t s = kk_string_empty();
   kk_with_string_as_mutf8_borrow(path, cpath, ctx) {
-    rpath = realpath(cpath, NULL);
+    const char* rpath = realpath(cpath, NULL);
+    s = kk_string_alloc_from_mutf8((rpath != NULL ? rpath : cpath), ctx);
+    free(rpath);
   }
-  kk_string_t s = kk_string_alloc_from_mutf8( (rpath!=NULL ? rpath : path), ctx);
-  free(rpath);
+  kk_string_drop(path, ctx);
   return s;
 }
 
@@ -763,7 +797,7 @@ kk_string_t kk_os_realpath(kk_string_t fname, kk_context_t* ctx) {
 /*--------------------------------------------------------------------------------------------------
   Application path
 --------------------------------------------------------------------------------------------------*/
-#ifdef _WIN32
+#ifdef WIN32
 #define KK_PATH_SEP  ';'
 #define KK_DIR_SEP   '\\'
 #include <io.h>
@@ -812,7 +846,7 @@ static kk_string_t kk_os_app_path_generic(kk_context_t* ctx) {
   if (p==NULL || strlen(p)==0) return kk_string_empty();
 
   if (p[0]=='/'
-#ifdef _WIN32
+#ifdef WIN32
       || (p[1]==':' && ((p[0] >= 'a' && p[0] <= 'z') || ((p[0] >= 'A' && p[0] <= 'Z'))) && (p[2]=='\\' || p[2]=='/'))
 #endif
      ) {
@@ -820,7 +854,7 @@ static kk_string_t kk_os_app_path_generic(kk_context_t* ctx) {
     return kk_os_realpath( kk_string_alloc_from_mutf8(p,ctx), ctx);
   }
   else if (strchr(p,'/') != NULL
-#ifdef _WIN32
+#ifdef WIN32
     || strchr(p,'\\') != NULL
 #endif
     ) {
@@ -829,7 +863,7 @@ static kk_string_t kk_os_app_path_generic(kk_context_t* ctx) {
     kk_string_t s = kk_string_alloc_cbuf( strlen(p) + 2, &cs, ctx);
     strcpy(cs, "./" );
     strcat(cs, p);
-    s = kk_string_from_mutf8(s, ctx);
+    s = kk_string_convert_from_mutf8(s, ctx);
     return kk_os_realpath(s, ctx);
   }
   else {
@@ -840,7 +874,7 @@ static kk_string_t kk_os_app_path_generic(kk_context_t* ctx) {
   }
 }
 
-#if defined(_WIN32)
+#if defined(WIN32)
 #include <Windows.h>
 kk_decl_export kk_string_t kk_os_app_path(kk_context_t* ctx) {
   uint16_t buf[264];
@@ -927,16 +961,16 @@ kk_string_t kk_os_app_path(kk_context_t* ctx) {
 
 kk_decl_export kk_string_t kk_os_path_sep(kk_context_t* ctx) {
   char pathsep[2] = { KK_PATH_SEP, 0 };
-  return kk_string_alloc_dup_unsafe(pathsep, ctx);
+  return kk_string_alloc_dup_utf8(pathsep, ctx);
 }
 
 kk_decl_export kk_string_t kk_os_dir_sep(kk_context_t* ctx) {
   char dirsep[2] = { KK_DIR_SEP, 0 };
-  return kk_string_alloc_dup_unsafe(dirsep, ctx);
+  return kk_string_alloc_dup_utf8(dirsep, ctx);
 }
 
 kk_decl_export kk_string_t kk_os_home_dir(kk_context_t* ctx) {
-#if defined(_WIN32) || defined(__MINGW32__)
+#if defined(WIN32)
   const uint16_t* h = _wgetenv(L"HOME");
   if (h != NULL) return kk_string_alloc_from_mutf16(h, ctx);
   const uint16_t* hd = _wgetenv(L"HOMEDRIVE");
@@ -951,12 +985,12 @@ kk_decl_export kk_string_t kk_os_home_dir(kk_context_t* ctx) {
   if (h != NULL) return kk_string_alloc_from_mutf8(h, ctx);  
 #endif
   // fallback
-  return kk_string_alloc_dup_unsafe(".", ctx);
+  return kk_string_alloc_dup_utf8(".", ctx);
 }
 
 kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx) 
 {  
-#if defined(_WIN32) || defined(__MINGW32__)
+#if defined(WIN32)
   const uint16_t* tmp = _wgetenv(L"TEMP");
   if (tmp != NULL) return kk_string_alloc_from_mutf16(tmp, ctx);
   tmp = _wgetenv(L"TEMPDIR");
@@ -964,7 +998,7 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx)
   const uint16_t* ad = _wgetenv(L"LOCALAPPDATA");
   if (ad!=NULL) {
     kk_string_t s = kk_string_alloc_from_mutf16(ad, ctx);
-    return kk_string_cat_fromc(s, "\\Temp", ctx);
+    return kk_string_cat_from_utf8(s, "\\Temp", ctx);
   }
 #else
   const char* tmp = getenv("TEMP");
@@ -973,8 +1007,8 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx)
   if (tmp != NULL) return kk_string_alloc_from_mutf8(tmp, ctx);
 #endif
   // fallback
-#if defined(_WIN32) || defined(__MINGW32__)
-  return kk_string_alloc_dup_unsafe("c:\\tmp", ctx);
+#if defined(WIN32)
+  return kk_string_alloc_dup_utf8("c:\\tmp", ctx);
 #else
   return kk_string_alloc_dup_unsafe("/tmp", ctx);
 #endif
@@ -986,7 +1020,7 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx)
 
 kk_string_t kk_os_kernel(kk_context_t* ctx) {
   const char* kernel = "unknown";
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+#if defined(WIN32)
   #if defined(__MINGW32__)
   kernel = "windows-mingw";
   #else
@@ -1007,7 +1041,7 @@ kk_string_t kk_os_kernel(kk_context_t* ctx) {
   #endif
 #elif defined(__ANDROID__)
   kernel = "android";
-#elif defined(__CYGWIN__) && !defined(_WIN32)
+#elif defined(__CYGWIN__) && !defined(WIN32)
   kernel = "unix-cygwin";
 #elif defined(__hpux)
   kernel = "unix-hpux";
@@ -1033,7 +1067,7 @@ kk_string_t kk_os_kernel(kk_context_t* ctx) {
 #elif defined(_POSIX_VERSION)
   kernel = "posix"
 #endif
-  return kk_string_alloc_dup_unsafe(kernel, ctx);
+  return kk_string_alloc_dup_utf8(kernel, ctx);
 }
 
 kk_string_t kk_os_arch(kk_context_t* ctx) {
@@ -1061,7 +1095,7 @@ kk_string_t kk_os_arch(kk_context_t* ctx) {
 #elif defined(__sparc__) || defined(__sparc)
   arch = "sparc";
 #endif
-  return kk_string_alloc_dup_unsafe(arch, ctx);
+  return kk_string_alloc_dup_utf8(arch, ctx);
 }
 
 kk_string_t kk_compiler_version(kk_context_t* ctx) {
@@ -1070,14 +1104,14 @@ kk_string_t kk_compiler_version(kk_context_t* ctx) {
 #else
   const char* version = "2.x.x";
 #endif
-  return kk_string_alloc_dup_unsafe(version,ctx);
+  return kk_string_alloc_dup_utf8(version,ctx);
 }
 
 // note: assumes unistd/Windows etc is already included (like for file copy)
 int kk_os_processor_count(kk_context_t* ctx) {
   KK_UNUSED(ctx);
   int cpu_count = 1;
-#if defined(_WIN32)
+#if defined(WIN32)
   SYSTEM_INFO sysinfo;
   GetSystemInfo(&sysinfo);
   cpu_count = (int)sysinfo.dwNumberOfProcessors;

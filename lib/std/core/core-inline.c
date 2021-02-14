@@ -73,13 +73,15 @@ kk_box_t kk_main_console( kk_function_t action, kk_context_t* ctx ) {
 
 
 kk_std_core__list kk_string_to_list(kk_string_t s, kk_context_t* ctx) {
-  const uint8_t* p = kk_string_buf_borrow(s);
+  size_t len;
+  const uint8_t* p = kk_string_buf_borrow(s,&len);
+  const uint8_t* const end = p + len;
   kk_std_core__list nil  = kk_std_core__new_Nil(ctx);
   kk_std_core__list list = nil;
   struct kk_std_core_Cons* tl = NULL;
   size_t count;
-  kk_char_t c;
-  while( ((void)(c = kk_utf8_read(p,&count)), c != 0) ) {
+  while( p < end ) {
+    kk_char_t c = kk_utf8_read(p,&count);
     p += count;
     kk_std_core__list cons = kk_std_core__new_Cons(kk_reuse_null,kk_char_box(c,ctx), nil, ctx);
     if (tl!=NULL) {
@@ -104,8 +106,8 @@ kk_string_t kk_string_from_list(kk_std_core__list cs, kk_context_t* ctx) {
     xs = cons->tail;
   }
   // allocate and copy the characters
-  kk_string_t s = kk_string_alloc_buf(len,ctx);
-  uint8_t* p = (uint8_t*)kk_string_buf_borrow(s);
+  uint8_t* p;
+  kk_string_t s = kk_string_alloc_buf(len,&p,ctx);  
   xs = cs;
   while (kk_std_core__is_Cons(xs)) {
     struct kk_std_core_Cons* cons = kk_std_core__as_Cons(xs);
@@ -114,13 +116,13 @@ kk_string_t kk_string_from_list(kk_std_core__list cs, kk_context_t* ctx) {
     p += count;
     xs = cons->tail;
   }
-  kk_assert_internal(*p == 0);
-  kk_std_core__list_drop(cs,ctx);  // todo: drop while visiting
+  kk_assert_internal(*p == 0 && (p - kk_string_buf_borrow(s,NULL)) == len);
+  kk_std_core__list_drop(cs,ctx);  // todo: drop while visiting?
   return s;
 }
 
 static inline void kk_sslice_start_end_borrow( kk_std_core__sslice sslice, const uint8_t** start, const uint8_t** end) {
-  const uint8_t* s = kk_string_buf_borrow(sslice.str);
+  const uint8_t* s = kk_string_buf_borrow(sslice.str,NULL);
   *start = s + sslice.start;
   *end = s + sslice.start + sslice.len;
 }
@@ -150,20 +152,20 @@ kk_string_t kk_slice_to_string( kk_std_core__sslice  sslice, kk_context_t* ctx )
   }
   else {
     // if not, we copy len bytes
-    kk_string_t s = kk_string_alloc_dupn(sslice.len, (const char*)start, ctx);
+    kk_string_t s = kk_string_alloc_dupn_utf8(sslice.len, (const char*)start, ctx);
     kk_std_core__sslice_drop(sslice,ctx);
     return s;
   }
 }
 
 kk_std_core__sslice kk_slice_first( kk_string_t str, kk_context_t* ctx ) {
-  const uint8_t* s = kk_string_buf_borrow(str);
+  const uint8_t* s = kk_string_buf_borrow(str,NULL);
   const uint8_t* next = kk_utf8_next(s);
   return kk_std_core__new_Sslice(str, 0, (size_t)(next - s), ctx);
 }
 
 kk_std_core__sslice kk_slice_last( kk_string_t str, kk_context_t* ctx ) {
-  const uint8_t* s = kk_string_buf_borrow(str);
+  const uint8_t* s = kk_string_buf_borrow(str,NULL);
   const uint8_t* end = s + kk_string_len_borrow(str);
   const uint8_t* prev = (s==end ? s : kk_utf8_prev(end));
   return kk_std_core__new_Sslice(str, (size_t)(prev - s), (size_t)(end - prev), ctx);
@@ -190,7 +192,7 @@ kk_std_core_types__maybe kk_slice_next( struct kk_std_core_Sslice slice, kk_cont
 struct kk_std_core_Sslice kk_slice_extend( struct kk_std_core_Sslice slice, kk_integer_t count, kk_context_t* ctx ) {
   ptrdiff_t cnt = kk_integer_clamp(count,ctx);
   if (cnt==0 || (slice.len == 0 && cnt<0)) return slice;
-  const uint8_t* const s0 = kk_string_buf_borrow(slice.str);  // start
+  const uint8_t* const s0 = kk_string_buf_borrow(slice.str,NULL);  // start
   const uint8_t* const s1 = s0 + slice.start + slice.len;  // end
   const uint8_t* t  = s1;
   if (cnt >= 0) {
@@ -214,10 +216,10 @@ struct kk_std_core_Sslice kk_slice_advance( struct kk_std_core_Sslice slice, kk_
   const ptrdiff_t cnt0 = kk_integer_clamp(count,ctx);
   ptrdiff_t cnt = cnt0;
   if (cnt==0 || (slice.start == 0 && cnt<0)) return slice;
-  const uint8_t* const s0 = kk_string_buf_borrow(slice.str);  // start
+  const uint8_t* const s0 = kk_string_buf_borrow(slice.str,NULL);  // start
   const uint8_t* const s1 = s0 + slice.start + slice.len;  // end
   const uint8_t* const sstart = s0 - slice.start;
-  kk_assert_internal(sstart == kk_string_buf_borrow(slice.str));
+  kk_assert_internal(sstart == kk_string_buf_borrow(slice.str,NULL));
   // advance the start
   const uint8_t* t0  = s0;
   if (cnt >= 0) {
@@ -254,8 +256,8 @@ struct kk_std_core_Sslice kk_slice_advance( struct kk_std_core_Sslice slice, kk_
 }
 
 struct kk_std_core_Sslice kk_slice_common_prefix( kk_string_t str1, kk_string_t str2, kk_integer_t iupto, kk_context_t* ctx ) {
-  const uint8_t* s1 = kk_string_buf_borrow(str1);
-  const uint8_t* s2 = kk_string_buf_borrow(str1);
+  const uint8_t* s1 = kk_string_buf_borrow(str1,NULL);
+  const uint8_t* s2 = kk_string_buf_borrow(str2,NULL);
   size_t upto = kk_integer_clamp_size_t(iupto,ctx);
   size_t count;
   for(count = 0; count < upto && *s1 != 0 && *s2 != 0; count++, s1++, s2++ ) {
@@ -278,20 +280,20 @@ kk_std_core__error kk_error_from_errno( int err, kk_box_t result, kk_context_t* 
       // GNU version of strerror_r
       char buf[256];
       char* serr = strerror_r(err, buf, 255); buf[255] = 0;
-      msg = kk_string_alloc_dup( serr, ctx );
-    #elif (_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600 || defined(__APPLE__) || defined(__FreeBSD__))
+      msg = kk_string_alloc_dup_utf8( serr, ctx );
+    #elif (/* _POSIX_C_SOURCE >= 200112L ||*/ _XOPEN_SOURCE >= 600 || defined(__APPLE__) || defined(__FreeBSD__))
       // XSI version of strerror_r
       char buf[256];
       strerror_r(err, buf, 255); buf[255] = 0;
-      msg = kk_string_alloc_dup( buf, ctx );
+      msg = kk_string_alloc_dup_utf8( buf, ctx );
     #elif defined(_MSC_VER) || (__STDC_VERSION__ >= 201112L || __cplusplus >= 201103L)
       // MSVC, or C/C++ 11
       char buf[256];
       strerror_s(buf, 255, err); buf[255] = 0;
-      msg = kk_string_alloc_dup( buf, ctx );
+      msg = kk_string_alloc_dup_utf8( buf, ctx );
     #else
       // Old style
-      msg = kk_string_alloc_dup( strerror(err), ctx );
+      msg = kk_string_alloc_dup_utf8( strerror(err), ctx );
     #endif
     return kk_std_core__new_Error( kk_std_core__new_Exception( msg, kk_std_core__new_ExnSystem(kk_reuse_null, kk_integer_from_int(err,ctx), ctx), ctx), ctx );
   }
@@ -299,7 +301,7 @@ kk_std_core__error kk_error_from_errno( int err, kk_box_t result, kk_context_t* 
 
 
 kk_unit_t kk_assert_fail( kk_string_t msg, kk_context_t* ctx ) {
-  kk_fatal_error(EINVAL, "assertion failed: %s\n", kk_string_cbuf_borrow(msg));
+  kk_fatal_error(EINVAL, "assertion failed: %s\n", kk_string_cbuf_borrow(msg,NULL));
   kk_string_drop(msg,ctx);
   return kk_Unit;
 }

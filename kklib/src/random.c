@@ -259,7 +259,7 @@ To get an initial secure random context we rely on the OS:
 If we cannot get good randomness, we fall back to weak randomness based on a timer and ASLR.
 -----------------------------------------------------------------------------*/
 
-#if defined(_WIN32)
+#if defined(WIN32)
 /*
 #pragma comment (lib,"bcrypt.lib")
 #include <windows.h>
@@ -341,7 +341,7 @@ static bool os_random_buf(void* buf, size_t buf_len) {
 }
 #endif
 
-#if defined(_WIN32)
+#if defined(WIN32)
 #include <Windows.h>
 #elif defined(__APPLE__)  
 #include <mach/mach_time.h>
@@ -352,7 +352,7 @@ static bool os_random_buf(void* buf, size_t buf_len) {
 
 static uint64_t os_random_weak(uint64_t extra_seed) {
   uint64_t x = (uint64_t)&os_random_weak ^ extra_seed; // hopefully, ASLR makes the address random
-  #if defined(_WIN32)
+  #if defined(WIN32)
     LARGE_INTEGER pcount;
     QueryPerformanceCounter(&pcount);
     x ^= (uint64_t)(pcount.QuadPart);

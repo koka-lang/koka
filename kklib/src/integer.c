@@ -1458,7 +1458,7 @@ static kk_string_t kk_int_to_hex_string(kk_intx_t i, bool use_capitals, kk_conte
   else {
     snprintf(buf, 64, PRIxUX, (kk_uintx_t)i);
   }
-  return kk_string_alloc_dup_unsafe(buf, ctx);
+  return kk_string_alloc_dup_utf8(buf, ctx);
 }
 
 static size_t kk_bigint_to_hex_buf(kk_bigint_t* b, char* buf, size_t size, bool use_capitals, kk_context_t* ctx) {

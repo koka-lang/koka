@@ -21,7 +21,7 @@ static inline kk_std_core_types__order kk_int_as_order(int i,kk_context_t* ctx) 
 
 static inline kk_std_core_types__maybe kk_integer_xparse( kk_string_t s, bool hex, kk_context_t* ctx ) {
   kk_integer_t i;
-  bool ok = (hex ? kk_integer_hex_parse(kk_string_cbuf_borrow(s),&i,ctx) : kk_integer_parse(kk_string_cbuf_borrow(s),&i,ctx) );
+  bool ok = (hex ? kk_integer_hex_parse(kk_string_cbuf_borrow(s,NULL),&i,ctx) : kk_integer_parse(kk_string_cbuf_borrow(s,NULL),&i,ctx) );
   kk_string_drop(s,ctx);
   return (ok ? kk_std_core_types__new_Just(kk_integer_box(i),ctx) : kk_std_core_types__new_Nothing(ctx));
 }
@@ -35,7 +35,7 @@ kk_datatype_t  kk_vector_to_list(kk_vector_t v, kk_datatype_t tail, kk_context_t
 kk_vector_t    kk_list_to_vector(kk_datatype_t xs, kk_context_t* ctx);
 
 static inline kk_integer_t  kk_string_count_int(kk_string_t s, kk_context_t* ctx) {
-  return kk_integer_from_size_t( kk_string_count(s), ctx );
+  return kk_integer_from_size_t( kk_string_count(s,ctx), ctx );
 }
 
 static inline kk_integer_t kk_string_cmp_int(kk_string_t s1, kk_string_t s2, kk_context_t* ctx) {
