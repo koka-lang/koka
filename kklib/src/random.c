@@ -350,8 +350,9 @@ static bool os_random_buf(void* buf, size_t buf_len) {
 #endif
 
 
-static uint64_t os_random_weak(uint64_t extra_seed) {
-  uint64_t x = (uint64_t)&os_random_weak ^ extra_seed; // hopefully, ASLR makes the address random
+static uint64_t os_random_weak(void) {
+  uint64_t x = (uint64_t)&os_random_weak ^ KU64(0x853C49E6748FEA9B); // hopefully, ASLR makes the address random
+  do {
   #if defined(WIN32)
     LARGE_INTEGER pcount;
     QueryPerformanceCounter(&pcount);
@@ -360,11 +361,15 @@ static uint64_t os_random_weak(uint64_t extra_seed) {
     x ^= mach_absolute_time();
   #else
     struct timespec time;
+    #if defined(CLOCK_MONOTONIC)
     clock_gettime(CLOCK_MONOTONIC, &time);
+    #else
+    clock_gettime(CLOCK_REALTIME, &time);
+    #endif  
     x ^= kk_bits_rotl64((uint64_t)time.tv_sec, 32);
     x ^= (uint64_t)time.tv_nsec;
   #endif
-  kk_assert_internal(x != 0);
+  } while (x == 0);  
   return x;
 }
 
@@ -377,7 +382,7 @@ static kk_random_ctx_t* random_init(kk_context_t* ctx) {
     // weak random source based on the C library `rand()`, the current (high precision) time, and ASLR.
     kk_warning_message("unable to use strong randomness\n");
     kk_pcg_ctx_t pcg;
-    pcg_init(os_random_weak((uint64_t)(rand()))^KU64(0x853C49E6748FEA9B), (uintptr_t)&random_init, &pcg);
+    pcg_init(os_random_weak(), (uint64_t)(rand()), &pcg);
     for (size_t i = 0; i < 8; i++) {  // key is eight 32-bit words.
       uint32_t x = pcg_uint32(&pcg);
       ((uint32_t*)key)[i] = x;
