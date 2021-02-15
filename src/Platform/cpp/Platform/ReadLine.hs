@@ -43,18 +43,19 @@ withReadLine historyFile io
 
 readLine roots prompt
   = do line <- readLines
-       return (Just line)
+       return line
   where
-    readLines :: IO String
+    readLines :: IO (Maybe String)
     readLines
       = do mbline <- R.readline prompt
-           let line = case mbline of Just s   -> s
-                                     Nothing  -> ""
-           case reverse line of
-             []       -> readLines
-             '\\' : t -> do line2 <- readLines
-                            return $ (reverse t ++ "\n" ++ line2)
-             _        -> return line
+           case mbline of
+             Just line ->
+               case reverse line of
+                 []       -> readLines
+                 '\\' : t -> do line2 <- readLines
+                                return $ ((reverse t ++) . ("\n" ++)) <$> line2
+                 _        -> return $ Just line
+             Nothing   -> return Nothing
 
 addHistory line
   = R.addHistory line
@@ -111,20 +112,20 @@ readLineEx roots prompt putPrompt
                       do R.putHistory h0
                          line <- readLines
                          h1 <- R.getHistory
-                         return (Just line, h1)
+                         return (line, h1)
        writeIORef vhistory h1
        return mbline
   where
-    readLines :: R.InputT IO String
+    readLines :: R.InputT IO (Maybe String)
     readLines
       = do input <- R.getInputLine ""
            case input of
              Just line -> case reverse line of
                             []       -> readLines
                             '\\' : t -> do line2 <- readLines
-                                           return (reverse t ++ "\n" ++ line2)
-                            _        -> return line
-             _ -> return ""
+                                           return $ ((reverse t ++) . ("\n" ++)) <$> line2
+                            _        -> return $ Just line
+             _ -> return Nothing
 
 addHistory line
   = do h <- readIORef vhistory

@@ -2,7 +2,8 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
-#define KKLIB_BUILD 7
+#define KKLIB_BUILD        13       // modify on changes to trigger recompilation
+#define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.
@@ -11,22 +12,25 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
-#include <assert.h>  // assert
-#include <errno.h>   // ENOSYS, ...
-#include <limits.h>  // LONG_MAX, ...
-#include <stddef.h>  // ptrdiff_t
-#include <stdint.h>  // kk_int_t, ...
-#include <stdbool.h> // bool
-#include <stdio.h>   // FILE*, printf, ...
-#include <string.h>  // strlen, memcpy, ...
-#include <stdlib.h>  // malloc, abort, ...
-#include <math.h>    // isnan, ...
+#define WIN32_LEAN_AND_MEAN          // reduce windows include
+#define _POSIX_C_SOURCE     200809L  // make posix definitions visible
+#define _DARWIN_C_SOURCE    200809L  // make darwin definitions visible
+#define _FILE_OFFSET_BITS   64       // enable large files
 
-#define  KK_MULTI_THREADED  1      // set to 0 to be used single threaded only
+#include <limits.h>           // LONG_MAX, ...
+#include <stddef.h>           // ptrdiff_t
+#include <stdint.h>           // int64_t, ...
+#include <stdbool.h>          // bool
+#include <assert.h>           // assert
+#include <errno.h>            // ENOSYS, ...
+#include <stdlib.h>           // malloc, abort, ...
+#include <string.h>           // strlen, memcpy, ...
+#include <math.h>             // isnan, ...
+#include <stdio.h>            // FILE*, printf, ...
 
-#include "kklib/platform.h"  // Platform abstractions and portability definitions
-#include "kklib/atomic.h"    // Atomic operations
-#include "kklib/process.h"   // Process info
+#include "kklib/platform.h"   // Platform abstractions and portability definitions
+#include "kklib/atomic.h"     // Atomic operations
+#include "kklib/process.h"    // Process info
 
 
 /*--------------------------------------------------------------------------------------
@@ -381,12 +385,11 @@ static inline void* kk_realloc(void* p, size_t sz, kk_context_t* ctx) {
   return mi_heap_realloc(ctx->heap, p, sz);
 }
 
-static inline void kk_free(void* p) {
-  KK_UNUSED(p);
-  mi_free(p);
+static inline void kk_free(const void* p) {
+  mi_free((void*)p);
 }
 
-static inline void kk_free_local(void* p) {
+static inline void kk_free_local(const void* p) {
   kk_free(p);
 }
 #else

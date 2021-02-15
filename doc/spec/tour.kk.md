@@ -255,7 +255,7 @@ Using the `with` statement this way may look a bit strange at first
 but is very convenient in practice -- it helps thinking of `with` as
 a closure over the rest of the lexical scope. 
 
-#### With Finally
+#### With Finally { #sec-with-finally; }
 
 As another example, the `finally` function takes as it first argument a
 function that is run when exiting the scope -- either normally, 
@@ -269,7 +269,7 @@ fun test-finally() {
   throw("oops") + 42
 }
 ```
-which desugars to `finally(fn(){ println(...) }), fn(){ println("entering"); throw("oops") + 42 })`,
+which desugars to `finally(fn(){ println(...) }, fn(){ println("entering"); throw("oops") + 42 })`,
 and prints:
 
 ````
@@ -282,6 +282,7 @@ This is another example of the _min-gen_ principle: many languages have
 have special built-in support for this kind of pattern, like a ``defer`` statement, but in &koka;
 it is all just function applications with minimal syntactic sugar.
 
+[Read more about initially and finally handlers &adown;](#sec-resource){.learn}
 
 #### With Handlers  { #sec-with-handlers; }
 
@@ -301,7 +302,7 @@ public fun emit-console1() {
   hello()
 }
 ```
-In this example, the `with` desugars to `(handler{ fun emit(msg){ println(msg) })( fn(){ hello() } )`.
+In this example, the `with` desugars to `(handler{ fun emit(msg){ println(msg) } })( fn(){ hello() } )`.
 
 Moreover, as a convenience, we can leave out the `handler` keyword 
 for effects that define just one operation (like `:emit`):
@@ -334,10 +335,10 @@ public fun emit-console2() {
 Intuitively, we can view the handler `with fun emit` as a dynamic binding of the function `emit`
 over the rest of the scope.
 
-[Read more about effect handlers][#sec-handlers]
+[Read more about effect handlers &adown;][#sec-handlers]
 {.learn}
 
-[Read more about `val` operations][#sec-opval]
+[Read more about `val` operations &adown;][#sec-opval]
 {.learn}
 
 
@@ -657,27 +658,27 @@ can assign a new value to the variable. Internally, the `var` declarations use
 a _state_ effect handler which ensures
 that the state has the proper semantics even if resuming multiple times.
 
-<!--
 However, that also means that mutable local variables are not quite first-class
 and we cannot pass them as parameters to other functions for example (as they
-are always dereferenced). You will also get a type error if a local variable
-escapes through a function expression, for example:
+are always dereferenced). The lifetime of mutable local variable cannot exceed
+its lexical scope. For example, you get a type error if a local variable
+escapes through a function expression:
 ```unchecked
 fun wrong() : (() -> console ()) {
   var x := 1
   (fn(){ x := x + 1; println(x) })
 }
 ```
-is statically rejected as the reference to the local variable escapes its scope.
--->
+This restriction allows for a clean semantics but also for (future) optimizations
+that are not possible for general mutable reference cells.
 
-[Read more about state and multiple resumptions][#sec-multi-resume]
+[Read more about state and multiple resumptions &adown;][#sec-multi-resume]
 {.learn}
 
 
 ### Reference Cells and Isolated state {#sec-runst}
 
-&koka; also has heap allocated mutable reference cells. 
+&koka; also has first-class heap allocated mutable reference cells. 
 A reference to an
 integer is allocated using `val r = ref(0)` (since the reference itself is
 actually a value!), and can be dereferenced using the bang operator, as ``!r``.
@@ -1063,7 +1064,7 @@ effect control raise( msg : string ) : a
 
 &bigskip;
 
-[Read more about the `with` statement][#sec-with]
+[Read more about the `with` statement &aup;][#sec-with]
 {.learn}
 
 
@@ -1130,7 +1131,7 @@ be used to implement the concept of _fuel_ in a setting where a computation is
 only allowed to take a limited amount of steps.
 
 
-[Read more about `var` mutable variables][#sec-var]
+[Read more about `var` mutable variables &aup;][#sec-var]
 {.learn}
 
 
@@ -1151,7 +1152,7 @@ with control op(<args>){ val f = fn(){ <body> }; resume( f() ) }
 ```
 ~
 
-(The translation is defined via an intermediate function so `return` works correctly).
+(The translation is defined via an intermediate function `f` so `return` works as expected).
 
 With this syntactic sugar, we can write our earlier `ask-const` example 
 using a `fun` operation instead:
@@ -1364,10 +1365,10 @@ fun ehello-commit() : string {
 
 This is a total handler and only discharges the `:emit` effect.
 
-[Read more about the `with` statement][#sec-with]
+[Read more about the `with` statement &aup;][#sec-with]
 {.learn}
 
-[Read more about `var` mutable variables][#sec-var]
+[Read more about `var` mutable variables &aup;][#sec-var]
 {.learn}
 
 As another example, consider a generic `catch` handler that
@@ -1434,10 +1435,10 @@ fun div42() {
 ```
 (where the body of `div42` desugars to `default( raise-maybe(fn(){ safe-divide(1,0) }), 42 )`).
 
-[Read more about function block expressions][#sec-anon]
+[Read more about function block expressions &aup;][#sec-anon]
 {.learn}
 
-[Read more about _dot_ expressions][#sec-dot]
+[Read more about _dot_ expressions &aup;][#sec-dot]
 {.learn}
 
 
@@ -1465,7 +1466,7 @@ fun sumdown( sum : int = 0 ) : <state<int>,div> int {
 We can define a generic state handler most easily by using `var` declarations:
 
 ```
-fun state( init : a, action : () -> <state<a>|e> b ) : e b {
+fun state( init : a, action : () -> <state<a>,div|e> b ) : <div|e> b {
   var st := init
   with handler {
     fun get(){ st }
@@ -1477,13 +1478,13 @@ fun state( init : a, action : () -> <state<a>|e> b ) : e b {
 
 where `state(10){ sumdown() }` evaluates to `55`. 
 
-[Read more about default parameters][#sec-default]
+[Read more about default parameters &aup;][#sec-default]
 {.learn}
 
-[Read more about _trailing lambdas_][#sec-anon]
+[Read more about _trailing lambdas_ &aup;][#sec-anon]
 {.learn}
 
-[Read more about `var` mutable variables][#sec-var]
+[Read more about `var` mutable variables &aup;][#sec-var]
 {.learn}
 
 
@@ -1492,7 +1493,7 @@ to return the final state. A nice way to do this is to
 use a return operation again to pair the final result with the final state: 
 
 ```
-fun pstate( init : a, action : () -> <state<a>|e> b ) : e (b,a) {
+fun pstate( init : a, action : () -> <state<a>,div|e> b ) : <div|e> (b,a) {
   var st := init
   with handler {
     return(x){ (x,st) }      // pair with the final state
@@ -1512,7 +1513,7 @@ For example, we can define the previous example also with
 a separate `return` handler as:
 
 ```
-fun pstate2( init : a, action : () -> <state<a>|e> b ) : e (b,a) {
+fun pstate2( init : a, action : () -> <state<a>,div|e> b ) : <div|e> (b,a) {
   var st := init
   with return(x){ (x,st) }
   with handler {
@@ -1570,7 +1571,7 @@ then we can compose a `pstate` and `raise-maybe` handler together
 to handle the effects:
 
 ```
-fun state-raise(init) : (maybe<int>,int) {
+fun state-raise(init) : div (maybe<int>,int) {
   with pstate(init)  
   with raise-maybe  
   no-odds()
@@ -1588,7 +1589,7 @@ state where we either get an exception (and no final state), or we get a pair of
 result with the final state:
 
 ```
-fun raise-state(init) : maybe<(int,int)> {
+fun raise-state(init) : div maybe<(int,int)> {
   with raise-maybe  
   with pstate(init)  
   no-odds()
@@ -1620,7 +1621,7 @@ handler and is handled subsequently by the outer handler (&ie; mask only
 masks an operation once for its innermost handler). 
 
 The type of `mask<l>` for some effect label `:l` is `: (action: () -> e a) -> <l|e> a`
-where it injects the effect `:l` in the final effect result `:<l|e>` (even
+where it injects the effect `:l` into the final effect result `: <l|e>` (even
 thought the `mask` itself never
 actually performs any operation in `:l` -- it only masks any operations
 of `:l` in `action`).
@@ -1715,7 +1716,7 @@ fun emit-quoted1( action : () -> <emit,emit|e> a ) : <emit|e> a {
 ```
 
 Here, the handler for `emit` calls itself `emit` to actually emit the newly
-quoted string. The effect type inferred for `emit-quoted` is `: (action : () -> <emit,emit|e> a) -> <emit|e> a`.
+quoted string. The effect type inferred for `emit-quoted1` is `: (action : () -> <emit,emit|e> a) -> <emit|e> a`.
 This is not the nicest type as it exposes that `action` is evaluated under (at least) two
 `:emit` handlers (and someone could use `mask` inside `action` to use the outer `:emit` handler).
 
@@ -1776,7 +1777,166 @@ both of the two innermost handlers.
 
 ### Resuming more than once { #sec-multi-resume; }
 
+Since `resume` is a first-class function (well, almost, see [raw control][#sec-rcontrol]),
+it is possible to store it in a list for example to implement a scheduler,
+but it is also possible to invoke it more than once. This can be used to
+implement backtracking or probabilistic programming models. 
+
+A common example of multiple resumptions is the `:choice` effect:
+
+```
+effect control choice() : bool
+
+fun xor() : choice bool {
+  val p = choice()
+  val q = choice()
+  if (p) then !q else q
+}
+```
+
+One possible implementation just uses random numbers:
+
+```
+fun choice-random(action : () -> <choice,random|e> a) : <random|e> a {
+  with fun choice(){ random-bool() }
+  action()
+}
+```
+
+Where `choice-random(xor)` returns `True` and `False` at random.
+
+However, we can also resume multiple times, once with `False` and once with `True`,
+to return _all_ possible outcomes. This also changes the handler type to return a _list_
+of all results of the action, and we need a [return clause][#sec-return] to wrap the result
+of the action in a singleton list:
+
+```
+fun choice-all(action : () -> <choice|e> a) : e list<a> {
+  with handler {
+    return(x){ [x] }
+    control choice(){ resume(False) + resume(True) }
+  }
+  action()
+}
+```
+where `choice-all(xor)` returns `[False,True,True,False]`.
+
+Resuming more than once interacts in interesting ways with the
+state effect. Consider the following example that uses both
+`:choice` and `:state`:
+
+```
+fun surprising() : <choice,state<int>> bool {
+  val p = choice()
+  val i = get()
+  set(i+1)
+  if (i>0 && p) then xor() else False
+}
+```
+
+We can combine the handlers in two interesting ways:
+
+```
+fun state-choice() : div (list<bool>,int) {
+  pstate(0){ choice-all(surprising) }
+}
+
+fun choice-state() : div list<(bool,int)> {
+  choice-all{ pstate(0,surprising) }
+}
+```
+
+In `state-choice()` the `pstate` is the outer handler and becomes like a global
+state over all resumption strands in `choice-all`, and thus after the first resume
+the `i>0 && p` condition in `surprising` is `True`, and we get `([False,False,True,True,False],2)`.
+
+In `choice-state()` the `pstate` is the inner handler and becomes like transactional state,
+where the state becomes local to each resumption strand in `choice-all`.
+Now `i` is always `0` at first and thus we get `[(False,1),(False,1)]`.
+
+~ advanced
+This example also shows how `var` state is correctly saved and restored on resumptions
+(as part of the stack) and this is essential to the correct composition of effect handlers. 
+If `var` declarations were instead heap allocated or captured by reference, they would no 
+longer be local to their scope and side effects could "leak" across different resumptions.
+~
+
+
 ### Initially and Finally { #sec-resource; }
+
+With arbitrary effect handlers we need to be careful when interacting with external
+resources like files. Generally, operations can never resume (like exceptions),
+resume exactly once (giving the usual linear control flow), or resume more than once.
+To robustly handle these different cases, Koka provides the `finally` and `initially`
+functions. Suppose we have the following low-level file operations on file handles:
+
+```unchecked
+type fhandle
+fun fopen( path : string )   : <exn,filesys> fhandle
+fun hreadline( h : fhandle ) : <exn,filesys> string
+fun hclose( h : fhandle )    : <exn,filesys> ()
+```
+
+Using these primitives, we can declare a `fread` effect to read from a file:
+```unchecked
+effect fun fread() : string
+
+fun with-file( path : string, action : () -> <fread,exn,filesys|e> a ) : <exn,filesys|e> a {
+  val h = fopen(path)
+  with handler {
+    return(x){ hclose(h); x }
+    fun fread(){ hreadline(h) }
+  }
+  action()
+} 
+```
+
+However, as it stands it would fail to close the file handle if an exceptional
+effect inside `action` is used (i.e. or any operation that never resumes). 
+The `finally` function handles these situations, and
+takes as its first argument a function that is always executed when either returning normally, or
+when unwinding for a non-resuming operation. So, a more robust way to write
+`with-file` is:
+```unchecked
+fun with-file( path : string, action : () -> <fread,exn,filesys|e> a ) : <exn,filesys|e> a {
+  val h = fopen(path)
+  with finally{ hclose(h) }
+  with fun fread(){ hreadline(h) }
+  action()
+} 
+```
+
+The current definition is robust for operations that never resume, or operations that resume once 
+-- but there is still trouble when resuming more than once. If someone calls `choice` inside 
+the `action`, the second time it 
+resumes the file handle will be closed again which is probably not intended. There is 
+active research into using the type system to statically prevent this from happening.
+
+Another way to work with multiple resumptions is to use the `initially` function.
+This function takes 2 arguments: the first argument is a function that is called 
+the first time `initially` is evaluated, and subsequently every time a particular resumption is
+resumed more than once. We can use this to implement various strategies to handle
+linear resources even for multiple resumptions. For files, it is not clear what is the
+best way to handle this, but one way would be to not close the file until all strands
+have finished:
+```unchecked
+fun with-file( path : string, action : () -> <fread,exn,filesys|e> a ) : <exn,filesys|e> a {
+  var count := 0
+  val h = fopen(path)
+  with initially( fn(rcount){ count := count+1 } )
+  with finally{ if (count==1) then hclose(h) else count := count - 1 }
+  with fun fread(){ hreadline(h) }
+  action()
+} 
+```
+
+~ advanced
+The `rcount` parameter is the resume count; it is `0` on the first evaluation of `initially`, and
+`>1` for every resume (for any operation) after the first one.
+~
+
+
+
 
 #### Raw Control { #sec-rcontrol; }
 
@@ -1800,7 +1960,9 @@ can make code that uses only linear effects more compact and efficient.
 
 ### Named and Scoped Handlers { #sec-namedh; }
 
-
+~ Todo
+See `samples/named-handlers`.
+~
 
 ## FBIP: Functional but In-Place { #sec-fbip; }
 

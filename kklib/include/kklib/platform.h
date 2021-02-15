@@ -46,6 +46,9 @@
 #endif
 #endif
 
+#if defined(_WIN32) && !defined(WIN32)
+#define WIN32  1
+#endif
 
 #if ((defined(__cplusplus) && __cplusplus >= 201103L)) || (_MSC_VER > 1900)  // C++11
 #define kk_constexpr      constexpr
@@ -82,6 +85,7 @@
 #pragma warning(disable:4101)  // unreferenced local variable
 #pragma warning(disable:4204)  // non-constant aggregate initializer
 #pragma warning(disable:4068)  // unknown pragma
+#pragma warning(disable:4996)  // POSIX name deprecated
 #define kk_unlikely(x)     (x)
 #define kk_likely(x)       (x)
 #define kk_decl_const
@@ -173,7 +177,10 @@ typedef int32_t         kk_ssize_t;
 #endif
 #define KK_SIZE_BITS   (8*KK_SIZE_SIZE)
 
-
+// off_t
+typedef int64_t     kk_off_t;
+#define KK_OFF_MAX  INT64_MAX
+#define KK_OFF_MIN  INT64_MIN
 
 // Abstract over the "natural machine word" as `kk_intx_t` such 
 // that `sizeof(kk_intx_t) == max(sizeof(long),sizeof(size_t))`. 

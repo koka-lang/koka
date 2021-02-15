@@ -20,7 +20,7 @@ import Common.Range
 import Common.Syntax
 import Common.NamePrim( nameEffectOpen, nameToAny, nameEnsureK, nameReturn, nameOptionalNone, nameIsValidK
                        , nameLift, nameBind, nameEvvIndex, nameClauseTailNoYield, isClauseTailName
-                       , nameBox, nameUnbox
+                       , nameBox, nameUnbox, nameAssert
                        , nameAnd, nameOr, isNameTuple )
 import Common.Unique
 import Type.Type
@@ -37,9 +37,9 @@ import qualified Data.Set as S
 -- data Env = Env{ inlineMap :: M.NameMap Expr }
 -- data Info = Info{ occurrences :: M.NameMap Int }
 
-simplifyDefs :: Bool -> Int -> Int -> Int -> Pretty.Env -> DefGroups -> (DefGroups,Int)
-simplifyDefs unsafe nRuns duplicationMax uniq penv defs
-  = runSimplify unsafe duplicationMax uniq penv (simplifyN nRuns (uniquefyDefBodies defs))
+simplifyDefs :: Bool -> Bool -> Int -> Int -> Int -> Pretty.Env -> DefGroups -> (DefGroups,Int)
+simplifyDefs unsafe ndebug nRuns duplicationMax uniq penv defs
+  = runSimplify unsafe ndebug duplicationMax uniq penv (simplifyN nRuns (uniquefyDefBodies defs))
 
 simplifyN :: Int -> DefGroups -> Simp DefGroups
 simplifyN nRuns defs
@@ -47,10 +47,10 @@ simplifyN nRuns defs
     else do defs' <- simplify defs
             simplifyN (nRuns-1) defs'
 
-uniqueSimplify :: Simplify a => Bool -> Int -> a -> Unique a
-uniqueSimplify unsafe duplicationMax expr
+uniqueSimplify :: Simplify a => Bool -> Bool -> Int -> a -> Unique a
+uniqueSimplify unsafe ndebug duplicationMax expr
   = do u <- unique
-       let (x,u') = runSimplify unsafe duplicationMax u Pretty.defaultEnv (simplify expr)
+       let (x,u') = runSimplify unsafe ndebug duplicationMax u Pretty.defaultEnv (simplify expr)
        setUnique u'
        return x
 
@@ -145,15 +145,16 @@ topDown (Let dgs body)
                      -- dont inline
                      oc -> -- trace ("no inline: occurrences: " ++ show oc ++ ", size: " ++ show (sizeOfExpr se)) $
                            topDownLet sub (sdg:acc) dgs body
-            
 
-
--- short circuit && and ||
-topDown (App (Var op _) [expr1,expr2])  | getName op == nameAnd 
-  = topDown (makeIfExpr expr1 expr2 exprFalse)
-topDown (App (Var op _) [expr1,expr2])  | getName op == nameOr
-  = topDown (makeIfExpr expr1 exprTrue expr2)
-                
+-- Remove assertions if optimized
+topDown (App assert@(Var name _) [msg,cond])  | getName name == nameAssert
+  =  do ndebug <- getNDebug
+        if (ndebug)
+          then return exprUnit
+          else do msg'  <- topDown msg
+                  cond' <- topDown cond
+                  return (App assert [msg',cond'])
+                    
 -- Remove identity open applications; need to be done before open resolve to enable tail call optimization               
 topDown expr@(App app@(TypeApp (Var openName _) [effFrom,effTo,tpFrom,tpTo]) [arg])  
   | getName openName == nameEffectOpen &&
@@ -817,14 +818,14 @@ uniqueTName (TName name tp)
 
 newtype Simp a = Simplify (Int -> SEnv -> Result a)
 
-runSimplify :: Bool -> Int -> Int -> Pretty.Env -> Simp a -> (a,Int)
-runSimplify unsafe dupMax uniq penv (Simplify c)
-  = case (c uniq (SEnv unsafe dupMax penv [] )) of
+runSimplify :: Bool -> Bool -> Int -> Int -> Pretty.Env -> Simp a -> (a,Int)
+runSimplify unsafe ndebug dupMax uniq penv (Simplify c)
+  = case (c uniq (SEnv unsafe ndebug dupMax penv [] )) of
       Ok x u' -> (x,u')
 
 
 
-data SEnv = SEnv{ unsafe :: Bool, dupMax :: Int, penv :: Pretty.Env, currentDef :: [Def] }
+data SEnv = SEnv{ unsafe :: Bool, ndebug :: Bool, dupMax :: Int, penv :: Pretty.Env, currentDef :: [Def] }
 
 data Result a = Ok a Int
 
@@ -862,3 +863,8 @@ getDuplicationMax :: Simp Int
 getDuplicationMax
   = do e <- getEnv
        return (dupMax e)
+
+getNDebug :: Simp Bool
+getNDebug 
+  = do env <- getEnv
+       return (ndebug env)

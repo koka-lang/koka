@@ -1,33 +1,41 @@
-
+<!-- #00547D -->
 [<img align="right" src="https://badges.gitter.im/koka-lang/koka.svg"/>](https://gitter.im/koka-lang/koka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 
-# Getting started
+# Getting started { #getstarted; }
 
-Welcome to &koka; -- a functional-style language with effect types and handlers.
+Welcome to &koka; -- a strongly typed functional-style language with effect types and handlers.
 
-[Why &koka;?][#why]{.learn}
-[Install &koka;][#install]{.learn}
-[The Github repo][kokarepo]{.learn}
-[Browse the Libraries][libraries]{.learn}
+[Why &koka;? &adown;][#why]{.learn}
+[A Tour of Koka &adown;][#tour]{.learn}
+[Install &adown;][#install]{.learn}
+[Discussion forum][forum]{.learn}
+[Github][kokarepo]{.learn}
+[Libraries][libraries]{.learn}
+{text-align:left;}
 
-Note: &koka; v2 is a research language that is currently under heavy development. 
+~ smaller { font-size:smaller; }
+Note: &koka; v2 is a research language that is currently under development
+and not ready for production use. 
 Nevertheless, the language is stable and the compiler
 implements the full specification. The main things lacking at the moment are 
-libraries and IDE integration. 
+libraries, package management, and deep IDE integration. 
 
+[INCLUDE=news.mdk]
 
+~ 
 
 [langspec]: https://koka-lang.github.io/koka/doc/kokaspec.html  {target='_top'}
 [libraries]: https://koka-lang.github.io/koka/doc/toc.html {target='_top'}
 [slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf {target='_top'}
 [kokarepo]: https://github.com/koka-lang/koka {target='_top'}
 [kokaproject]: http://research.microsoft.com/en-us/projects/koka {target='_top'}
+[forum]: https://github.com/koka-lang/koka/discussions
 
 [samples]: https://github.com/koka-lang/koka/tree/master/samples
 [rbtree]: https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk
 [evidence-paper]: https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently-with-proofs-5f0b7d860b387.pdf
-[Perceus]: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf
+[Perceus]: https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/
 [releases]: https://github.com/koka-lang/koka/releases
 [build]: https://github.com/koka-lang/koka/#build-from-source
 [vsprompt]: https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019
@@ -203,8 +211,7 @@ you can type ``:e`` in the interactive prompt to edit your program further. For 
 
 What next?
 
-[Why &koka;?][#why]{.learn}
-[Basic &koka; syntax][#sec-basics]{.learn}
+[Basic &koka; syntax &adown;][#sec-basics]{.learn}
 [Browse the Library documentation][libraries]{.learn}
 
 

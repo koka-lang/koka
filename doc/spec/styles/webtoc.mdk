@@ -4,7 +4,7 @@ Description:
     The TOC must be in a `SidePanel` block, while all
     the other content must be in a `MainPanel`.
 
-Side Panel Width: 24rem
+Side Panel Width: 20rem
 Side Panel Margin Top: 0rem
 
 toc.toc-contents {
@@ -207,14 +207,15 @@ JS Footer:
     
     // Return the viewport position: -1 (before), 0 (visible), 1 (after)
     function viewportPosition(elem) {
-      var pos = getWindowOffset(elem)
+      var pos = getWindowOffset(elem);
       if (pos.top < 0 || pos.left < 0) 
         return -1;
-      else if (pos.top > (window.innerHeight || document.documentElement.clientHeight) ||
+      else if (pos.top > (window.innerHeight || document.documentElement.clientHeight) || 
                pos.left > (window.innerWidth || document.documentElement.clientWidth)) 
         return 1;
-      else 
+      else {      
         return 0;
+      }
     }
     
     // ---------------------------------------------
@@ -295,8 +296,10 @@ JS Footer:
       [].every.call( document.querySelectorAll(".tocitem"), function(item) {
         var target = document.getElementById( item.getAttribute("data-toc-target") );
         var pos = viewportPosition(target);
-        if (pos <= 0) current = item;
-        return (pos < 0);
+        if (pos <= 0) {
+          current = item;
+        }
+        return (pos < 0); // keep going if not yet on screen
       });
       // if found, expand the corresponding item
       if (current != null) itemExpandOne(current);

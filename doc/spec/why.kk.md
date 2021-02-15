@@ -1,48 +1,65 @@
 
-# Why &koka;? { #why; }
+~ begin banners
+~ banner { caption:"Minimal but General" }
+The core of &koka; consists of a small set of well-studied language
+features, like first-class functions, a polymorphic type- and effect
+system, algebraic data types, and effect handlers. Each of these is
+composable and avoid the addition of
+"special" extensions by being as general as possible.
 
-There are many new languages being designed, but only few
-bring fundamentally new concepts -- like Haskell with
-pure versus monadic programming, or Rust with borrow checking.
+[Read more about the _minimal but general_ design &adown;][#why-mingen]{.learn}
+~
+~ banner { caption:"Effect Types"}
+&koka; tracks the (side) _effects_ of every
+function in its type, where pure and effectful computations are
+distinguished. The precise effect typing gives &koka; _rock-solid
+semantics_ backed by well-studied category theory, which makes &koka;
+particularly easy to reason about for both humans and compilers.
 
-&koka; distinguishes itself through _effect typing_, _effect handlers_,
-and _Perceus_ memory management:
+[Read more about effect types &adown;][#why-effects]{.learn}
+~
+~ banner { caption:"Effect Handlers" }
+Effect handlers let you define advanced control abstractions,
+like exceptions, async/await, or probabilistic programs, 
+as a user library in a typed and composable way.\
+&nbsp;
 
-* The core of &koka; consists of a small set of well-studied language
-  features, like first-class functions, a polymorphic type- and effect
-  system, algebraic data types, and effect handlers. Each of these is
-  composable and avoid the addition of
-  "special" extensions by being as general as possible.
+[Read more about effect handlers &adown;][#why-handlers]{.learn}
+~
+~ banner { caption:"Perceus Reference Counting" }
+Perceus is an advanced compilation method for reference counting.
+This lets &koka; compile directly to C code _without needing
+a garbage collector or runtime system_! This also gives &koka; 
+excellent performance in practice.
 
-  [Read more about the _minimal but general_ design][#why-mingen]{.learn}
+[Read more about Perceus reference counting &adown;][#why-perceus]{.learn}
+~
+~ banner { caption:"Reuse Analysis" }
+Through Perceus, &koka; can do reuse analysis and optimize 
+functional-style programs to use in-place updates.
 
-* &koka; tracks the (side) _effects_ of every
-  function in its type, where pure and effectful computations are
-  distinguished. The precise effect typing gives &koka; _rock-solid
-  semantics_ backed by well-studied category theory, which makes &koka;
-  particularly easy to reason about for both humans and compilers.
+[Read more about reuse analysis &adown;][#why-fbip]{.learn}
+~
 
-  [Read more about effect types][#why-effects]{.learn}
+<!--
+This makes many functional algorithms behave
+like their imperative counterparts on uniquely owned parameters while
+degrading gracefully to use copying when persistence is required.
+-->
 
-* Effect handlers let you define advanced control abstractions,
-  like exceptions, async/await, or probabilistic programs, 
-  as a user library in a typed and composable way.
+<!--
+~ banner { caption:"FBIP: Functional But In-Place"}
+Reuse analysis leads to a new style of programming that we call _FBIP_.
+Just like tail-recursion lets us write loops in terms of 
+function calls, reuse analysis lets us write many imperative 
+algorithms in a functional style.
 
-  [Read more about effect handlers][#why-handlers]{.learn}
+[Read more about FBIP &adown;][#why-fbip]{.learn}
+~
+-->
 
-* Perceus is an advanced compilation method for reference counting.
-  This lets &koka; compile directly to C code _without needing
-  a garbage collector or runtime system_! This also gives &koka; 
-  excellent performance in practice.
+~ end banners
 
-  [Read more about Perceus reference counting][#why-perceus]{.learn}
-
-* Through Perceus, &koka; can do reuse analysis and optimize 
-  functional-style programs to use in-place updates.
-
-  [Read more about reuse analysis][#why-fbip]{.learn}
-
-  &nbsp;
 
 
 ## Minimal but General { #why-mingen; }
@@ -83,8 +100,10 @@ _suspenders_!) is suspended and may be never evaluated or more than once
 often the predicate of a `while` loop is written in parenthesis but may
 be evaluated multiple times.
 
-[Learn more about basic syntax](#sec-basics)
+[Learn more about basic syntax &adown;](book.html#sec-basics)
 {.learn}
+
+
 
 ## Effect Typing { #why-effects; }
 
@@ -99,7 +118,8 @@ fun print  : (string)  -> console ()      // may write to the console
 fun rand   : ()        -> ndet int        // non-deterministic  
 ```
 
-The precise effect typing gives &koka; rock-solid semantics backed
+The precise effect typing gives &koka; rock-solid semantics and deep 
+safety guarantees backed
 by well-studied category theory, which makes &koka; particularly easy to
 reason about for both humans and compilers. (Given the importance of
 effect typing, the name &koka; was derived from the Japanese word for
@@ -130,8 +150,9 @@ type `:b`. Since `map` itself has no intrinsic effect, the effect
 of applying `map` is exactly the effect of the function `f` that
 is applied, namely `:e`. 
 
-[Learn more about effect types][#sec-effect-types]
+[Learn more about effect types &adown;](book.html#sec-effect-types)
 {.learn}
+
 
 ## Effect Handlers  { #why-handlers; }
 
@@ -182,10 +203,10 @@ yielded: 2
 yielded: 3
 ```` 
 
-[Learn more about `with` statements][#sec-with]
+[Learn more about `with` statements &adown;](book.html#sec-with)
 {.learn}
 
-[Learn more about effect handlers][#sec-handlers]
+[Learn more about effect handlers &adown;](book.html#sec-handlers)
 {.learn}
 
 
@@ -230,6 +251,7 @@ memory intensive benchmarks.
 
 [Read the Perceus technical report][Perceus]
 {.learn}
+
 
 ## Reuse Analysis { #why-fbip; }
 
@@ -303,11 +325,10 @@ to express loops with regular function calls, reuse analysis
 allows us to express many imperative algorithms in a purely
 functional style. 
 
-[Learn more about FBIP][#sec-fbip]
+[Learn more about FBIP &adown;](book.html#sec-fbip)
 {.learn}
 
 
 [Read the Perceus report on reuse analysis][Perceus]
 {.learn}
-
 

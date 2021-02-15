@@ -1,5 +1,5 @@
 #!/bin/sh -e
-VERSION="v2.0.14"
+VERSION="v2.0.16"
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
@@ -214,6 +214,20 @@ dnf_install() {
   fi
 }
 
+# Install package group using dnf
+dnf_groupinstall() {
+  if ! sudocmd dnf groupinstall -y ${QUIET:+-q} "$@"; then
+    die "\ninstalling dnf package group failed ($@).  Please run 'dnf check-update' and try again."
+  fi
+}
+
+# Install package using pacman
+pacman_install() {
+  if ! sudocmd pacman -S --noconfirm ${QUIET:+-q} "$@"; then
+    die "\ninstalling pacman packages failed ($@).  Please run 'pacman -Sy' and try again."
+  fi
+}
+
 # Install packages using yum
 yum_install() {
   if ! sudocmd yum install -y ${QUIET:+-q} "$@"; then
@@ -255,11 +269,14 @@ install_dependencies() {
   if has_cmd apt-get ; then
     apt_get_install build-essential gcc make cmake tar curl
   elif has_cmd dnf ; then
-    dnf_install build-essential gcc make cmake tar curl
+    dnf_groupinstall "Development Tools" # this is for Fedora 32+， CentOS 8 and CentOS Stream  
+    dnf_install gcc make cmake tar curl
   elif has_cmd yum ; then
     yum_install build-essential gcc make cmake tar curl
   elif has_cmd apk ; then
     apk_install build-essential gcc make cmake tar curl
+  elif has_cmd pacman; then
+    pacman_install base-devel gcc make cmake tar curl
   else
     info "Unable to install dependencies; continuing.."
   fi

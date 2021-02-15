@@ -876,7 +876,8 @@ inferCheck loaded flags line coreImports program1
                                 Core.Check.checkCore True True penv uniqueLift gamma coreDefsLifted
 
        -- simplify core
-       let (coreDefsSimp0,uniqueSimp0) = simplifyDefs False (simplify flags) (0) uniqueLift penv coreDefsLifted
+       let ndebug = optimize flags > 0
+           (coreDefsSimp0,uniqueSimp0) = simplifyDefs False ndebug (simplify flags) (0) uniqueLift penv coreDefsLifted
 
        -- traceDefGroups "lifted" coreDefsSimp0
 
@@ -921,7 +922,7 @@ inferCheck loaded flags line coreImports program1
                       else -- trace "simplify" $
                            do let (cdefs0,unique0) -- Core.Simplify.simplify $
                                           -- Core.Simplify.simplify
-                                     = simplifyDefs False (simplify flags) (simplifyMaxDup flags) uniqueOR penv coreDefsOR
+                                     = simplifyDefs False ndebug (simplify flags) (simplifyMaxDup flags) uniqueOR penv coreDefsOR
                               -- recheck simplified core
                               when (coreCheck flags) $
                                 -- trace "after simplify core check 1" $
@@ -964,7 +965,7 @@ inferCheck loaded flags line coreImports program1
                       else -- trace "simplify" $
                            do let (cdefs0,unique0) -- Core.Simplify.simplify $
                                           -- Core.Simplify.simplify
-                                     = simplifyDefs False (simplify flags) (simplifyMaxDup flags) uniqueInl penv coreDefsInl
+                                     = simplifyDefs False ndebug (simplify flags) (simplifyMaxDup flags) uniqueInl penv coreDefsInl
                               -- recheck simplified core
                               when (coreCheck flags) $
                                 -- trace "after simplify core check 2" $

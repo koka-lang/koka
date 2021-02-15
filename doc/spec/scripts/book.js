@@ -17,12 +17,14 @@ function genFullGrammar() {
 }
 
 window.onload = function() {   
-  genFullGrammar() 
+  genFullGrammar();
   const locals = document.querySelectorAll("a:not(.localref)");
+  const currentUrl = window.location.href.replace(/#.*$/,"");
   locals.forEach( function(link){
-    const child = link.firstElementChild
-    const ctag = (child==null ? "" : child.tagName)
-    if (link.className.indexOf("bib") < 0 && ctag != "IMG" && ctag != "SPAN") {  // no bib, image or code links
+    const child = link.firstElementChild;
+    const ctag = (child==null ? "" : child.tagName);
+    const linkUrl = link.href.replace(/#.*$/,"");
+    if (linkUrl != currentUrl && link.className.indexOf("bib") < 0 && ctag != "IMG" && ctag != "SPAN") {  // no bib, image or code links
       link.innerHTML = link.innerHTML + "<i class=\"fa fa-external-link\"></i>";
     }
   });
