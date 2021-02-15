@@ -619,6 +619,7 @@ kk_decl_export int kk_os_run_system(kk_string_t cmd, kk_context_t* ctx) {
 --------------------------------------------------------------------------------------------------*/
 
 #if defined(WIN32)
+#pragma comment(lib,"shell32")
 #include <shellapi.h>
 kk_vector_t kk_os_get_argv(kk_context_t* ctx) {
   if (ctx->argc == 0 || ctx->argv == NULL) return kk_vector_empty();

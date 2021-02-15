@@ -19,7 +19,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends cmake \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
-RUN git clone --recursive https://github.com/koka-lang/koka -b v2.0.14
+RUN git clone --recursive https://github.com/koka-lang/koka -b v2.0.16
 WORKDIR /build/koka
 RUN stack build
 RUN stack exec koka -- util/bundle -- --postfix=docker

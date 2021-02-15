@@ -6,7 +6,7 @@
    can be found in the file "license.txt" at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
-/* Calendars. 
+/* Calendars.  
 
   A Calendar determines how a `:date` and `:clock` relates to an `:instant` in time
   with respect to a `:timezone`. These functions turn `:instant`'s into "human" dates.
