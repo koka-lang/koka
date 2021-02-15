@@ -2,7 +2,7 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
-#define KKLIB_BUILD        12       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        13       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 
 /*---------------------------------------------------------------------------
@@ -14,6 +14,7 @@
 ---------------------------------------------------------------------------*/
 #define WIN32_LEAN_AND_MEAN          // reduce windows include
 #define _POSIX_C_SOURCE     200809L  // make posix definitions visible
+#define _DARWIN_C_SOURCE    200809L  // make darwin definitions visible
 #define _FILE_OFFSET_BITS   64       // enable large files
 
 #include <limits.h>           // LONG_MAX, ...
