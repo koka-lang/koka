@@ -1,3 +1,8 @@
+failure while running c:
+ C:/Users/daan/AppData/Local/Programs/stack/x86_64-windows/ghc-8.8.4/mingw/bin/gcc.exe -Wall -Wextra -Wno-unknown-pragmas
+ -Wno-unused-parameter -Wno-unused-variable -Wno-unused-value -Wno-missing-field-initializers -Wpointer-arith -Wshadow
+ -Wstrict-aliasing -Wno-unused-but-set-variable -c -g -O1 -I C:/Users/daan/dev/koka/kklib/include -DKK_MIMALLOC
+ -DMI_MAX_ALIGN_SIZE=8 -DKK_STATIC_LIB -o out/test/mingw-debug/kind_bgroup1.obj out/test/mingw-debug/kind_bgroup1.c
 kind/bgroup1/int: V
 kind/bgroup1/tt1: (V, V) -> V
 kind/bgroup1/tt2: (V, V) -> V
