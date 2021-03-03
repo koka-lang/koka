@@ -1,31 +1,26 @@
 module parc/parc16
 private import std/core/types = std/core/types = "";
-private import std/core/hnd = std/core/hnd = "";
 private import std/core = std/core = "";
 public fun test : (xs : list<int>, y : int, z : int) -> int
- = fun(xs: list<int>, y: int, z: int){
+ = fn(xs: list<int>, y: int, z: int){
  std/core/types/.drop(z);
  match (xs) {
- (std/core/Cons(((.skip std/core/types/.Box((x: int)) : .Box ) as .box-x28: .Box), (.pat0: list<int>)) : list<int> )
- -> val _ : int
- = std/core/types/.dup(x);
- val _ : ()
- = std/core/types/.drop(y);
+ (std/core/Cons(((.skip std/core/types/.Box((x: int)) : .Box ) as .box-x37: .Box), (.pat0: list<int>)) : list<int> )
+ -> std/core/types/.dup(x);
+ std/core/types/.drop(y);
  (match (xs) {
- (std/core/Cons(((.skip std/core/types/.Box((.pat2: int)) : .Box ) as .box-x29: .Box), (.pat3: list<int>)) : list<int> )
+ (std/core/Cons(((.skip std/core/types/.Box((.pat2: int)) : .Box ) as .box-x38: .Box), (.pat3: list<int>)) : list<int> )
  -> std/core/types/.drop(xs, (std/core/int32(2)));
  x;
  (.skip std/core/Nil() : (list<int>) )
  -> std/core/types/.drop(x);
  2;
  });
- (std/core/Cons(((.skip std/core/types/.Box((.pat6: int)) : .Box ) as .box-x30: .Box), (.pat7: list<int>)) : list<int> )
- -> val _ : ()
- = std/core/types/.drop(xs, (std/core/int32(2)));
- val _ : ()
- = std/core/types/.drop(y);
+ (std/core/Cons(((.skip std/core/types/.Box((.pat6: int)) : .Box ) as .box-x39: .Box), (.pat7: list<int>)) : list<int> )
+ -> std/core/types/.drop(xs, (std/core/int32(2)));
+ std/core/types/.drop(y);
  2;
  (.skip std/core/Nil() : (list<int>) )
  -> y;
- }
+ };
  };

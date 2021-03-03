@@ -22,7 +22,7 @@ readFlags fp
          else words <$> readFile fp
 
 commonFlags :: [String]
-commonFlags = ["-c", "--console=raw",
+commonFlags = ["-c", "-v0", "--console=raw",
                -- "--checkcore",
                "-ilib", "-itest",
                "--outdir=" ++ "out" </> "test"]

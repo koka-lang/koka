@@ -6,7 +6,10 @@ extra-deps:
 - stylish-haskell-0.11.0.0
 - hlint-2.1.26
 - haskeline-0.8.1.0
+- regex-posix-clib-2.7   # only for testing
 
 flags:
   haskeline:
     terminfo: false
+  regex-posix:
+      _regex-posix-clib: true

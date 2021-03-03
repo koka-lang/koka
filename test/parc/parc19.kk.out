@@ -1,11 +1,10 @@
 module parc/parc19
 private import std/core/types = std/core/types = "";
-private import std/core/hnd = std/core/hnd = "";
 private import std/core = std/core = "";
 public fun test : (xs : list<int>) -> int
- = fun(xs: list<int>){
+ = fn(xs: list<int>){
  match (xs) {
- (std/core/Cons(((.skip std/core/types/.Box((xs0: int)) : .Box ) as .box-x17: .Box), (.pat: list<int>)) : list<int> )
+ (std/core/Cons(((.skip std/core/types/.Box((xs0: int)) : .Box ) as .box-x26: .Box), (.pat: list<int>)) : list<int> )
  -> (match ((std/core/types/.is-unique(xs))) {
  (std/core/types/True() : bool )
  -> std/core/types/.drop(.pat);
@@ -17,7 +16,7 @@ public fun test : (xs : list<int>) -> int
  xs0;
  (.skip std/core/Nil() : (list<int>) )
  -> 1;
- }
+ };
  };
 test/parc/parc19.kk(3,10): warning: xs shadows an earlier local definition or parameter
 test/parc/parc19.kk(3,27): warning: pattern variable ys is unused (or a wrongly spelled constructor?)

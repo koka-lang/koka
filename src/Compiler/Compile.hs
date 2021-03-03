@@ -1045,11 +1045,11 @@ codeGen term flags compileTarget loaded
        -- core
        let outCore  = outBase ++ ".core"
            coreDoc  = Core.Pretty.prettyCore env{ coreIface = False, coreShowDef = (showCore flags) } inlineDefs (modCore mod)
-                       <-> Lib.PPrint.empty
+                        <-> Lib.PPrint.empty
        when (genCore flags)  $
          do termPhase term "generate core"
             writeDocW 10000 outCore coreDoc  -- just for debugging
-       when (showCore flags) $
+       when (showCore flags && target flags /= C) $
          do termDoc term coreDoc
 
        -- write documentation

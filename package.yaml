@@ -92,3 +92,4 @@ tests:
       - hspec-core
       - process
       - regex-compat
+
