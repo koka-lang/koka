@@ -104,7 +104,7 @@ compile p flags fname
                        )
                  when (showTypeSigs flags)
                    (do putPrettyLn p (ppGamma (prettyEnv flags modName imports) (gammaFilter modName gamma)))
-                 {-
+                 {- 
                  when (showCore flags)
                    (do putPrettyLn p (prettyCore (prettyEnv flags modName imports) core))
                  -}

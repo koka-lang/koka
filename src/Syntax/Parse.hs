@@ -2525,9 +2525,9 @@ qtypeid
        (name,range) <- qvarid
        if (not (isTypeVar name))
         then return (name,range)
-        else trace ("not a qtype: " ++ show name) $
+        else -- trace ("not a qtype: " ++ show name) $
              do setPosition pos
-                mzero <?> "type name"
+                mzero <?> "type name (and not type variable)"
 
 qop :: LexParser (Name,Range)
 qop
