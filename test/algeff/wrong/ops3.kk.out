@@ -1,8 +1,4 @@
-[01;30moperator branch (amb_handle) flip: resume scoped
-[00;39;49m[00m[01;30moperator branch (state_handle) get: resume tail
-[00;39;49m[00mtest/algeff/wrong/ops3.kk(47, 9): error: types do not match
- context : j:bool
- term : j
- inferred type: bool
- expected type: int
- because : type cannot be instantiated to match the annotation
+warning (line 39, column 5): using a bare operation is deprecated.
+ hint: start with 'val', 'fun', 'except', or 'control' instead.
+test/algeff/wrong/ops3.kk(44,11): error: invalid syntax
+ unexpected '(': local parameters are no longer supported, use a local 'var' instead

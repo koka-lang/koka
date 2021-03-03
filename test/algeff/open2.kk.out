@@ -1,8 +1,8 @@
 42
-.copy : forall<e> (func<e>, f : ?(int) -> e int) -> func<e>
-Func : forall<e> (f : (int) -> e int) -> func<e>
-bar : () -> int
-f : forall<e> (func : func<e>) -> ((int) -> e int)
-main : () -> console ()
-myfunc : forall<e> func<e>
-myid : forall<a,e> () -> ((x : a) -> e a)
+ 
+algeff/open2/Func: forall<e> (f : (int) -> e int) -> func<e>
+algeff/open2/bar: () -> int
+algeff/open2/f: forall<e> (func : func<e>) -> ((int) -> e int)
+algeff/open2/main: () -> console ()
+algeff/open2/myfunc: forall<e> func<e>
+algeff/open2/myid: forall<a,e> () -> ((x : a) -> e a)

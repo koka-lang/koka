@@ -1,7 +1,5 @@
-test/algeff/wrong/scoped1.kk(62, 3): error: type is not polymorph enough
- context : choice(xs)
- term : choice(xs)
- inferred type : forall<b,e> (resume-context<b,<nondet,state<int>|e>,<nondet,nondet,state<int>|e>,b>, .op-choice<b>) -> <nondet,state<int>|e> b
- is less polymorph as: forall<_b> (resume-context<_b,<nondet,state<int>|_e>,<nondet,nondet,state<int>|_e>,$a>, op : .op-choice<_b>) -> <nondet,state<int>|_e> 
- $a
- because : type cannot be instantiated to match the annotation
+warning (line 25, column 3): using a bare operation is deprecated.
+ hint: start with 'val', 'fun', 'except', or 'control' instead.
+warning (line 29, column 19): keyword "fun" is deprecated. Consider using "fn" instead.
+test/algeff/wrong/scoped1.kk(42,21): error: invalid syntax
+ unexpected '(': local parameters are no longer supported, use a local 'var' instead

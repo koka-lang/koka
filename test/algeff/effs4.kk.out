@@ -1,13 +1,8 @@
-[01;30moperator branch (state) get: resume normal
-[00;39;49m[00m[01;30moperator branch (state) set: resume normal
-[00;39;49m[00mpositive
-.Op-get : forall<a> .op-get<a>
-.Op-set : forall<a> (x : a) -> .op-set<a>
-.Ops-get : forall<a,b> (get : .op-get<a>) -> .ops-state<a,a>
-.Ops-set : forall<a,b> (set : .op-set<a>) -> .ops-state<a,()>
-.tag-state : string
-get : forall<a> () -> (state<a>) a
-main : () -> console ()
-set : forall<a> (x : a) -> (state<a>) ()
-state : forall<a,b> (action : () -> (state<a>) b) -> ((s : a) -> b)
-test : () -> (state<int>) string
+positive
+ 
+algeff/effs4/State: forall<a,e,b> (.hnd-state<a,e,b>) -> state<a>
+algeff/effs4/get: forall<a> () -> (state<a>) a
+algeff/effs4/main: () -> console ()
+algeff/effs4/set: forall<a> (x : a) -> (state<a>) ()
+algeff/effs4/state: forall<a,b> (() -> (state<a>) b) -> ((s : a) -> b)
+algeff/effs4/test: () -> (state<int>) string

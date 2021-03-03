@@ -1,7 +1,4 @@
-[01;30moperator branch (exc) failure: resume never
-[00;39;49m[00m[01;30moperator branch (out) line: resume tail
-[00;39;49m[00m[01;30moperator branch (state) tick: resume tail
-[00;39;49m[00m2
+2
 ticks: 2
 2
 ((16/2)/3)
@@ -11,44 +8,39 @@ ticks: 2
 3
 ticks: 2
 2
-.Op-failure : forall<a> (s : string) -> .op-failure<a>
-.Op-line : (e : expr) -> .op-line
-.Op-tick : .op-tick
-.Ops-failure: forall<a,b> (failure : .op-failure<b>) -> .ops-exc<b>
-.Ops-line : forall<a> (line : .op-line) -> .ops-out<()>
-.Ops-tick : forall<a> (tick : .op-tick) -> .ops-state<()>
-.tag-exc : string
-.tag-out : string
-.tag-state : string
->>= : forall<a,b> (m : stexn<a>, f : (a) -> stexn<b>) -> stexn<b>
-Div : (e1 : expr, e2 : expr) -> expr
-Int : (i : int) -> expr
-div? : (expr : expr) -> bool
-eval : (e : expr) -> stexn<int>
-eval0 : (e : expr) -> int
-eval1 : (e : expr) -> exc int
-eval2 : (e : expr) -> <exc,state> int
-eval3 : (e : expr) -> <exc,out,state> int
-exc : forall<a,e> (action : () -> <exc|e> a) -> e either<string,a>
-expr1 : expr
-expr2 : expr
-exprX : expr
-failure : forall<a> (s : string) -> exc a
-int? : (expr : expr) -> bool
-line : (e : expr) -> out ()
-main : () -> console ()
-mfail : forall<a,b,c,e> (err : a) -> ((s : b) -> e either<a,c>)
-mtick : forall<a,e> () -> ((s : int) -> e either<a,((), int)>)
-out : forall<a,e> (action : () -> <out,console|e> a) -> <console|e> a
-run : forall<a,b,e> (s : a, m : (a) -> e b) -> e b
-show : (r : either<string,(int, int)>) -> total string
-show : (e : expr) -> total string
-show1 : (x : either<string,int>) -> string
-show2 : (x : (either<string,int>, int)) -> string
-showErr : forall<a> (s : (a) -> string, x : either<string,a>) -> string
-state : forall<a,e> (i : int, action : () -> <state|e> a) -> e (a, int)
-test1 : (e : expr) -> console ()
-test2 : (e : expr) -> console ()
-test3 : (e : expr) -> console ()
-tick : () -> state ()
-unit : forall<a> (x : a) -> stexn<a>
+ 
+algeff/expr/>>=: forall<a,b> (m : stexn<a>, f : (a) -> stexn<b>) -> stexn<b>
+algeff/expr/Div: (e1 : expr, e2 : expr) -> expr
+algeff/expr/Exc: forall<e,a> (.hnd-exc<e,a>) -> exc
+algeff/expr/Int: (i : int) -> expr
+algeff/expr/Out: forall<e,a> (.hnd-out<e,a>) -> out
+algeff/expr/State: forall<e,a> (.hnd-state<e,a>) -> state
+algeff/expr/eval: (e : expr) -> stexn<int>
+algeff/expr/eval0: (e : expr) -> int
+algeff/expr/eval1: (e : expr) -> exc int
+algeff/expr/eval2: (e : expr) -> <exc,state> int
+algeff/expr/eval3: (e : expr) -> <exc,out,state> int
+algeff/expr/exc: forall<a,e> (() -> <exc|e> a) -> e either<string,a>
+algeff/expr/expr1: expr
+algeff/expr/expr2: expr
+algeff/expr/exprX: expr
+algeff/expr/failure: forall<a> (s : string) -> exc a
+algeff/expr/is-div: (expr : expr) -> bool
+algeff/expr/is-int: (expr : expr) -> bool
+algeff/expr/line: (e : expr) -> out ()
+algeff/expr/main: () -> console ()
+algeff/expr/mfail: forall<a,b,c,e> (err : a) -> ((s : b) -> e either<a,c>)
+algeff/expr/mtick: forall<a,e> () -> ((s : int) -> e either<a,((), int)>)
+algeff/expr/out: forall<a,e> (() -> <console,out|e> a) -> <console|e> a
+algeff/expr/run: forall<a,b,e> (s : a, m : (a) -> e b) -> e b
+algeff/expr/show: (r : either<string,(int, int)>) -> total string
+algeff/expr/show: (e : expr) -> total string
+algeff/expr/show1: (x : either<string,int>) -> string
+algeff/expr/show2: (x : (either<string,int>, int)) -> string
+algeff/expr/showErr: forall<a> (s : (a) -> string, x : either<string,a>) -> string
+algeff/expr/state: forall<a,e> (init : int, action : () -> <state|e> a) -> e (a, int)
+algeff/expr/test1: (e : expr) -> console ()
+algeff/expr/test2: (e : expr) -> console ()
+algeff/expr/test3: (e : expr) -> console ()
+algeff/expr/tick: () -> state ()
+algeff/expr/unit: forall<a> (x : a) -> stexn<a>

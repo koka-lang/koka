@@ -1,5 +1,6 @@
 10
-bar : () -> int
-hs : forall<e> list<(int) -> e int>
-main : () -> console ()
-myid : forall<a,e> () -> ((x : a) -> e a)
+ 
+algeff/open1/bar: () -> int
+algeff/open1/hs: forall<e> list<(int) -> e int>
+algeff/open1/main: () -> console ()
+algeff/open1/myid: forall<a,e> () -> ((x : a) -> e a)

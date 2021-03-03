@@ -1,14 +1,19 @@
 
-effect linear state<s> {
-  fun get() : s
-  fun put(x : s) : ()
+effect state<s> {
+  control get() : s
+  control put(x : s) : ()
 }
 
-val state = handler(s) {
-  return x -> x + 2
-  get()    -> resume(s,s)
-  put(t)   -> 42
+fun state(init,action) {
+  var s := init
+  with {
+    return(x){ x + 2 }
+    fun get(){ s }
+    control put(t){ 42 } 
+  }
+  action()
 }
+
 
 fun foo() {
   val i = get()

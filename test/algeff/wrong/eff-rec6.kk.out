@@ -1,3 +1,10 @@
-test/algeff/wrong/eff-rec6.kk(36, 1): error: Type xhide is declared as being (co)inductive but it occurs
- recursively in a negative position.
+warning (line 12, column 20): keyword "fun" is deprecated. Consider using "fn" instead.
+warning (line 13, column 5): using a bare operation is deprecated.
+ hint: start with 'val', 'fun', 'except', or 'control' instead.
+warning (line 13, column 20): keyword "fun" is deprecated. Consider using "fn" instead.
+warning (line 14, column 5): using a bare operation is deprecated.
+ hint: start with 'val', 'fun', 'except', or 'control' instead.
+warning (line 14, column 20): keyword "fun" is deprecated. Consider using "fn" instead.
+test/algeff/wrong/eff-rec6.kk(6, 1): error: Type hide is declared as being
+ (co)inductive but it occurs recursively in a negative position.
  hint: declare it as a 'type rec' (or 'effect rec)' to allow negative occurrences

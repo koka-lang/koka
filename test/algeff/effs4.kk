@@ -1,14 +1,14 @@
 // test state as fun result from a handler (where resume is captured)
 
 effect state<s> {
-  fun get()    : s;
-  fun set(x:s) : ()
+  control get()    : s;
+  control set(x:s) : ()
 }
 
 val state = handler {
-  return x -> fn(s) { x }     
-  get()    -> fn(s) { resume(s)(s) }
-  set(t)   -> fn(s) { resume(())(t) }
+  return(x){ fn(s){ x } }
+  control get() { fn(s){ resume(s)(s) } }
+  control set(t){ fn(s){ resume(())(t) } }
 }
 
 fun test() {

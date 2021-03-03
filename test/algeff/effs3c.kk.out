@@ -1,30 +1,19 @@
-[01;30moperator branch (h) flip: resume scoped
-[00;39;49m[00m[01;30moperator branch (h) get: resume tail
-[00;39;49m[00m[01;30moperator branch (h) set: resume tail
-[00;39;49m[00mFalse,True,True,False
+False,True,True,False
 False,False,True,True,False
 False,False
-test/algeff/effs3c.kk(40,19): warning: i shadows an earlier local definition or parameter
-test/algeff/effs3c.kk(42, 5): warning: i shadows an earlier local definition or parameter
-test/algeff/effs3c.kk(43, 5): warning: i shadows an earlier local definition or parameter
-.Op-flip : .op-flip
-.Op-get : forall<a> .op-get<a>
-.Op-set : forall<a> (x : a) -> .op-set<a>
-.Ops-flip : forall<a> (flip : .op-flip) -> .ops-amb<bool>
-.Ops-get : forall<a,b> (get : .op-get<a>) -> .ops-state<a,a>
-.Ops-set : forall<a,b> (set : .op-set<a>) -> .ops-state<a,()>
-.tag-amb : string
-.tag-state : string
-amb_handle : forall<a,e> (action : () -> <amb|e> a) -> e list<a>
-flip : () -> amb bool
-foo : () -> <amb,state<int>> bool
-foos : () -> <amb,state<int>> string
-get : forall<a> () -> (state<a>) a
-main : () -> console ()
-set : forall<a> (x : a) -> (state<a>) ()
-state_handle: forall<a,b,e> (i : a, action : () -> <state<a>|e> b) -> e b
-test1 : () -> string
-test2 : () -> string
-test3 : () -> string
-xor : () -> amb bool
-xors : () -> amb string
+ 
+algeff/effs3c/Amb: forall<e,a> (.hnd-amb<e,a>) -> amb
+algeff/effs3c/State: forall<a,e,b> (.hnd-state<a,e,b>) -> state<a>
+algeff/effs3c/amb_handle: forall<a,e> (action : () -> <amb|e> a) -> e list<a>
+algeff/effs3c/flip: () -> amb bool
+algeff/effs3c/foo: () -> <amb,state<int>> bool
+algeff/effs3c/foos: () -> <amb,state<int>> string
+algeff/effs3c/get: forall<a> () -> (state<a>) a
+algeff/effs3c/main: () -> console ()
+algeff/effs3c/set: forall<a> (x : a) -> (state<a>) ()
+algeff/effs3c/state_handle: forall<a,e> (init : int, action : () -> <state<int>|e> a) -> e a
+algeff/effs3c/test1: () -> string
+algeff/effs3c/test2: () -> string
+algeff/effs3c/test3: () -> string
+algeff/effs3c/xor: () -> amb bool
+algeff/effs3c/xors: () -> amb string

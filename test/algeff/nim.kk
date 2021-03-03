@@ -241,7 +241,7 @@ val printer = handler {
   }
 }
 
-fun printBoard( gs : gstate ) : io () {
+fun printBoard( gs : gstate )g : io () {
   gs.mymap( fn(ps) {
     ps.fst.show ++ " -> " ++ ps.snd.show
   }).join("\n").println

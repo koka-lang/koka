@@ -26,7 +26,7 @@ fun eval0( e : expr ) : int {
 fun show( e : expr ) : total string {
   match(e) {
     Int(i) -> core/show(i)
-    Div(e1,e2) -> "(" + e1.show + "/" + e2.show + ")"
+    Div(e1,e2) -> "(" ++ e1.show ++ "/" ++ e2.show ++ ")"
   }
 }
 
@@ -77,8 +77,8 @@ fun eval( e : expr ) : stexn<int> {
 
 fun show( r : either<string,(int,int)> ) : total string {
   match(r) {
-    Right((x,s)) -> x.core/show + " (state=" + s.core/show + ")"
-    Left(str)    -> "error: " + str
+    Right((x,s)) -> x.core/show ++ " (state=" ++ s.core/show ++ ")"
+    Left(str)    -> "error: " ++ str
   }
 }
 
@@ -89,12 +89,12 @@ fun show( r : either<string,(int,int)> ) : total string {
 // --------------------------------------------------------
 
 effect exc {
-  fun failure(s : string) : a
+  control failure(s : string) : a
 }
 
 val exc = handler {
   return x   -> Right(x)
-  failure(s) -> Left(s)
+  control failure(s) -> Left(s)
 }
 
 fun eval1( e : expr ) : exc int {
@@ -116,7 +116,7 @@ fun test1(e) {
 
 fun showErr( s : a -> string, x : either<string,a> ) : string {
   match(x) {
-    Left(l)  -> "exception: " + l
+    Left(l)  -> "exception: " ++ l
     Right(r) -> s(r)
   }
 }
@@ -133,9 +133,13 @@ effect state {
   fun tick() : ()
 }
 
-val state = handler(i) {
-  return x -> (x,i)
-  tick()   -> resume((),i+1)
+fun state(init,action) {
+  var i := init
+  with {
+    return(x){ (x,i) }
+    fun tick(){ i := i + 1}
+  }
+  action()
 }
 
 fun eval2( e : expr ) : <state,exc> int {
@@ -156,7 +160,7 @@ fun test2(e) {
 }
 
 fun show2( x : (either<string,int>,int) ) : string {
-  "ticks: " + x.snd.show + "\n" + show1(x.fst)
+  "ticks: " ++ x.snd.show ++ "\n" ++ show1(x.fst)
 }
 
 
@@ -169,11 +173,7 @@ effect out {
 }
 
 val out = handler {
-  return x -> x
-  line(e)  -> {
-    println(e.show)
-    resume(())
-  }
+  fun line(e){ println(e.show) }
 }
 
 fun eval3( e : expr ) : <out,state,exc> int {

@@ -1,9 +1,7 @@
-[01;30moperator branch (amb) flip: resume scoped
-[00;39;49m[00m[False,True,True,False]
-.Op-flip : .op-flip
-.Ops-flip : forall<a> (flip : .op-flip) -> .ops-amb<bool>
-.tag-amb : string
-amb : forall<a,e> (action : () -> <amb|e> a) -> e list<a>
-flip : () -> amb bool
-main : () -> console ()
-xor : () -> amb bool
+[False,True,True,False]
+ 
+algeff/effs1/Amb: forall<e,a> (.hnd-amb<e,a>) -> amb
+algeff/effs1/amb: forall<a,e> (() -> <amb|e> a) -> e list<a>
+algeff/effs1/flip: () -> amb bool
+algeff/effs1/main: () -> console ()
+algeff/effs1/xor: () -> amb bool

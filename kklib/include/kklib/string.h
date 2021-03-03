@@ -34,7 +34,8 @@ static inline bool kk_ascii_is_alpha(char c)    { return (kk_ascii_is_lower(c) |
 static inline bool kk_ascii_is_alphanum(char c) { return (kk_ascii_is_alpha(c) || kk_ascii_is_digit(c)); }
 
 /*---------------------------------------------------------------------------------------------------------------
-  Strings
+  Strings.
+
   Always point to valid utf-8 byte sequences ending with a 0 byte (not included in the length).
   Since we stay strictly in valid utf-8, that means that strings can contain internal 0 characters
   and we cannot generally use C string functions to manipulate our strings.
@@ -55,45 +56,50 @@ static inline bool kk_ascii_is_alphanum(char c) { return (kk_ascii_is_alpha(c) |
   There few important cases where external text is not quite utf-8 or utf-16.
   We call these "qutf-8" and "qutf-16" for "quite like" utf-8/16:
 
-  - qutf-16: this is used in Windows file names and JavaScript. These are mostly utf-16 but
-    can contain invalid _lone_ parts of surrogate pairs.
-  
-  - qutf-8: this is mostly utf-8 but contains invalid utf-8 sequences, like overlong
-    sequences or lone continuation bytes. This can occur for examply by bad json encoding
-    containing binary data, but also as a result of a _locale_ that cannot be decoded properly,
-    or generally just random bytes.
+  - qutf-8: this is mostly utf-8, but allows invalid utf-8 like overlong sequences or lone
+    continuation bytes -- as such, any byte sequence is valid qutf-8. This occurs a lot in
+    practice, for examply by bad json encoding containing binary data, but also as a result 
+    of a _locale_ that cannot be decoded properly, or generally just random byte input.
+
+  - qutf-16: this is mostly utf-16 but allows again any invalid utf-16 which consists
+    of lone halves of surrogate pairs -- and again, any sequence of uint16_t is valid qutf-16. 
+    This is actually what is used in Windows file names and JavaScript. 
   
   In particular for qutf-16 we would like to guarantee that decoding to utf-8 and encoding 
-  again to qutf-16 is an identity transformation; for example, we may list the contents
-  of a directory and then try to read each file. This means that we cannot replace invalid
-  codes in qutf-16 with a replacement character. One proposed solution for this is 
+  again to qutf-16 is an identity transformation -- for example, we may list the contents
+  of a directory and then try to read each file. As a consequence we cannot replace invalid
+  codes in qutf-16 with a generic replacement character. One proposed solution for this is 
   to use wtf-8 (used in Rust <https://github.com/rust-lang/rust/issues/12056#issuecomment-55786546>) 
-  instead of utf-8 internally. We like to use strict utf-8 internally though so we can always output valid 
-  utf-8 without further conversions. (also, new formats like wtf-8 often have tricky edge cases, like   
+  instead of utf-8 internally. 
+  
+  We like to use strict utf-8 internally though, so we can always output valid utf-8 directly
+  without further conversions. (also, new formats like wtf-8 often have tricky edge cases, like   
   naively appending strings may change the interpretation of surrogate pairs in wtf-8)
 
   Instead, we solve this by staying in strict utf-8 internally, but we reserve a
-  particular set of code-points to have a special meaning when converting to qutf-16 (or qutf-8).
+  particular set of code-points to have a special meaning when converting to/from qutf-8 and qutf-16.
   For now, we use an (hopefully forever) unassigned range in the "supplementary special-purpose plane" (14)
   
-  - ED800 - EDFFF: corresponds to a lone half of a surrogate pair `x` where `x = code - E0000`.
+  - ED800 - EDFFF: corresponds to a lone half `h` of a surrogate pair where `h = code - E0000`.
   - EE000 - EE07F: <unused>
   - EE080 - EE0FF: corresponds to an invalid byte `b` in an invalid utf-8 sequence where `b = code - EE000`.
                    (note: invalid bytes in utf-8 are always >= 0x80 so we need only a limited range).
   
-  We call this the "raw range".
-  When decoding qutf-8 or qutf-16, we decode invalid sequences to these code points, and only when
-  decoding back to qutf-8 or qutf-16, we decode these code points specially again to make this an identity
-  transformation. _Otherwise these are just regular code points and valid utf-8 with no special treatment_.
-  Also, security wise this is good practice -- for example, we decode the overlong utf-8 sequence `0xC0 0x80` 
-  not to a 0 character, but to two raw code points: 0xEE0C0 0xEE080. This way, we maintain an identity 
-  transform while still preventing hidden embedded 0 characters.
+  We call this the "raw range". The advantage over using the replacement character is that we 
+  now retain full information what the original (invalid) sequences were (and can thus do an 
+  identity transform) -- and we stay with valid utf-8 (unlike wtf-8 for example).
+
+  When decoding qutf-8/16 to utf-8, we decode invalid sequences to these code points; and only when
+  decoding back to qutf-8/16, we decode these code points specially again to make this an identity
+  transformation. 
   
-  The advantage over using the replacement character is that we now retain full information what
-  the original (invalid) sequences were (and can thus do an identity transform) -- and we stay with
-  valid utf-8 (unlike wtf-8 for example).
+  _Otherwise these are just regular code points and valid utf-8 with no special treatment_.
+
+  Security wise this is also good practice -- for example, we decode the overlong qutf-8 
+  sequence `0xC0 0x80` not to a 0 character, but to two raw code points: 0xEE0C0 0xEE080. This 
+  way, we maintain an identity transform while still preventing hidden embedded 0 characters.
   
-  (Actually, to make it an identity transform, when decoding qutf-16 we need to not just decode lone 
+  (Actually, to make it a true identity transform, when decoding qutf-16 we need to not just decode lone 
    surrogate halves to our raw range, but also surrogate pairs that happen to decode to our raw range, 
    and similarly for qutf-8; so for both qutf-8 and qutf-16 input we also treat any code points in the 
    raw range as an invalid sequence (which should be fine in practice as these are unassigned anyways). 
