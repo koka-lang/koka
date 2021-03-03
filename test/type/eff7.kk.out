@@ -1,1 +1,1 @@
-while : forall<a,e> (() -> <div,console|e> bool, () -> <div,console|e> a) -> <div,console|e> ()
+type/eff7/while: forall<a,e> (() -> <console,div|e> bool, () -> <console,div|e> a) -> <console,div|e> ()

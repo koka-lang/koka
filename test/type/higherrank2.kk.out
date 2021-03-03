@@ -1,3 +1,4 @@
-ids1 : forall<a,e> list<(x : a) -> e a>
-ids2 : list<forall<a> (a) -> a>
-ok : forall<a,e> (f : (x : a) -> e a) -> ndet ((x : a) -> e a)
+type/higherrank2/choose: forall<a> (x : a, y : a) -> a
+type/higherrank2/ids1: forall<a,e> list<(x : a) -> e a>
+type/higherrank2/ids2: list<forall<a> (a) -> a>
+type/higherrank2/ok: forall<a,e> (f : (x : a) -> e a) -> ((x : a) -> e a)

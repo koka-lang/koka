@@ -1,2 +1,3 @@
-test : forall<h> () -> <exn,alloc<h>,ndet> ref<h,int>
-test2 : () -> ndet ()
+type/eff3/choose: forall<a> (x : a, y : a) -> a
+type/eff3/test: forall<h> () -> <alloc<h>,exn> ref<h,int>
+type/eff3/test2: () -> ()

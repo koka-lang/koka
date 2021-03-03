@@ -1,7 +1,8 @@
 type foo :: X
 
-external inline onevent : forall<e> ( () -> e () ) -> <foo|e> ()
-{ inline "" }
+fun onevent( _f : () -> e () ) : <foo|e> () {
+  ()
+}
 
 fun f() : <foo,foo> ()
 { fun g() : foo ()

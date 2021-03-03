@@ -3,4 +3,4 @@ test/type/wrong/higherrank2.kk(2, 5): error: types do not match (due to an infin
  term : f
  inferred type: (_a) -> _e _b
  expected type: _a
- hint : annotate the function definition?
+ hint : give a type to the function definition?

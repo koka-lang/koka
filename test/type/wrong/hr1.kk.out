@@ -1,5 +1,4 @@
-test/type/wrong/hr1.kk(7,10): error: type is not polymorph enough
- context : runST( fun() { !r } )
- term : fun() { !r }
- inferred type : () -> <st<$h>,exn> int
- is less polymorph as: forall<h1> () -> <st<h1>,exn> int
+test/type/wrong/hr1.kk(7,10): error: abstract type(s) escape(s) into the context
+ term : fn(){ !r }
+ inferred type: () -> <st<$h>,exn> int
+ hint : give a higher-rank type annotation to a function parameter?

@@ -1,1 +1,2 @@
-ok : forall<a,e> (f : (x : a) -> e a) -> ndet ((x : a) -> e a)
+type/eff5/choose: forall<a> (x : a, y : a) -> a
+type/eff5/ok: forall<a,e> (f : (x : a) -> e a) -> ((x : a) -> e a)

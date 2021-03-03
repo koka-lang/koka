@@ -1,7 +1,7 @@
-type open test {
+open type test {
   X
 }
 
-type extend test1 {
+extend type test1 {
   Y
 }

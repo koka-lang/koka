@@ -1,6 +1,6 @@
 fun forever(f) {
   f("hi");
-  error("hi");
+  throw("hi");
   forever(f);
 }
 
