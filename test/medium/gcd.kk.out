@@ -1,3 +1,4 @@
 7
-gcd : (x : int, y : int) -> div int
-main : () -> <div,console> ()
+ 
+medium/gcd/gcd: (x : int, y : int) -> div int
+medium/gcd/main: () -> <console,div> ()
