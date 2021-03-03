@@ -1230,7 +1230,12 @@ resolveNameEx infoFilter mbInfoFilterAmb name ctx rangeContext range
                             infError range (text "no function" <+> Pretty.ppName penv name <+> text "is defined that matches the argument types" <->
                                          table (ctxTerm rangeContext ++
                                                 [(text "inferred type", argsDoc)
-                                                ,(text "candidates", align (tablex 0 (ppCandidates env  "" amb)))]))
+                                                ,(text "candidates", align (tablex 0 (ppCandidates env  "" amb)))]
+                                                ++
+                                                (if (name == newName "+")
+                                                  then [(text "hint", text "did you mean to use append (++)? (instead  of addition (+) )")]
+                                                  else [])
+                                               ))
 
                     _ -> do amb2 <- case mbInfoFilterAmb of
                                       Just infoFilterAmb -> lookupNameEx infoFilterAmb name ctx range

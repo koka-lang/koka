@@ -208,12 +208,12 @@ public fun (-)( ts : timestamp, t : timespan ) : timestamp {
 
 // Show a time stamp.
 public fun ts-show( ts : timestamp, max-prec : int = 9, secs-width : int = 1, unit : string = "" ) : string {
-  val l = if (ts.leap.is-zero) then "" else " (+" + ts.leap.show + " leap)"
-  ts.since.show-seconds(max-prec,secs-width,unit) + l
+  val l = if (ts.leap.is-zero) then "" else " (+" ++ ts.leap.show ++ " leap)"
+  ts.since.show-seconds(max-prec,secs-width,unit) ++ l
 }
 
 // Show a day stamp
 public fun ts-show-days( ts : timestamp, prec : int = 9 ) : string {
   val (days,secs) = ts.days-seconds
-  days.show + "d " + ts-show(timestamp(secs,ts.leap),prec,unit="s")
+  days.show ++ "d " ++ ts-show(timestamp(secs,ts.leap),prec,unit="s")
 }

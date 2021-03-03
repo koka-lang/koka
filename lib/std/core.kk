@@ -20,6 +20,7 @@ public import std/core/hnd
 
 infixr 80  (^)
 infixl 70  (*), (%), (/), cdiv, cmod
+infixr 60  (++)
 infixl 60  (+), (-)
 infix  40  (!=), (==), (<=), (>=), (<), (>)
 
@@ -482,7 +483,7 @@ fun reverse(xs : list<a>) : list<a> {
 }
 
 // Efficiently reverse a list `xs` and append it to `tl`:
-// `reverse-append(xs,tl) == reserve(xs) + tl
+// `reverse-append(xs,tl) == reserve(xs) ++ tl
 fun reverse-append( xs : list<a>, tl : list<a> ) : list<a> {
   fun reverse-acc(acc : list<a>, ys : list<a> ) : list<a> {
     match(ys) {
@@ -494,7 +495,7 @@ fun reverse-append( xs : list<a>, tl : list<a> ) : list<a> {
 }
 
 // Append two lists.
-fun (+)(xs : list<a>, ys : list<a> ) : list<a> {
+fun (++)(xs : list<a>, ys : list<a> ) : list<a> {
   append(xs,ys)
 }
 
@@ -739,7 +740,7 @@ private fun joinsep( xs : list<string>, sep : string ) : string
 {
   fun join-acc( ys : list<string>, acc : string ) {
     match(ys) {
-      Cons(y,yy) -> join-acc(yy, acc + sep + y)  // todo: use string builder
+      Cons(y,yy) -> join-acc(yy, acc ++ sep ++ y)  // todo: use string builder
       Nil -> acc
     }
   }
@@ -766,7 +767,7 @@ fun join( xs : list<string>, sep : string ) : string {
 public fun join-end( xs : list<string>, end : string) : string {
   match(xs) {
     Nil -> ""
-    _   -> xs.joinsep(end) + end
+    _   -> xs.joinsep(end) ++ end
   }
 }
 
@@ -1526,7 +1527,7 @@ fun (>)( x : string, y : string ) : bool  { compare(x,y) == Gt }
 fun (<)( x : string, y : string ) : bool  { compare(x,y) == Lt }
 
 // Append two strings.
-extern (+)(x : string, y : string) : string {
+extern (++)(x : string, y : string) : string {
   c "kk_string_cat"
   inline "(#1 + #2)"
 }
@@ -1937,7 +1938,7 @@ extern to-lower : (s : string) -> string {
 
 // Convert the first character of a string to uppercase.
 fun capitalize( s : string ) : string {
-  s.first.string.to-upper + s.first.after.string
+  s.first.string.to-upper ++ s.first.after.string
 }
 
 // Right-align a string to width `width`  using `fill`  (default is a space) to fill from the left.
@@ -1947,7 +1948,7 @@ fun pad-left( s : string, width : int, fill : char = ' ') : string
   val n = s.length
   if (w <= n)
    then s
-   else fill.string.repeatz( w - n ) + s
+   else fill.string.repeatz( w - n ) ++ s
 }
 
 // Left-align a string to width `width`  using `fill`  (default is a space) to fill on the right.
@@ -1957,7 +1958,7 @@ fun pad-right( s : string, width : int, fill : char = ' ') : string
   val n = s.length
   if (w <= n)
    then s
-   else s + fill.string.repeatz(w - n)
+   else s ++ fill.string.repeatz(w - n)
 }
 
 // Trim whitespace on the left and right side of a string
@@ -2177,7 +2178,7 @@ private extern int-show-hex(i:int,use-capitals:bool) : string {
 // The `use-capitals` parameter (= `True`) determines if captical letters should be used to display the hexadecimal digits.\
 // The `pre` (=`"0x"`) is an optional prefix for the number (goes between the sign and the number).
 fun show-hex( i : int, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) {
-  (if (i<0) then "-" else "") + pre + int-show-hex(i.abs,use-capitals).pad-left(width,'0')
+  (if (i<0) then "-" else "") ++ pre ++ int-show-hex(i.abs,use-capitals).pad-left(width,'0')
 }
 
 // Show a `:double` as a string.
@@ -2231,9 +2232,9 @@ private fun show-char( c : char ) : string
     if (c == '\n') then "\\n"
     elif (c == '\r') then "\\r"
     elif (c == '\t') then "\\t"
-    elif (c.int <= 0xFF) then "\\x" + c.int.show-hex(2,pre="")
-    elif (c.int <= 0xFFFF) then "\\u" + c.int.show-hex(4,pre="")
-    else "\\U" + c.int.show-hex(6,pre="")
+    elif (c.int <= 0xFF) then "\\x" ++ c.int.show-hex(2,pre="")
+    elif (c.int <= 0xFFFF) then "\\u" ++ c.int.show-hex(4,pre="")
+    else "\\U" ++ c.int.show-hex(6,pre="")
   }
   else {
     if (c == '\'') then "\\'"
@@ -2246,14 +2247,14 @@ private fun show-char( c : char ) : string
 // Show a `:char` as a character literal
 fun show( c : char ) : string
 {
-  "'" + c.show-char + "'"
+  "'" ++ c.show-char ++ "'"
 }
 
 
 // Show a string as a string literal
 fun show( s : string ) : string
 {
-  "\"" + s.list.map(show-char).join + "\""
+  "\"" ++ s.list.map(show-char).join ++ "\""
 }
 
 // Convert a `:bool` to a string
@@ -2268,7 +2269,7 @@ fun show( s : sslice ) : string { s.string.show }
 // Convert a list to a string
 fun show-list( xs : list<a>, show-elem : (a) -> e string ) : e string
 {
-  "[" + xs.map(show-elem).join(",") + "]"
+  "[" ++ xs.map(show-elem).join(",") ++ "]"
 }
 
 
@@ -2285,7 +2286,7 @@ fun show( xs : list<bool> ) : string {
 }
 
 fun show-tuple( x : (a,b), showfst : a -> string, showsnd : b -> string ) : string {
-  "(" + x.fst.showfst + "," + x.snd.showsnd + ")"
+  "(" ++ x.fst.showfst ++ "," ++ x.snd.showsnd ++ ")"
 }
 
 // ----------------------------------------------------------------------------
@@ -2343,7 +2344,7 @@ private noinline fun printsln( s : string ) : console () {
   (unsafe-nostate {
     match(!redirect) {
       Nothing -> xprintsln(s)
-      Just(f) -> f(s + "\n")
+      Just(f) -> f(s ++ "\n")
     }
   })()
 }
@@ -2426,7 +2427,7 @@ noinline fun notrace() : st<global> () {
 
 private extern unsafe-assert-fail( msg : string ) : () {
   c "kk_assert_fail"
-  js inline "throw new Error(\"assertion failed: \" + #1)"
+  js inline "throw new Error(\"assertion failed: \" ++ #1)"
 }
 
 fun assert( message : string, condition : bool ) : () {  // Compiler removes assert calls in optimized builds
@@ -2487,7 +2488,7 @@ fun throw( message: string, info : exception-info = ExnError ) : exn a {
 // Raise a pattern match exception. This is function is used internally by the
 // compiler to generate error messages on pattern match failures.
 fun error-pattern(location : string, definition : string) : exn a {
-  throw(location + (if (definition.is-empty) then "" else (": " + definition)) + ": pattern match failure",
+  throw(location ++ (if (definition.is-empty) then "" else (": " ++ definition)) ++ ": pattern match failure",
          ExnPattern(location,definition))
 }
 

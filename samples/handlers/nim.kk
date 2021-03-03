@@ -102,12 +102,12 @@ fun show-gtree(gt :gtree, indent:int) : _ string {
   val showi = (show : (int) -> string)
   match(gt) {
     Take(p,moves) {
-      p.show + moves.map(fn(x){
+      p.show ++ moves.map(fn(x){
         val (sticks,gtx) = x
-        "\n" + " ".repeat(indent) + sticks.show + " -> " + gtx.show-gtree(indent+2)
+        "\n" ++ " ".repeat(indent) ++ sticks.show ++ " -> " ++ gtx.show-gtree(indent+2)
       }).join
     }
-    Winner(p) -> p.show + " wins"
+    Winner(p) -> p.show ++ " wins"
   }
 }
 
@@ -123,7 +123,7 @@ public fun test-gtree() {
 
 effect fun cheat(player:player) : a
 
-val cheat-report = handler fun cheat(p){ throw(p.show + " cheated!") }
+val cheat-report = handler fun cheat(p){ throw(p.show ++ " cheated!") }
 
 val check = handler control move(p,n) {
   val m = move(p,n)
@@ -185,11 +185,11 @@ fun bob-chooses(m) {
 
 val all-results = handler {
   return(x)       { [x] }
-  control choose(){ resume(True) + resume(False) }
+  control choose(){ resume(True) ++ resume(False) }
 }
 
 public fun test-choose()  {
-  with control choose(){ resume(True) + (resume(False) : list<_>) }
+  with control choose(){ resume(True) ++ (resume(False) : list<_>) }
   with bob-chooses
   [game(7)]   // [bob,alice]
 }
@@ -239,7 +239,7 @@ val printer = handler return x { print-board(get()); x }
 
 fun print-board( gs : gstate ) : io () {
   gs.map( fn(ps) {
-    ps.fst.show + " -> " + ps.snd.show
+    ps.fst.show ++ " -> " ++ ps.snd.show
   }).join("\n").println
 }
 

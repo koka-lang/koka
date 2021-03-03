@@ -120,11 +120,11 @@ public fun show(t : time, prec : int = 9 ) : string {
 public fun show-raw( tp : time, prec : int = 9 ) : string {
   val tsname = tp.timescale.name
   tp.date.show(tp.calendar.month-prefix)
-   + "T" + tp.clock.show(prec)
-   + show-tzdelta(tp.tzdelta )
-   + (if (tp.tzabbrv.is-numeric) then "" else " (" + tp.tzabbrv + ")")
-   + (if (tp.calendar.name.is-empty || tp.calendar.month-prefix.is-notempty) then "" else " " + tp.calendar.name)
-   + (if (tsname.is-empty || tsname == "UTC") then "" else " " + tsname)
+   ++ "T" ++ tp.clock.show(prec)
+   ++ show-tzdelta(tp.tzdelta )
+   ++ (if (tp.tzabbrv.is-numeric) then "" else " (" ++ tp.tzabbrv ++ ")")
+   ++ (if (tp.calendar.name.is-empty || tp.calendar.month-prefix.is-notempty) then "" else " " ++ tp.calendar.name)
+   ++ (if (tsname.is-empty || tsname == "UTC") then "" else " " ++ tsname)
 }
 
 fun is-numeric( abbrv : string ) : bool {
@@ -143,9 +143,9 @@ public fun show-tzdelta(delta : duration, utc : string = "Z", hmsep : string = "
   val dt = delta.seconds.int
   if (dt.is-zero) return utc
   val (mins,secs) = divmod(dt.abs,60)
-  val tz   = (if (dt.is-neg) then "-" else "+") + (mins/60).show0(hrwidth) + hmsep + (mins%60).show0
-  val tzs  = if (secs.is-zero) then "" else ":" + secs.show0
-  tz + tzs
+  val tz   = (if (dt.is-neg) then "-" else "+") ++ (mins/60).show0(hrwidth) ++ hmsep ++ (mins%60).show0
+  val tzs  = if (secs.is-zero) then "" else ":" ++ secs.show0
+  tz ++ tzs
 }
 
 

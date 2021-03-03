@@ -99,14 +99,14 @@ fun pdecimal() : parse decimal {
   val frac = optional("", { char('.'); digits() })
   val exp  = optional(0, { one-of("eE"); pint() })
   // trace("frac:" + frac)
-  val i = decimal-exp( (whole+frac).parse-int-default(0), exp - frac.count )
+  val i = decimal-exp( (whole ++ frac).parse-int-default(0), exp - frac.count )
   if (neg) then ~i else i
 }
 
 // Ensure a decimal `x` has an exponent such that `x.exp <= e`.
 fun expand( x : decimal, e : int ) : decimal {
   if (x.exp <= e) then x else {
-    //trace("expand: " + x.show + " to exp " + p.show)
+    //trace("expand: " ++ x.show ++ " to exp " ++ p.show)
     decimal-exp( x.num.mul-exp10( x.exp - e ), e )
   }
 }
@@ -116,17 +116,17 @@ public fun reduce( x : decimal ) : decimal {
   val p   = x.num.is-exp10
   if (!p.is-pos) return x
   val expp= x.exp + p
-  // trace("reduce: x:" + x.showx + ", p:" + p.show + ", expp:" + expp.show)
+  // trace("reduce: x:" ++ x.showx ++ ", p:" ++ p.show ++ ", expp:" ++ expp.show)
   if (round-exp(expp)==x.exp) then x else decimal-exp(x.num.cdiv-exp10(p), expp)
 }
 
 // Add two decimals.
 public fun (+)( x : decimal, y : decimal ) : decimal {
   val e  = min(x.exp,y.exp)
-  // trace("add: " + x.show-raw + " + " + y.show-raw + ", using exp: " + e.show )
+  // trace("add: " ++ x.show-raw ++ " + " ++ y.show-raw ++ ", using exp: " ++ e.show )
   val xx = x.expand(e)
   val yy = y.expand(e)
-  // trace("expanded add: " + xx.show-raw + " + " + yy.show-raw)
+  // trace("expanded add: " ++ xx.show-raw ++ " + " ++ yy.show-raw)
   Decimal(xx.num + yy.num, e)
 }
 
@@ -406,7 +406,7 @@ public fun ffraction( x : decimal ) : decimal {
  
 // Show a decimal `d` using its internal representation.
 public fun show-raw(d : decimal) {
-  d.num.show + "e" + d.exp.show
+  d.num.show ++ "e" ++ d.exp.show
 }
 
 // Show a decimal `d` with a given precision `prec` (=`-1000`).
@@ -449,16 +449,16 @@ while for a positive precision, exactly `prec` digits are used.
 public fun show-fixed( d : decimal, prec : int = -1000 ) : string {
   val x = d.round-to-prec(prec.abs)
   if (x.exp >= 0) {
-    val frac = if (prec<=0) then "" else "." + repeat("0",prec)
-    x.num.show + repeat("0",x.exp) + frac
+    val frac = if (prec<=0) then "" else "." ++ repeat("0",prec)
+    x.num.show ++ repeat("0",x.exp) ++ frac
   }
   else {
-    val digits  = ~x.exp
+    val digits = ~x.exp
     val sign  = if (x.is-neg) then "-" else ""
-    val i           = x.num.abs
-    val man  = cdiv-exp10(i,digits)
+    val i     = x.num.abs
+    val man   = cdiv-exp10(i,digits)
     val frac  = i - mul-exp10(man,digits)
-    sign + man.show + frac.show.pad-left(digits,'0').show-frac(prec)
+    sign ++ man.show ++ frac.show.pad-left(digits,'0').show-frac(prec)
   }
 }
 
@@ -487,12 +487,12 @@ public fun show-exp( d : decimal, prec : int = -1000 ) : string {
   val digits  = s.count
   val exp  = x.exp + digits - 1
   val sign  = if (x.is-neg) then "-" else ""
-  val exponent  = if (exp==0) then "" else "e" + (if (exp.is-pos) then "+" else "") + exp.show
-  sign + s.head + s.tail.show-frac(prec) + exponent
+  val exponent  = if (exp==0) then "" else "e" ++ (if (exp.is-pos) then "+" else "") ++ exp.show
+  sign ++ s.head ++ s.tail.show-frac(prec) ++ exponent
 }
 
 fun show-frac( frac : string, prec : int ) : string {
   val frac-trim  = frac.trim-right("0")
   val frac-full  =if (prec >= 0) then frac-trim.pad-right(prec,'0') else frac-trim
-  if (frac-full.is-empty) then "" else "." + frac-full
+  if (frac-full.is-empty) then "" else "." ++ frac-full
 }

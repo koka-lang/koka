@@ -45,7 +45,7 @@ abstract struct path(
   parts: list<string> = [] // directory parts in reverse order
 )
 
-// Return the base name of a path (stem name + extension)\
+// Return the base name of a path (stem name ++ extension)\
 // `"/foo/bar.txt".path.basename === "bar.txt"` \
 // `"/foo".path.basename === "foo"`
 public fun basename( p : path ) : string {
@@ -56,7 +56,7 @@ public fun basename( p : path ) : string {
 // `"/foo/bar.txt".path.dirname === "/foo"` \
 // `"/foo".path.dirname === "/"`
 public fun dirname( p : path ) : string {
-  p.root + p.parts.tail.reverse.join("/")
+  p.root ++ p.parts.tail.reverse.join("/")
 }
 
 // Return the extension of path (without the preceding dot (`'.'`))\
@@ -95,7 +95,7 @@ fun split-parts( parts : list<string> ) : (string,list<string>) {
 // `"c:\\foo\\test.txt".path.string -> "c:/foo/test.txt"`\
 // `"/foo//./bar/../test.txt".path.string -> "/foo/test.txt"`
 public fun string( p : path ) : string {
-  val s = p.root + p.parts.reverse.join("/")
+  val s = p.root ++ p.parts.reverse.join("/")
   if (s.is-empty) then "." else s
 }
 
@@ -126,7 +126,7 @@ public fun path( s : string ) : path {
   val t = s.replace-all("\\","/")
   match(t.starts-with(proot)) {
     Nothing          -> path-parts("",t)
-    Just((eof,rest)) -> path-parts(rest.before.string + (if (eof) then "/" else ""),rest.string)
+    Just((eof,rest)) -> path-parts(rest.before.string ++ (if (eof) then "/" else ""),rest.string)
   }
 }
 fun path-parts( root : string, s : string, dirs : list<string> = [] ) : path {
@@ -163,7 +163,7 @@ fun paths-collect( ps : list<string> ) : list<path> {
     Cons(root,Cons(part,rest)) // match on windows 'c:\' parts
       | root.count==1 && root.head-char.default(' ').is-alpha &&
         !part.is-empty && "/\\".contains(part.head)
-      -> Cons( path(root+":"+part), paths-collect(rest))
+      -> Cons( path(root ++ ":" ++ part), paths-collect(rest))
     Cons(part,rest) -> Cons( path(part), paths-collect(rest))
     Nil             -> Nil
   }
@@ -171,16 +171,16 @@ fun paths-collect( ps : list<string> ) : list<path> {
 
 // Add two paths together. \
 // Keeps the root of `p1` and discards the root name of `p2`.\
-// `"/a/" + "b/foo.txt"          === "/a/b/foo.txt"`\
-// `"/a/foo.txt" + "/b/bar.txt"  === "/a/foo.txt/b/bar.txt"`\
-// `"c:/foo" + "d:/bar"          === "c:/foo/bar"`
-public fun (+)(p1 : path, p2: path) : path {
+// `"/a/" ++ "b/foo.txt"          === "/a/b/foo.txt"`\
+// `"/a/foo.txt" ++ "/b/bar.txt"  === "/a/foo.txt/b/bar.txt"`\
+// `"c:/foo" ++ "d:/bar"          === "c:/foo/bar"`
+public fun (++)(p1 : path, p2: path) : path {
   Path(p1.root,push-parts(p2.parts.reverse, p1.parts))
 }
 
 // Convenience function that adds a string path.
-public fun (+)(p1 : path, p2: string) : path {
-  p1 + p2.path
+public fun (++)(p1 : path, p2: string) : path {
+  p1 ++ p2.path
 }
 
 // Return the first path if it is not empty, otherwise return the second one.
@@ -192,7 +192,7 @@ public fun (||)(p1 : path, p2: path) : path {
 public fun combine( ps : list<path> ) : path {
   match(ps) {
     Nil -> Path()
-    Cons(p,pp) -> pp.foldl(p,(+))
+    Cons(p,pp) -> pp.foldl(p,(++))
   }
 }
 
@@ -218,8 +218,8 @@ public fun noext( p : path ) : path {
 public fun change-ext( p : path, extname : string ) : path {
   val (basename,dirs) = p.parts.split-parts
   val (stemname,_)    = basename.split-base
-  val newext = if (extname.starts-with(".").bool) then extname else "." + extname
-  path-parts(p.root, stemname+newext, dirs)
+  val newext = if (extname.starts-with(".").bool) then extname else "." ++ extname
+  path-parts(p.root, stemname ++ newext, dirs)
 }
 
 // If a path has no extension, set it to the provided one.
@@ -230,7 +230,7 @@ public fun default-ext( p : path, newext : string ) : path {
 // Change the stem name of a path
 public fun change-stem( p : path, stemname : string ) : path {
   val ext = p.extname
-  p.change-base( stemname + (if (ext.is-empty) then "" else "." + ext) )
+  p.change-base( stemname ++ (if (ext.is-empty) then "" else "." ++ ext) )
 }
 
 // Change the base name of a path

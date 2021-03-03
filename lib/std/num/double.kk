@@ -498,10 +498,10 @@ fun show-hex( d : double, width : int = 1, use-capitals : bool = True, pre : str
     val (m,e)  = d.decode
     val man  = m.abs.show-hex(1,use-capitals,"")
     val exp0  = e + 4*(man.count - 1)
-    val exp  = (if (exp0 >= 0) then "+" else "") + exp0.show
+    val exp  = (if (exp0 >= 0) then "+" else "") ++ exp0.show
     val frac  = man.tail.trim-right("0").pad-right(max(1,width),'0')
     val sign  = if (d.is-neg || d.is-negzero) then "-" else ""
-    sign + pre + man.head + "." + frac + "p" +  exp
+    sign ++ pre ++ man.head ++ "." ++ frac ++ "p" ++ exp
   }
 }
 
@@ -529,7 +529,7 @@ private fun phexdouble() : parse double {
   val man  = hex-digits()
   val frac = optional( "", { char('.'); hex-digits() }).trim-right("0")
   val exp : int = optional( 0, { one-of("pP"); pint() })
-  val m : int = (man + frac).parse-int(hex=True).default(0)
+  val m : int = (man ++ frac).parse-int(hex=True).default(0)
   val e : int = exp - 4*frac.count
   encode(m,e)
 }
@@ -539,7 +539,7 @@ private fun pdecdouble() : parse double {
   val man  = digits()
   val frac = optional("", { char('.'); digits0() }).trim-right("0")
   val exp : int = optional( 0, { one-of("eE"); pint() })
-  //val m : int = (man + frac).parse-int-default(0)
+  //val m : int = (man ++ frac).parse-int-default(0)
   //val e : int = exp - frac.count
   //m.double * exp10(e.double)
   cur.string.prim-parse-double  // more precision than simple multiply

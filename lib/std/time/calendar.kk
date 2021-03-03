@@ -86,9 +86,9 @@ public fun tz-fixed( hours: int, mins : int = 0, name : string = "", abbrv : str
   if (hours.is-zero && mins.is-zero) then return tz-utc
   val xmins = if (hours.is-pos) then mins.abs elif (hours.is-neg) then (mins.abs).negate else mins
   val secs  = hours*3600 + xmins*60
-  val tzonename = name || ("UTC" + (if (secs.is-neg) then "-" else "+")
-                            + hours.abs.show.pad-left(hourwidth,'0')
-                            + (if (mins.is-zero) then "" else ":" + mins.abs.show.pad-left(2,'0')))
+  val tzonename = name || ("UTC" ++ (if (secs.is-neg) then "-" else "+")
+                            ++ hours.abs.show.pad-left(hourwidth,'0')
+                            ++ (if (mins.is-zero) then "" else ":" ++ mins.abs.show.pad-left(2,'0')))
   val delta  = duration(secs)
   tz-fixed(tzonename,delta,abbrv)
 }
@@ -153,7 +153,7 @@ public fun instant( d : date, c : clock = clock0, tz : timezone = tz-utc, cal : 
 // Convert an `:instant` to a `:date`, `:clock`, timezone delta and abbreviation,
 // for a given timezone `tz` (=`tz-utc` by default) and calendar (=`cal-iso` by default).
 public fun instant-dc( i : instant, tz :timezone = tz-utc, cal : calendar = cal-iso ) : (date,clock,duration,string) {
-  //trace("instant-dc: " + i.show-raw)
+  //trace("instant-dc: " ++ i.show-raw)
   val (tzdelta,tzabbrv) = (tz.utc-delta)(i)
   val (d,c) = (cal.instant-to-dc)( i, tzdelta )
   (d,c,tzdelta,tzabbrv)

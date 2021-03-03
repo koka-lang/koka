@@ -26,7 +26,7 @@ val fmt-iso-timezone   = "Z C"
 // Show a time as a standard ISO string. Will use automatic week date
 // or month date format for the `cal-iso-week` and `cal-iso-month` calendars.
 public fun show-iso( t : time ) : string {
-  t.show-iso-date + "T" + t.format(fmt-iso-time + fmt-iso-timezone)
+  t.show-iso-date ++ "T" ++ t.format(fmt-iso-time ++ fmt-iso-timezone)
 }
 
 // Show a time as a standard ISO date. Will use automatic week date
@@ -63,7 +63,7 @@ fun format-weekday( t : time, n : int, locale : time-locale ) : string {
     val days = if (n==2) then locale.day-names-min
                elif (n==3) then locale.day-names-short
                else locale.day-names
-    days[wd.int - 1].default("D"+wd.show)
+    days[wd.int - 1].default("D" ++ wd.show)
   }
 }
 
@@ -75,11 +75,11 @@ fun format-day( t : time, n : int, locale : time-locale ) : string {
 
 fun format-month( t : time, n : int, locale : time-locale ) : string {
   if (n<=2) then {
-    t.calendar.month-prefix + t.month.showl(n)
+    t.calendar.month-prefix ++ t.month.showl(n)
   }
   else {
     val months = if (n==3) then locale.month-names-short else locale.month-names
-    months[t.month - 1].default("M" + t.month.showl(2))
+    months[t.month - 1].default("M" ++ t.month.showl(2))
   }
 }
 
@@ -92,7 +92,7 @@ fun format-year( t : time, n : int, locale : time-locale ) : string {
   }
   else {
     val y = t.year.abs.showl(n)
-    if (t.year.is-neg) then "-" + y else "+" + y
+    if (t.year.is-neg) then "-" ++ y else "+" ++ y
   }
 }
 
@@ -259,7 +259,7 @@ fun format-list( t : time, fmt : list<char>, locale : time-locale ) : string {
     Nil -> ""
     Cons(c,cs) -> {
       val (formatted,rest) = format-pat(t,c,cs,locale)
-      formatted + format-list(t, unsafe-decreasing(rest), locale)
+      formatted ++ format-list(t, unsafe-decreasing(rest), locale)
     }
   }
 }
@@ -334,7 +334,7 @@ fun pquoted(quote : char) : parse string {
   char(quote)
   val s = optional(""){ chars-are("",fn(c){ c != quote } ).string }
   char(quote)
-  return (quote.string + s + quote.string)
+  return (quote.string ++ s ++ quote.string)
 }
 
 fun plocale-t( locale : time-locale ) : parse string {  

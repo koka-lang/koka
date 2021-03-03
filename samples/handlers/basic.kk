@@ -59,7 +59,7 @@ effect fun input() : string
 
 fun hello() {
   val name = input()
-  println("Hello " + name + ", " + input())  // "Hello <input>, <input>"
+  println("Hello " ++ name ++ ", " ++ input())  // "Hello <input>, <input>"
 }
 
 public fun test2() {
@@ -142,7 +142,7 @@ fun test4b() {
   with amb
   with foreach fn(x:int) {
     if (flip()) then println(x)
-                else println("flip false " + x.show)
+                else println("flip false " ++ x.show)
     (x<=1)
   }
   [1,2,3].iterate
@@ -168,7 +168,7 @@ val coinflip = handler {
 // handler that returns all possible outcomes
 val amb = handler {
   return(x)     { [x] }
-  control flip(){ resume(False) + resume(True) }
+  control flip(){ resume(False) ++ resume(True) }
 }
 
 public fun test5() {

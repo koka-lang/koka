@@ -22,21 +22,21 @@ public fun list-directory-recursive( dir : path, max-depth : int = 1000 ) : <fsy
   if (max-depth < 0) return []
   val all  = list-directory(dir)
   val dirs = all.filter(is-directory)
-  all + dirs.flatmap(fn(sub){ list-directory-recursive(sub,(max-depth - 1)) })
+  all ++ dirs.flatmap(fn(sub){ list-directory-recursive(sub,(max-depth - 1)) })
 }
 
 public fun copy-directory( dir : path, to : path ) : <fsys,pure> () {
   ensure-dir(to)
   val all = list-directory(dir)
   val (dirs,files) = all.partition(is-directory)
-  files.foreach( fn(f){ copy-file( f, to + f.nodir ) } )
-  dirs.foreach( fn(d){ copy-directory( d, to + d.nodir ) } )
+  files.foreach( fn(f){ copy-file( f, to ++ f.nodir ) } )
+  dirs.foreach( fn(d){ copy-directory( d, to ++ d.nodir ) } )
 }
 
 // Ensure a directory path exists
 public fun ensure-dir( dir : path ) : <fsys,exn> () {
   match(ensure-dir-err(dir.string, -1)) {
-    Error(exn) -> Error(exn.prepend("unable to create directory " + dir.show)).throw
+    Error(exn) -> Error(exn.prepend("unable to create directory " ++ dir.show)).throw
     Ok         -> ()
   }
 }
@@ -46,7 +46,7 @@ public fun ensure-dir( dir : path ) : <fsys,exn> () {
 public fun list-directory( dir : path ) : fsys list<path> {
   match(prim-list-dir(dir.string)) {
     Error()      -> []
-    Ok(contents) -> contents.list.map(fn(name){ dir + name.path })
+    Ok(contents) -> contents.list.map(fn(name){ dir ++ name.path })
   }
 }
 
@@ -62,19 +62,19 @@ public fun is-file( path : path ) : fsys bool {
 
 // Copy a file to a directory
 public fun copy-file-to-dir( from : path, dir : path ) : <fsys,exn> () {
-  copy-file(from, dir + from.nodir)
+  copy-file(from, dir ++ from.nodir)
 }
 
 // Copy a file.
 public fun copy-file( from : path, to : path, preserve-mtime : bool = True ) : <fsys,exn> () {
   match (prim-copy-file(from.string, to.string, preserve-mtime )) {
-    Error(exn) -> Error(exn.prepend("unable to copy " + from.show + " to " + to.show)).throw
+    Error(exn) -> Error(exn.prepend("unable to copy " ++ from.show ++ " to " ++ to.show)).throw
     _ -> ()
   }
 }
 
 private fun prepend( exn : exception, pre : string ) : exception {
-  Exception(pre + ": " + exn.message, exn.info)
+  Exception(pre ++ ": " ++ exn.message, exn.info)
 }
 
 extern ensure-dir-err( path : string, mode : int ) : fsys error<()> {

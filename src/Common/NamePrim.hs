@@ -135,6 +135,7 @@ module Common.NamePrim
           , nameKindHandled1, nameKindHandled
 
           , namesSameSize
+
           ) where
 
 import Data.Char (isDigit)
