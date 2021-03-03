@@ -4,8 +4,8 @@
 
 // First defined the `many` effect to describe multiple of results and failure
 effect many {
-  fun flip() : bool
-  fun fail() : a
+  control flip() : bool
+  control fail() : a
 }
 
 fun select(xs) {
@@ -17,17 +17,17 @@ fun select(xs) {
 
 // Return all solutions 
 val solutions = handler {
-  return x -> [x]
-  fail()   -> []
-  flip()   -> resume(True) + resume(False)
+  return  x       -> [x]
+  control fail()  -> []
+  control flip()  -> resume(True) ++ resume(False)
 }
 
 
 // Return the first solution
 val eager = handler {
-  return x -> [x]
-  fail()   -> []
-  flip()   -> match(resume(True)) {
+  return x       -> [x]
+  control fail() -> []
+  control flip() -> match(resume(True)) {
     Nil -> resume(False)
     xs  -> xs
   }
@@ -58,16 +58,17 @@ effect parse {
 alias mparse = <parse,many>
 
 // The parse handler uses the `many` effect to return results
-val parse : forall<a,e> (string, () -> <parse,many|e> a) -> <many|e> (a,string)
-  = handler(input:string) {
-      return x -> (x,input)
-      satisfy(pred) -> {
-        match(pred(input)) {
-          Nothing          -> fail()
-          Just((res,rest)) -> resume(res,rest)
-        }
-      }      
+fun parse(input0 : string, action : () -> <parse,many|e> a) : <many|e> (a,string) {
+  var input := input0
+  with return(x){ (x,input) }
+  with fun satisfy(pred){
+    match(pred(input)) {
+      Nothing          { fail() }
+      Just((res,rest)) { input := rest; res }
     }
+  }
+  action()      
+}
 
 
 fun char(p : char -> bool) : parse char {
@@ -87,11 +88,11 @@ fun symbol(c : char) : parse () {
 }
 
 fun digit() : parse int {
-  int(char(digit?) - '0')
+  int(char(is-digit) - '0')
 }
 
 fun alpha() : parse int {
-  int(char(alpha?) - 'a')
+  int(char(is-alpha) - 'a')
 }
 
 fun number() {

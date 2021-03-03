@@ -1,13 +1,3 @@
-[01;30moperator branch (pc) move: resume tail
-[00;39;49m[00m[01;30moperator branch (allResults) choose: resume scoped
-[00;39;49m[00m[01;30moperator branch (perfect) move: resume tail
-[00;39;49m[00m[01;30moperator branch (cheatReport) cheat: resume never
-[00;39;49m[00m[01;30moperator branch (check) move: resume tail
-[00;39;49m[00m[01;30moperator branch (coin) choose: resume tail
-[00;39;49m[00m[01;30moperator branch (gametree) move: resume normal
-[00;39;49m[00m[01;30moperator branch (state) get: resume tail
-[00;39;49m[00m[01;30moperator branch (state) put: resume tail
-[00;39;49m[00m
 -----------
 alice
 -----------
@@ -28,73 +18,56 @@ bob
 -----------
 [bob,alice]
 -----------
-failure while running program:
- node out/test/algeff_nim.js
-.Op-cheat : forall<a> (player : player) -> .op-cheat<a>
-.Op-choose : .op-choose
-.Op-get : forall<a> .op-get<a>
-.Op-move : (player : player, sticks : int) -> .op-move
-.Op-put : forall<a> (x : a) -> .op-put<a>
-.Ops-cheat : forall<a,b> (cheat : .op-cheat<b>) -> .ops-cheating<b>
-.Ops-choose : forall<a> (choose : .op-choose) -> .ops-choose<bool>
-.Ops-get : forall<a,b> (get : .op-get<a>) -> .ops-state<a,a>
-.Ops-move : forall<a> (move : .op-move) -> .ops-nim<int>
-.Ops-put : forall<a,b> (put : .op-put<a>) -> .ops-state<a,()>
-.tag-cheating: string
-.tag-choose : string
-.tag-nim : string
-.tag-state : string
-== : (p1 : player, p2 : player) -> bool
-Alice : player
-Bob : player
-Take : (player : player, moves : list<(int, gtree)>) -> gtree
-Winner : (player : player) -> gtree
-alice? : (player : player) -> bool
-aliceTurn : (n : int) -> <nim,div> player
-allResults : forall<a,e> (action : () -> <choose|e> a) -> e list<a>
-bob? : (player : player) -> bool
-bobChooses : forall<a,e> (m : () -> <nim,choose|e> a) -> <choose|e> a
-bobTurn : (n : int) -> <nim,div> player
-cheat : forall<a> (player : player) -> cheating a
-cheatReport : forall<a,e> (action : () -> <cheating,exn|e> a) -> <exn|e> a
-check : forall<a,e> (action : () -> <nim,nim,cheating|e> a) -> <nim,cheating|e> a
-choose : () -> choose bool
-coin : forall<a,e> (action : () -> <choose,ndet|e> a) -> <ndet|e> a
-game : (n : int) -> <nim,div> player
-gametree : forall<e> (action : () -> <nim|e> player) -> e gtree
-get : forall<a> () -> (state<a>) a
-main : () -> <pure,console> ()
-move : (player : player, sticks : int) -> nim int
-mymap : forall<a,b,e> (list<a>, (a) -> e b) -> e list<b>
-pc : forall<a,e> (action : () -> <nim|e> a) -> e a
-perfect : forall<a,e> (action : () -> <nim|e> a) -> e a
-player : (gtree : gtree) -> player
-printBoard : (gs : gstate) -> io ()
-printer : forall<a,e> (action : () -> <io,state<gstate>|e> a) -> <io,state<gstate>|e> a
-put : forall<a> (x : a) -> (state<a>) ()
-replay : forall<a,e> (n : int, action : () -> <div|e> a) -> <div|e> a
-s0 : list<(player, int)>
-scoreUpdater: forall<e> (action : () -> <state<gstate>|e> player) -> <state<gstate>|e> player
-show : (gt : gtree) -> div string
-show : (ps : list<player>) -> string
-show : (p : player) -> string
-showGt : (gt : gtree, indent : int) -> div string
-state : forall<a,b,e> (init : a, action : () -> <state<a>|e> b) -> e b
-take? : (gtree : gtree) -> bool
-testCheck : () -> pure player
-testChoose : () -> div list<player>
-testCoin : () -> <div,ndet> player
-testGt : () -> div gtree
-testPc1 : () -> pure player
-testPc2 : () -> pure player
-testPerfect1: () -> div player
-testPerfect2: () -> div player
-testPrint1 : () -> io player
-testPrint2 : () -> io player
-updateScore : (p : player, gs : gstate) -> gstate
-validMoves : (n : int) -> list<int>
-winner? : (gtree : gtree) -> bool
-.../out/test/std_core.js:
- throw exn;
- ^
-std/core/Error: bob cheated!
+uncaught exception: bob cheated!
+add default effect for std/core/exn
+ 
+algeff/nim/==: (p1 : player, p2 : player) -> bool
+algeff/nim/Alice: player
+algeff/nim/Bob: player
+algeff/nim/Cheating: forall<e,a> (.hnd-cheating<e,a>) -> cheating
+algeff/nim/Choose: forall<e,a> (.hnd-choose<e,a>) -> choose
+algeff/nim/Nim: forall<e,a> (.hnd-nim<e,a>) -> nim
+algeff/nim/State: forall<a,e,b> (.hnd-state<a,e,b>) -> state<a>
+algeff/nim/Take: (player : player, moves : list<(int, gtree)>) -> gtree
+algeff/nim/Winner: (player : player) -> gtree
+algeff/nim/aliceTurn: (n : int) -> <div,nim> player
+algeff/nim/allResults: forall<a,e> (() -> <choose|e> a) -> e list<a>
+algeff/nim/bobChooses: forall<a,e> (m : () -> <choose,nim|e> a) -> <choose|e> a
+algeff/nim/bobTurn: (n : int) -> <div,nim> player
+algeff/nim/cheat: forall<a> (player : player) -> cheating a
+algeff/nim/cheatReport: forall<a,e> (() -> <cheating,exn|e> a) -> <exn|e> a
+algeff/nim/check: forall<a,e> (() -> <cheating,nim,nim|e> a) -> <cheating,nim|e> a
+algeff/nim/choose: () -> choose bool
+algeff/nim/game: (n : int) -> <div,nim> player
+algeff/nim/gametree: forall<e> (() -> <nim|e> player) -> e gtree
+algeff/nim/get: forall<a> () -> (state<a>) a
+algeff/nim/is-alice: (player : player) -> bool
+algeff/nim/is-bob: (player : player) -> bool
+algeff/nim/is-take: (gtree : gtree) -> bool
+algeff/nim/is-winner: (gtree : gtree) -> bool
+algeff/nim/main: () -> <pure,console> ()
+algeff/nim/move: (player : player, sticks : int) -> nim int
+algeff/nim/mymap: forall<a,b,e> (list<a>, (a) -> e b) -> e list<b>
+algeff/nim/pc: forall<a,e> (() -> <nim|e> a) -> e a
+algeff/nim/perfect: forall<a,e> (() -> <nim|e> a) -> e a
+algeff/nim/player: (gtree : gtree) -> player
+algeff/nim/printBoard: (gs : gstate) -> io ()
+algeff/nim/printer: forall<a,e> (() -> <io,state<gstate>|e> a) -> <io,state<gstate>|e> a
+algeff/nim/put: forall<a> (x : a) -> (state<a>) ()
+algeff/nim/replay: forall<a,e> (n : int, action : () -> <div|e> a) -> <div|e> a
+algeff/nim/s0: list<(player, int)>
+algeff/nim/scoreUpdater: forall<e> (() -> <state<gstate>|e> player) -> <state<gstate>|e> player
+algeff/nim/show: (gt : gtree) -> div string
+algeff/nim/show: (ps : list<player>) -> string
+algeff/nim/show: (p : player) -> string
+algeff/nim/showGt: (gt : gtree, indent : int) -> div string
+algeff/nim/state: forall<a,b,e> (init : a, action : () -> <div,state<a>|e> b) -> <div|e> b
+algeff/nim/testCheck: () -> pure player
+algeff/nim/testChoose: () -> div list<player>
+algeff/nim/testGt: () -> div gtree
+algeff/nim/testPc1: () -> pure player
+algeff/nim/testPc2: () -> pure player
+algeff/nim/testPerfect1: () -> div player
+algeff/nim/testPerfect2: () -> div player
+algeff/nim/updateScore: (p : player, gs : gstate) -> gstate
+algeff/nim/validMoves: (n : int) -> list<int>

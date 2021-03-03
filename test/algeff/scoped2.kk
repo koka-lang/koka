@@ -74,12 +74,12 @@ val choices = handler {
 }
 
 fun show(x : (int,list<list<int>>)) : string {
-  "(state=" + x.fst.show + ", " + x.snd.show + ")"
+  "(state=" ++ x.fst.show ++ ", " ++ x.snd.show ++ ")"
 }
 
 fun show(xs : list<(int,list<int>)>) : string {
   xs.show-list fn(x) {
-    "(state=" + x.fst.show + ", " + x.snd.show + ")"
+    "(state=" ++ x.fst.show ++ ", " ++ x.snd.show ++ ")"
   }
 }
 
@@ -117,7 +117,7 @@ val solution = handler {
 fun show(m : maybe<list<int>> ) : string {
   match(m) {
     Nothing -> "none"
-    Just(xs)-> "one: " + xs.show
+    Just(xs)-> "one: " ++ xs.show
   }
 }
 
