@@ -1,8 +1,8 @@
 static/div3/ord: V
-Lim : (lim : (int) -> ord) -> ord
-Succ : (pred : ord) -> ord
-Zero : ord
-addord : (ord, ord) -> ord
-lim? : (ord : ord) -> bool
-succ? : (ord : ord) -> bool
-zero? : (ord : ord) -> bool
+static/div3/Lim: (lim : (int) -> ord) -> ord
+static/div3/Succ: (pred : ord) -> ord
+static/div3/Zero: ord
+static/div3/addord: (ord, ord) -> ord
+static/div3/is-lim: (ord : ord) -> bool
+static/div3/is-succ: (ord : ord) -> bool
+static/div3/is-zero: (ord : ord) -> bool
