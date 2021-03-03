@@ -40,11 +40,11 @@ typedef struct stat     kk_stat_t;
 static kk_file_t kk_posix_open(kk_string_t path, int mode, kk_context_t* ctx) {
   kk_file_t f = 0;
 #ifdef WIN32
-  kk_with_string_as_mutf16_borrow(path, wpath, ctx) {
+  kk_with_string_as_qutf16_borrow(path, wpath, ctx) {
     f = _wopen(wpath, mode);
   }
 #else
-  kk_with_string_as_mutf8_borrow(path, bpath, ctx) {
+  kk_with_string_as_qutf8_borrow(path, bpath, ctx) {
     f = open(bpath, mode);
   }
 #endif
@@ -56,11 +56,11 @@ static kk_file_t kk_posix_open(kk_string_t path, int mode, kk_context_t* ctx) {
 static kk_file_t kk_posix_creat(kk_string_t path, int mode, kk_context_t* ctx) {
   kk_file_t f = 0;
 #ifdef WIN32
-  kk_with_string_as_mutf16_borrow(path, wpath, ctx) {
+  kk_with_string_as_qutf16_borrow(path, wpath, ctx) {
     f = _wcreat(wpath, mode);
   }
 #else
-  kk_with_string_as_mutf8_borrow(path, bpath, ctx) {
+  kk_with_string_as_qutf8_borrow(path, bpath, ctx) {
     f = creat(bpath, mode);
   }
 #endif
@@ -93,11 +93,11 @@ static int kk_posix_fsize(kk_file_t f, size_t* fsize) {
 static int kk_posix_stat(kk_string_t path, kk_stat_t* st, kk_context_t* ctx) {
   int err = 0;
 #if defined(WIN32)
-  kk_with_string_as_mutf16_borrow(path, wpath, ctx) {
+  kk_with_string_as_qutf16_borrow(path, wpath, ctx) {
     if (_wstat64(wpath, st) < 0) err = errno;
   }
 #else
-  kk_with_string_as_mutf8_borrow(path, cpath, ctx) {
+  kk_with_string_as_qutf8_borrow(path, cpath, ctx) {
     if (stat(cpath, st) < 0) err = errno;
   }
 #endif
@@ -203,7 +203,7 @@ kk_decl_export int kk_os_read_text_file(kk_string_t path, kk_string_t* result, k
     str = kk_string_adjust_length(str, nread, ctx);
   }
 
-  *result = kk_string_convert_from_mutf8(str, ctx);
+  *result = kk_string_convert_from_qutf8(str, ctx);
   return 0;
 }
 
@@ -264,10 +264,10 @@ kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ct
 
   path = kk_string_copy(path, ctx); // copy so we can mutate
   #if defined(WIN32)
-  kk_with_string_as_mutf16_borrow(path, cpath, ctx) {
+  kk_with_string_as_qutf16_borrow(path, cpath, ctx) {
     uint16_t* p = (uint16_t*)cpath;
   #else
-  kk_with_string_as_mutf8_borrow(path, cpath, ctx) {
+  kk_with_string_as_qutf8_borrow(path, cpath, ctx) {
     char* p = (char*)cpath;
   #endif
     if (!kk_is_dir(cpath)) {  // quick initial test if the directory already exists
@@ -304,8 +304,8 @@ kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ct
 kk_decl_export int kk_os_copy_file(kk_string_t from, kk_string_t to, bool preserve_mtime, kk_context_t* ctx) {
   KK_UNUSED(preserve_mtime);
   int err = 0;
-  kk_with_string_as_mutf16_borrow(from, wfrom, ctx) {
-    kk_with_string_as_mutf16_borrow(to, wto, ctx) {
+  kk_with_string_as_qutf16_borrow(from, wfrom, ctx) {
+    kk_with_string_as_qutf16_borrow(to, wto, ctx) {
       if (!CopyFileW(wfrom, wto, FALSE)) {
         DWORD werr = GetLastError();
         if (werr == ERROR_FILE_NOT_FOUND) err = ENOENT;
@@ -465,7 +465,7 @@ kk_decl_export bool kk_os_is_file(kk_string_t path, kk_context_t* ctx) {
 #define dir_entry  struct _wfinddata64_t
 static bool os_findfirst(kk_string_t path, dir_cursor* d, dir_entry* entry, int* err, kk_context_t* ctx) {
   kk_string_t spath = kk_string_cat_from_utf8(path, "\\*", ctx);
-  kk_with_string_as_mutf16_borrow(spath, wpath, ctx) {
+  kk_with_string_as_qutf16_borrow(spath, wpath, ctx) {
     *d = _wfindfirsti64(wpath, entry);
   }
   kk_string_drop(spath,ctx);
@@ -486,7 +486,7 @@ static kk_string_t os_direntry_name(dir_entry* entry, kk_context_t* ctx) {
     return kk_string_empty();
   }
   else {
-    return kk_string_alloc_from_mutf16(entry->name, ctx);
+    return kk_string_alloc_from_qutf16(entry->name, ctx);
   }
 }
 
@@ -501,7 +501,7 @@ static bool os_findnext(dir_cursor d, dir_entry* entry, int* err) {
   return (*entry != NULL);
 }
 static bool os_findfirst(kk_string_t path, dir_cursor* d, dir_entry* entry, int* err, kk_context_t* ctx) {
-  kk_with_string_as_mutf8_borrow(path, cpath, ctx) {
+  kk_with_string_as_qutf8_borrow(path, cpath, ctx) {
     *d = opendir(cpath);
   }
   if (*d == NULL) {
@@ -521,7 +521,7 @@ static kk_string_t os_direntry_name(dir_entry* entry, kk_context_t* ctx) {
     return kk_string_empty();
   }
   else {
-    return kk_string_alloc_from_mutf8(dname, ctx);
+    return kk_string_alloc_from_qutf8(dname, ctx);
   }
 }
 #endif
@@ -571,11 +571,11 @@ kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, 
 kk_decl_export int kk_os_run_command(kk_string_t cmd, kk_string_t* output, kk_context_t* ctx) {
   FILE* f = NULL;
 #if defined(WIN32)
-  kk_with_string_as_mutf16_borrow(cmd, wcmd, ctx) {
+  kk_with_string_as_qutf16_borrow(cmd, wcmd, ctx) {
     f = _wpopen(wcmd, L"rt"); // todo: maybe open as binary?
   }
 #else
-  kk_with_string_as_mutf8_borrow(cmd, ccmd, ctx) {
+  kk_with_string_as_qutf8_borrow(cmd, ccmd, ctx) {
     f = popen(ccmd, "r");
   }
 #endif
@@ -585,7 +585,7 @@ kk_decl_export int kk_os_run_command(kk_string_t cmd, kk_string_t* output, kk_co
   char buf[1025];
   while (fgets(buf, 1024, f) != NULL) {
     buf[1024] = 0; // paranoia
-    out = kk_string_cat(out, kk_string_alloc_from_mutf8(buf,ctx), ctx);  // todo: avoid allocation
+    out = kk_string_cat(out, kk_string_alloc_from_qutf8(buf,ctx), ctx);  // todo: avoid allocation
   }
   if (feof(f)) errno = 0;
 #if defined(WIN32)
@@ -600,11 +600,11 @@ kk_decl_export int kk_os_run_command(kk_string_t cmd, kk_string_t* output, kk_co
 kk_decl_export int kk_os_run_system(kk_string_t cmd, kk_context_t* ctx) {
   int exitcode = 0;
   #if defined(WIN32)
-  kk_with_string_as_mutf16_borrow(cmd, wcmd, ctx) {
+  kk_with_string_as_qutf16_borrow(cmd, wcmd, ctx) {
     exitcode = _wsystem(wcmd);
   }
   #else
-  kk_with_string_as_mutf8_borrow(cmd, ccmd, ctx) {
+  kk_with_string_as_qutf8_borrow(cmd, ccmd, ctx) {
     exitcode = system(ccmd);
   }
   #endif
@@ -634,7 +634,7 @@ kk_vector_t kk_os_get_argv(kk_context_t* ctx) {
   kk_vector_t args = kk_vector_alloc(wargc, kk_box_null, ctx);
   kk_box_t* buf = kk_vector_buf(args, NULL);
   for ( ; i < wargc; i++) {
-    kk_string_t arg = kk_string_alloc_from_mutf16(wargv[i], ctx);
+    kk_string_t arg = kk_string_alloc_from_qutf16(wargv[i], ctx);
     buf[i] = kk_string_box(arg);
   }
   LocalFree(wargv);
@@ -646,7 +646,7 @@ kk_vector_t kk_os_get_argv(kk_context_t* ctx) {
   kk_vector_t args = kk_vector_alloc(ctx->argc, kk_box_null, ctx);
   kk_box_t* buf = kk_vector_buf(args, NULL);
   for (size_t i = 0; i < ctx->argc; i++) {
-    kk_string_t arg = kk_string_alloc_from_mutf8(ctx->argv[i], ctx);    
+    kk_string_t arg = kk_string_alloc_from_qutf8(ctx->argv[i], ctx);    
     buf[i] = kk_string_box(arg);
   }
   return args;
@@ -670,12 +670,12 @@ kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
   for(size_t i = 0; i < count; i++) {
     const uint16_t* pname = p;
     while (*p != '=' && *p != 0) { p++; }
-    kk_string_t name = kk_string_alloc_from_mutf16n((size_t)(p - pname), pname, ctx);
+    kk_string_t name = kk_string_alloc_from_qutf16n((size_t)(p - pname), pname, ctx);
     buf[2*i] = kk_string_box( name );
     p++; // skip '='
     const uint16_t* pvalue = p;
     while (*p != 0) { p++; }
-    kk_string_t val = kk_string_alloc_from_mutf16n((size_t)(p - pvalue), pvalue, ctx);
+    kk_string_t val = kk_string_alloc_from_qutf16n((size_t)(p - pvalue), pvalue, ctx);
     buf[2*i + 1] = kk_string_box(val);
     p++;
   }
@@ -708,12 +708,12 @@ kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
     const char* p = env[i];
     const char* pname = p;
     while (*p != '=' && *p != 0) { p++; }
-    kk_string_t name = kk_string_alloc_from_mutf8n((size_t)(p - pname), pname, ctx);
+    kk_string_t name = kk_string_alloc_from_qutf8n((size_t)(p - pname), pname, ctx);
     buf[2*i] = kk_string_box(name);
     p++; // skip '='
     const char* pvalue = p;
     while (*p != 0) { p++; }
-    kk_string_t val = kk_string_alloc_from_mutf8n((size_t)(p - pvalue), pvalue, ctx);
+    kk_string_t val = kk_string_alloc_from_qutf8n((size_t)(p - pvalue), pvalue, ctx);
     buf[2*i + 1] = kk_string_box(val);
   }
   return v;
@@ -770,7 +770,7 @@ kk_decl_export size_t kk_os_path_max(void) {
 #if defined(WIN32)
 kk_string_t kk_os_realpath(kk_string_t path, kk_context_t* ctx) {
   kk_string_t rpath = kk_string_empty();
-  kk_with_string_as_mutf16_borrow(path, wpath, ctx) {
+  kk_with_string_as_qutf16_borrow(path, wpath, ctx) {
     uint16_t buf[264];
     DWORD res = GetFullPathNameW(wpath, 264, buf, NULL);
     if (res == 0) {
@@ -786,12 +786,12 @@ kk_string_t kk_os_realpath(kk_string_t path, kk_context_t* ctx) {
         rpath = kk_string_dup(path);
       }
       else {
-        rpath = kk_string_alloc_from_mutf16(pbuf, ctx);
+        rpath = kk_string_alloc_from_qutf16(pbuf, ctx);
       }
       kk_free(pbuf);
     }
     else {
-      rpath = kk_string_alloc_from_mutf16(buf, ctx);
+      rpath = kk_string_alloc_from_qutf16(buf, ctx);
     }
   }
   kk_string_drop(path,ctx);
@@ -801,9 +801,9 @@ kk_string_t kk_os_realpath(kk_string_t path, kk_context_t* ctx) {
 #elif defined(__linux__) || defined(__CYGWIN__) || defined(__sun) || defined(unix) || defined(__unix__) || defined(__unix) || defined(__MACH__)
 kk_string_t kk_os_realpath(kk_string_t path, kk_context_t* ctx) {
   kk_string_t s = kk_string_empty();
-  kk_with_string_as_mutf8_borrow(path, cpath, ctx) {
+  kk_with_string_as_qutf8_borrow(path, cpath, ctx) {
     char* rpath = realpath(cpath, NULL);
-    s = kk_string_alloc_from_mutf8((rpath != NULL ? rpath : cpath), ctx);
+    s = kk_string_alloc_from_qutf8((rpath != NULL ? rpath : cpath), ctx);
     free(rpath);
   }
   kk_string_drop(path, ctx);
@@ -852,7 +852,7 @@ static kk_string_t kk_os_searchpathx(const char* paths, const char* fname, kk_co
     memcpy(buf + plen + 1, fname, fnamelen);
     buf[plen+1+fnamelen] = 0;
     p = (r == pend ? r : r + 1);
-    kk_string_t sfname = kk_string_alloc_from_mutf8(buf, ctx);
+    kk_string_t sfname = kk_string_alloc_from_qutf8(buf, ctx);
     if (kk_os_is_file( kk_string_dup(sfname), ctx)) {
       s = kk_os_realpath(sfname,ctx);
       break;
@@ -876,7 +876,7 @@ static kk_string_t kk_os_app_path_generic(kk_context_t* ctx) {
 #endif
      ) {
     // absolute path
-    return kk_os_realpath( kk_string_alloc_from_mutf8(p,ctx), ctx);
+    return kk_os_realpath( kk_string_alloc_from_qutf8(p,ctx), ctx);
   }
   else if (strchr(p,'/') != NULL
 #ifdef WIN32
@@ -888,13 +888,13 @@ static kk_string_t kk_os_app_path_generic(kk_context_t* ctx) {
     kk_string_t s = kk_string_alloc_cbuf( strlen(p) + 2, &cs, ctx);
     strcpy(cs, "./" );
     strcat(cs, p);
-    s = kk_string_convert_from_mutf8(s, ctx);
+    s = kk_string_convert_from_qutf8(s, ctx);
     return kk_os_realpath(s, ctx);
   }
   else {
     // basename, try to prefix with all entries in PATH
     kk_string_t s = kk_os_searchpathx(getenv("PATH"), p, ctx);
-    if (kk_string_is_empty_borrow(s)) s = kk_os_realpath(kk_string_alloc_from_mutf8(p,ctx),ctx);
+    if (kk_string_is_empty_borrow(s)) s = kk_os_realpath(kk_string_alloc_from_qutf8(p,ctx),ctx);
     return s;
   }
 }
@@ -911,7 +911,7 @@ kk_decl_export kk_string_t kk_os_app_path(kk_context_t* ctx) {
   }
   else if (len < 264) {
     // success
-    return kk_string_alloc_from_mutf16(buf, ctx);
+    return kk_string_alloc_from_qutf16(buf, ctx);
   }
   else {
     // not enough space in the buffer, try again with larger buffer
@@ -924,7 +924,7 @@ kk_decl_export kk_string_t kk_os_app_path(kk_context_t* ctx) {
       return kk_os_app_path_generic(ctx);
     }
     else {
-      kk_string_t s = kk_string_alloc_from_mutf16(bbuf, ctx);
+      kk_string_t s = kk_string_alloc_from_qutf16(bbuf, ctx);
       kk_free(bbuf);
       return s;
     }
@@ -944,7 +944,7 @@ kk_string_t kk_os_app_path(kk_context_t* ctx) {
     return kk_os_app_path_generic(ctx);
   }
   else {
-    kk_string_t path = kk_string_alloc_from_mutf8(buf, ctx);
+    kk_string_t path = kk_string_alloc_from_qutf8(buf, ctx);
     kk_free(buf);
     return path;
   }
@@ -997,17 +997,17 @@ kk_decl_export kk_string_t kk_os_dir_sep(kk_context_t* ctx) {
 kk_decl_export kk_string_t kk_os_home_dir(kk_context_t* ctx) {
 #if defined(WIN32)
   const uint16_t* h = _wgetenv(L"HOME");
-  if (h != NULL) return kk_string_alloc_from_mutf16(h, ctx);
+  if (h != NULL) return kk_string_alloc_from_qutf16(h, ctx);
   const uint16_t* hd = _wgetenv(L"HOMEDRIVE");
   const uint16_t* hp = _wgetenv(L"HOMEPATH");
   if (hd!=NULL && hp!=NULL) {
-    kk_string_t hds = kk_string_alloc_from_mutf16(hd, ctx);
-    kk_string_t hdp = kk_string_alloc_from_mutf16(hp, ctx);
+    kk_string_t hds = kk_string_alloc_from_qutf16(hd, ctx);
+    kk_string_t hdp = kk_string_alloc_from_qutf16(hp, ctx);
     return kk_string_cat(hds,hdp,ctx);
   }
 #else
   const char* h = getenv("HOME");
-  if (h != NULL) return kk_string_alloc_from_mutf8(h, ctx);  
+  if (h != NULL) return kk_string_alloc_from_qutf8(h, ctx);  
 #endif
   // fallback
   return kk_string_alloc_dup_utf8(".", ctx);
@@ -1017,19 +1017,19 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx)
 {  
 #if defined(WIN32)
   const uint16_t* tmp = _wgetenv(L"TEMP");
-  if (tmp != NULL) return kk_string_alloc_from_mutf16(tmp, ctx);
+  if (tmp != NULL) return kk_string_alloc_from_qutf16(tmp, ctx);
   tmp = _wgetenv(L"TEMPDIR");
-  if (tmp != NULL) return kk_string_alloc_from_mutf16(tmp, ctx);
+  if (tmp != NULL) return kk_string_alloc_from_qutf16(tmp, ctx);
   const uint16_t* ad = _wgetenv(L"LOCALAPPDATA");
   if (ad!=NULL) {
-    kk_string_t s = kk_string_alloc_from_mutf16(ad, ctx);
+    kk_string_t s = kk_string_alloc_from_qutf16(ad, ctx);
     return kk_string_cat_from_utf8(s, "\\Temp", ctx);
   }
 #else
   const char* tmp = getenv("TEMP");
-  if (tmp != NULL) return kk_string_alloc_from_mutf8(tmp, ctx);
+  if (tmp != NULL) return kk_string_alloc_from_qutf8(tmp, ctx);
   tmp = getenv("TEMPDIR");
-  if (tmp != NULL) return kk_string_alloc_from_mutf8(tmp, ctx);
+  if (tmp != NULL) return kk_string_alloc_from_qutf8(tmp, ctx);
 #endif
   // fallback
 #if defined(WIN32)

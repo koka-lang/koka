@@ -33,19 +33,19 @@ fun read-both( f1 : file<s1>, f2 : file<s2> ) : <console,scope<s1>,scope<s2>|e> 
 public fun main() {
   with f1 = file("package.yaml")
   with f2 = file("stack.yaml")
-  println( f1.read-line() + "\n" + f2.read-line() )
+  //println( f1.read-line() + "\n" + f2.read-line() )
   //println( f2.read-line() + "\n" + f1.read-line() )
-  //read-both(f1,f2)
-  //wrong-escape()()
+  read-both(f1,f2)
+  wrong-escape2()()
 }
 
 
-/*
+
 fun wrong-escape2() {
   with f = file("stack.yaml")
   fn(){ f.read-line() }
 }
-
+/*
 fun wrong-escape1() {
   with f = file("stack.yaml")
   f

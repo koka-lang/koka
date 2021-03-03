@@ -176,20 +176,20 @@ size_t kk_decl_pure kk_string_count(kk_string_t str, kk_context_t* ctx) {
 
 
 /*--------------------------------------------------------------------------------------------------
- String conversion to/from mutf8
+ String conversion to/from qutf8
 --------------------------------------------------------------------------------------------------*/
 
-kk_string_t kk_string_alloc_from_mutf8(const char* str, kk_context_t* ctx) {
-  return kk_string_alloc_from_mutf8n(strlen(str), str, ctx);
+kk_string_t kk_string_alloc_from_qutf8(const char* str, kk_context_t* ctx) {
+  return kk_string_alloc_from_qutf8n(strlen(str), str, ctx);
 }
 
 
-kk_string_t kk_string_alloc_from_mutf8n(size_t len, const char* cstr, kk_context_t* ctx) {
+kk_string_t kk_string_alloc_from_qutf8n(size_t len, const char* cstr, kk_context_t* ctx) {
   kk_string_t str = kk_string_alloc_dupn_utf8(len, cstr, ctx);
-  return kk_string_convert_from_mutf8(str, ctx);
+  return kk_string_convert_from_qutf8(str, ctx);
 }
 
-// Validating mutf-8 decode; careful to only read beyond s[0] if valid.
+// Validating qutf-8 decode; careful to only read beyond s[0] if valid.
 // `count` returns the number of bytes read. 
 // `vcount` is only set on an invalid sequence and return the number of bytes
 // needed for a replacement character -- this is always 4 since we use the raw range.
@@ -234,7 +234,7 @@ inline kk_char_t kk_utf8_read_validate(const uint8_t* s, size_t* count, size_t* 
   }
 }
 
-kk_string_t  kk_string_convert_from_mutf8(kk_string_t str, kk_context_t* ctx) {
+kk_string_t  kk_string_convert_from_qutf8(kk_string_t str, kk_context_t* ctx) {
   // to avoid reallocation (to accommodate invalid sequences), we first check if
   // it is already valid utf-8 which should be very common; in that case we resurn the string as-is.
   size_t len; // len in valid utf-8
@@ -290,7 +290,7 @@ kk_string_t  kk_string_convert_from_mutf8(kk_string_t str, kk_context_t* ctx) {
   return tstr;
 }
 
-const char* kk_string_to_mutf8_borrow(kk_string_t str, bool* should_free, kk_context_t* ctx) {
+const char* kk_string_to_qutf8_borrow(kk_string_t str, bool* should_free, kk_context_t* ctx) {
   // to avoid allocation, we first check if none of the characters are in the raw range.
   size_t len;
   const uint8_t* const s = kk_string_buf_borrow(str, &len);
@@ -352,10 +352,10 @@ const char* kk_string_to_mutf8_borrow(kk_string_t str, bool* should_free, kk_con
 
 
 /*--------------------------------------------------------------------------------------------------
-  mutf-16 encoding/decoding
+  qutf-16 encoding/decoding
 --------------------------------------------------------------------------------------------------*/
 
-uint16_t* kk_string_to_mutf16_borrow(kk_string_t str, kk_context_t* ctx) {
+uint16_t* kk_string_to_qutf16_borrow(kk_string_t str, kk_context_t* ctx) {
   size_t len;
   const uint8_t* const s = kk_string_buf_borrow(str, &len);
   const uint8_t* const end = s + len;
@@ -401,7 +401,7 @@ uint16_t* kk_string_to_mutf16_borrow(kk_string_t str, kk_context_t* ctx) {
   return wstr;
 }
 
-kk_string_t kk_string_alloc_from_mutf16n(size_t wlen, const uint16_t * wstr, kk_context_t * ctx) {
+kk_string_t kk_string_alloc_from_qutf16n(size_t wlen, const uint16_t * wstr, kk_context_t * ctx) {
   // count utf-8 length
   size_t len = 0;
   const uint16_t* const end = wstr + wlen;
@@ -458,8 +458,8 @@ kk_string_t kk_string_alloc_from_mutf16n(size_t wlen, const uint16_t * wstr, kk_
   return str;
 }
 
-kk_string_t kk_string_alloc_from_mutf16(const uint16_t* wstr, kk_context_t* ctx) {
-  return kk_string_alloc_from_mutf16n(kk_wcslen(wstr), wstr, ctx);
+kk_string_t kk_string_alloc_from_qutf16(const uint16_t* wstr, kk_context_t* ctx) {
+  return kk_string_alloc_from_qutf16n(kk_wcslen(wstr), wstr, ctx);
 }
 
 /*--------------------------------------------------------------------------------------------------

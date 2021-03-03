@@ -47,30 +47,33 @@ static inline bool kk_ascii_is_alphanum(char c) { return (kk_ascii_is_alpha(c) |
   - raw string pointing to a buffer of utf-8 bytes
   
   These are not necessarily canonical (e.g. a normal or small string can have length 0 besides being empty)
+-------------------------------------------------------------------------------------------------------------*/
 
-  ------
+/*-------------------------------------------------------------------------------------------------------------
+  QUTF-8 and QUTF-16
+  
   There few important cases where external text is not quite utf-8 or utf-16.
-  We call these "mutf-8" and "mutf-16" for "mostly" (or "mixed") utf-8/16:
+  We call these "qutf-8" and "qutf-16" for "quite like" utf-8/16:
 
-  - mutf-16: this is used in Windows file names and JavaScript. These are mostly utf-16 but
+  - qutf-16: this is used in Windows file names and JavaScript. These are mostly utf-16 but
     can contain invalid _lone_ parts of surrogate pairs.
   
-  - mutf-8: this is mostly utf-8 but contains invalid utf-8 sequences, like overlong
+  - qutf-8: this is mostly utf-8 but contains invalid utf-8 sequences, like overlong
     sequences or lone continuation bytes. This can occur for examply by bad json encoding
     containing binary data, but also as a result of a _locale_ that cannot be decoded properly,
     or generally just random bytes.
   
-  In particular for mutf-16 we would like to guarantee that decoding to utf-8 and encoding 
-  again to mutf-16 is an identity transformation; for example, we may list the contents
+  In particular for qutf-16 we would like to guarantee that decoding to utf-8 and encoding 
+  again to qutf-16 is an identity transformation; for example, we may list the contents
   of a directory and then try to read each file. This means that we cannot replace invalid
-  codes in mutf-16 with a replacement character. One proposed solution for this is 
+  codes in qutf-16 with a replacement character. One proposed solution for this is 
   to use wtf-8 (used in Rust <https://github.com/rust-lang/rust/issues/12056#issuecomment-55786546>) 
   instead of utf-8 internally. We like to use strict utf-8 internally though so we can always output valid 
   utf-8 without further conversions. (also, new formats like wtf-8 often have tricky edge cases, like   
   naively appending strings may change the interpretation of surrogate pairs in wtf-8)
 
   Instead, we solve this by staying in strict utf-8 internally, but we reserve a
-  particular set of code-points to have a special meaning when converting to mutf-16 (or mutf-8).
+  particular set of code-points to have a special meaning when converting to qutf-16 (or qutf-8).
   For now, we use an (hopefully forever) unassigned range in the "supplementary special-purpose plane" (14)
   
   - ED800 - EDFFF: corresponds to a lone half of a surrogate pair `x` where `x = code - E0000`.
@@ -79,8 +82,8 @@ static inline bool kk_ascii_is_alphanum(char c) { return (kk_ascii_is_alpha(c) |
                    (note: invalid bytes in utf-8 are always >= 0x80 so we need only a limited range).
   
   We call this the "raw range".
-  When decoding mutf-8 or mutf-16, we decode invalid sequences to these code points, and only when
-  decoding back to mutf-8 or mutf-16, we decode these code points specially again to make this an identity
+  When decoding qutf-8 or qutf-16, we decode invalid sequences to these code points, and only when
+  decoding back to qutf-8 or qutf-16, we decode these code points specially again to make this an identity
   transformation. _Otherwise these are just regular code points and valid utf-8 with no special treatment_.
   Also, security wise this is good practice -- for example, we decode the overlong utf-8 sequence `0xC0 0x80` 
   not to a 0 character, but to two raw code points: 0xEE0C0 0xEE080. This way, we maintain an identity 
@@ -90,9 +93,9 @@ static inline bool kk_ascii_is_alphanum(char c) { return (kk_ascii_is_alpha(c) |
   the original (invalid) sequences were (and can thus do an identity transform) -- and we stay with
   valid utf-8 (unlike wtf-8 for example).
   
-  (Actually, to make it an identity transform, when decoding mutf-16 we need to not just decode lone 
+  (Actually, to make it an identity transform, when decoding qutf-16 we need to not just decode lone 
    surrogate halves to our raw range, but also surrogate pairs that happen to decode to our raw range, 
-   and similarly for mutf-8; so for both mutf-8 and mutf-16 input we also treat any code points in the 
+   and similarly for qutf-8; so for both qutf-8 and qutf-16 input we also treat any code points in the 
    raw range as an invalid sequence (which should be fine in practice as these are unassigned anyways). 
 ------------------------------------------------------------------------------------------------------------*/
 
@@ -408,26 +411,26 @@ static inline void kk_utf8_write(kk_char_t c, uint8_t* s, size_t* count) {
 
 
 /*--------------------------------------------------------------------------------------------------
-  utf-8 string conversion to mutf8 and mutf16
+  utf-8 string conversion to qutf8 and qutf16
 --------------------------------------------------------------------------------------------------*/
 
-kk_decl_export kk_string_t    kk_string_alloc_from_mutf8(const char* str, kk_context_t* ctx);
-kk_decl_export kk_string_t    kk_string_alloc_from_mutf8n(size_t len, const char* str, kk_context_t* ctx);
-kk_decl_export kk_string_t    kk_string_alloc_from_mutf16(const uint16_t* wstr, kk_context_t* ctx);
-kk_decl_export kk_string_t    kk_string_alloc_from_mutf16n(size_t len, const uint16_t* wstr, kk_context_t* ctx);
+kk_decl_export kk_string_t    kk_string_alloc_from_qutf8(const char* str, kk_context_t* ctx);
+kk_decl_export kk_string_t    kk_string_alloc_from_qutf8n(size_t len, const char* str, kk_context_t* ctx);
+kk_decl_export kk_string_t    kk_string_alloc_from_qutf16(const uint16_t* wstr, kk_context_t* ctx);
+kk_decl_export kk_string_t    kk_string_alloc_from_qutf16n(size_t len, const uint16_t* wstr, kk_context_t* ctx);
 kk_decl_export kk_string_t    kk_string_alloc_from_codepage(const uint8_t* bstr, const uint16_t* codepage /*NULL == windows-1252*/, kk_context_t* ctx);
 
-kk_decl_export kk_string_t    kk_string_convert_from_mutf8(kk_string_t str, kk_context_t* ctx);
+kk_decl_export kk_string_t    kk_string_convert_from_qutf8(kk_string_t str, kk_context_t* ctx);
 
-kk_decl_export uint16_t*      kk_string_to_mutf16_borrow(kk_string_t str, kk_context_t* ctx);
-kk_decl_export const char*    kk_string_to_mutf8_borrow(kk_string_t str, bool* should_free, kk_context_t* ctx);
+kk_decl_export uint16_t*      kk_string_to_qutf16_borrow(kk_string_t str, kk_context_t* ctx);
+kk_decl_export const char*    kk_string_to_qutf8_borrow(kk_string_t str, bool* should_free, kk_context_t* ctx);
 
-#define kk_with_string_as_mutf16_borrow(str,wstr,ctx) /* { action } */ \
-  for( const uint16_t* wstr = kk_string_to_mutf16_borrow(str,ctx); wstr != NULL; kk_free(wstr), wstr = NULL )
+#define kk_with_string_as_qutf16_borrow(str,wstr,ctx) /* { action } */ \
+  for( const uint16_t* wstr = kk_string_to_qutf16_borrow(str,ctx); wstr != NULL; kk_free(wstr), wstr = NULL )
 
-#define kk_with_string_as_mutf8_borrow(str,ustr,ctx) /* { action } */ \
+#define kk_with_string_as_qutf8_borrow(str,ustr,ctx) /* { action } */ \
   bool should_free_##ustr; \
-  for( const char* ustr = kk_string_to_mutf8_borrow(str,&should_free_##ustr,ctx); ustr != NULL; \
+  for( const char* ustr = kk_string_to_qutf8_borrow(str,&should_free_##ustr,ctx); ustr != NULL; \
       ustr = (should_free_##ustr ? (kk_free(ustr), NULL) : NULL) )
 
 
