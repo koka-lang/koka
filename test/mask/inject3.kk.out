@@ -1,3 +1,4 @@
 42
-foo : forall<e> (action : () -> e int) -> e int
-main : () -> console ()
+ 
+mask/inject3/foo: forall<e> (action : () -> e int) -> e int
+mask/inject3/main: () -> console ()
