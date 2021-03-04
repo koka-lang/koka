@@ -293,7 +293,8 @@ static inline bool kk_string_is_empty_borrow(kk_string_t s) {
 
 // Is this a utf-8 continuation byte? (0x80 <= b <= 0xBF, i.e. has the form 0x10xxxxxx)
 static inline bool kk_utf8_is_cont(uint8_t c) {
-  return (((int8_t)c) <= -65); // we can determine this in a single _signed_ comparison
+  // return (((int8_t)c) <= -65); // we can determine this in a single _signed_ comparison
+  return ((c & 0xC0) == 0x80);
 }
 
 // Advance to the next codepoint. (does not advance past the end)

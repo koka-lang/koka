@@ -1338,7 +1338,7 @@ private extern xparse-int( s : string, hex : bool ) : maybe<int> {
 
 
 // ----------------------------------------------------------------------------
-// Doubles
+// Doubles 
 // ----------------------------------------------------------------------------
 
 inline extern (==) : (double,double) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }

@@ -121,10 +121,19 @@ kk_string_t kk_string_from_list(kk_std_core__list cs, kk_context_t* ctx) {
   return s;
 }
 
-static inline void kk_sslice_start_end_borrow( kk_std_core__sslice sslice, const uint8_t** start, const uint8_t** end) {
-  const uint8_t* s = kk_string_buf_borrow(sslice.str,NULL);
+static inline void kk_sslice_start_end_borrowx( kk_std_core__sslice sslice, const uint8_t** start, const uint8_t** end, const uint8_t** sstart, const uint8_t** send) {
+  size_t slen;
+  const uint8_t* s = kk_string_buf_borrow(sslice.str,&slen);
   *start = s + sslice.start;
   *end = s + sslice.start + sslice.len;
+  if (sstart != NULL) *sstart = s;
+  if (send != NULL) *send = s + slen;
+  kk_assert_internal(*start >= s && *start <= *end);
+  kk_assert_internal(*end >= *start && *end <= s + slen);
+}
+
+static inline void kk_sslice_start_end_borrow( kk_std_core__sslice sslice, const uint8_t** start, const uint8_t** end) {
+  kk_sslice_start_end_borrowx(sslice,start,end,NULL,NULL);
 }
 
 kk_integer_t kk_slice_count( kk_std_core__sslice sslice, kk_context_t* ctx ) {
@@ -159,14 +168,16 @@ kk_string_t kk_slice_to_string( kk_std_core__sslice  sslice, kk_context_t* ctx )
 }
 
 kk_std_core__sslice kk_slice_first( kk_string_t str, kk_context_t* ctx ) {
-  const uint8_t* s = kk_string_buf_borrow(str,NULL);
-  const uint8_t* next = kk_utf8_next(s);
+  size_t slen;
+  const uint8_t* s = kk_string_buf_borrow(str,&slen);
+  const uint8_t* next = (slen > 0 ? kk_utf8_next(s) : s);
   return kk_std_core__new_Sslice(str, 0, (size_t)(next - s), ctx);
 }
 
 kk_std_core__sslice kk_slice_last( kk_string_t str, kk_context_t* ctx ) {
-  const uint8_t* s = kk_string_buf_borrow(str,NULL);
-  const uint8_t* end = s + kk_string_len_borrow(str);
+  size_t slen;
+  const uint8_t* s = kk_string_buf_borrow(str,&slen);
+  const uint8_t* end = s + slen;
   const uint8_t* prev = (s==end ? s : kk_utf8_prev(end));
   return kk_std_core__new_Sslice(str, (size_t)(prev - s), (size_t)(end - prev), ctx);
 }
@@ -192,8 +203,9 @@ kk_std_core_types__maybe kk_slice_next( struct kk_std_core_Sslice slice, kk_cont
 struct kk_std_core_Sslice kk_slice_extend( struct kk_std_core_Sslice slice, kk_integer_t count, kk_context_t* ctx ) {
   ptrdiff_t cnt = kk_integer_clamp(count,ctx);
   if (cnt==0 || (slice.len == 0 && cnt<0)) return slice;
-  const uint8_t* const s0 = kk_string_buf_borrow(slice.str,NULL);  // start
-  const uint8_t* const s1 = s0 + slice.start + slice.len;  // end
+  const uint8_t* s0;
+  const uint8_t* s1;
+  kk_sslice_start_end_borrow(slice,&s0,&s1);
   const uint8_t* t  = s1;
   if (cnt >= 0) {
     do {
@@ -216,17 +228,18 @@ struct kk_std_core_Sslice kk_slice_advance( struct kk_std_core_Sslice slice, kk_
   const ptrdiff_t cnt0 = kk_integer_clamp(count,ctx);
   ptrdiff_t cnt = cnt0;
   if (cnt==0 || (slice.start == 0 && cnt<0)) return slice;
-  const uint8_t* const s0 = kk_string_buf_borrow(slice.str,NULL);  // start
-  const uint8_t* const s1 = s0 + slice.start + slice.len;  // end
-  const uint8_t* const sstart = s0 - slice.start;
-  kk_assert_internal(sstart == kk_string_buf_borrow(slice.str,NULL));
+  const uint8_t* sstart;
+  const uint8_t* s0;
+  const uint8_t* s1;
+  const uint8_t* send;
+  kk_sslice_start_end_borrowx(slice,&s0,&s1,&sstart,&send);
   // advance the start
   const uint8_t* t0  = s0;
   if (cnt >= 0) {
     do {
       t0 = kk_utf8_next(t0);
       cnt--;
-    } while (cnt > 0 && *t0 != 0);
+    } while (cnt > 0 && t0 < send);
   }
   else {  // cnt < 0
     do {
@@ -242,7 +255,7 @@ struct kk_std_core_Sslice kk_slice_advance( struct kk_std_core_Sslice slice, kk_
     do {
       t1 = kk_utf8_next(t1);
       cnt--;
-    } while (cnt > 0 && *t1 != 0);
+    } while (cnt > 0 && t1 < send);
   }
   else {  // cnt < 0
     do {
