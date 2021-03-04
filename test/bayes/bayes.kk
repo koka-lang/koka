@@ -20,7 +20,7 @@ public module bayes
 
 import std/num/double
 import std/num/ddouble  // 128-bit double-double
-
+import std/num/random
 
 // --------------------------------------------------------------------
 // Non-negative reals represented as a 128-bit `:ddouble` for precision.
@@ -32,7 +32,7 @@ fun rplus(i : int) = i.ddouble
 
 fun list-join(len : int, elem) {
   val xs = list(1,len,elem)
-  "[" + xs.join(",") + "]"
+  "[" ++ xs.join(",") ++ "]"
 }
 
 fun plot( f : (double -> double) ) : string {
@@ -43,7 +43,7 @@ fun plot( f : (double -> double) ) : string {
   list-join(steps) fn(i:int) {
     val x = lft + (stp * i.double)
     val y = f( x )
-    "[" + x.show(6) + "," + y.show(6) + "]"
+    "[" ++ x.show(6) ++ "," ++ y.show(6) ++ "]"
   }
 }
 
@@ -56,11 +56,11 @@ fun example-plot() {
 // `sample` is a `fun` and does not change control flow (i.e. is tail-resumptive)
 // `score` is `control` and can use `resume` as a first-class function.
 // --------------------------------------------------------------------
-ambient fun sample() : double
-ambient control score( s : rplus ) : ()
+effect fun sample() : double
+effect control score( s : rplus ) : ()
 
 fun random-sampler(action : () -> <sample|e> a) : <ndet|e> a {
-  with fun sample() { random() }
+  with fun sample() { srandom-double() }
   mask<ndet>(action)  // mask out `ndet` from the `action` effect
 }
 
@@ -195,7 +195,7 @@ fun weighted-choice( ld : list-dist<a>, default : a ) : <sample> a {
     match(xs) {
       Cons((w:rplus,x),xx) {
         val fuel1 = fuel - w.double
-        if (fuel1.pos?) then xx.pick(fuel1) else x
+        if (fuel1.is-pos) then xx.pick(fuel1) else x
       }
       Nil -> default
     }
