@@ -1,0 +1,4 @@
+2
+ 
+algeff/cps5/foo: (x : int, y : int) -> int
+algeff/cps5/main: () -> console ()
