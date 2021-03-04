@@ -9,6 +9,7 @@
 // Test all calendars across many days
 public module time9
 
+import std/time/timestamp
 public import std/num/ddouble
 public import std/time
 
@@ -32,10 +33,10 @@ fun days-at-date( date : date, cal : calendar ) : utc int {
   Testing
 ----------------------------------------------------------------------------*/
 fun check( msg : string, expect : string, result : string ) : io () {
-  if (expect==result) then () // println( msg + ": ok.")
+  if (expect==result) then () // println( msg ++ ": ok.")
   else {
-    println(msg + ": FAILED:\n expect : " + expect + "\n result: " + result )
-    error("failure")
+    println(msg ++ ": FAILED:\n expect : " ++ expect ++ "\n result: " ++ result )
+    throw("failure")
   }
 }
 
@@ -45,18 +46,18 @@ fun test-day-cal( day : int, cal : calendar ) : <io,utc> date {
   val days1 = days-at-date( date1, cal )
   val date2 = date-at-days( days1, cal )
   val days2 = days-at-date( date2, cal )
-  check( "inverse days1: " + cal.name.show + ", " + date1.show, day.show, days1.show )
-  check( "inverse days2: " + day.show, day.show, days2.show )
-  check( "inverse date: " + date1.show, date1.show, date2.show )
+  check( "inverse days1: " ++ cal.name.show ++ ", " ++ date1.show, day.show, days1.show )
+  check( "inverse days2: " ++ day.show, day.show, days2.show )
+  check( "inverse date: " ++ date1.show, date1.show, date2.show )
   date1
 }
 
 fun test-day( day : int ) {
   val idate = test-day-cal( day, cal-iso )
-  //println(" iso date: " + idate.show + ", " + xidate.show )
+  //println(" iso date: " ++ idate.show ++ ", " ++ xidate.show )
   val wdate  = test-day-cal( day, cal-iso-week )
   val mdate  = test-day-cal( day, cal-iso-month )
-  check( "equal iso years: " + mdate.year.show, mdate.year.show, wdate.year.show)
+  check( "equal iso years: " ++ mdate.year.show, mdate.year.show, wdate.year.show)
   val jdate  = test-day-cal( day, cal-julian )
   val cdate = test-day-cal(day, cal-coptic )
   val edate  = test-day-cal( day, cal-ethiopian )
@@ -71,10 +72,10 @@ fun test( years : int = 500 ) {
 }
 
 fun for-days( ylo : int, yhi : int, action : int -> <io,utc> () ) : <io,utc> () {
-  println("days in years: " + ylo.show + " up to " + yhi.show)
+  println("days in years: " ++ ylo.show ++ " up to " ++ yhi.show)
   for(ylo,yhi) fn(y) {
     val base = y*366 - 730119  // test round the year zero
-    println("year: " + time(2000,1,base).year.show)
+    println("year: " ++ time(2000,1,base).year.show)
     for(0,365) fn(day) { action(base + day)}
   }
 }

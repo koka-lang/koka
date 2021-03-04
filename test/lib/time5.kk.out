@@ -16,3 +16,5 @@ mjd5: ok: 36596.791666590
 mjd6: ok: 1959-01-28T18:59:60.010Z
 mjd7: ok: 1959-01-28T23:59:59.999999Z
 mjd8: ok: 2016-12-31T23:59:60.999999Z
+add default effect for std/core/exn
+add default effect for std/time/utc/utc

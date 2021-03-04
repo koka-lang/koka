@@ -8,6 +8,7 @@
 
 module time4
 
+import std/time/timestamp
 public import std/time
 
 /*----------------------------------------------------------------------------
@@ -17,9 +18,9 @@ public import std/time
 
 fun check(name : string, res : string, tst : () -> utc string ) : <io,utc> () {
   val got = tst()
-  println(name + ": " + (if (got == res) then "ok: " + res
-                         else "failed!:\n expect: " + res + "\n gotten: " + got))
-  if (got!=res) error("FAILED")
+  println(name ++ ": " ++ (if (got == res) then "ok: " ++ res
+                         else "failed!:\n expect: " ++ res ++ "\n gotten: " ++ got))
+  if (got!=res) throw("FAILED")
 }
 
 fun test-week-dates() {
@@ -45,39 +46,39 @@ fun test-week-dates() {
     val ds = d.show
     val wds = wd.show
     val mds = md.show
-    check("date-" + ds, wds) { instant(d).time(cal=cal-iso-week).date.show }
-    check("date-" + wds, ds) { instant(wd,cal=cal-iso-week).time(cal=cal-iso).date.show }
-    check("date-isow-" + ds, wds) {
+    check("date-" ++ ds, wds) { instant(d).time(cal=cal-iso-week).date.show }
+    check("date-" ++ wds, ds) { instant(wd,cal=cal-iso-week).time(cal=cal-iso).date.show }
+    check("date-isow-" ++ ds, wds) {
       val i = instant(d)
       val id = i.time(cal=cal-iso-week).date
       (weekdate(id.year,id.month,id.day.weekday)).show
     }
-    check("date-isow-" + wds, ds) {
+    check("date-isow-" ++ wds, ds) {
       instant(wd,cal=cal-iso-week).time.date.show
     }
-    check("date-isom-" + mds, mds) {  instant(d).time(cal=cal-iso-month).date.show  }
-    check("date-isom-" + ds, ds) {  instant(md,cal=cal-iso-month).time.date.show  }
+    check("date-isom-" ++ mds, mds) {  instant(d).time(cal=cal-iso-month).date.show  }
+    check("date-isom-" ++ ds, ds) {  instant(md,cal=cal-iso-month).time.date.show  }
     println("")
   })
 }
 
 fun test-week-in-years() {
   val long-years = [
-004, 009, 015, 020, 026, 032, 037, 043, 048, 054, 060, 065, 071, 076, 082, 088, 093, 099,
-105, 111, 116, 122, 128, 133, 139, 144, 150, 156, 161, 167, 172, 178, 184, 189, 195,
-201, 207, 212, 218, 224, 229, 235, 240, 246, 252, 257, 263, 268, 274, 280, 285, 291, 296,
-303, 308, 314, 320, 325, 331, 336, 342, 348, 353, 359, 364, 370, 376, 381, 387, 392, 398
+    004, 009, 015, 020, 026, 032, 037, 043, 048, 054, 060, 065, 071, 076, 082, 088, 093, 099,
+    105, 111, 116, 122, 128, 133, 139, 144, 150, 156, 161, 167, 172, 178, 184, 189, 195,
+    201, 207, 212, 218, 224, 229, 235, 240, 246, 252, 257, 263, 268, 274, 280, 285, 291, 296,
+    303, 308, 314, 320, 325, 331, 336, 342, 348, 353, 359, 364, 370, 376, 381, 387, 392, 398
   ]
   list(2000,2399).foreach( fn(year) {
     val weeks = if (long-years.find(fn(y) { (2000+y)==year }).bool) then 53 else 52
-    // check("year-" + year.show, weeks.show) { time(year).weeks-in-year.show }
+    // check("year-" ++ year.show, weeks.show) { time(year).weeks-in-year.show }
 
-    check("isow-" + year.show, weeks.show) {
+    check("isow-" ++ year.show, weeks.show) {
       val d = instant(year,12,28).time(cal=cal-iso-week).date
       if (d.month==53) then "53" else "52"
     }
 
-    check("isom-" + year.show, weeks.show) {
+    check("isom-" ++ year.show, weeks.show) {
       val d = instant(year,12,28).time(cal=cal-iso-month).date
       if (d.month==12 && d.day > 31) then "53" else "52"
     }
@@ -90,9 +91,9 @@ fun test-day-in-year() {
     list(1,365).foreach( fn(doy) {
       val d = Date(year,1,doy)
       val t = time(d)
-      check("doy-" + t.show, doy.show) { t.day-of-year.show }
+      check("doy-" ++ t.show, doy.show) { t.day-of-year.show }
       //val tw = time(d,cal=cal-iso-week)
-      //check("doy-isow-" + tw.show, doy.show) { (tw.month.dec*7 + tw.day).show }
+      //check("doy-isow-" ++ tw.show, doy.show) { (tw.month.dec*7 ++ tw.day).show }
     })
   })
 }

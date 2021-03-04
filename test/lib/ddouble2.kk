@@ -5,9 +5,9 @@ public import std/num/double
 
 fun check(name : string, res : string, tst : () -> io string ) : io () {
   val got = tst()
-  println(name.pad-right(8,' ') + ": "
-    + (if (got == res) then "ok: " + res
-                       else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
+  println(name.pad-right(8,' ') ++ ": "
+    ++ (if (got == res) then "ok: " ++ res
+                       else "FAILED!:\n expect: " ++ res ++ "\n gotten: " ++ got ++ "\n"))
   if (got != res) then throw("failed") else ()
 }
 
@@ -27,39 +27,39 @@ fun check-round-trip( name : string, x : ddouble ) : io ddouble {
   //val y = x.show(33).parse-ddouble.default(dd-nan)
   val y = x.show-hex.parse-ddouble.default(dd-nan)
   if (y==x) then () else {
-      println("failed round-trip parse! (" + name + ")\n x : " +
-            x.show-exp + "\n     " + x.show-hex +  "\n y : " + y.show-exp + "\n     " + y.show-hex)
+      println("failed round-trip parse! (" ++ name ++ ")\n x : " ++
+            x.show-exp ++ "\n     " ++ x.show-hex ++  "\n y : " ++ y.show-exp ++ "\n     " ++ y.show-hex)
   }
   x
 }
 
 fun check-prec( name : string, expect : ddouble, res : ddouble, eps : ddouble = ddouble-exp(1,-15) ) : io () {
-  val pre = name.pad-right(8,' ') + ": "
+  val pre = name.pad-right(8,' ') ++ ": "
   if (expect.is-finite) then {
     val delta  = (res - expect).abs
     if (delta < eps) then {
-      println(pre + "ok: " + res.show + ", dt: " + delta.show(6)  )
+      println(pre ++ "ok: " ++ res.show ++ ", dt: " ++ delta.show(6)  )
     }
     else {
       val relerr = (delta / expect).abs
       val releps = if (expect.abs < ten) then eps else eps * 1000.ddouble
       if (relerr < releps) then {
-        println(pre + "ok: " + res.show + ", derr: " + relerr.show(6)  )
+        println(pre ++ "ok: " ++ res.show ++ ", derr: " ++ relerr.show(6)  )
       }
       else {
-        println(pre + "FAILED:\n expect: " + expect.show + "\n gotten: " + res.show )
-        println("delta : " + delta.show + "\n error: " + relerr.show + "\n eps   : " + releps.show )
-        throw("failed " + name)
+        println(pre ++ "FAILED:\n expect: " ++ expect.show ++ "\n gotten: " ++ res.show )
+        println("delta : " ++ delta.show ++ "\n error: " ++ relerr.show ++ "\n eps   : " ++ releps.show )
+        throw("failed " ++ name)
       }
     }
   }
   else {
     if (expect == res) then {
-      println( pre + "ok: " + res.show )
+      println( pre ++ "ok: " ++ res.show )
     }
     else {
-      println(pre + "FAILED:\n expect: " + expect.show + "\n gotten: " + res.show )
-      throw("failed " + name)
+      println(pre ++ "FAILED:\n expect: " ++ expect.show ++ "\n gotten: " ++ res.show )
+      throw("failed " ++ name)
     }
   }
 }
@@ -82,16 +82,16 @@ public fun main() {
 
 public fun test-e(){
   /* Use Taylor series
-       e = 1 + 1 + 1/2! + 1/3! + 1/4! + ...
+       e = 1 ++ 1 ++ 1/2! ++ 1/3! ++ 1/4! ++ ...
      To compute e.
   */
   check-rt("e",dd-e,31) {
       val approx = expand-e()
       val delta  = (approx - dd-e).abs
       val err    = delta / dd-epsilon
-      //trace(" delta: " + delta.show + " = " + (delta / dd-epsilon).show(3) + " eps")
-      //trace(" e: " + dd-e.show)
-      // (approx.show + ", err: " + err.show(3) + " ulp")
+      //trace(" delta: " ++ delta.show ++ " = " ++ (delta / dd-epsilon).show(3) ++ " eps")
+      //trace(" e: " ++ dd-e.show)
+      // (approx.show ++ ", err: " ++ err.show(3) ++ " ulp")
       approx
   }
 }
@@ -110,16 +110,16 @@ public fun test-log2() {
     val approx = log2()
     val delta  = (approx - dd-log2).abs
     val err    = delta / dd-epsilon
-    //trace(" delta: " + delta.show + " = " + (delta / dd-epsilon).show(3) + " eps")
-    //trace(" log2: " + dd-log2.show )
-    //(approx.show + ", err: " + err.show(3) + " ulp")
+    //trace(" delta: " ++ delta.show ++ " = " ++ (delta / dd-epsilon).show(3) ++ " eps")
+    //trace(" log2: " ++ dd-log2.show )
+    //(approx.show ++ ", err: " ++ err.show(3) ++ " ulp")
     approx
   }
 }
 
 fun log2() : div ddouble {
   // Use the Taylor series
-  //  -log(1-x) = x + x^2/2 + x^3/3 + x^4/4 + ...
+  //  -log(1-x) = x ++ x^2/2 ++ x^3/3 ++ x^4/4 ++ ...
   // with x = 1/2 to get  log(1/2) = -log 2.
   expand-log2(0.5.ddouble,0.5.ddouble)
 }
@@ -151,7 +151,7 @@ public fun test-exp() {
 }
 
 /* Check sin/cos equalities:
-  sin(x) = sin(5x/7)cos(2x/7) + cos(5x/7)sin(2x/7)
+  sin(x) = sin(5x/7)cos(2x/7) ++ cos(5x/7)sin(2x/7)
   cos(x) = cos(5x/7)cos(2x/7) - sin(5x/7)sin(2x/7)
 */
 public fun test-sincos() {
@@ -170,12 +170,12 @@ public fun check-sincos( i : int, x : ddouble ) {
   val c1 = cos(x)
   val s2 = sin(x1) * cos(x2) + cos(x1) * sin(x2)
   val c2 = cos(x1) * cos(x2) - sin(x1) * sin(x2)
-  check-prec("sin(" + x.show + ")", s1, s2, ddouble-exp(1,-31))
-  check-prec("cos(" + x.show + ")", c1, c2, ddouble-exp(1,-31))
+  check-prec("sin(" ++ x.show ++ ")", s1, s2, ddouble-exp(1,-31))
+  check-prec("cos(" ++ x.show ++ ")", c1, c2, ddouble-exp(1,-31))
 
   // check not too much error with respect to the double computation
-  check-prec( "dsin" + i.show, sin(x.double).ddouble, s1, ddouble-exp(1,-15) )
-  check-prec( "dcos" + i.show, cos(x.double).ddouble, c1, ddouble-exp(1,-15) )
+  check-prec( "dsin" ++ i.show, sin(x.double).ddouble, s1, ddouble-exp(1,-15) )
+  check-prec( "dcos" ++ i.show, cos(x.double).ddouble, c1, ddouble-exp(1,-15) )
 }
 
 /*-------------------------------------------------------
@@ -186,15 +186,15 @@ public fun check-sincos( i : int, x : ddouble ) {
 // Use the Machin's arctangent formula:
 //    pi / 4  =  4 arctan(1/5) - arctan(1/239)
 // The arctangent is computed based on the Taylor series expansion
-//   arctan(x) = x - x^3 / 3 + x^5 / 5 - x^7 / 7 + ...
+//   arctan(x) = x - x^3 / 3 ++ x^5 / 5 - x^7 / 7 ++ ...
 public fun test-pi-machin() {
   check-rt("pi-mach", dd-pi,29) {
     val approx = 4.ddouble * ((4.ddouble * arctan(one / 5.ddouble )) - arctan( one / 239.ddouble ))
     val delta  = (approx - dd-pi).abs
     val err    = delta / dd-epsilon
-    //trace(" delta: " + delta.show + " = " + (delta / dd-epsilon).show(3) + " eps")
-    //trace(" pi: " + dd-pi.show )
-    // (approx.show + ", err: " + err.show(3) + " ulp")
+    //trace(" delta: " ++ delta.show ++ " = " ++ (delta / dd-epsilon).show(3) ++ " eps")
+    //trace(" pi: " ++ dd-pi.show )
+    // (approx.show ++ ", err: " ++ err.show(3) ++ " ulp")
     approx
   }
 }
@@ -269,10 +269,10 @@ fun expand-pi-sb( a : ddouble, b : ddouble, s : ddouble,
   val b1 = a * b
   val s1 = s - (m1 * (a1.sqr - b1))
   val b2 = sqrt(b1)
-  //trace(" a: " + a.showx + ", b: " + b.showx)
-  //trace(" b2: " + b2.showx + ", b1: " + b1.showx )
+  //trace(" a: " ++ a.showx ++ ", b: " ++ b.showx)
+  //trace(" b2: " ++ b2.showx ++ ", b1: " ++ b1.showx )
   val p1 = (2.0.ddouble * a1.sqr) / s1
-  //trace("i: " + i.show + ": p: " + p1.show-exp(dd-max-prec+1))
+  //trace("i: " ++ i.show ++ ": p: " ++ p1.show-exp(dd-max-prec+1))
   if (i >= 20 || ((p1 - p).abs <= 64.ddouble*dd-epsilon))
    then p1
    else expand-pi-sb(a1,b2,s1,m1,p1,i.inc)

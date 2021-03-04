@@ -295,3 +295,4 @@ isomonth : ok: 2094-M07-14/2486076.5
 julian : ok: 2094-07-05/2486076.5
 coptic : ok: 1810-11-11/2486076.5
 ethiopian : ok: 2086-11-11/2486076.5
+add default effect for std/core/exn

@@ -9,7 +9,8 @@
 // Sample data from the book Calendrical Calculations, 3rd edition, appendix C, 33 dates in various calendars.
 public module time7
 
-public import std/num/ddouble
+import std/num/ddouble
+import std/time/timestamp
 public import std/time
 
 public struct info(
@@ -77,21 +78,21 @@ fun show( info : info ) : string {
 ----------------------------------------------------------------------------*/
 
 fun check(name : string, res : string, got: string ) : io () {
-  println(name.pad-right(14,' ') + ": "
-    + (if (got == res) then "ok: " + res
-                       else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
-  if (got != res) error("test failed")
+  println(name.pad-right(14,' ') ++ ": "
+    ++ (if (got == res) then "ok: " ++ res
+                       else "FAILED!:\n expect: " ++ res ++ "\n gotten: " ++ got ++ "\n"))
+  if (got != res) throw("test failed")
 }
 
 
 fun check-info( info : info ) : io () {
-  println("\n" + info.show)
+  println("\n" ++ info.show)
   val i = instant-at-jd(info.jd,ts-ti)
   val t = i.time
   fun check-date( name : string, res : string, cal : calendar, mpre : string = "", swidth : int = 2 ) {
     val tc  = t.time(cal=cal)
-    val got = tc.date.show(mpre) + "/" + tc.jd.show-fixed  // check date and its inverse!
-    check(name, res + "/" + info.jd.show-fixed, got)
+    val got = tc.date.show(mpre) ++ "/" ++ tc.jd.show-fixed  // check date and its inverse!
+    check(name, res ++ "/" ++ info.jd.show-fixed(-10), got)
   }
 
   check("mjd", info.mjd.show, i.mjd(ts-ti).show-fixed)

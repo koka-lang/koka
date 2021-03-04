@@ -8,6 +8,7 @@
 
 module time5
 
+import std/time/timestamp
 public import std/num/ddouble
 public import std/time
 //import std/time/astro
@@ -19,7 +20,7 @@ public import std/time
 
 fun check(name : string, res : string, tst : () -> utc string ) : <io,utc> () {
   val got = tst()
-  println(name + ": " + (if (got == res) then "ok: " + res else "failed!:\n expect: " + res + "\n gotten: " + got))
+  println(name ++ ": " ++ (if (got == res) then "ok: " ++ res else "failed!:\n expect: " ++ res ++ "\n gotten: " ++ got))
 }
 
 fun test-round() {

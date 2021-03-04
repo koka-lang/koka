@@ -1,2 +1,3 @@
 trunc1 : ok: 0
 round1 : ok: 1
+add default effect for std/core/exn

@@ -101,3 +101,5 @@ year: 49
 year: 50
 year: 51
 ok.
+add default effect for std/core/exn
+add default effect for std/time/utc/utc
