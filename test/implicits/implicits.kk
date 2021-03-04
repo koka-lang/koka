@@ -1,6 +1,6 @@
-// Note: this corresponds to the implicit paper but we changed
-// the name to ambients instead and moved tests to the `test/ambients` directory.
-implicit val width : int
+// Note: this corresponds to the "implicits" paper but 
+// instead of the keyword "implicit" we use "effect"
+effect val width : int
 
 fun f() {
   //with val width = 78
@@ -16,14 +16,14 @@ fun half(action) {
 }
 
 
-implicit val emitx : ((s:string) -> io ())
+effect val emitx : ((s:string) -> io ())
 
 fun emit1(action) {
   with val emitx = fn( s : string ){ s.println }
   action()
 }
 
-implicit fun emit( s : string ) : ()
+effect fun emit( s : string ) : ()
 
 fun pretty-emit1(action) {
   try {
@@ -45,7 +45,7 @@ fun pretty-emit(action) {
   out
 }
 
-implicit state<s> {
+effect state<s> {
   fun get()      : s
   fun set(x : s) : ()
 }
@@ -60,7 +60,7 @@ fun state1(action) {
 }
 
 
-implicit fun total() : int
+effect fun total() : int
 
 fun emit4(action) {
   var out := ""
@@ -70,7 +70,7 @@ fun emit4(action) {
   action()
 }
 
-implicit fun abort() : ()
+effect fun abort() : ()
 
 fun pretty-abort(action) {
   with pretty-emit
@@ -78,7 +78,7 @@ fun pretty-abort(action) {
   action()
 }
 
-implicit control choice() : bool
+effect control choice() : bool
 
 fun pretty-all(action) {
   with control choice() { resume(True) + (resume(False) : list<string>) }
@@ -104,7 +104,7 @@ fun state2(init,action) {
 }
 
 
-implicit val cwd : string
+effect val cwd : string
 
 fun is-home() {
   cwd == "/home"
@@ -129,9 +129,9 @@ struct graph()
 struct rose(v : vertex, sub : list<rose> )
 
 
-implicit fun marked( v : vertex ) : bool
-implicit fun mark( v : vertex ) : ()
-implicit fun children( v : vertex ) : list<vertex>
+effect fun marked( v : vertex ) : bool
+effect fun mark( v : vertex ) : ()
+effect fun children( v : vertex ) : list<vertex>
 
 fun dfs( g : graph, vs : list<vertex> ) : pure list<rose> {
   var visited := vector(g.bound,False)
