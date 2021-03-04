@@ -5,9 +5,9 @@ public import std/num/double
 
 public fun check(name : string, res : string, tst : () -> io string ) : io () {
   val got = tst().replace-all("e+0","e+")
-  println(name.pad-right(8,' ') + ": "
-    + (if (got == res) then "ok: " + res
-                       else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
+  println(name.pad-right(8,' ') ++ ": "
+    ++ (if (got == res) then "ok: " ++ res
+                       else "FAILED!:\n expect: " ++ res ++ "\n gotten: " ++ got ++ "\n"))
   if (got != res) then throw("failed") else ()
 }
 
@@ -27,38 +27,38 @@ public fun check-round-trip( name : string, x : ddouble ) : io ddouble {
   //val y = x.show(33).parse-ddouble.default(dd-nan)
   val y = x.show-hex.parse-ddouble.default(dd-nan)
   if (y==x) then () else {
-      println("failed round-trip parse! (" + name + ")\n x : " +
-            x.show-exp + "\n     " + x.show-hex +  "\n y : " + y.show-exp + "\n     " + y.show-hex)
+      println("failed round-trip parse! (" ++ name ++ ")\n x : " ++
+            x.show-exp ++ "\n     " ++ x.show-hex ++  "\n y : " ++ y.show-exp ++ "\n     " ++ y.show-hex)
   }
   x
 }
 
 public fun check-prec( name : string, expect : ddouble, res : ddouble, eps : ddouble = ddouble-exp(1,-15) ) : io () {
-  val pre = name.pad-right(8,' ') + ": "
+  val pre = name.pad-right(8,' ') ++ ": "
   if (expect.is-finite) then {
     val delta  = (res - expect).abs
     if (delta < eps) then {
-      println(pre + "ok: " + res.show + ", dt: " + delta.show(6)  )
+      println(pre ++ "ok: " ++ res.show ++ ", dt: " ++ delta.show(6)  )
     }
     else {
       val relerr = (delta / expect).abs
       val releps = if (expect.abs < ten) then eps else eps * 1000.ddouble
       if (relerr < releps) then {
-        println(pre + "ok: " + res.show + ", derr: " + relerr.show(6)  )
+        println(pre ++ "ok: " ++ res.show ++ ", derr: " ++ relerr.show(6)  )
       }
       else {
-        println(pre + "FAILED:\n expect: " + expect.show + "\n gotten: " + res.show + "\n delta : " + delta.show + "\n error: " + relerr.show )
-        //error("failed " + name)
+        println(pre ++ "FAILED:\n expect: " ++ expect.show ++ "\n gotten: " ++ res.show ++ "\n delta : " ++ delta.show ++ "\n error: " ++ relerr.show )
+        //error("failed " ++ name)
       }
     }
   }
   else {
     if (expect == res) then {
-      println( pre + "ok: " + res.show )
+      println( pre ++ "ok: " ++ res.show )
     }
     else {
-      println(pre + "FAILED:\n expect: " + expect.show + "\n gotten: " + res.show )
-      throw("failed " + name)
+      println(pre ++ "FAILED:\n expect: " ++ expect.show ++ "\n gotten: " ++ res.show )
+      throw("failed " ++ name)
     }
   }
 }
@@ -75,10 +75,10 @@ public fun main() {
   test-trig()
   test-atrig()
 
-  check("add1","9.007199254740992e+15 vs. 9.007199254740993e+15") { (max-int + 2.0).show-exp(15) + " vs. " + (max-int.ddouble + ddouble(2.0)).show-exp }
+  check("add1","9.007199254740992e+15 vs. 9.007199254740993e+15") { (max-int + 2.0).show-exp(15) ++ " vs. " ++ (max-int.ddouble + ddouble(2.0)).show-exp }
   check("pow1","1e+31") { ddouble-exp(1,31).show }
-  check("mul1a","1.5241578753238668e+28 vs. 1.5241578753238669120562399025000e+28") { (mx * mx).show-exp(16) + " vs. " + mx.ddouble.sqr.show-exp(dd-max-prec) }
-  check("mul1b","1.5241578753238668e+28 vs. 1.5241578753238669120562399025e+28") { (mx * mx).show-exp(16) + " vs. " + mx.ddouble.sqr.show-exp }
+  check("mul1a","1.5241578753238668e+28 vs. 1.5241578753238669120562399025000e+28") { (mx * mx).show-exp(16) ++ " vs. " ++ mx.ddouble.sqr.show-exp(dd-max-prec) }
+  check("mul1b","1.5241578753238668e+28 vs. 1.5241578753238669120562399025e+28") { (mx * mx).show-exp(16) ++ " vs. " ++ mx.ddouble.sqr.show-exp }
   check("max","1.797693134862315807937289714053e+308"){ dd-max.show }
 }
 
@@ -109,24 +109,24 @@ public fun test-show() {
 
 public fun test-int10() {
   for(2,308) fn(i){
-    val expect = "1e+" + i.show
-    check("int" + i.show, expect) { ddouble-exp(1,i).show-exp(-29) }
+    val expect = "1e+" ++ i.show
+    check("int" ++ i.show, expect) { ddouble-exp(1,i).show-exp(-29) }
   }
 }
 
 public fun test-int99() {
   for(2,30) fn(i) {
-    val expect8 = "9." + repeat("9",i - 2) + "8e+" + i.dec.show
-    check-rte("int" + i.show, expect8) { ddouble-exp(1,i).dec.dec }
-    val expect9 = "9." + repeat("9",i.dec) + "e+" + i.dec.show
-    check-rte("int" + i.show, expect9) { ddouble-exp(1,i).dec }
-    val expect1 = "1." + repeat("0",i.dec) + "1e+" + i.show
-    check-rte("int" + i.show, expect1) { ddouble-exp(1,i).inc }
-    val expect2 = "1." + repeat("0",i.dec) + "2e+" + i.show
-    check-rte("int" + i.show, expect2) { ddouble-exp(1,i).inc.inc }
+    val expect8 = "9." ++ repeat("9",i - 2) ++ "8e+" ++ i.dec.show
+    check-rte("int" ++ i.show, expect8) { ddouble-exp(1,i).dec.dec }
+    val expect9 = "9." ++ repeat("9",i.dec) ++ "e+" ++ i.dec.show
+    check-rte("int" ++ i.show, expect9) { ddouble-exp(1,i).dec }
+    val expect1 = "1." ++ repeat("0",i.dec) ++ "1e+" ++ i.show
+    check-rte("int" ++ i.show, expect1) { ddouble-exp(1,i).inc }
+    val expect2 = "1." ++ repeat("0",i.dec) ++ "2e+" ++ i.show
+    check-rte("int" ++ i.show, expect2) { ddouble-exp(1,i).inc.inc }
     if (i < 30) {
-      val expect99 = "1" + repeat("9",i)// + "e+" + i.show
-      check("int" + i.show, expect99) { (ddouble-exp(1,i) + ddouble-exp(1,i).dec).show-fixed(-9) }
+      val expect99 = "1" ++ repeat("9",i)// ++ "e+" ++ i.show
+      check("int" ++ i.show, expect99) { (ddouble-exp(1,i) + ddouble-exp(1,i).dec).show-fixed(-9) }
     }
   }
 }
@@ -136,15 +136,15 @@ public fun test-big() {
   val digits= dd-max-prec - 2
   val pi290 = dd-pi * ddouble-exp(1,290)
   val s     = dd-pi.show-exp(digits)
-  //trace( "s: " + s + ", len: " + s.count.show)
+  //trace( "s: " ++ s ++ ", len: " ++ s.count.show)
   list(0,17).foldl(pi290) fn(x:ddouble,i:int) {
-    val expect = s + "e+" + (i + 290).show
-    check("big" + i.show, expect) { x.show-exp(digits)}
+    val expect = s ++ "e+" ++ (i + 290).show
+    check("big" ++ i.show, expect) { x.show-exp(digits)}
     x*ten
   }
   list(0,17).foldl(~pi290) fn(x:ddouble,i:int) {
-    val expect = "-" + s + "e+" + (i + 290).show
-    check("small" + i.show, expect) { x.show-exp(digits)}
+    val expect = "-" ++ s ++ "e+" ++ (i + 290).show
+    check("small" ++ i.show, expect) { x.show-exp(digits)}
     x*ten
   }
   ()
@@ -167,7 +167,7 @@ public fun test-sin() {
   exact-sin.foreach-indexed( fn(i : int, esin : ddouble) {
     val x = ddouble("0.0001") * ddouble-exp(1,i)
     val s = sin(x)
-    check-prec( "esin" + i.show + ": sin(" + x.show  + "): ", esin, s, ddouble-exp(1,-30) * (if (x <= one) then one else 1000.ddouble) )
+    check-prec( "esin" ++ i.show ++ ": sin(" ++ x.show  ++ "): ", esin, s, ddouble-exp(1,-30) * (if (x <= one) then one else 1000.ddouble) )
   })
   // check( "sin-atan", "0.7071067811865475027519429562175" /* "0.7071067811865475244008443621049" */) { sin(atan(1.0).ddouble).show }
 }
@@ -188,15 +188,15 @@ public fun test-atan() {
   exact-atan.foreach-indexed( fn(i : int, eatan : ddouble) {
     val x = ddouble("0.0001") * ddouble-exp(1,i)
     val a = atan(x)
-    check-prec( "eatan" + i.show + ": atan(" + x.show  + "): ", eatan, a, ddouble-exp(1,-31) * (if (x <= one) then one else 1000.ddouble) )
+    check-prec( "eatan" ++ i.show ++ ": atan(" ++ x.show  ++ "): ", eatan, a, ddouble-exp(1,-31) * (if (x <= one) then one else 1000.ddouble) )
   })
 }
 
 val posnums   = [1.0e-12,1.0e-8,1.0e-6,0.1,0.25,0.5,0.75,0.9,0.99999999,1.0,1.00000001,1.1,1.5,2.0,2.5,5.0,10.0,100.0,1.0e6,1.0e8,1.0e12]
 val posexotic = [0.5*sqrt(2.0),atan(1.0),sqrt(2.0)]
-val exotic    = posexotic.map((~)).reverse + posexotic
-val nums      = posnums.map((~)).reverse + [0.0] + posnums + exotic
-val pinums    = nums.map( fn(d){ d*pi } ) + exotic
+val exotic    = posexotic.map((~)).reverse ++ posexotic
+val nums      = posnums.map((~)).reverse ++ [0.0] ++ posnums ++ exotic
+val pinums    = nums.map( fn(d){ d*pi } ) ++ exotic
 
 public fun test-trig() {
   test-double-fn( "tan", tan, tan, pinums )
@@ -220,7 +220,7 @@ public fun test-double-fn( name : string, fd : double -> double, fdd : ddouble -
   nums.foreach-indexed( fn( i:int, x : double ) {
     val d = x.fd
     val dd = x.ddouble.fdd
-    check-prec( name + "(" + x.show(3) + ")", d.ddouble, dd,
+    check-prec( name ++ "(" ++ x.show(3) ++ ")", d.ddouble, dd,
                if (host()=="dotnet") then ddouble-exp(1,-4) // dotnet does not have good trigonometry :-(
                                      else ddouble-exp(1,-14))
   })
