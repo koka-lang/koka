@@ -5,18 +5,19 @@ effect heap<a> {
   fun set(value : a) : ()
 }
 
-val new-ref = handler(s) {
-  // return x -> x
-  get() -> resume(s,s)
-  set(x) -> resume((),x)
+fun new-ref(init,action) {
+  var s := init
+  with {  
+    fun get(){ s }
+    fun set(x){ s := x }
+  }
+  action()
 }
 
 fun test() {
-  new-ref(2) {
-    new-ref(44) {
-      (get() : int) - inject<heap<int>>{get()}  // 44 - 2
-    }
-  }
+  with new-ref(2)
+  with new-ref(44)
+  (get() : int) - mask<heap<int>>{get()}  // 44 - 2  
 }
 
 fun main() {
