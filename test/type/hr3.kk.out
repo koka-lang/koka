@@ -1,0 +1,2 @@
+type/hr3/ids: list<forall<a> (a) -> a>
+type/hr3/test1: () -> exn int

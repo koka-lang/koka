@@ -1,1 +1,6 @@
-s
+type/hm1/apply: forall<a,b,e> (f : (a) -> e b, x : a) -> e b
+type/hm1/choose: forall<a> (x : a, y : a) -> a
+type/hm1/test: forall<a> () -> ((x : a) -> a)
+type/hm1/test2: forall<a,e> () -> list<(x : a) -> e a>
+type/hm1/test3: forall<a> () -> ((x : a, y : a) -> a)
+type/hm1/test4: forall<a,e> (f : (x : a) -> e a) -> ((x : a) -> e a)

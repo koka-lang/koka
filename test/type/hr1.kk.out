@@ -1,0 +1,16 @@
+type/hr1/auto: forall<e> (f : forall<a> (a) -> e a) -> e (forall<a> (a) -> e a)
+type/hr1/choose: forall<a> (x : a, y : a) -> a
+type/hr1/ids: list<forall<a> (a) -> a>
+type/hr1/test1: forall<a> (a) -> a
+type/hr1/test2: forall<a> (a) -> a
+type/hr1/test3: list<forall<a> (a) -> a>
+type/hr1/test3a: forall<a> list<(a) -> a>
+type/hr1/test4: () -> maybe<forall<a> (a) -> a>
+type/hr1/test4a: () -> list<forall<a> (a) -> a>
+type/hr1/test5: () -> list<maybe<forall<a> (a) -> a>>
+type/hr1/test6: forall<e> () -> ((x : forall<a> (a) -> e a) -> e (forall<a> (a) -> e a))
+type/hr1/test6a: forall<e> () -> ((f : forall<a> (a) -> e a) -> e (forall<a> (a) -> e a))
+type/hr1/test7: forall<a> () -> ((f : forall<b> (b) -> b) -> ((a) -> a))
+type/hr1/test8: () -> list<forall<a> (a) -> a>
+type/hr1/test8a: () -> list<forall<a> (a) -> a>
+type/hr1/xauto: forall<a> (f : forall<b> (b) -> b) -> ((a) -> a)

@@ -1,6 +1,4 @@
-.copy : (test, x : ?int, y : ?int) -> test
-.create-Test: (x : int, y : ?int) -> test
-Test : (x : int, y : int) -> test
-foo : () -> test
-x : (test : test) -> int
-y : (test : test) -> int
+type/args1/Test: (x : int, y : int) -> test
+type/args1/foo: () -> test
+type/args1/x: (test : test) -> int
+type/args1/y: (test : test) -> int

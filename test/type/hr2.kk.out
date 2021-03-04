@@ -1,0 +1,2 @@
+type/hr2/ok : () -> exn int
+type/hr2/runST: forall<a> (action : forall<h> () -> <st<h>,exn> a) -> exn a
