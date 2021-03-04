@@ -1,0 +1,56 @@
+79
+81
+()
+40
+81
+()
+False
+ 
+test/implicits/implicits.kk(96,11): warning: operation get is declared as 'fun' but handled here using 'control'
+test/implicits/implicits.kk(96,11): warning: operation set is declared as 'fun' but handled here using 'control'
+implicits/implicits/Abort: forall<e,a> (.hnd-abort<e,a>) -> abort
+implicits/implicits/Children: forall<e,a> (.hnd-children<e,a>) -> children
+implicits/implicits/Choice: forall<e,a> (.hnd-choice<e,a>) -> choice
+implicits/implicits/Cwd: forall<e,a> (.hnd-cwd<e,a>) -> cwd
+implicits/implicits/Emit: forall<e,a> (.hnd-emit<e,a>) -> emit
+implicits/implicits/Emitx: forall<e,a> (.hnd-emitx<e,a>) -> emitx
+implicits/implicits/Graph: graph
+implicits/implicits/Mark: forall<e,a> (.hnd-mark<e,a>) -> mark
+implicits/implicits/Marked: forall<e,a> (.hnd-marked<e,a>) -> marked
+implicits/implicits/Rose: (v : vertex, sub : list<rose>) -> rose
+implicits/implicits/State: forall<a,e,b> (.hnd-state<a,e,b>) -> state<a>
+implicits/implicits/Total: forall<e,a> (.hnd-total<e,a>) -> total
+implicits/implicits/Width: forall<e,a> (.hnd-width<e,a>) -> width
+implicits/implicits/abort: () -> abort ()
+implicits/implicits/bound: (g : graph) -> int
+implicits/implicits/children: (v : vertex) -> children list<vertex>
+implicits/implicits/choice: () -> choice bool
+implicits/implicits/cwd: value<string>
+implicits/implicits/dfs: (g : graph, vs : list<vertex>) -> pure list<rose>
+implicits/implicits/dfs-loop: (vs : list<vertex>) -> <children,div,mark,marked> list<rose>
+implicits/implicits/emit: (s : string) -> emit ()
+implicits/implicits/emit1: forall<a,e> (action : () -> <emitx|e> a) -> e a
+implicits/implicits/emit4: forall<a,e> (action : () -> <emit,total|e> a) -> e string
+implicits/implicits/emitx: value<(s : string) -> io ()>
+implicits/implicits/f: () -> <console,width> ()
+implicits/implicits/gchildren: (g : graph, v : vertex) -> list<vertex>
+implicits/implicits/get: forall<a> () -> (state<a>) a
+implicits/implicits/half: forall<a,e> (action : () -> <width,width|e> a) -> <width|e> a
+implicits/implicits/is-home: () -> cwd bool
+implicits/implicits/main: () -> console ()
+implicits/implicits/mark: (v : vertex) -> mark ()
+implicits/implicits/marked: (v : vertex) -> marked bool
+implicits/implicits/pretty-abort: forall<e> (action : () -> <abort,emit|e> ()) -> e string
+implicits/implicits/pretty-all: forall<e> (action : () -> <abort,choice,emit|e> ()) -> e list<string>
+implicits/implicits/pretty-all2: forall<e> (action : () -> <abort,choice,emit|e> ()) -> e list<string>
+implicits/implicits/pretty-emit: forall<a,e> (action : () -> <emit|e> a) -> e string
+implicits/implicits/pretty-emit1: forall<a,e> (action : () -> <console,emit,exn|e> a) -> <console|e> error<a>
+implicits/implicits/pretty-emit2: forall<a,e> (action : () -> <console,emit,width|e> a) -> <console,width|e> a
+implicits/implicits/set: forall<a> (x : a) -> (state<a>) ()
+implicits/implicits/state1: forall<a,e> (action : () -> <state<int>|e> a) -> e a
+implicits/implicits/state2: forall<a,b,e> (init : a, action : () -> <state<a>|e> b) -> e b
+implicits/implicits/sub: (rose : rose) -> list<rose>
+implicits/implicits/test1: () -> bool
+implicits/implicits/total: () -> total int
+implicits/implicits/v: (rose : rose) -> vertex
+implicits/implicits/width: value<int>

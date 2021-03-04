@@ -41,7 +41,7 @@ fun pretty-emit2(action) {
 // with lexically scoped state
 fun pretty-emit(action) {
   var out := ""
-  with fun emit(s) { out := out + s + "\n" } in action()
+  with fun emit(s) { out := out ++ s ++ "\n" } in action()
   out
 }
 
@@ -65,37 +65,37 @@ effect fun total() : int
 fun emit4(action) {
   var out := ""
   with return(x) { out }
-  with fun emit(s) { out := out + s + "\n" }
+  with fun emit(s) { out := out ++ s ++ "\n" }
   with fun total() { out.count }
   action()
 }
 
-effect fun abort() : ()
+effect control abort() : ()
 
 fun pretty-abort(action) {
   with pretty-emit
-  with control abort() { () }
+  with control abort(){ () }
   action()
 }
 
 effect control choice() : bool
 
 fun pretty-all(action) {
-  with control choice() { resume(True) + (resume(False) : list<string>) }
+  with control choice() { resume(True) ++ (resume(False) : list<string>) }
   [pretty-abort(action)]
 }
 
 
 fun pretty-all2(action) {
-  with control choice() { resume(True) + (resume(False) : list<string>) }
+  with control choice() { resume(True) ++ (resume(False) : list<string>) }
   with return(x) { [x] }
   pretty-abort(action)
 }
 
 fun state2(init,action) {
   val f = with {
-            control get()  { (fn(s) { resume(s)(s) }) }
-            control set(x) { (fn(s) { resume(())(x) }) }
+            control get()  { (fn(s){ resume(s)(s) }) }
+            control set(x) { (fn(s){ resume(())(x) }) }
           } in {
             val x = action()
             (fn(s) { x })
