@@ -205,10 +205,10 @@ fun parse-packed-zone( s : string ) : exn timezone-info {
 fun parse-packed-periods( name : string, sabbrs : string, soffsets :string, sindices : string, sxdiffs :string ) : list<timezone-period>
 {
   try {
-    val abbrs   = sabbrs.split(" ").filter(notempty?)
-    val offsets = soffsets.split(" ").filter(notempty?).map(parse-fixed-base60)
+    val abbrs   = sabbrs.split(" ").filter(is-notempty)
+    val offsets = soffsets.split(" ").filter(is-notempty).map(parse-fixed-base60)
     val indices = sindices.list.map(digit60)
-    val xdiffs  = sxdiffs.split(" ").filter(notempty?).map(parse-fixed-base60)
+    val xdiffs  = sxdiffs.split(" ").filter(is-notempty).map(parse-fixed-base60)
     fun from-indices( xs : list<a>, def : a ) : list<a> {
       indices.map( fn(idx) {xs[idx].default(def) }).reverse
     }
@@ -250,7 +250,7 @@ fun parse-fixed-base60( s : string ) : exn double {
 val rxfixbase60 = regex(@"^([\-\+])?([\da-zA-X]*)(?:\.([\da-zA-X]+))?$")
 
 fun parse-base60( s : string ) : exn int {
-  if (s.empty?) return 0
+  if (s.is-empty) return 0
   match(s.find(rxbase60)) {
     Nothing -> error("invalid base60 number: " + s)
     Just(cap) -> {
@@ -265,9 +265,9 @@ fun parse-base60( s : string ) : exn int {
 val rxbase60 = regex(@"^([\-\+])?([\da-zA-X]+)$")
 
 fun digit60( d : char ) : exn int {
-  if (d.digit?) then (d - '0').int
-  elif (d.lower?) then (d - 'a').int + 10
-  elif (d.upper?) then (d - 'A').int + 36
+  if (d.is-digit) then (d - '0').int
+  elif (d.is-lower) then (d - 'a').int + 10
+  elif (d.is-upper) then (d - 'A').int + 36
   else error("invalid digit in base 60: " + d.show)
 }
 
@@ -292,7 +292,7 @@ public val timezones-empty = Timezones([].dict)
 // but an optional file name can be supplied.
 // The latest version can be found at: <https://github.com/moment/moment-timezone/blob/develop/data/packed/latest.json>.
 public fun load-timezones-from( fname : string = "" ) : io timezones {
-  val fpath = if (fname.empty?) then appdir() + path("config/timezones.json") else fname.path
+  val fpath = if (fname.is-empty) then appdir() + path("config/timezones.json") else fname.path
   parse-packed-zones(read-text-file-sync(fpath.string))
 }
 

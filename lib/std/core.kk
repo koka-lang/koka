@@ -1352,7 +1352,7 @@ inline extern (+) : (double,double) -> double { inline "(#1 + #2)" }
 inline extern (-) : (double,double) -> double { inline "(#1 - #2)" }
 inline extern (*) : (double,double) -> double { inline "(#1 * #2)" }
 inline extern (/) : (double,double) -> double { inline "(#1 / #2)" }
-inline extern (%) : (double,double) -> double { inline "(#1 % #2)" }
+inline extern (%) : (double,double) -> double { c inline "fmod(#1,#2)"; inline "(#1 % #2)" }
 
 fun compare( x : double, y : double) : order
 {

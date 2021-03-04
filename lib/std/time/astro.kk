@@ -144,7 +144,7 @@ import std/time/calendar
 // for documentation
 import std/time/utc        // ts-ti
 import std/time/calendars  // cal-tai, cal-gps
-import std/time/download   // cal-utc-load
+// import std/time/download   // cal-utc-load
 
 /*
 // The TCG (Geometric coordinate time) calendar, i.e. an ISO calendar but using the `ts-tcg` time scale.

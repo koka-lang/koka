@@ -284,30 +284,6 @@ fun exp2( p : double ) : double {
   pow(2.0,p)
 }
 
-// Return `log(1.0 + x)`.
-// Avoids potential imprecision for small `x` where adding `1.0` explicitly
-// may lead to rounding errors.
-fun log1p( x : double ) : double {
-  if (x.is-posinf) then x else {
-    val y = 1.0 + x
-    val z = y - 1.0
-    if (z==0.0) then x else {
-      log(y) * (x / z)
-    }
-  }
-}
-
-// Return `exp(x - 1.0)`.
-// Avoids rounding errors for values of `x` very close to `1.0`.
-fun expm1( x : double ) : double {
-  if (x.is-posinf) then x else {
-    val y = exp(x)
-    if (y==1.0) then x
-    elif (y - 1.0 == -1.0) then -1.0
-    else (y - 1.0) * (x / log(y))
-  }
-}
-
 private fun log2p1( x : double ) : double {
   dbl-log2e * log1p(x)
 }
@@ -652,6 +628,13 @@ fun rad( deg : double ) : double {
   deg * deg2rad
 }
 
+
+// Return `x` with the sign of `y`.
+public fun with-sign-of( x : double, y : double ) : double {
+  if (y < 0.0) then ~(x.abs) else x.abs
+}
+
+
 // Return the sine of an angle in radians `d`.
 inline extern sin( d : double ) : double {
   c  "sin"
@@ -722,12 +705,67 @@ inline extern sinh( d : double ) : double {
   js "Math.sinh"
 }
 
-
-// Return `x` with the sign of `y`.
-public fun with-sign-of( x : double, y : double ) : double {
-  if (y < 0.0) then ~(x.abs) else x.abs
+// Return `log(1.0 + x)`.
+// Avoids potential imprecision for small `x` where adding `1.0` explicitly
+// may lead to rounding errors.
+inline extern log1p( d : double ) : double {
+  c  "log1p"
+  js "Math.log1p"
 }
 
+// Return `exp(x - 1.0)`.
+// Avoids rounding errors for values of `x` very close to `1.0`.
+inline extern expm1( d : double ) : double {
+  c  "log1p"
+  js "Math.log1p"
+}
+
+// The area hyperbolic tangent of `d`
+extern atanh( d : double ) : double {
+  c  "atanh"
+  js "Math.atanh"
+}
+
+// The area hyperbolic cosine of `d`
+extern acosh( d : double ) : double {
+  c  "acosh"
+  js "Math.acosh"
+}
+
+// The area hyperbolic sine of `d`
+extern asinh( d : double ) : double {
+  c "asinh"
+  js "Math.asinh"
+}
+
+// ------------------------
+// explicit implementations
+// ------------------------
+  
+/*  
+// Return `log(1.0 + x)`.
+// Avoids potential imprecision for small `x` where adding `1.0` explicitly
+// may lead to rounding errors.
+fun log1p( x : double ) : double {
+  if (x.is-posinf) then x else {
+    val y = 1.0 + x
+    val z = y - 1.0
+    if (z==0.0) then x else {
+      log(y) * (x / z)
+    }
+  }
+}
+
+// Return `exp(x - 1.0)`.
+// Avoids rounding errors for values of `x` very close to `1.0`.
+fun expm1( x : double ) : double {
+  if (x.is-posinf) then x else {
+    val y = exp(x)
+    if (y==1.0) then x
+    elif (y - 1.0 == -1.0) then -1.0
+    else (y - 1.0) * (x / log(y))
+  }
+}
 
 // The area hyperbolic tangent of `x`
 fun atanh( x : double ) : double {
@@ -767,3 +805,5 @@ fun asinh( x : double ) : double {
     log1p( xa + xa2/(1.0 + sqrt( xa2 + 1.0 ))).with-sign-of(x)
   }
 }
+
+*/
