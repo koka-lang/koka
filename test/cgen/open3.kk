@@ -1,8 +1,8 @@
-type open test {
+open type test {
   X
 }
 
-type extend test {
+extend type test {
   Y
 }
 

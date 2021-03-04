@@ -3,6 +3,6 @@ count: 1, width: 2, grapheme len: 1,
 count: 2, width: 4, grapheme len: 2,
  graphemes: [['/uD55C'],['/uAE00']], unicodes: [0xD55C,0xAE00]
 count: 4, width: 2, grapheme len: 2,
- graphemes: [['/u1E8B','/u0323'],['x']], unicodes: [0x78,0x307,0x323,0x78]
-count: 3, width: 2, grapheme len: 1,
- graphemes: [['/uAE4D']], unicodes: [0x1101,0x1161,0x11A8]
+ graphemes: [['x','/u0307','/u0323'],['x']], unicodes: [0x78,0x307,0x323,0x78]
+count: 3, width: 2, grapheme len: 3,
+ graphemes: [['/u1101'],['/u1161'],['/u11A8']], unicodes: [0x1101,0x1161,0x11A8]

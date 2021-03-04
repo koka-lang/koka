@@ -5,7 +5,7 @@ import open0
 val theY = open0/Y
 val theX = open0/X
 
-type extend test {
+extend type test {
   X
 }
 
