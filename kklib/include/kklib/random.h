@@ -26,9 +26,24 @@ static inline uint32_t kk_srandom_uint32(kk_context_t* ctx) {
   kk_random_ctx_t* rnd = ctx->srandom_ctx;
   if (kk_unlikely(rnd == NULL || rnd->used >= 16)) {
     rnd = kk_srandom_round(ctx);
+    kk_assert_internal(rnd != NULL && rnd->used >= 0 && rnd->used < 16);
   }
   uint32_t x = rnd->output[rnd->used];
   rnd->output[rnd->used++] = 0; // clear after use
+  return x;
+}
+
+static inline uint64_t kk_srandom_uint64(kk_context_t* ctx) {
+  // return (((uint64_t)kk_srandom_uint32(ctx) << 32) | kk_srandom_uint32(ctx));
+  kk_random_ctx_t* rnd = ctx->srandom_ctx;
+  if (kk_unlikely(rnd == NULL || rnd->used >= 15)) {
+    rnd = kk_srandom_round(ctx);
+    kk_assert_internal(rnd != NULL && rnd->used >= 0 && rnd->used < 15);
+  }
+  uint64_t* p = (uint64_t*)&rnd->output[rnd->used];
+  uint64_t x = *p;
+  *p = 0;
+  rnd->used += 2;
   return x;
 }
 
@@ -36,12 +51,9 @@ static inline kk_integer_t kk_srandom_int(kk_context_t* ctx) {
   return kk_integer_from_int32((int32_t)kk_srandom_uint32(ctx), ctx);
 }
 
-static inline uint64_t kk_srandom_uint64(kk_context_t* ctx) {
-  return (((uint64_t)kk_srandom_uint32(ctx) << 32) | kk_srandom_uint32(ctx));
-}
-
 kk_decl_export bool     kk_srandom_is_strong(kk_context_t* ctx);
-kk_decl_export uint32_t kk_srandom_range32(uint32_t max, kk_context_t* ctx);  // unbiased range
+kk_decl_export int32_t  kk_srandom_range_int32(int32_t min, int32_t max, kk_context_t* ctx);  // unbiased range
+kk_decl_export uint32_t kk_srandom_range_uint32(uint32_t max, kk_context_t* ctx);             // unbiased range
 kk_decl_export double   kk_srandom_double(kk_context_t* ctx);
 
 

@@ -63,7 +63,7 @@ private fun sfc-init( seed : int ) : sfc {
 
 // Use pseudo random numbers given some initial `seed`. At most
 // 64-bits of the initial seed are used. Do not use this for
-// cryptographic applications (see `strong-random`).
+// cryptographic applications (use `strong-random` instead).
 // Uses _sfc32_ by Chris Doty-Humphrey which is a fast random
 // number generator with a 128-bit internal state which 
 // passes PractRand and BigCrush. The worst case minimum cycle
@@ -84,7 +84,7 @@ fun random-bool() : random bool {
   (random-int32() >= 0.int32)
 }
 
-// Return a random integer in the range [-2147483648,2147483647] (32-bits).
+// Return a random integer in the range [-2^^31^^, 2^^31^^).
 fun random-int() : random int {
   random-int32().int
 }
@@ -107,7 +107,7 @@ fun srandom-bool() : ndet bool {
   (srandom-int32() >= 0.int32)
 }
 
-// Return a strong random integer in the range [-2147483648,2147483647] (32 bits).
+// Return a strong random integer in the range [-2^^31^^, 2^^31^^).
 fun srandom-int() : ndet int {
   srandom-int32().int
 }
@@ -120,7 +120,7 @@ extern srandom-int32: () -> ndet int32  {
 
 // Return a strong random `:double` in the range [0,1) using 52-bits of randomness
 extern srandom-double : () -> ndet double   {
-  c  inline "kk_srandom_double(kk_context())"
+  c  "kk_srandom_double"
   js "_srandom_double"
 }
 
@@ -129,3 +129,18 @@ extern srandom-is-strong: () -> ndet bool  {
   c  "kk_srandom_is_strong"
   js "_srandom_is_strong"
 }
+
+// Return a strong random `:int32` uniformly distributed in the range [lo,hi)
+extern srandom-int32-range(lo : int32, hi : int32) : ndet int32  {
+  c  "kk_srandom_range_int32"
+  js "_srandom_range_int32"
+}
+
+// Generate a strong random double uniformly distributed in the range [lo, hi)
+fun srandom-double-range(lo : double, hi : double) : ndet double {
+  val low  = if (lo <= hi) then lo else hi
+  val high = if (lo <= hi) then hi else lo
+  val x = ((high - low) * srandom-double()) + low
+  if (x >= high) then low else x  // can happen due to rounding
+}
+

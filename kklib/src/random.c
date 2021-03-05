@@ -219,13 +219,13 @@ static void kk_random_split(kk_random_ctx_t* rnd, kk_random_ctx_t* ctx_new) {
   Secure random: select in a range without bias
 --------------------------------------------------------------------------------------*/
 
-uint32_t kk_srandom_range32(uint32_t max, kk_context_t* ctx) {
+uint32_t kk_srandom_range_uint32(uint32_t max, kk_context_t* ctx) {
   /* Select unbiased integer in the range [0,max) by Daniel Lemire <https://arxiv.org/pdf/1805.10941.pdf> */
   uint32_t x = kk_srandom_uint32(ctx);
   uint64_t m = (uint64_t)x * (uint64_t)max;
   uint32_t l = (uint32_t)m;
   if (kk_unlikely(l < max)) {
-    uint32_t threshold = (~max+1) % max;  /* 2^32 % max == (2^32 - max) % max == -max % max */
+    uint32_t threshold = (~max+1) % max;  /* 2^32 % max  ==  (2^32 - max) % max  ==  -max % max */
     while (l < threshold) {
       x = kk_srandom_uint32(ctx);
       m = (uint64_t)x * (uint64_t)max;
@@ -235,15 +235,25 @@ uint32_t kk_srandom_range32(uint32_t max, kk_context_t* ctx) {
   return (uint32_t)(m >> 32);
 }
 
+int32_t kk_srandom_range_int32(int32_t min, int32_t max, kk_context_t* ctx) {
+  if (min > max) {
+    int32_t x = min;
+    min = max;
+    max = x;
+  }
+  uint32_t delta = (uint32_t)(max - min);
+  if (delta == 0) return 0;
+  uint32_t x = kk_srandom_range_uint32(delta, ctx);
+  return (min + (int32_t)(x));
+}
+
 /*--------------------------------------------------------------------------------------
   Secure random: get a double
 --------------------------------------------------------------------------------------*/
 
-// Use 48 random bits to generate a double in the range [0,1)
+// Use 52 random bits to generate a double in the range [0,1)
 double kk_srandom_double(kk_context_t* ctx) {
-  const uint32_t lo = (kk_srandom_uint32(ctx) << 4);            /* clear lower 4 bits  */
-  const uint32_t hi = (kk_srandom_uint32(ctx) & KU32(0xFFFFF));  /* use only lower 20 bits (for bits 32 to 51) */
-  const uint64_t x = KU64(0x3FF0000000000000) | (uint64_t)hi << 32 | (uint64_t)lo;
+  const uint64_t x = KU64(0x3FF0000000000000) | kk_shr64(kk_srandom_uint64(ctx), 12);
   double d;
   memcpy(&d, &x, sizeof(double)); /* alias safe: <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly> */
   return (d - 1.0);

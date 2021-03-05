@@ -218,8 +218,8 @@ static inline kk_intx_t   kk_sar(kk_intx_t i, kk_intx_t shift)   { return (i >> 
 static inline kk_uintx_t  kk_shr(kk_uintx_t u, kk_uintx_t shift) { return (u >> shift); }
 static inline int32_t     kk_sar32(int32_t i, kk_intx_t shift)   { return (i >> shift); }
 static inline uint32_t    kk_shr32(uint32_t u, kk_uintx_t shift) { return (u >> shift); }
-static inline int64_t     kk_sar64(int32_t i, kk_intx_t shift)   { return (i >> shift); }
-static inline uint64_t    kk_shr64(uint32_t u, kk_uintx_t shift) { return (u >> shift); }
+static inline int64_t     kk_sar64(int64_t i, kk_intx_t shift)   { return (i >> shift); }
+static inline uint64_t    kk_shr64(uint64_t u, kk_uintx_t shift) { return (u >> shift); }
 
 // Architecture assumptions
 #define KK_ARCH_LITTLE_ENDIAN   1
