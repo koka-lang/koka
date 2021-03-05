@@ -179,35 +179,30 @@ size_t kk_decl_pure kk_string_count(kk_string_t str, kk_context_t* ctx) {
  String conversion to/from qutf8
 --------------------------------------------------------------------------------------------------*/
 
-kk_string_t kk_string_alloc_from_qutf8(const char* str, kk_context_t* ctx) {
-  return kk_string_alloc_from_qutf8n(strlen(str), str, ctx);
+static bool kk_char_is_raw(kk_char_t c) {
+  return (c >= (KK_RAW_PLANE + 0xD800) && c <= (KK_RAW_PLANE + 0xE0FF));
 }
 
-
-kk_string_t kk_string_alloc_from_qutf8n(size_t len, const char* cstr, kk_context_t* ctx) {
-  kk_string_t str = kk_string_alloc_dupn_utf8(len, cstr, ctx);
-  return kk_string_convert_from_qutf8(str, ctx);
-}
 
 // Validating qutf-8 decode; careful to only read beyond s[0] if valid.
 // `count` returns the number of bytes read. 
 // `vcount` is only set on an invalid sequence and return the number of bytes
 // needed for a replacement character -- this is always 4 since we use the raw range.
-inline kk_char_t kk_utf8_read_validate(const uint8_t* s, size_t* count, size_t* vcount) {
+inline kk_char_t kk_utf8_read_validate(const uint8_t* s, size_t* count, size_t* vcount, bool qutf8_identity) {
   uint8_t b = s[0];
   if (kk_likely(b <= 0x7F)) {
     *count = 1;
     return b;   // ASCII fast path
   }
   // 2 byte encoding
-  else if (b >= 0xC2 && b <= 0xDF && kk_utf8_is_cont(s[1])) {
+  if (b >= 0xC2 && b <= 0xDF && kk_utf8_is_cont(s[1])) {
     *count = 2;
     kk_char_t c = (((b & 0x1F) << 6) | (s[1] & 0x3F));
     kk_assert_internal(c >= 0x80 && c <= 0x7FF);
     return c;
   }
   // 3 byte encoding; reject overlong and utf-16 surrogate halves (0xD800 - 0xDFFF)
-  else if ((b == 0xE0 && s[1] >= 0xA0 && s[1] <= 0xBF && kk_utf8_is_cont(s[2]))
+  if ((b == 0xE0 && s[1] >= 0xA0 && s[1] <= 0xBF && kk_utf8_is_cont(s[2]))
     || (b >= 0xE1 && b <= 0xEC && kk_utf8_is_cont(s[1]) && kk_utf8_is_cont(s[2])))
   {
     *count = 3;
@@ -216,25 +211,26 @@ inline kk_char_t kk_utf8_read_validate(const uint8_t* s, size_t* count, size_t* 
     return c;
   }
   // 4 byte encoding; reject overlong and out of bounds (> 0x10FFFF)
-  else if ((b == 0xF0 && s[1] >= 0x90 && s[1] <= 0xBF && kk_utf8_is_cont(s[2]) && kk_utf8_is_cont(s[3]))
+  if ((b == 0xF0 && s[1] >= 0x90 && s[1] <= 0xBF && kk_utf8_is_cont(s[2]) && kk_utf8_is_cont(s[3]))
     || (b >= 0xF1 && b <= 0xF3 && kk_utf8_is_cont(s[1]) && kk_utf8_is_cont(s[2]) && kk_utf8_is_cont(s[3]))
     || (b == 0xF4 && s[1] >= 0x80 && s[1] <= 0x8F && kk_utf8_is_cont(s[2]) && kk_utf8_is_cont(s[3])))
   {
-    *count = 4;
     kk_char_t c = (((b & 0x07) << 18) | ((s[1] & 0x3F) << 12) | ((s[2] & 0x3F) << 6) | (s[3] & 0x3F));
     kk_assert_internal(c >= 0x10000 && c <= 0x10FFFF);
-    return c;
+    if (!qutf8_identity || !kk_char_is_raw(c)) {
+      *count = 4;
+      return c;
+    }
+    // fall through
   }
-  // invalid: advance just 1 byte and encode it in the "raw" range
-  else {
-    *count = 1;
-    if (vcount != NULL) *vcount = 4;
-    kk_assert_internal(b >= 0x80);
-    return (KK_RAW_UTF8_OFS + b);
-  }
+  // invalid: advance just 1 byte and encode it in the "raw" range  
+  *count = 1;
+  if (vcount != NULL) *vcount = 4;
+  kk_assert_internal(b >= 0x80);
+  return (KK_RAW_UTF8_OFS + b);
 }
 
-kk_string_t  kk_string_convert_from_qutf8(kk_string_t str, kk_context_t* ctx) {
+static kk_string_t  kk_string_convert_from_qutf8_prim(kk_string_t str, bool qutf8_identity, kk_context_t* ctx) {
   // to avoid reallocation (to accommodate invalid sequences), we first check if
   // it is already valid utf-8 which should be very common; in that case we resurn the string as-is.
   size_t len; // len in valid utf-8
@@ -252,7 +248,7 @@ kk_string_t  kk_string_convert_from_qutf8(kk_string_t str, kk_context_t* ctx) {
     else {
       size_t count;
       size_t vcount = 0;
-      kk_utf8_read_validate(p, &count, &vcount);
+      kk_utf8_read_validate(p, &count, &vcount, qutf8_identity);
       p += count;
       if (vcount == 0) {
         vlen += count;
@@ -278,7 +274,7 @@ kk_string_t  kk_string_convert_from_qutf8(kk_string_t str, kk_context_t* ctx) {
       // copy sequence    
       // todo: this can be optimized a lot more..
       size_t count;
-      kk_char_t c = kk_utf8_read_validate(p, &count, NULL);
+      kk_char_t c = kk_utf8_read_validate(p, &count, NULL, qutf8_identity);
       p += count;
       size_t tcount;
       kk_utf8_write(c, t, &tcount);
@@ -289,6 +285,29 @@ kk_string_t  kk_string_convert_from_qutf8(kk_string_t str, kk_context_t* ctx) {
   kk_string_drop(str, ctx);
   return tstr;
 }
+
+kk_string_t  kk_string_convert_from_qutf8(kk_string_t str, kk_context_t* ctx) {
+  return kk_string_convert_from_qutf8_prim(str, true, ctx);
+}
+
+kk_string_t kk_string_alloc_from_qutf8(const char* str, kk_context_t* ctx) {
+  return kk_string_alloc_from_qutf8n(strlen(str), str, ctx);
+}
+
+kk_string_t kk_string_alloc_from_qutf8n(size_t len, const char* cstr, kk_context_t* ctx) {
+  kk_string_t str = kk_string_alloc_dupn_utf8(len, cstr, ctx);
+  return kk_string_convert_from_qutf8_prim(str, true, ctx);
+}
+
+kk_string_t kk_string_alloc_from_utf8(const char* str, kk_context_t* ctx) {
+  return kk_string_alloc_from_utf8n(strlen(str), str, ctx);
+}
+
+kk_string_t kk_string_alloc_from_utf8n(size_t len, const char* cstr, kk_context_t* ctx) {
+  kk_string_t str = kk_string_alloc_dupn_utf8(len, cstr, ctx);
+  return kk_string_convert_from_qutf8_prim(str, false /* leave raw codepoints _as is_ */, ctx);
+}
+
 
 const char* kk_string_to_qutf8_borrow(kk_string_t str, bool* should_free, kk_context_t* ctx) {
   // to avoid allocation, we first check if none of the characters are in the raw range.
@@ -401,7 +420,7 @@ uint16_t* kk_string_to_qutf16_borrow(kk_string_t str, kk_context_t* ctx) {
   return wstr;
 }
 
-kk_string_t kk_string_alloc_from_qutf16n(size_t wlen, const uint16_t * wstr, kk_context_t * ctx) {
+static kk_string_t kk_string_alloc_from_qutf16n_prim(size_t wlen, const uint16_t * wstr, bool qutf16_identity, kk_context_t * ctx) {
   // count utf-8 length
   size_t len = 0;
   const uint16_t* const end = wstr + wlen;
@@ -416,6 +435,15 @@ kk_string_t kk_string_alloc_from_qutf16n(size_t wlen, const uint16_t * wstr, kk_
       len += 3;
     }
     else if (*p <= 0xDBFF && p+1 < end && (p[1] >= 0xDC00 && p[1] <= 0xDFFF)) {
+      if (qutf16_identity) {
+        kk_char_t c = 0x10000 + (((kk_char_t)(p[0]) - 0xD800) << 10) + ((kk_char_t)(p[1]) - 0xDC00);
+        if (kk_char_is_raw(c)) {
+          // invalid codepoint in raw range; decode as two lone surrogates
+          len += 4;
+          continue;
+        }
+        // fallthrough
+      }
       // valid surrogate
       len += 4;
       p++;  // skip the other half of the surrogate
@@ -442,7 +470,13 @@ kk_string_t kk_string_alloc_from_qutf16n(size_t wlen, const uint16_t * wstr, kk_
       }
       else if (*p <= 0xDBFF && p+1 < end && (p[1] >= 0xDC00 && p[1] <= 0xDFFF)) {
         c = 0x10000 + (((kk_char_t)(p[0]) - 0xD800) << 10) + ((kk_char_t)(p[1]) - 0xDC00);
-        p++;
+        if (qutf16_identity && kk_char_is_raw(c)) {
+          // codepoint in raw range: encode as two lone surrogate halves
+          c = KK_RAW_UTF16_OFS + (kk_char_t)(*p);
+        }
+        else {
+          p++; // skip the second surrogate half
+        }
       }
       else {
         // lone half of a surrogate: encoded in the raw range
@@ -458,7 +492,20 @@ kk_string_t kk_string_alloc_from_qutf16n(size_t wlen, const uint16_t * wstr, kk_
   return str;
 }
 
+
+kk_string_t kk_string_alloc_from_qutf16n(size_t wlen, const uint16_t* wstr, kk_context_t* ctx) {
+  return kk_string_alloc_from_qutf16n_prim(wlen, wstr, true, ctx);
+}
+
+kk_string_t kk_string_alloc_from_utf16n(size_t wlen, const uint16_t* wstr, kk_context_t* ctx) {
+  return kk_string_alloc_from_qutf16n_prim(wlen, wstr, false /* leave raw code points _as is_ */, ctx);
+}
+
 kk_string_t kk_string_alloc_from_qutf16(const uint16_t* wstr, kk_context_t* ctx) {
+  return kk_string_alloc_from_qutf16n(kk_wcslen(wstr), wstr, ctx);
+}
+
+kk_string_t kk_string_alloc_from_utf16(const uint16_t* wstr, kk_context_t* ctx) {
   return kk_string_alloc_from_qutf16n(kk_wcslen(wstr), wstr, ctx);
 }
 

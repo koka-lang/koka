@@ -87,10 +87,11 @@ static inline bool kk_ascii_is_alphanum(char c) { return (kk_ascii_is_alpha(c) |
   
   We call this the "raw range". The advantage over using the replacement character is that we 
   now retain full information what the original (invalid) sequences were (and can thus do an 
-  identity transform) -- and we stay with valid utf-8 (unlike wtf-8 for example).
-
+  identity transform) -- and we stay with valid utf-8. Moreover, we can handle both invalid
+  utf-8 and invalid utf-16 with this.
+  
   When decoding qutf-8/16 to utf-8, we decode invalid sequences to these code points; and only when
-  decoding back to qutf-8/16, we decode these code points specially again to make this an identity
+  encoding back to qutf-8/16, we encode these code points specially again to make this an identity
   transformation. 
   
   _Otherwise these are just regular code points and valid utf-8 with no special treatment_.
@@ -99,10 +100,9 @@ static inline bool kk_ascii_is_alphanum(char c) { return (kk_ascii_is_alpha(c) |
   sequence `0xC0 0x80` not to a 0 character, but to two raw code points: 0xEE0C0 0xEE080. This 
   way, we maintain an identity transform while still preventing hidden embedded 0 characters.
   
-  (Actually, to make it a true identity transform, when decoding qutf-16 we need to not just decode lone 
-   surrogate halves to our raw range, but also surrogate pairs that happen to decode to our raw range, 
-   and similarly for qutf-8; so for both qutf-8 and qutf-16 input we also treat any code points in the 
-   raw range as an invalid sequence (which should be fine in practice as these are unassigned anyways). 
+  (Actually, to make it a true identity transform, when decoding qutf-8/16 we also need to treat
+   bytes/surrogate pairs that happen be code points in our raw range as an invalid sequence.
+   This should be fine in practice as these are unassigned anyways). 
 ------------------------------------------------------------------------------------------------------------*/
 
 #define KK_RAW_PLANE      ((kk_char_t)(0xE0000))
@@ -313,7 +313,7 @@ static inline const uint8_t* kk_utf8_prev(const uint8_t* s) {
   return s;
 }
 
-kk_decl_export kk_char_t kk_utf8_read_validate(const uint8_t* s, size_t* count, size_t* vcount);
+kk_decl_export kk_char_t kk_utf8_read_validate(const uint8_t* s, size_t* count, size_t* vcount, bool qutf8_identity );
 
 // Non-validating utf-8 decoding of a single code point
 static inline kk_char_t kk_utf8_read(const uint8_t* s, size_t* count) {
@@ -350,7 +350,7 @@ static inline kk_char_t kk_utf8_read(const uint8_t* s, size_t* count) {
 #if (DEBUG!=0)
   size_t dcount = 0;
   size_t vcount = 0;
-  kk_assert_internal(c == kk_utf8_read_validate(s, &dcount, &vcount));
+  kk_assert_internal(c == kk_utf8_read_validate(s, &dcount, &vcount, false));
   kk_assert_internal(*count == dcount);
 #endif
   return c;
@@ -423,8 +423,16 @@ static inline void kk_utf8_write(kk_char_t c, uint8_t* s, size_t* count) {
 
 kk_decl_export kk_string_t    kk_string_alloc_from_qutf8(const char* str, kk_context_t* ctx);
 kk_decl_export kk_string_t    kk_string_alloc_from_qutf8n(size_t len, const char* str, kk_context_t* ctx);
+
+kk_decl_export kk_string_t    kk_string_alloc_from_utf8(const char* str, kk_context_t* ctx);
+kk_decl_export kk_string_t    kk_string_alloc_from_utf8n(size_t len, const char* str, kk_context_t* ctx);
+
 kk_decl_export kk_string_t    kk_string_alloc_from_qutf16(const uint16_t* wstr, kk_context_t* ctx);
 kk_decl_export kk_string_t    kk_string_alloc_from_qutf16n(size_t len, const uint16_t* wstr, kk_context_t* ctx);
+
+kk_decl_export kk_string_t    kk_string_alloc_from_utf16(const uint16_t* wstr, kk_context_t* ctx);
+kk_decl_export kk_string_t    kk_string_alloc_from_utf16n(size_t len, const uint16_t* wstr, kk_context_t* ctx);
+
 kk_decl_export kk_string_t    kk_string_alloc_from_codepage(const uint8_t* bstr, const uint16_t* codepage /*NULL == windows-1252*/, kk_context_t* ctx);
 
 kk_decl_export kk_string_t    kk_string_convert_from_qutf8(kk_string_t str, kk_context_t* ctx);
