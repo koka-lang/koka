@@ -2427,7 +2427,7 @@ noinline fun notrace() : st<global> () {
 
 private extern unsafe-assert-fail( msg : string ) : () {
   c "kk_assert_fail"
-  js inline "throw new Error(\"assertion failed: \" ++ #1)"
+  js inline "function() { throw new Error(\"assertion failed: \" + #1) }()"
 }
 
 fun assert( message : string, condition : bool ) : () {  // Compiler removes assert calls in optimized builds
