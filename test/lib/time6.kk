@@ -53,12 +53,13 @@ public fun test-dates(starty : int = 1950, endy : int = 2050, tz : timezone = tz
 public fun main() {
   // test-dates(~2000,3000,print-every=100)     // takes too long for regular test
   // test-dates(1450,1650,tz-fixed(1) ,cal-jg)  // fails on the gap start for 'minday' and 'plusday'; and at 1582-10-22 because days-in-month gives 21 for that month!
-  test-dates()
+  //println(ts-ti.name.show)
+  //test-dates()
   test-dates(tz=tz-fixed(1))
   test-dates(tz=tz-local()) // slowish as javascript getTimeOffset() is slowish
   test-dates(tz=tz-fixed(~1), cal=cal-julian)
   test-dates(tz=tz-fixed(~1), ts=ts-tai)
-  test-dates(tz=tz-fixed(1) , ts=ts-gps)
+  test-dates(tz=tz-fixed(1) , ts=ts-gps)  
 }
 
 public fun benchmark() {

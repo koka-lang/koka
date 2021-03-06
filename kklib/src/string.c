@@ -110,7 +110,7 @@ size_t kk_decl_pure kk_string_count_borrow(kk_string_t str) {
   }
   kk_assert_internal(t == end);
   kk_assert_internal(len == (size_t)(t - s));
-  kk_assert_internal(len > cont);
+  kk_assert_internal(len == 0 || len > cont);
   return (len - cont);
 }
 

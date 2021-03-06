@@ -59,7 +59,7 @@ public fun (==)( c1 : calendar, c2 : calendar ) : bool {
 // The optional `utc-inverse` field returns for an instant in the time zone, the associated UTC time.
 // By default it returns `Nothing` in which case a generic algorithm is used to determine the
 // inverse.
-public struct timezone(
+public reference struct timezone(
   name    : string,
   private utc-delta  : (instant) -> (duration,string),
   private utc-inverse: (instant) -> maybe<instant> = fn(i) { Nothing }

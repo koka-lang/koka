@@ -20,32 +20,44 @@
 static long kk_local_utc_delta(double unix_secs, kk_string_t* ptzname, kk_context_t* ctx) {
   // get the UTC delta in a somewhat portable way...
   bool isdst = false;
-  const time_t t = (time_t)unix_secs;
+  time_t t = (time_t)unix_secs;
+  #if (_WIN32 && KK_INTPTR_SIZE==8)
+  if (t < 0) { t += 3155673600; } // try to avoid errors for negative times on some platforms by adding 100 years..
+  #endif
+  time_t loct = t;    
   #if defined(_GNU_SOURCE)
     // GNU libc has the tm_zone and tm_gmtoff fields
     struct tm loctm;
-    localtime_r(&t, &loctm);
-    isdst = (loctm.tm_isdst != 0);
-    const time_t loct = t - loctm.tm_gmtoff + (isdst ? 3600 : 0);
+    if (localtime_r(&t, &loctm) != NULL) {
+      isdst = (loctm.tm_isdst != 0);
+      loct  = t - loctm.tm_gmtoff + (isdst ? 3600 : 0);
+    }
+    else {
+      loctm.tm_zone = "";
+    }
   #elif defined(_WIN32) && !defined(__MINGW32__)
     struct tm gmtm;
-    gmtime_s(&gmtm, &t);                 // switched parameters :-(
-    const time_t loct = mktime(&gmtm);   // interpret gmt as local time
-    struct tm loctm;
-    localtime_s(&loctm, &t);             // switched parameters :-(
-    isdst = (loctm.tm_isdst != 0);
+    if (gmtime_s(&gmtm, &t) == 0) {      // switched parameters :-(      
+      loct = mktime(&gmtm);              // interpret gmt as local time
+      struct tm loctm;
+      localtime_s(&loctm, &t);           // switched parameters :-(
+      isdst = (loctm.tm_isdst != 0);
+    }
   #elif defined(__STDC_LIB_EXT1__)
     struct tm gmtm;
-    gmtime_s(&t, &gmtm);
-    const time_t loct = mktime(&gmtm);   // interpret gmt as local time
-    struct tm loctm;
-    localtime_s(&t, &loctm);
-    isdst = (loctm.tm_isdst != 0);
+    if (gmtime_s(&t, &gmtm) != NULL) {
+      loct = mktime(&gmtm);              // interpret gmt as local time
+      struct tm loctm;
+      localtime_s(&t, &loctm);
+      isdst = (loctm.tm_isdst != 0);
+    }
   #else
     struct tm* pgmtm = gmtime(&t);
-    const time_t loct = mktime(pgmtm);   // interpret gmt as local time
-    struct tm* ploctm = localtime(&t);
-    if (ploctm!=NULL && ploctm->tm_isdst) isdst = true;
+    if (pgmtm != NULL) {
+      loct = mktime(pgmtm);                // interpret gmt as local time
+      struct tm* ploctm = localtime(&t);
+      isdst = (ploctm->tm_isdst != 0);
+    }
   #endif
   const time_t utc_delta = t - loct + (isdst ? 3600 : 0);   // the difference is the utc offset at that time
   if (ptzname != NULL) {
