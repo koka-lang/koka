@@ -962,7 +962,7 @@ kk_string_t kk_os_app_path(kk_context_t* ctx) {
 #endif
 
 kk_string_t kk_os_app_path(kk_context_t* ctx) {
-  kk_string_t s = kk_os_realpath(kk_string_alloc_dup_utf8(KK_PROC_SELF,ctx),ctx);
+  kk_string_t s = kk_os_realpath(kk_string_alloc_dup_valid_utf8(KK_PROC_SELF,ctx),ctx);
   if (strcmp(kk_string_cbuf_borrow(s,NULL), KK_PROC_SELF)==0) {
     // failed? try generic search
     kk_string_drop(s, ctx);
@@ -1035,7 +1035,7 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx)
 #if defined(WIN32)
   return kk_string_alloc_dup_valid_utf8("c:\\tmp", ctx);
 #else
-  return kk_string_alloc_dup_utf8("/tmp", ctx);
+  return kk_string_alloc_dup_valid_utf8("/tmp", ctx);
 #endif
 }
 
