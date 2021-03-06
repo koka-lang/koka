@@ -1,2 +1,6 @@
-test/kind/alias4.kk(4,15): error: Type a/aint is ambiguous and can refer to multiple imports:
- [static/modA/aint]
+kind/alias4/aint: V
+kind/alias4/ok1: V
+kind/alias4/ok2: V
+public alias aint = static/modA/aint = 2
+public alias ok1 = aint = 3
+public alias ok2 = static/modA/aint = 2

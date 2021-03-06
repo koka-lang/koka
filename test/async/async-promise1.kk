@@ -15,8 +15,8 @@ fun main() {
     { 
       println("waiting for resolve..")
       val name = p.await()
-      println("the name was: " + name)
+      println("the name was: " ++ name)
     }
   }
-  println("exited " + (if (mbx.bool) then "normally" else "with timeout"))
+  println("exited " ++ (if (mbx.bool) then "normally" else "with timeout"))
 }

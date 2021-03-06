@@ -19,5 +19,5 @@ fun main() {
               "waited"
         }
     }
-    println("***done: " + mbx.default(("nothing","")).fst)
+    println("***done: " ++ mbx.default(("nothing","")).fst)
 }

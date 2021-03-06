@@ -12,11 +12,16 @@ effect state {
   fun append( x : string ) : ()
 }
 
-val state = handler(s) {
-  return x -> (x,s)
-  get()    -> resume(s,s)
-  append(s')  -> resume((),s + ", " + s')
+fun state(init,action) {
+  var s := init
+  with {
+    return(x)     { (x,s) }
+    fun get()     { s }
+    fun append(s'){ s := s ++ ", " ++ s' }
+  }
+  action()
 }
+
 
 fun show-int( i : int ) : string {
   show(i)
@@ -24,10 +29,10 @@ fun show-int( i : int ) : string {
 
 fun dowait(s : duration) {
   val secs = s.show
-  println("and waiting at least " + secs)
+  println("and waiting at least " ++ secs)
   wait(s)
-  println("(done waiting " + secs + ")")
-  "waited " + secs
+  println("(done waiting " ++ secs ++ ")")
+  "waited " ++ secs
 }
 
 fun test() {
@@ -47,7 +52,7 @@ fun test() {
       append("2b")
     }
   }
-  println("final state: " + get())
+  println("final state: " ++ get())
 }
 
 fun main() {

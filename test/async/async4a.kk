@@ -17,5 +17,5 @@ fun main() {
       "timing"
     }
   ])
-  println("hi " + xs.join(", "))  
+  println("hi " ++ xs.join(", "))  
 }

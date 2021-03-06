@@ -14,7 +14,7 @@ fun test() {
       readline()
     }
   )
-  println("hi " + name + ": " + age )
+  println("hi " ++ name ++ ": " ++ age )
 }
 
 fun main() {

@@ -19,7 +19,7 @@ fun test() {
     content
   }
   val xs = interleaved( [f,g] )
-  println("hi " + xs.join(","))  
+  println("hi " ++ xs.join(","))  
 }
 
 fun main() {

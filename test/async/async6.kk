@@ -6,12 +6,12 @@ import std/time/duration
 import std/os/readline
 
 effect amb {
-  fun flip() : bool
+  control flip() : bool
 }
 
 val amb = handler {
-  return x -> [x]
-  flip()   -> resume(False) + resume(True)
+  return x        -> [x]
+  control flip()  -> resume(False) ++ resume(True)
 }
 
 fun dowait(s : duration) {
