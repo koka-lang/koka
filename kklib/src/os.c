@@ -106,7 +106,7 @@ static int kk_posix_stat(kk_string_t path, kk_stat_t* st, kk_context_t* ctx) {
 }
 
 // Read at most `buflen` bytes from `inp` into `buf`. Return `0` on success (or an error code).
-static int kk_posix_read_retry(const kk_file_t inp, char* buf, const size_t buflen, size_t* read_count) {
+static int kk_posix_read_retry(const kk_file_t inp, uint8_t* buf, const size_t buflen, size_t* read_count) {
   int err = 0;
   size_t ofs = 0;
   do {
@@ -139,7 +139,7 @@ static int kk_posix_read_retry(const kk_file_t inp, char* buf, const size_t bufl
 }
 
 // Write at `len` bytes to `out` from `buf`. On error, `write_count` may be less than `len`.
-static int kk_posix_write_retry(const kk_file_t out, const char* buf, const size_t len, size_t* write_count) {
+static int kk_posix_write_retry(const kk_file_t out, const uint8_t* buf, const size_t len, size_t* write_count) {
   int err = 0;
   size_t ofs = 0;
   do {
@@ -189,21 +189,21 @@ kk_decl_export int kk_os_read_text_file(kk_string_t path, kk_string_t* result, k
     kk_posix_close(f);
     return err;
   }
-  char* s;
-  kk_string_t str = kk_string_alloc_cbuf(len, &s, ctx);
+  uint8_t* cbuf;
+  kk_bytes_t buf = kk_bytes_alloc_buf(len, &cbuf, ctx);
 
   size_t nread;
-  err = kk_posix_read_retry(f, s, len, &nread);
+  err = kk_posix_read_retry(f, cbuf, len, &nread);
   kk_posix_close(f);
   if (err < 0) {
-    kk_string_drop(str, ctx);
+    kk_bytes_drop(buf, ctx);
     return err;
   }
   if (nread < len) {
-    str = kk_string_adjust_length(str, nread, ctx);
+    buf = kk_bytes_adjust_length(buf, nread, ctx);
   }
 
-  *result = kk_string_convert_from_qutf8(str, ctx);
+  *result = kk_string_convert_from_qutf8(buf, ctx);
   return 0;
 }
 
@@ -216,7 +216,7 @@ kk_decl_export int kk_os_write_text_file(kk_string_t path, kk_string_t content, 
   }
   int err = 0;
   size_t len;
-  const char* buf = kk_string_cbuf_borrow(content, &len);
+  const uint8_t* buf = kk_string_buf_borrow(content, &len);
   if (len > 0) {
     size_t nwritten;
     err = kk_posix_write_retry(f, buf, len, &nwritten);
@@ -464,7 +464,7 @@ kk_decl_export bool kk_os_is_file(kk_string_t path, kk_context_t* ctx) {
 #define dir_cursor intptr_t
 #define dir_entry  struct _wfinddata64_t
 static bool os_findfirst(kk_string_t path, dir_cursor* d, dir_entry* entry, int* err, kk_context_t* ctx) {
-  kk_string_t spath = kk_string_cat_from_utf8(path, "\\*", ctx);
+  kk_string_t spath = kk_string_cat_from_valid_utf8(path, "\\*", ctx);
   kk_with_string_as_qutf16_borrow(spath, wpath, ctx) {
     *d = _wfindfirsti64(wpath, entry);
   }
@@ -1023,7 +1023,7 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx)
   const uint16_t* ad = _wgetenv(L"LOCALAPPDATA");
   if (ad!=NULL) {
     kk_string_t s = kk_string_alloc_from_qutf16(ad, ctx);
-    return kk_string_cat_from_utf8(s, "\\Temp", ctx);
+    return kk_string_cat_from_valid_utf8(s, "\\Temp", ctx);
   }
 #else
   const char* tmp = getenv("TEMP");

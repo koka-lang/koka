@@ -33,6 +33,7 @@ set(kklib_targets kklib kklib-flags)
 set(kklib_sources
     src/bits.c
     src/box.c
+    src/bytes.c
     src/init.c
     src/integer.c
     src/os.c

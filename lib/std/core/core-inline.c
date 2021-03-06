@@ -161,7 +161,7 @@ kk_string_t kk_slice_to_string( kk_std_core__sslice  sslice, kk_context_t* ctx )
   }
   else {
     // if not, we copy len bytes
-    kk_string_t s = kk_string_alloc_dupn_utf8(sslice.len, (const char*)start, ctx);
+    kk_string_t s = kk_string_alloc_dupn_utf8(sslice.len, start, ctx);
     kk_std_core__sslice_drop(sslice,ctx);
     return s;
   }

@@ -485,7 +485,7 @@ static void test_random(kk_context_t* ctx) {
   uint32_t y = kk_srandom_uint32(ctx);
   const size_t N = 100000000;
   for (size_t i = 0; i < N; i++) {
-    y = kk_srandom_range32(60000,ctx);
+    y = kk_srandom_range_uint32(60000,ctx);
   }
   msecs_t end = _clock_end(start);
   printf("chacha20: final: 0x%x, %6.3fs\n", y, (double)end/1000.0);

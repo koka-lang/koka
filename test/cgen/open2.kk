@@ -1,10 +1,10 @@
 // see: https://wiki.haskell.org/Extensible_datatypes
 
-type open tpA;
+open type tpA;
 
 alias tpB = int;
 
-type extend tpA {
+extend type tpA {
   B( b : tpB )
 }
 

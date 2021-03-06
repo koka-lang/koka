@@ -11,6 +11,16 @@
 #define  __USE_MINGW_ANSI_STDIO 1  // so %z is valid on mingw
 #include "kklib.h"
 
+static const uint8_t* kk_memmem(const uint8_t* p, size_t plen, const uint8_t* pat, size_t patlen) {
+  // todo: optimize search algo?
+  kk_assert(p != NULL && pat != NULL);
+  if (patlen == 0 || patlen > plen) return NULL;
+  const uint8_t* end = p + (plen - (patlen - 1));
+  for (; p < end; p++) {
+    if (memcmp(p, pat, patlen) == 0) return p;
+  }
+  return NULL;
+}
 
 // Allow reading aligned words as long as some bytes in it are part of a valid C object
 #define ARCH_ALLOW_WORD_READS  (1)  
@@ -35,16 +45,6 @@ static int kk_memicmp(const uint8_t* s, const uint8_t* t, size_t len) {
   return 0;
 }
 
-static const uint8_t* kk_memmem(const uint8_t* s, size_t slen, const uint8_t* pat, size_t patlen) {
-  kk_assert(s != NULL && pat != NULL);
-  if (patlen == 0 || patlen > slen) return NULL;
-  const uint8_t* end = s + (slen - (patlen-1));
-  for (; s < end; s++) {
-    if (memcmp(s, pat, patlen) == 0) return s;
-  }
-  return NULL;
-}
-
 static size_t kk_wcslen(const uint16_t* wstr) {
   if (wstr == NULL) return 0;
   const uint16_t* p;
@@ -52,27 +52,6 @@ static size_t kk_wcslen(const uint16_t* wstr) {
   return (p - wstr);
 }
 
-int kk_string_cmp_borrow(kk_string_t str1, kk_string_t str2) {
-  if (kk_string_ptr_eq_borrow(str1, str2)) return 0;
-  size_t len1;
-  const uint8_t* s1 = kk_string_buf_borrow(str1,&len1);
-  size_t len2;
-  const uint8_t* s2 = kk_string_buf_borrow(str2,&len2);
-  size_t minlen = (len1 <= len2 ? len1 : len2);
-  int ord = memcmp(s1, s2, minlen);
-  if (ord == 0) {
-    if (len1 > len2) return 1;
-    else if (len1 < len2) return -1;
-  }
-  return ord;
-}
-
-int kk_string_cmp(kk_string_t str1, kk_string_t str2, kk_context_t* ctx) {
-  int ord = kk_string_cmp_borrow(str1,str2);
-  kk_string_drop(str1,ctx);
-  kk_string_drop(str2,ctx);
-  return ord;
-}
 
 int kk_string_icmp_borrow(kk_string_t str1, kk_string_t str2) {
   size_t len1;
@@ -93,38 +72,6 @@ int kk_string_icmp(kk_string_t str1, kk_string_t str2, kk_context_t* ctx) {
   kk_string_drop(str1, ctx);
   kk_string_drop(str2, ctx);
   return ord;
-}
-
-// Allocate a string of `len` bytes. 
-// `s` must be at least `len` bytes of valid utf-8, or NULL. Adds a terminating zero at the end.
-kk_decl_export kk_decl_noinline kk_string_t kk_string_alloc_len_unsafe(size_t len, const uint8_t* s, uint8_t** buf, kk_context_t* ctx) {
-  // kk_assert_internal(s == NULL || strlen(s) >= len);  // s may contain embedded 0 characters
-  static uint8_t empty[16] = { 0 };
-  if (len == 0) {
-    if (buf != NULL) *buf = empty;
-    return kk_string_empty();
-  }
-  else if (len <= KK_STRING_SMALL_MAX) {
-    kk_string_small_t str = kk_block_alloc_as(struct kk_string_small_s, 0, KK_TAG_STRING_SMALL, ctx);
-    str->u.str_value = ~KUZ(0);
-    if (s != NULL && len > 0) {
-      memcpy(&str->u.str[0], s, len);
-    }
-    str->u.str[len] = 0;
-    if (buf != NULL) *buf = &str->u.str[0];
-    return kk_datatype_from_base(&str->_base);
-  }
-  else {
-    kk_string_normal_t str = kk_block_assert(kk_string_normal_t, kk_block_alloc_any(sizeof(struct kk_string_normal_s) - 1 /* char str[1] */ + len + 1 /* 0 terminator */, 0, KK_TAG_STRING, ctx), KK_TAG_STRING);
-    if (s != NULL && len > 0) {
-      memcpy(&str->str[0], s, len);
-    }
-    str->length = len;
-    str->str[len] = 0;
-    if (buf != NULL) *buf = &str->str[0];
-    // todo: kk_assert valid utf-8 in debug mode
-    return kk_datatype_from_base(&str->_base);
-  }
 }
 
 
@@ -156,7 +103,7 @@ size_t kk_decl_pure kk_string_count_borrow(kk_string_t str) {
     t = (const uint8_t*)p; // restore t
   }
 
-  // advance per byte until 0
+  // advance per byte until reaching the end
   for (; t < end; t++) {
     // count continuation characters
     if (kk_utf8_is_cont(*t)) cont++;
@@ -230,11 +177,11 @@ inline kk_char_t kk_utf8_read_validate(const uint8_t* s, size_t* count, size_t* 
   return (KK_RAW_UTF8_OFS + b);
 }
 
-static kk_string_t  kk_string_convert_from_qutf8_prim(kk_string_t str, bool qutf8_identity, kk_context_t* ctx) {
+static kk_string_t  kk_string_convert_from_qutf8_prim(kk_bytes_t str, bool qutf8_identity, kk_context_t* ctx) {
   // to avoid reallocation (to accommodate invalid sequences), we first check if
-  // it is already valid utf-8 which should be very common; in that case we resurn the string as-is.
-  size_t len; // len in valid utf-8
-  const uint8_t* const s = kk_string_buf_borrow(str, &len);
+  // it is already valid utf-8 which should be very common; in that case we return the string as-is.
+  size_t len; 
+  const uint8_t* const s = kk_bytes_buf_borrow(str, &len);
   const uint8_t* const end = s + len;  
   size_t vlen = 0;
   const uint8_t* p = s;
@@ -254,6 +201,7 @@ static kk_string_t  kk_string_convert_from_qutf8_prim(kk_string_t str, bool qutf
         vlen += count;
       }
       else {
+        kk_assert_internal(count != vcount);
         vlen += vcount;
       }
     }
@@ -282,11 +230,11 @@ static kk_string_t  kk_string_convert_from_qutf8_prim(kk_string_t str, bool qutf
     }
   }
   kk_assert_internal( (t - kk_string_buf_borrow(tstr, NULL)) == (ptrdiff_t)vlen);
-  kk_string_drop(str, ctx);
+  kk_bytes_drop(str, ctx);
   return tstr;
 }
 
-kk_string_t  kk_string_convert_from_qutf8(kk_string_t str, kk_context_t* ctx) {
+kk_string_t  kk_string_convert_from_qutf8(kk_bytes_t str, kk_context_t* ctx) {
   return kk_string_convert_from_qutf8_prim(str, true, ctx);
 }
 
@@ -295,7 +243,7 @@ kk_string_t kk_string_alloc_from_qutf8(const char* str, kk_context_t* ctx) {
 }
 
 kk_string_t kk_string_alloc_from_qutf8n(size_t len, const char* cstr, kk_context_t* ctx) {
-  kk_string_t str = kk_string_alloc_dupn_utf8(len, cstr, ctx);
+  kk_bytes_t str = kk_bytes_alloc_dupn(len, (const uint8_t*)cstr, ctx);
   return kk_string_convert_from_qutf8_prim(str, true, ctx);
 }
 
@@ -304,7 +252,7 @@ kk_string_t kk_string_alloc_from_utf8(const char* str, kk_context_t* ctx) {
 }
 
 kk_string_t kk_string_alloc_from_utf8n(size_t len, const char* cstr, kk_context_t* ctx) {
-  kk_string_t str = kk_string_alloc_dupn_utf8(len, cstr, ctx);
+  kk_bytes_t str = kk_bytes_alloc_dupn(len, (const uint8_t*)cstr, ctx);
   return kk_string_convert_from_qutf8_prim(str, false /* leave raw codepoints _as is_ */, ctx);
 }
 
@@ -596,7 +544,7 @@ kk_string_t kk_string_from_char(kk_char_t c, kk_context_t* ctx) {
   size_t count;
   kk_utf8_write(c, buf, &count);
   buf[count] = 0;
-  return kk_string_alloc_len_unsafe(count, buf, NULL, ctx);
+  return kk_bytes_alloc_dupn(count, buf, ctx);
 }
 
 kk_string_t kk_string_from_chars(kk_vector_t v, kk_context_t* ctx) {
@@ -634,37 +582,8 @@ kk_vector_t kk_string_to_chars(kk_string_t s, kk_context_t* ctx) {
   return v;
 }
 
-kk_string_t kk_string_cat(kk_string_t str1, kk_string_t str2, kk_context_t* ctx) {
-  size_t len1;
-  const uint8_t* s1 = kk_string_buf_borrow(str1, &len1);
-  size_t len2;
-  const uint8_t* s2 = kk_string_buf_borrow(str2, &len2);
-  uint8_t* p;
-  kk_string_t t = kk_string_alloc_buf(len1 + len2, &p, ctx );
-  memcpy(p, s1, len1);
-  memcpy(p+len1, s2, len2);
-  kk_assert_internal(p[len1+len2] == 0);
-  kk_string_drop(str1, ctx);
-  kk_string_drop(str2, ctx);
-  return t;
-}
-
-kk_string_t kk_string_cat_from_utf8(kk_string_t str1, const char* s2, kk_context_t* ctx) {
-  if (s2 == NULL || *s2 == 0) return str1;
-  size_t len1;
-  const uint8_t* s1 = kk_string_buf_borrow(str1,&len1);
-  const size_t len2 = strlen(s2);
-  uint8_t* p;
-  kk_string_t t = kk_string_alloc_buf(len1 + len2, &p, ctx);
-  memcpy(p, s1, len1);
-  memcpy(p+len1, s2, len2);
-  kk_assert_internal(p[len1+len2] == 0);
-  kk_string_drop(str1, ctx);
-  return t;
-}
-
 kk_vector_t kk_string_splitv(kk_string_t s, kk_string_t sep, kk_context_t* ctx) {
-  return kk_string_splitv_atmost(s, sep, UINT32_MAX, ctx);
+  return kk_string_splitv_atmost(s, sep, SIZE_MAX, ctx);
 }
 
 kk_vector_t kk_string_splitv_atmost(kk_string_t str, kk_string_t sepstr, size_t n, kk_context_t* ctx) 
@@ -705,195 +624,21 @@ kk_vector_t kk_string_splitv_atmost(kk_string_t str, kk_string_t sepstr, size_t 
     }
     kk_assert_internal(r != NULL && r >= p && r < end);    
     const size_t partlen = (size_t)(r - p);
-    v[i] = kk_string_box(kk_string_alloc_len_unsafe(partlen, p, NULL, ctx));
+    v[i] = kk_string_box(kk_string_alloc_dupn_utf8(partlen, p, ctx));
     p = r + seplen;  // advance
   }
   kk_assert_internal(p <= end);
-  v[count-1] = kk_string_box(kk_string_alloc_len_unsafe(end - p, p, NULL, ctx));  // todo: share string if p == s ?
+  v[count-1] = kk_string_box(kk_string_alloc_dupn_utf8(end - p, p, ctx));  // todo: share string if p == s ?
   kk_string_drop(str,ctx);
   kk_string_drop(sepstr, ctx);
   return vec;
 }
 
-kk_string_t kk_string_replace_all(kk_string_t s, kk_string_t pat, kk_string_t rep, kk_context_t* ctx) {
-  return kk_string_replace_atmost(s, pat, rep, UINT32_MAX, ctx);
-}
-
-kk_string_t kk_string_replace_atmost(kk_string_t s, kk_string_t pat, kk_string_t rep, size_t n, kk_context_t* ctx) {
-  kk_string_t t = s;
-  if (n==0 || kk_string_is_empty_borrow(s) || kk_string_is_empty_borrow(pat)) goto done;
-
-  size_t plen;
-  const uint8_t* p = kk_string_buf_borrow(s,&plen);
-  size_t ppat_len;
-  const uint8_t* ppat = kk_string_buf_borrow(pat,&ppat_len);
-  size_t prep_len; 
-  const uint8_t* prep = kk_string_buf_borrow(rep, &prep_len);
-  
-  const uint8_t* const pend = p + plen;
-  // if unique s && |rep| == |pat|, update in-place
-  // TODO: if unique s & |rep| <= |pat|, maybe update in-place if not too much waste?
-  if (kk_datatype_is_unique(s) && ppat_len == prep_len) {
-    size_t count = 0;
-    while (count < n && p < pend) {
-      const uint8_t* r = kk_memmem(p, pend - p, ppat, ppat_len);
-      if (r == NULL) break;
-      memcpy((uint8_t*)r, prep, prep_len);
-      count++;
-      p = r + prep_len;
-    }
-  }
-  else {
-    // count pat occurrences so we can pre-allocate the result buffer
-    size_t count = 0;
-    const uint8_t* r = p;
-    while (count < n && ((r = kk_memmem(r, pend - r, ppat, ppat_len)) != NULL)) {
-      count++;
-      r += ppat_len;
-    }
-    if (count == 0) goto done; // no pattern found
-    
-    // allocate
-    size_t newlen = plen - (count * ppat_len) + (count * prep_len);
-    uint8_t* q;
-    t = kk_string_alloc_buf(newlen, &q, ctx);
-    while (count > 0) {
-      count--;
-      r = kk_memmem(p, pend - p, ppat, ppat_len);
-      kk_assert_internal(r != NULL);
-      size_t ofs = (size_t)(r - p);
-      memcpy(q, p, ofs);
-      memcpy(q + ofs, prep, prep_len);
-      q += ofs + prep_len;
-      p += ofs + ppat_len;
-    }
-    size_t rest = (size_t)(pend - p);
-    memcpy(q, p, rest);
-    kk_assert_internal(q + rest == kk_string_buf_borrow(t,NULL) + newlen);
-  }
-
-done:
-  kk_string_drop(pat, ctx);
-  kk_string_drop(rep, ctx);
-  if (!kk_datatype_eq(t, s)) kk_datatype_drop(s, ctx);
-  return t;
-}
 
 
-kk_string_t kk_string_repeat(kk_string_t str, size_t n, kk_context_t* ctx) {
-  size_t len;
-  const uint8_t* s = kk_string_buf_borrow(str,&len);  
-  if (len == 0 || n==0) return kk_string_empty();  
-  uint8_t* t;
-  kk_string_t tstr = kk_string_alloc_buf(len*n, &t, ctx); // TODO: check overflow
-  if (len == 1) {
-    memset(t, *s, n);
-    t += n;
-  }
-  else {
-    for (size_t i = 0; i < n; i++) {
-      memcpy(t, s, len);
-      t += len;
-    }
-  }
-  kk_assert_internal(*t == 0);
-  kk_string_drop(str,ctx);
-  return tstr;
-}
+/*--------------------------------------------------------------------------------------------------
 
-// to avoid casting to signed, return 0 for not found, or the index+1
-size_t kk_string_index_of1(kk_string_t str, kk_string_t sub, kk_context_t* ctx) {
-  size_t slen;
-  const uint8_t* s = kk_string_buf_borrow(str, &slen);
-  size_t tlen;
-  const uint8_t* t = kk_string_buf_borrow(sub, &tlen);  
-  size_t idx;
-  if (tlen == 0) {
-    idx = (slen == 0 ? 0 : 1);
-  }
-  else if (tlen > slen) {
-    idx = 0;
-  }
-  else {
-    const uint8_t* p = kk_memmem(s, slen, t, tlen);
-    idx = (p == NULL ? 0 : (size_t)(p - s) + 1);
-  }
-  kk_string_drop(str, ctx);
-  kk_string_drop(sub, ctx);
-  return idx;
-}
-
-size_t kk_string_last_index_of1(kk_string_t str, kk_string_t sub, kk_context_t* ctx) {
-  size_t slen;
-  const uint8_t* s = kk_string_buf_borrow(str, &slen);
-  size_t tlen;
-  const uint8_t* t = kk_string_buf_borrow(sub, &tlen);
-  size_t idx;
-  if (tlen == 0) {
-    idx = slen;
-  }
-  else if (tlen > slen) {
-    idx = 0;
-  }
-  else if (tlen == slen) {
-    idx = (kk_string_cmp_borrow(str, sub) == 0 ? 1 : 0);
-  }
-  else {
-    const uint8_t* p;
-    for (p = s + slen - tlen; p >= s; p--) {  // todo: use reverse Boyer-Moore instead of one character at a time
-      if (memcmp(p, t, tlen) == 0) break;
-    }
-    idx = (p >= s ? (size_t)(p - s) + 1 : 0);
-  }
-  kk_string_drop(str, ctx);
-  kk_string_drop(sub, ctx);
-  return idx;
-}
-
-bool kk_string_starts_with(kk_string_t str, kk_string_t pre, kk_context_t* ctx) {
-  size_t slen;
-  const uint8_t* s = kk_string_buf_borrow(str, &slen);
-  size_t tlen;
-  const uint8_t* t = kk_string_buf_borrow(pre, &tlen);
-  bool starts;
-  if (tlen == 0) {
-    starts = (slen > 0);
-  }
-  else if (tlen > slen) {
-    starts = false;
-  }
-  else {
-    starts = (memcmp(s, t, tlen) == 0);
-  }
-  kk_string_drop(str, ctx);
-  kk_string_drop(pre, ctx);
-  return starts;
-}
-
-bool kk_string_ends_with(kk_string_t str, kk_string_t post, kk_context_t* ctx) {
-  size_t slen;
-  const uint8_t* s = kk_string_buf_borrow(str, &slen);
-  size_t tlen;
-  const uint8_t* t = kk_string_buf_borrow(post, &tlen);
-  bool ends;
-  if (tlen == 0) {
-    ends = (slen > 0);
-  }
-  else if (tlen > slen) {
-    ends = false;
-  }
-  else {
-    ends = (memcmp(s + slen - tlen, t, tlen) == 0);
-  }
-  kk_string_drop(str, ctx);
-  kk_string_drop(post, ctx);
-  return ends;
-}
-
-bool kk_string_contains(kk_string_t str, kk_string_t sub, kk_context_t* ctx) {
-  return (kk_string_index_of1(str, sub, ctx) > 0);
-}
-
+--------------------------------------------------------------------------------------------------*/
 
 kk_string_t kk_string_to_upper(kk_string_t str, kk_context_t* ctx) {
   size_t len;
@@ -942,7 +687,7 @@ kk_string_t  kk_string_trim_left(kk_string_t str, kk_context_t* ctx) {
   for ( ; *p != 0 && ascii_iswhite(*p); p++) { }
   if (p == s) return str;           // no trim needed
   const size_t tlen = len - (size_t)(p - s);      // todo: if s is unique and tlen close to slen, move inplace?
-  kk_string_t tstr = kk_string_alloc_len_unsafe(tlen, p, NULL, ctx);
+  kk_string_t tstr = kk_string_alloc_dupn_utf8(tlen, p, ctx);
   kk_string_drop(str, ctx);
   return tstr;
 }
@@ -954,48 +699,9 @@ kk_string_t  kk_string_trim_right(kk_string_t str, kk_context_t* ctx) {
   for (; p >= s && ascii_iswhite(*p); p--) {}
   const size_t tlen = (size_t)(p - s) + 1;
   if (len == tlen) return str;  // no trim needed
-  kk_string_t tstr = kk_string_alloc_len_unsafe(tlen, s, NULL, ctx);
+  kk_string_t tstr = kk_string_alloc_dupn_utf8(tlen, s, ctx);
   kk_string_drop(str, ctx);
   return tstr;
-}
-
-
-kk_string_t kk_string_adjust_length(kk_string_t str, size_t newlen, kk_context_t* ctx) {
-  if (newlen==0) {
-    kk_string_drop(str, ctx);
-    return kk_string_empty();
-  }
-  size_t len;
-  const uint8_t* s = kk_string_buf_borrow(str,&len);
-  if (len == newlen) {
-    return str;
-  }
-  else if (len > newlen && (3*(len/4)) < newlen &&  // 0.75*len < newlen < len: update length in place if we can
-           kk_datatype_is_unique(str) && kk_datatype_has_tag(str, KK_TAG_STRING)) {
-    // length in place
-    kk_assert_internal(kk_datatype_has_tag(str, KK_TAG_STRING) && kk_datatype_is_unique(str));
-    kk_string_normal_t nstr = kk_datatype_as_assert(kk_string_normal_t, str, KK_TAG_STRING);
-    nstr->length = newlen;
-    nstr->str[newlen] = 0;
-    // kk_assert_internal(kk_string_is_valid(kk_string_dup(s),ctx));
-    return str;
-  }
-  else if (newlen < len) {
-    // full copy
-    kk_string_t tstr = kk_string_alloc_len_unsafe(newlen, s, NULL, ctx);
-    kk_string_drop(str, ctx);
-    return tstr;
-  }
-  else {
-    // full copy
-    kk_assert_internal(newlen > len);
-    uint8_t* t;
-    kk_string_t tstr = kk_string_alloc_buf(newlen, &t, ctx);
-    memcpy( t, s, len );
-    memset(t + len, 0, newlen - len);
-    kk_string_drop(str, ctx);
-    return tstr;
-  }
 }
 
 /*--------------------------------------------------------------------------------------------------
