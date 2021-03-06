@@ -238,10 +238,10 @@ kk_decl_export int kk_os_write_text_file(kk_string_t path, kk_string_t content, 
   mkdir
 --------------------------------------------------------------------------------------------------*/
 #if defined(WIN32)
-static bool kk_is_dir(const uint16_t* wpath) {
+static bool kk_is_dir(const uint16_t* wpath) {  
   kk_stat_t st = { 0 };
   _wstat64(wpath, &st);
-  return ((st.st_mode & S_IFDIR) != 0);
+  return ((st.st_mode & S_IFDIR) != 0);  // true for symbolic link as well
 }
 #else
 static bool kk_is_dir(const char* cpath) {
@@ -323,56 +323,44 @@ kk_decl_export int kk_os_copy_file(kk_string_t from, kk_string_t to, bool preser
 
 #if defined(__APPLE__)
 #include <copyfile.h>
-#elif defined(__linux__)
-#include <sys/sendfile.h>
+
 #else
-static int kk_posix_copy_file(const int inp, const int out, const size_t len, kk_context_t* ctx) {
+static int kk_posix_copy_file(const int inp, const int out, const size_t estimated_len, kk_context_t* ctx) {
   int err = 0;
 
 #if defined(COPY_FR_COPY)
   // try copy_file_range first
-  int err = 0;
-  loff_t off_in = 0;
-  loff_t off_out = 0;
-  while(off_in < len) {
-    size_t toread = len - off_in;
-    if (toread > SSIZE_MAX) toread = SSIZE_MAX;
-    ssize_t n = copy_file_range(inp, &off_in, out, &off_out, (ssize_t)toread, 0 /* flags */ );
-    if (n < 0) {
-      if (errno != EAGAIN && errno != EINTR) {
-        err = errno;
-        break;
-      }
-      // otherwise try again
-    }
-    else if (n == 0) {  // ensure progress
-      break;
-    }    
-  }
-  if (err != EINVAL || off_in > 0) return err;
-  // fall through if `copy_file_range` failed immediately with `EINVAL` (might be a non-seekable device?)
-  err = 0;
+  if (estimated_len > 0 && estimated_len < KK_SSIZE_MAX) {  // non-regular files can report zero length but can be read anyways
+    loff_t off_in = 0;
+    loff_t off_out = 0;
+    if (copy_file_range(inp, &off_in, out, &off_out, KK_SSIZE_MAX, 0 /* flags */) < 0) {
+      err = errno;
+    };
+    if (err != EINVAL) return err;
+    // fall through if `copy_file_range` failed immediately with `EINVAL` (might be a non-seekable device?)
+    err = 0;
+  }  
 #endif
 
   size_t buflen = 1024 * 1024; // max 1MiB buffer
-  if (buflen > len) buflen = len;
-  char* buf = kk_malloc(buflen, ctx);
+  if (buflen > estimated_len) buflen = estimated_len + 1;
+  uint8_t* buf = kk_malloc(buflen, ctx);
   if (buf == NULL) return ENOMEM;
-  size_t todo = len;
-  while (todo > 0) {
-    size_t toread = (todo > buflen ? buflen : todo);
-    size_t read_count = 0;
-    err = kk_posix_read_retry(inp, buf, toread, &read_count);
-    if (err != 0 || read_count == 0) break;
-    size_t write_count = 0;
-    err = kk_posix_write_retry(out, buf, read_count, &write_count);
-    if (err != 0) break; kk_assert(write_count == read_count);
-    todo -= read_count;
-  }
+  size_t read_count;
+  size_t write_count;
+  do {
+    // transfer until EOF
+    read_count = write_count = 0;
+    err = kk_posix_read_retry(inp, buf, buflen, &read_count);
+    if (err == 0 && read_count > 0) {
+      err = kk_posix_write_retry(out, buf, read_count, &write_count);
+      if (err == 0 && write_count != read_count) err = EIO;
+    }    
+  } while (err == 0 && read_count == buflen /* < buflen == EOF */ );  
   kk_free(buf);
   return err;
 }
-#endif  // not __APPLE__ or __linux__
+#endif  // not __APPLE__ 
 
 kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, bool preserve_mtime, kk_context_t* ctx) {
   int inp = 0;
@@ -404,17 +392,9 @@ kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, bool prese
     err = errno;
   }
 #else 
-  // Unix
-  #if defined(__linux__)
-  KK_UNUSED(ctx);
-  off_t copied = 0;
-  if (sendfile(out, inp, &copied, finfo.st_size) < 0) {
-    err = errno;
-  }
-  #else
+  // Posix
   err = kk_posix_copy_file(inp, out, finfo.st_size, ctx);
-  #endif
-
+  
   // maintain access/mod time
   if (err == 0 && preserve_mtime) {
     struct timespec times[2];
