@@ -624,11 +624,11 @@ kk_vector_t kk_string_splitv_atmost(kk_string_t str, kk_string_t sepstr, size_t 
     }
     kk_assert_internal(r != NULL && r >= p && r < end);    
     const size_t partlen = (size_t)(r - p);
-    v[i] = kk_string_box(kk_string_alloc_dupn_utf8(partlen, p, ctx));
+    v[i] = kk_string_box(kk_string_alloc_dupn_valid_utf8(partlen, p, ctx));
     p = r + seplen;  // advance
   }
   kk_assert_internal(p <= end);
-  v[count-1] = kk_string_box(kk_string_alloc_dupn_utf8(end - p, p, ctx));  // todo: share string if p == s ?
+  v[count-1] = kk_string_box(kk_string_alloc_dupn_valid_utf8(end - p, p, ctx));  // todo: share string if p == s ?
   kk_string_drop(str,ctx);
   kk_string_drop(sepstr, ctx);
   return vec;
@@ -687,7 +687,7 @@ kk_string_t  kk_string_trim_left(kk_string_t str, kk_context_t* ctx) {
   for ( ; *p != 0 && ascii_iswhite(*p); p++) { }
   if (p == s) return str;           // no trim needed
   const size_t tlen = len - (size_t)(p - s);      // todo: if s is unique and tlen close to slen, move inplace?
-  kk_string_t tstr = kk_string_alloc_dupn_utf8(tlen, p, ctx);
+  kk_string_t tstr = kk_string_alloc_dupn_valid_utf8(tlen, p, ctx);
   kk_string_drop(str, ctx);
   return tstr;
 }
@@ -699,7 +699,7 @@ kk_string_t  kk_string_trim_right(kk_string_t str, kk_context_t* ctx) {
   for (; p >= s && ascii_iswhite(*p); p--) {}
   const size_t tlen = (size_t)(p - s) + 1;
   if (len == tlen) return str;  // no trim needed
-  kk_string_t tstr = kk_string_alloc_dupn_utf8(tlen, s, ctx);
+  kk_string_t tstr = kk_string_alloc_dupn_valid_utf8(tlen, s, ctx);
   kk_string_drop(str, ctx);
   return tstr;
 }
@@ -754,7 +754,7 @@ static kk_string_t kk_double_show_spec(double d, int32_t prec, char spec, kk_con
   {
     *p = 0; // remove exponent
   }
-  return kk_string_alloc_dup_utf8(buf, ctx);
+  return kk_string_alloc_dup_valid_utf8(buf, ctx);
 }
 
 kk_string_t kk_double_show_fixed(double d, int32_t prec, kk_context_t* ctx) {
@@ -781,13 +781,13 @@ kk_string_t kk_show_any(kk_box_t b, kk_context_t* ctx) {
 #endif
   if (kk_box_is_value(b)) {
     snprintf(buf, 128, "value(%zi)", kk_intx_unbox(b));
-    return kk_string_alloc_dup_utf8(buf, ctx);
+    return kk_string_alloc_dup_valid_utf8(buf, ctx);
   }
   else if (b.box == kk_box_null.box) {
-    return kk_string_alloc_dup_utf8("null", ctx);
+    return kk_string_alloc_dup_valid_utf8("null", ctx);
   }
   else if (b.box == 0) {
-    return kk_string_alloc_dup_utf8("ptr(NULL)", ctx);
+    return kk_string_alloc_dup_valid_utf8("ptr(NULL)", ctx);
   }
   else {
     kk_block_t* p = kk_ptr_unbox(b);
@@ -804,13 +804,13 @@ kk_string_t kk_show_any(kk_box_t b, kk_context_t* ctx) {
       kk_function_t fun = kk_block_assert(kk_function_t, p, KK_TAG_FUNCTION);
       snprintf(buf, 128, "function(0x%zx)", (uintptr_t)(kk_cptr_unbox(fun->fun)));
       kk_box_drop(b,ctx);
-      return kk_string_alloc_dup_utf8(buf, ctx);
+      return kk_string_alloc_dup_valid_utf8(buf, ctx);
     }
     else {
       // TODO: handle all builtin tags 
       snprintf(buf, 128, "ptr(0x%zx, tag: %i, rc: 0x%zx, scan: %zu)", (uintptr_t)p, tag, kk_block_refcount(p), kk_block_scan_fsize(p));
       kk_box_drop(b, ctx);
-      return kk_string_alloc_dup_utf8(buf, ctx);
+      return kk_string_alloc_dup_valid_utf8(buf, ctx);
     }
   }
 }

@@ -161,7 +161,7 @@ kk_string_t kk_slice_to_string( kk_std_core__sslice  sslice, kk_context_t* ctx )
   }
   else {
     // if not, we copy len bytes
-    kk_string_t s = kk_string_alloc_dupn_utf8(sslice.len, start, ctx);
+    kk_string_t s = kk_string_alloc_dupn_valid_utf8(sslice.len, start, ctx);
     kk_std_core__sslice_drop(sslice,ctx);
     return s;
   }
@@ -293,20 +293,20 @@ kk_std_core__error kk_error_from_errno( int err, kk_box_t result, kk_context_t* 
       // GNU version of strerror_r
       char buf[256];
       char* serr = strerror_r(err, buf, 255); buf[255] = 0;
-      msg = kk_string_alloc_dup_utf8( serr, ctx );
+      msg = kk_string_alloc_from_qutf8( serr, ctx );
     #elif (/* _POSIX_C_SOURCE >= 200112L ||*/ _XOPEN_SOURCE >= 600 || defined(__APPLE__) || defined(__FreeBSD__))
       // XSI version of strerror_r
       char buf[256];
       strerror_r(err, buf, 255); buf[255] = 0;
-      msg = kk_string_alloc_dup_utf8( buf, ctx );
+      msg = kk_string_alloc_from_qutf8( buf, ctx );
     #elif defined(_MSC_VER) || (__STDC_VERSION__ >= 201112L || __cplusplus >= 201103L)
       // MSVC, or C/C++ 11
       char buf[256];
       strerror_s(buf, 255, err); buf[255] = 0;
-      msg = kk_string_alloc_dup_utf8( buf, ctx );
+      msg = kk_string_alloc_from_qutf8( buf, ctx );
     #else
       // Old style
-      msg = kk_string_alloc_dup_utf8( strerror(err), ctx );
+      msg = kk_string_alloc_from_qutf8( strerror(err), ctx );
     #endif
     return kk_std_core__new_Error( kk_std_core__new_Exception( msg, kk_std_core__new_ExnSystem(kk_reuse_null, kk_integer_from_int(err,ctx), ctx), ctx), ctx );
   }

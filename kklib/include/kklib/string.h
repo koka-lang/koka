@@ -175,27 +175,29 @@ static inline kk_string_t kk_string_alloc_cbuf(size_t len, char** buf, kk_contex
 }
 
 // must be guaranteed valid utf8
-static inline kk_string_t kk_string_alloc_dupn_utf8(size_t len, const uint8_t* s, kk_context_t* ctx) {
+static inline kk_string_t kk_string_alloc_dupn_valid_utf8(size_t len, const uint8_t* s, kk_context_t* ctx) {
   kk_assert_internal(kk_utf8_is_validn(len, s));
   if (s == NULL || len == 0) return kk_string_empty();
   return kk_bytes_alloc_dupn(len, s, ctx);
 }
 
 // must be guaranteed valid utf8
-static inline kk_string_t kk_string_alloc_dup_utf8(const char* s, kk_context_t* ctx) { 
+static inline kk_string_t kk_string_alloc_dup_valid_utf8(const char* s, kk_context_t* ctx) { 
   kk_assert_internal(kk_utf8_is_valid(s));
   if (s == NULL) return kk_string_empty();
-  return kk_string_alloc_dupn_utf8(strlen(s), (const uint8_t*)s, ctx);
+  return kk_string_alloc_dupn_valid_utf8(strlen(s), (const uint8_t*)s, ctx);
 }
 
+/*
 // must be guaranteed valid utf8
-static inline kk_string_t kk_string_alloc_dupn_utf8n(size_t maxlen, const char* s, kk_context_t* ctx) {
+static inline kk_string_t kk_string_alloc_dup_valid_utf8_atmost(size_t maxlen, const char* s, kk_context_t* ctx) {
   kk_assert_internal(kk_utf8_is_validn(maxlen,(const uint8_t*)s));
   if (s == NULL || maxlen == 0) return kk_string_empty();
   size_t n;
   for(n = 0; n < maxlen && s[n] != 0; n++) { }
-  return kk_string_alloc_dupn_utf8(n, (const uint8_t*)s, ctx);
+  return kk_string_alloc_dupn_valid_utf8(n, (const uint8_t*)s, ctx);
 }
+*/
 
 // Raw string that directly points to an external buffer.
 static inline kk_string_t kk_string_alloc_raw_len(size_t len, const char* s, bool free, kk_context_t* ctx) {

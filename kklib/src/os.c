@@ -986,12 +986,12 @@ kk_string_t kk_os_app_path(kk_context_t* ctx) {
 
 kk_decl_export kk_string_t kk_os_path_sep(kk_context_t* ctx) {
   char pathsep[2] = { KK_PATH_SEP, 0 };
-  return kk_string_alloc_dup_utf8(pathsep, ctx);
+  return kk_string_alloc_dup_valid_utf8(pathsep, ctx);
 }
 
 kk_decl_export kk_string_t kk_os_dir_sep(kk_context_t* ctx) {
   char dirsep[2] = { KK_DIR_SEP, 0 };
-  return kk_string_alloc_dup_utf8(dirsep, ctx);
+  return kk_string_alloc_dup_valid_utf8(dirsep, ctx);
 }
 
 kk_decl_export kk_string_t kk_os_home_dir(kk_context_t* ctx) {
@@ -1010,7 +1010,7 @@ kk_decl_export kk_string_t kk_os_home_dir(kk_context_t* ctx) {
   if (h != NULL) return kk_string_alloc_from_qutf8(h, ctx);  
 #endif
   // fallback
-  return kk_string_alloc_dup_utf8(".", ctx);
+  return kk_string_alloc_dup_valid_utf8(".", ctx);
 }
 
 kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx) 
@@ -1033,7 +1033,7 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx)
 #endif
   // fallback
 #if defined(WIN32)
-  return kk_string_alloc_dup_utf8("c:\\tmp", ctx);
+  return kk_string_alloc_dup_valid_utf8("c:\\tmp", ctx);
 #else
   return kk_string_alloc_dup_utf8("/tmp", ctx);
 #endif
@@ -1092,7 +1092,7 @@ kk_string_t kk_os_kernel(kk_context_t* ctx) {
 #elif defined(_POSIX_VERSION)
   kernel = "posix"
 #endif
-  return kk_string_alloc_dup_utf8(kernel, ctx);
+  return kk_string_alloc_dup_valid_utf8(kernel, ctx);
 }
 
 kk_string_t kk_os_arch(kk_context_t* ctx) {
@@ -1120,7 +1120,7 @@ kk_string_t kk_os_arch(kk_context_t* ctx) {
 #elif defined(__sparc__) || defined(__sparc)
   arch = "sparc";
 #endif
-  return kk_string_alloc_dup_utf8(arch, ctx);
+  return kk_string_alloc_dup_valid_utf8(arch, ctx);
 }
 
 kk_string_t kk_compiler_version(kk_context_t* ctx) {
@@ -1129,7 +1129,7 @@ kk_string_t kk_compiler_version(kk_context_t* ctx) {
 #else
   const char* version = "2.x.x";
 #endif
-  return kk_string_alloc_dup_utf8(version,ctx);
+  return kk_string_alloc_dup_valid_utf8(version,ctx);
 }
 
 // note: assumes unistd/Windows etc is already included (like for file copy)

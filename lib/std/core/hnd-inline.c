@@ -232,7 +232,7 @@ kk_evv_t kk_evv_swap_create( kk_vector_t indices, kk_context_t* ctx ) {
 
 
 kk_string_t kk_evv_show(kk_evv_t evv, kk_context_t* ctx) {
-  return kk_string_alloc_dup_utf8("(not yet implemented: kk_evv_show)",ctx);
+  return kk_string_alloc_dup_valid_utf8("(not yet implemented: kk_evv_show)",ctx);
 }
 
 
