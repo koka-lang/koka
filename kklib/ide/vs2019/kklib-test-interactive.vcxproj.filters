@@ -29,6 +29,6 @@
     <ClCompile Include="..\..\..\out\Debug\std_time_timer.c" />
     <ClCompile Include="..\..\..\out\Debug\std_time_timestamp.c" />
     <ClCompile Include="..\..\..\out\Debug\std_time_utc.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_lib_time6.c" />
+    <ClCompile Include="..\..\..\out\Debug\test_lib_time11.c" />
   </ItemGroup>
 </Project>

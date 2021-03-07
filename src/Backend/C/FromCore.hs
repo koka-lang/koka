@@ -728,6 +728,7 @@ genUnbox name info dataRepr
                              ,text "kk_basetype_decref" <.> arguments [text "_p"] <.> semi]
                       )
                     )
+                  , text "else {" <+> ppName name <.> text "_dup(_unbox); }"
                   , text "return _unbox" ]
              -- text "unbox_valuetype" <.> arguments [ppName name, text "x"]
         _ -> text "return"
