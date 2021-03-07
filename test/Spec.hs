@@ -8,10 +8,11 @@ import System.Environment
 import System.FilePath
 import System.IO
 import System.Process (readProcess)
-import Test.Hspec
-import Test.Hspec.Core.Runner
 import Text.Regex
 import Text.JSON
+import Test.Hspec
+import Test.Hspec.Core.Runner
+import Test.Hspec.Core.Formatters hiding (Error)
 
 commonFlags :: [String]
 commonFlags = ["-c", "-v0", "--console=raw",
@@ -161,5 +162,35 @@ main = do
   (mode, args) <- getMode <$> getArgs
   hcfg <- readConfig defaultConfig args
   let spec = discoverTests mode (pwd </> "test")
-  summary <- withArgs [] (runSpec spec hcfg)
+  summary <- withArgs [] (runSpec spec hcfg{configFormatter=Just specProgress})
   evaluateSummary summary
+
+
+specProgress = specdoc {
+    exampleSucceeded = \(nesting, requirement) info -> withSuccessColor $ do
+      total  <- getTotalCount
+      writeLine $ showTotal total nesting requirement
+      forM_ (lines info) $ \ s -> writeLine $ indentationFor ("" : nesting) ++ s
+
+  , exampleFailed = \(nesting, requirement) info _ -> withFailColor $ do
+      n <- getFailCount
+      total  <- getTotalCount
+      writeLine $ showTotal total nesting requirement ++ ": FAILED [" ++ show n ++ "]"
+      forM_ (lines info) $ \ s ->
+        writeLine $ indentationFor nesting ++ s
+
+  , examplePending = \(nesting, requirement) info reason -> withPendingColor $ do
+      total  <- getTotalCount    
+      writeLine $ showTotal total nesting requirement
+      forM_ (lines info) $ \ s ->
+        writeLine $ indentationFor nesting ++ s
+      writeLine $ indentationFor nesting ++ "# PENDING: " ++ fromMaybe "No reason given" reason
+} where
+    showTotal total nesting req
+      = let nest = (length nesting + 1) * 2
+            t    = " " ++ show total
+        in replicate nest ' ' ++ req ++ replicate (12 - length req) ' ' ++ t
+    indentationFor nesting 
+      = replicate ((length nesting + 1) * 2) ' '
+
+    
