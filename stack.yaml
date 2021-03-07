@@ -7,6 +7,7 @@ extra-deps:
 - hlint-2.1.26
 - haskeline-0.8.1.0
 - regex-posix-clib-2.7   # only for testing
+- json-0.10
 
 flags:
   haskeline:

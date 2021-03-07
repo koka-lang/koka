@@ -1,0 +1,4 @@
+{
+  "flags"  : "--showtypesigs -e",
+  "exclude": ["inject2"]
+}
