@@ -383,34 +383,33 @@ genTypeDefs groups
 
 genTypeDefGroup :: TypeDefGroup -> Asm ()
 genTypeDefGroup (TypeDefGroup tds)
-  = mapM_ (genTypeDef) tds
+  = do mapM_ (genTypeDefPre) tds  -- forward declaration for mutually recursive types
+       mapM_ (genTypeDefPost) tds
 
-genTypeDef :: TypeDef -> Asm ()
-genTypeDef (Synonym synInfo)
+genTypeDefPre :: TypeDef -> Asm ()
+genTypeDefPre (Synonym synInfo)
   = return ()
-genTypeDef (Data info isExtend)
+genTypeDefPre (Data info isExtend)
   = do -- generate the type constructor
        emitToH $ linebreak <.> text ("// " ++ if (dataInfoIsValue info) then "value type" else "type") <+> pretty (dataInfoName info)
        let (dataRepr,conReprs) = getDataRepr info
-           noCons = null conReprs
            name   = (dataInfoName info)
 
        -- trace ("type " ++ show name ++ ": " ++ show dataRepr ++ ": " ++ show conReprs) $ return ()
-       -- if (isExtend) then return ()
-       -- generate the type
+       -- generate the type declaration
        if (dataRepr == DataEnum)
         then let enumIntTp = case (dataInfoDef info) of
                                DataDefValue 1 0 -> "uint8_t"
                                DataDefValue 2 0 -> "uint16_t"
                                _                -> "uint32_t"
+                 ppEnumCon (con,conRepr)
+                           = ppName (conInfoName con)  -- <+> text "= datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
              in  emitToH $ ppVis (dataInfoVis info) <.> text "enum" <+> ppName (typeClassName (dataInfoName info)) <.> text "_e" <+>
                            block (if (null conReprs)
                                    then ppName (dataInfoName info) <.> text "_empty"
                                    else vcat (punctuate comma (map ppEnumCon (zip (dataInfoConstrs info) conReprs)))) <.> semi <->
                            text "typedef" <+> text enumIntTp <+> ppName (typeClassName (dataInfoName info)) <.> semi <.> linebreak
-        else if (dataReprIsValue dataRepr || isExtend)
-          then return ()
-              --  else emitToH $ text "struct" <+> ppName name <.> text "_s" <+> text "{" <+> text "datatype_tag_t _tag;" <+> text "};"
+        else if (dataReprIsValue dataRepr || isExtend) then return ()
           else emitToH $ ppVis (dataInfoVis info) <.> text "struct" <+> ppName (typeClassName name) <.> text "_s" <+>
                          block (vcat ([text "kk_block_t _block;"] ++
                                       (if (dataRepr /= DataOpen) then [] else [text "kk_string_t _tag;"])
@@ -419,6 +418,17 @@ genTypeDef (Data info isExtend)
                          (if dataReprMayHaveSingletons dataRepr
                            then (text "typedef kk_datatype_t" <+> ppName (typeClassName name) <.> semi)
                            else (text "typedef struct" <+> ppName (typeClassName name) <.> text "_s*" <+> ppName (typeClassName name) <.> semi))
+
+
+genTypeDefPost:: TypeDef -> Asm ()
+genTypeDefPost (Synonym synInfo)
+  = return ()
+genTypeDefPost (Data info isExtend)
+  = do -- generate the type constructor
+       -- emitToH $ linebreak <.> text ("// " ++ if (dataInfoIsValue info) then "value type" else "type") <+> pretty (dataInfoName info)
+       let (dataRepr,conReprs) = getDataRepr info
+           noCons = null conReprs
+           name   = (dataInfoName info)
 
        -- order fields of constructors to have their scan fields first
        let conInfoReprs = zip (dataInfoConstrs info) conReprs
@@ -467,10 +477,7 @@ genTypeDef (Data info isExtend)
 
        -- generate functions for the datatype (box/unbox)
        genBoxUnbox name info dataRepr
-  where
-    ppEnumCon (con,conRepr)
-      = ppName (conInfoName con)  -- <+> text "= datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
-
+  where    
     ppStructConField con
       = text "struct" <+> ppName ((conInfoName con)) <+> ppName (unqualify (conInfoName con)) <.> semi
 
