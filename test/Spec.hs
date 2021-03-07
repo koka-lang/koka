@@ -1,5 +1,6 @@
 import Control.Monad
 import Control.Monad.IO.Class
+import Data.Maybe
 import Data.List
 import Data.List.Extra (replace, trim)
 import System.Directory
@@ -38,6 +39,10 @@ testSanitize kokaDir
   . replace kokaDir "..."
   where sub re = flip (subRegex (mkRegex re))
 
+expectedSanitize :: String -> String  
+expectedSanitize input
+  = filter (/='\r') input   -- on windows \r still gets through sometimes
+
 runKoka :: FilePath -> IO String
 runKoka fp
   = do dirFlags <- readFlags (takeDirectory fp </> ".flags")
@@ -56,8 +61,8 @@ makeTest mode fp
            when shouldRun $
              it (takeBaseName fp) $ do
                out <- runKoka fp
-               unless (mode == Test) $ writeFile expectedFile out
-               expected <- readFile expectedFile
+               unless (mode == Test) $ (withBinaryFile expectedFile WriteMode (\h -> hPutStr h out)) -- writeFile expectedFile out
+               expected <- expectedSanitize <$> readFile expectedFile
                out `shouldBe` expected
   | otherwise
       = return ()
@@ -69,9 +74,25 @@ discoverTests mode = discover ""
                if not isDirectory
                  then makeTest mode p
                  else do
-                   fs <- runIO (sort <$> listDirectory p)
-                   let with = if cat == "" then id else describe cat
+                   fs0 <- runIO (sort <$> listDirectory p)
+                   inFailing <- readFailing p
+                   let fs   = filter (not . inFailing) fs0  -- todo: make ignoring the failing optional
+                       with = if cat == "" then id else describe cat
                    with $ mapM_ (\f -> discover f (p </> f)) fs
+
+readFailing dir 
+  = runIO $
+    do let fname = dir </> "failing.txt"
+       hasFailing <- doesFileExist fname
+       if (hasFailing) 
+         then do txt <- readFile fname
+                 let items = filter (\s -> not ("#" `isPrefixOf` s)) $ map trim $ lines txt
+                     matcher item | any (\c -> c `elem` "([]+*?)") item = let r = mkRegex item
+                                                                          in (\s -> isJust (matchRegex r s))
+                                  | otherwise = (\s -> s == item)
+                     matchers = map matcher items                     
+                 return (\s -> any (\m -> m s) matchers) 
+         else return (\s -> False)
 
 parseMode :: String -> Mode
 parseMode "new" = New
