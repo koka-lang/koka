@@ -29,7 +29,7 @@ public fun process-flags() : <ndet,console> maybe<iflags> {
     Just(flags)
   }
   else {
-    println( errs.join("\n") + "\n" + flag-descs.usage(header) )
+    println( errs.join("\n") ++ "\n" ++ flag-descs.usage(header) )
     Nothing
   }
 }
@@ -46,32 +46,32 @@ fun build( publish : bool, version : string, speconly : bool ) : io () {
   val doclocal = "../koka-pages/doc".path
 
   val outspec  = "out/spec".path;
-  //val outspec   = outspecx + "js-debug"
-  val outstyles = outspec + "styles"
-  val outscripts = outspec + "scripts"
-  val outimages = outspec + "images"
+  //val outspec   = outspecx ++ "js-debug"
+  val outstyles = outspec ++ "styles"
+  val outscripts = outspec ++ "scripts"
+  val outimages = outspec ++ "images"
   val specdir   = "doc/spec".path
-  val docflags  = "--htmlcss=styles/madoko.css;styles/koka.css " + (if (publish) then "--htmlbases=" + docsite + " " else "")
-  val cmd = "stack exec koka -- -c -l --builddir=" + outspec.string + " -i" + specdir.string + " --html " + docflags
+  val docflags  = "--htmlcss=styles/madoko.css;styles/koka.css " ++ (if (publish) then "--htmlbases=" ++ docsite ++ " " else "")
+  val cmd = "stack exec koka -- -c -l --builddir=" ++ outspec.string ++ " -i" ++ specdir.string ++ " --html " ++ docflags
   if (!speconly) {
     println("compile standard libraries...")
-    run-echo(cmd + " toc.kk")
+    run-echo(cmd ++ " toc.kk")
   }
   println("compile documentation inlined code...")
-  run-echo(cmd + " book.kk.md getstarted.kk.md why.kk.md tour.kk.md spec.kk.md index.kk.md")
+  run-echo(cmd ++ " book.kk.md getstarted.kk.md why.kk.md tour.kk.md spec.kk.md index.kk.md")
   println("patch book.md")
-  file-replace-all(outspec + "book.md", ".kk.md", ".md");
+  file-replace-all(outspec ++ "book.md", ".kk.md", ".md");
 
   println("copy web files...")
   ensure-dir(outstyles)
   ensure-dir(outimages)
   ensure-dir(outscripts)
-  copy-directory(specdir + "images", outimages)
-  copy-directory(specdir + "styles", outstyles)
-  copy-directory(specdir + "scripts", outscripts)
+  copy-directory(specdir ++ "images", outimages)
+  copy-directory(specdir ++ "styles", outstyles)
+  copy-directory(specdir ++ "scripts", outscripts)
   copy-file-to-dir("doc/koka.css".path, outstyles)
   copy-file-to-dir("doc/logo/koka-logo.png".path, outimages)
-  copy-file-to-dir(specdir + "koka.bib", outspec)
+  copy-file-to-dir(specdir ++ "koka.bib", outspec)
   copy-file-to-dir("lib/std/time/timescales.png".path, outspec)
   copy-file-to-dir("doc/spec/book-style.md".path, outspec)
   copy-file-to-dir("doc/spec/news.mdk".path, outspec)
@@ -80,20 +80,20 @@ fun build( publish : bool, version : string, speconly : bool ) : io () {
              filter(fn(p){ p.string.ends-with(".xmp.html").bool }).
              map(fn(p){ p.nodir.string })
   println("run madoko...")
-  run-echo( "cd " + outspec.string + " && madoko --odir=. -v -mline-no:false -mlogo:false -mkokaversion:" + version
-             + " " + xmps.join(" ") + " book.md index.md" )
+  run-echo( "cd " ++ outspec.string ++ " && madoko --odir=. -v -mline-no:false -mlogo:false -mkokaversion:" ++ version
+             ++ " " ++ xmps.join(" ") ++ " book.md index.md" )
              
-  copy-file-to-dir(outspec + "madoko.css", outstyles)
+  copy-file-to-dir(outspec ++ "madoko.css", outstyles)
   if (publish) {
-    println("copy files to output folder: " + doclocal.string)
+    println("copy files to output folder: " ++ doclocal.string)
     ensure-dir(doclocal)
     val htmls = list-directory(outspec).
                 filter(fn(p){ p.extname == "html" && !p.string.ends-with(".xmp.html").bool })
     htmls.map fn(p){
       copy-file-to-dir(p,doclocal)
     }
-    copy-directory(outstyles,doclocal + "styles")
-    copy-directory(outimages,doclocal + "images")
+    copy-directory(outstyles,doclocal ++ "styles")
+    copy-directory(outimages,doclocal ++ "images")
   }
   println("done.")
 }
@@ -104,13 +104,13 @@ fun file-replace-all( fname : path, pat : string, rep : string ) : io () {
 }
 
 fun run-echo(cmd : string) : io () {
-  // println("> " + cmd)
+  // println("> " ++ cmd)
   val exit-code = run-system(cmd)
   if (exit-code==0) {
     println("ok")
   }
   else {
-    println("> " + cmd)
-    throw("error: " + exit-code.show )
+    println("> " ++ cmd)
+    throw("error: " ++ exit-code.show )
   }
 }

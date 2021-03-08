@@ -44,8 +44,8 @@ fun flag-usage() {
   flag-descs.usage("usage:\n koka run -- [options]\n\noptions:").println
   println([
     "\nnotes:",
-    "  tests    : " + all-test-names.join(", "),
-    "  languages: " + all-lang-names.map(snd).join(", ")
+    "  tests    : " ++ all-test-names.join(", "),
+    "  languages: " ++ all-lang-names.map(snd).join(", ")
   ].unlines)
 }
 
@@ -80,18 +80,18 @@ struct test {
 
 fun show( test : test ) {
   val xs = if (test.err.is-empty) then [
-    test.elapsed.core/show(2) + "s ~" + test.elapsed-sdev.core/show-fixed(3),
-    test.rss.core/show + "kb"
-  ] else ["error: " + test.err]
-  ([test.name,test.lang.pad-left(3)] + xs).join(", ")
+    test.elapsed.core/show(2) ++ "s ~" ++ test.elapsed-sdev.core/show-fixed(3),
+    test.rss.core/show ++ "kb"
+  ] else ["error: " ++ test.err]
+  ([test.name,test.lang.pad-left(3)] ++ xs).join(", ")
 }
 
 fun show-norm( test : test ) {
   val xs = if (test.err.is-empty) then [
-      test.norm-elapsed.core/show(2) + "x ~" + test.elapsed-sdev.core/show-fixed(3),
-      test.norm-rss.core/show(2) + "x"
-    ] else ["error: " + test.err]
-  ([test.name,test.lang.pad-left(3)] + xs).join(", ")
+      test.norm-elapsed.core/show(2) ++ "x ~" ++ test.elapsed-sdev.core/show-fixed(3),
+      test.norm-rss.core/show(2) ++ "x"
+    ] else ["error: " ++ test.err]
+  ([test.name,test.lang.pad-left(3)] ++ xs).join(", ")
 }
 
 // ----------------------------------------------------
@@ -111,8 +111,8 @@ public fun main() {
 }
 
 fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen-chart : bool, iterations : int ) {
-  println("tests    : " + test-names.join(", "))
-  println("languages: " + lang-names.map(fst).join(", "))
+  println("tests    : " ++ test-names.join(", "))
+  println("languages: " ++ lang-names.map(fst).join(", "))
 
   // run tests
   val alltests = test-names.flatmap fn(test-name){
@@ -126,7 +126,7 @@ fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen
   // show test results
   test-names.foreach fn(test-name){
     val tests = alltests.filter(fn(t){ t.name == test-name })
-    println("\n--- " + test-name + " ----------------")
+    println("\n--- " ++ test-name ++ " ----------------")
     println(tests.map(show).join("\n"))
   }
 
@@ -145,7 +145,7 @@ fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen
         norm-rss     = if (koka.rss==0) then 1.0 else t.rss.double / koka.rss.double,
         norm-elapsed-sdev = norm * t.elapsed-sdev)
     }
-    println("\n--- normalized " + test-name + " ----------------")
+    println("\n--- normalized " ++ test-name ++ " ----------------")
     println(ntests.map(show-norm).join("\n"))
     ntests
   }
@@ -175,7 +175,7 @@ fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen
 // Latex chart
 // ----------------------------------------------------
 fun chart( kind : string, norm : test -> double, norm-sdev : test -> double, test-names : list<string>, lang-ntests : list<(string,list<test>)>, ymax : double = 2.0, desc : string = "" ) : string {
-  [ tikz-header(test-names,".bench" + kind)
+  [ tikz-header(test-names,".bench" ++ kind)
   , lang-ntests.flatmap(fn(l){ tikz-data(kind, norm, norm-sdev, l, ymax = ymax ) })
   , tikz-picture(kind, test-names, lang-ntests.map(fst), ymax = ymax, desc = desc )
   , tikz-footer(test-names) ].concat.join("\n")
@@ -183,9 +183,9 @@ fun chart( kind : string, norm : test -> double, norm-sdev : test -> double, tes
 
 
 fun tikz-header( test-names : list<string>, attr : string ) : list<string> {
-  ["~ Begin Snippet { .benchmark " + attr + " }",
+  ["~ Begin Snippet { .benchmark " ++ attr ++ " }",
    "\\pgfplotsset{",
-   "  xticklabels = {" + test-names.map(fn(n){ "\\strut " + n.replace-all("_","\\_")}).join(",") + "}",
+   "  xticklabels = {" ++ test-names.map(fn(n){ "\\strut " ++ n.replace-all("_","\\_")}).join(",") ++ "}",
    "}"]
 }
 
@@ -198,36 +198,36 @@ fun tikz-picture( kind : string, test-names : list<string>, lang-names : list<st
   val header = [
     @"",
     @"\begin{tikzpicture}\sffamily",
-    @"\begin{axis}[Chart" + kind + ",ymax=" + ymax.show(1) + ",height=" + height + ",xmax=" + n.show + ".5,width=" + width + "]",
-    @"  \draw (axis cs:-0.5,1) -- (axis cs:" + n.show + ".5,1);"
+    @"\begin{axis}[Chart" ++ kind ++ ",ymax=" ++ ymax.show(1) ++ ",height=" ++ height ++ ",xmax=" ++ n.show ++ ".5,width=" ++ width ++ "]",
+    @"  \draw (axis cs:-0.5,1) -- (axis cs:" ++ n.show ++ ".5,1);"
   ]
-  val mid = lang-names.map(fn(l){ @"  \draw" + kind + @"{\color" + kind + l + @"{0}}{\data" + kind + l + "};"})
+  val mid = lang-names.map(fn(l){ @"  \draw" ++ kind ++ @"{\color" ++ kind ++ l ++ @"{0}}{\data" ++ kind ++ l ++ "};"})
   val footer = [
-     if (kind=="time") then @"  \legend{" + lang-names.map(fn(l){ "\\lang" + l }).join(",") + "};"
+     if (kind=="time") then @"  \legend{" ++ lang-names.map(fn(l){ "\\lang" ++ l }).join(",") ++ "};"
                        else "",
-     // if (desc.is-empty) then "" else @"  \chartdesc{" + desc.replace-all("\n",@"\\") + "};",
+     // if (desc.is-empty) then "" else @"  \chartdesc{" ++ desc.replace-all("\n",@"\\") ++ "};",
      @"\end{axis}",
      @"\end{tikzpicture}"
   ]
-  (header + mid + footer)
+  (header ++ mid ++ footer)
 }
 
 
 fun tikz-data( kind:string, norm : test -> double, norm-sdev : test -> double, lang-ntests : (string,list<test>), ymax : double = 2.0 ) : list<string> {
   val (lang,ntests) = lang-ntests
   ["",
-   @"\pgfplotstableread{"] +
+   @"\pgfplotstableread{"] ++
     ntests.map-indexed(fn(i,t){
       if (t.err.is-empty) then {
         [i.show,
          if (t.norm <= ymax) then t.norm.show-fixed(3) else ymax.show-fixed(3),
          if (t.norm > ymax || t.norm-sdev < 0.001) then "0.000" else t.norm-sdev.show-fixed(3),
-         t.norm.show-fixed(2) // else @"{\outerlabel{" + t.norm-elapsed.show(2) + "}}"
+         t.norm.show-fixed(2) // else @"{\outerlabel{" ++ t.norm-elapsed.show(2) ++ "}}"
         ].join(" ")
       }
-      else (i.show + @" 0.100 0.000 " + (if (i==0) then "0" elif (t.err=="NA") then "{NA}" else @"{\ensuremath{\times}}"))
-    }) +
-    [@"}\data" + kind + lang]
+      else (i.show ++ @" 0.100 0.000 " ++ (if (i==0) then "0" elif (t.err=="NA") then "{NA}" else @"{\ensuremath{\times}}"))
+    }) ++
+    [@"}\data" ++ kind ++ lang]
 }
 
 
@@ -237,19 +237,19 @@ fun tikz-data( kind:string, norm : test -> double, norm-sdev : test -> double, l
 
 fun run-test( test-name : string, langt : (string,string), iterations : int ) : io test {
   val (lang-long,lang) = langt
-  val pre  = lang.pad-left(3) + ", " + test-name.pad-left(12) + ", "
+  val pre  = lang.pad-left(3) ++ ", " ++ test-name.pad-left(12) ++ ", "
   val dir  = if (lang=="kk") then "koka/out/bench"
              elif (lang=="kkx") then "koka/outx/bench"
              else lang-long
-  val base = lang + "-" + test-name
+  val base = lang ++ "-" ++ test-name
   val prog = if (lang-long=="java")
-              then "java --enable-preview --class-path=" + dir + " "
-                    + (if (test-name=="cfold") then "-Xss128m " else "")
-                    + test-name.replace-all("-","")
-              else dir + "/" + base
-  val progpath = if (lang-long=="java") then (dir.path + (test-name.replace-all("-","") + ".class").path)
+              then "java --enable-preview --class-path=" ++ dir ++ " "
+                    ++ (if (test-name=="cfold") then "-Xss128m " else "")
+                    ++ test-name.replace-all("-","")
+              else dir ++ "/" ++ base
+  val progpath = if (lang-long=="java") then (dir.path ++ (test-name.replace-all("-","") ++ ".class").path)
                   else prog.path
-  println("\nrun: " + prog)
+  println("\nrun: " ++ prog)
 
   if (!is-file(progpath)) {
     return Test(test-name,lang,err="NA")
@@ -289,10 +289,10 @@ fun test-sum( t1 : test, t2 : test) : test {
 }
 
 fun execute-test( run : int, base : string, prog : string ) : io either<string,(double,int)> {
-  val timef= "time-" + base + ".txt"
+  val timef= "time-" ++ base ++ ".txt"
   val cmd  = if (get-env("SHELL").default("").contains("zsh"))
-               then "/usr/bin/time -l 2> " + timef + " " + prog
-               else "/usr/bin/time -f'%e %M' -o" + timef + " " + prog
+               then "/usr/bin/time -l 2> " ++ timef ++ " " ++ prog
+               else "/usr/bin/time -f'%e %M' -o" ++ timef ++ " " ++ prog
   val out  = run-system-read(cmd).exn
   print(out)
   val time = read-text-file(timef.path).trim
@@ -305,11 +305,11 @@ fun execute-test( run : int, base : string, prog : string ) : io either<string,(
       // println( parts.join(",") )
       match(parts) {
         Cons(elapsed,Cons(rss,Nil)) { // linux
-          println(run.show + ": elapsed: " + elapsed + "s, rss: " + rss + "kb" )
+          println(run.show ++ ": elapsed: " ++ elapsed ++ "s, rss: " ++ rss ++ "kb" )
           Right( (parse-double(elapsed).default(0.0), parse-int(rss).default(0)) )
         }
         Cons(elapsed,Cons("real",Cons(_,Cons(_user,Cons(_,Cons(_sys,Cons(rss,_))))))) {  // on macOS
-          println(run.show + ": elapsed: " + elapsed + "s, rss: " + rss + "b" )
+          println(run.show ++ ": elapsed: " ++ elapsed ++ "s, rss: " ++ rss ++ "b" )
           Right( (parse-double(elapsed).default(0.0), parse-int(rss).default(0)/1024) )
         }
         _ -> Left("bad format")

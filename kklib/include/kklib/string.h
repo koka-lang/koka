@@ -96,7 +96,13 @@ typedef struct kk_string_s {
   kk_bytes_t bytes;
 } kk_string_t;
 
+
+static inline bool kk_utf8_is_validn(size_t len, const uint8_t* s);
+static inline bool kk_utf8_is_valid(const char* s);
+
+// Cast bytes to a string; only use when the bytes are for sure valid utf-8!
 static inline kk_string_t kk_unsafe_bytes_as_string(kk_bytes_t b) {
+  kk_assert_internal(kk_utf8_is_valid(kk_bytes_cbuf_borrow(b, NULL)));
   kk_string_t s = { b };
   return s;
 }
