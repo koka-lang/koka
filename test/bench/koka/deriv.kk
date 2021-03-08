@@ -92,7 +92,7 @@ fun nest(f,n,e) {
 
 fun deriv(i : int, f : expr) {
   val d = d("x",f)
-  println(show(i+1) + " count: " + count(d).show)
+  println(show(i+1) ++ " count: " ++ count(d).show)
   d
 }
 
