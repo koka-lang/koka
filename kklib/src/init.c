@@ -290,7 +290,7 @@ kk_decl_export void kk_debugger_break(kk_context_t* ctx) {
 /*--------------------------------------------------------------------------------------------------
   Platform specific initialization hooks
 --------------------------------------------------------------------------------------------------*/
-
+/*
 #if defined(__cplusplus)  // also used for _MSC_VER
 // C++: use static initialization to detect process start
 static bool process_init(void) {
@@ -308,3 +308,4 @@ static void __attribute__((constructor)) process_init(void) {
 #else
 #pragma message("define a way to call kklib_init on your platform")
 #endif
+*/

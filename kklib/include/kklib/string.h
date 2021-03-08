@@ -92,35 +92,42 @@
 
 // A string is valid utf-8 (with potentially internal '0' characters) ending with a '0' character.
 // Reuse the `kk_bytes_t` datatype.
-typedef kk_bytes_t kk_string_t;
+typedef struct kk_string_s {
+  kk_bytes_t bytes;
+} kk_string_t;
+
+static inline kk_string_t kk_unsafe_bytes_as_string(kk_bytes_t b) {
+  kk_string_t s = { b };
+  return s;
+}
 
 static inline kk_string_t kk_string_empty(void) {
-  return kk_bytes_empty();
+  return kk_unsafe_bytes_as_string( kk_bytes_empty() );
 }
 
 // Define string literals
 #define kk_define_string_literal(decl,name,len,chars) \
   static struct { struct kk_bytes_s _base; size_t length; char str[len+1]; } _static_##name = \
     { { { KK_HEADER_STATIC(0,KK_TAG_STRING) } }, len, chars }; \
-  decl kk_string_t name = { &_static_##name._base._block };  
+  decl kk_string_t name = { { &_static_##name._base._block } };  
 
 #define kk_define_string_literal_empty(decl,name) \
-  decl kk_string_t name = { (kk_block_t*)((uintptr_t)(5)) };
+  decl kk_string_t name = { { (kk_block_t*)((uintptr_t)(5)) } };
 
 static inline kk_string_t kk_string_unbox(kk_box_t v) {
-  return kk_bytes_unbox(v);  
+  return kk_unsafe_bytes_as_string( kk_bytes_unbox(v) );
 }
 
 static inline kk_box_t kk_string_box(kk_string_t s) {
-  return kk_bytes_box(s);
+  return kk_bytes_box(s.bytes);
 }
 
 static inline void kk_string_drop(kk_string_t str, kk_context_t* ctx) {
-  kk_bytes_drop(str, ctx);
+  kk_bytes_drop(str.bytes, ctx);
 }
 
 static inline kk_string_t kk_string_dup(kk_string_t str) {
-  return kk_bytes_dup(str);
+  return kk_unsafe_bytes_as_string(kk_bytes_dup(str.bytes));
 }
 
 
@@ -163,22 +170,25 @@ static inline bool kk_utf8_is_valid(const char* s) {
 }
 
 static inline kk_string_t kk_string_adjust_length(kk_string_t str, size_t newlen, kk_context_t* ctx) {
-  return kk_bytes_adjust_length(str, newlen, ctx);
+  return kk_unsafe_bytes_as_string(kk_bytes_adjust_length(str.bytes, newlen, ctx));
 }
 
-static inline kk_string_t kk_string_alloc_buf(size_t len, uint8_t** buf, kk_context_t* ctx) {
-  return kk_bytes_alloc_buf(len, buf, ctx);
+// allocate an uninitialized string buffer; ensure to initialize to valid utf-8
+static inline kk_string_t kk_unsafe_string_alloc_buf(size_t len, uint8_t** buf, kk_context_t* ctx) {
+  return kk_unsafe_bytes_as_string(kk_bytes_alloc_buf(len, buf, ctx));
 }
 
-static inline kk_string_t kk_string_alloc_cbuf(size_t len, char** buf, kk_context_t* ctx) {
-  return kk_string_alloc_buf(len, (uint8_t**)buf, ctx);
+// allocate an uninitialized string buffer; ensure to initialize to valid utf-8
+static inline kk_string_t kk_unsafe_string_alloc_cbuf(size_t len, char** buf, kk_context_t* ctx) {
+  return kk_unsafe_string_alloc_buf(len, (uint8_t**)buf, ctx);
 }
+
 
 // must be guaranteed valid utf8
 static inline kk_string_t kk_string_alloc_dupn_valid_utf8(size_t len, const uint8_t* s, kk_context_t* ctx) {
   kk_assert_internal(kk_utf8_is_validn(len, s));
   if (s == NULL || len == 0) return kk_string_empty();
-  return kk_bytes_alloc_dupn(len, s, ctx);
+  return kk_unsafe_bytes_as_string(kk_bytes_alloc_dupn(len, s, ctx));
 }
 
 // must be guaranteed valid utf8
@@ -204,7 +214,7 @@ static inline kk_string_t kk_string_alloc_raw_len(size_t len, const char* s, boo
   if (len == 0 || s==NULL) return kk_string_empty();
   kk_assert_internal(s[len]==0 && strlen(s)==len);
   kk_assert_internal(kk_utf8_is_valid(s));
-  return kk_bytes_alloc_raw_len(len, (const uint8_t*)s, free, ctx);
+  return kk_unsafe_bytes_as_string(kk_bytes_alloc_raw_len(len, (const uint8_t*)s, free, ctx));
 }
 
 static inline kk_string_t kk_string_alloc_raw(const char* s, bool free, kk_context_t* ctx) {
@@ -213,7 +223,7 @@ static inline kk_string_t kk_string_alloc_raw(const char* s, bool free, kk_conte
 }
 
 static inline const uint8_t* kk_string_buf_borrow(const kk_string_t str, size_t* len) {
-  return kk_bytes_buf_borrow(str, len);  
+  return kk_bytes_buf_borrow(str.bytes, len);  
 }
 
 static inline const char* kk_string_cbuf_borrow(const kk_string_t str, size_t* len) {
@@ -225,7 +235,7 @@ static inline int kk_string_cmp_cstr_borrow(const kk_string_t s, const char* t) 
 }
 
 static inline size_t kk_decl_pure kk_string_len_borrow(const kk_string_t str) {
-  return kk_bytes_len_borrow(str);
+  return kk_bytes_len_borrow(str.bytes);
 }
 
 static inline size_t kk_decl_pure kk_string_len(kk_string_t str, kk_context_t* ctx) {    // bytes in UTF8
@@ -235,11 +245,11 @@ static inline size_t kk_decl_pure kk_string_len(kk_string_t str, kk_context_t* c
 }
 
 static inline kk_string_t kk_string_copy(kk_string_t str, kk_context_t* ctx) {
-  return kk_bytes_copy(str, ctx);
+  return kk_unsafe_bytes_as_string(kk_bytes_copy(str.bytes, ctx));
 }
 
 static inline bool kk_string_ptr_eq_borrow(kk_string_t s1, kk_string_t s2) {
-  return kk_bytes_ptr_eq_borrow(s1, s2);
+  return kk_bytes_ptr_eq_borrow(s1.bytes, s2.bytes);
 }
 
 static inline bool kk_string_is_empty_borrow(kk_string_t s) {
@@ -417,11 +427,11 @@ kk_decl_export const char*    kk_string_to_qutf8_borrow(kk_string_t str, bool* s
 --------------------------------------------------------------------------------------------------*/
 
 static inline int kk_string_cmp_borrow(kk_string_t str1, kk_string_t str2) {
-  return kk_bytes_cmp_borrow(str1, str2);
+  return kk_bytes_cmp_borrow(str1.bytes, str2.bytes);
 }
 
 static inline int kk_string_cmp(kk_string_t str1, kk_string_t str2, kk_context_t* ctx) {
-  return kk_bytes_cmp(str1, str2, ctx);
+  return kk_bytes_cmp(str1.bytes, str2.bytes, ctx);
 }
 
 static inline bool kk_string_is_eq_borrow(kk_string_t s1, kk_string_t s2) {
@@ -441,43 +451,43 @@ static inline bool kk_string_is_neq(kk_string_t s1, kk_string_t s2, kk_context_t
 }
 
 static inline kk_string_t kk_string_cat(kk_string_t s1, kk_string_t s2, kk_context_t* ctx) {
-  return kk_bytes_cat(s1, s2, ctx);
+  return kk_unsafe_bytes_as_string(kk_bytes_cat(s1.bytes, s2.bytes, ctx));
 }
 static inline kk_string_t kk_string_cat_from_valid_utf8(kk_string_t s1, const char* s2, kk_context_t* ctx) {
   kk_assert_internal(kk_utf8_is_valid(s2));
-  return kk_bytes_cat_from_buf(s1, strlen(s2), (const uint8_t*)s2, ctx);
+  return kk_unsafe_bytes_as_string(kk_bytes_cat_from_buf(s1.bytes, strlen(s2), (const uint8_t*)s2, ctx));
 }
 
 static inline kk_string_t kk_string_replace_all(kk_string_t s, kk_string_t pat, kk_string_t rep, kk_context_t* ctx) {
-  return kk_bytes_replace_all(s, pat, rep, ctx);
+  return kk_unsafe_bytes_as_string(kk_bytes_replace_all(s.bytes, pat.bytes, rep.bytes, ctx));
 }
 
 static inline kk_string_t kk_string_replace_atmost(kk_string_t s, kk_string_t pat, kk_string_t rep, size_t n, kk_context_t* ctx) {
-  return kk_bytes_replace_atmost(s, pat, rep, n, ctx);
+  return kk_unsafe_bytes_as_string(kk_bytes_replace_atmost(s.bytes, pat.bytes, rep.bytes, n, ctx));
 }
 
 static inline kk_string_t kk_string_repeat(kk_string_t s, size_t n, kk_context_t* ctx) {
-  return kk_bytes_repeat(s, n, ctx);
+  return kk_unsafe_bytes_as_string(kk_bytes_repeat(s.bytes, n, ctx));
 }
 
 static inline size_t kk_string_index_of1(kk_string_t str, kk_string_t sub, kk_context_t* ctx) {     // returns 0 for not found, or index + 1
-  return kk_bytes_index_of1(str, sub, ctx);
+  return kk_bytes_index_of1(str.bytes, sub.bytes, ctx);
 }
 
 static inline size_t kk_string_last_index_of1(kk_string_t str, kk_string_t sub, kk_context_t* ctx) {
-  return kk_bytes_last_index_of1(str, sub, ctx);
+  return kk_bytes_last_index_of1(str.bytes, sub.bytes, ctx);
 }
 
 static inline bool   kk_string_starts_with(kk_string_t str, kk_string_t pre, kk_context_t* ctx) {
-  return kk_bytes_starts_with(str, pre, ctx);
+  return kk_bytes_starts_with(str.bytes, pre.bytes, ctx);
 }
 
 static inline bool   kk_string_ends_with(kk_string_t str, kk_string_t post, kk_context_t* ctx) {
-  return kk_bytes_ends_with(str, post, ctx);
+  return kk_bytes_ends_with(str.bytes, post.bytes, ctx);
 }
 
 static inline bool   kk_string_contains(kk_string_t str, kk_string_t sub, kk_context_t* ctx) {
-  return kk_bytes_contains(str, sub, ctx);
+  return kk_bytes_contains(str.bytes, sub.bytes, ctx);
 }
 
 

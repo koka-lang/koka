@@ -98,6 +98,12 @@ static inline kk_bytes_t kk_bytes_alloc_buf(size_t len, uint8_t** buf, kk_contex
   return kk_bytes_alloc_len(len, 0, NULL, buf, ctx);
 }
 
+// allocate uninitialized chars
+static inline kk_bytes_t kk_bytes_alloc_cbuf(size_t len, char** buf, kk_context_t* ctx) {
+  return kk_bytes_alloc_len(len, 0, NULL, (uint8_t**)buf, ctx);
+}
+
+
 // Allocate `len` bytes initialized 
 static inline kk_bytes_t kk_bytes_alloc_dupn(size_t len, const uint8_t* p, kk_context_t* ctx) {
   // kk_assert_internal(kk_utf8_is_valid(s))

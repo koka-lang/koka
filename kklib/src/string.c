@@ -208,11 +208,11 @@ static kk_string_t  kk_string_convert_from_qutf8_prim(kk_bytes_t str, bool qutf8
   }
   kk_assert_internal(p == end);
   // already valid; return as-is
-  if (vlen == len) return str;
+  if (vlen == len) return kk_unsafe_bytes_as_string(str);
 
   // invalid sequences found: copy and translate to valid utf-8
   uint8_t* t;
-  kk_string_t tstr = kk_string_alloc_buf(vlen, &t, ctx);
+  kk_string_t tstr = kk_unsafe_string_alloc_buf(vlen, &t, ctx);
   p = s;
   while (p < end) {    
     if (kk_likely(*p < 0x80)) {
@@ -404,7 +404,7 @@ static kk_string_t kk_string_alloc_from_qutf16n_prim(size_t wlen, const uint16_t
 
   // allocate and encode to utf-8
   uint8_t* s;
-  kk_string_t str = kk_string_alloc_buf(len, &s, ctx);  
+  kk_string_t str = kk_unsafe_string_alloc_buf(len, &s, ctx);  
   uint8_t* q = s;
   for (const uint16_t* p = wstr; p < end; p++) {
     // optimize for ascii
@@ -501,7 +501,7 @@ kk_string_t kk_string_alloc_from_codepage(const uint8_t* bstr, const uint16_t* c
   }
   // and decode
   uint8_t* s;
-  kk_string_t str = kk_string_alloc_buf(len, &s, ctx);
+  kk_string_t str = kk_unsafe_string_alloc_buf(len, &s, ctx);
   p = bstr;
   while (*p != 0) {
     const uint16_t c = codepage[*p++];
@@ -544,7 +544,7 @@ kk_string_t kk_string_from_char(kk_char_t c, kk_context_t* ctx) {
   size_t count;
   kk_utf8_write(c, buf, &count);
   buf[count] = 0;
-  return kk_bytes_alloc_dupn(count, buf, ctx);
+  return kk_unsafe_bytes_as_string(kk_bytes_alloc_dupn(count, buf, ctx));
 }
 
 kk_string_t kk_string_from_chars(kk_vector_t v, kk_context_t* ctx) {
@@ -555,7 +555,7 @@ kk_string_t kk_string_from_chars(kk_vector_t v, kk_context_t* ctx) {
     len += kk_utf8_len(kk_char_unbox(cs[i], ctx));
   }
   uint8_t* p;
-  kk_string_t s = kk_string_alloc_buf(len + 1, &p, ctx);
+  kk_string_t s = kk_unsafe_string_alloc_buf(len + 1, &p, ctx);
   for (size_t i = 0; i < n; i++) {
     size_t count;
     kk_utf8_write(kk_char_unbox(cs[i], ctx), p, &count);
@@ -644,19 +644,19 @@ kk_string_t kk_string_to_upper(kk_string_t str, kk_context_t* ctx) {
   size_t len;
   const uint8_t* s = kk_string_buf_borrow(str,&len);
   kk_string_t tstr; 
-  if (kk_datatype_is_unique(str)) {
+  if (kk_datatype_is_unique(str.bytes)) {
     tstr = str;  // update in-place
   }
   else {
     kk_string_dup(str);  // multi-thread safe as we still reference str with s
     tstr = kk_string_copy(str, ctx);
-    kk_assert_internal(!kk_datatype_eq(str, tstr));
+    kk_assert_internal(!kk_datatype_eq(str.bytes, tstr.bytes));
   }
   uint8_t* t = (uint8_t*)kk_string_buf_borrow(tstr,NULL);   // t & s may alias!
   for (size_t i = 0; i < len; i++) {
     t[i] = kk_ascii_toupper(s[i]);
   }
-  if (!kk_datatype_eq(str,tstr)) kk_string_drop(str, ctx);  // drop if not reused in-place
+  if (!kk_datatype_eq(str.bytes,tstr.bytes)) kk_string_drop(str, ctx);  // drop if not reused in-place
   return tstr;
 }
 
@@ -664,19 +664,19 @@ kk_string_t  kk_string_to_lower(kk_string_t str, kk_context_t* ctx) {
   size_t len;
   const uint8_t* s = kk_string_buf_borrow(str, &len);
   kk_string_t tstr;
-  if (kk_datatype_is_unique(str)) {
+  if (kk_datatype_is_unique(str.bytes)) {
     tstr = str;  // update in-place
   }
   else {
     kk_string_dup(str);  // multi-thread safe as we still reference str with s
     tstr = kk_string_copy(str, ctx);
-    kk_assert_internal(!kk_datatype_eq(str, tstr));
+    kk_assert_internal(!kk_datatype_eq(str.bytes, tstr.bytes));
   }
   uint8_t* t = (uint8_t*)kk_string_buf_borrow(tstr, NULL);   // t & s may alias!
   for (size_t i = 0; i < len; i++) {
     t[i] = kk_ascii_tolower(s[i]);
   }
-  if (!kk_datatype_eq(str, tstr)) kk_string_drop(str, ctx);  // drop if not reused in-place
+  if (!kk_datatype_eq(str.bytes, tstr.bytes)) kk_string_drop(str, ctx);  // drop if not reused in-place
   return tstr;
 }
 

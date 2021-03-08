@@ -460,7 +460,7 @@ static size_t kk_bigint_to_buf_(const kk_bigint_t* b, char* buf, size_t kk_buf_s
 static kk_string_t kk_bigint_to_string(kk_bigint_t* b, kk_context_t* ctx) {
   size_t needed = kk_bigint_to_buf_(b, NULL, 0);
   char* s;
-  kk_string_t str = kk_string_alloc_cbuf(needed-1, &s, ctx); // don't count terminator
+  kk_string_t str = kk_unsafe_string_alloc_cbuf(needed-1, &s, ctx); // don't count terminator
   size_t used = kk_bigint_to_buf_(b, s, needed);
   drop_bigint(b,ctx);
   str = kk_string_adjust_length(str, used-1, ctx);  // don't count the ending zero included in used
@@ -488,7 +488,7 @@ static kk_string_t kk_int_to_string(kk_intx_t n, kk_context_t* ctx) {
   }
   // write to the allocated string
   char* p;
-  kk_string_t s = kk_string_alloc_cbuf(i, &p, ctx);
+  kk_string_t s = kk_unsafe_string_alloc_cbuf(i, &p, ctx);
   size_t j;
   for (j = 0; j < i; j++) {
     p[j] = buf[i - j - 1];
@@ -1502,7 +1502,7 @@ static kk_string_t kk_bigint_to_hex_string(kk_bigint_t* b, bool use_capitals, kk
   size_t dec_needed = kk_bigint_to_buf_(b, NULL, 0);   
   size_t needed = (size_t)(ceil((double)dec_needed * KK_LOG10_DIV_LOG16)) + 2; // conservative estimate
   char* s;
-  kk_string_t str = kk_string_alloc_cbuf(needed, &s, ctx);
+  kk_string_t str = kk_unsafe_string_alloc_cbuf(needed, &s, ctx);
   size_t len = kk_bigint_to_hex_buf(b, s, needed, use_capitals, ctx);
   kk_assert_internal(needed > len);
   return kk_string_adjust_length(str, len, ctx);

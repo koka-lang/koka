@@ -107,7 +107,7 @@ kk_string_t kk_string_from_list(kk_std_core__list cs, kk_context_t* ctx) {
   }
   // allocate and copy the characters
   uint8_t* p;
-  kk_string_t s = kk_string_alloc_buf(len,&p,ctx);  
+  kk_string_t s = kk_unsafe_string_alloc_buf(len,&p,ctx);  // must be initialized
   xs = cs;
   while (kk_std_core__is_Cons(xs)) {
     struct kk_std_core_Cons* cons = kk_std_core__as_Cons(xs);

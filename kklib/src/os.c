@@ -865,10 +865,10 @@ static kk_string_t kk_os_app_path_generic(kk_context_t* ctx) {
     ) {
     // relative path, combine with "./"
     char* cs;
-    kk_string_t s = kk_string_alloc_cbuf( strlen(p) + 2, &cs, ctx);
+    kk_bytes_t b = kk_bytes_alloc_cbuf( strlen(p) + 2, &cs, ctx);
     strcpy(cs, "./" );
     strcat(cs, p);
-    s = kk_string_convert_from_qutf8(s, ctx);
+    kk_string_t s = kk_string_convert_from_qutf8(b, ctx);
     return kk_os_realpath(s, ctx);
   }
   else {
