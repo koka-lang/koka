@@ -1,5 +1,5 @@
 name:       koka
-version:    2.0.16
+version:    2.0.18
 github:     "koka-lang/koka"
 license:    Apache-2.0
 author:     Daan Leijen
@@ -68,7 +68,7 @@ executables:
     cpp-options:
       - -DMAIN="koka"
       - -DVARIANT="release"
-      - -DVERSION="2.0.16"
+      - -DVERSION="2.0.18"
       # - -DREADLINE=1   # to avoid using Haskeline
     when:
       - condition: os(windows)
