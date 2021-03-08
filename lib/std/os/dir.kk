@@ -29,8 +29,8 @@ public fun copy-directory( dir : path, to : path ) : <fsys,pure> () {
   ensure-dir(to)
   val all = list-directory(dir)
   val (dirs,files) = all.partition(is-directory)
-  files.foreach( fn(f){ copy-file( f, to ++ f.nodir ) } )
-  dirs.foreach( fn(d){ copy-directory( d, to ++ d.nodir ) } )
+  files.foreach( fn(f){ copy-file( f, to / f.nodir ) } )
+  dirs.foreach( fn(d){ copy-directory( d, to / d.nodir ) } )
 }
 
 // Ensure a directory path exists
@@ -46,7 +46,7 @@ public fun ensure-dir( dir : path ) : <fsys,exn> () {
 public fun list-directory( dir : path ) : fsys list<path> {
   match(prim-list-dir(dir.string)) {
     Error()      -> []
-    Ok(contents) -> contents.list.map(fn(name){ dir ++ name.path })
+    Ok(contents) -> contents.list.map(fn(name){ dir / name.path })
   }
 }
 
@@ -62,7 +62,7 @@ public fun is-file( path : path ) : fsys bool {
 
 // Copy a file to a directory
 public fun copy-file-to-dir( from : path, dir : path ) : <fsys,exn> () {
-  copy-file(from, dir ++ from.nodir)
+  copy-file(from, dir / from.nodir)
 }
 
 // Copy a file.
