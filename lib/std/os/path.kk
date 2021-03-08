@@ -188,7 +188,7 @@ public fun (||)(p1 : path, p2: path) : path {
   if (p1.is-empty) then p2 else p1
 }
 
-// Combine multiple paths using `(+)`.
+// Combine multiple paths using `(++)`.
 public fun combine( ps : list<path> ) : path {
   match(ps) {
     Nil -> Path()

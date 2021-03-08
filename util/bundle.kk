@@ -207,7 +207,7 @@ fun show( v : variant ) : string {
 fun copy-kklib( variant : variant, libdir : path, cc : string, version : string ) : io () {
   val vardir = cc ++ "-" ++ variant.show
   val objdir = libdir ++ vardir
-  val outdir = "out".path ++ version ++ vardir
+  val outdir = ("out".path ++ version) ++ vardir
   val kklib  = if (get-os-name()=="windows") then "kklib.lib" else "libkklib.a"
   ensure-dir(objdir)
   copy-file-to-dir( outdir ++ kklib, objdir )
