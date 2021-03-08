@@ -1,3 +1,16 @@
+/*-----------------------------------------------------------------------------
+Copyright 2020 Microsoft Corporation, Daan Leijen.
+This is free software; you can redistribute it and/or modify it under the
+terms of the Apache License, Version 2.0. A copy of the License can be
+found in the file "license.txt" at the root of this distribution.
+
+Compile and test the lexical and grammar specification in `doc/spec/grammar`.
+Assumes `bison` and `flex` are installed.
+- Requires at least Flex 2.5.37; you can get a version for windows from: 
+  <https://sourceforge.net/projects/winflexbison>
+- Requires at least Bison 3+; you can get a version for windows from: 
+  <https://sourceforge.net/projects/winflexbison> (use the "latest" zip package)
+-----------------------------------------------------------------------------*/
 import std/os/path
 import std/os/file
 import std/os/dir
