@@ -45,7 +45,7 @@ abstract struct path(
   parts: list<string> = [] // directory parts in reverse order
 )
 
-// Return the base name of a path (stem name ++ extension)\
+// Return the base name of a path (stem name + extension)\
 // `"/foo/bar.txt".path.basename === "bar.txt"` \
 // `"/foo".path.basename === "foo"`
 public fun basename( p : path ) : string {
@@ -169,18 +169,18 @@ fun paths-collect( ps : list<string> ) : list<path> {
   }
 }
 
-// Add two paths together. \
+// Add two paths together using left-associative operator `(/)`. \
 // Keeps the root of `p1` and discards the root name of `p2`.\
-// `"/a/" ++ "b/foo.txt"          === "/a/b/foo.txt"`\
-// `"/a/foo.txt" ++ "/b/bar.txt"  === "/a/foo.txt/b/bar.txt"`\
-// `"c:/foo" ++ "d:/bar"          === "c:/foo/bar"`
-public fun (++)(p1 : path, p2: path) : path {
+// `"/a/" / "b/foo.txt"          === "/a/b/foo.txt"`\
+// `"/a/foo.txt" / "/b/bar.txt"  === "/a/foo.txt/b/bar.txt"`\
+// `"c:/foo" / "d:/bar"          === "c:/foo/bar"`
+public fun (/)(p1 : path, p2: path) : path {
   Path(p1.root,push-parts(p2.parts.reverse, p1.parts))
 }
 
 // Convenience function that adds a string path.
-public fun (++)(p1 : path, p2: string) : path {
-  p1 ++ p2.path
+public fun (/)(p1 : path, p2: string) : path {
+  p1 / p2.path
 }
 
 // Return the first path if it is not empty, otherwise return the second one.
@@ -188,11 +188,11 @@ public fun (||)(p1 : path, p2: path) : path {
   if (p1.is-empty) then p2 else p1
 }
 
-// Combine multiple paths using `(++)`.
+// Combine multiple paths using `(/)`.
 public fun combine( ps : list<path> ) : path {
   match(ps) {
     Nil -> Path()
-    Cons(p,pp) -> pp.foldl(p,(++))
+    Cons(p,pp) -> pp.foldl(p,(/))
   }
 }
 

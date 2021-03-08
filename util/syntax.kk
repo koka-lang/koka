@@ -18,18 +18,18 @@ fun main() {
   }
 
   val home = homedir()
-  val atom = home ++ ".atom/packages".path
+  val atom = home / ".atom" / "packages"
   
   if (!is-directory(atom)) {
     println("atom is not found, skipping.")
   }
   else {
     println("installing atom package to: " ++ atom.string)
-    copy-directory("support/atom".path, atom ++ "language-koka".path)
+    copy-directory("support/atom".path, atom / "language-koka")
     println("installed atom support -- restart atom to take effect")
   }
 
-  val vscode = home ++ ".vscode/extensions".path
+  val vscode = home / ".vscode" / "extensions"
   if (!is-directory(vscode)) {
     println("vscode is not found, skipping.")
   }

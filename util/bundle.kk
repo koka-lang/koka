@@ -71,10 +71,10 @@ fun main() {
 fun install( prefixdir : path, cc : string, version : string, dist : bool, post : string, minimal : bool ) {
   // Install paths
   val koka    = koka-exe-path()
-  val bindir  = prefixdir ++ "bin".path
-  val libdir  = prefixdir ++ "lib/koka".path ++ version.path
-  val sharedir= prefixdir ++ "share/koka".path ++ version.path
-  val tarname = ((prefixdir ++ "..") ++ ("koka-" ++ post ++ ".tar.gz")).string
+  val bindir  = prefixdir / "bin"
+  val libdir  = prefixdir / "lib" / "koka" / version
+  val sharedir= prefixdir / "share" / "koka" / version
+  val tarname = (prefixdir / ".." / ("koka-" ++ post ++ ".tar.gz")).string
 
   if (dist) then {
     println("creating koka distribution bundle:")
@@ -101,32 +101,32 @@ fun install( prefixdir : path, cc : string, version : string, dist : bool, post 
   copy-file-to-dir(koka, bindir)
 
   // Copy std libs
-  val stdlibdir = sharedir ++ "lib"
+  val stdlibdir = sharedir / "lib"
   println("copy standard libraries...")
-  copy-directory("lib/std".path, stdlibdir ++ "std")
+  copy-directory("lib/std".path, stdlibdir / "std")
   copy-file-to-dir("lib/toc.kk".path, stdlibdir)
   copy-file-to-dir("lib/package.std.json".path, stdlibdir)
 
   // Copy samples
   println("copy samples...")
-  copy-directory("samples".path, stdlibdir ++ "samples")
+  copy-directory("samples".path, stdlibdir / "samples")
 
   // Copy kklib
-  val kklibdir = sharedir ++ "kklib"
+  val kklibdir = sharedir / "kklib"
   println("copy kklib runtime...")
-  copy-directory("kklib/src".path, kklibdir ++ "src")
-  copy-directory("kklib/include".path, kklibdir ++ "include")
-  copy-directory("kklib/mimalloc".path, kklibdir ++ "mimalloc")
+  copy-directory("kklib/src".path, kklibdir / "src")
+  copy-directory("kklib/include".path, kklibdir / "include")
+  copy-directory("kklib/mimalloc".path, kklibdir / "mimalloc")
   copy-file-to-dir("kklib/CMakeLists.txt".path, kklibdir)
   copy-file-to-dir("kklib/kkmain.cmake".path, kklibdir)
 
   // Copy contrib
-  val contribdir = sharedir ++ "contrib"
+  val contribdir = sharedir / "contrib"
   println("copy contrib...")
   ensure-dir(contribdir)
   copy-file-to-dir("contrib/biginteger.js".path, contribdir)
-  copy-directory("support/atom".path, contribdir ++ "atom")
-  copy-directory("support/vscode".path, contribdir ++ "vscode")
+  copy-directory("support/atom".path, contribdir / "atom")
+  copy-directory("support/vscode".path, contribdir / "vscode")
 
   // Copy kklib binaries
   [Debug,DRelease,Release].foreach fn(variant){
@@ -162,7 +162,7 @@ fun install( prefixdir : path, cc : string, version : string, dist : bool, post 
 
 fun koka-exe-path() : io path {
   val out = run-system-read("stack path --local-install-root").exn
-  val exe = out.trim.path ++ "bin/koka".path
+  val exe = out.trim.path / "bin" / "koka"
   if (exe.is-file) return exe
   val win = exe.change-ext(".exe")
   if (win.is-file) return win
@@ -178,7 +178,7 @@ fun koka-version( koka : path ) : <file,exn> string {
 
 fun get-default-prefix(dist : bool, post : string) : io path {
   if (dist) then {
-    "dist".path ++ ("local-" ++ post)
+    "dist".path / ("local-" ++ post)
   }
   else {
     val out = run-system-read("stack path --local-bin").exn
@@ -187,7 +187,7 @@ fun get-default-prefix(dist : bool, post : string) : io path {
 }
 
 fun get-default-postfix() : io string {
-  ["v"++get-compiler-version(), get-os-name(), get-cpu-arch()].join("-")
+  ["v" ++ get-compiler-version(), get-os-name(), get-cpu-arch()].join("-")
 }
 
 type variant {
@@ -206,11 +206,11 @@ fun show( v : variant ) : string {
 
 fun copy-kklib( variant : variant, libdir : path, cc : string, version : string ) : io () {
   val vardir = cc ++ "-" ++ variant.show
-  val objdir = libdir ++ vardir
-  val outdir = ("out".path ++ version) ++ vardir
+  val objdir = libdir / vardir
+  val outdir = "out".path / version / vardir
   val kklib  = if (get-os-name()=="windows") then "kklib.lib" else "libkklib.a"
   ensure-dir(objdir)
-  copy-file-to-dir( outdir ++ kklib, objdir )
+  copy-file-to-dir( outdir / kklib, objdir )
   val all = list-directory(outdir)
   val files = all.filter(fn(f){ !is-directory(f) })
   val objs = files.filter(fn(f){ f.basename.starts-with("std_").bool && f.extname != "core" })

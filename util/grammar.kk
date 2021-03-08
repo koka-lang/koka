@@ -33,7 +33,7 @@ fun build() {
   run-echo("cd " ++ outdir.string ++ " && flex -8 lexer.lex")
   println("compile generated code...")
   run-echo("cd " ++ outdir.string ++ " && stack exec ghc -- -no-hs-main -o koka-parser lex.yy.c parser.tab.c")
-  val parser = (outdir ++ "koka-parser".path).string
+  val parser = (outdir / "koka-parser").string
   println("created: " ++ parser)
 }
 

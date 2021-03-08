@@ -247,7 +247,7 @@ fun run-test( test-name : string, langt : (string,string), iterations : int ) : 
                     ++ (if (test-name=="cfold") then "-Xss128m " else "")
                     ++ test-name.replace-all("-","")
               else dir ++ "/" ++ base
-  val progpath = if (lang-long=="java") then (dir.path ++ (test-name.replace-all("-","") ++ ".class").path)
+  val progpath = if (lang-long=="java") then (dir.path / (test-name.replace-all("-","") ++ ".class"))
                   else prog.path
   println("\nrun: " ++ prog)
 
