@@ -74,7 +74,7 @@ fun install( prefixdir : path, cc : string, version : string, dist : bool, post 
   val bindir  = prefixdir ++ "bin".path
   val libdir  = prefixdir ++ "lib/koka".path ++ version.path
   val sharedir= prefixdir ++ "share/koka".path ++ version.path
-  val tarname = ((prefixdir ++ "..") ++ ("koka-" ++ post ++ ".tar.gz"))).string
+  val tarname = ((prefixdir ++ "..") ++ ("koka-" ++ post ++ ".tar.gz")).string
 
   if (dist) then {
     println("creating koka distribution bundle:")
