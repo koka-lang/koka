@@ -162,7 +162,7 @@ fun install( prefixdir : path, cc : string, version : string, dist : bool, post 
 
 fun koka-exe-path() : io path {
   val out = run-system-read("stack path --local-install-root").exn
-  val exe = out.trim.path / "bin" / "koka"
+  val exe = out.trim / "bin" / "koka"
   if (exe.is-file) return exe
   val win = exe.change-ext(".exe")
   if (win.is-file) return win
@@ -178,7 +178,7 @@ fun koka-version( koka : path ) : <file,exn> string {
 
 fun get-default-prefix(dist : bool, post : string) : io path {
   if (dist) then {
-    "dist".path / ("local-" ++ post)
+    "dist" / ("local-" ++ post)
   }
   else {
     val out = run-system-read("stack path --local-bin").exn
@@ -207,7 +207,7 @@ fun show( v : variant ) : string {
 fun copy-kklib( variant : variant, libdir : path, cc : string, version : string ) : io () {
   val vardir = cc ++ "-" ++ variant.show
   val objdir = libdir / vardir
-  val outdir = "out".path / version / vardir
+  val outdir = "out" / version / vardir
   val kklib  = if (get-os-name()=="windows") then "kklib.lib" else "libkklib.a"
   ensure-dir(objdir)
   copy-file-to-dir( outdir / kklib, objdir )

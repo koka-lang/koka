@@ -183,6 +183,11 @@ public fun (/)(p1 : path, p2: string) : path {
   p1 / p2.path
 }
 
+// Convenience function that adds two strings into a path.
+public fun (/)(p1 : string, p2: string) : path {
+  p1.path / p2.path
+}
+
 // Return the first path if it is not empty, otherwise return the second one.
 public fun (||)(p1 : path, p2: path) : path {
   if (p1.is-empty) then p2 else p1
