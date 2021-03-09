@@ -24,7 +24,7 @@ infixr 60  (++)
 infixl 60  (+), (-)
 infix  40  (!=), (==), (<=), (>=), (<), (>)
 
-// prefix     (!), (-)
+// prefix     (!), (-) 
 
 
 include extern {

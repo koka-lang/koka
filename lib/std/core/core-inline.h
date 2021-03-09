@@ -97,5 +97,7 @@ kk_box_t kk_main_console( kk_function_t action, kk_context_t* ctx );
 kk_unit_t kk_assert_fail( kk_string_t msg, kk_context_t* ctx );
 
 struct kk_std_core_error_s;
-struct kk_std_core_error_s kk_error_from_errno( int err, kk_box_t result, kk_context_t* ctx );
+struct kk_std_core_error_s kk_error_ok( kk_box_t result, kk_context_t* ctx );
+struct kk_std_core_error_s kk_error_from_errno( int err, kk_context_t* ctx );
+
 
