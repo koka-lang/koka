@@ -30,7 +30,7 @@ fun file(fname,action) {
 }
 
 public fun main() {
-  with f1 = file("package.yaml")
-  with f2 = file("stack.yaml")
+  with f1 = file("packagex.yaml")
+  with f2 = file("stackx.yaml")
   println( f1.read-line() ++ "\n" ++ f2.read-line() )
 }
