@@ -18,6 +18,7 @@ import handlers/vec
 
 import named-handlers/ask
 import named-handlers/file
+import named-handlers/file-scoped
 import named-handlers/heap
 
 public fun main() {
