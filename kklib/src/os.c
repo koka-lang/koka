@@ -37,35 +37,35 @@ typedef struct _stat64  kk_stat_t;
 typedef struct stat     kk_stat_t;
 #endif
 
-static kk_file_t kk_posix_open(kk_string_t path, int mode, kk_context_t* ctx) {
-  kk_file_t f = 0;
+static int kk_posix_open(kk_string_t path, int mode, kk_file_t* f, kk_context_t* ctx) {
+  *f = 0;
 #ifdef WIN32
   kk_with_string_as_qutf16_borrow(path, wpath, ctx) {
-    f = _wopen(wpath, mode);
+    *f = _wopen(wpath, mode);
   }
 #else
   kk_with_string_as_qutf8_borrow(path, bpath, ctx) {
-    f = open(bpath, mode);
+    *f = open(bpath, mode);
   }
 #endif
   kk_string_drop(path,ctx);
-  return (f < 0 ? errno : f);
+  return (*f < 0 ? errno : 0);
 }
 
 #if !defined(WIN32)  // suppress warning
-static kk_file_t kk_posix_creat(kk_string_t path, int mode, kk_context_t* ctx) {
-  kk_file_t f = 0;
+static int kk_posix_creat(kk_string_t path, int mode, kk_file_t* f, kk_context_t* ctx) {
+  *f = 0;
 #ifdef WIN32
   kk_with_string_as_qutf16_borrow(path, wpath, ctx) {
-    f = _wcreat(wpath, mode);
+    *f = _wcreat(wpath, mode);
   }
 #else
   kk_with_string_as_qutf8_borrow(path, bpath, ctx) {
-    f = creat(bpath, mode);
+    *f = creat(bpath, mode);
   }
 #endif
   kk_string_drop(path, ctx);
-  return (f < 0 ? errno : f);
+  return (*f < 0 ? errno : 0);
 }
 #endif
 
@@ -180,11 +180,12 @@ static int kk_posix_write_retry(const kk_file_t out, const uint8_t* buf, const s
 
 kk_decl_export int kk_os_read_text_file(kk_string_t path, kk_string_t* result, kk_context_t* ctx)
 {
-  kk_file_t f = kk_posix_open(path, O_RDONLY, ctx);
-  if (f < 0) return errno;
+  kk_file_t f;
+  int err = kk_posix_open(path, O_RDONLY, &f, ctx);
+  if (err != 0) return err;
 
   size_t len;
-  int err = kk_posix_fsize(f, &len);
+  err = kk_posix_fsize(f, &len);
   if (err != 0) {
     kk_posix_close(f);
     return err;
@@ -209,12 +210,13 @@ kk_decl_export int kk_os_read_text_file(kk_string_t path, kk_string_t* result, k
 
 kk_decl_export int kk_os_write_text_file(kk_string_t path, kk_string_t content, kk_context_t* ctx)
 {
-  kk_file_t f = kk_posix_open(path, O_WRONLY, ctx);
-  if (f < 0) {
+  kk_file_t f;
+  int err = kk_posix_open(path, O_WRONLY, &f, ctx);
+  if (err != 0) {
     kk_string_drop(content, ctx);
-    return errno;
+    return err;
   }
-  int err = 0;
+  err = 0;
   size_t len;
   const uint8_t* buf = kk_string_buf_borrow(content, &len);
   if (len > 0) {
@@ -368,22 +370,23 @@ kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, bool prese
 
   // stat and create/overwrite target
   struct stat finfo = { 0 };
-  if ((inp = kk_posix_open(from, O_RDONLY, ctx)) < 0) {
+  int err = 0;
+  if ((err = kk_posix_open(from, O_RDONLY, &inp, ctx)) != 0) {
     kk_string_drop(to, ctx);
-    return errno;
+    return err;
   }
-  if (fstat(inp, &finfo) < 0) {
+  if ((err = kk_posix_fstat(inp, &finfo)) != 0) {
     close(inp);
     kk_string_drop(to, ctx);
-    return errno;
+    return err;
   }
-  if ((out = kk_posix_creat(to, finfo.st_mode, ctx)) < 0) {  // keep the mode
+  if ((err = kk_posix_creat(to, finfo.st_mode, &out, ctx)) != 0) {  // keep the mode
     close(inp);
-    return errno;
+    return err;
   }
   
   // copy contents
-  int err = 0;
+  err = 0;
 
 #if defined(__APPLE__)
   // macOS

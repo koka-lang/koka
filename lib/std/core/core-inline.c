@@ -281,35 +281,32 @@ struct kk_std_core_Sslice kk_slice_common_prefix( kk_string_t str1, kk_string_t 
 }
 
 
+kk_std_core__error kk_error_ok( kk_box_t result, kk_context_t* ctx ) {
+  return kk_std_core__new_Ok( result, ctx );
+}
 
-kk_std_core__error kk_error_from_errno( int err, kk_box_t result, kk_context_t* ctx ) {
-  if (err==0) {
-    return kk_std_core__new_Ok( result, ctx );
-  }
-  else {
-    kk_box_drop(result, ctx);
-    kk_string_t msg;
-    #if defined(_GNU_SOURCE) && !defined(__APPLE__) && !defined(__FreeBSD__)
-      // GNU version of strerror_r
-      char buf[256];
-      char* serr = strerror_r(err, buf, 255); buf[255] = 0;
-      msg = kk_string_alloc_from_qutf8( serr, ctx );
-    #elif (/* _POSIX_C_SOURCE >= 200112L ||*/ _XOPEN_SOURCE >= 600 || defined(__APPLE__) || defined(__FreeBSD__))
-      // XSI version of strerror_r
-      char buf[256];
-      strerror_r(err, buf, 255); buf[255] = 0;
-      msg = kk_string_alloc_from_qutf8( buf, ctx );
-    #elif defined(_MSC_VER) || (__STDC_VERSION__ >= 201112L || __cplusplus >= 201103L)
-      // MSVC, or C/C++ 11
-      char buf[256];
-      strerror_s(buf, 255, err); buf[255] = 0;
-      msg = kk_string_alloc_from_qutf8( buf, ctx );
-    #else
-      // Old style
-      msg = kk_string_alloc_from_qutf8( strerror(err), ctx );
-    #endif
-    return kk_std_core__new_Error( kk_std_core__new_Exception( msg, kk_std_core__new_ExnSystem(kk_reuse_null, kk_integer_from_int(err,ctx), ctx), ctx), ctx );
-  }
+kk_std_core__error kk_error_from_errno( int err, kk_context_t* ctx ) {  
+  kk_string_t msg;
+  #if defined(_GNU_SOURCE) && !defined(__APPLE__) && !defined(__FreeBSD__)
+    // GNU version of strerror_r
+    char buf[256];
+    char* serr = strerror_r(err, buf, 255); buf[255] = 0;
+    msg = kk_string_alloc_from_qutf8( serr, ctx );
+  #elif (/* _POSIX_C_SOURCE >= 200112L ||*/ _XOPEN_SOURCE >= 600 || defined(__APPLE__) || defined(__FreeBSD__))
+    // XSI version of strerror_r
+    char buf[256];
+    strerror_r(err, buf, 255); buf[255] = 0;
+    msg = kk_string_alloc_from_qutf8( buf, ctx );
+  #elif defined(_MSC_VER) || (__STDC_VERSION__ >= 201112L || __cplusplus >= 201103L)
+    // MSVC, or C/C++ 11
+    char buf[256];
+    strerror_s(buf, 255, err); buf[255] = 0;
+    msg = kk_string_alloc_from_qutf8( buf, ctx );
+  #else
+    // Old style
+    msg = kk_string_alloc_from_qutf8( strerror(err), ctx );
+  #endif
+  return kk_std_core__new_Error( kk_std_core__new_Exception( msg, kk_std_core__new_ExnSystem(kk_reuse_null, kk_integer_from_int(err,ctx), ctx), ctx), ctx );  
 }
 
 
