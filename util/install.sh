@@ -1,5 +1,7 @@
 #!/bin/sh -e
-VERSION="v2.0.18"
+#Installation script for Koka; use -h to see command line options.
+
+VERSION="v2.1.0"
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
