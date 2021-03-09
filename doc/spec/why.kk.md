@@ -187,7 +187,7 @@ and we can _resume_ with a result (which determines if we keep traversing):
 ```
 fun print-elems() : console () {
   with control yield(i){
-    println("yielded " + i.show)
+    println("yielded " ++ i.show)
     resume(i<=2)
   }
   traverse([1,2,3,4])

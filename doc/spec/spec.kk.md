@@ -371,8 +371,8 @@ write a long statement on multiple lines by using more indentation:
 ```
 fun eq2( x : int, y : int ) : io bool
 {  
-  print("calculate " +
-         "equ" +
+  print("calculate " ++
+         "equ" ++
          "ality")
   val result = if (x == y)
                 then True

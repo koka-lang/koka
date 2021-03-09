@@ -421,7 +421,7 @@ fun percent( n : int, m : int ) {
 }
 
 fun rotate( xs, n ) {
-  xs.drop(n) + xs.take(n)
+  xs.drop(n) ++ xs.take(n)
 }
 
 // Calculate a frequency table for a string
@@ -1387,7 +1387,7 @@ exceptional situations:
 
 ```
 fun catch-example() {
-  with catch fn(msg){ println("error: " + msg); 42 }
+  with catch fn(msg){ println("error: " ++ msg); 42 }
   safe-divide(1,0)
 }
 ```
@@ -1605,8 +1605,8 @@ consider two nested handlers for the `emit` operation:
 
 ```
 fun mask-emit() {
-  with fun emit(msg){ println("outer:" + msg) }
-  with fun emit(msg){ println("inner:" + msg) }
+  with fun emit(msg){ println("outer:" ++ msg) }
+  with fun emit(msg){ println("inner:" ++ msg) }
   emit("hi")
   mask<emit>{ emit("there") }
 }
@@ -1710,7 +1710,7 @@ overriding the behavour of `emit`:
 
 ```
 fun emit-quoted1( action : () -> <emit,emit|e> a ) : <emit|e> a {
-  with fun emit(msg){ emit("\"" + msg + "\"" ) }
+  with fun emit(msg){ emit("\"" ++ msg ++ "\"" ) }
   action()
 }
 ```
@@ -1725,7 +1725,7 @@ previous handler which is no longer accessible from `action`:
 
 ```
 fun emit-quoted2( action : () -> <emit|e> a ) : <emit|e> a {
-  with override fun emit(msg){ emit("\"" + msg + "\"" ) }
+  with override fun emit(msg){ emit("\"" ++ msg ++ "\"" ) }
   action()
 }
 ```
@@ -1814,7 +1814,7 @@ of the action in a singleton list:
 fun choice-all(action : () -> <choice|e> a) : e list<a> {
   with handler {
     return(x){ [x] }
-    control choice(){ resume(False) + resume(True) }
+    control choice(){ resume(False) ++ resume(True) }
   }
   action()
 }
