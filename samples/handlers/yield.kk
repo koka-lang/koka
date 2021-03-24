@@ -13,8 +13,7 @@ fun traverse( xs : list<int> ) : yield<int> () {
 
 fun main() : console () {
   with fun yield(i : int) {
-    println("yielded " + i.show)    
+    println("yielded " ++ i.show)
   }
   [1,2,3].traverse
 }
-
