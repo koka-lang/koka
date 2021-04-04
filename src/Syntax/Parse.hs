@@ -38,6 +38,7 @@ import Lib.PPrint hiding (string,parens,integer,semiBraces,lparen,comma,angles,r
 import qualified Lib.PPrint as PP (string)
 
 import Control.Monad (mzero)
+import Data.Monoid (Endo(..))
 import Text.Parsec hiding (space,tab,lower,upper,alphaNum,sourceName,optional)
 import Text.Parsec.Error
 import Text.Parsec.Pos           (newPos)
@@ -62,7 +63,7 @@ import Syntax.Promote ( promote, promoteType, quantify, promoteFree )
 -- Parser on token stream
 -----------------------------------------------------------
 
-type LexParser a  = Parsec [Lexeme] () a -- GenParser Lexeme () a
+type LexParser a  = Parsec [Lexeme] [Int] a -- GenParser Lexeme () a
 
 parseLex :: Lex -> LexParser Lexeme
 parseLex lex
@@ -111,13 +112,13 @@ lexParse semiInsert preprocess p sourceName line rawinput
         xs = lexing source line input
         lexemes = preprocess $ layout semiInsert xs
     in  -- trace  (unlines (map show lexemes)) $
-        case (parse (p source) sourceName lexemes) of
+        case (runParser (p source) [0..] sourceName lexemes) of
           Left err -> makeParseError (errorRangeLexeme xs source) err
           Right x  -> return x
 
 parseLexemes :: LexParser a -> Source -> [Lexeme] -> Error a
 parseLexemes p source@(Source sourceName _) lexemes
-  = case (parse p sourceName lexemes) of
+  = case (runParser p [0..] sourceName lexemes) of
       Left err -> makeParseError (errorRangeLexeme lexemes source) err
       Right x  -> return x
 
@@ -329,11 +330,13 @@ externDecl dvis
                          return (pars,args,tp,\body -> Ann body tp (getRange tp))
                       <|>
                       do tpars <- typeparams
-                         (pars,parRng) <- parameters (inline /= InlineAlways) {- allow defaults? -}
+                         (pars_transforms, parRng) <- parameters (inline /= InlineAlways) {- allow defaults? -}
+                         let (pars, transforms) = unzip pars_transforms
+                         let transform = appEndo $ foldMap Endo transforms
                          (teff,tres)   <- annotResult
                          let tp = typeFromPars nameRng pars teff tres
                          genParArgs tp -- checks the type
-                         return (pars,genArgs pars,tp,\body -> promote [] tpars [] (Just (Just teff, tres)) body)
+                         return (pars,genArgs pars,tp,\body -> promote [] tpars [] (Just (Just teff, tres)) (transform body))
                  (exprs,rng) <- externalBody
                  if (inline == InlineAlways)
                   then return [DefExtern (External name tp nameRng (combineRanges [krng,rng]) exprs vis doc)]
@@ -1154,13 +1157,14 @@ funDecl rng doc vis inline
 funDef :: LexParser ([TypeBinder UserKind],[ValueBinder (Maybe UserType) (Maybe UserExpr)], Range, Maybe (Maybe UserType, UserType),[UserType], UserExpr -> UserExpr)
 funDef
   = do tpars  <- typeparams
-       (pars,rng) <- parameters True
+       (pars_transforms,rng) <- parameters True
+       let (pars, transforms) = unzip pars_transforms
+       let transform = appEndo $ foldMap Endo transforms
        resultTp <- annotRes
        preds <- do keyword "with"
                    parens (many1 predicate)
                 <|> return []
-       return (tpars,pars,rng,resultTp,preds,id)
-
+       return (tpars,pars,rng,resultTp,preds,transform)
 
 annotRes :: LexParser (Maybe (Maybe UserType,UserType))
 annotRes
@@ -1180,17 +1184,48 @@ typeparams
   <|>
     do return []
 
-
-parameters :: Bool -> LexParser ([ValueBinder (Maybe UserType) (Maybe UserExpr)],Range)
+parameters :: Bool -> LexParser ([(ValueBinder (Maybe UserType) (Maybe UserExpr), UserExpr -> UserExpr)],Range)
 parameters allowDefaults
   = parensCommasRng (parameter allowDefaults)
 
-parameter :: Bool -> LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr))
-parameter allowDefaults
-  = do (name,rng) <- paramid
-       tp         <- optionMaybe typeAnnotPar
-       (opt,drng) <- if allowDefaults then defaultExpr else return (Nothing,rangeNull)
-       return (ValueBinder name tp opt rng (combineRanges [rng,getRange tp,drng]))
+makeName :: String -> LexParser Name
+makeName prefix = do
+  ~(x:xs) <- getState
+  putState xs
+  pure $ newName (prefix ++ "#" ++ show x)
+
+parameter :: Bool -> LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr), UserExpr -> UserExpr)
+parameter allowDefaults = do
+  (pat, tp) <- unwrapPattern <$> pattern
+  tp <- case tp of
+    Nothing -> optionMaybe typeAnnotPar
+    Just tp -> pure $ Just tp
+  case pat of
+    PatVar binder -> do
+      let name = binderName binder
+      let rng = binderRange binder
+      (opt,drng) <- if allowDefaults then defaultExpr else return (Nothing,rangeNull)
+      pure (ValueBinder name tp opt rng (combineRanges [rng,getRange tp,drng]), id)
+    PatWild rng -> do
+      -- todo: does this name matter?
+      let name = newName "_"
+      (opt,drng) <- if allowDefaults then defaultExpr else return (Nothing,rangeNull)
+      pure (ValueBinder name tp opt rng (combineRanges [rng,getRange tp,drng]), id)
+    pat -> do
+      (opt,drng) <- if allowDefaults then defaultExpr else return (Nothing,rangeNull)
+      let rng = rangeNull
+      name <- makeName "patternMatchFreshName"
+      let transform (Lam binders body rng) = Lam binders (Case (Var name False rng) [Branch pat [Guard guardTrue body]] rng) rng
+          transform (Ann body tp rng) = Ann (transform body) tp rng
+      pure $ (ValueBinder name tp opt rng (combineRanges [rng,getRange tp,drng]), transform)
+
+unwrapPattern :: UserPattern -> (UserPattern, Maybe UserType)
+unwrapPattern pat = case pat of
+  PatVar (ValueBinder name tp _ _ rng) -> (pat, tp)
+  PatWild rng -> (pat, Nothing)
+  -- todo: handle nested PatAnns?
+  PatAnn pat tp rng -> (pat, Just tp)
+  pat -> (pat, Nothing)
 
 paramid = identifier <|> wildcard
 
@@ -1338,11 +1373,9 @@ localUsingDecl
 withstat :: LexParser (UserExpr -> UserExpr)
 withstat
   = do krng <- keyword "with"
-       (do par  <- try $ do p <- parameter False
-                            keyword "="
-                            return p
-           e   <- basicexpr <|> handlerExprStat krng HandlerInstance
-           return (applyToContinuation krng [promoteValueBinder par] e)
+       (do (par, transform) <- try $ parameter False <* keyword "="
+           e <- basicexpr <|> handlerExprStat krng HandlerInstance
+           pure $ applyToContinuation krng [promoteValueBinder par] $ transform e
         <|>
         do e <- basicexpr <|> handlerExprStat krng HandlerNormal
            return (applyToContinuation krng [] e)
@@ -2680,8 +2713,7 @@ warnDeprecated dep new
        pwarning $ "warning " ++ show pos ++ ": keyword \"" ++ dep ++ "\" is deprecated. Consider using \"" ++ new ++ "\" instead."
 
 pwarning :: String -> LexParser ()
-pwarning msg
-    = trace msg (return ())   -- hmm, hacky trace...
+pwarning msg = traceM msg
 
 
 

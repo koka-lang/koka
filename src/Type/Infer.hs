@@ -13,7 +13,7 @@
 
 module Type.Infer (inferTypes, coreVarInfoFromNameInfo ) where
 
-import qualified Lib.Trace
+import Lib.Trace hiding (traceDoc)
 import Data.List(partition,sortBy,sortOn)
 import qualified Data.List(find)
 import Data.Ord(comparing)
@@ -71,10 +71,6 @@ import Core.BindingGroups( regroup )
 import Core.Simplify( uniqueSimplify )
 
 import qualified Syntax.RangeMap as RM
-
-trace s x =
-  Lib.Trace.trace s
-    x
 
 traceDoc fdoc = do penv <- getPrettyEnv
                    trace (show (fdoc penv)) $ return ()
