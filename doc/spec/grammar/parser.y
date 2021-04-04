@@ -373,10 +373,8 @@ parameters1 : parameters1 ',' parameter
             | parameter
             ;
 
-parameter   : paramid
-            | paramid ':' paramtype
-            | paramid ':' paramtype '=' expr
-            | paramid '=' expr
+parameter   : apattern
+            | apattern '=' expr
             ;
 
 paramid     : identifier
