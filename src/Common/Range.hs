@@ -147,6 +147,7 @@ startsWith bs s
   Source 
 --------------------------------------------------------------------------}  
 data Source = Source{ sourceName :: !FilePath, sourceBString :: !BString }
+  deriving (Show)
 
 instance Eq Source where
   (Source fname1 _) == (Source fname2 _)
