@@ -330,9 +330,7 @@ externDecl dvis
                          return (pars,args,tp,\body -> Ann body tp (getRange tp))
                       <|>
                       do tpars <- typeparams
-                         (pars_transforms, parRng) <- parameters (inline /= InlineAlways) {- allow defaults? -}
-                         let (pars, transforms) = unzip pars_transforms
-                         let transform = appEndo $ foldMap Endo transforms
+                         (pars, transform, parRng) <- parameters (inline /= InlineAlways) {- allow defaults? -}
                          (teff,tres)   <- annotResult
                          let tp = typeFromPars nameRng pars teff tres
                          genParArgs tp -- checks the type
@@ -1157,9 +1155,7 @@ funDecl rng doc vis inline
 funDef :: LexParser ([TypeBinder UserKind],[ValueBinder (Maybe UserType) (Maybe UserExpr)], Range, Maybe (Maybe UserType, UserType),[UserType], UserExpr -> UserExpr)
 funDef
   = do tpars  <- typeparams
-       (pars_transforms,rng) <- parameters True
-       let (pars, transforms) = unzip pars_transforms
-       let transform = appEndo $ foldMap Endo transforms
+       (pars, transform, rng) <- parameters True
        resultTp <- annotRes
        preds <- do keyword "with"
                    parens (many1 predicate)
@@ -1184,9 +1180,11 @@ typeparams
   <|>
     do return []
 
-parameters :: Bool -> LexParser ([(ValueBinder (Maybe UserType) (Maybe UserExpr), UserExpr -> UserExpr)],Range)
-parameters allowDefaults
-  = parensCommasRng (parameter allowDefaults)
+parameters :: Bool -> LexParser ([(ValueBinder (Maybe UserType) (Maybe UserExpr))], UserExpr -> UserExpr, Range)
+parameters allowDefaults = do
+  (results, rng) <- parensCommasRng (parameter allowDefaults)
+  let (binders, transforms) = unzip results
+  pure (binders, appEndo $ foldMap Endo transforms, rng)
 
 makeName :: String -> LexParser Name
 makeName prefix = do
@@ -1200,21 +1198,22 @@ parameter allowDefaults = do
   tp <- case tp of
     Nothing -> optionMaybe typeAnnotPar
     Just tp -> pure $ Just tp
+  (opt,drng) <- if allowDefaults then defaultExpr else return (Nothing,rangeNull)
+
+  -- is this the correct range, or should we use the inner range from the pattern?
+  let rng = getRange pat
   case pat of
     PatVar binder -> do
       let name = binderName binder
-      let rng = binderRange binder
-      (opt,drng) <- if allowDefaults then defaultExpr else return (Nothing,rangeNull)
       pure (ValueBinder name tp opt rng (combineRanges [rng,getRange tp,drng]), id)
     PatWild rng -> do
       -- todo: does this name matter?
       let name = newName "_"
-      (opt,drng) <- if allowDefaults then defaultExpr else return (Nothing,rangeNull)
       pure (ValueBinder name tp opt rng (combineRanges [rng,getRange tp,drng]), id)
     pat -> do
-      (opt,drng) <- if allowDefaults then defaultExpr else return (Nothing,rangeNull)
-      let rng = rangeNull
       name <- makeName "patternMatchFreshName"
+
+      -- transform (fun (pattern) { body }) --> fun(patternMatchFreshNameXXX) { match(patternMatchFreshNameXXX) { pattern -> body }}
       let transform (Lam binders body rng) = Lam binders (Case (Var name False rng) [Branch pat [Guard guardTrue body]] rng) rng
           transform (Ann body tp rng) = Ann (transform body) tp rng
       pure $ (ValueBinder name tp opt rng (combineRanges [rng,getRange tp,drng]), transform)
