@@ -71,6 +71,8 @@ allowDotIds lexs
       -- identifier
       (Lexeme r1 (LexKeyword "." _) : Lexeme r2 (LexId name) : lexx)
         -> allowDotIds (Lexeme (combineRange r1 r2) (LexId (prepend "." name)) : lexx)
+      (Lexeme r1 (LexKeyword "." _) : Lexeme r2 (LexWildCard name) : lexx)
+        -> allowDotIds (Lexeme (combineRange r1 r2) (LexWildCard (prepend "." name)) : lexx)
       (Lexeme r1 (LexId name) : Lexeme r2 (LexKeyword "." _) : Lexeme r3 (LexInt i _) : lexx)
         -> allowDotIds (Lexeme (combineRange r1 r3) (LexId (postpend ("." ++ show i) name)) : lexx)
 

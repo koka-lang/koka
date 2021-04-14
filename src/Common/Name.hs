@@ -246,8 +246,9 @@ mergeCommonPath mname name
 ----------------------------------------------------------------
 isWildcard name
   = case nameId name of
-      ('_':_) -> True
-      _       -> False
+      ('_':_)     -> True
+      ('.':'_':_) -> True
+      _           -> False
 
 isConstructorName name
   = case nameId name of
