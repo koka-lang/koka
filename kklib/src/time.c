@@ -54,7 +54,7 @@ static double kk_timer_ticks_prim(double* secs_frac, kk_context_t* ctx) {
   if (ctx->timer_freq == 0) {
     struct timespec tres = { 0, 0 };
     clock_getres(CLOCK_MONOTONIC, &tres);
-    if (tres.tv_sec == 0 && tres.tv_nsec > 0 && tres.tv_nsec <= KK_NSECS_PER_SEC && (tres.tv_nsec % KK_NSECS_PER_SEC) == 0) {
+    if (tres.tv_sec == 0 && tres.tv_nsec > 0 && tres.tv_nsec <= KK_NSECS_PER_SEC && (KK_NSECS_PER_SEC % tres.tv_nsec) == 0) {
       ctx->timer_freq = KK_NSECS_PER_SEC / tres.tv_nsec;
     }
     else {

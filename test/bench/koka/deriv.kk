@@ -72,10 +72,10 @@ fun count(e:expr) : int {
   match(e) {
     Val(_)   -> 1
     Var(_)   -> 1
-    Add(f,g) -> count(f) + count(g)
-    Mul(f,g) -> count(f) + count(g)
-    Pow(f,g) -> count(f) + count(g)
-    Ln(f)    -> count(f)
+    Add(f,g) -> count(f) + count(g) // + 1
+    Mul(f,g) -> count(f) + count(g) // + 1
+    Pow(f,g) -> count(f) + count(g) // + 1
+    Ln(f)    -> count(f) // + 1
   }
 }
 
@@ -92,7 +92,7 @@ fun nest(f,n,e) {
 
 fun deriv(i : int, f : expr) {
   val d = d("x",f)
-  println(show(i+1) ++ " count: " ++ count(d).show)
+  println(show(i+1) ++ " count: " ++ count(d).show) // ++ ", " ++ count(f).show)
   d
 }
 

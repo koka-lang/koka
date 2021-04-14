@@ -120,7 +120,7 @@ static inline kk_bytes_t kk_bytes_alloc_raw_len(size_t len, const uint8_t* p, bo
   return kk_datatype_from_base(&br->_base);
 }
 
-// Get access to the bytes via a poniter (and retrieve the length as well)
+// Get access to the bytes via a pointer (and retrieve the length as well)
 static inline const uint8_t* kk_bytes_buf_borrow(const kk_bytes_t b, size_t* len) {
   static const uint8_t empty[16] = { 0 };
   if (kk_datatype_is_singleton(b)) {

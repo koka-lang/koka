@@ -1,3 +1,4 @@
+# Create a docker image for running the benchmarks.
 # Build:
 # > docker build -t <mytag> .
 #
@@ -39,8 +40,10 @@ RUN echo debconf shared/accepted-oracle-license-v1-2 seen true | debconf-set-sel
 RUN apt-get install -y --no-install-recommends oracle-java15-installer
 RUN apt-get install -y --no-install-recommends oracle-java15-set-default
 RUN apt-get install -y --no-install-recommends libedit2 libz3-dev
+RUN apt-get install -y --no-install-recommends time
 WORKDIR /build/koka/test/bench
 RUN mkdir build
 WORKDIR /build/koka/test/bench/build
 RUN cmake .. -DCMAKE_BUILD_TYPE=Release
 RUN cmake --build .
+RUN echo "ulimit -s unlimited" >> ~/.bashrc 
