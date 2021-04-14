@@ -98,6 +98,7 @@ void printDecl( const char* sort, const char* name );
 /* ---------------------------------------------------------
 -- Program
 ----------------------------------------------------------*/
+
 program     : semis visibility MODULE modulepath moduledecl  { printDecl("module",$4); }
             | moduledecl                                     { printDecl("module","main"); }
             ;
@@ -603,6 +604,8 @@ qconstructor: conid
             ;
 
 qconid      : QCONID { $$ = $1; }
+            ;
+            
 conid       : CONID  { $$ = $1; }
             ;
 
