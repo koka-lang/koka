@@ -1,0 +1,9 @@
+6
+test/syntax/run/pattern_match_in_param.kk(1,29): f: pattern match failure
+1
+2
+1
+1
+test/syntax/run/pattern_match_in_param.kk(23, 7): k: pattern match failure
+1
+add default effect for std/core/exn

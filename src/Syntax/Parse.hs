@@ -1185,10 +1185,10 @@ parameters allowDefaults = do
   (results, rng) <- parensCommasRng (parameter allowDefaults)
   let (binders, transforms) = unzip results
       transform = appEndo $ foldMap Endo transforms  -- right-to-left so the left-most parameter matches first
-  pure (binders, transform, rng)  
+  pure (binders, transform, rng)
 
-makeUniqueName :: Range -> String -> Name
-makeUniqueName rng prefix = 
+uniqueHiddenName :: Range -> String -> Name
+uniqueHiddenName rng prefix =
   let pos  = rangeStart rng
       uniq = show (posLine pos) ++ "_" ++ show (posColumn pos)  
   in newHiddenName (prefix ++ "_" ++ uniq)
@@ -1201,29 +1201,29 @@ parameter allowDefaults = do
     Just tp -> pure $ Just tp
   (opt,drng) <- if allowDefaults then defaultExpr else return (Nothing,rangeNull)
 
-  -- is this the correct range, or should we use the inner range from the pattern?
-  let rng = getRange pat
-  case pat of                   -- PatParens (p) PatVar name (PatWild )             (_ as x)
-    PatVar binder -> do
+  let rng = case pat of
+       PatVar binder -> getRange (binderExpr binder)
+       _ -> getRange pat
+  case pat of
+    -- treat PatVar and PatWild as special cases to avoid unnecessary match expressions
+    PatVar binder | PatWild nameRng <- binderExpr binder -> do
       let name = binderName binder
-      pure (ValueBinder name tp opt rng (combineRanges [rng,getRange tp,drng]), id)
-    PatWild rng -> do
-      -- todo: does this name matter?
-      let name = newName "_"
-      pure (ValueBinder name tp opt rng (combineRanges [rng,getRange tp,drng]), id)
+      pure (ValueBinder name tp opt nameRng (combineRanges [rng, getRange tp, drng]), id)
+    PatWild nameRng -> do
+      let name = uniqueHiddenName nameRng "_wildcard"
+      pure (ValueBinder name tp opt nameRng (combineRanges [nameRng, getRange tp, drng]), id)
     pat -> do
-      -- transform (fun (pattern) { body }) --> fun(patternMatchFreshNameXXX) { match(patternMatchFreshNameXXX) { pattern -> body }}
-      let name = makeUniqueName rng "pat"
-          transform (Lam binders body rng) = Lam binders (Case (Var name False rng) [Branch pat [Guard guardTrue body]] rng) rng
+      -- transform (fun (pattern) { body }) --> fun(.pat_X_Y) { match(.pat_X_Y) { pattern -> body }}
+      let name = uniqueHiddenName rng "pat"
+          transform (Lam binders body lambdaRng) = Lam binders (Case (Var name False rng) [Branch pat [Guard guardTrue body]] rng) lambdaRng
           transform (Ann body tp rng) = Ann (transform body) tp rng
-      pure $ (ValueBinder name tp opt rng (combineRanges [rng,getRange tp,drng]), transform)
+      pure (ValueBinder name tp opt rng (combineRanges [rng,getRange tp,drng]), transform)
 
 unwrapPattern :: UserPattern -> (UserPattern, Maybe UserType)
 unwrapPattern pat = case pat of
   PatVar (ValueBinder name tp _ _ rng) -> (pat, tp)
-  PatWild rng -> (pat, Nothing)
-  -- todo: handle nested PatAnns?
-  PatAnn pat tp rng -> (pat, Just tp)
+  PatParens pat rng -> unwrapPattern pat
+  PatAnn pat tp rng -> (fst $ unwrapPattern pat, Just tp)
   pat -> (pat, Nothing)
 
 paramid = identifier <|> wildcard
@@ -1944,7 +1944,7 @@ patAs
            (id,rng) <- identifier
            return (PatVar (ValueBinder id Nothing p rng rng))
         <|>
-           return p) 
+           return p)
 
 patAtom :: LexParser UserPattern
 patAtom
@@ -2600,12 +2600,12 @@ modulepath
        return (newName (showPlain id), rng) -- return the entire module path as one identifier
   <?> "module path"
 
-wildcard:: LexParser (Name,Range)  
+wildcard :: LexParser (Name,Range)
 wildcard
   = do (Lexeme rng (LexWildCard id)) <- parseLex (LexWildCard nameNil)
        if (showPlain id == "_")
         then let p = rangeStart rng
-             in return (makeUniqueName rng "_w", rng)
+             in return (uniqueHiddenName rng "_w", rng)
         else return (id,rng)
   <?> "wildcard"
 
