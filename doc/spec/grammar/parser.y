@@ -191,7 +191,7 @@ inlineattr  : ID_INLINE
             ;
 
 externtype  : ':' typescheme
-            | typeparams '(' parameters ')' annotres
+            | typeparams '(' normalparams ')' annotres
             ;
 
 externbody  : '{' semis externstats1 '}'
@@ -366,18 +366,6 @@ funparam      : typeparams '(' parameters ')' annotres qualifier
             ;
 
 
-parameters  : parameters1
-            | /* empty */
-            ;
-
-parameters1 : parameters1 ',' parameter
-            | parameter
-            ;
-
-parameter   : apattern
-            | apattern '=' expr
-            ;
-
 paramid     : identifier
             | WILDCARD
             ;
@@ -530,6 +518,31 @@ argument    : expr
             | identifier '=' expr                  /* named arguments */
             ;
 
+/* parameters: separated by comma */
+
+parameters  : parameters1
+            | /* empty */
+            ;
+
+parameters1 : parameters1 ',' parameter
+            | parameter
+            ;
+
+parameter   : apattern
+            | apattern '=' expr
+            ;
+
+normalparams : normalparams1
+             | /* empty */
+
+normalparams1 : normalparams1 ',' normalparam
+              | normalparam
+              ;
+
+normalparam : paramid
+            | paramid ':' paramtype
+            | paramid ':' paramtype '=' expr
+            | paramid '=' expr
 
 /* annotated expressions: separated or terminated by comma */
 
