@@ -29,12 +29,30 @@ fun l((x : (_, _, _)) : (_, _, _)) : total _ {
 }
 
 public fun main() {
+    "f(2, [1], Just([2, 3]))\t-> ".print
     f(2, [1], Just([2, 3])).println
-    (fn() { f(1, [1], Nothing).show }).try(show).println
+
+    "f(1, [1], Just([1]))\t-> ".print
+    (fn() { f(1, [1], Just([1])).show }).try(show).println
+
+    "g(1, 2)\t\t\t-> ".print
     g(1, 2).println
+
+    "h([2,3])\t\t-> ".print
     h([2,3]).println
+
+    "h()\t\t\t-> ".print
+    h().println
+
+    "i(0)\t\t\t-> ".print
     i(0).println
+
+    "j(0)\t\t\t-> ".print
     j(0).println
+
+    "k([])\t\t\t-> ".print
     (fn() { k([]).show }).try(show).println
+
+    "l((1, 2, 3))\t\t-> ".print
     l((1, 2, 3)).println
 }
