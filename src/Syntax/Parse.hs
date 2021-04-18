@@ -63,7 +63,7 @@ import Syntax.Promote ( promote, promoteType, quantify, promoteFree )
 -- Parser on token stream
 -----------------------------------------------------------
 
-type LexParser a  = Parsec [Lexeme] [Int] a -- GenParser Lexeme () a
+type LexParser a  = Parsec [Lexeme] () a -- GenParser Lexeme () a
 
 parseLex :: Lex -> LexParser Lexeme
 parseLex lex
@@ -112,13 +112,13 @@ lexParse semiInsert preprocess p sourceName line rawinput
         xs = lexing source line input
         lexemes = preprocess $ layout semiInsert xs
     in  -- trace  (unlines (map show lexemes)) $
-        case (runParser (p source) [0..] sourceName lexemes) of
+        case (parse (p source) sourceName lexemes) of
           Left err -> makeParseError (errorRangeLexeme xs source) err
           Right x  -> return x
 
 parseLexemes :: LexParser a -> Source -> [Lexeme] -> Error a
 parseLexemes p source@(Source sourceName _) lexemes
-  = case (runParser p [0..] sourceName lexemes) of
+  = case (parse p sourceName lexemes) of
       Left err -> makeParseError (errorRangeLexeme lexemes source) err
       Right x  -> return x
 
