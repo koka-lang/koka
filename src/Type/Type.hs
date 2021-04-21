@@ -64,7 +64,7 @@ module Type.Type (-- * Types
                   -- ** Trivial conversion
                   , IsType( toType)
                   -- ** Primitive
-                  , isFun, splitFunType, splitFunScheme
+                  , isFun, splitFunType, splitFunTypeThroughForall, splitFunScheme
                   , getTypeArities
                   , module Common.Name
                   ) where
@@ -457,6 +457,20 @@ splitFunType tp
       TSyn _ _ t
         -> splitFunType t
       _ -> Nothing
+
+-- | split a function type that may be wrapped by a forall into the forall
+-- | (if it's there) and the function's arguments, effect, and result type
+splitFunTypeThroughForall :: Type -> Maybe ( Maybe ([TypeVar], [Pred])
+                                           , [(Name,Type)], Type, Type)
+splitFunTypeThroughForall tp
+  = case tp of
+      TForall vars preds inner
+        -> do
+             (params, effect, result) <- splitFunType inner
+             return (Just (vars, preds), params, effect, result)
+      _ -> do
+             (params, effect, result) <- splitFunType tp
+             return (Nothing, params, effect, result)
 
 
 {--------------------------------------------------------------------------

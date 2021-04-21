@@ -503,7 +503,7 @@ genTypeDefPost (Data info isExtend)
 
        -- generate functions for the datatype (box/unbox)
        genBoxUnbox name info dataRepr
-  where    
+  where
     ppStructConField con
       = text "struct" <+> ppName ((conInfoName con)) <+> ppName (unqualify (conInfoName con)) <.> semi
 
@@ -1600,10 +1600,23 @@ genPure expr
                    InfoExternal formats -> genInlineExternal name formats []
                    _ -> return (ppName (getName name))
      Con name info
-       | getName name == nameTrue -> return (text "true")
+       | getName name == nameTrue  -> return (text "true")
        | getName name == nameFalse -> return (text "false")
        | getName name == nameUnit  -> return (text "kk_Unit")
-       | otherwise -> return (conCreateName (getName name) <.> arguments [])
+       | otherwise -> case splitFunTypeThroughForall (tnameType name) of
+                        -- If this constructor takes parameters, we need to wrap
+                        -- it in a lambda so it can be passed around as a
+                        -- first-class value.
+                        -- This is used for constructors like `Cons` and `Just`.
+                        Just (_, params, eff, _)
+                          -> let tparams = map (\(name,tp) -> TName name tp) params
+                                 paramVars = map (\tname -> Var tname InfoNone) tparams
+                                 conApp = App expr paramVars
+                             in genPure (Lam tparams eff conApp)
+                        -- Otherwise, if it does not have a function type, we
+                        -- assume that it's a singleton (such as `Nil`) that
+                        -- takes no arguments.
+                        Nothing -> return $ conCreateName (getName name) <.> arguments []
      Lit l
        -> return $ ppLit l
      Lam params eff body
