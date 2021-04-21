@@ -37,15 +37,15 @@ typedef struct _stat64  kk_stat_t;
 typedef struct stat     kk_stat_t;
 #endif
 
-static int kk_posix_open(kk_string_t path, int mode, kk_file_t* f, kk_context_t* ctx) {
+static int kk_posix_open(kk_string_t path, int flags, int create_perm, kk_file_t* f, kk_context_t* ctx) {
   *f = 0;
 #ifdef WIN32
   kk_with_string_as_qutf16_borrow(path, wpath, ctx) {
-    *f = _wopen(wpath, mode);
+    *f = _wopen(wpath, flags, create_perm);
   }
 #else
   kk_with_string_as_qutf8_borrow(path, bpath, ctx) {
-    *f = open(bpath, mode);
+    *f = open(bpath, flags, create_perm);
   }
 #endif
   kk_string_drop(path,ctx);
@@ -53,15 +53,15 @@ static int kk_posix_open(kk_string_t path, int mode, kk_file_t* f, kk_context_t*
 }
 
 #if !defined(WIN32)  // suppress warning
-static int kk_posix_creat(kk_string_t path, int mode, kk_file_t* f, kk_context_t* ctx) {
+static int kk_posix_creat(kk_string_t path, int perm, kk_file_t* f, kk_context_t* ctx) {
   *f = 0;
 #ifdef WIN32
   kk_with_string_as_qutf16_borrow(path, wpath, ctx) {
-    *f = _wcreat(wpath, mode);
+    *f = _wcreat(wpath, perm);
   }
 #else
   kk_with_string_as_qutf8_borrow(path, bpath, ctx) {
-    *f = creat(bpath, mode);
+    *f = creat(bpath, perm);
   }
 #endif
   kk_string_drop(path, ctx);
@@ -181,7 +181,7 @@ static int kk_posix_write_retry(const kk_file_t out, const uint8_t* buf, const s
 kk_decl_export int kk_os_read_text_file(kk_string_t path, kk_string_t* result, kk_context_t* ctx)
 {
   kk_file_t f;
-  int err = kk_posix_open(path, O_RDONLY, &f, ctx);
+  int err = kk_posix_open(path, O_RDONLY, 0, &f, ctx);
   if (err != 0) return err;
 
   size_t len;
@@ -211,7 +211,7 @@ kk_decl_export int kk_os_read_text_file(kk_string_t path, kk_string_t* result, k
 kk_decl_export int kk_os_write_text_file(kk_string_t path, kk_string_t content, kk_context_t* ctx)
 {
   kk_file_t f;
-  int err = kk_posix_open(path, O_WRONLY, &f, ctx);
+  int err = kk_posix_open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644, &f, ctx);
   if (err != 0) {
     kk_string_drop(content, ctx);
     return err;
@@ -371,7 +371,7 @@ kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, bool prese
   // stat and create/overwrite target
   struct stat finfo = { 0 };
   int err = 0;
-  if ((err = kk_posix_open(from, O_RDONLY, &inp, ctx)) != 0) {
+  if ((err = kk_posix_open(from, O_RDONLY, 0, &inp, ctx)) != 0) {
     kk_string_drop(to, ctx);
     return err;
   }
