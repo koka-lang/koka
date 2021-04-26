@@ -1935,8 +1935,11 @@ pattern
   = patAnn
 
 patAnn
-  = do p <- patAs
-       maybeTypeAnnot p (\tp -> PatAnn p tp (combineRanged p tp))
+  = do p <- patAtom
+       maybeTypeAnnot p (\tp -> case p of
+                                  PatVar (ValueBinder name Nothing npat rng1 rng2)
+                                    -> PatVar (ValueBinder name (Just tp) npat rng1 rng2)
+                                  _ -> PatAnn p tp (combineRanged p tp))
 
 patAs
   = do p <- patAtom
@@ -1953,8 +1956,12 @@ patAtom
        return (PatCon name ps rng (combineRanged rng r))
   <|>
     do (name,rng) <- identifier
-       tp <- optionMaybe typeAnnot
-       return (PatVar (ValueBinder name tp (PatWild rng) rng (combineRanged rng tp)))  -- could still be singleton constructor
+       (do keyword "as" 
+           p <- pattern
+           return (PatVar (ValueBinder name Nothing p rng (combineRanged rng p)))
+        <|>
+        return (PatVar (ValueBinder name Nothing (PatWild rng) rng rng)) 
+        )
   <|>
     do (_,range) <- wildcard
        return (PatWild range)

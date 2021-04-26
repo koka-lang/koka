@@ -191,7 +191,7 @@ inlineattr  : ID_INLINE
             ;
 
 externtype  : ':' typescheme
-            | typeparams '(' normalparams ')' annotres
+            | typeparams '(' parameters ')' annotres
             ;
 
 externbody  : '{' semis externstats1 '}'
@@ -337,9 +337,9 @@ operations  : operations operation semis1
             ;
 
 operation   : visibility VAL identifier typeparams ':' tatomic
-            | visibility FUN identifier typeparams '(' parameters ')' ':' tatomic
-            | visibility EXCEPT identifier typeparams '(' parameters ')' ':' tatomic
-            | visibility CONTROL identifier typeparams '(' parameters ')' ':' tatomic
+            | visibility FUN identifier typeparams '(' pparameters ')' ':' tatomic
+            | visibility EXCEPT identifier typeparams '(' pparameters ')' ':' tatomic
+            | visibility CONTROL identifier typeparams '(' pparameters ')' ':' tatomic
             ;
 
 
@@ -362,7 +362,7 @@ funid       : identifier         { $$ = $1; }
             | STRING             { $$ = $1; }
             ;
 
-funparam      : typeparams '(' parameters ')' annotres qualifier
+funparam    : typeparams '(' pparameters ')' annotres qualifier
             ;
 
 
@@ -528,21 +528,27 @@ parameters1 : parameters1 ',' parameter
             | parameter
             ;
 
-parameter   : apattern
-            | apattern '=' expr
-            ;
-
-normalparams : normalparams1
-             | /* empty */
-
-normalparams1 : normalparams1 ',' normalparam
-              | normalparam
-              ;
-
-normalparam : paramid
+parameter   : paramid
             | paramid ':' paramtype
             | paramid ':' paramtype '=' expr
             | paramid '=' expr
+
+
+/* pattern matching parameters: separated by comma */
+
+pparameters : pparameters1
+            | /* empty */
+
+pparameters1: pparameters1 ',' pparameter
+            | pparameter
+            ;
+
+pparameter  : pattern 
+            | pattern ':' paramtype
+            | pattern ':' paramtype '=' expr
+            | pattern '=' expr
+            ;
+
 
 /* annotated expressions: separated or terminated by comma */
 
@@ -658,15 +664,15 @@ apatterns1  : apatterns1 ',' apattern
             | apattern
             ;
 
-apattern    : pattern annot                      /* annotated pattern */
+apattern    : pattern annot                    /* annotated pattern */
             ;
 
 pattern     : identifier
+            | identifier AS pattern              /* named pattern */
             | conid
             | conid '(' patargs ')'
             | '(' apatterns ')'                  /* unit, parenthesized, and tuple pattern */
             | '[' apatterns ']'                  /* list pattern */
-            | apattern AS identifier             /* named pattern */
             | literal
             | WILDCARD
             ;
@@ -727,27 +733,27 @@ opclausex   : ID_FINALLY bodyexpr
 
 opclause    : VAL qidentifier '=' expr
             | VAL qidentifier ':' type '=' expr
-            | FUN qidentifier opargs bodyexpr
-            | EXCEPT qidentifier opargs bodyexpr
-            | CONTROL qidentifier opargs bodyexpr
-            | RCONTROL qidentifier opargs bodyexpr
-            | RETURN '(' oparg ')' bodyexpr
+            | FUN qidentifier opparams bodyexpr
+            | EXCEPT qidentifier opparams bodyexpr
+            | CONTROL qidentifier opparams bodyexpr
+            | RCONTROL qidentifier opparams bodyexpr
+            | RETURN '(' opparam ')' bodyexpr
             | RETURN paramid bodyexpr               /* deprecated */
             ;
 
-opargs      : '(' opargs0 ')'
+opparams    : '(' opparams0 ')'
             | /* empty */
             ;
 
-opargs0     : opargs1
+opparams0   : opparams1
             | /* empty */
             ;
 
-opargs1     : opargs1 ',' oparg
-            | oparg
+opparams1   : opparams1 ',' opparam
+            | opparam
             ;
 
-oparg       : paramid
+opparam     : paramid
             | paramid ':' type
             ;
 

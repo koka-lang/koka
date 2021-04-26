@@ -849,7 +849,7 @@ fun last( xs : list<a>, default : a ) : a
 // Return an empty list for an empty list.
 fun init( xs : list<a> ) : list<a> {
   match(xs) {
-    Cons(x,Cons as xx) -> Cons(x,init(xx))
+    Cons(x, xx as Cons) -> Cons(x,init(xx))
     _ -> Nil
   }
 }
