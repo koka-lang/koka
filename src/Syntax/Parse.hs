@@ -331,26 +331,27 @@ externDecl dvis
                          return (pars,args,tp,\body -> Ann body tp (getRange tp))
                       <|>
                       do tpars <- typeparams
-                         (pars, transform, parRng) <- parameters (inline /= InlineAlways) {- allow defaults? -}
+                         (pars, parRng) <- declParams (inline /= InlineAlways) {- allow defaults? -}
                          (teff,tres)   <- annotResult
                          let tp = typeFromPars nameRng pars teff tres
+                             lift :: ValueBinder UserType (Maybe UserExpr) -> ValueBinder (Maybe UserType) (Maybe UserExpr)
+                             lift (ValueBinder name tp expr rng1 rng2) = ValueBinder name (Just tp) expr rng1 rng2
                          genParArgs tp -- checks the type
-                         return (pars,genArgs pars,tp,\body -> promote [] tpars [] (Just (Just teff, tres)) (transform body))
+                         return (map lift pars,genArgs pars,tp,\body -> promote [] tpars [] (Just (Just teff, tres)) body)
                  (exprs,rng) <- externalBody
                  if (inline == InlineAlways)
                   then return [DefExtern (External name tp nameRng (combineRanges [krng,rng]) exprs vis doc)]
                   else do let  externName = newHiddenExternalName name
                                fullRng    = combineRanges [krng,rng]
                                extern     = External externName tp (before nameRng) (before fullRng) exprs Private doc
-
                                body       = annotate (Lam pars (App (Var externName False rangeNull) args fullRng) fullRng)
                                binder     = ValueBinder name () body nameRng fullRng
                                extfun     = Def binder fullRng vis defFun InlineNever doc
                           return [DefExtern extern, DefValue extfun]
   where
-    typeFromPars :: Range -> [ValueBinder (Maybe UserType) (Maybe UserExpr)] -> UserType -> UserType -> UserType
+    typeFromPars :: Range -> [ValueBinder UserType (Maybe UserExpr)] -> UserType -> UserType -> UserType
     typeFromPars rng pars teff tres
-      = promoteType $ TpFun [(binderName p, tp) | p <- pars, let Just tp = binderType p] teff tres rng
+      = promoteType $ TpFun [(binderName p, binderType p) | p <- pars] teff tres rng
 
     genArgs pars
       = [(Nothing,Var (binderName p) False (before (getRange p))) | p <- pars]
@@ -706,7 +707,7 @@ bindExprToVal opname oprange expr
 
 -- OpDecl (doc,id,kwdrng,idrng,exists0,pars,prng,mbteff,tres)
 newtype OpDecl = OpDecl (String, Name, Range, Range, Bool {-linear-}, OperationSort, [TypeBinder UserKind],
-                               [(Visibility, ValueBinder UserType (Maybe UserExpr))],
+                               [(ValueBinder UserType (Maybe UserExpr))],
                                Range, (Maybe UserType), UserType)
 
 -- EffectDeclHeader
@@ -942,7 +943,7 @@ parseFunOpDecl linear vis =
                                 else return (rdoc,OpControl)
      (id,idrng)   <- identifier
      exists0      <- typeparams
-     (pars,prng)  <- conPars vis
+     (pars,prng)  <- declParams True
      keyword ":"
      (mbteff,tres) <- tresult
      _ <- case mbteff of
@@ -952,6 +953,17 @@ parseFunOpDecl linear vis =
                     fail "an explicit effect in result type of an operation is not allowed (yet)"
      return $ -- trace ("parsed operation " ++ show id ++ " : (" ++ show tres ++ ") " ++ show exists0 ++ " " ++ show pars ++ " " ++ show mbteff) $
               OpDecl (doc,id,rng0,idrng,False{-linear-},opSort,exists0,pars,prng,mbteff,tres)
+
+
+declParams :: Bool -> LexParser ([ValueBinder UserType (Maybe UserExpr)],Range)
+declParams allowDefaults
+  = parensCommasRng paramBinder
+  where
+    paramBinder 
+       = do (name,rng,tp) <- paramType
+            (opt,drng)    <- if allowDefaults then defaultExpr else return (Nothing,rangeNull)
+            return (ValueBinder name tp opt rng (combineRanges [rng,getRange tp,drng]))
+      <?> "parameter"
 
 
 -- smart constructor for operations
@@ -988,7 +1000,7 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effNa
 
 
            exists   = if (not (null exists0)) then exists0
-                       else promoteFree foralls (map (binderType . snd) pars ++ [teff0,tres])
+                       else promoteFree foralls (map (binderType) pars ++ [teff0,tres])
            -- for now add a divergence effect to named effects/resources when there are type variables...
            -- this is too conservative though; we should generate the `ediv` constraint instead but
            -- that is a TODO for now
@@ -1011,10 +1023,10 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effNa
            clauseId    = makeClauseFieldName opSort id
            (clauseName,clauseParsTp)
                        = if (length pars <= 2) -- set by std/core/hnd
-                          then (nameTpClause (length pars), [binderType par | (vis,par) <- pars])
+                          then (nameTpClause (length pars), [binderType par | (par) <- pars])
                           else (nameTpClause 1,
                                 [makeTpApp (TpCon (nameTuple (length pars)) krng)    -- as tuple on clause1
-                                           [binderType par | (vis,par) <- pars] krng])
+                                           [binderType par | (par) <- pars] krng])
 
            clauseRhoTp = makeTpApp (TpCon clauseName krng)
                                    (clauseParsTp ++ [tres]
@@ -1076,7 +1088,7 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effNa
                         resourceBinder = ValueBinder resourceName effTp  Nothing krng grng
                         perform        = Var (namePerform (length pars)) False krng
 
-                        params0   = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | (_,par) <- pars] -- TODO: visibility?
+                        params0   = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | par <- pars] -- TODO: visibility?
                         params    = (if (isInstance) then [resourceBinder] else []) ++ params0
                         arguments = [(Nothing,Var (binderName par) False (binderNameRange par)) | par <- params0]
 
@@ -1935,13 +1947,6 @@ patAnn
                                     -> PatVar (ValueBinder name (Just tp) npat rng1 rng2)
                                   _ -> PatAnn p tp (combineRanged p tp))
 
-patAs
-  = do p <- patAtom
-       (do keyword "as"
-           (id,rng) <- identifier
-           return (PatVar (ValueBinder id Nothing p rng rng))
-        <|>
-           return p)
 
 patAtom :: LexParser UserPattern
 patAtom
