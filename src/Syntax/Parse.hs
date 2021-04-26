@@ -38,6 +38,7 @@ import Lib.PPrint hiding (string,parens,integer,semiBraces,lparen,comma,angles,r
 import qualified Lib.PPrint as PP (string)
 
 import Control.Monad (mzero)
+import Data.Monoid (Endo(..))
 import Text.Parsec hiding (space,tab,lower,upper,alphaNum,sourceName,optional)
 import Text.Parsec.Error
 import Text.Parsec.Pos           (newPos)
@@ -329,11 +330,11 @@ externDecl dvis
                          return (pars,args,tp,\body -> Ann body tp (getRange tp))
                       <|>
                       do tpars <- typeparams
-                         (pars,parRng) <- parameters (inline /= InlineAlways) {- allow defaults? -}
+                         (pars, transform, parRng) <- parameters (inline /= InlineAlways) {- allow defaults? -}
                          (teff,tres)   <- annotResult
                          let tp = typeFromPars nameRng pars teff tres
                          genParArgs tp -- checks the type
-                         return (pars,genArgs pars,tp,\body -> promote [] tpars [] (Just (Just teff, tres)) body)
+                         return (pars,genArgs pars,tp,\body -> promote [] tpars [] (Just (Just teff, tres)) (transform body))
                  (exprs,rng) <- externalBody
                  if (inline == InlineAlways)
                   then return [DefExtern (External name tp nameRng (combineRanges [krng,rng]) exprs vis doc)]
@@ -1154,13 +1155,12 @@ funDecl rng doc vis inline
 funDef :: LexParser ([TypeBinder UserKind],[ValueBinder (Maybe UserType) (Maybe UserExpr)], Range, Maybe (Maybe UserType, UserType),[UserType], UserExpr -> UserExpr)
 funDef
   = do tpars  <- typeparams
-       (pars,rng) <- parameters True
+       (pars, transform, rng) <- parameters True
        resultTp <- annotRes
        preds <- do keyword "with"
                    parens (many1 predicate)
                 <|> return []
-       return (tpars,pars,rng,resultTp,preds,id)
-
+       return (tpars,pars,rng,resultTp,preds,transform)
 
 annotRes :: LexParser (Maybe (Maybe UserType,UserType))
 annotRes
@@ -1180,17 +1180,51 @@ typeparams
   <|>
     do return []
 
+parameters :: Bool -> LexParser ([(ValueBinder (Maybe UserType) (Maybe UserExpr))], UserExpr -> UserExpr, Range)
+parameters allowDefaults = do
+  (results, rng) <- parensCommasRng (parameter allowDefaults)
+  let (binders, transforms) = unzip results
+      transform = appEndo $ foldMap Endo transforms  -- right-to-left so the left-most parameter matches first
+  pure (binders, transform, rng)
 
-parameters :: Bool -> LexParser ([ValueBinder (Maybe UserType) (Maybe UserExpr)],Range)
-parameters allowDefaults
-  = parensCommasRng (parameter allowDefaults)
+uniqueHiddenName :: Range -> String -> Name
+uniqueHiddenName rng prefix =
+  let pos  = rangeStart rng
+      uniq = show (posLine pos) ++ "_" ++ show (posColumn pos)  
+  in newHiddenName (prefix ++ "_" ++ uniq)
 
-parameter :: Bool -> LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr))
-parameter allowDefaults
-  = do (name,rng) <- paramid
-       tp         <- optionMaybe typeAnnotPar
-       (opt,drng) <- if allowDefaults then defaultExpr else return (Nothing,rangeNull)
-       return (ValueBinder name tp opt rng (combineRanges [rng,getRange tp,drng]))
+parameter :: Bool -> LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr), UserExpr -> UserExpr)
+parameter allowDefaults = do
+  (pat, tp) <- unwrapPattern <$> pattern
+  tp <- case tp of
+    Nothing -> optionMaybe typeAnnotPar
+    Just tp -> pure $ Just tp
+  (opt,drng) <- if allowDefaults then defaultExpr else return (Nothing,rangeNull)
+
+  let rng = case pat of
+       PatVar binder -> getRange (binderExpr binder)
+       _ -> getRange pat
+  case pat of
+    -- treat PatVar and PatWild as special cases to avoid unnecessary match expressions
+    PatVar binder | PatWild nameRng <- binderExpr binder -> do
+      let name = binderName binder
+      pure (ValueBinder name tp opt nameRng (combineRanges [rng, getRange tp, drng]), id)
+    PatWild nameRng -> do
+      let name = uniqueHiddenName nameRng "_wildcard"
+      pure (ValueBinder name tp opt nameRng (combineRanges [nameRng, getRange tp, drng]), id)
+    pat -> do
+      -- transform (fun (pattern) { body }) --> fun(.pat_X_Y) { match(.pat_X_Y) { pattern -> body }}
+      let name = uniqueHiddenName rng "pat"
+          transform (Lam binders body lambdaRng) = Lam binders (Case (Var name False rng) [Branch pat [Guard guardTrue body]] rng) lambdaRng
+          transform (Ann body tp rng) = Ann (transform body) tp rng
+      pure (ValueBinder name tp opt rng (combineRanges [rng,getRange tp,drng]), transform)
+
+unwrapPattern :: UserPattern -> (UserPattern, Maybe UserType)
+unwrapPattern pat = case pat of
+  PatVar (ValueBinder name tp _ _ rng) -> (pat, tp)
+  PatParens pat rng -> unwrapPattern pat
+  PatAnn pat tp rng -> (fst $ unwrapPattern pat, Just tp)
+  pat -> (pat, Nothing)
 
 paramid = identifier <|> wildcard
 
@@ -1338,11 +1372,9 @@ localUsingDecl
 withstat :: LexParser (UserExpr -> UserExpr)
 withstat
   = do krng <- keyword "with"
-       (do par  <- try $ do p <- parameter False
-                            keyword "="
-                            return p
-           e   <- basicexpr <|> handlerExprStat krng HandlerInstance
-           return (applyToContinuation krng [promoteValueBinder par] e)
+       (do (par, transform) <- try $ parameter False <* keyword "="
+           e <- basicexpr <|> handlerExprStat krng HandlerInstance
+           pure $ applyToContinuation krng [promoteValueBinder par] $ transform e
         <|>
         do e <- basicexpr <|> handlerExprStat krng HandlerNormal
            return (applyToContinuation krng [] e)
@@ -2568,12 +2600,12 @@ modulepath
        return (newName (showPlain id), rng) -- return the entire module path as one identifier
   <?> "module path"
 
-wildcard:: LexParser (Name,Range)
+wildcard :: LexParser (Name,Range)
 wildcard
   = do (Lexeme rng (LexWildCard id)) <- parseLex (LexWildCard nameNil)
        if (showPlain id == "_")
         then let p = rangeStart rng
-             in return (newName ("_l" ++ show (posLine p) ++ "-c" ++ show (posColumn p)), rng)
+             in return (uniqueHiddenName rng "_w", rng)
         else return (id,rng)
   <?> "wildcard"
 
@@ -2680,8 +2712,7 @@ warnDeprecated dep new
        pwarning $ "warning " ++ show pos ++ ": keyword \"" ++ dep ++ "\" is deprecated. Consider using \"" ++ new ++ "\" instead."
 
 pwarning :: String -> LexParser ()
-pwarning msg
-    = trace msg (return ())   -- hmm, hacky trace...
+pwarning msg = traceM msg
 
 
 

@@ -1215,7 +1215,7 @@ void printToken( int token, int state, yyscan_t scanner )
     case FLOAT:     fprintf(stderr,"FLOAT = '%g'", yylval->Float); break;
     case CHAR:      fprintf(stderr,"CHAR  = '%s'", showChar(yylval->Char,scanner)); break;
     case SEMI:      fprintf(stderr,";     = (inserted)"); break;
-    case STRING:    fprintf(stderr,"STRING(%u) = %s", strlen(yylval->String), showString(yylval->String,scanner)); break;
+    case STRING:    fprintf(stderr,"STRING(%zu) = %s", strlen(yylval->String), showString(yylval->String,scanner)); break;
     default: {
       if (token >= ' ' && token <= '~')
         fprintf(stderr,"%c", token);
