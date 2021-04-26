@@ -50,6 +50,7 @@ import Common.File
 import Platform.Config
 import Platform.Runtime( unsafePerformIO, exCatch )
 import Common.Error
+import Common.Failure (failure)
 import Common.Syntax
 import Common.ResumeKind
 
@@ -1195,36 +1196,29 @@ uniqueHiddenName rng prefix =
 
 parameter :: Bool -> LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr), UserExpr -> UserExpr)
 parameter allowDefaults = do
-  (pat, tp) <- unwrapPattern <$> pattern
-  tp <- case tp of
-    Nothing -> optionMaybe typeAnnotPar
-    Just tp -> pure $ Just tp
+  pat <- patAtom
+  tp  <- optionMaybe typeAnnotPar
   (opt,drng) <- if allowDefaults then defaultExpr else return (Nothing,rangeNull)
 
   let rng = case pat of
-       PatVar binder -> getRange (binderExpr binder)
-       _ -> getRange pat
+              PatVar binder -> getRange (binderExpr binder)
+              _ -> getRange pat
+      binder name nameRng = ValueBinder name tp opt nameRng (combineRanges [rng, getRange tp, drng])
   case pat of
     -- treat PatVar and PatWild as special cases to avoid unnecessary match expressions
-    PatVar binder | PatWild nameRng <- binderExpr binder -> do
-      let name = binderName binder
-      pure (ValueBinder name tp opt nameRng (combineRanges [rng, getRange tp, drng]), id)
-    PatWild nameRng -> do
-      let name = uniqueHiddenName nameRng "_wildcard"
-      pure (ValueBinder name tp opt nameRng (combineRanges [nameRng, getRange tp, drng]), id)
-    pat -> do
-      -- transform (fun (pattern) { body }) --> fun(.pat_X_Y) { match(.pat_X_Y) { pattern -> body }}
-      let name = uniqueHiddenName rng "pat"
-          transform (Lam binders body lambdaRng) = Lam binders (Case (Var name False rng) [Branch pat [Guard guardTrue body]] rng) lambdaRng
-          transform (Ann body tp rng) = Ann (transform body) tp rng
-      pure (ValueBinder name tp opt rng (combineRanges [rng,getRange tp,drng]), transform)
-
-unwrapPattern :: UserPattern -> (UserPattern, Maybe UserType)
-unwrapPattern pat = case pat of
-  PatVar (ValueBinder name tp _ _ rng) -> (pat, tp)
-  PatParens pat rng -> unwrapPattern pat
-  PatAnn pat tp rng -> (fst $ unwrapPattern pat, Just tp)
-  pat -> (pat, Nothing)
+    PatVar (ValueBinder name Nothing (PatWild _) nameRng rng) -- binder   | PatWild nameRng <- binderExpr binder  -> 
+      -> return (binder name nameRng, id)
+    PatWild nameRng 
+      -> do let name = uniqueHiddenName nameRng "_wildcard"
+            return (binder name nameRng, id)
+    pat 
+      -> do -- transform (fun (pattern) { body }) --> fun(.pat_X_Y) { match(.pat_X_Y) { pattern -> body }}
+            let name = uniqueHiddenName rng "pat"
+                transform (Lam binders body lambdaRng) = Lam binders (Case (Var name False rng) 
+                                                                        [Branch pat [Guard guardTrue body]] rng) lambdaRng
+                transform (Ann body tp rng) = Ann (transform body) tp rng
+                transform _ = failure "Syntax.Parse.parameter: unexpected function expression in parameter match transform"
+            return (binder name rng, transform)
 
 paramid = identifier <|> wildcard
 
