@@ -302,24 +302,24 @@ con         : CON
             | /* empty */
             ;
 
-conparams   : '(' conparams1 ')'          /* deprecated */
+conparams   : '(' tparameters1 ')'          /* deprecated */
             | '{' semis sconparams '}'
             | /* empty */
             ;
 
-sconparams  : sconparams conparam semis1
+sconparams  : sconparams tparameter semis1
             | /* empty */
             ;
 
-conparams0  : conparams1
+tparameters : tparameters1
             | /* empty */
             ;
 
-conparams1  : conparams1 ',' conparam
-            | conparam
+tparameters1: tparameters1 ',' tparameter
+            | tparameter
             ;
 
-conparam    : paramid ':' paramtype
+tparameter  : paramid ':' paramtype
             | paramid ':' paramtype '=' expr
             /*
             | ':' paramtype
@@ -341,9 +341,9 @@ operations  : operations operation semis1
             ;
 
 operation   : visibility VAL identifier typeparams ':' tatomic
-            | visibility FUN identifier typeparams '(' conparams0 ')' ':' tatomic
-            | visibility EXCEPT identifier typeparams '(' conparams0 ')' ':' tatomic
-            | visibility CONTROL identifier typeparams '(' conparams0 ')' ':' tatomic
+            | visibility FUN identifier typeparams '(' tparameters ')' ':' tatomic
+            | visibility EXCEPT identifier typeparams '(' tparameters ')' ':' tatomic
+            | visibility CONTROL identifier typeparams '(' tparameters ')' ':' tatomic
             ;
 
 

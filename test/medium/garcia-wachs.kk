@@ -60,10 +60,10 @@ fun insert( after : list<(tree<a>,int)>, t : (tree<a>,int), before : list<(tree<
 
 fun extract( before : list<(tree<a>,int)>, after : list1<(tree<a>,int)> ) : div tree<a>
 {
-  val Cons1((t1,w1) as x, xs ) = after
+  val Cons1(x as (t1,w1), xs ) = after
   match(xs) {
     Nil -> t1
-    Cons((t2,w2) as y, ys) -> match(ys) {
+    Cons(y as (t2,w2), ys) -> match(ys) {
       Nil -> insert( [], (Node(t1,t2), w1+w2), before )
       Cons((_,w3),_zs) ->
         if (w1 <= w3)

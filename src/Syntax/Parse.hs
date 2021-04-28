@@ -331,7 +331,7 @@ externDecl dvis
                          return (pars,args,tp,\body -> Ann body tp (getRange tp))
                       <|>
                       do tpars <- typeparams
-                         (pars, parRng) <- declParams (inline /= InlineAlways) {- allow defaults? -}
+                         (pars, parRng) <- declParams False {- (inline /= InlineAlways) -} -- allow defaults? 
                          (teff,tres)   <- annotResult
                          let tp = typeFromPars nameRng pars teff tres
                              lift :: ValueBinder UserType (Maybe UserExpr) -> ValueBinder (Maybe UserType) (Maybe UserExpr)
@@ -1200,12 +1200,6 @@ parameters allowDefaults = do
       transform = appEndo $ foldMap Endo transforms  -- right-to-left so the left-most parameter matches first
   pure (binders, transform, rng)
 
-uniqueHiddenName :: Range -> String -> Name
-uniqueHiddenName rng prefix =
-  let pos  = rangeStart rng
-      uniq = show (posLine pos) ++ "_" ++ show (posColumn pos)  
-  in newHiddenName (prefix ++ "_" ++ uniq)
-
 parameter :: Bool -> LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr), UserExpr -> UserExpr)
 parameter allowDefaults = do
   pat <- patAtom
@@ -1221,11 +1215,11 @@ parameter allowDefaults = do
     PatVar (ValueBinder name Nothing (PatWild _) nameRng rng) -- binder   | PatWild nameRng <- binderExpr binder  -> 
       -> return (binder name nameRng, id)
     PatWild nameRng 
-      -> do let name = uniqueHiddenName nameRng "_wildcard"
+      -> do let name = uniqueRngHiddenName nameRng "_wildcard"
             return (binder name nameRng, id)
     pat 
       -> do -- transform (fun (pattern) { body }) --> fun(.pat_X_Y) { match(.pat_X_Y) { pattern -> body }}
-            let name = uniqueHiddenName rng "pat"
+            let name = uniqueRngHiddenName rng "pat"
                 transform (Lam binders body lambdaRng) = Lam binders (Case (Var name False rng) 
                                                                         [Branch pat [Guard guardTrue body]] rng) lambdaRng
                 transform (Ann body tp rng) = Ann (transform body) tp rng
@@ -1942,10 +1936,11 @@ pattern
 
 patAnn
   = do p <- patAtom
-       maybeTypeAnnot p (\tp -> case p of
-                                  PatVar (ValueBinder name Nothing npat rng1 rng2)
-                                    -> PatVar (ValueBinder name (Just tp) npat rng1 rng2)
-                                  _ -> PatAnn p tp (combineRanged p tp))
+       maybeTypeAnnot p (\tp0 -> let tp = promoteType tp0
+                                 in case p of
+                                      PatVar (ValueBinder name Nothing npat rng1 rng2)
+                                        -> PatVar (ValueBinder name (Just tp) npat rng1 rng2)
+                                      _ -> PatAnn p tp (combineRanged p tp))
 
 
 patAtom :: LexParser UserPattern
@@ -2611,7 +2606,7 @@ wildcard
   = do (Lexeme rng (LexWildCard id)) <- parseLex (LexWildCard nameNil)
        if (showPlain id == "_")
         then let p = rangeStart rng
-             in return (uniqueHiddenName rng "_w", rng)
+             in return (uniqueRngName rng "_w", rng)
         else return (id,rng)
   <?> "wildcard"
 
@@ -2719,6 +2714,20 @@ warnDeprecated dep new
 
 pwarning :: String -> LexParser ()
 pwarning msg = traceM msg
+
+
+
+uniqueRngHiddenName :: Range -> String -> Name
+uniqueRngHiddenName rng prefix =
+  let pos  = rangeStart rng
+      uniq = show (posLine pos) ++ "_" ++ show (posColumn pos)  
+  in newHiddenName (prefix ++ "_" ++ uniq)
+
+uniqueRngName :: Range -> String -> Name
+uniqueRngName rng prefix =
+  let pos  = rangeStart rng
+      uniq = "-l" ++ show (posLine pos) ++ "-c" ++ show (posColumn pos)  
+  in newName (prefix ++ uniq)
 
 
 

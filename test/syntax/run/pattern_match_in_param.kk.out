@@ -1,10 +1,10 @@
 f(2, [1], Just([2, 3])) -> 6
-f(1, [1], Just([1])) -> test/syntax/run/pattern_match_in_param.kk(1,29): f: pattern match failure
+f(1, [1], Just([1])) -> test/syntax/run/pattern_match_in_param.kk(2,34): f: pattern match failure
 g(1, 2) -> 1
 h([2,3]) -> 2
 h() -> 1
 i(0) -> 1
 j(0) -> 1
-k([]) -> test/syntax/run/pattern_match_in_param.kk(23, 7): k: pattern match failure
+k([]) -> test/syntax/run/pattern_match_in_param.kk(24,12): k: pattern match failure
 l((1, 2, 3)) -> 1
 add default effect for std/core/exn

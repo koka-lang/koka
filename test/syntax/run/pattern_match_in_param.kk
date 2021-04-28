@@ -1,9 +1,10 @@
-fun f(a: int, Cons(x, _xs), Just(Cons(_, Cons(y, _)) as v) : maybe<list<int>>) : exn int {
+
+fun f(a: int, Cons(x, _xs), v as Just(Cons(_, Cons(y, _))) : maybe<list<int>>) : exn int {
     val _ = v
     a + x + y
 }
 
-fun g(_, _ as a: int) {
+fun g(_, a as _ : int) {
     val _ = a
     1
 }
@@ -16,11 +17,11 @@ fun i(0) {
     1
 }
 
-fun j(((0: int) : int) as a) : exn int {
+fun j(a as ((0: int) : int)) : exn int {
     a + 1
 }
 
-fun k((Cons(_x, _) : list<int>) as y) : exn list<int> {
+fun k(y as (Cons(_x, _) : list<int>)) : exn list<int> {
    y
 }
 

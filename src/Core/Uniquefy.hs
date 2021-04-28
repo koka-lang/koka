@@ -181,7 +181,11 @@ uniquefyPatternX pattern patTp
      PatCon { patConPatterns = patterns, patTypeArgs = patTps }
         -> do patterns1 <- mapM uniquefyPattern (zip patterns patTps)
               return pattern{ patConPatterns = patterns1 }
-     _  -> failure "Core.Uniquefy.UniquefyPatternX: unexpected PatVar"
+     PatVar tname pat 
+        -> do tname' <- uniquefyTName tname        
+              pat' <- uniquefyPatternX pat patTp
+              return (PatVar tname' pat')
+     -- _  -> failure "Core.Uniquefy.UniquefyPatternX: unexpected case"
 
 uniquefyTName :: TName -> Un TName
 uniquefyTName tname
