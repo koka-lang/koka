@@ -13,5 +13,5 @@ fun main() {
     readline()
   }
   //launch();
-  println("hi '" + name.default("<timed out>") + "'")
+  println("hi '" ++ name.default("<timed out>") ++ "'")
 }

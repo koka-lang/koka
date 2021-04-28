@@ -17,7 +17,7 @@ fun jaro-winkler-distance( s : string, t : string, boost-threshold : double = 0.
 
 fun jaro-distance( s : string, t : string ) : double {
   if (s==t) return 1.0
-  if (s.empty? || t.empty?) return 0.0
+  if (s.is-empty || t.is-empty) return 0.0
   val slen = s.count
   val tlen = t.count
   val lim  = max(0, max(slen,tlen)/2 - 1)

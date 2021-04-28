@@ -1,18 +1,19 @@
 1 (state=2)
->>= : forall<a,b> (m : stexn<a>, f : (a) -> stexn<b>) -> stexn<b>
-Div : (e1 : expr, e2 : expr) -> expr
-Int : (i : int) -> expr
-div? : (expr : expr) -> bool
-eval : (e : expr) -> stexn<int>
-eval0 : (e : expr) -> int
-expr1 : expr
-expr2 : expr
-exprX : expr
-failure : forall<a,b,c,e> (err : a) -> ((s : b) -> e either<a,c>)
-int? : (expr : expr) -> bool
-main : () -> console ()
-run : forall<a,b,e> (s : a, m : (a) -> e b) -> e b
-show : (r : either<string,(int, int)>) -> total string
-show : (e : expr) -> total string
-tick : forall<a,e> () -> ((s : int) -> e either<a,((), int)>)
-unit : forall<a> (x : a) -> stexn<a>
+ 
+algeff/cps4/>>=: forall<a,b> (m : stexn<a>, f : (a) -> stexn<b>) -> stexn<b>
+algeff/cps4/Div: (e1 : expr, e2 : expr) -> expr
+algeff/cps4/Int: (i : int) -> expr
+algeff/cps4/eval: (e : expr) -> stexn<int>
+algeff/cps4/eval0: (e : expr) -> int
+algeff/cps4/expr1: expr
+algeff/cps4/expr2: expr
+algeff/cps4/exprX: expr
+algeff/cps4/failure: forall<a,b,c,e> (err : a) -> ((s : b) -> e either<a,c>)
+algeff/cps4/is-div: (expr : expr) -> bool
+algeff/cps4/is-int: (expr : expr) -> bool
+algeff/cps4/main: () -> console ()
+algeff/cps4/run: forall<a,b,e> (s : a, m : (a) -> e b) -> e b
+algeff/cps4/show: (r : either<string,(int, int)>) -> total string
+algeff/cps4/show: (e : expr) -> total string
+algeff/cps4/tick: forall<a,e> () -> ((s : int) -> e either<a,((), int)>)
+algeff/cps4/unit: forall<a> (x : a) -> stexn<a>

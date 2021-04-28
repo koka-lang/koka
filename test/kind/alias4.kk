@@ -1,6 +1,6 @@
 // test name hiding
-import a = static/modA
+import static/modA
 
-alias aint  = a/aint
+alias aint  = modA/aint
 alias ok1   = aint
-alias ok2   = a/aint
+alias ok2   = modA/aint

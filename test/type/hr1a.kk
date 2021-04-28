@@ -2,7 +2,7 @@ fun xauto(f:forall<a> a -> a) {
   f(f)
 }
 
-fun auto(f:forall<a> a -> a) : (forall<a> a -> a)
+fun auto(f:forall<a> a -> e a) : e (forall<a> a -> e a)
 {
   f(f)
 }

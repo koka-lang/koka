@@ -1,0 +1,4 @@
+{
+  "flags": "--showtypesigs",
+  "exclude": ["async.*.kk"]
+}

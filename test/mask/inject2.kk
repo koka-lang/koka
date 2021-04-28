@@ -4,7 +4,7 @@ fun xforeach-indexed( xs : list<a>, action : (int,a) -> e () ) : e ()
   val i = ref(0)
   xs.foreach fn(x) {
     val j = !i;
-    (inject-st{action(j,x)})()
+    mask<read>{ mask<write>{ action(j,x) } }
     i := !i+1
   }
 }

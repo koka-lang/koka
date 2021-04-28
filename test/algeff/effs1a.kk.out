@@ -1,25 +1,17 @@
-[01;30moperator branch (amb_handle) flip: resume scoped
-[00;39;49m[00m[01;30moperator branch (state_handle) get: resume tail
-[00;39;49m[00m[01;30moperator branch (state_handle) set: resume tail
-[00;39;49m[00m[False,True,True,False]
+[False,True,True,False]
 [False,False,True,True,False]
 [False,False]
-.Op-flip : .op-flip
-.Op-get : forall<a> .op-get<a>
-.Op-set : forall<a> (i : a) -> .op-set<a>
-.Ops-flip : forall<a> (flip : .op-flip) -> .ops-amb<bool>
-.Ops-get : forall<a,b> (get : .op-get<a>) -> .ops-state<a,a>
-.Ops-set : forall<a,b> (set : .op-set<a>) -> .ops-state<a,()>
-.tag-amb : string
-.tag-state : string
-amb_handle : forall<a,e> (action : () -> <amb|e> a) -> e list<a>
-flip : () -> amb bool
-foo : () -> <amb,state<int>> bool
-get : forall<a> () -> (state<a>) a
-main : () -> console ()
-set : forall<a> (i : a) -> (state<a>) ()
-state_handle: forall<a,b,e> (i : a, action : () -> <state<a>|e> b) -> e b
-test1 : () -> list<bool>
-test2 : () -> list<bool>
-test3 : () -> list<bool>
-xor : () -> amb bool
+ 
+algeff/effs1a/Amb: forall<e,a> (.hnd-amb<e,a>) -> amb
+algeff/effs1a/State: forall<a,e,b> (.hnd-state<a,e,b>) -> state<a>
+algeff/effs1a/amb_handle: forall<a,e> (() -> <amb|e> a) -> e list<a>
+algeff/effs1a/flip: () -> amb bool
+algeff/effs1a/foo: () -> <amb,state<int>> bool
+algeff/effs1a/get: forall<a> () -> (state<a>) a
+algeff/effs1a/main: () -> <console,div> ()
+algeff/effs1a/set: forall<a> (i : a) -> (state<a>) ()
+algeff/effs1a/state_handle: forall<a,b,e> (init : a, action : () -> <div,state<a>|e> b) -> <div|e> b
+algeff/effs1a/test1: () -> list<bool>
+algeff/effs1a/test2: () -> div list<bool>
+algeff/effs1a/test3: () -> div list<bool>
+algeff/effs1a/xor: () -> amb bool

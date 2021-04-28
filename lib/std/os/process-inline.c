@@ -9,7 +9,8 @@
 static kk_std_core__error kk_os_run_command_error( kk_string_t cmd, kk_context_t* ctx ) {
   kk_string_t output;
   const int err = kk_os_run_command(cmd,&output,ctx);
-  return kk_error_from_errno(err,kk_string_box(output),ctx);
+  if (err != 0) return kk_error_from_errno(err,ctx);
+           else return kk_error_ok(kk_string_box(output),ctx);
 }
 
 static kk_integer_t kk_os_run_system_prim( kk_string_t cmd, kk_context_t* ctx ) {

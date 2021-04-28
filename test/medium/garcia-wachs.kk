@@ -16,7 +16,7 @@ fun show( t : tree<string> ) : string
 {
   match(t) {
     Leaf(s)   -> s.show
-    Node(l,r) -> "Node(" + l.show + "," + r.show + ")"
+    Node(l,r) -> "Node(" ++ l.show ++ "," ++ r.show ++ ")"
   }
 }
 

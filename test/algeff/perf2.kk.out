@@ -1,20 +1,14 @@
-[01;30moperator branch (choose-all) pick: resume normal
-[00;39;49m[00m[01;30moperator branch (choose-all) fail: resume never
-[00;39;49m[00m.Op-fail : forall<a> .op-fail<a>
-.Op-pick : (n : int) -> .op-pick
-.Ops-fail : forall<a,b> (fail : .op-fail<b>) -> .ops-choose<b>
-.Ops-pick : forall<a> (pick : .op-pick) -> .ops-choose<int>
-.tag-choose : string
-append-safe : (queen : int, xs : solution, xss : solutions) -> div solutions
-choose-all : forall<a,e> (action : () -> <choose|e> a) -> e list<a>
-extend : (queen : int, acc : solutions, xss : solutions) -> div solutions
-fail : forall<a> () -> choose a
-find-solution: (n : int, col : int) -> <choose,div> solution
-find-solutions: (n : int, i : int) -> div solutions
-main : () -> <div,console,ndet> ()
-pick : (n : int) -> choose int
-queens : (n : int) -> div solutions
-queens-choose: (n : int) -> div solutions
-safe? : (queen : int, xs : solution, diag : ?int) -> bool
-show-solutions: (xss : solutions) -> io ()
-test : (n : int) -> <div,console,ndet> ()
+algeff/perf2/Choose: forall<e,a> (.hnd-choose<e,a>) -> choose
+algeff/perf2/append-safe: (queen : int, xs : solution, xss : solutions) -> div solutions
+algeff/perf2/choose-all: forall<a,e> (action : () -> <choose|e> a) -> e list<a>
+algeff/perf2/extend: (queen : int, acc : solutions, xss : solutions) -> div solutions
+algeff/perf2/fail: forall<a> () -> choose a
+algeff/perf2/find-solution: (n : int, col : int) -> <choose,div> solution
+algeff/perf2/find-solutions: (n : int, i : int) -> div solutions
+algeff/perf2/is-safe: (queen : int, xs : solution, diag : optional<int>) -> bool
+algeff/perf2/main: () -> <console,div,ndet> ()
+algeff/perf2/pick: (n : int) -> choose int
+algeff/perf2/queens: (n : int) -> div solutions
+algeff/perf2/queens-choose: (n : int) -> div solutions
+algeff/perf2/show-solutions: (xss : solutions) -> io ()
+algeff/perf2/test: (n : int) -> <console,div,ndet> ()

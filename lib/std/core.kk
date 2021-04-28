@@ -20,10 +20,11 @@ public import std/core/hnd
 
 infixr 80  (^)
 infixl 70  (*), (%), (/), cdiv, cmod
+infixr 60  (++)
 infixl 60  (+), (-)
 infix  40  (!=), (==), (<=), (>=), (<), (>)
 
-// prefix     (!), (-)
+// prefix     (!), (-) 
 
 
 include extern {
@@ -482,7 +483,7 @@ fun reverse(xs : list<a>) : list<a> {
 }
 
 // Efficiently reverse a list `xs` and append it to `tl`:
-// `reverse-append(xs,tl) == reserve(xs) + tl
+// `reverse-append(xs,tl) == reserve(xs) ++ tl
 fun reverse-append( xs : list<a>, tl : list<a> ) : list<a> {
   fun reverse-acc(acc : list<a>, ys : list<a> ) : list<a> {
     match(ys) {
@@ -494,7 +495,7 @@ fun reverse-append( xs : list<a>, tl : list<a> ) : list<a> {
 }
 
 // Append two lists.
-fun (+)(xs : list<a>, ys : list<a> ) : list<a> {
+fun (++)(xs : list<a>, ys : list<a> ) : list<a> {
   append(xs,ys)
 }
 
@@ -739,7 +740,7 @@ private fun joinsep( xs : list<string>, sep : string ) : string
 {
   fun join-acc( ys : list<string>, acc : string ) {
     match(ys) {
-      Cons(y,yy) -> join-acc(yy, acc + sep + y)  // todo: use string builder
+      Cons(y,yy) -> join-acc(yy, acc ++ sep ++ y)  // todo: use string builder
       Nil -> acc
     }
   }
@@ -766,7 +767,7 @@ fun join( xs : list<string>, sep : string ) : string {
 public fun join-end( xs : list<string>, end : string) : string {
   match(xs) {
     Nil -> ""
-    _   -> xs.joinsep(end) + end
+    _   -> xs.joinsep(end) ++ end
   }
 }
 
@@ -1337,7 +1338,7 @@ private extern xparse-int( s : string, hex : bool ) : maybe<int> {
 
 
 // ----------------------------------------------------------------------------
-// Doubles
+// Doubles 
 // ----------------------------------------------------------------------------
 
 inline extern (==) : (double,double) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
@@ -1351,7 +1352,7 @@ inline extern (+) : (double,double) -> double { inline "(#1 + #2)" }
 inline extern (-) : (double,double) -> double { inline "(#1 - #2)" }
 inline extern (*) : (double,double) -> double { inline "(#1 * #2)" }
 inline extern (/) : (double,double) -> double { inline "(#1 / #2)" }
-inline extern (%) : (double,double) -> double { inline "(#1 % #2)" }
+inline extern (%) : (double,double) -> double { c inline "fmod(#1,#2)"; inline "(#1 % #2)" }
 
 fun compare( x : double, y : double) : order
 {
@@ -1526,7 +1527,7 @@ fun (>)( x : string, y : string ) : bool  { compare(x,y) == Gt }
 fun (<)( x : string, y : string ) : bool  { compare(x,y) == Lt }
 
 // Append two strings.
-extern (+)(x : string, y : string) : string {
+extern (++)(x : string, y : string) : string {
   c "kk_string_cat"
   inline "(#1 + #2)"
 }
@@ -1630,7 +1631,7 @@ extern common-prefix(s : string, t : string, upto : int = -1 ) : sslice {
 // * `"abc".first.advance(3).string == ""`,
 // * `"abc".last.advance(-1).string == "b"`.
 //
-public extern advance( slice : sslice, count : int ) : sslice {
+extern advance( slice : sslice, count : int ) : sslice {
   c  "kk_slice_advance"
   cs "Primitive.SliceAdvance"
   js "_sslice_advance"
@@ -1861,14 +1862,14 @@ fun split( s : string, sep: string, n : int) : list<string> {
 }
 
 // Replace every occurrence of `pattern` to `repl` in a string.
-public inline extern replace-all( s : string, pattern : string, repl : string ) : string {
+inline extern replace-all( s : string, pattern : string, repl : string ) : string {
   c  "kk_string_replace_all"
   cs inline "(#1).Replace(#2,#3)";
   js inline @"(#1).replace(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'),#3)";
 }
 
 // Count occurences of `pattern` in a string.
-public inline extern count( s : string, pattern : string ) : int {
+inline extern count( s : string, pattern : string ) : int {
   c  "kk_string_count_pattern"
   cs inline "Primitive.Count(#1,#2)";
   js inline @"((#2) ? ((#1).match(new RegExp((#2).replace(/[\\\$\^*+\-{}?().]/g,'\\$&'),'g'))||[]).length : 0)";
@@ -1937,7 +1938,7 @@ extern to-lower : (s : string) -> string {
 
 // Convert the first character of a string to uppercase.
 fun capitalize( s : string ) : string {
-  s.first.string.to-upper + s.first.after.string
+  s.first.string.to-upper ++ s.first.after.string
 }
 
 // Right-align a string to width `width`  using `fill`  (default is a space) to fill from the left.
@@ -1947,7 +1948,7 @@ fun pad-left( s : string, width : int, fill : char = ' ') : string
   val n = s.length
   if (w <= n)
    then s
-   else fill.string.repeatz( w - n ) + s
+   else fill.string.repeatz( w - n ) ++ s
 }
 
 // Left-align a string to width `width`  using `fill`  (default is a space) to fill on the right.
@@ -1957,7 +1958,7 @@ fun pad-right( s : string, width : int, fill : char = ' ') : string
   val n = s.length
   if (w <= n)
    then s
-   else s + fill.string.repeatz(w - n)
+   else s ++ fill.string.repeatz(w - n)
 }
 
 // Trim whitespace on the left and right side of a string
@@ -2123,7 +2124,7 @@ abstract type delayed<e,a> {
 }
 
 // Create a new `:delayed` value.
-public fun delay( action : () -> e a ) : delayed<e,a> {
+fun delay( action : () -> e a ) : delayed<e,a> {
   unsafe-total{
     Delay(ref(Left(action)))
   }
@@ -2177,7 +2178,7 @@ private extern int-show-hex(i:int,use-capitals:bool) : string {
 // The `use-capitals` parameter (= `True`) determines if captical letters should be used to display the hexadecimal digits.\
 // The `pre` (=`"0x"`) is an optional prefix for the number (goes between the sign and the number).
 fun show-hex( i : int, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) {
-  (if (i<0) then "-" else "") + pre + int-show-hex(i.abs,use-capitals).pad-left(width,'0')
+  (if (i<0) then "-" else "") ++ pre ++ int-show-hex(i.abs,use-capitals).pad-left(width,'0')
 }
 
 // Show a `:double` as a string.
@@ -2231,9 +2232,9 @@ private fun show-char( c : char ) : string
     if (c == '\n') then "\\n"
     elif (c == '\r') then "\\r"
     elif (c == '\t') then "\\t"
-    elif (c.int <= 0xFF) then "\\x" + c.int.show-hex(2,pre="")
-    elif (c.int <= 0xFFFF) then "\\u" + c.int.show-hex(4,pre="")
-    else "\\U" + c.int.show-hex(6,pre="")
+    elif (c.int <= 0xFF) then "\\x" ++ c.int.show-hex(2,pre="")
+    elif (c.int <= 0xFFFF) then "\\u" ++ c.int.show-hex(4,pre="")
+    else "\\U" ++ c.int.show-hex(6,pre="")
   }
   else {
     if (c == '\'') then "\\'"
@@ -2246,14 +2247,14 @@ private fun show-char( c : char ) : string
 // Show a `:char` as a character literal
 fun show( c : char ) : string
 {
-  "'" + c.show-char + "'"
+  "'" ++ c.show-char ++ "'"
 }
 
 
 // Show a string as a string literal
 fun show( s : string ) : string
 {
-  "\"" + s.list.map(show-char).join + "\""
+  "\"" ++ s.list.map(show-char).join ++ "\""
 }
 
 // Convert a `:bool` to a string
@@ -2268,7 +2269,7 @@ fun show( s : sslice ) : string { s.string.show }
 // Convert a list to a string
 fun show-list( xs : list<a>, show-elem : (a) -> e string ) : e string
 {
-  "[" + xs.map(show-elem).join(",") + "]"
+  "[" ++ xs.map(show-elem).join(",") ++ "]"
 }
 
 
@@ -2285,7 +2286,7 @@ fun show( xs : list<bool> ) : string {
 }
 
 fun show-tuple( x : (a,b), showfst : a -> string, showsnd : b -> string ) : string {
-  "(" + x.fst.showfst + "," + x.snd.showsnd + ")"
+  "(" ++ x.fst.showfst ++ "," ++ x.snd.showsnd ++ ")"
 }
 
 // ----------------------------------------------------------------------------
@@ -2308,7 +2309,7 @@ private fun gprint( x : a ) : console () {
 private noinline val redirect : ref<global,maybe<(string) -> console ()>> = unsafe-total { ref(Nothing) }
 
 // redirect `print` and `println` calls to a specified function.
-public noinline fun print-redirect( print : (msg : string) -> console () ) : io ()
+noinline fun print-redirect( print : (msg : string) -> console () ) : io ()
 {
   redirect := Just(print);
 }
@@ -2343,7 +2344,7 @@ private noinline fun printsln( s : string ) : console () {
   (unsafe-nostate {
     match(!redirect) {
       Nothing -> xprintsln(s)
-      Just(f) -> f(s + "\n")
+      Just(f) -> f(s ++ "\n")
     }
   })()
 }
@@ -2408,30 +2409,31 @@ private val trace-enabled : ref<global,bool> = unsafe-total { ref(True) }
 // The behaviour is system dependent. On a browser and node it uses
 // `console.log`  by default.
 // Disabled if `notrace` is called.
-public fun trace( message : string ) : () {
+fun trace( message : string ) : () {
   unsafe-total {
     if (!trace-enabled) then xtrace(message)
   }
 }
 
-public fun trace-any( message : string, x : a ) : () {
+fun trace-any( message : string, x : a ) : () {
   unsafe-total {
     if (!trace-enabled) then xtrace-any(message,x)
   }
 }
 // Disable tracing completely.
-public noinline fun notrace() : st<global> () {
+noinline fun notrace() : st<global> () {
   trace-enabled := False
 }
 
-
-fun assert( message : string, condition : bool ) : () {
-  if (!condition) unsafe-noexn{ throw(message,ExnAssert) }
+private extern unsafe-assert-fail( msg : string ) : () {
+  c "kk_assert_fail"
+  js inline "throw new Error(\"assertion failed: \" ++ #1)"
 }
 
-fun todo( message : string ) : () {
-  unsafe-noexn{ throw(message,ExnTodo) }
+fun assert( message : string, condition : bool ) : () {  // Compiler removes assert calls in optimized builds
+  if (!condition) unsafe-assert-fail(message)  
 }
+
 
 // ----------------------------------------------------------------------------
 // Exceptions
@@ -2486,7 +2488,7 @@ fun throw( message: string, info : exception-info = ExnError ) : exn a {
 // Raise a pattern match exception. This is function is used internally by the
 // compiler to generate error messages on pattern match failures.
 fun error-pattern(location : string, definition : string) : exn a {
-  throw(location + (if (definition.is-empty) then "" else (": " + definition)) + ": pattern match failure",
+  throw(location ++ (if (definition.is-empty) then "" else (": " ++ definition)) ++ ": pattern match failure",
          ExnPattern(location,definition))
 }
 
@@ -2652,14 +2654,14 @@ inline extern [] : forall<s,a,e> ( self : local-var<s,vector<a>>, index : int, a
 // returns the cached result.
 fun once( calc : () -> a ) : (() -> a) {
   unsafe-total {
-    var value := Nothing
+    val r = ref(Nothing)
     return fn() {
       unsafe-total {
-        match(value) {
-          Just(y) -> y
+        match(!r) {
+          Just(x) -> x
           Nothing -> {
             val x = calc()
-            value := Just(x)
+            r := Just(x)
             x
           }
         }

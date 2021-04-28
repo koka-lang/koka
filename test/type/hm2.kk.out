@@ -1,2 +1,2 @@
-choose2 : forall<a> (x : a, y : a) -> a
-choose3 : forall<a> (x : a, y : a) -> a
+type/hm2/choose2: forall<a> (x : a, y : a) -> a
+type/hm2/choose3: forall<a> (x : a, y : a) -> a

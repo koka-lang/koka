@@ -35,7 +35,7 @@ public fun weekdate( year : int, month: int, weekday : weekday ) : date {
 // Show a year in ISO format (using 5+ digits and explicit sign for years < 0 or years > 9999)).
 public fun show-year( year : int ) : string {
   val (ysign,ywidth) = if (year > 9999) then ("+",5) elif (year.is-neg) then ("-",5) else ("",4)
-  ysign + year.abs.show0(ywidth)
+  ysign ++ year.abs.show0(ywidth)
 }
 
 // Show a date in ISO format. `Date(2000,1,1).show == "2000-01-01"`.
@@ -43,7 +43,7 @@ public fun show-year( year : int ) : string {
 // and month calendar to add a `"W"` or `"M"` prefix respectively.
 public fun show( d : date, month-prefix : string = "" ) : string {
   val day-width = if (month-prefix=="W") then 1 else 2
-  d.year.show-year + "-" + month-prefix + d.month.show0 + "-" + d.day.show0(day-width)
+  d.year.show-year ++ "-" ++ month-prefix ++ d.month.show0 ++ "-" ++ d.day.show0(day-width)
 }
 
 // Compare two dates by fields.
@@ -151,7 +151,7 @@ public fun round-to-prec( c : clock, prec : int = 9) : clock {
 // `Clock(23,30,fixed(1.123)).show == "23:30:01.123"`\
 // `Clock(23,30,fixed(1.123)).show(0) == "23:30:01"`
 public fun show( c : clock, prec : int = 9 ) : string {
-  c.hours.show0 + ":" + c.minutes.show0 + ":" + c.seconds.show-seconds(prec,2)
+  c.hours.show0 ++ ":" ++ c.minutes.show0 ++ ":" ++ c.seconds.show-seconds(prec,2)
 }
 
 // Show seconds
@@ -162,8 +162,8 @@ public fun show-seconds( secs : ddouble, max-prec : int = 9, secs-width : int = 
     Just(dot) -> {
       val f = dot.after.string
       val len3 = ((f.count + 2)/3)*3
-      //trace("ts-show: " + s + ", " + len3.show + ", prec: " + max-prec.show + ", " + ts.since.show(-9))
-      dot.before.string.pad-left(secs-width,'0') + "." + f.pad-right(len3,'0') + unit
+      //trace("ts-show: " ++ s ++ ", " ++ len3.show ++ ", prec: " ++ max-prec.show ++ ", " ++ ts.since.show(-9))
+      dot.before.string.pad-left(secs-width,'0') ++ "." ++ f.pad-right(len3,'0') ++ unit
     }
   }
 }

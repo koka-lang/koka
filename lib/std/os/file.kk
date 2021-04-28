@@ -22,7 +22,7 @@ include extern {
 // Read a text file synchronously (using UTF8 encoding)
 public fun read-text-file( path : path ) : <fsys,exn> string {
   match(read-text-file-err(path.string)) {
-    Error(exn)  -> Error(exn.prepend("unable to read text file " + path.show)).throw
+    Error(exn)  -> Error(exn.prepend("unable to read text file " ++ path.show)).throw
     Ok(content) -> content
   }
 }
@@ -31,14 +31,14 @@ public fun read-text-file( path : path ) : <fsys,exn> string {
 public fun write-text-file( path : path, content : string, create-dir : bool = True ) : <fsys,exn> ()  {
   if (create-dir) then ensure-dir(path.nobase)
   match(write-text-file-err(path.string,content)) {
-    Error(exn) -> Error(exn.prepend("unable to write text file " + path.show)).throw
+    Error(exn) -> Error(exn.prepend("unable to write text file " ++ path.show)).throw
     _ -> ()
   }
 }
 
 
 private fun prepend( exn : exception, pre : string ) : exception {
-  Exception(pre + ": " + exn.message, exn.info)
+  Exception(pre ++ ": " ++ exn.message, exn.info)
 }
 
 

@@ -8,7 +8,6 @@
 
 module time1
 
-import std/async
 public import std/num/ddouble
 public import std/time
 public import std/time/timezone

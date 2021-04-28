@@ -1,3 +1,105 @@
+@techreport{Perceus:tech,
+  author  = {Reinking, Alex and Xie, Ningning and de Moura, Leonardo and Leijen, Daan},
+  title   = {{Perceus}: Garbage-Free Reference Counting with Reuse},
+  year    = 2020,
+  month   = nov,
+  institution = {Microsoft Research},
+  number  = {MSR-TR-2020-42},
+  url     = {https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf}
+}
+
+@inproceedings{Xie:evidently,
+  author = {Xie, Ningning and Brachthäuser, Jonathan and Schuster, Phillip and Hillerström, Daniel and Leijen, Daan},
+  title  = {Effect Handlers, Evidently},
+  booktitle = {Proceedings of the 25th ACM SIGPLAN International Conference on Functional Programming (ICFP'2020)},
+ series = {ICFP '20},
+  location = {Jersey City, NJ},
+  year   = 2020,
+  month  = Aug
+}
+
+@inproceedings{Xie:effev,
+  author = {Xie, Ningning and Leijen, Daan},
+  title  = {Effect Handlers in {H}askell, Evidently},
+  booktitle = {Proceedings of the 2020 ACM SIGPLAN Symposium on Haskell},
+  series = {Haskell'20},
+  location = {Jersey City, NJ},
+  year   = 2020,
+  month  = Aug
+}
+
+
+@MISC{Mcbride:derivative,
+  author = {McBride, Conor},
+  title = {The Derivative of a Regular Type is its Type of One-Hole Contexts},
+  note  = {(Extended Abstract)},
+  url = {http://strictlypositive.org/diff.pdf},
+  year = {2001}
+}
+
+@article{Huet:zipper,
+  author    = {Huet, G{\'{e}}rard P.},
+  title     = {The Zipper},
+  journal   = {Journal of Functional Programming},
+  volume    = {7},
+  number    = {5},
+  pages     = {549--554},
+  year      = {1997}  
+}
+
+
+@article{Mateti:morris,
+  title = "Morris' tree traversal algorithm reconsidered",
+  journal = "Science of Computer Programming",
+  volume = "11",
+  number = "1",
+  pages = "29--43",
+  year = 1988,
+  issn = "0167-6423",
+  doi = "10.1016/0167-6423(88)90063-9",
+  author = "Prabhaker Mateti and Ravi Manghirmalani"
+}
+
+@article{Okasaki:rbtree, 
+  title={Red-black trees in a functional setting}, 
+  volume={9}, 
+  doi={10.1017/S0956796899003494}, 
+  number={4}, 
+  journal={Journal of Functional Programming}, 
+  publisher={Cambridge University Press}, 
+  author={Okasaki, Chris}, 
+  year=1999, 
+  pages={471–477}
+}
+
+@inproceedings{guibas1978dichromatic,
+  title={A dichromatic framework for balanced trees},
+  author={Guibas, Leo J and Sedgewick, Robert},
+  booktitle={19th Annual Symposium on Foundations of Computer Science (sfcs 1978)},
+  pages={8--21},
+  year={1978},
+  organization={IEEE}
+}
+
+@book{Knuth:aocp1,
+  author = {Knuth, Donald E.},
+  title = {The Art of Computer Programming, Volume 1 (3rd Ed.): Fundamental Algorithms},
+  year = {1997},
+  isbn = {0201896834},
+  publisher = {Addison Wesley Longman Publishing Co., Inc.}
+}
+
+@article{Morris:tree,
+  author = "Joseph M. Morris",
+  title = "Traversing binary trees simply and cheaply",
+  journal = "Information Processing Letters",
+  volume = "9",
+  number = "5",
+  pages = "197 - 200",
+  year = "1979",
+  doi = "https://doi.org/10.1016/0020-0190(79)90068-1"
+}
+
 @inproceedings{Wu:hscope,
  author = {Wu, Nicolas and Schrijvers, Tom and Hinze, Ralf},
  title = {Effect Handlers in Scope},
@@ -37,7 +139,7 @@
   etype        = "arxiv"
 }
 
-@techreport{Leijen:algeff,
+@techreport{Leijen:algefftr,
   author     = {Daan Leijen},
   title      = {Algebraic Effects for Functional Programming},
   number     = {MSR-TR-2016-29},
@@ -48,11 +150,115 @@
   note       = "Extended version of \cite{Leijen:algeffpopl}"
 }
 
-@inproceedings{Leijen:algeffpopl,
-  author={Daan Leijen},
-  title = {Type Directed Compilation of Row-Typed Algebraic Effects},
-  booktitle={Proceedings of Principles of Programming Languages ({POPL}'17)},
-  location={Paris, France},  
-  month= jan,
-  year = 2017
+
+@book{Okasaki:purefun,
+  author = "Okasaki, Chris",
+  title = "Purely Functional Data Structures",
+  isbn  = {9780521663502},
+  location = {New York},
+  publisher = {Colombia University},
+  year  = 1999,
+  month = Jun
+}
+
+@inproceedings{Pretnar:handlers,
+  author    = {Plotkin, Gordon D. and Pretnar, Matija},
+  title     = {Handlers of Algebraic Effects},
+  booktitle = {18th European Symposium on Programming Languages and Systems},
+  series    = {ESOP'09},
+  location  = {York, UK},
+  month     = Mar,
+  pages     = {80--94},
+  year      = 2009,
+  doi       = {10.1007/978-3-642-00590-9_7}
+}
+
+@inproceedings{Leijen:algeff,
+  author  = "Daan Leijen",
+  title   = {Type Directed Compilation of Row-typed Algebraic Effects},
+  booktitle = {Proceedings of the 44th ACM SIGPLAN Symposium on Principles of Programming Languages (POPL'17)},
+  month   = Jan,
+  year    = 2017,
+  isbn    = {978-1-4503-4660-3},
+  location= {Paris, France},
+  pages   = {486--499},
+  numpages= {14},
+  doi     = {10.1145/3009837.3009872}
+}
+
+@inproceedings{Gunter:mprompt,
+  author = {Gunter, Carl A. and R\'{e}my, Didier and Riecke, Jon G.},
+  title = {A Generalization of Exceptions and Control in ML-like Languages},
+  year = {1995},
+  isbn = {0897917197},
+  publisher = {ACM},
+  doi = {10.1145/224164.224173},
+  booktitle = {Proceedings of the Seventh International Conference on Functional Programming Languages and Computer Architecture},
+  pages = {12–23},
+  numpages = {12},
+  location = {La Jolla, California, USA},
+  series = {FPCA ’95}
+}
+
+@INPROCEEDINGS{Leijen:scopedlabels,
+  author    = {Daan Leijen},
+  title     = {Extensible records with scoped labels},
+  booktitle = {Proceedings of the 2005 Symposium on Trends in Functional Programming},
+  year      = {2005},
+  pages     = {297--312}
+}
+
+@ARTICLE{Biernacki:care,
+ author = {Biernacki, Dariusz and Pir\'{o}g, Maciej and Polesiuk, Piotr and Sieczkowski, Filip},
+ title = {Handle with Care: Relational Interpretation of Algebraic Effects and Handlers},
+ journal = {Proc. ACM Program. Lang.},
+ issue_date = {January 2018},
+ volume = {2},
+ number = {POPL'17 issue},
+ month = dec,
+ year = {2017},
+ issn = {2475-1421},
+ pages = {8:1--8:30},
+ articleno = {8},
+ numpages = {30},
+ doi = {10.1145/3158096},
+ keywords = {algebraic effect, logical relation, row polymorphism}
+}
+
+@inproceedings{Lindley:liberate,
+  author  = "Hillerstr&ouml;m, Daniel and Lindley, Sam",
+  title   = "Liberating Effects with Rows and Handlers",
+  booktitle = {Proceedings of the 1st International Workshop on Type-Driven Development},
+  series = {{TyDe} 2016},
+  year = {2016},
+  location = {Nara, Japan},
+  pages = {15--27},
+  numpages = {13},
+  doi = {10.1145/2976022.2976033},
+}
+
+@inproceedings{Leijen:fcheap,
+  author = {Leijen, Daan},
+  title = {First Class Dynamic Effect Handlers: Or, Polymorphic Heaps with Dynamic Effect Handlers},
+  year = {2018},
+  doi = {10.1145/3240719.3241789},
+  booktitle = {Proceedings of the 3rd ACM SIGPLAN International Workshop on Type-Driven Development},
+  pages = {51–64},
+  numpages = {14},
+  location = {St. Louis, MO, USA},
+  series = {TyDe 2018}
+}
+
+
+@inproceedings{Leijen:async,
+ author = {Leijen, Daan},
+ title = {Structured Asynchrony with Algebraic Effects},
+ booktitle = {Proceedings of the 2nd ACM SIGPLAN International Workshop on Type-Driven Development},
+ series = {TyDe 2017},
+ year = {2017},
+ isbn = {978-1-4503-5183-6},
+ location = {Oxford, UK},
+ pages = {16--29},
+ numpages = {14},
+ doi = {10.1145/3122975.3122977}
 }

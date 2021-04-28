@@ -5,10 +5,14 @@ effect state<s> {
   fun set(x:s) : ()
 }
 
-val state = handler(s) {
-  return x -> x
-  get()    -> resume(s,s)
-  set(t)   -> resume((),t)
+
+fun state( init, action ) {
+  var s : int := init   
+  with {
+    fun get()  { s }
+    fun set(i) { s := i }
+  }
+  action()
 }
 
 fun test() {

@@ -4,11 +4,14 @@
 .vs/
 node_modules/
 out/
+dist/
 src/Syntax/Lexer.hs
 kklib/mimalloc-inline
 stack.yaml.lock
 package-lock.json
+test.kk
 *.pdb
+*.pdn
 *~
 *.exe
 /*.cmake

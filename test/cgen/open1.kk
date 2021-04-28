@@ -1,12 +1,12 @@
-type open test {
+open type test {
   A
 }
 
-type extend test {
+extend type test {
   B(i : int)
 }
 
-type extend test {
+extend type test {
   C(j : int)
 }
 

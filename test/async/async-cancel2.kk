@@ -12,5 +12,5 @@ fun main() {
     trace("done waiting")
     "waited"
   }
-  println("hi '" + name.default("<timed out>") + "'")
+  println("hi '" ++ name.default("<timed out>") ++ "'")
 }

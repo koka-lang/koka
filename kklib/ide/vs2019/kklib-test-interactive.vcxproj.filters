@@ -4,16 +4,31 @@
     <ClCompile Include="..\..\..\out\Debug\std_core.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core_hnd.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core_types.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_num_int32.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_text_parse.c" />
     <ClCompile Include="..\..\..\out\Debug\interactive.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_os_path.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_os_file.c" />
     <ClCompile Include="..\..\..\out\Debug\std_num_ddouble.c" />
     <ClCompile Include="..\..\..\out\Debug\std_num_decimal.c" />
     <ClCompile Include="..\..\..\out\Debug\std_num_double.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_num_int32.c" />
     <ClCompile Include="..\..\..\out\Debug\std_num_random.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_os_dir.c" />
     <ClCompile Include="..\..\..\out\Debug\std_os_env.c" />
-    <ClCompile Include="..\..\..\out\Debug\samples_named_dash_handlers_file_dash_scoped.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_os_file.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_os_path.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_text_parse.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_calendar.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_calendars.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_chrono.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_date.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_duration.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_format.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_instant.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_locale.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_parse.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_time.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_timer.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_timestamp.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_time_utc.c" />
+    <ClCompile Include="..\..\..\out\Debug\test_lib_time11.c" />
   </ItemGroup>
 </Project>

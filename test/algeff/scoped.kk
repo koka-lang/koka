@@ -27,7 +27,7 @@ fun select(xs) {
 val solutions = handler {
   return  x      -> [x]
   control fail() -> []
-  control flip() -> resume(True) + resume(False)
+  control flip() -> resume(True) ++ resume(False)
 }
 
 fun show( xss : list<list<int>> ) : string {
@@ -76,12 +76,12 @@ val choices = handler {
 }
 
 fun show(x : (int,list<list<int>>)) : string {
-  "(state=" + x.fst.show + ", " + x.snd.show + ")"
+  "(state=" ++ x.fst.show ++ ", " ++ x.snd.show ++ ")"
 }
 
 fun show(xs : list<(int,list<int>)>) : string {
   xs.show-list fn(x) {
-    "(state=" + x.fst.show + ", " + x.snd.show + ")"
+    "(state=" ++ x.fst.show ++ ", " ++ x.snd.show ++ ")"
   }
 }
 

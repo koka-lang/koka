@@ -1,2 +1,2 @@
-remote : (f : () -> exn ()) -> exn ()
-test : (f : () -> exn ()) -> <exn,console> ()
+type/eff6a/remote: (f : () -> exn ()) -> exn ()
+type/eff6a/test: (f : () -> exn ()) -> <console,exn> ()

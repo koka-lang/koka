@@ -17,7 +17,7 @@ public effect vec<s::S> {
 public fun vec(action : forall<s> () -> <vec<s>|e> a ) : e a {  // rank-2 signature required
   var xs : list<string> := []
   with {
-    fun push( s ) { val i = xs.length; xs := xs + [s]; Ix(i) }
+    fun push( s ) { val i = xs.length; xs := xs ++ [s]; Ix(i) }
     fun lookup(ix){ xs[ix.index].default("") }  // index is always valid!
   }
   action()
@@ -26,7 +26,7 @@ public fun vec(action : forall<s> () -> <vec<s>|e> a ) : e a {  // rank-2 signat
 public fun main() {
   with vec
   val ix = push("hello")
-  println( lookup(ix) + " world" )
+  println( lookup(ix) ++ " world" )
 }
 
 /*
@@ -39,6 +39,6 @@ fun escape() {
 fun wrong() {
   with vec
   val ix = escape()
-  println( lookup(ix) + " world")
+  println( lookup(ix) ++ " world")
 }
 */

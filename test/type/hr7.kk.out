@@ -1,1 +1,1 @@
-ok : () -> exn int
+type/hr7/ok: () -> exn int

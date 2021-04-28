@@ -1,1 +1,5 @@
-42
+test/cgen/open1.kk(6, 5): error: types do not match
+ context : i
+ term : i
+ inferred type: <exn|_e>
+ expected type: exn

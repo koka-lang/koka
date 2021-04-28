@@ -1,3 +1,4 @@
 42
-foo : forall<a,e> (action : () -> <div|e> a) -> <div,ndet|e> a
-main : () -> <div,console,ndet> ()
+ 
+mask/inject1/foo: forall<a,e> (action : () -> <div|e> a) -> <div,ndet|e> a
+mask/inject1/main: () -> <console,div,ndet> ()

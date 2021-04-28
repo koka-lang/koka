@@ -2,17 +2,18 @@ caught on inner level: masked
 caught on outer level: masked
 caught on outer level: masked
 caught on outer level: masked
-tried0: exn: True
+tried0: exn: False
 caught on inner level: outer1
-tried2: exn: True
+tried2: exn: False
 caught on inner level: outer1
-tried3: exn: True
+tried3: exn: False
 caught on inner level: outer1
 caught on inner level: outer1
-bar : forall<a,e> (f : (a) -> <exn,exn,console|e> (), action : a) -> <console|e> ()
-foo0 : forall<a,e> (action : () -> <exn,exn,console|e> a) -> <exn,console|e> a
-foo1 : forall<a,e> (action : () -> <exn,console|e> a) -> <exn,console|e> a
-foo2 : forall<a,e> (action : () -> <exn,console|e> a) -> <exn,console|e> a
-foo3 : forall<a,e> (action : () -> <exn,console|e> a) -> <exn,console|e> a
-main : () -> console ()
-test : forall<a,b,e,e1> (f : (() -> <exn,exn|e> a) -> <exn,exn,console|e1> (), err : () -> <exn,exn|e> b) -> <console|e1> ()
+ 
+mask/inject-behind1/bar: forall<a,e> (f : (a) -> <console,exn,exn|e> (), action : a) -> <console|e> ()
+mask/inject-behind1/foo0: forall<a,e> (action : () -> <console,exn,exn|e> a) -> <console,exn|e> a
+mask/inject-behind1/foo1: forall<a,e> (action : () -> <console,exn|e> a) -> <console,exn|e> a
+mask/inject-behind1/foo2: forall<a,e> (action : () -> <console,exn|e> a) -> <console,exn|e> a
+mask/inject-behind1/foo3: forall<a,e> (action : () -> <console,exn|e> a) -> <console,exn|e> a
+mask/inject-behind1/main: () -> console ()
+mask/inject-behind1/test: forall<a,b,e,e1> (f : (() -> <exn,exn|e> a) -> <console,exn,exn|e1> (), err : () -> <exn,exn|e> b) -> <console|e1> ()

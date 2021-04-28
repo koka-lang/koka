@@ -3,5 +3,6 @@ fun omega(): div () {
 }
 
 fun main() {
-  choose(error("hi"),omega())
+  fun choose(x,y){ if (True) then x else y}
+  choose(throw("hi"),omega())
 }

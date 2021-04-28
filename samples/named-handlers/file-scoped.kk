@@ -20,23 +20,23 @@ fun file(fname : string, action : forall<s> file<s> -> <scope<s>|e> a ) : e a {
   with f = named handler {
     fun read-line() {
       i := i + 1
-      (fname + ": line " + i.show)
+      (fname ++ ": line " ++ i.show)
     }
   }
   action(f)
 }
 
 fun read-both( f1 : file<s1>, f2 : file<s2> ) : <console,scope<s1>,scope<s2>|e> () {
-  println( f1.read-line() + "\n" + f2.read-line() )
+  println( f1.read-line() ++ "\n" ++ f2.read-line() )
 }
 
 public fun main() {
   with f1 = file("package.yaml")
   with f2 = file("stack.yaml")
-  println( f1.read-line() + "\n" + f2.read-line() )
-  //println( f2.read-line() + "\n" + f1.read-line() )
-  //read-both(f1,f2)
-  //wrong-escape()()
+  read-both(f1,f2)
+  //println( f1.read-line() ++ "\n" ++ f2.read-line() )
+  //println( f2.read-line() ++ "\n" ++ f1.read-line() )
+  //wrong-escape2()()
 }
 
 
@@ -45,7 +45,8 @@ fun wrong-escape2() {
   with f = file("stack.yaml")
   fn(){ f.read-line() }
 }
-
+*/
+/*
 fun wrong-escape1() {
   with f = file("stack.yaml")
   f

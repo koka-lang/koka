@@ -1,1 +1,2 @@
-test/algeff/wrong/ops5.kk(10,13): error: operator get is handled multiple times
+test/algeff/wrong/ops5.kk(10,21): error: invalid syntax
+ unexpected '(': local parameters are no longer supported, use a local 'var' instead

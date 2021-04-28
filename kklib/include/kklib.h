@@ -2,7 +2,8 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
-#define KKLIB_BUILD 3
+#define KKLIB_BUILD        21       // modify on changes to trigger recompilation
+#define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.
@@ -11,22 +12,25 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
-#include <assert.h>  // assert
-#include <errno.h>   // ENOSYS, ...
-#include <limits.h>  // LONG_MAX, ...
-#include <stddef.h>  // ptrdiff_t
-#include <stdint.h>  // kk_int_t, ...
-#include <stdbool.h> // bool
-#include <stdio.h>   // FILE*, printf, ...
-#include <string.h>  // strlen, memcpy, ...
-#include <stdlib.h>  // malloc, abort, ...
-#include <math.h>    // isnan, ...
+#define WIN32_LEAN_AND_MEAN          // reduce windows include
+#define _POSIX_C_SOURCE     200809L  // make posix definitions visible
+#define _DARWIN_C_SOURCE    200809L  // make darwin definitions visible
+#define _FILE_OFFSET_BITS   64       // enable large files
 
-#define  KK_MULTI_THREADED  1      // set to 0 to be used single threaded only
+#include <limits.h>           // LONG_MAX, ...
+#include <stddef.h>           // ptrdiff_t
+#include <stdint.h>           // int64_t, ...
+#include <stdbool.h>          // bool
+#include <assert.h>           // assert
+#include <errno.h>            // ENOSYS, ...
+#include <stdlib.h>           // malloc, abort, ...
+#include <string.h>           // strlen, memcpy, ...
+#include <math.h>             // isnan, ...
+#include <stdio.h>            // FILE*, printf, ...
 
-#include "kklib/platform.h"  // Platform abstractions and portability definitions
-#include "kklib/atomic.h"    // Atomic operations
-#include "kklib/process.h"   // Process info
+#include "kklib/platform.h"   // Platform abstractions and portability definitions
+#include "kklib/atomic.h"     // Atomic operations
+#include "kklib/process.h"    // Process info
 
 
 /*--------------------------------------------------------------------------------------
@@ -44,9 +48,8 @@ typedef enum kk_tag_e {
   KK_TAG_REF,         // mutable reference
   KK_TAG_FUNCTION,    // function with free its free variables
   KK_TAG_BIGINT,      // big integer (see `integer.c`)
-  KK_TAG_STRING_SMALL,// UTF8 encoded string of at most 7 bytes.
-  KK_TAG_STRING,      // UTF8 encoded string: valid (modified) UTF8 ending with a zero byte.
-  KK_TAG_BYTES,       // a vector of bytes
+  KK_TAG_BYTES_SMALL, // small byte sequence of at most 7 bytes.
+  KK_TAG_BYTES,       // byte sequence
   KK_TAG_VECTOR,      // a vector of (boxed) values
   KK_TAG_INT64,       // boxed int64_t
   KK_TAG_DOUBLE,      // boxed IEEE double (64-bit)
@@ -57,9 +60,12 @@ typedef enum kk_tag_e {
   KK_TAG_EVV_VECTOR,  // evidence vector (used in std/core/hnd)
   // raw tags have a free function together with a `void*` to the data
   KK_TAG_CPTR_RAW,    // full void* (must be first, see kk_tag_is_raw())
-  KK_TAG_STRING_RAW,  // pointer to a valid UTF8 string
-  KK_TAG_BYTES_RAW,   // pointer to bytes
-  KK_TAG_LAST
+  KK_TAG_BYTES_RAW,   // pointer to byte buffer
+  KK_TAG_LAST,
+  // strings are represented by bytes but guarantee valid utf-8 encoding
+  KK_TAG_STRING_SMALL = KK_TAG_BYTES_SMALL, // utf-8 encoded string of at most 7 bytes.
+  KK_TAG_STRING       = KK_TAG_BYTES,       // utf-8 encoded string ending with a zero byte.
+  KK_TAG_STRING_RAW   = KK_TAG_BYTES_RAW    // pointer to a valid utf-8 string
 } kk_tag_t;
 
 static inline bool kk_tag_is_raw(kk_tag_t tag) {
@@ -381,12 +387,11 @@ static inline void* kk_realloc(void* p, size_t sz, kk_context_t* ctx) {
   return mi_heap_realloc(ctx->heap, p, sz);
 }
 
-static inline void kk_free(void* p) {
-  KK_UNUSED(p);
-  mi_free(p);
+static inline void kk_free(const void* p) {
+  mi_free((void*)p);
 }
 
-static inline void kk_free_local(void* p) {
+static inline void kk_free_local(const void* p) {
   kk_free(p);
 }
 #else
@@ -869,6 +874,7 @@ typedef enum kk_unit_e {
 #include "kklib/bits.h"
 #include "kklib/box.h"
 #include "kklib/integer.h"
+#include "kklib/bytes.h"
 #include "kklib/string.h"
 #include "kklib/random.h"
 #include "kklib/os.h"
@@ -1146,28 +1152,6 @@ static inline kk_unit_t kk_unit_unbox(kk_box_t u) {
   kk_assert_internal( kk_enum_unbox(u) == (kk_uintx_t)kk_Unit || kk_box_is_any(u));
   return kk_Unit; // (kk_unit_t)kk_enum_unbox(u);
 }
-
-
-/*--------------------------------------------------------------------------------------
-  Bytes
---------------------------------------------------------------------------------------*/
-
-typedef struct kk_bytes_s {
-  kk_block_t  _block;               // KK_TAG_BYTES or KK_TAG_BYTES_RAW
-}* kk_bytes_t;
-
-struct kk_bytes_vector_s {          // in-place bytes
-  struct kk_bytes_s  _base;
-  size_t             length;
-  char               buf[1];
-};
-
-struct kk_bytes_raw_s {             // pointer to bytes with free function
-  struct kk_bytes_s _base;
-  kk_free_fun_t*    free;
-  uint8_t*          data;
-  size_t            length;
-};
 
 
 

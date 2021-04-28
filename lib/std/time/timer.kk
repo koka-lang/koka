@@ -63,6 +63,6 @@ public fun elapsed( action : () -> <ndet|e> a ) : <ndet|e> (duration,a) {
 // measured time in millisecond resolution.
 public fun print-elapsed( action : () -> <ndet,console|e> a, msg : string = "elapsed" ) : <ndet,console|e> a {
   val (t,x) = elapsed(action)
-  println( msg + " " + t.show(3) )
+  println( msg ++ " " ++ t.show(3) )
   x
 }

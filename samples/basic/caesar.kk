@@ -30,7 +30,7 @@ fun percent( n : int, m : int ) {
 }
 
 fun rotate( xs, n ) {
-  xs.drop(n) + xs.take(n)
+  xs.drop(n) ++ xs.take(n)
 }
 
 // Calculate a frequency table for a string
@@ -67,7 +67,7 @@ fun test-uncaesar() {
 
 fun main() {
   val s = "Koka is a well-typed language"
-  println( "plain  : " + s)
-  println( "encoded: " + s.caesar)
-  println( "cracked: " + uncaesar( s.caesar ))
+  println( "plain  : " ++ s)
+  println( "encoded: " ++ s.caesar)
+  println( "cracked: " ++ uncaesar( s.caesar ))
 }

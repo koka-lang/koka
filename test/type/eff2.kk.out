@@ -1,2 +1,2 @@
-twice : forall<a,e> (f : (a) -> e a, x : a) -> e a
-twice2 : forall<a,e> (f : (a) -> e a, x : a) -> e a
+type/eff2/twice: forall<a,e> (f : (a) -> e a, x : a) -> e a
+type/eff2/twice2: forall<a,e> (f : (a) -> e a, x : a) -> e a

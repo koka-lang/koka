@@ -8,20 +8,24 @@ effect state {
   fun append( x : string ) : string
 }
 
-val state = handler(s) {
-  return x   -> (x,s)
-  get()      -> resume(s,s)
-  append(s') -> resume("x",s + ", " + s')
+fun state(init,action) {
+  var s := init
+  with {
+    return(x){ (x,s) }
+    fun get()     { s }
+    fun append(s'){ s := s ++ ", " ++ s'; "x" }
+  }
+  action()
 }
 
 
 effect amb {
-  fun flip() : bool
+  control flip() : bool
 }
  
 val amb = handler {
-  return x -> [x]
-  flip()   -> resume(False) + resume(True)
+  return(x)      -> [x]
+  control flip() -> resume(False) ++ resume(True)
 }
 
 fun test() {
@@ -31,5 +35,5 @@ fun test() {
 }
 
 fun main() {
-  state("0"){ amb(test) }.snd
+  state("0"){ amb(test) }.snd.println
 }

@@ -1,7 +1,7 @@
-type open test<a> {
+open type test<a> {
   X( x : a )
 }
   
-type extend test {
+extend type test {
   Y
 }   

@@ -1,0 +1,11 @@
+0, 2, x, 2, x, 1, x
+ 
+algeff/effs5/Amb: forall<e,a> (.hnd-amb<e,a>) -> amb
+algeff/effs5/State: forall<e,a> (.hnd-state<e,a>) -> state
+algeff/effs5/amb: forall<a,e> (() -> <amb|e> a) -> e list<a>
+algeff/effs5/append: (x : string) -> state string
+algeff/effs5/flip: () -> amb bool
+algeff/effs5/get: () -> state string
+algeff/effs5/main: () -> console ()
+algeff/effs5/state: forall<a,e> (init : string, action : () -> <state|e> a) -> e (a, string)
+algeff/effs5/test: () -> <amb,state> string

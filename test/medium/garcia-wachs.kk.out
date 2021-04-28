@@ -1,20 +1,20 @@
 Node(Node("a",Node("b","c")),Node("d","e"))
-.copy : forall<a> (list1<a>, head : ?a, tail : ?list<a>) -> list1<a>
-Cons1 : forall<a> (head : a, tail : list<a>) -> list1<a>
-Leaf : forall<a> (value : a) -> tree<a>
-Node : forall<a> (left : tree<a>, right : tree<a>) -> tree<a>
-balance : forall<a> (xs : list1<(tree<a>, int)>) -> div tree<a>
-build : forall<a,h> (depth : int, xs : list1<(a, ref<h,int>)>) -> <div,read<h>> (tree<a>, list<(a, ref<h,int>)>)
-extract : forall<a> (before : list<(tree<a>, int)>, after : list1<(tree<a>, int)>) -> div tree<a>
-garciawachs : forall<a> (xs : list1<(a, int)>) -> div tree<a>
-head : forall<a> (list1 : list1<a>) -> a
-insert : forall<a> (after : list<(tree<a>, int)>, t : (tree<a>, int), before : list<(tree<a>, int)>) -> div tree<a>
-leaf? : forall<a> (tree : tree<a>) -> bool
-main : () -> <div,console> ()
-map : forall<a,b,e> (xs : list1<a>, f : (a) -> e b) -> e list1<b>
-mark : forall<a,h> (depth : int, t : tree<(a, ref<h,int>)>) -> (write<h>) ()
-node? : forall<a> (tree : tree<a>) -> bool
-show : (t : tree<string>) -> string
-tail : forall<a> (list1 : list1<a>) -> list<a>
-test : () -> div string
-zip : forall<a,b> (xs : list1<a>, ys : list1<b>) -> list1<(a, b)>
+ 
+medium/garcia-wachs/Cons1: forall<a> (head : a, tail : list<a>) -> list1<a>
+medium/garcia-wachs/Leaf: forall<a> (value : a) -> tree<a>
+medium/garcia-wachs/Node: forall<a> (left : tree<a>, right : tree<a>) -> tree<a>
+medium/garcia-wachs/balance: forall<a> (xs : list1<(tree<a>, int)>) -> div tree<a>
+medium/garcia-wachs/build: forall<a,h> (depth : int, xs : list1<(a, ref<h,int>)>) -> <div,read<h>> (tree<a>, list<(a, ref<h,int>)>)
+medium/garcia-wachs/extract: forall<a> (before : list<(tree<a>, int)>, after : list1<(tree<a>, int)>) -> div tree<a>
+medium/garcia-wachs/garciawachs: forall<a> (xs : list1<(a, int)>) -> div tree<a>
+medium/garcia-wachs/head: forall<a> (list1 : list1<a>) -> a
+medium/garcia-wachs/insert: forall<a> (after : list<(tree<a>, int)>, t : (tree<a>, int), before : list<(tree<a>, int)>) -> div tree<a>
+medium/garcia-wachs/is-leaf: forall<a> (tree : tree<a>) -> bool
+medium/garcia-wachs/is-node: forall<a> (tree : tree<a>) -> bool
+medium/garcia-wachs/main: () -> <console,div> ()
+medium/garcia-wachs/map: forall<a,b,e> (xs : list1<a>, f : (a) -> e b) -> e list1<b>
+medium/garcia-wachs/mark: forall<a,h> (depth : int, t : tree<(a, ref<h,int>)>) -> (write<h>) ()
+medium/garcia-wachs/show: (t : tree<string>) -> string
+medium/garcia-wachs/tail: forall<a> (list1 : list1<a>) -> list<a>
+medium/garcia-wachs/test: () -> div string
+medium/garcia-wachs/zip: forall<a,b> (xs : list1<a>, ys : list1<b>) -> list1<(a, b)>

@@ -8,9 +8,10 @@
 //#define _CRT_SECURE_NO_WARNINGS
 #include "kklib.h"
 #include <stdarg.h>
-#ifdef _WIN32
+#ifdef WIN32
 #include <Windows.h>
 #endif
+#include <locale.h>
 
 // identity function
 static kk_box_t _function_id(kk_function_t self, kk_box_t x, kk_context_t* ctx) {
@@ -150,9 +151,16 @@ bool __has_lzcnt = false;
 static void kklib_init(void) {
   if (process_initialized) return;
   process_initialized = true;
-#if defined(_WIN32) && defined(_CONSOLE)
-  SetConsoleOutputCP(65001); // set the console to unicode instead of OEM page
+  // for Koka, we need to be fully deterministic and careful when using C functionality that depends on global variables
+  setlocale(LC_ALL, "C.utf8"); 
+#if defined(WIN32) && (defined(_CONSOLE) || defined(__MINGW32__))
+  SetConsoleOutputCP(65001);   // set the console to unicode instead of OEM page
 #endif
+  //todo: do we need to set the IEEE floating point flags?
+  //fexcept_t fexn;
+  //fesetexceptflag(&fexn, FE_ALL_EXCEPT);
+  //_controlfp(_EM_INEXACT|_EM_OVERFLOW|_EM_UNDERFLOW, _MCW_EM);
+
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
   // <https://en.wikipedia.org/wiki/SSE4#POPCNT_and_LZCNT>
   int32_t cpu_info[4];
@@ -161,10 +169,7 @@ static void kklib_init(void) {
   __cpuid(cpu_info, (int)(0x80000001));
   __has_lzcnt  = ((cpu_info[2] & (KI32(1)<<5)) != 0);
 #endif
-  atexit(&kklib_done);
-  //fexcept_t fexn;
-  //fesetexceptflag(&fexn, FE_ALL_EXCEPT);
-  //_controlfp(_EM_INEXACT|_EM_OVERFLOW|_EM_UNDERFLOW, _MCW_EM);
+  atexit(&kklib_done);  
 }
 
 /*--------------------------------------------------------------------------------------------------
@@ -285,7 +290,7 @@ kk_decl_export void kk_debugger_break(kk_context_t* ctx) {
 /*--------------------------------------------------------------------------------------------------
   Platform specific initialization hooks
 --------------------------------------------------------------------------------------------------*/
-
+/*
 #if defined(__cplusplus)  // also used for _MSC_VER
 // C++: use static initialization to detect process start
 static bool process_init(void) {
@@ -303,3 +308,4 @@ static void __attribute__((constructor)) process_init(void) {
 #else
 #pragma message("define a way to call kklib_init on your platform")
 #endif
+*/

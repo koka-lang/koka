@@ -1,17 +1,14 @@
 module parc/parc6
 private import std/core/types = std/core/types = "";
-private import std/core/hnd = std/core/hnd = "";
 private import std/core = std/core = "";
 public fun test : (y : int) -> int
- = fun(y: int){
+ = fn(y: int){
  val xs : list<int>
  = std/core/Cons((std/core/types/.box(1)), std/core/Nil);
  match (xs) {
- (std/core/Cons(((.skip std/core/types/.Box((x: int)) : .Box ) as .box-x22: .Box), (.pat0: list<int>)) : list<int> )
- -> val _ : ()
- = std/core/types/.drop(y);
- val _ : ()
- = (match ((std/core/types/.is-unique(xs))) {
+ (std/core/Cons(((.skip std/core/types/.Box((x: int)) : .Box ) as .box-x32: .Box), (.pat0: list<int>)) : list<int> )
+ -> std/core/types/.drop(y);
+ (match ((std/core/types/.is-unique(xs))) {
  (std/core/types/True() : bool )
  -> std/core/types/.drop(.pat0);
  std/core/types/.free(xs);
@@ -22,5 +19,5 @@ public fun test : (y : int) -> int
  x;
  (.skip std/core/Nil() : (list<int>) )
  -> y;
- }
+ };
  };

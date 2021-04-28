@@ -11,7 +11,7 @@ type expr {
 fun show( e : expr ) : total string {
   match(e) {
     Int(i) -> core/show(i)
-    Div(e1,e2) -> "(" + e1.show + "/" + e2.show + ")"
+    Div(e1,e2) -> "(" ++ e1.show ++ "/" ++ e2.show ++ ")"
   }
 }
 
@@ -44,8 +44,8 @@ fun run(s,m) {
 
 fun show( r : either<string,(int,int)> ) : total string {
   match(r) {
-    Right((x,s)) -> x.core/show + " (state=" + s.core/show + ")"
-    Left(str)    -> "error: " + str
+    Right((x,s)) -> x.core/show ++ " (state=" ++ s.core/show ++ ")"
+    Left(str)    -> "error: " ++ str
   }
 }
 

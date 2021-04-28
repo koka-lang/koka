@@ -751,7 +751,7 @@ public fun extend(leap1 : leaps-table, leap2 : leaps-table) : leaps-table {
   match(leap1.adjusts.reverse) {
     Nil -> leap2
     Cons(la,_) ->
-      leap1( adjusts = leap1.adjusts + leap2.upto(la.utc-start - 1.timespan).adjusts )
+      leap1( adjusts = leap1.adjusts ++ leap2.upto(la.utc-start - 1.timespan).adjusts )
   }
 }
 
@@ -795,7 +795,7 @@ fun pleap() : parse leap-adjust {
   val ntpsecs = pint()
   whitespace()
   val adjust = pint()
-  // trace("leap entry: " + adjust.show + " - " + ntpsecs.show )
+  // trace("leap entry: " ++ adjust.show ++ " - " ++ ntpsecs.show )
   Leap-adjust(timestamp(ntpsecs.timespan - ntp2000), adjust.timespan, timestamp0, timespan0)
 }
 
@@ -805,7 +805,7 @@ public fun parse-leap-seconds( leaps : string ) : leaps-table {
   val adjusts = leaps.find-all(rxleap).map fn(cap) {
     val ntpsecs = cap.groups[1].parse-int-default(0)
     val adjust  = cap.groups[2].parse-int-default(0)
-    // trace("leap entry: " + adjust.show + " - " + ntpsecs.show )
+    // trace("leap entry: " ++ adjust.show ++ " - " ++ ntpsecs.show )
     Leap-adjust(timestamp(ntpsecs.timespan - ntp2000), adjust.timespan, timestamp0, timespan0)
   }.reverse
 

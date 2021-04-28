@@ -1,2 +1,3 @@
-test/kind/wrong/type7.kk(2, 7): error: invalid syntax
- open or extend
+test/kind/wrong/type7.kk(2, 6): error: invalid syntax
+ unexpected identifier "a"
+ expecting type name (and not type variable), "[", "(" or "<"

@@ -1,3 +1,5 @@
 Took 111 steps.
-collatz : (n : int, steps : ?int) -> div maybe<int>
-main : () -> io ()
+add default effect for std/core/exn
+ 
+medium/collatz/collatz: (n : int, steps : optional<int>) -> div maybe<int>
+medium/collatz/main: () -> io ()

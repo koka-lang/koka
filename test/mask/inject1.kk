@@ -1,9 +1,9 @@
-// Test inject
+// Test mask
 
 fun foo(action : () -> e a ) : <ndet|e> a
 {
-  val x = inject<ndet>(action)
-  if (random-bool()) then foo(action) else x 
+  val x = mask<ndet>(action)
+  if (False) then foo(action) else x 
 }
 
 fun main() {

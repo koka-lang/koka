@@ -1,14 +1,16 @@
 #!/bin/sh -e
-VERSION="v2.0.12"
+#Installation script for Koka; use -h to see command line options.
+
+VERSION="v2.1.2"
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
 FORCE=""
 
-KOKA_TEMP_DIR=""        # empty creates one dynamically
 KOKA_DIST_BASE_URL="https://github.com/koka-lang/koka/releases/download"
-KOKA_DIST_URL=""              # $KOKA_DIST_BASE_URL/$VERSION
-KOKA_DIST_SOURCE=""           # $KOKA_DIST_URL/koka-$VERSION-<osarch>.tar.gz
+KOKA_DIST_URL=""        # $KOKA_DIST_BASE_URL/$VERSION
+KOKA_DIST_SOURCE=""     # $KOKA_DIST_URL/koka-$VERSION-<os>-<arch>.tar.gz
+KOKA_TEMP_DIR=""        # empty creates one dynamically
 
 
 # ---------------------------------------------------------
@@ -163,9 +165,9 @@ COMPILER=""
 detect_arch() {
   ARCH="$(uname -m)"
   case "$ARCH" in
-    arm*)      ARCH="arm";;
-    aarch64*)  ARCH="aarch64";;
-    x86_64*)   ARCH="amd64";;
+    arm64*|aarch64*)   ARCH="arm64";;
+    arm*)              ARCH="arm";;
+    x86_64*)           ARCH="amd64";;
     x86*|i[35678]86*)  ARCH="x86";;
   esac
 }
@@ -214,6 +216,20 @@ dnf_install() {
   fi
 }
 
+# Install package group using dnf
+dnf_groupinstall() {
+  if ! sudocmd dnf groupinstall -y ${QUIET:+-q} "$@"; then
+    die "\ninstalling dnf package group failed ($@).  Please run 'dnf check-update' and try again."
+  fi
+}
+
+# Install package using pacman
+pacman_install() {
+  if ! sudocmd pacman -S --noconfirm ${QUIET:+-q} "$@"; then
+    die "\ninstalling pacman packages failed ($@).  Please run 'pacman -Sy' and try again."
+  fi
+}
+
 # Install packages using yum
 yum_install() {
   if ! sudocmd yum install -y ${QUIET:+-q} "$@"; then
@@ -255,11 +271,14 @@ install_dependencies() {
   if has_cmd apt-get ; then
     apt_get_install build-essential gcc make cmake tar curl
   elif has_cmd dnf ; then
-    dnf_install build-essential gcc make cmake tar curl
+    dnf_groupinstall "Development Tools" # this is for Fedora 32+， CentOS 8 and CentOS Stream  
+    dnf_install gcc make cmake tar curl
   elif has_cmd yum ; then
     yum_install build-essential gcc make cmake tar curl
   elif has_cmd apk ; then
     apk_install build-essential gcc make cmake tar curl
+  elif has_cmd pacman; then
+    pacman_install base-devel gcc make cmake tar curl
   else
     info "Unable to install dependencies; continuing.."
   fi
@@ -364,14 +383,14 @@ install_dist() {
     if [ -d $koka_atom_dir ] ; then
       info "- install atom editor support"
       if [ -d ~/.atom/packages/language-koka ] ; then
-        restart_msg="no"
+        need_restart=""
       else
         mkdir ~/.atom/packages/language-koka
-        restart_msg="yes"
+        need_restart="yes"
       fi
       if ! cp -p -r $koka_atom_dir/* ~/.atom/packages/language-koka/ ; then
         info "  (failed to copy atom support files)"
-      elif "$restart_msg" = "yes" ; then 
+      elif [ ! -z "$need_restart" ] ; then 
         info "  Please restart Atom for Koka syntax highlighting to take effect."
       fi
     fi
@@ -383,13 +402,13 @@ install_dist() {
     if [ -d $koka_vscode_dir ] ; then
       info "- install vscode editor support"
       if [ -d ~/.vscode/extensions/koka.language-koka ] ; then
-        restart_msg="no"
+        need_restart=""
       else
-        restart_msg="yes"
+        need_restart="yes"
       fi
       if ! cp -p -r $koka_vscode_dir/* ~/.vscode/extensions/ ; then
         info "  (failed to copy vscode support files)"
-      elif "$restart_msg" = "yes" ; then    
+      elif [ ! -z "$need_restart" ] ; then    
         info "  Please restart VS Code for Koka syntax highlighting to take effect."
       fi
     fi

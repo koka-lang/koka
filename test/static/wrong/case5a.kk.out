@@ -1,1 +1,1 @@
-test/static/wrong/case5a.kk(5,15): error: type aInt should be cased as aint
+test/static/wrong/case5a.kk(5,15): error: Type modD/aInt should be cased as: aint

@@ -303,7 +303,7 @@ public fun show( i : instant, max-prec : int = 9, secs-width : int = 1 ) : strin
 // Internal: show an instant as a raw timestamp in a given precision, postfixed with the time scale name.
 public fun show-raw( i : instant, max-prec : int = 9, secs-width : int = 1, unit : string = "" ) : string {
   i.since.ts-show(max-prec,secs-width,unit)
-   + (if (i.ts.name.is-empty || i.ts.name=="TAI") then "" else " " + i.ts.name)
+   ++ (if (i.ts.name.is-empty || i.ts.name=="TAI") then "" else " " ++ i.ts.name)
 }
 
 /*----------------------------------------------------------------------------

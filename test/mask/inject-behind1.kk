@@ -3,56 +3,54 @@
 
 fun foo0( action ) {
   val x = try(action)
-  println("tried0: exn: " + x.maybe.bool.show )
-  x.untry
+  println("tried0: exn: " ++ x.maybe.bool.show )
+  x.throw
 }
 
 
 fun foo1( action ) {
   val x = try{ mask<exn>(action) }
-  println("tried1: exn: " + x.maybe.bool.show )
-  x.untry
+  println("tried1: exn: " ++ x.maybe.bool.show )
+  x.throw
 }
 
 fun foo2( action ) {
   val x = try{ mask behind<exn>(action) }   // inject behind the outer exn, i.e. inject the injects in action
-  println("tried2: exn: " + x.maybe.bool.show )
-  x.untry
+  println("tried2: exn: " ++ x.maybe.bool.show )
+  x.throw
 }
 
 
 // equivalent to foo2
 fun foo3( action ) {
   val x = mask<exn>{ try{ action() } }
-  println("tried3: exn: " + x.maybe.bool.show )
-  x.untry
+  println("tried3: exn: " ++ x.maybe.bool.show )
+  x.throw
 }
 
 fun bar(f,action) {
   try {
     try {
       f(action)
+    } fn(exn) {
+      println("caught on inner level: " ++ exn.message)
     }
-    fn(exn) {
-      println("caught on inner level: " + exn.message)
-    }
-  }
-  fn(exn) {
-    println("caught on outer level: " + exn.message)
+  } fn(exn) {
+    println("caught on outer level: " ++ exn.message)
   }
 }
 
 fun test(f,err) {
   bar(f) {
     err()
-    mask<exn>{error("masked")}
-    error("outer2")
+    mask<exn>{throw("masked")}
+    throw("outer2")
   }
   println("")
 }
 
 fun main() {
-  fun err(){ error("outer1") }
+  fun err(){ throw("outer1") }
   fun noerr(){ () }
 
   test(foo0,noerr)   // unifies: should catch on inner level

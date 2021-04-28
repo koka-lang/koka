@@ -2,7 +2,7 @@ module fibonacci
 
 public fun main() {
   val n = 10000
-  println("The " + n.show + "th fibonacci number is " + fibonacci(10000).show)
+  println("The " ++ n.show ++ "th fibonacci number is " ++ fibonacci(10000).show)
 }
 
 fun fibonacci(n : int) : div int {

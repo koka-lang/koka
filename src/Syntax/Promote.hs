@@ -69,7 +69,7 @@ promote somePars forallPars preds mbResTp expr
     isRight (Left tp)   = False
 
     argresTypes :: UserExpr -> ([(Name,Either UserType Range)],UserExpr)
-    argresTypes (Parens expr r)     = let (es,expr') = argresTypes expr in (es,Parens expr' r)
+    argresTypes (Parens expr name r)= let (es,expr') = argresTypes expr in (es,Parens expr' name r)
     argresTypes (Ann expr tp r)     = let (es,expr') = argresTypes expr in (es,Ann expr' tp r)
     argresTypes (Lam args expr rng) = let (es,expr') = resType expr
                                           (fs,args') = unzip (map (\binder
@@ -85,7 +85,7 @@ promote somePars forallPars preds mbResTp expr
     argresTypes expr                = ([],expr)
 
     resType :: Expr UserType -> ([(Name,Either UserType Range)],Expr UserType)
-    resType (Parens expr r)     = let (es,expr') = resType expr in (es,Parens expr' r)
+    resType (Parens expr name r)     = let (es,expr') = resType expr in (es,Parens expr' name r)
     {-
     resType (Ann expr tp rng)   = case mbResTp of
                                     Just (teff,tres) -> ([Left teff, Left tres], Ann expr tp rng)

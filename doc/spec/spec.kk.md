@@ -1,7 +1,7 @@
 
-# Koka language specification
+# &koka; language specification
 
-This is the draft language specification of the Koka language, version v&kokaversion;\
+This is the draft language specification of the &koka; language, version v&kokaversion;\
 Currently only the lexical and context-free grammar are specified.
 The [standard libraries][stdlib] are documented separately.
 
@@ -269,7 +269,7 @@ of [JavaScript][ljavascript] and [Haskell][lhaskell] (I am sad to admit)
 the precise behavior is bizarrely complex where semicolon insertion
 depends on the interaction between the lexer and parser.
 
-In Koka, the grammar is carefully constructed to not need any statement
+In &koka;, the grammar is carefully constructed to not need any statement
 separator at all and semicolons are never required by the grammar.
 They are still allowed in the grammar but strictly to help new programmers
 that are used to putting semicolons at the end of statements.
@@ -278,17 +278,17 @@ The construction of a grammar that does not need statement separators is
 also good from a human perspective. The reason semicolons are required is
 to resolve ambiguities in the syntax. When such ambiguities do not occur
 in the first place, that also removes a cognitive burden from the
-programmer. In particular, Koka statements often start with a keyword,
+programmer. In particular, &koka; statements often start with a keyword,
 like `val` or `match`, signifying intention to both programmer and parser.
 
 In other cases, we restrict the expression grammar. For example, one
 reason why C requires semicolons is due to prefix- and postfix operators.
 If we write ``p ++ q`` the C parser needs a semicolon in order to know if
-we meant ``p++; q`` or ``p; ++q``. Such ambiguity is resolved in Koka by
+we meant ``p++; q`` or ``p; ++q``. Such ambiguity is resolved in &koka; by
 not having postfix operators and restricting prefix operators to ``!``
 and ``~``.
 
-One other reason that Koka can do without a statement separator is the
+One other reason that &koka; can do without a statement separator is the
 effect inference system: without such effect inference subtle bugs may
 occur if we leave out semicolons. For example, consider the following
 function:
@@ -304,9 +304,9 @@ fun square-wrong( x : int ) {
   x x
 }
 ```
-The Koka grammar sees this as 2 separate statements now, &ie; as ``x; x``
+The &koka; grammar sees this as 2 separate statements now, &ie; as ``x; x``
 returning ``x`` instead. In a language without effect inference it is hard
-to detect such errors, but the Koka type system rejects this program:
+to detect such errors, but the &koka; type system rejects this program:
 
     > fun square-wrong(x:int) { x x }
                                 ^
@@ -336,7 +336,7 @@ Just like programming languages like
 which automatically adds semicolons at appropriate places. This enables the
 programmer to leave out most semicolons:
 
-Koka inserts semicolons automatically for any statements
+&koka; inserts semicolons automatically for any statements
 and declarations that are _aligned between curly braces_ (`{` and `}`).
 {padding-left:1em}
 
@@ -371,8 +371,8 @@ write a long statement on multiple lines by using more indentation:
 ```
 fun eq2( x : int, y : int ) : io bool
 {  
-  print("calculate " +
-         "equ" +
+  print("calculate " ++
+         "equ" ++
          "ality")
   val result = if (x == y)
                 then True
@@ -387,7 +387,7 @@ more. Moreover, it means that the visual indentation of a program corresponds
 directly to how the compiler interprets the statements. Many tricky layout
 examples in other programming languages are often based on a mismatch between
 the visual representation and how a compiler interprets the tokens -- with
-Koka's layout rule such issues are largely avoided.
+&koka;'s layout rule such issues are largely avoided.
 
 To still allow for "block-style" layout, the
 layout rule does not insert a  semicolon for an aligned statement if it

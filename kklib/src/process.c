@@ -13,7 +13,7 @@
 // Basic timer for convenience; use micro-seconds to avoid doubles
 // (2^63-1) us ~= 292471 years
 // ----------------------------------------------------------------
-#ifdef _WIN32
+#ifdef WIN32
 #include <Windows.h>
 static kk_usecs_t kk_to_usecs(LARGE_INTEGER t) {
   static LARGE_INTEGER mfreq; // = 0
@@ -76,7 +76,7 @@ kk_usecs_t kk_timer_end(kk_timer_t start) {
 // Basic process statistics
 // --------------------------------------------------------
 
-#if defined(_WIN32)
+#if defined(WIN32)
 #include <Windows.h>
 #include <Psapi.h>
 #pragma comment(lib,"psapi.lib")

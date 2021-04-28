@@ -1,2 +1,3 @@
-test/syntax/wrong/unused1.kk(2, 3): error: expression has no effect and is unused
- hint: did you forget an operator? or is there a space between an application?
+test/syntax/wrong/unused1.kk(2, 5): error: invalid syntax
+ unexpected 2
+ expecting ".", "(", "[", "{", "fn", "fun", operator, ":=", ";", "return" or "}"

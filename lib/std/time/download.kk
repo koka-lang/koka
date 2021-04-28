@@ -100,7 +100,7 @@ public fun load-leaps-table( fname : path = path(""),
                                verbose : bool = False
                              ) : <io,async> leaps-table
 {
-  val xfname = (fname || appdir() + path("config/leap-seconds.list"))
+  val xfname = (fname || appdir() ++ path("config/leap-seconds.list"))
   val xurl   = (if (url=="auto") then "https://www.ietf.org/timezones/data/leap-seconds.list" else url)
   fun parse( leaps : string ) : maybe<leaps-table> { Just(parse-leap-seconds(leaps))}
   val leaps-table
@@ -138,10 +138,10 @@ public fun load-latest( fname  : path,
                          verbose : bool = False  ) : <ndet,file,net,exn,async> a
 {
   fun full(msg) {
-    error-prefix + ": " + msg + ".\n  cached: " + fname.show + "\n  url   : " + url.show
+    error-prefix ++ ": " ++ msg ++ ".\n  cached: " ++ fname.show ++ "\n  url   : " ++ url.show
   }
   fun warn(msg) : ndet () {
-    if (verbose) then trace("warning: " + msg.full) else ()
+    if (verbose) then trace("warning: " ++ msg.full) else ()
   }
 
   // is the current data still valid?
@@ -184,20 +184,20 @@ public fun load-latest( fname  : path,
                     }
         // check file mod time to see if we tried downloading recently
         val fi = try-default(epoch){ fname.mod-time }
-        if (download-delay.pos? && (fi + download-delay > unow)) {
-          warn("using cached file since it was recently updated.\n  " + fname.show)
+        if (download-delay.is-pos && (fi ++ download-delay > unow)) {
+          warn("using cached file since it was recently updated.\n  " ++ fname.show)
           return recent  // expired, but use anyway since we recently updated the file
           // Just(recent)
         }
         else {
-          warn("local cache expired: " + fi.show)
+          warn("local cache expired: " ++ fi.show)
           Just(recent)  // expired, try to download more recent version
         }
       }
     }
   }
   // only download if we have a url
-  if (url.empty?) then {
+  if (url.is-empty) then {
     match(mbrecent) {
       Nothing      -> error(full("unable to read from cache"))
       Just(recent) -> recent
@@ -229,7 +229,7 @@ public fun download-latest(  url   : string,
                            ) : <ndet,file,net,async,exn> a
 {
   fun warn(msg) {
-    val full-msg = error-prefix + ": " + msg + ".\n  url: " + url.show
+    val full-msg = error-prefix ++ ": " ++ msg ++ ".\n  url: " ++ url.show
     // trace(full-msg)
     match(current) {
       Just(cur) -> { if (verbose) then trace(full-msg); cur }
@@ -237,9 +237,9 @@ public fun download-latest(  url   : string,
     }
   }
   try {
-    if (verbose) then trace("start download: " + url.show)
+    if (verbose) then trace("start download: " ++ url.show)
     val text = url.download-text(download-timeout)
-    // trace("downloaded: " + url + ": " + text.first(10).string + "...")
+    // trace("downloaded: " ++ url ++ ": " ++ text.first(10).string ++ "...")
     match(text.parse) {
       Just(data) -> {
         val exp = data.expire.default(now-in(ts-ti))
@@ -248,8 +248,8 @@ public fun download-latest(  url   : string,
             warn("downloaded data is less recent than the cached data.")
           }
           _ -> {
-            if (!cache.empty?) then {
-              if (verbose) then trace("cache to file: " + cache.string)
+            if (!cache.is-empty) then {
+              if (verbose) then trace("cache to file: " ++ cache.string)
               try{ write-text(cache,text) }
               ()
             }

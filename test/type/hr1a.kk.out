@@ -1,4 +1,4 @@
-auto : (f : forall<a> (a) -> a) -> (forall<a> (a) -> a)
-ids : list<forall<a> (a) -> a>
-test3 : list<forall<a> (a) -> a>
-xauto : forall<a> (f : forall<b> (b) -> b) -> ((a) -> a)
+type/hr1a/auto: forall<e> (f : forall<a> (a) -> e a) -> e (forall<a> (a) -> e a)
+type/hr1a/ids: list<forall<a> (a) -> a>
+type/hr1a/test3: list<forall<a> (a) -> a>
+type/hr1a/xauto: forall<a> (f : forall<b> (b) -> b) -> ((a) -> a)

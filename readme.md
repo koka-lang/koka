@@ -1,4 +1,4 @@
-<img align="left" width="100" height="100" src="doc/logo/koka-logo-400.png"/>
+<img align="left" width="100" height="100" src="doc/logo/koka-logo-filled.png"/>
 
 <!--
 [<img align="right" src="https://travis-ci.org/koka-lang/koka.svg?branch=master"/>](https://travis-ci.org/koka-lang/koka)
@@ -7,19 +7,18 @@
 
 &nbsp;
 
-# Koka: a function-oriented language with effect types and handlers
+# Koka: a functional language with effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
-_Latest release_: v2.0.11, 2020-11-29 ([Install](#install)).
+_Latest release_: v2.1.1, 2021-03-08 ([Install](#install)).
 
-<a href="https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk"><img align="right" width="350" src="doc/snippet-rbtree.png"/></a>
+<a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
-Koka is a beautiful functional language with clean syntax and excellent performance.
-What sets Koka apart is _effect typing_, _effect handlers_, and _Perceus_ memory management:
+Koka is a strongly typed functional-style language with effect types and handlers.
 
-* The core of Koka consists of a small set of well-studied language
-  features, like first-class functions, a polymorphic type- and effect
-  system, algebraic data types, and effect handlers.   
+* The core of Koka consists of a small set of well-studied language features, like first-class functions, 
+  a polymorphic type- and effect system, algebraic data types, and effect handlers. Each of these is 
+  composable and avoid the addition of “special” extensions by being as general as possible. 
 * Koka tracks the (side) _effects_ of every
   function in its type, where pure and effectful computations are
   distinguished. The precise effect typing gives Koka _rock-solid
@@ -28,52 +27,29 @@ What sets Koka apart is _effect typing_, _effect handlers_, and _Perceus_ memory
 * _Effect handlers_ let you define advanced control abstractions,
   like exceptions, async/await, or probabilistic programs, 
   as a user library in a typed and composable way.
-* [Perceus] is an advanced compilation method for reference counting.
+* [Perceus](https://koka-lang.github.io/koka/doc/book.html#why-perceus) is an advanced compilation method for reference counting.
   Together with [evidence translation][evidence], this lets Koka compile directly to C code _without needing
-  a garbage collector or runtime system_. This also gives Koka 
-  excellent performance in practice (see the [benchmarks](#benchmarks)).
-* Through Perceus, Koka can do reuse analysis and optimize 
-  functional-style programs to use in-place updates.
+  a garbage collector or runtime system_. 
+  Perceus also performs [reuse analysis](https://koka-lang.github.io/koka/doc/book.html#why-fbip) and optimizes
+  functional-style programs to use in-place updates when possible.
 
 For more information, see:
 
 * [Why Koka?][why]
-* The [Koka manual][kokabook] for a tour of the Koka language and its specification.
+* The [Koka book][kokabook] for a tour of the Koka language and its specification.
 * The [Library documentation][libraries].
+* Help with [development](#tasks)
 
-<!--
-A function without any effect is called _total_ and corresponds to mathematically total functions -- a good place to be.
-Then we have effects for partial functions that can raise exceptions, as _exn_, and potentially non-terminating functions as _div_ (divergent).
-The combination of _exn_ and _div_ is called _pure_ as that corresponds to Haskell's notion of purity. On top of that we find
-mutability (as _st_) up to full non-deterministic side effects in _io_.
 
-Koka also has full support for _algebraic effect handlers_. This enables powerful control-flow abstraction that allows users to define
-compositional control-flow abstractions as a library; this includes advanced abstractions like exceptions, iterators, async-await concurrency,
-ambient state, backtracking parser combinators, probablistic programming, Bayesian machine learning, etc. Algebraic effect handlers subsume (free)
-monads, and are compositional without needing lifting or monad transformers.
+[why-mingen]: https://koka-lang.github.io/koka/doc/book.html#why-mingen
+[why-effects]: https://koka-lang.github.io/koka/doc/book.html#why-effects
+[why-handlers]: https://koka-lang.github.io/koka/doc/book.html#why-handlers
+[why-perceus]: https://koka-lang.github.io/koka/doc/book.html#why-perceus
+[why-fbip]: http://koka-lang.github.io/koka/doc/book.html#why-fbip
 
-Recent work on [evidence translation](https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently-with-proofs-5f0b7d860b387.pdf)
-and [Perceus]
-precise compiler guided reference counting enable Koka to compile directly
-to plain C code _without needing a garbage collector_ or runtime system. Initial performance [benchmarks](#benchmarks) are promising,
-and it is our goal to generally fall within a factor 2&times; of C++ performance without needing manual memory management.
-
-For more background information, see:
-
-* The [Koka manual][kokabook] for a tour of the Koka language and its specification.
-* The [library documentation][libraries].
-* The article _Algebraic Effects for Functional Programming_ [[3]](#references) about the algebraic effects in Koka.
--->
-
-[why-mingen]: https://koka-lang.github.io/koka/doc/kokaspec.html#why-mingen
-[why-effects]: https://koka-lang.github.io/koka/doc/kokaspec.html#why-effects
-[why-handlers]: https://koka-lang.github.io/koka/doc/kokaspec.html#why-handlers
-[why-perceus]: https://koka-lang.github.io/koka/doc/kokaspec.html#why-perceus
-[why-fbip]: http://koka-lang.github.io/koka/doc/kokaspec.html#why-fbip
-
-[why]: https://koka-lang.github.io/koka/doc/kokaspec.html#why
-[kokabook]: https://koka-lang.github.io/koka/doc/kokaspec.html  
-[tour]: https://koka-lang.github.io/koka/doc/kokaspec.html#tour
+[why]: https://koka-lang.github.io/koka/doc/book.html#why
+[kokabook]: https://koka-lang.github.io/koka/doc/book.html  
+[tour]: https://koka-lang.github.io/koka/doc/book.html#tour
 [libraries]: https://koka-lang.github.io/koka/doc/toc.html
 [slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf
 [kokarepo]: https://github.com/koka-lang/koka
@@ -82,7 +58,7 @@ For more background information, see:
 [evidence]: https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently.pdf
 [releases]: https://github.com/koka-lang/koka/releases
 [build]: #build-from-source
-[Perceus]: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf
+[Perceus]: https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/
 [vsprompt]: https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019
 
 Enjoy,
@@ -94,7 +70,10 @@ Special thanks to:
 - And all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
 
 Releases:
-- `v2.0.11`, 2020-11-29: syntax highlighting support for VS Code and Atom, improved uninstall.
+- `v2.1.1`, 2021-03-08: bug fixes, use right-associative (++) for string- and list append (instead of (+)), improved internal string handling.
+- `v2.0.16`, 2021-02-14: bug fixes, fix short-circuit evaluation of logical operations, improved utf-8 handling.
+- `v2.0.14`, 2020-12-11: bug fixes, improved var escape checking.
+- `v2.0.12`, 2020-12-02: syntax highlighting support for VS Code and Atom, improved uninstall, more samples.
 - `v2.0.9`, 2020-11-27: now with binary [releases] for Windows, macOS, and Linux.
 - `v2.0.7`, 2020-11-23: more small fixes, improved scoped handlers, improved higher-rank type propagation, more samples.
 - `v2.0.5`, 2020-11-15: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support, direct C compilation, local install support.
@@ -118,8 +97,8 @@ After installation, verify if Koka installed correctly:
 | |        | |         |__  \
 | | __ ___ | | __ __ _  __) |
 | |/ // _ \| |/ // _` || ___/ welcome to the koka interpreter
-|   <| (_) |   <| (_| ||____| version 2.0.11, Nov 29 2020, libc 64-bit (gcc)
-|_|\_\\___/|_|\_\\__,_|       type :? for help
+|   <| (_) |   <| (_| ||____| version 2.0.12, Dec  2, 2020, libc 64-bit (gcc)
+|_|\_\\___/|_|\_\\__,_|       type :? for help, and :q to quit
 
 loading: std/core
 loading: std/core/types
@@ -172,7 +151,7 @@ We can compare this against an in-place updating C++ implementation using ``stl:
 ([``rbtree.cpp``](https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.cpp)) (which also uses a
 [red-black tree](https://code.woboq.org/gcc/libstdc++-v3/src/c++98/tree.cc.html) internally):
 
-    > clang++ --std=c++17 -o cpp-rbtree -O3 samples/basic/rbtree.cpp
+    > clang++ --std=c++17 -o cpp-rbtree -O3 /usr/local/share/koka/v2.0.12/lib/samples/basic/rbtree.cpp
     > time ./cpp-rbtree
     420000
     real    0m0.864s
@@ -273,7 +252,7 @@ you can type ``:e`` in the interactive prompt to edit your program further. For 
 ## What next?
 
 * Read about the [core concepts][why] of Koka.
-* Read a [Tour of Koka][tour] in the Koka manual.
+* Read a [Tour of Koka][tour] in the Koka book.
 * Check the [Libraries][libraries] documentation.
 * Write some cool Koka programs :-)
 
@@ -296,12 +275,12 @@ reclamation techniques and are considered best-in-class. The systems we
 compare are, Koka 2.0.3 (compiling the generated C code with gcc 9.3.0),
 [OCaml](https://ocaml.org) 4.08.1, [Haskell](https://www.haskell.org) GHC 8.6.5,
 [Swift](https://swift.org/) 5.3, [Java](https://www.java.com) SE 15.0.1 with the Hotspot G1 collector,
-and [C++](http://www.cplusplus.org).
+and [C++](http://www.cplusplus.org) gcc 9.3.0.
 
 <img align="right" width="400" src="doc/bench-amd3600-nov-2020.png" style="border:1px solid black">
 
-The benchmarks are all available in [`test/bench`](test/bench) (see below for
-build instructions), and all
+The benchmarks are all available in [`test/bench`](test/bench) (see the
+readme there for build instructions), and all
 stress memory allocation with little computation:
 `rbtree` (inserts 42 million items into a red-black tree),
 `rbtree-ck` (a variant of `rbtree` that keeps a list of every 5th
@@ -331,6 +310,45 @@ to see this initial performance from Koka.
 
 A full discussion of these benchmarks and systems can be found
 in the [Perceus] report.
+
+
+# Tasks
+
+Please help develop Koka: there are many opportunities to improve Koka or do research with Koka. We need:
+
+- Emacs and Vim syntax highlighting.
+- Improve documentation, landing page etc. Make it easier for people to contribute.
+- More examples
+- Many library modules are incomplete (like `std/os/file`) or missing (like `std/data/map`).
+
+More advanced projects:
+
+- Update the JavaScript backend to 1) use proper modules instead of amdefine, 2) use the new bigints instead of bigint.js,
+  and 3) add support for int64. This requires mostly changes to `Backend/JS/FromCore.hs` together with `lib/core/core-inline.js`.
+- A language server for Visual Studio Code and Atom. Koka can already generate a typed [range map](src/Syntax/RangeMap.hs) so this
+  should be managable.
+- Package management of Koka modules.
+- Implement inline specialization where functions like `map`, `fold` etc get specialized for the function with which they are called.
+  This is an important optimization for functional style languages to reduce the allocation of lambda's.
+- Various standard optimizations like case-of-case, join points, case-of-known constructor, etc.
+- Borrowing analysis for Perceus.
+- Known reference count specialization.
+
+The following is the immediate todo list to be completed in the coming months:
+
+- Port all libray modules, in particular `std/text/regex` (using PCRE), and `std/async` (using `libuv`).
+- Run the full test suite again.
+- Run the Bayesian probalistic machine learning program with large parameters.
+- Improve compilation of local state to use local variables directly (in C).
+- Functions with a pattern match in the argument.
+
+Contact me if you are interested in tackling some of these :-)
+
+Main branches:
+- `master`: latest stable version.
+- `dev`: current development branch -- submit PR's to this branch.
+- `v1-master`: last stable version of Koka v1: this is Koka with the Javascript (and C#) backend which does not use evidence translation.
+               This version supports `std/async` and should compile examples from published papers.
 
 
 # Build from source
@@ -420,190 +438,6 @@ info: elapsed: 0.727s, user: 0.734s, sys: 0.000s, rss: 164mb
 info: elapsed: 1.483s, user: 1.484s, sys: 0.000s, rss: 164mb
 ```
 
-## Build and run benchmarks
-
-There is a standard benchmark suite (discussed in detail in [Perceus] paper).
-It is still basic but more benchmarks
-with effect handlers are coming. The suite can run on (Ubuntu Linux), WSL2, and macOSX,
-and the benchmarks need:
-
-- `gcc`. Should be there, otherwise use `sudo apt install gcc`,
-- `ghc`. Use `sudo apt install ghc`,
-- `ocamlopt`. Use `sudo apt install ocaml`,
-- `swiftc`. The Swift compiler can be downloaded [here](https://swift.org/download/).
-   The benchmarks expect `swiftc` to be installed at `/opt/swift/bin`,
-   so unpack and copy everything under `swift-.../usr` to `/opt/swift/bin`:
-   ```
-   > tar -xzf swift-5.3-RELEASE-ubuntu20.04.tar.gz
-   > cd swift-5.3-RELEASE-ubuntu20.04/usr
-   > sudo mkdir /opt/swift
-   > sudo cp -r * /opt/swift
-   ```
-- `javac`/`java`. We used these [instructions](https://computingforgeeks.com/install-oracle-java-openjdk-14-on-ubuntu-debian-linux/)
-   to install the Java SE 15 Hotspot compiler:
-   ```
-   > sudo apt update
-   > sudo add-apt-repository ppa:linuxuprising/java
-   > sudo apt -y install oracle-java15-installer
-   > sudo apt -y install oracle-java15-set-default
-   > java --version
-   java 15.0.1 2020-10-20
-   Java(TM) SE Runtime Environment (build 15.0.1+9-18)
-   Java HotSpot(TM) 64-Bit Server VM (build 15.0.1+9-18, mixed mode, sharing)
-   ```
-
-The benchmarks can now be build using:
-
-```
-> cd test/bench
-> mkdir build
-> cd build
-> cmake .. -DCMAKE_BUILD_TYPE=Release
-> cmake --build .
-```
-
-For some benchmarks, like `cfold`, we may need a large stack, so it may be good to raise the limit:
-```
-> ulimit -s unlimited
-```
-
-We can then run all benchmarks as:
-```
-> ctest .
-```
-Or only run benchmarks for one language with `-L <lang>`:
-```
-> ctest -L koka
-```
-Or run specific benchmarks using `-R <regex>`,
-like the symbolic derivative benchmark:
-```
-> ctest -R deriv      
-Test project /home/daan/dev/koka/test/bench/build
-    Start  4: hs-deriv
-1/4 Test  #4: hs-deriv .........................   Passed    2.29 sec
-    Start 10: kk-deriv
-2/4 Test #10: kk-deriv .........................   Passed    1.25 sec
-    Start 19: ml-deriv
-3/4 Test #19: ml-deriv .........................   Passed    1.73 sec
-    Start 25: sw-deriv
-4/4 Test #25: sw-deriv .........................   Passed    2.88 sec
-
-100% tests passed, 0 tests failed out of 4
-...
-```
-
-We can also run the tests using the `test/bench/run.kk` script instead of
-using `ctest` which also measures peak working set and calculates
-normalized scores. For example, from the `build` directory, we can run all benchmarks as:
-```
-> koka ../run
-```
-Use the `--lang` or `--test` options to specify a comma separated list of
-languages or benchmarks:
-```
-> koka ../run -- --lang=koka,ocaml  --test=rbtree,rbtree-ck
-```
-The `-i<N>` switch runs `N` iterations on each benchmark and calculates
-the average and the error interval.
-
-
-## Testing
-
-To run tests, use stack:
-
-```
-> stack test                                              # All tests
-> stack test --test-arguments="--match /parc/"            # One category
-> stack test --test-arguments="--mode new"                # Create output files
-> stack test --test-arguments="--mode update"             # Update output files
-> stack test --test-arguments="--match /parc/ --mode new" # Combined
-```
-
-<!--
-# Evidence Translation and Perceus
-
-Koka compiles directly to plain C code without needing a garbage collector or runtime system.
-There are two crucial ingredients to make this possible: evidence translation and Perceus.
-
-## Evidence translation
-
-As described in the paper _Effect Handlers, Evidently_, Xie _et al._ [[6]](#references) show how to translate algebraic effect handlers at compilation
-time down to pure lambda calculus where all control flow is explicit again. This is done by Koka to remove any dependence on
-runtime mechanisms like split-stacks (as in Multi-core OCaml) or C stack copying [[7]](#references). Moreover, as the evidence for each handler
-is passed down to the call site, all _tail-resumptive_ operations can be executed in-place without needing to do an expensive
-yield- and resume. This makes the cost of tail-resumptive operations on effects comparable to a virtual method call.
-
-## Perceus
-
-Even a purely functional core intermediate language with explicit control flow is not yet enough to compile to C directly: without manual memory
-management functional languages still need a (tracing) garbage collector (like OCaml or Haskell). A well performing concurrent generational
-garbage collector is very hard to build and is invasive as it needs to be able to scan the roots and stack. Even the best garbage collectors
-still suffer from unpredictable latencies (especially with large live sets) and tend to require (much) more memory than achievable with
-manual memory management (as with C/C++ and Rust).
-
-With Koka we took a novel approach based on reference counting. The usual wisdom is that  reference counting does not perform well due to various factors but
-in Koka we believe we can do better: 1) we know that all inductive and co-inductive datatypes are never cyclic so we can identify potential cycle introducing
-datatypes statically (like mutable references, and these are not so often used in mostly functional Koka), 2) again due to the strict type system
-we can statically track which values may become shared across threads and avoid expensive atomic operations for the majority of operations, and
-finally 3) due to the explicit control-flow we can do deep analysis on variable life times.
-
-In particular, we use aggressive static analysis to insert _precise_ reference count instructions where memory is freed as soon as
-it is no longer live. We call this _garbage free_ reference counting. In particular, we do not hold on to memory based on
-lexical scope as in almost all reference counting implementations in the wild, like Swift, Nim, Python, C++ with `shared_ptr`, Rust with `Rc<T>` etc).
-
-[Perceus](https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf) stands
-for _Precise automatic reference counting with reuse and specialization_: the _reuse_ component transform functional style pattern matches
-into _in-place update_ when possible, while _specialization_ specialize the reference counting based on the call sites and
-removes most rc operations in the fast path. For example, a simple `map` function:
-```koka
-fun map( xs : list<a>, f : a -> e b ) : e list<b> {
-  match(xs) {
-    Cons(x,xx) -> Cons( f(x), map(xx,f) )
-    Nil        -> Nil
-  }
-}
-```
-will update the list _in place_ (reusing the `Cons` nodes that are matched) if the list happens to be not shared (and makes a copy otherwise).
-This dynamically adjust the program from in-place update to persistence and is the main reason why it can approach the performance of
-hand-optimized C++ on the balanced tree benchmark.
--->
-
-# Tasks
-
-Please help develop Koka: there are many opportunities to improve Koka or do research with Koka. We need:
-
-- Emacs and Vim syntax highlighting.
-- Improve documentation, landing page etc. Make it easier for people to contribute.
-- More examples
-- Many library modules are incomplete (like `std/os/file`) or missing (like `std/data/map`).
-
-More advanced projects:
-
-- A language server for Visual Studio Code and Atom. Koka can already generate a typed [range map](src/Syntax/RangeMap.hs) so this
-  should be managable.
-- Package management of Koka modules.a
-- Implement inline specialization where functions like `map`, `fold` etc get specialized for the function with which they are called.
-  This is an important optimization for functional style languages to reduce the allocation of lambda's.
-- Various standard optimizations like case-of-case, join points, case-of-known constructor, etc.
-- Borrowing analysis for Perceus.
-- Known reference count specialization.
-
-The following is the immediate todo list to be completed in the coming months:
-
-- Port all libray modules, in particular `std/text/regex` (using PCRE), and `std/async` (using `libuv`).
-- Run the full test suite again.
-- Run the Bayesian probalistic machine learning program with large parameters.
-- Improve compilation of local state to use local variables directly (in C).
-- Functions with a pattern match in the argument.
-
-Contact me if you are interested in tackling some of these :-)
-
-Main branches:
-- `master`: latest stable version.
-- `dev`: current development branch -- submit PR's to this branch.
-- `v1-master`: last stable version of Koka v1: this is Koka with the Javascript (and C#) backend which does not use evidence translation.
-               This version supports `std/async` and should compile examples from published papers.
 
 
 # References

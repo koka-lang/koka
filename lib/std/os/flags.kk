@@ -45,21 +45,21 @@ public fun test( cmdargs )
   val (flags,args,errs) = parse( Myflags(), myflags, cmdargs )
   if (errs.is-nil) {
     println( "\nsuccess!" );
-    println( "flags: " + flags.show-flags)
-    println( "arguments: " + args.join(" ") );
+    println( "flags: " ++ flags.show-flags)
+    println( "arguments: " ++ args.join(" ") );
     if (flags.version) myflags.usage(header).println
   }
   else {
-    println( errs.join("\n") + "\n" + myflags.usage(header) )
+    println( errs.join("\n") ++ "\n" ++ myflags.usage(header) )
   }
 }
 
 fun show-flags( o : myflags ) {
-  "{" + ["verbose=" + o.verbose.show,
-         "version=" + o.version.show,
-         "name=" + o.name.show,
-         "output=" + o.output.show,
-         "arguments=" + o.arguments.join(",")].join(";") + "}"
+  "{" ++ ["verbose=" ++ o.verbose.show,
+         "version=" ++ o.version.show,
+         "name=" ++ o.name.show,
+         "output=" ++ o.output.show,
+         "arguments=" ++ o.arguments.join(",")].join(";") ++ "}"
 }
 ```
 \/
@@ -81,11 +81,11 @@ struct myflags(
 )
 
 fun show-flags( o : myflags ) {
-  "{" + ["verbose=" + o.verbose.show,
-         "version=" + o.version.show,
-         "name=" + o.name.show,
-         "output=" + o.output.show,
-         "arguments=" + o.arguments.join(",")].join(";") + "}"
+  "{" ++ ["verbose=" ++ o.verbose.show,
+         "version=" ++ o.version.show,
+         "name=" ++ o.name.show,
+         "output=" ++ o.output.show,
+         "arguments=" ++ o.arguments.join(",")].join(";") ++ "}"
 }
 
 
@@ -115,12 +115,12 @@ public fun test( cmdargs )
   val (flags,args,errs) = parse( Myflags(), myflags, cmdargs )
   if (errs.is-nil) {
     println( "\nsuccess!" );
-    println( "flags: " + flags.show-flags)
-    println( "arguments: " + args.join(" ") );
+    println( "flags: " ++ flags.show-flags)
+    println( "arguments: " ++ args.join(" ") );
     if (flags.version) myflags.usage(header).println
   }
   else {
-    println( errs.join("\n") + "\n" + myflags.usage(header) )
+    println( errs.join("\n") ++ "\n" ++ myflags.usage(header) )
   }
 }
 
@@ -169,20 +169,20 @@ public fun usage( flags : list<flag<a>>, header : string = "usage:\n program [fl
   }
 
   fun paste(x,y,z) {
-    (" " + x + "  " + y + "  " + z)
+    (" " ++ x ++ "  " ++ y ++ "  " ++ z)
   }
 
   val (shorts,longs,helps) = flags.map(show-flag).concat.unzip3
   val table = zipWith3( paste, shorts.align-left, longs.align-left, helps )
-  (header + "\n" + table.unlines)
+  (header ++ "\n" ++ table.unlines)
 }
 
 fun show-flag( flag : flag<a> ) : list<(string,string,string)>
 {
-  val short = flag.short-names.list.map(fn(c){ "-" + c.string + show-short-flag(flag.parser) }).join(" ")
-  val long  = flag.long-names.map(fn(name){ "--" + name + show-long-flag(flag.parser) }).join(" ")
+  val short = flag.short-names.list.map(fn(c){ "-" ++ c.string ++ show-short-flag(flag.parser) }).join(" ")
+  val long  = flag.long-names.map(fn(name){ "--" ++ name ++ show-long-flag(flag.parser) }).join(" ")
   match (lines(flag.help)) {
-    Cons(hd,tl) -> [(short,long,hd)] + tl.map( fn(s){ ("","",s)}) 
+    Cons(hd,tl) -> [(short,long,hd)] ++ tl.map( fn(s){ ("","",s)}) 
     Nil         -> [(short,long,"")]
   }
 }
@@ -191,8 +191,8 @@ fun show-short-flag( parser : flag-parser<a> )
 {
   match(parser) {
     Bool -> ""
-    Req( help=h ) -> "<" + h + ">"
-    Opt( help=h ) -> "[" + h + "]"
+    Req( help=h ) -> "<" ++ h ++ ">"
+    Opt( help=h ) -> "[" ++ h ++ "]"
   }
 }
 
@@ -200,8 +200,8 @@ fun show-long-flag( parser : flag-parser<a> )
 {
   match(parser) {
     Bool(_) -> ""
-    Req( help=h ) -> "=" + h
-    Opt( help=h ) -> "[=" + h + "]"
+    Req( help=h ) -> "=" ++ h
+    Opt( help=h ) -> "[=" ++ h ++ "]"
   }
 }
 
@@ -273,7 +273,7 @@ fun break( s : string, c : string ) : (string,string)
 fun parse-long( s : string, flags : list<flag<a>> ) : total flag-kind<a>
 {
   val (cflagname,flagarg) = s.break("=")
-  val optstr   = "--" + s
+  val optstr   = "--" ++ s
   val flagname = cflagname.to-lower
   val (baseflagname,negated) = match (flagname.starts-with("no-")) {
                                  Just(slice) -> (slice.string,True)
@@ -326,7 +326,7 @@ fun parse-shorts( s : string,  flags : list<flag<a>> ) : list<flag-kind<a>>
   var done := False
   val fs = s.list.map-indexed fn(i,c) {
     if (done) return Nothing
-    val optstr = "-" + c.string
+    val optstr = "-" ++ c.string
     val applicable = flags.filter( fn(opt){ opt.short-names.contains(c.string) } )
     match(applicable) {
       Nil -> Just(error-unknown(optstr))
@@ -355,20 +355,20 @@ fun parse-shorts( s : string,  flags : list<flag<a>> ) : list<flag-kind<a>>
 }
 
 fun error-ambiguous( applicable, opt ) {
-  val header = "flag \"" + opt + "\" is ambiguous. It could be one of:"
+  val header = "flag \"" ++ opt ++ "\" is ambiguous. It could be one of:"
   Error( usage( applicable, header ) )
 }
 
 fun error-required( help, opt ) {
-  Error( "flag \"" + opt + "\" requires an argument " + help)
+  Error( "flag \"" ++ opt ++ "\" requires an argument " ++ help)
 }
 
 fun error-negate( flagname ) {
-  Error( "flag \"--" + flagname + "\" cannot be negated" );
+  Error( "flag \"--" ++ flagname ++ "\" cannot be negated" );
 }
 
 fun error-noarg( opt ) {
-  Error( "flag \"" + opt + "\" does not take an argument")
+  Error( "flag \"" ++ opt ++ "\" does not take an argument")
 }
 
 fun error-unknown( opt ) {
@@ -376,7 +376,7 @@ fun error-unknown( opt ) {
 }
 
 fun error-unknown-message( opt ) {
-  ( "unrecognized flag \"" + opt + "\"")
+  ( "unrecognized flag \"" ++ opt ++ "\"")
 }
 
 

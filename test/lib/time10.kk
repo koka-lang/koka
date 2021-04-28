@@ -9,6 +9,7 @@
 // Test UTC-SLS
 public module time10
 
+import std/time/timestamp
 public import std/num/ddouble
 public import std/time
 
@@ -18,9 +19,9 @@ public import std/time
 
 fun check(name : string, res : string, tst : () -> <io,utc> string ) : <io,utc> () {
   val got = tst()
-  println(name.pad-right(14,' ') + ": "
-    + (if (got == res) then "ok: " + res
-                       else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
+  println(name.pad-right(14,' ') ++ ": "
+    ++ (if (got == res) then "ok: " ++ res
+                       else "FAILED!:\n expect: " ++ res ++ "\n gotten: " ++ got ++ "\n"))
 }
 
 val leap-seconds = "3786825600  36  # 1 Jan 2020" //testing negative leap second
@@ -56,7 +57,7 @@ fun test-sls() {
 }
 
 public fun main() {
-  with fun utc() { ts-utc-load() }
+  //with fun utc() { ts-utc-load() }
   test-sls()
   test-utc-neg()
 }

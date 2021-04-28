@@ -1,1 +1,4 @@
-1test/cgen/rec5.kk(2,13): warning: xs shadows an earlier local definition or parameter
+1add default effect for std/core/exn
+ 
+test/cgen/rec5.kk(2,13): warning: xs shadows an earlier local definition or parameter
+test/cgen/rec5.kk(2,13): warning: xs shadows an earlier local definition or parameter

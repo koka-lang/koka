@@ -6,9 +6,9 @@ import std/time/timer
 
 alias solution = list<int>
 
-fun safe?( queen : int, xs : solution, diag : int = 1 ) : bool {
+fun is-safe( queen : int, xs : solution, diag : int = 1 ) : bool {
   match(xs) {
-    Cons(q,qs) -> (queen != q && queen != (q+diag) && queen != (q - diag) && queen.safe?(qs,diag+1))
+    Cons(q,qs) -> (queen != q && queen != (q+diag) && queen != (q - diag) && queen.is-safe(qs,diag+1))
     _ -> True
   }
 }
@@ -22,7 +22,7 @@ alias solutions = list<list<int>>
 fun append-safe( queen : int, xs : solution, xss : solutions ) : div solutions {
   if (queen <= 0) xss
   else {
-   if (queen.safe?(xs))
+   if (queen.is-safe(xs))
     then append-safe( queen - 1, xs, Cons(Cons(queen,xs),xss) )
     else append-safe( queen - 1, xs, xss )
   }
@@ -50,15 +50,15 @@ public fun queens( n : int ) : div solutions {
 // -----------------------------------------------------------------
 
 effect choose {
-  fun pick(n : int) : int
-  fun fail<b>()     : b
+  control pick(n : int) : int
+  control fail<b>()     : b
 }
 
 fun choose-all( action ) {
   handle(action){
     return x  -> [x]
-    pick(n)   -> list(1,n,resume).concat
-    fail      -> []
+    control pick(n)   -> list(1,n,resume).concat
+    control fail      -> []
   }
 }
 
@@ -66,7 +66,7 @@ fun find-solution( n : int, col : int ) : <choose,div> solution {
   if (col==0) then return []
   val sol    = find-solution(n, col - 1)
   val queen  = pick(n)
-  if (queen.safe?(sol)) then Cons(queen,sol) else fail()
+  if (queen.is-safe(sol)) then Cons(queen,sol) else fail()
 }
 
 fun queens-choose(n : int ) : div solutions {
@@ -91,6 +91,6 @@ fun main() {
 fun show-solutions( xss : solutions ) : io () {
   println(xss.length.show)
   xss.foreach fn(xs) {
-    println(" " + xs.show)
+    println(" " ++ xs.show)
   }  
 }

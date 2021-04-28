@@ -81,9 +81,9 @@ between 0x001 and 0xFFE. The ranges of IEEE double values are:
               On unboxing, we extend bit 1 to bit 0, which means we may lose up to 1 bit of the NaN payload.
 ----------------------------------------------------------------*/
 
-#define KK_USE_NAN_BOX   (0)                  // strategy A(1) by default
+#define KK_USE_NAN_BOX   (0)                  // strategy A2 by default
 //#define KK_USE_NAN_BOX   (KK_INTPTR_SIZE==8)  // strategy B is only possible on 64-bit platforms
-//#define KK_BOX_DOUBLE_IF_NEG (1)              // strategy A2
+//#define KK_BOX_DOUBLE_IF_NEG (1)              // use strategy A1
 
 // Forward declarations
 static inline bool         kk_box_is_ptr(kk_box_t b);
@@ -317,13 +317,15 @@ static inline kk_box_t kk_intx_box(kk_intx_t i) {
   return v;
 }
 
-static inline int16_t kk_int16_unbox(kk_box_t v) {
+static inline int16_t kk_int16_unbox(kk_box_t v, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
   kk_intx_t i = kk_intx_unbox(v);
   kk_assert_internal(i >= INT16_MIN && i <= INT16_MAX);
   return (int16_t)i;
 }
 
-static inline kk_box_t kk_int16_box(int16_t i) {
+static inline kk_box_t kk_int16_box(int16_t i, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
   return kk_intx_box(i);
 }
 

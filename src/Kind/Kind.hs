@@ -20,7 +20,8 @@ module Kind.Kind( -- * Kinds
                   , kindCon, kindConOver
                   , isKindFun
                   , isKindStar
-                  , isKindEffect, isKindHandled, isKindHandled1, isKindScope, isKindLabel, isKindAnyLabel
+                  , isKindEffect, isKindHandled, isKindHandled1, isKindScope, isKindHeap
+                  , isKindLabel, isKindAnyLabel
                   , hasKindStarResult, hasKindLabelResult
                   , kindAddArg
                   ) where
@@ -147,7 +148,7 @@ extractKindFun k
            in (k1:args,res)
       _ -> ([],k)
 
-isKindStar, isKindLabel, isKindEffect, isKindHandled :: Kind -> Bool
+isKindStar, isKindLabel, isKindEffect, isKindHandled, isKindScope, isKindHeap :: Kind -> Bool
 isKindStar k
   = k == kindStar
 isKindEffect k
@@ -160,6 +161,8 @@ isKindHandled1 k
   = k == kindHandled1
 isKindScope k
   = k == kindScope
+isKindHeap k
+  = k == kindHeap
 
 isKindAnyLabel :: Kind -> Bool
 isKindAnyLabel k 

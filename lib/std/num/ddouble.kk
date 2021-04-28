@@ -741,7 +741,7 @@ i.e. `x == x.show-hex.ddouble`.
 public fun show-hex( x : ddouble, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) : string {
   if (!x.is-finite)
     then x.hi.show
-    else x.hi.show-hex(width,use-capitals,pre) + " + " + x.lo.show-hex(width,use-capitals,pre)
+    else x.hi.show-hex(width,use-capitals,pre) ++ " + " ++ x.lo.show-hex(width,use-capitals,pre)
 }
 
 // Show a `:ddouble` `x` with a given precision `prec` (=`-31`).
@@ -806,7 +806,7 @@ public fun show-fixed( x : ddouble, prec : int = dd-default-prec ) : string {
 public fun show-sum( x : ddouble, prec : int = -17 ) : string {
   if (!x.is-finite)
     then x.hi.show
-    else x.hi.show(prec) + " + " + x.lo.show(prec)
+    else x.hi.show(prec) ++ " + " ++ x.lo.show(prec)
 }
 
 
@@ -886,10 +886,10 @@ fun pddouble-normal() : parse ddouble {
   val whole = digits()
   val frac  = optional("", { char('.'); digits() } ).trim-right("0")
   val exp   = optional(0, { char('e'); pint() } )
-  val w = ((if (neg) then "-" else "") + whole + frac).parse-int.default(0)
+  val w = ((if (neg) then "-" else "") ++ whole ++ frac).parse-int.default(0)
   val e = exp - frac.count
   val x = ddouble-int-exp(w,e)
-  // trace("parse-normal: w: " + w.show + ", e: " + e.show + "\n  wx: " + w.ddouble.show-sum + ", x: " + x.show + "\n  " + x.show-sum)
+  // trace("parse-normal: w: " + w.show + ", e: " ++ e.show ++ "\n  wx: " ++ w.ddouble.show-sum ++ ", x: " ++ x.show ++ "\n  " ++ x.show-sum)
   x
 }
 

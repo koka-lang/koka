@@ -1,51 +1,67 @@
-# Getting started
+<!-- #00547D -->
+[<img align="right" src="https://badges.gitter.im/koka-lang/koka.svg"/>](https://gitter.im/koka-lang/koka?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-Welcome to Koka -- a beautiful functional language with effect types and handlers.
 
-[Why Koka?][#why]{.learn}
-[Install Koka][#install]{.learn}
-[Browse the Github repo][kokarepo]{.learn}
-[Browse the Library documentation][libraries]{.learn}
+# Getting started { #getstarted; }
 
-Note: Koka v2 is a research language that is currently under heavy development. 
+Welcome to &koka; -- a strongly typed functional-style language with effect types and handlers.
+
+[Why &koka;? &adown;][#why]{.learn}
+[A Tour of Koka &adown;][#tour]{.learn}
+[Install &adown;][#install]{.learn}
+[Discussion forum][forum]{.learn}
+[Github][kokarepo]{.learn}
+[Libraries][libraries]{.learn}
+{text-align:left;}
+
+~ smaller { font-size:smaller; }
+Note: &koka; v2 is a research language that is currently under development
+and not ready for production use. 
 Nevertheless, the language is stable and the compiler
 implements the full specification. The main things lacking at the moment are 
-libraries and IDE integration. 
+libraries, package management, and deep IDE integration. 
 
+[INCLUDE=news.mdk]
 
+~ 
 
 [langspec]: https://koka-lang.github.io/koka/doc/kokaspec.html  {target='_top'}
 [libraries]: https://koka-lang.github.io/koka/doc/toc.html {target='_top'}
 [slides]: http://research.microsoft.com/en-us/projects/koka/2012-overviewkoka.pdf {target='_top'}
 [kokarepo]: https://github.com/koka-lang/koka {target='_top'}
 [kokaproject]: http://research.microsoft.com/en-us/projects/koka {target='_top'}
+[forum]: https://github.com/koka-lang/koka/discussions
 
+[samples]: https://github.com/koka-lang/koka/tree/master/samples
+[rbtree]: https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk
+[evidence-paper]: https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently-with-proofs-5f0b7d860b387.pdf
+[Perceus]: https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/
 [releases]: https://github.com/koka-lang/koka/releases
 [build]: https://github.com/koka-lang/koka/#build-from-source
-[Perceus]: https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf
 [vsprompt]: https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019
+
 
 ## Installing the compiler { #install }
 
-For Linux and macOS on x86 64-bit, you can install Koka using:
-````
-> curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh
-````
-This also installs syntax highlighting for the VS Code and Atom editors.
-After installation, verify if Koka installed correctly:
-````
-> koka
- _          _           ____
-| |        | |         |__  \
-| | __ ___ | | __ __ _  __) |
-| |/ // _ \| |/ // _` || ___/ welcome to the koka interpreter
-|   <| (_) |   <| (_| ||____| version 2.0.10, Nov 28 2020, libc 64-bit (gcc)
-|_|\_\\___/|_|\_\\__,_|       type :? for help
+For Linux and macOS on x86 64-bit, you can install &koka; using:
 
-loading: std/core
-loading: std/core/types
-loading: std/core/hnd
-````
+    \(> **curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &bar; sh**\)
+
+This also installs syntax highlighting for the VS Code and Atom editors.
+After installation, verify if &koka; installed correctly:
+
+    > koka
+     _          _           ____
+    | |        | |         |__  \
+    | | __ ___ | | __ __ _  __) |
+    | |/ // _ \| |/ // _' || ___/ welcome to the koka interpreter
+    |   <| (_) |   <| (_| ||____| version 2.0.10, Nov 28 2020, libc 64-bit (gcc)
+    |_|\_\\___/|_|\_\\__,_|       type :? for help
+
+    loading: std/core
+    loading: std/core/types
+    loading: std/core/hnd
+    >
 
 Type ``:q`` to exit the interpreter.
 
@@ -54,7 +70,7 @@ It is also straightforward to build the compiler [from source][build].
 
 ## Running the compiler
 
-You can compile a Koka source using `-c` (note that all [`samples`](https://github.com/koka-lang/koka/tree/master/samples) are pre-installed):
+You can compile a &koka; source using `-c` (note that all [`samples`][samples] are pre-installed):
 
     > koka -c samples/basic/caesar.kk
     compile: samples/basic/caesar.kk
@@ -76,7 +92,7 @@ and run the resulting executable:
     cracked: Koka is a well-typed language
 
 The ``-O2`` flag builds an optimized program. Let's try it on a purely functional implementation
-of balanced insertion in a red-black tree ([`rbtree.kk`](https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk):
+of balanced insertion in a red-black tree ([`rbtree.kk`](https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk)):
 
     > koka -O2 -c samples/basic/rbtree.kk
     ...
@@ -92,7 +108,7 @@ We can compare this against an in-place updating C++ implementation using ``stl:
 ([``rbtree.cpp``](https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.cpp)) (which also uses a
 [red-black tree](https://code.woboq.org/gcc/libstdc++-v3/src/c++98/tree.cc.html) internally):
 
-    > clang++ --std=c++17 -o cpp-rbtree -O3 samples/basic/rbtree.cpp
+    > clang++ --std=c++17 -o cpp-rbtree -O3 /usr/local/share/koka/v2.0.12/samples/basic/rbtree.cpp
     > time ./cpp-rbtree
     420000
     real    0m0.864s
@@ -105,21 +121,20 @@ closely mimicking the imperative rebalancing code of the hand optimized C++ libr
 
 ## Running the interactive compiler
 
-Without giving any input files, the interactive interpreter runs by default:
-````
-> koka
- _          _           ____
-| |        | |         |__  \
-| | __ ___ | | __ __ _  __) |
-| |/ // _ \| |/ // _` || ___/ welcome to the koka interpreter
-|   <| (_) |   <| (_| ||____| version 2.0.9, Nov 27 2020, libc 64-bit (gcc)
-|_|\_\\___/|_|\_\\__,_|       type :? for help
+Without giving any input files, the interactive environment runs by default:
 
-loading: std/core
-loading: std/core/types
-loading: std/core/hnd
->
-````
+    > koka
+     _          _           ____
+    | |        | |         |__  \
+    | | __ ___ | | __ __ _  __) |
+    | |/ // _ \| |/ // _' || ___/ welcome to the koka interpreter
+    |   <| (_) |   <| (_| ||____| version 2.0.9, Nov 27 2020, libc 64-bit (gcc)
+    |_|\_\\___/|_|\_\\__,_|       type :? for help
+
+    loading: std/core
+    loading: std/core/types
+    loading: std/core/hnd
+    >
 
 Now you can test some expressions:
 
@@ -165,7 +180,7 @@ And quit the interpreter:
 
 The [``samples/syntax``](https://github.com/koka-lang/koka/tree/master/samples/syntax)
 and [``samples/basic``](https://github.com/koka-lang/koka/tree/master/samples/basic) 
-directories contain various basic Koka examples to start with. If you type:
+directories contain various basic &koka; examples to start with. If you type:
 
     > :l samples/
 
@@ -196,15 +211,14 @@ you can type ``:e`` in the interactive prompt to edit your program further. For 
 
 What next?
 
-[Why Koka?][#why]{.learn}
-[Basic Koka syntax][#sec-basics]{.learn}
+[Basic &koka; syntax &adown;][#sec-basics]{.learn}
 [Browse the Library documentation][libraries]{.learn}
 
 
 <!--
 ## Algebraic effect handlers
 
-A novel feature of Koka is a compiled and typed implementation of algebraic
+A novel feature of &koka; is a compiled and typed implementation of algebraic
 effect handlers (described in detail in [[3]](#references)).
 In the interactive environment, you can load various demo files with algebraic
 effects which are located in the [``samples/handlers``](https://github.com/koka-lang/koka/tree/master/samples/handlers) directory.

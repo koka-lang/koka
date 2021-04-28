@@ -1,0 +1,22 @@
+utc-sls1 : ok: 2016-12-31T23:43:20Z
+utc-sls2 : ok: 2016-12-31T23:43:22.001001001Z
+utc-sls3 : ok: 2016-12-31T23:59:60.989989990Z
+utc-sls4 : ok: 2016-12-31T23:43:20Z TI-SLS
+utc-sls5 : ok: 2016-12-31T23:43:21Z TI-SLS
+utc-sls6 : ok: 2016-12-31T23:43:21.999Z TI-SLS
+utc-sls7 : ok: 2016-12-31T23:59:59.900100Z TI-SLS
+sls-neg2 : ok: 2019-12-31T23:43:19Z UTC-SLS
+sls-neg1 : ok: 2019-12-31T23:43:20.001Z UTC-SLS
+sls-neg4 : ok: 2019-12-31T23:43:21.002Z UTC-SLS
+sls-neg3 : ok: 2019-12-31T23:59:59.899900Z UTC-SLS
+sls-neg5 : ok: 2019-12-31T23:59:58.900099900Z
+sls-neg6 : ok: 2019-12-31T23:43:19.999000999Z
+sls-neg7 : ok: 2019-12-31T23:43:19Z
+leap-neg1 : ok: 2020-01-01T00:00:00Z
+leap-neg2 : ok: 2019-12-31T23:59:58Z
+leap-neg3 : ok: 2020-01-01T00:00:34Z TAI
+leap-neg4 : ok: 2020-01-01T00:00:35Z TAI
+leap-neg5 : ok: 2020-01-01T00:00:36Z TAI
+leap-neg6 : ok: 2020-01-01T00:00:36Z TAI
+add default effect for std/core/exn
+add default effect for std/time/utc/utc

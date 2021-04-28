@@ -4,7 +4,7 @@ Description:
     The TOC must be in a `SidePanel` block, while all
     the other content must be in a `MainPanel`.
 
-Side Panel Width: 24rem
+Side Panel Width: 20rem
 Side Panel Margin Top: 0rem
 
 toc.toc-contents {
@@ -22,18 +22,42 @@ Css Header:
     }
     .body {
       margin: 1em;
-    }
-    
-    .maincontent {
+    }    
+    .maincontent, .mainheader {
       margin: 0pt auto;
-    }
-    
+    }    
     .preview .maincontent {
       width: 98%;
       max-width: 100%;
       margin: 0.25em auto;
     }
-    
+    .tocblock2, .tocblock3 {
+      display:none;
+    }
+    .tocblock.click-expands {
+      display:block;
+    }
+    .expand-all .tocblock1, .expand-all .tocblock2 {
+      display:block;
+    }
+    span.unexpanded, span.expanded {
+      display: inline-block;
+      width: 1em;
+      margin-left: -1em;
+      font-family: FontAwesome;
+      cursor: pointer;
+      text-align: center;
+    }
+    span.unexpanded::before {
+      content: "\25B6";  /* triangle */
+      content: "\F0DA";  /* thick caret */      
+      content: "\F105";  /* caret */
+    }
+    .expand-all span.expanded, span.expanded::before {
+      content: "\25BC";  /* triangle */
+      content: "\F0D7";  /* thick caret */
+      content: "\F107";  /* caret */
+    }
     
     /* -----------------------------------------
        Settings for a wide viewport:
@@ -41,12 +65,12 @@ Css Header:
        on the left side.
     -------------------------------------------- */    
     @media screen and (min-width: 1024px) {
-      .body {
-        margin: 1em;
-      }
       .maincontent {
         width: 60em;
         max-width: 100%;
+      }
+      .body {
+        margin: 0pt;
       }
       .sidepanel {
         float     : right;
@@ -58,45 +82,26 @@ Css Header:
         overflow-y: auto;
         border-right: 1px solid #AAA;          
       }
-      .mainpanel, .footnotes, .titleblock {
+      .mainpanel, .footnotes, .mainheader {
         margin-left: calc(&side-panel-width; + 6rem + 2px + 1rem);
         margin-right: 10%;
+      }            
+      .mainheader {
+        padding-top: 2em;
       }
-      .tocblock2, .tocblock3 {
-        display:none;
+      .tocblock.auto-expands {
+        display: block;
       }
-      .tocblock.auto-expands, .tocblock.click-expands {
-        display:block;
-      }
-      .expand-all .tocblock1, .expand-all .tocblock2 {
-        display:block;
-      }     
-            
       .tocitem.current {
         font-weight: bold;
-      }      
-      span.unexpanded, span.expanded {
-        display: inline-block;
-        width: 1.25em;
-        margin-left: -1.25em;
-        font-family: "Segoe UI Symbol", Symbola, serif;
-        font-size: 70%;
-        cursor: pointer;
-        vertical-align: 0.1em;
-      }
-      span.unexpanded::before {
-        content: "\25B6";
-      }
-      .expand-all span.expanded, span.expanded::before {
-        content: "\25BC";
-      }
+      }            
     }
     
     /* ---------------------------------------------------
        Set margins and padding for side panel and sections
     ------------------------------------------------------ */
     .sidepanel, .mainpanel section, .footnotes {
-      padding: 0rem 1rem 0rem 2rem;
+      padding: 0rem 1rem 0rem 3rem;
     }
     .sidepanel .tocblock {
       font-size  : 95%;
@@ -202,14 +207,15 @@ JS Footer:
     
     // Return the viewport position: -1 (before), 0 (visible), 1 (after)
     function viewportPosition(elem) {
-      var pos = getWindowOffset(elem)
+      var pos = getWindowOffset(elem);
       if (pos.top < 0 || pos.left < 0) 
         return -1;
-      else if (pos.top > (window.innerHeight || document.documentElement.clientHeight) ||
+      else if (pos.top > (window.innerHeight || document.documentElement.clientHeight) || 
                pos.left > (window.innerWidth || document.documentElement.clientWidth)) 
         return 1;
-      else 
+      else {      
         return 0;
+      }
     }
     
     // ---------------------------------------------
@@ -290,8 +296,10 @@ JS Footer:
       [].every.call( document.querySelectorAll(".tocitem"), function(item) {
         var target = document.getElementById( item.getAttribute("data-toc-target") );
         var pos = viewportPosition(target);
-        if (pos <= 0) current = item;
-        return (pos < 0);
+        if (pos <= 0) {
+          current = item;
+        }
+        return (pos < 0); // keep going if not yet on screen
       });
       // if found, expand the corresponding item
       if (current != null) itemExpandOne(current);

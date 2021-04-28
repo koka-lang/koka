@@ -1,7 +1,7 @@
 public module effs1
 
 effect amb {
-  fun flip() : bool
+  control flip() : bool
 }
 
 fun xor() : amb bool {
@@ -9,10 +9,12 @@ fun xor() : amb bool {
   val q = flip()
   (p||q) && not(p&&q)
 }
+
 val amb = handler {
-  return x -> [x]
-  flip()   -> resume(False) + resume(True)
+  return(x){ [x] }
+  control flip(){ resume(False) ++ resume(True) }
 }
+
 fun main() {
   amb(xor).show.println
 }

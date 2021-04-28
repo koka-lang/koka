@@ -19,9 +19,9 @@ public import std/time
 
 fun check(name : string, res : string, tst : () -> <io,utc> string ) : <io,utc> () {
   val got = tst()
-  println(name.pad-right(14,' ') + ": "
-    + (if (got == res) then "ok: " + res
-                       else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
+  println(name.pad-right(14,' ') ++ ": "
+    ++ (if (got == res) then "ok: " ++ res
+                       else "FAILED!:\n expect: " ++ res ++ "\n gotten: " ++ got ++ "\n"))
 }
 
 

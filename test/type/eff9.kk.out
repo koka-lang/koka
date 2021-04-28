@@ -1,2 +1,2 @@
-f : () -> <foo,foo> ()
-onevent : forall<e> (() -> e ()) -> <foo|e> ()
+type/eff9/f : () -> <foo,foo> ()
+type/eff9/onevent: forall<e> (() -> e ()) -> <foo|e> ()

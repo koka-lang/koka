@@ -565,9 +565,9 @@ infExpr expr
       Case   expr brs range  -> do expr' <- infExpr expr
                                    brs'   <- mapM infBranch brs
                                    return (Case expr' brs' range)
-      Parens expr range      -> do expr' <- infExpr expr
-                                   return (Parens expr' range)
-      Handler hsort scoped override meff pars reinit ret final ops hrng rng
+      Parens expr name range -> do expr' <- infExpr expr
+                                   return (Parens expr' name range)
+      Handler hsort scoped override allowMask meff pars reinit ret final ops hrng rng
                              -> do pars' <- mapM infHandlerValueBinder pars
                                    meff' <- case meff of
                                               Nothing  -> return Nothing
@@ -585,7 +585,7 @@ infExpr expr
                                    reinit' <- infExprMaybe reinit
                                    final'  <- infExprMaybe final
                                    ops' <- mapM infHandlerBranch ops
-                                   return (Handler hsort scoped override meff' pars' reinit' ret' final' ops' hrng rng)
+                                   return (Handler hsort scoped override allowMask meff' pars' reinit' ret' final' ops' hrng rng)
       Inject tp expr b range-> do expr' <- infExpr expr
                                   tp'   <- infResolveX tp (Check "Can only inject effect constants (of kind X)" range) range
                                   -- trace ("resolve ann: " ++ show (pretty tp')) $

@@ -1,1 +1,1 @@
-id : forall<a> (x : a) -> a
+static/shadow3a/id: forall<a> (x : a) -> a

@@ -1,5 +1,5 @@
 effect amb {
-  fun flip() : bool
+  control flip() : bool
 }
 
 effect state<s> {
@@ -9,7 +9,7 @@ effect state<s> {
 
 fun xor() : <amb,exn> bool {
   val p = flip()
-  if (p) error("oops")
+  if (p) throw("oops")
   val q = flip()
   (p||q) && not(p&&q)
 }
@@ -24,22 +24,27 @@ fun foo() : <amb,state<int>,io> bool {
       set(i+1)
       if (i>0 && p) then xor() else False
     }
-  }
-  fn(exn) { False }
+  } fn(exn){ False }
 }
 
 
 // handlers
 
-val amb_handle = handler {
-  return x -> [x]
-  flip()   -> resume(False) + resume(True)
+
+// handlers
+
+fun state_handle( init, action ) {
+  var s : int := init   
+  with {
+    fun get() { s }
+    fun set(i){ s := i }
+  }
+  action()
 }
 
-val state_handle = handler(i) {
-  return x -> x
-  get()    -> resume(i,i)
-  set(j)   -> resume((),j)
+val amb_handle = handler {
+  return(x)     { [x] }
+  control flip(){ resume(False) ++ resume(True) }
 }
 
 

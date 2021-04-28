@@ -6,9 +6,9 @@ public import std/num/double
 public import std/num/int32
 
 fun check(name : string, res : string, got : string ) : io () {
-  println(name.pad-right(7,' ') + ": "
-    + (if (got == res) then "ok: " + res
-                       else "FAILED!:\n expect: " + res + "\n gotten: " + got + "\n"))
+  println(name.pad-right(7,' ') ++ ": "
+    ++ (if (got == res) then "ok: " ++ res
+                       else "FAILED!:\n expect: " ++ res ++ "\n gotten: " ++ got ++ "\n"))
   // if (got != res) then error("failed") else ()
 }
 
@@ -26,7 +26,7 @@ fun main() {
         val x  = if (exp2==skip) then x0 else ldexp(x0,exp2)
         val s  = x.show-hex
         val se = expect.parse-double.default(nan).show-hex
-        check(i.show + ":" + exp.show + "," + exp2.show, s, se);
+        check(i.show ++ ":" ++ exp.show ++ "," ++ exp2.show, s, se);
       }
     }
   }

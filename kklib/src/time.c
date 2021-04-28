@@ -17,7 +17,7 @@
 kk_decl_export double kk_timer_ticks(double* secs_frac, kk_context_t* ctx);
 kk_decl_export double kk_timer_resolution(kk_context_t* ctx);
 
-#ifdef _WIN32
+#ifdef WIN32
 #include <Windows.h>
 static double kk_timer_ticks_prim(double* secs_frac, kk_context_t* ctx) {
   LARGE_INTEGER t;
@@ -54,7 +54,7 @@ static double kk_timer_ticks_prim(double* secs_frac, kk_context_t* ctx) {
   if (ctx->timer_freq == 0) {
     struct timespec tres = { 0, 0 };
     clock_getres(CLOCK_MONOTONIC, &tres);
-    if (tres.tv_sec == 0 && tres.tv_nsec > 0 && tres.tv_nsec <= KK_NSECS_PER_SEC && (tres.tv_nsec % KK_NSECS_PER_SEC) == 0) {
+    if (tres.tv_sec == 0 && tres.tv_nsec > 0 && tres.tv_nsec <= KK_NSECS_PER_SEC && (KK_NSECS_PER_SEC % tres.tv_nsec) == 0) {
       ctx->timer_freq = KK_NSECS_PER_SEC / tres.tv_nsec;
     }
     else {
@@ -129,7 +129,7 @@ kk_decl_export double kk_timer_resolution(kk_context_t* ctx) {
   Current Time
 --------------------------------------------------------------------------------------------------*/
 
-#ifdef _WIN32
+#ifdef WIN32
 #define KK_100NSECS_PER_SEC  KI64(10000000)
 #define KK_UNIX_EPOCH        KI64(11644473600)  // seconds since 1601-01-01 UTC to 1970-01-01 (Unix epoch)
 static double kk_time_unix_now_prim(double* secs_frac, kk_context_t* ctx) {

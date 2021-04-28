@@ -24,6 +24,7 @@ import Lib.PPrint
 import Common.Range
 import Common.Name
 import Common.NamePrim (nameUnit, nameNull, isNameTuple)
+import Common.File( startsWith )
 import Type.Type
 import Kind.Kind
 import Type.TypeVar
@@ -67,6 +68,7 @@ data NameInfo
   | NIModule
   | NIKind  
 
+
 instance Show RangeInfo where
   show ri 
     = case ri of
@@ -79,14 +81,32 @@ instance Show RangeInfo where
 instance Enum RangeInfo where
   fromEnum r
     = case r of
-        Decl _ _ _ -> 0 
-        Block _    -> 1
-        Error _    -> 4
-        Warning _  -> 3
-        Id _ _ _   -> 2
+        Decl _ name _   -> 0
+        Block _         -> 10
+        Id name info _  -> 20
+        Warning _       -> 30
+        Error _         -> 40
 
   toEnum i
-    = failure "Syntax.RangeMap.toEnum"
+    = failure "Syntax.RangeMap.RangeInfo.toEnum"
+
+penalty :: Name -> Int
+penalty name
+  = if (nameModule name == "std/core/hnd")
+     then 10 else 0
+
+instance Enum NameInfo where
+  fromEnum ni
+    = case ni of
+        NIValue _   -> 1
+        NICon   _   -> 2
+        NITypeCon _ -> 3
+        NITypeVar _ -> 4
+        NIModule    -> 5
+        NIKind      -> 6
+
+  toEnum i
+    = failure "Syntax.RangeMap.NameInfo.toEnum"
 
 isHidden ri 
   = case ri of
@@ -138,7 +158,7 @@ rangeMapLookup r (RM rm)
       = map last
         (groupBy eq (sortBy cmp rinfos))
       where
-        eq x y              = (EQ == cmp x y)
+        eq (_,ri1) (_,ri2)  = (EQ == compare ((fromEnum ri1) `div` 10) ((fromEnum ri2) `div` 10))
         cmp (_,ri1) (_,ri2) = compare (fromEnum ri1) (fromEnum ri2)
 
 

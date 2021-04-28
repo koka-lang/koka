@@ -1,4 +1,5 @@
 42
-bar : (x : int) -> int
-hs : forall<e> list<(int) -> e int>
-main : () -> console ()
+ 
+algeff/open1a/bar: (x : int) -> int
+algeff/open1a/hs: forall<e> list<(int) -> e int>
+algeff/open1a/main: () -> console ()

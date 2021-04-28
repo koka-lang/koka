@@ -1,13 +1,8 @@
-[01;30moperator branch (state) get: resume tail
-[00;39;49m[00m[01;30moperator branch (state) set: resume tail
-[00;39;49m[00mnegative or zero
-.Op-get : forall<a> .op-get<a>
-.Op-set : forall<a> (x : a) -> .op-set<a>
-.Ops-get : forall<a,b> (get : .op-get<a>) -> .ops-state<a,a>
-.Ops-set : forall<a,b> (set : .op-set<a>) -> .ops-state<a,()>
-.tag-state : string
-get : forall<a> () -> (state<a>) a
-main : () -> console ()
-set : forall<a> (x : a) -> (state<a>) ()
-state : forall<a,b,e> (s : a, action : () -> <state<a>|e> b) -> e b
-test : () -> (state<int>) string
+negative or zero
+ 
+algeff/effs3/State: forall<a,e,b> (.hnd-state<a,e,b>) -> state<a>
+algeff/effs3/get: forall<a> () -> (state<a>) a
+algeff/effs3/main: () -> console ()
+algeff/effs3/set: forall<a> (x : a) -> (state<a>) ()
+algeff/effs3/state: forall<a,e> (init : int, action : () -> <state<int>|e> a) -> e a
+algeff/effs3/test: () -> (state<int>) string

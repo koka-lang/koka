@@ -1,21 +1,16 @@
 module parc/parc14
 private import std/core/types = std/core/types = "";
-private import std/core/hnd = std/core/hnd = "";
 private import std/core = std/core = "";
 public fun test : forall<a> (x : int, y : a, z : a) -> a
- = fun(x: int, y: 16, z: 16){
+ = fn(x: int, y: 24, z: 24){
  match (x) {
  0
- -> val _ : ()
- = std/core/types/.drop(x);
- val _ : ()
- = std/core/types/.drop(z);
+ -> std/core/types/.drop(x);
+ std/core/types/.drop(z);
  y;
  _
- -> val _ : ()
- = std/core/types/.drop(x);
- val _ : ()
- = std/core/types/.drop(y);
+ -> std/core/types/.drop(x);
+ std/core/types/.drop(y);
  z;
- }
+ };
  };

@@ -88,7 +88,7 @@ compile p flags fname
        case checkError err of
          Left msg
            -> do putPrettyLn p (ppErrorMessage (showSpan flags) cscheme msg)
-                 exitFailure
+                 -- exitFailure  -- don't fail for tests
 
          Right (Loaded gamma kgamma synonyms newtypes constructors _ imports _
                 (Module modName _ _ _ _ _warnings rawProgram core _ _ modTime) _ _
@@ -104,7 +104,7 @@ compile p flags fname
                        )
                  when (showTypeSigs flags)
                    (do putPrettyLn p (ppGamma (prettyEnv flags modName imports) (gammaFilter modName gamma)))
-                 {-
+                 {- 
                  when (showCore flags)
                    (do putPrettyLn p (prettyCore (prettyEnv flags modName imports) core))
                  -}

@@ -9,10 +9,14 @@ effect state<s> {
   fun put( x : s ) : ()
 }
 
-val state = handler(s) {
-  return x -> (x,s)
-  get()    -> resume(s,s)
-  put(s')  -> resume((),s')
+fun state(init,action) {
+  var s := init
+  with {
+    return(x){ (x,s) }
+    fun get(){ s }
+    fun put(x){ s := x }
+  }
+  action()
 }
 
 fun show-int( i : int ) : string {
@@ -24,23 +28,23 @@ fun test() : <asyncx,console,state<int>> () {
   val (name,age) = interleaved(
     { put(1)
       yield()
-      println("what is your name? state:" + get().show-int)
+      println("what is your name? state:" ++ get().show-int)
       val name = readline()
-      println("name state:" + get().show-int)
+      println("name state:" ++ get().show-int)
       put(3)
       name
     },
     {
       put(2)
       yield()
-      println("what is your age? state:" + get().show-int)
+      println("what is your age? state:" ++ get().show-int)
       val age = readline()
-      println("age state:" + get().show-int)
+      println("age state:" ++ get().show-int)
       put(4)
       age
     }
   )
-  println("hi " + name + ": " + age + ": state: " + get().show-int )
+  println("hi " ++ name ++ ": " ++ age ++ ": state: " ++ get().show-int )
 }
 
 fun main() {

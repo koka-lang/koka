@@ -1,2 +1,2 @@
-ioapp : forall<e> (f : () -> <console|e> ()) -> <console|e> ()
-test : () -> console ()
+type/eff4c/ioapp: forall<e> (f : () -> <console|e> ()) -> <console|e> ()
+type/eff4c/test: () -> console ()

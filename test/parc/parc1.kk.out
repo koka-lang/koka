@@ -1,8 +1,7 @@
 module parc/parc1
 private import std/core/types = std/core/types = "";
-private import std/core/hnd = std/core/hnd = "";
 private import std/core = std/core = "";
 public fun test : forall<a> (x : a) -> a
- = fun(x: 0){
- x
+ = fn(x: 10){
+ x;
  };

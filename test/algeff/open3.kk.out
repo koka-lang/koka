@@ -1,5 +1,6 @@
 42
-main : () -> console ()
-myid : forall<a> (x : a) -> a
-mymap : forall<a,b,e> ((a) -> e b, list<a>) -> e list<b>
-test : () -> list<int>
+ 
+algeff/open3/main: () -> console ()
+algeff/open3/myid: forall<a> (x : a) -> a
+algeff/open3/mymap: forall<a,b,e> ((a) -> e b, list<a>) -> e list<b>
+algeff/open3/test: () -> list<int>

@@ -149,6 +149,9 @@ instance Monad IOErr where
                                                                    return (addWarnings w err)
                                    Left msg  -> return (errorMsg msg  ))
 
+instance MonadFail IOErr where
+  fail = liftError . fail
+
 
 bindIO :: IO (Error a) -> (a -> IO (Error b)) -> IO (Error b)
 bindIO io f
@@ -878,7 +881,8 @@ inferCheck loaded flags line coreImports program1
                                 Core.Check.checkCore True True penv uniqueLift gamma coreDefsLifted
 
        -- simplify core
-       let (coreDefsSimp0,uniqueSimp0) = simplifyDefs False (simplify flags) (0) uniqueLift penv coreDefsLifted
+       let ndebug = optimize flags > 0
+           (coreDefsSimp0,uniqueSimp0) = simplifyDefs False ndebug (simplify flags) (0) uniqueLift penv coreDefsLifted
 
        -- traceDefGroups "lifted" coreDefsSimp0
 
@@ -930,7 +934,7 @@ inferCheck loaded flags line coreImports program1
                       else -- trace "simplify" $
                            do let (cdefs0,unique0) -- Core.Simplify.simplify $
                                           -- Core.Simplify.simplify
-                                     = simplifyDefs False (simplify flags) (simplifyMaxDup flags) uniqueOR penv coreDefsOR
+                                     = simplifyDefs False ndebug (simplify flags) (simplifyMaxDup flags) uniqueOR penv coreDefsOR
                               -- recheck simplified core
                               when (coreCheck flags) $
                                 -- trace "after simplify core check 1" $
@@ -973,7 +977,7 @@ inferCheck loaded flags line coreImports program1
                       else -- trace "simplify" $
                            do let (cdefs0,unique0) -- Core.Simplify.simplify $
                                           -- Core.Simplify.simplify
-                                     = simplifyDefs False (simplify flags) (simplifyMaxDup flags) uniqueInl penv coreDefsInl
+                                     = simplifyDefs False ndebug (simplify flags) (simplifyMaxDup flags) uniqueInl penv coreDefsInl
                               -- recheck simplified core
                               when (coreCheck flags) $
                                 -- trace "after simplify core check 2" $
@@ -1053,28 +1057,29 @@ codeGen term flags compileTarget loaded
        -- core
        let outCore  = outBase ++ ".core"
            coreDoc  = Core.Pretty.prettyCore env{ coreIface = False, coreShowDef = (showCore flags) } inlineDefs (modCore mod)
-                       <-> Lib.PPrint.empty
+                        <-> Lib.PPrint.empty
        when (genCore flags)  $
          do termPhase term "generate core"
             writeDocW 10000 outCore coreDoc  -- just for debugging
-       when (showCore flags) $
+       when (showCore flags && target flags /= C) $
          do termDoc term coreDoc
 
        -- write documentation
        let fullHtml = outHtml flags > 1
            outHtmlFile  = outBase ++ "-source.html"
            source   = maybe sourceNull programSource (modProgram mod)
+           cenv     = env{ colorizing=True }
        if (isLiteralDoc (sourceName source)) -- .kk.md
         then do termPhase term "write html document"
                 withNewFilePrinter (outBase ++ ".md") $ \printer ->
-                 colorize (modRangeMap mod) env (loadedKGamma loaded) (loadedGamma loaded) fullHtml (sourceName source) 1 (sourceBString source) printer
+                 colorize (modRangeMap mod) cenv (loadedKGamma loaded) (loadedGamma loaded) fullHtml (sourceName source) 1 (sourceBString source) printer
         else when (outHtml flags > 0) $
               do termPhase term "write html source"
                  withNewFilePrinter outHtmlFile $ \printer ->
-                  colorize (modRangeMap mod) env (loadedKGamma loaded) (loadedGamma loaded) fullHtml (sourceName source) 1 (sourceBString source) printer
+                  colorize (modRangeMap mod) cenv (loadedKGamma loaded) (loadedGamma loaded) fullHtml (sourceName source) 1 (sourceBString source) printer
                  termPhase term "write html documentation"
                  withNewFilePrinter (outBase ++ ".xmp.html") $ \printer ->
-                  genDoc env (loadedKGamma loaded) (loadedGamma loaded) (modCore mod) printer
+                  genDoc cenv (loadedKGamma loaded) (loadedGamma loaded) (modCore mod) printer
 
        mbRun <- backend term flags (loadedModules loaded)  compileTarget  outBase (modCore mod)
 

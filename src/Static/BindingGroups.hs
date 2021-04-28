@@ -165,17 +165,17 @@ dependencyExpr modName expr
       Case expr branches rng -> let (depExpr,fv1) = dependencyExpr modName expr
                                     (depBranches,fv2) = dependencyBranches dependencyBranch modName branches
                                 in (Case depExpr depBranches rng, S.union fv1 fv2)
-      Parens expr rng      -> let (depExpr, fv) = dependencyExpr modName expr
-                              in (Parens depExpr rng, fv)
+      Parens expr name rng -> let (depExpr, fv) = dependencyExpr modName expr
+                              in (Parens depExpr name rng, fv)
 --      Con    name isop range -> (expr, S.empty)
       Lit    lit           -> (expr, S.empty)
-      Handler shallow scoped override eff pars reinit ret final ops hrng rng
+      Handler shallow scoped override allowMask eff pars reinit ret final ops hrng rng
         -> let (depRet,fv1)     = dependencyExprMaybe modName ret
                (depBranches,fv2)= dependencyBranches dependencyHandlerBranch modName ops
                (depReinit,fv3)  = dependencyExprMaybe modName reinit
                (depFinal,fv4)   = dependencyExprMaybe modName final
                fvs              = S.difference (S.unions [fv1,fv2,fv3,fv4]) (S.fromList (map binderName pars))
-           in (Handler shallow scoped override eff pars depReinit depRet depFinal depBranches hrng rng,fvs)
+           in (Handler shallow scoped override allowMask eff pars depReinit depRet depFinal depBranches hrng rng,fvs)
       Inject tp body b rng -> let (depBody,fv) = dependencyExpr modName body
                               in (Inject tp depBody b rng, fv)
 

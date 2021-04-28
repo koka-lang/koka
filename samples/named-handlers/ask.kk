@@ -24,7 +24,7 @@ fun reader( msg, action ) {
 // but it can be useful if the named effect performs operations itself
 // in its own context (like reading from the current http connection)
 public fun test(r1,r2) {
-  println(r1.ask() + " " + r2.ask())
+  println(r1.ask() ++ " " ++ r2.ask())
 }
 
 public fun main() {

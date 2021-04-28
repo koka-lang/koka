@@ -1,4 +1,4 @@
-test/type/wrong/hm4.kk(4,11): error: types do not match
+test/type/wrong/hm4.kk(4, 5): error: types do not match
  context : {}
  term : {}
  inferred type: ()

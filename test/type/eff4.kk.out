@@ -1,2 +1,2 @@
-ioapp : (f : () -> io ()) -> io ()
-test : () -> io ()
+type/eff4/ioapp: (f : () -> io ()) -> io ()
+type/eff4/test: () -> io ()

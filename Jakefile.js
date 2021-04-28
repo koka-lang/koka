@@ -15,11 +15,11 @@ var Diff   = require("diff");
 
 console.log(["warning: using 'jake' is deprecated; use 'stack' instead:",
              "> stack build                                   # builds koka",
-             ""
+             "",
              "> stack exec koka                               # run the koka interpreter",
              "> stack exec koka -- --target=js                # with javascript target",
              "> stack exec koka -- -c test/bench/koka/rbtree  # compile rbtree benchmark",
-             ""
+             "",
              "> stack exec koka -- util/install               # install koka locally",
              "> stack exec koka -- util/atom                  # install atom support",
              "> stack exec koka -- util/docspec               # generate documentation",

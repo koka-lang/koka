@@ -1,13 +1,16 @@
 
 effect state<s> {
-  fun get() : s
-  fun put(x : s) : ()
+  control get() : s
+  control put(x : s) : ()
 }
 
-val state = handler(s) {
-  return x -> x
-  get()    -> resume(s,s)
-  put(t)   -> 20 + resume((),t) 
+fun state(init,action) {
+  var s := init
+  with {
+    fun get(){ s }
+    control put(t){ s := t; 20 + resume(()) } 
+  }
+  action()
 }
 
 fun foo() {

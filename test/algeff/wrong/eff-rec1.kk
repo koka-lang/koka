@@ -1,16 +1,16 @@
 effect cow {
-  fun moo() : (() -> cow ())
+  control moo() : (() -> cow ())
 }
 
 val cow = handler {
-    moo() -> {
-        println("moo")
-        resume( {moo()() } )
-    }
+  control moo() {
+    println("moo")
+    resume( {moo()() } )
+  }
 }
 
 fun main() {
-    cow {
-        moo()()
-    }
+  cow {
+    moo()()
+  }
 }

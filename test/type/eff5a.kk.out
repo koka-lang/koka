@@ -1,1 +1,3 @@
-ok : forall<a,e> (f : (message : string) -> <exn|e> a) -> ndet ((message : string) -> <exn|e> a)
+type/eff5a/choose: forall<a> (x : a, y : a) -> a
+type/eff5a/error: forall<a> (msg : string) -> exn a
+type/eff5a/ok: forall<a,e> (f : (msg : string) -> <exn|e> a) -> ((msg : string) -> <exn|e> a)

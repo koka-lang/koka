@@ -1,2 +1,2 @@
-ids : list<forall<a> (a) -> a>
-test1 : () -> exn int
+type/hr3/ids: list<forall<a> (a) -> a>
+type/hr3/test1: () -> exn int

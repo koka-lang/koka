@@ -1,9 +1,8 @@
 module parc/parc10
 private import std/core/types = std/core/types = "";
-private import std/core/hnd = std/core/hnd = "";
 private import std/core = std/core = "";
 public fun test : (x : list<int>) -> list<int>
- = fun(x: list<int>){
+ = fn(x: list<int>){
  std/core/types/.drop(x);
- std/core/Nil
+ std/core/Nil;
  };

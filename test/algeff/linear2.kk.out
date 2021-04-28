@@ -1,13 +1,8 @@
-[01;30moperator branch (state) get: resume tail
-[00;39;49m[00m[01;30moperator branch (state) put: resume scoped
-[00;39;49m[00m68
-.Op-get : forall<a> .op-get<a>
-.Op-put : forall<a> (x : a) -> .op-put<a>
-.Ops-get : forall<a,b> (get : .op-get<a>) -> .ops-state<a,a>
-.Ops-put : forall<a,b> (put : .op-put<a>) -> .ops-state<a,()>
-.tag-state : string
-foo : () -> (state<int>) int
-get : forall<a> () -> (state<a>) a
-main : () -> console ()
-put : forall<a> (x : a) -> (state<a>) ()
-state : forall<a,e> (s : a, action : () -> <state<a>|e> int) -> e int
+68
+ 
+algeff/linear2/State: forall<a,e,b> (.hnd-state<a,e,b>) -> state<a>
+algeff/linear2/foo: () -> (state<int>) int
+algeff/linear2/get: forall<a> () -> (state<a>) a
+algeff/linear2/main: () -> <console,div> ()
+algeff/linear2/put: forall<a> (x : a) -> (state<a>) ()
+algeff/linear2/state: forall<a,e> (init : a, action : () -> <div,state<a>|e> int) -> <div|e> int

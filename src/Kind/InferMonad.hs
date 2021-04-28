@@ -313,6 +313,8 @@ ambiguous cs [name1,name2]
   = text "is ambiguous." <-> text " hint: It can refer to either" <+> ppType cs name1 <.> text ", or" <+> ppType cs name2
 ambiguous cs [name1,name2,name3]
   = text "is ambiguous." <-> text " hint: It can refer to either" <+> ppType cs name1 <.> text "," <+> ppType cs name2 <.> text ", or" <+> ppType cs name3
+ambiguous cs [name]
+  = text "should be cased as:" <+> ppType cs (unqualify name)
 ambiguous cs names
   = text "is ambiguous and can refer to multiple imports:" <-> indent 1 (list (map (ppType cs) names))
 

@@ -1,5 +1,7 @@
+fun choose(x,y){ if (True) then x else y}
+
 fun test() {
-  choose( ref(1), error("hi") )
+  choose( ref(1), throw("hi") )
 }
 
 fun test2() {

@@ -219,13 +219,13 @@ static void kk_random_split(kk_random_ctx_t* rnd, kk_random_ctx_t* ctx_new) {
   Secure random: select in a range without bias
 --------------------------------------------------------------------------------------*/
 
-uint32_t kk_srandom_range32(uint32_t max, kk_context_t* ctx) {
+uint32_t kk_srandom_range_uint32(uint32_t max, kk_context_t* ctx) {
   /* Select unbiased integer in the range [0,max) by Daniel Lemire <https://arxiv.org/pdf/1805.10941.pdf> */
   uint32_t x = kk_srandom_uint32(ctx);
   uint64_t m = (uint64_t)x * (uint64_t)max;
   uint32_t l = (uint32_t)m;
   if (kk_unlikely(l < max)) {
-    uint32_t threshold = (~max+1) % max;  /* 2^32 % max == (2^32 - max) % max == -max % max */
+    uint32_t threshold = (~max+1) % max;  /* 2^32 % max  ==  (2^32 - max) % max  ==  -max % max */
     while (l < threshold) {
       x = kk_srandom_uint32(ctx);
       m = (uint64_t)x * (uint64_t)max;
@@ -235,15 +235,25 @@ uint32_t kk_srandom_range32(uint32_t max, kk_context_t* ctx) {
   return (uint32_t)(m >> 32);
 }
 
+int32_t kk_srandom_range_int32(int32_t min, int32_t max, kk_context_t* ctx) {
+  if (min > max) {
+    int32_t x = min;
+    min = max;
+    max = x;
+  }
+  uint32_t delta = (uint32_t)(max - min);
+  if (delta == 0) return 0;
+  uint32_t x = kk_srandom_range_uint32(delta, ctx);
+  return (min + (int32_t)(x));
+}
+
 /*--------------------------------------------------------------------------------------
   Secure random: get a double
 --------------------------------------------------------------------------------------*/
 
-// Use 48 random bits to generate a double in the range [0,1)
+// Use 52 random bits to generate a double in the range [0,1)
 double kk_srandom_double(kk_context_t* ctx) {
-  const uint32_t lo = (kk_srandom_uint32(ctx) << 4);            /* clear lower 4 bits  */
-  const uint32_t hi = (kk_srandom_uint32(ctx) & KU32(0xFFFFF));  /* use only lower 20 bits (for bits 32 to 51) */
-  const uint64_t x = KU64(0x3FF0000000000000) | (uint64_t)hi << 32 | (uint64_t)lo;
+  const uint64_t x = KU64(0x3FF0000000000000) | kk_shr64(kk_srandom_uint64(ctx), 12);
   double d;
   memcpy(&d, &x, sizeof(double)); /* alias safe: <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly> */
   return (d - 1.0);
@@ -259,7 +269,7 @@ To get an initial secure random context we rely on the OS:
 If we cannot get good randomness, we fall back to weak randomness based on a timer and ASLR.
 -----------------------------------------------------------------------------*/
 
-#if defined(_WIN32)
+#if defined(WIN32)
 /*
 #pragma comment (lib,"bcrypt.lib")
 #include <windows.h>
@@ -341,7 +351,7 @@ static bool os_random_buf(void* buf, size_t buf_len) {
 }
 #endif
 
-#if defined(_WIN32)
+#if defined(WIN32)
 #include <Windows.h>
 #elif defined(__APPLE__)  
 #include <mach/mach_time.h>
@@ -350,9 +360,10 @@ static bool os_random_buf(void* buf, size_t buf_len) {
 #endif
 
 
-static uint64_t os_random_weak(uint64_t extra_seed) {
-  uint64_t x = (uint64_t)&os_random_weak ^ extra_seed; // hopefully, ASLR makes the address random
-  #if defined(_WIN32)
+static uint64_t os_random_weak(void) {
+  uint64_t x = (uint64_t)&os_random_weak ^ KU64(0x853C49E6748FEA9B); // hopefully, ASLR makes the address random
+  do {
+  #if defined(WIN32)
     LARGE_INTEGER pcount;
     QueryPerformanceCounter(&pcount);
     x ^= (uint64_t)(pcount.QuadPart);
@@ -360,11 +371,15 @@ static uint64_t os_random_weak(uint64_t extra_seed) {
     x ^= mach_absolute_time();
   #else
     struct timespec time;
+    #if defined(CLOCK_MONOTONIC)
     clock_gettime(CLOCK_MONOTONIC, &time);
+    #else
+    clock_gettime(CLOCK_REALTIME, &time);
+    #endif  
     x ^= kk_bits_rotl64((uint64_t)time.tv_sec, 32);
     x ^= (uint64_t)time.tv_nsec;
   #endif
-  kk_assert_internal(x != 0);
+  } while (x == 0);  
   return x;
 }
 
@@ -377,7 +392,7 @@ static kk_random_ctx_t* random_init(kk_context_t* ctx) {
     // weak random source based on the C library `rand()`, the current (high precision) time, and ASLR.
     kk_warning_message("unable to use strong randomness\n");
     kk_pcg_ctx_t pcg;
-    pcg_init(os_random_weak((uint64_t)(rand()))^KU64(0x853C49E6748FEA9B), (uintptr_t)&random_init, &pcg);
+    pcg_init(os_random_weak(), (uint64_t)(rand()), &pcg);
     for (size_t i = 0; i < 8; i++) {  // key is eight 32-bit words.
       uint32_t x = pcg_uint32(&pcg);
       ((uint32_t*)key)[i] = x;

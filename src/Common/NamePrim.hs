@@ -23,6 +23,7 @@ module Common.NamePrim
           , nameAssign, nameRefSet, nameAssigned
           , nameByref, nameDeref, nameIndex
           , nameDecreasing, nameSubStr1, nameDec
+          , nameAssert
 
           , nameUnit
           , nameReturn, nameTrace, nameLog, namePhantom
@@ -134,6 +135,7 @@ module Common.NamePrim
           , nameKindHandled1, nameKindHandled
 
           , namesSameSize
+
           ) where
 
 import Data.Char (isDigit)
@@ -197,6 +199,8 @@ nameTpHandlerBranch0 = preludeName "handler-branch0"
 nameTpHandlerBranch1 = preludeName "handler-branch1"
 
 nameTpValueOp   = preludeName "value"
+
+nameAssert      = preludeName "assert"
 
 nameTpCps       = preludeName "cps"
 nameInCps       = preludeName "incps"

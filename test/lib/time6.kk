@@ -8,7 +8,8 @@
 
 module time6
 
-
+import std/num/ddouble
+import std/time/timestamp
 public import std/time
 
 
@@ -19,8 +20,8 @@ public import std/time
 
 fun check(name : string, t1 : time, t2: time, tst : () -> <io,utc,local<h>> bool ) : <io,utc,local<h>> () {
   if (tst()) then () else {
-    println( name + ":failed!\n t1: " + t1.show + "\n t2: " + t2.show )
-    error("quit")
+    println( name ++ ":failed!\n t1: " ++ t1.show ++ "\n t2: " ++ t2.show )
+    throw("quit")
   }
 }
 
@@ -28,7 +29,7 @@ public fun test-dates(starty : int = 1950, endy : int = 2050, tz : timezone = tz
   var prevt  := time(starty,1,0,tz=tz,cal=cal,ts=ts)
   var prevwd := prevt.weekday
   for(starty,endy) fn(y:int){
-    if (y%print-every == 0)  println("tz: " + tz.name + ", cal: " + cal.name + ", ts: " + ts.name + ", year: " + y.show + "...")
+    if (y%print-every == 0)  println("tz: " ++ tz.name ++ ", cal: " ++ cal.name ++ ", ts: " ++ ts.name ++ ", year: " ++ y.show ++ "...")
     for(1,12) fn(m:int){
       val t1 = time(y,m,tz=tz,cal=cal,ts=ts)
       val dm : int = t1.days-in-month
@@ -52,12 +53,13 @@ public fun test-dates(starty : int = 1950, endy : int = 2050, tz : timezone = tz
 public fun main() {
   // test-dates(~2000,3000,print-every=100)     // takes too long for regular test
   // test-dates(1450,1650,tz-fixed(1) ,cal-jg)  // fails on the gap start for 'minday' and 'plusday'; and at 1582-10-22 because days-in-month gives 21 for that month!
+  //println(ts-ti.name.show)
   test-dates()
   test-dates(tz=tz-fixed(1))
   test-dates(tz=tz-local()) // slowish as javascript getTimeOffset() is slowish
   test-dates(tz=tz-fixed(~1), cal=cal-julian)
   test-dates(tz=tz-fixed(~1), ts=ts-tai)
-  test-dates(tz=tz-fixed(1) , ts=ts-gps)
+  test-dates(tz=tz-fixed(1) , ts=ts-gps)  
 }
 
 public fun benchmark() {

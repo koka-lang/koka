@@ -1,39 +1,29 @@
-[01;30moperator branch (choices) choice: resume tail
-[00;39;49m[00m[01;30moperator branch (solutions) choice: resume normal
-[00;39;49m[00m[01;30moperator branch (state) get: resume tail
-[00;39;49m[00m[01;30moperator branch (state) put: resume tail
-[00;39;49m[00m[01;30moperator branch (solution) choice: resume normal (no finalization)
-[00;39;49m[00m[[3],[2,1],[1,2],[1,1,1]]
+[[3],[2,1],[1,2],[1,1,1]]
 (state=12, [[3],[2,1],[1,2],[1,1,1]])
 [(state=1, [3]),(state=2, [2,1]),(state=2, [1,2]),(state=3, [1,1,1])]
 one: [3]
-.Op-choice : forall<a> (xs : list<a>) -> .op-choice<a>
-.Op-get : forall<a> .op-get<a>
-.Op-put : forall<a> (i : a) -> .op-put<a>
-.Ops-choice : forall<a,b> (choice : .op-choice<b>) -> .ops-nondet<b>
-.Ops-get : forall<a,b> (get : .op-get<a>) -> .ops-state<a,a>
-.Ops-put : forall<a,b> (put : .op-put<a>) -> .ops-state<a,()>
-.tag-nondet : string
-.tag-state : string
-choice : forall<a> (xs : list<a>) -> nondet a
-choices : forall<a,e> (action : () -> <nondet,nondet,state<int>|e> a) -> <nondet,state<int>|e> a
-fail : forall<a> () -> nondet a
-get : forall<a> () -> (state<a>) a
-global : forall<a,b,e> (s : a, action : () -> <nondet,state<a>|e> b) -> e (a, list<b>)
-incr : (i : ?int) -> (state<int>) ()
-knapsack : (w : int, vs : list<int>) -> <nondet,div> list<int>
-local : forall<a,b,e> (s : a, action : () -> <nondet,state<a>|e> b) -> e list<(a, b)>
-main : () -> <div,console> ()
-put : forall<a> (i : a) -> (state<a>) ()
-show : (m : maybe<list<int>>) -> string
-show : (xs : list<(int, list<int>)>) -> string
-show : (x : (int, list<list<int>>)) -> string
-show : (xss : list<list<int>>) -> string
-solution : forall<a,e> (action : () -> <nondet|e> a) -> e maybe<a>
-solutions : forall<a,e> (action : () -> <nondet|e> a) -> e list<a>
-state : forall<a,b,e> (i : a, action : () -> <state<a>|e> b) -> e (a, b)
-test1 : () -> div list<list<int>>
-test2 : () -> div (int, list<list<int>>)
-test3 : () -> div list<(int, list<int>)>
-test4 : () -> div maybe<list<int>>
-untilJust : forall<a,b,e> (xs : list<a>, f : (a) -> e maybe<b>) -> e maybe<b>
+ 
+algeff/scoped2/Nondet: forall<e,a> (.hnd-nondet<e,a>) -> nondet
+algeff/scoped2/State: forall<a,e,b> (.hnd-state<a,e,b>) -> state<a>
+algeff/scoped2/choice: forall<a> (xs : list<a>) -> nondet a
+algeff/scoped2/choices: forall<a,e> (() -> <nondet,nondet,state<int>|e> a) -> <nondet,state<int>|e> a
+algeff/scoped2/fail: forall<a> () -> nondet a
+algeff/scoped2/get: forall<a> () -> (state<a>) a
+algeff/scoped2/global: forall<a,b,e> (s : a, action : () -> <div,nondet,state<a>|e> b) -> <div|e> (a, list<b>)
+algeff/scoped2/incr: (i : optional<int>) -> (state<int>) ()
+algeff/scoped2/knapsack: (w : int, vs : list<int>) -> <div,nondet> list<int>
+algeff/scoped2/local: forall<a,b,e> (s : a, action : () -> <div,nondet,state<a>|e> b) -> <div|e> list<(a, b)>
+algeff/scoped2/main: () -> <console,div> ()
+algeff/scoped2/put: forall<a> (i : a) -> (state<a>) ()
+algeff/scoped2/show: (m : maybe<list<int>>) -> string
+algeff/scoped2/show: (xs : list<(int, list<int>)>) -> string
+algeff/scoped2/show: (x : (int, list<list<int>>)) -> string
+algeff/scoped2/show: (xss : list<list<int>>) -> string
+algeff/scoped2/solution: forall<a,e> (() -> <nondet|e> a) -> e maybe<a>
+algeff/scoped2/solutions: forall<a,e> (() -> <nondet|e> a) -> e list<a>
+algeff/scoped2/state: forall<a,b,e> (init : a, action : () -> <div,state<a>|e> b) -> <div|e> (a, b)
+algeff/scoped2/test1: () -> div list<list<int>>
+algeff/scoped2/test2: () -> div (int, list<list<int>>)
+algeff/scoped2/test3: () -> div list<(int, list<int>)>
+algeff/scoped2/test4: () -> div maybe<list<int>>
+algeff/scoped2/untilJust: forall<a,b,e> (xs : list<a>, f : (a) -> e maybe<b>) -> e maybe<b>
