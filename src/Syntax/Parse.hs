@@ -331,7 +331,7 @@ externDecl dvis
                          return (pars,args,tp,\body -> Ann body tp (getRange tp))
                       <|>
                       do tpars <- typeparams
-                         (pars, parRng) <- declParams False {- (inline /= InlineAlways) -} -- allow defaults? 
+                         (pars, parRng) <- declParams (inline /= InlineAlways) -- allow defaults? 
                          (teff,tres)   <- annotResult
                          let tp = typeFromPars nameRng pars teff tres
                              lift :: ValueBinder UserType (Maybe UserExpr) -> ValueBinder (Maybe UserType) (Maybe UserExpr)
