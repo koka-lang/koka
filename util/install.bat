@@ -1,6 +1,6 @@
 @echo off
 
-set _KOKA_VERSION=v2.1.2
+set _KOKA_VERSION=v2.1.3
 set _KOKA_PREFIX=%APPDATA%\local
 set _KOKA_DIST_SOURCE=
 set _KOKA_DIST_SOURCE_URL=
