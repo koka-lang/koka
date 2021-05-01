@@ -1543,7 +1543,7 @@ with regard to other approaches:
    (see also Oleg Kiselyov's ["against call/cc"](http://okmij.org/ftp/continuations/against-callcc.html)).
 3. _Effect handlers can be composed freely_. This is unlike general _monads_ which need monad transformers to 
    compose in particular ways. Essentially effect handlers can compose freely because every effect handler
-   can be expressed eventually as an instance of a _free monad_ which _do_ compose. This also means means that
+   can be expressed eventually as an instance of a _free monad_ which _do_ compose. This also means that
    some monads cannot be expressed as an effect handler (namely the non-algebraic ones). A particular example
    of this is the continuation monad (which can express ``call/cc``).
 
