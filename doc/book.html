@@ -1590,8 +1590,9 @@ yielded: 3</code></pre>
 <p class="p noindent">Perceus is the compiler optimized reference counting technique that Koka
 uses for automatic memory management&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#perceus:tech" title="Perceus: Garbage-Free Reference Counting with Reuse
 Reinking, Xie, Moura, and Leijen, 2020" class="bibref localref" style="target-element:bibitem"><span class="cite-number">15</span></a>]</span>. This (together
-with evidence passing [@Xie:evidently-tr;<span class="textual citations" style="target-element:bibitem"><span class="cite-authors">Xie et al.</span>&#160;[<a href="#xie:evidently" title="Effect Handlers, Evidently
-Xie, Brachthäuser, Schuster, Hillerström, and Leijen, 2020" class="bibref localref" style="target-element:bibitem"><span class="cite-number">16</span></a>]</span>])
+with evidence passing&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#xie:evidently" title="Effect Handlers, Evidently
+Xie, Brachthäuser, Schuster, Hillerström, and Leijen, 2020" class="bibref localref" style="target-element:bibitem"><span class="cite-number">16</span></a>, <a href="#xie:evidence-tr" title="Generalized Evidence Passing for Effect Handlers
+Xie and Leijen, 2021" class="bibref localref" style="target-element:bibitem"><span class="cite-number">17</span></a>]</span>)
 enables Koka to compile directly to plain C code without needing a
 garbage collector or runtime system.
 </p>
@@ -1906,7 +1907,9 @@ before a function call, whereas an expression between <em class="em-low1">braces
 (as in our example). 
 </p><h3 id="sec-with" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-with" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">3.1.5</span>.&#8194;</span>With Statements</h3>
 <p class="p noindent">To the best of our knowledge, Koka was the first language to have
-generalized <em class="em-low1">dot notation</em> and <em class="em-low1">trailing lambdas</em>. Another novel 
+generalized <em class="em-low1">trailing lambdas</em>. It was also one of the first languages
+to have <em class="em-low1">dot notation</em> (This was independently developed but it turns out
+the D language has a similar feature (called&nbsp;<a href="https://tour.dlang.org/tour/en/gems/uniform-function-call-syntax-ufcs">UFCS</a>) which predates dot-notation). Another novel 
 syntactical feature is the <code class="koka"><span class="kw">with</span></code> statement.
 With the ease of passing a function block as a parameter, these
 often become nested. For example:
