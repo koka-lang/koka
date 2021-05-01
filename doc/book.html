@@ -3548,7 +3548,8 @@ of this is the continuation monad (which can express <code class="code code2">ca
 
 <p class="p noindent">The Koka compiler internally uses monads and <code class="koka">shift</code>/<code class="koka">reset</code> to compile effect handlers though, and
 it compiles handlers into to an internal free monad based on multi-prompt delimited control&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#gunter:mprompt" title="A Generalization of Exceptions and Control in ML-like Languages
-Gunter, R&#233;my, and Riecke, 1995" class="bibref localref" style="target-element:bibitem"><span class="cite-number">3</span></a>]</span>. 
+Gunter, R&#233;my, and Riecke, 1995" class="bibref localref" style="target-element:bibitem"><span class="cite-number">3</span></a>, <a href="#xie:evidence-tr" title="Generalized Evidence Passing for Effect Handlers
+Xie and Leijen, 2021" class="bibref localref" style="target-element:bibitem"><span class="cite-number">17</span></a>]</span>. 
 By inlining the monadic <em class="em-low1">bind</em> we are able to generate efficient C code that only allocates continuations 
 in the case one is actually yielding up to a general <code class="koka"><span class="kw">control</span></code> operation.</p></div>
 <p class="p noindent">A great property of effect handlers is that they can be freely composed together. 
