@@ -3793,22 +3793,22 @@ if we add <code class="koka"><span class="kw">mask</span></code> just over <code
 our intended handler! 
 </p>
 <p class="p indent">For this situation, there is another primitive that only &#8220;masks the masks&#8221;.
-The expression <code class="koka"><span class="kw">mask</span> behind<span class="op">&#60;</span>l<span class="op">&#62;</span></code> has type <code class="koka"><span class="tp sp">(</span><span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp tv">l</span><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp tv">a</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp tv">l</span><span class="tp sp">,</span><span class="tp tv">l</span><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp tv">a</span></code>
+The expression <code class="koka"><span class="kw">mask</span> behind<span class="op">&#60;</span>eff<span class="op">&#62;</span></code> has type <code class="koka"><span class="tp sp">(</span><span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp">eff</span><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp tv">a</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">&#60;</span><span class="tp">eff</span><span class="tp sp">,</span><span class="tp">eff</span><span class="tp kw op">|</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp tv">a</span></code>
 and only masks any masked operations but not the direct ones. The <code class="koka"><span class="kw">override</span></code>
 keyword is defined in terms of this primitive:
 </p>
 <div class="translate" style="border:1px solid #AAA;padding:0em 1em;margin:1em 0em">
 <p class="p boxed-label noindent" style="margin:0em 0em 0em -1em;display:block;font-size:70%;color:#999">translation</p>
-<div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">with override handler&lt;l&gt; { &lt;ops&gt; }
+<div class="translate-row"><pre class="koka source unchecked"><span class="plaincode">with override handler&lt;eff&gt; { &lt;ops&gt; }
 &lt;body&gt;
-</span><span class="nicecode"><span class="kw">with</span> <span class="kw">override</span> <span class="kw">handler</span><span class="op">&lt;</span>l<span class="op">&gt;</span> { <span class="op">&lt;</span>ops<span class="op">&gt;</span> }
+</span><span class="nicecode"><span class="kw">with</span> <span class="kw">override</span> <span class="kw">handler</span><span class="op">&lt;</span>eff<span class="op">&gt;</span> { <span class="op">&lt;</span>ops<span class="op">&gt;</span> }
 <span class="op">&lt;</span>body<span class="op">&gt;</span>
 </span></pre>
 
 
 <p class="p noindent"><span class="mapsto" style="padding:0ex 1em;align-self:center;font-size:125%"><svg  class="math-inline math-render-svg math" style="vertical-align:-0.0210em;height:0.4371em;width:1.0890em" viewBox='34.67 57.872 10.371 4.163'><desc>$\mathpre{\rightsquigarrow}$</desc><g id='math-f156e3'><use x='34.869' y='61.836' xlink:href='#g4-32'/></g></svg></span>
-</p><pre class="koka source unchecked"><span class="plaincode">(handler&lt;l&gt; { &lt;ops&gt; })(mask behind&lt;l&gt;{ &lt;body&gt; })
-</span><span class="nicecode">(<span class="kw">handler</span><span class="op">&lt;</span>l<span class="op">&gt;</span> { <span class="op">&lt;</span>ops<span class="op">&gt;</span> })(<span class="kw">mask</span> behind<span class="op">&lt;</span>l<span class="op">&gt;</span>{ <span class="op">&lt;</span>body<span class="op">&gt;</span> })
+</p><pre class="koka source unchecked"><span class="plaincode">(handler&lt;eff&gt; { &lt;ops&gt; })(mask behind&lt;eff&gt;{ &lt;body&gt; })
+</span><span class="nicecode">(<span class="kw">handler</span><span class="op">&lt;</span>eff<span class="op">&gt;</span> { <span class="op">&lt;</span>ops<span class="op">&gt;</span> })(<span class="kw">mask</span> behind<span class="op">&lt;</span>eff<span class="op">&gt;</span>{ <span class="op">&lt;</span>body<span class="op">&gt;</span> })
 </span></pre>
 </div></div>
 <p class="p noindent">This ensures any operation calls in <code class="code code2">&lt;body&gt;</code> go the newly defined
