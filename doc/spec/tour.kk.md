@@ -1168,7 +1168,7 @@ This also conveys better that even though `ask` is dynamically bound, it behaves
 just like a regular function without changing the control-flow. 
 
 Moreover, operations declared as `fun` are much more efficient than general
-`control` operations. The &koka; compiler uses (generalized) _evidence translation_  [@Xie:evidently]
+`control` operations. The &koka; compiler uses (generalized) _evidence passing_  [@Xie:evidence-tr;@Xie:evidently]
 to pass down handler information to each call-site. At the call to `ask` in `add-twice`,
 it selects the handler from the evidence vector and when the operation is
 a tail-resumptive `fun`, it calls it directly as a regular function (except with an adjucted evidence

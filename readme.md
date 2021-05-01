@@ -28,7 +28,7 @@ Koka is a strongly typed functional-style language with effect types and handler
   like exceptions, async/await, or probabilistic programs, 
   as a user library in a typed and composable way.
 * [Perceus](https://koka-lang.github.io/koka/doc/book.html#why-perceus) is an advanced compilation method for reference counting.
-  Together with [evidence translation][evidence], this lets Koka compile directly to C code _without needing
+  Together with [evidence passing][evidence], this lets Koka compile directly to C code _without needing
   a garbage collector or runtime system_. 
   Perceus also performs [reuse analysis](https://koka-lang.github.io/koka/doc/book.html#why-fbip) and optimizes
   functional-style programs to use in-place updates when possible.
@@ -55,7 +55,7 @@ For more information, see:
 [kokarepo]: https://github.com/koka-lang/koka
 [kokaproject]: http://research.microsoft.com/en-us/projects/koka
 
-[evidence]: https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently.pdf
+[evidence]: https://www.microsoft.com/en-us/research/publication/generalized-evidence-passing-for-effect-handlers/
 [releases]: https://github.com/koka-lang/koka/releases
 [build]: #build-from-source
 [Perceus]: https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/
@@ -65,7 +65,7 @@ Enjoy,
   Daan Leijen
 
 Special thanks to:
-- [Ningning Xie](https://xnning.github.io/) for her work on the theory and practice of evidence translation [[6]](#references) and the formalization of Perceus reference counting [[8]](#references).
+- [Ningning Xie](https://xnning.github.io/) for her work on the theory and practice of evidence passing [[9,6]](#references) and the formalization of Perceus reference counting [[8]](#references).
 - [Alex Reinking](https://alexreinking.com/) for the implementation of the Perceus reference counting analysis [[8]](#references).
 - And all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
 
@@ -454,10 +454,14 @@ info: elapsed: 1.483s, user: 1.484s, sys: 0.000s, rss: 164mb
 5. Nicolas Wu, Tom Schrijvers, and Ralf Hinze. &ldquo;Effect Handlers in Scope.&rdquo; In _Proceedings of the 2014 ACM SIGPLAN Symposium on Haskell_, 1--12. Haskell ’14. ACM, New York, NY, USA. 2014. doi:[10.1145/2633357.2633358](https://dx.doi.org/10.1145/2633357.2633358)
 
 6. Ningning Xie, Jonathan Brachthäuser, Daniel Hillerström, Philipp Schuster, Daan Leijen. &ldquo;Effect Handlers, Evidently&rdquo;
-The 25th ACM SIGPLAN International Conference on Functional Programming (ICFP), August 2020. doi:[10.1145/3408981](https://doi.org/10.1145/3408981), [pdf](https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently-with-proofs-5f0b7d860b387.pdf)
+The 25th ACM SIGPLAN International Conference on Functional Programming (ICFP), August 2020. doi:[10.1145/3408981](https://doi.org/10.1145/3408981), [pdf](https://www.microsoft.com/en-us/research/uploads/prod/2020/07/evidently-with-proofs-5f0b7d860b387.pdf). See also [9] which improves upon this work.
 
 7. Ningning Xie and Daan Leijen. &ldquo;Effect Handlers in Haskell, Evidently&rdquo; The 13th ACM SIGPLAN International Haskell Symposium, August 2020.
 [pdf](https://www.microsoft.com/en-us/research/uploads/prod/2020/07/effev.pdf)
+See also the [Ev.Eff](https://github.com/xnning/EvEff) and [Mp.Eff](https://github.com/xnning/MpEff) repositories.
 
-8. Alex Reinking, Ningning Xie, Leonardo de Moura, and Daan Leijen: &ldquo; Perceus: Garbage Free Reference Counting with Reuse&rdquo; MSR-TR-2020-42, Nov 22, 2020.
-[pdf](https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf)
+8. Alex Reinking, Ningning Xie, Leonardo de Moura, and Daan Leijen: &ldquo; Perceus: Garbage Free Reference Counting with Reuse&rdquo; MSR-TR-2020-42, Nov 22, 2020. Conditionally accepted at PLDI'21.
+[pdf](https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/)
+
+9. Ningning Xie and Daan Leijen: &ldquo; Generalized Evidence Passing for Effect Handlers&rdquo; MSR-TR-2021-5, Mar, 2021.
+[pdf](https://www.microsoft.com/en-us/research/publication/generalized-evidence-passing-for-effect-handlers/)
