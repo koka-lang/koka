@@ -1590,8 +1590,8 @@ yielded: 3</code></pre>
 <p class="p noindent">Perceus is the compiler optimized reference counting technique that Koka
 uses for automatic memory management&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#perceus:tech" title="Perceus: Garbage-Free Reference Counting with Reuse
 Reinking, Xie, Moura, and Leijen, 2020" class="bibref localref" style="target-element:bibitem"><span class="cite-number">15</span></a>]</span>. This (together
-with evidence translation&nbsp;<span class="citations" style="target-element:bibitem">[<a href="#xie:evidently" title="Effect Handlers, Evidently
-Xie, Brachthäuser, Schuster, Hillerström, and Leijen, 2020" class="bibref localref" style="target-element:bibitem"><span class="cite-number">16</span></a>]</span>)
+with evidence passing [@Xie:evidently-tr;<span class="textual citations" style="target-element:bibitem"><span class="cite-authors">Xie et al.</span>&#160;[<a href="#xie:evidently" title="Effect Handlers, Evidently
+Xie, Brachthäuser, Schuster, Hillerström, and Leijen, 2020" class="bibref localref" style="target-element:bibitem"><span class="cite-number">16</span></a>]</span>])
 enables Koka to compile directly to plain C code without needing a
 garbage collector or runtime system.
 </p>
@@ -4328,7 +4328,7 @@ case where the input tree is shared, or where parts of the input tree are
 shared, making a single copy of those parts of the tree.
 </p>
 <p class="p learn button indent"><a href="https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/" data-linkid="perceus">Read the Perceus technical report</a></p><h1 id="sec-koka-language-specification" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-koka-language-specification" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">4</span>.&#8194;</span>Koka language specification</h1>
-<p class="p noindent">This is the draft language specification of the Koka language, version v2.x.x<br>
+<p class="p noindent">This is the draft language specification of the Koka language, version v2.1.3<br>
 Currently only the lexical and context-free grammar are specified.
 The&nbsp;<a href="toc.html" data-linkid="stdlib">standard libraries</a> are documented separately.
 </p><h2 id="sec-lexical-syntax" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-lexical-syntax" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">4.1</span>.&#8194;</span>Lexical syntax</h2>
