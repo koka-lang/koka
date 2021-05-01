@@ -2659,15 +2659,15 @@ and named parameters.
 </p><h3 id="sec-union" class="h3" data-heading-depth="3" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-union" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">3.3.3</span>.&#8194;</span>Alternatives (or Unions)</h3>
 <p class="p noindent">Koka also supports algebraic data types where there are multiple alternatives.
 For example, here is an enumeration:
-</p><pre class="koka source unchecked"><span class="plaincode">type colors {
+</p><pre class="koka source unchecked"><span class="plaincode">type color {
   Red
   Green
   Blue
 }
-</span><span class="nicecode"><span class="tp kw">type</span> <span class="tp">colors</span> {
-  <a class="pp" href="#red">red<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>red: <span class="tp sp">(</span><span class="tp tpp">argb</span> <span class="tp kw op">:</span> <span class="tp">argb</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">int</span></span></a>
-  <a class="pp" href="#green">green<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>green: <span class="tp sp">(</span><span class="tp tpp">argb</span> <span class="tp kw op">:</span> <span class="tp">argb</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">int</span></span></a>
-  <a class="pp" href="#blue">blue<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>blue: <span class="tp sp">(</span><span class="tp tpp">argb</span> <span class="tp kw op">:</span> <span class="tp">argb</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">int</span></span></a>
+</span><span class="nicecode"><span class="tp kw">type</span> <span class="tp">color</span> {
+  <span class="co">Red</span>
+  <span class="co">Green</span>
+  <span class="co">Blue</span>
 }
 </span></pre>
 
@@ -2791,8 +2791,8 @@ example returned in registers when compiling with optimization.
 </p>
 <p class="p indent">We can also force a type to be compiled as a value type by using the <code class="koka">value</code> keyword
 in front of a <code class="koka"><span class="tp kw">type</span></code> or <code class="koka"><span class="tp kw">struct</span></code> declaration:
-</p><pre class="koka source"><span class="plaincode">value struct argb{ alpha: int; red: int; green: int; blue: int }
-</span><span class="nicecode">value <span class="decl-type" id="type_space_argb"><span class="tp kw">struct</span> <span class="decl-con" id="con_space_Argb"><a class="pp" href="#type_space_argb"><span class="tp">argb</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>argb: <span class="tp">V</span></span></a>{ <span class="decl-fun" id="alpha"><a class="pp">alpha<span class="pc">alpha: <span class="tp">int</span></span></a></span><span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a>; <span class="decl-fun" id="red"><a class="pp">red<span class="pc">red: <span class="tp">int</span></span></a></span><span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a>; <span class="decl-fun" id="green"><a class="pp">green<span class="pc">green: <span class="tp">int</span></span></a></span><span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a>; <span class="decl-fun" id="blue"><a class="pp">blue<span class="pc">blue: <span class="tp">int</span></span></a></span><span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a> </span></span>}
+</p><pre class="koka source"><span class="plaincode">value struct argb{ alpha: int; color-red: int; color-green: int; color-blue: int }
+</span><span class="nicecode">value <span class="decl-type" id="type_space_argb"><span class="tp kw">struct</span> <span class="decl-con" id="con_space_Argb"><a class="pp" href="#type_space_argb"><span class="tp">argb</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>argb: <span class="tp">V</span></span></a>{ <span class="decl-fun" id="alpha"><a class="pp">alpha<span class="pc">alpha: <span class="tp">int</span></span></a></span><span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a>; <span class="decl-fun" id="color_red"><a class="pp">color-red<span class="pc">color<span class="dash">-</span>red: <span class="tp">int</span></span></a></span><span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a>; <span class="decl-fun" id="color_green"><a class="pp">color-green<span class="pc">color<span class="dash">-</span>green: <span class="tp">int</span></span></a></span><span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a>; <span class="decl-fun" id="color_blue"><a class="pp">color-blue<span class="pc">color<span class="dash">-</span>blue: <span class="tp">int</span></span></a></span><span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a> </span></span>}
 </span></pre>
 
 
@@ -2808,9 +2808,8 @@ the compiler transforms this expression into <code class="koka">[<a class="pp" h
 <p class="p indent">Note that for regular data types and <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a></code>&#39;s boxing is free (as in isomorphic). Moreover, value types
 up to 63 bits (on a 64-bit platform) are boxed in-place and do not require heap allocation
 (like <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int32"><span class="tp">int32</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int32: <span class="tp">V</span></span></a></code>). The <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_double"><span class="tp">double</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>double: <span class="tp">V</span></span></a></code> type is also specialized; by default the Koka compiler
-only heap allocates negative doubles for boxing while positive doubles are boxed in-place.
-(this can be configured though to only heap allocate doubles for boxing when their absolute value is
-outside of the range 2<sup>-511</sup> up to 2<sup>512</sup>).
+only heap allocates doubles when their absolute value is
+outside the range 2<sup>-511</sup> up to 2<sup>512</sup> (excluding infinity and NaN)).
 </p>
 <p class="p indent">For performance sensitive code we may specialize certain polymorphic datatypes to
 reduce allocations due to boxing. For example:
@@ -4066,18 +4065,18 @@ Guibas and Sedgewick, 1978" class="bibref localref" style="target-element:bibite
 A polymorphic version of this example is part of the&nbsp;<a href="https://github.com/koka-lang/koka/tree/master/samples" data-linkid="samples"><code class="code code2">samples</code></a> directory when you have
 installed Koka and can be loaded as <code class="code code2">:l</code>&nbsp;<a href="https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk" data-linkid="rbtree"><code class="code code2">samples/basic/rbtree</code></a>.
 We define red-black trees as:
-</p><pre class="koka source unchecked"><span class="plaincode">type color { 
-  Red 
-  Black 
+</p><pre class="koka source unchecked"><span class="plaincode">type color {
+  Red
+  Black
 }
 
 type tree {
   Leaf
   Node(color: color, left: tree, key: int, value: bool, right: tree)
 }
-</span><span class="nicecode"><span class="tp kw">type</span> <span class="tp">color</span> { 
-  <a class="pp" href="#red">red<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>red: <span class="tp sp">(</span><span class="tp tpp">argb</span> <span class="tp kw op">:</span> <span class="tp">argb</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">int</span></span></a> 
-  <span class="co">Black</span> 
+</span><span class="nicecode"><span class="tp kw">type</span> <span class="tp">color</span> {
+  <span class="co">Red</span>
+  <span class="co">Black</span>
 }
 
 <span class="tp kw">type</span> <a class="pp" href="#type_space_tree"><span class="tp">tree</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>tree: <span class="tp">V</span></span></a> {
@@ -4113,16 +4112,16 @@ fun ins( t : tree, k : int, v : bool ): tree {
 }
 </span><span class="nicecode"><span class="kw">fun</span> balance<span class="dash">-</span>left( l <span class="tp kw op">:</span> <a class="pp" href="#type_space_tree"><span class="tp">tree</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>tree: <span class="tp">V</span></span></a>, k <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a>, v <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_bool"><span class="tp">bool</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>bool: <span class="tp">V</span></span></a>, r <span class="tp kw op">:</span> <a class="pp" href="#type_space_tree"><span class="tp">tree</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>tree: <span class="tp">V</span></span></a> )<span class="tp kw op">:</span> <a class="pp" href="#type_space_tree"><span class="tp">tree</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>tree: <span class="tp">V</span></span></a> {
   <span class="kw">match</span>(l) {
-    <span class="co">Node</span>(&#95;, <span class="co">Node</span>(<a class="pp" href="#red">red<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>red: <span class="tp sp">(</span><span class="tp tpp">argb</span> <span class="tp kw op">:</span> <span class="tp">argb</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">int</span></span></a>, lx, kx, vx, rx), ky, vy, ry)
-      <span class="kw op">-></span> <span class="co">Node</span>(<a class="pp" href="#red">red<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>red: <span class="tp sp">(</span><span class="tp tpp">argb</span> <span class="tp kw op">:</span> <span class="tp">argb</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">int</span></span></a>, <span class="co">Node</span>(<span class="co">Black</span>, lx, kx, vx, rx), ky, vy, <span class="co">Node</span>(<span class="co">Black</span>, ry, k, v, r))
+    <span class="co">Node</span>(&#95;, <span class="co">Node</span>(<span class="co">Red</span>, lx, kx, vx, rx), ky, vy, ry)
+      <span class="kw op">-></span> <span class="co">Node</span>(<span class="co">Red</span>, <span class="co">Node</span>(<span class="co">Black</span>, lx, kx, vx, rx), ky, vy, <span class="co">Node</span>(<span class="co">Black</span>, ry, k, v, r))
     <span class="op">...</span>
 }
 
 <span class="kw">fun</span> ins( t <span class="tp kw op">:</span> <a class="pp" href="#type_space_tree"><span class="tp">tree</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>tree: <span class="tp">V</span></span></a>, k <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a>, v <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_bool"><span class="tp">bool</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>bool: <span class="tp">V</span></span></a> )<span class="tp kw op">:</span> <a class="pp" href="#type_space_tree"><span class="tp">tree</span><span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>tree: <span class="tp">V</span></span></a> {
   <span class="kw">match</span>(t) {
-    <span class="co">Leaf</span> <span class="kw op">-></span> <span class="co">Node</span>(<a class="pp" href="#red">red<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>red: <span class="tp sp">(</span><span class="tp tpp">argb</span> <span class="tp kw op">:</span> <span class="tp">argb</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">int</span></span></a>, <span class="co">Leaf</span>, k, v, <span class="co">Leaf</span>)
-    <span class="co">Node</span>(<a class="pp" href="#red">red<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>red: <span class="tp sp">(</span><span class="tp tpp">argb</span> <span class="tp kw op">:</span> <span class="tp">argb</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">int</span></span></a>, l, kx, vx, r)             
-      <span class="kw op">-></span> <span class="kw">if</span> (k <span class="op">&lt;</span> kx) <span class="kw">then</span> <span class="co">Node</span>(<a class="pp" href="#red">red<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>red: <span class="tp sp">(</span><span class="tp tpp">argb</span> <span class="tp kw op">:</span> <span class="tp">argb</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">int</span></span></a>, ins(l, k, v), kx, vx, r)
+    <span class="co">Leaf</span> <span class="kw op">-></span> <span class="co">Node</span>(<span class="co">Red</span>, <span class="co">Leaf</span>, k, v, <span class="co">Leaf</span>)
+    <span class="co">Node</span>(<span class="co">Red</span>, l, kx, vx, r)             
+      <span class="kw op">-></span> <span class="kw">if</span> (k <span class="op">&lt;</span> kx) <span class="kw">then</span> <span class="co">Node</span>(<span class="co">Red</span>, ins(l, k, v), kx, vx, r)
          <span class="op">...</span>
     <span class="co">Node</span>(<span class="co">Black</span>, l, kx, vx, r)
       <span class="kw op">-></span> <span class="kw">if</span> (k <span class="op">&lt;</span> kx <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#_amp__amp_">(&amp;&amp;)<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>(&amp;&amp;): <span class="tp sp">(</span><span class="tp tpp">x</span> <span class="tp kw op">:</span> <span class="tp">bool</span><span class="tp sp">,</span> <span class="tp tpp">y</span> <span class="tp kw op">:</span> <span class="tp">bool</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">bool</span></span></a> is<span class="dash">-</span>red(l)) <span class="kw">then</span> balance<span class="dash">-</span>left(ins(l,k,v), kx, vx, r)
