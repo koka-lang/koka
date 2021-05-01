@@ -855,14 +855,15 @@ versionMessage flags
     (if null (compiler ++ buildVariant) then "" else " (" ++ compiler ++ " " ++ buildVariant ++ " version)")
   , ""
   ])
-  <-> text "bin   :" <+> text (localBinDir flags)
-  <-> text "lib   :" <+> text (localLibDir flags)
-  <-> text "share :" <+> text (localShareDir flags)
-  <-> text "build :" <+> text (buildDir flags)
-  <-> text "cc    :" <+> text (ccPath (ccomp flags))
+  <-> text "version:" <+> text version
+  <-> text "bin    :" <+> text (localBinDir flags)
+  <-> text "lib    :" <+> text (localLibDir flags)
+  <-> text "share  :" <+> text (localShareDir flags)
+  <-> text "build  :" <+> text (buildDir flags)
+  <-> text "cc     :" <+> text (ccPath (ccomp flags))
   <->
   (color Gray $ vcat $ map text
-  [ "Copyright (c) 2012-2020 Microsoft Corporation, by Daan Leijen."
+  [ "Copyright (c) 2012-2021 Microsoft Corporation, by Daan Leijen."
   , "This program is free software; see the source for copying conditions."
   , "This program is distributed in the hope that it will be useful,"
   , "but without any warranty; without even the implied warranty"

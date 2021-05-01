@@ -66,9 +66,9 @@ executables:
     ghc-options:
       - -rtsopts
     cpp-options:
-      - -DMAIN="koka"
-      - -DVARIANT="release"
-      - -DVERSION="2.1.2"
+      - -DKOKA_MAIN="koka"      
+      - -DKOKA_VARIANT="release"
+      - -DKOKA_VERSION="2.1.2"
       # - -DREADLINE=1   # to avoid using Haskeline
     when:
       - condition: os(windows)

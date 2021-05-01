@@ -26,7 +26,8 @@
 ------------------------------------------------------------------------*/
 #if defined(__WIN32__) || defined(__MINGW32__) || defined(__CYGWIN__)
 
-#include <windows.h>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
 #ifndef COMMON_LVB_REVERSE_VIDEO   
 #define COMMON_LVB_REVERSE_VIDEO   0x4000 
