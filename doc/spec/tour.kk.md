@@ -185,7 +185,9 @@ _suspenders_!) is suspended and may be never evaluated or more than once
 ### With Statements { #sec-with; }
 
 To the best of our knowledge, &koka; was the first language to have
-generalized _dot notation_ and _trailing lambdas_. Another novel 
+generalized _trailing lambdas_. It was also one of the first languages
+to have _dot notation_ (This was independently developed but it turns out
+the D language has a similar feature (called [UFCS](https://tour.dlang.org/tour/en/gems/uniform-function-call-syntax-ufcs)) which predates dot-notation). Another novel 
 syntactical feature is the `with` statement.
 With the ease of passing a function block as a parameter, these
 often become nested. For example:
@@ -812,7 +814,7 @@ and named parameters.
 For example, here is an enumeration:
 
 ```unchecked
-type colors {
+type color {
   Red
   Green
   Blue
@@ -923,7 +925,7 @@ example returned in registers when compiling with optimization.
 We can also force a type to be compiled as a value type by using the `value` keyword
 in front of a `type` or `struct` declaration:
 ```
-value struct argb{ alpha: int; red: int; green: int; blue: int }
+value struct argb{ alpha: int; color-red: int; color-green: int; color-blue: int }
 ```
 
 ~ begin advanced
@@ -938,9 +940,8 @@ the compiler transforms this expression into `[Box((1,True)]` internally.
 Note that for regular data types and `:int`'s boxing is free (as in isomorphic). Moreover, value types
 up to 63 bits (on a 64-bit platform) are boxed in-place and do not require heap allocation
 (like `:int32`). The `:double` type is also specialized; by default the Koka compiler
-only heap allocates negative doubles for boxing while positive doubles are boxed in-place.
-(this can be configured though to only heap allocate doubles for boxing when their absolute value is
-outside of the range 2^-511^ up to 2^512^).
+only heap allocates doubles when their absolute value is
+outside the range 2^-511^ up to 2^512^ (excluding infinity and NaN)).
 
 For performance sensitive code we may specialize certain polymorphic datatypes to
 reduce allocations due to boxing. For example:
@@ -1548,7 +1549,7 @@ with regard to other approaches:
    of this is the continuation monad (which can express ``call/cc``).
 
 The &koka; compiler internally uses monads and `shift`/`reset` to compile effect handlers though, and
-it compiles handlers into to an internal free monad based on multi-prompt delimited control [@Gunter:mprompt]. 
+it compiles handlers into to an internal free monad based on multi-prompt delimited control [@Xie:evidence-tr;@Gunter:mprompt]. 
 By inlining the monadic _bind_ we are able to generate efficient C code that only allocates continuations 
 in the case one is actually yielding up to a general `control` operation.
 ~
@@ -1752,18 +1753,18 @@ if we add `mask` just over `action` all its `emit` calls would be masked for
 our intended handler! 
 
 For this situation, there is another primitive that only "masks the masks".
-The expression `mask behind<l>` has type `: (() -> <l|e> a) -> <l,l|e> a`
+The expression `mask behind<eff>` has type `: (() -> <eff|e> a) -> <eff,eff|e> a`
 and only masks any masked operations but not the direct ones. The `override`
 keyword is defined in terms of this primitive:
 
 ~~ translate
 ```unchecked
-with override handler<l> { <ops> }
+with override handler<eff> { <ops> }
 <body>
 ```
 &mapsto;
 ```unchecked
-(handler<l> { <ops> })(mask behind<l>{ <body> })
+(handler<eff> { <ops> })(mask behind<eff>{ <body> })
 ```
 ~~
 
@@ -1991,9 +1992,9 @@ A polymorphic version of this example is part of the [``samples``][samples] dire
 installed &koka; and can be loaded as ``:l`` [``samples/basic/rbtree``][rbtree].
 We define red-black trees as:
 ```unchecked
-type color { 
-  Red 
-  Black 
+type color {
+  Red
+  Black
 }
 
 type tree {
