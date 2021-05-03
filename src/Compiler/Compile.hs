@@ -1243,7 +1243,10 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                      , ccFlagsWarn cc
                      , ccFlagsCompile cc
                      , ccFlagsBuildFromFlags cc flags
-                     , ccIncludeDir cc (localShareDir flags ++ "/kklib/include")]
+                     , ccIncludeDir cc (localShareDir flags ++ "/kklib/include")
+                     ]
+                     ++
+                     map (ccIncludeDir cc) (ccompIncludeDirs flags)
                      ++
                      map (ccAddDef cc) ((if (asan flags) then [] else ["KK_MIMALLOC","MI_MAX_ALIGN_SIZE=8"])
                                         ++ ["KK_STATIC_LIB"])
@@ -1280,22 +1283,21 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             cmakeLib term flags cc "kklib" (ccLibFile cc "kklib") cmakeGeneratorFlag
 
             let objs   = [outName flags (ccObjFile cc (showModName mname)) | mname <- (map modName modules ++ [Core.coreProgName core0])]
-                libs   = map trim (splitOn (==',') (ccompLinkLibs flags)) ++
+                syslibs= ccompLinkSysLibs flags ++
                          (if onWindows then ["bcrypt","psapi","advapi32"]
                                        else ["m","pthread"])
+                libs   = [normalizeWith '/' (outName flags (ccLibFile cc "kklib"))] ++ ccompLinkLibs flags
+
                 clink  = concat $
                          [ [ccPath cc]
                          , ccFlags cc
-                         , ccFlagsLink cc
                          , ccFlagsBuildFromFlags cc flags
                          , ccTargetExe cc mainExe
                          ]
-                         ++
-                         [objs]
-                         ++
-                         [ccAddLib cc (normalizeWith '/' (outName flags (ccLibFile cc "kklib")))]
-                         ++
-                         (map (ccAddSysLib cc) libs)
+                         ++ [objs]
+                         ++ (map (ccAddLib cc) libs)
+                         ++ (map (ccAddSysLib cc) syslibs)
+                         ++ [ccFlagsLink cc]  -- must be last due to msvc
 
 
             termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "linking:") <+>

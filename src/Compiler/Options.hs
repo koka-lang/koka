@@ -115,8 +115,10 @@ data Flags
          , cmakeArgs        :: String
          , ccompPath        :: FilePath
          , ccompCompileArgs :: String
+         , ccompIncludeDirs :: [FilePath]
          , ccompLinkArgs    :: String
-         , ccompLinkLibs    :: String
+         , ccompLinkSysLibs :: [String]      -- just core lib name
+         , ccompLinkLibs    :: [FilePath]    -- full path to library
          , ccomp            :: CC
          , editor           :: String
          , redirectOutput   :: FileName
@@ -180,8 +182,10 @@ flagsNull
           ""       -- cmake args
           ""       -- ccompPath
           ""       -- ccomp args
+          []       -- ccomp include paths
           ""       -- clink args
-          ""       -- clink libs
+          []       -- clink sys libs
+          []       -- clink full lib paths
           (ccGcc "gcc" "gcc")
           ""       -- editor
           ""
@@ -279,8 +283,10 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["cmakeargs"]       (ReqArg cmakeArgsFlag "args")   "pass <args> to cmake"
  , option []    ["cc"]              (ReqArg ccFlag "cmd")           "use <cmd> as the C backend compiler "
  , option []    ["ccargs"]          (ReqArg ccCompileArgs "args")   "pass <args> to C backend compiler "
+ , option []    ["ccinclude"]       (OptArg ccIncDirs "dirs")       "include semi-colon separated include <dirs>"
  , option []    ["cclinkargs"]      (ReqArg ccLinkArgs "args")      "pass <args> to C backend linker "
- , option []    ["cclibs"]          (ReqArg ccLinkLibs "libs")      "link with comma separated <libs>"
+ , option []    ["cclib"]           (ReqArg ccLinkSysLibs "libs")   "link with semi-colon separated <libs>"
+ , option []    ["cclibpath"]       (OptArg ccLinkLibs "libpaths")  "link with semi-colon separated libraries <libpaths>"
  , option []    ["csc"]             (ReqArg cscFlag "cmd")          "use <cmd> as the csharp backend compiler "
  , option []    ["node"]            (ReqArg nodeFlag "cmd")         "use <cmd> to execute node"
  , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors"
@@ -383,10 +389,20 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
   ccCompileArgs s
     = Flag (\f -> f{ ccompCompileArgs = s })
+  ccIncDirs mbs
+    = Flag (\f -> f{ ccompIncludeDirs = case mbs of
+                                          Just s | not (null s) -> ccompIncludeDirs f ++ undelimPaths s
+                                          _ -> [] })
+
+
   ccLinkArgs s
     = Flag (\f -> f{ ccompLinkArgs = s })
-  ccLinkLibs s
-    = Flag (\f -> f{ ccompLinkLibs = s })
+  ccLinkSysLibs s
+    = Flag (\f -> f{ ccompLinkSysLibs = ccompLinkSysLibs f ++ undelimPaths s })
+  ccLinkLibs mbs
+    = Flag (\f -> f{ ccompLinkLibs = case mbs of
+                                      Just s | not (null s) -> ccompLinkLibs f ++ undelimPaths s
+                                      _ -> [] })
 
   cscFlag s
     = Flag (\f -> f{ csc = s })
@@ -657,7 +673,7 @@ ccMsvc name path
           (RelWithDebInfo,words "-MD -Zi -O2 -Ob1 -DNDEBUG")]
          ["-W3"]
          ["-TC","-c"]
-         []
+         ["-link /NODEFAULTLIB:libcmt"]
          (\idir -> ["-I",idir])
          (\fname -> ["-Fo" ++ ((notext fname) ++ objExtension)])
          (\out -> ["-Fe" ++  out ++ exeExtension])
@@ -665,7 +681,7 @@ ccMsvc name path
          (\lib -> [lib])
          (\def -> ["-D" ++ def])
          (\lib -> libPrefix ++ lib ++ libExtension)
-         (\obj -> obj ++ objExtension)
+         (\obj -> obj ++ objExtension)         
 
 
 ccFromPath :: Flags -> FilePath -> IO CC
@@ -684,8 +700,7 @@ ccFromPath flags path
         cc0     | (name `startsWith` "clang-cl") = clangcl
                 | (name `startsWith` "mingw") = mingw
                 | (name `startsWith` "clang") = clang
-                | (name `startsWith` "gcc")   = if onWindows then mingw
-                                                else gcc
+                | (name `startsWith` "gcc")   = if onWindows then mingw else gcc
                 | (name `startsWith` "cl")    = msvc
                 | (name `startsWith` "icc")   = gcc
                 | (name == "cc") = generic
@@ -733,7 +748,8 @@ detectCC
        (name,path) <- do envCC <- getEnvVar "CC"
                          findCC paths ((if (envCC=="") then [] else [envCC]) ++
                                        (if (onMacOS) then ["clang"] else []) ++
-                                       ["gcc","clang-cl","cl","clang","icc","cc","g++","clang++"])
+                                       (if (onWindows) then ["clang-cl","cl"] else []) ++
+                                       ["gcc","clang","icc","cc","g++","clang++"])
        return path
 
 findCC :: [FilePath] -> [FilePath] -> IO (String,FilePath)
