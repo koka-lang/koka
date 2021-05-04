@@ -14,7 +14,7 @@ module std/os/file
 import std/os/path
 import std/os/dir
 
-include extern {
+extern include {
   c file "file-inline.c"
   js file "file-inline.js"
 }

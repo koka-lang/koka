@@ -106,9 +106,9 @@ data Flags
          , simplify         :: Int
          , simplifyMaxDup   :: Int
          , colorScheme      :: ColorScheme
-         , outDir           :: FilePath      --  out
-         , outBuildDir      :: FilePath      --  actual build output: <outDir>/v2.x.x/<ccomp>-<variant>
-         , includePath      :: [FilePath]
+         , outDir           :: FilePath      -- out
+         , outBuildDir      :: FilePath      -- actual build output: <outDir>/v2.x.x/<ccomp>-<variant>
+         , includePath      :: [FilePath]    -- .kk/.kki files 
          , csc              :: FileName
          , node             :: FileName
          , cmake            :: FileName
@@ -120,6 +120,7 @@ data Flags
          , ccompLinkSysLibs :: [String]      -- just core lib name
          , ccompLinkLibs    :: [FilePath]    -- full path to library
          , ccomp            :: CC
+         , ccompLibDirs     :: [FilePath]    -- .a/.lib dirs
          , editor           :: String
          , redirectOutput   :: FileName
          , outHtml          :: Int
@@ -182,11 +183,12 @@ flagsNull
           ""       -- cmake args
           ""       -- ccompPath
           ""       -- ccomp args
-          []       -- ccomp include paths
+          []       -- ccomp include dirs
           ""       -- clink args
           []       -- clink sys libs
           []       -- clink full lib paths
           (ccGcc "gcc" "gcc")
+          []       -- ccomp library dirs
           ""       -- editor
           ""
           0        -- out html
@@ -283,10 +285,11 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["cmakeargs"]       (ReqArg cmakeArgsFlag "args")   "pass <args> to cmake"
  , option []    ["cc"]              (ReqArg ccFlag "cmd")           "use <cmd> as the C backend compiler "
  , option []    ["ccargs"]          (ReqArg ccCompileArgs "args")   "pass <args> to C backend compiler "
- , option []    ["ccinclude"]       (OptArg ccIncDirs "dirs")       "include semi-colon separated include <dirs>"
+ , option []    ["ccincdir"]        (OptArg ccIncDirs "dirs")       "search semi-colon separated include <dirs> for headers"
  , option []    ["cclinkargs"]      (ReqArg ccLinkArgs "args")      "pass <args> to C backend linker "
  , option []    ["cclib"]           (ReqArg ccLinkSysLibs "libs")   "link with semi-colon separated <libs>"
  , option []    ["cclibpath"]       (OptArg ccLinkLibs "libpaths")  "link with semi-colon separated libraries <libpaths>"
+ , option []    ["cclibdir"]        (OptArg ccLibDirs "dirs")       "search semi-colon separated directories <dirs> for libraries"
  , option []    ["csc"]             (ReqArg cscFlag "cmd")          "use <cmd> as the csharp backend compiler "
  , option []    ["node"]            (ReqArg nodeFlag "cmd")         "use <cmd> to execute node"
  , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors"
@@ -392,6 +395,10 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   ccIncDirs mbs
     = Flag (\f -> f{ ccompIncludeDirs = case mbs of
                                           Just s | not (null s) -> ccompIncludeDirs f ++ undelimPaths s
+                                          _ -> [] })
+  ccLibDirs mbs
+    = Flag (\f -> f{ ccompLibDirs = case mbs of
+                                          Just s | not (null s) -> ccompLibDirs f ++ undelimPaths s
                                           _ -> [] })
 
 
@@ -593,6 +600,7 @@ data CC = CC{  ccName       :: String,
                ccFlagsWarn  :: Args,
                ccFlagsCompile :: Args,
                ccFlagsLink    :: Args,
+               ccAddLibraryDir :: FilePath -> Args,
                ccIncludeDir :: FilePath -> Args,
                ccTargetObj  :: FilePath -> Args,
                ccTargetExe  :: FilePath -> Args,
@@ -657,6 +665,7 @@ ccGcc name path
         (gnuWarn ++ ["-Wno-unused-but-set-variable"])
         (["-c"] ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
         []
+        (\libdir -> ["-L",libdir])
         (\idir -> ["-I",idir])
         (\fname -> ["-o", (notext fname) ++ objExtension])
         (\out -> ["-o",out])
@@ -673,10 +682,11 @@ ccMsvc name path
           (RelWithDebInfo,words "-MD -Zi -O2 -Ob1 -DNDEBUG")]
          ["-W3"]
          ["-TC","-c"]
-         ["-link /NODEFAULTLIB:libcmt"]
+         ["-link", "/NODEFAULTLIB:msvcrt"]
+         (\libdir -> ["/LIBPATH:" ++ libdir])
          (\idir -> ["-I",idir])
          (\fname -> ["-Fo" ++ ((notext fname) ++ objExtension)])
-         (\out -> ["-Fe" ++  out ++ exeExtension])
+         (\out -> ["-Fe" ++ out ++ exeExtension])
          (\syslib -> [syslib ++ libExtension])
          (\lib -> [lib])
          (\def -> ["-D" ++ def])
@@ -694,7 +704,7 @@ ccFromPath flags path
         generic = gcc{ ccFlagsWarn = [] }
         msvc    = ccMsvc name path
         clangcl = msvc{ ccFlagsWarn = ccFlagsWarn clang ++ words "-Wno-extra-semi-stmt -Wno-extra-semi -Wno-float-equal",
-                        ccFlagsLink = ccFlagsLink clang ++ words "-Wno-unused-command-line-argument"
+                        ccFlagsLink = words "-Wno-unused-command-line-argument" ++ ccFlagsLink msvc
                       }
 
         cc0     | (name `startsWith` "clang-cl") = clangcl

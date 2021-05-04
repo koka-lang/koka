@@ -65,6 +65,8 @@ prettyCore env0 inlineDefs core@(Core name imports fixDefs typeDefGroups defGrou
     (vcat $ concat $
       [ separator "import declarations"
       , map (prettyImport envX) (imports)
+      , separator "external imports"
+      , map (prettyExternalImport envX) externals
       , separator "fixity declarations"
       , map (prettyFixDef envX) fixDefs
       , separator "local imported aliases"
@@ -119,6 +121,19 @@ prettyImport env imp
       <+> prettyName env (importName imp)
       <+> text "=" <+> prettyLit env (LitString (importPackage imp))
       <.> semi
+
+
+prettyExternalImport env (ExternalImport imports _)
+  = -- prettyComment env (importModDoc imp) $
+    keyword env "extern import" <+> text "{" <-> tab (vcat (map prettyEntry imports)) <-> text "};"
+  where
+    prettyEntry (target,keyvals)
+      = ppTarget env target <+> text "{" <-> tab (vcat (map prettyKeyval keyvals)) <-> text "};"
+    prettyKeyval (key,val)
+      = prettyLit env (LitString key) <+> text "=" <+> prettyLit env (LitString val)
+      
+prettyExternalImport env _ = empty
+
 
 
 prettyFixDef env (FixDef name fixity)

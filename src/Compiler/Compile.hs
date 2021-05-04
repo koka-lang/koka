@@ -672,7 +672,7 @@ resolveModule term flags currentDir modules mimp
                        -> do loadMessage "loading:"
                              ftime  <- liftIO $ getFileTime iface
                              (core,parseInlines) <- lift $ parseCore iface
-                             outIFace <- liftIO $ copyIFaceToOutputDir term flags iface
+                             outIFace <- liftIO $ copyIFaceToOutputDir term flags iface core
                              let mod = Module (Core.coreName core) outIFace (joinPath root stem) pkgQname pkgLocal []
                                                 Nothing -- (error ("getting program from core interface: " ++ iface))
                                                   core (Left parseInlines) Nothing ftime
@@ -691,7 +691,7 @@ resolveModule term flags currentDir modules mimp
              if (latest >= modTime mod
                   && not (null source)) -- happens if no source is present but (package) depencies have updated...
                then loadFromSource resolved1 root source -- load from source after all
-               else do liftIO $ copyPkgIFaceToOutputDir term flags iface (modPackageQPath mod) imports
+               else do liftIO $ copyPkgIFaceToOutputDir term flags iface (modCore mod) (modPackageQPath mod) imports
                        let allmods = addOrReplaceModule mod resolved1
                        return (mod{ modSourcePath = joinPath root source }, allmods)
 
@@ -1010,7 +1010,6 @@ inferCheck loaded flags line coreImports program1
                             , loadedInlines = inlinesExtends inlineDefs (loadedInlines loaded3)
                             }
 
-       -- for now, generate C# code here
        return loaded4
 
 
@@ -1235,9 +1234,26 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       writeDocW 120 outH (hdoc <.> linebreak)
       when (showAsmC flags) (termDoc term (hdoc <//> cdoc))
 
-      -- compile
+      -- copy libraries
       let cc = ccomp flags
-          ccompile = concat $
+          clibs = clibsFromCore bcore 
+      mapM_ (\clib ->
+        do mbPath <- searchPaths (ccompLibDirs flags) [] (ccLibFile cc clib)
+           case mbPath of
+             Nothing    -> do termDoc term $ color (colorWarning (colorSchemeFromFlags flags)) $
+                               text ("warning: unable to find C library: " ++ clib
+                                     ++ "\n  hint: provide \"--cclibdir\" as an option, or use \"syslib\" in an extern import?"
+                                     ++ if (onWindows && (ccName cc `startsWith` "mingw")) 
+                                         then (   "\n  hint: currently using the \"mingw\" compiler."
+                                               ++ "\n        To use external libraries on Windows you must use the \"clang-cl\" or \"cl\" (msvc) compiler."
+                                               ++ "\n        Run from an 'x64 Native Tools Command' window and install clang-cl from <https://releases.llvm.org/download.html>")
+                                         else "")
+             Just fname -> do copyBinaryIfNewer False fname (outName flags (notdir fname))
+                              -- putStrLn ("copyied " ++ fname ++ " to " ++ (outName flags (notdir fname)))
+       ) clibs
+
+      -- compile
+      let ccompile = concat $
                      [ [ccPath cc]
                      , ccFlags cc
                      , ccFlagsWarn cc
@@ -1283,11 +1299,18 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             cmakeLib term flags cc "kklib" (ccLibFile cc "kklib") cmakeGeneratorFlag
 
             let objs   = [outName flags (ccObjFile cc (showModName mname)) | mname <- (map modName modules ++ [Core.coreProgName core0])]
-                syslibs= ccompLinkSysLibs flags ++
-                         (if onWindows then ["bcrypt","psapi","advapi32"]
-                                       else ["m","pthread"])
-                libs   = [normalizeWith '/' (outName flags (ccLibFile cc "kklib"))] ++ ccompLinkLibs flags
+                syslibs= concat [csyslibsFromCore mcore | mcore <- map modCore modules]
+                         ++ ccompLinkSysLibs flags
+                         ++ (if onWindows then ["bcrypt","psapi","advapi32"]
+                                          else ["m","pthread"])
+                libs   = ["kklib"] -- [normalizeWith '/' (outName flags (ccLibFile cc "kklib"))] ++ ccompLinkLibs flags
+                         ++ 
+                         clibs 
+                         ++
+                         concat [clibsFromCore mcore | mcore <- map modCore modules]
 
+                libpaths = map (\lib -> outName flags (ccLibFile cc lib)) libs
+ 
                 clink  = concat $
                          [ [ccPath cc]
                          , ccFlags cc
@@ -1295,10 +1318,11 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                          , ccTargetExe cc mainExe
                          ]
                          ++ [objs]
-                         ++ (map (ccAddLib cc) libs)
-                         ++ (map (ccAddSysLib cc) syslibs)
                          ++ [ccFlagsLink cc]  -- must be last due to msvc
-
+                         -- ++ [ccAddLibraryDir cc (buildDir flags)]
+                         ++ map (ccAddLib cc) libpaths  -- libs
+                         ++ map (ccAddSysLib cc) syslibs
+                         
 
             termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "linking:") <+>
                                color (colorSource (colorScheme flags)) (text mainName))
@@ -1310,87 +1334,15 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             return (Just (runSystemEcho term flags (dquote mainExe ++ cmdflags ++ " " ++ execOpts flags))) -- use shell for proper rss accounting
 
 
+clibsFromCore core = extractImportKeyFromCore core "library"
+csyslibsFromCore core = extractImportKeyFromCore core "syslib"
 
-{-
-                sources    = text "set(" <.> text mainName <.> text "_csources" <->
-                             indent 2 (vcat (map text ["${CMAKE_BUILD_TYPE}/" ++ (showModName mname ++ ".c") |
-                                        mname <- (map modName modules ++ [Core.coreProgName core0])])) <->
-                             text ")"
-                cmakeDoc = vcat [
-                              text "# generated by the koka compiler; do not edit",
-                              space,
-                              sources,
-                              space,
-                              text "add_executable" <.> parens (text mainName <+> text "${" <.> text mainName <.> text "_csources}"),
-                              text "target_link_libraries(" <.> text mainName <+> text "PRIVATE kklib)",
-                              space,
-                              text "add_custom_command(TARGET" <+> text mainName <+> text "POST_BUILD"
-                                      <+> text "COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:" <.> text mainName <.> text "> \"${CMAKE_CURRENT_LIST_DIR}/${CMAKE_BUILD_TYPE}\")",
-                              space
-                            ]
-                cmakeContent= show cmakeDoc
-
-            let csourceDir = outName flags ""              -- out/<config>
-                cbuildDir  = outName flags "cbuild"        -- out/<config>/cbuild
-
-                targetDir  = cbuildDir
-                targetBase = joinPath cbuildDir mainName   -- out/<config>/cbuild/<mainName>.exe
-                targetExe  = targetBase ++ exeExtension    -- out/<config>/cbuild/<mainName>.exe
-                finalExe   = joinPath csourceDir (mainName ++ exeExtension) -- -- out/<config>/<mainName>.exe (copied from targetExe)
-
-            let -- using -S and -B is more neat, but not available before cmake 3.15 (so we use chdir)
-                cmakeLists  = outDir flags ++ "/CMakeLists.txt"
-                cmakeInc    = joinPath (outDir flags) (mainModName ++ ".cmake")
-
-                cmakeConfigType     = configType flags
-                cmakeConfigTypeFlag = " -DCMAKE_BUILD_TYPE=" ++ cmakeConfigType
-
-                cmakeConfig = (cmake flags) ++ " -E chdir " ++ dquote targetDir
-                               ++ " " ++ (cmake flags) ++ cmakeGeneratorFlag ++ cmakeConfigTypeFlag
-                               ++ " -Dkk_invokedir=" ++ currentDir
-                               -- ++ " -Dkk_libdir=" ++ libDir flags
-                               ++ " -Dkk_kklibdir=" ++ kklibDir flags
-                               -- ++ " -Dkk_target=" ++ mainModName
-                               ++ (if (rebuild flags) then " -DKK_REBUILD=ON" else "")
-                               ++ " " ++ cmakeArgs flags
-                               ++ " ../.."
-
-                cmakeBuild  = (cmake flags)
-                                -- ++ " -Dkk_target=" ++ mainModName
-                                ++ " --build " ++ dquote targetDir
-                                ++ " --target " ++ mainName
-
-                kkmainCmake = joinPath (kklibDir flags) "kkmain.cmake"
-
-            -- write top CMakeLists
-            copyTextIfNewerWith (rebuild flags) kkmainCmake cmakeLists
-                  (\content -> "# generated from " ++ kkmainCmake ++ "; do not edit this file\n" ++ content)
-
-            -- write module CMakeLists
-            createDirectoryIfMissing True targetDir
-            mbContent <- readTextFile cmakeInc
-            case mbContent of
-              Just content | (content == cmakeContent && not (rebuild flags))
-                -> do -- termDoc term $ text "keep previous CMakeLists.txt"
-                      return ()  -- avoid changing if not needed
-              _ -> do -- termDoc term $ text "update CMakeLists.txt"
-                      writeFile cmakeInc cmakeContent
-
-            -- configure?
-            hasCache     <- doesFileExist (targetDir ++ "/CMakeCache.txt")
-            hasTargetExe <- doesFileExist targetExe   -- too conservative? this makes the main cmakelists re-glob
-            when (not hasCache || not hasTargetExe || rebuild flags) $
-              do termPhase term ("(re)configure c compilation")
-                 runSystemEcho cmakeConfig
-
-            -- build
-            termPhase term ("compiling and linking C files")
-            runSystemEcho cmakeBuild
-
-            termDoc term $ text "compiled:" <+> text (normalize finalExe)
-            let cmdflags = if (showElapsed flags) then " --kktime" else ""
-            return (Just (runSystem (dquote finalExe ++ cmdflags ++ " " ++ execOpts flags)))
--}
+extractImportKeyFromCore :: Core.Core -> String -> [String]
+extractImportKeyFromCore core key
+  = [val  | Core.ExternalImport imports _ <- Core.coreProgExternals core, 
+            (C,keyvals) <- imports, 
+            (key',val) <- keyvals,
+            key == key']
 
 cmakeLib :: Terminal -> Flags -> CC -> String -> FilePath -> [String] -> IO ()
 cmakeLib term flags cc libName {-kklib-} libFile {-libkklib.a-} cmakeGeneratorFlag
@@ -1496,8 +1448,8 @@ runCommand term flags cargs@(cmd:args)
 joinWith sep xs
   = concat (intersperse sep xs)
 
-copyIFaceToOutputDir :: Terminal -> Flags -> FilePath -> IO FilePath
-copyIFaceToOutputDir term flags iface
+copyIFaceToOutputDir :: Terminal -> Flags -> FilePath -> Core.Core -> IO FilePath
+copyIFaceToOutputDir term flags iface core
   -- | host flags == Node && target flags == JS = return ()
   -- | otherwise
   = do let outIFace = outName flags (notdir iface)
@@ -1519,15 +1471,21 @@ copyIFaceToOutputDir term flags iface
         then do copyTextIfNewer (rebuild flags) (withExt iface ".c") (withExt outIFace ".c")
                 copyTextIfNewer (rebuild flags) (withExt iface ".h") (withExt outIFace ".h")
                 let cc = ccomp flags
+                    srcDir = dirname iface
                 copyBinaryIfNewer (rebuild flags) (ccObjFile cc (notext iface)) (ccObjFile cc (notext outIFace))
+                mapM_ (\clib -> 
+                  do let libFile = ccLibFile cc clib
+                     -- todo: only copy if it exists?
+                     copyBinaryIfNewer (rebuild flags) (joinPath srcDir libFile) (outName flags libFile)
+                 ) (clibsFromCore core)
         else return ()
        return outIFace
 
-copyPkgIFaceToOutputDir :: Terminal -> Flags -> FilePath -> PackageName -> [Module] -> IO ()
-copyPkgIFaceToOutputDir term flags iface targetPath imported
+copyPkgIFaceToOutputDir :: Terminal -> Flags -> FilePath -> Core.Core -> PackageName -> [Module] -> IO ()
+copyPkgIFaceToOutputDir term flags iface core targetPath imported
   -- | host flags == Node && target flags == JS = return ()
   -- | otherwise
-  = do outIFace <- copyIFaceToOutputDir term flags iface
+  = do outIFace <- copyIFaceToOutputDir term flags iface core
        if (JS == target flags)
         then do let outJs = notext outIFace ++ ".js"
                 content <- readTextFile outJs

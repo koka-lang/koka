@@ -12,7 +12,7 @@ module std/os/process
 
 import std/os/path
 
-include extern {
+extern include {
   c file "process-inline.c"
 }
 

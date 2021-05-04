@@ -18,7 +18,7 @@ public module std/core/types
 infixr 30  (&&)
 infixr 20  (||)
 
-include extern {
+extern include {
   js file "types-inline.js"
 }
 

@@ -149,11 +149,15 @@ includeExternal _  = []
 
 importExternal :: External -> [(Doc,Doc)]
 importExternal (ExternalImport imports range)
-  = case lookup JS imports of
-      Just (nm,s) -> [(text s, pretty nm)]
-      Nothing -> case lookup Default imports of
-                   Just (nm,s) -> [(text s, pretty nm)]
-                   Nothing -> [] -- failure ("javascript backend does not support external import at " ++ show range)
+  = let keyvals = case lookup JS imports of
+                    Just keyvals -> keyvals
+                    Nothing -> case lookup Default imports of
+                                Just keyvals -> keyvals
+                                Nothing -> [] -- failure ("javascript backend does not support external import at " ++ show range)
+    in case (lookup "library-id" keyvals, lookup "library" keyvals) of
+         (mbName, Just path) -> [(text path, case mbName of
+                                               Just name -> pretty (readTupled name)
+                                               Nothing   -> text path)]
 importExternal _
   = []
 

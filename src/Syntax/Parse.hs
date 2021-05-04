@@ -307,18 +307,18 @@ parseInline
 --------------------------------------------------------------------------}
 externDecl :: Visibility -> LexParser [TopDef]
 externDecl dvis
-  = do lr <- try ( do vrng <- specialId "include"
-                      (krng,_) <- dockeyword "extern"
-                      return (Left (externalInclude (combineRange vrng krng)))
-                  <|>
-                   do vrng <- keyword "import"
-                      (krng,_) <- dockeyword "extern"
-                      return (Left (externalImport (combineRange vrng krng))) )
-             <|>
+  = do lr <- try ( do (krng,_) <- dockeyword "extern"
+                      specialId "include"
+                      return (Left (externalInclude krng)))
+            <|>
+             try ( do (krng,_) <- dockeyword "extern"
+                      keyword "import"
+                      return (Left (externalImport krng)))
+            <|>
              try ( do (vis,vrng) <- visibility dvis
                       inline     <- parseInline
                       (krng,doc) <- dockeyword "extern"
-                      return (Right (combineRange vrng krng, vis, doc, inline)) )
+                      return (Right (combineRange vrng krng, vis, doc, inline)))
        case lr of
          Left p -> do extern <- p
                       return [DefExtern extern]
@@ -387,12 +387,23 @@ externalImport rng1
   where
     externalImportEntry
       = do target  <- externalTarget
-           mbId    <- optionMaybe identifier
-           (s,rng) <- stringLit
-           let id = case mbId of
-                      Just(nm,_) -> nm
-                      Nothing    -> newName s
-           return (target,(id,s))
+           (do (keyvals,_) <- semiBracesRanged externalImportKeyVal
+               return (target,keyvals)
+            <|> 
+            do mbId    <- optionMaybe identifier
+               (s,rng) <- stringLit
+               let id = case mbId of
+                          Just(nm,_) -> nm
+                          Nothing    -> newName s
+               return (target,[("library-id",showTupled id),("library",s)])
+            )
+    externalImportKeyVal
+      = do key <- do{ (id,_) <- varid; return (show id) }
+                  <|> 
+                  do{ (s,rng) <- stringLit; return s }
+           keyword "="
+           (val,_) <- stringLit
+           return (key,val)
 
 
 externalInclude :: Range -> LexParser External

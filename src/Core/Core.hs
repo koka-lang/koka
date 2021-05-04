@@ -226,7 +226,7 @@ data External = External{ externalName :: Name
                         }
               | ExternalInclude{ externalInclude :: [(Target,String)]
                                , externalRange :: Range }
-              | ExternalImport { externalImport :: [(Target,(Name,String))]
+              | ExternalImport { externalImport :: [(Target,[(String,String)])]
                                , externalRange :: Range }
 
 externalVis :: External -> Visibility

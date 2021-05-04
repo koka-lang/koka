@@ -21,7 +21,7 @@ import std/time/instant
 import std/time/utc
 import std/time/date
 
-include extern {
+extern include {
   c  file "calendar-inline.c"
   cs file "calendar-inline.cs"
   js file "calendar-inline.js"

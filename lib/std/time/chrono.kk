@@ -15,7 +15,7 @@ import std/time/duration
 import std/time/instant
 import std/time/utc
 
-include extern {
+extern include {
   c  file "chrono-inline.c"
   cs file "chrono-inline.cs"
   js file "chrono-inline.js"

@@ -132,6 +132,7 @@ pmodule
        braced (do (imps,impAliases) <- fmap unzip $ semis importDecl
                   let impMap = foldr (\(asname,name) imp -> case importsExtend asname name imp of { Just imp' -> imp'; Nothing -> imp }) importsEmpty impAliases
 
+                  externImports <- semis externImportDecl
                   fixs <- semis fixDecl
                   (impsyns,env1) <- semisEnv (envInitial name impMap) localAlias
                   (tdefs,env2)   <- semisEnv env1 typeDecl
@@ -150,7 +151,7 @@ pmodule
                                <|> return []
                   let tdefGroups = map (\tdef -> TypeDefGroup [tdef]) tdefs
                       defGroups  = map DefNonRec defs
-                  return (Core name imps (concat fixs) tdefGroups defGroups externals doc, env2, inlines)
+                  return (Core name imps (concat fixs) tdefGroups defGroups (externImports ++ externals) doc, env2, inlines)
               )
 
 localAlias :: Env -> LexParser (SynInfo, Env)
@@ -363,6 +364,35 @@ externalTarget
   <|>
     return Default
 
+
+{--------------------------------------------------------------------------
+  External imports
+--------------------------------------------------------------------------}
+externImportDecl ::  LexParser External
+externImportDecl
+  = do try $ do keyword "extern"
+                keyword "import"                
+       entries <- externalImportBody
+       return (ExternalImport entries rangeNull)
+
+externalImportBody :: LexParser [(Target, [(String,String)])]
+externalImportBody
+  = do keyword "="
+       entry <- externalImportEntry
+       return [entry]
+  <|>
+    do semiBraces externalImportEntry
+  where
+    externalImportEntry
+      = do target  <- externalTarget
+           keyvals <- semiBraces externalImportKeyVal
+           return (target,keyvals)
+
+    externalImportKeyVal
+      = do key <- do{ (s,_) <- stringLit; return s }
+           keyword "="
+           (val,_) <- stringLit
+           return (key,val)
 
 {--------------------------------------------------------------------------
   Inline defs

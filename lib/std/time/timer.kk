@@ -15,7 +15,7 @@ import std/num/ddouble
 import std/time/duration
 import std/time/instant
 
-include extern {
+extern include {
   c  file "timer-inline.c"
   cs file "timer-inline.cs"
   js file "timer-inline.js"

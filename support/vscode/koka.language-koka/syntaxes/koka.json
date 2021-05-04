@@ -376,7 +376,7 @@
       },
 
     "decl_external":
-      { "match": "((?:import|include|inline|noinline)?\\s*extern)\\s+([\\.a-z][\\w\\-]*[\\'\\?]*(?:\\.\\d+)?|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+(?:\\.\\d+)?\\)|\\[\\])?"
+      { "match": "((?:inline|noinline)?\\s*extern)\\s+([\\.a-z][\\w\\-]*[\\'\\?]*(?:\\.\\d+)?|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+(?:\\.\\d+)?\\)|\\[\\])?"
       , "captures": {
           "1": { "name": "keyword.declaration.function.koka" },
           "2": { "name": "entity.name.function.koka" }

@@ -27,21 +27,21 @@ infix  40  (!=), (==), (<=), (>=), (<), (>)
 // prefix     (!), (-) 
 
 
-include extern {
+extern include {
   c  file "core/core-inline"
   cs file "core/core-inline.cs"
   js file "core/core-inline.js"
 }
 
-include extern {
+extern include {
   js file "core/core-string-inline.js"
 }
 
-include extern {
+extern include {
   js file "core/core-console-inline.js"
 }
 
-include extern {
+extern include {
   js file "../../contrib/biginteger.js"
 }
 

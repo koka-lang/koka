@@ -103,7 +103,7 @@ genModule sourceDir penv platform newtypes enableReuse enableSpecialize enableRe
 
         emitToC $ vcat $ [headComment
                          ,text "#include" <+> dquotes (text (moduleNameToPath (coreProgName core)) <.> text ".h")]
-                         ++ externalImports
+                         ++ externalImportIncludes
                          ++ externalIncludesC
 
         emitToH $ vcat $ [ text "#pragma once"
@@ -141,9 +141,9 @@ genModule sourceDir penv platform newtypes enableReuse enableSpecialize enableRe
       = concatMap includeExternalH (coreProgExternals core0)
 
 
-    externalImports :: [Doc]
-    externalImports
-      = map fst (concatMap (importExternal sourceDir) (coreProgExternals core0))
+    externalImportIncludes :: [Doc]
+    externalImportIncludes
+      = concatMap (importExternalInclude sourceDir) (coreProgExternals core0)
 
     initImport :: Import -> Doc
     initImport imp
@@ -177,22 +177,25 @@ includeExternalH (ExternalInclude includes range)
 includeExternalH _  = []
 
 
-importExternal :: FilePath -> External -> [(Doc,Doc)]
-importExternal sourceDir (ExternalImport imports range)
-  = let xs = case lookup C imports of
-                    Just s -> [s]
+importExternalInclude :: FilePath -> External -> [Doc]
+importExternalInclude sourceDir (ExternalImport imports range)
+  = let keyvals = case lookup C imports of
+                    Just keyvals -> keyvals
                     Nothing -> case lookup Default imports of
-                                 Just s -> [s]
+                                 Just keyvals -> keyvals
                                  Nothing -> [] -- failure ("C backend does not support external import at " ++ show range)
-    in [(text "#include" <+>
-           (if (head s == '<')
-             then text s
-             else dquotes (if (null sourceDir) then text s
-                            else text (normalizeWith '/' sourceDir ++ "/" ++ s)))
-           , pretty nm)
-       | (nm,s) <- xs, not (null s)]
-importExternal _ _
-  = []
+    in case lookup "include" keyvals of
+         Just path -> [(text "#include" <+>
+                          (if (head path == '<')
+                            then text path
+                            else dquotes (if (null sourceDir) then text path
+                                            else text (normalizeWith '/' sourceDir ++ "/" ++ path)))                                            
+                       )]
+         _ -> [] 
+importExternalInclude _ _ = []
+
+
+
 
 genMain :: Name -> Maybe (Name,Bool) -> Asm ()
 genMain progName Nothing = return ()

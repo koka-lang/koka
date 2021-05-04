@@ -13,7 +13,7 @@ public module std/num/random
 import std/num/int32
 import std/num/double
 
-include extern {
+extern include {
   js file "random-inline.js"
 }
 

@@ -34,7 +34,7 @@ module std/os/path
 
 import std/text/parse
 
-include extern {
+extern include {
   cs file "path-inline.cs"
   js file "path-inline.js"
 }
