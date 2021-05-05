@@ -15,10 +15,19 @@ module std/text/regex
 
 import std/num/int32
 
-include extern {
+//extern import {
+//  c { vcpkg="pcre2"; library="pcre2-8" }
+//}
+
+extern include {
   cs file "regex-inline.cs"
   js file "regex-inline.js"
+  c  file "regex-inline.c"
 }
+
+//public extern regex-version() : string {
+//  c "kk_regex_version"
+//}
 
 // Abstract type of a regular expression object
 abstract struct regex( obj: any )
@@ -30,6 +39,7 @@ abstract struct regex( obj: any )
 public struct matched( slice : sslice, matched :string, groups : groups )
 
 abstract struct groups( grp : any )
+
 
 extern regex-source( r : any ) : string {
   cs "RegEx.Source"
@@ -101,7 +111,7 @@ public fun after( cap : matched ) : string {
 // advance by at least 1 character (to ensure termination with empty matches). 
 public fun after1( cap : matched ) : string {
   val s = cap.slice
-  if (s.empty?) then s.advance(1).after.string else s.after.string
+  if (s.is-empty) then s.advance(1).after.string else s.after.string
 }
 
 // Return the string before a match 
@@ -123,9 +133,9 @@ public fun groups-count( r : regex ) : int
 val rxNonGroup = regex(@"[^\\\[(]+|\\[\s\S]?|\(\?|\[(?:[^\\\]]|\\.)*\]")
 
 // Return first group that was matched (or -1 if nothing was matched) 
-public fun first-matched?( groups : groups, start : int = 1, end : int = 10 ) : int
+public fun first-matched-index( groups : groups, start : int = 1, end : int = 10 ) : int
 {
-  match (list(start,end).find(fn(i) { groups.matched?(i) })) {
+  match (list(start,end).find(fn(i) { groups.matched(i) })) {
     Nothing -> ~1
     Just(i) -> i
   }
@@ -135,7 +145,7 @@ public fun first-matched?( groups : groups, start : int = 1, end : int = 10 ) : 
 // and returning at most group `end`
 public fun first-matched(groups : groups, start : int = 1, end : int = 10 ) : string
 {
-  val i = groups.first-matched?(start,end)
+  val i = groups.first-matched-index(start,end)
   if (i >= 0) then groups[i] else ""
 }
 
@@ -146,7 +156,7 @@ public fun []( groups : groups, index : int ) : string {
 
 // Returns `True` if a particular capture group actually matched.
 // This is used if the group can match, but may capture the empty string.
-public fun matched?( groups : groups, index : int ) : bool {
+public fun matched( groups : groups, index : int ) : bool {
   groups-matched-on(groups.grp, index.int32).bool
 }
 
@@ -200,7 +210,7 @@ public fun find-all( s :string,  regex :regex ) : list<matched>
 
 fun replace-ex( s :string, regex :regex, repl :(matched :matched) -> e string, all :bool = False) : e string
 {
-  return regex-replace-fn(regex.obj, s, repl, if (all) then one else zero, zero);
+  return regex-replace-fun(regex.obj, s, repl, if (all) then one else zero, zero);
 }
 
 fun replace-ex( s :string, regex :regex, repl :string, all :bool = False) : string
@@ -212,7 +222,7 @@ fun replace-ex( s :string, regex :regex, repl :string, all :bool = False) : stri
 public fun split( s :string, r :regex, n :int = 0 ) : list<string>
 {
   if (n<0) return [];
-  return regex-split( r.obj, s, if (n.pos?) then n.int32 else zero, zero ).list;
+  return regex-split( r.obj, s, if (n.is-pos) then n.int32 else zero, zero ).list;
 }
 
 // Replace the first occurrence of `regex` by the result of the replacement fun `repl` in a string `s`.
@@ -251,7 +261,7 @@ public fun contains( s :string, r :regex ) : bool
 public fun split-exclude( s : string, sep : regex, exclude : regex ) : list<string>
 {
   if (s=="") then [] else {
-    val splitr = regex( @"^(?:((?:" + exclude.source + ")+)|(" + sep.source + "))")
+    val splitr = regex( @"^(?:((?:" ++ exclude.source ++ ")+)|(" ++ sep.source ++ "))")
     s.split-excludex(splitr,"")
   }
 }
@@ -260,10 +270,10 @@ fun split-excludex( s : string, splitr : regex, acc : string ) : list<string>
 {
   if (s=="") return [acc]
   match( s.find(splitr) ) {
-    Nothing -> split-excludex( unsafe-decreasing(s.tail), splitr, acc + s.head) // todo: improve efficiency?
+    Nothing -> split-excludex( unsafe-decreasing(s.tail), splitr, acc ++ s.head) // todo: improve efficiency?
     Just(cap) -> {
-      if (cap.groups.matched?(1)) {
-        split-excludex( unsafe-decreasing(cap.after1), splitr, acc + cap.matched) 
+      if (cap.groups.matched(1)) {
+        split-excludex( unsafe-decreasing(cap.after1), splitr, acc ++ cap.matched) 
       }
       else {
         Cons(acc, split-excludex( unsafe-decreasing(cap.after1), splitr, "")) // todo: make tail recursive
@@ -271,4 +281,3 @@ fun split-excludex( s : string, splitr : regex, acc : string ) : list<string>
     }
   }
 }
-
