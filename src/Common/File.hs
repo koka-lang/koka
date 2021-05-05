@@ -37,6 +37,7 @@ module Common.File(
                   , readTextFile, writeTextFile
                   , copyTextFile, copyTextIfNewer, copyTextIfNewerWith, copyTextFileWith
                   , copyBinaryFile, copyBinaryIfNewer
+                  , removeFileIfExists
                   ) where
 
 import Data.List        ( intersperse )
@@ -51,7 +52,7 @@ import System.Environment ( getEnvironment, getExecutablePath )
 import System.Directory ( doesFileExist, doesDirectoryExist
                         , copyFile, copyFileWithMetadata
                         , getCurrentDirectory, getDirectoryContents
-                        , createDirectoryIfMissing, canonicalizePath )
+                        , createDirectoryIfMissing, canonicalizePath, removeFile )
 
 import Lib.Trace
 import Platform.Filetime
@@ -315,6 +316,10 @@ copyTextIfNewerWith always srcName outName transform
         then do copyTextFileWith srcName outName transform
         else do return ()
 
+removeFileIfExists :: FilePath -> IO ()
+removeFileIfExists fname 
+  = B.exCatch (removeFile fname)
+              (\exn -> return ())
 
 getInstallDir :: IO FilePath
 getInstallDir

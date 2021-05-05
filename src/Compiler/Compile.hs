@@ -1028,7 +1028,8 @@ capitalize s
 
 codeGen :: Terminal -> Flags -> CompileTarget Type -> Loaded -> IO Loaded
 codeGen term flags compileTarget loaded
-  = do let mod         = loadedModule loaded
+  = compilerCatch "code generation" term loaded $
+    do let mod         = loadedModule loaded
            outBase     = outName flags (showModName (modName mod))
 
        let env      = (prettyEnvFromFlags flags){ context = loadedName loaded, importsMap = loadedImportMap loaded }
@@ -1040,6 +1041,9 @@ codeGen term flags compileTarget loaded
 
        -- create output directory if it does not exist
        createDirectoryIfMissing True (dirname outBase)
+
+       -- remove existing kki file in case of errors
+       removeFileIfExists outIface
 
        -- core
        let outCore  = outBase ++ ".core"
@@ -1078,7 +1082,7 @@ codeGen term flags compileTarget loaded
 
        -- run the program
        when ((evaluate flags && isExecutable compileTarget)) $
-        compilerCatch "program" term () $
+        compilerCatch "program run" term () $
           case mbRun of
             Just run -> do termPhase term $ "evaluate"
                            termDoc term $ space
@@ -1100,7 +1104,7 @@ codeGen term flags compileTarget loaded
 -- CS code generation via libraries; this catches bugs in C# generation early on but doesn't take a transitive closure of dll's
 codeGenCSDll:: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO()))
 codeGenCSDll term flags modules compileTarget outBase core
-  = compilerCatch "csharp" term Nothing $
+  = compilerCatch "csharp compilation" term Nothing $
     do let (mbEntry,isAsync) = case compileTarget of
                                  Executable name tp -> (Just (name,tp), isAsyncFunction tp)
                                  _ -> (Nothing, False)
@@ -1131,7 +1135,7 @@ codeGenCSDll term flags modules compileTarget outBase core
 -- Generate C# through CS files without generating dll's
 codeGenCS :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO()))
 codeGenCS term flags modules compileTarget outBase core
-  = compilerCatch "csharp" term Nothing $
+  = compilerCatch "csharp compilation" term Nothing $
     do let (mbEntry,isAsync) = case compileTarget of
                                  Executable name tp -> (Just (name,tp), isAsyncFunction tp)
                                  _ -> (Nothing, False)
@@ -1213,7 +1217,7 @@ codeGenJS term flags modules compileTarget outBase core
 
 codeGenC :: FilePath -> Newtypes -> Int -> Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO ()))
 codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase core0
- = compilerCatch "c" term Nothing $
+ = -- compilerCatch "c compilation" term Nothing $
    do let outC = outBase ++ ".c"
           outH = outBase ++ ".h"
           sourceDir = dirname sourceFile
@@ -1329,18 +1333,20 @@ copyCLibrary term flags cc eimport
                     Nothing  -> case lookup "vcpkg" eimport of
                                   Just pkg -> pkg
                                   Nothing  -> ""
-       if (null clib) then return () else 
+       if (null clib) then nosuccess clib else 
         do mbPath <- searchPaths (ccompLibDirs flags) [] (ccLibFile cc clib)
            case mbPath of
               Nothing   -> do fname <- vcpkgInstall term flags cc eimport clib
                               if (null fname)
-                                then return ()
+                                then nosuccess clib
                                 else do exist <- doesFileExist fname
                                         if (not exist) 
-                                          then return ()
+                                          then nosuccess fname
                                           else copyLibFile fname
               Just fname -> copyLibFile fname
   where
+    nosuccess clib
+      = raiseIO ("unable to find C library " ++ clib)
     copyLibFile fname
       = do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "library:") <+>
               color (colorSource (colorScheme flags)) (text fname))          
@@ -1382,18 +1388,19 @@ vcpkgInstall term flags cc eimport clib
                      if (pkgExist)  
                        then termWarning term flags $ text ("vcpkg \"" ++ pkg ++ "\" is installed but the library \"" ++ clib ++ "\" is not found.")
                        else return ()
+                     let install = [vcpkg flags,
+                                    "install",
+                                    pkg ++ ":" ++ vcpkgTriplet flags,
+                                    "--disable-metrics"]                               
                      if (not (vcpkgAutoInstall flags))
                        then do termWarning term flags (text "this module requires the vcpkg package" 
                                                         <+> color (colorSource (colorScheme flags)) (text pkg) 
                                                         <+> text "-- install the package as:" 
-                                        <-> text "         >" <+> color (colorSource (colorScheme flags)) (text ("vcpkg install " ++ pkg ++ ":" ++ vcpkgTriplet flags))
+                                        <-> text "         >" <+> color (colorSource (colorScheme flags)) (text (unwords install))
                                         <-> text "         to install the required C library and header files")
                                return ""
                        else do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "install: vcpkg package:") <+>
                                  color (colorSource (colorScheme flags)) (text pkg))
-                               let install = [vcpkg flags,
-                                              "install",
-                                              pkg ++ ":" ++ vcpkgTriplet flags]
                                runCommand term flags install
                                return (joinPaths [vcpkgLibDir flags,ccLibFile cc clib])
                     
@@ -1605,7 +1612,7 @@ ifaceExtension
 
 compilerCatch comp term defValue io
   = io `catchSystem` \msg ->
-    do (termError term) (ErrorIO (hang 2 $ text ("failure while running " ++ comp ++ ":")
+    do (termError term) (ErrorIO (hang 2 $ text ("failure during " ++ comp ++ ":")
                                            <-> (fillSep $ map string $ words msg)))
        return defValue
 

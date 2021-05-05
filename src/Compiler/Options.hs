@@ -547,8 +547,8 @@ processOptions flags0 opts
 
                                   vcpkgRoot   = vcpkgRoot,
                                   vcpkg       = vcpkg,
-                                  vcpkgIncludeDir  = vcpkgInstalled ++  "/include",
-                                  vcpkgLibDir      = vcpkgIncludeDir ++ "/Lib",
+                                  vcpkgIncludeDir  = vcpkgIncludeDir,
+                                  vcpkgLibDir      = vcpkgLibDir,
                                   ccompLibDirs     = vcpkgLibDirs ++ ccompLibDirs flags,
                                   ccompIncludeDirs = vcpkgIncludeDirs ++ ccompIncludeDirs flags
                                }
