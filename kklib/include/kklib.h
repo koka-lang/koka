@@ -2,7 +2,7 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
-#define KKLIB_BUILD        21       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        22       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 
 /*---------------------------------------------------------------------------
@@ -1085,8 +1085,9 @@ static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
   if (kk_likely(r->_block.header.thread_shared == 0)) {
     // fast path
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
+    kk_box_dup(b);
     kk_ref_drop(r,ctx);    // TODO: make references borrowed
-    return kk_box_dup(b);
+    return b;
   }
   else {
     // thread shared
