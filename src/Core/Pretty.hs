@@ -130,7 +130,7 @@ prettyExternalImport env (ExternalImport imports _)
     prettyEntry (target,keyvals)
       = ppTarget env target <+> text "{" <-> tab (vcat (map prettyKeyval keyvals)) <-> text "};"
     prettyKeyval (key,val)
-      = prettyLit env (LitString key) <+> text "=" <+> prettyLit env (LitString val)
+      = prettyLit env (LitString key) <.> text "=" <.> prettyLit env (LitString val) <.> semi
       
 prettyExternalImport env _ = empty
 

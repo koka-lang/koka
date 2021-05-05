@@ -27,7 +27,7 @@ module Compiler.Options( -- * Command line options
 import Data.Char              ( toUpper, isAlpha, isSpace )
 import Data.List              ( intersperse )
 import System.Environment     ( getArgs )
-import System.Directory ( doesFileExist )
+import System.Directory       ( doesFileExist, getHomeDirectory )
 import Platform.GetOptions
 import Platform.Config
 import Lib.PPrint
@@ -309,7 +309,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["cclinkargs"]      (ReqArg ccLinkArgs "args")      "pass <args> to C backend linker "
  , option []    ["cclibpath"]       (OptArg ccLinkLibs "libpaths")  "link with semi-colon separated libraries <libpaths>"
  , option []    ["vcpkg"]           (ReqArg ccVcpkgRoot "dir")      "vcpkg root directory"
- , option []    ["vcpkgtriplet"]    (ReqArg ccVcpkgTriplet "triplet") "vcpkg target triplet"
+ , option []    ["vcpkgtriplet"]    (ReqArg ccVcpkgTriplet "triplet") "v  cpkg target triplet"
  , flag   []    ["vcpkgauto"]       (\b f -> f{vcpkgAutoInstall=b}) "automatically install required vcpkg packages"
  , option []    ["csc"]             (ReqArg cscFlag "cmd")          "use <cmd> as the csharp backend compiler "
  , option []    ["node"]            (ReqArg nodeFlag "cmd")         "use <cmd> to execute node"
@@ -635,8 +635,9 @@ getEnvOptions
 vcpkgFind :: FilePath -> IO FilePath
 vcpkgFind root
   = if (null root) 
-      then do paths <- getEnvPaths "PATH"
-              mbFile <- searchPaths paths [exeExtension] "vcpkg"
+      then do homeDir <- getHomeDirectory
+              paths   <- getEnvPaths "PATH"
+              mbFile  <- searchPaths (paths ++ [joinPaths [homeDir,"vcpkg"]]) [exeExtension] "vcpkg"
               case mbFile of
                 Just fname -> return fname
                 Nothing    -> return ""

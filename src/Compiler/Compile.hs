@@ -1235,22 +1235,10 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       when (showAsmC flags) (termDoc term (hdoc <//> cdoc))
 
       -- copy libraries
-      let cc = ccomp flags
-          clibs = clibsFromCore bcore 
-      mapM_ (\clib ->
-        do mbPath <- searchPaths (ccompLibDirs flags) [] (ccLibFile cc clib)
-           case mbPath of
-             Nothing    -> do termDoc term $ color (colorWarning (colorSchemeFromFlags flags)) $
-                               text ("warning: unable to find C library: " ++ clib
-                                     ++ "\n  hint: provide \"--cclibdir\" as an option, or use \"syslib\" in an extern import?"
-                                     ++ if (onWindows && (ccName cc `startsWith` "mingw")) 
-                                         then (   "\n  hint: currently using the \"mingw\" compiler."
-                                               ++ "\n        To use external libraries on Windows you must use the \"clang-cl\" or \"cl\" (msvc) compiler."
-                                               ++ "\n        Run from an 'x64 Native Tools Command' window and install clang-cl from <https://releases.llvm.org/download.html>")
-                                         else "")
-             Just fname -> do copyBinaryIfNewer False fname (outName flags (notdir fname))
-                              -- putStrLn ("copyied " ++ fname ++ " to " ++ (outName flags (notdir fname)))
-       ) clibs
+      let cc       = ccomp flags
+          eimports = externalImportsFromCore bcore
+          clibs    = clibsFromCore bcore 
+      mapM_ (copyCLibrary term flags cc) eimports
 
       -- compile
       let ccompile = concat $
@@ -1334,15 +1322,93 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             return (Just (runSystemEcho term flags (dquote mainExe ++ cmdflags ++ " " ++ execOpts flags))) -- use shell for proper rss accounting
 
 
-clibsFromCore core = extractImportKeyFromCore core "library"
-csyslibsFromCore core = extractImportKeyFromCore core "syslib"
+copyCLibrary :: Terminal -> Flags -> CC -> [(String,String)] -> IO ()
+copyCLibrary term flags cc eimport
+  = do let clib = case lookup "library" eimport of
+                    Just lib -> lib
+                    Nothing  -> case lookup "vcpkg" eimport of
+                                  Just pkg -> pkg
+                                  Nothing  -> ""
+       if (null clib) then return () else 
+        do mbPath <- searchPaths (ccompLibDirs flags) [] (ccLibFile cc clib)
+           case mbPath of
+              Nothing   -> do fname <- vcpkgInstall term flags cc eimport clib
+                              if (null fname)
+                                then return ()
+                                else do exist <- doesFileExist fname
+                                        if (not exist) 
+                                          then return ()
+                                          else copyLibFile fname
+              Just fname -> copyLibFile fname
+  where
+    copyLibFile fname
+      = do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "library:") <+>
+              color (colorSource (colorScheme flags)) (text fname))          
+           copyBinaryIfNewer False fname (outName flags (notdir fname))
+                         
+           
 
-extractImportKeyFromCore :: Core.Core -> String -> [String]
-extractImportKeyFromCore core key
-  = [val  | Core.ExternalImport imports _ <- Core.coreProgExternals core, 
-            (C,keyvals) <- imports, 
-            (key',val) <- keyvals,
-            key == key']
+termWarning term flags doc
+  = termDoc term $ color (colorWarning (colorSchemeFromFlags flags)) (text "warning:" <+> doc)
+
+vcpkgInstall :: Terminal -> Flags -> CC -> [(String,String)] -> FilePath -> IO FilePath
+vcpkgInstall term flags cc eimport clib | onWindows && (ccName cc `startsWith` "mingw")
+  = do termWarning term flags $
+        text "unable to find C library:" <+> color (colorSource (colorScheme flags)) (text clib) <->
+        text "   hint: currently using the \"mingw\" compiler but to use external \".lib\" libraries" <->
+        text "         on Windows you need to use the \"clang-cl\" or \"cl\" (msvc) compiler." <->
+        text "         run from an 'x64 Native Tools Command' window and install clang-cl from" <-> 
+        text "         <https://releases.llvm.org/download.html>"
+       return ""
+
+vcpkgInstall term flags cc eimport clib
+  = case lookup "vcpkg" eimport of
+      Nothing  -> 
+        do termWarning term flags $
+              text "unable to find C library:" <+> color (colorSource (colorScheme flags)) (text clib) <->
+              text "   hint: provide \"--cclibdir\" as an option, or use \"syslib\" in an extern import?"
+           return ""
+      Just pkg -> 
+        do vcpkgExist <- doesFileExist (vcpkg flags)
+           if (not vcpkgExist)
+             then do termWarning term flags ( 
+                       text ("this module requires vcpkg to install: " ++ clib) <->
+                       text ("   hint: specify the root directory of vcpkg using the \"--vcpkg=<dir>\" option") <->
+                       text ("         and/or install \"vcpkg\" from <https://github.com/microsoft/vcpkg#getting-started>") <->
+                       text ("         (install in \"~/vcpkg\" to be found automatically by the koka compiler)")
+                       )
+                     return ""
+             else do pkgExist <- doesFileExist (joinPaths [vcpkgRoot flags,"packages",pkg ++ "_" ++ vcpkgTriplet flags])
+                     if (pkgExist)  
+                       then termWarning term flags $ text ("vcpkg \"" ++ pkg ++ "\" is installed but the library \"" ++ clib ++ "\" is not found.")
+                       else return ()
+                     if (not (vcpkgAutoInstall flags))
+                       then do termWarning term flags (text "this module requires the vcpkg package" 
+                                                        <+> color (colorSource (colorScheme flags)) (text pkg) 
+                                                        <+> text "-- install the package as:" 
+                                        <-> text "         >" <+> color (colorSource (colorScheme flags)) (text ("vcpkg install " ++ pkg ++ ":" ++ vcpkgTriplet flags))
+                                        <-> text "         to install the required C library and header files")
+                               return ""
+                       else do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "install: vcpkg package:") <+>
+                                 color (colorSource (colorScheme flags)) (text pkg))
+                               let install = [vcpkg flags,
+                                              "install",
+                                              pkg ++ ":" ++ vcpkgTriplet flags]
+                               runCommand term flags install
+                               return (joinPaths [vcpkgLibDir flags,ccLibFile cc clib])
+                    
+
+clibsFromCore core    = externalImportKeyFromCore core "library"
+csyslibsFromCore core = externalImportKeyFromCore core "syslib"
+
+externalImportKeyFromCore :: Core.Core -> String -> [String]
+externalImportKeyFromCore core key
+  = [val  | (key',val) <- concat (externalImportsFromCore core), key == key']
+
+externalImportsFromCore :: Core.Core -> [[(String,String)]]
+externalImportsFromCore core 
+  = [keyvals  | Core.ExternalImport imports _ <- Core.coreProgExternals core, (C,keyvals) <- imports]
+
 
 cmakeLib :: Terminal -> Flags -> CC -> String -> FilePath -> [String] -> IO ()
 cmakeLib term flags cc libName {-kklib-} libFile {-libkklib.a-} cmakeGeneratorFlag
