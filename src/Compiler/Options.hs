@@ -121,6 +121,12 @@ data Flags
          , ccompLinkLibs    :: [FilePath]    -- full path to library
          , ccomp            :: CC
          , ccompLibDirs     :: [FilePath]    -- .a/.lib dirs
+         , vcpkgRoot        :: FilePath
+         , vcpkgTriplet     :: String
+         , vcpkgAutoInstall :: Bool
+         , vcpkg            :: FilePath
+         , vcpkgLibDir      :: FilePath
+         , vcpkgIncludeDir  :: FilePath
          , editor           :: String
          , redirectOutput   :: FileName
          , outHtml          :: Int
@@ -181,6 +187,7 @@ flagsNull
           "node"
           "cmake"
           ""       -- cmake args
+          
           ""       -- ccompPath
           ""       -- ccomp args
           []       -- ccomp include dirs
@@ -188,7 +195,18 @@ flagsNull
           []       -- clink sys libs
           []       -- clink full lib paths
           (ccGcc "gcc" "gcc")
-          []       -- ccomp library dirs
+          (if onWindows then []        -- ccomp library dirs
+                        else ["/usr/local/lib;/usr/lib;/lib"])
+          
+          ""       -- vcpkg root
+          (if onWindows then "x64-windows-static-md"
+           else if onMacOS then "x64-osx"
+           else "x64-linux")       -- vcpkg triplet
+          True     -- vcpkg auto install
+          ""       -- vcpkg
+          ""       -- vcpkg libdir
+          ""       -- vcpkg incdir
+
           ""       -- editor
           ""
           0        -- out html
@@ -284,12 +302,15 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"
  , option []    ["cmakeargs"]       (ReqArg cmakeArgsFlag "args")   "pass <args> to cmake"
  , option []    ["cc"]              (ReqArg ccFlag "cmd")           "use <cmd> as the C backend compiler "
- , option []    ["ccargs"]          (ReqArg ccCompileArgs "args")   "pass <args> to C backend compiler "
  , option []    ["ccincdir"]        (OptArg ccIncDirs "dirs")       "search semi-colon separated include <dirs> for headers"
- , option []    ["cclinkargs"]      (ReqArg ccLinkArgs "args")      "pass <args> to C backend linker "
- , option []    ["cclib"]           (ReqArg ccLinkSysLibs "libs")   "link with semi-colon separated <libs>"
- , option []    ["cclibpath"]       (OptArg ccLinkLibs "libpaths")  "link with semi-colon separated libraries <libpaths>"
  , option []    ["cclibdir"]        (OptArg ccLibDirs "dirs")       "search semi-colon separated directories <dirs> for libraries"
+ , option []    ["cclib"]           (ReqArg ccLinkSysLibs "libs")   "link with semi-colon separated system <libs>"
+ , option []    ["ccargs"]          (ReqArg ccCompileArgs "args")   "pass <args> to C backend compiler "
+ , option []    ["cclinkargs"]      (ReqArg ccLinkArgs "args")      "pass <args> to C backend linker "
+ , option []    ["cclibpath"]       (OptArg ccLinkLibs "libpaths")  "link with semi-colon separated libraries <libpaths>"
+ , option []    ["vcpkg"]           (ReqArg ccVcpkgRoot "dir")      "vcpkg root directory"
+ , option []    ["vcpkgtriplet"]    (ReqArg ccVcpkgTriplet "triplet") "vcpkg target triplet"
+ , flag   []    ["vcpkgauto"]       (\b f -> f{vcpkgAutoInstall=b}) "automatically install required vcpkg packages"
  , option []    ["csc"]             (ReqArg cscFlag "cmd")          "use <cmd> as the csharp backend compiler "
  , option []    ["node"]            (ReqArg nodeFlag "cmd")         "use <cmd> to execute node"
  , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors"
@@ -410,6 +431,11 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
     = Flag (\f -> f{ ccompLinkLibs = case mbs of
                                       Just s | not (null s) -> ccompLinkLibs f ++ undelimPaths s
                                       _ -> [] })
+  ccVcpkgRoot dir
+    = Flag (\f -> f{vcpkgRoot = dir })
+
+  ccVcpkgTriplet triplet
+    = Flag (\f -> f{vcpkgTriplet = triplet })
 
   cscFlag s
     = Flag (\f -> f{ csc = s })
@@ -459,10 +485,12 @@ environment
   = [ -- ("koka_dir",     "dir",     dirEnv,       "The install directory")
       ("koka_options", "options", flagsEnv,     "Add <options> to the command line")
     , ("koka_editor",  "command", editorEnv,    "Use <cmd> as the editor (substitutes %l, %c, and %f)")
+    , ("koka_vcpkg",   "dir",     vcpkgEnv,     "vcpkg root directory")
     ]
   where
     flagsEnv s      = [s]
     editorEnv s     = ["--editor=" ++ s]
+    vcpkgEnv dir    = ["--vcpkg=" ++ dir]
     -- dirEnv s        = ["--install-dir=" ++ s]
 
 {--------------------------------------------------------------------------
@@ -498,15 +526,32 @@ processOptions flags0 opts
                            else if (ccompPath flags == "mingw") then return "gcc"
                            else return (ccompPath flags)
                    cc   <- ccFromPath flags ccmd
+                   -- vcpkg
+                   vcpkg <- vcpkgFind (vcpkgRoot flags)
+                   let vcpkgRoot        = if (null vcpkg) then "" else dirname vcpkg
+                       vcpkgInstalled   = (vcpkgRoot) ++ "/installed/" ++ (vcpkgTriplet flags)
+                       vcpkgIncludeDir  = vcpkgInstalled ++ "/include"
+                       vcpkgLibDir      = vcpkgInstalled ++ "/lib"
+                       vcpkgLibDirs     = if (null vcpkg) then [] else [vcpkgLibDir]
+                       vcpkgIncludeDirs = if (null vcpkg) then [] else [vcpkgIncludeDir] 
                    return (flags{ packages    = pkgs,
                                   localBinDir = localBinDir,
                                   localDir    = localDir,
                                   localLibDir = localLibDir,
                                   localShareDir = localShareDir,
+                                  
                                   ccompPath   = ccmd,
                                   ccomp       = cc,
                                   editor      = ed,
-                                  includePath = (localShareDir ++ "/lib") : includePath flags }
+                                  includePath = (localShareDir ++ "/lib") : includePath flags,
+
+                                  vcpkgRoot   = vcpkgRoot,
+                                  vcpkg       = vcpkg,
+                                  vcpkgIncludeDir  = vcpkgInstalled ++  "/include",
+                                  vcpkgLibDir      = vcpkgIncludeDir ++ "/Lib",
+                                  ccompLibDirs     = vcpkgLibDirs ++ ccompLibDirs flags,
+                                  ccompIncludeDirs = vcpkgIncludeDirs ++ ccompIncludeDirs flags
+                               }
                           ,mode)
         else invokeError errs
 
@@ -586,6 +631,19 @@ getEnvOptions
                       Just csc -> return ["--csc=" ++ csc ]
             else return ["--csc="++ joinPaths [fw,fv,"csc"]]
 
+
+vcpkgFind :: FilePath -> IO FilePath
+vcpkgFind root
+  = if (null root) 
+      then do paths <- getEnvPaths "PATH"
+              mbFile <- searchPaths paths [exeExtension] "vcpkg"
+              case mbFile of
+                Just fname -> return fname
+                Nothing    -> return ""
+      else do let vcpkg = joinPaths [root,"vcpkg" ++ exeExtension]
+              exist <- doesFileExist vcpkg 
+              -- putStrLn ("find " ++ vcpkg ++ ", " ++ show exist)
+              return (if exist then vcpkg else "")
 
 {--------------------------------------------------------------------------
   Detect C compiler
