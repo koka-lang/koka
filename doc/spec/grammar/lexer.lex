@@ -176,7 +176,6 @@ named                     { return NAMED; }
 
 inline                    { return ID_INLINE;  }
 noinline                  { return ID_NOINLINE;}
-include                   { return ID_INCLUDE; }
 
 open                      { return ID_OPEN; }
 extend                    { return ID_EXTEND; }

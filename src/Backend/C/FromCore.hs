@@ -159,42 +159,28 @@ moduleImport imp
       else brackets (text (importPackage imp) <.> text "/" <.> text (moduleNameToPath  (importName imp))) <.> text ".h")
 
 includeExternalC :: External -> [Doc]
-includeExternalC (ExternalInclude includes range)
-  = let content = case lookup C includes of
-                    Just s -> s
-                    Nothing -> case lookup Default includes of
-                                 Just s -> s
-                                 Nothing -> ""
-    in [text (dropWhile isSpace content)] -- [align $ vcat $! map text (lines content)]
-includeExternalC _  = []
+includeExternalC ext
+  = case externalImportLookup C "include-inline" ext of
+      Just content -> [text (dropWhile isSpace content)]
+      _ -> []
 
 includeExternalH :: External -> [Doc]
-includeExternalH (ExternalInclude includes range)
-  = let content = case lookup CHeader includes of
-                    Just s -> s
-                    Nothing -> ""
-    in [text (dropWhile isSpace content)] -- [align $ vcat $! map text (lines content)]
-includeExternalH _  = []
+includeExternalH ext
+  = case externalImportLookup C "header-include-inline" ext of
+      Just content -> [text (dropWhile isSpace content)]
+      _ -> []
 
 
 importExternalInclude :: FilePath -> External -> [Doc]
-importExternalInclude sourceDir (ExternalImport imports range)
-  = let keyvals = case lookup C imports of
-                    Just keyvals -> keyvals
-                    Nothing -> case lookup Default imports of
-                                 Just keyvals -> keyvals
-                                 Nothing -> [] -- failure ("C backend does not support external import at " ++ show range)
-    in case lookup "include" keyvals of
-         Just path -> [(text "#include" <+>
-                          (if (head path == '<')
-                            then text path
-                            else dquotes (if (null sourceDir) then text path
-                                            else text (normalizeWith '/' sourceDir ++ "/" ++ path)))                                            
-                       )]
-         _ -> [] 
-importExternalInclude _ _ = []
-
-
+importExternalInclude sourceDir ext
+  = case externalImportLookup C "include" ext of
+      Just path -> [(text "#include" <+>
+                      (if (head path == '<')
+                        then text path
+                        else dquotes (if (null sourceDir) then text path
+                                        else text (normalizeWith '/' sourceDir ++ "/" ++ path)))                                            
+                    )]
+      _ -> [] 
 
 
 genMain :: Name -> Maybe (Name,Bool) -> Asm ()

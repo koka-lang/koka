@@ -75,7 +75,7 @@ void printDecl( const char* sort, const char* name );
 %token IFACE UNSAFE
 
 %token ID_CO ID_REC
-%token ID_INLINE ID_NOINLINE ID_INCLUDE
+%token ID_INLINE ID_NOINLINE
 %token ID_C ID_CS ID_JS ID_FILE
 %token ID_LINEAR ID_OPEN ID_EXTEND
 %token ID_BEHIND
@@ -181,13 +181,10 @@ topdecl     : visibility puredecl                             { printDecl("value
 -- External declarations
 ----------------------------------------------------------*/
 
-externdecl  : inlineattr EXTERN funid externtype externbody    { $$ = $3; }
-            | ID_INCLUDE EXTERN externincbody                  { $$ = "<extern include>"; }
-            ;
-
-inlineattr  : ID_INLINE
-            | ID_NOINLINE
-            | /* empty */
+externdecl  : ID_INLINE   EXTERN funid externtype externbody   { $$ = $3; }
+            | ID_NOINLINE EXTERN funid externtype externbody   { $$ = $3; }
+            | EXTERN funid externtype externbody               { $$ = $2; }
+            | EXTERN IMPORT externimpbody                      { $$ = "<extern import>"; }
             ;
 
 externtype  : ':' typescheme
@@ -203,32 +200,36 @@ externstats1: externstats1 externstat semis1
             ;
 
 externstat  : externtarget externinline STRING
+            | externinline STRING
+            ;
+
+externinline: ID_INLINE
+            | /* empty */
             ;
 
 
-externincbody: '=' externinc
-            | '{' semis externincs1 '}'
+externimpbody: '=' externimp
+            | '{' semis externimps1 '}'
             ;
 
-externincs1 : externincs1 externinc semis1
-            | externinc semis1
+externimps1 : externimps1 externimp semis1
+            | externimp semis1
             ;
 
-externinc   : externtarget externfile STRING
+externimp   : externtarget varid STRING
+            | externtarget '{' externvals1 '}'
+            ;
+
+externvals1 : externvals1 externval semis1
+            | externval semis1
+            ;
+
+externval   : varid '=' STRING
             ;
 
 externtarget: ID_CS
             | ID_JS
             | ID_C
-            | /* empty */
-            ;
-
-externfile  : ID_FILE
-            | /* empty */
-            ;
-
-externinline: ID_INLINE
-            | /* empty */
             ;
 
 
@@ -302,29 +303,13 @@ con         : CON
             | /* empty */
             ;
 
-conparams   : '(' tparameters1 ')'          /* deprecated */
+conparams   : '(' parameters1 ')'          /* deprecated */
             | '{' semis sconparams '}'
             | /* empty */
             ;
 
-sconparams  : sconparams tparameter semis1
+sconparams  : sconparams parameter semis1
             | /* empty */
-            ;
-
-tparameters : tparameters1
-            | /* empty */
-            ;
-
-tparameters1: tparameters1 ',' tparameter
-            | tparameter
-            ;
-
-tparameter  : paramid ':' paramtype
-            | paramid ':' paramtype '=' expr
-            /*
-            | ':' paramtype
-            | ':' paramtype '=' expr
-            */
             ;
 
 
@@ -341,9 +326,9 @@ operations  : operations operation semis1
             ;
 
 operation   : visibility VAL identifier typeparams ':' tatomic
-            | visibility FUN identifier typeparams '(' tparameters ')' ':' tatomic
-            | visibility EXCEPT identifier typeparams '(' tparameters ')' ':' tatomic
-            | visibility CONTROL identifier typeparams '(' tparameters ')' ':' tatomic
+            | visibility FUN identifier typeparams '(' parameters ')' ':' tatomic
+            | visibility EXCEPT identifier typeparams '(' parameters ')' ':' tatomic
+            | visibility CONTROL identifier typeparams '(' parameters ')' ':' tatomic
             ;
 
 
@@ -351,10 +336,15 @@ operation   : visibility VAL identifier typeparams ':' tatomic
 -- Pure (top-level) Declarations
 ----------------------------------------------------------*/
 puredecl    : inlineattr VAL binder '=' blockexpr      { $$ = $3; }
-            | inlineattr FUN funid funparam bodyexpr   { $$ = $3; }
+            | inlineattr FUN funid funparams bodyexpr  { $$ = $3; }
             ;
 
-fundecl     : funid funparam bodyexpr         { $$ = $1; }
+inlineattr  : ID_INLINE
+            | ID_NOINLINE
+            | /* empty */
+            ;
+
+fundecl     : funid funparams bodyexpr      { $$ = $1; }
             ;
 
 binder      : identifier                    { $$ = $1; }
@@ -366,16 +356,7 @@ funid       : identifier         { $$ = $1; }
             | STRING             { $$ = $1; }
             ;
 
-funparam    : typeparams '(' pparameters ')' annotres qualifier
-            ;
-
-
-paramid     : identifier
-            | WILDCARD
-            ;
-
-paramtype   : type
-            | '?' type
+funparams   : typeparams '(' pparameters ')' annotres qualifier
             ;
 
 annotres    : ':' tresult
@@ -437,13 +418,7 @@ basicexpr   : ifexpr
 matchexpr   : MATCH atom '{' semis matchrules '}'
             ;
 
-/*
-funexpr     : FUN funparam block
-            | block
-            ;
-*/
-
-fnexpr      : FN funparam block          /* always anonymous function */
+fnexpr      : FN funparams block            /* anonymous function */
             ;
 
 returnexpr  : RETURN expr
@@ -522,7 +497,7 @@ argument    : expr
             | identifier '=' expr                  /* named arguments */
             ;
 
-/* parameters: separated by comma */
+/* parameters: separated by comma, must have a type */
 
 parameters  : parameters1
             | /* empty */
@@ -532,16 +507,24 @@ parameters1 : parameters1 ',' parameter
             | parameter
             ;
 
-parameter   : paramid
-            | paramid ':' paramtype
+parameter   : paramid ':' paramtype
             | paramid ':' paramtype '=' expr
-            | paramid '=' expr
+            ;
+
+paramid     : identifier
+            | WILDCARD
+            ;
+
+paramtype   : type
+            | '?' type
+            ;
 
 
 /* pattern matching parameters: separated by comma */
 
 pparameters : pparameters1
             | /* empty */
+            ;
 
 pparameters1: pparameters1 ',' pparameter
             | pparameter
@@ -607,7 +590,6 @@ varid       : ID
             | ID_FILE         { $$ = "file"; }
             | ID_INLINE       { $$ = "inline"; }
             | ID_NOINLINE     { $$ = "noinline"; }
-            | ID_INCLUDE      { $$ = "include"; }
             | ID_OPEN         { $$ = "open"; }
             | ID_EXTEND       { $$ = "extend"; }
             | ID_LINEAR       { $$ = "linear"; }

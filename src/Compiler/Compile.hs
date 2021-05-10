@@ -1037,7 +1037,7 @@ codeGen term flags compileTarget loaded
            inlineDefs = case modInlines mod of
                           Right defs -> defs
                           Left _     -> []
-           ifaceDoc = Core.Pretty.prettyCore env{ coreIface = True } inlineDefs (modCore mod) <-> Lib.PPrint.empty
+           ifaceDoc = Core.Pretty.prettyCore env{ coreIface = True } (target flags) inlineDefs (modCore mod) <-> Lib.PPrint.empty
 
        -- create output directory if it does not exist
        createDirectoryIfMissing True (dirname outBase)
@@ -1047,7 +1047,7 @@ codeGen term flags compileTarget loaded
 
        -- core
        let outCore  = outBase ++ ".core"
-           coreDoc  = Core.Pretty.prettyCore env{ coreIface = False, coreShowDef = (showCore flags) } inlineDefs (modCore mod)
+           coreDoc  = Core.Pretty.prettyCore env{ coreIface = False, coreShowDef = (showCore flags) } (target flags) inlineDefs (modCore mod)
                         <-> Lib.PPrint.empty
        when (genCore flags)  $
          do termPhase term "generate core"
@@ -1228,7 +1228,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
           (cdoc,hdoc,bcore) = cFromCore sourceDir (prettyEnvFromFlags flags) (platform flags)
                                 newtypes unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
                                 mbEntry core0
-          bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } [] bcore
+          bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } C [] bcore
       -- writeDocW 120 (outBase ++ ".c.core") bcoreDoc
       when (showCore flags) $
         do termDoc term bcoreDoc
@@ -1333,7 +1333,7 @@ copyCLibrary term flags cc eimport
                     Nothing  -> case lookup "vcpkg" eimport of
                                   Just pkg -> pkg
                                   Nothing  -> ""
-       if (null clib) then nosuccess clib else 
+       if (null clib) then return () else 
         do mbPath <- searchPaths (ccompLibDirs flags) [] (ccLibFile cc clib)
            case mbPath of
               Nothing   -> do fname <- vcpkgInstall term flags cc eimport clib
