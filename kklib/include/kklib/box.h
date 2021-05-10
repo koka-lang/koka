@@ -47,38 +47,37 @@ On 64-bit, We can encode half of the doubles by saving 1 bit; There are two impl
       zero, subnormal, NaN, or infinity. This is the default as this captures almost
       all doubles that are commonly in use for most workloads.
 
-(B), use NaN boxing on 64-bit:
-   
-For pointers and integers, the top 12-bits are the sign extension of the bottom 52 bits
-and thus always 0x000 or 0xFFF (denoted as `sss`).
+(B), use NaN boxing on 64-bit:   
+  For pointers and integers, the top 12-bits are the sign extension of the bottom 52 bits
+  and thus always 0x000 or 0xFFF (denoted as `sss`).
 
-    000x xxxx xxxx xxxz   z = bbbb bbb0  : 52-bit positive pointer (always aligned to 2 bytes!)
-    000x xxxx xxxx xxxz   z = bbbb bbb1  : 51-bit positive value
-    001x xxxx xxxx xxxz   z = bbbb bbbb  : positive double: d + (0x001 << 52)
-    ...
-    800x xxxx xxxx xxxz   z = bbbb bbbb  : negative double: d 
-    ... 
-    FFFx xxxx xxxx xxxz   z = bbbb bbb0  : 52-bit negative pointer (always aligned to 2 bytes!)
-    FFFx xxxx xxxx xxxz   z = bbbb bbb1  : 51-bit negative value
+      000x xxxx xxxx xxxz   z = bbbb bbb0  : 52-bit positive pointer (always aligned to 2 bytes!)
+      000x xxxx xxxx xxxz   z = bbbb bbb1  : 51-bit positive value
+      001x xxxx xxxx xxxz   z = bbbb bbbb  : positive double: d + (0x001 << 52)
+      ...
+      800x xxxx xxxx xxxz   z = bbbb bbbb  : negative double: d 
+      ... 
+      FFFx xxxx xxxx xxxz   z = bbbb bbb0  : 52-bit negative pointer (always aligned to 2 bytes!)
+      FFFx xxxx xxxx xxxz   z = bbbb bbb1  : 51-bit negative value
 
-We can encode most doubles such that the top 12-bits are
-between 0x001 and 0xFFE. The ranges of IEEE double values are:
-    positive doubles        : 0000 0000 0000 0000 - 7FEF FFFF FFFF FFFF
-    positive infinity       : 7FF0 0000 0000 0000
-    positive NaN            : 7FF0 0000 0000 0001 - 7FFF FFFF FFFF FFFF
-    negative doubles        : 8000 0000 0000 0000 - FFEF FFFF FFFF FFFF
-    negative infinity       : FFF0 0000 0000 0000
-    negative NaN            : FFF0 0000 0000 0001 - FFFF FFFF FFFF FFFF
+  We can encode most doubles such that the top 12-bits are
+  between 0x001 and 0xFFE. The ranges of IEEE double values are:
+      positive doubles        : 0000 0000 0000 0000 - 7FEF FFFF FFFF FFFF
+      positive infinity       : 7FF0 0000 0000 0000
+      positive NaN            : 7FF0 0000 0000 0001 - 7FFF FFFF FFFF FFFF
+      negative doubles        : 8000 0000 0000 0000 - FFEF FFFF FFFF FFFF
+      negative infinity       : FFF0 0000 0000 0000
+      negative NaN            : FFF0 0000 0000 0001 - FFFF FFFF FFFF FFFF
 
-  Now, if a double is:
-  - positive: we add (0x001 << 52), such that the range of positive doubles is boxed between
-              0010 0000 0000 0000 and 7FFF FFFF FFFF FFFF
-  - negative: leave it as is, so the negative doubles are boxed between
-              8000 0000 0000 0000 and FFEF FFFF FFFF FFFF
-  - special : either infinity or NaN. We extend the sign over the exponent bits (since these are always 0x7FF),
-              and merge the bit 0 with bit 1 to ensure a NaN payload is never unboxed as 0. 
-              We set the bottom bit to 1 to encode as a value.
-              On unboxing, we extend bit 1 to bit 0, which means we may lose up to 1 bit of the NaN payload.
+    Now, if a double is:
+    - positive: we add (0x001 << 52), such that the range of positive doubles is boxed between
+                0010 0000 0000 0000 and 7FFF FFFF FFFF FFFF
+    - negative: leave it as is, so the negative doubles are boxed between
+                8000 0000 0000 0000 and FFEF FFFF FFFF FFFF
+    - special : either infinity or NaN. We extend the sign over the exponent bits (since these are always 0x7FF),
+                and merge the bit 0 with bit 1 to ensure a NaN payload is never unboxed as 0. 
+                We set the bottom bit to 1 to encode as a value.
+                On unboxing, we extend bit 1 to bit 0, which means we may lose up to 1 bit of the NaN payload.
 ----------------------------------------------------------------*/
 
 #define KK_USE_NAN_BOX   (0)                  // strategy A2 by default

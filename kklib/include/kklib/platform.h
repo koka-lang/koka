@@ -20,18 +20,7 @@
   - (>>) on signed integers is an arithmetic right shift (i.e. sign extending)
   - a char/byte is 8 bits
   - either little-endian, or big-endian
-  - carefully code with strict aliasing in mind
-
-  Notes:
-  - we use signed size_t (`kk_ssize_t`) whenever possible to:
-    - reduce signed/unsigned conversion (especially when mixing pointer arithmetic and lengths), 
-    - reduce errors with overflow detection (consider `size > SIZE_MAX` versus `ssize > SSIZE_MAX`), 
-    - loop bounds (consider `for(unsigned u = 0; u < len()-1; u++)` if `len() == 0` etc.), 
-    - performance -- modern compilers can compile signed loop variables better (as signed overflow is undefined),
-    - api usage (passing a negative value is easier to detect)
-    A drawback is that this limits object sizes to half the address space -- for 64-bit
-    this is not a problem but string lengths for example on 32-bit are limited to be 
-    "just" 2^31 bytes at most. Nevertheless, we feel this is an acceptible trade-off.
+  - carefully code with strict aliasing in mind 
 --------------------------------------------------------------------------------------*/
 #ifdef __cplusplus
 #define kk_decl_externc    extern "C"
@@ -197,13 +186,40 @@ typedef int64_t     kk_off_t;
 #define KK_OFF_MIN  INT64_MIN
 
 
-// Abstract over the "natural machine word" as `kk_intx_t` which should correspond
-// to the natural machine register size. 
-// We define it such that `sizeof(kk_intx_t) == max(sizeof(intptr_t),sizeof(size_t))`. 
-// Note: we cannot use `long` for this as it is sometimes too short (as on Windows 64-bit where a `long` is 32 bits).
-// Similarly, `size_t` is sometimes too short on segmented architectures (like x86 with far pointers).
-// Neither can we use `intptr_t` (or `ptrdiff_t`) as it is too short on architectures like the x32 ABI.
-#if (UINTPTR_MAX < SIZE_MAX)
+// We limit the maximum object size (arrays) to at most `PTRDIFF_MAX` bytes so we can
+// always use _signed_ size_t (`kk_ssize_t`) to avoid:
+// - signed/unsigned conversion (especially when mixing pointer arithmetic and lengths),
+// - errors with overflow detection (consider `size > SIZE_MAX` versus `ssize > SSIZE_MAX`),
+// - loop bound errors (consider `for(unsigned u = 0; u < len()-1; u++)` if `len()` happens to be `0` etc.),
+// - performance degradation -- modern compilers can compile signed loop variables better (as signed overflow is undefined),
+// - api usage(passing a negative value is easier to detect)
+//
+// A drawback is that this limits object sizes to half the address space-- for 64-bit
+// this is not a problem but string lengths for example on 32-bit are limited to be
+// "just" 2^31 bytes at most. Nevertheless, we feel this is an acceptible trade-off 
+// (especially since `malloc` nowadays is already limited to `PTRDIFF_MAX`).
+// Another more serious drawback is that signed overflow is undefined behaviour (!) so we
+// need to be extra careful with calculations that may overflow.
+//
+// We also need some helpers to deal with API's (like `strlen`) that use `size_t` results or arguments,
+// where we clamp the values into the range (but again, on modern systems this will not happen
+// as these already limit the size of objects to SIZE_MAX/2 internally)
+
+static inline kk_ssize_t kk_to_ssize_t(size_t sz) {
+  kk_assert_internal(sz <= KK_SSIZE_MAX);
+  return (kk_likely(sz <= KK_SSIZE_MAX) ? (kk_ssize_t)sz : KK_SSIZE_MAX);
+}
+static inline size_t kk_to_size_t(kk_ssize_t sz) {
+  kk_assert_internal(sz >= 0);
+  return (kk_likely(sz >= 0) ? (size_t)sz : 0);
+}
+
+
+// We define `kk_intx_t` as an integer with the natural (fast) machine register size. 
+// We define it such that `sizeof(kk_intx_t) == max(sizeof(long),sizeof(size_t))`. 
+// (We cannot use just `long` as it is sometimes too short (as on Windows 64-bit where a `long` is 32 bits).
+//  Similarly, `size_t` is sometimes too short as well (like on the x32 ABI with a 64-bit `long` but 32-bit addresses)).
+#if (ULONG_MAX < SIZE_MAX)
 typedef kk_ssize_t     kk_intx_t;
 typedef size_t         kk_uintx_t;
 #define KUX(i)         KUZ(i)
@@ -216,17 +232,17 @@ typedef size_t         kk_uintx_t;
 #define PRIxUX         "%zx"
 #define PRIXUX         "%zX"
 #else 
-typedef intptr_t       kk_intx_t;
-typedef uintptr_t      kk_uintx_t;
-#define KUX(i)         KUP(i)
-#define KIX(i)         KIP(i)
-#define KK_INTX_SIZE   KK_INTPTR_SIZE
-#define KK_INTX_MAX    INTPTR_MAX
-#define KK_INTX_MIN    INTPTR_MIN
-#define PRIdIX         PRIdPTR
-#define PRIuUX         PRIuPTR
-#define PRIxUX         PRIxPTR
-#define PRIXUX         PRIXPTR
+typedef long           kk_intx_t;
+typedef unsigned long  kk_uintx_t;
+#define KUX(i)         (i##UL)
+#define KIX(i)         (i##L)
+#define KK_INTX_SIZE   KK_LONG_SIZE
+#define KK_INTX_MAX    LONG_MAX
+#define KK_INTX_MIN    LONG_MIN
+#define PRIdIX         "%ld"
+#define PRIuUX         "%lu"
+#define PRIxUX         "%lx"
+#define PRIXUX         "%lX"
 #endif
 #define KK_INTX_BITS   (8*KK_INTX_SIZE)
 
