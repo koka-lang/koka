@@ -16,7 +16,7 @@ public module std/core/hnd
 
 import std/core/types
 
-extern include {
+extern import {
   c  file "hnd-inline"
   js file "hnd-inline.js"
 }

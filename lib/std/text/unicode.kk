@@ -17,7 +17,7 @@ module std/text/unicode
 // combining marks.
 public alias grapheme = string
 
-extern include {
+extern import {
   cs file "unicode-inline.cs"
   js file "unicode-inline.js"
 }

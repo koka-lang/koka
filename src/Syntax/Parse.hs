@@ -308,11 +308,12 @@ parseInline
 externDecl :: Visibility -> LexParser [TopDef]
 externDecl dvis
   = do lr <- try ( do (krng,_) <- dockeyword "extern"
-                      specialId "include"
-                      return (Left (externalInclude krng)))
+                      keyword "import"
+                      return (Left (externalImport krng)))
             <|>
              try ( do (krng,_) <- dockeyword "extern"
-                      keyword "import"
+                      specialId "include"
+                      warnDeprecated "include" "import"
                       return (Left (externalImport krng)))
             <|>
              try ( do (vis,vrng) <- visibility dvis
@@ -386,52 +387,41 @@ externalImport rng1
        return (ExternalImport entries (combineRange rng1 rng2))
   where
     externalImportEntry
-      = do target  <- externalTarget
-           (do (keyvals,_) <- semiBracesRanged externalImportKeyVal
-               return (target,keyvals)
-            <|> 
-            do mbId    <- optionMaybe identifier
-               (s,rng) <- stringLit
-               let id = case mbId of
-                          Just(nm,_) -> nm
-                          Nothing    -> newName s
-               return (target,[("library-id",showTupled id),("library",s)])
-            )
-    externalImportKeyVal
-      = do key <- do{ (id,_) <- varid; return (show id) }
-                  <|> 
-                  do{ (s,rng) <- stringLit; return s }
+      = do target        <- externalTarget
+           (keyvals,rng) <- do key <- externalImportKey
+                               (val,rng)   <- stringLit
+                               return ([(key,val)],rng)
+                            <|> semiBracesRanged externalImportKeyVal
+           keyvalss <- mapM (externalIncludes target rng) keyvals
+           return (target,concat keyvalss)
+           
+    externalImportKeyVal 
+      = do key <- externalImportKey
            keyword "="
            (val,_) <- stringLit
            return (key,val)
 
+    externalImportKey
+      = do (id,_) <- varid
+           return (show id) 
 
-externalInclude :: Range -> LexParser External
-externalInclude rng1
-  = do keyword "="
-       (entries) <- externalIncludeEntry
-       return (ExternalInclude entries rng1)
-  <|>
-    do (entriess,rng2) <- semiBracesRanged externalIncludeEntry
-       return (ExternalInclude (concat entriess) (combineRange rng1 rng2))
-
-externalIncludeEntry
-  = do target <- externalTarget
-       (do specialId "file"
-           (fname,rng) <- stringLit
-           let currentFile = (Common.Range.sourceName (rangeSource rng))
-               fpath       = joinPath (dirname currentFile) fname
-           if (target==C && null (extname fname))
+    externalIncludes target rng (key,fname)  | key == "file" || key == "header-file"
+     = do let currentFile = (Common.Range.sourceName (rangeSource rng))
+              fpath       = joinPath (dirname currentFile) fname
+          if (target==C && null (extname fpath) && key=="file")
             then do contentH <- preadFile (fpath ++ ".h")
                     contentC <- preadFile (fpath ++ ".c")
-                    return [(CHeader,contentH),(C,contentC)]
-            else do content <- preadFile fpath
-                    return [(target,content)]
-        <|>
-        do (s,rng) <- stringLit
-           return [(target,s)]
-        )
-  where
+                    return [("header-include-inline",contentH),("include-inline",contentC)]
+            else if (target==C && key=="header-file")
+                  then do content <- preadFile fpath
+                          return [("header-include-inline",content)]
+                  else if (key == "file") 
+                         then do content <- preadFile fpath
+                                 return [("include-inline",content)]
+                         else return [(key,fpath)]
+    externalIncludes target rng (key,val) 
+      = return [(key,val)]
+
     preadFile :: FilePath -> LexParser String
     preadFile fpath
       = do mbContent <- ptryReadFile fpath
@@ -449,6 +439,7 @@ externalIncludeEntry
            case mbContent of
              Just content -> seq content $ return (Just content)
              Nothing      -> return Nothing
+
 
 externalBody :: LexParser ([(Target,ExternalCall)],Range)
 externalBody
@@ -474,9 +465,7 @@ externalCall
 
 externalTarget
   = do specialId "c"
-       (do specialId "header"
-           return CHeader
-        <|> return C)
+       return C
   <|>
     do specialId "cs"
        return CS

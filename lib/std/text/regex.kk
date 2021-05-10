@@ -19,7 +19,7 @@ extern import {
   c { vcpkg="pcre2"; library="pcre2-8" }
 }
 
-extern include {
+extern import {
   cs file "regex-inline.cs"
   js file "regex-inline.js"
   c  file "regex-inline.c"

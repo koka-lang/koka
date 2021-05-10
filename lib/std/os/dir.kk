@@ -13,7 +13,7 @@ module std/os/dir
 
 import std/os/path
 
-extern include {
+extern import {
   c file "dir-inline.c"
 }
 
