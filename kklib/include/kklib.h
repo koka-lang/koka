@@ -12,7 +12,7 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
-#define WIN32_LEAN_AND_MEAN          // reduce windows include
+#define WIN32_LEAN_AND_MEAN          // reduce windows includes
 #define _POSIX_C_SOURCE     200809L  // make posix definitions visible
 #define _DARWIN_C_SOURCE    200809L  // make darwin definitions visible
 #define _FILE_OFFSET_BITS   64       // enable large files
@@ -30,7 +30,7 @@
 
 #include "kklib/platform.h"   // Platform abstractions and portability definitions
 #include "kklib/atomic.h"     // Atomic operations
-#include "kklib/process.h"    // Process info
+#include "kklib/process.h"    // Process info (memory usage, run time etc.)
 
 
 /*--------------------------------------------------------------------------------------
@@ -46,7 +46,7 @@ typedef enum kk_tag_e {
   KK_TAG_BOX,         // boxed value type
   KK_TAG_BOX_ANY,     // kk_box_any polymorphic value
   KK_TAG_REF,         // mutable reference
-  KK_TAG_FUNCTION,    // function with free its free variables
+  KK_TAG_FUNCTION,    // function closure with the free variables environment
   KK_TAG_BIGINT,      // big integer (see `integer.c`)
   KK_TAG_BYTES_SMALL, // small byte sequence of at most 7 bytes.
   KK_TAG_BYTES,       // byte sequence
@@ -89,7 +89,7 @@ typedef kk_decl_align(8) struct kk_header_s {
 #define KK_HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 0, tag, KU32(0xFF00)}  // start with recognisable refcount (anything > 1 is ok)
 
 
-// Polymorphic operations work on boxed values. (We use a struct for extra checks on accidental conversion)
+// Polymorphic operations work on boxed values. (We use a struct for extra checks to prevent accidental conversion)
 // See `box.h` for definitions.
 typedef struct kk_box_s {
   uintptr_t box;          // We use unsigned representation to avoid UB on shift operations and overflow.

@@ -594,10 +594,8 @@ static inline size_t kk_integer_clamp_size_t(kk_integer_t x, kk_context_t* ctx) 
   if (kk_likely(kk_is_smallint(x))) {
     kk_intx_t i = kk_smallint_from_integer(x);
     if (i < 0) return 0;
-#if (KK_SMALL_INT_MAX > SIZE_MAX)
     else if (i > SIZE_MAX) return SIZE_MAX;
-#endif
-    return (size_t)(i);
+    else return (size_t)(i);
   }
   return kk_integer_clamp_size_t_generic(x, ctx);
 }

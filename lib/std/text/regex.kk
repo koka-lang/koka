@@ -15,9 +15,9 @@ module std/text/regex
 
 import std/num/int32
 
-//extern import {
-//  c { vcpkg="pcre2"; library="pcre2-8" }
-//}
+extern import {
+  c { vcpkg="pcre2"; library="pcre2-8" }
+}
 
 extern include {
   cs file "regex-inline.cs"
@@ -25,10 +25,10 @@ extern include {
   c  file "regex-inline.c"
 }
 
-//public extern regex-version() : string {
-//  c "kk_regex_version"
-//}
-
+public extern regex-version() : string {
+  c "kk_regex_version"
+}
+/*
 // Abstract type of a regular expression object
 abstract struct regex( obj: any )
 
@@ -281,3 +281,4 @@ fun split-excludex( s : string, splitr : regex, acc : string ) : list<string>
     }
   }
 }
+*/

@@ -21,6 +21,17 @@
   - a char/byte is 8 bits
   - either little-endian, or big-endian
   - carefully code with strict aliasing in mind
+
+  Notes:
+  - we use signed size_t (`kk_ssize_t`) whenever possible to:
+    - reduce signed/unsigned conversion (especially when mixing pointer arithmetic and lengths), 
+    - reduce errors with overflow detection (consider `size > SIZE_MAX` versus `ssize > SSIZE_MAX`), 
+    - loop bounds (consider `for(unsigned u = 0; u < len()-1; u++)` if `len() == 0` etc.), 
+    - performance -- modern compilers can compile signed loop variables better (as signed overflow is undefined),
+    - api usage (passing a negative value is easier to detect)
+    A drawback is that this limits object sizes to half the address space -- for 64-bit
+    this is not a problem but string lengths for example on 32-bit are limited to be 
+    "just" 2^31 bytes at most. Nevertheless, we feel this is an acceptible trade-off.
 --------------------------------------------------------------------------------------*/
 #ifdef __cplusplus
 #define kk_decl_externc    extern "C"
@@ -30,19 +41,22 @@
 
 #ifdef __STDC_VERSION__
 #if (__STDC_VERSION__ >= 201112L)
-#define KK_C11
-#elif (__STDC_VERSION__ >= 199901L) 
-#define KK_C99
+#define KK_C11  1
+#endif
+#if (__STDC_VERSION__ >= 199901L) 
+#define KK_C99  1
 #endif
 #endif
 
 #ifdef __cplusplus
 #if (__cplusplus >= 201703L)
-#define KK_CPP17
-#elif (__cplusplus >= 201402L)
-#define KK_CPP14
-#elif (__cplusplus >= 201103L)
-#define KK_CPP11
+#define KK_CPP17  1
+#endif
+#if (__cplusplus >= 201402L)
+#define KK_CPP14  1
+#endif
+#if (__cplusplus >= 201103L) || (_MSC_VER > 1900) 
+#define KK_CPP11  1
 #endif
 #endif
 
@@ -50,7 +64,7 @@
 #define WIN32  1
 #endif
 
-#if ((defined(__cplusplus) && __cplusplus >= 201103L)) || (_MSC_VER > 1900)  // C++11
+#if defined(KK_CPP11)
 #define kk_constexpr      constexpr
 #else
 #define kk_constexpr
@@ -157,39 +171,39 @@
 #define KK_INTPTR_BITS        (8*KK_INTPTR_SIZE)
 #define KK_INTPTR_ALIGNUP(x)  ((((x)+KK_INTPTR_SIZE-1)/KK_INTPTR_SIZE)*KK_INTPTR_SIZE)
 
-// Define size of size_t and kk_ssize_t  (ssize_t is POSIX only and not C99)
+// Define size of size_t and ssize_t 
 #if SIZE_MAX == UINT64_MAX           // 18446744073709551615LL
 # define KK_SIZE_SIZE   8
 # define KIZ(i)         KI64(i)
 # define KUZ(i)         KU64(i)
-typedef int64_t         kk_ssize_t;  
-#define KK_SSIZE_MAX    INT64_MAX
-#define KK_SSIZE_MIN    INT64_MIN
+# define KK_SSIZE_MAX   INT64_MAX
+# define KK_SSIZE_MIN   INT64_MIN
+typedef int64_t         kk_ssize_t;
 #elif SIZE_MAX == UINT32_MAX         // 4294967295LL
 # define KK_SIZE_       SIZE 4
 # define KIZ(i)         KI32(i)
 # define KUZ(i)         KU32(i)
+# define KK_SSIZE_MAX   INT32_MAX
+# define KK_SSIZE_MIN   INT32_MIN
 typedef int32_t         kk_ssize_t;
-#define KK_SSIZE_MAX    INT32_MAX
-#define KK_SSIZE_MIN    INT32_MIN
 #else
 #error size of a `size_t` must be 32 or 64 bits
 #endif
 #define KK_SIZE_BITS   (8*KK_SIZE_SIZE)
 
-// off_t
+// off_t: we always use 64-bit file offsets
 typedef int64_t     kk_off_t;
 #define KK_OFF_MAX  INT64_MAX
 #define KK_OFF_MIN  INT64_MIN
 
-// Abstract over the "natural machine word" as `kk_intx_t` such 
-// that `sizeof(kk_intx_t) == max(sizeof(long),sizeof(size_t))`. 
-// Note: we cannot use `long` for this as it is sometimes too short 
-// (as on Windows on 64-bit where it is 32 bits)
-// Similarly, `size_t` is sometimes too short on segmented architectures.
-// Also, on some architectures `sizeof(void*) < sizeof(long)` (like the x32 ABI), or 
-// `sizeof(void*) > sizeof(size_t)` (with segmented architectures).
-#if (ULONG_MAX < SIZE_MAX)
+
+// Abstract over the "natural machine word" as `kk_intx_t` which should correspond
+// to the natural machine register size. 
+// We define it such that `sizeof(kk_intx_t) == max(sizeof(intptr_t),sizeof(size_t))`. 
+// Note: we cannot use `long` for this as it is sometimes too short (as on Windows 64-bit where a `long` is 32 bits).
+// Similarly, `size_t` is sometimes too short on segmented architectures (like x86 with far pointers).
+// Neither can we use `intptr_t` (or `ptrdiff_t`) as it is too short on architectures like the x32 ABI.
+#if (UINTPTR_MAX < SIZE_MAX)
 typedef kk_ssize_t     kk_intx_t;
 typedef size_t         kk_uintx_t;
 #define KUX(i)         KUZ(i)
@@ -197,18 +211,22 @@ typedef size_t         kk_uintx_t;
 #define KK_INTX_SIZE   KK_SIZE_SIZE
 #define KK_INTX_MAX    KK_SSIZE_MAX
 #define KK_INTX_MIN    KK_SSIZE_MIN
+#define PRIdIX         "%zd"
+#define PRIuUX         "%zu"
 #define PRIxUX         "%zx"
 #define PRIXUX         "%zX"
 #else 
-typedef long           kk_intx_t;
-typedef unsigned long  kk_uintx_t;
-#define KUX(i)         (i##UL)
-#define KIX(i)         (i##L)
-#define KK_INTX_SIZE   KK_LONG_SIZE
-#define KK_INTX_MAX    LONG_MAX
-#define KK_INTX_MIN    LONG_MIN
-#define PRIxUX         "%lx"
-#define PRIXUX         "%lX"
+typedef intptr_t       kk_intx_t;
+typedef uintptr_t      kk_uintx_t;
+#define KUX(i)         KUP(i)
+#define KIX(i)         KIP(i)
+#define KK_INTX_SIZE   KK_INTPTR_SIZE
+#define KK_INTX_MAX    INTPTR_MAX
+#define KK_INTX_MIN    INTPTR_MIN
+#define PRIdIX         PRIdPTR
+#define PRIuUX         PRIuPTR
+#define PRIxUX         PRIxPTR
+#define PRIXUX         PRIXPTR
 #endif
 #define KK_INTX_BITS   (8*KK_INTX_SIZE)
 
