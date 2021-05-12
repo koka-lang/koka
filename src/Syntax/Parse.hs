@@ -28,6 +28,7 @@ module Syntax.Parse( parseProgramFromFile
                    , special, specialId, specialOp, specialConId, wildcard
                    , keyword, dockeyword
                    , typeDeclKind
+                   , paramInfo
                    ) where
 
 import Lib.Trace

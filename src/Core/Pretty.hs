@@ -157,7 +157,7 @@ prettyExternal env (External name tp pinfos body vis nameRng doc) | coreIface en
 prettyExternal env (External name tp pinfos body vis nameRng doc)
   = prettyComment env doc $
     prettyVis env vis $
-    keyword env "extern" <+> prettyDefName env name <+> text ":" <+> prettyType env tp <+> prettyEntries body
+    keyword env "extern" <+> prettyDefName env name <+> text ":" <+> prettyDefFunType env pinfos tp <+> prettyEntries body
   where
     prettyEntries [(Default,content)] = keyword env "= inline" <+> prettyLit env (LitString content) <.> semi
     prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "};"
@@ -251,7 +251,10 @@ prettyDef env def@(Def name scheme expr vis sort inl nameRng doc)
     prettyVis env vis $
     keyword env (show sort)
     <+> (if nameIsNil name then text "_" else prettyDefName env name)
-    <+> text ":" <+> prettyType env scheme
+    <+> text ":" <+> (case sort of 
+                        DefFun pinfos -> prettyDefFunType env pinfos scheme
+                        _             -> prettyType env scheme
+                     )
     <.> (if (not (coreShowDef env)) -- && (sizeDef def >= coreInlineMax env)
           then empty
           else linebreak <.> indent 2 (text "=" <+> prettyExpr env{coreShowVis=False} expr)) <.> semi

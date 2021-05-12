@@ -490,7 +490,7 @@ fmtDef env kgamma gamma def
          -- , "&nbsp;"
          -- , span "keyword" ":"
          -- , "&nbsp;"
-         , showDeclType env kgamma gamma (defType def)
+         , showDeclType env kgamma gamma (defParamInfos def) (defType def)
          ]
      , showDoc env kgamma gamma (defDoc def)
      ]
@@ -524,16 +524,18 @@ showKind env k
   = concat $ highlight fmtHtml id (CtxType [] ":") "" 1 (compress [] (show (prettyKind (colors env) k)))
 
 
-showDeclType env kgamma gamma tp
-  = let (mbParams,res) = ppDeclType (niceEnv (env{fullNames=True}) (tvsList (ftv tp))) tp
+showDeclType env kgamma gamma pinfos tp
+  = let (mbParams,pre,res) = ppDeclType (niceEnv (env{fullNames=True}) (tvsList (ftv tp))) pinfos tp
     in case mbParams of
          Nothing -> colon ++ hlType res
          Just params | null params
           -> "()" ++ colon ++ hlType res
          Just params
-          ->  "( " ++ concat (intersperse ", " [hlParam name ++ hlType tpdoc  | (name,tpdoc) <- params]) ++ " )" ++ " " ++ colon ++ hlType res
+          ->  "( " ++ concat (intersperse ", " [hlBorrow pinfo ++ hlParam name ++ hlType tpdoc  | (name,pinfo,tpdoc) <- params]) ++ " )" ++ " " ++ colon ++ hlType res
   where
     colon     = cspan "type special" ":" ++ "&nbsp;"
+    hlBorrow Borrow = highlightType env kgamma gamma ("^")
+    hlBorrow _      = ""
     hlType doc = highlightType env kgamma gamma (show doc)
     hlParam name = if (not (nameIsNil name || isFieldName name)) then cspan "type typeparam" (fmtName name) ++ " " ++ colon  else "" -- (cspan "type special" ":")
 
