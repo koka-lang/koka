@@ -72,6 +72,11 @@ parcDef topLevel def
        expr <- parcExpr (defExpr def)
        return def{defExpr=expr}
 
+getParamInfos :: TName -> Parc [ParamInfo]
+getParamInfos tname
+  = -- return [] 
+    failure "Backend.C.Parc.getParamInfos: todo"
+
 --------------------------------------------------------------------------
 -- Main PARC algorithm
 --------------------------------------------------------------------------
