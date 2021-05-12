@@ -182,7 +182,7 @@ isDefFun (DefFun _)  = True
 isDefFun _           = False
 
 defFun :: [ParamInfo] -> DefSort
-defFun pinfos = DefFun pinfos
+defFun pinfos = if all (==Own) pinfos then DefFun [] else DefFun pinfos
 
 instance Show DefSort where
   show ds = case ds of

@@ -60,6 +60,7 @@ import Core.FunLift           ( liftFunctions )
 import Core.Monadic           ( monTransform )
 import Core.MonadicLift       ( monadicLift )
 import Core.Inlines           ( inlinesExtends, extractInlineDefs )
+import Core.Borrowed          ( Borrowed )
 import Core.Inline            ( inlineDefs )
 
 import Static.BindingGroups   ( bindingGroups )
@@ -1098,7 +1099,7 @@ codeGen term flags compileTarget loaded
     backend  = case target flags of
                  CS -> codeGenCS
                  JS -> codeGenJS
-                 _  -> codeGenC (modSourcePath (loadedModule loaded)) (loadedNewtypes loaded) (loadedUnique loaded)
+                 _  -> codeGenC (modSourcePath (loadedModule loaded)) (loadedNewtypes loaded) (loadedBorrowed loaded) (loadedUnique loaded)
 
 
 -- CS code generation via libraries; this catches bugs in C# generation early on but doesn't take a transitive closure of dll's
@@ -1215,8 +1216,8 @@ codeGenJS term flags modules compileTarget outBase core
 
 
 
-codeGenC :: FilePath -> Newtypes -> Int -> Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO ()))
-codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase core0
+codeGenC :: FilePath -> Newtypes -> Borrowed -> Int -> Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO ()))
+codeGenC sourceFile newtypes borrowed unique0 term flags modules compileTarget outBase core0
  = -- compilerCatch "c compilation" term Nothing $
    do let outC = outBase ++ ".c"
           outH = outBase ++ ".h"
@@ -1226,7 +1227,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                       _                  -> Nothing
       let -- (core,unique) = parcCore (prettyEnvFromFlags flags) newtypes unique0 core0
           (cdoc,hdoc,bcore) = cFromCore sourceDir (prettyEnvFromFlags flags) (platform flags)
-                                newtypes unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
+                                newtypes borrowed unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
                                 mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } [] bcore
       writeDocW 120 (outBase ++ ".c.core") bcoreDoc

@@ -196,7 +196,7 @@ prettyDefFunType env pinfos tp
     in pre <.> parens (commaSep (map ppParam params)) <+> text "->" <+> post
   where
     ppParam (name,pinfo,tpDoc)  
-      = (case pinfo of Borrow -> text "^"
+      = (case pinfo of Borrow -> text "^ "
                        _      -> empty) <.>
         (if nameNil == name then empty else ppName env name <+> text ": ") <.>
         tpDoc

@@ -37,6 +37,7 @@ import Common.Syntax hiding (scanFields)
 import Core.Core
 import Core.CoreVar
 import Core.Pretty
+import Core.Borrowed
 
 import Backend.C.ParcReuse( genDropReuse, constructorSizeOf )
 
@@ -44,9 +45,9 @@ import Backend.C.ParcReuse( genDropReuse, constructorSizeOf )
 -- Reference count transformation
 --------------------------------------------------------------------------
 
-parcCore :: Pretty.Env -> Platform -> Newtypes -> Bool -> Core -> Unique Core
-parcCore penv platform newtypes enableSpecialize core
-  = do defs <- runParc penv platform newtypes enableSpecialize (parcDefGroups True (coreProgDefs core))
+parcCore :: Pretty.Env -> Platform -> Newtypes -> Borrowed -> Bool -> Core -> Unique Core
+parcCore penv platform newtypes borrowed enableSpecialize core
+  = do defs <- runParc penv platform newtypes borrowed enableSpecialize (parcDefGroups True (coreProgDefs core))
        return core{coreProgDefs=defs}
   where penv' = penv{Pretty.coreShowDef=True,Pretty.coreShowTypes=False,Pretty.fullNames=False}
         tr d = trace (show (vcat (map (prettyDefGroup penv') d)))
@@ -72,10 +73,6 @@ parcDef topLevel def
        expr <- parcExpr (defExpr def)
        return def{defExpr=expr}
 
-getParamInfos :: TName -> Parc [ParamInfo]
-getParamInfos tname
-  = -- return [] 
-    failure "Backend.C.Parc.getParamInfos: todo"
 
 --------------------------------------------------------------------------
 -- Main PARC algorithm
@@ -708,7 +705,8 @@ data Env = Env { currentDef :: [Def],
                  newtypes  :: Newtypes,
                  enableSpec:: Bool,
                  owned     :: Owned,
-                 shapeMap  :: ShapeMap
+                 shapeMap  :: ShapeMap,
+                 borrowed  :: Borrowed
                }
 
 type Live = TNames
@@ -736,13 +734,14 @@ updateSt = modify
 getSt :: Parc ParcState
 getSt = get
 
-runParc :: Pretty.Env -> Platform -> Newtypes -> Bool -> Parc a -> Unique a
-runParc penv platform newtypes enableSpecialize (Parc action)
+runParc :: Pretty.Env -> Platform -> Newtypes -> Borrowed -> Bool -> Parc a -> Unique a
+runParc penv platform newtypes borrowed enableSpecialize (Parc action)
   = withUnique $ \u ->
-      let env = Env [] penv platform newtypes enableSpecialize S.empty M.empty
+      let env = Env [] penv platform newtypes enableSpecialize S.empty M.empty borrowed
           st = ParcState u S.empty
           (val, st') = runState (runReaderT action env) st
-       in (val, uniq st')
+       in trace (show (ppBorrowed penv borrowed)) $
+          (val, uniq st')
 
 -------------------
 -- env accessors --
@@ -847,6 +846,14 @@ getShapeInfoOf tname m
   = case M.lookup tname m of
       Just shape -> shape
       Nothing    -> (ShapeInfo Nothing Nothing Nothing)
+
+getParamInfos :: TName -> Parc [ParamInfo]
+getParamInfos tname
+  = do b <- borrowed <$> getEnv
+       case borrowedLookup (getName tname) b of
+         Nothing -> return []
+         Just pinfos -> return pinfos
+
 
 -------------------------------
 -- live set abstractions --

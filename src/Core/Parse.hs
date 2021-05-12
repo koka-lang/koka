@@ -721,7 +721,8 @@ ptype env
 
 pdeftype :: Env -> LexParser (Type, [ParamInfo])
 pdeftype env
-  = ptypex env True
+  = do (tp,pinfos) <- ptypex env True
+       return (tp, if all (==Own) pinfos then [] else pinfos)
 
 ptypex :: Env -> Bool -> LexParser (Type, [ParamInfo])
 ptypex env allowBorrow

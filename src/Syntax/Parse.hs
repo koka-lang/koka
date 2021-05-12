@@ -329,7 +329,7 @@ externDecl dvis
                    <- do keyword ":"
                          tp <- ptype  -- no "some" allowed
                          (pars,args) <- genParArgs (promoteType tp)
-                         return (pars,[Own | _ <- pars],args,tp,\body -> Ann body tp (getRange tp))
+                         return (pars,[]{-all owned-},args,tp,\body -> Ann body tp (getRange tp))
                       <|>
                       do tpars <- typeparams
                          (pars, pinfos, parRng) <- declParams True {-allowBorrow-} (inline /= InlineAlways) -- allow defaults? 
@@ -347,7 +347,7 @@ externDecl dvis
                                extern     = External externName tp pinfos (before nameRng) (before fullRng) exprs Private doc
                                body       = annotate (Lam pars (App (Var externName False rangeNull) args fullRng) fullRng)
                                binder     = ValueBinder name () body nameRng fullRng
-                               extfun     = Def binder fullRng vis (DefFun pinfos) InlineNever doc
+                               extfun     = Def binder fullRng vis (defFun pinfos) InlineNever doc
                           return [DefExtern extern, DefValue extfun]
   where
     typeFromPars :: Range -> [ValueBinder UserType (Maybe UserExpr)] -> UserType -> UserType -> UserType
@@ -646,7 +646,7 @@ makeUserCon con foralls resTp exists pars nameRng rng vis doc
       = [(vis,par{ binderExpr = Nothing }) | (vis,par) <- pars]
     creator
       = let name = newCreatorName con
-            def  = Def binder rng vis (DefFun []) InlineAlways doc
+            def  = Def binder rng vis (defFun []) InlineAlways doc
             binder    = ValueBinder name () body nameRng nameRng
             body      = Ann (Lam lparams (App (Var con False nameRng) arguments rng) rng) tpFull rng
             params    = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | (_,par) <- pars]
@@ -905,7 +905,7 @@ makeEffectDecl decl =
                     (Nothing, Var (newName "ret") False krng),
                     (Nothing, wrapAction (Var (newName "action") False krng))]
       handleDef  =  Def (ValueBinder handleName () handleBody irng rng)
-                        grng vis (DefFun []) InlineNever ("// handler for the " ++ docEffect)
+                        grng vis (defFun []) InlineNever ("// handler for the " ++ docEffect)
 
    in [DefType effTpDecl, DefValue tagDef, DefType hndTpDecl, DefValue handleDef]
          ++ map DefValue opSelects
@@ -1061,7 +1061,7 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effNa
 
            -- create an operation selector explicitly so we can hide the handler constructor
            selectId    = toOpSelectorName id
-           opSelect = let def       = Def binder krng vis (DefFun [Borrow]) InlineAlways ("// select `" ++ show id ++ "` operation out of the " ++ docEffect ++ " handler")
+           opSelect = let def       = Def binder krng vis (defFun [Borrow]) InlineAlways ("// select `" ++ show id ++ "` operation out of the " ++ docEffect ++ " handler")
                           nameRng   = krng
                           binder    = ValueBinder selectId () body nameRng nameRng
                           body      = Ann (Lam [hndParam] innerBody grng) fullTp grng
@@ -1183,7 +1183,7 @@ funDecl rng doc vis inline
        body   <- bodyexpr
        let fun = promote spars tpars preds mbtres
                   (Lam pars body (combineRanged rng body))
-       return (Def (ValueBinder name () (ann fun) nameRng nameRng) (combineRanged rng fun) vis (DefFun pinfos) inline doc)
+       return (Def (ValueBinder name () (ann fun) nameRng nameRng) (combineRanged rng fun) vis (defFun pinfos) inline doc)
 
 -- fundef: forall parameters, parameters, (effecttp, resulttp), annotation
 funDef :: Bool -> LexParser ([TypeBinder UserKind],[ValueBinder (Maybe UserType) (Maybe UserExpr)], [ParamInfo], Range, Maybe (Maybe UserType, UserType),[UserType], UserExpr -> UserExpr)
