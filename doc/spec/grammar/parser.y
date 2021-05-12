@@ -315,8 +315,8 @@ tparameters : tparameters1
             | /* empty */
             ;
 
-tparameters1: tparameters1 ',' tparameter
-            | tparameter
+tparameters1: tparameters1 ',' borrow tparameter
+            | borrow tparameter
             ;
 
 tparameter  : paramid ':' paramtype
@@ -327,6 +327,9 @@ tparameter  : paramid ':' paramtype
             */
             ;
 
+borrow      : '^'
+            | /* empty */
+            ;
 
 /* ---------------------------------------------------------
 -- Effect declarations
@@ -528,8 +531,8 @@ parameters  : parameters1
             | /* empty */
             ;
 
-parameters1 : parameters1 ',' parameter
-            | parameter
+parameters1 : parameters1 ',' borrow parameter
+            | borrow parameter
             ;
 
 parameter   : paramid
@@ -543,8 +546,8 @@ parameter   : paramid
 pparameters : pparameters1
             | /* empty */
 
-pparameters1: pparameters1 ',' pparameter
-            | pparameter
+pparameters1: pparameters1 ',' borrow pparameter
+            | borrow pparameter
             ;
 
 pparameter  : pattern 
@@ -636,6 +639,7 @@ op          : OP
             | '>'       { $$ = ">";  }
             | '<'       { $$ = "<";  }
             | '|'       { $$ = "|";  }
+            | '^'       { $$ = "^";  }
             | ASSIGN    { $$ = ":="; }
             ;
 

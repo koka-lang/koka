@@ -317,7 +317,7 @@ pdefSort
                       do { specialOp "*"; return () }
                       <|>
                       return ()
-           return (DefFun,inl,isRec,doc)
+           return (DefFun [],inl,isRec,doc)  --TODO: add borrow info
         <|>
         do (_,doc) <- dockeyword "val"
            return (DefVal,inl,False,doc))
@@ -335,7 +335,7 @@ externDecl env
        keyword ":"
        tp <- ptype env
        formats <- externalBody
-       return (External (qualify (modName env) name) tp formats vis rangeNull doc)
+       return (External (qualify (modName env) name) tp [] formats vis rangeNull doc)  -- TODO: parse ownership
 
 
 externalBody :: LexParser [(Target,String)]

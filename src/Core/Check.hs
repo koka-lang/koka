@@ -21,6 +21,7 @@ import Common.Name
 import Common.Unique
 import Common.Error
 import Common.Range
+import Common.Syntax( DefSort(..) )
 
 import Core.Core hiding (check)
 import qualified Core.Core as Core
@@ -161,10 +162,10 @@ checkDef d
        matchSub "checking annotation on definition" (prettyDef d) (dtp) tp
 
 coreNameInfo :: TName -> (Name,NameInfo)
-coreNameInfo tname = coreNameInfoX tname True
-
-coreNameInfoX tname isVal
-  = (getName tname, createNameInfo (getName tname) isVal rangeNull (typeOf tname))
+coreNameInfo tname = coreNameInfoX 
+  where
+    coreNameInfoX 
+      = (getName tname, createNameInfoX Public (getName tname) DefVal rangeNull (typeOf tname))
 
 {--------------------------------------------------------------------------
   Expressions

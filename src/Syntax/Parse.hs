@@ -169,7 +169,7 @@ expression name
   = interactive $
     do e <- aexpr
        let r = getRange e
-       return (Def (ValueBinder name () (Lam [] e r) r r)  r Public defFun InlineNever ""
+       return (Def (ValueBinder name () (Lam [] e r) r r)  r Public (DefFun []) InlineNever ""
               -- ,Def (ValueBinder (prepend ".eval" name) () (Lam [] (App (Var nameGPrint False r) [Var name False r] r)))
               )
 
@@ -324,29 +324,29 @@ externDecl dvis
                       return [DefExtern extern]
          Right (krng,vis,doc,inline)
            -> do (name,nameRng) <- funid
-                 (pars,args,tp,annotate)
+                 (pars,pinfos,args,tp,annotate)
                    <- do keyword ":"
                          tp <- ptype  -- no "some" allowed
                          (pars,args) <- genParArgs (promoteType tp)
-                         return (pars,args,tp,\body -> Ann body tp (getRange tp))
+                         return (pars,[Own | _ <- pars],args,tp,\body -> Ann body tp (getRange tp))
                       <|>
                       do tpars <- typeparams
-                         (pars, parRng) <- declParams (inline /= InlineAlways) -- allow defaults? 
+                         (pars, pinfos, parRng) <- declParams True {-allowBorrow-} (inline /= InlineAlways) -- allow defaults? 
                          (teff,tres)   <- annotResult
                          let tp = typeFromPars nameRng pars teff tres
                              lift :: ValueBinder UserType (Maybe UserExpr) -> ValueBinder (Maybe UserType) (Maybe UserExpr)
                              lift (ValueBinder name tp expr rng1 rng2) = ValueBinder name (Just tp) expr rng1 rng2
                          genParArgs tp -- checks the type
-                         return (map lift pars,genArgs pars,tp,\body -> promote [] tpars [] (Just (Just teff, tres)) body)
+                         return (map lift pars,pinfos,genArgs pars,tp,\body -> promote [] tpars [] (Just (Just teff, tres)) body)
                  (exprs,rng) <- externalBody
                  if (inline == InlineAlways)
-                  then return [DefExtern (External name tp nameRng (combineRanges [krng,rng]) exprs vis doc)]
+                  then return [DefExtern (External name tp pinfos nameRng (combineRanges [krng,rng]) exprs vis doc)]
                   else do let  externName = newHiddenExternalName name
                                fullRng    = combineRanges [krng,rng]
-                               extern     = External externName tp (before nameRng) (before fullRng) exprs Private doc
+                               extern     = External externName tp pinfos (before nameRng) (before fullRng) exprs Private doc
                                body       = annotate (Lam pars (App (Var externName False rangeNull) args fullRng) fullRng)
                                binder     = ValueBinder name () body nameRng fullRng
-                               extfun     = Def binder fullRng vis defFun InlineNever doc
+                               extfun     = Def binder fullRng vis (DefFun pinfos) InlineNever doc
                           return [DefExtern extern, DefValue extfun]
   where
     typeFromPars :: Range -> [ValueBinder UserType (Maybe UserExpr)] -> UserType -> UserType -> UserType
@@ -645,7 +645,7 @@ makeUserCon con foralls resTp exists pars nameRng rng vis doc
       = [(vis,par{ binderExpr = Nothing }) | (vis,par) <- pars]
     creator
       = let name = newCreatorName con
-            def  = Def binder rng vis defFun InlineAlways doc
+            def  = Def binder rng vis (DefFun []) InlineAlways doc
             binder    = ValueBinder name () body nameRng nameRng
             body      = Ann (Lam lparams (App (Var con False nameRng) arguments rng) rng) tpFull rng
             params    = [par{ binderType = (if (isJust (binderExpr par)) then makeOptional (binderType par) else binderType par) }  | (_,par) <- pars]
@@ -904,7 +904,7 @@ makeEffectDecl decl =
                     (Nothing, Var (newName "ret") False krng),
                     (Nothing, wrapAction (Var (newName "action") False krng))]
       handleDef  =  Def (ValueBinder handleName () handleBody irng rng)
-                        grng vis (DefFun) InlineNever ("// handler for the " ++ docEffect)
+                        grng vis (DefFun []) InlineNever ("// handler for the " ++ docEffect)
 
    in [DefType effTpDecl, DefValue tagDef, DefType hndTpDecl, DefValue handleDef]
          ++ map DefValue opSelects
@@ -954,7 +954,7 @@ parseFunOpDecl linear vis =
                                 else return (rdoc,OpControl)
      (id,idrng)   <- identifier
      exists0      <- typeparams
-     (pars,prng)  <- declParams True
+     (pars,_,prng)  <- declParams False {-allowBorrow-} True {-allowDefaults-}
      keyword ":"
      (mbteff,tres) <- tresult
      _ <- case mbteff of
@@ -966,16 +966,25 @@ parseFunOpDecl linear vis =
               OpDecl (doc,id,rng0,idrng,False{-linear-},opSort,exists0,pars,prng,mbteff,tres)
 
 
-declParams :: Bool -> LexParser ([ValueBinder UserType (Maybe UserExpr)],Range)
-declParams allowDefaults
-  = parensCommasRng paramBinder
+declParams :: Bool -> Bool -> LexParser ([ValueBinder UserType (Maybe UserExpr)],[ParamInfo],Range)
+declParams allowBorrow allowDefaults
+  = do (ipars,rng) <- parensCommasRng paramBinder
+       let (pars,pinfos) = unzip ipars
+       return (pars,pinfos,rng)
   where
     paramBinder 
-       = do (name,rng,tp) <- paramType
+       = do pinfo <- if allowBorrow then paramInfo else return Own
+            (name,rng,tp) <- paramType
             (opt,drng)    <- if allowDefaults then defaultExpr else return (Nothing,rangeNull)
-            return (ValueBinder name tp opt rng (combineRanges [rng,getRange tp,drng]))
+            return (ValueBinder name tp opt rng (combineRanges [rng,getRange tp,drng]), pinfo)
       <?> "parameter"
 
+paramInfo :: LexParser ParamInfo
+paramInfo 
+  = do specialOp "^"
+       return Borrow
+  <|>
+    return Own
 
 -- smart constructor for operations
 operationDecl :: Int -> Visibility -> [UserTypeBinder] -> [UserTypeBinder] ->
@@ -1051,7 +1060,7 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effNa
 
            -- create an operation selector explicitly so we can hide the handler constructor
            selectId    = toOpSelectorName id
-           opSelect = let def       = Def binder krng vis defFun InlineAlways ("// select `" ++ show id ++ "` operation out of the " ++ docEffect ++ " handler")
+           opSelect = let def       = Def binder krng vis (DefFun [Borrow]) InlineAlways ("// select `" ++ show id ++ "` operation out of the " ++ docEffect ++ " handler")
                           nameRng   = krng
                           binder    = ValueBinder selectId () body nameRng nameRng
                           body      = Ann (Lam [hndParam] innerBody grng) fullTp grng
@@ -1074,7 +1083,7 @@ operationDecl opCount vis forallsScoped forallsNonScoped docEffect hndName effNa
 
 
            -- create a typed perform wrapper: fun op(x1:a1,..,xN:aN) : <l> b { performN(evv-at(0),clause-op,x1,..,xN) }
-           opDef  = let def      = Def binder idrng vis defFun InlineAlways ("// call `" ++ show id ++ "` operation of the " ++ docEffect)
+           opDef  = let def      = Def binder idrng vis (DefFun []) InlineAlways ("// call `" ++ show id ++ "` operation of the " ++ docEffect)
                         nameRng   = idrng
                         binder    = ValueBinder id () body nameRng nameRng
                         body      = Ann (Lam lparams innerBody rng) tpFull rng
@@ -1169,22 +1178,22 @@ funDecl rng doc vis inline
   = do spars <- squantifier
        -- tpars <- aquantifier  -- todo: store somewhere
        (name,nameRng) <- funid
-       (tpars,pars,parsRng,mbtres,preds,ann) <- funDef
+       (tpars,pars,pinfos,parsRng,mbtres,preds,ann) <- funDef True {-allowBorrow-}
        body   <- bodyexpr
        let fun = promote spars tpars preds mbtres
                   (Lam pars body (combineRanged rng body))
-       return (Def (ValueBinder name () (ann fun) nameRng nameRng) (combineRanged rng fun) vis defFun inline doc)
+       return (Def (ValueBinder name () (ann fun) nameRng nameRng) (combineRanged rng fun) vis (DefFun pinfos) inline doc)
 
 -- fundef: forall parameters, parameters, (effecttp, resulttp), annotation
-funDef :: LexParser ([TypeBinder UserKind],[ValueBinder (Maybe UserType) (Maybe UserExpr)], Range, Maybe (Maybe UserType, UserType),[UserType], UserExpr -> UserExpr)
-funDef
+funDef :: Bool -> LexParser ([TypeBinder UserKind],[ValueBinder (Maybe UserType) (Maybe UserExpr)], [ParamInfo], Range, Maybe (Maybe UserType, UserType),[UserType], UserExpr -> UserExpr)
+funDef allowBorrow
   = do tpars  <- typeparams
-       (pars, transform, rng) <- parameters True
+       (pars, pinfos, transform, rng) <- parameters allowBorrow True {-allowDefault-}
        resultTp <- annotRes
        preds <- do keyword "with"
                    parens (many1 predicate)
                 <|> return []
-       return (tpars,pars,rng,resultTp,preds,transform)
+       return (tpars,pars,pinfos,rng,resultTp,preds,transform)
 
 annotRes :: LexParser (Maybe (Maybe UserType,UserType))
 annotRes
@@ -1204,15 +1213,16 @@ typeparams
   <|>
     do return []
 
-parameters :: Bool -> LexParser ([(ValueBinder (Maybe UserType) (Maybe UserExpr))], UserExpr -> UserExpr, Range)
-parameters allowDefaults = do
-  (results, rng) <- parensCommasRng (parameter allowDefaults)
-  let (binders, transforms) = unzip results
+parameters :: Bool -> Bool -> LexParser ([(ValueBinder (Maybe UserType) (Maybe UserExpr))], [ParamInfo], UserExpr -> UserExpr, Range)
+parameters allowBorrow allowDefaults = do
+  (results, rng) <- parensCommasRng (parameter allowBorrow allowDefaults)
+  let (binders, pinfos, transforms) = unzip3 results
       transform = appEndo $ foldMap Endo transforms  -- right-to-left so the left-most parameter matches first
-  pure (binders, transform, rng)
+  pure (binders, pinfos, transform, rng)
 
-parameter :: Bool -> LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr), UserExpr -> UserExpr)
-parameter allowDefaults = do
+parameter :: Bool -> Bool -> LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr), ParamInfo, UserExpr -> UserExpr)
+parameter allowBorrow allowDefaults = do
+  pinfo <- if allowBorrow then paramInfo else return Own
   pat <- patAtom
   tp  <- optionMaybe typeAnnotPar
   (opt,drng) <- if allowDefaults then defaultExpr else return (Nothing,rangeNull)
@@ -1224,10 +1234,10 @@ parameter allowDefaults = do
   case pat of
     -- treat PatVar and PatWild as special cases to avoid unnecessary match expressions
     PatVar (ValueBinder name Nothing (PatWild _) nameRng rng) -- binder   | PatWild nameRng <- binderExpr binder  -> 
-      -> return (binder name nameRng, id)
+      -> return (binder name nameRng, pinfo, id)
     PatWild nameRng 
       -> do let name = uniqueRngHiddenName nameRng "_wildcard"
-            return (binder name nameRng, id)
+            return (binder name nameRng, pinfo, id)
     pat 
       -> do -- transform (fun (pattern) { body }) --> fun(.pat_X_Y) { match(.pat_X_Y) { pattern -> body }}
             let name = uniqueRngHiddenName rng "pat"
@@ -1235,7 +1245,7 @@ parameter allowDefaults = do
                                                                         [Branch pat [Guard guardTrue body]] rng) lambdaRng
                 transform (Ann body tp rng) = Ann (transform body) tp rng
                 transform _ = failure "Syntax.Parse.parameter: unexpected function expression in parameter match transform"
-            return (binder name rng, transform)
+            return (binder name rng, pinfo, transform)
 
 paramid = identifier <|> wildcard
 
@@ -1383,7 +1393,7 @@ localUsingDecl
 withstat :: LexParser (UserExpr -> UserExpr)
 withstat
   = do krng <- keyword "with"
-       (do (par, transform) <- try $ parameter False <* keyword "="
+       (do (par, _, transform) <- try $ parameter False{-allowBorrow-} False{-allowDefault-} <* keyword "="
            e <- basicexpr <|> handlerExprStat krng HandlerInstance
            pure $ applyToContinuation krng [promoteValueBinder par] $ transform e
         <|>
@@ -1462,7 +1472,7 @@ funblock
 lambda alts
   = do rng <- keywordOr "fn" alts
        spars <- squantifier
-       (tpars,pars,parsRng,mbtres,preds,ann) <- funDef
+       (tpars,pars,_,parsRng,mbtres,preds,ann) <- funDef False {-allowBorrow-}
        body <- block
        let fun = promote spars tpars preds mbtres
                   (Lam pars body (combineRanged rng body))

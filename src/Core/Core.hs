@@ -28,7 +28,7 @@ module Core.Core ( -- Data structures
                    , typeDefVis
 
                      -- Core term builders
-                   , defIsVal
+                   , defIsVal, defParamInfos
                    , defTName , defGroupTNames , defGroupsTNames
                    , addTypeLambdas, addTypeApps, addLambdas, addLambdasTName, addApps
                    , makeLet, makeTypeApp
@@ -219,6 +219,7 @@ type Externals = [External]
 
 data External = External{ externalName :: Name
                         , externalType :: Scheme
+                        , externalParams :: [ParamInfo]
                         , externalFormat :: [(Target,String)]
                         , externalVis' :: Visibility
                         , externalRange :: Range
@@ -416,9 +417,14 @@ data InlineDef = InlineDef{ inlineName :: Name, inlineExpr :: Expr, inlineRec ::
 defIsVal :: Def -> Bool
 defIsVal def
   = case defSort def of
-      DefFun   -> False
+      DefFun _ -> False
       _        -> True
 
+defParamInfos :: Def -> [ParamInfo]
+defParamInfos def
+  = case defSort def of
+      DefFun pinfos -> pinfos
+      _             -> []
 
 {--------------------------------------------------------------------------
   Expressions
@@ -791,7 +797,8 @@ addLambdasTName pars eff e            = Lam pars eff e
 
 -- | Bind a variable inside a term
 addNonRec :: Name -> Type -> Expr -> (Expr -> Expr)
-addNonRec x tp e e' = Let [DefNonRec (Def x tp e Private (if isValueExpr e then DefVal else DefFun ) InlineAuto rangeNull "")] e'
+addNonRec x tp e e' 
+  = Let [DefNonRec (Def x tp e Private (if isValueExpr e then DefVal else DefFun [] {-all owned?-}) InlineAuto rangeNull "")] e'
 
 -- | Is an expression a value or a function
 isValueExpr :: Expr -> Bool

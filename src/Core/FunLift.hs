@@ -81,7 +81,7 @@ liftDefGroup False (DefRec defs)
                              <+> tupled (map (ppTypeVar penv) (tvsList (ftv (defExpr (head defs))))) 
                              <//> prettyDef penv{coreShowDef=True} (head defs)
        -}
-       (callExprs, liftedDefs0) <- fmap unzip $ mapM (makeDef fvs tvs) exprs
+       (callExprs, liftedDefs0) <- fmap unzip $ mapM (makeDef fvs tvs) (zip pinfoss exprs)
        let subst       = zip names callExprs
            liftedDefs  = map (substWithLiftedExpr subst) liftedDefs0
        groups <- liftDefGroup True (DefRec liftedDefs) -- lift all recs to top-level
@@ -93,6 +93,7 @@ liftDefGroup False (DefRec defs)
                           defs callExprs
        return (map DefNonRec defs') -- change a DefRec to all DefNonRecs
   where exprs = map defExpr defs
+        pinfoss = map defParamInfos defs
         names = map defTName defs
         fvs = tnamesList $ tnamesRemove names (tnamesUnions $ map freeLocals exprs)
         tvs = tvsList $ tvsUnions $ map ftv exprs
@@ -116,7 +117,7 @@ liftDef topLevel def
        return def{ defExpr = expr', defSort = liftSort topLevel (defSort def)}
 
 liftSort :: Bool -> DefSort -> DefSort
-liftSort False DefFun = DefVal
+liftSort False (DefFun _) = DefVal
 liftSort _ sort = sort
 
 {-
@@ -186,6 +187,7 @@ liftExpr topLevel expr
 
     _ -> return expr
 
+{-
 liftLocalFun :: Expr -> Effect -> Lift Expr
 liftLocalFun expr eff
   = do let fvs = tnamesList $ freeLocals expr
@@ -193,10 +195,10 @@ liftLocalFun expr eff
        (expr2, liftDef) <- makeDef fvs tvs expr
        emitLifted (DefNonRec liftDef)
        return expr2
+-}
 
-
-makeDef :: [TName] -> [TypeVar] -> Expr -> Lift (Expr, Def)
-makeDef fvs tvs expr
+makeDef :: [TName] -> [TypeVar] -> ([ParamInfo],Expr) -> Lift (Expr, Def)
+makeDef fvs tvs (pinfos,expr)
   = do -- liftTrace (show expr)
        (name,inl) <- uniqueNameCurrentDef
        let (callExpr,lifted) = (etaExpr name, liftedDef name inl)
@@ -215,10 +217,11 @@ makeDef fvs tvs expr
     alltpars = tvs ++ tpars
     allpars  = fvs ++ pars
     allargs  = [Var tname InfoNone | tname <- allpars]
+    allpinfos = [Own | _ <- fvs] ++ pinfos
 
     liftedFun = addTypeLambdas alltpars $ Lam allpars eff body
     liftedTp  = typeOf liftedFun
-    liftedDef name inl = Def name liftedTp liftedFun Private DefFun inl rangeNull "// lift"
+    liftedDef name inl = Def name liftedTp liftedFun Private (DefFun allpinfos) inl rangeNull "// lift"
 
     funExpr name
       = Var (TName name liftedTp) (InfoArity (length alltpars) (length allargs))

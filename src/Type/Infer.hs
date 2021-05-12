@@ -1223,7 +1223,7 @@ inferApp propagated expect fun nargs rng
                                 if (Core.isTotal fcore)
                                 then return (Core.makeLet defs (coreApp fcore cargs))
                                 else do fname <- uniqueName "fun"
-                                        let fdef = Core.DefNonRec (Core.Def fname ftp fcore Core.Private DefFun InlineAuto rangeNull "")
+                                        let fdef = Core.DefNonRec (Core.Def fname ftp fcore Core.Private (DefFun [] {-all own, TODO: maintain borrow annotations?-}) InlineAuto rangeNull "")
                                             fvar = Core.Var (Core.TName fname ftp) Core.InfoNone
                                         return (Core.Let (fdef:defs) (coreApp fvar cargs))
            -- take top effect

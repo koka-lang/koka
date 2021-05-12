@@ -62,6 +62,7 @@ type Externals
 data External
   = External{ extName :: Name
             , extType :: UserType
+            , extParams :: [ParamInfo]
             , extNameRange :: Range
             , extRange :: Range
             , extInline :: [(Target,ExternalCall)]  -- map: target inline
