@@ -73,6 +73,7 @@ executable koka
       Core.Parse
       Core.Pretty
       Core.Simplify
+      Core.Specialize
       Core.Uniquefy
       Core.UnReturn
       Interpreter.Command
