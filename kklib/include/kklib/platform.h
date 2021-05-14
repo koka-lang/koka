@@ -3,7 +3,7 @@
 #define KK_PLATFORM_H
 
 /*---------------------------------------------------------------------------
-  Copyright 2020 Daan Leijen, Microsoft Corporation.
+  Copyright 2020,2021 Daan Leijen, Microsoft Corporation.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -13,14 +13,15 @@
 /*--------------------------------------------------------------------------------------
   Platform: we assume:
   - C99 as C compiler (syntax and library), with possible C11 extensions for threads and atomics.
-  - either a 32- or 64-bit platform (but others should be possible with few changes)
+  - either a 32- or 64-bit platform (but others should be possible with few changes).
   - the compiler can do a great job on small static inline definitions (and we avoid #define's).
   - the compiler will inline small structs (like `struct kk_box_s{ uintptr_t u; }`) without
     overhead (e.g. pass it in a register). This allows for better static checking.
-  - (>>) on signed integers is an arithmetic right shift (i.e. sign extending)
-  - a char/byte is 8 bits
-  - either little-endian, or big-endian
-  - carefully code with strict aliasing in mind 
+  - (>>) on signed integers is an arithmetic right shift (i.e. sign extending).
+  - a char/byte is 8 bits.
+  - either little-endian, or big-endian.
+  - carefully code with strict aliasing in mind.
+  - prefer signed over unsigned, use ptrdiff_t for sizes (see comments below).
 --------------------------------------------------------------------------------------*/
 #ifdef __cplusplus
 #define kk_decl_externc    extern "C"
@@ -146,11 +147,11 @@
 #endif
 
 // Define size of intptr_t
-#if INTPTR_MAX == INT64_MAX           // 9223372036854775807LL
+#if INTPTR_MAX == INT64_MAX         
 # define KK_INTPTR_SIZE 8
 # define KIP(i)         KI64(i)
 # define KUP(i)         KU64(i)
-#elif INTPTR_MAX == INT32_MAX         // 2147483647LL
+#elif INTPTR_MAX == INT32_MAX
 # define KK_INTPTR_SIZE 4
 # define KIP(i)         KI32(i)
 # define KUP(i)         KU32(i)
@@ -160,16 +161,16 @@
 #define KK_INTPTR_BITS        (8*KK_INTPTR_SIZE)
 #define KK_INTPTR_ALIGNUP(x)  ((((x)+KK_INTPTR_SIZE-1)/KK_INTPTR_SIZE)*KK_INTPTR_SIZE)
 
-// Define size of size_t and ssize_t 
-#if SIZE_MAX == UINT64_MAX           // 18446744073709551615LL
+// Define size of size_t and kk_ssize_t 
+#if SIZE_MAX == UINT64_MAX
 # define KK_SIZE_SIZE   8
 # define KIZ(i)         KI64(i)
 # define KUZ(i)         KU64(i)
 # define KK_SSIZE_MAX   INT64_MAX
 # define KK_SSIZE_MIN   INT64_MIN
 typedef int64_t         kk_ssize_t;
-#elif SIZE_MAX == UINT32_MAX         // 4294967295LL
-# define KK_SIZE_       SIZE 4
+#elif SIZE_MAX == UINT32_MAX         
+# define KK_SIZE_SIZE   4
 # define KIZ(i)         KI32(i)
 # define KUZ(i)         KU32(i)
 # define KK_SSIZE_MAX   INT32_MAX
@@ -180,14 +181,33 @@ typedef int32_t         kk_ssize_t;
 #endif
 #define KK_SIZE_BITS   (8*KK_SIZE_SIZE)
 
+// Define size of ptrdiff_t and kk_uptrdiff_t 
+#if PTRDIFF_MAX == INT64_MAX  
+# define KK_PTRDIFF_SIZE   8
+# define KIT(i)            KI64(i)
+# define KK_UT(i)          KU64(i)
+# define KK_UPTRDIFF_MAX   UINT64_MAX
+typedef uint64_t           kk_uptrdiff_t;
+#elif PTRDIFF_MAX == INT32_MAX
+# define KK_PTRDIFF_SIZE   4
+# define KIT(i)            KI32(i)
+# define KK_UT(i)          KU32(i)
+# define KK_UPTRDIFF_MAX   INT32_MAX
+typedef uint32_t           kk_uptrdiff_t;
+#else
+#error size of a `ptrdiff_t` must be 32 or 64 bits
+#endif
+#define KK_PTRDIFF_BITS   (8*KK_PTRDIFF_SIZE)
+
 // off_t: we always use 64-bit file offsets
 typedef int64_t     kk_off_t;
 #define KK_OFF_MAX  INT64_MAX
 #define KK_OFF_MIN  INT64_MIN
 
 
-// We limit the maximum object size (arrays) to at most `PTRDIFF_MAX` bytes so we can
-// always use _signed_ size_t (`kk_ssize_t`) to avoid:
+// We limit the maximum object size (and array sizes) to at most `PTRDIFF_MAX` bytes so we can
+// always use _signed_ `ptrdiff_t`(instead of `size_t`) to specify sizes and do indexing in arrays. 
+// This avoids:
 // - signed/unsigned conversion (especially when mixing pointer arithmetic and lengths),
 // - errors with overflow detection (consider `size > SIZE_MAX` versus `ssize > SSIZE_MAX`),
 // - loop bound errors (consider `for(unsigned u = 0; u < len()-1; u++)` if `len()` happens to be `0` etc.),
@@ -198,39 +218,41 @@ typedef int64_t     kk_off_t;
 // this is not a problem but string lengths for example on 32-bit are limited to be
 // "just" 2^31 bytes at most. Nevertheless, we feel this is an acceptible trade-off 
 // (especially since `malloc` nowadays is already limited to `PTRDIFF_MAX`).
-// Another more serious drawback is that signed overflow is undefined behaviour (!) so we
-// need to be extra careful with calculations that may overflow.
 //
 // We also need some helpers to deal with API's (like `strlen`) that use `size_t` results or arguments,
-// where we clamp the values into the range (but again, on modern systems this will not happen
+// where we clamp the values into the `ptrdiff_t` range (but again, on modern systems this will not happen
 // as these already limit the size of objects to SIZE_MAX/2 internally)
 
-static inline kk_ssize_t kk_to_ssize_t(size_t sz) {
-  kk_assert_internal(sz <= KK_SSIZE_MAX);
-  return (kk_likely(sz <= KK_SSIZE_MAX) ? (kk_ssize_t)sz : KK_SSIZE_MAX);
+#if (PTRDIFF_MAX < SIZE_MAX/2)
+#error the size of a `ptrdiff_t` must be at least `sizeof(size_t)`
+#endif
+
+static inline ptrdiff_t kk_from_size_t(size_t sz) {
+  kk_assert_internal(sz <= PTRDIFF_MAX);
+  return (kk_likely(sz <= PTRDIFF_MAX) ? (ptrdiff_t)sz : PTRDIFF_MAX);
 }
-static inline size_t kk_to_size_t(kk_ssize_t sz) {
+static inline size_t kk_to_size_t(ptrdiff_t sz) {
   kk_assert_internal(sz >= 0);
   return (kk_likely(sz >= 0) ? (size_t)sz : 0);
 }
 
 
 // We define `kk_intx_t` as an integer with the natural (fast) machine register size. 
-// We define it such that `sizeof(kk_intx_t) == max(sizeof(long),sizeof(size_t))`. 
+// We define it such that `sizeof(kk_intx_t) == max(sizeof(long),sizeof(ptrdiff_t))`. 
 // (We cannot use just `long` as it is sometimes too short (as on Windows 64-bit where a `long` is 32 bits).
-//  Similarly, `size_t` is sometimes too short as well (like on the x32 ABI with a 64-bit `long` but 32-bit addresses)).
-#if (ULONG_MAX < SIZE_MAX)
-typedef kk_ssize_t     kk_intx_t;
-typedef size_t         kk_uintx_t;
-#define KUX(i)         KUZ(i)
-#define KIX(i)         KIZ(i)
-#define KK_INTX_SIZE   KK_SIZE_SIZE
-#define KK_INTX_MAX    KK_SSIZE_MAX
-#define KK_INTX_MIN    KK_SSIZE_MIN
-#define PRIdIX         "%zd"
-#define PRIuUX         "%zu"
-#define PRIxUX         "%zx"
-#define PRIXUX         "%zX"
+//  Similarly, `ptrdiff_t` is sometimes too short as well (like on the x32 ABI with a 64-bit `long` but 32-bit addresses)).
+#if (LONG_MAX < PTRDIFF_MAX)
+typedef ptrdiff_t      kk_intx_t;
+typedef kk_uptrdiff_t  kk_uintx_t;
+#define KIX(i)         KIT(i)
+#define KUX(i)         KK_UT(i)
+#define KK_INTX_SIZE   KK_PTRDIFF_SIZE
+#define KK_INTX_MAX    PTRDIFF_MAX
+#define KK_INTX_MIN    PTRDIFF_MIN
+#define PRIdIX         "%td"
+#define PRIuUX         "%tu"
+#define PRIxUX         "%tx"
+#define PRIXUX         "%tX"
 #else 
 typedef long           kk_intx_t;
 typedef unsigned long  kk_uintx_t;
@@ -259,7 +281,8 @@ static inline uint64_t    kk_shr64(uint64_t u, kk_uintx_t shift) { return (u >> 
 #define KK_ARCH_LITTLE_ENDIAN   1
 //#define KK_ARCH_BIG_ENDIAN       1
 
-#define KK_FUNPTR_SIZE          KK_INTPTR_SIZE    // the size of function pointer: `void (*f)(void)`
+// the size of function pointer: `void (*f)(void)`
+#define KK_FUNPTR_SIZE    KK_INTPTR_SIZE    
 
 
 #endif // include guard
