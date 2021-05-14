@@ -969,7 +969,7 @@ fun maybe( b : bool ) : maybe<()> {
 // ----------------------------------------------------------------------------
 
 // Compare two integers
-inline extern compare : (int,int) -> order  {
+inline extern compare(^x : int, ^y : int) : order  {
   c inline "kk_int_as_order(kk_integer_cmp(#1,#2,kk_context()),kk_context())"
   cs "Primitive.IntCompare"
   js "$std_core._int_compare"
@@ -977,42 +977,42 @@ inline extern compare : (int,int) -> order  {
 
 
 // Are two integers equal?
-inline extern (==) : (int,int) -> bool  {
+inline extern (==)(^x : int, ^y : int) : bool  {
   c  "kk_integer_eq"
   cs inline "(#1 == #2)"
   js "$std_core._int_eq"
 }
 
 // Are two integers not equal?
-inline extern (!=) : (int,int) -> bool  {
+inline extern (!=)(^x : int, ^y : int) : bool  {
   c  "kk_integer_neq"
   cs inline "(#1 != #2)"
   js "$std_core._int_ne"
 }
 
 // Is the first integer smaller or equal to the second?
-inline extern (<=) : (int,int) -> bool  {
+inline extern (<=)(^x : int, ^y : int) : bool  {
   c  "kk_integer_lte"
   cs inline "(#1 <= #2)"
   js "$std_core._int_le"
 }
 
 // Is the first integer greater or equal to the second?
-inline extern (>=) : (int,int) -> bool  {
+inline extern (>=)(^x : int, ^y : int) : bool  {
   c  "kk_integer_gte"
   cs inline "(#1 >= #2)"
   js "$std_core._int_ge"
 }
 
 // Is the first integer smaller than the second?
-inline extern (<)  : (int,int) -> bool  {
+inline extern (<)(^x : int, ^y : int) : bool  {
   c  "kk_integer_lt"
   cs inline "(#1 < #2)"
   js "$std_core._int_lt"
 }
 
 // Is the first integer greater than the second?
-inline extern (>)  : (int,int) -> bool  {
+inline extern (>)(^x : int, ^y : int) : bool  {
   c  "kk_integer_gt"
   cs inline "(#1 > #2)"
   js "$std_core._int_gt"

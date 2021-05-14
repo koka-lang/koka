@@ -10,13 +10,14 @@ module Core.Borrowed( -- Borrowed parameter information
                       Borrowed
                     , borrowedNew
                     , borrowedEmpty
-                    , borrowedExtend 
+                    , borrowedExtend
                     , borrowedExtends
                     , borrowedLookup
                     , ppBorrowed
 
                     , extractBorrowDefs
                     , extractBorrowDef
+                    , extractBorrowExternals
                     ) where
 
 import Lib.Trace
@@ -41,8 +42,8 @@ import Lib.Trace
   Initial
 --------------------------------------------------------------------------}
 
--- | Environment mapping names to type schemes. Due to overloading
--- there may be multiple entries for the same qualified name
+-- | Map names to their borrowing info. If a name does not use borrowing
+-- it may not be in here.
 newtype Borrowed   = Borrowed (M.NameMap [ParamInfo])
 
 type BorrowDef = (Name,[ParamInfo])
@@ -76,8 +77,19 @@ extractBorrowDefs ::  DefGroups -> [BorrowDef]
 extractBorrowDefs dgs
   = concatMap extractDefGroup dgs
 
+extractBorrowExternals :: Externals -> [BorrowDef]
+extractBorrowExternals exs
+  = mapMaybe extractExternal exs
+
+extractExternal :: External -> Maybe BorrowDef
+extractExternal ex
+  = case ex of
+    External name _ params _ _ _ _ ->
+      if Borrow `elem` params then Just (name, params) else Nothing
+    _ -> Nothing
+
 extractDefGroup (DefRec defs)
-  = catMaybes (map (extractBorrowDef True) defs)
+  = mapMaybe (extractBorrowDef True) defs
 extractDefGroup (DefNonRec def)
   = maybeToList (extractBorrowDef False def)
 

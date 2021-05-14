@@ -60,7 +60,7 @@ import Core.FunLift           ( liftFunctions )
 import Core.Monadic           ( monTransform )
 import Core.MonadicLift       ( monadicLift )
 import Core.Inlines           ( inlinesExtends, extractInlineDefs )
-import Core.Borrowed          ( Borrowed, borrowedExtends, extractBorrowDefs )
+import Core.Borrowed          ( Borrowed, borrowedExtends, extractBorrowDefs, extractBorrowExternals )
 import Core.Inline            ( inlineDefs )
 
 import Static.BindingGroups   ( bindingGroups )
@@ -1227,7 +1227,8 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
                       Executable name tp -> Just (name,isAsyncFunction tp)
                       _                  -> Nothing
       let -- (core,unique) = parcCore (prettyEnvFromFlags flags) newtypes unique0 core0
-          borrowed = borrowedExtends (extractBorrowDefs (Core.coreProgDefs core0)) borrowed0
+          borrowed = borrowedExtends (extractBorrowDefs (Core.coreProgDefs core0)) $
+            borrowedExtends (extractBorrowExternals (Core.coreProgExternals core0)) borrowed0
           (cdoc,hdoc,bcore) = cFromCore sourceDir (prettyEnvFromFlags flags) (platform flags)
                                 newtypes borrowed unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
                                 mbEntry core0

@@ -1268,8 +1268,6 @@ int kk_integer_cmp_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
   kk_bigint_t* by = kk_integer_to_bigint(y, ctx);
   int sign = bigint_compare_(bx, by);
-  drop_bigint(bx, ctx);
-  drop_bigint(by, ctx);
   return sign;
 }
 

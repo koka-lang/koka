@@ -70,13 +70,35 @@ parcDef topLevel def
   = (if topLevel then isolated_ else id) $
     withCurrentDef def $
     do -- parcTrace "enter def"
-       expr <- parcExpr (defExpr def)
+       expr <- (if topLevel then parcTopLevelExpr (defName def) (defSort def) else parcExpr) (defExpr def)
        return def{defExpr=expr}
 
 
 --------------------------------------------------------------------------
 -- Main PARC algorithm
 --------------------------------------------------------------------------
+
+parcTopLevelExpr :: Name -> DefSort -> Expr -> Parc Expr
+parcTopLevelExpr name (DefFun bs) expr
+  = case expr of
+      TypeLam tpars body
+        -> TypeLam tpars <$> parcTopLevelExpr name (DefFun bs) body
+      Lam pars eff body
+        -> do let parsBs = zip pars $ bs ++ repeat Own
+              let parsSet = S.fromList $ map fst $ filter (\x -> snd x == Own) parsBs
+
+              -- todo: this is a whole second pass. is there any way around this?
+              -- maybe we should track a borrowed set and presume owned, instead
+              -- of the other way around?
+              let caps = freeLocals expr
+              (body', _) <- isolateWith S.empty
+                             $ withOwned S.empty
+                             $ ownedInScope (S.union caps parsSet)
+                             $ parcExpr body
+              dups <- foldMapM useTName caps
+              return (maybeStats dups $ Lam pars eff body')
+      _ -> parcExpr expr
+parcTopLevelExpr _ _ expr = parcExpr expr
 
 parcExpr :: Expr -> Parc Expr
 parcExpr expr
@@ -92,21 +114,38 @@ parcExpr expr
               let caps = freeLocals expr
               let parsSet = S.fromList pars
               (body', live) <- isolateWith S.empty
-                             -- $ withOwned caps  -- captured variables are owned
-                             -- $ ownedInScope parsSet
                              $ withOwned S.empty
                              $ ownedInScope (S.union caps parsSet)
                              $ parcExpr body
               dups <- foldMapM useTName caps
-              -- assertion ("parcExpr: caps==live: " ++ show caps ++ " != " ++ show live ++ "\n  in: " ++ show expr) (caps == live) $
               assertion("Backend.C.Parc.parcExpr.Lam: live==[]: " ++ show live ++ "\n in: " ++ show expr) (S.null live) $
                 return (maybeStats dups $ Lam pars eff body')
       Var tname info | infoIsRefCounted info
         -> do -- parcTrace ("refcounted: " ++ show tname ++ ": " ++ show info)
               fromMaybe expr <$> useTName tname
+
+      -- todo: Functions/Externals are not reference-counted,
+      -- but they need to be wrapped if they appear outside of an application.
       Var tname info -- InfoArity/External/Field are not reference-counted
         -> do -- parcTrace ("not refcounted: " ++ show tname ++ ": " ++ show info)
-              return expr
+              bs <- getParamInfos (getName tname)
+              if Borrow `elem` bs
+                then do parcTrace $ "No wrapping: " ++ show tname ++ "!"; return expr
+                else return expr
+      App (Var tname info) args
+        -> do bs <- getParamInfos (getName tname)
+              let argsBs = zip args $ bs ++ repeat Own
+              args' <- flip reverseMapM argsBs $ \(a, b) -> do
+                case (a, b) of
+                  (_, Own) -> (\x -> ([], x)) <$> parcExpr a
+                  (Var tname info, Borrow)
+                    | infoIsRefCounted info -> do markLive tname; return ([], Var tname info)
+                    | otherwise -> do return ([], Var tname info)
+                  (_, Borrow) -> do
+                    argName <- uniqueName "borrowArg"
+                    let def = makeDef argName a
+                    return ([DefNonRec def], Var (defTName def) InfoNone)
+              return $ makeLet (concatMap fst args') $ App (Var tname info) $ map snd args'
       App fn args
         -> do args' <- reverseMapM parcExpr args
               fn'   <- parcExpr fn
@@ -121,8 +160,8 @@ parcExpr expr
         -> do body' <- ownedInScope (bv def) $ parcExpr (Let dgs body)
               def'  <- parcDef False def
               return $ makeLet [DefNonRec def'] body'
-      Let _ _
-        -> failure "Backend.C.Parc.parcExpr"
+      Let (DefRec _ : _) _
+        -> failure "Backend.C.Parc.parcExpr: Recursive definition in let"
       Case vars brs | caseIsNormalized vars brs
         -> Case vars <$> parcBranches (varNames vars) brs
       Case _ _
@@ -847,10 +886,12 @@ getShapeInfoOf tname m
       Just shape -> shape
       Nothing    -> (ShapeInfo Nothing Nothing Nothing)
 
-getParamInfos :: TName -> Parc [ParamInfo]
-getParamInfos tname
+-- | Return borrowing infos for a name. May return the empty list
+-- if no borrowing takes place.
+getParamInfos :: Name -> Parc [ParamInfo]
+getParamInfos name
   = do b <- borrowed <$> getEnv
-       case borrowedLookup (getName tname) b of
+       case borrowedLookup name b of
          Nothing -> return []
          Just pinfos -> return pinfos
 
@@ -893,14 +934,18 @@ isolateWith live action
 ------------------------
 -- scope abstractions --
 
+-- | Assume the variables as owned in the scope
+-- and remove them from the live set afterwards
 scoped :: TNames -> Parc a -> Parc a
 scoped vars action
   = do expr <- extendOwned vars $
-               -- extendShapes (M.fromList [(v,ShapeInfo S.empty Nothing) | v <- (S.elems vars)]) $
                action
        forget vars
        return expr
 
+-- | Assume the variables as owned in the scope
+-- and insert the necessary drops
+-- and remove them from the live set afterwards
 ownedInScope :: TNames -> Parc Expr -> Parc Expr
 ownedInScope vars action
   = scoped vars $
