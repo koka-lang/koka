@@ -44,7 +44,6 @@ kk_decl_export kk_box_t kk_ref_swap_thread_shared(kk_ref_t r, kk_box_t value, kk
   do {
     if (b.box==0) { b.box = 1; }  // any value but 0
   } while (!kk_atomic_cas_weak_relaxed(&r->value, &b.box, value.box));
-  kk_box_dup(b);
   kk_ref_drop(r, ctx);
   return b;
 }
