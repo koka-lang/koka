@@ -158,6 +158,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\out\Debug\interactive.c" />
+    <ClCompile Include="..\..\..\out\Debug\samples_basic_garsia_dash_wachs.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core_hnd.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core_types.c" />
