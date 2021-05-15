@@ -741,7 +741,7 @@ ccMsvc name path
           (RelWithDebInfo,words "-MD -Zi -O2 -Ob1 -DNDEBUG")]
          ["-W3"]
          ["-TC","-c"]
-         ["-link", "/NODEFAULTLIB:msvcrt"]
+         ["-link"] -- , "/NODEFAULTLIB:msvcrt"]
          (\libdir -> ["/LIBPATH:" ++ libdir])
          (\idir -> ["-I",idir])
          (\fname -> ["-Fo" ++ ((notext fname) ++ objExtension)])

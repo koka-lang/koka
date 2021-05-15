@@ -155,7 +155,7 @@ fun test2() {
 }
 
 fun main() {
-  test1()
+  // test1()
   test2()
 }
 
