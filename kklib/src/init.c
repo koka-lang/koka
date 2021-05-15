@@ -169,6 +169,9 @@ static void kklib_init(void) {
   __cpuid(cpu_info, (int)(0x80000001));
   __has_lzcnt  = ((cpu_info[2] & (KI32(1)<<5)) != 0);
 #endif
+#if (defined(__has_feature) && __has_feature(address_sanitizer)) || defined(__SANITIZE_ADDRESS__)
+  fputs("info: address sanitizer enabled.\n", stderr);
+#endif
   atexit(&kklib_done);  
 }
 
@@ -195,7 +198,7 @@ kk_context_t* kk_get_context(void) {
   ctx = (kk_context_t*)mi_heap_zalloc(heap, sizeof(kk_context_t));
   ctx->heap = heap;
 #else
-  ctx = (kk_context_t*)calloc(1, sizeof(kk_context_t));
+  ctx = (kk_context_t*)kk_zalloc(sizeof(kk_context_t),NULL);
 #endif
   ctx->evv = kk_block_dup(kk_evv_empty_singleton);
   ctx->thread_id = (uintptr_t)(&context);
