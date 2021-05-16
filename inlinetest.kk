@@ -1,18 +1,27 @@
 // stack run -- --core --fno-optctail inlinetest.kk
 
-fun noeffectmap(f : int -> int, xs : list <int>) : list<int> {
+// from std core
+// fun map2(xs : list<a>, f : a -> e b) : e list<b> {
+//   match(xs) {
+//     Cons(x,xx) -> Cons(f(x), xx.map2(f))
+//     Nil -> Nil
+//   }
+// }
+
+
+fun noeffectmap(f : a -> b, xs : list <a>) : list<b> {
     match (xs) {
         Nil -> Nil
         Cons(x, xs) -> Cons(f(x), noeffectmap(f, xs))
     }
 }
 
-fun flipnoeffectmap(xs : list<int>, f : int -> int) : list<int> {
-    match (xs) {
-        Nil -> Nil
-        Cons(x, xs) -> Cons(f(x), flipnoeffectmap(xs, f))
-    }
-}
+// fun flipnoeffectmap(xs : list<int>, f : int -> int) : list<int> {
+//     match (xs) {
+//         Nil -> Nil
+//         Cons(x, xs) -> Cons(f(x), flipnoeffectmap(xs, f))
+//     }
+// }
 
 // fun map2(xs : list<a>, f : a -> a, g : a -> a) : list<a> {
 //     match(xs) {
@@ -76,6 +85,7 @@ fun main() {
     // val f = fn(x) { x + 3 }
     // (fn(x) { x + 3 })(2).println
     // mapEven([1,2,3,4,5], fn (x) { x+1 }, fn(x) { x - 1 } ).foreach(println)
+    // map2([1,2,3], fn (x) { x + 1 }).foreach(println)
     noeffectmap(fn (x) { x + 1 }, [1,2,3]).foreach(println)
-    flipnoeffectmap([1,2,3], fn (x) { x + 1 }).foreach(println)
+    // flipnoeffectmap([1,2,3], fn (x) { x + 1 }).foreach(println)
 }

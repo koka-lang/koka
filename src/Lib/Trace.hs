@@ -9,7 +9,7 @@
     Debug module to insert 'trace' statements.
 -}
 -----------------------------------------------------------------------------
-module Lib.Trace( trace, traceDoc, ctrace, Color(..), traceShowId, traceShow, traceM, traceShowM, traceId ) where
+module Lib.Trace( trace, traceDoc, ctrace, Color(..), traceShowId, traceShow, traceM, traceShowM, traceId, traceEq ) where
 
 import Lib.Printer
 import Lib.PPrint

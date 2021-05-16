@@ -38,17 +38,22 @@ passedRecursivelyToThisDef :: Def -> NameMap Int
 passedRecursivelyToThisDef def 
   -- TODO: FunDef type to avoid this check?
   | Lam args effect body <- defExpr def = foldMapExpr (go args) $ defExpr def
+  | TypeLam _ (Lam params effect body) <- defExpr def = foldMapExpr (go params) $ defExpr def
   | otherwise = M.empty
   where
-    go args (App (Var (TName name _) _) xs)
-      | name == defName def =
+    go params (App (Var (TName name _) _) args)
+      | name == defName def = doWork args params
+    go params (App (TypeApp (Var (TName name _) _) _) args)
+      | name == defName def = doWork args params
+    go params _ = M.empty
+
+    doWork args params =
           M.fromList $ do
-            (i, Var tname _) <- zip [0..] xs
-            case fmap fst $ find ((== tname) . snd) $ zip [0..] args of
+            (argIndex, Var tname _) <- zip [0..] args
+            case fmap fst $ find ((== tname) . snd) $ zip [0..] params of
               Nothing -> []
               -- index should match i.e. we didn't pass it in a different order in the recursive call
-              Just index | i == index -> [(getName tname, i)]
-    go args _ = M.empty
+              Just paramIndex | argIndex == paramIndex -> [(getName tname, argIndex)]
 
 getInline :: Def -> [SpecializeDef]
 getInline def = map (\(k, v) -> SpecializeDef (defName def) v) $ M.toList $ M.filterWithKey (\k v -> k `S.member` calledInThisDef def) (passedRecursivelyToThisDef def)
