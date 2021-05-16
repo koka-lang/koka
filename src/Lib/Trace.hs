@@ -35,7 +35,10 @@ traceShowId s = trace (show s) s
 
 traceDoc :: Doc -> a -> a
 traceDoc msg x = trace (show msg) x
-  
+
+traceEq :: (Show a) => String -> a -> a
+traceEq name val = trace (name ++ " = " ++ show val) val
+
 ctrace :: Color -> String -> a -> a
 ctrace clr msg x
   = seq (unsafePerformIO $ 

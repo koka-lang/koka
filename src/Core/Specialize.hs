@@ -3,6 +3,8 @@ module Core.Specialize where
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (mapMaybe)
+import Data.List (find)
+import Control.Monad
 
 import Common.Name
 import Common.NameMap (NameMap)
@@ -16,7 +18,7 @@ data SpecializeDef = SpecializeDef
   { targetFunc :: Name
   -- this works if we pass in a named func but how can we uniquely identify a lambda?
   -- could be the position of the parameter, although that only works at the call site
-  , argToSpecialize :: Name
+  , argToSpecialize :: Int
   } deriving (Show)
 
 extractSpecializeDefs :: DefGroups -> NameMap SpecializeDef
@@ -26,27 +28,30 @@ extractSpecializeDefs =
   . concatMap getInline 
   . allDefs
 
-traceEq :: (Show a) => String -> a -> a
-traceEq name val = trace (name ++ " = " ++ show val) val
-
 calledInThisDef :: Def -> NameSet
 calledInThisDef def = foldMapExpr go $ defExpr def
   where 
     go (App (Var (TName name _) _) xs) = S.singleton name
     go _ = S.empty
 
-passedRecursivelyToThisDef :: Def -> NameSet
+passedRecursivelyToThisDef :: Def -> NameMap Int
 passedRecursivelyToThisDef def 
   -- TODO: FunDef type to avoid this check?
-  | Lam args effect body <- defExpr def = foldMapExpr go $ defExpr def
-  | otherwise = S.empty
+  | Lam args effect body <- defExpr def = foldMapExpr (go args) $ defExpr def
+  | otherwise = M.empty
   where
-    Lam args effect body = defExpr def
-    go (App (Var (TName name _) _) xs) | name == defName def = S.fromList $ [getName tname | (Var tname _) <- xs, tname `elem` args] -- filter (`elem` xs) args
-    go _ = S.empty
+    go args (App (Var (TName name _) _) xs)
+      | name == defName def =
+          M.fromList $ do
+            (i, Var tname _) <- zip [0..] xs
+            case fmap fst $ find ((== tname) . snd) $ zip [0..] args of
+              Nothing -> []
+              -- index should match i.e. we didn't pass it in a different order in the recursive call
+              Just index | i == index -> [(getName tname, i)]
+    go args _ = M.empty
 
 getInline :: Def -> [SpecializeDef]
-getInline def = map (\name -> SpecializeDef name name) $ S.toList $ S.intersection (calledInThisDef def) (passedRecursivelyToThisDef def)
+getInline def = map (\(k, v) -> SpecializeDef (defName def) v) $ M.toList $ M.filterWithKey (\k v -> k `S.member` calledInThisDef def) (passedRecursivelyToThisDef def)
 
 allDefs :: DefGroups -> [Def]
 allDefs = concatMap handleGroup

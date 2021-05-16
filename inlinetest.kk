@@ -7,6 +7,21 @@ fun noeffectmap(f : int -> int, xs : list <int>) : list<int> {
     }
 }
 
+fun flipnoeffectmap(xs : list<int>, f : int -> int) : list<int> {
+    match (xs) {
+        Nil -> Nil
+        Cons(x, xs) -> Cons(f(x), flipnoeffectmap(xs, f))
+    }
+}
+
+// fun map2(xs : list<a>, f : a -> a, g : a -> a) : list<a> {
+//     match(xs) {
+//         Nil -> Nil
+//         // swapping the order here, can this get specialized?
+//         Cons(x, xs) -> Cons(f(x), map2(g, f))
+//     }
+// }
+
 // fun mapplusone(xs : list<int>) : list<int> {
 //     // this gets inlined during the simplification pass
 //     // val plusone = fn (x) { x + 1 }
@@ -62,4 +77,5 @@ fun main() {
     // (fn(x) { x + 3 })(2).println
     // mapEven([1,2,3,4,5], fn (x) { x+1 }, fn(x) { x - 1 } ).foreach(println)
     noeffectmap(fn (x) { x + 1 }, [1,2,3]).foreach(println)
+    flipnoeffectmap([1,2,3], fn (x) { x + 1 }).foreach(println)
 }
