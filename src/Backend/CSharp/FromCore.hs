@@ -78,14 +78,10 @@ csharpFromCore useCps mbMain core
                   }
 
 includeExternal :: External -> [Doc]
-includeExternal (ExternalInclude includes range)
-  = let content = case lookup CS includes of
-                    Just s -> s
-                    Nothing -> case lookup Default includes of
-                                 Just s -> s
-                                 Nothing -> "" -- failure ("backend does not support external inline at " ++ show range)
-    in [text content]
-includeExternal _  = []
+includeExternal ext
+  = case externalImportLookup CS "include-inline" ext of
+      Just content -> [text content]
+      _ -> []
 
 
 ppMain :: Name -> Type -> Doc

@@ -80,7 +80,10 @@ if exist "%USERPROFILE%\.vscode\extensions" (
 
 
 if "%koka_version%" == "" goto done
-if "%koka_version%" == "%_KOKA_VERSION%" goto done
+if "%koka_version%" == "%_KOKA_VERSION%" (
+  echo Updated koka version %_KOKA_VERSION% in-place
+  goto done
+)
 if not exist "%_KOKA_PREFIX%\share\koka\%koka_version%" goto done
 
 echo.

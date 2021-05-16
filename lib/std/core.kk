@@ -26,22 +26,21 @@ infix  40  (!=), (==), (<=), (>=), (<), (>)
 
 // prefix     (!), (-) 
 
-
-extern include {
+extern import {
   c  file "core/core-inline"
   cs file "core/core-inline.cs"
   js file "core/core-inline.js"
 }
 
-extern include {
+extern import {
   js file "core/core-string-inline.js"
 }
 
-extern include {
+extern import {
   js file "core/core-console-inline.js"
 }
 
-extern include {
+extern import {
   js file "../../contrib/biginteger.js"
 }
 
@@ -2180,7 +2179,7 @@ private extern int-show-hex(i:int,use-capitals:bool) : string {
 fun show-hex( i : int, width : int = 1, use-capitals : bool = True, pre : string = "0x" ) {
   (if (i<0) then "-" else "") ++ pre ++ int-show-hex(i.abs,use-capitals).pad-left(width,'0')
 }
-
+ 
 // Show a `:double` as a string.
 // If `d >= 1.0e-5` and `d < 1.0e+21`, `show-fixed` is used and otherwise `show-exp`.
 // Default `precision` is `-17`.
@@ -2252,7 +2251,7 @@ fun show( c : char ) : string
 
 
 // Show a string as a string literal
-fun show( s : string ) : string
+noinline fun show( s : string ) : string 
 {
   "\"" ++ s.list.map(show-char).join ++ "\""
 }

@@ -26,6 +26,7 @@ module Core.Core ( -- Data structures
                    , extractSignatures
                    , typeDefIsExtension
                    , typeDefVis
+                   , externalImportLookup
 
                      -- Core term builders
                    , defIsVal, defParamInfos
@@ -225,14 +226,24 @@ data External = External{ externalName :: Name
                         , externalRange :: Range
                         , externalDoc :: String
                         }
-              | ExternalInclude{ externalInclude :: [(Target,String)]
-                               , externalRange :: Range }
               | ExternalImport { externalImport :: [(Target,[(String,String)])]
                                , externalRange :: Range }
 
 externalVis :: External -> Visibility
 externalVis (External{ externalVis' = vis }) = vis
 externalVis _ = Private
+
+externalImportLookup :: Target -> String -> External -> Maybe String
+externalImportLookup target key (ExternalImport imports range)
+  = let keyvals = case lookup target imports of
+                    Just keyvals -> keyvals
+                    Nothing -> case lookup Default imports of
+                                 Just keyvals -> keyvals
+                                 Nothing -> [] 
+    in lookup key keyvals
+externalImportLookup target key ext 
+  = Nothing
+
 
 {--------------------------------------------------------------------------
   Type definitions

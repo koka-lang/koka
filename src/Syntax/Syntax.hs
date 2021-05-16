@@ -69,12 +69,11 @@ data External
             , extVis  :: Visibility
             , extDoc :: String
             }
-  | ExternalInclude{ extInclude :: [(Target,String)]
-                   , extRange :: Range
-                   }
   | ExternalImport{ extImport :: [(Target,[(String,String)])]
                   , extRange :: Range }
   deriving (Show)
+
+
 
 
 data ExternalCall
