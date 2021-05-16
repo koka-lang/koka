@@ -4,7 +4,7 @@
 
 #define KKLIB_BUILD        23       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
-#define KK_DEBUG_FULL       1
+// #define KK_DEBUG_FULL       1
 
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.

@@ -31,5 +31,6 @@
     <ClCompile Include="..\..\..\out\Debug\std_time_utc.c" />
     <ClCompile Include="..\..\..\out\Debug\test_lib_time11.c" />
     <ClCompile Include="..\..\..\out\Debug\samples_basic_garsia_dash_wachs.c" />
+    <ClCompile Include="..\..\..\out\Debug\test_algeff_implicits.c" />
   </ItemGroup>
 </Project>
