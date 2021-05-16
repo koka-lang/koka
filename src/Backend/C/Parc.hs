@@ -16,7 +16,7 @@ module Backend.C.Parc ( parcCore ) where
 import Lib.Trace (trace)
 import Control.Monad
 import Control.Monad.Reader
-import Control.Monad.State
+import Control.Monad.State.Strict
 import Data.Maybe ( catMaybes, fromMaybe, isJust )
 import Data.Char
 import qualified Data.List as L
@@ -236,7 +236,8 @@ optimizeGuard enabled ri dups rdrops
 
 optimizeGuardEx :: (TName -> Maybe TNames) -> (TName -> Maybe Name) -> ReuseInfo -> Dups -> [DropInfo] -> Parc [Maybe Expr]
 optimizeGuardEx mchildrenOf conNameOf ri dups rdrops
-  = optimize dups rdrops
+  = -- trace ("optimizeGuardEx: " ++ show (dups, rdrops)) $
+    optimize dups rdrops
   where
     childrenOf parent
       = case (mchildrenOf parent) of
@@ -265,12 +266,13 @@ optimizeGuardEx mchildrenOf conNameOf ri dups rdrops
                      set <- genSetNull ri y
                      return $ rest ++ [set]
              Drop _ | S.member y dups
-               -> optimize (S.delete y dups) ys -- dup/drop cancels
+               -> -- trace ("cancel dup/drop of " ++ show y) $
+                  optimize (S.delete y dups) ys -- dup/drop cancels
              Drop _ | Just x <- forwardingChild platform newtypes childrenOf dups y
                -- cancel with boxes, value types that simply
                -- forward their drops to their children
-               -> do -- parcTrace $ "fuse forward child: " ++ show y ++ " -> " ++ show x
-                     optimize (S.delete x dups) ys
+               -> -- trace ("fuse forward child: " ++ show y ++ " -> " ++ show x) $
+                  optimize (S.delete x dups) ys
              _ -> do let (yDups, dups') = S.partition (isDescendentOf y) dups
                      let (yRecs, ys')   = L.partition (isDescendentOf y . dropInfoVar) ys
                      rest    <- optimize dups' ys'             -- optimize outside the y tree
@@ -279,7 +281,8 @@ optimizeGuardEx mchildrenOf conNameOf ri dups rdrops
 
     specialize :: Dups -> DropInfo -> [DropInfo] -> Parc (Maybe Expr)
     specialize dups v drops     -- dups and drops are descendents of v
-      = do xShared <- optimize dups drops   -- for the non-unique branch
+      = -- trace ("enter specialize: " ++ show (mchildrenOf (dropInfoVar v)) ++ ", " ++ show (dups,v,drops)) $
+        do xShared <- optimize dups drops   -- for the non-unique branch
            xUnique <- optimize dups $
                       map Drop (S.toList . childrenOf $ dropInfoVar v) ++ drops -- drop direct children in unique branch (note: `v \notin drops`)
            xDecRef <- genDecRef (dropInfoVar v)
@@ -299,26 +302,29 @@ optimizeGuardEx mchildrenOf conNameOf ri dups rdrops
                      return $ Just $ makeIfExpr (genIsUnique y)
                                 (maybeStatsUnit (xUnique ++ [xReuse]))
                                 (maybeStatsUnit (xShared ++ [xDecRef, xSetNull]))
-
+ 
              Drop y | isValue && S.size (childrenOf (dropInfoVar v)) == length dups && null drops
                -- Try to optimize a dropped value type where all fields are dup'd and where
                -- the fields are not boxed in a special way (all BoxIdentity).
                -- this optimization is important for TRMC for the `ctail` value type.
-               -> -- trace ("drop spec value: " ++ show (mchildrenOf (dropInfoVar v)) ++ ", " ++ show (dups,v,drops)) $
+               -> -- trace ("drop spec value: " ++ show (mchildrenOf (dropInfoVar v)) ++ ", " ++ show (dups,v,drops) ++ ", " ++ show tp) $
                   do mftps <- getFieldTypes tp (conNameOf (dropInfoVar v))
                      case mftps of
                        Nothing   -> noSpecialize y
                        Just ftps -> do bforms <- mapM getBoxForm ftps
                                        if (all isBoxIdentity bforms)
-                                         then return Nothing
+                                         then -- trace ("  all box identity: " ++ show v) $
+                                              return Nothing
                                          else -- trace (" no identity: " ++ show (bforms,map pretty ftps)) $
                                               noSpecialize y
 
              Drop y | dontSpecialize
                -- don't specialize certain primitives
-               -> noSpecialize y
+               -> do -- parcTrace $ "no specialize: " ++ show y
+                     noSpecialize y
              Drop y
-               -> do xFree <- genFree y
+               -> do -- parcTrace $ "specialize: " ++ show y
+                     xFree <- genFree y
                      return $ Just $ makeIfExpr (genIsUnique y)
                                 (maybeStatsUnit (xUnique ++ [xFree]))
                                 (maybeStatsUnit (xShared ++ [xDecRef]))
@@ -515,16 +521,19 @@ isBoxIdentity _           = False
 getBoxForm' :: Platform -> Newtypes -> Type -> BoxForm
 getBoxForm' platform newtypes tp
   = case getDataDef' newtypes tp of
-      (DataDefValue _ 0) -- 0 scan fields
+      Just (DataDefValue _ 0) -- 0 scan fields
         -> case extractDataDefType tp of
              Just name
                | name `elem` [nameTpInt, nameTpChar, nameTpInt8, nameTpInt16, nameTpByte, nameTpCField] ||
                  ((name `elem` [nameTpInt32, nameTpFloat32]) && sizePtr platform > 4)
                    -> BoxIdentity
              _ -> BoxRaw
-      (DataDefValue _ _)
+      Just (DataDefValue _ _)
         -> BoxValue
-      _ -> BoxIdentity
+      Just _
+        -> BoxIdentity
+      Nothing 
+        -> BoxValue
 
 getBoxForm :: Type -> Parc BoxForm
 getBoxForm tp
@@ -559,10 +568,10 @@ data ValueForm
 getValueForm' :: Newtypes -> Type -> Maybe ValueForm
 getValueForm' newtypes tp
   = case getDataDef' newtypes tp of
-      (DataDefValue _ 0) -> Just ValueAllRaw
-      (DataDefValue 0 1) -> Just ValueOneScan
-      (DataDefValue _ _) -> Just ValueOther
-      _                  -> Nothing
+      Just (DataDefValue _ 0) -> Just ValueAllRaw
+      Just (DataDefValue 0 1) -> Just ValueOneScan
+      Just (DataDefValue _ _) -> Just ValueOther
+      _                       -> Nothing
 
 getValueForm :: Type -> Parc (Maybe ValueForm)
 getValueForm tp = (`getValueForm'` tp) <$> getNewtypes
@@ -588,21 +597,25 @@ genDupDrop isDup tname mbConRepr mbScanCount
   = do let tp = typeOf tname
        mbDi     <- getDataInfo tp
        borrowed <- isBorrowed tname
-       -- parcTrace $ "gen dup/drop: " ++ show tname ++ ": " ++ show (mbDi,mbConRepr,mbScanCount,borrowed,isDup)
+       -- parcTrace $ "gen dup/drop: " ++ (if (isDup) then "dup" else "drop") ++ " " ++ show tname ++ ": " ++ 
+       --            show (mbDi,mbConRepr,mbScanCount,borrowed)
        if borrowed && not isDup
-         then return Nothing
+         then do -- parcTrace $ "  borrowed and drop, " ++ show tname
+                 return Nothing
          else let normal = (Just (dupDropFun isDup tp mbConRepr mbScanCount (Var tname InfoNone)))
               in case mbDi of
                 Just di -> case (dataInfoDef di, dataInfoConstrs di, snd (getDataRepr di)) of
                              (DataDefNormal, [conInfo], [conRepr])  -- data with just one constructor
                                -> do scan <- getConstructorScanFields (TName (conInfoName conInfo) (conInfoType conInfo)) conRepr
-                                     -- parcTrace $ " add scan fields: " ++ show scan
+                                     -- parcTrace $ "  add scan fields: " ++ show scan ++ ", " ++ show tname
                                      return (Just (dupDropFun isDup tp (Just (conRepr,conInfoName conInfo)) (Just scan) (Var tname InfoNone)))
                              (DataDefValue _ 0, _, _)
-                               -> do -- parcTrace $ " value with no scan fields"
+                               -> do -- parcTrace $ ("  value with no scan fields: " ++ show di ++  ", " ++ show tname)
                                      return Nothing  -- value with no scan fields
-                             _ -> return normal
-                _ -> return normal
+                             _ -> do -- parcTrace $ "  dup/drop(1), " ++ show tname
+                                     return normal
+                _ -> do -- parcTrace $ "  dup/drop(2), " ++ show tname
+                        return normal
 
 genDup name  = do genDupDrop True name Nothing Nothing
 genDrop name = do shape <- getShapeInfo name
@@ -924,11 +937,11 @@ getDataInfo' newtypes tp
                       Just di -> -- trace ("datainfo of " ++ show (pretty tp) ++ " = " ++ show di) $
                                  Just di
 
-getDataDef' :: Newtypes -> Type -> DataDef
+getDataDef' :: Newtypes -> Type -> Maybe DataDef
 getDataDef' newtypes tp
   = case getDataInfo' newtypes tp of
-      Just di -> dataInfoDef di
-      _       -> DataDefNormal
+      Just di -> Just (dataInfoDef di)
+      _       -> Nothing -- DataDefNormal
 
 
 getDataInfo :: Type -> Parc (Maybe DataInfo)
@@ -939,7 +952,9 @@ getDataInfo tp
 getDataDef :: Type -> Parc DataDef
 getDataDef tp
   = do newtypes <- getNewtypes
-       return (getDataDef' newtypes tp)
+       return (case getDataDef' newtypes tp of
+                 Just dd -> dd
+                 Nothing -> DataDefNormal)
 
 
 extractDataDefType :: Type -> Maybe Name

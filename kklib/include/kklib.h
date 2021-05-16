@@ -4,6 +4,7 @@
 
 #define KKLIB_BUILD        23       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
+#define KK_DEBUG_FULL       1
 
 /*---------------------------------------------------------------------------
   Copyright 2020 Daan Leijen, Microsoft Corporation.
@@ -262,7 +263,8 @@ typedef struct kk_duration_s {
 
 // Box any is used when yielding
 typedef struct kk_box_any_s {
-  kk_block_t  _block;
+  kk_block_t    _block;
+  kk_integer_t  _unused;
 } *kk_box_any_t;
 
 //A yield context allows up to 8 continuations to be stored in-place
@@ -675,7 +677,7 @@ static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
                   is `_base` and points to the base type as a `basetype`
 --------------------------------------------------------------------------------------*/
 
-// #define kk_basetype_tag(v)                     (kk_block_tag(&((v)->_block)))
+//#define kk_basetype_tag(v)                     (kk_block_tag(&((v)->_block)))
 #define kk_basetype_has_tag(v,t)               (kk_block_has_tag(&((v)->_block),t))
 #define kk_basetype_is_unique(v)               (kk_block_is_unique(&((v)->_block)))
 #define kk_basetype_as(tp,v)                   (kk_block_as(tp,&((v)->_block)))
