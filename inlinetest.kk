@@ -23,11 +23,28 @@ fun noeffectmap(f : a -> b, xs : list <a>) : list<b> {
 //     }
 // }
 
-// fun map2(xs : list<a>, f : a -> a, g : a -> a) : list<a> {
-//     match(xs) {
+fun map2(xs : list<a>, f : a -> a, g : a -> a) : list<a> {
+    match(xs) {
+        Nil -> Nil
+        // swapping the order here, should this get specialized?
+        Cons(x, xs) -> Cons(f(x), map2(xs, g, f))
+    }
+}
+
+fun mapTwice(xs : list<a>, f : a -> b, g : a -> b) : list<b> {
+    match (xs) {
+        Nil -> Nil
+        Cons(x, Cons(y, xs)) -> Cons(f(x), Cons(g(y), xs.mapTwice(f, g)))
+        Cons(x, Nil) -> Cons(f(x), Nil)
+    }
+}
+
+// --> specialize on f
+// supposing f is (+1), g is (-1)
+// fun map2_specialize_f(xs : list <a>, g : a -> a) {
+//     match (xs) {
 //         Nil -> Nil
-//         // swapping the order here, can this get specialized?
-//         Cons(x, xs) -> Cons(f(x), map2(g, f))
+//         Cons(x, xs) -> Cons(x+1, map_2(xs, (+1), g))
 //     }
 // }
 
@@ -88,4 +105,5 @@ fun main() {
     // map2([1,2,3], fn (x) { x + 1 }).foreach(println)
     noeffectmap(fn (x) { x + 1 }, [1,2,3]).foreach(println)
     // flipnoeffectmap([1,2,3], fn (x) { x + 1 }).foreach(println)
+    mapTwice([1,2,3], fn (x) {x + 1}, fn (x) {x - 1})
 }

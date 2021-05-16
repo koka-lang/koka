@@ -107,6 +107,8 @@ import Compiler.Package
 -- Debugging
 import Lib.Trace
 
+import qualified Data.Map
+
 
 {--------------------------------------------------------------------------
   Compilation
@@ -885,6 +887,7 @@ inferCheck loaded flags line coreImports program1
 
        traceM "Spec defs:"
        traceShowM (extractSpecializeDefs coreDefsSimp0)
+       traceShowM (Data.Map.size $ extractSpecializeDefs coreDefsSimp0)
 
        -- constructor tail optimization
        let (coreDefsCTail,uniqueCTail)

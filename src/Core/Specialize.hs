@@ -3,8 +3,6 @@ module Core.Specialize where
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (mapMaybe)
-import Data.List (elemIndex)
-import Control.Monad
 
 import Common.Name
 import Common.NameMap (NameMap)
@@ -19,17 +17,21 @@ data SpecializeDef = SpecializeDef
   , argToSpecialize :: Int
   } deriving (Show)
 
-extractSpecializeDefs :: DefGroups -> NameMap SpecializeDef
+extractSpecializeDefs :: DefGroups -> NameMap [SpecializeDef]
 extractSpecializeDefs = 
-  M.fromList 
-  . map (\specDef@SpecializeDef {targetFunc=target} -> (target, specDef)) 
-  . concatMap getInline 
+    M.fromList
+  . map (\specDefs@((SpecializeDef name _):_) -> (name, specDefs))
+  . filter (not . null)
+  . map getInline
   . allDefs
 
 calledInThisDef :: Def -> NameSet
 calledInThisDef def = foldMapExpr go $ defExpr def
   where 
     go (App (Var (TName name _) _) xs) = S.singleton name
+
+    -- this doesn't seems to make a difference?
+    go (App (TypeApp (Var (TName name _) _) _) xs) = S.singleton name
     go _ = S.empty
 
 passedRecursivelyToThisDef :: Def -> NameMap Int
@@ -55,7 +57,10 @@ passedRecursivelyToThisDef def
             _ -> Nothing
 
 getInline :: Def -> [SpecializeDef]
-getInline def = map (\(k, v) -> SpecializeDef (defName def) v) $ M.toList $ M.filterWithKey (\k v -> k `S.member` calledInThisDef def) (passedRecursivelyToThisDef def)
+getInline def =
+    map (\(k, v) -> SpecializeDef (defName def) v)
+  $ M.toList
+  $ M.filterWithKey (\k v -> k `S.member` calledInThisDef def) (passedRecursivelyToThisDef def)
 
 allDefs :: DefGroups -> [Def]
 allDefs = concatMap handleGroup
