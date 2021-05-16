@@ -1260,7 +1260,7 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
                      ++
                      map (ccIncludeDir cc) (ccompIncludeDirs flags)
                      ++
-                     map (ccAddDef cc) ((if (asan flags) then [] else ["KK_MIMALLOC","MI_MAX_ALIGN_SIZE=8"])
+                     map (ccAddDef cc) ((if (asan flags || useStdAlloc flags) then [] else ["KK_MIMALLOC","MI_MAX_ALIGN_SIZE=8"])
                                         ++ ["KK_STATIC_LIB"])
                      ++
                      [ ccTargetObj cc outBase
@@ -1465,6 +1465,7 @@ cmakeLib term flags cc libName {-kklib-} libFile {-libkklib.a-} cmakeGeneratorFl
                                       , "-DCMAKE_INSTALL_PREFIX=" ++ (buildDir flags)
                                       , "-DKK_COMP_VERSION=" ++ version
                                       , (if (asan flags) then "-DKK_DEBUG_SAN=address" else "")
+                                      , (if (asan flags || useStdAlloc flags) then "-DKK_STDALLOC" else "")
                                       ]
                                       ++ unquote (cmakeArgs flags) ++
                                       [ srcLibDir ]

@@ -157,6 +157,7 @@ data Flags
          , parcSpecialize   :: Bool
          , parcReuseSpec    :: Bool
          , asan             :: Bool
+         , useStdAlloc      :: Bool -- don't use mimalloc for better asan and valgrind support
          }
 
 flagsNull :: Flags
@@ -237,6 +238,7 @@ flagsNull
           True -- parc specialize
           True -- parc reuse specialize
           False -- use asan
+          False -- use stdalloc
 
 isHelp Help = True
 isHelp _    = False
@@ -319,6 +321,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 --  , option []    ["install-dir"]     (ReqArg installDirFlag "dir")       "set the install directory explicitly"
 
  , hide $ fflag       ["asan"]      (\b f -> f{asan=b})              "compile with address sanitizer (clang only)"
+ , hide $ fflag       ["stdalloc"]  (\b f -> f{useStdAlloc=b})       "use the standard allocator (as opposed to mimalloc)"
  , hide $ fnum 3 "n"  ["simplify"]  (\i f -> f{simplify=i})          "enable 'n' core simplification passes"
  , hide $ fnum 10 "n" ["maxdup"]    (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
  , hide $ fnum 10 "n" ["inline"]    (\i f -> f{optInlineMax=i})      "set 'n' as maximum inline threshold (=10)"
