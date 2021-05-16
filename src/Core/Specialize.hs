@@ -3,7 +3,7 @@ module Core.Specialize where
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (mapMaybe)
-import Data.List (find)
+import Data.List (elemIndex)
 import Control.Monad
 
 import Common.Name
@@ -16,8 +16,6 @@ import Lib.Trace
 
 data SpecializeDef = SpecializeDef
   { targetFunc :: Name
-  -- this works if we pass in a named func but how can we uniquely identify a lambda?
-  -- could be the position of the parameter, although that only works at the call site
   , argToSpecialize :: Int
   } deriving (Show)
 
@@ -41,19 +39,20 @@ passedRecursivelyToThisDef def
   | TypeLam _ (Lam params effect body) <- defExpr def = foldMapExpr (go params) $ defExpr def
   | otherwise = M.empty
   where
+    go :: [TName] -> Expr -> Map Name Int
     go params (App (Var (TName name _) _) args)
       | name == defName def = doWork args params
     go params (App (TypeApp (Var (TName name _) _) _) args)
       | name == defName def = doWork args params
     go params _ = M.empty
 
+    doWork :: [Expr] -> [TName] -> Map Name Int
     doWork args params =
-          M.fromList $ do
-            (argIndex, Var tname _) <- zip [0..] args
-            case fmap fst $ find ((== tname) . snd) $ zip [0..] params of
-              Nothing -> []
-              -- index should match i.e. we didn't pass it in a different order in the recursive call
-              Just paramIndex | argIndex == paramIndex -> [(getName tname, argIndex)]
+      M.fromList $
+        flip mapMaybe (zip3 [0..] args params) $ \(i, arg, param) ->
+          case arg of
+            Var tname _ | tname == param -> Just (getName tname, i)
+            _ -> Nothing
 
 getInline :: Def -> [SpecializeDef]
 getInline def = map (\(k, v) -> SpecializeDef (defName def) v) $ M.toList $ M.filterWithKey (\k v -> k `S.member` calledInThisDef def) (passedRecursivelyToThisDef def)
