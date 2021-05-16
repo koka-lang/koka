@@ -133,14 +133,21 @@ parcExpr expr
               if Borrow `notElem` bs
                 then return expr
                 else do
+                  parcTrace $ "Wrapping: " ++ show tname
                   case getWrapInfo expr of
                     Just (ts, as, eff) -> do
                       parcExpr $ addTypeLambdas ts $ addLambdas as eff
                         $ addApps (map (flip Var InfoNone . uncurry TName) as) $ addTypeApps ts
                         $ Var tname info
                     Nothing -> return expr
-      App inner@(Var tname _) args -> makeBorrowApp tname args inner
-      App inner@(TypeApp (Var tname _) targs) args -> makeBorrowApp tname args inner
+
+      -- If the function is refcounted, it may need to be dupped.
+      -- On the other hand, we want to avoid an infinite recursion with
+      -- the wrapping if it is not ref-counted.
+      App inner@(Var tname info) args -> makeBorrowApp tname args =<<
+        if infoIsRefCounted info then parcExpr inner else return inner
+      App inner@(TypeApp (Var tname info) targs) args -> makeBorrowApp tname args =<<
+        if infoIsRefCounted info then parcExpr inner else return inner
       App fn args
         -> do args' <- reverseMapM parcExpr args
               fn'   <- parcExpr fn
@@ -167,17 +174,29 @@ makeBorrowApp :: TName -> [Expr] -> Expr -> Parc Expr
 makeBorrowApp tname args expr
   = do  bs <- getParamInfos (getName tname)
         let argsBs = zip args $ bs ++ repeat Own
-        args' <- flip reverseMapM argsBs $ \(a, b) -> do
+        (lets, drops, args') <- fmap unzip3 $ flip reverseMapM argsBs $ \(a, b) -> do
           case (a, b) of
-            (_, Own) -> (\x -> ([], x)) <$> parcExpr a
+            (_, Own) -> (\x -> ([], Nothing, x)) <$> parcExpr a
             (Var tname info, Borrow)
-              | infoIsRefCounted info -> do markLive tname; return ([], Var tname info)
-              | otherwise -> do return ([], Var tname info)
+              | infoIsRefCounted info ->
+                 (\d -> ([], d, Var tname info)) <$> useTNameBorrowed tname
+              | otherwise -> do return ([], Nothing, Var tname info)
             (_, Borrow) -> do
               argName <- uniqueName "borrowArg"
-              let def = makeDef argName a
-              return ([DefNonRec def], Var (defTName def) InfoNone)
-        return $ makeLet (concatMap fst args') $ App expr $ map snd args'
+              a' <- parcExpr a
+              let def = makeDef argName a'
+              drop <- genDrop $ defTName def
+              case drop of
+                Nothing -> return ([], Nothing, a') -- if no drop necessary, make output prettier
+                Just _ -> return ([DefNonRec def], drop, Var (defTName def) InfoNone)
+        -- parcTrace $ "On function " ++ show (getName tname) ++ " with args " ++ show args ++ " we have: " ++ show (lets, drops, args')
+        expr' <- case catMaybes drops of
+          [] -> return $ App expr args'
+          _ -> do
+            appName <- uniqueName "borrowApp"
+            let def = makeDef appName $ App expr args'
+            return $ makeLet [DefNonRec def] $ maybeStats drops $ Var (defTName def) InfoNone
+        return $ makeLet (concat lets) expr'
 
 getWrapInfo :: Expr -> Maybe ([TypeVar], [(Name, Tau)], Type)
 getWrapInfo expr
@@ -209,18 +228,18 @@ parcBranch scrutinees live (Branch pats guards)
 
 parcGuard :: [TName] -> [Pattern] -> Live -> Guard -> Parc (Live -> Parc Guard)
 parcGuard scrutinees pats live (Guard test expr)
-  = scoped pvs $
-    do shapes <- inferShapes scrutinees pats  -- create alias map for the pattern
-       extendShapes shapes $ -- merge with current alias map
-        do (expr', live') <- isolateWith live $ parcExpr expr
-           markLives live'
-           test' <- withOwned S.empty $ parcExpr test
-           return $ \matchLive -> scoped pvs $ extendShapes shapes $ do
-             let dups = S.intersection pvs live'
-             let drops = matchLive \\ live'
-             Guard test' <$> parcGuardRC dups drops expr'
-  where
-    pvs = bv pats
+  = do ownedPats <- map snd <$> filterM (\(s, p) -> isOwned s) (zip scrutinees pats)
+       let pvs = bv ownedPats
+       scoped pvs $
+         do shapes <- inferShapes scrutinees pats  -- create alias map for the pattern
+            extendShapes shapes $ -- merge with current alias map
+              do (expr', live') <- isolateWith live $ parcExpr expr
+                 markLives live'
+                 test' <- withOwned S.empty $ parcExpr test
+                 return $ \matchLive -> scoped pvs $ extendShapes shapes $ do
+                  let dups = S.intersection pvs live'
+                  drops <- filterOwned $ matchLive \\ live'
+                  Guard test' <$> parcGuardRC dups drops expr'
 
 type Dups     = TNames
 type Drops    = TNames
@@ -568,6 +587,18 @@ useTName tname
          else -- trace ("use nodup " ++ show tname) $
               return Nothing
 
+useTNameBorrowed :: TName -> Parc (Maybe Expr)
+useTNameBorrowed tname
+  = do live <- isLive tname
+       borrowed <- isBorrowed tname
+       markLive tname
+       -- parcTrace ("marked live: " ++ show tname)
+       if not live && not borrowed
+         then -- trace ("use drop " ++ show tname) $
+              genDrop tname
+         else -- trace ("use nodup " ++ show tname) $
+              return Nothing
+
 -----------------------------------------------------------
 -- Optimize boxed reference counting
 -----------------------------------------------------------
@@ -893,6 +924,11 @@ setLive = modifyLive . const
 isOwned :: TName -> Parc Bool
 isOwned tn = S.member tn <$> getOwned
 
+filterOwned :: S.Set TName -> Parc (S.Set TName)
+filterOwned s
+  = do os <- getOwned
+       return $ S.filter (`S.member` os) s
+
 isBorrowed :: TName -> Parc Bool
 isBorrowed tn = not <$> isOwned tn
 
@@ -933,7 +969,7 @@ getParamInfos name
 -------------------------------
 -- live set abstractions --
 
--- only add locals (can happen with scrutinees)
+-- | Mark local variables as live.
 markLive :: TName -> Parc ()
 markLive tname
   = unless (isQualified (getName tname))
