@@ -42,7 +42,7 @@ keyword env s
   Show instance declarations
 --------------------------------------------------------------------------}
 
-instance Show Core      where show = show . prettyCore      defaultEnv []
+instance Show Core      where show = show . prettyCore      defaultEnv Default []
 instance Show External  where show = show . prettyExternal  defaultEnv
 instance Show TypeDef   where show = show . prettyTypeDef   defaultEnv
 instance Show DefGroup  where show = show . prettyDefGroup  defaultEnv
@@ -56,8 +56,8 @@ instance Show Pattern   where show = show . snd . prettyPattern   defaultEnv
   Pretty-printers proper
 --------------------------------------------------------------------------}
 
-prettyCore :: Env -> [InlineDef] -> Core -> Doc
-prettyCore env0 inlineDefs core@(Core name imports fixDefs typeDefGroups defGroups externals doc)
+prettyCore :: Env -> Target -> [InlineDef] -> Core -> Doc
+prettyCore env0 target inlineDefs core@(Core name imports fixDefs typeDefGroups defGroups externals doc)
   = prettyComment env doc $
     keyword env "module" <+>
     (if (coreIface env) then text "interface " else empty) <.>
@@ -66,7 +66,7 @@ prettyCore env0 inlineDefs core@(Core name imports fixDefs typeDefGroups defGrou
       [ separator "import declarations"
       , map (prettyImport envX) (imports)
       , separator "external imports"
-      , map (prettyExternalImport envX) externals
+      , map (prettyExternalImport envX target) externals
       , separator "fixity declarations"
       , map (prettyFixDef envX) fixDefs
       , separator "local imported aliases"
@@ -123,16 +123,21 @@ prettyImport env imp
       <.> semi
 
 
-prettyExternalImport env (ExternalImport imports _)
+prettyExternalImport env target (ExternalImport imports _)
   = -- prettyComment env (importModDoc imp) $
-    keyword env "extern import" <+> text "{" <-> tab (vcat (map prettyEntry imports)) <-> text "};"
+    case lookup target imports of
+      Nothing -> empty
+      Just keyvals0
+        -> case filter (\(key,_) -> key /= "include-inline" && key /= "header-include-inline") keyvals0 of
+             [] -> empty
+             keyvals -> keyword env "extern import" <+> text "{" 
+                          <-> tab (ppTarget env target <+> text "{" <-> tab (vcat (map prettyKeyval keyvals)) <-> text "};")
+                          <-> text "};"
   where
-    prettyEntry (target,keyvals)
-      = ppTarget env target <+> text "{" <-> tab (vcat (map prettyKeyval keyvals)) <-> text "};"
     prettyKeyval (key,val)
       = prettyLit env (LitString key) <.> text "=" <.> prettyLit env (LitString val) <.> semi
       
-prettyExternalImport env _ = empty
+prettyExternalImport env target _ = empty
 
 
 
@@ -163,8 +168,6 @@ prettyExternal env (External name tp pinfos body vis nameRng doc)
     prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "};"
     prettyEntry (target,content)      = ppTarget env target <.> keyword env "inline" <+> prettyLit env (LitString content) <.> semi
 
-prettyExternal env (ExternalInclude includes range)
-  = empty
 prettyExternal env (ExternalImport imports range)
   = empty
 

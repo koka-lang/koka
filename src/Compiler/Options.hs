@@ -741,7 +741,7 @@ ccMsvc name path
           (RelWithDebInfo,words "-MD -Zi -O2 -Ob1 -DNDEBUG")]
          ["-W3"]
          ["-TC","-c"]
-         ["-link", "/NODEFAULTLIB:msvcrt"]
+         ["-link"] -- , "/NODEFAULTLIB:msvcrt"]
          (\libdir -> ["/LIBPATH:" ++ libdir])
          (\idir -> ["-I",idir])
          (\fname -> ["-Fo" ++ ((notext fname) ++ objExtension)])
@@ -783,7 +783,7 @@ ccFromPath flags path
                 then do putStrLn "warning: can only use address sanitizer with clang (ignored)"
                         return cc
                 else do return cc{ ccName         = ccName cc ++ "-asan"
-                                 , ccFlagsCompile = ccFlagsCompile cc ++ ["-fsanitize=address"]
+                                 , ccFlagsCompile = ccFlagsCompile cc ++ ["-fsanitize=address","-O0"]
                                  , ccFlagsLink    = ccFlagsLink cc ++ ["-fsanitize=address"] }
          else return cc
 

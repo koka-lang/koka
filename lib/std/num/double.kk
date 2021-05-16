@@ -14,7 +14,7 @@ public module std/num/double
 import std/text/parse
 import std/num/int32
 
-extern include {
+extern import {
   c file "double-inline.h"
   js file "double-inline.js"
 }

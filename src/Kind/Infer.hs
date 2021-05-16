@@ -409,8 +409,6 @@ infExternal names (External name tp pinfos nameRng rng calls vis doc)
        -- trace ("infExternal: " ++ show cname ++ ": " ++ show (pretty tp')) $
        return (Core.External cname tp' pinfos (map (formatCall tp') calls)
                   vis nameRng doc, qname:names)
-infExternal names (ExternalInclude include range)
-  = return (Core.ExternalInclude include range, names)
 infExternal names (ExternalImport imports range)
   = return (Core.ExternalImport imports range, names)
 
@@ -420,7 +418,6 @@ formatCall tp (target,ExternalCall fname)
       CS      -> (target,formatCS)
       JS      -> (target,formatJS)
       C       -> (target,formatC)
-      CHeader -> (target,formatC)
       Default -> (target,formatJS)
   where
     (foralls,preds,rho) = splitPredType tp

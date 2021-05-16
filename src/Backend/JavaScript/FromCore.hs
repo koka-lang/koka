@@ -137,29 +137,20 @@ moduleImport imp
   = squotes (text (if null (importPackage imp) then "." else importPackage imp) <.> text "/" <.> text (moduleNameToPath  (importName imp)))
 
 includeExternal :: External -> [Doc]
-includeExternal (ExternalInclude includes range)
-  = let content = case lookup JS includes of
-                    Just s -> s
-                    Nothing -> case lookup Default includes of
-                                 Just s -> s
-                                 Nothing -> ""
-    in [align $ vcat $! map text (lines content)]
-includeExternal _  = []
+includeExternal ext
+  = case externalImportLookup JS "include-inline" ext of
+      Just content -> [align $ vcat $! map text (lines content)]
+      _ -> []
+      
 
 
 importExternal :: External -> [(Doc,Doc)]
-importExternal (ExternalImport imports range)
-  = let keyvals = case lookup JS imports of
-                    Just keyvals -> keyvals
-                    Nothing -> case lookup Default imports of
-                                Just keyvals -> keyvals
-                                Nothing -> [] -- failure ("javascript backend does not support external import at " ++ show range)
-    in case (lookup "library-id" keyvals, lookup "library" keyvals) of
-         (mbName, Just path) -> [(text path, case mbName of
-                                               Just name -> pretty (readTupled name)
-                                               Nothing   -> text path)]
-importExternal _
-  = []
+importExternal ext
+  = case externalImportLookup JS "library" ext of
+      Just path -> [(text path, case externalImportLookup JS "library-id" ext of 
+                                  Just name -> text name
+                                  Nothing   -> text path)]
+      _ -> []
 
 ---------------------------------------------------------------------------------
 -- Generate javascript statements for value definitions

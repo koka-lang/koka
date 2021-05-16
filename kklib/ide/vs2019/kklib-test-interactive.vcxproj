@@ -158,6 +158,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\out\Debug\interactive.c" />
+    <ClCompile Include="..\..\..\out\Debug\samples_basic_garsia_dash_wachs.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core_hnd.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core_types.c" />
@@ -185,6 +186,7 @@
     <ClCompile Include="..\..\..\out\Debug\std_time_timer.c" />
     <ClCompile Include="..\..\..\out\Debug\std_time_timestamp.c" />
     <ClCompile Include="..\..\..\out\Debug\std_time_utc.c" />
+    <ClCompile Include="..\..\..\out\Debug\test_algeff_implicits.c" />
     <ClCompile Include="..\..\..\out\Debug\test_lib_time11.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

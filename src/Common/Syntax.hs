@@ -31,13 +31,12 @@ module Common.Syntax( Visibility(..)
 {--------------------------------------------------------------------------
   Backend targets
 --------------------------------------------------------------------------}
-data Target = CS | JS | C | CHeader | Default deriving (Eq,Ord)
+data Target = CS | JS | C | Default deriving (Eq,Ord)
 
 instance Show Target where
   show CS = "cs"
   show JS = "js"
   show C  = "c"
-  show CHeader = "c header"
   show Default = ""
 
 data Host = Node | Browser deriving (Eq,Ord)
