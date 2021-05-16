@@ -1465,7 +1465,7 @@ cmakeLib term flags cc libName {-kklib-} libFile {-libkklib.a-} cmakeGeneratorFl
                                       , "-DCMAKE_INSTALL_PREFIX=" ++ (buildDir flags)
                                       , "-DKK_COMP_VERSION=" ++ version
                                       , (if (asan flags) then "-DKK_DEBUG_SAN=address" else "")
-                                      , (if (asan flags || useStdAlloc flags) then "-DKK_STDALLOC" else "")
+                                      , (if (asan flags || useStdAlloc flags) then "-DKK_STDALLOC=on" else "")
                                       ]
                                       ++ unquote (cmakeArgs flags) ++
                                       [ srcLibDir ]
