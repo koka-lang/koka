@@ -124,28 +124,23 @@ parcExpr expr
         -> do -- parcTrace ("refcounted: " ++ show tname ++ ": " ++ show info)
               fromMaybe expr <$> useTName tname
 
-      -- todo: Functions/Externals are not reference-counted,
+      -- Functions/Externals are not reference-counted,
       -- but they need to be wrapped if they appear outside of an application.
+      -- todo: reduce type app application?
       Var tname info -- InfoArity/External/Field are not reference-counted
         -> do -- parcTrace ("not refcounted: " ++ show tname ++ ": " ++ show info)
               bs <- getParamInfos (getName tname)
-              if Borrow `elem` bs
-                then do parcTrace $ "No wrapping: " ++ show tname ++ "!"; return expr
-                else return expr
-      App (Var tname info) args
-        -> do bs <- getParamInfos (getName tname)
-              let argsBs = zip args $ bs ++ repeat Own
-              args' <- flip reverseMapM argsBs $ \(a, b) -> do
-                case (a, b) of
-                  (_, Own) -> (\x -> ([], x)) <$> parcExpr a
-                  (Var tname info, Borrow)
-                    | infoIsRefCounted info -> do markLive tname; return ([], Var tname info)
-                    | otherwise -> do return ([], Var tname info)
-                  (_, Borrow) -> do
-                    argName <- uniqueName "borrowArg"
-                    let def = makeDef argName a
-                    return ([DefNonRec def], Var (defTName def) InfoNone)
-              return $ makeLet (concatMap fst args') $ App (Var tname info) $ map snd args'
+              if Borrow `notElem` bs
+                then return expr
+                else do
+                  case getWrapInfo expr of
+                    Just (ts, as, eff) -> do
+                      parcExpr $ addTypeLambdas ts $ addLambdas as eff
+                        $ addApps (map (flip Var InfoNone . uncurry TName) as) $ addTypeApps ts
+                        $ Var tname info
+                    Nothing -> return expr
+      App inner@(Var tname _) args -> makeBorrowApp tname args inner
+      App inner@(TypeApp (Var tname _) targs) args -> makeBorrowApp tname args inner
       App fn args
         -> do args' <- reverseMapM parcExpr args
               fn'   <- parcExpr fn
@@ -167,6 +162,32 @@ parcExpr expr
       Case _ _
         -> do nexpr <- normalizeCase expr
               parcExpr nexpr
+
+makeBorrowApp :: TName -> [Expr] -> Expr -> Parc Expr
+makeBorrowApp tname args expr
+  = do  bs <- getParamInfos (getName tname)
+        let argsBs = zip args $ bs ++ repeat Own
+        args' <- flip reverseMapM argsBs $ \(a, b) -> do
+          case (a, b) of
+            (_, Own) -> (\x -> ([], x)) <$> parcExpr a
+            (Var tname info, Borrow)
+              | infoIsRefCounted info -> do markLive tname; return ([], Var tname info)
+              | otherwise -> do return ([], Var tname info)
+            (_, Borrow) -> do
+              argName <- uniqueName "borrowArg"
+              let def = makeDef argName a
+              return ([DefNonRec def], Var (defTName def) InfoNone)
+        return $ makeLet (concatMap fst args') $ App expr $ map snd args'
+
+getWrapInfo :: Expr -> Maybe ([TypeVar], [(Name, Tau)], Type)
+getWrapInfo expr
+  = go ([], [], Nothing) (typeOf expr)
+  where
+    go (ts, as, meff) t = 
+      case t of
+        TForall ts' _ r -> go (ts ++ ts', as, meff) r
+        TFun as' eff _ -> Just (ts, as ++ as', eff)
+        _ -> (\eff -> (ts, as, eff)) <$> meff
 
 varNames :: [Expr] -> [TName]
 varNames (Var tn _:exprs) = tn:varNames exprs
@@ -197,7 +218,7 @@ parcGuard scrutinees pats live (Guard test expr)
            return $ \matchLive -> scoped pvs $ extendShapes shapes $ do
              let dups = S.intersection pvs live'
              let drops = matchLive \\ live'
-             Guard test' <$> parcGuardRC scrutinees pats dups drops expr'
+             Guard test' <$> parcGuardRC dups drops expr'
   where
     pvs = bv pats
 
@@ -225,8 +246,8 @@ data ShapeInfo = ShapeInfo{
                    scanFields :: Maybe Int
                  }
 
-parcGuardRC :: [TName] -> [Pattern] -> Dups -> Drops -> Expr -> Parc Expr
-parcGuardRC scrutinees pats dups drops body
+parcGuardRC :: Dups -> Drops -> Expr -> Parc Expr
+parcGuardRC dups drops body
   = do let (reuses, body') = extractReuse body
        let reuseInfo = M.fromList reuses
        let drops' = map Drop (S.toList drops) ++ map (Reuse . fst) reuses
