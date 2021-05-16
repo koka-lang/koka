@@ -1058,7 +1058,6 @@ kk_integer_t kk_integer_pow(kk_integer_t x, kk_integer_t p, kk_context_t* ctx) {
       return (kk_integer_is_even(p,ctx) ? kk_integer_one : kk_integer_min_one);
     }
   }
-  kk_integer_dup(p);
   if (kk_integer_signum(p,ctx)==-1) {
     kk_integer_drop(p,ctx); return kk_integer_zero;
   }
@@ -1234,27 +1233,27 @@ static kk_bigint_t* kk_bigint_sub(kk_bigint_t* x, kk_bigint_t* y, bool yneg, kk_
   Integer interface
 ----------------------------------------------------------------------*/
 
- kk_integer_t kk_integer_neg_generic(kk_integer_t x, kk_context_t* ctx) {
+kk_integer_t kk_integer_neg_generic(kk_integer_t x, kk_context_t* ctx) {
   kk_assert_internal(kk_is_integer(x));
   kk_bigint_t* bx = kk_integer_to_bigint(x,ctx);
   return integer_bigint(bigint_neg(bx, ctx), ctx);
 }
 
- kk_integer_t kk_integer_sqr_generic(kk_integer_t x, kk_context_t* ctx) {
+kk_integer_t kk_integer_sqr_generic(kk_integer_t x, kk_context_t* ctx) {
   kk_assert_internal(kk_is_integer(x));
   kk_bigint_t* bx = kk_integer_to_bigint(x,ctx);
   return integer_bigint(kk_bigint_sqr(bx, ctx), ctx);
 }
 
- int kk_integer_signum_generic(kk_integer_t x, kk_context_t* ctx) {
+/* borrow x */
+int kk_integer_signum_generic(kk_integer_t x, kk_context_t* ctx) {
   kk_assert_internal(kk_is_integer(x));
   kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
   int signum = (bx->is_neg ? -1 : ((bx->count==0 && bx->digits[0]==0) ? 0 : 1));
-  kk_integer_drop(x, ctx);
   return signum;
 }
 
- bool kk_integer_is_even_generic(kk_integer_t x, kk_context_t* ctx) {
+bool kk_integer_is_even_generic(kk_integer_t x, kk_context_t* ctx) {
   kk_assert_internal(kk_is_integer(x));
   if (kk_is_smallint(x)) return ((x.value&0x04)==0);
   kk_bigint_t* bx = kk_integer_to_bigint(x,ctx);
@@ -1382,7 +1381,7 @@ kk_integer_t kk_integer_cmod_generic(kk_integer_t x, kk_integer_t y, kk_context_
 // - x `mod` 2^n == and(x,2^(n-1))  for any x, n
 // - Euclidean division behaves identical to truncated division for positive dividends.
 kk_integer_t kk_integer_div_mod_generic(kk_integer_t x, kk_integer_t y, kk_integer_t* mod, kk_context_t* ctx) {
-if (kk_integer_is_zero(kk_integer_dup(y),ctx)) {
+if (kk_integer_is_zero(y,ctx)) {
     // div by zero
     if (mod!=NULL) {
       *mod = x;
@@ -1393,7 +1392,7 @@ if (kk_integer_is_zero(kk_integer_dup(y),ctx)) {
     kk_integer_drop(y, ctx);
     return kk_integer_zero;
   }
-  else if (kk_integer_is_pos(kk_integer_dup(x),ctx)) {
+  else if (kk_integer_is_pos(x,ctx)) {
     // positive x
     return kk_integer_cdiv_cmod_generic(x, y, mod, ctx);
   }
@@ -1401,8 +1400,8 @@ if (kk_integer_is_zero(kk_integer_dup(y),ctx)) {
     // regular
     kk_integer_t m;
     kk_integer_t d = kk_integer_cdiv_cmod_generic(x, kk_integer_dup(y), &m, ctx);
-    if (kk_integer_is_neg(kk_integer_dup(m), ctx)) {
-      if (kk_integer_is_neg(kk_integer_dup(y), ctx)) {
+    if (kk_integer_is_neg(m, ctx)) {
+      if (kk_integer_is_neg(y, ctx)) {
         d = kk_integer_inc(d, ctx);
         if (mod!=NULL) { m = kk_integer_sub(m, y, ctx); }      
       }
@@ -1600,11 +1599,11 @@ static kk_digit_t powers_of_10[LOG_BASE+1] = { 1, 10, 100, 1000, 10000, 100000, 
                                           };
 
 kk_integer_t kk_integer_mul_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* ctx) {
-  if (kk_integer_is_zero(kk_integer_dup(p),ctx)) {
+  if (kk_integer_is_zero(p,ctx)) {
     kk_integer_drop(p, ctx);
     return x;
   }
-  if (kk_integer_is_zero(kk_integer_dup(x),ctx)) {
+  if (kk_integer_is_zero(x,ctx)) {
     kk_integer_drop(p, ctx); // x is small
     return kk_integer_zero;
   }
@@ -1646,11 +1645,11 @@ kk_integer_t kk_integer_mul_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* 
 
 
 kk_integer_t kk_integer_cdiv_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* ctx) {
-  if (kk_integer_is_zero(kk_integer_dup(p),ctx)) {
+  if (kk_integer_is_zero(p,ctx)) {
     kk_integer_drop(p, ctx);
     return x;
   }
-  if (kk_integer_is_zero(kk_integer_dup(x),ctx)) {
+  if (kk_integer_is_zero(x,ctx)) {
     kk_integer_drop(p, ctx); // x is small
     return kk_integer_zero;
   }
@@ -1699,7 +1698,7 @@ kk_integer_t kk_integer_cdiv_pow10(kk_integer_t x, kk_integer_t p, kk_context_t*
 }
 
 kk_integer_t kk_integer_div_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* ctx) {
-  bool xneg = kk_integer_is_neg(kk_integer_dup(x), ctx);
+  bool xneg = kk_integer_is_neg(x, ctx);
   kk_integer_t d = kk_integer_cdiv_pow10(x, p, ctx);
   if (xneg) {
     d = kk_integer_dec(d, ctx);

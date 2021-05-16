@@ -1102,7 +1102,7 @@ inline extern is-odd   : ( int ) -> bool  {
 }
 
 // Is this equal to zero?
-inline extern is-zero  : ( int ) -> bool  {
+inline extern is-zero( ^x : int) : bool  {
   c  "kk_integer_is_zero"
   cs inline "(#1.IsZero)"
   js "$std_core._int_iszero"
@@ -1193,7 +1193,7 @@ fun is-pos(i : int ) : bool { i.sign == Gt }
 // Is the integer negative (stricly smaller than zero)
 fun is-neg(i : int ) : bool { i.sign == Lt }
 
-inline extern sign(i : int ) : order {
+inline extern sign( ^i : int ) : order {
   c  inline "kk_int_as_order(kk_integer_signum(#1,kk_context()),kk_context())"
   cs "Primitive.IntSign"
   js "$std_core._int_sign"

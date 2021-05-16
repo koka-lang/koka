@@ -634,7 +634,7 @@ static inline kk_integer_t kk_integer_neg(kk_integer_t x, kk_context_t* ctx) {
 
 static inline kk_integer_t kk_integer_abs(kk_integer_t x, kk_context_t* ctx) {
   if (kk_likely(kk_is_smallint(x))) return (x.value < 0 ? kk_integer_neg_small(x,ctx) : x);
-  return (kk_integer_signum_generic(kk_integer_dup(x), ctx) < 0 ? kk_integer_neg_generic(x, ctx) : x);
+  return (kk_integer_signum_generic(x, ctx) < 0 ? kk_integer_neg_generic(x, ctx) : x);
 }
 
 static inline kk_integer_t kk_integer_dec(kk_integer_t x, kk_context_t* ctx) {
@@ -645,56 +645,63 @@ static inline kk_integer_t kk_integer_inc(kk_integer_t x, kk_context_t* ctx) {
   return kk_integer_add(x, kk_integer_one,ctx);
 }
 
+/* borrow x, borrow y*/
 static inline int kk_integer_cmp(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (x.value == y.value ? 0 : (x.value > y.value ? 1 : -1));
   return kk_integer_cmp_generic(x, y, ctx);
 }
 
+/* borrow x, borrow y*/
 static inline bool kk_integer_lt(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (x.value < y.value);
   return (kk_integer_cmp(x, y, ctx) == -1);
 }
 
+/* borrow x, borrow y*/
 static inline bool kk_integer_lte(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (x.value <= y.value);
   return (kk_integer_cmp(x, y, ctx) <= 0);
 }
 
+/* borrow x, borrow y*/
 static inline bool kk_integer_gt(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (x.value > y.value);
   return (kk_integer_cmp(x, y, ctx) == 1);
 }
 
+/* borrow x, borrow y*/
 static inline bool kk_integer_gte(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (x.value >= y.value);
   return (kk_integer_cmp(x, y, ctx) >= 0);
 }
 
+/* borrow x, borrow y*/
 static inline bool kk_integer_eq(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (x.value == y.value);
   return (kk_integer_cmp(x, y, ctx) == 0);
 }
 
+/* borrow x, borrow y*/
 static inline bool kk_integer_neq(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (x.value != y.value);
   return (kk_integer_cmp(x, y, ctx) != 0);
 }
 
+/* borrow x*/
 static inline bool kk_integer_is_zero(kk_integer_t x, kk_context_t* ctx) {
   if (kk_likely(kk_is_smallint(x))) return (x.value == kk_integer_zero.value);
-  kk_integer_drop(x,ctx);
   return false;
 }
 
+/* borrow x*/
 static inline bool kk_integer_is_one(kk_integer_t x, kk_context_t* ctx) {
   if (kk_likely(kk_is_smallint(x))) return (x.value == kk_integer_one.value);
-  kk_integer_drop(x,ctx);
   return false;
 }
 
+/* borrow x*/
 static inline bool kk_integer_is_minus_one(kk_integer_t x, kk_context_t* ctx) {
   if (kk_likely(kk_is_smallint(x))) return (x.value == kk_integer_min_one.value);
-  kk_integer_drop(x,ctx);
   return false;
 }
 
@@ -708,21 +715,19 @@ static inline bool kk_integer_is_odd(kk_integer_t x, kk_context_t* ctx) {
   return !kk_integer_is_even_generic(x,ctx);
 }
 
+/* borrow x */
 static inline int kk_integer_signum(kk_integer_t x, kk_context_t* ctx) {
   if (kk_likely(kk_is_smallint(x))) return ((x.value>1)-(x.value<0));
   return kk_integer_signum_generic(x,ctx);
 }
 
-static inline bool integer_is_neg(kk_integer_t x, kk_context_t* ctx) {
-  if (kk_likely(kk_is_smallint(x))) return (x.value<0);
-  return (kk_integer_signum_generic(x,ctx) < 0);
-}
-
+/* borrow x */
 static inline bool kk_integer_is_pos(kk_integer_t x, kk_context_t* ctx) {
   if (kk_likely(kk_is_smallint(x))) return (x.value>1);
   return (kk_integer_signum_generic(x,ctx) > 0);
 }
 
+/* borrow x */
 static inline bool kk_integer_is_neg(kk_integer_t x, kk_context_t* ctx) {
   if (kk_likely(kk_is_smallint(x))) return (x.value<0);
   return (kk_integer_signum_generic(x, ctx) < 0);
@@ -730,7 +735,6 @@ static inline bool kk_integer_is_neg(kk_integer_t x, kk_context_t* ctx) {
 
 static inline kk_integer_t kk_integer_max(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (x.value>=y.value ? x : y);
-  kk_integer_dup(x); kk_integer_dup(y);
   if (kk_integer_gte(x,y,ctx)) {
     kk_integer_drop(y,ctx); return x;
   }
@@ -741,7 +745,6 @@ static inline kk_integer_t kk_integer_max(kk_integer_t x, kk_integer_t y, kk_con
 
 static inline kk_integer_t kk_integer_min(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (x.value<=y.value ? x : y);
-  kk_integer_dup(x); kk_integer_dup(y);
   if (kk_integer_lte(x, y, ctx)) {
     kk_integer_drop(y, ctx); return x;
   }
