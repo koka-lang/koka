@@ -1,4 +1,4 @@
-// sr -- --core --fno-optctail inlinetest.kk
+// stack run -- --core --fno-optctail inlinetest.kk
 
 fun noeffectmap(f : int -> int, xs : list <int>) : list<int> {
     match (xs) {

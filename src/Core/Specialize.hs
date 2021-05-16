@@ -30,7 +30,7 @@ traceEq :: (Show a) => String -> a -> a
 traceEq name val = trace (name ++ " = " ++ show val) val
 
 calledInThisDef :: Def -> NameSet
-calledInThisDef def = traceShow def $ traceEq "CalledInThisDef" $ foldMapExpr go $ defExpr def
+calledInThisDef def = foldMapExpr go $ defExpr def
   where 
     go (App (Var (TName name _) _) xs) = S.singleton name
     go _ = S.empty
@@ -38,7 +38,7 @@ calledInThisDef def = traceShow def $ traceEq "CalledInThisDef" $ foldMapExpr go
 passedRecursivelyToThisDef :: Def -> NameSet
 passedRecursivelyToThisDef def 
   -- TODO: FunDef type to avoid this check?
-  | Lam args effect body <- defExpr def = traceEq "passedRecursively" $ foldMapExpr go $ defExpr def
+  | Lam args effect body <- defExpr def = foldMapExpr go $ defExpr def
   | otherwise = S.empty
   where
     Lam args effect body = defExpr def
@@ -46,35 +46,7 @@ passedRecursivelyToThisDef def
     go _ = S.empty
 
 getInline :: Def -> [SpecializeDef]
-getInline def = (\result -> trace (show (defName def) ++ show result) result) $ map (\name -> SpecializeDef name name) $ S.toList $ S.intersection (calledInThisDef def) (passedRecursivelyToThisDef def)
-
--- getInline :: Def -> [SpecializeDef]
--- getInline def
---   | (True, True) <- folded = [SpecializeDef (defName def) (newName hardCodedName)]
---   | otherwise = []
---   where
---     folded = foldExpr go (False, False) $ defExpr def
-
---     thisDefName = traceEq "thisDefName" $ defName def
---     hardCodedName = "f"
-
---     go e (True, True) = (True, True)
-
---     -- we applied this function somewhere
---     go (App (Var (TName name _) _) xs) (_, isPassedRecursively) 
---       | traceEq "Applied function" name == thisDefName = (True, isPassedRecursively)
-
---     -- we passed this function to myself
---     go (App f xs) (isCalledInThisDef, _) 
---       | or [traceEq "Arg Name" (show name) == hardCodedName | Var name info <- xs] = (isCalledInThisDef, True)
---     go _ results = results
-
--- return list of names that are functions that are recursively passed
--- recursiveFuncCalls :: Def -> [Name]
--- recursiveFuncCalls def = undefined
-
-knownDefs :: DefGroups -> NameMap Def
-knownDefs = M.fromList . fmap (\def -> (defName def, def)) . allDefs
+getInline def = map (\name -> SpecializeDef name name) $ S.toList $ S.intersection (calledInThisDef def) (passedRecursivelyToThisDef def)
 
 allDefs :: DefGroups -> [Def]
 allDefs = concatMap handleGroup
