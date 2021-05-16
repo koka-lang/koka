@@ -1275,12 +1275,15 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
        Just _ ->
          do cmakeGeneratorFlag  -- prefer Ninja if available
               <- if onWindows then return ["-G","Ninja"]  -- we must use Ninja on windows (as we cannot handle multi-config cmake)
-                  else do paths   <- getEnvPaths "PATH"
+                  else return []
+                       {-
+                       do paths   <- getEnvPaths "PATH"
                           mbNinja <- searchPaths paths [exeExtension] "ninja"
                           case mbNinja of
                             Just ninja -> do -- termDoc term $ text "found ninja:" <+> pretty ninja
                                              return ["-G","Ninja"]
                             Nothing    -> return []
+                      -}
 
             checkCMake term flags
             currentDir <- getCurrentDirectory
