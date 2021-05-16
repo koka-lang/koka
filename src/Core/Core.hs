@@ -81,11 +81,15 @@ module Core.Core ( -- Data structures
                    , infoArity, infoTypeArity
 
                    , Deps, dependencies
+
+                   , foldMapExpr
+                   , foldExpr
                    ) where
 
 import Data.Char( isDigit )
 import qualified Data.Set as S
 import Data.Maybe
+import Data.Monoid (Endo(..))
 import Lib.PPrint
 import Common.Name
 import Common.Range
@@ -449,8 +453,7 @@ data Expr =
     Lam [TName] Effect Expr
   | Var{ varName :: TName, varInfo :: VarInfo }  -- ^ typed name and possible typeArity/parameter arity tuple for top-level functions
   | App Expr [Expr]                              -- ^ always fully applied!
-  -- Type (universal) abstraction/application
-  | TypeLam [TypeVar] Expr
+  | TypeLam [TypeVar] Expr                       -- ^ Type (universal) abstraction/application
   | TypeApp Expr [Type]
   -- Literals, constants and labels
   | Con{ conName :: TName, conRepr ::  ConRepr  }          -- ^ typed name and its representation
@@ -459,6 +462,22 @@ data Expr =
   | Let DefGroups Expr
   -- Case expressions
   | Case{ caseExprs :: [Expr], caseBranches :: [Branch] }
+
+foldMapExpr :: Monoid a => (Expr -> a) -> Expr -> a
+foldMapExpr acc e = case e of
+  Lam _ _ body -> acc e <> foldMapExpr acc body
+  Var _ _ -> acc e
+  App f xs -> acc e <> acc f <> mconcat (foldMapExpr acc <$> xs)
+  TypeLam _ body -> acc e <> foldMapExpr acc body
+  TypeApp expr _ -> acc e <> foldMapExpr acc expr
+  Con _ _ -> acc e
+  Lit _ -> acc e
+  Let _ body -> acc e <> foldMapExpr acc body
+  Case cases branches -> acc e <> mconcat (foldMapExpr acc <$> cases) <> 
+    mconcat [foldMapExpr acc e | branch <- branches, guard <- branchGuards branch, e <- [guardTest guard, guardExpr guard]]
+
+foldExpr :: (Expr -> a -> a) -> a -> Expr -> a
+foldExpr f z e = appEndo (foldMapExpr (Endo . f) e) z
 
 data TName = TName Name Type
 

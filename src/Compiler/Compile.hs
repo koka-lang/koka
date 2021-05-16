@@ -63,6 +63,7 @@ import Core.Monadic           ( monTransform )
 import Core.MonadicLift       ( monadicLift )
 import Core.Inlines           ( inlinesExtends, extractInlineDefs )
 import Core.Inline            ( inlineDefs )
+import Core.Specialize
 
 import Static.BindingGroups   ( bindingGroups )
 import Static.FixityResolve   ( fixityResolve, fixitiesNew, fixitiesCompose )
@@ -882,6 +883,8 @@ inferCheck loaded flags line coreImports program1
 
        -- traceDefGroups "lifted" coreDefsSimp0
 
+       traceM "Spec defs:"
+       traceShowM (extractSpecializeDefs coreDefsSimp0)
 
        -- constructor tail optimization
        let (coreDefsCTail,uniqueCTail)
