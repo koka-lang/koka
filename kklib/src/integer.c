@@ -1262,10 +1262,10 @@ bool kk_integer_is_even_generic(kk_integer_t x, kk_context_t* ctx) {
   return even;
 }
 
+/* Borrow x,y. This assumes that x and y are big integers and may fail else! */
 int kk_integer_cmp_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  kk_assert_internal(kk_is_integer(x)&&kk_is_integer(y));
-  kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
-  kk_bigint_t* by = kk_integer_to_bigint(y, ctx);
+  kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_as_bigint(x), KK_TAG_BIGINT);
+  kk_bigint_t* by = kk_block_assert(kk_bigint_t*, _kk_as_bigint(y), KK_TAG_BIGINT);
   int sign = bigint_compare_(bx, by);
   return sign;
 }

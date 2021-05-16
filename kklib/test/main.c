@@ -272,7 +272,7 @@ static kk_integer_t factorial(kk_integer_t n, kk_context_t* ctx) {
     return kk_integer_from_small(1);
   }
   kk_integer_dup(n);
-  return kk_integer_mul(factorial(kk_integer_dec(n, ctx), ctx),n, ctx);
+  return kk_integer_mul(factorial(kk_integer_dec(kk_integer_dup(n), ctx), ctx),n, ctx);
 }
 
 static void test_large(kk_context_t* ctx) {
