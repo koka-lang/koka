@@ -472,8 +472,8 @@ foldMapExpr acc e = case e of
   TypeApp expr _ -> acc e <> foldMapExpr acc expr
   Con _ _ -> acc e
   Lit _ -> acc e
-  Let _ body -> acc e <> foldMapExpr acc body
-  Case cases branches -> acc e <> mconcat (foldMapExpr acc <$> cases) <> 
+  Let binders body -> acc e <> mconcat [foldMapExpr acc (defExpr def) | def <- flattenDefGroups binders] <> foldMapExpr acc body
+  Case cases branches -> acc e <> mconcat (foldMapExpr acc <$> cases) <>
     mconcat [foldMapExpr acc e | branch <- branches, guard <- branchGuards branch, e <- [guardTest guard, guardExpr guard]]
 
 foldExpr :: (Expr -> a -> a) -> a -> Expr -> a

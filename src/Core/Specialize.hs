@@ -23,7 +23,7 @@ extractSpecializeDefs =
   . map (\specDefs@((SpecializeDef name _):_) -> (name, specDefs))
   . filter (not . null)
   . map getInline
-  . allDefs
+  . flattenDefGroups
 
 calledInThisDef :: Def -> NameSet
 calledInThisDef def = foldMapExpr go $ defExpr def
@@ -61,9 +61,3 @@ getInline def =
     map (\(k, v) -> SpecializeDef (defName def) v)
   $ M.toList
   $ M.filterWithKey (\k v -> k `S.member` calledInThisDef def) (passedRecursivelyToThisDef def)
-
-allDefs :: DefGroups -> [Def]
-allDefs = concatMap handleGroup
-  where
-    handleGroup (DefNonRec def) = [def]
-    handleGroup (DefRec defs) = defs
