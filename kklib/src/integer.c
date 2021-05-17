@@ -1774,6 +1774,17 @@ done:
   return i;
 }
 
+ssize_t kk_integer_clamp_ssize_t_generic(kk_integer_t x, kk_context_t* ctx) {
+  bool isneg = kk_integer_is_neg(kk_integer_dup(x), ctx);
+  size_t sz = kk_integer_clamp_size_t_generic( (isneg ? kk_integer_neg(x, ctx) : x), ctx);
+  if (isneg) {
+    return (sz <= KK_SSIZE_MAX ? -((ssize_t)sz) : KK_SSIZE_MIN);
+  }
+  else {
+    return (sz <= KK_SSIZE_MAX ? (ssize_t)sz : KK_SSIZE_MAX);
+  }
+}
+
 double kk_integer_as_double_generic(kk_integer_t x, kk_context_t* ctx) {
   kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
   if (bx->count > ((310/LOG_BASE) + 1)) return (bx->is_neg ? -HUGE_VAL : HUGE_VAL);

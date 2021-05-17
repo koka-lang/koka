@@ -21,7 +21,7 @@
   - a char/byte is 8 bits.
   - either little-endian, or big-endian.
   - carefully code with strict aliasing in mind.
-  - prefer signed over unsigned, use ptrdiff_t for sizes (see comments below).
+  - prefer signed over unsigned, use ssize_t for sizes (see comments below).
 --------------------------------------------------------------------------------------*/
 #ifdef __cplusplus
 #define kk_decl_externc    extern "C"
@@ -115,6 +115,7 @@
 #define kk_assert_internal(x) 
 #endif
 
+
 #ifndef KK_UNUSED
 #define KK_UNUSED(x)          ((void)(x))
 #ifdef NDEBUG
@@ -179,25 +180,13 @@ typedef int32_t         kk_ssize_t;
 #else
 #error size of a `size_t` must be 32 or 64 bits
 #endif
+#define KK_SSIZE_SIZE  KK_SIZE_SIZE
 #define KK_SIZE_BITS   (8*KK_SIZE_SIZE)
 
-// Define size of ptrdiff_t and kk_uptrdiff_t 
-#if PTRDIFF_MAX == INT64_MAX  
-# define KK_PTRDIFF_SIZE   8
-# define KIT(i)            KI64(i)
-# define KK_UT(i)          KU64(i)
-# define KK_UPTRDIFF_MAX   UINT64_MAX
-typedef uint64_t           kk_uptrdiff_t;
-#elif PTRDIFF_MAX == INT32_MAX
-# define KK_PTRDIFF_SIZE   4
-# define KIT(i)            KI32(i)
-# define KK_UT(i)          KU32(i)
-# define KK_UPTRDIFF_MAX   INT32_MAX
-typedef uint32_t           kk_uptrdiff_t;
-#else
-#error size of a `ptrdiff_t` must be 32 or 64 bits
-#endif
-#define KK_PTRDIFF_BITS   (8*KK_PTRDIFF_SIZE)
+
+// ensure `ssize_t` is defined
+// note: we always do this even if `ssize_t` is typedef'd already to ensure the type is indeed equivalent to the previous definition.
+typedef kk_ssize_t  ssize_t;
 
 // off_t: we always use 64-bit file offsets
 typedef int64_t     kk_off_t;
@@ -205,14 +194,14 @@ typedef int64_t     kk_off_t;
 #define KK_OFF_MIN  INT64_MIN
 
 
-// We limit the maximum object size (and array sizes) to at most `PTRDIFF_MAX` bytes so we can
-// always use _signed_ `ptrdiff_t`(instead of `size_t`) to specify sizes and do indexing in arrays. 
+// We limit the maximum object size (and array sizes) to at most `SIZE_MAX/2` bytes so we can
+// always use the signed `ssize_t` (instead of `size_t`) to specify sizes and do indexing in arrays. 
 // This avoids:
 // - signed/unsigned conversion (especially when mixing pointer arithmetic and lengths),
-// - errors with overflow detection (consider `size > SIZE_MAX` versus `ssize > SSIZE_MAX`),
+// - errors with overflow detection (consider `size > SIZE_MAX` versus `ssize > KK_SSIZE_MAX`),
 // - loop bound errors (consider `for(unsigned u = 0; u < len()-1; u++)` if `len()` happens to be `0` etc.),
 // - performance degradation -- modern compilers can compile signed loop variables better (as signed overflow is undefined),
-// - api usage(passing a negative value is easier to detect)
+// - api usage (passing a negative value is easier to detect)
 //
 // A drawback is that this limits object sizes to half the address space-- for 64-bit
 // this is not a problem but string lengths for example on 32-bit are limited to be
@@ -223,36 +212,38 @@ typedef int64_t     kk_off_t;
 // where we clamp the values into the `ptrdiff_t` range (but again, on modern systems this will not happen
 // as these already limit the size of objects to SIZE_MAX/2 internally)
 
-#if (PTRDIFF_MAX < SIZE_MAX/2)
-#error the size of a `ptrdiff_t` must be at least `sizeof(size_t)`
-#endif
-
-static inline ptrdiff_t kk_from_size_t(size_t sz) {
-  kk_assert_internal(sz <= PTRDIFF_MAX);
-  return (kk_likely(sz <= PTRDIFF_MAX) ? (ptrdiff_t)sz : PTRDIFF_MAX);
+static inline ssize_t kk_to_ssize_t(size_t sz) {
+  kk_assert(sz <= KK_SSIZE_MAX);
+  return (kk_likely(sz <= KK_SSIZE_MAX) ? (ssize_t)sz : KK_SSIZE_MAX);
 }
-static inline size_t kk_to_size_t(ptrdiff_t sz) {
-  kk_assert_internal(sz >= 0);
+static inline size_t kk_to_size_t(ssize_t sz) {
+  kk_assert(sz >= 0);
   return (kk_likely(sz >= 0) ? (size_t)sz : 0);
 }
 
+#if defined(NDEBUG)
+#define kk_ssizeof(tp)   ((ssize_t)(sizeof(tp)))
+#else
+#define kk_ssizeof(tp)   (kk_to_ssize_t(sizeof(tp)))
+#endif
+
 
 // We define `kk_intx_t` as an integer with the natural (fast) machine register size. 
-// We define it such that `sizeof(kk_intx_t) == max(sizeof(long),sizeof(ptrdiff_t))`. 
+// We define it such that `sizeof(kk_intx_t) == max(sizeof(long),sizeof(ssize_t))`. 
 // (We cannot use just `long` as it is sometimes too short (as on Windows 64-bit where a `long` is 32 bits).
-//  Similarly, `ptrdiff_t` is sometimes too short as well (like on the x32 ABI with a 64-bit `long` but 32-bit addresses)).
-#if (LONG_MAX < PTRDIFF_MAX)
-typedef ptrdiff_t      kk_intx_t;
-typedef kk_uptrdiff_t  kk_uintx_t;
-#define KIX(i)         KIT(i)
-#define KUX(i)         KK_UT(i)
-#define KK_INTX_SIZE   KK_PTRDIFF_SIZE
-#define KK_INTX_MAX    PTRDIFF_MAX
-#define KK_INTX_MIN    PTRDIFF_MIN
-#define PRIdIX         "%td"
-#define PRIuUX         "%tu"
-#define PRIxUX         "%tx"
-#define PRIXUX         "%tX"
+//  Similarly, `ssize_t` is sometimes too short as well (like on the x32 ABI with a 64-bit `long` but 32-bit addresses)).
+#if (LONG_MAX < KK_SSIZE_MAX)
+typedef ssize_t        kk_intx_t;
+typedef size_t         kk_uintx_t;
+#define KIX(i)         KIZ(i)
+#define KUX(i)         KUZ(i)
+#define KK_INTX_SIZE   KK_SSIZE_SIZE
+#define KK_INTX_MAX    KK_SSIZE_MAX
+#define KK_INTX_MIN    KK_SSIZE_MIN
+#define PRIdIX         "%zd"
+#define PRIuUX         "%zu"
+#define PRIxUX         "%zx"
+#define PRIXUX         "%zX"
 #else 
 typedef long           kk_intx_t;
 typedef unsigned long  kk_uintx_t;

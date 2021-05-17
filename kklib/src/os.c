@@ -81,12 +81,12 @@ static int kk_posix_fstat(kk_file_t f, kk_stat_t* st) {
 #endif
 }
 
-static int kk_posix_fsize(kk_file_t f, size_t* fsize) {
+static int kk_posix_fsize(kk_file_t f, ssize_t* fsize) {
   *fsize = 0;
   kk_stat_t st;
   int err = kk_posix_fstat(f, &st);
   if (err != 0) return err;
-  *fsize = (size_t)st.st_size;
+  *fsize = st.st_size;
   return 0;
 }
 
@@ -106,17 +106,18 @@ static int kk_posix_stat(kk_string_t path, kk_stat_t* st, kk_context_t* ctx) {
 }
 
 // Read at most `buflen` bytes from `inp` into `buf`. Return `0` on success (or an error code).
-static int kk_posix_read_retry(const kk_file_t inp, uint8_t* buf, const size_t buflen, size_t* read_count) {
+static int kk_posix_read_retry(const kk_file_t inp, uint8_t* buf, const ssize_t buflen, ssize_t* read_count) {
   int err = 0;
-  size_t ofs = 0;
+  ssize_t ofs = 0;
   do {
-    size_t todo = buflen - ofs;
+    ssize_t todo = buflen - ofs;
+    if (todo < 0) todo = 0;
     #ifdef WIN32
     if (todo > INT32_MAX) todo = INT32_MAX;  // on windows read in chunks of at most 2GiB
-    kk_ssize_t n = _read(inp, buf + ofs, (unsigned)(todo));
+    ssize_t n = _read(inp, buf + ofs, (unsigned)(todo));
     #else
     if (todo > KK_SSIZE_MAX) todo = KK_SSIZE_MAX;
-    kk_ssize_t n = read(inp, buf + ofs, (kk_ssize_t)(todo));
+    ssize_t n = read(inp, buf + ofs, todo);
     #endif  
     if (n < 0) {
       if (errno != EAGAIN && errno != EINTR) {
@@ -139,17 +140,18 @@ static int kk_posix_read_retry(const kk_file_t inp, uint8_t* buf, const size_t b
 }
 
 // Write at `len` bytes to `out` from `buf`. On error, `write_count` may be less than `len`.
-static int kk_posix_write_retry(const kk_file_t out, const uint8_t* buf, const size_t len, size_t* write_count) {
+static int kk_posix_write_retry(const kk_file_t out, const uint8_t* buf, const ssize_t len, ssize_t* write_count) {
   int err = 0;
-  size_t ofs = 0;
+  ssize_t ofs = 0;
   do {
-    size_t todo = len - ofs;
+    ssize_t todo = len - ofs;
+    if (todo < 0) todo = 0;
     #ifdef WIN32
     if (todo > INT32_MAX) todo = INT32_MAX;  // on windows write in chunks of at most 2GiB
-    kk_ssize_t n = _write(out, buf + ofs, (unsigned)(todo));
+    ssize_t n = _write(out, buf + ofs, (unsigned)(todo));
     #else
     if (todo > KK_SSIZE_MAX) todo = KK_SSIZE_MAX;
-    kk_ssize_t n = write(out, buf + ofs, (kk_ssize_t)todo);
+    ssize_t n = write(out, buf + ofs, todo);
     #endif  
     if (n < 0) {
       if (errno != EAGAIN && errno != EINTR) {
@@ -184,7 +186,7 @@ kk_decl_export int kk_os_read_text_file(kk_string_t path, kk_string_t* result, k
   int err = kk_posix_open(path, O_RDONLY, 0, &f, ctx);
   if (err != 0) return err;
 
-  size_t len;
+  ssize_t len;
   err = kk_posix_fsize(f, &len);
   if (err != 0) {
     kk_posix_close(f);
@@ -193,7 +195,7 @@ kk_decl_export int kk_os_read_text_file(kk_string_t path, kk_string_t* result, k
   uint8_t* cbuf;
   kk_bytes_t buf = kk_bytes_alloc_buf(len, &cbuf, ctx);
 
-  size_t nread;
+  ssize_t nread;
   err = kk_posix_read_retry(f, cbuf, len, &nread);
   kk_posix_close(f);
   if (err < 0) {
@@ -217,10 +219,10 @@ kk_decl_export int kk_os_write_text_file(kk_string_t path, kk_string_t content, 
     return err;
   }
   err = 0;
-  size_t len;
+  ssize_t len;
   const uint8_t* buf = kk_string_buf_borrow(content, &len);
   if (len > 0) {
-    size_t nwritten;
+    ssize_t nwritten;
     err = kk_posix_write_retry(f, buf, len, &nwritten);
     if (err == 0 && nwritten < len) err = EIO;
   }
@@ -327,7 +329,7 @@ kk_decl_export int kk_os_copy_file(kk_string_t from, kk_string_t to, bool preser
 #include <copyfile.h>
 
 #else
-static int kk_posix_copy_file(const int inp, const int out, const size_t estimated_len, kk_context_t* ctx) {
+static int kk_posix_copy_file(const int inp, const int out, const ssize_t estimated_len, kk_context_t* ctx) {
   int err = 0;
 
 #if defined(COPY_FR_COPY)
@@ -344,12 +346,12 @@ static int kk_posix_copy_file(const int inp, const int out, const size_t estimat
   }  
 #endif
 
-  size_t buflen = 1024 * 1024; // max 1MiB buffer
+  ssize_t buflen = 1024 * 1024; // max 1MiB buffer
   if (buflen > estimated_len) buflen = estimated_len + 1;
   uint8_t* buf = kk_malloc(buflen, ctx);
   if (buf == NULL) return ENOMEM;
-  size_t read_count;
-  size_t write_count;
+  ssize_t read_count;
+  ssize_t write_count;
   do {
     // transfer until EOF
     read_count = write_count = 0;
@@ -519,8 +521,8 @@ kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, 
     return err;
   }
 
-  size_t count = 0;
-  size_t len = 100;
+  ssize_t count = 0;
+  ssize_t len = 100;
   kk_vector_t vec = kk_vector_alloc(len, kk_integer_box(kk_integer_zero), ctx);
   
   do {
@@ -529,7 +531,7 @@ kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, 
       // push name
       if (count == len) {
         // realloc vector
-        const size_t newlen = (len > 1000 ? len + 1000 : 2*len);
+        const ssize_t newlen = (len > 1000 ? len + 1000 : 2*len);
         vec = kk_vector_realloc(vec, newlen, kk_integer_box(kk_integer_zero), ctx);
         len = newlen;
       }
@@ -609,11 +611,11 @@ kk_vector_t kk_os_get_argv(kk_context_t* ctx) {
   LPWSTR cmd = GetCommandLineW();
   int iwargc = 0;
   LPWSTR* wargv = CommandLineToArgvW(cmd, &iwargc);
-  size_t wargc = iwargc;
+  ssize_t wargc = iwargc;
   if (wargv==NULL) return kk_vector_empty();
-  size_t i = 0;
+  ssize_t i = 0;
   kk_assert_internal(ctx->argc <= wargc);
-  if (ctx->argc < (size_t)wargc) i = (size_t)wargc - ctx->argc;
+  if (ctx->argc < wargc) i = wargc - ctx->argc;
   kk_vector_t args = kk_vector_alloc(wargc, kk_box_null, ctx);
   kk_box_t* buf = kk_vector_buf(args, NULL);
   for ( ; i < wargc; i++) {
@@ -628,7 +630,7 @@ kk_vector_t kk_os_get_argv(kk_context_t* ctx) {
   if (ctx->argc==0 || ctx->argv==NULL) return kk_vector_empty();
   kk_vector_t args = kk_vector_alloc(ctx->argc, kk_box_null, ctx);
   kk_box_t* buf = kk_vector_buf(args, NULL);
-  for (size_t i = 0; i < ctx->argc; i++) {
+  for (ssize_t i = 0; i < ctx->argc; i++) {
     kk_string_t arg = kk_string_alloc_from_qutf8(ctx->argv[i], ctx);    
     buf[i] = kk_string_box(arg);
   }
@@ -642,23 +644,23 @@ kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
   const LPWCH env = GetEnvironmentStringsW();
   if (env==NULL) return kk_vector_empty();
   // first count the number of environment variables  (ends with two zeros)
-  size_t count = 0;
-  for (size_t i = 0; !(env[i]==0 && env[i+1]==0); i++) {
+  ssize_t count = 0;
+  for (ssize_t i = 0; !(env[i]==0 && env[i+1]==0); i++) {
     if (env[i]==0) count++;
   }
   kk_vector_t v = kk_vector_alloc(count*2, kk_box_null, ctx);
   kk_box_t* buf = kk_vector_buf(v, NULL);
   const uint16_t* p = env;
   // copy the strings into the vector
-  for(size_t i = 0; i < count; i++) {
+  for(ssize_t i = 0; i < count; i++) {
     const uint16_t* pname = p;
     while (*p != '=' && *p != 0) { p++; }
-    kk_string_t name = kk_string_alloc_from_qutf16n((size_t)(p - pname), pname, ctx);
+    kk_string_t name = kk_string_alloc_from_qutf16n((p - pname), pname, ctx);
     buf[2*i] = kk_string_box( name );
     p++; // skip '='
     const uint16_t* pvalue = p;
     while (*p != 0) { p++; }
-    kk_string_t val = kk_string_alloc_from_qutf16n((size_t)(p - pvalue), pvalue, ctx);
+    kk_string_t val = kk_string_alloc_from_qutf16n((p - pvalue), pvalue, ctx);
     buf[2*i + 1] = kk_string_box(val);
     p++;
   }
@@ -682,21 +684,21 @@ kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
   const char** env = (const char**)kk_get_environ();
   if (env==NULL) return kk_vector_empty();
   // first count the number of environment variables
-  size_t count;
+  ssize_t count;
   for (count = 0; env[count]!=NULL; count++) { /* nothing */ }
   kk_vector_t v = kk_vector_alloc(count*2, kk_box_null, ctx);
   kk_box_t* buf = kk_vector_buf(v, NULL);
   // copy the strings into the vector
-  for (size_t i = 0; i < count; i++) {
+  for (ssize_t i = 0; i < count; i++) {
     const char* p = env[i];
     const char* pname = p;
     while (*p != '=' && *p != 0) { p++; }
-    kk_string_t name = kk_string_alloc_from_qutf8n((size_t)(p - pname), pname, ctx);
+    kk_string_t name = kk_string_alloc_from_qutf8n((p - pname), pname, ctx);
     buf[2*i] = kk_string_box(name);
     p++; // skip '='
     const char* pvalue = p;
     while (*p != 0) { p++; }
-    kk_string_t val = kk_string_alloc_from_qutf8n((size_t)(p - pvalue), pvalue, ctx);
+    kk_string_t val = kk_string_alloc_from_qutf8n((p - pvalue), pvalue, ctx);
     buf[2*i + 1] = kk_string_box(val);
   }
   return v;
@@ -707,26 +709,26 @@ kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
 /*--------------------------------------------------------------------------------------------------
   Path max
 --------------------------------------------------------------------------------------------------*/
-kk_decl_export size_t kk_os_path_max(void);
+kk_decl_export ssize_t kk_os_path_max(void);
 
 #if defined(WIN32)
-kk_decl_export size_t kk_os_path_max(void) {
+kk_decl_export ssize_t kk_os_path_max(void) {
   return 32*1024; // _MAX_PATH;
 }
 
 #elif defined(__MACH__)
 #include <sys/syslimits.h>
-kk_decl_export size_t kk_os_path_max(void) {
+kk_decl_export ssize_t kk_os_path_max(void) {
   return PATH_MAX;
 }
 
 #elif defined(unix) || defined(__unix__) || defined(__unix)
 #include <unistd.h>  // pathconf
-kk_decl_export size_t kk_os_path_max(void) {
+kk_decl_export ssize_t kk_os_path_max(void) {
   #ifdef PATH_MAX
   return PATH_MAX;
   #else
-  static size_t path_max = 0;
+  static ssize_t path_max = 0;
   if (path_max <= 0) {
     long m = pathconf("/", _PC_PATH_MAX);
     if (m <= 0) path_max = 4096;      // guess
@@ -737,7 +739,7 @@ kk_decl_export size_t kk_os_path_max(void) {
   #endif
 }
 #else
-kk_decl_export size_t kk_os_path_max(void) {
+kk_decl_export ssize_t kk_os_path_max(void) {
 #ifdef PATH_MAX
   return PATH_MAX;
 #else
