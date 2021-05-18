@@ -80,7 +80,7 @@ extractDefGroup costMax (DefNonRec def)
 
 extractInlineDef :: Int -> Bool -> Def -> Maybe InlineDef
 extractInlineDef costMax isRec def
-  = let inlinable = (isInlineable costMax def)
+  = let inlinable = (isInlineable costMax def) 
     in -- trace ("def: " ++ show (defName def) ++ ": inline=" ++ show inlinable) $
         if not inlinable then Nothing
          else let cost = if (defName def == nameBind2 || defName def == nameBind)  -- TODO: use generic mechanism? force-inline keyword?

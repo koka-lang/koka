@@ -106,8 +106,8 @@ liftExprInl topLevel expr =
                             a = TypeVar (0) kindStar Bound
                             b = TypeVar (1) kindStar Bound
                             e = TypeVar (2) kindEffect Bound
-            return (bind,ibind)
-
+            return (bind,bind) -- ibind)
+    
     Let defgs body
       -> do defgs' <- liftDefGroups False defgs
             (body',ibody') <- liftExprInl False body

@@ -194,11 +194,11 @@ public noinline extern yield-extend(next : a -> e b ) : e b {
   js "_yield_extend"
 }
 
-public inline fun yield-bind( x : a, next : a -> e b ) : e b {
+public fun yield-bind( x : a, next : a -> e b ) : e b {
   if (yielding()) then yield-extend(next) else next(x)
 }
 
-public inline fun yield-bind2( x : a, extend : a -> e b, next : a -> e b ) : e b {
+public fun yield-bind2( x : a, extend : a -> e b, next : a -> e b ) : e b {
   if (yielding()) then yield-extend(extend) else next(x)
 }
 
