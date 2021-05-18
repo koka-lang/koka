@@ -43,6 +43,7 @@ import Core.CoreVar
 import Core.Borrowed
 
 import Backend.C.Parc
+import Backend.C.ParcInfer
 import Backend.C.ParcReuse
 import Backend.C.ParcReuseSpec
 import Backend.C.Box
@@ -82,12 +83,15 @@ contextParam :: Doc
 contextParam = text "kk_context_t* _ctx"
 
 genModule :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> Asm Core
-genModule sourceDir penv platform newtypes borrowed enableReuse enableSpecialize enableReuseSpecialize mbMain core0
+genModule sourceDir penv platform newtypes borrowed0 enableReuse enableSpecialize enableReuseSpecialize mbMain core0
   =  do core <- liftUnique (do bcore <- boxCore core0            -- box/unbox transform
                                ucore <- if (enableReuse)
                                          then parcReuseCore penv platform newtypes bcore -- constructor reuse analysis
                                          else return bcore
-                               pcore <- parcCore penv platform newtypes borrowed enableSpecialize ucore -- precise automatic reference counting
+                               icore <- parcInfer penv platform newtypes borrowed0 ucore
+                               let borrowed = borrowedExtends (extractBorrowDefs (coreProgDefs icore)) $
+                                     borrowedExtends (extractBorrowExternals (coreProgExternals icore)) borrowed0
+                               pcore <- parcCore penv platform newtypes borrowed enableSpecialize icore -- precise automatic reference counting
                                score <- if (enableReuse && enableReuseSpecialize)
                                          then parcReuseSpecialize penv pcore -- selective reuse
                                          else return pcore

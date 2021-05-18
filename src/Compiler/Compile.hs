@@ -1227,10 +1227,8 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
                       Executable name tp -> Just (name,isAsyncFunction tp)
                       _                  -> Nothing
       let -- (core,unique) = parcCore (prettyEnvFromFlags flags) newtypes unique0 core0
-          borrowed = borrowedExtends (extractBorrowDefs (Core.coreProgDefs core0)) $
-            borrowedExtends (extractBorrowExternals (Core.coreProgExternals core0)) borrowed0
           (cdoc,hdoc,bcore) = cFromCore sourceDir (prettyEnvFromFlags flags) (platform flags)
-                                newtypes borrowed unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
+                                newtypes borrowed0 unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
                                 mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } (target flags) [] bcore
       writeDocW 120 (outBase ++ ".c.core") bcoreDoc

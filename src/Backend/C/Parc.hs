@@ -65,12 +65,13 @@ parcDefGroup topLevel dg
       DefRec    defs -> DefRec    <$> reverseMapM (parcDef topLevel) defs
       DefNonRec def  -> DefNonRec <$> parcDef topLevel def
 
+-- todo: should inline definitions use borrowing as well?
 parcDef :: Bool -> Def -> Parc Def
 parcDef topLevel def
   = (if topLevel then isolated_ else id) $
     withCurrentDef def $
     do -- parcTrace "enter def"
-       expr <- (if topLevel then parcTopLevelExpr (defName def) (defSort def) else parcExpr) (defExpr def)
+       expr <- (if topLevel then parcTopLevelExpr (defSort def) else parcExpr) (defExpr def)
        return def{defExpr=expr}
 
 
@@ -78,11 +79,11 @@ parcDef topLevel def
 -- Main PARC algorithm
 --------------------------------------------------------------------------
 
-parcTopLevelExpr :: Name -> DefSort -> Expr -> Parc Expr
-parcTopLevelExpr name (DefFun bs) expr
+parcTopLevelExpr :: DefSort -> Expr -> Parc Expr
+parcTopLevelExpr (DefFun bs) expr
   = case expr of
       TypeLam tpars body
-        -> TypeLam tpars <$> parcTopLevelExpr name (DefFun bs) body
+        -> TypeLam tpars <$> parcTopLevelExpr (DefFun bs) body
       Lam pars eff body
         -> do let parsBs = zip pars $ bs ++ repeat Own
               let parsSet = S.fromList $ map fst $ filter (\x -> snd x == Own) parsBs
@@ -98,7 +99,7 @@ parcTopLevelExpr name (DefFun bs) expr
               dups <- foldMapM useTName caps
               return (maybeStats dups $ Lam pars eff body')
       _ -> parcExpr expr
-parcTopLevelExpr _ _ expr = parcExpr expr
+parcTopLevelExpr _ expr = parcExpr expr
 
 parcExpr :: Expr -> Parc Expr
 parcExpr expr
@@ -1036,7 +1037,7 @@ parcTraceDoc f
 parcTrace :: String -> Parc ()
 parcTrace msg
  = do defs <- getCurrentDef
-      trace ("Core.Parc: " ++ show (map defName defs) ++ ": " ++ msg) $
+      trace ("Backend.C.Parc: " ++ show (map defName defs) ++ ": " ++ msg) $
        return ()
 
 ----------------
