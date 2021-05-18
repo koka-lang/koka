@@ -266,7 +266,8 @@ typedef struct kk_box_any_s {
 } *kk_box_any_t;
 
 //A yield context allows up to 8 continuations to be stored in-place
-#define KK_YIELD_CONT_MAX (8)
+//make it 1 do disable short-cut resumptions
+#define KK_YIELD_CONT_MAX (1)
 
 typedef enum kk_yield_kind_e {
   KK_YIELD_NONE,
