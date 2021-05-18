@@ -12,17 +12,15 @@ import Core.Core
 import Core.Pretty ()
 import Lib.Trace
 
-data SpecializeDef = SpecializeDef
+data SpecializeDefs = SpecializeDefs
   { targetFunc :: Name
-  , argToSpecialize :: Int
+  , argsToSpecialize :: [Int]
   } deriving (Show)
 
-extractSpecializeDefs :: DefGroups -> NameMap [SpecializeDef]
+extractSpecializeDefs :: DefGroups -> NameMap SpecializeDefs
 extractSpecializeDefs = 
     M.fromList
-  . map (\specDefs@((SpecializeDef name _):_) -> (name, specDefs))
-  . filter (not . null)
-  . map getInline
+  . map ((\specDefs@(SpecializeDefs name _) -> (name, specDefs)) . getInline)
   . flattenDefGroups
 
 calledInThisDef :: Def -> NameSet
@@ -34,30 +32,30 @@ calledInThisDef def = foldMapExpr go $ defExpr def
     go (App (TypeApp (Var (TName name _) _) _) xs) = S.singleton name
     go _ = S.empty
 
-passedRecursivelyToThisDef :: Def -> NameMap Int
+-- return list of (paramName, paramIndex) that get called recursively to the same function in the same order
+passedRecursivelyToThisDef :: Def -> [(Name, Int)]
 passedRecursivelyToThisDef def 
   -- TODO: FunDef type to avoid this check?
   | Lam args effect body <- defExpr def = foldMapExpr (go args) $ defExpr def
   | TypeLam _ (Lam params effect body) <- defExpr def = foldMapExpr (go params) $ defExpr def
-  | otherwise = M.empty
+  | otherwise = []
   where
-    go :: [TName] -> Expr -> Map Name Int
+    go :: [TName] -> Expr -> [(Name, Int)]
     go params (App (Var (TName name _) _) args)
       | name == defName def = doWork args params
     go params (App (TypeApp (Var (TName name _) _) _) args)
       | name == defName def = doWork args params
-    go params _ = M.empty
+    go params _ = []
 
-    doWork :: [Expr] -> [TName] -> Map Name Int
+    doWork :: [Expr] -> [TName] -> [(Name, Int)]
     doWork args params =
-      M.fromList $
-        flip mapMaybe (zip3 [0..] args params) $ \(i, arg, param) ->
-          case arg of
-            Var tname _ | tname == param -> Just (getName tname, i)
-            _ -> Nothing
+      flip mapMaybe (zip3 [0..] args params) $ \(i, arg, param) ->
+        case arg of
+          Var tname _ | tname == param -> Just (getName tname, i)
+          _ -> Nothing
 
-getInline :: Def -> [SpecializeDef]
+getInline :: Def -> SpecializeDefs
 getInline def =
-    map (\(k, v) -> SpecializeDef (defName def) v)
-  $ M.toList
-  $ M.filterWithKey (\k v -> k `S.member` calledInThisDef def) (passedRecursivelyToThisDef def)
+    SpecializeDefs (defName def)
+  $ map snd
+  $ filter (\(paramName, _) -> paramName `S.member` calledInThisDef def) (passedRecursivelyToThisDef def)
