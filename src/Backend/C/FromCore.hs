@@ -67,10 +67,10 @@ externalNames
 -- Generate C code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Int -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
-cFromCore sourceDir penv0 platform newtypes borrowed uniq enableReuse enableSpecialize enableReuseSpecialize mbMain core
+cFromCore :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Int -> Bool -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
+cFromCore sourceDir penv0 platform newtypes borrowed uniq enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference mbMain core
   = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes platform False)
-           (genModule sourceDir penv platform newtypes borrowed enableReuse enableSpecialize enableReuseSpecialize mbMain core) of
+           (genModule sourceDir penv platform newtypes borrowed enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference mbMain core) of
       (bcore,cdoc,hdoc) -> (cdoc,hdoc,bcore)
   where
     moduleName = coreProgName core
@@ -82,13 +82,15 @@ contextDoc = text "_ctx"
 contextParam :: Doc
 contextParam = text "kk_context_t* _ctx"
 
-genModule :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> Asm Core
-genModule sourceDir penv platform newtypes borrowed0 enableReuse enableSpecialize enableReuseSpecialize mbMain core0
+genModule :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Bool -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> Asm Core
+genModule sourceDir penv platform newtypes borrowed0 enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference mbMain core0
   =  do core <- liftUnique (do bcore <- boxCore core0            -- box/unbox transform
                                ucore <- if (enableReuse)
                                          then parcReuseCore penv platform newtypes bcore -- constructor reuse analysis
                                          else return bcore
-                               icore <- parcInfer penv platform newtypes borrowed0 ucore
+                               icore <- if (enableBorrowInference)
+                                   then parcInfer penv platform newtypes borrowed0 ucore
+                                   else return ucore
                                let borrowed = borrowedExtends (extractBorrowDefs (coreProgDefs icore)) $
                                      borrowedExtends (extractBorrowExternals (coreProgExternals icore)) borrowed0
                                pcore <- parcCore penv platform newtypes borrowed enableSpecialize icore -- precise automatic reference counting

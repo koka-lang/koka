@@ -156,6 +156,7 @@ data Flags
          , parcReuse        :: Bool
          , parcSpecialize   :: Bool
          , parcReuseSpec    :: Bool
+         , parcBorrowInference    :: Bool
          , asan             :: Bool
          , useStdAlloc      :: Bool -- don't use mimalloc for better asan and valgrind support
          }
@@ -237,6 +238,7 @@ flagsNull
           True -- parc reuse
           True -- parc specialize
           True -- parc reuse specialize
+          True -- parc borrow inference
           False -- use asan
           False -- use stdalloc
 
@@ -330,6 +332,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fflag       ["parcreuse"] (\b f -> f{parcReuse=b})         "enable in-place update analysis"
  , hide $ fflag       ["parcspec"]  (\b f -> f{parcSpecialize=b})    "enable drop specialization"
  , hide $ fflag       ["parcrspec"] (\b f -> f{parcReuseSpec=b})     "enable reuse specialization"
+ , hide $ fflag       ["binference"]    (\b f -> f{parcBorrowInference=b})     "enable reuse inference"
  , hide $ fflag       ["optctail"]  (\b f -> f{optctail=b})          "enable con-tail optimization (TRMC)"
  , hide $ fflag       ["optctailinline"]  (\b f -> f{optctailInline=b})  "enable con-tail inlining (increases code size)"
  ]

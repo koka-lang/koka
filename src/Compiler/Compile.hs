@@ -1229,7 +1229,7 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
       let -- (core,unique) = parcCore (prettyEnvFromFlags flags) newtypes unique0 core0
           (cdoc,hdoc,bcore) = cFromCore sourceDir (prettyEnvFromFlags flags) (platform flags)
                                 newtypes borrowed0 unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
-                                mbEntry core0
+                                (parcBorrowInference flags) mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } (target flags) [] bcore
       writeDocW 120 (outBase ++ ".c.core") bcoreDoc
       when (showCore flags) $

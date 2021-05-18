@@ -43,8 +43,9 @@ import Core.Borrowed
 --  a) Those that are drop-reused anywhere in the function
 --     (because drop-reuse optimization is more important)
 --  b) Those that are returned or passed as owned to another function
+--     either themselves or some subcomponent of them
 --     (because we don't save anything there)
---  c) Recursive types in recursive functions
+--  c) Inductive/Recursive types in recursive functions
 --     (this is a crude heuristic so that we don't free too late)
 --
 -- a) and b) are tracked by marking variables as "consumed"
@@ -100,7 +101,7 @@ inferDefExpr (DefFun bs) expr
               -- todo: criterion c)
               let bs' = flip map parsBs $ \(p, b) ->
                     if p `S.notMember` cons then Borrow else b
-              return $ (DefFun bs', Lam pars eff body')
+              return (DefFun bs', Lam pars eff body')
       _ -> (\x -> (DefFun bs, x)) <$> inferExpr expr
 inferDefExpr def expr = (\x -> (def, x)) <$> inferExpr expr
 
@@ -123,9 +124,11 @@ inferExpr expr
         -> do -- inferTrace ("not refcounted: " ++ show tname ++ ": " ++ show info)
              return expr
       App inner@(TypeApp (Var tname info) targs) args
-        -> inferBorrowApp tname inner args
+        -> do markConsumed tname
+              inferBorrowApp tname inner args
       App inner@(Var tname info) args
-        -> inferBorrowApp tname inner args
+        -> do markConsumed tname
+              inferBorrowApp tname inner args
       App fn args
         -> do args' <- mapM inferExpr args
               fn'   <- inferExpr fn

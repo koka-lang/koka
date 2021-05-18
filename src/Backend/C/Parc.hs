@@ -135,20 +135,27 @@ parcExpr expr
                 then return expr
                 else do
                   parcTrace $ "Wrapping: " ++ show tname
-                  case getWrapInfo expr of
-                    Just (ts, as, eff) -> do
-                      parcExpr $ addTypeLambdas ts $ addLambdas as eff
-                        $ addApps (map (flip Var InfoNone . uncurry TName) as) $ addTypeApps ts
-                        $ Var tname info
-                    Nothing -> return expr
+                  -- splitFunScheme
+                  case splitFunScheme $ typeOf expr of
+                    Just (ts, [], as, eff, _)
+                      -> do parcExpr $ addTypeLambdas ts $ addLambdas as eff
+                              $ addApps (map (flip Var InfoNone . uncurry TName) as) $ addTypeApps ts
+                              $ Var tname info
+                    Just _
+                      -> do parcTrace $ "Preds not empty: " ++ show (typeOf expr)
+                            return expr
+                    Nothing
+                      -> return expr
 
       -- If the function is refcounted, it may need to be dupped.
       -- On the other hand, we want to avoid an infinite recursion with
       -- the wrapping if it is not ref-counted.
-      App inner@(Var tname info) args -> makeBorrowApp tname args =<<
-        if infoIsRefCounted info then parcExpr inner else return inner
-      App inner@(TypeApp (Var tname info) targs) args -> makeBorrowApp tname args =<<
-        if infoIsRefCounted info then parcExpr inner else return inner
+      App inner@(Var tname info) args
+        -> do inner' <- if infoIsRefCounted info then parcExpr inner else return inner
+              parcBorrowApp tname args inner'
+      App inner@(TypeApp (Var tname info) targs) args
+        -> do inner' <- if infoIsRefCounted info then parcExpr inner else return inner
+              parcBorrowApp tname args inner'
       App fn args
         -> do args' <- reverseMapM parcExpr args
               fn'   <- parcExpr fn
@@ -171,43 +178,41 @@ parcExpr expr
         -> do nexpr <- normalizeCase expr
               parcExpr nexpr
 
-makeBorrowApp :: TName -> [Expr] -> Expr -> Parc Expr
-makeBorrowApp tname args expr
-  = do  bs <- getParamInfos (getName tname)
-        let argsBs = zip args $ bs ++ repeat Own
-        (lets, drops, args') <- fmap unzip3 $ flip reverseMapM argsBs $ \(a, b) -> do
-          case (a, b) of
-            (_, Own) -> (\x -> ([], Nothing, x)) <$> parcExpr a
-            (Var tname info, Borrow)
-              | infoIsRefCounted info ->
-                 (\d -> ([], d, Var tname info)) <$> useTNameBorrowed tname
-              | otherwise -> do return ([], Nothing, Var tname info)
-            (_, Borrow) -> do
-              argName <- uniqueName "borrowArg"
-              a' <- parcExpr a
-              let def = makeDef argName a'
-              drop <- genDrop $ defTName def
-              case drop of
-                Nothing -> return ([], Nothing, a') -- if no drop necessary, make output prettier
-                Just _ -> return ([DefNonRec def], drop, Var (defTName def) InfoNone)
-        -- parcTrace $ "On function " ++ show (getName tname) ++ " with args " ++ show args ++ " we have: " ++ show (lets, drops, args')
-        expr' <- case catMaybes drops of
-          [] -> return $ App expr args'
-          _ -> do
-            appName <- uniqueName "borrowApp"
-            let def = makeDef appName $ App expr args'
-            return $ makeLet [DefNonRec def] $ maybeStats drops $ Var (defTName def) InfoNone
-        return $ makeLet (concat lets) expr'
+parcBorrowApp :: TName -> [Expr] -> Expr -> Parc Expr
+parcBorrowApp tname args expr
+  = do bs <- getParamInfos (getName tname)
+       let argsBs = zip args $ bs ++ repeat Own
+       (lets, drops, args') <- unzip3 <$> reverseMapM (uncurry parcBorrowArg) argsBs
+       -- parcTrace $ "On function " ++ show (getName tname) ++ " with args " ++ show args ++ " we have: " ++ show (lets, drops, args')
+       expr' <- case catMaybes drops of
+         []
+           -> return $ App expr args'
+         _
+           -> do appName <- uniqueName "borrowApp"
+                 let def = makeDef appName $ App expr args'
+                 return $ makeLet [DefNonRec def] $ maybeStats drops $ Var (defTName def) InfoNone
+       return $ makeLet (concat lets) expr'
 
-getWrapInfo :: Expr -> Maybe ([TypeVar], [(Name, Tau)], Type)
-getWrapInfo expr
-  = go ([], [], Nothing) (typeOf expr)
-  where
-    go (ts, as, meff) t = 
-      case t of
-        TForall ts' _ r -> go (ts ++ ts', as, meff) r
-        TFun as' eff _ -> Just (ts, as ++ as', eff)
-        _ -> (\eff -> (ts, as, eff)) <$> meff
+parcBorrowArg :: Expr -> ParamInfo -> Parc ([DefGroup], Maybe Expr, Expr)
+parcBorrowArg a b
+  = do case (a, b) of
+         (_, Own)
+           -> (\x -> ([], Nothing, x)) <$> parcExpr a
+         -- Optimize: Direct variable
+         (Var tname info, Borrow)
+           -> if infoIsRefCounted info
+              then (\d -> ([], d, Var tname info)) <$> useTNameBorrowed tname
+              else return ([], Nothing, Var tname info)
+         (_, Borrow)
+           -> do argName <- uniqueName "borrowArg"
+                 a' <- parcExpr a
+                 let def = makeDef argName a'
+                 drop <- genDrop (defTName def)
+                 case drop of
+                   Nothing
+                     -> return ([], Nothing, a') -- if no drop necessary, make output prettier
+                   Just _
+                     -> return ([DefNonRec def], drop, Var (defTName def) InfoNone)
 
 varNames :: [Expr] -> [TName]
 varNames (Var tn _:exprs) = tn:varNames exprs
@@ -229,17 +234,18 @@ parcBranch scrutinees live (Branch pats guards)
 
 parcGuard :: [TName] -> [Pattern] -> Live -> Guard -> Parc (Live -> Parc Guard)
 parcGuard scrutinees pats live (Guard test expr)
-  = do ownedPats <- map snd <$> filterM (\(s, p) -> isOwned s) (zip scrutinees pats)
-       let pvs = bv ownedPats
-       scoped pvs $
+  = do ownedPats <- map snd <$> filterM (\(s, _) -> isOwned s) (zip scrutinees pats)
+       let ownedPvs = bv ownedPats
+       let pvs = bv pats
+       scoped pvs $ extendOwned ownedPvs $
          do shapes <- inferShapes scrutinees pats  -- create alias map for the pattern
             extendShapes shapes $ -- merge with current alias map
               do (expr', live') <- isolateWith live $ parcExpr expr
                  markLives live'
                  test' <- withOwned S.empty $ parcExpr test
-                 return $ \matchLive -> scoped pvs $ extendShapes shapes $ do
+                 return $ \matchLive -> scoped pvs $ extendOwned ownedPvs $ extendShapes shapes $ do
                   let dups = S.intersection pvs live'
-                  drops <- filterOwned $ matchLive \\ live'
+                  let drops = matchLive \\ live'
                   Guard test' <$> parcGuardRC dups drops expr'
 
 type Dups     = TNames
@@ -594,10 +600,10 @@ useTNameBorrowed tname
        borrowed <- isBorrowed tname
        markLive tname
        -- parcTrace ("marked live: " ++ show tname)
-       if not live && not borrowed
+       if not (live || borrowed)
          then -- trace ("use drop " ++ show tname) $
               genDrop tname
-         else -- trace ("use nodup " ++ show tname) $
+         else -- trace ("use nodrop " ++ show tname) $
               return Nothing
 
 -----------------------------------------------------------
@@ -925,11 +931,6 @@ setLive = modifyLive . const
 isOwned :: TName -> Parc Bool
 isOwned tn = S.member tn <$> getOwned
 
-filterOwned :: S.Set TName -> Parc (S.Set TName)
-filterOwned s
-  = do os <- getOwned
-       return $ S.filter (`S.member` os) s
-
 isBorrowed :: TName -> Parc Bool
 isBorrowed tn = not <$> isOwned tn
 
@@ -1005,12 +1006,10 @@ isolateWith live action
 ------------------------
 -- scope abstractions --
 
--- | Assume the variables as owned in the scope
--- and remove them from the live set afterwards
+-- | Remove the variables from the live set after the action.
 scoped :: TNames -> Parc a -> Parc a
 scoped vars action
-  = do expr <- extendOwned vars $
-               action
+  = do expr <- action
        forget vars
        return expr
 
@@ -1019,7 +1018,7 @@ scoped vars action
 -- and remove them from the live set afterwards
 ownedInScope :: TNames -> Parc Expr -> Parc Expr
 ownedInScope vars action
-  = scoped vars $
+  = scoped vars $ extendOwned vars $
       do expr <- action
          live <- getLive
          drops <- foldMapM genDrop (vars \\ live)
