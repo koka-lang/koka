@@ -1,0 +1,21 @@
+{
+   <core_init>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:kk_std_core__init
+}
+{
+  <garsia_wachs_init>
+  Memcheck:Leak
+  match-leak-kinds: reachable
+  ...
+  fun:kk_samples_basic_garsia_dash_wachs__init
+}
+{
+   <caesar_init>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   ...
+   fun:kk_samples_basic_caesar__init
+}
