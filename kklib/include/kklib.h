@@ -17,7 +17,6 @@
 #define _DARWIN_C_SOURCE    200809L  // make darwin definitions visible
 #define _FILE_OFFSET_BITS   64       // enable large files
 
-#include <sys/types.h>        // posix: ssize_t 
 #include <limits.h>           // LONG_MAX, ...
 #include <stddef.h>           // size_t
 #include <stdint.h>           // int64_t, ...

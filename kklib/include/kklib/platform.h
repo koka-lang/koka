@@ -185,7 +185,8 @@ typedef int32_t         kk_ssize_t;
 
 
 // ensure `ssize_t` is defined
-// note: we always do this even if `ssize_t` is typedef'd already to ensure the type is indeed equivalent to the previous definition.
+// note: we always do this even if `ssize_t` is typedef'd already to ensure the type is 
+//       indeed equivalent to the previous definition on this platform.
 typedef kk_ssize_t  ssize_t;
 
 // off_t: we always use 64-bit file offsets
