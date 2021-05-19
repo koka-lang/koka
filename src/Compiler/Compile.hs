@@ -1245,6 +1245,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       mapM_ (copyCLibrary term flags cc) eimports
 
       -- compile
+      {-
       let ccompile = concat $
                      [ [ccPath cc]
                      , ccFlags cc
@@ -1264,25 +1265,14 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                      ]
 
       runCommand term flags ccompile
+      -}
+      ccompile term flags cc outBase [outC] 
 
       -- compile and link?
       case mbEntry of
        Nothing -> return Nothing
        Just _ ->
-         do cmakeGeneratorFlag  -- prefer Ninja if available
-              <- if onWindows then return ["-G","Ninja"]  -- we must use Ninja on windows (as we cannot handle multi-config cmake)
-                  else return []
-                       {-
-                       do paths   <- getEnvPaths "PATH"
-                          mbNinja <- searchPaths paths [exeExtension] "ninja"
-                          case mbNinja of
-                            Just ninja -> do -- termDoc term $ text "found ninja:" <+> pretty ninja
-                                             return ["-G","Ninja"]
-                            Nothing    -> return []
-                      -}
-
-            checkCMake term flags
-            currentDir <- getCurrentDirectory
+         do currentDir <- getCurrentDirectory
             -- kklibInstallDir = joinPath kklibDir "out/install"
             -- installKKLib term flags kklibDir kklibInstallDir cmakeGeneratorFlag cmakeConfigTypeFlag configType
 
@@ -1291,15 +1281,18 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                 mainExe    = outName flags mainName
 
             -- build kklib for the specified build variant
-            cmakeLib term flags cc "kklib" (ccLibFile cc "kklib") cmakeGeneratorFlag
+            -- cmakeLib term flags cc "kklib" (ccLibFile cc "kklib") cmakeGeneratorFlag
+            kklibObj <- kklibBuild term flags cc "kklib" (ccObjFile cc "kklib")
 
-            let objs   = [outName flags (ccObjFile cc (showModName mname)) | mname <- (map modName modules ++ [Core.coreProgName core0])]
+            let objs   = [kklibObj] ++
+                         [outName flags (ccObjFile cc (showModName mname)) 
+                         | mname <- (map modName modules ++ [Core.coreProgName core0])]
                 syslibs= concat [csyslibsFromCore mcore | mcore <- map modCore modules]
                          ++ ccompLinkSysLibs flags
                          ++ (if onWindows then ["bcrypt","psapi","advapi32"]
                                           else ["m","pthread"])
-                libs   = ["kklib"] -- [normalizeWith '/' (outName flags (ccLibFile cc "kklib"))] ++ ccompLinkLibs flags
-                         ++ 
+                libs   = -- ["kklib"] -- [normalizeWith '/' (outName flags (ccLibFile cc "kklib"))] ++ ccompLinkLibs flags
+                         -- ++ 
                          clibs 
                          ++
                          concat [clibsFromCore mcore | mcore <- map modCore modules]
@@ -1327,6 +1320,32 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                                   color (colorSource (colorScheme flags)) (text (normalizeWith pathSep mainExe))
             let cmdflags = if (showElapsed flags) then " --kktime" else ""
             return (Just (runSystemEcho term flags (dquote mainExe ++ cmdflags ++ " " ++ execOpts flags))) -- use shell for proper rss accounting
+
+
+ccompile :: Terminal -> Flags -> CC -> FilePath -> [FilePath] -> IO ()
+ccompile term flags cc ctargetObj csources 
+  = do let cmdline = concat $
+                      [ [ccPath cc]
+                      , ccFlags cc
+                      , ccFlagsWarn cc
+                      , ccFlagsCompile cc
+                      , ccFlagsBuildFromFlags cc flags
+                      , ccIncludeDir cc (localShareDir flags ++ "/kklib/include")
+                      ]
+                      ++
+                      (if (asan flags) then [] else [ccIncludeDir cc (localShareDir flags ++ "/kklib/mimalloc/include")])
+                      ++
+                      map (ccIncludeDir cc) (ccompIncludeDirs flags)
+                      ++
+                      map (ccAddDef cc) ((if (asan flags) then [] else ["KK_MIMALLOC","MI_MAX_ALIGN_SIZE=8"])
+                                        -- ++ ["KK_STATIC_LIB"]
+                                        ++ ["KK_COMP_VERSION=\"" ++ version ++ "\""]
+                                        )
+                      ++
+                      [ ccTargetObj cc (notext ctargetObj)
+                      , csources   -- [outC]
+                      ]
+       runCommand term flags cmdline
 
 
 copyCLibrary :: Terminal -> Flags -> CC -> [(String,String)] -> IO ()
@@ -1418,6 +1437,36 @@ externalImportKeyFromCore core key
 externalImportsFromCore :: Core.Core -> [[(String,String)]]
 externalImportsFromCore core 
   = [keyvals  | Core.ExternalImport imports _ <- Core.coreProgExternals core, (C,keyvals) <- imports]
+
+
+kklibBuild :: Terminal -> Flags -> CC -> String -> FilePath -> IO FilePath
+kklibBuild term flags cc name {-kklib-} objFile {-libkklib.o-}
+  = do let objPath = outName flags objFile  {-out/v2.x.x/clang-debug/libkklib.o-}
+       exist <- doesFileExist objPath
+       let binObjPath = joinPath (localLibDir flags) (configType flags ++ "/" ++ objFile)
+       let srcLibDir  = joinPath (localShareDir flags) (name)
+       binExist <- doesFileExist binObjPath
+       binNewer <- if (not binExist) then return False
+                   else if (not exist) then return True
+                   else do cmp <- fileTimeCompare binObjPath objPath
+                           return (cmp==GT)
+       srcNewer <- if (binNewer) then return False -- no need to check
+                   else if (not exist) then return True
+                   else do cmp <- fileTimeCompare (srcLibDir ++ "/include/kklib.h") objPath
+                           return (cmp==GT)
+       -- putStrLn ("binObjPath: " ++ binObjPath ++ ", newer: " ++ show binNewer)
+       if (not binNewer && not srcNewer && not (rebuild flags)) 
+        then return ()
+         else if (binNewer)
+           then -- use pre-compiled installed binary
+                copyBinaryFile binObjPath objPath
+           else -- todo: check for installed binaries for the library
+                do termDoc term $ color (colorInterpreter (colorScheme flags)) (text ("compile:")) <+>
+                                   color (colorSource (colorScheme flags)) (text name) <+>
+                                    color (colorInterpreter (colorScheme flags)) (text "from:") <+>
+                                     color (colorSource (colorScheme flags)) (text srcLibDir)
+                   ccompile term flags cc objPath [joinPath srcLibDir "src/all.c"] 
+       return objPath
 
 
 cmakeLib :: Terminal -> Flags -> CC -> String -> FilePath -> [String] -> IO ()

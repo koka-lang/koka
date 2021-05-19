@@ -22,3 +22,5 @@
 #include "refcount.c"
 #include "string.c"
 #include "time.c"
+
+#include "../mimalloc/src/static.c"

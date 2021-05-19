@@ -2,7 +2,7 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
-#define KKLIB_BUILD        24       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        25       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1
 
@@ -18,6 +18,9 @@
 #define _DARWIN_C_SOURCE    200809L  // make darwin definitions visible
 #define _XOPEN_SOURCE       500      // make xopen definitions visible
 #define _FILE_OFFSET_BITS   64       // enable large files
+#if defined(__GNUC__) && !defined(__MINGW32__)
+#define _GNU_SOURCE         1        // make gnu definitions visible
+#endif
 
 #include <limits.h>           // LONG_MAX, ...
 #include <stddef.h>           // ptrdiff_t
@@ -239,7 +242,16 @@ static inline bool kk_block_is_valid(kk_block_t* b) {
   This is passed by the code generator as an argument to every function so it can
   be (usually) accessed efficiently through a register.
 --------------------------------------------------------------------------------------*/
-typedef void*  kk_heap_t;
+#ifdef KK_MIMALLOC
+#ifdef KK_MIMALLOC_INLINE
+#include "../mimalloc/include/mimalloc-inline.h"
+#else
+#include "../mimalloc/include/mimalloc.h"
+#endif
+typedef mi_heap_t* kk_heap_t;
+#else
+typedef void*      kk_heap_t;
+#endif
 
 // A function has as its first field a pointer to a C function that takes the
 // `kk_function_t` itself as a first argument. The following fields are the free variables.
@@ -357,12 +369,10 @@ static inline int32_t kk_marker_unique(kk_context_t* ctx) {
 
 #ifdef KK_MIMALLOC
 #ifdef KK_MIMALLOC_INLINE
-  #include "../mimalloc/include/mimalloc-inline.h"
   static inline void* kk_malloc_small(size_t sz, kk_context_t* ctx) {
     return kk_mi_heap_malloc_small_inline(ctx->heap, sz);
   }
 #else
-  #include "../mimalloc/include/mimalloc.h"
   static inline void* kk_malloc_small(size_t sz, kk_context_t* ctx) {
     return mi_heap_malloc_small(ctx->heap, sz);
   } 
@@ -703,7 +713,7 @@ static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
 ----------------------------------------------------------------------*/
 
 // create a singleton
-static inline kk_datatype_t kk_datatype_from_tag(uint16_t t) {
+static inline kk_datatype_t kk_datatype_from_tag(kk_tag_t t) {
   kk_datatype_t d;
   d.singleton = (((uintptr_t)t)<<2 | 1);
   return d;

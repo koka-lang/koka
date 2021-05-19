@@ -118,7 +118,7 @@ fun install( prefixdir : path, cc : string, version : string, dist : bool, post 
   copy-directory("kklib/include".path, kklibdir / "include")
   copy-directory("kklib/mimalloc".path, kklibdir / "mimalloc")
   copy-file-to-dir("kklib/CMakeLists.txt".path, kklibdir)
-  copy-file-to-dir("kklib/kkmain.cmake".path, kklibdir)
+  // copy-file-to-dir("kklib/kkmain.cmake".path, kklibdir)
 
   // Copy contrib
   val contribdir = sharedir / "contrib"
@@ -208,7 +208,8 @@ fun copy-kklib( variant : variant, libdir : path, cc : string, version : string 
   val vardir = cc ++ "-" ++ variant.show
   val objdir = libdir / vardir
   val outdir = "out" / version / vardir
-  val kklib  = if (get-os-name()=="windows") then "kklib.lib" else "libkklib.a"
+  val kklib  = // if (get-os-name()=="windows") then "kklib.lib" else "libkklib.a"
+               if (get-os-name()=="windows") then "kklib.obj" else "kklib.o"
   ensure-dir(objdir)
   copy-file-to-dir( outdir / kklib, objdir )
   val all = list-directory(outdir)

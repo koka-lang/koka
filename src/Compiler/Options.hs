@@ -722,7 +722,7 @@ ccGcc name path
          (Release,       words "-O2 -DNDEBUG"),
          (RelWithDebInfo,words "-O2 -g -DNDEBUG")]
         (gnuWarn ++ ["-Wno-unused-but-set-variable"])
-        (["-c"] ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
+        (["-c"]) -- ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
         []
         (\libdir -> ["-L",libdir])
         (\idir -> ["-I",idir])
@@ -762,8 +762,9 @@ ccFromPath flags path
         clang   = gcc{ ccFlagsWarn = gnuWarn ++ words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align" }
         generic = gcc{ ccFlagsWarn = [] }
         msvc    = ccMsvc name path
-        clangcl = msvc{ ccFlagsWarn = ccFlagsWarn clang ++ words "-Wno-extra-semi-stmt -Wno-extra-semi -Wno-float-equal",
-                        ccFlagsLink = words "-Wno-unused-command-line-argument" ++ ccFlagsLink msvc
+        clangcl = msvc{ ccFlagsWarn = ["-Wno-everything"] ++ ccFlagsWarn clang ++ words "-Wno-extra-semi-stmt -Wno-extra-semi -Wno-float-equal",
+                        ccFlagsLink = words "-Wno-unused-command-line-argument" ++ ccFlagsLink msvc,
+                        ccFlagsCompile = ["-D__clang_msvc__"] ++ ccFlagsCompile msvc
                       }
 
         cc0     | (name `startsWith` "clang-cl") = clangcl
