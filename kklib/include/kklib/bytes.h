@@ -221,6 +221,8 @@ static inline bool kk_bytes_is_neq(kk_bytes_t s1, kk_bytes_t s2, kk_context_t* c
   Utilities
 --------------------------------------------------------------------------------------------------*/
 
+const uint8_t* kk_memmem(const uint8_t* p, size_t plen, const uint8_t* pat, size_t patlen);
+
 kk_decl_export size_t kk_decl_pure kk_bytes_count_pattern_borrow(kk_bytes_t str, kk_bytes_t pattern);
 
 kk_decl_export kk_bytes_t kk_bytes_cat(kk_bytes_t s1, kk_bytes_t s2, kk_context_t* ctx);

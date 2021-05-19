@@ -16,6 +16,7 @@
 #define WIN32_LEAN_AND_MEAN          // reduce windows include
 #define _POSIX_C_SOURCE     200809L  // make posix definitions visible
 #define _DARWIN_C_SOURCE    200809L  // make darwin definitions visible
+#define _XOPEN_SOURCE       500      // make xopen definitions visible
 #define _FILE_OFFSET_BITS   64       // enable large files
 
 #include <limits.h>           // LONG_MAX, ...
@@ -416,12 +417,12 @@ static inline void* kk_realloc(void* p, size_t sz, kk_context_t* ctx) {
   return realloc(p, sz);
 }
 
-static inline void kk_free(void* p) {
+static inline void kk_free(const void* p) {
   KK_UNUSED(p);
-  free(p);
+  free((void*)p);
 }
 
-static inline void kk_free_local(void* p) {
+static inline void kk_free_local(const void* p) {
   kk_free(p);
 }
 #endif
@@ -710,7 +711,7 @@ static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
 ----------------------------------------------------------------------*/
 
 // create a singleton
-static inline kk_datatype_t kk_datatype_from_tag(kk_tag_t t) {
+static inline kk_datatype_t kk_datatype_from_tag(uint16_t t) {
   kk_datatype_t d;
   d.singleton = (((uintptr_t)t)<<2 | 1);
   return d;

@@ -11,16 +11,6 @@
 #define  __USE_MINGW_ANSI_STDIO 1  // so %z is valid on mingw
 #include "kklib.h"
 
-static const uint8_t* kk_memmem(const uint8_t* p, size_t plen, const uint8_t* pat, size_t patlen) {
-  // todo: optimize search algo?
-  kk_assert(p != NULL && pat != NULL);
-  if (patlen == 0 || patlen > plen) return NULL;
-  const uint8_t* end = p + (plen - (patlen - 1));
-  for (; p < end; p++) {
-    if (memcmp(p, pat, patlen) == 0) return p;
-  }
-  return NULL;
-}
 
 // Allow reading aligned words as long as some bytes in it are part of a valid C object
 #define ARCH_ALLOW_WORD_READS  (1)  
@@ -126,7 +116,7 @@ size_t kk_decl_pure kk_string_count(kk_string_t str, kk_context_t* ctx) {
  String conversion to/from qutf8
 --------------------------------------------------------------------------------------------------*/
 
-static bool kk_char_is_raw(kk_char_t c) {
+static inline bool kk_char_is_raw(kk_char_t c) {
   return (c >= (KK_RAW_PLANE + 0xD800) && c <= (KK_RAW_PLANE + 0xE0FF));
 }
 

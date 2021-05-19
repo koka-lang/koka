@@ -5,6 +5,8 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
+#define _BSD_SOURCE         1     // for syscall
+#define _DEFAULT_SOURCE     1
 #include "kklib.h"
 #include <string.h> // memset
 

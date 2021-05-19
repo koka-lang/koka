@@ -90,7 +90,7 @@ kk_bytes_t kk_bytes_adjust_length(kk_bytes_t b, size_t newlen, kk_context_t* ctx
   Compare
 --------------------------------------------------------------------------------------------------*/
 
-static const uint8_t* kk_memmem(const uint8_t* p, size_t plen, const uint8_t* pat, size_t patlen) {
+const uint8_t* kk_memmem(const uint8_t* p, size_t plen, const uint8_t* pat, size_t patlen) {
   // todo: optimize search algo?
   kk_assert(p != NULL && pat != NULL);
   if (patlen == 0 || patlen > plen) return NULL;
