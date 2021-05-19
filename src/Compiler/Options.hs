@@ -323,6 +323,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 --  , option []    ["install-dir"]     (ReqArg installDirFlag "dir")       "set the install directory explicitly"
 
  , hide $ fflag       ["stdalloc"]  (\b f -> f{useStdAlloc=b})       "use the libc allocator (as opposed to mimalloc)"
+ , hide $ fflag       ["asan"]      (\b f -> f{asan=b})              "compile with address, undefined, and leak santizer (clang only)"
  , hide $ fnum 3 "n"  ["simplify"]  (\i f -> f{simplify=i})          "enable 'n' core simplification passes"
  , hide $ fnum 10 "n" ["maxdup"]    (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
  , hide $ fnum 10 "n" ["inline"]    (\i f -> f{optInlineMax=i})      "set 'n' as maximum inline threshold (=10)"
@@ -555,7 +556,9 @@ processOptions flags0 opts
                                   vcpkgIncludeDir  = vcpkgIncludeDir,
                                   vcpkgLibDir      = vcpkgLibDir,
                                   ccompLibDirs     = vcpkgLibDirs ++ ccompLibDirs flags,
-                                  ccompIncludeDirs = vcpkgIncludeDirs ++ ccompIncludeDirs flags
+                                  ccompIncludeDirs = vcpkgIncludeDirs ++ ccompIncludeDirs flags,
+
+                                  useStdAlloc = if (asan flags) then True else (useStdAlloc flags)
                                }
                           ,mode)
         else invokeError errs

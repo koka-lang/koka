@@ -1,4 +1,3 @@
---suppressions=.valgrind_samples.supp
 --leak-check=full
 --show-leak-kinds=all 
 --show-reachable=yes
