@@ -23,4 +23,6 @@
 #include "string.c"
 #include "time.c"
 
+#if defined(KK_MIMALLOC)
 #include "../mimalloc/src/static.c"
+#endif
