@@ -2618,7 +2618,7 @@ fun null( b : bool ) : null<()> {
     b.maybe.null
 }
 
-val null-const : forall<a> null<a> = null(Nothing)
+// val null-const : forall<a> null<a> = null(Nothing)
 
 
 
