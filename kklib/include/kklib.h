@@ -357,20 +357,12 @@ static inline int32_t kk_marker_unique(kk_context_t* ctx) {
 
 #ifdef KK_MIMALLOC
 #ifdef KK_MIMALLOC_INLINE
-  #ifdef KK_STATIC_LIB
   #include "../mimalloc/include/mimalloc-inline.h"
-  #else
-  #include "mimalloc-inline.h"
-  #endif
   static inline void* kk_malloc_small(size_t sz, kk_context_t* ctx) {
     return kk_mi_heap_malloc_small_inline(ctx->heap, sz);
   }
 #else
-  #ifdef KK_STATIC_LIB
   #include "../mimalloc/include/mimalloc.h"
-  #else
-  #include "mimalloc.h"
-  #endif
   static inline void* kk_malloc_small(size_t sz, kk_context_t* ctx) {
     return mi_heap_malloc_small(ctx->heap, sz);
   } 
