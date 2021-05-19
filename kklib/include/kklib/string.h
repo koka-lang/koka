@@ -420,12 +420,12 @@ kk_decl_export uint16_t*      kk_string_to_qutf16_borrow(kk_string_t str, kk_con
 kk_decl_export const char*    kk_string_to_qutf8_borrow(kk_string_t str, bool* should_free, kk_context_t* ctx);
 
 #define kk_with_string_as_qutf16_borrow(str,wstr,ctx) /* { action } */ \
-  for( const uint16_t* wstr = kk_string_to_qutf16_borrow(str,ctx); wstr != NULL; kk_free(wstr), wstr = NULL )
+  for( const uint16_t* wstr = kk_string_to_qutf16_borrow(str,ctx); wstr != nullptr; kk_free(wstr), wstr = nullptr )
 
 #define kk_with_string_as_qutf8_borrow(str,ustr,ctx) /* { action } */ \
   bool should_free_##ustr; \
-  for( const char* ustr = kk_string_to_qutf8_borrow(str,&should_free_##ustr,ctx); ustr != NULL; \
-      ustr = (should_free_##ustr ? (kk_free(ustr), NULL) : NULL) )
+  for( const char* ustr = kk_string_to_qutf8_borrow(str,&should_free_##ustr,ctx); ustr != nullptr; \
+      ustr = (should_free_##ustr ? (kk_free(ustr), nullptr) : nullptr) )
 
 
 /*--------------------------------------------------------------------------------------------------

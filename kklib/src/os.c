@@ -10,6 +10,8 @@
 #endif
 #include "kklib.h"
 
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+
 /*--------------------------------------------------------------------------------------------------
   Posix abstraction layer
 --------------------------------------------------------------------------------------------------*/
@@ -346,7 +348,7 @@ static int kk_posix_copy_file(const int inp, const int out, const size_t estimat
 
   size_t buflen = 1024 * 1024; // max 1MiB buffer
   if (buflen > estimated_len) buflen = estimated_len + 1;
-  uint8_t* buf = kk_malloc(buflen, ctx);
+  uint8_t* buf = (uint8_t*)kk_malloc(buflen, ctx);
   if (buf == NULL) return ENOMEM;
   size_t read_count;
   size_t write_count;
@@ -1079,7 +1081,7 @@ kk_string_t kk_os_kernel(kk_context_t* ctx) {
 }
 
 kk_string_t kk_os_arch(kk_context_t* ctx) {
-  char* arch = "unknown";
+  const char* arch = "unknown";
 #if defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) || defined(_M_AMD64)
   arch = "amd64";
 #elif defined(__i386__) || defined(__i386) || defined(_M_IX86) || defined(_X86_) || defined(__X86__)
@@ -1103,7 +1105,7 @@ kk_string_t kk_os_arch(kk_context_t* ctx) {
 #elif defined(__sparc__) || defined(__sparc)
   arch = "sparc";
 #endif
-  return kk_string_alloc_dup_valid_utf8(arch, ctx);
+  return (kk_string_alloc_dup_valid_utf8(arch, ctx));
 }
 
 kk_string_t kk_compiler_version(kk_context_t* ctx) {

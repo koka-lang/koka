@@ -235,55 +235,56 @@ kk_bytes_t kk_bytes_replace_all(kk_bytes_t s, kk_bytes_t pat, kk_bytes_t rep, kk
 
 kk_bytes_t kk_bytes_replace_atmost(kk_bytes_t s, kk_bytes_t pat, kk_bytes_t rep, size_t n, kk_context_t* ctx) {
   kk_bytes_t t = s;
-  if (n==0 || kk_bytes_is_empty_borrow(s) || kk_bytes_is_empty_borrow(pat)) goto done;
-
-  size_t plen;
-  const uint8_t* p = kk_bytes_buf_borrow(s,&plen);
-  size_t ppat_len;
-  const uint8_t* ppat = kk_bytes_buf_borrow(pat,&ppat_len);
-  size_t prep_len; 
-  const uint8_t* prep = kk_bytes_buf_borrow(rep, &prep_len);
-  
-  const uint8_t* const pend = p + plen;
-  // if unique s && |rep| == |pat|, update in-place
-  // TODO: if unique s & |rep| <= |pat|, maybe update in-place if not too much waste?
-  if (kk_datatype_is_unique(s) && ppat_len == prep_len) {
-    size_t count = 0;
-    while (count < n && p < pend) {
-      const uint8_t* r = kk_memmem(p, pend - p, ppat, ppat_len);
-      if (r == NULL) break;
-      memcpy((uint8_t*)r, prep, prep_len);
-      count++;
-      p = r + prep_len;
-    }
-  }
-  else {
-    // count pat occurrences so we can pre-allocate the result buffer
-    size_t count = 0;
-    const uint8_t* r = p;
-    while (count < n && ((r = kk_memmem(r, pend - r, ppat, ppat_len)) != NULL)) {
-      count++;
-      r += ppat_len;
-    }
-    if (count == 0) goto done; // no pattern found
+  if (!(n==0 || kk_bytes_is_empty_borrow(s) || kk_bytes_is_empty_borrow(pat)))
+  {
+    size_t plen;
+    const uint8_t* p = kk_bytes_buf_borrow(s,&plen);
+    size_t ppat_len;
+    const uint8_t* ppat = kk_bytes_buf_borrow(pat,&ppat_len);
+    size_t prep_len; 
+    const uint8_t* prep = kk_bytes_buf_borrow(rep, &prep_len);
     
-    // allocate
-    size_t newlen = plen - (count * ppat_len) + (count * prep_len);
-    uint8_t* q;
-    t = kk_bytes_alloc_buf(newlen, &q, ctx);
-    while (count > 0) {
-      count--;
-      r = kk_memmem(p, pend - p, ppat, ppat_len);
-      kk_assert_internal(r != NULL);
-      size_t ofs = (size_t)(r - p);
-      memcpy(q, p, ofs);
-      memcpy(q + ofs, prep, prep_len);
-      q += ofs + prep_len;
-      p += ofs + ppat_len;
+    const uint8_t* const pend = p + plen;
+    // if unique s && |rep| == |pat|, update in-place
+    // TODO: if unique s & |rep| <= |pat|, maybe update in-place if not too much waste?
+    if (kk_datatype_is_unique(s) && ppat_len == prep_len) {
+      size_t count = 0;
+      while (count < n && p < pend) {
+        const uint8_t* r = kk_memmem(p, pend - p, ppat, ppat_len);
+        if (r == NULL) break;
+        memcpy((uint8_t*)r, prep, prep_len);
+        count++;
+        p = r + prep_len;
+      }
     }
-    size_t rest = (size_t)(pend - p);
-    memcpy(q, p, rest);
-    kk_assert_internal(q + rest == kk_bytes_buf_borrow(t,NULL) + newlen);
+    else {
+      // count pat occurrences so we can pre-allocate the result buffer
+      size_t count = 0;
+      const uint8_t* r = p;
+      while (count < n && ((r = kk_memmem(r, pend - r, ppat, ppat_len)) != NULL)) {
+        count++;
+        r += ppat_len;
+      }
+      if (count == 0) goto done; // no pattern found
+      
+      // allocate
+      size_t newlen = plen - (count * ppat_len) + (count * prep_len);
+      uint8_t* q;
+      t = kk_bytes_alloc_buf(newlen, &q, ctx);
+      while (count > 0) {
+        count--;
+        r = kk_memmem(p, pend - p, ppat, ppat_len);
+        kk_assert_internal(r != NULL);
+        size_t ofs = (size_t)(r - p);
+        memcpy(q, p, ofs);
+        memcpy(q + ofs, prep, prep_len);
+        q += ofs + prep_len;
+        p += ofs + ppat_len;
+      }
+      size_t rest = (size_t)(pend - p);
+      memcpy(q, p, rest);
+      kk_assert_internal(q + rest == kk_bytes_buf_borrow(t,NULL) + newlen);
+    }
   }
 
 done:

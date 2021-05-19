@@ -26,6 +26,7 @@
 #define kk_decl_externc    extern "C"
 #else
 #define kk_decl_externc    extern
+#define nullptr            NULL
 #endif
 
 #ifdef __STDC_VERSION__

@@ -331,7 +331,7 @@ uint16_t* kk_string_to_qutf16_borrow(kk_string_t str, kk_context_t* ctx) {
   }
 
   // encode to utf-16
-  uint16_t* wstr = kk_malloc((wlen + 1) * sizeof(uint16_t), ctx);
+  uint16_t* wstr = (uint16_t*)kk_malloc((wlen + 1) * sizeof(uint16_t), ctx);
   uint16_t* q = wstr;
   for (const uint8_t* p = s; p < end; ) {
     size_t count;

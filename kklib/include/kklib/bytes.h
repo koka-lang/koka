@@ -129,7 +129,7 @@ static inline const uint8_t* kk_bytes_buf_borrow(const kk_bytes_t b, size_t* len
   }
   kk_tag_t tag = kk_datatype_tag(b);
   if (tag == KK_TAG_BYTES_SMALL) {
-    const kk_bytes_small_t bs = kk_datatype_as_assert(const kk_bytes_small_t, b, KK_TAG_BYTES_SMALL);
+    const kk_bytes_small_t bs = kk_datatype_as_assert(kk_bytes_small_t, b, KK_TAG_BYTES_SMALL);
     if (len != NULL) {
       // a small bytes of length N (<= 7) ends with an ending zero followed by (7 - N) trailing 0xFF bytes.
       #ifdef KK_ARCH_LITTLE_ENDIAN
