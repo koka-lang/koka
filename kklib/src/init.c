@@ -169,13 +169,6 @@ static void kklib_init(void) {
   __cpuid(cpu_info, (int)(0x80000001));
   __has_lzcnt  = ((cpu_info[2] & (KI32(1)<<5)) != 0);
 #endif
-#if defined(__has_feature)
- #if __has_feature(address_sanitizer)
-  fputs("info: clang address sanitizer enabled.\n", stderr);
- #endif
-#elif defined(__SANITIZE_ADDRESS__)
-  fputs("info: gcc address sanitizer enabled.\n", stderr);
-#endif
   atexit(&kklib_done);  
 }
 
