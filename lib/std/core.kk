@@ -1292,7 +1292,7 @@ extern ssize_t( i : int) : ssize_t   {
 }
 
 // Convert an `:ssize_t` to an `:int`.
-private inline extern int( i : ssize_t ) : int {
+inline extern int( i : ssize_t ) : int {
   c  "kk_integer_from_ssize_t"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_double"
@@ -1309,6 +1309,53 @@ private inline extern is-neg( i : ssize_t ) : bool { inline "(#1 < 0)" }
 private extern is-zero( i : ssize_t ) : bool { inline "(#1 == 0)" }
 private extern decr(i : ssize_t ) : ssize_t { inline "(#1 - 1)" }
 private extern incr(i : ssize_t ) : ssize_t { inline "(#1 + 1)" }
+
+
+
+// ----------------------------------------------------------------------------
+// int64, size_t, ptrdiff_t
+// ----------------------------------------------------------------------------
+
+// Convert an integer to an `:size_t`. The number is _clamped_ to the maximal or minimum `:size_t`
+// value if it is outside the range of an `:size_t`.
+extern size_t( i : int) : size_t   {
+  c  "kk_integer_clamp_size_t"
+  cs "Primitive.IntToInt32"
+  js "$std_core._int_to_int32"
+}
+
+// Convert a `:size_t` to an `:int`.
+inline extern int( i : size_t ) : int {
+  c  "kk_integer_from_size_t"
+  cs inline "(new BigInteger(#1))"
+  js "$std_core._int_double"
+}
+
+extern ptrdiff_t( i : int) : ptrdiff_t   {
+  c  "kk_integer_clamp_ptrdiff_t"
+  cs "Primitive.IntToInt32"
+  js "$std_core._int_to_int32"
+}
+
+// Convert a `:ptrdiff_t` to an `:int`.
+inline extern int( i : ptrdiff_t ) : int {
+  c  "kk_integer_from_ptrdiff_t"
+  cs inline "(new BigInteger(#1))"
+  js "$std_core._int_double"
+}
+
+extern int64( i : int) : int64 {
+  c  "kk_integer_clamp64"
+  cs "Primitive.IntToInt32"
+  js "$std_core._int_to_int32"
+}
+
+// Convert an `:int64_t` to an `:int`.
+inline extern int( i : int64 ) : int {
+  c  "kk_integer_from_big64"
+  cs inline "(new BigInteger(#1))"
+  js "$std_core._int_double"
+}
 
 
 // ----------------------------------------------------------------------------

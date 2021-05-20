@@ -1758,18 +1758,28 @@ genAppSpecial f args
        case (f,args) of
         (Var tname _, [Lit (LitInt i)]) | getName tname == nameInt32 && isSmallInt32 i
           -> return (Just (genLitInt32 i))
+        (Var tname _, [Lit (LitInt i)]) | getName tname == nameInt64 && isSmallInt64 i
+          -> return (Just (genLitInt64 i))
         (Var tname _, [Lit (LitInt i)]) | getName tname == nameSSizeT && isSmallSSizeT platform i
           -> return (Just (genLitSSizeT i))
-        --(Var tname _, [Lit (LitInt i)]) | getName tname == nameSizeT && isSmallSizeT platform i
-        --  -> return (Just (genLitSizeT i))
+        (Var tname _, [Lit (LitInt i)]) | getName tname == nameSizeT && isSmallSizeT platform i
+          -> return (Just (genLitSizeT i))
+        (Var tname _, [Lit (LitInt i)]) | getName tname == namePtrDiffT && isSmallPtrDiffT platform i
+          -> return (Just (genLitPtrDiffT i))
         _ -> case extractExtern f of
                Just (tname,formats)
                  -- inline external
                  -> case args of
                      [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt32 i
-                       -> return (Just (parens (text "(int32_t)" <.> pretty i)))
+                       -> return (Just (genLitInt32 i))
+                     [Lit (LitInt i)] | getName tname == nameInt64 && isSmallInt64 i
+                       -> return (Just (genLitInt64 i))
                      [Lit (LitInt i)] | getName tname == nameSSizeT && isSmallSSizeT platform i
-                       -> return (Just (parens (text "(kk_ssize_t)" <.> pretty i)))
+                       -> return (Just (genLitSSizeT i))
+                     [Lit (LitInt i)] | getName tname == nameSizeT && isSmallSizeT platform i
+                       -> return (Just (genLitSizeT i))                       
+                     [Lit (LitInt i)] | getName tname == namePtrDiffT && isSmallPtrDiffT platform i
+                       -> return (Just (genLitPtrDiffT i))
                      _ -> return Nothing
                _ -> return Nothing
 
@@ -2254,6 +2264,10 @@ genLitInt32 :: Integer -> Doc
 genLitInt32 i
   = parens (text "(int32_t)" <.> pretty i)
 
+genLitInt64 :: Integer -> Doc
+genLitInt64 i
+  = parens (text "(int64_t)" <.> pretty i)
+
 genLitSizeT :: Integer -> Doc
 genLitSizeT i
   = parens (text "(size_t)" <.> pretty i)
@@ -2261,6 +2275,11 @@ genLitSizeT i
 genLitSSizeT :: Integer -> Doc
 genLitSSizeT i
   = parens (text "(kk_ssize_t)" <.> pretty i)
+
+genLitPtrDiffT :: Integer -> Doc
+genLitPtrDiffT i
+  = parens (text "(ptrdiff_t)" <.> pretty i)
+
 
 isSmallLitInt expr
   = case expr of
@@ -2291,6 +2310,12 @@ isSmallSSizeT platform i
   | sizeSize platform == 4 = (i >= minSmallInt32 && i <= maxSmallInt32)
   | sizeSize platform == 8 = (i >= minSmallInt64 && i <= maxSmallInt64)
   | otherwise = failure $ "Backend.C.isSmallSSizeT: unknown platform ssize_t: " ++ show platform
+
+isSmallPtrDiffT platform i
+  | sizePtr platform == 4 = (i >= minSmallInt32 && i <= maxSmallInt32)
+  | sizePtr platform == 8 = (i >= minSmallInt64 && i <= maxSmallInt64)
+  | otherwise = failure $ "Backend.C.isSmallPtrDiffT: unknown platform ptrdiff_t: " ++ show platform
+
 
 ppName :: Name -> Doc
 ppName name

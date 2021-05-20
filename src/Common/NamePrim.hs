@@ -52,7 +52,7 @@ module Common.NamePrim
 
           --
           , nameUnsafeTotal
-          , nameIntConst, nameInt32, nameSSizeT -- , nameSSizeT
+          , nameIntConst, nameInt32, nameInt64, nameSizeT, nameSSizeT, namePtrDiffT
 
           , nameTpBox, nameUnbox, nameBox, nameBoxCon
 
@@ -84,7 +84,8 @@ module Common.NamePrim
           , nameTpBool, nameTpInt, nameTpChar
           , nameTpFloat, nameTpFloat32
           , nameTpString
-          , nameTpInt32, nameTpInt64, nameTpInt16, nameTpInt8, nameTpByte, nameTpSSizeT, nameTpSizeT
+          , nameTpInt32, nameTpInt64, nameTpInt16, nameTpInt8, nameTpByte
+          , nameTpSSizeT, nameTpSizeT, nameTpPtrDiffT
           , nameTpAny
           , nameTpNull
           , nameTpException
@@ -356,8 +357,10 @@ nameTpHandled1  = coreTypesName "handled1"
 nameIdentity    = coreTypesName "id"
 
 nameInt32       = preludeName "int32"
--- nameSizeT       = preludeName "size_t"
+nameInt64       = preludeName "int64"
+nameSizeT       = preludeName "size_t"
 nameSSizeT      = preludeName "ssize_t"
+namePtrDiffT    = preludeName "ptrdiff_t"
 
 nameUnit        = coreTypesName "()"
 nameTrue        = coreTypesName "True"
@@ -381,6 +384,7 @@ nameTpInt16     = coreTypesName "int16"
 nameTpInt8      = coreTypesName "int8"
 nameTpSizeT     = coreTypesName "size_t"
 nameTpSSizeT    = coreTypesName "ssize_t"
+nameTpPtrDiffT  = coreTypesName "ptrdiff_t"
 nameTpByte      = coreTypesName "uint8"
 nameTpFloat     = coreTypesName "double"
 nameTpFloat32   = coreTypesName "float32"

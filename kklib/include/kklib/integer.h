@@ -339,6 +339,10 @@ static inline kk_integer_t kk_integer_from_ssize_t(ssize_t i, kk_context_t* ctx)
   return kk_integer_from_int(i, ctx);
 }
 
+static inline kk_integer_t kk_integer_from_ptrdiff_t(ptrdiff_t i, kk_context_t* ctx) {
+  return kk_integer_from_int(i, ctx);
+}
+
 static inline kk_integer_t kk_integer_from_intptr_t(intptr_t i, kk_context_t* ctx) {
   return kk_integer_from_int(i, ctx);
 }
@@ -604,13 +608,29 @@ static inline size_t kk_integer_clamp_size_t(kk_integer_t x, kk_context_t* ctx) 
   return kk_integer_clamp_size_t_generic(x, ctx);
 }
 
+
 static inline ssize_t kk_integer_clamp_ssize_t(kk_integer_t x, kk_context_t* ctx) {
-  if (kk_likely(kk_is_smallint(x))) {
-    kk_intx_t i = kk_smallint_from_integer(x);
-    if (i >= KK_SSIZE_MIN && i <= KK_SSIZE_MAX) return (ssize_t)i;
-    // fall through
-  }
-  return kk_integer_clamp_ssize_t_generic(x, ctx);
+#if KK_SSIZE_SIZE <= 4
+  return kk_integer_clamp32(x, ctx);
+#else
+  return kk_integer_clamp64(x, ctx);
+#endif
+}
+
+static inline ptrdiff_t kk_integer_clamp_ptrdiff_t(kk_integer_t x, kk_context_t* ctx) {
+#if PTRDIFF_MAX <= INT32_MAX
+  return kk_integer_clamp32(x, ctx);
+#else
+  return kk_integer_clamp64(x, ctx);
+#endif
+}
+
+static inline intptr_t kk_integer_clamp_intptr_t(kk_integer_t x, kk_context_t* ctx) {
+#if INTPTR_MAX <= INT32_MAX
+  return kk_integer_clamp32(x, ctx);
+#else
+  return kk_integer_clamp64(x, ctx);
+#endif
 }
 
 static inline kk_intx_t kk_integer_clamp(kk_integer_t x, kk_context_t* ctx) {

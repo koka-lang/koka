@@ -797,16 +797,12 @@ genInline expr
               case extractExtern f of
                 Just (tname,formats)
                   -> case args of
-                       [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt i
-                         -> return (pretty i)
-                       [Lit (LitInt i)] | getName tname == nameSSizeT && isSmallInt i
+                       [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameInt64,nameSSizeT,namePtrDiffT] && isSmallInt i
                          -> return (pretty i)
                        _ -> genInlineExternal tname formats argDocs
                 Nothing
                   -> case (f,args) of
-                       ((Var tname _),[Lit (LitInt i)]) | getName tname == nameInt32 && isSmallInt i
-                         -> return (pretty i)
-                       ((Var tname _),[Lit (LitInt i)]) | getName tname == nameSSizeT && isSmallInt i
+                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt32,nameInt64,nameSSizeT,namePtrDiffT] && isSmallInt i
                          -> return (pretty i)
                        _ -> do fdoc <- genInline f
                                return (fdoc <.> tupled argDocs)
