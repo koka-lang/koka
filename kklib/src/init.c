@@ -232,8 +232,8 @@ kk_decl_export kk_context_t* kk_main_start(int argc, char** argv) {
   kk_context_t* ctx = kk_get_context();
   // process kklib options
   if (argv != NULL && argc >= 1) {
-    size_t i;
-    for (i = 1; i < (size_t)argc; i++) {   // argv[0] is the program name
+    ssize_t i;
+    for (i = 1; i < argc; i++) {   // argv[0] is the program name
       const char* arg = argv[i];
       if (strcmp(arg, "--kktime")==0) {
         ctx->process_start = kk_timer_start();
@@ -246,7 +246,7 @@ kk_decl_export kk_context_t* kk_main_start(int argc, char** argv) {
     if (i > 0) {
       argv[i] = argv[0]; // move the program name to the last processed --kkxxx option
     }
-    ctx->argc = (size_t)argc - i;
+    ctx->argc = argc - i;
     ctx->argv = (const char**)(argv + i);
   }
   return ctx;

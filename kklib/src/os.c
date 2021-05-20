@@ -72,7 +72,11 @@ static int kk_posix_creat(kk_string_t path, int perm, kk_file_t* f, kk_context_t
 #endif
 
 static int kk_posix_close(kk_file_t f) {
+#ifdef WIN32
+  return (_close(f) < 0 ? errno : 0);
+#else
   return (close(f) < 0 ? errno : 0);
+#endif
 }
 
 static int kk_posix_fstat(kk_file_t f, kk_stat_t* st) {
@@ -292,7 +296,11 @@ kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ct
               err = errno;
             }
           }
+          #if defined(WIN32)
+          *p = (uint16_t)c;
+          #else     
           *p = c;
+          #endif    
         }
       } while (err == 0 && *p++ != 0);
     }
@@ -469,7 +477,7 @@ static void os_findclose(dir_cursor d) {
   _findclose(d);
 }
 static kk_string_t os_direntry_name(dir_entry* entry, kk_context_t* ctx) {
-  if ((entry->name == NULL) || wcscmp(entry->name, L".") == 0 || wcscmp(entry->name, L"..") == 0) {
+  if (wcscmp(entry->name, L".") == 0 || wcscmp(entry->name, L"..") == 0) {
     return kk_string_empty();
   }
   else {
@@ -823,8 +831,8 @@ kk_string_t kk_os_realpath(kk_string_t fname, kk_context_t* ctx) {
 static kk_string_t kk_os_searchpathx(const char* paths, const char* fname, kk_context_t* ctx) {
   if (paths==NULL || fname==NULL || fname[0]==0) return kk_string_empty();
   const char* p = paths;
-  size_t pathslen = strlen(paths);
-  size_t fnamelen = strlen(fname);
+  ssize_t pathslen = kk_sstrlen(paths);
+  ssize_t fnamelen = kk_sstrlen(fname);
   char* buf = (char*)kk_malloc(pathslen + fnamelen + 2, ctx);
   if (buf==NULL) return kk_string_empty();
 
@@ -833,10 +841,10 @@ static kk_string_t kk_os_searchpathx(const char* paths, const char* fname, kk_co
   while (p < pend) {
     const char* r = strchr(p, KK_PATH_SEP);
     if (r==NULL) r = pend;
-    size_t plen = (size_t)(r - p);
-    memcpy(buf, p, plen);
-    memcpy(buf + plen, "/", 1);
-    memcpy(buf + plen + 1, fname, fnamelen);
+    ssize_t plen = (r - p);
+    kk_memcpy(buf, p, plen);
+    kk_memcpy(buf + plen, "/", 1);
+    kk_memcpy(buf + plen + 1, fname, fnamelen);
     buf[plen+1+fnamelen] = 0;
     p = (r == pend ? r : r + 1);
     kk_string_t sfname = kk_string_alloc_from_qutf8(buf, ctx);
@@ -872,7 +880,7 @@ static kk_string_t kk_os_app_path_generic(kk_context_t* ctx) {
     ) {
     // relative path, combine with "./"
     char* cs;
-    kk_bytes_t b = kk_bytes_alloc_cbuf( strlen(p) + 2, &cs, ctx);
+    kk_bytes_t b = kk_bytes_alloc_cbuf( kk_sstrlen(p) + 2, &cs, ctx);
     strcpy(cs, "./" );
     strcat(cs, p);
     kk_string_t s = kk_string_convert_from_qutf8(b, ctx);
@@ -902,8 +910,8 @@ kk_decl_export kk_string_t kk_os_app_path(kk_context_t* ctx) {
   }
   else {
     // not enough space in the buffer, try again with larger buffer
-    size_t slen = kk_os_path_max();
-    uint16_t* bbuf = (uint16_t*)kk_malloc((slen+1) * sizeof(uint16_t), ctx);
+    ssize_t slen = kk_os_path_max();
+    uint16_t* bbuf = (uint16_t*)kk_malloc((slen+1) * kk_ssizeof(uint16_t), ctx);
     len = GetModuleFileNameW(NULL, bbuf, (DWORD)slen+1);
     if (len >= slen) {
       // failed again, use fall back
@@ -1133,7 +1141,7 @@ int kk_os_processor_count(kk_context_t* ctx) {
   cpu_count = sysconf(_SC_NPROCESSORS_CONF);
 #elif defined(HW_AVAILCPU)
   int mib[4];
-  size_t len = sizeof(cpu_count);
+  ssize_t len = kk_ssizeof(cpu_count);
   mib[0] = CTL_HW;
   mib[1] = HW_AVAILCPU;  
   sysctl(mib, 2, &cpu_count, &len, NULL, 0);

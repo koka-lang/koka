@@ -407,7 +407,7 @@ static inline void* kk_malloc(ssize_t sz, kk_context_t* ctx) {
 }
 
 static inline void* kk_malloc_small(ssize_t sz, kk_context_t* ctx) {
-  return kk_malloc((size_t)sz,ctx);
+  return kk_malloc(sz,ctx);
 }
 
 static inline void* kk_zalloc(ssize_t sz, kk_context_t* ctx) {
@@ -996,7 +996,7 @@ static inline kk_vector_t kk_vector_alloc(ssize_t length, kk_box_t def, kk_conte
     return kk_vector_empty();
   }
   else {
-    kk_vector_large_t v = (kk_vector_large_t)kk_block_large_alloc(sizeof(struct kk_vector_large_s) + (length-1)*kk_ssizeof(kk_box_t), length + 1 /* kk_large_scan_fsize */, KK_TAG_VECTOR, ctx);
+    kk_vector_large_t v = (kk_vector_large_t)kk_block_large_alloc(kk_ssizeof(struct kk_vector_large_s) + (length-1)*kk_ssizeof(kk_box_t), length + 1 /* kk_large_scan_fsize */, KK_TAG_VECTOR, ctx);
     if (def.box != kk_box_null.box) {
       for (ssize_t i = 0; i < length; i++) {
         v->vec[i] = def;

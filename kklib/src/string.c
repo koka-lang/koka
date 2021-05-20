@@ -15,27 +15,27 @@
 // Allow reading aligned words as long as some bytes in it are part of a valid C object
 #define ARCH_ALLOW_WORD_READS  (1)  
 
-static char kk_ascii_toupper(char c) {
+static uint8_t kk_ascii_toupper(uint8_t c) {
   return (c >= 'a' && c <= 'z' ? c - 'a' + 'A' : c);
 }
-static char kk_ascii_tolower(char c) {
+static uint8_t kk_ascii_tolower(uint8_t c) {
   return (c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c);
 }
-static char ascii_iswhite(char c) {
+static uint8_t kk_ascii_iswhite(uint8_t c) {
   return (c == ' ' || c == '\t' || c == '\n' || c == '\r');
 }
 
-static int kk_memicmp(const uint8_t* s, const uint8_t* t, size_t len) {
+static int kk_memicmp(const uint8_t* s, const uint8_t* t, ssize_t len) {
   if (s==t) return 0;
-  for(size_t i = 0; i < len; i++) {
-    char c = kk_ascii_tolower(*s); s++;
-    char d = kk_ascii_tolower(*t); t++;
+  for(ssize_t i = 0; i < len; i++) {
+    uint8_t c = kk_ascii_tolower(*s); s++;
+    uint8_t d = kk_ascii_tolower(*t); t++;
     if (c != d) return (c < d ? -1 : 1);
   }
   return 0;
 }
 
-static size_t kk_wcslen(const uint16_t* wstr) {
+static ssize_t kk_wcslen(const uint16_t* wstr) {
   if (wstr == NULL) return 0;
   const uint16_t* p;
   for (p = wstr; *p != 0; p++) { }
@@ -125,7 +125,7 @@ static inline bool kk_char_is_raw(kk_char_t c) {
 // `count` returns the number of bytes read. 
 // `vcount` is only set on an invalid sequence and return the number of bytes
 // needed for a replacement character -- this is always 4 since we use the raw range.
-inline kk_char_t kk_utf8_read_validate(const uint8_t* s, ssize_t* count, ssize_t* vcount, bool qutf8_identity) {
+kk_char_t kk_utf8_read_validate(const uint8_t* s, ssize_t* count, ssize_t* vcount, bool qutf8_identity) {
   uint8_t b = s[0];
   if (kk_likely(b <= 0x7F)) {
     *count = 1;
@@ -229,7 +229,7 @@ kk_string_t  kk_string_convert_from_qutf8(kk_bytes_t str, kk_context_t* ctx) {
 }
 
 kk_string_t kk_string_alloc_from_qutf8(const char* str, kk_context_t* ctx) {
-  return kk_string_alloc_from_qutf8n(strlen(str), str, ctx);
+  return kk_string_alloc_from_qutf8n(kk_sstrlen(str), str, ctx);
 }
 
 kk_string_t kk_string_alloc_from_qutf8n(ssize_t len, const char* cstr, kk_context_t* ctx) {
@@ -238,7 +238,7 @@ kk_string_t kk_string_alloc_from_qutf8n(ssize_t len, const char* cstr, kk_contex
 }
 
 kk_string_t kk_string_alloc_from_utf8(const char* str, kk_context_t* ctx) {
-  return kk_string_alloc_from_utf8n(strlen(str), str, ctx);
+  return kk_string_alloc_from_utf8n(kk_sstrlen(str), str, ctx);
 }
 
 kk_string_t kk_string_alloc_from_utf8n(ssize_t len, const char* cstr, kk_context_t* ctx) {
@@ -331,7 +331,7 @@ uint16_t* kk_string_to_qutf16_borrow(kk_string_t str, kk_context_t* ctx) {
   }
 
   // encode to utf-16
-  uint16_t* wstr = (uint16_t*)kk_malloc((wlen + 1) * sizeof(uint16_t), ctx);
+  uint16_t* wstr = (uint16_t*)kk_malloc((wlen + 1) * kk_ssizeof(uint16_t), ctx);
   uint16_t* q = wstr;
   for (const uint8_t* p = s; p < end; ) {
     ssize_t count;
@@ -501,7 +501,7 @@ kk_string_t kk_string_alloc_from_codepage(const uint8_t* bstr, const uint16_t* c
   }
   kk_assert_internal(s == (kk_string_buf_borrow(str, NULL) + len) && *s == 0);
   return str;
-};
+}
 
 
 /*--------------------------------------------------------------------------------------------------
@@ -513,14 +513,14 @@ ssize_t kk_decl_pure kk_string_count_pattern_borrow(kk_string_t str, kk_string_t
   const uint8_t* pat = kk_string_buf_borrow(pattern,&patlen);  
   ssize_t len;
   const uint8_t* s   = kk_string_buf_borrow(str,&len);
-  if (patlen == 0)  return kk_string_count_borrow(str);
+  if (patlen <= 0)  return kk_string_count_borrow(str);
   if (patlen > len) return 0;
   
   //todo: optimize by doing backward Boyer-Moore? or use forward Knuth-Morris-Pratt?
   ssize_t count = 0;
   const uint8_t* end = s + (len - (patlen - 1));
   for (const uint8_t* p = s; p < end; p++) {
-    if (memcmp(p, pat, patlen) == 0) {
+    if (kk_memcmp(p, pat, patlen) == 0) {
       count++;
       p += (patlen - 1);
     }    
@@ -573,7 +573,7 @@ kk_vector_t kk_string_to_chars(kk_string_t s, kk_context_t* ctx) {
 }
 
 kk_vector_t kk_string_splitv(kk_string_t s, kk_string_t sep, kk_context_t* ctx) {
-  return kk_string_splitv_atmost(s, sep, SIZE_MAX, ctx);
+  return kk_string_splitv_atmost(s, sep, KK_SSIZE_MAX, ctx);
 }
 
 kk_vector_t kk_string_splitv_atmost(kk_string_t str, kk_string_t sepstr, ssize_t n, kk_context_t* ctx) 
@@ -674,7 +674,7 @@ kk_string_t  kk_string_trim_left(kk_string_t str, kk_context_t* ctx) {
   ssize_t len;
   const uint8_t* s = kk_string_buf_borrow(str, &len);
   const uint8_t* p = s;
-  for ( ; *p != 0 && ascii_iswhite(*p); p++) { }
+  for ( ; *p != 0 && kk_ascii_iswhite(*p); p++) { }
   if (p == s) return str;           // no trim needed
   const ssize_t tlen = len - (p - s);      // todo: if s is unique and tlen close to slen, move inplace?
   kk_string_t tstr = kk_string_alloc_dupn_valid_utf8(tlen, p, ctx);
@@ -686,7 +686,7 @@ kk_string_t  kk_string_trim_right(kk_string_t str, kk_context_t* ctx) {
   ssize_t len;
   const uint8_t* s = kk_string_buf_borrow(str, &len);
   const uint8_t* p = s + len - 1;
-  for (; p >= s && ascii_iswhite(*p); p--) {}
+  for (; p >= s && kk_ascii_iswhite(*p); p--) {}
   const ssize_t tlen = (p - s) + 1;
   if (len == tlen) return str;  // no trim needed
   kk_string_t tstr = kk_string_alloc_dupn_valid_utf8(tlen, s, ctx);

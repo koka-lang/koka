@@ -18,7 +18,6 @@
 static kk_usecs_t kk_to_usecs(LARGE_INTEGER t) {
   static LARGE_INTEGER mfreq; // = 0
   if (mfreq.QuadPart == 0) {
-    LARGE_INTEGER f;
     QueryPerformanceFrequency(&mfreq);
     //mfreq.QuadPart = f.QuadPart/I64(1000000);
     if (mfreq.QuadPart == 0) mfreq.QuadPart = 1000;

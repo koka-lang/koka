@@ -221,7 +221,21 @@ static inline bool kk_bytes_is_neq(kk_bytes_t s1, kk_bytes_t s2, kk_context_t* c
   Utilities
 --------------------------------------------------------------------------------------------------*/
 
-const uint8_t* kk_memmem(const uint8_t* p, size_t plen, const uint8_t* pat, size_t patlen);
+const uint8_t* kk_memmem(const uint8_t* p, ssize_t plen, const uint8_t* pat, ssize_t patlen);
+
+static inline void kk_memcpy(void* dest, const void* src, ssize_t len) {
+  memcpy(dest, src, kk_to_size_t(len));
+}
+static inline void kk_memmove(void* dest, const void* src, ssize_t len) {
+  memmove(dest, src, kk_to_size_t(len));
+}
+static inline void kk_memset(void* dest, int val, ssize_t len) {
+  memset(dest, val, kk_to_size_t(len));
+}
+static inline int kk_memcmp(const void* s, const void* t, ssize_t len) {
+  return memcmp((const char*)s, (const char*)t, kk_to_size_t(len));
+}
+
 
 kk_decl_export ssize_t kk_decl_pure kk_bytes_count_pattern_borrow(kk_bytes_t str, kk_bytes_t pattern);
 

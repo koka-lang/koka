@@ -18,7 +18,7 @@
 kk_decl_export kk_decl_noinline kk_bytes_t kk_bytes_alloc_len(ssize_t len, ssize_t plen, const uint8_t* p, uint8_t** buf, kk_context_t* ctx) {
   // kk_assert_internal(s == NULL || blen(s) >= len);  // s may contain embedded 0 characters
   static uint8_t empty[16] = { 0 };
-  if (len == 0) {
+  if (len <= 0) {
     if (buf != NULL) *buf = empty;
     return kk_bytes_empty();
   }
@@ -27,16 +27,16 @@ kk_decl_export kk_decl_noinline kk_bytes_t kk_bytes_alloc_len(ssize_t len, ssize
     kk_bytes_small_t b = kk_block_alloc_as(struct kk_bytes_small_s, 0, KK_TAG_BYTES_SMALL, ctx);
     b->u.buf_value = ~KUZ(0);
     if (p != NULL && plen > 0) {
-      memcpy(&b->u.buf[0], p, plen);
+      kk_memcpy(&b->u.buf[0], p, plen);
     }
     b->u.buf[len] = 0;
     if (buf != NULL) *buf = &b->u.buf[0];
     return kk_datatype_from_base(&b->_base);
   }
   else {
-    kk_bytes_normal_t b = kk_block_assert(kk_bytes_normal_t, kk_block_alloc_any(sizeof(struct kk_bytes_normal_s) - 1 /* char b[1] */ + len + 1 /* 0 terminator */, 0, KK_TAG_BYTES, ctx), KK_TAG_BYTES);
+    kk_bytes_normal_t b = kk_block_assert(kk_bytes_normal_t, kk_block_alloc_any(kk_ssizeof(struct kk_bytes_normal_s) - 1 /* char b[1] */ + len + 1 /* 0 terminator */, 0, KK_TAG_BYTES, ctx), KK_TAG_BYTES);
     if (p != NULL && plen > 0) {
-      memcpy(&b->buf[0], p, plen);
+      kk_memcpy(&b->buf[0], p, plen);
     }
     b->length = len;
     b->buf[len] = 0;
@@ -48,7 +48,7 @@ kk_decl_export kk_decl_noinline kk_bytes_t kk_bytes_alloc_len(ssize_t len, ssize
 
 
 kk_bytes_t kk_bytes_adjust_length(kk_bytes_t b, ssize_t newlen, kk_context_t* ctx) {
-  if (newlen==0) {
+  if (newlen<=0) {
     kk_bytes_drop(b, ctx);
     return kk_bytes_empty();
   }
@@ -78,8 +78,8 @@ kk_bytes_t kk_bytes_adjust_length(kk_bytes_t b, ssize_t newlen, kk_context_t* ct
     kk_assert_internal(newlen > len);
     uint8_t* t;
     kk_bytes_t tb = kk_bytes_alloc_buf(newlen, &t, ctx);
-    memcpy( t, s, len );
-    memset(t + len, 0, newlen - len);
+    kk_memcpy( t, s, len );
+    kk_memset(t + len, 0, newlen - len);
     kk_bytes_drop(b, ctx);
     return tb;
   }
@@ -90,13 +90,13 @@ kk_bytes_t kk_bytes_adjust_length(kk_bytes_t b, ssize_t newlen, kk_context_t* ct
   Compare
 --------------------------------------------------------------------------------------------------*/
 
-const uint8_t* kk_memmem(const uint8_t* p, size_t plen, const uint8_t* pat, size_t patlen) {
+const uint8_t* kk_memmem(const uint8_t* p, ssize_t plen, const uint8_t* pat, ssize_t patlen) {
   // todo: optimize search algo?
   kk_assert(p != NULL && pat != NULL);
-  if (patlen == 0 || patlen > plen) return NULL;
+  if (plen <= 0 || patlen <= 0 || patlen > plen) return NULL;
   const uint8_t* end = p + (plen - (patlen-1));
   for (; p < end; p++) {
-    if (memcmp(p, pat, patlen) == 0) return p;
+    if (kk_memcmp(p, pat, patlen) == 0) return p;
   }
   return NULL;
 }
@@ -108,7 +108,7 @@ int kk_bytes_cmp_borrow(kk_bytes_t b1, kk_bytes_t b2) {
   ssize_t len2;
   const uint8_t* s2 = kk_bytes_buf_borrow(b2,&len2);
   ssize_t minlen = (len1 <= len2 ? len1 : len2);
-  int ord = memcmp(s1, s2, minlen);
+  int ord = kk_memcmp(s1, s2, minlen);
   if (ord == 0) {
     if (len1 > len2) return 1;
     else if (len1 < len2) return -1;
@@ -133,14 +133,14 @@ ssize_t kk_decl_pure kk_bytes_count_pattern_borrow(kk_bytes_t b, kk_bytes_t patt
   const uint8_t* pat = kk_bytes_buf_borrow(pattern,&patlen);  
   ssize_t len;
   const uint8_t* s   = kk_bytes_buf_borrow(b,&len);
-  if (patlen == 0)  return kk_bytes_len_borrow(b);
+  if (patlen <= 0)  return kk_bytes_len_borrow(b);
   if (patlen > len) return 0;
   
   //todo: optimize by doing backward Boyer-Moore? or use forward Knuth-Morris-Pratt?
   ssize_t count = 0;
   const uint8_t* end = s + (len - (patlen - 1));
   for (const uint8_t* p = s; p < end; p++) {
-    if (memcmp(p, pat, patlen) == 0) {
+    if (kk_memcmp(p, pat, patlen) == 0) {
       count++;
       p += (patlen - 1);
     }    
@@ -156,8 +156,8 @@ kk_bytes_t kk_bytes_cat(kk_bytes_t b1, kk_bytes_t b2, kk_context_t* ctx) {
   const uint8_t* s2 = kk_bytes_buf_borrow(b2, &len2);
   uint8_t* p;
   kk_bytes_t t = kk_bytes_alloc_buf(len1 + len2, &p, ctx );
-  memcpy(p, s1, len1);
-  memcpy(p+len1, s2, len2);
+  kk_memcpy(p, s1, len1);
+  kk_memcpy(p+len1, s2, len2);
   kk_assert_internal(p[len1+len2] == 0);
   kk_bytes_drop(b1, ctx);
   kk_bytes_drop(b2, ctx);
@@ -165,20 +165,20 @@ kk_bytes_t kk_bytes_cat(kk_bytes_t b1, kk_bytes_t b2, kk_context_t* ctx) {
 }
 
 kk_bytes_t kk_bytes_cat_from_buf(kk_bytes_t b1, ssize_t len2, const uint8_t* b2, kk_context_t* ctx) {
-  if (b2 == NULL || len2 == 0) return b1;
+  if (b2 == NULL || len2 <= 0) return b1;
   ssize_t len1;
   const uint8_t* s1 = kk_bytes_buf_borrow(b1,&len1);
   uint8_t* p;
   kk_bytes_t t = kk_bytes_alloc_buf(len1 + len2, &p, ctx);
-  memcpy(p, s1, len1);
-  memcpy(p+len1, b2, len2);
+  kk_memcpy(p, s1, len1);
+  kk_memcpy(p+len1, b2, len2);
   kk_assert_internal(p[len1+len2] == 0);
   kk_bytes_drop(b1, ctx);
   return t;
 }
 
 kk_vector_t kk_bytes_splitv(kk_bytes_t s, kk_bytes_t sep, kk_context_t* ctx) {
-  return kk_bytes_splitv_atmost(s, sep, SIZE_MAX, ctx);
+  return kk_bytes_splitv_atmost(s, sep, KK_SSIZE_MAX, ctx);
 }
 
 kk_vector_t kk_bytes_splitv_atmost(kk_bytes_t b, kk_bytes_t sepb, ssize_t n, kk_context_t* ctx) 
@@ -230,12 +230,12 @@ kk_vector_t kk_bytes_splitv_atmost(kk_bytes_t b, kk_bytes_t sepb, ssize_t n, kk_
 }
 
 kk_bytes_t kk_bytes_replace_all(kk_bytes_t s, kk_bytes_t pat, kk_bytes_t rep, kk_context_t* ctx) {
-  return kk_bytes_replace_atmost(s, pat, rep, SIZE_MAX, ctx);
+  return kk_bytes_replace_atmost(s, pat, rep, KK_SSIZE_MAX, ctx);
 }
 
 kk_bytes_t kk_bytes_replace_atmost(kk_bytes_t s, kk_bytes_t pat, kk_bytes_t rep, ssize_t n, kk_context_t* ctx) {
   kk_bytes_t t = s;
-  if (!(n==0 || kk_bytes_is_empty_borrow(s) || kk_bytes_is_empty_borrow(pat)))
+  if (!(n<=0 || kk_bytes_is_empty_borrow(s) || kk_bytes_is_empty_borrow(pat)))
   {
     ssize_t plen;
     const uint8_t* p = kk_bytes_buf_borrow(s,&plen);
@@ -252,7 +252,7 @@ kk_bytes_t kk_bytes_replace_atmost(kk_bytes_t s, kk_bytes_t pat, kk_bytes_t rep,
       while (count < n && p < pend) {
         const uint8_t* r = kk_memmem(p, pend - p, ppat, ppat_len);
         if (r == NULL) break;
-        memcpy((uint8_t*)r, prep, prep_len);
+        kk_memcpy((uint8_t*)r, prep, prep_len);
         count++;
         p = r + prep_len;
       }
@@ -276,13 +276,13 @@ kk_bytes_t kk_bytes_replace_atmost(kk_bytes_t s, kk_bytes_t pat, kk_bytes_t rep,
         r = kk_memmem(p, pend - p, ppat, ppat_len);
         kk_assert_internal(r != NULL);
         ssize_t ofs = (r - p);
-        memcpy(q, p, ofs);
-        memcpy(q + ofs, prep, prep_len);
+        kk_memcpy(q, p, ofs);
+        kk_memcpy(q + ofs, prep, prep_len);
         q += ofs + prep_len;
         p += ofs + ppat_len;
       }
       ssize_t rest = (pend - p);
-      memcpy(q, p, rest);
+      kk_memcpy(q, p, rest);
       kk_assert_internal(q + rest == kk_bytes_buf_borrow(t,NULL) + newlen);
     }
   }
@@ -298,16 +298,16 @@ done:
 kk_bytes_t kk_bytes_repeat(kk_bytes_t b, ssize_t n, kk_context_t* ctx) {
   ssize_t len;
   const uint8_t* s = kk_bytes_buf_borrow(b,&len);  
-  if (len == 0 || n==0) return kk_bytes_empty();  
+  if (len <= 0 || n<=0) return kk_bytes_empty();  
   uint8_t* t;
   kk_bytes_t tb = kk_bytes_alloc_buf(len*n, &t, ctx); // TODO: check overflow
   if (len == 1) {
-    memset(t, *s, n);
+    kk_memset(t, *s, n);
     t += n;
   }
   else {
     for (ssize_t i = 0; i < n; i++) {
-      memcpy(t, s, len);
+      kk_memcpy(t, s, len);
       t += len;
     }
   }
@@ -323,8 +323,8 @@ ssize_t kk_bytes_index_of1(kk_bytes_t b, kk_bytes_t sub, kk_context_t* ctx) {
   ssize_t tlen;
   const uint8_t* t = kk_bytes_buf_borrow(sub, &tlen);  
   ssize_t idx;
-  if (tlen == 0) {
-    idx = (slen == 0 ? 0 : 1);
+  if (tlen <= 0) {
+    idx = (slen <= 0 ? 0 : 1);
   }
   else if (tlen > slen) {
     idx = 0;
@@ -344,19 +344,19 @@ ssize_t kk_bytes_last_index_of1(kk_bytes_t b, kk_bytes_t sub, kk_context_t* ctx)
   ssize_t tlen;
   const uint8_t* t = kk_bytes_buf_borrow(sub, &tlen);
   ssize_t idx;
-  if (tlen == 0) {
+  if (tlen <= 0) {
     idx = slen;
   }
   else if (tlen > slen) {
     idx = 0;
   }
-  else if (tlen == slen) {
+  else if (tlen <= slen) {
     idx = (kk_bytes_cmp_borrow(b, sub) == 0 ? 1 : 0);
   }
   else {
     const uint8_t* p;
     for (p = s + slen - tlen; p >= s; p--) {  // todo: use reverse Boyer-Moore instead of one character at a time
-      if (memcmp(p, t, tlen) == 0) break;
+      if (kk_memcmp(p, t, tlen) == 0) break;
     }
     idx = (p >= s ? (p - s) + 1 : 0);
   }
@@ -371,14 +371,14 @@ bool kk_bytes_starts_with(kk_bytes_t b, kk_bytes_t pre, kk_context_t* ctx) {
   ssize_t tlen;
   const uint8_t* t = kk_bytes_buf_borrow(pre, &tlen);
   bool starts;
-  if (tlen == 0) {
+  if (tlen <= 0) {
     starts = (slen > 0);
   }
   else if (tlen > slen) {
     starts = false;
   }
   else {
-    starts = (memcmp(s, t, tlen) == 0);
+    starts = (kk_memcmp(s, t, tlen) == 0);
   }
   kk_bytes_drop(b, ctx);
   kk_bytes_drop(pre, ctx);
@@ -391,14 +391,14 @@ bool kk_bytes_ends_with(kk_bytes_t b, kk_bytes_t post, kk_context_t* ctx) {
   ssize_t tlen;
   const uint8_t* t = kk_bytes_buf_borrow(post, &tlen);
   bool ends;
-  if (tlen == 0) {
+  if (tlen <= 0) {
     ends = (slen > 0);
   }
   else if (tlen > slen) {
     ends = false;
   }
   else {
-    ends = (memcmp(s + slen - tlen, t, tlen) == 0);
+    ends = (kk_memcmp(s + slen - tlen, t, tlen) == 0);
   }
   kk_bytes_drop(b, ctx);
   kk_bytes_drop(post, ctx);
