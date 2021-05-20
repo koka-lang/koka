@@ -139,7 +139,7 @@ void kk_process_info(kk_msecs_t* utime, kk_msecs_t* stime, size_t* peak_rss, siz
   // get these stats per process
   thread_info tid;
   area_info mem;
-  ssize_t c;
+  kk_ssize_t c;
   *peak_rss = 0;
   *page_faults = 0;
   *page_reclaim = 0;

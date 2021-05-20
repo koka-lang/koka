@@ -263,7 +263,7 @@ kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_from_double(double d, k
 kk_decl_export kk_decl_noinline int32_t    kk_integer_clamp32_generic(kk_integer_t i, kk_context_t* ctx);
 kk_decl_export kk_decl_noinline int64_t    kk_integer_clamp64_generic(kk_integer_t i, kk_context_t* ctx);
 kk_decl_export kk_decl_noinline size_t     kk_integer_clamp_size_t_generic(kk_integer_t i, kk_context_t* ctx);
-kk_decl_export kk_decl_noinline ssize_t    kk_integer_clamp_ssize_t_generic(kk_integer_t i, kk_context_t* ctx);
+kk_decl_export kk_decl_noinline kk_ssize_t    kk_integer_clamp_ssize_t_generic(kk_integer_t i, kk_context_t* ctx);
 kk_decl_export kk_decl_noinline double     kk_integer_as_double_generic(kk_integer_t i, kk_context_t* ctx);
 
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_add_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx);
@@ -335,7 +335,7 @@ static inline kk_integer_t kk_integer_from_size_t(size_t i, kk_context_t* ctx) {
   return kk_integer_from_uintx_t(i, ctx);
 }
 
-static inline kk_integer_t kk_integer_from_ssize_t(ssize_t i, kk_context_t* ctx) {
+static inline kk_integer_t kk_integer_from_ssize_t(kk_ssize_t i, kk_context_t* ctx) {
   return kk_integer_from_int(i, ctx);
 }
 
@@ -609,7 +609,7 @@ static inline size_t kk_integer_clamp_size_t(kk_integer_t x, kk_context_t* ctx) 
 }
 
 
-static inline ssize_t kk_integer_clamp_ssize_t(kk_integer_t x, kk_context_t* ctx) {
+static inline kk_ssize_t kk_integer_clamp_ssize_t(kk_integer_t x, kk_context_t* ctx) {
 #if KK_SSIZE_SIZE <= 4
   return kk_integer_clamp32(x, ctx);
 #else

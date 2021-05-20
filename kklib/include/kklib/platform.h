@@ -21,7 +21,7 @@
   - a char/byte is 8 bits.
   - either little-endian, or big-endian.
   - carefully code with strict aliasing in mind.
-  - prefer signed over unsigned, use ssize_t for sizes (see comments below).
+  - prefer signed over unsigned, use kk_ssize_t for sizes (see comments below).
 --------------------------------------------------------------------------------------*/
 #ifdef __cplusplus
 #define kk_decl_externc    extern "C"
@@ -185,11 +185,6 @@ typedef int32_t         kk_ssize_t;
 #define KK_SIZE_BITS   (8*KK_SIZE_SIZE)
 
 
-// ensure `ssize_t` is defined
-// note: we always do this even if `ssize_t` is typedef'd already to ensure the type is 
-//       indeed equivalent to the previous definition on this platform.
-typedef kk_ssize_t  ssize_t;
-
 // off_t: we always use 64-bit file offsets
 typedef int64_t     kk_off_t;
 #define KK_OFF_MAX  INT64_MAX
@@ -197,7 +192,7 @@ typedef int64_t     kk_off_t;
 
 
 // We limit the maximum object size (and array sizes) to at most `SIZE_MAX/2` bytes so we can
-// always use the signed `ssize_t` (instead of `size_t`) to specify sizes and do indexing in arrays. 
+// always use the signed `kk_ssize_t` (instead of `size_t`) to specify sizes and do indexing in arrays. 
 // This avoids:
 // - signed/unsigned conversion (especially when mixing pointer arithmetic and lengths),
 // - errors with overflow detection (consider `size > SIZE_MAX` versus `ssize > KK_SSIZE_MAX`),
@@ -211,31 +206,31 @@ typedef int64_t     kk_off_t;
 // (especially since `malloc` nowadays is already limited to `PTRDIFF_MAX`).
 //
 // We also need some helpers to deal with API's (like `strlen`) that use `size_t` results or arguments,
-// where we clamp the values into the `ptrdiff_t` range (but again, on modern systems this will not happen
-// as these already limit the size of objects to SIZE_MAX/2 internally)
+// where we clamp the values into the `kk_ssize_t` range (but again, on modern systems no clamping will 
+// happen as these already limit the size of objects to SIZE_MAX/2 internally)
 
-static inline ssize_t kk_to_ssize_t(size_t sz) {
+static inline kk_ssize_t kk_to_ssize_t(size_t sz) {
   kk_assert(sz <= KK_SSIZE_MAX);
-  return (kk_likely(sz <= KK_SSIZE_MAX) ? (ssize_t)sz : KK_SSIZE_MAX);
+  return (kk_likely(sz <= KK_SSIZE_MAX) ? (kk_ssize_t)sz : KK_SSIZE_MAX);
 }
-static inline size_t kk_to_size_t(ssize_t sz) {
+static inline size_t kk_to_size_t(kk_ssize_t sz) {
   kk_assert(sz >= 0);
   return (kk_likely(sz >= 0) ? (size_t)sz : 0);
 }
 
 #if defined(NDEBUG)
-#define kk_ssizeof(tp)   ((ssize_t)(sizeof(tp)))
+#define kk_ssizeof(tp)   ((kk_ssize_t)(sizeof(tp)))
 #else
 #define kk_ssizeof(tp)   (kk_to_ssize_t(sizeof(tp)))
 #endif
 
 
 // We define `kk_intx_t` as an integer with the natural (fast) machine register size. 
-// We define it such that `sizeof(kk_intx_t) == max(sizeof(long),sizeof(ssize_t))`. 
+// We define it such that `sizeof(kk_intx_t) == max(sizeof(long),sizeof(size_t))`. 
 // (We cannot use just `long` as it is sometimes too short (as on Windows 64-bit where a `long` is 32 bits).
-//  Similarly, `ssize_t` is sometimes too short as well (like on the x32 ABI with a 64-bit `long` but 32-bit addresses)).
+//  Similarly, `size_t` is sometimes too short as well (like on the x32 ABI with a 64-bit `long` but 32-bit addresses)).
 #if (LONG_MAX < KK_SSIZE_MAX)
-typedef ssize_t        kk_intx_t;
+typedef kk_ssize_t     kk_intx_t;
 typedef size_t         kk_uintx_t;
 #define KIX(i)         KIZ(i)
 #define KUX(i)         KUZ(i)

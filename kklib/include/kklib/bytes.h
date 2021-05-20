@@ -46,7 +46,7 @@ typedef struct kk_bytes_small_s {
 
 typedef struct kk_bytes_normal_s {
   struct kk_bytes_s _base;
-  ssize_t  length;
+  kk_ssize_t  length;
   uint8_t buf[1];                         // bytes in-place of `length+1` bytes ending in 0
 } *kk_bytes_normal_t;
 
@@ -54,12 +54,12 @@ typedef struct kk_bytes_raw_s {
   struct kk_bytes_s _base;
   kk_free_fun_t* free;     
   const uint8_t* cbuf;                    
-  ssize_t        length;
+  kk_ssize_t        length;
 } *kk_bytes_raw_t;
 
 // Define bytes literals
 #define kk_define_bytes_literal(decl,name,len,init) \
-  static struct { struct kk_bytes_s _base; ssize_t length; uint8_t buf[len+1]; } _static_##name = \
+  static struct { struct kk_bytes_s _base; kk_ssize_t length; uint8_t buf[len+1]; } _static_##name = \
     { { { KK_HEADER_STATIC(0,KK_TAG_BYTES) } }, len, init }; \
   decl kk_bytes_t name = { &_static_##name._base._block };  
 
@@ -90,28 +90,28 @@ static inline kk_bytes_t kk_bytes_dup(kk_bytes_t b) {
 // Allocate `len` bytes.
 // If (p /= NULL) then initialize with at most `min(len,plen)` bytes from `p`, which must point to at least `plen` valid bytes. 
 // Adds a terminating zero at the end. Return the raw buffer pointer in `buf` if non-NULL
-kk_decl_export kk_bytes_t kk_bytes_alloc_len(ssize_t len, ssize_t plen, const uint8_t* p, uint8_t** buf, kk_context_t* ctx);
-kk_decl_export kk_bytes_t kk_bytes_adjust_length(kk_bytes_t p, ssize_t newlen, kk_context_t* ctx);
+kk_decl_export kk_bytes_t kk_bytes_alloc_len(kk_ssize_t len, kk_ssize_t plen, const uint8_t* p, uint8_t** buf, kk_context_t* ctx);
+kk_decl_export kk_bytes_t kk_bytes_adjust_length(kk_bytes_t p, kk_ssize_t newlen, kk_context_t* ctx);
 
 // allocate uninitialized bytes
-static inline kk_bytes_t kk_bytes_alloc_buf(ssize_t len, uint8_t** buf, kk_context_t* ctx) {
+static inline kk_bytes_t kk_bytes_alloc_buf(kk_ssize_t len, uint8_t** buf, kk_context_t* ctx) {
   return kk_bytes_alloc_len(len, 0, NULL, buf, ctx);
 }
 
 // allocate uninitialized chars
-static inline kk_bytes_t kk_bytes_alloc_cbuf(ssize_t len, char** buf, kk_context_t* ctx) {
+static inline kk_bytes_t kk_bytes_alloc_cbuf(kk_ssize_t len, char** buf, kk_context_t* ctx) {
   return kk_bytes_alloc_len(len, 0, NULL, (uint8_t**)buf, ctx);
 }
 
 
 // Allocate `len` bytes initialized 
-static inline kk_bytes_t kk_bytes_alloc_dupn(ssize_t len, const uint8_t* p, kk_context_t* ctx) {
+static inline kk_bytes_t kk_bytes_alloc_dupn(kk_ssize_t len, const uint8_t* p, kk_context_t* ctx) {
   // kk_assert_internal(kk_utf8_is_valid(s))
   return kk_bytes_alloc_len(len, len, p, NULL, ctx);
 }
 
 // Raw bytes that directly points to an external buffer.
-static inline kk_bytes_t kk_bytes_alloc_raw_len(ssize_t len, const uint8_t* p, bool free, kk_context_t* ctx) {
+static inline kk_bytes_t kk_bytes_alloc_raw_len(kk_ssize_t len, const uint8_t* p, bool free, kk_context_t* ctx) {
   if (len == 0 || p==NULL) return kk_bytes_empty();
   struct kk_bytes_raw_s* br = kk_block_alloc_as(struct kk_bytes_raw_s, 0, KK_TAG_BYTES_RAW, ctx);
   br->free = (free ? &kk_free_fun : NULL);
@@ -121,7 +121,7 @@ static inline kk_bytes_t kk_bytes_alloc_raw_len(ssize_t len, const uint8_t* p, b
 }
 
 // Get access to the bytes via a pointer (and retrieve the length as well)
-static inline const uint8_t* kk_bytes_buf_borrow(const kk_bytes_t b, ssize_t* len) {
+static inline const uint8_t* kk_bytes_buf_borrow(const kk_bytes_t b, kk_ssize_t* len) {
   static const uint8_t empty[16] = { 0 };
   if (kk_datatype_is_singleton(b)) {
     if (len != NULL) *len = 0;
@@ -133,9 +133,9 @@ static inline const uint8_t* kk_bytes_buf_borrow(const kk_bytes_t b, ssize_t* le
     if (len != NULL) {
       // a small bytes of length N (<= 7) ends with an ending zero followed by (7 - N) trailing 0xFF bytes.
       #ifdef KK_ARCH_LITTLE_ENDIAN
-      const ssize_t trailing = kk_bits_clz64(~(bs->u.buf_value)) / 8;
+      const kk_ssize_t trailing = kk_bits_clz64(~(bs->u.buf_value)) / 8;
       #else
-      const ssize_t trailing = kk_bits_ctz64(~(bs->u.buf_value)) / 8;
+      const kk_ssize_t trailing = kk_bits_ctz64(~(bs->u.buf_value)) / 8;
       #endif
       *len = (KK_BYTES_SMALL_MAX - trailing);
     }
@@ -153,7 +153,7 @@ static inline const uint8_t* kk_bytes_buf_borrow(const kk_bytes_t b, ssize_t* le
   }
 }
 
-static inline const char* kk_bytes_cbuf_borrow(const kk_bytes_t b, ssize_t* len) {
+static inline const char* kk_bytes_cbuf_borrow(const kk_bytes_t b, kk_ssize_t* len) {
   return (const char*)kk_bytes_buf_borrow(b, len);
 }
 
@@ -163,14 +163,14 @@ static inline const char* kk_bytes_cbuf_borrow(const kk_bytes_t b, ssize_t* len)
   Length, compare
 --------------------------------------------------------------------------------------------------*/
 
-static inline ssize_t kk_decl_pure kk_bytes_len_borrow(const kk_bytes_t b) {
-  ssize_t len;
+static inline kk_ssize_t kk_decl_pure kk_bytes_len_borrow(const kk_bytes_t b) {
+  kk_ssize_t len;
   kk_bytes_buf_borrow(b, &len);
   return len;
 }
 
-static inline ssize_t kk_decl_pure kk_bytes_len(kk_bytes_t str, kk_context_t* ctx) {    // bytes in UTF8
-  ssize_t len = kk_bytes_len_borrow(str);
+static inline kk_ssize_t kk_decl_pure kk_bytes_len(kk_bytes_t str, kk_context_t* ctx) {    // bytes in UTF8
+  kk_ssize_t len = kk_bytes_len_borrow(str);
   kk_bytes_drop(str,ctx);
   return len;
 }
@@ -184,7 +184,7 @@ static inline kk_bytes_t kk_bytes_copy(kk_bytes_t b, kk_context_t* ctx) {
     return b;
   }
   else {
-    ssize_t len;
+    kk_ssize_t len;
     const uint8_t* buf = kk_bytes_buf_borrow(b, &len);
     kk_bytes_t bc = kk_bytes_alloc_dupn(len, buf, ctx);
     kk_bytes_drop(b, ctx);
@@ -221,37 +221,37 @@ static inline bool kk_bytes_is_neq(kk_bytes_t s1, kk_bytes_t s2, kk_context_t* c
   Utilities
 --------------------------------------------------------------------------------------------------*/
 
-const uint8_t* kk_memmem(const uint8_t* p, ssize_t plen, const uint8_t* pat, ssize_t patlen);
+const uint8_t* kk_memmem(const uint8_t* p, kk_ssize_t plen, const uint8_t* pat, kk_ssize_t patlen);
 
-static inline void kk_memcpy(void* dest, const void* src, ssize_t len) {
+static inline void kk_memcpy(void* dest, const void* src, kk_ssize_t len) {
   memcpy(dest, src, kk_to_size_t(len));
 }
-static inline void kk_memmove(void* dest, const void* src, ssize_t len) {
+static inline void kk_memmove(void* dest, const void* src, kk_ssize_t len) {
   memmove(dest, src, kk_to_size_t(len));
 }
-static inline void kk_memset(void* dest, int val, ssize_t len) {
+static inline void kk_memset(void* dest, int val, kk_ssize_t len) {
   memset(dest, val, kk_to_size_t(len));
 }
-static inline int kk_memcmp(const void* s, const void* t, ssize_t len) {
+static inline int kk_memcmp(const void* s, const void* t, kk_ssize_t len) {
   return memcmp((const char*)s, (const char*)t, kk_to_size_t(len));
 }
 
 
-kk_decl_export ssize_t kk_decl_pure kk_bytes_count_pattern_borrow(kk_bytes_t str, kk_bytes_t pattern);
+kk_decl_export kk_ssize_t kk_decl_pure kk_bytes_count_pattern_borrow(kk_bytes_t str, kk_bytes_t pattern);
 
 kk_decl_export kk_bytes_t kk_bytes_cat(kk_bytes_t s1, kk_bytes_t s2, kk_context_t* ctx);
-kk_decl_export kk_bytes_t kk_bytes_cat_from_buf(kk_bytes_t s1, ssize_t len2, const uint8_t* buf2, kk_context_t* ctx);
+kk_decl_export kk_bytes_t kk_bytes_cat_from_buf(kk_bytes_t s1, kk_ssize_t len2, const uint8_t* buf2, kk_context_t* ctx);
 
 kk_decl_export kk_vector_t kk_bytes_splitv(kk_bytes_t s, kk_bytes_t sep, kk_context_t* ctx);
-kk_decl_export kk_vector_t kk_bytes_splitv_atmost(kk_bytes_t s, kk_bytes_t sep, ssize_t n, kk_context_t* ctx);
+kk_decl_export kk_vector_t kk_bytes_splitv_atmost(kk_bytes_t s, kk_bytes_t sep, kk_ssize_t n, kk_context_t* ctx);
 
 kk_decl_export kk_bytes_t kk_bytes_replace_all(kk_bytes_t s, kk_bytes_t pat, kk_bytes_t rep, kk_context_t* ctx);
-kk_decl_export kk_bytes_t kk_bytes_replace_atmost(kk_bytes_t s, kk_bytes_t pat, kk_bytes_t rep, ssize_t n, kk_context_t* ctx);
+kk_decl_export kk_bytes_t kk_bytes_replace_atmost(kk_bytes_t s, kk_bytes_t pat, kk_bytes_t rep, kk_ssize_t n, kk_context_t* ctx);
 
-kk_decl_export kk_bytes_t kk_bytes_repeat(kk_bytes_t s, ssize_t n, kk_context_t* ctx);
+kk_decl_export kk_bytes_t kk_bytes_repeat(kk_bytes_t s, kk_ssize_t n, kk_context_t* ctx);
 
-kk_decl_export ssize_t kk_bytes_index_of1(kk_bytes_t str, kk_bytes_t sub, kk_context_t* ctx);     // returns 0 for not found, or index + 1
-kk_decl_export ssize_t kk_bytes_last_index_of1(kk_bytes_t str, kk_bytes_t sub, kk_context_t* ctx);
+kk_decl_export kk_ssize_t kk_bytes_index_of1(kk_bytes_t str, kk_bytes_t sub, kk_context_t* ctx);     // returns 0 for not found, or index + 1
+kk_decl_export kk_ssize_t kk_bytes_last_index_of1(kk_bytes_t str, kk_bytes_t sub, kk_context_t* ctx);
 kk_decl_export bool    kk_bytes_starts_with(kk_bytes_t str, kk_bytes_t pre, kk_context_t* ctx);
 kk_decl_export bool    kk_bytes_ends_with(kk_bytes_t str, kk_bytes_t post, kk_context_t* ctx);
 kk_decl_export bool    kk_bytes_contains(kk_bytes_t str, kk_bytes_t sub, kk_context_t* ctx);

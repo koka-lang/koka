@@ -322,7 +322,7 @@ static bool kk_os_random_buf(void* buf, size_t buf_len) {
   #endif
   static volatile uintptr_t no_getrandom; // = 0
   if (no_getrandom == 0) {
-    ssize_t ret = syscall(SYS_getrandom, buf, buf_len, GRND_NONBLOCK);
+    kk_ssize_t ret = syscall(SYS_getrandom, buf, buf_len, GRND_NONBLOCK);
     if (ret >= 0) return (buf_len == (size_t)ret);
     if (ret != ENOSYS) return false;
     no_getrandom = 1; // don't call again, and fall back to /dev/urandom
@@ -336,7 +336,7 @@ static bool kk_os_random_buf(void* buf, size_t buf_len) {
   if (fd < 0) return false;
   size_t count = 0;
   while(count < buf_len) {
-    ssize_t ret = read(fd, (char*)buf + count, buf_len - count);
+    kk_ssize_t ret = read(fd, (char*)buf + count, buf_len - count);
     if (ret<=0) {
       if (errno!=EAGAIN && errno!=EINTR) break;
     }

@@ -2,7 +2,7 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
-#define KKLIB_BUILD        26       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        27       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1
 
@@ -62,7 +62,7 @@ typedef enum kk_tag_e {
   KK_TAG_FLOAT,       // boxed IEEE float  (32-bit)  (on 32-bit platforms)
   KK_TAG_CFUNPTR,     // C function pointer
   KK_TAG_SIZE_T,      // boxed size_t
-  KK_TAG_SSIZE_T,     // boxed ssize_t
+  KK_TAG_SSIZE_T,     // boxed kk_ssize_t
   KK_TAG_EVV_VECTOR,  // evidence vector (used in std/core/hnd)
   // raw tags have a free function together with a `void*` to the data
   KK_TAG_CPTR_RAW,    // full void* (must be first, see kk_tag_is_raw())
@@ -194,11 +194,11 @@ static inline kk_decl_const bool kk_block_has_tag(const kk_block_t* b, kk_tag_t 
   return (kk_block_tag(b) == t);
 }
 
-static inline kk_decl_pure ssize_t kk_block_scan_fsize(const kk_block_t* b) {  // number of scan fields
-  const ssize_t sfsize = b->header.scan_fsize;
+static inline kk_decl_pure kk_ssize_t kk_block_scan_fsize(const kk_block_t* b) {  // number of scan fields
+  const kk_ssize_t sfsize = b->header.scan_fsize;
   if (kk_likely(sfsize != KK_SCAN_FSIZE_MAX)) return sfsize;
   const kk_block_large_t* bl = (const kk_block_large_t*)b;
-  return (ssize_t)kk_int_unbox(bl->large_scan_fsize);
+  return (kk_ssize_t)kk_int_unbox(bl->large_scan_fsize);
 }
 
 static inline kk_decl_pure uintptr_t kk_block_refcount(const kk_block_t* b) {
@@ -214,7 +214,7 @@ typedef struct kk_block_fields_s {
   kk_box_t   fields[1];
 } kk_block_fields_t;
 
-static inline kk_box_t kk_block_field(kk_block_t* b, ssize_t index) {
+static inline kk_box_t kk_block_field(kk_block_t* b, kk_ssize_t index) {
   kk_block_fields_t* bf = (kk_block_fields_t*)b;  // must overlap with datatypes with scanned fields.
   return bf->fields[index];
 }
@@ -227,7 +227,7 @@ static inline kk_box_t kk_block_field(kk_block_t* b, ssize_t index) {
 
 static inline void kk_block_set_invalid(kk_block_t* b) {
 #ifdef KK_DEBUG_FULL
-  const ssize_t scan_fsize = kk_block_scan_fsize(b);
+  const kk_ssize_t scan_fsize = kk_block_scan_fsize(b);
   memset(((kk_block_fields_t*)b)->fields, 0xDF, kk_ssizeof(kk_box_t)*scan_fsize);
 #else
   KK_UNUSED(b);
@@ -293,7 +293,7 @@ typedef enum kk_yield_kind_e {
 typedef struct kk_yield_s {
   int32_t       marker;          // marker of the handler to yield to
   kk_function_t clause;          // the operation clause to execute when the handler is found
-  ssize_t       conts_count;     // number of continuations in `conts`
+  kk_ssize_t       conts_count;     // number of continuations in `conts`
   kk_function_t conts[KK_YIELD_CONT_MAX]; // fixed array of continuations. The final continuation `k` is
                                           // composed as `fN ○ ... ○ f2 ○ f1` if `conts = { f1, f2, ..., fN }`
                                           // if the array becomes full, a fresh array is allocated and the first
@@ -319,7 +319,7 @@ typedef struct kk_context_s {
   kk_function_t  out;              // std output
 
   struct kk_random_ctx_s* srandom_ctx; // strong random using chacha20, initialized on demand
-  ssize_t        argc;             // command line argument count 
+  kk_ssize_t        argc;             // command line argument count 
   const char**   argv;             // command line arguments
   kk_timer_t     process_start;    // time at start of the process
   int64_t        timer_freq;       // high precision timer frequency
@@ -370,25 +370,25 @@ static inline int32_t kk_marker_unique(kk_context_t* ctx) {
 
 #ifdef KK_MIMALLOC
 #ifdef KK_MIMALLOC_INLINE
-  static inline void* kk_malloc_small(ssize_t sz, kk_context_t* ctx) {
+  static inline void* kk_malloc_small(kk_ssize_t sz, kk_context_t* ctx) {
     return kk_mi_heap_malloc_small_inline(ctx->heap, (size_t)sz);
   }
 #else
-  static inline void* kk_malloc_small(ssize_t sz, kk_context_t* ctx) {
+  static inline void* kk_malloc_small(kk_ssize_t sz, kk_context_t* ctx) {
     return mi_heap_malloc_small(ctx->heap, (size_t)sz);
   } 
 #endif
 
-static inline void* kk_malloc(ssize_t sz, kk_context_t* ctx) {
+static inline void* kk_malloc(kk_ssize_t sz, kk_context_t* ctx) {
   return mi_heap_malloc(ctx->heap, (size_t)sz);
 }
 
-static inline void* kk_zalloc(ssize_t sz, kk_context_t* ctx) {
+static inline void* kk_zalloc(kk_ssize_t sz, kk_context_t* ctx) {
   KK_UNUSED(ctx);
   return mi_heap_zalloc(ctx->heap, (size_t)sz);
 }
 
-static inline void* kk_realloc(void* p, ssize_t sz, kk_context_t* ctx) {
+static inline void* kk_realloc(void* p, kk_ssize_t sz, kk_context_t* ctx) {
   KK_UNUSED(ctx);
   return mi_heap_realloc(ctx->heap, p, (size_t)sz);
 }
@@ -401,21 +401,21 @@ static inline void kk_free_local(const void* p) {
   kk_free(p);
 }
 #else
-static inline void* kk_malloc(ssize_t sz, kk_context_t* ctx) {
+static inline void* kk_malloc(kk_ssize_t sz, kk_context_t* ctx) {
   KK_UNUSED(ctx);
   return malloc((size_t)sz);
 }
 
-static inline void* kk_malloc_small(ssize_t sz, kk_context_t* ctx) {
+static inline void* kk_malloc_small(kk_ssize_t sz, kk_context_t* ctx) {
   return kk_malloc(sz,ctx);
 }
 
-static inline void* kk_zalloc(ssize_t sz, kk_context_t* ctx) {
+static inline void* kk_zalloc(kk_ssize_t sz, kk_context_t* ctx) {
   KK_UNUSED(ctx);
   return calloc(1, (size_t)sz);
 }
 
-static inline void* kk_realloc(void* p, ssize_t sz, kk_context_t* ctx) {
+static inline void* kk_realloc(void* p, kk_ssize_t sz, kk_context_t* ctx) {
   KK_UNUSED(ctx);
   return realloc(p, (size_t)sz);
 }
@@ -431,7 +431,7 @@ static inline void kk_free_local(const void* p) {
 #endif
 
 
-static inline void kk_block_init(kk_block_t* b, ssize_t size, ssize_t scan_fsize, kk_tag_t tag) {
+static inline void kk_block_init(kk_block_t* b, kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag) {
   KK_UNUSED(size);
   kk_assert_internal(scan_fsize >= 0 && scan_fsize < KK_SCAN_FSIZE_MAX);
 #if (KK_ARCH_LITTLE_ENDIAN)
@@ -443,7 +443,7 @@ static inline void kk_block_init(kk_block_t* b, ssize_t size, ssize_t scan_fsize
 #endif
 }
 
-static inline void kk_block_large_init(kk_block_large_t* b, ssize_t size, ssize_t scan_fsize, kk_tag_t tag) {
+static inline void kk_block_large_init(kk_block_large_t* b, kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag) {
   KK_UNUSED(size);
   kk_header_t header = { KK_SCAN_FSIZE_MAX, 0, (uint16_t)tag, 0 };
   b->_block.header = header;
@@ -454,7 +454,7 @@ typedef kk_block_t* kk_reuse_t;
 
 #define kk_reuse_null  ((kk_reuse_t)NULL)
 
-static inline kk_block_t* kk_block_alloc_at(kk_reuse_t at, ssize_t size, ssize_t scan_fsize, kk_tag_t tag, kk_context_t* ctx) {
+static inline kk_block_t* kk_block_alloc_at(kk_reuse_t at, kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag, kk_context_t* ctx) {
   kk_assert_internal(scan_fsize >= 0 && scan_fsize < KK_SCAN_FSIZE_MAX);
   kk_block_t* b;
   if (at==kk_reuse_null) {
@@ -468,27 +468,27 @@ static inline kk_block_t* kk_block_alloc_at(kk_reuse_t at, ssize_t size, ssize_t
   return b;
 }
 
-static inline kk_block_t* kk_block_alloc(ssize_t size, ssize_t scan_fsize, kk_tag_t tag, kk_context_t* ctx) {
+static inline kk_block_t* kk_block_alloc(kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag, kk_context_t* ctx) {
   kk_assert_internal(scan_fsize >= 0 && scan_fsize < KK_SCAN_FSIZE_MAX);
   kk_block_t* b = (kk_block_t*)kk_malloc_small(size, ctx);
   kk_block_init(b, size, scan_fsize, tag);
   return b;
 }
 
-static inline kk_block_t* kk_block_alloc_any(ssize_t size, ssize_t scan_fsize, kk_tag_t tag, kk_context_t* ctx) {
+static inline kk_block_t* kk_block_alloc_any(kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag, kk_context_t* ctx) {
   kk_assert_internal(scan_fsize >= 0 && scan_fsize < KK_SCAN_FSIZE_MAX);
   kk_block_t* b = (kk_block_t*)kk_malloc(size, ctx);
   kk_block_init(b, size, scan_fsize, tag);
   return b;
 }
 
-static inline kk_block_large_t* kk_block_large_alloc(ssize_t size, ssize_t scan_fsize, kk_tag_t tag, kk_context_t* ctx) {
+static inline kk_block_large_t* kk_block_large_alloc(kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag, kk_context_t* ctx) {
   kk_block_large_t* b = (kk_block_large_t*)kk_malloc(size + 1 /* the scan_large_fsize field */, ctx);
   kk_block_large_init(b, size, scan_fsize, tag);
   return b;
 }
 
-static inline kk_block_t* kk_block_realloc(kk_block_t* b, ssize_t size, kk_context_t* ctx) {
+static inline kk_block_t* kk_block_realloc(kk_block_t* b, kk_ssize_t size, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_unique(b));
   return (kk_block_t*)kk_realloc(b, size, ctx);
 }
@@ -576,8 +576,8 @@ static inline void kk_block_dropi(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;
   if (rc == 0) {
-    const ssize_t scan_fsize = kk_block_scan_fsize(b);
-    for (ssize_t i = 0; i < scan_fsize; i++) {
+    const kk_ssize_t scan_fsize = kk_block_scan_fsize(b);
+    for (kk_ssize_t i = 0; i < scan_fsize; i++) {
       kk_box_drop(kk_block_field(b, i), ctx);
     }
     kk_block_free(b);
@@ -595,8 +595,8 @@ static inline kk_reuse_t kk_block_dropi_reuse(kk_block_t* b, kk_context_t* ctx) 
   kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;
   if (rc == 0) {
-    ssize_t scan_fsize = kk_block_scan_fsize(b);
-    for (ssize_t i = 0; i < scan_fsize; i++) {
+    kk_ssize_t scan_fsize = kk_block_scan_fsize(b);
+    for (kk_ssize_t i = 0; i < scan_fsize; i++) {
       kk_box_drop(kk_block_field(b, i), ctx);
     }
     return b;
@@ -608,12 +608,12 @@ static inline kk_reuse_t kk_block_dropi_reuse(kk_block_t* b, kk_context_t* ctx) 
 }
 
 // Drop with known scan size 
-static inline void kk_block_dropn(kk_block_t* b, ssize_t scan_fsize, kk_context_t* ctx) {
+static inline void kk_block_dropn(kk_block_t* b, kk_ssize_t scan_fsize, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;
   if (rc == 0) {                 // note: assume two's complement
     kk_assert_internal(scan_fsize == kk_block_scan_fsize(b));
-    for (ssize_t i = 0; i < scan_fsize; i++) {
+    for (kk_ssize_t i = 0; i < scan_fsize; i++) {
       kk_box_drop(kk_block_field(b, i), ctx);
     }
     kk_block_free(b);
@@ -629,12 +629,12 @@ static inline void kk_block_dropn(kk_block_t* b, ssize_t scan_fsize, kk_context_
 
 
 // Drop-reuse with known scan size
-static inline kk_reuse_t kk_block_dropn_reuse(kk_block_t* b, ssize_t scan_fsize, kk_context_t* ctx) {
+static inline kk_reuse_t kk_block_dropn_reuse(kk_block_t* b, kk_ssize_t scan_fsize, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;
   if (rc == 0) {                 
     kk_assert_internal(kk_block_scan_fsize(b) == scan_fsize);
-    for (ssize_t i = 0; i < scan_fsize; i++) {
+    for (kk_ssize_t i = 0; i < scan_fsize; i++) {
       kk_box_drop(kk_block_field(b, i), ctx);
     }
     return b;
@@ -774,7 +774,7 @@ static inline void kk_datatype_drop(kk_datatype_t d, kk_context_t* ctx) {
   if (kk_datatype_is_ptr(d)) { kk_block_drop(d.ptr,ctx); }
 }
 
-static inline void kk_datatype_dropn(kk_datatype_t d, ssize_t scan_fsize, kk_context_t* ctx) {
+static inline void kk_datatype_dropn(kk_datatype_t d, kk_ssize_t scan_fsize, kk_context_t* ctx) {
   kk_assert_internal(kk_datatype_is_ptr(d));
   kk_assert_internal(scan_fsize > 0);
   kk_block_dropn(d.ptr, scan_fsize, ctx);
@@ -792,7 +792,7 @@ static inline void kk_datatype_drop_assert(kk_datatype_t d, kk_tag_t t, kk_conte
   kk_datatype_drop(d, ctx);
 }
 
-static inline kk_reuse_t kk_datatype_dropn_reuse(kk_datatype_t d, ssize_t scan_fsize, kk_context_t* ctx) {
+static inline kk_reuse_t kk_datatype_dropn_reuse(kk_datatype_t d, kk_ssize_t scan_fsize, kk_context_t* ctx) {
   if (kk_datatype_is_singleton(d)) {
     return kk_reuse_null;
   }
@@ -991,14 +991,14 @@ static inline kk_vector_t kk_vector_dup(kk_vector_t v) {
   return kk_datatype_dup(v);
 }
 
-static inline kk_vector_t kk_vector_alloc(ssize_t length, kk_box_t def, kk_context_t* ctx) {
+static inline kk_vector_t kk_vector_alloc(kk_ssize_t length, kk_box_t def, kk_context_t* ctx) {
   if (length<=0) {
     return kk_vector_empty();
   }
   else {
     kk_vector_large_t v = (kk_vector_large_t)kk_block_large_alloc(kk_ssizeof(struct kk_vector_large_s) + (length-1)*kk_ssizeof(kk_box_t), length + 1 /* kk_large_scan_fsize */, KK_TAG_VECTOR, ctx);
     if (def.box != kk_box_null.box) {
-      for (ssize_t i = 0; i < length; i++) {
+      for (kk_ssize_t i = 0; i < length; i++) {
         v->vec[i] = def;
       }
     }
@@ -1006,23 +1006,23 @@ static inline kk_vector_t kk_vector_alloc(ssize_t length, kk_box_t def, kk_conte
   }
 }
 
-static inline ssize_t kk_vector_len(const kk_vector_t vd) {
+static inline kk_ssize_t kk_vector_len(const kk_vector_t vd) {
   kk_vector_large_t v = kk_vector_as_large(vd);
   if (v==NULL) return 0;
-  ssize_t len = kk_int_unbox(v->_base.large_scan_fsize) - 1;
+  kk_ssize_t len = kk_int_unbox(v->_base.large_scan_fsize) - 1;
   kk_assert_internal(len + 1 == kk_block_scan_fsize(&v->_base._block));
   kk_assert_internal(len + 1 != 0);
   return len;
 }
 
-static inline kk_box_t* kk_vector_buf(kk_vector_t vd, ssize_t* len) {
+static inline kk_box_t* kk_vector_buf(kk_vector_t vd, kk_ssize_t* len) {
   if (len != NULL) *len = kk_vector_len(vd);
   kk_vector_large_t v = kk_vector_as_large(vd);
   if (v==NULL) return NULL;
   return &(v->vec[0]);
 }
 
-static inline kk_box_t kk_vector_at(const kk_vector_t v, ssize_t i) {
+static inline kk_box_t kk_vector_at(const kk_vector_t v, kk_ssize_t i) {
   kk_assert(i < kk_vector_len(v));
   return kk_box_dup(kk_vector_buf(v, NULL)[i]);
 }
@@ -1038,14 +1038,14 @@ static inline kk_vector_t kk_vector_unbox(kk_box_t v, kk_context_t* ctx) {
 }
 
 
-static inline kk_vector_t kk_vector_realloc(kk_vector_t vec, ssize_t newlen, kk_box_t def, kk_context_t* ctx) {
-  ssize_t len;
+static inline kk_vector_t kk_vector_realloc(kk_vector_t vec, kk_ssize_t newlen, kk_box_t def, kk_context_t* ctx) {
+  kk_ssize_t len;
   kk_box_t* src = kk_vector_buf(vec, &len);
   if (len == newlen) return vec;
   kk_vector_t vdest = kk_vector_alloc(newlen, def, ctx);
   kk_box_t* dest    = kk_vector_buf(vdest,NULL);
-  const ssize_t n = (len > newlen ? newlen : len);
-  for (ssize_t i = 0; i < n; i++) {
+  const kk_ssize_t n = (len > newlen ? newlen : len);
+  for (kk_ssize_t i = 0; i < n; i++) {
     dest[i] = kk_box_dup(src[i]);
   }
   kk_vector_drop(vec, ctx);
@@ -1127,9 +1127,9 @@ static inline kk_unit_t kk_ref_vector_assign(kk_ref_t r, kk_integer_t idx, kk_bo
     // fast path
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
     kk_vector_t v = kk_vector_unbox(b, ctx);
-    ssize_t len;
+    kk_ssize_t len;
     kk_box_t* p = kk_vector_buf(v, &len);
-    ssize_t i = kk_integer_clamp_ssize_t(idx,ctx);
+    kk_ssize_t i = kk_integer_clamp_ssize_t(idx,ctx);
     if (i < len) {
       kk_box_drop(p[i], ctx);
       p[i] = value;

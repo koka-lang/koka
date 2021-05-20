@@ -203,7 +203,7 @@ kk_std_core_types__maybe kk_slice_next( struct kk_std_core_Sslice slice, kk_cont
 }
 
 struct kk_std_core_Sslice kk_slice_extend( struct kk_std_core_Sslice slice, kk_integer_t count, kk_context_t* ctx ) {
-  ssize_t cnt = kk_integer_clamp(count,ctx);
+  kk_ssize_t cnt = kk_integer_clamp(count,ctx);
   if (cnt==0 || (slice.len <= 0 && cnt<0)) return slice;
   const uint8_t* s0;
   const uint8_t* s1;

@@ -528,13 +528,13 @@ static inline kk_cfun_ptr_t kk_cfun_ptr_unbox(kk_box_t b) {  // never drop; only
   }
 }
 
-// ssize_t
+// kk_ssize_t
 typedef struct kk_box_ssize_s {
   kk_block_t  _block;
-  ssize_t     value;
+  kk_ssize_t     value;
 } *kk_box_ssize_t;
 
-static inline kk_box_t kk_ssize_box(ssize_t i, kk_context_t* ctx) {
+static inline kk_box_t kk_ssize_box(kk_ssize_t i, kk_context_t* ctx) {
   if (i >= KK_MIN_BOXED_INT && i <= KK_MAX_BOXED_INT) {
     return kk_int_box(i);
   }
@@ -545,13 +545,13 @@ static inline kk_box_t kk_ssize_box(ssize_t i, kk_context_t* ctx) {
   }
 }
 
-static inline ssize_t kk_ssize_unbox(kk_box_t b, kk_context_t* ctx) {
+static inline kk_ssize_t kk_ssize_unbox(kk_box_t b, kk_context_t* ctx) {
   if (kk_likely(_kk_box_is_value_fast(b))) {
-    return (ssize_t)kk_int_unbox(b);
+    return (kk_ssize_t)kk_int_unbox(b);
   }
   else {
     kk_box_ssize_t s = kk_basetype_unbox_as_assert(kk_box_ssize_t, b, KK_TAG_SSIZE_T);
-    ssize_t i = s->value;
+    kk_ssize_t i = s->value;
     if (ctx != NULL) kk_basetype_free(s);
     return i;
   }

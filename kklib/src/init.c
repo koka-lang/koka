@@ -232,7 +232,7 @@ kk_decl_export kk_context_t* kk_main_start(int argc, char** argv) {
   kk_context_t* ctx = kk_get_context();
   // process kklib options
   if (argv != NULL && argc >= 1) {
-    ssize_t i;
+    kk_ssize_t i;
     for (i = 1; i < argc; i++) {   // argv[0] is the program name
       const char* arg = argv[i];
       if (strcmp(arg, "--kktime")==0) {
