@@ -42,45 +42,30 @@ type string
 value type double
 
 // A 32-bit signed integer (represented in two's complement).
-// See the [``std/int32``](std_int32.html) module for operations on 32-bit integers.
+// See the [``std/num/int32``](std_num_int32.html) module for operations on 32-bit integers.
 value type int32
-
-// A signed integer equal to signed `size_t` in C.
-// Provides no operations but is used mostly for interaction with external code.
-// The Javascript backend uses `int32` for this.
-value type ssize_t
-
-// A unsigned integer equal to `size_t` in C.
-// Provides no operations but is used mostly for interaction with external code.
-// The Javascript backend uses `int32` for this.
-value type size_t
-
-// A signed integer equal to `ptrdiff_t` in C.
-// Provides no operations but is used mostly for interaction with external code.
-// The Javascript backend uses `int32` for this.
-value type ptrdiff_t
-
-// A 8-bit unsigned integer (represented in two's complement).
-// Provides no operations but is used mostly for interaction with external code.
-value type uint8
-
-// A 8-bit signed integer (represented in two's complement).
-// Provides no operations but is used mostly for interaction with external code.
-value type int8
-
-// A 16-bit signed integer (represented in two's complement).
-// Provides no operations but is used mostly for interaction with external code.
-value type int16
 
 // A 64-bit signed integer (represented in two's complement).
 // Currently not supported by the Javascript backend
 // Provides no operations but is used mostly for interaction with external code.
 value type int64
 
+// A signed integer equal to signed `size_t` in C.
+// Provides no operations but is used mostly for interaction with external code.
+// The Javascript backend uses `int32` for this.
+value type ssize_t
+
+// A 8-bit unsigned integer (represented in two's complement).
+// Provides no operations but is used mostly for interaction with external code.
+value type uint8
+
 // A 32-bit IEEE 754 floating point value.
 // Not supported by the Javascript backend
 // Provides no operations but is used mostly for interaction with external code.
 value type float32
+
+
+
 
 // An any type. Used for extern calls
 value type any
