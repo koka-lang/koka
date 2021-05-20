@@ -1278,37 +1278,37 @@ private fun decr( i : int32 ) : int32 {
 }
 
 // ----------------------------------------------------------------------------
-// N-bit size_t
+// N-bit ssize_t
 // Just define the operations needed for defining the std/core interface but
 // don't export any definitions here.
 // ----------------------------------------------------------------------------
 
-// Convert an integer to an `:size_t`. The number is _clamped_ to the maximal or minimum `:size_t`
-// value if it is outside the range of an `:size_t`.
-extern size_t( i : int) : size_t   {
-  c  "kk_integer_clamp_size_t"
+// Convert an integer to an `:ssize_t`. The number is _clamped_ to the maximal or minimum `:ssize_t`
+// value if it is outside the range of an `:ssize_t`.
+extern ssize_t( i : int) : ssize_t   {
+  c  "kk_integer_clamp_ssize_t"
   cs "Primitive.IntToInt32"
   js "$std_core._int_to_int32"
 }
 
-// Convert an `:size_t` to an `:int`.
-private inline extern int( i : size_t ) : int {
-  c  "kk_integer_from_size_t"
+// Convert an `:ssize_t` to an `:int`.
+private inline extern int( i : ssize_t ) : int {
+  c  "kk_integer_from_ssize_t"
   cs inline "(new BigInteger(#1))"
   js "$std_core._int_double"
 }
 
 
 // Minimal set of operations that we need in `std/core`.
-private inline extern (<=) : (size_t,size_t) -> bool   { inline "(#1 <= #2)" }
-private inline extern (<)  : (size_t,size_t) -> bool   { inline "(#1 < #2)" }
-private inline extern (+)  : (size_t,size_t) -> size_t { inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
-private inline extern (-)  : (size_t,size_t) -> size_t { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
-private inline extern is-pos( i : size_t ) : bool { inline "(#1 > 0)" }
-private inline extern is-neg( i : size_t ) : bool { inline "(#1 < 0)" }
-private extern is-zero( i : size_t ) : bool { inline "(#1 == 0)" }
-private extern decr(i : size_t ) : size_t { inline "(#1 - 1)" }
-private extern incr(i : size_t ) : size_t { inline "(#1 + 1)" }
+private inline extern (<=) : (ssize_t,ssize_t) -> bool   { inline "(#1 <= #2)" }
+private inline extern (<)  : (ssize_t,ssize_t) -> bool   { inline "(#1 < #2)" }
+private inline extern (+)  : (ssize_t,ssize_t) -> ssize_t { inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
+private inline extern (-)  : (ssize_t,ssize_t) -> ssize_t { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
+private inline extern is-pos( i : ssize_t ) : bool { inline "(#1 > 0)" }
+private inline extern is-neg( i : ssize_t ) : bool { inline "(#1 < 0)" }
+private extern is-zero( i : ssize_t ) : bool { inline "(#1 == 0)" }
+private extern decr(i : ssize_t ) : ssize_t { inline "(#1 - 1)" }
+private extern incr(i : ssize_t ) : ssize_t { inline "(#1 + 1)" }
 
 
 // ----------------------------------------------------------------------------
@@ -1447,10 +1447,10 @@ fun maximum( xs : list<double> ) : double
 // returned by functions that find sub strings or patterns in
 // in strings. Use `string:(slice : sslice) -> string` to
 // create a fresh substring from a slice.
-abstract struct sslice( str : string, start : size_t, len : size_t )
+abstract struct sslice( str : string, start : ssize_t, len : ssize_t )
 
 // Internal export for the regex module
-fun ".new-sslice"( str :string, start: size_t, len : size_t ) {
+fun ".new-sslice"( str :string, start: ssize_t, len : ssize_t ) {
   Sslice(str,start,len)
 }
 
@@ -1537,7 +1537,7 @@ fun (||)( x : string, y : string ) : string {
 }
 
 // Length returns the length in the platform specific encoding (and should not be exported)
-private inline extern length( s : string ) : size_t {
+private inline extern length( s : string ) : ssize_t {
   c inline "kk_string_len(#1,kk_context())"
   cs inline "#1.Length"
   js inline "#1.length"
@@ -1584,11 +1584,11 @@ fun last(s : string, n : int = 1) : sslice {
 
 // O(1). The entire string as a slice
 fun slice( s : string ) : sslice {
-  Sslice(s,0.size_t,s.length)
+  Sslice(s,0.ssize_t,s.length)
 }
 
 // An empty slice
-val empty = Sslice("",0.size_t,0.size_t)
+val empty = Sslice("",0.ssize_t,0.ssize_t)
 
 // Is a slice empty?
 fun is-empty( slice : sslice ) : bool {
@@ -1654,7 +1654,7 @@ extern extend( slice : sslice, count : int ) : sslice {
 // start of `slice` argument.
 fun before(slice : sslice) : sslice {
   val Sslice(s,start,_len) = slice
-  Sslice(s,0.size_t,start)
+  Sslice(s,0.ssize_t,start)
 }
 
 // O(1). Return the string slice from the end of `slice` argument
@@ -1701,7 +1701,7 @@ fun foreach( slice : sslice, action : (c:char) -> e ()) : e () {
 }
 
 // Does string `s`  contain the string `sub`  ?
-private inline extern xindex-of(s : string, sub : string ) : size_t {
+private inline extern xindex-of(s : string, sub : string ) : ssize_t {
   c inline "kk_string_index_of1(#1,#2,kk_context())"
   cs inline "((#1).IndexOf(#2) + 1)";
   js inline "((#1).indexOf(#2) + 1)";
@@ -1715,7 +1715,7 @@ fun find( s : string, sub : string ) : maybe<sslice> {
 }
 
 // Does string `s`  contain the string `sub`  ?
-private inline extern xlast-index-of(s : string, sub : string ) : size_t {
+private inline extern xlast-index-of(s : string, sub : string ) : ssize_t {
   c inline "kk_string_last_index_of1(#1,#2,kk_context())"
   cs inline "(#1.LastIndexOf(#2) + 1)";
   js inline "((#1).lastIndexOf(#2) + 1)";
@@ -1753,7 +1753,7 @@ private extern xends-with: (s : string, post : string ) -> bool {
 // If so, returns a slice of `s` from the start up to the `post` string at the end.
 fun ends-with( s : string, post : string ) : maybe<sslice> {
   if (xends-with(s,post))
-   then Just(Sslice(s,0.size_t,s.length - post.length))
+   then Just(Sslice(s,0.ssize_t,s.length - post.length))
    else Nothing
 }
 
@@ -1803,10 +1803,10 @@ fun trim-right( s : string, sub : string ) : string {
 
 // Repeat a string `n` times
 fun repeat( s : string, n : int ) : string {
-  repeatz(s,n.size_t)
+  repeatz(s,n.ssize_t)
 }
 
-private extern repeatz( s : string, n : size_t ) : string {
+private extern repeatz( s : string, n : ssize_t ) : string {
   c  "kk_string_repeat"
   cs "Primitive.Repeat"
   js "_string_repeat"
@@ -1842,7 +1842,7 @@ private inline extern splitv( s : string,  sep : string ) : vector<string> {
   js inline "((#1).split(#2))"
 }
 
-private inline extern splitv( s : string,  sep : string, n : size_t ) : vector<string> {
+private inline extern splitv( s : string,  sep : string, n : ssize_t ) : vector<string> {
   c  "kk_string_splitv_atmost"
   cs inline "#1.Split(new String[]{#2},#3, StringSplitOptions.None)";
   js inline "(#1).split(#2, #3)"
@@ -1857,7 +1857,7 @@ fun split( s : string, sep : string ) : list<string> {
 // Split a string into at most `n` parts that were delimited by a string `sep`. The delimeters are not included in the results (except for possibly the final part).
 // For example: `split("1,2,3",",",2) == ["1","2,3"]`
 fun split( s : string, sep: string, n : int) : list<string> {
-  splitv(s,sep,n.size_t).list
+  splitv(s,sep,n.ssize_t).list
 }
 
 // Replace every occurrence of `pattern` to `repl` in a string.
@@ -1943,7 +1943,7 @@ fun capitalize( s : string ) : string {
 // Right-align a string to width `width`  using `fill`  (default is a space) to fill from the left.
 fun pad-left( s : string, width : int, fill : char = ' ') : string
 {
-  val w = width.size_t
+  val w = width.ssize_t
   val n = s.length
   if (w <= n)
    then s
@@ -1953,7 +1953,7 @@ fun pad-left( s : string, width : int, fill : char = ' ') : string
 // Left-align a string to width `width`  using `fill`  (default is a space) to fill on the right.
 fun pad-right( s : string, width : int, fill : char = ' ') : string
 {
-  val w = width.size_t
+  val w = width.ssize_t
   val n = s.length
   if (w <= n)
    then s
@@ -1986,19 +1986,19 @@ inline extern trim-right( s : string ) : string {
 // ----------------------------------------------------------------------------
 
 // Return the element at position `index`  in vector `v`  without bounds check!
-private inline extern unsafe-idx : forall<a> ( v : vector<a>, index : size_t ) -> total a {
+private inline extern unsafe-idx : forall<a> ( v : vector<a>, index : ssize_t ) -> total a {
   c inline "kk_vector_at(#1,#2)"
   cs inline "(#1)[#2]";
   js inline "(#1)[#2]";
 }
 
-private inline extern unsafe-assign : forall<a> ( v : vector<a>, i : size_t, x : a ) -> total () {
+private inline extern unsafe-assign : forall<a> ( v : vector<a>, i : ssize_t, x : a ) -> total () {
   c "kk_vector_unsafe_assign"
   cs inline "(#1)[#2] = #3";
   js inline "(#1)[#2] = #3";
 }
 
-private inline extern unsafe-vector : forall<a> ( n : size_t ) -> total vector<a> {
+private inline extern unsafe-vector : forall<a> ( n : ssize_t ) -> total vector<a> {
   c "kk_vector_allocz"
   cs inline "(new ##1[#1])"
   js inline "Array(#1)"
@@ -2013,7 +2013,7 @@ inline extern [] : forall<a> ( v : vector<a>, index : int ) -> exn a  {
 
 // Return the element at position `index` in vector `v`, or `Nothing` if out of bounds
 fun at( v  : vector<a>, index : int ) : maybe<a> {
-  val idx = index.size_t
+  val idx = index.ssize_t
   if (v.lengthz <= idx) then Nothing else Just(unsafe-idx(v,idx))
 }
 
@@ -2022,7 +2022,7 @@ fun length( v : vector<a> ) : int {
   v.lengthz.int
 }
 
-private inline extern lengthz : forall<a> (v : vector<a> ) -> size_t  {
+private inline extern lengthz : forall<a> (v : vector<a> ) -> ssize_t  {
   c  inline "kk_vector_len(#1)"
   cs inline "((#1).Length)";
   js inline "((#1).length)";
@@ -2030,16 +2030,16 @@ private inline extern lengthz : forall<a> (v : vector<a> ) -> size_t  {
 
 // Create a new vector of length `n`  with initial elements `default` .
 fun vector(n : int, default : a) : vector<a> {
-  vector-initz(n.size_t, fn(_i){ default } )
+  vector-initz(n.ssize_t, fn(_i){ default } )
 }
 
 // Create a new vector of length `n`  with initial elements given by function `f` .
 fun vector-init( n : int, f : int -> a ) : vector<a> {
-  vector-initz( n.size_t, fn(i) { f(i.int) } )
+  vector-initz( n.ssize_t, fn(i) { f(i.int) } )
 }
 
 // Create a new vector of length `n`  with initial elements given by function `f` .
-private extern vector-initz(n : size_t, f : size_t -> a) : vector<a> {
+private extern vector-initz(n : ssize_t, f : ssize_t -> a) : vector<a> {
   c "kk_vector_init"
   cs inline "Primitive.NewArray<##1>(#1,#2)"
   js inline "_vector(#1,#2)"
@@ -2062,8 +2062,8 @@ fun foreach-indexed( v : vector<a>, f : (a,int) -> e () ) : e () {
   foreach-indexedz( v, fn(x,i) { f(x,i.int) } )
 }
 
-private fun foreach-indexedz( v : vector<a>, f : (a,size_t) -> e () ) : e () {
-  forz( 0.size_t, v.lengthz.decr ) fn(i) {
+private fun foreach-indexedz( v : vector<a>, f : (a,ssize_t) -> e () ) : e () {
+  forz( 0.ssize_t, v.lengthz.decr ) fn(i) {
     f(v.unsafe-idx(i),i)
   }
 }
@@ -2071,14 +2071,14 @@ private fun foreach-indexedz( v : vector<a>, f : (a,size_t) -> e () ) : e () {
 // Invoke a function `f` for each element in a vector `v`.
 // If `f` returns `Just`, the iteration is stopped early and the result is returned.
 fun foreach-while( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b> {
-  for-whilez( 0.size_t, v.lengthz.decr ) fn(i) {
+  for-whilez( 0.ssize_t, v.lengthz.decr ) fn(i) {
     f(v.unsafe-idx(i))
   }
 }
 
 // Apply a total function `f` to each element in a vector `v`
 fun map( v : vector<a>, f : a -> e b ) : e vector<b> {
-  val w = unsafe-vector(v.length.size_t)
+  val w = unsafe-vector(v.length.ssize_t)
   v.foreach-indexedz fn(x,i) {
     unsafe-assign(w,i,f(x))
   }
@@ -2741,9 +2741,9 @@ fun for( start: int, end : int, action : (int) -> e () ) : e ()
 
 // Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
 // If `start > end`  the function returns without any call to `action` .
-private fun forz( start: size_t, end : size_t, action : (size_t) -> e () ) : e ()
+private fun forz( start: ssize_t, end : ssize_t, action : (ssize_t) -> e () ) : e ()
 {
-  fun rep( i : size_t ) {
+  fun rep( i : ssize_t ) {
     if (i <= end) {
       action(i)
       rep(unsafe-decreasing(i.incr))
@@ -2774,9 +2774,9 @@ fun for-while( start: int, end : int, action : (int) -> e maybe<a> ) : e maybe<a
 // Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
 // If `start > end`  the function returns without any call to `action` .
 // If `action` returns `Just`, the iteration is stopped and the result returned
-private fun for-whilez( start: size_t, end : size_t, action : (size_t) -> e maybe<a> ) : e maybe<a>
+private fun for-whilez( start: ssize_t, end : ssize_t, action : (ssize_t) -> e maybe<a> ) : e maybe<a>
 {
-  fun rep( i : size_t ) {
+  fun rep( i : ssize_t ) {
     if (i <= end) {
       match(action(i)) {
         Nothing -> rep(unsafe-decreasing(i.incr))

@@ -93,7 +93,7 @@ import Common.Failure
 import Common.Unique
 import Common.Id
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
-                        nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameSizeT, nameBox, nameUnbox,
+                        nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameSSizeT, nameBox, nameUnbox,
                         nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit, nameTpCField)
 import Common.Syntax
 import Kind.Kind
@@ -855,13 +855,13 @@ makeInt32 i
 makeEvIndex :: Integer -> Expr
 makeEvIndex i | i < 0 = failure $ ("Core.Core.makeEvIndex: index < 0: " ++ show i)
 makeEvIndex i
-  = let sizet = Var (TName nameSizeT (typeFun [(nameNil,typeInt)] typeTotal typeEvIndex)) (InfoArity 1 0 )
+  = let sizet = Var (TName nameSSizeT (typeFun [(nameNil,typeInt)] typeTotal typeEvIndex)) (InfoArity 1 0 )
     in App sizet [Lit (LitInt i)]
 
 makeSizeT :: Integer -> Expr
 makeSizeT i | i < 0 = failure $ ("Core.Core.makeSizeT: size_t < 0: " ++ show i)
 makeSizeT i
-  = let sizet = Var (TName nameSizeT (typeFun [(nameNil,typeInt)] typeTotal typeSizeT)) (InfoArity 1 0 )
+  = let sizet = Var (TName nameSSizeT (typeFun [(nameNil,typeInt)] typeTotal typeSSizeT)) (InfoArity 1 0 )
     in App sizet [Lit (LitInt i)]
 
 ---------------------------------------------------------------------------

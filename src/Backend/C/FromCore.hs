@@ -810,7 +810,7 @@ genDecRef name info dataRepr
 genDropReuseFun :: Name -> DataInfo -> DataRepr -> Asm ()
 genDropReuseFun name info dataRepr
   = emitToH $
-    text "static inline kk_reuse_t" <+> ppName name <.> text "_dropn_reuse" <.> parameters [ppName name <+> text "_x", text "size_t _scan_fsize"] <+> block (
+    text "static inline kk_reuse_t" <+> ppName name <.> text "_dropn_reuse" <.> parameters [ppName name <+> text "_x", text "kk_ssize_t _scan_fsize"] <+> block (
       text "return" <+>
       (if (dataReprMayHaveSingletons dataRepr)
         then text "kk_datatype_dropn_reuse"
@@ -821,7 +821,7 @@ genDropReuseFun name info dataRepr
 genDropNFun :: Name -> DataInfo -> DataRepr -> Asm ()
 genDropNFun name info dataRepr
   = emitToH $
-    text "static inline void" <+> ppName name <.> text "_dropn" <.> parameters [ppName name <+> text "_x", text "size_t _scan_fsize"] <+> block (
+    text "static inline void" <+> ppName name <.> text "_dropn" <.> parameters [ppName name <+> text "_x", text "kk_ssize_t _scan_fsize"] <+> block (
       (if (dataReprMayHaveSingletons dataRepr)
         then text "kk_datatype_dropn"
         else text "kk_basetype_dropn"
@@ -854,7 +854,7 @@ genScanFields name info dataRepr conInfos | not (hasTagField dataRepr)
  = return ()
 genScanFields name info dataRepr conInfos
  = emitToH $
-    text "static inline size_t" <+> ppName name <.> text "_scan_count" <.> tupled [ppName name <+> text "_x"]
+    text "static inline kk_ssize_t" <+> ppName name <.> text "_scan_count" <.> tupled [ppName name <+> text "_x"]
     <+> block (vcat (map (genScanFieldTests (length conInfos)) (zip conInfos [1..])))
 
 genScanFieldTests :: Int -> ((ConInfo,ConRepr,[(Name,Type)],Int),Int) -> Doc
@@ -1138,6 +1138,8 @@ cTypeCon c
          then CPrim "int32_t"
         else if (name == nameTpSizeT)
          then CPrim "size_t"
+        else if (name == nameTpSSizeT)
+         then CPrim "kk_ssize_t"
         else if (name == nameTpFloat)
          then CPrim "double"
         else if (name == nameTpBool)
@@ -1756,16 +1758,18 @@ genAppSpecial f args
        case (f,args) of
         (Var tname _, [Lit (LitInt i)]) | getName tname == nameInt32 && isSmallInt32 i
           -> return (Just (genLitInt32 i))
-        (Var tname _, [Lit (LitInt i)]) | getName tname == nameSizeT && isSmallSizeT platform i
-          -> return (Just (genLitSizeT i))
+        (Var tname _, [Lit (LitInt i)]) | getName tname == nameSSizeT && isSmallSSizeT platform i
+          -> return (Just (genLitSSizeT i))
+        --(Var tname _, [Lit (LitInt i)]) | getName tname == nameSizeT && isSmallSizeT platform i
+        --  -> return (Just (genLitSizeT i))
         _ -> case extractExtern f of
                Just (tname,formats)
                  -- inline external
                  -> case args of
                      [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt32 i
                        -> return (Just (parens (text "(int32_t)" <.> pretty i)))
-                     [Lit (LitInt i)] | getName tname == nameSizeT && isSmallSizeT platform i
-                       -> return (Just (parens (text "(size_t)" <.> pretty i)))
+                     [Lit (LitInt i)] | getName tname == nameSSizeT && isSmallSSizeT platform i
+                       -> return (Just (parens (text "(kk_ssize_t)" <.> pretty i)))
                      _ -> return Nothing
                _ -> return Nothing
 
@@ -2254,6 +2258,10 @@ genLitSizeT :: Integer -> Doc
 genLitSizeT i
   = parens (text "(size_t)" <.> pretty i)
 
+genLitSSizeT :: Integer -> Doc
+genLitSSizeT i
+  = parens (text "(kk_ssize_t)" <.> pretty i)
+
 isSmallLitInt expr
   = case expr of
       Lit (LitInt i)  -> isSmallInt i
@@ -2278,6 +2286,11 @@ isSmallSizeT platform i
   | sizeSize platform == 4 = (i >= 0 && i <= 4294967295)
   | sizeSize platform == 8 = (i >= 0 && i <= 18446744073709551615)
   | otherwise = failure $ "Backend.C.isSmallSizeT: unknown platform size_t: " ++ show platform
+
+isSmallSSizeT platform i
+  | sizeSize platform == 4 = (i >= minSmallInt32 && i <= maxSmallInt32)
+  | sizeSize platform == 8 = (i >= minSmallInt64 && i <= maxSmallInt64)
+  | otherwise = failure $ "Backend.C.isSmallSSizeT: unknown platform ssize_t: " ++ show platform
 
 ppName :: Name -> Doc
 ppName name

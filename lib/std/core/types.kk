@@ -45,10 +45,10 @@ value type double
 // See the [``std/int32``](std_int32.html) module for operations on 32-bit integers.
 value type int32
 
-// A signed integer equal to `size_t` in C.
+// A signed integer equal to signed `size_t` in C.
 // Provides no operations but is used mostly for interaction with external code.
 // The Javascript backend uses `int32` for this.
-value type size_t
+value type ssize_t
 
 // A 8-bit unsigned integer (represented in two's complement).
 // Provides no operations but is used mostly for interaction with external code.

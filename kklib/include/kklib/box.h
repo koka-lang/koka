@@ -382,7 +382,13 @@ static inline kk_box_t kk_datatype_box(kk_datatype_t d) {
   return b;
 }
 
+static inline kk_uintx_t kk_enum_unbox(kk_box_t b) {
+  return kk_uint_unbox(b);
+}
 
+static inline kk_box_t kk_enum_box(kk_uintx_t u) {
+  return kk_uint_box(u);
+}
 
 /* Generic boxing of value types */
 

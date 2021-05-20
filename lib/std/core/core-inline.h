@@ -35,7 +35,7 @@ kk_datatype_t  kk_vector_to_list(kk_vector_t v, kk_datatype_t tail, kk_context_t
 kk_vector_t    kk_list_to_vector(kk_datatype_t xs, kk_context_t* ctx);
 
 static inline kk_integer_t  kk_string_count_int(kk_string_t s, kk_context_t* ctx) {
-  return kk_integer_from_size_t( kk_string_count(s,ctx), ctx );
+  return kk_integer_from_ssize_t( kk_string_count(s,ctx), ctx );
 }
 
 static inline kk_integer_t kk_string_cmp_int(kk_string_t s1, kk_string_t s2, kk_context_t* ctx) {
@@ -46,7 +46,7 @@ kk_string_t  kk_string_join(kk_vector_t v, kk_context_t* ctx);
 kk_string_t  kk_string_join_with(kk_vector_t v, kk_string_t sep, kk_context_t* ctx);
 kk_string_t  kk_string_replace_all(kk_string_t str, kk_string_t pattern, kk_string_t repl, kk_context_t* ctx);
 static inline kk_integer_t kk_string_count_pattern(kk_string_t str, kk_string_t pattern, kk_context_t* ctx) {
-  kk_integer_t count = kk_integer_from_size_t( kk_string_count_pattern_borrow(str,pattern), ctx );
+  kk_integer_t count = kk_integer_from_ssize_t( kk_string_count_pattern_borrow(str,pattern), ctx );
   kk_string_drop(str,ctx);
   kk_string_drop(pattern,ctx);
   return count;
@@ -63,8 +63,8 @@ struct kk_std_core_Sslice kk_slice_extend( struct kk_std_core_Sslice slice, kk_i
 kk_std_core_types__maybe kk_slice_next( struct kk_std_core_Sslice slice, kk_context_t* ctx );
 
 
-static inline kk_unit_t kk_vector_unsafe_assign( kk_vector_t v, size_t i, kk_box_t x, kk_context_t* ctx  ) {
-  size_t len;
+static inline kk_unit_t kk_vector_unsafe_assign( kk_vector_t v, kk_ssize_t i, kk_box_t x, kk_context_t* ctx  ) {
+  kk_ssize_t len;
   kk_box_t* p = kk_vector_buf(v,&len);
   kk_assert(i < len);
   p[i] = x;
@@ -72,15 +72,15 @@ static inline kk_unit_t kk_vector_unsafe_assign( kk_vector_t v, size_t i, kk_box
   return kk_Unit;
 }
 
-kk_vector_t kk_vector_init( size_t n, kk_function_t init, kk_context_t* ctx);
+kk_vector_t kk_vector_init( kk_ssize_t n, kk_function_t init, kk_context_t* ctx);
 
-static inline kk_vector_t kk_vector_allocz( size_t n, kk_context_t* ctx ) {
+static inline kk_vector_t kk_vector_allocz( kk_ssize_t n, kk_context_t* ctx ) {
   return kk_vector_alloc( n, kk_box_null, ctx);
 }
 
 static inline kk_box_t kk_vector_at_int( kk_vector_t v, kk_integer_t n, kk_context_t* ctx ) {
   // TODO: check bounds
-  return kk_vector_at(v,kk_integer_clamp_size_t(n,ctx));
+  return kk_vector_at(v,kk_integer_clamp_ssize_t(n,ctx));
 }
 
 static inline double kk_double_abs(double d) {

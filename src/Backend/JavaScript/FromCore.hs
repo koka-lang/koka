@@ -646,7 +646,7 @@ genExpr expr
        -> genExpr arg
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt i
        -> return (empty, pretty i)
-     App (Var tname _) [Lit (LitInt i)] | getName tname == nameSizeT && isSmallInt i
+     App (Var tname _) [Lit (LitInt i)] | getName tname == nameSSizeT && isSmallInt i
        -> return (empty, pretty i)
 
      -- special: cfield-set
@@ -675,7 +675,7 @@ genExpr expr
                      -> case args of
                          [Lit (LitInt i)] | getName tname == nameInt32  && isSmallInt i
                            -> return (empty,pretty i)
-                         [Lit (LitInt i)] | getName tname == nameSizeT  && isSmallInt i
+                         [Lit (LitInt i)] | getName tname == nameSSizeT  && isSmallInt i
                            -> return (empty,pretty i)
                          _ -> -- genInlineExternal tname formats argDocs
                               do (decls,argDocs) <- genExprs args
@@ -799,14 +799,14 @@ genInline expr
                   -> case args of
                        [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt i
                          -> return (pretty i)
-                       [Lit (LitInt i)] | getName tname == nameSizeT && isSmallInt i
+                       [Lit (LitInt i)] | getName tname == nameSSizeT && isSmallInt i
                          -> return (pretty i)
                        _ -> genInlineExternal tname formats argDocs
                 Nothing
                   -> case (f,args) of
                        ((Var tname _),[Lit (LitInt i)]) | getName tname == nameInt32 && isSmallInt i
                          -> return (pretty i)
-                       ((Var tname _),[Lit (LitInt i)]) | getName tname == nameSizeT && isSmallInt i
+                       ((Var tname _),[Lit (LitInt i)]) | getName tname == nameSSizeT && isSmallInt i
                          -> return (pretty i)
                        _ -> do fdoc <- genInline f
                                return (fdoc <.> tupled argDocs)

@@ -335,6 +335,10 @@ static inline kk_integer_t kk_integer_from_size_t(size_t i, kk_context_t* ctx) {
   return kk_integer_from_uintx_t(i, ctx);
 }
 
+static inline kk_integer_t kk_integer_from_ssize_t(ssize_t i, kk_context_t* ctx) {
+  return kk_integer_from_int(i, ctx);
+}
+
 static inline kk_integer_t kk_integer_from_intptr_t(intptr_t i, kk_context_t* ctx) {
   return kk_integer_from_int(i, ctx);
 }

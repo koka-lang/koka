@@ -29,7 +29,7 @@ module Type.Type (-- * Types
                   , expandSyn
                   , canonicalForm, minimalForm
                   -- ** Standard types
-                  , typeInt, typeBool, typeFun, typeVoid, typeInt32, typeEvIndex, typeSizeT
+                  , typeInt, typeBool, typeFun, typeVoid, typeInt32, typeEvIndex, typeSizeT, typeSSizeT
                   , typeUnit, typeChar, typeString, typeFloat
                   , typeTuple, typeAny
                   , typeEv, isEvType, makeEvType
@@ -476,7 +476,11 @@ typeInt32
 
 typeEvIndex :: Tau
 typeEvIndex
-  = TSyn (TypeSyn nameTpEvIndex kindStar 0 Nothing) [] typeSizeT
+  = TSyn (TypeSyn nameTpEvIndex kindStar 0 Nothing) [] typeSSizeT
+
+typeSSizeT :: Tau
+typeSSizeT
+  = TCon (TypeCon nameTpSSizeT kindStar)
 
 typeSizeT :: Tau
 typeSizeT
