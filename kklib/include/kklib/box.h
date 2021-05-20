@@ -311,7 +311,7 @@ static inline kk_intx_t kk_int_unbox(kk_box_t v) {
 
 static inline kk_box_t kk_int_box(kk_intx_t i) {
   kk_assert_internal(i >= KK_MIN_BOXED_INT && i <= KK_MAX_BOXED_INT);
-  kk_box_t v = { (uintptr_t)(i << 1) | 1 };
+  kk_box_t v = { ((uintptr_t)i << 1) | 1 };
   kk_assert_internal(kk_box_is_value(v));
   return v;
 }

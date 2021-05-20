@@ -59,6 +59,7 @@ module Type.Type (-- * Types
                   , isTypeBool, isTypeInt, isTypeString, isTypeChar
                   , isTypeUnit
                   , isTypeLocalVar
+                  , isValueOperation
 
                   -- ** Trivial conversion
                   , IsType( toType)
@@ -461,6 +462,7 @@ splitFunType tp
 {--------------------------------------------------------------------------
   Primitive types
 --------------------------------------------------------------------------}
+
 -- | Type of integers (@Int@)
 typeInt :: Tau
 typeInt
@@ -524,6 +526,12 @@ isTypeLocalVar tp =
   case expandSyn tp of
     TApp (TCon (TypeCon name _)) [_,_]  -> name == nameTpLocalVar
     _ -> False
+
+
+isValueOperation tp
+  = case splitPredType tp of
+      (_,_,TSyn syn [opTp] _) -> typeSynName syn == nameTpValueOp
+      _ -> False    
 
 orderEffect :: Tau -> Tau
 orderEffect tp

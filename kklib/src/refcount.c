@@ -179,8 +179,8 @@ static void kk_block_push_delayed_drop_free(kk_block_t* b, kk_context_t* ctx) {
   // encode the next pointer into the block header (while keeping `scan_fsize` valid)
   b->header.refcount = (uint32_t)((kk_uintx_t)delayed);
 #if (KK_INTPTR_SIZE > 4)
-  b->header.tag = (uint16_t)(kk_sar((kk_intx_t)delayed,32));
-  kk_assert_internal(kk_sar((kk_intx_t)delayed,48) == 0 || kk_sar((kk_intx_t)delayed, 48) == -1);
+  b->header.tag = (uint16_t)(kk_shr((kk_uintx_t)delayed,32));
+  kk_assert_internal(kk_shr((kk_uintx_t)delayed,48) == 0);
 #endif
   ctx->delayed_free = b;
 }
@@ -197,7 +197,7 @@ static void kk_block_drop_free_delayed(kk_context_t* ctx) {
       // decode the next element in the delayed list from the block header
       kk_intx_t next = (kk_intx_t)b->header.refcount;
 #if (KK_INTPTR_SIZE>4)
-      next += ((kk_intx_t)((int16_t)(b->header.tag)) << 32); // sign extended
+      next += (kk_intx_t)(b->header.tag) << 32; 
 #endif
 #ifndef NDEBUG
       b->header.refcount = 0;

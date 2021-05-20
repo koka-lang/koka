@@ -208,7 +208,7 @@ static inline kk_intx_t kk_smallint_from_integer(kk_integer_t i) {  // use for k
 
 static inline kk_integer_t kk_integer_from_small(intptr_t i) {   // use for known small int constants (at most 14 bits)
   kk_assert_internal(i >= KK_SMALLINT_MIN && i <= KK_SMALLINT_MAX);
-  return _kk_new_integer((i<<2)|1);
+  return _kk_new_integer(kk_shlp(i,2)|1);  // (i << 2) | 1
 }
 
 static inline bool kk_is_integer(kk_integer_t i) {
@@ -475,7 +475,7 @@ static inline kk_integer_t kk_integer_cdiv_small(kk_integer_t x, kk_integer_t y)
   kk_assert_internal(kk_are_smallints(x, y));
   intptr_t i = kk_sar(x.value, 1);
   intptr_t j = kk_sar(y.value, 1);
-  return _kk_new_integer(((i/j)<<2)|1);
+  return _kk_new_integer(kk_shlp(i/j, 2)|1);
 }
 
 // Euclidean division: see <https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/divmodnote-letter.pdf>
@@ -492,7 +492,7 @@ static inline kk_integer_t kk_integer_div_small(kk_integer_t x, kk_integer_t y) 
   intptr_t d = i/j;
   intptr_t m = i%j;
   if (i < 0 && m < 0) { d -= (j < 0 ? -1 : 1); }   // i < 0 is not needed, but see note below
-  return _kk_new_integer((d<<2)|1);
+  return _kk_new_integer(kk_shlp(d,2)|1);  // (d<<2)|1
 }
 
 /* Fast modulus on small integers. Since `boxed(n) = n*4 + 1`, we can divide as:
@@ -506,7 +506,7 @@ static inline kk_integer_t kk_integer_cmod_small(kk_integer_t x, kk_integer_t y)
   kk_assert_internal(kk_are_smallints(x, y));
   intptr_t i = kk_sar(x.value, 1);
   intptr_t j = kk_sar(y.value, 1);
-  return _kk_new_integer(((i%j)<<1)|1);
+  return _kk_new_integer(kk_shlp(i%j,1)|1);
 }
 
 // Euclidean mod on small integers. Since `boxed(n) = n*4 + 1`, we can divide as:
@@ -520,7 +520,7 @@ static inline kk_integer_t kk_integer_mod_small(kk_integer_t x, kk_integer_t y) 
   intptr_t m = (j==0 ? i : i%j);
   if (i < 0 && m < 0) { m += (j < 0 ? -j : j); }    // i < 0 is not needed, but see note below
   kk_assert_internal(m >= 0);
-  return _kk_new_integer((m<<2)|1);
+  return _kk_new_integer(kk_shlp(m,2)|1);
 }
 
 
@@ -528,8 +528,8 @@ static inline kk_integer_t kk_integer_cdiv_cmod_small(kk_integer_t x, kk_integer
   kk_assert_internal(kk_are_smallints(x, y)); kk_assert_internal(mod!=NULL);
   intptr_t i = kk_sar(x.value, 1);
   intptr_t j = kk_sar(y.value, 1);
-  *mod = _kk_new_integer(((i%j)<<2)|1);
-  return _kk_new_integer(((i/j)<<2)|1);
+  *mod = _kk_new_integer(kk_shlp(i%j,2)|1);
+  return _kk_new_integer(kk_shlp(i/j,2)|1);
 }
 
 static inline kk_integer_t kk_integer_div_mod_small(kk_integer_t x, kk_integer_t y, kk_integer_t* mod) {
@@ -552,8 +552,8 @@ static inline kk_integer_t kk_integer_div_mod_small(kk_integer_t x, kk_integer_t
   }
   kk_assert_internal(m >= 0);
   kk_assert_internal(d*j + m == i);
-  *mod = _kk_new_integer((m<<2)|1);
-  return _kk_new_integer((d<<2)|1);
+  *mod = _kk_new_integer(kk_shlp(m,2)|1);
+  return _kk_new_integer(kk_shlp(d,2)|1);
 }
 
 static inline kk_integer_t kk_integer_cdiv(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {

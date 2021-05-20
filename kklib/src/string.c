@@ -374,7 +374,7 @@ static kk_string_t kk_string_alloc_from_qutf16n_prim(kk_ssize_t wlen, const uint
     }
     else if (*p <= 0xDBFF && p+1 < end && (p[1] >= 0xDC00 && p[1] <= 0xDFFF)) {
       if (qutf16_identity) {
-        kk_char_t c = 0x10000 + (((kk_char_t)(p[0]) - 0xD800) << 10) + ((kk_char_t)(p[1]) - 0xDC00);
+        kk_char_t c = 0x10000 + ((kk_char_t)((p[0] - 0xD800) << 10)) + ((kk_char_t)(p[1]) - 0xDC00);
         if (kk_char_is_raw(c)) {
           // invalid codepoint in raw range; decode as two lone surrogates
           len += 4;

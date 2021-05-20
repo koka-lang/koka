@@ -258,12 +258,19 @@ typedef unsigned long  kk_uintx_t;
 
 
 // Distinguish unsigned shift right and signed arithmetic shift right.
-static inline kk_intx_t   kk_sar(kk_intx_t i, kk_intx_t shift)   { return (i >> shift); }
-static inline kk_uintx_t  kk_shr(kk_uintx_t u, kk_uintx_t shift) { return (u >> shift); }
-static inline int32_t     kk_sar32(int32_t i, kk_intx_t shift)   { return (i >> shift); }
-static inline uint32_t    kk_shr32(uint32_t u, kk_uintx_t shift) { return (u >> shift); }
-static inline int64_t     kk_sar64(int64_t i, kk_intx_t shift)   { return (i >> shift); }
-static inline uint64_t    kk_shr64(uint64_t u, kk_uintx_t shift) { return (u >> shift); }
+static inline kk_intx_t   kk_sar(kk_intx_t i, int shift)    { return (i >> shift); }
+static inline kk_uintx_t  kk_shr(kk_uintx_t u, int shift)   { return (u >> shift); }
+static inline int32_t     kk_sar32(int32_t i, int shift)    { return (i >> shift); }
+static inline uint32_t    kk_shr32(uint32_t u, int shift)   { return (u >> shift); }
+static inline int64_t     kk_sar64(int64_t i, int shift)    { return (i >> shift); }
+static inline uint64_t    kk_shr64(uint64_t u, int shift)   { return (u >> shift); }
+
+// Define left shift as arithmetic left shift on signed integers (assuming two's complement). 
+static inline kk_intx_t   kk_shl(kk_intx_t i, int shift)    { return (kk_intx_t)((kk_uintx_t)i << shift); }
+static inline int32_t     kk_shl32(int32_t i, int shift)    { return (int32_t)((uint32_t)i << shift); }
+static inline int64_t     kk_shl64(int64_t i, int shift)    { return (int64_t)((uint64_t)i << shift); }
+static inline intptr_t    kk_shlp(intptr_t i, int shift)    { return (intptr_t)((uintptr_t)i << shift); }
+
 
 // Architecture assumptions
 #define KK_ARCH_LITTLE_ENDIAN   1

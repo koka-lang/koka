@@ -302,7 +302,7 @@ kk_decl_export kk_char_t kk_utf8_read_validate(const uint8_t* s, kk_ssize_t* cou
 
 // Non-validating utf-8 decoding of a single code point
 static inline kk_char_t kk_utf8_read(const uint8_t* s, kk_ssize_t* count) {
-  kk_char_t b = *s;
+  kk_char_t b = *s;  kk_assert_internal(b >= 0); // shift left is not UB on b
   kk_char_t c;
   if (kk_likely(b <= 0x7F)) {
     *count = 1;
