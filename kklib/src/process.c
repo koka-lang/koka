@@ -119,7 +119,7 @@ void kk_process_info(kk_msecs_t* utime, kk_msecs_t* stime, size_t* peak_rss, siz
 #include <kernel/OS.h>
 #endif
 
-static kk_msecs_t timeval_secs(const struct timeval* tv) {
+static kk_msecs_t kk_timeval_secs(const struct timeval* tv) {
   return ((kk_msecs_t)tv->tv_sec * 1000L) + ((kk_msecs_t)tv->tv_usec / 1000L);
 }
 
@@ -150,8 +150,8 @@ void kk_process_info(kk_msecs_t* utime, kk_msecs_t* stime, size_t* peak_rss, siz
       *peak_rss += mem.ram_size;
   }
 #endif
-  *utime = timeval_secs(&rusage.ru_utime);
-  *stime = timeval_secs(&rusage.ru_stime);
+  *utime = kk_timeval_secs(&rusage.ru_utime);
+  *stime = kk_timeval_secs(&rusage.ru_stime);
 }
 
 #else

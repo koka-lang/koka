@@ -1,5 +1,4 @@
 
-
 /*---------------------------------------------------------------------------
   Copyright 2020 Microsoft Corporation.
 
@@ -53,6 +52,7 @@ kk_vector_t kk_list_to_vector(kk_std_core__list xs, kk_context_t* ctx) {
     ys = cons->tail;
     p[i] = kk_box_dup(cons->head);
   }
+  kk_std_core__list_drop(xs,ctx);  // todo: drop while visiting?
   return v;
 }
 
@@ -92,6 +92,7 @@ kk_std_core__list kk_string_to_list(kk_string_t s, kk_context_t* ctx) {
     }
     tl = kk_std_core__as_Cons(cons);
   }
+  kk_string_drop(s,ctx);
   return list;
 }
 
@@ -147,6 +148,7 @@ kk_integer_t kk_slice_count( kk_std_core__sslice sslice, kk_context_t* ctx ) {
     count++;
     start = next;
   }
+  kk_std_core__sslice_drop(sslice,ctx);
   return kk_integer_from_size_t(count,ctx);
 }
 

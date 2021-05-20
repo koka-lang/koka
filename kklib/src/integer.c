@@ -1594,7 +1594,7 @@ kk_integer_t kk_integer_count_digits(kk_integer_t x, kk_context_t* ctx) {
   }
 }
 
-static kk_digit_t powers_of_10[LOG_BASE+1] = { 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000
+static kk_digit_t digit_powers_of_10[LOG_BASE+1] = { 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000
 #if (LOG_BASE > 9)
                                           , 10000000000, 100000000000, 1000000000000, 10000000000000, 100000000000000
                                           , 1000000000000000, 10000000000000000, 100000000000000000, 1000000000000000000
@@ -1623,7 +1623,7 @@ kk_integer_t kk_integer_mul_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* 
 
   // small multiply?
   if (kk_is_smallint(x) && i < LOG_BASE) {
-    return kk_integer_mul(x, kk_integer_from_int(powers_of_10[i], ctx), ctx);
+    return kk_integer_mul(x, kk_integer_from_int(digit_powers_of_10[i], ctx), ctx);
   }
 
   // multiply a bigint
@@ -1631,7 +1631,7 @@ kk_integer_t kk_integer_mul_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* 
   size_t ismall = (size_t)i % LOG_BASE;  // small multiply the left over
   kk_bigint_t* b = kk_integer_to_bigint(x, ctx);
   if (ismall > 0) {
-    b = kk_bigint_mul_small(b, powers_of_10[ismall], ctx);
+    b = kk_bigint_mul_small(b, digit_powers_of_10[ismall], ctx);
   }
   if (large > 0) {
     size_t bcount = b->count;
@@ -1669,7 +1669,7 @@ kk_integer_t kk_integer_cdiv_pow10(kk_integer_t x, kk_integer_t p, kk_context_t*
 
   // small divide?
   if (kk_is_smallint(x) && i < LOG_BASE) {
-    return kk_integer_cdiv(x, kk_integer_from_int(powers_of_10[i], ctx), ctx);
+    return kk_integer_cdiv(x, kk_integer_from_int(digit_powers_of_10[i], ctx), ctx);
   }
 
   // divide a bigint
@@ -1695,7 +1695,7 @@ kk_integer_t kk_integer_cdiv_pow10(kk_integer_t x, kk_integer_t p, kk_context_t*
     }
   }
   if (ismall > 0) {
-    b = kk_bigint_cdiv_cmod_small(b, powers_of_10[ismall], NULL, ctx);
+    b = kk_bigint_cdiv_cmod_small(b, digit_powers_of_10[ismall], NULL, ctx);
   }
   return integer_bigint(b, ctx);
 }

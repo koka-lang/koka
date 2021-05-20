@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012-2020 Daan Leijen, Microsoft Corporation.
+  Copyright 2012-2020 Daan Leijen, Microsoft Corporation. 
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -258,8 +258,8 @@ inline extern (!) : forall<h,a,e> (ref: ref<h,a>) -> <read<h>|e> a with(hdiv<h,a
 
 // If a heap effect is unobservable, the heap effect can be erased by using the `run` fun.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
-inline extern run : forall<e,a> ( action : forall<h> () -> <alloc<h>,read<h>,write<h> | e> a ) -> e a  {
-  c  "(kk_function_call(kk_box_t,(kk_function_t,kk_context_t*),#1,(#1,kk_context())))"
+extern run : forall<e,a> ( action : forall<h> () -> <alloc<h>,read<h>,write<h> | e> a ) -> e a  {
+  c  inline "(kk_function_call(kk_box_t,(kk_function_t,kk_context_t*),#1,(#1,kk_context())))"
   cs inline "Primitive.Run<##2>(#1)"
   js inline "((#1)())"
 }

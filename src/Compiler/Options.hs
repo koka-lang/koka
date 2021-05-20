@@ -318,7 +318,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , configstr [] ["console"]      ["ansi","html","raw"] (\s f -> f{console=s})   "console output format"
 --  , option []    ["install-dir"]     (ReqArg installDirFlag "dir")       "set the install directory explicitly"
 
- , hide $ fflag       ["asan"]      (\b f -> f{asan=b})              "compile with address sanitizer (clang only)"
+ , hide $ fflag       ["asan"]      (\b f -> f{asan=b})              "compile with address, undefined, and leak sanitizer (clang only)"
  , hide $ fnum 3 "n"  ["simplify"]  (\i f -> f{simplify=i})          "enable 'n' core simplification passes"
  , hide $ fnum 10 "n" ["maxdup"]    (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
  , hide $ fnum 10 "n" ["inline"]    (\i f -> f{optInlineMax=i})      "set 'n' as maximum inline threshold (=10)"
@@ -722,7 +722,7 @@ ccGcc name path
          (Release,       words "-O2 -DNDEBUG"),
          (RelWithDebInfo,words "-O2 -g -DNDEBUG")]
         (gnuWarn ++ ["-Wno-unused-but-set-variable"])
-        (["-c"] ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
+        (["-c"]) -- ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
         []
         (\libdir -> ["-L",libdir])
         (\idir -> ["-I",idir])
@@ -741,7 +741,7 @@ ccMsvc name path
           (RelWithDebInfo,words "-MD -Zi -O2 -Ob1 -DNDEBUG")]
          ["-W3"]
          ["-TC","-c"]
-         ["-link", "/NODEFAULTLIB:msvcrt"]
+         ["-link"] -- , "/NODEFAULTLIB:msvcrt"]
          (\libdir -> ["/LIBPATH:" ++ libdir])
          (\idir -> ["-I",idir])
          (\fname -> ["-Fo" ++ ((notext fname) ++ objExtension)])
@@ -762,8 +762,9 @@ ccFromPath flags path
         clang   = gcc{ ccFlagsWarn = gnuWarn ++ words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align" }
         generic = gcc{ ccFlagsWarn = [] }
         msvc    = ccMsvc name path
-        clangcl = msvc{ ccFlagsWarn = ccFlagsWarn clang ++ words "-Wno-extra-semi-stmt -Wno-extra-semi -Wno-float-equal",
-                        ccFlagsLink = words "-Wno-unused-command-line-argument" ++ ccFlagsLink msvc
+        clangcl = msvc{ ccFlagsWarn = ["-Wno-everything"] ++ ccFlagsWarn clang ++ words "-Wno-extra-semi-stmt -Wno-extra-semi -Wno-float-equal",
+                        ccFlagsLink = words "-Wno-unused-command-line-argument" ++ ccFlagsLink msvc,
+                        ccFlagsCompile = ["-D__clang_msvc__"] ++ ccFlagsCompile msvc
                       }
 
         cc0     | (name `startsWith` "clang-cl") = clangcl
@@ -783,8 +784,8 @@ ccFromPath flags path
                 then do putStrLn "warning: can only use address sanitizer with clang (ignored)"
                         return cc
                 else do return cc{ ccName         = ccName cc ++ "-asan"
-                                 , ccFlagsCompile = ccFlagsCompile cc ++ ["-fsanitize=address"]
-                                 , ccFlagsLink    = ccFlagsLink cc ++ ["-fsanitize=address"] }
+                                 , ccFlagsCompile = ccFlagsCompile cc ++ ["-fsanitize=address,undefined,leak","-fno-omit-frame-pointer","-O0"]
+                                 , ccFlagsLink    = ccFlagsLink cc ++ ["-fsanitize=address,undefined,leak"] }
          else return cc
 
 -- unquote a shell argument string (as well as we can)

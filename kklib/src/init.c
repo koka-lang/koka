@@ -195,13 +195,14 @@ kk_context_t* kk_get_context(void) {
   ctx = (kk_context_t*)mi_heap_zalloc(heap, sizeof(kk_context_t));
   ctx->heap = heap;
 #else
-  ctx = (kk_context_t*)calloc(1, sizeof(kk_context_t));
+  ctx = (kk_context_t*)kk_zalloc(sizeof(kk_context_t),NULL);
 #endif
   ctx->evv = kk_block_dup(kk_evv_empty_singleton);
   ctx->thread_id = (uintptr_t)(&context);
   ctx->unique = kk_integer_one;
   context = ctx;
   ctx->kk_box_any = kk_block_alloc_as(struct kk_box_any_s, 0, KK_TAG_BOX_ANY, ctx);  
+  ctx->kk_box_any->_unused = kk_integer_zero;
   // todo: register a thread_done function to release the context on thread terminatation.
   return ctx;
 }

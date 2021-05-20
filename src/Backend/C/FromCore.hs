@@ -95,11 +95,14 @@ genModule sourceDir penv platform newtypes enableReuse enableSpecialize enableRe
 
         let headComment   = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
             initSignature = text "void" <+> ppName (qualify (coreProgName core) (newName ".init")) <.> parameters []
+            doneSignature = text "void" <+> ppName (qualify (coreProgName core) (newName ".done")) <.> parameters []
 
-        emitToInit $ vcat $ [text "static bool _initialized = false;"
-                            ,text "if (_initialized) return;"
-                            ,text "_initialized = true;"]
+        emitToInit $ vcat $ [text "static bool _kk_initialized = false;"
+                            ,text "if (_kk_initialized) return;"
+                            ,text "_kk_initialized = true;"]
                             ++ map initImport (coreProgImports core)
+
+        emitToDone $ vcat (map doneImport (reverse (coreProgImports core)))                            
 
         emitToC $ vcat $ [headComment
                          ,text "#include" <+> dquotes (text (moduleNameToPath (coreProgName core)) <.> text ".h")]
@@ -121,12 +124,23 @@ genModule sourceDir penv platform newtypes enableReuse enableSpecialize enableRe
 
         genMain (coreProgName core) mbMain
 
+        emitToDone $ vcat [text "static bool _kk_done = false;"
+                          ,text "if (_kk_done) return;"
+                          ,text "_kk_done = true;"]
+                    
+
         init <- getInit
+        done <- getDone
         emitToC $ linebreak
                   <.> text "// initialization"
                   <-> initSignature
                   <.> block init
+                  <-> text "\n// termination"
+                  <-> doneSignature
+                  <.> block done
+
         emitToH $ vcat [ linebreak <.> initSignature <.> semi <.> linebreak
+                       , linebreak <.> doneSignature <.> semi <.> linebreak
                        , text "#endif // header"]
         return core -- box/unboxed core
   where
@@ -148,6 +162,10 @@ genModule sourceDir penv platform newtypes enableReuse enableSpecialize enableRe
     initImport :: Import -> Doc
     initImport imp
       = ppName (qualify (importName imp) (newName ".init")) <.> arguments [] <.> semi
+
+    doneImport :: Import -> Doc
+    doneImport imp
+      = ppName (qualify (importName imp) (newName ".done")) <.> arguments [] <.> semi
 
 
 
@@ -187,13 +205,20 @@ genMain :: Name -> Maybe (Name,Bool) -> Asm ()
 genMain progName Nothing = return ()
 genMain progName (Just (name,_))
   = emitToC $
+    text "\n// main exit\nstatic void _kk_main_exit(void)" <+> block (vcat [
+            text "kk_context_t* _ctx = kk_get_context();",
+            ppName (qualify progName (newName ".done")) <.> parens (text "_ctx") <.> semi
+          ]) 
+    <->
     text "\n// main entry\nint main(int argc, char** argv)" <+> block (vcat [
-      text "kk_context_t* _ctx = kk_main_start(argc, argv);"
-    , ppName (qualify progName (newName ".init")) <.> parens (text "_ctx") <.> semi
-    , ppName name <.> parens (text "_ctx") <.> semi
-    , text "kk_main_end(_ctx);"
-    , text "return 0;"
-    ]);
+        text "kk_context_t* _ctx = kk_main_start(argc, argv);"
+      , ppName (qualify progName (newName ".init")) <.> parens (text "_ctx") <.> semi
+      , text "atexit(&_kk_main_exit);"
+      , ppName name <.> parens (text "_ctx") <.> semi
+      , ppName (qualify progName (newName ".done")) <.> parens (text "_ctx") <.> semi
+      , text "kk_main_end(_ctx);"
+      , text "return 0;"
+      ])
 
 ---------------------------------------------------------------------------------
 -- Generate C statements for value definitions
@@ -324,6 +349,9 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
                                 emitToH (text "#define" <+> ppName name <+> parens (text "(double)" <.> parens flt))
                         _ -> do doc <- genStat (ResultAssign (TName name tp) Nothing) (defBody)
                                 emitToInit (block doc)  -- must be scoped to avoid name clashes
+                                case genDupDropCall False {-drop-} tp (ppName name) of 
+                                  []   -> return ()
+                                  docs -> emitToDone (hcat docs <.> semi)
                                 let decl = ppType tp <+> ppName name <.> unitSemi tp
                                 -- if (isPublic vis) -- then do
                                 -- always public since inlined definitions can refer to it (sin16 in std/num/ddouble)
@@ -724,7 +752,7 @@ genUnbox name info dataRepr
                              ,text "kk_basetype_decref" <.> arguments [text "_p"] <.> semi]
                       )
                     )
-                  , text "else {" <+> ppName name <.> text "_dup(_unbox); }"
+                  -- , text "else {" <+> ppName name <.> text "_dup(_unbox); }"
                   , text "return _unbox" ]
              -- text "unbox_valuetype" <.> arguments [ppName name, text "x"]
         _ -> text "return"
@@ -2033,6 +2061,7 @@ data St  = St  { uniq :: Int
                , cdoc :: [Doc]  -- c file in reverse
                , idoc :: [Doc]  -- initialization expressions
                , tdoc :: [Doc]  -- toplevel (goes to either H or C)
+               , ddoc :: [Doc]  -- done expressions
                }
 
 data Env = Env { moduleName        :: Name                    -- | current module
@@ -2048,7 +2077,7 @@ data Env = Env { moduleName        :: Name                    -- | current modul
 data Result = ResultReturn (Maybe TName) [TName] -- first field carries function name if not anonymous and second the arguments which are always known
             | ResultAssign TName (Maybe Name)    -- variable name and optional label to break
 
-initSt uniq = St uniq [] [] [] []
+initSt uniq = St uniq [] [] [] [] []
 
 instance HasUnique Asm where
   updateUnique f
@@ -2072,6 +2101,8 @@ emitToInit doc
   = updateSt (\st -> st{idoc = doc : idoc st })
 emitToTop doc
   = updateSt (\st -> st{tdoc = doc : tdoc st })
+emitToDone doc
+  = updateSt (\st -> st{ddoc = doc : ddoc st })
 
 emitToCurrentDef doc
   = do env <- getEnv
@@ -2080,6 +2111,10 @@ emitToCurrentDef doc
 getInit :: Asm Doc
 getInit
   = Asm (\env st -> (vcat (reverse (idoc st)), st{ idoc = [] }))
+
+getDone :: Asm Doc
+getDone
+  = Asm (\env st -> (vcat ( (ddoc st)), st{ ddoc = [] }))   -- reversed
 
 getTop :: Asm Doc
 getTop

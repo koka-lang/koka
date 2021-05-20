@@ -269,16 +269,16 @@ install_packages() {
 install_dependencies() {
   info "Installing dependencies.."
   if has_cmd apt-get ; then
-    apt_get_install build-essential gcc make cmake tar curl
+    apt_get_install build-essential gcc make tar curl
   elif has_cmd dnf ; then
     dnf_groupinstall "Development Tools" # this is for Fedora 32+， CentOS 8 and CentOS Stream  
-    dnf_install gcc make cmake tar curl
+    dnf_install gcc make tar curl
   elif has_cmd yum ; then
-    yum_install build-essential gcc make cmake tar curl
+    yum_install build-essential gcc make tar curl
   elif has_cmd apk ; then
-    apk_install build-essential gcc make cmake tar curl
+    apk_install build-essential gcc make tar curl
   elif has_cmd pacman; then
-    pacman_install base-devel gcc make cmake tar curl
+    pacman_install base-devel gcc make tar curl
   else
     info "Unable to install dependencies; continuing.."
   fi

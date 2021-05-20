@@ -129,7 +129,7 @@ static inline const uint8_t* kk_bytes_buf_borrow(const kk_bytes_t b, ssize_t* le
   }
   kk_tag_t tag = kk_datatype_tag(b);
   if (tag == KK_TAG_BYTES_SMALL) {
-    const kk_bytes_small_t bs = kk_datatype_as_assert(const kk_bytes_small_t, b, KK_TAG_BYTES_SMALL);
+    const kk_bytes_small_t bs = kk_datatype_as_assert(kk_bytes_small_t, b, KK_TAG_BYTES_SMALL);
     if (len != NULL) {
       // a small bytes of length N (<= 7) ends with an ending zero followed by (7 - N) trailing 0xFF bytes.
       #ifdef KK_ARCH_LITTLE_ENDIAN
@@ -220,6 +220,8 @@ static inline bool kk_bytes_is_neq(kk_bytes_t s1, kk_bytes_t s2, kk_context_t* c
 /*--------------------------------------------------------------------------------------------------
   Utilities
 --------------------------------------------------------------------------------------------------*/
+
+const uint8_t* kk_memmem(const uint8_t* p, size_t plen, const uint8_t* pat, size_t patlen);
 
 kk_decl_export ssize_t kk_decl_pure kk_bytes_count_pattern_borrow(kk_bytes_t str, kk_bytes_t pattern);
 

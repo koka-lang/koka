@@ -263,7 +263,7 @@ static kk_box_t kcompose( kk_function_t fself, kk_box_t x, kk_context_t* ctx) {
         kk_yield_extend(kk_function_dup(conts[i]),ctx);
       }
       kk_function_drop(fself,ctx);
-      // kk_box_drop(x,ctx);  // don't drop as we were yielding
+      kk_box_drop(x,ctx);     // still drop even though we yield as it may release a boxed value type?
       return kk_box_any(ctx); // return yielding
     }
   }
