@@ -1,4 +1,12 @@
-module Core.Specialize where
+module Core.Specialize( SpecializeEnv
+                      , specenvNew
+                      , specenvEmpty
+                      , specenvExtend, specenvExtends
+                      , specenvLookup
+                      , ppSpecializeEnv
+
+                      , extractSpecializeDefs 
+                      ) where
 
 import Data.Maybe (mapMaybe)
 
@@ -38,9 +46,7 @@ getInline def =
 calledInThisDef :: Def -> S.NameSet
 calledInThisDef def = foldMapExpr go $ defExpr def
   where 
-    go (App (Var (TName name _) _) xs) = S.singleton name
-
-    -- this doesn't seems to make a difference?
+    go (App (Var (TName name _) _) xs)             = S.singleton name
     go (App (TypeApp (Var (TName name _) _) _) xs) = S.singleton name
     go _ = S.empty
 
@@ -48,19 +54,24 @@ calledInThisDef def = foldMapExpr go $ defExpr def
 passedRecursivelyToThisDef :: Def -> [(Name, Int)]
 passedRecursivelyToThisDef def 
   -- TODO: FunDef type to avoid this check?
-  | Lam args effect body <- defExpr def = foldMapExpr (go args) $ defExpr def
-  | TypeLam _ (Lam params effect body) <- defExpr def = foldMapExpr (go params) $ defExpr def
-  | otherwise = mempty
+  = case defExpr def of
+      Lam params effect body 
+        -> foldMapExpr (callsWith params) $ defExpr def
+      TypeLam _ (Lam params effect body) 
+        -> foldMapExpr (callsWith params) $ defExpr def
+      _ -> mempty
   where
-    go :: [TName] -> Expr -> [(Name, Int)]
-    go params (App (Var (TName name _) _) args)
-      | name == defName def = doWork args params
-    go params (App (TypeApp (Var (TName name _) _) _) args)
-      | name == defName def = doWork args params
-    go params _ = mempty
+    dname = defName def
 
-    doWork :: [Expr] -> [TName] -> [(Name, Int)]
-    doWork args params =
+    callsWith :: [TName] -> Expr -> [(Name, Int)]
+    callsWith params (App (Var (TName name _) _) args)
+      | name == dname  = check args params
+    callsWith params (App (TypeApp (Var (TName name _) _) _) args)
+      | name == dname   = check args params
+    callsWith params _ = mempty
+
+    check :: [Expr] -> [TName] -> [(Name, Int)]
+    check args params =
       flip mapMaybe (zip3 [0..] args params) $ \(i, arg, param) ->
         case arg of
           Var tname _ | tname == param -> Just (getName tname, i)
