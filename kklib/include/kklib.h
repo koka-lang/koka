@@ -16,9 +16,9 @@
 #define WIN32_LEAN_AND_MEAN          // reduce windows includes
 #define _POSIX_C_SOURCE     200809L  // make posix definitions visible
 #define _DARWIN_C_SOURCE    200809L  // make darwin definitions visible
-#define _XOPEN_SOURCE       500      // make xopen definitions visible
+#define _XOPEN_SOURCE       700      // make xopen (posix 2008) definitions visible
 #define _FILE_OFFSET_BITS   64       // enable large files
-#if defined(__GNUC__) && !defined(__MINGW32__)
+#if defined(__GNUC__) && !(defined(WIN32))
 #define _GNU_SOURCE         1        // make gnu definitions visible
 #endif
 

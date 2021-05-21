@@ -1350,36 +1350,42 @@ ccompile term flags cc ctargetObj csources
 
 copyCLibrary :: Terminal -> Flags -> CC -> [(String,String)] -> IO ()
 copyCLibrary term flags cc eimport
+  = copyCLibraryX term flags cc eimport 0
+
+copyCLibraryX term flags cc eimport tries
   = do let clib = case lookup "library" eimport of
                     Just lib -> lib
                     Nothing  -> case lookup "vcpkg" eimport of
                                   Just pkg -> pkg
                                   Nothing  -> ""
        if (null clib) then return () else 
-        do mbPath <- searchPaths (ccompLibDirs flags) [] (ccLibFile cc clib)
+        do mbPath <- do mbPath1 <- searchPaths (ccompLibDirs flags) [] (ccLibFile cc clib)
+                        case mbPath1 of
+                          Nothing | buildType flags == Debug 
+                             -> searchPaths (ccompLibDirs flags) [] (ccLibFile cc (clib++"d"))
+                          _  -> return mbPath1
            case mbPath of
-              Nothing   -> do fname <- vcpkgInstall term flags cc eimport clib
-                              if (null fname)
-                                then nosuccess clib
-                                else do exist <- doesFileExist fname
-                                        if (not exist) 
-                                          then nosuccess fname
-                                          else copyLibFile fname
-              Just fname -> copyLibFile fname
+              Just fname -> copyLibFile fname clib
+              _ -> if (tries > 0) 
+                    then nosuccess clib
+                    else do ok <- vcpkgInstall term flags cc eimport clib
+                            if (not ok)
+                              then nosuccess clib
+                              else copyCLibraryX term flags cc eimport (tries + 1)  -- try again 
+              
   where
     nosuccess clib
       = raiseIO ("unable to find C library " ++ clib)
-    copyLibFile fname
+    copyLibFile fname clib    
       = do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "library:") <+>
               color (colorSource (colorScheme flags)) (text fname))          
-           copyBinaryIfNewer False fname (outName flags (notdir fname))
-                         
-           
+           copyBinaryIfNewer False fname (outName flags (ccLibFile cc clib))
+
 
 termWarning term flags doc
   = termDoc term $ color (colorWarning (colorSchemeFromFlags flags)) (text "warning:" <+> doc)
 
-vcpkgInstall :: Terminal -> Flags -> CC -> [(String,String)] -> FilePath -> IO FilePath
+vcpkgInstall :: Terminal -> Flags -> CC -> [(String,String)] -> FilePath -> IO Bool
 vcpkgInstall term flags cc eimport clib | onWindows && (ccName cc `startsWith` "mingw")
   = do termWarning term flags $
         text "unable to find C library:" <+> color (colorSource (colorScheme flags)) (text clib) <->
@@ -1387,7 +1393,7 @@ vcpkgInstall term flags cc eimport clib | onWindows && (ccName cc `startsWith` "
         text "         on Windows you need to use the \"clang-cl\" or \"cl\" (msvc) compiler." <->
         text "         run from an 'x64 Native Tools Command' window and install clang-cl from" <-> 
         text "         <https://releases.llvm.org/download.html>"
-       return ""
+       return False
 
 vcpkgInstall term flags cc eimport clib
   = case lookup "vcpkg" eimport of
@@ -1395,7 +1401,7 @@ vcpkgInstall term flags cc eimport clib
         do termWarning term flags $
               text "unable to find C library:" <+> color (colorSource (colorScheme flags)) (text clib) <->
               text "   hint: provide \"--cclibdir\" as an option, or use \"syslib\" in an extern import?"
-           return ""
+           return False
       Just pkg -> 
         do vcpkgExist <- doesFileExist (vcpkg flags)
            if (not vcpkgExist)
@@ -1405,7 +1411,7 @@ vcpkgInstall term flags cc eimport clib
                        text ("         and/or install \"vcpkg\" from <https://github.com/microsoft/vcpkg#getting-started>") <->
                        text ("         (install in \"~/vcpkg\" to be found automatically by the koka compiler)")
                        )
-                     return ""
+                     return False
              else do pkgExist <- doesFileExist (joinPaths [vcpkgRoot flags,"packages",pkg ++ "_" ++ vcpkgTriplet flags])
                      if (pkgExist)  
                        then termWarning term flags $ text ("vcpkg \"" ++ pkg ++ "\" is installed but the library \"" ++ clib ++ "\" is not found.")
@@ -1420,11 +1426,11 @@ vcpkgInstall term flags cc eimport clib
                                                         <+> text "-- install the package as:" 
                                         <-> text "         >" <+> color (colorSource (colorScheme flags)) (text (unwords install))
                                         <-> text "         to install the required C library and header files")
-                               return ""
+                               return False
                        else do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "install: vcpkg package:") <+>
                                  color (colorSource (colorScheme flags)) (text pkg))
                                runCommand term flags install
-                               return (joinPaths [vcpkgLibDir flags,ccLibFile cc clib])
+                               return True -- (joinPaths [vcpkgLibDir flags,ccLibFile cc clib])
                     
 
 clibsFromCore core    = externalImportKeyFromCore core "library"

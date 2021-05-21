@@ -698,12 +698,12 @@ genBoxUnbox name info dataRepr
 genBoxCall prim asBorrowed tp arg
   = case cType tp of
       CFun _ _   -> primName_t prim "function_t" <.> parens arg
-      CPrim val  | val == "kk_unit_t" || val == "kk_integer_t" || val == "bool" || val == "kk_string_t"
+      CPrim val  | val == "kk_unit_t" || val == "kk_integer_t" || val == "bool" || val == "kk_string_t" 
                  -> primName_t prim val <.> parens arg  -- no context
       --CPrim val  | val == "int32_t" || val == "double" || val == "unit_t"
       --           -> text val <.> arguments [arg]
       CData name -> primName prim (ppName name) <.> tupled [arg,ctx]
-      _          -> primName_t prim (show (ppType tp)) <.> tupled [arg,ctx]
+      _          -> primName_t prim (show (ppType tp)) <.> tupled [arg,ctx]  -- kk_box_t, int32_t
   where
     ctx          = if asBorrowed then text "NULL" else contextDoc
 
@@ -1160,7 +1160,7 @@ cTypeCon c
          then CPrim "float"
         else if (name == nameTpRef || name == nameTpLocalVar)
          then CPrim "kk_ref_t"
-        else if (name == nameTpBox)
+        else if (name == nameTpBox || name == nameTpAny)
          then CPrim "kk_box_t"
         else if (name == nameTpReuse)
          then CPrim "kk_reuse_t"

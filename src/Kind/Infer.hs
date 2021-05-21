@@ -887,8 +887,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
     maxDataDefs :: Platform -> Name -> Bool -> Doc -> [(Int,Int)] -> KInfer DataDef
     maxDataDefs platform name False nameDoc []  = return DataDefNormal
     maxDataDefs platform name True nameDoc []  -- primitive abstract value type with no constructors
-      = do let ptrSize = 8
-               size  = if (name == nameTpChar || name == nameTpInt32 || name == nameTpFloat32)
+      = do let size  = if (name == nameTpChar || name == nameTpInt32 || name == nameTpFloat32)
                         then 4
                        else if (name == nameTpFloat || name == nameTpInt64)
                         then 8

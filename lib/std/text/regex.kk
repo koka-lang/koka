@@ -28,24 +28,20 @@ extern import {
 public extern regex-version() : string {
   c "kk_regex_version"
 }
-/*
+
 // Abstract type of a regular expression object
-abstract struct regex( obj: any )
+abstract struct regex( obj: any, src : string )
 
 // The result of a regular expression match, where `matched` is the content that
 // was matched, and `groups` is a vector that contains the content for each 
 // capture group (where `groups[0] == matched`).
 // The `slice` field contains the `:sslice` of the string that was matched.
-public struct matched( slice : sslice, matched :string, groups : groups )
+public struct matched( slice : sslice, groups : groups )
 
 abstract struct groups( grp : any )
 
 
-extern regex-source( r : any ) : string {
-  cs "RegEx.Source"
-  js inline "#1.regex.source"
-}
-
+/*
 extern groups-index( groups : any, index : int32 ) : string {
   cs "RegEx.GroupsIndex"
   js inline "((#1)[#2] != null ? (#1)[#2] : '')"
@@ -66,22 +62,24 @@ extern xalternative( groups : groups ) : int32 {
   cs inline "-1"
   js inline "(#1.alternative!=null ? #1.alternative : -1)"
 }
-
+*/
 extern regex-create : (string,int32,int32) -> any {
+  c "kk_regex_create"
   cs "RegEx.Create"
   js "$regexCreate"
 }
-
+/*
 extern regex-create-alt : (vector<string>,int32,int32) -> any {
   cs "RegEx.CreateAlt"
   js "$regexCreateAlt"
 }
-
-extern regex-exec : (any,string,int32) -> maybe<matched> {
+*/
+extern regex-exec : (any,string,ssize_t) -> maybe<matched> {
+  c  "kk_regex_exec"
   cs "RegEx.Exec"
   js "$regexExec"
 }
-
+/*
 extern regex-exec-all : (any,string,int32) -> vector<matched> {
   cs "RegEx.ExecAll"
   js "$regexExecAll"
@@ -118,13 +116,13 @@ public fun after1( cap : matched ) : string {
 public fun before( cap : matched ) : string {
   cap.slice.before.string
 }
-
+*/
 
 // Return the pattern as a string
 public fun source( r : regex ) : string {
-  regex-source(r.obj)
+  r.src
 }
-
+/*
 // How many groups are captured by this regex?
 public fun groups-count( r : regex ) : int 
 {
@@ -159,15 +157,15 @@ public fun []( groups : groups, index : int ) : string {
 public fun matched( groups : groups, index : int ) : bool {
   groups-matched-on(groups.grp, index.int32).bool
 }
-
+*/
 // Create a new regular expression. Takes two optional parameters. Set `ignoreCase` to `True`
 // to ignore uppercase/lowercase distinction. If  `multiline` is set to `True`, then `^` and `$`
 // match also the beginning and end of every line (instead of the entire input).
 public fun regex( regex :string, ignorecase :bool = False, multiline : bool = False ) : regex
 {
-  Regex(regex-create(regex,if (ignorecase) then one else zero, if (multiline) then one else zero));
+  Regex(regex-create(regex,if (ignorecase) then one else zero, if (multiline) then one else zero), regex);
 }
-
+/*
 // Create a new _alternative_ regular expression. 
 // Matches any of the given patterns but the groups are local to each alternative.
 // See `alternative` to find out which alternative was matched. Contains an optimization
@@ -192,16 +190,16 @@ private inline extern substr( s : string, start : int32 ) : string {
 private inline extern substr( s : string, start : int32, len : int32 ) : string {
   js inline "(#1).substr(#2,#3)"
 }
-
+*/
 // Find a match for a regular expression.
 // See also `contains`
 // (note: this fun is called |exec| in JavaScript).
 public fun find( s :string,  regex :regex ) : maybe<matched>
 {  
-  regex-exec(regex.obj,s,0.int32)
+  regex-exec(regex.obj,s,0.ssize_t)
   //return (if (matched.index < 0) then Nothing else Just(matched))
 }
-
+/*
 // Find all matches for a regular expression in a string.
 public fun find-all( s :string,  regex :regex ) : list<matched>
 {

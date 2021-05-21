@@ -68,7 +68,7 @@ value type float32
 
 
 // An any type. Used for extern calls
-value type any
+reference type any
 
 // Internal type used for in-place update of unique pattern matches
 type reuse

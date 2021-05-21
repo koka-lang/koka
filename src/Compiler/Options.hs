@@ -531,7 +531,7 @@ processOptions flags0 opts
                    let vcpkgRoot        = if (null vcpkg) then "" else dirname vcpkg
                        vcpkgInstalled   = (vcpkgRoot) ++ "/installed/" ++ (vcpkgTriplet flags)
                        vcpkgIncludeDir  = vcpkgInstalled ++ "/include"
-                       vcpkgLibDir      = vcpkgInstalled ++ "/lib"
+                       vcpkgLibDir      = vcpkgInstalled ++ (if buildType flags == Debug then "/debug/lib" else "/lib")
                        vcpkgLibDirs     = if (null vcpkg) then [] else [vcpkgLibDir]
                        vcpkgIncludeDirs = if (null vcpkg) then [] else [vcpkgIncludeDir] 
                    return (flags{ packages    = pkgs,
