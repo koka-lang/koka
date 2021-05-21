@@ -24,7 +24,7 @@ static void kk_regex_free( void* pre, kk_block_t* b ) {
 
 static kk_box_t kk_regex_create( kk_string_t pat, int32_t ignore_case, int32_t multi_line, kk_context_t* ctx ) {
   kk_ssize_t len;
-  const char* cpat = kk_string_cbuf_borrow( pat, &len );
+  const uint8_t* cpat = kk_string_buf_borrow( pat, &len );
   PCRE2_SIZE errofs = 0;
   int        errnum = 0;
   pcre2_code* re = pcre2_compile( cpat, PCRE2_ZERO_TERMINATED, 0, &errnum, &errofs, NULL /* compile context */);
@@ -46,7 +46,7 @@ static kk_std_core_types__maybe kk_regex_exec( kk_box_t bre, kk_string_t str, kk
   pcre2_match_data* match_data = pcre2_match_data_create_from_pattern(re, NULL);
   if (match_data==NULL) goto nothing;  
   kk_ssize_t len;
-  const char* cstr = kk_string_cbuf_borrow(str, &len );  
+  const uint8_t* cstr = kk_string_buf_borrow(str, &len );  
   kk_info_message( "match...\n" );
   int rc = pcre2_match( re, cstr, len, start, 0 /* options */, match_data, NULL /* match context */ );
   if (rc <= 0) {
