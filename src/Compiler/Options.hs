@@ -35,7 +35,7 @@ import Lib.Printer
 import Common.Failure         ( raiseIO )
 import Common.ColorScheme
 import Common.File
-import Common.Syntax          ( Target (..), Host(..), Platform(..), platform32, platform64, platformJS, platformCS )
+import Common.Syntax          ( Target (..), Host(..), Platform(..), BuildType(..), platform32, platform64, platformJS, platformCS )
 import Compiler.Package
 import Core.Core( dataInfoIsValue )
 {--------------------------------------------------------------------------
@@ -670,13 +670,6 @@ data CC = CC{  ccName       :: String,
                ccObjFile    :: String -> FilePath   -- make object file namen
             }
 
-data BuildType = Debug | Release | RelWithDebInfo
-               deriving (Eq)
-
-instance Show BuildType where
-  show Debug          = "debug"
-  show Release        = "release"
-  show RelWithDebInfo = "drelease"
 
 outName :: Flags -> FilePath -> FilePath
 outName flags s

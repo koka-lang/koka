@@ -31,7 +31,8 @@ module Compiler.Compile( -- * Compile
 import Lib.Trace              ( trace )
 import Data.Char              ( isAlphaNum, toLower, isSpace )
 
-import System.Directory       ( createDirectoryIfMissing, canonicalizePath, getCurrentDirectory )
+import System.Directory       ( createDirectoryIfMissing, canonicalizePath, getCurrentDirectory, doesDirectoryExist )
+import Data.Maybe             ( catMaybes )
 import Data.List              ( isPrefixOf, intersperse )
 import qualified Data.Set as S
 import Control.Applicative
@@ -1108,7 +1109,7 @@ codeGenCSDll term flags modules compileTarget outBase core
     do let (mbEntry,isAsync) = case compileTarget of
                                  Executable name tp -> (Just (name,tp), isAsyncFunction tp)
                                  _ -> (Nothing, False)
-           cs  = csharpFromCore (enableMon flags) mbEntry core
+           cs  = csharpFromCore (buildType flags) (enableMon flags) mbEntry core
            outcs       = outBase ++ ".cs"
            searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [buildDir flags] {- : includePath flags -}, not (null dir)] ++ " "
 
@@ -1139,7 +1140,7 @@ codeGenCS term flags modules compileTarget outBase core
     do let (mbEntry,isAsync) = case compileTarget of
                                  Executable name tp -> (Just (name,tp), isAsyncFunction tp)
                                  _ -> (Nothing, False)
-           cs  = csharpFromCore (enableMon flags) mbEntry core
+           cs  = csharpFromCore (buildType flags) (enableMon flags) mbEntry core
            outcs       = outBase ++ ".cs"
            searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [buildDir flags] {- : includePath flags -}, not (null dir)] ++ " "
 
@@ -1168,7 +1169,7 @@ codeGenJS term flags modules compileTarget outBase core
                        Executable name tp -> Just (name,isAsyncFunction tp)
                        _                  -> Nothing
            extractImport mod = Core.Import (modName mod) (modPackageQName mod) Public ""
-       let js    = javascriptFromCore mbEntry (map extractImport modules) core
+       let js    = javascriptFromCore (buildType flags) mbEntry (map extractImport modules) core
        termPhase term ( "generate javascript: " ++ outjs )
        writeDocW 80 outjs js
        when (showAsmJS flags) (termDoc term js)
@@ -1225,7 +1226,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                       Executable name tp -> Just (name,isAsyncFunction tp)
                       _                  -> Nothing
       let -- (core,unique) = parcCore (prettyEnvFromFlags flags) newtypes unique0 core0
-          (cdoc,hdoc,bcore) = cFromCore sourceDir (prettyEnvFromFlags flags) (platform flags)
+          (cdoc,hdoc,bcore) = cFromCore (buildType flags) sourceDir (prettyEnvFromFlags flags) (platform flags)
                                 newtypes unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
                                 mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } C [] bcore
@@ -1241,7 +1242,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       -- copy libraries
       let cc       = ccomp flags
           eimports = externalImportsFromCore bcore
-          clibs    = clibsFromCore bcore 
+          clibs    = clibsFromCore flags bcore 
       mapM_ (copyCLibrary term flags cc) eimports
 
       -- compile
@@ -1287,7 +1288,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             let objs   = [kklibObj] ++
                          [outName flags (ccObjFile cc (showModName mname)) 
                          | mname <- (map modName modules ++ [Core.coreProgName core0])]
-                syslibs= concat [csyslibsFromCore mcore | mcore <- map modCore modules]
+                syslibs= concat [csyslibsFromCore flags mcore | mcore <- map modCore modules]
                          ++ ccompLinkSysLibs flags
                          ++ (if onWindows then ["bcrypt","psapi","advapi32"]
                                           else ["m","pthread"])
@@ -1295,7 +1296,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                          -- ++ 
                          clibs 
                          ++
-                         concat [clibsFromCore mcore | mcore <- map modCore modules]
+                         concat [clibsFromCore flags mcore | mcore <- map modCore modules]
 
                 libpaths = map (\lib -> outName flags (ccLibFile cc lib)) libs
  
@@ -1353,17 +1354,13 @@ copyCLibrary term flags cc eimport
   = copyCLibraryX term flags cc eimport 0
 
 copyCLibraryX term flags cc eimport tries
-  = do let clib = case lookup "library" eimport of
+  = do let clib = case Core.eimportLookup (buildType flags) "library" eimport of
                     Just lib -> lib
                     Nothing  -> case lookup "vcpkg" eimport of
                                   Just pkg -> pkg
                                   Nothing  -> ""
        if (null clib) then return () else 
-        do mbPath <- do mbPath1 <- searchPaths (ccompLibDirs flags) [] (ccLibFile cc clib)
-                        case mbPath1 of
-                          Nothing | buildType flags == Debug 
-                             -> searchPaths (ccompLibDirs flags) [] (ccLibFile cc (clib++"d"))
-                          _  -> return mbPath1
+        do mbPath <- searchPaths (ccompLibDirs flags) [] (ccLibFile cc clib)                     
            case mbPath of
               Just fname -> copyLibFile fname clib
               _ -> if (tries > 0) 
@@ -1406,15 +1403,21 @@ vcpkgInstall term flags cc eimport clib
         do vcpkgExist <- doesFileExist (vcpkg flags)
            if (not vcpkgExist)
              then do termWarning term flags ( 
-                       text ("this module requires vcpkg to install: " ++ clib) <->
+                       text "this module requires vcpkg to install:" <+> clrSource (text clib) <->
                        text ("   hint: specify the root directory of vcpkg using the \"--vcpkg=<dir>\" option") <->
                        text ("         and/or install \"vcpkg\" from <https://github.com/microsoft/vcpkg#getting-started>") <->
                        text ("         (install in \"~/vcpkg\" to be found automatically by the koka compiler)")
                        )
                      return False
-             else do pkgExist <- doesFileExist (joinPaths [vcpkgRoot flags,"packages",pkg ++ "_" ++ vcpkgTriplet flags])
+             else do pkgExist <- doesDirectoryExist (joinPaths [vcpkgRoot flags,"packages",pkg ++ "_" ++ vcpkgTriplet flags])
                      if (pkgExist)  
-                       then termWarning term flags $ text ("vcpkg \"" ++ pkg ++ "\" is installed but the library \"" ++ clib ++ "\" is not found.")
+                       then termWarning term flags $ 
+                            text "vcpkg" <+> clrSource (text pkg) <+> 
+                            text "is installed but the library" <+> clrSource (text clib) <+> 
+                            text "is not found." <.>
+                            (if (buildType flags == Debug) 
+                               then linebreak <.> text ("   hint: perhaps specify the 'library-debug=\"" ++ clib ++ "d\"' import field?")
+                               else Lib.PPrint.empty)
                        else return ()
                      let install = [vcpkg flags,
                                     "install",
@@ -1431,14 +1434,15 @@ vcpkgInstall term flags cc eimport clib
                                  color (colorSource (colorScheme flags)) (text pkg))
                                runCommand term flags install
                                return True -- (joinPaths [vcpkgLibDir flags,ccLibFile cc clib])
-                    
+  where
+    clrSource doc = color (colorSource (colorScheme flags)) doc
 
-clibsFromCore core    = externalImportKeyFromCore core "library"
-csyslibsFromCore core = externalImportKeyFromCore core "syslib"
+clibsFromCore flags core    = externalImportKeyFromCore (buildType flags) core "library"
+csyslibsFromCore flags core = externalImportKeyFromCore (buildType flags) core "syslib"
 
-externalImportKeyFromCore :: Core.Core -> String -> [String]
-externalImportKeyFromCore core key
-  = [val  | (key',val) <- concat (externalImportsFromCore core), key == key']
+externalImportKeyFromCore :: BuildType -> Core.Core -> String -> [String]
+externalImportKeyFromCore buildType core key
+  = catMaybes [Core.eimportLookup buildType key keyvals  | keyvals <- externalImportsFromCore core]
 
 externalImportsFromCore :: Core.Core -> [[(String,String)]]
 externalImportsFromCore core 
@@ -1608,7 +1612,7 @@ copyIFaceToOutputDir term flags iface core
                   do let libFile = ccLibFile cc clib
                      -- todo: only copy if it exists?
                      copyBinaryIfNewer (rebuild flags) (joinPath srcDir libFile) (outName flags libFile)
-                 ) (clibsFromCore core)
+                 ) (clibsFromCore flags core)
         else return ()
        return outIFace
 

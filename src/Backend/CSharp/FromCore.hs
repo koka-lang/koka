@@ -29,7 +29,7 @@ import Type.Kind( getKind )
 import Type.Assumption( getArity )
 import Type.Pretty( niceType )
 
-import Common.Syntax( Target(..) )
+import Common.Syntax( Target(..), BuildType(..) )
 import Common.Name
 import Common.NamePrim
 import Common.Failure
@@ -47,8 +47,8 @@ import Type.Pretty(defaultEnv)
 -- Generate CSharp code from System-F
 --------------------------------------------------------------------------
 
-csharpFromCore :: Bool -> Maybe (Name,Type) -> Core -> Doc
-csharpFromCore useCps mbMain core
+csharpFromCore :: BuildType -> Bool -> Maybe (Name,Type) -> Core -> Doc
+csharpFromCore buildType useCps mbMain core
   = let body = runAsm initEnv (genProgram core)
     in text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version <->
        text "#pragma warning disable 164 // unused label" <->
@@ -56,7 +56,7 @@ csharpFromCore useCps mbMain core
        text "#pragma warning disable 219 // variable is assigned but never used" <->
        text "using System;" <->
        text "using System.Numerics;" <->
-       vcat (concatMap includeExternal (coreProgExternals core)) <->
+       vcat (concatMap (includeExternal buildType) (coreProgExternals core)) <->
        text "// module" <+> pretty (coreProgName core) <->
        text "public static class" <+> ppModName (coreProgName core) <+> block (linebreak <.> body)  <->
        (case mbMain of
@@ -77,9 +77,9 @@ csharpFromCore useCps mbMain core
                   , withCps     = useCps
                   }
 
-includeExternal :: External -> [Doc]
-includeExternal ext
-  = case externalImportLookup CS "include-inline" ext of
+includeExternal :: BuildType -> External -> [Doc]
+includeExternal buildType  ext
+  = case externalImportLookup CS buildType  "include-inline" ext of
       Just content -> [text content]
       _ -> []
 

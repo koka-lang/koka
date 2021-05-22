@@ -16,7 +16,7 @@ module std/text/regex
 import std/num/int32
 
 extern import {
-  c { vcpkg="pcre2"; library="pcre2-8" }
+  c { vcpkg="pcre2"; library="pcre2-8"; library-debug="pcre2-8d" }
 }
 
 extern import {

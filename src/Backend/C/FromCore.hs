@@ -65,10 +65,10 @@ externalNames
 -- Generate C code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Int -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
-cFromCore sourceDir penv0 platform newtypes uniq enableReuse enableSpecialize enableReuseSpecialize mbMain core
+cFromCore :: BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Int -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
+cFromCore buildType sourceDir penv0 platform newtypes uniq enableReuse enableSpecialize enableReuseSpecialize mbMain core
   = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes platform False)
-           (genModule sourceDir penv platform newtypes enableReuse enableSpecialize enableReuseSpecialize mbMain core) of
+           (genModule buildType sourceDir penv platform newtypes enableReuse enableSpecialize enableReuseSpecialize mbMain core) of
       (bcore,cdoc,hdoc) -> (cdoc,hdoc,bcore)
   where
     moduleName = coreProgName core
@@ -80,8 +80,8 @@ contextDoc = text "_ctx"
 contextParam :: Doc
 contextParam = text "kk_context_t* _ctx"
 
-genModule :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> Asm Core
-genModule sourceDir penv platform newtypes enableReuse enableSpecialize enableReuseSpecialize mbMain core0
+genModule :: BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> Asm Core
+genModule buildType sourceDir penv platform newtypes enableReuse enableSpecialize enableReuseSpecialize mbMain core0
   =  do core <- liftUnique (do bcore <- boxCore core0            -- box/unbox transform
                                ucore <- if (enableReuse)
                                          then parcReuseCore penv platform newtypes bcore -- constructor reuse analysis
@@ -148,16 +148,16 @@ genModule sourceDir penv platform newtypes enableReuse enableSpecialize enableRe
 
     externalIncludesC :: [Doc]
     externalIncludesC
-      = concatMap includeExternalC (coreProgExternals core0)
+      = concatMap (includeExternalC buildType) (coreProgExternals core0)
 
     externalIncludesH :: [Doc]
     externalIncludesH
-      = concatMap includeExternalH (coreProgExternals core0)
+      = concatMap (includeExternalH buildType) (coreProgExternals core0)
 
 
     externalImportIncludes :: [Doc]
     externalImportIncludes
-      = concatMap (importExternalInclude sourceDir) (coreProgExternals core0)
+      = concatMap (importExternalInclude buildType sourceDir) (coreProgExternals core0)
 
     initImport :: Import -> Doc
     initImport imp
@@ -176,22 +176,22 @@ moduleImport imp
       then dquotes (text (moduleNameToPath  (importName imp)) <.> text ".h")
       else brackets (text (importPackage imp) <.> text "/" <.> text (moduleNameToPath  (importName imp))) <.> text ".h")
 
-includeExternalC :: External -> [Doc]
-includeExternalC ext
-  = case externalImportLookup C "include-inline" ext of
+includeExternalC :: BuildType -> External -> [Doc]
+includeExternalC buildType  ext
+  = case externalImportLookup C buildType  "include-inline" ext of
       Just content -> [text (dropWhile isSpace content)]
       _ -> []
 
-includeExternalH :: External -> [Doc]
-includeExternalH ext
-  = case externalImportLookup C "header-include-inline" ext of
+includeExternalH :: BuildType -> External -> [Doc]
+includeExternalH buildType  ext
+  = case externalImportLookup C buildType  "header-include-inline" ext of
       Just content -> [text (dropWhile isSpace content)]
       _ -> []
 
 
-importExternalInclude :: FilePath -> External -> [Doc]
-importExternalInclude sourceDir ext
-  = case externalImportLookup C "include" ext of
+importExternalInclude :: BuildType -> FilePath -> External -> [Doc]
+importExternalInclude buildType  sourceDir ext
+  = case externalImportLookup C buildType  "include" ext of
       Just path -> [(text "#include" <+>
                       (if (head path == '<')
                         then text path
