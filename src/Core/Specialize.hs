@@ -12,18 +12,22 @@ import Data.Maybe (mapMaybe)
 
 import Lib.PPrint
 import Common.Name
+import Common.NameMap (NameMap)
 import qualified Common.NameMap  as M
+import Common.NameSet (NameSet)
 import qualified Common.NameSet as S
 import Core.Core
-import Core.Pretty()
+import Core.Pretty ()
 import Type.Pretty
-import qualified Core.Pretty as Pretty
 import Lib.Trace
 
-data SpecializeDef = SpecializeDef
+data SpecializeDefs = SpecializeDefs
   { targetFunc :: Name
-  , argsToSpecialize :: [Int]
+  , argsToSpecialize :: [Bool]
   } deriving (Show)
+
+specialize :: Env -> Int -> SpecializeEnv -> DefGroups -> (DefGroups, Int)
+specialize = undefined
 
 extractSpecializeDefs :: DefGroups -> SpecializeEnv
 extractSpecializeDefs = 
@@ -37,21 +41,39 @@ extractSpecializeDefs =
     isRecursiveDefGroup (DefRec [def]) = True
     isRecursiveDefGroup _ = False
 
-getInline :: Def -> SpecializeDef
+getInline :: Def -> SpecializeDefs
 getInline def =
-    SpecializeDef (defName def)
+    SpecializeDefs (defName def)
+  $ toBools
   $ map snd
-  $ filter (\(name, _) -> name `S.member` calledInThisDef def) (passedRecursivelyToThisDef def)
+  $ M.toList
+  $ M.filterWithKey (\name _ -> name `S.member` calledInThisDef def) (passedRecursivelyToThisDef def)
+
+type DistinctSorted a = a
+
+-- list passed in should be sorted and not contain duplicates
+-- >>> toBools [1, 3, 4, 7]
+-- [False, True, False, True, True, False, False, True]
+toBools :: DistinctSorted [Int] -> [Bool]
+toBools =
+    concatMap (\x -> replicate x False <> [True])
+  -- after appending a 'True' the rest of the counts are one off
+  . (\(x:xs) -> x : map pred xs)
+  . diffs
+  where
+    diffs xs | xs <- 0:xs = zipWith (-) (tail xs) xs
 
 calledInThisDef :: Def -> S.NameSet
 calledInThisDef def = foldMapExpr go $ defExpr def
   where 
-    go (App (Var (TName name _) _) xs)             = S.singleton name
-    go (App (TypeApp (Var (TName name _) _) _) xs) = S.singleton name
-    go _ = S.empty
+    go (Var (TName name _) _) = S.singleton name
+    go _ = mempty
+    -- go (App (Var (TName name _) _) xs)             = S.singleton name
+    -- go (App (TypeApp (Var (TName name _) _) _) xs) = S.singleton name
+    -- go _ = S.empty
 
 -- return list of (paramName, paramIndex) that get called recursively to the same function in the same order
-passedRecursivelyToThisDef :: Def -> [(Name, Int)]
+passedRecursivelyToThisDef :: Def -> NameMap Int
 passedRecursivelyToThisDef def 
   -- TODO: FunDef type to avoid this check?
   = case defExpr def of
@@ -63,16 +85,14 @@ passedRecursivelyToThisDef def
   where
     dname = defName def
 
-    callsWith :: [TName] -> Expr -> [(Name, Int)]
     callsWith params (App (Var (TName name _) _) args)
       | name == dname  = check args params
     callsWith params (App (TypeApp (Var (TName name _) _) _) args)
-      | name == dname   = check args params
+      | name == dname  = check args params
     callsWith params _ = mempty
 
-    check :: [Expr] -> [TName] -> [(Name, Int)]
     check args params =
-      flip mapMaybe (zip3 [0..] args params) $ \(i, arg, param) ->
+      M.fromList $ flip mapMaybe (zip3 [0..] args params) $ \(i, arg, param) ->
         case arg of
           Var tname _ | tname == param -> Just (getName tname, i)
           _ -> Nothing
@@ -83,26 +103,26 @@ passedRecursivelyToThisDef def
 --------------------------------------------------------------------------}
 
 -- | Environment mapping names to specialize definitions
-newtype SpecializeEnv   = SpecializeEnv (M.NameMap SpecializeDef)
+newtype SpecializeEnv   = SpecializeEnv (M.NameMap SpecializeDefs)
 
 -- | The intial SpecializeEnv
 specenvEmpty :: SpecializeEnv
 specenvEmpty
   = SpecializeEnv M.empty
 
-specenvNew :: [SpecializeDef] -> SpecializeEnv
+specenvNew :: [SpecializeDefs] -> SpecializeEnv
 specenvNew xs
   = specenvExtends xs specenvEmpty
 
-specenvExtends :: [SpecializeDef] -> SpecializeEnv -> SpecializeEnv
+specenvExtends :: [SpecializeDefs] -> SpecializeEnv -> SpecializeEnv
 specenvExtends xs specenv
   = foldr specenvExtend specenv xs
 
-specenvExtend :: SpecializeDef -> SpecializeEnv -> SpecializeEnv
+specenvExtend :: SpecializeDefs -> SpecializeEnv -> SpecializeEnv
 specenvExtend idef (SpecializeEnv specenv)
   = SpecializeEnv (M.insert (targetFunc idef) idef specenv)
 
-specenvLookup :: Name -> SpecializeEnv -> Maybe SpecializeDef
+specenvLookup :: Name -> SpecializeEnv -> Maybe SpecializeDefs
 specenvLookup name (SpecializeEnv specenv)
   = M.lookup name specenv
 
