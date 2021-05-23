@@ -101,6 +101,10 @@ genModule buildType sourceDir penv platform newtypes enableReuse enableSpecializ
                             ,text "if (_kk_initialized) return;"
                             ,text "_kk_initialized = true;"]
                             ++ map initImport (coreProgImports core)
+                            ++ 
+                            [text "#if defined(KK_CUSTOM_INIT)"
+                            ,text "  KK_CUSTOM_INIT" <+> arguments [] <.> semi
+                            ,text "#endif"]
 
         emitToDone $ vcat (map doneImport (reverse (coreProgImports core)))                            
 
@@ -126,8 +130,11 @@ genModule buildType sourceDir penv platform newtypes enableReuse enableSpecializ
 
         emitToDone $ vcat [text "static bool _kk_done = false;"
                           ,text "if (_kk_done) return;"
-                          ,text "_kk_done = true;"]
-                    
+                          ,text "_kk_done = true;"
+                          ,empty
+                          ,text "#if defined(KK_CUSTOM_DONE)"
+                          ,text "  KK_CUSTOM_DONE" <+> arguments [] <.> semi
+                          ,text "#endif"]
 
         init <- getInit
         done <- getDone
