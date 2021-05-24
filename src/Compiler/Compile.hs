@@ -746,7 +746,7 @@ searchSource flags currentDir name
 searchSourceFile :: Flags -> FilePath -> FilePath -> IO (Maybe (FilePath,FilePath))
 searchSourceFile flags currentDir fname
   = do -- trace ("search source: " ++ fname ++ " from " ++ concat (intersperse ", " (currentDir:includePath flags))) $ return ()
-       mbP <- searchPathsEx (currentDir : includePath flags) [sourceExtension,sourceExtension++".md"] fname
+       mbP <- searchPathsEx (currentDir : includePath flags) [sourceExtension,sourceExtension++".md"] [] fname
        case mbP of
          Just (root,stem) | root == currentDir
            -> return $ Just (makeRelativeToPaths (includePath flags) (joinPath root stem))
@@ -755,7 +755,7 @@ searchSourceFile flags currentDir fname
 searchIncludeIface :: Flags -> FilePath -> Name -> IO (Maybe FilePath)
 searchIncludeIface flags currentDir name
   = do -- trace ("search include iface: " ++ showModName name ++ " from " ++ currentDir) $ return ()
-       mbP <- searchPathsEx (currentDir : includePath flags) [] (showModName name ++ ifaceExtension)
+       mbP <- searchPathsEx (currentDir : includePath flags) [] [] (showModName name ++ ifaceExtension)
        case mbP of
          Just (root,stem)
            -> return $ Just (joinPath root stem)
@@ -1360,7 +1360,11 @@ copyCLibraryX term flags cc eimport tries
                                   Just pkg -> pkg
                                   Nothing  -> ""
        if (null clib) then return () else 
-        do mbPath <- searchPaths (ccompLibDirs flags) [] (ccLibFile cc clib)                     
+        do mbPath <- -- looking for specific suffixes is not ideal but it differs among plaforms (e.g. pcre2-8 is only pcre2-8d on Windows)
+                     -- and the actual name of the library is not easy to extract from vcpkg (we could read 
+                     -- the lib/config/<lib>.pc information and parse the Libs field but that seems fragile as well)
+                     let suffixes = (if (buildType flags == Debug) then ["d","_d","-debug","_debug"] else [])
+                     in searchPathsSuffixes (ccompLibDirs flags) [] suffixes (ccLibFile cc clib)                     
            case mbPath of
               Just fname -> copyLibFile fname clib
               _ -> if (tries > 0) 
@@ -1375,7 +1379,8 @@ copyCLibraryX term flags cc eimport tries
       = raiseIO ("unable to find C library " ++ clib)
     copyLibFile fname clib    
       = do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "library:") <+>
-              color (colorSource (colorScheme flags)) (text fname))          
+              color (colorSource (colorScheme flags)) (text fname))         
+           -- this also renames a suffixed libname to a canonical name (e.g. <vcpkg>/pcre2-8d.lib -> <out>/pcre2-8.lib) 
            copyBinaryIfNewer False fname (outName flags (ccLibFile cc clib))
 
 
@@ -1414,10 +1419,11 @@ vcpkgInstall term flags cc eimport clib
                        then termWarning term flags $ 
                             text "vcpkg" <+> clrSource (text pkg) <+> 
                             text "is installed but the library" <+> clrSource (text clib) <+> 
-                            text "is not found." <.>
+                            text "is not found."
+                            {- <.>
                             (if (buildType flags == Debug) 
                                then linebreak <.> text ("   hint: perhaps specify the 'library-debug=\"" ++ clib ++ "d\"' import field?")
-                               else Lib.PPrint.empty)
+                               else Lib.PPrint.empty) -}
                        else return ()
                      let install = [vcpkg flags,
                                     "install",

@@ -12,7 +12,7 @@
 module Common.File(
                   -- * System
                     getEnvPaths, getEnvVar
-                  , searchPaths, searchPathsEx
+                  , searchPaths, searchPathsSuffixes, searchPathsEx
                   , runSystem, runSystemRaw, runCmd
                   , getInstallDir, getProgramPath
 
@@ -377,10 +377,15 @@ findMaximal f xs
 
 searchPaths :: [FilePath] -> [String] -> String -> IO (Maybe (FilePath))
 searchPaths path exts name
-  = fmap (fmap (\(root,name) -> joinPath root name)) (searchPathsEx path exts name)
+  = searchPathsSuffixes path exts [] name
 
-searchPathsEx :: [FilePath] -> [String] -> String -> IO (Maybe (FilePath,FilePath))
-searchPathsEx path exts name
+searchPathsSuffixes :: [FilePath] -> [String] -> [String] -> String -> IO (Maybe (FilePath))
+searchPathsSuffixes path exts suffixes name
+  = fmap (fmap (\(root,name) -> joinPath root name)) (searchPathsEx path (filter (not.null) exts) suffixes name)
+
+
+searchPathsEx :: [FilePath] -> [String] -> [String] -> String -> IO (Maybe (FilePath,FilePath))
+searchPathsEx path exts suffixes name
   = search (concatMap (\dir -> map (\n -> (dir,n)) nameext) ("":path))
   where
     search [] = return Nothing  -- notfound envname nameext path
@@ -393,7 +398,8 @@ searchPathsEx path exts name
           }
 
     nameext
-      = (nname : map (nname++) exts)
+      = concatMap (\fname -> fname : map (fname++) exts) $
+        map (\suffix -> (notext nname) ++ suffix ++ (extname nname)) ("" : suffixes)
 
     nname
       = joinPaths $ dropWhile (==".") $ splitPath name

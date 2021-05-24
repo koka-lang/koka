@@ -16,7 +16,7 @@ module std/text/regex
 import std/num/int32
 
 extern import {
-  c { vcpkg="pcre2"; library="pcre2-8"; library-debug="pcre2-8d" }
+  c { vcpkg="pcre2"; library="pcre2-8" }
 }
 
 extern import {
@@ -74,7 +74,7 @@ extern regex-create-alt : (vector<string>,int32,int32) -> any {
   js "$regexCreateAlt"
 }
 */
-extern regex-exec : (any,string,ssize_t) -> maybe<matched> {
+extern regex-exec : (any,string,ssize_t) -> list<sslice> {
   c  "kk_regex_exec"
   cs "RegEx.Exec"
   js "$regexExec"
@@ -194,7 +194,7 @@ private inline extern substr( s : string, start : int32, len : int32 ) : string 
 // Find a match for a regular expression.
 // See also `contains`
 // (note: this fun is called |exec| in JavaScript).
-public fun find( s :string,  regex :regex ) : maybe<matched>
+public fun find( s :string,  regex :regex ) : list<sslice>
 {  
   regex-exec(regex.obj,s,0.ssize_t)
   //return (if (matched.index < 0) then Nothing else Just(matched))
@@ -244,15 +244,15 @@ public fun replace( s : string, regex: regex, repl :string) : string {
 public fun replace-all( s : string, regex: regex, repl :string) : string {
   replace-ex( s, regex, repl, all = True)
 }
-
+*/
 // Does a regular expression pattern occur in a string `s`?
 // (note: called `test` in javascript)
 public fun contains( s :string, r :regex ) : bool 
 {
-  return s.find(r).bool
+  return s.find(r).is-cons
 }
 
-
+/*
 // Split a string `s` over separator `sep` where `sep` does not occur in 
 // _tokens_ matching `exclude`.
 // For example: ``split-exclude("comma,'sep,arated',values", regex(","),regex("'[^']*'|[^',]"))``

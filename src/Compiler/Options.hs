@@ -525,7 +525,7 @@ processOptions flags0 opts
                    ccmd <- if (ccompPath flags == "") then detectCC
                            else if (ccompPath flags == "mingw") then return "gcc"
                            else return (ccompPath flags)
-                   cc   <- ccFromPath flags ccmd
+                   (cc,asan) <- ccFromPath flags ccmd
                    -- vcpkg
                    vcpkg <- vcpkgFind (vcpkgRoot flags)
                    let vcpkgRoot        = if (null vcpkg) then "" else dirname vcpkg
@@ -542,6 +542,7 @@ processOptions flags0 opts
                                   
                                   ccompPath   = ccmd,
                                   ccomp       = cc,
+                                  asan        = asan,
                                   editor      = ed,
                                   includePath = (localShareDir ++ "/lib") : includePath flags,
 
@@ -746,7 +747,7 @@ ccMsvc name path
          (\obj -> obj ++ objExtension)         
 
 
-ccFromPath :: Flags -> FilePath -> IO CC
+ccFromPath :: Flags -> FilePath -> IO (CC,Bool {-asan-})
 ccFromPath flags path
   = let name    = -- reverse $ dropWhile (not . isAlpha) $ reverse $
                   basename path
@@ -775,11 +776,12 @@ ccFromPath flags path
     in if (asan flags)
          then if (not (ccName cc `startsWith` "clang"))
                 then do putStrLn "warning: can only use address sanitizer with clang (ignored)"
-                        return cc
-                else do return cc{ ccName         = ccName cc ++ "-asan"
-                                 , ccFlagsCompile = ccFlagsCompile cc ++ ["-fsanitize=address,undefined,leak","-fno-omit-frame-pointer","-O0"]
-                                 , ccFlagsLink    = ccFlagsLink cc ++ ["-fsanitize=address,undefined,leak"] }
-         else return cc
+                        return (cc,False)
+                else do return (cc{ ccName         = ccName cc ++ "-asan"
+                                  , ccFlagsCompile = ccFlagsCompile cc ++ ["-fsanitize=address,undefined,leak","-fno-omit-frame-pointer","-O0"]
+                                  , ccFlagsLink    = ccFlagsLink cc ++ ["-fsanitize=address,undefined,leak"] }
+                               ,True)
+         else return (cc,False)
 
 -- unquote a shell argument string (as well as we can)
 unquote :: String -> [String]
