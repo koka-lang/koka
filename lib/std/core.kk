@@ -969,7 +969,7 @@ fun maybe( b : bool ) : maybe<()> {
 
 // Compare two integers
 inline extern compare(^x : int, ^y : int) : order  {
-  c inline "kk_int_as_order(kk_integer_cmp(#1,#2,kk_context()),kk_context())"
+  c inline "kk_int_as_order(kk_integer_cmp_borrow(#1,#2,kk_context()),kk_context())"
   cs "Primitive.IntCompare"
   js "$std_core._int_compare"
 }
@@ -977,42 +977,42 @@ inline extern compare(^x : int, ^y : int) : order  {
 
 // Are two integers equal?
 inline extern (==)(^x : int, ^y : int) : bool  {
-  c  "kk_integer_eq"
+  c  "kk_integer_eq_borrow"
   cs inline "(#1 == #2)"
   js "$std_core._int_eq"
 }
 
 // Are two integers not equal?
 inline extern (!=)(^x : int, ^y : int) : bool  {
-  c  "kk_integer_neq"
+  c  "kk_integer_neq_borrow"
   cs inline "(#1 != #2)"
   js "$std_core._int_ne"
 }
 
 // Is the first integer smaller or equal to the second?
 inline extern (<=)(^x : int, ^y : int) : bool  {
-  c  "kk_integer_lte"
+  c  "kk_integer_lte_borrow"
   cs inline "(#1 <= #2)"
   js "$std_core._int_le"
 }
 
 // Is the first integer greater or equal to the second?
 inline extern (>=)(^x : int, ^y : int) : bool  {
-  c  "kk_integer_gte"
+  c  "kk_integer_gte_borrow"
   cs inline "(#1 >= #2)"
   js "$std_core._int_ge"
 }
 
 // Is the first integer smaller than the second?
 inline extern (<)(^x : int, ^y : int) : bool  {
-  c  "kk_integer_lt"
+  c  "kk_integer_lt_borrow"
   cs inline "(#1 < #2)"
   js "$std_core._int_lt"
 }
 
 // Is the first integer greater than the second?
 inline extern (>)(^x : int, ^y : int) : bool  {
-  c  "kk_integer_gt"
+  c  "kk_integer_gt_borrow"
   cs inline "(#1 > #2)"
   js "$std_core._int_gt"
 }
@@ -1102,7 +1102,7 @@ inline extern is-odd   : ( int ) -> bool  {
 
 // Is this equal to zero?
 inline extern is-zero( ^x : int) : bool  {
-  c  "kk_integer_is_zero"
+  c  "kk_integer_is_zero_borrow"
   cs inline "(#1.IsZero)"
   js "$std_core._int_iszero"
 }
@@ -1193,7 +1193,7 @@ fun is-pos(i : int ) : bool { i.sign == Gt }
 fun is-neg(i : int ) : bool { i.sign == Lt }
 
 inline extern sign( ^i : int ) : order {
-  c  inline "kk_int_as_order(kk_integer_signum(#1,kk_context()),kk_context())"
+  c  inline "kk_int_as_order(kk_integer_signum_borrow(#1,kk_context()),kk_context())"
   cs "Primitive.IntSign"
   js "$std_core._int_sign"
 }
