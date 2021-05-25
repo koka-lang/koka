@@ -223,7 +223,8 @@ parcBranches :: [TName] -> [Branch] -> Parc [Branch]
 parcBranches scrutinees brs
   = do live <- getLive
        branchFns <- reverseMapM (parcBranch scrutinees live) brs
-       markLives scrutinees
+       ownedScrutinees <- filterM isOwned scrutinees
+       markLives ownedScrutinees
        live' <- getLive
        mapM ($ live') branchFns
 
