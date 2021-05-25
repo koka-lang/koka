@@ -176,7 +176,7 @@ typedef struct kk_block_large_s {
 // A pointer to a block. Cannot be NULL.
 typedef kk_block_t* kk_ptr_t;
 
-// A general datatype with constructors and singletons is eiter a pointer to a block or an enumeration
+// A general : with constructors and singletons is eiter a pointer to a block or an enumeration
 
 typedef union kk_datatype_s {
   kk_ptr_t   ptr;         // always lowest bit cleared

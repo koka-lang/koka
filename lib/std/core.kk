@@ -759,6 +759,10 @@ fun join( xs : list<string>, sep : string ) : string {
   return xs.joinsep(sep)
 }
 
+// Concatenate all strings in a list in reverse order
+fun reverse-join( xs : list<string> ) : string {
+  return xs.reverse.joinsep("")  
+}
 
 // Append `end` to each string in the list `xs` and join them all together.\
 // `join-end([],end) === ""`\
@@ -1301,6 +1305,7 @@ inline extern int( i : ssize_t ) : int {
 
 // Minimal set of operations that we need in `std/core`.
 private inline extern (<=) : (ssize_t,ssize_t) -> bool   { inline "(#1 <= #2)" }
+private inline extern (>=) : (ssize_t,ssize_t) -> bool   { inline "(#1 >= #2)" }
 private inline extern (<)  : (ssize_t,ssize_t) -> bool   { inline "(#1 < #2)" }
 private inline extern (+)  : (ssize_t,ssize_t) -> ssize_t { inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
 private inline extern (-)  : (ssize_t,ssize_t) -> ssize_t { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
@@ -1612,6 +1617,14 @@ val empty = Sslice("",0.ssize_t,0.ssize_t)
 // Is a slice empty?
 fun is-empty( slice : sslice ) : bool {
   !slice.len.is-pos
+}
+
+// An invalid slice
+val invalid = Sslice("",(-1).ssize_t,0.ssize_t)
+
+// Is a slice invalid?
+fun is-valid( slice : sslice ) : bool {
+  slice.start >= 0.ssize_t
 }
 
 // Is a slice not empty?

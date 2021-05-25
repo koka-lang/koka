@@ -25,231 +25,133 @@ extern import {
   c  file "regex-inline.c"
 }
 
-public extern regex-version() : string {
-  c "kk_regex_version"
-}
 
 // Abstract type of a regular expression object
 abstract struct regex( obj: any, src : string )
-
-// The result of a regular expression match, where `matched` is the content that
-// was matched, and `groups` is a vector that contains the content for each 
-// capture group (where `groups[0] == matched`).
-// The `slice` field contains the `:sslice` of the string that was matched.
-public struct matched( slice : sslice, groups : groups )
-
-abstract struct groups( grp : any )
-
-
-/*
-extern groups-index( groups : any, index : int32 ) : string {
-  cs "RegEx.GroupsIndex"
-  js inline "((#1)[#2] != null ? (#1)[#2] : '')"
-} 
-
-inline extern groups-matched-on( groups : any, index : int32 ) : int32 {
-  cs "RegEx.GroupsMatchedOn"
-  js inline "(#1[#2] ? 1 : 0)"  // mmm, doesn't catch empty group match.. but FireFox does not distinguish those :-(
-} 
-
-// For alternative regular expressions, return the alternative that was matched.
-// If this was not an alternative regex, returns `-1`
-public fun alternative( groups : groups ) : int {
-  xalternative(groups).int
-}
-
-extern xalternative( groups : groups ) : int32 {
-  cs inline "-1"
-  js inline "(#1.alternative!=null ? #1.alternative : -1)"
-}
-*/
-extern regex-create : (string,int32,int32) -> any {
-  c "kk_regex_create"
-  cs "RegEx.Create"
-  js "$regexCreate"
-}
-/*
-extern regex-create-alt : (vector<string>,int32,int32) -> any {
-  cs "RegEx.CreateAlt"
-  js "$regexCreateAlt"
-}
-*/
-extern regex-exec : (any,string,ssize_t) -> list<sslice> {
-  c  "kk_regex_exec"
-  cs "RegEx.Exec"
-  js "$regexExec"
-}
-/*
-extern regex-exec-all : (any,string,int32) -> vector<matched> {
-  cs "RegEx.ExecAll"
-  js "$regexExecAll"
-}
-
-extern regex-replace-fun : forall<e> (any, string, (matched) -> e string, int32, int32 ) -> e string {
-  cs "RegEx.ReplaceFun"
-  js "$regexReplaceFun"
-}
-
-extern regex-replace : (any, string, string, int32, int32 ) -> string {
-  cs "RegEx.Replace"
-  js "$regexReplace"
-}
-
-extern regex-split : (any, string, int32, int32 ) -> vector<string> {
-  cs "RegEx.Split"
-  js "$regexSplit"
-}
-
-// Return the string following match 
-public fun after( cap : matched ) : string {
-  cap.slice.after.string
-}
-
-// Return the string following match but ensure we
-// advance by at least 1 character (to ensure termination with empty matches). 
-public fun after1( cap : matched ) : string {
-  val s = cap.slice
-  if (s.is-empty) then s.advance(1).after.string else s.after.string
-}
-
-// Return the string before a match 
-public fun before( cap : matched ) : string {
-  cap.slice.before.string
-}
-*/
 
 // Return the pattern as a string
 public fun source( r : regex ) : string {
   r.src
 }
-/*
+
+extern regex-create : (string,bool,bool) -> any {
+  c "kk_regex_create"
+  cs "RegEx.Create"
+  js "$regexCreate"
+}
+
+extern regex-exec : (any,string,ssize_t) -> list<sslice> {
+  c  "kk_regex_exec"
+  cs "RegEx.Exec"
+  js "$regexExec"
+}
+
+extern regex-exec-all : (any,string,ssize_t) -> list<list<sslice>> {
+  c  "kk_regex_exec_all"
+  cs "RegEx.ExecAll"
+  js "$regexExecAll"
+}
+
+extern unsafe-upto(slice1 : sslice, slice2 : sslice) : sslice {
+  c "kk_slice_upto"
+}
+
 // How many groups are captured by this regex?
-public fun groups-count( r : regex ) : int 
-{
-  r.source.replace-all(rxNonGroup,"").count;
+public fun groups-count( r : regex ) : int {
+  r.source.replace-all(rx-nongroup,"").count;
 }
-val rxNonGroup = regex(@"[^\\\[(]+|\\[\s\S]?|\(\?|\[(?:[^\\\]]|\\.)*\]")
+val rx-nongroup = regex(@"[^\\\[(]+|\\[\s\S]?|\(\?|\[(?:[^\\\]]|\\.)*\]")
 
-// Return first group that was matched (or -1 if nothing was matched) 
-public fun first-matched-index( groups : groups, start : int = 1, end : int = 10 ) : int
-{
-  match (list(start,end).find(fn(i) { groups.matched(i) })) {
-    Nothing -> ~1
-    Just(i) -> i
-  }
-}
 
-// Return the first matched group (or "" if nothing matched) starting at `start`
-// and returning at most group `end`
-public fun first-matched(groups : groups, start : int = 1, end : int = 10 ) : string
-{
-  val i = groups.first-matched-index(start,end)
-  if (i >= 0) then groups[i] else ""
-}
-
-// Return the string captured by a particular group or the empty string.
-public fun []( groups : groups, index : int ) : string {
-  groups-index(groups.grp, index.int32)
-}
-
-// Returns `True` if a particular capture group actually matched.
-// This is used if the group can match, but may capture the empty string.
-public fun matched( groups : groups, index : int ) : bool {
-  groups-matched-on(groups.grp, index.int32).bool
-}
-*/
 // Create a new regular expression. Takes two optional parameters. Set `ignoreCase` to `True`
 // to ignore uppercase/lowercase distinction. If  `multiline` is set to `True`, then `^` and `$`
 // match also the beginning and end of every line (instead of the entire input).
-public fun regex( regex :string, ignorecase :bool = False, multiline : bool = False ) : regex
-{
-  Regex(regex-create(regex,if (ignorecase) then one else zero, if (multiline) then one else zero), regex);
-}
-/*
-// Create a new _alternative_ regular expression. 
-// Matches any of the given patterns but the groups are local to each alternative.
-// See `alternative` to find out which alternative was matched. Contains an optimization
-// where a common prefix of all patterns is lifted out of the alternative to increase efficiency.
-// Takes two optional parameters. Set `ignoreCase` to `True`
-// to ignore uppercase/lowercase distinction. If  `multiline` is set to `True`, then `^` and `$`
-// match also the beginning and end of every line (instead of the entire input).  
-// Note: currently only supported in the javascript backend.
-public fun regex-alt( regexs :list<string>, ignorecase :bool = False, multiline : bool = False ) : regex
-{
-  Regex(regex-create-alt(regexs.vector,if (ignorecase) then one else zero, if (multiline) then one else zero));
+public fun regex( regex :string, ignorecase :bool = False, multiline : bool = False ) : regex {
+  Regex(regex-create(regex,ignorecase,multiline), regex);
 }
 
-private inline extern length( s : string ) : int32 {
-  cs inline "#1.Length"
-  js inline "#1.length"
-}
 
-private inline extern substr( s : string, start : int32 ) : string {
-  js inline "(#1).substr(#2)"
-}
-private inline extern substr( s : string, start : int32, len : int32 ) : string {
-  js inline "(#1).substr(#2,#3)"
-}
-*/
 // Find a match for a regular expression.
 // See also `contains`
 // (note: this fun is called |exec| in JavaScript).
-public fun find( s :string,  regex :regex ) : list<sslice>
-{  
+public fun find( s :string,  regex :regex ) : list<sslice> {  
   regex-exec(regex.obj,s,0.ssize_t)
-  //return (if (matched.index < 0) then Nothing else Just(matched))
 }
-/*
+
+
+// Does a regular expression pattern occur in a string `s`?
+// (note: called `test` in javascript)
+public fun contains( s :string, r :regex ) : bool {
+  return s.find(r).is-cons
+}
+
+
 // Find all matches for a regular expression in a string.
-public fun find-all( s :string,  regex :regex ) : list<matched>
+public fun find-all( s : string,  regex : regex ) : list<list<sslice>>
 {
-  return regex-exec-all(regex.obj,s,zero).list
+  return regex-exec-all(regex.obj,s,0.ssize_t)
 }
 
-fun replace-ex( s :string, regex :regex, repl :(matched :matched) -> e string, all :bool = False) : e string
-{
-  return regex-replace-fun(regex.obj, s, repl, if (all) then one else zero, zero);
+fun concat-replace( matches : list<list<sslice>>, repl : list<sslice> -> e string, src : sslice, acc : list<string> ) : e string {
+  match(matches) {
+    Cons(m,mm) {
+      val s = match(m) {
+        Cons(t) -> t
+        _       -> empty
+      }
+      concat-replace( mm, repl, s.after, Cons(repl(m), Cons( unsafe-upto(src,s).string, acc)) )
+    }
+    _ -> Cons(src.string, acc).reverse-join
+  }
 }
 
-fun replace-ex( s :string, regex :regex, repl :string, all :bool = False) : string
-{
-  return regex-replace(regex.obj, s, repl, if (all) then one else zero, zero);
-}
 
-// Split a string `s` in at most `n` parts using a regular expression `r` as separator.
-public fun split( s :string, r :regex, n :int = 0 ) : list<string>
-{
-  if (n<0) return [];
-  return regex-split( r.obj, s, if (n.is-pos) then n.int32 else zero, zero ).list;
+// Replace the all occurrences of `regex` by the result of the replacement fun `repl` in a string `s`.
+public fun replace-all( s : string, regex : regex, repl : list<sslice> -> e string ) : e string {
+  find-all( s, regex ).concat-replace(repl,s.slice,[])
 }
 
 // Replace the first occurrence of `regex` by the result of the replacement fun `repl` in a string `s`.
-public fun replace( s : string, regex: regex, repl : (matched :matched) -> e string) : e string {
-  replace-ex( s, regex, repl, all = False )
+public fun replace( s : string, regex : regex, repl : list<sslice> -> e string ) : e string {
+  [find( s, regex )].concat-replace(repl,s.slice,[])
 }
 
-// Replace the all occurrences of `regex` by the result of the replacement fun `repl` in a string `s`.
-public fun replace-all( s : string, regex: regex, repl : (matched :matched) -> e string) : e string {
-  replace-ex( s, regex, repl, all = True)
+
+// Replace using a replacement string that can contain `$$` for a `$` sign, `$n` for a capture group,
+// `$&` for the entire match (`==$0`).
+fun replace-captures( caps : list<sslice>, repl : string ) : string {
+  replace-all( repl, regex(@"\$(?:(\d)|(\&)|(\$))") ) fn(cap) {
+    match(cap) {
+      [_,digit,amp,dollar] {
+        if (dollar.is-valid) then "$" else {
+          val grp = if (amp.is-valid) then 0 else parse-int-default(digit.string,0)
+          match (caps[grp]) {
+            Nothing -> ""
+            Just(s) -> s.string
+          }
+        }
+      }
+      _ -> "$"
+    }
+  }
 }
 
-// Replace the first occurrence of `regex` by the result a replacement string `repl` in a string `s`.
+// Replace all occurrences of `regex` with the replacement string `repl` in a string `s`.
 // The replacement string can contain `$$` for a `$` sign, `$n` for a capture group,
 // `$&` for the entire match (`==$0`).
-public fun replace( s : string, regex: regex, repl :string) : string {
-  replace-ex( s, regex, repl, all = False)
+public fun replace-all( s : string, regex : regex, repl : string ) : string {
+  if (repl.contains("$"))
+    then replace-all(s,regex,fn(caps){ replace-captures(caps,repl) })
+    else replace-all(s,regex,fn(_){ repl })
 }
 
-// Replace all ocurrences of `regex` by the result of a replacement string `repl` in a string `s`.
-public fun replace-all( s : string, regex: regex, repl :string) : string {
-  replace-ex( s, regex, repl, all = True)
-}
-*/
-// Does a regular expression pattern occur in a string `s`?
-// (note: called `test` in javascript)
-public fun contains( s :string, r :regex ) : bool 
-{
-  return s.find(r).is-cons
+// Replace the first occurrence of `regex` with a replacement string `repl` in a string `s`.
+// The replacement string can contain `$$` for a `$` sign, `$n` for a capture group,
+// `$&` for the entire match (`==$0`).
+public fun replace( s : string, regex : regex, repl : string ) : string {
+  if (repl.contains("$"))
+    then replace(s,regex,fn(caps){ replace-captures(caps,repl) })
+    else replace(s,regex,fn(_){ repl })
 }
 
 /*

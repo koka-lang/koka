@@ -184,6 +184,18 @@ kk_std_core__sslice kk_slice_last( kk_string_t str, kk_context_t* ctx ) {
   return kk_std_core__new_Sslice(str, (prev - s), (end - prev), ctx);
 }
 
+kk_std_core__sslice kk_slice_between( struct kk_std_core_Sslice slice1, struct kk_std_core_Sslice slice2, kk_context_t* ctx ) {
+  const uint8_t* s1 = kk_string_buf_borrow( slice1.str, NULL );
+  const uint8_t* s2 = kk_string_buf_borrow( slice2.str, NULL );
+  if (s1 != s2) {
+    kk_info_message("between: not equal slices: %p vs. %p\n", s1, s2);
+    return kk_std_core__new_Sslice(kk_string_empty(), 0, -1, ctx); // invalid slice
+  }
+  kk_ssize_t start = (slice1.start <= slice2.start ? slice1.start : slice2.start);
+  kk_ssize_t len   = (slice1.start <= slice2.start ? slice2.start - slice1.start : slice1.start - slice2.start);
+  return kk_std_core__new_Sslice(slice1.str, start, len, ctx);
+}
+
 kk_std_core_types__maybe kk_slice_next( struct kk_std_core_Sslice slice, kk_context_t* ctx ) {
   if (slice.len <= 0) {
     kk_std_core__sslice_drop(slice,ctx);

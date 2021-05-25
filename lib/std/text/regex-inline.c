@@ -56,12 +56,6 @@ static void kk_regex_custom_done( kk_context_t* ctx ) {
   }
 }
 
-static kk_string_t kk_regex_version(kk_context_t* ctx) {
-  char ver[256];
-  int res = pcre2_config(PCRE2_CONFIG_VERSION, &ver);
-  return kk_string_alloc_from_qutf8(ver, ctx);
-}
-
 
 /* -----------------------------------------------------------------------
   Compile
@@ -69,7 +63,7 @@ static kk_string_t kk_regex_version(kk_context_t* ctx) {
 
 static void kk_regex_free( void* pre, kk_block_t* b ) {
   pcre2_code* re = (pcre2_code*)pre;
-  kk_info_message( "free regex at %p\n", re );
+  //kk_info_message( "free regex at %p\n", re );
   if (re != NULL) pcre2_code_free(re);
 }
 
@@ -77,16 +71,16 @@ static void kk_regex_free( void* pre, kk_block_t* b ) {
                           | PCRE2_NEVER_BACKSLASH_C | PCRE2_NEVER_UCP | PCRE2_UTF /* utf-8 safety */ \
                           )
 
-static kk_box_t kk_regex_create( kk_string_t pat, int32_t ignore_case, int32_t multi_line, kk_context_t* ctx ) {
+static kk_box_t kk_regex_create( kk_string_t pat, bool ignore_case, bool multi_line, kk_context_t* ctx ) {
   kk_ssize_t len;
   const uint8_t* cpat = kk_string_buf_borrow( pat, &len );
   PCRE2_SIZE errofs = 0;
   int        errnum = 0;
   uint32_t   options = KK_REGEX_OPTIONS;
-  if (ignore_case != 0) options |= PCRE2_CASELESS;
-  if (multi_line != 0)  options |= PCRE2_MULTILINE;
+  if (ignore_case) options |= PCRE2_CASELESS;
+  if (multi_line)  options |= PCRE2_MULTILINE;
   pcre2_code* re = pcre2_compile( cpat, PCRE2_ZERO_TERMINATED, options, &errnum, &errofs, cmp_ctx);
-  kk_info_message( "create regex: err:%i, at %p\n", (re==NULL ? 0 : errnum), re );
+  //kk_info_message( "create regex: err:%i, at %p\n", (re==NULL ? 0 : errnum), re );
   kk_string_drop(pat,ctx);
   return kk_cptr_raw_box( &kk_regex_free, re, ctx );
 }
@@ -104,40 +98,107 @@ static void kk_match_data_free( void* pmd, kk_block_t* b ) {
 }
 */
 
-static kk_std_core__list kk_regex_exec( kk_box_t bre, kk_string_t str, kk_ssize_t start, kk_context_t* ctx ) {
+static kk_std_core__list kk_regex_exec_ex( pcre2_code* re, pcre2_match_data* match_data, 
+                                           kk_string_t str_borrow, const uint8_t* cstr, kk_ssize_t len, 
+                                           kk_ssize_t start, bool allow_empty, 
+                                           kk_ssize_t* next, int* res, kk_context_t* ctx ) 
+{
   // match
-  pcre2_match_data* match_data = NULL;
   kk_std_core__list hd  = kk_std_core__new_Nil(ctx);
+  uint32_t options = 0;
+  if (!allow_empty) options |= (PCRE2_NOTEMPTY_ATSTART | PCRE2_ANCHORED);
+  int rc = pcre2_match( re, cstr, len, start, options, match_data, match_ctx );
+  if (res != NULL) *res = rc;    
+  if (rc > 0) {    
+    // extract captures
+    uint32_t    gcount = pcre2_get_ovector_count(match_data);
+    PCRE2_SIZE* groups = pcre2_get_ovector_pointer(match_data);
+    for( uint32_t i = gcount; i > 0; ) {
+      i--;
+      kk_ssize_t sstart = groups[i*2];       // on no-match, sstart and send == -1.
+      kk_ssize_t send   = groups[i*2 + 1];
+      kk_assert(send >= sstart);
+      kk_std_core__sslice sslice = kk_std_core__new_Sslice( kk_string_dup(str_borrow), sstart, send - sstart, ctx ); 
+      hd = kk_std_core__new_Cons(kk_reuse_null,kk_std_core__sslice_box(sslice,ctx), hd, ctx);
+      if (i == 0 && next != NULL) *next = send;
+    }
+  }
+  return hd;
+}
+
+
+static kk_std_core__list kk_regex_exec( kk_box_t bre, kk_string_t str, kk_ssize_t start, kk_context_t* ctx ) 
+{
+  // unpack
+  pcre2_match_data* match_data = NULL;
+  kk_std_core__list res = kk_std_core__new_Nil(ctx);
   pcre2_code* re = (pcre2_code*)kk_cptr_raw_unbox(bre);
   if (re == NULL) goto done;    
   match_data = pcre2_match_data_create_from_pattern(re, gen_ctx);
-  kk_info_message( "create match data: %p\n", match_data );
   if (match_data==NULL) goto done;  
   kk_ssize_t len;
   const uint8_t* cstr = kk_string_buf_borrow(str, &len );  
-  kk_info_message( "match...\n" );
-  int rc = pcre2_match( re, cstr, len, start, 0 /* options */, match_data, match_ctx );
-  if (rc <= 0) {
-    goto done;
-  }
-  // extract captures
-  uint32_t    gcount = pcre2_get_ovector_count(match_data);
-  PCRE2_SIZE* groups = pcre2_get_ovector_pointer(match_data);
-  for( uint32_t i = gcount; i > 0; ) {
-    i--;
-    kk_ssize_t sstart = kk_to_ssize_t(groups[i*2]);
-    kk_ssize_t send   = kk_to_ssize_t(groups[i*2 + 1]);
-    kk_assert_internal(end >= start);
-    kk_std_core__sslice sslice = kk_std_core__new_Sslice( kk_string_dup(str), sstart, send - sstart, ctx ); 
-    hd = kk_std_core__new_Cons(kk_reuse_null,kk_std_core__sslice_box(sslice,ctx), hd, ctx);
-  }
+
+  // and match
+  res = kk_regex_exec_ex( re, match_data, str, cstr, len, start, true, NULL, NULL, ctx );
 
 done:  
   if (match_data != NULL) {
-    kk_info_message( "free match data: %p\n", match_data );
+    //kk_info_message( "free match data: %p\n", match_data );
     pcre2_match_data_free(match_data);
   }
   kk_string_drop(str,ctx);
   kk_box_drop(bre,ctx);
-  return hd;
+  return res;
+}
+
+static kk_std_core__list kk_regex_exec_all( kk_box_t bre, kk_string_t str, kk_ssize_t start, kk_context_t* ctx ) {
+  // unpack
+  pcre2_match_data* match_data = NULL;
+  kk_std_core__list res = kk_std_core__new_Nil(ctx);
+  pcre2_code* re = (pcre2_code*)kk_cptr_raw_unbox(bre);
+  if (re == NULL) goto done;    
+  match_data = pcre2_match_data_create_from_pattern(re, gen_ctx);
+  if (match_data==NULL) goto done;  
+  kk_ssize_t len;
+  const uint8_t* cstr = kk_string_buf_borrow(str, &len );  
+
+  // and match
+  bool allow_empty = true;
+  int rc = 0;    
+  do {
+    rc = 0;
+    kk_ssize_t next = start;
+    kk_std_core__list cap = kk_regex_exec_ex( re, match_data, str, cstr, len, start, allow_empty, &next, &rc, ctx );
+    if (rc > 0) {
+      // found a match
+      res = kk_std_core__new_Cons( kk_reuse_null, kk_std_core__list_box(cap,ctx), res, ctx );
+      allow_empty = (next > start);
+      start = next;
+    }
+    else if (rc <= 0 && !allow_empty) {
+      // skip one character and try again
+      const uint8_t* p = kk_utf8_next( cstr + start );
+      start = (p - cstr);
+      allow_empty = true;
+      rc = 1;
+    }
+  }
+  while( rc > 0 && start < len);
+
+done:  
+  if (match_data != NULL) {
+    //kk_info_message( "free match data: %p\n", match_data );
+    pcre2_match_data_free(match_data);
+  }
+  kk_string_drop(str,ctx);
+  kk_box_drop(bre,ctx);
+  return kk_std_core_reverse(res,ctx);
+}
+
+
+kk_std_core__sslice kk_slice_upto( struct kk_std_core_Sslice slice1, struct kk_std_core_Sslice slice2, kk_context_t* ctx ) {
+  kk_ssize_t start = slice1.start;
+  kk_ssize_t len   = (slice1.start <= slice2.start ? slice2.start - slice1.start : -1);
+  return kk_std_core__new_Sslice(slice1.str, start, len, ctx);
 }
