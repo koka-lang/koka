@@ -241,12 +241,12 @@ parcGuard scrutinees pats live (Guard test expr)
        scoped pvs $ extendOwned ownedPvs $
          do shapes <- inferShapes scrutinees pats  -- create alias map for the pattern
             extendShapes shapes $ -- merge with current alias map
-              do (expr', live') <- isolateWith live $ parcExpr expr
-                 markLives live'
+              do (expr', liveInThisBranch) <- isolateWith live $ parcExpr expr
+                 markLives liveInThisBranch
                  test' <- withOwned S.empty $ parcExpr test
-                 return $ \matchLive -> scoped pvs $ extendOwned ownedPvs $ extendShapes shapes $ do
-                  let dups = S.intersection pvs live'
-                  let drops = matchLive \\ live'
+                 return $ \liveInSomeBranch -> scoped pvs $ extendOwned ownedPvs $ extendShapes shapes $ do
+                  let dups = S.intersection ownedPvs liveInThisBranch
+                  let drops = liveInSomeBranch \\ liveInThisBranch
                   Guard test' <$> parcGuardRC dups drops expr'
 
 type Dups     = TNames
@@ -325,8 +325,8 @@ optimizeGuard enabled ri dups rdrops
 
 optimizeGuardEx :: (TName -> Maybe TNames) -> (TName -> Maybe Name) -> ReuseInfo -> Dups -> [DropInfo] -> Parc [Maybe Expr]
 optimizeGuardEx mchildrenOf conNameOf ri dups rdrops
-  = -- trace ("optimizeGuardEx: " ++ show (dups, rdrops)) $
-    optimize dups rdrops
+  = do -- parcTrace ("optimizeGuardEx: " ++ show (dups, rdrops))
+       optimize dups rdrops
   where
     childrenOf parent
       = case (mchildrenOf parent) of
@@ -336,7 +336,7 @@ optimizeGuardEx mchildrenOf conNameOf ri dups rdrops
       = S.member x (childrenOf parent)
     isDescendentOf parent x
       = let ys = childrenOf parent
-        in not (S.null ys) && (S.member x ys || any (`isDescendentOf` x) ys)
+        in S.member x ys || any (`isDescendentOf` x) ys
 
     optimize :: Dups -> [DropInfo] -> Parc [Maybe Expr]
     optimize dups []
@@ -418,7 +418,9 @@ optimizeGuardEx mchildrenOf conNameOf ri dups rdrops
                                 (maybeStatsUnit (xUnique ++ [xFree]))
                                 (maybeStatsUnit (xShared ++ [xDecRef]))
 
-
+-- | Return a dupped name which is a child of the given name
+-- if the given name will forward a drop to the child
+-- (eg. because the given name is a box or a newtype).
 forwardingChild :: Platform -> Newtypes -> (TName -> TNames) -> Dups -> TName -> Maybe TName
 forwardingChild platform newtypes childrenOf dups y
   = case tnamesList (childrenOf y) of
