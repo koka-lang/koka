@@ -79,24 +79,24 @@ if exist "%USERPROFILE%\.vscode\extensions" (
 )
 
 
-if "%koka_version%" == "" goto done
+if "%koka_version%" == "" goto doneinstall
 if "%koka_version%" == "%_KOKA_VERSION%" (
   echo Updated koka version %_KOKA_VERSION% in-place
-  goto done
+  goto doneinstall
 )
-if not exist "%_KOKA_PREFIX%\share\koka\%koka_version%" goto done
+if not exist "%_KOKA_PREFIX%\share\koka\%koka_version%" goto doneinstall
 
 echo.
 set _koka_answer=N
 set /p "_koka_answer=Found previous koka version %koka_version%, Uninstall? [yN] " 
-if /i "%_koka_answer:~,1%" NEQ "Y" goto done
+if /i "%_koka_answer:~,1%" NEQ "Y" goto doneinstall
 
 :uninstallprev
 echo Uninstall older koka version %koka_version%..
 if exist "%_KOKA_PREFIX%\bin\koka-%koka_version%.exe" (del /Q "%_KOKA_PREFIX%\bin\koka-%koka_version%.exe")
 rmdir /S /Q "%_KOKA_PREFIX%\lib\koka\%koka_version%"
 rmdir /S /Q "%_KOKA_PREFIX%\share\koka\%koka_version%"
-goto done
+goto doneinstall
 
 
 :uninstall
@@ -121,6 +121,54 @@ echo Done.
 goto end
 
 
+:doneinstall
+
+where /q clang-clx
+if errorlevel 1 goto clangaskinstall
+goto done
+
+
+:clangaskinstall
+echo.
+echo -----------------------------------------------------------------------
+echo Cannot find the clang-cl compiler. 
+echo A C compiler is required for Koka to function.
+
+set _koka_answer=Y
+set /p "_koka_answer=Would you like to download and install Clang 11 for Windows? [Yn] " 
+if /i "%_koka_answer:~,1%" NEQ "Y" (
+  echo Canceled automatic install.
+  echo.
+  goto clangshowurl
+)
+
+set _clang_install=LLVM-11.0.0-win64.exe
+set _clang_install_url=https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/%_clang_install%
+set _clang_install_sha256=a773ee3519ecc8d68d91f0ec72ee939cbed8ded483ba8e10899dc19bccba1e22
+echo.
+echo Downloading Clang from: 
+echo  %_clang_install_url%
+curl -f -L -o "%_clang_install%" "%_clang_install_url%"
+if errorlevel 1 goto clangshowurl
+
+echo Verifying sha256 hash ...
+CertUtil -hashfile ".\%_clang_install%" sha256 | find "%_clang_install_sha256%" > nul
+if errorlevel 1 (
+  echo Installation of %_clang_install% is canceled as it does not match the
+  echo expected sha256 signature: %_clang_install_sha256%
+  echo.
+  goto clangshowurl
+)
+
+echo.
+echo Installing Clang ...   (.\%_clang_install%)
+".\%_clang_install%"
+goto done
+
+:clangshowurl
+echo Please install the Clang for Windows manually from: https://llvm.org/builds
+
+
 :done
 set  koka_version=%_KOKA_VERSION%
 setx koka_version %_KOKA_VERSION% >nul
@@ -140,4 +188,6 @@ if errorlevel 1 (
 
 echo Type 'koka' to enter the interactive compiler.
 echo.
+
 :end
+
