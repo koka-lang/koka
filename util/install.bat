@@ -123,7 +123,7 @@ goto end
 
 :doneinstall
 
-where /q clang-clx
+where /q clang-cl
 if errorlevel 1 goto clangaskinstall
 goto done
 
