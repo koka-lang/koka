@@ -6,6 +6,11 @@ set _KOKA_DIST_SOURCE=
 set _KOKA_DIST_SOURCE_URL=
 set _KOKA_UNINSTALL=
 
+set _CLANG_VERSION=11.0.0
+set _CLANG_INSTALL=LLVM-%_CLANG_VERSION%-win64.exe
+set _CLANG_INSTALL_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-%_CLANG_VERSION%/%_CLANG_INSTALL%
+set _CLANG_INSTALL_SHA256=a773ee3519ecc8d68d91f0ec72ee939cbed8ded483ba8e10899dc19bccba1e22
+
 :cmds
 if "%~1" == "" goto cont
   if "%~1" == "-u"        (
@@ -135,34 +140,34 @@ echo Cannot find the clang-cl compiler.
 echo A C compiler is required for Koka to function.
 
 set _koka_answer=Y
-set /p "_koka_answer=Would you like to download and install Clang 11 for Windows? [Yn] " 
+set /p "_koka_answer=Would you like to download and install Clang %_CLANG_VERSION% for Windows? [Yn] " 
 if /i "%_koka_answer:~,1%" NEQ "Y" (
   echo Canceled automatic install.
   echo.
   goto clangshowurl
 )
 
-set _clang_install=LLVM-11.0.0-win64.exe
-set _clang_install_url=https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/%_clang_install%
-set _clang_install_sha256=a773ee3519ecc8d68d91f0ec72ee939cbed8ded483ba8e10899dc19bccba1e22
 echo.
 echo Downloading Clang from: 
-echo  %_clang_install_url%
-curl -f -L -o "%_clang_install%" "%_clang_install_url%"
+echo  %_CLANG_INSTALL_URL%
+curl -f -L -o "%_CLANG_INSTALL%" "%_CLANG_INSTALL_URL%"
 if errorlevel 1 goto clangshowurl
 
-echo Verifying sha256 hash ...
-CertUtil -hashfile ".\%_clang_install%" sha256 | find "%_clang_install_sha256%" > nul
-if errorlevel 1 (
-  echo Installation of %_clang_install% is canceled as it does not match the
-  echo expected sha256 signature: %_clang_install_sha256%
-  echo.
-  goto clangshowurl
+if "%_CLANG_INSTALL_SHA256%" NEQ "" (
+  echo Verifying sha256 hash ...
+  CertUtil -hashfile ".\%_CLANG_INSTALL%" sha256 | find "%_CLANG_INSTALL_SHA256%" > nul
+  if errorlevel 1 (
+    echo Installation of %_CLANG_INSTALL% is canceled as it does not match the
+    echo expected sha256 signature: %_CLANG_INSTALL_SHA256%
+    echo.
+    goto clangshowurl
+  )
+  echo Ok.
 )
 
 echo.
-echo Installing Clang ...   (.\%_clang_install%)
-".\%_clang_install%"
+echo Installing Clang ...   (.\%_CLANG_INSTALL%)
+".\%_CLANG_INSTALL%"
 goto done
 
 :clangshowurl
