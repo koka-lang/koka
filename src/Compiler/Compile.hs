@@ -1581,9 +1581,12 @@ runSystemEcho term flags cmd
 
 runCommand :: Terminal -> Flags -> [String] -> IO ()
 runCommand term flags cargs@(cmd:args)
-  = do when (verbose flags >= 2) $
-         termPhase term ("command> " ++ cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
-       runCmd cmd (filter (not . null) args)
+  = do let command = unwords (cmd : map showArg args)
+           showArg arg = if (' ' `elem` arg) then show arg else arg
+       when (verbose flags >= 2) $
+         termPhase term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
+       runCmd cmd (filter (not . null) args) 
+        `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command ))
 
 
 joinWith sep xs
@@ -1681,7 +1684,7 @@ ifaceExtension
 compilerCatch comp term defValue io
   = io `catchSystem` \msg ->
     do (termError term) (ErrorIO (hang 2 $ text ("failure during " ++ comp ++ ":")
-                                           <-> (fillSep $ map string $ words msg)))
+                                           <-> string msg)) -- (fillSep $ map string $ words msg)))
        return defValue
 
 

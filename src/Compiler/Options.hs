@@ -26,15 +26,16 @@ module Compiler.Options( -- * Command line options
 
 import Data.Char              ( toUpper, isAlpha, isSpace )
 import Data.List              ( intersperse )
+import Control.Monad          ( when )
 import System.Environment     ( getArgs )
 import System.Directory       ( doesFileExist, getHomeDirectory )
 import Platform.GetOptions
 import Platform.Config
 import Lib.PPrint
 import Lib.Printer
-import Common.Failure         ( raiseIO )
+import Common.Failure         ( raiseIO, catchIO )
 import Common.ColorScheme
-import Common.File
+import Common.File            
 import Common.Syntax          ( Target (..), Host(..), Platform(..), BuildType(..), platform32, platform64, platformJS, platformCS )
 import Compiler.Package
 import Core.Core( dataInfoIsValue )
@@ -526,6 +527,7 @@ processOptions flags0 opts
                            else if (ccompPath flags == "mingw") then return "gcc"
                            else return (ccompPath flags)
                    (cc,asan) <- ccFromPath flags ccmd
+                   ccCheckExist cc
                    -- vcpkg
                    vcpkg <- vcpkgFind (vcpkgRoot flags)
                    let vcpkgRoot        = if (null vcpkg) then "" else dirname vcpkg
@@ -729,7 +731,7 @@ ccGcc name path
         (\obj -> obj ++ objExtension)
 
 ccMsvc name path
-  = CC name path ["-DWIN32","-nologo"]
+  = CC name path ["-DWIN32","-nologo"] 
          [(Debug,words "-MDd -Zi -Ob0 -Od -RTC1"),
           (Release,words "-MD -O2 -Ob2 -DNDEBUG"),
           (RelWithDebInfo,words "-MD -Zi -O2 -Ob1 -DNDEBUG")]
@@ -782,6 +784,18 @@ ccFromPath flags path
                                   , ccFlagsLink    = ccFlagsLink cc ++ ["-fsanitize=address,undefined,leak"] }
                                ,True)
          else return (cc,False)
+
+ccCheckExist :: CC -> IO ()
+ccCheckExist cc
+  = do paths  <- getEnvPaths "PATH"
+       mbPath <- searchPaths paths [exeExtension] (ccPath cc)
+       case mbPath of
+         Just _  -> return ()
+         Nothing -> do putStrLn ("\nwarning: cannot find the C compiler: " ++ ccPath cc)
+                       when (ccName cc == "cl") $
+                         putStrLn ("   hint: run in an x64 Native Tools command prompt? or use the --cc=clang-cl flag?")
+                       when (ccName cc == "clang-cl") $
+                         putStrLn ("   hint: install clang for Windows from <https://llvm.org/builds/> ?")
 
 -- unquote a shell argument string (as well as we can)
 unquote :: String -> [String]
