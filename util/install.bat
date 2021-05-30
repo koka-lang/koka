@@ -186,11 +186,16 @@ echo.
 echo "%PATH%" | find "%_KOKA_PREFIX%\bin" >nul
 if errorlevel 1 (
   set "PATH=%PATH%;%_KOKA_PREFIX%\bin"
-  echo.
-  echo *** Please add "%_KOKA_PREFIX\bin" to you PATH environment variable. ***
+  where /q powershell
+  if not errorlevel 1 (
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Environment]::SetEnvironmentVariable('PATH',\""$([Environment]::GetEnvironmentVariable('PATH','User'))\;%_KOKA_PREFIX%\bin\"",'User');"
+    if not errorlevel 1 goto endmsg
+  )
+  echo Please add "%_KOKA_PREFIX%\bin" to you PATH environment variable.
   echo.
 )
 
+:endmsg
 echo Type 'koka' to enter the interactive compiler.
 echo.
 
