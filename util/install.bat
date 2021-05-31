@@ -105,19 +105,19 @@ if errorlevel 1 (
 
 :unpack
 echo.
-echo Installing to   : %_KOKA_PREFIX%
+echo Installing to: %_KOKA_PREFIX%
 if not exist %_KOKA_PREFIX% (
   mkdir %_KOKA_PREFIX%
 )
 
-echo Unpacking       : %_KOKA_DIST_SOURCE%
+echo Unpacking    : %_KOKA_DIST_SOURCE%
 tar -xzf %_KOKA_DIST_SOURCE% -C %_KOKA_PREFIX%
 if errorlevel 1 (
   echo "tar unpacking error: %ERRORLEVEL%"
   goto end
 )
 
-copy /B /Y "%_KOKA_PREFIX%\bin\koka.exe" "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe"
+copy /B /Y "%_KOKA_PREFIX%\bin\koka.exe" "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe" > nul
 
 
 REM -----------------------------------------------------------------
@@ -158,14 +158,14 @@ if exist "%USERPROFILE%\.atom\packages" (
   if not exist "%USERPROFILE%\.atom\packages\language-koka" (
     mkdir "%USERPROFILE%\.atom\packages\language-koka"
   )
-  xcopy /Y /Q /S "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%\contrib\atom\*" "%USERPROFILE%\.atom\packages\language-koka"
+  xcopy /Y /Q /S "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%\contrib\atom\*" "%USERPROFILE%\.atom\packages\language-koka" > nul
   set  "koka_editor=atom %%f:%%l:%%c"
   setx koka_editor "atom %%f:%%l:%%c" > nul
 )
 
 if exist "%USERPROFILE%\.vscode\extensions" (
   echo Install VS Code editor support..
-  xcopy /Y /Q /S "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%\contrib\vscode\*" "%USERPROFILE%\.vscode\extensions"
+  xcopy /Y /Q /S "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%\contrib\vscode\*" "%USERPROFILE%\.vscode\extensions" > nul
   set  "koka_editor=code --goto %%f:%%l:%%c"
   setx koka_editor "code --goto %%f:%%l:%%c" > nul
 )
