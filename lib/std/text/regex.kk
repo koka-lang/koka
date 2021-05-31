@@ -29,6 +29,7 @@ extern import {
 // Abstract type of a regular expression object
 abstract struct regex( obj: any, src : string )
 
+
 // Return the pattern as a string
 public fun source( r : regex ) : string {
   r.src
@@ -40,21 +41,18 @@ extern regex-create : (string,bool,bool) -> any {
   js "$regexCreate"
 }
 
-extern regex-exec : (any,string,ssize_t) -> list<sslice> {
+extern regex-exec( regex:any, str:string, start:ssize_t) : list<sslice> {
   c  "kk_regex_exec"
   cs "RegEx.Exec"
   js "$regexExec"
 }
 
-extern regex-exec-all : (any,string,ssize_t) -> list<list<sslice>> {
+extern regex-exec-all( regex:any, str:string, start:ssize_t, atmost:ssize_t) : list<list<sslice>> {
   c  "kk_regex_exec_all"
   cs "RegEx.ExecAll"
   js "$regexExecAll"
 }
 
-extern unsafe-upto(slice1 : sslice, slice2 : sslice) : sslice {
-  c "kk_slice_upto"
-}
 
 // How many groups are captured by this regex?
 public fun groups-count( r : regex ) : int {
@@ -72,54 +70,95 @@ public fun regex( regex :string, ignorecase :bool = False, multiline : bool = Fa
 
 
 // Find a match for a regular expression.
-// See also `contains`
-// (note: this fun is called |exec| in JavaScript).
-public fun find( s :string,  regex :regex ) : list<sslice> {  
+// See also `find` and `contains`
+public fun exec( regex :regex, s : string ) : list<sslice> {  
   regex-exec(regex.obj,s,0.ssize_t)
 }
 
+// Match a regular expression `regex` over a string `s`. 
+// Matches at most `atmost` times (and matches all by default).
+// Returns always an odd number of elements where every even
+// element is a match and the odd ones the string parts between the 
+// matches. 
+// See also `find-all` and `strings`.
+public fun exec-all( regex : regex, s : string, atmost : int = -1 ) : list<list<sslice>> {
+  return regex-exec-all(regex.obj,s,0.ssize_t,atmost.ssize_t)
+}
+
+
+// Return the full matched string of a capture group
+public fun captured( matched : list<sslice> ) : string {
+  match(matched) {
+    Cons(s) -> s.string
+    _       -> ""
+  }
+}
+
+// Return the full matched string part for a list of matched capture groups.
+public fun captures( xs : list<list<sslice>> ) : list<string> {
+  xs.map(captured)
+}
+
+
+// Find a match for a regular expression.
+// See also `exec`
+public fun find( s : string,  r : regex ) : maybe<string> {  
+  match(r.exec(s)) {
+    Cons(m) -> Just(m.string)
+    _       -> Nothing
+  }
+}
 
 // Does a regular expression pattern occur in a string `s`?
 // (note: called `test` in javascript)
-public fun contains( s :string, r :regex ) : bool {
-  return s.find(r).is-cons
+public fun contains( s : string, r : regex ) : bool {
+  return r.exec(s).is-cons
 }
 
+
+
+// Filter only for the matched parts.
+fun filter-matches( xs : list<list<sslice>> ) : list<list<sslice>> {
+  match(xs) {
+    Cons(_,Cons(m,mm)) -> Cons(m,filter-matches(mm))
+    _                  -> Nil
+  }
+}
 
 // Find all matches for a regular expression in a string.
-public fun find-all( s : string,  regex : regex ) : list<list<sslice>>
-{
-  return regex-exec-all(regex.obj,s,0.ssize_t)
+public fun find-all( s : string,  r : regex, atmost : int = -1 ) : list<string> {
+  return r.exec-all(s,atmost).filter-matches.captures
 }
 
-fun concat-replace( matches : list<list<sslice>>, repl : list<sslice> -> e string, src : sslice, acc : list<string> ) : e string {
+
+fun concat-replace( matches : list<list<sslice>>, repl : list<sslice> -> e string, acc : list<string> ) : e string {
   match(matches) {
-    Cons(m,mm) {
-      val s = match(m) {
-        Cons(t) -> t
-        _       -> empty
-      }
-      concat-replace( mm, repl, s.after, Cons(repl(m), Cons( unsafe-upto(src,s).string, acc)) )
-    }
-    _ -> Cons(src.string, acc).reverse-join
+    Cons(pre,Cons(m,mm)) -> concat-replace( mm, repl, Cons(repl(m), Cons( pre.captured,acc)))
+    Cons(post,Nil)       -> Cons(post.captured,acc).reverse-join 
+    Nil -> acc.reverse-join
   }
 }
 
 // Replace the all occurrences of `regex` by the result of the replacement fun `repl` in a string `s`.
-public fun replace-all( s : string, regex : regex, repl : list<sslice> -> e string ) : e string {
-  find-all( s, regex ).concat-replace(repl,s.slice,[])
+public fun replace-all( s : string, r : regex, repl : list<sslice> -> e string, atmost : int = -1 ) : e string {
+  r.exec-all( s, atmost ).concat-replace(repl,[])
 }
 
 // Replace the first occurrence of `regex` by the result of the replacement fun `repl` in a string `s`.
-public fun replace( s : string, regex : regex, repl : list<sslice> -> e string ) : e string {
-  [find( s, regex )].concat-replace(repl,s.slice,[])
+public fun replace( s : string, r : regex, repl : list<sslice> -> e string ) : e string {
+  s.replace-all( r, repl, 1 )
 }
 
+
+// Check if a capture group was matched.
+public fun matched( s : sslice ) : bool {
+  s.is-valid
+}
 
 // Replace using a replacement string that can contain `$$` for a `$` sign, `$n` for a capture group,
 // `$&` for the entire match (`==$0`).
 fun replace-captures( caps : list<sslice>, repl : string ) : string {
-  replace-all( repl, regex(@"\$(?:(\d)|(\&)|(\$))") ) fn(cap) {
+  replace-all( repl, regex(@"\$(?:(\d)|(\&)|(\$))") )  fn(cap){
     match(cap) {
       [_,digit,amp,dollar] {
         if (dollar.is-valid) then "$" else {
@@ -138,19 +177,32 @@ fun replace-captures( caps : list<sslice>, repl : string ) : string {
 // Replace all occurrences of `regex` with the replacement string `repl` in a string `s`.
 // The replacement string can contain `$$` for a `$` sign, `$n` for a capture group,
 // `$&` for the entire match (`==$0`).
-public fun replace-all( s : string, regex : regex, repl : string ) : string {
+public fun replace-all( s : string, regex : regex, repl : string, atmost : int = -1 ) : string {
   if (repl.contains("$"))
-    then replace-all(s,regex,fn(caps){ replace-captures(caps,repl) })
-    else replace-all(s,regex,fn(_){ repl })
+    then replace-all(s, regex, fn(caps){ replace-captures(caps,repl) }, atmost)
+    else replace-all(s, regex, fn(_){ repl }, atmost)
 }
 
 // Replace the first occurrence of `regex` with a replacement string `repl` in a string `s`.
 // The replacement string can contain `$$` for a `$` sign, `$n` for a capture group,
 // `$&` for the entire match (`==$0`).
 public fun replace( s : string, regex : regex, repl : string ) : string {
-  if (repl.contains("$"))
-    then replace(s,regex,fn(caps){ replace-captures(caps,repl) })
-    else replace(s,regex,fn(_){ repl })
+  replace-all( s, regex, repl, 1 )
+}
+
+
+// Filter only for the non-matched parts.
+fun filter-non-matches( xs : list<list<sslice>> ) : list<list<sslice>> {
+  match(xs) {
+    Cons(s,Cons(_,xx)) -> Cons(s,filter-non-matches(xx))
+    Cons(s,Nil)        -> [s]
+    _                  -> []
+  }
+}
+
+// Split a string `s` in at most `atmost` parts using a regular expression `r` as separator.
+public fun split( s : string, r : regex, atmost : int = -1 ) : list<string> {
+  r.exec-all(s,atmost).filter-non-matches.captures  
 }
 
 /*

@@ -234,7 +234,7 @@ runCmd :: String -> [String] -> IO ()
 runCmd cmd args
   = do exitCode <- rawSystem cmd args
        case exitCode of
-          ExitFailure i -> raiseIO ("command failed:\n " ++ concat (intersperse " " (cmd:args)))
+          ExitFailure i -> raiseIO ("command failed (exit code " ++ show i ++ ")") -- \n  " ++ concat (intersperse " " (cmd:args)))
           ExitSuccess   -> return ()
 
 -- | Compare two file modification times (uses 0 for non-existing files)

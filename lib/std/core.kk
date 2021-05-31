@@ -767,7 +767,7 @@ fun reverse-join( xs : list<string> ) : string {
 // Append `end` to each string in the list `xs` and join them all together.\
 // `join-end([],end) === ""`\
 // `join-end(["a","b"],"/") === "a/b/"`
-public fun join-end( xs : list<string>, end : string) : string {
+fun join-end( xs : list<string>, end : string) : string {
   match(xs) {
     Nil -> ""
     _   -> xs.joinsep(end) ++ end
