@@ -105,7 +105,6 @@ fun concat-replace( matches : list<list<sslice>>, repl : list<sslice> -> e strin
   }
 }
 
-
 // Replace the all occurrences of `regex` by the result of the replacement fun `repl` in a string `s`.
 public fun replace-all( s : string, regex : regex, repl : list<sslice> -> e string ) : e string {
   find-all( s, regex ).concat-replace(repl,s.slice,[])

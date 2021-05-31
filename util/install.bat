@@ -5,18 +5,16 @@ REM ------------------------------------------------------------------
 
 set _KOKA_VERSION=v2.1.3
 set _KOKA_PREFIX=%APPDATA%\local
-set _KOKA_DIST_SOURCE=
-set _KOKA_DIST_SOURCE_URL=
 set _KOKA_UNINSTALL=N
 set _KOKA_HELP=N
 set _KOKA_FORCE=N
+set _KOKA_DIST_SOURCE=
+set _KOKA_DIST_SOURCE_URL=
 
 set _CLANG_VERSION=11.0.0
 set _CLANG_INSTALL=LLVM-%_CLANG_VERSION%-win64.exe
 set _CLANG_INSTALL_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-%_CLANG_VERSION%/%_CLANG_INSTALL%
 set _CLANG_INSTALL_SHA256=a773ee3519ecc8d68d91f0ec72ee939cbed8ded483ba8e10899dc19bccba1e22
-
-if "%1" == "" (set _KOKA_HELP=Y)
 
 :argparse
 if "%~1" == "" goto done_args
@@ -60,17 +58,14 @@ goto argparse
 REM ---------------------------------------------------------
 REM Defaults
 REM ---------------------------------------------------------
-
 if "%_KOKA_DIST_SOURCE_URL%" == "" (
   set _KOKA_DIST_SOURCE_URL=https://github.com/koka-lang/koka/releases/download/%_KOKA_VERSION%/koka-%_KOKA_VERSION%-windows-amd64.tar.gz
 )
 
-if "%_KOKA_HELP%" == "Y"      goto help
-if "%_KOKA_UNINSTALL%" == "Y" goto uninstall
-if "%_KOKA_DIST_SOURCE%" == "" (
-  set _KOKA_DIST_SOURCE=%TEMP%\koka-dist.tar.gz
-  goto download
-) else goto unpack
+if "%_KOKA_HELP%" == "Y"       goto help
+if "%_KOKA_UNINSTALL%" == "Y"  goto uninstall
+if "%_KOKA_DIST_SOURCE%" == "" goto download 
+goto unpack
 
 
 REM ---------------------------------------------------------
@@ -95,8 +90,11 @@ goto end
 REM ---------------------------------------------------------
 REM Install
 REM ---------------------------------------------------------
+
 :download
 
+set _KOKA_DIST_SOURCE=%TEMP%\koka-%_KOKA_VERSION%-windows.tar.gz
+  
 echo Downloading koka %_KOKA_VERSION% binary distribution..
 echo   %_KOKA_DIST_SOURCE_URL%
 curl -f -L -o %_KOKA_DIST_SOURCE%  %_KOKA_DIST_SOURCE_URL%
