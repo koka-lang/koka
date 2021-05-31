@@ -350,7 +350,7 @@ kk_ssize_t kk_bytes_last_index_of1(kk_bytes_t b, kk_bytes_t sub, kk_context_t* c
   else if (tlen > slen) {
     idx = 0;
   }
-  else if (tlen <= slen) {
+  else if (tlen == slen) {
     idx = (kk_bytes_cmp_borrow(b, sub) == 0 ? 1 : 0);
   }
   else {

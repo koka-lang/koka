@@ -208,13 +208,14 @@ fun copy-kklib( variant : variant, libdir : path, cc : string, version : string 
   val vardir = cc ++ "-" ++ variant.show
   val objdir = libdir / vardir
   val outdir = "out" / version / vardir
-  val kklib  = // if (get-os-name()=="windows") then "kklib.lib" else "libkklib.a"
-               if (get-os-name()=="windows") then "kklib.obj" else "kklib.o"
   ensure-dir(objdir)
-  copy-file-to-dir( outdir / kklib, objdir )
   val all = list-directory(outdir)
   val files = all.filter(fn(f){ !is-directory(f) })
-  val objs = files.filter(fn(f){ f.basename.starts-with("std_").bool && f.extname != "core" })
+  val objs = files.filter(fn(f){ 
+    val ext = f.extname
+    ((f.basename.starts-with("std_").bool && ext != "core") 
+     || ext == "a" || ext == "lib" || ext == "o" || ext == "obj")
+  })
   objs.foreach fn(obj){
     // println("copy " ++ obj.string)
     copy-file-to-dir( obj, objdir )
