@@ -12,8 +12,9 @@ set _KOKA_DIST_SOURCE=
 set _KOKA_DIST_SOURCE_URL=
 
 set _CLANG_VERSION=11.0.0
-set _CLANG_INSTALL=LLVM-%_CLANG_VERSION%-win64.exe
-set _CLANG_INSTALL_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-%_CLANG_VERSION%/%_CLANG_INSTALL%
+set _CLANG_INSTALL_BASE=LLVM-%_CLANG_VERSION%-win64.exe
+set _CLANG_INSTALL=%TEMP%\%_CLANG_INSTALL_BASE%
+set _CLANG_INSTALL_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-%_CLANG_VERSION%/%_CLANG_INSTALL_BASE%
 set _CLANG_INSTALL_SHA256=a773ee3519ecc8d68d91f0ec72ee939cbed8ded483ba8e10899dc19bccba1e22
 
 :argparse
@@ -244,7 +245,7 @@ REM ---------------------------------------------------------
 REM Install Clang if needed
 REM ---------------------------------------------------------
 
-where /q clang-cl
+where /q clang-clx
 if not errorlevel 1 goto done_clang
 
 echo.
@@ -270,7 +271,7 @@ if errorlevel 1 goto clang_showurl
 
 if "%_CLANG_INSTALL_SHA256%" NEQ "" (
   echo Verifying sha256 hash ...
-  CertUtil -hashfile ".\%_CLANG_INSTALL%" sha256 | find "%_CLANG_INSTALL_SHA256%" > nul
+  CertUtil -hashfile "%_CLANG_INSTALL%" sha256 | find "%_CLANG_INSTALL_SHA256%" > nul
   if errorlevel 1 (
     echo Installation of %_CLANG_INSTALL% is canceled as it does not match the
     echo expected sha256 signature: %_CLANG_INSTALL_SHA256%
@@ -281,11 +282,12 @@ if "%_CLANG_INSTALL_SHA256%" NEQ "" (
 )
 
 echo.
-echo Installing Clang ...   (.\%_CLANG_INSTALL%)
-".\%_CLANG_INSTALL%"
+echo Installing Clang ...   (%_CLANG_INSTALL%)
+"%_CLANG_INSTALL%"
 if not errorlevel 1 (
   set "PATH=%PATH%;C:\Program Files\LLVM\bin"
 )
+del /Q "%_CLANG_INSTALL%"
 goto done_clang
 
 :clang_showurl
