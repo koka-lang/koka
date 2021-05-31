@@ -3,7 +3,7 @@ REM ------------------------------------------------------------------
 REM Installation script for Koka; use -h to see command line options.
 REM ------------------------------------------------------------------
 
-set _KOKA_VERSION=v2.1.3
+set _KOKA_VERSION=v2.1.4
 set _KOKA_PREFIX=%APPDATA%\local
 set _KOKA_UNINSTALL=N
 set _KOKA_HELP=N

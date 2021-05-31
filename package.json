@@ -1,7 +1,7 @@
 {
   "name": "koka",
   "author": "Daan Leijen, Microsoft Research",
-  "version": "2.1.3",
+  "version": "2.1.4",
   "homepage": "http://github.com/koka-lang/Koka",
   "description": "Koka is an effectful function-oriented language.",
   "license": "Apache-2.0",

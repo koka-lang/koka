@@ -10,7 +10,7 @@
 # Koka: a functional language with effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
-_Latest release_: v2.1.2, 2021-05-01 ([Install](#install)).
+_Latest release_: v2.1.4, 2021-05-31 ([Install](#install)).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -70,14 +70,20 @@ Special thanks to:
 - And all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
 
 Releases:
-- `v2.1.2`, 2021-05-01: various bug fixes, allow pattern bindings in parameters of anonymous functions (by Steven Fontanella), initial Emacs syntax highlighting (by Kamoii).
-- `v2.1.1`, 2021-03-08: bug fixes, use right-associative (++) for string- and list append (instead of (+)), improved internal string handling.
+- `v2.1.4`, 2021-05-31: remove dependency on cmake, support library linking, support vckpg, updated `std/text/regex`,
+  improved Windows installer with `clang` install included, remove dependency on Visual Studio on Windows,
+  improved `--fasan` support, fixed space leak on boxed value types, use signed `size_t` internally, various small bug fixes.
+- `v2.1.2`, 2021-05-01: various bug fixes, allow pattern bindings in parameters of anonymous functions (by Steven Fontanella),     
+  initial Emacs syntax highlighting (by Kamoii).
+- `v2.1.1`, 2021-03-08: bug fixes, use right-associative (++) for string- and list append (instead of (+)), improved internal 
+  string handling.
 - `v2.0.16`, 2021-02-14: bug fixes, fix short-circuit evaluation of logical operations, improved utf-8 handling.
 - `v2.0.14`, 2020-12-11: bug fixes, improved var escape checking.
 - `v2.0.12`, 2020-12-02: syntax highlighting support for VS Code and Atom, improved uninstall, more samples.
 - `v2.0.9`, 2020-11-27: now with binary [releases] for Windows, macOS, and Linux.
 - `v2.0.7`, 2020-11-23: more small fixes, improved scoped handlers, improved higher-rank type propagation, more samples.
-- `v2.0.5`, 2020-11-15: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support, direct C compilation, local install support.
+- `v2.0.5`, 2020-11-15: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support, direct C 
+  compilation, local install support.
 - `v2.0.0`, 2020-08-21: initial v2 release.
 
 <!--
@@ -409,11 +415,11 @@ However, when using `koka` you need to have a C compiler (when
 using `stack exec koka` the C compiler supplied with `ghc` is used (`mingw`)
 but that is not generally available).
 
-Generally, you need to install and run `koka` from a
-[Visual Studio x64 toolset](vsprompt) command prompt.
-in order to link correctly with the Windows system libraries.
-Koka can use either the `cl` compiler (default), or the [`clang-cl`](https://releases.llvm.org/download.html) compiler
-(use the `--cc=clang-cl` option with Koka).
+It is recommended to install the [clang](https://llvm.org/builds) compiler for
+Windows (which is automatically installed when running `util/install.bat`)
+Koka can also use the Microsoft Visual C++ compiler (`cl`) if you run `koka` from a
+[Visual Studio x64 toolset](vsprompt) command prompt (in order to link correctly with the Windows system libraries).
+
 To bundle for a specific compiler, use this flag when running `util/bundle` as well (from a VS command prompt):
 ```
 > stack exec koka -- --cc=clang-cl util/bundle

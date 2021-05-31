@@ -1,5 +1,5 @@
 name:       koka
-version:    2.1.3
+version:    2.1.4
 github:     "koka-lang/koka"
 license:    Apache-2.0
 author:     Daan Leijen
@@ -8,9 +8,6 @@ maintainer: daan@microsoft.com
 extra-source-files:
   - readme.md
 
-# To avoid duplicated efforts in documentation and dealing with the
-# complications of embedding Haddock markup inside cabal files, it is
-# common to point users to the README.md file.
 description: Please see the README on GitHub at <https://github.com/koka-lang/koka#readme>
 
 dependencies:
@@ -26,25 +23,6 @@ dependencies:
   - text
   - time
   - haskeline
-
-# Uncomment after moving src/Main.hs -> app/Main.hs
-
-# library:
-#   other-extensions:
-#     - CPP
-#     - OverloadedStrings
-#   source-dirs:
-#     - src
-#     - src/Platform/cpp
-#   c-sources:
-#     - src/Platform/cpp/Platform/cconsole.c
-#   include-dirs:
-#     - src/Platform/cpp/Platform
-#   build-tools:
-#     - alex
-#   when:
-#     - condition: os(windows)
-#       cpp-options: -DWINDOWS
 
 executables:
   koka:
@@ -68,7 +46,7 @@ executables:
     cpp-options:
       - -DKOKA_MAIN="koka"      
       - -DKOKA_VARIANT="release"
-      - -DKOKA_VERSION="2.1.3"
+      - -DKOKA_VERSION="2.1.4"
       # - -DREADLINE=1   # to avoid using Haskeline
     when:
       - condition: os(windows)
