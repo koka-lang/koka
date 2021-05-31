@@ -1,7 +1,7 @@
 @echo off
-REM ---------------------------------------------------------
-REM #Installation script for Koka; use -h to see command line options.
-REM ---------------------------------------------------------
+REM ------------------------------------------------------------------
+REM Installation script for Koka; use -h to see command line options.
+REM ------------------------------------------------------------------
 
 set _KOKA_VERSION=v2.1.3
 set _KOKA_PREFIX=%APPDATA%\local
@@ -19,7 +19,7 @@ set _CLANG_INSTALL_SHA256=a773ee3519ecc8d68d91f0ec72ee939cbed8ded483ba8e10899dc1
 if "%1" == "" (set _KOKA_HELP=Y)
 
 :argparse
-if "%~1" == "" goto doneargs
+if "%~1" == "" goto done_args
   if "%~1" == "-u" (
     set _KOKA_UNINSTALL=Y
     goto boolflag
@@ -55,7 +55,7 @@ shift
 :boolflag
 shift
 goto argparse
-:doneargs 
+:done_args 
 
 REM ---------------------------------------------------------
 REM Defaults
@@ -119,6 +119,9 @@ if errorlevel 1 (
   goto end
 )
 
+copy /B /Y "%_KOKA_PREFIX%\bin\koka.exe" "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe"
+
+
 REM -----------------------------------------------------------------
 REM Install: set PATH environment variable.
 REM Note: we need powershell to set the path globally as 
@@ -126,7 +129,7 @@ REM the `setx` command cuts of environment values at 1024 characters!
 REM -----------------------------------------------------------------
 
 echo "%PATH%" | find "%_KOKA_PREFIX%\bin" >nul
-if not errorlevel 1 goto doneenv
+if not errorlevel 1 goto done_env
 
 set "PATH=%PATH%;%_KOKA_PREFIX%\bin"
 
@@ -137,16 +140,16 @@ if not errorlevel 1 (
   if "%_KOKA_FORCE%" NEQ "Y" (
     set /p "_koka_answer=Add Koka binary directory to the user PATH? [Yn] " 
   )
-  if /i "%_koka_answer:~,1%" == "N" goto doneenv
+  if /i "%_koka_answer:~,1%" == "N" goto done_env
   
   powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Environment]::SetEnvironmentVariable('PATH',\""$([Environment]::GetEnvironmentVariable('PATH','User'))\;%_KOKA_PREFIX%\bin\"",'User');"
-  if not errorlevel 1 goto doneenv
+  if not errorlevel 1 goto done_env
 )
 echo.
 echo Please add "%_KOKA_PREFIX%\bin" to you PATH environment variable.
 echo.
 
-:doneenv
+:done_env
 
 REM ---------------------------------------------------------
 REM Editor support
@@ -173,26 +176,26 @@ REM ---------------------------------------------------------
 REM Uninstall previous version
 REM ---------------------------------------------------------
 
-if "%koka_version%" == "" goto doneinstall
+if "%koka_version%" == "" goto done_install
 if "%koka_version%" == "%_KOKA_VERSION%" (
   echo Updated koka version %_KOKA_VERSION% in-place
-  goto doneinstall
+  goto done_install
 )
-if not exist "%_KOKA_PREFIX%\share\koka\%koka_version%" goto doneinstall
+if not exist "%_KOKA_PREFIX%\share\koka\%koka_version%" goto done_install
 
 echo.
 set _koka_answer=N
 if "%_KOKA_FORCE%" NEQ "Y" (
   set /p "_koka_answer=Found previous koka version %koka_version%, Uninstall? [yN] " 
 )
-if /i "%_koka_answer:~,1%" NEQ "Y" goto doneinstall
+if /i "%_koka_answer:~,1%" NEQ "Y" goto done_install
 
 :uninstallprev
 echo Uninstall older koka version %koka_version%..
 if exist "%_KOKA_PREFIX%\bin\koka-%koka_version%.exe" (del /Q "%_KOKA_PREFIX%\bin\koka-%koka_version%.exe")
 rmdir /S /Q "%_KOKA_PREFIX%\lib\koka\%koka_version%"
 rmdir /S /Q "%_KOKA_PREFIX%\share\koka\%koka_version%"
-goto doneinstall
+goto done_install
 
 
 REM ---------------------------------------------------------
@@ -216,9 +219,14 @@ if "%_KOKA_FORCE%" NEQ "Y" (
 if /i "%_koka_answer:~,1%" NEQ "Y" goto end
 
 echo Uninstalling..
-if exist "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe" (del /Q "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe")
+if exist "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe" (
+  fc /LB1 "%_KOKA_PREFIX%\bin\koka.exe" "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe" > nul
+  if not errorlevel 1 (del /Q "%_KOKA_PREFIX%\bin\koka.exe")
+  del /Q "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe"
+)
 rmdir /S /Q "%_KOKA_PREFIX%\lib\koka\%_KOKA_VERSION%"
 rmdir /S /Q "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%"
+
 echo Done.
 
 goto end
@@ -228,7 +236,7 @@ REM ---------------------------------------------------------
 REM Install completed
 REM remember current installed version
 REM ---------------------------------------------------------
-:doneinstall
+:done_install
 
 set  koka_version=%_KOKA_VERSION%
 setx koka_version %_KOKA_VERSION% >nul
@@ -239,7 +247,7 @@ REM Install Clang if needed
 REM ---------------------------------------------------------
 
 where /q clang-cl
-if not errorlevel 1 goto doneclang
+if not errorlevel 1 goto done_clang
 
 echo.
 echo -----------------------------------------------------------------------
@@ -253,14 +261,14 @@ if "%_KOKA_FORCE%" NEQ "Y" (
 if /i "%_koka_answer:~,1%" NEQ "Y" (
   echo Canceled automatic install.
   echo.
-  goto clangshowurl
+  goto clang_showurl
 )
 
 echo.
 echo Downloading Clang from: 
 echo  %_CLANG_INSTALL_URL%
 curl -f -L -o "%_CLANG_INSTALL%" "%_CLANG_INSTALL_URL%"
-if errorlevel 1 goto clangshowurl
+if errorlevel 1 goto clang_showurl
 
 if "%_CLANG_INSTALL_SHA256%" NEQ "" (
   echo Verifying sha256 hash ...
@@ -269,7 +277,7 @@ if "%_CLANG_INSTALL_SHA256%" NEQ "" (
     echo Installation of %_CLANG_INSTALL% is canceled as it does not match the
     echo expected sha256 signature: %_CLANG_INSTALL_SHA256%
     echo.
-    goto clangshowurl
+    goto clang_showurl
   )
   echo Ok.
 )
@@ -280,12 +288,12 @@ echo Installing Clang ...   (.\%_CLANG_INSTALL%)
 if not errorlevel 1 (
   set "PATH=%PATH%;C:\Program Files\LLVM\bin"
 )
-goto clangdone
+goto done_clang
 
-:clangshowurl
+:clang_showurl
 echo Please install the Clang for Windows manually from: https://llvm.org/builds
 
-:doneclang
+:done_clang
 
 REM ---------------------------------------------------------
 REM End
