@@ -798,7 +798,7 @@ kk_string_t kk_show_any(kk_box_t b, kk_context_t* ctx) {
     }
     else {
       // TODO: handle all builtin tags 
-      snprintf(buf, 128, "ptr(0x%zx, tag: %i, rc: 0x%zx, scan: %zu)", (uintptr_t)p, tag, kk_block_refcount(p), kk_block_scan_fsize(p));
+      snprintf(buf, 128, "ptr(0x%zx, tag: %i, rc: 0x%zx, scan: %zu)", (uintptr_t)p, tag, kk_block_refcount(p), (size_t)kk_block_scan_fsize(p));
       kk_box_drop(b, ctx);
       return kk_string_alloc_dup_valid_utf8(buf, ctx);
     }
