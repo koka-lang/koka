@@ -171,7 +171,7 @@ typedef struct kk_block_large_s {
 // A pointer to a block. Cannot be NULL.
 typedef kk_block_t* kk_ptr_t;
 
-// A general datatype with constructors and singletons is eiter a pointer to a block or an enumeration
+// A general datatype with constructors and singletons is either a pointer to a block or an enumeration
 
 typedef union kk_datatype_s {
   kk_ptr_t   ptr;         // always lowest bit cleared
@@ -1125,7 +1125,8 @@ static inline kk_unit_t kk_ref_vector_assign(kk_ref_t r, kk_integer_t idx, kk_bo
     kk_vector_t v = kk_vector_unbox(b, ctx);
     size_t len;
     kk_box_t* p = kk_vector_buf(v, &len);
-    size_t i = kk_integer_clamp_size_t(idx,ctx);
+    size_t i = kk_integer_clamp_size_t_borrow(idx,ctx);
+    kk_integer_drop(idx, ctx);  // TODO: make this borrowed
     if (i < len) {
       kk_box_drop(p[i], ctx);
       p[i] = value;

@@ -57,9 +57,9 @@ kk_string_t  kk_slice_to_string( struct kk_std_core_Sslice sslice, kk_context_t*
 struct kk_std_core_Sslice kk_slice_first( kk_string_t str, kk_context_t* ctx );
 struct kk_std_core_Sslice kk_slice_last( kk_string_t str, kk_context_t* ctx );
 
-struct kk_std_core_Sslice kk_slice_common_prefix( kk_string_t str1, kk_string_t str2, kk_integer_t upto, kk_context_t* ctx );
-struct kk_std_core_Sslice kk_slice_advance( struct kk_std_core_Sslice slice, kk_integer_t count, kk_context_t* ctx );
-struct kk_std_core_Sslice kk_slice_extend( struct kk_std_core_Sslice slice, kk_integer_t count, kk_context_t* ctx );
+struct kk_std_core_Sslice kk_slice_common_prefix_borrow( kk_string_t str1, kk_string_t str2, kk_integer_t upto, kk_context_t* ctx );
+struct kk_std_core_Sslice kk_slice_advance_borrow( struct kk_std_core_Sslice slice, kk_integer_t count, kk_context_t* ctx );
+struct kk_std_core_Sslice kk_slice_extend_borrow( struct kk_std_core_Sslice slice, kk_integer_t count, kk_context_t* ctx );
 kk_std_core_types__maybe kk_slice_next( struct kk_std_core_Sslice slice, kk_context_t* ctx );
 
 
@@ -80,7 +80,9 @@ static inline kk_vector_t kk_vector_allocz( size_t n, kk_context_t* ctx ) {
 
 static inline kk_box_t kk_vector_at_int( kk_vector_t v, kk_integer_t n, kk_context_t* ctx ) {
   // TODO: check bounds
-  return kk_vector_at(v,kk_integer_clamp_size_t(n,ctx));
+  kk_box_t b = kk_vector_at(v,kk_integer_clamp_size_t_borrow(n,ctx));
+  kk_integer_drop(n, ctx); // TODO: use a borrow annotation in core.kk
+  return b;
 }
 
 static inline double kk_double_abs(double d) {

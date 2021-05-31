@@ -1706,8 +1706,8 @@ kk_integer_t kk_integer_div_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* 
   return d;
 }
 
-int32_t kk_integer_clamp32_generic(kk_integer_t x, kk_context_t* ctx) {
-  kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
+int32_t kk_integer_clamp32_bigint(kk_integer_t x, kk_context_t* ctx) {
+  kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_as_bigint(x), KK_TAG_BIGINT);
   int32_t i = 0;
 #if (BASE < INT32_MAX)
   if (bx->count > 1) {
@@ -1716,12 +1716,11 @@ int32_t kk_integer_clamp32_generic(kk_integer_t x, kk_context_t* ctx) {
 #endif
   i += (int32_t)bx->digits[0];
   if (bx->is_neg) i = -i;
-  drop_bigint(bx,ctx);
   return i;
 }
 
-int64_t kk_integer_clamp64_generic(kk_integer_t x, kk_context_t* ctx) {
-  kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
+int64_t kk_integer_clamp64_bigint(kk_integer_t x, kk_context_t* ctx) {
+  kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_as_bigint(x), KK_TAG_BIGINT);
   int64_t i = 0;
 #if (BASE < (INT64_MAX/BASE))
   if (bx->count > 2) i += ((int64_t)bx->digits[2])*BASE*BASE;
@@ -1731,12 +1730,11 @@ int64_t kk_integer_clamp64_generic(kk_integer_t x, kk_context_t* ctx) {
 #endif
   i += bx->digits[0];
   if (bx->is_neg) i = -i;
-  drop_bigint(bx, ctx);
   return i;
 }
 
-size_t kk_integer_clamp_size_t_generic(kk_integer_t x, kk_context_t* ctx) {
-  kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
+size_t kk_integer_clamp_size_t_bigint(kk_integer_t x, kk_context_t* ctx) {
+  kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_as_bigint(x), KK_TAG_BIGINT);
   size_t i = 0;
   if (bx->is_neg) goto done;
 #if (BASE < (SIZE_MAX/BASE))
@@ -1767,12 +1765,11 @@ size_t kk_integer_clamp_size_t_generic(kk_integer_t x, kk_context_t* ctx) {
 #endif
   i += (size_t)bx->digits[0];
 done:
-  drop_bigint(bx, ctx);
   return i;
 }
 
-double kk_integer_as_double_generic(kk_integer_t x, kk_context_t* ctx) {
-  kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
+double kk_integer_as_double_bigint(kk_integer_t x, kk_context_t* ctx) {
+  kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_as_bigint(x), KK_TAG_BIGINT);
   if (bx->count > ((310/LOG_BASE) + 1)) return (bx->is_neg ? -HUGE_VAL : HUGE_VAL);
   double base = (double)BASE;
   double d = 0.0;
@@ -1780,7 +1777,6 @@ double kk_integer_as_double_generic(kk_integer_t x, kk_context_t* ctx) {
     d = (d*base) + ((double)bx->digits[i-1]);
   }
   if (bx->is_neg) d = -d;
-  drop_bigint(bx, ctx);
   return d;
 }
 

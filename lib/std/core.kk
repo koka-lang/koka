@@ -908,9 +908,9 @@ inline extern int : (char) -> int {
 }
 
 // Convert a unicode code point to a character
-inline extern char : (int) -> char {
+inline extern char( ^i : int) : char {
   inline "(#1)";
-  c "kk_integer_clamp32"
+  c "kk_integer_clamp32_borrow"
   cs inline "Primitive.IntToInt32(#1)"
 }
 
@@ -1087,8 +1087,8 @@ inline extern (~)(i:int) : int {
 }
 
 // Convert an integer to a `:double`. May return `nan` if the integer is too large to represent as a `:double`.
-inline extern double : (int) -> double  {
-  c  "kk_integer_as_double"
+inline extern double( ^i : int) : double  {
+  c  "kk_integer_as_double_borrow"
   cs "Primitive.IntToDouble"
   js "$std_core._int_to_double"
 }
@@ -1254,8 +1254,8 @@ inline extern int( i : int32 ) : int {
 
 // Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
 // value if it is outside the range of an `:int32`.
-extern int32  : (int) -> int32   {
-  c  "kk_integer_clamp32"
+extern int32( ^i : int) : int32   {
+  c  "kk_integer_clamp32_borrow"
   cs "Primitive.IntToInt32"
   js "$std_core._int_to_int32"
 }
@@ -1285,8 +1285,8 @@ private fun decr( i : int32 ) : int32 {
 
 // Convert an integer to an `:size_t`. The number is _clamped_ to the maximal or minimum `:size_t`
 // value if it is outside the range of an `:size_t`.
-extern size_t( i : int) : size_t   {
-  c  "kk_integer_clamp_size_t"
+extern size_t( ^i : int) : size_t   {
+  c  "kk_integer_clamp_size_t_borrow"
   cs "Primitive.IntToInt32"
   js "$std_core._int_to_int32"
 }
@@ -1611,8 +1611,8 @@ fun tail( s : string ) : string {
 }
 
 // Return the common prefix of two strings (upto `upto` characters (default is minimum length of the two strings))
-extern common-prefix(s : string, t : string, upto : int = -1 ) : sslice {
-  c  "kk_slice_common_prefix"
+extern common-prefix(s : string, t : string, ^upto : int = -1 ) : sslice {
+  c  "kk_slice_common_prefix_borrow"
   cs "Primitive.SliceCommonPrefix"
   js "_sslice_common_prefix"
 }
@@ -1630,8 +1630,8 @@ extern common-prefix(s : string, t : string, upto : int = -1 ) : sslice {
 // * `"abc".first.advance(3).string == ""`,
 // * `"abc".last.advance(-1).string == "b"`.
 //
-extern advance( slice : sslice, count : int ) : sslice {
-  c  "kk_slice_advance"
+extern advance( slice : sslice, ^count : int ) : sslice {
+  c  "kk_slice_advance_borrow"
   cs "Primitive.SliceAdvance"
   js "_sslice_advance"
 }
@@ -1643,8 +1643,8 @@ extern advance( slice : sslice, count : int ) : sslice {
 // * `"abc".first.extend(1).string == "ab"`
 // * `"abc".last.extend(-1).string == ""`
 //
-extern extend( slice : sslice, count : int ) : sslice {
-  c  "kk_slice_extend"
+extern extend( slice : sslice, ^count : int ) : sslice {
+  c  "kk_slice_extend_borrow"
   cs "Primitive.SliceExtend"
   js "_sslice_extend"
 }
@@ -1802,7 +1802,7 @@ fun trim-right( s : string, sub : string ) : string {
 }
 
 // Repeat a string `n` times
-fun repeat( s : string, n : int ) : string {
+fun repeat( s : string, ^n : int ) : string {
   repeatz(s,n.size_t)
 }
 
@@ -1856,7 +1856,7 @@ fun split( s : string, sep : string ) : list<string> {
 
 // Split a string into at most `n` parts that were delimited by a string `sep`. The delimeters are not included in the results (except for possibly the final part).
 // For example: `split("1,2,3",",",2) == ["1","2,3"]`
-fun split( s : string, sep: string, n : int) : list<string> {
+fun split( s : string, sep: string, ^n : int) : list<string> {
   splitv(s,sep,n.size_t).list
 }
 
@@ -1941,7 +1941,7 @@ fun capitalize( s : string ) : string {
 }
 
 // Right-align a string to width `width`  using `fill`  (default is a space) to fill from the left.
-fun pad-left( s : string, width : int, fill : char = ' ') : string
+fun pad-left( s : string, ^width : int, fill : char = ' ') : string
 {
   val w = width.size_t
   val n = s.length
@@ -1951,7 +1951,7 @@ fun pad-left( s : string, width : int, fill : char = ' ') : string
 }
 
 // Left-align a string to width `width`  using `fill`  (default is a space) to fill on the right.
-fun pad-right( s : string, width : int, fill : char = ' ') : string
+fun pad-right( s : string, ^width : int, fill : char = ' ') : string
 {
   val w = width.size_t
   val n = s.length
@@ -2012,7 +2012,7 @@ inline extern [] : forall<a> ( v : vector<a>, index : int ) -> exn a  {
 }
 
 // Return the element at position `index` in vector `v`, or `Nothing` if out of bounds
-fun at( v  : vector<a>, index : int ) : maybe<a> {
+fun at( v  : vector<a>, ^index : int ) : maybe<a> {
   val idx = index.size_t
   if (v.lengthz <= idx) then Nothing else Just(unsafe-idx(v,idx))
 }
@@ -2029,12 +2029,12 @@ private inline extern lengthz : forall<a> (v : vector<a> ) -> size_t  {
 }
 
 // Create a new vector of length `n`  with initial elements `default` .
-fun vector(n : int, default : a) : vector<a> {
+fun vector(^n : int, default : a) : vector<a> {
   vector-initz(n.size_t, fn(_i){ default } )
 }
 
 // Create a new vector of length `n`  with initial elements given by function `f` .
-fun vector-init( n : int, f : int -> a ) : vector<a> {
+fun vector-init( ^n : int, f : int -> a ) : vector<a> {
   vector-initz( n.size_t, fn(i) { f(i.int) } )
 }
 
@@ -2720,16 +2720,16 @@ fun while( predicate : () -> <div|e> bool, action : () -> <div|e> () ) : <div|e>
 }
 
 // The `repeat` fun executes `action`  `n`  times.
-fun repeat( n : int, action : () -> e () ) : e ()
+fun repeat( ^n : int, action : () -> e () ) : e ()
 {
   for(1,n) fn(i) { action() }
 }
 
 // Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
 // If `start > end`  the function returns without any call to `action` .
-fun for( start: int, end : int, action : (int) -> e () ) : e ()
+fun for( ^start: int, end : int, action : (int) -> e () ) : e ()
 {
-  fun rep( i : int ) {
+  fun rep( ^i : int ) {
     if (i <= end) {
       action(i)
       rep(unsafe-decreasing(i.inc))
