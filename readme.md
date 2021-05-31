@@ -366,10 +366,8 @@ Unix. The following programs are required to build Koka:
 
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
   (use `> curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS X)
-* [CMake](https://cmake.org/download/) to compile the Koka C support library.  
-  (use `> sudo apt-get install cmake` on Ubuntu, `> brew install cmake` on macOS X).
 * Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
-* On Windows you need [Visual Studio](https://visualstudio.microsoft.com/downloads/) (for the windows SDK).
+* On Windows you may need [Visual Studio](https://visualstudio.microsoft.com/downloads/) (for the windows SDK).
 
 Build the compiler (note the `--recursive` flag):
 ```
@@ -466,8 +464,8 @@ The 25th ACM SIGPLAN International Conference on Functional Programming (ICFP), 
 [pdf](https://www.microsoft.com/en-us/research/uploads/prod/2020/07/effev.pdf)
 See also the [Ev.Eff](https://github.com/xnning/EvEff) and [Mp.Eff](https://github.com/xnning/MpEff) repositories.
 
-8. Alex Reinking, Ningning Xie, Leonardo de Moura, and Daan Leijen: &ldquo; Perceus: Garbage Free Reference Counting with Reuse&rdquo; MSR-TR-2020-42, Nov 22, 2020. Conditionally accepted at PLDI'21.
+8. Alex Reinking, Ningning Xie, Leonardo de Moura, and Daan Leijen: &ldquo; Perceus: Garbage Free Reference Counting with Reuse&rdquo; MSR-TR-2020-42, Nov 22, 2020. Distinguished paper at PLDI'21.
 [pdf](https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/)
 
-9. Ningning Xie and Daan Leijen: &ldquo; Generalized Evidence Passing for Effect Handlers&rdquo; MSR-TR-2021-5, Mar, 2021.
+9. Ningning Xie and Daan Leijen: &ldquo; Generalized Evidence Passing for Effect Handlers&rdquo; MSR-TR-2021-5, Mar, 2021. 
 [pdf](https://www.microsoft.com/en-us/research/publication/generalized-evidence-passing-for-effect-handlers/)
