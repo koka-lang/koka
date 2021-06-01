@@ -66,6 +66,8 @@
 
     { "include": "#libraryid" },
 
+    { "include": "#externid" },
+
     { "include": "#qconstructor" },
 
     { "include": "#qoperator" },
@@ -181,7 +183,7 @@
            },
 
            { "match": "\\\\([abfnrtvz0\\\\\"'\\?]|x[\\da-fA-F]{2}|u[\\da-fA-F]{4}|U[\\da-fA-F]{6})"
-           , "name": "constant.character.escape.koka"
+           , "name": "string.quoted.double constant.character.escape.koka"
            },
 
            { "match": "."
@@ -205,8 +207,8 @@
       { "match": "(')(\\\\([abfnrtv0\\\\\"'\\?]|x[\\da-fA-F]{2}|u[\\da-fA-F]{4}|U[\\da-fA-F]{6}))(')"
       , "captures": {
           "1": { "name": "string.quoted.single.koka" },
-          "2": { "name": "constant.character.escape.koka" },
-          "3": { "name": "constant.character.escape.koka" },
+          "2": { "name": "string.quoted.single constant.character.escape.koka" },
+          "3": { "name": "string.quoted.single constant.character.escape.koka" },
           "4": { "name": "string.quoted.single.koka" }
         }
       },
@@ -236,6 +238,11 @@
       , "name": "keyword.control.$1.koka"
       },
 
+    "externid":
+      { "match": "(?:c|cs|js|inline)\\s+(?:inline\\s+)?(?:file\\s+)?(?=[\\\"\\{])"
+      , "name": "keyword.control.$1.koka"
+      },
+
     "dot" :
       { "match": "\\."
       , "name": "source.dot.koka"
@@ -247,12 +254,12 @@
       },
 
     "reservedid" :
-      { "match": "(infix|infixr|infixl|prefix|postfix|type|co|rec|struct|alias|forall|exists|some|interface|extern|fun(?:\\s+raw)?|fn|val|var|con|with(?:\\s+override)?|module|import|as|in|pub|public|private|abstract|effect|named|except|rcontrol|control|return|mask(?:\\s+behind)?|handle(?:\\s*(?:local))?|handler(?:\\s*(?:local))?)(?![\\w\\-?'])"
+      { "match": "(return(?=(?:\\(|\\s+\\(?)\\w[\\w\\-]*\\s*(?:\\)\\s*)?(?:\\{|\\->))|infix|infixr|infixl|prefix|postfix|type|co|rec|struct|alias|forall|exists|some|interface|extern|fun(?:\\s+raw)?|fn|val|var|con|with(?:\\s+override)?|module|import|as|in|pub|public|private|abstract|effect|named|except|rcontrol|control|mask(?:\\s+behind)?|handle(?:\\s*(?:local))?|handler(?:\\s*(?:local))?)(?![\\w\\-?'])"
       , "name": "keyword.other.$1.koka"
       },
 
     "reservedcontrol" :
-      { "match": "(if|then|else|elif|match)(?![\\w\\-?'])"
+      { "match": "(if|then|else|elif|match|return)(?![\\w\\-?'])"
       , "name": "keyword.control.$1.koka"
       },
 
@@ -339,12 +346,12 @@
 
     "type_variable" :
       { "match": "([a-z][0-9]*|_[\\w\\-]*[\\'\\?]*|self)(?!\\w)"
-      , "name": "entity.name.class.type.typevar.koka markup.italic"
+      , "name": "markup.italic constant.numeric.type support.type.typevar.koka"
       },
 
     "type_identifier" :
       { "match": "[a-z][\\w\\-]*[\\'\\?]*"
-      , "name": "entity.name.class.type.constant.koka"
+      , "name": "constant.numeric.type support.type.typecon.koka"
       },
 
     "type_qidentifier" :
@@ -361,12 +368,12 @@
 
     "type_kind" :
       { "match": "[A-Z](?![\\w\\-])"
-      , "name": "entity.name.class.type.kind.koka"
+      , "name": "constant.numeric.type support.type.kind.koka"
       },
 
     "type_interface" :
       { "match": "[A-Z][\\w\\-]+[\\'\\?]*"
-      , "name": "entity.name.class.type.interface.koka"
+      , "name": "constant.numeric.type support.type.interface.koka"
       },
 
     "decl_function":
@@ -428,7 +435,7 @@
     "top_type":
       { "begin": "(:(?![$%&\\*\\+@!\\\\\\^~=\\.:\\-\\|<>]))|(where|iff|when)(?![\\w\\-])"
       , "end": "(?=[,\\)\\{\\}\\[\\]=;\"`]|  |(infix|infixr|infixl|inline|noinline|value|reference|open|extend|rec|co|type|linear|effect|context|ambient|alias|interface|extern|fn|fun|function|val|except|rcontrol|control|var|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|pub|public|private|abstract)(?![\\w\\-?']))"
-      , "beginCaptures": { "1" : { "name": "entity.name.class.type.koka" },
+      , "beginCaptures": { "1" : { "name": "constant.numeric.type support.type.koka" },
                            "2" : { "name": "keyword.koka" } }
       , "endCaptures": { "0" : { "name": "invalid.keyword.koka" }}
       , "patterns": [
@@ -441,7 +448,7 @@
       { "begin": "((?:(?:value|reference|open|extend|rec|co)?\\s*type)|(?:named\\s+)?(?:scoped\\s+)?(?:linear\\s+)?(?:rec\\s+)?(?:effect|context|ambient))\\s+(?!fn|fun|val|except|rcontrol|control)([a-z][\\w\\-]+|<>|<\\|>|\\(,*\\))"
       , "end": "(?=[\\)\\{\\}\\[\\]=;\"`]|  [\\r\\n]|(infix|infixr|infixl|inline|noinline|type|co|rec|effect|context|ambient|alias|interface|extern|fn|fun|function|val|var|except|rcontrol|control|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|pub|public|private|abstract|value|reference|open|extend|inline|noinline)(?![\\w\\-?']))"
       , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" }
-                         , "2" : { "name": "entity.name.class.type.koka" }}
+                         , "2" : { "name": "constant.numeric.type support.type.koka" }}
       , "endCaptures": { "0": { "name": "punctuation.separator.koka" }}
       , "patterns": [
           {"include": "#type_content_top" }
@@ -452,7 +459,7 @@
       { "begin": "(alias)\\s+([a-z][\\w\\-]+)"
       , "end": "(?=[,\\)\\{\\}\\[\\];\"`]|(infix|infixr|infixl|inline|noinline|type|co|rec|linear|alias|effect|context|ambient|interface|extern|fn|fun|function|val|var|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|pub|public|private|abstract)(?![\\w\\-?']))"
       , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" }
-                         , "2" : { "name": "entity.name.class.type.koka" }}
+                         , "2" : { "name": "constant.numeric.type support.type.koka" }}
       , "endCaptures": { "0": { "name": "invalid.keyword.koka" }}
       , "patterns": [
           { "match": "="
@@ -467,7 +474,7 @@
       { "match": "(struct)\\s+([a-z][\\w\\-]*|\\(,*\\))"
       , "captures": {
           "1": { "name": "keyword.declaration.type.koka" },
-          "2": { "name": "entity.name.class.type.koka" }
+          "2": { "name": "constant.numeric.type support.type.koka" }
         }
       },
 
@@ -475,9 +482,9 @@
       { "begin": "(struct)\\s+([a-z][\\w\\-]*|\\(,*\\))\\s*(<)"
       , "end": "(>)|(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|inline|noinline|type|co|rec|effect|context|ambient|alias|interface|extern|fn|fun|function|val|var|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|pub|public|private|abstract)(?![\\w\\-?']))"
       , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" },
-                           "2" : { "name": "entity.name.class.type.koka"  },
-                           "3" : { "name": "entity.name.class.type.punctuation.separator.koka"  }}
-      , "endCaptures": { "1": {"name": "entity.name.class.type.punctuation.separator.koka" },
+                           "2" : { "name": "constant.numeric.type support.type.koka"  },
+                           "3" : { "name": "constant.numeric.type support.type.punctuation.separator.koka"  }}
+      , "endCaptures": { "1": {"name": "constant.numeric.type support.type.punctuation.separator.koka" },
                          "2": {"name": "invalid.keyword.koka" }}
       , "patterns": [
           {"include": "#type_content" }
@@ -488,7 +495,7 @@
       { "begin": "(interface)\\s+([A-Z]\\w+|<>|<\\|>|\\(,*\\))"
       , "end": "(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|inline|noinline|type|co|rec|effect|context|ambient|alias|interface|extern|fn|fun|function|val|var|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|pub|public|private|abstract)(?![\\w\\-?']))"
       , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" }
-                         , "2" : { "name": "entity.name.class.type.interface.koka" }}
+                         , "2" : { "name": "constant.numeric.type support.type.interface.koka" }}
       , "endCaptures": { "0": { "name": "punctuation.separator.koka" }}
       , "patterns": [
           {"include": "#type_content_top" }
@@ -499,8 +506,8 @@
       { "begin": "(exists|forall|some)(\\s*)(<)"
       , "end": "(>)|(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|inline|noinline|type|co|rec|effect|context|ambient|alias|interface|extern|fn|fun|function|val|var|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|pub|public|private|abstract)(?![\\w\\-?']))"
       , "beginCaptures": { "1" : { "name": "keyword.koka" },
-                           "3" : { "name": "entity.name.class.type.punctuation.separator.koka"  }}
-      , "endCaptures": { "1": {"name": "entity.name.class.type.punctuation.separator.koka" },
+                           "3" : { "name": "constant.numeric.type support.type.punctuation.separator.koka"  }}
+      , "endCaptures": { "1": {"name": "constant.numeric.type support.type.punctuation.separator.koka" },
                          "2": {"name": "invalid.keyword.koka" }}
       , "patterns": [
           {"include": "#type_content" }
@@ -522,9 +529,9 @@
     "type_app":
       { "begin": "<(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|\\s\\d])"
       , "end": ">|\\n|  "
-      , "beginCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
-      , "endCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
-      , "name": "entity.name.class.type.koka"
+      , "beginCaptures": { "0": { "name": "constant.numeric.type support.type.punctuation.separator.koka" } }
+      , "endCaptures": { "0": { "name": "constant.numeric.type support.type.punctuation.separator.koka" } }
+      , "name": "constant.numeric.type support.type.koka"
       , "patterns": [
           { "include": "#type_content" }
         ]
@@ -544,7 +551,7 @@
         },
 
         { "match": "(\\->|::?|\\.)(?![$%&\\*\\+@!\\\\\\^~=\\.:\\-\\?\\|<>])"
-        , "name": "entity.name.class.type.koka"
+        , "name": "constant.numeric.type support.type.koka"
         },
 
         { "include": "#type_qidentifier"},
@@ -559,9 +566,9 @@
 
         { "begin": "\\("
         , "end": "\\)"
-        , "name": "entity.name.class.type.koka"
-        , "beginCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
-        , "endCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
+        , "name": "constant.numeric.type support.type.koka"
+        , "beginCaptures": { "0": { "name": "constant.numeric.type support.type.punctuation.separator.koka" } }
+        , "endCaptures": { "0": { "name": "constant.numeric.type support.type.punctuation.separator.koka" } }
         , "patterns": [
             { "include": "#type_content" }
           ]
@@ -569,9 +576,9 @@
 
         { "begin": "<(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|])"
         , "end": ">|\\n|  "
-        , "beginCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
-        , "endCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
-        , "name": "entity.name.class.type.koka"
+        , "beginCaptures": { "0": { "name": "constant.numeric.type support.type.punctuation.separator.koka" } }
+        , "endCaptures": { "0": { "name": "constant.numeric.type support.type.punctuation.separator.koka" } }
+        , "name": "constant.numeric.type support.type.koka"
         , "patterns": [
             { "include": "#type_content" }
           ]
@@ -579,9 +586,9 @@
 
         { "begin": "\\["
         , "end": "\\]"
-        , "beginCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
-        , "endCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
-        , "name": "entity.name.class.type.koka"
+        , "beginCaptures": { "0": { "name": "constant.numeric.type support.type.punctuation.separator.koka" } }
+        , "endCaptures": { "0": { "name": "constant.numeric.type support.type.punctuation.separator.koka" } }
+        , "name": "constant.numeric.type support.type.koka"
         , "patterns": [
             { "include": "#type_content" }
           ]
@@ -592,7 +599,7 @@
         { "include": "#block_comment" },
 
         { "match": "[;,]|:"
-        , "name": "entity.name.class.type.punctuation.separator.koka"
+        , "name": "constant.numeric.type support.type.punctuation.separator.koka"
         }
       ]}
   },
