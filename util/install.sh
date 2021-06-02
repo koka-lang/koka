@@ -397,21 +397,19 @@ install_dist() {
   fi  
   
   # install Visual Studio Code editor support
-  if [ -d ~/.vscode/extensions ] ; then
-    koka_vscode_dir="$KOKA_TEMP_DIR/share/koka/$version/contrib/vscode"
-    if [ -d $koka_vscode_dir ] ; then
-      info "- install vscode editor support"
-      if [ -d ~/.vscode/extensions/koka.language-koka ] ; then
-        need_restart=""
-      else
-        need_restart="yes"
-      fi
-      if ! cp -p -r $koka_vscode_dir/* ~/.vscode/extensions/ ; then
-        info "  (failed to copy vscode support files)"
-      elif [ ! -z "$need_restart" ] ; then    
-        info "  Please restart VS Code for Koka syntax highlighting to take effect."
-      fi
+  if which code > /dev/null ; then
+    info "- install vscode editor support"
+    if code --list-extensions | grep "koka-lang.language-koka" > /dev/null ; then
+      code --uninstall-extension koka-lang.language-koka > /dev/null  # old installation package
     fi
+    if ! code --install-extension koka.language-koka > /dev/null ; then  # new one from vs code marketplace
+      info "  failed to install vscode editor support!"
+    fi
+  fi
+
+  # emacs message
+  if ! which emacs ; then 
+    info "- emacs syntax mode can be found at: $koka_share_dir/$version/contrib/emacs" 
   fi
 }
 

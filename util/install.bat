@@ -164,11 +164,17 @@ if exist "%USERPROFILE%\.atom\packages" (
   setx koka_editor "atom %%f:%%l:%%c" > nul
 )
 
-if exist "%USERPROFILE%\.vscode\extensions" (
+where /Q code
+if not errorlevel 1 (
   echo Install VS Code editor support..
-  xcopy /Y /Q /S "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%\contrib\vscode\*" "%USERPROFILE%\.vscode\extensions" > nul
-  set  "koka_editor=code --goto %%f:%%l:%%c"
-  setx koka_editor "code --goto %%f:%%l:%%c" > nul
+  code --uninstall-extension koka-lang.language-koka > nul
+  code --install-extension koka.language-koka > nul
+  if errorlevel 1 (
+    echo Could not install VS Code editor support
+  ) else (
+    set  "koka_editor=code --goto %%f:%%l:%%c"
+    setx koka_editor "code --goto %%f:%%l:%%c" > nul
+  )
 )
 
 REM ---------------------------------------------------------

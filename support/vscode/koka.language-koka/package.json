@@ -35,10 +35,7 @@
 	"categories": [
 		"Programming Languages"
 	],
-  "activationEvents": [
-		"onLanguage:koka"
-  ],
-	"contributes": {
+  "contributes": {
 		"configuration": {
 			"type": "object",
 			"title": "Koka configuration",
