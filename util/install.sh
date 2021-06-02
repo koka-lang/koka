@@ -268,17 +268,18 @@ install_packages() {
 
 install_dependencies() {
   info "Installing dependencies.."
+  deps="gcc make tar curl cmake ninja-build pkg-config"  # cmake, ninja, and pkg-config are needed by vcpkg
   if has_cmd apt-get ; then
-    apt_get_install build-essential gcc make tar curl
+    apt_get_install build-essential $deps
   elif has_cmd dnf ; then
     dnf_groupinstall "Development Tools" # this is for Fedora 32+， CentOS 8 and CentOS Stream  
-    dnf_install gcc make tar curl
+    dnf_install $deps
   elif has_cmd yum ; then
-    yum_install build-essential gcc make tar curl
+    yum_install build-essential $deps
   elif has_cmd apk ; then
-    apk_install build-essential gcc make tar curl
+    apk_install build-essential $deps
   elif has_cmd pacman; then
-    pacman_install base-devel gcc make tar curl
+    pacman_install base-devel $deps
   else
     info "Unable to install dependencies; continuing.."
   fi

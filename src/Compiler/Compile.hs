@@ -1360,20 +1360,20 @@ copyCLibraryX term flags cc eimport tries
                                   Just pkg -> pkg
                                   Nothing  -> ""
        if (null clib) then return () else 
-        do mbPath <- -- looking for specific suffixes is not ideal but it differs among plaforms (e.g. pcre2-8 is only pcre2-8d on Windows)
-                     -- and the actual name of the library is not easy to extract from vcpkg (we could read 
-                     -- the lib/config/<lib>.pc information and parse the Libs field but that seems fragile as well)
-                     let suffixes = (if (buildType flags == Debug) then ["d","_d","-debug","_debug"] else [])
-                     in searchPathsSuffixes (ccompLibDirs flags) [] suffixes (ccLibFile cc clib)                     
-           case mbPath of
-              Just fname -> copyLibFile fname clib
-              _ -> if (tries > 0) 
-                    then nosuccess clib
-                    else do ok <- vcpkgInstall term flags cc eimport clib
-                            if (not ok)
-                              then nosuccess clib
-                              else copyCLibraryX term flags cc eimport (tries + 1)  -- try again 
-              
+         do mbPath <- -- looking for specific suffixes is not ideal but it differs among plaforms (e.g. pcre2-8 is only pcre2-8d on Windows)
+                      -- and the actual name of the library is not easy to extract from vcpkg (we could read 
+                      -- the lib/config/<lib>.pc information and parse the Libs field but that seems fragile as well)
+                      let suffixes = (if (buildType flags == Debug) then ["d","_d","-debug","_debug"] else [])
+                      in searchPathsSuffixes (ccompLibDirs flags) [] suffixes (ccLibFile cc clib)                     
+            case mbPath of
+                Just fname -> copyLibFile fname clib
+                _ -> if (tries > 0) 
+                      then nosuccess clib
+                      else do ok <- vcpkgInstall term flags cc eimport clib
+                              if (not ok)
+                                then nosuccess clib
+                                else copyCLibraryX term flags cc eimport (tries + 1)  -- try again 
+                    
   where
     nosuccess clib
       = raiseIO ("unable to find C library " ++ clib)
@@ -1394,9 +1394,9 @@ vcpkgInstall term flags cc eimport clib | onWindows && (ccName cc `startsWith` "
         text "   hint: currently using the \"mingw\" compiler but to use external \".lib\" libraries" <->
         text "         on Windows you need to use the \"clang-cl\" or \"cl\" (msvc) compiler." <->
         text "         run from an 'x64 Native Tools Command' window and install clang-cl from" <-> 
-        text "         <https://releases.llvm.org/download.html>"
+        text "         <https://llvm.org/builds>"
        return False
-
+    
 vcpkgInstall term flags cc eimport clib
   = case lookup "vcpkg" eimport of
       Nothing  -> 
@@ -1408,10 +1408,10 @@ vcpkgInstall term flags cc eimport clib
         do vcpkgExist <- doesFileExist (vcpkg flags)
            if (not vcpkgExist)
              then do termWarning term flags ( 
-                       text "this module requires vcpkg to install:" <+> clrSource (text clib) <->
-                       text ("   hint: specify the root directory of vcpkg using the \"--vcpkg=<dir>\" option") <->
-                       text ("         and/or install \"vcpkg\" from <https://github.com/microsoft/vcpkg#getting-started>") <->
-                       text ("         (install in \"~/vcpkg\" to be found automatically by the koka compiler)")
+                       text "this module requires vcpkg to install the" <+> clrSource (text clib) <+> text "library." <->
+                       text "   hint: specify the root directory of vcpkg using the" <+> clrSource (text "--vcpkg=<dir>") <+> text "option" <->
+                       text "         and/or install vcpkg from <" <.> clrSource (text "https://github.com/microsoft/vcpkg#getting-started") <.> text ">" <->
+                       text "         (install in " <.> clrSource (text "~/vcpkg") <.> text " to be found automatically by the koka compiler)"
                        )
                      return False
              else do pkgExist <- doesDirectoryExist (joinPaths [vcpkgRoot flags,"packages",pkg ++ "_" ++ vcpkgTriplet flags])

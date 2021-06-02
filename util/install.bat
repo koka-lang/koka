@@ -165,17 +165,24 @@ if exist "%USERPROFILE%\.atom\packages" (
 )
 
 where /Q code
+if errorlevel 1 goto done_vscode
+
+echo Install VS Code editor support..
+code --list-extensions | find "koka-lang.language-koka" > nul
 if not errorlevel 1 (
-  echo Install VS Code editor support..
+  echo uninstall vscode ext
   code --uninstall-extension koka-lang.language-koka > nul
-  code --install-extension koka.language-koka > nul
-  if errorlevel 1 (
-    echo Could not install VS Code editor support
-  ) else (
-    set  "koka_editor=code --goto %%f:%%l:%%c"
-    setx koka_editor "code --goto %%f:%%l:%%c" > nul
-  )
 )
+cmd /C "code --force --install-extension koka.language-koka"
+if errorlevel 1 (
+  echo Could not install VS Code editor support
+  goto done_vscode
+) 
+
+set  "koka_editor=code --goto %%f:%%l:%%c"
+setx koka_editor "code --goto %%f:%%l:%%c" > nul
+
+:done_vscode
 
 REM ---------------------------------------------------------
 REM Uninstall previous version
@@ -191,12 +198,12 @@ if not exist "%_KOKA_PREFIX%\share\koka\%koka_version%" goto done_install
 echo.
 set _koka_answer=N
 if "%_KOKA_FORCE%" NEQ "Y" (
-  set /p "_koka_answer=Found previous koka version %koka_version%, Uninstall? [yN] " 
+  set /p "_koka_answer=Found previous koka installation %koka_version%, Uninstall? [yN] " 
 )
 if /i "%_koka_answer:~,1%" NEQ "Y" goto done_install
 
 :uninstallprev
-echo Uninstall older koka version %koka_version%..
+echo Uninstall previous koka installation %koka_version%..
 if exist "%_KOKA_PREFIX%\bin\koka-%koka_version%.exe" (del /Q "%_KOKA_PREFIX%\bin\koka-%koka_version%.exe")
 rmdir /S /Q "%_KOKA_PREFIX%\lib\koka\%koka_version%"
 rmdir /S /Q "%_KOKA_PREFIX%\share\koka\%koka_version%"
@@ -314,3 +321,16 @@ echo.
 
 :end
 
+REM clean environment
+set _KOKA_VERSION=
+set _KOKA_PREFIX=
+set _KOKA_UNINSTALL=
+set _KOKA_HELP=
+set _KOKA_FORCE=
+set _KOKA_DIST_SOURCE=
+set _KOKA_DIST_SOURCE_URL=
+set _CLANG_VERSION=
+set _CLANG_INSTALL_BASE=
+set _CLANG_INSTALL=
+set _CLANG_INSTALL_URL=
+set _CLANG_INSTALL_SHA256=
