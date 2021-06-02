@@ -154,15 +154,16 @@ type DistinctSorted a = a
 -- list passed in should be sorted and not contain duplicates
 -- >>> toBools [1, 3, 4, 7]
 -- [False, True, False, True, True, False, False, True]
-toBools :: DistinctSorted [Int] -> [Bool]
-toBools =
-    concatMap (\x -> replicate x False <> [True])
-  -- after appending a 'True' the rest of the counts are one off
-  . (\case [] -> [] ; (x:xs) -> map pred xs)
-  -- . (\(x:xs) -> x : map pred xs)
-  . diffs
+toBools :: [Int] -> [Bool]
+toBools [] = []
+toBools xs = foldr go (replicate (maximum xs + 1) False) xs
   where
-    diffs xs | xs <- 0:xs = zipWith (-) (tail xs) xs
+    go i xs = at i (const True) xs
+
+at :: Int -> (a -> a) -> [a] -> [a]
+at i f xs =
+  let (begin, x:end) = splitAt i xs
+  in begin ++ f x : end
 
 usedInThisDef :: Def -> S.NameSet
 usedInThisDef def = foldMapExpr go $ defExpr def

@@ -890,7 +890,7 @@ inferCheck loaded flags line coreImports program1
        traceM (show specEnv)
 
        let (specializedDefs, uniqueSpec) 
-            = if True
+            = if False
                 then specialize penv uniqueSimp0 specEnv coreDefsSimp0
                 else (coreDefsSimp0, uniqueSimp0)
             
@@ -900,7 +900,7 @@ inferCheck loaded flags line coreImports program1
        let (coreDefsCTail,uniqueCTail)
                   = if (optctail flags)
                      then ctailOptimize penv (platform flags) newtypes gamma (optctailInline flags) specializedDefs uniqueSpec
-                     else (coreDefsSimp0,uniqueSimp0)
+                     else (specializedDefs, uniqueSpec)
 
        -- traceDefGroups "ctail" coreDefsCTail
 
