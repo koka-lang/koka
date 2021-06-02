@@ -78,20 +78,20 @@ specOneDef env def =
     -- account for typelam
     Lam params eff body = defExpr def
 
-    go body = case body of
+    go = rewriteBottomUpM (\e -> case e of
       App (Var (TName name _) _) args 
         | Just (SpecializeDefs{argsToSpecialize=argsToSpecialize}) <- specenvLookup name env -> do
             -- we should keep this as a list of bool, no need to do this translation since we will need it again when removing the args
             -- and adding them to the new def
             candidates <- zipWithM (\isSpecializeCandidate arg -> if isSpecializeCandidate then argHasKnownRHS arg else pure Nothing) argsToSpecialize args
-            specOneCall body candidates
+            specOneCall e candidates
       
       -- TODO:
       -- App (TypeApp (Var (TName name _) _) _) xs 
       --   | Just spec <- specenvLookup name env -> 
       --       maybe body (\rhs -> specOneCall body spec rhs) <$> queryScope name
 
-      _ -> error "rest of cases here"
+      e -> pure e)
 
     argHasKnownRHS (Var (TName name _) _) = queryScope name
     -- double-check this
@@ -105,8 +105,9 @@ specOneDef env def =
       let params = case defToSpecialize of
             Lam params _ _ -> params
             TypeLam _ (Lam params _ _) -> params
+            _ -> error $ show defToSpecialize
       let specName = newName "spec"
-      let namesToReplace = zipWith (\name mybeArg -> do arg <- mybeArg ; pure (name, arg)) params argsToSpecialize
+      let namesToReplace = zipWith (\name mybeArg -> (name,) <$> mybeArg) params argsToSpecialize
       let letDefGroups = mapMaybe ((\(TName name _, expr) -> DefNonRec $ Def name (error "type") expr Private DefVal InlineAuto (error "Range2") (error "doc")) <$>) namesToReplace
       let newParams = catMaybes $ zipWith (\spec param -> spec >> pure param) argsToSpecialize params
       let newBody = Lam newParams eff $ Let letDefGroups body
@@ -118,11 +119,14 @@ specOneDef env def =
 
       -- TODO info
       -- TODO TypeApp case ?
-      pure $ App (Var (TName name $ error "type") InfoNone) newArgs
+      pure $ App (Var (TName name $ error "error: type") InfoNone) newArgs
+
+    -- TODO
+    specOneCall e@(App (TypeApp (Var (TName name _) _) _) args) argsToSpecialize = pure e
 
     res = case defExpr def of 
-      Lam params eff body -> go body
-      TypeLam types (Lam params eff body) -> go body
+      Lam params eff body -> Lam params eff <$> go body
+      TypeLam types (Lam params eff body) -> TypeLam types <$> (Lam params eff <$> go body)
   in
     do 
       r <- res

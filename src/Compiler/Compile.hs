@@ -890,7 +890,7 @@ inferCheck loaded flags line coreImports program1
        traceM (show specEnv)
 
        let (specializedDefs, uniqueSpec) 
-            = if False
+            = if True
                 then specialize penv uniqueSimp0 specEnv coreDefsSimp0
                 else (coreDefsSimp0, uniqueSimp0)
             

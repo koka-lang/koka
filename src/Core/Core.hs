@@ -84,7 +84,12 @@ module Core.Core ( -- Data structures
 
                    , foldMapExpr
                    , foldExpr
+                   , rewriteBottomUp
+                   , rewriteBottomUpM
                    ) where
+
+import Control.Applicative (liftA2)
+import Control.Monad (forM)
 
 import Data.Char( isDigit )
 import qualified Data.Set as S
@@ -478,6 +483,48 @@ foldMapExpr acc e = case e of
 
 foldExpr :: (Expr -> a -> a) -> a -> Expr -> a
 foldExpr f z e = appEndo (foldMapExpr (Endo . f) e) z
+
+rewriteBottomUp :: (Expr -> Expr) -> Expr -> Expr
+rewriteBottomUp f e = case e of 
+  Lam params eff body -> f $ Lam params eff (f body)
+  Var _ _ -> f e
+  App fun xs -> f $ App (f fun) (map f xs)
+  TypeLam types body -> f $ TypeLam types (f body)
+  TypeApp expr types -> f $ TypeApp (f expr) types
+  Con _ _ -> f e
+  Lit _ -> f e
+  Let binders body -> f $ Let [case binder of 
+    DefNonRec def@Def{defExpr = defExpr} -> DefNonRec $ def { defExpr = f defExpr } 
+    DefRec defs -> DefRec [def{ defExpr = f defExpr } | def@Def{ defExpr = defExpr } <- defs]
+      | binder <- binders] (f body)
+  Case cases branches -> f $ Case (map f cases) [Branch patterns $ map (\(Guard e1 e2) -> Guard (f e1) (f e2)) guards | Branch patterns guards <- branches]
+
+rewriteBottomUpM :: (Monad m) => (Expr -> m Expr) -> Expr -> m Expr
+rewriteBottomUpM f e = case e of 
+  Lam params eff body -> f =<< Lam params eff <$> (f body)
+  Var _ _ -> f e
+  App fun xs -> f =<< liftA2 App (f fun) (mapM f xs)
+  TypeLam types body -> f =<< TypeLam types <$> (f body)
+  TypeApp expr types -> f =<< (\fexpr -> TypeApp fexpr types) <$> f expr
+  Con _ _ -> f e
+  Lit _ -> f e
+  Let binders body -> do
+    newBinders <- forM binders $ \binder ->
+      case binder of
+        DefNonRec def@Def{defExpr = defExpr} -> do 
+          fexpr <- f defExpr
+          pure $ DefNonRec def { defExpr = fexpr }
+        DefRec defs -> fmap DefRec $ forM defs $ \def@Def{defExpr = defExpr} -> do
+          fexpr <- f defExpr
+          pure def{ defExpr = fexpr }
+          
+    f <$> Let newBinders =<< f body
+
+  Case cases branches -> do
+    mcases <- mapM f cases
+    branches <- sequence [Branch patterns <$> mapM (\(Guard e1 e2) -> liftA2 Guard (f e1) (f e2)) guards | Branch patterns guards <- branches]
+    f $ Case mcases branches
+
 
 data TName = TName Name Type
 
