@@ -1,4 +1,5 @@
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Core.Specialize( SpecializeEnv
                       , specenvNew
@@ -7,13 +8,15 @@ module Core.Specialize( SpecializeEnv
                       , specenvLookup
                       , ppSpecializeEnv
 
+                      , specialize
+
                       , extractSpecializeDefs 
                       ) where
 
 import Data.Bifunctor
 import Control.Monad.State
 import Control.Applicative
-import Data.Maybe (mapMaybe, fromMaybe, catMaybes, isJust)
+import Data.Maybe (mapMaybe, fromMaybe, catMaybes, isJust, fromJust)
 
 import Lib.PPrint
 import Common.Syntax
@@ -39,6 +42,11 @@ data SpecState = SpecState
 
 type SpecM = State SpecState
 
+runSpecM :: NameMap Expr -> SpecM a -> (a, DefGroups)
+runSpecM scope specM = 
+  let (result, SpecState _ newDefs) = flip runState (SpecState { _inScope = scope, _newDefs = [] }) specM
+  in (result, newDefs)
+
 inScope :: SpecM (NameMap Expr)
 inScope = gets _inScope
 
@@ -52,7 +60,17 @@ emitSpecializedDef :: DefGroup -> SpecM ()
 emitSpecializedDef defGroup = modify (\state@SpecState { _newDefs = newDefs } -> state{ _newDefs = defGroup:newDefs})
 
 specialize :: Env -> Int -> SpecializeEnv -> DefGroups -> (DefGroups, Int)
-specialize = undefined
+specialize env uniq specEnv groups =
+  let 
+    -- TODO: initial scope isn't empty
+    (changedDefs, newDefs) = runSpecM M.empty $ mapM (specOneDefGroup specEnv) groups
+  in (changedDefs ++ newDefs, uniq)
+
+specOneDefGroup :: SpecializeEnv -> DefGroup -> SpecM DefGroup
+specOneDefGroup env (DefRec [def]) = do
+  specialized <- specOneDef env def
+  pure $ DefRec [specialized]
+specOneDefGroup _ group = pure group
 
 specOneDef :: SpecializeEnv -> Def -> SpecM Def
 specOneDef env def = 
@@ -65,9 +83,8 @@ specOneDef env def =
         | Just (SpecializeDefs{argsToSpecialize=argsToSpecialize}) <- specenvLookup name env -> do
             -- we should keep this as a list of bool, no need to do this translation since we will need it again when removing the args
             -- and adding them to the new def
-            candidates <- zipWithM (\isSpecializeCandidate arg -> guard isSpecializeCandidate >> argHasKnownRHS arg) argsToSpecialize args
-            let argsToSpecialize = map (\maybeLhs -> case maybeLhs of Nothing -> Nothing ; Just rhs -> Just rhs) candidates
-            specOneCall body argsToSpecialize
+            candidates <- zipWithM (\isSpecializeCandidate arg -> if isSpecializeCandidate then argHasKnownRHS arg else pure Nothing) argsToSpecialize args
+            specOneCall body candidates
       
       -- TODO:
       -- App (TypeApp (Var (TName name _) _) _) xs 
@@ -83,8 +100,14 @@ specOneDef env def =
       
     specOneCall :: Expr -> [Maybe Expr] -> SpecM Expr
     specOneCall (App (Var (TName name _) _) args) argsToSpecialize = do
+      -- name must be in scope since it's specializable
+      defToSpecialize <- fromJust <$> queryScope name
+      let params = case defToSpecialize of
+            Lam params _ _ -> params
+            TypeLam _ (Lam params _ _) -> params
       let specName = newName "spec"
-      let letDefGroups = mapMaybe ((\(name, expr) -> DefNonRec $ Def name (error "type") expr Private DefVal InlineAuto (error "Range2") (error "doc")) <$>) argsToSpecialize
+      let namesToReplace = zipWith (\name mybeArg -> do arg <- mybeArg ; pure (name, arg)) params argsToSpecialize
+      let letDefGroups = mapMaybe ((\(TName name _, expr) -> DefNonRec $ Def name (error "type") expr Private DefVal InlineAuto (error "Range2") (error "doc")) <$>) namesToReplace
       let newParams = catMaybes $ zipWith (\spec param -> spec >> pure param) argsToSpecialize params
       let newBody = Lam newParams eff $ Let letDefGroups body
       let specializedDef = DefRec [Def name (error "type") newBody Private DefFun InlineNever (error "range") (error "doc")]
@@ -123,7 +146,7 @@ getInline def =
     SpecializeDefs (defName def)
   $ toBools
   $ map (\(_, argPosition) -> argPosition)
-  $ filter (\(name, _) -> name `S.member` calledInThisDef def) 
+  $ filter (\(name, _) -> name `S.member` usedInThisDef def) 
   $ M.toList (passedRecursivelyToThisDef def)
 
 type DistinctSorted a = a
@@ -135,13 +158,14 @@ toBools :: DistinctSorted [Int] -> [Bool]
 toBools =
     concatMap (\x -> replicate x False <> [True])
   -- after appending a 'True' the rest of the counts are one off
-  . (\(x:xs) -> x : map pred xs)
+  . (\case [] -> [] ; (x:xs) -> map pred xs)
+  -- . (\(x:xs) -> x : map pred xs)
   . diffs
   where
     diffs xs | xs <- 0:xs = zipWith (-) (tail xs) xs
 
-calledInThisDef :: Def -> S.NameSet
-calledInThisDef def = foldMapExpr go $ defExpr def
+usedInThisDef :: Def -> S.NameSet
+usedInThisDef def = foldMapExpr go $ defExpr def
   where 
     go (Var (TName name _) _) = S.singleton name
     go _ = mempty

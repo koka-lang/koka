@@ -885,14 +885,21 @@ inferCheck loaded flags line coreImports program1
 
        -- traceDefGroups "lifted" coreDefsSimp0
 
+       let specEnv = extractSpecializeDefs coreDefsSimp0
        traceM "Spec defs:"
-       traceM (show (extractSpecializeDefs coreDefsSimp0))
+       traceM (show specEnv)
+
+       let (specializedDefs, uniqueSpec) 
+            = if True
+                then specialize penv uniqueSimp0 specEnv coreDefsSimp0
+                else (coreDefsSimp0, uniqueSimp0)
+            
        -- traceShowM (Data.Map.size $ extractSpecializeDefs coreDefsSimp0)
 
        -- constructor tail optimization
        let (coreDefsCTail,uniqueCTail)
                   = if (optctail flags)
-                     then ctailOptimize penv (platform flags) newtypes gamma (optctailInline flags) coreDefsSimp0 uniqueSimp0
+                     then ctailOptimize penv (platform flags) newtypes gamma (optctailInline flags) specializedDefs uniqueSpec
                      else (coreDefsSimp0,uniqueSimp0)
 
        -- traceDefGroups "ctail" coreDefsCTail
