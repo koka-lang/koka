@@ -398,12 +398,19 @@ install_dist() {
   fi  
   
   # install Visual Studio Code editor support
-  if which code > /dev/null ; then
-    info "- install vscode editor support"
-    if code --list-extensions | grep "koka-lang.language-koka" > /dev/null ; then
-      code --uninstall-extension koka-lang.language-koka > /dev/null  # old installation package
+  NODE_NO_WARNINGS=1
+  vscode="code"
+  if ! which "$vscode" > /dev/null ; then
+    if [ "$(uname)" == "Darwin" ] ; then
+      vscode="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" # osx may not have code in the PATH
     fi
-    if ! code --install-extension koka.language-koka > /dev/null ; then  # new one from vs code marketplace
+  fi
+  if which "$vscode" > /dev/null ; then
+    info "- install vscode editor support"
+    if "$vscode" --list-extensions | grep "koka-lang.language-koka" > /dev/null ; then
+      "$vscode" --uninstall-extension koka-lang.language-koka > /dev/null  # old installation package
+    fi
+    if ! "$vscode" --force --install-extension koka.language-koka > /dev/null ; then  # new one from vs code marketplace
       info "  failed to install vscode editor support!"
     fi
   fi
