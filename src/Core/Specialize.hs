@@ -1,7 +1,4 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TupleSections #-}
-
-{-# LANGUAGE ScopedTypeVariables #-}
 
 module Core.Specialize( SpecializeEnv
                       , specenvNew
@@ -68,23 +65,25 @@ specOneDef env def =
         | Just (SpecializeDefs{argsToSpecialize=argsToSpecialize}) <- specenvLookup name env -> do
             -- we should keep this as a list of bool, no need to do this translation since we will need it again when removing the args
             -- and adding them to the new def
-            let candidates = zipWith (\isSpecializeCandidate arg -> guard isSpecializeCandidate >> argIsInlineCandidate arg) argsToSpecialize args
-            argsToSpecialize <- mapM (\maybeLhs -> case maybeLhs of Nothing -> pure Nothing ; Just lhs -> fmap (lhs,) <$> queryScope lhs) candidates
+            candidates <- zipWithM (\isSpecializeCandidate arg -> guard isSpecializeCandidate >> argHasKnownRHS arg) argsToSpecialize args
+            let argsToSpecialize = map (\maybeLhs -> case maybeLhs of Nothing -> Nothing ; Just rhs -> Just rhs) candidates
             specOneCall body argsToSpecialize
       
       -- TODO:
       -- App (TypeApp (Var (TName name _) _) _) xs 
       --   | Just spec <- specenvLookup name env -> 
       --       maybe body (\rhs -> specOneCall body spec rhs) <$> queryScope name
+
       _ -> error "rest of cases here"
 
-    argIsInlineCandidate (Var (TName name _) _) = Just name
+    argHasKnownRHS (Var (TName name _) _) = queryScope name
     -- double-check this
-    argIsInlineCandidate (TypeApp (Var (TName name _) _) _) = Just name
+    argHasKnownRHS (TypeApp (Var (TName name _) _) _) = queryScope name
+    argHasKnownRHS e = pure $ Just e
       
-    specOneCall :: Expr -> [Maybe (Name, Expr)] -> SpecM Expr
+    specOneCall :: Expr -> [Maybe Expr] -> SpecM Expr
     specOneCall (App (Var (TName name _) _) args) argsToSpecialize = do
-      let name = newName "spec"
+      let specName = newName "spec"
       let letDefGroups = mapMaybe ((\(name, expr) -> DefNonRec $ Def name (error "type") expr Private DefVal InlineAuto (error "Range2") (error "doc")) <$>) argsToSpecialize
       let newParams = catMaybes $ zipWith (\spec param -> spec >> pure param) argsToSpecialize params
       let newBody = Lam newParams eff $ Let letDefGroups body
