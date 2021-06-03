@@ -21,12 +21,12 @@ import std/time/locale
 import std/time/utc
 
 // -----------------------------------------------------------
-// Parsing
+// Parsing  
 // -----------------------------------------------------------
 
 /* Parse an [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) time string.
 The optional `calendar` (=`cal-iso`) argument can be given to interpret
-the date in a different calendar. If a time zone offset is given, the
+the date in a different calendar. 
 
 ````plain
 2008-12-31               // just date

@@ -97,12 +97,16 @@
       , "name": "comment.line.double-slash koka.comment.line"
       , "beginCaptures": { "0": {"name": "punctuation.definition.comment  koka.comment.line" }}
       , "patterns" : [
-          { "match": "`:([^\\`]*)`"
+          { "match": "`(:[^\\`\\n]+)`"
           , "captures": { "1": { "name": "koka.comment.doc.pre.type" } }
           },
 
-          { "match": "`([^\\`]*)`"
-          , "captures": { "1": { "name": "koka.comment.doc.pre" } }
+          { "match": "`(module [^\\`\\n]+)`"
+          , "captures": { "1": { "name": "koka.comment.doc.pre.module" } }
+          },
+
+          { "match": "`+([^\\`\\n]*)`+"
+          , "captures": { "1": { "name": "koka.comment.doc.pre.source" } }
           },
 
           { "match": "\\*([^\\*]*)\\*"
@@ -129,12 +133,21 @@
       , "patterns" : [
           { "include": "#block_comment" },
 
-          { "match": "`:([^\\`]*)`"
+          { "begin": "^```+.*$"
+          , "end": "^```+\\s*$"
+          , "name": "koka.comment.doc.pre.block"
+          },
+
+          { "match": "`(:[^\\`\\n]+)`"
           , "captures": { "1": { "name": "koka.comment.doc.pre.type" } }
           },
 
-          { "match": "`([^\\`]*)`"
-          , "captures": { "1": { "name": "koka.comment.doc.pre" } }
+          { "match": "`(module [^\\`\\n]+)`"
+          , "captures": { "1": { "name": "koka.comment.doc.pre.module" } }
+          },
+
+          { "match": "`+([^\\`\\n]*)`+"
+          , "captures": { "1": { "name": "koka.comment.doc.pre.source" } }
           },
 
           { "match": "\\*([^\\*]*)\\*"
@@ -143,11 +156,6 @@
 
           { "match": "_([^_]*)_"
           , "captures": { "1": { "name": "markup.italic koka.comment.doc.emph" } }
-          },
-
-          { "begin": "^```.*$"
-          , "end": "^```\\s*$"
-          , "contentName": "koka.comment.doc.pre.block"
           }
         ]
       },
