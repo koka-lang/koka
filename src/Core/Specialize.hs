@@ -32,10 +32,20 @@ import Core.Pretty ()
 import Type.Pretty
 import Lib.Trace
 
+{--------------------------------------------------------------------------
+  
+--------------------------------------------------------------------------}
+
 data SpecializeDefs = SpecializeDefs
   { targetFunc :: Name
   , argsToSpecialize :: [Bool]
   } deriving (Show)
+
+
+
+{--------------------------------------------------------------------------
+  Specialization Monad
+--------------------------------------------------------------------------}
 
 data SpecState = SpecState
   { _inScope :: NameMap Expr
@@ -60,6 +70,12 @@ addToScope name expr = modify (\state@SpecState{ _inScope = inScope } -> state{ 
 
 emitSpecializedDefGroup :: DefGroup -> SpecM ()
 emitSpecializedDefGroup defGroup = modify (\state@SpecState { _newDefs = newDefs } -> state{ _newDefs = defGroup:newDefs})
+
+
+
+{--------------------------------------------------------------------------
+  Specializition
+--------------------------------------------------------------------------}
 
 specialize :: Env -> Int -> SpecializeEnv -> DefGroups -> (DefGroups, Int)
 specialize env uniq specEnv groups =
@@ -129,6 +145,11 @@ replaceCall specializedDef bools args =
      newArgs
   where
     newArgs = filterBools bools args
+
+
+{--------------------------------------------------------------------------
+  Extract definitions that should be specialized
+--------------------------------------------------------------------------}
 
 extractSpecializeDefs :: DefGroups -> SpecializeEnv
 extractSpecializeDefs = 
@@ -202,7 +223,7 @@ passedRecursivelyToThisDef def
 
 
 {--------------------------------------------------------------------------
-  
+  Specialize Environment
 --------------------------------------------------------------------------}
 
 -- | Environment mapping names to specialize definitions
