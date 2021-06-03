@@ -35,7 +35,7 @@ entry, for example:
 "editor.tokenColorCustomizations": {
   "textMateRules": [
     { "scope": "koka.type",
-      "settings": { "foreground": "#00A8A8" }
+      "settings": { "foreground": "#00B8B8" }
     },
     { "scope": "koka.conid, koka.number",
       "settings": { "foreground": "#a6c2a3" }
