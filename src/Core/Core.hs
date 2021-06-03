@@ -501,11 +501,11 @@ rewriteBottomUp f e = case e of
 
 rewriteBottomUpM :: (Monad m) => (Expr -> m Expr) -> Expr -> m Expr
 rewriteBottomUpM f e = case e of 
-  Lam params eff body -> f =<< Lam params eff <$> (f body)
+  Lam params eff body -> f . Lam params eff =<< (f body)
   Var _ _ -> f e
   App fun xs -> f =<< liftA2 App (f fun) (mapM f xs)
-  TypeLam types body -> f =<< TypeLam types <$> (f body)
-  TypeApp expr types -> f =<< (\fexpr -> TypeApp fexpr types) <$> f expr
+  TypeLam types body -> f . TypeLam types =<< (f body)
+  TypeApp expr types -> f . (\fexpr -> TypeApp fexpr types) =<< f expr
   Con _ _ -> f e
   Lit _ -> f e
   Let binders body -> do
@@ -518,13 +518,13 @@ rewriteBottomUpM f e = case e of
           fexpr <- f defExpr
           pure def{ defExpr = fexpr }
           
-    f <$> Let newBinders =<< f body
+    f . Let newBinders =<< f body
 
   Case cases branches -> do
     mcases <- mapM f cases
-    branches <- sequence [Branch patterns <$> mapM (\(Guard e1 e2) -> liftA2 Guard (f e1) (f e2)) guards | Branch patterns guards <- branches]
-    f $ Case mcases branches
-
+    mbranches <- forM branches $ \(Branch patterns guards) ->
+      Branch patterns <$> forM guards (\(Guard e1 e2) -> liftA2 Guard (f e1) (f e2))
+    f $ Case mcases mbranches
 
 data TName = TName Name Type
 
