@@ -251,8 +251,7 @@ runInfer penv platform newtypes borrowed (Infer action)
       let env = Env [] penv platform newtypes borrowed
           st = InferState u S.empty
           (val, st') = runState (runReaderT action env) st
-       in trace (show (ppBorrowed penv borrowed)) $
-          (val, uniq st')
+       in (val, uniq st')
 
 -------------------
 -- env accessors --

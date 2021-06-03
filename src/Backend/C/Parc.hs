@@ -134,8 +134,7 @@ parcExpr expr
               if Borrow `notElem` bs
                 then return expr
                 else do
-                  parcTrace $ "Wrapping: " ++ show tname
-                  -- splitFunScheme
+                  -- parcTrace $ "Wrapping: " ++ show tname
                   case splitFunScheme $ typeOf expr of
                     Just (ts, [], as, eff, _)
                       -> do parcExpr $ addTypeLambdas ts $ addLambdas as eff
@@ -854,8 +853,7 @@ runParc penv platform newtypes borrowed enableSpecialize (Parc action)
       let env = Env [] penv platform newtypes enableSpecialize S.empty M.empty borrowed
           st = ParcState u S.empty
           (val, st') = runState (runReaderT action env) st
-       in trace (show (ppBorrowed penv borrowed)) $
-          (val, uniq st')
+       in (val, uniq st')
 
 -------------------
 -- env accessors --
