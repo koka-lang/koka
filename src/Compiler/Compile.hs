@@ -1334,11 +1334,11 @@ ccompile term flags cc ctargetObj csources
                       , ccIncludeDir cc (localShareDir flags ++ "/kklib/include")
                       ]
                       ++
-                      (if (asan flags) then [] else [ccIncludeDir cc (localShareDir flags ++ "/kklib/mimalloc/include")])
+                      (if (asan flags || useStdAlloc flags) then [] else [ccIncludeDir cc (localShareDir flags ++ "/kklib/mimalloc/include")])
                       ++
                       map (ccIncludeDir cc) (ccompIncludeDirs flags)
                       ++
-                      map (ccAddDef cc) ((if (asan flags) then [] else ["KK_MIMALLOC","MI_MAX_ALIGN_SIZE=8"])
+                      map (ccAddDef cc) ((if (asan flags || useStdAlloc flags) then [] else ["KK_MIMALLOC","MI_MAX_ALIGN_SIZE=8"])
                                         -- ++ ["KK_STATIC_LIB"]
                                         ++ ["KK_COMP_VERSION=\"" ++ version ++ "\""]
                                         )
