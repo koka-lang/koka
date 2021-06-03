@@ -47,6 +47,12 @@
 				}
 			}
 		},
+    "configurationDefaults": {
+      "[koka]": {
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true
+      }
+    },
 		"languages": [
 			{
 				"id": "koka",
