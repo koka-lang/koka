@@ -11,8 +11,10 @@ Visit <https://koka-lang.github.io> for more information.
 * `koka.op`: operators.
 * `koka.id`: identifiers.
 * `koka.id.decl`(`.function`|`.val`|`.var`): declarations.
+* `koka.id.library`(`.resume`|`.finally`|...): control related library identifiers.
 * `koka.moduleid`: module identifiers.
 * `koka.keyword`: keywords.
+* `koka.keyword.control`: control flow keywords.
 * `koka.special`: reserved separators (`{};,` etc).
 * `koka.special.dot`: the dot separator.
 * `koka.number`: numbers.
@@ -41,7 +43,7 @@ entry, for example:
     { "scope": "koka.comment.doc.pre",
       "settings": { "foreground": "#91ac91" }
     },
-    { "scope": "koka.id.decl",
+    { "scope": "koka.id.decl.function",
       "settings": { "foreground": "#cac199" }
     },      
   ]
