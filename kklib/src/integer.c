@@ -1245,7 +1245,7 @@ kk_integer_t kk_integer_sqr_generic(kk_integer_t x, kk_context_t* ctx) {
   return integer_bigint(kk_bigint_sqr(bx, ctx), ctx);
 }
 
-/* borrow x, may leak memory if x is not a bigint */
+/* borrow x, may prodice an invalid read if x is not a bigint */
 int kk_integer_signum_generic_bigint(kk_integer_t x, kk_context_t* ctx) {
   kk_assert_internal(kk_is_integer(x));
   kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_as_bigint(x), KK_TAG_BIGINT);
@@ -1262,11 +1262,12 @@ bool kk_integer_is_even_generic(kk_integer_t x, kk_context_t* ctx) {
   return even;
 }
 
-/* Borrow x,y. may leak memory if x,y are not bigints */
-int kk_integer_cmp_generic_bigint(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_as_bigint(x), KK_TAG_BIGINT);
-  kk_bigint_t* by = kk_block_assert(kk_bigint_t*, _kk_as_bigint(y), KK_TAG_BIGINT);
+int kk_integer_cmp_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  kk_bigint_t* bx = kk_integer_to_bigint(kk_integer_dup(x), ctx);
+  kk_bigint_t* by = kk_integer_to_bigint(kk_integer_dup(y), ctx);
   int sign = bigint_compare_(bx, by);
+  drop_bigint(bx, ctx);
+  drop_bigint(by, ctx);
   return sign;
 }
 
