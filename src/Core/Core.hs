@@ -23,6 +23,8 @@ module Core.Core ( -- Data structures
                    , flattenTypeDefGroups
                    , flattenDefGroups
                    , flattenAllDefGroups
+                   , mapDefGroup
+                   , mapMDefGroup
                    , extractSignatures
                    , typeDefIsExtension
                    , typeDefVis
@@ -426,6 +428,14 @@ flattenDefGroups defGroups
 flattenAllDefGroups :: [DefGroups] -> [Def]
 flattenAllDefGroups defGroups
   = concatMap flattenDefGroups defGroups
+
+mapDefGroup :: (Def -> Def) -> DefGroup -> DefGroup
+mapDefGroup f (DefNonRec def) = DefNonRec $ f def
+mapDefGroup f (DefRec defs) = DefRec $ map f defs
+
+mapMDefGroup :: (Monad m) => (Def -> m Def) -> DefGroup -> m DefGroup
+mapMDefGroup f (DefNonRec def) = DefNonRec <$> f def
+mapMDefGroup f (DefRec defs) = DefRec <$> mapM f defs
 
 -- | A value definition
 data Def = Def{ defName  :: Name

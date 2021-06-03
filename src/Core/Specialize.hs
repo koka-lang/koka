@@ -1,5 +1,6 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Core.Specialize( SpecializeEnv
                       , specenvNew
@@ -15,6 +16,7 @@ module Core.Specialize( SpecializeEnv
 
 import Data.Bifunctor
 import Control.Monad.State
+import Control.Monad.Reader
 import Control.Applicative
 import Data.Maybe (mapMaybe, fromMaybe, catMaybes, isJust, fromJust)
 
@@ -40,11 +42,11 @@ data SpecState = SpecState
   , _newDefs :: DefGroups
   } deriving (Show)
 
-type SpecM = State SpecState
+type SpecM = ReaderT SpecializeEnv (State SpecState)
 
-runSpecM :: NameMap Expr -> SpecM a -> (a, DefGroups)
-runSpecM scope specM = 
-  let (result, SpecState _ newDefs) = flip runState (SpecState { _inScope = scope, _newDefs = [] }) specM
+runSpecM :: NameMap Expr -> SpecializeEnv -> SpecM a -> (a, DefGroups)
+runSpecM scope specEnv specM = 
+  let (result, SpecState _ newDefs) = flip runState (SpecState { _inScope = scope, _newDefs = [] }) $ flip runReaderT specEnv specM
   in (result, newDefs)
 
 inScope :: SpecM (NameMap Expr)
@@ -56,88 +58,77 @@ queryScope name = gets (M.lookup name . _inScope)
 addToScope :: Name -> Expr -> SpecM ()
 addToScope name expr = modify (\state@SpecState{ _inScope = inScope } -> state{ _inScope = M.insert name expr inScope })
 
-emitSpecializedDef :: DefGroup -> SpecM ()
-emitSpecializedDef defGroup = modify (\state@SpecState { _newDefs = newDefs } -> state{ _newDefs = defGroup:newDefs})
+emitSpecializedDefGroup :: DefGroup -> SpecM ()
+emitSpecializedDefGroup defGroup = modify (\state@SpecState { _newDefs = newDefs } -> state{ _newDefs = defGroup:newDefs})
 
 specialize :: Env -> Int -> SpecializeEnv -> DefGroups -> (DefGroups, Int)
 specialize env uniq specEnv groups =
   let 
     -- TODO: initial scope isn't empty
-    (changedDefs, newDefs) = runSpecM M.empty $ mapM (specOneDefGroup specEnv) groups
+    (changedDefs, newDefs) = runSpecM M.empty specEnv $ mapM specOneDefGroup groups
   in (changedDefs ++ newDefs, uniq)
 
-specOneDefGroup :: SpecializeEnv -> DefGroup -> SpecM DefGroup
-specOneDefGroup env (DefRec [def]) = do
-  specialized <- specOneDef env def
-  pure $ DefRec [specialized]
-specOneDefGroup _ group = pure group
+speclookupM :: (Monad m, MonadReader SpecializeEnv m) => Name -> m (Maybe SpecializeDefs)
+speclookupM name = asks (specenvLookup name)
 
-specOneDef :: SpecializeEnv -> Def -> SpecM Def
-specOneDef env def = 
-  let 
-    -- account for typelam or normal vals 
-    Lam params eff body = defExpr def
+specOneDefGroup :: DefGroup -> SpecM DefGroup
+specOneDefGroup = mapMDefGroup specOneDef
 
-    go = rewriteBottomUpM (\e -> case e of
-      App (Var (TName name _) _) args 
-        | Just (SpecializeDefs{argsToSpecialize=argsToSpecialize}) <- specenvLookup name env -> do
-            -- we should keep this as a list of bool, no need to do this translation since we will need it again when removing the args
-            -- and adding them to the new def
-            candidates <- zipWithM (\isSpecializeCandidate arg -> if isSpecializeCandidate then argHasKnownRHS arg else pure Nothing) argsToSpecialize args
-            specOneCall e candidates
+specOneDef :: Def -> SpecM Def
+specOneDef def = do
+  e <- specOneExpr $ defExpr def
+  pure def{ defExpr = e }
 
-        -- update the type of binders
-        -- | Let groups body -> 
-      
-      -- TODO:
-      -- App (TypeApp (Var (TName name _) _) _) xs 
-      --   | Just spec <- specenvLookup name env -> 
-      --       maybe body (\rhs -> specOneCall body spec rhs) <$> queryScope name
+specOneExpr :: Expr -> SpecM Expr
+specOneExpr = rewriteBottomUpM $ \e -> case e of
+  App (Var (TName name _) _) args -> go name e
+  App (TypeApp (Var (TName name _) _)_) args -> go name e
+  e -> pure e
+  where
+    go name e = do
+      specDef <- speclookupM name
+      case specDef of
+        Nothing -> pure e
+        Just def -> specOneCall def e
 
-      e -> pure e)
+lookupInScope :: Name -> Def
+lookupInScope = undefined
 
-    argHasKnownRHS (Var (TName name _) _) = queryScope name
-    -- double-check this
-    argHasKnownRHS (TypeApp (Var (TName name _) _) _) = queryScope name
-    argHasKnownRHS e = pure $ Just e
-      
-    specOneCall :: Expr -> [Maybe Expr] -> SpecM Expr
-    specOneCall (App (Var (TName name fType) _) args) argsToSpecialize = do
-      -- name must be in scope since it's specializable
-      defToSpecialize <- fromJust <$> queryScope name
-      let params = case defToSpecialize of
-            Lam params _ _ -> params
-            TypeLam _ (Lam params _ _) -> params
-            _ -> error $ show defToSpecialize
-      let specName = newName "spec"
-      let namesToReplace = zipWith (\name mybeArg -> (name,) <$> mybeArg) params argsToSpecialize
-      let letDefGroups = mapMaybe ((\(TName name _, expr) -> DefNonRec $ Def name (error "type") expr Private DefVal InlineAuto (error "Range2") (error "doc")) <$>) namesToReplace
-      let newParams = catMaybes $ zipWith (\spec param -> spec >> pure param) argsToSpecialize params
-      let newBody = Lam newParams eff $ Let letDefGroups body
+createSpecializedDef :: Name -> [Bool] -> [Expr] -> SpecM Def
+createSpecializedDef name paramsToSpecialize args = 
+  case defExpr def of
+    e@(Lam params eff expr) -> pure $ go e params
+    -- TypeLam types e@(Lam params eff expr) -> pure $ go e params
+    _ -> error "Unexpected specialize target"
+  where
+    def = lookupInScope name
+    go (Lam params eff body) _ = 
+      Def undefined undefined undefined undefined undefined undefined undefined undefined 
+        where
+          newParams = filterBools paramsToSpecialize $ zip params args
+          specializedBody = Lam params eff $ Let [DefNonRec $ Def (getName paramName) undefined arg undefined undefined undefined undefined undefined | (paramName, arg) <- newParams] body
 
-      -- TODO: here I need to get the type of the def that I'm specializing, but I only have its body
-      -- it seems wrong to store the in-scope names as Defs instead of Exprs, so what's the best way to handle this?
-      let specializedDef = DefRec [Def name (error "type") newBody Private DefFun InlineNever (error "range") (error "doc")]
+filterBools :: [Bool] -> [a] -> [a]
+filterBools bools as = catMaybes $ zipWith (\bool a -> guard bool >> Just a) bools as
 
-      let newArgs = catMaybes $ zipWith (\spec arg -> spec >> pure arg) argsToSpecialize args
+specOneCall :: SpecializeDefs -> Expr -> SpecM Expr
+specOneCall (SpecializeDefs{ argsToSpecialize=argsToSpecialize }) e = case e of
+  App (Var (TName name _) _) args -> do
+    specializedDef <- createSpecializedDef name argsToSpecialize args
+    emitSpecializedDefGroup $ DefRec [specializedDef]
+    replaceCall specializedDef argsToSpecialize args
 
-      emitSpecializedDef specializedDef
+  -- the result may no longer be a typeapp
+  -- App (TypeApp (Var (TName name _) _) _) args -> undefined
+  _ -> error "specOneCall"
 
-      -- TODO info
-      -- TODO TypeApp case ?
-      pure $ App (Var (TName name fType) InfoNone) newArgs
-
-    -- TODO
-    specOneCall e@(App (TypeApp (Var (TName name _) _) _) args) argsToSpecialize = pure e
-
-    res = case defExpr def of 
-      Lam params eff body -> Lam params eff <$> go body
-      TypeLam types (Lam params eff body) -> TypeLam types <$> (Lam params eff <$> go body)
-  in
-    do 
-      r <- res
-      -- Type needs to change too
-      pure def { defExpr = r }
+replaceCall :: Def -> [Bool] -> [Expr] -> SpecM Expr
+replaceCall specializedDef bools args =
+    pure $ App 
+     (Var (TName (defName specializedDef) (defType specializedDef)) $ error "VarInfo")
+     newArgs
+  where
+    newArgs = filterBools bools args
 
 extractSpecializeDefs :: DefGroups -> SpecializeEnv
 extractSpecializeDefs = 
