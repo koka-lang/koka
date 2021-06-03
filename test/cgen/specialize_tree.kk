@@ -4,6 +4,12 @@ fun mapTree(Node(a, children) : tree<a>, f : a -> b) : _ tree<b> {
     Node(f(a), map(children, fn (tree) { tree.mapTree(f) }))
 }
 
+val f = {
+//   mapTree(Node(1, []), fn(x) { x + 1 })  
+  val y = 2
+  y + y
+}
+
 /*
 mapTree([1,2,3], (+1))
 mapTree_plusone([1,2,3])

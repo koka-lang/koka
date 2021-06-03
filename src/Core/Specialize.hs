@@ -75,7 +75,7 @@ specOneDefGroup _ group = pure group
 specOneDef :: SpecializeEnv -> Def -> SpecM Def
 specOneDef env def = 
   let 
-    -- account for typelam
+    -- account for typelam or normal vals 
     Lam params eff body = defExpr def
 
     go = rewriteBottomUpM (\e -> case e of
@@ -85,6 +85,9 @@ specOneDef env def =
             -- and adding them to the new def
             candidates <- zipWithM (\isSpecializeCandidate arg -> if isSpecializeCandidate then argHasKnownRHS arg else pure Nothing) argsToSpecialize args
             specOneCall e candidates
+
+        -- update the type of binders
+        -- | Let groups body -> 
       
       -- TODO:
       -- App (TypeApp (Var (TName name _) _) _) xs 
@@ -99,7 +102,7 @@ specOneDef env def =
     argHasKnownRHS e = pure $ Just e
       
     specOneCall :: Expr -> [Maybe Expr] -> SpecM Expr
-    specOneCall (App (Var (TName name _) _) args) argsToSpecialize = do
+    specOneCall (App (Var (TName name fType) _) args) argsToSpecialize = do
       -- name must be in scope since it's specializable
       defToSpecialize <- fromJust <$> queryScope name
       let params = case defToSpecialize of
@@ -111,6 +114,9 @@ specOneDef env def =
       let letDefGroups = mapMaybe ((\(TName name _, expr) -> DefNonRec $ Def name (error "type") expr Private DefVal InlineAuto (error "Range2") (error "doc")) <$>) namesToReplace
       let newParams = catMaybes $ zipWith (\spec param -> spec >> pure param) argsToSpecialize params
       let newBody = Lam newParams eff $ Let letDefGroups body
+
+      -- TODO: here I need to get the type of the def that I'm specializing, but I only have its body
+      -- it seems wrong to store the in-scope names as Defs instead of Exprs, so what's the best way to handle this?
       let specializedDef = DefRec [Def name (error "type") newBody Private DefFun InlineNever (error "range") (error "doc")]
 
       let newArgs = catMaybes $ zipWith (\spec arg -> spec >> pure arg) argsToSpecialize args
@@ -119,7 +125,7 @@ specOneDef env def =
 
       -- TODO info
       -- TODO TypeApp case ?
-      pure $ App (Var (TName name $ error "error: type") InfoNone) newArgs
+      pure $ App (Var (TName name fType) InfoNone) newArgs
 
     -- TODO
     specOneCall e@(App (TypeApp (Var (TName name _) _) _) args) argsToSpecialize = pure e

@@ -501,10 +501,10 @@ rewriteBottomUp f e = case e of
 
 rewriteBottomUpM :: (Monad m) => (Expr -> m Expr) -> Expr -> m Expr
 rewriteBottomUpM f e = case e of 
-  Lam params eff body -> f . Lam params eff =<< (f body)
+  Lam params eff body -> f . Lam params eff =<< f body
   Var _ _ -> f e
   App fun xs -> f =<< liftA2 App (f fun) (mapM f xs)
-  TypeLam types body -> f . TypeLam types =<< (f body)
+  TypeLam types body -> f . TypeLam types =<< f body
   TypeApp expr types -> f . (\fexpr -> TypeApp fexpr types) =<< f expr
   Con _ _ -> f e
   Lit _ -> f e
