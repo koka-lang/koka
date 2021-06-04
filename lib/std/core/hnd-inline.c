@@ -198,7 +198,7 @@ kk_evv_t kk_evv_delete(kk_evv_t evvd, kk_ssize_t index, bool behind, kk_context_
 
 kk_evv_t kk_evv_create(kk_evv_t evv1, kk_vector_t indices, kk_context_t* ctx) {
   kk_ssize_t len;
-  kk_box_t* elems = kk_vector_buf(indices,&len); // borrows
+  kk_box_t* elems = kk_vector_buf_borrow(indices,&len); // borrows
   kk_evv_vector_t evv2 = kk_evv_vector_alloc(len,kk_evv_cfc_of_borrow(evv1,ctx),ctx);
   kk_std_core_hnd__ev* buf2 = kk_evv_vector_buf(evv2,NULL);
   kk_assert_internal(kk_evv_is_vector(evv1));
@@ -217,7 +217,7 @@ kk_evv_t kk_evv_create(kk_evv_t evv1, kk_vector_t indices, kk_context_t* ctx) {
 
 kk_evv_t kk_evv_swap_create( kk_vector_t indices, kk_context_t* ctx ) {
   kk_ssize_t len;
-  kk_box_t* vec = kk_vector_buf(indices,&len);
+  kk_box_t* vec = kk_vector_buf_borrow(indices,&len);
   if (len==0) {
     kk_vector_drop(indices,ctx);
     return kk_evv_swap_create0(ctx);

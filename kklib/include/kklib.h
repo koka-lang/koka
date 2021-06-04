@@ -974,7 +974,7 @@ static inline kk_vector_t kk_vector_empty(void) {
   return kk_datatype_from_tag(1);
 }
 
-static inline kk_vector_large_t kk_vector_as_large(kk_vector_t v) {
+static inline kk_vector_large_t kk_vector_as_large_borrow(kk_vector_t v) {
   if (kk_datatype_is_singleton(v)) {
     return NULL;
   }
@@ -991,23 +991,18 @@ static inline kk_vector_t kk_vector_dup(kk_vector_t v) {
   return kk_datatype_dup(v);
 }
 
-static inline kk_vector_t kk_vector_alloc(kk_ssize_t length, kk_box_t def, kk_context_t* ctx) {
-  if (length<=0) {
+static inline kk_vector_t kk_vector_alloc(kk_ssize_t length, kk_context_t* ctx) {
+  if (kk_unlikely(length<=0)) {
     return kk_vector_empty();
   }
   else {
     kk_vector_large_t v = (kk_vector_large_t)kk_block_large_alloc(kk_ssizeof(struct kk_vector_large_s) + (length-1)*kk_ssizeof(kk_box_t), length + 1 /* kk_large_scan_fsize */, KK_TAG_VECTOR, ctx);
-    if (def.box != kk_box_null.box) {
-      for (kk_ssize_t i = 0; i < length; i++) {
-        v->vec[i] = def;
-      }
-    }
     return kk_datatype_from_base(&v->_base);
   }
 }
 
-static inline kk_ssize_t kk_vector_len(const kk_vector_t vd) {
-  kk_vector_large_t v = kk_vector_as_large(vd);
+static inline kk_ssize_t kk_vector_len_borrow(const kk_vector_t vd) {
+  kk_vector_large_t v = kk_vector_as_large_borrow(vd);
   if (v==NULL) return 0;
   kk_ssize_t len = kk_int_unbox(v->_base.large_scan_fsize) - 1;
   kk_assert_internal(len + 1 == kk_block_scan_fsize(&v->_base._block));
@@ -1015,16 +1010,42 @@ static inline kk_ssize_t kk_vector_len(const kk_vector_t vd) {
   return len;
 }
 
-static inline kk_box_t* kk_vector_buf(kk_vector_t vd, kk_ssize_t* len) {
-  if (len != NULL) *len = kk_vector_len(vd);
-  kk_vector_large_t v = kk_vector_as_large(vd);
+// TODO: Use borrowed variant in core.kk
+static inline kk_ssize_t kk_vector_len(const kk_vector_t vd, kk_context_t* ctx) {
+  kk_ssize_t len = kk_vector_len_borrow(vd);
+  kk_vector_drop(vd, ctx);
+  return len;
+}
+
+static inline kk_box_t* kk_vector_buf_borrow(kk_vector_t vd, kk_ssize_t* len) {
+  if (len != NULL) *len = kk_vector_len_borrow(vd);
+  kk_vector_large_t v = kk_vector_as_large_borrow(vd);
   if (v==NULL) return NULL;
   return &(v->vec[0]);
 }
 
-static inline kk_box_t kk_vector_at(const kk_vector_t v, kk_ssize_t i) {
-  kk_assert(i < kk_vector_len(v));
-  return kk_box_dup(kk_vector_buf(v, NULL)[i]);
+static inline void kk_vector_set_borrow(kk_vector_t _v, kk_box_t def, kk_context_t* ctx) {
+  kk_ssize_t length;
+  kk_box_t* v = kk_vector_buf_borrow(_v, &length);
+ // inline kk_box_dup and kk_box_drop for better performance
+  if (kk_box_is_ptr(def)) {
+    for (kk_ssize_t i = 0; i < length; i++) {
+      kk_block_dup(kk_ptr_unbox(def));
+      v[i] = def;
+    }
+    kk_block_drop(kk_ptr_unbox(def), ctx);
+  } else {
+    for (kk_ssize_t i = 0; i < length; i++) {
+      v[i] = def;
+    }
+  }
+}
+
+static inline kk_box_t kk_vector_at(const kk_vector_t v, kk_ssize_t i, kk_context_t* ctx) {
+  kk_assert(i < kk_vector_len_borrow(v));
+  kk_box_t res = kk_box_dup(kk_vector_buf_borrow(v, NULL)[i]);
+  kk_vector_drop(v, ctx);
+  return res;
 }
 
 static inline kk_box_t kk_vector_box(kk_vector_t v, kk_context_t* ctx) {
@@ -1040,10 +1061,13 @@ static inline kk_vector_t kk_vector_unbox(kk_box_t v, kk_context_t* ctx) {
 
 static inline kk_vector_t kk_vector_realloc(kk_vector_t vec, kk_ssize_t newlen, kk_box_t def, kk_context_t* ctx) {
   kk_ssize_t len;
-  kk_box_t* src = kk_vector_buf(vec, &len);
+  kk_box_t* src = kk_vector_buf_borrow(vec, &len);
   if (len == newlen) return vec;
-  kk_vector_t vdest = kk_vector_alloc(newlen, def, ctx);
-  kk_box_t* dest    = kk_vector_buf(vdest,NULL);
+  kk_vector_t vdest = kk_vector_alloc(newlen, ctx);
+  if(def.box != kk_box_null.box) {
+    kk_vector_set_borrow(vdest, def, ctx);
+  }
+  kk_box_t* dest    = kk_vector_buf_borrow(vdest,NULL);
   const kk_ssize_t n = (len > newlen ? newlen : len);
   for (kk_ssize_t i = 0; i < n; i++) {
     dest[i] = kk_box_dup(src[i]);
@@ -1128,11 +1152,11 @@ static inline kk_unit_t kk_ref_vector_assign(kk_ref_t r, kk_integer_t idx, kk_bo
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
     kk_vector_t v = kk_vector_unbox(b, ctx);
     kk_ssize_t len;
-    kk_box_t* p = kk_vector_buf(v, &len);
+    kk_box_t* p = kk_vector_buf_borrow(v, &len);
     kk_ssize_t i = kk_integer_clamp_ssize_t(idx,ctx);
     if (i < len) {
       kk_box_drop(p[i], ctx);
-      p[i] = value;
+      p[i] = kk_box_dup(value);
     }  // TODO: return status for out-of-bounds access
     kk_ref_drop(r, ctx);    // TODO: make references borrowed
     return kk_Unit;
