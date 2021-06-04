@@ -1156,7 +1156,7 @@ static inline kk_unit_t kk_ref_vector_assign(kk_ref_t r, kk_integer_t idx, kk_bo
     kk_ssize_t i = kk_integer_clamp_ssize_t(idx,ctx);
     if (i < len) {
       kk_box_drop(p[i], ctx);
-      p[i] = kk_box_dup(value);
+      p[i] = value;
     }  // TODO: return status for out-of-bounds access
     kk_ref_drop(r, ctx);    // TODO: make references borrowed
     return kk_Unit;
