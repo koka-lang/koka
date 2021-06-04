@@ -26,6 +26,7 @@ module Common.Syntax( Visibility(..)
                     , OperationSort(..), readOperationSort
                     , Platform(..), platform32, platform64, platformCS, platformJS
                     , alignedSum, alignedAdd, alignUp
+                    , BuildType(..)
                     ) where
 
 {--------------------------------------------------------------------------
@@ -68,6 +69,16 @@ alignedAdd x y = (alignUp x y) + y
 alignUp :: Int -> Int -> Int
 alignUp x y  | y <= 0  = x
 alignUp x y  = ((x + y - 1) `div` y)*y    
+
+
+
+data BuildType = Debug | Release | RelWithDebInfo
+               deriving (Eq)
+
+instance Show BuildType where
+  show Debug          = "debug"
+  show Release        = "release"
+  show RelWithDebInfo = "drelease"
 
 
 {--------------------------------------------------------------------------

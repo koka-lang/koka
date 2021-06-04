@@ -1,7 +1,7 @@
 #!/bin/sh -e
 #Installation script for Koka; use -h to see command line options.
 
-VERSION="v2.1.3"
+VERSION="v2.1.5"
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
@@ -268,17 +268,18 @@ install_packages() {
 
 install_dependencies() {
   info "Installing dependencies.."
+  deps="gcc make tar curl cmake ninja-build pkg-config"  # cmake, ninja, and pkg-config are needed by vcpkg
   if has_cmd apt-get ; then
-    apt_get_install build-essential gcc make cmake tar curl
+    apt_get_install build-essential $deps
   elif has_cmd dnf ; then
     dnf_groupinstall "Development Tools" # this is for Fedora 32+， CentOS 8 and CentOS Stream  
-    dnf_install gcc make cmake tar curl
+    dnf_install $deps
   elif has_cmd yum ; then
-    yum_install build-essential gcc make cmake tar curl
+    yum_install build-essential $deps
   elif has_cmd apk ; then
-    apk_install build-essential gcc make cmake tar curl
+    apk_install build-essential $deps
   elif has_cmd pacman; then
-    pacman_install base-devel gcc make cmake tar curl
+    pacman_install base-devel $deps
   else
     info "Unable to install dependencies; continuing.."
   fi
@@ -397,21 +398,26 @@ install_dist() {
   fi  
   
   # install Visual Studio Code editor support
-  if [ -d ~/.vscode/extensions ] ; then
-    koka_vscode_dir="$KOKA_TEMP_DIR/share/koka/$version/contrib/vscode"
-    if [ -d $koka_vscode_dir ] ; then
-      info "- install vscode editor support"
-      if [ -d ~/.vscode/extensions/koka.language-koka ] ; then
-        need_restart=""
-      else
-        need_restart="yes"
-      fi
-      if ! cp -p -r $koka_vscode_dir/* ~/.vscode/extensions/ ; then
-        info "  (failed to copy vscode support files)"
-      elif [ ! -z "$need_restart" ] ; then    
-        info "  Please restart VS Code for Koka syntax highlighting to take effect."
-      fi
+  NODE_NO_WARNINGS=1
+  vscode="code"
+  if ! which "$vscode" > /dev/null ; then
+    if [ "$(uname)" == "Darwin" ] ; then
+      vscode="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" # osx may not have code in the PATH
     fi
+  fi
+  if which "$vscode" > /dev/null ; then
+    info "- install vscode editor support"
+    if "$vscode" --list-extensions | grep "koka-lang.language-koka" > /dev/null ; then
+      "$vscode" --uninstall-extension koka-lang.language-koka > /dev/null  # old installation package
+    fi
+    if ! "$vscode" --force --install-extension koka.language-koka > /dev/null ; then  # new one from vs code marketplace
+      info "  failed to install vscode editor support!"
+    fi
+  fi
+
+  # emacs message
+  if ! which emacs ; then 
+    info "- emacs syntax mode can be found at: $koka_share_dir/$version/contrib/emacs" 
   fi
 }
 

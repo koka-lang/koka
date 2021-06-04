@@ -18,7 +18,6 @@
 static kk_usecs_t kk_to_usecs(LARGE_INTEGER t) {
   static LARGE_INTEGER mfreq; // = 0
   if (mfreq.QuadPart == 0) {
-    LARGE_INTEGER f;
     QueryPerformanceFrequency(&mfreq);
     //mfreq.QuadPart = f.QuadPart/I64(1000000);
     if (mfreq.QuadPart == 0) mfreq.QuadPart = 1000;
@@ -119,7 +118,7 @@ void kk_process_info(kk_msecs_t* utime, kk_msecs_t* stime, size_t* peak_rss, siz
 #include <kernel/OS.h>
 #endif
 
-static kk_msecs_t timeval_secs(const struct timeval* tv) {
+static kk_msecs_t kk_timeval_secs(const struct timeval* tv) {
   return ((kk_msecs_t)tv->tv_sec * 1000L) + ((kk_msecs_t)tv->tv_usec / 1000L);
 }
 
@@ -140,7 +139,7 @@ void kk_process_info(kk_msecs_t* utime, kk_msecs_t* stime, size_t* peak_rss, siz
   // get these stats per process
   thread_info tid;
   area_info mem;
-  ssize_t c;
+  kk_ssize_t c;
   *peak_rss = 0;
   *page_faults = 0;
   *page_reclaim = 0;
@@ -150,8 +149,8 @@ void kk_process_info(kk_msecs_t* utime, kk_msecs_t* stime, size_t* peak_rss, siz
       *peak_rss += mem.ram_size;
   }
 #endif
-  *utime = timeval_secs(&rusage.ru_utime);
-  *stime = timeval_secs(&rusage.ru_stime);
+  *utime = kk_timeval_secs(&rusage.ru_utime);
+  *stime = kk_timeval_secs(&rusage.ru_stime);
 }
 
 #else

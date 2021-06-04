@@ -38,6 +38,8 @@
 
     { "include": "#decl_function" },
 
+    { "include": "#decl_external_import" },
+
     { "include": "#decl_external" },
 
     { "include": "#decl_val" },
@@ -58,11 +60,13 @@
 
     { "include": "#reservedid" },
 
+    { "include": "#reservedcontrol" },
+
     { "include": "#reservedop" },
 
-    { "include": "#libraryop" },
-
     { "include": "#libraryid" },
+
+    { "include": "#externid" },
 
     { "include": "#qconstructor" },
 
@@ -179,7 +183,7 @@
            },
 
            { "match": "\\\\([abfnrtvz0\\\\\"'\\?]|x[\\da-fA-F]{2}|u[\\da-fA-F]{4}|U[\\da-fA-F]{6})"
-           , "name": "constant.character.escape.koka"
+           , "name": "string.quoted.double constant.character.escape.koka"
            },
 
            { "match": "."
@@ -203,8 +207,8 @@
       { "match": "(')(\\\\([abfnrtv0\\\\\"'\\?]|x[\\da-fA-F]{2}|u[\\da-fA-F]{4}|U[\\da-fA-F]{6}))(')"
       , "captures": {
           "1": { "name": "string.quoted.single.koka" },
-          "2": { "name": "constant.character.escape.koka" },
-          "3": { "name": "constant.character.escape.koka" },
+          "2": { "name": "string.quoted.single constant.character.escape.koka" },
+          "3": { "name": "string.quoted.single constant.character.escape.koka" },
           "4": { "name": "string.quoted.single.koka" }
         }
       },
@@ -226,17 +230,22 @@
 
     "libraryop":
       { "match": "(!)(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>])"
-      , "name": "support.function.koka"
+      , "name": "keyword.control.$1.koka"
       },
 
     "libraryid":
-      { "match": "(inline|header|c|cs|js|file|ref|resume|resume-shallow|rcontext)(?![\\w\\-?'])"
-      , "name": "support.function.koka"
+      { "match": "(resume|resume-shallow|rcontext)(?![\\w\\-?'])"
+      , "name": "keyword.control.$1.koka"
+      },
+
+    "externid":
+      { "match": "(?:c|cs|js|inline)\\s+(?:inline\\s+)?(?:file\\s+)?(?=[\\\"\\{])"
+      , "name": "keyword.control.$1.koka"
       },
 
     "dot" :
       { "match": "\\."
-      , "name": "keyword.dot.koka"
+      , "name": "source.dot.koka"
       },
 
     "reservedop" :
@@ -245,8 +254,13 @@
       },
 
     "reservedid" :
-      { "match": "(infix|infixr|infixl|prefix|postfix|type|co|rec|struct|alias|forall|exists|some|interface|with(?:\\s+override)?|extern|fun(?:\\s+raw)?|fn|val|var|con|if|then|else|elif|match|inject|mask(?:\\s+behind)?|handle(?:\\s*(?:local))?|handler(?:\\s*(?:local))?|return|module|import|as|in|pub|public|private|abstract|effect|context|ambient(?:\\s+rec)?|cont|resource|instance|dynamic|named|except|rcontrol|control)(?![\\w\\-?'])"
-      , "name": "keyword.other.koka"
+      { "match": "(return(?=(?:\\(|\\s+\\(?)\\w[\\w\\-]*\\s*(?:\\)\\s*)?(?:\\{|\\->))|infix|infixr|infixl|prefix|postfix|type|co|rec|struct|alias|forall|exists|some|interface|extern|fun(?:\\s+raw)?|fn|val|var|con|with(?:\\s+override)?|module|import|as|in|pub|public|private|abstract|effect|named|except|rcontrol|control|mask(?:\\s+behind)?|handle(?:\\s*(?:local))?|handler(?:\\s*(?:local))?)(?![\\w\\-?'])"
+      , "name": "keyword.other.$1.koka"
+      },
+
+    "reservedcontrol" :
+      { "match": "(if|then|else|elif|match|return)(?![\\w\\-?'])"
+      , "name": "keyword.control.$1.koka"
       },
 
     "branch":
@@ -259,7 +273,7 @@
       , "captures": {
           "1": { "name": "keyword.other.koka" },
           "3": { "name": "keyword.other.koka" },
-          "4": { "name": "entity.name.class.module.koka" }
+          "4": { "name": "variable.other.member.definition.module.koka" }
         }
       },
 
@@ -267,9 +281,9 @@
       { "match": "(import)(\\s+(([a-z][\\w\\-]*/)*[a-z][\\w\\-]*)(\\s+(=)(\\s+(([a-z][\\w\\-]*/)*[a-z][\\w\\-]*))?))"
       , "captures": {
           "1": { "name": "keyword.koka" },
-          "3": { "name": "entity.name.class.module.koka" },
+          "3": { "name": "variable.other.member.definition.module.koka" },
           "6": { "name": "keyword.koka" },
-          "8": { "name": "entity.name.class.module.koka" }
+          "8": { "name": "variable.other.member.definition.module.koka" }
         }
       },
 
@@ -277,7 +291,7 @@
       { "match": "(import)(\\s+(([a-z][\\w\\-]*/)*[a-z][\\w\\-]*))"
       , "captures": {
           "1": { "name": "keyword.koka" },
-          "3": { "name": "entity.name.class.module.koka" }
+          "3": { "name": "variable.other.member.definition.module.koka" }
         }
       },
 
@@ -289,7 +303,7 @@
     "qidentifier" :
       { "match": "((?:[a-z][\\w\\-]*/)+)([\\.a-z][\\w\\-]*[\\'\\?]*(?:\\.\\d+)?)"
       , "captures": {
-          "1": { "name": "entity.name.class.module.koka"},
+          "1": { "name": "variable.other.member.definition.module.koka" },
           "2": { "name": "source.koka" }
         }
       },
@@ -297,7 +311,7 @@
     "qoperator" :
       { "match": "((?:[a-z][\\w\\-]*/)+)(\\([^\\n\\r\\)]+(?:\\.\\d+)?\\))"
       , "captures": {
-          "1": { "name": "entity.name.class.module.koka"},
+          "1": { "name": "variable.other.member.definition.module.koka" },
           "2": { "name": "source.operator.koka" }
         }
       },
@@ -310,7 +324,7 @@
     "qconstructor" :
       { "match": "((?:[a-z][\\w\\-]*/)+)([A-Z][\\w\\-]*[\\'\\?]*)"
       , "captures": {
-          "1": { "name": "entity.name.class.module.koka"},
+          "1": { "name": "variable.other.member.definition.module.koka" },
           "2": { "name": "entity.name.tag.css.constant.other.constructor.koka" }
         }
       },
@@ -332,17 +346,17 @@
 
     "type_variable" :
       { "match": "([a-z][0-9]*|_[\\w\\-]*[\\'\\?]*|self)(?!\\w)"
-      , "name": "entity.name.class.type.typevar.koka markup.italic"
+      , "name": "markup.italic constant.numeric.type support.type.typevar.koka"
       },
 
     "type_identifier" :
       { "match": "[a-z][\\w\\-]*[\\'\\?]*"
-      , "name": "entity.name.class.type.constant.koka"
+      , "name": "constant.numeric.type support.type.typecon.koka"
       },
 
     "type_qidentifier" :
       { "match": "([a-z][\\w\\-]*[\\'\\?]*/)+"
-      , "name": "entity.name.class.module.koka"
+      , "name": "variable.other.member.definition.module.koka"
       },
 
     "type_parameter" :
@@ -354,16 +368,16 @@
 
     "type_kind" :
       { "match": "[A-Z](?![\\w\\-])"
-      , "name": "entity.name.class.type.kind.koka"
+      , "name": "constant.numeric.type support.type.kind.koka"
       },
 
     "type_interface" :
       { "match": "[A-Z][\\w\\-]+[\\'\\?]*"
-      , "name": "entity.name.class.type.interface.koka"
+      , "name": "constant.numeric.type support.type.interface.koka"
       },
 
     "decl_function":
-      { "match": "((?:inline|noinline|raw)?\\s*(?:fun|fn|except|rcontrol|control))\\s+([\\.a-z][\\w\\-]*[\\'\\?]*(?:\\.\\d+)?|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+(?:\\.\\d+)?\\)|\\[\\])"
+      { "match": "((?:inline|noinline)?\\s*(?:fun|fn|except|rcontrol|control))\\s+([\\.a-z][\\w\\-]*[\\'\\?]*(?:\\.\\d+)?|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+(?:\\.\\d+)?\\)|\\[\\])"
       , "captures": {
           "1": { "name": "keyword.declaration.function.koka" },
           "2": { "name": "entity.name.function.koka" }
@@ -375,6 +389,11 @@
       , "name" : "entity.name.function.koka"
       },
 
+    "decl_external_import":
+      { "match": "(extern\\s+import)"
+      , "name": "keyword.declaration.import.koka"
+      },
+
     "decl_external":
       { "match": "((?:inline|noinline)?\\s*extern)\\s+([\\.a-z][\\w\\-]*[\\'\\?]*(?:\\.\\d+)?|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+(?:\\.\\d+)?\\)|\\[\\])?"
       , "captures": {
@@ -384,10 +403,10 @@
       },
 
      "decl_val":
-       { "match": "((((?:inline|noinline)?\\s*val)\\s+))(([\\.a-z][\\w\\-]*[\\'\\?]*(?:\\.\\d+)?)|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+\\))\\s*"
+       { "match": "((?:inline|noinline)?\\s*val)\\s+([\\.a-z][\\w\\-]*[\\'\\?]*(?:\\.\\d+)?|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+(?:\\.\\d+)?\\))?"
        , "captures": {
-           "3": { "name": "keyword.declaration.val.koka" },
-           "5": { "name": "entity.name.val.koka" }
+           "1": { "name": "keyword.declaration.val.koka" },
+           "2": { "name": "entity.name.val.koka" }
          }
        },
 
@@ -415,8 +434,8 @@
 
     "top_type":
       { "begin": "(:(?![$%&\\*\\+@!\\\\\\^~=\\.:\\-\\|<>]))|(where|iff|when)(?![\\w\\-])"
-      , "end": "(?=[,\\)\\{\\}\\[\\]=;\"`]|  |(infix|infixr|infixl|value|reference|open|extend|rec|co|type|linear|effect|context|ambient|alias|interface|extern|fn|fun|function|val|except|rcontrol|control|var|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|pub|public|private|abstract)(?![\\w\\-?']))"
-      , "beginCaptures": { "1" : { "name": "entity.name.class.type.koka" },
+      , "end": "(?=[,\\)\\{\\}\\[\\]=;\"`]|  |(infix|infixr|infixl|inline|noinline|value|reference|open|extend|rec|co|type|linear|effect|context|ambient|alias|interface|extern|fn|fun|function|val|except|rcontrol|control|var|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|pub|public|private|abstract)(?![\\w\\-?']))"
+      , "beginCaptures": { "1" : { "name": "constant.numeric.type support.type.koka" },
                            "2" : { "name": "keyword.koka" } }
       , "endCaptures": { "0" : { "name": "invalid.keyword.koka" }}
       , "patterns": [
@@ -427,9 +446,9 @@
 
     "top_type_type":
       { "begin": "((?:(?:value|reference|open|extend|rec|co)?\\s*type)|(?:named\\s+)?(?:scoped\\s+)?(?:linear\\s+)?(?:rec\\s+)?(?:effect|context|ambient))\\s+(?!fn|fun|val|except|rcontrol|control)([a-z][\\w\\-]+|<>|<\\|>|\\(,*\\))"
-      , "end": "(?=[\\)\\{\\}\\[\\]=;\"`]|  [\\r\\n]|(infix|infixr|infixl|type|co|rec|effect|context|ambient|alias|interface|extern|fn|fun|function|val|var|except|rcontrol|control|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|pub|public|private|abstract|value|reference|open|extend|inline|noinline)(?![\\w\\-?']))"
+      , "end": "(?=[\\)\\{\\}\\[\\]=;\"`]|  [\\r\\n]|(infix|infixr|infixl|inline|noinline|type|co|rec|effect|context|ambient|alias|interface|extern|fn|fun|function|val|var|except|rcontrol|control|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|pub|public|private|abstract|value|reference|open|extend|inline|noinline)(?![\\w\\-?']))"
       , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" }
-                         , "2" : { "name": "entity.name.class.type.koka" }}
+                         , "2" : { "name": "constant.numeric.type support.type.koka" }}
       , "endCaptures": { "0": { "name": "punctuation.separator.koka" }}
       , "patterns": [
           {"include": "#type_content_top" }
@@ -437,10 +456,10 @@
       },
 
     "top_type_alias":
-      { "begin": "(alias)\\s+([a-z]\\w+)"
-      , "end": "(?=[,\\)\\{\\}\\[\\];\"`]|(infix|infixr|infixl|type|co|rec|linear|alias|effect|context|ambient|interface|extern|fn|fun|function|val|var|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|pub|public|private|abstract)(?![\\w\\-?']))"
+      { "begin": "(alias)\\s+([a-z][\\w\\-]+)"
+      , "end": "(?=[,\\)\\{\\}\\[\\];\"`]|(infix|infixr|infixl|inline|noinline|type|co|rec|linear|alias|effect|context|ambient|interface|extern|fn|fun|function|val|var|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|pub|public|private|abstract)(?![\\w\\-?']))"
       , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" }
-                         , "2" : { "name": "entity.name.class.type.koka" }}
+                         , "2" : { "name": "constant.numeric.type support.type.koka" }}
       , "endCaptures": { "0": { "name": "invalid.keyword.koka" }}
       , "patterns": [
           { "match": "="
@@ -455,17 +474,17 @@
       { "match": "(struct)\\s+([a-z][\\w\\-]*|\\(,*\\))"
       , "captures": {
           "1": { "name": "keyword.declaration.type.koka" },
-          "2": { "name": "entity.name.class.type.koka" }
+          "2": { "name": "constant.numeric.type support.type.koka" }
         }
       },
 
     "top_type_struct_args":
       { "begin": "(struct)\\s+([a-z][\\w\\-]*|\\(,*\\))\\s*(<)"
-      , "end": "(>)|(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|type|co|rec|effect|context|ambient|alias|interface|extern|fn|fun|function|val|var|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|pub|public|private|abstract)(?![\\w\\-?']))"
+      , "end": "(>)|(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|inline|noinline|type|co|rec|effect|context|ambient|alias|interface|extern|fn|fun|function|val|var|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|pub|public|private|abstract)(?![\\w\\-?']))"
       , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" },
-                           "2" : { "name": "entity.name.class.type.koka"  },
-                           "3" : { "name": "entity.name.class.type.punctuation.separator.koka"  }}
-      , "endCaptures": { "1": {"name": "entity.name.class.type.punctuation.separator.koka" },
+                           "2" : { "name": "constant.numeric.type support.type.koka"  },
+                           "3" : { "name": "constant.numeric.type support.type.punctuation.separator.koka"  }}
+      , "endCaptures": { "1": {"name": "constant.numeric.type support.type.punctuation.separator.koka" },
                          "2": {"name": "invalid.keyword.koka" }}
       , "patterns": [
           {"include": "#type_content" }
@@ -474,9 +493,9 @@
 
     "top_type_interface":
       { "begin": "(interface)\\s+([A-Z]\\w+|<>|<\\|>|\\(,*\\))"
-      , "end": "(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|type|co|rec|effect|context|ambient|alias|interface|extern|fn|fun|function|val|var|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|pub|public|private|abstract)(?![\\w\\-?']))"
+      , "end": "(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|inline|noinline|type|co|rec|effect|context|ambient|alias|interface|extern|fn|fun|function|val|var|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|pub|public|private|abstract)(?![\\w\\-?']))"
       , "beginCaptures": { "1" : { "name": "keyword.declaration.type.koka" }
-                         , "2" : { "name": "entity.name.class.type.interface.koka" }}
+                         , "2" : { "name": "constant.numeric.type support.type.interface.koka" }}
       , "endCaptures": { "0": { "name": "punctuation.separator.koka" }}
       , "patterns": [
           {"include": "#type_content_top" }
@@ -485,10 +504,10 @@
 
     "top_type_quantifier":
       { "begin": "(exists|forall|some)(\\s*)(<)"
-      , "end": "(>)|(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|type|co|rec|effect|context|ambient|alias|interface|extern|fn|fun|function|val|var|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|pub|public|private|abstract)(?![\\w\\-?']))"
+      , "end": "(>)|(?=[\\)\\{\\}\\[\\]=;\"`]|(infix|infixr|infixl|inline|noinline|type|co|rec|effect|context|ambient|alias|interface|extern|fn|fun|function|val|var|con|if|then|else|elif|match|inject|mask|handle|handler|return|module|import|as|pub|public|private|abstract)(?![\\w\\-?']))"
       , "beginCaptures": { "1" : { "name": "keyword.koka" },
-                           "3" : { "name": "entity.name.class.type.punctuation.separator.koka"  }}
-      , "endCaptures": { "1": {"name": "entity.name.class.type.punctuation.separator.koka" },
+                           "3" : { "name": "constant.numeric.type support.type.punctuation.separator.koka"  }}
+      , "endCaptures": { "1": {"name": "constant.numeric.type support.type.punctuation.separator.koka" },
                          "2": {"name": "invalid.keyword.koka" }}
       , "patterns": [
           {"include": "#type_content" }
@@ -510,9 +529,9 @@
     "type_app":
       { "begin": "<(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|\\s\\d])"
       , "end": ">|\\n|  "
-      , "beginCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
-      , "endCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
-      , "name": "entity.name.class.type.koka"
+      , "beginCaptures": { "0": { "name": "constant.numeric.type support.type.punctuation.separator.koka" } }
+      , "endCaptures": { "0": { "name": "constant.numeric.type support.type.punctuation.separator.koka" } }
+      , "name": "constant.numeric.type support.type.koka"
       , "patterns": [
           { "include": "#type_content" }
         ]
@@ -532,7 +551,7 @@
         },
 
         { "match": "(\\->|::?|\\.)(?![$%&\\*\\+@!\\\\\\^~=\\.:\\-\\?\\|<>])"
-        , "name": "keyword.entity.name.class.type.koka"
+        , "name": "constant.numeric.type support.type.koka"
         },
 
         { "include": "#type_qidentifier"},
@@ -547,9 +566,9 @@
 
         { "begin": "\\("
         , "end": "\\)"
-        , "name": "entity.name.class.type.koka"
-        , "beginCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
-        , "endCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
+        , "name": "constant.numeric.type support.type.koka"
+        , "beginCaptures": { "0": { "name": "constant.numeric.type support.type.punctuation.separator.koka" } }
+        , "endCaptures": { "0": { "name": "constant.numeric.type support.type.punctuation.separator.koka" } }
         , "patterns": [
             { "include": "#type_content" }
           ]
@@ -557,9 +576,9 @@
 
         { "begin": "<(?![$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|])"
         , "end": ">|\\n|  "
-        , "beginCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
-        , "endCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
-        , "name": "entity.name.class.type.koka"
+        , "beginCaptures": { "0": { "name": "constant.numeric.type support.type.punctuation.separator.koka" } }
+        , "endCaptures": { "0": { "name": "constant.numeric.type support.type.punctuation.separator.koka" } }
+        , "name": "constant.numeric.type support.type.koka"
         , "patterns": [
             { "include": "#type_content" }
           ]
@@ -567,9 +586,9 @@
 
         { "begin": "\\["
         , "end": "\\]"
-        , "beginCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
-        , "endCaptures": { "0": { "name": "entity.name.class.type.punctuation.separator.koka" } }
-        , "name": "entity.name.class.type.koka"
+        , "beginCaptures": { "0": { "name": "constant.numeric.type support.type.punctuation.separator.koka" } }
+        , "endCaptures": { "0": { "name": "constant.numeric.type support.type.punctuation.separator.koka" } }
+        , "name": "constant.numeric.type support.type.koka"
         , "patterns": [
             { "include": "#type_content" }
           ]
@@ -580,7 +599,7 @@
         { "include": "#block_comment" },
 
         { "match": "[;,]|:"
-        , "name": "entity.name.class.type.punctuation.separator.koka"
+        , "name": "constant.numeric.type support.type.punctuation.separator.koka"
         }
       ]}
   },

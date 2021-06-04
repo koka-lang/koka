@@ -8,7 +8,7 @@
 #include "kklib.h"
 
 static void kk_block_drop_free_delayed(kk_context_t* ctx);
-static kk_decl_noinline void kk_block_drop_free_rec(kk_block_t* b, size_t scan_fsize, const size_t depth, kk_context_t* ctx);
+static kk_decl_noinline void kk_block_drop_free_rec(kk_block_t* b, kk_ssize_t scan_fsize, const kk_ssize_t depth, kk_context_t* ctx);
 
 static void kk_block_free_raw(kk_block_t* b) {
   kk_assert_internal(kk_tag_is_raw(kk_block_tag(b)));
@@ -21,7 +21,7 @@ static void kk_block_free_raw(kk_block_t* b) {
 // Free a block and recursively decrement reference counts on children.
 static void kk_block_drop_free(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(b->header.refcount == 0);
-  const size_t scan_fsize = b->header.scan_fsize;
+  const kk_ssize_t scan_fsize = b->header.scan_fsize;
   if (scan_fsize==0) {
     if (kk_tag_is_raw(kk_block_tag(b))) { kk_block_free_raw(b); }
     kk_block_free(b); // deallocate directly if nothing to scan
@@ -92,8 +92,8 @@ kk_decl_noinline kk_reuse_t kk_block_check_drop_reuse(kk_block_t* b, uint32_t rc
   kk_assert_internal(rc0 == 0 || (rc0 >= RC_SHARED && rc0 < RC_INVALID));
   if (kk_likely(rc0==0)) {
     // no more references, reuse it.
-    size_t scan_fsize = kk_block_scan_fsize(b);
-    for (size_t i = 0; i < scan_fsize; i++) {
+    kk_ssize_t scan_fsize = kk_block_scan_fsize(b);
+    for (kk_ssize_t i = 0; i < scan_fsize; i++) {
       kk_box_drop(kk_block_field(b, i), ctx);
     }
     memset(&b->header, 0, sizeof(kk_header_t)); // not really necessary
@@ -179,8 +179,8 @@ static void kk_block_push_delayed_drop_free(kk_block_t* b, kk_context_t* ctx) {
   // encode the next pointer into the block header (while keeping `scan_fsize` valid)
   b->header.refcount = (uint32_t)((kk_uintx_t)delayed);
 #if (KK_INTPTR_SIZE > 4)
-  b->header.tag = (uint16_t)(kk_sar((kk_intx_t)delayed,32));
-  kk_assert_internal(kk_sar((kk_intx_t)delayed,48) == 0 || kk_sar((kk_intx_t)delayed, 48) == -1);
+  b->header.tag = (uint16_t)(kk_shr((kk_uintx_t)delayed,32));
+  kk_assert_internal(kk_shr((kk_uintx_t)delayed,48) == 0);
 #endif
   ctx->delayed_free = b;
 }
@@ -197,7 +197,7 @@ static void kk_block_drop_free_delayed(kk_context_t* ctx) {
       // decode the next element in the delayed list from the block header
       kk_intx_t next = (kk_intx_t)b->header.refcount;
 #if (KK_INTPTR_SIZE>4)
-      next += ((kk_intx_t)((int16_t)(b->header.tag)) << 32); // sign extended
+      next += (kk_intx_t)(b->header.tag) << 32; 
 #endif
 #ifndef NDEBUG
       b->header.refcount = 0;
@@ -214,7 +214,7 @@ static void kk_block_drop_free_delayed(kk_context_t* ctx) {
 // Free recursively a block -- if the recursion becomes too deep, push
 // blocks on the delayed free list to free them later. The delayed free list
 // is encoded in the headers and needs no further space.
-static kk_decl_noinline void kk_block_drop_free_rec(kk_block_t* b, size_t scan_fsize, const size_t depth, kk_context_t* ctx) {
+static kk_decl_noinline void kk_block_drop_free_rec(kk_block_t* b, kk_ssize_t scan_fsize, const kk_ssize_t depth, kk_context_t* ctx) {
   while(true) {
     kk_assert_internal(b->header.refcount == 0);
     if (scan_fsize == 0) {
@@ -241,9 +241,9 @@ static kk_decl_noinline void kk_block_drop_free_rec(kk_block_t* b, size_t scan_f
     else {
       // more than 1 field
       if (depth < MAX_RECURSE_DEPTH) {
-        size_t i = 0;
+        kk_ssize_t i = 0;
         if (kk_unlikely(scan_fsize >= KK_SCAN_FSIZE_MAX)) { 
-          scan_fsize = kk_enum_unbox(kk_block_field(b, 0)); 
+          scan_fsize = (kk_ssize_t)kk_int_unbox(kk_block_field(b, 0)); 
           i++;
         }
         // free fields up to the last one

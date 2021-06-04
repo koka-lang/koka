@@ -1451,11 +1451,6 @@ inferVar propagated expect name rng isRhs
                  eff <- freshEffect
                  return (itp,eff,coref coreVar)
 
-isValueOperation tp
-  = case splitPredType tp of
-      (_,_,TSyn syn [opTp] _) -> typeSynName syn == nameTpValueOp
-      _ -> False
-
 {-
 inferVar propagated expect name rng isRhs
   = do (qname1,tp1,info1) <- resolveName name (propagated) rng

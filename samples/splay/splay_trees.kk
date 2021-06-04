@@ -1,0 +1,160 @@
+module splay_trees
+
+public type splay_tree<a> {
+  Node { left : splay_tree<a>; here : a; right : splay_tree<a> }
+  Leaf
+}
+
+public val empty = Leaf
+
+public fun singleton(a) {
+  Node(Leaf, a, Leaf)
+}
+
+// Insert the elements in the order of the list.
+// If the elements are ascending or descending this is linear,
+// but in the worst-case this can be quadratic.
+public fun fromList(xs : list<int>) : splay_tree<int> {
+  fun go(xs, tree) {
+    match(xs) {
+      Nil { tree }
+      Cons(x, xx) { go(xx, insert(x, tree)) }
+    }
+  }
+  go(xs, empty)
+}
+
+public fun insert(v : int, tree : splay_tree<int>) : splay_tree<int> {
+  match(insert_(v, tree)) {
+    (tree, zipper) {
+      unsafe-noexn(fn() {
+        splay(tree, zipper)
+      })
+    }
+  }
+}
+
+public fun member(v : int, tree : splay_tree<int>) : maybe<splay_tree<int>> {
+  match(member_(v, tree)) {
+    Nothing { Nothing }
+    Just((tree, zipper)) {
+      unsafe-noexn(fn() {
+        Just(splay(tree, zipper))
+      })
+    }
+  }
+}
+
+// Internals.
+// We use the following pattern: Every function traverses the tree and creates a 'zipper'
+// while going down the splay tree. If the tree is owned this won't allocate, since the
+// zipper constructors have the same number of arguments as 'Node'.
+// Then we use the 'splay' function to get a splay_tree back where the chosen node is at the top.
+
+type splay_zipper<a> {
+  Root
+  LeftChild  { parent : a; up : splay_zipper<a>; right : splay_tree<a> }
+  RightChild { parent : a; up : splay_zipper<a>; left  : splay_tree<a> }
+}
+
+// Find 'v' in a splay tree and return the position as a zipper
+fun member_(v : int, tree) {
+  fun go(tree, zipper) {
+    match(tree) {
+      Leaf { Nothing }
+      Node(a, b, c) {
+        if(v == b) { Just((tree, zipper)) }
+        else if(v <  b) { go(a,  LeftChild(b, zipper, c)) }
+        else { go(c, RightChild(b, zipper, a)) }
+      }
+    }
+  }
+  go(tree, Root)
+}
+
+// let x = match(xs) { Cons(_, _) -> drop-reuse(xs); ... }
+// .. xs ..
+// => check if 'xs' is free after the match..
+
+// Insert 'v' into a splay tree and return the position as a zipper
+// If 'v' already exists we return its position.
+fun insert_(v : int, tree) {
+  fun go(tree, zipper) {
+    match(tree) {
+      Leaf { (Node(Leaf, v, Leaf), zipper) }
+      Node(a, b, c) {
+        if(v == b) { (tree, zipper) }
+        else if(v < b) { go(a,  LeftChild(b, zipper, c)) }
+        else { go(c, RightChild(b, zipper, a)) }
+      }
+    }
+  }
+  go(tree, Root)
+}
+
+
+// fun insert_(v : int, tree) {
+  // fun go(tree, zipper) {
+    // match(tree) {
+      // Leaf { (Node(Leaf, v, Leaf), zipper) }
+      // Node(_, b, _) | v == b -> { (tree, zipper) }
+      // Node(a, b, c) | v < b -> {
+        // go(a,  LeftChild(b, zipper, c))
+      // }
+      // Node(a, b, c) -> {
+        // go(c, RightChild(b, zipper, a))
+      // }
+    // }
+  // }
+  // go(tree, Root)
+// }
+
+// What Koka generates now (insert_/go):
+// match(tree)
+//   Leaf -> drop(tree); ..
+//   Node(a,b,c) -> dup(a); dup(b); dup(c); dup(tree); val r = drop-reuse(tree);
+//     match(v == b)
+//       True -> (tree, zipper)
+//       False -> match (v < b)
+//         True -> drop(tree); .. LeftChild@r ..
+//         False -> drop(tree); .. RightChild@r ..
+
+// What Perceus generates now (insert_/go):
+// dup(tree)
+// match(tree)
+//   Leaf -> drop(tree); drop(tree); ..
+//   Node(a,b,c) -> dup(a); dup(b); dup(c); drop(tree);
+//     match(v == b)
+//       True -> (tree, zipper)
+//       False -> match (v < b)
+//         True -> drop(tree); ..
+//         False -> drop(tree); ..
+
+// What Perceus will generate with the new match rule (insert_/go):
+// match(tree)
+//   Leaf -> drop(tree); ..
+//   Node(a,b,c) -> dup(a); dup(b); dup(c);
+//     match(v == b)
+//       True -> (tree, zipper)
+//       False -> match (v < b)
+//         True -> drop(tree); ..
+//         False -> drop(tree);
+
+// Splay the subtree to the root.
+fun splay(tree : splay_tree<a>, zipper : splay_zipper<a>) : exn splay_tree<a> {
+  fun go(e, f, g, zipper) {
+    match(zipper) {
+      Root { tree }
+      LeftChild(h, Root, i)               { Node(e, f, Node(g, h, i)) }
+      LeftChild(h, RightChild(d,z,c), i)  { go(Node(c,d,e),f,Node(g,h,i),z) }
+      LeftChild(h, LeftChild(j,z,k), i)   { go(e,f,Node(g,h,Node(i,j,k)),z) }
+      RightChild(d, Root, c)              { Node(Node(c, d, e), f, g) }
+      RightChild(d, RightChild(b,z,a), c) { go(Node(Node(a,b,c),d,e),f,g,z) }
+      RightChild(d, LeftChild(h,z,i), c)  { go(Node(c,d,e),f,Node(g,h,i),z) }
+    }
+  }
+  match(tree) {
+    Leaf { throw-exn(Exception("Leaf in splay!", ExnAssert)) }
+    Node(e, f, g) { go(e, f, g, zipper) }
+  }
+}

@@ -208,7 +208,7 @@ static inline kk_intx_t kk_smallint_from_integer(kk_integer_t i) {  // use for k
 
 static inline kk_integer_t kk_integer_from_small(intptr_t i) {   // use for known small int constants (at most 14 bits)
   kk_assert_internal(i >= KK_SMALLINT_MIN && i <= KK_SMALLINT_MAX);
-  return _kk_new_integer((i<<2)|1);
+  return _kk_new_integer(kk_shlp(i,2)|1);  // (i << 2) | 1
 }
 
 static inline bool kk_is_integer(kk_integer_t i) {
@@ -263,6 +263,7 @@ kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_from_double(double d, k
 kk_decl_export kk_decl_noinline int32_t    kk_integer_clamp32_bigint(kk_integer_t i, kk_context_t* ctx);
 kk_decl_export kk_decl_noinline int64_t    kk_integer_clamp64_bigint(kk_integer_t i, kk_context_t* ctx);
 kk_decl_export kk_decl_noinline size_t     kk_integer_clamp_size_t_bigint(kk_integer_t i, kk_context_t* ctx);
+kk_decl_export kk_decl_noinline kk_ssize_t kk_integer_clamp_ssize_t_bigint(kk_integer_t i, kk_context_t* ctx);
 kk_decl_export kk_decl_noinline double     kk_integer_as_double_bigint(kk_integer_t i, kk_context_t* ctx);
 
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_add_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx);
@@ -332,6 +333,14 @@ static inline kk_integer_t kk_integer_from_uintx_t(kk_uintx_t i, kk_context_t* c
 
 static inline kk_integer_t kk_integer_from_size_t(size_t i, kk_context_t* ctx) {
   return kk_integer_from_uintx_t(i, ctx);
+}
+
+static inline kk_integer_t kk_integer_from_ssize_t(kk_ssize_t i, kk_context_t* ctx) {
+  return kk_integer_from_int(i, ctx);
+}
+
+static inline kk_integer_t kk_integer_from_ptrdiff_t(ptrdiff_t i, kk_context_t* ctx) {
+  return kk_integer_from_int(i, ctx);
 }
 
 static inline kk_integer_t kk_integer_from_intptr_t(intptr_t i, kk_context_t* ctx) {
@@ -466,7 +475,7 @@ static inline kk_integer_t kk_integer_cdiv_small(kk_integer_t x, kk_integer_t y)
   kk_assert_internal(kk_are_smallints(x, y));
   intptr_t i = kk_sar(x.value, 1);
   intptr_t j = kk_sar(y.value, 1);
-  return _kk_new_integer(((i/j)<<2)|1);
+  return _kk_new_integer(kk_shlp(i/j, 2)|1);
 }
 
 // Euclidean division: see <https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/divmodnote-letter.pdf>
@@ -483,7 +492,7 @@ static inline kk_integer_t kk_integer_div_small(kk_integer_t x, kk_integer_t y) 
   intptr_t d = i/j;
   intptr_t m = i%j;
   if (i < 0 && m < 0) { d -= (j < 0 ? -1 : 1); }   // i < 0 is not needed, but see note below
-  return _kk_new_integer((d<<2)|1);
+  return _kk_new_integer(kk_shlp(d,2)|1);  // (d<<2)|1
 }
 
 /* Fast modulus on small integers. Since `boxed(n) = n*4 + 1`, we can divide as:
@@ -497,7 +506,7 @@ static inline kk_integer_t kk_integer_cmod_small(kk_integer_t x, kk_integer_t y)
   kk_assert_internal(kk_are_smallints(x, y));
   intptr_t i = kk_sar(x.value, 1);
   intptr_t j = kk_sar(y.value, 1);
-  return _kk_new_integer(((i%j)<<1)|1);
+  return _kk_new_integer(kk_shlp(i%j,1)|1);
 }
 
 // Euclidean mod on small integers. Since `boxed(n) = n*4 + 1`, we can divide as:
@@ -511,7 +520,7 @@ static inline kk_integer_t kk_integer_mod_small(kk_integer_t x, kk_integer_t y) 
   intptr_t m = (j==0 ? i : i%j);
   if (i < 0 && m < 0) { m += (j < 0 ? -j : j); }    // i < 0 is not needed, but see note below
   kk_assert_internal(m >= 0);
-  return _kk_new_integer((m<<2)|1);
+  return _kk_new_integer(kk_shlp(m,2)|1);
 }
 
 
@@ -519,8 +528,8 @@ static inline kk_integer_t kk_integer_cdiv_cmod_small(kk_integer_t x, kk_integer
   kk_assert_internal(kk_are_smallints(x, y)); kk_assert_internal(mod!=NULL);
   intptr_t i = kk_sar(x.value, 1);
   intptr_t j = kk_sar(y.value, 1);
-  *mod = _kk_new_integer(((i%j)<<2)|1);
-  return _kk_new_integer(((i/j)<<2)|1);
+  *mod = _kk_new_integer(kk_shlp(i%j,2)|1);
+  return _kk_new_integer(kk_shlp(i/j,2)|1);
 }
 
 static inline kk_integer_t kk_integer_div_mod_small(kk_integer_t x, kk_integer_t y, kk_integer_t* mod) {
@@ -543,8 +552,8 @@ static inline kk_integer_t kk_integer_div_mod_small(kk_integer_t x, kk_integer_t
   }
   kk_assert_internal(m >= 0);
   kk_assert_internal(d*j + m == i);
-  *mod = _kk_new_integer((m<<2)|1);
-  return _kk_new_integer((d<<2)|1);
+  *mod = _kk_new_integer(kk_shlp(m,2)|1);
+  return _kk_new_integer(kk_shlp(d,2)|1);
 }
 
 static inline kk_integer_t kk_integer_cdiv(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
@@ -593,13 +602,34 @@ static inline int64_t kk_integer_clamp64_borrow(kk_integer_t x, kk_context_t* ct
 static inline size_t kk_integer_clamp_size_t_borrow(kk_integer_t x, kk_context_t* ctx) {
   if (kk_likely(kk_is_smallint(x))) {
     kk_intx_t i = kk_smallint_from_integer(x);
-    if (i < 0) return 0;
-#if (KK_SMALL_INT_MAX > SIZE_MAX)
-    else if (i > SIZE_MAX) return SIZE_MAX;
-#endif
-    return (size_t)(i);
+    if (i >= PTRDIFF_MIN && i <= PTRDIFF_MAX) return (size_t)i;
+    // fall through
   }
   return kk_integer_clamp_size_t_bigint(x, ctx);
+}
+
+static inline kk_ssize_t kk_integer_clamp_ssize_t_borrow(kk_integer_t x, kk_context_t* ctx) {
+#if KK_SSIZE_SIZE <= 4
+  return kk_integer_clamp32_borrow(x, ctx);
+#else
+  return kk_integer_clamp64_borrow(x, ctx);
+#endif
+}
+
+static inline ptrdiff_t kk_integer_clamp_ptrdiff_t_borrow(kk_integer_t x, kk_context_t* ctx) {
+#if PTRDIFF_MAX <= INT32_MAX
+  return kk_integer_clamp32_borrow(x, ctx);
+#else
+  return kk_integer_clamp64_borrow(x, ctx);
+#endif
+}
+
+static inline intptr_t kk_integer_clamp_intptr_t_borrow(kk_integer_t x, kk_context_t* ctx) {
+#if INTPTR_MAX <= INT32_MAX
+  return kk_integer_clamp32_borrow(x, ctx);
+#else
+  return kk_integer_clamp64_borrow(x, ctx);
+#endif
 }
 
 static inline kk_intx_t kk_integer_clamp_borrow(kk_integer_t x, kk_context_t* ctx) {

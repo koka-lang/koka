@@ -13,7 +13,7 @@
 #if defined(__cplusplus)
 // Use C++ atomics
 #include <atomic>
-#define  _Atomic(tp)            std::kk_atomic<tp>
+#define  _Atomic(tp)            std::atomic<tp>
 #define  kk_atomic(name)        std::atomic_##name
 #define  kk_memory_order(name)  std::memory_order_##name
 #define  kk_memory_order_t      std::kk_memory_order

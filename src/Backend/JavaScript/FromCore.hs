@@ -57,16 +57,16 @@ externalNames
 -- Generate JavaScript code from System-F core language
 --------------------------------------------------------------------------
 
-javascriptFromCore :: Maybe (Name,Bool) -> [Import] -> Core -> Doc
-javascriptFromCore mbMain imports core
-  = runAsm (Env moduleName penv externalNames False) (genModule mbMain imports core)
+javascriptFromCore :: BuildType -> Maybe (Name,Bool) -> [Import] -> Core -> Doc
+javascriptFromCore buildType mbMain imports core
+  = runAsm (Env moduleName penv externalNames False) (genModule buildType mbMain imports core)
   where
     moduleName = coreProgName core
     penv       = Pretty.defaultEnv{ Pretty.context = moduleName, Pretty.fullNames = False }
 
-genModule :: Maybe (Name,Bool) -> [Import] -> Core -> Asm Doc
-genModule mbMain imports core
-  =  do let externs = vcat (concatMap includeExternal (coreProgExternals core))
+genModule :: BuildType -> Maybe (Name,Bool) -> [Import] -> Core -> Asm Doc
+genModule buildType mbMain imports core
+  =  do let externs = vcat (concatMap (includeExternal  buildType) (coreProgExternals core))
             (tagDefs,defs) = partition isTagDef (coreProgDefs core)
         decls0 <- genGroups tagDefs
         decls1 <- genTypeDefs (coreProgTypeDefs core)
@@ -130,24 +130,24 @@ genModule mbMain imports core
 
     externalImports :: [(Doc,Doc)]
     externalImports
-      = concatMap importExternal (coreProgExternals core)
+      = concatMap (importExternal buildType) (coreProgExternals core)
 
 moduleImport :: Import -> Doc
 moduleImport imp
   = squotes (text (if null (importPackage imp) then "." else importPackage imp) <.> text "/" <.> text (moduleNameToPath  (importName imp)))
 
-includeExternal :: External -> [Doc]
-includeExternal ext
-  = case externalImportLookup JS "include-inline" ext of
+includeExternal ::  BuildType -> External -> [Doc]
+includeExternal buildType  ext
+  = case externalImportLookup JS buildType "include-inline" ext of
       Just content -> [align $ vcat $! map text (lines content)]
       _ -> []
       
 
 
-importExternal :: External -> [(Doc,Doc)]
-importExternal ext
-  = case externalImportLookup JS "library" ext of
-      Just path -> [(text path, case externalImportLookup JS "library-id" ext of 
+importExternal :: BuildType -> External -> [(Doc,Doc)]
+importExternal buildType  ext
+  = case externalImportLookup JS buildType  "library" ext of
+      Just path -> [(text path, case externalImportLookup JS buildType  "library-id" ext of 
                                   Just name -> text name
                                   Nothing   -> text path)]
       _ -> []
@@ -646,7 +646,7 @@ genExpr expr
        -> genExpr arg
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt i
        -> return (empty, pretty i)
-     App (Var tname _) [Lit (LitInt i)] | getName tname == nameSizeT && isSmallInt i
+     App (Var tname _) [Lit (LitInt i)] | getName tname == nameSSizeT && isSmallInt i
        -> return (empty, pretty i)
 
      -- special: cfield-set
@@ -675,7 +675,7 @@ genExpr expr
                      -> case args of
                          [Lit (LitInt i)] | getName tname == nameInt32  && isSmallInt i
                            -> return (empty,pretty i)
-                         [Lit (LitInt i)] | getName tname == nameSizeT  && isSmallInt i
+                         [Lit (LitInt i)] | getName tname == nameSSizeT  && isSmallInt i
                            -> return (empty,pretty i)
                          _ -> -- genInlineExternal tname formats argDocs
                               do (decls,argDocs) <- genExprs args
@@ -797,16 +797,12 @@ genInline expr
               case extractExtern f of
                 Just (tname,formats)
                   -> case args of
-                       [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt i
-                         -> return (pretty i)
-                       [Lit (LitInt i)] | getName tname == nameSizeT && isSmallInt i
+                       [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameInt64,nameSSizeT,namePtrDiffT] && isSmallInt i
                          -> return (pretty i)
                        _ -> genInlineExternal tname formats argDocs
                 Nothing
                   -> case (f,args) of
-                       ((Var tname _),[Lit (LitInt i)]) | getName tname == nameInt32 && isSmallInt i
-                         -> return (pretty i)
-                       ((Var tname _),[Lit (LitInt i)]) | getName tname == nameSizeT && isSmallInt i
+                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt32,nameInt64,nameSSizeT,namePtrDiffT] && isSmallInt i
                          -> return (pretty i)
                        _ -> do fdoc <- genInline f
                                return (fdoc <.> tupled argDocs)

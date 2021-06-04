@@ -5,6 +5,8 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the file "license.txt" at the root of this distribution.
 ---------------------------------------------------------------------------*/
+#define _BSD_SOURCE         1     // for syscall
+#define _DEFAULT_SOURCE     1
 #include "kklib.h"
 #include <string.h> // memset
 
@@ -103,7 +105,7 @@ The implementation uses regular C code which compiles very well on modern compil
 (gcc x64 has no register spills, and clang 6+ uses SSE instructions)
 -----------------------------------------------------------------------------*/
 
-static inline void qround(uint32_t x[16], size_t a, size_t b, size_t c, size_t d) {
+static inline void kk_qround(uint32_t x[16], size_t a, size_t b, size_t c, size_t d) {
   x[a] += x[b]; x[d] = kk_bits_rotl32(x[d] ^ x[a], 16);
   x[c] += x[d]; x[b] = kk_bits_rotl32(x[b] ^ x[c], 12);
   x[a] += x[b]; x[d] = kk_bits_rotl32(x[d] ^ x[a], 8);
@@ -113,18 +115,18 @@ static inline void qround(uint32_t x[16], size_t a, size_t b, size_t c, size_t d
 static inline void kk_chacha_shuffle(const size_t rounds, uint32_t* x)
 {
   for (size_t i = 0; i < rounds; i += 2) {
-    qround(x, 0, 4, 8, 12);
-    qround(x, 1, 5, 9, 13);
-    qround(x, 2, 6, 10, 14);
-    qround(x, 3, 7, 11, 15);
-    qround(x, 0, 5, 10, 15);
-    qround(x, 1, 6, 11, 12);
-    qround(x, 2, 7, 8, 13);
-    qround(x, 3, 4, 9, 14);
+    kk_qround(x, 0, 4, 8, 12);
+    kk_qround(x, 1, 5, 9, 13);
+    kk_qround(x, 2, 6, 10, 14);
+    kk_qround(x, 3, 7, 11, 15);
+    kk_qround(x, 0, 5, 10, 15);
+    kk_qround(x, 1, 6, 11, 12);
+    kk_qround(x, 2, 7, 8, 13);
+    kk_qround(x, 3, 4, 9, 14);
   }
 }
 
-static inline void chacha_block(const size_t rounds, uint32_t* input, uint32_t* output)
+static inline void kk_chacha_block(const size_t rounds, uint32_t* input, uint32_t* output)
 {
   // copy into `x`
   uint32_t x[16];
@@ -150,8 +152,8 @@ static inline void chacha_block(const size_t rounds, uint32_t* input, uint32_t* 
   }
 }
 
-static kk_decl_noinline void chacha20(kk_random_ctx_t* rnd) {
-  chacha_block(20, rnd->input, rnd->output);
+static kk_decl_noinline void kk_chacha20(kk_random_ctx_t* rnd) {
+  kk_chacha_block(20, rnd->input, rnd->output);
   rnd->used = 0;
 }
 /*
@@ -161,21 +163,21 @@ static kk_decl_noinline void chacha8(kk_random_ctx_t* rnd) {
 }
 */
 
-static inline uint32_t read32(const uint8_t* p, size_t idx32) {
+static inline uint32_t kk_read32(const uint8_t* p, size_t idx32) {
   const size_t i = 4*idx32;
   return ((uint32_t)p[i+0] | (uint32_t)p[i+1] << 8 | (uint32_t)p[i+2] << 16 | (uint32_t)p[i+3] << 24);
 }
 
-static void chacha_init(kk_random_ctx_t* rnd, const uint8_t key[32], uint64_t nonce)
+static void kk_chacha_init(kk_random_ctx_t* rnd, const uint8_t key[32], uint64_t nonce)
 {
   // read the 32-bit values as little-endian
   memset(rnd, 0, sizeof(*rnd));
   for (size_t i = 0; i < 4; i++) {
     const uint8_t* sigma = (uint8_t*)"expand 32-byte k";
-    rnd->input[i] = read32(sigma,i);
+    rnd->input[i] = kk_read32(sigma,i);
   }
   for (size_t i = 0; i < 8; i++) {
-    rnd->input[i + 4] = read32(key,i);
+    rnd->input[i + 4] = kk_read32(key,i);
   }
   rnd->input[12] = 0;
   rnd->input[13] = 0;
@@ -201,7 +203,7 @@ static void kk_chacha_split(kk_random_ctx_t* rnd, uint64_t nonce, kk_random_ctx_
 Secure random: split
 -----------------------------------------------------------------------------*/
 #if !defined(NDEBUG) && defined(KK_DEBUG_FULL)
-static bool random_is_initialized(kk_random_ctx_t* rnd) {
+static bool kk_random_is_initialized(kk_random_ctx_t* rnd) {
   return (rnd->input[0] != 0);
 }
 #endif
@@ -274,7 +276,7 @@ If we cannot get good randomness, we fall back to weak randomness based on a tim
 #pragma comment (lib,"bcrypt.lib")
 #include <windows.h>
 #include <bcrypt.h>
-static bool os_random_buf(void* buf, size_t buf_len) {
+static bool kk_os_random_buf(void* buf, size_t buf_len) {
   return (BCryptGenRandom(NULL, (PUCHAR)buf, (ULONG)buf_len, BCRYPT_USE_SYSTEM_PREFERRED_RNG) >= 0);
 }
 */
@@ -288,7 +290,7 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-static bool os_random_buf(void* buf, size_t buf_len) {
+static bool kk_os_random_buf(void* buf, size_t buf_len) {
   kk_assert_internal(buf_len >= sizeof(uintptr_t));
   memset(buf, 0, buf_len);
   RtlGenRandom(buf, (ULONG)buf_len);
@@ -298,7 +300,7 @@ static bool os_random_buf(void* buf, size_t buf_len) {
       defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || \
       defined(__wasi__)
 #include <stdlib.h>
-static bool os_random_buf(void* buf, size_t buf_len) {
+static bool kk_os_random_buf(void* buf, size_t buf_len) {
   arc4random_buf(buf, buf_len);
   return true;
 }
@@ -309,7 +311,7 @@ static bool os_random_buf(void* buf, size_t buf_len) {
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
-static bool os_random_buf(void* buf, size_t buf_len) {
+static bool kk_os_random_buf(void* buf, size_t buf_len) {
   // Modern Linux provides `getrandom` but different distributions either use `sys/random.h` or `linux/random.h`
   // and for the latter the actual `getrandom` call is not always defined.
   // (see <https://stackoverflow.com/questions/45237324/why-doesnt-getrandom-compile>)
@@ -320,7 +322,7 @@ static bool os_random_buf(void* buf, size_t buf_len) {
   #endif
   static volatile uintptr_t no_getrandom; // = 0
   if (no_getrandom == 0) {
-    ssize_t ret = syscall(SYS_getrandom, buf, buf_len, GRND_NONBLOCK);
+    kk_ssize_t ret = syscall(SYS_getrandom, buf, buf_len, GRND_NONBLOCK);
     if (ret >= 0) return (buf_len == (size_t)ret);
     if (ret != ENOSYS) return false;
     no_getrandom = 1; // don't call again, and fall back to /dev/urandom
@@ -334,7 +336,7 @@ static bool os_random_buf(void* buf, size_t buf_len) {
   if (fd < 0) return false;
   size_t count = 0;
   while(count < buf_len) {
-    ssize_t ret = read(fd, (char*)buf + count, buf_len - count);
+    kk_ssize_t ret = read(fd, (char*)buf + count, buf_len - count);
     if (ret<=0) {
       if (errno!=EAGAIN && errno!=EINTR) break;
     }
@@ -346,7 +348,7 @@ static bool os_random_buf(void* buf, size_t buf_len) {
   return (count==buf_len);
 }
 #else
-static bool os_random_buf(void* buf, size_t buf_len) {
+static bool kk_os_random_buf(void* buf, size_t buf_len) {
   return false;
 }
 #endif
@@ -360,8 +362,8 @@ static bool os_random_buf(void* buf, size_t buf_len) {
 #endif
 
 
-static uint64_t os_random_weak(void) {
-  uint64_t x = (uint64_t)&os_random_weak ^ KU64(0x853C49E6748FEA9B); // hopefully, ASLR makes the address random
+static uint64_t kk_os_random_weak(void) {
+  uint64_t x = (uint64_t)&kk_os_random_weak ^ KU64(0x853C49E6748FEA9B); // hopefully, ASLR makes the address random
   do {
   #if defined(WIN32)
     LARGE_INTEGER pcount;
@@ -386,19 +388,19 @@ static uint64_t os_random_weak(void) {
 static kk_random_ctx_t* random_init(kk_context_t* ctx) {
   kk_random_ctx_t* rnd = (kk_random_ctx_t*)kk_zalloc(sizeof(kk_random_ctx_t), ctx);
   uint8_t key[32];
-  const bool strong = os_random_buf(key, sizeof(key));
+  const bool strong = kk_os_random_buf(key, sizeof(key));
   if (!strong) {
     // if we fail to get random data from the OS, we fall back to a
     // weak random source based on the C library `rand()`, the current (high precision) time, and ASLR.
     kk_warning_message("unable to use strong randomness\n");
     kk_pcg_ctx_t pcg;
-    pcg_init(os_random_weak(), (uint64_t)(rand()), &pcg);
+    pcg_init(kk_os_random_weak(), (uint64_t)(rand()), &pcg);
     for (size_t i = 0; i < 8; i++) {  // key is eight 32-bit words.
       uint32_t x = pcg_uint32(&pcg);
       ((uint32_t*)key)[i] = x;
     }
   }
-  chacha_init(rnd, key, (uintptr_t)&random_init /*nonce*/ );
+  kk_chacha_init(rnd, key, (uintptr_t)&random_init /*nonce*/ );
   rnd->is_strong = strong;
   return rnd;
 }
@@ -409,7 +411,7 @@ kk_random_ctx_t* kk_srandom_round(kk_context_t* ctx) {
   if (rnd == NULL) {
     ctx->srandom_ctx = rnd = random_init(ctx);
   }
-  chacha20(rnd);
+  kk_chacha20(rnd);
   return rnd;
 }
 

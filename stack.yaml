@@ -13,4 +13,4 @@ flags:
   haskeline:
     terminfo: false
   regex-posix:
-      _regex-posix-clib: true
+    _regex-posix-clib: true

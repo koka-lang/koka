@@ -143,19 +143,19 @@ static inline kk_digit_t ddigit_cdiv(kk_ddigit_t d, kk_digit_t divisor, kk_digit
 #define KK_LOG16_DIV_LOG10  (1.20411998266)
 #define KK_LOG10_DIV_LOG16  (0.83048202372)
 
-typedef uint16_t kk_extra_t;
-#define MAX_EXTRA           (UINT16_MAX / 2)  // we use 1 bit for the negative bool
+typedef int16_t kk_extra_t;
+#define MAX_EXTRA           (INT16_MAX / 2)  // we use 1 bit for the negative bool
 
 typedef struct kk_bigint_s {
   kk_block_t  _block;
 #if KK_INTPTR_SIZE>=8
   uint8_t  is_neg: 1;      // negative
   kk_extra_t  extra :15;      // extra digits available: `sizeof(digits) == (count+extra)*sizeof(kk_digit_t)`
-  uint64_t count :48;      // count of digits in the number
+  int64_t count :48;      // count of digits in the number
 #else
   uint8_t  is_neg;
   kk_extra_t  extra;
-  uint32_t count;
+  int32_t count;
 #endif
   kk_digit_t  digits[1];      // digits from least-significant to most significant.
 } kk_bigint_t;
@@ -169,11 +169,11 @@ static kk_intx_t kk_bigint_sign_(const kk_bigint_t* b) {
   return (bigint_is_neg_(b) ? -1 : 1);
 }
 
-static size_t bigint_count_(const kk_bigint_t* b) {
-  return (b->count);
+static kk_ssize_t bigint_count_(const kk_bigint_t* b) {
+  return b->count;
 }
 
-static size_t bigint_available_(const kk_bigint_t* b) {
+static kk_ssize_t bigint_available_(const kk_bigint_t* b) {
   return (b->count + b->extra);
 }
 
@@ -210,46 +210,46 @@ static void drop_bigint(kk_bigint_t* x, kk_context_t* ctx) {
 }
 
 
-static size_t bigint_roundup_count(size_t count) {
-  if (count*sizeof(kk_digit_t) < 16) return (16/sizeof(kk_digit_t));    // minimal size of 128-bit (= 16 bytes)
+static kk_ssize_t bigint_roundup_count(kk_ssize_t count) {
+  if (count*kk_ssizeof(kk_digit_t) < 16) return (16/kk_ssizeof(kk_digit_t));    // minimal size of 128-bit (= 16 bytes)
   else if ((count & 1) == 1) return (count+1);  // always even
   else return count;
 }
 
-static kk_bigint_t* bigint_alloc(size_t count, bool is_neg, kk_context_t* ctx) {
-  size_t dcount = bigint_roundup_count(count);
-  kk_bigint_t* b = (kk_bigint_t*)kk_block_alloc_any(sizeof(kk_bigint_t) - sizeof(kk_digit_t) + dcount*sizeof(kk_digit_t), 0, KK_TAG_BIGINT, ctx);
+static kk_bigint_t* bigint_alloc(kk_ssize_t count, bool is_neg, kk_context_t* ctx) {
+  kk_ssize_t dcount = bigint_roundup_count(count);
+  kk_bigint_t* b = (kk_bigint_t*)kk_block_alloc_any(kk_ssizeof(kk_bigint_t) - kk_ssizeof(kk_digit_t) + dcount*kk_ssizeof(kk_digit_t), 0, KK_TAG_BIGINT, ctx);
   b->is_neg = (is_neg ? 1 : 0);
   b->extra = (kk_extra_t)(dcount - count);
   b->count = count;
   return b;
 }
 
-static kk_bigint_t* bigint_alloc_zero(size_t count, bool is_neg, kk_context_t* ctx) {
+static kk_bigint_t* bigint_alloc_zero(kk_ssize_t count, bool is_neg, kk_context_t* ctx) {
   kk_bigint_t* b = bigint_alloc(count, is_neg, ctx);
-  memset(b->digits, 0, sizeof(kk_digit_t)* bigint_available_(b));
+  kk_memset(b->digits, 0, kk_ssizeof(kk_digit_t)* bigint_available_(b));
   return b;
 }
 
-static kk_bigint_t* kk_bigint_trim_realloc_(kk_bigint_t* x, size_t count, kk_context_t* ctx) {
+static kk_bigint_t* kk_bigint_trim_realloc_(kk_bigint_t* x, kk_ssize_t count, kk_context_t* ctx) {
   kk_assert_internal(bigint_is_unique_(x));
-  size_t dcount = bigint_roundup_count(count);
-  size_t xcount = bigint_available_(x);
+  kk_ssize_t dcount = bigint_roundup_count(count);
+  kk_ssize_t xcount = bigint_available_(x);
   kk_bigint_t* b;
-  if ((dcount <= xcount) && (xcount-dcount) < (16/sizeof(kk_digit_t))) {
+  if ((dcount <= xcount) && (xcount-dcount) < (16/kk_ssizeof(kk_digit_t))) {
     b = x; // avoid realloc if shrinking by less than 128 bits
     dcount = xcount;
   }
   else {
-    b = (kk_bigint_t*)kk_block_realloc(bigint_ptr_(x), sizeof(kk_bigint_t) - sizeof(kk_digit_t) + dcount*sizeof(kk_digit_t), ctx);
+    b = (kk_bigint_t*)kk_block_realloc(bigint_ptr_(x), kk_ssizeof(kk_bigint_t) - kk_ssizeof(kk_digit_t) + dcount*kk_ssizeof(kk_digit_t), ctx);
   }
   b->count = count;
   b->extra = (kk_extra_t)(dcount - count);
   return b;
 }
 
-static kk_bigint_t* kk_bigint_trim_to(kk_bigint_t* x, size_t count, bool allow_realloc, kk_context_t* ctx) {
-  kk_ssize_t d = (kk_ssize_t)(bigint_available_(x) - count);
+static kk_bigint_t* kk_bigint_trim_to(kk_bigint_t* x, kk_ssize_t count, bool allow_realloc, kk_context_t* ctx) {
+  kk_ssize_t d = bigint_available_(x) - count;
   kk_assert_internal(d >= 0 && bigint_is_unique_(x));
   if (d < 0) {
     return x;
@@ -266,20 +266,20 @@ static kk_bigint_t* kk_bigint_trim_to(kk_bigint_t* x, size_t count, bool allow_r
   }
   else {
     x->count = count;
-    x->extra = (uint16_t)d;
+    x->extra = (kk_extra_t)d;
     return x;
   }
 }
 
 static kk_bigint_t* kk_bigint_trim(kk_bigint_t* x, bool allow_realloc, kk_context_t* ctx) {
   kk_assert_internal(bigint_is_unique_(x));
-  size_t i = bigint_count_(x);
+  kk_ssize_t i = bigint_count_(x);
   while ((i > 0) && (x->digits[i-1] == 0)) { i--; }  // skip top zero's
   return kk_bigint_trim_to(x, i, allow_realloc, ctx);
 }
 
-static kk_bigint_t* bigint_alloc_reuse_(kk_bigint_t* x, size_t count, kk_context_t* ctx) {
-  kk_ssize_t d = (kk_ssize_t)(bigint_available_(x) - count);
+static kk_bigint_t* bigint_alloc_reuse_(kk_bigint_t* x, kk_ssize_t count, kk_context_t* ctx) {
+  kk_ssize_t d = (bigint_available_(x) - count);
   if (d >= 0 && d <= MAX_EXTRA && bigint_is_unique_(x)) {   // reuse?
     return kk_bigint_trim_to(x, count, false /* no realloc */, ctx);
   }
@@ -288,13 +288,13 @@ static kk_bigint_t* bigint_alloc_reuse_(kk_bigint_t* x, size_t count, kk_context
   }
 }
 
-static kk_bigint_t* bigint_copy(kk_bigint_t* x, size_t extra, kk_context_t* ctx) {
+static kk_bigint_t* bigint_copy(kk_bigint_t* x, kk_ssize_t extra, kk_context_t* ctx) {
   kk_assert_internal(extra <= MAX_EXTRA);
   if (extra > MAX_EXTRA) extra = MAX_EXTRA;
   kk_bigint_t* z = bigint_alloc(x->count + extra, bigint_is_neg_(x), ctx);
   z->is_neg = x->is_neg;
   z = kk_bigint_trim_to(z, x->count, false, ctx);
-  memcpy(z->digits, x->digits, x->count * sizeof(kk_digit_t) );
+  kk_memcpy(z->digits, x->digits, x->count * kk_ssizeof(kk_digit_t) );
   drop_bigint(x,ctx);
   return z;
 }
@@ -403,33 +403,33 @@ kk_integer_t kk_integer_from_big(kk_intx_t i, kk_context_t* ctx) {
 
 // Convert a digit to LOG_BASE characters.
 // note: gets compiled without divisions on clang and GCC.
-static size_t kk_digit_to_str_full(kk_digit_t d, char* buf) {
-  for (size_t i = LOG_BASE; i > 0; d /= 10) {
+static kk_ssize_t kk_digit_to_str_full(kk_digit_t d, char* buf) {
+  for (kk_ssize_t i = LOG_BASE; i > 0; d /= 10) {
     i--;
     buf[i] = '0' + (d % 10);
   }
   return LOG_BASE;
 }
 // convert digit to characters but skip leading zeros. No output if `d==0`.
-static size_t kk_digit_to_str_partial(kk_digit_t d, char* buf) {
+static kk_ssize_t kk_digit_to_str_partial(kk_digit_t d, char* buf) {
   char tmp[LOG_BASE];
   if (d==0) return 0;
   kk_digit_to_str_full(d, tmp);
-  size_t i = 0;
+  kk_ssize_t i = 0;
   while (i < LOG_BASE && tmp[i]=='0') { i++; }
-  for (size_t j = i; j < LOG_BASE; j++) {
+  for (kk_ssize_t j = i; j < LOG_BASE; j++) {
     buf[j - i] = tmp[j];
   }
   return (LOG_BASE - i);
 }
 
 // Efficient conversion to a string buffer. Use `buf == NULL` to get the required size.
-static size_t kk_bigint_to_buf_(const kk_bigint_t* b, char* buf, size_t kk_buf_size) {
+static kk_ssize_t kk_bigint_to_buf_(const kk_bigint_t* b, char* buf, kk_ssize_t kk_buf_size) {
   kk_assert_internal(b != NULL);
-  const size_t count  = bigint_count_(b);
-  const size_t needed = (count*LOG_BASE) + (bigint_is_neg_(b) ? 1 : 0) + 1; // + (sign and terminator);
-  if (buf==NULL || kk_buf_size==0 || needed > kk_buf_size) return needed;
-  size_t j = 0;  // current output position
+  const kk_ssize_t count  = bigint_count_(b);
+  const kk_ssize_t needed = (count*LOG_BASE) + (bigint_is_neg_(b) ? 1 : 0) + 1; // + (sign and terminator);
+  if (buf==NULL || kk_buf_size<=0 || needed > kk_buf_size) return needed;
+  kk_ssize_t j = 0;  // current output position
   // sign
   if (bigint_is_neg_(b)) {
     buf[j++] = '-';
@@ -439,7 +439,7 @@ static size_t kk_bigint_to_buf_(const kk_bigint_t* b, char* buf, size_t kk_buf_s
   }
   else {
     // skip leading zeros
-    size_t i = count-1;
+    kk_ssize_t i = count-1;
     while (i > 0 && b->digits[i]==0) {
       kk_assert_internal(false); // we should never have leading zeros
       i--;
@@ -458,10 +458,10 @@ static size_t kk_bigint_to_buf_(const kk_bigint_t* b, char* buf, size_t kk_buf_s
 }
 
 static kk_string_t kk_bigint_to_string(kk_bigint_t* b, kk_context_t* ctx) {
-  size_t needed = kk_bigint_to_buf_(b, NULL, 0);
+  kk_ssize_t needed = kk_bigint_to_buf_(b, NULL, 0);
   char* s;
   kk_string_t str = kk_unsafe_string_alloc_cbuf(needed-1, &s, ctx); // don't count terminator
-  size_t used = kk_bigint_to_buf_(b, s, needed);
+  kk_ssize_t used = kk_bigint_to_buf_(b, s, needed);
   drop_bigint(b,ctx);
   str = kk_string_adjust_length(str, used-1, ctx);  // don't count the ending zero included in used
   return str;
@@ -474,7 +474,7 @@ static kk_string_t kk_int_to_string(kk_intx_t n, kk_context_t* ctx) {
   bool neg = (n < 0);
   if (neg) n = -n;
   // output to buf in reverse order
-  size_t i = 0;
+  kk_ssize_t i = 0;
   if (n == 0) {
     buf[i++] = '0';
   }
@@ -489,7 +489,7 @@ static kk_string_t kk_int_to_string(kk_intx_t n, kk_context_t* ctx) {
   // write to the allocated string
   char* p;
   kk_string_t s = kk_unsafe_string_alloc_cbuf(i, &p, ctx);
-  size_t j;
+  kk_ssize_t j;
   for (j = 0; j < i; j++) {
     p[j] = buf[i - j - 1];
   }
@@ -507,8 +507,8 @@ kk_decl_export bool kk_integer_parse(const char* s, kk_integer_t* res, kk_contex
   if (s==NULL) return false;
   // parse
   bool is_neg = false;
-  size_t sig_digits = 0; // digits before the fraction
-  size_t i = 0;
+  kk_ssize_t sig_digits = 0; // digits before the fraction
+  kk_ssize_t i = 0;
   // sign
   if (s[i] == '+') { i++; }
   else if (s[i] == '-') { is_neg = true; i++; }
@@ -532,8 +532,8 @@ kk_decl_export bool kk_integer_parse(const char* s, kk_integer_t* res, kk_contex
   }
   // const char* sigend = s + i;
   // fraction
-  size_t frac_digits = 0;
-  size_t kk_frac_trailing_zeros = 0;
+  kk_ssize_t frac_digits = 0;
+  kk_ssize_t kk_frac_trailing_zeros = 0;
   if (s[i]=='.') {
     i++;
     for (; s[i] != 0; i++) {
@@ -558,7 +558,7 @@ kk_decl_export bool kk_integer_parse(const char* s, kk_integer_t* res, kk_contex
   frac_digits -= kk_frac_trailing_zeros; // ignore trailing zeros
   const char* end = s + i;
   // exponent
-  size_t exp = 0;
+  kk_ssize_t exp = 0;
   if (s[i]=='e' || s[i]=='E') {
     i++;
     if (s[i] == '+') i++;        // optional '+'
@@ -566,22 +566,22 @@ kk_decl_export bool kk_integer_parse(const char* s, kk_integer_t* res, kk_contex
     for (; s[i] != 0; i++) {
       char c = s[i];
       if (kk_ascii_is_digit(c)) {
-        exp = 10*exp + ((size_t)c - '0');
+        exp = 10*exp + (c - '0');
         if (exp > BASE) return false; // exponents must be < 10^9
       }
       else return false;
     }
   }
   if (exp < frac_digits) return false; // fractional number
-  const size_t zero_digits = exp - frac_digits;
-  const size_t dec_digits = sig_digits + frac_digits + zero_digits;  // total decimal digits needed in the bigint
+  const kk_ssize_t zero_digits = exp - frac_digits;
+  const kk_ssize_t dec_digits = sig_digits + frac_digits + zero_digits;  // total decimal digits needed in the bigint
 
   // parsed correctly, ready to construct the number
   // construct an `kk_int_t` if it fits.
   if (dec_digits < LOG_BASE) {   // must be less than LOG_BASE to avoid overflow
     kk_assert_internal(KK_INTX_SIZE >= sizeof(kk_digit_t));
     kk_intx_t d = 0;
-    size_t digits = 0;
+    kk_ssize_t digits = 0;
     for (const char* p = s; p < end && digits < dec_digits; p++) {
       char c = *p;
       if (kk_ascii_is_digit(c)) {
@@ -598,16 +598,16 @@ kk_decl_export bool kk_integer_parse(const char* s, kk_integer_t* res, kk_contex
   }
 
   // otherwise construct a big int
-  const size_t count = ((dec_digits + (LOG_BASE-1)) / LOG_BASE); // round up
+  const kk_ssize_t count = ((dec_digits + (LOG_BASE-1)) / LOG_BASE); // round up
   kk_bigint_t* b = bigint_alloc(count, is_neg, ctx);
-  size_t k     = count;
-  size_t chunk = dec_digits%LOG_BASE; if (chunk==0) chunk = LOG_BASE; // initial number of digits to read
+  kk_ssize_t k     = count;
+  kk_ssize_t chunk = dec_digits%LOG_BASE; if (chunk==0) chunk = LOG_BASE; // initial number of digits to read
   const char* p = s;
-  size_t digits = 0;
+  kk_ssize_t digits = 0;
   while (p < end && digits < dec_digits) {
     kk_digit_t d = 0;
     // read a full digit
-    for (size_t j = 0; j < chunk; ) {
+    for (kk_ssize_t j = 0; j < chunk; ) {
       char c = (p < end ? *p++ : '0'); // fill out with zeros
       if (kk_ascii_is_digit(c)) {
         digits++;
@@ -622,7 +622,7 @@ kk_decl_export bool kk_integer_parse(const char* s, kk_integer_t* res, kk_contex
   }
   // set the final zeros
   kk_assert_internal(zero_digits / LOG_BASE == k);
-  for (size_t j = 0; j < k; j++) { b->digits[j] = 0; }
+  for (kk_ssize_t j = 0; j < k; j++) { b->digits[j] = 0; }
   *res = integer_bigint(b, ctx);
   return true;
 }
@@ -649,8 +649,8 @@ bool kk_integer_hex_parse(const char* s, kk_integer_t* res, kk_context_t* ctx) {
   if (s==NULL) return false;
   // parse
   bool is_neg = false;
-  size_t hdigits = 0; // digit count
-  size_t i = 0;
+  kk_ssize_t hdigits = 0; // digit count
+  kk_ssize_t i = 0;
   // sign
   if (s[i] == '+') { i++; }
   else if (s[i] == '-') { is_neg = true; i++; }
@@ -694,7 +694,7 @@ bool kk_integer_hex_parse(const char* s, kk_integer_t* res, kk_context_t* ctx) {
   }
   
   // otherwise construct a big int
-  const size_t count = (size_t)(ceil((double)hdigits * KK_LOG16_DIV_LOG10)) + 1; // conservatively overallocate to max needed.
+  const kk_ssize_t count = (kk_ssize_t)(ceil((double)hdigits * KK_LOG16_DIV_LOG10)) + 1; // conservatively overallocate to max needed.
   kk_extra_t ecount = (count >= MAX_EXTRA ? MAX_EXTRA-1 : (kk_extra_t)count);
   kk_bigint_t* b = bigint_alloc(ecount, is_neg, ctx);
   b->extra += (ecount-1);
@@ -702,12 +702,12 @@ bool kk_integer_hex_parse(const char* s, kk_integer_t* res, kk_context_t* ctx) {
   b->digits[0] = 0;
 
   // create in chucks of LOG_BASE_HEX digits
-  size_t chunk = hdigits%LOG_BASE_HEX; if (chunk==0) chunk = LOG_BASE_HEX; // initial number of digits to read
+  kk_ssize_t chunk = hdigits%LOG_BASE_HEX; if (chunk==0) chunk = LOG_BASE_HEX; // initial number of digits to read
   const char* p = start;
   while (p < end) {
     kk_digit_t d = 0;
     // read a full digit
-    for (size_t j = 0; j < chunk && p < end; ) {
+    for (kk_ssize_t j = 0; j < chunk && p < end; ) {
       char c = *p++; // fill out with zeros
       if (kk_ascii_is_hexdigit(c)) {
         j++;
@@ -738,11 +738,11 @@ static kk_bigint_t* bigint_neg(kk_bigint_t* x, kk_context_t* ctx) {
 
 
 static int bigint_compare_abs_(kk_bigint_t* x, kk_bigint_t* y) {
-  size_t cx = bigint_count_(x);
-  size_t cy = bigint_count_(y);
+  kk_ssize_t cx = bigint_count_(x);
+  kk_ssize_t cy = bigint_count_(y);
   if (cx > cy) return 1;
   if (cx < cy) return -1;
-  for (size_t i = cx; i > 0; ) {
+  for (kk_ssize_t i = cx; i > 0; ) {
     i--;
     if (x->digits[i] != y->digits[i]) return (x->digits[i] > y->digits[i] ? 1 : -1);
   }
@@ -769,12 +769,12 @@ static kk_bigint_t* kk_bigint_sub(kk_bigint_t* x, kk_bigint_t* y, bool yneg, kk_
 static kk_bigint_t* bigint_add_abs(kk_bigint_t* x, kk_bigint_t* y, kk_context_t* ctx) {   // x.count >= y.count
   // kk_assert_internal(kk_bigint_sign_(x) == kk_bigint_sign_(y));
   // ensure x.count >= y.count
-  const size_t cx = bigint_count_(x);
-  const size_t cy = bigint_count_(y);
+  const kk_ssize_t cx = bigint_count_(x);
+  const kk_ssize_t cy = bigint_count_(y);
   kk_assert_internal(cx >= cy);
 
   // allocate result bigint
-  const size_t cz = ((bigint_last_digit_(x) + bigint_last_digit_(y) + 1) >= BASE ? cx + 1 : cx);
+  const kk_ssize_t cz = ((bigint_last_digit_(x) + bigint_last_digit_(y) + 1) >= BASE ? cx + 1 : cx);
   kk_bigint_t* z = bigint_alloc_reuse_(x, cz, ctx); // if z==x, we reused x.
   //z->is_neg = x->is_neg;
 
@@ -783,7 +783,7 @@ static kk_bigint_t* bigint_add_abs(kk_bigint_t* x, kk_bigint_t* y, kk_context_t*
   kk_digit_t carry = 0;
   kk_digit_t sum = 0;
   // add y's digits
-  size_t i;
+  kk_ssize_t i;
   for (i = 0; i < cy; i++) {
     sum = x->digits[i] + y->digits[i] + carry;
     if (kk_unlikely(sum >= BASE)) {
@@ -831,17 +831,17 @@ static kk_bigint_t* bigint_add_abs(kk_bigint_t* x, kk_bigint_t* y, kk_context_t*
 
 static kk_bigint_t* kk_bigint_add_abs_small(kk_bigint_t* x, kk_digit_t y, kk_context_t* ctx) {
   kk_assert_internal(y >= 0 && y < BASE);  
-  const size_t cx = bigint_count_(x);
+  const kk_ssize_t cx = bigint_count_(x);
 
   // allocate result bigint
-  const size_t cz = ((bigint_last_digit_(x) + y + 1) >= BASE ? cx + 1 : cx);  // is overflow is possible?
+  const kk_ssize_t cz = ((bigint_last_digit_(x) + y + 1) >= BASE ? cx + 1 : cx);  // is overflow is possible?
   kk_bigint_t* z = bigint_alloc_reuse_(x, cz, ctx); // if z==x, we reused x.
   kk_assert_internal(bigint_count_(z) >= cx);
   kk_digit_t carry = y;
   kk_digit_t sum = 0;
 
   // add y do the digits of x
-  size_t i;
+  kk_ssize_t i;
   for (i = 0; carry!=0 && i < cx; i++) {
     sum = x->digits[i] + carry;
     if (kk_unlikely(sum >= BASE)) {
@@ -886,8 +886,8 @@ static kk_bigint_t* kk_bigint_add_abs_small(kk_bigint_t* x, kk_digit_t y, kk_con
 
 static kk_bigint_t* kk_bigint_sub_abs(kk_bigint_t* x, kk_bigint_t* y, kk_context_t* ctx) {  // |x| >= |y|
   kk_assert_internal(bigint_compare_abs_(x, y) >= 0);
-  size_t cx = bigint_count_(x);
-  size_t cy = bigint_count_(y);
+  kk_ssize_t cx = bigint_count_(x);
+  kk_ssize_t cy = bigint_count_(y);
   kk_assert_internal(cx>=cy);
   kk_bigint_t* z = bigint_alloc_reuse_(x, cx, ctx);
   //z->is_neg = x->is_neg;
@@ -895,7 +895,7 @@ static kk_bigint_t* kk_bigint_sub_abs(kk_bigint_t* x, kk_bigint_t* y, kk_context
   kk_digit_t borrow = 0;
   kk_digit_t diff = 0;
   // subtract y digits
-  size_t i;
+  kk_ssize_t i;
   for (i = 0; i < cy; i++) {
     diff = x->digits[i] - borrow - y->digits[i];
     if (kk_unlikely(diff >= BASE)) {   // unsigned wrap around
@@ -938,14 +938,14 @@ static kk_bigint_t* kk_bigint_sub_abs(kk_bigint_t* x, kk_bigint_t* y, kk_context
 ----------------------------------------------------------------------*/
 
 static kk_bigint_t* bigint_mul(kk_bigint_t* x, kk_bigint_t* y, kk_context_t* ctx) {
-  size_t cx = bigint_count_(x);
-  size_t cy = bigint_count_(y);
+  kk_ssize_t cx = bigint_count_(x);
+  kk_ssize_t cy = bigint_count_(y);
   uint8_t is_neg = (bigint_is_neg_(x) != bigint_is_neg_(y) ? 1 : 0);
-  size_t cz = cx+cy;
+  kk_ssize_t cz = cx+cy;
   kk_bigint_t* z = bigint_alloc_zero(cz,is_neg,ctx);
-  for (size_t i = 0; i < cx; i++) {
+  for (kk_ssize_t i = 0; i < cx; i++) {
     kk_digit_t dx = x->digits[i];
-    for (size_t j = 0; j < cy; j++) {
+    for (kk_ssize_t j = 0; j < cy; j++) {
       kk_digit_t dy = y->digits[j];
       kk_ddigit_t prod = ddigit_mul_add(dx,dy,z->digits[i+j]);
       kk_digit_t rem;
@@ -961,12 +961,12 @@ static kk_bigint_t* bigint_mul(kk_bigint_t* x, kk_bigint_t* y, kk_context_t* ctx
 
 static kk_bigint_t* kk_bigint_mul_small(kk_bigint_t* x, kk_digit_t y, kk_context_t* ctx) {
   kk_assert_internal(y < BASE);
-  size_t cx = bigint_count_(x);
+  kk_ssize_t cx = bigint_count_(x);
   uint8_t is_neg = bigint_is_neg_(x);
-  size_t cz = cx+1;
+  kk_ssize_t cz = cx+1;
   kk_bigint_t* z = bigint_alloc_reuse_(x, cz, ctx);
   kk_digit_t carry = 0;
-  size_t i;
+  kk_ssize_t i;
   for (i = 0; i < cx; i++) {
     kk_ddigit_t prod = ddigit_mul_add(x->digits[i], y, carry);
     kk_digit_t rem;
@@ -989,22 +989,22 @@ static kk_bigint_t* kk_bigint_sqr(kk_bigint_t* x, kk_context_t* ctx) {
   return bigint_mul(x, x, ctx);
 }
 
-static kk_bigint_t* kk_bigint_shift_left(kk_bigint_t* x, size_t digits, kk_context_t* ctx) {
-  const size_t cx = x->count;
+static kk_bigint_t* kk_bigint_shift_left(kk_bigint_t* x, kk_ssize_t digits, kk_context_t* ctx) {
+  const kk_ssize_t cx = x->count;
   kk_bigint_t* z = bigint_alloc_reuse_(x, x->count + digits, ctx);
-  memmove(&z->digits[digits], &x->digits[0], sizeof(kk_digit_t)*cx);
-  memset(&z->digits[0], 0, sizeof(kk_digit_t)*digits);
+  kk_memmove(&z->digits[digits], &x->digits[0], kk_ssizeof(kk_digit_t)*cx);
+  kk_memset(&z->digits[0], 0, kk_ssizeof(kk_digit_t)*digits);
   if (z != x) drop_bigint(x, ctx);
   return z;
 }
 
-static kk_bigint_t* kk_bigint_slice(kk_bigint_t* x, size_t lo, size_t hi, kk_context_t* ctx) {
-  if (lo == 0 && bigint_is_unique_(x)) {
+static kk_bigint_t* kk_bigint_slice(kk_bigint_t* x, kk_ssize_t lo, kk_ssize_t hi, kk_context_t* ctx) {
+  if (lo <= 0 && bigint_is_unique_(x)) {
     return kk_bigint_trim_to(x, hi, false, ctx);
   }
   if (lo >= x->count) lo = x->count;
   if (hi > x->count)  hi = x->count;
-  const size_t cz = hi - lo;
+  const kk_ssize_t cz = hi - lo;
   kk_bigint_t* z = bigint_alloc(cz, x->is_neg, ctx);
   if (cz==0) {
     z->digits[0] = 0;
@@ -1012,13 +1012,13 @@ static kk_bigint_t* kk_bigint_slice(kk_bigint_t* x, size_t lo, size_t hi, kk_con
     z->extra--;
   }
   else if (lo < x->count) {
-    memcpy(&z->digits[0], &x->digits[lo], sizeof(kk_digit_t)*cz);
+    kk_memcpy(&z->digits[0], &x->digits[lo], kk_ssizeof(kk_digit_t)*cz);
   }
   return z;
 }
 
 static kk_bigint_t* bigint_mul_karatsuba(kk_bigint_t* x, kk_bigint_t* y, kk_context_t* ctx) {
-  size_t n = (x->count >= y->count ? x->count : y->count);
+  kk_ssize_t n = (x->count >= y->count ? x->count : y->count);
   if (n <= 25) return bigint_mul(x, y, ctx);
   n = ((n + 1) / 2);
 
@@ -1098,11 +1098,11 @@ kk_integer_t kk_integer_pow(kk_integer_t x, kk_integer_t p, kk_context_t* ctx) {
 
 static kk_bigint_t* kk_bigint_cdiv_cmod_small(kk_bigint_t* x, kk_digit_t y, kk_digit_t* pmod, kk_context_t* ctx) {
   kk_assert_internal(y < BASE);
-  size_t cx = bigint_count_(x);
+  kk_ssize_t cx = bigint_count_(x);
   // uint8_t is_neg = (bigint_is_neg_(x) != (y<0) ? 1 : 0);
   kk_bigint_t* z = bigint_alloc_reuse_(x, cx, ctx);
   kk_digit_t mod = 0;
-  for (size_t i = cx; i > 0; i--) {
+  for (kk_ssize_t i = cx; i > 0; i--) {
     kk_ddigit_t div = ddigit_mul_add(mod, BASE, x->digits[i-1]);
     kk_digit_t q = ddigit_cdiv( div, y, &mod);
     z->digits[i-1] = q;
@@ -1116,8 +1116,8 @@ static kk_bigint_t* kk_bigint_cdiv_cmod_small(kk_bigint_t* x, kk_digit_t y, kk_d
 
 
 static kk_bigint_t* bigint_cdiv_cmod(kk_bigint_t* x, kk_bigint_t* y, kk_bigint_t** pmod, kk_context_t* ctx) {
-  size_t cx = bigint_count_(x);
-  size_t cy = bigint_count_(y);
+  kk_ssize_t cx = bigint_count_(x);
+  kk_ssize_t cy = bigint_count_(y);
   kk_assert_internal(cx >= cy);
   uint8_t is_neg = (bigint_is_neg_(x) != bigint_is_neg_(y) ? 1 : 0);
   kk_bigint_t* z = bigint_alloc_zero(cx - cy + 1, is_neg, ctx);
@@ -1130,21 +1130,20 @@ static kk_bigint_t* bigint_cdiv_cmod(kk_bigint_t* x, kk_bigint_t* y, kk_bigint_t
   kk_bigint_t* div = kk_bigint_mul_small(y, lambda, ctx);
   divisorHi = bigint_last_digit_(div); // todo: check more
   div = bigint_push(div, 0, ctx);
-  for (kk_ssize_t sshift = (kk_ssize_t)(cx - cy); sshift >= 0; sshift--) {
-    const size_t shift = (size_t)sshift;
+  for (kk_ssize_t shift = (cx - cy); shift >= 0; shift--) {
     kk_digit_t qd = BASE - 1;
-    kk_assert_internal(rem->count > (size_t)shift + cy);
+    kk_assert_internal(rem->count > shift + cy);
     if (rem->digits[shift + cy] != divisorHi) {
       kk_assert_internal(rem->count > 1);
-      kk_assert_internal(rem->digits[(size_t)shift + cy] < BASE);
+      kk_assert_internal(rem->digits[shift + cy] < BASE);
       kk_ddigit_t rem_hi = ddigit_mul_add(rem->digits[shift + cy], BASE, rem->digits[shift + cy - 1]);
       qd = ddigit_cdiv(rem_hi, divisorHi, NULL);
     }
     kk_assert_internal(qd < BASE);
     kk_digit_t carry = 0;
     kk_digit_t borrow = 0;
-    size_t cd = div->count;
-    for (size_t i = 0; i < cd; i++) {
+    kk_ssize_t cd = div->count;
+    for (kk_ssize_t i = 0; i < cd; i++) {
       kk_ddigit_t dcarry = ddigit_mul_add( qd, div->digits[i], carry );
       kk_digit_t carry_rem;
       carry = ddigit_cdiv(dcarry, BASE, &carry_rem);
@@ -1164,7 +1163,7 @@ static kk_bigint_t* bigint_cdiv_cmod(kk_bigint_t* x, kk_bigint_t* y, kk_bigint_t
     while (borrow != 0) {
       qd--;
       carry = 0;
-      for (size_t i = 0; i < cd; i++) {
+      for (kk_ssize_t i = 0; i < cd; i++) {
         carry += rem->digits[shift + i] - BASE + div->digits[i];
         if (carry >= BASE) {   // unsigned wrap
           kk_assert_internal(carry + BASE < BASE);
@@ -1285,7 +1284,7 @@ kk_integer_t kk_integer_sub_generic(kk_integer_t x, kk_integer_t y, kk_context_t
   return integer_bigint(kk_bigint_sub(bx, by, by->is_neg, ctx), ctx);
 }
 
-static bool use_karatsuba(size_t i, size_t j) {
+static bool use_karatsuba(kk_ssize_t i, kk_ssize_t j) {
   return ((0.000012*(double)(i*j) - 0.0025*(double)(i+j)) >= 0.0);
 }
 
@@ -1459,17 +1458,17 @@ static kk_string_t kk_int_to_hex_string(kk_intx_t i, bool use_capitals, kk_conte
   return kk_string_alloc_dup_valid_utf8(buf, ctx);
 }
 
-static size_t kk_bigint_to_hex_buf(kk_bigint_t* b, char* buf, size_t size, bool use_capitals, kk_context_t* ctx) {
+static kk_ssize_t kk_bigint_to_hex_buf(kk_bigint_t* b, char* buf, kk_ssize_t size, bool use_capitals, kk_context_t* ctx) {
   // TODO: can we improve the performance using the Chinese remainder theorem? 
   // and avoid the reversal? and per digit divide?
   kk_assert_internal(!b->is_neg);
   const char baseA = (use_capitals ? 'A' : 'a');
-  size_t len = 0;
+  kk_ssize_t len = 0;
   while (len < size && ((b->count > 1) || (b->digits[0] != 0))) {
     // convert per BASE_HEX chunk in reverse order
     kk_digit_t mod;
     b = kk_bigint_cdiv_cmod_small(b, BASE_HEX, &mod, ctx);
-    for (size_t i = 0; i < LOG_BASE_HEX && len < size; i++) {
+    for (kk_ssize_t i = 0; i < LOG_BASE_HEX && len < size; i++) {
       // convert the mod per hex digit in reverse order
       kk_digit_t d = mod % 16;
       mod /= 16;
@@ -1485,7 +1484,7 @@ static size_t kk_bigint_to_hex_buf(kk_bigint_t* b, char* buf, size_t size, bool 
   buf[len] = 0;
 
   // reverse the digits (careful with alignment restrictions if trying optimizing this)
-  for (size_t i = 0; i < len/2; i++) {
+  for (kk_ssize_t i = 0; i < len/2; i++) {
     char c = buf[i];
     char d = buf[len - 1 - i];
     buf[len - 1 - i] = c;
@@ -1497,11 +1496,11 @@ static size_t kk_bigint_to_hex_buf(kk_bigint_t* b, char* buf, size_t size, bool 
 }
 
 static kk_string_t kk_bigint_to_hex_string(kk_bigint_t* b, bool use_capitals, kk_context_t* ctx) {
-  size_t dec_needed = kk_bigint_to_buf_(b, NULL, 0);   
-  size_t needed = (size_t)(ceil((double)dec_needed * KK_LOG10_DIV_LOG16)) + 2; // conservative estimate
+  kk_ssize_t dec_needed = kk_bigint_to_buf_(b, NULL, 0);   
+  kk_ssize_t needed = (kk_ssize_t)(ceil((double)dec_needed * KK_LOG10_DIV_LOG16)) + 2; // conservative estimate
   char* s;
   kk_string_t str = kk_unsafe_string_alloc_cbuf(needed, &s, ctx);
-  size_t len = kk_bigint_to_hex_buf(b, s, needed, use_capitals, ctx);
+  kk_ssize_t len = kk_bigint_to_hex_buf(b, s, needed, use_capitals, ctx);
   kk_assert_internal(needed > len);
   return kk_string_adjust_length(str, len, ctx);
 }
@@ -1592,7 +1591,7 @@ kk_integer_t kk_integer_count_digits(kk_integer_t x, kk_context_t* ctx) {
   }
 }
 
-static kk_digit_t powers_of_10[LOG_BASE+1] = { 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000
+static kk_digit_t digit_powers_of_10[LOG_BASE+1] = { 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000
 #if (LOG_BASE > 9)
                                           , 10000000000, 100000000000, 1000000000000, 10000000000000, 100000000000000
                                           , 1000000000000000, 10000000000000000, 100000000000000000, 1000000000000000000
@@ -1621,22 +1620,22 @@ kk_integer_t kk_integer_mul_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* 
 
   // small multiply?
   if (kk_is_smallint(x) && i < LOG_BASE) {
-    return kk_integer_mul(x, kk_integer_from_int(powers_of_10[i], ctx), ctx);
+    return kk_integer_mul(x, kk_integer_from_int(digit_powers_of_10[i], ctx), ctx);
   }
 
   // multiply a bigint
-  size_t large = (size_t)i / LOG_BASE;  // number of zero digits to shift in
-  size_t ismall = (size_t)i % LOG_BASE;  // small multiply the left over
+  kk_ssize_t large = (kk_ssize_t)i / LOG_BASE;  // number of zero digits to shift in
+  kk_ssize_t ismall = (kk_ssize_t)i % LOG_BASE;  // small multiply the left over
   kk_bigint_t* b = kk_integer_to_bigint(x, ctx);
   if (ismall > 0) {
-    b = kk_bigint_mul_small(b, powers_of_10[ismall], ctx);
+    b = kk_bigint_mul_small(b, digit_powers_of_10[ismall], ctx);
   }
   if (large > 0) {
-    size_t bcount = b->count;
-    size_t ccount = bcount + large;
+    kk_ssize_t bcount = b->count;
+    kk_ssize_t ccount = bcount + large;
     kk_bigint_t* c = bigint_alloc_reuse_(b, ccount, ctx);
-    memmove(&c->digits[large], &b->digits[0], bcount * sizeof(kk_digit_t));
-    memset(&c->digits[0], 0, large * sizeof(kk_digit_t));
+    kk_memmove(&c->digits[large], &b->digits[0], bcount * kk_ssizeof(kk_digit_t));
+    kk_memset(&c->digits[0], 0, large * kk_ssizeof(kk_digit_t));
     kk_assert_internal(c->count == ccount);
     if (b != c) drop_bigint(b, ctx);
     b = c;
@@ -1667,33 +1666,33 @@ kk_integer_t kk_integer_cdiv_pow10(kk_integer_t x, kk_integer_t p, kk_context_t*
 
   // small divide?
   if (kk_is_smallint(x) && i < LOG_BASE) {
-    return kk_integer_cdiv(x, kk_integer_from_int(powers_of_10[i], ctx), ctx);
+    return kk_integer_cdiv(x, kk_integer_from_int(digit_powers_of_10[i], ctx), ctx);
   }
 
   // divide a bigint
-  size_t large = (size_t)i / LOG_BASE;  // number of zero digits to shift out
-  size_t ismall = (size_t)i % LOG_BASE;  // small divide the left over
+  kk_ssize_t large = (kk_ssize_t)i / LOG_BASE;  // number of zero digits to shift out
+  kk_ssize_t ismall = (kk_ssize_t)i % LOG_BASE;  // small divide the left over
   kk_bigint_t* b = kk_integer_to_bigint(x, ctx);
-  size_t bcount = b->count;
+  kk_ssize_t bcount = b->count;
   if (large > 0) {
     if (large >= bcount) {
       drop_bigint(b, ctx);
       return kk_integer_zero;
     }
-    size_t ccount = bcount - large;
+    kk_ssize_t ccount = bcount - large;
     if (bigint_is_unique_(b)) {
-      memmove(&b->digits[0], &b->digits[large], ccount * sizeof(kk_digit_t));
+      kk_memmove(&b->digits[0], &b->digits[large], ccount * kk_ssizeof(kk_digit_t));
       b = kk_bigint_trim_to(b, ccount, true, ctx);
     }
     else {
       kk_bigint_t* c = bigint_alloc(ccount, b->is_neg, ctx);
-      memcpy(&c->digits[0], &b->digits[large], ccount * sizeof(kk_digit_t));
+      kk_memcpy(&c->digits[0], &b->digits[large], ccount * kk_ssizeof(kk_digit_t));
       drop_bigint(b, ctx);
       b = c;
     }
   }
   if (ismall > 0) {
-    b = kk_bigint_cdiv_cmod_small(b, powers_of_10[ismall], NULL, ctx);
+    b = kk_bigint_cdiv_cmod_small(b, digit_powers_of_10[ismall], NULL, ctx);
   }
   return integer_bigint(b, ctx);
 }
@@ -1707,6 +1706,7 @@ kk_integer_t kk_integer_div_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* 
   return d;
 }
 
+/* borrow x, may prodice an invalid read if x is not a bigint */
 int32_t kk_integer_clamp32_bigint(kk_integer_t x, kk_context_t* ctx) {
   kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_as_bigint(x), KK_TAG_BIGINT);
   int32_t i = 0;
@@ -1720,6 +1720,7 @@ int32_t kk_integer_clamp32_bigint(kk_integer_t x, kk_context_t* ctx) {
   return i;
 }
 
+/* borrow x, may prodice an invalid read if x is not a bigint */
 int64_t kk_integer_clamp64_bigint(kk_integer_t x, kk_context_t* ctx) {
   kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_as_bigint(x), KK_TAG_BIGINT);
   int64_t i = 0;
@@ -1734,6 +1735,7 @@ int64_t kk_integer_clamp64_bigint(kk_integer_t x, kk_context_t* ctx) {
   return i;
 }
 
+/* borrow x, may prodice an invalid read if x is not a bigint */
 size_t kk_integer_clamp_size_t_bigint(kk_integer_t x, kk_context_t* ctx) {
   kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_as_bigint(x), KK_TAG_BIGINT);
   size_t i = 0;
@@ -1769,12 +1771,24 @@ done:
   return i;
 }
 
+kk_ssize_t kk_integer_clamp_ssize_t_bigint(kk_integer_t x, kk_context_t* ctx) {
+  bool isneg = (kk_integer_signum_generic_bigint(x, ctx) < 0);
+  size_t sz = kk_integer_clamp_size_t_bigint( (isneg ? kk_integer_neg_generic(x, ctx) : x), ctx);
+  if (isneg) {
+    return (sz <= KK_SSIZE_MAX ? -((kk_ssize_t)sz) : KK_SSIZE_MIN);
+  }
+  else {
+    return (sz <= KK_SSIZE_MAX ? (kk_ssize_t)sz : KK_SSIZE_MAX);
+  }
+}
+
+/* borrow x, may prodice an invalid read if x is not a bigint */
 double kk_integer_as_double_bigint(kk_integer_t x, kk_context_t* ctx) {
   kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_as_bigint(x), KK_TAG_BIGINT);
   if (bx->count > ((310/LOG_BASE) + 1)) return (bx->is_neg ? -HUGE_VAL : HUGE_VAL);
   double base = (double)BASE;
   double d = 0.0;
-  for (size_t i = bx->count; i > 0; i--) {
+  for (kk_ssize_t i = bx->count; i > 0; i--) {
     d = (d*base) + ((double)bx->digits[i-1]);
   }
   if (bx->is_neg) d = -d;

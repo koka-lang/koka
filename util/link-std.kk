@@ -8,6 +8,7 @@ Program to create a standard install bundle by pre-compiling everyting
 in the `std/toc` module.
 -----------------------------------------------------------------------------*/
 import toc
+import std/text/regex
 
 fun main() : console () {
   println("done.")

@@ -57,7 +57,7 @@ abstract type ev<h> {
 
 private type evv<e::E>;
 
-public alias ev-index = size_t
+public alias ev-index = ssize_t
 
 // -------------------------------------------
 // Internal Markers

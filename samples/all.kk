@@ -25,6 +25,12 @@ import named-handlers/file-scoped
 import named-handlers/heap
 
 public fun main() {
+  caesar/main()
   fibonacci/main()
   garsia-wachs/main()
+  rbtree/main()
+  nim/main()
+  parser/main()
+  scoped/main()
+  ambient/main()
 }

@@ -26,16 +26,17 @@ module Compiler.Options( -- * Command line options
 
 import Data.Char              ( toUpper, isAlpha, isSpace )
 import Data.List              ( intersperse )
+import Control.Monad          ( when )
 import System.Environment     ( getArgs )
 import System.Directory       ( doesFileExist, getHomeDirectory )
 import Platform.GetOptions
 import Platform.Config
 import Lib.PPrint
 import Lib.Printer
-import Common.Failure         ( raiseIO )
+import Common.Failure         ( raiseIO, catchIO )
 import Common.ColorScheme
-import Common.File
-import Common.Syntax          ( Target (..), Host(..), Platform(..), platform32, platform64, platformJS, platformCS )
+import Common.File            
+import Common.Syntax          ( Target (..), Host(..), Platform(..), BuildType(..), platform32, platform64, platformJS, platformCS )
 import Compiler.Package
 import Core.Core( dataInfoIsValue )
 {--------------------------------------------------------------------------
@@ -322,8 +323,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , configstr [] ["console"]      ["ansi","html","raw"] (\s f -> f{console=s})   "console output format"
 --  , option []    ["install-dir"]     (ReqArg installDirFlag "dir")       "set the install directory explicitly"
 
- , hide $ fflag       ["stdalloc"]  (\b f -> f{useStdAlloc=b})       "use the libc allocator (as opposed to mimalloc)"
- , hide $ fflag       ["asan"]      (\b f -> f{asan=b})              "compile with address, undefined, and leak santizer (clang only)"
+ , hide $ fflag       ["asan"]      (\b f -> f{asan=b})              "compile with address, undefined, and leak sanitizer (clang only)"
+ , hide $ fflag       ["stdalloc"]  (\b f -> f{useStdAlloc=b})       "use the standard allocator (as opposed to mimalloc)"
  , hide $ fnum 3 "n"  ["simplify"]  (\i f -> f{simplify=i})          "enable 'n' core simplification passes"
  , hide $ fnum 10 "n" ["maxdup"]    (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
  , hide $ fnum 10 "n" ["inline"]    (\i f -> f{optInlineMax=i})      "set 'n' as maximum inline threshold (=10)"
@@ -531,13 +532,14 @@ processOptions flags0 opts
                    ccmd <- if (ccompPath flags == "") then detectCC
                            else if (ccompPath flags == "mingw") then return "gcc"
                            else return (ccompPath flags)
-                   cc   <- ccFromPath flags ccmd
+                   (cc,asan) <- ccFromPath flags ccmd
+                   ccCheckExist cc
                    -- vcpkg
                    vcpkg <- vcpkgFind (vcpkgRoot flags)
                    let vcpkgRoot        = if (null vcpkg) then "" else dirname vcpkg
                        vcpkgInstalled   = (vcpkgRoot) ++ "/installed/" ++ (vcpkgTriplet flags)
                        vcpkgIncludeDir  = vcpkgInstalled ++ "/include"
-                       vcpkgLibDir      = vcpkgInstalled ++ "/lib"
+                       vcpkgLibDir      = vcpkgInstalled ++ (if buildType flags == Debug then "/debug/lib" else "/lib")
                        vcpkgLibDirs     = if (null vcpkg) then [] else [vcpkgLibDir]
                        vcpkgIncludeDirs = if (null vcpkg) then [] else [vcpkgIncludeDir] 
                    return (flags{ packages    = pkgs,
@@ -548,6 +550,7 @@ processOptions flags0 opts
                                   
                                   ccompPath   = ccmd,
                                   ccomp       = cc,
+                                  asan        = asan,
                                   editor      = ed,
                                   includePath = (localShareDir ++ "/lib") : includePath flags,
 
@@ -558,7 +561,7 @@ processOptions flags0 opts
                                   ccompLibDirs     = vcpkgLibDirs ++ ccompLibDirs flags,
                                   ccompIncludeDirs = vcpkgIncludeDirs ++ ccompIncludeDirs flags,
 
-                                  useStdAlloc = if (asan flags) then True else (useStdAlloc flags)
+                                  useStdAlloc = if asan then True else (useStdAlloc flags)
                                }
                           ,mode)
         else invokeError errs
@@ -678,13 +681,6 @@ data CC = CC{  ccName       :: String,
                ccObjFile    :: String -> FilePath   -- make object file namen
             }
 
-data BuildType = Debug | Release | RelWithDebInfo
-               deriving (Eq)
-
-instance Show BuildType where
-  show Debug          = "debug"
-  show Release        = "release"
-  show RelWithDebInfo = "drelease"
 
 outName :: Flags -> FilePath -> FilePath
 outName flags s
@@ -730,7 +726,7 @@ ccGcc name path
          (Release,       words "-O2 -DNDEBUG"),
          (RelWithDebInfo,words "-O2 -g -DNDEBUG")]
         (gnuWarn ++ ["-Wno-unused-but-set-variable"])
-        (["-c"] ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
+        (["-c"]) -- ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
         []
         (\libdir -> ["-L",libdir])
         (\idir -> ["-I",idir])
@@ -743,7 +739,7 @@ ccGcc name path
         (\obj -> obj ++ objExtension)
 
 ccMsvc name path
-  = CC name path ["-DWIN32","-nologo"]
+  = CC name path ["-DWIN32","-nologo"] 
          [(Debug,words "-MDd -Zi -Ob0 -Od -RTC1"),
           (Release,words "-MD -O2 -Ob2 -DNDEBUG"),
           (RelWithDebInfo,words "-MD -Zi -O2 -Ob1 -DNDEBUG")]
@@ -761,7 +757,7 @@ ccMsvc name path
          (\obj -> obj ++ objExtension)         
 
 
-ccFromPath :: Flags -> FilePath -> IO CC
+ccFromPath :: Flags -> FilePath -> IO (CC,Bool {-asan-})
 ccFromPath flags path
   = let name    = -- reverse $ dropWhile (not . isAlpha) $ reverse $
                   basename path
@@ -770,8 +766,9 @@ ccFromPath flags path
         clang   = gcc{ ccFlagsWarn = gnuWarn ++ words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align" }
         generic = gcc{ ccFlagsWarn = [] }
         msvc    = ccMsvc name path
-        clangcl = msvc{ ccFlagsWarn = ccFlagsWarn clang ++ words "-Wno-extra-semi-stmt -Wno-extra-semi -Wno-float-equal",
-                        ccFlagsLink = words "-Wno-unused-command-line-argument" ++ ccFlagsLink msvc
+        clangcl = msvc{ ccFlagsWarn = ["-Wno-everything"] ++ ccFlagsWarn clang ++ words "-Wno-extra-semi-stmt -Wno-extra-semi -Wno-float-equal",
+                        ccFlagsLink = words "-Wno-unused-command-line-argument" ++ ccFlagsLink msvc,
+                        ccFlagsCompile = ["-D__clang_msvc__"] ++ ccFlagsCompile msvc
                       }
 
         cc0     | (name `startsWith` "clang-cl") = clangcl
@@ -789,11 +786,24 @@ ccFromPath flags path
     in if (asan flags)
          then if (not (ccName cc `startsWith` "clang"))
                 then do putStrLn "warning: can only use address sanitizer with clang (ignored)"
-                        return cc
-                else do return cc{ ccName         = ccName cc ++ "-asan"
-                                 , ccFlagsCompile = ccFlagsCompile cc ++ ["-fsanitize=address,undefined,leak","-fno-omit-frame-pointer","-O0"]
-                                 , ccFlagsLink    = ccFlagsLink cc ++ ["-fsanitize=address,undefined,leak"] }
-         else return cc
+                        return (cc,False)
+                else do return (cc{ ccName         = ccName cc ++ "-asan"
+                                  , ccFlagsCompile = ccFlagsCompile cc ++ ["-fsanitize=address,undefined,leak","-fno-omit-frame-pointer","-O0"]
+                                  , ccFlagsLink    = ccFlagsLink cc ++ ["-fsanitize=address,undefined,leak"] }
+                               ,True)
+         else return (cc,False)
+
+ccCheckExist :: CC -> IO ()
+ccCheckExist cc
+  = do paths  <- getEnvPaths "PATH"
+       mbPath <- searchPaths paths [exeExtension] (ccPath cc)
+       case mbPath of
+         Just _  -> return ()
+         Nothing -> do putStrLn ("\nwarning: cannot find the C compiler: " ++ ccPath cc)
+                       when (ccName cc == "cl") $
+                         putStrLn ("   hint: run in an x64 Native Tools command prompt? or use the --cc=clang-cl flag?")
+                       when (ccName cc == "clang-cl") $
+                         putStrLn ("   hint: install clang for Windows from <https://llvm.org/builds/> ?")
 
 -- unquote a shell argument string (as well as we can)
 unquote :: String -> [String]

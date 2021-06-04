@@ -29,7 +29,7 @@ module Type.Type (-- * Types
                   , expandSyn
                   , canonicalForm, minimalForm
                   -- ** Standard types
-                  , typeInt, typeBool, typeFun, typeVoid, typeInt32, typeEvIndex, typeSizeT
+                  , typeInt, typeBool, typeFun, typeVoid, typeInt32, typeEvIndex, typeSizeT, typeSSizeT
                   , typeUnit, typeChar, typeString, typeFloat
                   , typeTuple, typeAny
                   , typeEv, isEvType, makeEvType
@@ -59,6 +59,7 @@ module Type.Type (-- * Types
                   , isTypeBool, isTypeInt, isTypeString, isTypeChar
                   , isTypeUnit
                   , isTypeLocalVar
+                  , isValueOperation
 
                   -- ** Trivial conversion
                   , IsType( toType)
@@ -461,6 +462,7 @@ splitFunType tp
 {--------------------------------------------------------------------------
   Primitive types
 --------------------------------------------------------------------------}
+
 -- | Type of integers (@Int@)
 typeInt :: Tau
 typeInt
@@ -476,7 +478,11 @@ typeInt32
 
 typeEvIndex :: Tau
 typeEvIndex
-  = TSyn (TypeSyn nameTpEvIndex kindStar 0 Nothing) [] typeSizeT
+  = TSyn (TypeSyn nameTpEvIndex kindStar 0 Nothing) [] typeSSizeT
+
+typeSSizeT :: Tau
+typeSSizeT
+  = TCon (TypeCon nameTpSSizeT kindStar)
 
 typeSizeT :: Tau
 typeSizeT
@@ -520,6 +526,12 @@ isTypeLocalVar tp =
   case expandSyn tp of
     TApp (TCon (TypeCon name _)) [_,_]  -> name == nameTpLocalVar
     _ -> False
+
+
+isValueOperation tp
+  = case splitPredType tp of
+      (_,_,TSyn syn [opTp] _) -> typeSynName syn == nameTpValueOp
+      _ -> False    
 
 orderEffect :: Tau -> Tau
 orderEffect tp
