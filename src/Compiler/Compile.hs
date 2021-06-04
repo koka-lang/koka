@@ -885,7 +885,7 @@ inferCheck loaded flags line coreImports program1
 
        -- traceDefGroups "lifted" coreDefsSimp0
 
-       let specEnv = extractSpecializeDefs coreDefsSimp0
+       let specEnv = extractSpecializeEnv coreDefsSimp0
        traceM "Spec defs:"
        traceM (show specEnv)
 

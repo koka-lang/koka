@@ -11,7 +11,7 @@ module Core.Specialize( SpecializeEnv
 
                       , specialize
 
-                      , extractSpecializeDefs 
+                      , extractSpecializeEnv
                       ) where
 
 import Data.Bifunctor
@@ -36,15 +36,20 @@ import Lib.Trace
   
 --------------------------------------------------------------------------}
 
-data SpecializeDefs = SpecializeDefs
-  { targetFunc :: Name
-  , argsToSpecialize :: [Bool]
+data SpecializeInfo = SpecializeInfo
+  { specName :: Name
+  , specArgs :: [Bool]
+  , specExpr :: Expr
   } deriving (Show)
 
 
 
 {--------------------------------------------------------------------------
   Specialization Monad
+
+  val f = fn(x){ .. }
+  map(xs,f) ++ map(ys,f)
+
 --------------------------------------------------------------------------}
 
 data SpecState = SpecState
@@ -74,7 +79,18 @@ emitSpecializedDefGroup defGroup = modify (\state@SpecState { _newDefs = newDefs
 
 
 {--------------------------------------------------------------------------
-  Specializition
+  Specialization
+  
+DefRec  
+  foo_map(xs) {
+    val f = fn(x){ x + foo(n-1) }
+    ...
+  }
+
+  foo(n) {
+    val f = fn(x){ x + foo(n-1) }
+    foo_map(xs)
+  }
 --------------------------------------------------------------------------}
 
 specialize :: Env -> Int -> SpecializeEnv -> DefGroups -> (DefGroups, Int)
@@ -84,7 +100,7 @@ specialize env uniq specEnv groups =
     (changedDefs, newDefs) = runSpecM M.empty specEnv $ mapM specOneDefGroup groups
   in (changedDefs ++ newDefs, uniq)
 
-speclookupM :: (Monad m, MonadReader SpecializeEnv m) => Name -> m (Maybe SpecializeDefs)
+speclookupM :: (Monad m, MonadReader SpecializeEnv m) => Name -> m (Maybe SpecializeInfo)
 speclookupM name = asks (specenvLookup name)
 
 specOneDefGroup :: DefGroup -> SpecM DefGroup
@@ -127,12 +143,12 @@ createSpecializedDef name paramsToSpecialize args =
 filterBools :: [Bool] -> [a] -> [a]
 filterBools bools as = catMaybes $ zipWith (\bool a -> guard bool >> Just a) bools as
 
-specOneCall :: SpecializeDefs -> Expr -> SpecM Expr
-specOneCall (SpecializeDefs{ argsToSpecialize=argsToSpecialize }) e = case e of
+specOneCall :: SpecializeInfo -> Expr -> SpecM Expr
+specOneCall (SpecializeInfo{ specArgs=specArgs }) e = case e of
   App (Var (TName name _) _) args -> do
-    specializedDef <- createSpecializedDef name argsToSpecialize args
+    specializedDef <- createSpecializedDef name specArgs args
     emitSpecializedDefGroup $ DefRec [specializedDef]
-    replaceCall specializedDef argsToSpecialize args
+    replaceCall specializedDef specArgs args
 
   -- the result may no longer be a typeapp
   -- App (TypeApp (Var (TName name _) _) _) args -> undefined
@@ -151,10 +167,10 @@ replaceCall specializedDef bools args =
   Extract definitions that should be specialized
 --------------------------------------------------------------------------}
 
-extractSpecializeDefs :: DefGroups -> SpecializeEnv
-extractSpecializeDefs = 
+extractSpecializeEnv :: DefGroups -> SpecializeEnv
+extractSpecializeEnv = 
     specenvNew
-  . filter (not . null . argsToSpecialize)
+  . filter (not . null . specArgs)
   . map getInline
   . flattenDefGroups
   . filter isRecursiveDefGroup
@@ -163,13 +179,13 @@ extractSpecializeDefs =
     isRecursiveDefGroup (DefRec [def]) = True
     isRecursiveDefGroup _ = False
 
-getInline :: Def -> SpecializeDefs
+getInline :: Def -> SpecializeInfo
 getInline def =
-    SpecializeDefs (defName def)
-  $ toBools
-  $ map (\(_, argPosition) -> argPosition)
-  $ filter (\(name, _) -> name `S.member` usedInThisDef def) 
-  $ M.toList (passedRecursivelyToThisDef def)
+  let specArgs = toBools
+                 $ map (\(_, argPosition) -> argPosition)
+                 $ filter (\(name, _) -> name `S.member` usedInThisDef def) 
+                 $ M.toList (passedRecursivelyToThisDef def)
+  in SpecializeInfo (defName def) specArgs (defExpr def)
 
 type DistinctSorted a = a
 
@@ -227,26 +243,26 @@ passedRecursivelyToThisDef def
 --------------------------------------------------------------------------}
 
 -- | Environment mapping names to specialize definitions
-newtype SpecializeEnv   = SpecializeEnv (M.NameMap SpecializeDefs)
+newtype SpecializeEnv   = SpecializeEnv (M.NameMap SpecializeInfo)
 
 -- | The intial SpecializeEnv
 specenvEmpty :: SpecializeEnv
 specenvEmpty
   = SpecializeEnv M.empty
 
-specenvNew :: [SpecializeDefs] -> SpecializeEnv
+specenvNew :: [SpecializeInfo] -> SpecializeEnv
 specenvNew xs
   = specenvExtends xs specenvEmpty
 
-specenvExtends :: [SpecializeDefs] -> SpecializeEnv -> SpecializeEnv
+specenvExtends :: [SpecializeInfo] -> SpecializeEnv -> SpecializeEnv
 specenvExtends xs specenv
   = foldr specenvExtend specenv xs
 
-specenvExtend :: SpecializeDefs -> SpecializeEnv -> SpecializeEnv
+specenvExtend :: SpecializeInfo -> SpecializeEnv -> SpecializeEnv
 specenvExtend idef (SpecializeEnv specenv)
-  = SpecializeEnv (M.insert (targetFunc idef) idef specenv)
+  = SpecializeEnv (M.insert (specName idef) idef specenv)
 
-specenvLookup :: Name -> SpecializeEnv -> Maybe SpecializeDefs
+specenvLookup :: Name -> SpecializeEnv -> Maybe SpecializeInfo
 specenvLookup name (SpecializeEnv specenv)
   = M.lookup name specenv
 
@@ -261,7 +277,7 @@ instance Pretty SpecializeEnv where
 
 ppSpecializeEnv :: Env -> SpecializeEnv -> Doc
 ppSpecializeEnv env (SpecializeEnv specenv)
-   = vcat [fill maxwidth (ppName env name) <+> list (map pretty (argsToSpecialize sdef))
+   = vcat [fill maxwidth (ppName env name) <+> list (map pretty (specArgs sdef))
           | (name,sdef) <- M.toList specenv]
    where
      maxwidth      = 12
