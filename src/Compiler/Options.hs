@@ -787,6 +787,8 @@ ccFromPath flags path
                                   , ccFlagsCompile = ccFlagsCompile cc ++ ["-fsanitize=address,undefined,leak","-fno-omit-frame-pointer","-O0"]
                                   , ccFlagsLink    = ccFlagsLink cc ++ ["-fsanitize=address,undefined,leak"] }
                                ,True)
+       else if (useStdAlloc flags)
+         then return (cc{ ccName = ccName cc ++ "-stdalloc" }, False)
          else return (cc,False)
 
 ccCheckExist :: CC -> IO ()
