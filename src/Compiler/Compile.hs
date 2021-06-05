@@ -1245,28 +1245,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
           clibs    = clibsFromCore flags bcore 
       mapM_ (copyCLibrary term flags cc) eimports
 
-      -- compile
-      {-
-      let ccompile = concat $
-                     [ [ccPath cc]
-                     , ccFlags cc
-                     , ccFlagsWarn cc
-                     , ccFlagsCompile cc
-                     , ccFlagsBuildFromFlags cc flags
-                     , ccIncludeDir cc (localShareDir flags ++ "/kklib/include")
-                     ]
-                     ++
-                     map (ccIncludeDir cc) (ccompIncludeDirs flags)
-                     ++
-                     map (ccAddDef cc) ((if (asan flags || useStdAlloc flags) then [] else ["KK_MIMALLOC","MI_MAX_ALIGN_SIZE=8"])
-                                        ++ ["KK_STATIC_LIB"])
-                     ++
-                     [ ccTargetObj cc outBase
-                     , [outC]
-                     ]
-
-      runCommand term flags ccompile
-      -}
+      -- compile      
       ccompile term flags cc outBase [outC] 
 
       -- compile and link?
@@ -1334,11 +1313,12 @@ ccompile term flags cc ctargetObj csources
                       , ccIncludeDir cc (localShareDir flags ++ "/kklib/include")
                       ]
                       ++
-                      (if (asan flags || useStdAlloc flags) then [] else [ccIncludeDir cc (localShareDir flags ++ "/kklib/mimalloc/include")])
+                      (if (useStdAlloc flags) then [] 
+                        else [ccIncludeDir cc (localShareDir flags ++ "/kklib/mimalloc/include")])
                       ++
                       map (ccIncludeDir cc) (ccompIncludeDirs flags)
                       ++
-                      map (ccAddDef cc) ((if (asan flags || useStdAlloc flags) then [] else ["KK_MIMALLOC","MI_MAX_ALIGN_SIZE=8"])
+                      map (ccAddDef cc) ((if (useStdAlloc flags) then [] else ["KK_MIMALLOC","MI_MAX_ALIGN_SIZE=8"])
                                         -- ++ ["KK_STATIC_LIB"]
                                         ++ ["KK_COMP_VERSION=\"" ++ version ++ "\""]
                                         )
@@ -1526,7 +1506,6 @@ cmakeLib term flags cc libName {-kklib-} libFile {-libkklib.a-} cmakeGeneratorFl
                                       , "-DCMAKE_INSTALL_PREFIX=" ++ (buildDir flags)
                                       , "-DKK_COMP_VERSION=" ++ version
                                       , (if (asan flags) then "-DKK_DEBUG_SAN=address" else "")
-                                      , (if (asan flags || useStdAlloc flags) then "-DKK_STDALLOC=on" else "")
                                       ]
                                       ++ unquote (cmakeArgs flags) ++
                                       [ srcLibDir ]

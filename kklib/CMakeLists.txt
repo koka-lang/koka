@@ -5,7 +5,6 @@ enable_testing()
 option(KK_MIMALLOC          "Use the mimalloc allocator" ON)
 option(KK_MIMALLOC_INLINE   "Use the inlined branch of mimalloc allocator" OFF)
 option(KK_DEBUG_SAN         "Compile with specified sanitizer (thread,memory,address,undefined) (clang only)" OFF)
-option(KK_STDALLOC          "Compile without mimalloc" OFF)
 option(KK_DEBUG_FULL        "Use full internal debug assertions" OFF)
 option(KK_BUILD_TEST        "Build test target" OFF)
 
@@ -60,10 +59,6 @@ if(NOT (KK_DEBUG_SAN MATCHES OFF))
   else()
     message(WARNING "Can only use ${KK_DEBUG_SAN} sanitizer with clang (KK_DEBUG_SAN is ignored)")
   endif()
-endif()
-
-if(NOT (KK_STDALLOC MATCHES OFF))
-  set(KK_MIMALLOC OFF)
 endif()
 
 if(KK_DEBUG_FULL MATCHES ON)

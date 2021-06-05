@@ -548,6 +548,7 @@ processOptions flags0 opts
                                   ccompPath   = ccmd,
                                   ccomp       = cc,
                                   asan        = asan,
+                                  useStdAlloc = if (asan) then True else useStdAlloc flags,  -- asan implies useStdAlloc
                                   editor      = ed,
                                   includePath = (localShareDir ++ "/lib") : includePath flags,
 
