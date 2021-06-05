@@ -23,7 +23,7 @@ uint8_t kk_bits_digits32(uint32_t u) {
     6, 6, 6, 6, 7, 7, 7, 8, 8, 8,
     9, 9, 9
   };
-  uint8_t count = guess[32 - kk_bits_clz32(u)];
+  uint8_t count = guess[32 - kk_bits_clz32(u)]; // = 1 + (KU32(9)*(31 - kk_bits_clz32(u)) >> 5); 
   return (count + (u >= powers_of_10[count] ? 1 : 0));
 }
 
@@ -36,7 +36,7 @@ uint8_t kk_bits_digits64(uint64_t u) {
    12,12,12,12,13,13,13,14,14,14,
    15,15,15,15,16,16,16,17,17,17,
    18,18,18,18,19
-  };
-  uint8_t count = guess[64 - kk_bits_clz64(u)];
+  };  
+  uint8_t count = guess[64 - kk_bits_clz64(u)];  // = 1 + (KU64(1233)*(63 - kk_bits_clz64(u)) >> 12);
   return (count + (u >= powers_of_10[count] ? 1 : 0));
 }
