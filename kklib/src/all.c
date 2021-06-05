@@ -22,6 +22,7 @@
 #include "refcount.c"
 #include "string.c"
 #include "time.c"
+#include "vector.c"
 
 #if defined(KK_MIMALLOC)
 #include "../mimalloc/src/static.c"

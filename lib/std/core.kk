@@ -2031,7 +2031,7 @@ private inline extern unsafe-assign : forall<a> ( v : vector<a>, i : ssize_t, x 
 }
 
 private inline extern unsafe-vector : forall<a> ( n : ssize_t ) -> total vector<a> {
-  c "kk_vector_alloc"
+  c  inline "kk_vector_alloc_uninit(#1,NULL,kk_context())"
   cs inline "(new ##1[#1])"
   js inline "Array(#1)"
 }

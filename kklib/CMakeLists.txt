@@ -43,6 +43,7 @@ set(kklib_sources
     src/ref.c
     src/string.c
     src/time.c
+    src/vector.c
     )
 
 # properties library; these are used for all koka compiled C sources

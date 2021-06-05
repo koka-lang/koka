@@ -533,9 +533,7 @@ kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, 
 
   kk_ssize_t count = 0;
   kk_ssize_t len = 100;
-  kk_vector_t vec = kk_vector_alloc(len, ctx);
-  kk_vector_set_borrow(vec, kk_integer_box(kk_integer_zero), ctx);
-  
+  kk_vector_t vec = kk_vector_alloc(len, kk_integer_box(kk_integer_zero), ctx);  
   do {
     kk_string_t name = os_direntry_name(&entry, ctx);
     if (!kk_string_is_empty_borrow(name)) {
@@ -627,8 +625,8 @@ kk_vector_t kk_os_get_argv(kk_context_t* ctx) {
   kk_ssize_t i = 0;
   kk_assert_internal(ctx->argc <= wargc);
   if (ctx->argc < wargc) i = wargc - ctx->argc;
-  kk_vector_t args = kk_vector_alloc(wargc, ctx);
-  kk_box_t* buf = kk_vector_buf_borrow(args, NULL);
+  kk_box_t* buf;
+  kk_vector_t args = kk_vector_alloc_uninit(wargc, &buf, ctx);  
   for ( ; i < wargc; i++) {
     kk_string_t arg = kk_string_alloc_from_qutf16(wargv[i], ctx);
     buf[i] = kk_string_box(arg);
@@ -639,8 +637,8 @@ kk_vector_t kk_os_get_argv(kk_context_t* ctx) {
 #else
 kk_vector_t kk_os_get_argv(kk_context_t* ctx) {  
   if (ctx->argc==0 || ctx->argv==NULL) return kk_vector_empty();
-  kk_vector_t args = kk_vector_alloc(ctx->argc, ctx);
-  kk_box_t* buf = kk_vector_buf_borrow(args, NULL);
+  kk_box_t* buf;
+  kk_vector_t args = kk_vector_alloc_uninit(ctx->argc, &buf, ctx);
   for (kk_ssize_t i = 0; i < ctx->argc; i++) {
     kk_string_t arg = kk_string_alloc_from_qutf8(ctx->argv[i], ctx);    
     buf[i] = kk_string_box(arg);
@@ -659,8 +657,8 @@ kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
   for (kk_ssize_t i = 0; !(env[i]==0 && env[i+1]==0); i++) {
     if (env[i]==0) count++;
   }
-  kk_vector_t v = kk_vector_alloc(count*2, ctx);
-  kk_box_t* buf = kk_vector_buf_borrow(v, NULL);
+  kk_box_t* buf;
+  kk_vector_t v = kk_vector_alloc_uninit(count*2, &buf, ctx);  
   const uint16_t* p = env;
   // copy the strings into the vector
   for(kk_ssize_t i = 0; i < count; i++) {
@@ -697,8 +695,8 @@ kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
   // first count the number of environment variables
   kk_ssize_t count;
   for (count = 0; env[count]!=NULL; count++) { /* nothing */ }
-  kk_vector_t v = kk_vector_alloc(count*2, ctx);
-  kk_box_t* buf = kk_vector_buf_borrow(v, NULL);
+  kk_box_t* buf;
+  kk_vector_t v = kk_vector_alloc_uninit(count*2, &buf, ctx);  
   // copy the strings into the vector
   for (kk_ssize_t i = 0; i < count; i++) {
     const char* p = env[i];
