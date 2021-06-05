@@ -65,7 +65,7 @@ kk_std_core_types__maybe kk_slice_next( struct kk_std_core_Sslice slice, kk_cont
 
 static inline kk_unit_t kk_vector_unsafe_assign( kk_vector_t v, kk_ssize_t i, kk_box_t x, kk_context_t* ctx  ) {
   kk_ssize_t len;
-  kk_box_t* p = kk_vector_buf(v,&len);
+  kk_box_t* p = kk_vector_buf_borrow(v,&len);
   kk_assert(i < len);
   p[i] = x;
   kk_vector_drop(v,ctx); // TODO: use borrowing
@@ -74,13 +74,9 @@ static inline kk_unit_t kk_vector_unsafe_assign( kk_vector_t v, kk_ssize_t i, kk
 
 kk_vector_t kk_vector_init( kk_ssize_t n, kk_function_t init, kk_context_t* ctx);
 
-static inline kk_vector_t kk_vector_allocz( kk_ssize_t n, kk_context_t* ctx ) {
-  return kk_vector_alloc( n, kk_box_null, ctx);
-}
-
 static inline kk_box_t kk_vector_at_int( kk_vector_t v, kk_integer_t n, kk_context_t* ctx ) {
   // TODO: check bounds
-  return kk_vector_at(v,kk_integer_clamp_ssize_t(n,ctx));
+  return kk_vector_at(v,kk_integer_clamp_ssize_t(n,ctx), ctx);
 }
 
 static inline double kk_double_abs(double d) {

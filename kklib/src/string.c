@@ -539,7 +539,7 @@ kk_string_t kk_string_from_char(kk_char_t c, kk_context_t* ctx) {
 
 kk_string_t kk_string_from_chars(kk_vector_t v, kk_context_t* ctx) {
   kk_ssize_t n;
-  kk_box_t* cs = kk_vector_buf(v, &n);
+  kk_box_t* cs = kk_vector_buf_borrow(v, &n);
   kk_ssize_t len = 0;
   for (kk_ssize_t i = 0; i < n; i++) {
     len += kk_utf8_len(kk_char_unbox(cs[i], ctx));
@@ -558,8 +558,8 @@ kk_string_t kk_string_from_chars(kk_vector_t v, kk_context_t* ctx) {
 
 kk_vector_t kk_string_to_chars(kk_string_t s, kk_context_t* ctx) {
   kk_ssize_t n = kk_string_count_borrow(s);
-  kk_vector_t v = kk_vector_alloc(n, kk_box_null, ctx);
-  kk_box_t* cs = kk_vector_buf(v, NULL);
+  kk_vector_t v = kk_vector_alloc(n, ctx);
+  kk_box_t* cs = kk_vector_buf_borrow(v, NULL);
   kk_ssize_t len;
   const uint8_t* p = kk_string_buf_borrow(s, &len);
   for (kk_ssize_t i = 0; i < n; i++) {
@@ -601,8 +601,8 @@ kk_vector_t kk_string_splitv_atmost(kk_string_t str, kk_string_t sepstr, kk_ssiz
   kk_assert_internal(count >= 1 && count <= n);
   
   // copy to vector
-  kk_vector_t vec = kk_vector_alloc(count, kk_box_null, ctx);
-  kk_box_t* v  = kk_vector_buf(vec, NULL);
+  kk_vector_t vec = kk_vector_alloc(count, ctx);
+  kk_box_t* v  = kk_vector_buf_borrow(vec, NULL);
   const uint8_t* p = s;
   for (kk_ssize_t i = 0; i < (count-1) && p < end; i++) {
     const uint8_t* r;

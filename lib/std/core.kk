@@ -2019,7 +2019,7 @@ inline extern trim-right( s : string ) : string {
 
 // Return the element at position `index`  in vector `v`  without bounds check!
 private inline extern unsafe-idx : forall<a> ( v : vector<a>, index : ssize_t ) -> total a {
-  c inline "kk_vector_at(#1,#2)"
+  c "kk_vector_at"
   cs inline "(#1)[#2]";
   js inline "(#1)[#2]";
 }
@@ -2031,7 +2031,7 @@ private inline extern unsafe-assign : forall<a> ( v : vector<a>, i : ssize_t, x 
 }
 
 private inline extern unsafe-vector : forall<a> ( n : ssize_t ) -> total vector<a> {
-  c "kk_vector_allocz"
+  c "kk_vector_alloc"
   cs inline "(new ##1[#1])"
   js inline "Array(#1)"
 }
@@ -2055,7 +2055,7 @@ fun length( v : vector<a> ) : int {
 }
 
 private inline extern lengthz : forall<a> (v : vector<a> ) -> ssize_t  {
-  c  inline "kk_vector_len(#1)"
+  c  "kk_vector_len"
   cs inline "((#1).Length)";
   js inline "((#1).length)";
 }
