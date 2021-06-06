@@ -1313,18 +1313,12 @@ ccompile term flags cc ctargetObj csources
                       , ccIncludeDir cc (localShareDir flags ++ "/kklib/include")
                       ]
                       ++
-                      (if (useStdAlloc flags) then [] 
-                        else [ccIncludeDir cc (localShareDir flags ++ "/kklib/mimalloc/include")])
-                      ++
                       map (ccIncludeDir cc) (ccompIncludeDirs flags)
                       ++
-                      map (ccAddDef cc) ((if (useStdAlloc flags) then [] else ["KK_MIMALLOC","MI_MAX_ALIGN_SIZE=8"])
-                                        -- ++ ["KK_STATIC_LIB"]
-                                        ++ ["KK_COMP_VERSION=\"" ++ version ++ "\""]
-                                        )
+                      map (ccAddDef cc) (ccompDefs flags)
                       ++
                       [ ccTargetObj cc (notext ctargetObj)
-                      , csources   -- [outC]
+                      , csources
                       ]
        runCommand term flags cmdline
 
@@ -1458,11 +1452,15 @@ kklibBuild term flags cc name {-kklib-} objFile {-libkklib.o-}
            then -- use pre-compiled installed binary
                 copyBinaryFile binObjPath objPath
            else -- todo: check for installed binaries for the library
+                -- compile kklib from sources
                 do termDoc term $ color (colorInterpreter (colorScheme flags)) (text ("compile:")) <+>
                                    color (colorSource (colorScheme flags)) (text name) <+>
                                     color (colorInterpreter (colorScheme flags)) (text "from:") <+>
                                      color (colorSource (colorScheme flags)) (text srcLibDir)
-                   ccompile term flags cc objPath [joinPath srcLibDir "src/all.c"] 
+                   let flags0 = if (useStdAlloc flags) then flags 
+                                  else flags{ ccompIncludeDirs = ccompIncludeDirs flags ++ [localShareDir flags ++ "/kklib/mimalloc/include"] }
+                       flags1 = flags0{ ccompDefs = ccompDefs flags ++ [("KK_COMP_VERSION","\"" ++ version ++ "\"")] }
+                   ccompile term flags1 cc objPath [joinPath srcLibDir "src/all.c"] 
        return objPath
 
 

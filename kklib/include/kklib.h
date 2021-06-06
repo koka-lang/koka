@@ -2,7 +2,7 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
-#define KKLIB_BUILD        30       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        31        // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1
 
@@ -244,6 +244,7 @@ static inline bool kk_block_is_valid(kk_block_t* b) {
   be (usually) accessed efficiently through a register.
 --------------------------------------------------------------------------------------*/
 #ifdef KK_MIMALLOC
+#define MI_MAX_ALIGN_SIZE  KK_INTPTR_SIZE
 #ifdef KK_MIMALLOC_INLINE
 #include "../mimalloc/include/mimalloc-inline.h"
 #else

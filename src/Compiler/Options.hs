@@ -117,6 +117,7 @@ data Flags
          , ccompPath        :: FilePath
          , ccompCompileArgs :: String
          , ccompIncludeDirs :: [FilePath]
+         , ccompDefs        :: [(String,String)]
          , ccompLinkArgs    :: String
          , ccompLinkSysLibs :: [String]      -- just core lib name
          , ccompLinkLibs    :: [FilePath]    -- full path to library
@@ -193,6 +194,7 @@ flagsNull
           ""       -- ccompPath
           ""       -- ccomp args
           []       -- ccomp include dirs
+          []       -- ccomp defs
           ""       -- clink args
           []       -- clink sys libs
           []       -- clink full lib paths
@@ -529,6 +531,8 @@ processOptions flags0 opts
                            else return (ccompPath flags)
                    (cc,asan) <- ccFromPath flags ccmd
                    ccCheckExist cc
+                   let stdAlloc = if asan then True else useStdAlloc flags   -- asan implies useStdAlloc
+                       cdefs    = ccompDefs flags ++ if stdAlloc then [] else [("KK_MIMALLOC","")]
                    -- vcpkg
                    (vcpkgRoot,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)
                    let triplet          = if (not (null (vcpkgTriplet flags))) then vcpkgTriplet flags
@@ -551,8 +555,9 @@ processOptions flags0 opts
                                   
                                   ccompPath   = ccmd,
                                   ccomp       = cc,
+                                  ccompDefs   = cdefs,
                                   asan        = asan,
-                                  useStdAlloc = if (asan) then True else useStdAlloc flags,  -- asan implies useStdAlloc
+                                  useStdAlloc = stdAlloc,
                                   editor      = ed,
                                   includePath = (localShareDir ++ "/lib") : includePath flags,
 
@@ -681,7 +686,7 @@ data CC = CC{  ccName       :: String,
                ccTargetExe  :: FilePath -> Args,
                ccAddSysLib  :: String -> Args,
                ccAddLib     :: FilePath -> Args,
-               ccAddDef     :: String -> Args,
+               ccAddDef     :: (String,String) -> Args,
                ccLibFile    :: String -> FilePath,  -- make lib file name
                ccObjFile    :: String -> FilePath   -- make object file namen
             }
@@ -739,7 +744,7 @@ ccGcc name path
         (\out -> ["-o",out])
         (\syslib -> ["-l" ++ syslib])
         (\lib -> [lib])
-        (\def -> ["-D" ++ def])
+        (\(def,val) -> ["-D" ++ def ++ (if null val then "" else "=" ++ val)])
         (\lib -> libPrefix ++ lib ++ libExtension)
         (\obj -> obj ++ objExtension)
 
@@ -757,7 +762,7 @@ ccMsvc name path
          (\out -> ["-Fe" ++ out ++ exeExtension])
          (\syslib -> [syslib ++ libExtension])
          (\lib -> [lib])
-         (\def -> ["-D" ++ def])
+         (\(def,val) -> ["-D" ++ def ++ (if null val then "" else "=" ++ val)])
          (\lib -> libPrefix ++ lib ++ libExtension)
          (\obj -> obj ++ objExtension)         
 
@@ -789,8 +794,8 @@ ccFromPath flags path
                 , ccFlagsLink    = ccFlagsLink cc0 ++ unquote (ccompLinkArgs flags) }
 
     in if (asan flags)
-         then if (not (ccName cc `startsWith` "clang"))
-                then do putStrLn "warning: can only use address sanitizer with clang (ignored)"
+         then if (not (ccName cc `startsWith` "clang" || ccName cc `startsWith` "gcc"))
+                then do putStrLn "warning: can only use address sanitizer with clang or gcc (--fasan is ignored)"
                         return (cc,False)
                 else do return (cc{ ccName         = ccName cc ++ "-asan"
                                   , ccFlagsCompile = ccFlagsCompile cc ++ ["-fsanitize=address,undefined,leak","-fno-omit-frame-pointer","-O0"]
