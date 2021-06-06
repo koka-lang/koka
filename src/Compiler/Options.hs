@@ -201,9 +201,7 @@ flagsNull
                         else ["/usr/local/lib;/usr/lib;/lib"])
           
           ""       -- vcpkg root
-          (if onWindows then "x64-windows-static-md"
-           else if onMacOS then "x64-osx"
-           else "x64-linux")       -- vcpkg triplet
+          ""       -- vcpkg triplet
           True     -- vcpkg auto install
           ""       -- vcpkg
           ""       -- vcpkg libdir
@@ -532,9 +530,15 @@ processOptions flags0 opts
                    (cc,asan) <- ccFromPath flags ccmd
                    ccCheckExist cc
                    -- vcpkg
-                   vcpkg <- vcpkgFind (vcpkgRoot flags)
-                   let vcpkgRoot        = if (null vcpkg) then "" else dirname vcpkg
-                       vcpkgInstalled   = (vcpkgRoot) ++ "/installed/" ++ (vcpkgTriplet flags)
+                   (vcpkgRoot,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)
+                   let triplet          = if (not (null (vcpkgTriplet flags))) then vcpkgTriplet flags
+                                            else (if onWindows 
+                                                    then (if (ccName cc `startsWith` "mingw") 
+                                                            then "x64-mingw-static"
+                                                            else "x64-windows-static-md")
+                                                    else if onMacOS then "x64-osx"
+                                                                    else "x64-linux") 
+                       vcpkgInstalled   = (vcpkgRoot) ++ "/installed/" ++ triplet
                        vcpkgIncludeDir  = vcpkgInstalled ++ "/include"
                        vcpkgLibDir      = vcpkgInstalled ++ (if buildType flags == Debug then "/debug/lib" else "/lib")
                        vcpkgLibDirs     = if (null vcpkg) then [] else [vcpkgLibDir]
@@ -554,6 +558,7 @@ processOptions flags0 opts
 
                                   vcpkgRoot   = vcpkgRoot,
                                   vcpkg       = vcpkg,
+                                  vcpkgTriplet= triplet,
                                   vcpkgIncludeDir  = vcpkgIncludeDir,
                                   vcpkgLibDir      = vcpkgLibDir,
                                   ccompLibDirs     = vcpkgLibDirs ++ ccompLibDirs flags,
@@ -630,6 +635,8 @@ getEnvOptions
                     let sroot = if null mbsroot then "c:\\windows" else mbsroot
                         froot = joinPath sroot "Microsoft.NET\\Framework"
                     mbcsc <- searchPaths [joinPath froot "v4.0.30319"
+                                         ,joinPath froot "v3.5"
+                                         ,joinPath froot "v3.0"
                                          ,joinPath froot "v2.0.50727"
                                          ,joinPath froot "v1.1.4322"]
                                          [exeExtension] "csc"
@@ -639,19 +646,21 @@ getEnvOptions
             else return ["--csc="++ joinPaths [fw,fv,"csc"]]
 
 
-vcpkgFind :: FilePath -> IO FilePath
-vcpkgFind root
+vcpkgFindRoot :: FilePath -> IO (FilePath,FilePath)
+vcpkgFindRoot root
   = if (null root) 
-      then do homeDir <- getHomeDirectory
-              paths   <- getEnvPaths "PATH"
-              mbFile  <- searchPaths (paths ++ [joinPaths [homeDir,"vcpkg"]]) [exeExtension] "vcpkg"
-              case mbFile of
-                Just fname -> return fname
-                Nothing    -> return ""
-      else do let vcpkg = joinPaths [root,"vcpkg" ++ exeExtension]
-              exist <- doesFileExist vcpkg 
-              -- putStrLn ("find " ++ vcpkg ++ ", " ++ show exist)
-              return (if exist then vcpkg else "")
+      then do eroot   <- getEnvVar "VCPKG_ROOT"
+              if (not (null eroot))
+                then return (eroot, joinPath eroot vcpkgExe)
+                else do homeDir <- getHomeDirectory
+                        paths   <- getEnvPaths "PATH"
+                        mbFile  <- searchPaths (paths ++ [joinPaths [homeDir,"vcpkg"]]) [] vcpkgExe
+                        case mbFile of
+                          Just fname -> return (dirname fname, fname)
+                          Nothing    -> return ("", vcpkgExe)
+      else return (root, joinPath root vcpkgExe)
+  where 
+    vcpkgExe = "vcpkg" ++ exeExtension
 
 {--------------------------------------------------------------------------
   Detect C compiler

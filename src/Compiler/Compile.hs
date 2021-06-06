@@ -1368,6 +1368,7 @@ termWarning term flags doc
   = termDoc term $ color (colorWarning (colorSchemeFromFlags flags)) (text "warning:" <+> doc)
 
 vcpkgInstall :: Terminal -> Flags -> CC -> [(String,String)] -> FilePath -> IO Bool
+{-
 vcpkgInstall term flags cc eimport clib | onWindows && (ccName cc `startsWith` "mingw")
   = do termWarning term flags $
         text "unable to find C library:" <+> color (colorSource (colorScheme flags)) (text clib) <->
@@ -1376,7 +1377,7 @@ vcpkgInstall term flags cc eimport clib | onWindows && (ccName cc `startsWith` "
         text "         run from an 'x64 Native Tools Command' window and install clang-cl from" <-> 
         text "         <https://llvm.org/builds>"
        return False
-    
+-}    
 vcpkgInstall term flags cc eimport clib
   = case lookup "vcpkg" eimport of
       Nothing  -> 
