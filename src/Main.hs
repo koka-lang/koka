@@ -50,7 +50,7 @@ mainh     = mainArgs "-ilib -itest --console=raw"
 
 
 mainArgs args
-  = do (flags,mode) <- getOptions args
+  = do (flags,flags0,mode) <- getOptions args
        let with = if (not (null (redirectOutput flags)))
                    then withFileNoColorPrinter (redirectOutput flags)
                    else if (console flags == "html")
@@ -58,7 +58,7 @@ mainArgs args
                    else if (console flags == "ansi")
                     then withColorPrinter
                     else withNoColorPrinter
-       with (mainMode flags mode)
+       with (mainMode flags flags0 mode)
     `catchIO` \err ->
     do if ("ExitFailure" `isPrefix` err)
         then return ()
@@ -67,8 +67,8 @@ mainArgs args
   where
     isPrefix s t  = (s == take (length s) t)
 
-mainMode :: Flags -> Mode -> ColorPrinter -> IO ()
-mainMode flags mode p
+mainMode :: Flags -> Flags -> Mode -> ColorPrinter -> IO ()
+mainMode flags flags0 mode p
   = case mode of
      ModeHelp
       -> showHelp flags p
@@ -77,7 +77,7 @@ mainMode flags mode p
      ModeCompiler files
       -> mapM_ (compile p flags) files
      ModeInteractive files
-      -> interpret p flags files
+      -> interpret p flags flags0 files
 
 
 compile :: ColorPrinter -> Flags -> FilePath -> IO ()

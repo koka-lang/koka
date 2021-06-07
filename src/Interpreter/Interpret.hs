@@ -52,7 +52,8 @@ import Interpreter.Command
 ---------------------------------------------------------------}
 data State = State{  printer    :: ColorPrinter
                    -- system variables
-                   , flags      :: Flags
+                   , flags      :: Flags                -- processed flags
+                   , flags0     :: Flags                -- unprocessed flags
                    , evalDisable   :: Bool
                    -- program state
                    , loaded0       :: Loaded            -- load state just after :l command
@@ -68,10 +69,10 @@ data State = State{  printer    :: ColorPrinter
 {---------------------------------------------------------------
   Main
 ---------------------------------------------------------------}
-interpret ::  ColorPrinter -> Flags -> [FilePath] -> IO ()
-interpret printer flags0 files
+interpret ::  ColorPrinter -> Flags -> Flags -> [FilePath] -> IO ()
+interpret printer flags0 flagspre files
   = withReadLine (outDir flags0) $
-    do{ let st0 = (State printer flags0 False initialLoaded initialLoaded [] (programNull nameInteractiveModule) Nothing [] initialLoaded)
+    do{ let st0 = (State printer flags0 flagspre False initialLoaded initialLoaded [] (programNull nameInteractiveModule) Nothing [] initialLoaded)
       ; messageHeader st0
       ; let st2 = st0
       -- ; st2 <- findBackend st0
@@ -209,12 +210,12 @@ command st cmd
                    ; interpreterEx st
                    }
 
-  Options opts-> do{ (newFlags,mode) <- processOptions (flags st) (words opts)
+  Options opts-> do{ (newFlags,newFlags0,mode) <- processOptions (flags0 st) (words opts)
                    ; let setFlags files
                           = do if (null files)
                                 then messageLn st ""
                                 else messageError st "(ignoring file arguments)"
-                               interpreter (st{ flags = newFlags })
+                               interpreter (st{ flags = newFlags, flags0 = newFlags0 })
                    ; case mode of
                        ModeHelp     -> do doc <- commandLineHelp (flags st)
                                           messagePrettyLn st doc

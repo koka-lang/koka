@@ -500,13 +500,13 @@ environment
 {--------------------------------------------------------------------------
   Process options
 --------------------------------------------------------------------------}
-getOptions :: String -> IO (Flags,Mode)
+getOptions :: String -> IO (Flags,Flags,Mode)
 getOptions extra
   = do env  <- getEnvOptions
        args <- getArgs
        processOptions flagsNull (env ++ words extra ++ args)
 
-processOptions :: Flags -> [String] -> IO (Flags,Mode)
+processOptions :: Flags -> [String] -> IO (Flags,Flags,Mode)
 processOptions flags0 opts
   = let (preOpts,postOpts) = span (/="--") opts
         flags1 = case postOpts of
@@ -569,7 +569,7 @@ processOptions flags0 opts
                                   ccompLibDirs     = vcpkgLibDirs ++ ccompLibDirs flags,
                                   ccompIncludeDirs = vcpkgIncludeDirs ++ ccompIncludeDirs flags
                                }
-                          ,mode)
+                          ,flags,mode)
         else invokeError errs
 
 getKokaDirs :: IO (FilePath,FilePath,FilePath,FilePath)
