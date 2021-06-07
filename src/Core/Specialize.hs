@@ -1,7 +1,3 @@
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE FlexibleContexts #-}
-
 module Core.Specialize( SpecializeEnv
                       , specenvNew
                       , specenvEmpty
@@ -21,6 +17,7 @@ import Control.Applicative
 import Data.Maybe (mapMaybe, fromMaybe, catMaybes, isJust, fromJust)
 
 import Lib.PPrint
+import Common.Failure (failure)
 import Common.Syntax
 import Common.Name
 import Common.NameMap (NameMap)
@@ -100,7 +97,7 @@ specialize env uniq specEnv groups =
     (changedDefs, newDefs) = runSpecM M.empty specEnv $ mapM specOneDefGroup groups
   in (changedDefs ++ newDefs, uniq)
 
-speclookupM :: (Monad m, MonadReader SpecializeEnv m) => Name -> m (Maybe SpecializeInfo)
+speclookupM :: Name -> SpecM (Maybe SpecializeInfo)
 speclookupM name = asks (specenvLookup name)
 
 specOneDefGroup :: DefGroup -> SpecM DefGroup
@@ -131,7 +128,7 @@ createSpecializedDef name paramsToSpecialize args =
   case defExpr def of
     e@(Lam params eff expr) -> pure $ go e params
     -- TypeLam types e@(Lam params eff expr) -> pure $ go e params
-    _ -> error "Unexpected specialize target"
+    _ -> failure "Unexpected specialize target"
   where
     def = lookupInScope name
     go (Lam params eff body) _ = 
@@ -181,27 +178,9 @@ extractSpecializeEnv =
 
 getInline :: Def -> SpecializeInfo
 getInline def =
-  let specArgs = toBools
-                 $ map (\(_, argPosition) -> argPosition)
-                 $ filter (\(name, _) -> name `S.member` usedInThisDef def) 
-                 $ M.toList (passedRecursivelyToThisDef def)
+  let specArgs = map (maybe False (`S.member` usedInThisDef def))
+                 $ passedRecursivelyToThisDef def
   in SpecializeInfo (defName def) specArgs (defExpr def)
-
-type DistinctSorted a = a
-
--- list passed in should be sorted and not contain duplicates
--- >>> toBools [1, 3, 4, 7]
--- [False, True, False, True, True, False, False, True]
-toBools :: [Int] -> [Bool]
-toBools [] = []
-toBools xs = foldr go (replicate (maximum xs + 1) False) xs
-  where
-    go i xs = at i (const True) xs
-
-at :: Int -> (a -> a) -> [a] -> [a]
-at i f xs =
-  let (begin, x:end) = splitAt i xs
-  in begin ++ f x : end
 
 usedInThisDef :: Def -> S.NameSet
 usedInThisDef def = foldMapExpr go $ defExpr def
@@ -213,7 +192,7 @@ usedInThisDef def = foldMapExpr go $ defExpr def
     -- go _ = S.empty
 
 -- return list of (paramName, paramIndex) that get called recursively to the same function in the same order
-passedRecursivelyToThisDef :: Def -> NameMap Int
+passedRecursivelyToThisDef :: Def -> [Maybe Name]
 passedRecursivelyToThisDef def 
   -- TODO: FunDef type to avoid this check?
   = case defExpr def of
@@ -232,10 +211,10 @@ passedRecursivelyToThisDef def
     callsWith params _ = mempty
 
     check args params =
-      M.fromList $ flip mapMaybe (zip3 [0..] args params) $ \(i, arg, param) ->
+      zipWith (\arg param ->
         case arg of
-          Var tname _ | tname == param -> Just (getName tname, i)
-          _ -> Nothing
+          Var tname _ | tname == param -> Just (getName tname)
+          _ -> Nothing) args params
 
 
 {--------------------------------------------------------------------------
