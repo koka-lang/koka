@@ -1076,7 +1076,7 @@ typedef struct kk_ref_s {
 } *kk_ref_t;
 
 kk_decl_export kk_box_t  kk_ref_get_thread_shared(kk_ref_t r, kk_context_t* ctx);
-kk_decl_export kk_box_t  kk_ref_swap_thread_shared(kk_ref_t r, kk_box_t value, kk_context_t* ctx);
+kk_decl_export kk_box_t  kk_ref_swap_thread_shared_borrow(kk_ref_t r, kk_box_t value);
 
 static inline kk_box_t kk_ref_box(kk_ref_t r, kk_context_t* ctx) {
   KK_UNUSED(ctx);
@@ -1107,7 +1107,7 @@ static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
     // fast path
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
     kk_box_dup(b);
-    kk_ref_drop(r,ctx);    // TODO: make references borrowed
+    kk_ref_drop(r,ctx);    // TODO: make references borrowed (only get left)
     return b;
   }
   else {
@@ -1116,28 +1116,27 @@ static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
   }  
 }
 
-static inline kk_box_t kk_ref_swap(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
+static inline kk_box_t kk_ref_swap_borrow(kk_ref_t r, kk_box_t value) {
   if (kk_likely(r->_block.header.thread_shared == 0)) {
     // fast path
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
     kk_atomic_store_relaxed(&r->value, value.box);
-    kk_ref_drop(r, ctx);
     return b;
   }
   else {
     // thread shared
-    return kk_ref_swap_thread_shared(r, value, ctx);
+    return kk_ref_swap_thread_shared_borrow(r, value);
   }
 }
 
 
-static inline kk_unit_t kk_ref_set(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
-  kk_box_t b = kk_ref_swap(r, value, ctx);
+static inline kk_unit_t kk_ref_set_borrow(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
+  kk_box_t b = kk_ref_swap_borrow(r, value);
   kk_box_drop(b, ctx);
   return kk_Unit;
 }
 
-static inline kk_unit_t kk_ref_vector_assign(kk_ref_t r, kk_integer_t idx, kk_box_t value, kk_context_t* ctx) {
+static inline kk_unit_t kk_ref_vector_assign_borrow(kk_ref_t r, kk_integer_t idx, kk_box_t value, kk_context_t* ctx) {
   if (kk_likely(r->_block.header.thread_shared == 0)) {
     // fast path
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
@@ -1145,12 +1144,10 @@ static inline kk_unit_t kk_ref_vector_assign(kk_ref_t r, kk_integer_t idx, kk_bo
     kk_ssize_t len;
     kk_box_t* p = kk_vector_buf_borrow(v, &len);
     kk_ssize_t i = kk_integer_clamp_ssize_t_borrow(idx,ctx);
-    kk_integer_drop(idx, ctx);  // TODO: make this borrowed
     if (i < len) {
       kk_box_drop(p[i], ctx);
       p[i] = value;
     }  // TODO: return status for out-of-bounds access
-    kk_ref_drop(r, ctx);    // TODO: make references borrowed
     return kk_Unit;
   }
   else {
