@@ -206,7 +206,7 @@ parcBorrowArg a b
            -> do argName <- uniqueName "borrowArg"
                  a' <- parcExpr a
                  let def = makeDef argName a'
-                 drop <- genDrop (defTName def)
+                 drop <- extendOwned (S.singleton (defTName def)) $ genDrop (defTName def)
                  case drop of
                    Nothing
                      -> return ([], Nothing, a') -- if no drop necessary, make output prettier
