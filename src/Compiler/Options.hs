@@ -117,6 +117,7 @@ data Flags
          , ccompPath        :: FilePath
          , ccompCompileArgs :: String
          , ccompIncludeDirs :: [FilePath]
+         , ccompDefs        :: [(String,String)]
          , ccompLinkArgs    :: String
          , ccompLinkSysLibs :: [String]      -- just core lib name
          , ccompLinkLibs    :: [FilePath]    -- full path to library
@@ -194,6 +195,7 @@ flagsNull
           ""       -- ccompPath
           ""       -- ccomp args
           []       -- ccomp include dirs
+          []       -- ccomp defs
           ""       -- clink args
           []       -- clink sys libs
           []       -- clink full lib paths
@@ -202,9 +204,7 @@ flagsNull
                         else ["/usr/local/lib;/usr/lib;/lib"])
           
           ""       -- vcpkg root
-          (if onWindows then "x64-windows-static-md"
-           else if onMacOS then "x64-osx"
-           else "x64-linux")       -- vcpkg triplet
+          ""       -- vcpkg triplet
           True     -- vcpkg auto install
           ""       -- vcpkg
           ""       -- vcpkg libdir
@@ -503,13 +503,13 @@ environment
 {--------------------------------------------------------------------------
   Process options
 --------------------------------------------------------------------------}
-getOptions :: String -> IO (Flags,Mode)
+getOptions :: String -> IO (Flags,Flags,Mode)
 getOptions extra
   = do env  <- getEnvOptions
        args <- getArgs
        processOptions flagsNull (env ++ words extra ++ args)
 
-processOptions :: Flags -> [String] -> IO (Flags,Mode)
+processOptions :: Flags -> [String] -> IO (Flags,Flags,Mode)
 processOptions flags0 opts
   = let (preOpts,postOpts) = span (/="--") opts
         flags1 = case postOpts of
@@ -534,10 +534,18 @@ processOptions flags0 opts
                            else return (ccompPath flags)
                    (cc,asan) <- ccFromPath flags ccmd
                    ccCheckExist cc
+                   let stdAlloc = if asan then True else useStdAlloc flags   -- asan implies useStdAlloc
+                       cdefs    = ccompDefs flags ++ if stdAlloc then [] else [("KK_MIMALLOC","")]
                    -- vcpkg
-                   vcpkg <- vcpkgFind (vcpkgRoot flags)
-                   let vcpkgRoot        = if (null vcpkg) then "" else dirname vcpkg
-                       vcpkgInstalled   = (vcpkgRoot) ++ "/installed/" ++ (vcpkgTriplet flags)
+                   (vcpkgRoot,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)
+                   let triplet          = if (not (null (vcpkgTriplet flags))) then vcpkgTriplet flags
+                                            else (if onWindows 
+                                                    then (if (ccName cc `startsWith` "mingw") 
+                                                            then "x64-mingw-static"
+                                                            else "x64-windows-static-md")
+                                                    else if onMacOS then "x64-osx"
+                                                                    else "x64-linux") 
+                       vcpkgInstalled   = (vcpkgRoot) ++ "/installed/" ++ triplet
                        vcpkgIncludeDir  = vcpkgInstalled ++ "/include"
                        vcpkgLibDir      = vcpkgInstalled ++ (if buildType flags == Debug then "/debug/lib" else "/lib")
                        vcpkgLibDirs     = if (null vcpkg) then [] else [vcpkgLibDir]
@@ -550,12 +558,15 @@ processOptions flags0 opts
                                   
                                   ccompPath   = ccmd,
                                   ccomp       = cc,
+                                  ccompDefs   = cdefs,
                                   asan        = asan,
+                                  useStdAlloc = stdAlloc,
                                   editor      = ed,
                                   includePath = (localShareDir ++ "/lib") : includePath flags,
 
                                   vcpkgRoot   = vcpkgRoot,
                                   vcpkg       = vcpkg,
+                                  vcpkgTriplet= triplet,
                                   vcpkgIncludeDir  = vcpkgIncludeDir,
                                   vcpkgLibDir      = vcpkgLibDir,
                                   ccompLibDirs     = vcpkgLibDirs ++ ccompLibDirs flags,
@@ -563,7 +574,7 @@ processOptions flags0 opts
 
                                   useStdAlloc = if asan then True else (useStdAlloc flags)
                                }
-                          ,mode)
+                          ,flags,mode)
         else invokeError errs
 
 getKokaDirs :: IO (FilePath,FilePath,FilePath,FilePath)
@@ -634,6 +645,8 @@ getEnvOptions
                     let sroot = if null mbsroot then "c:\\windows" else mbsroot
                         froot = joinPath sroot "Microsoft.NET\\Framework"
                     mbcsc <- searchPaths [joinPath froot "v4.0.30319"
+                                         ,joinPath froot "v3.5"
+                                         ,joinPath froot "v3.0"
                                          ,joinPath froot "v2.0.50727"
                                          ,joinPath froot "v1.1.4322"]
                                          [exeExtension] "csc"
@@ -643,19 +656,21 @@ getEnvOptions
             else return ["--csc="++ joinPaths [fw,fv,"csc"]]
 
 
-vcpkgFind :: FilePath -> IO FilePath
-vcpkgFind root
+vcpkgFindRoot :: FilePath -> IO (FilePath,FilePath)
+vcpkgFindRoot root
   = if (null root) 
-      then do homeDir <- getHomeDirectory
-              paths   <- getEnvPaths "PATH"
-              mbFile  <- searchPaths (paths ++ [joinPaths [homeDir,"vcpkg"]]) [exeExtension] "vcpkg"
-              case mbFile of
-                Just fname -> return fname
-                Nothing    -> return ""
-      else do let vcpkg = joinPaths [root,"vcpkg" ++ exeExtension]
-              exist <- doesFileExist vcpkg 
-              -- putStrLn ("find " ++ vcpkg ++ ", " ++ show exist)
-              return (if exist then vcpkg else "")
+      then do eroot   <- getEnvVar "VCPKG_ROOT"
+              if (not (null eroot))
+                then return (eroot, joinPath eroot vcpkgExe)
+                else do homeDir <- getHomeDirectory
+                        paths   <- getEnvPaths "PATH"
+                        mbFile  <- searchPaths (paths ++ [joinPaths [homeDir,"vcpkg"]]) [] vcpkgExe
+                        case mbFile of
+                          Just fname -> return (dirname fname, fname)
+                          Nothing    -> return ("", vcpkgExe)
+      else return (root, joinPath root vcpkgExe)
+  where 
+    vcpkgExe = "vcpkg" ++ exeExtension
 
 {--------------------------------------------------------------------------
   Detect C compiler
@@ -676,7 +691,7 @@ data CC = CC{  ccName       :: String,
                ccTargetExe  :: FilePath -> Args,
                ccAddSysLib  :: String -> Args,
                ccAddLib     :: FilePath -> Args,
-               ccAddDef     :: String -> Args,
+               ccAddDef     :: (String,String) -> Args,
                ccLibFile    :: String -> FilePath,  -- make lib file name
                ccObjFile    :: String -> FilePath   -- make object file namen
             }
@@ -734,7 +749,7 @@ ccGcc name path
         (\out -> ["-o",out])
         (\syslib -> ["-l" ++ syslib])
         (\lib -> [lib])
-        (\def -> ["-D" ++ def])
+        (\(def,val) -> ["-D" ++ def ++ (if null val then "" else "=" ++ val)])
         (\lib -> libPrefix ++ lib ++ libExtension)
         (\obj -> obj ++ objExtension)
 
@@ -752,7 +767,7 @@ ccMsvc name path
          (\out -> ["-Fe" ++ out ++ exeExtension])
          (\syslib -> [syslib ++ libExtension])
          (\lib -> [lib])
-         (\def -> ["-D" ++ def])
+         (\(def,val) -> ["-D" ++ def ++ (if null val then "" else "=" ++ val)])
          (\lib -> libPrefix ++ lib ++ libExtension)
          (\obj -> obj ++ objExtension)         
 
@@ -784,13 +799,15 @@ ccFromPath flags path
                 , ccFlagsLink    = ccFlagsLink cc0 ++ unquote (ccompLinkArgs flags) }
 
     in if (asan flags)
-         then if (not (ccName cc `startsWith` "clang"))
-                then do putStrLn "warning: can only use address sanitizer with clang (ignored)"
+         then if (not (ccName cc `startsWith` "clang" || ccName cc `startsWith` "gcc"))
+                then do putStrLn "warning: can only use address sanitizer with clang or gcc (--fasan is ignored)"
                         return (cc,False)
                 else do return (cc{ ccName         = ccName cc ++ "-asan"
                                   , ccFlagsCompile = ccFlagsCompile cc ++ ["-fsanitize=address,undefined,leak","-fno-omit-frame-pointer","-O0"]
                                   , ccFlagsLink    = ccFlagsLink cc ++ ["-fsanitize=address,undefined,leak"] }
                                ,True)
+       else if (useStdAlloc flags)
+         then return (cc{ ccName = ccName cc ++ "-stdalloc" }, False)
          else return (cc,False)
 
 ccCheckExist :: CC -> IO ()

@@ -1247,28 +1247,7 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
           clibs    = clibsFromCore flags bcore 
       mapM_ (copyCLibrary term flags cc) eimports
 
-      -- compile
-      {-
-      let ccompile = concat $
-                     [ [ccPath cc]
-                     , ccFlags cc
-                     , ccFlagsWarn cc
-                     , ccFlagsCompile cc
-                     , ccFlagsBuildFromFlags cc flags
-                     , ccIncludeDir cc (localShareDir flags ++ "/kklib/include")
-                     ]
-                     ++
-                     map (ccIncludeDir cc) (ccompIncludeDirs flags)
-                     ++
-                     map (ccAddDef cc) ((if (asan flags || useStdAlloc flags) then [] else ["KK_MIMALLOC","MI_MAX_ALIGN_SIZE=8"])
-                                        ++ ["KK_STATIC_LIB"])
-                     ++
-                     [ ccTargetObj cc outBase
-                     , [outC]
-                     ]
-
-      runCommand term flags ccompile
-      -}
+      -- compile      
       ccompile term flags cc outBase [outC] 
 
       -- compile and link?
@@ -1336,17 +1315,12 @@ ccompile term flags cc ctargetObj csources
                       , ccIncludeDir cc (localShareDir flags ++ "/kklib/include")
                       ]
                       ++
-                      (if (asan flags || useStdAlloc flags) then [] else [ccIncludeDir cc (localShareDir flags ++ "/kklib/mimalloc/include")])
-                      ++
                       map (ccIncludeDir cc) (ccompIncludeDirs flags)
                       ++
-                      map (ccAddDef cc) ((if (asan flags || useStdAlloc flags) then [] else ["KK_MIMALLOC","MI_MAX_ALIGN_SIZE=8"])
-                                        -- ++ ["KK_STATIC_LIB"]
-                                        ++ ["KK_COMP_VERSION=\"" ++ version ++ "\""]
-                                        )
+                      map (ccAddDef cc) (ccompDefs flags)
                       ++
                       [ ccTargetObj cc (notext ctargetObj)
-                      , csources   -- [outC]
+                      , csources
                       ]
        runCommand term flags cmdline
 
@@ -1390,6 +1364,7 @@ termWarning term flags doc
   = termDoc term $ color (colorWarning (colorSchemeFromFlags flags)) (text "warning:" <+> doc)
 
 vcpkgInstall :: Terminal -> Flags -> CC -> [(String,String)] -> FilePath -> IO Bool
+{-
 vcpkgInstall term flags cc eimport clib | onWindows && (ccName cc `startsWith` "mingw")
   = do termWarning term flags $
         text "unable to find C library:" <+> color (colorSource (colorScheme flags)) (text clib) <->
@@ -1398,7 +1373,7 @@ vcpkgInstall term flags cc eimport clib | onWindows && (ccName cc `startsWith` "
         text "         run from an 'x64 Native Tools Command' window and install clang-cl from" <-> 
         text "         <https://llvm.org/builds>"
        return False
-    
+-}    
 vcpkgInstall term flags cc eimport clib
   = case lookup "vcpkg" eimport of
       Nothing  -> 
@@ -1479,11 +1454,15 @@ kklibBuild term flags cc name {-kklib-} objFile {-libkklib.o-}
            then -- use pre-compiled installed binary
                 copyBinaryFile binObjPath objPath
            else -- todo: check for installed binaries for the library
+                -- compile kklib from sources
                 do termDoc term $ color (colorInterpreter (colorScheme flags)) (text ("compile:")) <+>
                                    color (colorSource (colorScheme flags)) (text name) <+>
                                     color (colorInterpreter (colorScheme flags)) (text "from:") <+>
                                      color (colorSource (colorScheme flags)) (text srcLibDir)
-                   ccompile term flags cc objPath [joinPath srcLibDir "src/all.c"] 
+                   let flags0 = if (useStdAlloc flags) then flags 
+                                  else flags{ ccompIncludeDirs = ccompIncludeDirs flags ++ [localShareDir flags ++ "/kklib/mimalloc/include"] }
+                       flags1 = flags0{ ccompDefs = ccompDefs flags ++ [("KK_COMP_VERSION","\"" ++ version ++ "\"")] }
+                   ccompile term flags1 cc objPath [joinPath srcLibDir "src/all.c"] 
        return objPath
 
 
@@ -1528,7 +1507,6 @@ cmakeLib term flags cc libName {-kklib-} libFile {-libkklib.a-} cmakeGeneratorFl
                                       , "-DCMAKE_INSTALL_PREFIX=" ++ (buildDir flags)
                                       , "-DKK_COMP_VERSION=" ++ version
                                       , (if (asan flags) then "-DKK_DEBUG_SAN=address" else "")
-                                      , (if (asan flags || useStdAlloc flags) then "-DKK_STDALLOC=on" else "")
                                       ]
                                       ++ unquote (cmakeArgs flags) ++
                                       [ srcLibDir ]

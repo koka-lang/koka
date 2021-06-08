@@ -145,7 +145,7 @@ if not errorlevel 1 (
   if not errorlevel 1 goto done_env
 )
 echo.
-echo Please add "%_KOKA_PREFIX%\bin" to you PATH environment variable.
+echo Please add "%_KOKA_PREFIX%\bin" to your PATH environment variable.
 echo.
 
 :done_env

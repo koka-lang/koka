@@ -2,7 +2,7 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
-#define KKLIB_BUILD        29       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        32       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1
 
@@ -243,6 +243,7 @@ static inline bool kk_block_is_valid(kk_block_t* b) {
   be (usually) accessed efficiently through a register.
 --------------------------------------------------------------------------------------*/
 #ifdef KK_MIMALLOC
+#define MI_MAX_ALIGN_SIZE  KK_INTPTR_SIZE
 #ifdef KK_MIMALLOC_INLINE
 #include "../mimalloc/include/mimalloc-inline.h"
 #else
@@ -990,50 +991,57 @@ static inline kk_vector_t kk_vector_dup(kk_vector_t v) {
   return kk_datatype_dup(v);
 }
 
-static inline kk_vector_t kk_vector_alloc(kk_ssize_t length, kk_context_t* ctx) {
+static inline kk_vector_t kk_vector_alloc_uninit(kk_ssize_t length, kk_box_t** buf, kk_context_t* ctx) {
   if (kk_unlikely(length<=0)) {
+    if (buf != NULL) *buf = NULL;
     return kk_vector_empty();
   }
   else {
     kk_vector_large_t v = (kk_vector_large_t)kk_block_large_alloc(kk_ssizeof(struct kk_vector_large_s) + (length-1)*kk_ssizeof(kk_box_t), length + 1 /* kk_large_scan_fsize */, KK_TAG_VECTOR, ctx);
+    if (buf != NULL) *buf = &v->vec[0];
     return kk_datatype_from_base(&v->_base);
   }
 }
 
-static inline kk_ssize_t kk_vector_len_borrow(const kk_vector_t vd) {
-  kk_vector_large_t v = kk_vector_as_large_borrow(vd);
-  if (v==NULL) return 0;
-  kk_ssize_t len = kk_int_unbox(v->_base.large_scan_fsize) - 1;
-  kk_assert_internal(len + 1 == kk_block_scan_fsize(&v->_base._block));
-  kk_assert_internal(len + 1 != 0);
-  return len;
+kk_decl_export void        kk_vector_init_borrow(kk_vector_t _v, kk_ssize_t start, kk_box_t def, kk_context_t* ctx);
+kk_decl_export kk_vector_t kk_vector_realloc(kk_vector_t vec, kk_ssize_t newlen, kk_box_t def, kk_context_t* ctx);
+
+static inline kk_vector_t kk_vector_alloc(kk_ssize_t length, kk_box_t def, kk_context_t* ctx) {
+  kk_vector_t v = kk_vector_alloc_uninit(length, NULL, ctx);
+  kk_vector_init_borrow(v, 0, def, ctx);
+  return v;
 }
 
 static inline kk_box_t* kk_vector_buf_borrow(kk_vector_t vd, kk_ssize_t* len) {
-  if (len != NULL) *len = kk_vector_len_borrow(vd);
   kk_vector_large_t v = kk_vector_as_large_borrow(vd);
-  if (v==NULL) return NULL;
-  return &(v->vec[0]);
-}
-
-static inline void kk_vector_set_borrow(kk_vector_t _v, kk_box_t def, kk_context_t* ctx) {
-  kk_ssize_t length;
-  kk_box_t* v = kk_vector_buf_borrow(_v, &length);
- // inline kk_box_dup and kk_box_drop for better performance
-  if (kk_box_is_ptr(def)) {
-    for (kk_ssize_t i = 0; i < length; i++) {
-      kk_block_dup(kk_ptr_unbox(def));
-      v[i] = def;
+  if (kk_unlikely(v==NULL)) {
+    if (len != NULL) *len = 0;
+    return NULL;
+  }
+  else {
+    if (len != NULL) {
+      *len = (kk_ssize_t)kk_int_unbox(v->_base.large_scan_fsize) - 1;
+      kk_assert_internal(*len + 1 == kk_block_scan_fsize(&v->_base._block));
+      kk_assert_internal(*len + 1 != 0);
     }
-    kk_block_drop(kk_ptr_unbox(def), ctx);
-  } else {
-    for (kk_ssize_t i = 0; i < length; i++) {
-      v[i] = def;
-    }
+    return &(v->vec[0]);
   }
 }
 
-static inline kk_box_t kk_vector_at_borrow(const kk_vector_t v, kk_ssize_t i) {
+static inline kk_ssize_t kk_vector_len_borrow(const kk_vector_t v) {
+  kk_ssize_t len;
+  kk_vector_buf_borrow(v, &len);
+  return len;
+}
+
+// TODO: Use borrowed variant in core.kk
+static inline kk_ssize_t kk_vector_len(const kk_vector_t v, kk_context_t* ctx) {
+  kk_ssize_t len = kk_vector_len_borrow(v);
+  kk_vector_drop(v, ctx);
+  return len;
+}
+
+static inline kk_box_t kk_vector_at(const kk_vector_t v, kk_ssize_t i, kk_context_t* ctx) {
   kk_assert(i < kk_vector_len_borrow(v));
   kk_box_t res = kk_box_dup(kk_vector_buf_borrow(v, NULL)[i]);
   return res;
@@ -1050,22 +1058,6 @@ static inline kk_vector_t kk_vector_unbox(kk_box_t v, kk_context_t* ctx) {
 }
 
 
-static inline kk_vector_t kk_vector_realloc(kk_vector_t vec, kk_ssize_t newlen, kk_box_t def, kk_context_t* ctx) {
-  kk_ssize_t len;
-  kk_box_t* src = kk_vector_buf_borrow(vec, &len);
-  if (len == newlen) return vec;
-  kk_vector_t vdest = kk_vector_alloc(newlen, ctx);
-  if(def.box != kk_box_null.box) {
-    kk_vector_set_borrow(vdest, def, ctx);
-  }
-  kk_box_t* dest    = kk_vector_buf_borrow(vdest,NULL);
-  const kk_ssize_t n = (len > newlen ? newlen : len);
-  for (kk_ssize_t i = 0; i < n; i++) {
-    dest[i] = kk_box_dup(src[i]);
-  }
-  kk_vector_drop(vec, ctx);
-  return vdest;
-} 
  
 /*--------------------------------------------------------------------------------------
   References

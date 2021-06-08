@@ -206,8 +206,8 @@ kk_vector_t kk_bytes_splitv_atmost(kk_bytes_t b, kk_bytes_t sepb, kk_ssize_t n, 
   kk_assert_internal(count >= 1 && count <= n);
   
   // copy to vector
-  kk_vector_t vec = kk_vector_alloc(count, ctx);
-  kk_box_t* v  = kk_vector_buf_borrow(vec, NULL);
+  kk_box_t* v;
+  kk_vector_t vec = kk_vector_alloc_uninit(count, &v, ctx);  
   const uint8_t* p = s;
   for (kk_ssize_t i = 0; i < (count-1) && p < end; i++) {
     const uint8_t* r;

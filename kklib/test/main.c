@@ -454,28 +454,70 @@ static void test_double(kk_context_t* ctx) {
   } while (!isnan(dx));
 }
 
-static void test_count10(kk_context_t* ctx) {
-  uint64_t u = 0;
-  for (int i = 0; i < 22; i++) {
-    uint8_t d1 = kk_bits_digits64(u - 1);
-    printf("value: %20" PRIu64 ", %3u", u-1, d1);
-    uint8_t d0 = kk_bits_digits64(u);
-    printf(", value: %20" PRIu64 ", %3u", u, d0);
-    uint8_t d9 = kk_bits_digits64(u*9);
-    printf(", value: %20" PRIu64 ", %3u\n", u*9, d9);
-    if (u==0) u = 1;
-         else u *= 10;
+static void test_count10_64(uint64_t u) {
+  uint8_t c = kk_bits_digits64(u);
+  char buf[64];
+  snprintf(buf, 63, "%" PRIu64, u);
+  if (strlen(buf) != c) {
+    printf("*************\nvalue: %s: is not %i digits!!!\n************\n", buf, c);
   }
-  u = 1;
-  for (int i = 0; i < 64; i++) {
-    uint8_t d1 = kk_bits_digits64(u - 1);
-    printf("value: %20" PRIu64 ", %3u", u-1, d1);
-    uint8_t d0 = kk_bits_digits64(u);
-    printf(", value: %20" PRIu64 ", %3u", u, d0);
-    uint8_t d9 = kk_bits_digits64(u*9);
-    printf(", value: %20" PRIu64 ", %3u\n", u*9, d9);
-    if (u==0) u = 1;
-    else u <<= 1;
+  else {
+    printf("value: %s: digits: %i\n", buf, c);
+  }
+}
+
+static bool test_count10_32(uint32_t u) {
+  uint8_t c = kk_bits_digits32(u);
+  char buf[64];
+  snprintf(buf, 63, "%" PRIu32, u);
+  if (strlen(buf) != c) {
+    printf("*************\nvalue: %s: is not %i digits!!!\n************\n", buf, c);
+  }
+  else {
+    printf("value: %s: digits: %i\n", buf, c);
+  }
+}
+
+static void test_count10(kk_context_t* ctx) {
+  {
+    uint64_t u = 0;
+    for (int i = 0; i < 22; i++) {
+      test_count10_64(u-1);
+      test_count10_64(u);
+      test_count10_64(u+1);
+      test_count10_64(u*9);
+      if (u==0) u = 1;
+      else u *= 10;
+    }
+    u = 1;
+    for (int i = 0; i < 64; i++) {
+      test_count10_64(u-1);
+      test_count10_64(u);
+      test_count10_64(u+1);
+      test_count10_64(u*9);
+      if (u==0) u = 1;
+      else u <<= 1;
+    }
+  }
+  {
+    uint32_t u = 0;
+    for (int i = 0; i < 11; i++) {
+      test_count10_32(u-1);
+      test_count10_32(u);
+      test_count10_32(u+1);
+      test_count10_32(u*9);
+      if (u==0) u = 1;
+      else u *= 10;
+    }
+    u = 1;
+    for (int i = 0; i < 33; i++) {
+      test_count10_32(u-1);
+      test_count10_32(u);
+      test_count10_32(u+1);
+      test_count10_32(u*9);
+      if (u==0) u = 1;
+      else u <<= 1;
+    }
   }
 }
 
@@ -523,6 +565,7 @@ static void test_ovf(kk_context_t* ctx) {
 
 int main() {
   kk_context_t* ctx = kk_get_context();
+  /*
   test_fib(50,ctx);   // 12586269025
   test_fib(150, ctx);  // 9969216677189303386214405760200
   test_fib(300, ctx);  // 22223224462942044552973989346190996720666693909649976499097960
@@ -539,7 +582,8 @@ int main() {
   test_pow10(ctx);
   test_double(ctx);
   test_ovf(ctx);
-  // test_count10(ctx);
+  */
+  test_count10(ctx);
   // test_popcount();
   // test_bitcount();
   // test_random(ctx);
