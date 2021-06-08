@@ -538,7 +538,7 @@ kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, 
     kk_string_t name = os_direntry_name(&entry, ctx);
     if (!kk_string_is_empty_borrow(name)) {
       // push name
-      if (count == len) {
+      if (count >= len) {
         // realloc vector
         const kk_ssize_t newlen = (len > 1000 ? len + 1000 : 2*len);
         vec = kk_vector_realloc(vec, newlen, kk_integer_box(kk_integer_zero), ctx);

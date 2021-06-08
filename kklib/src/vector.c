@@ -41,7 +41,7 @@ kk_vector_t kk_vector_realloc(kk_vector_t vec, kk_ssize_t newlen, kk_box_t def, 
   for (kk_ssize_t i = 0; i < n; i++) {
     dest[i] = kk_box_dup(src[i]);
   }
-  kk_vector_init_borrow(vdest, newlen, def, ctx); // set extra entries to default value
+  kk_vector_init_borrow(vdest, n, def, ctx); // set extra entries to default value
   kk_vector_drop(vec, ctx);
   return vdest;
 }
