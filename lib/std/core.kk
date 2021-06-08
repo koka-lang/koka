@@ -2044,7 +2044,7 @@ inline extern []( ^v : vector<a>, ^index : int ) : exn a  {
 }
 
 // Return the element at position `index` in vector `v`, or `Nothing` if out of bounds
-fun at( v  : vector<a>, ^index : int ) : maybe<a> {
+fun at( ^v : vector<a>, ^index : int ) : maybe<a> {
   val idx = index.ssize_t
   if (v.lengthz <= idx) then Nothing else Just(unsafe-idx(v,idx))
 }
