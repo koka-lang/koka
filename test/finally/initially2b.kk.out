@@ -1,0 +1,18 @@
+initially: 0
+action: True
+return, local=43
+finally, local=43
+initially: 1
+action: False
+return, local=43
+finally, local=43
+43,43
+ 
+finally/initially2b/Amb: forall<e,a> (.hnd-amb<e,a>) -> amb
+finally/initially2b/State: forall<e,a> (.hnd-state<e,a>) -> state
+finally/initially2b/amb: forall<a,e> (() -> <amb|e> a) -> e list<a>
+finally/initially2b/bar: () -> <amb,console,state> int
+finally/initially2b/flip: () -> amb bool
+finally/initially2b/foo: () -> <amb,console> int
+finally/initially2b/inc: () -> state int
+finally/initially2b/main: () -> console ()

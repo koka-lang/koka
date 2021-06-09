@@ -4,13 +4,13 @@ effect fun inc() : int
 
 val amb = handler {
   return  (x)    -> [x]
-  control flip() -> resume(False) + resume(True)
+  control flip() -> resume(False) ++ resume(True)
 
 }
 
 fun bar() {
   val b = flip()
-  println("action: " + b.show + ", " + inc().show );
+  println("action: " ++ b.show ++ ", " ++ inc().show );
   if (b) throw("ouch")
   42
 }
@@ -21,14 +21,14 @@ fun foo()
   with handler {
     fun inc(){ i := i+1; i }
     initially (r){
-      println("initially: " + r.show)
+      println("initially: " ++ r.show)
     }
     return (x){
-      println("return, local=" + i.show)
+      println("return, local=" ++ i.show)
       x
     }
     finally {
-      println("finally, local=" + i.show)
+      println("finally, local=" ++ i.show)
     }
   }
   bar()

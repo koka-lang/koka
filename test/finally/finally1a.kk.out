@@ -1,0 +1,8 @@
+action
+finally
+uncaught exception: ouch
+add default effect for std/core/exn
+ 
+finally/finally1a/bar: () -> <console,exn> int
+finally/finally1a/foo: () -> <console,exn> int
+finally/finally1a/main: () -> <console,exn> ()

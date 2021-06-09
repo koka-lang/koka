@@ -1,0 +1,10 @@
+action: 42
+return, local: 42
+finally, local: 42
+42
+ 
+finally/finally2/State: forall<e,a> (.hnd-state<e,a>) -> state
+finally/finally2/bar: () -> <console,state> int
+finally/finally2/foo: () -> console int
+finally/finally2/inc: () -> state int
+finally/finally2/main: () -> console ()

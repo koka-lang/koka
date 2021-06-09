@@ -185,7 +185,8 @@ command st cmd
                       then do remark st "nothing to edit"
                               interpreterEx st
                       else do runEditor st fpath
-                              command st Reload
+                              -- command st Reload
+                              interpreter st 
                    }
   Edit fname  -> do{ mbpath <- searchSource (flags st) "" (newName fname) -- searchPath (includePath (flags st)) sourceExtension fname
                    ; case mbpath of
@@ -194,7 +195,8 @@ command st cmd
                               interpreter st
                       Just (root,fname,_)
                         -> do runEditor st (joinPath root fname)
-                              command st Reload
+                              -- command st Reload
+                              interpreter st
                    }
 
   Shell cmd   -> do{ runSystem cmd

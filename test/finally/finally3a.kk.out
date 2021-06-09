@@ -1,0 +1,12 @@
+action: 42
+finally, local: 43
+exc finalize
+raised: ouch
+ 
+finally/finally3a/Inc: forall<e,a> (.hnd-inc<e,a>) -> inc
+finally/finally3a/Raise: forall<e,a> (.hnd-raise<e,a>) -> raise
+finally/finally3a/bar: () -> <console,inc,raise> int
+finally/finally3a/foo: () -> <console,raise> int
+finally/finally3a/inc: () -> inc int
+finally/finally3a/main: () -> console ()
+finally/finally3a/raise: forall<a> (msg : string) -> raise a
