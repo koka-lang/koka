@@ -1034,14 +1034,13 @@ static inline kk_ssize_t kk_vector_len_borrow(const kk_vector_t v) {
   return len;
 }
 
-// TODO: Use borrowed variant in core.kk
 static inline kk_ssize_t kk_vector_len(const kk_vector_t v, kk_context_t* ctx) {
   kk_ssize_t len = kk_vector_len_borrow(v);
   kk_vector_drop(v, ctx);
   return len;
 }
 
-static inline kk_box_t kk_vector_at(const kk_vector_t v, kk_ssize_t i, kk_context_t* ctx) {
+static inline kk_box_t kk_vector_at_borrow(const kk_vector_t v, kk_ssize_t i) {
   kk_assert(i < kk_vector_len_borrow(v));
   kk_box_t res = kk_box_dup(kk_vector_buf_borrow(v, NULL)[i]);
   return res;
@@ -1135,7 +1134,7 @@ static inline kk_unit_t kk_ref_vector_assign_borrow(kk_ref_t r, kk_integer_t idx
     kk_vector_t v = kk_vector_unbox(b, ctx);
     kk_ssize_t len;
     kk_box_t* p = kk_vector_buf_borrow(v, &len);
-    kk_ssize_t i = kk_integer_clamp_ssize_t_borrow(idx,ctx);
+    kk_ssize_t i = kk_integer_clamp_ssize_t_borrow(idx);
     if (i < len) {
       kk_box_drop(p[i], ctx);
       p[i] = value;

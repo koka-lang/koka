@@ -914,7 +914,7 @@ inline extern int : (char) -> int {
 // Convert a unicode code point to a character
 inline extern char( ^i : int) : char {
   inline "(#1)";
-  c "kk_integer_clamp32_borrow"
+  c  inline "kk_integer_clamp32_borrow(#1)"
   cs inline "Primitive.IntToInt32(#1)"
 }
 
@@ -1092,7 +1092,7 @@ inline extern (~)(i:int) : int {
 
 // Convert an integer to a `:double`. May return `nan` if the integer is too large to represent as a `:double`.
 inline extern double( ^i : int) : double  {
-  c  "kk_integer_as_double_borrow"
+  c  inline "kk_integer_as_double_borrow(#1)"
   cs "Primitive.IntToDouble"
   js "$std_core._int_to_double"
 }
@@ -1106,7 +1106,7 @@ inline extern is-odd   : ( int ) -> bool  {
 
 // Is this equal to zero?
 inline extern is-zero( ^x : int) : bool  {
-  c  "kk_integer_is_zero_borrow"
+  c  inline "kk_integer_is_zero_borrow(#1)"
   cs inline "(#1.IsZero)"
   js "$std_core._int_iszero"
 }
@@ -1197,7 +1197,7 @@ fun is-pos(i : int ) : bool { i.sign == Gt }
 fun is-neg(i : int ) : bool { i.sign == Lt }
 
 inline extern sign( ^i : int ) : order {
-  c  inline "kk_int_as_order(kk_integer_signum_borrow(#1,kk_context()),kk_context())"
+  c  inline "kk_int_as_order(kk_integer_signum_borrow(#1),kk_context())"
   cs "Primitive.IntSign"
   js "$std_core._int_sign"
 }
@@ -1259,7 +1259,7 @@ inline extern int( i : int32 ) : int {
 // Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
 // value if it is outside the range of an `:int32`.
 extern int32( ^i : int) : int32   {
-  c  "kk_integer_clamp32_borrow"
+  c  inline "kk_integer_clamp32_borrow(#1)"
   cs "Primitive.IntToInt32"
   js "$std_core._int_to_int32"
 }
@@ -1290,7 +1290,7 @@ private fun decr( i : int32 ) : int32 {
 // Convert an integer to an `:ssize_t`. The number is _clamped_ to the maximal or minimum `:ssize_t`
 // value if it is outside the range of an `:ssize_t`.
 extern ssize_t( ^i : int) : ssize_t   {
-  c  "kk_integer_clamp_ssize_t_borrow"
+  c inline  "kk_integer_clamp_ssize_t_borrow(#1)"
   cs "Primitive.IntToInt32"
   js "$std_core._int_to_int32"
 }
@@ -1322,7 +1322,7 @@ private extern incr(i : ssize_t ) : ssize_t { inline "(#1 + 1)" }
 // ----------------------------------------------------------------------------
 
 extern int64( ^i : int) : int64 {
-  c  "kk_integer_clamp64_borrow"
+  c inline  "kk_integer_clamp64_borrow(#1)"
   cs "Primitive.IntToInt64"
   js "$std_core._int_to_int32"
 }
@@ -2038,7 +2038,7 @@ private inline extern unsafe-vector : forall<a> ( n : ssize_t ) -> total vector<
 
 // Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
 inline extern []( ^v : vector<a>, ^index : int ) : exn a  {
-  c "kk_vector_at_int_borrow"
+  c  inline "kk_vector_at_int_borrow(#1, #2)"
   cs inline "(#1)[Primitive.IntToInt32(#2)]"
   js inline "$std_core._vector_at(#1,#2)"
 }
