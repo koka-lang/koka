@@ -277,7 +277,7 @@ compileModuleOrFile term flags modules fname force
   | any (not . validModChar) fname = compileFile term flags modules Object fname
   | otherwise
     = -- trace ("compileModuleOrFile: " ++ show fname ++ ", modules: " ++ show (map modName modules)) $
-      do let modName = newName fname
+      do let modName = pathToModuleName fname
          exist <- searchModule flags "" modName
          case (exist) of
           Just (fpath) -> compileModule term (if force then flags{ forceModule = fpath } else flags)
@@ -355,8 +355,7 @@ compileProgramFromFile term flags modules compileTarget rootPath stem
 
 nameFromFile :: FilePath -> Name
 nameFromFile fname
-  = newName $ map (\c -> if isPathSep c then '/' else c) $
-    dropWhile isPathSep $ noexts fname
+  = pathToModuleName $ dropWhile isPathSep $ noexts fname
 
 data CompileTarget a
   = Object

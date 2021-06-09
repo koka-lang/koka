@@ -32,7 +32,7 @@ module Type.Type (-- * Types
                   , typeInt, typeBool, typeFun, typeVoid, typeInt32, typeEvIndex, typeSizeT, typeSSizeT
                   , typeUnit, typeChar, typeString, typeFloat
                   , typeTuple, typeAny
-                  , typeEv, isEvType, makeEvType
+                  , typeEv, isEvType, makeEvType, typeResumeContext
                   , effectExtend, effectExtends, effectEmpty, effectFixed, tconEffectExtend
                   , effectExtendNoDup, effectExtendNoDups
                   , extractEffectExtend
@@ -513,6 +513,12 @@ tconString = (TypeCon nameTpString (kindStar))
 isTypeString (TCon tc) = tc == tconString
 isTypeString _         = False
 
+
+typeResumeContext :: Tau -> Effect -> Effect -> Tau -> Tau
+typeResumeContext b e e0 r
+  = TApp (TCon tcon) [b,e,e0,r]
+  where
+    tcon = TypeCon nameTpResumeContext (kindFun kindStar (kindFun kindEffect (kindFun kindEffect kindStar)))
 
 typeRef :: Tau
 typeRef

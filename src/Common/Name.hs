@@ -514,14 +514,15 @@ moduleNameToPath name
 
 pathToModuleName :: FilePath -> Name
 pathToModuleName path
-  = newName (decode path)
+  = newName $ dropWhile (\c -> c `elem` "_./") $ decode path
   where
     -- TODO: do proper decoding
     decode s
       = case s of
           _ | s `startsWith` "_dash_" -> '-':decode (drop 6 s)
-          ('_':'_':cs) -> '_':decode cs
+          ('_':'_':cs) -> '_':decode cs          
           ('_':cs)     -> '/':decode cs
+          ('.':cs)     -> decode cs
           ('\\':cs)    -> '/':decode cs
           (c:cs)       -> c:decode cs
           []           -> ""

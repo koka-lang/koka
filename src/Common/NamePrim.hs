@@ -42,6 +42,7 @@ module Common.NamePrim
           , nameTpEvv, nameEvvAt, nameEvvLookup, nameEvvIndex
           , nameOpenAt, nameOpen, nameOpenNone
           , nameTpEv, nameHandle, nameNamedHandle
+          , nameTpResumeContext
           , nameClause
           , nameIdentity
           , nameMaskAt, nameMaskBuiltin
@@ -273,6 +274,7 @@ nameTpEv        = coreHndName "ev"
 nameTpEvv       = coreHndName "evv"
 nameTpEvIndex   = coreHndName "ev-index"
 nameClause sort i = coreHndName ("clause-" ++ sort ++ show i)
+nameTpResumeContext = coreHndName "resume-context"
 
 nameHTag        = coreHndName ".new-htag"
 namePerform i   = coreHndName (".perform" ++ show i)

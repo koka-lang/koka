@@ -938,7 +938,9 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
                           OpExcept     -> (nameClause "never" (length pars), pars)
                           OpControl    -> let resumeTp = TFun [(nameNil,resumeArg)] eff res
                                           in (nameClause "control" (length pars), pars ++ [ValueBinder (newName "resume") (Just resumeTp) () hrng patRng])
-                          OpControlRaw -> (nameClause "control-raw" (length pars), pars ++ [ValueBinder (newName "rcontext") Nothing () hrng patRng])
+                          OpControlRaw -> let eff0 = effectExtend heff eff
+                                              resumeContextTp = typeResumeContext resumeArg eff eff0 res
+                                          in (nameClause "control-raw" (length pars), pars ++ [ValueBinder (newName "rcontext") (Just resumeContextTp) () hrng patRng])
                           -- _            -> failure $ "Type.Infer.inferHandler: unexpected resume kind: " ++ show rkind
                  -- traceDoc $ \penv -> text "resolving:" <+> text (showPlain opName) <+> text ", under effect:" <+> text (showPlain effectName)
                  (_,gtp,_) <- resolveFunName (if isQualified opName then opName else qualify (qualifier effectName) opName)
