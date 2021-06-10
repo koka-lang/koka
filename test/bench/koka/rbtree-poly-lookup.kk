@@ -1,0 +1,126 @@
+// Adapted from https://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap.lean
+
+type color {
+  Red
+  Black
+}
+
+type tree<k,v> {
+  con Leaf()
+  con Node(color: color, lchild: tree<k,v>, key: k, value: v, rchild: tree<k,v>)
+}
+
+fun is-red( ^t : tree<k,v>) : bool {
+  match(t) {
+    Node(Red) -> True
+    _         -> False
+  }
+}
+
+fun fold(t: tree<k,v>, b: a, f: (k, v, a) -> a): a {
+  match (t) {
+    Leaf -> b
+    Node(_, l, k, v, r)
+      -> r.fold( f(k, v, l.fold(b, f)), f)
+  }
+}
+
+fun balance-left(l:tree<k,v>, k: k, v: v, r: tree<k,v>): tree<k,v> {
+  match(l) {
+    Leaf -> Leaf
+    Node(_, Node(Red, lx, kx, vx, rx), ky, vy, ry)
+      -> Node(Red, Node(Black, lx, kx, vx, rx), ky, vy, Node(Black, ry, k, v, r))
+    Node(_, ly, ky, vy, Node(Red, lx, kx, vx, rx))
+      -> Node(Red, Node(Black, ly, ky, vy, lx), kx, vx, Node(Black, rx, k, v, r))
+    Node(_, lx, kx, vx, rx)
+      -> Node(Black, Node(Red, lx, kx, vx, rx), k, v, r)
+  }
+}
+
+fun balance-right(l: tree<k,v>, k: k, v: v, r: tree<k,v>): tree<k,v> {
+  match(r) {
+    Leaf -> Leaf
+    Node(_, Node(Red, lx, kx, vx, rx), ky, vy, ry)
+      -> Node(Red, Node(Black, l, k, v, lx), kx, vx, Node(Black, rx, ky, vy, ry))
+    Node(_, lx, kx, vx, Node(Red, ly, ky, vy, ry))
+      -> Node(Red, Node(Black, l, k, v, lx), kx, vx, Node(Black, ly, ky, vy, ry))
+    Node(_, lx, kx, vx, rx)
+      -> Node(Black, l, k, v, Node(Red, lx, kx, vx, rx))
+  }
+}
+
+fun ins(t: tree<int,v>, k: int, v: v): tree<int,v> {
+  match(t) {
+    Leaf -> Node(Red, Leaf, k, v, Leaf)
+    Node(Red, l, kx, vx, r)
+      -> if (k < kx) then Node(Red, ins(l, k, v), kx, vx, r)
+         elif (k == kx) then Node(Red, l, k, v, r)
+         else Node(Red, l, kx, vx, ins(r, k, v))
+    Node(Black, l, kx, vx, r)
+      -> if (k < kx) then (if (is-red(l)) then balance-left(ins(l,k,v), kx, vx, r)
+                                          else Node(Black, ins(l, k, v), kx, vx, r))
+         elif (k == kx) then Node(Black, l, k, v, r)
+         elif (is-red(r)) then balance-right(l, kx, vx, ins(r,k,v))
+         else Node(Black, l, kx, vx, ins(r, k, v))
+  }
+}
+
+fun lookup( ^t: tree<int, b>, ^k: int): maybe<b> {
+  match(t) {
+    Leaf -> Nothing
+    Node(_, l, kx, vx, r)
+      -> if(k < kx) then l.lookup(k)
+         elif (k == kx) then Just(vx)
+         else r.lookup(k)
+  }
+}
+
+fun set-black(t: tree<k,v>) : tree<k,v> {
+  match(t) {
+    Node(_, l, k, v, r) -> Node(Black, l, k, v, r)
+    _ -> t
+  }
+}
+
+fun insert(t: tree<int,v>, k: int, v: v): tree<int,v> {
+  if (is-red(t))
+    then set-black(ins(t, k, v))
+    else ins(t, k, v)
+}
+
+fun make-tree-aux(n: int, m: tree<int,bool>): div tree<int,bool> {
+  if (n <= 0) then m else {
+    val n1 = n - 1
+    make-tree-aux(n1, insert(m, n1, n1 % 10 == 0))
+  }
+}
+
+fun make-tree(n: int): div tree<int,bool> {
+  make-tree-aux(n, Leaf)
+}
+
+fun lookup-tree-aux( ^t: tree<int, bool>, n: int, r: bool): div bool {
+  if(n <= 0) then r else {
+    val n1 = n - 1
+    val l = match(t.lookup(n1)) {
+      Just(b) -> b
+      Nothing -> False
+    }
+    lookup-tree-aux(t, n1, (not(r) && l) || (r && not(l)))
+  }
+}
+
+fun lookup-tree( ^t: tree<int, bool>, n: int): div bool {
+  lookup-tree-aux(t, n, False)
+}
+
+fun main() {
+  val n = 4200000 // todo: read first command line arg for size
+  val m = make-tree(n)
+  for(1, 10, fn(_) {
+    val l = lookup-tree(m, n)
+    l.show.println
+  })
+  val v = m.fold(0) fn(k, v, r) { if (v) then r + 1 else r }
+  v.show.println
+}
