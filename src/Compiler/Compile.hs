@@ -1307,8 +1307,8 @@ ccompile term flags cc ctargetObj csources
                       [ [ccPath cc]
                       , ccFlags cc
                       , ccFlagsWarn cc
-                      , ccFlagsCompile cc
                       , ccFlagsBuildFromFlags cc flags
+                      , ccFlagsCompile cc
                       , ccIncludeDir cc (localShareDir flags ++ "/kklib/include")
                       ]
                       ++

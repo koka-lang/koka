@@ -285,7 +285,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , config []    ["host"]            [("node",Node),("browser",Browser)] (\h f -> f{ target=JS, host=h}) "specify host for running javascript"
  , config []    ["platform"]        [("x32",platform32),("x64",platform64)] (\p f -> f{platform=p})     "specify target platform (default=64-bit)"
  , emptyline
- , flag   []    ["showelapsed"]    (\b f -> f{ showElapsed = b})    "show elapsed time after evaluation"
+ , flag   []    ["showtime"]       (\b f -> f{ showElapsed = b})    "show elapsed time and rss after evaluation"
  , flag   []    ["showspan"]       (\b f -> f{ showSpan = b})       "show ending row/column too on errors"
  -- , flag   []    ["showkinds"]      (\b f -> f{showKinds=b})        "show full kind annotations"
  , flag   []    ["showkindsigs"]   (\b f -> f{showKindSigs=b})      "show kind signatures of type definitions"
@@ -732,7 +732,7 @@ gnuWarn = words "-Wall -Wextra -Wno-unknown-pragmas -Wno-unused-parameter -Wno-u
 ccGcc,ccMsvc :: String -> FilePath -> CC
 ccGcc name path
   = CC name path []
-        [(Debug,         words "-g -O1"),
+        [(Debug,         words "-g -Og"),
          (Release,       words "-O2 -DNDEBUG"),
          (RelWithDebInfo,words "-O2 -g -DNDEBUG")]
         (gnuWarn ++ ["-Wno-unused-but-set-variable"])
@@ -750,9 +750,9 @@ ccGcc name path
 
 ccMsvc name path
   = CC name path ["-DWIN32","-nologo"] 
-         [(Debug,words "-MDd -Zi -Ob0 -Od -RTC1"),
+         [(Debug,words "-MDd -Zi -O1"),
           (Release,words "-MD -O2 -Ob2 -DNDEBUG"),
-          (RelWithDebInfo,words "-MD -Zi -O2 -Ob1 -DNDEBUG")]
+          (RelWithDebInfo,words "-MD -Zi -O2 -Ob2 -DNDEBUG")]
          ["-W3"]
          ["-TC","-c"]
          ["-link"] -- , "/NODEFAULTLIB:msvcrt"]
