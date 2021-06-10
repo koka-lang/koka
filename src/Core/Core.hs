@@ -92,6 +92,7 @@ module Core.Core ( -- Data structures
 
 import Control.Applicative (liftA2)
 import Control.Monad (forM)
+import Control.Monad.Identity
 
 import Data.Char( isDigit )
 import qualified Data.Set as S
@@ -495,19 +496,7 @@ foldExpr :: (Expr -> a -> a) -> a -> Expr -> a
 foldExpr f z e = appEndo (foldMapExpr (Endo . f) e) z
 
 rewriteBottomUp :: (Expr -> Expr) -> Expr -> Expr
-rewriteBottomUp f e = case e of 
-  Lam params eff body -> f $ Lam params eff (f body)
-  Var _ _ -> f e
-  App fun xs -> f $ App (f fun) (map f xs)
-  TypeLam types body -> f $ TypeLam types (f body)
-  TypeApp expr types -> f $ TypeApp (f expr) types
-  Con _ _ -> f e
-  Lit _ -> f e
-  Let binders body -> f $ Let [case binder of 
-    DefNonRec def@Def{defExpr = defExpr} -> DefNonRec $ def { defExpr = f defExpr } 
-    DefRec defs -> DefRec [def{ defExpr = f defExpr } | def@Def{ defExpr = defExpr } <- defs]
-      | binder <- binders] (f body)
-  Case cases branches -> f $ Case (map f cases) [Branch patterns $ map (\(Guard e1 e2) -> Guard (f e1) (f e2)) guards | Branch patterns guards <- branches]
+rewriteBottomUp f = runIdentity . rewriteBottomUpM (Identity . f)
 
 rewriteBottomUpM :: (Monad m) => (Expr -> m Expr) -> Expr -> m Expr
 rewriteBottomUpM f e = case e of 
