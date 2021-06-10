@@ -732,7 +732,7 @@ gnuWarn = words "-Wall -Wextra -Wno-unknown-pragmas -Wno-unused-parameter -Wno-u
 ccGcc,ccMsvc :: String -> FilePath -> CC
 ccGcc name path
   = CC name path []
-        [(Debug,         words "-g -O0"),
+        [(Debug,         words "-g -O1"),
          (Release,       words "-O2 -DNDEBUG"),
          (RelWithDebInfo,words "-O2 -g -DNDEBUG")]
         (gnuWarn ++ ["-Wno-unused-but-set-variable"])
