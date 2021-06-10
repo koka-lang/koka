@@ -115,10 +115,10 @@ data Flags
          , cmake            :: FileName
          , cmakeArgs        :: String
          , ccompPath        :: FilePath
-         , ccompCompileArgs :: String
+         , ccompCompileArgs :: Args
          , ccompIncludeDirs :: [FilePath]
          , ccompDefs        :: [(String,String)]
-         , ccompLinkArgs    :: String
+         , ccompLinkArgs    :: Args
          , ccompLinkSysLibs :: [String]      -- just core lib name
          , ccompLinkLibs    :: [FilePath]    -- full path to library
          , ccomp            :: CC
@@ -192,10 +192,10 @@ flagsNull
           ""       -- cmake args
           
           ""       -- ccompPath
-          ""       -- ccomp args
+          []       -- ccomp args
           []       -- ccomp include dirs
           []       -- ccomp defs
-          ""       -- clink args
+          []       -- clink args
           []       -- clink sys libs
           []       -- clink full lib paths
           (ccGcc "gcc" "gcc")
@@ -302,14 +302,12 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , emptyline
  , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     "build into <dir> (default: <outdir>/<cfg>)"
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
- , option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"
- , option []    ["cmakeargs"]       (ReqArg cmakeArgsFlag "args")   "pass <args> to cmake"
  , option []    ["cc"]              (ReqArg ccFlag "cmd")           "use <cmd> as the C backend compiler "
  , option []    ["ccincdir"]        (OptArg ccIncDirs "dirs")       "search semi-colon separated include <dirs> for headers"
  , option []    ["cclibdir"]        (OptArg ccLibDirs "dirs")       "search semi-colon separated directories <dirs> for libraries"
  , option []    ["cclib"]           (ReqArg ccLinkSysLibs "libs")   "link with semi-colon separated system <libs>"
- , option []    ["ccargs"]          (ReqArg ccCompileArgs "args")   "pass <args> to C backend compiler "
- , option []    ["cclinkargs"]      (ReqArg ccLinkArgs "args")      "pass <args> to C backend linker "
+ , option []    ["ccopts"]          (OptArg ccCompileArgs "opts")   "pass <opts> to C backend compiler "
+ , option []    ["cclinkopts"]      (OptArg ccLinkArgs "opts")      "pass <opts> to C backend linker "
  , option []    ["cclibpath"]       (OptArg ccLinkLibs "libpaths")  "link with semi-colon separated libraries <libpaths>"
  , option []    ["vcpkg"]           (ReqArg ccVcpkgRoot "dir")      "vcpkg root directory"
  , option []    ["vcpkgtriplet"]    (ReqArg ccVcpkgTriplet "triplet") "v  cpkg target triplet"
@@ -333,6 +331,11 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fflag       ["parcrspec"] (\b f -> f{parcReuseSpec=b})     "enable reuse specialization"
  , hide $ fflag       ["optctail"]  (\b f -> f{optctail=b})          "enable con-tail optimization (TRMC)"
  , hide $ fflag       ["optctailinline"]  (\b f -> f{optctailInline=b})  "enable con-tail inlining (increases code size)"
+
+ -- deprecated
+ , hide $ option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"
+ , hide $ option []    ["cmakeopts"]       (ReqArg cmakeArgsFlag "opts")   "pass <opts> to cmake"
+
  ]
  where
   emptyline
@@ -415,8 +418,13 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   ccFlag s
     = Flag (\f -> f{ ccompPath = s })
 
-  ccCompileArgs s
-    = Flag (\f -> f{ ccompCompileArgs = s })
+  extendArgs prev mbs 
+    = case mbs of Just s | not (null s) -> prev ++ unquote s
+                  _      -> []
+  
+  ccCompileArgs mbs
+    = Flag (\f -> f{ ccompCompileArgs = extendArgs (ccompCompileArgs f) mbs })
+
   ccIncDirs mbs
     = Flag (\f -> f{ ccompIncludeDirs = case mbs of
                                           Just s | not (null s) -> ccompIncludeDirs f ++ undelimPaths s
@@ -427,8 +435,9 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
                                           _ -> [] })
 
 
-  ccLinkArgs s
-    = Flag (\f -> f{ ccompLinkArgs = s })
+  ccLinkArgs mbs
+    = Flag (\f -> f{ ccompLinkArgs = extendArgs (ccompLinkArgs f) mbs })
+
   ccLinkSysLibs s
     = Flag (\f -> f{ ccompLinkSysLibs = ccompLinkSysLibs f ++ undelimPaths s })
   ccLinkLibs mbs
@@ -790,8 +799,8 @@ ccFromPath flags path
                 | (name == "cc") = generic
                 | otherwise      = gcc
 
-        cc = cc0{ ccFlagsCompile = ccFlagsCompile cc0 ++ unquote (ccompCompileArgs flags)
-                , ccFlagsLink    = ccFlagsLink cc0 ++ unquote (ccompLinkArgs flags) }
+        cc = cc0{ ccFlagsCompile = ccFlagsCompile cc0 ++ ccompCompileArgs flags
+                , ccFlagsLink    = ccFlagsLink cc0 ++ ccompLinkArgs flags }
 
     in if (asan flags)
          then if (not (ccName cc `startsWith` "clang" || ccName cc `startsWith` "gcc"))
