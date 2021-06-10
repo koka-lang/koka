@@ -1,8 +1,9 @@
 ~ begin news
 News:
 
+* 2021-06-10: Koka v2.1.6 released.
+* The [Perceus] paper won a distinguished paper award at PLDI'21!
 * 2021-05-31: Koka v2.1.4 released.
-* The Perceus paper won a distinguished paper award at PLDI'21!
 * 2021-05-01: Koka v2.1.2 released.
 * 2021-03-08: Koka v2.1.1 released.
 * 2021-02-14: Koka v2.0.16 released.
@@ -11,6 +12,6 @@ News:
 * 2020-11-29: Perceus technical report publised ([pdf][Perceus]).
 {.news-items}
 
-[released]: https://github.com/koka-lang/koka/releases
+[released]: https://koka-lang.github.io/koka/doc/book.html#install
 
 ~ end news
