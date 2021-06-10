@@ -36,8 +36,8 @@ import Lib.Trace
 
 data SpecializeInfo = SpecializeInfo
   { specName :: Name
-  , specArgs :: [Bool]
   , specExpr :: Expr
+  , specArgs :: [Bool]
   } deriving (Show)
 
 
@@ -165,9 +165,9 @@ extractSpecializeEnv =
 
 getInline :: Def -> SpecializeInfo
 getInline def =
-  let specArgs = map (maybe False (`S.member` usedInThisDef def))
-                 $ passedRecursivelyToThisDef def
-  in SpecializeInfo (defName def) specArgs (defExpr def)
+  SpecializeInfo (defName def) (defExpr def)
+  $ map (maybe False (`S.member` usedInThisDef def))
+  $ passedRecursivelyToThisDef def
 
 usedInThisDef :: Def -> S.NameSet
 usedInThisDef def = foldMapExpr go $ defExpr def
