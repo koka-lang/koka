@@ -275,7 +275,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
  , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (0=default, 2=full)"
- , flag   ['D'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)"
+ , flag   ['g'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)"
 
  , emptyline
  , flag   []    ["html"]            (\b f -> f{outHtml = if b then 2 else 0}) "generate documentation"
@@ -732,7 +732,7 @@ gnuWarn = words "-Wall -Wextra -Wno-unknown-pragmas -Wno-unused-parameter -Wno-u
 ccGcc,ccMsvc :: String -> FilePath -> CC
 ccGcc name path
   = CC name path []
-        [(Debug,         words "-g -O1"),
+        [(Debug,         words "-g -O0"),
          (Release,       words "-O2 -DNDEBUG"),
          (RelWithDebInfo,words "-O2 -g -DNDEBUG")]
         (gnuWarn ++ ["-Wno-unused-but-set-variable"])
