@@ -16,3 +16,4 @@ test.kk
 *.exe
 *.vsix
 /*.cmake
+.vscode/

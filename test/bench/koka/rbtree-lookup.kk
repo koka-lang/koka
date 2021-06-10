@@ -11,7 +11,7 @@ type tree {
   Node(color: color, lchild: tree, key: int32, value: bool, rchild: tree)
 }
 
-fun is-red(t : tree) : bool {
+fun is-red( ^t : tree) : bool {
   match(t) {
     Node(Red) -> True
     _         -> False
@@ -58,6 +58,16 @@ fun ins(t: tree, k: int32, v: bool): tree {
   }
 }
 
+fun lookup( ^t: tree, k: int32): maybe<bool> {
+  match(t) {
+    Leaf -> Nothing
+    Node(_, l, kx, vx, r)
+      -> if(k < kx) then l.lookup(k)
+         elif (k == kx) then Just(vx)
+         else r.lookup(k)
+  }
+}
+
 fun set-black(t: tree) : tree {
   match(t) {
     Node(_, l, k, v, r) -> Node(Black, l, k, v, r)
@@ -89,8 +99,28 @@ fun make-tree(n: int32): div tree {
   make-tree-aux(n, Leaf)
 }
 
+fun lookup-tree-aux( ^t: tree, n: int32, r: bool): div bool {
+  if(n <= 0.int32) then r else {
+    val n1 = n.dec
+    val l = match(t.lookup(n1)) {
+      Just(b) -> b
+      Nothing -> False
+    }
+    lookup-tree-aux(t, n1, (not(r) && l) || (r && not(l)))
+  }
+}
+
+fun lookup-tree( ^t: tree, n: int32): div bool {
+  lookup-tree-aux(t, n, False)
+}
+
 fun main() {
-  val m = make-tree(4200000.int32); // todo: read first command line arg for size
+  val n = 4200000.int32 // todo: read first command line arg for size
+  val m = make-tree(n)
+  for(1, 10, fn(_) {
+    val l = lookup-tree(m, n)
+    l.show.println
+  })
   val v = m.fold(0.int32) fn(k, v, r:int32) { if (v) then r.inc else r }
   v.show.println
 }
