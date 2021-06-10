@@ -71,7 +71,8 @@ Special thanks to:
 
 Releases:
 - `v2.1.6`, 2021-06-10: initial support for shallow resumptions, fix space leak with vectors, allow `gcc` with `--fasan`,
-  improved `vcpkg` support, add `--fstdalloc` flag, improved VS code syntax highlighting, improved `valgrind` support. 
+  improved `vcpkg` support, add `--fstdalloc` flag, improved VS code syntax highlighting, improved `valgrind` support,
+  added `--no-optimize` flag for extended debug information. 
 - `v2.1.4`, 2021-05-31: remove dependency on cmake, support library linking, support vckpg, updated `std/text/regex`,
   improved Windows installer with `clang` install included, remove dependency on Visual Studio on Windows,
   improved `--fasan` support, fixed space leak on boxed value types, use signed `size_t` internally, various small bug fixes.
@@ -325,31 +326,35 @@ in the [Perceus] report.
 
 Please help develop Koka: there are many opportunities to improve Koka or do research with Koka. We need:
 
-- Emacs and Vim syntax highlighting.
+- Emacs (partially done) and Vim syntax highlighting.
 - Improve documentation, landing page etc. Make it easier for people to contribute.
 - More examples
 - Many library modules are incomplete (like `std/os/file`) or missing (like `std/data/map`).
 
 More advanced projects:
 
-- Update the JavaScript backend to 1) use proper modules instead of amdefine, 2) use the new bigints instead of bigint.js,
-  and 3) add support for int64. This requires mostly changes to `Backend/JS/FromCore.hs` together with `lib/core/core-inline.js`.
-- A language server for Visual Studio Code and Atom. Koka can already generate a typed [range map](src/Syntax/RangeMap.hs) so this
-  should be managable.
+- Update the JavaScript backend to 1) use proper modules instead of amdefine, 2) use the new bigints instead of 
+  bigint.js, and 3) add support for int64. This requires mostly changes to `Backend/JS/FromCore.hs` together 
+  with `lib/core/core-inline.js`.
+- Partially done: see PR #100. A language server for Visual Studio Code and Atom. Koka can already generate a 
+  typed [range map](src/Syntax/RangeMap.hs) so this should be managable.
 - Package management of Koka modules.
-- Implement inline specialization where functions like `map`, `fold` etc get specialized for the function with which they are called.
-  This is an important optimization for functional style languages to reduce the allocation of lambda's.
+- Proper overloading with (a form of) type classes. (in design phase).
+
+Currently being worked on:
+
 - Various standard optimizations like case-of-case, join points, case-of-known constructor, etc.
-- Borrowing analysis for Perceus.
-- Known reference count specialization.
+- Implement inline specialization where functions like `map`, `fold` etc get specialized for the function 
+  with which they are called.
+  This is an important optimization for functional style languages to reduce the allocation of lambda's.
+  (contact: Steven Fontanella)
+- Borrowing analysis for Perceus and improved reuse analysis. (contact: Anton Lorenzen)
+
 
 The following is the immediate todo list to be completed in the coming months:
 
-- Port all libray modules, in particular `std/text/regex` (using PCRE), and `std/async` (using `libuv`).
-- Run the full test suite again.
-- Run the Bayesian probalistic machine learning program with large parameters.
+- Port `std/async` (using `libuv`).
 - Improve compilation of local state to use local variables directly (in C).
-- Functions with a pattern match in the argument.
 
 Contact me if you are interested in tackling some of these :-)
 
@@ -358,6 +363,13 @@ Main branches:
 - `dev`: current development branch -- submit PR's to this branch.
 - `v1-master`: last stable version of Koka v1: this is Koka with the Javascript (and C#) backend which does not use evidence translation.
                This version supports `std/async` and should compile examples from published papers.
+
+Recently completed tasks:
+
+- Ported `std/text/regex` (using PCRE)
+- Run the full test suite.
+- Run the Bayesian probalistic machine learning program with large parameters.
+- Functions with a pattern match in the argument (by Steven Fontanella).
 
 
 # Build from source
