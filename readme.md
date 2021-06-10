@@ -72,11 +72,11 @@ Special thanks to:
 Releases:
 - `v2.1.6`, 2021-06-10: initial support for shallow resumptions, fix space leak with vectors, allow `gcc` with `--fasan`,
   improved `vcpkg` support, add `--fstdalloc` flag, improved VS code syntax highlighting, improved `valgrind` support,
-  added `--no-optimize` flag for extended debug information. 
+  added `--no-optimize` flag for extended debug information.
 - `v2.1.4`, 2021-05-31: remove dependency on cmake, support library linking, support vckpg, updated `std/text/regex`,
   improved Windows installer with `clang` install included, remove dependency on Visual Studio on Windows,
   improved `--fasan` support, fixed space leak on boxed value types, use signed `size_t` internally, various small bug fixes.
-- `v2.1.2`, 2021-05-01: various bug fixes, allow pattern bindings in parameters of anonymous functions (by Steven Fontanella),     
+- `v2.1.2`, 2021-05-01: various bug fixes, allow pattern bindings in parameters of anonymous functions (by Steven Fontanella),
   initial Emacs syntax highlighting (by Kamoii).
 - `v2.1.1`, 2021-03-08: bug fixes, use right-associative (++) for string- and list append (instead of (+)), improved internal 
   string handling.
@@ -431,15 +431,6 @@ It is recommended to install the [clang](https://llvm.org/builds) compiler for
 Windows (which is automatically installed when running `util/install.bat`)
 Koka can also use the Microsoft Visual C++ compiler (`cl`) if you run `koka` from a
 [Visual Studio x64 toolset](vsprompt) command prompt (in order to link correctly with the Windows system libraries).
-
-To bundle for a specific compiler, use this flag when running `util/bundle` as well (from a VS command prompt):
-```
-> stack exec koka -- --cc=clang-cl util/bundle
-```
-or
-```
-> stack exec koka -- --cc=cl util/bundle
-```
 
 Generally, for Koka code, `mingw` (`gcc`) optimizes best, closely followed `clang-cl`.
 On a 3.8Gz AMD 3600XT, with `mingw` 7.2.0, `clang-cl` 11.0.0, and `cl` 19.28 we get:
