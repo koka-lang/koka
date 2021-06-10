@@ -121,8 +121,6 @@ fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen
                    }
                  }
 
-  // todo: average over multiple runs
-
   // show test results
   test-names.foreach fn(test-name){
     val tests = alltests.filter(fn(t){ t.name == test-name })
@@ -290,7 +288,8 @@ fun test-sum( t1 : test, t2 : test) : test {
 
 fun execute-test( run : int, base : string, prog : string ) : io either<string,(double,int)> {
   val timef= "time-" ++ base ++ ".txt"
-  val cmd  = if (get-env("SHELL").default("").contains("zsh"))
+  val system = run-system-read("uname -s").exn
+  val cmd  = if (system == "Darwin")
                then "/usr/bin/time -l 2> " ++ timef ++ " " ++ prog
                else "/usr/bin/time -f'%e %M' -o" ++ timef ++ " " ++ prog
   val out  = run-system-read(cmd).exn
