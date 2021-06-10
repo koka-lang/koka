@@ -72,11 +72,11 @@ Special thanks to:
 Releases:
 - `v2.1.6`, 2021-06-10: initial support for shallow resumptions, fix space leak with vectors, allow `gcc` with `--fasan`,
   improved `vcpkg` support, add `--fstdalloc` flag, improved VS code syntax highlighting, improved `valgrind` support,
-  added `--no-optimize` flag for extended debug information. 
+  added `--no-optimize` flag for extended debug information.
 - `v2.1.4`, 2021-05-31: remove dependency on cmake, support library linking, support vckpg, updated `std/text/regex`,
   improved Windows installer with `clang` install included, remove dependency on Visual Studio on Windows,
   improved `--fasan` support, fixed space leak on boxed value types, use signed `size_t` internally, various small bug fixes.
-- `v2.1.2`, 2021-05-01: various bug fixes, allow pattern bindings in parameters of anonymous functions (by Steven Fontanella),     
+- `v2.1.2`, 2021-05-01: various bug fixes, allow pattern bindings in parameters of anonymous functions (by Steven Fontanella),
   initial Emacs syntax highlighting (by Kamoii).
 - `v2.1.1`, 2021-03-08: bug fixes, use right-associative (++) for string- and list append (instead of (+)), improved internal 
   string handling.
