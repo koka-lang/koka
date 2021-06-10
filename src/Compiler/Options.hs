@@ -541,7 +541,9 @@ processOptions flags0 opts
                    (cc,asan) <- ccFromPath flags ccmd
                    ccCheckExist cc
                    let stdAlloc = if asan then True else useStdAlloc flags   -- asan implies useStdAlloc
-                       cdefs    = ccompDefs flags ++ if stdAlloc then [] else [("KK_MIMALLOC","")]
+                       cdefs    = ccompDefs flags 
+                                   ++ if stdAlloc then [] else [("KK_MIMALLOC","")]
+                                   ++ if (buildType flags > DebugFull) then [] else [("KK_DEBUG_FULL","")]
                    -- vcpkg
                    (vcpkgRoot,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)
                    let triplet          = if (not (null (vcpkgTriplet flags))) then vcpkgTriplet flags
@@ -553,7 +555,7 @@ processOptions flags0 opts
                                                                     else "x64-linux") 
                        vcpkgInstalled   = (vcpkgRoot) ++ "/installed/" ++ triplet
                        vcpkgIncludeDir  = vcpkgInstalled ++ "/include"
-                       vcpkgLibDir      = vcpkgInstalled ++ (if buildType flags == Debug then "/debug/lib" else "/lib")
+                       vcpkgLibDir      = vcpkgInstalled ++ (if buildType flags <= Debug then "/debug/lib" else "/lib")
                        vcpkgLibDirs     = if (null vcpkg) then [] else [vcpkgLibDir]
                        vcpkgIncludeDirs = if (null vcpkg) then [] else [vcpkgIncludeDir] 
                    return (flags{ packages    = pkgs,
@@ -723,11 +725,13 @@ configType flags
 
 buildType :: Flags -> BuildType
 buildType flags
-  = if optimize flags <= 0
-      then Debug
-      else if debug flags
-             then RelWithDebInfo
-             else Release
+  = if optimize flags < 0
+      then DebugFull
+      else if (optimize flags == 0)
+        then Debug
+        else if debug flags
+               then RelWithDebInfo
+               else Release
 
 ccFlagsBuildFromFlags :: CC -> Flags -> Args
 ccFlagsBuildFromFlags cc flags
@@ -741,7 +745,8 @@ gnuWarn = words "-Wall -Wextra -Wno-unknown-pragmas -Wno-unused-parameter -Wno-u
 ccGcc,ccMsvc :: String -> FilePath -> CC
 ccGcc name path
   = CC name path []
-        [(Debug,         words "-g -Og"),
+        [(DebugFull,     words "-g -O0 -fno-omit-frame-pointer"),
+         (Debug,         words "-g -O1"),
          (Release,       words "-O2 -DNDEBUG"),
          (RelWithDebInfo,words "-O2 -g -DNDEBUG")]
         (gnuWarn ++ ["-Wno-unused-but-set-variable"])
@@ -759,7 +764,8 @@ ccGcc name path
 
 ccMsvc name path
   = CC name path ["-DWIN32","-nologo"] 
-         [(Debug,words "-MDd -Zi -O1"),
+         [(DebugFull,words "-MDd -Zi -Ob0 -O0 -RTC1"),
+          (Debug,words "-MDd -Zi -O1"),
           (Release,words "-MD -O2 -Ob2 -DNDEBUG"),
           (RelWithDebInfo,words "-MD -Zi -O2 -Ob2 -DNDEBUG")]
          ["-W3"]
@@ -782,10 +788,12 @@ ccFromPath flags path
                   basename path
         gcc     = ccGcc name path
         mingw   = gcc{ ccName = "mingw", ccLibFile = \lib -> "lib" ++ lib ++ ".a" }
-        clang   = gcc{ ccFlagsWarn = gnuWarn ++ words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align" }
+        clang   = gcc{ ccFlagsWarn = gnuWarn ++ 
+                                     words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align" }
         generic = gcc{ ccFlagsWarn = [] }
         msvc    = ccMsvc name path
-        clangcl = msvc{ ccFlagsWarn = ["-Wno-everything"] ++ ccFlagsWarn clang ++ words "-Wno-extra-semi-stmt -Wno-extra-semi -Wno-float-equal",
+        clangcl = msvc{ ccFlagsWarn = ["-Wno-everything"] ++ ccFlagsWarn clang ++ 
+                                      words "-Wno-extra-semi-stmt -Wno-extra-semi -Wno-float-equal",
                         ccFlagsLink = words "-Wno-unused-command-line-argument" ++ ccFlagsLink msvc,
                         ccFlagsCompile = ["-D__clang_msvc__"] ++ ccFlagsCompile msvc
                       }

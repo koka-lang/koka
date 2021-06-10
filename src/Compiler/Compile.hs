@@ -1336,7 +1336,7 @@ copyCLibraryX term flags cc eimport tries
          do mbPath <- -- looking for specific suffixes is not ideal but it differs among plaforms (e.g. pcre2-8 is only pcre2-8d on Windows)
                       -- and the actual name of the library is not easy to extract from vcpkg (we could read 
                       -- the lib/config/<lib>.pc information and parse the Libs field but that seems fragile as well)
-                      let suffixes = (if (buildType flags == Debug) then ["d","_d","-debug","_debug"] else [])
+                      let suffixes = (if (buildType flags <= Debug) then ["d","_d","-debug","_debug"] else [])
                       in searchPathsSuffixes (ccompLibDirs flags) [] suffixes (ccLibFile cc clib)                     
             case mbPath of
                 Just fname -> copyLibFile fname clib
@@ -1491,6 +1491,7 @@ cmakeLib term flags cc libName {-kklib-} libFile {-libkklib.a-} cmakeGeneratorFl
                    let cmakeDir    = outName flags libName
                        cmakeConfigType = "-DCMAKE_BUILD_TYPE=" ++
                                          (case (buildType flags) of
+                                             DebugFull -> "Debug"
                                              Debug -> "Debug"
                                              RelWithDebInfo -> "RelWithDebInfo"
                                              Release -> "Release")

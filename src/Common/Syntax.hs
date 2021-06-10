@@ -71,14 +71,15 @@ alignUp x y  = ((x + y - 1) `div` y)*y
 
 
 
-data BuildType = Debug | Release | RelWithDebInfo
-               deriving (Eq)
+data BuildType = DebugFull | Debug | RelWithDebInfo | Release
+               deriving (Eq,Ord)
 
 instance Show BuildType where
+  show DebugFull      = "debugfull"
   show Debug          = "debug"
-  show Release        = "release"
   show RelWithDebInfo = "drelease"
-
+  show Release        = "release"
+  
 
 {--------------------------------------------------------------------------
   Visibility
