@@ -432,15 +432,6 @@ Windows (which is automatically installed when running `util/install.bat`)
 Koka can also use the Microsoft Visual C++ compiler (`cl`) if you run `koka` from a
 [Visual Studio x64 toolset](vsprompt) command prompt (in order to link correctly with the Windows system libraries).
 
-To bundle for a specific compiler, use this flag when running `util/bundle` as well (from a VS command prompt):
-```
-> stack exec koka -- --cc=clang-cl util/bundle
-```
-or
-```
-> stack exec koka -- --cc=cl util/bundle
-```
-
 Generally, for Koka code, `mingw` (`gcc`) optimizes best, closely followed `clang-cl`.
 On a 3.8Gz AMD 3600XT, with `mingw` 7.2.0, `clang-cl` 11.0.0, and `cl` 19.28 we get:
 ```
