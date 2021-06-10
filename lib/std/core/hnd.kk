@@ -318,7 +318,7 @@ private fun prompt( w0 : evv<e0>,  w1 : evv<e0>, ev : ev<h>, m : marker<e0,r>, r
             prompt(w0',w1',ev,unsafe-decreasing(m),ret,cont({x}))
           }
           Shallow(x) {
-            yield-bind( cont({x}), fn(x){ ret(x) } )
+            yield-bind( cont({x}), fn(y){ ret(y) } )
           }
           Finalize(x) {
             val w0' = evv-get()  // if not using scoped resumptions, w0' may be different from w0
