@@ -11,6 +11,7 @@ module Core.Specialize( SpecializeEnv
                       ) where
 
 import Data.Bifunctor
+import Data.List (transpose)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Applicative
@@ -43,10 +44,6 @@ data SpecializeInfo = SpecializeInfo
 
 {--------------------------------------------------------------------------
   Specialization Monad
-
-  val f = fn(x){ .. }
-  map(xs,f) ++ map(ys,f)
-
 --------------------------------------------------------------------------}
 
 data SpecState = SpecState
@@ -77,17 +74,6 @@ emitSpecializedDefGroup defGroup = modify (\state@SpecState { _newDefs = newDefs
 
 {--------------------------------------------------------------------------
   Specialization
-  
-DefRec  
-  foo_map(xs) {
-    val f = fn(x){ x + foo(n-1) }
-    ...
-  }
-
-  foo(n) {
-    val f = fn(x){ x + foo(n-1) }
-    foo_map(xs)
-  }
 --------------------------------------------------------------------------}
 
 specialize :: Env -> Int -> SpecializeEnv -> DefGroups -> (DefGroups, Int)
@@ -131,6 +117,7 @@ createSpecializedDef name paramsToSpecialize args =
     _ -> failure "Unexpected specialize target"
   where
     def = lookupInScope name
+    -- TODO: replace recursive calls in body
     go (Lam params eff body) _ = 
       Def undefined undefined undefined undefined undefined undefined undefined undefined 
         where
@@ -167,7 +154,7 @@ replaceCall specializedDef bools args =
 extractSpecializeEnv :: DefGroups -> SpecializeEnv
 extractSpecializeEnv = 
     specenvNew
-  . filter (not . null . specArgs)
+  . filter (or . specArgs)
   . map getInline
   . flattenDefGroups
   . filter isRecursiveDefGroup
@@ -191,17 +178,25 @@ usedInThisDef def = foldMapExpr go $ defExpr def
     -- go (App (TypeApp (Var (TName name _) _) _) xs) = S.singleton name
     -- go _ = S.empty
 
--- return list of (paramName, paramIndex) that get called recursively to the same function in the same order
+-- return list of parameters that get called recursively to the same function in the same order
+-- or Nothing if the parameter wasn't passed recursively in the same order
 passedRecursivelyToThisDef :: Def -> [Maybe Name]
 passedRecursivelyToThisDef def 
   -- TODO: FunDef type to avoid this check?
   = case defExpr def of
-      Lam params effect body 
-        -> foldMapExpr (callsWith params) $ defExpr def
-      TypeLam _ (Lam params effect body) 
-        -> foldMapExpr (callsWith params) $ defExpr def
+      Lam params effect body -> 
+        go body params
+      TypeLam _ (Lam params effect body) -> 
+        go body params
       _ -> mempty
   where
+    -- only keep params that are passed recursively in ALL calls
+    go body params = 
+      -- head is safe because sublists in transpose can't be empty
+      map (fmap head . sequence)
+      $ transpose 
+      $ foldMapExpr ((:[]) . callsWith params) body
+
     dname = defName def
 
     callsWith params (App (Var (TName name _) _) args)
