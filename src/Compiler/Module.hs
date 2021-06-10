@@ -39,7 +39,7 @@ import Kind.Assumption        ( KGamma, kgammaInit, extractKGamma, kgammaUnion )
 import Type.Assumption        ( Gamma, gammaInit, gammaUnion, extractGamma)
 import Type.Type              ( DataInfo )
 import Core.Inlines           ( Inlines, inlinesNew, inlinesEmpty, inlinesExtends )
-import Core.Borrowed          ( Borrowed, borrowedNew, borrowedEmpty, borrowedExtends, extractBorrowDefs, extractBorrowExternals )
+import Core.Borrowed          ( Borrowed, borrowedEmpty, borrowedExtendICore )
 
 import Syntax.RangeMap
 import Compiler.Package       ( PackageName, joinPkg )
@@ -142,8 +142,7 @@ loadedImportModule isValue (Loaded gamma1 kgamma1 syns1 data1 cons1 fix1 imps1 u
                 mod1
                 (addOrReplaceModule mod imp1)
                 inlines1
-                (borrowedExtends (extractBorrowDefs (Core.coreProgDefs core))
-                  (borrowedExtends (extractBorrowExternals (Core.coreProgExternals core)) borrowed1))
+                (borrowedExtendICore core borrowed1)
     in (loaded,errs)
 
 addOrReplaceModule :: Module -> Modules -> Modules

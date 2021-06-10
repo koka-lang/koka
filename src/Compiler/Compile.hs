@@ -61,7 +61,7 @@ import Core.FunLift           ( liftFunctions )
 import Core.Monadic           ( monTransform )
 import Core.MonadicLift       ( monadicLift )
 import Core.Inlines           ( inlinesExtends, extractInlineDefs )
-import Core.Borrowed          ( Borrowed, borrowedExtends, extractBorrowDefs, extractBorrowExternals )
+import Core.Borrowed          ( Borrowed )
 import Core.Inline            ( inlineDefs )
 
 import Static.BindingGroups   ( bindingGroups )

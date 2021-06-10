@@ -87,16 +87,7 @@ parcTopLevelExpr (DefFun bs) expr
       Lam pars eff body
         -> do let parsBs = zip pars $ bs ++ repeat Own
               let parsSet = S.fromList $ map fst $ filter (\x -> snd x == Own) parsBs
-
-              -- todo: this is a whole second pass. is there any way around this?
-              -- maybe we should track a borrowed set and presume owned, instead
-              -- of the other way around?
-              let caps = freeLocals expr
-              (body', _) <- isolateWith S.empty
-                             $ withOwned S.empty
-                             $ ownedInScope (S.union caps parsSet)
-                             $ parcExpr body
-              dups <- foldMapM useTName caps
+              (dups, body') <- parcLam expr parsSet body
               return (maybeStats dups $ Lam pars eff body')
       _ -> parcExpr expr
 parcTopLevelExpr _ expr = parcExpr expr
@@ -109,18 +100,9 @@ parcExpr expr
       TypeApp body targs
         -> (`TypeApp` targs) <$> parcExpr body
       Lam pars eff body
-        -> do -- todo: this is a whole second pass. is there any way around this?
-              -- maybe we should track a borrowed set and presume owned, instead
-              -- of the other way around?
-              let caps = freeLocals expr
-              let parsSet = S.fromList pars
-              (body', live) <- isolateWith S.empty
-                             $ withOwned S.empty
-                             $ ownedInScope (S.union caps parsSet)
-                             $ parcExpr body
-              dups <- foldMapM useTName caps
-              assertion("Backend.C.Parc.parcExpr.Lam: live==[]: " ++ show live ++ "\n in: " ++ show expr) (S.null live) $
-                return (maybeStats dups $ Lam pars eff body')
+        -> do let parsSet = S.fromList pars
+              (dups, body') <- parcLam expr parsSet body
+              return (maybeStats dups $ Lam pars eff body')
       Var tname info | infoIsRefCounted info
         -> do -- parcTrace ("refcounted: " ++ show tname ++ ": " ++ show info)
               fromMaybe expr <$> useTName tname
@@ -176,6 +158,19 @@ parcExpr expr
       Case _ _
         -> do nexpr <- normalizeCase expr
               parcExpr nexpr
+
+-- todo: this is a whole second pass. is there any way around this?
+-- maybe we should track a borrowed set and presume owned, instead
+-- of the other way around?
+parcLam :: Expr -> S.Set TName -> Expr -> Parc ([Maybe Expr], Expr)
+parcLam expr parsSet body
+  = do let caps = freeLocals expr
+       (body', _) <- isolateWith S.empty
+                       $ withOwned S.empty
+                       $ ownedInScope (S.union caps parsSet)
+                       $ parcExpr body
+       dups <- foldMapM useTName caps
+       pure (dups, body')
 
 parcBorrowApp :: TName -> [Expr] -> Expr -> Parc Expr
 parcBorrowApp tname args expr

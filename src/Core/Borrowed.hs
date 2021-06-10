@@ -13,6 +13,7 @@ module Core.Borrowed( -- Borrowed parameter information
                     , borrowedExtend
                     , borrowedExtends
                     , borrowedLookup
+                    , borrowedExtendICore
                     , ppBorrowed
 
                     , extractBorrowDefs
@@ -69,6 +70,10 @@ borrowedLookup :: Name -> Borrowed -> Maybe [ParamInfo]
 borrowedLookup name (Borrowed borrowed)
   = M.lookup name borrowed
 
+borrowedExtendICore :: Core -> Borrowed -> Borrowed
+borrowedExtendICore icore borrowed0 = 
+  borrowedExtends (extractBorrowDefs (coreProgDefs icore)) $
+        borrowedExtends (extractBorrowExternals (coreProgExternals icore)) borrowed0
 
 {--------------------------------------------------------------------------
   Get borrow information from Core

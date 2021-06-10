@@ -40,7 +40,7 @@ import Common.Syntax
 import Core.Core
 import Core.Pretty
 import Core.CoreVar
-import Core.Borrowed
+import Core.Borrowed ( Borrowed, borrowedExtendICore )
 
 import Backend.C.Parc
 import Backend.C.ParcInfer
@@ -91,8 +91,7 @@ genModule buildType sourceDir penv platform newtypes borrowed0 enableReuse enabl
                                icore <- if (enableBorrowInference)
                                    then parcInfer penv platform newtypes borrowed0 ucore
                                    else return ucore
-                               let borrowed = borrowedExtends (extractBorrowDefs (coreProgDefs icore)) $
-                                     borrowedExtends (extractBorrowExternals (coreProgExternals icore)) borrowed0
+                               let borrowed = borrowedExtendICore icore borrowed0
                                pcore <- parcCore penv platform newtypes borrowed enableSpecialize icore -- precise automatic reference counting
                                score <- if (enableReuse && enableReuseSpecialize)
                                          then parcReuseSpecialize penv pcore -- selective reuse
