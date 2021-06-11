@@ -248,13 +248,29 @@ inline extern set( ^ref : ref<h,a>, assigned : a) : <write<h>> () {
   js inline "((#1).value = #2)"
 }
 
-// Read the value of reference.
+// Read the value of a reference.
 inline extern (!) : forall<h,a,e> ( ref : ref<h,a>) -> <read<h>|e> a with(hdiv<h,a,e>)  {
   c inline "kk_ref_get(#1,kk_context())"
   cs inline "#1.Value"
   js inline "((#1).value)"
 }
 
+// Modify the value of a reference.
+// This is especially useful when the reference contains a vector, because
+// getting the vector into a local variable and then setting it back into the reference later
+// would mean that we hold on to a copy (and we can't update the vector in place then!).
+// In contrast, this function will pass its ownership to the given function.
+inline extern modify : forall<h,a,b,e> ( ref : ref<h,a>, f : forall<s> local-var<s,a> -> <local<s>|e> b) -> <read<h>,write<h>|e> b with(hdiv<h,a,e>)  {
+  c  inline "kk_ref_modify(#1, #2, kk_context())"
+  js inline "((#2)(#1))"
+}
+
+// TODO: This is only necessary because we can't nest 'modify' since the local effects don't mesh well.
+// Also this contains only hdiv<h,a,e> when it would also need hdiv<h,b,e>
+inline extern modify2 : forall<h,a,b,c,e> ( r1 : ref<h,a>, r2 : ref<h,b>, f : forall<s>(local-var<s,a>, local-var<s,b>) -> <local<s>|e> c) -> <read<h>,write<h>|e> c with(hdiv<h,a,e>) {
+  c  inline "kk_ref_modify2(#1, #2, #3, kk_context())"
+  js inline "((#3)(#1)(#2))"
+}
 
 // If a heap effect is unobservable, the heap effect can be erased by using the `run` fun.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.

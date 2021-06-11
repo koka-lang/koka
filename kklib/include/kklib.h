@@ -1005,6 +1005,7 @@ static inline kk_vector_t kk_vector_alloc_uninit(kk_ssize_t length, kk_box_t** b
 
 kk_decl_export void        kk_vector_init_borrow(kk_vector_t _v, kk_ssize_t start, kk_box_t def, kk_context_t* ctx);
 kk_decl_export kk_vector_t kk_vector_realloc(kk_vector_t vec, kk_ssize_t newlen, kk_box_t def, kk_context_t* ctx);
+kk_decl_export kk_vector_t kk_vector_copy(kk_vector_t vec, kk_context_t* ctx);
 
 static inline kk_vector_t kk_vector_alloc(kk_ssize_t length, kk_box_t def, kk_context_t* ctx) {
   kk_vector_t v = kk_vector_alloc_uninit(length, NULL, ctx);
@@ -1068,6 +1069,7 @@ typedef struct kk_ref_s {
 
 kk_decl_export kk_box_t  kk_ref_get_thread_shared(kk_ref_t r, kk_context_t* ctx);
 kk_decl_export kk_box_t  kk_ref_swap_thread_shared_borrow(kk_ref_t r, kk_box_t value);
+kk_decl_export kk_unit_t kk_ref_vector_assign_borrow(kk_ref_t r, kk_integer_t idx, kk_box_t value, kk_context_t* ctx);
 
 static inline kk_box_t kk_ref_box(kk_ref_t r, kk_context_t* ctx) {
   KK_UNUSED(ctx);
@@ -1127,27 +1129,14 @@ static inline kk_unit_t kk_ref_set_borrow(kk_ref_t r, kk_box_t value, kk_context
   return kk_Unit;
 }
 
-static inline kk_unit_t kk_ref_vector_assign_borrow(kk_ref_t r, kk_integer_t idx, kk_box_t value, kk_context_t* ctx) {
-  if (kk_likely(r->_block.header.thread_shared == 0)) {
-    // fast path
-    kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
-    kk_vector_t v = kk_vector_unbox(b, ctx);
-    kk_ssize_t len;
-    kk_box_t* p = kk_vector_buf_borrow(v, &len);
-    kk_ssize_t i = kk_integer_clamp_ssize_t_borrow(idx);
-    if (i < len) {
-      kk_box_drop(p[i], ctx);
-      p[i] = value;
-    }  // TODO: return status for out-of-bounds access
-    return kk_Unit;
-  }
-  else {
-    // thread shared
-    kk_unsupported_external("kk_ref_vector_assign with a thread-shared reference");
-    return kk_Unit;
-  }
+// In Koka we can constrain the argument of f to be a local-scope reference.
+static inline kk_box_t kk_ref_modify(kk_ref_t r, kk_function_t f, kk_context_t* ctx) {
+  return kk_function_call(kk_box_t,(kk_function_t,kk_ref_t,kk_context_t*),f,(f,r,ctx));
 }
 
+static inline kk_box_t kk_ref_modify2(kk_ref_t r, kk_ref_t s, kk_function_t f, kk_context_t* ctx) {
+  return kk_function_call(kk_box_t,(kk_function_t,kk_ref_t,kk_ref_t,kk_context_t*),f,(f,r,s,ctx));
+}
 
 
 /*--------------------------------------------------------------------------------------
