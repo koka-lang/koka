@@ -381,7 +381,7 @@ Unix. The following programs are required to build Koka:
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
   (use `> curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS X)
 * Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
-* On Windows you may need [Visual Studio](https://visualstudio.microsoft.com/downloads/) (for the windows SDK).
+* Optional: On Windows it is recommended to install the [clang](https://llvm.org/builds) C compiler, or [Visual Studio](https://visualstudio.microsoft.com/downloads/).
 
 Build the compiler (note the `--recursive` flag):
 ```
