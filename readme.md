@@ -102,9 +102,10 @@ curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh 
 ````
 For Windows on x86 64-bit, open a `cmd` prompt and use:
 ````
-curl -sSL -o %tmp%\installkk.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\installkk.bat
+curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat
 ````
 This also installs syntax highlighting for the VS Code and Atom editors.
+
 After installation, verify if Koka installed correctly:
 ````
 $ koka
