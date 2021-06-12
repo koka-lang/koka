@@ -7,7 +7,7 @@
 
 &nbsp;
 
-# Koka: a functional language with effects
+# Koka: a Functional Language with Effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
 _Latest release_: v2.1.6, 2021-06-10 ([Install]).
@@ -100,7 +100,7 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 Koka has [binary installs][install] for x64 Windows, Linux, and macOS.
 For other platforms, you need to build the compiler from source.
 
-# Build From Source
+# Build from Source
 
 Koka has few dependencies and should build from source
 without problems on most common platforms, e.g. Windows (including WSL), macOS X, and
@@ -120,9 +120,9 @@ $ stack exec koka
 ```
 You can also use `stack build --fast` to build a debug version of the compiler.
 
-## Build an Install Bundle
+## Create an Install Bundle
 
-You can also build a local distribution bundle yourself from source, and install
+You can also build a binary install bundle yourself, and install
 that locally. The `util/bundle.kk` script creates a local distribution:
 ```
 $ stack exec koka -- util/bundle
