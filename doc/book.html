@@ -631,6 +631,7 @@
   .koka.source.unchecked {
     border: none;
     padding: 0.5ex 1ex 0.5ex 1ex;
+    scrollbar-width: thin;
   }
   code, .madoko code {
     padding-right: 0.2ex;
@@ -777,7 +778,7 @@
   .grad.colored .wide, .grad.colored .sidepanel {
     background: linear-gradient(#1b4253,#286179);
   }
-  .colored .sidepanel, .colored .sidepanel a, .colored a.button, .colored .button a {
+  .colored .sidepanel, .colored .sidepanel a, .colored a.button, .colored .button a, .colored .button .fa {
     color: #e8e8e8 !important;
   }
   .colored .sidepanel .current a {
@@ -804,9 +805,50 @@
   .advanced h3, .advanced h4 {
     margin-top: 0em;
   }
+  .tooltip-copied {
+    position: relative;
+  }
+  .tooltip-copied::after, .tooltip-copied::before {
+    position: absolute;
+    z-index: 1000;
+    pointer-events:none;   
+    animation: tooltip-appear;
+    animation-duration: 0.1s;
+    animation-timing-function: ease-in;
+  }
+  .tooltip-copied::after {
+    top: 100%;
+    right: -50%;
+    margin-top:7px;
+    text-align: center;
+    content: attr(data-tooltip);
+    border-radius:5px;
+    padding: 1ex;
+    background-color: #215166;
+    color: #e8e8e8;
+  }
+  .tooltip-copied::before {
+    width:0;
+    height:0;
+    content:"";
+    top:auto;
+    right: 0%;
+    bottom: -7px;
+    margin-right: 7px;
+    border: 7px solid transparent;  
+    border-bottom-color:#215166;
+  }
+  @keyframes tooltip-appear {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
     </style>
   <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css"  class="link">
-  <script  class="script">function genFullGrammar() {
+  <script  class="script">// ---------------------------------------------------
+  // grammar
+  // ---------------------------------------------------
+  
+  function genFullGrammar() {
     var fullLex = "";
     var fullParse = "";
     var divLex = document.getElementById("full-lexical");
@@ -824,8 +866,11 @@
     divGrammar.innerHTML="<table class='grammar'>\n" + fullParse + "</table>";
   }
   
-  window.onload = function() {   
-    genFullGrammar();
+  // ---------------------------------------------------
+  // external link symbol
+  // ---------------------------------------------------
+  
+  function addExternalLinkIcons() {
     const locals = document.querySelectorAll("a:not(.localref)");
     const currentUrl = window.location.href.replace(/#.*$/,"");
     locals.forEach( function(link){
@@ -836,7 +881,106 @@
         link.innerHTML = link.innerHTML + "<i class=\"fa fa-external-link\"></i>";
       }
     });
-  };
+  }
+  
+  // ---------------------------------------------------
+  // copy button
+  // ---------------------------------------------------
+  
+  function addClass(elem,cls) {
+    elem.className = elem.className + " " + cls;
+  }
+  
+  function removeClass(elem,cls) {
+    elem.className = elem.className.split(/\s+/).filter( function(c){ return (c != cls); } ).join(" ");
+  }
+  
+  function removeCopiedTooltip( event ) {
+    const target = event.delegateTarget || event.currentTarget;
+    removeClass(target,"tooltip-copied");
+    target.setAttribute("title","Copy");
+    //removeClass(target.firstElementChild,"fa-check");
+    //addClass(target.firstElementChild,"fa-copy");
+  }
+  
+  function addCopiedTooltip(target,ok) {
+    target.setAttribute("data-tooltip",ok ? "Copied!" : "Failed to copy!" );
+    addClass(target,"tooltip-copied");
+    target.setAttribute("title","");
+    /*
+    if (ok) {
+      removeClass(target.firstElementChild,"fa-copy");
+      addClass(target.firstElementChild,"fa-check");
+    }
+    */
+  }
+  
+  
+  function commandCopyToClipboard(text) {
+    // use hidden text element to select and copy
+    const elem = document.createElement('textarea');  
+    elem.style.fontSize = '12pt';
+    elem.style.border = '0';
+    elem.style.padding = '0';
+    elem.style.margin = '0';
+    elem.style.position = 'absolute';
+    const isRtl = document.documentElement.getAttribute('dir') === 'rtl';
+    elem.style[isRtl ? 'right' : 'left'] = '-10000px';
+    let ypos = window.pageYOffset || document.documentElement.scrollTop;
+    elem.style.top = "" + ypos + "px";    
+    elem.setAttribute('readonly', '');
+    elem.value = text;
+    document.body.appendChild(elem);
+    
+    // select and copy
+    elem.focus();
+    elem.select();
+    var ok;
+    try {
+      ok = document.execCommand("copy");
+    }
+    catch(exn) {
+      ok = false;
+    }
+    elem.remove();
+    return ok;
+  }  
+  
+  function copyToClipboard( event ) {
+    const target = event.delegateTarget || event.currentTarget;
+    const text = target.getAttribute( "data-value" );
+    if (!text) return;
+  
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then( function(){
+        addCopiedTooltip(target,true);
+      }, function(err) {
+        addCopiedTooltip(target,false);      
+      });
+    }
+    else {
+      const ok = commandCopyToClipboard(text);
+      addCopiedTooltip(target,ok);
+    }
+  }
+   
+  function enableCopyButtons() {
+    const buttons = document.querySelectorAll(".copy.button");
+    buttons.forEach( function(button){
+      button.addEventListener("click", copyToClipboard);
+      button.addEventListener("mouseleave", removeCopiedTooltip);
+    });
+  }
+  
+  // ---------------------------------------------------
+  // onload
+  // ---------------------------------------------------
+  
+  window.onload = function() {   
+    genFullGrammar();  
+    addExternalLinkIcons();
+    enableCopyButtons();
+  }
   
   //# sourceURL=scripts/book.js
   </script>
@@ -1013,7 +1157,7 @@
 <div class="titleblock align-center para-block" style="text-align:center;line-adjust:0">
 <div class="titleheader align-center" style="text-align:center;line-adjust:0">
 <div class="title para-block" style="font-weight:bold;margin-bottom:0.5ex;font-size:xxx-large;line-adjust:0">The Koka Programming Language</div>
-<div class="titlenote para-block" style="line-adjust:0"><span style="font-size:75%">(Daan Leijen, 2021-06-11)</span></div></div></div></div>
+<div class="titlenote para-block" style="line-adjust:0"><span style="font-size:75%">(Daan Leijen, 2021-06-12)</span></div></div></div></div>
 <div class="flexbody">
 
 <div class="sidepanel">
@@ -1164,12 +1308,14 @@ libraries, package management, and deep IDE integration.
 </li>
 <li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2020-11-29: Perceus technical report publised (<a href="https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/" data-linkid="perceus">pdf</a>).</li></ul>
 </div></div><h2 id="install" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#install" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">1.1</span>.&#8194;</span>Installing the compiler</h2>
-<p class="p noindent">For Linux and macOS on x86 64-bit, you can install Koka using:
+<p class="p noindent">For Linux and macOS (x64), you can install Koka using:
 </p>
-<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2">$ curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &#124; sh</strong></span></code></pre>
-<p class="p noindent para-continued">For Windows x86 64-bit, open a <code class="code code2">cmd</code> prompt and use:
+<p class="p copy button indent" title="Copy" data-value="curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh" style="float:left;font-size:70%"><span class="fa fa-copy"></span></p>
+<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2">curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &#124; sh</strong></span></code></pre>
+<p class="p noindent para-continued">For Windows (x64), open a <code class="code code2">cmd</code> prompt and use:
 </p>
-<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2">$ curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat &amp;&amp; %tmp%\install-koka.bat</strong></span></code></pre>
+<p class="p copy button indent" title="Copy" data-value="curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat &amp;&amp; %tmp%\install-koka.bat" style="float:left;font-size:70%"><span class="fa fa-copy"></span></p>
+<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2">curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat &amp;&amp; %tmp%\install-koka.bat</strong></span></code></pre>
 <p class="p noindent para-continued">This also installs syntax highlighting for the VS Code and Atom editors.
 </p>
 <p class="p indent">After installation, verify if Koka installed correctly:

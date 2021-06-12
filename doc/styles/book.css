@@ -40,6 +40,7 @@ pre.koka.source,
   /* border-left: 0.5ex solid #CCC; */
   border: none;
   padding: 0.5ex 1ex 0.5ex 1ex;
+  scrollbar-width: thin;
 }
 
 
@@ -248,7 +249,7 @@ html {
 .grad.colored .wide, .grad.colored .sidepanel {
   background: linear-gradient(#1b4253,#286179);
 }
-.colored .sidepanel, .colored .sidepanel a, .colored a.button, .colored .button a {
+.colored .sidepanel, .colored .sidepanel a, .colored a.button, .colored .button a, .colored .button .fa {
   color: #e8e8e8 !important;
 }
 .colored .sidepanel .current a {
@@ -281,4 +282,47 @@ html {
 
 .advanced h3, .advanced h4 {
   margin-top: 0em;
+}
+
+
+.tooltip-copied {
+  position: relative;
+}
+
+.tooltip-copied::after, .tooltip-copied::before {
+  position: absolute;
+  z-index: 1000;
+  pointer-events:none;   
+  animation: tooltip-appear;
+  animation-duration: 0.1s;
+  animation-timing-function: ease-in;
+}
+
+.tooltip-copied::after {
+  top: 100%;
+  right: -50%;
+  margin-top:7px;
+  text-align: center;
+  content: attr(data-tooltip);
+  border-radius:5px;
+  padding: 1ex;
+  background-color: #215166;
+  color: #e8e8e8;
+}
+
+.tooltip-copied::before {
+  width:0;
+  height:0;
+  content:"";
+  top:auto;
+  right: 0%;
+  bottom: -7px;
+  margin-right: 7px;
+  border: 7px solid transparent;  
+  border-bottom-color:#215166;
+}
+    
+@keyframes tooltip-appear {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
