@@ -10,7 +10,7 @@
 # Koka: a functional language with effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
-_Latest release_: v2.1.6, 2021-06-10 ([Install](#install)).
+_Latest release_: v2.1.6, 2021-06-10 ([Install]).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -35,9 +35,9 @@ Koka is a strongly typed functional-style language with effect types and handler
 
 For more information, see:
 
-* [Why Koka?][why]
-* The [Koka book][kokabook] for a tour of the Koka language and its specification.
-* The [Library documentation][libraries].
+* [Install Koka][install] and compile your first Koka programs. 
+* Read the [Koka book][kokabook] for a tour of the Koka language and its specification.
+* Browse the [library documentation][libraries].
 * Help with [development](#tasks)
 
 
@@ -47,6 +47,7 @@ For more information, see:
 [why-perceus]: https://koka-lang.github.io/koka/doc/book.html#why-perceus
 [why-fbip]: http://koka-lang.github.io/koka/doc/book.html#why-fbip
 
+[install]: https://koka-lang.github.io/koka/doc/book.html  
 [why]: https://koka-lang.github.io/koka/doc/book.html#why
 [kokabook]: https://koka-lang.github.io/koka/doc/book.html  
 [tour]: https://koka-lang.github.io/koka/doc/book.html#tour
@@ -62,15 +63,15 @@ For more information, see:
 [vsprompt]: https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019
 [winclang]: https://llvm.org/builds
 
-Enjoy,
+Enjoy,  
   Daan Leijen
 
-Special thanks to:
-- [Ningning Xie](https://xnning.github.io/) for her work on the theory and practice of evidence passing [[9,6]](#references) and the formalization of Perceus reference counting [[8]](#references).
-- [Alex Reinking](https://alexreinking.com/) for the implementation of the Perceus reference counting analysis [[8]](#references).
-- And all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
+Special thanks to: [Ningning Xie](https://xnning.github.io/) for her work on the theory and practice of evidence passing [[9,6]](#references) and the formalization of Perceus reference counting [[8]](#references),
+[Alex Reinking](https://alexreinking.com/) for the implementation of the Perceus reference counting analysis [[8]](#references),
+and all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
 
-Releases:
+## Releases
+
 - `v2.1.6`, 2021-06-10: initial support for shallow resumptions, fix space leak with vectors, allow `gcc` with `--fasan`,
   improved `vcpkg` support, add `--fstdalloc` flag, improved VS code syntax highlighting, improved `valgrind` support,
   added `--no-optimize` flag for extended debug information.
@@ -96,181 +97,57 @@ Releases:
 
 # Install
 
-For Linux and macOS (x64), you can install Koka using:
-````
-curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh
-````
-For Windows (x64), open a `cmd` prompt and use:
-````
-curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat
-````
-This also installs syntax highlighting for the VS Code and Atom editors.
+Koka has [binary installations][install] for x64 Windows, Linux, and macOS.
+For other platforms, you need to build the compiler from source.
 
-After installation, verify if Koka installed correctly:
-````
-$ koka
- _          _           ____
-| |        | |         |__  \
-| | __ ___ | | __ __ _  __) |
-| |/ // _ \| |/ // _` || ___/ welcome to the koka interpreter
-|   <| (_) |   <| (_| ||____| version 2.0.12, Dec  2, 2020, libc 64-bit (gcc)
-|_|\_\\___/|_|\_\\__,_|       type :? for help, and :q to quit
+# Build From Source
 
-loading: std/core
-loading: std/core/types
-loading: std/core/hnd
-````
+Koka has few dependencies and should build from source
+without problems on most common platforms, e.g. Windows (including WSL), macOS X, and
+Unix. The following programs are required to build Koka:
 
-Type ``:q`` to exit the interpreter.
+* [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
+  (use `> curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS X)
+* Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
+* Optional: On Windows it is recommended to install the [clang][winclang] C compiler, or [Visual Studio](https://visualstudio.microsoft.com/downloads/).
 
-For detailed installation instructions and other platforms see the [releases] page.
-It is also straightforward to build the compiler [from source][build].
+Build the compiler (note the `--recursive` flag):
+```
+$ git clone --recursive https://github.com/koka-lang/koka
+$ cd koka
+$ stack build
+$ stack exec koka
+```
+You can also use `stack build --fast` to build a debug version of the compiler.
 
-## Running the compiler
+## Build an Install Bundle
 
-You can compile a Koka source using `-c` (note that all [`samples`](https://github.com/koka-lang/koka/tree/master/samples) are pre-installed):
+You can also build a local distribution bundle yourself from source, and install
+that locally. The `util/bundle.kk` script creates a local distribution:
+```
+$ stack exec koka -- util/bundle
+...
+distribution bundle created.
+  bundle : dist/koka-v2.0.9-linux-amd64.tar.gz
+  cc     : gcc
+  version: v2.0.9
+```
+This takes a while as it pre-compiles the standard libraries in three build
+variants (`debug`, `drelease` (release with debug info), and `release`).
+After generating the bundle, it can be installed locally as:
+```
+$ util/install.sh -b dist/koka-v2.0.9-linux-amd64.tar.gz
+```
+(use `util/install.bat` on Windows). After installation, you can now directly invoke `koka`:
 
-    $ koka -c samples/basic/caesar.kk
-    compile: samples/basic/caesar.kk
-    loading: std/core
-    loading: std/core/types
-    loading: std/core/hnd
-    loading: std/num/double
-    loading: std/text/parse
-    loading: std/num/int32
-    check  : samples/basic/caesar
-    linking: samples_basic_caesar
-    created: out/v2.0.9/gcc-debug/samples_basic_caesar
-
-and run the resulting executable:
-
-    $ out/v2.0.9/gcc-debug/samples_basic_caesar
-    plain  : Koka is a well-typed language
-    encoded: Krnd lv d zhoo-wbshg odqjxdjh
-    cracked: Koka is a well-typed language
-
-
-The ``-O2`` flag builds an optimized program. Let's try it on a purely functional implementation
-of balanced insertion in a red-black tree ([`rbtree.kk`](https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk):
-
-    $ koka -O2 -c samples/basic/rbtree.kk
-    ...
-    linking: samples_basic_rbtree
-    created: out/v2.0.10/gcc-drelease/samples_basic_rbtree
-
-    $ time out/v2.0.10/gcc-drelease/samples_basic_rbtree
-    420000
-    real    0m0.750s
-    ...
-
-We can compare this against an in-place updating C++ implementation using ``stl::map``
-([``rbtree.cpp``](https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.cpp)) (which also uses a
-[red-black tree](https://code.woboq.org/gcc/libstdc++-v3/src/c++98/tree.cc.html) internally):
-
-    $ clang++ --std=c++17 -o cpp-rbtree -O3 /usr/local/share/koka/v2.0.12/lib/samples/basic/rbtree.cpp
-    $ time ./cpp-rbtree
-    420000
-    real    0m0.864s
-    ...
-
-The excellent performance relative to C++ here (on an AMD 3600XT) is the result of Perceus automatically
-transforming the fast path of the pure functional rebalancing to use mostly in-place updates,
-closely mimicking the imperative rebalancing code of the hand optimized C++ library.
-
-## Running the interactive compiler
-
-Without giving any input files, the interactive interpreter runs by default:
-````
-$ koka
- _          _           ____
-| |        | |         |__  \
-| | __ ___ | | __ __ _  __) |
-| |/ // _ \| |/ // _` || ___/ welcome to the koka interpreter
-|   <| (_) |   <| (_| ||____| version 2.0.9, Nov 27 2020, libc 64-bit (gcc)
-|_|\_\\___/|_|\_\\__,_|       type :? for help
-
-loading: std/core
-loading: std/core/types
-loading: std/core/hnd
->
-````
-
-Now you can test some expressions:
-
-    > println("hi koka")
-    check  : interactive
-    check  : interactive
-    linking: interactive
-    created: out\v2.0.9\mingw-debug\interactive
-
-    hi koka
-
-    > :t "hi"
-    string
-
-    > :t println("hi")
-    console ()
-
-Or load a demo (use ``tab`` completion to avoid typing too much):
-
-    > :l samples/basic/fibonacci
-    compile: samples/basic/fibonacci.kk
-    loading: std/core
-    loading: std/core/types
-    loading: std/core/hnd
-    check  : samples/basic/fibonacci
-    modules:
-      samples/basic/fibonacci
-
-    > main()
-    check  : interactive
-    check  : interactive
-    linking: interactive
-    created: out\v2.0.9\mingw-debug\interactive
-
-    The 10000th fibonacci number is 33644764876431783266621612005107543310302148460680063906564769974680081442166662368155595513633734025582065332680836159373734790483865268263040892463056431887354544369559827491606602099884183933864652731300088830269235673613135117579297437854413752130520504347701602264758318906527890855154366159582987279682987510631200575428783453215515103870818298969791613127856265033195487140214287532698187962046936097879900350962302291026368131493195275630227837628441540360584402572114334961180023091208287046088923962328835461505776583271252546093591128203925285393434620904245248929403901706233888991085841065183173360437470737908552631764325733993712871937587746897479926305837065742830161637408969178426378624212835258112820516370298089332099905707920064367426202389783111470054074998459250360633560933883831923386783056136435351892133279732908133732642652633989763922723407882928177953580570993691049175470808931841056146322338217465637321248226383092103297701648054726243842374862411453093812206564914032751086643394517512161526545361333111314042436854805106765843493523836959653428071768775328348234345557366719731392746273629108210679280784718035329131176778924659089938635459327894523777674406192240337638674004021330343297496902028328145933418826817683893072003634795623117103101291953169794607632737589253530772552375943788434504067715555779056450443016640119462580972216729758615026968443146952034614932291105970676243268515992834709891284706740862008587135016260312071903172086094081298321581077282076353186624611278245537208532365305775956430072517744315051539600905168603220349163222640885248852433158051534849622434848299380905070483482449327453732624567755879089187190803662058009594743150052402532709746995318770724376825907419939632265984147498193609285223945039707165443156421328157688908058783183404917434556270520223564846495196112460268313970975069382648706613264507665074611512677522748621598642530711298441182622661057163515069260029861704945425047491378115154139941550671256271197133252763631939606902895650288268608362241082050562430701794976171121233066073310059947366875
-
-And quit the interpreter:
-
-    > :q
-
-    I think of my body as a side effect of my mind.
-      -- Carrie Fisher (1956)
-
-The ``samples/syntax`` and ``samples/basic`` directories contain various basic Koka examples to start with. If you type:
-
-    > :l samples/
-
-in the interpreter, you can ``tab`` twice to see the available sample files and directories.
-Use ``:s`` to see the source of a loaded module.
-
-If you use VS Code or Atom, or if you set the ``koka_editor`` environment variable,
-you can type ``:e`` in the interactive prompt to edit your program further. For example,
-
-    > :l samples/basic/caesar
-    ...
-    check  : samples/basic/caesar
-    modules:
-        samples/basic/caesar
-
-    > :e 
-    
-    <edit the source and reload>
-
-    > :r
-    ...
-    check  : samples/basic/caesar
-    modules:
-        samples/basic/caesar
-
-    > main()
-
-## What next?
-
-* Read about the [core concepts][why] of Koka.
-* Read a [Tour of Koka][tour] in the Koka book.
-* Check the [Libraries][libraries] documentation.
-* Write some cool Koka programs :-)
+```
+$ koka --version
+```
+Koka is by default installed for the current user in `<prefix>/bin/koka`,
+(with architecture specific files under `<prefix>/lib/koka/v2.x.x`
+and libraries and samples under `<prefix>/share/koka/v2.x.x`).
+On Windows the default prefix is `%APPDATA%\local` which is also
+used by `stack`.
 
 
 # Benchmarks
@@ -378,65 +255,17 @@ Recently completed tasks:
 - Functions with a pattern match in the argument (by Steven Fontanella).
 
 
-# Build from source
+# Windows C Compilers.
 
-Koka has few dependencies and should build from source
-without problems on most common platforms, e.g. Windows (including WSL), macOS X, and
-Unix. The following programs are required to build Koka:
+The Koka compiler on Windows requires a C compiler. By default
+when using `stack exec koka` the C compiler supplied with `ghc` is used (`mingw`)
+but that is only visible within a stack environmet.
 
-* [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
-  (use `> curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS X)
-* Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
-* Optional: On Windows it is recommended to install the [clang][winclang] C compiler, or [Visual Studio](https://visualstudio.microsoft.com/downloads/).
-
-Build the compiler (note the `--recursive` flag):
-```
-$ git clone --recursive https://github.com/koka-lang/koka
-$ cd koka
-$ stack build
-$ stack exec koka
-```
-You can also use `stack build --fast` to build a debug version of the compiler.
-
-## Source install
-
-You can also build a local distribution bundle yourself from source and install
-that locally. The `util/bundle.kk` script creates a local distribution:
-```
-$ stack exec koka -- util/bundle
-...
-distribution bundle created.
-  bundle : dist/koka-v2.0.9-linux-amd64.tar.gz
-  cc     : gcc
-  version: v2.0.9
-```
-This takes a while as it pre-compiles the standard libraries in three build
-variants (`debug`, `drelease` (release with debug info), and `release`).
-After generating the bundle, it can be installed locally as:
-```
-$ util/install.sh -b dist/koka-v2.0.9-linux-amd64.tar.gz
-```
-(use `util/install.bat` on Windows). After installation, you can now directly invoke `koka`:
-
-```
-$ koka --version
-```
-Koka is by default installed for the current user in `<prefix>/bin/koka`,
-(with architecture specific files under `<prefix>/lib/koka/v2.x.x`
-and libraries and samples under `<prefix>/share/koka/v2.x.x`).
-
-## Source install on Windows
-
-On Windows, the default install is to the userprofile `%APPDATA%\local` which
-is usually already on the search path as `stack` is installed there as well.
-However, when using `koka` you need to have a C compiler (when
-using `stack exec koka` the C compiler supplied with `ghc` is used (`mingw`)
-but that is not generally available).
-
-It is recommended to install the [clang][winclang] compiler for
-Windows (which is automatically installed when running `util/install.bat`)
-Koka can also use the Microsoft Visual C++ compiler (`cl`) if you run `koka` from a
-[Visual Studio x64 toolset](vsprompt) command prompt (in order to link correctly with the Windows system libraries).
+It is therefor recommended to install the [clang][winclang] compiler for
+Windows (which is automatically installed when running `util/install.bat`).
+However, Koka can also use the Microsoft Visual C++ compiler (`cl`) if you 
+run `koka` from a [Visual Studio x64 toolset](vsprompt) command prompt (in 
+order to link correctly with the Windows system libraries).
 
 Generally, for Koka code, `mingw` (`gcc`) optimizes best, closely followed `clang-cl`.
 On a 3.8Gz AMD 3600XT, with `mingw` 7.2.0, `clang-cl` 11.0.0, and `cl` 19.28 we get:
