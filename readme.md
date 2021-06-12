@@ -60,6 +60,7 @@ For more information, see:
 [build]: #build-from-source
 [Perceus]: https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/
 [vsprompt]: https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019
+[winclang]: https://llvm.org/builds
 
 Enjoy,
   Daan Leijen
@@ -97,12 +98,17 @@ Releases:
 
 For Linux and macOS on x86 64-bit, you can install Koka using:
 ````
-> curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh
+curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh
+````
+For Windows on x86 64-bit, open a `cmd` prompt and use:
+````
+curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat
 ````
 This also installs syntax highlighting for the VS Code and Atom editors.
+
 After installation, verify if Koka installed correctly:
 ````
-> koka
+$ koka
  _          _           ____
 | |        | |         |__  \
 | | __ ___ | | __ __ _  __) |
@@ -117,14 +123,14 @@ loading: std/core/hnd
 
 Type ``:q`` to exit the interpreter.
 
-For detailed instructions and other platforms (including Windows) see the [releases] page.
+For detailed installation instructions and other platforms see the [releases] page.
 It is also straightforward to build the compiler [from source][build].
 
 ## Running the compiler
 
 You can compile a Koka source using `-c` (note that all [`samples`](https://github.com/koka-lang/koka/tree/master/samples) are pre-installed):
 
-    > koka -c samples/basic/caesar.kk
+    $ koka -c samples/basic/caesar.kk
     compile: samples/basic/caesar.kk
     loading: std/core
     loading: std/core/types
@@ -138,7 +144,7 @@ You can compile a Koka source using `-c` (note that all [`samples`](https://gith
 
 and run the resulting executable:
 
-    > out/v2.0.9/gcc-debug/samples_basic_caesar
+    $ out/v2.0.9/gcc-debug/samples_basic_caesar
     plain  : Koka is a well-typed language
     encoded: Krnd lv d zhoo-wbshg odqjxdjh
     cracked: Koka is a well-typed language
@@ -147,12 +153,12 @@ and run the resulting executable:
 The ``-O2`` flag builds an optimized program. Let's try it on a purely functional implementation
 of balanced insertion in a red-black tree ([`rbtree.kk`](https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk):
 
-    > koka -O2 -c samples/basic/rbtree.kk
+    $ koka -O2 -c samples/basic/rbtree.kk
     ...
     linking: samples_basic_rbtree
     created: out/v2.0.10/gcc-drelease/samples_basic_rbtree
 
-    > time out/v2.0.10/gcc-drelease/samples_basic_rbtree
+    $ time out/v2.0.10/gcc-drelease/samples_basic_rbtree
     420000
     real    0m0.750s
     ...
@@ -161,8 +167,8 @@ We can compare this against an in-place updating C++ implementation using ``stl:
 ([``rbtree.cpp``](https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.cpp)) (which also uses a
 [red-black tree](https://code.woboq.org/gcc/libstdc++-v3/src/c++98/tree.cc.html) internally):
 
-    > clang++ --std=c++17 -o cpp-rbtree -O3 /usr/local/share/koka/v2.0.12/lib/samples/basic/rbtree.cpp
-    > time ./cpp-rbtree
+    $ clang++ --std=c++17 -o cpp-rbtree -O3 /usr/local/share/koka/v2.0.12/lib/samples/basic/rbtree.cpp
+    $ time ./cpp-rbtree
     420000
     real    0m0.864s
     ...
@@ -175,7 +181,7 @@ closely mimicking the imperative rebalancing code of the hand optimized C++ libr
 
 Without giving any input files, the interactive interpreter runs by default:
 ````
-> koka
+$ koka
  _          _           ____
 | |        | |         |__  \
 | | __ ___ | | __ __ _  __) |
@@ -381,14 +387,14 @@ Unix. The following programs are required to build Koka:
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
   (use `> curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS X)
 * Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
-* On Windows you may need [Visual Studio](https://visualstudio.microsoft.com/downloads/) (for the windows SDK).
+* Optional: On Windows it is recommended to install the [clang][winclang] C compiler, or [Visual Studio](https://visualstudio.microsoft.com/downloads/).
 
 Build the compiler (note the `--recursive` flag):
 ```
-> git clone --recursive https://github.com/koka-lang/koka
-> cd koka
-> stack build
-> stack exec koka
+$ git clone --recursive https://github.com/koka-lang/koka
+$ cd koka
+$ stack build
+$ stack exec koka
 ```
 You can also use `stack build --fast` to build a debug version of the compiler.
 
@@ -397,7 +403,7 @@ You can also use `stack build --fast` to build a debug version of the compiler.
 You can also build a local distribution bundle yourself from source and install
 that locally. The `util/bundle.kk` script creates a local distribution:
 ```
-> stack exec koka -- util/bundle
+$ stack exec koka -- util/bundle
 ...
 distribution bundle created.
   bundle : dist/koka-v2.0.9-linux-amd64.tar.gz
@@ -408,12 +414,12 @@ This takes a while as it pre-compiles the standard libraries in three build
 variants (`debug`, `drelease` (release with debug info), and `release`).
 After generating the bundle, it can be installed locally as:
 ```
-> util/install.sh -b dist/koka-v2.0.9-linux-amd64.tar.gz
+$ util/install.sh -b dist/koka-v2.0.9-linux-amd64.tar.gz
 ```
 (use `util/install.bat` on Windows). After installation, you can now directly invoke `koka`:
 
 ```
-> koka --version
+$ koka --version
 ```
 Koka is by default installed for the current user in `<prefix>/bin/koka`,
 (with architecture specific files under `<prefix>/lib/koka/v2.x.x`
@@ -427,7 +433,7 @@ However, when using `koka` you need to have a C compiler (when
 using `stack exec koka` the C compiler supplied with `ghc` is used (`mingw`)
 but that is not generally available).
 
-It is recommended to install the [clang](https://llvm.org/builds) compiler for
+It is recommended to install the [clang][winclang] compiler for
 Windows (which is automatically installed when running `util/install.bat`)
 Koka can also use the Microsoft Visual C++ compiler (`cl`) if you run `koka` from a
 [Visual Studio x64 toolset](vsprompt) command prompt (in order to link correctly with the Windows system libraries).
@@ -435,15 +441,15 @@ Koka can also use the Microsoft Visual C++ compiler (`cl`) if you run `koka` fro
 Generally, for Koka code, `mingw` (`gcc`) optimizes best, closely followed `clang-cl`.
 On a 3.8Gz AMD 3600XT, with `mingw` 7.2.0, `clang-cl` 11.0.0, and `cl` 19.28 we get:
 ```
-> stack exec out\v2.0.5\mingw-release\test_bench_koka_rbtree -- --kktime
+$ stack exec out\v2.0.5\mingw-release\test_bench_koka_rbtree -- --kktime
 420000
 info: elapsed: 0.624s, user: 0.625s, sys: 0.000s, rss: 163mb
 
-> out\v2.0.5\clang-cl-release\test_bench_koka_rbtree --kktime
+$ out\v2.0.5\clang-cl-release\test_bench_koka_rbtree --kktime
 420000
 info: elapsed: 0.727s, user: 0.734s, sys: 0.000s, rss: 164mb
 
-> out\v2.0.5\cl-release\test_bench_koka_rbtree --kktime
+$ out\v2.0.5\cl-release\test_bench_koka_rbtree --kktime
 420000
 info: elapsed: 1.483s, user: 1.484s, sys: 0.000s, rss: 164mb
 ```
