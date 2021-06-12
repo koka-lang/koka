@@ -97,7 +97,7 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 # Install
 
-Koka has [binary installations][install] for x64 Windows, Linux, and macOS.
+Koka has [binary installs][install] for x64 Windows, Linux, and macOS.
 For other platforms, you need to build the compiler from source.
 
 # Build From Source
