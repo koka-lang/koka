@@ -33,7 +33,7 @@ Koka is a strongly typed functional-style language with effect types and handler
   Perceus also performs [reuse analysis](https://koka-lang.github.io/koka/doc/book.html#why-fbip) and optimizes
   functional-style programs to use in-place updates when possible.
 
-For more information, see:
+To learn more:
 
 * [Install Koka][install] and compile your first Koka programs. 
 * Read the [Koka book][kokabook] for a tour of the Koka language and its specification.
