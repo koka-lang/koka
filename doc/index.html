@@ -993,10 +993,13 @@ algorithms in a functional style.
 <div class="content">
 <p class="p noindent">For Linux and macOS on x86 64-bit, you can install Koka using:
 </p>
-<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped">&gt; <strong class="strong-star2">curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &#124; sh</strong></span></code></pre>
+<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2">$ curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &#124; sh</strong></span></code></pre>
+<p class="p noindent para-continued">For Windows x86 64-bit, open a <code class="code code2">cmd</code> prompt and use:
+</p>
+<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2">$ curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat &amp;&amp; %tmp%\install-koka.bat</strong></span></code></pre>
 <p class="p noindent para-continued">This also installs syntax highlighting for the VS Code and Atom editors.
 </p>
-<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; koka</code></strong></span>
+<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">$ koka</code></strong></span>
  _          _           ____
 | |        | |         |__  \
 | | __ ___ | | __ __ _  __) |
@@ -1007,10 +1010,10 @@ algorithms in a functional style.
 loading: std/core
 loading: std/core/types
 loading: std/core/hnd
-<span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt;</code></strong></span></code></pre>
+<span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; </code></strong></span></code></pre>
 <p class="p noindent para-continued">Type <code class="code code2">:q</code> to exit the interpreter.
 </p>
-<p class="p indent">For detailed instructions and other platforms (including Windows) see the&nbsp;<a href="https://github.com/koka-lang/koka/releases" data-linkid="releases">releases</a> page.
+<p class="p indent">For detailed installation instructions and other platforms see the&nbsp;<a href="https://github.com/koka-lang/koka/releases" data-linkid="releases">releases</a> page.
 It is also straightforward to build the compiler&nbsp;<a href="https://github.com/koka-lang/koka/#build-from-source" data-linkid="build">from source</a>.
 </p>
 <p class="p indent"><a href="book.html#install" class="learn button">Running the compiler</a>
