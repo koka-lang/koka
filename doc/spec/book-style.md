@@ -1,5 +1,6 @@
 adown: []{.fa .fa-angle-double-down}
 aup:   []{.fa .fa-angle-double-up}
+acopy: []{.fa .fa-copy}
 
 .title {
   font-size: xxx-large;
@@ -32,6 +33,13 @@ toc.toc-contents {
 }
 
 .learn {
+  .button;
+}
+
+.copy {
+  float: left;
+  font-size: 70%;
+  html-title:"Copy";
   .button;
 }
 

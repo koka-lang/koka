@@ -43,13 +43,19 @@ libraries, package management, and deep IDE integration.
 
 ## Installing the compiler { #install }
 
-For Linux and macOS on x86 64-bit, you can install &koka; using:
+For Linux and macOS (x64), you can install &koka; using:
 
-    \(**$ curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &bar; sh**\)
+&acopy;
+{.copy; data-value:"curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh"}
 
-For Windows x86 64-bit, open a ``cmd`` prompt and use:
+    \(**curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &bar; sh**\)
 
-    \(**$ curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat**\)
+For Windows (x64), open a ``cmd`` prompt and use:
+
+&acopy;
+{.copy; data-value:"curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat"}
+
+    \(**curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat**\)
 
 This also installs syntax highlighting for the VS Code and Atom editors.
 
