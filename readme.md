@@ -96,11 +96,11 @@ Releases:
 
 # Install
 
-For Linux and macOS on x86 64-bit, you can install Koka using:
+For Linux and macOS (x64), you can install Koka using:
 ````
 curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh
 ````
-For Windows on x86 64-bit, open a `cmd` prompt and use:
+For Windows (x64), open a `cmd` prompt and use:
 ````
 curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat
 ````
