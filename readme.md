@@ -47,7 +47,7 @@ For more information, see:
 [why-perceus]: https://koka-lang.github.io/koka/doc/book.html#why-perceus
 [why-fbip]: http://koka-lang.github.io/koka/doc/book.html#why-fbip
 
-[install]: https://koka-lang.github.io/koka/doc/book.html  
+[install]: https://koka-lang.github.io/koka/doc/book.html#install
 [why]: https://koka-lang.github.io/koka/doc/book.html#why
 [kokabook]: https://koka-lang.github.io/koka/doc/book.html  
 [tour]: https://koka-lang.github.io/koka/doc/book.html#tour
