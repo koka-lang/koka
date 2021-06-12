@@ -1013,7 +1013,7 @@
 <div class="titleblock align-center para-block" style="text-align:center;line-adjust:0">
 <div class="titleheader align-center" style="text-align:center;line-adjust:0">
 <div class="title para-block" style="font-weight:bold;margin-bottom:0.5ex;font-size:xxx-large;line-adjust:0">The Koka Programming Language</div>
-<div class="titlenote para-block" style="line-adjust:0"><span style="font-size:75%">(Daan Leijen, 2021-06-10)</span></div></div></div></div>
+<div class="titlenote para-block" style="line-adjust:0"><span style="font-size:75%">(Daan Leijen, 2021-06-11)</span></div></div></div></div>
 <div class="flexbody">
 
 <div class="sidepanel">
@@ -1166,11 +1166,15 @@ libraries, package management, and deep IDE integration.
 </div></div><h2 id="install" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#install" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">1.1</span>.&#8194;</span>Installing the compiler</h2>
 <p class="p noindent">For Linux and macOS on x86 64-bit, you can install Koka using:
 </p>
-<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped">&gt; <strong class="strong-star2">curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &#124; sh</strong></span></code></pre>
-<p class="p noindent para-continued">This also installs syntax highlighting for the VS Code and Atom editors.
-After installation, verify if Koka installed correctly:
+<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2">$ curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &#124; sh</strong></span></code></pre>
+<p class="p noindent para-continued">For Windows x86 64-bit, open a <code class="code code2">cmd</code> prompt and use:
 </p>
-<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; koka</code></strong></span>
+<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2">$ curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat &amp;&amp; %tmp%\install-koka.bat</strong></span></code></pre>
+<p class="p noindent para-continued">This also installs syntax highlighting for the VS Code and Atom editors.
+</p>
+<p class="p indent">After installation, verify if Koka installed correctly:
+</p>
+<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">$ koka</code></strong></span>
  _          _           ____
 | |        | |         |__  \
 | | __ ___ | | __ __ _  __) |
@@ -1181,15 +1185,15 @@ After installation, verify if Koka installed correctly:
 loading: std/core
 loading: std/core/types
 loading: std/core/hnd
-&gt;</code></pre>
+<span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt;</code></strong></span></code></pre>
 <p class="p noindent para-continued">Type <code class="code code2">:q</code> to exit the interpreter.
 </p>
-<p class="p indent">For detailed instructions and other platforms (including Windows) see the&nbsp;<a href="https://github.com/koka-lang/koka/releases" data-linkid="releases">releases</a> page.
+<p class="p indent">For detailed installation instructions and other platforms see the&nbsp;<a href="https://github.com/koka-lang/koka/releases" data-linkid="releases">releases</a> page.
 It is also straightforward to build the compiler&nbsp;<a href="https://github.com/koka-lang/koka/#build-from-source" data-linkid="build">from source</a>.
 </p><h2 id="sec-running-the-compiler" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-running-the-compiler" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">1.2</span>.&#8194;</span>Running the compiler</h2>
 <p class="p noindent">You can compile a Koka source using <code class="koka"><span class="op"><span class="minus">-</span></span>c</code> (note that all&nbsp;<a href="https://github.com/koka-lang/koka/tree/master/samples" data-linkid="samples"><code class="koka">samples</code></a> are pre-installed):
 </p>
-<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; koka -c samples/basic/caesar.kk</code></strong></span>
+<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">$ koka -c samples/basic/caesar.kk</code></strong></span>
 compile: samples/basic/caesar.kk
 loading: std/core
 loading: std/core/types
@@ -1202,19 +1206,19 @@ linking: samples_basic_caesar
 created: out/v2.0.9/gcc-debug/samples_basic_caesar</code></pre>
 <p class="p noindent para-continued">and run the resulting executable:
 </p>
-<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; out/v2.0.9/gcc-debug/samples_basic_caesar</code></strong></span>
+<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">$ out/v2.0.9/gcc-debug/samples_basic_caesar</code></strong></span>
 plain  : Koka is a well-typed language
 encoded: Krnd lv d zhoo-wbshg odqjxdjh
 cracked: Koka is a well-typed language</code></pre>
 <p class="p noindent para-continued">The <code class="code code2">-O2</code> flag builds an optimized program. Let&#39;s try it on a purely functional implementation
 of balanced insertion in a red-black tree (<a href="https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk"><code class="koka">rbtree<span class="kw op">.</span>kk</code></a>):
 </p>
-<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; koka -O2 -c samples/basic/rbtree.kk</code></strong></span>
+<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">$ koka -O2 -c samples/basic/rbtree.kk</code></strong></span>
 ...
 linking: samples_basic_rbtree
 created: out/v2.0.10/gcc-drelease/samples_basic_rbtree
 
-<span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; time out/v2.0.10/gcc-drelease/samples_basic_rbtree</code></strong></span>
+<span class="code-escaped"><strong class="strong-star2"><code class="code code2">$ time out/v2.0.10/gcc-drelease/samples_basic_rbtree</code></strong></span>
 420000
 real    0m0.750s
 ...</code></pre>
@@ -1222,8 +1226,8 @@ real    0m0.750s
 (<a href="https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.cpp"><code class="code code2">rbtree.cpp</code></a>) (which also uses a
 <a href="https://code.woboq.org/gcc/libstdc++-v3/src/c++98/tree.cc.html">red-black tree</a> internally):
 </p>
-<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; clang++ --std=c++17 -o cpp-rbtree -O3 /usr/local/share/koka/v2.0.12/samples/basic/rbtree.cpp</code></strong></span>
-<span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; time ./cpp-rbtree</code></strong></span>
+<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">$ clang++ --std=c++17 -o cpp-rbtree -O3 /usr/local/share/koka/v2.0.12/samples/basic/rbtree.cpp</code></strong></span>
+<span class="code-escaped"><strong class="strong-star2"><code class="code code2">$ time ./cpp-rbtree</code></strong></span>
 420000
 real    0m0.864s
 ...</code></pre>
@@ -1233,7 +1237,7 @@ closely mimicking the imperative rebalancing code of the hand optimized C++ libr
 </p><h2 id="sec-running-the-interactive-compiler" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-running-the-interactive-compiler" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">1.3</span>.&#8194;</span>Running the interactive compiler</h2>
 <p class="p noindent">Without giving any input files, the interactive environment runs by default:
 </p>
-<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; koka</code></strong></span>
+<pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">$ koka</code></strong></span>
  _          _           ____
 | |        | |         |__  \
 | | __ ___ | | __ __ _  __) |
@@ -1244,7 +1248,7 @@ closely mimicking the imperative rebalancing code of the hand optimized C++ libr
 loading: std/core
 loading: std/core/types
 loading: std/core/hnd
-&gt;</code></pre>
+<span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt;</code></strong></span></code></pre>
 <p class="p noindent para-continued">Now you can test some expressions:
 </p>
 <pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt; println(&quot;hi koka&quot;)</code></strong></span>
@@ -4337,7 +4341,7 @@ case where the input tree is shared, or where parts of the input tree are
 shared, making a single copy of those parts of the tree.
 </p>
 <p class="p learn button indent"><a href="https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/" data-linkid="perceus">Read the Perceus technical report</a></p><h1 id="sec-koka-language-specification" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-koka-language-specification" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">4</span>.&#8194;</span>Koka language specification</h1>
-<p class="p noindent">This is the draft language specification of the Koka language, version v2.1.7<br>
+<p class="p noindent">This is the draft language specification of the Koka language, version v2.1.6<br>
 Currently only the lexical and context-free grammar are specified.
 The&nbsp;<a href="toc.html" data-linkid="stdlib">standard libraries</a> are documented separately.
 </p><h2 id="sec-lexical-syntax" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-lexical-syntax" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">4.1</span>.&#8194;</span>Lexical syntax</h2>
