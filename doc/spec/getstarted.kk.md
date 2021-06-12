@@ -45,12 +45,17 @@ libraries, package management, and deep IDE integration.
 
 For Linux and macOS on x86 64-bit, you can install &koka; using:
 
-    \(> **curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &bar; sh**\)
+    \(**$ curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &bar; sh**\)
+
+For Windows x86 64-bit, open a ``cmd`` prompt and use:
+
+    \(**$ curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat**\)
 
 This also installs syntax highlighting for the VS Code and Atom editors.
+
 After installation, verify if &koka; installed correctly:
 
-    > koka
+    $ koka
      _          _           ____
     | |        | |         |__  \
     | | __ ___ | | __ __ _  __) |
@@ -65,14 +70,14 @@ After installation, verify if &koka; installed correctly:
 
 Type ``:q`` to exit the interpreter.
 
-For detailed instructions and other platforms (including Windows) see the [releases] page.
+For detailed installation instructions and other platforms see the [releases] page.
 It is also straightforward to build the compiler [from source][build].
 
 ## Running the compiler
 
 You can compile a &koka; source using `-c` (note that all [`samples`][samples] are pre-installed):
 
-    > koka -c samples/basic/caesar.kk
+    $ koka -c samples/basic/caesar.kk
     compile: samples/basic/caesar.kk
     loading: std/core
     loading: std/core/types
@@ -86,7 +91,7 @@ You can compile a &koka; source using `-c` (note that all [`samples`][samples] a
 
 and run the resulting executable:
 
-    > out/v2.0.9/gcc-debug/samples_basic_caesar
+    $ out/v2.0.9/gcc-debug/samples_basic_caesar
     plain  : Koka is a well-typed language
     encoded: Krnd lv d zhoo-wbshg odqjxdjh
     cracked: Koka is a well-typed language
@@ -94,12 +99,12 @@ and run the resulting executable:
 The ``-O2`` flag builds an optimized program. Let's try it on a purely functional implementation
 of balanced insertion in a red-black tree ([`rbtree.kk`](https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.kk)):
 
-    > koka -O2 -c samples/basic/rbtree.kk
+    $ koka -O2 -c samples/basic/rbtree.kk
     ...
     linking: samples_basic_rbtree
     created: out/v2.0.10/gcc-drelease/samples_basic_rbtree
 
-    > time out/v2.0.10/gcc-drelease/samples_basic_rbtree
+    $ time out/v2.0.10/gcc-drelease/samples_basic_rbtree
     420000
     real    0m0.750s
     ...
@@ -108,8 +113,8 @@ We can compare this against an in-place updating C++ implementation using ``stl:
 ([``rbtree.cpp``](https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.cpp)) (which also uses a
 [red-black tree](https://code.woboq.org/gcc/libstdc++-v3/src/c++98/tree.cc.html) internally):
 
-    > clang++ --std=c++17 -o cpp-rbtree -O3 /usr/local/share/koka/v2.0.12/samples/basic/rbtree.cpp
-    > time ./cpp-rbtree
+    $ clang++ --std=c++17 -o cpp-rbtree -O3 /usr/local/share/koka/v2.0.12/samples/basic/rbtree.cpp
+    $ time ./cpp-rbtree
     420000
     real    0m0.864s
     ...
@@ -123,7 +128,7 @@ closely mimicking the imperative rebalancing code of the hand optimized C++ libr
 
 Without giving any input files, the interactive environment runs by default:
 
-    > koka
+    $ koka
      _          _           ____
     | |        | |         |__  \
     | | __ ___ | | __ __ _  __) |

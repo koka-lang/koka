@@ -229,11 +229,15 @@ algorithms in a functional style.
 ~ begin content
 For Linux and macOS on x86 64-bit, you can install &koka; using:
 
-    \(> **curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &bar; sh**\)
+    \(**$ curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &bar; sh**\)
+
+For Windows x86 64-bit, open a ``cmd`` prompt and use:
+
+    \(**$ curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat**\)
 
 This also installs syntax highlighting for the VS Code and Atom editors.
 
-    > koka
+    $ koka
      _          _           ____
     | |        | |         |__  \
     | | __ ___ | | __ __ _  __) |
@@ -244,11 +248,11 @@ This also installs syntax highlighting for the VS Code and Atom editors.
     loading: std/core
     loading: std/core/types
     loading: std/core/hnd
-    >
+    > 
 
 Type ``:q`` to exit the interpreter.
 
-For detailed instructions and other platforms (including Windows) see the [releases] page.
+For detailed installation instructions and other platforms see the [releases] page.
 It is also straightforward to build the compiler [from source][build].
 
 [Running the compiler](book.html#install){.learn}

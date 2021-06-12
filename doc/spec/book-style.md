@@ -22,7 +22,7 @@ toc.toc-contents {
 }
 
 .pre-indented, .console {
-  replace: "/^( *>[^\n\r]+)/\(**``\1``**\)/mg";
+  replace: "/^( *[\$>][^\n\r]*)/\(**``\1``**\)/mg";
 }
 
 .mapsto {
