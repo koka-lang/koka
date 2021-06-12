@@ -250,8 +250,7 @@ Type ``:q`` to exit the interpreter.
 For detailed installation instructions and other platforms see the [releases] page.
 It is also straightforward to build the compiler [from source][build].
 
-[Running the compiler](book.html#install){.learn}
-[A tour of the Koka language](book.html#tour){.learn}
+[Get started with the compiler](book.html#sec-running-the-compiler){.learn}
 
 ~ end content
 
