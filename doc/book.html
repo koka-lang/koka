@@ -631,7 +631,19 @@
   .koka.source.unchecked {
     border: none;
     padding: 0.5ex 1ex 0.5ex 1ex;
+  }
+  body,pre,.sidepanel,.news-items {
     scrollbar-width: thin;
+  }
+  ::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: #ccc;
+  }
+  ::-webkit-scrollbar-track {
+    -webkit-box-shadow: inset 0 0 4px rgba(0,0,0,0.3); 
   }
   code, .madoko code {
     padding-right: 0.2ex;
@@ -1120,24 +1132,24 @@
         /* -----------------------------------
            Nice scrollbar for toc
         ----------------------------------- */
-        .sidepanel::-webkit-scrollbar {
+        .xsidepanel::-webkit-scrollbar {
             width: 6px;
             height: 6px;
         }     
         /* Track */
-        .sidepanel::-webkit-scrollbar-track {
+        .xsidepanel::-webkit-scrollbar-track {
             -webkit-box-shadow: inset 0 0 4px rgba(0,0,0,0.3); 
             -webkit-border-radius: 6px;
             border-radius: 6px;
         }    
         /* Handle */
-        .sidepanel::-webkit-scrollbar-thumb {
+        .xsidepanel::-webkit-scrollbar-thumb {
             -webkit-border-radius: 6px;
             border-radius: 6px;
             background: lightgray; 
             -webkit-box-shadow: inset 0 0 4px rgba(0,0,0,0.5); 
         }
-        .sidepanel::-webkit-scrollbar-thumb:window-inactive {
+        .xsidepanel::-webkit-scrollbar-thumb:window-inactive {
           background: gainsboro; 
         }
         .madoko .toc > .tocblock .tocblock .tocblock {

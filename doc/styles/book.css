@@ -40,7 +40,21 @@ pre.koka.source,
   /* border-left: 0.5ex solid #CCC; */
   border: none;
   padding: 0.5ex 1ex 0.5ex 1ex;
+}
+
+body,pre,.sidepanel,.news-items {
   scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #ccc;
+}
+::-webkit-scrollbar-track {
+  -webkit-box-shadow: inset 0 0 4px rgba(0,0,0,0.3); 
 }
 
 
