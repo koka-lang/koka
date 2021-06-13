@@ -863,16 +863,19 @@ onWindows
 tripletArch :: String
 tripletArch 
   = case cpuArch of
-      "amd64" -> "x64"
-      arch    -> arch 
+      "amd64"       -> "x64"      
+      arch          -> arch 
 
 cpuArch :: String  
 cpuArch
   = case System.Info.arch of 
-      "aarch64" -> "arm64"
-      "x86_64"  -> "amd64"
-      "i386"    -> "x86"
-      arch      -> arch
+      "aarch64"     -> "arm64"
+      "x86_64"      -> "amd64"
+      "i386"        -> "x86"
+      "powerpc"     -> "ppc"
+      "powerpc64"   -> "ppc64"
+      "powerpc64le" -> "ppc64le"
+      arch          -> arch
 
 
 detectCC :: IO String

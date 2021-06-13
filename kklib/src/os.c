@@ -1100,19 +1100,27 @@ kk_string_t kk_os_arch(kk_context_t* ctx) {
 #elif defined(__arm__) || defined(_ARM) || defined(_M_ARM)  || defined(_M_ARMT) || defined(__arm)
   arch = "arm";
 #elif defined(__riscv) || defined(_M_RISCV)
-  arch = "riscv";  
+  arch = (KK_INTPTR_SIZE==4 ? "riscv32" : "riscv64");
 #elif defined(__alpha__) || defined(_M_ALPHA) || defined(__alpha)
   arch = "alpha";
-#elif defined(__powerpc) || defined(__powerpc__) || defined(_M_PPC) || defined(__ppc)
-  arch = "powerpc";
+#elif defined(__wasi__)  
+  arch = (KK_INTPTR_SIZE==4 ? "wasm32" : "wasm64");
+#elif defined(__powerpc) || defined(__powerpc__) || defined(_M_PPC) || defined(__ppc) || defined(_ARCH_PPC)
+  arch = (KK_INTPTR_SIZE==4 ? "ppc32" : (KK_ARCH_LITTLE_ENDIAN ? "ppc64le" : "ppc64"));
+#elif defined(__mips__) || defined(__MIPS__) || defined(__mips)
+  arch = "mips";
+#elif defined(__sparc__) || defined(__sparc)
+  arch = (KK_INTPTR_SIZE==4 ? "sparc32" : "sparc64");
 #elif defined(__hppa__)
   arch = "hppa";
 #elif defined(__m68k__)
   arch = "m68k";
-#elif defined(__mips__)
-  arch = "mips";
-#elif defined(__sparc__) || defined(__sparc)
-  arch = "sparc";
+#elif defined( __s390x__)
+  arch = "s390x"
+#elif defined(__s390__) || defined(__zarch__)
+  arch = "s390";
+#elif defined(__vax__)
+  arch = "vax";
 #endif
   return (kk_string_alloc_dup_valid_utf8(arch, ctx));
 }
