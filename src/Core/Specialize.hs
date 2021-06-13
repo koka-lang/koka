@@ -10,16 +10,18 @@ module Core.Specialize( SpecializeEnv
                       , extractSpecializeEnv
                       ) where
 
-import Data.Bifunctor
 import Data.List (transpose)
 import Control.Monad.State
 import Control.Monad.Reader
-import Control.Applicative
+import Control.Arrow ((***))
 import Data.Maybe (mapMaybe, fromMaybe, catMaybes, isJust, fromJust)
 
 import Lib.PPrint
 import Common.Failure (failure)
+import Common.File (splitOn)
+import Common.Range (rangeNull)
 import Common.Syntax
+import Common.Unique (HasUnique)
 import Common.Name
 import Common.NameMap (NameMap)
 import qualified Common.NameMap  as M
@@ -27,6 +29,8 @@ import Common.NameSet (NameSet)
 import qualified Common.NameSet as S
 import Core.Core
 import Core.Pretty ()
+import Type.Type (splitFunScheme, Effect)
+import Type.TypeVar
 import Type.Pretty
 import Lib.Trace
 
@@ -39,7 +43,6 @@ data SpecializeInfo = SpecializeInfo
   , specExpr :: Expr
   , specArgs :: [Bool]
   } deriving (Show)
-
 
 
 {--------------------------------------------------------------------------
@@ -58,18 +61,8 @@ runSpecM scope specEnv specM =
   let (result, SpecState _ newDefs) = flip runState (SpecState { _inScope = scope, _newDefs = [] }) $ flip runReaderT specEnv specM
   in (result, newDefs)
 
-inScope :: SpecM (NameMap Expr)
-inScope = gets _inScope
-
-queryScope :: Name -> SpecM (Maybe Expr)
-queryScope name = gets (M.lookup name . _inScope)
-
-addToScope :: Name -> Expr -> SpecM ()
-addToScope name expr = modify (\state@SpecState{ _inScope = inScope } -> state{ _inScope = M.insert name expr inScope })
-
-emitSpecializedDefGroup :: DefGroup -> SpecM ()
-emitSpecializedDefGroup defGroup = modify (\state@SpecState { _newDefs = newDefs } -> state{ _newDefs = defGroup:newDefs})
-
+-- emitSpecializedDefGroup :: DefGroup -> SpecM ()
+-- emitSpecializedDefGroup defGroup = modify (\state@SpecState { _newDefs = newDefs } -> state{ _newDefs = defGroup:newDefs})
 
 
 {--------------------------------------------------------------------------
@@ -91,11 +84,14 @@ specOneDefGroup = mapMDefGroup specOneDef
 
 specOneDef :: Def -> SpecM Def
 specOneDef def = do
-  e <- specOneExpr $ defExpr def
+  e <- specOneExpr (defName def) $ defExpr def
   pure def{ defExpr = e }
 
-specOneExpr :: Expr -> SpecM Expr
-specOneExpr = rewriteBottomUpM $ \e -> case e of
+-- forceExpr :: Expr -> Expr
+-- forceExpr e = foldExpr (const (+1)) 0 e `seq` e
+
+specOneExpr :: Name -> Expr -> SpecM Expr
+specOneExpr thisDefName = rewriteBottomUpM $ \e -> case e of
   App (Var (TName name _) _) args -> go name e
   App (TypeApp (Var (TName name _) _)_) args -> go name e
   e -> pure e
@@ -104,47 +100,73 @@ specOneExpr = rewriteBottomUpM $ \e -> case e of
       specDef <- speclookupM name
       case specDef of
         Nothing -> pure e
-        Just def -> specOneCall def e
-
-lookupInScope :: Name -> Def
-lookupInScope = undefined
-
-createSpecializedDef :: Name -> [Bool] -> [Expr] -> SpecM Def
-createSpecializedDef name paramsToSpecialize args = 
-  case defExpr def of
-    e@(Lam params eff expr) -> pure $ go e params
-    -- TypeLam types e@(Lam params eff expr) -> pure $ go e params
-    _ -> failure "Unexpected specialize target"
-  where
-    def = lookupInScope name
-    -- TODO: replace recursive calls in body
-    go (Lam params eff body) _ = 
-      Def undefined undefined undefined undefined undefined undefined undefined undefined 
-        where
-          newParams = filterBools paramsToSpecialize $ zip params args
-          specializedBody = Lam params eff $ Let [DefNonRec $ Def (getName paramName) undefined arg undefined undefined undefined undefined undefined | (paramName, arg) <- newParams] body
+        Just def 
+          -- bandaid check to not try to spec the same def; in practice we should check if the RHS is known
+          | specName def /= thisDefName -> specOneCall def e
+          | otherwise  -> pure e
 
 filterBools :: [Bool] -> [a] -> [a]
 filterBools bools as = catMaybes $ zipWith (\bool a -> guard bool >> Just a) bools as
 
+-- (falses, trues)
+partitionBools :: [Bool] -> [a] -> ([a], [a])
+partitionBools bools as = foldr f ([], []) $ zip bools as
+  where
+    f (bool, a) (falses, trues)
+      | bool = (falses, a : trues)
+      | otherwise = (a : falses, trues)
+
 specOneCall :: SpecializeInfo -> Expr -> SpecM Expr
-specOneCall (SpecializeInfo{ specArgs=specArgs }) e = case e of
-  App (Var (TName name _) _) args -> do
-    specializedDef <- createSpecializedDef name specArgs args
-    emitSpecializedDefGroup $ DefRec [specializedDef]
-    replaceCall specializedDef specArgs args
+specOneCall s@(SpecializeInfo{ specName=specName, specExpr=specExpr, specArgs=specArgs }) e = case e of
+  App (Var (TName name _) _) args -> replaceCall specName specExpr specArgs args
 
   -- the result may no longer be a typeapp
   -- App (TypeApp (Var (TName name _) _) _) args -> undefined
   _ -> error "specOneCall"
 
-replaceCall :: Def -> [Bool] -> [Expr] -> SpecM Expr
-replaceCall specializedDef bools args =
-    pure $ App 
-     (Var (TName (defName specializedDef) (defType specializedDef)) $ error "VarInfo")
-     newArgs
+specInnerCalls :: TName -> TName -> [Bool] -> Expr -> Expr
+specInnerCalls from to bools = rewriteBottomUp $ \e -> case e of
+  App (Var f info) xs
+    | f == from -> App (Var to info) $ filterBools bools xs
+  -- TODO TypeApp case
+  e -> e
+
+replaceCall :: Name -> Expr -> [Bool] -> [Expr] -> SpecM Expr
+replaceCall name expr bools args = do
+  -- ruExpr doesn't let me use DefRec here but it probably should be
+  pure $ Let [DefNonRec specDef] (App (Var (defTName specDef) InfoNone) newArgs)
   where
-    newArgs = filterBools bools args
+    specDef = Def (genSpecName name bools) specType specBody Private DefFun InlineAuto rangeNull $ "// specialized " <> show name <> " to parameters " <> " TODO "
+    -- there's some knot-tying here: we need to know the type of the specialized fn to replace recursive calls with the specialized version, and the new body also influences the specialized type
+    specBody = Lam newParams (fnEffect expr) $ Let [DefNonRec $ Def param typ arg Private DefVal InlineAuto rangeNull "" | (TName param typ, arg) <- zip speccedParams speccedArgs]
+      $ specInnerCalls (TName name $ typeOf expr) (defTName specDef) (not <$> bools)
+      $ fnBody expr
+
+    specType = typeOf specBody
+
+    ((newParams, newArgs), (speccedParams, speccedArgs)) =
+      (unzip *** unzip)
+      -- (\x@(new, spec) -> trace ("Specializing to newArgs " <> show new) $ x) $
+      $ partitionBools bools
+      $ zip (fnParams expr) args
+
+genSpecName :: Name -> [Bool] -> Name
+genSpecName name bools = newName $ "spec_" ++ last (splitOn (== '/') $ show name)
+
+fnParams :: Expr -> [TName]
+fnParams (Lam params _ _) = params
+fnParams (TypeLam _ (Lam params _ _)) = params
+fnParams _ = error "fnParams"
+
+fnEffect :: Expr -> Effect
+fnEffect (Lam _ effect _) = effect
+fnEffect (TypeLam _ (Lam _ effect _)) = effect
+fnEffect _ = error "fnEffect"
+
+fnBody :: Expr -> Expr
+fnBody (Lam _ _ body) = body
+fnBody (TypeLam _ (Lam _ _ body)) = body
+fnBody _ = error "fnBody"
 
 
 {--------------------------------------------------------------------------
@@ -155,7 +177,7 @@ extractSpecializeEnv :: DefGroups -> SpecializeEnv
 extractSpecializeEnv = 
     specenvNew
   . filter (or . specArgs)
-  . map getInline
+  . map getSpecInfo
   . flattenDefGroups
   . filter isRecursiveDefGroup
 
@@ -163,11 +185,20 @@ extractSpecializeEnv =
     isRecursiveDefGroup (DefRec [def]) = True
     isRecursiveDefGroup _ = False
 
-getInline :: Def -> SpecializeInfo
-getInline def =
+filterMaybe :: (a -> Bool) -> Maybe a -> Maybe a
+filterMaybe f Nothing = Nothing
+filterMaybe f (Just a) = guard (f a) >> pure a
+
+getSpecInfo :: Def -> SpecializeInfo
+getSpecInfo def =
   SpecializeInfo (defName def) (defExpr def)
-  $ map (maybe False (`S.member` usedInThisDef def))
+  $ map isJust
+  $ map (filterMaybe (`S.member` usedInThisDef def))
+  $ map (fmap getName)
+  $ map (filterMaybe (isFun . tnameType))
   $ passedRecursivelyToThisDef def
+
+isFun = isJust . splitFunScheme
 
 usedInThisDef :: Def -> S.NameSet
 usedInThisDef def = foldMapExpr go $ defExpr def
@@ -180,7 +211,7 @@ usedInThisDef def = foldMapExpr go $ defExpr def
 
 -- return list of parameters that get called recursively to the same function in the same order
 -- or Nothing if the parameter wasn't passed recursively in the same order
-passedRecursivelyToThisDef :: Def -> [Maybe Name]
+passedRecursivelyToThisDef :: Def -> [Maybe TName]
 passedRecursivelyToThisDef def 
   -- TODO: FunDef type to avoid this check?
   = case defExpr def of
@@ -208,7 +239,7 @@ passedRecursivelyToThisDef def
     check args params =
       zipWith (\arg param ->
         case arg of
-          Var tname _ | tname == param -> Just (getName tname)
+          Var tname _ | tname == param -> Just tname
           _ -> Nothing) args params
 
 

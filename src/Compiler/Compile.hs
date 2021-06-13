@@ -893,6 +893,9 @@ inferCheck loaded flags line coreImports program1
             = if True
                 then specialize penv uniqueSimp0 specEnv coreDefsSimp0
                 else (coreDefsSimp0, uniqueSimp0)
+
+       traceShowM specializedDefs
+       mapM (Core.mapMDefGroup (\x -> traceShowM (Core.defName x) >> traceShowM (Core.defExpr x) >> pure x)) specializedDefs
             
        -- traceShowM (Data.Map.size $ extractSpecializeDefs coreDefsSimp0)
 
@@ -968,6 +971,8 @@ inferCheck loaded flags line coreImports program1
        -- traceDefGroups "monadic lift" coreDefsMonL
 
        -- do an inlining pass
+       -- disable inline pass
+       --  let (coreDefsInl,uniqueInl) = (coreDefsMonL, uniqueMonL) -- inlineDefs penv uniqueMonL (loadedInlines loaded3) coreDefsMonL
        let (coreDefsInl,uniqueInl) = inlineDefs penv uniqueMonL (loadedInlines loaded3) coreDefsMonL
        when (coreCheck flags) $ -- trace "inlined functions core check" $
                                 Core.Check.checkCore True True penv uniqueInl gamma coreDefsInl

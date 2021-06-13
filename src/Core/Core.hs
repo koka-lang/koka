@@ -18,7 +18,7 @@ module Core.Core ( -- Data structures
                    , DefGroups, DefGroup(..), Defs, Def(..), InlineDef(..)
                    , Expr(..), Lit(..)
                    , Branch(..), Guard(..), Pattern(..)
-                   , TName(..), getName, typeDefName
+                   , TName(..), typeDefName
                    , showTName
                    , flattenTypeDefGroups
                    , flattenDefGroups
@@ -531,11 +531,10 @@ rewriteBottomUpM f e = f =<< case e of
     rec = bind f . rewriteBottomUpM f
 
 
-data TName = TName Name Type
-
-getName (TName name _) = name
-
-tnameType (TName name tp) = tp
+data TName = TName 
+  { getName :: Name
+  , tnameType :: Type
+  }
 
 showTName (TName name tp)
     = show name -- ++ ": " ++ minCanonical tp
