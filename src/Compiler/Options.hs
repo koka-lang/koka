@@ -27,7 +27,7 @@ module Compiler.Options( -- * Command line options
 import Data.Char              ( toUpper, isAlpha, isSpace )
 import Data.List              ( intersperse )
 import Control.Monad          ( when )
-import qualified System.Info  ( arch )
+import qualified System.Info  ( os, arch )
 import System.Environment     ( getArgs )
 import System.Directory       ( doesFileExist, getHomeDirectory )
 import Platform.GetOptions
@@ -554,7 +554,7 @@ processOptions flags0 opts
                                                             then "-mingw-static"
                                                             else "-windows-static-md")
                                                     else if onMacOS then "-osx"
-                                                                    else "-linux") 
+                                                                    else "-" ++ tripletOsName ) 
                        vcpkgInstalled   = (vcpkgRoot) ++ "/installed/" ++ triplet
                        vcpkgIncludeDir  = vcpkgInstalled ++ "/include"
                        vcpkgLibDir      = vcpkgInstalled ++ (if buildType flags <= Debug then "/debug/lib" else "/lib")
@@ -859,6 +859,23 @@ onMacOS
 onWindows :: Bool
 onWindows
   = (exeExtension == ".exe")
+
+tripletOsName, osName :: String
+tripletOsName
+  = case System.Info.os of
+      "linux-android" -> "linux"
+      "mingw32"       -> "windows"
+      "darwin"        -> "osx"
+      os              -> os
+
+osName 
+  = case System.Info.os of
+      "mingw32" -> "windows"
+      "darwin"  -> "osx"
+      "freebsd" -> "unix-freebsd"
+      "openbsd" -> "unix-openbsd"
+      "netbsd"  -> "unix-netbsd"
+      os        -> os
 
 tripletArch :: String
 tripletArch 

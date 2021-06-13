@@ -1059,7 +1059,7 @@ kk_string_t kk_os_kernel(kk_context_t* ctx) {
     kernel = "osx";  // unknown?
   #endif
 #elif defined(__ANDROID__)
-  kernel = "android";
+  kernel = "linux-android";
 #elif defined(__CYGWIN__) && !defined(WIN32)
   kernel = "unix-cygwin";
 #elif defined(__hpux)
