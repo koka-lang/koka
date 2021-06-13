@@ -512,7 +512,7 @@ if [ "$MODE" = "uninstall" ] ; then
   
   # confirm uninstall 
   if [ -z "$FORCE" ] ; then
-    read -p "Uninstalling koka version $version. Are you sure? [yN] " choice </dev/tty
+    read -p "Uninstalling koka version $VERSION. Are you sure? [yN] " choice </dev/tty
     case $choice in
       [yY][eE][sS]|[yY])
          info "Uninstalling..";;
