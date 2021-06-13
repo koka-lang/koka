@@ -108,8 +108,7 @@ without problems on most common platforms, e.g. Windows (including WSL), macOS X
 Unix. The following programs are required to build Koka:
 
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
-  (use `$ curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS X,
-   and the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows).
+  (use `$ curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows).
 * Optional: install [vcpkg] to be able to link easily with C libraries (for `std/text/regex` for example).  
 * Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
 * Optional: On Windows it is recommended to install the [clang][winclang] C compiler, or [Visual Studio](https://visualstudio.microsoft.com/downloads/).
@@ -124,9 +123,9 @@ $ stack exec koka
 You can also use `stack build --fast` to build a debug version of the compiler.
 
 
-## Building on Linux-arm64
+## Installing Stack/Ghc
 
-On non-x64 platforms like arm64, it may be harder to set up `stack` (and `ghc`).
+On non-x64 platforms like arm64, the default installation method for `stack` (and `ghc`) may fail.
 The following instructions work for Ubuntu Linux on arm64 (tested on a graviton AWS instance).
 First install `ghc`, `cabal`, and `stack` as packages:
 ```
