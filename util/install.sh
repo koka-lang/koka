@@ -75,6 +75,39 @@ sudocmd() {
   fi
 }
 
+# ---------------------------------------------------------
+# detect OS arch for download bundle
+# ---------------------------------------------------------
+
+# determines the the CPU's instruction set
+ARCH=""
+OSARCH=""
+COMPILER=""
+
+detect_arch() {
+  ARCH="$(uname -m)"
+  case "$ARCH" in
+    arm64*|aarch64*)   ARCH="arm64";;
+    arm*)              ARCH="arm";;
+    x86_64*)           ARCH="amd64";;
+    x86*|i[35678]86*)  ARCH="x86";;
+  esac
+}
+
+detect_osarch() {
+  detect_arch
+  case "$(uname)" in
+    [Ll]inux)
+      OSARCH="linux-$ARCH";;
+    [Dd]arwin)
+      OSARCH="osx-$ARCH";;
+    *)
+      info "Warning: unable to detect os, assuming unix"
+      OSARCH="unix-$ARCH";;
+  esac
+}
+
+detect_osarch   # always detect
 
 # ---------------------------------------------------------
 # arguments
@@ -119,7 +152,7 @@ while : ; do
         echo "  -f, --force              continue without prompting"
         echo "  -u, --uninstall          uninstall koka ($VERSION)"
         echo "  -p, --prefix=<dir>       prefix directory ($PREFIX)"
-        echo "  -b, --bundle=<file|url>  full bundle location ($KOKA_DIST_BASE_URL/$VERSION/koka-$VERSION-<os>-<arch>.tar.gz)"
+        echo "  -b, --bundle=<file|url>  full bundle location (<url>/koka-$VERSION-$OSARCH.tar.gz)"
         echo "      --url=<url>          download url ($KOKA_DIST_BASE_URL/$VERSION)"
         echo "      --version=<ver>      version tag ($VERSION)"
         echo ""
@@ -129,6 +162,7 @@ while : ; do
   shift
 done
 
+# initialize distribution url
 if [ -z "$KOKA_DIST_URL" ] ; then
   KOKA_DIST_URL="$KOKA_DIST_BASE_URL/$VERSION"
 fi
@@ -153,37 +187,7 @@ if which koka > /dev/null ; then
 fi
 
 
-# ---------------------------------------------------------
-# detect OS arch for download bundle
-# ---------------------------------------------------------
 
-# determines the the CPU's instruction set
-ARCH=""
-OSARCH=""
-COMPILER=""
-
-detect_arch() {
-  ARCH="$(uname -m)"
-  case "$ARCH" in
-    arm64*|aarch64*)   ARCH="arm64";;
-    arm*)              ARCH="arm";;
-    x86_64*)           ARCH="amd64";;
-    x86*|i[35678]86*)  ARCH="x86";;
-  esac
-}
-
-detect_osarch() {
-  detect_arch
-  case "$(uname)" in
-    [Ll]inux)
-      OSARCH="linux-$ARCH";;
-    [Dd]arwin)
-      OSARCH="osx-$ARCH";;
-    *)
-      info "Warning: unable to detect os, assuming unix"
-      OSARCH="unix-$ARCH";;
-  esac
-}
 
 if [ -z "$KOKA_DIST_SOURCE" ] ; then
   detect_osarch
