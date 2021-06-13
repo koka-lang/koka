@@ -98,7 +98,7 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 # Install
 
-Koka has [binary installs][install] for x64 Windows, x64 macOS, and x64/arm64 Linux.
+Koka has [binary installers][install] for Windows (x64), macOS (x64), and Linux (x64/arm64).
 For other platforms, you need to build the compiler from source.
 
 # Build from Source
@@ -134,8 +134,7 @@ $ sudo apt update
 $ sudo apt upgrade
 $ sudo apt install ghc cabal-install haskell-stack
 ```
-(tested with `ghc 8.6.5`, `cabal 2.4.0.0`, and `stack 1.9.3.1`).
-
+(tested with `ghc 8.6.5`, `cabal 2.4.0.0`, and `stack 1.9.3.1`).  
 Next, instruct `stack` to use the `ghc` that we just installed:
 ```
 $ stack update
