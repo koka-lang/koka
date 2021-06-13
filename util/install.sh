@@ -30,8 +30,12 @@ cleanup_temp_dir() {
   fi
 }
 
-die() {
+err_info() {
   echo "$@" >&2
+}
+
+die() {
+  err_info "$@"
   exit 1
 }
 
@@ -294,13 +298,13 @@ install_dependencies() {
 # actual install
 # ---------------------------------------------------------
 download_failed() { # <program> <url>
-  info ""
-  info "Unable to download: $2"
-  info "  It may be that there is no binary installer available for this platform ($OSARCH)"
-  info "  Either specify another version using the '--version=<version>' flag,"
-  info "  or build Koka from source: <https://github.com/koka-lang/koka/#build-from-source>"
-  info ""
-  die  "$1 download failed."
+  err_info ""
+  err_info "Unable to download: $2"
+  err_info "  It may be that there is no binary installer available for this platform ($OSARCH)"
+  err_info "  Either specify another version using the '--version=<version>' flag,"
+  err_info "  or build Koka from source: <https://github.com/koka-lang/koka/#build-from-source>"
+  err_info ""
+  exit 1
 }
 
 download_dist() {
