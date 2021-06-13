@@ -78,12 +78,12 @@ echo command:
 echo   install-koka.bat [options]
 echo.
 echo options:
-echo  -f, --force              continue without prompting
-echo  -u, --uninstall          uninstall koka (%_KOKA_VERSION%)
-echo  -p, --prefix=^<dir^>       prefix directory (%_KOKA_PREFIX%)
-echo  -b, --bundle=^<file^|url^>  full bundle location (%_KOKA_DIST_SOURCE%)
-echo  --url=^<url^>              download url (%_KOKA_DIST_SOURCE_URL%)
-echo  --version=^<ver^>          version tag (%_KOKA_VERSION%)
+echo   -f, --force              continue without prompting
+echo   -u, --uninstall          uninstall koka (%_KOKA_VERSION%)
+echo   -p, --prefix=^<dir^>       prefix directory (%_KOKA_PREFIX%)
+echo   -b, --bundle=^<file^|url^>  full bundle location (%_KOKA_DIST_SOURCE%)
+echo   --url=^<url^>              download url (%_KOKA_DIST_SOURCE_URL%)
+echo   --version=^<ver^>          version tag (%_KOKA_VERSION%)
 echo.
 goto end
 
@@ -96,8 +96,7 @@ REM ---------------------------------------------------------
 
 set _KOKA_DIST_SOURCE=%TEMP%\koka-%_KOKA_VERSION%-windows.tar.gz
   
-echo Downloading koka %_KOKA_VERSION% binary distribution..
-echo   %_KOKA_DIST_SOURCE_URL%
+echo Downloading: %_KOKA_DIST_SOURCE_URL%
 curl -f -L -o %_KOKA_DIST_SOURCE%  %_KOKA_DIST_SOURCE_URL%
 if errorlevel 1 (
   echo "curl error: %ERRORLEVEL%"
@@ -106,18 +105,22 @@ if errorlevel 1 (
 
 :unpack
 echo.
-echo Installing to: %_KOKA_PREFIX%
+echo Installing to prefix: %_KOKA_PREFIX%
 if not exist %_KOKA_PREFIX% (
   mkdir %_KOKA_PREFIX%
 )
 
-echo Unpacking    : %_KOKA_DIST_SOURCE%
+echo - unpacking..
 tar -xzf %_KOKA_DIST_SOURCE% -C %_KOKA_PREFIX%
 if errorlevel 1 (
-  echo "tar unpacking error: %ERRORLEVEL%"
+  echo "Unpacking error: %ERRORLEVEL%"
   goto end
 )
 
+echo - install pre-compiled libraries to: ^<prefix^>\lib\koka\%_KOKA_VERSION%
+echo - install source libraries to      : ^<prefix^>\share\koka\%_KOKA_VERSION%
+echo - install executable to            : ^<prefix^>\bin\koka.exe
+echo - install symlink to               : ^<prefix^>\bin\koka-%_KOKA_VERSION%.exe
 copy /B /Y "%_KOKA_PREFIX%\bin\koka.exe" "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe" > nul
 
 
@@ -140,7 +143,8 @@ if not errorlevel 1 (
     set /p "_koka_answer=Add Koka binary directory to the user PATH? [Yn] " 
   )
   if /i "%_koka_answer:~,1%" == "N" goto done_env
-  
+
+  echo - add binary directory to the user PATH environment variable.
   powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Environment]::SetEnvironmentVariable('PATH',\""$([Environment]::GetEnvironmentVariable('PATH','User'))\;%_KOKA_PREFIX%\bin\"",'User');"
   if not errorlevel 1 goto done_env
 )
@@ -155,7 +159,7 @@ REM Editor support
 REM ---------------------------------------------------------
 
 if exist "%USERPROFILE%\.atom\packages" (
-  echo Install Atom editor support..
+  echo - install atom editor support
   if not exist "%USERPROFILE%\.atom\packages\language-koka" (
     mkdir "%USERPROFILE%\.atom\packages\language-koka"
   )
@@ -167,7 +171,7 @@ if exist "%USERPROFILE%\.atom\packages" (
 where /Q code
 if errorlevel 1 goto done_vscode
 
-echo Install VS Code editor support..
+echo - install vscode editor support
 code --list-extensions | find "koka-lang.language-koka" > nul
 if not errorlevel 1 (
   echo uninstall vscode ext
@@ -183,6 +187,12 @@ set  "koka_editor=code --goto %%f:%%l:%%c"
 setx koka_editor "code --goto %%f:%%l:%%c" > nul
 
 :done_vscode
+
+where /Q emacs
+if errorlevel 1 goto done_emacs
+echo - emacs syntax mode can be found at: %_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%\contrib\emacs
+
+:done_emacs
 
 REM ---------------------------------------------------------
 REM Uninstall previous version
@@ -203,9 +213,14 @@ if "%_KOKA_FORCE%" NEQ "Y" (
 if /i "%_koka_answer:~,1%" NEQ "Y" goto done_install
 
 :uninstallprev
-echo Uninstall previous koka installation %koka_version%..
-if exist "%_KOKA_PREFIX%\bin\koka-%koka_version%.exe" (del /Q "%_KOKA_PREFIX%\bin\koka-%koka_version%.exe")
+echo Uninstalling previous koka installation %koka_version%..
+if exist "%_KOKA_PREFIX%\bin\koka-%koka_version%.exe" (
+  echo - remove executable            : ^<prefix^>\bin\koka-%koka_version%.exe  
+  del /Q "%_KOKA_PREFIX%\bin\koka-%koka_version%.exe"
+)
+echo - remove pre-compiled libraries: ^<prefix^>\lib\koka\%koka_version%
 rmdir /S /Q "%_KOKA_PREFIX%\lib\koka\%koka_version%"
+echo - remove source libraries      : ^<prefix^>\share\koka\%koka_version%
 rmdir /S /Q "%_KOKA_PREFIX%\share\koka\%koka_version%"
 goto done_install
 
@@ -215,7 +230,7 @@ REM Uninstall
 REM ---------------------------------------------------------
 
 :uninstall
-echo Uninstall koka version %_KOKA_VERSION%
+echo Uninstalling %_KOKA_VERSION% from prefix: %_KOKA_PREFIX%
 
 if not exist "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%" (
   echo Cannot find koka version %_KOKA_VERSION% at %_KOKA_PREFIX%
@@ -223,20 +238,22 @@ if not exist "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%" (
   goto end
 )
 
-echo.
 set _koka_answer=N
 if "%_KOKA_FORCE%" NEQ "Y" (
-  set /p "_koka_answer=Removing koka version %_KOKA_VERSION%, Are you sure? [yN] " 
+  set /p "_koka_answer=Are you sure? [yN] " 
 )
 if /i "%_koka_answer:~,1%" NEQ "Y" goto end
 
-echo Uninstalling..
 if exist "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe" (
+  echo - remove executable            : ^<prefix^>\bin\koka.exe
   fc /LB1 "%_KOKA_PREFIX%\bin\koka.exe" "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe" > nul
   if not errorlevel 1 (del /Q "%_KOKA_PREFIX%\bin\koka.exe")
+  echo - remove executable            : ^<prefix^>\bin\koka-%_KOKA_VERSION%.exe
   del /Q "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe"
 )
+echo - remove pre-compiled libraries: ^<prefix^>\lib\koka\%_KOKA_VERSION%
 rmdir /S /Q "%_KOKA_PREFIX%\lib\koka\%_KOKA_VERSION%"
+echo - remove source libraries      : ^<prefix^>\share\koka\%_KOKA_VERSION%
 rmdir /S /Q "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%"
 
 echo Done.
@@ -317,7 +334,6 @@ echo -----------------------------------------------------------------------
 echo Installed koka %_KOKA_VERSION% to: %_KOKA_PREFIX%\bin\koka
 echo.
 echo Type 'koka' to enter the interactive compiler.
-echo.
 
 :end
 

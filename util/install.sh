@@ -535,7 +535,7 @@ else
   make_temp_dir
   trap cleanup_temp_dir EXIT
   install_dist $PREFIX $VERSION
-  echo "Install successful of koka $VERSION"
+  echo "Install successful."
 
   # remove previous install?
   if [ ! -z "$KOKA_PREV_VERSION" ] && [ ! "$KOKA_PREV_VERSION" = "$VERSION" ] ; then
