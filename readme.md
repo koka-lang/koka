@@ -108,7 +108,7 @@ without problems on most common platforms, e.g. Windows (including WSL), macOS X
 Unix. The following programs are required to build Koka:
 
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
-  (use `> curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS X,
+  (use `$ curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS X,
    and the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows).
 * Optional: install [vcpkg] to be able to link easily with C libraries (for `std/text/regex` for example).  
 * Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
@@ -148,7 +148,7 @@ $ ./vcpkg/bootstrap-vcpkg.sh
 $ export VCPKG_FORCE_SYSTEM_BINARIES=1
 ```
 
-Now it should be possible to build Koka as shown [before](#build-from-source).
+Now it should be possible to build the compiler as shown [before](#build-from-source).
 
 
 ## Create an Install Bundle

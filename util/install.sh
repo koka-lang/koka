@@ -1,7 +1,9 @@
 #!/bin/sh -e
-#Installation script for Koka; use -h to see command line options.
+#----------------------------------------------------------------------
+# Installation script for Koka; use -h to see command line options.
+#----------------------------------------------------------------------
 
-VERSION="v2.1.7"
+VERSION="v2.1.6"
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
@@ -13,9 +15,18 @@ KOKA_DIST_SOURCE=""     # $KOKA_DIST_URL/koka-$VERSION-<os>-<arch>.tar.gz
 KOKA_TEMP_DIR=""        # empty creates one dynamically
 
 
-# ---------------------------------------------------------
-# helper functions
-# ---------------------------------------------------------
+# for tier-2 platforms adjust the default version to latest binary release
+adjust_version() {  # <osarch>
+  case "$1" in
+    linux-arm64)
+      VERSION="v2.1.6";;
+  esac    
+}
+
+
+#---------------------------------------------------------
+# Helper functions
+#---------------------------------------------------------
 
 make_temp_dir() {
   if [ -z "$KOKA_TEMP_DIR" ] ; then
@@ -30,6 +41,12 @@ cleanup_temp_dir() {
   fi
 }
 
+info() {
+  if [ -z "$QUIET" ] ; then
+    echo "$@"
+  fi
+}
+
 err_info() {
   echo "$@" >&2
 }
@@ -37,12 +54,6 @@ err_info() {
 die() {
   err_info "$@"
   exit 1
-}
-
-info() {
-  if [ -z "$QUIET" ] ; then
-    echo "$@"
-  fi
 }
 
 has_cmd() {
@@ -53,69 +64,35 @@ on_path() {
   echo ":$PATH:" | grep -q :"$1":
 }
 
-# ---------------------------------------------------------
-# sudo
-# ---------------------------------------------------------
-USE_SUDO=""    # so only the first sudo forces a prompt.
+#---------------------------------------------------------
+# Detect OS and cpu architecture for download bundle
+#---------------------------------------------------------
 
-sudocmd() {
-  if [ -z "$USE_SUDO" ] ; then
-    # echo "sudo cmd: not set: $USE_SUDO: $@"
-    if command -v sudo >/dev/null; then
-      echo
-      echo "Need to use 'sudo' for further $MODE at $PREFIX"
-      USE_SUDO="always"
-      sudo -k  # -k: Disable cached credentials (force prompt for password).
-    else
-      USE_SUDO="never"
-    fi
-  fi
-  if [ "$USE_SUDO" = "never" ] ; then
-    #echo "sudo cmd: never: $USE_SUDO: $@"
-    "$@"
-  else
-    #echo "sudo cmd: always: $USE_SUDO: $@"
-    sudo "$@"
-  fi
-}
+ARCH="$(uname -m)"
+case "$ARCH" in
+  arm64*|aarch64*)   ARCH="arm64";;
+  arm*)              ARCH="arm";;
+  x86_64*)           ARCH="amd64";;
+  x86*|i[35678]86*)  ARCH="x86";;
+esac
 
-# ---------------------------------------------------------
-# detect OS arch for download bundle
-# ---------------------------------------------------------
+OSARCH="unix-$ARCH"
+case "$(uname)" in
+  [Ll]inux)
+    OSARCH="linux-$ARCH";;
+  [Dd]arwin)
+    OSARCH="osx-$ARCH";;
+  *)
+    info "Warning: unable to detect OS, assuming generic unix";;
+esac
 
-# determines the the CPU's instruction set
-ARCH=""
-OSARCH=""
-COMPILER=""
+# For tier-2 platforms, adjust the default version
+adjust_version $OSARCH
 
-detect_arch() {
-  ARCH="$(uname -m)"
-  case "$ARCH" in
-    arm64*|aarch64*)   ARCH="arm64";;
-    arm*)              ARCH="arm";;
-    x86_64*)           ARCH="amd64";;
-    x86*|i[35678]86*)  ARCH="x86";;
-  esac
-}
 
-detect_osarch() {
-  detect_arch
-  case "$(uname)" in
-    [Ll]inux)
-      OSARCH="linux-$ARCH";;
-    [Dd]arwin)
-      OSARCH="osx-$ARCH";;
-    *)
-      info "Warning: unable to detect os, assuming unix"
-      OSARCH="unix-$ARCH";;
-  esac
-}
-
-detect_osarch   # always detect
-
-# ---------------------------------------------------------
-# arguments
-# ---------------------------------------------------------
+#---------------------------------------------------------
+# Command line options
+#---------------------------------------------------------
 
 while : ; do
   flag="$1"
@@ -171,6 +148,36 @@ if [ -z "$KOKA_DIST_URL" ] ; then
   KOKA_DIST_URL="$KOKA_DIST_BASE_URL/$VERSION"
 fi
 
+if [ -z "$KOKA_DIST_SOURCE" ] ; then
+  KOKA_DIST_SOURCE="$KOKA_DIST_URL/koka-$VERSION-$OSARCH.tar.gz"
+fi
+
+
+# ---------------------------------------------------------
+# sudo
+# ---------------------------------------------------------
+USE_SUDO=""    # so only the first sudo forces a prompt.
+
+sudocmd() {
+  if [ -z "$USE_SUDO" ] ; then
+    # echo "sudo cmd: not set: $USE_SUDO: $@"
+    if command -v sudo >/dev/null; then
+      echo
+      echo "Need to use 'sudo' for further $MODE at $PREFIX"
+      USE_SUDO="always"
+      sudo -k  # -k: Disable cached credentials (force prompt for password).
+    else
+      USE_SUDO="never"
+    fi
+  fi
+  if [ "$USE_SUDO" = "never" ] ; then
+    #echo "sudo cmd: never: $USE_SUDO: $@"
+    "$@"
+  else
+    #echo "sudo cmd: always: $USE_SUDO: $@"
+    sudo "$@"
+  fi
+}
 
 # ---------------------------------------------------------
 # Check for previous koka installation
@@ -191,16 +198,8 @@ if which koka > /dev/null ; then
 fi
 
 
-
-
-if [ -z "$KOKA_DIST_SOURCE" ] ; then
-  detect_osarch
-  KOKA_DIST_SOURCE="$KOKA_DIST_URL/koka-$VERSION-$OSARCH.tar.gz"
-fi
-
-
 # ---------------------------------------------------------
-# various package managers
+# Install required packages
 # ---------------------------------------------------------
 
 apt_get_install() {
@@ -217,49 +216,42 @@ apt_get_install() {
   fi
 }
 
-# Install packages using dnf
 dnf_install() {
   if ! sudocmd dnf install -y ${QUIET:+-q} "$@"; then
     die "\ninstalling dnf packages failed ($@).  Please run 'dnf check-update' and try again."
   fi
 }
 
-# Install package group using dnf
 dnf_groupinstall() {
   if ! sudocmd dnf groupinstall -y ${QUIET:+-q} "$@"; then
     die "\ninstalling dnf package group failed ($@).  Please run 'dnf check-update' and try again."
   fi
 }
 
-# Install package using pacman
 pacman_install() {
   if ! sudocmd pacman -S --noconfirm ${QUIET:+-q} "$@"; then
     die "\ninstalling pacman packages failed ($@).  Please run 'pacman -Sy' and try again."
   fi
 }
 
-# Install packages using yum
 yum_install() {
   if ! sudocmd yum install -y ${QUIET:+-q} "$@"; then
     die "\ninstalling yum packages failed ($@).  Please run 'yum check-update' and try again."
   fi
 }
 
-# Install packages using apk
 apk_install() {
   if ! sudocmd apk add --update ${QUIET:+-q} "$@"; then
     die "\ninstalling apk packages failed ($@).  Please run 'apk update' and try again."
   fi
 }
 
-# Install packages using pkg
 pkg_install() {
   if ! sudocmd pkg install -y "$@"; then
     die "\ninstalling pkg packages failed ($@).  Please run 'pkg update' and try again."
   fi
 }
 
-# Install packages using an available package manager
 install_packages() {
   if has_cmd apt-get ; then
     apt_get_install "$@"
@@ -294,17 +286,17 @@ install_dependencies() {
 }
 
 
-# ---------------------------------------------------------
-# actual install
-# ---------------------------------------------------------
+#---------------------------------------------------------
+# Download distribution
+#---------------------------------------------------------
+
 download_failed() { # <program> <url>
   err_info ""
   err_info "Unable to download: $2"
   err_info "  It may be that there is no binary installer available for this platform ($OSARCH)"
   err_info "  Either specify another version using the '--version=<version>' flag,"
   err_info "  or build Koka from source: <https://github.com/koka-lang/koka/#build-from-source>"
-  err_info ""
-  exit 1
+  die ""
 }
 
 download_dist() {
@@ -329,11 +321,11 @@ download_dist() {
   esac
 }
 
-# -----------------------------------------------------
-# install a distribution
-# install_dist <prefix> <version>
-# -----------------------------------------------------
-install_dist() {
+#-----------------------------------------------------
+# Install a distribution
+#-----------------------------------------------------
+
+install_dist() {  # <prefix> <version>
   # set parameters  
   prefix="$1"
   version="$2"
@@ -423,7 +415,7 @@ install_dist() {
     fi
   fi
   if which "$vscode" > /dev/null ; then
-    info "- install vscode editor support"
+    info "- install vscode editor support ..."
     if "$vscode" --list-extensions | grep "koka-lang.language-koka" > /dev/null ; then
       "$vscode" --uninstall-extension koka-lang.language-koka > /dev/null  # old installation package
     fi
@@ -439,11 +431,11 @@ install_dist() {
 }
 
 
-# ---------------------------------------------------------
-# uninstall <prefix> <version>
-# ---------------------------------------------------------
+#---------------------------------------------------------
+# Uninstall a previous version
+#---------------------------------------------------------
 
-uninstall() {
+uninstall() {  # <prefix> <version>
   # set parameters
   prefix="$1"
   version="$2"
@@ -512,9 +504,9 @@ uninstall() {
   fi
 }
 
-# ---------------------------------------------------------
-# main
-# ---------------------------------------------------------
+#---------------------------------------------------------
+# Main
+#---------------------------------------------------------
 
 if [ "$MODE" = "uninstall" ] ; then
   
@@ -537,7 +529,7 @@ if [ "$MODE" = "uninstall" ] ; then
   info ""
 
 else
-
+  
   # install
   install_dependencies
   make_temp_dir
