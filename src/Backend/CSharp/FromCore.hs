@@ -18,6 +18,7 @@ import Platform.Config(version)
 import Lib.Trace( trace )
 import Control.Applicative hiding (empty)
 import Control.Monad
+import qualified Control.Monad.Fail as F
 import Data.Char( isDigit, isAlphaNum )
 import Data.List( transpose )
 import Lib.PPrint
@@ -1524,7 +1525,7 @@ instance Monad Asm where
                                     (x,st1) -> case f x of
                                                  Asm b -> b env st1)
 
-instance MonadFail Asm where
+instance F.MonadFail Asm where
   fail = failure
 
 runAsm :: Env -> Asm () -> Doc

@@ -14,6 +14,7 @@ module Common.Error( Error, ErrorMessage(..), errorMsg, ok
                    , ppErrorMessage, errorWarning ) where
 
 import Control.Monad
+import Control.Monad.Fail
 import Control.Applicative
 import Lib.PPrint
 import Common.Range

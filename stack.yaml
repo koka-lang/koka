@@ -1,4 +1,4 @@
-resolver: lts-17.10
+resolver: lts-14.27      # or lts-17.10
 packages:
 - '.'
 
@@ -12,5 +12,5 @@ extra-deps:
 flags:
   haskeline:
     terminfo: false
-  regex-posix:
-    _regex-posix-clib: true
+#  regex-posix:
+#    _regex-posix-clib: true

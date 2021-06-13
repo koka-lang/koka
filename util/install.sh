@@ -405,7 +405,7 @@ install_dist() {
   NODE_NO_WARNINGS=1
   vscode="code"
   if ! which "$vscode" > /dev/null ; then
-    if [ "$(uname)" == "Darwin" ] ; then
+    if [ "$(uname)" = "Darwin" ] ; then
       vscode="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" # osx may not have code in the PATH
     fi
   fi

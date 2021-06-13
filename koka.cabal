@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a4c69490a057632cfef608b79961e1b8968e4349134b2ca85f176a10472b472f
+-- hash: bddc2ff1dffc8c2f5db67d6dff8ce8a92af87fffe133c9a915a13971f0c968b2
 
 name:           koka
 version:        2.1.7
@@ -136,7 +136,7 @@ executable koka
       alex
   build-depends:
       array
-    , base >=4.13 && <5
+    , base >=4.12 && <5
     , bytestring
     , cond
     , containers
@@ -163,7 +163,7 @@ test-suite koka-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       array
-    , base >=4.13 && <5
+    , base >=4.12 && <5
     , bytestring
     , cond
     , containers

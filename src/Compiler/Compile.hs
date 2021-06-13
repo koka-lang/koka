@@ -37,6 +37,7 @@ import Data.List              ( isPrefixOf, intersperse )
 import qualified Data.Set as S
 import Control.Applicative
 import Control.Monad          ( ap, when )
+import qualified Control.Monad.Fail as F
 import Common.Failure
 import Lib.Printer            ( withNewFilePrinter )
 import Common.Range           -- ( Range, sourceName )
@@ -149,7 +150,7 @@ instance Monad IOErr where
                                                                    return (addWarnings w err)
                                    Left msg  -> return (errorMsg msg  ))
 
-instance MonadFail IOErr where
+instance F.MonadFail IOErr where
   fail = liftError . fail
 
 

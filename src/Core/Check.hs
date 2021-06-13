@@ -12,6 +12,7 @@
 module Core.Check (checkCore) where
 
 import Control.Monad
+import qualified Control.Monad.Fail as F
 import Control.Applicative
 import Lib.Trace
 import Lib.PPrint
@@ -75,7 +76,7 @@ instance Monad Check where
                                                    Check d -> d u' g
                                       Err doc -> Err doc)
 
-instance MonadFail Check where
+instance F.MonadFail Check where
   fail s        = Check (\u g -> Err (text (show (defName (head (currentDef g)))) <.> colon <+> text s))
 
 instance HasUnique Check where
