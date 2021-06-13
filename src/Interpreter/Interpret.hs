@@ -659,7 +659,7 @@ messageHeader st
     headerVersion = text $ "version " ++ version ++
                            (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", "
                            ++ buildDate ++ targetMsg
-    welcome       = text ("welcome to the " ++ Config.programName ++ " interpreter")
+    welcome       = text ("welcome to the " ++ Config.programName ++ " interactive compiler")
     targetMsg
       = case (target (flags st)) of
           C  -> ", libc " ++ show (8*sizePtr (platform (flags st))) ++ "-bit"
