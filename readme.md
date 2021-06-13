@@ -104,7 +104,7 @@ For other platforms, you need to build the compiler from source.
 # Build from Source
 
 Koka has few dependencies and should build from source
-without problems on most common platforms, e.g. Windows (including WSL), macOS X, and
+without problems on most common platforms, e.g. Windows (including WSL), macOS, and
 Unix. The following programs are required to build Koka:
 
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
