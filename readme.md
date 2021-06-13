@@ -123,7 +123,7 @@ $ stack exec koka
 You can also use `stack build --fast` to build a debug version of the compiler.
 
 
-## Installing Stack/Ghc
+## Installing Stack
 
 On non-x64 platforms (like arm64), the default installation method for `stack` (and `ghc`) may fail.
 The following instructions work for Ubuntu Linux on arm64 (tested on a graviton AWS instance).
