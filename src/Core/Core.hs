@@ -498,32 +498,38 @@ foldExpr f z e = appEndo (foldMapExpr (Endo . f) e) z
 rewriteBottomUp :: (Expr -> Expr) -> Expr -> Expr
 rewriteBottomUp f = runIdentity . rewriteBottomUpM (Identity . f)
 
+bind :: (Monad m) => (a -> m b) -> m a -> m b
+bind = (=<<)
+
 rewriteBottomUpM :: (Monad m) => (Expr -> m Expr) -> Expr -> m Expr
-rewriteBottomUpM f e = case e of 
-  Lam params eff body -> f . Lam params eff =<< f body
-  Var _ _ -> f e
-  App fun xs -> f =<< liftA2 App (f fun) (mapM f xs)
-  TypeLam types body -> f . TypeLam types =<< f body
-  TypeApp expr types -> f . (\fexpr -> TypeApp fexpr types) =<< f expr
-  Con _ _ -> f e
-  Lit _ -> f e
+rewriteBottomUpM f e = f =<< case e of 
+  Lam params eff body -> Lam params eff <$> rec body
+  Var _ _ -> pure e
+  App fun xs -> liftA2 App (rec fun) (mapM rec xs)
+  TypeLam types body -> TypeLam types <$> rec body
+  TypeApp expr types -> (\fexpr -> TypeApp fexpr types) <$> rec expr
+  Con _ _ -> pure e
+  Lit _ -> pure e
   Let binders body -> do
     newBinders <- forM binders $ \binder ->
       case binder of
         DefNonRec def@Def{defExpr = defExpr} -> do 
-          fexpr <- f defExpr
-          pure $ DefNonRec def { defExpr = fexpr }
+          fexpr <- rec defExpr
+          pure $ DefNonRec def { defExpr = fexpr, defType = typeOf fexpr }
         DefRec defs -> fmap DefRec $ forM defs $ \def@Def{defExpr = defExpr} -> do
-          fexpr <- f defExpr
-          pure def{ defExpr = fexpr }
+          fexpr <- rec defExpr
+          pure def{ defExpr = fexpr, defType = typeOf fexpr }
           
-    f . Let newBinders =<< f body
+    Let newBinders <$> rec body
 
-  Case cases branches -> do
-    mcases <- mapM f cases
-    mbranches <- forM branches $ \(Branch patterns guards) ->
-      Branch patterns <$> forM guards (\(Guard e1 e2) -> liftA2 Guard (f e1) (f e2))
-    f $ Case mcases mbranches
+  Case cases branches -> liftA2 Case mcases mbranches
+    where
+      mcases = mapM rec cases
+      mbranches = forM branches $ \(Branch patterns guards) ->
+        Branch patterns <$> forM guards (\(Guard e1 e2) -> liftA2 Guard (rec e1) (rec e2))
+  where
+    rec = bind f . rewriteBottomUpM f
+
 
 data TName = TName Name Type
 
