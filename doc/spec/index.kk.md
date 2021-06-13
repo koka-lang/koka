@@ -236,8 +236,8 @@ After installation, verify if &koka; installed correctly:
      _          _           ____
     | |        | |         |__  \
     | | __ ___ | | __ __ _  __) |
-    | |/ // _ \| |/ // _' || ___/ welcome to the koka interpreter
-    |   <| (_) |   <| (_| ||____| version 2.0.10, Nov 28 2020, libc 64-bit (gcc)
+    | |/ // _ \| |/ // _' || ___/ welcome to the koka interactive compiler
+    |   <| (_) |   <| (_| ||____| version 2.1.7, Jun 12 2021, libc 64-bit (clang-cl)
     |_|\_\\___/|_|\_\\__,_|       type :? for help
 
     loading: std/core
