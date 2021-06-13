@@ -27,6 +27,7 @@ module Compiler.Options( -- * Command line options
 import Data.Char              ( toUpper, isAlpha, isSpace )
 import Data.List              ( intersperse )
 import Control.Monad          ( when )
+import qualified System.Info  ( arch )
 import System.Environment     ( getArgs )
 import System.Directory       ( doesFileExist, getHomeDirectory )
 import Platform.GetOptions
@@ -547,12 +548,13 @@ processOptions flags0 opts
                    -- vcpkg
                    (vcpkgRoot,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)
                    let triplet          = if (not (null (vcpkgTriplet flags))) then vcpkgTriplet flags
-                                            else (if onWindows 
+                                            else tripletArch ++ 
+                                                 (if onWindows 
                                                     then (if (ccName cc `startsWith` "mingw") 
-                                                            then "x64-mingw-static"
-                                                            else "x64-windows-static-md")
-                                                    else if onMacOS then "x64-osx"
-                                                                    else "x64-linux") 
+                                                            then "-mingw-static"
+                                                            else "-windows-static-md")
+                                                    else if onMacOS then "-osx"
+                                                                    else "-linux") 
                        vcpkgInstalled   = (vcpkgRoot) ++ "/installed/" ++ triplet
                        vcpkgIncludeDir  = vcpkgInstalled ++ "/include"
                        vcpkgLibDir      = vcpkgInstalled ++ (if buildType flags <= Debug then "/debug/lib" else "/lib")
@@ -857,6 +859,21 @@ onMacOS
 onWindows :: Bool
 onWindows
   = (exeExtension == ".exe")
+
+tripletArch :: String
+tripletArch 
+  = case cpuArch of
+      "amd64" -> "x64"
+      arch    -> arch 
+
+cpuArch :: String  
+cpuArch
+  = case System.Info.arch of 
+      "aarch64" -> "arm64"
+      "x86_64"  -> "amd64"
+      "i386"    -> "x86"
+      arch      -> arch
+
 
 detectCC :: IO String
 detectCC
