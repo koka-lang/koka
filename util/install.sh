@@ -293,20 +293,29 @@ install_dependencies() {
 # ---------------------------------------------------------
 # actual install
 # ---------------------------------------------------------
+download_failed() { # <program> <url>
+  info ""
+  info "Unable to download: $2"
+  info "  It may be that there is no binary installer available for this platform ($OSARCH)"
+  info "  Either specify another version using the '--version=<version>' flag,"
+  info "  or build Koka from source: <https://github.com/koka-lang/koka/#build-from-source>"
+  info ""
+  die  "$1 download failed."
+}
 
 download_dist() {
   case "$1" in
     ftp://*|http://*|https://*)
       if has_cmd curl ; then
         if ! curl ${QUIET:+-sS} -f -L -o "$2" "$1"; then
-          die "curl download failed: $1"
+          download_failed "curl" $1
         fi
       elif has_cmd wget ; then
         if ! wget ${QUIET:+-q} "-O$2" "$1"; then
-          die "wget download failed: $1"
+          download_failed "wget" $1
         fi
       else
-        die "Neither curl nor wget is available; install one to continue."
+        die "Neither 'curl' nor 'wget' is available; install one to continue."
       fi;;
     *)
       # echo "cp $1 to $2"
