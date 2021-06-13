@@ -62,6 +62,7 @@ To learn more:
 [Perceus]: https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/
 [vsprompt]: https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019
 [winclang]: https://llvm.org/builds
+[vcpkg]: https://github.com/microsoft/vcpkg#getting-started
 
 Enjoy,  
   Daan Leijen
@@ -97,7 +98,7 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 # Install
 
-Koka has [binary installs][install] for x64 Windows, Linux, and macOS.
+Koka has [binary installs][install] for x64 Windows, x64 macOS, and x64/arm64 Linux.
 For other platforms, you need to build the compiler from source.
 
 # Build from Source
@@ -107,7 +108,9 @@ without problems on most common platforms, e.g. Windows (including WSL), macOS X
 Unix. The following programs are required to build Koka:
 
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
-  (use `> curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS X)
+  (use `> curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS X,
+   and the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows).
+* Optional: install [vcpkg] to be able to link easily with C libraries (for `std/text/regex` for example).  
 * Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
 * Optional: On Windows it is recommended to install the [clang][winclang] C compiler, or [Visual Studio](https://visualstudio.microsoft.com/downloads/).
 
@@ -119,6 +122,35 @@ $ stack build
 $ stack exec koka
 ```
 You can also use `stack build --fast` to build a debug version of the compiler.
+
+
+## Building on Linux-arm64
+
+On non-x64 platforms like arm64, it may be harder to set up `stack` (and `ghc`).
+The following instructions work for Ubuntu Linux on arm64 (tested on a graviton AWS instance).
+First install `ghc`, `cabal`, and `stack` as packages:
+```
+$ sudo apt update
+$ sudo apt upgrade
+$ sudo apt install ghc cabal-install haskell-stack
+```
+(tested with `ghc 8.6.5`, `cabal 2.4.0.0`, and `stack 1.9.3.1`).
+
+Next, instruct `stack` to use the `ghc` that we just installed:
+```
+$ stack update
+$ stack config set system-ghc --global true
+```
+
+Optionally, install `vcpkg` as well:
+```
+$ git clone https://github.com/microsoft/vcpkg
+$ ./vcpkg/bootstrap-vcpkg.sh
+$ export VCPKG_FORCE_SYSTEM_BINARIES=1
+```
+
+Now it should be possible to build Koka as shown [before](#build-from-source).
+
 
 ## Create an Install Bundle
 
