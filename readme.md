@@ -107,13 +107,16 @@ Koka has few dependencies and should build from source
 without problems on most common platforms, e.g. Windows (including WSL), macOS, and
 Unix. The following programs are required to build Koka:
 
-* [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
-  (use `$ curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows).
-* Optional: install [vcpkg] to be able to link easily with C libraries (for `std/text/regex` for example).  
+* [Stack](https://docs.haskellstack.org/) to run the Haskell compiler. Use  
+  `$ curl -sSL https://get.haskellstack.org/ | sh`  
+  on Unix and macOS, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
+* Optional: install [vcpkg] to be able to link easily with C libraries (for `std/text/regex` for example):  
+  `$ git clone https://github.com/microsoft/vcpkg`  
+  `$ ./vcpkg/bootstrap-vcpkg.sh` (or `$ .\vcpkg\bootstrap-vcpkg.bat` on Windows)
 * Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
-* Optional: On Windows it is recommended to install the [clang][winclang] C compiler, or [Visual Studio](https://visualstudio.microsoft.com/downloads/).
+* Optional: on Windows it is recommended to install the [clang][winclang] C compiler, or the [Visual Studio](https://visualstudio.microsoft.com/downloads/) C compiler.
 
-Build the compiler (note the `--recursive` flag):
+Now clone the repository an build the compiler (note the `--recursive` flag):
 ```
 $ git clone --recursive https://github.com/koka-lang/koka
 $ cd koka
@@ -129,10 +132,10 @@ On less common platforms (like `arm64`), the default installation method for `st
 The following instructions work for Ubuntu Linux on arm64 (tested on a graviton2 AWS instance with Ubuntu 20.04).
 First install `ghc`, `cabal`, and `stack` as packages:
 ```
+$ sudo apt update
 $ sudo apt install ghc cabal-install haskell-stack
 $ stack update
 ```
-(tested with `ghc 8.6.5`, `cabal 2.4.0.0`, and `stack 1.9.3.1`).
 Optionally, install `vcpkg` as well:
 ```
 $ git clone https://github.com/microsoft/vcpkg
