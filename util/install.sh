@@ -166,7 +166,7 @@ sudocmd() {
     # echo "sudo cmd: not set: $USE_SUDO: $@"
     if command -v sudo >/dev/null; then
       echo
-      echo "Need to use 'sudo' for further $MODE at $PREFIX"
+      echo "Need to use 'sudo' for further $MODE at: $PREFIX"
       USE_SUDO="always"
       sudo -k  # -k: Disable cached credentials (force prompt for password).
     else
@@ -306,11 +306,11 @@ download_dist() {
   case "$1" in
     ftp://*|http://*|https://*)
       if has_cmd curl ; then
-        if ! curl ${QUIET:+-sS} -f -L -o "$2" "$1"; then
+        if ! curl ${QUIET:+-sS} --proto =https --tlsv1.2 -f -L -o "$2" "$1"; then
           download_failed "curl" $1
         fi
       elif has_cmd wget ; then
-        if ! wget ${QUIET:+-q} "-O$2" "$1"; then
+        if ! wget ${QUIET:+-q} --https-only "-O$2" "$1"; then
           download_failed "wget" $1
         fi
       else

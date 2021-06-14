@@ -97,7 +97,7 @@ REM ---------------------------------------------------------
 set _KOKA_DIST_SOURCE=%TEMP%\koka-%_KOKA_VERSION%-windows.tar.gz
   
 echo Downloading: %_KOKA_DIST_SOURCE_URL%
-curl -f -L -o %_KOKA_DIST_SOURCE%  %_KOKA_DIST_SOURCE_URL%
+curl --proto =https --tlsv1.2 -f -L -o %_KOKA_DIST_SOURCE%  %_KOKA_DIST_SOURCE_URL%
 if errorlevel 1 (
   echo "curl error: %ERRORLEVEL%"
   goto end
@@ -272,11 +272,11 @@ setx koka_version %_KOKA_VERSION% >nul
 
 
 REM ---------------------------------------------------------
-REM Install Clang if needed
+REM Install clang if needed
 REM ---------------------------------------------------------
 
 where /q clang-cl
-if not errorlevel 1 goto done_clang
+REM if not errorlevel 1 goto done_clang
 
 echo.
 echo -----------------------------------------------------------------------
@@ -285,7 +285,7 @@ echo A C compiler is required for Koka to function.
 
 set _koka_answer=Y
 if "%_KOKA_FORCE%" NEQ "Y" (
-  set /p "_koka_answer=Would you like to download and install Clang %_CLANG_VERSION% for Windows? [Yn] " 
+  set /p "_koka_answer=Would you like to download and install clang %_CLANG_VERSION% for Windows? [Yn] " 
 )
 if /i "%_koka_answer:~,1%" NEQ "Y" (
   echo Canceled automatic install.
@@ -294,13 +294,14 @@ if /i "%_koka_answer:~,1%" NEQ "Y" (
 )
 
 echo.
-echo Downloading Clang from: 
+echo Downloading clang over https from: 
 echo  %_CLANG_INSTALL_URL%
-curl -f -L -o "%_CLANG_INSTALL%" "%_CLANG_INSTALL_URL%"
+curl --proto =https --tlsv1.2 -f -L -o "%_CLANG_INSTALL%" "%_CLANG_INSTALL_URL%"
 if errorlevel 1 goto clang_showurl
 
 if "%_CLANG_INSTALL_SHA256%" NEQ "" (
   echo Verifying sha256 hash ...
+  timeout /T 1 > nul  
   CertUtil -hashfile "%_CLANG_INSTALL%" sha256 | find "%_CLANG_INSTALL_SHA256%" > nul
   if errorlevel 1 (
     echo Installation of %_CLANG_INSTALL% is canceled as it does not match the
@@ -309,10 +310,11 @@ if "%_CLANG_INSTALL_SHA256%" NEQ "" (
     goto clang_showurl
   )
   echo Ok.
+  timeout /T 1 > nul  
 )
 
 echo.
-echo Installing Clang ...   (%_CLANG_INSTALL%)
+echo Installing clang ...   (%_CLANG_INSTALL%)
 "%_CLANG_INSTALL%"
 if not errorlevel 1 (
   set "PATH=%PATH%;C:\Program Files\LLVM\bin"
@@ -321,7 +323,7 @@ del /Q "%_CLANG_INSTALL%"
 goto done_clang
 
 :clang_showurl
-echo Please install the Clang for Windows manually from: https://llvm.org/builds
+echo Please install clang for Windows manually from: https://llvm.org/builds
 
 :done_clang
 
