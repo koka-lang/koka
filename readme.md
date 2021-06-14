@@ -98,7 +98,7 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 # Install
 
-Koka has [binary installers][install] for Windows (x64), macOS (x64), and Linux (x64/arm64).
+Koka has [binary installers][install] for Windows (x64), macOS (x64), and Linux (x64,arm64).
 For other platforms, you need to build the compiler from source.
 
 # Build from Source
@@ -107,16 +107,16 @@ Koka has few dependencies and should build from source
 without problems on most common platforms, e.g. Windows (including WSL), macOS, and
 Unix. The following programs are required to build Koka:
 
-* [Stack](https://docs.haskellstack.org/) to run the Haskell compiler. Use  
-  `$ curl -sSL https://get.haskellstack.org/ | sh`  
-  on Unix and macOS, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
-* Optional: install [vcpkg] to be able to link easily with C libraries (for `std/text/regex` for example):  
-  `$ git clone https://github.com/microsoft/vcpkg`  
-  `$ ./vcpkg/bootstrap-vcpkg.sh` (or `$ .\vcpkg\bootstrap-vcpkg.bat` on Windows)
-* Optional: the [NodeJS](http://nodejs.org) runtime if using the Javascript backend.
-* Optional: on Windows it is recommended to install the [clang][winclang] C compiler, or the [Visual Studio](https://visualstudio.microsoft.com/downloads/) C compiler.
+* [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
+  Use `$ curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
+* Optional components: 
+  - [vcpkg] to be able to link easily with C libraries (for `std/text/regex` for example):  
+    `$ git clone https://github.com/microsoft/vcpkg`  
+    `$ ./vcpkg/bootstrap-vcpkg.sh`   (or `$ .\vcpkg\bootstrap-vcpkg.bat` on Windows)
+  - [nodejs](http://nodejs.org) if using the Javascript backend.
+  - On Windows it is recommended to install the [clang][winclang] C compiler, or the [Visual Studio](https://visualstudio.microsoft.com/downloads/) C compiler.
 
-Now clone the repository an build the compiler (note the `--recursive` flag):
+Now clone the repository and build the compiler (note the `--recursive` flag):
 ```
 $ git clone --recursive https://github.com/koka-lang/koka
 $ cd koka
