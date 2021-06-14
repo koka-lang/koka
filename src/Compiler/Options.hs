@@ -161,6 +161,7 @@ data Flags
          , parcReuseSpec    :: Bool
          , asan             :: Bool
          , useStdAlloc      :: Bool -- don't use mimalloc for better asan and valgrind support
+         , optSpecialize    :: Bool
          }
 
 flagsNull :: Flags
@@ -241,6 +242,7 @@ flagsNull
           True -- parc reuse specialize
           False -- use asan
           False -- use stdalloc
+          True  -- use specialization
 
 isHelp Help = True
 isHelp _    = False
@@ -332,6 +334,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fflag       ["parcrspec"] (\b f -> f{parcReuseSpec=b})     "enable reuse specialization"
  , hide $ fflag       ["optctail"]  (\b f -> f{optctail=b})          "enable con-tail optimization (TRMC)"
  , hide $ fflag       ["optctailinline"]  (\b f -> f{optctailInline=b})  "enable con-tail inlining (increases code size)"
+ , hide $ fflag       ["specialize"]  (\b f -> f{optSpecialize=b})      "enable inline specialization"
 
  -- deprecated
  , hide $ option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"
@@ -531,6 +534,7 @@ processOptions flags0 opts
                         else if (any isInteractive options) then ModeInteractive files
                         else if (null files) then ModeInteractive files
                                              else ModeCompiler files
+                 spec = if (optimize flags < 0) then False else (optSpecialize flags)
              in do ed   <- if (null (editor flags))
                             then detectEditor 
                             else return (editor flags)
@@ -565,7 +569,9 @@ processOptions flags0 opts
                                   localDir    = localDir,
                                   localLibDir = localLibDir,
                                   localShareDir = localShareDir,
-                                  
+
+                                  optSpecialize  = spec,
+
                                   ccompPath   = ccmd,
                                   ccomp       = cc,
                                   ccompDefs   = cdefs,
