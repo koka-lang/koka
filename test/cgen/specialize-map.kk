@@ -1,7 +1,7 @@
 fun map-int(xs : list<int>, f : int -> int) : list<int> {
   match (xs) {
-    Cons(x, xx) -> Cons(x.f, xx.map-int(f))
     Nil -> Nil
+    Cons(x, xx) -> Cons(x.f, xx.map-int(f))    
   }
 }
 
