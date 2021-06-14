@@ -284,7 +284,12 @@ install_dependencies() {
   elif has_cmd pacman; then
     pacman_install base-devel $deps
   else
-    info "Unable to install dependencies; continuing.."
+    case "$OSARCH" in
+      osx-*)  
+        ;;  # osx already has all dependencies pre-installed
+      *)
+        info "Unable to install dependencies; continuing..";;
+    esac
   fi
 }
 
