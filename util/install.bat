@@ -276,7 +276,7 @@ REM Install clang if needed
 REM ---------------------------------------------------------
 
 where /q clang-cl
-REM if not errorlevel 1 goto done_clang
+if not errorlevel 1 goto done_clang
 
 echo.
 echo -----------------------------------------------------------------------
