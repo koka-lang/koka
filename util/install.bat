@@ -11,11 +11,11 @@ set _KOKA_FORCE=N
 set _KOKA_DIST_SOURCE=
 set _KOKA_DIST_SOURCE_URL=
 
-set _CLANG_VERSION=11.0.0
+set _CLANG_VERSION=12.0.0
 set _CLANG_INSTALL_BASE=LLVM-%_CLANG_VERSION%-win64.exe
 set _CLANG_INSTALL=%TEMP%\%_CLANG_INSTALL_BASE%
 set _CLANG_INSTALL_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-%_CLANG_VERSION%/%_CLANG_INSTALL_BASE%
-set _CLANG_INSTALL_SHA256=a773ee3519ecc8d68d91f0ec72ee939cbed8ded483ba8e10899dc19bccba1e22
+set _CLANG_INSTALL_SHA256=8426d57f2af2bf07f80014bfd359e87ed10f5521a236a10cfe9fc4870d1b1b25
 
 :argparse
 if "%~1" == "" goto done_args
