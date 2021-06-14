@@ -10,6 +10,7 @@ set _KOKA_HELP=N
 set _KOKA_FORCE=N
 set _KOKA_DIST_SOURCE=
 set _KOKA_DIST_SOURCE_URL=
+set _KOKA_IEXPRESS=N
 
 set _CLANG_VERSION=12.0.0
 set _CLANG_INSTALL_BASE=LLVM-%_CLANG_VERSION%-win64.exe
@@ -43,13 +44,17 @@ if "%~1" == "" goto done_args
     set _KOKA_FORCE=Y
     goto boolflag
   )
+  if "%~1" == "--iexpress" (
+    set _KOKA_IEXPRESS=Y
+    goto boolflag
+  )
   if "%~1" == "-v"        (set _KOKA_VERSION=%2)
   if "%~1" == "--version" (set _KOKA_VERSION=%2)
   if "%~1" == "-p"        (set _KOKA_PREFIX=%2)
   if "%~1" == "--prefix"  (set _KOKA_PREFIX=%2)
   if "%~1" == "-b"        (set _KOKA_DIST_SOURCE=%2)
   if "%~1" == "--bundle"  (set _KOKA_DIST_SOURCE=%2)
-  if "%~1" == "--url"     (set _KOKA_DIST_SOURCE_URL=%2)
+  if "%~1" == "--url"     (set _KOKA_DIST_SOURCE_URL=%2)  
 shift
 :boolflag
 shift
@@ -335,7 +340,13 @@ echo.
 echo -----------------------------------------------------------------------
 echo Installed koka %_KOKA_VERSION% to: %_KOKA_PREFIX%\bin\koka
 echo.
-echo Type 'koka' to enter the interactive compiler.
+
+if "%_KOKA_IEXPRESS%" == "Y" (
+  set /p "_koka_answer=Press <enter> to finish installation.." 
+) else (
+  echo Type 'koka' to enter the interactive compiler.
+)
+echo.
 
 :end
 
@@ -352,3 +363,7 @@ set _CLANG_INSTALL_BASE=
 set _CLANG_INSTALL=
 set _CLANG_INSTALL_URL=
 set _CLANG_INSTALL_SHA256=
+set _koka_answer=
+set _KOKA_IEXPRESS=
+
+
