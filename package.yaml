@@ -11,7 +11,7 @@ extra-source-files:
 description: Please see the README on GitHub at <https://github.com/koka-lang/koka#readme>
 
 dependencies:
-  - base >= 4.12 && < 5
+  - base >= 4.12
   - array
   - bytestring
   - cond
@@ -69,6 +69,6 @@ tests:
       - hspec
       - hspec-core
       - process
-      - regex-compat
+      - regex-compat-tdfa
       - json
 

@@ -8,7 +8,7 @@
 
 module Backend.C.FromCore ( cFromCore ) where
 
-import Numeric( showHFloat )
+import Platform.Runtime( showHFloat )
 import Platform.Config(version)
 import Lib.Trace
 import Control.Applicative hiding (empty)

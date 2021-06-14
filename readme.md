@@ -125,35 +125,37 @@ You can also use `stack build --fast` to build a debug version of the compiler.
 
 ## Installing Stack
 
-On non-x64 platforms (like arm64), the default installation method for `stack` (and `ghc`) may fail.
-The following instructions work for Ubuntu Linux on arm64 (tested on a graviton AWS instance).
+On less common platforms (like `arm64`), the default installation method for `stack` (and `ghc`) may fail.
+The following instructions work for Ubuntu Linux on arm64 (tested on a graviton2 AWS instance with Ubuntu 20.04).
 First install `ghc`, `cabal`, and `stack` as packages:
 ```
-$ sudo apt update
-$ sudo apt upgrade
 $ sudo apt install ghc cabal-install haskell-stack
-```
-(tested with `ghc 8.6.5`, `cabal 2.4.0.0`, and `stack 1.9.3.1`).  
-Next, instruct `stack` to use the `ghc` that we just installed:
-```
 $ stack update
-$ stack config set system-ghc --global true
 ```
-
+(tested with `ghc 8.6.5`, `cabal 2.4.0.0`, and `stack 1.9.3.1`).
 Optionally, install `vcpkg` as well:
 ```
 $ git clone https://github.com/microsoft/vcpkg
 $ ./vcpkg/bootstrap-vcpkg.sh
 $ export VCPKG_FORCE_SYSTEM_BINARIES=1
 ```
-
-Now it should be possible to build the compiler as shown [before](#build-from-source).
-
+We can now build the Koka compiler by explicitly using the system
+ghc, and giving an older
+[resolver](https://www.stackage.org/) that matches our ghc version:
+```
+$ git clone --recursive https://github.com/koka-lang/koka
+$ cd koka
+$ stack --resolver lts-14.27 --system-ghc build
+$ stack --resolver lts-14.27 --system-ghc exec koka
+```
+Instead of specifying this on the command line, 
+you can also set the resolver explicitly in the `stack.yaml` file
+and uncomment the line `system-ghc: true`.
 
 ## Create an Install Bundle
 
-You can also build a binary install bundle yourself, and install
-that locally. The `util/bundle.kk` script creates a local distribution:
+Koka can generate a binary install bundle that can be installed
+on the local machine:
 ```
 $ stack exec koka -- util/bundle
 ...
@@ -164,20 +166,20 @@ distribution bundle created.
 ```
 This takes a while as it pre-compiles the standard libraries in three build
 variants (`debug`, `drelease` (release with debug info), and `release`).
-After generating the bundle, it can be installed locally as:
+After generating the bundle, you can install it locally as:
 ```
 $ util/install.sh -b dist/koka-v2.0.9-linux-amd64.tar.gz
 ```
-(use `util/install.bat` on Windows). After installation, you can now directly invoke `koka`:
-
+(use `util/install.bat` on Windows). 
+After installation, you can now directly invoke `koka`:
 ```
 $ koka --version
 ```
 Koka is by default installed for the current user in `<prefix>/bin/koka`,
 (with architecture specific files under `<prefix>/lib/koka/v2.x.x`
 and libraries and samples under `<prefix>/share/koka/v2.x.x`).
-On Windows the default prefix is `%APPDATA%\local` which is also
-used by `stack`.
+On Windows the default prefix is `%APPDATA%\local` (which is also
+used by `stack`).
 
 
 # Benchmarks

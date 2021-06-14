@@ -1,16 +1,29 @@
-resolver: lts-14.27      # or lts-17.10
+# Build as: $ stack build
+#
+# Note: on Linux arm64 stack may fail. Install the build tools as a package:
+# $ sudo apt install ghc cabal-install haskell-stack
+# and invoke stack with an older resolver that matches the system ghc version:
+# $ stack --resolver lts-14 --system-ghc   # ubuntu 20, ghc 8.6.5
+
+resolver: lts-17.15   
+# resolver: lts-14.27           # ghc 8.6.5
+# resolver: lts-9.21            # ghc 8.0.2
+# system-ghc: true              # uncomment to use the system installed GHC
+
 packages:
 - '.'
 
 extra-deps:
 - stylish-haskell-0.11.0.0
 - hlint-2.1.26
-- haskeline-0.8.1.0
-- regex-posix-clib-2.7   # only for testing
 - json-0.10
+- haskeline-0.7.5.0             # version >= 8 stops building with lts-9
+- cond-0.4.1.1                  # only needed for lts < 14
+- regex-compat-tdfa-0.95.1.4    # only needed for testing
 
 flags:
   haskeline:
     terminfo: false
-#  regex-posix:
-#    _regex-posix-clib: true
+
+rebuild-ghc-options: true
+allow-newer: true

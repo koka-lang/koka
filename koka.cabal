@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4bd25cea02500443d316886532e3b450053ff042238ddc11940857e8332a6beb
+-- hash: d3512026f9186864794dcaba859710097a6abe6562bd2ee99736c39c2ee6467a
 
 name:           koka
 version:        2.1.7
@@ -138,7 +138,7 @@ executable koka
       alex
   build-depends:
       array
-    , base >=4.12 && <5
+    , base >=4.12
     , bytestring
     , cond
     , containers
@@ -165,7 +165,7 @@ test-suite koka-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       array
-    , base >=4.12 && <5
+    , base >=4.12
     , bytestring
     , cond
     , containers
@@ -179,7 +179,7 @@ test-suite koka-test
     , mtl
     , parsec
     , process
-    , regex-compat
+    , regex-compat-tdfa
     , text
     , time
   default-language: Haskell2010
