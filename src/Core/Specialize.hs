@@ -134,9 +134,10 @@ specInnerCalls from to bools = rewriteBottomUp $ \e -> case e of
 replaceCall :: Name -> Expr -> [Bool] -> [Expr] -> SpecM Expr
 replaceCall name expr bools args = do
   -- ruExpr doesn't let me use DefRec here but it probably should be
-  pure $ Let [DefNonRec specDef] (App (Var (defTName specDef) InfoNone) newArgs)
+  pure $ Let [DefRec [specDef]] (App (Var (defTName specDef) InfoNone) newArgs)
   where
-    specDef = Def (genSpecName name bools) specType specBody Private DefFun InlineAuto rangeNull $ "// specialized " <> show name <> " to parameters " <> " TODO "
+    specDef = Def (genSpecName name bools) specType specBody Private DefFun InlineAuto rangeNull 
+              $ "// specialized " <> show name <> " to parameters " <> " TODO "
     -- there's some knot-tying here: we need to know the type of the specialized fn to replace recursive calls with the specialized version, and the new body also influences the specialized type
     specBody = Lam newParams (fnEffect expr) $ Let [DefNonRec $ Def param typ arg Private DefVal InlineAuto rangeNull "" | (TName param typ, arg) <- zip speccedParams speccedArgs]
       $ specInnerCalls (TName name $ typeOf expr) (defTName specDef) (not <$> bools)

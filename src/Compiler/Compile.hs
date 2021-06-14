@@ -874,14 +874,9 @@ inferCheck loaded flags line coreImports program1
 
        -- traceDefGroups "unreturn" coreDefsUR
 
-       -- lifting recursive functions to top level
-       let (coreDefsLifted,uniqueLift) = liftFunctions penv unique4 coreDefsUR
-       when (coreCheck flags) $ -- trace "lift functions core check" $
-                                Core.Check.checkCore True True penv uniqueLift gamma coreDefsLifted
-
        -- simplify core
        let ndebug = optimize flags > 0
-           (coreDefsSimp0,uniqueSimp0) = simplifyDefs False ndebug (simplify flags) (0) uniqueLift penv coreDefsLifted
+           (coreDefsSimp0,uniqueSimp0) = simplifyDefs False ndebug (simplify flags) (0) unique4 penv coreDefsUR
 
        -- traceDefGroups "lifted" coreDefsSimp0
 
@@ -889,21 +884,28 @@ inferCheck loaded flags line coreImports program1
        traceM "Spec defs:"
        traceM (show specEnv)
 
-       let (specializedDefs, uniqueSpec) 
+       let (coreDefsSpec, uniqueSpec) 
             = if (optSpecialize flags)
                 then specialize penv uniqueSimp0 specEnv coreDefsSimp0
                 else (coreDefsSimp0, uniqueSimp0)
 
-       traceShowM specializedDefs
-       mapM (Core.mapMDefGroup (\x -> traceShowM (Core.defName x) >> traceShowM (Core.defExpr x) >> pure x)) specializedDefs
+       -- traceShowM coreDefsSpec
+       -- mapM (Core.mapMDefGroup (\x -> traceShowM (Core.defName x) >> traceShowM (Core.defExpr x) >> pure x)) coreDefsSpec
             
-       -- traceShowM (Data.Map.size $ extractSpecializeDefs coreDefsSimp0)
+       -- lifting recursive functions to top level
+       let (coreDefsLifted0,uniqueLifted0) = liftFunctions penv uniqueSpec coreDefsSpec
+       when (coreCheck flags) $ -- trace "lift functions core check" $
+                                Core.Check.checkCore True True penv uniqueLifted0 gamma coreDefsLifted0
+
+       let (coreDefsLifted,uniqueLifted) = simplifyDefs False ndebug (simplify flags) (0) uniqueLifted0 penv coreDefsLifted0
+
+       traceDefGroups "lifted" coreDefsLifted
 
        -- constructor tail optimization
        let (coreDefsCTail,uniqueCTail)
                   = if (optctail flags)
-                     then ctailOptimize penv (platform flags) newtypes gamma (optctailInline flags) specializedDefs uniqueSpec
-                     else (specializedDefs, uniqueSpec)
+                     then ctailOptimize penv (platform flags) newtypes gamma (optctailInline flags) coreDefsLifted uniqueLifted
+                     else (coreDefsLifted, uniqueLifted)
 
        -- traceDefGroups "ctail" coreDefsCTail
 
