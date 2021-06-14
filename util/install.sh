@@ -1,19 +1,20 @@
 #!/bin/sh -e
-#----------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------
 # Installation script for Koka; use -h to see command line options.
-#----------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 
 VERSION="v2.1.6"
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
 FORCE=""
+OSARCH=""
 
 KOKA_DIST_BASE_URL="https://github.com/koka-lang/koka/releases/download"
 KOKA_DIST_URL=""        # $KOKA_DIST_BASE_URL/$VERSION
 KOKA_DIST_SOURCE=""     # $KOKA_DIST_URL/koka-$VERSION-<os>-<arch>.tar.gz
 KOKA_TEMP_DIR=""        # empty creates one dynamically
-
 
 # for tier-2 platforms adjust the default version to latest binary release
 adjust_version() {  # <osarch>
@@ -52,7 +53,7 @@ err_info() {
 }
 
 die() {
-  err_info "$@"
+  err_info $@
   exit 1
 }
 
@@ -68,93 +69,97 @@ on_path() {
 # Detect OS and cpu architecture for download bundle
 #---------------------------------------------------------
 
-ARCH="$(uname -m)"
-case "$ARCH" in
-  arm64*|aarch64*)   ARCH="arm64";;
-  arm*)              ARCH="arm";;
-  x86_64*)           ARCH="amd64";;
-  x86*|i[35678]86*)  ARCH="x86";;
-esac
+detect_osarch() {
+  arch="$(uname -m)"
+  case "$arch" in
+    arm64*|aarch64*)   arch="arm64";;
+    arm*)              arch="arm";;
+    x86_64*)           arch="amd64";;
+    x86*|i[35678]86*)  arch="x86";;
+  esac
 
-OSARCH="unix-$ARCH"
-case "$(uname)" in
-  [Ll]inux)
-    OSARCH="linux-$ARCH";;
-  [Dd]arwin)
-    OSARCH="osx-$ARCH";;
-  *)
-    info "Warning: unable to detect OS, assuming generic unix";;
-esac
+  OSARCH="unix-$arch"
+  case "$(uname)" in
+    [Ll]inux)
+      OSARCH="linux-$arch";;
+    [Dd]arwin)
+      OSARCH="osx-$arch";;
+    *)
+      info "Warning: unable to detect OS, assuming generic unix";;
+  esac
 
-# For tier-2 platforms, adjust the default version
-adjust_version $OSARCH
+  # For tier-2 platforms, adjust the default version
+  adjust_version $OSARCH
+}
 
 
 #---------------------------------------------------------
 # Command line options
 #---------------------------------------------------------
 
-while : ; do
-  flag="$1"
-  case "$flag" in
-  *=*)  flag_arg="${flag#*=}";;
-  *)    flag_arg="yes" ;;
-  esac
-  # echo "option: $flag, arg: $flag_arg"
-  case "$flag" in
-    "") break;;
-    -q|--quiet)
-        QUIET="yes";;
-    -f|--force)
-        FORCE="yes";;    
-    -p) shift
-        PREFIX="$1";;
-    -p=*|--prefix=*)
-        PREFIX="$flag_arg";;
-    -u=*|--url=*)
-        KOKA_DIST_URL="$flag_arg";;
-    -b) shift
-        KOKA_DIST_SOURCE="$1";;
-    -b=*|--bundle=*)
-        KOKA_DIST_SOURCE="$flag_arg";;
-    -v) shift
-        VERSION="$1";;
-    -v=*|--version=*)
-        VERSION="$flag_arg";;
-    -u)
-        MODE="uninstall";;    
-    --uninstall)
-        FORCE="yes"
-        MODE="uninstall";;
-    -h|--help|-\?|help|\?)
-        echo "command:"
-        echo "  ./install.sh [options]"
-        echo ""
-        echo "options:"
-        echo "  -q, --quiet              suppress output"
-        echo "  -f, --force              continue without prompting"
-        echo "  -u, --uninstall          uninstall koka ($VERSION)"
-        echo "  -p, --prefix=<dir>       prefix directory ($PREFIX)"
-        echo "  -b, --bundle=<file|url>  full bundle location (.../koka-$VERSION-$OSARCH.tar.gz)"
-        echo "      --version=<ver>      version tag ($VERSION)"
-        echo "      --url=<url>          download url"
-        echo "                           ($KOKA_DIST_BASE_URL/$VERSION)"
-        echo ""
-        exit 0;;
-    *) echo "warning: unknown option \"$1\"." 1>&2
-  esac
-  shift
-done
+process_options() {
+  while : ; do
+    flag="$1"
+    case "$flag" in
+    *=*)  flag_arg="${flag#*=}";;
+    *)    flag_arg="yes" ;;
+    esac
+    # echo "option: $flag, arg: $flag_arg"
+    case "$flag" in
+      "") break;;
+      -q|--quiet)
+          QUIET="yes";;
+      -f|--force)
+          FORCE="yes";;    
+      -p) shift
+          PREFIX="$1";;
+      -p=*|--prefix=*)
+          PREFIX="$flag_arg";;
+      -u=*|--url=*)
+          KOKA_DIST_URL="$flag_arg";;
+      -b) shift
+          KOKA_DIST_SOURCE="$1";;
+      -b=*|--bundle=*)
+          KOKA_DIST_SOURCE="$flag_arg";;
+      -v) shift
+          VERSION="$1";;
+      -v=*|--version=*)
+          VERSION="$flag_arg";;
+      -u)
+          MODE="uninstall"
+          echo "mode = $MODE";;    
+      --uninstall)
+          FORCE="yes"
+          MODE="uninstall";;
+      -h|--help|-\?|help|\?)
+          echo "command:"
+          echo "  ./install.sh [options]"
+          echo ""
+          echo "options:"
+          echo "  -q, --quiet              suppress output"
+          echo "  -f, --force              continue without prompting"
+          echo "  -u, --uninstall          uninstall koka ($VERSION)"
+          echo "  -p, --prefix=<dir>       prefix directory ($PREFIX)"
+          echo "  -b, --bundle=<file|url>  full bundle location (.../koka-$VERSION-$OSARCH.tar.gz)"
+          echo "      --version=<ver>      version tag ($VERSION)"
+          echo "      --url=<url>          download url"
+          echo "                           ($KOKA_DIST_BASE_URL/$VERSION)"
+          echo ""
+          exit 0;;
+      *) echo "warning: unknown option \"$1\"." 1>&2
+    esac
+    shift
+  done
 
-# initialize distribution url
-if [ -z "$KOKA_DIST_URL" ] ; then
-  KOKA_DIST_URL="$KOKA_DIST_BASE_URL/$VERSION"
-fi
+  # initialize distribution url
+  if [ -z "$KOKA_DIST_URL" ] ; then
+    KOKA_DIST_URL="$KOKA_DIST_BASE_URL/$VERSION"
+  fi
 
-if [ -z "$KOKA_DIST_SOURCE" ] ; then
-  KOKA_DIST_SOURCE="$KOKA_DIST_URL/koka-$VERSION-$OSARCH.tar.gz"
-fi
-
+  if [ -z "$KOKA_DIST_SOURCE" ] ; then
+    KOKA_DIST_SOURCE="$KOKA_DIST_URL/koka-$VERSION-$OSARCH.tar.gz"
+  fi
+}
 
 # ---------------------------------------------------------
 # sudo
@@ -189,17 +194,19 @@ sudocmd() {
 KOKA_PREV_EXE=
 KOKA_PREV_VERSION=
 KOKA_PREV_PREFIX=
-if which koka > /dev/null ; then
-  KOKA_PREV_EXE="$(which koka)"
-  if [ -e "$KOKA_PREV_EXE" ] ; then 
-    KOKA_PREV_PREFIX="${KOKA_PREV_EXE%/bin/koka*}"
-    KOKA_PREV_VERSION="$($KOKA_PREV_EXE --version)"  # get version info
-    KOKA_PREV_VERSION="${KOKA_PREV_VERSION%%,*}"     # remove everything after the first ,
-    KOKA_PREV_VERSION="v${KOKA_PREV_VERSION#Koka }"  # remove Koka prefix 
-    # echo "found previous koka version $KOKA_PREV_VERSION (installed at: $KOKA_PREV_PREFIX)"
-  fi
-fi
 
+detect_previous_install() {
+  if which koka > /dev/null ; then
+    KOKA_PREV_EXE="$(which koka)"
+    if [ -e "$KOKA_PREV_EXE" ] ; then 
+      KOKA_PREV_PREFIX="${KOKA_PREV_EXE%/bin/koka*}"
+      KOKA_PREV_VERSION="$($KOKA_PREV_EXE --version)"  # get version info
+      KOKA_PREV_VERSION="${KOKA_PREV_VERSION%%,*}"     # remove everything after the first ,
+      KOKA_PREV_VERSION="v${KOKA_PREV_VERSION#Koka }"  # remove Koka prefix 
+      # echo "found previous koka version $KOKA_PREV_VERSION (installed at: $KOKA_PREV_PREFIX)"
+    fi
+  fi
+}
 
 # ---------------------------------------------------------
 # Install required packages
@@ -208,7 +215,7 @@ fi
 apt_get_install() {
   missing=
   for pkg in $*; do
-    if ! dpkg -s $pkg 2>/dev/null |grep '^Status:.*installed' >/dev/null; then
+    if ! dpkg -s $pkg 2>/dev/null | grep '^Status:.*installed' >/dev/null; then
       missing="$missing $pkg"
     fi
   done
@@ -252,20 +259,6 @@ apk_install() {
 pkg_install() {
   if ! sudocmd pkg install -y "$@"; then
     die "\ninstalling pkg packages failed ($@).  Please run 'pkg update' and try again."
-  fi
-}
-
-install_packages() {
-  if has_cmd apt-get ; then
-    apt_get_install "$@"
-  elif has_cmd dnf ; then
-    dnf_install "$@"
-  elif has_cmd yum ; then
-    yum_install "$@"
-  elif has_cmd apk ; then
-    apk_install "$@"
-  else
-    info "Unable to install packages ($@); continuing.."
   fi
 }
 
@@ -443,7 +436,7 @@ install_dist() {  # <prefix> <version>
 # Uninstall a previous version
 #---------------------------------------------------------
 
-uninstall() {  # <prefix> <version>
+uninstall_dist() {  # <prefix> <version>
   # set parameters
   prefix="$1"
   version="$2"
@@ -516,8 +509,7 @@ uninstall() {  # <prefix> <version>
 # Main
 #---------------------------------------------------------
 
-if [ "$MODE" = "uninstall" ] ; then
-  
+main_uninstall() {
   # confirm uninstall 
   if [ -z "$FORCE" ] ; then
     read -p "Uninstalling koka version $VERSION. Are you sure? [yN] " choice </dev/tty
@@ -530,14 +522,14 @@ if [ "$MODE" = "uninstall" ] ; then
   fi
 
   # uninstall
-  uninstall $PREFIX $VERSION
+  uninstall_dist $PREFIX $VERSION
   info ""
   info "--------------------------------------------------"
   info "Uninstall successful of $PREFIX/bin/koka-$VERSION"
   info ""
+}
 
-else
-  
+main_install() {
   # install
   install_dependencies
   make_temp_dir
@@ -557,7 +549,7 @@ else
     case $choice in
       [yY][eE][sS]|[yY])
         info "Uninstalling previous koka version $KOKA_PREV_VERSION"
-        uninstall $KOKA_PREV_PREFIX $KOKA_PREV_VERSION
+        uninstall_dist $KOKA_PREV_PREFIX $KOKA_PREV_VERSION
         info "Uninstall successful of koka $KOKA_PREV_VERSION";;
       *) 
         info "Uninstall of previous koka version is canceled";;
@@ -570,4 +562,18 @@ else
   info ""
   info "Type 'koka' to enter the interactive compiler"
   info ""
-fi
+}
+
+main_start() {
+  detect_osarch
+  process_options $@
+  detect_previous_install  
+  if [ "$MODE" = "uninstall" ] ; then
+    main_uninstall 
+  else
+    main_install
+  fi
+}
+
+# note: only execute commands now to guard against partial downloads
+main_start $@
