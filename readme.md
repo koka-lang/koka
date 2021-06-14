@@ -35,7 +35,7 @@ Koka is a strongly typed functional-style language with effect types and handler
 
 To learn more:
 
-* [Install Koka][install] and compile your first Koka programs. 
+* [Install] Koka and compile your first programs. 
 * Read the [Koka book][kokabook] for a tour of the Koka language and its specification.
 * Browse the [library documentation][libraries].
 * Help with [development](#tasks)
