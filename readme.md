@@ -109,14 +109,15 @@ Unix. The following programs are required to build Koka:
 
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
   Use `curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
-* Optional components: 
-  - [vcpkg] to be able to link easily with C libraries:  
-    `$ git clone https://github.com/microsoft/vcpkg`  
-    `$ ./vcpkg/bootstrap-vcpkg.sh` &nbsp; (or `.\vcpkg\bootstrap-vcpkg.bat` on Windows)
-  - [nodejs](http://nodejs.org) if using the Javascript backend.
-  - On Windows it is recommended to install the [clang][winclang] C compiler, or the [Visual Studio](https://visualstudio.microsoft.com/downloads/) C compiler.
 
-Now clone the repository and build the compiler (note the `--recursive` flag):
+Optional components: 
+- [vcpkg] to be able to link easily with C libraries:  
+  `$ git clone https://github.com/microsoft/vcpkg`  
+  `$ ./vcpkg/bootstrap-vcpkg.sh` &nbsp; (or `.\vcpkg\bootstrap-vcpkg.bat` on Windows)
+- [nodejs](http://nodejs.org) if using the Javascript backend.
+- On Windows it is recommended to install the [clang][winclang] C compiler, or the [Visual Studio](https://visualstudio.microsoft.com/downloads/) C compiler.
+
+Now clone the repository and build the compiler as (note the `--recursive` flag):
 ```
 $ git clone --recursive https://github.com/koka-lang/koka
 $ cd koka
@@ -125,7 +126,7 @@ $ stack exec koka
 ```
 You can also use `stack build --fast` to build a debug version of the compiler.
 
-See the [build notes](#build-notes) below for using `stack` on less common platforms (like `arm64`).
+(See the [build notes](#build-notes) below if you have issues when running or installing `stack`).
 
 
 ## Create an Install Bundle
