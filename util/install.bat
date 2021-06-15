@@ -166,19 +166,22 @@ REM -----------------------------------------------------------------
 echo "%PATH%" | find "%_KOKA_PREFIX%\bin" >nul
 if not errorlevel 1 goto done_env
 
-set "PATH=%PATH%;%_KOKA_PREFIX%\bin"
+REM Prevent duplicate semicolon
+set _KOKA_SEMI=;
+if "%PATH:~-1%"==";" (set _KOKA_SEMI=)
+set PATH=%PATH%%_KOKA_SEMI%%_KOKA_PREFIX%\bin
 
 where /q powershell
 if not errorlevel 1 (
   echo.
   set _koka_answer=Y
   if "%_KOKA_FORCE%" NEQ "Y" (
-    set /p "_koka_answer=Add koka binary directory to the PATH? [Yn] " 
+    set /p "_koka_answer=Add the koka binary directory to the search PATH? [Yn] " 
   )
   if /i "%_koka_answer:~,1%" == "N" goto done_env
 
   echo - add binary directory to the user PATH environment variable.
-  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Environment]::SetEnvironmentVariable('PATH',\""$([Environment]::GetEnvironmentVariable('PATH','User'))\;%_KOKA_PREFIX%\bin\"",'User');"
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Environment]::SetEnvironmentVariable('PATH',\""$([Environment]::GetEnvironmentVariable('PATH','User'))%_KOKA_SEMI%%_KOKA_PREFIX%\bin\"",'User');"
   if not errorlevel 1 goto done_env
 )
 echo.
@@ -400,6 +403,7 @@ set _KOKA_DIST_SOURCE_URL=
 set _KOKA_ARCH=
 set _KOKA_PREV_PREFIX=
 set _KOKA_PREV_VERSION=
+set _KOKA_SEMI=
 set _CLANG_VERSION=
 set _CLANG_INSTALL_BASE=
 set _CLANG_INSTALL=
