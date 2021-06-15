@@ -41,7 +41,7 @@ import Core.Simplify
 import Core.Inlines
 
 trace s x =
-   -- Lib.Trace.trace s
+   Lib.Trace.trace s
     x
 
 
