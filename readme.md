@@ -300,13 +300,10 @@ you can also set the resolver explicitly in the `stack.yaml` file
 and uncomment the line `system-ghc: true`.
 
 If you still find yourself unable to run `stack`, you may try to 
-just install `ghc` and `alex` and run the minimal build script
-to build Koka:
+run the minimal build script to build Koka:
 ```
 ./util/minbuild.sh
 ```
-If `ghc` is not available as a package, you may also
-try [ghcup] to install it.
 
 ## Windows C Compilers
 
