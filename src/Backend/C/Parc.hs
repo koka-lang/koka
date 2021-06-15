@@ -39,7 +39,7 @@ import Core.CoreVar
 import Core.Pretty
 import Core.Borrowed
 
-import Backend.C.ParcReuse( genDropReuse, constructorSizeOf )
+import Backend.C.ParcReuse( constructorSizeOf )
 
 --------------------------------------------------------------------------
 -- Reference count transformation
@@ -246,19 +246,6 @@ parcGuard scrutinees pats live (Guard test expr)
 type Dups     = TNames
 type Drops    = TNames
 
-data DropInfo = Drop TName | Reuse TName
-
-instance Show DropInfo where
-  show (Drop tname) = "Drop:" ++ show tname
-  show (Reuse tname) = "Reuse:"++ show tname
-
-dropInfoVar :: DropInfo -> TName
-dropInfoVar (Drop tn) = tn
-dropInfoVar (Reuse tn) = tn
-
--- maps reused name to its reuse token binding and scan count
-type ReuseInfo = M.Map TName (TName, Expr)
-
 -- maps a name to its children
 type ShapeMap = M.Map TName ShapeInfo
 data ShapeInfo = ShapeInfo{
@@ -269,30 +256,9 @@ data ShapeInfo = ShapeInfo{
 
 parcGuardRC :: Dups -> Drops -> Expr -> Parc Expr
 parcGuardRC dups drops body
-  = do let (reuses, body') = extractReuse body
-       let reuseInfo = M.fromList reuses
-       let drops' = map Drop (S.toList drops) ++ map (Reuse . fst) reuses
-       let reuseBindings = [DefNonRec (makeTDef tname genReuseNull) | (_,(tname,_)) <- reuses]
-       enable <- allowSpecialize
-       rcStats <- optimizeGuard enable reuseInfo dups drops'
-       return $ makeLet reuseBindings (maybeStats rcStats body')
-
-extractReuse :: Expr -> ([(TName, (TName, Expr))], Expr)
-extractReuse expr
-  = let (dgs, body) = collectLets [] expr
-        (reuses, dgs') = extractReuses dgs
-     in (reuses, makeLet dgs' body)
-  where
-    extractReuses (DefNonRec (Def x tp (App (Var reuse _) [Var y InfoNone, scanCount]) Private DefVal _ _ _):dgs)
-      | getName reuse == nameDropReuse
-          = let (rs,dgs') = extractReuses dgs
-                r = (y, (TName x tp, scanCount))
-             in (r:rs, dgs')
-    extractReuses defs = ([], defs)
-
-    collectLets acc (Let dgs body) = collectLets (dgs:acc) body
-    collectLets acc expr = (concat (reverse acc), expr)
-
+  = do enable <- allowSpecialize
+       rcStats <- optimizeGuard enable dups (S.toList drops)
+       return $ maybeStats rcStats body
 
 
 -- TODO:interaction with borrowed names
@@ -300,14 +266,14 @@ extractReuse expr
 --  - all dups before drops, and drops before drop-reuses, and,
 --  - within drops and dropr-reuses, each are ordered by pattern tree depth: parents must appear before children.
 -- note: all drops are "tree" disjoint, none is a parent of another.
-optimizeGuard :: Bool {-specialize?-} -> ReuseInfo -> Dups -> [DropInfo] -> Parc [Maybe Expr]
-optimizeGuard False ri dups rdrops
+optimizeGuard :: Bool {-specialize?-} -> Dups -> [TName] -> Parc [Maybe Expr]
+optimizeGuard False dups rdrops
   = -- no optimization on dup/drops
     do xdups  <- foldMapM genDup dups
-       xdrops <- foldMapM (genDropFromInfo ri) rdrops
+       xdrops <- foldMapM genDrop rdrops
        return (xdups ++ xdrops)
 
-optimizeGuard enabled ri dups rdrops
+optimizeGuard enabled dups rdrops
   = do shapes <- getShapeMap
        let mchildrenOf x = case M.lookup x shapes of
                             Just (ShapeInfo mchildren _ _) -> mchildren
@@ -315,10 +281,10 @@ optimizeGuard enabled ri dups rdrops
        let conNameOf x  = case M.lookup x shapes of
                             Just (ShapeInfo _ (Just (_,cname)) _) -> Just cname
                             _    -> Nothing
-       optimizeGuardEx mchildrenOf conNameOf ri dups rdrops
+       optimizeGuardEx mchildrenOf conNameOf dups rdrops
 
-optimizeGuardEx :: (TName -> Maybe TNames) -> (TName -> Maybe Name) -> ReuseInfo -> Dups -> [DropInfo] -> Parc [Maybe Expr]
-optimizeGuardEx mchildrenOf conNameOf ri dups rdrops
+optimizeGuardEx :: (TName -> Maybe TNames) -> (TName -> Maybe Name) -> Dups -> [TName] -> Parc [Maybe Expr]
+optimizeGuardEx mchildrenOf conNameOf dups rdrops
   = do -- parcTrace ("optimizeGuardEx: " ++ show (dups, rdrops))
        optimize dups rdrops
   where
@@ -332,85 +298,64 @@ optimizeGuardEx mchildrenOf conNameOf ri dups rdrops
       = let ys = childrenOf parent
         in S.member x ys || any (`isDescendentOf` x) ys
 
-    optimize :: Dups -> [DropInfo] -> Parc [Maybe Expr]
+    optimize :: Dups -> [TName] -> Parc [Maybe Expr]
     optimize dups []
       = foldMapM genDup dups
     optimize dups dropRecs | S.null dups
-      = foldMapM (genDropFromInfo ri) dropRecs
-    optimize dups (yRec:ys)  -- due to order, parents are first; if this would not be the case specialization opportunities may be lost
+      = foldMapM genDrop dropRecs
+    optimize dups (y:ys)  -- due to order, parents are first; if this would not be the case specialization opportunities may be lost
       = do newtypes <- getNewtypes
            platform <- getPlatform
-           let y = dropInfoVar yRec
-           case yRec of
-             -- due to ordering, there are no further drops
-             Reuse _ | S.member y dups
-               -- can never reuse as it is dup'd: remove dup/drop-reuse pair
-               -> do rest <- optimize (S.delete y dups) ys
-                     set <- genSetNull ri y
-                     return $ rest ++ [set]
-             Drop _ | S.member y dups
-               -> -- trace ("cancel dup/drop of " ++ show y) $
+           if S.member y dups
+             then -- trace ("cancel dup/drop of " ++ show y) $
                   optimize (S.delete y dups) ys -- dup/drop cancels
-             Drop _ | Just x <- forwardingChild platform newtypes childrenOf dups y
+           else case forwardingChild platform newtypes childrenOf dups y of
                -- cancel with boxes, value types that simply
                -- forward their drops to their children
-               -> -- trace ("fuse forward child: " ++ show y ++ " -> " ++ show x) $
-                  optimize (S.delete x dups) ys
-             _ -> do let (yDups, dups') = S.partition (isDescendentOf y) dups
-                     let (yRecs, ys')   = L.partition (isDescendentOf y . dropInfoVar) ys
-                     rest    <- optimize dups' ys'             -- optimize outside the y tree
-                     inlined <- specialize yDups yRec yRecs   -- specialize the y tree
-                     return $ rest ++ [inlined]
+              Just x -> -- trace ("fuse forward child: " ++ show y ++ " -> " ++ show x) $
+                        optimize (S.delete x dups) ys
+              Nothing -> do let (yDups, dups') = S.partition (isDescendentOf y) dups
+                            let (yRecs, ys')   = L.partition (isDescendentOf y) ys
+                            rest    <- optimize dups' ys'             -- optimize outside the y tree
+                            inlined <- specialize yDups y yRecs   -- specialize the y tree
+                            return $ rest ++ [inlined]
 
-    specialize :: Dups -> DropInfo -> [DropInfo] -> Parc (Maybe Expr)
+    specialize :: Dups -> TName -> [TName] -> Parc (Maybe Expr)
     specialize dups v drops     -- dups and drops are descendents of v
       = -- trace ("enter specialize: " ++ show (mchildrenOf (dropInfoVar v)) ++ ", " ++ show (dups,v,drops)) $
         do xShared <- optimize dups drops   -- for the non-unique branch
            xUnique <- optimize dups $
-                      map Drop (S.toList . childrenOf $ dropInfoVar v) ++ drops -- drop direct children in unique branch (note: `v \notin drops`)
-           xDecRef <- genDecRef (dropInfoVar v)
-           let tp = typeOf (dropInfoVar v)
+                      S.toList (childrenOf v) ++ drops -- drop direct children in unique branch (note: `v \notin drops`)
+           let tp = typeOf v
            isValue <- isJust <$> getValueForm tp
-           let hasKnownChildren = isJust (mchildrenOf (dropInfoVar v))
+           let hasKnownChildren = isJust (mchildrenOf v)
                dontSpecialize   = not hasKnownChildren ||   -- or otherwise xUnique is wrong!
                                   isValue || isBoxType tp || isFun tp || isTypeInt tp
 
                noSpecialize y   = do xDrop <- genDrop y
                                      return $ Just (maybeStatsUnit (xShared ++ [xDrop]))
-           case v of
-             Reuse y
-               -> assertion "Backend.C.Parc.specialize: reuse without known children" (hasKnownChildren)  $
-                  do xReuse   <- genReuseAssign ri y
-                     xSetNull <- genSetNull ri y
-                     return $ Just $ makeIfExpr (genIsUnique y)
-                                (maybeStatsUnit (xUnique ++ [xReuse]))
-                                (maybeStatsUnit (xShared ++ [xDecRef, xSetNull]))
- 
-             Drop y | isValue && S.size (childrenOf (dropInfoVar v)) == length dups && null drops
+           if isValue && S.size (childrenOf v) == length dups && null drops
                -- Try to optimize a dropped value type where all fields are dup'd and where
                -- the fields are not boxed in a special way (all BoxIdentity).
                -- this optimization is important for TRMC for the `ctail` value type.
-               -> -- trace ("drop spec value: " ++ show (mchildrenOf (dropInfoVar v)) ++ ", " ++ show (dups,v,drops) ++ ", " ++ show tp) $
-                  do mftps <- getFieldTypes tp (conNameOf (dropInfoVar v))
+               then -- trace ("drop spec value: " ++ show (mchildrenOf (dropInfoVar v)) ++ ", " ++ show (dups,v,drops) ++ ", " ++ show tp) $
+                  do mftps <- getFieldTypes tp (conNameOf v)
                      case mftps of
-                       Nothing   -> noSpecialize y
+                       Nothing   -> noSpecialize v
                        Just ftps -> do bforms <- mapM getBoxForm ftps
-                                       if (all isBoxIdentity bforms)
+                                       if all isBoxIdentity bforms
                                          then -- trace ("  all box identity: " ++ show v) $
                                               return Nothing
                                          else -- trace (" no identity: " ++ show (bforms,map pretty ftps)) $
-                                              noSpecialize y
+                                              noSpecialize v
 
-             Drop y | dontSpecialize
+             else if dontSpecialize
                -- don't specialize certain primitives
-               -> do -- parcTrace $ "no specialize: " ++ show y
-                     noSpecialize y
-             Drop y
-               -> do -- parcTrace $ "specialize: " ++ show y
-                     xFree <- genFree y
-                     return $ Just $ makeIfExpr (genIsUnique y)
-                                (maybeStatsUnit (xUnique ++ [xFree]))
-                                (maybeStatsUnit (xShared ++ [xDecRef]))
+               then do -- parcTrace $ "no specialize: " ++ show y
+                     noSpecialize v
+             else do -- parcTrace $ "specialize: " ++ show y
+                     xDecRef <- genDecRef v
+                     return $ Just $ makeDropSpecial v (maybeStatsUnit xUnique) (maybeStatsUnit xShared) (maybeStatsUnit [xDecRef])
 
 -- | Return a dupped name which is a child of the given name
 -- if the given name will forward a drop to the child
@@ -443,42 +388,6 @@ forwardingChild platform newtypes childrenOf dups y
  where
    findChild x dups
      = if (S.member x dups) then Just x else Nothing
-
-
-genDropFromInfo :: ReuseInfo -> DropInfo -> Parc (Maybe Expr)
-genDropFromInfo ri (Drop tn) = genDrop tn
-genDropFromInfo ri (Reuse tn)
-  = case M.lookup tn ri of
-      Just (reuseName,scan)
-        -> -- assertion "wrong scan fields in reuse" (snd (maybe (False,0) (scanFieldsOf tn)) == scan)  $
-           -- return (Just (makeTDef reuseName (genDropReuse tn scan)))
-           do expr <- genReuseAssignWith reuseName (genDropReuse tn scan)
-              return (Just expr)
-      _ -> failure $ "Backend.C.Parc.genDropFromInfo: cannot find: " ++ show tn
-
-
-
-genSetNull :: ReuseInfo -> TName -> Parc (Maybe Expr)
-genSetNull ri x
-  = Just <$> genReuseAssignEx ri x True
-
-genReuseAssign :: ReuseInfo -> TName -> Parc (Maybe Expr)
-genReuseAssign ri x
-  = Just <$> genReuseAssignEx ri x False
-
-genReuseAssignEx :: ReuseInfo -> TName -> Bool -> Parc Expr
-genReuseAssignEx ri x setNull
-  = case M.lookup x ri of
-      Nothing -> failure $ "Backend.C.Parc.genReuseAssignEx: cannot find: " ++ show x
-      Just (r, scan)
-        -> let arg = if setNull then genReuseNull else genReuseAddress x
-           in genReuseAssignWith r arg
-
-
-genReuseAssignWith :: TName -> Expr -> Parc Expr
-genReuseAssignWith reuseName arg
-  = let assign = TName nameAssignReuse (TFun [(nameNil,typeReuse),(nameNil,typeReuse)] typeTotal typeUnit)
-    in return (App (Var assign (InfoExternal [(C, "#1 = #2")])) [Var reuseName InfoNone, arg])
 
 
 inferShapes :: [TName] -> [Pattern] -> Parc ShapeMap
@@ -526,14 +435,6 @@ mergeShapeInfo (ShapeInfo mchildren1 mci1 mscan1) (ShapeInfo mchildren2 mci2 msc
   where
     mergeMaybe Nothing y = y
     mergeMaybe x _       = x
-
--- Generate a reuse a block
-genReuseAddress :: TName -> Expr
-genReuseAddress tname
-  = App (Var (TName nameReuse funTp) (InfoExternal [(C, "reuse_datatype(#1,current_context())")])) [Var tname InfoNone]
-  where
-    tp    = typeOf tname
-    funTp = TFun [(nameNil,tp)] typeTotal typeReuse
 
 --------------------------------------------------------------------------
 -- Case normalization
@@ -629,7 +530,7 @@ getBoxForm' platform newtypes tp
         -> BoxValue
       Just _
         -> BoxIdentity
-      Nothing 
+      Nothing
         -> BoxValue
 
 getBoxForm :: Type -> Parc BoxForm
@@ -641,6 +542,18 @@ getBoxForm tp
 -----------------------------------------------------------
 -- Optimize boxed reference counting
 -----------------------------------------------------------
+
+-- Generate a ref-count drop of a constructor
+genDecRef :: TName -> Parc (Maybe Expr)
+genDecRef tname
+  = do needs <- needsDupDrop (typeOf tname)
+       if not needs
+         then return Nothing
+         else return $ Just $
+                        App (Var (TName nameDecRef funTp) (InfoExternal [(C, "decref(#1,current_context())")]))
+                            [Var tname InfoNone]
+  where
+    funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
 
 -- value types with reference fields still need a drop
 needsDupDrop :: Type -> Parc Bool
@@ -731,48 +644,6 @@ dupDropFun isDup tp mbConRepr mbScanCount arg
     name = if isDup then nameDup else nameDrop
     coerceTp = TFun [(nameNil,tp)] typeTotal (if isDup then tp else typeUnit)
 
--- Generate a test if a (locally bound) name is unique
-genIsUnique :: TName -> Expr
-genIsUnique tname
-  = App (Var (TName nameIsUnique funTp) (InfoExternal [(C, "is_unique(#1)")]))
-        [Var tname InfoNone]
-  where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeBool
-
--- Generate a free of a constructor
-genFree :: TName -> Parc (Maybe Expr)
-genFree tname
-  = return $ Just $
-      App (Var (TName nameFree funTp) (InfoExternal [(C, "kk_constructor_free(#1)")]))
-        [Var tname InfoNone]
-  where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
-
--- Generate a ref-count drop of a constructor
-genDecRef :: TName -> Parc (Maybe Expr)
-genDecRef tname
-  = do needs <- needsDupDrop (typeOf tname)
-       if not needs
-         then return Nothing
-         else return $ Just $
-                        App (Var (TName nameDecRef funTp) (InfoExternal [(C, "decref(#1,current_context())")]))
-                            [Var tname InfoNone]
-  where
-    funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
-
-
--- Generate a reuse free of a constructor
-genFreeReuse :: TName -> Expr
-genFreeReuse tname
-  = App (Var (TName nameFreeReuse funTp) (InfoExternal [(C, "kk_reuse_free(#1)")]))
-        [Var tname InfoNone]
-  where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeReuse
-
--- Get a null token for reuse inlining
-genReuseNull :: Expr
-genReuseNull
-  = App (Var (TName nameReuseNull funTp) (InfoExternal [(C, "kk_reuse_null")])) []
-  where funTp = TFun [] typeTotal typeReuse
-
-
 --------------------------------------------------------------------------
 -- Utilities for readability
 --------------------------------------------------------------------------
@@ -794,9 +665,7 @@ maybeStats xs expr
 
 maybeStatsUnit :: [Maybe Expr] -> Expr
 maybeStatsUnit xs
-  = case catMaybes xs of
-      []    -> exprUnit
-      stats -> makeStats stats
+  = maybeStats xs exprUnit
 
 
 --------------------------------------------------------------------------

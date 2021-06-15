@@ -43,7 +43,6 @@ import Core.CoreVar
 import Core.Borrowed ( Borrowed, borrowedExtendICore )
 
 import Backend.C.Parc
-import Backend.C.ParcInfer
 import Backend.C.ParcReuse
 import Backend.C.ParcReuseSpec
 import Backend.C.Box
@@ -85,18 +84,11 @@ contextParam = text "kk_context_t* _ctx"
 genModule :: BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Bool -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> Asm Core
 genModule buildType sourceDir penv platform newtypes borrowed0 enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference mbMain core0
   =  do core <- liftUnique (do bcore <- boxCore core0            -- box/unbox transform
-                               ucore <- if (enableReuse)
-                                         then parcReuseCore penv platform newtypes bcore -- constructor reuse analysis
-                                         else return bcore
-                               icore <- if (enableBorrowInference)
-                                   then parcInfer penv platform newtypes borrowed0 ucore
-                                   else return ucore
-                               let borrowed = borrowedExtendICore icore borrowed0
-                               pcore <- parcCore penv platform newtypes borrowed enableSpecialize icore -- precise automatic reference counting
-                               score <- if (enableReuse && enableReuseSpecialize)
-                                         then parcReuseSpecialize penv pcore -- selective reuse
-                                         else return pcore
-                               return score
+                               pcore <- parcCore penv platform newtypes borrowed0 enableSpecialize bcore -- precise automatic reference counting
+                               rcore <- parcReuseCore penv enableReuse platform newtypes pcore -- constructor reuse analysis
+                               if enableReuse && enableReuseSpecialize
+                                  then parcReuseSpecialize penv rcore -- selective reuse
+                                  else return rcore
                            )
 
         let headComment   = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version

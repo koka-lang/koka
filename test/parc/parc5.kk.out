@@ -10,10 +10,13 @@ public fun test : () -> int
  -> (match ((std/core/types/.is-unique(xs.42))) {
  (std/core/types/True() : bool )
  -> std/core/types/.drop(.pat0);
+ std/core/types/();
  std/core/types/.free(xs.42);
  _
  -> std/core/types/.dup(x);
+ std/core/types/();
  std/core/types/.dec-ref(xs.42);
+ std/core/types/();
  });
  x;
  (.skip std/core/Nil() : (list<int>) )
