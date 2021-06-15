@@ -962,8 +962,9 @@ inferCheck loaded flags line coreImports program1
        -- and one more simplify
        (coreDefsSimp2,uniqueSimp2)
                   <- if simplify flags < 0  -- if zero, we still run one simplify step to remove open applications
-                      then return (coreDefsInl,uniqueInl)
-                      else -- trace "simplify" $
+                      then -- trace "no inline simplify" $
+                           return (coreDefsInl,uniqueInl)
+                      else -- trace "inline simplify" $
                            do let (cdefs0,unique0) -- Core.Simplify.simplify $
                                           -- Core.Simplify.simplify
                                      = simplifyDefs False ndebug (simplify flags) (simplifyMaxDup flags) uniqueInl penv coreDefsInl

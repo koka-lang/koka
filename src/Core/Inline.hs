@@ -49,7 +49,7 @@ trace s x =
 inlineDefs :: Pretty.Env -> Int -> Inlines -> DefGroups -> (DefGroups,Int)
 inlineDefs penv u inlines defs
   = runInl penv u inlines $
-    do --traceDoc $ \penv -> text "Core.Inline.inlineDefs:" <+> ppInlines penv inlines
+    do -- traceDoc $ \penv -> text "Core.Inline.inlineDefs:" <+> ppInlines penv inlines
        --inlDefGroups defs
        defs1 <- inlDefGroups defs
        defs2 <- withUnique (\uniq -> simplifyDefs True False 3 0 uniq penv defs1)
@@ -152,11 +152,11 @@ inlAppExpr expr m n onlyZeroCost
         -> do mbInfo <- inlLookup (getName tname)
               case mbInfo of
                 Just (info,m',n') | not (inlineRec info) && (m >= m') && (n >= n')
-                                       && (not onlyZeroCost || inlineCost info <= 0)
+                                       && (not onlyZeroCost || inlineCost info <= 4)
                   -> do traceDoc $ \penv -> text "inlined:" <+> ppName penv (getName tname)
                         return (inlineExpr info)
                 Just (info,m',n')
-                  -> do traceDoc $ \penv -> text "inline candidate:" <+> ppName penv (getName tname) <+> text (show (m',n')) <+> text "vs" <+> text (show (m,n))
+                  -> do traceDoc $ \penv -> text "inline candidate:" <+> ppName penv (getName tname) <+> text (show (m',n')) <+> text "vs" <+> text (show (m,n)) <+> text (show (onlyZeroCost,inlineCost info))
                         return (expr)
                 Nothing -> do traceDoc $ \penv -> text "not inline candidate:" <+> ppName penv (getName tname)
                               return (expr)
