@@ -157,7 +157,7 @@ and uncomment the line `system-ghc: true`.
 
 If you still find yourself unable to run `stack`, you may try to 
 just install `ghc` and `alex` and run the minimal build script as
-`util/minbuild.sh`.
+`./util/minbuild.sh`.
 
 ## Create an Install Bundle
 

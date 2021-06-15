@@ -17,7 +17,7 @@ echo "------------------------------------------------------------"
 echo ""
 
 # generate the lexer if not provided
-if ! [ -f src/Syntax/Lexer.hsx ] ; then
+if ! [ -f src/Syntax/Lexer.hs ] ; then
   if ! which alex > /dev/null ; then
     echo "This build script requires 'alex'. Install it first, for example:"
     echo "  sudo apt install ghc"
