@@ -125,7 +125,7 @@ $ stack exec koka
 ```
 You can also use `stack build --fast` to build a debug version of the compiler.
 
-See the build notes [below](#installing-stack) for using `stack` on less common platforms (like `arm64`).
+See the [build notes](#build-notes) below for using `stack` on less common platforms (like `arm64`).
 
 
 ## Create an Install Bundle
