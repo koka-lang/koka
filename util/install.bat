@@ -3,6 +3,7 @@ REM ------------------------------------------------------------------
 REM Installation script for Koka; use -h to see command line options.
 REM ------------------------------------------------------------------
 
+setlocal
 set _KOKA_VERSION=v2.1.7
 set _KOKA_PREFIX=%LOCALAPPDATA%\local
 set _KOKA_UNINSTALL=N
@@ -122,7 +123,43 @@ goto end
 
 
 REM ---------------------------------------------------------
-REM Install
+REM Uninstall
+REM ---------------------------------------------------------
+
+:uninstall
+echo Uninstalling %_KOKA_VERSION% from prefix: %_KOKA_PREFIX%
+
+if not exist "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%" (
+  echo Cannot find koka version %_KOKA_VERSION% at %_KOKA_PREFIX%
+  echo Done. 
+  goto end
+)
+
+set _koka_answer=N
+if "%_KOKA_FORCE%" NEQ "Y" (
+  set /p "_koka_answer=Are you sure? [yN] " 
+)
+if /i "%_koka_answer:~,1%" NEQ "Y" goto end
+
+if exist "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe" (
+  echo - remove executable            : ^<prefix^>\bin\koka.exe
+  fc /LB1 "%_KOKA_PREFIX%\bin\koka.exe" "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe" > nul 2> nul
+  if not errorlevel 1 (del /Q "%_KOKA_PREFIX%\bin\koka.exe")
+  echo - remove executable            : ^<prefix^>\bin\koka-%_KOKA_VERSION%.exe
+  del /Q "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe"
+)
+echo - remove pre-compiled libraries: ^<prefix^>\lib\koka\%_KOKA_VERSION%
+rmdir /S /Q "%_KOKA_PREFIX%\lib\koka\%_KOKA_VERSION%"
+echo - remove source libraries      : ^<prefix^>\share\koka\%_KOKA_VERSION%
+rmdir /S /Q "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%"
+
+echo Done.
+
+goto end
+
+
+REM ---------------------------------------------------------
+REM Install: download
 REM ---------------------------------------------------------
 
 :download
@@ -135,6 +172,10 @@ if errorlevel 1 (
   echo "curl error: %ERRORLEVEL%"
   goto end
 )
+
+REM ---------------------------------------------------------
+REM Install: unpack 
+REM ---------------------------------------------------------
 
 :unpack
 echo.
@@ -273,43 +314,6 @@ echo - remove pre-compiled libraries: ^<prefix^>\lib\koka\%_KOKA_PREV_VERSION%
 rmdir /S /Q "%_KOKA_PREV_PREFIX%\lib\koka\%_KOKA_PREV_VERSION%"
 echo - remove source libraries      : ^<prefix^>\share\koka\%_KOKA_PREV_VERSION%
 rmdir /S /Q "%_KOKA_PREV_PREFIX%\share\koka\%_KOKA_PREV_VERSION%"
-goto done_install
-
-
-REM ---------------------------------------------------------
-REM Uninstall
-REM ---------------------------------------------------------
-
-:uninstall
-echo Uninstalling %_KOKA_VERSION% from prefix: %_KOKA_PREFIX%
-
-if not exist "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%" (
-  echo Cannot find koka version %_KOKA_VERSION% at %_KOKA_PREFIX%
-  echo Done. 
-  goto end
-)
-
-set _koka_answer=N
-if "%_KOKA_FORCE%" NEQ "Y" (
-  set /p "_koka_answer=Are you sure? [yN] " 
-)
-if /i "%_koka_answer:~,1%" NEQ "Y" goto end
-
-if exist "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe" (
-  echo - remove executable            : ^<prefix^>\bin\koka.exe
-  fc /LB1 "%_KOKA_PREFIX%\bin\koka.exe" "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe" > nul 2> nul
-  if not errorlevel 1 (del /Q "%_KOKA_PREFIX%\bin\koka.exe")
-  echo - remove executable            : ^<prefix^>\bin\koka-%_KOKA_VERSION%.exe
-  del /Q "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe"
-)
-echo - remove pre-compiled libraries: ^<prefix^>\lib\koka\%_KOKA_VERSION%
-rmdir /S /Q "%_KOKA_PREFIX%\lib\koka\%_KOKA_VERSION%"
-echo - remove source libraries      : ^<prefix^>\share\koka\%_KOKA_VERSION%
-rmdir /S /Q "%_KOKA_PREFIX%\share\koka\%_KOKA_VERSION%"
-
-echo Done.
-
-goto end
 
 
 REM ---------------------------------------------------------
@@ -390,25 +394,15 @@ if "%_KOKA_IEXPRESS%" == "Y" (
 )
 echo.
 
+REM This ends the local environment but still sets the given environment variables
+endlocal & (
+  set koka_editor=%koka_editor%
+  set PATH=%PATH%
+)
+goto final
+
+REM end for help and uninstall
 :end
+endlocal
 
-REM clean environment
-set _KOKA_VERSION=
-set _KOKA_PREFIX=
-set _KOKA_UNINSTALL=
-set _KOKA_HELP=
-set _KOKA_FORCE=
-set _KOKA_DIST_SOURCE=
-set _KOKA_DIST_SOURCE_URL=
-set _KOKA_ARCH=
-set _KOKA_PREV_PREFIX=
-set _KOKA_PREV_VERSION=
-set _KOKA_SEMI=
-set _CLANG_VERSION=
-set _CLANG_INSTALL_BASE=
-set _CLANG_INSTALL=
-set _CLANG_INSTALL_URL=
-set _CLANG_INSTALL_SHA256=
-set _KOKA_IEXPRESS=
-set _koka_answer=
-
+:final
