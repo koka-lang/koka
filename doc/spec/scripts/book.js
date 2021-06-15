@@ -49,24 +49,16 @@ function removeClass(elem,cls) {
   elem.className = elem.className.split(/\s+/).filter( function(c){ return (c != cls); } ).join(" ");
 }
 
-function removeCopiedTooltip( event ) {
-  const target = event.delegateTarget || event.currentTarget;
+function removeCopiedTooltip( target ) {
   removeClass(target,"tooltip-copied");
-  target.setAttribute("title","Copy");
-  //removeClass(target.firstElementChild,"fa-check");
-  //addClass(target.firstElementChild,"fa-copy");
+  target.setAttribute("title","Copy");  
 }
 
 function addCopiedTooltip(target,ok) {
   target.setAttribute("data-tooltip",ok ? "Copied!" : "Failed to copy!" );
   addClass(target,"tooltip-copied");
   target.setAttribute("title","");
-  /*
-  if (ok) {
-    removeClass(target.firstElementChild,"fa-copy");
-    addClass(target.firstElementChild,"fa-check");
-  }
-  */
+  setTimeout( function(){ removeCopiedTooltip(target); }, 2000 );
 }
 
 
@@ -122,7 +114,10 @@ function enableCopyButtons() {
   const buttons = document.querySelectorAll(".copy.button");
   buttons.forEach( function(button){
     button.addEventListener("click", copyToClipboard);
-    button.addEventListener("mouseleave", removeCopiedTooltip);
+    button.addEventListener("mouseleave", function(event) {
+      const target = event.delegateTarget || event.currentTarget;
+      removeCopiedTooltip(target); 
+    });
   });
 }
 

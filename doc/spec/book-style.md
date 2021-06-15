@@ -38,7 +38,7 @@ toc.toc-contents {
 
 .copy {
   float: left;
-  font-size: 70%;
+  font-size: 75%;
   html-title:"Copy";
   .button;
 }
