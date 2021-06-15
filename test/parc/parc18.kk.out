@@ -20,7 +20,7 @@ public fun test : forall<a> (xs : list<a>, ys : list<a>) -> list<a>
  std/core/types/();
  });
  val .ru.44 : reuse
- = std/core/types/.assign-reuse(.ru.44, (std/core/types/no-reuse()));
+ = std/core/types/no-reuse();
  (match ((std/core/types/.is-unique(xs))) {
  (std/core/types/True() : bool )
  -> std/core/types/.drop(.pat0);
@@ -31,7 +31,6 @@ public fun test : forall<a> (xs : list<a>, ys : list<a>) -> list<a>
  -> std/core/types/();
  std/core/types/.dec-ref(xs);
  std/core/types/();
- std/core/types/.assign-reuse(.ru.44, (std/core/types/no-reuse()));
  });
  std/core/types/.alloc-at(.ru.44, (std/core/Cons(z0, std/core/Nil)));
  (.skip std/core/Nil() : (list<a>) )

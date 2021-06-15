@@ -110,30 +110,6 @@ ruExpr expr
       -- Var, Lit, Con
       _ -> return expr
 
-ruTryReuseCon :: TName -> ConRepr -> Expr -> Reuse Expr
-ruTryReuseCon cname repr conApp
-  = do newtypes <- getNewtypes
-       platform <- getPlatform
-       let (size,_) = constructorSizeOf platform newtypes cname repr
-       available <- getAvailable
-       -- ruTrace $ "try reuse: " ++ show (getName cname) ++ ": " ++ show size
-       case M.lookup size available of
-         Just (rinfo0:rinfos0)
-           -> do let (rinfo,rinfos) = pick cname rinfo0 rinfos0
-                 setAvailable (M.insert size rinfos available)
-                 markReused (reuseName rinfo)
-                 return (genAllocAt rinfo conApp)
-         _ -> return conApp
-  where
-    -- pick a good match: for now we prefer the same constructor
-    -- todo: match also common fields/arguments to help specialized reuse
-    pick cname rinfo []
-      = (rinfo,[])
-    pick cname rinfo@(ReuseInfo name (PatCon{patConName})) rinfos  | patConName == cname
-      = (rinfo,rinfos)
-    pick cname rinfo (rinfo':rinfos)
-      = let (r,rs) = pick cname rinfo' rinfos in (r,rinfo:rs)
-
 ruLet :: Def -> Expr -> Reuse Expr
 ruLet def expr
   = withCurrentDef def $
@@ -146,7 +122,7 @@ ruLet def expr
           -- See makeDropSpecial:
           -- We assume that makeDropSpecial always occurs in a definition.
           App (Var name _) [Var y _, xUnique, xShared, rDecRef] | getName name == nameDropSpecial
-            -> do rUnique <- ruExpr xUnique
+            -> do rUnique <- ruExpr xUnique -- TODO: This may miss reuse opportunities
                   rShared <- ruExpr xShared
                   mReuse <- ruTryReuseNameIn False y expr
                   case mReuse of
@@ -158,33 +134,13 @@ ruLet def expr
                               , expr' ]
                     (expr', Just ru)
                       -> do rReuse   <- genReuseAssign y 
-                            rSetNull <- genSetNull y
                             return $ makeLet [DefNonRec ru] $ makeStats
                               [ makeIfExpr (genIsUnique y)
                                 (makeStats [rUnique, rReuse])
-                                (makeStats [rShared, rDecRef, rSetNull])
+                                (makeStats [rShared, rDecRef])
                               , expr' ]
           _ -> do de <- ruExpr (defExpr def)
                   makeLet [DefNonRec (def{defExpr=de})] <$> ruExpr expr
-
-ruTryReuseNameIn :: Bool -> TName -> Expr -> Reuse (Expr, Maybe Def)
-ruTryReuseNameIn shouldGenDrop tname expr
-  = do dss <- getDeconstructed
-       case NameMap.lookup (getName tname) dss of
-         Nothing -> noReuse
-         Just (reuseName, ReuseInfo patName pat, size, scan)
-          -> do mReuse <- ruTryReuse shouldGenDrop (reuseName, patName, size, scan)
-                case mReuse of
-                  Nothing -> noReuse
-                  Just ru
-                    -> do isolateAvailable $
-                           do updateAvailable (M.insertWith (++) size [ReuseInfo reuseName pat])
-                              expr' <- ruExpr expr
-                              wasReused <- askAndDeleteReused reuseName
-                              if wasReused
-                                then return (expr', Just ru)
-                                else return (expr', Nothing)
-  where noReuse = do expr' <- ruExpr expr; return (expr', Nothing)
 
 ruBranches :: [TName] -> [Branch] -> Reuse [Branch]
 ruBranches scrutinees branches
@@ -192,8 +148,8 @@ ruBranches scrutinees branches
        setAvailable (availableIntersect avs)
        let rus = reusedUnion rs
        setReused rus
-       let nulls = Map.fromSet (`genReuseAssignWith` genReuseNull) rus
-       return (map ($ nulls) branches')
+       let reuseDrops = Map.fromSet genReuseDrop rus
+       return (map ($ reuseDrops) branches')
 
 ruBranch :: [TName] -> Branch -> Reuse (Map.Map TName Expr -> Branch, Reused, Available)
 ruBranch scrutinees (Branch pats guards)
@@ -227,16 +183,59 @@ ruPattern varName pat@PatCon{patConName,patConPatterns,patConRepr,patTypeArgs,pa
                    else return reuses
 ruPattern _ _ = return []
 
-
 ruGuard :: Guard -> Reuse (Map.Map TName Expr -> Guard, Available)
 ruGuard (Guard test expr)  -- expects patAdded in depth-order
   = isolateGetAvailable $
     do test' <- withNone $ ruExpr test
        expr' <- ruExpr expr
        reusedHere <- getReused
-       return $ \nulls
-         -> let nullsHere = Map.elems $ nulls Map.\\ Map.fromSet (const undefined) reusedHere
-            in Guard test' (makeStats (nullsHere ++ [expr']))
+       return $ \reuseDrops
+         -> let dropsHere = Map.elems $ reuseDrops Map.\\ Map.fromSet (const undefined) reusedHere
+            in Guard test' (makeStats (dropsHere ++ [expr']))
+
+
+ruTryReuseCon :: TName -> ConRepr -> Expr -> Reuse Expr
+ruTryReuseCon cname repr conApp
+  = do newtypes <- getNewtypes
+       platform <- getPlatform
+       let (size,_) = constructorSizeOf platform newtypes cname repr
+       available <- getAvailable
+       -- ruTrace $ "try reuse: " ++ show (getName cname) ++ ": " ++ show size
+       case M.lookup size available of
+         Just (rinfo0:rinfos0)
+           -> do let (rinfo,rinfos) = pick cname rinfo0 rinfos0
+                 setAvailable (M.insert size rinfos available)
+                 markReused (reuseName rinfo)
+                 return (genAllocAt rinfo conApp)
+         _ -> return conApp
+  where
+    -- pick a good match: for now we prefer the same constructor
+    -- todo: match also common fields/arguments to help specialized reuse
+    pick cname rinfo []
+      = (rinfo,[])
+    pick cname rinfo@(ReuseInfo name (PatCon{patConName})) rinfos  | patConName == cname
+      = (rinfo,rinfos)
+    pick cname rinfo (rinfo':rinfos)
+      = let (r,rs) = pick cname rinfo' rinfos in (r,rinfo:rs)
+
+ruTryReuseNameIn :: Bool -> TName -> Expr -> Reuse (Expr, Maybe Def)
+ruTryReuseNameIn shouldGenDrop tname expr
+  = do dss <- getDeconstructed
+       case NameMap.lookup (getName tname) dss of
+         Nothing -> noReuse
+         Just (reuseName, ReuseInfo patName pat, size, scan)
+          -> do mReuse <- ruTryReuse shouldGenDrop (reuseName, patName, size, scan)
+                case mReuse of
+                  Nothing -> noReuse
+                  Just ru
+                    -> do isolateAvailable $
+                           do updateAvailable (M.insertWith (++) size [ReuseInfo reuseName pat])
+                              expr' <- ruExpr expr
+                              wasReused <- askAndDeleteReused reuseName
+                              if wasReused
+                                then return (expr', Just ru)
+                                else return (expr', Nothing)
+  where noReuse = do expr' <- ruExpr expr; return (expr', Nothing)
 
 -- generate drop_reuse for each reused in patAdded
 ruTryReuse :: Bool -> (TName, TName, Int, Int) -> Reuse (Maybe Def)
@@ -251,8 +250,7 @@ ruTryReuse shouldGenDrop (rName, patName, size, scan)
                  return Nothing
          _ -> if shouldGenDrop
                 then return (Just (makeTDef rName (genDropReuse patName (makeInt32 (toInteger scan)))))
-                else do setNull <- genSetNull patName
-                        return (Just (makeTDef rName setNull))
+                else do return (Just (makeTDef rName genReuseNull))
 
 -- Generate a reuse of a constructor
 genDropReuse :: TName -> Expr {- : int32 -} -> Expr
@@ -288,10 +286,10 @@ genFree tname
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
 
 
--- Generate a reuse free of a constructor
-genFreeReuse :: TName -> Expr
-genFreeReuse tname
-  = App (Var (TName nameFreeReuse funTp) (InfoExternal [(C, "kk_reuse_free(#1)")]))
+-- Generate a drop of a reuse
+genReuseDrop :: TName -> Expr
+genReuseDrop tname
+  = App (Var (TName nameReuseDrop funTp) (InfoExternal [(C, "kk_reuse_drop")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeReuse
 

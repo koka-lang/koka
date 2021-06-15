@@ -84,7 +84,8 @@ contextParam = text "kk_context_t* _ctx"
 genModule :: BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Bool -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> Asm Core
 genModule buildType sourceDir penv platform newtypes borrowed0 enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference mbMain core0
   =  do core <- liftUnique (do bcore <- boxCore core0            -- box/unbox transform
-                               pcore <- parcCore penv platform newtypes borrowed0 enableSpecialize bcore -- precise automatic reference counting
+                               let borrowed = borrowedExtendICore bcore borrowed0
+                               pcore <- parcCore penv platform newtypes borrowed enableSpecialize bcore -- precise automatic reference counting
                                rcore <- parcReuseCore penv enableReuse platform newtypes pcore -- constructor reuse analysis
                                if enableReuse && enableReuseSpecialize
                                   then parcReuseSpecialize penv rcore -- selective reuse
