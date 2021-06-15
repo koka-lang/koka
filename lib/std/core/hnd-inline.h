@@ -5,11 +5,11 @@
 
 
 /*---------------------------------------------------------------------------
-  Copyright 2020 Microsoft Corporation.
+  Copyright 2020-2021, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
-  found in the file "license.txt" at the root of this distribution.
+  found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 struct kk_std_core_hnd__ev_s;
 static inline struct kk_std_core_hnd__ev_s* kk_std_core_hnd__ev_dup(struct kk_std_core_hnd__ev_s* _x);

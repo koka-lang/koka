@@ -1,9 +1,9 @@
 /*---------------------------------------------------------------------------
-  Copyright 2020 Daan Leijen, Microsoft Corporation.
+  Copyright 2020-2021, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
-  found in the file "license.txt" at the root of this distribution.
+  found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 #ifndef _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS   // getenv
@@ -1092,7 +1092,7 @@ kk_string_t kk_os_kernel(kk_context_t* ctx) {
 kk_string_t kk_os_arch(kk_context_t* ctx) {
   const char* arch = "unknown";
 #if defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) || defined(_M_AMD64)
-  arch = "x64";
+  arch = (KK_SIZE_SIZE==4 ? "x32" : "x64");
 #elif defined(__i386__) || defined(__i386) || defined(_M_IX86) || defined(_X86_) || defined(__X86__)
   arch = "x86";
 #elif defined(__aarch64__) || defined(_M_ARM64)
@@ -1108,7 +1108,7 @@ kk_string_t kk_os_arch(kk_context_t* ctx) {
 #elif defined(__powerpc) || defined(__powerpc__) || defined(_M_PPC) || defined(__ppc) || defined(_ARCH_PPC)
   arch = (KK_INTPTR_SIZE==4 ? "ppc32" : (KK_ARCH_LITTLE_ENDIAN ? "ppc64le" : "ppc64"));
 #elif defined(__mips__) || defined(__MIPS__) || defined(__mips)
-  arch = "mips";
+  arch = (KK_INTPTR_SIZE==4 ? "mips" : "mips64");
 #elif defined(__sparc__) || defined(__sparc)
   arch = (KK_INTPTR_SIZE==4 ? "sparc32" : "sparc64");
 #elif defined(__ia64__) || defined(__ia64) || defined(_M_IA64) || defined(__itanium__)  
