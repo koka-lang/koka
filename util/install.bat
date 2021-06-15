@@ -4,13 +4,15 @@ REM Installation script for Koka; use -h to see command line options.
 REM ------------------------------------------------------------------
 
 set _KOKA_VERSION=v2.1.7
-set _KOKA_PREFIX=%APPDATA%\local
+set _KOKA_PREFIX=%LOCALAPPDATA%\local
 set _KOKA_UNINSTALL=N
 set _KOKA_HELP=N
 set _KOKA_FORCE=N
 set _KOKA_DIST_SOURCE=
 set _KOKA_DIST_SOURCE_URL=
 set _KOKA_IEXPRESS=N
+set _KOKA_PREV_VERSION=
+set _KOKA_PREV_PREFIX=
 
 set _CLANG_VERSION=12.0.0
 set _CLANG_INSTALL_BASE=LLVM-%_CLANG_VERSION%-win64.exe
@@ -18,6 +20,10 @@ set _CLANG_INSTALL=%TEMP%\%_CLANG_INSTALL_BASE%
 set _CLANG_INSTALL_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-%_CLANG_VERSION%/%_CLANG_INSTALL_BASE%
 set _CLANG_INSTALL_SHA256=8426d57f2af2bf07f80014bfd359e87ed10f5521a236a10cfe9fc4870d1b1b25
 
+REM check if %LOCALAPPDATA% was not empty
+if "%_KOKA_PREFIX%" == "\local" (set _KOKA_PREFIX=c:\usr\local)
+
+REM process arguments
 :argparse
 if "%~1" == "" goto done_args
   if "%~1" == "-u" (
@@ -48,13 +54,13 @@ if "%~1" == "" goto done_args
     set _KOKA_IEXPRESS=Y
     goto boolflag
   )
-  if "%~1" == "-v"        (set _KOKA_VERSION=%2)
-  if "%~1" == "--version" (set _KOKA_VERSION=%2)
-  if "%~1" == "-p"        (set _KOKA_PREFIX=%2)
-  if "%~1" == "--prefix"  (set _KOKA_PREFIX=%2)
-  if "%~1" == "-b"        (set _KOKA_DIST_SOURCE=%2)
-  if "%~1" == "--bundle"  (set _KOKA_DIST_SOURCE=%2)
-  if "%~1" == "--url"     (set _KOKA_DIST_SOURCE_URL=%2)  
+  if "%~1" == "-v"        (set _KOKA_VERSION=%~2)
+  if "%~1" == "--version" (set _KOKA_VERSION=%~2)
+  if "%~1" == "-p"        (set _KOKA_PREFIX=%~2)
+  if "%~1" == "--prefix"  (set _KOKA_PREFIX=%~2)
+  if "%~1" == "-b"        (set _KOKA_DIST_SOURCE=%~2)
+  if "%~1" == "--bundle"  (set _KOKA_DIST_SOURCE=%~2)
+  if "%~1" == "--url"     (set _KOKA_DIST_SOURCE_URL=%~2)  
 shift
 :boolflag
 shift
@@ -71,6 +77,24 @@ if "%_KOKA_VERSION%" LEQ "v2.1.6" (set _KOKA_ARCH=amd64)
 if "%_KOKA_DIST_SOURCE_URL%" == "" (
   set _KOKA_DIST_SOURCE_URL=https://github.com/koka-lang/koka/releases/download/%_KOKA_VERSION%/koka-%_KOKA_VERSION%-windows-%_KOKA_ARCH%.tar.gz
 )
+
+REM ---------------------------------------------------------
+REM Detect previous version
+REM ---------------------------------------------------------
+
+where /q koka
+if errorlevel 1 goto prev_none
+for /F "tokens=*" %%x in ('where koka 2^> nul ^| find "\bin\koka.exe"') do (set _KOKA_PREV_PREFIX=%%x)
+if "%_KOKA_PREV_PREFIX%" == "" goto prev_none
+set _KOKA_PREV_PREFIX=%_KOKA_PREV_PREFIX:\bin\koka.exe=%
+for /F "tokens=*" %%x in ('koka --version 2^> nul ^| find "version: "') do (set _KOKA_PREV_VERSION=%%x)
+if "%_KOKA_PREV_VERSION%" NEQ "" (set _KOKA_PREV_VERSION=v%_KOKA_PREV_VERSION:version: =%)
+
+:prev_none
+
+REM ---------------------------------------------------------
+REM Mode
+REM ---------------------------------------------------------
 
 if "%_KOKA_HELP%" == "Y"       goto help
 if "%_KOKA_UNINSTALL%" == "Y"  goto uninstall
@@ -106,7 +130,7 @@ REM ---------------------------------------------------------
 set _KOKA_DIST_SOURCE=%TEMP%\koka-%_KOKA_VERSION%-windows.tar.gz
   
 echo Downloading: %_KOKA_DIST_SOURCE_URL%
-curl --proto =https --tlsv1.2 -f -L -o %_KOKA_DIST_SOURCE%  %_KOKA_DIST_SOURCE_URL%
+curl --proto =https --tlsv1.2 -f -L -o "%_KOKA_DIST_SOURCE%"  "%_KOKA_DIST_SOURCE_URL%"
 if errorlevel 1 (
   echo "curl error: %ERRORLEVEL%"
   goto end
@@ -116,11 +140,11 @@ if errorlevel 1 (
 echo.
 echo Installing to prefix: %_KOKA_PREFIX%
 if not exist %_KOKA_PREFIX% (
-  mkdir %_KOKA_PREFIX%
+  mkdir "%_KOKA_PREFIX%"
 )
 
 echo - unpacking..
-tar -xzf %_KOKA_DIST_SOURCE% -C %_KOKA_PREFIX%
+tar -xzf "%_KOKA_DIST_SOURCE%" -C "%_KOKA_PREFIX%"
 if errorlevel 1 (
   echo "Unpacking error: %ERRORLEVEL%"
   goto end
@@ -149,7 +173,7 @@ if not errorlevel 1 (
   echo.
   set _koka_answer=Y
   if "%_KOKA_FORCE%" NEQ "Y" (
-    set /p "_koka_answer=Add Koka binary directory to the user PATH? [Yn] " 
+    set /p "_koka_answer=Add koka binary directory to the PATH? [Yn] " 
   )
   if /i "%_koka_answer:~,1%" == "N" goto done_env
 
@@ -207,30 +231,45 @@ REM ---------------------------------------------------------
 REM Uninstall previous version
 REM ---------------------------------------------------------
 
-if "%koka_version%" == "" goto done_install
-if "%koka_version%" == "%_KOKA_VERSION%" (
+if "%_KOKA_PREV_PREFIX%" == "" goto done_install
+
+REM always delete a previous koka.exe _if installed at a different prefix_ on the PATH 
+REM (so the newly installed koka gets found instead of an older one)
+if "%_KOKA_PREV_PREFIX%" NEQ "%_KOKA_PREFIX%" (
+  echo "%PATH%" | find "%_KOKA_PREV_PREFIX%\bin" >nul
+  if not errorlevel 1 (
+    if exist "%_KOKA_PREV_PREFIX%\bin\koka.exe" (
+      del /Q "%_KOKA_PREV_PREFIX%\bin\koka.exe"
+    )
+  )
+)
+
+REM Did we update in place?
+if "%_KOKA_PREV_PREFIX%,%_KOKA_PREV_VERSION%" == "%_KOKA_PREFIX%,%_KOKA_VERSION%" (
   echo Updated koka version %_KOKA_VERSION% in-place
   goto done_install
 )
-if not exist "%_KOKA_PREFIX%\share\koka\%koka_version%" goto done_install
+
+
+if not exist "%_KOKA_PREV_PREFIX%\lib\koka\%_KOKA_PREV_VERSION%" goto done_install
 
 echo.
 set _koka_answer=N
 if "%_KOKA_FORCE%" NEQ "Y" (
-  set /p "_koka_answer=Found previous koka installation %koka_version%, Uninstall? [yN] " 
+  set /p "_koka_answer=Found previous koka installation %_KOKA_PREV_VERSION%, Uninstall? [yN] " 
 )
 if /i "%_koka_answer:~,1%" NEQ "Y" goto done_install
 
 :uninstallprev
-echo Uninstalling previous koka installation %koka_version%..
-if exist "%_KOKA_PREFIX%\bin\koka-%koka_version%.exe" (
-  echo - remove executable            : ^<prefix^>\bin\koka-%koka_version%.exe  
-  del /Q "%_KOKA_PREFIX%\bin\koka-%koka_version%.exe"
+echo Uninstalling previous koka installation %_KOKA_PREV_VERSION%..
+if exist "%_KOKA_PREV_PREFIX%\bin\koka-%_KOKA_PREV_VERSION%.exe" (
+  echo - remove executable            : ^<prefix^>\bin\koka-%_KOKA_PREV_VERSION%.exe  
+  del /Q "%_KOKA_PREV_PREFIX%\bin\koka-%_KOKA_PREV_VERSION%.exe"
 )
-echo - remove pre-compiled libraries: ^<prefix^>\lib\koka\%koka_version%
-rmdir /S /Q "%_KOKA_PREFIX%\lib\koka\%koka_version%"
-echo - remove source libraries      : ^<prefix^>\share\koka\%koka_version%
-rmdir /S /Q "%_KOKA_PREFIX%\share\koka\%koka_version%"
+echo - remove pre-compiled libraries: ^<prefix^>\lib\koka\%_KOKA_PREV_VERSION%
+rmdir /S /Q "%_KOKA_PREV_PREFIX%\lib\koka\%_KOKA_PREV_VERSION%"
+echo - remove source libraries      : ^<prefix^>\share\koka\%_KOKA_PREV_VERSION%
+rmdir /S /Q "%_KOKA_PREV_PREFIX%\share\koka\%_KOKA_PREV_VERSION%"
 goto done_install
 
 
@@ -255,7 +294,7 @@ if /i "%_koka_answer:~,1%" NEQ "Y" goto end
 
 if exist "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe" (
   echo - remove executable            : ^<prefix^>\bin\koka.exe
-  fc /LB1 "%_KOKA_PREFIX%\bin\koka.exe" "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe" > nul
+  fc /LB1 "%_KOKA_PREFIX%\bin\koka.exe" "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe" > nul 2> nul
   if not errorlevel 1 (del /Q "%_KOKA_PREFIX%\bin\koka.exe")
   echo - remove executable            : ^<prefix^>\bin\koka-%_KOKA_VERSION%.exe
   del /Q "%_KOKA_PREFIX%\bin\koka-%_KOKA_VERSION%.exe"
@@ -272,12 +311,8 @@ goto end
 
 REM ---------------------------------------------------------
 REM Install completed
-REM remember current installed version
 REM ---------------------------------------------------------
 :done_install
-
-set  koka_version=%_KOKA_VERSION%
-setx koka_version %_KOKA_VERSION% >nul
 
 
 REM ---------------------------------------------------------
@@ -363,6 +398,8 @@ set _KOKA_FORCE=
 set _KOKA_DIST_SOURCE=
 set _KOKA_DIST_SOURCE_URL=
 set _KOKA_ARCH=
+set _KOKA_PREV_PREFIX=
+set _KOKA_PREV_VERSION=
 set _CLANG_VERSION=
 set _CLANG_INSTALL_BASE=
 set _CLANG_INSTALL=
