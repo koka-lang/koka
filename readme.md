@@ -262,6 +262,7 @@ Recently completed tasks:
 - Run the Bayesian probalistic machine learning program with large parameters.
 - Functions with a pattern match in the argument (by Steven Fontanella).
 
+
 # Build Notes
 
 ## Installing Stack 
@@ -294,17 +295,19 @@ you can also set the resolver explicitly in the `stack.yaml` file
 and uncomment the line `system-ghc: true`.
 
 If you still find yourself unable to run `stack`, you may try to 
-just install `ghc` and `alex` and run the minimal build script as
-`./util/minbuild.sh`.
+just install `ghc` and `alex` and run the minimal build script
+to build Koka:
+```
+./util/minbuild.sh
+```
 
-
-## Windows C Compilers.
+## Windows C Compilers
 
 The Koka compiler on Windows requires a C compiler. By default
 when using `stack exec koka` the C compiler supplied with `ghc` is used (`mingw`)
 but that is only visible within a stack environmet.
 
-It is therefor recommended to install the [clang][winclang] compiler for
+It is therefore recommended to install the [clang][winclang] compiler for
 Windows (which is automatically installed when running `util/install.bat`).
 However, Koka can also use the Microsoft Visual C++ compiler (`cl`) if you 
 run `koka` from a [Visual Studio x64 toolset](vsprompt) command prompt (in 
@@ -325,7 +328,6 @@ $ out\v2.0.5\cl-release\test_bench_koka_rbtree --kktime
 420000
 info: elapsed: 1.483s, user: 1.484s, sys: 0.000s, rss: 164mb
 ```
-
 
 
 # References
