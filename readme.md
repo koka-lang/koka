@@ -108,11 +108,11 @@ without problems on most common platforms, e.g. Windows (including WSL), macOS, 
 Unix. The following programs are required to build Koka:
 
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
-  Use `$ curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
+  Use `curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
 * Optional components: 
   - [vcpkg] to be able to link easily with C libraries:  
     `$ git clone https://github.com/microsoft/vcpkg`  
-    `$ ./vcpkg/bootstrap-vcpkg.sh`   (or `$ .\vcpkg\bootstrap-vcpkg.bat` on Windows)
+    `$ ./vcpkg/bootstrap-vcpkg.sh` &nbsp; (or `.\vcpkg\bootstrap-vcpkg.bat` on Windows)
   - [nodejs](http://nodejs.org) if using the Javascript backend.
   - On Windows it is recommended to install the [clang][winclang] C compiler, or the [Visual Studio](https://visualstudio.microsoft.com/downloads/) C compiler.
 
@@ -157,7 +157,7 @@ and uncomment the line `system-ghc: true`.
 
 If you still find yourself unable to run `stack`, you may try to 
 just install `ghc` and `alex` and run the minimal build script as
-`util/minbuild.sh`
+`util/minbuild.sh`.
 
 ## Create an Install Bundle
 
