@@ -3,7 +3,7 @@
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
-  found in the file "license.txt" at the root of this distribution.
+  found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
 static kk_std_core__error kk_os_read_text_file_error( kk_string_t path, kk_context_t* ctx ) {

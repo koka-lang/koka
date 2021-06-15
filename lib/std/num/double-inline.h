@@ -3,7 +3,7 @@
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
-  found in the file "license.txt" at the root of this distribution.
+  found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
 static inline kk_std_core_types__tuple2_ kk_double_to_bits( double d, kk_context_t* ctx ) {

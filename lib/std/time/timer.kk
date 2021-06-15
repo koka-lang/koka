@@ -3,7 +3,7 @@
 
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
-   can be found in the file "license.txt" at the root of this distribution.
+   can be found in the LICENSE file at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
 /* High resolution timer.
