@@ -114,10 +114,12 @@ function enableCopyButtons() {
   const buttons = document.querySelectorAll(".copy.button");
   buttons.forEach( function(button){
     button.addEventListener("click", copyToClipboard);
+    /*
     button.addEventListener("mouseleave", function(event) {
       const target = event.delegateTarget || event.currentTarget;
       removeCopiedTooltip(target); 
     });
+    */
   });
 }
 
