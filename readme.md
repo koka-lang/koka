@@ -145,8 +145,7 @@ $ koka --version
 Koka is by default installed for the current user in `<prefix>/bin/koka`,
 (with architecture specific files under `<prefix>/lib/koka/v2.x.x`
 and libraries and samples under `<prefix>/share/koka/v2.x.x`).
-On Windows the default prefix is `%APPDATA%\local` (which is also
-used by `stack`).
+On Windows the default prefix is `%LOCALAPPDATA%\local`.
 
 
 # Benchmarks
