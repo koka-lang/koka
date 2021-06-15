@@ -1,5 +1,5 @@
 -----------------------------------------------------------------------------
--- Copyright 2012-2020 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
@@ -1030,7 +1030,7 @@ versionMessage flags
   <-> text "cc     :" <+> text (ccPath (ccomp flags))
   <->
   (color Gray $ vcat $ map text
-  [ "Copyright (c) 2012-2021 Microsoft Corporation, by Daan Leijen."
+  [ "Copyright 2012-2021, Microsoft Research, Daan Leijen."
   , "This program is free software; see the source for copying conditions."
   , "This program is distributed in the hope that it will be useful,"
   , "but without any warranty; without even the implied warranty"

@@ -1,6 +1,6 @@
 {
   "name"        : "koka-std",
-  "author"      : "Daan Leijen, Microsoft Corp.",
+  "author"      : "Microsoft Research, Daan Leijen",
   "version"     : "0.5.0-dev",
   "license"     : "Apache License 2.0",
   "homepage"    : "http://koka.codeplex.com",
