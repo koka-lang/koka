@@ -863,12 +863,12 @@ onWindows
 tripletOsName, osName :: String
 tripletOsName
   = case System.Info.os of
-      "linux-android" -> "linux"
-      "mingw32"       -> "windows"
+      "linux-android" -> "android"
+      "mingw32"       -> "mingw-static"
       "darwin"        -> "osx"
       os              -> os
 
-osName 
+osName
   = case System.Info.os of
       "mingw32" -> "windows"
       "darwin"  -> "osx"
@@ -879,15 +879,13 @@ osName
 
 tripletArch :: String
 tripletArch 
-  = case cpuArch of
-      "amd64"       -> "x64"      
-      arch          -> arch 
+  = cpuArch
 
 cpuArch :: String  
 cpuArch
   = case System.Info.arch of 
       "aarch64"     -> "arm64"
-      "x86_64"      -> "amd64"
+      "x86_64"      -> "x64"
       "i386"        -> "x86"
       "powerpc"     -> "ppc"
       "powerpc64"   -> "ppc64"

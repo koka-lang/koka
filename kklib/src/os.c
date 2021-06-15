@@ -1092,7 +1092,7 @@ kk_string_t kk_os_kernel(kk_context_t* ctx) {
 kk_string_t kk_os_arch(kk_context_t* ctx) {
   const char* arch = "unknown";
 #if defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) || defined(_M_AMD64)
-  arch = "amd64";
+  arch = "x64";
 #elif defined(__i386__) || defined(__i386) || defined(_M_IX86) || defined(_X86_) || defined(__X86__)
   arch = "x86";
 #elif defined(__aarch64__) || defined(_M_ARM64)
@@ -1111,6 +1111,8 @@ kk_string_t kk_os_arch(kk_context_t* ctx) {
   arch = "mips";
 #elif defined(__sparc__) || defined(__sparc)
   arch = (KK_INTPTR_SIZE==4 ? "sparc32" : "sparc64");
+#elif defined(__ia64__) || defined(__ia64) || defined(_M_IA64) || defined(__itanium__)  
+  arch = "ia64"
 #elif defined(__hppa__)
   arch = "hppa";
 #elif defined(__m68k__)

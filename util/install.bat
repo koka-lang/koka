@@ -3,7 +3,7 @@ REM ------------------------------------------------------------------
 REM Installation script for Koka; use -h to see command line options.
 REM ------------------------------------------------------------------
 
-set _KOKA_VERSION=v2.1.6
+set _KOKA_VERSION=v2.1.7
 set _KOKA_PREFIX=%APPDATA%\local
 set _KOKA_UNINSTALL=N
 set _KOKA_HELP=N
@@ -64,8 +64,12 @@ goto argparse
 REM ---------------------------------------------------------
 REM Defaults
 REM ---------------------------------------------------------
+
+set _KOKA_ARCH=x64
+if "%_KOKA_VERSION%" LEQ "v2.1.6" (set _KOKA_ARCH=amd64)
+
 if "%_KOKA_DIST_SOURCE_URL%" == "" (
-  set _KOKA_DIST_SOURCE_URL=https://github.com/koka-lang/koka/releases/download/%_KOKA_VERSION%/koka-%_KOKA_VERSION%-windows-amd64.tar.gz
+  set _KOKA_DIST_SOURCE_URL=https://github.com/koka-lang/koka/releases/download/%_KOKA_VERSION%/koka-%_KOKA_VERSION%-windows-%_KOKA_ARCH%.tar.gz
 )
 
 if "%_KOKA_HELP%" == "Y"       goto help
@@ -358,11 +362,12 @@ set _KOKA_HELP=
 set _KOKA_FORCE=
 set _KOKA_DIST_SOURCE=
 set _KOKA_DIST_SOURCE_URL=
+set _KOKA_ARCH=
 set _CLANG_VERSION=
 set _CLANG_INSTALL_BASE=
 set _CLANG_INSTALL=
 set _CLANG_INSTALL_URL=
 set _CLANG_INSTALL_SHA256=
-set _koka_answer=
 set _KOKA_IEXPRESS=
+set _koka_answer=
 

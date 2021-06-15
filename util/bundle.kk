@@ -188,7 +188,10 @@ fun get-default-prefix(dist : bool, post : string) : io path {
 }
 
 fun get-default-postfix() : io string {
-  ["v" ++ get-compiler-version(), get-os-name(), get-cpu-arch()].join("-")
+  val ver   = get-compiler-version()
+  val arch0 = get-cpu-arch()
+  val arch  = if (ver <= "2.1.6" && arch0 == "x64") then "amd64" else arch0
+  ["v" ++ ver, get-os-name(), arch].join("-")
 }
 
 type variant {

@@ -4,7 +4,7 @@
 # Installation script for Koka; use -h to see command line options.
 #-----------------------------------------------------------------------------
 
-VERSION="v2.1.6"
+VERSION="v2.1.7"
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
@@ -72,10 +72,16 @@ on_path() {
 detect_osarch() {
   arch="$(uname -m)"
   case "$arch" in
-    arm64*|aarch64*)   arch="arm64";;
-    arm*)              arch="arm";;
-    x86_64*)           arch="amd64";;
-    x86*|i[35678]86*)  arch="x86";;
+    x86_64*|amd64*)
+      arch="x64";;
+    x86*|i[35678]86*)
+      arch="x86";;
+    arm64*|aarch64*|armv8*)   
+      arch="arm64";;
+    arm*)              
+      arch="arm";;
+    parisc*)
+      arch="hppa";;          
   esac
 
   OSARCH="unix-$arch"
@@ -150,6 +156,11 @@ process_options() {
     esac
     shift
   done
+
+  # adjust x64 arch for older versions
+  case "$VERSION" in
+    v2.0.*|v2.1.[0123456]*) OSARCH="${OSARCH%-x64}-amd64";;
+  esac
 
   # initialize distribution url
   if [ -z "$KOKA_DIST_URL" ] ; then

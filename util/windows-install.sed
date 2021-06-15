@@ -1,5 +1,5 @@
 ; Use 'iexpress /N util\windows-install.sed' from a Windows cmd prompt
-; to generate a graphical windows executable installer as 'dist\install-koka-<version>-windows-amd64.exe'.
+; to generate a graphical windows executable installer as 'dist\install-koka-<version>-windows-x64.exe'.
 
 [Strings]
 Version=v2.1.6
@@ -28,7 +28,7 @@ RebootMode=N
 InstallPrompt=Installing Koka %Version%. Continue?
 DisplayLicense=%DisplayLicense%
 FinishMessage=%FinishMessage%
-TargetName=dist\install-koka-%Version%-windows-amd64.exe
+TargetName=dist\install-koka-%Version%-windows-x64.exe
 FriendlyName=%FriendlyName%
 AppLaunched=%AppLaunched%
 PostInstallCmd=%PostInstallCmd%
