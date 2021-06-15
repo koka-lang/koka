@@ -42,7 +42,8 @@ executables:
     build-tools:
       - alex
     ghc-options:
-      - -rtsopts
+      - -rtsopts 
+      - -j4
     cpp-options:
       - -DKOKA_MAIN="koka"      
       - -DKOKA_VARIANT="release"
