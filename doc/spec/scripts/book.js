@@ -101,7 +101,8 @@ function copyToClipboard( event ) {
     navigator.clipboard.writeText(text).then( function(){
       addCopiedTooltip(target,true);
     }, function(err) {
-      addCopiedTooltip(target,false);      
+      const ok = commandCopyToClipboard(text);
+      addCopiedTooltip(target,ok);      
     });
   }
   else {
