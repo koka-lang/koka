@@ -63,6 +63,7 @@ To learn more:
 [vsprompt]: https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019
 [winclang]: https://llvm.org/builds
 [vcpkg]: https://github.com/microsoft/vcpkg#getting-started
+[ghcup]: https://www.haskell.org/ghcup
 
 Enjoy,  
   Daan Leijen
@@ -304,6 +305,8 @@ to build Koka:
 ```
 ./util/minbuild.sh
 ```
+If `ghc` is not available as a package, you may also
+try [ghcup] to install it.
 
 ## Windows C Compilers
 
