@@ -1,3 +1,9 @@
+# -----------------------------------------------------------------------------
+# Build the kklib library.
+# Note: this is unused -- the koka compiler will use src/all.c to compile
+# kklib into a single object file.
+# -----------------------------------------------------------------------------
+
 cmake_minimum_required(VERSION 3.7)
 project(kklib VERSION 1.0 LANGUAGES C)
 enable_testing()
