@@ -16,25 +16,28 @@ echo "         Use the 'stack build' command instead when possible"
 echo "------------------------------------------------------------"
 echo ""
 
+# check for ghc
+if ! which ghc > /dev/null ; then
+  echo "This build script requires 'ghc'. Install it first, for example:"
+  echo "  sudo apt install ghc"
+  echo ""
+  echo "If ghc is not available as a package you may try 'ghcup' to install it."
+  echo "See: <https://www.haskell.org/ghcup> for more information"
+  echo ""
+  exit 1
+fi  
+
 # generate the lexer if not provided
 if ! [ -f src/Syntax/Lexer.hs ] ; then
   if ! which alex > /dev/null ; then
     echo "This build script requires 'alex'. Install it first, for example:"
-    echo "  sudo apt install ghc"
+    echo "  sudo apt install alex"
     echo ""
     exit 1
   fi
   echo "generate lexer.."
   alex src/Syntax/Lexer.x -g -o src/Syntax/Lexer.hs
 fi
-
-# check for ghc
-if ! which ghc > /dev/null ; then
-  echo "This build script requires 'ghc'. Install it first, for example:"
-  echo "  sudo apt install ghc"
-  echo ""
-  exit 1
-fi  
 
 mkdir -p out/build
 set -o xtrace
