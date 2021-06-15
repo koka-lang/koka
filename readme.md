@@ -126,14 +126,14 @@ $ stack exec koka
 You can also use `stack build --fast` to build a debug version of the compiler.
 
 
-## Installing Stack
+## Installing Stack 
 
 On less common platforms (like `arm64`), the default installation method for `stack` (and `ghc`) may fail.
 The following instructions work for Linux on arm64 (tested on a graviton2 AWS instance with Ubuntu 20.04).
 First install `ghc`, `cabal`, and `stack` as packages:
 ```
 $ sudo apt update
-$ sudo apt install ghc cabal-install haskell-stack
+$ sudo apt install alex ghc cabal-install haskell-stack
 $ stack update
 ```
 Optionally, install `vcpkg` as well:
@@ -154,6 +154,12 @@ $ stack --resolver lts-14.27 --system-ghc exec koka
 Instead of specifying this on the command line, 
 you can also set the resolver explicitly in the `stack.yaml` file
 and uncomment the line `system-ghc: true`.
+
+If you still find yourself unable to run `stack`, you may try to 
+just install `ghc` and `alex` and run the minimal build script:
+```
+$ util/minbuild.sh
+```
 
 ## Create an Install Bundle
 
