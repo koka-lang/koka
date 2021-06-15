@@ -72,7 +72,7 @@ Special thanks to: [Ningning Xie](https://xnning.github.io/) for her work on the
 [Alex Reinking](https://alexreinking.com/) for the implementation of the Perceus reference counting analysis [[8]](#references),
 and all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
 
-## Releases
+## Recent Releases
 
 - `v2.1.6`, 2021-06-10: initial support for shallow resumptions, fix space leak with vectors, allow `gcc` with `--fasan`,
   improved `vcpkg` support, add `--fstdalloc` flag, improved VS code syntax highlighting, improved `valgrind` support,
@@ -84,14 +84,7 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
   initial Emacs syntax highlighting (by Kamoii).
 - `v2.1.1`, 2021-03-08: bug fixes, use right-associative (++) for string- and list append (instead of (+)), improved internal 
   string handling.
-- `v2.0.16`, 2021-02-14: bug fixes, fix short-circuit evaluation of logical operations, improved utf-8 handling.
-- `v2.0.14`, 2020-12-11: bug fixes, improved var escape checking.
-- `v2.0.12`, 2020-12-02: syntax highlighting support for VS Code and Atom, improved uninstall, more samples.
-- `v2.0.9`, 2020-11-27: now with binary [releases] for Windows, macOS, and Linux.
-- `v2.0.7`, 2020-11-23: more small fixes, improved scoped handlers, improved higher-rank type propagation, more samples.
-- `v2.0.5`, 2020-11-15: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support, direct C 
-  compilation, local install support.
-- `v2.0.0`, 2020-08-21: initial v2 release.
+- [Older release notes](#older-release-notes).
 
 <!--
 <img align="right" width="200" src="doc/system-logos.png">
@@ -99,7 +92,7 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 # Install
 
-Koka has [binary installers][install] for Windows (x64), macOS (x64), and Linux (x64,arm64).
+Koka has [binary installers][install] for Windows (x64), macOS (x64), and Linux (x64,arm64).  
 For other platforms, you need to build the compiler from source.
 
 # Build from Source
@@ -110,13 +103,9 @@ Unix. The following programs are required to build Koka:
 
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
   Use `curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
-
-Optional components: 
-- [vcpkg] to be able to link easily with C libraries:  
-  `$ git clone https://github.com/microsoft/vcpkg`  
-  `$ ./vcpkg/bootstrap-vcpkg.sh` &nbsp; (or `.\vcpkg\bootstrap-vcpkg.bat` on Windows)
-- [nodejs](http://nodejs.org) if using the Javascript backend.
-- On Windows it is recommended to install the [clang][winclang] C compiler, or the [Visual Studio](https://visualstudio.microsoft.com/downloads/) C compiler.
+* Optional: [vcpkg] to be able to link easily with C libraries.
+* Optional: [nodejs](http://nodejs.org) if using the Javascript backend.
+* Optional: On Windows it is recommended to install the [clang][winclang] C compiler, or the [Visual Studio](https://visualstudio.microsoft.com/downloads/) C compiler.
 
 Now clone the repository and build the compiler as (note the `--recursive` flag):
 ```
@@ -332,6 +321,18 @@ $ out\v2.0.5\cl-release\test_bench_koka_rbtree --kktime
 420000
 info: elapsed: 1.483s, user: 1.484s, sys: 0.000s, rss: 164mb
 ```
+
+## Older Release Notes
+
+- `v2.0.16`, 2021-02-14: bug fixes, fix short-circuit evaluation of logical operations, improved utf-8 handling.
+- `v2.0.14`, 2020-12-11: bug fixes, improved var escape checking.
+- `v2.0.12`, 2020-12-02: syntax highlighting support for VS Code and Atom, improved uninstall, more samples.
+- `v2.0.9`, 2020-11-27: now with binary [releases] for Windows, macOS, and Linux.
+- `v2.0.7`, 2020-11-23: more small fixes, improved scoped handlers, improved higher-rank type propagation, more samples.
+- `v2.0.5`, 2020-11-15: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support, direct C 
+  compilation, local install support.
+- `v2.0.0`, 2020-08-21: initial v2 release.
+
 
 
 # References
