@@ -110,7 +110,7 @@ Unix. The following programs are required to build Koka:
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
   Use `$ curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
 * Optional components: 
-  - [vcpkg] to be able to link easily with C libraries (for `std/text/regex` for example):  
+  - [vcpkg] to be able to link easily with C libraries:  
     `$ git clone https://github.com/microsoft/vcpkg`  
     `$ ./vcpkg/bootstrap-vcpkg.sh`   (or `$ .\vcpkg\bootstrap-vcpkg.bat` on Windows)
   - [nodejs](http://nodejs.org) if using the Javascript backend.
@@ -163,15 +163,15 @@ on the local machine:
 $ stack exec koka -- util/bundle
 ...
 distribution bundle created.
-  bundle : dist/koka-v2.1.7-linux-x64.tar.gz
+  bundle : dist/koka-v2.0.9-linux-amd64.tar.gz
   cc     : gcc
-  version: v2.1.7
+  version: v2.0.9
 ```
 This takes a while as it pre-compiles the standard libraries in three build
 variants (`debug`, `drelease` (release with debug info), and `release`).
 After generating the bundle, you can install it locally as:
 ```
-$ util/install.sh -b dist/koka-v2.1.7-linux-x64.tar.gz
+$ util/install.sh -b dist/koka-v2.0.9-linux-amd64.tar.gz
 ```
 (use `util/install.bat` on Windows). 
 After installation, you can now directly invoke `koka`:
