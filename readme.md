@@ -129,7 +129,7 @@ You can also use `stack build --fast` to build a debug version of the compiler.
 ## Installing Stack
 
 On less common platforms (like `arm64`), the default installation method for `stack` (and `ghc`) may fail.
-The following instructions work for Ubuntu Linux on arm64 (tested on a graviton2 AWS instance with Ubuntu 20.04).
+The following instructions work for Linux on arm64 (tested on a graviton2 AWS instance with Ubuntu 20.04).
 First install `ghc`, `cabal`, and `stack` as packages:
 ```
 $ sudo apt update
@@ -290,7 +290,7 @@ Recently completed tasks:
 - Functions with a pattern match in the argument (by Steven Fontanella).
 
 
-# Windows C Compilers.
+## Windows C Compilers.
 
 The Koka compiler on Windows requires a C compiler. By default
 when using `stack exec koka` the C compiler supplied with `ghc` is used (`mingw`)
