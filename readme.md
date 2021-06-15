@@ -241,19 +241,12 @@ Currently being worked on:
   (contact: Steven Fontanella)
 - Borrowing analysis for Perceus and improved reuse analysis. (contact: Anton Lorenzen)
 
-
 The following is the immediate todo list to be completed in the coming months:
 
 - Port `std/async` (using `libuv`).
 - Improve compilation of local state to use local variables directly (in C).
 
 Contact me if you are interested in tackling some of these :-)
-
-Main branches:
-- `master`: latest stable version.
-- `dev`: current development branch -- submit PR's to this branch.
-- `v1-master`: last stable version of Koka v1: this is Koka with the Javascript (and C#) backend which does not use evidence translation.
-               This version supports `std/async` and should compile examples from published papers.
 
 Recently completed tasks:
 
@@ -264,6 +257,16 @@ Recently completed tasks:
 
 
 # Build Notes
+
+## Branches
+
+The main development branches are:
+- `master`: latest stable version.
+- `dev`: current development branch -- submit PR's to this branch.
+- `v1-master`: last stable version of Koka v1: this is Koka with the Javascript (and C#)
+  backend which does not use evidence translation.
+  This version supports `std/async` and should compile examples from published papers.
+
 
 ## Installing Stack 
 
