@@ -904,24 +904,16 @@
     elem.className = elem.className.split(/\s+/).filter( function(c){ return (c != cls); } ).join(" ");
   }
   
-  function removeCopiedTooltip( event ) {
-    const target = event.delegateTarget || event.currentTarget;
+  function removeCopiedTooltip( target ) {
     removeClass(target,"tooltip-copied");
-    target.setAttribute("title","Copy");
-    //removeClass(target.firstElementChild,"fa-check");
-    //addClass(target.firstElementChild,"fa-copy");
+    target.setAttribute("title","Copy");  
   }
   
   function addCopiedTooltip(target,ok) {
     target.setAttribute("data-tooltip",ok ? "Copied!" : "Failed to copy!" );
     addClass(target,"tooltip-copied");
     target.setAttribute("title","");
-    /*
-    if (ok) {
-      removeClass(target.firstElementChild,"fa-copy");
-      addClass(target.firstElementChild,"fa-check");
-    }
-    */
+    setTimeout( function(){ removeCopiedTooltip(target); }, 2000 );
   }
   
   
@@ -977,7 +969,10 @@
     const buttons = document.querySelectorAll(".copy.button");
     buttons.forEach( function(button){
       button.addEventListener("click", copyToClipboard);
-      button.addEventListener("mouseleave", removeCopiedTooltip);
+      button.addEventListener("mouseleave", function(event) {
+        const target = event.delegateTarget || event.currentTarget;
+        removeCopiedTooltip(target); 
+      });
     });
   }
   
@@ -1183,11 +1178,11 @@ algorithms in a functional style.
 <div class="content">
 <p class="p noindent">For  Linux (x64,arm64) and macOS (x64), you can install Koka using:
 </p>
-<p class="p copy button indent" title="Copy" data-value="curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh" style="float:left;font-size:70%"><span class="fa fa-copy"></span></p>
+<p class="p copy button indent" title="Copy" data-value="curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh" style="float:left;font-size:75%"><span class="fa fa-copy"></span></p>
 <pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2">curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &#124; sh</strong></span></code></pre>
 <p class="p noindent para-continued">For Windows (x64), open a <code class="code code2">cmd</code> prompt and use:
 </p>
-<p class="p copy button indent" title="Copy" data-value="curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat &amp;&amp; %tmp%\install-koka.bat" style="float:left;font-size:70%"><span class="fa fa-copy"></span></p>
+<p class="p copy button indent" title="Copy" data-value="curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat &amp;&amp; %tmp%\install-koka.bat" style="float:left;font-size:75%"><span class="fa fa-copy"></span></p>
 <pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2">curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat &amp;&amp; %tmp%\install-koka.bat</strong></span></code></pre>
 <p class="p noindent para-continued">This also installs syntax highlighting for the VS Code and Atom editors.
 </p>
