@@ -616,16 +616,20 @@ getKokaDirs libDir0 shareDir0
 
 rootDirFrom :: FilePath -> FilePath
 rootDirFrom binDir
- = case reverse (splitPath binDir) of
-     -- stack build
-     ("bin":_:"install":".stack-work":es)     -> joinPaths (reverse es)
-     ("bin":_:_:"install":".stack-work":es)   -> joinPaths (reverse es)
-     ("bin":_:_:_:"install":".stack-work":es) -> joinPaths (reverse es)
-     -- regular install
-     ("bin":es)   -> joinPaths (reverse es)
-     -- minbuild / jake build
-     (_:"out":es) -> joinPaths (reverse es)
-     _            -> binDir
+ = case span (/="dist-newstyle") (reverse (splitPath binDir)) of
+     -- cabal
+     (_, _:es) -> joinPaths (reverse es)
+     -- other
+     (rs,[]) -> case rs of
+                  -- stack build
+                  ("bin":_:"install":".stack-work":es)     -> joinPaths (reverse es)
+                  ("bin":_:_:"install":".stack-work":es)   -> joinPaths (reverse es)
+                  ("bin":_:_:_:"install":".stack-work":es) -> joinPaths (reverse es)
+                  -- regular install
+                  ("bin":es)   -> joinPaths (reverse es)
+                  -- minbuild / jake build
+                  (_:"out":es) -> joinPaths (reverse es)
+                  _            -> binDir
 
 
 extractFlags :: Flags -> [Option] -> Flags

@@ -5,9 +5,8 @@
 node_modules/
 out/
 dist/
-src/Syntax/Lexer.hs
+dist-newstyle/
 kklib/mimalloc-inline
-koka.cabal
 stack.yaml.lock
 package-lock.json
 test.kk

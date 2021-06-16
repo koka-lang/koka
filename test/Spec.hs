@@ -25,7 +25,8 @@ data Mode = Test | New | Update
 
 data Cfg = Cfg{ flags   :: [String],
                 exclude :: [String],
-                fexclude:: !(String -> Bool)
+                fexclude:: !(String -> Bool),
+                cabal :: Bool
               }  
 
 makeCfg flags []
@@ -50,17 +51,17 @@ instance JSON Cfg where
                  exclude = case valFromObj "exclude" obj of
                              Ok xs -> xs
                              _     -> []
-             in Ok (makeCfg flags exclude)
-        JSNull     -> Ok (makeCfg [] [])
-        JSString s -> Ok (makeCfg (words (fromJSString s)) [])
+             in Ok (makeCfg flags exclude False)
+        JSNull     -> Ok (makeCfg [] [] False)
+        JSString s -> Ok (makeCfg (words (fromJSString s)) [] False)
         _          -> Error ("invalid JSON object")
 
 extendCfg :: Cfg -> Cfg -> Cfg
-extendCfg (Cfg flags1 exclude1 fexclude1) (Cfg flags2 exclude2 fexclude2)
-  = Cfg (flags1 ++ flags2) (exclude1 ++ exclude2) (\s -> fexclude1 s || fexclude2 s)
+extendCfg (Cfg flags1 exclude1 fexclude1 cabal1) (Cfg flags2 exclude2 fexclude2 cabal2)
+  = Cfg (flags1 ++ flags2) (exclude1 ++ exclude2) (\s -> fexclude1 s || fexclude2 s) (cabal1 || cabal2)
 
-initialCfg :: Cfg
-initialCfg = makeCfg commonFlags []
+initialCfg :: Bool -> Cfg
+initialCfg cabal = makeCfg commonFlags [] cabal
                         
                   
 
@@ -74,6 +75,7 @@ readFlagsFile fp
 testSanitize :: FilePath -> String -> String
 testSanitize kokaDir
   = trim
+  . sub "^Up to date\n" ""
   . sub "\n[[:space:]]+at .*" ""
   . sub "(std_core\\.js:)[[:digit:]]+" "\\1"
   . sub "[\r\n]+" "\n"
@@ -91,8 +93,12 @@ runKoka cfg fp
   = do caseFlags <- readFlagsFile (fp ++ ".flags")
        kokaDir <- getCurrentDirectory
        let relTest = makeRelative kokaDir fp
-       let argv = ["exec", "koka", "--"] ++ flags cfg ++ caseFlags ++ [relTest]
-       testSanitize kokaDir <$> readProcess "stack" argv ""
+       if (cabal cfg)
+         then do let argv = ["run", "koka", "--"] ++ flags cfg ++ caseFlags ++ [relTest]
+                 testSanitize kokaDir <$> readProcess "cabal" argv ""       
+         else do let argv = ["exec", "koka", "--"] ++ flags cfg ++ caseFlags ++ [relTest]
+                 testSanitize kokaDir <$> readProcess "stack" argv ""
+       
 
 makeTest :: Mode -> Cfg -> FilePath -> Spec
 makeTest mode cfg fp
@@ -109,8 +115,8 @@ makeTest mode cfg fp
   | otherwise
       = return ()
 
-discoverTests :: Mode -> FilePath -> Spec
-discoverTests mode p = discover initialCfg "" p
+discoverTests :: Bool -> Mode -> FilePath -> Spec
+discoverTests cabal mode p = discover (initialCfg cabal) "" p
   where discover cfg cat p
           = do isDirectory <- runIO $ doesDirectoryExist p
                if not isDirectory
@@ -147,25 +153,29 @@ parseMode "update" = Update
 parseMode "test" = Test
 parseMode m = error $ "Unrecognized mode: " ++ show m
 
-getMode :: [String] -> (Mode, [String])
-getMode ("--mode":mode:args) =
-  let (mode',args') = getMode args
-   in (max (parseMode mode) mode', args')
-getMode (x:args) =
-  let (mode, args') = getMode args
-   in (mode, x:args')
-getMode [] = (Test, [])
+getOpts :: [String] -> (Bool, Mode, [String])
+getOpts ("--mode":mode:args) =
+  let (cabal',mode',args') = getOpts args
+   in (cabal', max (parseMode mode) mode', args')
+getOpts ("--cabal":args) =
+  let (_,mode',args') = getOpts args
+  in (True,mode',args')
+getOpts (x:args) =
+  let (cabal,mode, args') = getOpts args
+   in (cabal,mode, x:args')
+getOpts [] = (False, Test, [])
 
 main :: IO ()
 main = do
   pwd <- getCurrentDirectory
-  (mode, args) <- getMode <$> getArgs  
+  (cabal, mode, args) <- getOpts <$> getArgs  
+  putStrLn $ show (cabal,args)
   hcfg <- readConfig defaultConfig args
   putStrLn "pre-compiling standard libraries..."
   -- compile all standard libraries before testing so we can run in parallel
-  runKoka initialCfg "util/link-test.kk" 
+  runKoka (initialCfg cabal) "util/link-test.kk" 
   putStrLn "ok."
-  let spec = parallel $ discoverTests mode (pwd </> "test")
+  let spec = parallel $ discoverTests cabal mode (pwd </> "test")
   summary <- withArgs [] (runSpec spec hcfg{configFormatter=Just specProgress})
   evaluateSummary summary
 

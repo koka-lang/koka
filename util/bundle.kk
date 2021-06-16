@@ -19,6 +19,7 @@ struct iflags {
   postfixtag: string = ""
   minimal   : bool   = False
   dist      : bool   = True
+  cabal     : bool   = False
 }
 
 val flag-descs : list<flag<iflags>> = {
@@ -26,10 +27,12 @@ val flag-descs : list<flag<iflags>> = {
   fun set-postfix( f : iflags, s : string ) : iflags { f(postfixtag = s) }
   fun set-minimal( f : iflags, b : bool ) : iflags  { f(minimal = b) }
   fun set-install( f : iflags, b : bool ) : iflags  { f(dist = !b) }
+  fun set-cabal( f : iflags, b : bool ) : iflags  { f(cabal = b) }
   [ Flag( "m", ["minimal"], Bool(set-minimal), "use minimal install (more quick)" ),
     Flag( "i", ["install"], Bool(set-install), "install directly without creating a distribution bundle"),
     Flag( "", ["prefix"], Req(set-prefix,"DIR"), "set prefix directory for install ('~/.local')" ),
-    Flag( "", ["postfix"], Req(set-postfix,"POST"), "set postfix instead of <version>-<os>-<arch>")
+    Flag( "", ["postfix"], Req(set-postfix,"POST"), "set postfix instead of <version>-<os>-<arch>"),
+    Flag( "", ["cabal"], Bool(set-cabal), "use cabal generated koka compiler")
   ]
 }
 
@@ -59,14 +62,14 @@ fun main() {
                     else flags.prefixdir.path
       val version = "v" ++ get-compiler-version()
       val cc      = get-cc-name()
-      install( predir, cc, version, flags.dist, post, flags.minimal )      
+      install( predir, cc, version, flags.dist, post, flags.minimal, flags.cabal )      
     }
   }
 }
 
-fun install( prefixdir : path, cc : string, version : string, dist : bool, post : string, minimal : bool ) {
+fun install( prefixdir : path, cc : string, version : string, dist : bool, post : string, minimal : bool, cabal : bool ) {
   // Install paths
-  val koka    = koka-exe-path()
+  val koka    = koka-exe-path(cabal)
   val bindir  = prefixdir / "bin"
   val libdir  = prefixdir / "lib" / "koka" / version
   val sharedir= prefixdir / "share" / "koka" / version
@@ -91,7 +94,7 @@ fun install( prefixdir : path, cc : string, version : string, dist : bool, post 
 
   // Build kklib versions
   [Debug,DRelease,Release].foreach fn(v){ 
-    build-libraries( cc,v,version,dist,minimal ) 
+    build-libraries( cc,v,version,dist,minimal,cabal ) 
   }
 
   // Copy Koka
@@ -159,9 +162,14 @@ fun install( prefixdir : path, cc : string, version : string, dist : bool, post 
   println("  version: " ++ version)
 }
 
-fun koka-exe-path() : io path {
-  val out = run-system-read("stack path --local-install-root").exn
-  val exe = out.trim / "bin" / "koka"
+fun koka-exe-path(cabal : bool) : io path {
+  val exe = if (cabal) then {
+              run-system-read("cabal list-bin koka").exn.trim.path
+            }
+            else {
+              val out = run-system-read("stack path --local-install-root").exn
+              out.trim / "bin" / "koka"
+            }
   if (exe.is-file) return exe
   val win = exe.change-ext(".exe")
   if (win.is-file) return win
@@ -231,7 +239,7 @@ fun copy-libraries( libdir : path, cc : string, variant : variant, version : str
   }
 }
 
-fun build-libraries(cc : string, variant : variant, version : string, dist : bool, minimal : bool) : io () {
+fun build-libraries(cc : string, variant : variant, version : string, dist : bool, minimal : bool, cabal : bool) : io () {
   println("build standard libraries: " ++ variant.show ++ "...")
   val extra = match(variant) {
     Debug    -> ""
@@ -241,7 +249,8 @@ fun build-libraries(cc : string, variant : variant, version : string, dist : boo
   val prog = if (minimal) then "util/link-min" else "util/link-std"
   val builddir = get-build-dir( cc, variant, version )
   val args = "--cc=" ++ cc ++ " " ++ extra
-  val cmd  = ["stack exec koka", "--", "--cc=" ++ cc, "--builddir=" ++ builddir.show, extra, prog].join(" ")
+  val koka = if (cabal) then "cabal run koka" else "stack exec koka"
+  val cmd  = [koka, "--", "--cc=" ++ cc, "--builddir=" ++ builddir.show, extra, prog].join(" ")
   println("> "  ++ cmd)
   val code = run-system( cmd )
   if (code != 0) throw("error: " ++ code.show)
@@ -249,7 +258,7 @@ fun build-libraries(cc : string, variant : variant, version : string, dist : boo
   if (dist && cc=="clang-cl") {
     // also generate cl binaries on windows
     val clbuilddir = get-build-dir("cl", variant, version)
-    val clcmd  = ["stack exec koka", "--", "--cc=cl", "--builddir=" ++ clbuilddir.show, extra, prog].join(" ")
+    val clcmd  = [koka, "--", "--cc=cl", "--builddir=" ++ clbuilddir.show, extra, prog].join(" ")
     println("> "  ++ clcmd)
     run-system( clcmd )
     ()
