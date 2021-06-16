@@ -649,12 +649,27 @@ messageHeader st
   where
     colors = colorSchemeFromFlags (flags st)
     header = color(colorInterpreter colors) $ vcat [
+        text " _         _ "
+       ,text "| |       | |"
+       ,text "| | _ ___ | | _ __ _"
+       ,text "| |/ / _ \\| |/ / _' |  " <.> welcome
+       ,text "|   ( (_) |   ( (_| |  "  <.> headerVersion
+       ,text "|_|\\_\\___/|_|\\_\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")                    
+       {-
         text " _          _ "
        ,text "| |        | |"
        ,text "| | __ ___ | | __ __ _"
        ,text "| |/ // _ \\| |/ // _` |  " <.> welcome
        ,text "|   <| (_) |   <| (_| |  "  <.> headerVersion
        ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")
+       ,text " "
+       ,text " _         _ "
+       ,text "| |       | |"
+       ,text "| | _ ___ | | _ __ _"
+       ,text "| |/ / _ \\| |/ / _' |  " <.> welcome
+       ,text "|   < (_) |   < (_| |  "  <.> headerVersion
+       ,text "|_|\\_\\___/|_|\\_\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")             
+       -}
        ]
     headerVersion = text $ "version " ++ version ++
                            (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", "

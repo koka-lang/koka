@@ -62,12 +62,12 @@ This also installs syntax highlighting for the VS Code and Atom editors.
 After installation, verify if &koka; installed correctly:
 
     $ koka
-     _          _
-    | |        | |
-    | | __ ___ | | __ __ _
-    | |/ // _ \| |/ // _' |  welcome to the koka interactive compiler
-    |   <| (_) |   <| (_| |  version 2.1.7, Jun 14 2021, libc x64 (gcc)
-    |_|\_\\___/|_|\_\\__,_|  type :? for help, and :q to quit
+     _         _
+    | |       | |
+    | | _ ___ | | _ __ _
+    | |/ / _ \| |/ / _' |  welcome to the koka interactive compiler
+    |   ( (_) |   ( (_| |  version 2.1.7, Jun 15 2021, libc x64 (gcc)
+    |_|\_\___/|_|\_\__,_|  type :? for help, and :q to quit
 
     loading: std/core
     loading: std/core/types
@@ -137,12 +137,12 @@ closely mimicking the imperative rebalancing code of the hand optimized C++ libr
 Without giving any input files, the interactive environment runs by default:
 
     $ koka
-     _          _
-    | |        | |
-    | | __ ___ | | __ __ _
-    | |/ // _ \| |/ // _' |  welcome to the koka interactive compiler
-    |   <| (_) |   <| (_| |  version 2.1.7, Jun 14 2021, libc x64 (clang-cl)
-    |_|\_\\___/|_|\_\\__,_|  type :? for help, and :q to quit
+     _         _
+    | |       | |
+    | | _ ___ | | _ __ _
+    | |/ / _ \| |/ / _' |  welcome to the koka interactive compiler
+    |   ( (_) |   ( (_| |  version 2.1.7, Jun 15 2021, libc x64 (clang-cl)
+    |_|\_\___/|_|\_\__,_|  type :? for help, and :q to quit
 
     loading: std/core
     loading: std/core/types
