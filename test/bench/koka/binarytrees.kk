@@ -5,37 +5,6 @@ type tree {
   Node(l : tree, r : tree)
 }
 
-type tree-zipper {
-  Root
-  LeftChild(up : tree-zipper)
-  RightChild(l : tree, up : tree-zipper)
-}
-
-type direction {
-  Up(l : tree, r : tree)
-  Cont(l : tree)
-  Down
-}
-
-// A (for now) failed attempt to improve performance of make'
-fun make''(n : int32, d : direction, z : tree-zipper) : div tree {
-  if(n.is-zero)
-  then match(z) {
-    Root -> Node(Leaf, Leaf)
-    LeftChild(up) -> make''(1.int32, Cont (Node(Leaf, Leaf)), up)
-    RightChild(l, up) -> make''(1.int32, Up(l, Node(Leaf, Leaf)), up)
-  }
-  else match(d) {
-    Down -> make''(n.dec, Down, LeftChild(z))
-    Cont(l) -> make''(n.dec, Down, RightChild(l, z))
-    Up(l, r) -> match z {
-      Root -> Node(l, r)
-      LeftChild(up) -> make''(n.inc, Cont(Node(l, r)), up)
-      RightChild(ll, up) -> make''(n.inc, Up(ll, Node(l, r)), up)
-    }
-  }
-}
-
 // This Function has an extra argument to suppress the
 // common sub-expression elimination optimization
 // (comment from Haskell version, does this apply here?)
