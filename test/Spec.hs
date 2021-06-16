@@ -162,9 +162,9 @@ main = do
   (mode, args) <- getMode <$> getArgs  
   hcfg <- readConfig defaultConfig args
   putStr "pre compile..."
-  runKoka initialCfg "util/link-min.kk" -- compile dummy to ensure kklib is compiled so it does not pollute the output (causing the first test to fail)
+  runKoka initialCfg "util/link-test.kk" -- compile dummy to ensure kklib is compiled so it does not pollute the output (causing the first test to fail)
   putStrLn " ok"
-  let spec = discoverTests mode (pwd </> "test")
+  let spec = parallel $ discoverTests mode (pwd </> "test")
   summary <- withArgs [] (runSpec spec hcfg{configFormatter=Just specProgress})
   evaluateSummary summary
 
