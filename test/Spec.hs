@@ -15,7 +15,7 @@ import Test.Hspec.Core.Runner
 import Test.Hspec.Core.Formatters hiding (Error)
 
 commonFlags :: [String]
-commonFlags = ["-c", "-v0", "--console=r",
+commonFlags = ["-c", "-v0", "--console=raw",
                -- "--checkcore",
                "-ilib", "-itest",
                "--outdir=" ++ "out" </> "test"]

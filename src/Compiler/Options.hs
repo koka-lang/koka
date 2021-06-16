@@ -271,25 +271,24 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   ['e'] ["execute"]         (\b f -> f{evaluate= b})        "compile and execute (default)"
  , flag   ['c'] ["compile"]         (\b f -> f{evaluate= not b})    "only compile, do not execute"
  , option ['i'] ["include"]         (OptArg includePathFlag "dirs") "add <dirs> to search path (empty resets)"
- , option ['o'] ["outdir"]          (ReqArg outDirFlag "dir")       "output files go to <dir> ('out' by default)"
+ , option ['o'] ["outdir"]          (ReqArg outDirFlag "dir")       "output files go under <dir> ('out' by default)"
  , option []    ["outname"]         (ReqArg exeNameFlag "name")     "base name of the final executable"
  , numOption 1 "n" ['v'] ["verbose"] (\i f -> f{verbose=i})         "verbosity 'n' (0=quiet, 1=default, 2=trace)"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
  , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (0=default, 2=full)"
  , flag   ['g'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)"
+ , emptyline
 
- , emptyline
+ , config []    ["target"]          [("c",C),("js",JS),("cs",CS)] "" targetFlag  "generate C (default), javascript, or C#"
+ , config []    ["host"]            [("node",Node),("browser",Browser)] "host" (\h f -> f{ target=JS, host=h}) "specify host for javascript: <node|browser>"
  , flag   []    ["html"]            (\b f -> f{outHtml = if b then 2 else 0}) "generate documentation"
- , option []    ["htmlbases"]       (ReqArg htmlBasesFlag "bases")            "set link prefixes for documentation"
- , option []    ["htmlcss"]         (ReqArg htmlCssFlag "link")               "set link to the css documentation style"
- , config []    ["target"]          [("js",JS),("cs",CS),("c",C)] targetFlag  "generate C (default), javascript, or C#"
- , config []    ["host"]            [("node",Node),("browser",Browser)] (\h f -> f{ target=JS, host=h}) "specify host for running javascript"
- , config []    ["platform"]        [("x32",platform32),("x64",platform64)] (\p f -> f{platform=p})     "specify target platform (default=64-bit)"
+ , option []    ["htmlbases"]       (ReqArg htmlBasesFlag "bases")  "set link prefixes for documentation"
+ , option []    ["htmlcss"]         (ReqArg htmlCssFlag "link")     "set link to the css documentation style"
  , emptyline
+
  , flag   []    ["showtime"]       (\b f -> f{ showElapsed = b})    "show elapsed time and rss after evaluation"
  , flag   []    ["showspan"]       (\b f -> f{ showSpan = b})       "show ending row/column too on errors"
- -- , flag   []    ["showkinds"]      (\b f -> f{showKinds=b})        "show full kind annotations"
  , flag   []    ["showkindsigs"]   (\b f -> f{showKindSigs=b})      "show kind signatures of type definitions"
  , flag   []    ["showtypesigs"]   (\b f -> f{showTypeSigs=b})      "show type signatures of definitions"
  , flag   []    ["showsynonyms"]   (\b f -> f{showSynonyms=b})      "show expanded type synonyms in types"
@@ -299,20 +298,20 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["showjs"]         (\b f -> f{showAsmJS=b})         "show generated javascript"
  , flag   []    ["showc"]          (\b f -> f{showAsmC=b})          "show generated C"
  , flag   []    ["core"]           (\b f -> f{genCore=b})           "generate a core file"
- , flag   []    ["checkcore"]      (\b f -> f{coreCheck=b})         "check generated core"
- -- , flag   []    ["show-coreF"]      (\b f -> f{showCoreF=b})        "show coreF"
+ , flag   []    ["checkcore"]      (\b f -> f{coreCheck=b})         "check generated core" 
  , emptyline
- , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     "build into <dir> (default: <outdir>/<cfg>)"
- , option []    ["libdir"]          (ReqArg libDirFlag "dir")       "object library <dir> (def: <prefix>/lib/koka/<ver>)"
- , option []    ["sharedir"]        (ReqArg shareDirFlag "dir")     "source library <dir> (def: <prefix>/share/koka/<ver>)"
+
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
+ , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     "build into <dir> (= <outdir>/<ver>/<variant>)"
+ , option []    ["libdir"]          (ReqArg libDirFlag "dir")       "object library <dir> (= <prefix>/lib/koka/<ver>)"
+ , option []    ["sharedir"]        (ReqArg shareDirFlag "dir")     "source library <dir> (= <prefix>/share/koka/<ver>)"
  , option []    ["cc"]              (ReqArg ccFlag "cmd")           "use <cmd> as the C backend compiler "
  , option []    ["ccincdir"]        (OptArg ccIncDirs "dirs")       "search semi-colon separated <dirs> for headers"
  , option []    ["cclibdir"]        (OptArg ccLibDirs "dirs")       "search semi-colon separated <dirs> for libraries"
  , option []    ["cclib"]           (ReqArg ccLinkSysLibs "libs")   "link with semi-colon separated system <libs>"
  , option []    ["ccopts"]          (OptArg ccCompileArgs "opts")   "pass <opts> to C backend compiler "
  , option []    ["cclinkopts"]      (OptArg ccLinkArgs "opts")      "pass <opts> to C backend linker "
- , option []    ["cclibpath"]       (OptArg ccLinkLibs "libpath")   "link with semi-colon separated libraries <libpath>"
+ , option []    ["cclibpath"]       (OptArg ccLinkLibs "lpath")     "link with semi-colon separated libraries <lpath>"
  , option []    ["vcpkg"]           (ReqArg ccVcpkgRoot "dir")      "vcpkg root directory"
  , option []    ["vcpkgtriplet"]    (ReqArg ccVcpkgTriplet "tt")    "vcpkg target triplet"
  , flag   []    ["vcpkgauto"]       (\b f -> f{vcpkgAutoInstall=b}) "automatically install required vcpkg packages"
@@ -320,10 +319,11 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["node"]            (ReqArg nodeFlag "cmd")         "use <cmd> to execute node"
  , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors"
  , option []    ["redirect"]        (ReqArg redirectFlag "file")    "redirect output to <file>"
- , configstr [] ["console"]  ["a","h","r"] (consoleFlag)            "console output format (ansi, html, or raw)"
+ , configstr [] ["console"]  ["ansi","html","raw"] "fmt" (\s f -> f{ console = s }) "console output format: <ansi|html|raw>"
 
- , hide $ fflag       ["asan"]      (\b f -> f{asan=b})              "compile with address, undefined, and leak sanitizer (clang only)"
- , hide $ fflag       ["stdalloc"]  (\b f -> f{useStdAlloc=b})       "use the standard allocator (as opposed to mimalloc)"
+ -- hidden
+ , hide $ fflag        ["asan"]      (\b f -> f{asan=b})             "compile with address, undefined, and leak sanitizer"
+ , hide $ fflag        ["stdalloc"]  (\b f -> f{useStdAlloc=b})      "use the standard libc allocator"
  , hide $ fnum 3 "n"  ["simplify"]  (\i f -> f{simplify=i})          "enable 'n' core simplification passes"
  , hide $ fnum 10 "n" ["maxdup"]    (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
  , hide $ fnum 10 "n" ["inline"]    (\i f -> f{optInlineMax=i})      "set 'n' as maximum inline threshold (=10)"
@@ -374,17 +374,18 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
                      ((i,""):_) -> f i
                      _ -> f def  -- parse error
 
-  config short long opts f desc
+  config short long opts argDesc f desc
     = option short long (ReqArg validate valid) desc
     where
-      valid = "(" ++ concat (intersperse "|" (map fst opts)) ++ ")"
+      valid = if null argDesc then "(" ++ concat (intersperse "|" (map fst opts)) ++ ")"
+                              else argDesc
       validate s
         = case lookup s opts of
             Just x -> Flag (\flags -> f x flags)
             Nothing -> Error ("invalid value for --" ++ head long ++ " option, expecting any of " ++ valid)
 
-  configstr short long opts f desc
-    = config short long (map (\s -> (s,s)) opts) f desc
+  configstr short long opts argDesc f desc
+    = config short long (map (\s -> (s,s)) opts) argDesc f desc
 
   targetFlag t f
     = f{ target=t, platform=case t of
@@ -394,13 +395,6 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
   colorFlag s
     = Flag (\f -> f{ colorScheme = readColorFlags s (colorScheme f) })
-
-  consoleFlag s f
-    = if (s=="a") then f{ console = "ansi" }
-      else if (s=="h") then f{ console = "html" }
-      else if (s=="r") then f{ console = "raw" }
-      else f{ console = s }
-
 
   htmlBasesFlag s
     = Flag (\f -> f{ htmlBases = (htmlBases f) ++ readHtmlBases s })

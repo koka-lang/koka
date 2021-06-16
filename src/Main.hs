@@ -46,7 +46,7 @@ maingg extraOptions
   = mainArgs ("-ilib -itest --verbose " ++ extraOptions)
 
 -- hugs entry
-mainh     = mainArgs "-ilib -itest --console=r"
+mainh     = mainArgs "-ilib -itest --console=raw"
 
 
 mainArgs args
