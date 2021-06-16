@@ -24,7 +24,7 @@ RUN git clone --recursive https://github.com/koka-lang/koka -b v2.1.1
 WORKDIR /build/koka
 RUN stack build
 RUN stack exec koka -- util/bundle -- --postfix=docker
-RUN util/install.sh -f -b dist/koka-docker.tar.gz
+RUN util/install.sh -f -b bundle/koka-docker.tar.gz
 WORKDIR /build
 RUN curl -O https://swift.org/builds/swift-5.3.3-release/ubuntu2004/swift-5.3.3-RELEASE/swift-5.3.3-RELEASE-ubuntu20.04.tar.gz
 RUN tar -xzf  swift-5.3.3-RELEASE-ubuntu20.04.tar.gz

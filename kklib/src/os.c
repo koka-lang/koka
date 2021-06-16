@@ -1021,8 +1021,8 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx)
   }
 #else
   const char* tmp = getenv("TMPDIR");
-  if (tmp == NULL) tmp = getenv(L"TMP");
-  if (tmp == NULL) tmp = getenv(L"TEMP");
+  if (tmp == NULL) tmp = getenv("TMP");
+  if (tmp == NULL) tmp = getenv("TEMP");
   if (tmp != NULL) return kk_string_alloc_from_qutf8(tmp, ctx);  
 #endif
 

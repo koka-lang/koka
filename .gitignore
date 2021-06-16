@@ -4,6 +4,7 @@
 .vs/
 node_modules/
 out/
+bundle/
 dist/
 dist-newstyle/
 kklib/mimalloc-inline

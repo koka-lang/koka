@@ -30,7 +30,7 @@ RUN apt-get update \
       gcc libc-dev make \
       nodejs ca-certificates \
  && rm -rf /var/lib/apt/lists/*
-COPY --from=build /build/koka/dist/koka-docker.tar.gz /usr/local
+COPY --from=build /build/koka/bundle/koka-docker.tar.gz /usr/local
 WORKDIR /usr/local
 RUN tar -xzvf koka-docker.tar.gz
 CMD ["koka"]

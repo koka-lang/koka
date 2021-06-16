@@ -185,7 +185,7 @@ fun koka-version( koka : path ) : <file,exn> string {
 
 fun get-default-prefix(dist : bool, post : string) : io path {
   if (dist) then {
-    "dist" / ("local-" ++ post)
+    "bundle" / ("local-" ++ post)
   }
   else {
     val out = run-system-read("stack path --local-bin").exn
