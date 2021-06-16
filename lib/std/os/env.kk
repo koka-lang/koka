@@ -100,6 +100,13 @@ public extern get-compiler-version() : ndet string {
   js inline "\"2\""
 }
 
+// The backend compiler name.
+public extern get-cc-name() : ndet string {
+  c "kk_cc_name"
+  js inline "\"js\""
+  cs inline "\"csc\""
+}
+
 // Return the processor architecture natural machine word size in bits.
 //
 // Note: Usually this equals the `get-cpu-object-bits` and `get-cpu-address-bits` on modern cpu's 

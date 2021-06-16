@@ -1460,7 +1460,8 @@ kklibBuild term flags cc name {-kklib-} objFile {-libkklib.o-}
                    let flags0 = if (useStdAlloc flags) then flags 
                                   else flags{ ccompIncludeDirs = ccompIncludeDirs flags ++ [localShareDir flags ++ "/kklib/mimalloc/include"] }
                        flags1 = flags0{ ccompDefs = ccompDefs flags ++ 
-                                                    [("KK_COMP_VERSION","\"" ++ version ++ "\"")] }
+                                                    [("KK_COMP_VERSION","\"" ++ version ++ "\""),
+                                                     ("KK_CC_NAME", "\"" ++ ccName cc ++ "\"")] }
                    ccompile term flags1 cc objPath [joinPath srcLibDir "src/all.c"] 
        return objPath
 

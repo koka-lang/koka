@@ -1138,6 +1138,26 @@ kk_string_t kk_compiler_version(kk_context_t* ctx) {
   return kk_string_alloc_dup_valid_utf8(version,ctx);
 }
 
+kk_string_t kk_cc_name(kk_context_t* ctx) {
+  const char* ccname = "cc";
+#if defined(KK_CC_NAME)
+  ccname = KK_CC_NAME;
+#elif defined(__clang_msvc__)  
+  ccname = "clang-cl"
+#elif defined(__clang__)
+  ccname = "clang";
+#elif defined(__mingw32__)
+  ccname = "mingw";
+#elif defined(__INTEL_COMPILER)
+  ccname = "icc";
+#elif defined(_MSC_VER)
+  ccname = "cl";
+#elif defined(__GNUC__)
+  ccname = "gcc"; 
+#endif
+  return kk_string_alloc_dup_valid_utf8(ccname,ctx);
+}
+
 // note: assumes unistd/Windows etc is already included (like for file copy)
 int kk_os_processor_count(kk_context_t* ctx) {
   KK_UNUSED(ctx);

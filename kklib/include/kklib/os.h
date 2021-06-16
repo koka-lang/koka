@@ -43,6 +43,7 @@ kk_decl_export double kk_time_resolution(kk_context_t* ctx);
 kk_decl_export kk_string_t kk_os_kernel(kk_context_t* ctx);
 kk_decl_export kk_string_t kk_os_arch(kk_context_t* ctx);
 kk_decl_export kk_string_t kk_compiler_version(kk_context_t* ctx);
+kk_decl_export kk_string_t kk_cc_name(kk_context_t* ctx);
 kk_decl_export int         kk_os_processor_count(kk_context_t* ctx);
 
 #endif // include guard
