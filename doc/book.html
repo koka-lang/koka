@@ -959,7 +959,8 @@
       navigator.clipboard.writeText(text).then( function(){
         addCopiedTooltip(target,true);
       }, function(err) {
-        addCopiedTooltip(target,false);      
+        const ok = commandCopyToClipboard(text);
+        addCopiedTooltip(target,ok);      
       });
     }
     else {
@@ -1331,18 +1332,18 @@ libraries, package management, and deep IDE integration.
 <p class="p indent">After installation, verify if Koka installed correctly:
 </p>
 <pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">$ koka</code></strong></span>
- _          _           ____
-| |        | |         |__  \
-| | __ ___ | | __ __ _  __) |
-| |/ // _ \| |/ // _&#39; || ___/ welcome to the koka interactive compiler
-|   &lt;| (_) |   &lt;| (_| ||____| version 2.1.7, Jun 12 2021, libc 64-bit (clang-cl)
-|_|\_\\___/|_|\_\\__,_|       type :? for help
+ _          _
+| |        | |
+| | __ ___ | | __ __ _
+| |/ // _ \| |/ // _&lt;code class=&quot;koka&quot;&gt; &lt;span class=&quot;kw op&quot;&gt;|&lt;/span&gt;  welcome to the koka interactive compiler&lt;/code&gt;
+|   &lt;| (_) |   &lt;| (_| |  version 2.1.7, Jun 14 2021, libc x64 (gcc)
+|_|\_\\___/|_|\_\\__,_|  type :? for help, and :q to quit
 
 loading: std/core
 loading: std/core/types
 loading: std/core/hnd
 <span class="code-escaped"><strong class="strong-star2"><code class="code code2">&gt;</code></strong></span></code></pre>
-<p class="p noindent para-continued">Type <code class="code code2">:q</code> to exit the interpreter.
+<p class="p noindent para-continued">Type <code class="code code2">:q</code> to exit the interactive environment.
 </p>
 <p class="p indent">For detailed installation instructions and other platforms see the&nbsp;<a href="https://github.com/koka-lang/koka/releases" data-linkid="releases">releases</a> page.
 It is also straightforward to build the compiler&nbsp;<a href="https://github.com/koka-lang/koka/#build-from-source" data-linkid="build">from source</a>.
@@ -1396,12 +1397,12 @@ closely mimicking the imperative rebalancing code of the hand optimized C++ libr
 <p class="p noindent">Without giving any input files, the interactive environment runs by default:
 </p>
 <pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2"><code class="code code2">$ koka</code></strong></span>
- _          _           ____
-| |        | |         |__  \
-| | __ ___ | | __ __ _  __) |
-| |/ // _ \| |/ // _&#39; || ___/ welcome to the koka interactive compiler
-|   &lt;| (_) |   &lt;| (_| ||____| version 2.1.7, Jun 12 2021, libc 64-bit (clang-cl)
-|_|\_\\___/|_|\_\\__,_|       type :? for help
+ _          _
+| |        | |
+| | __ ___ | | __ __ _
+| |/ // _ \| |/ // _&lt;code class=&quot;koka&quot;&gt; &lt;span class=&quot;kw op&quot;&gt;|&lt;/span&gt;  welcome to the koka interactive compiler&lt;/code&gt;
+|   &lt;| (_) |   &lt;| (_| |  version 2.1.7, Jun 14 2021, libc x64 (clang-cl)
+|_|\_\\___/|_|\_\\__,_|  type :? for help, and :q to quit
 
 loading: std/core
 loading: std/core/types
