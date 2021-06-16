@@ -544,9 +544,9 @@ processOptions flags0 opts
                             else return (editor flags)
                    pkgs <- discoverPackages (outDir flags)
 
-                   (localDir,localLibDir0,localShareDir0,localBinDir) <- getKokaDirs
-                   let localLibDir   = if (null (localLibDir flags)) then localLibDir0 else localLibDir flags
-                       localShareDir = if (null (localShareDir flags)) then localShareDir0 else localShareDir flags
+                   (localDir,libDir0,shareDir0,localBinDir) <- getKokaDirs
+                   let libDir   = if (null (localLibDir flags)) then libDir0 else localLibDir flags
+                       shareDir = if (null (localShareDir flags)) then shareDir0 else localShareDir flags
                    -- cc
                    ccmd <- if (ccompPath flags == "") then detectCC
                            else if (ccompPath flags == "mingw") then return "gcc"
@@ -575,8 +575,8 @@ processOptions flags0 opts
                    return (flags{ packages    = pkgs,
                                   localBinDir = localBinDir,
                                   localDir    = localDir,
-                                  localLibDir = localLibDir,
-                                  localShareDir = localShareDir,
+                                  localLibDir = libDir,
+                                  localShareDir = shareDir,
                                   
                                   ccompPath   = ccmd,
                                   ccomp       = cc,
@@ -584,7 +584,7 @@ processOptions flags0 opts
                                   asan        = asan,
                                   useStdAlloc = stdAlloc,
                                   editor      = ed,
-                                  includePath = (localShareDir ++ "/lib") : includePath flags,
+                                  includePath = (shareDir ++ "/lib") : includePath flags,
 
                                   vcpkgRoot   = vcpkgRoot,
                                   vcpkg       = vcpkg,
