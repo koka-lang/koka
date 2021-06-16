@@ -219,7 +219,7 @@ flagsNull
           1        -- verbosity
           ""
           False
-          "ansi"  -- console: ansi, html
+          "ansi"  -- console: ansi, html, raw
           False -- rebuild
           False -- genCore
           False -- coreCheck
@@ -302,25 +302,24 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  -- , flag   []    ["show-coreF"]      (\b f -> f{showCoreF=b})        "show coreF"
  , emptyline
  , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     "build into <dir> (default: <outdir>/<cfg>)"
- , option []    ["libdir"]          (ReqArg libDirFlag "dir")       "object library <dir> (default: <prefix>/lib/koka/<version>)"
- , option []    ["sharedir"]        (ReqArg shareDirFlag "dir")     "source library <dir> (default: <prefix>/share/koka/<verion>)"
+ , option []    ["libdir"]          (ReqArg libDirFlag "dir")       "object library <dir> (def: <prefix>/lib/koka/<ver>)"
+ , option []    ["sharedir"]        (ReqArg shareDirFlag "dir")     "source library <dir> (def: <prefix>/share/koka/<ver>)"
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
  , option []    ["cc"]              (ReqArg ccFlag "cmd")           "use <cmd> as the C backend compiler "
- , option []    ["ccincdir"]        (OptArg ccIncDirs "dirs")       "search semi-colon separated include <dirs> for headers"
- , option []    ["cclibdir"]        (OptArg ccLibDirs "dirs")       "search semi-colon separated directories <dirs> for libraries"
+ , option []    ["ccincdir"]        (OptArg ccIncDirs "dirs")       "search semi-colon separated <dirs> for headers"
+ , option []    ["cclibdir"]        (OptArg ccLibDirs "dirs")       "search semi-colon separated <dirs> for libraries"
  , option []    ["cclib"]           (ReqArg ccLinkSysLibs "libs")   "link with semi-colon separated system <libs>"
  , option []    ["ccopts"]          (OptArg ccCompileArgs "opts")   "pass <opts> to C backend compiler "
  , option []    ["cclinkopts"]      (OptArg ccLinkArgs "opts")      "pass <opts> to C backend linker "
- , option []    ["cclibpath"]       (OptArg ccLinkLibs "libpaths")  "link with semi-colon separated libraries <libpaths>"
+ , option []    ["cclibpath"]       (OptArg ccLinkLibs "libpath")   "link with semi-colon separated libraries <libpath>"
  , option []    ["vcpkg"]           (ReqArg ccVcpkgRoot "dir")      "vcpkg root directory"
- , option []    ["vcpkgtriplet"]    (ReqArg ccVcpkgTriplet "triplet") "v  cpkg target triplet"
+ , option []    ["vcpkgtriplet"]    (ReqArg ccVcpkgTriplet "tt")    "vcpkg target triplet"
  , flag   []    ["vcpkgauto"]       (\b f -> f{vcpkgAutoInstall=b}) "automatically install required vcpkg packages"
  , option []    ["csc"]             (ReqArg cscFlag "cmd")          "use <cmd> as the csharp backend compiler "
  , option []    ["node"]            (ReqArg nodeFlag "cmd")         "use <cmd> to execute node"
  , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors"
  , option []    ["redirect"]        (ReqArg redirectFlag "file")    "redirect output to <file>"
- , configstr [] ["console"]      ["ansi","html","raw"] (\s f -> f{console=s})   "console output format"
---  , option []    ["install-dir"]     (ReqArg installDirFlag "dir")       "set the install directory explicitly"
+ , configstr [] ["console"]  ["a","h","r"] (consoleFlag)            "console output format (ansi, html, or raw)"
 
  , hide $ fflag       ["asan"]      (\b f -> f{asan=b})              "compile with address, undefined, and leak sanitizer (clang only)"
  , hide $ fflag       ["stdalloc"]  (\b f -> f{useStdAlloc=b})       "use the standard allocator (as opposed to mimalloc)"
@@ -395,8 +394,12 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   colorFlag s
     = Flag (\f -> f{ colorScheme = readColorFlags s (colorScheme f) })
 
-  consoleFlag s
-    = Flag (\f -> f{ console = s })
+  consoleFlag s f
+    = if (s=="a") then f{ console = "ansi" }
+      else if (s=="h") then f{ console = "html" }
+      else if (s=="r") then f{ console = "raw" }
+      else f{ console = s }
+
 
   htmlBasesFlag s
     = Flag (\f -> f{ htmlBases = (htmlBases f) ++ readHtmlBases s })
@@ -477,13 +480,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   cmakeArgsFlag s
       = Flag (\f -> f{ cmakeArgs = s })
 
-{-
-  installDirFlag s
-    = Flag (\f -> f{ installDir = s, includePath = (includePath f) ++ [libd] })
-    where
-      libd = joinPath s "lib"
--}
-
+  
 readHtmlBases :: String -> [(String,String)]
 readHtmlBases s
   = map toBase (splitComma s)
@@ -544,9 +541,9 @@ processOptions flags0 opts
                             else return (editor flags)
                    pkgs <- discoverPackages (outDir flags)
 
-                   (localDir,libDir0,shareDir0,localBinDir) <- getKokaDirs
-                   let libDir   = if (null (localLibDir flags)) then libDir0 else localLibDir flags
-                       shareDir = if (null (localShareDir flags)) then shareDir0 else localShareDir flags
+                   (localDir,localLibDir,localShareDir,localBinDir) 
+                        <- getKokaDirs (localLibDir flags) (localShareDir flags)
+                   
                    -- cc
                    ccmd <- if (ccompPath flags == "") then detectCC
                            else if (ccompPath flags == "mingw") then return "gcc"
@@ -557,6 +554,7 @@ processOptions flags0 opts
                        cdefs    = ccompDefs flags 
                                    ++ if stdAlloc then [] else [("KK_MIMALLOC","")]
                                    ++ if (buildType flags > DebugFull) then [] else [("KK_DEBUG_FULL","")]
+
                    -- vcpkg
                    (vcpkgRoot,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)
                    let triplet          = if (not (null (vcpkgTriplet flags))) then vcpkgTriplet flags
@@ -575,8 +573,8 @@ processOptions flags0 opts
                    return (flags{ packages    = pkgs,
                                   localBinDir = localBinDir,
                                   localDir    = localDir,
-                                  localLibDir = libDir,
-                                  localShareDir = shareDir,
+                                  localLibDir = localLibDir,
+                                  localShareDir = localShareDir,
                                   
                                   ccompPath   = ccmd,
                                   ccomp       = cc,
@@ -584,7 +582,7 @@ processOptions flags0 opts
                                   asan        = asan,
                                   useStdAlloc = stdAlloc,
                                   editor      = ed,
-                                  includePath = (shareDir ++ "/lib") : includePath flags,
+                                  includePath = (localShareDir ++ "/lib") : includePath flags,
 
                                   vcpkgRoot   = vcpkgRoot,
                                   vcpkg       = vcpkg,
@@ -597,18 +595,18 @@ processOptions flags0 opts
                           ,flags,mode)
         else invokeError errs
 
-getKokaDirs :: IO (FilePath,FilePath,FilePath,FilePath)
-getKokaDirs
+getKokaDirs :: FilePath -> FilePath -> IO (FilePath,FilePath,FilePath,FilePath)
+getKokaDirs libDir0 shareDir0
   = do bin        <- getProgramPath
        let binDir  = dirname bin
            rootDir = rootDirFrom binDir
        isRootRepo <- doesDirectoryExist (joinPath rootDir "kklib")
-       libDir0    <- getEnvVar "koka_lib_dir"
-       shareDir0  <- getEnvVar "koka_share_dir"
-       let libDir   = if (not (null libDir0)) then libDir0
+       libDir1    <- if (null libDir0) then getEnvVar "koka_lib_dir" else return libDir0
+       shareDir1  <- if (null shareDir0) then getEnvVar "koka_share_dir" else return shareDir0
+       let libDir   = if (not (null libDir1)) then libDir1
                       else if (isRootRepo) then joinPath rootDir "out"
                       else joinPath rootDir ("lib/koka/v" ++ version)
-           shareDir = if (not (null shareDir0)) then shareDir0
+           shareDir = if (not (null shareDir1)) then shareDir1           
                       else if (isRootRepo) then rootDir
                       else joinPath rootDir ("share/koka/v" ++ version)
        return (normalizeWith '/' rootDir,

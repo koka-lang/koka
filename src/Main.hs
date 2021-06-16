@@ -46,14 +46,14 @@ maingg extraOptions
   = mainArgs ("-ilib -itest --verbose " ++ extraOptions)
 
 -- hugs entry
-mainh     = mainArgs "-ilib -itest --console=raw"
+mainh     = mainArgs "-ilib -itest --console=r"
 
 
 mainArgs args
   = do (flags,flags0,mode) <- getOptions args
        let with = if (not (null (redirectOutput flags)))
                    then withFileNoColorPrinter (redirectOutput flags)
-                   else if (console flags == "html")
+                   else if (console flags == "html") 
                     then withHtmlColorPrinter
                    else if (console flags == "ansi")
                     then withColorPrinter
