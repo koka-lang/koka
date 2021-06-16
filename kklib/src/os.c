@@ -1011,20 +1011,21 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx)
 {  
 #if defined(WIN32)
   const uint16_t* tmp = _wgetenv(L"TEMP");
-  if (tmp != NULL) return kk_string_alloc_from_qutf16(tmp, ctx);
-  tmp = _wgetenv(L"TEMPDIR");
-  if (tmp != NULL) return kk_string_alloc_from_qutf16(tmp, ctx);
+  if (tmp == NULL) tmp = _wgetenv(L"TMP");
+  if (tmp == NULL) tmp = _wgetenv(L"TMPDIR");
+  if (tmp != NULL) return kk_string_alloc_from_qutf16(tmp, ctx);  
   const uint16_t* ad = _wgetenv(L"LOCALAPPDATA");
   if (ad!=NULL) {
     kk_string_t s = kk_string_alloc_from_qutf16(ad, ctx);
     return kk_string_cat_from_valid_utf8(s, "\\Temp", ctx);
   }
 #else
-  const char* tmp = getenv("TEMP");
-  if (tmp != NULL) return kk_string_alloc_from_qutf8(tmp, ctx);
-  tmp = getenv("TEMPDIR");
-  if (tmp != NULL) return kk_string_alloc_from_qutf8(tmp, ctx);
+  const char* tmp = getenv("TMPDIR");
+  if (tmp == NULL) tmp = getenv(L"TMP");
+  if (tmp == NULL) tmp = getenv(L"TEMP");
+  if (tmp != NULL) return kk_string_alloc_from_qutf8(tmp, ctx);  
 #endif
+
   // fallback
 #if defined(WIN32)
   return kk_string_alloc_dup_valid_utf8("c:\\tmp", ctx);
