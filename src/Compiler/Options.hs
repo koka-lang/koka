@@ -20,7 +20,7 @@ module Compiler.Options( -- * Command line options
                        , isValueFromFlags
                        , CC(..), BuildType(..), ccFlagsBuildFromFlags
                        , buildType, unquote
-                       , outName, buildDir, buildVariant, targetVariant
+                       , outName, buildDir, buildVariant
                        , cpuArch, osName
                        ) where
 
@@ -110,7 +110,8 @@ data Flags
          , simplifyMaxDup   :: Int
          , colorScheme      :: ColorScheme
          , outDir           :: FilePath      -- out
-         , outBuildDir      :: FilePath      -- actual build output: <outDir>/<version>/<ccomp>-<variant>
+         , outTag           :: String
+         , outBuildDir      :: FilePath      -- actual build output: <outdir>/<version>-<outtag>/<ccomp>-<variant>
          , includePath      :: [FilePath]    -- .kk/.kki files 
          , csc              :: FileName
          , node             :: FileName
@@ -186,6 +187,7 @@ flagsNull
           10    -- simplify dup max (must be at least 10 to inline partial applications across binds)
           defaultColorScheme
           "out"    -- outdir 
+          ""       -- outtag
           ("")     -- build dir
           []
           "csc"
@@ -302,7 +304,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , emptyline
 
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
- , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     "build into <dir> (= <outdir>/<ver>/<variant>)"
+ , option []    ["outtag"]          (ReqArg outTagFlag "tag")       "set output tag (e.g. 'bundle')"
+ , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     "build into <dir> (= <outdir>/<ver>-<tag>/<variant>)"
  , option []    ["libdir"]          (ReqArg libDirFlag "dir")       "object library <dir> (= <prefix>/lib/koka/<ver>)"
  , option []    ["sharedir"]        (ReqArg shareDirFlag "dir")     "source library <dir> (= <prefix>/share/koka/<ver>)"
  , option []    ["cc"]              (ReqArg ccFlag "cmd")           "use <cmd> as the C backend compiler "
@@ -409,6 +412,9 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
   outDirFlag s
     = Flag (\f -> f{ outDir = s })
+
+  outTagFlag s
+    = Flag (\f -> f{ outTag = s })    
 
   buildDirFlag s
     = Flag (\f -> f{ outBuildDir = s })
@@ -716,16 +722,12 @@ outName flags s
 buildDir :: Flags -> FilePath    -- usually <outDir>/windows-x64-v2.x.x/<config>
 buildDir flags
   = if (null (outBuildDir flags))
-     then joinPaths [outDir flags, targetVariant flags, buildVariant flags]
+     then joinPaths [outDir flags, outVersionTag flags, buildVariant flags]
      else outBuildDir flags
 
-targetVariant :: Flags -> String   -- for example: node-<version>, linux-arm64-<version>
-targetVariant flags
-  = let post  = if (target flags == C)
-                 then osName ++ "-" ++ cpuArch
-                 else (show (target flags))
-    in "v" ++ version ++ "-" ++ post
-
+outVersionTag :: Flags -> String   
+outVersionTag flags
+  = "v" ++ version ++ (if (null (outTag flags)) then "" else "-" ++ outTag flags)
 
 buildVariant :: Flags -> String   -- for example: clang-debug, js-release
 buildVariant flags

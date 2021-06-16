@@ -18,7 +18,7 @@ commonFlags :: [String]
 commonFlags = ["-c", "-v0", "--console=raw",
                -- "--checkcore",
                "-ilib", "-itest",
-               "--outdir=" ++ "out" </> "test"]
+               "--outtag=test"]
 
 data Mode = Test | New | Update
   deriving (Eq, Ord, Show)
@@ -161,10 +161,10 @@ main = do
   pwd <- getCurrentDirectory
   (mode, args) <- getMode <$> getArgs  
   hcfg <- readConfig defaultConfig args
-  putStr "pre compile..."
+  putStrLn "pre-compiling standard libraries..."
   -- compile all standard libraries before testing so we can run in parallel
   runKoka initialCfg "util/link-test.kk" 
-  putStrLn " ok"
+  putStrLn "ok."
   let spec = parallel $ discoverTests mode (pwd </> "test")
   summary <- withArgs [] (runSpec spec hcfg{configFormatter=Just specProgress})
   evaluateSummary summary
