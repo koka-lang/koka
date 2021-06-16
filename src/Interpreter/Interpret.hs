@@ -662,7 +662,8 @@ messageHeader st
     welcome       = text ("welcome to the " ++ Config.programName ++ " interactive compiler")
     targetMsg
       = case (target (flags st)) of
-          C  -> ", " ++ osName ++ " " ++ cpuArch -- show (8*sizePtr (platform (flags st))) ++ "-bit"
+          C  -> ", " ++ "libc" -- osName 
+                ++ " " ++ cpuArch -- show (8*sizePtr (platform (flags st))) ++ "-bit"
                 ++ " (" ++ (ccName (ccomp (flags st))) ++ ")"
           JS -> ", node"
           CS -> ", .net"

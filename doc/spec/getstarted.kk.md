@@ -62,19 +62,19 @@ This also installs syntax highlighting for the VS Code and Atom editors.
 After installation, verify if &koka; installed correctly:
 
     $ koka
-     _          _           ____
-    | |        | |         |__  \
-    | | __ ___ | | __ __ _  __) |
-    | |/ // _ \| |/ // _' || ___/ welcome to the koka interactive compiler
-    |   <| (_) |   <| (_| ||____| version 2.1.7, Jun 12 2021, libc 64-bit (clang-cl)
-    |_|\_\\___/|_|\_\\__,_|       type :? for help
+     _          _
+    | |        | |
+    | | __ ___ | | __ __ _
+    | |/ // _ \| |/ // _` |  welcome to the koka interactive compiler
+    |   <| (_) |   <| (_| |  version 2.1.7, Jun 14 2021, libc x64 (gcc)
+    |_|\_\\___/|_|\_\\__,_|  type :? for help, and :q to quit
 
     loading: std/core
     loading: std/core/types
     loading: std/core/hnd
     >
 
-Type ``:q`` to exit the interpreter.
+Type ``:q`` to exit the interactive environment.
 
 For detailed installation instructions and other platforms see the [releases] page.
 It is also straightforward to build the compiler [from source][build].
@@ -137,12 +137,12 @@ closely mimicking the imperative rebalancing code of the hand optimized C++ libr
 Without giving any input files, the interactive environment runs by default:
 
     $ koka
-     _          _           ____
-    | |        | |         |__  \
-    | | __ ___ | | __ __ _  __) |
-    | |/ // _ \| |/ // _' || ___/ welcome to the koka interactive compiler
-    |   <| (_) |   <| (_| ||____| version 2.1.7, Jun 12 2021, libc 64-bit (clang-cl)
-    |_|\_\\___/|_|\_\\__,_|       type :? for help
+     _          _
+    | |        | |
+    | | __ ___ | | __ __ _
+    | |/ // _ \| |/ // _` |  welcome to the koka interactive compiler
+    |   <| (_) |   <| (_| |  version 2.1.7, Jun 14 2021, libc x64 (clang-cl)
+    |_|\_\\___/|_|\_\\__,_|  type :? for help, and :q to quit
 
     loading: std/core
     loading: std/core/types
