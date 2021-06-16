@@ -65,7 +65,7 @@ After installation, verify if &koka; installed correctly:
      _          _
     | |        | |
     | | __ ___ | | __ __ _
-    | |/ // _ \| |/ // _` |  welcome to the koka interactive compiler
+    | |/ // _ \| |/ // _' |  welcome to the koka interactive compiler
     |   <| (_) |   <| (_| |  version 2.1.7, Jun 14 2021, libc x64 (gcc)
     |_|\_\\___/|_|\_\\__,_|  type :? for help, and :q to quit
 
@@ -140,7 +140,7 @@ Without giving any input files, the interactive environment runs by default:
      _          _
     | |        | |
     | | __ ___ | | __ __ _
-    | |/ // _ \| |/ // _` |  welcome to the koka interactive compiler
+    | |/ // _ \| |/ // _' |  welcome to the koka interactive compiler
     |   <| (_) |   <| (_| |  version 2.1.7, Jun 14 2021, libc x64 (clang-cl)
     |_|\_\\___/|_|\_\\__,_|  type :? for help, and :q to quit
 
