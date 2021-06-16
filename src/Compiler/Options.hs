@@ -21,6 +21,7 @@ module Compiler.Options( -- * Command line options
                        , CC(..), BuildType(..), ccFlagsBuildFromFlags
                        , buildType, unquote
                        , outName, configType, buildDir
+                       , cpuArch, osName
                        ) where
 
 
@@ -880,12 +881,10 @@ tripletOsName
 
 osName
   = case System.Info.os of
-      "mingw32" -> "windows"
-      "darwin"  -> "osx"
-      "freebsd" -> "unix-freebsd"
-      "openbsd" -> "unix-openbsd"
-      "netbsd"  -> "unix-netbsd"
-      os        -> os
+      "mingw32"       -> "windows"
+      "darwin"        -> "osx"
+      "linux-android" -> "android"
+      os              -> os
 
 tripletArch :: String
 tripletArch 

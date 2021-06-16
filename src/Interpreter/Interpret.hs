@@ -26,7 +26,7 @@ import Lib.PPrint
 import Lib.Printer
 import Common.Failure         ( raiseIO, catchIO )
 import Common.ColorScheme
-import Common.File            ( notext, joinPath, searchPaths, runSystem, isPathSep )
+import Common.File            ( notext, joinPath, searchPaths, runSystem, isPathSep, startsWith )
 import Common.Name            ( Name, unqualify, qualify, newName )
 import Common.NamePrim        ( nameExpr, nameType, nameInteractive, nameInteractiveModule, nameSystemCore )
 import Common.Range
@@ -649,12 +649,12 @@ messageHeader st
   where
     colors = colorSchemeFromFlags (flags st)
     header = color(colorInterpreter colors) $ vcat [
-        text " _          _           ____"
-       ,text "| |        | |         |__  \\"
-       ,text "| | __ ___ | | __ __ _  __) |"
-       ,text "| |/ // _ \\| |/ // _` || ___/ " <.> welcome
-       ,text "|   <| (_) |   <| (_| ||____| "  <.> headerVersion
-       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|       "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")
+        text " _          _ "
+       ,text "| |        | |"
+       ,text "| | __ ___ | | __ __ _"
+       ,text "| |/ // _ \\| |/ // _` |  " <.> welcome
+       ,text "|   <| (_) |   <| (_| |  "  <.> headerVersion
+       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")
        ]
     headerVersion = text $ "version " ++ version ++
                            (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", "
@@ -662,7 +662,7 @@ messageHeader st
     welcome       = text ("welcome to the " ++ Config.programName ++ " interactive compiler")
     targetMsg
       = case (target (flags st)) of
-          C  -> ", libc " ++ show (8*sizePtr (platform (flags st))) ++ "-bit"
+          C  -> ", " ++ osName ++ " " ++ cpuArch -- show (8*sizePtr (platform (flags st))) ++ "-bit"
                 ++ " (" ++ (ccName (ccomp (flags st))) ++ ")"
           JS -> ", node"
           CS -> ", .net"
