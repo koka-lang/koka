@@ -49,7 +49,7 @@ set -o xtrace
 # - used packages: see 'package.yaml'
 ghc -isrc:src/Platform/cpp -odir=out/minbuild -hidir=out/minbuild -o out/minbuild/koka \
     -DKOKA_MAIN=\"koka\" -DKOKA_VARIANT=\"$KOKA_VARIANT\" -DKOKA_VERSION=\"$KOKA_VERSION\" \
-    --make -O2 src/Main.hs src/Platform/cpp/Platform/cconsole.c
+    --make -j4 -O2 src/Main.hs src/Platform/cpp/Platform/cconsole.c
 
 set +o xtrace
 echo "Koka compiled at: out/minbuild/koka"    
