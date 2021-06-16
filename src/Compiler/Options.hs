@@ -564,8 +564,7 @@ processOptions flags0 opts
                                                     then (if (ccName cc `startsWith` "mingw") 
                                                             then "-mingw-static"
                                                             else "-windows-static-md")
-                                                    else if onMacOS then "-osx"
-                                                                    else "-" ++ tripletOsName ) 
+                                                    else ("-" ++ tripletOsName))
                        vcpkgInstalled   = (vcpkgRoot) ++ "/installed/" ++ triplet
                        vcpkgIncludeDir  = vcpkgInstalled ++ "/include"
                        vcpkgLibDir      = vcpkgInstalled ++ (if buildType flags <= Debug then "/debug/lib" else "/lib")
@@ -882,7 +881,7 @@ tripletOsName
 osName
   = case System.Info.os of
       "mingw32"       -> "windows"
-      "darwin"        -> "osx"
+      "darwin"        -> "macos"
       "linux-android" -> "android"
       os              -> os
 
