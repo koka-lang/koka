@@ -27,7 +27,8 @@ if ! which ghc > /dev/null ; then
   exit 1
 fi  
 
-# generate the lexer if not provided
+# generate the lexer if not provided 
+# note: the Lexer.hs file can be generated on another platform as well.
 if ! [ -f src/Syntax/Lexer.hs ] ; then
   if ! which alex > /dev/null ; then
     echo "This build script requires 'alex'. Install it first, for example:"
@@ -39,17 +40,17 @@ if ! [ -f src/Syntax/Lexer.hs ] ; then
   alex src/Syntax/Lexer.x -g -o src/Syntax/Lexer.hs
 fi
 
-mkdir -p out/build
+# create build directory
+mkdir -p out/minbuild
 set -o xtrace
 
 # build the compiler 
-# - use -O2 for an optimized version
 # - add -DDARWIN on macOS, or -DWINDOWS on windows
-# - used packages:  base, containers, directory, process, mtl, haskeline
-ghc -isrc:src/Platform/cpp -odir=out/build -hidir=out/build -o out/build/koka \
+# - used packages: see 'package.yaml'
+ghc -isrc:src/Platform/cpp -odir=out/minbuild -hidir=out/minbuild -o out/minbuild/koka \
     -DKOKA_MAIN=\"koka\" -DKOKA_VARIANT=\"$KOKA_VARIANT\" -DKOKA_VERSION=\"$KOKA_VERSION\" \
-    --make src/Main.hs src/Platform/cpp/Platform/cconsole.c
+    --make -O2 src/Main.hs src/Platform/cpp/Platform/cconsole.c
 
 set +o xtrace
-echo "Koka compiled at: out/build/koka"    
+echo "Koka compiled at: out/minbuild/koka"    
 echo ""

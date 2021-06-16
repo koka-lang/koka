@@ -29,7 +29,7 @@ import Data.List              ( intersperse )
 import Control.Monad          ( when )
 import qualified System.Info  ( os, arch )
 import System.Environment     ( getArgs )
-import System.Directory       ( doesFileExist, getHomeDirectory )
+import System.Directory       ( doesFileExist, doesDirectoryExist, getHomeDirectory )
 import Platform.GetOptions
 import Platform.Config
 import Lib.PPrint
@@ -302,6 +302,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  -- , flag   []    ["show-coreF"]      (\b f -> f{showCoreF=b})        "show coreF"
  , emptyline
  , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     "build into <dir> (default: <outdir>/<cfg>)"
+ , option []    ["libdir"]          (ReqArg libDirFlag "dir")       "object library <dir> (default: <prefix>/lib/koka/<version>)"
+ , option []    ["sharedir"]        (ReqArg shareDirFlag "dir")     "source library <dir> (default: <prefix>/share/koka/<verion>)"
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
  , option []    ["cc"]              (ReqArg ccFlag "cmd")           "use <cmd> as the C backend compiler "
  , option []    ["ccincdir"]        (OptArg ccIncDirs "dirs")       "search semi-colon separated include <dirs> for headers"
@@ -412,6 +414,12 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
   buildDirFlag s
     = Flag (\f -> f{ outBuildDir = s })
+
+  libDirFlag s
+    = Flag (\f -> f{ localLibDir = s })
+
+  shareDirFlag s
+    = Flag (\f -> f{ localShareDir = s })
 
   exeNameFlag s
     = Flag (\f -> f{ exeName = s })
@@ -535,7 +543,11 @@ processOptions flags0 opts
                             then detectEditor 
                             else return (editor flags)
                    pkgs <- discoverPackages (outDir flags)
-                   (localDir,localLibDir,localShareDir,localBinDir) <- getKokaDirs
+
+                   (localDir,localLibDir0,localShareDir0,localBinDir) <- getKokaDirs
+                   let localLibDir   = if (null (localLibDir flags)) then localLibDir0 else localLibDir flags
+                       localShareDir = if (null (localShareDir flags)) then localShareDir0 else localShareDir flags
+                   -- cc
                    ccmd <- if (ccompPath flags == "") then detectCC
                            else if (ccompPath flags == "mingw") then return "gcc"
                            else return (ccompPath flags)
@@ -590,7 +602,7 @@ getKokaDirs
   = do bin        <- getProgramPath
        let binDir  = dirname bin
            rootDir = rootDirFrom binDir
-       isRootRepo <- doesFileExist (joinPath rootDir "koka.cabal")
+       isRootRepo <- doesDirectoryExist (joinPath rootDir "kklib")
        libDir0    <- getEnvVar "koka_lib_dir"
        shareDir0  <- getEnvVar "koka_share_dir"
        let libDir   = if (not (null libDir0)) then libDir0
@@ -613,7 +625,7 @@ rootDirFrom binDir
      ("bin":_:_:_:"install":".stack-work":es) -> joinPaths (reverse es)
      -- regular install
      ("bin":es)   -> joinPaths (reverse es)
-     -- jake build
+     -- minbuild / jake build
      (_:"out":es) -> joinPaths (reverse es)
      _            -> binDir
 
