@@ -671,7 +671,7 @@ messageHeader st
        -}
        ]
     headerVersion = text $ "version " ++ version ++
-                           (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", "
+                           (if compilerBuildVariant /= "release" then (" (" ++ compilerBuildVariant ++ ")") else "") ++ ", "
                            ++ buildDate ++ targetMsg
     welcome       = text ("welcome to the " ++ Config.programName ++ " interactive compiler")
     targetMsg

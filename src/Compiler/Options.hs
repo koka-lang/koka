@@ -20,7 +20,7 @@ module Compiler.Options( -- * Command line options
                        , isValueFromFlags
                        , CC(..), BuildType(..), ccFlagsBuildFromFlags
                        , buildType, unquote
-                       , outName, configType, buildDir
+                       , outName, buildDir, buildVariant, targetVariant
                        , cpuArch, osName
                        ) where
 
@@ -110,7 +110,7 @@ data Flags
          , simplifyMaxDup   :: Int
          , colorScheme      :: ColorScheme
          , outDir           :: FilePath      -- out
-         , outBuildDir      :: FilePath      -- actual build output: <outDir>/v2.x.x/<ccomp>-<variant>
+         , outBuildDir      :: FilePath      -- actual build output: <outDir>/<version>/<ccomp>-<variant>
          , includePath      :: [FilePath]    -- .kk/.kki files 
          , csc              :: FileName
          , node             :: FileName
@@ -185,7 +185,7 @@ flagsNull
           5     -- simplify passes
           10    -- simplify dup max (must be at least 10 to inline partial applications across binds)
           defaultColorScheme
-          ("out/v" ++ version) -- out-dir
+          "out"    -- outdir 
           ("")     -- build dir
           []
           "csc"
@@ -713,16 +713,22 @@ outName :: Flags -> FilePath -> FilePath
 outName flags s
   = joinPath (buildDir flags) s
 
-buildDir :: Flags -> FilePath    -- usually <outDir>/v2.x.x/<config>
+buildDir :: Flags -> FilePath    -- usually <outDir>/windows-x64-v2.x.x/<config>
 buildDir flags
   = if (null (outBuildDir flags))
-     then if (null (outDir flags))
-           then configType flags
-           else outDir flags ++ "/" ++ configType flags
+     then joinPaths [outDir flags, targetVariant flags, buildVariant flags]
      else outBuildDir flags
 
-configType :: Flags -> String   -- for example: clang-debug, js-release
-configType flags
+targetVariant :: Flags -> String   -- for example: node-<version>, linux-arm64-<version>
+targetVariant flags
+  = let post  = if (target flags == C)
+                 then osName ++ "-" ++ cpuArch
+                 else (show (target flags))
+    in "v" ++ version ++ "-" ++ post
+
+
+buildVariant :: Flags -> String   -- for example: clang-debug, js-release
+buildVariant flags
   = let pre  = if (target flags == C)
                  then ccName (ccomp flags)
                  else (show (target flags))
@@ -1021,7 +1027,7 @@ versionMessage flags
   =
   (vcat $ map text $
   [ capitalize programName ++ " " ++ version ++ ", " ++ buildTime ++
-    (if null (compiler ++ buildVariant) then "" else " (" ++ compiler ++ " " ++ buildVariant ++ " version)")
+    (if null (compiler ++ compilerBuildVariant) then "" else " (" ++ compiler ++ " " ++ compilerBuildVariant ++ " version)")
   , ""
   ])
   <-> text "version:" <+> text version

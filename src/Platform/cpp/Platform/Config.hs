@@ -31,11 +31,11 @@ version = KOKA_VERSION
 version = "0"
 #endif
 
-buildVariant :: String
+compilerBuildVariant :: String
 #if defined(KOKA_VARIANT)
-buildVariant = KOKA_VARIANT
+compilerBuildVariant = KOKA_VARIANT
 #else
-buildVariant = "interpreted"
+compilerBuildVariant = "interpreted"
 #endif
 
 compiler :: String
