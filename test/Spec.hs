@@ -162,7 +162,8 @@ main = do
   (mode, args) <- getMode <$> getArgs  
   hcfg <- readConfig defaultConfig args
   putStr "pre compile..."
-  runKoka initialCfg "util/link-test.kk" -- compile dummy to ensure kklib is compiled so it does not pollute the output (causing the first test to fail)
+  -- compile all standard libraries before testing so we can run in parallel
+  runKoka initialCfg "util/link-test.kk" 
   putStrLn " ok"
   let spec = parallel $ discoverTests mode (pwd </> "test")
   summary <- withArgs [] (runSpec spec hcfg{configFormatter=Just specProgress})
