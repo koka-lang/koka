@@ -14,7 +14,6 @@ dependencies:
   - base >= 4.12
   - array
   - bytestring
-  - cond
   - containers
   - directory
   - mtl
