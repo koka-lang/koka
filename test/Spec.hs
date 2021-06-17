@@ -94,7 +94,7 @@ runKoka cfg fp
        kokaDir <- getCurrentDirectory
        let relTest = makeRelative kokaDir fp
        if (cabal cfg)
-         then do let argv = ["run", "koka", "--"] ++ flags cfg ++ caseFlags ++ [relTest]
+         then do let argv = ["new-run", "koka", "--"] ++ flags cfg ++ caseFlags ++ [relTest]
                  testSanitize kokaDir <$> readProcess "cabal" argv ""       
          else do let argv = ["exec", "koka", "--"] ++ flags cfg ++ caseFlags ++ [relTest]
                  testSanitize kokaDir <$> readProcess "stack" argv ""

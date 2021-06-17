@@ -56,13 +56,13 @@ fun main() {
   match (process-flags()) {
     Nothing -> ()
     Just(flags) -> {
-      val post   = flags.postfixtag || get-default-postfix()
-      val predir = if (flags.prefixdir.is-empty)
-                    then get-default-prefix(flags.dist, post)
-                    else flags.prefixdir.path
       val version = "v" ++ get-compiler-version()
       val cc      = get-cc-name()
       val cabal   = flags.cabal || (get-env("STACK_EXE").default("").is-empty)
+      val post   = flags.postfixtag || get-default-postfix()
+      val predir = if (flags.prefixdir.is-empty)
+                    then get-default-prefix(flags.dist, post, cabal)
+                    else flags.prefixdir.path
       install( predir, cc, version, flags.dist, post, flags.minimal, cabal )      
     }
   }
@@ -164,32 +164,25 @@ fun install( prefixdir : path, cc : string, version : string, dist : bool, post 
 }
 
 fun koka-exe-path(cabal : bool) : io path {
-  val exe = if (cabal) then {
-              run-system-read("cabal list-bin koka").exn.trim.path
-            }
-            else {
-              val out = run-system-read("stack path --local-install-root").exn
-              out.trim / "bin" / "koka"
-            }
+  val info = if (cabal) 
+               then run-system-read("cabal new-run koka -- --version").exn
+               else run-system-read("stack exec koka -- --version").exn       
+  val bin  = info.lines.filter(fn(s){ s.starts-with("bin ").bool }).head.unjust
+  val exe  = bin.find(": ").default(empty).after.string.trim / "koka"  
   if (exe.is-file) return exe
   val win = exe.change-ext(".exe")
   if (win.is-file) return win
   throw("unable to find koka executable: use '> stack build' first.\n  (" ++ exe.string ++ ")")
 }
 
-/*
-fun koka-version( koka : path ) : <file,exn> string {
-  val out = run-system-read(koka.string ++ " --version").exn
-  out.list.drop-while(fn(c){ !is-white(c) }).take-while(fn(c){ c != ',' && c != '\n' }).string.trim
-}
-*/
-
-fun get-default-prefix(dist : bool, post : string) : io path {
+fun get-default-prefix(dist : bool, post : string, cabal : bool) : io path {
   if (dist) then {
     "bundle" / ("local-" ++ post)
   }
   else {
-    val out = run-system-read("stack path --local-bin").exn
+    val out = if (cabal)
+                then "~/.local"
+                else run-system-read("stack path --local-bin").exn
     out.trim.path.nobase
   }
 }
@@ -250,7 +243,7 @@ fun build-libraries(cc : string, variant : variant, version : string, dist : boo
   val prog = if (minimal) then "util/link-min" else "util/link-std"
   val builddir = get-build-dir( cc, variant, version )
   val args = "--cc=" ++ cc ++ " " ++ extra
-  val koka = if (cabal) then "cabal run koka" else "stack exec koka"
+  val koka = if (cabal) then "cabal new-run koka" else "stack exec koka"
   val cmd  = [koka, "--", "--cc=" ++ cc, "--builddir=" ++ builddir.show, extra, prog].join(" ")
   println("> "  ++ cmd)
   val code = run-system( cmd )

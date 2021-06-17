@@ -1,11 +1,11 @@
 # Build as: $ stack build
 #
-# Note: on Linux arm64 stack may fail. Install the build tools as a package:
+# Note: if stack fails, try to install the build tools as a package:
 # $ sudo apt install ghc cabal-install haskell-stack
 # and invoke stack with an older resolver that matches the system ghc version:
 # $ stack --resolver lts-14 --system-ghc   # ubuntu 20, ghc 8.6.5
 
-resolver: lts-17.15   
+resolver: lts-18.0
 # resolver: lts-14.27           # ghc 8.6.5
 # resolver: lts-9.21            # ghc 8.0.2
 # system-ghc: true              # uncomment to use the system installed GHC

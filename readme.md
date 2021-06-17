@@ -111,6 +111,7 @@ Now clone the repository and build the compiler as (note the `--recursive` flag)
 ```
 $ git clone --recursive https://github.com/koka-lang/koka
 $ cd koka
+$ stack update
 $ stack build
 $ stack exec koka
 ```
@@ -276,33 +277,32 @@ On macOS (x64 and arm64) we use `brew` instead:
 $ brew install pkg-config ghc cabal-install
 ```
 
-Run `cabal --version` to verify if the version is 3.0 or higher.
-If not, you can run `cabal install cabal-install` to upgrade.
-
 Optionally, install `vcpkg` as well. If you
 install this in the `~/vcpkg` directory Koka will find
 it automatically when needed:
 ```
 $ git clone https://github.com/microsoft/vcpkg
 $ ./vcpkg/bootstrap-vcpkg.sh
+$ vcpkg/vcpkg install pcre           
 ```
 
 We can now build the compiler using `cabal` as:
 ```
 $ git clone --recursive https://github.com/koka-lang/koka
 $ cd koka
-$ cabal build
-$ cabal run koka
+$ cabal new-update
+$ cabal new-build
+$ cabal new-run koka
 ```
 
-Similarly, we can run tests:
+We can also run tests as: 
 ```
-$ cabal run koka-test
+$ cabal new-run koka-test
 ```
 
 or create an installer:
 ```
-$ cabal run koka -- util/bundle
+$ cabal new-run koka -- util/bundle
 ```
 
 ## Building with Minbuild
