@@ -62,7 +62,8 @@ fun main() {
                     else flags.prefixdir.path
       val version = "v" ++ get-compiler-version()
       val cc      = get-cc-name()
-      install( predir, cc, version, flags.dist, post, flags.minimal, flags.cabal )      
+      val cabal   = flags.cabal || (get-env("GHC_ENVIRONMENT").default("").contains("dist-newstyle"))
+      install( predir, cc, version, flags.dist, post, flags.minimal, cabal )      
     }
   }
 }

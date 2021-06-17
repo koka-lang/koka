@@ -168,8 +168,10 @@ getOpts [] = (False, Test, [])
 main :: IO ()
 main = do
   pwd <- getCurrentDirectory
-  (cabal, mode, args) <- getOpts <$> getArgs  
-  putStrLn $ show (cabal,args)
+  (cabalArg, mode, args) <- getOpts <$> getArgs  
+  cabalEnv <- do ghcEnv <- lookupEnv "GHC_ENVIRONMENT"
+                 return ("dist-newstyle" `isInfixOf` (maybe "" id ghcEnv))
+  let cabal = cabalArg || cabalEnv
   hcfg <- readConfig defaultConfig args
   putStrLn "pre-compiling standard libraries..."
   -- compile all standard libraries before testing so we can run in parallel
