@@ -169,8 +169,8 @@ main :: IO ()
 main = do
   pwd <- getCurrentDirectory
   (cabalArg, mode, args) <- getOpts <$> getArgs  
-  cabalEnv <- do ghcEnv <- lookupEnv "GHC_ENVIRONMENT"
-                 return ("dist-newstyle" `isInfixOf` (maybe "" id ghcEnv))
+  cabalEnv <- do stackExe <- lookupEnv "STACK_EXE"
+                 return (maybe "" id stackExe == "")
   let cabal = cabalArg || cabalEnv
   hcfg <- readConfig defaultConfig args
   putStrLn "pre-compiling standard libraries..."
