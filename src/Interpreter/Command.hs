@@ -46,6 +46,7 @@ data Command  = Quit
               | ChangeDir FilePath
               | Show     ShowCommand
               | None
+              deriving (Show)
               
 -- | A /show/ command -- @?@.
 data ShowCommand
@@ -56,6 +57,7 @@ data ShowCommand
               | ShowDefines
               | ShowHelp
               | ShowVersion
+              deriving (Show)
 
 {--------------------------------------------------------------------------
   Read a command
