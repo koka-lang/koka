@@ -585,7 +585,7 @@ fun filter( xs : list<a>, pred : a -> e bool ) : e list<a> {
 
 // Remove those elements of a list that satisfy the given predicate `pred`.
 // For example: `remove([1,2,3],odd?) == [2]`
-fun remove( xs : list<a>, pred : a -> bool ) : list<a> {
+fun remove( xs : list<a>, pred : a -> e bool ) : e list<a> {
   xs.filter( fn(x) { !pred(x) } )
 }
 
@@ -619,20 +619,20 @@ fun filter-map( xs : list<a>, pred : a -> e maybe<b> ) : e list<b> {
 }
 
 // Find the first element satisfying some predicate
-fun find( xs : list<a>, pred : a -> bool ) : maybe<a> {
+fun find( xs : list<a>, pred : a -> e bool ) : e maybe<a> {
   xs.foreach-while fn(x) {
     if (pred(x)) then Just(x) else Nothing
   }
 }
 
 // Find the first element satisfying some predicate and return it.
-fun find-maybe( xs : list<a>, pred : a -> maybe<b> ) : maybe<b>
+fun find-maybe( xs : list<a>, pred : a -> e maybe<b> ) : e maybe<b>
 {
   xs.foreach-while(pred)
 }
 
 // Lookup the first element satisfying some predicate
-fun lookup( xs : list<(a,b)>, pred : a -> bool ) : maybe<b>
+fun lookup( xs : list<(a,b)>, pred : a -> e bool ) : e maybe<b>
 {
   xs.foreach-while fn(kv) {
     if (pred(kv.fst)) then Just(kv.snd) else Nothing
@@ -658,7 +658,7 @@ fun list( m : maybe<a> ) : list<a>
   }
 }
 
-private fun index-of-acc( xs : list<a>, pred : a -> bool, idx : int ) : int
+private fun index-of-acc( xs : list<a>, pred : a -> e bool, idx : int ) : e int
 {
   match(xs) {
     Nil -> 0 - 1
@@ -667,7 +667,7 @@ private fun index-of-acc( xs : list<a>, pred : a -> bool, idx : int ) : int
 }
 
 // Returns the index of the first element where `pred` holds, or `-1` if no such element exists.
-fun index-of( xs : list<a>, pred : a -> bool ) : int
+fun index-of( xs : list<a>, pred : a -> e bool ) : e int
 {
   index-of-acc( xs, pred, 0 )
 }
@@ -1237,7 +1237,7 @@ fun maybe( i : int ) : maybe<int> {
     if (i==0) then Nothing else Just(i)
 }
 
-fun fold-int( start : int, end : int, init : a, f : (int,a) -> a ) : a {
+fun fold-int( start : int, end : int, init : a, f : (int,a) -> e a ) : e a {
   if (start >= end) then return init
   val x = f(start,init)
   fold-int(unsafe-decreasing(start.inc), end, x, f)
@@ -1934,11 +1934,11 @@ fun head-char( s : string ) : maybe<char> {
 //}
 
 // Count the number of times a predicate is true for each character in a string
-fun count( s : string, pred : (char) -> bool ) : int
+fun count( s : string, pred : (char) -> e bool ) : e int
 {
   var cnt := 0
   s.foreach fn(c) {
-    if (pred(c)) then cnt := cnt+1
+    if (mask<local>(fn() { pred(c) })) then cnt := cnt+1
   }
   cnt
 }
@@ -2316,7 +2316,7 @@ fun show( xs : list<bool> ) : string {
   show-list(xs,show)
 }
 
-fun show-tuple( x : (a,b), showfst : a -> string, showsnd : b -> string ) : string {
+fun show-tuple( x : (a,b), showfst : a -> e string, showsnd : b -> e string ) : e string {
   "(" ++ x.fst.showfst ++ "," ++ x.snd.showsnd ++ ")"
 }
 
