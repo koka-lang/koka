@@ -10,7 +10,7 @@
 # Koka: a Functional Language with Effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
-_Latest release_: v2.1.6, 2021-06-10 ([Install]).
+_Latest release_: v2.1.8, 2021-06-17 ([Install]).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -74,6 +74,7 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 ## Recent Releases
 
+- `v2.1.8`, 2021-06-17: initial support for macOS M1 and Linux arm64, improved readline, minor fixes.
 - `v2.1.6`, 2021-06-10: initial support for shallow resumptions, fix space leak with vectors, allow `gcc` with `--fasan`,
   improved `vcpkg` support, add `--fstdalloc` flag, improved VS code syntax highlighting, improved `valgrind` support,
   added `--no-optimize` flag for extended debug information.
@@ -92,7 +93,7 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 # Install
 
-Koka has [binary installers][install] for Windows (x64), macOS (x64, arm64), and Linux (x64, arm64).  
+Koka has [binary installers][install] for Windows (x64), macOS (x64, M1), and Linux (x64, arm64).  
 For other platforms, you need to build the compiler from source.
 
 # Build from Source
@@ -119,7 +120,7 @@ You can also use `stack build --fast` to build a debug version of the compiler.
 Use `stack test --fast` to run the test-suite.
 
 (See the [build notes](#build-notes) below 
- for building on arm64 macOS, or if you have issues when running- or installing `stack`).
+ for building on macOS M1, or if you have issues when running- or installing `stack`).
 
 
 ## Create an Install Bundle
