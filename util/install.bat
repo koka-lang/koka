@@ -4,7 +4,7 @@ rem Installation script for Koka; use -h to see command line options.
 rem ------------------------------------------------------------------
 
 setlocal
-set KOKA_VERSION=v2.1.7
+set KOKA_VERSION=v2.1.8
 set KOKA_PREFIX=%LOCALAPPDATA%\koka
 set KOKA_UNINSTALL=N
 set KOKA_HELP=N
@@ -215,7 +215,7 @@ if not errorlevel 1 goto done_env
 rem Prevent duplicate semicolon
 set KOKA_SEMI=;
 if "%PATH:~-1%"==";" (set KOKA_SEMI=)
-set PATH=%PATH%%KOKA_SEMI%%KOKA_PREFIX%\bin
+set "PATH=%PATH%%KOKA_SEMI%%KOKA_PREFIX%\bin"
 
 where /q powershell
 if not errorlevel 1 (
@@ -246,8 +246,8 @@ if exist "%USERPROFILE%\.atom\packages" (
     mkdir "%USERPROFILE%\.atom\packages\language-koka"
   )
   xcopy /Y /Q /S "%KOKA_PREFIX%\share\koka\%KOKA_VERSION%\contrib\atom\*" "%USERPROFILE%\.atom\packages\language-koka" > nul
-  set  KOKA_EDITOR=atom %%f:%%l:%%c
-  setx KOKA_EDITOR "atom %%f:%%l:%%c" > nul
+  set  koka_editor=atom %%f:%%l:%%c
+  setx koka_editor "atom %%f:%%l:%%c" > nul
 )
 
 where /Q code
@@ -265,8 +265,8 @@ if errorlevel 1 (
   goto done_vscode
 ) 
 
-set  KOKA_EDITOR=code --goto %%f:%%l:%%c
-setx KOKA_EDITOR "code --goto %%f:%%l:%%c" > nul
+set  koka_editor=code --goto %%f:%%l:%%c
+setx koka_editor "code --goto %%f:%%l:%%c" > nul
 
 :done_vscode
 
@@ -375,7 +375,7 @@ echo.
 echo Installing clang ...   (%CLANG_INSTALL%)
 "%CLANG_INSTALL%"
 if not errorlevel 1 (
-  set PATH=%PATH%;C:\Program Files\LLVM\bin
+  set "PATH=%PATH%;C:\Program Files\LLVM\bin"
 )
 del /Q "%CLANG_INSTALL%"
 goto done_clang
@@ -403,8 +403,8 @@ echo.
 
 rem This ends the local environment but still sets the given environment variables
 endlocal & (
-  set KOKA_EDITOR=%KOKA_EDITOR%
-  set PATH=%PATH%
+  set "koka_editor=%koka_editor%"
+  set "PATH=%PATH%"
 )
 setlocal
 

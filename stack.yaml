@@ -11,7 +11,7 @@
 # Otherwise, try to use `cabal` directly:
 #   $ cabal new-build koka
 #   $ cabal new-run koka
-# See also <https://github.com/koka-lang/koka/readme.md#build-notes>.
+# See also <https://github.com/koka-lang/koka#build-notes>.
 
 resolver: lts-18.0
 # resolver: lts-14.27           # ghc 8.6.5

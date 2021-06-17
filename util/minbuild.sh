@@ -5,7 +5,7 @@
 # For use on platforms where stack is not working and to document
 # the minimal needed commands to build the full compiler.
 
-KOKA_VERSION=2.x.x
+KOKA_VERSION=2.1.8
 KOKA_VARIANT=release
 
 echo ""
