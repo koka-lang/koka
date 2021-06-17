@@ -809,7 +809,7 @@
     vertical-align: -0.1ex;
   }
   .news-items {
-  	height: 6em;
+  	height: 7em;
   	overflow-y: auto;
   	padding-top: 1ex;
     margin-top: -1em;
@@ -1167,7 +1167,7 @@
 <div class="titleblock align-center para-block" style="text-align:center;line-adjust:0">
 <div class="titleheader align-center" style="text-align:center;line-adjust:0">
 <div class="title para-block" style="font-weight:bold;margin-bottom:0.5ex;font-size:xxx-large;line-adjust:0">The Koka Programming Language</div>
-<div class="titlenote para-block" style="line-adjust:0"><span style="font-size:75%">(Daan Leijen, 2021-06-15)</span></div></div></div></div>
+<div class="titlenote para-block" style="line-adjust:0"><span style="font-size:75%">(Daan Leijen, 2021-06-17)</span></div></div></div></div>
 <div class="flexbody">
 
 <div class="sidepanel">
@@ -1301,9 +1301,11 @@ libraries, package management, and deep IDE integration.
 <p class="p noindent">News:
 </p>
 <ul class="ul list-star news-items compact">
-<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-06-10: Koka v2.1.6 released.
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-06-17: Koka v2.1.8 released, initial Apple M1 support.
 </li>
 <li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">The&nbsp;<a href="https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/" data-linkid="perceus">Perceus</a> paper won a distinguished paper award at PLDI&#39;21!
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-06-10: Koka v2.1.6 released.
 </li>
 <li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-05-31: Koka v2.1.4 released.
 </li>
@@ -1319,7 +1321,7 @@ libraries, package management, and deep IDE integration.
 </li>
 <li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2020-11-29: Perceus technical report publised (<a href="https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/" data-linkid="perceus">pdf</a>).</li></ul>
 </div></div><h2 id="install" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#install" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">1.1</span>.&#8194;</span>Installing the compiler</h2>
-<p class="p noindent">For Linux (x64,arm64) and macOS (x64), you can install Koka using:
+<p class="p noindent">For Linux (x64, arm64) and macOS (x64, M1), you can install Koka using:
 </p>
 <p class="p copy button indent" title="Copy" data-value="curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh" style="float:left;font-size:75%"><span class="fa fa-copy"></span></p>
 <pre class="para-block pre-indented" style="display:block"><code><span class="code-escaped"><strong class="strong-star2">curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &#124; sh</strong></span></code></pre>
@@ -2183,7 +2185,7 @@ an anynomous function block and passes that as the last parameter. In general:
 </span><span class="nicecode">f(e1,<span class="op">...</span>,eN, <span class="kw">fn</span>(x){ <span class="op">&lt;</span>body<span class="op">&gt;</span> })
 </span></pre>
 </div></div>
-<p class="p noindent">Here is an examply using <code class="koka">foreach</code> to span over the rest of the function body:
+<p class="p noindent">Here is an example using <code class="koka">foreach</code> to span over the rest of the function body:
 </p><pre class="koka source"><span class="plaincode">public fun test-with2() {
   with x = list(1,10).foreach
   println(x)
@@ -4525,7 +4527,7 @@ case where the input tree is shared, or where parts of the input tree are
 shared, making a single copy of those parts of the tree.
 </p>
 <p class="p learn button indent"><a href="https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/" data-linkid="perceus">Read the Perceus technical report</a></p><h1 id="sec-koka-language-specification" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-koka-language-specification" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">4</span>.&#8194;</span>Koka language specification</h1>
-<p class="p noindent">This is the draft language specification of the Koka language, version v2.1.7<br>
+<p class="p noindent">This is the draft language specification of the Koka language, version v2.1.8<br>
 Currently only the lexical and context-free grammar are specified.
 The&nbsp;<a href="toc.html" data-linkid="stdlib">standard libraries</a> are documented separately.
 </p><h2 id="sec-lexical-syntax" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-lexical-syntax" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">4.1</span>.&#8194;</span>Lexical syntax</h2>

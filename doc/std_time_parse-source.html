@@ -16,11 +16,11 @@
 
 <body class="koka doc body madoko">
 <pre class="koka source"><span class="comment">/&#42;----------------------------------------------------------------------------
-   Copyright (C) 2012-2016 Microsoft Corporation
+   Copyright 2012-2021, Microsoft Research, Daan Leijen
 
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
-   can be found in the file "license.txt" at the root of this distribution.
+   can be found in the LICENSE file at the root of this distribution.
 ----------------------------------------------------------------------------&#42;/</span>
 
 <span class="comment">// Parsing of time strings.
@@ -38,12 +38,12 @@
 <span class="kw">import</span> utc
 
 <span class="comment">// -----------------------------------------------------------
-// Parsing
+// Parsing  
 // -----------------------------------------------------------
 </span>
 <span class="comment">/&#42; Parse an [ISO 8601](https://en.wikipedia.org/wiki/ISO&#95;8601) time string.
 The optional &#96;calendar&#96; (=&#96;cal-iso&#96;) argument can be given to interpret
-the date in a different calendar. If a time zone offset is given, the
+the date in a different calendar. 
 
 &#96;&#96;&#96;&#96;plain
 2008-12-31               // just date

@@ -16,11 +16,11 @@
 
 <body class="koka doc body madoko">
 <pre class="koka source"><span class="comment">/&#42;---------------------------------------------------------------------------
-  Copyright 2012-2016,2020, Daan Leijen, Microsoft Corporation.
+  Copyright 2012-2021, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
-  found in the file "license.txt" at the root of this distribution.
+  found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------&#42;/</span>
 
 
@@ -115,6 +115,13 @@ Print the environment: &#96;get-env().map(fn(p) { p.fst + "=" + p.snd }).join("\
 </span><span class="decl-fun" id="get_compiler_version"><span class="kw">public</span> <span class="kw">extern</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_os_env.html#get_compiler_version">get-compiler-version<span class="pc"><span class="mo">std<span class="fslash">/</span>os<span class="fslash">/</span>env<span class="fslash last">/</span></span>get<span class="dash">-</span>compiler<span class="dash">-</span>version: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">ndet</span> <span class="tp">string</span></span></a>() <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_ndet"><span class="tp"><span class="effect">ndet</span></span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>ndet: <span class="tp">X</span></span></a> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a> {
   c <span class="st">"kk&#95;compiler&#95;version"</span>
   js inline <span class="st">"\"2\""</span>
+</span>}
+
+<span class="comment">// The backend compiler name.
+</span><span class="decl-fun" id="get_cc_name"><span class="kw">public</span> <span class="kw">extern</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_os_env.html#get_cc_name">get-cc-name<span class="pc"><span class="mo">std<span class="fslash">/</span>os<span class="fslash">/</span>env<span class="fslash last">/</span></span>get<span class="dash">-</span>cc<span class="dash">-</span>name: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">ndet</span> <span class="tp">string</span></span></a>() <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_ndet"><span class="tp"><span class="effect">ndet</span></span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>ndet: <span class="tp">X</span></span></a> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a> {
+  c <span class="st">"kk&#95;cc&#95;name"</span>
+  js inline <span class="st">"\"js\""</span>
+  cs inline <span class="st">"\"csc\""</span>
 </span>}
 
 <span class="comment">// Return the processor architecture natural machine word size in bits.
