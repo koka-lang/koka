@@ -11,8 +11,8 @@ KOKA_VARIANT=release
 echo ""
 echo "------------------------------------------------------------"
 echo "WARNING: this is a minimal build script for use on platforms"
-echo "         where 'stack' is not working."
-echo "         Use the 'stack build' command instead when possible"
+echo "         where 'stack' or 'cabal' are not working."
+echo "         Use 'stack build' or 'cabal build' when possible"
 echo "------------------------------------------------------------"
 echo ""
 
