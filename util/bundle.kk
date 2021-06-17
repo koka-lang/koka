@@ -19,7 +19,7 @@ struct iflags {
   postfixtag: string = ""
   minimal   : bool   = False
   dist      : bool   = True
-  cabal     : bool   = False
+  exe       : string = ""
 }
 
 val flag-descs : list<flag<iflags>> = {
@@ -27,12 +27,12 @@ val flag-descs : list<flag<iflags>> = {
   fun set-postfix( f : iflags, s : string ) : iflags { f(postfixtag = s) }
   fun set-minimal( f : iflags, b : bool ) : iflags  { f(minimal = b) }
   fun set-install( f : iflags, b : bool ) : iflags  { f(dist = !b) }
-  fun set-cabal( f : iflags, b : bool ) : iflags  { f(cabal = b) }
+  fun set-exe( f : iflags, s : string ) : iflags { f(exe = s) }
   [ Flag( "m", ["minimal"], Bool(set-minimal), "use minimal install (more quick)" ),
     Flag( "i", ["install"], Bool(set-install), "install directly without creating a distribution bundle"),
     Flag( "", ["prefix"], Req(set-prefix,"DIR"), "set prefix directory for install ('~/.local')" ),
     Flag( "", ["postfix"], Req(set-postfix,"POST"), "set postfix instead of <version>-<os>-<arch>"),
-    Flag( "", ["cabal"], Bool(set-cabal), "use cabal generated koka compiler")
+    Flag( "", ["koka"], Req(set-exe,"EXE"), "set koka executable path; use 'stack' or 'cabal' for a local build"),
   ]
 }
 
@@ -48,8 +48,8 @@ public fun process-flags() : <ndet,console> maybe<iflags> {
 }
 
 fun main() {
-  if (!is-file("koka.cabal".path)) {
-    println("you can only run 'util/install' from the koka root directory")
+  if (!is-directory("kklib".path)) {
+    println("you can only run 'util/bundle' from the koka root directory")
     println(flag-descs.usage(header))
     return ()
   }
@@ -58,19 +58,20 @@ fun main() {
     Just(flags) -> {
       val version = "v" ++ get-compiler-version()
       val cc      = get-cc-name()
-      val cabal   = flags.cabal || (get-env("STACK_EXE").default("").is-empty)
+      val (koka-exe, koka-run) = koka-exe-path(flags.exe)
       val post   = flags.postfixtag || get-default-postfix()
       val predir = if (flags.prefixdir.is-empty)
-                    then get-default-prefix(flags.dist, post, cabal)
+                    then get-default-prefix(flags.dist, post)
                     else flags.prefixdir.path
-      install( predir, cc, version, flags.dist, post, flags.minimal, cabal )      
+      bundle( predir, cc, version, flags.dist, post, flags.minimal, koka-exe, koka-run )      
     }
   }
 }
 
-fun install( prefixdir : path, cc : string, version : string, dist : bool, post : string, minimal : bool, cabal : bool ) {
-  // Install paths
-  val koka    = koka-exe-path(cabal)
+fun bundle( prefixdir : path, cc : string, version : string, dist : bool, post : string, 
+            minimal : bool, koka-exe : path, koka-run : string ) 
+{
+  // Install paths  
   val bindir  = prefixdir / "bin"
   val libdir  = prefixdir / "lib" / "koka" / version
   val sharedir= prefixdir / "share" / "koka" / version
@@ -88,6 +89,7 @@ fun install( prefixdir : path, cc : string, version : string, dist : bool, post 
     println("  share  : " ++ sharedir.string)
     println("  cc     : " ++ cc)
   }
+  println("  exe    : " ++ koka-exe.string)
   println("  version: " ++ version)
   ensure-dir(bindir)
   ensure-dir(libdir)
@@ -95,12 +97,12 @@ fun install( prefixdir : path, cc : string, version : string, dist : bool, post 
 
   // Build kklib versions
   [Debug,DRelease,Release].foreach fn(v){ 
-    build-libraries( cc,v,version,dist,minimal,cabal ) 
+    build-libraries( cc,v,version,dist,minimal,koka-run ) 
   }
 
   // Copy Koka
   println("copy koka executable...")
-  copy-file-to-dir(koka, bindir)
+  copy-file-to-dir(koka-exe, bindir)
 
   // Copy std libs
   val stdlibdir = sharedir / "lib"
@@ -163,27 +165,27 @@ fun install( prefixdir : path, cc : string, version : string, dist : bool, post 
   println("  version: " ++ version)
 }
 
-fun koka-exe-path(cabal : bool) : io path {
-  val info = if (cabal) 
-               then run-system-read("cabal new-run koka -- --version").exn
-               else run-system-read("stack exec koka -- --version").exn       
-  val bin  = info.lines.filter(fn(s){ s.starts-with("bin ").bool }).head.unjust
-  val exe  = bin.find(": ").default(empty).after.string.trim / "koka"  
-  if (exe.is-file) return exe
-  val win = exe.change-ext(".exe")
-  if (win.is-file) return win
-  throw("unable to find koka executable: use '> stack build' first.\n  (" ++ exe.string ++ ")")
+fun koka-exe-path(exe-opt : string) : io (path,string) {
+  val exe      = if (!exe-opt.is-empty) then exe-opt 
+                 elif (get-env("STACK_EXE").default("").is-empty) then "cabal" 
+                 else "stack"  
+  val koka-run = if (exe == "stack") then "stack exec koka --"
+                 elif (exe == "cabal") then "cabal new-run koka --"
+                 else exe
+  val info     = run-system-read(koka-run ++ " --version").exn
+  val bin      = info.lines.filter(fn(s){ s.starts-with("bin ").bool }).head.unjust
+  val fpath    = bin.find(": ").unjust.after.string.trim / "koka"  
+  val koka-exe = if (fpath.is-file) then fpath else fpath.change-ext(".exe")
+  if (!koka-exe.is-file) throw("unable to find koka executable: use '> stack build' first.\n  (" ++ koka-exe.string ++ ")")
+  (koka-exe, koka-run)
 }
 
-fun get-default-prefix(dist : bool, post : string, cabal : bool) : io path {
+fun get-default-prefix(dist : bool, post : string) : io path {
   if (dist) then {
     "bundle" / ("local-" ++ post)
   }
   else {
-    val out = if (cabal)
-                then "~/.local"
-                else run-system-read("stack path --local-bin").exn
-    out.trim.path.nobase
+    homedir() / ".local"
   }
 }
 
@@ -233,7 +235,7 @@ fun copy-libraries( libdir : path, cc : string, variant : variant, version : str
   }
 }
 
-fun build-libraries(cc : string, variant : variant, version : string, dist : bool, minimal : bool, cabal : bool) : io () {
+fun build-libraries(cc : string, variant : variant, version : string, dist : bool, minimal : bool, koka-run : string) : io () {
   println("build standard libraries: " ++ variant.show ++ "...")
   val extra = match(variant) {
     Debug    -> ""
@@ -243,8 +245,7 @@ fun build-libraries(cc : string, variant : variant, version : string, dist : boo
   val prog = if (minimal) then "util/link-min" else "util/link-std"
   val builddir = get-build-dir( cc, variant, version )
   val args = "--cc=" ++ cc ++ " " ++ extra
-  val koka = if (cabal) then "cabal new-run koka" else "stack exec koka"
-  val cmd  = [koka, "--", "--cc=" ++ cc, "--builddir=" ++ builddir.show, extra, prog].join(" ")
+  val cmd  = [koka-run, "--cc=" ++ cc, "--builddir=" ++ builddir.show, extra, prog].join(" ")
   println("> "  ++ cmd)
   val code = run-system( cmd )
   if (code != 0) throw("error: " ++ code.show)
@@ -252,7 +253,7 @@ fun build-libraries(cc : string, variant : variant, version : string, dist : boo
   if (dist && cc=="clang-cl") {
     // also generate cl binaries on windows
     val clbuilddir = get-build-dir("cl", variant, version)
-    val clcmd  = [koka, "--", "--cc=cl", "--builddir=" ++ clbuilddir.show, extra, prog].join(" ")
+    val clcmd  = [koka-run, "--cc=cl", "--builddir=" ++ clbuilddir.show, extra, prog].join(" ")
     println("> "  ++ clcmd)
     run-system( clcmd )
     ()
