@@ -121,7 +121,7 @@ specOneCall s@(SpecializeInfo{ specName=specName, specExpr=specExpr, specArgs=sp
   App (Var (TName name _) _) args -> replaceCall specName specExpr specArgs args
 
   -- the result may no longer be a typeapp
-  -- App (TypeApp (Var (TName name _) _) _) args -> undefined
+  App (TypeApp (Var (TName name ty) _) _) args -> replaceCall specName specExpr specArgs args
   _ -> error "specOneCall"
 
 specInnerCalls :: TName -> TName -> [Bool] -> Expr -> Expr
@@ -132,12 +132,11 @@ specInnerCalls from to bools = rewriteBottomUp $ \e -> case e of
   e -> e
 
 replaceCall :: Name -> Expr -> [Bool] -> [Expr] -> SpecM Expr
-replaceCall name expr bools args = do
-  -- ruExpr doesn't let me use DefRec here but it probably should be
+replaceCall name expr bools args =
   pure $ Let [DefRec [specDef]] (App (Var (defTName specDef) InfoNone) newArgs)
   where
     specDef = Def (genSpecName name bools) specType specBody Private DefFun InlineAuto rangeNull 
-              $ "// specialized " <> show name <> " to parameters " <> " TODO "
+               $ "// specialized " <> show name <> " to parameters " <> show [show param | param <- speccedParams]
     -- there's some knot-tying here: we need to know the type of the specialized fn to replace recursive calls with the specialized version, and the new body also influences the specialized type
     specBody = Lam newParams (fnEffect expr) $ Let [DefNonRec $ Def param typ arg Private DefVal InlineAuto rangeNull "" | (TName param typ, arg) <- zip speccedParams speccedArgs]
       $ specInnerCalls (TName name $ typeOf expr) (defTName specDef) (not <$> bools)
@@ -152,7 +151,7 @@ replaceCall name expr bools args = do
       $ zip (fnParams expr) args
 
 genSpecName :: Name -> [Bool] -> Name
-genSpecName name bools = newName $ "spec_" ++ last (splitOn (== '/') $ show name)
+genSpecName name bools = newName $ "spec_" ++ show (unqualify name)
 
 fnParams :: Expr -> [TName]
 fnParams (Lam params _ _) = params
