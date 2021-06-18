@@ -498,9 +498,6 @@ foldExpr f z e = appEndo (foldMapExpr (Endo . f) e) z
 rewriteBottomUp :: (Expr -> Expr) -> Expr -> Expr
 rewriteBottomUp f = runIdentity . rewriteBottomUpM (Identity . f)
 
-bind :: (Monad m) => (a -> m b) -> m a -> m b
-bind = (=<<)
-
 rewriteBottomUpM :: (Monad m) => (Expr -> m Expr) -> Expr -> m Expr
 rewriteBottomUpM f e = f =<< case e of 
   Lam params eff body -> Lam params eff <$> rec body
@@ -528,7 +525,7 @@ rewriteBottomUpM f e = f =<< case e of
       mbranches = forM branches $ \(Branch patterns guards) ->
         Branch patterns <$> forM guards (\(Guard e1 e2) -> liftA2 Guard (rec e1) (rec e2))
   where
-    rec = bind f . rewriteBottomUpM f
+    rec = f <=< rewriteBottomUpM f
 
 
 data TName = TName 

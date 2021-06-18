@@ -49,17 +49,10 @@ data SpecializeInfo = SpecializeInfo
   Specialization Monad
 --------------------------------------------------------------------------}
 
-data SpecState = SpecState
-  { _inScope :: NameMap Expr
-  , _newDefs :: DefGroups
-  } deriving (Show)
+type SpecM = Reader SpecializeEnv
 
-type SpecM = ReaderT SpecializeEnv (State SpecState)
-
-runSpecM :: NameMap Expr -> SpecializeEnv -> SpecM a -> (a, DefGroups)
-runSpecM scope specEnv specM = 
-  let (result, SpecState _ newDefs) = flip runState (SpecState { _inScope = scope, _newDefs = [] }) $ flip runReaderT specEnv specM
-  in (result, newDefs)
+runSpecM :: SpecializeEnv -> SpecM a -> a
+runSpecM specEnv specM = runReader specM specEnv
 
 -- emitSpecializedDefGroup :: DefGroup -> SpecM ()
 -- emitSpecializedDefGroup defGroup = modify (\state@SpecState { _newDefs = newDefs } -> state{ _newDefs = defGroup:newDefs})
@@ -70,11 +63,7 @@ runSpecM scope specEnv specM =
 --------------------------------------------------------------------------}
 
 specialize :: Env -> Int -> SpecializeEnv -> DefGroups -> (DefGroups, Int)
-specialize env uniq specEnv groups =
-  let 
-    -- TODO: initial scope isn't empty
-    (changedDefs, newDefs) = runSpecM M.empty specEnv $ mapM specOneDefGroup groups
-  in (changedDefs ++ newDefs, uniq)
+specialize env uniq specEnv groups = (runSpecM specEnv $ mapM specOneDefGroup groups, uniq)
 
 speclookupM :: Name -> SpecM (Maybe SpecializeInfo)
 speclookupM name = asks (specenvLookup name)
@@ -101,9 +90,8 @@ specOneExpr thisDefName = rewriteBottomUpM $ \e -> case e of
       case specDef of
         Nothing -> pure e
         Just def 
-          -- bandaid check to not try to spec the same def; in practice we should check if the RHS is known
           | specName def /= thisDefName -> specOneCall def e
-          | otherwise  -> pure e
+          | otherwise -> pure e
 
 filterBools :: [Bool] -> [a] -> [a]
 filterBools bools as = catMaybes $ zipWith (\bool a -> guard bool >> Just a) bools as
