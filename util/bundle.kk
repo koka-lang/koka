@@ -190,10 +190,12 @@ fun get-default-prefix(dist : bool, post : string) : io path {
 }
 
 fun get-default-postfix() : io string {
-  val ver   = get-compiler-version()
-  val arch0 = get-cpu-arch()
-  val arch  = if (ver <= "2.1.6" && arch0 == "x64") then "amd64" else arch0
-  ["v" ++ ver, get-os-name(), arch].join("-")
+  val ver     = get-compiler-version()
+  val arch0   = get-cpu-arch()
+  val arch    = if (ver <= "2.1.6" && arch0 == "x64") then "amd64" else arch0
+  val osname0 = get-os-name()
+  val osname  = if (ver <= "2.1.8" && osname0 == "macos") then "osx" else osname0
+  ["v" ++ ver, osname, arch].join("-")
 }
 
 fun get-build-dir(cc : string, variant : variant, version : string ) : path {
