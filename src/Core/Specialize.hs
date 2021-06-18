@@ -112,6 +112,24 @@ specOneCall s@(SpecializeInfo{ specName=specName, specExpr=specExpr, specArgs=sp
   App (TypeApp (Var (TName name ty) _) _) args -> replaceCall specName specExpr specArgs args
   _ -> error "specOneCall"
 
+{-
+restriction: all recursive calls are with the same parameters
+  fun f = /\a1 ... an. \x1 ... xm.  <body...  f a1 ... an e1 ... em  ...>
+and rule out:
+  fun f = /\a1 ... an. \x1 ... xm.  <body...  f tree<a1> ... an e1 ... em  ...>   <-- polymorphic recursion
+
+now when we specialize all types arguments will be there:
+
+val x  = f<t1,...tn>(e1,...em) 
+
+1) inline body of f
+2) substiute all type arguments [a1->t1, ..., an -> tn], now we have function f'.
+   and replace all calls in the body of thet form f<t1,...tn> to f'
+   now we have a monomorpic function!
+
+
+-}  
+
 specInnerCalls :: TName -> TName -> [Bool] -> Expr -> Expr
 specInnerCalls from to bools = rewriteBottomUp $ \e -> case e of
   App (Var f info) xs
