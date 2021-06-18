@@ -1038,59 +1038,61 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx)
   Environment
 --------------------------------------------------------------------------------------------------*/
 
-kk_string_t kk_os_kernel(kk_context_t* ctx) {
-  const char* kernel = "unknown";
+kk_string_t kk_os_name(kk_context_t* ctx) {
+  const char* name = "unknown";
 #if defined(WIN32)
   #if defined(__MINGW32__)
-  kernel = "windows-mingw";
+  name = "windows-mingw";
   #else
-  kernel = "windows";
-  #endif
-#elif defined(__linux__)
-  kernel = "linux";
-#elif defined(__APPLE__)
-  #include <TargetConditionals.h>
-  #if TARGET_IPHONE_SIMULATOR
-    kernel = "ios";
-  #elif TARGET_OS_IPHONE
-    kernel = "ios";
-  #elif TARGET_OS_MAC
-    kernel = "osx";
-  #else
-    kernel = "osx";  // unknown?
+  name = "windows";
   #endif
 #elif defined(__ANDROID__)
-  kernel = "linux-android";
+  name = "linux-android";
+#elif defined(__linux__)
+  name = "linux";
+#elif defined(__APPLE__)
+  #include <TargetConditionals.h>
+  #if TARGET_OS_MAC
+    name = "macos";
+  #elif (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
+    name = "ios";  
+  #elif TARGET_OS_WATCH
+    name = "watchos";
+  #elif TARGET_OS_TV
+    name = "tvos";
+  #else
+    name = "macos";  // unknown?
+  #endif
 #elif defined(__CYGWIN__) && !defined(WIN32)
-  kernel = "unix-cygwin";
+  name = "unix-cygwin";
 #elif defined(__hpux)
-  kernel = "unix-hpux";
+  name = "unix-hpux";
 #elif defined(_AIX)
-  kernel = "unix-aix";
+  name = "unix-aix";
 #elif defined(__sun) && defined(__SVR4)
-  kernel = "unix-solaris";
+  name = "unix-solaris";
 #elif defined(unix) || defined(__unix__) 
   #include <sys/param.h>
   #if defined(__FreeBSD__)
-  kernel = "unix-freebsd";
+  name = "unix-freebsd";
   #elif defined(__OpenBSD__)
-  kernel = "unix-openbsd";
+  name = "unix-openbsd";
   #elif defined(__DragonFly__)
-  kernel = "unix-dragonfly";
+  name = "unix-dragonfly";
   #elif defined(__HAIKU__)
-  kernel = "unix-haiku";
+  name = "unix-haiku";
   #elif defined(BSD)
-  kernel = "unix-bsd"; 
+  name = "unix-bsd"; 
   #else
-  kernel = "unix";
+  name = "unix";
   #endif
 #elif defined(_POSIX_VERSION)
-  kernel = "posix"
+  name = "posix"
 #endif
-  return kk_string_alloc_dup_valid_utf8(kernel, ctx);
+  return kk_string_alloc_dup_valid_utf8(name, ctx);
 }
 
-kk_string_t kk_os_arch(kk_context_t* ctx) {
+kk_string_t kk_cpu_arch(kk_context_t* ctx) {
   const char* arch = "unknown";
 #if defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) || defined(_M_AMD64)
   arch = (KK_SIZE_SIZE==4 ? "x32" : "x64");
@@ -1132,7 +1134,7 @@ kk_string_t kk_compiler_version(kk_context_t* ctx) {
 #if defined(KK_COMP_VERSION)
   const char* version = KK_COMP_VERSION;
 #else
-  const char* version = "2.x.x";
+  const char* version = "2";
 #endif
   return kk_string_alloc_dup_valid_utf8(version,ctx);
 }
@@ -1158,7 +1160,7 @@ kk_string_t kk_cc_name(kk_context_t* ctx) {
 }
 
 // note: assumes unistd/Windows etc is already included (like for file copy)
-int kk_os_processor_count(kk_context_t* ctx) {
+int kk_cpu_count(kk_context_t* ctx) {
   KK_UNUSED(ctx);
   int cpu_count = 1;
 #if defined(WIN32)
@@ -1185,4 +1187,13 @@ int kk_os_processor_count(kk_context_t* ctx) {
   cpu_count = mpctl(MPC_GETNUMSPUS, NULL, NULL);
 #endif
   return (cpu_count < 1 ? 1 : cpu_count);
+}
+
+bool kk_cpu_is_little_endian(kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+  #if KK_ARCH_LITTLE_ENDIAN
+  return true;
+  #else
+  return false;
+  #endif
 }

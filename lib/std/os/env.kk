@@ -78,19 +78,20 @@ public fun get-args() : ndet list<string> {
 // Return the main OS name: windows, linux, ios, osx, unix, posix, unknown.
 // Sometimes has a _dash_ subsystem, like: unix-\<freebsd,openbsd,dragonfly,bsd\>, and windows-mingw.
 public extern get-os-name() : ndet string {
-  c  "kk_os_kernel"
+  c  "kk_os_name"
   js inline "$std_core.host()"
 }
 
 // Return the main processor architecture: amd64, x86, arm64, arm, riscv, alpha, powerpc, etc.
 public extern get-cpu-arch() : ndet string {
-  c "kk_os_arch"
+  c "kk_cpu_arch"
   js inline "$std_core.host()"
 }
 
 // Return the available CPU's.
+// This is the logical core count including hyper-threaded cores.
 public extern get-cpu-count() : ndet int {
-  c inline "kk_integer_from_int(kk_os_processor_count(kk_context()),kk_context())"
+  c inline "kk_integer_from_int(kk_cpu_count(kk_context()),kk_context())"
   js inline "1"
 }
 
@@ -106,6 +107,14 @@ public extern get-cc-name() : ndet string {
   js inline "\"js\""
   cs inline "\"csc\""
 }
+
+// Is the byte-order little-endian?
+// If not, it is big-endian; other byte orders are not supported.
+public extern get-cpu-is-little-endian() : ndet bool {
+  c "kk_cpu_is_little_endian"
+  js inline "true"
+}
+
 
 // Return the processor architecture natural machine word size in bits.
 //
