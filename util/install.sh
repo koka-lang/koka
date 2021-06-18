@@ -127,9 +127,9 @@ process_options() {
       -b=*|--bundle=*)
           KOKA_DIST_SOURCE="$flag_arg";;
       -v) shift
-          VERSION="$1";;
+          VERSION="v${1#v}";;         # always prefix with a v          
       -v=*|--version=*)
-          VERSION="$flag_arg";;
+          VERSION="v${flag_arg#v}";;  # always prefix with a v
       -u|--uninstall)
           # FORCE="yes"
           MODE="uninstall";;
@@ -150,7 +150,7 @@ process_options() {
 
   # adjust macos for older versions to osx
   case "$VERSION" in
-    v2.0.*|v2.1.[012345678]*) 
+    v2.0.*|v2.1.[012345678]*)
       case "$OSARCH" in
         macos-*) OSARCH="osx-${OSARCH#macos-}";;
       esac;;
