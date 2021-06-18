@@ -1,9 +1,9 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012-2016,2020, Daan Leijen, Microsoft Corporation.
+  Copyright 2012-2021, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
-  found in the file "license.txt" at the root of this distribution.
+  found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
 
@@ -75,22 +75,23 @@ public fun get-args() : ndet list<string> {
   }
 }
 
-// Return the main OS name: windows, linux, ios, osx, unix, posix, unknown.
+// Return the main OS name: windows, linux, macos, unix, posix, ios, tvos, watchos, unknown.
 // Sometimes has a _dash_ subsystem, like: unix-\<freebsd,openbsd,dragonfly,bsd\>, and windows-mingw.
 public extern get-os-name() : ndet string {
-  c  "kk_os_kernel"
+  c  "kk_os_name"
   js inline "$std_core.host()"
 }
 
-// Return the main processor architecture: amd64, x86, arm64, arm, riscv, alpha, powerpc, etc.
+// Return the main processor architecture: x64, x86, arm64, arm, riscv32, riscv64, alpha, ppc64, etc.
 public extern get-cpu-arch() : ndet string {
-  c "kk_os_arch"
+  c "kk_cpu_arch"
   js inline "$std_core.host()"
 }
 
 // Return the available CPU's.
+// This is the logical core count including hyper-threaded cores.
 public extern get-cpu-count() : ndet int {
-  c inline "kk_integer_from_int(kk_os_processor_count(kk_context()),kk_context())"
+  c inline "kk_integer_from_int(kk_cpu_count(kk_context()),kk_context())"
   js inline "1"
 }
 
@@ -99,6 +100,21 @@ public extern get-compiler-version() : ndet string {
   c "kk_compiler_version"
   js inline "\"2\""
 }
+
+// The backend compiler name.
+public extern get-cc-name() : ndet string {
+  c "kk_cc_name"
+  js inline "\"js\""
+  cs inline "\"csc\""
+}
+
+// Is the byte-order little-endian?
+// If not, it is big-endian; other byte orders are not supported.
+public extern get-cpu-is-little-endian() : ndet bool {
+  c "kk_cpu_is_little_endian"
+  js inline "true"
+}
+
 
 // Return the processor architecture natural machine word size in bits.
 //

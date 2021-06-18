@@ -4,7 +4,7 @@
 # Installation script for Koka; use -h to see command line options.
 #-----------------------------------------------------------------------------
 
-VERSION="v2.1.6"
+VERSION="v2.1.8"        
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
@@ -20,10 +20,9 @@ KOKA_TEMP_DIR=""        # empty creates one dynamically
 adjust_version() {  # <osarch>
   case "$1" in
     linux-arm64)
-      VERSION="v2.1.6";;
+      VERSION="v2.1.8";;
   esac    
 }
-
 
 #---------------------------------------------------------
 # Helper functions
@@ -72,10 +71,16 @@ on_path() {
 detect_osarch() {
   arch="$(uname -m)"
   case "$arch" in
-    arm64*|aarch64*)   arch="arm64";;
-    arm*)              arch="arm";;
-    x86_64*)           arch="amd64";;
-    x86*|i[35678]86*)  arch="x86";;
+    x86_64*|amd64*)
+      arch="x64";;
+    x86*|i[35678]86*)
+      arch="x86";;
+    arm64*|aarch64*|armv8*)   
+      arch="arm64";;
+    arm*)              
+      arch="arm";;
+    parisc*)
+      arch="hppa";;          
   esac
 
   OSARCH="unix-$arch"
@@ -83,9 +88,9 @@ detect_osarch() {
     [Ll]inux)
       OSARCH="linux-$arch";;
     [Dd]arwin)
-      OSARCH="osx-$arch";;
+      OSARCH="macos-$arch";;
     *)
-      info "Warning: unable to detect OS, assuming generic unix";;
+      info "Warning: unable to detect OS, assuming generic unix"
   esac
 
   # For tier-2 platforms, adjust the default version
@@ -125,31 +130,31 @@ process_options() {
           VERSION="$1";;
       -v=*|--version=*)
           VERSION="$flag_arg";;
-      -u)
-          MODE="uninstall"
-          echo "mode = $MODE";;    
-      --uninstall)
-          FORCE="yes"
+      -u|--uninstall)
+          # FORCE="yes"
           MODE="uninstall";;
       -h|--help|-\?|help|\?)
-          echo "command:"
-          echo "  ./install.sh [options]"
-          echo ""
-          echo "options:"
-          echo "  -q, --quiet              suppress output"
-          echo "  -f, --force              continue without prompting"
-          echo "  -u, --uninstall          uninstall koka ($VERSION)"
-          echo "  -p, --prefix=<dir>       prefix directory ($PREFIX)"
-          echo "  -b, --bundle=<file|url>  full bundle location (.../koka-$VERSION-$OSARCH.tar.gz)"
-          echo "      --version=<ver>      version tag ($VERSION)"
-          echo "      --url=<url>          download url"
-          echo "                           ($KOKA_DIST_BASE_URL/$VERSION)"
-          echo ""
-          exit 0;;
-      *) echo "warning: unknown option \"$1\"." 1>&2
+          MODE="help";;
+      *) err_info "warning: unknown option \"$1\"."
     esac
     shift
   done
+
+  # adjust x64 arch for older versions to amd64
+  case "$VERSION" in
+    v2.0.*|v2.1.[0123456]*) 
+      case "$OSARCH" in
+        *-x64) OSARCH="${OSARCH%-x64}-amd64";;
+      esac;;
+  esac
+
+  # adjust macos for older versions to osx
+  case "$VERSION" in
+    v2.0.*|v2.1.[012345678]*) 
+      case "$OSARCH" in
+        macos-*) OSARCH="osx-${OSARCH#macos-}";;
+      esac;;
+  esac
 
   # initialize distribution url
   if [ -z "$KOKA_DIST_URL" ] ; then
@@ -170,8 +175,8 @@ sudocmd() {
   if [ -z "$USE_SUDO" ] ; then
     # echo "sudo cmd: not set: $USE_SUDO: $@"
     if command -v sudo >/dev/null; then
-      echo
-      echo "Need to use 'sudo' for further $MODE at: $PREFIX"
+      info ""
+      info "Need to use 'sudo' for further $MODE at: $PREFIX"
       USE_SUDO="always"
       sudo -k  # -k: Disable cached credentials (force prompt for password).
     else
@@ -278,8 +283,8 @@ install_dependencies() {
     pacman_install base-devel $deps
   else
     case "$OSARCH" in
-      osx-*)  
-        ;;  # osx already has all dependencies pre-installed
+      macos-*|osx-*)  
+        ;;  # macos already has all dependencies pre-installed
       *)
         info "Unable to install dependencies; continuing..";;
     esac
@@ -516,7 +521,7 @@ main_uninstall() {
     case $choice in
       [yY][eE][sS]|[yY])
          info "Uninstalling..";;
-      *) echo "No"
+      *) info "No"
          die "Uninstall canceled";;
     esac
   fi
@@ -535,11 +540,11 @@ main_install() {
   make_temp_dir
   trap cleanup_temp_dir EXIT
   install_dist $PREFIX $VERSION
-  echo "Install successful."
+  info "Install successful."
 
   # remove previous install?
   if [ ! -z "$KOKA_PREV_VERSION" ] && [ ! "$KOKA_PREV_VERSION" = "$VERSION" ] ; then
-    echo ""
+    info ""
     if [ -z "$FORCE" ] ; then
       info "Found previous koka version $KOKA_PREV_VERSION."
       read -p "Would you like to remove this version? [yN] " choice </dev/tty
@@ -564,11 +569,30 @@ main_install() {
   info ""
 }
 
+
+main_help() {
+  info "command:"
+  info "  ./install.sh [options]"
+  info ""
+  info "options:"
+  info "  -q, --quiet              suppress output"
+  info "  -f, --force              continue without prompting"
+  info "  -u, --uninstall          uninstall koka ($VERSION)"
+  info "  -p, --prefix=<dir>       prefix directory ($PREFIX)"
+  info "  -b, --bundle=<file|url>  full bundle location (.../koka-$VERSION-$OSARCH.tar.gz)"
+  info "      --version=<ver>      version tag ($VERSION)"
+  info "      --url=<url>          download url"
+  info "                           ($KOKA_DIST_URL)"
+  info ""
+}
+
 main_start() {
   detect_osarch
   process_options $@
   detect_previous_install  
-  if [ "$MODE" = "uninstall" ] ; then
+  if [ "$MODE" = "help" ] ; then
+    main_help    
+  elif [ "$MODE" = "uninstall" ] ; then
     main_uninstall 
   else
     main_install

@@ -2,16 +2,16 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
-#define KKLIB_BUILD        34       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        42       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1
 
 /*---------------------------------------------------------------------------
-  Copyright 2020 Daan Leijen, Microsoft Corporation.
+  Copyright 2020-2021, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
-  found in the file "license.txt" at the root of this distribution.
+  found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 #define WIN32_LEAN_AND_MEAN          // reduce windows includes
 #define _POSIX_C_SOURCE     200809L  // make posix definitions visible

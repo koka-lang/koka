@@ -1,9 +1,9 @@
 ------------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Main module.
@@ -53,7 +53,7 @@ mainArgs args
   = do (flags,flags0,mode) <- getOptions args
        let with = if (not (null (redirectOutput flags)))
                    then withFileNoColorPrinter (redirectOutput flags)
-                   else if (console flags == "html")
+                   else if (console flags == "html") 
                     then withHtmlColorPrinter
                    else if (console flags == "ansi")
                     then withColorPrinter

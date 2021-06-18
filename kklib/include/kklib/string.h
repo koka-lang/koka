@@ -2,11 +2,11 @@
 #ifndef KK_STRING_H
 #define KK_STRING_H
 /*---------------------------------------------------------------------------
-  Copyright 2020 Daan Leijen, Microsoft Corporation.
+  Copyright 2020-2021, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
-  found in the file "license.txt" at the root of this distribution.
+  found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------------------------------------------
@@ -39,7 +39,7 @@
 
   - qutf-8: this is mostly utf-8, but allows invalid utf-8 like overlong sequences or lone
     continuation bytes -- as such, any byte sequence is valid qutf-8. This occurs a lot in
-    practice, for examply by bad json encoding containing binary data, but also as a result 
+    practice, for example by bad json encoding containing binary data, but also as a result 
     of a _locale_ that cannot be decoded properly, or generally just random byte input.
 
   - qutf-16: this is mostly utf-16 but allows again any invalid utf-16 which consists

@@ -1,9 +1,9 @@
 ------------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Interpreter
@@ -26,7 +26,7 @@ import Lib.PPrint
 import Lib.Printer
 import Common.Failure         ( raiseIO, catchIO )
 import Common.ColorScheme
-import Common.File            ( notext, joinPath, searchPaths, runSystem, isPathSep )
+import Common.File            ( notext, joinPath, searchPaths, runSystem, isPathSep, startsWith )
 import Common.Name            ( Name, unqualify, qualify, newName )
 import Common.NamePrim        ( nameExpr, nameType, nameInteractive, nameInteractiveModule, nameSystemCore )
 import Common.Range
@@ -649,20 +649,35 @@ messageHeader st
   where
     colors = colorSchemeFromFlags (flags st)
     header = color(colorInterpreter colors) $ vcat [
-        text " _          _           ____"
-       ,text "| |        | |         |__  \\"
-       ,text "| | __ ___ | | __ __ _  __) |"
-       ,text "| |/ // _ \\| |/ // _` || ___/ " <.> welcome
-       ,text "|   <| (_) |   <| (_| ||____| "  <.> headerVersion
-       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|       "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")
+        text " _         _ "
+       ,text "| |       | |"
+       ,text "| | _ ___ | | _ __ _"
+       ,text "| |/ / _ \\| |/ / _' |  " <.> welcome
+       ,text "|   ( (_) |   ( (_| |  "  <.> headerVersion
+       ,text "|_|\\_\\___/|_|\\_\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")                    
+       {-
+       ,text " _         _ "
+       ,text "| |       | |"
+       ,text "| | _ ___ | | _ __ _"
+       ,text "| |/ / _ \\| |/ / _' |  " <.> welcome
+       ,text "|   < (_) |   < (_| |  "  <.> headerVersion
+       ,text "|_|\\_\\___/|_|\\_\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")                    
+       ,text " _          _ "
+       ,text "| |        | |"
+       ,text "| | __ ___ | | __ __ _"
+       ,text "| |/ // _ \\| |/ // _` |  " <.> welcome
+       ,text "|   <| (_) |   <| (_| |  "  <.> headerVersion
+       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")
+       -}
        ]
     headerVersion = text $ "version " ++ version ++
-                           (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", "
+                           (if compilerBuildVariant /= "release" then (" (" ++ compilerBuildVariant ++ ")") else "") ++ ", "
                            ++ buildDate ++ targetMsg
     welcome       = text ("welcome to the " ++ Config.programName ++ " interactive compiler")
     targetMsg
       = case (target (flags st)) of
-          C  -> ", libc " ++ show (8*sizePtr (platform (flags st))) ++ "-bit"
+          C  -> ", " ++ "libc" -- osName 
+                ++ " " ++ cpuArch -- show (8*sizePtr (platform (flags st))) ++ "-bit"
                 ++ " (" ++ (ccName (ccomp (flags st))) ++ ")"
           JS -> ", node"
           CS -> ", .net"

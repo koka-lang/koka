@@ -1,10 +1,11 @@
 {-# OPTIONS -cpp #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 ------------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Module that exports readline functionality
@@ -15,6 +16,7 @@ module Platform.ReadLine( withReadLine, readLine, readLineEx, addHistory
 
 
 import System.IO
+import Control.Exception
 
 #if (READLINE==2)
 import qualified System.Console.Readline as R
@@ -34,6 +36,18 @@ readLineEx   :: [FilePath] -> String -> IO () -> IO (Maybe String)
 addHistory   :: String -> IO ()
 
 
+continueLine :: Monad m => Maybe String -> m (Maybe String) -> m (Maybe String)
+continueLine mbline readLines = do
+  case mbline of
+    Just line ->
+      case reverse line of
+        []       -> readLines
+        '\\' : t -> do line2 <- readLines
+                       return $ ((reverse t ++) . ("\n" ++)) <$> line2
+        _        -> return $ Just line
+    Nothing   -> return Nothing
+
+
 #if (READLINE==2)
 
 withReadLine historyFile io
@@ -48,14 +62,7 @@ readLine roots prompt
     readLines :: IO (Maybe String)
     readLines
       = do mbline <- R.readline prompt
-           case mbline of
-             Just line ->
-               case reverse line of
-                 []       -> readLines
-                 '\\' : t -> do line2 <- readLines
-                                return $ ((reverse t ++) . ("\n" ++)) <$> line2
-                 _        -> return $ Just line
-             Nothing   -> return Nothing
+           continueLine mbline readLines
 
 addHistory line
   = R.addHistory line
@@ -73,16 +80,12 @@ readLine roots prompt
 
 readLineEx roots prompt putPrompt
   = do s <- readLines
-       return (Just s)
+       return s
   where
     readLines
       = do putPrompt
-           line <- getLine
-           case reverse line of
-             []       -> readLines
-             '\\' : t -> do line2 <- readLines
-                            return (reverse t ++ "\n" ++ line2)
-             _        -> return line
+           line <- catch (Just <$> getLine) (\(e :: SomeException) -> pure Nothing)
+           continueLine line readLines
 
 addHistory line
   = return ()
@@ -119,13 +122,7 @@ readLineEx roots prompt putPrompt
     readLines :: R.InputT IO (Maybe String)
     readLines
       = do input <- R.getInputLine ""
-           case input of
-             Just line -> case reverse line of
-                            []       -> readLines
-                            '\\' : t -> do line2 <- readLines
-                                           return $ ((reverse t ++) . ("\n" ++)) <$> line2
-                            _        -> return $ Just line
-             _ -> return Nothing
+           continueLine input readLines
 
 addHistory line
   = do h <- readIORef vhistory

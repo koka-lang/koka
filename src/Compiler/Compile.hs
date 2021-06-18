@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2012-2017 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Main module.
@@ -80,7 +80,7 @@ import Type.Infer             ( inferTypes )
 import Type.Pretty hiding     ( verbose )
 import Compiler.Options       ( Flags(..), CC(..), BuildType(..), buildType, ccFlagsBuildFromFlags, unquote,
                                 prettyEnvFromFlags, colorSchemeFromFlags, prettyIncludePath, isValueFromFlags,
-                                buildDir, outName, configType )
+                                buildDir, outName, buildVariant )
 
 import Compiler.Module
 
@@ -730,7 +730,7 @@ searchOutputIface flags name
        exist <- doesFileExist iface
        -- trace ("search output iface: " ++ show name ++ ": " ++ iface ++ " (" ++ (if exist then "found" else "not found" ) ++ ")") $ return ()
        if exist then return (Just iface)
-         else do let libIface = joinPaths [localLibDir flags, configType flags, postfix]
+         else do let libIface = joinPaths [localLibDir flags, buildVariant flags, postfix]
                  libExist <- doesFileExist libIface
                  return (if (libExist) then ({-trace ("found lib iface: " ++ libIface) $ -} Just libIface) else Nothing)
 
@@ -1274,7 +1274,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
        Just _ ->
          do currentDir <- getCurrentDirectory
             -- kklibInstallDir = joinPath kklibDir "out/install"
-            -- installKKLib term flags kklibDir kklibInstallDir cmakeGeneratorFlag cmakeConfigTypeFlag configType
+            -- installKKLib term flags kklibDir kklibInstallDir cmakeGeneratorFlag cmakeConfigTypeFlag buildVariant
 
             let mainModName= showModName (Core.coreProgName core0)
                 mainName   = if null (exeName flags) then mainModName else exeName flags
@@ -1454,7 +1454,7 @@ kklibBuild :: Terminal -> Flags -> CC -> String -> FilePath -> IO FilePath
 kklibBuild term flags cc name {-kklib-} objFile {-libkklib.o-}
   = do let objPath = outName flags objFile  {-out/v2.x.x/clang-debug/libkklib.o-}
        exist <- doesFileExist objPath
-       let binObjPath = joinPath (localLibDir flags) (configType flags ++ "/" ++ objFile)
+       let binObjPath = joinPath (localLibDir flags) (buildVariant flags ++ "/" ++ objFile)
        let srcLibDir  = joinPath (localShareDir flags) (name)
        binExist <- doesFileExist binObjPath
        binNewer <- if (not binExist) then return False
@@ -1479,7 +1479,9 @@ kklibBuild term flags cc name {-kklib-} objFile {-libkklib.o-}
                                      color (colorSource (colorScheme flags)) (text srcLibDir)
                    let flags0 = if (useStdAlloc flags) then flags 
                                   else flags{ ccompIncludeDirs = ccompIncludeDirs flags ++ [localShareDir flags ++ "/kklib/mimalloc/include"] }
-                       flags1 = flags0{ ccompDefs = ccompDefs flags ++ [("KK_COMP_VERSION","\"" ++ version ++ "\"")] }
+                       flags1 = flags0{ ccompDefs = ccompDefs flags ++ 
+                                                    [("KK_COMP_VERSION","\"" ++ version ++ "\""),
+                                                     ("KK_CC_NAME", "\"" ++ ccName cc ++ "\"")] }
                    ccompile term flags1 cc objPath [joinPath srcLibDir "src/all.c"] 
        return objPath
 
@@ -1488,7 +1490,7 @@ cmakeLib :: Terminal -> Flags -> CC -> String -> FilePath -> [String] -> IO ()
 cmakeLib term flags cc libName {-kklib-} libFile {-libkklib.a-} cmakeGeneratorFlag
   = do let libPath = outName flags libFile  {-out/v2.x.x/clang-debug/libkklib.a-}
        exist <- doesFileExist libPath
-       let binLibPath = joinPath (localLibDir flags) (configType flags ++ "/" ++ libFile)
+       let binLibPath = joinPath (localLibDir flags) (buildVariant flags ++ "/" ++ libFile)
        let srcLibDir  = joinPath (localShareDir flags) (libName)
        binExist <- doesFileExist binLibPath
        binNewer <- if (not binExist) then return False

@@ -10,7 +10,7 @@
 # Koka: a Functional Language with Effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
-_Latest release_: v2.1.6, 2021-06-10 ([Install]).
+_Latest release_: v2.1.8, 2021-06-17 ([Install]).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -63,6 +63,7 @@ To learn more:
 [vsprompt]: https://docs.microsoft.com/en-us/cpp/build/how-to-enable-a-64-bit-visual-cpp-toolset-on-the-command-line?view=vs-2019
 [winclang]: https://llvm.org/builds
 [vcpkg]: https://github.com/microsoft/vcpkg#getting-started
+[ghcup]: https://www.haskell.org/ghcup
 
 Enjoy,  
   Daan Leijen
@@ -71,8 +72,9 @@ Special thanks to: [Ningning Xie](https://xnning.github.io/) for her work on the
 [Alex Reinking](https://alexreinking.com/) for the implementation of the Perceus reference counting analysis [[8]](#references),
 and all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
 
-## Releases
+## Recent Releases
 
+- `v2.1.8`, 2021-06-17: initial support for macOS M1 and Linux arm64, improved readline, minor fixes.
 - `v2.1.6`, 2021-06-10: initial support for shallow resumptions, fix space leak with vectors, allow `gcc` with `--fasan`,
   improved `vcpkg` support, add `--fstdalloc` flag, improved VS code syntax highlighting, improved `valgrind` support,
   added `--no-optimize` flag for extended debug information.
@@ -83,14 +85,7 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
   initial Emacs syntax highlighting (by Kamoii).
 - `v2.1.1`, 2021-03-08: bug fixes, use right-associative (++) for string- and list append (instead of (+)), improved internal 
   string handling.
-- `v2.0.16`, 2021-02-14: bug fixes, fix short-circuit evaluation of logical operations, improved utf-8 handling.
-- `v2.0.14`, 2020-12-11: bug fixes, improved var escape checking.
-- `v2.0.12`, 2020-12-02: syntax highlighting support for VS Code and Atom, improved uninstall, more samples.
-- `v2.0.9`, 2020-11-27: now with binary [releases] for Windows, macOS, and Linux.
-- `v2.0.7`, 2020-11-23: more small fixes, improved scoped handlers, improved higher-rank type propagation, more samples.
-- `v2.0.5`, 2020-11-15: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support, direct C 
-  compilation, local install support.
-- `v2.0.0`, 2020-08-21: initial v2 release.
+- [Older release notes](#older-release-notes).
 
 <!--
 <img align="right" width="200" src="doc/system-logos.png">
@@ -98,7 +93,7 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 # Install
 
-Koka has [binary installers][install] for Windows (x64), macOS (x64), and Linux (x64,arm64).
+Koka has [binary installers][install] for Windows (x64), macOS (x64, M1), and Linux (x64, arm64).  
 For other platforms, you need to build the compiler from source.
 
 # Build from Source
@@ -108,52 +103,25 @@ without problems on most common platforms, e.g. Windows (including WSL), macOS, 
 Unix. The following programs are required to build Koka:
 
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
-  Use `$ curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
-* Optional components: 
-  - [vcpkg] to be able to link easily with C libraries (for `std/text/regex` for example):  
-    `$ git clone https://github.com/microsoft/vcpkg`  
-    `$ ./vcpkg/bootstrap-vcpkg.sh`   (or `$ .\vcpkg\bootstrap-vcpkg.bat` on Windows)
-  - [nodejs](http://nodejs.org) if using the Javascript backend.
-  - On Windows it is recommended to install the [clang][winclang] C compiler, or the [Visual Studio](https://visualstudio.microsoft.com/downloads/) C compiler.
+  Use `curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
+* Optional: [vcpkg] to be able to link easily with C libraries. Koka can find it automatically if installed to `~/vcpkg`.
+* Optional: [nodejs](http://nodejs.org) if using the Javascript backend.
+* Optional: On Windows it is recommended to install the [clang][winclang] C compiler, or the [Visual Studio](https://visualstudio.microsoft.com/downloads/) C compiler.
 
-Now clone the repository and build the compiler (note the `--recursive` flag):
+Now clone the repository and build the compiler as (note the `--recursive` flag):
 ```
 $ git clone --recursive https://github.com/koka-lang/koka
 $ cd koka
+$ stack update
 $ stack build
 $ stack exec koka
 ```
 You can also use `stack build --fast` to build a debug version of the compiler.
+Use `stack test --fast` to run the test-suite.
 
+(See the [build notes](#build-notes) below 
+ for building on macOS M1, or if you have issues when running- or installing `stack`).
 
-## Installing Stack
-
-On less common platforms (like `arm64`), the default installation method for `stack` (and `ghc`) may fail.
-The following instructions work for Ubuntu Linux on arm64 (tested on a graviton2 AWS instance with Ubuntu 20.04).
-First install `ghc`, `cabal`, and `stack` as packages:
-```
-$ sudo apt update
-$ sudo apt install ghc cabal-install haskell-stack
-$ stack update
-```
-Optionally, install `vcpkg` as well:
-```
-$ git clone https://github.com/microsoft/vcpkg
-$ ./vcpkg/bootstrap-vcpkg.sh
-$ export VCPKG_FORCE_SYSTEM_BINARIES=1
-```
-We can now build the Koka compiler by explicitly using the system
-ghc, and giving an older
-[resolver](https://www.stackage.org/) that matches our ghc version:
-```
-$ git clone --recursive https://github.com/koka-lang/koka
-$ cd koka
-$ stack --resolver lts-14.27 --system-ghc build
-$ stack --resolver lts-14.27 --system-ghc exec koka
-```
-Instead of specifying this on the command line, 
-you can also set the resolver explicitly in the `stack.yaml` file
-and uncomment the line `system-ghc: true`.
 
 ## Create an Install Bundle
 
@@ -163,15 +131,15 @@ on the local machine:
 $ stack exec koka -- util/bundle
 ...
 distribution bundle created.
-  bundle : dist/koka-v2.0.9-linux-amd64.tar.gz
+  bundle : bundle/koka-v2.1.7-linux-x64.tar.gz
   cc     : gcc
-  version: v2.0.9
+  version: v2.1.7
 ```
 This takes a while as it pre-compiles the standard libraries in three build
 variants (`debug`, `drelease` (release with debug info), and `release`).
 After generating the bundle, you can install it locally as:
 ```
-$ util/install.sh -b dist/koka-v2.0.9-linux-amd64.tar.gz
+$ util/install.sh -b bundle/koka-v2.1.7-linux-x64.tar.gz
 ```
 (use `util/install.bat` on Windows). 
 After installation, you can now directly invoke `koka`:
@@ -181,8 +149,9 @@ $ koka --version
 Koka is by default installed for the current user in `<prefix>/bin/koka`,
 (with architecture specific files under `<prefix>/lib/koka/v2.x.x`
 and libraries and samples under `<prefix>/share/koka/v2.x.x`).
-On Windows the default prefix is `%APPDATA%\local` (which is also
-used by `stack`).
+On Unix and macOS the default prefix is `/usr/local` while
+on Windows the default prefix is `%LOCALAPPDATA%\koka`
+
 
 
 # Benchmarks
@@ -268,19 +237,12 @@ Currently being worked on:
   (contact: Steven Fontanella)
 - Borrowing analysis for Perceus and improved reuse analysis. (contact: Anton Lorenzen)
 
-
 The following is the immediate todo list to be completed in the coming months:
 
 - Port `std/async` (using `libuv`).
 - Improve compilation of local state to use local variables directly (in C).
 
 Contact me if you are interested in tackling some of these :-)
-
-Main branches:
-- `master`: latest stable version.
-- `dev`: current development branch -- submit PR's to this branch.
-- `v1-master`: last stable version of Koka v1: this is Koka with the Javascript (and C#) backend which does not use evidence translation.
-               This version supports `std/async` and should compile examples from published papers.
 
 Recently completed tasks:
 
@@ -290,13 +252,77 @@ Recently completed tasks:
 - Functions with a pattern match in the argument (by Steven Fontanella).
 
 
-# Windows C Compilers.
+# Build Notes
+
+## Branches
+
+The main development branches are:
+- `master`: latest stable version.
+- `dev`: current development branch -- submit PR's to this branch.
+- `v1-master`: last stable version of Koka v1: this is Koka with the Javascript (and C#)
+  backend which does not use evidence translation.
+  This version supports `std/async` and should compile examples from published papers.
+
+
+## Building with Cabal 
+
+Some platforms, like Linux arm64 or macOS arm64 (M1), do not 
+always support `stack` well. In these cases we can also
+use `ghc` and `cabal` directly. Install these packages as:
+```
+$ sudo apt update
+$ sudo apt install ghc cabal-install
+```
+On macOS (x64 and arm64) we use `brew` instead:
+```
+$ brew install pkg-config ghc cabal-install
+```
+
+Optionally, install `vcpkg` as well. If you
+install this in the `~/vcpkg` directory Koka will find
+it automatically when needed:
+```
+$ git clone https://github.com/microsoft/vcpkg
+$ ./vcpkg/bootstrap-vcpkg.sh
+$ vcpkg/vcpkg install pcre           
+```
+
+We can now build the compiler using `cabal` as:
+```
+$ git clone --recursive https://github.com/koka-lang/koka
+$ cd koka
+$ cabal new-update
+$ cabal new-build
+$ cabal new-run koka
+```
+
+We can also run tests as: 
+```
+$ cabal new-run koka-test
+```
+
+or create an installer:
+```
+$ cabal new-run koka -- util/bundle
+```
+
+## Building with Minbuild
+
+If neither `stack` nor `cabal` are functional, you may try to 
+run the minimal build script to build Koka:
+```
+./util/minbuild.sh
+```
+which directly invokes `ghc` to build the compiler.
+
+
+## Windows C Compilers
 
 The Koka compiler on Windows requires a C compiler. By default
 when using `stack exec koka` the C compiler supplied with `ghc` is used (`mingw`)
 but that is only visible within a stack environmet.
 
-It is therefor recommended to install the [clang][winclang] compiler for
+It is therefore recommended to install the [clang][winclang] compiler for
 Windows (which is automatically installed when running `util/install.bat`).
 However, Koka can also use the Microsoft Visual C++ compiler (`cl`) if you 
 run `koka` from a [Visual Studio x64 toolset](vsprompt) command prompt (in 
@@ -317,6 +343,17 @@ $ out\v2.0.5\cl-release\test_bench_koka_rbtree --kktime
 420000
 info: elapsed: 1.483s, user: 1.484s, sys: 0.000s, rss: 164mb
 ```
+
+## Older Release Notes
+
+- `v2.0.16`, 2021-02-14: bug fixes, fix short-circuit evaluation of logical operations, improved utf-8 handling.
+- `v2.0.14`, 2020-12-11: bug fixes, improved var escape checking.
+- `v2.0.12`, 2020-12-02: syntax highlighting support for VS Code and Atom, improved uninstall, more samples.
+- `v2.0.9`, 2020-11-27: now with binary [releases] for Windows, macOS, and Linux.
+- `v2.0.7`, 2020-11-23: more small fixes, improved scoped handlers, improved higher-rank type propagation, more samples.
+- `v2.0.5`, 2020-11-15: many bug fixes and improvements. Improved codegen, named handlers, added samples, docker support, direct C 
+  compilation, local install support.
+- `v2.0.0`, 2020-08-21: initial v2 release.
 
 
 

@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Definition of higher-ranked types and utility functions over them.
@@ -582,7 +582,7 @@ labelNameEx tp
         -> (typeConName tc, idNumber id, targs)
       TApp (TCon tc) targs  -> assertion ("non-expanded type synonym used as label") (typeConName tc /= nameEffectExtend) $
                                (typeConName tc,0,targs)
-      _  -> failure "Type.Unify.labelName: label is not a constant"
+      _  -> failure "Type.Type.labelNameEx: label is not a constant"
 
 typePartial :: Type
 typePartial
