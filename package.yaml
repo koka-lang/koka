@@ -6,7 +6,7 @@
 # - util/minbuild
 
 name:       koka
-version:    2.1.8                      
+version:    2.1.9                   
 github:     "koka-lang/koka"
 license:    Apache-2.0
 author:     Daan Leijen
@@ -53,7 +53,7 @@ executables:
     cpp-options:
       - -DKOKA_MAIN="koka"      
       - -DKOKA_VARIANT="release"
-      - -DKOKA_VERSION="2.1.8"
+      - -DKOKA_VERSION="2.1.9"
       # - -DREADLINE=1   # to avoid using Haskeline
     when:
       - condition: os(windows)
