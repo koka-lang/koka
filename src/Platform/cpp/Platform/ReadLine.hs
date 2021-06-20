@@ -31,8 +31,8 @@ import Data.IORef
 #endif
 
 withReadLine :: FilePath -> IO a -> IO a
-readLine     :: [FilePath] -> String -> IO (Maybe String)
-readLineEx   :: [FilePath] -> String -> IO () -> IO (Maybe String)
+readLine     :: [FilePath] -> [String] -> String -> IO (Maybe String)
+readLineEx   :: [FilePath] -> [String] -> String -> IO () -> IO (Maybe String)
 addHistory   :: String -> IO ()
 
 
@@ -104,13 +104,13 @@ withReadLine historyPath io
        if (null historyFile) then return () else H.writeHistory historyFile (H.stifleHistory (Just 64) h1)
        return x
 
-readLine roots prompt
-  = readLineEx roots prompt (do{ putStr prompt; hFlush stdout})
+readLine roots identifiers prompt
+  = readLineEx roots identifiers prompt (do{ putStr prompt; hFlush stdout})
 
-readLineEx roots prompt putPrompt
+readLineEx roots identifiers prompt putPrompt
   = do putPrompt
        h0 <- readIORef vhistory
-       (mbline,h1) <- R.runInputT (R.setComplete (completeModuleName roots)
+       (mbline,h1) <- R.runInputT (R.setComplete (completeLine roots identifiers)
                                    (R.defaultSettings{R.autoAddHistory = False })) $
                       do R.putHistory h0
                          line <- readLines
@@ -129,12 +129,18 @@ addHistory line
        writeIORef vhistory (H.addHistoryRemovingAllDupes line h)
 
 
-completeModuleName :: [FilePath] -> C.CompletionFunc IO
-completeModuleName roots (rprev,prefix) | take 2 (reverse rprev) `elem` [":l",":f",":e"]
+completeLine :: [FilePath] -> [String] -> C.CompletionFunc IO
+completeLine roots identifiers (rprev,prefix) | take 2 (reverse rprev) `elem` [":l",":f",":e"]
   = (C.completeQuotedWord (Just '\\') "\"'" (listModules roots) $
      C.completeWord (Just '\\') ("\"\'" ++ C.filenameWordBreakChars) (listModules roots)) (rprev,prefix)
-completeModuleName roots (rprev,prefix) 
-  = return (reverse prefix ++ rprev,[])
+completeLine roots identifiers (rprev,prefix) 
+  = -- return (reverse prefix ++ rprev,[])
+    (C.completeWord Nothing " \t" (listNames identifiers)) (rprev,prefix)
+
+
+listNames :: [String] -> String -> IO [C.Completion]
+listNames names prefix
+  = return $ [C.Completion name name True | name <- names, name `startsWith` prefix]
     
 listModules :: [FilePath] -> String -> IO [C.Completion]
 listModules roots prefix 
@@ -146,5 +152,9 @@ listModules roots prefix
        return [c{ C.replacement = norm (C.replacement c)} |
                c <- (cs ++ concat css),
                not (C.isFinished c) {-dir-} || take 3 (reverse (C.replacement c)) == "kk." ]
+
+startsWith :: String -> String -> Bool
+startsWith s pre
+  = take (length pre) s == pre
 
 #endif

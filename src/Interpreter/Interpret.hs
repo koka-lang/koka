@@ -542,7 +542,7 @@ getCommand st
   = do let ansiPrompt = (if isAnsiPrinter (printer st)
                           then ansiWithColor (colorInterpreter (colorSchemeFromFlags (flags st)))
                           else id) "> "
-       mbInput <- readLineEx (includePath (flags st)) ansiPrompt (prompt st)
+       mbInput <- readLineEx (includePath (flags st)) [] ansiPrompt (prompt st)
        let input = maybe ":quit" id mbInput
        -- messageInfoLn st ("cmd: " ++ show input)
        let cmd   = readCommand input
