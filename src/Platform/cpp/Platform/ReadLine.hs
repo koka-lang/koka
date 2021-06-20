@@ -130,14 +130,16 @@ addHistory line
 
 
 completeModuleName :: [FilePath] -> C.CompletionFunc IO
-completeModuleName roots
-  = C.completeQuotedWord (Just '\\') "\"'" (listModules roots) $
-    C.completeWord (Just '\\') ("\"\'" ++ C.filenameWordBreakChars) (listModules roots)
-
+completeModuleName roots (rprev,prefix) | take 2 (reverse rprev) `elem` [":l",":f",":e"]
+  = (C.completeQuotedWord (Just '\\') "\"'" (listModules roots) $
+     C.completeWord (Just '\\') ("\"\'" ++ C.filenameWordBreakChars) (listModules roots)) (rprev,prefix)
+completeModuleName roots (rprev,prefix) 
+  = return (reverse prefix ++ rprev,[])
+    
 listModules :: [FilePath] -> String -> IO [C.Completion]
-listModules roots pre
-  = do cs  <- C.listFiles pre
-       css <- mapM (\root -> do cs <- C.listFiles (root ++ "/" ++ pre)
+listModules roots prefix 
+  = do cs  <- C.listFiles prefix
+       css <- mapM (\root -> do cs <- C.listFiles (root ++ "/" ++ prefix)
                                 return [c{ C.replacement = drop (length root + 1) (C.replacement c) } | c <- cs]
                    ) roots
        let norm s  = map (\c -> if (c=='\\') then '/' else c) s
