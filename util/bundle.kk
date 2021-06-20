@@ -19,6 +19,7 @@ struct iflags {
   postfixtag: string = ""
   minimal   : bool   = False
   dist      : bool   = True
+  sysghc    : bool   = False
   exe       : string = ""
 }
 
@@ -27,12 +28,14 @@ val flag-descs : list<flag<iflags>> = {
   fun set-postfix( f : iflags, s : string ) : iflags { f(postfixtag = s) }
   fun set-minimal( f : iflags, b : bool ) : iflags  { f(minimal = b) }
   fun set-install( f : iflags, b : bool ) : iflags  { f(dist = !b) }
+  fun set-sysghc( f : iflags, b : bool ) : iflags  { f(sysghc = b) }
   fun set-exe( f : iflags, s : string ) : iflags { f(exe = s) }
   [ Flag( "m", ["minimal"], Bool(set-minimal), "use minimal install (more quick)" ),
     Flag( "i", ["install"], Bool(set-install), "install directly without creating a distribution bundle"),
     Flag( "", ["prefix"], Req(set-prefix,"DIR"), "set prefix directory for install ('~/.local')" ),
     Flag( "", ["postfix"], Req(set-postfix,"POST"), "set postfix instead of <version>-<os>-<arch>"),
     Flag( "", ["koka"], Req(set-exe,"EXE"), "set koka executable path; use 'stack' or 'cabal' for a local build"),
+    Flag( "", ["system-ghc"], Bool(set-sysghc), "use system-ghc if building with 'stack'")
   ]
 }
 
@@ -58,7 +61,7 @@ fun main() {
     Just(flags) -> {
       val version = "v" ++ get-compiler-version()
       val cc      = get-cc-name()
-      val (koka-exe, koka-run) = koka-exe-path(flags.exe)
+      val (koka-exe, koka-run) = koka-exe-path(flags.exe, flags.sysghc)
       val post   = flags.postfixtag || get-default-postfix()
       val predir = if (flags.prefixdir.is-empty)
                     then get-default-prefix(flags.dist, post)
@@ -165,11 +168,11 @@ fun bundle( prefixdir : path, cc : string, version : string, dist : bool, post :
   println("  version: " ++ version)
 }
 
-fun koka-exe-path(exe-opt : string) : io (path,string) {
+fun koka-exe-path(exe-opt : string, sysghc : bool) : io (path,string) {
   val exe      = if (!exe-opt.is-empty) then exe-opt 
                  elif (get-env("STACK_EXE").default("").is-empty) then "cabal" 
                  else "stack"  
-  val koka-run = if (exe == "stack") then "stack exec koka --"
+  val koka-run = if (exe == "stack") then "stack exec koka " ++ (if sysghc then "--system-ghc --skip-ghc-check " else "") ++ "--"
                  elif (exe == "cabal") then "cabal new-run koka --"
                  else exe
   val info     = run-system-read(koka-run ++ " --version").exn
