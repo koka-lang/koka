@@ -263,10 +263,32 @@ The main development branches are:
   backend which does not use evidence translation.
   This version supports `std/async` and should compile examples from published papers.
 
+## Building on macOS M1
+
+Currently (Jun 2021) `stack` is not always working well on the M1.
+You need to install `ghc` via `brew`:
+```
+$ brew install ghc cabal-install haskell-stack
+```
+
+Moreover, sometimes `stack` segfaults and running it inside `bash` seems to resolve the issue:
+```
+$ bash
+bash$ stack update
+```
+
+Also, we need to tell stack to use the system installed ghc and skip the version check:
+```
+bash:~$ git clone --recursive https://github.com/koka-lang/koka
+bash:~$ cd koka
+bash:~/koka$ stack --system-ghc --skip-ghc-check build
+bash:~/koka$ stack --system-ghc --skip-ghc-check exec koka
+```
+
 
 ## Building with Cabal 
 
-Some platforms, like Linux arm64 or macOS arm64 (M1), do not 
+Some platforms, like Linux arm64, do not 
 always support `stack` well. In these cases we can also
 use `ghc` and `cabal` directly. Install these packages as:
 ```
@@ -282,38 +304,42 @@ Optionally, install `vcpkg` as well. If you
 install this in the `~/vcpkg` directory Koka will find
 it automatically when needed:
 ```
-$ git clone https://github.com/microsoft/vcpkg
-$ ./vcpkg/bootstrap-vcpkg.sh
-$ vcpkg/vcpkg install pcre           
+~$ git clone https://github.com/microsoft/vcpkg
+~$ ./vcpkg/bootstrap-vcpkg.sh
+~$ vcpkg/vcpkg install pcre           
 ```
 
 We can now build the compiler using `cabal` as:
 ```
-$ git clone --recursive https://github.com/koka-lang/koka
-$ cd koka
-$ cabal new-update
-$ cabal new-build
-$ cabal new-run koka
+~$ git clone --recursive https://github.com/koka-lang/koka
+~$ cd koka
+~/koka$ cabal new-update
+~/koka$ cabal new-build
+~/koka$ cabal new-run koka
 ```
 
 We can also run tests as: 
 ```
-$ cabal new-run koka-test
+~/koka$ cabal new-run koka-test
 ```
 
 or create an installer:
 ```
-$ cabal new-run koka -- util/bundle
+~/koka$ cabal new-run koka -- util/bundle
 ```
 
-## Building with Minbuild
+## Building with minbuild
 
 If neither `stack` nor `cabal` are functional, you may try to 
 run the minimal build script to build Koka:
 ```
-./util/minbuild.sh
+~/koka$ ./util/minbuild.sh
 ```
 which directly invokes `ghc` to build the compiler.
+You can create an install bundle from a minbuild as:
+```
+~/koka$ out/minbuild/koka util/bundle.kk -- --koka=out/minbuild/koka
+```
 
 
 ## Windows C Compilers
