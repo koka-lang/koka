@@ -17,7 +17,7 @@ module Lib.Printer(
                 , Printer( write, writeText, writeLn, writeTextLn, flush, withColor, withBackColor, withReverse, withUnderline    , setColor, setBackColor, setReverse, setUnderline ) 
                 -- * Printers
               , MonoPrinter, withMonoPrinter
-              , ColorPrinter, withColorPrinter, withNoColorPrinter, withFileNoColorPrinter, isAnsiPrinter
+              , ColorPrinter, withColorPrinter, withNoColorPrinter, withFileNoColorPrinter, isAnsiPrinter, isConsolePrinter
               , AnsiPrinter, withAnsiPrinter
               , withFilePrinter, withNewFilePrinter
               , withHtmlPrinter, withHtmlColorPrinter
@@ -339,6 +339,12 @@ isAnsiPrinter cp
   = case cp of
       PAnsi ansi  -> True
       _           -> False
+
+isConsolePrinter :: ColorPrinter -> Bool
+isConsolePrinter cp 
+  = case cp of
+      PCon _  -> True
+      _       -> False
 
 
 instance Printer ColorPrinter where
