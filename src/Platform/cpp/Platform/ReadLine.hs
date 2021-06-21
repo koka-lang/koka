@@ -15,6 +15,7 @@ module Platform.ReadLine( withReadLine, readLine, readLineEx, addHistory
                         ) where
 
 
+import Data.Char( isSpace )
 import System.IO
 import Control.Exception
 
@@ -129,7 +130,7 @@ addHistory line
        writeIORef vhistory (H.addHistoryRemovingAllDupes line h)
 
 completeLine :: [FilePath] -> [String] -> C.CompletionFunc IO
-completeLine roots identifiers (rprev,prefix) | take 2 (reverse rprev) `elem` [":l",":f",":e"]
+completeLine roots identifiers (rprev,prefix) | take 2 (dropWhile isSpace (reverse rprev)) `elem` [":l",":f",":e"]
   = (C.completeQuotedWord (Just '\\') "\"'" (listModules roots) $
      C.completeWord (Just '\\') ("\"\'" ++ C.filenameWordBreakChars) (listModules roots)) (rprev,prefix)
 completeLine roots identifiers (rprev,prefix) 

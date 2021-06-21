@@ -23,8 +23,9 @@ module Compiler.Module( Module(..), Modules, moduleNull
 
 import Lib.Trace
 import Lib.PPrint
+import Data.Char              ( isAlphaNum )
 import Common.Range           ( Range )
-import Common.Name            ( Name, newName, unqualify)
+import Common.Name            ( Name, newName, unqualify, isHiddenName, showPlain)
 import Common.Error
 import Common.File            ( FileTime, fileTime0, maxFileTimes, splitPath )
 
@@ -121,7 +122,9 @@ loadedNames l
 
 loadedMatchNames :: Loaded -> [String]
 loadedMatchNames l
-  = map (show . unqualify) (loadedNames l)
+  = map (showPlain . unqualify) $ filter (not . isHiddenName) (loadedNames l)
+  where
+    -- good (c:_) = (c /= '.')
 
 
 {---------------------------------------------------------------
