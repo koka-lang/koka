@@ -29,7 +29,7 @@ import Common.NameSet (NameSet)
 import qualified Common.NameSet as S
 import Core.Core
 import Core.Pretty ()
-import Type.Type (splitFunScheme, Effect)
+import Type.Type (splitFunScheme, Effect, Type, TypeVar)
 import Type.TypeVar
 import Type.Pretty
 import Lib.Trace
@@ -106,10 +106,10 @@ partitionBools bools as = foldr f ([], []) $ zip bools as
 
 specOneCall :: SpecializeInfo -> Expr -> SpecM Expr
 specOneCall s@(SpecializeInfo{ specName=specName, specExpr=specExpr, specArgs=specArgs }) e = case e of
-  App (Var (TName name _) _) args -> replaceCall specName specExpr specArgs args
+  App (Var (TName name _) _) args -> replaceCall specName specExpr specArgs args Nothing
 
   -- the result may no longer be a typeapp
-  App (TypeApp (Var (TName name ty) _) _) args -> replaceCall specName specExpr specArgs args
+  App (TypeApp (Var (TName name ty) _) typeArgs) args -> replaceCall specName specExpr specArgs args $ Just typeArgs
   _ -> error "specOneCall"
 
 {-
@@ -134,17 +134,24 @@ specInnerCalls :: TName -> TName -> [Bool] -> Expr -> Expr
 specInnerCalls from to bools = rewriteBottomUp $ \e -> case e of
   App (Var f info) xs
     | f == from -> App (Var to info) $ filterBools bools xs
-  -- TODO TypeApp case
+  App (TypeApp (Var f info) _) xs
+  -- the resulting specialized definition is always monomophic; when generating the SpecializeEnv we only allow functions whose TypeApps match in ALL recursive calls
+  -- and we apply the TypeLam to the TypeApps from the call site
+    | f == from -> App (Var to info) $ filterBools bools xs
   e -> e
 
-replaceCall :: Name -> Expr -> [Bool] -> [Expr] -> SpecM Expr
-replaceCall name expr bools args =
+replaceCall :: Name -> Expr -> [Bool] -> [Expr] -> Maybe [Type] -> SpecM Expr
+replaceCall name expr bools args mybeTypeArgs =
   pure $ Let [DefRec [specDef]] (App (Var (defTName specDef) InfoNone) newArgs)
   where
     specDef = Def (genSpecName name bools) specType specBody Private DefFun InlineAuto rangeNull 
-               $ "// specialized " <> show name <> " to parameters " <> show [show param | param <- speccedParams]
+               $ "// specialized " <> show name <> " to parameters " <> show speccedParams
     -- there's some knot-tying here: we need to know the type of the specialized fn to replace recursive calls with the specialized version, and the new body also influences the specialized type
-    specBody = Lam newParams (fnEffect expr) $ Let [DefNonRec $ Def param typ arg Private DefVal InlineAuto rangeNull "" | (TName param typ, arg) <- zip speccedParams speccedArgs]
+    specBody =
+      (\body -> case mybeTypeArgs of
+        Nothing -> body
+        Just typeArgs -> subNew (zip (fnTypeParams expr) typeArgs) |-> body)
+      $ Lam newParams (fnEffect expr) $ Let [DefNonRec $ Def param typ arg Private DefVal InlineAuto rangeNull "" | (TName param typ, arg) <- zip speccedParams speccedArgs]
       $ specInnerCalls (TName name $ typeOf expr) (defTName specDef) (not <$> bools)
       $ fnBody expr
 
@@ -159,20 +166,20 @@ replaceCall name expr bools args =
 genSpecName :: Name -> [Bool] -> Name
 genSpecName name bools = newName $ "spec_" ++ show (unqualify name)
 
+fnTypeParams :: Expr -> [TypeVar]
+fnTypeParams (TypeLam typeParams _) = typeParams
+
 fnParams :: Expr -> [TName]
 fnParams (Lam params _ _) = params
 fnParams (TypeLam _ (Lam params _ _)) = params
-fnParams _ = error "fnParams"
 
 fnEffect :: Expr -> Effect
 fnEffect (Lam _ effect _) = effect
 fnEffect (TypeLam _ (Lam _ effect _)) = effect
-fnEffect _ = error "fnEffect"
 
 fnBody :: Expr -> Expr
 fnBody (Lam _ _ body) = body
 fnBody (TypeLam _ (Lam _ _ body)) = body
-fnBody _ = error "fnBody"
 
 
 {--------------------------------------------------------------------------
@@ -219,11 +226,11 @@ allEq (x:xs) = all (== x) xs
 -- return list of parameters that get called recursively to the same function in the same order
 -- or Nothing if the parameter wasn't passed recursively in the same order
 passedRecursivelyToThisDef :: Def -> [Maybe TName]
-passedRecursivelyToThisDef def 
+passedRecursivelyToThisDef def
   = case defExpr def of
       Lam params effect body -> 
         go body params False
-      TypeLam typeParams (Lam params effect body) -> 
+      TypeLam _ (Lam params effect body) ->
         go body params True
       _ -> mempty
   where
@@ -234,18 +241,10 @@ passedRecursivelyToThisDef def
         calls = foldMapExpr (callsWith params) body
         allSameTypeArgs = allEq $ map (fromJust . fst) calls
         something = (guard (not isPoly || allSameTypeArgs) >>)
+        -- head is safe because sublists in transpose can't be empty
         ab = map (fmap head . sequence) $ transpose $ map snd calls
       in
         map something ab
-
-    -- go body params isPoly = 
-    --   -- head is safe because sublists in transpose can't be empty
-    --     map (fmap head . sequence)
-    --   $ transpose 
-    --   $ map snd
-    --   -- $ (\xs -> if isPoly then guard (allEq (map (fromJust . fst) xs)) >> map snd xs else map snd xs)
-    --   -- $ traceShowId
-    --   $ foldMapExpr (callsWith params) body
 
     dname = defName def
 

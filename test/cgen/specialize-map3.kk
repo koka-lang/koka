@@ -1,8 +1,7 @@
-
 fun map-poly(xs : list<a>, f : a -> e b) : e list<b> {
   match (xs) {
     Nil -> Nil
-    Cons(x, xx) -> Cons(x.f, xx.map-poly(f))    
+    Cons(x, xx) -> Cons(x.f, xx.map-poly(f))
   }
 }
 
@@ -11,5 +10,5 @@ public fun test(xs : list<int>, y : int) {
 }
 
 public fun main() {
-  list(1,10).sum.println
+  test(list(1,10), 5).show.println
 }
