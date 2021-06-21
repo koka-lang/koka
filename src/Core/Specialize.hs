@@ -82,7 +82,7 @@ specOneDef def = do
 specOneExpr :: Name -> Expr -> SpecM Expr
 specOneExpr thisDefName = rewriteBottomUpM $ \e -> case e of
   App (Var (TName name _) _) args -> go name e
-  App (TypeApp (Var (TName name _) _)_) args -> go name e
+  App (TypeApp (Var (TName name _) _) typVars) args -> go name e
   e -> pure e
   where
     go name e = do
@@ -211,35 +211,48 @@ usedInThisDef def = foldMapExpr go $ defExpr def
   where 
     go (Var (TName name _) _) = S.singleton name
     go _ = mempty
-    -- go (App (Var (TName name _) _) xs)             = S.singleton name
-    -- go (App (TypeApp (Var (TName name _) _) _) xs) = S.singleton name
-    -- go _ = S.empty
+
+allEq :: (Eq a) => [a] -> Bool
+allEq [] = True
+allEq (x:xs) = all (== x) xs
 
 -- return list of parameters that get called recursively to the same function in the same order
 -- or Nothing if the parameter wasn't passed recursively in the same order
 passedRecursivelyToThisDef :: Def -> [Maybe TName]
 passedRecursivelyToThisDef def 
-  -- TODO: FunDef type to avoid this check?
   = case defExpr def of
       Lam params effect body -> 
-        go body params
-      TypeLam _ (Lam params effect body) -> 
-        go body params
+        go body params False
+      TypeLam typeParams (Lam params effect body) -> 
+        go body params True
       _ -> mempty
   where
     -- only keep params that are passed recursively in ALL calls
-    go body params = 
-      -- head is safe because sublists in transpose can't be empty
-      map (fmap head . sequence)
-      $ transpose 
-      $ foldMapExpr ((:[]) . callsWith params) body
+    go body params isPoly =
+      -- TODO clean this up
+      let
+        calls = foldMapExpr (callsWith params) body
+        allSameTypeArgs = allEq $ map (fromJust . fst) calls
+        something = (guard (not isPoly || allSameTypeArgs) >>)
+        ab = map (fmap head . sequence) $ transpose $ map snd calls
+      in
+        map something ab
+
+    -- go body params isPoly = 
+    --   -- head is safe because sublists in transpose can't be empty
+    --     map (fmap head . sequence)
+    --   $ transpose 
+    --   $ map snd
+    --   -- $ (\xs -> if isPoly then guard (allEq (map (fromJust . fst) xs)) >> map snd xs else map snd xs)
+    --   -- $ traceShowId
+    --   $ foldMapExpr (callsWith params) body
 
     dname = defName def
 
     callsWith params (App (Var (TName name _) _) args)
-      | name == dname  = check args params
-    callsWith params (App (TypeApp (Var (TName name _) _) _) args)
-      | name == dname  = check args params
+      | name == dname  = pure (Nothing, check args params)
+    callsWith params (App (TypeApp (Var (TName name _) _) typeArgs) args)
+      | name == dname  = pure (Just $ typeArgs, check args params)
     callsWith params _ = mempty
 
     check args params =
