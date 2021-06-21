@@ -540,10 +540,13 @@ replace line col s fpath
 --------------------------------------------------------------------------}
 getCommand :: State -> IO Command
 getCommand st
-  = do let ansiPrompt = (if isAnsiPrinter (printer st)
-                          then ansiWithColor (colorInterpreter (colorSchemeFromFlags (flags st)))
-                          else id) "> "
-       mbInput <- readLineEx (includePath (flags st)) (loadedMatchNames (loaded0 st)) "> " (prompt st)
+  = do let ansiPrompt = if isConsolePrinter (printer st) 
+                          then "" 
+                          else if isAnsiPrinter (printer st)
+                            then ansiWithColor (colorInterpreter (colorSchemeFromFlags (flags st))) "> "
+                            else "> "
+
+       mbInput <- readLineEx (includePath (flags st)) (loadedMatchNames (loaded0 st)) ansiPrompt (prompt st)
        let input = maybe ":quit" id mbInput
        -- messageInfoLn st ("cmd: " ++ show input)
        let cmd   = readCommand input

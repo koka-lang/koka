@@ -108,7 +108,7 @@ readLine roots identifiers prompt
   = readLineEx roots identifiers prompt (do{ putStr prompt; hFlush stdout})
 
 readLineEx roots identifiers prompt putPrompt
-  = do putPrompt
+  = do if (null prompt) then putPrompt else return ()
        h0 <- readIORef vhistory
        (mbline,h1) <- R.runInputT (R.setComplete (completeLine roots identifiers)
                                    (R.defaultSettings{R.autoAddHistory = False })) $
@@ -121,7 +121,7 @@ readLineEx roots identifiers prompt putPrompt
   where
     readLines :: Int -> R.InputT IO (Maybe String)
     readLines count
-      = do input <- R.getInputLine ""
+      = do input <- R.getInputLine prompt
            continueLine input (readLines (count+1))
     
 addHistory line
