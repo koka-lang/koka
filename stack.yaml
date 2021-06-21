@@ -30,7 +30,7 @@ extra-deps:
 
 flags:
   haskeline:
-    terminfo: false
+    terminfo: false 
 
 rebuild-ghc-options: true
 allow-newer: true

@@ -18,6 +18,7 @@ module Type.Assumption (
                     , gammaMap
                     , gammaList
                     , gammaIsEmpty
+                    , gammaNames
                     , ppGamma, gammaRemove, gammaUnion, gammaUnions
                     , gammaFilter
                     , isInfoCon
@@ -228,6 +229,10 @@ gammaFilter mod (Gamma g)
   = Gamma (M.map belongs g)
   where
     belongs xs  = [(name,tp) | (name,tp) <- xs, qualifier name == mod]
+
+gammaNames :: Gamma -> [Name]
+gammaNames (Gamma g)
+  = M.keys g
 
 {---------------------------------------------------------------
   Extract from core

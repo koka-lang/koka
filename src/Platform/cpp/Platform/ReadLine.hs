@@ -113,21 +113,20 @@ readLineEx roots identifiers prompt putPrompt
        (mbline,h1) <- R.runInputT (R.setComplete (completeLine roots identifiers)
                                    (R.defaultSettings{R.autoAddHistory = False })) $
                       do R.putHistory h0
-                         line <- readLines
+                         line <- readLines 0
                          h1 <- R.getHistory
                          return (line, h1)
        writeIORef vhistory h1
        return mbline
   where
-    readLines :: R.InputT IO (Maybe String)
-    readLines
+    readLines :: Int -> R.InputT IO (Maybe String)
+    readLines count
       = do input <- R.getInputLine ""
-           continueLine input readLines
-
+           continueLine input (readLines (count+1))
+    
 addHistory line
   = do h <- readIORef vhistory
        writeIORef vhistory (H.addHistoryRemovingAllDupes line h)
-
 
 completeLine :: [FilePath] -> [String] -> C.CompletionFunc IO
 completeLine roots identifiers (rprev,prefix) | take 2 (reverse rprev) `elem` [":l",":f",":e"]
@@ -135,12 +134,12 @@ completeLine roots identifiers (rprev,prefix) | take 2 (reverse rprev) `elem` ["
      C.completeWord (Just '\\') ("\"\'" ++ C.filenameWordBreakChars) (listModules roots)) (rprev,prefix)
 completeLine roots identifiers (rprev,prefix) 
   = -- return (reverse prefix ++ rprev,[])
-    (C.completeWord Nothing " \t" (listNames identifiers)) (rprev,prefix)
+    (C.completeWord Nothing " \t.()[]{}" (listNames identifiers)) (rprev,prefix)
 
 
 listNames :: [String] -> String -> IO [C.Completion]
 listNames names prefix
-  = return $ [C.Completion name name True | name <- names, name `startsWith` prefix]
+  = return $ [C.Completion name name False | name <- names, name `startsWith` prefix]
     
 listModules :: [FilePath] -> String -> IO [C.Completion]
 listModules roots prefix 
@@ -151,10 +150,13 @@ listModules roots prefix
        let norm s  = map (\c -> if (c=='\\') then '/' else c) s
        return [c{ C.replacement = norm (C.replacement c)} |
                c <- (cs ++ concat css),
-               not (C.isFinished c) {-dir-} || take 3 (reverse (C.replacement c)) == "kk." ]
+               not (C.isFinished c) {-dir-} || ((C.replacement c) `endsWith` ".kk") ]
 
-startsWith :: String -> String -> Bool
+startsWith, endsWith :: String -> String -> Bool
 startsWith s pre
   = take (length pre) s == pre
+
+endsWith s post
+  = startsWith (reverse s) (reverse post)
 
 #endif
