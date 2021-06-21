@@ -22,14 +22,16 @@ effect heap<s::S> {
 named effect ref<s::S,a::V> in heap<s> {  // named under umbrella effect `:heap`
   fun get() : a                           // `:(ref<s,a>)   -> <heap<s>,pure> a`
   fun set( value : a ) : ()               // `:(ref<s,a>,a) -> <heap<s>,pure> ()`
+  //fun wrong( f : () -> heap<s> ()) : ()
 }
 
 // private (named) handler instance for a reference
-fun with-ref(init,action) {
+fun with-ref(init : a, action : ref<s,a> -> <heap<s>,div|e> b) : <heap<s>,div|e> b {
   var s := init
   with r = named handler {
     fun get() { s }
     fun set(x){ s := x }
+    //fun wrong(r){ r.get; () }    
   }
   action(r)
 }
