@@ -254,8 +254,10 @@ recursiveCalls Def{ defName=thisDefName, defExpr=expr } = case expr of
       let (types, args) = unzip $ foldMapExpr f body
       in (sequence types, args)
 
-    f (App (Var (TName name _) _) args) = pure (Nothing, args)
-    f (App (TypeApp (Var (TName name _) _) types) args) = pure (Just types, args)
+    f (App (Var (TName name _) _) args)
+      | name == thisDefName = pure (Nothing, args)
+    f (App (TypeApp (Var (TName name _) _) types) args)
+      | name == thisDefName = pure (Just types, args)
     f _ = []
 
 
