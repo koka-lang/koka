@@ -54,9 +54,6 @@ type SpecM = Reader SpecializeEnv
 runSpecM :: SpecializeEnv -> SpecM a -> a
 runSpecM specEnv specM = runReader specM specEnv
 
--- emitSpecializedDefGroup :: DefGroup -> SpecM ()
--- emitSpecializedDefGroup defGroup = modify (\state@SpecState { _newDefs = newDefs } -> state{ _newDefs = defGroup:newDefs})
-
 
 {--------------------------------------------------------------------------
   Specialization
@@ -107,8 +104,6 @@ partitionBools bools as = foldr f ([], []) $ zip bools as
 specOneCall :: SpecializeInfo -> Expr -> SpecM Expr
 specOneCall s@(SpecializeInfo{ specName=specName, specExpr=specExpr, specArgs=specArgs }) e = case e of
   App (Var (TName name _) _) args -> replaceCall specName specExpr specArgs args Nothing
-
-  -- the result may no longer be a typeapp
   App (TypeApp (Var (TName name ty) _) typeArgs) args -> replaceCall specName specExpr specArgs args $ Just typeArgs
   _ -> error "specOneCall"
 
@@ -141,7 +136,7 @@ specInnerCalls from to bools = rewriteBottomUp $ \e -> case e of
   e -> e
 
 replaceCall :: Name -> Expr -> [Bool] -> [Expr] -> Maybe [Type] -> SpecM Expr
-replaceCall name expr bools args mybeTypeArgs =
+replaceCall name expr bools args mybeTypeArgs = -- trace ("specializing" <> show name) $
   pure $ Let [DefRec [specDef]] (App (Var (defTName specDef) InfoNone) newArgs)
   where
     specDef = Def (genSpecName name bools) specType specBody Private DefFun InlineAuto rangeNull 
@@ -189,8 +184,7 @@ fnBody (TypeLam _ (Lam _ _ body)) = body
 extractSpecializeEnv :: DefGroups -> SpecializeEnv
 extractSpecializeEnv = 
     specenvNew
-  . filter (or . specArgs)
-  . map getSpecInfo
+  . mapMaybe getSpecInfo
   . flattenDefGroups
   . filter isRecursiveDefGroup
 
@@ -202,14 +196,38 @@ filterMaybe :: (a -> Bool) -> Maybe a -> Maybe a
 filterMaybe f Nothing = Nothing
 filterMaybe f (Just a) = guard (f a) >> pure a
 
-getSpecInfo :: Def -> SpecializeInfo
-getSpecInfo def =
-  SpecializeInfo (defName def) (defExpr def)
-  $ map isJust
-  $ map (filterMaybe (`S.member` usedInThisDef def))
-  $ map (fmap getName)
-  $ map (filterMaybe (isFun . tnameType))
-  $ passedRecursivelyToThisDef def
+whenJust :: (Applicative f) => Maybe a -> (a -> f ()) -> f ()
+whenJust Nothing _ = pure ()
+whenJust (Just x) f = f x
+
+getSpecInfo :: Def -> Maybe SpecializeInfo
+getSpecInfo def = do
+  let (mbTypes, recArgs) = recursiveCalls def
+  whenJust mbTypes $ (guard . allEq)
+
+  let params = fnParams $ defExpr def
+  let specializableParams =
+          map   (filterMaybe ((`S.member` usedInThisDef def) . getName)
+              . (filterMaybe (isFun . tnameType)))
+        $ allPassedInSameOrder params recArgs
+  
+  guard (any isJust specializableParams)
+  pure $ SpecializeInfo (defName def) (defExpr def) $ map isJust specializableParams
+
+allPassedInSameOrder :: [TName] -> [[Expr]] -> [Maybe TName]
+allPassedInSameOrder params calls = 
+    -- head is safe because sublists in transpose can't be empty
+    map (fmap head . sequence)
+  $ transpose
+  $ map (passedInSameOrder params) calls
+
+passedInSameOrder :: [TName] -> [Expr] -> [Maybe TName]
+passedInSameOrder params args = zipWith f params args
+  where 
+    f param arg
+     | Var tname _ <- arg
+     , tname == param = Just tname
+    f _ _ = Nothing
 
 isFun = isJust . splitFunScheme
 
@@ -223,42 +241,22 @@ allEq :: (Eq a) => [a] -> Bool
 allEq [] = True
 allEq (x:xs) = all (== x) xs
 
--- return list of parameters that get called recursively to the same function in the same order
--- or Nothing if the parameter wasn't passed recursively in the same order
-passedRecursivelyToThisDef :: Def -> [Maybe TName]
-passedRecursivelyToThisDef def
-  = case defExpr def of
-      Lam params effect body -> 
-        go body params False
-      TypeLam _ (Lam params effect body) ->
-        go body params True
-      _ -> mempty
+-- list of all params to recursive calls
+-- include the type if the call is a TypeApp
+-- recursiveCalls :: Def -> [(Maybe [Type], [Expr])]
+recursiveCalls :: Def -> (Maybe [[Type]], [[Expr]]) -- [(Maybe [Type], [Expr])]
+recursiveCalls Def{ defName=thisDefName, defExpr=expr } = case expr of
+  Lam params eff body -> go body
+  TypeLam types (Lam params eff body) -> go body
+  _ -> failure "recursiveCalls: not a function"
   where
-    -- only keep params that are passed recursively in ALL calls
-    go body params isPoly =
-      -- TODO clean this up
-      let
-        calls = foldMapExpr (callsWith params) body
-        allSameTypeArgs = allEq $ map (fromJust . fst) calls
-        something = (guard (not isPoly || allSameTypeArgs) >>)
-        -- head is safe because sublists in transpose can't be empty
-        ab = map (fmap head . sequence) $ transpose $ map snd calls
-      in
-        map something ab
+    go body =
+      let (types, args) = unzip $ foldMapExpr f body
+      in (sequence types, args)
 
-    dname = defName def
-
-    callsWith params (App (Var (TName name _) _) args)
-      | name == dname  = pure (Nothing, check args params)
-    callsWith params (App (TypeApp (Var (TName name _) _) typeArgs) args)
-      | name == dname  = pure (Just $ typeArgs, check args params)
-    callsWith params _ = mempty
-
-    check args params =
-      zipWith (\arg param ->
-        case arg of
-          Var tname _ | tname == param -> Just tname
-          _ -> Nothing) args params
+    f (App (Var (TName name _) _) args) = pure (Nothing, args)
+    f (App (TypeApp (Var (TName name _) _) types) args) = pure (Just types, args)
+    f _ = []
 
 
 {--------------------------------------------------------------------------
