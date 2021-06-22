@@ -77,6 +77,7 @@ module Core.Core ( -- Data structures
                    -- Inlining
                    , costDef, costExpr, costInf
                    , isInlineable
+                   , inlineDefIsSpecialize
 
                    -- * Canonical names
                    -- , canonicalName, nonCanonicalName, canonicalSplit
@@ -449,7 +450,7 @@ data Def = Def{ defName  :: Name
               , defDoc :: String
               }
 
-data InlineDef = InlineDef{ inlineName :: Name, inlineExpr :: Expr, inlineRec :: Bool, inlineCost :: Int }
+data InlineDef = InlineDef{ inlineName :: Name, inlineExpr :: Expr, inlineRec :: Bool, inlineCost :: Int, specializeArgs :: [Bool] }
 
 defIsVal :: Def -> Bool
 defIsVal def
@@ -457,6 +458,9 @@ defIsVal def
       DefFun   -> False
       _        -> True
 
+
+inlineDefIsSpecialize :: InlineDef -> Bool
+inlineDefIsSpecialize inlDef = not (null (specializeArgs inlDef))
 
 {--------------------------------------------------------------------------
   Expressions

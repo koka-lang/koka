@@ -243,9 +243,10 @@ inlLookup :: Name -> Inl (Maybe (InlineDef,Int,Int))
 inlLookup name
   = do env <- getEnv
        case (inlinesLookup name (inlines env)) of
-         Nothing   -> return Nothing
-         Just idef -> let (m,n) = getArity (inlineExpr idef)
-                      in return (Just (idef,m,n))
+         Just idef | not (inlineDefIsSpecialize idef)  -- no specialization definitions
+           -> let (m,n) = getArity (inlineExpr idef)
+              in return (Just (idef,m,n))
+         _ -> return Nothing
 
   where
     getArity expr

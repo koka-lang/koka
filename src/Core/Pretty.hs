@@ -234,8 +234,9 @@ prettyInlineDef env isRec def@(Def name scheme expr vis sort inl nameRng doc)
 -}
 
 prettyInlineDef :: Env ->  InlineDef -> Doc
-prettyInlineDef env (InlineDef name expr isRec cost)
+prettyInlineDef env (InlineDef name expr isRec cost specArgs)
   =     (if isRec then (keyword env "recursive ") else empty)
+    <.> (if (null specArgs) then empty else (keyword env "specialize " <.> prettySpecArgs <.> text " "))
     <.> (if (cost <= 0) then (keyword env "inline ") else empty)
     <.> keyword env (if isFun then "fun" else "val")
     <+> (if nameIsNil name then text "_" else prettyDefName env name)
@@ -247,6 +248,9 @@ prettyInlineDef env (InlineDef name expr isRec cost)
               TypeLam _ (Lam _ _ _) -> True
               Lam _ _ _             -> True
               _                     -> False
+
+    prettySpecArgs 
+      = dquotes (text [if spec then 'x' else '_' | spec <- specArgs])
 
 prettyDef :: Env -> Def -> Doc
 prettyDef env def@(Def name scheme expr vis sort inl nameRng doc)
