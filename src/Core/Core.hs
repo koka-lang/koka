@@ -908,6 +908,7 @@ instance Show TName where
 -- | Create a let expression
 makeLet :: [DefGroup] -> Expr -> Expr
 makeLet [] expr = expr
+makeLet defs (Let defs' body) = Let (defs ++ defs') body
 makeLet defs expr = Let defs expr
 
 makeTypeApp expr []     = expr

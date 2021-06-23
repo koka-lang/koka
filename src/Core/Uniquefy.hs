@@ -12,6 +12,7 @@
 module Core.Uniquefy ( uniquefy
                      , uniquefyDefGroup {- used for divergence analysis -}
                      , uniquefyExpr
+                     , uniquefyDefGroups {- used in inline -}
                      ) where
 
 import Control.Monad
@@ -71,13 +72,15 @@ uniquefyExpr expr = runUn (uniquefyExprX expr)
 
 uniquefy :: Core -> Core
 uniquefy core
-  = -- core{ coreProgDefs = map (uniquefyDefGroup) (coreProgDefs core) }
-    runUn $
+  = core{coreProgDefs = uniquefyDefGroups (coreProgDefs core) }
+
+uniquefyDefGroups :: [DefGroup] -> [DefGroup]
+uniquefyDefGroups dgs
+  = runUn $
     do locals <- getLocals
-       let toplevelDefs = map defName (flattenDefGroups (coreProgDefs core))
+       let toplevelDefs = filter (not . nameIsNil) (map defName (flattenDefGroups dgs))
        setLocals (foldr (\name locs -> S.insert (unqualify name) locs) locals toplevelDefs)
-       defGroups <- mapM (fullLocalized . uniquefyDG) (coreProgDefs core)
-       return (core{coreProgDefs = defGroups})
+       mapM (fullLocalized . uniquefyDG) dgs       
   where
     uniquefyDG (DefNonRec def)
       = fmap DefNonRec $
@@ -98,7 +101,7 @@ uniquefyDefGroup defgroup
       DefRec defs
         -> fmap DefRec $
            do locals <- getLocals
-              setLocals (foldr (\name locs -> S.insert name locs) locals (map defName defs))
+              setLocals (foldr (\name locs -> S.insert name locs) locals (filter (not . nameIsNil) (map defName defs)))
               exprs <- localized $ mapM (uniquefyExprX . defExpr) defs
               return [def{ defExpr = expr } | (def,expr) <- zip defs exprs]
 
@@ -193,7 +196,7 @@ uniquefyTName tname
        return (TName name1 (typeOf tname))
 
 uniquefyName :: Name -> Un Name
-uniquefyName name | name == nameNil
+uniquefyName name | nameIsNil name
   = return name
 uniquefyName name
   = do locals <- getLocals

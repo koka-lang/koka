@@ -204,11 +204,11 @@ prettyDefGroup env (DefRec defs)
   = -- (\ds -> text "rec {" <-> tab ds <-> text "}") $
     text "rec {" <+> align (prettyDefs env defs) </> text "}"
 prettyDefGroup env (DefNonRec def)
-  = prettyDef env def
+  = prettyDefX env False def
 
 prettyDefs :: Env -> Defs -> Doc
 prettyDefs env (defs)
-  = vcat (map (prettyDef env) defs)
+  = vcat (map (prettyDefX env True) defs)
 
 {-
 prettyInlineDefGroup :: Env -> DefGroup -> Doc
@@ -252,16 +252,22 @@ prettyInlineDef env (InlineDef name expr isRec cost specArgs)
     prettySpecArgs 
       = dquotes (text [if spec then '*' else '_' | spec <- specArgs])
 
-prettyDef :: Env -> Def -> Doc
-prettyDef env def@(Def name scheme expr vis sort inl nameRng doc)
+prettyDef :: Env-> Def -> Doc
+prettyDef env def = prettyDefX env True def
+
+prettyDefX env isRec def@(Def name scheme expr vis sort inl nameRng doc)
   = prettyComment env doc $
-    prettyVis env vis $
-    keyword env (show sort)
-    <+> (if nameIsNil name then text "_" else prettyDefName env name)
-    <+> text ":" <+> prettyType env scheme
-    <.> (if (not (coreShowDef env)) -- && (sizeDef def >= coreInlineMax env)
-          then empty
-          else linebreak <.> indent 2 (text "=" <+> prettyExpr env{coreShowVis=False} expr)) <.> semi
+    if (nameIsNil name && not isRec && coreShowDef env && not (coreShowVis env))
+      then ppBody
+      else prettyVis env vis $
+            keyword env (show sort)
+            <+> (if nameIsNil name then text "_" else prettyDefName env name)
+            <+> text ":" <+> prettyType env scheme
+            <.> (if (not (coreShowDef env)) -- && (sizeDef def >= coreInlineMax env)
+                  then empty
+                  else linebreak <.> indent 2 (text "=" <+> ppBody))
+  where
+    ppBody = prettyExpr env{coreShowVis=False} expr <.> semi
 
 prettyVis env vis doc
   = if (not (coreShowVis env)) then doc else
@@ -345,7 +351,7 @@ prettyExpr env (Lit lit)
 -- Let
 prettyExpr env (Let ([DefNonRec (Def x tp e vis isVal inl nameRng doc)]) e')
   = vcat [ let exprDoc = prettyExpr env e <.> semi
-           in if (x==nameNil) then exprDoc
+           in if (nameIsNil x) then exprDoc
                else (text "val" <+> hang 2 (prettyDefName env x <+> text ":" <+> prettyType env tp <-> text "=" <+> exprDoc))
          , prettyExpr env e'
          ]

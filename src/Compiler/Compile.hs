@@ -807,9 +807,7 @@ inferCheck :: Loaded -> Flags -> Int -> [Core.Import] -> UserProgram -> Error Lo
 inferCheck loaded0 flags line coreImports program
   = Core.runCorePhase (loadedUnique loaded0) $
     do -- kind inference
-       uniqueInit <- unique
-       traceM ("initial unique: " ++ show uniqueInit)
-
+       
        (defs, kgamma, synonyms, newtypes, constructors, coreProgram, mbRangeMap0)
          <- inferKinds
               (isValueFromFlags flags)
@@ -893,7 +891,7 @@ inferCheck loaded0 flags line coreImports program
 
        -- transform effects to explicit monadic binding (and resolve .open calls)
        when (enableMon flags && not (isPrimitiveModule (Core.coreProgName coreProgram))) $
-          trace "monadic transform" $
+          -- trace "monadic transform" $
           do Core.Monadic.monTransform penv
              openResolve penv gamma
        checkCoreDefs "monadic transform"
@@ -909,17 +907,21 @@ inferCheck loaded0 flags line coreImports program
        -- inline
        inlineDefs penv (loadedInlines loaded) 
        checkCoreDefs "inlined"
+       -- traceDefGroups "inlined"
+
+       simplifyDefs penv True {-unsafe-} ndebug (simplify flags) 0 -- remove remaining .open
 
        -- full simplification
-       simplifyDupN 
-       checkCoreDefs "final"
+       simplifyDupN
+       checkCoreDefs "final" 
+       -- traceDefGroups "final"
 
        -- Assemble core program and return
        coreDefsFinal <- Core.getCoreDefs
        uniqueFinal   <- unique
        -- traceM ("final: " ++ show uniqueFinal)
-       let inlineDefs    = extractInlineDefs (coreInlineMax penv) coreDefsFinal
-           allInlineDefs = inlineDefs ++ specializeDefs
+       let localInlineDefs  = extractInlineDefs (coreInlineMax penv) coreDefsFinal
+           allInlineDefs    = localInlineDefs ++ specializeDefs
 
            coreProgramFinal 
             = uniquefy $
@@ -929,7 +931,7 @@ inferCheck loaded0 flags line coreImports program
                           }
 
            loadedFinal = loaded { loadedGamma = gamma
-                                , loadedUnique = uniqueFinal  + 1000
+                                , loadedUnique = uniqueFinal
                                 , loadedModule = (loadedModule loaded){
                                                     modCore     = coreProgramFinal,
                                                     modRangeMap = mbRangeMap,

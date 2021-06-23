@@ -196,9 +196,8 @@ topDown expr@(App app@(TypeApp (Var _ (InfoExternal [(Default,"#1")])) _) [arg])
 topDown expr@(App (Lam pars eff body) args) | length pars == length args
   = do newNames <- mapM uniqueTName pars
        let sub = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]
-           argsopt = replicate (length pars - length args) (Var (TName nameOptionalNone typeAny) InfoNone)
-           expr' = Let (zipWith makeDef newNames (args++argsopt)) (sub |~> body)
-       -- trace("simplify: " ++ show expr ++ " to " ++ show expr') $
+           expr' = makeLet (zipWith makeDef newNames args) (sub |~> body)
+       -- trace("simplify: " ++ show expr ++ "\n to " ++ show (prettyExpr (defaultEnv{coreShowDef=True}) expr')) $
        topDown expr'
   where
     makeDef (TName npar nparTp) arg
@@ -216,7 +215,7 @@ topDown expr@(App (TypeApp (TypeLam tpars (Lam pars eff body)) targs) args) | le
                        ++ show (map (pretty . typevarKind) tpars)) $ (return $! (substitute tsub body))
                        -}
        topDown $
-          Let (zipWith makeDef newNames args) (sub |~> (substitute tsub body))       
+          makeLet (zipWith makeDef newNames args) (sub |~> (substitute tsub body))       
   where
     makeDef (TName npar nparTp) arg
       = DefNonRec (Def npar nparTp arg Private DefVal InlineAuto rangeNull "")

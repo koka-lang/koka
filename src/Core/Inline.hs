@@ -53,9 +53,9 @@ inlineDefs penv inlines
     runInl penv uniq inlines  $
     do --traceDoc $ \penv -> text "Core.Inline.inlineDefs:" <+> ppInlines penv inlines
        --inlDefGroups defs
-       defs1 <- inlDefGroups defs
+       defs1 <- fmap uniquefyDefGroups $ inlDefGroups defs
        defs2 <- liftUnique (uniqueSimplify penv False True 3 0 defs1)
-       inlDefGroups defs2
+       fmap uniquefyDefGroups $ inlDefGroups defs2
 
 
 
@@ -186,7 +186,7 @@ data Env = Env{ currentDef :: [Def],
                 prettyEnv :: Pretty.Env,
                 inlines :: Inlines }
 
-data State = State{ uniq :: Int }
+data State = State{ uniq :: !Int }
 
 data Result a = Ok a State
 
