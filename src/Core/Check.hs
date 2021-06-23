@@ -44,7 +44,7 @@ import qualified Data.Set as S
 
 checkCore :: Bool -> Bool -> Env -> Gamma -> CorePhase ()
 checkCore liberalEffects allowPartialApps prettyEnv gamma
-  = do uniq <- unique
+  = do uniq      <- unique
        defGroups <- getCoreDefs
        case checkDefGroups defGroups (return ()) of
           Check c -> case c uniq (CEnv liberalEffects allowPartialApps gamma prettyEnv []) of

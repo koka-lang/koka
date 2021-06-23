@@ -51,7 +51,7 @@ simplifyN nRuns defs
 uniqueSimplify :: Simplify a => Pretty.Env -> Bool -> Bool -> Int -> Int -> a -> Unique a
 uniqueSimplify penv unsafe ndebug nRuns duplicationMax expr
   = do u <- unique
-       let (x,u') = runSimplify unsafe ndebug duplicationMax u penv (simplifyN nRuns expr)
+       let (x,u') = runSimplify unsafe ndebug duplicationMax u penv (simplify expr) -- (simplifyN (if nRuns <= 0 then 1 else nRuns) expr)
        setUnique u'
        return x
 

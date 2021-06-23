@@ -49,7 +49,7 @@ trace s x =
 
 monTransform :: Pretty.Env -> CorePhase ()
 monTransform penv 
-  = liftCorePhase $ \defs -> runMon penv 0 (monDefGroups defs)
+  = liftCorePhaseUniq $ \uniq defs -> runMon penv uniq (monDefGroups defs)
 
 
 {--------------------------------------------------------------------------
@@ -361,10 +361,10 @@ data State = State{ uniq :: Int }
 
 data Result a = Ok a State
 
-runMon :: Pretty.Env -> Int -> Mon a -> a
+runMon :: Pretty.Env -> Int -> Mon a -> (a,Int)
 runMon penv u (Mon c)
   = case c (Env [] False penv) (State u) of
-      Ok x _ -> x
+      Ok x (State u') -> (x,u')
 
 instance Functor Mon where
   fmap f (Mon c)  = Mon (\env st -> case c env st of

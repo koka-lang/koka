@@ -86,7 +86,7 @@ inferTypes prettyEnv mbRangeMap syns newTypes cons imports gamma0 context defs
     do uniq0 <- unique
        ((gamma1, coreDefs),uniq1,mbRm) <- Core.liftError $ 
                                           runInfer prettyEnv mbRangeMap syns newTypes imports gamma0 context (uniq0 + 10 {- to not clash with at least 10 bound type variables -})
-                                           (inferDefGroups True (arrange defs))
+                                            (inferDefGroups True (arrange defs))
        setUnique uniq1
        return (gamma1,coreDefs,mbRm)
   where

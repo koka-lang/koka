@@ -495,6 +495,8 @@ instance Monad CorePhase where
 
 instance HasUnique CorePhase where
   updateUnique f = CP (\uniq defs -> return (CPState uniq (f uniq) defs))
+  setUnique uniq = CP (\_ defs -> return (CPState () uniq defs))
+  unique         = CP (\uniq defs -> return (CPState uniq uniq defs))
 
 getCoreDefs :: CorePhase DefGroups
 getCoreDefs = CP (\uniq defs -> return (CPState defs uniq defs))

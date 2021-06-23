@@ -807,6 +807,9 @@ inferCheck :: Loaded -> Flags -> Int -> [Core.Import] -> UserProgram -> Error Lo
 inferCheck loaded0 flags line coreImports program
   = Core.runCorePhase (loadedUnique loaded0) $
     do -- kind inference
+       uniqueInit <- unique
+       traceM ("initial unique: " ++ show uniqueInit)
+
        (defs, kgamma, synonyms, newtypes, constructors, coreProgram, mbRangeMap0)
          <- inferKinds
               (isValueFromFlags flags)
@@ -864,7 +867,8 @@ inferCheck loaded0 flags line coreImports program
        
        let ndebug  = optimize flags > 0
            simplifyX dupMax = simplifyDefs penv False {-unsafe-} ndebug (simplify flags) dupMax
-           simplifyDupN     = simplifyX (simplifyMaxDup flags)
+           simplifyDupN     = when (simplify flags >= 0) $
+                              simplifyX (simplifyMaxDup flags)
            simplifyNoDup    = simplifyX 0
        simplifyNoDup
        -- traceDefGroups "simplify"
@@ -913,6 +917,7 @@ inferCheck loaded0 flags line coreImports program
        -- Assemble core program and return
        coreDefsFinal <- Core.getCoreDefs
        uniqueFinal   <- unique
+       -- traceM ("final: " ++ show uniqueFinal)
        let inlineDefs    = extractInlineDefs (coreInlineMax penv) coreDefsFinal
            allInlineDefs = inlineDefs ++ specializeDefs
 
@@ -924,7 +929,7 @@ inferCheck loaded0 flags line coreImports program
                           }
 
            loadedFinal = loaded { loadedGamma = gamma
-                                , loadedUnique = uniqueFinal
+                                , loadedUnique = uniqueFinal  + 1000
                                 , loadedModule = (loadedModule loaded){
                                                     modCore     = coreProgramFinal,
                                                     modRangeMap = mbRangeMap,

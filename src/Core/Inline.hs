@@ -39,6 +39,7 @@ import qualified Core.Core as Core
 import Core.Pretty
 import Core.Simplify
 import Core.Inlines
+import Core.Uniquefy
 
 trace s x =
    -- Lib.Trace.trace s
@@ -53,7 +54,7 @@ inlineDefs penv inlines
     do --traceDoc $ \penv -> text "Core.Inline.inlineDefs:" <+> ppInlines penv inlines
        --inlDefGroups defs
        defs1 <- inlDefGroups defs
-       defs2 <- liftUnique (uniqueSimplify penv True False 3 0 defs1)
+       defs2 <- liftUnique (uniqueSimplify penv False True 3 0 defs1)
        inlDefGroups defs2
 
 
@@ -157,9 +158,9 @@ inlAppExpr expr m n onlyZeroCost
                   -> do traceDoc $ \penv -> text "inlined:" <+> ppName penv (getName tname)
                         return (inlineExpr info)
                 Just (info,m',n')
-                  -> do traceDoc $ \penv -> text "inline candidate:" <+> ppName penv (getName tname) <+> text (show (m',n')) <+> text "vs" <+> text (show (m,n))
+                  -> do --traceDoc $ \penv -> text "inline candidate:" <+> ppName penv (getName tname) <+> text (show (m',n')) <+> text "vs" <+> text (show (m,n))
                         return (expr)
-                Nothing -> do traceDoc $ \penv -> text "not inline candidate:" <+> ppName penv (getName tname)
+                Nothing -> do -- traceDoc $ \penv -> text "not inline candidate:" <+> ppName penv (getName tname)
                               return (expr)
       _ -> return (expr)  -- no inlining
 

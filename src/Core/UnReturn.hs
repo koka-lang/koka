@@ -49,7 +49,7 @@ trace s x =
 
 unreturn :: Pretty.Env -> CorePhase ()
 unreturn penv 
-  = liftCorePhase $ \defs -> runUR penv 0 (urTopDefGroups defs)
+  = liftCorePhaseUniq $ \uniq defs -> runUR penv uniq (urTopDefGroups defs)
 
 
 {--------------------------------------------------------------------------
@@ -316,10 +316,10 @@ data State = State{ uniq :: Int }
 
 data Result a = Ok a State
 
-runUR :: Pretty.Env -> Int -> UR a -> a
+runUR :: Pretty.Env -> Int -> UR a -> (a, Int)
 runUR penv u (UR c)
   = case c (Env typeTotal [] penv) (State u) of
-      Ok x _ -> x
+      Ok x (State u') -> (x,u')
 
 instance Functor UR where
   fmap f (UR c)  = UR (\env st -> case c env st of
