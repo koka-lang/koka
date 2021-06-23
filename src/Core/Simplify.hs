@@ -37,20 +37,21 @@ import qualified Data.Set as S
 -- data Env = Env{ inlineMap :: M.NameMap Expr }
 -- data Info = Info{ occurrences :: M.NameMap Int }
 
-simplifyDefs :: Bool -> Bool -> Int -> Int -> Int -> Pretty.Env -> DefGroups -> (DefGroups,Int)
-simplifyDefs unsafe ndebug nRuns duplicationMax uniq penv defs
-  = runSimplify unsafe ndebug duplicationMax uniq penv (simplifyN nRuns (uniquefyDefBodies defs))
+simplifyDefs :: Pretty.Env -> Bool -> Bool -> Int -> Int -> CorePhase ()
+simplifyDefs penv unsafe ndebug nRuns duplicationMax 
+  = liftCorePhaseUniq $ \uniq defs ->
+    runSimplify unsafe ndebug duplicationMax uniq penv (simplifyN nRuns (uniquefyDefBodies defs))
 
-simplifyN :: Int -> DefGroups -> Simp DefGroups
+simplifyN :: Simplify a => Int -> a -> Simp a
 simplifyN nRuns defs
   = if (nRuns <= 0) then return defs
     else do defs' <- simplify defs
             simplifyN (nRuns-1) defs'
 
-uniqueSimplify :: Simplify a => Bool -> Bool -> Int -> a -> Unique a
-uniqueSimplify unsafe ndebug duplicationMax expr
+uniqueSimplify :: Simplify a => Pretty.Env -> Bool -> Bool -> Int -> Int -> a -> Unique a
+uniqueSimplify penv unsafe ndebug nRuns duplicationMax expr
   = do u <- unique
-       let (x,u') = runSimplify unsafe ndebug duplicationMax u Pretty.defaultEnv (simplify expr)
+       let (x,u') = runSimplify unsafe ndebug duplicationMax u penv (simplifyN nRuns expr)
        setUnique u'
        return x
 

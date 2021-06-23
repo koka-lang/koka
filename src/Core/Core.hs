@@ -89,6 +89,12 @@ module Core.Core ( -- Data structures
                    , foldExpr
                    , rewriteBottomUp
                    , rewriteBottomUpM
+
+                   , CorePhase
+                   , getCoreDefs, setCoreDefs, withCoreDefs
+                   , runCorePhase
+                   , liftCorePhase, liftCorePhaseUniq
+                   , liftError
                    ) where
 
 import Control.Applicative (liftA2)
@@ -105,6 +111,7 @@ import Common.Range
 import Common.Failure
 import Common.Unique
 import Common.Id
+import Common.Error
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
                         nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameSSizeT, nameBox, nameUnbox,
                         nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit, nameTpCField)
@@ -465,6 +472,59 @@ inlineDefIsSpecialize inlDef = not (null (specializeArgs inlDef))
 instance Show InlineDef where
   show (InlineDef name expr isRec cost specArgs)
     = "InlineDef " ++ show name ++ " " ++ (if isRec then "rec " else "") ++ show cost ++ " " ++ show specArgs
+
+
+newtype CorePhase a = CP (Int -> DefGroups -> Error (CPState a))
+
+data CPState a = CPState !a !Int !DefGroups
+
+instance Functor CorePhase where
+  fmap f (CP cp)
+    = CP (\uniq defs -> do (CPState x uniq' defs') <- cp uniq defs
+                           return (CPState (f x) uniq' defs')) 
+
+instance Applicative CorePhase where
+  pure  = return
+  (<*>) = ap
+
+instance Monad CorePhase where
+  return x      = CP (\uniq defs -> return (CPState x uniq defs))
+  (CP cp) >>= f = CP (\uniq defs -> do (CPState x uniq' defs') <- cp uniq defs
+                                       case f x of 
+                                         CP cp' -> cp' uniq' defs')
+
+instance HasUnique CorePhase where
+  updateUnique f = CP (\uniq defs -> return (CPState uniq (f uniq) defs))
+
+getCoreDefs :: CorePhase DefGroups
+getCoreDefs = CP (\uniq defs -> return (CPState defs uniq defs))
+
+setCoreDefs :: DefGroups -> CorePhase ()
+setCoreDefs defs = CP (\uniq _ -> return (CPState () uniq defs))
+
+withCoreDefs :: (DefGroups -> a) -> CorePhase a
+withCoreDefs f 
+  = do defs <- getCoreDefs
+       return (f defs)
+
+runCorePhase :: Int -> CorePhase a -> Error a
+runCorePhase uniq (CP cp)
+  = do (CPState x _ _) <- cp uniq []
+       return x
+
+liftCorePhaseUniq :: (Int -> DefGroups -> (DefGroups,Int)) -> CorePhase ()
+liftCorePhaseUniq f
+  = CP (\uniq defs -> let (defs',uniq') = f uniq defs in return (CPState () uniq' defs'))
+
+liftCorePhase :: (DefGroups -> DefGroups) -> CorePhase ()
+liftCorePhase f 
+  = liftCorePhaseUniq (\u defs -> (f defs, u))
+
+liftError :: Error a -> CorePhase a
+liftError err
+  = CP (\uniq defs -> do x <- err
+                         return (CPState x uniq defs))  
+
 
 {--------------------------------------------------------------------------
   Expressions

@@ -44,10 +44,11 @@ trace s x =
 
 enableLifting = True
 
-liftFunctions :: Pretty.Env -> Int -> DefGroups -> (DefGroups,Int)
-liftFunctions penv u defs
-  = if enableLifting then runLift penv u (liftDefGroups True defs)
-    else (defs, u)
+liftFunctions :: Pretty.Env -> CorePhase ()
+liftFunctions penv 
+  = liftCorePhaseUniq $ \uniq defs ->
+    if enableLifting then runLift penv uniq (liftDefGroups True defs)
+                     else (defs,uniq)
 
 
 {--------------------------------------------------------------------------

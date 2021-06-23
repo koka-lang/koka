@@ -245,7 +245,7 @@ flagsNull
           True -- parc reuse specialize
           False -- use asan
           False -- use stdalloc
-          True  -- use specialization
+          False -- use specialization
 
 isHelp Help = True
 isHelp _    = False

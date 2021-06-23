@@ -42,12 +42,13 @@ import Common.Failure
 import Lib.Printer            ( withNewFilePrinter )
 import Common.Range           -- ( Range, sourceName )
 import Common.Name            -- ( Name, newName, qualify, asciiEncode )
-import Common.NamePrim        ( nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync, nameTpNamed )
+import Common.NamePrim        ( isPrimitiveModule, nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync, nameTpNamed )
 import Common.Error
 import Common.File
 import Common.ColorScheme
 import Common.Message         ( table )
 import Common.Syntax
+import Common.Unique
 import Syntax.Syntax
 -- import Syntax.Lexer           ( readInput )
 import Syntax.Parse           ( parseProgramFromFile, parseValueDef, parseExpression, parseTypeDef, parseType )
@@ -802,7 +803,139 @@ typeCheck loaded flags line coreImports program
        addWarnings warnings (inferCheck loaded1 flags line coreImports program2 )
 
 
+inferCheck :: Loaded -> Flags -> Int -> [Core.Import] -> UserProgram -> Error Loaded
+inferCheck loaded0 flags line coreImports program
+  = Core.runCorePhase (loadedUnique loaded0) $
+    do -- kind inference
+       (defs, kgamma, synonyms, newtypes, constructors, coreProgram, mbRangeMap0)
+         <- inferKinds
+              (isValueFromFlags flags)
+              (colorSchemeFromFlags flags)
+              (platform flags)
+              (if (outHtml flags > 0) then Just rangeMapNew else Nothing)
+              (loadedImportMap loaded0)
+              (loadedKGamma loaded0)
+              (loadedSynonyms loaded0)
+              (loadedNewtypes loaded0)
+              program
 
+       let  gamma0  = gammaUnions [loadedGamma loaded0
+                                  ,extractGamma (isValueFromFlags flags) True coreProgram
+                                  ,extractGammaImports (importsList (loadedImportMap loaded0)) (getName program)
+                                  ]
+            loaded  = loaded0 { loadedKGamma  = kgamma
+                              , loadedGamma   = gamma0
+                              , loadedSynonyms= synonyms
+                              , loadedNewtypes= newtypes -- newtypesCompose (loadedNewtypes loaded) newtypes
+                              , loadedConstructors=constructors
+                              }
+            penv    = prettyEnv loaded flags
+            
+            traceDefGroups title  
+              = do dgs <- Core.getCoreDefs 
+                   trace (unlines (["","-----------------", title, "---------------"] ++ 
+                          map showDef (Core.flattenDefGroups dgs))) $ return ()
+              where 
+                showDef def = show (Core.Pretty.prettyDef (penv{coreShowDef=True}) def)
+
+
+       -- Type inference
+       (gamma,cdefs,mbRangeMap)
+         <- inferTypes
+              penv
+              mbRangeMap0
+              (loadedSynonyms loaded)
+              (loadedNewtypes loaded)
+              (loadedConstructors loaded)
+              (loadedImportMap loaded)
+              (loadedGamma loaded)
+              (getName program)
+              defs 
+       Core.setCoreDefs cdefs      
+       
+       -- check generated core
+       let checkCoreDefs title = when (coreCheck flags) (trace ("checking " ++ title) $ 
+                                                         Core.Check.checkCore False False penv gamma)    
+       -- checkCoreDefs "initial"
+
+       -- remove return statements
+       unreturn penv
+       -- checkCoreDefs "unreturn"
+       
+       let ndebug  = optimize flags > 0
+           simplifyX dupMax = simplifyDefs penv False {-unsafe-} ndebug (simplify flags) dupMax
+           simplifyDupN     = simplifyX (simplifyMaxDup flags)
+           simplifyNoDup    = simplifyX 0
+       simplifyNoDup
+       -- traceDefGroups "simplify"
+       
+       -- specialize 
+       specializeDefs <- Core.withCoreDefs (\defs -> extractSpecializeDefs defs)
+       -- trace ("Spec defs:\n" ++ show specializeDefs) $ return ()
+       
+       when (optSpecialize flags) $
+         specialize (inlinesExtends specializeDefs (loadedInlines loaded))
+       -- traceDefGroups "specialize"
+
+       -- lifting recursive functions to top level
+       liftFunctions penv
+       simplifyNoDup
+       checkCoreDefs "lifted"
+       -- traceDefGroups "lifted"
+
+       -- tail-call-modulo-cons optimization
+       when (optctail flags) $
+         ctailOptimize penv (platform flags) newtypes gamma (optctailInline flags) 
+
+       -- transform effects to explicit monadic binding (and resolve .open calls)
+       when (enableMon flags && not (isPrimitiveModule (Core.coreProgName coreProgram))) $
+          trace "monadic transform" $
+          do Core.Monadic.monTransform penv
+             openResolve penv gamma
+       checkCoreDefs "monadic transform"
+
+       -- full simplification
+       simplifyDupN 
+             
+       -- monadic lifting to create fast inlined paths
+       monadicLift penv
+       checkCoreDefs "monadic lifting"
+       -- traceDefGroups "monadic lift"
+
+       -- inline
+       inlineDefs penv (loadedInlines loaded) 
+       checkCoreDefs "inlined"
+
+       -- full simplification
+       simplifyDupN 
+       checkCoreDefs "final"
+
+       -- Assemble core program and return
+       coreDefsFinal <- Core.getCoreDefs
+       uniqueFinal   <- unique
+       let inlineDefs    = extractInlineDefs (coreInlineMax penv) coreDefsFinal
+           allInlineDefs = inlineDefs ++ specializeDefs
+
+           coreProgramFinal 
+            = uniquefy $
+              coreProgram { Core.coreProgImports = coreImports
+                          , Core.coreProgDefs = coreDefsFinal  
+                          , Core.coreProgFixDefs = [Core.FixDef name fix | FixDef name fix rng <- programFixDefs program]
+                          }
+
+           loadedFinal = loaded { loadedGamma = gamma
+                                , loadedUnique = uniqueFinal
+                                , loadedModule = (loadedModule loaded){
+                                                    modCore     = coreProgramFinal,
+                                                    modRangeMap = mbRangeMap,
+                                                    modInlines  = Right allInlineDefs
+                                                  }
+                                , loadedInlines = inlinesExtends allInlineDefs (loadedInlines loaded)
+                                }
+
+       return loadedFinal
+
+{-
 inferCheck :: Loaded -> Flags -> Int -> [Core.Import] -> UserProgram -> Error Loaded
 inferCheck loaded flags line coreImports program1
   = -- trace ("typecheck: imports: " ++ show ((map Core.importName) coreImports)) $
@@ -1033,7 +1166,7 @@ inferCheck loaded flags line coreImports program1
                             }
 
        return loaded4
-
+-}
 
 modulePath mod
   = let path = maybe "" (sourceName . programSource) (modProgram mod)

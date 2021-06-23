@@ -48,9 +48,10 @@ runSpecM specEnv specM = runReader specM specEnv
   Specialization
 --------------------------------------------------------------------------}
 
-specialize :: Env -> Int -> Inlines -> DefGroups -> (DefGroups, Int)
-specialize env uniq specEnv groups 
-  = (runSpecM specEnv (mapM specOneDefGroup groups), uniq)
+specialize :: Inlines -> CorePhase ()
+specialize specEnv 
+  = liftCorePhase $ \defs ->
+    runSpecM specEnv (mapM specOneDefGroup defs)
 
 speclookupM :: Name -> SpecM (Maybe InlineDef)
 speclookupM name 

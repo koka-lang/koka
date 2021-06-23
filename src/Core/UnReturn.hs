@@ -47,9 +47,9 @@ trace s x =
    -- Lib.Trace.trace s
     x
 
-unreturn :: Pretty.Env -> DefGroups -> Error DefGroups
-unreturn penv defs
-  = runUR penv 0 (urTopDefGroups defs)
+unreturn :: Pretty.Env -> CorePhase ()
+unreturn penv 
+  = liftCorePhase $ \defs -> runUR penv 0 (urTopDefGroups defs)
 
 
 {--------------------------------------------------------------------------
@@ -316,10 +316,10 @@ data State = State{ uniq :: Int }
 
 data Result a = Ok a State
 
-runUR :: Monad m => Pretty.Env -> Int -> UR a -> m a
+runUR :: Pretty.Env -> Int -> UR a -> a
 runUR penv u (UR c)
   = case c (Env typeTotal [] penv) (State u) of
-      Ok x _ -> return x
+      Ok x _ -> x
 
 instance Functor UR where
   fmap f (UR c)  = UR (\env st -> case c env st of

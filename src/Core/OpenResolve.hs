@@ -46,9 +46,9 @@ trace s x =
 
 data Env = Env{ penv :: Pretty.Env, gamma :: Gamma }
 
-openResolve :: Pretty.Env -> Gamma -> DefGroups -> DefGroups
-openResolve penv gamma defs
-  = resDefGroups (Env penv gamma) defs
+openResolve :: Pretty.Env -> Gamma -> CorePhase ()
+openResolve penv gamma 
+  = liftCorePhase $ \defs -> resDefGroups (Env penv gamma) defs
 
 {--------------------------------------------------------------------------
   transform definition groups

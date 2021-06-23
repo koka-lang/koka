@@ -78,14 +78,17 @@ traceDoc fdoc = do penv <- getPrettyEnv
 {--------------------------------------------------------------------------
   Infer Types
 --------------------------------------------------------------------------}
-inferTypes :: Env -> Maybe RM.RangeMap -> Synonyms -> Newtypes -> Constructors -> ImportMap -> Gamma -> Name -> Int -> DefGroups Type
-                -> Error (Gamma, Core.DefGroups, Int, Maybe RM.RangeMap )
-inferTypes prettyEnv mbRangeMap syns newTypes cons imports gamma0 context uniq0 defs
+inferTypes :: Env -> Maybe RM.RangeMap -> Synonyms -> Newtypes -> Constructors -> ImportMap -> Gamma -> Name -> DefGroups Type
+                -> Core.CorePhase (Gamma, Core.DefGroups, Maybe RM.RangeMap )
+inferTypes prettyEnv mbRangeMap syns newTypes cons imports gamma0 context defs
   = -- error "Type.Infer.inferTypes: not yet implemented"
     -- return (gamma0,[],uniq0)
-    do ((gamma1, coreDefs),uniq1,mbRm) <- runInfer prettyEnv mbRangeMap syns newTypes imports gamma0 context (uniq0 + 10 {- to not clash with at least 10 bound type variables -})
-                                          (inferDefGroups True (arrange defs))
-       return (gamma1,coreDefs,uniq1,mbRm)
+    do uniq0 <- unique
+       ((gamma1, coreDefs),uniq1,mbRm) <- Core.liftError $ 
+                                          runInfer prettyEnv mbRangeMap syns newTypes imports gamma0 context (uniq0 + 10 {- to not clash with at least 10 bound type variables -})
+                                           (inferDefGroups True (arrange defs))
+       setUnique uniq1
+       return (gamma1,coreDefs,mbRm)
   where
     arrange defs
       = if (context /= nameSystemCore)
@@ -322,13 +325,14 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
         let name = Core.defName coreDef
             csort = if (topLevel || CoreVar.isTopLevel coreDef) then Core.defSort coreDef else DefVal
             info = coreVarInfoFromNameInfo (createNameInfoX Public name csort (defRange def) resTp1)
+        penv <- getPrettyEnv
         (resTp2,coreExpr)
               <- case (mbAssumed,resCore1) of
                          (Just (_,(TVar _)), Core.TypeLam tvars expr)  -- we assumed a monomorphic type, but generalized eventually
                             -> -- fix it up by adding the polymorphic type application
                                do assumedTpX <- subst assumedTp >>= normalize True -- resTp0
                                   -- resTpX <- subst resTp0 >>= normalize
-                                  simexpr <- liftUnique $ uniqueSimplify False False 0 expr
+                                  simexpr <- liftUnique $ uniqueSimplify penv False False 1 {-runs-} 0 expr
                                   coreX <- subst simexpr
                                   let -- coreX = simplify expr -- coref0 (Core.defExpr coreDef)
                                       mvars = [TypeVar id kind Bound | TypeVar id kind _ <- tvars]
@@ -351,13 +355,13 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
                                -}
                          (Just (_,_), _) | divergent  -- we added a divergent effect, fix up the occurrences of the assumed type
                             -> do assumedTpX <- normalize True assumedTp >>= subst -- resTp0
-                                  simResCore1 <- liftUnique $ uniqueSimplify False False 0 resCore1
+                                  simResCore1 <- liftUnique $ uniqueSimplify penv False False 1 0 resCore1
                                   coreX <- subst simResCore1
                                   let resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
                                   return (resTp1, resCoreX)
                          (Just _,_)  -- ensure we insert the right info  (test: static/div2-ack)
                             -> do assumedTpX <- normalize True assumedTp >>= subst
-                                  simResCore1 <- liftUnique $ uniqueSimplify False False 0 resCore1
+                                  simResCore1 <- liftUnique $ uniqueSimplify penv False False 1 0 resCore1
                                   coreX <- subst simResCore1
                                   let resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
                                   return (resTp1, resCoreX)

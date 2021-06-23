@@ -42,9 +42,10 @@ import Core.Pretty
 --------------------------------------------------------------------------
 -- Reference count transformation
 --------------------------------------------------------------------------
-ctailOptimize :: Pretty.Env -> Platform -> Newtypes -> Gamma -> Bool -> DefGroups -> Int -> (DefGroups,Int)
-ctailOptimize penv platform newtypes gamma ctailInline defs uniq
-  = runUnique uniq (uctailOptimize penv platform newtypes gamma ctailInline defs)
+ctailOptimize :: Pretty.Env -> Platform -> Newtypes -> Gamma -> Bool -> CorePhase ()
+ctailOptimize penv platform newtypes gamma ctailInline 
+  = liftCorePhaseUniq $ \uniq defs -> 
+    runUnique uniq (uctailOptimize penv platform newtypes gamma ctailInline defs)
 
 uctailOptimize :: Pretty.Env -> Platform -> Newtypes -> Gamma -> Bool -> DefGroups -> Unique DefGroups
 uctailOptimize penv platform newtypes gamma ctailInline defs

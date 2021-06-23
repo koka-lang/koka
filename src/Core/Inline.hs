@@ -46,13 +46,14 @@ trace s x =
 
 
 
-inlineDefs :: Pretty.Env -> Int -> Inlines -> DefGroups -> (DefGroups,Int)
-inlineDefs penv u inlines defs
-  = runInl penv u inlines $
+inlineDefs :: Pretty.Env -> Inlines -> CorePhase ()
+inlineDefs penv inlines
+  = liftCorePhaseUniq $ \uniq defs ->
+    runInl penv uniq inlines  $
     do --traceDoc $ \penv -> text "Core.Inline.inlineDefs:" <+> ppInlines penv inlines
        --inlDefGroups defs
        defs1 <- inlDefGroups defs
-       defs2 <- withUnique (\uniq -> simplifyDefs True False 3 0 uniq penv defs1)
+       defs2 <- liftUnique (uniqueSimplify penv True False 3 0 defs1)
        inlDefGroups defs2
 
 
