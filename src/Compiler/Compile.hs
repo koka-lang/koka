@@ -880,13 +880,13 @@ inferCheck loaded flags line coreImports program1
 
        -- traceDefGroups "lifted" coreDefsSimp0
 
-       let specEnv = extractSpecializeEnv coreDefsSimp0
+       let specializeDefs = extractSpecializeDefs coreDefsSimp0
        traceM "Spec defs:"
-       traceM (show specEnv)
+       traceM (show specializeDefs)
 
        let (coreDefsSpec, uniqueSpec) 
             = if (optSpecialize flags)
-                then specialize penv uniqueSimp0 specEnv coreDefsSimp0
+                then specialize penv uniqueSimp0 (inlinesExtends specializeDefs (loadedInlines loaded3)) coreDefsSimp0
                 else (coreDefsSimp0, uniqueSimp0)
 
        -- traceShowM coreDefsSpec
@@ -1013,6 +1013,7 @@ inferCheck loaded flags line coreImports program1
        let coreDefsLast = coreDefsSimp2
            uniqueLast   = uniqueSimp2
            inlineDefs   = extractInlineDefs (coreInlineMax penv) coreDefsLast
+           allInlineDefs = inlineDefs ++ specializeDefs
 
            coreProgram2 = -- Core.Core (getName program1) [] [] coreTypeDefs coreDefs0 coreExternals
                           uniquefy $
@@ -1026,9 +1027,9 @@ inferCheck loaded flags line coreImports program1
                             , loadedModule = (loadedModule loaded3){
                                                 modCore = coreProgram2,
                                                 modRangeMap = mbRangeMap2,
-                                                modInlines  = Right inlineDefs
+                                                modInlines  = Right allInlineDefs
                                               }
-                            , loadedInlines = inlinesExtends inlineDefs (loadedInlines loaded3)
+                            , loadedInlines = inlinesExtends allInlineDefs (loadedInlines loaded3)
                             }
 
        return loaded4

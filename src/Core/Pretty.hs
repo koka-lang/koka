@@ -250,7 +250,7 @@ prettyInlineDef env (InlineDef name expr isRec cost specArgs)
               _                     -> False
 
     prettySpecArgs 
-      = dquotes (text [if spec then 'x' else '_' | spec <- specArgs])
+      = dquotes (text [if spec then '*' else '_' | spec <- specArgs])
 
 prettyDef :: Env -> Def -> Doc
 prettyDef env def@(Def name scheme expr vis sort inl nameRng doc)

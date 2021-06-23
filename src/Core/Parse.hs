@@ -412,7 +412,7 @@ inlineDefSort
        inl <- parseInline
        spec <- do specialId "specialize" 
                   (s,_) <- stringLit
-                  let args = [c == 'x' | c <- s] 
+                  let args = [c == '*' | c <- s] 
                   return args
                <|> return []
        (do (_,doc) <- dockeyword "fun"

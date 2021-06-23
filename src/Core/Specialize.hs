@@ -1,13 +1,12 @@
-module Core.Specialize( SpecializeEnv
-                      , specenvNew
-                      , specenvEmpty
-                      , specenvExtend, specenvExtends
-                      , specenvLookup
-                      , ppSpecializeEnv
-
-                      , specialize
-
-                      , extractSpecializeEnv
+-----------------------------------------------------------------------------
+-- Copyright 2012-2021, Microsoft Research, Steven Fontanella, Daan Leijen.
+--
+-- This is free software; you can redistribute it and/or modify it under the
+-- terms of the Apache License, Version 2.0. A copy of the License can be
+-- found in the LICENSE file at the root of this distribution.
+-----------------------------------------------------------------------------
+module Core.Specialize( specialize
+                      , extractSpecializeDefs
                       ) where
 
 import Data.List (transpose)
@@ -33,25 +32,15 @@ import Type.Type (splitFunScheme, Effect, Type, TypeVar)
 import Type.TypeVar
 import Type.Pretty
 import Lib.Trace
-
-{--------------------------------------------------------------------------
-  
---------------------------------------------------------------------------}
-
-data SpecializeInfo = SpecializeInfo
-  { specName :: Name
-  , specExpr :: Expr
-  , specArgs :: [Bool]
-  } deriving (Show)
-
+import Core.Inlines
 
 {--------------------------------------------------------------------------
   Specialization Monad
 --------------------------------------------------------------------------}
 
-type SpecM = Reader SpecializeEnv
+type SpecM = Reader Inlines
 
-runSpecM :: SpecializeEnv -> SpecM a -> a
+runSpecM :: Inlines -> SpecM a -> a
 runSpecM specEnv specM = runReader specM specEnv
 
 
@@ -59,12 +48,16 @@ runSpecM specEnv specM = runReader specM specEnv
   Specialization
 --------------------------------------------------------------------------}
 
-specialize :: Env -> Int -> SpecializeEnv -> DefGroups -> (DefGroups, Int)
+specialize :: Env -> Int -> Inlines -> DefGroups -> (DefGroups, Int)
 specialize env uniq specEnv groups 
   = (runSpecM specEnv (mapM specOneDefGroup groups), uniq)
 
-speclookupM :: Name -> SpecM (Maybe SpecializeInfo)
-speclookupM name = asks (specenvLookup name)
+speclookupM :: Name -> SpecM (Maybe InlineDef)
+speclookupM name 
+  = asks $ \env -> 
+    case inlinesLookup name env of
+      Just idef | inlineDefIsSpecialize idef -> Just idef      
+      _ -> Nothing 
 
 specOneDefGroup :: DefGroup -> SpecM DefGroup
 specOneDefGroup = mapMDefGroup specOneDef
@@ -87,13 +80,13 @@ specOneExpr thisDefName
         -> go name e
       e -> pure e
   where
-    go name e = do
-      specDef <- speclookupM name
-      case specDef of
-        Nothing -> pure e
-        Just def 
-          | specName def /= thisDefName -> specOneCall def e
-          | otherwise -> pure e
+    go name e 
+       = do mbSpecDef <- speclookupM name
+            case mbSpecDef of
+              Nothing -> pure e
+              Just specDef 
+                | inlineName specDef /= thisDefName -> specOneCall specDef e   -- don't specialize ourselves
+                | otherwise -> pure e
 
 filterBools :: [Bool] -> [a] -> [a]
 filterBools bools as 
@@ -107,8 +100,8 @@ partitionBools bools as = foldr f ([], []) $ zip bools as
       | bool = (falses, a : trues)
       | otherwise = (a : falses, trues)
 
-specOneCall :: SpecializeInfo -> Expr -> SpecM Expr
-specOneCall (SpecializeInfo{ specName=specName, specExpr=specExpr, specArgs=specArgs }) e 
+specOneCall :: InlineDef -> Expr -> SpecM Expr
+specOneCall (InlineDef{ inlineName=specName, inlineExpr=specExpr, specializeArgs=specArgs }) e 
   = case e of
       App (Var (TName name _) _) args  | goodArgs args
         -> replaceCall specName specExpr specArgs args Nothing
@@ -154,7 +147,7 @@ specInnerCalls from to bools = rewriteBottomUp $ \e ->
     App (Var f info) xs
       | f == from -> App (Var to info) $ filterBools bools xs
     App (TypeApp (Var f info) _) xs
-    -- the resulting specialized definition is always monomophic; when generating the SpecializeEnv we only allow functions whose TypeApps match in ALL recursive calls
+    -- the resulting specialized definition is always monomophic; when generating the Inlines we only allow functions whose TypeApps match in ALL recursive calls
     -- and we apply the TypeLam to the TypeApps from the call site
       | f == from -> App (Var to info) $ filterBools bools xs
     e -> e
@@ -210,10 +203,9 @@ fnBody (TypeLam _ (Lam _ _ body)) = body
   Extract definitions that should be specialized
 --------------------------------------------------------------------------}
 
-extractSpecializeEnv :: DefGroups -> SpecializeEnv
-extractSpecializeEnv dgs 
-  = specenvNew 
-  $ mapMaybe getSpecInfo
+extractSpecializeDefs :: DefGroups -> [InlineDef]
+extractSpecializeDefs dgs 
+  = mapMaybe makeSpecialize
   $ flattenDefGroups
   $ filter isRecursiveDefGroup dgs
   where
@@ -228,8 +220,8 @@ whenJust :: (Applicative f) => Maybe a -> (a -> f ()) -> f ()
 whenJust Nothing _ = pure ()
 whenJust (Just x) f = f x
 
-getSpecInfo :: Def -> Maybe SpecializeInfo
-getSpecInfo def 
+makeSpecialize :: Def -> Maybe InlineDef
+makeSpecialize def 
   =do let (mbTypes, recArgs) = recursiveCalls def
       whenJust mbTypes $ (guard . allEq)
 
@@ -240,7 +232,8 @@ getSpecInfo def
             $ allPassedInSameOrder params recArgs
       
       guard (any isJust specializableParams)
-      pure $ SpecializeInfo (defName def) (defExpr def) $ map isJust specializableParams
+      pure $ -- SpecializeInfo (defName def) (defExpr def) $ map isJust specializableParams
+             InlineDef (defName def) (defExpr def) True (costDef def) (map isJust specializableParams)
 
 allPassedInSameOrder :: [TName] -> [[Expr]] -> [Maybe TName]
 allPassedInSameOrder params calls 
@@ -292,48 +285,3 @@ recursiveCalls Def{ defName=thisDefName, defExpr=expr }
     f (App (TypeApp (Var (TName name _) _) types) args)
       | name == thisDefName = pure (Just types, args)
     f _ = []
-
-
-{--------------------------------------------------------------------------
-  Specialize Environment
---------------------------------------------------------------------------}
-
--- | Environment mapping names to specialize definitions
-newtype SpecializeEnv   = SpecializeEnv (M.NameMap SpecializeInfo)
-
--- | The intial SpecializeEnv
-specenvEmpty :: SpecializeEnv
-specenvEmpty
-  = SpecializeEnv M.empty
-
-specenvNew :: [SpecializeInfo] -> SpecializeEnv
-specenvNew xs
-  = specenvExtends xs specenvEmpty
-
-specenvExtends :: [SpecializeInfo] -> SpecializeEnv -> SpecializeEnv
-specenvExtends xs specenv
-  = foldr specenvExtend specenv xs
-
-specenvExtend :: SpecializeInfo -> SpecializeEnv -> SpecializeEnv
-specenvExtend idef (SpecializeEnv specenv)
-  = SpecializeEnv (M.insert (specName idef) idef specenv)
-
-specenvLookup :: Name -> SpecializeEnv -> Maybe SpecializeInfo
-specenvLookup name (SpecializeEnv specenv)
-  = M.lookup name specenv
-
-
-instance Show SpecializeEnv where
- show = show . pretty
-
-instance Pretty SpecializeEnv where
- pretty g
-   = ppSpecializeEnv defaultEnv g
-
-
-ppSpecializeEnv :: Env -> SpecializeEnv -> Doc
-ppSpecializeEnv env (SpecializeEnv specenv)
-   = vcat [fill maxwidth (ppName env name) <+> list (map pretty (specArgs sdef))
-          | (name,sdef) <- M.toList specenv]
-   where
-     maxwidth      = 12
