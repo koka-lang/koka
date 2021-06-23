@@ -33,6 +33,7 @@ import Type.TypeVar
 import Type.Pretty
 import Lib.Trace
 import Core.Inlines
+import Core.Uniquefy
 
 {--------------------------------------------------------------------------
   Specialization Monad
@@ -51,7 +52,7 @@ runSpecM specEnv specM = runReader specM specEnv
 specialize :: Inlines -> CorePhase ()
 specialize specEnv 
   = liftCorePhase $ \defs ->
-    runSpecM specEnv (mapM specOneDefGroup defs)
+    uniquefyDefGroups $ runSpecM specEnv (mapM specOneDefGroup defs)
 
 speclookupM :: Name -> SpecM (Maybe InlineDef)
 speclookupM name 
