@@ -56,7 +56,6 @@ prettyEnvFromFlags flags
                  , TP.htmlJs          = htmlJs flags
                  , TP.verbose         = verbose flags
                  , TP.coreShowTypes   = showCoreTypes flags
-                 , TP.coreInlineMax   = optInlineMax flags
                  }
 
 
@@ -539,8 +538,7 @@ processOptions flags0 opts
                         else if (any isVersion options) then ModeVersion
                         else if (any isInteractive options) then ModeInteractive files
                         else if (null files) then ModeInteractive files
-                                             else ModeCompiler files
-                 spec = if (optimize flags < 0) then False else (optSpecialize flags)
+                                             else ModeCompiler files                 
              in do ed   <- if (null (editor flags))
                             then detectEditor 
                             else return (editor flags)
@@ -580,7 +578,13 @@ processOptions flags0 opts
                                   localLibDir = localLibDir,
                                   localShareDir = localShareDir,
 
-                                  optSpecialize  = spec,
+                                  optSpecialize  = if (optimize flags <= 0) then False 
+                                                    else (optSpecialize flags),
+                                  optInlineMax   = if (optimize flags < 0) 
+                                                     then 0
+                                                     else if (optimize flags <= 1) 
+                                                       then (optInlineMax flags) `div` 3 
+                                                       else (optInlineMax flags),
 
                                   ccompPath   = ccmd,
                                   ccomp       = cc,

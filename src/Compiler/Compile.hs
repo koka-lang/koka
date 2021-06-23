@@ -904,8 +904,8 @@ inferCheck loaded0 flags line coreImports program
        checkCoreDefs "monadic lifting"
        -- traceDefGroups "monadic lift"
 
-       -- inline
-       inlineDefs penv (loadedInlines loaded) 
+       -- inline: inline local definitions more aggressively (2x)
+       inlineDefs penv (2*(optInlineMax flags)) (loadedInlines loaded) 
        checkCoreDefs "inlined"
        -- traceDefGroups "inlined"
 
@@ -920,7 +920,8 @@ inferCheck loaded0 flags line coreImports program
        coreDefsFinal <- Core.getCoreDefs
        uniqueFinal   <- unique
        -- traceM ("final: " ++ show uniqueFinal)
-       let localInlineDefs  = extractInlineDefs (coreInlineMax penv) coreDefsFinal
+       let -- extract inline definitions to export
+           localInlineDefs  = extractInlineDefs (optInlineMax flags) coreDefsFinal 
            allInlineDefs    = localInlineDefs ++ specializeDefs
 
            coreProgramFinal 

@@ -78,10 +78,9 @@ prettyCore env0 target inlineDefs core@(Core name imports fixDefs typeDefGroups 
       , separator "external declarations"
       , map (prettyExternal env) externals
       , separator "inline definitions"
-      , if (coreInlineMax env0 < 0 || not (coreIface env0) || null inlineDefs)
+      , if (not (coreIface env0) || null inlineDefs)
          then []
          else [text "//.inline-section"] ++
-              -- map (prettyInlineDefGroup env1{coreInlineMax = coreInlineMax env0}) defGroups
                map (prettyInlineDef env1) inlineDefs
       ]
       -- ,
@@ -110,7 +109,6 @@ prettyCore env0 target inlineDefs core@(Core name imports fixDefs typeDefGroups 
     env1         = env0{ importsMap =  extendImportMap extraImports (importsMap env0),
                          coreShowTypes = (coreShowTypes env0 || coreIface env0),
                          showKinds = (showKinds env0 || coreIface env0),
-                         coreInlineMax = (-1),
                          coreShowDef = not (coreIface env0) }
 
 prettyImport env imp

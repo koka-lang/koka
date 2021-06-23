@@ -49,7 +49,7 @@ executables:
       - alex
     ghc-options:
       - -rtsopts 
-      - -j4
+      - -j8
     cpp-options:
       - -DKOKA_MAIN="koka"      
       - -DKOKA_VARIANT="release"
