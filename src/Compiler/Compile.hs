@@ -877,13 +877,13 @@ inferCheck loaded0 flags line coreImports program
        
        when (optSpecialize flags) $
          specialize (inlinesExtends specializeDefs (loadedInlines loaded))
-       -- traceDefGroups "specialize"
+       traceDefGroups "specialize"
 
        -- lifting recursive functions to top level
        liftFunctions penv
        simplifyNoDup
        checkCoreDefs "lifted"
-       -- traceDefGroups "lifted"
+       traceDefGroups "lifted"
 
        -- tail-call-modulo-cons optimization
        when (optctail flags) $
