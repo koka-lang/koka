@@ -24,9 +24,9 @@ data Mode = Test | New | Update
   deriving (Eq, Ord, Show)
 
 
-data Options = Options{ mode :: Mode, cabal :: Bool, sysghc:: Bool }
+data Options = Options{ mode :: Mode, cabal :: Bool, sysghc:: Bool, opt :: Int }
 
-optionsDefault = Options Test False False
+optionsDefault = Options Test False False 0
 
 data Cfg = Cfg{ flags   :: [String],
                 options :: Options,
@@ -99,11 +99,13 @@ runKoka cfg fp
   = do caseFlags <- readFlagsFile (fp ++ ".flags")
        kokaDir <- getCurrentDirectory
        let relTest = makeRelative kokaDir fp
+           optFlag   = if (opt (options cfg) > 0) then ["-O" ++ show (opt (options cfg))] else []
+           kokaFlags = flags cfg ++ optFlag ++ caseFlags 
        if (cabal (options cfg))
-         then do let argv = ["new-run", "koka", "--"] ++ flags cfg ++ caseFlags ++ [relTest]
+         then do let argv = ["new-run", "koka", "--"] ++ kokaFlags ++ [relTest]
                  testSanitize kokaDir <$> readProcess "cabal" argv ""       
          else do let stackFlags = if (sysghc (options cfg)) then ["--system-ghc","--skip-ghc-check"] else []
-                     argv = ["exec","koka"] ++ stackFlags ++ ["--"] ++ flags cfg ++ caseFlags ++ [relTest]
+                     argv = ["exec","koka"] ++ stackFlags ++ ["--"] ++ kokaFlags ++ [relTest]
                  testSanitize kokaDir <$> readProcess "stack" argv ""
        
 
@@ -164,6 +166,8 @@ processOptions arg (options,hargs)
            in (options{ mode = m }, hargs)
     else if (arg == "--cabal") 
       then (options{cabal=True}, hargs)
+    else if (take 2 arg == "-O") 
+      then (options{opt=read (drop 2 arg)}, hargs)
     else if (arg == "--system-ghc")
       then (options{sysghc=True}, hargs)
       else (options, arg : hargs)

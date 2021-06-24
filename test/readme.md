@@ -29,7 +29,7 @@ Options:
 ```
 --mode=<new|update|test>
 --match <match>              
---cabal                      Use cabal to run koka.
---system-ghc                 If using stack, use --system-ghc option.
+--cabal                      # Use cabal to run koka.
+--system-ghc                 # If using stack, use --system-ghc option.
 ```
 
