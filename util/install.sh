@@ -20,7 +20,7 @@ KOKA_TEMP_DIR=""        # empty creates one dynamically
 adjust_version() {  # <osarch>
   case "$1" in
     linux-arm64)
-      VERSION="v2.1.8";;
+      VERSION="v2.1.9";;
   esac    
 }
 
