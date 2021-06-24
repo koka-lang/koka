@@ -17,7 +17,7 @@ module Kind.Constructors( -- * Constructors
                           , constructorsFindScheme
                           , constructorsSet
                           , constructorsCompose, constructorsFromList
-                          , extractConstructors
+                          , extractConstructors                          
                             -- * Pretty
                           , ppConstructors
                           ) where
@@ -77,6 +77,7 @@ constructorsFindScheme conname cons
 constructorsSet :: Constructors -> S.NameSet
 constructorsSet (Constructors m)
   = S.fromList (M.keys m)
+
 
 {--------------------------------------------------------------------------
   Pretty printing

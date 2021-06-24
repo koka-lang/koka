@@ -18,12 +18,14 @@ module Compiler.Module( Module(..), Modules, moduleNull
                       , modPackageName -- , modPackageQName
                       , modPackagePath, modPackageQPath
                       , PackageName
+                      , loadedMatchNames
                       ) where
 
 import Lib.Trace
 import Lib.PPrint
+import Data.Char              ( isAlphaNum )
 import Common.Range           ( Range )
-import Common.Name            ( Name, newName)
+import Common.Name            ( Name, newName, unqualify, isHiddenName, showPlain)
 import Common.Error
 import Common.File            ( FileTime, fileTime0, maxFileTimes, splitPath )
 
@@ -36,7 +38,7 @@ import Kind.Newtypes          ( Newtypes, newtypesEmpty, newtypesCompose, extrac
 import Kind.Constructors      ( Constructors, constructorsEmpty, constructorsCompose, extractConstructors )
 import Kind.Assumption        ( KGamma, kgammaInit, extractKGamma, kgammaUnion )
 
-import Type.Assumption        ( Gamma, gammaInit, gammaUnion, extractGamma)
+import Type.Assumption        ( Gamma, gammaInit, gammaUnion, extractGamma, gammaNames)
 import Type.Type              ( DataInfo )
 import Core.Inlines           ( Inlines, inlinesNew, inlinesEmpty, inlinesExtends )
 
@@ -113,6 +115,17 @@ modPackagePath mod
 modPackageQPath :: Module -> PackageName
 modPackageQPath mod
   = joinPkg (modPackageQName mod) (modPackageLocal mod)
+
+loadedNames :: Loaded -> [Name]
+loadedNames l
+  = gammaNames (loadedGamma l)
+
+loadedMatchNames :: Loaded -> [String]
+loadedMatchNames l
+  = map (showPlain . unqualify) $ filter (not . isHiddenName) (loadedNames l)
+  where
+    -- good (c:_) = (c /= '.')
+
 
 {---------------------------------------------------------------
 

@@ -78,10 +78,9 @@ prettyCore env0 target inlineDefs core@(Core name imports fixDefs typeDefGroups 
       , separator "external declarations"
       , map (prettyExternal env) externals
       , separator "inline definitions"
-      , if (coreInlineMax env0 < 0 || not (coreIface env0) || null inlineDefs)
+      , if (not (coreIface env0) || null inlineDefs)
          then []
          else [text "//.inline-section"] ++
-              -- map (prettyInlineDefGroup env1{coreInlineMax = coreInlineMax env0}) defGroups
                map (prettyInlineDef env1) inlineDefs
       ]
       -- ,
@@ -110,7 +109,6 @@ prettyCore env0 target inlineDefs core@(Core name imports fixDefs typeDefGroups 
     env1         = env0{ importsMap =  extendImportMap extraImports (importsMap env0),
                          coreShowTypes = (coreShowTypes env0 || coreIface env0),
                          showKinds = (showKinds env0 || coreIface env0),
-                         coreInlineMax = (-1),
                          coreShowDef = not (coreIface env0) }
 
 prettyImport env imp
@@ -204,11 +202,11 @@ prettyDefGroup env (DefRec defs)
   = -- (\ds -> text "rec {" <-> tab ds <-> text "}") $
     text "rec {" <+> align (prettyDefs env defs) </> text "}"
 prettyDefGroup env (DefNonRec def)
-  = prettyDef env def
+  = prettyDefX env False def
 
 prettyDefs :: Env -> Defs -> Doc
 prettyDefs env (defs)
-  = vcat (map (prettyDef env) defs)
+  = vcat (map (prettyDefX env True) defs)
 
 {-
 prettyInlineDefGroup :: Env -> DefGroup -> Doc
@@ -234,8 +232,9 @@ prettyInlineDef env isRec def@(Def name scheme expr vis sort inl nameRng doc)
 -}
 
 prettyInlineDef :: Env ->  InlineDef -> Doc
-prettyInlineDef env (InlineDef name expr isRec cost)
+prettyInlineDef env (InlineDef name expr isRec cost specArgs)
   =     (if isRec then (keyword env "recursive ") else empty)
+    <.> (if (null specArgs) then empty else (keyword env "specialize " <.> prettySpecArgs <.> text " "))
     <.> (if (cost <= 0) then (keyword env "inline ") else empty)
     <.> keyword env (if isFun then "fun" else "val")
     <+> (if nameIsNil name then text "_" else prettyDefName env name)
@@ -248,16 +247,25 @@ prettyInlineDef env (InlineDef name expr isRec cost)
               Lam _ _ _             -> True
               _                     -> False
 
-prettyDef :: Env -> Def -> Doc
-prettyDef env def@(Def name scheme expr vis sort inl nameRng doc)
+    prettySpecArgs 
+      = dquotes (text [if spec then '*' else '_' | spec <- specArgs])
+
+prettyDef :: Env-> Def -> Doc
+prettyDef env def = prettyDefX env True def
+
+prettyDefX env isRec def@(Def name scheme expr vis sort inl nameRng doc)
   = prettyComment env doc $
-    prettyVis env vis $
-    keyword env (show sort)
-    <+> (if nameIsNil name then text "_" else prettyDefName env name)
-    <+> text ":" <+> prettyType env scheme
-    <.> (if (not (coreShowDef env)) -- && (sizeDef def >= coreInlineMax env)
-          then empty
-          else linebreak <.> indent 2 (text "=" <+> prettyExpr env{coreShowVis=False} expr)) <.> semi
+    if (nameIsNil name && not isRec && coreShowDef env && not (coreShowVis env))
+      then ppBody <.> semi
+      else prettyVis env vis $
+            keyword env (show sort)
+            <+> (if nameIsNil name then text "_" else prettyDefName env name)
+            <+> text ":" <+> prettyType env scheme
+            <.> (if (not (coreShowDef env)) -- && (sizeDef def >= coreInlineMax env)
+                  then empty
+                  else linebreak <.> indent 2 (text "=" <+> ppBody)) <.> semi
+  where
+    ppBody = prettyExpr env{coreShowVis=False} expr 
 
 prettyVis env vis doc
   = if (not (coreShowVis env)) then doc else
@@ -341,7 +349,7 @@ prettyExpr env (Lit lit)
 -- Let
 prettyExpr env (Let ([DefNonRec (Def x tp e vis isVal inl nameRng doc)]) e')
   = vcat [ let exprDoc = prettyExpr env e <.> semi
-           in if (x==nameNil) then exprDoc
+           in if (nameIsNil x) then exprDoc
                else (text "val" <+> hang 2 (prettyDefName env x <+> text ":" <+> prettyType env tp <-> text "=" <+> exprDoc))
          , prettyExpr env e'
          ]

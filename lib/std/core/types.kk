@@ -296,7 +296,7 @@ private inline extern unsafe-no-local-cast : forall<a,e> ( action : () -> <local
 
 // If local mutation is unobservable, the `:local` effect can be erased by using the `local-scope` function.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
-inline fun local-scope<e,a>( action : forall<h> () -> <local<h> | e> a) : e a  {
+inline fun local-scope<a,e>( action : forall<h> () -> <local<h> | e> a) : e a  {
   unsafe-no-local-cast(action)()
 }
 

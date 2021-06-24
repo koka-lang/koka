@@ -47,9 +47,9 @@ trace s x =
   -- Lib.Trace.trace s
     x
 
-monTransform :: Pretty.Env -> DefGroups -> Error DefGroups
-monTransform penv defs
-  = runMon penv 0 (monDefGroups defs)
+monTransform :: Pretty.Env -> CorePhase ()
+monTransform penv 
+  = liftCorePhaseUniq $ \uniq defs -> runMon penv uniq (monDefGroups defs)
 
 
 {--------------------------------------------------------------------------
@@ -361,10 +361,10 @@ data State = State{ uniq :: Int }
 
 data Result a = Ok a State
 
-runMon :: Monad m => Pretty.Env -> Int -> Mon a -> m a
+runMon :: Pretty.Env -> Int -> Mon a -> (a,Int)
 runMon penv u (Mon c)
   = case c (Env [] False penv) (State u) of
-      Ok x _ -> return x
+      Ok x (State u') -> (x,u')
 
 instance Functor Mon where
   fmap f (Mon c)  = Mon (\env st -> case c env st of

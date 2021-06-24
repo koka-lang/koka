@@ -847,7 +847,7 @@ runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap ->
 runInfer env mbrm syns newTypes imports assumption context unique (Inf f)
   = case f (Env env context (newName "") False newTypes syns assumption infgammaEmpty imports False False) (St unique subNull [] mbrm) of
       Err err warnings -> addWarnings warnings (errorMsg (ErrorType [err]))
-      Ok x st warnings -> addWarnings warnings (ok (x,uniq st, (sub st) |-> mbRangeMap st))
+      Ok x st warnings -> addWarnings warnings (ok (x, uniq st, (sub st) |-> mbRangeMap st))
 
 
 zapSubst :: Inf ()

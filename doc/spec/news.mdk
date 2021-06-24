@@ -1,8 +1,9 @@
 ~ begin news
 News:
 
-* 2021-06-10: Koka v2.1.6 released.
+* 2021-06-17: Koka v2.1.8 released, initial Apple M1 support.
 * The [Perceus] paper won a distinguished paper award at PLDI'21!
+* 2021-06-10: Koka v2.1.6 released.
 * 2021-05-31: Koka v2.1.4 released.
 * 2021-05-01: Koka v2.1.2 released.
 * 2021-03-08: Koka v2.1.1 released.

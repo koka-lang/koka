@@ -42,12 +42,13 @@ import Common.Failure
 import Lib.Printer            ( withNewFilePrinter )
 import Common.Range           -- ( Range, sourceName )
 import Common.Name            -- ( Name, newName, qualify, asciiEncode )
-import Common.NamePrim        ( nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync, nameTpNamed )
+import Common.NamePrim        ( isPrimitiveModule, nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync, nameTpNamed )
 import Common.Error
 import Common.File
 import Common.ColorScheme
 import Common.Message         ( table )
 import Common.Syntax
+import Common.Unique
 import Syntax.Syntax
 -- import Syntax.Lexer           ( readInput )
 import Syntax.Parse           ( parseProgramFromFile, parseValueDef, parseExpression, parseTypeDef, parseType )
@@ -63,6 +64,7 @@ import Core.Monadic           ( monTransform )
 import Core.MonadicLift       ( monadicLift )
 import Core.Inlines           ( inlinesExtends, extractInlineDefs )
 import Core.Inline            ( inlineDefs )
+import Core.Specialize
 
 import Static.BindingGroups   ( bindingGroups )
 import Static.FixityResolve   ( fixityResolve, fixitiesNew, fixitiesCompose )
@@ -79,7 +81,7 @@ import Type.Infer             ( inferTypes )
 import Type.Pretty hiding     ( verbose )
 import Compiler.Options       ( Flags(..), CC(..), BuildType(..), buildType, ccFlagsBuildFromFlags, unquote,
                                 prettyEnvFromFlags, colorSchemeFromFlags, prettyIncludePath, isValueFromFlags,
-                                buildDir, outName, configType )
+                                buildDir, outName, buildVariant )
 
 import Compiler.Module
 
@@ -105,6 +107,8 @@ import Compiler.Package
 
 -- Debugging
 import Lib.Trace
+
+import qualified Data.Map
 
 
 {--------------------------------------------------------------------------
@@ -727,7 +731,7 @@ searchOutputIface flags name
        exist <- doesFileExist iface
        -- trace ("search output iface: " ++ show name ++ ": " ++ iface ++ " (" ++ (if exist then "found" else "not found" ) ++ ")") $ return ()
        if exist then return (Just iface)
-         else do let libIface = joinPaths [localLibDir flags, configType flags, postfix]
+         else do let libIface = joinPaths [localLibDir flags, buildVariant flags, postfix]
                  libExist <- doesFileExist libIface
                  return (if (libExist) then ({-trace ("found lib iface: " ++ libIface) $ -} Just libIface) else Nothing)
 
@@ -799,7 +803,147 @@ typeCheck loaded flags line coreImports program
        addWarnings warnings (inferCheck loaded1 flags line coreImports program2 )
 
 
+inferCheck :: Loaded -> Flags -> Int -> [Core.Import] -> UserProgram -> Error Loaded
+inferCheck loaded0 flags line coreImports program
+  = Core.runCorePhase (loadedUnique loaded0) $
+    do -- kind inference
+       
+       (defs, kgamma, synonyms, newtypes, constructors, coreProgram, mbRangeMap0)
+         <- inferKinds
+              (isValueFromFlags flags)
+              (colorSchemeFromFlags flags)
+              (platform flags)
+              (if (outHtml flags > 0) then Just rangeMapNew else Nothing)
+              (loadedImportMap loaded0)
+              (loadedKGamma loaded0)
+              (loadedSynonyms loaded0)
+              (loadedNewtypes loaded0)
+              program
 
+       let  gamma0  = gammaUnions [loadedGamma loaded0
+                                  ,extractGamma (isValueFromFlags flags) True coreProgram
+                                  ,extractGammaImports (importsList (loadedImportMap loaded0)) (getName program)
+                                  ]
+            loaded  = loaded0 { loadedKGamma  = kgamma
+                              , loadedGamma   = gamma0
+                              , loadedSynonyms= synonyms
+                              , loadedNewtypes= newtypes -- newtypesCompose (loadedNewtypes loaded) newtypes
+                              , loadedConstructors=constructors
+                              }
+            penv    = prettyEnv loaded flags
+            
+            traceDefGroups title  
+              = do dgs <- Core.getCoreDefs 
+                   trace (unlines (["","-----------------", title, "---------------"] ++ 
+                          map showDef (Core.flattenDefGroups dgs))) $ return ()
+              where 
+                showDef def = show (Core.Pretty.prettyDef (penv{coreShowDef=True}) def)
+
+
+       -- Type inference
+       (gamma,cdefs,mbRangeMap)
+         <- inferTypes
+              penv
+              mbRangeMap0
+              (loadedSynonyms loaded)
+              (loadedNewtypes loaded)
+              (loadedConstructors loaded)
+              (loadedImportMap loaded)
+              (loadedGamma loaded)
+              (getName program)
+              defs 
+       Core.setCoreDefs cdefs      
+       
+       -- check generated core
+       let checkCoreDefs title = when (coreCheck flags) (trace ("checking " ++ title) $ 
+                                                         Core.Check.checkCore False False penv gamma)    
+       -- checkCoreDefs "initial"
+
+       -- remove return statements
+       unreturn penv
+       -- checkCoreDefs "unreturn"
+       
+       let ndebug  = optimize flags > 0
+           simplifyX dupMax = simplifyDefs penv False {-unsafe-} ndebug (simplify flags) dupMax
+           simplifyDupN     = when (simplify flags >= 0) $
+                              simplifyX (simplifyMaxDup flags)
+           simplifyNoDup    = simplifyX 0
+       simplifyNoDup
+       -- traceDefGroups "simplify"
+       
+       -- specialize 
+       specializeDefs <- Core.withCoreDefs (\defs -> extractSpecializeDefs defs)
+       -- trace ("Spec defs:\n" ++ show specializeDefs) $ return ()
+       
+       when (optSpecialize flags) $
+         specialize (inlinesExtends specializeDefs (loadedInlines loaded))
+       -- traceDefGroups "specialize"
+
+       -- lifting recursive functions to top level
+       liftFunctions penv
+       simplifyNoDup
+       checkCoreDefs "lifted"
+       -- traceDefGroups "lifted"
+
+       -- tail-call-modulo-cons optimization
+       when (optctail flags) $
+         ctailOptimize penv (platform flags) newtypes gamma (optctailInline flags) 
+
+       -- transform effects to explicit monadic binding (and resolve .open calls)
+       when (enableMon flags && not (isPrimitiveModule (Core.coreProgName coreProgram))) $
+          -- trace "monadic transform" $
+          do Core.Monadic.monTransform penv
+             openResolve penv gamma
+       checkCoreDefs "monadic transform"
+
+       -- full simplification
+       simplifyDupN 
+             
+       -- monadic lifting to create fast inlined paths
+       monadicLift penv
+       checkCoreDefs "monadic lifting"
+       -- traceDefGroups "monadic lift"
+
+       -- inline: inline local definitions more aggressively (2x)
+       inlineDefs penv (2*(optInlineMax flags)) (loadedInlines loaded) 
+       checkCoreDefs "inlined"
+       -- traceDefGroups "inlined"
+
+       simplifyDefs penv True {-unsafe-} ndebug (simplify flags) 0 -- remove remaining .open
+
+       -- full simplification
+       simplifyDupN
+       checkCoreDefs "final" 
+       -- traceDefGroups "final"
+
+       -- Assemble core program and return
+       coreDefsFinal <- Core.getCoreDefs
+       uniqueFinal   <- unique
+       -- traceM ("final: " ++ show uniqueFinal)
+       let -- extract inline definitions to export
+           localInlineDefs  = extractInlineDefs (optInlineMax flags) coreDefsFinal 
+           allInlineDefs    = localInlineDefs ++ specializeDefs
+
+           coreProgramFinal 
+            = uniquefy $
+              coreProgram { Core.coreProgImports = coreImports
+                          , Core.coreProgDefs = coreDefsFinal  
+                          , Core.coreProgFixDefs = [Core.FixDef name fix | FixDef name fix rng <- programFixDefs program]
+                          }
+
+           loadedFinal = loaded { loadedGamma = gamma
+                                , loadedUnique = uniqueFinal
+                                , loadedModule = (loadedModule loaded){
+                                                    modCore     = coreProgramFinal,
+                                                    modRangeMap = mbRangeMap,
+                                                    modInlines  = Right allInlineDefs
+                                                  }
+                                , loadedInlines = inlinesExtends allInlineDefs (loadedInlines loaded)
+                                }
+
+       return loadedFinal
+
+{-
 inferCheck :: Loaded -> Flags -> Int -> [Core.Import] -> UserProgram -> Error Loaded
 inferCheck loaded flags line coreImports program1
   = -- trace ("typecheck: imports: " ++ show ((map Core.importName) coreImports)) $
@@ -871,23 +1015,38 @@ inferCheck loaded flags line coreImports program1
 
        -- traceDefGroups "unreturn" coreDefsUR
 
-       -- lifting recursive functions to top level
-       let (coreDefsLifted,uniqueLift) = liftFunctions penv unique4 coreDefsUR
-       when (coreCheck flags) $ -- trace "lift functions core check" $
-                                Core.Check.checkCore True True penv uniqueLift gamma coreDefsLifted
-
        -- simplify core
        let ndebug = optimize flags > 0
-           (coreDefsSimp0,uniqueSimp0) = simplifyDefs False ndebug (simplify flags) (0) uniqueLift penv coreDefsLifted
+           (coreDefsSimp0,uniqueSimp0) = simplifyDefs False ndebug (simplify flags) (0) unique4 penv coreDefsUR
 
        -- traceDefGroups "lifted" coreDefsSimp0
 
+       let specializeDefs = extractSpecializeDefs coreDefsSimp0
+       traceM "Spec defs:"
+       traceM (show specializeDefs)
+
+       let (coreDefsSpec, uniqueSpec) 
+            = if (optSpecialize flags)
+                then specialize penv uniqueSimp0 (inlinesExtends specializeDefs (loadedInlines loaded3)) coreDefsSimp0
+                else (coreDefsSimp0, uniqueSimp0)
+
+       -- traceShowM coreDefsSpec
+       -- mapM (Core.mapMDefGroup (\x -> traceShowM (Core.defName x) >> traceShowM (Core.defExpr x) >> pure x)) coreDefsSpec
+            
+       -- lifting recursive functions to top level
+       let (coreDefsLifted0,uniqueLifted0) = liftFunctions penv uniqueSpec coreDefsSpec
+       when (coreCheck flags) $ -- trace "lift functions core check" $
+                                Core.Check.checkCore True True penv uniqueLifted0 gamma coreDefsLifted0
+
+       let (coreDefsLifted,uniqueLifted) = simplifyDefs False ndebug (simplify flags) (0) uniqueLifted0 penv coreDefsLifted0
+
+       traceDefGroups "lifted" coreDefsLifted
 
        -- constructor tail optimization
        let (coreDefsCTail,uniqueCTail)
                   = if (optctail flags)
-                     then ctailOptimize penv (platform flags) newtypes gamma (optctailInline flags) coreDefsSimp0 uniqueSimp0
-                     else (coreDefsSimp0,uniqueSimp0)
+                     then ctailOptimize penv (platform flags) newtypes gamma (optctailInline flags) coreDefsLifted uniqueLifted
+                     else (coreDefsLifted, uniqueLifted)
 
        -- traceDefGroups "ctail" coreDefsCTail
 
@@ -955,6 +1114,8 @@ inferCheck loaded flags line coreImports program1
        -- traceDefGroups "monadic lift" coreDefsMonL
 
        -- do an inlining pass
+       -- disable inline pass
+       --  let (coreDefsInl,uniqueInl) = (coreDefsMonL, uniqueMonL) -- inlineDefs penv uniqueMonL (loadedInlines loaded3) coreDefsMonL
        let (coreDefsInl,uniqueInl) = inlineDefs penv uniqueMonL (loadedInlines loaded3) coreDefsMonL
        when (coreCheck flags) $ -- trace "inlined functions core check" $
                                 Core.Check.checkCore True True penv uniqueInl gamma coreDefsInl
@@ -994,6 +1155,7 @@ inferCheck loaded flags line coreImports program1
        let coreDefsLast = coreDefsSimp2
            uniqueLast   = uniqueSimp2
            inlineDefs   = extractInlineDefs (coreInlineMax penv) coreDefsLast
+           allInlineDefs = inlineDefs ++ specializeDefs
 
            coreProgram2 = -- Core.Core (getName program1) [] [] coreTypeDefs coreDefs0 coreExternals
                           uniquefy $
@@ -1007,13 +1169,13 @@ inferCheck loaded flags line coreImports program1
                             , loadedModule = (loadedModule loaded3){
                                                 modCore = coreProgram2,
                                                 modRangeMap = mbRangeMap2,
-                                                modInlines  = Right inlineDefs
+                                                modInlines  = Right allInlineDefs
                                               }
-                            , loadedInlines = inlinesExtends inlineDefs (loadedInlines loaded3)
+                            , loadedInlines = inlinesExtends allInlineDefs (loadedInlines loaded3)
                             }
 
        return loaded4
-
+-}
 
 modulePath mod
   = let path = maybe "" (sourceName . programSource) (modProgram mod)
@@ -1255,7 +1417,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
        Just _ ->
          do currentDir <- getCurrentDirectory
             -- kklibInstallDir = joinPath kklibDir "out/install"
-            -- installKKLib term flags kklibDir kklibInstallDir cmakeGeneratorFlag cmakeConfigTypeFlag configType
+            -- installKKLib term flags kklibDir kklibInstallDir cmakeGeneratorFlag cmakeConfigTypeFlag buildVariant
 
             let mainModName= showModName (Core.coreProgName core0)
                 mainName   = if null (exeName flags) then mainModName else exeName flags
@@ -1435,7 +1597,7 @@ kklibBuild :: Terminal -> Flags -> CC -> String -> FilePath -> IO FilePath
 kklibBuild term flags cc name {-kklib-} objFile {-libkklib.o-}
   = do let objPath = outName flags objFile  {-out/v2.x.x/clang-debug/libkklib.o-}
        exist <- doesFileExist objPath
-       let binObjPath = joinPath (localLibDir flags) (configType flags ++ "/" ++ objFile)
+       let binObjPath = joinPath (localLibDir flags) (buildVariant flags ++ "/" ++ objFile)
        let srcLibDir  = joinPath (localShareDir flags) (name)
        binExist <- doesFileExist binObjPath
        binNewer <- if (not binExist) then return False
@@ -1460,7 +1622,9 @@ kklibBuild term flags cc name {-kklib-} objFile {-libkklib.o-}
                                      color (colorSource (colorScheme flags)) (text srcLibDir)
                    let flags0 = if (useStdAlloc flags) then flags 
                                   else flags{ ccompIncludeDirs = ccompIncludeDirs flags ++ [localShareDir flags ++ "/kklib/mimalloc/include"] }
-                       flags1 = flags0{ ccompDefs = ccompDefs flags ++ [("KK_COMP_VERSION","\"" ++ version ++ "\"")] }
+                       flags1 = flags0{ ccompDefs = ccompDefs flags ++ 
+                                                    [("KK_COMP_VERSION","\"" ++ version ++ "\""),
+                                                     ("KK_CC_NAME", "\"" ++ ccName cc ++ "\"")] }
                    ccompile term flags1 cc objPath [joinPath srcLibDir "src/all.c"] 
        return objPath
 
@@ -1469,7 +1633,7 @@ cmakeLib :: Terminal -> Flags -> CC -> String -> FilePath -> [String] -> IO ()
 cmakeLib term flags cc libName {-kklib-} libFile {-libkklib.a-} cmakeGeneratorFlag
   = do let libPath = outName flags libFile  {-out/v2.x.x/clang-debug/libkklib.a-}
        exist <- doesFileExist libPath
-       let binLibPath = joinPath (localLibDir flags) (configType flags ++ "/" ++ libFile)
+       let binLibPath = joinPath (localLibDir flags) (buildVariant flags ++ "/" ++ libFile)
        let srcLibDir  = joinPath (localShareDir flags) (libName)
        binExist <- doesFileExist binLibPath
        binNewer <- if (not binExist) then return False

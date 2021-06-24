@@ -22,6 +22,7 @@ import Common.Name
 import Common.Unique
 import Common.Error
 import Common.Range
+import Common.Unique
 
 import Core.Core hiding (check)
 import qualified Core.Core as Core
@@ -41,12 +42,14 @@ import qualified Type.Operations as Op ( instantiateNoEx )
 
 import qualified Data.Set as S
 
-checkCore :: Bool -> Bool -> Env -> Int -> Gamma -> DefGroups -> Error ()
-checkCore liberalEffects allowPartialApps prettyEnv uniq gamma  defGroups
-  = case checkDefGroups defGroups (return ()) of
-      Check c -> case c uniq (CEnv liberalEffects allowPartialApps gamma prettyEnv []) of
-                   Ok x _  -> return x
-                   Err doc -> warningMsg (rangeNull, doc)
+checkCore :: Bool -> Bool -> Env -> Gamma -> CorePhase ()
+checkCore liberalEffects allowPartialApps prettyEnv gamma
+  = do uniq      <- unique
+       defGroups <- getCoreDefs
+       case checkDefGroups defGroups (return ()) of
+          Check c -> case c uniq (CEnv liberalEffects allowPartialApps gamma prettyEnv []) of
+                      Ok x _  -> return x
+                      Err doc -> liftError (warningMsg (rangeNull, doc))
 
 
 

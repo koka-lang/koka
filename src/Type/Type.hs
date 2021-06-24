@@ -582,7 +582,7 @@ labelNameEx tp
         -> (typeConName tc, idNumber id, targs)
       TApp (TCon tc) targs  -> assertion ("non-expanded type synonym used as label") (typeConName tc /= nameEffectExtend) $
                                (typeConName tc,0,targs)
-      _  -> failure "Type.Unify.labelName: label is not a constant"
+      _  -> failure "Type.Type.labelNameEx: label is not a constant"
 
 typePartial :: Type
 typePartial

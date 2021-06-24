@@ -14,7 +14,9 @@ module Common.NamePrim
           -- * Interpreter
             nameExpr, nameMain, nameType
           , nameInteractive, nameInteractiveModule
-          , nameSystemCore, nameCoreTypes, isSystemCoreName
+          , nameSystemCore, nameCoreTypes
+          , isSystemCoreName
+          , isPrimitiveModule -- no monadic lifting
           , nameOpExpr
 
           -- * Operations
@@ -447,6 +449,9 @@ nameDict        = newName "std/data/dict"
 isSystemCoreName name
   = let m = nameModule name
     in  m `elem` [nameId nameSystemCore, nameId nameCoreHnd, nameId nameCoreTypes]
+
+isPrimitiveModule name
+  = nameId name `elem` [nameId nameCoreHnd, nameId nameCoreTypes]
 
 {--------------------------------------------------------------------------
   Primitive kind constructors

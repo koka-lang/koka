@@ -26,7 +26,7 @@ import Lib.PPrint
 import Lib.Printer
 import Common.Failure         ( raiseIO, catchIO )
 import Common.ColorScheme
-import Common.File            ( notext, joinPath, searchPaths, runSystem, isPathSep )
+import Common.File            ( notext, joinPath, searchPaths, runSystem, isPathSep, startsWith )
 import Common.Name            ( Name, unqualify, qualify, newName )
 import Common.NamePrim        ( nameExpr, nameType, nameInteractive, nameInteractiveModule, nameSystemCore )
 import Common.Range
@@ -45,6 +45,7 @@ import Type.Assumption        ( gammaIsEmpty, ppGamma, infoType, gammaFilter )
 
 import Compiler.Options
 import Compiler.Compile
+import Compiler.Module 
 import Interpreter.Command
 
 {---------------------------------------------------------------
@@ -539,10 +540,13 @@ replace line col s fpath
 --------------------------------------------------------------------------}
 getCommand :: State -> IO Command
 getCommand st
-  = do let ansiPrompt = (if isAnsiPrinter (printer st)
-                          then ansiWithColor (colorInterpreter (colorSchemeFromFlags (flags st)))
-                          else id) "> "
-       mbInput <- readLineEx (includePath (flags st)) ansiPrompt (prompt st)
+  = do let ansiPrompt = if isConsolePrinter (printer st) 
+                          then "" 
+                          else if isAnsiPrinter (printer st)
+                            then ansiWithColor (colorInterpreter (colorSchemeFromFlags (flags st))) "> "
+                            else "> "
+
+       mbInput <- readLineEx (includePath (flags st)) (loadedMatchNames (loaded0 st)) ansiPrompt (prompt st)
        let input = maybe ":quit" id mbInput
        -- messageInfoLn st ("cmd: " ++ show input)
        let cmd   = readCommand input
@@ -649,20 +653,35 @@ messageHeader st
   where
     colors = colorSchemeFromFlags (flags st)
     header = color(colorInterpreter colors) $ vcat [
-        text " _          _           ____"
-       ,text "| |        | |         |__  \\"
-       ,text "| | __ ___ | | __ __ _  __) |"
-       ,text "| |/ // _ \\| |/ // _` || ___/ " <.> welcome
-       ,text "|   <| (_) |   <| (_| ||____| "  <.> headerVersion
-       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|       "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")
+        text " _         _ "
+       ,text "| |       | |"
+       ,text "| | _ ___ | | _ __ _"
+       ,text "| |/ / _ \\| |/ / _' |  " <.> welcome
+       ,text "|   ( (_) |   ( (_| |  "  <.> headerVersion
+       ,text "|_|\\_\\___/|_|\\_\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")                    
+       {-
+       ,text " _         _ "
+       ,text "| |       | |"
+       ,text "| | _ ___ | | _ __ _"
+       ,text "| |/ / _ \\| |/ / _' |  " <.> welcome
+       ,text "|   < (_) |   < (_| |  "  <.> headerVersion
+       ,text "|_|\\_\\___/|_|\\_\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")                    
+       ,text " _          _ "
+       ,text "| |        | |"
+       ,text "| | __ ___ | | __ __ _"
+       ,text "| |/ // _ \\| |/ // _` |  " <.> welcome
+       ,text "|   <| (_) |   <| (_| |  "  <.> headerVersion
+       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")
+       -}
        ]
     headerVersion = text $ "version " ++ version ++
-                           (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", "
+                           (if compilerBuildVariant /= "release" then (" (" ++ compilerBuildVariant ++ ")") else "") ++ ", "
                            ++ buildDate ++ targetMsg
     welcome       = text ("welcome to the " ++ Config.programName ++ " interactive compiler")
     targetMsg
       = case (target (flags st)) of
-          C  -> ", libc " ++ show (8*sizePtr (platform (flags st))) ++ "-bit"
+          C  -> ", " ++ "libc" -- osName 
+                ++ " " ++ cpuArch -- show (8*sizePtr (platform (flags st))) ++ "-bit"
                 ++ " (" ++ (ccName (ccomp (flags st))) ++ ")"
           JS -> ", node"
           CS -> ", .net"

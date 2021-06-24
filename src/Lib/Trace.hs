@@ -9,7 +9,7 @@
     Debug module to insert 'trace' statements.
 -}
 -----------------------------------------------------------------------------
-module Lib.Trace( trace, traceDoc, ctrace, Color(..), traceShowId, traceShow, traceM, traceShowM ) where
+module Lib.Trace( trace, traceDoc, ctrace, Color(..), traceShowId, traceShow, traceM, traceShowM, traceId, traceEq ) where
 
 import Lib.Printer
 import Lib.PPrint
@@ -24,6 +24,9 @@ traceShowM msg = traceM (show msg)
 traceM :: (Applicative m) => String -> m ()
 traceM msg = trace msg (pure ())
 
+traceId :: String -> String
+traceId x = trace x x
+
 traceShow :: (Show s) => s -> a -> a
 traceShow s = trace $ show s
 
@@ -32,7 +35,10 @@ traceShowId s = trace (show s) s
 
 traceDoc :: Doc -> a -> a
 traceDoc msg x = trace (show msg) x
-  
+
+traceEq :: (Show a) => String -> a -> a
+traceEq name val = trace (name ++ " = " ++ show val) val
+
 ctrace :: Color -> String -> a -> a
 ctrace clr msg x
   = seq (unsafePerformIO $ 

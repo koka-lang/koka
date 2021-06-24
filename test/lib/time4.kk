@@ -9,6 +9,7 @@
 module time4
 
 import std/time/timestamp
+import std/num/ddouble
 public import std/time
 
 /*----------------------------------------------------------------------------

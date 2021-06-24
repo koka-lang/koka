@@ -17,7 +17,7 @@ import Data.List       ( isPrefixOf )
 import Data.Char       ( toLower, isSpace )
 import Platform.Runtime( exCatch )
 import Debug.Trace( trace, traceStack )
-import Platform.Config( buildVariant )
+import Platform.Config( compilerBuildVariant )
 assertion :: String -> Bool -> a -> a
 assertion msg test x
   = if test
@@ -38,7 +38,7 @@ matchFailure msg
 
 raise :: String -> a
 raise msg
-  = if (buildVariant=="debug")
+  = if (compilerBuildVariant=="debug")
      then traceStack msg (error msg)
      else (error msg)
 

@@ -214,7 +214,7 @@ algorithms in a functional style.
 ~
 
 ~ begin content
-For  Linux (x64,arm64) and macOS (x64), you can install &koka; using:
+For  Linux (x64, arm64) and macOS (x64, M1), you can install &koka; using:
 
 &acopy;
 {.copy; data-value:"curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh"}
@@ -233,19 +233,19 @@ This also installs syntax highlighting for the VS Code and Atom editors.
 After installation, verify if &koka; installed correctly:
 
     $ koka
-     _          _           ____
-    | |        | |         |__  \
-    | | __ ___ | | __ __ _  __) |
-    | |/ // _ \| |/ // _' || ___/ welcome to the koka interactive compiler
-    |   <| (_) |   <| (_| ||____| version 2.1.7, Jun 12 2021, libc 64-bit (clang-cl)
-    |_|\_\\___/|_|\_\\__,_|       type :? for help
+     _         _
+    | |       | |
+    | | _ ___ | | _ __ _
+    | |/ / _ \| |/ / _' |  welcome to the koka interactive compiler
+    |   ( (_) |   ( (_| |  version 2.1.7, Jun 15 2021, libc x64 (gcc)
+    |_|\_\___/|_|\_\__,_|  type :? for help, and :q to quit
 
     loading: std/core
     loading: std/core/types
     loading: std/core/hnd
     > 
 
-Type ``:q`` to exit the interpreter.
+Type ``:q`` to exit the interactive environment.
 
 For detailed installation instructions and other platforms see the [releases] page.
 It is also straightforward to build the compiler [from source][build].

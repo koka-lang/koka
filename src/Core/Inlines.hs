@@ -74,7 +74,7 @@ extractInlineDefs costMax dgs
   = concatMap (extractDefGroup costMax) dgs
 
 extractDefGroup costMax (DefRec defs)
-  = catMaybes (map (extractInlineDef costMax True) defs)
+  = [] -- catMaybes (map (extractInlineDef costMax True) defs)
 extractDefGroup costMax (DefNonRec def)
   = maybeToList (extractInlineDef costMax False def)
 
@@ -85,7 +85,7 @@ extractInlineDef costMax isRec def
         if not inlinable then Nothing
          else let cost = if (defName def == nameBind2 || defName def == nameBind)  -- TODO: use generic mechanism? force-inline keyword?
                           then 0 else costDef def
-              in Just (InlineDef (defName def) (defExpr def) isRec cost)
+              in Just (InlineDef (defName def) (defExpr def) isRec cost [])
 
 instance Show Inlines where
  show = show . pretty

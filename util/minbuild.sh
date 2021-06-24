@@ -5,15 +5,15 @@
 # For use on platforms where stack is not working and to document
 # the minimal needed commands to build the full compiler.
 
-KOKA_VERSION=2.x.x
+KOKA_VERSION=2.1.9
 KOKA_VARIANT=release
 
 echo ""
-echo "------------------------------------------------------------"
+echo "-------------------------------------------------------------"
 echo "WARNING: this is a minimal build script for use on platforms"
-echo "         where 'stack' is not working."
-echo "         Use the 'stack build' command instead when possible"
-echo "------------------------------------------------------------"
+echo "         where 'stack' or 'cabal' are not working."
+echo "         Use 'stack build' or 'cabal new-build' when possible"
+echo "-------------------------------------------------------------"
 echo ""
 
 # check for ghc
@@ -27,7 +27,8 @@ if ! which ghc > /dev/null ; then
   exit 1
 fi  
 
-# generate the lexer if not provided
+# generate the lexer if not provided 
+# note: the Lexer.hs file can be copied from another platform as well.
 if ! [ -f src/Syntax/Lexer.hs ] ; then
   if ! which alex > /dev/null ; then
     echo "This build script requires 'alex'. Install it first, for example:"
@@ -39,17 +40,22 @@ if ! [ -f src/Syntax/Lexer.hs ] ; then
   alex src/Syntax/Lexer.x -g -o src/Syntax/Lexer.hs
 fi
 
-mkdir -p out/build
-set -o xtrace
+# create build directory
+mkdir -p out/minbuild
 
-# build the compiler 
-# - use -O2 for an optimized version
-# - add -DDARWIN on macOS, or -DWINDOWS on windows
-# - used packages:  base, containers, directory, process, mtl, haskeline
-ghc -isrc:src/Platform/cpp -odir=out/build -hidir=out/build -o out/build/koka \
-    -DKOKA_MAIN=\"koka\" -DKOKA_VARIANT=\"$KOKA_VARIANT\" -DKOKA_VERSION=\"$KOKA_VERSION\" \
-    --make src/Main.hs src/Platform/cpp/Platform/cconsole.c
+# extra defs (add -DDARWIN on macOS, or -DWINDOWS on windows)
+EXTRADEFS=
+case "$(uname)" in
+  [Dd]arwin)
+    EXTRADEFS="-DDARWIN";;
+esac  
+
+# build the compiler (for used packages see 'package.yaml')
+set -o xtrace
+ghc -isrc:src/Platform/cpp -odir=out/minbuild -hidir=out/minbuild -o out/minbuild/koka \
+    -DKOKA_MAIN=\"koka\" -DKOKA_VARIANT=\"$KOKA_VARIANT\" -DKOKA_VERSION=\"$KOKA_VERSION\" $EXTRADEFS \
+    --make -j4 -O2 src/Main.hs src/Platform/cpp/Platform/cconsole.c
 
 set +o xtrace
-echo "Koka compiled at: out/build/koka"    
+echo "Koka compiled at: out/minbuild/koka"    
 echo ""

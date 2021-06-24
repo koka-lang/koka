@@ -5,8 +5,7 @@
 -- terms of the Apache License, Version 2.0. A copy of the License can be
 -- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
-{-    Pretty-printer for core-F
--}
+-- Parse .kki interface files
 -----------------------------------------------------------------------------
 
 module Core.Parse( parseCore ) where
@@ -399,12 +398,27 @@ externalImportBody
 --------------------------------------------------------------------------}
 inlineDef :: Env -> LexParser InlineDef
 inlineDef env
-  = do (sort,inl,isRec,doc) <- pdefSort
+  = do (sort,inl,isRec,specArgs,doc) <- inlineDefSort
        -- inl        <- parseInline
        -- trace ("core inline def: " ++ show name) $ return ()
        (name,_) <- funid
        expr <- parseBody env
-       return (InlineDef (envQualify env name) expr isRec (if (inl==InlineAlways) then 0 else costExpr expr))
+       return (InlineDef (envQualify env name) expr isRec (if (inl==InlineAlways) then 0 else costExpr expr) specArgs)
+
+
+inlineDefSort
+  = do isRec <- do{ specialId "recursive"; return True } <|> return False
+       inl <- parseInline
+       spec <- do specialId "specialize" 
+                  (s,_) <- stringLit
+                  let args = [c == '*' | c <- s] 
+                  return args
+               <|> return []
+       (do (_,doc) <- dockeyword "fun"
+           return (DefFun,inl,isRec,spec,doc)
+        <|>
+        do (_,doc) <- dockeyword "val"
+           return (DefVal,inl,False,spec,doc))
 
 parseBody env
   = do keyword "="

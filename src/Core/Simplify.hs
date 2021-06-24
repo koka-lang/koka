@@ -37,20 +37,21 @@ import qualified Data.Set as S
 -- data Env = Env{ inlineMap :: M.NameMap Expr }
 -- data Info = Info{ occurrences :: M.NameMap Int }
 
-simplifyDefs :: Bool -> Bool -> Int -> Int -> Int -> Pretty.Env -> DefGroups -> (DefGroups,Int)
-simplifyDefs unsafe ndebug nRuns duplicationMax uniq penv defs
-  = runSimplify unsafe ndebug duplicationMax uniq penv (simplifyN nRuns (uniquefyDefBodies defs))
+simplifyDefs :: Pretty.Env -> Bool -> Bool -> Int -> Int -> CorePhase ()
+simplifyDefs penv unsafe ndebug nRuns duplicationMax 
+  = liftCorePhaseUniq $ \uniq defs ->
+    runSimplify unsafe ndebug duplicationMax uniq penv (simplifyN nRuns (uniquefyDefBodies defs))
 
-simplifyN :: Int -> DefGroups -> Simp DefGroups
+simplifyN :: Simplify a => Int -> a -> Simp a
 simplifyN nRuns defs
   = if (nRuns <= 0) then return defs
     else do defs' <- simplify defs
             simplifyN (nRuns-1) defs'
 
-uniqueSimplify :: Simplify a => Bool -> Bool -> Int -> a -> Unique a
-uniqueSimplify unsafe ndebug duplicationMax expr
+uniqueSimplify :: Simplify a => Pretty.Env -> Bool -> Bool -> Int -> Int -> a -> Unique a
+uniqueSimplify penv unsafe ndebug nRuns duplicationMax expr
   = do u <- unique
-       let (x,u') = runSimplify unsafe ndebug duplicationMax u Pretty.defaultEnv (simplify expr)
+       let (x,u') = runSimplify unsafe ndebug duplicationMax u penv (simplify expr) -- (simplifyN (if nRuns <= 0 then 1 else nRuns) expr)
        setUnique u'
        return x
 
@@ -195,9 +196,8 @@ topDown expr@(App app@(TypeApp (Var _ (InfoExternal [(Default,"#1")])) _) [arg])
 topDown expr@(App (Lam pars eff body) args) | length pars == length args
   = do newNames <- mapM uniqueTName pars
        let sub = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]
-           argsopt = replicate (length pars - length args) (Var (TName nameOptionalNone typeAny) InfoNone)
-           expr' = Let (zipWith makeDef newNames (args++argsopt)) (sub |~> body)
-       -- trace("simplify: " ++ show expr ++ " to " ++ show expr') $
+           expr' = makeLet (zipWith makeDef newNames args) (sub |~> body)
+       -- trace("simplify: " ++ show expr ++ "\n to " ++ show (prettyExpr (defaultEnv{coreShowDef=True}) expr')) $
        topDown expr'
   where
     makeDef (TName npar nparTp) arg
@@ -215,7 +215,7 @@ topDown expr@(App (TypeApp (TypeLam tpars (Lam pars eff body)) targs) args) | le
                        ++ show (map (pretty . typevarKind) tpars)) $ (return $! (substitute tsub body))
                        -}
        topDown $
-          Let (zipWith makeDef newNames args) (sub |~> (substitute tsub body))       
+          makeLet (zipWith makeDef newNames args) (sub |~> (substitute tsub body))       
   where
     makeDef (TName npar nparTp) arg
       = DefNonRec (Def npar nparTp arg Private DefVal InlineAuto rangeNull "")

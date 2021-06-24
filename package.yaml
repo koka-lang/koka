@@ -1,5 +1,12 @@
+# Note: when increasing the version, increase the version below at the cpp-options as well
+# Other files that contain a version are:
+# - util/install.sh
+# - util/install.bat
+# - util/Dockerfile
+# - util/minbuild
+
 name:       koka
-version:    2.1.7
+version:    2.1.9                   
 github:     "koka-lang/koka"
 license:    Apache-2.0
 author:     Daan Leijen
@@ -14,7 +21,6 @@ dependencies:
   - base >= 4.12
   - array
   - bytestring
-  - cond
   - containers
   - directory
   - mtl
@@ -42,11 +48,12 @@ executables:
     build-tools:
       - alex
     ghc-options:
-      - -rtsopts
+      - -rtsopts 
+      - -j8
     cpp-options:
       - -DKOKA_MAIN="koka"      
       - -DKOKA_VARIANT="release"
-      - -DKOKA_VERSION="2.1.7"
+      - -DKOKA_VERSION="2.1.9"
       # - -DREADLINE=1   # to avoid using Haskeline
     when:
       - condition: os(windows)

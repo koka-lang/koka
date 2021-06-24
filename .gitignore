@@ -4,10 +4,10 @@
 .vs/
 node_modules/
 out/
+bundle/
 dist/
-src/Syntax/Lexer.hs
+dist-newstyle/
 kklib/mimalloc-inline
-koka.cabal
 stack.yaml.lock
 package-lock.json
 test.kk
