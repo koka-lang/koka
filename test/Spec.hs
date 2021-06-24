@@ -23,16 +23,22 @@ commonFlags = ["-c", "-v0", "--console=raw",
 data Mode = Test | New | Update
   deriving (Eq, Ord, Show)
 
+
+data Options = Options{ mode :: Mode, cabal :: Bool, sysghc:: Bool }
+
+optionsDefault = Options Test False False
+
 data Cfg = Cfg{ flags   :: [String],
+                options :: Options,
                 exclude :: [String],
-                fexclude:: !(String -> Bool),
-                cabal :: Bool
+                fexclude:: !(String -> Bool)
               }  
 
-makeCfg flags []
-  = Cfg flags [] (\s -> False)
-makeCfg flags exclude
-  = Cfg flags exclude fexclude
+makeCfg :: [String] -> Options -> [String] -> Cfg
+makeCfg flags options []
+  = Cfg flags options [] (\s -> False)
+makeCfg flags options exclude
+  = Cfg flags options exclude fexclude
   where
     matcher item | any (\c -> c `elem` "()[]+*?") item = let r = mkRegex item
                                                          in (\s -> isJust (matchRegex r s))
@@ -51,18 +57,18 @@ instance JSON Cfg where
                  exclude = case valFromObj "exclude" obj of
                              Ok xs -> xs
                              _     -> []
-             in Ok (makeCfg flags exclude False)
-        JSNull     -> Ok (makeCfg [] [] False)
-        JSString s -> Ok (makeCfg (words (fromJSString s)) [] False)
+             in Ok (makeCfg flags optionsDefault exclude)
+        JSNull     -> Ok (makeCfg [] optionsDefault [])
+        JSString s -> Ok (makeCfg (words (fromJSString s)) optionsDefault [])
         _          -> Error ("invalid JSON object")
 
 extendCfg :: Cfg -> Cfg -> Cfg
-extendCfg (Cfg flags1 exclude1 fexclude1 cabal1) (Cfg flags2 exclude2 fexclude2 cabal2)
-  = Cfg (flags1 ++ flags2) (exclude1 ++ exclude2) (\s -> fexclude1 s || fexclude2 s) (cabal1 || cabal2)
+extendCfg (Cfg flags1 opts1 exclude1 fexclude1) (Cfg flags2 opts2 exclude2 fexclude2)
+  = Cfg (flags1 ++ flags2) opts1
+        (exclude1 ++ exclude2) (\s -> fexclude1 s || fexclude2 s)
 
-initialCfg :: Bool -> Cfg
-initialCfg cabal = makeCfg commonFlags [] cabal
-                        
+initialCfg :: Options -> Cfg
+initialCfg options = makeCfg commonFlags options [] 
                   
 
 readFlagsFile :: FilePath -> IO [String]
@@ -93,34 +99,35 @@ runKoka cfg fp
   = do caseFlags <- readFlagsFile (fp ++ ".flags")
        kokaDir <- getCurrentDirectory
        let relTest = makeRelative kokaDir fp
-       if (cabal cfg)
+       if (cabal (options cfg))
          then do let argv = ["new-run", "koka", "--"] ++ flags cfg ++ caseFlags ++ [relTest]
                  testSanitize kokaDir <$> readProcess "cabal" argv ""       
-         else do let argv = ["exec", "koka", "--"] ++ flags cfg ++ caseFlags ++ [relTest]
+         else do let stackFlags = if (sysghc (options cfg)) then ["--system-ghc","--skip-ghc-check"] else []
+                     argv = ["exec","koka"] ++ stackFlags ++ ["--"] ++ flags cfg ++ caseFlags ++ [relTest]
                  testSanitize kokaDir <$> readProcess "stack" argv ""
        
 
-makeTest :: Mode -> Cfg -> FilePath -> Spec
-makeTest mode cfg fp
+makeTest :: Cfg -> FilePath -> Spec
+makeTest cfg fp
   | takeExtension fp == ".kk"
       = do let expectedFile = fp ++ ".out"
            isTest <- runIO $ doesFileExist expectedFile
-           let shouldRun = not isTest && mode == New || isTest && mode /= New
+           let shouldRun = not isTest && mode (options cfg) == New || isTest && mode (options cfg) /= New
            when shouldRun $
              it (takeBaseName fp) $ do
                out <- runKoka cfg fp
-               unless (mode == Test) $ (withBinaryFile expectedFile WriteMode (\h -> hPutStr h out)) -- writeFile expectedFile out
+               unless (mode (options cfg) == Test) $ (withBinaryFile expectedFile WriteMode (\h -> hPutStr h out)) -- writeFile expectedFile out
                expected <- expectedSanitize <$> readFile expectedFile
                out `shouldBe` expected
   | otherwise
       = return ()
 
-discoverTests :: Bool -> Mode -> FilePath -> Spec
-discoverTests cabal mode p = discover (initialCfg cabal) "" p
+discoverTests :: Cfg -> FilePath -> Spec
+discoverTests cfg0 p = discover cfg0 "" p
   where discover cfg cat p
           = do isDirectory <- runIO $ doesDirectoryExist p
                if not isDirectory
-                 then makeTest mode cfg p
+                 then makeTest cfg p
                  else do
                    fs0  <- runIO (sort <$> listDirectory p)
                    cfg' <- runIO (readConfigFile cfg p)
@@ -147,37 +154,45 @@ readConfigFile cfg dir
           ('/':'/':rev) -> reverse rev
           _             -> cs
 
-parseMode :: String -> Mode
-parseMode "new" = New
-parseMode "update" = Update
-parseMode "test" = Test
-parseMode m = error $ "Unrecognized mode: " ++ show m
 
-getOpts :: [String] -> (Bool, Mode, [String])
-getOpts ("--mode":mode:args) =
-  let (cabal',mode',args') = getOpts args
-   in (cabal', max (parseMode mode) mode', args')
-getOpts ("--cabal":args) =
-  let (_,mode',args') = getOpts args
-  in (True,mode',args')
-getOpts (x:args) =
-  let (cabal,mode, args') = getOpts args
-   in (cabal,mode, x:args')
-getOpts [] = (False, Test, [])
+
+
+processOptions :: String -> (Options, [String]) -> (Options,[String])
+processOptions arg (options,hargs)
+  = if (take 7 arg == "--mode=") 
+      then let m = parseMode (drop 7 arg)
+           in (options{ mode = m }, hargs)
+    else if (arg == "--cabal") 
+      then (options{cabal=True}, hargs)
+    else if (arg == "--system-ghc")
+      then (options{sysghc=True}, hargs)
+      else (options, arg : hargs)
+  where
+    parseMode :: String -> Mode
+    parseMode "new" = New
+    parseMode "update" = Update
+    parseMode "test" = Test
+    parseMode m = error $ "Unrecognized mode: " ++ show m
+
+getOptions :: IO (Options , [String])
+getOptions 
+  = do argv <- getArgs  
+       return (foldr processOptions (optionsDefault,[]) argv)
 
 main :: IO ()
 main = do
   pwd <- getCurrentDirectory
-  (cabalArg, mode, args) <- getOpts <$> getArgs  
+  (options0, args) <- getOptions
   cabalEnv <- do stackExe <- lookupEnv "STACK_EXE"
                  return (maybe "" id stackExe == "")
-  let cabal = cabalArg || cabalEnv
+  let options = options0{ cabal = cabalEnv || cabal options0 }
   hcfg <- readConfig defaultConfig args
   putStrLn "pre-compiling standard libraries..."
   -- compile all standard libraries before testing so we can run in parallel
-  runKoka (initialCfg cabal) "util/link-test.kk" 
+  let cfg = initialCfg options
+  runKoka cfg "util/link-test.kk" 
   putStrLn "ok."
-  let spec = parallel $ discoverTests cabal mode (pwd </> "test")
+  let spec = parallel $ discoverTests cfg (pwd </> "test")
   summary <- withArgs [] (runSpec spec hcfg{configFormatter=Just specProgress})
   evaluateSummary summary
 
