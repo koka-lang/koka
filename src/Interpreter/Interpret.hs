@@ -113,10 +113,11 @@ interpreter st
 
 interpreterEx ::  State -> IO ()
 interpreterEx st
-  = do{ cmd <- getCommand st
-      -- ; messageLn ""
-      ; command st cmd
-      }
+  = do flush (printer st)
+       cmd <- getCommand st
+       -- ; messageLn ""
+       command st cmd
+      
 
 {---------------------------------------------------------------
   Interprete a command
@@ -540,7 +541,7 @@ replace line col s fpath
 --------------------------------------------------------------------------}
 getCommand :: State -> IO Command
 getCommand st
-  = do let ansiPrompt = if isConsolePrinter (printer st) 
+  = do let ansiPrompt = if isConsolePrinter (printer st) || osName == "macos"
                           then "" 
                           else if isAnsiPrinter (printer st)
                             then ansiWithColor (colorInterpreter (colorSchemeFromFlags (flags st))) "> "
