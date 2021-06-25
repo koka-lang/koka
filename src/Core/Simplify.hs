@@ -409,31 +409,48 @@ matchBranches scrutinee branches
       _ -> Nothing
   where
     f NoMatch branch = matchBranch scrutinee branch
-    f Unknown branch = matchBranch scrutinee branch
     f found _ = found
 
 matchBranch :: Expr -> Branch -> Match Expr
 matchBranch scrut (Branch [pat] [Guard guard expr]) | isExprTrue guard
-  = trace ("matchBranch start " ++ show guard ++ " pattern " ++ show pat)   $ matchPattern scrut pat expr
+  = trace ("matchBranch start " ++ show guard ++ " pattern " ++ show pat)   $ 
+    matchPattern Nothing scrut pat expr
 matchBranch scrut branch
   = trace ("matchBranch guard expr untrue ") Unknown
 
-matchPattern :: Expr -> Pattern -> Expr -> Match Expr
-matchPattern scrut pat expr =
-  trace ("matchPattern start pattern" ++ show pat ++ " scrut " ++ show scrut) $ case (scrut,pat) of
+matchPattern :: Maybe TName -> Expr -> Pattern -> Expr -> Match Expr
+matchPattern scrutName scrut pat expr =
+  trace ("matchPattern start pattern" ++ show pat ++ " scrut " ++ show scrut) $ 
+  case (scrut,pat) of    
     (Con name _repr, PatCon pname [] _prepr _ _ _ _info _)
-      | name == pname -> trace "matchPattern matched" $ Match expr
+      | name == pname -> trace "matchPattern matched"   $ Match expr
       | otherwise     -> trace "matchPattern no match " $ NoMatch
-    (_, PatCon _ patterns _ _ _ _ _ _) -> trace ("PatCon non empty patterns array " ++ show patterns) NoMatch
-    (_, PatVar name PatWild)
+    
+    (App (Con name _repr) args,
+     PatCon pname pats _prepr _ _ _ _info _) 
+      | name /= pname -> NoMatch
+    (App (TypeApp (Con name _repr) targs) args,
+     PatCon pname pats _prepr _ _ _ _info _) 
+      | name /= pname -> NoMatch
+      -- | name == pname -> -- match all subpatterns
+      -- | otherwise -> NoMatch
+    
+    (_, PatVar name pat)
       -> trace "matchPattern PatVar " $
-         let def = Def (getName name) (typeOf name) scrut Private DefVal InlineAuto rangeNull ""
-         in Match (Let [DefNonRec def] expr)
-    (_, PatVar name pattern) -> trace "matchPattern PatVar pattern " $ matchPattern scrut pattern expr
+         bindScrutIn (getName name) (matchPattern (Just name) scrut pat expr)
     (_, PatWild)
-      -> trace "matchPattern PatWild " $ let def = Def (nameNil) (typeOf scrut) scrut Private DefVal InlineAuto rangeNull ""
-         in Match (Let [DefNonRec def] expr)
+      -> bindScrutIn nameNil (Match expr)
     _ -> trace "matchPattern unknown " Unknown
+  where
+     bindScrutIn :: Name -> Match Expr -> Match Expr
+     bindScrutIn name (Match branch)
+      = let body = case scrutName of
+                     Nothing -> scrut
+                     Just nm -> Var nm InfoNone
+            def = Def name (typeOf scrut) body Private DefVal InlineAuto rangeNull ""
+        in Match (makeLet [DefNonRec def] branch)
+     bindScrutIn name found 
+      = found
 
 data Match a = Match a | Unknown | NoMatch
 
