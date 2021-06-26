@@ -269,7 +269,7 @@ The main development branches are:
 Currently (Jun 2021) `stack` is not always working well on the M1.
 You need to install `ghc` via `brew`:
 ```
-$ brew install ghc cabal-install haskell-stack
+$ brew install pkg-config ghc cabal-install haskell-stack
 ```
 
 Moreover, sometimes `stack` segfaults and running it inside `bash` seems to resolve the issue:
@@ -286,6 +286,10 @@ bash:~/koka$ stack --system-ghc --skip-ghc-check build
 bash:~/koka$ stack --system-ghc --skip-ghc-check exec koka
 ```
 
+and pass the `--system-ghc` flag to create an installation bundle as well:
+```
+bash:~/koka$ stack --system-ghc --skip-ghc-check exec koka -- util/bundle -- --system-ghc
+```
 
 ## Building with Cabal 
 
