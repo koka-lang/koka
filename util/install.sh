@@ -47,12 +47,12 @@ info() {
   fi
 }
 
-err_info() {
+warn() {
   echo "$@" >&2
 }
 
-die() {
-  err_info $@
+stop() {
+  warn $@
   exit 1
 }
 
@@ -98,6 +98,28 @@ detect_osarch() {
 }
 
 
+# ---------------------------------------------------------
+# detect previous koka installation
+# ---------------------------------------------------------
+
+KOKA_PREV_EXE=
+KOKA_PREV_VERSION=
+KOKA_PREV_PREFIX=
+
+detect_previous_install() {
+  if which koka > /dev/null ; then
+    KOKA_PREV_EXE="$(which koka)"
+    if [ -e "$KOKA_PREV_EXE" ] ; then 
+      KOKA_PREV_PREFIX="${KOKA_PREV_EXE%/bin/koka*}"   # remove trailing "/bin/koka*"
+      KOKA_PREV_VERSION="$($KOKA_PREV_EXE --version)"  # get version info
+      KOKA_PREV_VERSION="${KOKA_PREV_VERSION%%,*}"     # remove everything after the first ",*"
+      KOKA_PREV_VERSION="v${KOKA_PREV_VERSION#Koka }"  # remove "Koka " prefix 
+      # echo "found previous koka version $KOKA_PREV_VERSION (installed at: $KOKA_PREV_PREFIX)"
+    fi
+  fi
+}
+
+
 #---------------------------------------------------------
 # Command line options
 #---------------------------------------------------------
@@ -135,14 +157,14 @@ process_options() {
           MODE="uninstall";;
       -h|--help|-\?|help|\?)
           MODE="help";;
-      *) err_info "warning: unknown option \"$1\"."
+      *) warn "warning: unknown option \"$1\"."
     esac
     shift
   done
 
   # adjust x64 arch for older versions to amd64
   case "$VERSION" in
-    v2.0.*|v2.1.[0123456]*) 
+    v2.0.*|v2.1.[0123456]) 
       case "$OSARCH" in
         *-x64) OSARCH="${OSARCH%-x64}-amd64";;
       esac;;
@@ -150,7 +172,7 @@ process_options() {
 
   # adjust macos for older versions to osx
   case "$VERSION" in
-    v2.0.*|v2.1.[012345678]*)
+    v2.0.*|v2.1.[012345678])
       case "$OSARCH" in
         macos-*) OSARCH="osx-${OSARCH#macos-}";;
       esac;;
@@ -192,26 +214,6 @@ sudocmd() {
   fi
 }
 
-# ---------------------------------------------------------
-# Check for previous koka installation
-# ---------------------------------------------------------
-
-KOKA_PREV_EXE=
-KOKA_PREV_VERSION=
-KOKA_PREV_PREFIX=
-
-detect_previous_install() {
-  if which koka > /dev/null ; then
-    KOKA_PREV_EXE="$(which koka)"
-    if [ -e "$KOKA_PREV_EXE" ] ; then 
-      KOKA_PREV_PREFIX="${KOKA_PREV_EXE%/bin/koka*}"
-      KOKA_PREV_VERSION="$($KOKA_PREV_EXE --version)"  # get version info
-      KOKA_PREV_VERSION="${KOKA_PREV_VERSION%%,*}"     # remove everything after the first ,
-      KOKA_PREV_VERSION="v${KOKA_PREV_VERSION#Koka }"  # remove Koka prefix 
-      # echo "found previous koka version $KOKA_PREV_VERSION (installed at: $KOKA_PREV_PREFIX)"
-    fi
-  fi
-}
 
 # ---------------------------------------------------------
 # Install required packages
@@ -227,43 +229,43 @@ apt_get_install() {
   if [ "$missing" = "" ]; then
     info "Packages already installed"
   elif ! sudocmd apt-get install -y ${QUIET:+-qq}$missing; then
-    die "\ninstalling apt packages failed ($@).  Please run 'apt-get update' and try again."
+    stop "\ninstalling apt packages failed ($@).  Please run 'apt-get update' and try again."
   fi
 }
 
 dnf_install() {
   if ! sudocmd dnf install -y ${QUIET:+-q} "$@"; then
-    die "\ninstalling dnf packages failed ($@).  Please run 'dnf check-update' and try again."
+    stop "\ninstalling dnf packages failed ($@).  Please run 'dnf check-update' and try again."
   fi
 }
 
 dnf_groupinstall() {
   if ! sudocmd dnf groupinstall -y ${QUIET:+-q} "$@"; then
-    die "\ninstalling dnf package group failed ($@).  Please run 'dnf check-update' and try again."
+    stop "\ninstalling dnf package group failed ($@).  Please run 'dnf check-update' and try again."
   fi
 }
 
 pacman_install() {
   if ! sudocmd pacman -S --noconfirm ${QUIET:+-q} "$@"; then
-    die "\ninstalling pacman packages failed ($@).  Please run 'pacman -Sy' and try again."
+    stop "\ninstalling pacman packages failed ($@).  Please run 'pacman -Sy' and try again."
   fi
 }
 
 yum_install() {
   if ! sudocmd yum install -y ${QUIET:+-q} "$@"; then
-    die "\ninstalling yum packages failed ($@).  Please run 'yum check-update' and try again."
+    stop "\ninstalling yum packages failed ($@).  Please run 'yum check-update' and try again."
   fi
 }
 
 apk_install() {
   if ! sudocmd apk add --update ${QUIET:+-q} "$@"; then
-    die "\ninstalling apk packages failed ($@).  Please run 'apk update' and try again."
+    stop "\ninstalling apk packages failed ($@).  Please run 'apk update' and try again."
   fi
 }
 
 pkg_install() {
   if ! sudocmd pkg install -y "$@"; then
-    die "\ninstalling pkg packages failed ($@).  Please run 'pkg update' and try again."
+    stop "\ninstalling pkg packages failed ($@).  Please run 'pkg update' and try again."
   fi
 }
 
@@ -297,12 +299,12 @@ install_dependencies() {
 #---------------------------------------------------------
 
 download_failed() { # <program> <url>
-  err_info ""
-  err_info "Unable to download: $2"
-  err_info "  It may be that there is no binary installer available for this platform ($OSARCH)"
-  err_info "  Either specify another version using the '--version=<version>' flag,"
-  err_info "  or build Koka from source: <https://github.com/koka-lang/koka/#build-from-source>"
-  die ""
+  warn ""
+  warn "Unable to download: $2"
+  warn "  It may be that there is no binary installer available for this platform ($OSARCH)"
+  warn "  Either specify another version using the '--version=<version>' flag,"
+  warn "  or build Koka from source: <https://github.com/koka-lang/koka/#build-from-source>"
+  stop ""
 }
 
 download_dist() {
@@ -317,12 +319,12 @@ download_dist() {
           download_failed "wget" $1
         fi
       else
-        die "Neither 'curl' nor 'wget' is available; install one to continue."
+        stop "Neither 'curl' nor 'wget' is available; install one to continue."
       fi;;
     *)
       # echo "cp $1 to $2"
       if ! cp $1 $2 ; then
-        die "Unable to copy from $1"
+        stop "Unable to copy from $1"
       fi;;
   esac
 }
@@ -346,7 +348,7 @@ install_dist() {  # <prefix> <version>
   download_dist "$KOKA_DIST_SOURCE" "$KOKA_TEMP_DIR/koka-dist.tar.gz"
   info "Unpacking.."
   if ! tar -xzf "$KOKA_TEMP_DIR/koka-dist.tar.gz" -C "$KOKA_TEMP_DIR"; then
-    die "Extraction failed."
+    stop "Extraction failed."
   fi
 
   info "Installing to prefix: $prefix"  
@@ -355,21 +357,21 @@ install_dist() {  # <prefix> <version>
   if [ ! -d "$koka_bin_dir" ] ; then
     if ! mkdir -p "$koka_bin_dir" ; then
       if ! sudocmd mkdir -p "$koka_bin_dir" ; then
-        die "Cannot create $koka_bin_dir installation directory"
+        stop "Cannot create $koka_bin_dir installation directory"
       fi
     fi
   fi    
   if ! install -c -m 0755 "$KOKA_TEMP_DIR/bin/koka" "$koka_exe" 2>/dev/null; then
     if ! sudocmd install -c -o 0 -g 0 -m 0755 "$KOKA_TEMP_DIR/bin/koka" "$koka_exe"; then
-      die "Installation of koka to $koka_exe has failed"
+      stop "Installation of koka to $koka_exe has failed"
     fi
   else
     USE_SUDO="never"
   fi
-  info "- install executable to            : $koka_exe"
+  info "- install executable            : $koka_exe"
   
   # install symlink
-  info "- install executable symlink to    : $koka_symlink"
+  info "- install executable symlink    : $koka_symlink"
   if [ -L "$koka_symlink" ]; then
     if ! sudocmd rm -f "$koka_symlink"; then
       info "unable to remove old koka executable; continuing.."
@@ -380,17 +382,17 @@ install_dist() {  # <prefix> <version>
   fi
 
   # copy libraries
-  info "- install pre-compiled libraries to: $koka_lib_dir/$version"
+  info "- install pre-compiled libraries: $koka_lib_dir/$version"
   if [ -d "$KOKA_TEMP_DIR/lib" ] ; then
     if ! sudocmd cp -p -r "$KOKA_TEMP_DIR/lib" "$prefix/" ; then
-      die "Cannot copy pre-compiled libraries to $KOKA_TEMP_DIR/lib"
+      stop "Cannot copy pre-compiled libraries to $KOKA_TEMP_DIR/lib"
     fi
   else
     info "  (generic distribution does not contain precompiled libraries)"
   fi
-  info "- install source libraries to      : $koka_share_dir/$version"
+  info "- install source libraries      : $koka_share_dir/$version"
   if ! sudocmd cp -p -r "$KOKA_TEMP_DIR/share" "$prefix/" ; then
-    die "Cannot copy libraries to $KOKA_TEMP_DIR/share"
+    stop "Cannot copy libraries to $KOKA_TEMP_DIR/share"
   fi
 
   # install Atom editor support
@@ -417,7 +419,7 @@ install_dist() {  # <prefix> <version>
   vscode="code"
   if ! which "$vscode" > /dev/null ; then
     if [ "$(uname)" = "Darwin" ] ; then
-      vscode="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" # osx may not have code in the PATH
+      vscode="/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" # macOS may not have code in the PATH
     fi
   fi
   if which "$vscode" > /dev/null ; then
@@ -431,8 +433,8 @@ install_dist() {  # <prefix> <version>
   fi
 
   # emacs message
-  if ! which emacs ; then 
-    info "- emacs syntax mode can be found at: $koka_share_dir/$version/contrib/emacs" 
+  if which emacs ; then 
+    info "- emacs syntax mode installed at: $koka_share_dir/$version/contrib/emacs" 
   fi
 }
 
@@ -522,7 +524,7 @@ main_uninstall() {
       [yY][eE][sS]|[yY])
          info "Uninstalling..";;
       *) info "No"
-         die "Uninstall canceled";;
+         stop "Uninstall canceled";;
     esac
   fi
 
@@ -559,8 +561,10 @@ main_install() {
       *) 
         info "Uninstall of previous koka version is canceled";;
     esac
+  elif [ "$KOKA_PREV_PREFIX,$KOKA_PREV_VERSION" = "$PREFIX,$VERSION" ] ; then
+    info "Updated koka version $VERSION in-place"
   fi
-
+  
   info ""
   info "--------------------------------------------------"
   info "Installed Koka $VERSION at $PREFIX/bin/koka"
@@ -588,8 +592,8 @@ main_help() {
 
 main_start() {
   detect_osarch
-  process_options $@
   detect_previous_install  
+  process_options $@
   if [ "$MODE" = "help" ] ; then
     main_help    
   elif [ "$MODE" = "uninstall" ] ; then
