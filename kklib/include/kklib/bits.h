@@ -58,7 +58,7 @@ static inline uint16_t kk_bits_rotl16(uint16_t x, uint16_t shift) {
   return _rotl16(x, (uint8_t)shift);  // in <intrin.h>
 }
 static inline uint16_t kk_bits_rotr16(uint16_t x, uint16_t shift) {
-  return _rotr16(x, (uint8_t)shift);
+  return _rotr16(x, (uint8_t)shift);  
 }
 static inline uint32_t kk_bits_rotl32(uint32_t x, uint32_t shift) {
   return _lrotl(x, (int)shift);
@@ -108,11 +108,6 @@ static inline kk_uintx_t kk_bits_rotr(kk_uintx_t x, kk_uintx_t shift) {
   `ctz` count trailing zero bits  
 ----------------------------------------------------------- */
 
-static inline uint8_t kk_bits_clz32(uint32_t x);
-static inline uint8_t kk_bits_ctz32(uint32_t x);
-static inline uint8_t kk_bits_ctz64(uint64_t x);
-static inline uint8_t kk_bits_ctz64(uint64_t x);
-
 #if defined(__GNUC__)
 static inline uint8_t kk_bits_clz32(uint32_t x) {
   return (x==0 ? 32 : __builtin32(clz)(x));
@@ -130,7 +125,7 @@ static inline uint8_t kk_bits_ctz64(uint64_t x) {
 }
 #endif
 
-#elif defined(_MSC_VER) && (defined(_M_ARM64) || defined(_M_ARM) || defined(_M_X64) || defined(_M_IX86))
+#elif defined(_MSC_VER) && !defined(__clang_msvc__) && (defined(_M_ARM64) || defined(_M_ARM) || defined(_M_X64) || defined(_M_IX86))
 #include <intrin.h>
 
 #if defined(_M_X64) || defined(_M_IX86)
@@ -138,15 +133,15 @@ extern bool __has_lzcnt;  // initialized in runtime.c
 #endif
 
 static inline uint8_t kk_bits_clz32(uint32_t x) {
-  #if !defined(__clang__) && (defined(_M_X64) || defined(_M_IX86))
-  if (__has_lzcnt) return (uint8_t)__lzcnt(x);
+  #if defined(_M_X64) || defined(_M_IX86)
+  if (kk_likely(__has_lzcnt)) return (uint8_t)__lzcnt(x);
   #endif
   unsigned long idx;
   return (_BitScanReverse(&idx, x) ? 31 - (uint8_t)idx : 32);
 }
 static inline uint8_t kk_bits_ctz32(uint32_t x) {
-  #if !defined(__clang__) && (defined(_M_X64) || defined(_M_IX86))
-  if (__has_lzcnt) return (uint8_t)_tzcnt_u32(x);
+  #if defined(_M_X64) || defined(_M_IX86)
+  if (kk_likely(__has_lzcnt)) return (uint8_t)_tzcnt_u32(x);
   #endif
   unsigned long idx;
   return (_BitScanForward(&idx, x) ? (uint8_t)idx : 32);
@@ -154,15 +149,15 @@ static inline uint8_t kk_bits_ctz32(uint32_t x) {
 #if (KK_INTPTR_SIZE >= 8)
 #define HAS_BITS_CLZ64
 static inline uint8_t kk_bits_clz64(uint64_t x) {
-  #if !defined(__clang__) && (defined(_M_X64) || defined(_M_IX86))
-  if (__has_lzcnt) return (uint8_t)__lzcnt64(x);
+  #if defined(_M_X64) || defined(_M_IX86)
+  if (kk_likely(__has_lzcnt)) return (uint8_t)__lzcnt64(x);
   #endif
   unsigned long idx;
   return (_BitScanReverse64(&idx, x) ? 63 - (uint8_t)idx : 64);
 }
 static inline uint8_t kk_bits_ctz64(uint64_t x) {
-  #if !defined(__clang__) && (defined(_M_X64) || defined(_M_IX86))
-  if (__has_lzcnt) return (uint8_t)_tzcnt_u64(x);
+  #if defined(_M_X64) || defined(_M_IX86)
+  if (kk_likely(__has_lzcnt)) return (uint8_t)_tzcnt_u64(x);
   #endif
   unsigned long idx;
   return (_BitScanForward64(&idx, x) ? (uint8_t)idx : 64);
@@ -170,29 +165,9 @@ static inline uint8_t kk_bits_ctz64(uint64_t x) {
 #endif
 
 #else
-static inline uint8_t kk_bits_ctz32(uint32_t x) {
-  // de Bruijn multiplication, see <http://supertech.csail.mit.edu/papers/debruijn.pdf>
-  static const unsigned char debruijn[32] = {
-    0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
-    31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9
-  };
-  return debruijn[((x & -(int32_t)x) * KU32(0x077CB531)) >> 27];
-}
-
-static inline uint8_t kk_bits_clz32(uint32_t x) {
-  // de Bruijn multiplication, see <http://supertech.csail.mit.edu/papers/debruijn.pdf>
-  static const uint8_t debruijn[32] = {
-    31, 22, 30, 21, 18, 10, 29, 2, 20, 17, 15, 13, 9, 6, 28, 1, 
-    23, 19, 11, 3, 16, 14, 7, 24, 12, 4, 8, 25, 5, 26, 27, 0
-  };
-  if (x==0) return 32;
-  x |= x >> 1;
-  x |= x >> 2;
-  x |= x >> 4;
-  x |= x >> 8;
-  x |= x >> 16;
-  return debruijn[(uint32_t)(x * KU32(0x07C4ACDD)) >> 27];
-}
+#define KK_BITS_USE_GENERIC_CTZ_CLZ  1
+kk_decl_export uint8_t kk_bits_ctz32(uint32_t x);
+kk_decl_export uint8_t kk_bits_clz32(uint32_t x);
 #endif
 
 #ifndef HAS_BITS_CLZ64
@@ -298,19 +273,8 @@ static inline uint8_t kk_bits_byte_sum(kk_uintx_t x) {
   see <https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel>
 ------------------------------------------------------------------ */
 
-static inline uint32_t kk_bits_generic_count32(uint32_t x) {
-  x = x - ((x >> 1) & KU32(0x55555555));
-  x = (x & KU32(0x33333333)) + ((x >> 2) & KU32(0x33333333));
-  x = (x + (x >> 4)) & KU32(0x0F0F0F0F);
-  return kk_bits_byte_sum32(x);
-}
-
-static inline uint64_t kk_bits_generic_count64(uint64_t x) {
-  x = x - ((x >> 1) & KU64(0x5555555555555555));
-  x = (x & KU64(0x3333333333333333)) + ((x >> 2) & KU64(0x3333333333333333));
-  x = (x + (x >> 4)) & KU64(0x0F0F0F0F0F0F0F0F);
-  return kk_bits_byte_sum64(x);
-}
+kk_decl_export uint32_t kk_bits_generic_count32(uint32_t x);
+kk_decl_export uint64_t kk_bits_generic_count64(uint64_t x);
 
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
 #include <intrin.h>
@@ -401,6 +365,102 @@ static inline uint64_t kk_bits_bswap64(uint64_t x) {
   return ((hi << 32) | lo);
 }
 #endif
+
+static inline kk_uintx_t kk_bits_bswap(kk_uintx_t u) {
+  return kk_bitsx(bswap)(u);
+}
+
+/* ---------------------------------------------------------------
+  Endian neutral
+------------------------------------------------------------------ */
+
+#if defined(KK_IS_LITTLE_ENDIAN)
+#define KK_BITS_BSWAP_IF_BE(b,u) (u)
+#define KK_BITS_BSWAP_IF_LE(b,u) kk_bits_bswap##b(u)
+#else
+#define KK_BITS_BSWAP_IF_BE(b,u) kk_bits_bswap##b(u)
+#define KK_BITS_BSWAP_IF_LE(b,u) (u)
+#endif 
+
+static inline uint16_t kk_bits_bswap_to_le16(uint16_t u) {
+  return KK_BITS_BSWAP_IF_BE(16,u);
+}
+static inline uint16_t kk_bits_bswap_to_be16(uint16_t u) {
+  return KK_BITS_BSWAP_IF_LE(16, u);
+}
+static inline uint32_t kk_bits_bswap_to_le32(uint32_t u) {
+  return KK_BITS_BSWAP_IF_BE(32, u);
+}
+static inline uint32_t kk_bits_bswap_to_be32(uint32_t u) {
+  return KK_BITS_BSWAP_IF_LE(32, u);
+}
+static inline uint64_t kk_bits_bswap_to_le64(uint64_t u) {
+  return KK_BITS_BSWAP_IF_BE(64, u);
+}
+static inline uint64_t kk_bits_bswap_to_be64(uint64_t u) {
+  return KK_BITS_BSWAP_IF_LE(64, u);
+}
+static inline kk_uintx_t kk_bits_bswap_to_le(kk_uintx_t u) {
+  return kk_bitsx(bswap_to_le)(u);
+}
+static inline kk_uintx_t kk_bits_bswap_to_be(kk_uintx_t u) {
+  return kk_bitsx(bswap_to_be)(u);
+}
+
+static inline uint16_t kk_bits_bswap_from_le16(uint16_t u) {
+  return KK_BITS_BSWAP_IF_BE(16, u);
+}
+static inline uint16_t kk_bits_bswap_from_be16(uint16_t u) {
+  return KK_BITS_BSWAP_IF_LE(16, u);
+}
+static inline uint32_t kk_bits_bswap_from_le32(uint32_t u) {
+  return KK_BITS_BSWAP_IF_BE(32, u);
+}
+static inline uint32_t kk_bits_bswap_from_be32(uint32_t u) {
+  return KK_BITS_BSWAP_IF_LE(32, u);
+}
+static inline uint64_t kk_bits_bswap_from_le64(uint64_t u) {
+  return KK_BITS_BSWAP_IF_BE(64, u);
+}
+static inline uint64_t kk_bits_bswap_from_be64(uint64_t u) {
+  return KK_BITS_BSWAP_IF_LE(64, u);
+}
+static inline kk_uintx_t kk_bits_bswap_from_le(kk_uintx_t u) {
+  return kk_bitsx(bswap_from_le)(u);
+}
+static inline kk_uintx_t kk_bits_bswap_from_be(kk_uintx_t u) {
+  return kk_bitsx(bswap_from_be)(u);
+}
+
+
+/* ---------------------------------------------------------------
+  Floats to bits
+------------------------------------------------------------------ */
+
+static inline uint32_t kk_bits_from_float(float f) {
+  uint32_t x;
+  memcpy(&x, &f, sizeof(x));  // safe for C aliasing: see <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly>
+  return x;
+}
+
+static inline uint64_t kk_bits_from_double(double d) {
+  uint64_t x;
+  memcpy(&x, &d, sizeof(x));
+  return x;
+}
+
+static inline float kk_bits_to_float(uint32_t x) {
+  float f;
+  memcpy(&f, &x, sizeof(f));
+  return f;
+}
+
+static inline double kk_bits_to_double(uint64_t x) {
+  double d;
+  memcpy(&d, &x, sizeof(d));
+  return d;
+}
+
 
 /* ---------------------------------------------------------------
   Parity: returns `kk_bits_count(x) % 2`
