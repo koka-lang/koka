@@ -1,9 +1,9 @@
 /*----------------------------------------------------------------------------
-   Copyright (C) 2012-2016 Microsoft Corporation
+   Copyright 2012-2021, Microsoft Research, Daan Leijen
 
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
-   can be found in the file "license.txt" at the root of this distribution.
+   can be found in the LICENSE file at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
 // Parsing of time strings.
@@ -21,12 +21,12 @@ import std/time/locale
 import std/time/utc
 
 // -----------------------------------------------------------
-// Parsing
+// Parsing  
 // -----------------------------------------------------------
 
 /* Parse an [ISO 8601](https://en.wikipedia.org/wiki/ISO_8601) time string.
 The optional `calendar` (=`cal-iso`) argument can be given to interpret
-the date in a different calendar. If a time zone offset is given, the
+the date in a different calendar. 
 
 ````plain
 2008-12-31               // just date

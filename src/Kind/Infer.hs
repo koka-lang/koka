@@ -1,9 +1,9 @@
 ------------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Responsibilities of the kind checker:
@@ -31,7 +31,7 @@ import Data.Maybe(catMaybes)
 
 import Lib.PPrint
 import Common.Failure
-import Common.Unique( uniqueId )
+import Common.Unique( uniqueId, setUnique, unique )
 import Common.Error
 import Common.ColorScheme( ColorScheme, colorType, colorSource )
 import Common.Range
@@ -77,9 +77,9 @@ inferKinds
   -> KGamma           -- ^ Initial kind kgamma
   -> Synonyms         -- ^ Initial list of synonyms
   -> Newtypes         -- ^ Initial list of data types
-  -> Int              -- ^ Unique
   -> Program UserType UserKind  -- ^ Original program
-  -> Error ( DefGroups Type       --  Translated program (containing translated types)
+  -> Core.CorePhase 
+           ( DefGroups Type       --  Translated program (containing translated types)
            -- , Gamma                --  Gamma containing generated functions, i.e type scheme for every constructor
            , KGamma               --  updated kind gamma
            , Synonyms             --  Updated synonyms
@@ -88,38 +88,38 @@ inferKinds
            -- , Core.TypeDefGroups   --  Core type definition groups
            -- , Core.Externals       --  Core externals
            , Core.Core            --  Initial core program with type definition groups, externals, and some generated definitions for data types (like folds).
-           , Int                  --  New unique
            , Maybe RangeMap
            )
-inferKinds isValue colors platform mbRangeMap imports kgamma0 syns0 data0 unique0
+inferKinds isValue colors platform mbRangeMap imports kgamma0 syns0 data0 
             (Program source modName nameRange tdgroups defs importdefs externals fixdefs doc)
-  = let (errs1,warns1,rm1,unique1,(cgroups,kgamma1,syns1,data1)) = runKindInfer colors platform mbRangeMap modName imports kgamma0 syns0 data0 unique0 (infTypeDefGroups tdgroups)
-        (errs2,warns2,rm2,unique2,externals1)              = runKindInfer colors platform rm1 modName imports kgamma1 syns1 data1 unique1 (infExternals externals)
-        (errs3,warns3,rm3,unique3,defs1)                   = runKindInfer colors platform rm2 modName imports kgamma1 syns1 data1 unique2 (infDefGroups defs)
---        (errs4,warns4,unique4,cgroups)                 = runKindInfer colors modName imports kgamma1 syns1 unique3 (infCoreTDGroups cgroups)
-        (synInfos,dataInfos) = unzipEither (extractInfos cgroups)
-        conInfos  = concatMap dataInfoConstrs dataInfos
-        cons1     = constructorsFromList conInfos
-        gamma1    = constructorGamma isValue dataInfos
-        errs4     = constructorCheckDuplicates colors conInfos
-        errs      = errs1 ++ errs2 ++ errs3 ++ errs4
-        warns     = warns1 ++ warns2 ++ warns3
-        dgroups   = concatMap (synTypeDefGroup modName) cgroups
-    in addWarnings warns $
-       if (null errs)
-        then return (dgroups ++ defs1
-                    -- ,gamma1
-                    ,kgamma1
-                    ,syns1
-                    ,data1 -- newtypesNew dataInfos
-                    ,cons1
-                    -- ,cgroups
-                    -- ,externals1
-                    ,Core.Core modName [] [] cgroups [] externals1 doc
-                    ,unique3
-                    ,rm3
-                    )
-        else errorMsg (ErrorKind errs)
+  =do unique0 <- unique
+      let (errs1,warns1,rm1,unique1,(cgroups,kgamma1,syns1,data1)) = runKindInfer colors platform mbRangeMap modName imports kgamma0 syns0 data0 unique0 (infTypeDefGroups tdgroups)
+          (errs2,warns2,rm2,unique2,externals1)              = runKindInfer colors platform rm1 modName imports kgamma1 syns1 data1 unique1 (infExternals externals)
+          (errs3,warns3,rm3,unique3,defs1)                   = runKindInfer colors platform rm2 modName imports kgamma1 syns1 data1 unique2 (infDefGroups defs)
+  --        (errs4,warns4,unique4,cgroups)                 = runKindInfer colors modName imports kgamma1 syns1 unique3 (infCoreTDGroups cgroups)
+          (synInfos,dataInfos) = unzipEither (extractInfos cgroups)
+          conInfos  = concatMap dataInfoConstrs dataInfos
+          cons1     = constructorsFromList conInfos
+          gamma1    = constructorGamma isValue dataInfos
+          errs4     = constructorCheckDuplicates colors conInfos
+          errs      = errs1 ++ errs2 ++ errs3 ++ errs4
+          warns     = warns1 ++ warns2 ++ warns3
+          dgroups   = concatMap (synTypeDefGroup modName) cgroups
+      setUnique unique3
+      Core.liftError  (addWarnings warns $
+                        if (null errs)
+                          then return (dgroups ++ defs1
+                                      -- ,gamma1
+                                      ,kgamma1
+                                      ,syns1
+                                      ,data1 -- newtypesNew dataInfos
+                                      ,cons1
+                                      -- ,cgroups
+                                      -- ,externals1
+                                      ,Core.Core modName [] [] cgroups [] externals1 doc
+                                      ,rm3
+                                      )
+                          else errorMsg (ErrorKind errs))
 
 unzipEither :: [Either a b] -> ([a],[b])
 unzipEither xs
@@ -409,8 +409,6 @@ infExternal names (External name tp nameRng rng calls vis doc)
        -- trace ("infExternal: " ++ show cname ++ ": " ++ show (pretty tp')) $
        return (Core.External cname tp' (map (formatCall tp') calls)
                   vis nameRng doc, qname:names)
-infExternal names (ExternalInclude include range)
-  = return (Core.ExternalInclude include range, names)
 infExternal names (ExternalImport imports range)
   = return (Core.ExternalImport imports range, names)
 
@@ -420,7 +418,6 @@ formatCall tp (target,ExternalCall fname)
       CS      -> (target,formatCS)
       JS      -> (target,formatJS)
       C       -> (target,formatC)
-      CHeader -> (target,formatC)
       Default -> (target,formatJS)
   where
     (foralls,preds,rho) = splitPredType tp
@@ -890,8 +887,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
     maxDataDefs :: Platform -> Name -> Bool -> Doc -> [(Int,Int)] -> KInfer DataDef
     maxDataDefs platform name False nameDoc []  = return DataDefNormal
     maxDataDefs platform name True nameDoc []  -- primitive abstract value type with no constructors
-      = do let ptrSize = 8
-               size  = if (name == nameTpChar || name == nameTpInt32 || name == nameTpFloat32)
+      = do let size  = if (name == nameTpChar || name == nameTpInt32 || name == nameTpFloat32)
                         then 4
                        else if (name == nameTpFloat || name == nameTpInt64)
                         then 8
@@ -899,9 +895,9 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                         then 2
                        else if (name == nameTpInt8 || name == nameTpByte)
                         then 1
-                       else if (name == nameTpAny || name == nameTpCField)
+                       else if (name == nameTpAny || name == nameTpCField || name == nameTpPtrDiffT)
                         then (sizePtr platform)
-                       else if (name == nameTpSizeT)
+                       else if (name == nameTpSizeT || name==nameTpSSizeT)
                         then (sizeSize platform)
                         else 0
            m <- if (size <= 0)

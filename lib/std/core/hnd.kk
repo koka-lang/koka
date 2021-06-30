@@ -1,9 +1,9 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012-2020 Daan Leijen, Microsoft Corporation.
+  Copyright 2012-2021, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
-  found in the file "license.txt" at the root of this distribution.
+  found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
 /* Internal effect handler primitives.
@@ -16,7 +16,7 @@ public module std/core/hnd
 
 import std/core/types
 
-include extern {
+extern import {
   c  file "hnd-inline"
   js file "hnd-inline.js"
 }
@@ -57,7 +57,7 @@ abstract type ev<h> {
 
 private type evv<e::E>;
 
-public alias ev-index = size_t
+public alias ev-index = ssize_t
 
 // -------------------------------------------
 // Internal Markers
@@ -217,18 +217,18 @@ private extern yield-prompt( m: marker<e,r> ) : yld<e,a,r> {
   js "_yield_prompt"
 }
 
-private extern yield-to-prim( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e (() -> b) {
+private extern yield-to-prim( m : marker<e1,r>, clause : (resume-result<b,r> -> e1 r) -> e1 r ) : e (() -> b) {
   c  inline "kk_yield_to(#1,#2,kk_context())"
   js "$std_core_hnd._yield_to"
 }
 
-private extern yield-to-final( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e b {
+private extern yield-to-final( m : marker<e1,r>, clause : (resume-result<b,r> -> e1 r) -> e1 r ) : e b {
   c  inline "kk_yield_final(#1,#2,kk_context())"
   js "$std_core_hnd._yield_final"
 }
 
-private noinline fun yield-to( m : marker<e1,r>, clause : ((() -> b) -> e1 r) -> e1 r ) : e1 b {
-  val w0 = evv-get()
+private noinline fun yield-to( m : marker<e1,r>, clause : (resume-result<b,r> -> e1 r) -> e1 r ) : e1 b {
+  //val w0 = evv-get()
   val g : () -> _b = yield-to-prim(m, clause)
   yield-extend fn(f){
     // val keep1 = guard(w0)  // check the evidence is correctly restored
@@ -260,11 +260,17 @@ private inline extern cast-ev3( f:(a1,a2,a3) -> e1 b) : ((a1,a2,a3) -> e0 b) { i
 private inline extern cast-ev4( f:(a1,a2,a3,a4) -> e1 b) : ((a1,a2,a3,a4) -> e0 b) { inline "#1" }
 private inline extern cast-ev5( f:(a1,a2,a3,a4,a5) -> e1 b) : ((a1,a2,a3,a4,a5) -> e0 b) { inline "#1" }
 
+private value type resume-result<b,r> {
+  Deep( result: b )
+  Shallow( result: b )
+  Finalize( result : r )
+}
+
 private type yld<e,a,r> {
   Pure
   YieldingFinal
   Yielding
-  Yield<b>(clause : ((() -> b) -> e r) -> e r, cont : (() -> b) -> e a)
+  Yield<b>(clause : (resume-result<b,r> -> e r) -> e r, cont : (() -> b) -> e a)
 }
 
 private extern guard(w : evv<e> ) : e () {
@@ -303,15 +309,27 @@ private fun prompt( w0 : evv<e0>,  w1 : evv<e0>, ev : ev<h>, m : marker<e0,r>, r
     }
     Yield(clause,cont) {
       // yielded to the operation `clause` in our handler
-      fun deep(f) {
-        // deep resume
-        val w0' = evv-get()  // if not using scoped resumptions, w0' may be different from w0
-        val w1' = if (evv-eq(w0,w0')) then w1 else evv-insert(w0',ev)
-        evv-set(w1')
-        prompt(w0',w1',ev,unsafe-decreasing(m),ret,cont(f))
+      fun resume(r) {
+        match(r) {
+          Deep(x) {
+            val w0' = evv-get()  // if not using scoped resumptions, w0' may be different from w0
+            val w1' = if (evv-eq(w0,w0')) then w1 else evv-insert(w0',ev)
+            evv-set(w1')
+            prompt(w0',w1',ev,unsafe-decreasing(m),ret,cont({x}))
+          }
+          Shallow(x) {
+            yield-bind( cont({x}), fn(y){ ret(y) } )
+          }
+          Finalize(x) {
+            val w0' = evv-get()  // if not using scoped resumptions, w0' may be different from w0
+            val w1' = if (evv-eq(w0,w0')) then w1 else evv-insert(w0',ev)
+            evv-set(w1')
+            prompt(w0',w1',ev,unsafe-decreasing(m),ret,cont({ yield-to-final(m,fn(_k){x}) }))            
+          }
+        }
       }
-      clause(deep) // TODO: we should exit prompt first, and then execute clause to use constant stack space when resuming
-    }
+      clause(resume) // TODO: we should exit prompt first, and then execute clause to use constant stack space when resuming
+    }    
   }
 }
 
@@ -409,7 +427,7 @@ private fun finally-prompt(fin : () -> e (), res : a ) : e a {
 private fun finalize(cont : (() -> b) -> e r, res : a) : e a {
   val m : marker<_e,_r> = fresh-marker()
   val w = evv-get()
-  prompt(w,w,ev-none(),m,id, yield-bind( cont( { yield-to-final(m,fn(_k){ res }) } ), fn(_x){ res } ))  // TODO: special prompt that does not insert on resume?
+  prompt(w,w,ev-none(),m,id, yield-bind( cont( { yield-to-final(m,fn(_k){ res }) }), fn(_x){ res } ))  // TODO: special prompt that does not insert on resume?
 }
 
 // -------------------------------------------
@@ -458,14 +476,22 @@ private fun initially-prompt( init : (int) -> e (), res : a ) : e a {
 // Resume context
 // -------------------------------------------
 
-abstract struct resume-context<b,e::E,r>( k : (() -> b) -> e r )
 
-public fun resume( r : resume-context<b,e,r>, x : b ) : e r {
-  (r.k)({x})
+
+abstract struct resume-context<b,e::E,e0::E,r>( k : resume-result<b,r> -> e r )
+
+public fun resume( r : resume-context<b,e,e0,r>, x : b ) : e r {
+  (r.k)(Deep(x))
 }
 
-public fun finalize( r : resume-context<b,e,r>, x : a ) : e a {
-  finalize(r.k,x)
+public fun resume-shallow( r : resume-context<b,e,e0,r>, x : b ) : e0 r {
+  cast-ev1(r.k)(Shallow(x))
+}
+
+
+public fun finalize( r : resume-context<b,e,e0,r>, x : r ) : e r {
+  //finalize(r.k,x)
+  (r.k)(Finalize(x))
 }
 
 // -------------------------------------------
@@ -504,7 +530,7 @@ private fun under1( ev : ev<h>, op : a -> e b, x : a ) : e b {
 }
 
 
-public fun clause-control-raw1( op : (x:a, r: resume-context<b,e,r>) -> e r ) : clause1<a,b,h,e,r> {
+public fun clause-control-raw1( op : (x:a, r: resume-context<b,e,e0,r>) -> e r ) : clause1<a,b,h,e,r> {
   Clause1(fn(m,_ev,x){ yield-to(m, fn(k){ op(x,Resume-context(k)) } ) } )
 }
 
@@ -514,18 +540,18 @@ private fun get( ref: ref<h,a>) : <read<h>,div> a {
 
 inline extern unsafe-st(f : () -> <st<global>|e> a ) : (() -> e a) { inline "#1" }
 
-private fun protect-check( resumed : ref<global,bool>,  k : (() -> b) -> e r, res : a ) : e a {
+private fun protect-check( resumed : ref<global,bool>,  k : resume-result<b,r> -> e r, res : r ) : e r {
   val did-resume : bool = (unsafe-st{ !resumed })()
   if (!did-resume)
-   then finalize(k,res)
+   then k(Finalize(res)) //finalize(k,res)
    else res
 }
 
-private fun protect( x : a, clause : (x:a, k: b -> e r) -> e r, k : (() -> b) -> e r ) : e r {
+private fun protect( x : a, clause : (x:a, k: b -> e r) -> e r, k : resume-result<b,r> -> e r ) : e r {
   val resumed = (unsafe-st{ref(False)})()
   fun kprotect(ret) {
     (unsafe-st{resumed := True})()
-    k({ret})
+    k(Deep(ret))
   }
   val res = clause(x,kprotect)
   if (yielding()) return yield-extend( fn(xres){ protect-check(resumed,k,xres) } )
@@ -579,7 +605,7 @@ private fun under0( ev : ev<i>, op : () -> e b) : e b {
   y
 }
 
-public fun clause-control-raw0( op : resume-context<b,e,r> -> e r ) : clause0<b,h,e,r> {
+public fun clause-control-raw0( op : resume-context<b,e,e0,r> -> e r ) : clause0<b,h,e,r> {
   Clause0(fn(m,_ev){ yield-to(m, fn(k){ op(Resume-context(k)) } ) })
 }
 
@@ -626,11 +652,11 @@ private fun under2( ev : ev<h>, op : (a1,a2) -> e b, x1 : a1, x2 : a2 ) : e b {
   z
 }
 
-private fun protect( x1 : a1, x2:a2, clause : (x:a1,x:a2, k: b -> e r) -> e r, k : (() -> b) -> e r ) : e r {
+private fun protect( x1 : a1, x2:a2, clause : (x:a1,x:a2, k: b -> e r) -> e r, k : resume-result<b,r> -> e r ) : e r {
   val resumed = (unsafe-st{ref(False)})()
   fun kprotect(ret) {
     (unsafe-st{ resumed := True })()
-    k({ret})
+    k(Deep(ret))
   }
   val res = clause(x1,x2,kprotect)
   if (yielding()) return yield-extend( fn(xres){ protect-check(resumed,k,xres) } )
@@ -642,7 +668,7 @@ public fun clause-control2( clause : (x1:a1, x2:a2, k: b -> e r) -> e r ) : clau
 }
 
 
-public fun clause-control-raw2( op : (x1:a1, x2:a2, r: resume-context<b,e,r>) -> e r ) : clause2<a1,a2,b,h,e,r> {
+public fun clause-control-raw2( op : (x1:a1, x2:a2, r: resume-context<b,e,e0,r>) -> e r ) : clause2<a1,a2,b,h,e,r> {
   Clause2(fn(m,_ev,x1,x2){ yield-to(m, fn(k){ op(x1,x2,Resume-context(k)) } ) })
 }
 
@@ -680,7 +706,7 @@ private fun xperform1( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,h,e
   }
 }
 
-public fun clause-control-raw3( op : (x1:a1, x2:a2, x3:a3, r: resume-context<b,e,r>) -> e r ) : clause1<(a1,a2,a3),b,h,e,r> {
+public fun clause-control-raw3( op : (x1:a1, x2:a2, x3:a3, r: resume-context<b,e,e0,r>) -> e r ) : clause1<(a1,a2,a3),b,h,e,r> {
   clause-control-raw1( fn(x:(_,_,_),r){ op(x.fst,x.snd,x.thd,r) } )
 }
 

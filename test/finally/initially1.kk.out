@@ -1,0 +1,9 @@
+initially: 0
+action
+return, local=42
+finally, local=42
+42
+ 
+finally/initially1/bar: () -> console int
+finally/initially1/foo: () -> console int
+finally/initially1/main: () -> console ()

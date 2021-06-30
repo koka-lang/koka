@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Internal errors and assertions.
@@ -17,7 +17,7 @@ import Data.List       ( isPrefixOf )
 import Data.Char       ( toLower, isSpace )
 import Platform.Runtime( exCatch )
 import Debug.Trace( trace, traceStack )
-import Platform.Config( buildVariant )
+import Platform.Config( compilerBuildVariant )
 assertion :: String -> Bool -> a -> a
 assertion msg test x
   = if test
@@ -38,7 +38,7 @@ matchFailure msg
 
 raise :: String -> a
 raise msg
-  = if (buildVariant=="debug")
+  = if (compilerBuildVariant=="debug")
      then traceStack msg (error msg)
      else (error msg)
 

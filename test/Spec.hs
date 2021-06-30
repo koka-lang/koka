@@ -18,20 +18,27 @@ commonFlags :: [String]
 commonFlags = ["-c", "-v0", "--console=raw",
                -- "--checkcore",
                "-ilib", "-itest",
-               "--outdir=" ++ "out" </> "test"]
+               "--outtag=test"]
 
 data Mode = Test | New | Update
   deriving (Eq, Ord, Show)
 
+
+data Options = Options{ mode :: Mode, cabal :: Bool, sysghc:: Bool, opt :: Int }
+
+optionsDefault = Options Test False False 0
+
 data Cfg = Cfg{ flags   :: [String],
+                options :: Options,
                 exclude :: [String],
                 fexclude:: !(String -> Bool)
               }  
 
-makeCfg flags []
-  = Cfg flags [] (\s -> False)
-makeCfg flags exclude
-  = Cfg flags exclude fexclude
+makeCfg :: [String] -> Options -> [String] -> Cfg
+makeCfg flags options []
+  = Cfg flags options [] (\s -> False)
+makeCfg flags options exclude
+  = Cfg flags options exclude fexclude
   where
     matcher item | any (\c -> c `elem` "()[]+*?") item = let r = mkRegex item
                                                          in (\s -> isJust (matchRegex r s))
@@ -50,18 +57,18 @@ instance JSON Cfg where
                  exclude = case valFromObj "exclude" obj of
                              Ok xs -> xs
                              _     -> []
-             in Ok (makeCfg flags exclude)
-        JSNull     -> Ok (makeCfg [] [])
-        JSString s -> Ok (makeCfg (words (fromJSString s)) [])
+             in Ok (makeCfg flags optionsDefault exclude)
+        JSNull     -> Ok (makeCfg [] optionsDefault [])
+        JSString s -> Ok (makeCfg (words (fromJSString s)) optionsDefault [])
         _          -> Error ("invalid JSON object")
 
 extendCfg :: Cfg -> Cfg -> Cfg
-extendCfg (Cfg flags1 exclude1 fexclude1) (Cfg flags2 exclude2 fexclude2)
-  = Cfg (flags1 ++ flags2) (exclude1 ++ exclude2) (\s -> fexclude1 s || fexclude2 s)
+extendCfg (Cfg flags1 opts1 exclude1 fexclude1) (Cfg flags2 opts2 exclude2 fexclude2)
+  = Cfg (flags1 ++ flags2) opts1
+        (exclude1 ++ exclude2) (\s -> fexclude1 s || fexclude2 s)
 
-initialCfg :: Cfg
-initialCfg = makeCfg commonFlags []
-                        
+initialCfg :: Options -> Cfg
+initialCfg options = makeCfg commonFlags options [] 
                   
 
 readFlagsFile :: FilePath -> IO [String]
@@ -74,6 +81,7 @@ readFlagsFile fp
 testSanitize :: FilePath -> String -> String
 testSanitize kokaDir
   = trim
+  . sub "^Up to date\n" ""
   . sub "\n[[:space:]]+at .*" ""
   . sub "(std_core\\.js:)[[:digit:]]+" "\\1"
   . sub "[\r\n]+" "\n"
@@ -91,30 +99,37 @@ runKoka cfg fp
   = do caseFlags <- readFlagsFile (fp ++ ".flags")
        kokaDir <- getCurrentDirectory
        let relTest = makeRelative kokaDir fp
-       let argv = ["exec", "koka", "--"] ++ flags cfg ++ caseFlags ++ [relTest]
-       testSanitize kokaDir <$> readProcess "stack" argv ""
+           optFlag   = if (opt (options cfg) > 0) then ["-O" ++ show (opt (options cfg))] else []
+           kokaFlags = flags cfg ++ optFlag ++ caseFlags 
+       if (cabal (options cfg))
+         then do let argv = ["new-run", "koka", "--"] ++ kokaFlags ++ [relTest]
+                 testSanitize kokaDir <$> readProcess "cabal" argv ""       
+         else do let stackFlags = if (sysghc (options cfg)) then ["--system-ghc","--skip-ghc-check"] else []
+                     argv = ["exec","koka"] ++ stackFlags ++ ["--"] ++ kokaFlags ++ [relTest]
+                 testSanitize kokaDir <$> readProcess "stack" argv ""
+       
 
-makeTest :: Mode -> Cfg -> FilePath -> Spec
-makeTest mode cfg fp
+makeTest :: Cfg -> FilePath -> Spec
+makeTest cfg fp
   | takeExtension fp == ".kk"
       = do let expectedFile = fp ++ ".out"
            isTest <- runIO $ doesFileExist expectedFile
-           let shouldRun = not isTest && mode == New || isTest && mode /= New
+           let shouldRun = not isTest && mode (options cfg) == New || isTest && mode (options cfg) /= New
            when shouldRun $
              it (takeBaseName fp) $ do
                out <- runKoka cfg fp
-               unless (mode == Test) $ (withBinaryFile expectedFile WriteMode (\h -> hPutStr h out)) -- writeFile expectedFile out
+               unless (mode (options cfg) == Test) $ (withBinaryFile expectedFile WriteMode (\h -> hPutStr h out)) -- writeFile expectedFile out
                expected <- expectedSanitize <$> readFile expectedFile
                out `shouldBe` expected
   | otherwise
       = return ()
 
-discoverTests :: Mode -> FilePath -> Spec
-discoverTests mode p = discover initialCfg "" p
+discoverTests :: Cfg -> FilePath -> Spec
+discoverTests cfg0 p = discover cfg0 "" p
   where discover cfg cat p
           = do isDirectory <- runIO $ doesDirectoryExist p
                if not isDirectory
-                 then makeTest mode cfg p
+                 then makeTest cfg p
                  else do
                    fs0  <- runIO (sort <$> listDirectory p)
                    cfg' <- runIO (readConfigFile cfg p)
@@ -141,30 +156,47 @@ readConfigFile cfg dir
           ('/':'/':rev) -> reverse rev
           _             -> cs
 
-parseMode :: String -> Mode
-parseMode "new" = New
-parseMode "update" = Update
-parseMode "test" = Test
-parseMode m = error $ "Unrecognized mode: " ++ show m
 
-getMode :: [String] -> (Mode, [String])
-getMode ("--mode":mode:args) =
-  let (mode',args') = getMode args
-   in (max (parseMode mode) mode', args')
-getMode (x:args) =
-  let (mode, args') = getMode args
-   in (mode, x:args')
-getMode [] = (Test, [])
+
+
+processOptions :: String -> (Options, [String]) -> (Options,[String])
+processOptions arg (options,hargs)
+  = if (take 7 arg == "--mode=") 
+      then let m = parseMode (drop 7 arg)
+           in (options{ mode = m }, hargs)
+    else if (arg == "--cabal") 
+      then (options{cabal=True}, hargs)
+    else if (take 2 arg == "-O") 
+      then (options{opt=read (drop 2 arg)}, hargs)
+    else if (arg == "--system-ghc")
+      then (options{sysghc=True}, hargs)
+      else (options, arg : hargs)
+  where
+    parseMode :: String -> Mode
+    parseMode "new" = New
+    parseMode "update" = Update
+    parseMode "test" = Test
+    parseMode m = error $ "Unrecognized mode: " ++ show m
+
+getOptions :: IO (Options , [String])
+getOptions 
+  = do argv <- getArgs  
+       return (foldr processOptions (optionsDefault,[]) argv)
 
 main :: IO ()
 main = do
   pwd <- getCurrentDirectory
-  (mode, args) <- getMode <$> getArgs  
+  (options0, args) <- getOptions
+  cabalEnv <- do stackExe <- lookupEnv "STACK_EXE"
+                 return (maybe "" id stackExe == "")
+  let options = options0{ cabal = cabalEnv || cabal options0 }
   hcfg <- readConfig defaultConfig args
-  putStr "pre compile..."
-  runKoka initialCfg "util/link-min.kk" -- compile dummy to ensure kklib is compiled so it does not pollute the output (causing the first test to fail)
-  putStrLn " ok"
-  let spec = discoverTests mode (pwd </> "test")
+  putStrLn "pre-compiling standard libraries..."
+  -- compile all standard libraries before testing so we can run in parallel
+  let cfg = initialCfg options
+  runKoka cfg "util/link-test.kk" 
+  putStrLn "ok."
+  let spec = parallel $ discoverTests cfg (pwd </> "test")
   summary <- withArgs [] (runSpec spec hcfg{configFormatter=Just specProgress})
   evaluateSummary summary
 

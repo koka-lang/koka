@@ -97,7 +97,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>../../include</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>DEBUG=3;%(PreprocessorDefinitions);</PreprocessorDefinitions>
+      <PreprocessorDefinitions>KK_DEBUG_FULL=1;KK_STATIC_LIB=1;KK_MIMALLOC=1;_CONSOLE=1;DEBUG=3;%(PreprocessorDefinitions);</PreprocessorDefinitions>
       <CompileAs>CompileAsC</CompileAs>
       <SupportJustMyCode>false</SupportJustMyCode>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -117,7 +117,7 @@
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>../../include;../../mimalloc/include</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>MI_MAX_ALIGN_SIZE=8;KK_DEBUG_FULL=1;KK_STATIC_LIB=1;KK_MIMALLOC=1;_CONSOLE=1;DEBUG=3;%(PreprocessorDefinitions);</PreprocessorDefinitions>
+      <PreprocessorDefinitions>KK_DEBUG_FULL=1;KK_STATIC_LIB=1;KK_MIMALLOC=1;_CONSOLE=1;DEBUG=3;%(PreprocessorDefinitions);</PreprocessorDefinitions>
       <SupportJustMyCode>false</SupportJustMyCode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -146,7 +146,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>../../include</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);NDEBUG</PreprocessorDefinitions>
+      <PreprocessorDefinitions>KK_STATIC_LIB=1;KK_MIMALLOC=1;_CONSOLE=1;%(PreprocessorDefinitions);NDEBUG</PreprocessorDefinitions>
       <AssemblerOutput>AssemblyAndSourceCode</AssemblerOutput>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -174,7 +174,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>../../include;../../mimalloc/include</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>MI_MAX_ALIGN_SIZE=8;NDEBUG=1;KK_STATIC_LIB=1;KK_MIMALLOC=1;_CONSOLE=1;%(PreprocessorDefinitions);NDEBUG</PreprocessorDefinitions>
+      <PreprocessorDefinitions>KK_STATIC_LIB=1;KK_MIMALLOC=1;_CONSOLE=1;%(PreprocessorDefinitions);NDEBUG</PreprocessorDefinitions>
       <AssemblerOutput>AssemblyAndSourceCode</AssemblerOutput>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -221,6 +221,7 @@
     <ClCompile Include="..\..\src\init.c" />
     <ClCompile Include="..\..\src\string.c" />
     <ClCompile Include="..\..\src\time.c" />
+    <ClCompile Include="..\..\src\vector.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(ProjectDir)..\..\include\kklib.h" />

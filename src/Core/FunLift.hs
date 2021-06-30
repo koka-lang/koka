@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2020 Microsoft Corporation, Daan Leijen, Ningning Xie
+-- Copyright 2020-2021, Microsoft Research, Daan Leijen, Ningning Xie
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 
 -----------------------------------------------------------------------------
@@ -44,10 +44,11 @@ trace s x =
 
 enableLifting = True
 
-liftFunctions :: Pretty.Env -> Int -> DefGroups -> (DefGroups,Int)
-liftFunctions penv u defs
-  = if enableLifting then runLift penv u (liftDefGroups True defs)
-    else (defs, u)
+liftFunctions :: Pretty.Env -> CorePhase ()
+liftFunctions penv 
+  = liftCorePhaseUniq $ \uniq defs ->
+    if enableLifting then runLift penv uniq (liftDefGroups True defs)
+                     else (defs,uniq)
 
 
 {--------------------------------------------------------------------------
@@ -81,7 +82,7 @@ liftDefGroup False (DefRec defs)
                              <+> tupled (map (ppTypeVar penv) (tvsList (ftv (defExpr (head defs))))) 
                              <//> prettyDef penv{coreShowDef=True} (head defs)
        -}
-       (callExprs, liftedDefs0) <- fmap unzip $ mapM (makeDef fvs tvs) exprs
+       (callExprs, liftedDefs0) <- fmap unzip $ mapM (makeDef fvs tvs) exprDocs
        let subst       = zip names callExprs
            liftedDefs  = map (substWithLiftedExpr subst) liftedDefs0
        groups <- liftDefGroup True (DefRec liftedDefs) -- lift all recs to top-level
@@ -92,7 +93,8 @@ liftDefGroup False (DefRec defs)
                                                 , defSort = liftSort False (defSort def)})
                           defs callExprs
        return (map DefNonRec defs') -- change a DefRec to all DefNonRecs
-  where exprs = map defExpr defs
+  where exprDocs = map (\def -> (defExpr def, defDoc def)) defs
+        exprs = map fst exprDocs
         names = map defTName defs
         fvs = tnamesList $ tnamesRemove names (tnamesUnions $ map freeLocals exprs)
         tvs = tvsList $ tvsUnions $ map ftv exprs
@@ -190,13 +192,13 @@ liftLocalFun :: Expr -> Effect -> Lift Expr
 liftLocalFun expr eff
   = do let fvs = tnamesList $ freeLocals expr
            tvs = tvsList (ftv expr)
-       (expr2, liftDef) <- makeDef fvs tvs expr
+       (expr2, liftDef) <- makeDef fvs tvs (expr,"")
        emitLifted (DefNonRec liftDef)
        return expr2
 
 
-makeDef :: [TName] -> [TypeVar] -> Expr -> Lift (Expr, Def)
-makeDef fvs tvs expr
+makeDef :: [TName] -> [TypeVar] -> (Expr,String) -> Lift (Expr, Def)
+makeDef fvs tvs (expr,doc)
   = do -- liftTrace (show expr)
        (name,inl) <- uniqueNameCurrentDef
        let (callExpr,lifted) = (etaExpr name, liftedDef name inl)
@@ -218,7 +220,7 @@ makeDef fvs tvs expr
 
     liftedFun = addTypeLambdas alltpars $ Lam allpars eff body
     liftedTp  = typeOf liftedFun
-    liftedDef name inl = Def name liftedTp liftedFun Private DefFun inl rangeNull "// lift"
+    liftedDef name inl = Def name liftedTp liftedFun Private DefFun inl rangeNull ("// lifted " ++ doc)
 
     funExpr name
       = Var (TName name liftedTp) (InfoArity (length alltpars) (length allargs))

@@ -1,9 +1,9 @@
 ------------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Module for portable control of colors in a console.
@@ -17,7 +17,7 @@ module Lib.Printer(
                 , Printer( write, writeText, writeLn, writeTextLn, flush, withColor, withBackColor, withReverse, withUnderline    , setColor, setBackColor, setReverse, setUnderline ) 
                 -- * Printers
               , MonoPrinter, withMonoPrinter
-              , ColorPrinter, withColorPrinter, withNoColorPrinter, withFileNoColorPrinter, isAnsiPrinter
+              , ColorPrinter, withColorPrinter, withNoColorPrinter, withFileNoColorPrinter, isAnsiPrinter, isConsolePrinter
               , AnsiPrinter, withAnsiPrinter
               , withFilePrinter, withNewFilePrinter
               , withHtmlPrinter, withHtmlColorPrinter
@@ -236,6 +236,8 @@ ansiEscapeIO :: [T.Text] -> IO ()
 ansiEscapeIO xs
   | null xs   = return ()
   | otherwise = T.putStr (ansiEscape xs) 
+
+                   
   
 ansiEscape :: [T.Text] -> T.Text
 ansiEscape xs
@@ -339,6 +341,12 @@ isAnsiPrinter cp
   = case cp of
       PAnsi ansi  -> True
       _           -> False
+
+isConsolePrinter :: ColorPrinter -> Bool
+isConsolePrinter cp 
+  = case cp of
+      PCon _  -> True
+      _       -> False
 
 
 instance Printer ColorPrinter where

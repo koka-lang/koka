@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 -----------------------------------------------------------------------------
 -- System F-like core language.
@@ -18,6 +18,7 @@ import Platform.Config(version)
 import Lib.Trace( trace )
 import Control.Applicative hiding (empty)
 import Control.Monad
+import qualified Control.Monad.Fail as F
 import Data.Char( isDigit, isAlphaNum )
 import Data.List( transpose )
 import Lib.PPrint
@@ -29,7 +30,7 @@ import Type.Kind( getKind )
 import Type.Assumption( getArity )
 import Type.Pretty( niceType )
 
-import Common.Syntax( Target(..) )
+import Common.Syntax( Target(..), BuildType(..) )
 import Common.Name
 import Common.NamePrim
 import Common.Failure
@@ -47,8 +48,8 @@ import Type.Pretty(defaultEnv)
 -- Generate CSharp code from System-F
 --------------------------------------------------------------------------
 
-csharpFromCore :: Bool -> Maybe (Name,Type) -> Core -> Doc
-csharpFromCore useCps mbMain core
+csharpFromCore :: BuildType -> Bool -> Maybe (Name,Type) -> Core -> Doc
+csharpFromCore buildType useCps mbMain core
   = let body = runAsm initEnv (genProgram core)
     in text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version <->
        text "#pragma warning disable 164 // unused label" <->
@@ -56,7 +57,7 @@ csharpFromCore useCps mbMain core
        text "#pragma warning disable 219 // variable is assigned but never used" <->
        text "using System;" <->
        text "using System.Numerics;" <->
-       vcat (concatMap includeExternal (coreProgExternals core)) <->
+       vcat (concatMap (includeExternal buildType) (coreProgExternals core)) <->
        text "// module" <+> pretty (coreProgName core) <->
        text "public static class" <+> ppModName (coreProgName core) <+> block (linebreak <.> body)  <->
        (case mbMain of
@@ -77,15 +78,11 @@ csharpFromCore useCps mbMain core
                   , withCps     = useCps
                   }
 
-includeExternal :: External -> [Doc]
-includeExternal (ExternalInclude includes range)
-  = let content = case lookup CS includes of
-                    Just s -> s
-                    Nothing -> case lookup Default includes of
-                                 Just s -> s
-                                 Nothing -> "" -- failure ("backend does not support external inline at " ++ show range)
-    in [text content]
-includeExternal _  = []
+includeExternal :: BuildType -> External -> [Doc]
+includeExternal buildType  ext
+  = case externalImportLookup CS buildType  "include-inline" ext of
+      Just content -> [text content]
+      _ -> []
 
 
 ppMain :: Name -> Type -> Doc
@@ -1528,7 +1525,7 @@ instance Monad Asm where
                                     (x,st1) -> case f x of
                                                  Asm b -> b env st1)
 
-instance MonadFail Asm where
+instance F.MonadFail Asm where
   fail = failure
 
 runAsm :: Env -> Asm () -> Doc

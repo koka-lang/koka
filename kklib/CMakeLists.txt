@@ -1,3 +1,9 @@
+# -----------------------------------------------------------------------------
+# Build the kklib library.
+# Note: this is unused -- the koka compiler will use src/all.c to compile
+# kklib into a single object file.
+# -----------------------------------------------------------------------------
+
 cmake_minimum_required(VERSION 3.7)
 project(kklib VERSION 1.0 LANGUAGES C)
 enable_testing()
@@ -43,6 +49,7 @@ set(kklib_sources
     src/ref.c
     src/string.c
     src/time.c
+    src/vector.c
     )
 
 # properties library; these are used for all koka compiled C sources
@@ -56,7 +63,6 @@ if(NOT (KK_DEBUG_SAN MATCHES OFF))
     message(STATUS "Build with ${KK_DEBUG_SAN} sanitizer (and switch KK_MIMALLOC to OFF)")
     target_compile_options(kklib-flags INTERFACE -fsanitize=${KK_DEBUG_SAN} -g -O1)
     target_link_libraries(kklib-flags INTERFACE -fsanitize=${KK_DEBUG_SAN})
-    set(KK_MIMALLOC OFF)
   else()
     message(WARNING "Can only use ${KK_DEBUG_SAN} sanitizer with clang (KK_DEBUG_SAN is ignored)")
   endif()

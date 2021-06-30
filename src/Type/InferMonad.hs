@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 
 module Type.InferMonad( Inf, InfGamma
@@ -847,7 +847,7 @@ runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap ->
 runInfer env mbrm syns newTypes imports assumption context unique (Inf f)
   = case f (Env env context (newName "") False newTypes syns assumption infgammaEmpty imports False False) (St unique subNull [] mbrm) of
       Err err warnings -> addWarnings warnings (errorMsg (ErrorType [err]))
-      Ok x st warnings -> addWarnings warnings (ok (x,uniq st, (sub st) |-> mbRangeMap st))
+      Ok x st warnings -> addWarnings warnings (ok (x, uniq st, (sub st) |-> mbRangeMap st))
 
 
 zapSubst :: Inf ()

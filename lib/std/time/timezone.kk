@@ -1,9 +1,9 @@
 /*----------------------------------------------------------------------------
-   Copyright (C) 2012-2016 Microsoft Corporation
+   Copyright 2012-2021, Microsoft Research, Daan Leijen
 
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
-   copyan be found in the file "license.txt" at the root of this distribution.
+   copyan be found in the LICENSE file at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
 /* Timezone support.
@@ -37,7 +37,7 @@ import std/time/calendar
 import std/time/time
 import std/time/chrono
 
-include extern {
+extern include {
   js file "timezone-inline.js"
 }
 

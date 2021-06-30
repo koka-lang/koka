@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     User defined names (just 'String's).
@@ -246,8 +246,9 @@ mergeCommonPath mname name
 ----------------------------------------------------------------
 isWildcard name
   = case nameId name of
-      ('_':_) -> True
-      _       -> False
+      ('_':_)     -> True
+      ('.':'_':_) -> True
+      _           -> False
 
 isConstructorName name
   = case nameId name of
@@ -513,14 +514,15 @@ moduleNameToPath name
 
 pathToModuleName :: FilePath -> Name
 pathToModuleName path
-  = newName (decode path)
+  = newName $ dropWhile (\c -> c `elem` "_./") $ decode path
   where
     -- TODO: do proper decoding
     decode s
       = case s of
           _ | s `startsWith` "_dash_" -> '-':decode (drop 6 s)
-          ('_':'_':cs) -> '_':decode cs
+          ('_':'_':cs) -> '_':decode cs          
           ('_':cs)     -> '/':decode cs
+          ('.':cs)     -> decode cs
           ('\\':cs)    -> '/':decode cs
           (c:cs)       -> c:decode cs
           []           -> ""

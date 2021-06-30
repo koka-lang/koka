@@ -21,7 +21,7 @@ fun select(xs) {
 val solutions = handler {
   return(x)      -> [x]          // wraps final result in singleton list
   except fail()  -> []           // never resumes, but returns directly with an empty list
-  control flip() -> resume(True) + resume(False)
+  control flip() -> resume(True) ++ resume(False)
 }
 
 

@@ -1,9 +1,9 @@
 {
 	"name": "language-koka",
 	"displayName": "Koka Syntax Highlighting",
-	"description": "Syntax support for the Koka programming language.",
-	"version": "2.0.0",
-	"publisher": "koka-lang",
+	"description": "Official syntax support for the Koka programming language.",
+	"version": "2.0.2",
+	"publisher": "koka",
 	"engines": {
 		"vscode": "^1.0.0"
 	},
@@ -18,15 +18,13 @@
 		"README.md"
 	],
 	"keywords": [
-		"language",
 		"koka",
-		"highlight",
-		"syntax",
 		"effect",
-		"handler"
+		"handler",
+    "koka-lang"
 	],
 	"license": "MIT",
-	"homepage": "https://github.com/koka-lang/koka",
+	"homepage": "https://koka-lang.github.io",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/koka-lang/koka"
@@ -35,15 +33,9 @@
 		"url": "https://github.com/koka-lang/koka/issues"
 	},
 	"categories": [
-		"Programming Languages",
-		"Koka",
-		"Effects"
+		"Programming Languages"
 	],
-	"activationEvents": [
-		"onLanguage:koka"
-	],
-	"main": "./out/src/extension",
-	"contributes": {
+  "contributes": {
 		"configuration": {
 			"type": "object",
 			"title": "Koka configuration",
@@ -55,6 +47,12 @@
 				}
 			}
 		},
+    "configurationDefaults": {
+      "[koka]": {
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true
+      }
+    },
 		"languages": [
 			{
 				"id": "koka",

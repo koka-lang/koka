@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Common syntactical constructs (for Syntax.Syntax and Core.Core)
@@ -25,18 +25,18 @@ module Common.Syntax( Visibility(..)
                     , OperationSort(..), readOperationSort
                     , Platform(..), platform32, platform64, platformCS, platformJS
                     , alignedSum, alignedAdd, alignUp
+                    , BuildType(..)
                     ) where
 
 {--------------------------------------------------------------------------
   Backend targets
 --------------------------------------------------------------------------}
-data Target = CS | JS | C | CHeader | Default deriving (Eq,Ord)
+data Target = CS | JS | C | Default deriving (Eq,Ord)
 
 instance Show Target where
   show CS = "cs"
   show JS = "js"
   show C  = "c"
-  show CHeader = "c header"
   show Default = ""
 
 data Host = Node | Browser deriving (Eq,Ord)
@@ -69,6 +69,17 @@ alignUp :: Int -> Int -> Int
 alignUp x y  | y <= 0  = x
 alignUp x y  = ((x + y - 1) `div` y)*y    
 
+
+
+data BuildType = DebugFull | Debug | RelWithDebInfo | Release
+               deriving (Eq,Ord)
+
+instance Show BuildType where
+  show DebugFull      = "debugfull"
+  show Debug          = "debug"
+  show RelWithDebInfo = "drelease"
+  show Release        = "release"
+  
 
 {--------------------------------------------------------------------------
   Visibility

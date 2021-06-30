@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 module Type.Pretty (-- * Pretty
                     ppType, ppScheme, ppTypeVar, ppDataInfo, ppSynInfo
@@ -143,7 +143,7 @@ data Env     = Env{ showKinds      :: Bool
                   -- should not be here either: Signifies whether we output core for an interface or not
                   , coreIface :: Bool
                   , coreShowTypes :: Bool  -- show types in core output
-                  , coreInlineMax :: Int   -- max size for exported inline definition
+                  -- , coreInlineMax :: Int   -- max size for exported inline definition
                   , coreShowVis   :: Bool -- show visibility?
                   , coreShowDef   :: Bool -- show definition body
 
@@ -163,7 +163,7 @@ defaultEnv
         ("scripts/" ++ programName ++ "-highlight.js")
         False -- coreIface
         False -- coreShowTypes
-        20    -- coreInlineMax
+        -- 20    -- coreInlineMax
         True  -- coreShowVis
         False -- coreShowDef
         0     -- verbose

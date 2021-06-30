@@ -1,9 +1,9 @@
 /*---------------------------------------------------------------------------
-  Copyright 2020 Daan Leijen, Microsoft Corporation.
+  Copyright 2020-2021, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
-  found in the file "license.txt" at the root of this distribution.
+  found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 //#define _CRT_SECURE_NO_WARNINGS
 #include "kklib.h"
@@ -195,13 +195,14 @@ kk_context_t* kk_get_context(void) {
   ctx = (kk_context_t*)mi_heap_zalloc(heap, sizeof(kk_context_t));
   ctx->heap = heap;
 #else
-  ctx = (kk_context_t*)calloc(1, sizeof(kk_context_t));
+  ctx = (kk_context_t*)kk_zalloc(sizeof(kk_context_t),NULL);
 #endif
   ctx->evv = kk_block_dup(kk_evv_empty_singleton);
   ctx->thread_id = (uintptr_t)(&context);
   ctx->unique = kk_integer_one;
   context = ctx;
   ctx->kk_box_any = kk_block_alloc_as(struct kk_box_any_s, 0, KK_TAG_BOX_ANY, ctx);  
+  ctx->kk_box_any->_unused = kk_integer_zero;
   // todo: register a thread_done function to release the context on thread terminatation.
   return ctx;
 }
@@ -231,8 +232,8 @@ kk_decl_export kk_context_t* kk_main_start(int argc, char** argv) {
   kk_context_t* ctx = kk_get_context();
   // process kklib options
   if (argv != NULL && argc >= 1) {
-    size_t i;
-    for (i = 1; i < (size_t)argc; i++) {   // argv[0] is the program name
+    kk_ssize_t i;
+    for (i = 1; i < argc; i++) {   // argv[0] is the program name
       const char* arg = argv[i];
       if (strcmp(arg, "--kktime")==0) {
         ctx->process_start = kk_timer_start();
@@ -245,7 +246,7 @@ kk_decl_export kk_context_t* kk_main_start(int argc, char** argv) {
     if (i > 0) {
       argv[i] = argv[0]; // move the program name to the last processed --kkxxx option
     }
-    ctx->argc = (size_t)argc - i;
+    ctx->argc = argc - i;
     ctx->argv = (const char**)(argv + i);
   }
   return ctx;

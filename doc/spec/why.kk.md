@@ -220,7 +220,7 @@ yielded: 3
 
 Perceus is the compiler optimized reference counting technique that &koka;
 uses for automatic memory management [@Perceus:tech]. This (together
-with evidence translation [@Xie:evidently])
+with evidence passing [@Xie:evidence-tr;@Xie:evidently])
 enables &koka; to compile directly to plain C code without needing a
 garbage collector or runtime system.
 

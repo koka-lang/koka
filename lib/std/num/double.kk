@@ -1,9 +1,9 @@
 /*---------------------------------------------------------------------------
-  Copyright 2017-2020 Daan Leijen, Microsoft Corporation.
+  Copyright 2017-2020 Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
-  found in the file "license.txt" at the root of this distribution.
+  found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
 /* 64-bit IEEE double floating point numbers.
@@ -14,7 +14,7 @@ public module std/num/double
 import std/text/parse
 import std/num/int32
 
-include extern {
+extern import {
   c file "double-inline.h"
   js file "double-inline.js"
 }

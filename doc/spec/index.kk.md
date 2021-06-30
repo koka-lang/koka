@@ -6,6 +6,7 @@ Toc Depth     : 3
 Css           : styles/koka.css
 Css           : styles/book.css
 Css           : https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css
+Script        : scripts/book.js
 Colorizer     : unchecked.json
 Colorizer     : koka.json
 Bibliography  : koka.bib
@@ -13,20 +14,6 @@ Description   : Koka Language Specification
 Mapsto        : [$\rightsquigarrow$]{.mapsto}
 Koka          : Koka
 Bibliography  : koka.bib
-
-Js Footer     :
-    window.onload = function() {   
-      const locals = document.querySelectorAll("a:not(.localref)");
-      const currentUrl = window.location.href.replace(/#.*$/,"");
-      locals.forEach( function(link){
-        const child = link.firstElementChild;
-        const ctag = (child==null ? "" : child.tagName);
-        const linkUrl = link.href.replace(/#.*$/,"");
-        if (linkUrl != currentUrl && link.className.indexOf("bib") < 0 && ctag != "IMG" && ctag != "SPAN") {  // no bib, image or code links
-          link.innerHTML = link.innerHTML + "<i class=\"fa fa-external-link\"></i>";
-        }
-      });
-    };
 
 Css Header    :
     body.madoko, .body.madoko {
@@ -227,32 +214,43 @@ algorithms in a functional style.
 ~
 
 ~ begin content
-For Linux and macOS on x86 64-bit, you can install &koka; using:
+For  Linux (x64, arm64) and macOS (x64, M1), you can install &koka; using:
 
-    \(> **curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &bar; sh**\)
+&acopy;
+{.copy; data-value:"curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh"}
+
+    \(**curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh &bar; sh**\)
+
+For Windows (x64), open a ``cmd`` prompt and use:
+
+&acopy;
+{.copy; data-value:"curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat"}
+
+    \(**curl -sSL -o %tmp%\install-koka.bat https://github.com/koka-lang/koka/releases/latest/download/install.bat && %tmp%\install-koka.bat**\)
 
 This also installs syntax highlighting for the VS Code and Atom editors.
 
-    > koka
-     _          _           ____
-    | |        | |         |__  \
-    | | __ ___ | | __ __ _  __) |
-    | |/ // _ \| |/ // _' || ___/ welcome to the koka interpreter
-    |   <| (_) |   <| (_| ||____| version 2.0.10, Nov 28 2020, libc 64-bit (gcc)
-    |_|\_\\___/|_|\_\\__,_|       type :? for help
+After installation, verify if &koka; installed correctly:
+
+    $ koka
+     _         _
+    | |       | |
+    | | _ ___ | | _ __ _
+    | |/ / _ \| |/ / _' |  welcome to the koka interactive compiler
+    |   ( (_) |   ( (_| |  version 2.1.7, Jun 15 2021, libc x64 (gcc)
+    |_|\_\___/|_|\_\__,_|  type :? for help, and :q to quit
 
     loading: std/core
     loading: std/core/types
     loading: std/core/hnd
-    >
+    > 
 
-Type ``:q`` to exit the interpreter.
+Type ``:q`` to exit the interactive environment.
 
-For detailed instructions and other platforms (including Windows) see the [releases] page.
+For detailed installation instructions and other platforms see the [releases] page.
 It is also straightforward to build the compiler [from source][build].
 
-[Running the compiler](book.html#install){.learn}
-[A tour of the Koka language](book.html#tour){.learn}
+[Get started with the compiler](book.html#sec-running-the-compiler){.learn}
 
 ~ end content
 

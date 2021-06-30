@@ -1,9 +1,9 @@
 /* 
-   Copyright 2012 Microsoft Corporation.
+   Copyright 2012-2021, Microsoft Research, Daan Leijen.
 
    This is free software; you can redistribute it and/or modify it under the
    terms of the Apache License, Version 2.0. A copy of the License can be
-   found in the file "license.txt" at the root of this distribution.
+   found in the LICENSE file at the root of this distribution.
 */
 
 
@@ -26,7 +26,8 @@
 ------------------------------------------------------------------------*/
 #if defined(__WIN32__) || defined(__MINGW32__) || defined(__CYGWIN__)
 
-#include <windows.h>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
 #ifndef COMMON_LVB_REVERSE_VIDEO   
 #define COMMON_LVB_REVERSE_VIDEO   0x4000 

@@ -1,9 +1,9 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012-2020 Daan Leijen, Microsoft Corporation.
+  Copyright 2012-2021, Microsoft Research, Daan Leijen. 
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
-  found in the file "license.txt" at the root of this distribution.
+  found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
 /* Core types.
@@ -18,7 +18,7 @@ public module std/core/types
 infixr 30  (&&)
 infixr 20  (||)
 
-include extern {
+extern import {
   js file "types-inline.js"
 }
 
@@ -42,33 +42,33 @@ type string
 value type double
 
 // A 32-bit signed integer (represented in two's complement).
-// See the [``std/int32``](std_int32.html) module for operations on 32-bit integers.
+// See the [``std/num/int32``](std_num_int32.html) module for operations on 32-bit integers.
 value type int32
 
-// A signed integer equal to `size_t` in C.
+// A 64-bit signed integer (represented in two's complement).
+// Currently not supported by the Javascript backend
+// Provides no operations but is used mostly for interaction with external code.
+value type int64
+
+// A signed integer equal to signed `size_t` in C.
 // Provides no operations but is used mostly for interaction with external code.
 // The Javascript backend uses `int32` for this.
-value type size_t
+value type ssize_t
 
 // A 8-bit unsigned integer (represented in two's complement).
 // Provides no operations but is used mostly for interaction with external code.
 value type uint8
-
-// A 8-bit signed integer (represented in two's complement).
-// Provides no operations but is used mostly for interaction with external code.
-value type int8
-
-// A 16-bit signed integer (represented in two's complement).
-// Provides no operations but is used mostly for interaction with external code.
-value type int16
 
 // A 32-bit IEEE 754 floating point value.
 // Not supported by the Javascript backend
 // Provides no operations but is used mostly for interaction with external code.
 value type float32
 
+
+
+
 // An any type. Used for extern calls
-value type any
+reference type any
 
 // Internal type used for in-place update of unique pattern matches
 type reuse
@@ -258,8 +258,8 @@ inline extern (!) : forall<h,a,e> (ref: ref<h,a>) -> <read<h>|e> a with(hdiv<h,a
 
 // If a heap effect is unobservable, the heap effect can be erased by using the `run` fun.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
-inline extern run : forall<e,a> ( action : forall<h> () -> <alloc<h>,read<h>,write<h> | e> a ) -> e a  {
-  c  "(kk_function_call(kk_box_t,(kk_function_t,kk_context_t*),#1,(#1,kk_context())))"
+extern run : forall<e,a> ( action : forall<h> () -> <alloc<h>,read<h>,write<h> | e> a ) -> e a  {
+  c  inline "(kk_function_call(kk_box_t,(kk_function_t,kk_context_t*),#1,(#1,kk_context())))"
   cs inline "Primitive.Run<##2>(#1)"
   js inline "((#1)())"
 }
@@ -297,7 +297,7 @@ private inline extern unsafe-no-local-cast : forall<a,e> ( action : () -> <local
 
 // If local mutation is unobservable, the `:local` effect can be erased by using the `local-scope` function.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
-inline fun local-scope<e,a>( action : forall<h> () -> <local<h> | e> a) : e a  {
+inline fun local-scope<a,e>( action : forall<h> () -> <local<h> | e> a) : e a  {
   unsafe-no-local-cast(action)()
 }
 

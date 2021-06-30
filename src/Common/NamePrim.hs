@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Primitive names.
@@ -14,7 +14,9 @@ module Common.NamePrim
           -- * Interpreter
             nameExpr, nameMain, nameType
           , nameInteractive, nameInteractiveModule
-          , nameSystemCore, nameCoreTypes, isSystemCoreName
+          , nameSystemCore, nameCoreTypes
+          , isSystemCoreName
+          , isPrimitiveModule -- no monadic lifting
           , nameOpExpr
 
           -- * Operations
@@ -42,6 +44,7 @@ module Common.NamePrim
           , nameTpEvv, nameEvvAt, nameEvvLookup, nameEvvIndex
           , nameOpenAt, nameOpen, nameOpenNone
           , nameTpEv, nameHandle, nameNamedHandle
+          , nameTpResumeContext
           , nameClause
           , nameIdentity
           , nameMaskAt, nameMaskBuiltin
@@ -52,7 +55,7 @@ module Common.NamePrim
 
           --
           , nameUnsafeTotal
-          , nameIntConst, nameInt32, nameSizeT
+          , nameIntConst, nameInt32, nameInt64, nameSizeT, nameSSizeT, namePtrDiffT
 
           , nameTpBox, nameUnbox, nameBox, nameBoxCon
 
@@ -84,7 +87,8 @@ module Common.NamePrim
           , nameTpBool, nameTpInt, nameTpChar
           , nameTpFloat, nameTpFloat32
           , nameTpString
-          , nameTpInt32, nameTpInt64, nameTpInt16, nameTpInt8, nameTpByte, nameTpSizeT
+          , nameTpInt32, nameTpInt64, nameTpInt16, nameTpInt8, nameTpByte
+          , nameTpSSizeT, nameTpSizeT, nameTpPtrDiffT
           , nameTpAny
           , nameTpNull
           , nameTpException
@@ -272,6 +276,7 @@ nameTpEv        = coreHndName "ev"
 nameTpEvv       = coreHndName "evv"
 nameTpEvIndex   = coreHndName "ev-index"
 nameClause sort i = coreHndName ("clause-" ++ sort ++ show i)
+nameTpResumeContext = coreHndName "resume-context"
 
 nameHTag        = coreHndName ".new-htag"
 namePerform i   = coreHndName (".perform" ++ show i)
@@ -356,7 +361,10 @@ nameTpHandled1  = coreTypesName "handled1"
 nameIdentity    = coreTypesName "id"
 
 nameInt32       = preludeName "int32"
+nameInt64       = preludeName "int64"
 nameSizeT       = preludeName "size_t"
+nameSSizeT      = preludeName "ssize_t"
+namePtrDiffT    = preludeName "ptrdiff_t"
 
 nameUnit        = coreTypesName "()"
 nameTrue        = coreTypesName "True"
@@ -379,6 +387,8 @@ nameTpInt64     = coreTypesName "int64"
 nameTpInt16     = coreTypesName "int16"
 nameTpInt8      = coreTypesName "int8"
 nameTpSizeT     = coreTypesName "size_t"
+nameTpSSizeT    = coreTypesName "ssize_t"
+nameTpPtrDiffT  = coreTypesName "ptrdiff_t"
 nameTpByte      = coreTypesName "uint8"
 nameTpFloat     = coreTypesName "double"
 nameTpFloat32   = coreTypesName "float32"
@@ -439,6 +449,9 @@ nameDict        = newName "std/data/dict"
 isSystemCoreName name
   = let m = nameModule name
     in  m `elem` [nameId nameSystemCore, nameId nameCoreHnd, nameId nameCoreTypes]
+
+isPrimitiveModule name
+  = nameId name `elem` [nameId nameCoreHnd, nameId nameCoreTypes]
 
 {--------------------------------------------------------------------------
   Primitive kind constructors

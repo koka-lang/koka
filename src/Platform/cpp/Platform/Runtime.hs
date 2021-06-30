@@ -1,10 +1,10 @@
 {-# OPTIONS -cpp #-}
 ------------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Module that exports non-standardized functions.
@@ -14,11 +14,16 @@ module Platform.Runtime( exCatch
                        , unsafePerformIO
                        , finally
                        , copyBinaryFile
+                       , showHFloat
                        ) where
 
 
 import System.IO.Unsafe( unsafePerformIO )
 import System.IO.Error ( ioeGetErrorString )
+
+#if __GLASGOW_HASKELL__ >= 860
+import Numeric( showHFloat )
+#endif
 
 #if __GLASGOW_HASKELL__ > 600
 import Control.Exception( finally )
@@ -65,4 +70,9 @@ copyBinaryFile src dest
     withBinaryFile dest WriteMode $ \hdest ->
     do content <- hGetContents hsrc
        hPutStr hdest content
+#endif
+
+#if __GLASGOW_HASKELL__ < 860
+showHFloat :: Double -> String -> String
+showHFloat d s = shows d s
 #endif

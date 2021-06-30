@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2020 Microsoft Corporation, Daan Leijen.
+-- Copyright 2020-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 
 module Backend.C.Box ( boxCore ) where
@@ -63,8 +63,10 @@ boxDef :: Def -> Unique Def
 boxDef def
     = -- trace ("box def: " ++ show (defName def) ++ ": " ++ show (pretty (defType def)) ++ "\n" ++ show (prettyExpr Pretty.defaultEnv{Pretty.coreShowTypes=True} (defExpr def))) $
       do bexpr <- boxExpr (boxType (defType def)) (defExpr def)
-         expr  <- uniqueSimplify True {- unsafe -} False {-ndebug-} 6 {- duplicationMax -} bexpr
-         return def{ defExpr = expr }
+         let bdef = def{ defExpr = bexpr }
+         -- simplify the whole def to avoid simplifying away functions to values (e.g. `fun f(x){ g(x) } ~> val f = g`)
+         uniqueSimplify Pretty.defaultEnv True {- unsafe -} False {-ndebug-} 1 {-runs-} 6 {- duplicationMax -} bdef
+         
 
 -- add box/unbox such that the type of `expr` matches `BoxType`
 boxExpr :: BoxType -> Expr -> Unique Expr

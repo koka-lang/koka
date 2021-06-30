@@ -43,10 +43,10 @@ trace s x =
 
 enable = True  -- set to True to enable the transformation
 
-openFloat :: Pretty.Env -> Gamma -> Int -> DefGroups -> (DefGroups,Int)
-openFloat penv gamma u defs
-  = runFlt penv gamma u $
-    fltDefGroups defs
+openFloat :: Pretty.Env -> Gamma -> CorePhase ()
+openFloat penv gamma 
+  = liftCorePhaseUniq $ \uniq defs ->
+    runFlt penv gamma uniq (fltDefGroups defs)
 
 
 {--------------------------------------------------------------------------
@@ -83,7 +83,8 @@ fltExpr expr
       -> do e1' <- fltExpr e1
             e2' <- fltExpr e2
             f'  <- fltExpr f
-            optApp f' e1' e2'
+            -- optApp f' e1' e2'
+            return (App f' [e1',e2'])
     App f args
       -> do args' <- mapM fltExpr args
             f' <- fltExpr f

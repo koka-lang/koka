@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Source ranges and positions.
@@ -35,7 +35,7 @@ import Common.Failure( assertion )
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Text as T (Text, pack, unpack)
-import qualified Data.Text.Encoding as T (decodeUtf8) -- ,decodeUtf8With)
+import qualified Data.Text.Encoding as T (decodeUtf8, encodeUtf8) -- ,decodeUtf8With)
 -- import qualified Data.Text.Encoding.Error as E(lenientDecode)
 -- import Common.Name(showHex)
 
@@ -50,7 +50,7 @@ bstringToText bstr = T.pack (BC.unpack bstr) -- utfDecode bstr -- T.decodeUtf8Wi
 
 bstringToString bstr = T.unpack (T.decodeUtf8 bstr) -- (bstringToText bstr)
 
-stringToBString str = BC.pack str
+stringToBString str = T.encodeUtf8 (T.pack str)
 
 readInput :: FilePath -> IO BString
 readInput fname
@@ -147,6 +147,7 @@ startsWith bs s
   Source 
 --------------------------------------------------------------------------}  
 data Source = Source{ sourceName :: !FilePath, sourceBString :: !BString }
+  deriving (Show)
 
 instance Eq Source where
   (Source fname1 _) == (Source fname2 _)

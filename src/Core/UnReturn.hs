@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2016-2017 Microsoft Corporation, Daan Leijen
+-- Copyright 2016-2017 Microsoft Research, Daan Leijen
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 
 {----------------------------------------------------------------------------
@@ -47,9 +47,9 @@ trace s x =
    -- Lib.Trace.trace s
     x
 
-unreturn :: Pretty.Env -> DefGroups -> Error DefGroups
-unreturn penv defs
-  = runUR penv 0 (urTopDefGroups defs)
+unreturn :: Pretty.Env -> CorePhase ()
+unreturn penv 
+  = liftCorePhaseUniq $ \uniq defs -> runUR penv uniq (urTopDefGroups defs)
 
 
 {--------------------------------------------------------------------------
@@ -316,10 +316,10 @@ data State = State{ uniq :: Int }
 
 data Result a = Ok a State
 
-runUR :: Monad m => Pretty.Env -> Int -> UR a -> m a
+runUR :: Pretty.Env -> Int -> UR a -> (a, Int)
 runUR penv u (UR c)
   = case c (Env typeTotal [] penv) (State u) of
-      Ok x _ -> return x
+      Ok x (State u') -> (x,u')
 
 instance Functor UR where
   fmap f (UR c)  = UR (\env st -> case c env st of

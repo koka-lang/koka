@@ -1,14 +1,14 @@
 -----------------------------------------------------------------------------
--- Copyright 2020 Microsoft Corporation, Daan Leijen.
+-- Copyright 2020-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 
 module Backend.C.FromCore ( cFromCore ) where
 
-import Numeric( showHFloat )
+import Platform.Runtime( showHFloat )
 import Platform.Config(version)
 import Lib.Trace
 import Control.Applicative hiding (empty)
@@ -65,10 +65,10 @@ externalNames
 -- Generate C code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Int -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
-cFromCore sourceDir penv0 platform newtypes uniq enableReuse enableSpecialize enableReuseSpecialize mbMain core
+cFromCore :: BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Int -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
+cFromCore buildType sourceDir penv0 platform newtypes uniq enableReuse enableSpecialize enableReuseSpecialize mbMain core
   = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes platform False)
-           (genModule sourceDir penv platform newtypes enableReuse enableSpecialize enableReuseSpecialize mbMain core) of
+           (genModule buildType sourceDir penv platform newtypes enableReuse enableSpecialize enableReuseSpecialize mbMain core) of
       (bcore,cdoc,hdoc) -> (cdoc,hdoc,bcore)
   where
     moduleName = coreProgName core
@@ -80,8 +80,8 @@ contextDoc = text "_ctx"
 contextParam :: Doc
 contextParam = text "kk_context_t* _ctx"
 
-genModule :: FilePath -> Pretty.Env -> Platform -> Newtypes -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> Asm Core
-genModule sourceDir penv platform newtypes enableReuse enableSpecialize enableReuseSpecialize mbMain core0
+genModule :: BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> Asm Core
+genModule buildType sourceDir penv platform newtypes enableReuse enableSpecialize enableReuseSpecialize mbMain core0
   =  do core <- liftUnique (do bcore <- boxCore core0            -- box/unbox transform
                                ucore <- if (enableReuse)
                                          then parcReuseCore penv platform newtypes bcore -- constructor reuse analysis
@@ -95,15 +95,22 @@ genModule sourceDir penv platform newtypes enableReuse enableSpecialize enableRe
 
         let headComment   = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
             initSignature = text "void" <+> ppName (qualify (coreProgName core) (newName ".init")) <.> parameters []
+            doneSignature = text "void" <+> ppName (qualify (coreProgName core) (newName ".done")) <.> parameters []
 
-        emitToInit $ vcat $ [text "static bool _initialized = false;"
-                            ,text "if (_initialized) return;"
-                            ,text "_initialized = true;"]
+        emitToInit $ vcat $ [text "static bool _kk_initialized = false;"
+                            ,text "if (_kk_initialized) return;"
+                            ,text "_kk_initialized = true;"]
                             ++ map initImport (coreProgImports core)
+                            ++ 
+                            [text "#if defined(KK_CUSTOM_INIT)"
+                            ,text "  KK_CUSTOM_INIT" <+> arguments [] <.> semi
+                            ,text "#endif"]
+
+        emitToDone $ vcat (map doneImport (reverse (coreProgImports core)))                            
 
         emitToC $ vcat $ [headComment
                          ,text "#include" <+> dquotes (text (moduleNameToPath (coreProgName core)) <.> text ".h")]
-                         ++ externalImports
+                         ++ externalImportIncludes
                          ++ externalIncludesC
 
         emitToH $ vcat $ [ text "#pragma once"
@@ -121,12 +128,26 @@ genModule sourceDir penv platform newtypes enableReuse enableSpecialize enableRe
 
         genMain (coreProgName core) mbMain
 
+        emitToDone $ vcat [text "static bool _kk_done = false;"
+                          ,text "if (_kk_done) return;"
+                          ,text "_kk_done = true;"
+                          ,empty
+                          ,text "#if defined(KK_CUSTOM_DONE)"
+                          ,text "  KK_CUSTOM_DONE" <+> arguments [] <.> semi
+                          ,text "#endif"]
+
         init <- getInit
+        done <- getDone
         emitToC $ linebreak
                   <.> text "// initialization"
                   <-> initSignature
                   <.> block init
+                  <-> text "\n// termination"
+                  <-> doneSignature
+                  <.> block done
+
         emitToH $ vcat [ linebreak <.> initSignature <.> semi <.> linebreak
+                       , linebreak <.> doneSignature <.> semi <.> linebreak
                        , text "#endif // header"]
         return core -- box/unboxed core
   where
@@ -134,20 +155,24 @@ genModule sourceDir penv platform newtypes enableReuse enableSpecialize enableRe
 
     externalIncludesC :: [Doc]
     externalIncludesC
-      = concatMap includeExternalC (coreProgExternals core0)
+      = concatMap (includeExternalC buildType) (coreProgExternals core0)
 
     externalIncludesH :: [Doc]
     externalIncludesH
-      = concatMap includeExternalH (coreProgExternals core0)
+      = concatMap (includeExternalH buildType) (coreProgExternals core0)
 
 
-    externalImports :: [Doc]
-    externalImports
-      = map fst (concatMap (importExternal sourceDir) (coreProgExternals core0))
+    externalImportIncludes :: [Doc]
+    externalImportIncludes
+      = concatMap (importExternalInclude buildType sourceDir) (coreProgExternals core0)
 
     initImport :: Import -> Doc
     initImport imp
       = ppName (qualify (importName imp) (newName ".init")) <.> arguments [] <.> semi
+
+    doneImport :: Import -> Doc
+    doneImport imp
+      = ppName (qualify (importName imp) (newName ".done")) <.> arguments [] <.> semi
 
 
 
@@ -158,53 +183,49 @@ moduleImport imp
       then dquotes (text (moduleNameToPath  (importName imp)) <.> text ".h")
       else brackets (text (importPackage imp) <.> text "/" <.> text (moduleNameToPath  (importName imp))) <.> text ".h")
 
-includeExternalC :: External -> [Doc]
-includeExternalC (ExternalInclude includes range)
-  = let content = case lookup C includes of
-                    Just s -> s
-                    Nothing -> case lookup Default includes of
-                                 Just s -> s
-                                 Nothing -> ""
-    in [text (dropWhile isSpace content)] -- [align $ vcat $! map text (lines content)]
-includeExternalC _  = []
+includeExternalC :: BuildType -> External -> [Doc]
+includeExternalC buildType  ext
+  = case externalImportLookup C buildType  "include-inline" ext of
+      Just content -> [text (dropWhile isSpace content)]
+      _ -> []
 
-includeExternalH :: External -> [Doc]
-includeExternalH (ExternalInclude includes range)
-  = let content = case lookup CHeader includes of
-                    Just s -> s
-                    Nothing -> ""
-    in [text (dropWhile isSpace content)] -- [align $ vcat $! map text (lines content)]
-includeExternalH _  = []
+includeExternalH :: BuildType -> External -> [Doc]
+includeExternalH buildType  ext
+  = case externalImportLookup C buildType  "header-include-inline" ext of
+      Just content -> [text (dropWhile isSpace content)]
+      _ -> []
 
 
-importExternal :: FilePath -> External -> [(Doc,Doc)]
-importExternal sourceDir (ExternalImport imports range)
-  = let xs = case lookup C imports of
-                    Just s -> [s]
-                    Nothing -> case lookup Default imports of
-                                 Just s -> [s]
-                                 Nothing -> [] -- failure ("C backend does not support external import at " ++ show range)
-    in [(text "#include" <+>
-           (if (head s == '<')
-             then text s
-             else dquotes (if (null sourceDir) then text s
-                            else text (normalizeWith '/' sourceDir ++ "/" ++ s)))
-           , pretty nm)
-       | (nm,s) <- xs, not (null s)]
-importExternal _ _
-  = []
+importExternalInclude :: BuildType -> FilePath -> External -> [Doc]
+importExternalInclude buildType  sourceDir ext
+  = case externalImportLookup C buildType  "include" ext of
+      Just path -> [(text "#include" <+>
+                      (if (head path == '<')
+                        then text path
+                        else dquotes (if (null sourceDir) then text path
+                                        else text (normalizeWith '/' sourceDir ++ "/" ++ path)))                                            
+                    )]
+      _ -> [] 
+
 
 genMain :: Name -> Maybe (Name,Bool) -> Asm ()
 genMain progName Nothing = return ()
 genMain progName (Just (name,_))
   = emitToC $
+    text "\n// main exit\nstatic void _kk_main_exit(void)" <+> block (vcat [
+            text "kk_context_t* _ctx = kk_get_context();",
+            ppName (qualify progName (newName ".done")) <.> parens (text "_ctx") <.> semi
+          ]) 
+    <->
     text "\n// main entry\nint main(int argc, char** argv)" <+> block (vcat [
-      text "kk_context_t* _ctx = kk_main_start(argc, argv);"
-    , ppName (qualify progName (newName ".init")) <.> parens (text "_ctx") <.> semi
-    , ppName name <.> parens (text "_ctx") <.> semi
-    , text "kk_main_end(_ctx);"
-    , text "return 0;"
-    ]);
+        text "kk_context_t* _ctx = kk_main_start(argc, argv);"
+      , ppName (qualify progName (newName ".init")) <.> parens (text "_ctx") <.> semi
+      , text "atexit(&_kk_main_exit);"
+      , ppName name <.> parens (text "_ctx") <.> semi
+      , ppName (qualify progName (newName ".done")) <.> parens (text "_ctx") <.> semi
+      , text "kk_main_end(_ctx);"
+      , text "return 0;"
+      ])
 
 ---------------------------------------------------------------------------------
 -- Generate C statements for value definitions
@@ -304,6 +325,8 @@ genTopDef genSig inlineC def@(Def name tp expr vis sort inl rng comm)
        genTopDefDecl genSig inlineC def
 
 genTopDefDecl :: Bool -> Bool -> Def -> Asm ()
+genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm) | isValueOperation tp
+  = return () -- don't generate code for phantom definitions for value operations (these were only needed for type checking)
 genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
   = let tryFun expr = case expr of
                         TypeApp e _   -> tryFun e
@@ -335,6 +358,9 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
                                 emitToH (text "#define" <+> ppName name <+> parens (text "(double)" <.> parens flt))
                         _ -> do doc <- genStat (ResultAssign (TName name tp) Nothing) (defBody)
                                 emitToInit (block doc)  -- must be scoped to avoid name clashes
+                                case genDupDropCall False {-drop-} tp (ppName name) of 
+                                  []   -> return ()
+                                  docs -> emitToDone (hcat docs <.> semi)
                                 let decl = ppType tp <+> ppName name <.> unitSemi tp
                                 -- if (isPublic vis) -- then do
                                 -- always public since inlined definitions can refer to it (sin16 in std/num/ddouble)
@@ -679,12 +705,12 @@ genBoxUnbox name info dataRepr
 genBoxCall prim asBorrowed tp arg
   = case cType tp of
       CFun _ _   -> primName_t prim "function_t" <.> parens arg
-      CPrim val  | val == "kk_unit_t" || val == "kk_integer_t" || val == "bool" || val == "kk_string_t"
+      CPrim val  | val == "kk_unit_t" || val == "kk_integer_t" || val == "bool" || val == "kk_string_t" 
                  -> primName_t prim val <.> parens arg  -- no context
       --CPrim val  | val == "int32_t" || val == "double" || val == "unit_t"
       --           -> text val <.> arguments [arg]
       CData name -> primName prim (ppName name) <.> tupled [arg,ctx]
-      _          -> primName_t prim (show (ppType tp)) <.> tupled [arg,ctx]
+      _          -> primName_t prim (show (ppType tp)) <.> tupled [arg,ctx]  -- kk_box_t, int32_t
   where
     ctx          = if asBorrowed then text "NULL" else contextDoc
 
@@ -735,7 +761,7 @@ genUnbox name info dataRepr
                              ,text "kk_basetype_decref" <.> arguments [text "_p"] <.> semi]
                       )
                     )
-                  , text "else {" <+> ppName name <.> text "_dup(_unbox); }"
+                  -- , text "else {" <+> ppName name <.> text "_dup(_unbox); }"
                   , text "return _unbox" ]
              -- text "unbox_valuetype" <.> arguments [ppName name, text "x"]
         _ -> text "return"
@@ -793,7 +819,7 @@ genDecRef name info dataRepr
 genDropReuseFun :: Name -> DataInfo -> DataRepr -> Asm ()
 genDropReuseFun name info dataRepr
   = emitToH $
-    text "static inline kk_reuse_t" <+> ppName name <.> text "_dropn_reuse" <.> parameters [ppName name <+> text "_x", text "size_t _scan_fsize"] <+> block (
+    text "static inline kk_reuse_t" <+> ppName name <.> text "_dropn_reuse" <.> parameters [ppName name <+> text "_x", text "kk_ssize_t _scan_fsize"] <+> block (
       text "return" <+>
       (if (dataReprMayHaveSingletons dataRepr)
         then text "kk_datatype_dropn_reuse"
@@ -804,7 +830,7 @@ genDropReuseFun name info dataRepr
 genDropNFun :: Name -> DataInfo -> DataRepr -> Asm ()
 genDropNFun name info dataRepr
   = emitToH $
-    text "static inline void" <+> ppName name <.> text "_dropn" <.> parameters [ppName name <+> text "_x", text "size_t _scan_fsize"] <+> block (
+    text "static inline void" <+> ppName name <.> text "_dropn" <.> parameters [ppName name <+> text "_x", text "kk_ssize_t _scan_fsize"] <+> block (
       (if (dataReprMayHaveSingletons dataRepr)
         then text "kk_datatype_dropn"
         else text "kk_basetype_dropn"
@@ -837,7 +863,7 @@ genScanFields name info dataRepr conInfos | not (hasTagField dataRepr)
  = return ()
 genScanFields name info dataRepr conInfos
  = emitToH $
-    text "static inline size_t" <+> ppName name <.> text "_scan_count" <.> tupled [ppName name <+> text "_x"]
+    text "static inline kk_ssize_t" <+> ppName name <.> text "_scan_count" <.> tupled [ppName name <+> text "_x"]
     <+> block (vcat (map (genScanFieldTests (length conInfos)) (zip conInfos [1..])))
 
 genScanFieldTests :: Int -> ((ConInfo,ConRepr,[(Name,Type)],Int),Int) -> Doc
@@ -1121,6 +1147,8 @@ cTypeCon c
          then CPrim "int32_t"
         else if (name == nameTpSizeT)
          then CPrim "size_t"
+        else if (name == nameTpSSizeT)
+         then CPrim "kk_ssize_t"
         else if (name == nameTpFloat)
          then CPrim "double"
         else if (name == nameTpBool)
@@ -1139,7 +1167,7 @@ cTypeCon c
          then CPrim "float"
         else if (name == nameTpRef || name == nameTpLocalVar)
          then CPrim "kk_ref_t"
-        else if (name == nameTpBox)
+        else if (name == nameTpBox || name == nameTpAny)
          then CPrim "kk_box_t"
         else if (name == nameTpReuse)
          then CPrim "kk_reuse_t"
@@ -1739,16 +1767,28 @@ genAppSpecial f args
        case (f,args) of
         (Var tname _, [Lit (LitInt i)]) | getName tname == nameInt32 && isSmallInt32 i
           -> return (Just (genLitInt32 i))
+        (Var tname _, [Lit (LitInt i)]) | getName tname == nameInt64 && isSmallInt64 i
+          -> return (Just (genLitInt64 i))
+        (Var tname _, [Lit (LitInt i)]) | getName tname == nameSSizeT && isSmallSSizeT platform i
+          -> return (Just (genLitSSizeT i))
         (Var tname _, [Lit (LitInt i)]) | getName tname == nameSizeT && isSmallSizeT platform i
           -> return (Just (genLitSizeT i))
+        (Var tname _, [Lit (LitInt i)]) | getName tname == namePtrDiffT && isSmallPtrDiffT platform i
+          -> return (Just (genLitPtrDiffT i))
         _ -> case extractExtern f of
                Just (tname,formats)
                  -- inline external
                  -> case args of
                      [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt32 i
-                       -> return (Just (parens (text "(int32_t)" <.> pretty i)))
+                       -> return (Just (genLitInt32 i))
+                     [Lit (LitInt i)] | getName tname == nameInt64 && isSmallInt64 i
+                       -> return (Just (genLitInt64 i))
+                     [Lit (LitInt i)] | getName tname == nameSSizeT && isSmallSSizeT platform i
+                       -> return (Just (genLitSSizeT i))
                      [Lit (LitInt i)] | getName tname == nameSizeT && isSmallSizeT platform i
-                       -> return (Just (parens (text "(size_t)" <.> pretty i)))
+                       -> return (Just (genLitSizeT i))                       
+                     [Lit (LitInt i)] | getName tname == namePtrDiffT && isSmallPtrDiffT platform i
+                       -> return (Just (genLitPtrDiffT i))
                      _ -> return Nothing
                _ -> return Nothing
 
@@ -2044,6 +2084,7 @@ data St  = St  { uniq :: Int
                , cdoc :: [Doc]  -- c file in reverse
                , idoc :: [Doc]  -- initialization expressions
                , tdoc :: [Doc]  -- toplevel (goes to either H or C)
+               , ddoc :: [Doc]  -- done expressions
                }
 
 data Env = Env { moduleName        :: Name                    -- | current module
@@ -2059,7 +2100,7 @@ data Env = Env { moduleName        :: Name                    -- | current modul
 data Result = ResultReturn (Maybe TName) [TName] -- first field carries function name if not anonymous and second the arguments which are always known
             | ResultAssign TName (Maybe Name)    -- variable name and optional label to break
 
-initSt uniq = St uniq [] [] [] []
+initSt uniq = St uniq [] [] [] [] []
 
 instance HasUnique Asm where
   updateUnique f
@@ -2083,6 +2124,8 @@ emitToInit doc
   = updateSt (\st -> st{idoc = doc : idoc st })
 emitToTop doc
   = updateSt (\st -> st{tdoc = doc : tdoc st })
+emitToDone doc
+  = updateSt (\st -> st{ddoc = doc : ddoc st })
 
 emitToCurrentDef doc
   = do env <- getEnv
@@ -2091,6 +2134,10 @@ emitToCurrentDef doc
 getInit :: Asm Doc
 getInit
   = Asm (\env st -> (vcat (reverse (idoc st)), st{ idoc = [] }))
+
+getDone :: Asm Doc
+getDone
+  = Asm (\env st -> (vcat ( (ddoc st)), st{ ddoc = [] }))   -- reversed
 
 getTop :: Asm Doc
 getTop
@@ -2226,9 +2273,22 @@ genLitInt32 :: Integer -> Doc
 genLitInt32 i
   = parens (text "(int32_t)" <.> pretty i)
 
+genLitInt64 :: Integer -> Doc
+genLitInt64 i
+  = parens (text "(int64_t)" <.> pretty i)
+
 genLitSizeT :: Integer -> Doc
 genLitSizeT i
   = parens (text "(size_t)" <.> pretty i)
+
+genLitSSizeT :: Integer -> Doc
+genLitSSizeT i
+  = parens (text "(kk_ssize_t)" <.> pretty i)
+
+genLitPtrDiffT :: Integer -> Doc
+genLitPtrDiffT i
+  = parens (text "(ptrdiff_t)" <.> pretty i)
+
 
 isSmallLitInt expr
   = case expr of
@@ -2254,6 +2314,17 @@ isSmallSizeT platform i
   | sizeSize platform == 4 = (i >= 0 && i <= 4294967295)
   | sizeSize platform == 8 = (i >= 0 && i <= 18446744073709551615)
   | otherwise = failure $ "Backend.C.isSmallSizeT: unknown platform size_t: " ++ show platform
+
+isSmallSSizeT platform i
+  | sizeSize platform == 4 = (i >= minSmallInt32 && i <= maxSmallInt32)
+  | sizeSize platform == 8 = (i >= minSmallInt64 && i <= maxSmallInt64)
+  | otherwise = failure $ "Backend.C.isSmallSSizeT: unknown platform ssize_t: " ++ show platform
+
+isSmallPtrDiffT platform i
+  | sizePtr platform == 4 = (i >= minSmallInt32 && i <= maxSmallInt32)
+  | sizePtr platform == 8 = (i >= minSmallInt64 && i <= maxSmallInt64)
+  | otherwise = failure $ "Backend.C.isSmallPtrDiffT: unknown platform ptrdiff_t: " ++ show platform
+
 
 ppName :: Name -> Doc
 ppName name

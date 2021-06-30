@@ -1,13 +1,11 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
---
--- hash: 58ce6a6ce0e12461866198b078f58dda3c78882e7790bce8a6506c2ca6f42cf1
 
 name:           koka
-version:        2.1.2
+version:        2.2.0
 description:    Please see the README on GitHub at <https://github.com/koka-lang/koka#readme>
 homepage:       https://github.com/koka-lang/koka#readme
 bug-reports:    https://github.com/koka-lang/koka/issues
@@ -74,6 +72,7 @@ executable koka
       Core.Parse
       Core.Pretty
       Core.Simplify
+      Core.Specialize
       Core.Uniquefy
       Core.UnReturn
       Interpreter.Command
@@ -126,9 +125,11 @@ executable koka
   hs-source-dirs:
       src
       src/Platform/cpp
-  other-extensions: CPP OverloadedStrings
-  ghc-options: -rtsopts
-  cpp-options: -DMAIN="koka" -DVARIANT="release" -DVERSION="2.1.2"
+  other-extensions:
+      CPP
+      OverloadedStrings
+  ghc-options: -rtsopts -j8
+  cpp-options: -DKOKA_MAIN="koka" -DKOKA_VARIANT="release" -DKOKA_VERSION="2.2.0"
   include-dirs:
       src/Platform/cpp/Platform
   c-sources:
@@ -137,9 +138,8 @@ executable koka
       alex
   build-depends:
       array
-    , base >=4.13 && <5
+    , base >=4.12
     , bytestring
-    , cond
     , containers
     , directory
     , haskeline
@@ -164,9 +164,8 @@ test-suite koka-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       array
-    , base >=4.13 && <5
+    , base >=4.12
     , bytestring
-    , cond
     , containers
     , directory
     , extra
@@ -178,7 +177,7 @@ test-suite koka-test
     , mtl
     , parsec
     , process
-    , regex-compat
+    , regex-compat-tdfa
     , text
     , time
   default-language: Haskell2010

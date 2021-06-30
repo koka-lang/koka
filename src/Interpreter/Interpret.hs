@@ -1,9 +1,9 @@
 ------------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Interpreter
@@ -26,7 +26,7 @@ import Lib.PPrint
 import Lib.Printer
 import Common.Failure         ( raiseIO, catchIO )
 import Common.ColorScheme
-import Common.File            ( notext, joinPath, searchPaths, runSystem, isPathSep )
+import Common.File            ( notext, joinPath, searchPaths, runSystem, isPathSep, startsWith )
 import Common.Name            ( Name, unqualify, qualify, newName )
 import Common.NamePrim        ( nameExpr, nameType, nameInteractive, nameInteractiveModule, nameSystemCore )
 import Common.Range
@@ -45,6 +45,7 @@ import Type.Assumption        ( gammaIsEmpty, ppGamma, infoType, gammaFilter )
 
 import Compiler.Options
 import Compiler.Compile
+import Compiler.Module 
 import Interpreter.Command
 
 {---------------------------------------------------------------
@@ -52,7 +53,8 @@ import Interpreter.Command
 ---------------------------------------------------------------}
 data State = State{  printer    :: ColorPrinter
                    -- system variables
-                   , flags      :: Flags
+                   , flags      :: Flags                -- processed flags
+                   , flags0     :: Flags                -- unprocessed flags
                    , evalDisable   :: Bool
                    -- program state
                    , loaded0       :: Loaded            -- load state just after :l command
@@ -68,10 +70,10 @@ data State = State{  printer    :: ColorPrinter
 {---------------------------------------------------------------
   Main
 ---------------------------------------------------------------}
-interpret ::  ColorPrinter -> Flags -> [FilePath] -> IO ()
-interpret printer flags0 files
+interpret ::  ColorPrinter -> Flags -> Flags -> [FilePath] -> IO ()
+interpret printer flags0 flagspre files
   = withReadLine (outDir flags0) $
-    do{ let st0 = (State printer flags0 False initialLoaded initialLoaded [] (programNull nameInteractiveModule) Nothing [] initialLoaded)
+    do{ let st0 = (State printer flags0 flagspre False initialLoaded initialLoaded [] (programNull nameInteractiveModule) Nothing [] initialLoaded)
       ; messageHeader st0
       ; let st2 = st0
       -- ; st2 <- findBackend st0
@@ -111,10 +113,11 @@ interpreter st
 
 interpreterEx ::  State -> IO ()
 interpreterEx st
-  = do{ cmd <- getCommand st
-      -- ; messageLn ""
-      ; command st cmd
-      }
+  = do flush (printer st)
+       cmd <- getCommand st
+       -- ; messageLn ""
+       command st cmd
+      
 
 {---------------------------------------------------------------
   Interprete a command
@@ -184,7 +187,8 @@ command st cmd
                       then do remark st "nothing to edit"
                               interpreterEx st
                       else do runEditor st fpath
-                              command st Reload
+                              -- command st Reload
+                              interpreter st 
                    }
   Edit fname  -> do{ mbpath <- searchSource (flags st) "" (newName fname) -- searchPath (includePath (flags st)) sourceExtension fname
                    ; case mbpath of
@@ -193,7 +197,8 @@ command st cmd
                               interpreter st
                       Just (root,fname,_)
                         -> do runEditor st (joinPath root fname)
-                              command st Reload
+                              -- command st Reload
+                              interpreter st
                    }
 
   Shell cmd   -> do{ runSystem cmd
@@ -209,12 +214,12 @@ command st cmd
                    ; interpreterEx st
                    }
 
-  Options opts-> do{ (newFlags,mode) <- processOptions (flags st) (words opts)
+  Options opts-> do{ (newFlags,newFlags0,mode) <- processOptions (flags0 st) (words opts)
                    ; let setFlags files
                           = do if (null files)
                                 then messageLn st ""
                                 else messageError st "(ignoring file arguments)"
-                               interpreter (st{ flags = newFlags })
+                               interpreter (st{ flags = newFlags, flags0 = newFlags0 })
                    ; case mode of
                        ModeHelp     -> do doc <- commandLineHelp (flags st)
                                           messagePrettyLn st doc
@@ -536,10 +541,13 @@ replace line col s fpath
 --------------------------------------------------------------------------}
 getCommand :: State -> IO Command
 getCommand st
-  = do let ansiPrompt = (if isAnsiPrinter (printer st)
-                          then ansiWithColor (colorInterpreter (colorSchemeFromFlags (flags st)))
-                          else id) "> "
-       mbInput <- readLineEx (includePath (flags st)) ansiPrompt (prompt st)
+  = do let ansiPrompt = if isConsolePrinter (printer st) || osName == "macos"
+                          then "" 
+                          else if isAnsiPrinter (printer st)
+                            then ansiWithColor (colorInterpreter (colorSchemeFromFlags (flags st))) "> "
+                            else "> "
+
+       mbInput <- readLineEx (includePath (flags st)) (loadedMatchNames (loaded0 st)) ansiPrompt (prompt st)
        let input = maybe ":quit" id mbInput
        -- messageInfoLn st ("cmd: " ++ show input)
        let cmd   = readCommand input
@@ -646,20 +654,35 @@ messageHeader st
   where
     colors = colorSchemeFromFlags (flags st)
     header = color(colorInterpreter colors) $ vcat [
-        text " _          _           ____"
-       ,text "| |        | |         |__  \\"
-       ,text "| | __ ___ | | __ __ _  __) |"
-       ,text "| |/ // _ \\| |/ // _` || ___/ " <.> welcome
-       ,text "|   <| (_) |   <| (_| ||____| "  <.> headerVersion
-       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|       "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")
+        text " _         _ "
+       ,text "| |       | |"
+       ,text "| | _ ___ | | _ __ _"
+       ,text "| |/ / _ \\| |/ / _' |  " <.> welcome
+       ,text "|   ( (_) |   ( (_| |  "  <.> headerVersion
+       ,text "|_|\\_\\___/|_|\\_\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")                    
+       {-
+       ,text " _         _ "
+       ,text "| |       | |"
+       ,text "| | _ ___ | | _ __ _"
+       ,text "| |/ / _ \\| |/ / _' |  " <.> welcome
+       ,text "|   < (_) |   < (_| |  "  <.> headerVersion
+       ,text "|_|\\_\\___/|_|\\_\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")                    
+       ,text " _          _ "
+       ,text "| |        | |"
+       ,text "| | __ ___ | | __ __ _"
+       ,text "| |/ // _ \\| |/ // _` |  " <.> welcome
+       ,text "|   <| (_) |   <| (_| |  "  <.> headerVersion
+       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")
+       -}
        ]
     headerVersion = text $ "version " ++ version ++
-                           (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", "
+                           (if compilerBuildVariant /= "release" then (" (" ++ compilerBuildVariant ++ ")") else "") ++ ", "
                            ++ buildDate ++ targetMsg
-    welcome       = text ("welcome to the " ++ Config.programName ++ " interpreter")
+    welcome       = text ("welcome to the " ++ Config.programName ++ " interactive compiler")
     targetMsg
       = case (target (flags st)) of
-          C  -> ", libc " ++ show (8*sizePtr (platform (flags st))) ++ "-bit"
+          C  -> ", " ++ "libc" -- osName 
+                ++ " " ++ cpuArch -- show (8*sizePtr (platform (flags st))) ++ "-bit"
                 ++ " (" ++ (ccName (ccomp (flags st))) ++ ")"
           JS -> ", node"
           CS -> ", .net"

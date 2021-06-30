@@ -1,9 +1,9 @@
 ------------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Definition of the concrete syntax.
@@ -33,6 +33,7 @@ data Program t k
            , programFixDefs :: FixDefs
            , programDoc :: String
            }
+  deriving (Show)
 
 {--------------------------------------------------------------------------
   Some instantiations
@@ -67,21 +68,24 @@ data External
             , extVis  :: Visibility
             , extDoc :: String
             }
-  | ExternalInclude{ extInclude :: [(Target,String)]
-                   , extRange :: Range
-                   }
-  | ExternalImport{ extImport :: [(Target,(Name,String))]
+  | ExternalImport{ extImport :: [(Target,[(String,String)])]
                   , extRange :: Range }
+  deriving (Show)
+
+
+
 
 data ExternalCall
   = ExternalInline String  -- inline everywhere
   | ExternalCall String    -- create a function call
+  deriving (Show)
 
 type FixDefs
   = [FixDef]
 
 data FixDef
   = FixDef Name Fixity Range
+  deriving (Show)
 
 {---------------------------------------------------------------
   Import definitions
@@ -94,7 +98,8 @@ data Import
           , importFullName :: Name     -- ^ fully qualified module name
           , importRange :: Range   -- ^ range of the import declaration
           , importVis   :: Visibility  -- ^ visibility of the module
-          }
+          } 
+    deriving (Show)
 
 
 {--------------------------------------------------------------------------
@@ -108,6 +113,7 @@ type TypeDefGroups t k
 data TypeDefGroup t k
   = TypeDefRec [TypeDef t t k]
   | TypeDefNonRec (TypeDef t t k)
+  deriving (Show)
 
 -- | type definitions.
 data TypeDef t u k
@@ -128,6 +134,7 @@ data TypeDef t u k
             , typeDefIsExtend :: Bool -- ^ True if this is an extension; the binder contains a qualified id (and is not a declaration)
             , typeDefDoc  :: String
             }
+  deriving (Show)
 
 data TypeBinder k
   = TypeBinder{ tbinderName :: Name -- ^ name
@@ -135,6 +142,7 @@ data TypeBinder k
               , tbinderNameRange :: Range -- ^ name range
               , tbinderRange :: Range -- ^ total range
               }
+  deriving (Show)
 
 -- | Constructor: name, existentials, type parameters, name range, total range, and visibility
 data UserCon t u k
@@ -147,6 +155,7 @@ data UserCon t u k
             , userconVis :: Visibility     -- ^  visibility
             , userconDoc :: String
             }
+  deriving (Show)
 
 {--------------------------------------------------------------------------
   Definitions
@@ -159,6 +168,7 @@ type DefGroups t
 data DefGroup t
   = DefRec    [Def t]
   | DefNonRec (Def t)
+  deriving (Show)
 
 type Defs t
   = [Def t]
@@ -172,7 +182,7 @@ data ValueBinder t e
                , binderNameRange :: Range  -- ^ name range
                , binderRange :: Range      -- ^ full range
                }
-
+  deriving (Show)
 
 --  | A value or function definition
 data Def t
@@ -183,6 +193,7 @@ data Def t
        , defInline :: DefInline
        , defDoc    :: String
        }
+  deriving (Show)
 
 
 defIsVal def
@@ -202,7 +213,7 @@ data Expr t
   | Let    (DefGroup t) (Expr t)    Range
   | Bind   (Def t) (Expr t)         Range
   | App    (Expr t) [(Maybe (Name,Range),Expr t)] Range
-  | Var    Name Bool Range
+  | Var    Name Bool Range -- True if the var is an op
   | Lit    Lit
   | Ann    (Expr t) t Range
   | Case   (Expr t) [Branch t]   Range
@@ -221,7 +232,7 @@ data Expr t
              hndlrDeclRange    :: Range,
              hndlrRange        :: Range
             }
-
+  deriving (Show)
 
 data HandlerOverride
   = HandlerNoOverride | HandlerOverride
@@ -229,7 +240,7 @@ data HandlerOverride
 
 data HandlerScope
   = HandlerNoScope | HandlerScoped
-  deriving (Eq)
+  deriving (Eq, Show)
 
 data HandlerBranch t
   = HandlerBranch{ hbranchName :: Name
@@ -239,12 +250,15 @@ data HandlerBranch t
                  , hbranchNameRange :: Range
                  , hbranchPatRange  :: Range
                  }
+  deriving (Show)
 
 data Branch t
   = Branch{ branchPattern :: (Pattern t), branchGuards :: [Guard t] }
+  deriving (Show)
   
 data Guard t 
   = Guard { guardTest :: (Expr t), guardExpr :: (Expr t) }
+  deriving (Show)
 
 -- | Patterns
 data Pattern t
@@ -254,6 +268,7 @@ data Pattern t
   | PatCon    Name    [(Maybe (Name,Range), Pattern t)] Range Range  -- name range and full range
   | PatParens (Pattern t) Range
   | PatLit    Lit
+  deriving (Show)
 
 -- | Literals
 data Lit
@@ -261,6 +276,7 @@ data Lit
   | LitFloat    Double  Range
   | LitChar     Char     Range
   | LitString   String Range
+  deriving (Show)
 
 {--------------------------------------------------------------------------
   types and Kinds
@@ -280,6 +296,7 @@ data KUserType k
   | TpCon      Name                  Range
   | TpParens   (KUserType k)         Range
   | TpAnn      (KUserType k)  k
+  deriving (Show)
 
 type UserType
   = KUserType UserKind
@@ -291,6 +308,7 @@ data UserKind
   | KindArrow  UserKind UserKind
   | KindParens UserKind Range
   | KindNone  -- flags that there is no explicit kind annotation
+  deriving (Show)
 
 
 

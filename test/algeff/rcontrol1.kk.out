@@ -1,0 +1,7 @@
+[False,True,True,False]
+ 
+algeff/rcontrol1/Amb: forall<e,a> (.hnd-amb<e,a>) -> amb
+algeff/rcontrol1/amb: forall<a,e> (() -> <amb|e> a) -> e list<a>
+algeff/rcontrol1/flip: () -> amb bool
+algeff/rcontrol1/main: () -> console ()
+algeff/rcontrol1/xor: () -> amb bool

@@ -1,8 +1,9 @@
 -----------------------------------------------------------------------------
---Copyright 2012 Microsoft Corporation.  This is free software; you can
---redistribute it and/or modify it under the terms of the Apache License,
---Version 2.0. A copy of the License can be found in the file "license.txt" at
---the root of this distribution.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen, Edsko de Vries.  
+--
+-- This is free software; you can redistribute it and/or modify it under the
+-- terms of the Apache License, Version 2.0. A copy of the License can be
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 
 module Backend.JavaScript.FromCore
@@ -12,7 +13,8 @@ module Backend.JavaScript.FromCore
 import Platform.Config(version)
 import Lib.Trace
 import Control.Applicative hiding (empty)
-import Control.Monad
+import Control.Monad 
+import qualified Control.Monad.Fail as F
 import Data.List ( intersperse, partition )
 import Data.Char
 -- import Data.Maybe
@@ -57,16 +59,16 @@ externalNames
 -- Generate JavaScript code from System-F core language
 --------------------------------------------------------------------------
 
-javascriptFromCore :: Maybe (Name,Bool) -> [Import] -> Core -> Doc
-javascriptFromCore mbMain imports core
-  = runAsm (Env moduleName penv externalNames False) (genModule mbMain imports core)
+javascriptFromCore :: BuildType -> Maybe (Name,Bool) -> [Import] -> Core -> Doc
+javascriptFromCore buildType mbMain imports core
+  = runAsm (Env moduleName penv externalNames False) (genModule buildType mbMain imports core)
   where
     moduleName = coreProgName core
     penv       = Pretty.defaultEnv{ Pretty.context = moduleName, Pretty.fullNames = False }
 
-genModule :: Maybe (Name,Bool) -> [Import] -> Core -> Asm Doc
-genModule mbMain imports core
-  =  do let externs = vcat (concatMap includeExternal (coreProgExternals core))
+genModule :: BuildType -> Maybe (Name,Bool) -> [Import] -> Core -> Asm Doc
+genModule buildType mbMain imports core
+  =  do let externs = vcat (concatMap (includeExternal  buildType) (coreProgExternals core))
             (tagDefs,defs) = partition isTagDef (coreProgDefs core)
         decls0 <- genGroups tagDefs
         decls1 <- genTypeDefs (coreProgTypeDefs core)
@@ -130,32 +132,27 @@ genModule mbMain imports core
 
     externalImports :: [(Doc,Doc)]
     externalImports
-      = concatMap importExternal (coreProgExternals core)
+      = concatMap (importExternal buildType) (coreProgExternals core)
 
 moduleImport :: Import -> Doc
 moduleImport imp
   = squotes (text (if null (importPackage imp) then "." else importPackage imp) <.> text "/" <.> text (moduleNameToPath  (importName imp)))
 
-includeExternal :: External -> [Doc]
-includeExternal (ExternalInclude includes range)
-  = let content = case lookup JS includes of
-                    Just s -> s
-                    Nothing -> case lookup Default includes of
-                                 Just s -> s
-                                 Nothing -> ""
-    in [align $ vcat $! map text (lines content)]
-includeExternal _  = []
+includeExternal ::  BuildType -> External -> [Doc]
+includeExternal buildType  ext
+  = case externalImportLookup JS buildType "include-inline" ext of
+      Just content -> [align $ vcat $! map text (lines content)]
+      _ -> []
+      
 
 
-importExternal :: External -> [(Doc,Doc)]
-importExternal (ExternalImport imports range)
-  = case lookup JS imports of
-      Just (nm,s) -> [(text s, pretty nm)]
-      Nothing -> case lookup Default imports of
-                   Just (nm,s) -> [(text s, pretty nm)]
-                   Nothing -> [] -- failure ("javascript backend does not support external import at " ++ show range)
-importExternal _
-  = []
+importExternal :: BuildType -> External -> [(Doc,Doc)]
+importExternal buildType  ext
+  = case externalImportLookup JS buildType  "library" ext of
+      Just path -> [(text path, case externalImportLookup JS buildType  "library-id" ext of 
+                                  Just name -> text name
+                                  Nothing   -> text path)]
+      _ -> []
 
 ---------------------------------------------------------------------------------
 -- Generate javascript statements for value definitions
@@ -651,7 +648,7 @@ genExpr expr
        -> genExpr arg
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt i
        -> return (empty, pretty i)
-     App (Var tname _) [Lit (LitInt i)] | getName tname == nameSizeT && isSmallInt i
+     App (Var tname _) [Lit (LitInt i)] | getName tname == nameSSizeT && isSmallInt i
        -> return (empty, pretty i)
 
      -- special: cfield-set
@@ -680,7 +677,7 @@ genExpr expr
                      -> case args of
                          [Lit (LitInt i)] | getName tname == nameInt32  && isSmallInt i
                            -> return (empty,pretty i)
-                         [Lit (LitInt i)] | getName tname == nameSizeT  && isSmallInt i
+                         [Lit (LitInt i)] | getName tname == nameSSizeT  && isSmallInt i
                            -> return (empty,pretty i)
                          _ -> -- genInlineExternal tname formats argDocs
                               do (decls,argDocs) <- genExprs args
@@ -802,16 +799,12 @@ genInline expr
               case extractExtern f of
                 Just (tname,formats)
                   -> case args of
-                       [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt i
-                         -> return (pretty i)
-                       [Lit (LitInt i)] | getName tname == nameSizeT && isSmallInt i
+                       [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameInt64,nameSSizeT,namePtrDiffT] && isSmallInt i
                          -> return (pretty i)
                        _ -> genInlineExternal tname formats argDocs
                 Nothing
                   -> case (f,args) of
-                       ((Var tname _),[Lit (LitInt i)]) | getName tname == nameInt32 && isSmallInt i
-                         -> return (pretty i)
-                       ((Var tname _),[Lit (LitInt i)]) | getName tname == nameSizeT && isSmallInt i
+                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt32,nameInt64,nameSSizeT,namePtrDiffT] && isSmallInt i
                          -> return (pretty i)
                        _ -> do fdoc <- genInline f
                                return (fdoc <.> tupled argDocs)
@@ -1047,7 +1040,7 @@ instance Monad Asm where
   (Asm a) >>= f = Asm (\env st -> case a env st of
                                     (x,st1) -> case f x of
                                                  Asm b -> b env st1)
-instance MonadFail Asm where
+instance F.MonadFail Asm where
   fail = failure
 
 runAsm :: Env -> Asm Doc -> Doc

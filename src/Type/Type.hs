@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Definition of higher-ranked types and utility functions over them.
@@ -29,10 +29,10 @@ module Type.Type (-- * Types
                   , expandSyn
                   , canonicalForm, minimalForm
                   -- ** Standard types
-                  , typeInt, typeBool, typeFun, typeVoid, typeInt32, typeEvIndex, typeSizeT
+                  , typeInt, typeBool, typeFun, typeVoid, typeInt32, typeEvIndex, typeSizeT, typeSSizeT
                   , typeUnit, typeChar, typeString, typeFloat
                   , typeTuple, typeAny
-                  , typeEv, isEvType, makeEvType
+                  , typeEv, isEvType, makeEvType, typeResumeContext
                   , effectExtend, effectExtends, effectEmpty, effectFixed, tconEffectExtend
                   , effectExtendNoDup, effectExtendNoDups
                   , extractEffectExtend
@@ -59,6 +59,7 @@ module Type.Type (-- * Types
                   , isTypeBool, isTypeInt, isTypeString, isTypeChar
                   , isTypeUnit
                   , isTypeLocalVar
+                  , isValueOperation
 
                   -- ** Trivial conversion
                   , IsType( toType)
@@ -461,6 +462,7 @@ splitFunType tp
 {--------------------------------------------------------------------------
   Primitive types
 --------------------------------------------------------------------------}
+
 -- | Type of integers (@Int@)
 typeInt :: Tau
 typeInt
@@ -476,7 +478,11 @@ typeInt32
 
 typeEvIndex :: Tau
 typeEvIndex
-  = TSyn (TypeSyn nameTpEvIndex kindStar 0 Nothing) [] typeSizeT
+  = TSyn (TypeSyn nameTpEvIndex kindStar 0 Nothing) [] typeSSizeT
+
+typeSSizeT :: Tau
+typeSSizeT
+  = TCon (TypeCon nameTpSSizeT kindStar)
 
 typeSizeT :: Tau
 typeSizeT
@@ -508,6 +514,12 @@ isTypeString (TCon tc) = tc == tconString
 isTypeString _         = False
 
 
+typeResumeContext :: Tau -> Effect -> Effect -> Tau -> Tau
+typeResumeContext b e e0 r
+  = TApp (TCon tcon) [b,e,e0,r]
+  where
+    tcon = TypeCon nameTpResumeContext (kindFun kindStar (kindFun kindEffect (kindFun kindEffect kindStar)))
+
 typeRef :: Tau
 typeRef
   = TCon (TypeCon nameTpRef (kindFun kindHeap (kindFun kindStar kindStar)))
@@ -520,6 +532,12 @@ isTypeLocalVar tp =
   case expandSyn tp of
     TApp (TCon (TypeCon name _)) [_,_]  -> name == nameTpLocalVar
     _ -> False
+
+
+isValueOperation tp
+  = case splitPredType tp of
+      (_,_,TSyn syn [opTp] _) -> typeSynName syn == nameTpValueOp
+      _ -> False    
 
 orderEffect :: Tau -> Tau
 orderEffect tp
@@ -564,7 +582,7 @@ labelNameEx tp
         -> (typeConName tc, idNumber id, targs)
       TApp (TCon tc) targs  -> assertion ("non-expanded type synonym used as label") (typeConName tc /= nameEffectExtend) $
                                (typeConName tc,0,targs)
-      _  -> failure "Type.Unify.labelName: label is not a constant"
+      _  -> failure "Type.Type.labelNameEx: label is not a constant"
 
 typePartial :: Type
 typePartial

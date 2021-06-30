@@ -281,5 +281,7 @@ public fun main() {
   //,test-print2().show
   ,""
   ].join("\n-----------\n").print
-  test-pc1().show.println // raises exception
+  try{
+    test-pc1().show.println // raises exception
+  } fn(exn) { println(exn.show) }
 }

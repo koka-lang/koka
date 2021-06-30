@@ -1,10 +1,10 @@
 {-# OPTIONS -cpp #-}
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 
 -----------------------------------------------------------------------------
@@ -13,7 +13,7 @@
 
 module Type.Infer (inferTypes, coreVarInfoFromNameInfo ) where
 
-import qualified Lib.Trace
+import Lib.Trace hiding (traceDoc)
 import Data.List(partition,sortBy,sortOn)
 import qualified Data.List(find)
 import Data.Ord(comparing)
@@ -72,24 +72,23 @@ import Core.Simplify( uniqueSimplify )
 
 import qualified Syntax.RangeMap as RM
 
-trace s x =
-  Lib.Trace.trace s
-    x
-
 traceDoc fdoc = do penv <- getPrettyEnv
                    trace (show (fdoc penv)) $ return ()
 
 {--------------------------------------------------------------------------
   Infer Types
 --------------------------------------------------------------------------}
-inferTypes :: Env -> Maybe RM.RangeMap -> Synonyms -> Newtypes -> Constructors -> ImportMap -> Gamma -> Name -> Int -> DefGroups Type
-                -> Error (Gamma, Core.DefGroups, Int, Maybe RM.RangeMap )
-inferTypes prettyEnv mbRangeMap syns newTypes cons imports gamma0 context uniq0 defs
+inferTypes :: Env -> Maybe RM.RangeMap -> Synonyms -> Newtypes -> Constructors -> ImportMap -> Gamma -> Name -> DefGroups Type
+                -> Core.CorePhase (Gamma, Core.DefGroups, Maybe RM.RangeMap )
+inferTypes prettyEnv mbRangeMap syns newTypes cons imports gamma0 context defs
   = -- error "Type.Infer.inferTypes: not yet implemented"
     -- return (gamma0,[],uniq0)
-    do ((gamma1, coreDefs),uniq1,mbRm) <- runInfer prettyEnv mbRangeMap syns newTypes imports gamma0 context (uniq0 + 10 {- to not clash with at least 10 bound type variables -})
-                                          (inferDefGroups True (arrange defs))
-       return (gamma1,coreDefs,uniq1,mbRm)
+    do uniq0 <- unique
+       ((gamma1, coreDefs),uniq1,mbRm) <- Core.liftError $ 
+                                          runInfer prettyEnv mbRangeMap syns newTypes imports gamma0 context (uniq0 + 10 {- to not clash with at least 10 bound type variables -})
+                                            (inferDefGroups True (arrange defs))
+       setUnique uniq1
+       return (gamma1,coreDefs,mbRm)
   where
     arrange defs
       = if (context /= nameSystemCore)
@@ -326,13 +325,14 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
         let name = Core.defName coreDef
             csort = if (topLevel || CoreVar.isTopLevel coreDef) then Core.defSort coreDef else DefVal
             info = coreVarInfoFromNameInfo (createNameInfoX Public name csort (defRange def) resTp1)
+        penv <- getPrettyEnv
         (resTp2,coreExpr)
               <- case (mbAssumed,resCore1) of
                          (Just (_,(TVar _)), Core.TypeLam tvars expr)  -- we assumed a monomorphic type, but generalized eventually
                             -> -- fix it up by adding the polymorphic type application
                                do assumedTpX <- subst assumedTp >>= normalize True -- resTp0
                                   -- resTpX <- subst resTp0 >>= normalize
-                                  simexpr <- liftUnique $ uniqueSimplify False False 0 expr
+                                  simexpr <- liftUnique $ uniqueSimplify penv False False 1 {-runs-} 0 expr
                                   coreX <- subst simexpr
                                   let -- coreX = simplify expr -- coref0 (Core.defExpr coreDef)
                                       mvars = [TypeVar id kind Bound | TypeVar id kind _ <- tvars]
@@ -355,13 +355,13 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
                                -}
                          (Just (_,_), _) | divergent  -- we added a divergent effect, fix up the occurrences of the assumed type
                             -> do assumedTpX <- normalize True assumedTp >>= subst -- resTp0
-                                  simResCore1 <- liftUnique $ uniqueSimplify False False 0 resCore1
+                                  simResCore1 <- liftUnique $ uniqueSimplify penv False False 1 0 resCore1
                                   coreX <- subst simResCore1
                                   let resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
                                   return (resTp1, resCoreX)
                          (Just _,_)  -- ensure we insert the right info  (test: static/div2-ack)
                             -> do assumedTpX <- normalize True assumedTp >>= subst
-                                  simResCore1 <- liftUnique $ uniqueSimplify False False 0 resCore1
+                                  simResCore1 <- liftUnique $ uniqueSimplify penv False False 1 0 resCore1
                                   coreX <- subst simResCore1
                                   let resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
                                   return (resTp1, resCoreX)
@@ -942,7 +942,9 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
                           OpExcept     -> (nameClause "never" (length pars), pars)
                           OpControl    -> let resumeTp = TFun [(nameNil,resumeArg)] eff res
                                           in (nameClause "control" (length pars), pars ++ [ValueBinder (newName "resume") (Just resumeTp) () hrng patRng])
-                          OpControlRaw -> (nameClause "control-raw" (length pars), pars ++ [ValueBinder (newName "rcontext") Nothing () hrng patRng])
+                          OpControlRaw -> let eff0 = effectExtend heff eff
+                                              resumeContextTp = typeResumeContext resumeArg eff eff0 res
+                                          in (nameClause "control-raw" (length pars), pars ++ [ValueBinder (newName "rcontext") (Just resumeContextTp) () hrng patRng])
                           -- _            -> failure $ "Type.Infer.inferHandler: unexpected resume kind: " ++ show rkind
                  -- traceDoc $ \penv -> text "resolving:" <+> text (showPlain opName) <+> text ", under effect:" <+> text (showPlain effectName)
                  (_,gtp,_) <- resolveFunName (if isQualified opName then opName else qualify (qualifier effectName) opName)
@@ -1454,11 +1456,6 @@ inferVar propagated expect name rng isRhs
                  -- traceDoc $ \env -> (text " Type.Infer.Var: " <+> pretty name <.> colon <+> ppType env{showIds=True} sitp)
                  eff <- freshEffect
                  return (itp,eff,coref coreVar)
-
-isValueOperation tp
-  = case splitPredType tp of
-      (_,_,TSyn syn [opTp] _) -> typeSynName syn == nameTpValueOp
-      _ -> False
 
 {-
 inferVar propagated expect name rng isRhs

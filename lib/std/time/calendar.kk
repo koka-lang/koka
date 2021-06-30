@@ -1,9 +1,9 @@
 /*----------------------------------------------------------------------------
-   Copyright (C) 2012-2019 Microsoft Corporation
+   Copyright 2012-2021, Microsoft Research, Daan Leijen
 
    Licensed under the Apache License, Version 2.0 ("The Licence"). You may not
    use this file except in compliance with the License. A copy of the License
-   can be found in the file "license.txt" at the root of this distribution.
+   can be found in the LICENSE file at the root of this distribution.
 ----------------------------------------------------------------------------*/
 
 /* Calendars.  
@@ -21,7 +21,7 @@ import std/time/instant
 import std/time/utc
 import std/time/date
 
-include extern {
+extern import {
   c  file "calendar-inline.c"
   cs file "calendar-inline.cs"
   js file "calendar-inline.js"

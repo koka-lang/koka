@@ -1,0 +1,3 @@
+--leak-check=full
+--show-leak-kinds=all 
+--show-reachable=yes

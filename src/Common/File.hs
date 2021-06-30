@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Internal errors and assertions.
@@ -12,7 +12,7 @@
 module Common.File(
                   -- * System
                     getEnvPaths, getEnvVar
-                  , searchPaths, searchPathsEx
+                  , searchPaths, searchPathsSuffixes, searchPathsEx
                   , runSystem, runSystemRaw, runCmd
                   , getInstallDir, getProgramPath
 
@@ -37,6 +37,7 @@ module Common.File(
                   , readTextFile, writeTextFile
                   , copyTextFile, copyTextIfNewer, copyTextIfNewerWith, copyTextFileWith
                   , copyBinaryFile, copyBinaryIfNewer
+                  , removeFileIfExists
                   ) where
 
 import Data.List        ( intersperse )
@@ -51,7 +52,7 @@ import System.Environment ( getEnvironment, getExecutablePath )
 import System.Directory ( doesFileExist, doesDirectoryExist
                         , copyFile, copyFileWithMetadata
                         , getCurrentDirectory, getDirectoryContents
-                        , createDirectoryIfMissing, canonicalizePath )
+                        , createDirectoryIfMissing, canonicalizePath, removeFile )
 
 import Lib.Trace
 import Platform.Filetime
@@ -233,7 +234,7 @@ runCmd :: String -> [String] -> IO ()
 runCmd cmd args
   = do exitCode <- rawSystem cmd args
        case exitCode of
-          ExitFailure i -> raiseIO ("command failed:\n " ++ concat (intersperse " " (cmd:args)))
+          ExitFailure i -> raiseIO ("command failed (exit code " ++ show i ++ ")") -- \n  " ++ concat (intersperse " " (cmd:args)))
           ExitSuccess   -> return ()
 
 -- | Compare two file modification times (uses 0 for non-existing files)
@@ -315,6 +316,10 @@ copyTextIfNewerWith always srcName outName transform
         then do copyTextFileWith srcName outName transform
         else do return ()
 
+removeFileIfExists :: FilePath -> IO ()
+removeFileIfExists fname 
+  = B.exCatch (removeFile fname)
+              (\exn -> return ())
 
 getInstallDir :: IO FilePath
 getInstallDir
@@ -372,10 +377,15 @@ findMaximal f xs
 
 searchPaths :: [FilePath] -> [String] -> String -> IO (Maybe (FilePath))
 searchPaths path exts name
-  = fmap (fmap (\(root,name) -> joinPath root name)) (searchPathsEx path exts name)
+  = searchPathsSuffixes path exts [] name
 
-searchPathsEx :: [FilePath] -> [String] -> String -> IO (Maybe (FilePath,FilePath))
-searchPathsEx path exts name
+searchPathsSuffixes :: [FilePath] -> [String] -> [String] -> String -> IO (Maybe (FilePath))
+searchPathsSuffixes path exts suffixes name
+  = fmap (fmap (\(root,name) -> joinPath root name)) (searchPathsEx path (filter (not.null) exts) suffixes name)
+
+
+searchPathsEx :: [FilePath] -> [String] -> [String] -> String -> IO (Maybe (FilePath,FilePath))
+searchPathsEx path exts suffixes name
   = search (concatMap (\dir -> map (\n -> (dir,n)) nameext) ("":path))
   where
     search [] = return Nothing  -- notfound envname nameext path
@@ -388,7 +398,8 @@ searchPathsEx path exts name
           }
 
     nameext
-      = (nname : map (nname++) exts)
+      = concatMap (\fname -> fname : map (fname++) exts) $
+        map (\suffix -> (notext nname) ++ suffix ++ (extname nname)) ("" : suffixes)
 
     nname
       = joinPaths $ dropWhile (==".") $ splitPath name

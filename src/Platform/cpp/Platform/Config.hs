@@ -1,10 +1,10 @@
 {-# OPTIONS -cpp #-}
 ------------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Configuration data
@@ -18,29 +18,29 @@ module Platform.Config where
 {-# NOINLINE buildTime #-}
 
 programName :: String
-#ifdef MAIN
-programName = MAIN
+#if defined(KOKA_MAIN)
+programName = KOKA_MAIN
 #else
 programName = "koka"
 #endif
 
 version :: String
-#ifdef VERSION
-version = VERSION
+#if defined(KOKA_VERSION)
+version = KOKA_VERSION
 #else
-version = "?"
+version = "0"
 #endif
 
-buildVariant :: String
-#ifdef VARIANT
-buildVariant = VARIANT
+compilerBuildVariant :: String
+#if defined(KOKA_VARIANT)
+compilerBuildVariant = KOKA_VARIANT
 #else
-buildVariant = "interpreted"
+compilerBuildVariant = "interpreted"
 #endif
 
 compiler :: String
-#ifdef COMPILER
-compiler = COMPILER
+#if defined(KOKA_COMPILER)
+compiler = KOKA_COMPILER
 #elif __GHCI__
 compiler = "ghci"
 #elif __GLASGOW_HASKELL__
@@ -51,7 +51,7 @@ compiler = "unknown"
 
 exeExtension   :: String
 pathSep,pathDelimiter :: Char
-#ifdef WINDOWS
+#if defined(WINDOWS)
 exeExtension  = ".exe"
 dllExtension  = ".dll"
 objExtension  = ".obj"
@@ -59,7 +59,7 @@ libExtension  = ".lib"
 libPrefix     = ""
 pathSep       = '\\'
 pathDelimiter = ';'
-#elif defined(DARWIN) || defined(__MACOSX__) || defined(__MACH__)
+#elif defined(DARWIN) || defined(__APPLE__) || defined(__MACH__) || defined(__MACOSX__)
 dllExtension  = ".dylib"
 objExtension  = ".o"
 libExtension  = ".a"

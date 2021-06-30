@@ -1,6 +1,6 @@
 fun test(xs:list<int>) {
   match(xs) {
-    Cons as ys -> ys
+    ys as Cons -> ys
     Nil -> /* drop xs */ []
   }
 }

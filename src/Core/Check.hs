@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-    Typechecker for Core-F
 -}
@@ -12,6 +12,7 @@
 module Core.Check (checkCore) where
 
 import Control.Monad
+import qualified Control.Monad.Fail as F
 import Control.Applicative
 import Lib.Trace
 import Lib.PPrint
@@ -21,6 +22,7 @@ import Common.Name
 import Common.Unique
 import Common.Error
 import Common.Range
+import Common.Unique
 
 import Core.Core hiding (check)
 import qualified Core.Core as Core
@@ -40,12 +42,14 @@ import qualified Type.Operations as Op ( instantiateNoEx )
 
 import qualified Data.Set as S
 
-checkCore :: Bool -> Bool -> Env -> Int -> Gamma -> DefGroups -> Error ()
-checkCore liberalEffects allowPartialApps prettyEnv uniq gamma  defGroups
-  = case checkDefGroups defGroups (return ()) of
-      Check c -> case c uniq (CEnv liberalEffects allowPartialApps gamma prettyEnv []) of
-                   Ok x _  -> return x
-                   Err doc -> warningMsg (rangeNull, doc)
+checkCore :: Bool -> Bool -> Env -> Gamma -> CorePhase ()
+checkCore liberalEffects allowPartialApps prettyEnv gamma
+  = do uniq      <- unique
+       defGroups <- getCoreDefs
+       case checkDefGroups defGroups (return ()) of
+          Check c -> case c uniq (CEnv liberalEffects allowPartialApps gamma prettyEnv []) of
+                      Ok x _  -> return x
+                      Err doc -> liftError (warningMsg (rangeNull, doc))
 
 
 
@@ -75,7 +79,7 @@ instance Monad Check where
                                                    Check d -> d u' g
                                       Err doc -> Err doc)
 
-instance MonadFail Check where
+instance F.MonadFail Check where
   fail s        = Check (\u g -> Err (text (show (defName (head (currentDef g)))) <.> colon <+> text s))
 
 instance HasUnique Check where

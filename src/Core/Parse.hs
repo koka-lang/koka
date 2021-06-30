@@ -1,12 +1,11 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
-{-    Pretty-printer for core-F
--}
+-- Parse .kki interface files
 -----------------------------------------------------------------------------
 
 module Core.Parse( parseCore ) where
@@ -71,6 +70,8 @@ allowDotIds lexs
       -- identifier
       (Lexeme r1 (LexKeyword "." _) : Lexeme r2 (LexId name) : lexx)
         -> allowDotIds (Lexeme (combineRange r1 r2) (LexId (prepend "." name)) : lexx)
+      (Lexeme r1 (LexKeyword "." _) : Lexeme r2 (LexWildCard name) : lexx)
+        -> allowDotIds (Lexeme (combineRange r1 r2) (LexWildCard (prepend "." name)) : lexx)
       (Lexeme r1 (LexId name) : Lexeme r2 (LexKeyword "." _) : Lexeme r3 (LexInt i _) : lexx)
         -> allowDotIds (Lexeme (combineRange r1 r3) (LexId (postpend ("." ++ show i) name)) : lexx)
 
@@ -130,6 +131,7 @@ pmodule
        braced (do (imps,impAliases) <- fmap unzip $ semis importDecl
                   let impMap = foldr (\(asname,name) imp -> case importsExtend asname name imp of { Just imp' -> imp'; Nothing -> imp }) importsEmpty impAliases
 
+                  externImports <- semis externImportDecl
                   fixs <- semis fixDecl
                   (impsyns,env1) <- semisEnv (envInitial name impMap) localAlias
                   (tdefs,env2)   <- semisEnv env1 typeDecl
@@ -148,7 +150,7 @@ pmodule
                                <|> return []
                   let tdefGroups = map (\tdef -> TypeDefGroup [tdef]) tdefs
                       defGroups  = map DefNonRec defs
-                  return (Core name imps (concat fixs) tdefGroups defGroups externals doc, env2, inlines)
+                  return (Core name imps (concat fixs) tdefGroups defGroups (externImports ++ externals) doc, env2, inlines)
               )
 
 localAlias :: Env -> LexParser (SynInfo, Env)
@@ -363,16 +365,60 @@ externalTarget
 
 
 {--------------------------------------------------------------------------
+  External imports
+--------------------------------------------------------------------------}
+externImportDecl ::  LexParser External
+externImportDecl
+  = do try $ do keyword "extern"
+                keyword "import"                
+       entries <- externalImportBody
+       return (ExternalImport entries rangeNull)
+
+externalImportBody :: LexParser [(Target, [(String,String)])]
+externalImportBody
+  = do keyword "="
+       entry <- externalImportEntry
+       return [entry]
+  <|>
+    do semiBraces externalImportEntry
+  where
+    externalImportEntry
+      = do target  <- externalTarget
+           keyvals <- semiBraces externalImportKeyVal
+           return (target,keyvals)
+
+    externalImportKeyVal
+      = do key <- do{ (s,_) <- stringLit; return s }
+           keyword "="
+           (val,_) <- stringLit
+           return (key,val)
+
+{--------------------------------------------------------------------------
   Inline defs
 --------------------------------------------------------------------------}
 inlineDef :: Env -> LexParser InlineDef
 inlineDef env
-  = do (sort,inl,isRec,doc) <- pdefSort
+  = do (sort,inl,isRec,specArgs,doc) <- inlineDefSort
        -- inl        <- parseInline
        -- trace ("core inline def: " ++ show name) $ return ()
        (name,_) <- funid
        expr <- parseBody env
-       return (InlineDef (envQualify env name) expr isRec (if (inl==InlineAlways) then 0 else costExpr expr))
+       return (InlineDef (envQualify env name) expr isRec (if (inl==InlineAlways) then 0 else costExpr expr) specArgs)
+
+
+inlineDefSort
+  = do isRec <- do{ specialId "recursive"; return True } <|> return False
+       inl <- parseInline
+       spec <- do specialId "specialize" 
+                  (s,_) <- stringLit
+                  let args = [c == '*' | c <- s] 
+                  return args
+               <|> return []
+       (do (_,doc) <- dockeyword "fun"
+           return (DefFun,inl,isRec,spec,doc)
+        <|>
+        do (_,doc) <- dockeyword "val"
+           return (DefVal,inl,False,spec,doc))
 
 parseBody env
   = do keyword "="

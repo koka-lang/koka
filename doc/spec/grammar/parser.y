@@ -1,4 +1,4 @@
-/* Copyright 2012-2020 Microsoft Corporation, Daan Leijen
+/* Copyright 2012-2021, Microsoft Research, Daan Leijen
    This is free software; you can redistribute it and/or modify it under the
    terms of the Apache License, Version 2.0.
 */
@@ -75,7 +75,7 @@ void printDecl( const char* sort, const char* name );
 %token IFACE UNSAFE
 
 %token ID_CO ID_REC
-%token ID_INLINE ID_NOINLINE ID_INCLUDE
+%token ID_INLINE ID_NOINLINE
 %token ID_C ID_CS ID_JS ID_FILE
 %token ID_LINEAR ID_OPEN ID_EXTEND
 %token ID_BEHIND
@@ -98,6 +98,7 @@ void printDecl( const char* sort, const char* name );
 /* ---------------------------------------------------------
 -- Program
 ----------------------------------------------------------*/
+
 program     : semis visibility MODULE modulepath moduledecl  { printDecl("module",$4); }
             | moduledecl                                     { printDecl("module","main"); }
             ;
@@ -180,13 +181,10 @@ topdecl     : visibility puredecl                             { printDecl("value
 -- External declarations
 ----------------------------------------------------------*/
 
-externdecl  : inlineattr EXTERN funid externtype externbody    { $$ = $3; }
-            | ID_INCLUDE EXTERN externincbody                  { $$ = "<extern include>"; }
-            ;
-
-inlineattr  : ID_INLINE
-            | ID_NOINLINE
-            | /* empty */
+externdecl  : ID_INLINE   EXTERN funid externtype externbody   { $$ = $3; }
+            | ID_NOINLINE EXTERN funid externtype externbody   { $$ = $3; }
+            | EXTERN funid externtype externbody               { $$ = $2; }
+            | EXTERN IMPORT externimpbody                      { $$ = "<extern import>"; }
             ;
 
 externtype  : ':' typescheme
@@ -202,32 +200,36 @@ externstats1: externstats1 externstat semis1
             ;
 
 externstat  : externtarget externinline STRING
+            | externinline STRING
+            ;
+
+externinline: ID_INLINE
+            | /* empty */
             ;
 
 
-externincbody: '=' externinc
-            | '{' semis externincs1 '}'
+externimpbody: '=' externimp
+            | '{' semis externimps1 '}'
             ;
 
-externincs1 : externincs1 externinc semis1
-            | externinc semis1
+externimps1 : externimps1 externimp semis1
+            | externimp semis1
             ;
 
-externinc   : externtarget externfile STRING
+externimp   : externtarget varid STRING
+            | externtarget '{' externvals1 '}'
+            ;
+
+externvals1 : externvals1 externval semis1
+            | externval semis1
+            ;
+
+externval   : varid '=' STRING
             ;
 
 externtarget: ID_CS
             | ID_JS
             | ID_C
-            | /* empty */
-            ;
-
-externfile  : ID_FILE
-            | /* empty */
-            ;
-
-externinline: ID_INLINE
-            | /* empty */
             ;
 
 
@@ -301,25 +303,13 @@ con         : CON
             | /* empty */
             ;
 
-conparams   : '(' conpars1 ')'          /* deprecated */
-            | '{' semis sconpars '}'
+conparams   : '(' parameters1 ')'          /* deprecated */
+            | '{' semis sconparams '}'
             | /* empty */
             ;
 
-sconpars    : sconpars conpar semis1
+sconparams  : sconparams parameter semis1
             | /* empty */
-            ;
-
-conpars1    : conpars1 ',' conpar
-            | conpar
-            ;
-
-conpar      : paramid ':' paramtype
-            | paramid ':' paramtype '=' expr
-            /*
-            | ':' paramtype
-            | ':' paramtype '=' expr
-            */
             ;
 
 
@@ -346,10 +336,15 @@ operation   : visibility VAL identifier typeparams ':' tatomic
 -- Pure (top-level) Declarations
 ----------------------------------------------------------*/
 puredecl    : inlineattr VAL binder '=' blockexpr      { $$ = $3; }
-            | inlineattr FUN funid funparam bodyexpr   { $$ = $3; }
+            | inlineattr FUN funid funparams bodyexpr  { $$ = $3; }
             ;
 
-fundecl     : funid funparam bodyexpr         { $$ = $1; }
+inlineattr  : ID_INLINE
+            | ID_NOINLINE
+            | /* empty */
+            ;
+
+fundecl     : funid funparams bodyexpr      { $$ = $1; }
             ;
 
 binder      : identifier                    { $$ = $1; }
@@ -361,30 +356,7 @@ funid       : identifier         { $$ = $1; }
             | STRING             { $$ = $1; }
             ;
 
-funparam      : typeparams '(' parameters ')' annotres qualifier
-            ;
-
-
-parameters  : parameters1
-            | /* empty */
-            ;
-
-parameters1 : parameters1 ',' parameter
-            | parameter
-            ;
-
-parameter   : paramid
-            | paramid ':' paramtype
-            | paramid ':' paramtype '=' expr
-            | paramid '=' expr
-            ;
-
-paramid     : identifier
-            | WILDCARD
-            ;
-
-paramtype   : type
-            | '?' type
+funparams   : typeparams '(' pparameters ')' annotres qualifier
             ;
 
 annotres    : ':' tresult
@@ -446,13 +418,7 @@ basicexpr   : ifexpr
 matchexpr   : MATCH atom '{' semis matchrules '}'
             ;
 
-/*
-funexpr     : FUN funparam block
-            | block
-            ;
-*/
-
-fnexpr      : FN funparam block          /* always anonymous function */
+fnexpr      : FN funparams block            /* anonymous function */
             ;
 
 returnexpr  : RETURN expr
@@ -531,6 +497,45 @@ argument    : expr
             | identifier '=' expr                  /* named arguments */
             ;
 
+/* parameters: separated by comma, must have a type */
+
+parameters  : parameters1
+            | /* empty */
+            ;
+
+parameters1 : parameters1 ',' parameter
+            | parameter
+            ;
+
+parameter   : paramid ':' paramtype
+            | paramid ':' paramtype '=' expr
+            ;
+
+paramid     : identifier
+            | WILDCARD
+            ;
+
+paramtype   : type
+            | '?' type
+            ;
+
+
+/* pattern matching parameters: separated by comma */
+
+pparameters : pparameters1
+            | /* empty */
+            ;
+
+pparameters1: pparameters1 ',' pparameter
+            | pparameter
+            ;
+
+pparameter  : pattern 
+            | pattern ':' paramtype
+            | pattern ':' paramtype '=' expr
+            | pattern '=' expr
+            ;
+
 
 /* annotated expressions: separated or terminated by comma */
 
@@ -585,7 +590,6 @@ varid       : ID
             | ID_FILE         { $$ = "file"; }
             | ID_INLINE       { $$ = "inline"; }
             | ID_NOINLINE     { $$ = "noinline"; }
-            | ID_INCLUDE      { $$ = "include"; }
             | ID_OPEN         { $$ = "open"; }
             | ID_EXTEND       { $$ = "extend"; }
             | ID_LINEAR       { $$ = "linear"; }
@@ -605,6 +609,8 @@ qconstructor: conid
             ;
 
 qconid      : QCONID { $$ = $1; }
+            ;
+            
 conid       : CONID  { $$ = $1; }
             ;
 
@@ -644,15 +650,15 @@ apatterns1  : apatterns1 ',' apattern
             | apattern
             ;
 
-apattern    : pattern annot                      /* annotated pattern */
+apattern    : pattern annot                    /* annotated pattern */
             ;
 
 pattern     : identifier
+            | identifier AS pattern              /* named pattern */
             | conid
             | conid '(' patargs ')'
             | '(' apatterns ')'                  /* unit, parenthesized, and tuple pattern */
             | '[' apatterns ']'                  /* list pattern */
-            | apattern AS identifier             /* named pattern */
             | literal
             | WILDCARD
             ;
@@ -713,27 +719,27 @@ opclausex   : ID_FINALLY bodyexpr
 
 opclause    : VAL qidentifier '=' expr
             | VAL qidentifier ':' type '=' expr
-            | FUN qidentifier opargs bodyexpr
-            | EXCEPT qidentifier opargs bodyexpr
-            | CONTROL qidentifier opargs bodyexpr
-            | RCONTROL qidentifier opargs bodyexpr
-            | RETURN '(' oparg ')' bodyexpr
+            | FUN qidentifier opparams bodyexpr
+            | EXCEPT qidentifier opparams bodyexpr
+            | CONTROL qidentifier opparams bodyexpr
+            | RCONTROL qidentifier opparams bodyexpr
+            | RETURN '(' opparam ')' bodyexpr
             | RETURN paramid bodyexpr               /* deprecated */
             ;
 
-opargs      : '(' opargs0 ')'
+opparams    : '(' opparams0 ')'
             | /* empty */
             ;
 
-opargs0     : opargs1
+opparams0   : opparams1
             | /* empty */
             ;
 
-opargs1     : opargs1 ',' oparg
-            | oparg
+opparams1   : opparams1 ',' opparam
+            | opparam
             ;
 
-oparg       : paramid
+opparam     : paramid
             | paramid ':' type
             ;
 

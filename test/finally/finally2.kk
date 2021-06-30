@@ -5,7 +5,7 @@ effect state {
 
 
 fun bar() {
-  println("action: " + inc().show )
+  println("action: " ++ inc().show )
   42
 }
 
@@ -14,11 +14,11 @@ fun foo() {
   with handler {
     fun inc(){ i := i+1; i }
     return (x){
-      println("return, local: " + i.show )
+      println("return, local: " ++ i.show )
       x
     }
     finally {
-      println("finally, local: " + i.show)
+      println("finally, local: " ++ i.show)
     }
   }
   bar()

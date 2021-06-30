@@ -1,5 +1,12 @@
+# Note: when increasing the version, increase the version below at the cpp-options as well
+# Other files that contain a version are:
+# - util/install.sh
+# - util/install.bat
+# - util/Dockerfile
+# - util/minbuild
+
 name:       koka
-version:    2.1.2
+version:    2.2.0         
 github:     "koka-lang/koka"
 license:    Apache-2.0
 author:     Daan Leijen
@@ -8,16 +15,12 @@ maintainer: daan@microsoft.com
 extra-source-files:
   - readme.md
 
-# To avoid duplicated efforts in documentation and dealing with the
-# complications of embedding Haddock markup inside cabal files, it is
-# common to point users to the README.md file.
 description: Please see the README on GitHub at <https://github.com/koka-lang/koka#readme>
 
 dependencies:
-  - base >= 4.13 && < 5
+  - base >= 4.12
   - array
   - bytestring
-  - cond
   - containers
   - directory
   - mtl
@@ -26,25 +29,6 @@ dependencies:
   - text
   - time
   - haskeline
-
-# Uncomment after moving src/Main.hs -> app/Main.hs
-
-# library:
-#   other-extensions:
-#     - CPP
-#     - OverloadedStrings
-#   source-dirs:
-#     - src
-#     - src/Platform/cpp
-#   c-sources:
-#     - src/Platform/cpp/Platform/cconsole.c
-#   include-dirs:
-#     - src/Platform/cpp/Platform
-#   build-tools:
-#     - alex
-#   when:
-#     - condition: os(windows)
-#       cpp-options: -DWINDOWS
 
 executables:
   koka:
@@ -64,11 +48,12 @@ executables:
     build-tools:
       - alex
     ghc-options:
-      - -rtsopts
+      - -rtsopts 
+      - -j8
     cpp-options:
-      - -DMAIN="koka"
-      - -DVARIANT="release"
-      - -DVERSION="2.1.2"
+      - -DKOKA_MAIN="koka"      
+      - -DKOKA_VARIANT="release"
+      - -DKOKA_VERSION="2.2.0"
       # - -DREADLINE=1   # to avoid using Haskeline
     when:
       - condition: os(windows)
@@ -91,6 +76,6 @@ tests:
       - hspec
       - hspec-core
       - process
-      - regex-compat
+      - regex-compat-tdfa
       - json
 

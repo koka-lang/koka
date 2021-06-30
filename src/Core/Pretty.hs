@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-    Pretty-printer for core-F
 -}
@@ -42,7 +42,7 @@ keyword env s
   Show instance declarations
 --------------------------------------------------------------------------}
 
-instance Show Core      where show = show . prettyCore      defaultEnv []
+instance Show Core      where show = show . prettyCore      defaultEnv Default []
 instance Show External  where show = show . prettyExternal  defaultEnv
 instance Show TypeDef   where show = show . prettyTypeDef   defaultEnv
 instance Show DefGroup  where show = show . prettyDefGroup  defaultEnv
@@ -56,8 +56,8 @@ instance Show Pattern   where show = show . snd . prettyPattern   defaultEnv
   Pretty-printers proper
 --------------------------------------------------------------------------}
 
-prettyCore :: Env -> [InlineDef] -> Core -> Doc
-prettyCore env0 inlineDefs core@(Core name imports fixDefs typeDefGroups defGroups externals doc)
+prettyCore :: Env -> Target -> [InlineDef] -> Core -> Doc
+prettyCore env0 target inlineDefs core@(Core name imports fixDefs typeDefGroups defGroups externals doc)
   = prettyComment env doc $
     keyword env "module" <+>
     (if (coreIface env) then text "interface " else empty) <.>
@@ -65,6 +65,8 @@ prettyCore env0 inlineDefs core@(Core name imports fixDefs typeDefGroups defGrou
     (vcat $ concat $
       [ separator "import declarations"
       , map (prettyImport envX) (imports)
+      , separator "external imports"
+      , map (prettyExternalImport envX target) externals
       , separator "fixity declarations"
       , map (prettyFixDef envX) fixDefs
       , separator "local imported aliases"
@@ -76,10 +78,9 @@ prettyCore env0 inlineDefs core@(Core name imports fixDefs typeDefGroups defGrou
       , separator "external declarations"
       , map (prettyExternal env) externals
       , separator "inline definitions"
-      , if (coreInlineMax env0 < 0 || not (coreIface env0) || null inlineDefs)
+      , if (not (coreIface env0) || null inlineDefs)
          then []
          else [text "//.inline-section"] ++
-              -- map (prettyInlineDefGroup env1{coreInlineMax = coreInlineMax env0}) defGroups
                map (prettyInlineDef env1) inlineDefs
       ]
       -- ,
@@ -108,7 +109,6 @@ prettyCore env0 inlineDefs core@(Core name imports fixDefs typeDefGroups defGrou
     env1         = env0{ importsMap =  extendImportMap extraImports (importsMap env0),
                          coreShowTypes = (coreShowTypes env0 || coreIface env0),
                          showKinds = (showKinds env0 || coreIface env0),
-                         coreInlineMax = (-1),
                          coreShowDef = not (coreIface env0) }
 
 prettyImport env imp
@@ -119,6 +119,24 @@ prettyImport env imp
       <+> prettyName env (importName imp)
       <+> text "=" <+> prettyLit env (LitString (importPackage imp))
       <.> semi
+
+
+prettyExternalImport env target (ExternalImport imports _)
+  = -- prettyComment env (importModDoc imp) $
+    case lookup target imports of
+      Nothing -> empty
+      Just keyvals0
+        -> case filter (\(key,_) -> key /= "include-inline" && key /= "header-include-inline") keyvals0 of
+             [] -> empty
+             keyvals -> keyword env "extern import" <+> text "{" 
+                          <-> tab (ppTarget env target <+> text "{" <-> tab (vcat (map prettyKeyval keyvals)) <-> text "};")
+                          <-> text "};"
+  where
+    prettyKeyval (key,val)
+      = prettyLit env (LitString key) <.> text "=" <.> prettyLit env (LitString val) <.> semi
+      
+prettyExternalImport env target _ = empty
+
 
 
 prettyFixDef env (FixDef name fixity)
@@ -148,8 +166,6 @@ prettyExternal env (External name tp body vis nameRng doc)
     prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "};"
     prettyEntry (target,content)      = ppTarget env target <.> keyword env "inline" <+> prettyLit env (LitString content) <.> semi
 
-prettyExternal env (ExternalInclude includes range)
-  = empty
 prettyExternal env (ExternalImport imports range)
   = empty
 
@@ -186,11 +202,11 @@ prettyDefGroup env (DefRec defs)
   = -- (\ds -> text "rec {" <-> tab ds <-> text "}") $
     text "rec {" <+> align (prettyDefs env defs) </> text "}"
 prettyDefGroup env (DefNonRec def)
-  = prettyDef env def
+  = prettyDefX env False def
 
 prettyDefs :: Env -> Defs -> Doc
 prettyDefs env (defs)
-  = vcat (map (prettyDef env) defs)
+  = vcat (map (prettyDefX env True) defs)
 
 {-
 prettyInlineDefGroup :: Env -> DefGroup -> Doc
@@ -216,8 +232,9 @@ prettyInlineDef env isRec def@(Def name scheme expr vis sort inl nameRng doc)
 -}
 
 prettyInlineDef :: Env ->  InlineDef -> Doc
-prettyInlineDef env (InlineDef name expr isRec cost)
+prettyInlineDef env (InlineDef name expr isRec cost specArgs)
   =     (if isRec then (keyword env "recursive ") else empty)
+    <.> (if (null specArgs) then empty else (keyword env "specialize " <.> prettySpecArgs <.> text " "))
     <.> (if (cost <= 0) then (keyword env "inline ") else empty)
     <.> keyword env (if isFun then "fun" else "val")
     <+> (if nameIsNil name then text "_" else prettyDefName env name)
@@ -230,16 +247,25 @@ prettyInlineDef env (InlineDef name expr isRec cost)
               Lam _ _ _             -> True
               _                     -> False
 
-prettyDef :: Env -> Def -> Doc
-prettyDef env def@(Def name scheme expr vis sort inl nameRng doc)
+    prettySpecArgs 
+      = dquotes (text [if spec then '*' else '_' | spec <- specArgs])
+
+prettyDef :: Env-> Def -> Doc
+prettyDef env def = prettyDefX env True def
+
+prettyDefX env isRec def@(Def name scheme expr vis sort inl nameRng doc)
   = prettyComment env doc $
-    prettyVis env vis $
-    keyword env (show sort)
-    <+> (if nameIsNil name then text "_" else prettyDefName env name)
-    <+> text ":" <+> prettyType env scheme
-    <.> (if (not (coreShowDef env)) -- && (sizeDef def >= coreInlineMax env)
-          then empty
-          else linebreak <.> indent 2 (text "=" <+> prettyExpr env{coreShowVis=False} expr)) <.> semi
+    if (nameIsNil name && not isRec && coreShowDef env && not (coreShowVis env))
+      then ppBody <.> semi
+      else prettyVis env vis $
+            keyword env (show sort)
+            <+> (if nameIsNil name then text "_" else prettyDefName env name)
+            <+> text ":" <+> prettyType env scheme
+            <.> (if (not (coreShowDef env)) -- && (sizeDef def >= coreInlineMax env)
+                  then empty
+                  else linebreak <.> indent 2 (text "=" <+> ppBody)) <.> semi
+  where
+    ppBody = prettyExpr env{coreShowVis=False} expr 
 
 prettyVis env vis doc
   = if (not (coreShowVis env)) then doc else
@@ -323,7 +349,7 @@ prettyExpr env (Lit lit)
 -- Let
 prettyExpr env (Let ([DefNonRec (Def x tp e vis isVal inl nameRng doc)]) e')
   = vcat [ let exprDoc = prettyExpr env e <.> semi
-           in if (x==nameNil) then exprDoc
+           in if (nameIsNil x) then exprDoc
                else (text "val" <+> hang 2 (prettyDefName env x <+> text ":" <+> prettyType env tp <-> text "=" <+> exprDoc))
          , prettyExpr env e'
          ]

@@ -8,7 +8,7 @@ effect exc {
 }
 
 fun bar() {
-  println("action: " + inc().show )
+  println("action: " ++ inc().show )
   raise("ouch")
   42
 }
@@ -18,11 +18,11 @@ fun foo() : _ int
   var i := 41
   handle(bar) {
     return (x){
-      println("return, local: " + i.show )
+      println("return, local: " ++ i.show )
       x
     }
     finally {
-      println("finally, local: " + i.show)
+      println("finally, local: " ++ i.show)
     }
     fun inc(){ i := i+1; i }
   }
@@ -30,8 +30,8 @@ fun foo() : _ int
 
 fun main() {
   handle(foo) {
-    return (x){ println( "result: " + (x:int).show ) }
-    except raise(msg){ println("raised: " + msg) }
+    return (x){ println( "result: " ++ (x:int).show ) }
+    except raise(msg){ println("raised: " ++ msg) }
     finally { println("exc finalize") }
   }
 }

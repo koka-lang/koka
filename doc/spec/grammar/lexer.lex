@@ -1,4 +1,4 @@
-/* Copyright 2012-2016 Microsoft Corporation, Daan Leijen
+/* Copyright 2012-2021, Microsoft Research, Daan Leijen
    This is free software; you can redistribute it and/or modify it under the
    terms of the Apache License, Version 2.0.
 */
@@ -176,7 +176,6 @@ named                     { return NAMED; }
 
 inline                    { return ID_INLINE;  }
 noinline                  { return ID_NOINLINE;}
-include                   { return ID_INCLUDE; }
 
 open                      { return ID_OPEN; }
 extend                    { return ID_EXTEND; }
@@ -1215,7 +1214,7 @@ void printToken( int token, int state, yyscan_t scanner )
     case FLOAT:     fprintf(stderr,"FLOAT = '%g'", yylval->Float); break;
     case CHAR:      fprintf(stderr,"CHAR  = '%s'", showChar(yylval->Char,scanner)); break;
     case SEMI:      fprintf(stderr,";     = (inserted)"); break;
-    case STRING:    fprintf(stderr,"STRING(%u) = %s", strlen(yylval->String), showString(yylval->String,scanner)); break;
+    case STRING:    fprintf(stderr,"STRING(%zu) = %s", strlen(yylval->String), showString(yylval->String,scanner)); break;
     default: {
       if (token >= ' ' && token <= '~')
         fprintf(stderr,"%c", token);
