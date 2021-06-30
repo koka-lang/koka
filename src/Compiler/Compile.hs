@@ -901,6 +901,8 @@ inferCheck loaded0 flags line coreImports program
           -- trace "monadic transform" $
           do Core.Monadic.monTransform penv
              openResolve penv gamma
+             traceDefGroups "open resolved" 
+
        checkCoreDefs "monadic transform"
 
        -- full simplification
