@@ -1,7 +1,7 @@
-fun map-poly(xs : list<a>, f : a -> e b) : e list<b> {
+fun map-poly(xs : list<a>, f : a -> e b, acc) : e list<b> {
   match (xs) {
     Nil -> Nil
-    Cons(x, xx) -> Cons(x.f, xx.map-poly(f))
+    Cons(x, xx) -> Cons(x.f, xx.map-poly(f)) 
   }
 }
 
