@@ -52,14 +52,13 @@ runSpecM specEnv specM = runReader specM specEnv
 specialize :: Inlines -> CorePhase ()
 specialize specEnv 
   = liftCorePhase $ \defs ->
+    -- TODO: use uniqe int to generate names and remove call to uniquefyDefGroups?
     uniquefyDefGroups $ runSpecM specEnv (mapM specOneDefGroup defs)
 
 speclookupM :: Name -> SpecM (Maybe InlineDef)
 speclookupM name 
   = asks $ \env -> 
-    case inlinesLookup name env of
-      Just idef | inlineDefIsSpecialize idef -> Just idef      
-      _ -> Nothing 
+      filterMaybe inlineDefIsSpecialize $ inlinesLookup name env
 
 specOneDefGroup :: DefGroup -> SpecM DefGroup
 specOneDefGroup = mapMDefGroup specOneDef
@@ -92,7 +91,7 @@ specOneExpr thisDefName
 
 filterBools :: [Bool] -> [a] -> [a]
 filterBools bools as 
-  = catMaybes $ zipWith (\bool a -> guard bool >> Just a) bools as
+  = map snd . filter fst $ zip bools as
 
 -- (falses, trues)
 partitionBools :: [Bool] -> [a] -> ([a], [a])
@@ -112,8 +111,7 @@ specOneCall (InlineDef{ inlineName=specName, inlineExpr=specExpr, specializeArgs
       _ -> return e
 
   where
-    goodArgs args  = all goodArg (map snd $ filter fst $ zip specArgs args)
-    
+    goodArgs args  = all goodArg $ filterBools specArgs args
     goodArg expr = case expr of
                     Lam{}                  -> True
                     TypeLam _ body         -> goodArg body
@@ -160,7 +158,6 @@ replaceCall name expr bools args mybeTypeArgs -- trace ("specializing" <> show n
   where
     specDef = Def (getName specTName) (typeOf specTName) specBody Private DefFun InlineAuto rangeNull 
                $ "// specialized " <> show name <> " to parameters " <> show speccedParams
-    -- there's some knot-tying here: we need to know the type of the specialized fn to replace recursive calls with the specialized version, and the new body also influences the specialized type
     specBody 
       = specInnerCalls (TName name (typeOf expr)) specTName (not <$> bools) specBody0
       
@@ -267,9 +264,8 @@ allEq [] = True
 allEq (x:xs) = all (== x) xs
 
 -- list of all params to recursive calls
--- include the type if the call is a TypeApp
--- recursiveCalls :: Def -> [(Maybe [Type], [Expr])]
-recursiveCalls :: Def -> (Maybe [[Type]], [[Expr]]) -- [(Maybe [Type], [Expr])]
+-- include the types if the call is a TypeApp
+recursiveCalls :: Def -> (Maybe [[Type]], [[Expr]])
 recursiveCalls Def{ defName=thisDefName, defExpr=expr } 
   = case expr of
       Lam params eff body 
