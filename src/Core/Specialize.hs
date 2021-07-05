@@ -250,6 +250,7 @@ passedInSameOrder params args
      , tname == param = Just tname
     f _ _ = Nothing
 
+isFun :: Type -> Bool
 isFun = isJust . splitFunScheme
 
 usedInThisDef :: Def -> S.NameSet
