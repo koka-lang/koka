@@ -872,8 +872,11 @@ inferCheck loaded0 flags line coreImports program
        -- traceDefGroups "simplify"
        
        -- specialize 
-       specializeDefs <- Core.withCoreDefs (\defs -> extractSpecializeDefs defs)
-       -- trace ("Spec defs:\n" ++ show specializeDefs) $ return ()
+       (specializeDefs, inls) <- Core.withCoreDefs (\defs -> extractSpecializeDefs (loadedInlines loaded) defs)
+      --  traceM ("Spec defs:\n" ++ show specializeDefs)
+
+       -- inline for multi-step specialization case
+       inlineDefs penv (2*(optInlineMax flags)) inls
        
        when (optSpecialize flags) $
          specialize (inlinesExtends specializeDefs (loadedInlines loaded))
