@@ -62,7 +62,7 @@ import Core.OpenResolve       ( openResolve )
 import Core.FunLift           ( liftFunctions )
 import Core.Monadic           ( monTransform )
 import Core.MonadicLift       ( monadicLift )
-import Core.Inlines           ( inlinesExtends, extractInlineDefs )
+import Core.Inlines           ( inlinesExtends, extractInlineDefs, inlinesMerge, inlinesToList )
 import Core.Inline            ( inlineDefs )
 import Core.Specialize
 
@@ -872,14 +872,14 @@ inferCheck loaded0 flags line coreImports program
        -- traceDefGroups "simplify"
        
        -- specialize 
-       (specializeDefs, inls) <- Core.withCoreDefs (\defs -> extractSpecializeDefs (loadedInlines loaded) defs)
+       specializeDefs <- Core.withCoreDefs (\defs -> extractSpecializeDefs (loadedInlines loaded) defs)
       --  traceM ("Spec defs:\n" ++ show specializeDefs)
 
        -- inline for multi-step specialization case
-       inlineDefs penv (2*(optInlineMax flags)) inls
+       inlineDefs penv (2*(optInlineMax flags)) specializeDefs
        
        when (optSpecialize flags) $
-         specialize (inlinesExtends specializeDefs (loadedInlines loaded))
+         specialize (specializeDefs `inlinesMerge` (loadedInlines loaded))
        -- traceDefGroups "specialize"
 
        -- lifting recursive functions to top level
@@ -925,7 +925,7 @@ inferCheck loaded0 flags line coreImports program
        -- traceM ("final: " ++ show uniqueFinal)
        let -- extract inline definitions to export
            localInlineDefs  = extractInlineDefs (optInlineMax flags) coreDefsFinal 
-           allInlineDefs    = localInlineDefs ++ specializeDefs
+           allInlineDefs    = localInlineDefs ++ inlinesToList specializeDefs
 
            coreProgramFinal 
             = uniquefy $

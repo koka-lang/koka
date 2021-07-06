@@ -70,6 +70,7 @@ inlinesLookup name (Inlines inlines)
 inlinesToList :: Inlines -> [InlineDef]
 inlinesToList (Inlines m) = map snd $ M.toAscList m
 
+-- left-biased merge
 inlinesMerge :: Inlines -> Inlines -> Inlines
 inlinesMerge (Inlines a) (Inlines b) = Inlines $ M.union a b
 

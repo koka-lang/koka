@@ -205,10 +205,9 @@ fnBody (TypeLam _ (Lam _ _ body)) = body
   Extract definitions that should be specialized
 --------------------------------------------------------------------------}
 
-extractSpecializeDefs :: Inlines -> DefGroups -> ([InlineDef], Inlines)
+extractSpecializeDefs :: Inlines -> DefGroups -> Inlines
 extractSpecializeDefs inlines dgs =
-  (\x -> (inlinesToList x, x))
-  $ flip multiStepInlines dgs
+    flip multiStepInlines dgs
   $ inlinesMerge inlines
   $ inlinesNew
   $ mapMaybe makeSpecialize
@@ -306,10 +305,10 @@ multiStepInlines inlines = foldl' f inlines . flattenDefGroups
     -- references that aren't calls aren't eligible for multi-step specialization; we don't have the specializable args anyway
     callsSpecializable inlines def = getAny $ flip foldMapExpr (defExpr def) $ \e -> Any $ case e of
       App (Var (TName name _) _) args
-        | Just _ <- inlinesLookup name inlines 
+        | Just _ <- inlinesLookup name inlines
         , name /= defName def -> not $ null $ intersect params $ concatMap vars args
       App (TypeApp (Var (TName name _) _) _) args
-        | Just _ <- inlinesLookup name inlines 
+        | Just _ <- inlinesLookup name inlines
         , name /= defName def -> not $ null $ intersect params $ concatMap vars args
       e -> False
 
