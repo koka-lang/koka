@@ -4,7 +4,7 @@
 # Installation script for Koka; use -h to see command line options.
 #-----------------------------------------------------------------------------
 
-VERSION="v2.1.9"        
+VERSION="v2.1.9"
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
@@ -21,7 +21,7 @@ adjust_version() {  # <osarch>
   case "$1" in
     linux-arm64)
       VERSION="v2.1.9";;
-  esac    
+  esac
 }
 
 #---------------------------------------------------------
@@ -75,12 +75,12 @@ detect_osarch() {
       arch="x64";;
     x86*|i[35678]86*)
       arch="x86";;
-    arm64*|aarch64*|armv8*)   
+    arm64*|aarch64*|armv8*)
       arch="arm64";;
-    arm*)              
+    arm*)
       arch="arm";;
     parisc*)
-      arch="hppa";;          
+      arch="hppa";;
   esac
 
   OSARCH="unix-$arch"
@@ -115,7 +115,7 @@ process_options() {
       -q|--quiet)
           QUIET="yes";;
       -f|--force)
-          FORCE="yes";;    
+          FORCE="yes";;
       -p) shift
           PREFIX="$1";;
       -p=*|--prefix=*)
@@ -127,7 +127,7 @@ process_options() {
       -b=*|--bundle=*)
           KOKA_DIST_SOURCE="$flag_arg";;
       -v) shift
-          VERSION="v${1#v}";;         # always prefix with a v          
+          VERSION="v${1#v}";;         # always prefix with a v
       -v=*|--version=*)
           VERSION="v${flag_arg#v}";;  # always prefix with a v
       -u|--uninstall)
@@ -142,7 +142,7 @@ process_options() {
 
   # adjust x64 arch for older versions to amd64
   case "$VERSION" in
-    v2.0.*|v2.1.[0123456]*) 
+    v2.0.*|v2.1.[0123456]*)
       case "$OSARCH" in
         *-x64) OSARCH="${OSARCH%-x64}-amd64";;
       esac;;
@@ -203,11 +203,11 @@ KOKA_PREV_PREFIX=
 detect_previous_install() {
   if which koka > /dev/null ; then
     KOKA_PREV_EXE="$(which koka)"
-    if [ -e "$KOKA_PREV_EXE" ] ; then 
+    if [ -e "$KOKA_PREV_EXE" ] ; then
       KOKA_PREV_PREFIX="${KOKA_PREV_EXE%/bin/koka*}"
       KOKA_PREV_VERSION="$($KOKA_PREV_EXE --version)"  # get version info
       KOKA_PREV_VERSION="${KOKA_PREV_VERSION%%,*}"     # remove everything after the first ,
-      KOKA_PREV_VERSION="v${KOKA_PREV_VERSION#Koka }"  # remove Koka prefix 
+      KOKA_PREV_VERSION="v${KOKA_PREV_VERSION#Koka }"  # remove Koka prefix
       # echo "found previous koka version $KOKA_PREV_VERSION (installed at: $KOKA_PREV_PREFIX)"
     fi
   fi
@@ -245,7 +245,7 @@ dnf_groupinstall() {
 
 pacman_install() {
   if ! sudocmd pacman -S --noconfirm ${QUIET:+-q} "$@"; then
-    die "\ninstalling pacman packages failed ($@).  Please run 'pacman -Sy' and try again."
+    die "installing pacman packages failed ($@).  Please run 'pacman -Sy' and try again."
   fi
 }
 
@@ -273,17 +273,18 @@ install_dependencies() {
   if has_cmd apt-get ; then
     apt_get_install build-essential $deps
   elif has_cmd dnf ; then
-    dnf_groupinstall "Development Tools" # this is for Fedora 32+， CentOS 8 and CentOS Stream  
+    dnf_groupinstall "Development Tools" # this is for Fedora 32+， CentOS 8 and CentOS Stream
     dnf_install $deps
   elif has_cmd yum ; then
     yum_install build-essential $deps
   elif has_cmd apk ; then
     apk_install build-essential $deps
   elif has_cmd pacman; then
+    deps="gcc make tar curl cmake ninja pkg-config"
     pacman_install base-devel $deps
   else
     case "$OSARCH" in
-      macos-*|osx-*)  
+      macos-*|osx-*)
         ;;  # macos already has all dependencies pre-installed
       *)
         info "Unable to install dependencies; continuing..";;
@@ -332,7 +333,7 @@ download_dist() {
 #-----------------------------------------------------
 
 install_dist() {  # <prefix> <version>
-  # set parameters  
+  # set parameters
   prefix="$1"
   version="$2"
   koka_share_dir="$prefix/share/koka"
@@ -349,7 +350,7 @@ install_dist() {  # <prefix> <version>
     die "Extraction failed."
   fi
 
-  info "Installing to prefix: $prefix"  
+  info "Installing to prefix: $prefix"
 
   # install the exe and figure out whether to use sudo for the rest
   if [ ! -d "$koka_bin_dir" ] ; then
@@ -358,7 +359,7 @@ install_dist() {  # <prefix> <version>
         die "Cannot create $koka_bin_dir installation directory"
       fi
     fi
-  fi    
+  fi
   if ! install -c -m 0755 "$KOKA_TEMP_DIR/bin/koka" "$koka_exe" 2>/dev/null; then
     if ! sudocmd install -c -o 0 -g 0 -m 0755 "$KOKA_TEMP_DIR/bin/koka" "$koka_exe"; then
       die "Installation of koka to $koka_exe has failed"
@@ -367,7 +368,7 @@ install_dist() {  # <prefix> <version>
     USE_SUDO="never"
   fi
   info "- install executable to            : $koka_exe"
-  
+
   # install symlink
   info "- install executable symlink to    : $koka_symlink"
   if [ -L "$koka_symlink" ]; then
@@ -406,12 +407,12 @@ install_dist() {  # <prefix> <version>
       fi
       if ! cp -p -r $koka_atom_dir/* ~/.atom/packages/language-koka/ ; then
         info "  (failed to copy atom support files)"
-      elif [ ! -z "$need_restart" ] ; then 
+      elif [ ! -z "$need_restart" ] ; then
         info "  Please restart Atom for Koka syntax highlighting to take effect."
       fi
     fi
-  fi  
-  
+  fi
+
   # install Visual Studio Code editor support
   NODE_NO_WARNINGS=1
   vscode="code"
@@ -431,8 +432,8 @@ install_dist() {  # <prefix> <version>
   fi
 
   # emacs message
-  if ! which emacs ; then 
-    info "- emacs syntax mode can be found at: $koka_share_dir/$version/contrib/emacs" 
+  if ! which emacs ; then
+    info "- emacs syntax mode can be found at: $koka_share_dir/$version/contrib/emacs"
   fi
 }
 
@@ -459,8 +460,8 @@ uninstall_dist() {  # <prefix> <version>
         info "Unable to remove $koka_share_dir/$version; continuing.."
       fi
     fi
-    if [ -z "$(ls -A $koka_share_dir)" ]; then   
-      info "- remove $koka_share_dir" 
+    if [ -z "$(ls -A $koka_share_dir)" ]; then
+      info "- remove $koka_share_dir"
       sudocmd rmdir "$koka_share_dir" 2>/dev/null # remove if empty
     fi
   else
@@ -515,7 +516,7 @@ uninstall_dist() {  # <prefix> <version>
 #---------------------------------------------------------
 
 main_uninstall() {
-  # confirm uninstall 
+  # confirm uninstall
   if [ -z "$FORCE" ] ; then
     read -p "Uninstalling koka version $VERSION. Are you sure? [yN] " choice </dev/tty
     case $choice in
@@ -556,7 +557,7 @@ main_install() {
         info "Uninstalling previous koka version $KOKA_PREV_VERSION"
         uninstall_dist $KOKA_PREV_PREFIX $KOKA_PREV_VERSION
         info "Uninstall successful of koka $KOKA_PREV_VERSION";;
-      *) 
+      *)
         info "Uninstall of previous koka version is canceled";;
     esac
   fi
@@ -589,11 +590,11 @@ main_help() {
 main_start() {
   detect_osarch
   process_options $@
-  detect_previous_install  
+  detect_previous_install
   if [ "$MODE" = "help" ] ; then
-    main_help    
+    main_help
   elif [ "$MODE" = "uninstall" ] ; then
-    main_uninstall 
+    main_uninstall
   else
     main_install
   fi
