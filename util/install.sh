@@ -414,7 +414,7 @@ install_dist() {  # <prefix> <version>
   fi
 
   # install Visual Studio Code editor support
-  NODE_NO_WARNINGS=1
+  export NODE_NO_WARNINGS=1
   vscode="code"
   if ! which "$vscode" > /dev/null ; then
     if [ "$(uname)" = "Darwin" ] ; then
