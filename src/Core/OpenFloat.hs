@@ -41,13 +41,16 @@ trace s x =
    Lib.Trace.trace s
     x
 
-enable = True  -- set to True to enable the transformation
+enable = -- set to True to enable the transformation
+  True 
+  -- False
 
 openFloat :: Pretty.Env -> Gamma -> CorePhase ()
 openFloat penv gamma
   = liftCorePhaseUniq $ \uniq defs ->
     let 
-      ((expr, _), i) = runFlt penv gamma uniq (fltDefGroups defs)
+      ((expr, _), i) = runFlt penv gamma uniq $ 
+        (if enable then fltDefGroups else \dgs -> return (dgs, Bottom)) defs
     in (expr, i)
 
 
@@ -122,7 +125,6 @@ fltExpr expr
 
     -- the rest
     _ -> return (expr, Bottom)
-
 
 fltBranch :: Branch -> Flt (Branch, Req)
 fltBranch (Branch pat guards)
