@@ -44,7 +44,7 @@ trace s x =
 enable = True  -- set to True to enable the transformation
 
 openFloat :: Pretty.Env -> Gamma -> CorePhase ()
-openFloat penv gamma 
+openFloat penv gamma
   = liftCorePhaseUniq $ \uniq defs ->
     runFlt penv gamma uniq (fltDefGroups defs)
 
@@ -129,21 +129,61 @@ fltGuard (Guard guard body)
        return $ Guard guard' body'
 
 
-optApp :: Expr -> Expr -> Expr -> Flt Expr
-optApp ef@(App (TypeApp topen1@(Var open0 _) [effFrom0,effTo0,tpFrom0,tpTo0]) [f])
-       ee1@(App (App (TypeApp (Var open1 _) [effFrom1,effTo1,tpFrom1,tpTo1]) [e1]) [arg1])
-       ee2@(App (App (TypeApp (Var open2 _) [effFrom2,effTo2,tpFrom2,tpTo2]) [e2]) [arg2])
-   | getName open0 == nameEffectOpen && getName open1 == nameEffectOpen && getName open2 == nameEffectOpen
-     && matchType effFrom0 effFrom1 && matchType effFrom1 effFrom2
-     && matchType effTo0 effTo1 && matchType effTo1 effTo2
-   = do traceDoc $ \penv -> text "found it!"
-        return $ App (TypeApp topen1 [effFrom0,effTo0,tpFrom0,tpTo0])
-                    [Lam [] effFrom0
-                       (App f [App e1 [arg1], App e2 [arg2]])]
+-- optApp :: Expr -> Expr -> Expr -> Flt Expr
+-- optApp ef@(App (TypeApp topen1@(Var open0 _) [effFrom0,effTo0,tpFrom0,tpTo0]) [f])
+--        ee1@(App (App (TypeApp (Var open1 _) [effFrom1,effTo1,tpFrom1,tpTo1]) [e1]) [arg1])
+--        ee2@(App (App (TypeApp (Var open2 _) [effFrom2,effTo2,tpFrom2,tpTo2]) [e2]) [arg2])
+--    | getName open0 == nameEffectOpen && getName open1 == nameEffectOpen && getName open2 == nameEffectOpen
+--      && matchType effFrom0 effFrom1 && matchType effFrom1 effFrom2
+--      && matchType effTo0 effTo1 && matchType effTo1 effTo2
+--    = do traceDoc $ \penv -> text "found it!"
+--         return $ App (TypeApp topen1 [effFrom0,effTo0,tpFrom0,tpTo0])
+--                     [Lam [] effFrom0
+--                        (App f [App e1 [arg1], App e2 [arg2]])]
 
-optApp f e1 e2
-   = do return (App f [e1,e2])
+-- optApp f e1 e2
+--    = do return (App f [e1,e2])
 
+{--------------------------------------------------------------------------
+  Requirement
+--------------------------------------------------------------------------}
+
+data Req = Eff Effect | Bottom deriving (Eq, Show)
+
+sup :: [Req] -> Req
+sup = foldl supb Bottom
+
+supb :: Req -> Req -> Req
+supb Bottom rq = rq
+supb rq Bottom = rq
+supb (Eff eff1) (Eff eff2) = Eff $ supbEffect eff1 eff2
+
+
+supbEffect :: Effect -> Effect -> Effect
+supbEffect eff1 eff2 =
+  let
+    (labs1, tl1) = extractOrderedEffect eff1
+    (labs2, tl2) = extractOrderedEffect eff2
+    tl = assertion
+           ("OpenFlaot. sup undefined between:\n" ++ "A. " ++ show tl1 ++ "\nB. " ++ show tl2)
+           (isEffectEmpty tl1 || isEffectEmpty tl2 || tl1 `matchEffect` tl2 )
+           (if isEffectEmpty tl1 then tl2 else tl1)
+    labs = mergeLabs labs1 labs2
+  in effectExtends labs tl
+  where
+    compareLabel :: Tau -> Tau -> Ordering
+    compareLabel l1 l2 = labelNameCompare (labelName l1) (labelName l2)
+    mergeLabs :: [Tau] -> [Tau] -> [Tau]
+    mergeLabs [] labs = labs
+    mergeLabs labs [] = labs
+    mergeLabs labs1@(l1:ls1) labs2@(l2:ls2) = case l1 `compareLabel` l2 of
+      EQ -> l1:mergeLabs ls1 ls2
+      LT -> l1:mergeLabs ls1 labs2
+      GT -> l2:mergeLabs labs1 ls2
+
+
+matchEffect :: Effect -> Effect -> Bool
+matchEffect eff1 eff2 = matchType (orderEffect eff1) (orderEffect eff2)
 {--------------------------------------------------------------------------
   Flt monad
 --------------------------------------------------------------------------}
