@@ -46,87 +46,95 @@ enable = True  -- set to True to enable the transformation
 openFloat :: Pretty.Env -> Gamma -> CorePhase ()
 openFloat penv gamma
   = liftCorePhaseUniq $ \uniq defs ->
-    runFlt penv gamma uniq (fltDefGroups defs)
+    let 
+      ((expr, _), i) = runFlt penv gamma uniq (fltDefGroups defs)
+    in (expr, i)
 
 
 {--------------------------------------------------------------------------
   transform definition groups
 --------------------------------------------------------------------------}
-fltDefGroups :: DefGroups -> Flt DefGroups
-fltDefGroups [] = return []
+fltDefGroups :: DefGroups -> Flt (DefGroups, Req)
+fltDefGroups [] = return ([], Bottom)
 fltDefGroups (dg:dgs) = fltDefGroup dg (fltDefGroups dgs)
 
+fltDefGroup :: DefGroup -> Flt ([DefGroup], Req) -> Flt ([DefGroup], Req)
 fltDefGroup (DefRec defs) next
-  = do defs' <- mapM fltDef defs
-       dgs <- next
-       return (DefRec defs':dgs)
+  = do defs_rqs <-  mapM fltDef defs
+       let (defs', rqs) = unzip defs_rqs
+       (dgs, rq) <- next
+       return (DefRec defs':dgs, sup $ rq:rqs)
 
 fltDefGroup (DefNonRec def) next
- = do def' <- fltDef def
-      dgs <-  next
-      return (DefNonRec def':dgs)
+ = do (def', rq) <- fltDef def
+      (dgs, rq') <-  next
+      return (DefNonRec def':dgs, supb rq rq')
 
-fltDef :: Def -> Flt Def
+fltDef :: Def -> Flt (Def, Req)
 fltDef def
   = withCurrentDef def $
-    do expr' <- fltExpr (defExpr def)
-       return def{ defExpr = expr' }
+    do (expr', rq) <- fltExpr (defExpr def)
+       return (def{ defExpr = expr' }, rq)
 
-fltExpr :: Expr -> Flt Expr
+fltExpr :: Expr -> Flt (Expr, Req)
 fltExpr expr
   = case expr of
     {-
     App eopen@(TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [f] | getName open == nameEffectOpen
         -> resOpen env eopen effFrom effTo tpFrom tpTo f
     -}
-    App f [e1,e2]
-      -> do e1' <- fltExpr e1
-            e2' <- fltExpr e2
-            f'  <- fltExpr f
-            -- optApp f' e1' e2'
-            return (App f' [e1',e2'])
+    -- App f [e1,e2]
+    --   -> do e1' <- fltExpr e1
+    --         e2' <- fltExpr e2
+    --         f'  <- fltExpr f
+    --         -- optApp f' e1' e2'
+    --         return (App f' [e1',e2'])
     App f args
-      -> do args' <- mapM fltExpr args
-            f' <- fltExpr f
-            return (App f' args')
+      -> do args_rq' <- mapM fltExpr args
+            let (args', rqs) = unzip args_rq'
+            (f', rqf) <- fltExpr f
+            return (App f' args', sup $ rqf:rqs)
 
     Lam args eff body
       -> do traceDoc $ \env -> text "lambda:" <+> niceType env eff
-            body' <- fltExpr body
-            return (Lam args eff body')
+            (body', rq) <- fltExpr body
+            return (Lam args eff body', rq)
 
     Let defgs body
-      -> do defgs' <- fltDefGroups defgs
-            body'  <- fltExpr body
-            return (Let defgs' body')
+      -> do (defgs', rqdgs) <- fltDefGroups defgs
+            (body', rq)  <- fltExpr body
+            return (Let defgs' body', supb rq rqdgs)
     Case exprs bs
-      -> do exprs' <- mapM fltExpr exprs
-            bs'    <- mapM fltBranch bs
-            return (Case exprs' bs')
+      -> do exprs_rq' <- mapM fltExpr exprs
+            let (exprs', rq) = unzip exprs_rq'
+            bs_rq'    <- mapM fltBranch bs
+            let (bs', rqb) = unzip bs_rq'
+            return (Case exprs' bs', sup $ rq ++ rqb)
 
     -- type application and abstraction
     TypeLam tvars body
-      -> do body' <- fltExpr body
-            return $ TypeLam tvars body'
+      -> do (body', rq) <- fltExpr body
+            return $ (TypeLam tvars body', Bottom)
 
     TypeApp body tps
-      -> do body' <- fltExpr body
-            return $ TypeApp body' tps
+      -> do (body', rq) <- fltExpr body
+            return $ (TypeApp body' tps, rq)
 
     -- the rest
-    _ -> return expr
+    _ -> return (expr, Bottom)
 
 
-fltBranch :: Branch -> Flt Branch
+fltBranch :: Branch -> Flt (Branch, Req)
 fltBranch (Branch pat guards)
-  = do guards' <- mapM fltGuard guards
-       return $ Branch pat guards'
+  = do guard_rqs <- mapM fltGuard guards
+       let (guards', rqs) = unzip guard_rqs
+       return $ (Branch pat guards', sup rqs)
 
-fltGuard :: Guard -> Flt Guard
+fltGuard :: Guard -> Flt (Guard, Req)
 fltGuard (Guard guard body)
-  = do guard' <- fltExpr guard
-       body'  <- fltExpr body
-       return $ Guard guard' body'
+  = do (guard', rqg) <- fltExpr guard
+       (body', rqb)  <- fltExpr body
+       return $ (Guard guard' body', supb rqg rqb)
 
 
 -- optApp :: Expr -> Expr -> Expr -> Flt Expr
@@ -184,6 +192,7 @@ supbEffect eff1 eff2 =
 
 matchEffect :: Effect -> Effect -> Bool
 matchEffect eff1 eff2 = matchType (orderEffect eff1) (orderEffect eff2)
+
 {--------------------------------------------------------------------------
   Flt monad
 --------------------------------------------------------------------------}
