@@ -42,77 +42,87 @@ trace s x =
     x
 
 enable = -- set to True to enable the transformation
-  True 
+  True
   -- False
 
 openFloat :: Pretty.Env -> Gamma -> CorePhase ()
 openFloat penv gamma
   = liftCorePhaseUniq $ \uniq defs ->
-    let 
-      ((expr, _), i) = runFlt penv gamma uniq $ 
-        (if enable then fltDefGroups else \dgs -> return (dgs, Bottom)) defs
+    let
+      (expr, i) = runFlt penv gamma uniq $
+        (if enable then fltDefGroups else return) defs
     in (expr, i)
 
 
 {--------------------------------------------------------------------------
   transform definition groups
 --------------------------------------------------------------------------}
-fltDefGroups :: DefGroups -> Flt (DefGroups, Req)
-fltDefGroups [] = return ([], Bottom)
-fltDefGroups (dg:dgs) = fltDefGroup dg (fltDefGroups dgs)
+fltDefGroups :: DefGroups -> Flt DefGroups
+fltDefGroups = foldr fltDefGroup (return [])
 
-fltDefGroup :: DefGroup -> Flt ([DefGroup], Req) -> Flt ([DefGroup], Req)
+fltDefGroup :: DefGroup -> Flt [DefGroup] -> Flt [DefGroup]
 fltDefGroup (DefRec defs) next
-  = do defs_rqs <-  mapM fltDef defs
-       let (defs', rqs) = unzip defs_rqs
-       (dgs, rq) <- next
-       return (DefRec defs':dgs, sup $ rq:rqs)
+  = do defs' <-  mapM fltDef defs
+       next' <- next 
+       return $ DefRec defs' : next'
 
 fltDefGroup (DefNonRec def) next
- = do (def', rq) <- fltDef def
-      (dgs, rq') <-  next
-      return (DefNonRec def':dgs, supb rq rq')
+ = do def' <- fltDef def
+      next' <-  next
+      return $ DefNonRec def' : next'
 
-fltDef :: Def -> Flt (Def, Req)
+fltDef :: Def -> Flt Def
 fltDef def
   = withCurrentDef def $
-    do (expr', rq) <- fltExpr (defExpr def)
-       return (def{ defExpr = expr' }, rq)
+    do (expr', _) <- fltExpr (defExpr def)
+       return def{ defExpr = expr' }
 
 fltExpr :: Expr -> Flt (Expr, Req)
 fltExpr expr
   = case expr of
-    {-
-    App eopen@(TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [f] | getName open == nameEffectOpen
-        -> resOpen env eopen effFrom effTo tpFrom tpTo f
-    -}
-    -- App f [e1,e2]
-    --   -> do e1' <- fltExpr e1
-    --         e2' <- fltExpr e2
-    --         f'  <- fltExpr f
-    --         -- optApp f' e1' e2'
-    --         return (App f' [e1',e2'])
+    -- flt open[...](f)(args)  = flt f(args)
+    App (App eopen@(TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [f]) args | getName open == nameEffectOpen
+      -> do fltExpr $ App f args
+
     App f args
-      -> do args_rq' <- mapM fltExpr args
+      -> do (f', rqf) <- fltExpr f
+            args_rq' <- mapM fltExpr args
+            tp <- getFunType f  -- debug
             let (args', rqs) = unzip args_rq'
-            (f', rqf) <- fltExpr f
-            return (App f' args', sup $ rqf:rqs)
+                Just(_, feff, _) = splitFunType tp
+                rqSup = sup $ Eff feff  : rqf : rqs
+                frest = smartRestrictExpr rqf rqSup f'
+                f'' = smartOpenExpr (Eff feff) rqSup frest
+                args'' = map (\(e, rq)-> smartRestrictExpr rq rqSup e) args_rq'
+            return (App f'' args'', rqSup)
+            where
+              getFunType :: Expr -> Flt Type
+              getFunType expr = case typeOf expr of
+                funtp@TFun{} -> return funtp
+                tp -> do traceDoc $ \env -> text "App" <+> niceType env tp
+                         return tp
 
     Lam args eff body
       -> do traceDoc $ \env -> text "lambda:" <+> niceType env eff
             (body', rq) <- fltExpr body
-            return (Lam args eff body', rq)
+            return (Lam args eff body', Bottom)
 
     Let defgs body
-      -> do (defgs', rqdgs) <- fltDefGroups defgs
-            (body', rq)  <- fltExpr body
-            return (Let defgs' body', supb rq rqdgs)
+      -> do defgIR_rqs <- mapM fltDefGroupAux defgs
+            (body', rq) <- fltExpr body
+            let (defgIRs, rqs) = unzip defgIR_rqs
+                rqSup = sup $ rq:rqs
+            defgs' <- mapM (restrictToDG rqSup) defgIRs
+            return (Let defgs' body', rqSup)
     Case exprs bs
-      -> do exprs_rq' <- mapM fltExpr exprs
-            let (exprs', rq) = unzip exprs_rq'
-            bs_rq'    <- mapM fltBranch bs
-            let (bs', rqb) = unzip bs_rq'
-            return (Case exprs' bs', sup $ rq ++ rqb)
+      -> do exprIR_rqs <- mapM fltExpr exprs
+            bIR_rqs <- mapM fltBranchAux bs
+            let rqe = foldl supb Bottom $ map snd exprIR_rqs
+                (bIRs, rqbs) = unzip bIR_rqs
+                rqSup = sup $ rqe : rqbs
+            exprs'' <- mapM (restrictToE rqSup) exprIR_rqs
+            bs'' <- mapM (restrictToB rqSup) bIRs
+            return (Case exprs'' bs'', rqSup)
 
     -- type application and abstraction
     TypeLam tvars body
@@ -125,18 +135,53 @@ fltExpr expr
 
     -- the rest
     _ -> return (expr, Bottom)
+    where
+      restrictToD :: Req -> DefIR -> Flt Def
+      restrictToD rqSup (DefIR def@Def{defExpr=expr} rq) = return $ def{defExpr= smartRestrictExpr rq rqSup expr}
+      restrictToDG :: Req -> DefGroupIR -> Flt DefGroup
+      restrictToDG rqSup (DefRecIR defIRs) =
+        do defs <- mapM (restrictToD rqSup) defIRs
+           return $ DefRec defs
+      restrictToDG rqSup (DefNonRecIR defIR) =
+        do def <- restrictToD rqSup defIR
+           return $ DefNonRec def
+      restrictToE :: Req -> (Expr, Req) -> Flt Expr
+      restrictToE rqSup (e, rq) = return $ smartRestrictExpr rq rqSup e
+      restrictToB :: Req -> BranchIR -> Flt Branch
+      restrictToB rqSup (BranchIR pt gIRs) =
+        do guards' <- mapM (restrictToG rqSup) gIRs
+           return $ Branch pt guards'
+      restrictToG :: Req -> GuardIR -> Flt Guard
+      restrictToG rqSup (GuardIR t g) =
+        do testExpr' <- restrictToE rqSup t
+           guardExpr' <- restrictToE rqSup g
+           return $ Guard testExpr' guardExpr'
 
-fltBranch :: Branch -> Flt (Branch, Req)
-fltBranch (Branch pat guards)
-  = do guard_rqs <- mapM fltGuard guards
+fltDefAux :: Def -> Flt (DefIR, Req)
+fltDefAux def@Def{defExpr=expr} =
+  do (expr', rq) <- fltExpr expr
+     return (DefIR def{defExpr=expr'} rq, rq)
+
+fltDefGroupAux :: DefGroup -> Flt (DefGroupIR, Req)
+fltDefGroupAux (DefRec defs) =
+  do defIR_rqs <- mapM fltDefAux defs
+     let (defIRs, rqs) = unzip defIR_rqs
+     return (DefRecIR defIRs, sup rqs)
+fltDefGroupAux (DefNonRec def) =
+  do (defIR, rq) <- fltDefAux def
+     return (DefNonRecIR defIR, rq)
+
+fltBranchAux :: Branch -> Flt (BranchIR, Req)
+fltBranchAux (Branch pat guards)
+  = do guard_rqs <- mapM fltGuardAux guards
        let (guards', rqs) = unzip guard_rqs
-       return $ (Branch pat guards', sup rqs)
+       return $ (BranchIR pat guards', sup rqs)
 
-fltGuard :: Guard -> Flt (Guard, Req)
-fltGuard (Guard guard body)
+fltGuardAux :: Guard -> Flt (GuardIR, Req)
+fltGuardAux (Guard guard body)
   = do (guard', rqg) <- fltExpr guard
        (body', rqb)  <- fltExpr body
-       return $ (Guard guard' body', supb rqg rqb)
+       return $ (GuardIR (guard', rqg) (body', rqb), supb rqg rqb)
 
 
 -- optApp :: Expr -> Expr -> Expr -> Flt Expr
@@ -194,6 +239,50 @@ supbEffect eff1 eff2 =
 
 matchEffect :: Effect -> Effect -> Bool
 matchEffect eff1 eff2 = matchType (orderEffect eff1) (orderEffect eff2)
+
+{--------------------------------------------------------------------------
+  smart open
+--------------------------------------------------------------------------}
+
+smartRestrictExpr :: Req -> Req -> Expr  -> Expr
+smartRestrictExpr Bottom _ expr = expr
+smartRestrictExpr (Eff _) Bottom _ = undefined
+smartRestrictExpr (Eff effFrom) (Eff effTo) expr =
+  if matchEffect effFrom effTo then expr else
+    let tp = typeOf expr
+        nameRestrictParam = newHiddenName "RESTRICT"
+        in App (openEffectExpr
+                  effFrom
+                  effTo
+                  (TFun [(nameRestrictParam, typeUnit)] effFrom tp)
+                  (TFun [(nameRestrictParam, typeUnit)] effTo tp)
+                  (Lam [TName nameRestrictParam typeUnit] effFrom expr))
+               [exprUnit]
+
+smartOpenExpr :: Req -> Req -> Expr -> Expr
+smartOpenExpr Bottom _ e = e
+smartOpenExpr (Eff _) Bottom _ = undefined
+smartOpenExpr (Eff effFrom) (Eff effTo) expr =
+  if matchEffect effFrom effTo then expr else
+    let tp@(TFun tpPar feff tpRes)= typeOf expr
+        in
+          assertion "smart open check" (matchEffect effFrom feff) $
+          openEffectExpr effFrom effTo tp (TFun tpPar effTo tpRes) expr
+
+-- smartRestrictDefGroups :: Req -> (DefGroups, Req) -> DefGroups 
+-- smartRestrictDefGroup :: Req -> 
+
+
+{--------------------------------------------------------------------------
+  IRs : Return type of auxiliary functions. Each Expr has own rq in order to be restricted.
+--------------------------------------------------------------------------}
+
+data BranchIR = BranchIR { branchPatterns :: [Pattern]
+                         , branchGuardIRs :: [GuardIR]}
+data GuardIR = GuardIR { guardTestIR :: (Expr, Req)
+                       , guardExprIR :: (Expr, Req)}
+data DefIR = DefIR { def :: Def, req :: Req}
+data DefGroupIR = DefRecIR [DefIR] | DefNonRecIR DefIR
 
 {--------------------------------------------------------------------------
   Flt monad
