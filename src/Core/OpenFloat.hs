@@ -42,8 +42,8 @@ trace s x =
     x
 
 enable = -- set to True to enable the transformation
-  True
-  -- False
+  -- True
+  False
 
 openFloat :: Pretty.Env -> Gamma -> CorePhase ()
 openFloat penv gamma
@@ -127,15 +127,20 @@ fltExpr expr
     -- type application and abstraction
     TypeLam tvars body
       -> do (body', rq) <- fltExpr body
-            return $ (TypeLam tvars body', Bottom)
+            return (TypeLam tvars body', Bottom)
 
     TypeApp body tps
       -> do (body', rq) <- fltExpr body
-            return $ (TypeApp body' tps, rq)
+            return (TypeApp body' tps, rq)
 
     -- the rest
     _ -> return (expr, Bottom)
     where
+      assertTypeInvariant :: Expr -> Expr
+      assertTypeInvariant expr' =
+        let tpBefore = typeOf expr
+            tpAfter = typeOf expr' in
+              assertion "OpenFloat. Type invariant violaiton." (matchType tpBefore tpAfter) expr'
       restrictToD :: Req -> DefIR -> Flt Def
       restrictToD rqSup (DefIR def@Def{defExpr=expr} rq) = return $ def{defExpr= smartRestrictExpr rq rqSup expr}
       restrictToDG :: Req -> DefGroupIR -> Flt DefGroup
@@ -157,47 +162,31 @@ fltExpr expr
            guardExpr' <- restrictToE rqSup g
            return $ Guard testExpr' guardExpr'
 
-fltDefAux :: Def -> Flt (DefIR, Req)
-fltDefAux def@Def{defExpr=expr} =
-  do (expr', rq) <- fltExpr expr
-     return (DefIR def{defExpr=expr'} rq, rq)
+      fltDefAux :: Def -> Flt (DefIR, Req)
+      fltDefAux def@Def{defExpr=expr} =
+        do (expr', rq) <- fltExpr expr
+           return (DefIR def{defExpr=expr'} rq, rq)
 
-fltDefGroupAux :: DefGroup -> Flt (DefGroupIR, Req)
-fltDefGroupAux (DefRec defs) =
-  do defIR_rqs <- mapM fltDefAux defs
-     let (defIRs, rqs) = unzip defIR_rqs
-     return (DefRecIR defIRs, sup rqs)
-fltDefGroupAux (DefNonRec def) =
-  do (defIR, rq) <- fltDefAux def
-     return (DefNonRecIR defIR, rq)
+      fltDefGroupAux :: DefGroup -> Flt (DefGroupIR, Req)
+      fltDefGroupAux (DefRec defs) =
+        do defIR_rqs <- mapM fltDefAux defs
+           let (defIRs, rqs) = unzip defIR_rqs
+           return (DefRecIR defIRs, sup rqs)
+      fltDefGroupAux (DefNonRec def) =
+        do (defIR, rq) <- fltDefAux def
+           return (DefNonRecIR defIR, rq)
 
-fltBranchAux :: Branch -> Flt (BranchIR, Req)
-fltBranchAux (Branch pat guards)
-  = do guard_rqs <- mapM fltGuardAux guards
-       let (guards', rqs) = unzip guard_rqs
-       return $ (BranchIR pat guards', sup rqs)
+      fltBranchAux :: Branch -> Flt (BranchIR, Req)
+      fltBranchAux (Branch pat guards) =
+        do guard_rqs <- mapM fltGuardAux guards
+           let (guards', rqs) = unzip guard_rqs
+           return (BranchIR pat guards', sup rqs)
 
-fltGuardAux :: Guard -> Flt (GuardIR, Req)
-fltGuardAux (Guard guard body)
-  = do (guard', rqg) <- fltExpr guard
-       (body', rqb)  <- fltExpr body
-       return $ (GuardIR (guard', rqg) (body', rqb), supb rqg rqb)
-
-
--- optApp :: Expr -> Expr -> Expr -> Flt Expr
--- optApp ef@(App (TypeApp topen1@(Var open0 _) [effFrom0,effTo0,tpFrom0,tpTo0]) [f])
---        ee1@(App (App (TypeApp (Var open1 _) [effFrom1,effTo1,tpFrom1,tpTo1]) [e1]) [arg1])
---        ee2@(App (App (TypeApp (Var open2 _) [effFrom2,effTo2,tpFrom2,tpTo2]) [e2]) [arg2])
---    | getName open0 == nameEffectOpen && getName open1 == nameEffectOpen && getName open2 == nameEffectOpen
---      && matchType effFrom0 effFrom1 && matchType effFrom1 effFrom2
---      && matchType effTo0 effTo1 && matchType effTo1 effTo2
---    = do traceDoc $ \penv -> text "found it!"
---         return $ App (TypeApp topen1 [effFrom0,effTo0,tpFrom0,tpTo0])
---                     [Lam [] effFrom0
---                        (App f [App e1 [arg1], App e2 [arg2]])]
-
--- optApp f e1 e2
---    = do return (App f [e1,e2])
+      fltGuardAux :: Guard -> Flt (GuardIR, Req)
+      fltGuardAux (Guard guard body) =
+        do (guard', rqg) <- fltExpr guard
+           (body', rqb)  <- fltExpr body
+           return (GuardIR (guard', rqg) (body', rqb), supb rqg rqb)
 
 {--------------------------------------------------------------------------
   Requirement
