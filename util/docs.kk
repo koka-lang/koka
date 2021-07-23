@@ -60,8 +60,8 @@ fun build( publish : bool, version : string, speconly : bool ) : io () {
   val outscripts = outspec / "scripts"
   val outimages = outspec / "images"
   val specdir   = "doc/spec".path
-  val docflags  = "--htmlcss=styles/madoko.css;styles/koka.css " ++ (if (publish) then "--htmlbases=" ++ docsite ++ " " else "")
-  val cmd = "stack exec koka -- -c -l --builddir=" ++ outspec.string ++ " -i" ++ specdir.string ++ " --html " ++ docflags
+  val docflags  = "--htmlcss=styles/madoko.css --htmlcss=styles/koka.css " ++ (if (publish) then "--htmlbases=" ++ docsite ++ " " else "")
+  val cmd = "koka -c -r -l --builddir=" ++ outspec.string ++ " -i" ++ specdir.string ++ " --html " ++ docflags
   if (!speconly) {
     println("compile standard libraries...")
     run-echo(cmd ++ " toc.kk")
