@@ -92,22 +92,23 @@ Print the environment: &#96;get-env().map(fn(p) { p.fst + "=" + p.snd }).join("\
   }
 </span>}
 
-<span class="comment">// Return the main OS name: windows, linux, ios, osx, unix, posix, unknown.
+<span class="comment">// Return the main OS name: windows, linux, macos, unix, posix, ios, tvos, watchos, unknown.
 // Sometimes has a &#95;dash&#95; subsystem, like: unix-\&lt;freebsd,openbsd,dragonfly,bsd\&gt;, and windows-mingw.
 </span><span class="decl-fun" id="get_os_name"><span class="kw">public</span> <span class="kw">extern</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_os_env.html#get_os_name">get-os-name<span class="pc"><span class="mo">std<span class="fslash">/</span>os<span class="fslash">/</span>env<span class="fslash last">/</span></span>get<span class="dash">-</span>os<span class="dash">-</span>name: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">ndet</span> <span class="tp">string</span></span></a>() <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_ndet"><span class="tp"><span class="effect">ndet</span></span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>ndet: <span class="tp">X</span></span></a> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a> {
-  c  <span class="st">"kk&#95;os&#95;kernel"</span>
+  c  <span class="st">"kk&#95;os&#95;name"</span>
   js inline <span class="st">"$std&#95;core.host()"</span>
 </span>}
 
-<span class="comment">// Return the main processor architecture: amd64, x86, arm64, arm, riscv, alpha, powerpc, etc.
+<span class="comment">// Return the main processor architecture: x64, x86, arm64, arm, riscv32, riscv64, alpha, ppc64, etc.
 </span><span class="decl-fun" id="get_cpu_arch"><span class="kw">public</span> <span class="kw">extern</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_os_env.html#get_cpu_arch">get-cpu-arch<span class="pc"><span class="mo">std<span class="fslash">/</span>os<span class="fslash">/</span>env<span class="fslash last">/</span></span>get<span class="dash">-</span>cpu<span class="dash">-</span>arch: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">ndet</span> <span class="tp">string</span></span></a>() <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_ndet"><span class="tp"><span class="effect">ndet</span></span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>ndet: <span class="tp">X</span></span></a> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_string"><span class="tp">string</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>string: <span class="tp">V</span></span></a> {
-  c <span class="st">"kk&#95;os&#95;arch"</span>
+  c <span class="st">"kk&#95;cpu&#95;arch"</span>
   js inline <span class="st">"$std&#95;core.host()"</span>
 </span>}
 
 <span class="comment">// Return the available CPU's.
+// This is the logical core count including hyper-threaded cores.
 </span><span class="decl-fun" id="get_cpu_count"><span class="kw">public</span> <span class="kw">extern</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_os_env.html#get_cpu_count">get-cpu-count<span class="pc"><span class="mo">std<span class="fslash">/</span>os<span class="fslash">/</span>env<span class="fslash last">/</span></span>get<span class="dash">-</span>cpu<span class="dash">-</span>count: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">ndet</span> <span class="tp">int</span></span></a>() <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_ndet"><span class="tp"><span class="effect">ndet</span></span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>ndet: <span class="tp">X</span></span></a> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_int"><span class="tp">int</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>int: <span class="tp">V</span></span></a> {
-  c inline <span class="st">"kk&#95;integer&#95;from&#95;int(kk&#95;os&#95;processor&#95;count(kk&#95;context()),kk&#95;context())"</span>
+  c inline <span class="st">"kk&#95;integer&#95;from&#95;int(kk&#95;cpu&#95;count(kk&#95;context()),kk&#95;context())"</span>
   js inline <span class="st">"1"</span>
 </span>}
 
@@ -123,6 +124,14 @@ Print the environment: &#96;get-env().map(fn(p) { p.fst + "=" + p.snd }).join("\
   js inline <span class="st">"\"js\""</span>
   cs inline <span class="st">"\"csc\""</span>
 </span>}
+
+<span class="comment">// Is the byte-order little-endian?
+// If not, it is big-endian; other byte orders are not supported.
+</span><span class="decl-fun" id="get_cpu_is_little_endian"><span class="kw">public</span> <span class="kw">extern</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_os_env.html#get_cpu_is_little_endian">get-cpu-is-little-endian<span class="pc"><span class="mo">std<span class="fslash">/</span>os<span class="fslash">/</span>env<span class="fslash last">/</span></span>get<span class="dash">-</span>cpu<span class="dash">-</span>is<span class="dash">-</span>little<span class="dash">-</span>endian: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-></span> <span class="tp">ndet</span> <span class="tp">bool</span></span></a>() <span class="tp kw op">:</span> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_ndet"><span class="tp"><span class="effect">ndet</span></span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>ndet: <span class="tp">X</span></span></a> <a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types-source.html#type_space_bool"><span class="tp">bool</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>bool: <span class="tp">V</span></span></a> {
+  c <span class="st">"kk&#95;cpu&#95;is&#95;little&#95;endian"</span>
+  js inline <span class="st">"true"</span>
+</span>}
+
 
 <span class="comment">// Return the processor architecture natural machine word size in bits.
 //
