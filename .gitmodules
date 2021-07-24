@@ -1,3 +1,6 @@
 [submodule "kklib/mimalloc"]
 	path = kklib/mimalloc
 	url = https://github.com/microsoft/mimalloc
+[submodule "contrib/repline"]
+	path = contrib/repline
+	url = https://github.com/daanx/repline

@@ -128,7 +128,7 @@ executable koka
       CPP
       OverloadedStrings
   ghc-options: -rtsopts -j8
-  cpp-options: -DKOKA_MAIN="koka" -DKOKA_VARIANT="release" -DKOKA_VERSION="2.2.0"
+  cpp-options: -DKOKA_MAIN="koka" -DKOKA_VARIANT="release" -DKOKA_VERSION="2.2.0" -DREADLINE=0
   include-dirs:
       src/Platform/cpp/Platform
   c-sources:
@@ -145,6 +145,7 @@ executable koka
     , mtl
     , parsec
     , process
+    , repline
     , text
     , time
   if os(windows)
@@ -177,6 +178,7 @@ test-suite koka-test
     , parsec
     , process
     , regex-compat-tdfa
+    , repline
     , text
     , time
   default-language: Haskell2010

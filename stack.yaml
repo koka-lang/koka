@@ -20,6 +20,7 @@ resolver: lts-18.0
 
 packages:
 - '.'
+- contrib/repline
 
 extra-deps:
 - haskeline-0.8.1.2             # use version < 8 to build with lts < 14

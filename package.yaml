@@ -29,7 +29,8 @@ dependencies:
   - text
   - time
   - haskeline
-
+  - repline
+  
 executables:
   koka:
     main: Main.hs
@@ -54,7 +55,7 @@ executables:
       - -DKOKA_MAIN="koka"      
       - -DKOKA_VARIANT="release"
       - -DKOKA_VERSION="2.2.0"
-      # - -DREADLINE=1   # to avoid using Haskeline
+      - -DREADLINE=0   # 1:getline, 2:readline, 3:haskeline, or 0:repline
     when:
       - condition: os(windows)
         cpp-options: -DWINDOWS

@@ -19,16 +19,21 @@ import Data.Char( isSpace )
 import System.IO
 import Control.Exception
 
-#if (READLINE==2)
+#if (READLINE==1)
+-- readline
 import qualified System.Console.Readline as R
-#elif (READLINE==1)
--- nothing
-#else
+#elif (READLINE==2)
+-- getline
+#elif (READLINE==3)
+-- haskeline
 import qualified System.Console.Haskeline as R
 import qualified System.Console.Haskeline.History as H
 import qualified System.Console.Haskeline.Completion as C
 import Platform.Runtime( unsafePerformIO )
 import Data.IORef
+#else 
+-- 0: repline
+import System.Console.Repline
 #endif
 
 withReadLine :: FilePath -> IO a -> IO a
@@ -49,7 +54,11 @@ continueLine mbline readLines = do
     Nothing   -> return Nothing
 
 
-#if (READLINE==2)
+-----------------------------------------------------------------------
+-- GNU Readline
+-----------------------------------------------------------------------
+
+#if (READLINE==1)
 
 withReadLine historyFile io
   = do R.initialize
@@ -71,7 +80,10 @@ addHistory line
 readLineEx roots prompt putPrompt
   = readLine roots prompt
 
-#elif (READLINE==1)
+#elif (READLINE==2)
+-----------------------------------------------------------------------
+-- No readline
+-----------------------------------------------------------------------
 
 withReadLine historyFile io
   = io
@@ -91,7 +103,10 @@ readLineEx roots prompt putPrompt
 addHistory line
   = return ()
 
-#else
+#elif (READLINE==3)
+-----------------------------------------------------------------------
+-- Haskeline
+-----------------------------------------------------------------------
 
 vhistory :: IORef H.History
 vhistory = unsafePerformIO $ newIORef H.emptyHistory
@@ -159,5 +174,59 @@ startsWith s pre
 
 endsWith s post
   = startsWith (reverse s) (reverse post)
+
+
+#else  
+-- 0
+-----------------------------------------------------------------------
+-- Repline
+-----------------------------------------------------------------------
+
+addHistory entry
+  = historyAdd entry
+
+withReadLine historyPath io
+  = do let historyFile = if (null historyPath) then "" else (historyPath ++ "/.koka-history")
+       setHistory historyFile 200
+       setPromptColor Maroon
+       enableAutoTab True
+       io
+
+readLine roots identifiers prompt
+  = readLineEx roots identifiers prompt (do{ putStr prompt; hFlush stdout})
+
+readLineEx roots identifiers prompt putPrompt
+  = readlineWithCompleterMaybe prompt (completer roots identifiers)
+
+    
+completer :: [FilePath] -> [String] -> Completions -> String -> IO ()
+completer roots identifiers compl input
+  = if (take 2 (dropWhile isSpace input) `elem` [":l",":f",":e"])
+      then completeModules roots compl input
+      else completeIdentifiers identifiers compl input
+
+completeModules ::  [FilePath] -> Completions -> String ->IO ()
+completeModules roots compl input 
+  = completeFileName compl input (Just '/') (".":roots)
+
+completeIdentifiers ::  [String] -> Completions -> String -> IO ()
+completeIdentifiers names compl input 
+  = completeQuotedWord compl input (completeNames names) nonIdChars Nothing ""
+  where
+    nonIdChars :: [Char]
+    nonIdChars = filter (not . isIdChar) ['\t'..'\x7F']
+    isIdChar c = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '-' || c == '_' || (c >= '0' && c <= '9')
+
+completeNames ::  [String] -> Completions -> String -> IO ()
+completeNames names compl input
+  = sequence_ [addCompletion compl name name | name <- names, name `startsWith` input]
+
+startsWith, endsWith :: String -> String -> Bool
+startsWith s pre
+  = take (length pre) s == pre
+
+endsWith s post
+  = startsWith (reverse s) (reverse post)
+
 
 #endif
