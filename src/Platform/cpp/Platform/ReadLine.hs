@@ -207,7 +207,7 @@ completer roots identifiers compl input
 
 completeModules ::  [FilePath] -> Completions -> String ->IO ()
 completeModules roots compl input 
-  = completeFileName compl input (Just '/') (".":roots)
+  = completeFileName compl input (Just '/') (".":roots) [".kk"]
 
 completeIdentifiers ::  [String] -> Completions -> String -> IO ()
 completeIdentifiers names compl input 
