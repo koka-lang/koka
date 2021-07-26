@@ -141,7 +141,6 @@ executable koka
     , bytestring
     , containers
     , directory
-    , haskeline
     , mtl
     , parsec
     , process
@@ -170,7 +169,6 @@ test-suite koka-test
     , directory
     , extra
     , filepath
-    , haskeline
     , hspec
     , hspec-core
     , json

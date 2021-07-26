@@ -28,7 +28,6 @@ dependencies:
   - process
   - text
   - time
-  - haskeline
   - repline
   
 executables:
