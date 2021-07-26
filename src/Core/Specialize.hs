@@ -191,6 +191,7 @@ fnTypeParams (TypeLam typeParams _) = typeParams
 fnParams :: Expr -> [TName]
 fnParams (Lam params _ _) = params
 fnParams (TypeLam _ (Lam params _ _)) = params
+fnParams e = failure $ "fnParams " <> show e
 
 fnEffect :: Expr -> Effect
 fnEffect (Lam _ effect _) = effect
