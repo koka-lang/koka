@@ -42,8 +42,8 @@ trace s x =
     x
 
 enable = -- set to True to enable the transformation
-  -- True
-  False
+  True
+  -- False
 
 openFloat :: Pretty.Env -> Gamma -> CorePhase ()
 openFloat penv gamma
@@ -63,7 +63,7 @@ fltDefGroups = foldr fltDefGroup (return [])
 fltDefGroup :: DefGroup -> Flt [DefGroup] -> Flt [DefGroup]
 fltDefGroup (DefRec defs) next
   = do defs' <-  mapM fltDef defs
-       next' <- next 
+       next' <- next
        return $ DefRec defs' : next'
 
 fltDefGroup (DefNonRec def) next
@@ -94,7 +94,8 @@ fltExpr expr
                 frest = smartRestrictExpr rqf rqSup f'
                 f'' = smartOpenExpr (Eff feff) rqSup frest
                 args'' = map (\(e, rq)-> smartRestrictExpr rq rqSup e) args_rq'
-            return (App f'' args'', rqSup)
+            traceDoc $ \env -> text "app: " <+> niceType env (typeOf f'')
+            return (assertTypeInvariant $ App f'' args'', rqSup)
             where
               getFunType :: Expr -> Flt Type
               getFunType expr = case typeOf expr of
@@ -103,9 +104,15 @@ fltExpr expr
                          return tp
 
     Lam args eff body
-      -> do traceDoc $ \env -> text "lambda:" <+> niceType env eff
+      -> do  -- traceDoc $ \env -> text "lambda:" <+> niceType env eff
             (body', rq) <- fltExpr body
-            return (Lam args eff body', Bottom)
+            let rqSup = supb (Eff eff) rq
+            if (matchRq rqSup $ Eff eff) then return ()
+              else traceDoc $ \env -> text "bad lambda!! before:" <+> niceType env (typeOf expr) <+> text "\n  eff: " <+> niceType env (orderEffect eff) <+> text "\n  req : " <+> niceRq  env rq
+            return (
+              --  assertion ("lambda bad body rq\n Why this lambda type checked?\n Annotated effect does not range over internal effect of the body." ++ show (typeOf expr)) (matchRq rqSup $ Eff eff) . 
+               assertTypeInvariant $ Lam args eff body',
+               Bottom)
 
     Let defgs body
       -> do defgIR_rqs <- mapM fltDefGroupAux defgs
@@ -113,7 +120,7 @@ fltExpr expr
             let (defgIRs, rqs) = unzip defgIR_rqs
                 rqSup = sup $ rq:rqs
             defgs' <- mapM (restrictToDG rqSup) defgIRs
-            return (Let defgs' body', rqSup)
+            return (assertTypeInvariant $ Let defgs' body', rqSup)
     Case exprs bs
       -> do exprIR_rqs <- mapM fltExpr exprs
             bIR_rqs <- mapM fltBranchAux bs
@@ -122,16 +129,16 @@ fltExpr expr
                 rqSup = sup $ rqe : rqbs
             exprs'' <- mapM (restrictToE rqSup) exprIR_rqs
             bs'' <- mapM (restrictToB rqSup) bIRs
-            return (Case exprs'' bs'', rqSup)
+            return (assertTypeInvariant $ Case exprs'' bs'', rqSup)
 
     -- type application and abstraction
     TypeLam tvars body
       -> do (body', rq) <- fltExpr body
-            return (TypeLam tvars body', Bottom)
+            return (assertTypeInvariant $ TypeLam tvars body', Bottom)
 
     TypeApp body tps
       -> do (body', rq) <- fltExpr body
-            return (TypeApp body' tps, rq)
+            return (assertTypeInvariant $ TypeApp body' tps, rq)
 
     -- the rest
     _ -> return (expr, Bottom)
@@ -229,24 +236,38 @@ supbEffect eff1 eff2 =
 matchEffect :: Effect -> Effect -> Bool
 matchEffect eff1 eff2 = matchType (orderEffect eff1) (orderEffect eff2)
 
+matchRq :: Req -> Req -> Bool
+matchRq Bottom Bottom = True
+matchRq (Eff eff1) (Eff eff2) = matchEffect eff1 eff2
+matchRq _ _ = False
+
+leqRq :: Req -> Req -> Bool
+leqRq rq1 rq2 = let rqSup = supb rq1 rq2 in matchRq rqSup rq2
+
+niceRq :: Pretty.Env -> Req -> Doc
+niceRq env Bottom = text "Bottom"
+niceRq env (Eff eff) = text "Eff " <+> niceType env eff
+
 {--------------------------------------------------------------------------
   smart open
 --------------------------------------------------------------------------}
 
+-- How should I define restrict?
 smartRestrictExpr :: Req -> Req -> Expr  -> Expr
 smartRestrictExpr Bottom _ expr = expr
 smartRestrictExpr (Eff _) Bottom _ = undefined
 smartRestrictExpr (Eff effFrom) (Eff effTo) expr =
   if matchEffect effFrom effTo then expr else
-    let tp = typeOf expr
-        nameRestrictParam = newHiddenName "RESTRICT"
-        in App (openEffectExpr
-                  effFrom
-                  effTo
-                  (TFun [(nameRestrictParam, typeUnit)] effFrom tp)
-                  (TFun [(nameRestrictParam, typeUnit)] effTo tp)
-                  (Lam [TName nameRestrictParam typeUnit] effFrom expr))
-               [exprUnit]
+    -- let x = \_.expr in (open(x) ())  ~~> (\x. open(x)() ) \_.expr
+    let
+      tp = typeOf expr
+      fname = newHiddenName "restedthunk"
+      ftname = TName fname (TFun [] effFrom tp)
+      -- tmptname = TName (newHiddenName "tmp") typeUnit
+      in App
+           (Lam [ftname] effTo (  -- ([] -> effFrom tp) -> effTo 
+              App (openEffectExpr effFrom effTo (TFun [] effFrom tp) (TFun [] effTo tp) (Var ftname InfoNone)) []))
+           [Lam [] effFrom expr]  -- :: [] -> effFrom tp
 
 smartOpenExpr :: Req -> Req -> Expr -> Expr
 smartOpenExpr Bottom _ e = e
