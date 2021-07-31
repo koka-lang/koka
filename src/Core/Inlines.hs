@@ -94,7 +94,7 @@ extractInlineDef costMax isRec def
         if not inlinable then Nothing
          else let cost = if (defName def == nameBind2 || defName def == nameBind)  -- TODO: use generic mechanism? force-inline keyword?
                           then 0 else costDef def
-              in Just (InlineDef (defName def) (defExpr def) isRec cost [])
+              in Just (InlineDef (defName def) (defExpr def) isRec cost [] False)
 
 instance Show Inlines where
  show = show . pretty

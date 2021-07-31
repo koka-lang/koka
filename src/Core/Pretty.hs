@@ -232,7 +232,7 @@ prettyInlineDef env isRec def@(Def name scheme expr vis sort inl nameRng doc)
 -}
 
 prettyInlineDef :: Env ->  InlineDef -> Doc
-prettyInlineDef env (InlineDef name expr isRec cost specArgs)
+prettyInlineDef env (InlineDef name expr isRec cost specArgs isTwoStepSpecialize)
   =     (if isRec then (keyword env "recursive ") else empty)
     <.> (if (null specArgs) then empty else (keyword env "specialize " <.> prettySpecArgs <.> text " "))
     <.> (if (cost <= 0) then (keyword env "inline ") else empty)

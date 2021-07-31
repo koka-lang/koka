@@ -458,7 +458,7 @@ data Def = Def{ defName  :: Name
               , defDoc :: String
               }
 
-data InlineDef = InlineDef{ inlineName :: Name, inlineExpr :: Expr, inlineRec :: Bool, inlineCost :: Int, specializeArgs :: [Bool] }
+data InlineDef = InlineDef{ inlineName :: Name, inlineExpr :: Expr, inlineRec :: Bool, inlineCost :: Int, specializeArgs :: [Bool], isTwoStepSpecialize :: Bool }
 
 defIsVal :: Def -> Bool
 defIsVal def
@@ -471,8 +471,8 @@ inlineDefIsSpecialize :: InlineDef -> Bool
 inlineDefIsSpecialize inlDef = not (null (specializeArgs inlDef))
 
 instance Show InlineDef where
-  show (InlineDef name expr isRec cost specArgs)
-    = "InlineDef " ++ show name ++ " " ++ (if isRec then "rec " else "") ++ show cost ++ " " ++ show specArgs
+  show (InlineDef name expr isRec cost specArgs isTwoStepSpecialize)
+    = "InlineDef " ++ show name ++ " " ++ (if isRec then "rec " else "") ++ show cost ++ " " ++ show specArgs ++ " " ++ (if isTwoStepSpecialize then "twoStepSpecialize" else "")
 
 
 newtype CorePhase a = CP (Int -> DefGroups -> Error (CPState a))
