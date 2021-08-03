@@ -542,9 +542,11 @@ replace line col s fpath
 getCommand :: State -> IO Command
 getCommand st
   = do let ansiPrompt = if isConsolePrinter (printer st) || osName == "macos"
-                          then "" 
+                          then ""
                           else if isAnsiPrinter (printer st)
-                            then ansiWithColor (colorInterpreter (colorSchemeFromFlags (flags st))) "> "
+                            then let c = ansiColor (colorInterpreter (colorSchemeFromFlags (flags st)))
+                                 in ("\x1B[" ++ show c ++ "m\x02> \x1B[0m\x02")  -- readline needs "STX" ("\x02") ending of escape sequence
+                                    -- ansiWithColor (colorInterpreter (colorSchemeFromFlags (flags st))) "> "
                             else "> "
 
        mbInput <- readLineEx (includePath (flags st)) (loadedMatchNames (loaded0 st)) ansiPrompt (prompt st)
