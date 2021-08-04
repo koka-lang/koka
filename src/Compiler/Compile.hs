@@ -882,23 +882,23 @@ inferCheck loaded0 flags line coreImports program
        -- lifting recursive functions to top level
        liftFunctions penv
        simplifyNoDup
-       checkCoreDefs "lifted"
-       -- traceDefGroups "lifted"
+       checkCoreDefs "lifted"       
 
        -- tail-call-modulo-cons optimization
        when (optctail flags) $
          ctailOptimize penv (platform flags) newtypes gamma (optctailInline flags) 
-
+      
        -- transform effects to explicit monadic binding (and resolve .open calls)
        when (enableMon flags && not (isPrimitiveModule (Core.coreProgName coreProgram))) $
           -- trace "monadic transform" $
           do Core.Monadic.monTransform penv
              openResolve penv gamma
-       checkCoreDefs "monadic transform"
-
+       checkCoreDefs "monadic transform"  
+       
        -- full simplification
        simplifyDupN 
-             
+       -- traceDefGroups "open resolved"     
+      
        -- monadic lifting to create fast inlined paths
        monadicLift penv
        checkCoreDefs "monadic lifting"

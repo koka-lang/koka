@@ -49,7 +49,7 @@ instance Show Evidence where
 -- | Instantiate a type
 instantiate :: HasUnique m => Range -> Type -> m Rho
 instantiate range tp
-  = do (ids,preds,rho,coref) <- instantiateEx range tp
+  = do (ids,preds,rho,coref) <- instantiateNoEx range tp
        return rho
 
 -- | Instantiate a type and return the instantiated quantifiers, name/predicate pairs for evidence,
