@@ -15,9 +15,10 @@ module Platform.ReadLine( withReadLine, readLine, readLineEx, addHistory
                         ) where
 
 
-import Data.Char( isSpace )
+import Data.Char( isSpace, isAlphaNum )
 import System.IO
 import Control.Exception
+import Common.ColorScheme
 
 #if (READLINE==1)
 -- readline
@@ -34,11 +35,12 @@ import Data.IORef
 #else 
 -- 0: repline
 import System.Console.Isocline as Isocline
+import Syntax.Highlight( highlightInput )
 #endif
 
 withReadLine :: FilePath -> IO a -> IO a
-readLine     :: [FilePath] -> [String] -> String -> IO (Maybe String)
-readLineEx   :: [FilePath] -> [String] -> String -> IO () -> IO (Maybe String)
+readLine     :: ColorScheme -> [FilePath] -> [String] -> String -> IO (Maybe String)
+readLineEx   :: ColorScheme -> [FilePath] -> [String] -> String -> IO () -> IO (Maybe String)
 addHistory   :: String -> IO ()
 
 
@@ -188,15 +190,15 @@ addHistory entry
 withReadLine historyPath io
   = do let historyFile = if (null historyPath) then "" else (historyPath ++ "/.koka-history")
        setHistory historyFile 200
-       setStyleColor StylePrompt AnsiMaroon
        enableAutoTab True
        io
 
-readLine roots identifiers prompt
-  = readLineEx roots identifiers prompt (do{ putStr prompt; hFlush stdout})
+readLine cscheme roots identifiers prompt
+  = readLineEx cscheme roots identifiers prompt (do{ putStr prompt; hFlush stdout})
 
-readLineEx roots identifiers prompt putPrompt
-  = Isocline.readlineExMaybe prompt (Just (completer roots identifiers)) Nothing
+readLineEx cscheme roots identifiers prompt putPrompt
+  = do setPromptMarker prompt ""
+       Isocline.readlineExMaybe "" (Just (completer roots identifiers)) (Just (highlighter cscheme))
 
     
 completer :: [FilePath] -> [String] -> CompletionEnv -> String -> IO ()
@@ -220,6 +222,18 @@ completeNames ::  [String] -> String -> [Completion]
 completeNames names input
   = completionsFor input names
 
+highlighter :: ColorScheme -> String -> [TextAttr]
+highlighter cscheme input
+  = case (span isSpace input) of
+      (prews,':':rest)  
+        -> -- command
+           case (span (\c -> isAlphaNum c || c `elem` "!?") rest) of  -- todo: add highlighting on command options
+             (cmd,args) -> withAttrColor (toAttrColor (colorCommand cscheme)) (prews ++ ":" ++ cmd) ++
+                           withAttrColor (toAttrColor (colorSource cscheme)) args
+      _ -> -- expression
+           highlightInput cscheme input  
+  where
+    toAttrColor c = toEnum (ansiColor c)
 {-
 startsWith, endsWith :: String -> String -> Bool
 startsWith s pre
