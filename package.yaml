@@ -28,7 +28,7 @@ dependencies:
   - process
   - text
   - time
-  - repline
+  - isocline
   
 executables:
   koka:
@@ -54,7 +54,7 @@ executables:
       - -DKOKA_MAIN="koka"      
       - -DKOKA_VARIANT="release"
       - -DKOKA_VERSION="2.2.0"
-      - -DREADLINE=0   # 1:getline, 2:readline, 3:haskeline, or 0:repline
+      - -DREADLINE=0   # 1:getline, 2:readline, 3:haskeline, or 0:isocline
     when:
       - condition: os(windows)
         cpp-options: -DWINDOWS

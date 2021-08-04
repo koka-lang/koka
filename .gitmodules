@@ -4,3 +4,6 @@
 [submodule "contrib/repline"]
 	path = contrib/repline
 	url = https://github.com/daanx/repline
+[submodule "contrib/isocline"]
+	path = contrib/isocline
+	url = https://github.com/daanx/isocline

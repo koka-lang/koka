@@ -33,7 +33,7 @@ import Platform.Runtime( unsafePerformIO )
 import Data.IORef
 #else 
 -- 0: repline
-import System.Console.Repline
+import System.Console.Isocline as Isocline
 #endif
 
 withReadLine :: FilePath -> IO a -> IO a
@@ -179,7 +179,7 @@ endsWith s post
 #else  
 -- 0
 -----------------------------------------------------------------------
--- Repline
+-- Isocline
 -----------------------------------------------------------------------
 
 addHistory entry
@@ -188,7 +188,7 @@ addHistory entry
 withReadLine historyPath io
   = do let historyFile = if (null historyPath) then "" else (historyPath ++ "/.koka-history")
        setHistory historyFile 200
-       setPromptColor Maroon
+       setStyleColor StylePrompt AnsiMaroon
        enableAutoTab True
        io
 
@@ -196,37 +196,37 @@ readLine roots identifiers prompt
   = readLineEx roots identifiers prompt (do{ putStr prompt; hFlush stdout})
 
 readLineEx roots identifiers prompt putPrompt
-  = readlineWithCompleterMaybe prompt (completer roots identifiers)
+  = Isocline.readlineExMaybe prompt (Just (completer roots identifiers)) Nothing
 
     
-completer :: [FilePath] -> [String] -> Completions -> String -> IO ()
-completer roots identifiers compl input
+completer :: [FilePath] -> [String] -> CompletionEnv -> String -> IO ()
+completer roots identifiers cenv input
   = if (take 2 (dropWhile isSpace input) `elem` [":l",":f",":e"])
-      then completeModules roots compl input
-      else completeIdentifiers identifiers compl input
+      then completeModules roots cenv input
+      else completeIdentifiers identifiers cenv input
 
-completeModules ::  [FilePath] -> Completions -> String ->IO ()
-completeModules roots compl input 
-  = completeFileName compl input (Just '/') (".":roots) [".kk"]
+completeModules ::  [FilePath] -> CompletionEnv -> String ->IO ()
+completeModules roots cenv input 
+  = completeFileName cenv input (Just '/') (".":roots) [".kk"]
 
-completeIdentifiers ::  [String] -> Completions -> String -> IO ()
-completeIdentifiers names compl input 
-  = completeQuotedWord compl input (completeNames names) nonIdChars Nothing ""
+completeIdentifiers ::  [String] -> CompletionEnv -> String -> IO ()
+completeIdentifiers names cenv input 
+  = completeQuotedWord cenv input (completeNames names) isIdChar Nothing ""
   where
-    nonIdChars :: [Char]
-    nonIdChars = filter (not . isIdChar) ['\t'..'\x7F']
+    isIdChar :: Char -> Bool
     isIdChar c = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '-' || c == '_' || (c >= '0' && c <= '9')
 
-completeNames ::  [String] -> Completions -> String -> IO ()
-completeNames names compl input
-  = sequence_ [addCompletion compl name name | name <- names, name `startsWith` input]
+completeNames ::  [String] -> String -> [Completion]
+completeNames names input
+  = completionsFor input names
 
+{-
 startsWith, endsWith :: String -> String -> Bool
 startsWith s pre
   = take (length pre) s == pre
 
 endsWith s post
   = startsWith (reverse s) (reverse post)
-
+-}
 
 #endif
