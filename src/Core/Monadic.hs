@@ -105,7 +105,7 @@ monExpr' topLevel expr
       App eopen@(TypeApp (Var open _) [effFrom,effTo,_,_]) [f]
         | getName open == nameEffectOpen
         -> do f' <- monExpr f
-              return $ \k -> f' (\ff -> k (App eopen [f]))
+              return $ \k -> f' (\ff -> k (App eopen [ff]))
 
       -- regular cases
       Lam args eff body
