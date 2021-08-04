@@ -223,7 +223,18 @@ supbEffect eff1 eff2 =
   in effectExtends labs tl
   where
     compareLabel :: Tau -> Tau -> Ordering
-    compareLabel l1 l2 = labelNameCompare (labelName l1) (labelName l2)
+    compareLabel l1 l2 = let (name1, i1, args1) = labelNameEx l1
+                             (name2, i2, args2) = labelNameEx l2
+                         in case labelNameCompare name1 name2 of
+                              EQ ->
+                                (case (args1, args2) of
+                                      ([TVar (TypeVar id1 kind1 sort1)], [TVar (TypeVar id2 kind2 sort2)]) -> compare id1 id2
+                                      _ -> assertion ("openFloat: unexpected label-args. Label argument should only differ in variable case. \n1. " ++ show args1 ++ "\n2. " ++ show args2) (
+                                             all (\(t1, t2)-> matchType t1 t2) $ zip args1 args2
+                                              ) EQ
+                                    )
+                              order -> order
+
     mergeLabs :: [Tau] -> [Tau] -> [Tau]
     mergeLabs [] labs = labs
     mergeLabs labs [] = labs
@@ -231,7 +242,6 @@ supbEffect eff1 eff2 =
       EQ -> l1:mergeLabs ls1 ls2
       LT -> l1:mergeLabs ls1 labs2
       GT -> l2:mergeLabs labs1 ls2
-
 
 matchEffect :: Effect -> Effect -> Bool
 matchEffect eff1 eff2 = matchType (orderEffect eff1) (orderEffect eff2)
