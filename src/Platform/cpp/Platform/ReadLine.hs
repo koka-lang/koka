@@ -39,8 +39,8 @@ import Syntax.Highlight( highlightInput )
 #endif
 
 withReadLine :: FilePath -> IO a -> IO a
-readLine     :: ColorScheme -> [FilePath] -> [String] -> String -> IO (Maybe String)
-readLineEx   :: ColorScheme -> [FilePath] -> [String] -> String -> IO () -> IO (Maybe String)
+-- readLine     :: ColorScheme -> [FilePath] -> [String] -> [(String,String)] -> String -> IO (Maybe String)
+readLineEx   :: ColorScheme -> [FilePath] -> [String] -> [(String,String)] -> String -> IO () -> IO (Maybe String)
 addHistory   :: String -> IO ()
 
 
@@ -193,23 +193,34 @@ withReadLine historyPath io
        enableAutoTab True
        io
 
-readLine cscheme roots identifiers prompt
-  = readLineEx cscheme roots identifiers prompt (do{ putStr prompt; hFlush stdout})
+readLine cscheme roots identifiers options prompt
+  = readLineEx cscheme roots identifiers options prompt (do{ putStr prompt; hFlush stdout})
 
-readLineEx cscheme roots identifiers prompt putPrompt
+readLineEx cscheme roots identifiers options prompt putPrompt
   = do setPromptMarker prompt ""
-       Isocline.readlineExMaybe "" (Just (completer roots identifiers)) (Just (highlighter cscheme))
+       Isocline.readlineExMaybe "" (Just (completer roots identifiers options)) (Just (highlighter cscheme))
 
     
-completer :: [FilePath] -> [String] -> CompletionEnv -> String -> IO ()
-completer roots identifiers cenv input
-  = if (take 2 (dropWhile isSpace input) `elem` [":l",":f",":e"])
-      then completeModules roots cenv input
-      else completeIdentifiers identifiers cenv input
+completer :: [FilePath] -> [String] -> [(String,String)] -> CompletionEnv -> String -> IO ()
+completer roots identifiers options cenv input
+  = let inputx = dropWhile isSpace input
+    in  if (take 2 inputx `elem` [":l",":f",":e"])
+          then completeModules roots cenv input
+        else if (take 4 inputx `elem` [":set"]) 
+          then completeOptions options cenv input
+          else completeIdentifiers identifiers cenv input
 
 completeModules ::  [FilePath] -> CompletionEnv -> String ->IO ()
 completeModules roots cenv input 
   = completeFileName cenv input (Just '/') (".":roots) [".kk"]
+
+completeOptions :: [(String,String)] -> CompletionEnv -> String -> IO ()
+completeOptions options cenv input
+  = completeWord cenv input Nothing (completeOptionFlags options)
+
+completeOptionFlags :: [(String,String)] -> String -> [Completion]
+completeOptionFlags flags input
+  = completionsFor input (map fst flags)  -- todo: integrate help
 
 completeIdentifiers ::  [String] -> CompletionEnv -> String -> IO ()
 completeIdentifiers names cenv input 

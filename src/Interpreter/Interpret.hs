@@ -553,7 +553,7 @@ getCommand st
                                     -- ansiWithColor (colorInterpreter (colorSchemeFromFlags (flags st))) "> "
                             else "> "
 
-       mbInput <- readLineEx cscheme (includePath (flags st)) (loadedMatchNames (loaded0 st)) ansiPrompt (prompt st)
+       mbInput <- readLineEx cscheme (includePath (flags st)) (loadedMatchNames (loaded0 st)) (optionCompletions) ansiPrompt (prompt st)
        let input = maybe ":quit" id mbInput
        -- messageInfoLn st ("cmd: " ++ show input)
        let cmd   = readCommand input
