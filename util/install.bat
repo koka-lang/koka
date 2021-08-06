@@ -11,6 +11,7 @@ set KOKA_HELP=N
 set KOKA_FORCE=N
 set KOKA_DIST_SOURCE=
 set KOKA_DIST_SOURCE_URL=
+set KOKA_DIST_BASE_URL=https://github.com/koka-lang/koka/releases/download
 set KOKA_IEXPRESS=N
 set KOKA_PREV_VERSION=
 set KOKA_PREV_PREFIX=
@@ -23,7 +24,7 @@ set CLANG_INSTALL_URL=https://github.com/llvm/llvm-project/releases/download/llv
 set CLANG_INSTALL_SHA256=8426d57f2af2bf07f80014bfd359e87ed10f5521a236a10cfe9fc4870d1b1b25
 
 rem check if %LOCALAPPDATA% was not empty
-if "%KOKA_PREFIX%" == "\local" (set KOKA_PREFIX=c:\usr\local)
+if "%KOKA_PREFIX%" == "\koka" (set KOKA_PREFIX=c:\usr\local\koka)
 
 rem process arguments
 :argparse
@@ -76,7 +77,7 @@ rem ---------------------------------------------------------
 if "%KOKA_VERSION%" leq "v2.1.6" (set KOKA_ARCH=amd64)
 
 if "%KOKA_DIST_SOURCE_URL%" == "" (
-  set KOKA_DIST_SOURCE_URL=https://github.com/koka-lang/koka/releases/download/%KOKA_VERSION%/koka-%KOKA_VERSION%-windows-%KOKA_ARCH%.tar.gz
+  set KOKA_DIST_SOURCE_URL=%KOKA_DIST_BASE_URL%/%KOKA_VERSION%/koka-%KOKA_VERSION%-windows-%KOKA_ARCH%.tar.gz
 )
 
 
@@ -196,10 +197,10 @@ if errorlevel 1 (
   goto end
 )
 
-echo - install pre-compiled libraries to: ^<prefix^>\lib\koka\%KOKA_VERSION%
-echo - install source libraries to      : ^<prefix^>\share\koka\%KOKA_VERSION%
-echo - install executable to            : ^<prefix^>\bin\koka.exe
-echo - install symlink to               : ^<prefix^>\bin\koka-%KOKA_VERSION%.exe
+echo - install pre-compiled libraries: ^<prefix^>\lib\koka\%KOKA_VERSION%
+echo - install source libraries      : ^<prefix^>\share\koka\%KOKA_VERSION%
+echo - install executable            : ^<prefix^>\bin\koka.exe
+echo - install symlink               : ^<prefix^>\bin\koka-%KOKA_VERSION%.exe
 copy /B /Y "%KOKA_PREFIX%\bin\koka.exe" "%KOKA_PREFIX%\bin\koka-%KOKA_VERSION%.exe" > nul
 
 
@@ -272,7 +273,7 @@ setx koka_editor "code --goto %%f:%%l:%%c" > nul
 
 where /Q emacs
 if errorlevel 1 goto done_emacs
-echo - emacs syntax mode can be found at: %KOKA_PREFIX%\share\koka\%KOKA_VERSION%\contrib\emacs
+echo - emacs syntax mode installed at: %KOKA_PREFIX%\share\koka\%KOKA_VERSION%\contrib\emacs
 
 :done_emacs
 

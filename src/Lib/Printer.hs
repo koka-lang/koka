@@ -236,6 +236,8 @@ ansiEscapeIO :: [T.Text] -> IO ()
 ansiEscapeIO xs
   | null xs   = return ()
   | otherwise = T.putStr (ansiEscape xs) 
+
+                   
   
 ansiEscape :: [T.Text] -> T.Text
 ansiEscape xs
