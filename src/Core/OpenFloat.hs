@@ -74,19 +74,20 @@ fltDefGroup (DefNonRec def) next
 fltDef :: Def -> Flt Def
 fltDef def
   = withCurrentDef def $
-    do (expr', _) <- fltExpr (defExpr def)
+    do (expr', _) <- fltExpr (defExpr def) Nothing
        return def{ defExpr = expr' }
 
-fltExpr :: Expr -> Flt (Expr, Req)
-fltExpr expr
+-- exor : typrOf(expr) | \eff ~~> (expr', rq)
+fltExpr :: Expr -> Maybe Effect -> Flt (Expr, Req)
+fltExpr expr maybeEff
   = case expr of
     -- flt open[...](f)(args)  = flt f(args)
     App (App eopen@(TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [f]) args | getName open == nameEffectOpen
-      -> do fltExpr $ App f args
+      -> do fltExpr  (App f args) maybeEff
 
     App f args
-      -> do (f', rqf) <- fltExpr f
-            args_rq' <- mapM fltExpr args
+      -> do (f', rqf) <- fltExpr f maybeEff
+            args_rq' <- mapM (\arg -> fltExpr arg maybeEff) args
             tp <- getFunType f  -- debug
             let (args', rqs) = unzip args_rq'
                 Just(_, feff, _) = splitFunType tp
@@ -105,9 +106,9 @@ fltExpr expr
 
     Lam args eff body
       -> do  -- traceDoc $ \env -> text "lambda:" <+> niceType env eff
-            (body', rq) <- fltExpr body
+            (body', rq) <- fltExpr body $ Just eff
             let rqSup = supb (Eff eff) rq
-            if (matchRq rqSup $ Eff eff) then return ()
+            if matchRq rqSup $ Eff eff then return ()
               else traceDoc $ \env -> text "bad lambda!! before:" <+> niceType env (typeOf expr) <+> text "\n  eff: " <+> niceType env (orderEffect eff) <+> text "\n  req : " <+> niceRq  env rq
             return (
               --  assertion ("lambda bad body rq\n Why this lambda type checked?\n Annotated effect does not range over internal effect of the body." ++ show (typeOf expr)) (matchRq rqSup $ Eff eff) . 
@@ -115,15 +116,15 @@ fltExpr expr
                Bottom)
 
     Let defgs body
-      -> do defgIR_rqs <- mapM fltDefGroupAux defgs
-            (body', rq) <- fltExpr body
+      -> do defgIR_rqs <- mapM (\def -> fltDefGroupAux def maybeEff) defgs
+            (body', rq) <- fltExpr body maybeEff
             let (defgIRs, rqs) = unzip defgIR_rqs
                 rqSup = sup $ rq:rqs
             defgs' <- mapM (restrictToDG rqSup) defgIRs
             return (assertTypeInvariant $ Let defgs' body', rqSup)
     Case exprs bs
-      -> do exprIR_rqs <- mapM fltExpr exprs
-            bIR_rqs <- mapM fltBranchAux bs
+      -> do exprIR_rqs <- mapM (\exp-> fltExpr exp maybeEff)exprs
+            bIR_rqs <- mapM (\b -> fltBranchAux b maybeEff) bs
             let rqe = foldl supb Bottom $ map snd exprIR_rqs
                 (bIRs, rqbs) = unzip bIR_rqs
                 rqSup = sup $ rqe : rqbs
@@ -133,11 +134,11 @@ fltExpr expr
 
     -- type application and abstraction
     TypeLam tvars body
-      -> do (body', rq) <- fltExpr body
+      -> do (body', rq) <- fltExpr body maybeEff
             return (assertTypeInvariant $ TypeLam tvars body', Bottom)
 
     TypeApp body tps
-      -> do (body', rq) <- fltExpr body
+      -> do (body', rq) <- fltExpr body maybeEff
             return (assertTypeInvariant $ TypeApp body' tps, rq)
 
     -- the rest
@@ -169,30 +170,30 @@ fltExpr expr
            guardExpr' <- restrictToE rqSup g
            return $ Guard testExpr' guardExpr'
 
-      fltDefAux :: Def -> Flt (DefIR, Req)
-      fltDefAux def@Def{defExpr=expr} =
-        do (expr', rq) <- fltExpr expr
+      fltDefAux :: Def -> Maybe Effect -> Flt (DefIR, Req)
+      fltDefAux def@Def{defExpr=expr} maybeEff =
+        do (expr', rq) <- fltExpr expr maybeEff
            return (DefIR def{defExpr=expr'} rq, rq)
 
-      fltDefGroupAux :: DefGroup -> Flt (DefGroupIR, Req)
-      fltDefGroupAux (DefRec defs) =
-        do defIR_rqs <- mapM fltDefAux defs
+      fltDefGroupAux :: DefGroup -> Maybe Effect -> Flt (DefGroupIR, Req)
+      fltDefGroupAux (DefRec defs) maybeEff =
+        do defIR_rqs <- mapM (\def -> fltDefAux def maybeEff) defs
            let (defIRs, rqs) = unzip defIR_rqs
            return (DefRecIR defIRs, sup rqs)
-      fltDefGroupAux (DefNonRec def) =
-        do (defIR, rq) <- fltDefAux def
+      fltDefGroupAux (DefNonRec def) maybeEff =
+        do (defIR, rq) <- fltDefAux def maybeEff
            return (DefNonRecIR defIR, rq)
 
-      fltBranchAux :: Branch -> Flt (BranchIR, Req)
-      fltBranchAux (Branch pat guards) =
-        do guard_rqs <- mapM fltGuardAux guards
+      fltBranchAux :: Branch -> Maybe Effect -> Flt (BranchIR, Req)
+      fltBranchAux (Branch pat guards) maybeEff =
+        do guard_rqs <- mapM (\guard -> fltGuardAux guard maybeEff ) guards
            let (guards', rqs) = unzip guard_rqs
            return (BranchIR pat guards', sup rqs)
 
-      fltGuardAux :: Guard -> Flt (GuardIR, Req)
-      fltGuardAux (Guard guard body) =
-        do (guard', rqg) <- fltExpr guard
-           (body', rqb)  <- fltExpr body
+      fltGuardAux :: Guard -> Maybe Effect -> Flt (GuardIR, Req)
+      fltGuardAux (Guard guard body) maybeEff =
+        do (guard', rqg) <- fltExpr guard maybeEff
+           (body', rqb)  <- fltExpr body maybeEff
            return (GuardIR (guard', rqg) (body', rqb), supb rqg rqb)
 
 {--------------------------------------------------------------------------
