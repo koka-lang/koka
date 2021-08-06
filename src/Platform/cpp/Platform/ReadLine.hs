@@ -213,7 +213,7 @@ completeModules roots cenv input
 
 completeIdentifiers ::  [String] -> CompletionEnv -> String -> IO ()
 completeIdentifiers names cenv input 
-  = completeQuotedWord cenv input (completeNames names) isIdChar Nothing ""
+  = completeWord cenv input (Just isIdChar) (completeNames names) 
   where
     isIdChar :: Char -> Bool
     isIdChar c = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '-' || c == '_' || (c >= '0' && c <= '9')
