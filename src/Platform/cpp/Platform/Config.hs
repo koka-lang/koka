@@ -51,7 +51,9 @@ compiler = "unknown"
 
 exeExtension   :: String
 pathSep,pathDelimiter :: Char
+
 #if defined(WINDOWS)
+-- platform      = "windows"
 exeExtension  = ".exe"
 dllExtension  = ".dll"
 objExtension  = ".obj"
@@ -60,6 +62,7 @@ libPrefix     = ""
 pathSep       = '\\'
 pathDelimiter = ';'
 #elif defined(DARWIN) || defined(__APPLE__) || defined(__MACH__) || defined(__MACOSX__)
+-- platform      = "macos"
 dllExtension  = ".dylib"
 objExtension  = ".o"
 libExtension  = ".a"
@@ -68,6 +71,7 @@ exeExtension  = ""
 pathSep       = '/'
 pathDelimiter = ':'
 #else
+-- platform      = "unix"
 dllExtension  = ".so"
 objExtension  = ".o"
 libExtension  = ".a"

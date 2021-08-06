@@ -11,7 +11,7 @@
 -----------------------------------------------------------------------------
 {-# OPTIONS_GHC -funbox-strict-fields #-}
 module Common.Range
-          ( Pos, makePos, minPos, maxPos, posColumn, posLine
+          ( Pos, makePos, minPos, maxPos, posColumn, posLine, posOfs
           , posMove8, posMoves8, posNull
           , Range, showFullRange
           , makeRange, rangeNull, combineRange, rangeEnd, rangeStart
@@ -28,6 +28,7 @@ module Common.Range
           , bstringEmpty
           , readInput
           , extractLiterate
+          , rawSourceFromRange
           ) where
 
 -- import Lib.Trace
@@ -346,3 +347,9 @@ sourceFromRange (Range start end)
     c2 = posColumn end
     l1 = if posLine start >= bigLine then 1 else posLine start
     l2 = if posLine end >= bigLine then (if posLine start >= bigLine then posLine end - posLine start +1 else 1) else posLine end
+
+rawSourceFromRange :: Range -> String
+rawSourceFromRange (Range start end)
+  = bstringToString $
+    B.take (posOfs end - posOfs start) $ B.drop (posOfs start) $
+    sourceBString (posSource start)

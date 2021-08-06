@@ -196,8 +196,8 @@ compress acc (c:cs)
      else compress (c:acc) cs
 
 
-fmtHtml :: Token Lexeme -> String -> String
-fmtHtml token
+fmtHtml :: Token Lexeme -> Lexeme -> String -> String
+fmtHtml token _lexeme
   = case token of
       TokId _ _    -> fmtNameString
       TokOp _ _    -> cspan "operator" . fmtOpString
@@ -300,9 +300,9 @@ showLexemes env kgamma gamma lexs
     ctx = context env
 
 
-fmtLiterate :: Maybe RangeMap -> Env -> KGamma -> Gamma -> Token Lexeme -> String -> String
-fmtLiterate mbRangeMap env kgamma gamma token s
-  = let fmt = fmtHtml token s
+fmtLiterate :: Maybe RangeMap -> Env -> KGamma -> Gamma -> Token Lexeme -> Lexeme -> String -> String
+fmtLiterate mbRangeMap env kgamma gamma token lexeme s
+  = let fmt = fmtHtml token lexeme s
     in case token of
          TokId qid tp | isQualified  qid || not (null tp)
                    -> linkFromId env qid tp gamma

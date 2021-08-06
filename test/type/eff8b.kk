@@ -5,5 +5,5 @@ fun forever(f) {
 }
 
 fun test() {
-  forever( print );
+  forever( println );
 }

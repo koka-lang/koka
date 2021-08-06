@@ -13,25 +13,18 @@
 #   $ cabal new-run koka
 # See also <https://github.com/koka-lang/koka#build-notes>.
 
-resolver: lts-18.0
+resolver: lts-18.3
 # resolver: lts-14.27           # ghc 8.6.5
 # resolver: lts-9.21            # ghc 8.0.2
 # system-ghc: true              # uncomment to use the system installed GHC
 
 packages:
 - '.'
-- contrib/repline
+- contrib/isocline
 
 extra-deps:
-- haskeline-0.8.1.2             # use version < 8 to build with lts < 14
 - regex-compat-tdfa-0.95.1.4    # only needed for koka-test
 - json-0.10                     # only needed for koka-test
-# - stylish-haskell-0.11.0.0
-# - hlint-2.1.26
-
-flags:
-  haskeline:
-    terminfo: false
 
 rebuild-ghc-options: true
 allow-newer: true

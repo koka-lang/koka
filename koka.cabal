@@ -141,11 +141,10 @@ executable koka
     , bytestring
     , containers
     , directory
-    , haskeline
+    , isocline
     , mtl
     , parsec
     , process
-    , repline
     , text
     , time
   if os(windows)
@@ -170,15 +169,14 @@ test-suite koka-test
     , directory
     , extra
     , filepath
-    , haskeline
     , hspec
     , hspec-core
+    , isocline
     , json
     , mtl
     , parsec
     , process
     , regex-compat-tdfa
-    , repline
     , text
     , time
   default-language: Haskell2010
