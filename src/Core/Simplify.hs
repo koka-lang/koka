@@ -38,7 +38,7 @@ import qualified Data.Set as S
 -- data Info = Info{ occurrences :: M.NameMap Int }
 
 simplifyDefs :: Pretty.Env -> Bool -> Bool -> Int -> Int -> CorePhase ()
-simplifyDefs penv unsafe ndebug nRuns duplicationMax 
+simplifyDefs penv unsafe ndebug nRuns duplicationMax
   = liftCorePhaseUniq $ \uniq defs ->
     runSimplify unsafe ndebug duplicationMax uniq penv (simplifyN nRuns (uniquefyDefBodies defs))
 
@@ -303,8 +303,14 @@ bottomUp expr@(App (TypeApp (Var isValidK _) _) [arg])  | getName isValidK == na
       _ -> expr
 
 -- case of known constructor
-bottomUp expr@(Case [con@(Con name repr)] bs)
-  = trace "bottomUp case of known " $ case matchBranches con bs of
+-- bottomUp expr@(Case [con@(Con name repr)] bs)
+--   = trace "bottomUp case of known " $ case matchBranches con bs of
+--       Just b -> b
+--       _ -> expr
+
+-- generic case of known constructor
+bottomUp expr@(Case scruts branches)
+  = trace "bottomUp generic case of known " $ case matchBranchesGeneric scruts branches of
       Just b -> b
       _ -> expr
 
@@ -402,6 +408,36 @@ bottomUpArg arg
       _ -> arg
 
 
+matchBranchesGeneric :: [Expr] -> [Branch] -> Maybe Expr
+matchBranchesGeneric scruts branches
+  = case foldl f NoMatch branches of
+      Match expr -> Just expr
+      _ -> Nothing
+  where
+    f NoMatch branch = matchBranchGeneric scruts branch
+    f found _ = found
+
+matchBranchGeneric :: [Expr] -> Branch -> Match Expr
+matchBranchGeneric scruts (Branch pats [Guard guard expr]) | isExprTrue  guard
+  = trace "matchBranchGen " $ foldl f (Match expr) (zip scruts pats)
+    where
+      f NoMatch (scrut, pat) = NoMatch
+      f (Match expr) (scrut, pat) = matchPatternGeneric scrut pat expr
+matchBranchGeneric scruts branch = NoMatch
+
+matchPatternGeneric :: Expr -> Pattern -> Expr -> Match Expr
+matchPatternGeneric (Let letdefns letBody) pat simplExpr = trace "matchPatGen let " $
+  case matchPatternGeneric letBody pat simplExpr of
+    Match expr -> Match (Let letdefns expr)
+    _ -> NoMatch
+matchPatternGeneric expr (PatVar tname pat) simplExpr = trace "matchPatGen PatVar " $ matchPatternGeneric expr pat simplExpr
+matchPatternGeneric (Lit l) (PatLit pLit) simplExpr | l == pLit = trace "matchPatGen Lit " $ Match simplExpr
+matchPatternGeneric (Con name _repr) (PatCon pname [] _prepr _ _ _ _info _) simplExpr | name == pname = trace "matchPatGen PatCon match " $ Match simplExpr
+matchPatternGeneric (Con tname conRepr) (PatCon pname pats _ _ _ _ _ _) _ | tname /= pname = trace "matchPatGen Con " $ NoMatch
+matchPatternGeneric expr PatWild simplExpr = trace "matchPatGen PatWild match " $ Match simplExpr -- not right
+matchPatternGeneric expr pat _ = trace ("matchPatGen default " ++ show expr ++ " " ++ show pat) $ NoMatch
+
+
 matchBranches :: Expr -> [Branch] -> Maybe Expr
 matchBranches scrutinee branches
   = trace ("matchBranches main " ++ show branches) $ case (foldl f NoMatch branches) of
@@ -413,28 +449,28 @@ matchBranches scrutinee branches
 
 matchBranch :: Expr -> Branch -> Match Expr
 matchBranch scrut (Branch [pat] [Guard guard expr]) | isExprTrue guard
-  = trace ("matchBranch start " ++ show guard ++ " pattern " ++ show pat)   $ 
+  = trace ("matchBranch start " ++ show guard ++ " pattern " ++ show pat)   $
     matchPattern Nothing scrut pat expr
 matchBranch scrut branch
   = trace ("matchBranch guard expr untrue ") Unknown
 
 matchPattern :: Maybe TName -> Expr -> Pattern -> Expr -> Match Expr
 matchPattern scrutName scrut pat expr =
-  trace ("matchPattern start pattern" ++ show pat ++ " scrut " ++ show scrut) $ 
-  case (scrut,pat) of    
+  trace ("matchPattern start pattern" ++ show pat ++ " scrut " ++ show scrut) $
+  case (scrut,pat) of
     (Con name _repr, PatCon pname [] _prepr _ _ _ _info _)
-      | name == pname -> trace "matchPattern matched"   $ Match expr
-      | otherwise     -> trace "matchPattern no match " $ NoMatch
-    
-    (App (Con name _repr) args,
-     PatCon pname pats _prepr _ _ _ _info _) 
+      | name == pname -> trace ("matchPattern matched PatCon " ++ show name ++ " " ++ show scrut ++ " " ++ show pat)   $ Match expr
+      | otherwise     -> trace "matchPattern no match PatCon " $ NoMatch
+    (Con name _repr, PatCon pname pats _preprs _ _ _ _info _)
       | name /= pname -> NoMatch
-    (App (TypeApp (Con name _repr) targs) args,
-     PatCon pname pats _prepr _ _ _ _info _) 
-      | name /= pname -> NoMatch
-      -- | name == pname -> -- match all subpatterns
-      -- | otherwise -> NoMatch
-    
+    -- (App (Con name _repr) args,
+    --  PatCon pname pats _prepr _ _ _ _info _) 
+    --   | name /= pname -> NoMatch
+    -- (App (TypeApp (Con name _repr) targs) args,
+    --  PatCon pname pats _prepr _ _ _ _info _) 
+    --   | name /= pname -> NoMatch
+    --   | name == pname -> NoMatch-- match all subpatterns
+    --   | otherwise -> NoMatch
     (_, PatVar name pat)
       -> trace "matchPattern PatVar " $
          bindScrutIn (getName name) (matchPattern (Just name) scrut pat expr)
@@ -449,7 +485,7 @@ matchPattern scrutName scrut pat expr =
                      Just nm -> Var nm InfoNone
             def = Def name (typeOf scrut) body Private DefVal InlineAuto rangeNull ""
         in Match (makeLet [DefNonRec def] branch)
-     bindScrutIn name found 
+     bindScrutIn name found
       = found
 
 data Match a = Match a | Unknown | NoMatch
@@ -620,12 +656,11 @@ instance Simplify Expr where
                         x   <- simplify expr
                         return $ Let dgs x
                 Case exprs branches
-                  -> trace ("simply case exprs " ++ show exprs ++ " branches " ++ show branches) $
-                     do xs <- simplify exprs
+                  -> do xs <- simplify exprs
                         bs <- simplify branches
                         return $ Case xs bs
          -- bottomUpM e'
-         trace ("calling bottomUp from simplify " ++ show e') $ return (bottomUp e')
+         return (bottomUp e')
 
 instance Simplify Branch where
   simplify (Branch patterns guards)
