@@ -363,8 +363,8 @@ bottomUp expr@(Case scruts bs)  | commonContinue
 
 -- generic case of known constructor
 bottomUp expr@(Case scruts branches)
-  = trace "bottomUp generic case of known " $ 
-    case matchBranchesGeneric scruts branches of
+  = trace "bottomUp generic case of known " $
+    case kmatchBranches scruts branches of
       Just b -> b
       _      -> expr
 
@@ -423,9 +423,109 @@ data Match a = Match a | Unknown | NoMatch
 
 instance Functor Match where
   fmap f (Match x) = Match (f x)
-  fmap f other     = other
-  
+  fmap f NoMatch   = NoMatch
+  fmap f Unknown   = Unknown
 
+
+-- matchAll   :: [Match a] -> Match a
+-- matchFirst :: [Match a] -> Match a
+-- kmatchMatch    :: Expr -> [Branch] -> Match Expr
+-- kmatchPatterns :: [Expr] -> [Pattern] -> Match Expr
+-- kmatchPattern  :: Expr -> Pattern -> Match (Defs, Expr)
+
+matchFirst :: [Match a] -> Match a
+matchFirst (NoMatch : matches) = matchFirst matches
+matchFirst (other : matches)   = other
+matchFirst []                  = NoMatch
+
+--For each branch and check if a match is found and return the expr as is, else move onto the next branch
+kmatchBranches :: [Expr] -> [Branch] -> Maybe Expr
+kmatchBranches scruts branches
+  -- = case foldl f NoMatch branches of
+  --     Match expr -> Just expr
+  --     _ -> Nothing
+  --   where
+  --     f NoMatch branch = kmatchBranch scruts branch
+  --     f found _ = found
+  = case matchFirst (map (kmatchBranch scruts) branches) of
+      Match expr -> Just expr
+      _          -> Nothing
+
+-- For every branch, compare all its pats with the scruts and if they all match, return the matched bindings+scruts combined with the branch body
+kmatchBranch :: [Expr] -> Branch -> Match Expr
+kmatchBranch scruts (Branch pats [Guard guard expr]) | isExprTrue  guard
+  = case kmatchPatterns scruts pats of
+      Match bindings -> trace ("kmatchBranch " ++ show bindings ++ " " ++ show expr) $ 
+                        Match (makeStats (bindings : [expr]))
+      other -> other
+kmatchBranch _ _ = NoMatch
+
+makeExpr :: Defs -> Expr -> Expr
+makeExpr [] expr    = expr
+makeExpr defs expr  = Let [DefRec defs] expr
+
+-- For every scrut - pat tuple, get the binding and new scrutinee and collect them into a single expr (done using a Let expr)
+-- Use matchAll here
+kmatchPatterns :: [Expr] -> [Pattern] -> Match Expr
+kmatchPatterns scruts pats 
+  = foldl f Unknown (zip scruts pats)
+    where f NoMatch (_, _) = NoMatch
+          f Unknown (scrut, pat) =
+            case kmatchPattern scrut pat of
+              Match (bindings, scrut) -> Match (makeExpr bindings scrut)
+              Unknown                 -> Unknown
+              NoMatch                 -> NoMatch
+          f (Match prevExpr) (scrut, pat) =
+            case kmatchPattern scrut pat of
+              Match (bindings', newscrut') -> Match (makeStats (prevExpr : [makeExpr bindings' newscrut']))
+              Unknown                      -> Unknown
+              NoMatch                      -> NoMatch
+
+
+-- Returns the bindings and modified scrutinee if the scrutinee and the pattern match
+kmatchPattern :: Expr -> Pattern -> Match (Defs, Expr)
+kmatchPattern scrut PatWild
+  = Match ([], scrut)
+
+kmatchPattern scrut (PatVar name pat)
+ = trace ("kmatchPat PatVar " ++ show scrut ++ " " ++ show (PatVar name pat)) $
+   case kmatchPattern scrut pat of
+    Match (defs, newscrut) -> trace ("kmatchPat PatVar match " ++ show defs ++ " " ++ show newscrut) $ 
+                              Match (defs ++ [makeDef (getName name) newscrut], newscrut)
+    other -> trace "kmatchPat PatVar nomatch " $ 
+             other
+kmatchPattern scrut@(Lit l) (PatLit pLit)
+  = trace "kmatchPat PatLit " $
+    if l == pLit
+      then Match ([], scrut)
+      else NoMatch
+
+kmatchPattern scrut@(Con name _repr) (PatCon pname [] _prepr _ _ _ _info _)
+  = trace ("kmatchPat PatCon empty pats " ++ show name ++ " " ++ show pname) $
+    if name == pname
+      then trace ("kmatchPat PatCon empty pats match " ++ show name) $ 
+           Match ([], scrut)
+      else trace ("kmatchPat PatCon empty pats nomatch " ++ show name ++ " " ++ show pname) $ 
+           NoMatch
+
+kmatchPattern (Con name conRepr) (PatCon pname pats _ _ _ _ _ _)
+  = trace "kmatchPat PatCon non empty pats " $
+    if name == pname
+      then Unknown -- TODO: match on the sub-patterns
+      else NoMatch
+
+kmatchPattern (Let letDefns letBody) pat
+  = trace ("kmatchPat Let scrut " ++ show letDefns ++ " " ++ show letBody) $
+    case kmatchPattern letBody pat of
+      Match (bindings, newscrut) -> trace ("kmatchPat Let match " ++ show bindings ++ " " ++ show newscrut) $ 
+                                    Match (bindings, Let letDefns newscrut)
+      other -> trace "kmatchPat Let scrut nomatch " $ other
+
+kmatchPattern scrut pat
+  = trace ("kmatchPat NoMatch " ++ show scrut ++ " " ++ show pat) $
+    Unknown
+
+--------------------------------------------------------------------------------------------------
 
 matchBranchesGeneric :: [Expr] -> [Branch] -> Maybe Expr
 matchBranchesGeneric scruts branches
@@ -443,48 +543,41 @@ matchBranchGeneric scruts (Branch pats [Guard guard expr]) | isExprTrue  guard
   = trace "matchBranchGen " $ foldl f (Match expr) (zip scruts pats)
     where
       f NoMatch (scrut, pat) = NoMatch
-      f (Match expr) (scrut, pat) = matchPatternGeneric scrut pat expr
+      f (Match expr) (scrut, pat) = matchPatternGeneric (scrut, pat) expr
 
 matchBranchGeneric scruts branch = NoMatch
 
+matchPatternGeneric :: (Expr, Pattern) -> Expr -> Match Expr
+matchPatternGeneric (expr, PatWild) pExpr
+  = trace "matchPatGen PatWild match " $
+    Match pExpr
 
--- matchAll   :: [Match a] -> Match a
--- matchFirst :: [Match a] -> Match a
--- kmatchMatch    :: Expr -> [Branch] -> Match Expr
--- kmatchPatterns :: [Expr] -> [Pattern] -> Match Expr
--- kmatchPattern  :: Expr -> Pattern -> Match (Defs, Expr)
-
-matchPatternGeneric :: Expr -> Pattern -> Expr -> Match Expr  
-matchPatternGeneric expr PatWild simplExpr 
-  = trace "matchPatGen PatWild match " $ 
-    Match simplExpr 
-
-matchPatternGeneric (Let letdefns letBody) pat simplExpr 
+matchPatternGeneric ((Let letdefns letBody), pat) simplExpr
   = trace "matchPatGen let " $
-    (Let letdefns) <$> matchPatternGeneric letBody pat simplExpr 
+    (Let letdefns) <$> matchPatternGeneric (letBody, pat) simplExpr
 
-matchPatternGeneric expr (PatVar tname pat) simplExpr 
-  = trace "matchPatGen PatVar " $ 
-    matchPatternGeneric expr pat simplExpr
+matchPatternGeneric (expr, PatVar tname pat) simplExpr
+  = trace "matchPatGen PatVar " $
+    matchPatternGeneric (expr, pat) simplExpr
 
-matchPatternGeneric (Lit l) (PatLit pLit) simplExpr
-  = trace "matchPatGen Lit " $ 
-    if (l == pLit)
+matchPatternGeneric ((Lit l), (PatLit pLit)) simplExpr
+  = trace "matchPatGen Lit " $
+    if l == pLit
       then Match simplExpr
       else NoMatch
 
-matchPatternGeneric (Con name _repr) (PatCon pname [] _prepr _ _ _ _info _) simplExpr 
-  = trace "matchPatGen PatCon match " $ 
-    if (name == pname) 
+matchPatternGeneric ((Con name _repr), (PatCon pname [] _prepr _ _ _ _info _)) simplExpr
+  = trace "matchPatGen PatCon match " $
+    if (name == pname)
       then Match simplExpr
       else NoMatch
 
-matchPatternGeneric (Con name conRepr) (PatCon pname pats _ _ _ _ _ _) _ 
+matchPatternGeneric ((Con name conRepr), (PatCon pname pats _ _ _ _ _ _)) _
   = if (name == pname)
       then Unknown -- TODO
       else NoMatch
-  
-matchPatternGeneric expr pat _ 
+
+matchPatternGeneric (expr, pat) _
   = trace ("matchPatGen default " ++ show expr ++ " " ++ show pat) $ Unknown
 
 
