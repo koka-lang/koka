@@ -458,17 +458,24 @@ kmatchBranch scruts (Branch pats [Guard guard expr]) | isExprTrue  guard
       Match bindings -> trace ("kmatchBranch " ++ show bindings ++ " " ++ show expr) $ 
                         Match (makeStats (bindings : [expr]))
       other -> other
-kmatchBranch _ _ = NoMatch
+kmatchBranch _ _ = Unknown
 
 makeExpr :: Defs -> Expr -> Expr
 makeExpr [] expr    = expr
 makeExpr defs expr  = Let [DefRec defs] expr
 
+matchAll :: [Match (Defs,Expr)] -> Match [(Defs,Expr)]
+matchAll = ..
+
 -- For every scrut - pat tuple, get the binding and new scrutinee and collect them into a single expr (done using a Let expr)
 -- Use matchAll here
-kmatchPatterns :: [Expr] -> [Pattern] -> Match Expr
+kmatchPatterns :: [Expr] -> [Pattern] -> Match [Def]
 kmatchPatterns scruts pats 
-  = foldl f Unknown (zip scruts pats)
+  = case matchAll (zipWith kmatchPattern scruts pats) of
+      Match defexprs -> Match (concatMap (\(defs,expr) -> defs ++ [makeDefExpr expr])) defexprs)
+      other -> other
+      {-
+    foldl f Unknown (zip scruts pats)
     where f NoMatch (_, _) = NoMatch
           f Unknown (scrut, pat) =
             case kmatchPattern scrut pat of
@@ -480,7 +487,7 @@ kmatchPatterns scruts pats
               Match (bindings', newscrut') -> Match (makeStats (prevExpr : [makeExpr bindings' newscrut']))
               Unknown                      -> Unknown
               NoMatch                      -> NoMatch
-
+-}
 
 -- Returns the bindings and modified scrutinee if the scrutinee and the pattern match
 kmatchPattern :: Expr -> Pattern -> Match (Defs, Expr)

@@ -261,7 +261,7 @@ e1 .. en ~  any       ~>  @nomatch
 
 Multi-pattern rules:
 
-e_i ~ p_i  ~>  @match E_i | e'_i
+e_i ~ p_i  ~>  @match E_i | e'_i  (forall i)
 -----------------------------------------------------------
 e1 ... en  ~~  p_1 ... p_n   ~>  @match E_1;e'_1;...;E_n;e'_n
 

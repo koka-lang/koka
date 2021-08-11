@@ -183,6 +183,10 @@ makeTDef (TName name tp) expr
   = Def name tp expr Private DefVal InlineNever rangeNull ""
 
 
+makeDefExpr :: Expr -> Def
+makeDefExpr expr 
+  = makeDef nameNil expr
+
 makeStats :: [Expr] -> Expr
 makeStats []
   = failure "Core.Parc.makeStats: no expressions"
