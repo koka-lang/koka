@@ -36,42 +36,44 @@ import Syntax.Layout   ( combineLineComments )
 -----------------------------------------------------------
 import qualified System.Console.Isocline as IC
 
-highlightInput :: ColorScheme -> String -> [IC.TextAttr]
+highlightInput :: ColorScheme -> String -> IC.Fmt
 highlightInput cscheme input
   = concat $ highlight (fmtAttr cscheme) id CtxNormal "" bigLine (stringToBString (input ++ "\n"))
 
-fmtAttr :: ColorScheme -> Token Lexeme -> Lexeme -> String -> [IC.TextAttr]
+fmtAttr :: ColorScheme -> Token Lexeme -> Lexeme -> String -> IC.Fmt
 fmtAttr cscheme tok lexeme display
-  = IC.withAttrColor (colorOf tok) rawInput
+  = IC.style (styleOf tok) rawInput
   where
     rawInput
       = rawSourceFromRange (getRange lexeme)
 
-    colorOf :: Token a -> IC.Color
-    colorOf token
+    styleOf :: Token a -> IC.Style
+    styleOf token
       = case token of
-          TokId _ _    -> IC.AnsiDefault
-          TokOp _ _    -> IC.AnsiDefault
-          TokTypeVar   -> attrColor (colorTypeVar cscheme)
-          TokTypeId _  -> attrColor (colorTypeCon cscheme)
-          TokTypeOp _  -> attrColor (colorTypeCon cscheme)
-          TokTypeSpecial -> attrColor (colorTypeSpecial cscheme)
-          TokTypeParam   -> attrColor (colorTypeParam cscheme)
-          TokModule mid  -> attrColor (colorModule cscheme)
-          TokCons _   -> attrColor (colorCons cscheme)
-          TokNumber   -> attrColor (colorNumber cscheme)
-          TokString   -> attrColor (colorString cscheme)
-          TokSpecial  -> attrColor (colorSpecial cscheme)
-          TokTypeKeyword -> attrColor (if (not (isKeywordOp display)) then colorTypeKeyword cscheme else colorTypeKeywordOp cscheme)
-          TokKeyword  -> attrColor (colorKeyword cscheme)
-          TokComment  -> attrColor (colorComment cscheme)
-          TokRichComment _ -> attrColor (colorComment cscheme)
-          TokWhite    -> IC.AnsiDefault
-          TokError    -> IC.AnsiRed
+          TokId _ _    -> ""
+          TokOp _ _    -> ""
+          TokTypeVar   -> styleColor (colorTypeVar cscheme)
+          TokTypeId _  -> styleColor (colorTypeCon cscheme)
+          TokTypeOp _  -> styleColor (colorTypeCon cscheme)
+          TokTypeSpecial -> styleColor (colorTypeSpecial cscheme)
+          TokTypeParam   -> styleColor (colorTypeParam cscheme)
+          TokModule mid  -> styleColor (colorModule cscheme)
+          TokCons _   -> styleColor (colorCons cscheme)
+          TokNumber   -> styleColor (colorNumber cscheme)
+          TokString   -> styleColor (colorString cscheme)
+          TokSpecial  -> styleColor (colorSpecial cscheme)
+          TokTypeKeyword -> styleColor (if (not (isKeywordOp display)) then colorTypeKeyword cscheme else colorTypeKeywordOp cscheme)
+          TokKeyword  -> styleColor (colorKeyword cscheme)
+          TokComment  -> styleColor (colorComment cscheme)
+          TokRichComment _ -> styleColor (colorComment cscheme)
+          TokWhite    -> ""
+          TokError    -> "ansi-red"
       
-    attrColor :: Color -> IC.Color
-    attrColor color
-      = toEnum (ansiColor color)
+    styleColor :: Color -> IC.Style
+    styleColor color
+      = case color of
+          ColorDefault -> ""
+          _            -> "ansi-color=" ++ show (fromEnum color)
 
 -----------------------------------------------------------
 -- Easy syntax highlighting

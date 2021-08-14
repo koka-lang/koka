@@ -233,18 +233,23 @@ completeNames ::  [String] -> String -> [Completion]
 completeNames names input
   = completionsFor input names
 
-highlighter :: ColorScheme -> String -> [TextAttr]
+highlighter :: ColorScheme -> String -> Fmt
 highlighter cscheme input
   = case (span isSpace input) of
       (prews,':':rest)  
         -> -- command
            case (span (\c -> isAlphaNum c || c `elem` "!?") rest) of  -- todo: add highlighting on command options
-             (cmd,args) -> withAttrColor (toAttrColor (colorCommand cscheme)) (prews ++ ":" ++ cmd) ++
-                           withAttrColor (toAttrColor (colorSource cscheme)) args
+             (cmd,args) -> style (styleColor (colorCommand cscheme)) (prews ++ ":" ++ cmd) ++
+                           style (styleColor (colorSource cscheme)) args
       _ -> -- expression
            highlightInput cscheme input  
   where
-    toAttrColor c = toEnum (ansiColor c)
+    styleColor :: Color -> Style
+    styleColor color
+      = case color of
+          ColorDefault -> ""
+          _            -> "ansi-color=" ++ show (fromEnum color)
+
 {-
 startsWith, endsWith :: String -> String -> Bool
 startsWith s pre
