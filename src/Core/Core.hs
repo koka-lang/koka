@@ -47,7 +47,7 @@ module Core.Core ( -- Data structures
                    , makeInt32, makeSizeT
                    , makeEvIndex
                    , makeList, makeVector
-                   , makeDef, makeTDef, makeStats
+                   , makeDef, makeTDef, makeStats, makeDefExpr
                    , unzipM
                    , Visibility(..), Fixity(..), Assoc(..), isPublic
                    , coreName

@@ -10,9 +10,9 @@
 //   if (not(x)) then x else False
 // }
 
-private fun someBoolFunc(x, y) {
-  (x && y) || (x && !y)
-}
+// private fun someBoolFunc(x, y) {
+//   (x && y) || (x && !y)
+// }
 
 // fun justTrue() {
 //   True
@@ -25,10 +25,10 @@ private fun someBoolFunc(x, y) {
 //   x && y
 // }
 
-fun printTrue(x: bool, y: bool) {
-  print("printTrue")
-  x || y
-}
+// fun printTrue(x: bool, y: bool) {
+//   print("printTrue")
+//   x || y
+// }
 
 // fun printTrue2(x: bool, y: bool) {
 //   print("printTrue2")
@@ -56,7 +56,7 @@ fun boolMatching() {
   // Works when x is a val, but does not when x is a var
   // if(x) then "XT" else "XF"
 
-  someBoolFunc(True, False).println
+  // someBoolFunc(True, False).println
 }
 
 
@@ -92,16 +92,16 @@ a result we get essentially the same code as a C compiler for our conditional.*/
 //   if (x || y) then "OR_True" else "OR_False"
 // }
 
-// fun maybeMatching() {
-//   match(Just(1)) { // Maybe - case of known function not called in case of Just(x), works in case of Nothing
-//     Just(value) -> "1"
-//     Nothing -> "0"
+// fun maybeMatching() { // Works after the subpatter matching changes
+//   match(Just(10)) { // Maybe - case of known function not called in case of Just(x), works in case of Nothing
+//     Just(value) -> value
+//     Nothing -> 0
 //   }
 // }
 
-fun listMatching() {
+fun listMatching() { // All work after the subpattern matching changes
   match(Cons(1, Cons(2, []))) { // Not working as well, case of known function called. Works now
-    Cons(x, xs) -> "Non empty"
+    Cons(x, xs) -> "Non empty: " ++ show(x)
     Nil -> "Empty"
   }
 }
@@ -152,44 +152,46 @@ fun listMatching() {
 //   }
 // }
 
-// fun foo() { // Works, returns 3 + 4
-//   val x = match(False, False) {
-//      (True, y as _) -> return 1
-//      (False, True) | (True == False) || (False == True) -> 2
-//      _ -> 3
+fun foo() { // Works
+  val x = match(False, False) {
+     (False, True) | (True == False) || (False == True) -> 2
+     (True, y as _) -> return 1
+     (_, _) -> 3
+  }
+  x + 4
+}
+
+fun sideeffecting_nil() {
+  print("Side effecting nil")
+  Nil
+}
+
+fun multiConsWithEffect() {
+  match (Cons(Cons(foo(),Nil),sideeffecting_nil())) { // Works after the subpattern changes
+    Cons(x as _, _) -> x ++ x
+    _ -> []
+  }
+}
+
+// fun eitherMatching() { // Works after subpattern changes
+//   match(Left(1)) {
+//     Left(x) -> "left"
+//     Right(x) -> "Right"
 //   }
-//   x + 4
 // }
 
-// fun sideeffecting_nil() {
-//   print("Side effecting nil")
-//   Nil
+// fun tupleMatching() { // Works after subpattern changes
+//   match((1, 1)) {
+//     (2, 2) -> "both 2"
+//     (1, 2) -> "second 2"
+//     (2, 1) -> "first 2"
+//     (1, 1) -> "found"
+//   }
 // }
 
 fun main() {
   // if(divSomething(4, 2)) then "DT" else "DF" // Doesn't work
-
-  // match (Cons(Cons(foo(),Nil),sideeffecting_nil())) {
-  //   Cons(x as _, _) -> x ++ x
-  //   _ -> []
-  // }
-
-  // match(Just(10)) { // Maybe - works in case of Nothing, Just involved App
-  //   Just(value) -> "1"
-  //   Nothing -> "0"
-  // }
   
-  // match(Left(1)) { // Not working
-  //   Left(x) -> "left"
-  //   Right(x) -> "Right"
-  // }
-
-  // match((1, 1)) { // Not working
-  //   (2, 2) -> "both 2"
-  //   (1, 2) -> "second 2"
-  //   (2, 1) -> "first 2"
-  //   (1, 1) -> "found"
-  // }
 }
 
 
