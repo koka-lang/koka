@@ -88,20 +88,12 @@ fun run-benchmarks(b : benchmark<<ndet|e>>, name : string = "") : <ndet|e> list<
     }
 }
 
-val test = BGroup("Sets", set-environment(fn() { println("Eval"); 2 }, fn() {
-    [ BGroup("Insert", [Bench(eval-env, fn() { println("Bench"); val e : int = ask(); println(e) }, no-post)])
-    , BGroup("Lookup", [Bench(eval-env, fn() { println("Bench"); val e : int = ask(); println(e) }, no-post)])
+val test = BGroup("Sets", set-environment(fn() { 2 }, fn() {
+    [ BGroup("Insert", [Bench(eval-env, fn() { val e : int = ask(); () }, no-post)])
+    , BGroup("Lookup", [Bench(eval-env, fn() { val e : int = ask(); () }, no-post)])
     ]}))
 
 fun main() {
     test.list-benchmarks.unlines.println
     test.run-benchmarks.map(fn((s,d)) { s ++ ": " ++ d.show }).unlines.println
-}
-
-fun random-list(n) : random list<int32> {
-    if(n <= 0.int32) {
-        Nil
-    } else {
-        Cons(random-int32(), random-list(n-1))
-    }
 }
