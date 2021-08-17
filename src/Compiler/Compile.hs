@@ -872,14 +872,17 @@ inferCheck loaded0 flags line coreImports program
        -- traceDefGroups "simplify"
        
        -- specialize 
-       specializeDefs <- Core.withCoreDefs (\defs -> extractSpecializeDefs (loadedInlines loaded) defs)
+       specializeDefs <- Core.withCoreDefs (\defs -> extractSpecializeDefs defs)
       --  traceM ("Spec defs:\n" ++ show specializeDefs)
 
        -- inline for multi-step specialization case
+       -- TODO: what is this using the specializeDefs for?
+       -- this seems to be inlining local definitions too, not just defs in specializeDefs
        inlineDefs penv (2*(optInlineMax flags)) specializeDefs
+      --  simplify step here
        
        when (optSpecialize flags) $
-         specialize (specializeDefs `inlinesMerge` (loadedInlines loaded))
+         specialize (specializeDefs `inlinesMerge` loadedInlines loaded)
        -- traceDefGroups "specialize"
 
        -- lifting recursive functions to top level

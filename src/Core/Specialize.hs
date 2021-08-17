@@ -9,13 +9,11 @@ module Core.Specialize( specialize
                       , extractSpecializeDefs
                       ) where
 
-import Data.Monoid (Any(..))
-import Data.List (transpose, foldl', intersect)
+import Data.List (transpose )
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Arrow ((***))
 import Data.Maybe (mapMaybe, fromMaybe, catMaybes, isJust, fromJust)
-import Data.List (isInfixOf)
 
 import Lib.PPrint
 import Common.Failure (failure)
@@ -29,7 +27,6 @@ import qualified Common.NameMap  as M
 import Common.NameSet (NameSet)
 import qualified Common.NameSet as S
 import Core.Core
-import Core.Inlines (inlinesToList)
 import Core.Pretty ()
 import Type.Type (splitFunScheme, Effect, Type, TypeVar)
 import Type.TypeVar
@@ -179,7 +176,7 @@ replaceCall name expr bools args mybeTypeArgs -- trace ("specializing" <> show n
 
     ((newParams, newArgs), (speccedParams, speccedArgs)) =
       (unzip *** unzip)
-      -- (\x@(new, spec) -> trace ("Specializing to newArgs " <> show new) $ x) $
+      -- $ (\x@(new, spec) -> trace ("Specializing to newArgs " <> show new) $ x)
       $ partitionBools bools
       $ zip (fnParams expr) args
 
@@ -207,11 +204,9 @@ fnBody (TypeLam _ (Lam _ _ body)) = body
   Extract definitions that should be specialized
 --------------------------------------------------------------------------}
 
-extractSpecializeDefs :: Inlines -> DefGroups -> Inlines
-extractSpecializeDefs inlines dgs =
-    flip multiStepInlines (fnDefs dgs)
-  $ inlinesMerge inlines
-  $ inlinesNew
+extractSpecializeDefs :: DefGroups -> Inlines
+extractSpecializeDefs dgs =
+    inlinesNew
   $ mapMaybe makeSpecialize
   $ flattenDefGroups
   $ filter isRecursiveDefGroup dgs
@@ -288,44 +283,11 @@ recursiveCalls Def{ defName=thisDefName, defExpr=expr }
   where
     go body =
       let (types, args) = unzip $ foldMapExpr f body
+      -- assumption: all applications are TypeApps, or no applications are
       in (sequence types, args)
 
     f (App (Var (TName name _) _) args)
-      | name == thisDefName = pure (Nothing, args)
+      | name == thisDefName = [(Nothing, args)]
     f (App (TypeApp (Var (TName name _) _) types) args)
-      | name == thisDefName = pure (Just types, args)
+      | name == thisDefName = [(Just types, args)]
     f _ = []
-
-multiStepInlines :: Inlines -> [Def] -> Inlines
-multiStepInlines inlines = foldl' f inlines
-  where
-    -- seq here since we're using foldl'?
-    f inlines def
-    -- inlineCost ?
-      | callsSpecializable inlines def = -- trace ("Add " ++ show (defName def) ++ " as multi-step specializable") $
-          inlinesExtend (InlineDef (defName def) (defExpr def) False 0 [] True) inlines
-    f inlines _ = inlines
-
-    -- look for calls to specializable functions where we don't know the RHS of an argument
-    -- references that aren't calls aren't eligible for multi-step specialization; we don't have the specializable args anyway
-    -- callsSpecializable inlines def = getAny $ flip foldMapExpr (defExpr def) $ \e -> Any $ case e of
-    callsSpecializable inlines def = flip anySubExpr (defExpr def) $ \e -> case e of
-      App (Var (TName name _) _) args
-        | Just inlineDef <- inlinesLookup name inlines
-        , inlineDefIsSpecialize inlineDef || isTwoStepSpecialize inlineDef
-        , name /= defName def -> trace ("Add " ++ show (defName def) ++ " as multi-step specializable because calls " ++ show name) $
-            not $ null $ intersect params $ concatMap vars args
-      App (TypeApp (Var (TName name _) _) _) args
-        | Just inlineDef <- inlinesLookup name inlines
-        , inlineDefIsSpecialize inlineDef || isTwoStepSpecialize inlineDef
-        , name /= defName def -> trace ("Add " ++ show (defName def) ++ " as multi-step specializable because calls " ++ show name) $
-            not $ null $ intersect params $ concatMap vars args
-      e -> False
-
-      where
-        params = fnParams $ defExpr def
-
-vars :: Expr -> [TName]
-vars = foldMapExpr $ \e -> case e of
-  Var tname _ -> [tname]
-  _ -> []
