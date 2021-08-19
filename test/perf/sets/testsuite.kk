@@ -7,11 +7,16 @@ import b-trees
 import b-trees-pad-full
 import b-trees-pad-separate
 import b-trees-pad-separate-fast-path
+import rbtree-fbip
 import rbtree-okasaki
 import skip-list-vector
 import skip-list-imperative
 import splay-trees-fbip
+import weight-balanced-data-set
 import weight-balanced-hirai
+import patricia-tree-big-endian-okasaki
+import patricia-tree-data-intset
+import patricia-tree-little-endian-okasaki
 
 struct test-config {
     testsize : int
@@ -55,14 +60,19 @@ fun main() {
 
     print("Testing consistency: ")
     val test = rand-list(Test-config(100, 1000.int32))
-    val r1 = count-b-trees(1, 1000, test)
-    val r2 = count-b-trees-pad-full(1, 1000, test)
-    val r3 = count-b-trees-pad-separate(1, 1000, test)
-    val r4 = count-rbtree-okasaki(1, 1000, test)
-    val r5 = count-skip-list-vector(1, 1000, test)
-    val r6 = count-skip-list-imperative(1, 1000, test)
-    val r7 = count-splay-trees-fbip(1, 1000, test)
-    val r8 = count-weight-balanced-hirai(1, 1000, test)
+    val r1  = count-b-trees(1, 1000, test)
+    val r2  = count-b-trees-pad-full(1, 1000, test)
+    val r3  = count-b-trees-pad-separate(1, 1000, test)
+    val r4  = count-rbtree-fbip(1, 1000, test)
+    val r5  = count-rbtree-okasaki(1, 1000, test)
+    val r6  = count-skip-list-vector(1, 1000, test)
+    val r7  = count-skip-list-imperative(1, 1000, test)
+    val r8  = count-splay-trees-fbip(1, 1000, test)
+    val r9  = count-weight-balanced-data-set(1, 1000, test)
+    val r10  = count-weight-balanced-hirai(1, 1000, test)
+    val r11 = count-patricia-tree-big-endian-okasaki(1, 1000, test)
+    val r12 = count-patricia-tree-data-intset(1, 1000, test)
+    val r13 = count-patricia-tree-little-endian-okasaki(1, 1000, test)
 
     print(r1 == r2)
     print(r2 == r3)
@@ -71,15 +81,20 @@ fun main() {
     print(r5 == r6)
     print(r6 == r7)
     print(r7 == r8)
-    println(r8 == r1)
+    print(r8 == r9)
+    print(r9 == r10)
+    print(r10 == r11)
+    print(r11 == r12)
+    print(r12 == r13)
+    println(r13 == r1)
 
     // Benchmark:
 
     val tcs = [ Test-config(    1000, 10000.int32)
               , Test-config(   10000, 100000.int32)
-              , Test-config(  100000, 10000000.int32)
-              , Test-config( 1000000, 100000000.int32)
-              , Test-config(10000000, 1000000000.int32)]
+              , Test-config(  100000, 1000000.int32)
+              , Test-config( 1000000, 10000000.int32)
+              , Test-config(10000000, 100000000.int32)]
 
     tcs.map(fn(tc) {
         print-test-config(tc)
@@ -91,9 +106,14 @@ fun main() {
         print-elapsed(fn() { count-b-trees-pad-separate(start, end, input) }, "B Tree (t = 2, pad:separate):")
         print-elapsed(fn() { count-b-trees-pad-separate-fast-path(start, end, input) }, "B Tree (t = 2, pad:separate fast-path):")
         print-elapsed(fn() { count-b-trees-pad-full(start, end, input) }, "B Tree (t = 2, pad:full):")
+        print-elapsed(fn() { count-patricia-tree-data-intset(start, end, input) }, "Patricia Tree (Data.IntSet):")
         print-elapsed(fn() { count-splay-trees-fbip(start, end, input) }, "Splay Trees (FBIP):")
+        print-elapsed(fn() { count-patricia-tree-big-endian-okasaki(start, end, input) }, "Patricia Tree (big endian):")
+        print-elapsed(fn() { count-rbtree-fbip(start, end, input) }, "Red Black Tree (FBIP):")
         print-elapsed(fn() { count-rbtree-okasaki(start, end, input) }, "Red Black Tree (Okasaki):")
         print-elapsed(fn() { count-weight-balanced-hirai(start, end, input) }, "WBT (Hirai):")
+        print-elapsed(fn() { count-weight-balanced-data-set(start, end, input) }, "WBT (Data.Set):")
+        print-elapsed(fn() { count-patricia-tree-little-endian-okasaki(start, end, input) }, "Patricia Tree (little endian):")
         print-elapsed(fn() { count-skip-list-vector(start, end, input) }, "Skip list (vector):")
         print-elapsed(fn() { count-skip-list-imperative(start, end, input) }, "Skip list (imperative):")
 

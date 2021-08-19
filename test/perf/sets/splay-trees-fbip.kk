@@ -20,15 +20,21 @@ type zipper {
 }
 
 // Insert 'v' into the splay tree and return the position as a zipper
-// This ensures stability (eg. if b is already in the set and v == b
-// then we insert v behind b in the ordering). It slightly benefits
-// ascending insertions.
 fun insert(v : elem, tree) {
+  fun go2(tree, zipper, k) {
+    match(tree) {
+      Leaf { if(v == k) then splay_(zipper) else splay(Leaf, v, Leaf, zipper) }
+      Node(a, b, c) {
+        if(v <= b) { go2(a, LeftChild(b, zipper, c), b) }
+        else { go2(c, RightChild(b, zipper, a), k) }
+      }
+    }
+  }
   fun go(tree, zipper) {
     match(tree) {
       Leaf { splay(Leaf, v, Leaf, zipper) }
       Node(a, b, c) {
-        if(v < b) { go(a, LeftChild(b, zipper, c)) }
+        if(v <= b) { go2(a, LeftChild(b, zipper, c), b) }
         else { go(c, RightChild(b, zipper, a)) }
       }
     }

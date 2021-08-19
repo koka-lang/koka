@@ -6,7 +6,7 @@ import std/time/timer
 import binomial-heaps-okasaki
 import leftist-heaps-okasaki
 import pairing-heaps-okasaki
-import pairing-heaps-fbip
+import pairing-heaps-tailcall
 import splay-heaps-fbip
 import splay-heaps-okasaki
 import weight-biased-leftist-heaps-okasaki
@@ -61,13 +61,13 @@ fun main() {
 
     print("Testing consistency: ")
     val test = rand-list(Test-config(100, 10000.int32))
-    // val r1 = heapsort-binomial-heaps-okasaki(input)
     val r1 = heapsort-leftist-heaps-okasaki(test)
-    val r2 = heapsort-leftist-heaps-okasaki(test)
-    val r3 = heapsort-pairing-heaps-okasaki(test)
+    val r2 = heapsort-pairing-heaps-okasaki(test)
+    val r3 = heapsort-pairing-heaps-tailcall(test)
     val r4 = heapsort-splay-heaps-fbip(test)
     val r5 = heapsort-splay-heaps-okasaki(test)
     val r6 = heapsort-weight-biased-leftist-heaps-okasaki(test)
+    // val r7 = heapsort-binomial-heaps-okasaki(input)
 
     print(eq(r1, r2))
     print(eq(r2, r3))
@@ -94,7 +94,7 @@ fun main() {
         print-elapsed(fn() { heapsort-splay-heaps-okasaki(input)}, "Splay Heaps: ")
         print-elapsed(fn() { heapsort-leftist-heaps-okasaki(input)}, "Leftist Heaps: ")
         // print-elapsed(fn() { heapsort-pairing-heaps-okasaki(input)}, "Pairing Heaps: ")
-        print-elapsed(fn() { heapsort-pairing-heaps-fbip(input)}, "Pairing Heaps (FBIP): ")
+        print-elapsed(fn() { heapsort-pairing-heaps-tailcall(input)}, "Pairing Heaps (tailcall): ")
 
         println("... and sorting the sorted list again:")
         // print-elapsed(fn() { heapsort-binomial-heaps-okasaki(r)}, "Binomial Heaps: ")
@@ -103,7 +103,7 @@ fun main() {
         // print-elapsed(fn() { heapsort-splay-heaps-okasaki(r)}, "Splay Heaps: ")
         print-elapsed(fn() { heapsort-leftist-heaps-okasaki(r)}, "Leftist Heaps: ")
         // print-elapsed(fn() { heapsort-pairing-heaps-okasaki(r)}, "Pairing Heaps: ")
-        print-elapsed(fn() { heapsort-pairing-heaps-fbip(r)}, "Pairing Heaps (FBIP): ")
+        print-elapsed(fn() { heapsort-pairing-heaps-tailcall(r)}, "Pairing Heaps (tailcall): ")
 
         ()
     })

@@ -8,7 +8,7 @@ import base
 
 alias elem = int
 
-val delta = 4.int32
+val delta = 3.int32
 val gamma = 2.int32
 
 type tree {
