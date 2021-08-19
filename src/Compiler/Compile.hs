@@ -869,7 +869,7 @@ inferCheck loaded0 flags line coreImports program
                               simplifyX (simplifyMaxDup flags)
            simplifyNoDup    = simplifyX 0
        simplifyNoDup
-       -- traceDefGroups "simplify"
+       traceDefGroups "simplify"
        
        -- specialize 
        specializeDefs <- Core.withCoreDefs (\defs -> extractSpecializeDefs defs)
@@ -898,6 +898,7 @@ inferCheck loaded0 flags line coreImports program
 
        -- full simplification
        simplifyDupN 
+       -- traceDefGroups "simplify dupN"
              
        -- monadic lifting to create fast inlined paths
        monadicLift penv

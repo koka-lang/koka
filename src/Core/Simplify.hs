@@ -442,7 +442,7 @@ matchFirst []                  = NoMatch
 kmatchBranches :: [Expr] -> [Branch] -> Maybe Expr
 kmatchBranches scruts branches
   = case matchFirst (map (kmatchBranch scruts) branches) of
-      Match expr -> Just expr
+      Match expr -> Just (uniquefyExpr expr)
       _          -> Nothing
 
 -- For every branch, compare all its pats with the scruts and if they all match, return the matched bindings+scruts combined with the branch body
@@ -486,7 +486,7 @@ kmatchPatterns _ []  = NoMatch
 kmatchPatterns (scrut: scruts) (pat: pats)
   = case kmatchPattern scrut pat of
      -- makeDefExpr with nameNil is causing issues with the perceus drop operations
-      Match (bindings, newscrut) -> combineMatches (Match (bindings {-++ [makeDefExpr newscrut]-})) (kmatchPatterns scruts pats)
+      Match (bindings, newscrut) -> combineMatches (Match (bindings ++ [makeDef (newHiddenName "scrut") newscrut])) (kmatchPatterns scruts pats)
       NoMatch -> NoMatch
       Unknown -> Unknown
 
