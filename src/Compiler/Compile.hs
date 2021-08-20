@@ -898,7 +898,7 @@ inferCheck loaded0 flags line coreImports program
 
        -- full simplification
        simplifyDupN 
-       -- traceDefGroups "simplify dupN"
+       traceDefGroups "simplify dupN"
              
        -- monadic lifting to create fast inlined paths
        monadicLift penv
