@@ -715,6 +715,7 @@ isTotal expr
 -}
 
 -- | a core expression that cannot cause any evaluation _for sure_
+-- For now, does not consider the effect type 
 isTotal :: Expr -> Bool
 isTotal expr
  = case expr of
@@ -726,16 +727,38 @@ isTotal expr
      Lit _      -> True
      Let dgs e  -> all isTotalDef (flattenDefGroups dgs) && isTotal e
      Case exps branches -> all isTotal exps && all isTotalBranch branches
-     -- inline box/unbox
-     App (Var v _) [arg] | getName v `elem` [nameBox,nameUnbox] -> isTotal arg
-     _          -> False
+     App f args -> isTotalFun f && all isTotal args
+     -- _          -> False
+  where    
+    isTotalBranch (Branch pat guards) = all isTotalGuard guards
+    isTotalGuard (Guard test expr)    = isTotal test && isTotal expr
+     
 
+isTotalFun :: Expr -> Bool
+isTotalFun expr
+  = case expr of
+      Lam _ _ body  -> isTotal body
+      TypeLam _ e   -> isTotalFun e 
+      TypeApp e _   -> isTotalFun e 
+      Con _ _       -> True 
+      Lit _         -> True  -- not possible due to typing
+      Let dgs e     -> all isTotalDef (flattenDefGroups dgs) && isTotalFun e 
+      Case exps branches -> all isTotal exps && all isTotalBranchFun branches
+      App f args    -> isTotalFun f && all isTotal args
+      Var v _       -> -- hasTotalEffect (typeOf v) ||       -- for now, do not take effect type into account
+                       getName v `elem` [nameBox,nameUnbox]          
+      -- _             -> False
+  where
+    isTotalBranchFun (Branch pat guards) = all isTotalGuardFun guards
+    isTotalGuardFun (Guard test expr)    = isTotal test && isTotalFun expr
 
 isTotalDef def = isTotal (defExpr def)
 
-isTotalBranch (Branch pat guards) = all isTotalGuard guards
-isTotalGuard (Guard test expr)    = isTotal test && isTotal expr
-
+hasTotalEffect :: Type -> Bool 
+hasTotalEffect tp
+  = case splitFunScheme tp of
+      Nothing -> False 
+      Just (_,_,argTps,eff,resTp) -> isTypeTotal eff
 
 isMonType :: Type -> Bool
 isMonType tp

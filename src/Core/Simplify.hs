@@ -863,12 +863,19 @@ isSmallX n expr
       TypeLam _ e -> isSmallX n e
       TypeApp e _ -> isSmallX n e
       -- next one enables inlining of resume; improve performance on 'test/algeff/perf2'
-      App (TypeApp (Var v _) [_]) [e] | getName v == nameToAny      -> cheap e
-      App (TypeApp (Var v _) _) [e]   | getName v == nameEffectOpen -> cheap e
-      App f args  -> all (isSmallX (n-1)) (f:args)
+      App f args  -> isSmallFun (n-1) f && all (isSmallX (n-1)) args      
       _ -> False
 
-
+-- if a function can allocate, it should not be considered "small"
+isSmallFun :: Int -> Expr -> Bool
+isSmallFun n expr 
+  = if (n <= 0) then False
+    else case expr of
+           TypeApp e _ -> isSmallFun n e 
+           TypeLam _ e -> isSmallFun n e 
+           Lit{}       -> True 
+           Var v _     -> getName v == nameToAny || getName v == nameEffectOpen
+           _           -> False -- conservative as any call may allocate
 
 sizeOfExpr :: Expr -> Int
 sizeOfExpr expr

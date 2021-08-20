@@ -898,7 +898,7 @@ inferCheck loaded0 flags line coreImports program
 
        -- full simplification
        simplifyDupN 
-       traceDefGroups "simplify dupN"
+       -- traceDefGroups "simplify dupN"
              
        -- monadic lifting to create fast inlined paths
        monadicLift penv
@@ -915,7 +915,7 @@ inferCheck loaded0 flags line coreImports program
        -- full simplification
        simplifyDupN
        checkCoreDefs "final" 
-       -- traceDefGroups "final"
+       traceDefGroups "final"
 
        -- Assemble core program and return
        coreDefsFinal <- Core.getCoreDefs
