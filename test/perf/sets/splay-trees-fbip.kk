@@ -19,11 +19,15 @@ type zipper {
   RightChild { parent : elem; up : zipper; left  : tree }
 }
 
+type container {
+  Con(leaf : tree, here : elem, right : tree)
+}
+
 // Insert 'v' into the splay tree and return the position as a zipper
 fun insert(v : elem, tree) {
   fun go2(tree, zipper, k) {
     match(tree) {
-      Leaf { if(v == k) then splay_(zipper) else splay(Leaf, v, Leaf, zipper) }
+      Leaf { if(v == k) then splay_(zipper) else splay(Con(Leaf, v, Leaf), zipper) }
       Node(a, b, c) {
         if(v <= b) { go2(a, LeftChild(b, zipper, c), b) }
         else { go2(c, RightChild(b, zipper, a), k) }
@@ -32,7 +36,7 @@ fun insert(v : elem, tree) {
   }
   fun go(tree, zipper) {
     match(tree) {
-      Leaf { splay(Leaf, v, Leaf, zipper) }
+      Leaf { splay(Con(Leaf, v, Leaf), zipper) }
       Node(a, b, c) {
         if(v <= b) { go2(a, LeftChild(b, zipper, c), b) }
         else { go(c, RightChild(b, zipper, a)) }
@@ -45,7 +49,7 @@ fun insert(v : elem, tree) {
 public fun member(v : elem, tree : tree) : (bool, tree) {
   fun go2(tree, zipper, k) {
     match(tree) {
-      Leaf -> (v == k, splay(Leaf, v, Leaf, zipper))
+      Leaf -> (v == k, splay(Con(Leaf, v, Leaf), zipper))
       Node(a, b, c) {
         if(v <= b) { go2(a, LeftChild(b, zipper, c), b) }
         else { go2(c, RightChild(b, zipper, a), k) }
@@ -54,7 +58,7 @@ public fun member(v : elem, tree : tree) : (bool, tree) {
   }
   fun go(tree, zipper) {
     match(tree) {
-      Leaf -> (False, splay(Leaf, v, Leaf, zipper))
+      Leaf -> (False, splay(Con(Leaf, v, Leaf), zipper))
       Node(a, b, c) {
         if(v <= b) { go2(a, LeftChild(b, zipper, c), b) }
         else { go(c, RightChild(b, zipper, a)) }
@@ -65,23 +69,25 @@ public fun member(v : elem, tree : tree) : (bool, tree) {
 }
 
 // Splay the subtree to the root.
-fun splay(e, f, g, zipper) {
-  match(zipper) {
-    Root                                -> Node(e, f, g)
-    LeftChild(h, Root, i)               -> Node(e, f, Node(g, h, i))
-    LeftChild(h, RightChild(d,z,c), i)  -> splay(Node(c,d,e),f,Node(g,h,i),z)
-    LeftChild(h, LeftChild(j,z,k), i)   -> splay(e,f,Node(g,h,Node(i,j,k)),z)
-    RightChild(d, Root, c)              -> Node(Node(c, d, e), f, g)
-    RightChild(d, RightChild(b,z,a), c) -> splay(Node(Node(a,b,c),d,e),f,g,z)
-    RightChild(d, LeftChild(h,z,i), c)  -> splay(Node(c,d,e),f,Node(g,h,i),z)
+fun splay(c, zipper) {
+  match(c) {
+    Con(e, f, g) -> match(zipper) {
+      Root                                -> Node(e, f, g)
+      LeftChild(h, Root, i)               -> Node(e, f, Node(g, h, i))
+      LeftChild(h, RightChild(d,z,c), i)  -> splay(Con(Node(c,d,e),f,Node(g,h,i)),z)
+      LeftChild(h, LeftChild(j,z,k), i)   -> splay(Con(e,f,Node(g,h,Node(i,j,k))),z)
+      RightChild(d, Root, c)              -> Node(Node(c, d, e), f, g)
+      RightChild(d, RightChild(b,z,a), c) -> splay(Con(Node(Node(a,b,c),d,e),f,g),z)
+      RightChild(d, LeftChild(h,z,i), c)  -> splay(Con(Node(c,d,e),f,Node(g,h,i)),z)
+    }
   }
 }
 
 fun splay_(zipper) {
   match(zipper) {
     Root -> Leaf
-    LeftChild(b, z, c) -> splay(Leaf, b, c, z)
-    RightChild(b, z, a) -> splay(a, b, Leaf, z)
+    LeftChild(b, z, c) -> splay(Con(Leaf, b, c), z)
+    RightChild(b, z, a) -> splay(Con(a, b, Leaf), z)
   }
 }
 

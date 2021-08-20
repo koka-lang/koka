@@ -13,9 +13,11 @@ import skip-list-vector
 import skip-list-imperative
 import splay-trees-fbip
 import weight-balanced-data-set
+import weight-balanced-fbip
 import weight-balanced-hirai
 import patricia-tree-big-endian-okasaki
 import patricia-tree-data-intset
+import patricia-tree-data-intset-clz
 import patricia-tree-little-endian-okasaki
 
 struct test-config {
@@ -69,10 +71,12 @@ fun main() {
     val r7  = count-skip-list-imperative(1, 1000, test)
     val r8  = count-splay-trees-fbip(1, 1000, test)
     val r9  = count-weight-balanced-data-set(1, 1000, test)
-    val r10  = count-weight-balanced-hirai(1, 1000, test)
-    val r11 = count-patricia-tree-big-endian-okasaki(1, 1000, test)
-    val r12 = count-patricia-tree-data-intset(1, 1000, test)
-    val r13 = count-patricia-tree-little-endian-okasaki(1, 1000, test)
+    val r10 = count-weight-balanced-fbip(1, 1000, test)
+    val r11 = count-weight-balanced-hirai(1, 1000, test)
+    val r12 = count-patricia-tree-big-endian-okasaki(1, 1000, test)
+    val r13 = count-patricia-tree-data-intset(1, 1000, test)
+    val r14 = count-patricia-tree-data-intset-clz(1, 1000, test)
+    val r15 = count-patricia-tree-little-endian-okasaki(1, 1000, test)
 
     print(r1 == r2)
     print(r2 == r3)
@@ -86,7 +90,9 @@ fun main() {
     print(r10 == r11)
     print(r11 == r12)
     print(r12 == r13)
-    println(r13 == r1)
+    print(r13 == r14)
+    print(r14 == r15)
+    println(r15 == r1)
 
     // Benchmark:
 
@@ -106,12 +112,14 @@ fun main() {
         print-elapsed(fn() { count-b-trees-pad-separate(start, end, input) }, "B Tree (t = 2, pad:separate):")
         print-elapsed(fn() { count-b-trees-pad-separate-fast-path(start, end, input) }, "B Tree (t = 2, pad:separate fast-path):")
         print-elapsed(fn() { count-b-trees-pad-full(start, end, input) }, "B Tree (t = 2, pad:full):")
+        print-elapsed(fn() { count-patricia-tree-data-intset-clz(start, end, input) }, "Patricia Tree (Data.IntSet CLZ):")
         print-elapsed(fn() { count-patricia-tree-data-intset(start, end, input) }, "Patricia Tree (Data.IntSet):")
+        print-elapsed(fn() { count-weight-balanced-fbip(start, end, input) }, "WBT (FBIP):")
         print-elapsed(fn() { count-splay-trees-fbip(start, end, input) }, "Splay Trees (FBIP):")
+        print-elapsed(fn() { count-weight-balanced-hirai(start, end, input) }, "WBT (Hirai):")
         print-elapsed(fn() { count-patricia-tree-big-endian-okasaki(start, end, input) }, "Patricia Tree (big endian):")
         print-elapsed(fn() { count-rbtree-fbip(start, end, input) }, "Red Black Tree (FBIP):")
         print-elapsed(fn() { count-rbtree-okasaki(start, end, input) }, "Red Black Tree (Okasaki):")
-        print-elapsed(fn() { count-weight-balanced-hirai(start, end, input) }, "WBT (Hirai):")
         print-elapsed(fn() { count-weight-balanced-data-set(start, end, input) }, "WBT (Data.Set):")
         print-elapsed(fn() { count-patricia-tree-little-endian-okasaki(start, end, input) }, "Patricia Tree (little endian):")
         print-elapsed(fn() { count-skip-list-vector(start, end, input) }, "Skip list (vector):")

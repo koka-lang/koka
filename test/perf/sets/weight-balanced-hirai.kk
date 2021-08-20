@@ -1,5 +1,5 @@
 // Balancing weight-balanced trees, Hirai and Yamamoto
-// We use the variant balancing method with (4,2) to match Haskells Data.Set
+// We use the variant balancing method with (3,2) to match Haskells Data.Set
 
 module weight-balanced-hirai
 
@@ -25,10 +25,6 @@ fun size(t) {
 
 fun singleton(k) {
   Bin(1.int32, k, Tip, Tip)
-}
-
-inline fun bin(k, l, r) {
-  Bin(size(l) + size(r) + 1.int32, k, l, r)
 }
 
 fun insert(kx, t) {
@@ -63,8 +59,9 @@ fun is-single(a, b) {
   size(a) < gamma * size(b)
 }
 
-fun balanceL(k, l, r) {
-  if(is-balanced(l, r)) then bin(k, l, r)
+// By induction the size information in l and r is correct.
+inline fun balanceL(k, l, r) {
+  if(is-balanced(l, r)) then Bin(size(l) + size(r) + 1.int32, k, l, r)
       else rotateL(k, l, r)
 }
 
@@ -77,20 +74,20 @@ fun rotateL(k, l, r) {
 
 fun singleL(k, l, r) {
   match(r) {
-    Bin(_, k2, l2, r2) -> bin(k2, bin(k, l, l2), r2)
+    Bin(sz, k2, l2, r2) -> Bin(sz + size(l) + 1.int32, k2, Bin(size(l) + size(l2) + 1.int32, k, l, l2), r2)
     _ -> wont-happen()
   }
 }
 
 fun doubleL(k, l, r) {
   match(r) {
-    Bin(_, k2, Bin(_, k3, l3, r3), r2) -> bin(k3, bin(k, l, l3), bin(k2, r3, r2))
+    Bin(s2, k2, Bin(_, k3, l3, r3), r2) -> Bin(s2 + size(l) + 1.int32, k3, Bin(size(l) + size(l3) + 1.int32, k, l, l3), Bin(size(r3) + size(r2) + 1.int32, k2, r3, r2))
     _ -> wont-happen()
   }
 }
 
-fun balanceR(k, l, r) {
-  if(is-balanced(r, l)) then bin(k, l, r)
+inline fun balanceR(k, l, r) {
+  if(is-balanced(r, l)) then Bin(size(l) + size(r) + 1.int32, k, l, r)
       else rotateR(k, l, r)
 }
 
@@ -103,7 +100,7 @@ fun rotateR(k, l, r) {
 
 fun singleR(k, l, r) {
   match(l) {
-    Bin(_, k2, l2, r2) -> bin(k2, l2, bin(k, r2, r))
+    Bin(s2, k2, l2, r2) -> Bin(s2 + size(r) + 1.int32, k2, l2, Bin(size(r2) + size(r) + 1.int32, k, r2, r))
     _ -> wont-happen()
   }
 }
@@ -111,7 +108,7 @@ fun singleR(k, l, r) {
 // (l2 < k2 (l3 < k3 < r3)) < k < r
 fun doubleR(k, l, r) {
   match(l) {
-    Bin(_, k2, l2, Bin(_, k3, l3, r3)) -> bin(k3, bin(k2, l2, l3), bin(k, r3, r))
+    Bin(s2, k2, l2, Bin(_, k3, l3, r3)) -> Bin(s2 + size(r) + 1.int32, k3, Bin(size(l2) + size(l3) + 1.int32, k2, l2, l3), Bin(size(r3) + size(r) + 1.int32, k, r3, r))
     _ -> wont-happen()
   }
 }

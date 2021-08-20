@@ -36,10 +36,6 @@ fun singleton(k) {
   Bin(1.int32, k, Tip, Tip)
 }
 
-inline fun bin(k, l, r) {
-  Bin(size(l) + size(r) + 1.int32, k, l, r)
-}
-
 fun insert(kx, t) {
   match(t) {
     Tip -> singleton(kx)
@@ -64,18 +60,19 @@ fun member(kx, t) {
   }
 }
 
-fun is-balanced(a, b) {
-  val x = size(a)
-  val y = size(b)
-  x + y <= 1.int32 || delta * x >= y
-}
-
-fun is-single(a, b) {
-  size(a) < gamma * size(b)
-}
-
 fun balanceR(x, l, r) {
   match(l) {
+    Tip -> match(r) {
+      Tip -> Bin(1.int32, x, Tip, Tip)
+      Bin(rs, rx, rl, rr) -> match (rl, rr) {
+        (Tip, Tip) -> Bin(2.int32, x, Tip, r)
+        (Tip, Bin(_, _, _, _)) -> Bin(3.int32, rx, Bin(1.int32, x, Tip, Tip), rr)
+        (Bin(_, rlx, _, _), Tip) -> Bin(3.int32, rlx, Bin(1.int32, x, Tip, Tip), Bin(1.int32, rx, Tip, Tip))
+        (Bin(rls, rlx, rll, rlr), Bin(rrs, _, _, _))
+          | rls < gamma*rrs -> Bin(1.int32 + rs, rx, Bin(1.int32 + rls, x, Tip, rl), rr)
+          | True -> Bin(1.int32 + rs, rlx, Bin(1.int32 + size(rll), x, Tip, rll), Bin(1.int32 + rrs + size(rlr), rx, rlr, rr))
+      }
+    }
     Bin(ls, _, _, _)
       -> match(r) {
         Tip -> Bin(1.int32 +ls, x, l, Tip)
@@ -88,17 +85,6 @@ fun balanceR(x, l, r) {
           }
           | True -> Bin(1.int32 +ls+rs, x, l, r)
       }
-    Tip -> match(r) {
-      Tip -> Bin(1.int32, x, Tip, Tip)
-      Bin(rs, rx, rl, rr) -> match (rl, rr) {
-        (Tip, Tip) -> Bin(2.int32, x, Tip, r)
-        (Tip, Bin(_, _, _, _)) -> Bin(3.int32, rx, Bin(1.int32, x, Tip, Tip), rr)
-        (Bin(_, rlx, _, _), Tip) -> Bin(3.int32, rlx, Bin(1.int32, x, Tip, Tip), Bin(1.int32, rx, Tip, Tip))
-        (Bin(rls, rlx, rll, rlr), Bin(rrs, _, _, _))
-          | rls < gamma*rrs -> Bin(1.int32 + rs, rx, Bin(1.int32 + rls, x, Tip, rl), rr)
-          | True -> Bin(1.int32 + rs, rlx, Bin(1.int32 + size(rll), x, Tip, rll), Bin(1.int32 + rrs + size(rlr), rx, rlr, rr))
-      }
-    }
   }
 }
 
@@ -121,7 +107,7 @@ fun balanceL(x, l, r) {
         | ls > delta*rs -> match(ll, lr) {
           (Bin(lls, _, _, _), Bin(lrs, lrx, lrl, lrr))
             | lrs < gamma*lls -> Bin(1.int32 + ls + rs, lx, ll, Bin(1.int32 + rs + lrs, x, lr, r))
-            | True -> Bin(1.int32 + ls + rs, lrx, Bin(1.int32 + ls + size(lrl), lx, ll, lrl), Bin(1.int32 + rs + size(lrr), x, lrr, r))
+            | True -> Bin(1.int32 + ls + rs, lrx, Bin(1.int32 + lls + size(lrl), lx, ll, lrl), Bin(1.int32 + rs + size(lrr), x, lrr, r))
           _ -> wont-happen()
         }
         | True -> Bin(1.int32 + ls + rs, x, l, r)
