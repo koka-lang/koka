@@ -110,7 +110,7 @@ specOneCall (InlineDef{ inlineName=specName, inlineExpr=specExpr, specializeArgs
       App (Var (TName name _) _) args  | goodArgs args
         -> replaceCall specName specExpr specArgs args Nothing
       App (TypeApp (Var (TName name ty) _) typeArgs) args  | goodArgs args
-        -> replaceCall specName specExpr specArgs args $ Just typeArgs
+        -> replaceCall specName specExpr specArgs args $ Just typeArgs      
       _ -> return e
 
   where
