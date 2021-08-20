@@ -181,6 +181,9 @@ fun hbox( x : a ) : hbox<a> {
   Hbox(x)
 }
 
+noinline fun keep( x : a ) : a {
+  x
+}
 
 // ----------------------------------------------------------------------------
 // Standard functions

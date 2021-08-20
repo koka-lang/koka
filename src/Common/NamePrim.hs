@@ -65,6 +65,7 @@ module Common.NamePrim
           , nameTpReuse, nameDropReuse, nameFreeReuse
           , nameReuseNull, nameAssignReuse, nameReuse, nameReuseIsValid
           , nameAllocAt, nameConFieldsAssign
+          , nameKeep
 
           -- * CTail optimization
           , nameTpCField, nameTpCTailAcc
@@ -413,6 +414,7 @@ nameAssignReuse = coreTypesName ".assign-reuse"
 nameReuse       = coreTypesName ".reuse"
 nameReuseIsValid= coreTypesName ".reuse-is-valid"
 nameConFieldsAssign = coreTypesName ".con-fields-assign"
+nameKeep        = coreTypesName "keep"
 
 nameDup         = coreTypesName ".dup"
 nameDrop        = coreTypesName ".drop"

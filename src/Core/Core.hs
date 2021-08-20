@@ -115,7 +115,7 @@ import Common.Error
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
                         nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameSSizeT, nameBox, nameUnbox,
                         nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit, nameTpCField,
-                        isPrimitiveName)
+                        isPrimitiveName, isSystemCoreName, nameKeep)
 import Common.Syntax
 import Kind.Kind
 import Type.Type
@@ -746,8 +746,9 @@ isTotalFun expr
       Let dgs e     -> all isTotalDef (flattenDefGroups dgs) && isTotalFun e 
       Case exps branches -> all isTotal exps && all isTotalBranchFun branches
       App f args    -> hasTotalEffect (typeOf expr) && isTotalFun f && all isTotal args
-      Var v _       -> (not (isPrimitiveName (getName v)) && hasTotalEffect (typeOf v)) ||    
-                       getName v `elem` [nameBox,nameUnbox]          
+      Var v _       | getName v == nameKeep -> False 
+                    | getName v `elem` [nameBox,nameUnbox]  -> True
+                    | otherwise -> False -- TODO: not (isPrimitiveName (getName v)) && hasTotalEffect (typeOf v)
       -- _             -> False
   where
     isTotalBranchFun (Branch pat guards) = all isTotalGuardFun guards
