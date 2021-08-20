@@ -122,7 +122,7 @@ readLineEx roots identifiers prompt putPrompt
   where
     readLines :: Int -> R.InputT IO (Maybe String)
     readLines count
-      = do input <- R.getInputLine (if null prompt && count > 0 then "> " else prompt)
+      = do input <- R.getInputLine prompt
            continueLine input (readLines (count+1))
     
 addHistory line
