@@ -520,15 +520,24 @@ private fun evv-swap-with(ev : ev<h>) {
   }
 }
 
-private fun under1( ev : ev<h>, op : a -> e b, x : a ) : e b {
+private inline fun under1( ev : ev<h>, op : a -> e b, x : a ) : e b {
   val w0 = evv-swap-with(ev)
   val y = op(x)
   // evv-set(w0)   // only needed before yielding for evidence expected check in prompt
-  if (yielding()) return yield-cont( fn(cont,res){ under1(unsafe-decreasing(ev),cont,res)} )
+  if (yielding()) return yield-cont( fn(cont,res){ under1x(unsafe-decreasing(ev),cont,res)} )
   evv-set(w0)
   y
 }
 
+// extra under1x to make under1 inlineable
+private fun under1x( ev : ev<h>, op : a -> e b, x : a ) : e b {
+  val w0 = evv-swap-with(ev)
+  val y = op(x)
+  // evv-set(w0)   // only needed before yielding for evidence expected check in prompt
+  if (yielding()) return yield-cont( fn(cont,res){ under1x(unsafe-decreasing(ev),cont,res)} )
+  evv-set(w0)
+  y
+}
 
 public fun clause-control-raw1( op : (x:a, r: resume-context<b,e,e0,r>) -> e r ) : clause1<a,b,h,e,r> {
   Clause1(fn(m,_ev,x){ yield-to(m, fn(k){ op(x,Resume-context(k)) } ) } )
@@ -596,7 +605,7 @@ public fun ".perform0"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause0<b,h,e1
   }
 }
 
-private fun under0( ev : ev<i>, op : () -> e b) : e b {
+private inline fun under0( ev : ev<i>, op : () -> e b) : e b {
   val w0 = evv-swap-with(ev)
   val y = op()
   // evv-set(w0)   // only needed before yielding for evidence expected check in prompt

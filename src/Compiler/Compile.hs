@@ -862,11 +862,7 @@ inferCheck loaded0 flags line coreImports program
        -- remove return statements
        unreturn penv
        -- checkCoreDefs "unreturn"
-       
-       -- lifting recursive functions to top level
-       liftFunctions penv
-       checkCoreDefs "lifted"      
-       
+     
        -- initial simplify
        let ndebug  = optimize flags > 0
            simplifyX dupMax = simplifyDefs penv False {-unsafe-} ndebug (simplify flags) dupMax
@@ -878,19 +874,25 @@ inferCheck loaded0 flags line coreImports program
 
        -- inline: inline local definitions more aggressively (2x)
        when (optInlineMax flags > 0) $
-         let inlines = inlinesFilter (not . isPrimitiveName) (loadedInlines loaded)
+         let inlines = if (isPrimitiveModule (Core.coreProgName coreProgram)) then loadedInlines loaded
+                        else inlinesFilter (not . isPrimitiveName) (loadedInlines loaded)
          in inlineDefs penv (2*(optInlineMax flags)) inlines
        checkCoreDefs "inlined"
        -- traceDefGroups "inlined"
        
        -- specialize 
-       specializeDefs <- Core.withCoreDefs (\defs -> extractSpecializeDefs defs)
+       specializeDefs <- -- if (isPrimitiveModule (Core.coreProgName coreProgram)) then return [] else 
+                         Core.withCoreDefs (\defs -> extractSpecializeDefs defs)
        -- trace ("Spec defs:\n" ++ show specializeDefs) $ return ()
        
        when (optSpecialize flags) $
          specialize (inlinesExtends specializeDefs (loadedInlines loaded))
        -- traceDefGroups "specialized"
-
+          
+       -- lifting recursive functions to top level (must be after specialize)
+       liftFunctions penv
+       checkCoreDefs "lifted"      
+      
        simplifyNoDup
        coreDefsInlined <- Core.getCoreDefs
        -- traceDefGroups "simplify2"
@@ -919,7 +921,7 @@ inferCheck loaded0 flags line coreImports program
        -- traceDefGroups "monadic lift"
 
       -- now inline primitive definitions (like yield-bind)
-       inlineDefs penv (optInlineMax flags) (inlinesFilter isPrimitiveName (loadedInlines loaded))  
+       inlineDefs penv (2*optInlineMax flags) (inlinesFilter isPrimitiveName (loadedInlines loaded))  
       
        -- remove remaining open calls; this may change effect types
        simplifyDefs penv True {-unsafe-} ndebug (simplify flags) 0 -- remove remaining .open
