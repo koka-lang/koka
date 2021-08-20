@@ -403,7 +403,7 @@ inlineDef env
        -- trace ("core inline def: " ++ show name) $ return ()
        (name,_) <- funid
        expr <- parseBody env
-       return (InlineDef (envQualify env name) expr isRec (if (inl==InlineAlways) then 0 else costExpr expr) specArgs False)
+       return (InlineDef (envQualify env name) expr isRec inl (if (inl==InlineAlways) then 0 else costExpr expr) specArgs)
 
 
 inlineDefSort

@@ -207,12 +207,12 @@ fnBody (TypeLam _ (Lam _ _ body)) = body
   Extract definitions that should be specialized
 --------------------------------------------------------------------------}
 
-extractSpecializeDefs :: Inlines -> DefGroups -> Inlines
-extractSpecializeDefs inlines dgs =
-    flip multiStepInlines (fnDefs dgs)
-  $ inlinesMerge inlines
-  $ inlinesNew
-  $ mapMaybe makeSpecialize
+extractSpecializeDefs ::  DefGroups -> [InlineDef]
+extractSpecializeDefs dgs =
+  --   flip multiStepInlines (fnDefs dgs)
+  -- $ inlinesMerge inlines
+  -- $ inlinesNew
+    mapMaybe makeSpecialize
   $ flattenDefGroups
   $ filter isRecursiveDefGroup dgs
   where
@@ -243,7 +243,7 @@ makeSpecialize def
 
       guard (any isJust specializableParams)
       pure $ -- SpecializeInfo (defName def) (defExpr def) $ map isJust specializableParams
-             InlineDef (defName def) (defExpr def) True (costDef def) (map isJust specializableParams) False
+             InlineDef (defName def) (defExpr def) True (InlineAuto) (costDef def) (map isJust specializableParams)
 
 allPassedInSameOrder :: [TName] -> [[Expr]] -> [Maybe TName]
 allPassedInSameOrder params calls
@@ -296,6 +296,7 @@ recursiveCalls Def{ defName=thisDefName, defExpr=expr }
       | name == thisDefName = pure (Just types, args)
     f _ = []
 
+{-
 multiStepInlines :: Inlines -> [Def] -> Inlines
 multiStepInlines inlines = foldl' f inlines
   where
@@ -303,7 +304,7 @@ multiStepInlines inlines = foldl' f inlines
     f inlines def
     -- inlineCost ?
       | callsSpecializable inlines def = -- trace ("Add " ++ show (defName def) ++ " as multi-step specializable") $
-          inlinesExtend (InlineDef (defName def) (defExpr def) False 0 [] True) inlines
+          inlinesExtend (InlineDef (defName def) (defExpr def) False InlineAuto 0 []) inlines
     f inlines _ = inlines
 
     -- look for calls to specializable functions where we don't know the RHS of an argument
@@ -324,6 +325,7 @@ multiStepInlines inlines = foldl' f inlines
 
       where
         params = fnParams $ defExpr def
+-}
 
 vars :: Expr -> [TName]
 vars = foldMapExpr $ \e -> case e of

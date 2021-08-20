@@ -14,6 +14,7 @@ module Core.Inlines ( -- Inline map
                     , inlinesLookup
                     , inlinesToList
                     , inlinesMerge
+                    , inlinesFilter
                     , ppInlines
 
                     , extractInlineDefs
@@ -74,6 +75,9 @@ inlinesToList (Inlines m) = map snd $ M.toAscList m
 inlinesMerge :: Inlines -> Inlines -> Inlines
 inlinesMerge (Inlines a) (Inlines b) = Inlines $ M.union a b
 
+inlinesFilter :: (Name -> Bool) -> Inlines -> Inlines
+inlinesFilter pred (Inlines m)
+  = Inlines (M.filterWithKey (\name _ -> pred name) m)
 
 {--------------------------------------------------------------------------
   Get suitable inline definitions from Core
@@ -94,7 +98,7 @@ extractInlineDef costMax isRec def
         if not inlinable then Nothing
          else let cost = if (defName def == nameBind2 || defName def == nameBind)  -- TODO: use generic mechanism? force-inline keyword?
                           then 0 else costDef def
-              in Just (InlineDef (defName def) (defExpr def) isRec cost [] False)
+              in Just (InlineDef (defName def) (defExpr def) isRec (defInline def) cost [])
 
 instance Show Inlines where
  show = show . pretty
