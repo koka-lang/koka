@@ -98,7 +98,7 @@ ruExpr expr
         -> liftM2 makeLet' (ruDef False def) (ruExpr (Let dgs body))
            where makeLet' def' = makeLet [DefNonRec def']
       Let _ _
-        -> failure "Backend.C.Reuse.ruExpr"
+        -> failure ("Backend.C.Reuse.ruExpr: " ++ show expr)
 
       Case scrutinees branches
         -> liftM2 Case (mapM ruExpr scrutinees) (ruBranches branches)
