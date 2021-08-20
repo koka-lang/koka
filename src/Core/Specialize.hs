@@ -9,13 +9,11 @@ module Core.Specialize( specialize
                       , extractSpecializeDefs
                       ) where
 
-import Data.Monoid (Any(..))
-import Data.List (transpose, foldl', intersect)
+import Data.List (transpose )
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Arrow ((***))
 import Data.Maybe (mapMaybe, fromMaybe, catMaybes, isJust, fromJust)
-import Data.List (isInfixOf)
 
 import Lib.PPrint
 import Common.Failure (failure)
@@ -29,7 +27,6 @@ import qualified Common.NameMap  as M
 import Common.NameSet (NameSet)
 import qualified Common.NameSet as S
 import Core.Core
-import Core.Inlines (inlinesToList)
 import Core.Pretty ()
 import Type.Type (splitFunScheme, Effect, Type, TypeVar)
 import Type.TypeVar
@@ -179,7 +176,7 @@ replaceCall name expr bools args mybeTypeArgs -- trace ("specializing" <> show n
 
     ((newParams, newArgs), (speccedParams, speccedArgs)) =
       (unzip *** unzip)
-      -- (\x@(new, spec) -> trace ("Specializing to newArgs " <> show new) $ x) $
+      -- $ (\x@(new, spec) -> trace ("Specializing to newArgs " <> show new) $ x)
       $ partitionBools bools
       $ zip (fnParams expr) args
 
@@ -288,12 +285,13 @@ recursiveCalls Def{ defName=thisDefName, defExpr=expr }
   where
     go body =
       let (types, args) = unzip $ foldMapExpr f body
+      -- assumption: all applications are TypeApps, or no applications are
       in (sequence types, args)
 
     f (App (Var (TName name _) _) args)
-      | name == thisDefName = pure (Nothing, args)
+      | name == thisDefName = [(Nothing, args)]
     f (App (TypeApp (Var (TName name _) _) types) args)
-      | name == thisDefName = pure (Just types, args)
+      | name == thisDefName = [(Just types, args)]
     f _ = []
 
 {-
