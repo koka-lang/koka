@@ -155,10 +155,10 @@ inlAppExpr expr m n onlyZeroCost
               case mbInfo of
                 Just (info,m',n') | not (inlineRec info) && (m >= m') && (n >= n')
                                        && (not onlyZeroCost || inlineCost info <= 4)
-                  -> do traceDoc $ \penv -> text "inlined:" <+> ppName penv (getName tname)
+                  -> do -- traceDoc $ \penv -> text "inlined:" <+> ppName penv (getName tname)
                         return (inlineExpr info)
                 Just (info,m',n')
-                  -> do traceDoc $ \penv -> text "inline candidate:" <+> ppName penv (getName tname) <+> text (show (m',n')) <+> text "vs" <+> text (show (m,n)) <+> text (show (onlyZeroCost,inlineCost info))
+                  -> do -- traceDoc $ \penv -> text "inline candidate:" <+> ppName penv (getName tname) <+> text (show (m',n')) <+> text "vs" <+> text (show (m,n)) <+> text (show (onlyZeroCost,inlineCost info))
                         return (expr)
                 Nothing -> do -- traceDoc $ \penv -> text "not inline candidate:" <+> ppName penv (getName tname)
                               return (expr)

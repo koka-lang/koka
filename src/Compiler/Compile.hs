@@ -869,7 +869,7 @@ inferCheck loaded0 flags line coreImports program
                               simplifyX (simplifyMaxDup flags)
            simplifyNoDup    = simplifyX 0
        simplifyNoDup
-       traceDefGroups "simplify"
+       -- traceDefGroups "simplify"
        
        -- specialize 
        specializeDefs <- Core.withCoreDefs (\defs -> extractSpecializeDefs defs)
@@ -915,7 +915,7 @@ inferCheck loaded0 flags line coreImports program
        -- full simplification
        simplifyDupN
        checkCoreDefs "final" 
-       traceDefGroups "final"
+       -- traceDefGroups "final"
 
        -- Assemble core program and return
        coreDefsFinal <- Core.getCoreDefs

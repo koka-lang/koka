@@ -17,6 +17,7 @@ module Common.NamePrim
           , nameSystemCore, nameCoreTypes
           , isSystemCoreName
           , isPrimitiveModule -- no monadic lifting
+          , isPrimitiveName   -- never consider total
           , nameOpExpr
 
           -- * Operations
@@ -449,6 +450,10 @@ nameDict        = newName "std/data/dict"
 isSystemCoreName name
   = let m = nameModule name
     in  m `elem` [nameId nameSystemCore, nameId nameCoreHnd, nameId nameCoreTypes]
+
+isPrimitiveName name
+  = let m = nameModule name
+    in  m `elem` [nameId nameCoreHnd, nameId nameCoreTypes]
 
 isPrimitiveModule name
   = nameId name `elem` [nameId nameCoreHnd, nameId nameCoreTypes]
