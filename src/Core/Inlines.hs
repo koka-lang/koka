@@ -12,6 +12,7 @@ module Core.Inlines ( -- Inline map
                     , inlinesEmpty
                     , inlinesExtend, inlinesExtends
                     , inlinesLookup
+                    , inlinesFilter
                     , ppInlines
 
                     , extractInlineDefs
@@ -65,6 +66,9 @@ inlinesLookup :: Name -> Inlines -> Maybe InlineDef
 inlinesLookup name (Inlines inlines)
   = M.lookup name inlines
 
+inlinesFilter :: (Name -> Bool) -> Inlines -> Inlines
+inlinesFilter pred (Inlines m)
+  = Inlines (M.filterWithKey (\name _ -> pred name) m)
 
 {--------------------------------------------------------------------------
   Get suitable inline definitions from Core
