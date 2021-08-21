@@ -62,7 +62,7 @@ import Core.OpenResolve       ( openResolve )
 import Core.FunLift           ( liftFunctions )
 import Core.Monadic           ( monTransform )
 import Core.MonadicLift       ( monadicLift )
-import Core.Inlines           ( inlinesExtends, extractInlineDefs, inlinesFilter )
+import Core.Inlines           ( inlinesExtends, extractInlineDefs, inlinesMerge, inlinesToList, inlinesFilter, inlinesNew )
 import Core.Inline            ( inlineDefs )
 import Core.Specialize
 

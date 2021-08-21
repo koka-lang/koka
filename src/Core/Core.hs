@@ -86,6 +86,7 @@ module Core.Core ( -- Data structures
                    , Deps, dependencies
 
                    , foldMapExpr
+                   , anySubExpr
                    , foldExpr
                    , rewriteBottomUp
                    , rewriteBottomUpM
@@ -104,7 +105,7 @@ import Control.Monad.Identity
 import Data.Char( isDigit )
 import qualified Data.Set as S
 import Data.Maybe
-import Data.Monoid (Endo(..))
+import Data.Monoid (Endo(..), Any(..))
 import Lib.PPrint
 import Common.Name
 import Common.Range
@@ -263,10 +264,10 @@ externalImportLookup target buildType key (ExternalImport imports range)
                     Just keyvals -> keyvals
                     Nothing -> case lookup Default imports of
                                  Just keyvals -> keyvals
-                                 Nothing -> [] 
-    in eimportLookup buildType key keyvals 
-      
-externalImportLookup target buildType key ext 
+                                 Nothing -> []
+    in eimportLookup buildType key keyvals
+
+externalImportLookup target buildType key ext
   = Nothing
 
 eimportLookup :: BuildType -> String -> [(String,String)] -> Maybe String
@@ -486,7 +487,7 @@ data CPState a = CPState !a !Int !DefGroups
 instance Functor CorePhase where
   fmap f (CP cp)
     = CP (\uniq defs -> do (CPState x uniq' defs') <- cp uniq defs
-                           return (CPState (f x) uniq' defs')) 
+                           return (CPState (f x) uniq' defs'))
 
 instance Applicative CorePhase where
   pure  = return
@@ -495,7 +496,7 @@ instance Applicative CorePhase where
 instance Monad CorePhase where
   return x      = CP (\uniq defs -> return (CPState x uniq defs))
   (CP cp) >>= f = CP (\uniq defs -> do (CPState x uniq' defs') <- cp uniq defs
-                                       case f x of 
+                                       case f x of
                                          CP cp' -> cp' uniq' defs')
 
 instance HasUnique CorePhase where
@@ -510,7 +511,7 @@ setCoreDefs :: DefGroups -> CorePhase ()
 setCoreDefs defs = CP (\uniq _ -> return (CPState () uniq defs))
 
 withCoreDefs :: (DefGroups -> a) -> CorePhase a
-withCoreDefs f 
+withCoreDefs f
   = do defs <- getCoreDefs
        return (f defs)
 
@@ -524,13 +525,13 @@ liftCorePhaseUniq f
   = CP (\uniq defs -> let (defs',uniq') = f uniq defs in return (CPState () uniq' defs'))
 
 liftCorePhase :: (DefGroups -> DefGroups) -> CorePhase ()
-liftCorePhase f 
+liftCorePhase f
   = liftCorePhaseUniq (\u defs -> (f defs, u))
 
 liftError :: Error a -> CorePhase a
 liftError err
   = CP (\uniq defs -> do x <- err
-                         return (CPState x uniq defs))  
+                         return (CPState x uniq defs))
 
 
 {--------------------------------------------------------------------------
@@ -567,6 +568,9 @@ foldMapExpr acc e = case e of
   Case cases branches -> acc e <> mconcat (foldMapExpr acc <$> cases) <>
     mconcat [foldMapExpr acc e | branch <- branches, guard <- branchGuards branch, e <- [guardTest guard, guardExpr guard]]
 
+anySubExpr :: (Expr -> Bool) -> Expr -> Bool
+anySubExpr f = getAny . foldMapExpr (Any . f)
+
 foldExpr :: (Expr -> a -> a) -> a -> Expr -> a
 foldExpr f z e = appEndo (foldMapExpr (Endo . f) e) z
 
@@ -574,7 +578,7 @@ rewriteBottomUp :: (Expr -> Expr) -> Expr -> Expr
 rewriteBottomUp f = runIdentity . rewriteBottomUpM (Identity . f)
 
 rewriteBottomUpM :: (Monad m) => (Expr -> m Expr) -> Expr -> m Expr
-rewriteBottomUpM f e = f =<< case e of 
+rewriteBottomUpM f e = f =<< case e of
   Lam params eff body -> Lam params eff <$> rec body
   Var _ _ -> pure e
   App fun xs -> liftA2 App (rec fun) (mapM rec xs)
@@ -585,13 +589,13 @@ rewriteBottomUpM f e = f =<< case e of
   Let binders body -> do
     newBinders <- forM binders $ \binder ->
       case binder of
-        DefNonRec def@Def{defExpr = defExpr} -> do 
+        DefNonRec def@Def{defExpr = defExpr} -> do
           fexpr <- rec defExpr
           pure $ DefNonRec def { defExpr = fexpr, defType = typeOf fexpr }
         DefRec defs -> fmap DefRec $ forM defs $ \def@Def{defExpr = defExpr} -> do
           fexpr <- rec defExpr
           pure def{ defExpr = fexpr, defType = typeOf fexpr }
-          
+
     Let newBinders <$> rec body
 
   Case cases branches -> liftA2 Case mcases mbranches
@@ -603,7 +607,7 @@ rewriteBottomUpM f e = f =<< case e of
     rec = f <=< rewriteBottomUpM f
 
 
-data TName = TName 
+data TName = TName
   { getName :: Name
   , tnameType :: Type
   }

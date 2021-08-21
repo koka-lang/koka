@@ -12,6 +12,8 @@ module Core.Inlines ( -- Inline map
                     , inlinesEmpty
                     , inlinesExtend, inlinesExtends
                     , inlinesLookup
+                    , inlinesToList
+                    , inlinesMerge
                     , inlinesFilter
                     , ppInlines
 
@@ -65,6 +67,13 @@ inlinesExtend idef (Inlines inlines)
 inlinesLookup :: Name -> Inlines -> Maybe InlineDef
 inlinesLookup name (Inlines inlines)
   = M.lookup name inlines
+
+inlinesToList :: Inlines -> [InlineDef]
+inlinesToList (Inlines m) = map snd $ M.toAscList m
+
+-- left-biased merge
+inlinesMerge :: Inlines -> Inlines -> Inlines
+inlinesMerge (Inlines a) (Inlines b) = Inlines $ M.union a b
 
 inlinesFilter :: (Name -> Bool) -> Inlines -> Inlines
 inlinesFilter pred (Inlines m)
