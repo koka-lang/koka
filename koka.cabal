@@ -137,7 +137,7 @@ executable koka
       alex
   build-depends:
       array
-    , base >=4.12
+    , base >=4.9
     , bytestring
     , containers
     , directory
@@ -163,7 +163,7 @@ test-suite koka-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       array
-    , base >=4.12
+    , base >=4.9
     , bytestring
     , containers
     , directory

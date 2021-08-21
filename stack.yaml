@@ -7,15 +7,15 @@
 #   $ sudo apt install ghc cabal-install haskell-stack
 # and invoke stack with an older resolver that matches the system ghc version:
 #   $ stack --resolver lts-14 --system-ghc build         # ubuntu 20, ghc 8.6.5
-#   $ stack --resolver lts-14 --system-ghc exec koka
+#   $ stack --resolver lts-14 --system-ghc exec koka     
 # Otherwise, try to use `cabal` directly:
 #   $ cabal new-build koka
 #   $ cabal new-run koka
 # See also <https://github.com/koka-lang/koka#build-notes>.
 
-resolver: lts-18.3
+resolver: lts-18.6
 # resolver: lts-14.27           # ghc 8.6.5
-# resolver: lts-9.21            # ghc 8.0.2
+# resolver: lts-9.21            # ghc 8.0.2  -- works for older linux-arm64
 # system-ghc: true              # uncomment to use the system installed GHC
 
 packages:
