@@ -237,7 +237,7 @@ flagsNull
           "" -- forceModule
           True -- debug
           0    -- optimize
-          10   -- inlineMax
+          12   -- inlineMax
           True -- optctail
           False -- optctailInline
           True -- parc reuse
