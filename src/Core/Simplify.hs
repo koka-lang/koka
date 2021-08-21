@@ -131,15 +131,15 @@ topDown (Let dgs body)
                           inlineExpr
                      -- occurs fully applied, check if it small enough to inline anyways;
                      -- as it is a function, make it expensive to inline partial applications to avoid too much duplication
-                     Occur acnt m n vcnt  | ((acnt + vcnt*3) * sizeOfExpr se) < maxSmallOccur
+                     Occur acnt m n vcnt  | ((acnt + vcnt*3) * sizeOfExpr se) <= maxSmallOccur
                        -> -- trace "occurs as cheap function: inline" $
                           inlineExpr
                      -- occurs multiple times as variable, check if it small enough to inline anyways
-                     Occur 0 m n vcnt | (vcnt * sizeOfExpr se) < maxSmallOccur
+                     Occur 0 m n vcnt | (vcnt * sizeOfExpr se) <= maxSmallOccur
                        -> -- trace "occurs as cheap value: inline" $
                           inlineExpr
                      -- inline total and very small expressions
-                     Many n | (n*sizeOfExpr se) < maxSmallOccur
+                     Many n | (n*sizeOfExpr se) <= maxSmallOccur
                        -> -- trace "occurs many as cheap value: inline" $
                           inlineExpr
 

@@ -163,7 +163,7 @@ inlAppExpr expr m n onlyZeroCost
                                                 text ", onlyZeroCost:" <+> pretty onlyZeroCost <+>
                                                   text ", inlineCost:" <+>  pretty (inlineCost info)
                         return (expr)
-                Nothing -> do traceDoc $ \penv -> text "not inline candidate:" <+> ppName penv (getName tname)
+                Nothing -> do traceDoc $ \penv -> text "not inline candidate:" <+> text (showTName tname)
                               return (expr)
       _ -> return (expr)  -- no inlining
 

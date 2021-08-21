@@ -17,6 +17,7 @@ module Common.NamePrim
           , nameSystemCore, nameCoreTypes
           , isSystemCoreName
           , isPrimitiveModule -- no monadic lifting
+          , nameCoreHnd
           , isPrimitiveName   
           , nameOpExpr
 

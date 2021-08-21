@@ -42,7 +42,7 @@ import Common.Failure
 import Lib.Printer            ( withNewFilePrinter )
 import Common.Range           -- ( Range, sourceName )
 import Common.Name            -- ( Name, newName, qualify, asciiEncode )
-import Common.NamePrim        ( isPrimitiveModule, nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync, nameTpNamed, isPrimitiveName )
+import Common.NamePrim        ( nameCoreHnd, isPrimitiveModule, nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync, nameTpNamed, isPrimitiveName )
 import Common.Error
 import Common.File
 import Common.ColorScheme
@@ -883,7 +883,7 @@ inferCheck loaded0 flags line coreImports program
        -- inline: inline local definitions more aggressively (2x)
        when (optInlineMax flags > 0) $
          let inlines = if (isPrimitiveModule (Core.coreProgName coreProgram)) then loadedInlines loaded
-                        else inlinesFilter (not . isPrimitiveName) (loadedInlines loaded)
+                         else inlinesFilter (\name -> nameId nameCoreHnd /= nameModule name) (loadedInlines loaded)
          in inlineDefs penv (2*(optInlineMax flags)) inlines
        checkCoreDefs "inlined"
        -- traceDefGroups "inlined"
@@ -901,7 +901,7 @@ inferCheck loaded0 flags line coreImports program
        liftFunctions penv
        checkCoreDefs "lifted"      
       
-       simplifyNoDup
+       simplifyDupN
        coreDefsInlined <- Core.getCoreDefs
        -- traceDefGroups "simplify2"
       
