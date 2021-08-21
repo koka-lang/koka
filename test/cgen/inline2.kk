@@ -6,57 +6,76 @@
   ~>
   if (x) then False else x
 */
-// private fun test(x) {
-//   if (not(x)) then x else False
-// }
+private fun test(x) {
+  if (not(x)) then x else False
+}
 
-// private fun someBoolFunc(x, y) {
-//   (x && y) || (x && !y)
-// }
+private fun bool1() {
+    test(True).println
+}
 
-// fun justTrue() {
-//   True
-// }
+private fun someBoolFunc(x, y) {
+  (x && y) || (x && !y)
+}
 
-// fun andTrue(){
-//   val x = True
-//   val y = True
-//   print("blah")
-//   x && y
-// }
+private fun bool2() {
+  someBoolFunc(True, False).println
+}
 
-// fun printTrue(x: bool, y: bool) {
-//   print("printTrue")
-//   x || y
-// }
+private fun bool3() {
+  match(True) {
+    True -> "hi".println
+    False -> "no".println
+  }
+}
 
-// fun printTrue2(x: bool, y: bool) {
-//   print("printTrue2")
-//   printTrue(x, y)
-// }
-
-fun boolMatching() {
-  // test(True).println
-
-  // match(True) {
-  //   True -> "hi".println
-  //   False -> "no".println
-  // }
-
-  // if(True) then "T" else "F"
-  // if(True && justTrue()) then "T" else "F"
-  // if(justTrue()) then "JT" else "JF"
-  // if(justTrue() || justTrue()) then "JT" else "JF"
-  // if(andTrue()) then "AT" else "AF"// Works when there is no effect in the function. Edit: works now with effect too
-  
-  // if(printTrue(True, True)) then "PT" else "PF"
-  // if(printTrue2(True, True)) then "PT2" else "PF2"
-  // val x = True
+private fun bool4() {   
+  if(True) then "T" else "F"
+}
+private fun bool5() { 
+  if(True && justTrue()) then "T" else "F"
+}
+private fun bool6() { 
+  if(justTrue()) then "JT" else "JF"
+}
+private fun bool7() { 
+  if(justTrue() || justTrue()) then "JT" else "JF"
+}
+private fun bool8() { 
+  if(andTrue()) then "AT" else "AF" // Works when there is no effect in the function. Edit: works now with effect too
+}
+private fun bool9() { 
+  if(printTrue(True, True)) then "PT" else "PF"
+}
+private fun bool10() { 
+  if(printTrue2(True, True)) then "PT2" else "PF2"
+}
+private fun bool11() { 
+  val x = True
   // var x := True
-  // Works when x is a val, but does not when x is a var
-  // if(x) then "XT" else "XF"
+  if(x) then "XT" else "XF" // Works when x is a val, but does not when x is a var
+}
 
-  // someBoolFunc(True, False).println
+
+fun justTrue() {
+  True
+}
+
+fun andTrue(){
+  val x = True
+  val y = True
+  print("blah")
+  x && y
+}
+
+fun printTrue(x: bool, y: bool) {
+  print("printTrue")
+  x || y
+}
+
+fun printTrue2(x: bool, y: bool) {
+  print("printTrue2")
+  printTrue(x, y)
 }
 
 
@@ -88,16 +107,16 @@ to identify variables whose evaluation is certain to take place before the stack
 retreats, and implements their evaluation as a simple adjust-stack-and-jump. As
 a result we get essentially the same code as a C compiler for our conditional.*/
 
-// private fun or(x:bool, y:bool) {
-//   if (x || y) then "OR_True" else "OR_False"
-// }
+private fun or(x:bool, y:bool) {
+  if (x || y) then "OR_True" else "OR_False"
+}
 
-// fun maybeMatching() { // Works after the subpatter matching changes
-//   match(Just(10)) { // Maybe - case of known function not called in case of Just(x), works in case of Nothing
-//     Just(value) -> value
-//     Nothing -> 0
-//   }
-// }
+fun maybeMatching() { // Works after the subpatter matching changes
+  match(Just(10)) { // Maybe - case of known function not called in case of Just(x), works in case of Nothing
+    Just(value) -> value
+    Nothing -> 0
+  }
+}
 
 fun listMatching() { // All work after the subpattern matching changes
   match(Cons(1, Cons(2, []))) { // Not working as well, case of known function called. Works now
@@ -106,51 +125,50 @@ fun listMatching() { // All work after the subpattern matching changes
   }
 }
 
+fun patConMatching() {
+    match(printTrue(True, True) || True, printTrue(False, False)) {
+      (True, True) -> "First"
+      (False, True) -> "Second"
+      (True, False) -> "Third"
+      (False, False) -> "Fourth"
+  }
+}
 
-// fun patConMatching() { // Check the bindings generated
-//     match(printTrue(True, True) || True, printTrue(False, False)) {
-//       (True, True) -> "First"
-//       (False, True) -> "Second"
-//       (True, False) -> "Third"
-//       (False, False) -> "Fourth"
-//   }
-// }
+fun printAndReturnTen() {
+  println("Printing 10")
+  10
+}
 
-// fun printAndReturnTen() {
-//   println("Printing 10")
-//   10
-// }
+fun patLitMatching() { // error: '_null_' undeclared (first use in this function)
+  match(printAndReturnTen()) {
+    1 -> "One"
+    5 -> "Five"
+    10 -> "Ten"
+    _ -> "Def"
+  }
+}
 
-// fun patLitMatching() { // error: '_null_' undeclared (first use in this function)
-//   match(printAndReturnTen()) {
-//     1 -> "One"
-//     5 -> "Five"
-//     10 -> "Ten"
-//     _ -> "Def"
-//   }
-// }
+fun patLitMatchingString() { // Works now
+  match("A") { 
+    "a" -> "lower"
+    "b" -> "no match"
+    "A" -> "found"
+  }
+}
 
-// fun patLitMatchingString() { // Works now
-//   match("A") { 
-//     "a" -> "lower"
-//     "b" -> "no match"
-//     "A" -> "found"
-//   }
-// }
+fun patLitMatchingNum() { // Works now
+  match(1) {
+    1 -> "1"
+    2 -> "2"
+    3 -> "3"
+  }
+}
 
-// fun patLitMatchingNum() { // Works now
-//   match(1) {
-//     1 -> "1"
-//     2 -> "2"
-//     3 -> "3"
-//   }
-// }
-
-// fun patWildMatching() { // Works
-//   match(True) {
-//     _ -> "WildTrue"
-//   }
-// }
+fun patWildMatching() { // Works
+  match(True) {
+    _ -> "WildTrue"
+  }
+}
 
 fun foo() { // Works
   val x = match(False, False) {
@@ -173,21 +191,21 @@ fun multiConsWithEffect() {
   }
 }
 
-// fun eitherMatching() { // Works after subpattern changes
-//   match(Left(1)) {
-//     Left(x) -> "left"
-//     Right(x) -> "Right"
-//   }
-// }
+fun eitherMatching() { // Works after subpattern changes
+  match(Left(1)) {
+    Left(x) -> "left"
+    Right(x) -> "Right"
+  }
+}
 
-// fun tupleMatching() { // Works after subpattern changes
-//   match((1, 1)) {
-//     (2, 2) -> "both 2"
-//     (1, 2) -> "second 2"
-//     (2, 1) -> "first 2"
-//     (1, 1) -> "found"
-//   }
-// }
+fun tupleMatching() { // Works after subpattern changes
+  match((1, 1)) {
+    (2, 2) -> "both 2"
+    (1, 2) -> "second 2"
+    (2, 1) -> "first 2"
+    (1, 1) -> "found"
+  }
+}
 
 fun main() {
   // if(divSomething(4, 2)) then "DT" else "DF" // Doesn't work
