@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-    System F-like core language.
 -}
@@ -18,11 +18,13 @@ module Core.Core ( -- Data structures
                    , DefGroups, DefGroup(..), Defs, Def(..), InlineDef(..)
                    , Expr(..), Lit(..)
                    , Branch(..), Guard(..), Pattern(..)
-                   , TName(..), getName, typeDefName
+                   , TName(..), typeDefName
                    , showTName
                    , flattenTypeDefGroups
                    , flattenDefGroups
                    , flattenAllDefGroups
+                   , mapDefGroup
+                   , mapMDefGroup
                    , extractSignatures
                    , typeDefIsExtension
                    , typeDefVis
@@ -76,23 +78,41 @@ module Core.Core ( -- Data structures
                    -- Inlining
                    , costDef, costExpr, costInf
                    , isInlineable
+                   , inlineDefIsSpecialize
 
                    -- * Canonical names
                    -- , canonicalName, nonCanonicalName, canonicalSplit
                    , infoArity, infoTypeArity
 
                    , Deps, dependencies
+
+                   , foldMapExpr
+                   , foldExpr
+                   , rewriteBottomUp
+                   , rewriteBottomUpM
+
+                   , CorePhase
+                   , getCoreDefs, setCoreDefs, withCoreDefs
+                   , runCorePhase
+                   , liftCorePhase, liftCorePhaseUniq
+                   , liftError
                    ) where
+
+import Control.Applicative (liftA2)
+import Control.Monad (forM)
+import Control.Monad.Identity
 
 import Data.Char( isDigit )
 import qualified Data.Set as S
 import Data.Maybe
+import Data.Monoid (Endo(..),(<>))
 import Lib.PPrint
 import Common.Name
 import Common.Range
 import Common.Failure
 import Common.Unique
 import Common.Id
+import Common.Error
 import Common.NamePrim( nameTrue, nameFalse, nameTuple, nameTpBool, nameEffectOpen, nameReturn, nameTrace, nameLog,
                         nameEvvIndex, nameOpenAt, nameOpenNone, nameInt32, nameSSizeT, nameBox, nameUnbox,
                         nameVector, nameCons, nameNull, nameTpList, nameUnit, nameTpUnit, nameTpCField, nameDropSpecial)
@@ -431,6 +451,14 @@ flattenAllDefGroups :: [DefGroups] -> [Def]
 flattenAllDefGroups defGroups
   = concatMap flattenDefGroups defGroups
 
+mapDefGroup :: (Def -> Def) -> DefGroup -> DefGroup
+mapDefGroup f (DefNonRec def) = DefNonRec $ f def
+mapDefGroup f (DefRec defs) = DefRec $ map f defs
+
+mapMDefGroup :: (Monad m) => (Def -> m Def) -> DefGroup -> m DefGroup
+mapMDefGroup f (DefNonRec def) = DefNonRec <$> f def
+mapMDefGroup f (DefRec defs) = DefRec <$> mapM f defs
+
 -- | A value definition
 data Def = Def{ defName  :: Name
               , defType  :: Scheme
@@ -442,7 +470,7 @@ data Def = Def{ defName  :: Name
               , defDoc :: String
               }
 
-data InlineDef = InlineDef{ inlineName :: Name, inlineExpr :: Expr, inlineRec :: Bool, inlineCost :: Int }
+data InlineDef = InlineDef{ inlineName :: Name, inlineExpr :: Expr, inlineRec :: Bool, inlineKind :: DefInline, inlineCost :: Int, specializeArgs :: [Bool] }
 
 defIsVal :: Def -> Bool
 defIsVal def
@@ -456,6 +484,68 @@ defParamInfos def
       DefFun pinfos -> pinfos
       _             -> []
 
+inlineDefIsSpecialize :: InlineDef -> Bool
+inlineDefIsSpecialize inlDef = not (null (specializeArgs inlDef))
+
+instance Show InlineDef where
+  show (InlineDef name expr isRec kind cost specArgs)
+    = "InlineDef " ++ show name ++ " " ++ (if isRec then "rec " else "") ++ show kind ++ " " ++ show cost ++ " " ++ show specArgs
+
+
+newtype CorePhase a = CP (Int -> DefGroups -> Error (CPState a))
+
+data CPState a = CPState !a !Int !DefGroups
+
+instance Functor CorePhase where
+  fmap f (CP cp)
+    = CP (\uniq defs -> do (CPState x uniq' defs') <- cp uniq defs
+                           return (CPState (f x) uniq' defs')) 
+
+instance Applicative CorePhase where
+  pure  = return
+  (<*>) = ap
+
+instance Monad CorePhase where
+  return x      = CP (\uniq defs -> return (CPState x uniq defs))
+  (CP cp) >>= f = CP (\uniq defs -> do (CPState x uniq' defs') <- cp uniq defs
+                                       case f x of 
+                                         CP cp' -> cp' uniq' defs')
+
+instance HasUnique CorePhase where
+  updateUnique f = CP (\uniq defs -> return (CPState uniq (f uniq) defs))
+  setUnique uniq = CP (\_ defs -> return (CPState () uniq defs))
+  unique         = CP (\uniq defs -> return (CPState uniq uniq defs))
+
+getCoreDefs :: CorePhase DefGroups
+getCoreDefs = CP (\uniq defs -> return (CPState defs uniq defs))
+
+setCoreDefs :: DefGroups -> CorePhase ()
+setCoreDefs defs = CP (\uniq _ -> return (CPState () uniq defs))
+
+withCoreDefs :: (DefGroups -> a) -> CorePhase a
+withCoreDefs f 
+  = do defs <- getCoreDefs
+       return (f defs)
+
+runCorePhase :: Int -> CorePhase a -> Error a
+runCorePhase uniq (CP cp)
+  = do (CPState x _ _) <- cp uniq []
+       return x
+
+liftCorePhaseUniq :: (Int -> DefGroups -> (DefGroups,Int)) -> CorePhase ()
+liftCorePhaseUniq f
+  = CP (\uniq defs -> let (defs',uniq') = f uniq defs in return (CPState () uniq' defs'))
+
+liftCorePhase :: (DefGroups -> DefGroups) -> CorePhase ()
+liftCorePhase f 
+  = liftCorePhaseUniq (\u defs -> (f defs, u))
+
+liftError :: Error a -> CorePhase a
+liftError err
+  = CP (\uniq defs -> do x <- err
+                         return (CPState x uniq defs))  
+
+
 {--------------------------------------------------------------------------
   Expressions
 
@@ -467,8 +557,7 @@ data Expr =
     Lam [TName] Effect Expr
   | Var{ varName :: TName, varInfo :: VarInfo }  -- ^ typed name and possible typeArity/parameter arity tuple for top-level functions
   | App Expr [Expr]                              -- ^ always fully applied!
-  -- Type (universal) abstraction/application
-  | TypeLam [TypeVar] Expr
+  | TypeLam [TypeVar] Expr                       -- ^ Type (universal) abstraction/application
   | TypeApp Expr [Type]
   -- Literals, constants and labels
   | Con{ conName :: TName, conRepr ::  ConRepr  }          -- ^ typed name and its representation
@@ -478,11 +567,59 @@ data Expr =
   -- Case expressions
   | Case{ caseExprs :: [Expr], caseBranches :: [Branch] }
 
-data TName = TName Name Type
+foldMapExpr :: Monoid a => (Expr -> a) -> Expr -> a
+foldMapExpr acc e = case e of
+  Lam _ _ body -> acc e <> foldMapExpr acc body
+  Var _ _ -> acc e
+  App f xs -> acc e <> acc f <> mconcat (foldMapExpr acc <$> xs)
+  TypeLam _ body -> acc e <> foldMapExpr acc body
+  TypeApp expr _ -> acc e <> foldMapExpr acc expr
+  Con _ _ -> acc e
+  Lit _ -> acc e
+  Let binders body -> acc e <> mconcat [foldMapExpr acc (defExpr def) | def <- flattenDefGroups binders] <> foldMapExpr acc body
+  Case cases branches -> acc e <> mconcat (foldMapExpr acc <$> cases) <>
+    mconcat [foldMapExpr acc e | branch <- branches, guard <- branchGuards branch, e <- [guardTest guard, guardExpr guard]]
 
-getName (TName name _) = name
+foldExpr :: (Expr -> a -> a) -> a -> Expr -> a
+foldExpr f z e = appEndo (foldMapExpr (Endo . f) e) z
 
-tnameType (TName name tp) = tp
+rewriteBottomUp :: (Expr -> Expr) -> Expr -> Expr
+rewriteBottomUp f = runIdentity . rewriteBottomUpM (Identity . f)
+
+rewriteBottomUpM :: (Monad m) => (Expr -> m Expr) -> Expr -> m Expr
+rewriteBottomUpM f e = f =<< case e of 
+  Lam params eff body -> Lam params eff <$> rec body
+  Var _ _ -> pure e
+  App fun xs -> liftA2 App (rec fun) (mapM rec xs)
+  TypeLam types body -> TypeLam types <$> rec body
+  TypeApp expr types -> (\fexpr -> TypeApp fexpr types) <$> rec expr
+  Con _ _ -> pure e
+  Lit _ -> pure e
+  Let binders body -> do
+    newBinders <- forM binders $ \binder ->
+      case binder of
+        DefNonRec def@Def{defExpr = defExpr} -> do 
+          fexpr <- rec defExpr
+          pure $ DefNonRec def { defExpr = fexpr, defType = typeOf fexpr }
+        DefRec defs -> fmap DefRec $ forM defs $ \def@Def{defExpr = defExpr} -> do
+          fexpr <- rec defExpr
+          pure def{ defExpr = fexpr, defType = typeOf fexpr }
+          
+    Let newBinders <$> rec body
+
+  Case cases branches -> liftA2 Case mcases mbranches
+    where
+      mcases = mapM rec cases
+      mbranches = forM branches $ \(Branch patterns guards) ->
+        Branch patterns <$> forM guards (\(Guard e1 e2) -> liftA2 Guard (rec e1) (rec e2))
+  where
+    rec = f <=< rewriteBottomUpM f
+
+
+data TName = TName 
+  { getName :: Name
+  , tnameType :: Type
+  }
 
 showTName (TName name tp)
     = show name -- ++ ": " ++ minCanonical tp
@@ -789,6 +926,7 @@ instance Show TName where
 -- | Create a let expression
 makeLet :: [DefGroup] -> Expr -> Expr
 makeLet [] expr = expr
+makeLet defs (Let defs' body) = Let (defs ++ defs') body
 makeLet defs expr = Let defs expr
 
 makeTypeApp expr []     = expr

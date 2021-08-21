@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Common syntactical constructs (for Syntax.Syntax and Core.Core)
@@ -72,14 +72,15 @@ alignUp x y  = ((x + y - 1) `div` y)*y
 
 
 
-data BuildType = Debug | Release | RelWithDebInfo
-               deriving (Eq)
+data BuildType = DebugFull | Debug | RelWithDebInfo | Release
+               deriving (Eq,Ord)
 
 instance Show BuildType where
+  show DebugFull      = "debugfull"
   show Debug          = "debug"
-  show Release        = "release"
   show RelWithDebInfo = "drelease"
-
+  show Release        = "release"
+  
 
 {--------------------------------------------------------------------------
   Visibility

@@ -1,10 +1,10 @@
 {-# OPTIONS -cpp #-}
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 
 -----------------------------------------------------------------------------
@@ -78,14 +78,17 @@ traceDoc fdoc = do penv <- getPrettyEnv
 {--------------------------------------------------------------------------
   Infer Types
 --------------------------------------------------------------------------}
-inferTypes :: Env -> Maybe RM.RangeMap -> Synonyms -> Newtypes -> Constructors -> ImportMap -> Gamma -> Name -> Int -> DefGroups Type
-                -> Error (Gamma, Core.DefGroups, Int, Maybe RM.RangeMap )
-inferTypes prettyEnv mbRangeMap syns newTypes cons imports gamma0 context uniq0 defs
+inferTypes :: Env -> Maybe RM.RangeMap -> Synonyms -> Newtypes -> Constructors -> ImportMap -> Gamma -> Name -> DefGroups Type
+                -> Core.CorePhase (Gamma, Core.DefGroups, Maybe RM.RangeMap )
+inferTypes prettyEnv mbRangeMap syns newTypes cons imports gamma0 context defs
   = -- error "Type.Infer.inferTypes: not yet implemented"
     -- return (gamma0,[],uniq0)
-    do ((gamma1, coreDefs),uniq1,mbRm) <- runInfer prettyEnv mbRangeMap syns newTypes imports gamma0 context (uniq0 + 10 {- to not clash with at least 10 bound type variables -})
-                                          (inferDefGroups True (arrange defs))
-       return (gamma1,coreDefs,uniq1,mbRm)
+    do uniq0 <- unique
+       ((gamma1, coreDefs),uniq1,mbRm) <- Core.liftError $ 
+                                          runInfer prettyEnv mbRangeMap syns newTypes imports gamma0 context (uniq0 + 10 {- to not clash with at least 10 bound type variables -})
+                                            (inferDefGroups True (arrange defs))
+       setUnique uniq1
+       return (gamma1,coreDefs,mbRm)
   where
     arrange defs
       = if (context /= nameSystemCore)
@@ -322,13 +325,14 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
         let name = Core.defName coreDef
             csort = if (topLevel || CoreVar.isTopLevel coreDef) then Core.defSort coreDef else DefVal
             info = coreVarInfoFromNameInfo (createNameInfoX Public name csort (defRange def) resTp1)
+        penv <- getPrettyEnv
         (resTp2,coreExpr)
               <- case (mbAssumed,resCore1) of
                          (Just (_,(TVar _)), Core.TypeLam tvars expr)  -- we assumed a monomorphic type, but generalized eventually
                             -> -- fix it up by adding the polymorphic type application
                                do assumedTpX <- subst assumedTp >>= normalize True -- resTp0
                                   -- resTpX <- subst resTp0 >>= normalize
-                                  simexpr <- liftUnique $ uniqueSimplify False False 0 expr
+                                  simexpr <- liftUnique $ uniqueSimplify penv False False 1 {-runs-} 0 expr
                                   coreX <- subst simexpr
                                   let -- coreX = simplify expr -- coref0 (Core.defExpr coreDef)
                                       mvars = [TypeVar id kind Bound | TypeVar id kind _ <- tvars]
@@ -351,13 +355,13 @@ inferRecDef2 topLevel coreDef divergent (def,mbAssumed)
                                -}
                          (Just (_,_), _) | divergent  -- we added a divergent effect, fix up the occurrences of the assumed type
                             -> do assumedTpX <- normalize True assumedTp >>= subst -- resTp0
-                                  simResCore1 <- liftUnique $ uniqueSimplify False False 0 resCore1
+                                  simResCore1 <- liftUnique $ uniqueSimplify penv False False 1 0 resCore1
                                   coreX <- subst simResCore1
                                   let resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
                                   return (resTp1, resCoreX)
                          (Just _,_)  -- ensure we insert the right info  (test: static/div2-ack)
                             -> do assumedTpX <- normalize True assumedTp >>= subst
-                                  simResCore1 <- liftUnique $ uniqueSimplify False False 0 resCore1
+                                  simResCore1 <- liftUnique $ uniqueSimplify penv False False 1 0 resCore1
                                   coreX <- subst simResCore1
                                   let resCoreX = (CoreVar.|~>) [(Core.TName ({- unqualify -} name) assumedTpX, Core.Var (Core.TName ({- unqualify -} name) resTp1) info)] coreX
                                   return (resTp1, resCoreX)
@@ -637,7 +641,7 @@ inferExpr propagated expect (App assign@(Var name _ arng) [lhs@(_,lval),rhs@(_,r
                 inferExpr propagated expect (App fun (xargs ++ [(Nothing {- Just (nameAssigned,rangeNull) -},rexpr)]) rng)
       Var target _ lrng
         -> do (_,gtp,_) <- resolveName target Nothing lrng
-              (tp,_,_) <- instantiate lrng gtp
+              (tp,_,_) <- instantiateEx lrng gtp
               -- traceDoc $ \penv -> text "setting:" <+> pretty target <+> text ":" <+> ppType penv tp
               nameSet <- if (isTypeLocalVar tp)
                            then return nameLocalSet
@@ -938,12 +942,14 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
                           OpExcept     -> (nameClause "never" (length pars), pars)
                           OpControl    -> let resumeTp = TFun [(nameNil,resumeArg)] eff res
                                           in (nameClause "control" (length pars), pars ++ [ValueBinder (newName "resume") (Just resumeTp) () hrng patRng])
-                          OpControlRaw -> (nameClause "control-raw" (length pars), pars ++ [ValueBinder (newName "rcontext") Nothing () hrng patRng])
+                          OpControlRaw -> let eff0 = effectExtend heff eff
+                                              resumeContextTp = typeResumeContext resumeArg eff eff0 res
+                                          in (nameClause "control-raw" (length pars), pars ++ [ValueBinder (newName "rcontext") (Just resumeContextTp) () hrng patRng])
                           -- _            -> failure $ "Type.Infer.inferHandler: unexpected resume kind: " ++ show rkind
                  -- traceDoc $ \penv -> text "resolving:" <+> text (showPlain opName) <+> text ", under effect:" <+> text (showPlain effectName)
                  (_,gtp,_) <- resolveFunName (if isQualified opName then opName else qualify (qualifier effectName) opName)
                                                (CtxFunArgs (length pars) []) patRng nameRng -- todo: resolve more specific with known types?
-                 (tp,_,_)  <- instantiate nameRng gtp
+                 (tp,_,_)  <- instantiateEx nameRng gtp
                  let parTps = case splitFunType tp of
                                 Just (tpars,_,_) -> (if (isInstance) then tail else id) $ -- drop the first parameter of an op for an instance (as it is the instance name)
                                                     map (Just . snd) tpars ++ repeat Nothing  -- TODO: propagate result type as well?
@@ -992,7 +998,7 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
        -- so it is propagated automatically.
        penv <- getPrettyEnv
        (_,handleTp,_)  <- resolveFunName handleName CtxNone rng rng
-       (handleRho,_,_) <- instantiate rng handleTp
+       (handleRho,_,_) <- instantiateEx rng handleTp
        let actionTp = case splitFunType handleRho of
                         Just ([_,_,_,actionTp],effTp,resTp) -> snd actionTp
                         _ -> failure ("Type.Infer: unexpected handler type: " ++ show (ppType penv handleRho))
@@ -1080,7 +1086,7 @@ inferHandledEffect rng handlerSort mbeff ops
         (HandlerBranch name pars expr opSort nameRng rng: _)
           -> -- todo: handle errors if we find a non-operator
              do (qname,tp,info) <- resolveFunName name (CtxFunArgs (length pars) []) rng nameRng
-                (rho,_,_) <- instantiate nameRng tp
+                (rho,_,_) <- instantiateEx nameRng tp
                 case splitFunType rho of
                   Just((opname,rtp):_,_,_) | isHandlerInstance handlerSort && opname == newHiddenName "hname"
                                 -> do -- traceDoc $ \env -> text "effect instance: " <+> ppType env rtp
@@ -1947,7 +1953,7 @@ matchFunTypeArgs context fun tp fixed named
                 matches <- lookupNameEx (const True) nameCopy (CtxFunTypes True [tp] []) range
                 case matches of
                   [(qname,info)]
-                    -> do (contp,_,coreInst) <- instantiate range (infoType info)
+                    -> do (contp,_,coreInst) <- instantiateEx range (infoType info)
                           (args,pars,eff,res,_) <- matchFunTypeArgs context fun contp (fun:fixed) named
                           let coreAddCopy core coreArgs
                                 = let coreVar = coreExprFromNameInfo qname info

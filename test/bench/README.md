@@ -2,7 +2,7 @@
 
 This contains the standard benchmark suite (discussed in detail in [Perceus] paper).
 It is still basic but more benchmarks
-with effect handlers are coming. The suite can run on (Ubuntu Linux), WSL2, and macOSX,
+with effect handlers are coming. The suite can run on (Ubuntu Linux), WSL2, and macOS,
 and the benchmarks need:
 
 - `gcc`. Should be there, otherwise use `sudo apt install gcc`,

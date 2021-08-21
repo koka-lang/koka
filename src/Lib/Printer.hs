@@ -1,9 +1,9 @@
 ------------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Module for portable control of colors in a console.
@@ -17,12 +17,13 @@ module Lib.Printer(
                 , Printer( write, writeText, writeLn, writeTextLn, flush, withColor, withBackColor, withReverse, withUnderline    , setColor, setBackColor, setReverse, setUnderline ) 
                 -- * Printers
               , MonoPrinter, withMonoPrinter
-              , ColorPrinter, withColorPrinter, withNoColorPrinter, withFileNoColorPrinter, isAnsiPrinter
+              , ColorPrinter, withColorPrinter, withNoColorPrinter, withFileNoColorPrinter, isAnsiPrinter, isConsolePrinter
               , AnsiPrinter, withAnsiPrinter
               , withFilePrinter, withNewFilePrinter
               , withHtmlPrinter, withHtmlColorPrinter
                 -- * Misc.
               , ansiWithColor
+              , ansiColor
               ) where
 
 import Data.List( intersperse )
@@ -85,13 +86,15 @@ data Color  = Black
             | ColorDefault
             deriving (Show,Eq,Ord,Enum)
 
+
+
 {--------------------------------------------------------------------------
   Simple monochrome printer
 --------------------------------------------------------------------------}  
 
 -- | On windows, we cannot print unicode characters :-(
 sanitize :: String -> String
-sanitize s | null exeExtension = s
+sanitize s | null exeExtension  = s
 sanitize s
   = map (\c -> if (c > '~') then '?' else c) s
 
@@ -236,6 +239,8 @@ ansiEscapeIO :: [T.Text] -> IO ()
 ansiEscapeIO xs
   | null xs   = return ()
   | otherwise = T.putStr (ansiEscape xs) 
+
+                   
   
 ansiEscape :: [T.Text] -> T.Text
 ansiEscape xs
@@ -246,7 +251,6 @@ seqSetConsole old new
   -- reset when any attributes are disabled
   | invert old > invert new               = reset
   | underline old > underline new         = reset
-  | bold (fcolor old) > bold (fcolor new) = reset
   -- no attributes are disabled, we take a diff
   | otherwise = diff
   where
@@ -254,14 +258,12 @@ seqSetConsole old new
             [seqReset
             ,seqReverse (invert new) 
             ,seqUnderline (underline new) 
-            ,seqBold (bold (fcolor new))
             ,seqColor False (fcolor new)
             ,seqColor True (bcolor new)]
 
     diff  = concat 
             [max seqReverse invert
             ,max seqUnderline underline
-            ,max seqBold (bold . fcolor)
             ,max (seqColor False) fcolor
             ,max (seqColor True) bcolor
             ]
@@ -271,33 +273,32 @@ seqSetConsole old new
 
 seqReset :: [T.Text]
 seqReset
-  = [T.pack "00"]
+  = [T.pack "0"]
 
 seqUnderline :: Bool -> [T.Text]
 seqUnderline u
-  = if u then [T.pack "04"] else []
+  = if u then [T.pack "4"] else []
 
 seqReverse rev
-  = if rev then [T.pack "07"] else []
+  = if rev then [T.pack "7"] else []
 
 seqBold b
-  = if b then [T.pack "01"] else []
-
-bold c
-  = case c of
-      ColorDefault -> False
-      _            -> (fromEnum c >= 8) 
+  = if b then [T.pack "1"] else []
 
 seqColor :: Bool -> Color -> [T.Text]
 seqColor backGround c
-  = case c of
-      ColorDefault 
-        -> encode 9
-      _ -> encode (fromEnum c `mod` 8)
+  = encode (ansiColor c)
   where
     encode i
-      = [T.pack $ show (i + if backGround then 40 else 30)]
+      = [T.pack $ show (i + if backGround then 10 else 0)]
 
+
+ansiColor :: Color -> Int
+ansiColor c 
+  = let i = fromEnum c
+    in if (i < 8) then 30 + i 
+        else if (i < 16) then 90 + i - 8
+         else 39
 
 {--------------------------------------------------------------------------
   Color console code
@@ -339,6 +340,12 @@ isAnsiPrinter cp
   = case cp of
       PAnsi ansi  -> True
       _           -> False
+
+isConsolePrinter :: ColorPrinter -> Bool
+isConsolePrinter cp 
+  = case cp of
+      PCon _  -> True
+      _       -> False
 
 
 instance Printer ColorPrinter where

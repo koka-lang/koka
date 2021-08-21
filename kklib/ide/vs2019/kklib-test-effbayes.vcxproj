@@ -157,6 +157,16 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\out\Debug\eff_dash_bayes_code_effects_dash_and_dash_types.c" />
+    <ClCompile Include="..\..\..\out\Debug\eff_dash_bayes_code_exn_dash_get.c" />
+    <ClCompile Include="..\..\..\out\Debug\eff_dash_bayes_code_exponents.c" />
+    <ClCompile Include="..\..\..\out\Debug\eff_dash_bayes_code_handlers.c" />
+    <ClCompile Include="..\..\..\out\Debug\eff_dash_bayes_code_main.c" />
+    <ClCompile Include="..\..\..\out\Debug\eff_dash_bayes_code_model_dash_resources.c" />
+    <ClCompile Include="..\..\..\out\Debug\eff_dash_bayes_code_output_dash_and_dash_plot.c" />
+    <ClCompile Include="..\..\..\out\Debug\eff_dash_bayes_code_sampling.c" />
+    <ClCompile Include="..\..\..\out\Debug\eff_dash_bayes_code_smc.c" />
+    <ClCompile Include="..\..\..\out\Debug\eff_dash_bayes_code_tmcmc.c" />
     <ClCompile Include="..\..\..\out\Debug\interactive.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core_hnd.c" />
@@ -166,6 +176,7 @@
     <ClCompile Include="..\..\..\out\Debug\std_num_double.c" />
     <ClCompile Include="..\..\..\out\Debug\std_num_int32.c" />
     <ClCompile Include="..\..\..\out\Debug\std_num_random.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_os_dir.c" />
     <ClCompile Include="..\..\..\out\Debug\std_os_env.c" />
     <ClCompile Include="..\..\..\out\Debug\std_os_file.c" />
     <ClCompile Include="..\..\..\out\Debug\std_os_path.c" />
@@ -177,21 +188,6 @@
     <ClCompile Include="..\..\..\out\Debug\std_time_timer.c" />
     <ClCompile Include="..\..\..\out\Debug\std_time_timestamp.c" />
     <ClCompile Include="..\..\..\out\Debug\std_time_utc.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_benchmark.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_climate_dash_change.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_climate_dash_experiments.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_effects_dash_and_dash_types.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_exn_dash_get.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_exponents.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_handlers.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_main.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_model_dash_resources.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_output_dash_and_dash_plot.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_pmmh.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_preprocessing.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_sampling.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_sequential.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_effbayes_trace.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,8 +1,8 @@
 /*-----------------------------------------------------------------------------
-Copyright 2020 Microsoft Corporation, Daan Leijen.
+Copyright 2020-2021, Microsoft Research, Daan Leijen.
 This is free software; you can redistribute it and/or modify it under the
 terms of the Apache License, Version 2.0. A copy of the License can be
-found in the file "license.txt" at the root of this distribution.
+found in the LICENSE file at the root of this distribution.
 
 Run this to generate documentation from the `doc/spec` directory
 using the Madoko program (install: `> npm install -g madoko`)
@@ -60,8 +60,8 @@ fun build( publish : bool, version : string, speconly : bool ) : io () {
   val outscripts = outspec / "scripts"
   val outimages = outspec / "images"
   val specdir   = "doc/spec".path
-  val docflags  = "--htmlcss=styles/madoko.css;styles/koka.css " ++ (if (publish) then "--htmlbases=" ++ docsite ++ " " else "")
-  val cmd = "stack exec koka -- -c -l --builddir=" ++ outspec.string ++ " -i" ++ specdir.string ++ " --html " ++ docflags
+  val docflags  = "--htmlcss=styles/madoko.css --htmlcss=styles/koka.css " ++ (if (publish) then "--htmlbases=" ++ docsite ++ " " else "")
+  val cmd = "koka -c -r -l --builddir=" ++ outspec.string ++ " -i" ++ specdir.string ++ " --html " ++ docflags
   if (!speconly) {
     println("compile standard libraries...")
     run-echo(cmd ++ " toc.kk")

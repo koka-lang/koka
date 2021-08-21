@@ -1,10 +1,10 @@
 {-# OPTIONS -cpp #-}
 ------------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Configuration data
@@ -31,11 +31,11 @@ version = KOKA_VERSION
 version = "0"
 #endif
 
-buildVariant :: String
+compilerBuildVariant :: String
 #if defined(KOKA_VARIANT)
-buildVariant = KOKA_VARIANT
+compilerBuildVariant = KOKA_VARIANT
 #else
-buildVariant = "interpreted"
+compilerBuildVariant = "interpreted"
 #endif
 
 compiler :: String
@@ -51,7 +51,9 @@ compiler = "unknown"
 
 exeExtension   :: String
 pathSep,pathDelimiter :: Char
+
 #if defined(WINDOWS)
+-- platform      = "windows"
 exeExtension  = ".exe"
 dllExtension  = ".dll"
 objExtension  = ".obj"
@@ -60,6 +62,7 @@ libPrefix     = ""
 pathSep       = '\\'
 pathDelimiter = ';'
 #elif defined(DARWIN) || defined(__APPLE__) || defined(__MACH__) || defined(__MACOSX__)
+-- platform      = "macos"
 dllExtension  = ".dylib"
 objExtension  = ".o"
 libExtension  = ".a"
@@ -68,6 +71,7 @@ exeExtension  = ""
 pathSep       = '/'
 pathDelimiter = ':'
 #else
+-- platform      = "unix"
 dllExtension  = ".so"
 objExtension  = ".o"
 libExtension  = ".a"

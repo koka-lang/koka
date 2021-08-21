@@ -1,16 +1,36 @@
-resolver: lts-17.10
+# Build as: 
+#   $ stack update
+#   $ stack build
+#   $ stack exec koka
+#
+# Note: if stack fails on your platform, try to install the build tools as a package:
+#   $ sudo apt install ghc cabal-install haskell-stack
+# and invoke stack with an older resolver that matches the system ghc version:
+#   $ stack --resolver lts-14 --system-ghc build         # ubuntu 20, ghc 8.6.5
+#   $ stack --resolver lts-14 --system-ghc exec koka     
+# Otherwise, try to use `cabal` directly:
+#   $ cabal new-build koka
+#   $ cabal new-run koka
+# See also <https://github.com/koka-lang/koka#build-notes>.
+
+resolver: lts-18.6
+# resolver: lts-14.27           # ghc 8.6.5
+# resolver: lts-9.21            # ghc 8.0.2  -- works for older linux-arm64
+# system-ghc: true              # uncomment to use the system installed GHC
+
 packages:
 - '.'
 
 extra-deps:
-- stylish-haskell-0.11.0.0
-- hlint-2.1.26
-- haskeline-0.8.1.0
-- regex-posix-clib-2.7   # only for testing
-- json-0.10
+- haskeline-0.8.1.3             # use version < 8 to build with lts < 14; >= 0.8.1.3 is needed for macOS M1
+- regex-compat-tdfa-0.95.1.4    # only needed for koka-test
+- json-0.10                     # only needed for koka-test
+# - stylish-haskell-0.11.0.0
+# - hlint-2.1.26
 
 flags:
   haskeline:
     terminfo: false
-  regex-posix:
-    _regex-posix-clib: true
+
+rebuild-ghc-options: true
+allow-newer: true

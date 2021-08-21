@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 
 -----------------------------------------------------------------------------
@@ -49,7 +49,7 @@ instance Show Evidence where
 -- | Instantiate a type
 instantiate :: HasUnique m => Range -> Type -> m Rho
 instantiate range tp
-  = do (ids,preds,rho,coref) <- instantiateEx range tp
+  = do (ids,preds,rho,coref) <- instantiateNoEx range tp
        return rho
 
 -- | Instantiate a type and return the instantiated quantifiers, name/predicate pairs for evidence,

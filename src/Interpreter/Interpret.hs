@@ -1,9 +1,9 @@
 ------------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Interpreter
@@ -26,7 +26,7 @@ import Lib.PPrint
 import Lib.Printer
 import Common.Failure         ( raiseIO, catchIO )
 import Common.ColorScheme
-import Common.File            ( notext, joinPath, searchPaths, runSystem, isPathSep )
+import Common.File            ( notext, joinPath, searchPaths, runSystem, isPathSep, startsWith )
 import Common.Name            ( Name, unqualify, qualify, newName )
 import Common.NamePrim        ( nameExpr, nameType, nameInteractive, nameInteractiveModule, nameSystemCore )
 import Common.Range
@@ -45,6 +45,7 @@ import Type.Assumption        ( gammaIsEmpty, ppGamma, infoType, gammaFilter )
 
 import Compiler.Options
 import Compiler.Compile
+import Compiler.Module 
 import Interpreter.Command
 
 {---------------------------------------------------------------
@@ -112,10 +113,11 @@ interpreter st
 
 interpreterEx ::  State -> IO ()
 interpreterEx st
-  = do{ cmd <- getCommand st
-      -- ; messageLn ""
-      ; command st cmd
-      }
+  = do flush (printer st)
+       cmd <- getCommand st
+       -- ; messageLn ""
+       command st cmd
+      
 
 {---------------------------------------------------------------
   Interprete a command
@@ -125,7 +127,7 @@ command st cmd
   = let term = terminal st
     in do{ case cmd of
   Eval line   -> do{ err <- compileExpression term (flags st) (loaded st) (Executable nameExpr ()) (program st) bigLine line
-                   ; checkInfer st True err $ \ld ->
+                   ; checkInferWith st line id True err $ \ld ->
                      do if (not (evaluate (flags st)))
                          then let tp = infoType $ gammaFind (qualify nameInteractive nameExpr) (loadedGamma ld)
                               in messageSchemeEffect st tp
@@ -185,7 +187,8 @@ command st cmd
                       then do remark st "nothing to edit"
                               interpreterEx st
                       else do runEditor st fpath
-                              command st Reload
+                              -- command st Reload
+                              interpreter st 
                    }
   Edit fname  -> do{ mbpath <- searchSource (flags st) "" (newName fname) -- searchPath (includePath (flags st)) sourceExtension fname
                    ; case mbpath of
@@ -194,7 +197,8 @@ command st cmd
                               interpreter st
                       Just (root,fname,_)
                         -> do runEditor st (joinPath root fname)
-                              command st Reload
+                              -- command st Reload
+                              interpreter st
                    }
 
   Shell cmd   -> do{ runSystem cmd
@@ -344,17 +348,20 @@ docNotFound cscheme path name
   Helpers
 --------------------------------------------------------------------------}
 checkInfer ::  State -> Bool -> Error Loaded -> (Loaded -> IO ()) -> IO ()
-checkInfer st = checkInferWith st id
-checkInfer2 st = checkInferWith st (\(a,c) -> c)
+checkInfer st = checkInferWith st "" id
+checkInfer2 st = checkInferWith st "" (\(a,c) -> c)
 
-checkInfer3 ::  State -> Bool -> Error (a,b,Loaded) -> ((a,b,Loaded) -> IO ()) -> IO ()
-checkInfer3 st = checkInferWith st (\(a,b,c) -> c)
+checkInfer3 ::  State -> String -> Bool -> Error (a,b,Loaded) -> ((a,b,Loaded) -> IO ()) -> IO ()
+checkInfer3 st line = checkInferWith st line (\(a,b,c) -> c)
 
-checkInferWith ::  State -> (a -> Loaded) -> Bool -> Error a -> (a -> IO ()) -> IO ()
-checkInferWith st getLoaded showMarker err f
+checkInferWith ::  State -> String -> (a -> Loaded) -> Bool -> Error a -> (a -> IO ()) -> IO ()
+checkInferWith st line  getLoaded showMarker err f
   = case checkError err of
       Left msg  -> do when showMarker (maybeMessageMarker st (getRange msg))
-                      messageErrorMsgLnLn st msg
+                      messageErrorMsgLn st msg
+                      if (line=="exit" || line == "quit") 
+                        then messageInfoLnLn st ("hint: use ':q' to quit the interpreter, use ':?' for help.")
+                        else messageInfoLn st "" 
                       interpreterEx st{ errorRange = Just (getRange msg) }
       Right (x,ws)
                 -> do let ld = getLoaded x
@@ -537,10 +544,15 @@ replace line col s fpath
 --------------------------------------------------------------------------}
 getCommand :: State -> IO Command
 getCommand st
-  = do let ansiPrompt = (if isAnsiPrinter (printer st)
-                          then ansiWithColor (colorInterpreter (colorSchemeFromFlags (flags st)))
-                          else id) "> "
-       mbInput <- readLineEx (includePath (flags st)) ansiPrompt (prompt st)
+  = do let ansiPrompt = if isConsolePrinter (printer st) || osName == "macos"
+                          then ""
+                          else if isAnsiPrinter (printer st)
+                            then let c = ansiColor (colorInterpreter (colorSchemeFromFlags (flags st)))
+                                 in ("\x1B[" ++ show c ++ "m\x02> \x1B[0m\x02")  -- readline needs "STX" ("\x02") ending of escape sequence
+                                    -- ansiWithColor (colorInterpreter (colorSchemeFromFlags (flags st))) "> "
+                            else "> "
+
+       mbInput <- readLineEx (includePath (flags st)) (loadedMatchNames (loaded0 st)) ansiPrompt (prompt st)
        let input = maybe ":quit" id mbInput
        -- messageInfoLn st ("cmd: " ++ show input)
        let cmd   = readCommand input
@@ -647,20 +659,35 @@ messageHeader st
   where
     colors = colorSchemeFromFlags (flags st)
     header = color(colorInterpreter colors) $ vcat [
-        text " _          _           ____"
-       ,text "| |        | |         |__  \\"
-       ,text "| | __ ___ | | __ __ _  __) |"
-       ,text "| |/ // _ \\| |/ // _` || ___/ " <.> welcome
-       ,text "|   <| (_) |   <| (_| ||____| "  <.> headerVersion
-       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|       "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")
+        text " _         _ "
+       ,text "| |       | |"
+       ,text "| | _ ___ | | _ __ _"
+       ,text "| |/ / _ \\| |/ / _' |  " <.> welcome
+       ,text "|   ( (_) |   ( (_| |  "  <.> headerVersion
+       ,text "|_|\\_\\___/|_|\\_\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")                    
+       {-
+       ,text " _         _ "
+       ,text "| |       | |"
+       ,text "| | _ ___ | | _ __ _"
+       ,text "| |/ / _ \\| |/ / _' |  " <.> welcome
+       ,text "|   < (_) |   < (_| |  "  <.> headerVersion
+       ,text "|_|\\_\\___/|_|\\_\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")                    
+       ,text " _          _ "
+       ,text "| |        | |"
+       ,text "| | __ ___ | | __ __ _"
+       ,text "| |/ // _ \\| |/ // _` |  " <.> welcome
+       ,text "|   <| (_) |   <| (_| |  "  <.> headerVersion
+       ,text "|_|\\_\\\\___/|_|\\_\\\\__,_|  "  <.> color (colorSource colors) (text "type :? for help, and :q to quit")
+       -}
        ]
     headerVersion = text $ "version " ++ version ++
-                           (if buildVariant /= "release" then (" (" ++ buildVariant ++ ")") else "") ++ ", "
+                           (if compilerBuildVariant /= "release" then (" (" ++ compilerBuildVariant ++ ")") else "") ++ ", "
                            ++ buildDate ++ targetMsg
-    welcome       = text ("welcome to the " ++ Config.programName ++ " interpreter")
+    welcome       = text ("welcome to the " ++ Config.programName ++ " interactive compiler")
     targetMsg
       = case (target (flags st)) of
-          C  -> ", libc " ++ show (8*sizePtr (platform (flags st))) ++ "-bit"
+          C  -> ", " ++ "libc" -- osName 
+                ++ " " ++ cpuArch -- show (8*sizePtr (platform (flags st))) ++ "-bit"
                 ++ " (" ++ (ccName (ccomp (flags st))) ++ ")"
           JS -> ", node"
           CS -> ", .net"

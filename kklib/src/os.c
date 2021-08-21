@@ -1,9 +1,9 @@
 /*---------------------------------------------------------------------------
-  Copyright 2020 Daan Leijen, Microsoft Corporation.
+  Copyright 2020-2021, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
-  found in the file "license.txt" at the root of this distribution.
+  found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 #ifndef _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS   // getenv
@@ -1013,20 +1013,21 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx)
 {  
 #if defined(WIN32)
   const uint16_t* tmp = _wgetenv(L"TEMP");
-  if (tmp != NULL) return kk_string_alloc_from_qutf16(tmp, ctx);
-  tmp = _wgetenv(L"TEMPDIR");
-  if (tmp != NULL) return kk_string_alloc_from_qutf16(tmp, ctx);
+  if (tmp == NULL) tmp = _wgetenv(L"TMP");
+  if (tmp == NULL) tmp = _wgetenv(L"TMPDIR");
+  if (tmp != NULL) return kk_string_alloc_from_qutf16(tmp, ctx);  
   const uint16_t* ad = _wgetenv(L"LOCALAPPDATA");
   if (ad!=NULL) {
     kk_string_t s = kk_string_alloc_from_qutf16(ad, ctx);
     return kk_string_cat_from_valid_utf8(s, "\\Temp", ctx);
   }
 #else
-  const char* tmp = getenv("TEMP");
-  if (tmp != NULL) return kk_string_alloc_from_qutf8(tmp, ctx);
-  tmp = getenv("TEMPDIR");
-  if (tmp != NULL) return kk_string_alloc_from_qutf8(tmp, ctx);
+  const char* tmp = getenv("TMPDIR");
+  if (tmp == NULL) tmp = getenv("TMP");
+  if (tmp == NULL) tmp = getenv("TEMP");
+  if (tmp != NULL) return kk_string_alloc_from_qutf8(tmp, ctx);  
 #endif
+
   // fallback
 #if defined(WIN32)
   return kk_string_alloc_dup_valid_utf8("c:\\tmp", ctx);
@@ -1039,62 +1040,64 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx)
   Environment
 --------------------------------------------------------------------------------------------------*/
 
-kk_string_t kk_os_kernel(kk_context_t* ctx) {
-  const char* kernel = "unknown";
+kk_string_t kk_os_name(kk_context_t* ctx) {
+  const char* name = "unknown";
 #if defined(WIN32)
   #if defined(__MINGW32__)
-  kernel = "windows-mingw";
+  name = "windows-mingw";
   #else
-  kernel = "windows";
-  #endif
-#elif defined(__linux__)
-  kernel = "linux";
-#elif defined(__APPLE__)
-  #include <TargetConditionals.h>
-  #if TARGET_IPHONE_SIMULATOR
-    kernel = "ios";
-  #elif TARGET_OS_IPHONE
-    kernel = "ios";
-  #elif TARGET_OS_MAC
-    kernel = "osx";
-  #else
-    kernel = "osx";  // unknown?
+  name = "windows";
   #endif
 #elif defined(__ANDROID__)
-  kernel = "android";
+  name = "linux-android";
+#elif defined(__linux__)
+  name = "linux";
+#elif defined(__APPLE__)
+  #include <TargetConditionals.h>
+  #if TARGET_OS_MAC
+    name = "macos";
+  #elif (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
+    name = "ios";  
+  #elif TARGET_OS_WATCH
+    name = "watchos";
+  #elif TARGET_OS_TV
+    name = "tvos";
+  #else
+    name = "macos";  // unknown?
+  #endif
 #elif defined(__CYGWIN__) && !defined(WIN32)
-  kernel = "unix-cygwin";
+  name = "unix-cygwin";
 #elif defined(__hpux)
-  kernel = "unix-hpux";
+  name = "unix-hpux";
 #elif defined(_AIX)
-  kernel = "unix-aix";
+  name = "unix-aix";
 #elif defined(__sun) && defined(__SVR4)
-  kernel = "unix-solaris";
+  name = "unix-solaris";
 #elif defined(unix) || defined(__unix__) 
   #include <sys/param.h>
   #if defined(__FreeBSD__)
-  kernel = "unix-freebsd";
+  name = "unix-freebsd";
   #elif defined(__OpenBSD__)
-  kernel = "unix-openbsd";
+  name = "unix-openbsd";
   #elif defined(__DragonFly__)
-  kernel = "unix-dragonfly";
+  name = "unix-dragonfly";
   #elif defined(__HAIKU__)
-  kernel = "unix-haiku";
+  name = "unix-haiku";
   #elif defined(BSD)
-  kernel = "unix-bsd"; 
+  name = "unix-bsd"; 
   #else
-  kernel = "unix";
+  name = "unix";
   #endif
 #elif defined(_POSIX_VERSION)
-  kernel = "posix"
+  name = "posix"
 #endif
-  return kk_string_alloc_dup_valid_utf8(kernel, ctx);
+  return kk_string_alloc_dup_valid_utf8(name, ctx);
 }
 
-kk_string_t kk_os_arch(kk_context_t* ctx) {
+kk_string_t kk_cpu_arch(kk_context_t* ctx) {
   const char* arch = "unknown";
 #if defined(__amd64__) || defined(__amd64) || defined(__x86_64__) || defined(__x86_64) || defined(_M_X64) || defined(_M_AMD64)
-  arch = "amd64";
+  arch = (KK_SIZE_SIZE==4 ? "x32" : "x64");
 #elif defined(__i386__) || defined(__i386) || defined(_M_IX86) || defined(_X86_) || defined(__X86__)
   arch = "x86";
 #elif defined(__aarch64__) || defined(_M_ARM64)
@@ -1102,19 +1105,29 @@ kk_string_t kk_os_arch(kk_context_t* ctx) {
 #elif defined(__arm__) || defined(_ARM) || defined(_M_ARM)  || defined(_M_ARMT) || defined(__arm)
   arch = "arm";
 #elif defined(__riscv) || defined(_M_RISCV)
-  arch = "riscv";  
+  arch = (KK_INTPTR_SIZE==4 ? "riscv32" : "riscv64");
 #elif defined(__alpha__) || defined(_M_ALPHA) || defined(__alpha)
   arch = "alpha";
-#elif defined(__powerpc) || defined(__powerpc__) || defined(_M_PPC) || defined(__ppc)
-  arch = "powerpc";
+#elif defined(__wasi__)  
+  arch = (KK_INTPTR_SIZE==4 ? "wasm32" : "wasm64");
+#elif defined(__powerpc) || defined(__powerpc__) || defined(_M_PPC) || defined(__ppc) || defined(_ARCH_PPC)
+  arch = (KK_INTPTR_SIZE==4 ? "ppc32" : (KK_ARCH_LITTLE_ENDIAN ? "ppc64le" : "ppc64"));
+#elif defined(__mips__) || defined(__MIPS__) || defined(__mips)
+  arch = (KK_INTPTR_SIZE==4 ? "mips" : "mips64");
+#elif defined(__sparc__) || defined(__sparc)
+  arch = (KK_INTPTR_SIZE==4 ? "sparc32" : "sparc64");
+#elif defined(__ia64__) || defined(__ia64) || defined(_M_IA64) || defined(__itanium__)  
+  arch = "ia64"
 #elif defined(__hppa__)
   arch = "hppa";
 #elif defined(__m68k__)
   arch = "m68k";
-#elif defined(__mips__)
-  arch = "mips";
-#elif defined(__sparc__) || defined(__sparc)
-  arch = "sparc";
+#elif defined( __s390x__)
+  arch = "s390x"
+#elif defined(__s390__) || defined(__zarch__)
+  arch = "s390";
+#elif defined(__vax__)
+  arch = "vax";
 #endif
   return (kk_string_alloc_dup_valid_utf8(arch, ctx));
 }
@@ -1123,13 +1136,33 @@ kk_string_t kk_compiler_version(kk_context_t* ctx) {
 #if defined(KK_COMP_VERSION)
   const char* version = KK_COMP_VERSION;
 #else
-  const char* version = "2.x.x";
+  const char* version = "2";
 #endif
   return kk_string_alloc_dup_valid_utf8(version,ctx);
 }
 
+kk_string_t kk_cc_name(kk_context_t* ctx) {
+  const char* ccname = "cc";
+#if defined(KK_CC_NAME)
+  ccname = KK_CC_NAME;
+#elif defined(__clang_msvc__)  
+  ccname = "clang-cl"
+#elif defined(__clang__)
+  ccname = "clang";
+#elif defined(__mingw32__)
+  ccname = "mingw";
+#elif defined(__INTEL_COMPILER)
+  ccname = "icc";
+#elif defined(_MSC_VER)
+  ccname = "cl";
+#elif defined(__GNUC__)
+  ccname = "gcc"; 
+#endif
+  return kk_string_alloc_dup_valid_utf8(ccname,ctx);
+}
+
 // note: assumes unistd/Windows etc is already included (like for file copy)
-int kk_os_processor_count(kk_context_t* ctx) {
+int kk_cpu_count(kk_context_t* ctx) {
   KK_UNUSED(ctx);
   int cpu_count = 1;
 #if defined(WIN32)
@@ -1156,4 +1189,13 @@ int kk_os_processor_count(kk_context_t* ctx) {
   cpu_count = mpctl(MPC_GETNUMSPUS, NULL, NULL);
 #endif
   return (cpu_count < 1 ? 1 : cpu_count);
+}
+
+bool kk_cpu_is_little_endian(kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+  #if KK_ARCH_LITTLE_ENDIAN
+  return true;
+  #else
+  return false;
+  #endif
 }

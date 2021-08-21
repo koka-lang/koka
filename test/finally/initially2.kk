@@ -5,11 +5,11 @@ effect amb {
 
 val amb = handler {
   return  (x)    -> [x]
-  control flip() -> resume(True) + resume(False)
+  control flip() -> resume(True) ++ resume(False)
 }
 
 fun bar() {
-  println("action: " + flip().show );
+  println("action: " ++ flip().show );
   42
 }
 
@@ -18,14 +18,14 @@ fun foo()
   var i := 42
   with handler {
     initially (r){
-      println("initially: " + r.show)
+      println("initially: " ++ r.show)
     }
     return (x){
-      println("return, local=" + i.show)
+      println("return, local=" ++ i.show)
       x
     }
     finally {
-      println("finally, local=" + i.show)
+      println("finally, local=" ++ i.show)
     }
   }
   bar()

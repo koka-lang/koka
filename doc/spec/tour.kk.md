@@ -242,7 +242,7 @@ f(e1,...,eN, fn(x){ <body> })
 ```
 ~
 
-Here is an examply using `foreach` to span over the rest of the function body:
+Here is an example using `foreach` to span over the rest of the function body:
 
 ```
 public fun test-with2() {

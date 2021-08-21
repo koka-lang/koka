@@ -1,5 +1,6 @@
 adown: []{.fa .fa-angle-double-down}
 aup:   []{.fa .fa-angle-double-up}
+acopy: []{.fa .fa-copy}
 
 .title {
   font-size: xxx-large;
@@ -22,7 +23,7 @@ toc.toc-contents {
 }
 
 .pre-indented, .console {
-  replace: "/^( *>[^\n\r]+)/\(**``\1``**\)/mg";
+  replace: "/^( *[\$>][^\n\r]*)/\(**``\1``**\)/mg";
 }
 
 .mapsto {
@@ -32,6 +33,13 @@ toc.toc-contents {
 }
 
 .learn {
+  .button;
+}
+
+.copy {
+  float: left;
+  font-size: 75%;
+  html-title:"Copy";
   .button;
 }
 

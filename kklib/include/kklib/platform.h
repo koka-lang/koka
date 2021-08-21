@@ -3,25 +3,26 @@
 #define KK_PLATFORM_H
 
 /*---------------------------------------------------------------------------
-  Copyright 2020,2021 Daan Leijen, Microsoft Corporation.
+  Copyright 2020-2021, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
-  found in the file "license.txt" at the root of this distribution.
+  found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------------------
   Platform: we assume:
   - C99 as C compiler (syntax and library), with possible C11 extensions for threads and atomics.
-  - either a 32- or 64-bit platform (but others should be possible with few changes).
-  - the compiler can do a great job on small static inline definitions (and we avoid #define's).
-  - the compiler will inline small structs (like `struct kk_box_s{ uintptr_t u; }`) without
+  - Either a 32- or 64-bit platform (but others should be possible with few changes).
+  - The compiler can do a great job on small static inline definitions (and we avoid #define's).
+  - The compiler will inline small structs (like `struct kk_box_s{ uintptr_t u; }`) without
     overhead (e.g. pass it in a register). This allows for better static checking.
   - (>>) on signed integers is an arithmetic right shift (i.e. sign extending).
-  - a char/byte is 8 bits.
-  - either little-endian, or big-endian.
-  - carefully code with strict aliasing in mind.
-  - prefer signed over unsigned, use kk_ssize_t for sizes (see comments below).
+  - A char/byte is 8 bits.
+  - Either little-endian, or big-endian (no PDP-11 middle endian :-).
+  - Carefully code with strict aliasing in mind.
+  - Prefer signed over unsigned and use kk_ssize_t for sizes (see comments below).
+    Only use unsigned for bitfields or masks.
 --------------------------------------------------------------------------------------*/
 #ifdef __cplusplus
 #define kk_decl_externc    extern "C"
@@ -194,11 +195,10 @@ typedef int64_t     kk_off_t;
 // We limit the maximum object size (and array sizes) to at most `SIZE_MAX/2` bytes so we can
 // always use the signed `kk_ssize_t` (instead of `size_t`) to specify sizes and do indexing in arrays. 
 // This avoids:
-// - signed/unsigned conversion (especially when mixing pointer arithmetic and lengths),
-// - errors with overflow detection (consider `size > SIZE_MAX` versus `ssize > KK_SSIZE_MAX`),
-// - loop bound errors (consider `for(unsigned u = 0; u < len()-1; u++)` if `len()` happens to be `0` etc.),
-// - performance degradation -- modern compilers can compile signed loop variables better (as signed overflow is undefined),
-// - api usage (passing a negative value is easier to detect)
+// - Signed/unsigned conversion (especially when mixing pointer arithmetic and lengths),
+// - Loop bound errors (consider `for(unsigned u = 0; u < len()-1; u++)` if `len()` happens to be `0` etc.),
+// - Performance degradation -- modern compilers can compile signed loop variables better (as signed overflow is undefined),
+// - Api usage (passing a negative value is easier to detect)
 //
 // A drawback is that this limits object sizes to half the address space-- for 64-bit
 // this is not a problem but string lengths for example on 32-bit are limited to be

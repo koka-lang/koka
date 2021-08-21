@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 
 module Type.Assumption (
@@ -18,6 +18,7 @@ module Type.Assumption (
                     , gammaMap
                     , gammaList
                     , gammaIsEmpty
+                    , gammaNames
                     , ppGamma, gammaRemove, gammaUnion, gammaUnions
                     , gammaFilter
                     , isInfoCon
@@ -228,6 +229,10 @@ gammaFilter mod (Gamma g)
   = Gamma (M.map belongs g)
   where
     belongs xs  = [(name,tp) | (name,tp) <- xs, qualifier name == mod]
+
+gammaNames :: Gamma -> [Name]
+gammaNames (Gamma g)
+  = M.keys g
 
 {---------------------------------------------------------------
   Extract from core

@@ -1,0 +1,9 @@
+42
+ 
+algeff/shallow1/Consume: forall<a,e,b> (.hnd-consume<a,e,b>) -> consume<a>
+algeff/shallow1/Produce: forall<a,e,b> (.hnd-produce<a,e,b>) -> produce<a>
+algeff/shallow1/await: forall<a> () -> (consume<a>) a
+algeff/shallow1/copipe: forall<a,b,c,e> ((x : a) -> <consume<b>,div|e> c, () -> <div,produce<a>|e> c) -> <div|e> c
+algeff/shallow1/main: () -> <console,div> ()
+algeff/shallow1/pipe: forall<a,b,c,e> (() -> <div,produce<a>|e> b, () -> <consume<c>,div|e> b) -> <div|e> b
+algeff/shallow1/yield: forall<a> (value : a) -> (produce<a>) ()

@@ -1,9 +1,9 @@
 ------------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Responsibilities of the kind checker:
@@ -31,7 +31,7 @@ import Data.Maybe(catMaybes)
 
 import Lib.PPrint
 import Common.Failure
-import Common.Unique( uniqueId )
+import Common.Unique( uniqueId, setUnique, unique )
 import Common.Error
 import Common.ColorScheme( ColorScheme, colorType, colorSource )
 import Common.Range
@@ -77,9 +77,9 @@ inferKinds
   -> KGamma           -- ^ Initial kind kgamma
   -> Synonyms         -- ^ Initial list of synonyms
   -> Newtypes         -- ^ Initial list of data types
-  -> Int              -- ^ Unique
   -> Program UserType UserKind  -- ^ Original program
-  -> Error ( DefGroups Type       --  Translated program (containing translated types)
+  -> Core.CorePhase 
+           ( DefGroups Type       --  Translated program (containing translated types)
            -- , Gamma                --  Gamma containing generated functions, i.e type scheme for every constructor
            , KGamma               --  updated kind gamma
            , Synonyms             --  Updated synonyms
@@ -88,38 +88,38 @@ inferKinds
            -- , Core.TypeDefGroups   --  Core type definition groups
            -- , Core.Externals       --  Core externals
            , Core.Core            --  Initial core program with type definition groups, externals, and some generated definitions for data types (like folds).
-           , Int                  --  New unique
            , Maybe RangeMap
            )
-inferKinds isValue colors platform mbRangeMap imports kgamma0 syns0 data0 unique0
+inferKinds isValue colors platform mbRangeMap imports kgamma0 syns0 data0 
             (Program source modName nameRange tdgroups defs importdefs externals fixdefs doc)
-  = let (errs1,warns1,rm1,unique1,(cgroups,kgamma1,syns1,data1)) = runKindInfer colors platform mbRangeMap modName imports kgamma0 syns0 data0 unique0 (infTypeDefGroups tdgroups)
-        (errs2,warns2,rm2,unique2,externals1)              = runKindInfer colors platform rm1 modName imports kgamma1 syns1 data1 unique1 (infExternals externals)
-        (errs3,warns3,rm3,unique3,defs1)                   = runKindInfer colors platform rm2 modName imports kgamma1 syns1 data1 unique2 (infDefGroups defs)
---        (errs4,warns4,unique4,cgroups)                 = runKindInfer colors modName imports kgamma1 syns1 unique3 (infCoreTDGroups cgroups)
-        (synInfos,dataInfos) = unzipEither (extractInfos cgroups)
-        conInfos  = concatMap dataInfoConstrs dataInfos
-        cons1     = constructorsFromList conInfos
-        gamma1    = constructorGamma isValue dataInfos
-        errs4     = constructorCheckDuplicates colors conInfos
-        errs      = errs1 ++ errs2 ++ errs3 ++ errs4
-        warns     = warns1 ++ warns2 ++ warns3
-        dgroups   = concatMap (synTypeDefGroup modName) cgroups
-    in addWarnings warns $
-       if (null errs)
-        then return (dgroups ++ defs1
-                    -- ,gamma1
-                    ,kgamma1
-                    ,syns1
-                    ,data1 -- newtypesNew dataInfos
-                    ,cons1
-                    -- ,cgroups
-                    -- ,externals1
-                    ,Core.Core modName [] [] cgroups [] externals1 doc
-                    ,unique3
-                    ,rm3
-                    )
-        else errorMsg (ErrorKind errs)
+  =do unique0 <- unique
+      let (errs1,warns1,rm1,unique1,(cgroups,kgamma1,syns1,data1)) = runKindInfer colors platform mbRangeMap modName imports kgamma0 syns0 data0 unique0 (infTypeDefGroups tdgroups)
+          (errs2,warns2,rm2,unique2,externals1)              = runKindInfer colors platform rm1 modName imports kgamma1 syns1 data1 unique1 (infExternals externals)
+          (errs3,warns3,rm3,unique3,defs1)                   = runKindInfer colors platform rm2 modName imports kgamma1 syns1 data1 unique2 (infDefGroups defs)
+  --        (errs4,warns4,unique4,cgroups)                 = runKindInfer colors modName imports kgamma1 syns1 unique3 (infCoreTDGroups cgroups)
+          (synInfos,dataInfos) = unzipEither (extractInfos cgroups)
+          conInfos  = concatMap dataInfoConstrs dataInfos
+          cons1     = constructorsFromList conInfos
+          gamma1    = constructorGamma isValue dataInfos
+          errs4     = constructorCheckDuplicates colors conInfos
+          errs      = errs1 ++ errs2 ++ errs3 ++ errs4
+          warns     = warns1 ++ warns2 ++ warns3
+          dgroups   = concatMap (synTypeDefGroup modName) cgroups
+      setUnique unique3
+      Core.liftError  (addWarnings warns $
+                        if (null errs)
+                          then return (dgroups ++ defs1
+                                      -- ,gamma1
+                                      ,kgamma1
+                                      ,syns1
+                                      ,data1 -- newtypesNew dataInfos
+                                      ,cons1
+                                      -- ,cgroups
+                                      -- ,externals1
+                                      ,Core.Core modName [] [] cgroups [] externals1 doc
+                                      ,rm3
+                                      )
+                          else errorMsg (ErrorKind errs))
 
 unzipEither :: [Either a b] -> ([a],[b])
 unzipEither xs

@@ -1,8 +1,9 @@
 -----------------------------------------------------------------------------
---Copyright 2012 Microsoft Corporation.  This is free software; you can
---redistribute it and/or modify it under the terms of the Apache License,
---Version 2.0. A copy of the License can be found in the file "license.txt" at
---the root of this distribution.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen, Edsko de Vries.  
+--
+-- This is free software; you can redistribute it and/or modify it under the
+-- terms of the Apache License, Version 2.0. A copy of the License can be
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 
 module Backend.JavaScript.FromCore
@@ -12,7 +13,8 @@ module Backend.JavaScript.FromCore
 import Platform.Config(version)
 import Lib.Trace
 import Control.Applicative hiding (empty)
-import Control.Monad
+import Control.Monad 
+import qualified Control.Monad.Fail as F
 import Data.List ( intersperse, partition )
 import Data.Char
 -- import Data.Maybe
@@ -1038,7 +1040,7 @@ instance Monad Asm where
   (Asm a) >>= f = Asm (\env st -> case a env st of
                                     (x,st1) -> case f x of
                                                  Asm b -> b env st1)
-instance MonadFail Asm where
+instance F.MonadFail Asm where
   fail = failure
 
 runAsm :: Env -> Asm Doc -> Doc

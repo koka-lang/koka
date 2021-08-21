@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2020 Microsoft Corporation, Daan Leijen
+-- Copyright 2020-2021, Microsoft Research, Daan Leijen
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 
 -----------------------------------------------------------------------------
@@ -46,9 +46,9 @@ trace s x =
 
 data Env = Env{ penv :: Pretty.Env, gamma :: Gamma }
 
-openResolve :: Pretty.Env -> Gamma -> DefGroups -> DefGroups
-openResolve penv gamma defs
-  = resDefGroups (Env penv gamma) defs
+openResolve :: Pretty.Env -> Gamma -> CorePhase ()
+openResolve penv gamma 
+  = liftCorePhase $ \defs -> resDefGroups (Env penv gamma) defs
 
 {--------------------------------------------------------------------------
   transform definition groups
@@ -149,14 +149,14 @@ resOpen (Env penv gamma) eopen effFrom effTo tpFrom tpTo@(TFun targs _ tres) exp
                  
                  wrapperThunk openExpr evExprs
                    = exprApp $
-                       Lam params effFrom $
+                       Lam params effTo $
                            App (makeTypeApp openExpr [tres,effFrom,effTo])
                                (evExprs ++ [Lam [] effTo (App exprVar [Var p InfoNone | p <- params])])
                     
                            
                  wrapper openExpr evExprs
                    = exprApp $
-                       Lam params effFrom $
+                       Lam params effTo $
                          App (makeTypeApp openExpr (map snd targs ++ [tres,effFrom,effTo]))
                              (evExprs ++ [exprVar] ++ [Var p InfoNone | p <- params])
                            

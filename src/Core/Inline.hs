@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2020 Microsoft Corporation, Daan Leijen, Ningning Xie
+-- Copyright 2020-2021, Microsoft Research, Daan Leijen, Ningning Xie
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 
 -----------------------------------------------------------------------------
@@ -39,21 +39,23 @@ import qualified Core.Core as Core
 import Core.Pretty
 import Core.Simplify
 import Core.Inlines
+import Core.Uniquefy
 
 trace s x =
-   -- Lib.Trace.trace s
+  -- Lib.Trace.trace s
     x
 
 
 
-inlineDefs :: Pretty.Env -> Int -> Inlines -> DefGroups -> (DefGroups,Int)
-inlineDefs penv u inlines defs
-  = runInl penv u inlines $
+inlineDefs :: Pretty.Env -> Int -> Inlines -> CorePhase ()
+inlineDefs penv inlineMax inlines
+  = liftCorePhaseUniq $ \uniq defs ->
+    runInl penv inlineMax uniq inlines  $
     do --traceDoc $ \penv -> text "Core.Inline.inlineDefs:" <+> ppInlines penv inlines
        --inlDefGroups defs
-       defs1 <- inlDefGroups defs
-       defs2 <- withUnique (\uniq -> simplifyDefs True False 3 0 uniq penv defs1)
-       inlDefGroups defs2
+       defs1 <- fmap uniquefyDefGroups $ inlDefGroups defs
+       defs2 <- liftUnique (uniqueSimplify penv False True 3 0 defs1)
+       fmap uniquefyDefGroups $ inlDefGroups defs2
 
 
 
@@ -152,11 +154,14 @@ inlAppExpr expr m n onlyZeroCost
         -> do mbInfo <- inlLookup (getName tname)
               case mbInfo of
                 Just (info,m',n') | not (inlineRec info) && (m >= m') && (n >= n')
-                                       && (not onlyZeroCost || inlineCost info <= 0)
+                                       && (not onlyZeroCost || inlineKind info == InlineAlways || inlineCost info <= 4)
                   -> do traceDoc $ \penv -> text "inlined:" <+> ppName penv (getName tname)
                         return (inlineExpr info)
                 Just (info,m',n')
-                  -> do traceDoc $ \penv -> text "inline candidate:" <+> ppName penv (getName tname) <+> text (show (m',n')) <+> text "vs" <+> text (show (m,n))
+                  -> do traceDoc $ \penv -> text "inline candidate:" <+> ppName penv (getName tname) <+> 
+                                              text (show (m',n')) <+> text "vs" <+> text (show (m,n)) <+>
+                                                text ", onlyZeroCost:" <+> pretty onlyZeroCost <+>
+                                                  text ", inlineCost:" <+>  pretty (inlineCost info)
                         return (expr)
                 Nothing -> do traceDoc $ \penv -> text "not inline candidate:" <+> ppName penv (getName tname)
                               return (expr)
@@ -182,15 +187,16 @@ newtype Inl a = Inl (Env -> State -> Result a)
 
 data Env = Env{ currentDef :: [Def],
                 prettyEnv :: Pretty.Env,
-                inlines :: Inlines }
+                inlines :: Inlines,
+                inlineMax :: Int }
 
-data State = State{ uniq :: Int }
+data State = State{ uniq :: !Int }
 
 data Result a = Ok a State
 
-runInl :: Pretty.Env -> Int -> Inlines -> Inl a -> (a,Int)
-runInl penv u inlines (Inl c)
-  = case c (Env [] penv inlines) (State u) of
+runInl :: Pretty.Env -> Int -> Int -> Inlines -> Inl a -> (a,Int)
+runInl penv inlMax u inlines (Inl c)
+  = case c (Env [] penv inlines inlMax) (State u) of
       Ok x st -> (x,uniq st)
 
 instance Functor Inl where
@@ -236,16 +242,17 @@ withCurrentDef def action
 
 inlExtend :: Bool -> [Def] -> Inl a -> Inl a
 inlExtend isRec defs
-  = withEnv (\env -> let inls = catMaybes (map (extractInlineDef (2*(coreInlineMax (prettyEnv env))) isRec) defs)
+  = withEnv (\env -> let inls = catMaybes (map (extractInlineDef (inlineMax env) isRec) defs)
                      in env{ inlines = inlinesExtends inls (inlines env)} )
 
 inlLookup :: Name -> Inl (Maybe (InlineDef,Int,Int))
 inlLookup name
   = do env <- getEnv
        case (inlinesLookup name (inlines env)) of
-         Nothing   -> return Nothing
-         Just idef -> let (m,n) = getArity (inlineExpr idef)
-                      in return (Just (idef,m,n))
+         Just idef | not (inlineDefIsSpecialize idef)  -- no specialization definitions
+           -> let (m,n) = getArity (inlineExpr idef)
+              in return (Just (idef,m,n))
+         _ -> return Nothing
 
   where
     getArity expr

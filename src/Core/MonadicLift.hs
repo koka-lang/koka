@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2020 Microsoft Corporation, Daan Leijen, Ningning Xie
+-- Copyright 2020-2021, Microsoft Research, Daan Leijen, Ningning Xie
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 
 -----------------------------------------------------------------------------
@@ -40,9 +40,10 @@ trace s x =
   Lib.Trace.trace s
     x
 
-monadicLift :: Pretty.Env -> Int -> DefGroups -> (DefGroups,Int)
-monadicLift penv u defs
-  = runLift penv u (liftDefGroups True defs)
+monadicLift :: Pretty.Env -> CorePhase ()
+monadicLift penv 
+  = liftCorePhaseUniq $ \uniq defs ->
+    runLift penv uniq (liftDefGroups True defs)
 
 
 {--------------------------------------------------------------------------

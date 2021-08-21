@@ -1,14 +1,14 @@
 -----------------------------------------------------------------------------
--- Copyright 2020 Microsoft Corporation, Daan Leijen.
+-- Copyright 2020-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 
 module Backend.C.FromCore ( cFromCore ) where
 
-import Numeric( showHFloat )
+import Platform.Runtime( showHFloat )
 import Platform.Config(version)
 import Lib.Trace
 import Control.Applicative hiding (empty)

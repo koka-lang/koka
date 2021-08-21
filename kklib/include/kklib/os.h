@@ -2,11 +2,11 @@
 #ifndef KK_OS_H
 #define KK_OS_H
 /*---------------------------------------------------------------------------
-  Copyright 2020 Daan Leijen, Microsoft Corporation.
+  Copyright 2020-2021, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
-  found in the file "license.txt" at the root of this distribution.
+  found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------------------
@@ -40,9 +40,11 @@ kk_decl_export double kk_timer_resolution(kk_context_t* ctx);
 kk_decl_export double kk_time_unix_now(double* secs_frac, kk_context_t* ctx);
 kk_decl_export double kk_time_resolution(kk_context_t* ctx);
 
-kk_decl_export kk_string_t kk_os_kernel(kk_context_t* ctx);
-kk_decl_export kk_string_t kk_os_arch(kk_context_t* ctx);
 kk_decl_export kk_string_t kk_compiler_version(kk_context_t* ctx);
-kk_decl_export int         kk_os_processor_count(kk_context_t* ctx);
+kk_decl_export kk_string_t kk_cc_name(kk_context_t* ctx);
+kk_decl_export kk_string_t kk_os_name(kk_context_t* ctx);
+kk_decl_export kk_string_t kk_cpu_arch(kk_context_t* ctx);
+kk_decl_export int         kk_cpu_count(kk_context_t* ctx);
+kk_decl_export bool        kk_cpu_is_little_endian(kk_context_t* ctx);
 
 #endif // include guard

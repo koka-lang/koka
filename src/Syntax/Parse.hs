@@ -1,9 +1,9 @@
 ------------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Parse concrete syntax.
@@ -202,7 +202,7 @@ pmodule source
        (name,rng) <- modulepath
        programBody vis source name rng doc
   <|>
-    programBody Public source (newName (noexts (basename (sourceName source)))) (rangeNull) ""
+    programBody Public source (pathToModuleName (noexts (basename (sourceName source)))) (rangeNull) ""
 
 programBody vis source modName nameRange doc
   = do many semiColon

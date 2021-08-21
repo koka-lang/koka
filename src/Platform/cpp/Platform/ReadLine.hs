@@ -1,10 +1,11 @@
 {-# OPTIONS -cpp #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 ------------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-
     Module that exports readline functionality
@@ -14,7 +15,9 @@ module Platform.ReadLine( withReadLine, readLine, readLineEx, addHistory
                         ) where
 
 
+import Data.Char( isSpace )
 import System.IO
+import Control.Exception
 
 #if (READLINE==2)
 import qualified System.Console.Readline as R
@@ -29,9 +32,21 @@ import Data.IORef
 #endif
 
 withReadLine :: FilePath -> IO a -> IO a
-readLine     :: [FilePath] -> String -> IO (Maybe String)
-readLineEx   :: [FilePath] -> String -> IO () -> IO (Maybe String)
+readLine     :: [FilePath] -> [String] -> String -> IO (Maybe String)
+readLineEx   :: [FilePath] -> [String] -> String -> IO () -> IO (Maybe String)
 addHistory   :: String -> IO ()
+
+
+continueLine :: Monad m => Maybe String -> m (Maybe String) -> m (Maybe String)
+continueLine mbline readLines = do
+  case mbline of
+    Just line ->
+      case reverse line of
+        []       -> readLines
+        '\\' : t -> do line2 <- readLines
+                       return $ ((reverse t ++) . ("\n" ++)) <$> line2
+        _        -> return $ Just line
+    Nothing   -> return Nothing
 
 
 #if (READLINE==2)
@@ -48,14 +63,7 @@ readLine roots prompt
     readLines :: IO (Maybe String)
     readLines
       = do mbline <- R.readline prompt
-           case mbline of
-             Just line ->
-               case reverse line of
-                 []       -> readLines
-                 '\\' : t -> do line2 <- readLines
-                                return $ ((reverse t ++) . ("\n" ++)) <$> line2
-                 _        -> return $ Just line
-             Nothing   -> return Nothing
+           continueLine mbline readLines
 
 addHistory line
   = R.addHistory line
@@ -73,16 +81,12 @@ readLine roots prompt
 
 readLineEx roots prompt putPrompt
   = do s <- readLines
-       return (Just s)
+       return s
   where
     readLines
       = do putPrompt
-           line <- getLine
-           case reverse line of
-             []       -> readLines
-             '\\' : t -> do line2 <- readLines
-                            return (reverse t ++ "\n" ++ line2)
-             _        -> return line
+           line <- catch (Just <$> getLine) (\(e :: SomeException) -> pure Nothing)
+           continueLine line readLines
 
 addHistory line
   = return ()
@@ -101,51 +105,59 @@ withReadLine historyPath io
        if (null historyFile) then return () else H.writeHistory historyFile (H.stifleHistory (Just 64) h1)
        return x
 
-readLine roots prompt
-  = readLineEx roots prompt (do{ putStr prompt; hFlush stdout})
+readLine roots identifiers prompt
+  = readLineEx roots identifiers prompt (do{ putStr prompt; hFlush stdout})
 
-readLineEx roots prompt putPrompt
-  = do putPrompt
+readLineEx roots identifiers prompt putPrompt
+  = do if (null prompt) then putPrompt else return ()
        h0 <- readIORef vhistory
-       (mbline,h1) <- R.runInputT (R.setComplete (completeModuleName roots)
+       (mbline,h1) <- R.runInputT (R.setComplete (completeLine roots identifiers)
                                    (R.defaultSettings{R.autoAddHistory = False })) $
                       do R.putHistory h0
-                         line <- readLines
+                         line <- readLines 0
                          h1 <- R.getHistory
                          return (line, h1)
        writeIORef vhistory h1
        return mbline
   where
-    readLines :: R.InputT IO (Maybe String)
-    readLines
-      = do input <- R.getInputLine ""
-           case input of
-             Just line -> case reverse line of
-                            []       -> readLines
-                            '\\' : t -> do line2 <- readLines
-                                           return $ ((reverse t ++) . ("\n" ++)) <$> line2
-                            _        -> return $ Just line
-             _ -> return Nothing
-
+    readLines :: Int -> R.InputT IO (Maybe String)
+    readLines count
+      = do input <- R.getInputLine prompt
+           continueLine input (readLines (count+1))
+    
 addHistory line
   = do h <- readIORef vhistory
        writeIORef vhistory (H.addHistoryRemovingAllDupes line h)
 
+completeLine :: [FilePath] -> [String] -> C.CompletionFunc IO
+completeLine roots identifiers (rprev,prefix) | take 2 (dropWhile isSpace (reverse rprev)) `elem` [":l",":f",":e"]
+  = (C.completeQuotedWord (Just '\\') "\"'" (listModules roots) $
+     C.completeWord (Just '\\') ("\"\'" ++ C.filenameWordBreakChars) (listModules roots)) (rprev,prefix)
+completeLine roots identifiers (rprev,prefix) 
+  = -- return (reverse prefix ++ rprev,[])
+    (C.completeWord Nothing " \t.()[]{}" (listNames identifiers)) (rprev,prefix)
 
-completeModuleName :: [FilePath] -> C.CompletionFunc IO
-completeModuleName roots
-  = C.completeQuotedWord (Just '\\') "\"'" (listModules roots) $
-    C.completeWord (Just '\\') ("\"\'" ++ C.filenameWordBreakChars) (listModules roots)
 
+listNames :: [String] -> String -> IO [C.Completion]
+listNames names prefix
+  = return $ [C.Completion name name False | name <- names, name `startsWith` prefix]
+    
 listModules :: [FilePath] -> String -> IO [C.Completion]
-listModules roots pre
-  = do cs  <- C.listFiles pre
-       css <- mapM (\root -> do cs <- C.listFiles (root ++ "/" ++ pre)
+listModules roots prefix 
+  = do cs  <- C.listFiles prefix
+       css <- mapM (\root -> do cs <- C.listFiles (root ++ "/" ++ prefix)
                                 return [c{ C.replacement = drop (length root + 1) (C.replacement c) } | c <- cs]
                    ) roots
        let norm s  = map (\c -> if (c=='\\') then '/' else c) s
        return [c{ C.replacement = norm (C.replacement c)} |
                c <- (cs ++ concat css),
-               not (C.isFinished c) {-dir-} || take 3 (reverse (C.replacement c)) == "kk." ]
+               not (C.isFinished c) {-dir-} || ((C.replacement c) `endsWith` ".kk") ]
+
+startsWith, endsWith :: String -> String -> Bool
+startsWith s pre
+  = take (length pre) s == pre
+
+endsWith s post
+  = startsWith (reverse s) (reverse post)
 
 #endif

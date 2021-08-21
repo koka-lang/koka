@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2020 Microsoft Corporation, Daan Leijen
+-- Copyright 2020-2021, Microsoft Research, Daan Leijen
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 
 module Core.Inlines ( -- Inline map
@@ -12,6 +12,7 @@ module Core.Inlines ( -- Inline map
                     , inlinesEmpty
                     , inlinesExtend, inlinesExtends
                     , inlinesLookup
+                    , inlinesFilter
                     , ppInlines
 
                     , extractInlineDefs
@@ -63,6 +64,9 @@ inlinesLookup :: Name -> Inlines -> Maybe InlineDef
 inlinesLookup name (Inlines inlines)
   = M.lookup name inlines
 
+inlinesFilter :: (Name -> Bool) -> Inlines -> Inlines
+inlinesFilter pred (Inlines m)
+  = Inlines (M.filterWithKey (\name _ -> pred name) m)
 
 {--------------------------------------------------------------------------
   Get suitable inline definitions from Core
@@ -72,7 +76,7 @@ extractInlineDefs costMax dgs
   = concatMap (extractDefGroup costMax) dgs
 
 extractDefGroup costMax (DefRec defs)
-  = catMaybes (map (extractInlineDef costMax True) defs)
+  = [] -- catMaybes (map (extractInlineDef costMax True) defs)
 extractDefGroup costMax (DefNonRec def)
   = maybeToList (extractInlineDef costMax False def)
 
@@ -83,7 +87,7 @@ extractInlineDef costMax isRec def
         if not inlinable then Nothing
          else let cost = if (defName def == nameBind2 || defName def == nameBind)  -- TODO: use generic mechanism? force-inline keyword?
                           then 0 else costDef def
-              in Just (InlineDef (defName def) (defExpr def) isRec cost)
+              in Just (InlineDef (defName def) (defExpr def) isRec (defInline def) cost [])
 
 instance Show Inlines where
  show = show . pretty

@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2020 Microsoft Corporation, Daan Leijen, Alex Reinking
+-- Copyright 2020-2021, Microsoft Research, Daan Leijen, Alex Reinking
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 {-# LANGUAGE NamedFieldPuns, GeneralizedNewtypeDeriving  #-}
 
@@ -99,7 +99,7 @@ ruExpr expr
       Let (DefNonRec def:dgs) body
         -> ruLet def (Let dgs body)
       Let _ _
-        -> failure "Backend.C.Reuse.ruExpr"
+        -> failure ("Backend.C.Reuse.ruExpr: " ++ show expr)
 
       -- Since this runs after Parc: the scrutinees are variables
       Case scrutinees branches

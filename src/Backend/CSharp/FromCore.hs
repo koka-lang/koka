@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 -----------------------------------------------------------------------------
 -- System F-like core language.
@@ -18,6 +18,7 @@ import Platform.Config(version)
 import Lib.Trace( trace )
 import Control.Applicative hiding (empty)
 import Control.Monad
+import qualified Control.Monad.Fail as F
 import Data.Char( isDigit, isAlphaNum )
 import Data.List( transpose )
 import Lib.PPrint
@@ -1524,7 +1525,7 @@ instance Monad Asm where
                                     (x,st1) -> case f x of
                                                  Asm b -> b env st1)
 
-instance MonadFail Asm where
+instance F.MonadFail Asm where
   fail = failure
 
 runAsm :: Env -> Asm () -> Doc

@@ -1,0 +1,18 @@
+initially: 0
+action: False, 43
+return, local=43
+finally, local=43
+initially: 1
+action: True, 43
+finally, local=43
+uncaught exception: ouch
+add default effect for std/core/exn
+ 
+finally/initially2a/Flip: forall<e,a> (.hnd-flip<e,a>) -> flip
+finally/initially2a/Inc: forall<e,a> (.hnd-inc<e,a>) -> inc
+finally/initially2a/amb: forall<a,e> (() -> <flip|e> a) -> e list<a>
+finally/initially2a/bar: () -> <console,exn,flip,inc> int
+finally/initially2a/flip: () -> flip bool
+finally/initially2a/foo: () -> <console,exn,flip> int
+finally/initially2a/inc: () -> inc int
+finally/initially2a/main: () -> <console,exn> ()

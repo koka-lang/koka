@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2012 Microsoft Corporation.
+-- Copyright 2012-2021, Microsoft Research, Daan Leijen.
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 
 module Type.InferMonad( Inf, InfGamma
@@ -47,7 +47,7 @@ module Type.InferMonad( Inf, InfGamma
                       -- * Operations
                       , generalize
                       , improve
-                      , instantiate, instantiateNoEx
+                      , instantiate, instantiateNoEx, instantiateEx
                       , checkEmptyPredicates
                       , checkCasing
                       , normalize
@@ -95,7 +95,7 @@ import Type.Kind
 import qualified Type.Pretty as Pretty
 import qualified Core.Core as Core
 
-import Type.Operations hiding (instantiate, instantiateNoEx)
+import Type.Operations hiding (instantiate, instantiateNoEx, instantiateEx)
 import qualified Type.Operations as Op
 import Type.Assumption
 import Type.InfGamma
@@ -131,7 +131,7 @@ generalize contextRange range close eff  tp@(TForall _ _ _)  core0
         then -- Lib.Trace.trace ("generalize forall: " ++ show (pretty stp)) $
               return (tp,core0)
         else -- Lib.Trace.trace ("generalize forall-inst: " ++ show (pretty seff, pretty stp) ++ " with " ++ show ps0) $
-             do (rho,tvars,icore) <- instantiate range stp
+             do (rho,tvars,icore) <- instantiateNoEx range stp
                 generalize contextRange range close seff rho (icore core0)
 
 generalize contextRange range close eff0 rho0 core0
@@ -261,17 +261,20 @@ getResolver
                           _              -> failure $ "Type.InferMonad:getResolver: called with unknown name: " ++ show name)
 
 
-
 instantiate :: Range -> Scheme -> Inf (Rho,[TypeVar],Core.Expr -> Core.Expr)
-instantiate range tp | isRho tp
+instantiate = instantiateEx
+
+instantiateEx :: Range -> Scheme -> Inf (Rho,[TypeVar],Core.Expr -> Core.Expr)
+instantiateEx range tp | isRho tp
   = do (rho,coref) <- Op.extend tp
        return (rho,[],coref)
-instantiate range tp
-  = do (tvars,ps,rho,coref) <- instantiateEx range tp
+instantiateEx range tp
+  = do (tvars,ps,rho,coref) <- Op.instantiateEx range tp
        addPredicates ps
        return (rho, tvars, coref)
 
 instantiateNoEx :: Range -> Scheme -> Inf (Rho,[TypeVar],Core.Expr -> Core.Expr)
+
 instantiateNoEx range tp | isRho tp
   = return (tp,[],id)
 instantiateNoEx range tp
@@ -847,7 +850,7 @@ runInfer :: Pretty.Env -> Maybe RangeMap -> Synonyms -> Newtypes -> ImportMap ->
 runInfer env mbrm syns newTypes imports assumption context unique (Inf f)
   = case f (Env env context (newName "") False newTypes syns assumption infgammaEmpty imports False False) (St unique subNull [] mbrm) of
       Err err warnings -> addWarnings warnings (errorMsg (ErrorType [err]))
-      Ok x st warnings -> addWarnings warnings (ok (x,uniq st, (sub st) |-> mbRangeMap st))
+      Ok x st warnings -> addWarnings warnings (ok (x, uniq st, (sub st) |-> mbRangeMap st))
 
 
 zapSubst :: Inf ()

@@ -1,9 +1,9 @@
 -----------------------------------------------------------------------------
--- Copyright 2016-2017 Microsoft Corporation, Daan Leijen
+-- Copyright 2016-2017 Microsoft Research, Daan Leijen
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
--- found in the file "license.txt" at the root of this distribution.
+-- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
 
 -----------------------------------------------------------------------------
@@ -47,9 +47,9 @@ trace s x =
   -- Lib.Trace.trace s
     x
 
-monTransform :: Pretty.Env -> DefGroups -> Error DefGroups
-monTransform penv defs
-  = runMon penv 0 (monDefGroups defs)
+monTransform :: Pretty.Env -> CorePhase ()
+monTransform penv 
+  = liftCorePhaseUniq $ \uniq defs -> runMon penv uniq (monDefGroups defs)
 
 
 {--------------------------------------------------------------------------
@@ -105,7 +105,7 @@ monExpr' topLevel expr
       App eopen@(TypeApp (Var open _) [effFrom,effTo,_,_]) [f]
         | getName open == nameEffectOpen
         -> do f' <- monExpr f
-              return $ \k -> f' (\ff -> k (App eopen [f]))
+              return $ \k -> f' (\ff -> k (App eopen [ff]))
 
       -- regular cases
       Lam args eff body
@@ -361,10 +361,10 @@ data State = State{ uniq :: Int }
 
 data Result a = Ok a State
 
-runMon :: Monad m => Pretty.Env -> Int -> Mon a -> m a
+runMon :: Pretty.Env -> Int -> Mon a -> (a,Int)
 runMon penv u (Mon c)
   = case c (Env [] False penv) (State u) of
-      Ok x _ -> return x
+      Ok x (State u') -> (x,u')
 
 instance Functor Mon where
   fmap f (Mon c)  = Mon (\env st -> case c env st of

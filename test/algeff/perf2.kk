@@ -57,8 +57,8 @@ effect choose {
 fun choose-all( action ) {
   handle(action){
     return x  -> [x]
-    control pick(n)   -> list(1,n,resume).concat
-    control fail      -> []
+    rcontrol pick(n)  -> list(1,n,fn(x){ rcontext.resume(x) }).concat
+    except   fail()   -> []
   }
 }
 

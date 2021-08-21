@@ -1,0 +1,8 @@
+action
+finally
+return
+42
+ 
+finally/finally1/bar: () -> console int
+finally/finally1/foo: () -> console int
+finally/finally1/main: () -> console ()
