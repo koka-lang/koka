@@ -1134,11 +1134,6 @@ static inline kk_box_t kk_ref_modify(kk_ref_t r, kk_function_t f, kk_context_t* 
   return kk_function_call(kk_box_t,(kk_function_t,kk_ref_t,kk_context_t*),f,(f,r,ctx));
 }
 
-static inline kk_box_t kk_ref_modify2(kk_ref_t r, kk_ref_t s, kk_function_t f, kk_context_t* ctx) {
-  return kk_function_call(kk_box_t,(kk_function_t,kk_ref_t,kk_ref_t,kk_context_t*),f,(f,r,s,ctx));
-}
-
-
 /*--------------------------------------------------------------------------------------
   kk_Unit
 --------------------------------------------------------------------------------------*/

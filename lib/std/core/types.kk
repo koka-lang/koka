@@ -270,13 +270,6 @@ inline extern modify : forall<h,a,b,e> ( ref : ref<h,a>, f : forall<s> local-var
   js inline "((#2)(#1))"
 }
 
-// TODO: This is only necessary because we can't nest 'modify' since the local effects don't mesh well.
-// Also this contains only hdiv<h,a,e> when it would also need hdiv<h,b,e>
-inline extern modify2 : forall<h,a,b,c,e> ( r1 : ref<h,a>, r2 : ref<h,b>, f : forall<s>(local-var<s,a>, local-var<s,b>) -> <local<s>|e> c) -> <read<h>,write<h>|e> c with(hdiv<h,a,e>) {
-  c  inline "kk_ref_modify2(#1, #2, #3, kk_context())"
-  js inline "((#3)(#1)(#2))"
-}
-
 // If a heap effect is unobservable, the heap effect can be erased by using the `run` fun.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
 extern run : forall<e,a> ( action : forall<h> () -> <alloc<h>,read<h>,write<h> | e> a ) -> e a  {
