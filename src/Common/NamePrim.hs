@@ -15,9 +15,9 @@ module Common.NamePrim
             nameExpr, nameMain, nameType
           , nameInteractive, nameInteractiveModule
           , nameSystemCore, nameCoreTypes
-          , isSystemCoreName, isPrimitiveName
+          , isSystemCoreName
           , isPrimitiveModule -- no monadic lifting
-          , isPrimitiveName   -- never consider total
+          , isPrimitiveName   
           , nameOpExpr
 
           -- * Operations
@@ -32,7 +32,6 @@ module Common.NamePrim
           , nameReturn, nameTrace, nameLog, namePhantom
           , nameEffectOpen
           , nameToAny
-          , nameEnsureK
           , nameIsValidK
           , nameLift, nameBind, nameBind2
           , nameInject, nameInjectExn, nameInjectResource
@@ -211,7 +210,7 @@ nameAssert      = preludeName "assert"
 nameTpCps       = preludeName "cps"
 nameInCps       = preludeName "incps"
 nameTpCont      = preludeName "cont"
-nameEnsureK     = preludeName "ensureK"
+
 nameTpAsync     = qualify (newName "std/async") (newName "async")
 nameTpAsyncX    = qualify (newName "std/async") (newName "asyncx")
 

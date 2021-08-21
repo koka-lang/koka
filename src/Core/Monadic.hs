@@ -25,7 +25,7 @@ import Common.Name
 import Common.Range
 import Common.Unique
 import Common.NamePrim( nameEffectOpen, nameYieldOp, nameReturn, nameTpCont, nameDeref, nameByref,
-                        nameEnsureK, nameTrue, nameFalse, nameTpBool, nameApplyK, nameUnsafeTotal, nameIsValidK,
+                        nameTrue, nameFalse, nameTpBool, nameApplyK, nameUnsafeTotal, nameIsValidK,
                         nameBind, nameLift, nameTpYld, nameSystemCore )
 import Common.Error
 import Common.Syntax
