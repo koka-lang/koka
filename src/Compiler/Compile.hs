@@ -42,7 +42,7 @@ import Common.Failure
 import Lib.Printer            ( withNewFilePrinter )
 import Common.Range           -- ( Range, sourceName )
 import Common.Name            -- ( Name, newName, qualify, asciiEncode )
-import Common.NamePrim        ( isPrimitiveModule, nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync, nameTpNamed )
+import Common.NamePrim        ( isPrimitiveModule, nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync, nameTpNamed, isPrimitiveName )
 import Common.Error
 import Common.File
 import Common.ColorScheme
@@ -62,7 +62,7 @@ import Core.OpenResolve       ( openResolve )
 import Core.FunLift           ( liftFunctions )
 import Core.Monadic           ( monTransform )
 import Core.MonadicLift       ( monadicLift )
-import Core.Inlines           ( inlinesExtends, extractInlineDefs )
+import Core.Inlines           ( inlinesExtends, extractInlineDefs, inlinesFilter )
 import Core.Inline            ( inlineDefs )
 import Core.Specialize
 
@@ -862,66 +862,81 @@ inferCheck loaded0 flags line coreImports program
        -- remove return statements
        unreturn penv
        -- checkCoreDefs "unreturn"
-       
+     
+       -- initial simplify
        let ndebug  = optimize flags > 0
            simplifyX dupMax = simplifyDefs penv False {-unsafe-} ndebug (simplify flags) dupMax
            simplifyDupN     = when (simplify flags >= 0) $
                               simplifyX (simplifyMaxDup flags)
            simplifyNoDup    = simplifyX 0
        simplifyNoDup
-       -- traceDefGroups "simplify"
+       -- traceDefGroups "simplify1"
+
+       -- inline: inline local definitions more aggressively (2x)
+       when (optInlineMax flags > 0) $
+         let inlines = if (isPrimitiveModule (Core.coreProgName coreProgram)) then loadedInlines loaded
+                        else inlinesFilter (not . isPrimitiveName) (loadedInlines loaded)
+         in inlineDefs penv (2*(optInlineMax flags)) inlines
+       checkCoreDefs "inlined"
+       -- traceDefGroups "inlined"
        
        -- specialize 
-       specializeDefs <- Core.withCoreDefs (\defs -> extractSpecializeDefs defs)
+       specializeDefs <- -- if (isPrimitiveModule (Core.coreProgName coreProgram)) then return [] else 
+                         Core.withCoreDefs (\defs -> extractSpecializeDefs defs)
        -- trace ("Spec defs:\n" ++ show specializeDefs) $ return ()
        
        when (optSpecialize flags) $
          specialize (inlinesExtends specializeDefs (loadedInlines loaded))
-       -- traceDefGroups "specialize"
-
-       -- lifting recursive functions to top level
+       -- traceDefGroups "specialized"
+          
+       -- lifting recursive functions to top level (must be after specialize)
        liftFunctions penv
+       checkCoreDefs "lifted"      
+      
        simplifyNoDup
-       checkCoreDefs "lifted"
-       -- traceDefGroups "lifted"
+       coreDefsInlined <- Core.getCoreDefs
+       -- traceDefGroups "simplify2"
+
+       ------------------------------
+       -- backend optimizations 
 
        -- tail-call-modulo-cons optimization
        when (optctail flags) $
          ctailOptimize penv (platform flags) newtypes gamma (optctailInline flags) 
-
+      
        -- transform effects to explicit monadic binding (and resolve .open calls)
        when (enableMon flags && not (isPrimitiveModule (Core.coreProgName coreProgram))) $
           -- trace "monadic transform" $
           do Core.Monadic.monTransform penv
-             openResolve penv gamma
-       checkCoreDefs "monadic transform"
-
+             openResolve penv gamma           -- must be after monTransform
+       checkCoreDefs "monadic transform"  
+       
        -- full simplification
-       simplifyDupN 
-             
+       -- simplifyDupN 
+       -- traceDefGroups "open resolved"  
+
        -- monadic lifting to create fast inlined paths
        monadicLift penv
        checkCoreDefs "monadic lifting"
        -- traceDefGroups "monadic lift"
 
-       -- inline: inline local definitions more aggressively (2x)
-       inlineDefs penv (2*(optInlineMax flags)) (loadedInlines loaded) 
-       checkCoreDefs "inlined"
-       -- traceDefGroups "inlined"
-
+      -- now inline primitive definitions (like yield-bind)
+       inlineDefs penv (2*optInlineMax flags) (inlinesFilter isPrimitiveName (loadedInlines loaded))  
+      
+       -- remove remaining open calls; this may change effect types
        simplifyDefs penv True {-unsafe-} ndebug (simplify flags) 0 -- remove remaining .open
 
-       -- full simplification
+       -- final simplification
        simplifyDupN
        checkCoreDefs "final" 
-       -- traceDefGroups "final"
+       -- traceDefGroups "simplify final"
 
        -- Assemble core program and return
        coreDefsFinal <- Core.getCoreDefs
        uniqueFinal   <- unique
        -- traceM ("final: " ++ show uniqueFinal)
        let -- extract inline definitions to export
-           localInlineDefs  = extractInlineDefs (optInlineMax flags) coreDefsFinal 
+           localInlineDefs  = extractInlineDefs (optInlineMax flags) coreDefsInlined 
            allInlineDefs    = localInlineDefs ++ specializeDefs
 
            coreProgramFinal 

@@ -15,7 +15,7 @@ module Common.NamePrim
             nameExpr, nameMain, nameType
           , nameInteractive, nameInteractiveModule
           , nameSystemCore, nameCoreTypes
-          , isSystemCoreName
+          , isSystemCoreName, isPrimitiveName
           , isPrimitiveModule -- no monadic lifting
           , nameOpExpr
 
@@ -297,7 +297,7 @@ nameYielding    = coreHndName "yielding"
 nameYieldExtend = coreHndName "yield-extend"
 nameBind        = coreHndName "yield-bind" -- preludeName "bind"
 nameBind2       = coreHndName "yield-bind2"
-nameEffectOpen  = coreHndName ".open" -- preludeName ".open"
+nameEffectOpen  = coreTypesName ".open" -- preludeName ".open"
 
 nameInitially   = coreHndName "initially"
 nameFinally     = coreHndName "finally"
@@ -449,6 +449,10 @@ nameDict        = newName "std/data/dict"
 isSystemCoreName name
   = let m = nameModule name
     in  m `elem` [nameId nameSystemCore, nameId nameCoreHnd, nameId nameCoreTypes]
+
+isPrimitiveName name
+  = let m = nameModule name
+    in  m `elem` [nameId nameCoreHnd, nameId nameCoreTypes]
 
 isPrimitiveModule name
   = nameId name `elem` [nameId nameCoreHnd, nameId nameCoreTypes]

@@ -235,7 +235,7 @@ makeSpecialize def
       
       guard (any isJust specializableParams)
       pure $ -- SpecializeInfo (defName def) (defExpr def) $ map isJust specializableParams
-             InlineDef (defName def) (defExpr def) True (costDef def) (map isJust specializableParams)
+             InlineDef (defName def) (defExpr def) True (InlineAuto) (costDef def) (map isJust specializableParams)
 
 allPassedInSameOrder :: [TName] -> [[Expr]] -> [Maybe TName]
 allPassedInSameOrder params calls 
