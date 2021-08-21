@@ -425,92 +425,63 @@ bottomUpArg arg
 data Match a = Match a | Unknown | NoMatch
              deriving(Show)
 
+isNoMatch NoMatch = True
+isNoMatch _       = False
+
 instance Functor Match where
   fmap f (Match x) = Match (f x)
   fmap f NoMatch   = NoMatch
   fmap f Unknown   = Unknown
+   
 
+instance Applicative Match where
+  pure x      = Match x
+  m1 <*> m2   = case m1 of 
+                  Match f -> fmap f m2
+                  Unknown -> Unknown
+                  NoMatch -> NoMatch
 
--- matchAll   :: [Match a] -> Match a
--- matchFirst :: [Match a] -> Match a
--- kmatchMatch    :: Expr -> [Branch] -> Match Expr
--- kmatchPatterns :: [Expr] -> [Pattern] -> Match Expr
--- kmatchPattern  :: Expr -> Pattern -> Match (Defs, Expr)
+instance Monad Match where
+  m >>= f   = case m of
+                Match x -> f x
+                Unknown -> Unknown
+                NoMatch -> NoMatch
+  
 
 matchFirst :: [Match a] -> Match a
 matchFirst (NoMatch : matches) = matchFirst matches
 matchFirst (other : matches)   = other
 matchFirst []                  = NoMatch
 
---For each branch and check if a match is found and return the expr as is, else move onto the next branch
+matchAll :: [Match a] -> Match [a]
+matchAll []                   = Match []
+matchAll (Match x : matches)  = fmap (x:) (matchAll matches)
+matchAll (NoMatch : matches)  = if (all isNoMatch matches) then NoMatch else Unknown
+matchAll (Unknown : matches)  = Unknown
+
+--For each branch and check if an exact match is found and return the expr as is, else move onto the next branch
 kmatchBranches :: [Expr] -> [Branch] -> Maybe Expr
 kmatchBranches scruts branches
-  = let matches = (map (kmatchBranch scruts) branches)
+  = let matches = map (kmatchBranch scruts) branches
     in case matchFirst matches of
-      Match expr -> Just (uniquefyExpr expr)
-      _          -> -- trace ("kmatchBranches: fail matchFirst: " ++ show matches) $ 
-                    Nothing
+        Match expr -> Just (uniquefyExpr expr)
+        _          -> Nothing
 
 -- For every branch, compare all its pats with the scruts and if they all match, return the matched bindings+scruts combined with the branch body
 kmatchBranch :: [Expr] -> Branch -> Match Expr
 kmatchBranch scruts branch@(Branch pats [Guard guard expr]) | isExprTrue  guard
   = --trace ("kmatchBranch start: " ++ show scruts ++ " ___branch___ " ++ show branch) $
-    case kmatchPatterns scruts pats of
-      Match bindings -> --trace ("kmatchBranch " ++ show bindings ++ " " ++ show expr) $
-                        Match (Let (map DefNonRec bindings) expr)
-      NoMatch -> NoMatch
-      Unknown -> Unknown
+    do bindings <- kmatchPatterns scruts pats
+       Match (Let (map DefNonRec bindings) expr)
+
 kmatchBranch _ _ = Unknown
 
-makeExpr :: Defs -> Expr -> Expr
-makeExpr [] expr    = expr
-makeExpr defs expr  = Let (map DefNonRec defs) expr
-
-matchAll :: [Match (Defs,Expr)] -> Match [(Defs,Expr)]
-matchAll []                   = Match []
-matchAll (Match de : matches) = fmap (de:) (matchAll matches)
-matchAll (NoMatch : matches)  = if (all isNoMatch matches) then NoMatch else Unknown
-matchAll (Unknown : matches)  = Unknown
-
-isNoMatch NoMatch = True
-isNoMatch _       = False
-
--- matchAll []
---   = Unknown
--- matchAll ((Match defs_expr) : matches)
---   = case matchAll matches of
---       Match defs_expr' -> Match (defs_expr : defs_expr')
---       other -> other
--- matchAll (NoMatch : matches)
---   = NoMatch
--- matchAll (Unknown : matches)
---   = matchAll matches
 
 -- For every scrut - pat tuple, get the binding and new scrutinee and collect them into a single expr
 kmatchPatterns :: [Expr] -> [Pattern] -> Match Defs
 kmatchPatterns scruts pats
-  = case matchAll (zipWith kmatchPattern scruts pats) of
-      Match ds -> Match (concatMap (\(defs,newscrut) -> defs ++ [makeDef (newHiddenName "scrut") newscrut]) ds)
-      NoMatch  -> NoMatch
-      Unknown  -> Unknown
-{-
-kmatchPatterns [] [] = Match []
-kmatchPatterns (scrut: scruts) (pat: pats)
-    case kmatchPattern scrut pat of
-     -- makeDefExpr with nameNil is causing issues with the perceus drop operations
-      Match (bindings, newscrut) 
-        -> combineMatches (Match (bindings ++ [makeDef (newHiddenName "scrut") newscrut])) (kmatchPatterns scruts pats)
-      NoMatch -> NoMatch
-      Unknown -> Unknown
-kmatchPatterns _ _  = failure "Core.Simplify.kmatchPatterns: number of patterns does not match the scrutinees"
-
-combineMatches :: Match [Def] -> Match [Def] -> Match [Def]
-combineMatches (Match defs1) (Match defs2) = Match (defs1 ++ defs2)
-combineMatches Unknown _       = Unknown
-combineMatches _  Unknown      = Unknown
-combineMatches NoMatch _       = NoMatch
-combineMatches _  NoMatch      = NoMatch
--}
+  = do ds <- matchAll (zipWith kmatchPattern scruts pats) 
+       Match (concatMap (\(defs,newscrut) -> defs ++ [makeDef (newHiddenName "scrut") newscrut]) ds)
 
 -- Returns the bindings and modified scrutinee if the scrutinee and the pattern match
 kmatchPattern :: Expr -> Pattern -> Match (Defs, Expr)
@@ -519,129 +490,45 @@ kmatchPattern scrut PatWild
 
 kmatchPattern scrut (PatVar name pat)
  = --trace ("kmatchPat PatVar " ++ show scrut ++ " ___pat___ " ++ show (PatVar name pat)) $
-   case kmatchPattern scrut pat of
-    Match (defs, newscrut) -> --trace ("kmatchPat PatVar match " ++ show defs ++ " ___newscrut___  " ++ show newscrut ++ " new defs: " ++ show (defs ++ [makeDef (getName name) newscrut])) $
-                              Match (defs ++ [makeDef (getName name) newscrut], Var name InfoNone)
-    other -> --trace "kmatchPat PatVar nomatch " $
-             other
-kmatchPattern scrut@(Lit l) (PatLit pLit)
+   do (defs,newscrut) <- kmatchPattern scrut pat 
+      Match (defs ++ [makeDef (getName name) newscrut], Var name InfoNone)
+    
+kmatchPattern scrut@(Lit lit) (PatLit pLit)
   = --trace "kmatchPat PatLit " $
-    if l == pLit
-      then Match ([], scrut)
-      else NoMatch
+    if lit /= pLit then NoMatch else Match ([], scrut) 
 
 kmatchPattern scrut@(Con name _repr) (PatCon pname [] _prepr _ _ _ _info _)
   = --trace ("kmatchPat PatCon empty pats " ++ show name ++ " ___pat___ " ++ show pname) $
-    if name == pname
-      then --trace ("kmatchPat PatCon empty pats match " ++ show name) $
-           Match ([], scrut)
-      else --trace ("kmatchPat PatCon empty pats nomatch " ++ show name ++ " " ++ show pname) $
-           NoMatch
-
+    if name /= pname then NoMatch else
+      --trace ("kmatchPat PatCon empty pats match " ++ show name) $
+      Match ([], scrut)
+      
 kmatchPattern scrut@(App con@(Con name conRepr) args) (PatCon pname pats _ _ _ _ _ _)
   = --trace "kmatchPat PatCon non empty pats " $
-    if name == pname
-      then
-        case matchAll (zipWith kmatchPattern args pats) of
-          Match ds -> let (defs,scruts) = unzip ds
-                      in Match (concat defs, App con scruts)
-          NoMatch  -> NoMatch
-          Unknown  -> Unknown
-      else NoMatch
-
+    if name /= pname then NoMatch else
+      do ds <- matchAll (zipWith kmatchPattern args pats) 
+         let (defs,scruts) = unzip ds
+         Match (concat defs, App con scruts)
+      
 kmatchPattern scrut@(App con@(TypeApp (Con name conRepr) targs) args) (PatCon pname pats _ _ _ _ _ _)
   = --trace "kmatchPat PatCon non empty pats " $
-    if name == pname
-      then
-       case matchAll (zipWith kmatchPattern args pats) of
-          Match ds -> let (defs,scruts) = unzip ds
-                      in Match (concat defs, App con scruts)
-          NoMatch  -> NoMatch
-          Unknown  -> Unknown
-      else NoMatch
-
-{-      
-kmatchPattern scrut@(App (Var vname varInfo) args) (PatCon pname pats _ _ _ _ _ _)
-  = --trace "kmatchPat App expr Var " $
-    if vname == pname
-      then
-        case kmatchPatterns args pats of
-            Match defs -> Match (defs, scrut)
-            Unknown -> Unknown
-            NoMatch -> NoMatch
-    else NoMatch
--}
+    if name /= pname then NoMatch else
+      do ds <- matchAll (zipWith kmatchPattern args pats)
+         let (defs,scruts) = unzip ds
+         Match (concat defs, App con scruts)
 
 kmatchPattern (Let letDefns letBody) pat
   = --trace ("kmatchPat Let scrut " ++ show letDefns ++ " ____pat____ " ++ show letBody) $
-    case kmatchPattern letBody pat of
-      Match (bindings, newscrut) -> --trace ("kmatchPat Let match " ++ show bindings ++ " newscrut: " ++ show newscrut) $
-                                    Match (flattenDefGroups letDefns ++ bindings, newscrut)
-      other -> --trace "kmatchPat Let scrut nomatch " $ 
-               other
+    do (bindings,newscrut) <- kmatchPattern letBody pat 
+       Match (flattenDefGroups letDefns ++ bindings, newscrut)
 
 kmatchPattern scrut pat
-  = --trace ("kmatchPat NoMatch " ++ show scrut ++ " ___pat___ " ++ show pat) $
+  = --trace ("kmatchPat Unknown " ++ show scrut ++ " ___pat___ " ++ show pat) $
     Unknown
 
---------------------------------------------------------------------------------------------------
-
-matchBranches :: Expr -> [Branch] -> Maybe Expr
-matchBranches scrutinee branches
-  = -- trace ("matchBranches main " ++ show branches) $ 
-    case (foldl f NoMatch branches) of
-      Match expr -> Just expr
-      _ -> Nothing
-  where
-    f NoMatch branch = matchBranch scrutinee branch
-    f found _ = found
-
-matchBranch :: Expr -> Branch -> Match Expr
-matchBranch scrut (Branch [pat] [Guard guard expr]) | isExprTrue guard
-  = --trace ("matchBranch start " ++ show guard ++ " pattern " ++ show pat)   $
-    matchPattern Nothing scrut pat expr
-matchBranch scrut branch
-  = --trace ("matchBranch guard expr untrue ") 
-    Unknown
-
-matchPattern :: Maybe TName -> Expr -> Pattern -> Expr -> Match Expr
-matchPattern scrutName scrut pat expr =
-  -- trace ("matchPattern start pattern" ++ show pat ++ " scrut " ++ show scrut) $
-  case (scrut,pat) of
-    (Con name _repr, PatCon pname [] _prepr _ _ _ _info _)
-      | name == pname -> -- trace ("matchPattern matched PatCon " ++ show name ++ " " ++ show scrut ++ " " ++ show pat)   $ 
-                         Match expr
-      | otherwise     -> -- trace "matchPattern no match PatCon " $ 
-                         NoMatch
-    (Con name _repr, PatCon pname pats _preprs _ _ _ _info _)
-      | name /= pname -> NoMatch
-    -- (App (Con name _repr) args,
-    --  PatCon pname pats _prepr _ _ _ _info _) 
-    --   | name /= pname -> NoMatch
-    -- (App (TypeApp (Con name _repr) targs) args,
-    --  PatCon pname pats _prepr _ _ _ _info _) 
-    --   | name /= pname -> NoMatch
-    --   | name == pname -> NoMatch-- match all subpatterns
-    --   | otherwise -> NoMatch
-    (_, PatVar name pat)
-      -> --trace "matchPattern PatVar " $
-         bindScrutIn (getName name) (matchPattern (Just name) scrut pat expr)
-    (_, PatWild)
-      -> bindScrutIn nameNil (Match expr)
-    _ -> --trace "matchPattern unknown " 
-         Unknown
-  where
-     bindScrutIn :: Name -> Match Expr -> Match Expr
-     bindScrutIn name (Match branch)
-      = let body = case scrutName of
-                     Nothing -> scrut
-                     Just nm -> Var nm InfoNone
-            def = Def name (typeOf scrut) body Private DefVal InlineAuto rangeNull ""
-        in Match (makeLet [DefNonRec def] branch)
-     bindScrutIn name found
-      = found
-
-
+----------------------------------------------
+-- bottomUpM
+----------------------------------------------
 bottomUpM :: Expr -> Simp Expr
 bottomUpM (Let dgs body)
   = bottomUpLet [] [] dgs body

@@ -93,6 +93,7 @@ data Flags
          , showKindSigs     :: Bool
          , showSynonyms     :: Bool
          , showCore         :: Bool
+         , showFinalCore    :: Bool
          , showCoreTypes    :: Bool
          , showAsmCS        :: Bool
          , showAsmJS        :: Bool
@@ -171,7 +172,7 @@ flagsNull
           True
           -- show
           False False  -- kinds kindsigs
-          False False False -- synonyms core core-types
+          False False False False -- synonyms core fcore core-types
           False -- show asm
           False
           False
@@ -296,6 +297,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["showtypesigs"]   (\b f -> f{showTypeSigs=b})      "show type signatures of definitions"
  , flag   []    ["showsynonyms"]   (\b f -> f{showSynonyms=b})      "show expanded type synonyms in types"
  , flag   []    ["showcore"]       (\b f -> f{showCore=b})          "show core"
+ , flag   []    ["showfcore"]      (\b f -> f{showFinalCore=b})     "show final core (with backend optimizations)"
  , flag   []    ["showcoretypes"]  (\b f -> f{showCoreTypes=b})     "show full types in core"
  , flag   []    ["showcs"]         (\b f -> f{showAsmCS=b})         "show generated c#"
  , flag   []    ["showjs"]         (\b f -> f{showAsmJS=b})         "show generated javascript"

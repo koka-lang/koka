@@ -1242,8 +1242,8 @@ codeGen term flags compileTarget loaded
        when (genCore flags)  $
          do termPhase term "generate core"
             writeDocW 10000 outCore coreDoc  -- just for debugging
-       -- when (showCore flags && target flags /= C) $
-       --   do termDoc term coreDoc
+       when (showFinalCore flags && target flags /= C) $
+         do termDoc term coreDoc
 
        -- write documentation
        let fullHtml = outHtml flags > 1
@@ -1420,8 +1420,8 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                                 mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } C [] bcore
       -- writeDocW 120 (outBase ++ ".c.core") bcoreDoc
-      -- when (showCore flags) $
-      --  do termDoc term bcoreDoc
+      when (showFinalCore flags) $
+        do termDoc term bcoreDoc
 
       termPhase term ( "generate c: " ++ outBase )
       writeDocW 120 outC (cdoc <.> linebreak)
