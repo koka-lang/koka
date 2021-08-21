@@ -387,8 +387,8 @@ matchFirst []                  = NoMatch
 matchAll :: [Match a] -> Match [a]
 matchAll []                   = Match []
 matchAll (Match x : matches)  = fmap (x:) (matchAll matches)
-matchAll (NoMatch : matches)  = if (all isNoMatch matches) then NoMatch else Unknown
-matchAll (Unknown : matches)  = Unknown
+matchAll (NoMatch : matches)  = NoMatch
+matchAll (Unknown : matches)  = if (any isNoMatch matches) then NoMatch else Unknown
 
 --For each branch and check if an exact match is found and return the expr as is, else move onto the next branch
 kmatchBranches :: [Expr] -> [Branch] -> Maybe Expr
@@ -400,10 +400,12 @@ kmatchBranches scruts branches
 
 -- For every branch, compare all its pats with the scruts and if they all match, return the matched bindings+scruts combined with the branch body
 kmatchBranch :: [Expr] -> Branch -> Match Expr
-kmatchBranch scruts branch@(Branch pats [Guard guard expr]) | isExprTrue  guard
+kmatchBranch scruts branch@(Branch pats [Guard guard expr]) -- | isExprTrue  guard
   = --trace ("kmatchBranch start: " ++ show scruts ++ " ___branch___ " ++ show branch) $
-    do bindings <- kmatchPatterns scruts pats
-       Match (Let (map DefNonRec bindings) expr)
+    do bindings <- kmatchPatterns scruts pats 
+       if (isExprTrue guard) 
+         then Match (Let (map DefNonRec bindings) expr)
+         else Unknown
 
 kmatchBranch _ _ = Unknown
 
