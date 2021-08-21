@@ -1,6 +1,3 @@
 [submodule "kklib/mimalloc"]
 	path = kklib/mimalloc
 	url = https://github.com/microsoft/mimalloc
-[submodule "contrib/isocline"]
-	path = contrib/isocline
-	url = https://github.com/daanx/isocline
