@@ -35,7 +35,7 @@ rand (RandState s1 s2 s3)
 
 randList :: TestConfig -> [Int]
 randList (TestConfig ts mrn)
-  = go (RandState 19373 17844 5912) ts []
+  = go (RandState 19379 17844 5912) ts []
   where
     mrnd = fromIntegral mrn
     go st n l = if n <= 0 then l
