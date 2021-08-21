@@ -313,10 +313,11 @@ data ColorPrinter = PCon  ConsolePrinter
 -- | Use a color-enabled printer.
 withColorPrinter :: (ColorPrinter -> IO b) -> IO b
 withColorPrinter f
-  = Con.withConsole $ \success ->
+  = {- Con.withConsole $ \success ->
     if success
      then f (PCon (ConsolePrinter ()))
-     else withAnsiPrinter (f . PAnsi)
+     else -}
+    withAnsiPrinter (f . PAnsi)
 
 withHtmlColorPrinter :: (ColorPrinter -> IO b) -> IO b
 withHtmlColorPrinter f
