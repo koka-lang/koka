@@ -22,6 +22,7 @@ module Compiler.Options( -- * Command line options
                        , buildType, unquote
                        , outName, buildDir, buildVariant
                        , cpuArch, osName
+                       , optionCompletions
                        ) where
 
 
@@ -516,6 +517,20 @@ environment
     editorEnv s     = ["--editor=" ++ s]
     vcpkgEnv dir    = ["--vcpkg=" ++ dir]
     -- dirEnv s        = ["--install-dir=" ++ s]
+
+optionCompletions :: [(String,String)]
+optionCompletions 
+  = concatMap complete (fst options)
+  where
+    complete :: OptDescr Option -> [(String,String)]
+    complete (Option shorts longs arg help)
+      = let lreq = case arg of ReqArg _ _ -> "="
+                               _          -> ""
+            sreq = case arg of ReqArg _ _ -> " "
+                               _          -> ""
+        in zip ((map (\c -> "-" ++ [c] ++ sreq) shorts) ++ (map (\s -> "--" ++ s ++ lreq) longs))
+               (repeat help)
+        
 
 {--------------------------------------------------------------------------
   Process options

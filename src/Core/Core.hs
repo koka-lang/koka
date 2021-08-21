@@ -105,7 +105,7 @@ import Control.Monad.Identity
 import Data.Char( isDigit )
 import qualified Data.Set as S
 import Data.Maybe
-import Data.Monoid (Endo(..), Any(..))
+import Data.Monoid (Endo(..), Any(..),(<>))
 import Lib.PPrint
 import Common.Name
 import Common.Range

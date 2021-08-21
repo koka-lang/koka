@@ -13,6 +13,7 @@ import Data.List (transpose )
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Arrow ((***))
+import Data.Monoid((<>))
 import Data.Maybe (mapMaybe, fromMaybe, catMaybes, isJust, fromJust)
 
 import Lib.PPrint
