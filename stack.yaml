@@ -20,11 +20,11 @@ resolver: lts-18.3
 
 packages:
 - '.'
-- contrib/isocline
 
 extra-deps:
 - regex-compat-tdfa-0.95.1.4    # only needed for koka-test
 - json-0.10                     # only needed for koka-test
+- isocline-1.0.0
 
 rebuild-ghc-options: true
 allow-newer: true
