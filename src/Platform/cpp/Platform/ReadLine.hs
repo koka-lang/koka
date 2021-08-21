@@ -191,6 +191,7 @@ withReadLine historyPath io
   = do let historyFile = if (null historyPath) then "" else (historyPath ++ "/.koka-history")
        setHistory historyFile 200
        enableAutoTab True
+       styleDef "ic-bracematch" "ansi-white"
        io
 
 readLine cscheme roots identifiers options prompt
