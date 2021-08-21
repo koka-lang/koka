@@ -400,14 +400,17 @@ kmatchBranches scruts branches
 
 -- For every branch, compare all its pats with the scruts and if they all match, return the matched bindings+scruts combined with the branch body
 kmatchBranch :: [Expr] -> Branch -> Match Expr
-kmatchBranch scruts branch@(Branch pats [Guard guard expr]) -- | isExprTrue  guard
+kmatchBranch scruts branch@(Branch pats guards) 
   = --trace ("kmatchBranch start: " ++ show scruts ++ " ___branch___ " ++ show branch) $
     do bindings <- kmatchPatterns scruts pats 
-       if (isExprTrue guard) 
-         then Match (Let (map DefNonRec bindings) expr)
-         else Unknown
+       expr     <- matchFirst (map matchGuard guards) 
+       Match (Let (map DefNonRec bindings) expr)
 
-kmatchBranch _ _ = Unknown
+  where
+    matchGuard (Guard guard expr)
+      = if (isExprTrue guard) then Match expr
+        else if (isExprFalse guard) then NoMatch
+        else Unknown       
 
 
 -- For every scrut - pat tuple, get the binding and new scrutinee and collect them into a single expr

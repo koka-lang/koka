@@ -179,6 +179,22 @@ fun foo() { // Works
   x + 4
 }
 
+// 1.   y as Con  -> substitute y = Con
+// 2.   y as Con(pat1,...,pat_n)  -> ??  we need shape environment: y |-> Con(pat1,...,patN)
+// and then use that in the kmatch functions  y ~ Con(...)
+// 3.   use this as well for "match(x}{ Con(..) -> e1; ... }"  with: x |-> Con in e1
+
+fun foo2() { // Works
+  val x = match(False, False) {
+     (False, y as True) | (True == False) || (False == True) -> 2                        
+     (True, y as _) -> return 1
+     (False, y as False) | not(y) -> return 1
+                         | not(not(y)) -> 4
+     (_, _) -> 3
+  }
+  x + 4
+}
+
 fun sideeffecting_nil() {
   print("Side effecting nil")
   Nil
