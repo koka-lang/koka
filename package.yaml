@@ -18,7 +18,7 @@ extra-source-files:
 description: Please see the README on GitHub at <https://github.com/koka-lang/koka#readme>
 
 dependencies:
-  - base >= 4.12
+  - base >= 4.9
   - array
   - bytestring
   - containers
