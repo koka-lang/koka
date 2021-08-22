@@ -99,10 +99,8 @@ fun main() {
 
     // Benchmark:
 
-    val tcs = [ Test-config(    1000, 10000.int32)
-              , Test-config(   10000, 100000.int32)
-              , Test-config(  100000, 1000000.int32)
-              , Test-config( 1000000, 10000000.int32)
+    val tcs = [ Test-config( 1000000, 10000000.int32)
+              , Test-config( 5000000, 50000000.int32)
               , Test-config(10000000, 100000000.int32)]
 
     tcs.map(fn(tc) {
