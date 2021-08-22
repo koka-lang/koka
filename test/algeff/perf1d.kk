@@ -36,7 +36,7 @@ fun test-normal(i0,action) {
   var i := i0
   handle({mask<local>(action)}) {
     fun get()  { i }
-    fun put(j) { i := j; () }
+    fun put(j) { i := j }
   }
 }
 

@@ -78,7 +78,6 @@ class Simplify a where
 
 topDown :: Expr -> Simp Expr
 
-
 -- Inline simple let-definitions
 topDown (Let dgs body)
   = topDownLet [] [] dgs body
@@ -100,6 +99,11 @@ topDown (Let dgs body)
     topDownLet sub acc [DefNonRec (Def{defName=name,defType=tp,defExpr=e})] (Var v _) | getName v == name
       = topDownLet sub acc [] e
 
+    topDownLet sub acc (DefNonRec def@(Def{defName=x,defType=tp,defExpr=letexpr@(Let dgs' body')}) : dgs) body  
+      = -- lift nested let bindings
+        assertion "Core.Simplify.topDownLet.liftLets" (bv dgs' `tnamesDisjoint` fv body) $ -- due to uniquefy at start of simplify
+        topDownLet sub acc (dgs' ++ [DefNonRec def{defExpr = body'}] ++ dgs) body
+
     topDownLet sub acc (dg:dgs) body
       = let sdg = subst sub dg
         in case sdg of
@@ -113,6 +117,7 @@ topDown (Let dgs body)
           DefRec defs'
             -> -- trace ("don't simplify recursive lets: " ++ show (map defName defs)) $
                topDownLet sub (sdg:acc) dgs body -- don't inline recursive ones
+
           DefNonRec def@(Def{defName=x,defType=tp,defExpr=se})  | not (isTotal se)
             -> -- cannot inline effectful expressions
                topDownLet sub (sdg:acc) dgs body
