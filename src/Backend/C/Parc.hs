@@ -175,38 +175,44 @@ parcLam expr parsSet body
 parcBorrowApp :: TName -> [Expr] -> Expr -> Parc Expr
 parcBorrowApp tname args expr
   = do bs <- getParamInfos (getName tname)
-       let argsBs = zip args $ bs ++ repeat Own
-       (lets, drops, args') <- unzip3 <$> reverseMapM (uncurry parcBorrowArg) argsBs
-       -- parcTrace $ "On function " ++ show (getName tname) ++ " with args " ++ show args ++ " we have: " ++ show (lets, drops, args')
-       expr' <- case catMaybes drops of
-         []
-           -> return $ App expr args'
-         _
-           -> do appName <- uniqueName "borrowApp"
-                 let def = makeDef appName $ App expr args'
-                 return $ makeLet [DefNonRec def] $ maybeStats drops $ Var (defTName def) InfoNone
-       return $ makeLet (concat lets) expr'
+       if Borrow `notElem` bs then
+         App expr <$> reverseMapM parcExpr args
+       else do
+        let argsBs = zip args $ bs ++ repeat Own
+        (lets, drops, args') <- unzip3 <$> reverseMapM (uncurry parcBorrowArg) argsBs
+        -- parcTrace $ "On function " ++ show (getName tname) ++ " with args " ++ show args ++ " we have: " ++ show (lets, drops, args')
+        expr' <- case catMaybes drops of
+          []
+            -> return $ App expr args'
+          _
+            -> do appName <- uniqueName "borrowApp"
+                  let def = makeDef appName $ App expr args'
+                  return $ makeLet [DefNonRec def] $ maybeStats drops $ Var (defTName def) InfoNone
+        return $ makeLet (concat lets) expr'
 
+-- | Let-float borrowed arguments to the top so that we can drop them after the function call
+-- We also let-float owned arguments so that the order of evaluation is unchanged.
+-- We make the result prettier by not floating variables and owned total expressions.
 parcBorrowArg :: Expr -> ParamInfo -> Parc ([DefGroup], Maybe Expr, Expr)
 parcBorrowArg a b
   = do case (a, b) of
          (_, Own)
-           -> (\x -> ([], Nothing, x)) <$> parcExpr a
-         -- Optimize: Direct variable
+           | isTotal a -> (\x -> ([], Nothing, x)) <$> parcExpr a
+           | otherwise
+             -> do argName <- uniqueName "ownedArg"
+                   a' <- parcExpr a
+                   let def = makeDef argName a'
+                   return ([DefNonRec def], Nothing, Var (defTName def) InfoNone)
          (Var tname info, Borrow)
            -> if infoIsRefCounted info
               then (\d -> ([], d, Var tname info)) <$> useTNameBorrowed tname
               else return ([], Nothing, Var tname info)
          (_, Borrow)
-           -> do argName <- uniqueName "borrowArg"
+           -> do argName <- uniqueName "borrowedArg"
                  a' <- parcExpr a
                  let def = makeDef argName a'
                  drop <- extendOwned (S.singleton (defTName def)) $ genDrop (defTName def)
-                 case drop of
-                   Nothing
-                     -> return ([], Nothing, a') -- if no drop necessary, make output prettier
-                   Just _
-                     -> return ([DefNonRec def], drop, Var (defTName def) InfoNone)
+                 return ([DefNonRec def], drop, Var (defTName def) InfoNone)
 
 varNames :: [Expr] -> [TName]
 varNames (Var tn _:exprs) = tn:varNames exprs

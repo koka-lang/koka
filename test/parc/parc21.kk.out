@@ -1,0 +1,36 @@
+module parc/parc21
+private import std/core/types = std/core/types = "";
+private import std/core = std/core = "";
+public fun bo : (a : int, ^ b : int) -> int
+  = fn(a: int, b: int){
+    a;
+  };
+public fun print-ret : (x : int) -> console int
+  = fn<console>(x: int){
+    val _ : ()
+          = std/core/prints((std/core/show((std/core/types/.dup(x)))));
+    x;
+  };
+public fun test : () -> console int
+  = fn<console>(){
+    val _ : int
+      = val .borrowedArg.67 : int
+          = 4;
+        val .borrowApp.68 : int
+          = test/parc/parc22/bo(3, .borrowedArg.67);
+        std/core/types/.drop(.borrowedArg.67);
+      .borrowApp.68;
+    std/core/types/.drop(_);
+    val .ownedArg.65 : int
+      = val _0 : ()
+              = std/core/prints((std/core/show(3)));
+      3;
+    val .borrowedArg.64 : int
+      = val _1 : ()
+              = std/core/prints((std/core/show(4)));
+      4;
+    val .borrowApp.66 : int
+      = test/parc/parc22/bo(.ownedArg.65, .borrowedArg.64);
+    std/core/types/.drop(.borrowedArg.64);
+    .borrowApp.66;
+  };
