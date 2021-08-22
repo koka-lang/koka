@@ -144,29 +144,34 @@ ruLet' def
   = withCurrentDef def $
       case defExpr def of
           App var@(Var name _) [Var tname _] | getName name == nameDrop
-            -> do return $ ([(tname, True)], \mReuses ->
+            -> do return $ ([(tname, False)], \mReuses ->
                     case head mReuses of
-                      Nothing -> return $ ([], makeLet [DefNonRec def])
-                      Just ru -> return $ ([], makeLet [DefNonRec ru]))
+                      Nothing -> return ([], makeLet [DefNonRec def])
+                      Just ru -> do assign <- genReuseAssign tname
+                                    return ([ru], makeLet [DefNonRec (makeDef nameNil assign)]))
           -- See makeDropSpecial:
           -- We assume that makeDropSpecial always occurs in a definition.
           App (Var name _) [Var y _, xUnique, xShared, xDecRef] | getName name == nameDropSpecial
             -> do (uniqYs, fUnique) <- ruLetExpr xUnique
-                  return $ ((y, False):uniqYs, \mReuses -> do
-                    (rusUnique, rUnique') <- fUnique (tail mReuses)
+                  (sharedYs, fShared) <- ruLetExpr xShared
+                  return $ ((y, False):uniqYs ++ sharedYs, \mReuses -> do
+                    let (mrs1, mrs2) = splitAt (length uniqYs) (tail mReuses)
+                    (rusUnique, rUnique') <- fUnique mrs1 
+                    (rusShared, rShared') <- fShared mrs2 
                     let rUnique = rUnique' exprUnit
+                    let rShared = rShared' exprUnit
                     case head mReuses of
                       Nothing
-                        -> do return (rusUnique, makeLet [DefNonRec (makeDef nameNil
+                        -> do return (rusUnique ++ rusShared, makeLet [DefNonRec (makeDef nameNil
                                 ( makeIfExpr (genIsUnique y)
                                   (makeStats [rUnique, genFree y])
-                                  (makeStats [xShared, xDecRef])))])
+                                  (makeStats [rShared, xDecRef])))])
                       Just ru
                         -> do rReuse <- genReuseAssign y 
-                              return (ru:rusUnique, makeLet [DefNonRec (makeDef nameNil
+                              return (ru:rusUnique ++ rusShared, makeLet [DefNonRec (makeDef nameNil
                                 ( makeIfExpr (genIsUnique y)
                                   (makeStats [rUnique, rReuse])
-                                  (makeStats [xShared, xDecRef])))]))
+                                  (makeStats [rShared, xDecRef])))]))
           _ -> do de <- ruExpr (defExpr def)
                   return $ ([], \_ -> return ([], makeLet [DefNonRec (def{defExpr=de})]))
 
