@@ -90,7 +90,7 @@ ruExpr expr
       TypeApp body targs
         -> (`TypeApp` targs) <$> ruExpr body
       Lam pars eff body
-        -> Lam pars eff <$> withNone (ruExpr body)
+        -> ruLam pars eff body
       App fn args
         -> liftM2 App (ruExpr fn) (mapM ruExpr args)
 
@@ -110,37 +110,65 @@ ruExpr expr
       -- Var, Lit, Con
       _ -> return expr
 
+-- | TODO: Add Deconstructed info for the parameters to the scope.
+-- This way we can reuse non-matched-on parameters where all constructors
+-- have the same shape.
+ruLam :: [TName] -> Effect -> Expr -> Reuse Expr
+ruLam pars eff body
+  = Lam pars eff <$> withNone (ruExpr body)
+
 ruLet :: Def -> Expr -> Reuse Expr
 ruLet def expr
+  = do (tnames, fn) <- ruLet' def
+       (expr', mReuses) <- ruTryReuseNamesIn tnames expr
+       (ds, fe) <- fn mReuses
+       return $ makeLet (DefNonRec <$> ds) $ fe expr'
+
+ruLetExpr :: Expr -> Reuse ([(TName, Bool)], [Maybe Def] -> Reuse ([Def], Expr -> Expr))
+ruLetExpr expr
+  = case expr of
+      Let [] body
+        -> ruLetExpr body
+      Let (DefNonRec def:dgs) body
+        -> do (ys1, fn1) <- ruLet' def
+              (ys2, fn2) <- ruLetExpr (Let dgs body)
+              return (ys1 ++ ys2, \mrs
+                -> do let (mrs1, mrs2) = splitAt (length ys1) mrs
+                      (ds1, fe1) <- fn1 mrs1 
+                      (ds2, fe2) <- fn2 mrs2
+                      return $ (ds1 ++ ds2, fe1 . fe2))
+      _ -> return ([], \_ -> return $ ([], \_ -> expr))
+
+ruLet' :: Def -> Reuse ([(TName, Bool)], [Maybe Def] -> Reuse ([Def], Expr -> Expr))
+ruLet' def
   = withCurrentDef def $
       case defExpr def of
           App var@(Var name _) [Var tname _] | getName name == nameDrop
-            -> do mReuse <- ruTryReuseNameIn True tname expr
-                  case mReuse of
-                    (expr', Nothing) -> return $ makeLet [DefNonRec def] expr'
-                    (expr', Just ru) -> return $ makeLet [DefNonRec ru] expr'
+            -> do return $ ([(tname, True)], \mReuses ->
+                    case head mReuses of
+                      Nothing -> return $ ([], makeLet [DefNonRec def])
+                      Just ru -> return $ ([], makeLet [DefNonRec ru]))
           -- See makeDropSpecial:
           -- We assume that makeDropSpecial always occurs in a definition.
-          App (Var name _) [Var y _, xUnique, xShared, rDecRef] | getName name == nameDropSpecial
-            -> do rUnique <- ruExpr xUnique -- TODO: This may miss reuse opportunities
-                  rShared <- ruExpr xShared
-                  mReuse <- ruTryReuseNameIn False y expr
-                  case mReuse of
-                    (expr', Nothing)
-                      -> do return $ makeStats
-                              [ makeIfExpr (genIsUnique y)
-                                (makeStats [rUnique, genFree y])
-                                (makeStats [rShared, rDecRef])
-                              , expr' ]
-                    (expr', Just ru)
-                      -> do rReuse   <- genReuseAssign y 
-                            return $ makeLet [DefNonRec ru] $ makeStats
-                              [ makeIfExpr (genIsUnique y)
-                                (makeStats [rUnique, rReuse])
-                                (makeStats [rShared, rDecRef])
-                              , expr' ]
+          App (Var name _) [Var y _, xUnique, xShared, xDecRef] | getName name == nameDropSpecial
+            -> do (uniqYs, fUnique) <- ruLetExpr xUnique
+                  return $ ((y, False):uniqYs, \mReuses -> do
+                    (rusUnique, rUnique') <- fUnique (tail mReuses)
+                    let rUnique = rUnique' exprUnit
+                    case head mReuses of
+                      Nothing
+                        -> do return (rusUnique, makeLet [DefNonRec (makeDef nameNil
+                                ( makeIfExpr (genIsUnique y)
+                                  (makeStats [rUnique, genFree y])
+                                  (makeStats [xShared, xDecRef])))])
+                      Just ru
+                        -> do rReuse <- genReuseAssign y 
+                              return (ru:rusUnique, makeLet [DefNonRec (makeDef nameNil
+                                ( makeIfExpr (genIsUnique y)
+                                  (makeStats [rUnique, rReuse])
+                                  (makeStats [xShared, xDecRef])))]))
           _ -> do de <- ruExpr (defExpr def)
-                  makeLet [DefNonRec (def{defExpr=de})] <$> ruExpr expr
+                  return $ ([], \_ -> return ([], makeLet [DefNonRec (def{defExpr=de})]))
 
 ruBranches :: [TName] -> [Branch] -> Reuse [Branch]
 ruBranches scrutinees branches
@@ -220,22 +248,33 @@ ruTryReuseCon cname repr conApp
 
 ruTryReuseNameIn :: Bool -> TName -> Expr -> Reuse (Expr, Maybe Def)
 ruTryReuseNameIn shouldGenDrop tname expr
+  = do (expr', ds) <- ruTryReuseNamesIn [(tname, shouldGenDrop)] expr
+       return (expr', head ds)
+
+ruTryReuseNamesIn :: [(TName, Bool)] -> Expr -> Reuse (Expr, [Maybe Def])
+ruTryReuseNamesIn tnames expr
   = do dss <- getDeconstructed
-       case NameMap.lookup (getName tname) dss of
-         Nothing -> noReuse
-         Just (reuseName, ReuseInfo patName pat, size, scan)
-          -> do mReuse <- ruTryReuse shouldGenDrop (reuseName, patName, size, scan)
-                case mReuse of
-                  Nothing -> noReuse
-                  Just ru
-                    -> do isolateAvailable $
-                           do updateAvailable (M.insertWith (++) size [ReuseInfo reuseName pat])
-                              expr' <- ruExpr expr
-                              wasReused <- askAndDeleteReused reuseName
-                              if wasReused
-                                then return (expr', Just ru)
-                                else return (expr', Nothing)
-  where noReuse = do expr' <- ruExpr expr; return (expr', Nothing)
+       rus <- fmap concat $ forM tnames $ \(tname, shouldGenDrop) -> do
+        case NameMap.lookup (getName tname) dss of
+          Nothing -> return [Nothing]
+          Just (reuseName, ReuseInfo patName pat, size, scan)
+            -> do mReuse <- ruTryReuse shouldGenDrop (reuseName, patName, size, scan)
+                  case mReuse of
+                    Nothing -> return [Nothing]
+                    Just ru -> return [Just (reuseName, size, pat, ru)]
+       isolateAvailable $
+         do forM_ rus $ \m ->
+             case m of
+               Just (reuseName, size, pat, _)
+                 -> updateAvailable (M.insertWith (++) size [ReuseInfo reuseName pat])
+               Nothing -> return ()
+            expr' <- ruExpr expr
+            rus' <- forM rus $ \m -> case m of
+              Just (reuseName, _, _, ru) -> do
+                wasReused <- askAndDeleteReused reuseName
+                return $ if wasReused then Just ru else Nothing
+              Nothing -> return Nothing
+            return (expr', rus')
 
 -- generate drop_reuse for each reused in patAdded
 ruTryReuse :: Bool -> (TName, TName, Int, Int) -> Reuse (Maybe Def)
