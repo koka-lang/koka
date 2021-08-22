@@ -809,7 +809,7 @@ ccGcc name path
 
 ccMsvc name path
   = CC name path ["-DWIN32","-nologo"] 
-         [(DebugFull,words "-MDd -Zi -Ob0 -O0 -RTC1"),
+         [(DebugFull,words "-MDd -Zi -Od -RTC1"),
           (Debug,words "-MDd -Zi -O1"),
           (Release,words "-MD -O2 -Ob2 -DNDEBUG"),
           (RelWithDebInfo,words "-MD -Zi -O2 -Ob2 -DNDEBUG")]
