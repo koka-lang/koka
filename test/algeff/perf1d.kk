@@ -61,7 +61,7 @@ fun test-direct(i) {
   if (i==0) then i else test-direct(i - 1)
 }
 
-val n = 1000000
+val n = 100000000
 fun main() {
   print-elapsed({test-direct(n)},      "direct")
   print-elapsed({test-normal(n,count)},"single handler")

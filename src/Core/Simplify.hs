@@ -603,7 +603,7 @@ sizeOfExpr expr
       Var tname info     -> 0
       Con tname repr     -> 0
       Lit lit            -> 0
-      Lam tname eff body -> 1 + sizeOfExpr body
+      Lam tname eff body -> 1 + sizeOfExprX body
       App e args         -> 1 + sizeOfFun e + sum (map sizeOfExpr args)
       TypeLam tvs e      -> sizeOfExpr e
       TypeApp e tps      -> sizeOfExpr e
@@ -625,19 +625,49 @@ sizeOfExpr expr
           DefRec defs   -> sum (map sizeOfLocalDef defs)
           DefNonRec def -> sizeOfLocalDef def
 
+
 sizeOfFun :: Expr -> Int   -- for functions we must be conservative or we could lose sharing from allocations 
 sizeOfFun expr 
   = case expr of
-      Con _ _    -> maxSize  
-      Var _ _    -> maxSize
+      Con _ _    -> maxSize
+      Var _ _    -> 1
       Lit _      -> 0  -- cannot happen?
-      Lam tname eff body -> 1 + sizeOfFun body
+      Lam tname eff body -> 1 + sizeOfExpr body
       App e args         -> 1 + sizeOfFun e + sum (map sizeOfExpr args)
       TypeLam tvs e      -> sizeOfFun e
       TypeApp e tps      -> sizeOfFun e
       _          -> maxSize  -- give up
   where
     maxSize = 10000
+
+sizeOfExprX expr
+  = case expr of
+      Var tname info     -> 0
+      Con tname repr     -> 0
+      Lit lit            -> 0
+      Lam tname eff body -> 1 + sizeOfExprX body
+      App e args         -> 1 + sizeOfExprX e + sum (map sizeOfExprX args)
+      TypeLam tvs e      -> sizeOfExprX e
+      TypeApp e tps      -> sizeOfExprX e
+      Let defGroups body -> sum (map sizeOfDefGroup defGroups) + (sizeOfExprX body)
+      Case exprs branches -> 1 + sum (map sizeOfExprX exprs) + sum (map sizeOfBranch branches)
+  where
+    sizeOfBranch (Branch patterns guards)
+      = sum (map sizeOfGuard guards)
+
+    sizeOfGuard (Guard test expr)
+      = sizeOfExprX test + sizeOfExprX expr
+
+    sizeOfLocalDef :: Def -> Int
+    sizeOfLocalDef def
+      = sizeOfExprX (defExpr def)
+
+    sizeOfDefGroup dg
+      = case dg of
+          DefRec defs   -> sum (map sizeOfLocalDef defs)
+          DefNonRec def -> sizeOfLocalDef def
+
+
 
 occursNot :: Name -> Expr -> Bool
 occursNot name expr
