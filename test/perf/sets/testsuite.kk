@@ -14,6 +14,7 @@ import skip-list-imperative
 import splay-trees-fbip
 import weight-balanced-data-set
 import weight-balanced-fbip
+import weight-balanced-fbip-int
 import weight-balanced-hirai
 import patricia-tree-big-endian-okasaki
 import patricia-tree-data-intset
@@ -72,11 +73,12 @@ fun main() {
     val r8  = count-splay-trees-fbip(1, 1000, test)
     val r9  = count-weight-balanced-data-set(1, 1000, test)
     val r10 = count-weight-balanced-fbip(1, 1000, test)
-    val r11 = count-weight-balanced-hirai(1, 1000, test)
-    val r12 = count-patricia-tree-big-endian-okasaki(1, 1000, test)
-    val r13 = count-patricia-tree-data-intset(1, 1000, test)
-    val r14 = count-patricia-tree-data-intset-clz(1, 1000, test)
-    val r15 = count-patricia-tree-little-endian-okasaki(1, 1000, test)
+    val r11 = count-weight-balanced-fbip-int(1, 1000, test)
+    val r12 = count-weight-balanced-hirai(1, 1000, test)
+    val r13 = count-patricia-tree-big-endian-okasaki(1, 1000, test)
+    val r14 = count-patricia-tree-data-intset(1, 1000, test)
+    val r15 = count-patricia-tree-data-intset-clz(1, 1000, test)
+    val r16 = count-patricia-tree-little-endian-okasaki(1, 1000, test)
 
     print(r1 == r2)
     print(r2 == r3)
@@ -92,7 +94,8 @@ fun main() {
     print(r12 == r13)
     print(r13 == r14)
     print(r14 == r15)
-    println(r15 == r1)
+    print(r15 == r16)
+    println(r16 == r1)
 
     // Benchmark:
 
@@ -108,6 +111,7 @@ fun main() {
         val start = 1
         val end = tc.testsize
 
+        print-elapsed(fn() { count-weight-balanced-fbip-int(start, end, input) }, "WBT (FBIP Int):")
         print-elapsed(fn() { count-b-trees(start, end, input) }, "B Tree (t = 2):")
         print-elapsed(fn() { count-b-trees-pad-separate(start, end, input) }, "B Tree (t = 2, pad:separate):")
         print-elapsed(fn() { count-b-trees-pad-separate-fast-path(start, end, input) }, "B Tree (t = 2, pad:separate fast-path):")
