@@ -942,7 +942,7 @@ genDupDropCall isDup tp arg = if (isDup) then genDupDropCallX "dup" tp (parens a
 
 genIsUniqueCall :: Type -> Doc -> [Doc]
 genIsUniqueCall tp arg  = case genDupDropCallX "is_unique" tp (parens arg) of
-                            -- [call] -> [text "kk_likely" <.> parens call]
+                            [call] -> [text "kk_likely" <.> parens call]
                             cs     -> cs
 
 genFreeCall :: Type -> Doc -> [Doc]
@@ -2000,10 +2000,11 @@ isInlineableExpr expr
       TypeApp expr _   -> isInlineableExpr expr
       TypeLam _ expr   -> isInlineableExpr expr
       Lit (LitString _)-> False
+      
       -- C has no guarantee on argument evaluation so we only allow a select few operations to be inlined
       App (Var v (InfoExternal _)) [] -> getName v `elem` [nameYielding,nameReuseNull,nameCFieldHole]
       -- App (Var v (InfoExternal _)) [arg] | getName v `elem` [nameBox,nameDup,nameInt32] -> isInlineableExpr arg
-      App (Var v _) [arg] | getName v `elem` [nameBox,nameInt32,nameReuse,nameIsUnique] -> isInlineableExpr arg
+      App (Var v _) [arg] | getName v `elem` [nameBox,nameInt32,nameReuse,nameReuseIsValid,nameIsUnique] -> isInlineableExpr arg
 
       --App (Var _ (InfoExternal _)) args -> all isPureExpr args  -- yielding() etc.
 

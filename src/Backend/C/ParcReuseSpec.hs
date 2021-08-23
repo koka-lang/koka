@@ -182,7 +182,7 @@ genReuseIfValid reuseName onValid onInvalid
 
 genReuseIsValid :: TName -> Expr
 genReuseIsValid reuseName
-  = App (Var (TName nameReuseIsValid typeReuseIsValid) (InfoExternal [(C,"#1!=NULL")])) [Var reuseName InfoNone]
+  = App (Var (TName nameReuseIsValid typeReuseIsValid) (InfoExternal [(C,"kk_likely(#1!=NULL)")])) [Var reuseName InfoNone]
   where
     typeReuseIsValid = TFun [(nameNil,typeReuse)] typeTotal typeBool
 

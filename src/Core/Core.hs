@@ -53,7 +53,7 @@ module Core.Core ( -- Data structures
                    , coreName
                    , tnamesList, tnamesEmpty, tnamesDiff, tnamesInsertAll
                    , tnamesUnion, tnamesUnions, tnamesRemove, tnamesFromList
-                   , tnamesMember
+                   , tnamesMember, tnamesDisjoint
                    -- , getTypeArityExpr -- ,getParamArityExpr
                    , getEffExpr
                    , TNames
@@ -916,6 +916,8 @@ tnamesRemove names set
 tnamesMember :: TName -> TNames -> Bool
 tnamesMember tname tnames = S.member tname tnames
 
+tnamesDisjoint :: TNames -> TNames -> Bool
+tnamesDisjoint n1 n2 = S.disjoint n1 n2
 
 instance Eq TName where
   (TName name1 tp1) == (TName name2 tp2)  = (name1 == name2) --  && matchType tp1 tp2)

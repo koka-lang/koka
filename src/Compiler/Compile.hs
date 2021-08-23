@@ -896,6 +896,8 @@ inferCheck loaded0 flags line coreImports program
        when (optSpecialize flags) $
          specialize (inlinesExtends specializeDefs (loadedInlines loaded))
        -- traceDefGroups "specialized"
+
+       -- simplifyDupN
           
        -- lifting recursive functions to top level (must be after specialize)
        liftFunctions penv
@@ -929,8 +931,11 @@ inferCheck loaded0 flags line coreImports program
        -- traceDefGroups "monadic lift"
 
       -- now inline primitive definitions (like yield-bind)
-       inlineDefs penv (2*optInlineMax flags) (inlinesFilter isPrimitiveName (loadedInlines loaded))  
-      
+       let inlinesX = inlinesFilter isPrimitiveName (loadedInlines loaded)
+       --    inames = map Core.inlineName (inlinesToList inlinesX)
+       --trace ("inlines2: " ++ show inames) $
+       inlineDefs penv (2*optInlineMax flags) inlinesX -- (loadedInlines loaded)
+              
        -- remove remaining open calls; this may change effect types
        simplifyDefs penv True {-unsafe-} ndebug (simplify flags) 0 -- remove remaining .open
 
