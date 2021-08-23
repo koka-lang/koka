@@ -219,7 +219,7 @@ topDown (Case [Let dgs expr] branches)
   = assertion "Core.Simplify.topDown.Case-Of-Let" (bv dgs `tnamesDisjoint` fv branches) $
     return (Let dgs (Case [expr] branches))
 
--- case-of-case
+-- case-of-case: currently makes reuse worse in some cases (like bench/koka/rbtree)
 topDown (Case [Case scruts0 branches0] branches1) | doesNotDuplicate 
   = return (Case scruts0 (map (pushCase branches1) branches0))
   where
