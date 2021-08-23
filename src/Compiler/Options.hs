@@ -845,9 +845,12 @@ ccFromPath flags path
          then if (not (ccName cc `startsWith` "clang" || ccName cc `startsWith` "gcc"))
                 then do putStrLn "warning: can only use address sanitizer with clang or gcc (--fasan is ignored)"
                         return (cc,False)
-                else do return (cc{ ccName         = ccName cc ++ "-asan"
-                                  , ccFlagsCompile = ccFlagsCompile cc ++ ["-fsanitize=address,undefined,leak","-fno-omit-frame-pointer","-O0"]
-                                  , ccFlagsLink    = ccFlagsLink cc ++ ["-fsanitize=address,undefined,leak"] }
+                -- asan on Apple Silicon can't find leaks and throws an error
+                -- We can't check for arch, since GHC 8.10 runs on Rosetta and detects x86_64
+                else do let sanitize = if onMacOS then "-fsanitize=address,undefined" else "-fsanitize=address,undefined,leak"
+                        return (cc{ ccName         = ccName cc ++ "-asan"
+                                  , ccFlagsCompile = ccFlagsCompile cc ++ [sanitize,"-fno-omit-frame-pointer","-O0"]
+                                  , ccFlagsLink    = ccFlagsLink cc ++ [sanitize] }
                                ,True)
        else if (useStdAlloc flags)
          then return (cc{ ccName = ccName cc ++ "-stdalloc" }, False)

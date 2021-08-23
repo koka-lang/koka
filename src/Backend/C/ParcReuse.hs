@@ -12,7 +12,6 @@
 -----------------------------------------------------------------------------
 
 module Backend.C.ParcReuse ( parcReuseCore,
-                             genDropReuse,
                              orderConFieldsEx, newtypesDataDefRepr, isDataStructLike,
                              constructorSizeOf
                            ) where
@@ -137,7 +136,7 @@ ruLetExpr expr
                       (ds1, fe1) <- fn1 mrs1 
                       (ds2, fe2) <- fn2 mrs2
                       return $ (ds1 ++ ds2, fe1 . fe2))
-      _ -> return ([], \_ -> return $ ([], \_ -> expr))
+      _ -> return ([], \_ -> return ([], \_ -> expr))
 
 ruLet' :: Def -> Reuse ([(TName, Bool)], [Maybe Def] -> Reuse ([Def], Expr -> Expr))
 ruLet' def
@@ -151,24 +150,21 @@ ruLet' def
                                     return ([ru], makeLet [DefNonRec (makeDef nameNil assign)]))
           -- See makeDropSpecial:
           -- We assume that makeDropSpecial always occurs in a definition.
-          App (Var name _) [Var y _, xUnique, xShared, xDecRef] | getName name == nameDropSpecial
+          App (Var name _) [Var y _, xUnique, rShared, xDecRef] | getName name == nameDropSpecial
             -> do (uniqYs, fUnique) <- ruLetExpr xUnique
-                  (sharedYs, fShared) <- ruLetExpr xShared
-                  return $ ((y, False):uniqYs ++ sharedYs, \mReuses -> do
+                  return $ ((y, False):uniqYs, \mReuses -> do
                     let (mrs1, mrs2) = splitAt (length uniqYs) (tail mReuses)
                     (rusUnique, rUnique') <- fUnique mrs1 
-                    (rusShared, rShared') <- fShared mrs2 
                     let rUnique = rUnique' exprUnit
-                    let rShared = rShared' exprUnit
                     case head mReuses of
                       Nothing
-                        -> do return (rusUnique ++ rusShared, makeLet [DefNonRec (makeDef nameNil
+                        -> do return (rusUnique, makeLet [DefNonRec (makeDef nameNil
                                 ( makeIfExpr (genIsUnique y)
                                   (makeStats [rUnique, genFree y])
                                   (makeStats [rShared, xDecRef])))])
                       Just ru
                         -> do rReuse <- genReuseAssign y 
-                              return (ru:rusUnique ++ rusShared, makeLet [DefNonRec (makeDef nameNil
+                              return (ru:rusUnique, makeLet [DefNonRec (makeDef nameNil
                                 ( makeIfExpr (genIsUnique y)
                                   (makeStats [rUnique, rReuse])
                                   (makeStats [rShared, xDecRef])))]))
@@ -178,7 +174,7 @@ ruLet' def
 ruBranches :: [TName] -> [Branch] -> Reuse [Branch]
 ruBranches scrutinees branches
   = do (branches', rs, avs) <- unzip3 <$> mapM (ruBranch scrutinees) branches
-       setAvailable (availableIntersect avs)
+       setAvailableIntersect avs
        let rus = reusedUnion rs
        setReused rus
        let reuseDrops = Map.fromSet genReuseDrop rus
@@ -190,7 +186,7 @@ ruBranch scrutinees (Branch pats guards)
     do reuses <- concat <$> zipWithM ruPattern scrutinees pats  -- must be in depth order for Parc
        mapM_ addDeconstructed reuses
        (guards', avs)  <- unzip <$> mapM ruGuard guards
-       setAvailable (availableIntersect avs)
+       setAvailableIntersect avs
        return (\f -> Branch pats (map ($ f) guards'))
   where
     to3 ((a,b),c) = (a,b,c)
@@ -267,19 +263,20 @@ ruTryReuseNamesIn tnames expr
                   case mReuse of
                     Nothing -> return [Nothing]
                     Just ru -> return [Just (reuseName, size, pat, ru)]
-       isolateAvailable $
-         do forM_ rus $ \m ->
-             case m of
-               Just (reuseName, size, pat, _)
-                 -> updateAvailable (M.insertWith (++) size [ReuseInfo reuseName pat])
-               Nothing -> return ()
-            expr' <- ruExpr expr
-            rus' <- forM rus $ \m -> case m of
-              Just (reuseName, _, _, ru) -> do
-                wasReused <- askAndDeleteReused reuseName
-                return $ if wasReused then Just ru else Nothing
-              Nothing -> return Nothing
-            return (expr', rus')
+       av1 <- getAvailable
+       forM_ rus $ \m -> case m of
+          Just (reuseName, size, pat, _)
+            -> updateAvailable (M.insertWith (++) size [ReuseInfo reuseName pat])
+          Nothing -> return ()
+       expr' <- ruExpr expr
+       av2 <- getAvailable
+       setAvailableIntersect [av1, av2]
+       rus' <- forM rus $ \m -> case m of
+          Just (reuseName, _, _, ru) -> do
+            wasReused <- askAndDeleteReused reuseName
+            return $ if wasReused then Just ru else Nothing
+          Nothing -> return Nothing
+       return (expr', rus')
 
 -- generate drop_reuse for each reused in patAdded
 ruTryReuse :: Bool -> (TName, TName, Int, Int) -> Reuse (Maybe Def)
@@ -329,11 +326,10 @@ genFree tname
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
 
-
 -- Generate a drop of a reuse
 genReuseDrop :: TName -> Expr
 genReuseDrop tname
-  = App (Var (TName nameReuseDrop funTp) (InfoExternal [(C, "kk_reuse_drop")]))
+  = App (Var (TName nameReuseDrop funTp) (InfoExternal [(C, "kk_reuse_drop(#1)")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeReuse
 
@@ -499,9 +495,10 @@ updateAvailable f = updateSt (\s -> s { available = f (available s) })
 setAvailable :: Available -> Reuse ()
 setAvailable = updateAvailable . const
 
-availableIntersect :: [Available] -> Available
-availableIntersect
-  = M.unionsWith intersect
+setAvailableIntersect :: [Available] -> Reuse ()
+setAvailableIntersect [] = pure ()
+setAvailableIntersect avs
+  = setAvailable $ foldr1 (M.intersectionWith intersect) avs
   where
     intersect xs ys
       = [r | r@(ReuseInfo rname _) <- xs, rname `elem` map reuseName ys]

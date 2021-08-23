@@ -662,8 +662,7 @@ static inline kk_block_t* kk_block_dup_assert(kk_block_t* b, kk_tag_t tag) {
   return kk_block_dup(b);
 }
 
-static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+static inline void kk_reuse_drop(kk_reuse_t r) {
   if (r != NULL) {
     kk_assert_internal(kk_block_is_unique(r));
     kk_free(r);

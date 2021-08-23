@@ -71,7 +71,7 @@ fun member(tree, k) {
   }
 }
 
-type splitted {
+type split {
   NoSplit
   Split(l : tree, a : elem, r : tree)
 }

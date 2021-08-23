@@ -61,12 +61,12 @@ fun member(tree, k) {
   }
 }
 
-type splitted {
+type split {
   NoSplit
   Split(l : tree, a : elem, r : tree)
 }
 
-fun try-split(tree) {
+inline fun try-split(tree) {
   match(tree) {
     Node3(a, b, c, d, e, f, g) -> Split(Node1(a, b, c), d, Node1(e, f, g))
     Leaf3(a, b, c) -> Split(Leaf1(a), b, Leaf1(c))
