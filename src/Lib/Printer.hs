@@ -181,7 +181,7 @@ instance Printer FilePrinter where
 -- | Use a color printer that uses ANSI escape sequences.
 withAnsiPrinter :: (AnsiPrinter -> IO a) -> IO a
 withAnsiPrinter f
-  = withTerm $
+  = -- withTerm $
     do ansi <- newVar ansiDefault
        finally (f (Ansi ansi)) (do ansiEscapeIO seqReset
                                    hFlush stdout)

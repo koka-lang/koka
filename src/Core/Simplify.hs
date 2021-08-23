@@ -206,7 +206,8 @@ topDown expr@(App (Lam pars eff body) args) | length pars == length args
 -- Direct function applications
 topDown expr@(App (TypeApp (TypeLam tpars (Lam pars eff body)) targs) args) | length pars == length args && length tpars == length targs
   = do let tsub    = subNew (zip tpars targs)
-       newNames <- mapM uniqueTName [TName nm (tsub |-> tp) | (TName nm tp) <- pars]
+       newNames <- -- trace ("bottomUp function app: " ++ show (zip tpars targs)) $
+                   mapM uniqueTName [TName nm (tsub |-> tp) | (TName nm tp) <- pars]
        let sub     = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]        
        return (Let (zipWith makeDef newNames args) (sub |~> (substitute tsub body)))
   where
@@ -231,7 +232,8 @@ bottomUp :: Expr -> Expr
 bottomUp expr@(TypeApp (TypeLam tvs body) tps)
   = if (length tvs == length tps)
      then let sub = subNew (zip tvs tps)
-          in seq sub (sub |-> body)
+          in -- trace ("bottomUp type app: " ++ show (zip tvs tps)) $
+             seq sub (sub |-> body)
      else expr
 
 -- eta-contract "/\a. (body a)" to "body"
@@ -535,8 +537,9 @@ instance Simplify DefGroup where
   simplify (DefNonRec def ) = fmap DefNonRec (simplify def)
 
 instance Simplify Def where
-  simplify (Def name tp expr vis sort inl nameRng doc)
-    = do expr' <- case expr of
+  simplify def@(Def name tp expr vis sort inl nameRng doc)
+    = -- trace ("simplifying " ++ show name ) $ -- ++ ": " ++ show expr) $
+      do expr' <- case expr of
                     TypeLam tvs (Lam pars eff body)
                       -> do body' <- simplify body
                             return $ TypeLam tvs (Lam pars eff body')
