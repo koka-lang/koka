@@ -73,7 +73,7 @@ mainMode flags flags0 mode p
      ModeHelp
       -> showHelp flags p
      ModeVersion
-      -> showVersion flags p
+      -> withNoColorPrinter (\monop -> showVersion flags monop)
      ModeCompiler files
       -> mapM_ (compile p flags) files
      ModeInteractive files

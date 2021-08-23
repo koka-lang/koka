@@ -12,6 +12,7 @@
 module Syntax.Highlight( Context(..), Nesting(..), Token(..), TokenComment(..)
                        , highlight
                        , highlightPrint
+                       , highlightInput
                        -- * Low level primitives
                        , highlightLexemes, highlightLexeme
                        , commentFlatten
@@ -31,6 +32,50 @@ import Syntax.Lexer    ( lexer )
 import Syntax.Layout   ( combineLineComments )
 
 -----------------------------------------------------------
+-- Syntax highlighting for readline
+-----------------------------------------------------------
+import qualified System.Console.Isocline as IC
+
+highlightInput :: ColorScheme -> String -> IC.Fmt
+highlightInput cscheme input
+  = concat $ highlight (fmtAttr cscheme) id CtxNormal "" bigLine (stringToBString (input ++ "\n"))
+
+fmtAttr :: ColorScheme -> Token Lexeme -> Lexeme -> String -> IC.Fmt
+fmtAttr cscheme tok lexeme display
+  = IC.style (styleOf tok) rawInput
+  where
+    rawInput
+      = rawSourceFromRange (getRange lexeme)
+
+    styleOf :: Token a -> IC.Style
+    styleOf token
+      = case token of
+          TokId _ _    -> ""
+          TokOp _ _    -> ""
+          TokTypeVar   -> styleColor (colorTypeVar cscheme)
+          TokTypeId _  -> styleColor (colorTypeCon cscheme)
+          TokTypeOp _  -> styleColor (colorTypeCon cscheme)
+          TokTypeSpecial -> styleColor (colorTypeSpecial cscheme)
+          TokTypeParam   -> styleColor (colorTypeParam cscheme)
+          TokModule mid  -> styleColor (colorModule cscheme)
+          TokCons _   -> styleColor (colorCons cscheme)
+          TokNumber   -> styleColor (colorNumber cscheme)
+          TokString   -> styleColor (colorString cscheme)
+          TokSpecial  -> styleColor (colorSpecial cscheme)
+          TokTypeKeyword -> styleColor (if (not (isKeywordOp display)) then colorTypeKeyword cscheme else colorTypeKeywordOp cscheme)
+          TokKeyword  -> styleColor (colorKeyword cscheme)
+          TokComment  -> styleColor (colorComment cscheme)
+          TokRichComment _ -> styleColor (colorComment cscheme)
+          TokWhite    -> ""
+          TokError    -> "ansi-red"
+      
+    styleColor :: Color -> IC.Style
+    styleColor color
+      = case color of
+          ColorDefault -> ""
+          _            -> "ansi-color=" ++ show (fromEnum color)
+
+-----------------------------------------------------------
 -- Easy syntax highlighting
 -----------------------------------------------------------
 -- | Print source in color, given a color scheme, source name, initial line number, the input string, and
@@ -39,8 +84,8 @@ highlightPrint :: Printer p => ColorScheme -> FilePath -> Int -> BString -> p ->
 highlightPrint cscheme sourceName lineNo input p
   = sequence_ $ highlight (fmtPrint cscheme p) id CtxNormal sourceName lineNo input
 
-fmtPrint :: Printer p => ColorScheme -> p -> Token (Lexeme) -> String -> IO ()
-fmtPrint cscheme p token
+fmtPrint :: Printer p => ColorScheme -> p -> Token (Lexeme) -> Lexeme -> String -> IO ()
+fmtPrint cscheme p token _
   = case token of
       TokId _ _    -> write p
       TokOp _ _    -> write p
@@ -190,23 +235,26 @@ isCtxType _             = False
 ctxNesting (CtxType nest _) = length nest
 ctxNesting _                = 0
 
-highlight :: (Token Lexeme -> String -> a) -> ([Lexeme] -> [Lexeme]) -> Context -> FilePath -> Int -> BString -> [a]
+highlight :: (Token Lexeme -> Lexeme -> String -> a) -> ([Lexeme] -> [Lexeme]) -> Context -> FilePath -> Int -> BString -> [a]
 highlight fmt transform ctx sourceName lineNo input
   = let xs = lexer sourceName lineNo input 
     in highlightLexemes transform fmt ctx [] (transform (combineLineComments xs))
 
 
-highlightLexemes :: ([Lexeme] -> [Lexeme]) -> (Token Lexeme -> String -> a) -> Context -> [a] -> [Lexeme] -> [a]
+highlightLexemes :: ([Lexeme] -> [Lexeme]) -> (Token Lexeme -> Lexeme -> String -> a) -> Context -> [a] -> [Lexeme] -> [a]
 highlightLexemes transform fmt ctx acc []
   = reverse acc
 highlightLexemes transform fmt ctx acc (l:ls)
   = let (ctx', content)  = highlightLexeme transform fmt ctx l ls
     in highlightLexemes transform fmt ctx' (content : acc) ls
 
-highlightLexeme :: ([Lexeme] -> [Lexeme]) -> (Token Lexeme -> String -> a) -> Context -> Lexeme -> [Lexeme] -> (Context,a)
-highlightLexeme transform fmt ctx0 (Lexeme rng lex) lexs
+highlightLexeme :: ([Lexeme] -> [Lexeme]) -> (Token Lexeme -> Lexeme -> String -> a) -> Context -> Lexeme -> [Lexeme] -> (Context,a)
+highlightLexeme transform fmt0 ctx0 lexeme@(Lexeme rng lex) lexs
   = (ctx,con)
   where
+    fmt tok s 
+        = fmt0 tok lexeme s
+
     ctx = adjustContext ctx0 lex lexs
     con = case lex of
             LexId id      -> let tok = if (isCtxType ctx)
@@ -264,9 +312,9 @@ highlightLexeme transform fmt ctx0 (Lexeme rng lex) lexs
           ComPre  s         -> ComPre s
           ComPreBlock s     -> ComPreBlock s
           ComLine s         -> ComLine s
-          ComCode lexs s      -> ComCode (highlightLexemes transform fmt CtxNormal [] (transform lexs)) s
-          ComCodeBlock cls lexs s -> ComCodeBlock cls (highlightLexemes transform fmt CtxNormal [] (transform lexs)) s
-          ComCodeLit cls lexs s   -> ComCodeLit cls (highlightLexemes transform fmt CtxNormal [] (transform lexs)) s
+          ComCode lexs s      -> ComCode (highlightLexemes transform fmt0 CtxNormal [] (transform lexs)) s
+          ComCodeBlock cls lexs s -> ComCodeBlock cls (highlightLexemes transform fmt0 CtxNormal [] (transform lexs)) s
+          ComCodeLit cls lexs s   -> ComCodeLit cls (highlightLexemes transform fmt0 CtxNormal [] (transform lexs)) s
           ComPar            -> ComPar
           ComIndent n       -> ComIndent n
 

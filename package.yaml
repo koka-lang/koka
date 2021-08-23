@@ -6,7 +6,7 @@
 # - util/minbuild
 
 name:       koka
-version:    2.2.0         
+version:    2.2.0     
 github:     "koka-lang/koka"
 license:    Apache-2.0
 author:     Daan Leijen
@@ -18,7 +18,7 @@ extra-source-files:
 description: Please see the README on GitHub at <https://github.com/koka-lang/koka#readme>
 
 dependencies:
-  - base >= 4.12
+  - base >= 4.9
   - array
   - bytestring
   - containers
@@ -28,8 +28,8 @@ dependencies:
   - process
   - text
   - time
-  - haskeline
-
+  - isocline >= 1.0.2
+  
 executables:
   koka:
     main: Main.hs
@@ -54,7 +54,7 @@ executables:
       - -DKOKA_MAIN="koka"      
       - -DKOKA_VARIANT="release"
       - -DKOKA_VERSION="2.2.0"
-      # - -DREADLINE=1   # to avoid using Haskeline
+      - -DREADLINE=0   # 1:getline, 2:readline, 3:haskeline, or 0:isocline
     when:
       - condition: os(windows)
         cpp-options: -DWINDOWS

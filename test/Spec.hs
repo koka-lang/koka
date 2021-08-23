@@ -80,24 +80,31 @@ readFlagsFile fp
 
 testSanitize :: FilePath -> String -> String
 testSanitize kokaDir
-  = trim
+  = limitTo 400
+  . trim
   . sub "^Up to date\n" ""
   . sub "\n[[:space:]]+at .*" ""
   . sub "(std_core\\.js:)[[:digit:]]+" "\\1"
   . sub "[\r\n]+" "\n"
   . sub "[[:blank:]]+" " "
   . sub "\\\\" "/"
+  . sub "\\.box-x[[:digit:]]+(-x[[:digit:]]+)?" ".box"
+  . sub "\\.[[:digit:]]+" ""
+  . sub "<[[:digit:]]+>" "<0>"
+  . sub ": [[:digit:]]+([,\\)])" ": 0\\1"
   . replace kokaDir "..."
-  where sub re = flip (subRegex (mkRegex re))
+  where 
+    sub re = flip (subRegex (mkRegex re))
+    limitTo n s | length s > n = take n s ++ "... (and more)"
+                | otherwise    = s
 
 expectedSanitize :: String -> String  
 expectedSanitize input
   = filter (/='\r') input   -- on windows \r still gets through sometimes
 
-runKoka :: Cfg -> FilePath -> IO String
-runKoka cfg fp
+runKoka :: Cfg -> FilePath -> FilePath -> IO String
+runKoka cfg kokaDir fp
   = do caseFlags <- readFlagsFile (fp ++ ".flags")
-       kokaDir <- getCurrentDirectory
        let relTest = makeRelative kokaDir fp
            optFlag   = if (opt (options cfg) > 0) then ["-O" ++ show (opt (options cfg))] else []
            kokaFlags = flags cfg ++ optFlag ++ caseFlags 
@@ -117,9 +124,10 @@ makeTest cfg fp
            let shouldRun = not isTest && mode (options cfg) == New || isTest && mode (options cfg) /= New
            when shouldRun $
              it (takeBaseName fp) $ do
-               out <- runKoka cfg fp
+               kokaDir <- getCurrentDirectory       
+               out <- runKoka cfg kokaDir fp
                unless (mode (options cfg) == Test) $ (withBinaryFile expectedFile WriteMode (\h -> hPutStr h out)) -- writeFile expectedFile out
-               expected <- expectedSanitize <$> readFile expectedFile
+               expected <- testSanitize kokaDir <$> readFile expectedFile
                out `shouldBe` expected
   | otherwise
       = return ()
@@ -194,7 +202,7 @@ main = do
   putStrLn "pre-compiling standard libraries..."
   -- compile all standard libraries before testing so we can run in parallel
   let cfg = initialCfg options
-  runKoka cfg "util/link-test.kk" 
+  runKoka cfg "" "util/link-test.kk" 
   putStrLn "ok."
   let spec = parallel $ discoverTests cfg (pwd </> "test")
   summary <- withArgs [] (runSpec spec hcfg{configFormatter=Just specProgress})
@@ -211,8 +219,8 @@ specProgress = specdoc {
       n <- getFailCount
       total  <- getTotalCount
       writeLine $ showTotal total nesting requirement ++ ": FAILED [" ++ show n ++ "]"
-      forM_ (lines info) $ \ s ->
-        writeLine $ indentationFor nesting ++ s
+      forM_ (take 10 (lines info)) $ \ s ->
+        writeLine $ indentationFor nesting ++ (take (400) s)
 
   , examplePending = \(nesting, requirement) info reason -> withPendingColor $ do
       total  <- getTotalCount    
