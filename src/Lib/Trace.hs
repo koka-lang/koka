@@ -45,7 +45,7 @@ ctrace :: Color -> String -> a -> a
 ctrace clr msg x
   = seq (unsafePerformIO $ 
          -- withColorPrinter $ 
-         -- withNoColorPrinter $
-         -- \p -> withColor p clr (writeLn p msg)
-         hPutStrLn stderr msg
+         withNoColorPrinter $
+         \p -> withColor p clr (writeLn p msg)
+         -- hPutStrLn stderr msg
         ) x
