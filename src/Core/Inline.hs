@@ -91,7 +91,8 @@ inlLocalDefGroup (DefNonRec def)
 inlDef :: Def -> Inl Def
 inlDef def
   = withCurrentDef def $
-    do expr' <- inlExpr (defExpr def)
+    do traceDoc $ \penv -> text "enter def"
+       expr' <- inlExpr (defExpr def)
        return def{ defExpr = expr' }
 
 inlExpr :: Expr -> Inl Expr
@@ -99,13 +100,15 @@ inlExpr expr
   = case expr of
     -- Applications
     App (TypeApp f targs) args
-      -> do f' <- inlAppExpr f (length targs) (length args) (onlyZeroCost args)
+      -> do f0 <- inlExpr f
+            f' <- inlAppExpr f0 (length targs) (length args) (onlyZeroCost args)
             args' <- mapM inlExpr args
             return (App (TypeApp f' targs) args')
 
     App f args
-      -> do args' <- mapM inlExpr args
-            f' <- inlAppExpr f 0 (argLength args) (onlyZeroCost args)
+      -> do f0    <- inlExpr f
+            args' <- mapM inlExpr args
+            f' <- inlAppExpr f0 0 (argLength args) (onlyZeroCost args)
             return (App f' args')
 
     -- regular cases
@@ -163,7 +166,7 @@ inlAppExpr expr m n onlyZeroCost
                                                 text ", onlyZeroCost:" <+> pretty onlyZeroCost <+>
                                                   text ", inlineCost:" <+>  pretty (inlineCost info)
                         return (expr)
-                Nothing -> do traceDoc $ \penv -> text "not inline candidate:" <+> ppName penv (getName tname)
+                Nothing -> do traceDoc $ \penv -> text "not inline candidate:" <+> text (showTName tname)
                               return (expr)
       _ -> return (expr)  -- no inlining
 

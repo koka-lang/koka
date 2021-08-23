@@ -129,7 +129,7 @@ executable koka
       CPP
       OverloadedStrings
   ghc-options: -rtsopts -j8
-  cpp-options: -DKOKA_MAIN="koka" -DKOKA_VARIANT="release" -DKOKA_VERSION="2.2.0"
+  cpp-options: -DKOKA_MAIN="koka" -DKOKA_VARIANT="release" -DKOKA_VERSION="2.2.0" -DREADLINE=0
   include-dirs:
       src/Platform/cpp/Platform
   c-sources:
@@ -142,7 +142,7 @@ executable koka
     , bytestring
     , containers
     , directory
-    , haskeline
+    , isocline >=1.0.1
     , mtl
     , parsec
     , process
@@ -170,9 +170,9 @@ test-suite koka-test
     , directory
     , extra
     , filepath
-    , haskeline
     , hspec
     , hspec-core
+    , isocline >=1.0.1
     , json
     , mtl
     , parsec

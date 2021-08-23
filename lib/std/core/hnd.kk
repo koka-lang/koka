@@ -451,7 +451,7 @@ private inline extern eq( ^x : int, ^y : int) : bool  {
 
 public fun initially(init : (int) -> e (), action : () -> e a ) : e a {
   init(0)
-  if (yielding()) return yield-extend(fn(_ret){ initially-prompt(init,action()) })
+  if (yielding()) return yield-extend(fn(_ret:()){ initially-prompt(init,action()) })
   initially-prompt(init, action() )
 }
 
@@ -498,7 +498,7 @@ public fun finalize( r : resume-context<b,e,e0,r>, x : r ) : e r {
 // Clauses
 // -------------------------------------------
 
-abstract type clause1<a,b,h,e,r> {
+abstract type clause1<a,b,h,e::E,r> {
   Clause1( clause: (marker<e,r>, ev<h>, a) -> e b )
 }
 
@@ -506,7 +506,7 @@ private inline extern cast-ev0( f : (marker<e1,r>,ev<h>) -> e1 b) : e ((marker<e
 private inline extern cast-ev1( f : (marker<e1,r>,ev<h>,a) -> e1 b) : e ((marker<e1,r>,ev<h>,a) -> e b) { inline "#1" }
 private inline extern cast-ev2( f : (marker<e1,r>,ev<h>,a1,a2) -> e1 b) : e ((marker<e1,r>,ev<h>,a1,a2) -> e b) { inline "#1" }
 
-public fun ".perform1"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,h,e1,r>), x : a ) : e b {
+public noinline fun ".perform1"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,h,e1,r>), x : a ) : e b {
   match(ev) {
     Ev(_tag,m,h,_c,_w) -> match(h.op) {
       Clause1(f) -> cast-ev1(f)(m,ev,x)
@@ -597,7 +597,7 @@ abstract type clause0<b,h,e,r> {
   Clause0( clause: (marker<e,r>, ev<h>) -> e b )
 }
 
-public fun ".perform0"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause0<b,h,e1,r>) ) : e b {
+public noinline fun ".perform0"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause0<b,h,e1,r>) ) : e b {
   match(ev) {
     Ev(_tag,m,h,_c,_w) -> match(h.op) {
       Clause0(f) -> cast-ev0(f)(m,ev)
@@ -689,7 +689,7 @@ public fun clause-tail-noyield2<e,r,a1,a2,b>(op : (a1,a2) -> e b) : clause2<a1,a
   Clause2(fn(_m,_ev,x1,x2){ op(x1,x2) })
 }
 
-public fun ".perform2"( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> clause2<a,b,c,h,e1,r>), x : a, y : b ) : e c {
+public noinline fun ".perform2"( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> clause2<a,b,c,h,e1,r>), x : a, y : b ) : e c {
   match(evx) {
     Ev(_tag,m,h,_c,_w) -> match(h.op) {
       Clause2(f) -> cast-ev2(f)(m,evx,x,y)
@@ -810,7 +810,7 @@ public fun ".open-none4"<a1,a2,a3,a4,b,e1,e2>( f : (a1,a2,a3,a4) -> e1 b, x1 : a
 }
 
 
-private fun open-at1<a,b,e1,e2>( i: ev-index, f : a -> e1 b, x : a ) : e2 b {
+private noinline fun open-at1<a,b,e1,e2>( i: ev-index, f : a -> e1 b, x : a ) : e2 b {
   val w = evv-swap-create1(i)
   val y = cast-ev1(f)(x)
   evv-set(w)
@@ -818,7 +818,7 @@ private fun open-at1<a,b,e1,e2>( i: ev-index, f : a -> e1 b, x : a ) : e2 b {
   y
 }
 
-public fun ".open-at0"<b,e1,e2>( i: ev-index, f : () -> e1 b ) : e2 b {
+public noinline fun ".open-at0"<b,e1,e2>( i: ev-index, f : () -> e1 b ) : e2 b {
   val w = evv-swap-create1(i)
   val y = cast-ev0(f)()
   evv-set(w)
@@ -826,7 +826,7 @@ public fun ".open-at0"<b,e1,e2>( i: ev-index, f : () -> e1 b ) : e2 b {
   y
 }
 
-public fun ".open-at1"<a,b,e1,e2>( i: ev-index, f : a -> e1 b, x : a ) : e2 b {
+public noinline fun ".open-at1"<a,b,e1,e2>( i: ev-index, f : a -> e1 b, x : a ) : e2 b {
   val w = evv-swap-create1(i)
   val y = cast-ev1(f)(x)
   evv-set(w)
@@ -834,7 +834,7 @@ public fun ".open-at1"<a,b,e1,e2>( i: ev-index, f : a -> e1 b, x : a ) : e2 b {
   y
 }
 
-public fun ".open-at2"<a1,a2,b,e1,e2> ( i: ev-index, f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
+public noinline fun ".open-at2"<a1,a2,b,e1,e2> ( i: ev-index, f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
   val w = evv-swap-create1(i)
   val y = cast-ev2(f)(x1,x2)
   evv-set(w)
@@ -842,7 +842,7 @@ public fun ".open-at2"<a1,a2,b,e1,e2> ( i: ev-index, f : (a1,a2) -> e1 b, x1 : a
   y
 }
 
-public fun ".open-at3"<a1,a2,a3,b,e1,e2> ( i: ev-index, f : (a1,a2,a3) -> e1 b, x1 : a1, x2 : a2, x3 : a3 ) : e2 b {
+public noinline fun ".open-at3"<a1,a2,a3,b,e1,e2> ( i: ev-index, f : (a1,a2,a3) -> e1 b, x1 : a1, x2 : a2, x3 : a3 ) : e2 b {
   val w = evv-swap-create1(i)
   val y = cast-ev3(f)(x1,x2,x3)
   evv-set(w)
@@ -850,7 +850,7 @@ public fun ".open-at3"<a1,a2,a3,b,e1,e2> ( i: ev-index, f : (a1,a2,a3) -> e1 b, 
   y
 }
 
-public fun ".open-at4"<a1,a2,a3,a4,b,e1,e2> ( i: ev-index, f : (a1,a2,a3,a4) -> e1 b, x1 : a1, x2 : a2, x3 : a3, x4 : a4 ) : e2 b {
+public noinline fun ".open-at4"<a1,a2,a3,a4,b,e1,e2> ( i: ev-index, f : (a1,a2,a3,a4) -> e1 b, x1 : a1, x2 : a2, x3 : a3, x4 : a4 ) : e2 b {
   val w = evv-swap-create1(i)
   val y = cast-ev4(f)(x1,x2,x3,x4)
   evv-set(w)
@@ -859,7 +859,7 @@ public fun ".open-at4"<a1,a2,a3,a4,b,e1,e2> ( i: ev-index, f : (a1,a2,a3,a4) -> 
 }
 
 
-private fun open1<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1 b, x : a ) : e2 b {
+private noinline fun open1<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1 b, x : a ) : e2 b {
   val w = evv-swap-create(indices)
   val y = cast-ev1(f)(x)
   evv-set(w)

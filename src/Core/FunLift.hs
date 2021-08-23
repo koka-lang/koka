@@ -223,7 +223,7 @@ makeDef fvs tvs (pinfos, (expr, doc))
 
     liftedFun = addTypeLambdas alltpars $ Lam allpars eff body
     liftedTp  = typeOf liftedFun
-    liftedDef name inl = Def name liftedTp liftedFun Private (defFun allpinfos) inl rangeNull ("// lifted " ++ doc)
+    liftedDef name inl = Def name liftedTp liftedFun Private (defFun allpinfos) inl rangeNull $ "// lifted\n" ++ doc
 
     funExpr name
       = Var (TName name liftedTp) (InfoArity (length alltpars) (length allargs))

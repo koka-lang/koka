@@ -36,7 +36,7 @@ fun test-normal(i0,action) {
   var i := i0
   handle({mask<local>(action)}) {
     fun get()  { i }
-    fun put(j) { i := j; () }
+    fun put(j) { i := j }
   }
 }
 
@@ -61,7 +61,7 @@ fun test-direct(i) {
   if (i==0) then i else test-direct(i - 1)
 }
 
-val n = 1000000
+val n = 100000000
 fun main() {
   print-elapsed({test-direct(n)},      "direct")
   print-elapsed({test-normal(n,count)},"single handler")

@@ -11,20 +11,23 @@
 -}
 -----------------------------------------------------------------------------
 module Lib.Printer( 
-                -- * Color
-                Color(..)
-                -- * Printer
-                , Printer( write, writeText, writeLn, writeTextLn, flush, withColor, withBackColor, withReverse, withUnderline    , setColor, setBackColor, setReverse, setUnderline ) 
-                -- * Printers
-              , MonoPrinter, withMonoPrinter
-              , ColorPrinter, withColorPrinter, withNoColorPrinter, withFileNoColorPrinter, isAnsiPrinter, isConsolePrinter
-              , AnsiPrinter, withAnsiPrinter
-              , withFilePrinter, withNewFilePrinter
-              , withHtmlPrinter, withHtmlColorPrinter
-                -- * Misc.
-              , ansiWithColor
-              , ansiColor
-              ) where
+      -- * Color
+      Color(..)
+      -- * Printer
+      , Printer( write, writeText, writeLn, writeTextLn, flush, 
+                  withColor, withBackColor, withReverse, withUnderline
+                --  ,setColor, setBackColor, setReverse, setUnderline 
+                ) 
+      -- * Printers
+    , MonoPrinter, withMonoPrinter
+    , ColorPrinter, withColorPrinter, withNoColorPrinter, withFileNoColorPrinter, isAnsiPrinter, isConsolePrinter
+    , AnsiPrinter, withAnsiPrinter
+    , withFilePrinter, withNewFilePrinter
+    , withHtmlPrinter, withHtmlColorPrinter
+      -- * Misc.
+    , ansiWithColor
+    , ansiColor
+    ) where
 
 import Data.List( intersperse )
 -- import Data.Char( toLower )
@@ -39,6 +42,8 @@ import qualified Data.Text    as T
 import qualified Data.Text.IO as T
 
 import Debug.Trace
+
+import System.Console.Isocline( withTerm, termWriteLn, termWrite, termFlush )
 
 {--------------------------------------------------------------------------
   Printer
@@ -176,7 +181,8 @@ instance Printer FilePrinter where
 -- | Use a color printer that uses ANSI escape sequences.
 withAnsiPrinter :: (AnsiPrinter -> IO a) -> IO a
 withAnsiPrinter f
-  = do ansi <- newVar ansiDefault
+  = -- withTerm $
+    do ansi <- newVar ansiDefault
        finally (f (Ansi ansi)) (do ansiEscapeIO seqReset
                                    hFlush stdout)
 
@@ -193,11 +199,11 @@ data AnsiConsole = AnsiConsole{ fcolor    :: Color
                               }
 
 instance Printer AnsiPrinter where
-  write p s             = putStr s
-  writeText p s         = T.putStr s
-  writeLn p s           = putStrLn s
-  writeTextLn p s       = T.putStrLn s
-  flush p               = hFlush stdout
+  write p s             = termWrite s -- putStr s
+  writeText p s         = termWrite (T.unpack s) -- T.putStr s
+  writeLn p s           = termWriteLn s -- putStrLn s
+  writeTextLn p s       = termWriteLn (T.unpack s) -- T.putStrLn s
+  flush p               = termFlush -- hFlush stdout
   withColor p c io      = ansiWithConsole p (\con -> con{ fcolor = c }) io
   withBackColor p c io  = ansiWithConsole p (\con -> con{ bcolor = c }) io
   withReverse p r io    = ansiWithConsole p (\con -> con{ invert = r }) io
@@ -238,7 +244,7 @@ ansiSetConsole (Ansi varAnsi) f
 ansiEscapeIO :: [T.Text] -> IO ()
 ansiEscapeIO xs
   | null xs   = return ()
-  | otherwise = T.putStr (ansiEscape xs) 
+  | otherwise = termWrite (T.unpack {-T.putStr-} (ansiEscape xs))
 
                    
   
@@ -313,10 +319,11 @@ data ColorPrinter = PCon  ConsolePrinter
 -- | Use a color-enabled printer.
 withColorPrinter :: (ColorPrinter -> IO b) -> IO b
 withColorPrinter f
-  = Con.withConsole $ \success ->
+  = {- Con.withConsole $ \success ->
     if success
      then f (PCon (ConsolePrinter ()))
-     else withAnsiPrinter (f . PAnsi)
+     else -}
+    withAnsiPrinter (f . PAnsi)
 
 withHtmlColorPrinter :: (ColorPrinter -> IO b) -> IO b
 withHtmlColorPrinter f

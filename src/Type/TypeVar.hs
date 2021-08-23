@@ -161,8 +161,8 @@ subFind tvar sub
   = case subLookup tvar sub of
       Nothing   -> TVar tvar
       Just tau  -> assertion ("Type.TypeVar.subFind: incompatible kind: "
-                             ++ showTVar tvar ++ ":" ++ show (getKind tvar) ++ ","
-                             ++ "?" ++ ":" ++ show (getKind tau))
+                             ++ "\n tvar: " ++ showTVar tvar ++ ":" ++ show (getKind tvar) ++ ","
+                             ++ "\n type: " ++ show tau ++ ":" ++ show (getKind tau))
                              (getKind tvar == getKind tau) $
                    tau
 

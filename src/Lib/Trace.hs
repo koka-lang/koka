@@ -14,6 +14,8 @@ module Lib.Trace( trace, traceDoc, ctrace, Color(..), traceShowId, traceShow, tr
 import Lib.Printer
 import Lib.PPrint
 import Platform.Runtime( unsafePerformIO )
+-- import System.Console.Isocline
+import System.IO 
 
 trace :: String -> a -> a
 trace msg x = ctrace DarkGray msg x 
@@ -43,6 +45,7 @@ ctrace :: Color -> String -> a -> a
 ctrace clr msg x
   = seq (unsafePerformIO $ 
          -- withColorPrinter $ 
-         withNoColorPrinter $
-         \p -> withColor p clr (writeLn p msg)
+         -- withNoColorPrinter $
+         -- \p -> withColor p clr (writeLn p msg)
+         hPutStrLn stderr msg
         ) x
