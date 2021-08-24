@@ -1706,7 +1706,7 @@ kk_integer_t kk_integer_div_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* 
   return d;
 }
 
-/* borrow x, may prodice an invalid read if x is not a bigint */
+/* owned x, may produce an invalid read if x is not a bigint */
 int32_t kk_integer_clamp32_bigint(kk_integer_t x) {
   kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_as_bigint(x), KK_TAG_BIGINT);
   int32_t i = 0;

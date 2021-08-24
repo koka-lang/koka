@@ -594,6 +594,13 @@ static inline int32_t kk_integer_clamp32_borrow(kk_integer_t x) {
   return kk_integer_clamp32_bigint(x);
 }
 
+static inline int32_t kk_integer_clamp32(kk_integer_t x, kk_context_t* ctx) {
+  if (kk_likely(kk_is_smallint(x))) return (int32_t)kk_smallint_from_integer(x);
+  int32_t r = kk_integer_clamp32_bigint(x);
+  kk_integer_drop(x,ctx);
+  return r;
+}
+
 static inline int64_t kk_integer_clamp64_borrow(kk_integer_t x) {
   if (kk_likely(kk_is_smallint(x))) return (int64_t)kk_smallint_from_integer(x);
   return kk_integer_clamp64_bigint(x);
