@@ -1258,8 +1258,8 @@ inline extern int( i : int32 ) : int {
 
 // Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
 // value if it is outside the range of an `:int32`.
-extern int32( ^i : int) : int32   {
-  c  inline "kk_integer_clamp32_borrow(#1)"
+extern int32( i : int) : int32   {
+  c  "kk_integer_clamp32" // "kk_integer_clamp32_borrow(#1)"
   cs "Primitive.IntToInt32"
   js "$std_core._int_to_int32"
 }

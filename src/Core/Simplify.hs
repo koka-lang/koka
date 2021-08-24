@@ -214,6 +214,46 @@ topDown expr@(App (TypeApp (TypeLam tpars (Lam pars eff body)) targs) args) | le
     makeDef (TName npar nparTp) arg
       = DefNonRec (Def npar nparTp arg Private DefVal InlineAuto rangeNull "")
 
+-- case-of-let
+topDown (Case [Let dgs expr] branches) 
+  = assertion "Core.Simplify.topDown.Case-Of-Let" (bv dgs `tnamesDisjoint` fv branches) $
+    return (Let dgs (Case [expr] branches))
+
+-- case-of-case: currently makes reuse worse in some cases (like bench/koka/rbtree)
+topDown (Case [Case scruts0 branches0] branches1) | doesNotDuplicate 
+  = return (Case scruts0 (map (pushCase branches1) branches0))
+  where
+    pushCase branches (Branch pats guards) 
+      = Branch pats (map (pushCaseG branches) guards)
+    pushCaseG branches (Guard guard expr)
+      = Guard guard (Case [expr] branches)
+
+    doesNotDuplicate 
+      = hasSingleBranch branches0 || 
+        length (filter (simplifiesOn branches1) branches0) + 1 >= length branches0
+
+    hasSingleBranch :: [Branch] -> Bool
+    hasSingleBranch branches
+      = case branches of
+          [Branch pats [guard]] -> True
+          _                     -> False
+
+    simplifiesOn :: [Branch] -> Branch -> Bool
+    simplifiesOn branches (Branch pats guards)
+      = all (simplifiesOnG branches) guards
+
+    simplifiesOnG :: [Branch] -> Guard -> Bool
+    simplifiesOnG branches (Guard guard expr)
+      = simplifiesOnE branches expr
+
+    simplifiesOnE :: [Branch] -> Expr -> Bool
+    simplifiesOnE branches expr
+      = case expr of 
+          Let dgs body -> simplifiesOnE branches body
+          _ -> case kmatchBranches [expr] branches of
+                 Just _ -> True
+                 _      -> False
+
 -- No optimization applies
 topDown expr
   = return expr
