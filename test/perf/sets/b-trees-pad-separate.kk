@@ -22,7 +22,7 @@ type tree {
 
 // We keep the smallest element that is larger than k and compare it with
 // k at the end. This reduces the number of comparisons by a factor of 2.
-fun member2(tree, k, smallestLarger) {
+fun member2(^tree, k, smallestLarger) {
   match(tree) {
     Root0
       -> wont-happen()
@@ -47,7 +47,7 @@ fun member2(tree, k, smallestLarger) {
   }
 }
 
-fun member(tree, k) {
+fun member(^tree, k) {
   match(tree) {
     Root0
       -> False

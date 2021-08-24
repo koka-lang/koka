@@ -48,7 +48,7 @@ fun insert(kx, t) : tree {
   ins(t, Root)
 }
 
-fun member(kx, t) : bool {
+fun member(kx, ^t) : bool {
   match(t) {
     Tip -> False
     Bin(_, ky, l, r)

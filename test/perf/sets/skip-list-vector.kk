@@ -52,6 +52,8 @@ fun search(list : skiplist, searchKey) {
   }
 }
 
+val no-node = Node(0, vector())
+
 // i < lvl - 1 = forward.length() - 1
 fun re-assign(l, i : int, searchKey, forward) : <div, exn> (vector<skiplist_>, skiplist_) {
   fun go(l, i, forward) : <div, exn> (vector<skiplist_>, skiplist_) {
@@ -61,8 +63,9 @@ fun re-assign(l, i : int, searchKey, forward) : <div, exn> (vector<skiplist_>, s
         match(f[i]) {
           fi as Node(k2, _) {
             if(k2 <= searchKey) {
-              val (forward2, fi2) = go(fi, i, forward)
               var f2 := f
+              f2[i] := no-node // Release the reference to fi
+              val (forward2, fi2) = go(fi, i, forward)
               f2[i] := fi2
               (forward2, Node(k, f2))
             } else {
@@ -100,8 +103,9 @@ fun place(l, i : int, searchKey : elem, lvl : int) : <div, exn> skiplist_ {
     Node(k, f) {
       match(f[i]) {
         fi as Node(k2, _) | k2 <= searchKey -> {
-          val fi2 = place(fi, i, searchKey, lvl)
           var f2 := f
+          f2[i] := no-node // Release the reference to fi
+          val fi2 = place(fi, i, searchKey, lvl)
           f2[i] := fi2
           Node(k, f2)
         }

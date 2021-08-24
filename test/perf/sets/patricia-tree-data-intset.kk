@@ -46,7 +46,7 @@ fun bitmap-of(x) {
   shl(1.int32, suffix-of(x))
 }
 
-fun lookup(k, t) {
+fun lookup(k, ^t) {
   match(t) {
     Empty -> False
     Leaf(j, bm) -> prefix-of(k) == j && bitmap-of(k).and(bm) != 0.int32

@@ -66,10 +66,10 @@ fun insert(kx, t) : tree {
   ins(t, Root)
 }
 
-fun member(kx, t) : bool {
+fun member(kx, ^t) : bool {
   val k = prefix-of(kx)
   val km = bitmap-of(kx)
-  fun mem(t) {
+  fun mem(^t) {
     match(t) {
       Tip -> False
       Bin(_, ky, l, r)

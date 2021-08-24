@@ -27,7 +27,7 @@ fun match-prefix(k, p, m) {
   mask-bits(k, m) == p
 }
 
-fun lookup(k, t) {
+fun lookup(k, ^t) {
   match(t) {
     Empty -> False
     Leaf(j) -> j == k

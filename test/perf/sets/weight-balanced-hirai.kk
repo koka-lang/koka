@@ -38,7 +38,7 @@ fun insert(kx, t) {
   }
 }
 
-fun member(kx, t) {
+fun member(kx, ^t) {
   match(t) {
     Tip -> False
     Bin(_, ky, l, r)

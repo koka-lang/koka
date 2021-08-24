@@ -14,8 +14,8 @@ type rbtree {
   T(c : color, l : rbtree, e : elem, r : rbtree)
 }
 
-fun member(x, t) {
-  fun mem(z : elem, t) {
+fun member(x, ^t) {
+  fun mem(z : elem, ^t) {
     match(t) {
       E -> x == z
       T(_, a, y, b) -> if(x <= y) then mem(y, a) else mem(z, b)
