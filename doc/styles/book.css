@@ -290,8 +290,7 @@ html {
 	height: 7em;
 	overflow-y: auto;
 	padding-top: 1ex;
-  margin-top: -1em;
-  font-size: larger;
+  margin-top: -1em;  
   /* border: 1px solid #ccc; */	
 }
 
