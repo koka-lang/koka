@@ -291,6 +291,7 @@ html {
 	overflow-y: auto;
 	padding-top: 1ex;
   margin-top: -1em;
+  font-size: larger;
   /* border: 1px solid #ccc; */	
 }
 
