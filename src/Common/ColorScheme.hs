@@ -64,7 +64,7 @@ defaultColorScheme
                             , colorCommand     = White
                             , colorComment     = DarkGreen
                             , colorReserved    = DarkYellow  
-                            --, colorReservedOp  = DarkYellow
+                            -- , colorReservedOp  = DarkYellow
                             , colorCons        = DarkGreen
                             , colorModule      = DarkCyan
                             , colorString      = DarkRed

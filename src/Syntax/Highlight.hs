@@ -42,7 +42,7 @@ highlightInput cscheme input
 
 fmtAttr :: ColorScheme -> Token Lexeme -> Lexeme -> String -> IC.Fmt
 fmtAttr cscheme tok lexeme display
-  = IC.style (styleOf tok) rawInput
+  = IC.pre (styleOf tok) rawInput
   where
     rawInput
       = rawSourceFromRange (getRange lexeme)
