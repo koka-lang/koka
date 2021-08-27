@@ -641,7 +641,7 @@ inferExpr propagated expect (App assign@(Var name _ arng) [lhs@(_,lval),rhs@(_,r
                 inferExpr propagated expect (App fun (xargs ++ [(Nothing {- Just (nameAssigned,rangeNull) -},rexpr)]) rng)
       Var target _ lrng
         -> do (_,gtp,_) <- resolveName target Nothing lrng
-              (tp,_,_) <- instantiate lrng gtp
+              (tp,_,_) <- instantiateEx lrng gtp
               -- traceDoc $ \penv -> text "setting:" <+> pretty target <+> text ":" <+> ppType penv tp
               nameSet <- if (isTypeLocalVar tp)
                            then return nameLocalSet
@@ -949,7 +949,7 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
                  -- traceDoc $ \penv -> text "resolving:" <+> text (showPlain opName) <+> text ", under effect:" <+> text (showPlain effectName)
                  (_,gtp,_) <- resolveFunName (if isQualified opName then opName else qualify (qualifier effectName) opName)
                                                (CtxFunArgs (length pars) []) patRng nameRng -- todo: resolve more specific with known types?
-                 (tp,_,_)  <- instantiate nameRng gtp
+                 (tp,_,_)  <- instantiateEx nameRng gtp
                  let parTps = case splitFunType tp of
                                 Just (tpars,_,_) -> (if (isInstance) then tail else id) $ -- drop the first parameter of an op for an instance (as it is the instance name)
                                                     map (Just . snd) tpars ++ repeat Nothing  -- TODO: propagate result type as well?
@@ -998,7 +998,7 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
        -- so it is propagated automatically.
        penv <- getPrettyEnv
        (_,handleTp,_)  <- resolveFunName handleName CtxNone rng rng
-       (handleRho,_,_) <- instantiate rng handleTp
+       (handleRho,_,_) <- instantiateEx rng handleTp
        let actionTp = case splitFunType handleRho of
                         Just ([_,_,_,actionTp],effTp,resTp) -> snd actionTp
                         _ -> failure ("Type.Infer: unexpected handler type: " ++ show (ppType penv handleRho))
@@ -1086,7 +1086,7 @@ inferHandledEffect rng handlerSort mbeff ops
         (HandlerBranch name pars expr opSort nameRng rng: _)
           -> -- todo: handle errors if we find a non-operator
              do (qname,tp,info) <- resolveFunName name (CtxFunArgs (length pars) []) rng nameRng
-                (rho,_,_) <- instantiate nameRng tp
+                (rho,_,_) <- instantiateEx nameRng tp
                 case splitFunType rho of
                   Just((opname,rtp):_,_,_) | isHandlerInstance handlerSort && opname == newHiddenName "hname"
                                 -> do -- traceDoc $ \env -> text "effect instance: " <+> ppType env rtp
@@ -1229,7 +1229,7 @@ inferApp propagated expect fun nargs rng
                                 if (Core.isTotal fcore)
                                 then return (Core.makeLet defs (coreApp fcore cargs))
                                 else do fname <- uniqueName "fun"
-                                        let fdef = Core.DefNonRec (Core.Def fname ftp fcore Core.Private DefFun InlineAuto rangeNull "")
+                                        let fdef = Core.DefNonRec (Core.Def fname ftp fcore Core.Private (DefFun [] {-all own, TODO: maintain borrow annotations?-}) InlineAuto rangeNull "")
                                             fvar = Core.Var (Core.TName fname ftp) Core.InfoNone
                                         return (Core.Let (fdef:defs) (coreApp fvar cargs))
            -- take top effect
@@ -1953,7 +1953,7 @@ matchFunTypeArgs context fun tp fixed named
                 matches <- lookupNameEx (const True) nameCopy (CtxFunTypes True [tp] []) range
                 case matches of
                   [(qname,info)]
-                    -> do (contp,_,coreInst) <- instantiate range (infoType info)
+                    -> do (contp,_,coreInst) <- instantiateEx range (infoType info)
                           (args,pars,eff,res,_) <- matchFunTypeArgs context fun contp (fun:fixed) named
                           let coreAddCopy core coreArgs
                                 = let coreVar = coreExprFromNameInfo qname info

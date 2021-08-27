@@ -14,6 +14,7 @@ module Common.Syntax( Visibility(..)
                     , Fixity(..)
                     , DataKind(..)
                     , DefSort(..), isDefFun, defFun
+                    , ParamInfo(..)
                     , DefInline(..)
                     , Target(..)
                     , Host(..)
@@ -180,18 +181,23 @@ dataDefIsValue ddef
 --------------------------------------------------------------------------}
 
 data DefSort
-  = DefFun | DefVal | DefVar
-  deriving (Eq,Ord)
+  = DefFun [ParamInfo] | DefVal | DefVar
+  deriving Eq
 
-isDefFun (DefFun )  = True
-isDefFun _          = False
+data ParamInfo 
+  = Borrow
+  | Own
+  deriving(Eq,Show)  
 
-defFun :: DefSort
-defFun = DefFun
+isDefFun (DefFun _)  = True
+isDefFun _           = False
+
+defFun :: [ParamInfo] -> DefSort
+defFun pinfos = if all (==Own) pinfos then DefFun [] else DefFun pinfos
 
 instance Show DefSort where
   show ds = case ds of
-              DefFun -> "fun"
+              DefFun _ -> "fun"
               DefVal -> "val"
               DefVar -> "var"
 

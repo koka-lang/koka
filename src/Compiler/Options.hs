@@ -22,6 +22,7 @@ module Compiler.Options( -- * Command line options
                        , buildType, unquote
                        , outName, buildDir, buildVariant
                        , cpuArch, osName
+                       , optionCompletions
                        ) where
 
 
@@ -93,6 +94,7 @@ data Flags
          , showKindSigs     :: Bool
          , showSynonyms     :: Bool
          , showCore         :: Bool
+         , showFinalCore    :: Bool
          , showCoreTypes    :: Bool
          , showAsmCS        :: Bool
          , showAsmJS        :: Bool
@@ -160,6 +162,7 @@ data Flags
          , parcReuse        :: Bool
          , parcSpecialize   :: Bool
          , parcReuseSpec    :: Bool
+         , parcBorrowInference    :: Bool
          , asan             :: Bool
          , useStdAlloc      :: Bool -- don't use mimalloc for better asan and valgrind support
          , optSpecialize    :: Bool
@@ -171,7 +174,7 @@ flagsNull
           True
           -- show
           False False  -- kinds kindsigs
-          False False False -- synonyms core core-types
+          False False False False -- synonyms core fcore core-types
           False -- show asm
           False
           False
@@ -236,15 +239,16 @@ flagsNull
           "" -- forceModule
           True -- debug
           0    -- optimize
-          10   -- inlineMax
+          12   -- inlineMax
           True -- optctail
           False -- optctailInline
           True -- parc reuse
           True -- parc specialize
           True -- parc reuse specialize
+          False -- parc borrow inference
           False -- use asan
           False -- use stdalloc
-          True  -- use specialization
+          True  -- use specialization (only used if optimization level >= 1)
 
 isHelp Help = True
 isHelp _    = False
@@ -296,6 +300,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["showtypesigs"]   (\b f -> f{showTypeSigs=b})      "show type signatures of definitions"
  , flag   []    ["showsynonyms"]   (\b f -> f{showSynonyms=b})      "show expanded type synonyms in types"
  , flag   []    ["showcore"]       (\b f -> f{showCore=b})          "show core"
+ , flag   []    ["showfcore"]      (\b f -> f{showFinalCore=b})     "show final core (with backend optimizations)"
  , flag   []    ["showcoretypes"]  (\b f -> f{showCoreTypes=b})     "show full types in core"
  , flag   []    ["showcs"]         (\b f -> f{showAsmCS=b})         "show generated c#"
  , flag   []    ["showjs"]         (\b f -> f{showAsmJS=b})         "show generated javascript"
@@ -336,6 +341,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fflag       ["parcreuse"] (\b f -> f{parcReuse=b})         "enable in-place update analysis"
  , hide $ fflag       ["parcspec"]  (\b f -> f{parcSpecialize=b})    "enable drop specialization"
  , hide $ fflag       ["parcrspec"] (\b f -> f{parcReuseSpec=b})     "enable reuse specialization"
+ , hide $ fflag       ["binference"]    (\b f -> f{parcBorrowInference=b})     "enable reuse inference (does not work cross-module!)"
  , hide $ fflag       ["optctail"]  (\b f -> f{optctail=b})          "enable con-tail optimization (TRMC)"
  , hide $ fflag       ["optctailinline"]  (\b f -> f{optctailInline=b})  "enable con-tail inlining (increases code size)"
  , hide $ fflag       ["specialize"]  (\b f -> f{optSpecialize=b})      "enable inline specialization"
@@ -514,6 +520,20 @@ environment
     editorEnv s     = ["--editor=" ++ s]
     vcpkgEnv dir    = ["--vcpkg=" ++ dir]
     -- dirEnv s        = ["--install-dir=" ++ s]
+
+optionCompletions :: [(String,String)]
+optionCompletions 
+  = concatMap complete (fst options)
+  where
+    complete :: OptDescr Option -> [(String,String)]
+    complete (Option shorts longs arg help)
+      = let lreq = case arg of ReqArg _ _ -> "="
+                               _          -> ""
+            sreq = case arg of ReqArg _ _ -> " "
+                               _          -> ""
+        in zip ((map (\c -> "-" ++ [c] ++ sreq) shorts) ++ (map (\s -> "--" ++ s ++ lreq) longs))
+               (repeat help)
+        
 
 {--------------------------------------------------------------------------
   Process options
@@ -792,7 +812,7 @@ ccGcc name path
 
 ccMsvc name path
   = CC name path ["-DWIN32","-nologo"] 
-         [(DebugFull,words "-MDd -Zi -Ob0 -O0 -RTC1"),
+         [(DebugFull,words "-MDd -Zi -Od -RTC1"),
           (Debug,words "-MDd -Zi -O1"),
           (Release,words "-MD -O2 -Ob2 -DNDEBUG"),
           (RelWithDebInfo,words "-MD -Zi -O2 -Ob2 -DNDEBUG")]
@@ -842,9 +862,12 @@ ccFromPath flags path
          then if (not (ccName cc `startsWith` "clang" || ccName cc `startsWith` "gcc"))
                 then do putStrLn "warning: can only use address sanitizer with clang or gcc (--fasan is ignored)"
                         return (cc,False)
-                else do return (cc{ ccName         = ccName cc ++ "-asan"
-                                  , ccFlagsCompile = ccFlagsCompile cc ++ ["-fsanitize=address,undefined,leak","-fno-omit-frame-pointer","-O0"]
-                                  , ccFlagsLink    = ccFlagsLink cc ++ ["-fsanitize=address,undefined,leak"] }
+                -- asan on Apple Silicon can't find leaks and throws an error
+                -- We can't check for arch, since GHC 8.10 runs on Rosetta and detects x86_64
+                else do let sanitize = if onMacOS then "-fsanitize=address,undefined" else "-fsanitize=address,undefined,leak"
+                        return (cc{ ccName         = ccName cc ++ "-asan"
+                                  , ccFlagsCompile = ccFlagsCompile cc ++ [sanitize,"-fno-omit-frame-pointer","-O0"]
+                                  , ccFlagsLink    = ccFlagsLink cc ++ [sanitize] }
                                ,True)
        else if (useStdAlloc flags)
          then return (cc{ ccName = ccName cc ++ "-stdalloc" }, False)

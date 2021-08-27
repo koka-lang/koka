@@ -11,5 +11,5 @@ public fun test(xs : list<a>, y : int, f : a -> int) {
 }
 
 public fun main() {
-  list(1,10).sum.println
+  list(1,10).test(5, inc).sum.println
 }

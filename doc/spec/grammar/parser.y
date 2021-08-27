@@ -503,8 +503,8 @@ parameters  : parameters1
             | /* empty */
             ;
 
-parameters1 : parameters1 ',' parameter
-            | parameter
+parameters1 : parameters1 ',' borrow parameter
+            | borrow parameter
             ;
 
 parameter   : paramid ':' paramtype
@@ -526,8 +526,8 @@ pparameters : pparameters1
             | /* empty */
             ;
 
-pparameters1: pparameters1 ',' pparameter
-            | pparameter
+pparameters1: pparameters1 ',' borrow pparameter
+            | borrow pparameter
             ;
 
 pparameter  : pattern 
@@ -618,6 +618,7 @@ op          : OP
             | '>'       { $$ = ">";  }
             | '<'       { $$ = "<";  }
             | '|'       { $$ = "|";  }
+            | '^'       { $$ = "^";  }
             | ASSIGN    { $$ = ":="; }
             ;
 

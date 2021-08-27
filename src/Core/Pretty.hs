@@ -155,12 +155,12 @@ prettyImportedSyn env synInfo
   = ppSynInfo env True False True synInfo <.> semi
 
 prettyExternal :: Env -> External -> Doc
-prettyExternal env (External name tp body vis nameRng doc) | coreIface env && isHiddenExternalName name
+prettyExternal env (External name tp pinfos body vis nameRng doc) | coreIface env && isHiddenExternalName name
   = empty
-prettyExternal env (External name tp body vis nameRng doc)
+prettyExternal env (External name tp pinfos body vis nameRng doc)
   = prettyComment env doc $
     prettyVis env vis $
-    keyword env "extern" <+> prettyDefName env name <+> text ":" <+> prettyType env tp <+> prettyEntries body
+    keyword env "extern" <+> prettyDefName env name <+> text ":" <+> prettyDefFunType env pinfos tp <+> prettyEntries body
   where
     prettyEntries [(Default,content)] = keyword env "= inline" <+> prettyLit env (LitString content) <.> semi
     prettyEntries entries             = text "{" <-> tab (vcat (map prettyEntry entries)) <-> text "};"
@@ -232,10 +232,10 @@ prettyInlineDef env isRec def@(Def name scheme expr vis sort inl nameRng doc)
 -}
 
 prettyInlineDef :: Env ->  InlineDef -> Doc
-prettyInlineDef env (InlineDef name expr isRec cost specArgs)
+prettyInlineDef env (InlineDef name expr isRec inlkind cost specArgs)
   =     (if isRec then (keyword env "recursive ") else empty)
     <.> (if (null specArgs) then empty else (keyword env "specialize " <.> prettySpecArgs <.> text " "))
-    <.> (if (cost <= 0) then (keyword env "inline ") else empty)
+    <.> (if (cost <= 0 || inlkind == InlineAlways) then (keyword env "inline ") else empty)
     <.> keyword env (if isFun then "fun" else "val")
     <+> (if nameIsNil name then text "_" else prettyDefName env name)
     -- <+> text ":" <+> prettyType env scheme
@@ -260,7 +260,10 @@ prettyDefX env isRec def@(Def name scheme expr vis sort inl nameRng doc)
       else prettyVis env vis $
             keyword env (show sort)
             <+> (if nameIsNil name then text "_" else prettyDefName env name)
-            <+> text ":" <+> prettyType env scheme
+            <+> text ":" <+> (case sort of 
+                                DefFun pinfos -> prettyDefFunType env pinfos scheme
+                                _             -> prettyType env scheme
+                             )
             <.> (if (not (coreShowDef env)) -- && (sizeDef def >= coreInlineMax env)
                   then empty
                   else linebreak <.> indent 2 (text "=" <+> ppBody)) <.> semi

@@ -295,14 +295,17 @@ parseTypeMod
 
 defDecl :: Env -> LexParser Def
 defDecl env
-  = do (vis,sort,inl,doc) <- try $ do (vis,_) <- visibility Public
-                                      (sort,inl,isRec,doc) <- pdefSort
-                                      return (vis,sort,inl,doc)
+  = do (vis,sort0,inl,doc) <- try $ do (vis,_) <- visibility Public
+                                       (sort,inl,isRec,doc) <- pdefSort
+                                       return (vis,sort,inl,doc)
        (name,_) <- funid <|> idop
        -- inl      <- parseInline
        -- trace ("core def: " ++ show name) $ return ()
        keyword ":"
-       tp       <- ptype env
+       (tp,pinfos) <- pdeftype env
+       let sort = case sort0 of
+                    DefFun _ -> DefFun pinfos
+                    _        -> sort0
        -- trace ("parse def: " ++ show name ++ ": " ++ show tp) $ return ()
        return (Def (qualify (modName env) name) tp (error ("Core.Parse: " ++ show name ++ ": cannot get the expression from an interface core file"))
                    vis sort inl rangeNull doc)
@@ -316,7 +319,7 @@ pdefSort
                       do { specialOp "*"; return () }
                       <|>
                       return ()
-           return (DefFun,inl,isRec,doc)
+           return (DefFun [],inl,isRec,doc)  -- borrow info comes from type
         <|>
         do (_,doc) <- dockeyword "val"
            return (DefVal,inl,False,doc))
@@ -332,9 +335,9 @@ externDecl env
        (name,_) <- (funid)
        -- trace ("core def: " ++ show name) $ return ()
        keyword ":"
-       tp <- ptype env
+       (tp,pinfos) <- pdeftype env
        formats <- externalBody
-       return (External (qualify (modName env) name) tp formats vis rangeNull doc)
+       return (External (qualify (modName env) name) tp pinfos formats vis rangeNull doc)  
 
 
 externalBody :: LexParser [(Target,String)]
@@ -403,7 +406,7 @@ inlineDef env
        -- trace ("core inline def: " ++ show name) $ return ()
        (name,_) <- funid
        expr <- parseBody env
-       return (InlineDef (envQualify env name) expr isRec (if (inl==InlineAlways) then 0 else costExpr expr) specArgs)
+       return (InlineDef (envQualify env name) expr isRec inl (if (inl==InlineAlways) then 0 else costExpr expr) specArgs)
 
 
 inlineDefSort
@@ -415,7 +418,7 @@ inlineDefSort
                   return args
                <|> return []
        (do (_,doc) <- dockeyword "fun"
-           return (DefFun,inl,isRec,spec,doc)
+           return (DefFun [],inl,isRec,spec,doc)
         <|>
         do (_,doc) <- dockeyword "val"
            return (DefVal,inl,False,spec,doc))
@@ -651,21 +654,26 @@ qualifiedConId
 
 
 parameters :: Env -> LexParser (Env, [(Name,Type)])
-parameters env
-  = do params <- parensCommas (parameter env)
-                 <|> return []
-       let env' = foldl envExtendLocal env params
+parameters env 
+  = do iparams <- parensCommas (parameter env False)
+                   <|> return []
+       let (params,pinfos) = unzip iparams
+           env' = foldl envExtendLocal env params
        return (env',params)
 
-parameter :: Env -> LexParser (Name,Type)
-parameter env
-  = do name <- try (do{ (name,_) <- paramid; keyword ":"; return name}) <|> return nameNil
+parameter :: Env -> Bool -> LexParser ((Name,Type),ParamInfo)
+parameter env allowBorrow
+  = do (name,pinfo) <-  try (do pinfo <- if allowBorrow then paramInfo else return Own
+                                (name,_) <- paramid 
+                                keyword ":" 
+                                return (name,pinfo))
+                        <|> return (nameNil,Own)
        (do specialOp "?"
            tp <- ptype env
-           return (name, makeOptional tp)
+           return ((name, makeOptional tp), pinfo)
         <|>
         do tp <- ptype env
-           return (name, tp))
+           return ((name, tp), pinfo))
 
 
 typeAnnot :: Env -> LexParser Type
@@ -722,10 +730,20 @@ kindAnnot
 --------------------------------------------------------------------------}
 ptype :: Env -> LexParser Type
 ptype env
+  = do (tp,_) <- ptypex env False
+       return tp
+
+pdeftype :: Env -> LexParser (Type, [ParamInfo])
+pdeftype env
+  = do (tp,pinfos) <- ptypex env True
+       return (tp, if all (==Own) pinfos then [] else pinfos)
+
+ptypex :: Env -> Bool -> LexParser (Type, [ParamInfo])
+ptypex env allowBorrow
   = do (quantify,env1) <- pforall env
-       tp <- tarrow env1
+       (tp,pinfos) <- tarrow env1 allowBorrow
        preds <- pqualifier env1
-       return (quantify preds tp)
+       return (quantify preds tp, pinfos)
   <?> "type"
 
 pforall :: Env -> LexParser ([Pred] -> Rho -> Type, Env)
@@ -749,18 +767,20 @@ predicate env
        return (PredIFace (envQualify env name) tps)
   <?> "predicate"
 
-tarrow :: Env -> LexParser Type
-tarrow env
-  = do etp <- tatomParams env
+tarrow :: Env -> Bool -> LexParser (Type, [ParamInfo])
+tarrow env allowBorrow
+  = do etp <- tatomParams env allowBorrow
        case etp of
-         Left params
+         Left (params,pinfos)
           -> do keyword "->"
-                tresult env params
+                tp <- tresult env params
+                return (tp, pinfos)
              <|>
              do tp <- extract params "unexpected parameters not followed by an ->"
-                ptypeApp env tp
+                t <- ptypeApp env tp
+                return (t, pinfos)                   
          Right tp
-          -> return tp
+          -> return (tp, [])
 
 tresult :: Env -> [(Name,Type)] -> LexParser Type
 tresult env params
@@ -773,10 +793,10 @@ tresult env params
 
 tatom :: Env -> LexParser Type
 tatom env
-  = do etp <- tatomParamsEx False env
+  = do etp <- tatomParamsEx False env False {-allowBorrow-}
        case etp of
-         Left params -> do tp <- extract params "expecting single type"
-                           ptypeApp env tp
+         Left (params,_) -> do tp <- extract params "expecting single type"
+                               ptypeApp env tp
          Right tp    -> return tp
 
 extract params msg
@@ -787,15 +807,16 @@ extract params msg
              then return (TApp (typeTuple (length params)) (map snd params))
              else fail msg
 
-tatomParams :: Env -> LexParser (Either [(Name,Type)] Type)
-tatomParams env
-  = tatomParamsEx True env
+tatomParams :: Env -> Bool -> LexParser (Either ([(Name,Type)], [ParamInfo]) Type)
+tatomParams env allowBorrow
+  = tatomParamsEx True env allowBorrow
 
-tatomParamsEx allowParams env
+tatomParamsEx allowParams env allowBorrow
   = do special "("
-       (do params <- parameter env `sepBy` comma
+       (do iparams <- parameter env allowBorrow `sepBy` comma
            special ")"
-           return (Left params)
+           let (params,pinfos) = unzip iparams
+           return (Left (params,pinfos))
         <|>
         do cs <- many1 comma
            special ")"

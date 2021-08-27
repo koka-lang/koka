@@ -40,6 +40,7 @@ import Common.Syntax
 import Core.Core
 import Core.Pretty
 import Core.CoreVar
+import Core.Borrowed ( Borrowed, borrowedExtendICore )
 
 import Backend.C.Parc
 import Backend.C.ParcReuse
@@ -65,10 +66,10 @@ externalNames
 -- Generate C code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Int -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
-cFromCore buildType sourceDir penv0 platform newtypes uniq enableReuse enableSpecialize enableReuseSpecialize mbMain core
+cFromCore :: BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Int -> Bool -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
+cFromCore buildType sourceDir penv0 platform newtypes borrowed uniq enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference mbMain core
   = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes platform False)
-           (genModule buildType sourceDir penv platform newtypes enableReuse enableSpecialize enableReuseSpecialize mbMain core) of
+           (genModule buildType sourceDir penv platform newtypes borrowed enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference mbMain core) of
       (bcore,cdoc,hdoc) -> (cdoc,hdoc,bcore)
   where
     moduleName = coreProgName core
@@ -80,17 +81,15 @@ contextDoc = text "_ctx"
 contextParam :: Doc
 contextParam = text "kk_context_t* _ctx"
 
-genModule :: BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> Asm Core
-genModule buildType sourceDir penv platform newtypes enableReuse enableSpecialize enableReuseSpecialize mbMain core0
+genModule :: BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Bool -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> Asm Core
+genModule buildType sourceDir penv platform newtypes borrowed0 enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference mbMain core0
   =  do core <- liftUnique (do bcore <- boxCore core0            -- box/unbox transform
-                               ucore <- if (enableReuse)
-                                         then parcReuseCore penv platform newtypes bcore -- constructor reuse analysis
-                                         else return bcore
-                               pcore <- parcCore penv platform newtypes enableSpecialize ucore -- precise automatic reference counting
-                               score <- if (enableReuse && enableReuseSpecialize)
-                                         then parcReuseSpecialize penv pcore -- selective reuse
-                                         else return pcore
-                               return score
+                               let borrowed = borrowedExtendICore bcore borrowed0
+                               pcore <- parcCore penv platform newtypes borrowed enableSpecialize bcore -- precise automatic reference counting
+                               rcore <- parcReuseCore penv enableReuse platform newtypes pcore -- constructor reuse analysis
+                               if enableReuse && enableReuseSpecialize
+                                  then parcReuseSpecialize penv rcore -- selective reuse
+                                  else return rcore
                            )
 
         let headComment   = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
@@ -942,7 +941,7 @@ genDupDropCall isDup tp arg = if (isDup) then genDupDropCallX "dup" tp (parens a
 
 genIsUniqueCall :: Type -> Doc -> [Doc]
 genIsUniqueCall tp arg  = case genDupDropCallX "is_unique" tp (parens arg) of
-                            -- [call] -> [text "kk_likely" <.> parens call]
+                            [call] -> [text "kk_likely" <.> parens call]
                             cs     -> cs
 
 genFreeCall :: Type -> Doc -> [Doc]
@@ -1425,7 +1424,7 @@ genPatternTest doTest gfree (exprDoc,pattern)
       PatLit (LitString s)
         -> return [(test [text "kk_string_cmp_cstr_borrow" <.> tupled [exprDoc,fst (cstring s)] <+> text "== 0"],[],[])]
       PatLit lit@(LitInt _)
-        -> return [(test [text "kk_integer_eq" <.> arguments [exprDoc,ppLit lit]],[],[])]
+        -> return [(test [text "kk_integer_eq_borrow" <.> arguments [exprDoc,ppLit lit]],[],[])]
       PatLit lit
         -> return [(test [exprDoc <+> text "==" <+> ppLit lit],[],[])]
       PatCon tname patterns repr targs exists tres info skip
@@ -2000,10 +1999,11 @@ isInlineableExpr expr
       TypeApp expr _   -> isInlineableExpr expr
       TypeLam _ expr   -> isInlineableExpr expr
       Lit (LitString _)-> False
+      
       -- C has no guarantee on argument evaluation so we only allow a select few operations to be inlined
       App (Var v (InfoExternal _)) [] -> getName v `elem` [nameYielding,nameReuseNull,nameCFieldHole]
       -- App (Var v (InfoExternal _)) [arg] | getName v `elem` [nameBox,nameDup,nameInt32] -> isInlineableExpr arg
-      App (Var v _) [arg] | getName v `elem` [nameBox,nameInt32,nameReuse,nameIsUnique] -> isInlineableExpr arg
+      App (Var v _) [arg] | getName v `elem` [nameBox,nameInt32,nameReuse,nameReuseIsValid,nameIsUnique] -> isInlineableExpr arg
 
       --App (Var _ (InfoExternal _)) args -> all isPureExpr args  -- yielding() etc.
 

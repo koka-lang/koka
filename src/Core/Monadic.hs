@@ -25,7 +25,7 @@ import Common.Name
 import Common.Range
 import Common.Unique
 import Common.NamePrim( nameEffectOpen, nameYieldOp, nameReturn, nameTpCont, nameDeref, nameByref,
-                        nameEnsureK, nameTrue, nameFalse, nameTpBool, nameApplyK, nameUnsafeTotal, nameIsValidK,
+                        nameTrue, nameFalse, nameTpBool, nameApplyK, nameUnsafeTotal, nameIsValidK,
                         nameBind, nameLift, nameTpYld, nameSystemCore )
 import Common.Error
 import Common.Syntax
@@ -105,7 +105,7 @@ monExpr' topLevel expr
       App eopen@(TypeApp (Var open _) [effFrom,effTo,_,_]) [f]
         | getName open == nameEffectOpen
         -> do f' <- monExpr f
-              return $ \k -> f' (\ff -> k (App eopen [f]))
+              return $ \k -> f' (\ff -> k (App eopen [ff]))
 
       -- regular cases
       Lam args eff body

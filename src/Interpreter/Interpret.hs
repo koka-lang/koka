@@ -113,10 +113,11 @@ interpreter st
 
 interpreterEx ::  State -> IO ()
 interpreterEx st
-  = do{ cmd <- getCommand st
-      -- ; messageLn ""
-      ; command st cmd
-      }
+  = do flush (printer st)
+       cmd <- getCommand st
+       -- ; messageLn ""
+       command st cmd
+      
 
 {---------------------------------------------------------------
   Interprete a command
@@ -126,7 +127,7 @@ command st cmd
   = let term = terminal st
     in do{ case cmd of
   Eval line   -> do{ err <- compileExpression term (flags st) (loaded st) (Executable nameExpr ()) (program st) bigLine line
-                   ; checkInfer st True err $ \ld ->
+                   ; checkInferWith st line id True err $ \ld ->
                      do if (not (evaluate (flags st)))
                          then let tp = infoType $ gammaFind (qualify nameInteractive nameExpr) (loadedGamma ld)
                               in messageSchemeEffect st tp
@@ -347,17 +348,20 @@ docNotFound cscheme path name
   Helpers
 --------------------------------------------------------------------------}
 checkInfer ::  State -> Bool -> Error Loaded -> (Loaded -> IO ()) -> IO ()
-checkInfer st = checkInferWith st id
-checkInfer2 st = checkInferWith st (\(a,c) -> c)
+checkInfer st = checkInferWith st "" id
+checkInfer2 st = checkInferWith st "" (\(a,c) -> c)
 
-checkInfer3 ::  State -> Bool -> Error (a,b,Loaded) -> ((a,b,Loaded) -> IO ()) -> IO ()
-checkInfer3 st = checkInferWith st (\(a,b,c) -> c)
+checkInfer3 ::  State -> String -> Bool -> Error (a,b,Loaded) -> ((a,b,Loaded) -> IO ()) -> IO ()
+checkInfer3 st line = checkInferWith st line (\(a,b,c) -> c)
 
-checkInferWith ::  State -> (a -> Loaded) -> Bool -> Error a -> (a -> IO ()) -> IO ()
-checkInferWith st getLoaded showMarker err f
+checkInferWith ::  State -> String -> (a -> Loaded) -> Bool -> Error a -> (a -> IO ()) -> IO ()
+checkInferWith st line  getLoaded showMarker err f
   = case checkError err of
       Left msg  -> do when showMarker (maybeMessageMarker st (getRange msg))
-                      messageErrorMsgLnLn st msg
+                      messageErrorMsgLn st msg
+                      if (line=="exit" || line == "quit") 
+                        then messageInfoLnLn st ("hint: use ':q' to quit the interpreter, use ':?' for help.")
+                        else messageInfoLn st "" 
                       interpreterEx st{ errorRange = Just (getRange msg) }
       Right (x,ws)
                 -> do let ld = getLoaded x
@@ -540,13 +544,18 @@ replace line col s fpath
 --------------------------------------------------------------------------}
 getCommand :: State -> IO Command
 getCommand st
-  = do let ansiPrompt = if isConsolePrinter (printer st) 
-                          then "" 
+  = do let cscheme = colorSchemeFromFlags (flags st)
+           ansiPrompt = if isConsolePrinter (printer st) -- || osName == "macos"
+                          then ""
                           else if isAnsiPrinter (printer st)
-                            then ansiWithColor (colorInterpreter (colorSchemeFromFlags (flags st))) "> "
+                            then let c = ansiColor (colorInterpreter cscheme)
+                                 in ("\x1B[" ++ show c ++ "m\x02> \x1B[0m\x02")  -- readline needs "STX" ("\x02") ending of escape sequence
+                                    -- ("\x1B[" ++ show c ++ "m> \x1B[0m")  -- readline needs "STX" ("\x02") ending of escape sequence
+                                    -- ansiWithColor (colorInterpreter (colorSchemeFromFlags (flags st))) "> "
+                                    -- "> "
                             else "> "
 
-       mbInput <- readLineEx (includePath (flags st)) (loadedMatchNames (loaded0 st)) ansiPrompt (prompt st)
+       mbInput <- readLineEx cscheme (includePath (flags st)) (loadedMatchNames (loaded0 st)) (optionCompletions) ansiPrompt (prompt st)
        let input = maybe ":quit" id mbInput
        -- messageInfoLn st ("cmd: " ++ show input)
        let cmd   = readCommand input

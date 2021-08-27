@@ -2,6 +2,7 @@
 .trash/
 .idea/
 .vs/
+.vscode/
 node_modules/
 out/
 bundle/
@@ -17,3 +18,4 @@ test.kk
 *.exe
 *.vsix
 /*.cmake
+.vscode/

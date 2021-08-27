@@ -272,8 +272,7 @@ reservedNames
     , "effect", "receffect"
     , "named"
     , "mask"
-    , "override"
-    , "unsafe"       -- future
+    , "override"   
 
     -- deprecated
     -- alternative names for backwards paper compatability
@@ -464,7 +463,7 @@ lexing source lineNo input
         initSt  = State initPos initPos [0] [] '\n' input (LexWhite "")
     in go initSt
   where go st =
-          -- trace ("scan: " ++ show (pos st) ++ ": <" ++ show (head (states st)) ++ ">: " ++ show (BC.take 5 (current st))) $
+          -- trace ("scan: start: " ++ show (startPos st) ++ ", " ++ show (pos st) ++ ": <" ++ show (head (states st)) ++ ">: " ++ show (BC.take 5 (current st))) $
           let idx0 = B.length (current st) in
           case alexScan st (head (states st)) of
             AlexEOF -> []
@@ -485,7 +484,7 @@ lexing source lineNo input
                       Nothing    -> go st2  -- more
                       Just token -> let range = makeRange (startPos st) (before (pos st2))
                                         ltoken = lparen token (previousLex st1)
-                                    in -- trace ("result: " ++ showFullRange range ++ ": " ++ show ltoken) $
+                                    in -- trace ("token: " ++ showFullRange range ++ ": " ++ show ltoken) $
                                        seq range $ Lexeme range ltoken : go st2{ startPos = pos st2, previousLex = ltoken }
 
         lparen token prev

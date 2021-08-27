@@ -10,7 +10,7 @@
 # Koka: a Functional Language with Effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
-_Latest release_: v2.1.9, 2021-06-23 ([Install]).
+_Latest release_: v2.2.0, 2021-08-26 ([Install]).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -74,6 +74,10 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 ## Recent Releases
 
+- `v2.2.0`, 2021-08-26: improved case-of-known simpification (by Rashika B), improve cross-module specialization
+  (by Steven Fontanella), initial borrowing annotations and improved reuse analysis (by Anton Lorenzen),
+  improved line editing in the interactive environment, improved inlining. Note: due to the new inline phases,
+  effect handling may currently be a tad slower in this release but will be improved for the next release.
 - `v2.1.9`, 2021-06-23: initial support for cross-module specialization (by Steven Fontanella).
 - `v2.1.8`, 2021-06-17: initial support for macOS M1 and Linux arm64, improved readline, minor fixes.
 - `v2.1.6`, 2021-06-10: initial support for shallow resumptions, fix space leak with vectors, allow `gcc` with `--fasan`,
@@ -260,6 +264,8 @@ Recently completed tasks:
 The main development branches are:
 - `master`: latest stable version.
 - `dev`: current development branch -- submit PR's to this branch.
+- `feature/borrow`: branch with borrowing; currently releases are done from this branch
+  (while we measure the perf improvements from borrowing)
 - `v1-master`: last stable version of Koka v1: this is Koka with the Javascript (and C#)
   backend which does not use evidence translation.
   This version supports `std/async` and should compile examples from published papers.
@@ -410,5 +416,6 @@ See also the [Ev.Eff](https://github.com/xnning/EvEff) and [Mp.Eff](https://gith
 8. Alex Reinking, Ningning Xie, Leonardo de Moura, and Daan Leijen: &ldquo; Perceus: Garbage Free Reference Counting with Reuse&rdquo; MSR-TR-2020-42, Nov 22, 2020. Distinguished paper at PLDI'21.
 [pdf](https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/)
 
-9. Ningning Xie and Daan Leijen: &ldquo; Generalized Evidence Passing for Effect Handlers&rdquo; MSR-TR-2021-5, Mar, 2021. 
+9. Ningning Xie and Daan Leijen: &ldquo; Generalized Evidence Passing for Effect Handlers&rdquo; In The 26th ACM SIGPLAN International Conference on Functional Programming (ICFP), August 2021.
+Also as MSR-TR-2021-5, Mar, 2021. 
 [pdf](https://www.microsoft.com/en-us/research/publication/generalized-evidence-passing-for-effect-handlers/)

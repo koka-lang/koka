@@ -552,8 +552,10 @@ kk_decl_export int kk_os_list_directory(kk_string_t dir, kk_vector_t* contents, 
     }
   } while (os_findnext(d, &entry, &err));
   os_findclose(d);
-  
-  *contents = kk_vector_realloc(vec, count, kk_box_null, ctx);
+
+  if(count != len) {
+    *contents = kk_vector_realloc(vec, count, kk_box_null, ctx);
+  } 
   return err;
 }
 

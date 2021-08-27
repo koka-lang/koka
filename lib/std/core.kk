@@ -912,9 +912,9 @@ inline extern int : (char) -> int {
 }
 
 // Convert a unicode code point to a character
-inline extern char : (int) -> char {
+inline extern char( ^i : int) : char {
   inline "(#1)";
-  c "kk_integer_clamp32"
+  c  inline "kk_integer_clamp32_borrow(#1)"
   cs inline "Primitive.IntToInt32(#1)"
 }
 
@@ -972,51 +972,51 @@ fun maybe( b : bool ) : maybe<()> {
 // ----------------------------------------------------------------------------
 
 // Compare two integers
-inline extern compare : (int,int) -> order  {
-  c inline "kk_int_as_order(kk_integer_cmp(#1,#2,kk_context()),kk_context())"
+inline extern compare(^x : int, ^y : int) : order  {
+  c inline "kk_int_as_order(kk_integer_cmp_borrow(#1,#2,kk_context()),kk_context())"
   cs "Primitive.IntCompare"
   js "$std_core._int_compare"
 }
 
 
 // Are two integers equal?
-inline extern (==) : (int,int) -> bool  {
-  c  "kk_integer_eq"
+inline extern (==)(^x : int, ^y : int) : bool  {
+  c  "kk_integer_eq_borrow"
   cs inline "(#1 == #2)"
   js "$std_core._int_eq"
 }
 
 // Are two integers not equal?
-inline extern (!=) : (int,int) -> bool  {
-  c  "kk_integer_neq"
+inline extern (!=)(^x : int, ^y : int) : bool  {
+  c  "kk_integer_neq_borrow"
   cs inline "(#1 != #2)"
   js "$std_core._int_ne"
 }
 
 // Is the first integer smaller or equal to the second?
-inline extern (<=) : (int,int) -> bool  {
-  c  "kk_integer_lte"
+inline extern (<=)(^x : int, ^y : int) : bool  {
+  c  "kk_integer_lte_borrow"
   cs inline "(#1 <= #2)"
   js "$std_core._int_le"
 }
 
 // Is the first integer greater or equal to the second?
-inline extern (>=) : (int,int) -> bool  {
-  c  "kk_integer_gte"
+inline extern (>=)(^x : int, ^y : int) : bool  {
+  c  "kk_integer_gte_borrow"
   cs inline "(#1 >= #2)"
   js "$std_core._int_ge"
 }
 
 // Is the first integer smaller than the second?
-inline extern (<)  : (int,int) -> bool  {
-  c  "kk_integer_lt"
+inline extern (<)(^x : int, ^y : int) : bool  {
+  c  "kk_integer_lt_borrow"
   cs inline "(#1 < #2)"
   js "$std_core._int_lt"
 }
 
 // Is the first integer greater than the second?
-inline extern (>)  : (int,int) -> bool  {
-  c  "kk_integer_gt"
+inline extern (>)(^x : int, ^y : int) : bool  {
+  c  "kk_integer_gt_borrow"
   cs inline "(#1 > #2)"
   js "$std_core._int_gt"
 }
@@ -1091,8 +1091,8 @@ inline extern (~)(i:int) : int {
 }
 
 // Convert an integer to a `:double`. May return `nan` if the integer is too large to represent as a `:double`.
-inline extern double : (int) -> double  {
-  c  "kk_integer_as_double"
+inline extern double( ^i : int) : double  {
+  c  inline "kk_integer_as_double_borrow(#1)"
   cs "Primitive.IntToDouble"
   js "$std_core._int_to_double"
 }
@@ -1105,8 +1105,8 @@ inline extern is-odd   : ( int ) -> bool  {
 }
 
 // Is this equal to zero?
-inline extern is-zero  : ( int ) -> bool  {
-  c  "kk_integer_is_zero"
+inline extern is-zero( ^x : int) : bool  {
+  c  inline "kk_integer_is_zero_borrow(#1)"
   cs inline "(#1.IsZero)"
   js "$std_core._int_iszero"
 }
@@ -1196,8 +1196,8 @@ fun is-pos(i : int ) : bool { i.sign == Gt }
 // Is the integer negative (stricly smaller than zero)
 fun is-neg(i : int ) : bool { i.sign == Lt }
 
-inline extern sign(i : int ) : order {
-  c  inline "kk_int_as_order(kk_integer_signum(#1,kk_context()),kk_context())"
+inline extern sign( ^i : int ) : order {
+  c  inline "kk_int_as_order(kk_integer_signum_borrow(#1),kk_context())"
   cs "Primitive.IntSign"
   js "$std_core._int_sign"
 }
@@ -1258,8 +1258,8 @@ inline extern int( i : int32 ) : int {
 
 // Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
 // value if it is outside the range of an `:int32`.
-extern int32  : (int) -> int32   {
-  c  "kk_integer_clamp32"
+extern int32( i : int) : int32   {
+  c  "kk_integer_clamp32" // "kk_integer_clamp32_borrow(#1)"
   cs "Primitive.IntToInt32"
   js "$std_core._int_to_int32"
 }
@@ -1289,8 +1289,8 @@ private fun decr( i : int32 ) : int32 {
 
 // Convert an integer to an `:ssize_t`. The number is _clamped_ to the maximal or minimum `:ssize_t`
 // value if it is outside the range of an `:ssize_t`.
-extern ssize_t( i : int) : ssize_t   {
-  c  "kk_integer_clamp_ssize_t"
+extern ssize_t( ^i : int) : ssize_t   {
+  c inline  "kk_integer_clamp_ssize_t_borrow(#1)"
   cs "Primitive.IntToInt32"
   js "$std_core._int_to_int32"
 }
@@ -1321,8 +1321,8 @@ private extern incr(i : ssize_t ) : ssize_t { inline "(#1 + 1)" }
 // int64
 // ----------------------------------------------------------------------------
 
-extern int64( i : int) : int64 {
-  c  "kk_integer_clamp64"
+extern int64( ^i : int) : int64 {
+  c inline  "kk_integer_clamp64_borrow(#1)"
   cs "Primitive.IntToInt64"
   js "$std_core._int_to_int32"
 }
@@ -1643,8 +1643,8 @@ fun tail( s : string ) : string {
 }
 
 // Return the common prefix of two strings (upto `upto` characters (default is minimum length of the two strings))
-extern common-prefix(s : string, t : string, upto : int = -1 ) : sslice {
-  c  "kk_slice_common_prefix"
+extern common-prefix(s : string, t : string, ^upto : int = -1 ) : sslice {
+  c  "kk_slice_common_prefix_borrow"
   cs "Primitive.SliceCommonPrefix"
   js "_sslice_common_prefix"
 }
@@ -1662,8 +1662,8 @@ extern common-prefix(s : string, t : string, upto : int = -1 ) : sslice {
 // * `"abc".first.advance(3).string == ""`,
 // * `"abc".last.advance(-1).string == "b"`.
 //
-extern advance( slice : sslice, count : int ) : sslice {
-  c  "kk_slice_advance"
+extern advance( slice : sslice, ^count : int ) : sslice {
+  c  "kk_slice_advance_borrow"
   cs "Primitive.SliceAdvance"
   js "_sslice_advance"
 }
@@ -1675,8 +1675,8 @@ extern advance( slice : sslice, count : int ) : sslice {
 // * `"abc".first.extend(1).string == "ab"`
 // * `"abc".last.extend(-1).string == ""`
 //
-extern extend( slice : sslice, count : int ) : sslice {
-  c  "kk_slice_extend"
+extern extend( slice : sslice, ^count : int ) : sslice {
+  c  "kk_slice_extend_borrow"
   cs "Primitive.SliceExtend"
   js "_sslice_extend"
 }
@@ -1834,7 +1834,7 @@ fun trim-right( s : string, sub : string ) : string {
 }
 
 // Repeat a string `n` times
-fun repeat( s : string, n : int ) : string {
+fun repeat( s : string, ^n : int ) : string {
   repeatz(s,n.ssize_t)
 }
 
@@ -1888,7 +1888,7 @@ fun split( s : string, sep : string ) : list<string> {
 
 // Split a string into at most `n` parts that were delimited by a string `sep`. The delimeters are not included in the results (except for possibly the final part).
 // For example: `split("1,2,3",",",2) == ["1","2,3"]`
-fun split( s : string, sep: string, n : int) : list<string> {
+fun split( s : string, sep: string, ^n : int) : list<string> {
   splitv(s,sep,n.ssize_t).list
 }
 
@@ -1973,7 +1973,7 @@ fun capitalize( s : string ) : string {
 }
 
 // Right-align a string to width `width`  using `fill`  (default is a space) to fill from the left.
-fun pad-left( s : string, width : int, fill : char = ' ') : string
+fun pad-left( s : string, ^width : int, fill : char = ' ') : string
 {
   val w = width.ssize_t
   val n = s.length
@@ -1983,7 +1983,7 @@ fun pad-left( s : string, width : int, fill : char = ' ') : string
 }
 
 // Left-align a string to width `width`  using `fill`  (default is a space) to fill on the right.
-fun pad-right( s : string, width : int, fill : char = ' ') : string
+fun pad-right( s : string, ^width : int, fill : char = ' ') : string
 {
   val w = width.ssize_t
   val n = s.length
@@ -2018,8 +2018,8 @@ inline extern trim-right( s : string ) : string {
 // ----------------------------------------------------------------------------
 
 // Return the element at position `index`  in vector `v`  without bounds check!
-private inline extern unsafe-idx : forall<a> ( v : vector<a>, index : ssize_t ) -> total a {
-  c "kk_vector_at"
+private inline extern unsafe-idx( ^v : vector<a>, index : ssize_t ) : total a {
+  c  inline "kk_vector_at_borrow(#1, #2)"
   cs inline "(#1)[#2]";
   js inline "(#1)[#2]";
 }
@@ -2037,36 +2037,36 @@ private inline extern unsafe-vector : forall<a> ( n : ssize_t ) -> total vector<
 }
 
 // Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
-inline extern [] : forall<a> ( v : vector<a>, index : int ) -> exn a  {
-  c "kk_vector_at_int"
+inline extern []( ^v : vector<a>, ^index : int ) : exn a  {
+  c  inline "kk_vector_at_int_borrow(#1, #2)"
   cs inline "(#1)[Primitive.IntToInt32(#2)]"
   js inline "$std_core._vector_at(#1,#2)"
 }
 
 // Return the element at position `index` in vector `v`, or `Nothing` if out of bounds
-fun at( v  : vector<a>, index : int ) : maybe<a> {
+fun at( ^v : vector<a>, ^index : int ) : maybe<a> {
   val idx = index.ssize_t
   if (v.lengthz <= idx) then Nothing else Just(unsafe-idx(v,idx))
 }
 
 // Return the length of a vector.
-fun length( v : vector<a> ) : int {
+fun length( ^v : vector<a> ) : int {
   v.lengthz.int
 }
 
-private inline extern lengthz : forall<a> (v : vector<a> ) -> ssize_t  {
-  c  "kk_vector_len"
+private inline extern lengthz( ^v : vector<a> ) : ssize_t {
+  c  inline "kk_vector_len_borrow(#1)"
   cs inline "((#1).Length)";
   js inline "((#1).length)";
 }
 
 // Create a new vector of length `n`  with initial elements `default` .
-fun vector(n : int, default : a) : vector<a> {
+fun vector( ^n : int, default : a) : vector<a> {
   vector-initz(n.ssize_t, fn(_i){ default } )
 }
 
 // Create a new vector of length `n`  with initial elements given by function `f` .
-fun vector-init( n : int, f : int -> a ) : vector<a> {
+fun vector-init( ^n : int, f : int -> a ) : vector<a> {
   vector-initz( n.ssize_t, fn(i) { f(i.int) } )
 }
 
@@ -2674,8 +2674,8 @@ extern main-console : forall<a,e> ( main : () -> e a ) -> e a {
 inline extern inject-local<a,h,e>( action : () -> e a ) : total (() -> <local<h>|e> a) { inline "#1" }
 
 // Assign to an entry in a local `:vector` variable.
-inline extern [] : forall<s,a,e> ( self : local-var<s,vector<a>>, index : int, assigned : a ) -> <local<s>,exn|e> () {
-  c  "kk_ref_vector_assign"    // todo: improve this
+inline extern []( ^self : local-var<s,vector<a>>, ^index : int, assigned : a ) : <local<s>,exn|e> () {
+  c  "kk_ref_vector_assign_borrow"
   cs inline "(#1)[(int)#2] = #3"
   js inline "(#1)[#2] = #3"
 }
@@ -2752,16 +2752,16 @@ fun while( predicate : () -> <div|e> bool, action : () -> <div|e> () ) : <div|e>
 }
 
 // The `repeat` fun executes `action`  `n`  times.
-fun repeat( n : int, action : () -> e () ) : e ()
+fun repeat( ^n : int, action : () -> e () ) : e ()
 {
   for(1,n) fn(i) { action() }
 }
 
 // Executes `action`  for each integer between `start`  upto `end`  (including both `start`  and `end` ).
 // If `start > end`  the function returns without any call to `action` .
-fun for( start: int, end : int, action : (int) -> e () ) : e ()
+fun for( ^start: int, end : int, action : (int) -> e () ) : e ()
 {
-  fun rep( i : int ) {
+  fun rep( ^i : int ) {
     if (i <= end) {
       action(i)
       rep(unsafe-decreasing(i.inc))

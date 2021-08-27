@@ -2,7 +2,7 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
-#define KKLIB_BUILD        42       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        45       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1
 
@@ -176,8 +176,7 @@ typedef struct kk_block_large_s {
 // A pointer to a block. Cannot be NULL.
 typedef kk_block_t* kk_ptr_t;
 
-// A general : with constructors and singletons is eiter a pointer to a block or an enumeration
-
+// A general datatype with constructors and singletons is either a pointer to a block or an enumeration
 typedef union kk_datatype_s {
   kk_ptr_t   ptr;         // always lowest bit cleared
   uintptr_t  singleton;   // always lowest bit set as: 4*tag + 1
@@ -663,8 +662,7 @@ static inline kk_block_t* kk_block_dup_assert(kk_block_t* b, kk_tag_t tag) {
   return kk_block_dup(b);
 }
 
-static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+static inline void kk_reuse_drop(kk_reuse_t r) {
   if (r != NULL) {
     kk_assert_internal(kk_block_is_unique(r));
     kk_free(r);
@@ -1006,6 +1004,7 @@ static inline kk_vector_t kk_vector_alloc_uninit(kk_ssize_t length, kk_box_t** b
 
 kk_decl_export void        kk_vector_init_borrow(kk_vector_t _v, kk_ssize_t start, kk_box_t def, kk_context_t* ctx);
 kk_decl_export kk_vector_t kk_vector_realloc(kk_vector_t vec, kk_ssize_t newlen, kk_box_t def, kk_context_t* ctx);
+kk_decl_export kk_vector_t kk_vector_copy(kk_vector_t vec, kk_context_t* ctx);
 
 static inline kk_vector_t kk_vector_alloc(kk_ssize_t length, kk_box_t def, kk_context_t* ctx) {
   kk_vector_t v = kk_vector_alloc_uninit(length, NULL, ctx);
@@ -1035,17 +1034,15 @@ static inline kk_ssize_t kk_vector_len_borrow(const kk_vector_t v) {
   return len;
 }
 
-// TODO: Use borrowed variant in core.kk
 static inline kk_ssize_t kk_vector_len(const kk_vector_t v, kk_context_t* ctx) {
   kk_ssize_t len = kk_vector_len_borrow(v);
   kk_vector_drop(v, ctx);
   return len;
 }
 
-static inline kk_box_t kk_vector_at(const kk_vector_t v, kk_ssize_t i, kk_context_t* ctx) {
+static inline kk_box_t kk_vector_at_borrow(const kk_vector_t v, kk_ssize_t i) {
   kk_assert(i < kk_vector_len_borrow(v));
   kk_box_t res = kk_box_dup(kk_vector_buf_borrow(v, NULL)[i]);
-  kk_vector_drop(v, ctx);
   return res;
 }
 
@@ -1070,7 +1067,8 @@ typedef struct kk_ref_s {
 } *kk_ref_t;
 
 kk_decl_export kk_box_t  kk_ref_get_thread_shared(kk_ref_t r, kk_context_t* ctx);
-kk_decl_export kk_box_t  kk_ref_swap_thread_shared(kk_ref_t r, kk_box_t value, kk_context_t* ctx);
+kk_decl_export kk_box_t  kk_ref_swap_thread_shared_borrow(kk_ref_t r, kk_box_t value);
+kk_decl_export kk_unit_t kk_ref_vector_assign_borrow(kk_ref_t r, kk_integer_t idx, kk_box_t value, kk_context_t* ctx);
 
 static inline kk_box_t kk_ref_box(kk_ref_t r, kk_context_t* ctx) {
   KK_UNUSED(ctx);
@@ -1101,7 +1099,7 @@ static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
     // fast path
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
     kk_box_dup(b);
-    kk_ref_drop(r,ctx);    // TODO: make references borrowed
+    kk_ref_drop(r,ctx);    // TODO: make references borrowed (only get left)
     return b;
   }
   else {
@@ -1110,50 +1108,30 @@ static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
   }  
 }
 
-static inline kk_box_t kk_ref_swap(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
+static inline kk_box_t kk_ref_swap_borrow(kk_ref_t r, kk_box_t value) {
   if (kk_likely(r->_block.header.thread_shared == 0)) {
     // fast path
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
     kk_atomic_store_relaxed(&r->value, value.box);
-    kk_ref_drop(r, ctx);
     return b;
   }
   else {
     // thread shared
-    return kk_ref_swap_thread_shared(r, value, ctx);
+    return kk_ref_swap_thread_shared_borrow(r, value);
   }
 }
 
 
-static inline kk_unit_t kk_ref_set(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
-  kk_box_t b = kk_ref_swap(r, value, ctx);
+static inline kk_unit_t kk_ref_set_borrow(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
+  kk_box_t b = kk_ref_swap_borrow(r, value);
   kk_box_drop(b, ctx);
   return kk_Unit;
 }
 
-static inline kk_unit_t kk_ref_vector_assign(kk_ref_t r, kk_integer_t idx, kk_box_t value, kk_context_t* ctx) {
-  if (kk_likely(r->_block.header.thread_shared == 0)) {
-    // fast path
-    kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
-    kk_vector_t v = kk_vector_unbox(b, ctx);
-    kk_ssize_t len;
-    kk_box_t* p = kk_vector_buf_borrow(v, &len);
-    kk_ssize_t i = kk_integer_clamp_ssize_t(idx,ctx);
-    if (i < len) {
-      kk_box_drop(p[i], ctx);
-      p[i] = value;
-    }  // TODO: return status for out-of-bounds access
-    kk_ref_drop(r, ctx);    // TODO: make references borrowed
-    return kk_Unit;
-  }
-  else {
-    // thread shared
-    kk_unsupported_external("kk_ref_vector_assign with a thread-shared reference");
-    return kk_Unit;
-  }
+// In Koka we can constrain the argument of f to be a local-scope reference.
+static inline kk_box_t kk_ref_modify(kk_ref_t r, kk_function_t f, kk_context_t* ctx) {
+  return kk_function_call(kk_box_t,(kk_function_t,kk_ref_t,kk_context_t*),f,(f,r,ctx));
 }
-
-
 
 /*--------------------------------------------------------------------------------------
   kk_Unit
