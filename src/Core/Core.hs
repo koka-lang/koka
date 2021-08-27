@@ -935,7 +935,7 @@ tnamesMember :: TName -> TNames -> Bool
 tnamesMember tname tnames = S.member tname tnames
 
 tnamesDisjoint :: TNames -> TNames -> Bool
-tnamesDisjoint n1 n2 = S.disjoint n1 n2
+tnamesDisjoint n1 n2 = null (S.intersection n1 n2) -- S.disjoint n1 n2  -- build with ghc8.0.2
 
 instance Eq TName where
   (TName name1 tp1) == (TName name2 tp2)  = (name1 == name2) --  && matchType tp1 tp2)
