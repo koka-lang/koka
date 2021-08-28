@@ -54,6 +54,7 @@ data ColorScheme  = ColorScheme
                       , colorTypeKeywordOp :: Color
                       , colorTypeSpecial :: Color
                       , colorTypeParam  :: Color
+                      , colorNameQual   :: Color
                       }
 
 -- | The default color scheme
@@ -67,6 +68,7 @@ defaultColorScheme
                             -- , colorReservedOp  = DarkYellow
                             , colorCons        = DarkGreen
                             , colorModule      = DarkCyan
+                            , colorNameQual    = DarkGray
                             , colorString      = DarkRed
                             , colorNumber      = Gray
                             , colorSource      = Gray
@@ -93,7 +95,7 @@ emptyColorScheme
                  ColorDefault ColorDefault ColorDefault ColorDefault
                  ColorDefault ColorDefault ColorDefault ColorDefault
                  ColorDefault ColorDefault ColorDefault ColorDefault
-                 ColorDefault ColorDefault
+                 ColorDefault ColorDefault ColorDefault
 
 {--------------------------------------------------------------------------
   Read colors
