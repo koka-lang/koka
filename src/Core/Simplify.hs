@@ -42,7 +42,7 @@ simplifyDefs penv unsafe ndebug nRuns duplicationMax
   = liftCorePhaseUniq $ \uniq defs ->
     runSimplify unsafe ndebug duplicationMax uniq penv (simplifyN nRuns (uniquefyDefBodies defs))
 
-simplifyN :: Simplify a => Int -> a -> Simp a
+-- simplifyN :: Simplify a => Int -> a -> Simp a
 simplifyN nRuns defs
   = if (nRuns <= 0) then return defs
     else do defs' <- simplify defs
@@ -206,7 +206,7 @@ topDown expr@(App (Lam pars eff body) args) | length pars == length args
 -- Direct function applications
 topDown expr@(App (TypeApp (TypeLam tpars (Lam pars eff body)) targs) args) | length pars == length args && length tpars == length targs
   = do let tsub    = subNew (zip tpars targs)
-       newNames <- -- trace ("bottomUp function app: " ++ show (zip tpars targs)) $
+       newNames <- -- trace ("topDown function app: " ++ show (zip tpars targs) ++ "\n expr:" ++ show expr) $
                    mapM uniqueTName [TName nm (tsub |-> tp) | (TName nm tp) <- pars]
        let sub     = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]        
        return (Let (zipWith makeDef newNames args) (sub |~> (substitute tsub body)))
@@ -272,7 +272,7 @@ bottomUp :: Expr -> Expr
 bottomUp expr@(TypeApp (TypeLam tvs body) tps)
   = if (length tvs == length tps)
      then let sub = subNew (zip tvs tps)
-          in -- trace ("bottomUp type app: " ++ show (zip tvs tps)) $
+          in -- trace ("bottomUp type app: " ++ show (zip tvs tps) ++ "\n  expr: " ++ show expr) $
              seq sub (sub |-> body)
      else expr
 
@@ -284,6 +284,7 @@ bottomUp expr@(TypeLam tvs (TypeApp body tps))
   where
     varEqual (tv,TVar tw) = tv == tw
     varEqual _            = False
+
 
 -- Direct function applications with arguments that have different free variables than the parameters
 bottomUp (App (Lam pars eff body) args) | length pars == length args  && all free pars
