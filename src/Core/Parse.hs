@@ -23,6 +23,7 @@ import Common.Error
 import Common.Syntax
 import qualified Common.NameMap as M
 
+
 import Syntax.Lexeme
 import Syntax.Parse
 
@@ -937,18 +938,18 @@ katom
 {--------------------------------------------------------------------------
   Environment to create type variables
 --------------------------------------------------------------------------}
-data Env = Env{ bound :: M.NameMap TypeVar
-              , syns  :: Synonyms
-              , modName :: Name
-              , imports :: ImportMap
-              , unique  :: Int
-              , gamma  ::  Gamma            -- only used for inline definitions
-              , locals :: M.NameMap Type -- only used for inline definitions
+data Env = Env{ bound :: !(M.NameMap TypeVar)
+              , syns  :: !Synonyms
+              , modName :: !Name
+              , imports :: !ImportMap
+              , unique  :: !Int
+              , gamma  ::  !Gamma            -- only used for inline definitions
+              , locals :: !(M.NameMap Type) -- only used for inline definitions
               }
 
 envInitial :: Name -> ImportMap -> Env
 envInitial modName imports
-  = Env M.empty synonymsEmpty modName imports 0 gammaEmpty M.empty
+  = Env M.empty synonymsEmpty modName imports 1000 gammaEmpty M.empty
 
 envExtend :: Env -> (Name,Kind) -> Env
 envExtend (Env env syns mname imports unique gamma locals) (name,kind)
