@@ -1,83 +1,91 @@
-logp 1 : ok: 0.69314718055994529, 0.69314718055994529, 0.69314718055994529
-logp 2 : ok: 1.3322676295501871e-015, 1.2344999999999993e-015, 1.2344999999999993e-015
-logp 3 : ok: 2.2204460492503128e-016, 1.2344999999999999e-016, 1.2344999999999999e-016
-logp 4 : ok: 0, 1.2345e-032, 1.2345e-032
-logp 5 : ok: 0, 1.2344999999999999e-064, 1.2344999999999999e-064
-logp 6 : ok: 709.78271289338397, 709.78271289338397, 709.78271289338397
-atanh: 0: ok: 0.00000000000000
-atanh: 1.23e-011: ok: 1.23000000000000e-011
-atanh: 1.2299999999999999e-010: ok: 1.23000000000000e-010
-atanh: 0.00123: ok: 0.00123000062029
-atanh: 0.123: ok: 0.12362598118313
-atanh: 0.5: ok: 0.54930614433405
-atanh: 0.69314718055994529: ok: 0.85398804799752
+logp 1 : ok: 0, 0, 0
+logp 2 : FAILED!:
+ expect: 1e-015, 1e-015, 1e-015
+ gotten: 1e-15, 1e-15, 1e-15
+logp 3 : FAILED!:
+ expect: 2e-016, 1e-016, 1e-016
+ gotten: 2e-16, 1e-16, 1e-16
+logp 4 : FAILED!:
+ expect: 0, 1e-032, 1e-032
+ gotten: 0, 1e-32, 1e-32
+logp 5 : FAILED!:
+ expect: 0, 1e-064, 1e-064
+ gotten: 0, 1e-64, 1e-64
+logp 6 : ok: 709, 709, 709
+atanh: 0: ok: 0
+atanh: 1e-11: ok: 1e-11
+atanh: 1e-10: ok: 1e-10
+atanh: 0: ok: 0
+atanh: 0: ok: 0
+atanh: 0: ok: 0
+atanh: 0: ok: 0
 atanh: 1: ok: inf
 atanh: 2: ok: nan
 atanh: inf: ok: nan
 atanh: nan: ok: nan
-atanh: -0: ok: 0.00000000000000
-atanh: -1.23e-011: ok: -1.23000000000000e-011
-atanh: -1.2299999999999999e-010: ok: -1.23000000000000e-010
-atanh: -0.00123: ok: -0.00123000062029
-atanh: -0.123: ok: -0.12362598118313
-atanh: -0.5: ok: -0.54930614433405
-atanh: -0.69314718055994529: ok: -0.85398804799752
+atanh: -0: ok: -0
+atanh: -1e-11: ok: -1e-11
+atanh: -1e-10: ok: -1e-10
+atanh: -0: ok: -0
+atanh: -0: ok: -0
+atanh: -0: ok: -0
+atanh: -0: ok: -0
 atanh: -1: ok: -inf
 atanh: -2: ok: nan
 atanh: -inf: ok: nan
 atanh: nan: ok: nan
-asinh: 0: ok: -0.00000000000000
-asinh: 1.23e-016: ok: 1.23000000000000e-016
-asinh: 1.2300000000000001e-015: ok: 1.23000000000000e-015
-asinh: 0.00123: ok: 0.00122999968986
-asinh: 0.122: ok: 0.12169936791920
-asinh: 0.5: ok: 0.48121182505960
-asinh: 0.69314718055994529: ok: 0.64704348108319
-asinh: 1: ok: 0.88137358701954
-asinh: 2: ok: 1.44363547517881
-asinh: 1230: ok: 7.80791679417192
-asinh: 123000000: ok: 19.32084209389664
-asinh: 1230000000000000: ok: 35.43893774485495
-asinh: 12300000000000000: ok: 37.74152283784900
+asinh: 0: ok: 0
+asinh: 1e-16: ok: 1e-16
+asinh: 1e-15: ok: 1e-15
+asinh: 0: ok: 0
+asinh: 0: ok: 0
+asinh: 0: ok: 0
+asinh: 0: ok: 0
+asinh: 1: ok: 0
+asinh: 2: ok: 1
+asinh: 1230: ok: 7
+asinh: 123000000: ok: 19
+asinh: 1230000000000000: ok: 35
+asinh: 12300000000000000: ok: 37
 asinh: inf: ok: inf
 asinh: nan: ok: nan
-asinh: -0: ok: -0.00000000000000
-asinh: -1.23e-016: ok: -1.23000000000000e-016
-asinh: -1.2300000000000001e-015: ok: -1.23000000000000e-015
-asinh: -0.00123: ok: -0.00122999968986
-asinh: -0.122: ok: -0.12169936791920
-asinh: -0.5: ok: -0.48121182505960
-asinh: -0.69314718055994529: ok: -0.64704348108319
-asinh: -1: ok: -0.88137358701954
-asinh: -2: ok: -1.44363547517881
-asinh: -1230: ok: -7.80791679417192
-asinh: -123000000: ok: -19.32084209389664
-asinh: -1230000000000000: ok: -35.43893774485495
-asinh: -12300000000000000: ok: -37.74152283784900
+asinh: -0: ok: -0
+asinh: -1e-16: ok: -1e-16
+asinh: -1e-15: ok: -1e-15
+asinh: -0: ok: -0
+asinh: -0: ok: -0
+asinh: -0: ok: -0
+asinh: -0: ok: -0
+asinh: -1: ok: -0
+asinh: -2: ok: -1
+asinh: -1230: ok: -7
+asinh: -123000000: ok: -19
+asinh: -1230000000000000: ok: -35
+asinh: -12300000000000000: ok: -37
 asinh: -inf: ok: -inf
 asinh: nan: ok: nan
 acosh: 0: ok: nan
-acosh: 1.23e-016: ok: nan
-acosh: 1.2300000000000001e-015: ok: nan
-acosh: 0.00123: ok: nan
-acosh: 0.122: ok: nan
-acosh: 0.5: ok: nan
-acosh: 0.69314718055994529: ok: nan
-acosh: 1: ok: 0.00000000000000
-acosh: 2: ok: 1.31695789692482
-acosh: 1230: ok: 7.80791646368081
-acosh: 123000000: ok: 19.32084209389664
-acosh: 1230000000000000: ok: 35.43893774485495
-acosh: 12300000000000000: ok: 37.74152283784900
-acosh: inf: ok: nan
+acosh: 1e-16: ok: nan
+acosh: 1e-15: ok: nan
+acosh: 0: ok: nan
+acosh: 0: ok: nan
+acosh: 0: ok: nan
+acosh: 0: ok: nan
+acosh: 1: ok: 0
+acosh: 2: ok: 1
+acosh: 1230: ok: 7
+acosh: 123000000: ok: 19
+acosh: 1230000000000000: ok: 35
+acosh: 12300000000000000: ok: 37
+acosh: inf: ok: inf
 acosh: nan: ok: nan
 acosh: -0: ok: nan
-acosh: -1.23e-016: ok: nan
-acosh: -1.2300000000000001e-015: ok: nan
-acosh: -0.00123: ok: nan
-acosh: -0.122: ok: nan
-acosh: -0.5: ok: nan
-acosh: -0.69314718055994529: ok: nan
+acosh: -1e-16: ok: nan
+acosh: -1e-15: ok: nan
+acosh: -0: ok: nan
+acosh: -0: ok: nan
+acosh: -0: ok: nan
+acosh: -0: ok: nan
 acosh: -1: ok: nan
 acosh: -2: ok: nan
 acosh: -1230: ok: nan

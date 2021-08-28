@@ -202,7 +202,7 @@ public inline fun yield-bind2( x : a, extend : a -> e b, next : a -> e b ) : e b
   if (yielding()) then yield-extend(extend) else next(x)
 }
 
-private extern yield-cont(f : (a -> e a, a) -> e r ) : e r {  // make hidden public?
+private extern yield-cont(f : forall<b> (b -> e a, b) -> e r ) : e r {  // make hidden public?
   c  inline "kk_yield_cont(#1,kk_context())"
   js "_yield_cont"
 }
@@ -818,7 +818,7 @@ private noinline fun open-at1<a,b,e1,e2>( i: ev-index, f : a -> e1 b, x : a ) : 
   y
 }
 
-public noinline fun ".open-at0"<b,e1,e2>( i: ev-index, f : () -> e1 b ) : e2 b {
+public fun ".open-at0"<b,e1,e2>( i: ev-index, f : () -> e1 b ) : e2 b {
   val w = evv-swap-create1(i)
   val y = cast-ev0(f)()
   evv-set(w)
@@ -826,7 +826,7 @@ public noinline fun ".open-at0"<b,e1,e2>( i: ev-index, f : () -> e1 b ) : e2 b {
   y
 }
 
-public noinline fun ".open-at1"<a,b,e1,e2>( i: ev-index, f : a -> e1 b, x : a ) : e2 b {
+public fun ".open-at1"<a,b,e1,e2>( i: ev-index, f : a -> e1 b, x : a ) : e2 b {
   val w = evv-swap-create1(i)
   val y = cast-ev1(f)(x)
   evv-set(w)
@@ -834,7 +834,7 @@ public noinline fun ".open-at1"<a,b,e1,e2>( i: ev-index, f : a -> e1 b, x : a ) 
   y
 }
 
-public noinline fun ".open-at2"<a1,a2,b,e1,e2> ( i: ev-index, f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
+public fun ".open-at2"<a1,a2,b,e1,e2> ( i: ev-index, f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
   val w = evv-swap-create1(i)
   val y = cast-ev2(f)(x1,x2)
   evv-set(w)
@@ -842,7 +842,7 @@ public noinline fun ".open-at2"<a1,a2,b,e1,e2> ( i: ev-index, f : (a1,a2) -> e1 
   y
 }
 
-public noinline fun ".open-at3"<a1,a2,a3,b,e1,e2> ( i: ev-index, f : (a1,a2,a3) -> e1 b, x1 : a1, x2 : a2, x3 : a3 ) : e2 b {
+public fun ".open-at3"<a1,a2,a3,b,e1,e2> ( i: ev-index, f : (a1,a2,a3) -> e1 b, x1 : a1, x2 : a2, x3 : a3 ) : e2 b {
   val w = evv-swap-create1(i)
   val y = cast-ev3(f)(x1,x2,x3)
   evv-set(w)
@@ -850,7 +850,7 @@ public noinline fun ".open-at3"<a1,a2,a3,b,e1,e2> ( i: ev-index, f : (a1,a2,a3) 
   y
 }
 
-public noinline fun ".open-at4"<a1,a2,a3,a4,b,e1,e2> ( i: ev-index, f : (a1,a2,a3,a4) -> e1 b, x1 : a1, x2 : a2, x3 : a3, x4 : a4 ) : e2 b {
+public fun ".open-at4"<a1,a2,a3,a4,b,e1,e2> ( i: ev-index, f : (a1,a2,a3,a4) -> e1 b, x1 : a1, x2 : a2, x3 : a3, x4 : a4 ) : e2 b {
   val w = evv-swap-create1(i)
   val y = cast-ev4(f)(x1,x2,x3,x4)
   evv-set(w)
@@ -868,7 +868,7 @@ private noinline fun open1<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1 b
 }
 
 
-public noinline fun ".open0"<b,e1,e2>( indices : vector<ev-index>, f : () -> e1 b ) : e2 b {
+public fun ".open0"<b,e1,e2>( indices : vector<ev-index>, f : () -> e1 b ) : e2 b {
   val w = evv-swap-create(indices)
   val y = cast-ev0(f)()
   evv-set(w)
@@ -876,7 +876,7 @@ public noinline fun ".open0"<b,e1,e2>( indices : vector<ev-index>, f : () -> e1 
   y
 }
 
-public noinline fun ".open1"<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1 b, x : a ) : e2 b {
+public fun ".open1"<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1 b, x : a ) : e2 b {
   val w = evv-swap-create(indices)
   val y = cast-ev1(f)(x)
   evv-set(w)
@@ -884,7 +884,7 @@ public noinline fun ".open1"<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1
   y
 }
 
-public noinline fun ".open2"<a1,a2,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
+public fun ".open2"<a1,a2,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
   val w = evv-swap-create(indices)
   val y = cast-ev2(f)(x1,x2)
   evv-set(w)
@@ -892,7 +892,7 @@ public noinline fun ".open2"<a1,a2,b,e1,e2>( indices : vector<ev-index>, f : (a1
   y
 }
 
-public noinline fun ".open3"<a1,a2,a3,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3) -> e1 b, x1 : a1, x2 : a2, x3 : a3 ) : e2 b {
+public fun ".open3"<a1,a2,a3,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3) -> e1 b, x1 : a1, x2 : a2, x3 : a3 ) : e2 b {
   val w = evv-swap-create(indices)
   val y = cast-ev3(f)(x1,x2,x3)
   evv-set(w)
@@ -900,7 +900,7 @@ public noinline fun ".open3"<a1,a2,a3,b,e1,e2>( indices : vector<ev-index>, f : 
   y
 }
 
-public noinline fun ".open4"<a1,a2,a3,a4,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3,a4) -> e1 b, x1 : a1, x2 : a2, x3 : a3, x4 : a4 ) : e2 b {
+public fun ".open4"<a1,a2,a3,a4,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3,a4) -> e1 b, x1 : a1, x2 : a2, x3 : a3, x4 : a4 ) : e2 b {
   val w = evv-swap-create(indices)
   val y = cast-ev4(f)(x1,x2,x3,x4)
   evv-set(w)
