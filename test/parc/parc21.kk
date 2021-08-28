@@ -10,6 +10,6 @@ fun print-ret(x : int) {
 }
 
 fun test() {
-  bo(3, 4)
+  bo(3, 4).print
   bo(print-ret(3), print-ret(4))
 }
