@@ -1,0 +1,37 @@
+/*---------------------------------------------------------------------------
+  Copyright 2021-2021, Microsoft Research, Daan Leijen.
+
+  This is free software; you can redistribute it and/or modify it under the
+  terms of the Apache License, Version 2.0. A copy of the License can be
+  found in the LICENSE file at the root of this distribution.
+---------------------------------------------------------------------------*/
+
+
+/*
+Parallel tasks.
+*/
+module std/os/task
+
+abstract struct promise<a>{
+  promise : any
+}
+
+noinline extern unsafe_task( work : () -> pure a ) : pure any {
+  c "kk_task_run"
+}
+
+noinline extern unsafe_await( p : any ) : pure a {
+  c "kk_promise_get"
+}
+
+public fun task( work : () -> pure a ) : pure promise<a> {
+  Promise( unsafe_task( work ) )
+}
+
+public fun await( p : promise<a> ) : pure a {
+  unsafe_await( p.promise )
+}
+
+public fun parallel( xs : list<() -> pure a> ) : pure list<a> {
+  xs.map( task ).map( await )
+}

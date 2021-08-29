@@ -2,7 +2,7 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
-#define KKLIB_BUILD        44       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        46       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1
 
@@ -332,6 +332,7 @@ typedef struct kk_context_s {
 
 // Get the current (thread local) runtime context (should always equal the `_ctx` parameter)
 kk_decl_export kk_context_t* kk_get_context(void);
+kk_decl_export void          kk_free_context(void);
 
 kk_decl_export kk_context_t* kk_main_start(int argc, char** argv);
 kk_decl_export void          kk_main_end(kk_context_t* ctx);
@@ -885,6 +886,7 @@ typedef enum kk_unit_e {
 #include "kklib/string.h"
 #include "kklib/random.h"
 #include "kklib/os.h"
+#include "kklib/thread.h"
 
 /*----------------------------------------------------------------------
   TLD operations

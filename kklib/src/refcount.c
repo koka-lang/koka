@@ -10,11 +10,11 @@
 static void kk_block_drop_free_delayed(kk_context_t* ctx);
 static kk_decl_noinline void kk_block_drop_free_rec(kk_block_t* b, kk_ssize_t scan_fsize, const kk_ssize_t depth, kk_context_t* ctx);
 
-static void kk_block_free_raw(kk_block_t* b) {
+static void kk_block_free_raw(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(kk_tag_is_raw(kk_block_tag(b)));
   struct kk_cptr_raw_s* raw = (struct kk_cptr_raw_s*)b;  // all raw structures must overlap this!
   if (raw->free != NULL) {
-    (*raw->free)(raw->cptr, b);
+    (*raw->free)(raw->cptr, b, ctx);
   }
 }
 
@@ -23,7 +23,7 @@ static void kk_block_drop_free(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(b->header.refcount == 0);
   const kk_ssize_t scan_fsize = b->header.scan_fsize;
   if (scan_fsize==0) {
-    if (kk_tag_is_raw(kk_block_tag(b))) { kk_block_free_raw(b); }
+    if (kk_tag_is_raw(kk_block_tag(b))) { kk_block_free_raw(b,ctx); }
     kk_block_free(b); // deallocate directly if nothing to scan
   }
   else {
@@ -219,7 +219,7 @@ static kk_decl_noinline void kk_block_drop_free_rec(kk_block_t* b, kk_ssize_t sc
     kk_assert_internal(b->header.refcount == 0);
     if (scan_fsize == 0) {
       // nothing to scan, just free
-      if (kk_tag_is_raw(kk_block_tag(b))) kk_block_free_raw(b); // potentially call custom `free` function on the data
+      if (kk_tag_is_raw(kk_block_tag(b))) kk_block_free_raw(b,ctx); // potentially call custom `free` function on the data
       kk_block_free(b);
       return;
     }
