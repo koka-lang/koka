@@ -1,11 +1,12 @@
 ~ begin news
 News:
 
-* [2021-08-26: Koka tutorial [live streaming](https://www.youtube.com/watch?v=9vZnkongoHs) now.]{color:red}
-* [2021-08-26: Today at 12:30 EST/NewYork starts the [Koka Tutorial at
-ICFP'21](https://icfp21.sigplan.org/details/icfp-2021-tutorials/5/Programming-with-Effect-Handlers-and-FBIP-in-Koka) (together with Ningning Xie). A live stream link will be posted here half an
-hour before the start. (You can still register at ICFP for as low as \$10 and be able to ask questions etc.)]{color:red}
-* 2021-06-23: Koka v2.1.9 released, initial cross-module specialization (by Steven Fontanella)
+* 2021-08-26: Koka v2.2.0 released, improved simplification (by Rashika B), cross-module specialization (Steven Fontanella), and borrowing annotations with improved reuse analysis (Anton Lorenzen).
+* 2021-08-26: At 12:30 EST was the [Koka Tutorial at
+ICFP'21](https://icfp21.sigplan.org/details/icfp-2021-tutorials/5/Programming-with-Effect-Handlers-and-FBIP-in-Koka) (together with Ningning Xie). 
+* 2021-08-23: "_Generalized Evidence Passing for Effect Handlers_", by Ningning Xie and Daan Leijen presented at ICFP'21 [pdf](https://www.microsoft.com/en-us/research/publication/generalized-evidence-passing-for-effect-handlers/).
+* 2021-08-22: "_First-class Named Effect Handlers_", by Youyou Cong, Ningning Xie, and Daan Leijen presented at HOPE'21 [pdf](https://www.microsoft.com/en-us/research/publication/first-class-named-effect-handlers/).
+* 2021-06-23: Koka v2.1.9 released, initial cross-module specialization (by Steven Fontanella).
 * 2021-06-17: Koka v2.1.8 released, initial Apple M1 support.
 * The [Perceus] paper won a distinguished paper award at PLDI'21!
 * 2021-06-10: Koka v2.1.6 released.

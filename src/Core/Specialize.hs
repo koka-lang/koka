@@ -157,7 +157,7 @@ replaceCall :: Name -> Expr -> [Bool] -> [Expr] -> Maybe [Type] -> SpecM Expr
 replaceCall name expr bools args mybeTypeArgs -- trace ("specializing" <> show name) $
   = pure $ Let [DefRec [specDef]] (App (Var (defTName specDef) InfoNone) newArgs)
   where
-    specDef = Def (getName specTName) (typeOf specTName) specBody Private DefFun InlineAuto rangeNull
+    specDef = Def (getName specTName) (typeOf specTName) specBody Private (DefFun []) InlineAuto rangeNull 
                $ "// specialized " <> show name <> " to parameters " <> show speccedParams
     specBody
       = specInnerCalls (TName name (typeOf expr)) specTName (not <$> bools) specBody0

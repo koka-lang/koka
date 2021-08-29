@@ -442,8 +442,8 @@ private inline extern add(i : int, j : int) : int {
 }
 
 // are two integers equal?
-private inline extern eq(x : int, y : int) : bool  {
-  c  "kk_integer_eq"
+private inline extern eq( ^x : int, ^y : int) : bool  {
+  c  "kk_integer_eq_borrow"
   cs inline "(#1 == #2)"
   js inline "(#1 == #2)" // $std_core._int_eq"
 }

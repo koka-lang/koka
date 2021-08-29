@@ -214,8 +214,9 @@ kk_std_core_types__maybe kk_slice_next( struct kk_std_core_Sslice slice, kk_cont
   return kk_std_core_types__new_Just( kk_std_core_types__tuple2__box(res,ctx), ctx );
 }
 
-struct kk_std_core_Sslice kk_slice_extend( struct kk_std_core_Sslice slice, kk_integer_t count, kk_context_t* ctx ) {
-  kk_ssize_t cnt = kk_integer_clamp(count,ctx);
+/* Borrow count */
+struct kk_std_core_Sslice kk_slice_extend_borrow( struct kk_std_core_Sslice slice, kk_integer_t count, kk_context_t* ctx ) {
+  kk_ssize_t cnt = kk_integer_clamp_borrow(count);
   if (cnt==0 || (slice.len <= 0 && cnt<0)) return slice;
   const uint8_t* s0;
   const uint8_t* s1;
@@ -238,8 +239,9 @@ struct kk_std_core_Sslice kk_slice_extend( struct kk_std_core_Sslice slice, kk_i
   return kk_std_core__new_Sslice(slice.str, slice.start, (t < s0 ? 0 : (t - s0)), ctx);
 }
 
-struct kk_std_core_Sslice kk_slice_advance( struct kk_std_core_Sslice slice, kk_integer_t count, kk_context_t* ctx ) {
-  const kk_ssize_t cnt0 = kk_integer_clamp(count,ctx);
+/* Borrow count */
+struct kk_std_core_Sslice kk_slice_advance_borrow( struct kk_std_core_Sslice slice, kk_integer_t count, kk_context_t* ctx ) {
+  const kk_ssize_t cnt0 = kk_integer_clamp_borrow(count);
   kk_ssize_t cnt = cnt0;
   if (cnt==0 || (slice.start == 0 && cnt<0)) return slice;
   const uint8_t* sstart;
@@ -282,10 +284,11 @@ struct kk_std_core_Sslice kk_slice_advance( struct kk_std_core_Sslice slice, kk_
   return kk_std_core__new_Sslice(slice.str, (t0 - sstart), (t1 - t0), ctx);
 }
 
-struct kk_std_core_Sslice kk_slice_common_prefix( kk_string_t str1, kk_string_t str2, kk_integer_t iupto, kk_context_t* ctx ) {
+/* Borrow iupto */
+struct kk_std_core_Sslice kk_slice_common_prefix_borrow( kk_string_t str1, kk_string_t str2, kk_integer_t iupto, kk_context_t* ctx ) {
   const uint8_t* s1 = kk_string_buf_borrow(str1,NULL);
   const uint8_t* s2 = kk_string_buf_borrow(str2,NULL);
-  kk_ssize_t upto = kk_integer_clamp_ssize_t(iupto,ctx);
+  kk_ssize_t upto = kk_integer_clamp_ssize_t_borrow(iupto);
   kk_ssize_t count;
   for(count = 0; count < upto && *s1 != 0 && *s2 != 0; count++, s1++, s2++ ) {
     if (*s1 != *s2) break;

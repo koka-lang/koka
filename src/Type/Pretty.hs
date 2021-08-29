@@ -7,7 +7,7 @@
 -----------------------------------------------------------------------------
 module Type.Pretty (-- * Pretty
                     ppType, ppScheme, ppTypeVar, ppDataInfo, ppSynInfo
-                   ,prettyDataInfo, prettyConInfo
+                   ,prettyDataInfo, prettyConInfo, prettyDefFunType
                    ,ppSchemeEffect, ppDeclType, ppPred
                    ,niceTypeInitial, niceTypeExtend, niceTypeExtendVars
                    ,precTop, precArrow, precApp, precAtom, pparens
@@ -62,6 +62,7 @@ compress cs
 {--------------------------------------------------------------------------
 
 --------------------------------------------------------------------------}
+
 niceType :: Env -> Type -> Doc
 niceType env tp
   -- ppType env tp
@@ -189,20 +190,32 @@ ppSchemeEffect env tp
   = niceType env tp
 
 
+prettyDefFunType :: Env -> [ParamInfo] -> Scheme -> Doc
+prettyDefFunType env pinfos tp 
+  = let (Just params,pre,post) = ppDeclType env pinfos tp
+    in pre <.> parens (commaSep (map ppParam params)) <+> text "->" <+> post
+  where
+    ppParam (name,pinfo,tpDoc)  
+      = (case pinfo of Borrow -> text "^ "
+                       _      -> empty) <.>
+        (if nameNil == name then empty else ppName env name <+> text ": ") <.>
+        tpDoc
 
-ppDeclType :: Env -> Scheme -> (Maybe [(Name,Doc)],Doc)
-ppDeclType env tp
+ppDeclType :: Env -> [ParamInfo] -> Scheme -> (Maybe [(Name,ParamInfo,Doc)],Doc,Doc)
+ppDeclType env pinfos tp
   = case tp of
       TForall vars preds rho
         -> let env' = niceEnv env vars
-               (args,res) = ppDeclType env' rho
-           in (args, res <.> ppPredicates env' preds)
+               (args,_,res) = ppDeclType env' pinfos rho
+               pre  = if (null vars {- prec env == precTopTop-}) then empty
+                        else (keyword env' "forall" <.> angled (map (ppTypeVar env') vars) <.> space)            
+           in (args, pre, res <.> ppPredicates env' preds)
       TFun params effect rho
         -> -- ppFun env (text ":") params eff rho
-           let pparams = [(name, ppType env tp) | (name,tp) <- params]
-           in (Just pparams, (if (isTypeTotal effect) then empty else (ppType env{prec=precArrow} effect <.> space)) <.> ppType env{prec=precArrow} rho)
+           let pparams = [(name, pinfo, ppType env tp) | ((name,tp),pinfo) <- zip params (pinfos ++ repeat Own)]
+           in (Just pparams, empty, (if (isTypeTotal effect) then empty else (ppType env{prec=precArrow} effect <.> space)) <.> ppType env{prec=precArrow} rho)
       _ -> -- ppType env tp
-           (Nothing,ppType env tp)
+           (Nothing, empty, ppType env tp)
 
 {--------------------------------------------------------------------------
   Pretty printing of type information

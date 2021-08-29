@@ -7,13 +7,11 @@ public fun test : (xs : list<int>) -> list<int>
  match (xs) {
  (std/core/Cons(((.skip std/core/types/.Box((x: int)) : .Box ) as .box: .Box), (.pat0: list<int>)) : list<int> )
  -> std/core/types/.dup(x);
- val .ru : reuse
- = std/core/types/.drop-reuse((std/core/types/.dup(xs)), (std/core/int32(2)));
  val .b : int
  = x;
  val .b : list<int>
  = xs;
- std/core/types/.alloc-at(.ru, (std/core/Cons((std/core/types/.box(.b)), .b)));
+ std/core/Cons((std/core/types/.box(.b)), .b);
  (.skip std/core/Nil() : (list<int>) )
  -> std/core/Nil;
  };

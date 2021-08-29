@@ -261,19 +261,18 @@ static void test_carry(kk_context_t* ctx) {
   expect_eq(kk_integer_sub(kk_integer_from_str("10000000010000000",ctx), kk_integer_from_str("10000000",ctx), ctx), kk_integer_from_str("10000000000000000",ctx),ctx);
 }
 
+/* Borrow n */
 static kk_integer_t factorial(kk_integer_t n, kk_context_t* ctx) {
-  kk_integer_dup(n);
+  // 0 is a small integer and is not reference-counted
   if (kk_integer_eq(n,kk_integer_from_small(0), ctx)) {
-    kk_integer_drop(n, ctx);
     return kk_integer_from_small(1);
   }
-  kk_integer_dup(n);
+  // 1 is a small integer and is not reference-counted
   if (kk_integer_eq(n, kk_integer_from_small(1), ctx)) {
-    kk_integer_drop(n, ctx);
     return kk_integer_from_small(1);
   }
   kk_integer_dup(n);
-  return kk_integer_mul(factorial(kk_integer_dec(n, ctx), ctx),n, ctx);
+  return kk_integer_mul(factorial(kk_integer_dec(kk_integer_dup(n), ctx), ctx),n, ctx);
 }
 
 static void test_large(kk_context_t* ctx) {

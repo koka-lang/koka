@@ -13,7 +13,7 @@ fun pown(a:int, b:int) : int {
 }
 
 fun add(n0:expr,m0:expr) : div expr {
-  match((n0,m0)) {
+  match(n0,m0) {
     (Val(n),Val(m))        -> Val(n+m)
     (Val(0),f)             -> f
     (f,Val(0))             -> f
@@ -26,7 +26,7 @@ fun add(n0:expr,m0:expr) : div expr {
 }
 
 fun mul(n0:expr,m0:expr) : div expr {
-  match ((n0,m0)) {
+  match (n0,m0) {
     (Val(n), Val(m))         -> Val(n*m)
     (Val(0), _)              -> Val(0)
     (_, Val(0))              -> Val(0)
@@ -41,7 +41,7 @@ fun mul(n0:expr,m0:expr) : div expr {
 }
 
 fun powr(m0:expr, n0:expr) : div expr {
-  match ((m0,n0)) {
+  match (m0,n0) {
     (Val(m), Val(n)) -> Val(pown(m,n))
     (_,  Val(0))     -> Val(1)
     (f, Val(1))      -> f
@@ -57,7 +57,7 @@ fun ln(n:expr) : expr {
   }
 }
 
-fun d(x:string, e:expr) : div expr {
+fun d(^x:string, ^e:expr) : div expr {
   match(e) {
     Val(_)     -> Val(0)
     Var(y)     -> if (x == y) then Val(1) else Val(0)
@@ -68,7 +68,7 @@ fun d(x:string, e:expr) : div expr {
   }
 }
 
-fun count(e:expr) : int {
+fun count( ^e:expr) : int {
   match(e) {
     Val(_)   -> 1
     Var(_)   -> 1

@@ -7,7 +7,8 @@
 ---------------------------------------------------------------------------*/
 
 static kk_std_core__error kk_os_ensure_dir_error( kk_string_t path, kk_integer_t mode, kk_context_t* ctx ) {
-  int m  = kk_integer_clamp32(mode,ctx);
+  int m  = kk_integer_clamp32_borrow(mode);
+  kk_integer_drop(mode, ctx);
   const int err = kk_os_ensure_dir(path,m,ctx);
   if (err != 0) return kk_error_from_errno(err,ctx);
            else return kk_error_ok(kk_unit_box(kk_Unit),ctx);
