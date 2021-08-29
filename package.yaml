@@ -28,7 +28,7 @@ dependencies:
   - process
   - text
   - time
-  - isocline >= 1.0.3
+  - isocline >= 1.0.4
   
 executables:
   koka:

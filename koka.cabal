@@ -141,7 +141,7 @@ executable koka
     , bytestring
     , containers
     , directory
-    , isocline >=1.0.3
+    , isocline >=1.0.4
     , mtl
     , parsec
     , process
@@ -171,7 +171,7 @@ test-suite koka-test
     , filepath
     , hspec
     , hspec-core
-    , isocline >=1.0.3
+    , isocline >=1.0.4
     , json
     , mtl
     , parsec
