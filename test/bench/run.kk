@@ -10,7 +10,7 @@ import std/os/flags
 // Flags
 // ----------------------------------------------------
 
-val all-test-names = ["rbtree","rbtree-ck","deriv","nqueens","cfold"]
+val all-test-names = ["rbtree","rbtree-ck","deriv","nqueens","cfold","binarytrees"]
 val all-lang-names = [
   ("koka","kk"),
   ("kokax","kkx"),

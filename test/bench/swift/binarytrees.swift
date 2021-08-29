@@ -52,9 +52,9 @@ func inner(depth: UInt32, iterations: UInt32) -> String {
 let n: UInt32
 
 if CommandLine.argc > 1 {
-    n = UInt32(CommandLine.arguments[1]) ?? UInt32(10)
+    n = UInt32(CommandLine.arguments[1]) ?? UInt32(21)
 } else {
-    n = 10
+    n = 21
 }
 
 let minDepth = UInt32(4)

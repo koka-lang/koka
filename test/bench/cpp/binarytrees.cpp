@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
 {
    const int min_depth = 4;
    const int max_depth = std::max(min_depth+2,
-                      (argc == 2 ? atoi(argv[1]) : 10));
+                      (argc == 2 ? atoi(argv[1]) : 21));
    const int stretch_depth = max_depth+1;
    
    // Alloc then dealloc stretchdepth tree

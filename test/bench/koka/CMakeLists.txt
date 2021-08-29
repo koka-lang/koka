@@ -1,6 +1,6 @@
 set(sources cfold.kk deriv.kk nqueens.kk nqueens-int.kk
             rbtree-poly.kk rbtree.kk rbtree-int.kk
-            rbtree-ck.kk)
+            rbtree-ck.kk binarytrees.kk)
 
 # stack exec koka -- --target=c -O2 -c $(readlink -f ../cfold.kk) -o cfold
 find_program(koka "stack" REQUIRED)
