@@ -889,6 +889,8 @@ inferCheck loaded0 flags line coreImports program
                          else inlinesFilter (\name -> nameId nameCoreHnd /= nameModule name) (loadedInlines loaded)
          in inlineDefs penv (2*(optInlineMax flags)) inlines
        checkCoreDefs "inlined"
+
+       simplifyDupN
        -- traceDefGroups "inlined"
        
        -- specialize 
