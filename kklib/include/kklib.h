@@ -2,7 +2,7 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
-#define KKLIB_BUILD        46       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        47       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1
 
@@ -281,6 +281,9 @@ typedef struct kk_box_any_s {
   kk_integer_t  _unused;
 } *kk_box_any_t;
 
+// Workers run in a task_group
+typedef struct kk_task_group_s kk_task_group_t;
+
 //A yield context allows up to 8 continuations to be stored in-place
 #define KK_YIELD_CONT_MAX (8)
 
@@ -293,7 +296,7 @@ typedef enum kk_yield_kind_e {
 typedef struct kk_yield_s {
   int32_t       marker;          // marker of the handler to yield to
   kk_function_t clause;          // the operation clause to execute when the handler is found
-  kk_ssize_t       conts_count;     // number of continuations in `conts`
+  kk_ssize_t    conts_count;     // number of continuations in `conts`
   kk_function_t conts[KK_YIELD_CONT_MAX]; // fixed array of continuations. The final continuation `k` is
                                           // composed as `fN ○ ... ○ f2 ○ f1` if `conts = { f1, f2, ..., fN }`
                                           // if the array becomes full, a fresh array is allocated and the first
@@ -317,6 +320,7 @@ typedef struct kk_context_s {
   kk_box_any_t   kk_box_any;       // used when yielding as a value of any type
   kk_function_t  log;              // logging function
   kk_function_t  out;              // std output
+  kk_task_group_t* task_group;     // task group for managing threads. NULL for the main thread.
 
   struct kk_random_ctx_s* srandom_ctx; // strong random using chacha20, initialized on demand
   kk_ssize_t        argc;             // command line argument count 

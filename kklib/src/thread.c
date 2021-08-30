@@ -12,70 +12,6 @@
 #include <pthread.h>
 #endif
 
-
-/*---------------------------------------------------------------------------
-  blocking promise
----------------------------------------------------------------------------*/
-
-typedef struct promise_s {
-  kk_box_t        result;
-  pthread_mutex_t lock;
-  pthread_cond_t  available;
-} promise_t;
-
-static void kk_promise_free( void* vp, kk_block_t* b, kk_context_t* ctx ) {
-  KK_UNUSED(b);
-  promise_t* p = (promise_t*)(vp);
-  pthread_cond_destroy(&p->available);
-  pthread_mutex_destroy(&p->lock);
-  kk_box_drop(p->result,ctx);
-  kk_free(p);
-}
-
-kk_promise_t kk_promise_alloc(kk_context_t* ctx) {
-  promise_t* p = kk_zalloc(kk_ssizeof(promise_t),ctx);
-  if (p == NULL) goto err;
-  p->result = kk_box_any(ctx);
-  if (pthread_mutex_init(&p->lock, NULL) != 0) goto err;
-  if (pthread_cond_init(&p->available, NULL) != 0) goto err;
-  return kk_cptr_raw_box( &kk_promise_free, p, ctx );
-err:
-  kk_free(p);
-  return kk_box_any(ctx);
-}
-
-bool kk_promise_available( kk_promise_t pr, kk_context_t* ctx ) {
-  promise_t* p = (promise_t*)kk_cptr_raw_unbox(pr);
-  pthread_mutex_lock(&p->lock);
-  bool available = !kk_box_is_any(p->result);
-  pthread_mutex_unlock(&p->lock);
-  kk_box_drop(pr,ctx);
-  return available;
-}
-
-kk_box_t kk_promise_get( kk_promise_t pr, kk_context_t* ctx ) {
-  promise_t* p = (promise_t*)kk_cptr_raw_unbox(pr);
-  pthread_mutex_lock(&p->lock);
-  while (kk_box_is_any(p->result)) {
-    pthread_cond_wait( &p->available, &p->lock );
-  }
-  pthread_mutex_unlock(&p->lock);
-  const kk_box_t result = kk_box_dup( p->result );
-  kk_box_drop(pr,ctx);
-  return result;
-}
-
-void kk_promise_set( kk_promise_t pr, kk_box_t r, kk_context_t* ctx ) {
-  promise_t* p = (promise_t*)kk_cptr_raw_unbox(pr);
-  pthread_mutex_lock(&p->lock);
-  kk_box_drop(p->result,ctx);
-  // TODO: mark as thread shared
-  p->result = r;
-  pthread_mutex_unlock(&p->lock);
-  pthread_cond_signal(&p->available);
-  kk_box_drop(pr,ctx);
-}
-
 /*---------------------------------------------------------------------------
   (cpu-bound) task queue
 ---------------------------------------------------------------------------*/
@@ -90,6 +26,22 @@ static void kk_task_free( kk_task_t* task, kk_context_t* ctx ) {
   kk_box_drop(task->promise,ctx);
   kk_free(task);
 }
+
+static void kk_task_exec( kk_task_t* task, kk_context_t* ctx ) {
+  if (task->fun != NULL) {
+    kk_function_dup(task->fun);  
+    kk_box_t res = kk_function_call(kk_box_t,(kk_function_t,kk_context_t*),task->fun,(task->fun,ctx));
+    kk_box_dup(task->promise);
+    kk_promise_set( task->promise, res, ctx );
+  }
+  kk_task_free(task,ctx);
+}
+
+
+
+/*---------------------------------------------------------------------------
+  task group
+---------------------------------------------------------------------------*/
 
 typedef struct kk_task_group_s {
   bool            done;
@@ -149,6 +101,7 @@ static kk_promise_t kk_task_group_run( kk_task_group_t* tg, kk_function_t fun, k
 static void* kk_task_group_worker( void* vtg ) {
   kk_task_group_t* tg = (kk_task_group_t*)vtg;
   kk_context_t*    ctx = kk_get_context();
+  ctx->task_group = tg;
   while(true) {
      // deqeue task
      kk_task_t* task = NULL;
@@ -162,21 +115,16 @@ static void* kk_task_group_worker( void* vtg ) {
        break;
      }
      // todo: mark as concurrent
-     if (task->fun != NULL) {
-       kk_function_dup(task->fun);  
-       kk_box_t res = kk_function_call(kk_box_t,(kk_function_t,kk_context_t*),task->fun,(task->fun,ctx));
-       kk_box_dup(task->promise);
-       kk_promise_set( task->promise, res, ctx );
-     }
-     kk_task_free(task,ctx);
+     kk_task_exec(task,ctx);
      // todo: ensure context is cleared again?
   }
+  ctx->task_group = NULL;
   kk_free_context();
   return NULL;
 }
 
 static void kk_task_group_free( kk_task_group_t* tg, kk_context_t* ctx ) {
-  if (tg==NULL) return;
+  if (tg==NULL) return;  
   // set done state
   kk_task_t* task = NULL;
   tg->done = true;
@@ -244,8 +192,124 @@ static void kk_task_group_init(void) {
   task_group = kk_task_group_alloc(0,kk_get_context());
 }
 
-kk_promise_t kk_task_run( kk_function_t fun, kk_context_t* ctx ) {
+kk_promise_t kk_task_schedule( kk_function_t fun, kk_context_t* ctx ) {
   pthread_once( &task_group_once, &kk_task_group_init );
   kk_assert(task_group != NULL);
   return kk_task_group_run( task_group, fun, ctx );
+}
+
+/*
+kk_promise_t kk_task_run_for( int32_t count, int32_t stride, kk_function_t fun, kk_context_t* ctx ) {
+  pthread_once( &task_group_once, &kk_task_group_init );
+  kk_assert(task_group != NULL);
+  if (stride <= 0) { stride = 1; }
+  if (count <= 0)  { count = 1; }
+  int32_t n = count / stride;
+  if (n <= 1) {
+    return kk_task_group_run( task_group, fun, ctx );
+  }
+  else {
+    if (n > task_group->thread_count) { n = task_group->thread_count; }
+    for (int32_t i = 0; i < n; i++) {
+
+    }
+  }
+}
+*/
+
+
+
+/*---------------------------------------------------------------------------
+  blocking promise
+---------------------------------------------------------------------------*/
+
+typedef struct promise_s {
+  kk_box_t        result;
+  pthread_mutex_t lock;
+  pthread_cond_t  available;
+} promise_t;
+
+static void kk_promise_free( void* vp, kk_block_t* b, kk_context_t* ctx ) {
+  KK_UNUSED(b);
+  promise_t* p = (promise_t*)(vp);
+  pthread_cond_destroy(&p->available);
+  pthread_mutex_destroy(&p->lock);
+  kk_box_drop(p->result,ctx);
+  kk_free(p);
+}
+
+kk_promise_t kk_promise_alloc(kk_context_t* ctx) {
+  promise_t* p = kk_zalloc(kk_ssizeof(promise_t),ctx);
+  if (p == NULL) goto err;
+  p->result = kk_box_any(ctx);
+  if (pthread_mutex_init(&p->lock, NULL) != 0) goto err;
+  if (pthread_cond_init(&p->available, NULL) != 0) goto err;
+  return kk_cptr_raw_box( &kk_promise_free, p, ctx );
+err:
+  kk_free(p);
+  return kk_box_any(ctx);
+}
+
+bool kk_promise_available( kk_promise_t pr, kk_context_t* ctx ) {
+  promise_t* p = (promise_t*)kk_cptr_raw_unbox(pr);
+  pthread_mutex_lock(&p->lock);
+  bool available = !kk_box_is_any(p->result);
+  pthread_mutex_unlock(&p->lock);
+  kk_box_drop(pr,ctx);
+  return available;
+}
+
+kk_box_t kk_promise_get( kk_promise_t pr, kk_context_t* ctx ) {  
+  promise_t* p = (promise_t*)kk_cptr_raw_unbox(pr);
+  pthread_mutex_lock(&p->lock);
+  if (kk_box_is_any(p->result)) {
+    // if part of a task group, run other tasks while waiting
+    if (ctx->task_group != NULL) {
+      pthread_mutex_unlock(&p->lock);
+      // try to get a task
+      kk_task_group_t* tg = ctx->task_group;
+      kk_task_t* task = NULL;
+      pthread_mutex_lock(&tg->tasks_lock);
+      if (!kk_tasks_is_empty(tg) && !tg->done) {
+        task = kk_tasks_dequeue(tg);
+      }
+      pthread_mutex_unlock(&tg->tasks_lock);
+      // run task
+      if (task != NULL) { 
+        kk_task_exec(task, ctx);
+        pthread_mutex_lock(&p->lock);        
+      }
+      else {
+        // no task, block for a while
+        pthread_mutex_lock(&p->lock);        
+        struct timespec tm;
+        clock_gettime(CLOCK_REALTIME, &tm);
+        tm.tv_nsec += 100000000;  // 0.1s
+        if (tm.tv_nsec >= 1000000000) {
+          tm.tv_nsec -= 1000000000;
+          tm.tv_sec  += 1;
+        }
+        pthread_cond_timedwait( &p->available, &p->lock, &tm);
+      }
+    }
+    // if in the main thread do a blocking wait
+    else {
+      pthread_cond_wait( &p->available, &p->lock );
+    }
+  }
+  const kk_box_t result = kk_box_dup( p->result );
+  pthread_mutex_unlock(&p->lock);  
+  kk_box_drop(pr,ctx);
+  return result;
+}
+
+void kk_promise_set( kk_promise_t pr, kk_box_t r, kk_context_t* ctx ) {
+  promise_t* p = (promise_t*)kk_cptr_raw_unbox(pr);
+  pthread_mutex_lock(&p->lock);
+  kk_box_drop(p->result,ctx);
+  // TODO: mark as thread shared
+  p->result = r;
+  pthread_mutex_unlock(&p->lock);
+  pthread_cond_signal(&p->available);
+  kk_box_drop(pr,ctx);
 }

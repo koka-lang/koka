@@ -24,6 +24,8 @@ kk_decl_export void         kk_promise_set( kk_promise_t pr, kk_box_t r, kk_cont
    Tasks
 --------------------------------------------------------------------------------------*/
 
-kk_promise_t kk_task_run( kk_function_t fun, kk_context_t* ctx );
+kk_decl_export kk_promise_t kk_task_schedule( kk_function_t fun, kk_context_t* ctx );
+
+// kk_decl_export void kk_task_group_free( kk_task_group_t* tg, kk_context_t* ctx );
 
 #endif // include guard

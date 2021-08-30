@@ -17,7 +17,7 @@ abstract struct promise<a>{
 }
 
 noinline extern unsafe_task( work : () -> pure a ) : pure any {
-  c "kk_task_run"
+  c "kk_task_schedule"
 }
 
 noinline extern unsafe_await( p : any ) : pure a {
