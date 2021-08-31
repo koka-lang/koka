@@ -320,24 +320,35 @@ fun length(xs) {
 // (including both `lo`  and `hi` ).
 // If `lo > hi`  the function returns the empty list.
 fun list( lo: int, hi: int ) : total list<int> {
-  fun enumerate( low:int, high:int, acc: list<int> ) : list<int> {
-    if (low > high)
-     then acc
-     else enumerate(low, unsafe-decreasing(high - 1), Cons(high,acc))
-  }
-  enumerate(lo,hi,[])
+  if (lo <= hi) 
+    then Cons( lo, list( unsafe-decreasing(lo.inc), hi ) )
+    else Nil
 }
+
+// Returns an integer list of increasing elements from `lo`  to `hi` with stride `stride`.
+// If `lo > hi`  the function returns the empty list.
+fun list( lo: int, hi: int, stride : int ) : total list<int> {
+  if (lo <= hi) 
+    then Cons( lo, list(  unsafe-decreasing(lo + stride), hi, stride ))
+    else Nil  
+}
+
 
 // Applies a function `f` to list of increasing elements from `lo`  to `hi`
 // (including both `lo`  and `hi` ).
 // If `lo > hi`  the function returns the empty list.
-fun list( lo : int, hi: int, f : int -> e a) : e list<a> {
-  fun enumerate( low:int, high:int, acc ) {
-    if (low > high)
-     then acc
-     else enumerate(low, unsafe-decreasing(high - 1), Cons(f(high),acc))
-  }
-  enumerate(lo,hi,[])
+fun list( lo: int, hi: int, f : int -> e a ) : e list<a> {
+  if (lo <= hi) 
+    then Cons( f(lo), list( unsafe-decreasing(lo.inc), hi, f ))
+    else Nil  
+}
+
+// Returns an integer list of increasing elements from `lo`  to `hi` with stride `stride`.
+// If `lo > hi`  the function returns the empty list.
+fun list( lo: int, hi: int, stride : int, f : int -> e a ) : e list<a> {
+  if (lo <= hi) 
+    then Cons( f(lo), list(  unsafe-decreasing(lo + stride), hi, stride, f ))
+    else Nil  
 }
 
 
