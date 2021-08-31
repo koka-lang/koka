@@ -12,7 +12,7 @@ Parallel tasks.
 */
 module std/os/task
 
-abstract struct promise<a>{
+abstract struct promise<a> {
   promise : any
 }
 
@@ -28,7 +28,6 @@ noinline extern unsafe_task_n( count : ssize_t, stride : ssize_t, work : () -> p
   c "kk_task_schedule_n"
 }
 
-
 public noinline fun task( work : () -> pure a ) : pure promise<a> {
   Promise( unsafe_task( work ) )
 }
@@ -37,8 +36,12 @@ public fun await( p : promise<a> ) : pure a {
   unsafe_await( p.promise )
 }
 
+public fun await( ps : list<promise<a>> ) : pure list<a> {
+  ps.map(await)
+}
+
 public fun parallel( xs : list<() -> pure a> ) : pure list<a> {
-  xs.map( task ).map( await )
+  xs.map( task ).await
 }
 
 public noinline fun taskn( count : int, stride : int, work : () -> pure a, combine : (a,a) -> total a ) : pure promise<a> {

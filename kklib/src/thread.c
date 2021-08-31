@@ -432,23 +432,26 @@ kk_box_t kk_promise_get( kk_promise_t pr, kk_context_t* ctx ) {
         pthread_mutex_lock(&p->lock);        
       }
       else {
-        pthread_cond_wait( &p->available, &p->lock);
+        pthread_mutex_lock(&p->lock);
+        if (kk_box_is_any(p->result)) {
+          pthread_cond_wait( &p->available, &p->lock);
+        }
         /*
         // no task, block for a while
         struct timespec tm;
         clock_gettime(CLOCK_REALTIME, &tm);
-        tm.tv_nsec += 100000000;  // 0.1s
+        tm.tv_nsec     +=  100000000;  // 0.1s
         if (tm.tv_nsec >= 1000000000) {
-          tm.tv_nsec -= 1000000000;
-          tm.tv_sec  += 1;
+          tm.tv_nsec   -= 1000000000;
+          tm.tv_sec += 1;
         }
         pthread_mutex_lock(&p->lock);
         if (kk_box_is_any(p->result)) {
-          if (pthread_cond_timedwait( &p->available, &p->lock, &tm) != 0) {
+          if (pthread_cond_timedwait( &p->available, &p->lock, &tm) == ETIMEDOUT) {
             pthread_mutex_lock(&p->lock); 
           }
         }
-        */
+        */        
       }
     }
     // if in the main thread do a blocking wait

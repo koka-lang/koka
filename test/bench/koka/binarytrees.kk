@@ -64,7 +64,7 @@ fun sum-count( count : int, depth : int ) : pure int {
   val parts = list(1,n) fn(i){ 
     task{ sum-countx( count / n, depth ) }
   }
-  parts.map(await).sum 
+  parts.await.sum 
 }
 
 // experimental: use taskn
@@ -77,9 +77,9 @@ fun sum-countn( count : int, depth : int ) : pure promise<int> {
 
 // for depth to max-depth with stride 2, process 
 // many trees of size depth in parallel and compute the total checksum
-fun gen-depth( depth : int, max-depth : int, min-depth : int = depth ) : pure list<(int,int,promise<int>)> {
+fun gen-depth( min-depth : int, max-depth : int ) : pure list<(int,int,promise<int>)> {
   list(min-depth, max-depth, 2) fn(d) {    
-    val count = 2^(max-depth + min-depth - d)
+    val count = 2^(max-depth + min-depth - d)    // todo: ensure fast 2^n operation
     (count, d, task{ sum-count(count, d) })
     // (count, d, task{ sum-countx(count, d) })  // one task per depth
     // (count, d, sum-countn(count,d))           // experimental taskn
