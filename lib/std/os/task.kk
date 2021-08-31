@@ -24,6 +24,7 @@ noinline extern unsafe_await( p : any ) : pure a {
   c "kk_promise_get"
 }
 
+
 public fun task( work : () -> pure a ) : pure promise<a> {
   Promise( unsafe_task( work ) )
 }
@@ -35,3 +36,22 @@ public fun await( p : promise<a> ) : pure a {
 public fun parallel( xs : list<() -> pure a> ) : pure list<a> {
   xs.map( task ).map( await )
 }
+
+/*
+public fun preduce( count : int32, stride : int32, f : (int32,int32) -> pure a, combine : (a,a) -> total a ) : pure b {
+  val c = atomic(zero)
+  fun worker(init) {
+    val i = atomic-add(stride)
+    if (i > count) return acc
+    val cnt = if (i+stride > count) then count - i else stride
+    val y   = f(i,cnt)
+    val next = match(init) {
+                 Nothing -> y
+                 Just(x) -> combine(x,y)
+               }
+    worker(Just(next))
+  }
+  val xs = list(1,get-cpu-count()).map(fn(_){ worker(Nothing) }).parallel()
+  return xs.foldl1(combine)
+}
+*/

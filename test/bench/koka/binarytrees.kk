@@ -96,6 +96,7 @@ public fun main() {
   val long = make(max-depth)
   // allocate and free many trees in parallel
   val trees = gen-depth( min-depth, max-depth )
+  trees.last.thd.await
   trees.foreach fn((count,depth,csum)) {
     show( count.show ++ "\t trees", depth, csum.await )
   }
