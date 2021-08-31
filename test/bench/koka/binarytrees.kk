@@ -58,16 +58,16 @@ fun sum-countx( count : int32, depth : int32, total : int32 ) : div int32 {
 
 fun sum-count( count : int32, depth : int32 ) : pure int32 {
   //sum-countx(count,depth,zero) 
-  val n = 64.int32 
+  
+  val n = 4.int32;
   if (count < n) return sum-countx(count,depth,zero) 
   val partc = count / n
-  val part_rest = count - (partc * n.dec)
+  val part_rest = count - (partc * n)
   val parts = list(1,n.int).map fn(i){ 
-    task{ sum-countx( if (i==1) then part_rest else partc, depth, zero ) }
+    task{ sum-countx( partc + (if (i==1) then part_rest else zero), depth, zero ) }
   }
   val csum  = parts.map( await ).foldl1( fn(i,j){ i+j })
   csum  
-  
 }
 
 // for depth to max-depth with stride 2, process 

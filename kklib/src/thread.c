@@ -262,7 +262,7 @@ bool kk_promise_available( kk_promise_t pr, kk_context_t* ctx ) {
 kk_box_t kk_promise_get( kk_promise_t pr, kk_context_t* ctx ) {  
   promise_t* p = (promise_t*)kk_cptr_raw_unbox(pr);
   pthread_mutex_lock(&p->lock);
-  if (kk_box_is_any(p->result)) {
+  while (kk_box_is_any(p->result)) {
     // if part of a task group, run other tasks while waiting
     if (ctx->task_group != NULL) {
       pthread_mutex_unlock(&p->lock);
@@ -280,8 +280,9 @@ kk_box_t kk_promise_get( kk_promise_t pr, kk_context_t* ctx ) {
         pthread_mutex_lock(&p->lock);        
       }
       else {
+        pthread_cond_wait( &p->available, &p->lock);
+        /*
         // no task, block for a while
-        pthread_mutex_lock(&p->lock);        
         struct timespec tm;
         clock_gettime(CLOCK_REALTIME, &tm);
         tm.tv_nsec += 100000000;  // 0.1s
@@ -289,7 +290,13 @@ kk_box_t kk_promise_get( kk_promise_t pr, kk_context_t* ctx ) {
           tm.tv_nsec -= 1000000000;
           tm.tv_sec  += 1;
         }
-        pthread_cond_timedwait( &p->available, &p->lock, &tm);
+        pthread_mutex_lock(&p->lock);
+        if (kk_box_is_any(p->result)) {
+          if (pthread_cond_timedwait( &p->available, &p->lock, &tm) != 0) {
+            pthread_mutex_lock(&p->lock); 
+          }
+        }
+        */
       }
     }
     // if in the main thread do a blocking wait
