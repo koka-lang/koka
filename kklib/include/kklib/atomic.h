@@ -38,6 +38,8 @@
 #define kk_atomic_add32_acq_rel(p,x)          kk_atomic_fetch_add32_explicit(p,x,kk_memory_order(acq_rel))
 #define kk_atomic_sub32_acq_rel(p,x)          kk_atomic_fetch_sub32_explicit(p,x,kk_memory_order(acq_rel))
 
+#define kk_atomic_sub_relaxed(p,x)            kk_atomic_fetch_sub_explicit(p,x,kk_memory_order(relaxed))
+
 #define kk_atomic_load_relaxed(p)             kk_atomic(load_explicit)(p,kk_memory_order(relaxed))
 #define kk_atomic_load_acquire(p)             kk_atomic(load_explicit)(p,kk_memory_order(acquire))
 #define kk_atomic_store_relaxed(p,x)          kk_atomic(store_explicit)(p,x,kk_memory_order(relaxed))
@@ -52,6 +54,7 @@
 #define kk_atomic_dec32_relaxed(p)            kk_atomic_sub32_relaxed(p,1)
 #define kk_atomic_inc32_acq_rel(p)            kk_atomic_add32_acq_rel(p,1)
 #define kk_atomic_dec32_acq_rel(p)            kk_atomic_sub32_acq_rel(p,1)
+#define kk_atomic_dec_relaxed(p)              kk_atomic_sub_relaxed(p,1)
 
 
 #if defined(__cplusplus) || !defined(_MSC_VER)
@@ -59,6 +62,7 @@
 
 #define kk_atomic_fetch_add32_explicit(p,x,mo)      kk_atomic(fetch_add_explicit)(p,x,mo)
 #define kk_atomic_fetch_sub32_explicit(p,x,mo)      kk_atomic(fetch_sub_explicit)(p,x,mo)
+#define kk_atomic_fetch_sub_explicit(p,x,mo)        kk_atomic(fetch_sub_explicit)(p,x,mo)
 
 #elif defined(_MSC_VER)
 // MSVC C compilation wrapper that uses Interlocked operations to model C11 atomics.
@@ -86,9 +90,9 @@ static inline uintptr_t kk_atomic_fetch_add_explicit(_Atomic(uintptr_t)*p, uintp
   KK_UNUSED(mo);
   return (uintptr_t)WRAP64(_InterlockedExchangeAdd)((volatile msc_intptr_t*)p, (msc_intptr_t)add);
 }
-static inline uintptr_t kk_atomic_fetch_sub_explicit(_Atomic(uintptr_t)*p, uintptr_t sub, kk_memory_order_t mo) {
+static inline intptr_t kk_atomic_fetch_sub_explicit(_Atomic(intptr_t)*p, intptr_t sub, kk_memory_order_t mo) {
   KK_UNUSED(mo);
-  return (uintptr_t)WRAP64(_InterlockedExchangeAdd)((volatile msc_intptr_t*)p, -((msc_intptr_t)sub));
+  return (intptr_t)WRAP64(_InterlockedExchangeAdd)((volatile msc_intptr_t*)p, -((msc_intptr_t)sub));
 }
 static inline uintptr_t kk_atomic_load_explicit(_Atomic(uintptr_t)*p, kk_memory_order_t mo) {
   KK_UNUSED(mo);

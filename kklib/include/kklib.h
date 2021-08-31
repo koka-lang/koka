@@ -2,7 +2,7 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
-#define KKLIB_BUILD        50       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        52       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1
 
@@ -184,7 +184,6 @@ typedef union kk_datatype_s {
 
 
 
-
 static inline kk_decl_const kk_tag_t kk_block_tag(const kk_block_t* b) {
   return (kk_tag_t)(b->header.tag);
 }
@@ -236,6 +235,7 @@ static inline void kk_block_set_invalid(kk_block_t* b) {
 static inline bool kk_block_is_valid(kk_block_t* b) {
   return (b != NULL && ((uintptr_t)b&1)==0 && kk_block_field(b, 0).box != KK_BLOCK_INVALID); // already freed!
 }
+
 
 /*--------------------------------------------------------------------------------------
   The thread local context as `kk_context_t`
@@ -368,6 +368,8 @@ static inline int32_t kk_marker_unique(kk_context_t* ctx) {
 }
 
 
+kk_decl_export void kk_block_mark_shared( kk_block_t* b, kk_context_t* ctx );
+kk_decl_export void kk_box_mark_shared( kk_box_t b, kk_context_t* ctx );
 
 /*--------------------------------------------------------------------------------------
   Allocation

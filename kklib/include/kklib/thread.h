@@ -15,16 +15,14 @@
 
 typedef kk_box_t  kk_promise_t;
 
-kk_decl_export kk_promise_t kk_promise_alloc( kk_context_t* ctx );
-kk_decl_export bool         kk_promise_available( kk_promise_t pr, kk_context_t* ctx );
 kk_decl_export kk_box_t     kk_promise_get( kk_promise_t pr, kk_context_t* ctx );
-kk_decl_export void         kk_promise_set( kk_promise_t pr, kk_box_t r, kk_context_t* ctx );
 
 /*--------------------------------------------------------------------------------------
    Tasks
 --------------------------------------------------------------------------------------*/
 
 kk_decl_export kk_promise_t kk_task_schedule( kk_function_t fun, kk_context_t* ctx );
+kk_decl_export kk_promise_t kk_task_schedule_n( kk_ssize_t count, kk_ssize_t stride, kk_function_t fun, kk_function_t combine, kk_context_t* ctx );
 
 // kk_decl_export void kk_task_group_free( kk_task_group_t* tg, kk_context_t* ctx );
 

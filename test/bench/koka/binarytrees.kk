@@ -57,18 +57,22 @@ fun sum-countx( count : int, depth : int ) : div int {
   csum
 }
 
+// spawn up to 4 sub-tasks to count checksums
 fun sum-count( count : int, depth : int ) : pure int {
-  //sum-countx(count,depth,0)   
   val n = 4;
-  if (count < n) return sum-countx(count,depth) 
-  val partc = count / n
-  val part_rest = count - (partc * n)
-  val parts = list(1,n).map fn(i){ 
-    task{ sum-countx( partc + (if (i==1) then part_rest else 0), depth ) }
+  if (count%n != 0) return sum-countx(count,depth)
+  val parts = list(1,n) fn(i){ 
+    task{ sum-countx( count / n, depth ) }
   }
-  val csum  = parts.map( await ).foldl1( fn(i,j){ i+j })
-  csum  
-  
+  parts.map(await).sum 
+}
+
+// experimental: use taskn
+fun sum-countn( count : int, depth : int ) : pure promise<int> {
+  val n = 16;
+  if (count < n || count % n != 0) return task{ sum-countx(count,depth) } 
+  val part = count / n;
+  taskn( 16, 1, { sum-countx(part,depth) }, fn(c1,c2){ c1 + c2 } )
 }
 
 // for depth to max-depth with stride 2, process 
@@ -77,6 +81,8 @@ fun gen-depth( depth : int, max-depth : int, min-depth : int = depth ) : pure li
   list(min-depth, max-depth, 2) fn(d) {    
     val count = 2^(max-depth + min-depth - d)
     (count, d, task{ sum-count(count, d) })
+    // (count, d, task{ sum-countx(count, d) })  // one task per depth
+    // (count, d, sum-countn(count,d))           // experimental taskn
   }
 }
 
