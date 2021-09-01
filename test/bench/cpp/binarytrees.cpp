@@ -1,4 +1,4 @@
-// Note: this is C++ #3 program coming in at spot 1.9 (relative to the top entry ias C++ #7).
+// Note: this is C++ #3 program coming in at spot 1.9 (relative to the top entry as C++ #7).
 // We use this one as both of the top 2 entries (#5 and #7) use different kind of parallelism
 // with parallel execution within the iterations of sum-count. 
 // (it would be interesting to also create a Koka version of this but it requires a work-stealing implementation).

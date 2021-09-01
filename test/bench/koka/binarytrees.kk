@@ -69,10 +69,10 @@ fun sum-count( count : int, depth : int ) : pure int {
 
 // experimental: use taskn
 fun sum-countn( count : int, depth : int ) : pure promise<int> {
-  val n = 16;
+  val n = 2;
   if (count < n || count % n != 0) return task{ sum-countx(count,depth) } 
   val part = count / n;
-  taskn( 16, 1, { sum-countx(part,depth) }, fn(c1,c2){ c1 + c2 } )
+  taskn( n, 1, { sum-countx(part,depth) }, fn(c1,c2){ c1 + c2 } )
 }
 
 // for depth to max-depth with stride 2, process 
@@ -82,7 +82,7 @@ fun gen-depth( min-depth : int, max-depth : int ) : pure list<(int,int,promise<i
     val count = 2^(max-depth + min-depth - d)    // todo: ensure fast 2^n operation
     (count, d, task{ sum-count(count, d) })
     // (count, d, task{ sum-countx(count, d) })  // one task per depth
-    // (count, d, sum-countn(count,d))           // experimental taskn
+    //(count, d, sum-countn(count,d))           // experimental taskn
   }
 }
 

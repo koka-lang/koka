@@ -1,3 +1,5 @@
+// Note: current top ranking at binary-trees benchmark.
+
 /* The Computer Language Benchmarks Game
  * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
  *
