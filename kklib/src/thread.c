@@ -8,9 +8,138 @@
 #include "kklib.h"
 #include "kklib/thread.h"
 
-#ifndef _WIN32
+
+/*---------------------------------------------------------------------------
+  for windows, add a minimal pthread emulation layer
+---------------------------------------------------------------------------*/
+#ifdef _WIN32
+#include <windows.h>
+
+// --------------------------------------
+// Threads
+typedef HANDLE             pthread_t;
+
+static void pthread_join_void(pthread_t thread) {
+  WaitForSingleObject(thread, INFINITE);
+}
+
+typedef struct kk_thread_proc_arg_s {
+  void* (*action)(void*);
+  void* arg;
+} kk_thread_proc_arg_t;
+
+static DWORD WINAPI kk_thread_proc(LPVOID varg) {
+  kk_thread_proc_arg_t arg = *((kk_thread_proc_arg_t*)varg);
+  kk_free(varg);
+  (arg.action)(arg.arg);
+  return 0;
+}
+
+static int pthread_create(pthread_t* thread, void* attr, void* (*action)(void*), void* arg) {
+  KK_UNUSED(attr);
+  kk_context_t* ctx = kk_get_context();
+  kk_thread_proc_arg_t* parg = kk_zalloc(kk_ssizeof(kk_thread_proc_arg_t), ctx);
+  parg->action = action;
+  parg->arg = arg;
+  DWORD tid = 0;
+  *thread = CreateThread(NULL, 0, &kk_thread_proc, parg, 0, &tid);
+  return (*thread == NULL ? EINVAL : 0);
+}
+
+
+// --------------------------------------
+// Mutex
+typedef CRITICAL_SECTION   pthread_mutex_t;
+
+static int pthread_mutex_init(pthread_mutex_t* mutex, void* attr) {
+  KK_UNUSED(attr);
+  InitializeCriticalSection(mutex);
+  return 0;
+}
+
+static void pthread_mutex_destroy(pthread_mutex_t* mutex) {
+  DeleteCriticalSection(mutex);
+}
+
+static void pthread_mutex_lock(pthread_mutex_t* mutex) {
+  EnterCriticalSection(mutex);
+}
+
+static void pthread_mutex_unlock(pthread_mutex_t* mutex) {
+  LeaveCriticalSection(mutex);
+}
+
+// --------------------------------------
+// Conditions
+typedef CONDITION_VARIABLE pthread_cond_t;
+
+static int pthread_cond_init(pthread_cond_t* cond, void* attr) {
+  KK_UNUSED(attr);
+  InitializeConditionVariable(cond);
+  return 0;
+}
+
+static void pthread_cond_destroy(pthread_cond_t* cond) {
+  KK_UNUSED(cond);
+}
+
+static int pthread_cond_wait(pthread_cond_t* cond, pthread_mutex_t* mutex) {
+  if (SleepConditionVariableCS(cond, mutex, INFINITE)) {
+    return 0;
+  }
+  else {
+    return EINVAL;
+  }
+}
+
+static void pthread_cond_signal(pthread_cond_t* cond) {
+  WakeConditionVariable(cond);
+}
+
+static void pthread_cond_broadcast(pthread_cond_t* cond) {
+  WakeAllConditionVariable(cond);
+}
+
+
+// --------------------------------------
+// Once
+typedef INIT_ONCE          pthread_once_t;
+#define PTHREAD_ONCE_INIT  INIT_ONCE_STATIC_INIT
+
+typedef struct kk_once_arg_s {
+  void (*init)(void);
+} kk_once_arg_t;
+
+static BOOL kk_init_once_cb(PINIT_ONCE once, PVOID varg, PVOID* ctx) {
+  KK_UNUSED(once);
+  if (ctx != NULL) *ctx = NULL;
+  kk_once_arg_t* arg = (kk_once_arg_t*)varg;
+  (arg->init)();
+  return TRUE;
+}
+
+static int pthread_once(pthread_once_t* once, void (*init)(void)) {
+  kk_once_arg_t arg;
+  arg.init = init;
+  InitOnceExecuteOnce(once, &kk_init_once_cb, &arg, NULL);
+  return 0;
+}
+
+/*---------------------------------------------------------------------------
+  Other systems use posix threads
+---------------------------------------------------------------------------*/
+#else
 #include <pthread.h>
+
+static void pthread_join_void(pthread_t thread) {
+  pthread_join(thread, NULL);
+}
 #endif
+
+
+/*---------------------------------------------------------------------------
+  Promise
+---------------------------------------------------------------------------*/
 
 typedef struct promise_s {
   kk_box_t        result;
@@ -23,8 +152,10 @@ static kk_promise_t kk_promise_alloc( kk_context_t* ctx );
 static void         kk_promise_set( kk_promise_t pr, kk_box_t r, kk_context_t* ctx );
 // static bool         kk_promise_available( kk_promise_t pr, kk_context_t* ctx );
 
+
+
 /*---------------------------------------------------------------------------
-  (cpu-bound) task queue
+  cpu-bound task
 ---------------------------------------------------------------------------*/
 
 typedef struct kk_task_s {
@@ -44,7 +175,7 @@ static kk_task_t* kk_task_alloc( kk_function_t fun, kk_promise_t p, kk_context_t
   if (task == NULL) {
     kk_function_drop(fun,ctx);
     kk_box_drop(p,ctx);
-    NULL;
+    return NULL;
   }
   task->promise = p;
   task->fun  = fun;
@@ -64,7 +195,7 @@ static void kk_task_exec( kk_task_t* task, kk_context_t* ctx ) {
 
 
 /*---------------------------------------------------------------------------
-  task group
+  task group (thread pool with task queue)
 ---------------------------------------------------------------------------*/
 
 typedef struct kk_task_group_s {
@@ -94,7 +225,8 @@ static kk_task_t* kk_tasks_dequeue( kk_task_group_t* tg ) {
   return task;
 }
 
-static void kk_tasks_enqueue_n( kk_task_group_t* tg, kk_task_t* thead, kk_task_t* ttail, kk_context_t* ctx ) {
+static void kk_tasks_enqueue_n( kk_task_group_t* tg, kk_task_t* thead, kk_task_t* ttail, kk_context_t*  ctx ) {
+  KK_UNUSED(ctx);
   if (tg->tasks_tail != NULL) {
     kk_assert(tg->tasks_tail->next == NULL);
     tg->tasks_tail->next = thead;
@@ -165,7 +297,7 @@ static void kk_task_group_free( kk_task_group_t* tg, kk_context_t* ctx ) {
   pthread_cond_broadcast(&tg->tasks_available);  // pretend there are tasks to make the threads exit;
   for( kk_ssize_t i = 0; i < tg->thread_count; i++) {
     if (tg->threads[i] != 0) {
-      pthread_join(tg->threads[i], NULL);
+      pthread_join_void(tg->threads[i]);
     }
   }
   pthread_cond_destroy(&tg->tasks_available);
@@ -175,7 +307,7 @@ static void kk_task_group_free( kk_task_group_t* tg, kk_context_t* ctx ) {
 }
 
 static kk_task_group_t* kk_task_group_alloc( kk_ssize_t thread_count, kk_context_t* ctx ) {
-  const ssize_t cpu_count = kk_cpu_count(ctx);
+  const kk_ssize_t cpu_count = kk_cpu_count(ctx);
   if (thread_count <= 0) { thread_count = cpu_count; }
   if (thread_count > 8*cpu_count) { thread_count = 8*cpu_count; };  
   kk_task_group_t* tg = kk_zalloc( kk_ssizeof(kk_task_group_t), ctx );
