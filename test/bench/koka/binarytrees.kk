@@ -6,6 +6,7 @@ public module binarytrees
 
 import std/os/env
 import std/os/task
+import std/num/int32
 
 type tree {
   Tip
@@ -26,7 +27,7 @@ type visit {
 }
 
 // tail-recursive checksum
-fun checkv( t : tree, v : visit, acc : int ) : div int {  
+fun checkv( t : tree, v : visit, acc : int32 ) : div int32 {  
   match(t) {
     Node(l,r) -> checkv( l, NodeR(r,v), acc.inc)
     Tip       -> match(v) {
@@ -37,7 +38,7 @@ fun checkv( t : tree, v : visit, acc : int ) : div int {
 }
 
 fun check( t : tree ) : div int {
-  checkv(t, Done, 0)
+  checkv(t, Done, zero).int
   /*
   // normal checksum  
   match(t) {
@@ -49,7 +50,7 @@ fun check( t : tree ) : div int {
 
 
 // generate `count` trees of `depth` and return the total checksum
-fun sum-countx( count : int, depth : int ) : div int {
+fun sum-count( count : int, depth : int ) : div int {
   var csum := 0
   repeat(count) {
     csum := csum + make(depth).check
@@ -57,14 +58,15 @@ fun sum-countx( count : int, depth : int ) : div int {
   csum
 }
 
-// spawn up to 4 sub-tasks to count checksums
-fun sum-count( count : int, depth : int ) : pure int {
-  val n = 4;
-  if (count%n != 0) return sum-countx(count,depth)
+// parallel sum count: spawn up to `n` sub-tasks to count checksums
+fun psum-count( count : int, depth : int ) : pure int {
+  val n = 8;
+  val partc = count / n
+  val rest  = count % n
   val parts = list(1,n) fn(i){ 
-    task{ sum-countx( count / n, depth ) }
+    task{ sum-count( partc, depth ) }
   }
-  parts.await.sum 
+  sum-count(rest, depth) + parts.await.sum
 }
 
 // for depth to max-depth with stride 2, process 
@@ -72,8 +74,8 @@ fun sum-count( count : int, depth : int ) : pure int {
 fun gen-depth( min-depth : int, max-depth : int ) : pure list<(int,int,promise<int>)> {
   list(min-depth, max-depth, 2) fn(d) {    
     val count = 2^(max-depth + min-depth - d)    // todo: ensure fast 2^n operation
-    (count, d, task{ sum-count(count, d) })
-    // (count, d, task{ sum-countx(count, d) })  // one task per depth    
+    (count, d, task{ psum-count(count, d) })
+    // (count, d, task{ sum-count(count, d) })   // one task per depth    
   }
 }
 
