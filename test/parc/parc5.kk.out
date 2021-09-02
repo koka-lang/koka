@@ -3,20 +3,5 @@ private import std/core/types = std/core/types = "";
 private import std/core = std/core = "";
 public fun test : () -> int
  = fn(){
- val xs.42 : list<int>
- = std/core/Cons((std/core/types/.box(1)), std/core/Nil);
- match (xs.42) {
- (std/core/Cons(((.skip std/core/types/.Box((x: int)) : .Box ) as .box-x48: .Box), (.pat0: list<int>)) : list<int> )
- -> (match ((std/core/types/.is-unique(xs.42))) {
- (std/core/types/True() : bool )
- -> std/core/types/.drop(.pat0);
- std/core/types/.free(xs.42);
- _
- -> std/core/types/.dup(x);
- std/core/types/.dec-ref(xs.42);
- });
- x;
- (.skip std/core/Nil() : (list<int>) )
- -> 1;
- };
+ 1;
  };

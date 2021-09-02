@@ -80,23 +80,23 @@ readFlagsFile fp
 
 testSanitize :: FilePath -> String -> String
 testSanitize kokaDir
-  = limitTo 400
-  . trim
+  = trim
   . sub "^Up to date\n" ""
   . sub "\n[[:space:]]+at .*" ""
   . sub "(std_core\\.js:)[[:digit:]]+" "\\1"
   . sub "[\r\n]+" "\n"
   . sub "[[:blank:]]+" " "
   . sub "\\\\" "/"
+  -- type variable names and box names
   . sub "\\.box-x[[:digit:]]+(-x[[:digit:]]+)?" ".box"
   . sub "\\.[[:digit:]]+" ""
   . sub "<[[:digit:]]+>" "<0>"
-  . sub ": [[:digit:]]+([,\\)])" ": 0\\1"
+  -- . sub ": [[:digit:]]+([,\\)])" ": 0\\1"
   . replace kokaDir "..."
   where 
     sub re = flip (subRegex (mkRegex re))
-    limitTo n s | length s > n = take n s ++ "... (and more)"
-                | otherwise    = s
+    -- limitTo n s | length s > n = take n s ++ "... (and more)"
+    --             | otherwise    = s
 
 expectedSanitize :: String -> String  
 expectedSanitize input
