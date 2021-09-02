@@ -15,7 +15,7 @@
 
 %{
 #define CHECK_BALANCED  // check balanced parenthesis
-
+#define INSERT_END_BRACE 
 #define INDENT_LAYOUT   // use full layout rule based on nested indentation
 #undef LINE_LAYOUT    // use simple layout based on line ending token
 
@@ -396,6 +396,7 @@ char* showString( const char* s, yyscan_t scanner );
 #define layoutMax 255   /* Limit maximal layout stack to 255 for simplicity */
 #define braceMax  255   /* maximal nesting depth of parenthesis */
 #define Token     int
+#define savedMax  2
 
 typedef struct _ExtraState {
   /* nested comments */
@@ -427,8 +428,9 @@ typedef struct _ExtraState {
   YYLTYPE     previousLoc;
 
   /* the saved token and location: used to insert semicolons */
-  Token       savedToken;
-  YYLTYPE     savedLoc;
+  int         savedTop;
+  Token       savedToken[savedMax];
+  YYLTYPE     savedLoc[savedMax];
 
   /* temporary string buffer for string literals */
   int         stringMax;
@@ -514,6 +516,20 @@ static bool isAppToken( Token token ) {
   }
 #endif
 
+static void savedPush( YY_EXTRA_TYPE extra, Token token, YYLTYPE* loc ) {
+  assert(extra->savedTop < savedMax);
+  extra->savedTop++;
+  extra->savedToken[extra->savedTop] = token;
+  extra->savedLoc[extra->savedTop] = *loc;
+}
+
+static void savedPop( YY_EXTRA_TYPE extra, Token* token, YYLTYPE* loc ) {
+  assert(extra->savedTop >= 0);
+  *token = extra->savedToken[extra->savedTop];
+  *loc   = extra->savedLoc[extra->savedTop];
+  extra->savedTop--;
+}
+
 /*----------------------------------------------------
    Main lexical analysis routine 'mylex'
 ----------------------------------------------------*/
@@ -525,10 +541,9 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
   int         startState = YYSTATE;
 
   // do we have a saved token?
-  if (yyextra->savedToken >= 0) {
-    token  = yyextra->savedToken;
-    *loc   = yyextra->savedLoc;
-    yyextra->savedToken = -1;
+  if (yyextra->savedTop >= 0) {
+    savedPop( yyextra, &token, loc );
+    fprintf(stderr, "restored from saved: %c (0x%04x)\n", token, token );
   }
 
   // if not, scan ahead
@@ -554,8 +569,9 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
       token = yylex( lval, loc, scanner );
       *loc = updateLoc(scanner);
     }
+  }
 
-
+  if (yyextra->previous != SEMI) {
 #ifdef CHECK_BALANCED
     // check balanced braces
     Token closeBrace = isOpenBrace(token);
@@ -641,19 +657,37 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
         if (yyextra->commentLoc.last_line == loc->first_line) {
           yyerror(&yyextra->commentLoc,scanner,"comments are not allowed in indentation; rewrite by putting the comment on its own line or at the end of the line");
         }
+        #ifndef INSERT_END_BRACE
         // check layout
         if (loc->first_column < layoutColumn) {
           yyerror(loc,scanner,"illegal layout: the line must be indented at least as much as its enclosing layout context (column %d)", layoutColumn);
         }
+        #else
+        if (token != '}' && loc->first_column < layoutColumn && yyextra->layoutTop > 1) {
+          fprintf(stderr,"line (%d,%d): insert }, layout col: %d\n", loc->first_line, loc->first_column, yyextra->layoutTop);
+          // pop layout column
+          yyextra->layoutTop--;
+          layoutColumn = yyextra->layout[yyextra->layoutTop];
+
+          // save the currently scanned token
+          savedPush(yyextra, token, loc);
+          
+          // and replace it by a closing brace
+          *loc = yyextra->previousLoc;
+          loc->first_line = loc->last_line;
+          loc->first_column = loc->last_column;
+          loc->last_column++;
+          token = '}';  
+        }
+        #endif
       }
 
       // insert a semi colon?
-      if ((newline && loc->first_column == layoutColumn && !continuationToken(token))
-          || token == '}' || token == 0)
+      if (((newline && loc->first_column == layoutColumn && !continuationToken(token))
+           || token == '}' || token == 0))
       {
         // save the currently scanned token
-        yyextra->savedToken = token;
-        yyextra->savedLoc   = *loc;
+        savedPush(yyextra, token, loc);
 
         // and replace it by a semicolon
         *loc = yyextra->previousLoc;
@@ -729,8 +763,7 @@ void initScanState( ExtraState* st )
   st->previous = '{';   // so the layout context starts at the first token
   initLoc(&st->previousLoc, 1);
 
-  st->savedToken = -1;
-  initLoc(&st->savedLoc, 1);
+  st->savedTop = -1;
 
   st->stringMax = 0;
   st->stringLen = 0;
