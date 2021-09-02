@@ -67,7 +67,7 @@ void printDecl( const char* sort, const char* name );
 %token INFIX INFIXL INFIXR
 
 %token LEX_WHITE LEX_COMMENT
-%token SEMI
+%token INSERTED_SEMI
 %token LE ASSIGN DCOLON EXTEND
 %token RETURN
 
@@ -133,7 +133,7 @@ semis       : semis semi
             ;
 
 semi        : ';'
-            | SEMI
+            | INSERTED_SEMI
             ;
 
 
