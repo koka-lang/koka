@@ -26,4 +26,14 @@ kk_decl_export kk_promise_t kk_task_schedule_n( kk_ssize_t count, kk_ssize_t str
 
 // kk_decl_export void kk_task_group_free( kk_task_group_t* tg, kk_context_t* ctx );
 
+/*--------------------------------------------------------------------------------------
+   Lvars
+--------------------------------------------------------------------------------------*/
+typedef kk_box_t kk_lvar_t;
+
+kk_decl_export kk_lvar_t kk_lvar_alloc( kk_box_t init, kk_context_t* ctx );
+kk_decl_export void      kk_lvar_put( kk_lvar_t lvar, kk_box_t val, kk_function_t monotonic_combine, kk_context_t* ctx );
+kk_decl_export kk_box_t  kk_lvar_get( kk_lvar_t lvar, kk_box_t bot, kk_function_t is_gte, kk_context_t* ctx );
+
+
 #endif // include guard

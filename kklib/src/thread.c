@@ -457,3 +457,122 @@ kk_box_t kk_promise_get( kk_promise_t pr, kk_context_t* ctx ) {
   kk_box_drop(pr,ctx);
   return result;
 }
+
+
+/*---------------------------------------------------------------------------
+   Lvar
+---------------------------------------------------------------------------*/
+
+typedef struct lvar_s {
+  kk_box_t        result;
+  pthread_mutex_t lock;
+  pthread_cond_t  available;
+} lvar_t;
+
+typedef kk_box_t kk_lvar_t;
+
+kk_lvar_t kk_lvar_alloc( kk_box_t init, kk_context_t* ctx );
+void      kk_lvar_put( kk_lvar_t lvar, kk_box_t val, kk_function_t monotonic_combine, kk_context_t* ctx );
+kk_box_t  kk_lvar_get( kk_lvar_t lvar, kk_box_t bot, kk_function_t is_gte, kk_context_t* ctx );
+
+
+static void kk_lvar_free( void* lvar, kk_block_t* b, kk_context_t* ctx ) {
+  KK_UNUSED(b);
+  lvar_t* lv = (lvar_t*)(lvar);
+  pthread_cond_destroy(&lv->available);
+  pthread_mutex_destroy(&lv->lock);  
+  kk_box_drop(lv->result,ctx);
+  kk_free(lv);
+}
+
+kk_lvar_t kk_lvar_alloc(kk_box_t init, kk_context_t* ctx) {
+  lvar_t* lv = kk_zalloc(kk_ssizeof(lvar_t),ctx);
+  if (lv == NULL) goto err;
+  lv->result = init;
+  if (pthread_mutex_init(&lv->lock, NULL) != 0) goto err;
+  if (pthread_cond_init(&lv->available, NULL) != 0) goto err;
+  kk_lvar_t lvar = kk_cptr_raw_box( &kk_lvar_free, lv, ctx );
+  kk_box_mark_shared(init,ctx);
+  kk_box_mark_shared(lvar,ctx);
+  return lvar;
+err:
+  kk_free(lv);
+  kk_box_drop(init,ctx);
+  return kk_box_any(ctx);
+}
+
+
+void kk_lvar_put( kk_lvar_t lvar, kk_box_t val, kk_function_t monotonic_combine, kk_context_t* ctx ) {
+  lvar_t* lv = (lvar_t*)kk_cptr_raw_unbox(lvar);
+  pthread_mutex_lock(&lv->lock);
+  lv->result = kk_function_call(kk_box_t,(kk_function_t,kk_box_t,kk_box_t,kk_context_t*),monotonic_combine,(monotonic_combine,val,lv->result,ctx));
+  kk_box_mark_shared(lv->result,ctx);  // todo: can we mark outside the mutex?
+  pthread_mutex_unlock(&lv->lock);
+  pthread_cond_signal(&lv->available);
+  kk_box_drop(lvar,ctx);
+}
+
+
+kk_box_t kk_lvar_get( kk_lvar_t lvar, kk_box_t bot, kk_function_t is_gte, kk_context_t* ctx ) {
+  lvar_t* lv = (lvar_t*)kk_cptr_raw_unbox(lvar);
+  kk_box_t result;
+  pthread_mutex_lock(&lv->lock);
+  while (true) {
+    kk_function_dup(is_gte);
+    kk_box_dup(lv->result);
+    kk_box_dup(bot);
+    int32_t done = kk_function_call(int32_t,(kk_function_t,kk_box_t,kk_box_t,kk_context_t*),is_gte,(is_gte,lv->result,bot,ctx));
+    if (done != 0) {
+      result = kk_box_dup(lv->result);
+      break;
+    }
+    // if part of a task group, run other tasks while waiting
+    if (ctx->task_group != NULL) {
+      pthread_mutex_unlock(&lv->lock);
+      // try to get a task
+      kk_task_group_t* tg = ctx->task_group;
+      kk_task_t* task = NULL;
+      pthread_mutex_lock(&tg->tasks_lock);
+      if (!kk_tasks_is_empty(tg) && !tg->done) {
+        task = kk_tasks_dequeue(tg);
+      }
+      pthread_mutex_unlock(&tg->tasks_lock);
+      // run task
+      if (task != NULL) { 
+        kk_task_exec(task, ctx);
+        pthread_mutex_lock(&lv->lock);        
+      }
+      else {
+        pthread_mutex_lock(&lv->lock);
+        if (kk_box_is_any(lv->result)) {
+          pthread_cond_wait( &lv->available, &lv->lock);
+        }
+        /*
+        // no task, block for a while
+        struct timespec tm;
+        clock_gettime(CLOCK_REALTIME, &tm);
+        tm.tv_nsec     +=  100000000;  // 0.1s
+        if (tm.tv_nsec >= 1000000000) {
+          tm.tv_nsec   -= 1000000000;
+          tm.tv_sec += 1;
+        }
+        pthread_mutex_lock(&lv->lock);
+        if (kk_box_is_any(lv->result)) {
+          if (pthread_cond_timedwait( &lv->available, &lv->lock, &tm) == ETIMEDOUT) {
+            pthread_mutex_lock(&lv->lock); 
+          }
+        }
+        */        
+      }
+    }
+    // if in the main thread do a blocking wait
+    else {
+      pthread_cond_wait( &lv->available, &lv->lock );
+    }
+  }
+  pthread_mutex_unlock(&lv->lock);  
+  kk_box_drop(bot,ctx);
+  kk_function_drop(is_gte,ctx);
+  kk_box_drop(lvar,ctx);
+  return result;
+}
