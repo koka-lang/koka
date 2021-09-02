@@ -398,7 +398,7 @@ char* showString( const char* s, yyscan_t scanner );
 #define braceMax  255   /* maximal nesting depth of parenthesis */
 #define cbraceMax 255
 #define Token     int
-#define savedMax  2
+#define savedMax  255
 
 typedef struct _ExtraState {
   /* nested comments */
