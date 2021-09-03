@@ -264,26 +264,24 @@ fun format-list( t : time, fmt : list<char>, locale : time-locale ) : string {
   }
 }
 
-fun format-pat( t : time, h : char, fmt : list<char>, locale : time-locale ) : (string,list<char>) {
-  if (h=='"' || h=='\'') {
+fun format-pat( t : time, h : char, fmt : list<char>, locale : time-locale ) : (string,list<char>) 
+  if h=='"' || h=='\'' then
     // extract escaped part
-    val (quoted,end) = fmt.span( fn(c) { c!=h } )
-    match(end) {
+    val (quoted,end) = fmt.span( fn(c){ c!=h } )
+    match end
       Nil          -> (h.string, fmt)
       Cons(_,rest) -> (quoted.string, rest)
-    }
-  }
-  elif(h.is-alpha) {
+  elif h.is-alpha then
     // match pattern
     val (hs,rest) = fmt.span(fn(c){c==h})
     val n = hs.length + 1
-    formats.foreach-while fn(pattern) {
+    formats.foreach-while fn(pattern) 
       val (c,m,f) = pattern
       if (c!=h) then Nothing else Just((f(t,min(n,m),locale), rest))
-    }.default( ("",rest) ) // ignore if no match
-  }
-  else (h.string,fmt) // return as-is
-}
+    .default( ("",rest) ) // ignore if no match
+  else 
+    (h.string,fmt) // return as-is
+
 
 /*
 fun expand-locales( fmt : string, locale : time-locale ) : string {

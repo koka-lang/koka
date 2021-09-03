@@ -408,21 +408,17 @@ public fun finally( fin : () -> e (), action : () -> e a ) : e a {
   finally-prompt(fin, action());
 }
 
-private fun finally-prompt(fin : () -> e (), res : a ) : e a {
-  if (!yielding()) then {
+private fun finally-prompt(fin : () -> e (), res : a ) : e a 
+  if !yielding() then 
     fin()
     res
-  }
-  else if (yielding-non-final()) {
+  elif yielding-non-final() then 
     yield-cont(fn(cont,x){ finally-prompt(unsafe-decreasing(fin),cont(x)) })
-  }
-  else {
+  else 
     val yld = yield-capture()
     fin()
-    if (yielding()) return yield-extend( fn(_x){ unsafe-reyield(yld) } )
+    if yielding() return yield-extend( fn(_x){ unsafe-reyield(yld) } )
     unsafe-reyield(yld)
-  }
-}
 
 private fun finalize(cont : (() -> b) -> e r, res : a) : e a {
   val m : marker<_e,_r> = fresh-marker()

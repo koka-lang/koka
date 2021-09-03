@@ -307,7 +307,7 @@ fun logaddexp( x : double, y : double ) : double {
 fun logaddexp2( x : double, y : double ) : double {
   if (x==y) then x + 1.0 else {
     val z = x - y
-    if (z > 0.0)  then x + log2p1(exp2(~z))
+    if (z > 0.0) then x + log2p1(exp2(~z))
       else y + log2p1(exp2(z))
   }
 }
@@ -315,18 +315,16 @@ fun logaddexp2( x : double, y : double ) : double {
 // Return if two doubles are nearly equal with respect to some `epsilon` (=`8*dbl-epsilon`).
 // The epsilon is the nearest difference for numbers around 1.0. The routine automatically
 // scales the epsilon for larger and smaller numbers, and for subnormal numbers.
-fun nearly-eq( x : double, y : double, epsilon : double = 8.0*dbl-epsilon ) : bool {
+fun nearly-eq( x : double, y : double, epsilon : double = 8.0*dbl-epsilon ) : bool 
   if (x == y) return True
   val diff = (x - y).abs
-  if (x==0.0 || y==0.0 || diff < dbl-min) {
+  if x==0.0 || y==0.0 || diff < dbl-min then
     // very close to zero, scale the epsilon for denormalized numbers
     (2.0*diff < (epsilon * dbl-min))
-  }
-  else {
+  else 
     val sum = x.abs + y.abs
     ((2.0*diff / (if (sum > dbl-max) then dbl-max else sum)) < epsilon)
-  }
-}
+  
 
 // Return if two doubles are nearly equal with respect to an `epsilon` of `8*dbl-epsilon`.
 // See also `nearly-eq` which takes an explicit `epsilon`.

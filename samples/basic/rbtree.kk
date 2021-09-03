@@ -10,10 +10,12 @@ type tree<a>
   Leaf
   Node(color : color, left : tree<a>, key : int, value : a, right : tree<a>)
 
+
 fun is-red(t : tree<a>) : bool
   match t
     Node(Red) -> True
     _         -> False
+
 
 fun balance-left(l :tree<a>, k : int, v : a, r : tree<a>) : tree<a>
   match l
@@ -25,6 +27,7 @@ fun balance-left(l :tree<a>, k : int, v : a, r : tree<a>) : tree<a>
     Node(_, lx, kx, vx, rx)
       -> Node(Black, Node(Red, lx, kx, vx, rx), k, v, r)
 
+
 fun balance-right(l : tree<a>, k : int, v : a, r : tree<a>) : tree<a>
   match r
     Leaf -> Leaf
@@ -34,6 +37,7 @@ fun balance-right(l : tree<a>, k : int, v : a, r : tree<a>) : tree<a>
       -> Node(Red, Node(Black, l, k, v, lx), kx, vx, Node(Black, ly, ky, vy, ry))
     Node(_, lx, kx, vx, rx)
       -> Node(Black, l, k, v, Node(Red, lx, kx, vx, rx))
+
 
 fun ins(t : tree<a>, k : int, v : a) : tree<a>
   match t
@@ -49,29 +53,33 @@ fun ins(t : tree<a>, k : int, v : a) : tree<a>
          elif is-red(r) then balance-right(l, kx, vx, ins(r,k,v))
          else Node(Black, l, kx, vx, ins(r, k, v))
 
+
 fun set-black(t : tree<a>) : tree<a>
   match t
     Node(_, l, k, v, r) -> Node(Black, l, k, v, r)
     _ -> t
 
+
 // Tree insertion
 fun insert(t : tree<a>, k : int, v : a) : tree<a>
-  if is-red(t)
-    then set-black(ins(t, k, v))
+  if t.is-red
+    then ins(t, k, v).set-black
     else ins(t, k, v)
 
 
 // Fold the elements of a tree
 fun fold(t : tree<a>, b : b, f : (int, a, b) -> b) : b
   match t
-    Leaf                -> b
     Node(_, l, k, v, r) -> r.fold( f(k, v, l.fold(b, f)), f)
+    Leaf                -> b
+
 
 // Make a boolean tree
 fun make-tree-aux(n : int, t : tree<bool>) : div tree<bool>
   if n <= 0 then t else
     val n1 = n - 1
     make-tree-aux(n1, insert(t, n1, n1 % 10 == 0))
+
 
 fun make-tree(n : int) : div tree<bool>
   make-tree-aux(n, Leaf)

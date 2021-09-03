@@ -1459,14 +1459,19 @@ lambda alts
 
 ifexpr
   = do rng <- keyword "if"
-       tst <- atom -- parens expr
-       optional (keyword "then")
-       texpr   <- blockexpr
-       eexprs  <- many elif
-       eexpr   <- do keyword "else"
-                     blockexpr
-                  <|>
-                     return (Var nameUnit False (after (combineRanged texpr (map snd eexprs))))
+       tst <- nbexpr
+       (texpr,eexprs,eexpr) <- 
+          (do texpr   <- thenexpr
+              eexprs  <- many elif
+              eexpr   <- do keyword "else"
+                            blockexpr
+                          <|>
+                            return (Var nameUnit False (after (combineRanged texpr (map snd eexprs))))
+              return (texpr,eexprs,eexpr))
+          <|>
+          (do texpr <- returnexpr
+              return (texpr, [], Var nameUnit False (after (getRange texpr))))
+            
        let fullMatch = foldr match eexpr ((tst,texpr):eexprs)
                      where
                        match (tst,texpr) eexpr
@@ -1479,10 +1484,12 @@ ifexpr
   where
     elif
       = do keyword "elif"
-           tst <- atom -- parens expr
-           optional (keyword "then")
-           texpr <- blockexpr
+           tst <- nbexpr -- parens expr
+           texpr <- thenexpr
            return (tst,texpr)
+
+    thenexpr 
+      = (do{ keyword "then"; blockexpr }) -- <|> block)
 
 returnexpr
   = do rng <- keyword "return"
@@ -1492,7 +1499,7 @@ returnexpr
 
 matchexpr
   = do rng <- keyword "match"
-       tst <- atom  -- allows tuples for multi pattern match
+       tst <- nbexpr  -- allows tuples for multi pattern match
        (branches,rng2) <- semiBracesRanged1 branch
        return (Case tst branches (combineRange rng rng2))
   <|> handlerExpr
@@ -1748,10 +1755,18 @@ pguardTest
 {--------------------------------------------------------------------------
   Op expr
 --------------------------------------------------------------------------}
+nbexpr :: LexParser UserExpr
+nbexpr 
+  = opexprx False
+
 opexpr :: LexParser UserExpr
-opexpr
-  = do e1 <- prefixexpr
-       (do ess <- many1(do{ op <- operatorVar; e2 <- prefixexpr; return [op,e2]; })
+opexpr = opexprx True
+
+
+opexprx :: Bool -> LexParser UserExpr
+opexprx allowTrailingLam
+  = do e1 <- prefixexpr allowTrailingLam
+       (do ess <- many1(do{ op <- operatorVar; e2 <- prefixexpr allowTrailingLam; return [op,e2]; })
            return (App (Var nameOpExpr True rangeNull)
                     [(Nothing,e) | e <- e1 : concat ess] (combineRanged e1 (concat ess)))
         <|>
@@ -1765,18 +1780,19 @@ operatorVar
        return (Var nameAssign True rng)
 
 
-prefixexpr :: LexParser UserExpr
-prefixexpr
+prefixexpr :: Bool -> LexParser UserExpr
+prefixexpr allowTrailingLam
   = do ops  <- many prefixOp
-       aexp <- appexpr
+       aexp <- appexpr allowTrailingLam
        return (foldr (\op e -> App op [(Nothing,e)] (combineRanged op e)) aexp ops)
 
-appexpr :: LexParser UserExpr
-appexpr
+appexpr :: Bool -> LexParser UserExpr
+appexpr allowTrailingLam
   = do e0 <- atom
        fs <- many (dotexpr <|> applier <|> indexer <|> funapps)
        return (foldl (\e f -> f e) e0 fs)
   where
+    
     dotexpr, indexer, applier, funapps :: LexParser (UserExpr -> UserExpr)
     dotexpr
       = do keyword "."
@@ -1800,8 +1816,11 @@ appexpr
            rng1 <- rparen
            return (\exp -> App exp (args) (combineRanged exp rng1))
 
+    funapp | allowTrailingLam = funblock <|> lambda []
+           | otherwise        = lambda []
+
     funapps
-      = do fs <- many1 (funexpr <|> fnexpr)
+      = do fs <- many1 funapp
            return (\arg0 -> injectApply arg0 fs)
       where
         injectApply expr []
