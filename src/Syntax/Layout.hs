@@ -21,7 +21,7 @@ import Common.Range hiding (after)
 -- import Lib.Trace
 import Syntax.Lexeme
 import Syntax.Lexer
-import Common.Name  ( Name )
+import Common.Name  ( Name, nameId )
 
 testFile fname
   = do input <- readInput ("test/" ++ fname)
@@ -47,8 +47,8 @@ layout semiInsert lexemes
               combineLineComments $ 
               semi checkComments $ 
               lexemes
-    in -- trace (unlines (map show (take 100 ls))) $
-       seq (length ls) ls
+    in -- trace (unlines (map show ls)) $
+       seq (last ls) ls
 
 isLexError (Lexeme _ (LexError {})) = True
 isLexError _ = False
@@ -183,39 +183,47 @@ checkComments lexemes
 ----------------------------------------------------------}
 indentLayout :: [Lexeme] -> [Lexeme]
 indentLayout []     = [Lexeme rangeNull LexInsSemi]
-indentLayout (l:ls) = tail $
-                      brace 0 -- (posColumn (rangeStart (getRange l)))
-                            [] 
-                            (before (getRange l)) 
-                            (Lexeme (before (getRange l)) (LexSpecial "{"):l:ls)
+indentLayout (l:ls) = let prevLex = Lexeme (before (getRange l)) (LexSpecial "{")
+                      in  tail $
+                          brace 0 -- (posColumn (rangeStart (getRange l)))
+                                [] 
+                                prevLex
+                                (prevLex:l:ls)
 
-brace :: Int ->   [Int] -> Range -> [Lexeme] -> [Lexeme]
-brace layout layouts prevRng []
-  = [Lexeme (after prevRng) LexInsSemi] -- end of file
-brace layout layouts prevRng lexemes@(lexeme@(Lexeme _ (LexError{})):ls)  -- ignore errors
-  = lexeme : brace layout layouts prevRng ls
-brace layout layouts prevRng lexemes@(lexeme@(Lexeme rng lex):ls)
+brace :: Int ->   [Int] -> Lexeme -> [Lexeme] -> [Lexeme]
+brace layout layouts prev []
+  = [Lexeme (after (getRange prev)) LexInsSemi] -- end of file
+    ++ (case layouts of 
+          [] -> []
+          (_:lays) -> map (\_ -> Lexeme (after (getRange prev)) (LexSpecial "}")) lays)  -- closing braces
+brace layout layouts prev lexemes@(lexeme@(Lexeme _ (LexError{})):ls)  -- ignore errors
+  = lexeme : brace layout layouts prev ls
+brace layout layouts prev@(Lexeme prevRng prevLex) lexemes@(lexeme@(Lexeme rng lex):ls)
   = case lex of
       LexSpecial "{"
         -> case ls of
-             [] -> check layout layouts prevRng lexemes
+             [] -> check layout layouts prev lexemes
              (err@(Lexeme _ (LexError{})) : Lexeme rng2 lex2 : _)
                 -> let layoutNew = startCol rng2
                    in  [err] ++ 
                        checkNewLayout layoutNew rng2 lex2 ++
-                       check layoutNew (layout:layouts) rng lexemes
+                       (lexeme : brace layoutNew (layout:layouts) lexeme ls)
              (Lexeme rng2 lex2 : _)
                 -> let layoutNew = startCol rng2
                    in  checkNewLayout layoutNew rng2 lex2 ++
-                       check layoutNew (layout:layouts) rng lexemes
+                       (lexeme : brace layoutNew (layout:layouts) lexeme ls)
       LexSpecial "}"
-        -> [Lexeme (after prevRng) LexInsSemi] ++
+        -> (case prevLex of
+              LexSpecial ";" -> []
+              LexInsSemi     -> []
+              _ -> [Lexeme (after prevRng) LexInsSemi]) ++ 
+           [lexeme] ++
            case layouts of
-             []     -> check 0 [] rng lexemes -- unbalanced braces
-             (i:is) -> check i is rng lexemes -- pop the layout stack
+             []     -> brace 0 [] prev ls -- unbalanced braces
+             (i:is) -> brace i is prev ls -- pop the layout stack
       LexError _
-        -> lexeme : check layout layouts prevRng lexemes   -- ignore lexical errors 
-      _ -> check layout layouts prevRng lexemes
+        -> lexeme : check layout layouts prev lexemes   -- ignore lexical errors 
+      _ -> check layout layouts prev lexemes
   where
     checkNewLayout layoutNew rng2 lex2
       = if (layoutNew <= layout) 
@@ -226,32 +234,55 @@ brace layout layouts prevRng lexemes@(lexeme@(Lexeme rng lex):ls)
          else []
 
 
-check :: Int -> [Int] -> Range -> [Lexeme] -> [Lexeme]
-check layout layouts prevRng []
+check :: Int -> [Int] -> Lexeme -> [Lexeme] -> [Lexeme]
+check layout layouts prev []
   = []
-
-check layout layouts prevRng (lexeme@(Lexeme rng lex):ls)
-  = checkIndent ++
-    insertSemi ++
-    (lexeme : brace layout layouts rng ls)
+check layout layouts prev@(Lexeme prevRng prevLex) lexemes@(lexeme@(Lexeme rng lex):ls)
+  = -- checkIndent ++
+    case insertOpenCloseBrace of
+      []        -> insertSemi ++ (lexeme : brace layout layouts lexeme ls)
+      openClose -> brace layout layouts prev (openClose ++ lexemes)
   where
     newline = endLine prevRng < startLine rng 
     indent  = startCol rng
-       
+    
+
+    {-   
     checkIndent 
       = if (newline && indent < layout)
          then [Lexeme rng (LexError ("layout: line must be indented at least as much as the enclosing layout context (column " ++ show layout ++ ")"))]
          else []
+    -}
 
     insertSemi
-      = if (newline && indent == layout)
-         then case lex of
-                 LexSpecial s    |  s `elem` ["{",",","]",")"] -> []
-                 LexKeyword k _  |  k `elem` ["then","else","elif"] -> []
-                 _ -> [Lexeme (after prevRng) LexInsSemi]
+      = if (newline && indent == layout && not (continuationToken lex))
+         then [Lexeme (after prevRng) LexInsSemi]
          else []
 
+    insertOpenCloseBrace 
+      = if (newline && indent > layout &&
+            not (endingToken prevLex) && not (continuationToken lex))
+         then [Lexeme (after prevRng) (LexSpecial "{")]
+         else if (newline && indent < layout) 
+          then case lex of 
+                LexSpecial "}" -> []
+                _ -> [Lexeme (after prevRng) (LexSpecial "}")]                
+          else []
 
+continuationToken :: Lex -> Bool 
+continuationToken lex
+      = case lex of
+          LexSpecial s    -> s `elem` [")",">","]",",","{","}"]
+          LexKeyword k _  -> k `elem` ["then","else","elif","->","="] 
+          LexOp op        -> not (nameId op `elem` ["<"])
+          _ -> False
+
+endingToken :: Lex -> Bool 
+endingToken lex
+      = case lex of
+          LexSpecial s    -> s `elem` ["(","<","[",",","{"]
+          LexOp op        -> not (nameId op `elem` [">"])
+          _ -> False
 
 
 -----------------------------------------------------------

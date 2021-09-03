@@ -482,7 +482,8 @@ static bool isAppToken( Token token ) {
 
 
 #ifdef INDENT_LAYOUT
-  static Token continuationTokens[] = { THEN, ELSE, ELIF, ')', ']', '{', 0 };
+  static Token continuationTokens[] = { ')', '>', ']', ',', '{', '}', '=', OP, THEN, ELSE, ELIF, RARROW, 0 };
+                                      // { THEN, ELSE, ELIF, ')', ']', '{', 0 };
 
   static bool continuationToken( Token token ) {
     return contains(continuationTokens, token );
@@ -491,15 +492,10 @@ static bool isAppToken( Token token ) {
 
 
 #ifdef INSERT_OPEN_BRACE
-  static Token blockEndingTokens[]    = { '(', '<', '[', ',', '{', IDOP, QIDOP, 0 };
-  static Token blockContinuationTokens[]  = { ')', '>', ']', ',', '{', '}', '=', IDOP, QIDOP, THEN, ELSE, ELIF, 0 };
-
-  bool blockEndingToken( Token token  ) {
-    return contains(blockEndingTokens,token);
-  }
-
-  bool blockContinuationToken( Token token ) {
-    return contains(blockContinuationTokens,token);
+  static Token endingTokens[]    = { '(', '<', '[', ',', '{', OP, 0 };
+  
+  bool endingToken( Token token  ) {
+    return contains(endingTokens,token);
   }
 #endif
 
@@ -705,7 +701,7 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
 
       // insert a semi colon?
       if ( // yyextra->previous != INSERTED_SEMI &&
-          ((newline && loc->first_column == layoutColumn && !blockContinuationToken(token))
+          ((newline && loc->first_column == layoutColumn && !continuationToken(token))
            || token == '}' || token == 0))
       {
         fprintf(stderr,"insert semi before: %c (0x%04x), top: %d\n", token, token, yyextra->savedTop);
@@ -722,13 +718,13 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
 
       // insert open brace?
       else if (newline && loc->first_column > layoutColumn && 
-               !blockEndingToken(yyextra->previous) && !blockContinuationToken(token))
+               !endingToken(yyextra->previous) && !continuationToken(token))
       {
         fprintf(stderr,"insert { before: %c (0x%04x), top: %d\n", token, token, yyextra->savedTop);
         // save the currently scanned token
         savedPush(yyextra, token, loc);
 
-        // and replace it by a closing brace
+        // and replace it by an open brace
         *loc = yyextra->previousLoc;
         loc->first_line = loc->last_line;
         loc->first_column = loc->last_column;
