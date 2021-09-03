@@ -280,14 +280,14 @@ fun parse-long( s : string, flags : list<flag<a>> ) : total flag-kind<a>
                                  _           -> (flagname,False)
                                }
   
-  val exacts   = flags.filter( fn(opt){ 
-                    opt.long-names.map(to-lower).any( fn(name) { 
-                      name==flagname || name==baseflagname 
-                 })})
-  val prefixes = flags.filter( fn(opt){ 
-                    opt.long-names.map(to-lower).any( fn(name) { 
+  val exacts   = flags.filter fn(opt)    
+                    opt.long-names.map(to-lower).any fn(name)
+                      name==flagname || name==baseflagname
+                 
+  val prefixes = flags.filter fn(opt) 
+                    opt.long-names.map(to-lower).any fn(name)  
                       name.starts-with(flagname).bool || name.starts-with(baseflagname).bool 
-                 })})
+                 
   val applicable = if (exacts.is-nil) then prefixes else exacts
   
   match(applicable) {

@@ -228,8 +228,8 @@ brace layout layouts prev@(Lexeme prevRng prevLex) lexemes@(lexeme@(Lexeme rng l
           _ -> [Lexeme (after prevRng) LexInsSemi]) ++ 
         [lexeme] ++
         case layouts of
-          []     -> brace 0 [] prev ls -- unbalanced braces
-          (i:is) -> brace i is prev ls -- pop the layout stack                    
+          []     -> brace 0 [] lexeme ls -- unbalanced braces
+          (i:is) -> brace i is lexeme ls -- pop the layout stack                    
                     
     checkNewLayout layoutNew rng2 lex2
       = if (layoutNew <= layout) 
@@ -280,7 +280,7 @@ continuationToken :: Lex -> Bool
 continuationToken lex
       = case lex of
           LexSpecial s    -> s `elem` [")",">","]",",","{","}"]
-          LexKeyword k _  -> k `elem` ["then","else","elif","->","=","|"] 
+          LexKeyword k _  -> k `elem` ["then","else","elif","->","=","|",":",".",":="] 
           LexOp op        -> not (nameId op `elem` ["<"])
           LexInsLCurly    -> True
           LexInsRCurly    -> True
@@ -290,6 +290,7 @@ endingToken :: Lex -> Bool
 endingToken lex
       = case lex of
           LexSpecial s    -> s `elem` ["(","<","[",",","{"]
+          LexKeyword k _  -> k `elem` ["."]
           LexInsLCurly    -> True
           LexOp op        -> not (nameId op `elem` [">"])
           _ -> False
