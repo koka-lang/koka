@@ -68,9 +68,9 @@ fun insert(t : tree<a>, k : int, v : a) : tree<a>
 
 
 // Fold the elements of a tree
-fun fold(t : tree<a>, b : b, f : (int, a, b) -> b) : b
+fun fold(t : tree<a>, acc : b, f : (int, a, b) -> b) : b
   match t
-    Node(_, l, k, v, r) -> r.fold( f(k, v, l.fold(b, f)), f)
+    Node(_, l, k, v, r) -> fold( r, f(k,v,fold(l,acc,f)), f )
     Leaf                -> b
 
 
@@ -88,7 +88,7 @@ fun make-tree(n : int) : div tree<bool>
 // Benchmark for `n` insertions
 fun bench(n : int)
   val m = make-tree(n)
-  val v = m.fold(0) fn(k,v,r){ if (v) then r + 1 else r }
+  val v = m.fold(0) fn(k,v,x){ if v then x+1 else x }
   v.println
 
 
