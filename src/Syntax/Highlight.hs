@@ -337,7 +337,7 @@ adjustContext ctx lex lexs
       CtxType nest decl
         -> case lex of
              LexId _            -> ctx
-             LexCons id         -> ctx
+             -- LexCons id         -> ctx
              LexOp op           | showPlain op == "<" -> push NestAngle nest
                                 | showPlain op == ">" -> pop NestAngle nest
                                 | otherwise           -> ctx

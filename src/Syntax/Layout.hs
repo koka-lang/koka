@@ -183,7 +183,7 @@ checkComments lexemes
 ----------------------------------------------------------}
 indentLayout :: [Lexeme] -> [Lexeme]
 indentLayout []     = [Lexeme rangeNull LexInsSemi]
-indentLayout (l:ls) = let prevLex = Lexeme (before (getRange l)) (LexSpecial "{")
+indentLayout (l:ls) = let prevLex = Lexeme (before (getRange l)) (LexInsLCurly)
                       in  tail $
                           brace 0 -- (posColumn (rangeStart (getRange l)))
                                 [] 
@@ -195,41 +195,47 @@ brace layout layouts prev []
   = [Lexeme (after (getRange prev)) LexInsSemi] -- end of file
     ++ (case layouts of 
           [] -> []
-          (_:lays) -> map (\_ -> Lexeme (after (getRange prev)) (LexSpecial "}")) lays)  -- closing braces
+          (_:lays) -> map (\_ -> Lexeme (after (getRange prev)) LexInsRCurly) lays)  -- closing braces
 brace layout layouts prev lexemes@(lexeme@(Lexeme _ (LexError{})):ls)  -- ignore errors
   = lexeme : brace layout layouts prev ls
 brace layout layouts prev@(Lexeme prevRng prevLex) lexemes@(lexeme@(Lexeme rng lex):ls)
   = case lex of
-      LexSpecial "{"
-        -> case ls of
-             [] -> check layout layouts prev lexemes
-             (err@(Lexeme _ (LexError{})) : Lexeme rng2 lex2 : _)
-                -> let layoutNew = startCol rng2
-                   in  [err] ++ 
-                       checkNewLayout layoutNew rng2 lex2 ++
-                       (lexeme : brace layoutNew (layout:layouts) lexeme ls)
-             (Lexeme rng2 lex2 : _)
-                -> let layoutNew = startCol rng2
-                   in  checkNewLayout layoutNew rng2 lex2 ++
-                       (lexeme : brace layoutNew (layout:layouts) lexeme ls)
-      LexSpecial "}"
-        -> (case prevLex of
-              LexSpecial ";" -> []
-              LexInsSemi     -> []
-              _ -> [Lexeme (after prevRng) LexInsSemi]) ++ 
-           [lexeme] ++
-           case layouts of
-             []     -> brace 0 [] prev ls -- unbalanced braces
-             (i:is) -> brace i is prev ls -- pop the layout stack
+      LexSpecial "{"  -> openBrace
+      LexSpecial "}"  -> closeBrace
+      LexInsLCurly    -> openBrace
+      LexInsRCurly    -> closeBrace
       LexError _
         -> lexeme : check layout layouts prev lexemes   -- ignore lexical errors 
       _ -> check layout layouts prev lexemes
   where
+    openBrace
+      = case ls of
+          [] -> check layout layouts prev lexemes
+          (err@(Lexeme _ (LexError{})) : Lexeme rng2 lex2 : _)
+            -> let layoutNew = startCol rng2
+                in  [err] ++ 
+                    checkNewLayout layoutNew rng2 lex2 ++
+                    (lexeme : brace layoutNew (layout:layouts) lexeme ls)
+          (Lexeme rng2 lex2 : _)
+            -> let layoutNew = startCol rng2
+                in  checkNewLayout layoutNew rng2 lex2 ++
+                    (lexeme : brace layoutNew (layout:layouts) lexeme ls)
+
+    closeBrace 
+      = (case prevLex of
+          LexSpecial ";" -> []
+          LexInsSemi     -> []
+          _ -> [Lexeme (after prevRng) LexInsSemi]) ++ 
+        [lexeme] ++
+        case layouts of
+          []     -> brace 0 [] prev ls -- unbalanced braces
+          (i:is) -> brace i is prev ls -- pop the layout stack                    
+                    
     checkNewLayout layoutNew rng2 lex2
       = if (layoutNew <= layout) 
          then case lex2 of
-                LexSpecial "}" 
-                  -> []
+                LexSpecial "}" -> []
+                LexInsRCurly   -> []
                 _ -> [Lexeme rng2 (LexError ("layout start: line must be indented more than the enclosing layout context (column " ++ show layout ++ ")"))] 
          else []
 
@@ -262,11 +268,12 @@ check layout layouts prev@(Lexeme prevRng prevLex) lexemes@(lexeme@(Lexeme rng l
     insertOpenCloseBrace 
       = if (newline && indent > layout &&
             not (endingToken prevLex) && not (continuationToken lex))
-         then [Lexeme (after prevRng) (LexSpecial "{")]
+         then [Lexeme (after prevRng) LexInsLCurly]
          else if (newline && indent < layout) 
           then case lex of 
                 LexSpecial "}" -> []
-                _ -> [Lexeme (after prevRng) (LexSpecial "}")]                
+                LexInsRCurly   -> []
+                _ -> [Lexeme (after prevRng) LexInsRCurly]                
           else []
 
 continuationToken :: Lex -> Bool 
@@ -275,12 +282,15 @@ continuationToken lex
           LexSpecial s    -> s `elem` [")",">","]",",","{","}"]
           LexKeyword k _  -> k `elem` ["then","else","elif","->","="] 
           LexOp op        -> not (nameId op `elem` ["<"])
+          LexInsLCurly    -> True
+          LexInsRCurly    -> True
           _ -> False
 
 endingToken :: Lex -> Bool 
 endingToken lex
       = case lex of
           LexSpecial s    -> s `elem` ["(","<","[",",","{"]
+          LexInsLCurly    -> True
           LexOp op        -> not (nameId op `elem` [">"])
           _ -> False
 
@@ -363,6 +373,8 @@ scanImports count modules lexemes
       = case lex of
           LexKeyword kw _ -> kw `elem` ["module","import","as","public","private","."]
           LexSpecial s    -> s `elem` [";","(",")","{","}"]
+          LexInsRCurly    -> True
+          LexInsLCurly    -> True
           LexId id        -> True
           _               -> False
 

@@ -2464,8 +2464,9 @@ lparen   = special "(" -- <|> liparen
 rparen   = special ")"
 langle   = specialOp "<"
 rangle   = specialOp ">"
-lcurly   = special "{"
-rcurly   = special "}"
+
+--lcurly   = special "{" <|> 
+--rcurly   = special "}"
 
 bar      = keyword "|" -- specialOp "|"
 comma    = special ","
@@ -2483,6 +2484,18 @@ semiColon
   = do (Lexeme rng _) <- parseLex LexInsSemi <|> parseLex (LexSpecial ";")
        return rng
   <?> show ";"
+
+lcurly :: LexParser Range
+lcurly
+  = do (Lexeme rng _) <- parseLex LexInsLCurly <|> parseLex (LexSpecial "{")
+       return rng
+  <?> show "{"
+
+rcurly :: LexParser Range
+rcurly
+  = do (Lexeme rng _) <- parseLex LexInsRCurly <|> parseLex (LexSpecial "}")
+       return rng
+  <?> show "}"
 
 
 -----------------------------------------------------------
