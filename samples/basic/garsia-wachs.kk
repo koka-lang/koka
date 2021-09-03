@@ -12,8 +12,8 @@ fun main()
 // Trees
 //----------------------------------------------------
 type tree<a>
-  Leaf(value :a)
-  Node(left :tree<a>, right :tree<a>)
+  Leaf(value : a)
+  Node(left : tree<a>, right : tree<a>)
 
 
 fun show( t : tree<string> ) : string
@@ -69,7 +69,7 @@ fun balance( xs : list1<(tree<a>,int)> ) : div tree<a>
   extract( [], xs )
 
 
-fun mark( depth :int, t :tree<(a,ref<h,int>)> ) : <write<h>> ()
+fun mark( depth : int, t : tree<(a,ref<h,int>)> ) : <write<h>> ()
   match t
     Leaf((_,d)) -> d := depth
     Node(l,r)   -> 
@@ -77,7 +77,7 @@ fun mark( depth :int, t :tree<(a,ref<h,int>)> ) : <write<h>> ()
       mark(depth+1,r)
 
 
-fun build( depth :int, xs :list1<(a,ref<h,int>)> ) : <read<h>,div> (tree<a>,list<(a,ref<h,int>)>)
+fun build( depth : int, xs : list1<(a,ref<h,int>)> ) : <read<h>,div> (tree<a>,list<(a,ref<h,int>)>)
   if !xs.head.snd == depth return (Leaf(xs.head.fst), xs.tail)
   val l = build(depth+1, xs)
   match l.snd

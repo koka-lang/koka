@@ -71,7 +71,7 @@ fun insert(t : tree<a>, k : int, v : a) : tree<a>
 fun fold(t : tree<a>, acc : b, f : (int, a, b) -> b) : b
   match t
     Node(_, l, k, v, r) -> fold( r, f(k,v,fold(l,acc,f)), f )
-    Leaf                -> b
+    Leaf                -> acc
 
 
 // Make a boolean tree
