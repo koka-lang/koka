@@ -343,7 +343,7 @@ adjustContext ctx lex lexs
                                 | otherwise           -> ctx
              
              LexWildCard _      -> ctx
-             LexWhite _         -> ctx
+             LexWhite w         | length w < 2 -> ctx
              LexComment _       -> ctx
 
              LexKeyword "|" _      -> ctx

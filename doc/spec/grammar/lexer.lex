@@ -482,7 +482,7 @@ static bool isAppToken( Token token ) {
 
 
 #ifdef INDENT_LAYOUT
-  static Token continuationTokens[] = { ')', '>', ']', ',', '{', '}', '=', OP, THEN, ELSE, ELIF, RARROW, 0 };
+  static Token continuationTokens[] = { ')', '>', ']', ',', '{', '}', '|', ':', '.', '=', ASSIGN, OP, THEN, ELSE, ELIF, RARROW, 0 };
                                       // { THEN, ELSE, ELIF, ')', ']', '{', 0 };
 
   static bool continuationToken( Token token ) {
@@ -492,7 +492,7 @@ static bool isAppToken( Token token ) {
 
 
 #ifdef INSERT_OPEN_BRACE
-  static Token endingTokens[]    = { '(', '<', '[', ',', '{', OP, 0 };
+  static Token endingTokens[]    = { '(', '<', '[', ',', '{', '.', OP, 0 };
   
   bool endingToken( Token token  ) {
     return contains(endingTokens,token);
