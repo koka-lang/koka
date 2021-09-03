@@ -280,7 +280,7 @@ continuationToken :: Lex -> Bool
 continuationToken lex
       = case lex of
           LexSpecial s    -> s `elem` [")",">","]",",","{","}"]
-          LexKeyword k _  -> k `elem` ["then","else","elif","->","="] 
+          LexKeyword k _  -> k `elem` ["then","else","elif","->","=","|"] 
           LexOp op        -> not (nameId op `elem` ["<"])
           LexInsLCurly    -> True
           LexInsRCurly    -> True

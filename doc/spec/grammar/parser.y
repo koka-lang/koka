@@ -82,7 +82,6 @@ void printDecl( const char* sort, const char* name );
 %token ID_VALUE ID_REFERENCE ID_SCOPED
 %token ID_INITIALLY ID_FINALLY
 
-
 %type <Id>  varid conid qvarid qconid op
 %type <Id>  identifier qidentifier qoperator qconstructor
 %type <Id>  funid typeid modulepath binder
@@ -406,35 +405,33 @@ expr        : withexpr
             ;
 
 basicexpr   : ifexpr
-            | fnexpr
             | matchexpr
             | handlerexpr
             | opexpr
+            | fnexpr
             ;
 
 
 /* keyword expressions */
 
-matchexpr   : MATCH atom '{' semis matchrules '}'
+matchexpr   : MATCH nbexpr '{' semis matchrules '}'
             ;
 
-fnexpr      : FN funparams block            /* anonymous function */
+fnexpr      : FN funparams bodyexpr            /* anonymous function */
             ;
 
 returnexpr  : RETURN expr
             ;
 
-ifexpr      : IF atom then elifs ELSE expr  %prec THEN
-            | IF atom then elifs            %prec THEN
+ifexpr      : IF nbexpr THEN expr elifs %prec THEN
+            | IF nbexpr THEN expr       %prec THEN
+            | IF nbexpr RETURN expr 
             ;
 
-then        : THEN expr
-            | expr           /* then keyword is optional */
+elifs       : ELIF nbexpr THEN expr elifs
+            | ELSE expr
             ;
 
-elifs       : elifs ELIF atom then
-            | %empty /* empty */
-            ;
 
 /* operator expression */
 
@@ -447,20 +444,33 @@ prefixexpr  : '!' prefixexpr
             | appexpr
             ;
 
-/*
-fappexpr    : fappexpr funexpr
-            | appexpr
-            ;
-*/
-
 appexpr     : appexpr '(' arguments ')'             /* application */
             | appexpr '[' arguments ']'             /* index expression */
             | appexpr '.' atom                      /* dot application */
             | appexpr block                         /* trailing function application */
-            | appexpr fnexpr                        /* trailing function application */
+            | appexpr FN funparams block            /* trailing function application */
             | atom
             ;
 
+
+/* non-block operator expression */
+nbexpr      : nbopexpr 
+            ;
+
+nbopexpr    : nbopexpr qoperator nbprefixexpr
+            | nbprefixexpr
+            ;
+
+nbprefixexpr: '!' nbprefixexpr
+            | '~' nbprefixexpr
+            | nbappexpr
+            ;
+
+nbappexpr   : nbappexpr '(' arguments ')'             /* application */
+            | nbappexpr '[' arguments ']'             /* index expression */
+            | nbappexpr '.' atom                      /* dot application */
+            | atom
+            ;
 
 /* atomic expressions */
 
@@ -680,9 +690,9 @@ patarg      : identifier '=' apattern            /* named argument */
 -- Handlers
 ----------------------------------------------------------*/
 handlerexpr : HANDLER override witheff opclauses
-            | HANDLE override witheff '(' expr ')' opclauses
+            | HANDLE override witheff nbexpr opclauses
             | NAMED HANDLER witheff opclauses
-            | NAMED HANDLE witheff '(' expr ')' opclauses
+            | NAMED HANDLE witheff nbexpr opclauses
             ;
 
 override    : OVERRIDE

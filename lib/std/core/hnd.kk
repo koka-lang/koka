@@ -409,7 +409,7 @@ public fun finally( fin : () -> e (), action : () -> e a ) : e a {
 }
 
 private fun finally-prompt(fin : () -> e (), res : a ) : e a {
-  if (!yielding()) {
+  if (!yielding()) then {
     fin()
     res
   }
