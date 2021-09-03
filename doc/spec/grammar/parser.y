@@ -87,10 +87,24 @@ void printDecl( const char* sort, const char* name );
 %type <Id>  funid typeid modulepath binder
 %type <Id>  fundecl aliasdecl typedecl externdecl puredecl
 
-/* precedence declarations are in increasing order, i.e. the last precedence declaration has the highest precedence. */
+/* precedence declarations are in increasing order, 
+   i.e. the last precedence declaration has the highest precedence. 
+*/
+
 /* resolve s/r conflict by shifting on ELSE so the ELSE binds to the closest IF.*/
-%precedence THEN
+%precedence THEN 
 %precedence ELSE ELIF
+
+/* resolve s/r conflict to have a `FN funparams -> expr` span as far as possible,
+   e.g. `fn(x) -> x + 1` is `(fn(x) -> x + 1)` and not `(fn(x) -> x) + 1`
+   and  `fn(x) -> x.foo` is `(fn(x) -> x.foo)` and not `(fn(x) -> x).foo`
+   note: we could avoid these rules by disallowing the `->` form in trailing lambdas. 
+*/   
+%precedence RARROW                     /* -> */
+%precedence '(' '[' FN '{' '.'         /* applications */
+%precedence OP ASSIGN '>' '<' '|'      /* operators */
+
+/* %precedence '?' */
 
 %%
 
@@ -401,20 +415,21 @@ blockexpr   : expr              /* a `block` is not interpreted as an anonymous 
 expr        : withexpr
             | block             /* interpreted as an anonymous function (except if coming from `blockexpr`) */
             | returnexpr
-            | basicexpr
+            // | basicexpr '?' expr ':' expr  
+            | basicexpr                   
             ;
 
 basicexpr   : ifexpr
             | matchexpr
             | handlerexpr
-            | opexpr
             | fnexpr
+            | opexpr             %prec RARROW
             ;
 
 
 /* keyword expressions */
 
-matchexpr   : MATCH nbexpr '{' semis matchrules '}'
+matchexpr   : MATCH ntlexpr '{' semis matchrules '}'
             ;
 
 fnexpr      : FN funparams bodyexpr            /* anonymous function */
@@ -423,52 +438,52 @@ fnexpr      : FN funparams bodyexpr            /* anonymous function */
 returnexpr  : RETURN expr
             ;
 
-ifexpr      : IF nbexpr THEN expr elifs %prec THEN
-            | IF nbexpr THEN expr       %prec THEN
-            | IF nbexpr RETURN expr 
+ifexpr      : IF ntlexpr THEN expr elifs 
+            | IF ntlexpr THEN expr       
+            | IF ntlexpr RETURN expr 
             ;
 
-elifs       : ELIF nbexpr THEN expr elifs
+elifs       : ELIF ntlexpr THEN expr elifs
             | ELSE expr
             ;
 
 
 /* operator expression */
 
-opexpr      : opexpr qoperator prefixexpr
-            | prefixexpr
+opexpr      : opexpr qoperator prefixexpr     
+            | prefixexpr                      
             ;
 
-prefixexpr  : '!' prefixexpr
-            | '~' prefixexpr
-            | appexpr
+prefixexpr  : '!' prefixexpr                  
+            | '~' prefixexpr                  
+            | appexpr               %prec RARROW
             ;
 
 appexpr     : appexpr '(' arguments ')'             /* application */
             | appexpr '[' arguments ']'             /* index expression */
             | appexpr '.' atom                      /* dot application */
             | appexpr block                         /* trailing function application */
-            | appexpr FN funparams block            /* trailing function application */
-            | atom
+            | appexpr fnexpr                        /* trailing function application */
+            | atom 
             ;
 
 
-/* non-block operator expression */
-nbexpr      : nbopexpr 
+/* non-trailing-lambda expression */
+ntlexpr     : ntlopexpr      
             ;
 
-nbopexpr    : nbopexpr qoperator nbprefixexpr
-            | nbprefixexpr
+ntlopexpr   : ntlopexpr qoperator ntlprefixexpr  
+            | ntlprefixexpr                      
             ;
 
-nbprefixexpr: '!' nbprefixexpr
-            | '~' nbprefixexpr
-            | nbappexpr
+ntlprefixexpr: '!' ntlprefixexpr
+            | '~' ntlprefixexpr
+            | ntlappexpr
             ;
 
-nbappexpr   : nbappexpr '(' arguments ')'             /* application */
-            | nbappexpr '[' arguments ']'             /* index expression */
-            | nbappexpr '.' atom                      /* dot application */
+ntlappexpr  : ntlappexpr '(' arguments ')'             /* application */
+            | ntlappexpr '[' arguments ']'             /* index expression */
+            | ntlappexpr '.' atom                      /* dot application */
             | atom
             ;
 
@@ -578,7 +593,7 @@ annot       : ':' typescheme
 -- Identifiers and operators
 ----------------------------------------------------------*/
 
-qoperator   : op
+qoperator   : op     
             ;
 
 qidentifier : qvarid
@@ -690,9 +705,9 @@ patarg      : identifier '=' apattern            /* named argument */
 -- Handlers
 ----------------------------------------------------------*/
 handlerexpr : HANDLER override witheff opclauses
-            | HANDLE override witheff nbexpr opclauses
+            | HANDLE override witheff ntlexpr opclauses
             | NAMED HANDLER witheff opclauses
-            | NAMED HANDLE witheff nbexpr opclauses
+            | NAMED HANDLE witheff ntlexpr opclauses
             ;
 
 override    : OVERRIDE
