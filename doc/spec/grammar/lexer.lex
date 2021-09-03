@@ -396,7 +396,7 @@ char* showString( const char* s, yyscan_t scanner );
 #define errorMax  1 // 25
 #define layoutMax 255   /* Limit maximal layout stack to 255 for simplicity */
 #define braceMax  255   /* maximal nesting depth of parenthesis */
-#define cbraceMax 255
+#define obraceMax 255
 #define Token     int
 #define savedMax  255
 
@@ -426,9 +426,10 @@ typedef struct _ExtraState {
 #endif
 
 #ifdef INSERT_OPEN_BRACE
+  /* open braces */
   int         obraceTop;
-  int         obraceLine[cbraceMax];
-  int         obraceIndent[cbraceMax];
+  int         obraceLine[obraceMax];
+  int         obraceIndent[obraceMax];
 #endif
 
   /* the previous non-white token and its location */
@@ -525,19 +526,24 @@ static bool isAppToken( Token token ) {
 #endif
 
 #ifdef INSERT_OPEN_BRACE
-  static Token braceOpenTokens[]     = { FUN, FN, TYPE, STRUCT, EFFECT, MATCH, IF, 0 };
-  static Token braceEolOpenTokens[]  = { RARROW, THEN, ELSE, 0 };
+  static Token obraceStartTokens[]     = { FUN, FN, HANDLER, EXCEPT, CONTROL, RCONTROL, TYPE, STRUCT, EFFECT, MATCH, IF, 0 };
+  static Token obraceEolStartTokens[]  = { RARROW, THEN, ELSE, 0 };
 
-  bool isAutoOpenBrace( Token token, bool* eol  ) {
-    if (contains(braceOpenTokens,token)) { *eol = false; return true; }
-    if (contains(braceEolOpenTokens,token)) { *eol = true; return true; }
+  bool isOpenBraceStartToken( Token token, bool* eol  ) {
+    if (contains(obraceStartTokens,token)) { *eol = false; return true; }
+    // if (contains(obraceEolStartTokens,token)) { *eol = true; return true; }
     return false;
   } 
 
-  static Token braceOpenBefore[] = { '(', '<', ',', 0 };
-  static Token braceOpenAfter[] = { ')', '>', ',', 0 };
-  static bool isOpenBraceBeforeAfterToken( Token previous, Token token ) {
-    return contains(braceOpenBefore,previous) || contains(braceOpenAfter, token);
+  static Token obraceBefore[] = { '(', '<', ',', 0 };
+  static Token obraceAfter[] = { ')', '>', ',', 0 };
+  static bool isOpenBraceContinuationToken( Token previous, Token token ) {
+    return (contains(obraceBefore,previous) || contains(obraceAfter, token));
+  }
+
+  static Token obraceEnd[] = { '{', ELIF, THEN, ELSE, 0  };
+  static bool isOpenBraceEndToken( Token token ) {
+    return (contains(obraceEnd,token));
   }
 #endif
 
@@ -546,6 +552,7 @@ static void savedPush( YY_EXTRA_TYPE extra, Token token, YYLTYPE* loc ) {
   extra->savedTop++;
   extra->savedToken[extra->savedTop] = token;
   extra->savedLoc[extra->savedTop] = *loc;
+  fprintf(stderr, "save token (%d,%d): %c (0x%04x) (new top: %d)\n", loc->first_line, loc->first_column, token, token, extra->savedTop );  
 }
 
 static void savedPop( YY_EXTRA_TYPE extra, Token* token, YYLTYPE* loc ) {
@@ -553,6 +560,7 @@ static void savedPop( YY_EXTRA_TYPE extra, Token* token, YYLTYPE* loc ) {
   *token = extra->savedToken[extra->savedTop];
   *loc   = extra->savedLoc[extra->savedTop];
   extra->savedTop--;
+  fprintf(stderr, "restore from saved  (%d,%d): %c (0x%04x) (new top: %d)\n", loc->first_line, loc->first_column, *token, *token, extra->savedTop );
 }
 
 /*----------------------------------------------------
@@ -567,8 +575,8 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
 
   // do we have a saved token?
   if (yyextra->savedTop >= 0) {
+    fprintf(stderr,"have saved: %d\n", yyextra->savedTop);
     savedPop( yyextra, &token, loc );
-    fprintf(stderr, "restored from saved: %c (0x%04x)\n", token, token );
   }
 
   // if not, scan ahead
@@ -642,13 +650,30 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
     // Do layout ?
     if (!yyextra->noLayout)
     {
+      bool newline = (yyextra->previousLoc.last_line < loc->first_line);
+
 #ifdef INSERT_OPEN_BRACE
-       bool eol;
-       if (isAutoOpenBrace(token, &eol)) {
-         yyextra->obraceTop++;
-         yyextra->obraceLine[yyextra->obraceTop] = loc->last_line;
-         yyextra->obraceIndent[yyextra->obraceTop] = yyextra->layout[yyextra->layoutTop];
-       }
+      while (yyextra->obraceTop >= 0 && loc->first_column <= yyextra->obraceIndent[yyextra->obraceTop]) {
+        yyextra->obraceTop--;
+        fprintf(stderr,"pop open brace starter: top=%d\n", yyextra->obraceTop);        
+      }
+      
+      if (newline && yyextra->obraceTop >= 0 && loc->first_line > yyextra->obraceLine[yyextra->obraceTop]) {
+        fprintf(stderr,"open brace on newline: top=%d\n", yyextra->obraceTop);        
+        if (!isOpenBraceContinuationToken(yyextra->previous, token)) {
+          yyextra->obraceTop--;
+          fprintf(stderr," pop it: top=%d\n", yyextra->obraceTop);        
+          if (!isOpenBraceEndToken(token) && token != '{' && yyextra->previous != '{') {
+            fprintf(stderr," insert '{': top=%d\n", yyextra->obraceTop);                  
+            savedPush(yyextra,token,loc);        
+            *loc = yyextra->previousLoc;
+            loc->first_line = loc->last_line;
+            loc->first_column = loc->last_column;
+            loc->last_column++;
+            token = '{';  
+          }
+        }
+      }
 #endif      
 #ifdef INDENT_LAYOUT
       // set a new layout context?
@@ -682,7 +707,7 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
         }
       }
 
-      bool newline = (yyextra->previousLoc.last_line < loc->first_line);
+      // bool newline = (yyextra->previousLoc.last_line < loc->first_line);
       int layoutColumn = yyextra->layout[yyextra->layoutTop];
 
       if (newline) {
@@ -720,6 +745,7 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
           ((newline && loc->first_column == layoutColumn && !continuationToken(token))
            || token == '}' || token == 0))
       {
+        fprintf(stderr,"insert semi before: %c (0x%04x), top: %d\n", token, token, yyextra->savedTop);
         // save the currently scanned token
         savedPush(yyextra, token, loc);
 
@@ -737,8 +763,7 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
           ((token == '}' || token == 0) && yyextra->previous != INSERTED_SEMI) )  // always insert before a '}' and eof
       {
         // save the currently scanned token
-        yyextra->savedToken = token;
-        yyextra->savedLoc   = *loc;
+        savedPush(yyextra,token,loc);
 
         // and replace it by a semicolon
         *loc = yyextra->previousLoc;
@@ -747,9 +772,19 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
         loc->last_column++;
         token = INSERTED_SEMI;
       }
-#endif
+#endif      
     } // do layout?
   }
+
+#ifdef INSERT_OPEN_BRACE
+  bool eol;
+  if (isOpenBraceStartToken(token, &eol) && yyextra->obraceTop+1 < obraceMax) {
+    yyextra->obraceTop++;
+    yyextra->obraceLine[yyextra->obraceTop] = loc->last_line;
+    yyextra->obraceIndent[yyextra->obraceTop] = yyextra->layout[yyextra->layoutTop];
+    fprintf(stderr,"push open brace starter: 0x%04x, top=%d\n", token, yyextra->obraceTop);
+  }
+#endif
 
   // save token for the next run to previous
   yyextra->previous = token;
@@ -1273,7 +1308,11 @@ void printToken( int token, int state, yyscan_t scanner )
 {
   EnableMacros(scanner);
 
-  fprintf(stderr,"(%2d,%2d)-(%2d,%2d) <%d>: ", yylloc->first_line, yylloc->first_column, yylloc->last_line, yylloc->last_column, state );
+  fprintf(stderr,"(%2d,%2d)-(%2d,%2d) <%d> [", yylloc->first_line, yylloc->first_column, yylloc->last_line, yylloc->last_column, state );
+  for(int i = 0; i <= yyextra->layoutTop; i++) {
+    fprintf(stderr, "%d%s", yyextra->layout[i], (i==yyextra->layoutTop ? "" : ",") );
+  }
+  fprintf(stderr, "]: ");
   switch(token) {
     case ID:        fprintf(stderr,"ID    = '%s'", yylval->Id); break;
     case CONID:     fprintf(stderr,"CONID = '%s'", yylval->Id); break;
