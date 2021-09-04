@@ -21,9 +21,8 @@ source-repository head
   type: git
   location: https://github.com/koka-lang/koka
 
-executable koka
-  main-is: Main.hs
-  other-modules:
+library
+  exposed-modules:
       Backend.C.Box
       Backend.C.FromCore
       Backend.C.Parc
@@ -120,6 +119,7 @@ executable koka
       Platform.ReadLine
       Platform.Runtime
       Platform.Var
+  other-modules:
       Paths_koka
   hs-source-dirs:
       src
@@ -153,6 +153,27 @@ executable koka
     cpp-options: -DDARWIN
   default-language: Haskell2010
 
+executable koka-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_koka
+  hs-source-dirs:
+      app
+  build-depends:
+      array
+    , base >=4.9
+    , bytestring
+    , containers
+    , directory
+    , isocline >=1.0.3
+    , koka
+    , mtl
+    , parsec
+    , process
+    , text
+    , time
+  default-language: Haskell2010
+
 test-suite koka-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
@@ -173,6 +194,7 @@ test-suite koka-test
     , hspec-core
     , isocline >=1.0.3
     , json
+    , koka
     , mtl
     , parsec
     , process

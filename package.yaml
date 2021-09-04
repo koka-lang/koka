@@ -29,37 +29,39 @@ dependencies:
   - text
   - time
   - isocline >= 1.0.3
-  
+
+library:
+  other-extensions:
+    - CPP
+    - OverloadedStrings
+  source-dirs:
+    - src
+    - src/Platform/cpp
+  c-sources:
+    - src/Platform/cpp/Platform/cconsole.c
+  include-dirs:
+    - src/Platform/cpp/Platform
+  build-tools:
+    - alex
+  ghc-options:
+    - -rtsopts 
+    - -j8
+  cpp-options:
+    - -DKOKA_MAIN="koka"      
+    - -DKOKA_VARIANT="release"
+    - -DKOKA_VERSION="2.2.1"
+    - -DREADLINE=0   # 1:getline, 2:readline, 3:haskeline, or 0:isocline
+  when:
+    - condition: os(windows)
+      cpp-options: -DWINDOWS
+    - condition: os(darwin)
+      cpp-options: -DDARWIN
+
 executables:
-  koka:
+  koka-exe:
     main: Main.hs
-    # source-dirs: app
-    # dependencies: koka
-    other-extensions:
-      - CPP
-      - OverloadedStrings
-    source-dirs:
-      - src
-      - src/Platform/cpp
-    c-sources:
-      - src/Platform/cpp/Platform/cconsole.c
-    include-dirs:
-      - src/Platform/cpp/Platform
-    build-tools:
-      - alex
-    ghc-options:
-      - -rtsopts 
-      - -j8
-    cpp-options:
-      - -DKOKA_MAIN="koka"      
-      - -DKOKA_VARIANT="release"
-      - -DKOKA_VERSION="2.2.1"
-      - -DREADLINE=0   # 1:getline, 2:readline, 3:haskeline, or 0:isocline
-    when:
-      - condition: os(windows)
-        cpp-options: -DWINDOWS
-      - condition: os(darwin)
-        cpp-options: -DDARWIN
+    source-dirs: app
+    dependencies: koka
 
 tests:
   koka-test:
@@ -70,7 +72,7 @@ tests:
       - -rtsopts
       - -with-rtsopts=-N
     dependencies:
-      # - koka
+      - koka
       - extra
       - filepath
       - hspec
@@ -78,4 +80,3 @@ tests:
       - process
       - regex-compat-tdfa
       - json
-
