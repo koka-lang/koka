@@ -127,7 +127,7 @@ library
   other-extensions:
       CPP
       OverloadedStrings
-  ghc-options: -rtsopts -j8
+  ghc-options: -j8
   cpp-options: -DKOKA_MAIN="koka" -DKOKA_VARIANT="release" -DKOKA_VERSION="2.2.1" -DREADLINE=0
   include-dirs:
       src/Platform/cpp/Platform
@@ -159,6 +159,7 @@ executable koka-exe
       Paths_koka
   hs-source-dirs:
       app
+  ghc-options: -rtsopts
   build-depends:
       array
     , base >=4.9

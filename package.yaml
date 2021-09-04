@@ -44,7 +44,6 @@ library:
   build-tools:
     - alex
   ghc-options:
-    - -rtsopts 
     - -j8
   cpp-options:
     - -DKOKA_MAIN="koka"      
@@ -62,6 +61,8 @@ executables:
     main: Main.hs
     source-dirs: app
     dependencies: koka
+    ghc-options:
+    - -rtsopts
 
 tests:
   koka-test:
