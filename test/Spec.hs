@@ -1,3 +1,4 @@
+import Control.Exception
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Maybe
@@ -202,7 +203,8 @@ main = do
   putStrLn "pre-compiling standard libraries..."
   -- compile all standard libraries before testing so we can run in parallel
   let cfg = initialCfg options
-  runKoka cfg "" "util/link-test.kk" 
+  -- this only works because no one forced it
+  out <- evaluate =<< runKoka cfg "" "util/link-test.kk" 
   putStrLn "ok."
   let spec = parallel $ discoverTests cfg (pwd </> "test")
   summary <- withArgs [] (runSpec spec hcfg{configFormatter=Just specProgress})
