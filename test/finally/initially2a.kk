@@ -11,7 +11,7 @@ val amb = handler {
 fun bar() {
   val b = flip()
   println("action: " ++ b.show ++ ", " ++ inc().show );
-  if (b) throw("ouch")
+  if (b) then throw("ouch")
   42
 }
 

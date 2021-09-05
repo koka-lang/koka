@@ -58,7 +58,7 @@ data Lex    = LexInt     !Integer !String {- original number, used for documenta
             | LexInsLCurly  -- ^ inserted '{'
             | LexInsRCurly  -- ^ inserted '}'
             | LexInsSemi    -- ^ inserted ';'
-            | LexError String  -- ^ layout errors
+            | LexError !String  -- ^ layout errors
 
 
             deriving Eq

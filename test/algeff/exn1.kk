@@ -9,7 +9,7 @@ effect state<s> {
 
 fun xor() : <amb,exn> bool {
   val p = flip()
-  if (p) throw("oops")
+  if (p) then throw("oops")
   val q = flip()
   (p||q) && not(p&&q)
 }

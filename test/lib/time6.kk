@@ -29,7 +29,7 @@ public fun test-dates(starty : int = 1950, endy : int = 2050, tz : timezone = tz
   var prevt  := time(starty,1,0,tz=tz,cal=cal,ts=ts)
   var prevwd := prevt.weekday
   for(starty,endy) fn(y:int){
-    if (y%print-every == 0)  println("tz: " ++ tz.name ++ ", cal: " ++ cal.name ++ ", ts: " ++ ts.name ++ ", year: " ++ y.show ++ "...")
+    if (y%print-every == 0) then println("tz: " ++ tz.name ++ ", cal: " ++ cal.name ++ ", ts: " ++ ts.name ++ ", year: " ++ y.show ++ "...")
     for(1,12) fn(m:int){
       val t1 = time(y,m,tz=tz,cal=cal,ts=ts)
       val dm : int = t1.days-in-month

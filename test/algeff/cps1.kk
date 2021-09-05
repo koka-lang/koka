@@ -15,7 +15,7 @@ fun mapIndexedPeekX(xs : list<a>, f : (idx : int, value : a, rest : list<a> ) ->
 
   // recurse for the first 100 elements over the stack (to avoid extra heap allocation)
   fun mapIter(g : (int,a,list<a>) -> e b, n : int, ys : list<a>) : e list<b> {
-    if (n > 100) {
+    if (n > 100) then {
       mapAcc(g,n,Nil,ys)
     }
     else {

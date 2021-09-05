@@ -376,16 +376,14 @@ public fun truncate( x : decimal ) : decimal {
 
 
 // Convert a decimal to a `:double`. This may lose precision.
-public fun double( x : decimal ) : double {
+public fun double( x : decimal ) : double 
   // todo: handle decimals with many digits better
-  if (!x.exp.is-neg) {
+  if (!x.exp.is-neg) then
     x.num.double * pow(10.0,x.exp.double)
-  }
-  else {
+  else 
     val (q,r) = x.num.divmod-exp10(~x.exp)
     q.double + r.double * exp10(x.exp.double)
-  }
-}
+
 
 // Return the 'truncated' fraction, always in the range (`-1.0`,`1.0`).
 // `x.truncate + x.fraction == x`
@@ -446,21 +444,18 @@ while for a positive precision, exactly `prec` digits are used.
 ```
 .
 */
-public fun show-fixed( d : decimal, prec : int = -1000 ) : string {
+public fun show-fixed( d : decimal, prec : int = -1000 ) : string 
   val x = d.round-to-prec(prec.abs)
-  if (x.exp >= 0) {
-    val frac = if (prec<=0) then "" else "." ++ repeat("0",prec)
+  if x.exp >= 0 then
+    val frac = if prec<=0 then "" else "." ++ repeat("0",prec)
     x.num.show ++ repeat("0",x.exp) ++ frac
-  }
-  else {
+  else 
     val digits = ~x.exp
     val sign  = if (x.is-neg) then "-" else ""
     val i     = x.num.abs
     val man   = cdiv-exp10(i,digits)
     val frac  = i - mul-exp10(man,digits)
     sign ++ man.show ++ frac.show.pad-left(digits,'0').show-frac(prec)
-  }
-}
 
 /* Show a decimal `d` with a given precision `prec` (=`-1000`) in scientific notation.
 The precision specifies the  number of digits after the dot, i.e.
