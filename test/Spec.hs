@@ -93,7 +93,7 @@ testSanitize kokaDir
   . sub "\\.[[:digit:]]+" ""
   . sub "<[[:digit:]]+>" "<0>"
   -- . sub ": [[:digit:]]+([,\\)])" ": 0\\1"
-  . replace kokaDir "..."
+  . (if null kokaDir then id else replace kokaDir "...")
   where 
     sub re = flip (subRegex (mkRegex re))
     -- limitTo n s | length s > n = take n s ++ "... (and more)"
