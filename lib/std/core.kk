@@ -1289,8 +1289,8 @@ private fun decr( i : int32 ) : int32 {
 
 // Convert an integer to an `:ssize_t`. The number is _clamped_ to the maximal or minimum `:ssize_t`
 // value if it is outside the range of an `:ssize_t`.
-extern ssize_t( ^i : int) : ssize_t   {
-  c inline  "kk_integer_clamp_ssize_t_borrow(#1)"
+extern ssize_t( i : int) : ssize_t   {
+  c  "kk_integer_clamp_ssize_t" 
   cs "Primitive.IntToInt32"
   js "$std_core._int_to_int32"
 }
