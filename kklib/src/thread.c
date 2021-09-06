@@ -17,7 +17,7 @@
 
 // --------------------------------------
 // Threads
-typedef HANDLE             pthread_t;
+typedef HANDLE pthread_t;
 
 static void pthread_join_void(pthread_t thread) {
   WaitForSingleObject(thread, INFINITE);
@@ -276,7 +276,8 @@ static void* kk_task_group_worker( void* vtg ) {
   return NULL;
 }
 
-static void kk_task_group_free( kk_task_group_t* tg, kk_context_t* ctx ) {
+
+void kk_task_group_free( kk_task_group_t* tg, kk_context_t* ctx ) {
   if (tg==NULL) return;  
   // set done state
   kk_task_t* task = NULL;
