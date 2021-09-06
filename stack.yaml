@@ -24,11 +24,7 @@ packages:
 extra-deps:
 - regex-compat-tdfa-0.95.1.4    # only needed for koka-test
 - json-0.10                     # only needed for koka-test
-<<<<<<< HEAD
-- isocline-1.0.4
-=======
 - isocline-1.0.5
->>>>>>> 798a32ecd28de25e2ea5eaa9878daebeca3cfd40
 
 rebuild-ghc-options: true
 allow-newer: true
