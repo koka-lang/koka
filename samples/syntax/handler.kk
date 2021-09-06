@@ -6,33 +6,28 @@
 */
 module syntax/handler
 
-effect test {
+effect test 
   control raise( msg :string ) : a
-}
+
 
 /* The basic `handler` expression takes a block
    of operation clauses and return a handler
    function: that function takes a unit-function `action`
    that is run under the handler.
 */
-public fun test1() : console int {
-  val h = handler {
+public fun test1() : console int 
+  val h = handler 
             control raise(msg){ println(msg); 42 }
-          }
-  h( fn(){
-    raise("error")
-  })
-}
+  h(fn(){ raise("error") })
 
 
 // The `with` statement (see `syntax/with`) can help to
 // specify the previous handler more easily as:
-public fun test2() : console int {
-  with handler {
+public fun test2() : console int
+  with handler 
     control raise(msg){ println(msg); 42 }
-  }
   raise("error")
-}
+
 
 fun test2-expanded() : console int {
   (handler{ control raise(msg){ println(msg); 42 } })(fn(){ raise("error") })
@@ -41,10 +36,10 @@ fun test2-expanded() : console int {
 
 // Moreover, if there is only one operation, we can
 // shorten this further as:
-public fun test3() : console int {
+public fun test3() : console int
   with control raise(msg){ println(msg); 42 }
   raise("error")
-}
+
 
 // There are four kinds of operations:
 // - `control`:
@@ -65,14 +60,14 @@ public fun test3() : console int {
 //   An operation that always resumes with a constant. As efficient
 //   as `fun` operations.
 
-public fun test4() : console int {
+public fun test4() : console int 
   with except raise(msg){ println(msg); 42 }
   raise("error")
-}
+
 
 effect val ask : int
 
-public fun main() {
+public fun main()
   with val ask = 42
   println(ask)
-}
+

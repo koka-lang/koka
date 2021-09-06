@@ -1,6 +1,6 @@
 import std/time
 
-external include {
+extern import {
   js file "perf1-inline1.js"
 }
 
@@ -26,7 +26,7 @@ fun count() {
   }
 }
 
-external direct_count() : state<int> int {
+extern direct_count() : state<int> int {
   js inline "_direct_count(_k)"
 }
 

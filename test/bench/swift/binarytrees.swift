@@ -62,7 +62,7 @@ for currentDepth in stride(from: minDepth, through: maxDepth, by: 2) {
         let idx = (currentDepth - minDepth) / 2
 	let iterations = 1 << (maxDepth - currentDepth + minDepth)
 	var totalChecksum = 0
-	for _ in 1...iterations {
+	for i in 1...iterations {
 	    let tree1 = createTree(currentDepth)
 	    totalChecksum += tree1!.check()
 	}
@@ -81,4 +81,3 @@ rq.sync {
 
 // Check long living tree and print out check info
 print("long lived tree of depth \(maxDepth)\t check: \(longLivingTree!.check())")
-

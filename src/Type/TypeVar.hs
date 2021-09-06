@@ -112,8 +112,8 @@ subNew :: [(TypeVar, Tau)] -> Sub
 subNew sub
   = -- assertion "Type.TypeVar.subNew" (all (\tv -> length (filter (==tv) tvs) == 1) tvs) $
     -- assertion "Type.TypeVar.subNew.Tau" (all isTau taus) $
-    let s = assertion ("Type.TypeVar.subNew.KindMismatch: " ++ show (length sub)
-                        ++ concatMap (\(x,t) -> "(" ++ showTypeVar x ++ " |-> " ++ showTp t ++ ")") sub)
+    let s = assertion ("Type.TypeVar.subNew.KindMismatch: length " ++ show (length sub) ++ ": "
+                        ++ unlines (map (\(x,t) -> "(" ++ showTypeVar x ++ " |-> " ++ showTp t ++ ")") sub))
              (all (\(x, t) -> getKind x == getKind t) sub) $
             Sub (M.fromList sub)
     in seq s s
@@ -161,8 +161,8 @@ subFind tvar sub
   = case subLookup tvar sub of
       Nothing   -> TVar tvar
       Just tau  -> assertion ("Type.TypeVar.subFind: incompatible kind: "
-                             ++ showTVar tvar ++ ":" ++ show (getKind tvar) ++ ","
-                             ++ "?" ++ ":" ++ show (getKind tau))
+                             ++ "\n tvar: " ++ showTVar tvar ++ ":" ++ show (getKind tvar) ++ ","
+                             ++ "\n type: " ++ show tau ++ ":" ++ show (getKind tau))
                              (getKind tvar == getKind tau) $
                    tau
 

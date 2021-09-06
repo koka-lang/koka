@@ -42,7 +42,7 @@ import Common.Failure
 import Lib.Printer            ( withNewFilePrinter )
 import Common.Range           -- ( Range, sourceName )
 import Common.Name            -- ( Name, newName, qualify, asciiEncode )
-import Common.NamePrim        ( isPrimitiveModule, nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync, nameTpNamed )
+import Common.NamePrim        ( nameCoreHnd, isPrimitiveModule, nameExpr, nameType, nameInteractiveModule, nameSystemCore, nameMain, nameTpWrite, nameTpIO, nameTpCps, nameTpAsync, nameTpNamed, isPrimitiveName )
 import Common.Error
 import Common.File
 import Common.ColorScheme
@@ -63,7 +63,7 @@ import Core.OpenResolve       ( openResolve )
 import Core.FunLift           ( liftFunctions )
 import Core.Monadic           ( monTransform )
 import Core.MonadicLift       ( monadicLift )
-import Core.Inlines           ( inlinesExtends, extractInlineDefs )
+import Core.Inlines           ( inlinesExtends, extractInlineDefs, inlinesMerge, inlinesToList, inlinesFilter, inlinesNew )
 import Core.Inline            ( inlineDefs )
 import Core.Specialize
 
@@ -403,7 +403,15 @@ compileProgram' term flags modules compileTarget fname program
                                           (imp:_) -> importVis imp -- TODO: get max
                               in if (modName mod == name) then []
                                   else [Core.Import (modName mod) (modPackagePath mod) vis (Core.coreProgDoc (modCore mod))]
-       loaded2a <- liftError $ typeCheck loaded1 flags 0 coreImports program
+       (loaded2a, coreDoc) <- liftError $ typeCheck loaded1 flags 0 coreImports program
+       when (showCore flags) $
+         liftIO (termDoc term (vcat [
+           text "-------------------------",
+           text "core",
+           text "-------------------------",
+           coreDoc,
+           text "-------------------------"
+         ]))
 
        -- cull imports to only the real dependencies
        let mod = loadedModule loaded2a
@@ -440,7 +448,7 @@ compileProgram' term flags modules compileTarget fname program
                                                                       ) False r) [] r
                                                 defMain    = Def (ValueBinder (unqualify mainName2) () (Lam [] (f expression) r) r r)  r Public (DefFun ) InlineNever  ""
                                                 program2   = programAddDefs program [] [defMain]
-                                            in do loaded3 <- typeCheck loaded1 flags 0 coreImports program2
+                                            in do (loaded3,_) <- typeCheck loaded1 flags 0 coreImports program2
                                                   return (Executable mainName2 tp, loaded3) -- TODO: refine the type of main2
                                []   -> errorMsg (ErrorGeneral rangeNull (text "the type of 'main' must be a function without arguments" <->
                                                                                       table [(text "expected type", ppType (prettyEnvFromFlags flags) mainType)
@@ -678,6 +686,7 @@ resolveModule term flags currentDir modules mimp
                        -> do loadMessage "loading:"
                              ftime  <- liftIO $ getFileTime iface
                              (core,parseInlines) <- lift $ parseCore iface
+                             -- let core = uniquefy core0
                              outIFace <- liftIO $ copyIFaceToOutputDir term flags iface core
                              let mod = Module (Core.coreName core) outIFace (joinPath root stem) pkgQname pkgLocal []
                                                 Nothing -- (error ("getting program from core interface: " ++ iface))
@@ -769,7 +778,7 @@ searchIncludeIface flags currentDir name
 {---------------------------------------------------------------
 
 ---------------------------------------------------------------}
-typeCheck :: Loaded -> Flags -> Int -> [Core.Import] -> UserProgram -> Error Loaded
+typeCheck :: Loaded -> Flags -> Int -> [Core.Import] -> UserProgram -> Error (Loaded,Doc)
 typeCheck loaded flags line coreImports program
   = do -- static checks
        -- program1 <- {- mergeSignatures (colorSchemeFromFlags flags) -} (implicitPromotion program)
@@ -804,7 +813,7 @@ typeCheck loaded flags line coreImports program
        addWarnings warnings (inferCheck loaded1 flags line coreImports program2 )
 
 
-inferCheck :: Loaded -> Flags -> Int -> [Core.Import] -> UserProgram -> Error Loaded
+inferCheck :: Loaded -> Flags -> Int -> [Core.Import] -> UserProgram -> Error (Loaded,Doc)
 inferCheck loaded0 flags line coreImports program
   = Core.runCorePhase (loadedUnique loaded0) $
     do -- kind inference
@@ -835,8 +844,10 @@ inferCheck loaded0 flags line coreImports program
             
             traceDefGroups title  
               = do dgs <- Core.getCoreDefs 
-                   trace (unlines (["","-----------------", title, "---------------"] ++ 
-                          map showDef (Core.flattenDefGroups dgs))) $ return ()
+                   -- let doc = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } C [] 
+                   --            (coreProgram{ Core.coreProgDefs = dgs })
+                   trace (unlines (["","-----------------", title, "---------------"] ++ -- ++ [show doc])) $ return ()                         
+                           map showDef (Core.flattenDefGroups dgs))) $ return ()
               where 
                 showDef def = show (Core.Pretty.prettyDef (penv{coreShowDef=True}) def)
 
@@ -863,28 +874,45 @@ inferCheck loaded0 flags line coreImports program
        -- remove return statements
        unreturn penv
        -- checkCoreDefs "unreturn"
-       
+     
+       -- initial simplify
        let ndebug  = optimize flags > 0
            simplifyX dupMax = simplifyDefs penv False {-unsafe-} ndebug (simplify flags) dupMax
            simplifyDupN     = when (simplify flags >= 0) $
                               simplifyX (simplifyMaxDup flags)
            simplifyNoDup    = simplifyX 0
        simplifyNoDup
-       -- traceDefGroups "simplify"
+       -- traceDefGroups "simplify1"
+
+       -- inline: inline local definitions more aggressively (2x)
+       when (optInlineMax flags > 0) $
+         let inlines = if (isPrimitiveModule (Core.coreProgName coreProgram)) then loadedInlines loaded
+                         else inlinesFilter (\name -> nameId nameCoreHnd /= nameModule name) (loadedInlines loaded)
+         in inlineDefs penv (2*(optInlineMax flags)) inlines
+       checkCoreDefs "inlined"
+       -- traceDefGroups "inlined"
        
        -- specialize 
-       specializeDefs <- Core.withCoreDefs (\defs -> extractSpecializeDefs defs)
+       specializeDefs <- -- if (isPrimitiveModule (Core.coreProgName coreProgram)) then return [] else 
+                         Core.withCoreDefs (\defs -> extractSpecializeDefs defs)
        -- trace ("Spec defs:\n" ++ show specializeDefs) $ return ()
        
        when (optSpecialize flags) $
          specialize (inlinesExtends specializeDefs (loadedInlines loaded))
-       -- traceDefGroups "specialize"
+       -- traceDefGroups "specialized"
 
-       -- lifting recursive functions to top level
+       -- simplifyDupN
+          
+       -- lifting recursive functions to top level (must be after specialize)
        liftFunctions penv
-       simplifyNoDup
-       checkCoreDefs "lifted"
-       -- traceDefGroups "lifted"
+       checkCoreDefs "lifted"      
+      
+       simplifyDupN
+       coreDefsInlined <- Core.getCoreDefs
+       -- traceDefGroups "simplify2"
+      
+       ------------------------------
+       -- backend optimizations 
 
        -- open floating
        when (not (isPrimitiveModule (Core.coreProgName coreProgram))) $
@@ -895,42 +923,42 @@ inferCheck loaded0 flags line coreImports program
        -- tail-call-modulo-cons optimization
        when (optctail flags) $
          ctailOptimize penv (platform flags) newtypes gamma (optctailInline flags) 
-
+      
        -- transform effects to explicit monadic binding (and resolve .open calls)
        when (enableMon flags && not (isPrimitiveModule (Core.coreProgName coreProgram))) $
           -- trace "monadic transform" $
           do Core.Monadic.monTransform penv
-             openResolve penv gamma
-             traceDefGroups "open resolved" 
+             openResolve penv gamma           -- must be after monTransform
+       checkCoreDefs "monadic transform"  
+       
+       -- simplify open applications (needed before inlining open defs)
+       simplifyNoDup 
+       -- traceDefGroups "open resolved"  
 
-       checkCoreDefs "monadic transform"
-
-       -- full simplification
-       simplifyDupN 
-             
        -- monadic lifting to create fast inlined paths
        monadicLift penv
        checkCoreDefs "monadic lifting"
        -- traceDefGroups "monadic lift"
 
-       -- inline: inline local definitions more aggressively (2x)
-       inlineDefs penv (2*(optInlineMax flags)) (loadedInlines loaded) 
-       checkCoreDefs "inlined"
-       -- traceDefGroups "inlined"
-
+      -- now inline primitive definitions (like yield-bind)
+       let inlinesX = inlinesFilter isPrimitiveName (loadedInlines loaded)
+       -- trace ("inlines2: " ++ show (map Core.inlineName (inlinesToList inlinesX))) $
+       inlineDefs penv (2*optInlineMax flags) inlinesX -- (loadedInlines loaded)
+              
+       -- remove remaining open calls; this may change effect types
        simplifyDefs penv True {-unsafe-} ndebug (simplify flags) 0 -- remove remaining .open
 
-       -- full simplification
+       -- final simplification
        simplifyDupN
        checkCoreDefs "final" 
-       -- traceDefGroups "final"
+       -- traceDefGroups "simplify final"
 
        -- Assemble core program and return
        coreDefsFinal <- Core.getCoreDefs
        uniqueFinal   <- unique
        -- traceM ("final: " ++ show uniqueFinal)
        let -- extract inline definitions to export
-           localInlineDefs  = extractInlineDefs (optInlineMax flags) coreDefsFinal 
+           localInlineDefs  = extractInlineDefs (optInlineMax flags) coreDefsInlined 
            allInlineDefs    = localInlineDefs ++ specializeDefs
 
            coreProgramFinal 
@@ -950,251 +978,10 @@ inferCheck loaded0 flags line coreImports program
                                 , loadedInlines = inlinesExtends allInlineDefs (loadedInlines loaded)
                                 }
 
-       return loadedFinal
+           coreDoc = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } C [] 
+                       (coreProgram{ Core.coreProgDefs = coreDefsInlined })
 
-{-
-inferCheck :: Loaded -> Flags -> Int -> [Core.Import] -> UserProgram -> Error Loaded
-inferCheck loaded flags line coreImports program1
-  = -- trace ("typecheck: imports: " ++ show ((map Core.importName) coreImports)) $
-    do -- kind inference
-       (defs, {- conGamma, -} kgamma, synonyms, newtypes, constructors, {- coreTypeDefs, coreExternals,-} coreProgram1, unique3, mbRangeMap1)
-         <- inferKinds
-              (isValueFromFlags flags)
-              (colorSchemeFromFlags flags)
-              (platform flags)
-              (if (outHtml flags > 0) then Just rangeMapNew else Nothing)
-              (loadedImportMap loaded)
-              (loadedKGamma loaded)
-              (loadedSynonyms loaded)
-              (loadedNewtypes loaded)
-              (loadedUnique loaded)
-              program1
-
-       let  isPrimitiveModule = Core.coreProgName coreProgram1 == newName "std/core/types" ||
-                                Core.coreProgName coreProgram1 == newName "std/core/hnd"
-
-            gamma0  = gammaUnions [loadedGamma loaded
-                                  ,extractGamma (isValueFromFlags flags) True coreProgram1
-                                  ,extractGammaImports (importsList (loadedImportMap loaded)) (getName program1)
-                                  ]
-
-            loaded3 = loaded { loadedKGamma  = kgamma
-                            , loadedGamma   = gamma0
-                            , loadedSynonyms= synonyms
-                            , loadedNewtypes= newtypes -- newtypesCompose (loadedNewtypes loaded) newtypes
-                            , loadedConstructors=constructors
-                            , loadedUnique  = unique3
-                            }
-{-
-       let coreImports = map toCoreImport (programImports program1)
-           toCoreImport imp
-            -- TODO: we cannot lookup an import this way due to clashing or relative module names
-            = case lookupImport (importFullName imp) (loadedModules loaded3) of
-                Just mod  -> Core.Import (importFullName imp) (packageName (packageMap flags) (modPath mod)) (importVis imp) (Core.coreProgDoc (modCore mod))
-                Nothing   -> failure ("Compiler.Compile.codeGen: unable to find module: " ++ show (importFullName imp))
--}
-
-
-       -- type inference
-       let penv = prettyEnv loaded3 flags
-
-       (gamma,coreDefs0,unique4,mbRangeMap2)
-         <- inferTypes
-              penv
-              mbRangeMap1
-              (loadedSynonyms loaded3)
-              (loadedNewtypes loaded3)
-              (loadedConstructors loaded3)
-              (loadedImportMap loaded3)
-              (loadedGamma loaded3)
-              (getName program1)
-              (loadedUnique loaded3)
-              defs
-
-
-       -- make sure generated core is valid
-       if (not (coreCheck flags)) then return ()
-        else -- trace "initial core check" $
-             Core.Check.checkCore False False penv unique4 gamma coreDefs0
-
-       -- remove return statements
-       coreDefsUR <- unreturn penv coreDefs0
-       -- let coreDefsUR = coreDefs0
-       when (coreCheck flags) $ -- trace "return core check" $
-                                Core.Check.checkCore False False penv unique4 gamma coreDefsUR
-
-       let showDef def = show (Core.Pretty.prettyDef ((prettyEnvFromFlags flags){coreShowDef=True}) def)
-           traceDefGroups title dgs = trace (unlines (["","-----------------", title, "---------------"] ++ map showDef (Core.flattenDefGroups dgs))) $ return ()
-
-       -- traceDefGroups "unreturn" coreDefsUR
-
-       -- simplify core
-       let ndebug = optimize flags > 0
-           (coreDefsSimp0,uniqueSimp0) = simplifyDefs False ndebug (simplify flags) (0) unique4 penv coreDefsUR
-
-       -- traceDefGroups "lifted" coreDefsSimp0
-
-       let specializeDefs = extractSpecializeDefs coreDefsSimp0
-       traceM "Spec defs:"
-       traceM (show specializeDefs)
-
-       let (coreDefsSpec, uniqueSpec) 
-            = if (optSpecialize flags)
-                then specialize penv uniqueSimp0 (inlinesExtends specializeDefs (loadedInlines loaded3)) coreDefsSimp0
-                else (coreDefsSimp0, uniqueSimp0)
-
-       -- traceShowM coreDefsSpec
-       -- mapM (Core.mapMDefGroup (\x -> traceShowM (Core.defName x) >> traceShowM (Core.defExpr x) >> pure x)) coreDefsSpec
-            
-       -- lifting recursive functions to top level
-       let (coreDefsLifted0,uniqueLifted0) = liftFunctions penv uniqueSpec coreDefsSpec
-       when (coreCheck flags) $ -- trace "lift functions core check" $
-                                Core.Check.checkCore True True penv uniqueLifted0 gamma coreDefsLifted0
-
-       let (coreDefsLifted,uniqueLifted) = simplifyDefs False ndebug (simplify flags) (0) uniqueLifted0 penv coreDefsLifted0
-
-       traceDefGroups "lifted" coreDefsLifted
-
-       -- constructor tail optimization
-       let (coreDefsCTail,uniqueCTail)
-                  = if (optctail flags)
-                     then ctailOptimize penv (platform flags) newtypes gamma (optctailInline flags) coreDefsLifted uniqueLifted
-                     else (coreDefsLifted, uniqueLifted)
-
-       traceDefGroups "ctail" coreDefsCTail
-
-       -- float .open calls
-       let (coreDefsOF,uniqueOF) = if isPrimitiveModule then (coreDefsCTail,uniqueCTail)
-                                    else openFloat penv gamma uniqueCTail coreDefsCTail
-       when (coreCheck flags) $ -- trace "open resolve core check" $
-                                Core.Check.checkCore True False penv uniqueOF gamma coreDefsOF
-
-       traceDefGroups "open float" coreDefsOF
-
-
-       -- do monadic effect translation (i.e. insert binds)
-       let uniqueMon = uniqueOF
-       coreDefsMon
-           <- if (not (enableMon flags) || isPrimitiveModule)
-               then return (coreDefsOF)
-               else do cdefs <- Core.Monadic.monTransform penv coreDefsOF
-                       -- recheck cps transformed core
-                       when (coreCheck flags) $
-                          -- trace "monadic core check" $
-                          Core.Check.checkCore False False penv uniqueMon gamma cdefs
-                       return (cdefs)
-
-       -- traceDefGroups "monadic" coreDefsMon
-
-       -- resolve phantom .open
-       let coreDefsOR = if isPrimitiveModule then coreDefsMon
-                         else openResolve penv gamma coreDefsMon
-           uniqueOR   = uniqueMon
-       when (coreCheck flags) $ -- trace "open resolve core check" $
-                                Core.Check.checkCore True False penv uniqueOR gamma coreDefsOR
-
-       -- traceDefGroups "open resolve" coreDefsOR
-
-       -- simplify coreF if enabled
-       (coreDefsSimp,uniqueSimp)
-                  <- if simplify flags < 0  -- if zero, we still run one simplify step to remove open applications
-                      then return (coreDefsOR,uniqueOR)
-                      else -- trace "simplify" $
-                           do let (cdefs0,unique0) -- Core.Simplify.simplify $
-                                          -- Core.Simplify.simplify
-                                     = simplifyDefs False ndebug (simplify flags) (simplifyMaxDup flags) uniqueOR penv coreDefsOR
-                              -- recheck simplified core
-                              when (coreCheck flags) $
-                                -- trace "after simplify core check 1" $
-                                Core.Check.checkCore True False penv unique0 gamma cdefs0
-                              return (cdefs0,unique0) -- $ simplifyDefs False 1 unique4a penv cdefs
-
-       -- traceDefGroups "open resolve simplified" coreDefsSimp
-
-       {-
-       -- do monadic effect translation (i.e. insert binds)
-       let uniqueMon = uniqueSimp
-       coreDefsMon
-           <- if (not (enableMon flags) ||
-                  Core.coreProgName coreProgram1 == newName "std/core/types" ||
-                  Core.coreProgName coreProgram1 == newName "std/core/hnd" )
-               then return (coreDefsSimp)
-               else do cdefs <- Core.Monadic.monTransform penv coreDefsSimp
-                       -- recheck cps transformed core
-                       when (coreCheck flags) $
-                          trace "monadic core check" $ Core.Check.checkCore False False penv uniqueLift gamma cdefs
-                       return (cdefs)
-
-       traceDefGroups "monadic" coreDefsMon
-       -}
-
-       let (coreDefsMonL,uniqueMonL) = monadicLift penv uniqueSimp coreDefsSimp
-       when (coreCheck flags) $ -- trace "monadic lift core check" $
-                                Core.Check.checkCore True True penv uniqueMonL gamma coreDefsMonL
-       -- traceDefGroups "monadic lift" coreDefsMonL
-
-       -- do an inlining pass
-       -- disable inline pass
-       --  let (coreDefsInl,uniqueInl) = (coreDefsMonL, uniqueMonL) -- inlineDefs penv uniqueMonL (loadedInlines loaded3) coreDefsMonL
-       let (coreDefsInl,uniqueInl) = inlineDefs penv uniqueMonL (loadedInlines loaded3) coreDefsMonL
-       when (coreCheck flags) $ -- trace "inlined functions core check" $
-                                Core.Check.checkCore True True penv uniqueInl gamma coreDefsInl
-
-       -- and one more simplify
-       (coreDefsSimp2,uniqueSimp2)
-                  <- if simplify flags < 0  -- if zero, we still run one simplify step to remove open applications
-                      then return (coreDefsInl,uniqueInl)
-                      else -- trace "simplify" $
-                           do let (cdefs0,unique0) -- Core.Simplify.simplify $
-                                          -- Core.Simplify.simplify
-                                     = simplifyDefs False ndebug (simplify flags) (simplifyMaxDup flags) uniqueInl penv coreDefsInl
-                              -- recheck simplified core
-                              when (coreCheck flags) $
-                                -- trace "after simplify core check 2" $
-                                Core.Check.checkCore True True penv unique0 gamma cdefs0
-                              return (cdefs0,unique0) -- $ simplifyDefs False 1 unique4a penv cdefs
-
-       -- traceDefGroups "inlined simplified" coreDefsSimp2
-
-{-
-       -- and one more simplify
-       (coreDefsSimp3,uniqueSimp3)
-                  <- if simplify flags < 0  -- if zero, we still run one simplify step to remove open applications
-                      then return (coreDefsLifted,uniqueLift)
-                      else -- trace "simplify" $
-                           do let (cdefs0,unique0) -- Core.Simplify.simplify $
-                                          -- Core.Simplify.simplify
-                                     = simplifyDefs False (simplify flags) (simplifyMaxDup flags) uniqueLift penv coreDefsLifted
-                              -- recheck simplified core
-                              when (coreCheck flags) $
-                                trace "after simplify core check 3" $Core.Check.checkCore True True penv unique0 gamma cdefs0
-                              return (cdefs0,unique0) -- $ simplifyDefs False 1 unique4a penv cdefs
--}
-       -- Assemble core program and return
-       let coreDefsLast = coreDefsSimp2
-           uniqueLast   = uniqueSimp2
-           inlineDefs   = extractInlineDefs (coreInlineMax penv) coreDefsLast
-           allInlineDefs = inlineDefs ++ specializeDefs
-
-           coreProgram2 = -- Core.Core (getName program1) [] [] coreTypeDefs coreDefs0 coreExternals
-                          uniquefy $
-                          coreProgram1{ Core.coreProgImports = coreImports
-                                      , Core.coreProgDefs = coreDefsLast  -- coreDefsSimp
-                                      , Core.coreProgFixDefs = [Core.FixDef name fix | FixDef name fix rng <- programFixDefs program1]
-                                      }
-
-           loaded4 = loaded3{ loadedGamma = gamma
-                            , loadedUnique = uniqueLast
-                            , loadedModule = (loadedModule loaded3){
-                                                modCore = coreProgram2,
-                                                modRangeMap = mbRangeMap2,
-                                                modInlines  = Right allInlineDefs
-                                              }
-                            , loadedInlines = inlinesExtends allInlineDefs (loadedInlines loaded3)
-                            }
-
-       return loaded4
--}
+       return (loadedFinal, coreDoc)
 
 modulePath mod
   = let path = maybe "" (sourceName . programSource) (modProgram mod)
@@ -1235,7 +1022,7 @@ codeGen term flags compileTarget loaded
        when (genCore flags)  $
          do termPhase term "generate core"
             writeDocW 10000 outCore coreDoc  -- just for debugging
-       when (showCore flags && target flags /= C) $
+       when (showFinalCore flags && target flags /= C) $
          do termDoc term coreDoc
 
        -- write documentation
@@ -1413,7 +1200,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                                 mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } C [] bcore
       -- writeDocW 120 (outBase ++ ".c.core") bcoreDoc
-      when (showCore flags) $
+      when (showFinalCore flags) $
         do termDoc term bcoreDoc
 
       termPhase term ( "generate c: " ++ outBase )

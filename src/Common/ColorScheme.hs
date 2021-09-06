@@ -14,6 +14,7 @@ module Common.ColorScheme( ColorScheme(..)
                          , defaultColorScheme
                          -- * Flags
                          , readColorFlags
+                         , ansiColor
                          ) where
 
 import Data.Char( toLower, isSpace )
@@ -33,6 +34,7 @@ data ColorScheme  = ColorScheme
                       , colorError   :: Color
                       , colorSource  :: Color
                       , colorInterpreter :: Color
+                      , colorCommand :: Color
                       , colorKeyword :: Color
                       , colorEffect  :: Color
                       , colorRange   :: Color
@@ -52,6 +54,7 @@ data ColorScheme  = ColorScheme
                       , colorTypeKeywordOp :: Color
                       , colorTypeSpecial :: Color
                       , colorTypeParam  :: Color
+                      , colorNameQual   :: Color
                       }
 
 -- | The default color scheme
@@ -59,10 +62,15 @@ defaultColorScheme :: ColorScheme
 defaultColorScheme
   = let c = emptyColorScheme{ colorInterpreter = Red
                             , colorError       = Red
+                            , colorCommand     = White
                             , colorComment     = DarkGreen
-                            , colorReserved    = White
-                            , colorModule      = White
+                            , colorReserved    = DarkYellow  
+                            -- , colorReservedOp  = DarkYellow
+                            , colorCons        = DarkGreen
+                            , colorModule      = DarkCyan
+                            , colorNameQual    = DarkGray
                             , colorString      = DarkRed
+                            , colorNumber      = Gray
                             , colorSource      = Gray
                             , colorParameter   = DarkGray
                             , colorRange       = colorInterpreter c
@@ -77,7 +85,6 @@ defaultColorScheme
                             , colorTypeKeyword = Cyan -- colorReserved c
                             , colorTypeKeywordOp = colorType c -- colorReservedOp c
                             , colorTypeParam   = colorParameter c
-                            , colorCons        = DarkMagenta
                             }
     in c
   
@@ -88,7 +95,7 @@ emptyColorScheme
                  ColorDefault ColorDefault ColorDefault ColorDefault
                  ColorDefault ColorDefault ColorDefault ColorDefault
                  ColorDefault ColorDefault ColorDefault ColorDefault
-                 ColorDefault
+                 ColorDefault ColorDefault ColorDefault
 
 {--------------------------------------------------------------------------
   Read colors
@@ -100,18 +107,20 @@ readColorFlags s scheme
   where
     split :: String -> [String]
     split xs
-      = let (pre,ys) = span (/=',') xs
+      = let (pre,ys) = span (\c -> c /= ',' && c /= ';') xs
         in case ys of
              (',':post) -> pre : split post
+             (';':post) -> pre : split post
              []         -> [pre]
              _          -> [pre,ys] -- impossible case
 
 -- | Read a name=color flag.
 readColorFlag :: String -> ColorScheme -> ColorScheme
 readColorFlag s scheme
-  = let (name,xs) = span (/='=') s
+  = let (name,xs) = span (\c -> c /= '=' && c /= ':') s
     in case xs of
-         ('=':clr) -> case (readUpdate name, readColor clr) of
+         (c:clr) | c=='=' || c==':' 
+                   -> case (readUpdate name, readColor clr) of
                         (Just update,Just color) -> update color scheme
                         _                        -> scheme
          _         -> scheme
@@ -142,6 +151,7 @@ updaters  = [("type", \color scheme -> scheme{ colorType = color, colorTypeCon =
             ,("error", \color scheme -> scheme{ colorError = color })
             ,("source", \color scheme -> scheme{ colorSource = color })
             ,("interpreter", \color scheme -> scheme{ colorInterpreter = color })
+            ,("command", \color scheme -> scheme{ colorCommand = color })
             ,("keyword", \color scheme -> scheme{ colorKeyword = color, colorTypeKeyword = color })
             ,("typecon", \color scheme -> scheme{ colorTypeCon = color })
             ,("typevar", \color scheme -> scheme{ colorTypeVar = color })
@@ -158,6 +168,7 @@ updaters  = [("type", \color scheme -> scheme{ colorType = color, colorTypeCon =
             ,("effect", \color scheme -> scheme{ colorEffect = color })
             ,("parameter",\color scheme -> scheme{ colorParameter = color })
             ,("cons",\color scheme -> scheme{ colorCons = color })
+            ,("constructor",\color scheme -> scheme{ colorCons = color })
             ]
 
 colors  = [("black",Black)

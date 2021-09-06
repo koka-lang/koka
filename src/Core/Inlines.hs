@@ -12,6 +12,9 @@ module Core.Inlines ( -- Inline map
                     , inlinesEmpty
                     , inlinesExtend, inlinesExtends
                     , inlinesLookup
+                    , inlinesToList
+                    , inlinesMerge
+                    , inlinesFilter
                     , ppInlines
 
                     , extractInlineDefs
@@ -65,6 +68,16 @@ inlinesLookup :: Name -> Inlines -> Maybe InlineDef
 inlinesLookup name (Inlines inlines)
   = M.lookup name inlines
 
+inlinesToList :: Inlines -> [InlineDef]
+inlinesToList (Inlines m) = map snd $ M.toAscList m
+
+-- left-biased merge
+inlinesMerge :: Inlines -> Inlines -> Inlines
+inlinesMerge (Inlines a) (Inlines b) = Inlines $ M.union a b
+
+inlinesFilter :: (Name -> Bool) -> Inlines -> Inlines
+inlinesFilter pred (Inlines m)
+  = Inlines (M.filterWithKey (\name _ -> pred name) m)
 
 {--------------------------------------------------------------------------
   Get suitable inline definitions from Core
@@ -81,11 +94,11 @@ extractDefGroup costMax (DefNonRec def)
 extractInlineDef :: Int -> Bool -> Def -> Maybe InlineDef
 extractInlineDef costMax isRec def
   = let inlinable = (isInlineable costMax def)
-    in -- trace ("def: " ++ show (defName def) ++ ": inline=" ++ show inlinable) $
+    in -- trace ("def: " ++ show (defName def) ++ ", " ++ show (costDef def) ++ " : inline=" ++ show inlinable) $
         if not inlinable then Nothing
          else let cost = if (defName def == nameBind2 || defName def == nameBind)  -- TODO: use generic mechanism? force-inline keyword?
                           then 0 else costDef def
-              in Just (InlineDef (defName def) (defExpr def) isRec cost [])
+              in Just (InlineDef (defName def) (defExpr def) isRec (defInline def) cost [])
 
 instance Show Inlines where
  show = show . pretty

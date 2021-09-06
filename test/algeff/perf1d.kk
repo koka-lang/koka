@@ -4,7 +4,7 @@ effect reader {
   fun ask() : int
 }
 
-effect state<s> {
+linear effect state<s> {
   fun get()      : s
   fun put(i : s) : ()
 }
@@ -27,17 +27,17 @@ fun count() {
 }
 
 fun hreader(action) {
-  handle(action) {
-    fun ask() { 42 }
-  }
+  with fun ask(){ 42 }
+  action()
 }
 
 fun test-normal(i0,action) {
   var i := i0
-  handle({mask<local>(action)}) {
+  with handler {
     fun get()  { i }
-    fun put(j) { i := j; () }
+    fun put(j) { i := j }
   }
+  action()
 }
 
 
@@ -61,7 +61,7 @@ fun test-direct(i) {
   if (i==0) then i else test-direct(i - 1)
 }
 
-val n = 1000000
+val n = 100000000
 fun main() {
   print-elapsed({test-direct(n)},      "direct")
   print-elapsed({test-normal(n,count)},"single handler")

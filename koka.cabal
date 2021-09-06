@@ -5,7 +5,7 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           koka
-version:        2.2.0
+version:        2.2.2
 description:    Please see the README on GitHub at <https://github.com/koka-lang/koka#readme>
 homepage:       https://github.com/koka-lang/koka#readme
 bug-reports:    https://github.com/koka-lang/koka/issues
@@ -129,7 +129,7 @@ executable koka
       CPP
       OverloadedStrings
   ghc-options: -rtsopts -j8
-  cpp-options: -DKOKA_MAIN="koka" -DKOKA_VARIANT="release" -DKOKA_VERSION="2.2.0"
+  cpp-options: -DKOKA_MAIN="koka" -DKOKA_VARIANT="release" -DKOKA_VERSION="2.2.2" -DREADLINE=0
   include-dirs:
       src/Platform/cpp/Platform
   c-sources:
@@ -138,11 +138,11 @@ executable koka
       alex
   build-depends:
       array
-    , base >=4.12
+    , base >=4.9
     , bytestring
     , containers
     , directory
-    , haskeline
+    , isocline >=1.0.4
     , mtl
     , parsec
     , process
@@ -164,15 +164,15 @@ test-suite koka-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       array
-    , base >=4.12
+    , base >=4.9
     , bytestring
     , containers
     , directory
     , extra
     , filepath
-    , haskeline
     , hspec
     , hspec-core
+    , isocline >=1.0.4
     , json
     , mtl
     , parsec

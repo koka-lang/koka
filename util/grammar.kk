@@ -14,6 +14,7 @@ Assumes `bison` and `flex` are installed.
 import std/os/path
 import std/os/file
 import std/os/dir
+import std/os/env
 import std/os/process
 
 fun main() {
@@ -28,13 +29,17 @@ fun build() {
   println("copying...")
   copy-directory(gdir,outdir)
   println("compile grammar...")
-  run-echo("cd " ++ outdir.string ++ " && bison -vd -W -Wno-empty-rule -Wcounterexamples parser.y")
+  //run-echo("cd " ++ outdir.string ++ " && bison -vd -W -Wno-empty-rule -Wcounterexamples --color=always parser.y")
+  run-echo("cd " ++ outdir.string ++ " && bison -vd -W -Wno-empty-rule parser.y")
   println("compile lexer...")
   run-echo("cd " ++ outdir.string ++ " && flex -8 lexer.lex")
   println("compile generated code...")
-  run-echo("cd " ++ outdir.string ++ " && stack exec ghc -- -no-hs-main -o koka-parser lex.yy.c parser.tab.c")
+  // run-echo("cd " ++ outdir.string ++ " && stack exec ghc --system-ghc --skip-ghc-check -- -no-hs-main -o koka-parser lex.yy.c parser.tab.c")
+  val cc = get-env("cc").default("gcc")
+  run-echo("cd " ++ outdir.string ++ " && " ++ cc ++ " -o koka-parser lex.yy.c parser.tab.c")
   val parser = (outdir / "koka-parser").string
   println("created: " ++ parser)
+  println("run as : " ++ parser ++ " lib/std/core.kk" )
 }
 
 fun run-echo(cmd : string) : io () {
