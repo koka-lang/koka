@@ -10,27 +10,23 @@ module file
 import std/os/path
 import std/os/file
 
-named effect file {
+named effect file
   fun read-line() : string   // `:(file)   -> <exn> a`
-}
 
 
 // a (named) handler instance for files
-fun file(fname,action) {
+fun file(fname,action) 
   var content := read-text-file(fname.path).lines
-  with f = named handler {
-    fun read-line() {
-      match(content) {
-        Nil        { "" }
-        Cons(x,xx) { content := xx; x }
-      }
-    }
-  }
+  with f = named handler 
+    fun read-line() 
+      match content  
+        Nil -> "" 
+        Cons(x,xx){ content := xx; x }
   action(f)
-}
 
-public fun main() {
+
+public fun main() 
   with f1 = file("package.yaml")
   with f2 = file("stack.yaml")
   println( f1.read-line() ++ "\n" ++ f2.read-line() )
-}
+

@@ -72,20 +72,19 @@ a higher-rank impredicative polymorphic type- and effect system,
 algebraic data types, and effect handlers.
 
 ```{.aside}
-fun hello-ten() {
+fun hello-ten()
   var i := 0
-  while { i < 10 } {
+  while { i < 10 }
     println("hello")
     i := i + 1
-  }
-}
 ```
 
 As an example of the _min-gen_ design principle, &koka; implements most
 control-flow primitives as regular functions. An anonymous function can
 be written as `fn(){ <body> }`; but as a syntactic convenience, any
 function without arguments can be shortened further to use just braces,
-as `{ <body> }`.
+as `{ <body> }`. Moreover, using [brace elision][#sec-layout], any
+indented block automatically gets curly braces.
 
 We can write a `while` loop now using regular
 function calls as shown in the example,
@@ -137,12 +136,10 @@ up to full non-deterministic side effects in `:io`.
 Effects can be polymorphic as well. Consider mapping a function over
 a list:
 ```unchecked
-fun map( xs : list<a>, f : a -> e b ) : e list<b> {
-  match(xs) {
+fun map( xs : list<a>, f : a -> e b ) : e list<b> 
+  match xs
     Cons(x,xx) -> Cons( f(x), map(xx,f) )
-    Nil        -> Nil
-  }
-}
+    Nil        -> Nil  
 ```
 Single letter types are polymorphic (aka, _generic_), and &koka; infers
 that you map from a list of elements `:a` to a list of elements of
@@ -166,32 +163,27 @@ composable way.
 Here is an example of an effect definition with
 one operation to yield `:int` values:
 ```
-effect yield {
+effect yield
   control yield( i : int ) : bool
-}
 ```
 Once the effect is declared, we can use it 
 for example to yield the elements of a list:
 ```
-fun traverse( xs : list<int> ) : yield () {
-  match(xs) {
-    Cons(x,xx) -> if (yield(x)) then traverse(xx) else ()
+fun traverse( xs : list<int> ) : yield () 
+  match xs 
+    Cons(x,xx) -> if yield(x) then traverse(xx) else ()
     Nil        -> ()
-  }
-}
 ```
 The `traverse` function calls `yield` and therefore gets the `:yield` effect in its type,
 and if we want to use `traverse`, we need to _handle_ the `:yield` effect. 
 This is much like defining an exception handler, except we can receive values (here an `:int`),
 and we can _resume_ with a result (which determines if we keep traversing):
 ```
-fun print-elems() : console () {
-  with control yield(i){
+fun print-elems() : console () 
+  with control yield(i)
     println("yielded " ++ i.show)
     resume(i<=2)
-  }
   traverse([1,2,3,4])
-}
 ```
 The `with` statement binds the handler for `:yield` over the
 rest of the scope, in this case `traverse([1,2,3,4])`. 
@@ -260,12 +252,10 @@ counting analysis. This pairs pattern matches with constructors of the
 same size and reuses them _in-place_ if possible. Take for example,
 the `map` function over lists:
 ```unchecked 
-fun map( xs : list<a>, f : a -> e b ) : e list<b> {
-  match(xs) {
+fun map( xs : list<a>, f : a -> e b ) : e list<b>
+  match xs
     Cons(x,xx) -> Cons( f(x), map(xx,f) )
     Nil        -> Nil
-  }
-}
 ```
 
 Here the matched `Cons` can be reused by the new `Cons`

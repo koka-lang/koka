@@ -5,7 +5,7 @@ fun prematureReturn(xs: list<int>): bool {
     Nil       -> return True // returning bool here..
     Cons(x,_) -> x           // while `x` is an `int`!
   }
-  if(x == 0) True else False
+  if(x == 0) then True else False
 }
  
 fun deepPatternMatching(xs : list<int>) : exn int {
@@ -49,7 +49,7 @@ fun main() {
 */
 
 fun inlineConditional1(x : bool) : int {
-  if(x) 0 else 1
+  if(x) then 0 else 1
 }
 
 /* optimizations to do: inline with conditional expression
@@ -99,7 +99,7 @@ fun matchOnStruct(person: person) : int {
 
 fun tcoWhile( predicate : () -> <div|e> bool, action : () -> <div|e> () ) : <div|e> ()
 {
-  if (predicate()) {
+  if (predicate()) then {
     action()
     tcoWhile(predicate, action)
   }
