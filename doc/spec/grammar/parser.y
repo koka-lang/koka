@@ -54,7 +54,7 @@ void printDecl( const char* sort, const char* name );
 %token IF THEN ELSE ELIF
 %token WITH IN
 %token MATCH
-%token RARROW
+%token RARROW LARROW
 
 %token FUN FN VAL VAR CONTROL RCONTROL EXCEPT
 %token TYPE STRUCT EFFECT
@@ -67,7 +67,7 @@ void printDecl( const char* sort, const char* name );
 %token INFIX INFIXL INFIXR
 
 %token LEX_WHITE LEX_COMMENT
-%token SEMI
+%token INSERTED_SEMI
 %token LE ASSIGN DCOLON EXTEND
 %token RETURN
 
@@ -82,16 +82,29 @@ void printDecl( const char* sort, const char* name );
 %token ID_VALUE ID_REFERENCE ID_SCOPED
 %token ID_INITIALLY ID_FINALLY
 
-
 %type <Id>  varid conid qvarid qconid op
 %type <Id>  identifier qidentifier qoperator qconstructor
 %type <Id>  funid typeid modulepath binder
 %type <Id>  fundecl aliasdecl typedecl externdecl puredecl
 
-/* precedence declarations are in increasing order, i.e. the last precedence declaration has the highest precedence. */
+/* precedence declarations are in increasing order, 
+   i.e. the last precedence declaration has the highest precedence. 
+*/
+
 /* resolve s/r conflict by shifting on ELSE so the ELSE binds to the closest IF.*/
-%precedence THEN
+%precedence THEN 
 %precedence ELSE ELIF
+
+/* resolve s/r conflict to have a `FN funparams -> expr` span as far as possible,
+   e.g. `fn(x) -> x + 1` is `(fn(x) -> x + 1)` and not `(fn(x) -> x) + 1`
+   and  `fn(x) -> x.foo` is `(fn(x) -> x.foo)` and not `(fn(x) -> x).foo`
+   note: we could avoid these rules by disallowing the `->` form in trailing lambdas. 
+*/   
+%precedence RARROW                     /* -> */
+%precedence '(' '[' FN '{' '.'         /* applications */
+%precedence OP ASSIGN '>' '<' '|'      /* operators */
+
+/* %precedence '?' */
 
 %%
 
@@ -133,7 +146,7 @@ semis       : semis semi
             ;
 
 semi        : ';'
-            | SEMI
+            | INSERTED_SEMI
             ;
 
 
@@ -402,65 +415,77 @@ blockexpr   : expr              /* a `block` is not interpreted as an anonymous 
 expr        : withexpr
             | block             /* interpreted as an anonymous function (except if coming from `blockexpr`) */
             | returnexpr
-            | basicexpr
+            // | basicexpr '?' expr ':' expr  
+            | basicexpr                   
             ;
 
 basicexpr   : ifexpr
-            | fnexpr
             | matchexpr
             | handlerexpr
-            | opexpr
+            | fnexpr
+            | opexpr             %prec RARROW
             ;
 
 
 /* keyword expressions */
 
-matchexpr   : MATCH atom '{' semis matchrules '}'
+matchexpr   : MATCH ntlexpr '{' semis matchrules '}'
             ;
 
-fnexpr      : FN funparams block            /* anonymous function */
+fnexpr      : FN funparams bodyexpr            /* anonymous function */
             ;
 
 returnexpr  : RETURN expr
             ;
 
-ifexpr      : IF atom then elifs ELSE expr  %prec THEN
-            | IF atom then elifs            %prec THEN
+ifexpr      : IF ntlexpr THEN expr elifs 
+            | IF ntlexpr THEN expr       
+            | IF ntlexpr RETURN expr 
             ;
 
-then        : THEN expr
-            | expr           /* then keyword is optional */
+elifs       : ELIF ntlexpr THEN expr elifs
+            | ELSE expr
             ;
 
-elifs       : elifs ELIF atom then
-            | %empty /* empty */
-            ;
 
 /* operator expression */
 
-opexpr      : opexpr qoperator prefixexpr
-            | prefixexpr
+opexpr      : opexpr qoperator prefixexpr     
+            | prefixexpr                      
             ;
 
-prefixexpr  : '!' prefixexpr
-            | '~' prefixexpr
-            | appexpr
+prefixexpr  : '!' prefixexpr                  
+            | '~' prefixexpr                  
+            | appexpr               %prec RARROW
             ;
-
-/*
-fappexpr    : fappexpr funexpr
-            | appexpr
-            ;
-*/
 
 appexpr     : appexpr '(' arguments ')'             /* application */
             | appexpr '[' arguments ']'             /* index expression */
             | appexpr '.' atom                      /* dot application */
             | appexpr block                         /* trailing function application */
             | appexpr fnexpr                        /* trailing function application */
-            | atom
+            | atom 
             ;
 
+
+/* non-trailing-lambda expression */
+ntlexpr     : ntlopexpr      
+            ;
+
+ntlopexpr   : ntlopexpr qoperator ntlprefixexpr  
+            | ntlprefixexpr                      
+            ;
+
+ntlprefixexpr: '!' ntlprefixexpr
+            | '~' ntlprefixexpr
+            | ntlappexpr
+            ;
+
+ntlappexpr  : ntlappexpr '(' arguments ')'             /* application */
+            | ntlappexpr '[' arguments ']'             /* index expression */
+            | ntlappexpr '.' atom                      /* dot application */
+            | atom
+            ;
 
 /* atomic expressions */
 
@@ -503,8 +528,8 @@ parameters  : parameters1
             | /* empty */
             ;
 
-parameters1 : parameters1 ',' borrow parameter
-            | borrow parameter
+parameters1 : parameters1 ',' parameter
+            | parameter
             ;
 
 parameter   : paramid ':' paramtype
@@ -526,8 +551,8 @@ pparameters : pparameters1
             | /* empty */
             ;
 
-pparameters1: pparameters1 ',' borrow pparameter
-            | borrow pparameter
+pparameters1: pparameters1 ',' pparameter
+            | pparameter
             ;
 
 pparameter  : pattern 
@@ -568,7 +593,7 @@ annot       : ':' typescheme
 -- Identifiers and operators
 ----------------------------------------------------------*/
 
-qoperator   : op
+qoperator   : op     
             ;
 
 qidentifier : qvarid
@@ -618,7 +643,6 @@ op          : OP
             | '>'       { $$ = ">";  }
             | '<'       { $$ = "<";  }
             | '|'       { $$ = "|";  }
-            | '^'       { $$ = "^";  }
             | ASSIGN    { $$ = ":="; }
             ;
 
@@ -681,9 +705,9 @@ patarg      : identifier '=' apattern            /* named argument */
 -- Handlers
 ----------------------------------------------------------*/
 handlerexpr : HANDLER override witheff opclauses
-            | HANDLE override witheff '(' expr ')' opclauses
+            | HANDLE override witheff ntlexpr opclauses
             | NAMED HANDLER witheff opclauses
-            | NAMED HANDLE witheff '(' expr ')' opclauses
+            | NAMED HANDLE witheff ntlexpr opclauses
             ;
 
 override    : OVERRIDE
@@ -695,8 +719,11 @@ witheff     : '<' anntype '>'
             ;
 
 withstat    : WITH basicexpr
-            | WITH binder '=' basicexpr
             | WITH override witheff opclauses    /* shorthand for handler */
+            | WITH binder LARROW basicexpr
+            | WITH binder LARROW witheff opclauses  /* shorthand for named handler */
+            /* deprecated: */
+            | WITH binder '=' basicexpr
             | WITH binder '=' witheff opclauses  /* shorthand for named handler */
             ;
 

@@ -81,7 +81,7 @@ fun check(name : string, res : string, got: string ) : io () {
   println(name.pad-right(14,' ') ++ ": "
     ++ (if (got == res) then "ok: " ++ res
                        else "FAILED!:\n expect: " ++ res ++ "\n gotten: " ++ got ++ "\n"))
-  if (got != res) throw("test failed")
+  if (got != res) then throw("test failed")
 }
 
 

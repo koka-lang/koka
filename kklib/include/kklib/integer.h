@@ -606,6 +606,13 @@ static inline int64_t kk_integer_clamp64_borrow(kk_integer_t x) {
   return kk_integer_clamp64_bigint(x);
 }
 
+static inline int64_t kk_integer_clamp64(kk_integer_t x, kk_context_t* ctx) {
+  if (kk_likely(kk_is_smallint(x))) return (int64_t)kk_smallint_from_integer(x);
+  int64_t r = kk_integer_clamp64_bigint(x);
+  kk_integer_drop(x,ctx);
+  return r;
+}
+
 static inline size_t kk_integer_clamp_size_t_borrow(kk_integer_t x) {
   if (kk_likely(kk_is_smallint(x))) {
     kk_intx_t i = kk_smallint_from_integer(x);
@@ -620,6 +627,14 @@ static inline kk_ssize_t kk_integer_clamp_ssize_t_borrow(kk_integer_t x) {
   return kk_integer_clamp32_borrow(x);
 #else
   return kk_integer_clamp64_borrow(x);
+#endif
+}
+
+static inline kk_ssize_t kk_integer_clamp_ssize_t(kk_integer_t x, kk_context_t* ctx) {
+#if KK_SSIZE_SIZE <= 4
+  return kk_integer_clamp32(x,ctx);
+#else
+  return kk_integer_clamp64(x,ctx);
 #endif
 }
 

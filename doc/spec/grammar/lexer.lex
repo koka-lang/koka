@@ -15,7 +15,8 @@
 
 %{
 #define CHECK_BALANCED  // check balanced parenthesis
-
+#define INSERT_CLOSE_BRACE 
+#define INSERT_OPEN_BRACE
 #define INDENT_LAYOUT   // use full layout rule based on nested indentation
 #undef LINE_LAYOUT    // use simple layout based on line ending token
 
@@ -198,6 +199,7 @@ unsafe                    { return UNSAFE; }
 =                         { return '=';    }
 \.                        { return '.';    }
 \-\>                      { return RARROW; }
+\<\-                      { return LARROW; }
 
   /* special operators and identifiers (not reserved but have special meaning in certain contexts) */
 :=                        { return ASSIGN; }
@@ -239,6 +241,7 @@ c                         { return ID_C;       }
   \>{AngleBar}+            { yyless(1); return '>'; }
   \|{Angle}{Symbol}*       { yyless(1); return '|'; }
   \-\>\<{Symbol}*          { yyless(2); return RARROW; }
+  \<\-\<{Symbol}*          { yyless(2); return LARROW; }
   \:\?{Symbol}*            { yyless(1); return ':'; }
   */
 
@@ -393,10 +396,11 @@ char* showString( const char* s, yyscan_t scanner );
    - an allocation list to free allocated identifiers and string literals.
    - the number of errors
 ---------------------------------------------------------*/
-#define errorMax  25
+#define errorMax  1 // 25
 #define layoutMax 255   /* Limit maximal layout stack to 255 for simplicity */
 #define braceMax  255   /* maximal nesting depth of parenthesis */
 #define Token     int
+#define savedMax  255
 
 typedef struct _ExtraState {
   /* nested comments */
@@ -428,8 +432,9 @@ typedef struct _ExtraState {
   YYLTYPE     previousLoc;
 
   /* the saved token and location: used to insert semicolons */
-  Token       savedToken;
-  YYLTYPE     savedLoc;
+  int         savedTop;
+  Token       savedToken[savedMax];
+  YYLTYPE     savedLoc[savedMax];
 
   /* temporary string buffer for string literals */
   int         stringMax;
@@ -480,10 +485,20 @@ static bool isAppToken( Token token ) {
 
 
 #ifdef INDENT_LAYOUT
-  static Token continuationTokens[] = { THEN, ELSE, ELIF, ')', ']', '{', 0 };
+  static Token continuationTokens[] = { ')', '>', ']', ',', '{', '}', '|', ':', '.', '=', ASSIGN, OP, THEN, ELSE, ELIF, RARROW, LARROW, 0 };
+                                      // { THEN, ELSE, ELIF, ')', ']', '{', 0 };
 
   static bool continuationToken( Token token ) {
     return contains(continuationTokens, token );
+  }
+#endif
+
+
+#ifdef INSERT_OPEN_BRACE
+  static Token endingTokens[]    = { '(', '<', '[', ',', '{', '.', OP, 0 };
+  
+  bool endingToken( Token token  ) {
+    return contains(endingTokens,token);
   }
 #endif
 
@@ -515,6 +530,23 @@ static bool isAppToken( Token token ) {
   }
 #endif
 
+
+static void savedPush( YY_EXTRA_TYPE extra, Token token, YYLTYPE* loc ) {
+  assert(extra->savedTop < savedMax);
+  extra->savedTop++;
+  extra->savedToken[extra->savedTop] = token;
+  extra->savedLoc[extra->savedTop] = *loc;
+  // fprintf(stderr, "save token (%d,%d): %c (0x%04x) (new top: %d)\n", loc->first_line, loc->first_column, token, token, extra->savedTop );  
+}
+
+static void savedPop( YY_EXTRA_TYPE extra, Token* token, YYLTYPE* loc ) {
+  assert(extra->savedTop >= 0);
+  *token = extra->savedToken[extra->savedTop];
+  *loc   = extra->savedLoc[extra->savedTop];
+  extra->savedTop--;
+  // fprintf(stderr, "restore from saved  (%d,%d): %c (0x%04x) (new top: %d)\n", loc->first_line, loc->first_column, *token, *token, extra->savedTop );
+}
+
 /*----------------------------------------------------
    Main lexical analysis routine 'mylex'
 ----------------------------------------------------*/
@@ -526,10 +558,9 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
   int         startState = YYSTATE;
 
   // do we have a saved token?
-  if (yyextra->savedToken >= 0) {
-    token  = yyextra->savedToken;
-    *loc   = yyextra->savedLoc;
-    yyextra->savedToken = -1;
+  if (yyextra->savedTop >= 0) {
+    // fprintf(stderr,"have saved: %d\n", yyextra->savedTop);
+    savedPop( yyextra, &token, loc );
   }
 
   // if not, scan ahead
@@ -555,8 +586,11 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
       token = yylex( lval, loc, scanner );
       *loc = updateLoc(scanner);
     }
+  }
 
 
+
+  if (yyextra->previous != INSERTED_SEMI) {
 #ifdef CHECK_BALANCED
     // check balanced braces
     Token closeBrace = isOpenBrace(token);
@@ -601,7 +635,9 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
 
     // Do layout ?
     if (!yyextra->noLayout)
-    {
+    {      
+      bool newline = (yyextra->previousLoc.last_line < loc->first_line);
+
 #ifdef INDENT_LAYOUT
       // set a new layout context?
       if (yyextra->previous == '{') {
@@ -634,7 +670,6 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
         }
       }
 
-      bool newline = (yyextra->previousLoc.last_line < loc->first_line);
       int layoutColumn = yyextra->layout[yyextra->layoutTop];
 
       if (newline) {
@@ -642,47 +677,81 @@ Token mylex( YYSTYPE* lval, YYLTYPE* loc, yyscan_t scanner)
         if (yyextra->commentLoc.last_line == loc->first_line) {
           yyerror(&yyextra->commentLoc,scanner,"comments are not allowed in indentation; rewrite by putting the comment on its own line or at the end of the line");
         }
+        #ifndef INSERT_CLOSE_BRACE
         // check layout
         if (loc->first_column < layoutColumn) {
           yyerror(loc,scanner,"illegal layout: the line must be indented at least as much as its enclosing layout context (column %d)", layoutColumn);
         }
+        #else
+        if (token != '}' && loc->first_column < layoutColumn && yyextra->layoutTop > 1) {
+          fprintf(stderr,"line (%d,%d): insert }, layout col: %d\n", loc->first_line, loc->first_column, yyextra->layoutTop);
+          // pop layout column
+          yyextra->layoutTop--;
+          layoutColumn = yyextra->layout[yyextra->layoutTop];
+
+          // save the currently scanned token
+          savedPush(yyextra, token, loc);
+          
+          // and replace it by a closing brace
+          *loc = yyextra->previousLoc;
+          loc->first_line = loc->last_line;
+          loc->first_column = loc->last_column;
+          loc->last_column++;
+          token = '}';  
+        }
+        #endif
       }
 
       // insert a semi colon?
-      if ((newline && loc->first_column == layoutColumn && !continuationToken(token))
-          || token == '}' || token == 0)
+      if ( // yyextra->previous != INSERTED_SEMI &&
+          ((newline && loc->first_column == layoutColumn && !continuationToken(token))
+           || token == '}' || token == 0))
       {
+        fprintf(stderr,"insert semi before: %c (0x%04x), top: %d\n", token, token, yyextra->savedTop);
         // save the currently scanned token
-        yyextra->savedToken = token;
-        yyextra->savedLoc   = *loc;
+        savedPush(yyextra, token, loc);
 
         // and replace it by a semicolon
         *loc = yyextra->previousLoc;
         loc->first_line = loc->last_line;
         loc->first_column = loc->last_column;
         loc->last_column++;
-        token = SEMI;
+        token = INSERTED_SEMI;
+      }
+
+      // insert open brace?
+      else if (newline && loc->first_column > layoutColumn && 
+               !endingToken(yyextra->previous) && !continuationToken(token))
+      {
+        fprintf(stderr,"insert { before: %c (0x%04x), top: %d\n", token, token, yyextra->savedTop);
+        // save the currently scanned token
+        savedPush(yyextra, token, loc);
+
+        // and replace it by an open brace
+        *loc = yyextra->previousLoc;
+        loc->first_line = loc->last_line;
+        loc->first_column = loc->last_column;
+        loc->last_column++;
+        token = '{';
       }
 #endif
 #ifdef LINE_LAYOUT // simple semicolon insertion
-      bool newline = (yyextra->previousLoc.last_line < loc->first_line);
       if ((newline && endingToken(yyextra->previous) && !continueToken(token)) ||
-          ((token == '}' || token == 0) && yyextra->previous != SEMI) )  // always insert before a '}' and eof
+          ((token == '}' || token == 0) && yyextra->previous != INSERTED_SEMI) )  // always insert before a '}' and eof
       {
         // save the currently scanned token
-        yyextra->savedToken = token;
-        yyextra->savedLoc   = *loc;
+        savedPush(yyextra,token,loc);
 
         // and replace it by a semicolon
         *loc = yyextra->previousLoc;
         loc->first_line = loc->last_line;
         loc->first_column = loc->last_column;
         loc->last_column++;
-        token = SEMI;
+        token = INSERTED_SEMI;
       }
-#endif
+#endif      
     } // do layout?
-  }
+  } // not inserted semi
 
   // save token for the next run to previous
   yyextra->previous = token;
@@ -730,8 +799,7 @@ void initScanState( ExtraState* st )
   st->previous = '{';   // so the layout context starts at the first token
   initLoc(&st->previousLoc, 1);
 
-  st->savedToken = -1;
-  initLoc(&st->savedLoc, 1);
+  st->savedTop = -1;
 
   st->stringMax = 0;
   st->stringLen = 0;
@@ -1203,7 +1271,11 @@ void printToken( int token, int state, yyscan_t scanner )
 {
   EnableMacros(scanner);
 
-  fprintf(stderr,"(%2d,%2d)-(%2d,%2d) <%d>: ", yylloc->first_line, yylloc->first_column, yylloc->last_line, yylloc->last_column, state );
+  fprintf(stderr,"(%2d,%2d)-(%2d,%2d) 0x%04x <%d> [", yylloc->first_line, yylloc->first_column, yylloc->last_line, yylloc->last_column, token, state );
+  for(int i = 0; i <= yyextra->layoutTop; i++) {
+    fprintf(stderr, "%d%s", yyextra->layout[i], (i==yyextra->layoutTop ? "" : ",") );
+  }
+  fprintf(stderr, "]: ");
   switch(token) {
     case ID:        fprintf(stderr,"ID    = '%s'", yylval->Id); break;
     case CONID:     fprintf(stderr,"CONID = '%s'", yylval->Id); break;
@@ -1214,7 +1286,7 @@ void printToken( int token, int state, yyscan_t scanner )
     case NAT:       fprintf(stderr,"NAT   = '%lu'", yylval->Nat); break;
     case FLOAT:     fprintf(stderr,"FLOAT = '%g'", yylval->Float); break;
     case CHAR:      fprintf(stderr,"CHAR  = '%s'", showChar(yylval->Char,scanner)); break;
-    case SEMI:      fprintf(stderr,";     = (inserted)"); break;
+    case INSERTED_SEMI:      fprintf(stderr,";     = (inserted)"); break;
     case STRING:    fprintf(stderr,"STRING(%zu) = %s", strlen(yylval->String), showString(yylval->String,scanner)); break;
     default: {
       if (token >= ' ' && token <= '~')
