@@ -10,7 +10,7 @@
 # Koka: a Functional Language with Effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
-_Latest release_: v2.2.0, 2021-08-26 ([Install]).
+_Latest release_: v2.2.1, 2021-09-05 ([Install]).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -74,6 +74,9 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 ## Recent Releases
 
+- `v2.2.1`, 2021-09-05: improved optimization, initial parallel tasks, binary-trees benchmark, new 
+   [brace elision](https://koka-lang.github.io/koka/doc/book.html#sec-layout), 
+   still slightly slower effect handling, upgrade isocline, fix minor bugs.
 - `v2.2.0`, 2021-08-26: improved case-of-known simpification (by Rashika B), improve cross-module specialization
   (by Steven Fontanella), initial borrowing annotations and improved reuse analysis (by Anton Lorenzen),
   improved line editing in the interactive environment, improved inlining. Note: due to the new inline phases,
