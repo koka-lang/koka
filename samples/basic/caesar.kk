@@ -47,8 +47,8 @@ fun chisqr( xs : list<double>, ys : list<double> ) : double
 // Crack a Caesar encoded string
 fun uncaesar( s : string ) : string
   val table  = freqs(s)                   // build a frequency table for `s`
-  val chitab = list(0,25).map fn(n)       // build a list of chisqr numbers for each shift between 0 and 25
-                 chisqr( table.rotate(n), english )
+  val chitab = list(0,25).map fn(n)      // build a list of chisqr numbers for each shift between 0 and 25
+                 chisqr( table.rotate(_), english )
   val min    = chitab.minimum             // find the mininal element
   val shift  = chitab.index-of( fn(f){ f == min } ).negate  // and use its position as our shift
   s.encode( shift )

@@ -10,6 +10,6 @@ fun traverse( xs : list<int> ) : yield<int> ()
 
 // bind the yield operation dynamically
 fun main() : console () 
-  with fun yield(i : int){ println("yielded " ++ i.show) }
+  with fun yield(i:int){ println("yielded " ++ i.show) }
   [1,2,3].traverse
 

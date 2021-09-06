@@ -6,6 +6,7 @@ type color
   Red
   Black
 
+
 type tree<a>
   Leaf
   Node(color : color, left : tree<a>, key : int, value : a, right : tree<a>)

@@ -1,11 +1,20 @@
-/* Basic syntax examples */
-module syntax/basic
+/* Basic syntax examples 
+   By using a `public` module, all functions are by default public.
+   (this is not recommended in general of course)
+*/
+public module syntax/basic
 
 // Named function declarations use `fun`
 // while anonymous function expressions use `fn`
-public fun test1() {
+fun test1() {
   map( list(1,5), fn(i){ println(i) } )
 }
+
+// Indented blocks get automatic curly braces (if not braced explicitly)
+// We can write the previous example with just indentation:
+fun test1a() 
+  map( list(1,5), fn(i){ println(i) } )
+
 
 // Use the dot-syntax to chain functions calls,
 // where the left-expression is passed as the first argument to the
@@ -14,18 +23,23 @@ public fun test1() {
 // e.f(e1,...,eN)  ~>  f(e,e1,...,eN)
 // ````
 // This is also called _dot chaining_ (and part of Koka since 2012)
-public fun test2() {
+fun test2() 
   list(1,5).map( fn(i){ println(i) } )
-}
+
 
 // `fn` function arguments can be put outside the parenthesis following the call:
 // `f(e1,...,eN) fn(x){ ... }  ~>  f(e1,...,eN, fn(x){ ... })`
 // This is also called _trailing lambdas_ (and Koka was the first language to have this)
-public fun test3() {
+fun test3() 
   list(1,5).map fn(i){
     println(i)
   }
-}
+
+// Of course, the indentation rule allows us to write also:
+fun test3a() 
+  list(1,5).map fn(i)
+    println(i)
+  
 
 // An anonymous function without arguments can be written
 // just with a pair of curly braces:
@@ -33,25 +47,33 @@ public fun test3() {
 // This is also called _suspenders_ and very useful to define "control-flow" functions.
 // (The term "suspenders" was coined by Conor mcBride in the Frank language).
 
-fun twice(f) {
+private fun twice(f)
   f()
   f()
-}
 
-public fun test4() {
-  twice { println("hi") }
+
+fun test4() 
+  twice{ println("hi") }
   // == twice( fn(){ println("hi" ) } )
-}
+  // == twice 
+  //      println("hi")
 
 // This syntax enable many control-flow operations to be defined as functions,
 // like `while`:
-public fun test5() {
+fun test5()
   var i := 0
   while{ i < 10 } {
     i := i + 1
     println(i)
   }
-}
+
+// The indentation rule again can be used here as well:
+fun test5a()
+  var i := 0
+  while{ i < 10 }
+    i := i + 1
+    println(i)
+  
 
 // In Koka, everything between curly braces (_suspenders_)
 // is not directly evaluated, and may be never evaluated, or
@@ -65,6 +87,6 @@ public fun test5() {
 // `e2` is evaluated and passed to the result of `f(e1)`
 // while in the second form both `e1` and `e2` are evaluated
 // before calling `f`.
-public fun main() {
+fun main() 
   [21,21].foldl(0,(+)).println
-}
+
