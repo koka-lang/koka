@@ -2762,7 +2762,7 @@ fun repeat( ^n : int, action : () -> e () ) : e ()
 fun for( ^start: int, end : int, action : (int) -> e () ) : e ()
 {
   fun rep( ^i : int ) {
-    if (i <= end) {
+    if (i <= end) then {
       action(i)
       rep(unsafe-decreasing(i.inc))
     }

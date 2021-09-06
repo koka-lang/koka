@@ -24,7 +24,7 @@ import named-handlers/file
 import named-handlers/file-scoped
 import named-handlers/heap
 
-public fun main() {
+public fun main() 
   caesar/main()
   fibonacci/main()
   garsia-wachs/main()
@@ -33,4 +33,4 @@ public fun main() {
   parser/main()
   scoped/main()
   ambient/main()
-}
+
