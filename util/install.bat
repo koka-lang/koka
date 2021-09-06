@@ -4,7 +4,7 @@ rem Installation script for Koka; use -h to see command line options.
 rem ------------------------------------------------------------------
 
 setlocal
-set KOKA_VERSION=v2.2.0
+set KOKA_VERSION=v2.2.1
 set KOKA_PREFIX=%LOCALAPPDATA%\koka
 set KOKA_UNINSTALL=N
 set KOKA_HELP=N

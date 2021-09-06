@@ -2,7 +2,7 @@
 ; to generate a graphical windows executable installer as 'bundle\install-koka-<version>-windows-x64.exe'.
 
 [Strings]
-Version=v2.1.9
+Version=v2.2.1
 CpuArch=x64
 DisplayLicense=
 FinishMessage=Installation of Koka is complete. Type 'koka' in a fresh 'cmd' prompt to run the Koka compiler.
