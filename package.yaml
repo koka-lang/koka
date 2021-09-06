@@ -6,7 +6,7 @@
 # - util/minbuild
 
 name:       koka
-version:    2.2.1     
+version:    2.2.2     
 github:     "koka-lang/koka"
 license:    Apache-2.0
 author:     Daan Leijen
