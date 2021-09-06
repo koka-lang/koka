@@ -8,29 +8,27 @@ module nim
 // --------------------------------------------------------
 import std/num/random
 
-type player {
+type player 
   Bob
   Alice
-}
 
-fun (==)(p1, p2) {
-  match(p1,p2) {
-    (Bob,Bob) -> True
+
+fun (==)(p1, p2) 
+  match (p1,p2) 
+    (Bob,Bob)     -> True
     (Alice,Alice) -> True
-    _ -> False
-  }
-}
+    _             -> False
 
-public fun show(p:player) : string {
-  match(p) {
+
+public fun show(p:player) : string 
+  match p
     Bob   -> "bob"
     Alice -> "alice"
-  }
-}
 
-public fun show(ps : list<player> ) : string {
+
+public fun show(ps : list<player> ) : string 
   ps.show-list(show)
-}
+
 
 
 // --------------------------------------------------------
@@ -40,81 +38,75 @@ public fun show(ps : list<player> ) : string {
 effect control move( player :player, sticks :int) : int
 
 
-fun alice-turn(n : int) : <div,move> player {
-  if (n <= 0) then Bob else bob-turn( n - move(Alice,n) )
-}
+fun alice-turn(n : int) : <div,move> player 
+  if n <= 0 then Bob else bob-turn( n - move(Alice,n) )
 
-fun bob-turn(n : int) : <div,move> player {
-  if (n <= 0) then Alice else alice-turn( n - move(Bob,n) )
-}
 
-fun game(n) {
+fun bob-turn(n : int) : <div,move> player
+  if n <= 0 then Alice else alice-turn( n - move(Bob,n) )
+
+
+fun game(n)
   alice-turn(n)
-}
+
 
 // --------------------------------------------------------
 // Perfect strategy
 // --------------------------------------------------------
 
-val perfect = handler {
-  fun move(_p,n) { max(1,n%4) }
-}
+val perfect = handler fun move(_p,n){ max(1,n%4) }
 
-public fun test-perfect1() {
+public fun test-perfect1() 
   with perfect
   game(7)        // alice
-}
 
-public fun test-perfect2() {
+
+public fun test-perfect2() 
   with perfect
   game(12)  // bob
-}
+
 
 
 // --------------------------------------------------------
 // Game trees
 // --------------------------------------------------------
 
-type gtree {
+type gtree 
   Take( player: player, moves: list<(int,gtree)> )
   Winner( player: player )
-}
 
-fun valid-moves(n) {
-  [1,2,3].filter( fn(m){ m <= n } )
-}
 
-val gametree = handler {
-  return x { Winner(x) }
-  control move(p,n) {
+fun valid-moves(n) 
+  [1,2,3].filter fn(m){ m <= n }
+
+
+val gametree = handler 
+  return(x){ Winner(x) }
+  control move(p,n)
     val moves    = valid-moves(n)
     val subgames = moves.map(resume)
     val subtrees = zip(moves,subgames)
     Take(p,subtrees)
-  }
-}
 
-fun show(gt :gtree) : div string {
+
+fun show(gt :gtree) : div string
   show-gtree(gt,2)
-}
 
-fun show-gtree(gt :gtree, indent:int) : _ string {
+
+fun show-gtree(gt :gtree, indent:int) : _ string 
   val showi = (show : (int) -> string)
-  match(gt) {
-    Take(p,moves) {
+  match gt
+    Winner(p) -> p.show ++ " wins"
+    Take(p,moves) ->
       p.show ++ moves.map(fn(x){
         val (sticks,gtx) = x
         "\n" ++ " ".repeat(indent) ++ sticks.show ++ " -> " ++ gtx.show-gtree(indent+2)
       }).join
-    }
-    Winner(p) -> p.show ++ " wins"
-  }
-}
 
-public fun test-gtree() {
+public fun test-gtree()
   with gametree
   game(3)   // figure 1 in the paper
-}
+
 
 
 // --------------------------------------------------------
@@ -123,45 +115,48 @@ public fun test-gtree() {
 
 effect fun cheat(player:player) : a
 
-val cheat-report = handler fun cheat(p){ throw(p.show ++ " cheated!") }
+val cheat-report = handler 
+  fun cheat(p) 
+    throw(p.show ++ " cheated!") 
 
-val check = handler control move(p,n) {
-  val m = move(p,n)
-  if (valid-moves(n).find(fn(i) { i == m }).bool)
-   then resume(m)
-   else cheat(p)
-}
+val check = handler 
+  control move(p,n) 
+    val m = move(p,n)
+    if (valid-moves(n).find(fn(i) { i == m }).bool)
+    then resume(m)
+    else cheat(p)
 
-public fun test-check() {
+
+public fun test-check() 
   with perfect
   with cheat-report
   with check
   game(7)  // alice
-}
 
-public fun test-use() {
+
+public fun test-use() 
   with x = map([1,2,3])
   x+2
-}
+
 // --------------------------------------------------------
 // Cheating strategy
 // --------------------------------------------------------
 
-val pc = handler fun move(p,n) {
-  match(p){
-    Alice -> max(1,n%4)
-    Bob   -> n
-  }
-}
+val pc = handler 
+  fun move(p,n) 
+    match p
+      Alice -> max(1,n%4)
+      Bob   -> n
 
-public fun test-pc1() {
+
+public fun test-pc1() 
   with pc
   with cheat-report
   with check
   game(12)
-}
 
-public fun test-pc2() {
+
+public fun test-pc2() 
   // the `perfect` on the outside is necessary as the type system
   // does not detect that `check` will never perform a `move`.
   with perfect
@@ -169,7 +164,7 @@ public fun test-pc2() {
   with check
   with pc
   game(12)
-}
+
 
 
 
@@ -179,85 +174,85 @@ public fun test-pc2() {
 
 effect control choose() : bool
 
-fun bob-chooses(m) {
-  if (choose()) then pc(m) else perfect(m)
-}
+fun bob-chooses(m) 
+  if choose() then pc(m) else perfect(m)
 
-val all-results = handler {
-  return(x)       { [x] }
-  control choose(){ resume(True) ++ resume(False) }
-}
 
-public fun test-choose()  {
-  with control choose(){ resume(True) ++ (resume(False) : list<_>) }
+val all-results = handler 
+  return(x) -> [x] 
+  control choose()
+    resume(True) ++ resume(False) 
+
+
+public fun test-choose() 
+  with control choose() 
+          resume(True) ++ (resume(False) : list<_>)
   with bob-chooses
   [game(7)]   // [bob,alice]
-}
 
-val coin = handler fun choose(){ srandom-double() > 0.5 }
 
-public fun test-coin() {
+val coin = handler fun choose() 
+  srandom-double() > 0.5 
+
+public fun test-coin() 
   with coin
   with bob-chooses
   game(7)
-}
+
 
 
 // --------------------------------------------------------
 // Scoreboard
 // --------------------------------------------------------
 
-effect state<s> {
+effect state<s> 
   fun get() : s;
   fun put(x : s) : ()
-}
 
 
-fun state(init,action) {
+
+fun state(init,action) 
   var s := init
-  with {
-    fun get()  { s }
-    fun put(x) { s := x }
-  }
+  with
+    fun get() { s } 
+    fun put(x){ s := x }
   action()
-}
+
 
 alias gstate = list<(player,int)>
 
 val s0 = [(Alice,0),(Bob,0)]
 
-val score-updater = handler return p { put(update-score(p,get())); p }
+val score-updater = handler return(p){ put(update-score(p,get())); p } 
 
-fun update-score( p : player, gs : gstate ) : gstate {
-  gs.map fn(qs) {
+fun update-score( p : player, gs : gstate ) : gstate 
+  gs.map fn(qs)
     val (q,s) = qs
-    if (p==q) then (q,s+1) else qs
-  }
-}
+    if p==q then (q,s+1) else qs
 
-val printer = handler return x { print-board(get()); x }
+val printer = handler return(x){ print-board(get()); x }
 
-fun print-board( gs : gstate ) : io () {
-  gs.map( fn(ps) {
+fun print-board( gs : gstate ) : io () 
+  gs.map fn(ps)
     ps.fst.show ++ " -> " ++ ps.snd.show
-  }).join("\n").println
-}
+  .join("\n").println
 
-public fun test-print1() {
+
+public fun test-print1() 
   with state(s0)
   with printer
   with coin
   with bob-chooses
   with score-updater
   game(7)
-}
 
-fun replay(n : int, action : () -> <div|e> a) : <div|e> a {
-  with return(x){ if (n <= 1) then x else replay(n - 1, action ) }
+
+fun replay(n : int, action : () -> <div|e> a) : <div|e> a 
+  with return(x){ if n <= 1 then x else replay(n - 1, action ) }
   action()
-}
 
-public fun test-print2() {
+
+public fun test-print2() 
   with state(s0)
   with printer
   with replay(10)
@@ -265,10 +260,10 @@ public fun test-print2() {
   with bob-chooses
   with score-updater
   game(7)
-}
 
 
-public fun main() {
+
+public fun main() 
   [""
   ,test-perfect1().show
   ,test-perfect2().show
@@ -281,7 +276,7 @@ public fun main() {
   //,test-print2().show
   ,""
   ].join("\n-----------\n").print
-  try{
+  try {
     test-pc1().show.println // raises exception
-  } fn(exn) { println(exn.show) }
-}
+  } fn(exn){ println(exn.show) }
+

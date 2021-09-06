@@ -257,72 +257,8 @@ std/core/(&)
 | _cont_     | ::=    | ``x80``..``xBF``                            |                                     |
 {.grammar .lex}
 
-<!--
-### Semicolons?
 
-Many languages have rules to avoid writing semicolons to separate
-statements. Even though most of the time these rules are quite intuitive
-to use, their actual definition can be quite subtle. For example,
-both [Scala][lscala] and [Go][lgo] require remembering specific tokens to
-know precisely when semicolon insertion takes place. In the case
-of [JavaScript][ljavascript] and [Haskell][lhaskell] (I am sad to admit)
-the precise behavior is bizarrely complex where semicolon insertion
-depends on the interaction between the lexer and parser.
-
-In &koka;, the grammar is carefully constructed to not need any statement
-separator at all and semicolons are never required by the grammar.
-They are still allowed in the grammar but strictly to help new programmers
-that are used to putting semicolons at the end of statements.
-
-The construction of a grammar that does not need statement separators is
-also good from a human perspective. The reason semicolons are required is
-to resolve ambiguities in the syntax. When such ambiguities do not occur
-in the first place, that also removes a cognitive burden from the
-programmer. In particular, &koka; statements often start with a keyword,
-like `val` or `match`, signifying intention to both programmer and parser.
-
-In other cases, we restrict the expression grammar. For example, one
-reason why C requires semicolons is due to prefix- and postfix operators.
-If we write ``p ++ q`` the C parser needs a semicolon in order to know if
-we meant ``p++; q`` or ``p; ++q``. Such ambiguity is resolved in &koka; by
-not having postfix operators and restricting prefix operators to ``!``
-and ``~``.
-
-One other reason that &koka; can do without a statement separator is the
-effect inference system: without such effect inference subtle bugs may
-occur if we leave out semicolons. For example, consider the following
-function:
-```
-fun square( x : int ) {
-  x * x
-}
-```
-which returns the square of `x`. Suppose now that we forgot to put
-in the multiplication operation, giving:
-```unchecked
-fun square-wrong( x : int ) {
-  x x
-}
-```
-The &koka; grammar sees this as 2 separate statements now, &ie; as ``x; x``
-returning ``x`` instead. In a language without effect inference it is hard
-to detect such errors, but the &koka; type system rejects this program:
-
-    > fun square-wrong(x:int) { x x }
-                                ^
-    ((1),27): error: expression has no effect and is unused
-      hint: did you forget an operator? or is there a space between an application?
-
-
-[LHaskell]: http://www.haskell.org/onlinereport/haskell2010/haskellch10.html#x17-17800010.3  
-[LPython]: http://docs.python.org/2/reference/lexical_analysis.html
-[LJavaScript]: https://tc39.github.io/ecma262/#sec-rules-of-automatic-semicolon-insertion
-[LScala]: http://www.scala-lang.org/old/sites/default/files/linuxsoft_archives/docu/files/ScalaReference.pdf#page=13
-[LGo]: http://golang.org/ref/spec#Semicolons
-
--->
-
-## Semicolon insertion  {#sec:layout}
+## Layout  {#sec-layout}
 
 [Haskell]: http://www.haskell.org/onlinereport/haskell2010/haskellch10.html#x17-17800010.3  
 [Python]: http://docs.python.org/2/reference/lexical_analysis.html
@@ -333,88 +269,102 @@ to detect such errors, but the &koka; type system rejects this program:
 
 Just like programming languages like
 [Haskell], [Python], [JavaScript], [Scala], [Go], etc., there is a layout rule
-which automatically adds semicolons at appropriate places. This enables the
-programmer to leave out most semicolons:
+which automatically adds braces and semicolons at appropriate places:
 
-&koka; inserts semicolons automatically for any statements
-and declarations that are _aligned between curly braces_ (`{` and `}`).
-{padding-left:1em}
+* Any block that is _indented_ is automatically wrapped with curly braces:
+  ```
+  fun foo1( msgs : list<string> ) : console ()  
+    msgs.foreach fn(msg)
+      println(msg)
+  ```
+  is elaborated to:
+  ```unchecked
+  fun foo1( msgs : list<string> ) : console () {
+    msgs.foreach fn(msg) {
+      println(msg)
+    }
+  }
+  ```
 
-For example, in the following program:
-{.grammar}
+* Any statements and declarations that are _aligned_ in a block are terminated with semicolons, that is:
+  ```
+  fun foo2( msgs : list<string> ) : console ()  
+    msgs.foreach fn(msg)
+      println(msg)
+      println("hi")
+    println("done")
+  ```
+  is fully elaborated to:
+  ```unchecked
+  fun foo2( msgs : list<string> ) : console () {
+    msgs.foreach fn(msg){
+      println(msg);
+      println("hi");
+    };
+    println("done");
+  }
+  ```
 
-```
-fun eq1( x : int, y : int ) : io bool
-{  
-  print("calculate equality")
-  val result = if (x == y) then True            
-                else False
-  result
-}  
-```
+* Long expressions or declarations can still be indented without getting braces or semicolons
+  if it is clear from the start- or previous token that the line continues
+  an expression or declaration. Here is a contrived example:
+  ```
+  fun eq2( x : int, 
+            y : int ) : io bool  
+    print("calc " ++
+          "equ" ++
+          "ality")
+    val result = if (x == y)
+                  then True
+                  else False
+    result  
+  ```
+  is elaborated to:
+  ```unchecked
+  fun eq2( x : int, 
+            y : int ) : io bool {  
+    print("calc " ++
+          "equ" ++
+          "ality");
+    val result = if (x == y)
+                  then True
+                  else False;
+    result
+  }
+  ```
+  Here the long string expression is indented but no braces or semicolons
+  are inserted as the previous lines end with an operator (`++`).
+  Similarly, in the `if` expression no braces or semicolons are inserted
+  as the indented lines start with `then` and `else` respectively.
+  In the parameter declaration, the `,` signifies the continuation.  
+  More precisely, for long expressions and declarations, indented or aligned lines 
+  do not get braced or semicolons if:
 
-we get semicolons before each statement that was aligned between the braces:
+  1. The line starts with a clear expression or declaration _continuation token_,
+    namely: an operator (including `.`), `then`, `else`, `elif`, 
+    a closing brace (`)`, `>`, `]`, or `}`), 
+    or one of `,`, `->`, `{` , `=`, `|`, `::`, `.`, `:=`.
+  2. The previous line ends with a clear expression or declaration _ending continuation token_,
+    namely an operator (including `.`), an open brace (`(`, `<`, `[`, or `{`), or `,`.
 
-```
-fun eqSemi( x : int, y : int ) : io bool
-{;  
-  print("calculate equality");
-  val result = if (x == y) then True            
-                else False;
-  result;
-}  
-```
+The layout
+algorithm is performed on the token stream in-between lexing
+and parsing, and is independent of both. In particular, there are no intricate dependencies with the parser
+(which leads to bizarrely complex layout rules, as is the case in languages like
+[Haskell] or [JavaScript]).
 
-Since semicolons are only inserted for _aligned_ statements, we can
-write a long statement on multiple lines by using more indentation:
-
-```
-fun eq2( x : int, y : int ) : io bool
-{  
-  print("calculate " ++
-         "equ" ++
-         "ality")
-  val result = if (x == y)
-                then True
-                else False
-  result
-}  
-```
-
-In contrast to token-based layout rules (as in [Scala] or [Go] for example), this
-allows you to put line breaks at any point in a statement by just indenting
-more. Moreover, it means that the visual indentation of a program corresponds
-directly to how the compiler interprets the statements. Many tricky layout
+Moreover, in contrast to token-based layout rules (as in [Scala] or [Go] for example), 
+the visual indentation in a Koka program corresponds directly to how the compiler 
+interprets the statements. Many tricky layout
 examples in other programming languages are often based on a mismatch between
 the visual representation and how a compiler interprets the tokens -- with
-&koka;'s layout rule such issues are largely avoided.
+&koka;'s layout rule such issues are largely avoided. 
 
-To still allow for "block-style" layout, the
-layout rule does not insert a  semicolon for an aligned statement if it
-starts with `then`, `else`, `elif`, or one of `{`, `,`, `)`, or `]`.
-{.grammar}
+Of course, it is still allowed to explicitly use semicolons and braces, 
+which can be used for example to put multiple statements on a single line:
 
 ```
-fun bar()
-{  
-  val xs = [
-    "list",
-    "elements",
-  ]
-  if (is-odd(3*3))
-  {
-    print("odd")
-  }
-  else
-    print("even")
-}  
-```
-
-Of course, it is still allowed to use semicolons explicitly which can be used
-for example to put multiple statements on a single line:
-
-```
-fun equalLine( x : int, y : int ) : io bool {
+fun equal-line( x : int, y : int ) : io bool {
   print("calculate equality"); (x == y)
 }  
 ```
@@ -436,16 +386,10 @@ fun equal( x : int, y : int ) : io bool {
 
 is rejected. In order to facilitate code generation or source code
 compression, compilers are also required to support a mode where the layout
-rule is not applied and where no semicolons are inserted. A recognized command
-line flag for that mode should be ``--nosemi``.
+rule is not applied and no braces or semicolons are inserted. A recognized command
+line flag for that mode should be ``--nolayout``.
 
 ### The layout algorithm
-
-A nice property of the layout
-algorithm is that it is performed on the token stream in-between lexing
-and parsing, and is independent of both. In particular, there are no intricate dependencies with the parser
-that lead to bizarrely complex layout rules, as is the case in languages like
-[Haskell] or [JavaScript].
 
 To define the layout algorithm formally, we first establish some terminology:
 
@@ -455,12 +399,22 @@ To define the layout algorithm formally, we first establish some terminology:
 * The indentation of a lexeme is the column number of its first character on
   that line (starting at 1), and the indentation of a line is the indentation
   of the first lexeme on the line.
+* A lexeme is an _expression continuation_ if it is the first lexeme on a line,
+  and the lexeme is a _continuation token_, or the previous lexeme is an
+  _ending continuation token_ (as defined in the previous section).
 
 Because braces can be nested, we use a _layout stack_ of strictly
 increasing indentations. The top indentation on the layout stack holds the
 _layout indentation_. The initial layout stack contains the single
 value 0 (which is never popped). We now proceed through the token stream
-where we perform the operations on the layout stack before the semicolon insertion:
+where we perform the following operations in order: first brace insertion,
+then layout stack operations, and finally semicolon insertion:
+
+* _Brace insertion_: For each non-blank line, consider the first lexeme on the line.
+  If the indentation is larger than the layout indentation, and the lexeme
+  is not an _expression continuation_, then insert an open brace `{` before the lexeme.
+  If the indention is less than the layout indentation, and the lexeme is not already a
+  closing brace, insert a closing brace `}` before the lexeme.
 
 * _Layout stack operations_: If the previous lexeme was an
   open brace `{` or the start of the lexical token sequence, we push the
@@ -470,24 +424,26 @@ where we perform the operations on the layout stack before the semicolon inserti
   indentation is popped from the layout stack.
 
 * _Semicolon insertion_: For each non-blank line, the
-  indentation must be equal or larger to the layout indentation. A semicolon is
-  inserted before the line whenever the indentation is equal, unless the first
-  lexeme on the line is one of `then`, `else`, `elif`, or one of `{`, `,`, `)`, or
-  `]`. Also, a semicolon is always inserted before a closing brace `}` and
+  indentation must be equal or larger to the layout indentation. 
+  If the indentation is equal to the layout indentation, and the first
+  lexeme on the line is not an _expression continuation_, a semicolon
+  is inserted before the lexeme. 
+  Also, a semicolon is always inserted before a closing brace `}` and
   before the end of the token sequence.
 {.grammar}
 
-As defined, semicolons are inserted whenever statements or declarations are
-aligned, unless the lexeme happens to be a clear statement continuation. To
+As defined, braces are inserted around any indented blocks, semicolons 
+are inserted whenever statements or declarations are
+aligned (unless the lexeme happens to be a clear expression continuation). To
 simplify the grammar specification, a semicolon is also always inserted before
 a closing brace and the end of the source. This allows us to specify many
 grammar elements as ended by semicolons instead of separated by semicolons
 which is more difficult to specify for a LALR(1) grammar.
 
-Semicolon insertion can be easily implemented as part of the lexer, but could
-also be implemented as a straightforward transformation on the lexical token
-stream.
-
+The layout can be implemented directly as part of the lexer
+(see the [Flex][FlexLexer] implementation), but can
+also be implemented as a separate transformation on the lexical token
+stream (see the [Haskell][HaskellLex] implementation).
 
 ### Implementation { #sec:lex-implementation }
 
@@ -810,5 +766,6 @@ available. Again, the Bison parser functions
 as _the_ specification of the grammar and this document should always
 be in agreement with that implementation.
 
-  [BisonGrammar]: https://koka.codeplex.com/SourceControl/latest#doc/spec/grammar/parser.y
-  [FlexLexer]:    https://koka.codeplex.com/SourceControl/latest#doc/spec/grammar/lexer.lex
+[BisonGrammar]: https://github.com/koka-lang/koka/blob/master/doc/spec/grammar/parser.y
+[FlexLexer]:    https://github.com/koka-lang/koka/blob/master/doc/spec/grammar/lexer.lex
+[HaskellLex]:   https://github.com/koka-lang/koka/blob/master/src/Syntax/Layout.hs#L184

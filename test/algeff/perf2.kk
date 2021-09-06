@@ -20,7 +20,7 @@ fun is-safe( queen : int, xs : solution, diag : int = 1 ) : bool {
 alias solutions = list<list<int>>
 
 fun append-safe( queen : int, xs : solution, xss : solutions ) : div solutions {
-  if (queen <= 0) xss
+  if (queen <= 0) then xss
   else {
    if (queen.is-safe(xs))
     then append-safe( queen - 1, xs, Cons(Cons(queen,xs),xss) )
