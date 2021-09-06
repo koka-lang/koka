@@ -41,7 +41,7 @@ val flag-descs : list<flag<iflags>> = {
 
 public fun process-flags() : <ndet,console> maybe<iflags> {
   val (flags,args,errs) = parse( Iflags(), flag-descs, get-args() )
-  if (errs.is-nil && args.is-nil) {
+  if (errs.is-nil && args.is-nil) then {
     Just(flags)
   }
   else {
@@ -51,7 +51,7 @@ public fun process-flags() : <ndet,console> maybe<iflags> {
 }
 
 fun main() {
-  if (!is-directory("kklib".path)) {
+  if (!is-directory("kklib".path)) then {
     println("you can only run 'util/bundle' from the koka root directory")
     println(flag-descs.usage(header))
     return ()
@@ -140,12 +140,12 @@ fun bundle( prefixdir : path, cc : string, version : string, dist : bool, post :
   [Debug,DRelease,Release].foreach fn(v){
     println("copying standard library: " ++ v.show)
     copy-libraries(libdir, cc, v, version)
-    if (dist && cc=="clang-cl") {
+    if (dist && cc=="clang-cl") then {
       copy-libraries(libdir, "cl", v, version)
     }
   }
 
-  if (dist) {
+  if (dist) then {
     // tar the result
     val tarcmd = ["tar -czf",tarname,"-C",prefixdir.show,"bin","lib","share"].join(" ")
     println("> " ++ tarcmd)
@@ -153,7 +153,7 @@ fun bundle( prefixdir : path, cc : string, version : string, dist : bool, post :
     ()
   }
 
-  if (dist) {
+  if (dist) then {
     println("distribution bundle created.")
     println("  bundle : " ++ tarname)
     println("  cc     : " ++ cc ++ (if (cc=="clang-cl") then ", cl" else ""))
@@ -179,7 +179,7 @@ fun koka-exe-path(exe-opt : string, sysghc : bool) : io (path,string) {
   val bin      = info.lines.filter(fn(s){ s.starts-with("bin ").bool }).head.unjust
   val fpath    = bin.find(": ").unjust.after.string.trim / "koka"  
   val koka-exe = if (fpath.is-file) then fpath else fpath.change-ext(".exe")
-  if (!koka-exe.is-file) throw("unable to find koka executable: use '> stack build' first.\n  (" ++ koka-exe.string ++ ")")
+  if (!koka-exe.is-file) then throw("unable to find koka executable: use '> stack build' first.\n  (" ++ koka-exe.string ++ ")")
   (koka-exe, koka-run)
 }
 
@@ -253,9 +253,9 @@ fun build-libraries(cc : string, variant : variant, version : string, dist : boo
   val cmd  = [koka-run, "--cc=" ++ cc, "--builddir=" ++ builddir.show, extra, prog].join(" ")
   println("> "  ++ cmd)
   val code = run-system( cmd )
-  if (code != 0) throw("error: " ++ code.show)
+  if (code != 0) then throw("error: " ++ code.show)
 
-  if (dist && cc=="clang-cl") {
+  if (dist && cc=="clang-cl") then {
     // also generate cl binaries on windows
     val clbuilddir = get-build-dir("cl", variant, version)
     val clcmd  = [koka-run, "--cc=cl", "--builddir=" ++ clbuilddir.show, extra, prog].join(" ")
