@@ -1372,7 +1372,7 @@ localUsingDecl
 withstat :: LexParser (UserExpr -> UserExpr)
 withstat
   = do krng <- keyword "with"
-       (do (par, transform) <- try $ parameter False <* keyword "="
+       (do (par, transform) <- try $ parameter False <* (keyword "=" <|> keyword "<-")
            e <- basicexpr <|> handlerExprStat krng HandlerInstance
            pure $ applyToContinuation krng [promoteValueBinder par] $ transform e
         <|>
