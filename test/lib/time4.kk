@@ -21,7 +21,7 @@ fun check(name : string, res : string, tst : () -> utc string ) : <io,utc> () {
   val got = tst()
   println(name ++ ": " ++ (if (got == res) then "ok: " ++ res
                          else "failed!:\n expect: " ++ res ++ "\n gotten: " ++ got))
-  if (got!=res) throw("FAILED")
+  if (got!=res) then throw("FAILED")
 }
 
 fun test-week-dates() {

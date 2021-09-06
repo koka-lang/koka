@@ -15,40 +15,39 @@
 */
 module heap
 
-scoped effect heap<s::S> {
+scoped effect heap<s::S> 
   control new-ref(init:a) : ref<s,a>
-}
 
-named effect ref<s::S,a::V> in heap<s> {  // named under umbrella effect `:heap`
+
+named effect ref<s::S,a::V> in heap<s>    // named under umbrella effect `:heap`
   fun get() : a                           // `:(ref<s,a>)   -> <heap<s>,pure> a`
   fun set( value : a ) : ()               // `:(ref<s,a>,a) -> <heap<s>,pure> ()`
-}
+
 
 // private (named) handler instance for a reference
-fun with-ref(init,action) {
+fun with-ref(init,action) 
   var s := init
-  with r = named handler {
-    fun get() { s }
-    fun set(x){ s := x }
-  }
+  with r = named handler 
+    fun get() { s  }
+    fun set(x){ s := x }  
   action(r)
-}
+
 
 // handler for a local heap
-fun heap(action : forall<s> () -> <heap<s>,div|e> a) : <div|e> a {  // required rank-2 signature
+fun heap(action : forall<s> () -> <heap<s>,div|e> a) : <div|e> a   // required rank-2 signature
   with control new-ref(init){ with-ref(init,resume) }
   action()
-}
+
 
 // return a fresh reference from a function
-fun dynamic-ref(init) {
+fun dynamic-ref(init)
   val x = new-ref(init)
   x
-}
 
-public fun main() {
+
+public fun main()
   with heap
   val r1 = new-ref(41)
   val r2 = dynamic-ref(True)
-  println( r1.get() + (if (r2.get()) then 1 else 0) )
-}
+  println( r1.get() + (if r2.get() then 1 else 0) ) 
+

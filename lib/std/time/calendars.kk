@@ -343,14 +343,11 @@ fun julian-estimate-year( days : int ) : (int,maybe<int>) {
 // The calendar short name is ``JG``.
 public val cal-jg = julian-gregorian()
 
-public fun julian-gregorian( switch-date: date = Date(1582,10,15) ) : calendar {
-  fun showera( d:date ) {
-    if (d < switch-date) {
-      if (d.year >= 1500) then "CE (O.S.)" else (cal-julian.show-era)(d)
-    }
-    else {
+public fun julian-gregorian( switch-date: date = Date(1582,10,15) ) : calendar 
+  fun showera( d:date )  
+    if d < switch-date then
+      if d.year >= 1500 then "CE (O.S.)" else (cal-julian.show-era)(d)
+    else 
       if (d.year <= 1926) then "CE (N.S.)" else (cal-gregorian.show-era)(d)
-    }
-  }
   combine-earth-calendars( "JG", "Julian-Gregorian", switch-date, cal-julian, cal-gregorian, Just(showera) )
-}
+

@@ -1117,18 +1117,16 @@ public fun logaddexp2( x : ddouble, y : ddouble ) : ddouble {
 // Return if two `:ddouble`s are nearly equal with respect to some `epsilon` (=`8*dd-epsilon`).
 // The epsilon is the nearest difference for numbers around 1.0. The routine automatically
 // scales the epsilon for larger and smaller numbers, and for numbers close to zero.
-public fun nearly-eq( x : ddouble, y : ddouble, epsilon : ddouble = dd-epsilon8 ) : bool {
+public fun nearly-eq( x : ddouble, y : ddouble, epsilon : ddouble = dd-epsilon8 ) : bool 
   if (x == y) return True
   val diff = (x - y).abs
-  if (x.is-zero || y.is-zero || diff < dd-min) {
+  if x.is-zero || y.is-zero || diff < dd-min then
     // very close to zero, scale the epsilon for subnormal numbers
     (two*diff < (epsilon * dd-min))
-  }
-  else {
+  else 
     val sum = x.abs + y.abs
     ((two*diff / (if (sum > dd-max) then dd-max else sum)) < epsilon)
-  }
-}
+
 
 // Return if two `:ddouble`s are nearly equal with respect to an `epsilon` of `10*dd-epsilon`.
 // See also `nearly-eq` which takes an explicit `epsilon`.
@@ -1339,31 +1337,26 @@ public fun atan( x : ddouble ) : ddouble {
 }
 
 // The arc-tangent of a point (`x`,`y`). Returns the angle with respect to the x-axis in radians between -&pi; and &pi;.
-public fun atan2( y : ddouble, x : ddouble ) : ddouble {
-  if (x.is-zero) {
-    if (y.is-zero) then zero /* dd-nan */ else dd-pi2.with-sign-of(y)
-  }
-  elif (y.is-zero) then {
-    if (x.is-pos) then zero else dd-pi
-  }
-  elif (x == y) then {
-    if (y.is-pos) then dd-pi4 else ~dd-pi34
-  }
-  elif (x == ~y) then {
-    if (y.is-pos) then dd-pi34 else ~dd-pi4
-  }
-  else {
+public fun atan2( y : ddouble, x : ddouble ) : ddouble 
+  if x.is-zero then
+    if y.is-zero then zero /* dd-nan */ else dd-pi2.with-sign-of(y)
+  elif y.is-zero then 
+    if x.is-pos then zero else dd-pi
+  elif x == y then 
+    if y.is-pos then dd-pi4 else ~dd-pi34
+  elif x == ~y then {
+    if y.is-pos then dd-pi34 else ~dd-pi4
+  else 
     val r = sqrt( x.sqr + y.sqr )
     val xr = x / r
     val yr = y / r
 
     val z = atan2( y.double, x.double ).ddouble // approximation
     val (sinz,cosz) = sincos(z)
-    if (xr.hi.abs > yr.abs.hi)
+    if xr.hi.abs > yr.abs.hi 
      then z + ((yr - sinz) / cosz)
      else z - ((xr - cosz) / sinz)
-  }
-}
+  
 
 // The hyperbolic sine of `x`.
 public fun sinh( x : ddouble ) : ddouble {

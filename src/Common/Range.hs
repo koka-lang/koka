@@ -111,27 +111,29 @@ extractLiterate input
   where
     scan skipping input
       = if (B.null input) then [] else
-        let (line,rest) = BC.span (/='\n') input            
-            (qs,cs) = BC.span(=='`') $ BC.dropWhile (==' ') line 
+        let (line,rest) = BC.span (/='\n') input
+            (indent,iline) = BC.span (==' ') line           
+            (qs,cs) = BC.span(=='`') iline
             isQ3    = B.length qs == 3
         in if isQ3 && not skipping && (BC.all isWhite cs || startsWith cs "koka")
-            then BC.pack "\n" : scanCode [] (safeTail rest)
+            then BC.pack "\n" : scanCode (BC.length indent) [] (safeTail rest)
             else BC.pack "//" : line : BC.pack "\n" : 
                   scan (if (isQ3) then not skipping else skipping) (safeTail rest)
 
-    scanCode acc input
+    scanCode :: Int -> [BString] -> BString -> [BString]
+    scanCode indent acc input
       = if (B.null input) then [] else
         let (line,rest) = BC.span (/='\n') input
-            wline   = BC.dropWhile (==' ') line 
-            (qs,cs) = BC.span(=='`') wline
+            (ind,iline) = BC.span (==' ') line 
+            (qs,cs) = BC.span(=='`') iline
         in if (B.length qs == 3 && BC.all isWhite cs) 
             then map (\ln -> BC.snoc ln '\n') (reverse (BC.empty : acc)) ++ scan False (safeTail rest)
             else if startsWith cs "////"
-             then scanCode (BC.empty : map (const BC.empty) acc) (safeTail rest)
+             then scanCode indent (BC.empty : map (const BC.empty) acc) (safeTail rest)
             -- if (B.length qs == 1 && BC.all isWhite cs) 
              -- then BC.pack "\n" : scan (safeTail rest)
              -- else 
-             else scanCode (line : acc) (safeTail rest)
+             else scanCode indent (BC.drop indent line : acc) (safeTail rest)
 
     safeTail bstr
       = if (B.null bstr) then B.empty else B.tail bstr    
