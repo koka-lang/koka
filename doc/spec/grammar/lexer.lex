@@ -199,6 +199,7 @@ unsafe                    { return UNSAFE; }
 =                         { return '=';    }
 \.                        { return '.';    }
 \-\>                      { return RARROW; }
+\<\-                      { return LARROW; }
 
   /* special operators and identifiers (not reserved but have special meaning in certain contexts) */
 :=                        { return ASSIGN; }
@@ -239,6 +240,7 @@ c                         { return ID_C;       }
   \>{AngleBar}+            { yyless(1); return '>'; }
   \|{Angle}{Symbol}*       { yyless(1); return '|'; }
   \-\>\<{Symbol}*          { yyless(2); return RARROW; }
+  \<\-\<{Symbol}*          { yyless(2); return LARROW; }
   \:\?{Symbol}*            { yyless(1); return ':'; }
   */
 
@@ -482,7 +484,7 @@ static bool isAppToken( Token token ) {
 
 
 #ifdef INDENT_LAYOUT
-  static Token continuationTokens[] = { ')', '>', ']', ',', '{', '}', '|', ':', '.', '=', ASSIGN, OP, THEN, ELSE, ELIF, RARROW, 0 };
+  static Token continuationTokens[] = { ')', '>', ']', ',', '{', '}', '|', ':', '.', '=', ASSIGN, OP, THEN, ELSE, ELIF, RARROW, LARROW, 0 };
                                       // { THEN, ELSE, ELIF, ')', ']', '{', 0 };
 
   static bool continuationToken( Token token ) {

@@ -258,7 +258,7 @@ std/core/(&)
 {.grammar .lex}
 
 
-## Layout  {#sec:layout}
+## Layout  {#sec-layout}
 
 [Haskell]: http://www.haskell.org/onlinereport/haskell2010/haskellch10.html#x17-17800010.3  
 [Python]: http://docs.python.org/2/reference/lexical_analysis.html

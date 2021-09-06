@@ -54,7 +54,7 @@ void printDecl( const char* sort, const char* name );
 %token IF THEN ELSE ELIF
 %token WITH IN
 %token MATCH
-%token RARROW
+%token RARROW LARROW
 
 %token FUN FN VAL VAR CONTROL RCONTROL EXCEPT
 %token TYPE STRUCT EFFECT
@@ -719,8 +719,11 @@ witheff     : '<' anntype '>'
             ;
 
 withstat    : WITH basicexpr
-            | WITH binder '=' basicexpr
             | WITH override witheff opclauses    /* shorthand for handler */
+            | WITH binder LARROW basicexpr
+            | WITH binder LARROW witheff opclauses  /* shorthand for named handler */
+            /* deprecated: */
+            | WITH binder '=' basicexpr
             | WITH binder '=' witheff opclauses  /* shorthand for named handler */
             ;
 

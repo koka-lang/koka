@@ -27,14 +27,18 @@ brace syntax.
 
 As usual, we start with the familiar _Hello world_ program:<span id=`examplemain`></span>
 ```
+fun main()
+  println("Hello world!") // println output
+```
+Functions are declared using the `fun` keyword (and anonymous functions with `fn`).
+Due to [brace elision][#sec-layout], any indented blocks implicitly get curly braces, 
+and the example can also be written as:
+```unchecked
 fun main() {
   println("Hello world!") // println output
 }
 ```
-&koka; uses familiar curly-braces syntax where `//` starts a line
-comment. Functions are declared using the `fun` keyword (and anonymous functions with `fn`).
-
-Here is another short example program that encodes a string using the
+using explicit braces. Here is another short example program that encodes a string using the
 _Caesar cipher_, where each lower-case letter in a string is replaced by the letter
 three places up in the alphabet:
 
@@ -42,19 +46,15 @@ three places up in the alphabet:
 fun main() { println(caesar("koka is fun")) }
 ////
 fun encode( s : string, shift : int )
-{
-  fun encode-char(c) {
-    if (c < 'a' || c > 'z') return c
+  fun encode-char(c) 
+    if c < 'a' || c > 'z' then return c
     val base = (c - 'a').int
     val rot  = (base + shift) % 26
-    (rot.char + 'a')
-  }
+    (rot.char + 'a')  
   s.map(encode-char)
-}
 
-fun caesar( s : string ) : string {
+fun caesar( s : string ) : string 
   s.encode( 3 )
-}
 ```
 
 In this example, we declare a local function `encode-char` which encodes a
@@ -76,7 +76,8 @@ are equivalent). The dot notation is intu&iuml;tive and quite convenient to
 chain multiple calls together, as in:
 
 ```
-fun showit( s : string ) { s.encode(3).count.println }
+fun showit( s : string ) 
+  s.encode(3).count.println
 ```
 
 for example (where the body desugars as `println(length(encode(s,3)))`). An
@@ -113,14 +114,12 @@ the `map` function as a function expression:
 
 ```
 fun encode2( s : string, shift : int )
-{
-  s.map( fn(c) {
-    if (c < 'a' || c > 'z') return c
+  s.map( fn(c){
+    if c < 'a' || c > 'z' then return c
     val base = (c - 'a').int
     val rot  = (base + shift) % 26
     (rot.char + 'a')
-  });
-}
+  } )
 ```
 
 It is a bit annoying we had to put the final right-parenthesis after the last
@@ -133,11 +132,9 @@ For example, here is how we can print the numbers
 fun main() { print10() }
 ////
 fun print10()
-{
   for(1,10) fn(i) {
-    println(i)
+    println(i)  
   }
-}
 ```
 
 which is desugared to `for( 1, 10, fn(i){ println(i) } )`. (In fact, since we
@@ -152,11 +149,9 @@ the `repeat` function:
 fun main() { printhi10() }
 ////
 fun printhi10()
-{
   repeat(10) {
-    println("hi")
+    println("hi")  
   }
-}
 ```
 
 where the body desugars to `repeat( 10, fn(){println(``hi``)} )`. The is
@@ -166,13 +161,12 @@ control flow construct but just a regular function:
 ```
 fun main() { print11() }
 ////
-fun print11() {
+fun print11()
   var i := 10
   while { i >= 0 } {
     println(i)
     i := i - 1
   }
-}
 ```
 
 Note how the first argument to `while` is in braces instead of the usual
@@ -180,6 +174,20 @@ parenthesis. In &koka;, an expression between _parenthesis_ is always evaluated
 before a function call, whereas an expression between _braces_ (ah,
 _suspenders_!) is suspended and may be never evaluated or more than once
 (as in our example). 
+
+Of course, all the previous three can also use identation and elide
+the brace (see Section [#sec-layout]). For example:
+```unchecked
+fun printhi10()
+  repeat(10)
+    println("hi")
+
+fun print11()
+  var i := 10
+  while { i >= 0 }
+    println(i)
+    i := i - 1  
+```
 
 
 ### With Statements { #sec-with; }

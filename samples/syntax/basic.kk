@@ -27,7 +27,7 @@ fun test2()
   list(1,5).map( fn(i){ println(i) } )
 
 
-// `fn` function arguments can be put outside the parenthesis following the call:
+// `fn` anonymous function arguments can be put outside the parenthesis following the call:
 // `f(e1,...,eN) fn(x){ ... }  ~>  f(e1,...,eN, fn(x){ ... })`
 // This is also called _trailing lambdas_ (and Koka was the first language to have this)
 fun test3() 
@@ -52,11 +52,17 @@ private fun twice(f)
   f()
 
 
+// Use an anonymous function without arguments
 fun test4() 
   twice{ println("hi") }
   // == twice( fn(){ println("hi" ) } )
-  // == twice 
-  //      println("hi")
+
+
+// Or with indentation:  
+fun test4a()
+  twice
+    println("hi")  
+
 
 // This syntax enable many control-flow operations to be defined as functions,
 // like `while`:
@@ -66,6 +72,7 @@ fun test5()
     i := i + 1
     println(i)
   }
+
 
 // The indentation rule again can be used here as well:
 fun test5a()
