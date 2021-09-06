@@ -239,6 +239,8 @@ supbEffect eff1 eff2 =
     mergeLabs :: [Tau] -> [Tau] -> [Tau]
     mergeLabs [] labs = labs
     mergeLabs labs [] = labs
+    -- It is ok to use `compareLabel`, because
+    --   if l1 `compareLabel` l2 then (l1 equal l2 including the argument, since the expr type check) 
     mergeLabs labs1@(l1:ls1) labs2@(l2:ls2) = case l1 `compareLabel` l2 of
       EQ -> l1:mergeLabs ls1 ls2
       LT -> l1:mergeLabs ls1 labs2
