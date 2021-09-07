@@ -105,7 +105,8 @@ fltExpr expr maybeEff
                          return tp
 
     Lam args eff body
-      -> do  -- traceDoc $ \env -> text "lambda:" <+> niceType env eff
+      -> do   
+            traceDoc $ \env -> text "lambda:" <+> niceType env eff
             (body', rq) <- fltExpr body $ Just eff
             let rqSup = supb (Eff eff) rq
             if matchRq rqSup $ Eff eff then return ()
