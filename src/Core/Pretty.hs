@@ -232,10 +232,10 @@ prettyInlineDef env isRec def@(Def name scheme expr vis sort inl nameRng doc)
 -}
 
 prettyInlineDef :: Env ->  InlineDef -> Doc
-prettyInlineDef env (InlineDef name expr isRec cost specArgs)
+prettyInlineDef env (InlineDef name expr isRec inlkind cost specArgs)
   =     (if isRec then (keyword env "recursive ") else empty)
     <.> (if (null specArgs) then empty else (keyword env "specialize " <.> prettySpecArgs <.> text " "))
-    <.> (if (cost <= 0) then (keyword env "inline ") else empty)
+    <.> (if (cost <= 0 || inlkind == InlineAlways) then (keyword env "inline ") else empty)
     <.> keyword env (if isFun then "fun" else "val")
     <+> (if nameIsNil name then text "_" else prettyDefName env name)
     -- <+> text ":" <+> prettyType env scheme
@@ -298,7 +298,7 @@ prettyExpr :: Env -> Expr -> Doc
 prettyExpr env lam@(Lam tnames eff expr)
   = pparens (prec env) precArrow $
     keyword env "fn" <.>
-      (if isTypeTotal eff then empty else text "<" <.> prettyType env' eff <.> text ">") <.>
+      (if isTypeTotal eff then empty else color (colorType (colors env)) (text "<" <.> prettyType env' eff <.> text ">")) <.>
       tupled [prettyTName env' tname | tname <- tnames] <.> text "{" <-->
       tab (prettyExpr env expr <.> semi) <-->
       text "}"
@@ -350,7 +350,7 @@ prettyExpr env (Lit lit)
 prettyExpr env (Let ([DefNonRec (Def x tp e vis isVal inl nameRng doc)]) e')
   = vcat [ let exprDoc = prettyExpr env e <.> semi
            in if (nameIsNil x) then exprDoc
-               else (text "val" <+> hang 2 (prettyDefName env x <+> text ":" <+> prettyType env tp <-> text "=" <+> exprDoc))
+               else (keyword env "val" <+> hang 2 (prettyDefName env x <+> text ":" <+> prettyType env tp <-> text "=" <+> exprDoc))
          , prettyExpr env e'
          ]
 prettyExpr env (Let defGroups expr)
@@ -362,7 +362,7 @@ prettyExpr env (Let defGroups expr)
 -- Case expressions
 prettyExpr env (Case exprs branches)
   = pparens (prec env) precTop $
-    text "match" <+> tupled (map (prettyExpr env{ prec = precAtom }) exprs) <+> text "{" <-->
+    keyword env "match" <+> tupled (map (prettyExpr env{ prec = precAtom }) exprs) <+> text "{" <-->
     tab (prettyBranches env branches) <--> text "}"
 
 prettyVar env tname
@@ -465,7 +465,10 @@ prettyTName env (TName name tp)
 
 prettyName :: Env -> Name -> Doc
 prettyName env name
-  = color (colorSource (colors env)) $ pretty name
+  = if (isQualified name) 
+      then color (colorNameQual (colors env)) (text (nameModule name ++ "/")) <.> 
+           color (colorSource (colors env)) (pretty (unqualify name)) 
+      else color (colorSource (colors env)) $ pretty name
   {-
     let (nm,post) = canonicalSplit name
     in if (post=="") then pretty name else pretty nm <.> text post

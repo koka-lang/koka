@@ -1,6 +1,6 @@
 fun gcd( x : int, y : int ) {
-  if (x>y) gcd(x - y, y)
-  elif (x<y) gcd(x,y - x)
+  if (x>y) then gcd(x - y, y)
+  elif (x < y) then gcd(x,y - x)
   else x
 }
 

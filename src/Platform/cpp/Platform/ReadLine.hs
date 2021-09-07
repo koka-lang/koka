@@ -15,25 +15,32 @@ module Platform.ReadLine( withReadLine, readLine, readLineEx, addHistory
                         ) where
 
 
-import Data.Char( isSpace )
+import Data.Char( isSpace, isAlphaNum )
 import System.IO
 import Control.Exception
+import Common.ColorScheme
 
-#if (READLINE==2)
+#if (READLINE==1)
+-- readline
 import qualified System.Console.Readline as R
-#elif (READLINE==1)
--- nothing
-#else
+#elif (READLINE==2)
+-- getline
+#elif (READLINE==3)
+-- haskeline
 import qualified System.Console.Haskeline as R
 import qualified System.Console.Haskeline.History as H
 import qualified System.Console.Haskeline.Completion as C
 import Platform.Runtime( unsafePerformIO )
 import Data.IORef
+#else 
+-- 0: repline
+import System.Console.Isocline as Isocline
+import Syntax.Highlight( highlightInput )
 #endif
 
 withReadLine :: FilePath -> IO a -> IO a
-readLine     :: [FilePath] -> [String] -> String -> IO (Maybe String)
-readLineEx   :: [FilePath] -> [String] -> String -> IO () -> IO (Maybe String)
+-- readLine     :: ColorScheme -> [FilePath] -> [String] -> [(String,String)] -> String -> IO (Maybe String)
+readLineEx   :: ColorScheme -> [FilePath] -> [String] -> [(String,String)] -> String -> IO () -> IO (Maybe String)
 addHistory   :: String -> IO ()
 
 
@@ -49,7 +56,11 @@ continueLine mbline readLines = do
     Nothing   -> return Nothing
 
 
-#if (READLINE==2)
+-----------------------------------------------------------------------
+-- GNU Readline
+-----------------------------------------------------------------------
+
+#if (READLINE==1)
 
 withReadLine historyFile io
   = do R.initialize
@@ -71,7 +82,10 @@ addHistory line
 readLineEx roots prompt putPrompt
   = readLine roots prompt
 
-#elif (READLINE==1)
+#elif (READLINE==2)
+-----------------------------------------------------------------------
+-- No readline
+-----------------------------------------------------------------------
 
 withReadLine historyFile io
   = io
@@ -91,7 +105,10 @@ readLineEx roots prompt putPrompt
 addHistory line
   = return ()
 
-#else
+#elif (READLINE==3)
+-----------------------------------------------------------------------
+-- Haskeline
+-----------------------------------------------------------------------
 
 vhistory :: IORef H.History
 vhistory = unsafePerformIO $ newIORef H.emptyHistory
@@ -122,7 +139,7 @@ readLineEx roots identifiers prompt putPrompt
   where
     readLines :: Int -> R.InputT IO (Maybe String)
     readLines count
-      = do input <- R.getInputLine (if null prompt && count > 0 then "> " else prompt)
+      = do input <- R.getInputLine prompt
            continueLine input (readLines (count+1))
     
 addHistory line
@@ -159,5 +176,88 @@ startsWith s pre
 
 endsWith s post
   = startsWith (reverse s) (reverse post)
+
+
+#else  
+-- 0
+-----------------------------------------------------------------------
+-- Isocline
+-----------------------------------------------------------------------
+
+addHistory entry
+  = historyAdd entry
+
+withReadLine historyPath io
+  = do let historyFile = if (null historyPath) then "" else (historyPath ++ "/.koka-history")
+       setHistory historyFile 200
+       enableAutoTab True
+       styleDef "ic-bracematch" "ansi-white"
+       io
+
+readLine cscheme roots identifiers options prompt
+  = readLineEx cscheme roots identifiers options prompt (do{ putStr prompt; hFlush stdout})
+
+readLineEx cscheme roots identifiers options prompt putPrompt
+  = do setPromptMarker prompt ""
+       Isocline.readlineExMaybe "" (Just (completer roots identifiers options)) (Just (highlighter cscheme))
+
+    
+completer :: [FilePath] -> [String] -> [(String,String)] -> CompletionEnv -> String -> IO ()
+completer roots identifiers options cenv input
+  = let inputx = dropWhile isSpace input
+    in  if (take 2 inputx `elem` [":l",":f",":e"])
+          then completeModules roots cenv input
+        else if (take 4 inputx `elem` [":set"]) 
+          then completeOptions options cenv input
+          else completeIdentifiers identifiers cenv input
+
+completeModules ::  [FilePath] -> CompletionEnv -> String ->IO ()
+completeModules roots cenv input 
+  = completeFileName cenv input (Just '/') (".":roots) [".kk"]
+
+completeOptions :: [(String,String)] -> CompletionEnv -> String -> IO ()
+completeOptions options cenv input
+  = completeWord cenv input Nothing (completeOptionFlags options)
+
+completeOptionFlags :: [(String,String)] -> String -> [Completion]
+completeOptionFlags flags input
+  = completionsFor input (map fst flags)  -- todo: integrate help
+
+completeIdentifiers ::  [String] -> CompletionEnv -> String -> IO ()
+completeIdentifiers names cenv input 
+  = completeWord cenv input (Just isIdChar) (completeNames names) 
+  where
+    isIdChar :: Char -> Bool
+    isIdChar c = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '-' || c == '_' || (c >= '0' && c <= '9')
+
+completeNames ::  [String] -> String -> [Completion]
+completeNames names input
+  = completionsFor input names
+
+highlighter :: ColorScheme -> String -> Fmt
+highlighter cscheme input
+  = case (span isSpace input) of
+      (prews,':':rest)  
+        -> -- command
+           case (span (\c -> isAlphaNum c || c `elem` "!?") rest) of  -- todo: add highlighting on command options
+             (cmd,args) -> style (styleColor (colorCommand cscheme)) (prews ++ ":" ++ cmd) ++
+                           style (styleColor (colorSource cscheme)) args
+      _ -> -- expression
+           highlightInput cscheme input  
+  where
+    styleColor :: Color -> Style
+    styleColor color
+      = case color of
+          ColorDefault -> ""
+          _            -> "ansi-color=" ++ show (fromEnum color)
+
+{-
+startsWith, endsWith :: String -> String -> Bool
+startsWith s pre
+  = take (length pre) s == pre
+
+endsWith s post
+  = startsWith (reverse s) (reverse post)
+-}
 
 #endif

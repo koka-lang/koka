@@ -10,5 +10,5 @@ public fun test(xs : list<int>, y : int) {
 }
 
 public fun main() {
-  test(list(1,10), 5).show.println
+  list(1,10).test(5).show.println
 }

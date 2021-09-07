@@ -18,18 +18,23 @@ module syntax/with
    ````
 */
 
-fun twice(f) {
+fun twice(f) 
   f()
   f()
-}
 
-public fun test1() {
+
+public fun test1() 
   with twice
   with twice
   println("hi")
-}
 
-fun test1-expanded() {
+
+fun test1-expanded()
+  twice
+    twice
+      println("hi")
+
+fun test1-fully-expanded() 
   twice( fn(){
     twice( fn(){
       println("hi")
@@ -48,37 +53,36 @@ fun test1-expanded() {
     ````
 */
 
-public fun test2() {
+public fun test2()
   with x = list(1,10).map
   println(x)
-}
 
-fun test2-expanded() {
+
+fun test2-expanded()
   list(1,10).map( fn(x) {
     println(x)
   })
-}
+
 
 /* Of course, we can use `with` with a `handler` expression */
 
 // a dynamically bound value `ask`
 effect val ask : int
 
-fun use-ask() {
+fun ask-twice() 
   ask + ask
-}
 
 
-public fun test3() {
+public fun test3() 
   with handler{ val ask = 21 }
-  println(use-ask())
-}
+  println(ask-twice())
 
-fun test3-expanded() {
+
+fun test3-expanded() 
   (handler{ val ask = 21 }) (fn(){
-    println(use-ask())
+    println(ask-twice())
   })
-}
+
 
 
 /* To make a `with` statement more convenient with handlers
@@ -94,20 +98,19 @@ fun test3-expanded() {
    ````
 */
 
-public fun test4() {
+public fun test4() 
   with val ask = 21
-  println(use-ask())
-}
+  println(ask-twice())
 
-fun test4-expanded() {
+
+fun test4-expanded()
   (handler{ val ask = 21 }) (fn(){
-    println(use-ask())
+    println(ask-twice())
   })
-}
 
-public fun main() {
+public fun main() 
   test1()
   test2()
   test3()
   test4()
-}
+

@@ -1,13 +1,13 @@
 module collatz
 
 fun collatz(n : int, steps : int = 0) : div maybe<int> {
-  if (n == 1) {
+  if (n == 1) then {
     Just(steps)
   }
-  elif (n.is-even) {
+  elif (n.is-even) then {
     collatz(n/2, steps+1)
   } 
-  elif (n+1 > 1000000000) {
+  elif (n+1 > 1000000000) then {
     Nothing
   }
   else {

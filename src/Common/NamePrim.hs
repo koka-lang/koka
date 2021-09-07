@@ -17,6 +17,8 @@ module Common.NamePrim
           , nameSystemCore, nameCoreTypes
           , isSystemCoreName
           , isPrimitiveModule -- no monadic lifting
+          , nameCoreHnd
+          , isPrimitiveName   
           , nameOpExpr
 
           -- * Operations
@@ -31,7 +33,6 @@ module Common.NamePrim
           , nameReturn, nameTrace, nameLog, namePhantom
           , nameEffectOpen
           , nameToAny
-          , nameEnsureK
           , nameIsValidK
           , nameLift, nameBind, nameBind2
           , nameInject, nameInjectExn, nameInjectResource
@@ -64,6 +65,7 @@ module Common.NamePrim
           , nameTpReuse, nameDropReuse, nameFreeReuse
           , nameReuseNull, nameAssignReuse, nameReuse, nameReuseIsValid
           , nameAllocAt, nameConFieldsAssign
+          , nameKeep
 
           -- * CTail optimization
           , nameTpCField, nameTpCTailAcc
@@ -209,7 +211,7 @@ nameAssert      = preludeName "assert"
 nameTpCps       = preludeName "cps"
 nameInCps       = preludeName "incps"
 nameTpCont      = preludeName "cont"
-nameEnsureK     = preludeName "ensureK"
+
 nameTpAsync     = qualify (newName "std/async") (newName "async")
 nameTpAsyncX    = qualify (newName "std/async") (newName "asyncx")
 
@@ -297,7 +299,7 @@ nameYielding    = coreHndName "yielding"
 nameYieldExtend = coreHndName "yield-extend"
 nameBind        = coreHndName "yield-bind" -- preludeName "bind"
 nameBind2       = coreHndName "yield-bind2"
-nameEffectOpen  = coreHndName ".open" -- preludeName ".open"
+nameEffectOpen  = coreTypesName ".open" -- preludeName ".open"
 
 nameInitially   = coreHndName "initially"
 nameFinally     = coreHndName "finally"
@@ -412,6 +414,7 @@ nameAssignReuse = coreTypesName ".assign-reuse"
 nameReuse       = coreTypesName ".reuse"
 nameReuseIsValid= coreTypesName ".reuse-is-valid"
 nameConFieldsAssign = coreTypesName ".con-fields-assign"
+nameKeep        = coreTypesName "keep"
 
 nameDup         = coreTypesName ".dup"
 nameDrop        = coreTypesName ".drop"
@@ -449,6 +452,10 @@ nameDict        = newName "std/data/dict"
 isSystemCoreName name
   = let m = nameModule name
     in  m `elem` [nameId nameSystemCore, nameId nameCoreHnd, nameId nameCoreTypes]
+
+isPrimitiveName name
+  = let m = nameModule name
+    in  m `elem` [nameId nameCoreHnd, nameId nameCoreTypes]
 
 isPrimitiveModule name
   = nameId name `elem` [nameId nameCoreHnd, nameId nameCoreTypes]

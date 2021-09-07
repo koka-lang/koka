@@ -116,28 +116,28 @@ private extern make-neginf() : double {
 
 
 // Is this value equal to NaN ?
-inline extern is-nan : (double) -> bool {
+inline extern is-nan(d:double) : bool {
   c  inline "isnan(#1)"
   cs "double.IsNaN"
   js "isNaN"
 }
 
 // Is this value equal to negative or positive infinity ?
-extern is-inf : (double) -> bool {
+extern is-inf(d:double) : bool {
   c  inline "isinf(#1)"
   cs "double.IsInfinity"
   js inline "((#1) === Infinity || (#1) === -Infinity)"
 }
 
 // Is this value equal to positive infinity ?
-inline extern is-posinf : (double) -> bool {
+inline extern is-posinf(d:double) : bool {
   c  inline "(isinf(#1) && !signbit(#1))"
   cs "double.IsPositiveInfinity"
   js inline "((#1) === Infinity)"
 }
 
 // Is this value equal to negative infinity ?
-inline extern is-neginf : (double) -> bool {
+inline extern is-neginf(d:double) : bool {
   c inline "(isinf(#1) && signbit(#1))"
   cs "double.IsNegativeInfinity"
   js inline "((#1) === -Infinity)"
@@ -169,14 +169,14 @@ fun is-subnormal( d :double ) : bool  {
 
 // Round a double to its nearest integral value.
 // If the value is halfway between two integers, the value is rounded to the even one.
-inline extern round : (d:double) -> double {
+inline extern round(d:double) : double {
   c  "round"              // assume the rounding mode is set correctly by kklib
   cs "Math.Round"
   js "$std_core._double_round"
 }
 
 // Return the largest integer equal or less than `d`
-inline extern floor : (d:double) -> double {
+inline extern floor(d:double) : double {
   c  "floor"
   cs "Math.Floor"
   js "Math.floor"
@@ -236,7 +236,7 @@ extern fmadd( x : double, y : double, z : double ) : double {
 // Return the square root of a value `d`
 // Returns `nan` if `d == nan`  or if `d`  is negative.
 // Returns `inf` if `d == inf` .
-inline extern sqrt : (d:double) -> double {
+inline extern sqrt(d:double) : double {
   c  "sqrt"
   cs "Math.Sqrt"
   js "Math.sqrt"
@@ -244,14 +244,14 @@ inline extern sqrt : (d:double) -> double {
 
 
 // Return the `d` raised to the power of `p`.
-inline extern pow : (d:double, p:double) -> double  {
+inline extern pow(d:double, p:double) : double  {
   c  "pow"
   cs "Math.Pow"
   js "Math.pow"
 }
 
 // Return the natural logarithm (in base _e_)  of a `:double` `d`
-inline extern log : (d:double) -> double  {
+inline extern log(d:double) : double  {
   c  "log"
   cs "Math.Log"
   js "Math.log"
@@ -307,7 +307,7 @@ fun logaddexp( x : double, y : double ) : double {
 fun logaddexp2( x : double, y : double ) : double {
   if (x==y) then x + 1.0 else {
     val z = x - y
-    if (z > 0.0)  then x + log2p1(exp2(~z))
+    if (z > 0.0) then x + log2p1(exp2(~z))
       else y + log2p1(exp2(z))
   }
 }
@@ -315,18 +315,16 @@ fun logaddexp2( x : double, y : double ) : double {
 // Return if two doubles are nearly equal with respect to some `epsilon` (=`8*dbl-epsilon`).
 // The epsilon is the nearest difference for numbers around 1.0. The routine automatically
 // scales the epsilon for larger and smaller numbers, and for subnormal numbers.
-fun nearly-eq( x : double, y : double, epsilon : double = 8.0*dbl-epsilon ) : bool {
+fun nearly-eq( x : double, y : double, epsilon : double = 8.0*dbl-epsilon ) : bool 
   if (x == y) return True
   val diff = (x - y).abs
-  if (x==0.0 || y==0.0 || diff < dbl-min) {
+  if x==0.0 || y==0.0 || diff < dbl-min then
     // very close to zero, scale the epsilon for denormalized numbers
     (2.0*diff < (epsilon * dbl-min))
-  }
-  else {
+  else 
     val sum = x.abs + y.abs
     ((2.0*diff / (if (sum > dbl-max) then dbl-max else sum)) < epsilon)
-  }
-}
+  
 
 // Return if two doubles are nearly equal with respect to an `epsilon` of `8*dbl-epsilon`.
 // See also `nearly-eq` which takes an explicit `epsilon`.

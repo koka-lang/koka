@@ -163,6 +163,11 @@ tryMatch (expr,pat)
          | vname == pname -> Match [] expr
       (App (Var dname _) [v@(Var vname _)], PatVar pname _)  -- match dup (x == dup(x))
          | getName dname == nameDup && vname == pname -> Match [expr] v
+      (Con cname _, PatCon{patConName,patConPatterns = []}) 
+         | cname == patConName -> Match [] expr
+      (Con cname _, PatVar pname (PatCon{patConName,patConPatterns = []})) 
+         | cname == patConName -> Match [] (Var pname InfoNone)
+      -- (App con@(Con cname repr) args, PatCon{patConName,patConPatterns,patConInfo})
       _ -> NoMatch expr
 
 ruToAssign :: Match -> Reuse ([DefGroup],(Expr,Bool {-is match?-}))
@@ -182,7 +187,7 @@ genReuseIfValid reuseName onValid onInvalid
 
 genReuseIsValid :: TName -> Expr
 genReuseIsValid reuseName
-  = App (Var (TName nameReuseIsValid typeReuseIsValid) (InfoExternal [(C,"#1!=NULL")])) [Var reuseName InfoNone]
+  = App (Var (TName nameReuseIsValid typeReuseIsValid) (InfoExternal [(C,"kk_likely(#1!=NULL)")])) [Var reuseName InfoNone]
   where
     typeReuseIsValid = TFun [(nameNil,typeReuse)] typeTotal typeBool
 

@@ -202,7 +202,7 @@ public inline fun yield-bind2( x : a, extend : a -> e b, next : a -> e b ) : e b
   if (yielding()) then yield-extend(extend) else next(x)
 }
 
-private extern yield-cont(f : (a -> e a, a) -> e r ) : e r {  // make hidden public?
+private extern yield-cont(f : forall<b> (b -> e a, b) -> e r ) : e r {  // make hidden public?
   c  inline "kk_yield_cont(#1,kk_context())"
   js "_yield_cont"
 }
@@ -408,21 +408,17 @@ public fun finally( fin : () -> e (), action : () -> e a ) : e a {
   finally-prompt(fin, action());
 }
 
-private fun finally-prompt(fin : () -> e (), res : a ) : e a {
-  if (!yielding()) {
+private fun finally-prompt(fin : () -> e (), res : a ) : e a 
+  if !yielding() then 
     fin()
     res
-  }
-  else if (yielding-non-final()) {
+  elif yielding-non-final() then 
     yield-cont(fn(cont,x){ finally-prompt(unsafe-decreasing(fin),cont(x)) })
-  }
-  else {
+  else 
     val yld = yield-capture()
     fin()
-    if (yielding()) return yield-extend( fn(_x){ unsafe-reyield(yld) } )
+    if yielding() return yield-extend( fn(_x){ unsafe-reyield(yld) } )
     unsafe-reyield(yld)
-  }
-}
 
 private fun finalize(cont : (() -> b) -> e r, res : a) : e a {
   val m : marker<_e,_r> = fresh-marker()
@@ -451,7 +447,7 @@ private inline extern eq(x : int, y : int) : bool  {
 
 public fun initially(init : (int) -> e (), action : () -> e a ) : e a {
   init(0)
-  if (yielding()) return yield-extend(fn(_ret){ initially-prompt(init,action()) })
+  if (yielding()) return yield-extend(fn(_ret:()){ initially-prompt(init,action()) })
   initially-prompt(init, action() )
 }
 
@@ -480,11 +476,11 @@ private fun initially-prompt( init : (int) -> e (), res : a ) : e a {
 
 abstract struct resume-context<b,e::E,e0::E,r>( k : resume-result<b,r> -> e r )
 
-public fun resume( r : resume-context<b,e,e0,r>, x : b ) : e r {
+public noinline fun resume( r : resume-context<b,e,e0,r>, x : b ) : e r {
   (r.k)(Deep(x))
 }
 
-public fun resume-shallow( r : resume-context<b,e,e0,r>, x : b ) : e0 r {
+public noinline fun resume-shallow( r : resume-context<b,e,e0,r>, x : b ) : e0 r {
   cast-ev1(r.k)(Shallow(x))
 }
 
@@ -498,7 +494,7 @@ public fun finalize( r : resume-context<b,e,e0,r>, x : r ) : e r {
 // Clauses
 // -------------------------------------------
 
-abstract type clause1<a,b,h,e,r> {
+abstract type clause1<a,b,h,e::E,r> {
   Clause1( clause: (marker<e,r>, ev<h>, a) -> e b )
 }
 
@@ -506,7 +502,7 @@ private inline extern cast-ev0( f : (marker<e1,r>,ev<h>) -> e1 b) : e ((marker<e
 private inline extern cast-ev1( f : (marker<e1,r>,ev<h>,a) -> e1 b) : e ((marker<e1,r>,ev<h>,a) -> e b) { inline "#1" }
 private inline extern cast-ev2( f : (marker<e1,r>,ev<h>,a1,a2) -> e1 b) : e ((marker<e1,r>,ev<h>,a1,a2) -> e b) { inline "#1" }
 
-public fun ".perform1"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,h,e1,r>), x : a ) : e b {
+public inline fun ".perform1"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<a,b,h,e1,r>), x : a ) : e b {
   match(ev) {
     Ev(_tag,m,h,_c,_w) -> match(h.op) {
       Clause1(f) -> cast-ev1(f)(m,ev,x)
@@ -520,17 +516,26 @@ private fun evv-swap-with(ev : ev<h>) {
   }
 }
 
-private fun under1( ev : ev<h>, op : a -> e b, x : a ) : e b {
+private inline fun under1( ev : ev<h>, op : a -> e b, x : a ) : e b {
   val w0 = evv-swap-with(ev)
   val y = op(x)
   // evv-set(w0)   // only needed before yielding for evidence expected check in prompt
-  if (yielding()) return yield-cont( fn(cont,res){ under1(unsafe-decreasing(ev),cont,res)} )
+  if (yielding()) return yield-cont( fn(cont,res){ under1x(unsafe-decreasing(ev),cont,res)} )
   evv-set(w0)
   y
 }
 
+// extra under1x to make under1 inlineable
+private noinline fun under1x( ev : ev<h>, op : a -> e b, x : a ) : e b {
+  val w0 = evv-swap-with(ev)
+  val y = op(x)
+  // evv-set(w0)   // only needed before yielding for evidence expected check in prompt
+  if (yielding()) return yield-cont( fn(cont,res){ under1x(unsafe-decreasing(ev),cont,res)} )
+  evv-set(w0)
+  y
+}
 
-public fun clause-control-raw1( op : (x:a, r: resume-context<b,e,e0,r>) -> e r ) : clause1<a,b,h,e,r> {
+public noinline fun clause-control-raw1( op : (x:a, r: resume-context<b,e,e0,r>) -> e r ) : clause1<a,b,h,e,r> {
   Clause1(fn(m,_ev,x){ yield-to(m, fn(k){ op(x,Resume-context(k)) } ) } )
 }
 
@@ -564,19 +569,19 @@ public fun clause-control1( clause : (x:a, k: b -> e r) -> e r ) : clause1<a,b,e
 }
 */
 
-public fun clause-control1( clause : (x:a, k: b -> e r) -> e r ) : clause1<a,b,h,e,r> {
+public noinline fun clause-control1( clause : (x:a, k: b -> e r) -> e r ) : clause1<a,b,h,e,r> {
   Clause1(fn(m,_ev,x){ yield-to(m, fn(k){ protect(x,clause,k) }) })
 }
 
-public fun clause-tail1<e,r,a,b>(op : a -> e b) : clause1<a,b,h,e,r> {
+public noinline fun clause-tail1<e,r,a,b>(op : a -> e b) : clause1<a,b,h,e,r> {
   Clause1(fn(_m,ev,x){ under1(ev,op,x) })
 }
 
-public fun clause-tail-noyield1<e,r,a,b>(op : a -> e b) : clause1<a,b,h,e,r> {
+public noinline fun clause-tail-noyield1<e,r,a,b>(op : a -> e b) : clause1<a,b,h,e,r> {
   Clause1(fn(_m,_ev,x){ op(x) })
 }
 
-public fun clause-never1( op : a -> e r ) : clause1<a,b,h,e,r> {
+public noinline fun clause-never1( op : a -> e r ) : clause1<a,b,h,e,r> {
   Clause1(fn(m,_ev,x){ yield-to-final(m, fn(_k){ op(x) }) })
 }
 
@@ -588,7 +593,7 @@ abstract type clause0<b,h,e,r> {
   Clause0( clause: (marker<e,r>, ev<h>) -> e b )
 }
 
-public fun ".perform0"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause0<b,h,e1,r>) ) : e b {
+public inline fun ".perform0"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause0<b,h,e1,r>) ) : e b {
   match(ev) {
     Ev(_tag,m,h,_c,_w) -> match(h.op) {
       Clause0(f) -> cast-ev0(f)(m,ev)
@@ -596,7 +601,7 @@ public fun ".perform0"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause0<b,h,e1
   }
 }
 
-private fun under0( ev : ev<i>, op : () -> e b) : e b {
+private inline fun under0( ev : ev<i>, op : () -> e b) : e b {
   val w0 = evv-swap-with(ev)
   val y = op()
   // evv-set(w0)   // only needed before yielding for evidence expected check in prompt
@@ -605,7 +610,7 @@ private fun under0( ev : ev<i>, op : () -> e b) : e b {
   y
 }
 
-public fun clause-control-raw0( op : resume-context<b,e,e0,r> -> e r ) : clause0<b,h,e,r> {
+public noinline fun clause-control-raw0( op : resume-context<b,e,e0,r> -> e r ) : clause0<b,h,e,r> {
   Clause0(fn(m,_ev){ yield-to(m, fn(k){ op(Resume-context(k)) } ) })
 }
 
@@ -615,24 +620,24 @@ public fun clause-control0( op : (b -> e r) -> e r ) : clause0<b,e,r> {
 }
 */
 
-public fun clause-control0( op : (b -> e r) -> e r ) : clause0<b,h,e,r> {
+public noinline fun clause-control0( op : (b -> e r) -> e r ) : clause0<b,h,e,r> {
   Clause0(fn(m,_ev){ yield-to(m, fn(k){ protect((),fn(_x,r){ op(r) }, k) }) })
 }
 
 
-public fun clause-tail0<e,r,b>(op : () -> e b) : clause0<b,h,e,r> {
+public noinline fun clause-tail0<e,r,b>(op : () -> e b) : clause0<b,h,e,r> {
   Clause0(fn(_m,ev){ under0(ev,op) })
 }
 
-public fun clause-tail-noyield0<e,r,b>(op : () -> e b) : clause0<b,h,e,r> {
+public noinline fun clause-tail-noyield0<e,r,b>(op : () -> e b) : clause0<b,h,e,r> {
   Clause0(fn(_m,_ev){ op() })
 }
 
-public fun clause-value(v : b) : clause0<b,h,e,r> {
+public noinline fun clause-value(v : b) : clause0<b,h,e,r> {
   Clause0(fn(_m,_ev){ v })
 }
 
-public fun clause-never0( op : () -> e r ) : clause0<b,h,e,r> {
+public noinline fun clause-never0( op : () -> e r ) : clause0<b,h,e,r> {
   Clause0(fn(m,_ev){ yield-to-final(m, fn(_k){ op() }) })
 }
 
@@ -663,24 +668,24 @@ private fun protect( x1 : a1, x2:a2, clause : (x:a1,x:a2, k: b -> e r) -> e r, k
   protect-check(resumed,k,res)
 }
 
-public fun clause-control2( clause : (x1:a1, x2:a2, k: b -> e r) -> e r ) : clause2<a1,a2,b,h,e,r> {
+public noinline fun clause-control2( clause : (x1:a1, x2:a2, k: b -> e r) -> e r ) : clause2<a1,a2,b,h,e,r> {
   Clause2(fn(m,_ev,x1,x2){ yield-to(m, fn(k){ protect(x1,x2,clause,k) }) })
 }
 
 
-public fun clause-control-raw2( op : (x1:a1, x2:a2, r: resume-context<b,e,e0,r>) -> e r ) : clause2<a1,a2,b,h,e,r> {
+public noinline fun clause-control-raw2( op : (x1:a1, x2:a2, r: resume-context<b,e,e0,r>) -> e r ) : clause2<a1,a2,b,h,e,r> {
   Clause2(fn(m,_ev,x1,x2){ yield-to(m, fn(k){ op(x1,x2,Resume-context(k)) } ) })
 }
 
-public fun clause-tail2<e,r,a1,a2,b>(op : (a1,a2) -> e b) : clause2<a1,a2,b,h,e,r> {
+public noinline fun clause-tail2<e,r,a1,a2,b>(op : (a1,a2) -> e b) : clause2<a1,a2,b,h,e,r> {
   Clause2(fn(m,ev,x1,x2){ under2(ev,op,x1,x2) })
 }
 
-public fun clause-tail-noyield2<e,r,a1,a2,b>(op : (a1,a2) -> e b) : clause2<a1,a2,b,h,e,r> {
+public noinline fun clause-tail-noyield2<e,r,a1,a2,b>(op : (a1,a2) -> e b) : clause2<a1,a2,b,h,e,r> {
   Clause2(fn(_m,_ev,x1,x2){ op(x1,x2) })
 }
 
-public fun ".perform2"( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> clause2<a,b,c,h,e1,r>), x : a, y : b ) : e c {
+public inline fun ".perform2"( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> clause2<a,b,c,h,e1,r>), x : a, y : b ) : e c {
   match(evx) {
     Ev(_tag,m,h,_c,_w) -> match(h.op) {
       Clause2(f) -> cast-ev2(f)(m,evx,x,y)
@@ -688,7 +693,7 @@ public fun ".perform2"( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> clause2<a,b,c
   }
 }
 
-public fun clause-never2( op : (a1,a2) -> e r ) : clause2<a1,a2,b,h,e,r> {
+public noinline fun clause-never2( op : (a1,a2) -> e r ) : clause2<a1,a2,b,h,e,r> {
   Clause2(fn(m,_ev,x1,x2){ yield-to-final(m, fn(_k){ op(x1,x2) }) })
 }
 
@@ -764,10 +769,6 @@ private fun under4( ev : ev<h>, op : (a1,a2,a3,a4) -> e b, x1 : a1, x2 : a2, x3 
 // -------------------------------------------
 // Open
 // -------------------------------------------
-// Generated by type inference and later refined into one of the below variants
-public inline extern ".open"<e1,e2,a,b>( x : a ) : e2 b {
-  inline "(#1)"
-}
 
 public fun ".open-none0"<b,e1,e2>( f : () -> e1 b ) : e2 b {
   val w = evv-swap-create0()
@@ -805,7 +806,7 @@ public fun ".open-none4"<a1,a2,a3,a4,b,e1,e2>( f : (a1,a2,a3,a4) -> e1 b, x1 : a
 }
 
 
-private fun open-at1<a,b,e1,e2>( i: ev-index, f : a -> e1 b, x : a ) : e2 b {
+private noinline fun open-at1<a,b,e1,e2>( i: ev-index, f : a -> e1 b, x : a ) : e2 b {
   val w = evv-swap-create1(i)
   val y = cast-ev1(f)(x)
   evv-set(w)
@@ -854,7 +855,7 @@ public fun ".open-at4"<a1,a2,a3,a4,b,e1,e2> ( i: ev-index, f : (a1,a2,a3,a4) -> 
 }
 
 
-private fun open1<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1 b, x : a ) : e2 b {
+private noinline fun open1<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1 b, x : a ) : e2 b {
   val w = evv-swap-create(indices)
   val y = cast-ev1(f)(x)
   evv-set(w)
@@ -863,7 +864,7 @@ private fun open1<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1 b, x : a )
 }
 
 
-public noinline fun ".open0"<b,e1,e2>( indices : vector<ev-index>, f : () -> e1 b ) : e2 b {
+public fun ".open0"<b,e1,e2>( indices : vector<ev-index>, f : () -> e1 b ) : e2 b {
   val w = evv-swap-create(indices)
   val y = cast-ev0(f)()
   evv-set(w)
@@ -871,7 +872,7 @@ public noinline fun ".open0"<b,e1,e2>( indices : vector<ev-index>, f : () -> e1 
   y
 }
 
-public noinline fun ".open1"<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1 b, x : a ) : e2 b {
+public fun ".open1"<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1 b, x : a ) : e2 b {
   val w = evv-swap-create(indices)
   val y = cast-ev1(f)(x)
   evv-set(w)
@@ -879,7 +880,7 @@ public noinline fun ".open1"<a,b,e1,e2>( indices : vector<ev-index>, f : a -> e1
   y
 }
 
-public noinline fun ".open2"<a1,a2,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
+public fun ".open2"<a1,a2,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2) -> e1 b, x1 : a1, x2 : a2 ) : e2 b {
   val w = evv-swap-create(indices)
   val y = cast-ev2(f)(x1,x2)
   evv-set(w)
@@ -887,7 +888,7 @@ public noinline fun ".open2"<a1,a2,b,e1,e2>( indices : vector<ev-index>, f : (a1
   y
 }
 
-public noinline fun ".open3"<a1,a2,a3,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3) -> e1 b, x1 : a1, x2 : a2, x3 : a3 ) : e2 b {
+public fun ".open3"<a1,a2,a3,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3) -> e1 b, x1 : a1, x2 : a2, x3 : a3 ) : e2 b {
   val w = evv-swap-create(indices)
   val y = cast-ev3(f)(x1,x2,x3)
   evv-set(w)
@@ -895,7 +896,7 @@ public noinline fun ".open3"<a1,a2,a3,b,e1,e2>( indices : vector<ev-index>, f : 
   y
 }
 
-public noinline fun ".open4"<a1,a2,a3,a4,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3,a4) -> e1 b, x1 : a1, x2 : a2, x3 : a3, x4 : a4 ) : e2 b {
+public fun ".open4"<a1,a2,a3,a4,b,e1,e2>( indices : vector<ev-index>, f : (a1,a2,a3,a4) -> e1 b, x1 : a1, x2 : a2, x3 : a3, x4 : a4 ) : e2 b {
   val w = evv-swap-create(indices)
   val y = cast-ev4(f)(x1,x2,x3,x4)
   evv-set(w)

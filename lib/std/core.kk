@@ -272,8 +272,8 @@ fun int( x : order ) : int
 
 fun order( i : int ) : order
 {
-  if (i < 0) Lt
-  elif (i > 0) Gt
+  if (i < 0) then Lt
+  elif (i > 0) then Gt
   else Eq
 }
 
@@ -2259,7 +2259,7 @@ private extern show-expx( d : double, prec : int32 ) : string {
 // Show a character as a string
 private fun show-char( c : char ) : string
 {
-  if (c < ' ' || c > '~') {
+  if (c < ' ' || c > '~') then {
     if (c == '\n') then "\\n"
     elif (c == '\r') then "\\r"
     elif (c == '\t') then "\\t"
@@ -2462,7 +2462,7 @@ private extern unsafe-assert-fail( msg : string ) : () {
 }
 
 fun assert( message : string, condition : bool ) : () {  // Compiler removes assert calls in optimized builds
-  if (!condition) unsafe-assert-fail(message)  
+  if (!condition) then unsafe-assert-fail(message)  
 }
 
 
@@ -2745,7 +2745,7 @@ fun unique() : ndet int
 // The `while` fun executes `action`  as long as `pred`  is `true`.
 fun while( predicate : () -> <div|e> bool, action : () -> <div|e> () ) : <div|e> ()
 {
-  if (predicate()) {
+  if (predicate()) then {
     action()
     while(predicate, action)
   }
@@ -2762,7 +2762,7 @@ fun repeat( n : int, action : () -> e () ) : e ()
 fun for( start: int, end : int, action : (int) -> e () ) : e ()
 {
   fun rep( i : int ) {
-    if (i <= end) {
+    if (i <= end) then {
       action(i)
       rep(unsafe-decreasing(i.inc))
     }
@@ -2776,7 +2776,7 @@ fun for( start: int, end : int, action : (int) -> e () ) : e ()
 private fun forz( start: ssize_t, end : ssize_t, action : (ssize_t) -> e () ) : e ()
 {
   fun rep( i : ssize_t ) {
-    if (i <= end) {
+    if (i <= end) then {
       action(i)
       rep(unsafe-decreasing(i.incr))
     }
@@ -2791,7 +2791,7 @@ private fun forz( start: ssize_t, end : ssize_t, action : (ssize_t) -> e () ) : 
 fun for-while( start: int, end : int, action : (int) -> e maybe<a> ) : e maybe<a>
 {
   fun rep( i : int ) {
-    if (i <= end) {
+    if (i <= end) then {
       match(action(i)) {
         Nothing -> rep(unsafe-decreasing(i.inc))
         Just(x) -> Just(x)
@@ -2809,7 +2809,7 @@ fun for-while( start: int, end : int, action : (int) -> e maybe<a> ) : e maybe<a
 private fun for-whilez( start: ssize_t, end : ssize_t, action : (ssize_t) -> e maybe<a> ) : e maybe<a>
 {
   fun rep( i : ssize_t ) {
-    if (i <= end) {
+    if (i <= end) then {
       match(action(i)) {
         Nothing -> rep(unsafe-decreasing(i.incr))
         Just(x) -> Just(x)

@@ -113,15 +113,13 @@ public fun test( cmdargs )
   val header = "usage:\n program [options] files\n\noptions:"
   // testflags.usageInfo( header ).println
   val (flags,args,errs) = parse( Myflags(), myflags, cmdargs )
-  if (errs.is-nil) {
+  if errs.is-nil then
     println( "\nsuccess!" );
     println( "flags: " ++ flags.show-flags)
     println( "arguments: " ++ args.join(" ") );
-    if (flags.version) myflags.usage(header).println
-  }
-  else {
-    println( errs.join("\n") ++ "\n" ++ myflags.usage(header) )
-  }
+    if flags.version then myflags.usage(header).println  
+  else 
+    println( errs.join("\n") ++ "\n" ++ myflags.usage(header) )  
 }
 
 
@@ -280,14 +278,14 @@ fun parse-long( s : string, flags : list<flag<a>> ) : total flag-kind<a>
                                  _           -> (flagname,False)
                                }
   
-  val exacts   = flags.filter( fn(opt){ 
-                    opt.long-names.map(to-lower).any( fn(name) { 
-                      name==flagname || name==baseflagname 
-                 })})
-  val prefixes = flags.filter( fn(opt){ 
-                    opt.long-names.map(to-lower).any( fn(name) { 
+  val exacts   = flags.filter fn(opt)    
+                    opt.long-names.map(to-lower).any fn(name)
+                      name==flagname || name==baseflagname
+                 
+  val prefixes = flags.filter fn(opt) 
+                    opt.long-names.map(to-lower).any fn(name)  
                       name.starts-with(flagname).bool || name.starts-with(baseflagname).bool 
-                 })})
+                 
   val applicable = if (exacts.is-nil) then prefixes else exacts
   
   match(applicable) {

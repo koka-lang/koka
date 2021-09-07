@@ -2,6 +2,7 @@
 .trash/
 .idea/
 .vs/
+.vscode/
 node_modules/
 out/
 bundle/
