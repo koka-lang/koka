@@ -3,6 +3,7 @@ effect foo {
 }
 
 fun test1(){
+    print("In test1")
     with fun boo(x){x}
     boo(1)
 }
@@ -19,6 +20,24 @@ fun g(): foo int {
 
 
 fun main(){
+    print("In main")
     test1()
-    1
 }
+
+// Compile this file with feature/open, other files with dev
+// Below is the message for compiling main, expr of this file
+// -----------------
+// open floated
+// ---------------
+// public fun .expr : () -> console int
+//   = fn<console>(){
+//     val _ : ()
+//           = std/core/prints("hi");
+//     test/float/float1/test1();
+//   };
+// public fun .main : () -> console ()
+//   = fn<console>(){
+//     val s.75 : string
+//           = std/core/types/.open(std/core/show)((interactive/.expr()));
+//     std/core/printsln(s.75);
+//   };
