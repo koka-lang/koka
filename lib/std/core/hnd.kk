@@ -476,11 +476,11 @@ private fun initially-prompt( init : (int) -> e (), res : a ) : e a {
 
 abstract struct resume-context<b,e::E,e0::E,r>( k : resume-result<b,r> -> e r )
 
-public noinline fun resume( r : resume-context<b,e,e0,r>, x : b ) : e r {
+public fun resume( r : resume-context<b,e,e0,r>, x : b ) : e r {
   (r.k)(Deep(x))
 }
 
-public noinline fun resume-shallow( r : resume-context<b,e,e0,r>, x : b ) : e0 r {
+public fun resume-shallow( r : resume-context<b,e,e0,r>, x : b ) : e0 r {
   cast-ev1(r.k)(Shallow(x))
 }
 
