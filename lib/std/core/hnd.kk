@@ -149,7 +149,7 @@ private extern evv-swap-delete( i : ev-index, behind : bool ) : e1 evv<e> {
   js "_evv_swap_delete"
 }
 
-private inline extern evv-swap-create0() : evv<<>> {
+private inline extern evv-swap-create0() : e evv<e> { //not quite the right effect type but avoids unbound effect types
   c inline "kk_evv_swap_create0(kk_context())"
   js inline "(function(){ const evv = $std_core_hnd._evv; $std_core_hnd._evv = $std_core_hnd._evv_empty; return evv; })()"
 }
@@ -159,7 +159,7 @@ private inline extern evv-swap-create1( i : ev-index ) : e evv<e> {   //not quit
   js inline "(function(){ const evv = $std_core_hnd._evv; if (evv.length !== 1) { $std_core_hnd._evv = [evv[#1]]; }; return evv; })()"
 }
 
-private extern evv-swap-create( indices : vector<ev-index> ) : e evv<e> {
+private extern evv-swap-create( indices : vector<ev-index> ) : e evv<e> { //not quite the right effect type but avoids unbound effect types
   c inline "kk_evv_swap_create(#1,kk_context())"
   js "_evv_swap_create"
 }
@@ -592,6 +592,10 @@ public fun clause-never1( op : a -> e r ) : clause1<a,b,h,e,r> {
 abstract type clause0<b,h,e,r> {
   Clause0( clause: (marker<e,r>, ev<h>) -> e b )
 }
+
+
+//private inline extern cast-hnd( h : h<e1,r> ) : e h<e,r> { inline "#1" }
+//private inline extern cast-marker( m : marker<e1,r> ) : e marker<e,r> { inline "#1" }
 
 public inline fun ".perform0"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause0<b,h,e1,r>) ) : e b {
   match(ev) {
