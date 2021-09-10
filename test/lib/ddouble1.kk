@@ -124,7 +124,7 @@ public fun test-int99() {
     check-rte("int" ++ i.show, expect1) { ddouble-exp(1,i).inc }
     val expect2 = "1." ++ repeat("0",i.dec) ++ "2e+" ++ i.show
     check-rte("int" ++ i.show, expect2) { ddouble-exp(1,i).inc.inc }
-    if (i < 30) {
+    if (i < 30) then {
       val expect99 = "1" ++ repeat("9",i)// ++ "e+" ++ i.show
       check("int" ++ i.show, expect99) { (ddouble-exp(1,i) + ddouble-exp(1,i).dec).show-fixed(-9) }
     }
@@ -153,8 +153,8 @@ public fun test-big() {
 
 
 public fun test-sin() {
-  val exact-sin : list<ddouble> =
-    ["0.000099999999833333333416666666646825396828152557318973",
+  val exact-sin : list<ddouble> = [
+    "0.000099999999833333333416666666646825396828152557318973",
     "0.0009999998333333416666664682539710097001513147348086",
     "0.0099998333341666646825424382690997290389643853601692",
     "0.099833416646828152306814198410622026989915388017982",
@@ -174,8 +174,8 @@ public fun test-sin() {
 
 
 public fun test-atan() {
-  val exact-atan : list<ddouble> =
-   ["0.000099999999666666668666666652380952492063491154401162",
+  val exact-atan : list<ddouble> = [
+    "0.000099999999666666668666666652380952492063491154401162",
     "0.00099999966666686666652380963492054401162093455426801",
     "0.0099996666866652382063401162092795485613693525443766",
     "0.099668652491162027378446119878020590243278322504315",
