@@ -1461,16 +1461,17 @@ ifexpr
   = do rng <- keyword "if"
        tst <- nbexpr
        (texpr,eexprs,eexpr) <- 
-          (do texpr   <- thenexpr
+           do texpr <- returnexpr
+              return (texpr, [], Var nameUnit False (after (getRange texpr)))
+           <|>
+           do texpr   <- thenexpr
               eexprs  <- many elif
               eexpr   <- do keyword "else"
                             blockexpr
                           <|>
                             return (Var nameUnit False (after (combineRanged texpr (map snd eexprs))))
-              return (texpr,eexprs,eexpr))
-          <|>
-          (do texpr <- returnexpr
-              return (texpr, [], Var nameUnit False (after (getRange texpr))))
+              return (texpr,eexprs,eexpr)
+           
             
        let fullMatch = foldr match eexpr ((tst,texpr):eexprs)
                      where
@@ -1489,14 +1490,13 @@ ifexpr
            return (tst,texpr)
 
     thenexpr 
-      = (do keyword "then"
-            blockexpr 
-         <|>
-         do pos <- getPosition
-            expr <- blockexpr
-            pwarning $ "warning " ++ show pos ++ ": using an 'if' without 'then' is deprecated.\n  hint: add the 'then' keyword."                    
-            return expr
-         )
+      = do keyword "then"
+           blockexpr 
+        <|>
+        do pos <- getPosition
+           expr <- blockexpr
+           pwarning $ "warning " ++ show pos ++ ": using an 'if' without 'then' is deprecated.\n  hint: add the 'then' keyword."                    
+           return expr
 
 returnexpr
   = do rng <- keyword "return"
