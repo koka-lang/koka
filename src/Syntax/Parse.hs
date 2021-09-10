@@ -1500,7 +1500,14 @@ ifexpr
            return (tst,texpr)
 
     thenexpr 
-      = (do{ keyword "then"; blockexpr }) -- <|> block)
+      = (do keyword "then"
+            blockexpr 
+         <|>
+         do pos <- getPosition
+            expr <- blockexpr
+            pwarning $ "warning " ++ show pos ++ ": using an 'if' without 'then' is deprecated.\n  hint: add the 'then' keyword."                    
+            return expr
+         )
 
 returnexpr
   = do rng <- keyword "return"

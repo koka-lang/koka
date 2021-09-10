@@ -65,7 +65,7 @@ boxDef def
       do bexpr <- boxExpr (boxType (defType def)) (defExpr def)
          let bdef = def{ defExpr = bexpr }
          -- simplify the whole def to avoid simplifying away functions to values (e.g. `fun f(x){ g(x) } ~> val f = g`)
-         uniqueSimplify Pretty.defaultEnv True {- unsafe -} False {-ndebug-} 1 {-runs-} 6 {- duplicationMax -} bdef
+         uniqueSimplify Pretty.defaultEnv True {- unsafe -} False {-ndebug-} 3 {-runs-} 6 {- duplicationMax -} bdef
          
 
 -- add box/unbox such that the type of `expr` matches `BoxType`

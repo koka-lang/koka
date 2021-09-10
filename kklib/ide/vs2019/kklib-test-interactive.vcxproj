@@ -157,15 +157,10 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\out\Debug\interactive.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core_hnd.c" />
     <ClCompile Include="..\..\..\out\Debug\std_core_types.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_os_env.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_os_path.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_os_task.c" />
-    <ClCompile Include="..\..\..\out\Debug\std_text_parse.c" />
-    <ClCompile Include="..\..\..\out\Debug\test_bench_koka_binarytrees.c" />
+    <ClCompile Include="..\..\..\out\Debug\test_algeff_scoped.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
