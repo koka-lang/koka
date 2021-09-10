@@ -1664,7 +1664,7 @@ it would neatly skip the internal handler due to the `mask<raise>` expression.
 If we would leave out the `mask`, and call `action()` directly, then the inferred
 type of `action` would be `: () -> <raise|e> int` instead, showing that the `:raise`
 effect would be handled. 
-Note that this usually the desired behaviour since in the majority of cases 
+Note that this is usually the desired behaviour since in the majority of cases 
 we _want_ to handle the effects in a particular way when defining handler abstractions. 
 The cases where `mask` is needed are much less common in our experience.
 
