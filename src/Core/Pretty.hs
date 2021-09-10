@@ -346,7 +346,7 @@ prettyExpr env (Con tname repr)
 prettyExpr env (Lit lit)
   = prettyLit env lit
 
--- Let
+--  
 prettyExpr env (Let ([DefNonRec (Def x tp e vis isVal inl nameRng doc)]) e')
   = vcat [ let exprDoc = prettyExpr env e <.> semi
            in if (nameIsNil x) then exprDoc
@@ -354,7 +354,8 @@ prettyExpr env (Let ([DefNonRec (Def x tp e vis isVal inl nameRng doc)]) e')
          , prettyExpr env e'
          ]
 prettyExpr env (Let defGroups expr)
-  = vcat [ align $ vcat (map (\dg -> prettyDefGroup env dg) defGroups)
+  = -- parens $
+    vcat [ align $ vcat (map (\dg -> prettyDefGroup env dg) defGroups)
          , prettyExpr env expr
          ]
 
