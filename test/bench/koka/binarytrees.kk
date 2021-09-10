@@ -27,7 +27,7 @@ type visit
 
 
 // tail-recursive checksum
-fun checkv( t : tree, v : visit, acc : int32 ) : div int32
+fun checkv( t : tree, v : visit, acc : int ) : div int
   match t
     Node(l,r) -> checkv( l, NodeR(r,v), acc.inc)
     Tip       -> match v
@@ -35,16 +35,17 @@ fun checkv( t : tree, v : visit, acc : int32 ) : div int32
       Done        -> acc
 
 
-
+// normal checksum  
+fun check32( t : tree ) : div int32  
+  match t
+    Node(l,r) -> l.check32 + r.check32.inc
+    Tip       -> zero
+  
 
 fun check( t : tree ) : div int
-  checkv(t, Done, zero).int
-  /*
-  // normal checksum  
-  match t
-    Node(l,r) -> l.check + r.check.inc
-    Tip       -> 0
-  */
+  checkv(t, Done, 0)
+  //t.check32.int
+  
 
 
 // generate `count` trees of `depth` and return the total checksum
