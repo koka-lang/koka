@@ -24,6 +24,6 @@ fun counter( c : int32 ) : _ int {
 }
 
 fun main() {
-  with state(101001.int32)  // since v2.2.0: 1010 is ok, but higher runs out of stack with -O2 :-(
+  with state(10100100.int32)  // since v2.2.0: 1010 is ok, but higher runs out of stack with -O2 :-(
   counter(zero).println
 }
