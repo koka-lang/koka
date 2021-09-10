@@ -1318,7 +1318,7 @@ fun ehello-console() : console () {
 }
 ```
 
-Here the handler is define directly, but we can also abstract the handler for
+Here the handler is defined directly, but we can also abstract the handler for
 emitting to the console into a separate function:
 
 ```
