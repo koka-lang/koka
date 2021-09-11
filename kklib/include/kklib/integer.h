@@ -347,7 +347,9 @@ static inline kk_integer_t kk_integer_from_intptr_t(intptr_t i, kk_context_t* ct
   return kk_integer_from_int(i, ctx);
 }
 
-
+static inline kk_integer_t kk_integer_from_byte(uint8_t i, kk_context_t* ctx) {
+  return kk_integer_from_small(i);
+}
 
 /*---------------------------------------------------------------------------------
 Addition, Subtraction, and Multiply depend on using __builtin_xxx_overflow or not.
@@ -588,7 +590,6 @@ static inline kk_integer_t kk_integer_div_mod(kk_integer_t x, kk_integer_t y, kk
   return kk_integer_div_mod_generic(x, y, mod, ctx);
 }
 
-
 static inline int32_t kk_integer_clamp32(kk_integer_t x, kk_context_t* ctx) {
   if (kk_likely(kk_is_smallint(x))) return (int32_t)kk_smallint_from_integer(x);
   return kk_integer_clamp32_generic(x, ctx);
@@ -597,6 +598,11 @@ static inline int32_t kk_integer_clamp32(kk_integer_t x, kk_context_t* ctx) {
 static inline int64_t kk_integer_clamp64(kk_integer_t x, kk_context_t* ctx) {
   if (kk_likely(kk_is_smallint(x))) return (int64_t)kk_smallint_from_integer(x);
   return kk_integer_clamp64_generic(x, ctx);
+}
+
+static inline uint8_t kk_integer_clamp_byte(kk_integer_t x, kk_context_t* ctx) {
+  int32_t i = kk_integer_clamp32(x,ctx);
+  return (i < 0 ? 0 : (i > 255 ? 255 : (uint8_t)(i)));
 }
 
 static inline size_t kk_integer_clamp_size_t(kk_integer_t x, kk_context_t* ctx) {
