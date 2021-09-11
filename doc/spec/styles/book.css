@@ -287,10 +287,11 @@ html {
 }
 
 .news-items {
-	height: 7em;
+	height: 14em;
 	overflow-y: auto;
 	padding-top: 1ex;
-  margin-top: -1em;  
+  margin-top: -1em;
+  padding-right: 1ex;  
   /* border: 1px solid #ccc; */	
 }
 

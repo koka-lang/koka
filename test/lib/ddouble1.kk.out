@@ -520,55 +520,55 @@ tan(-3141592): ok: 2e-10, dt: 3e-26
 tan(-314): ok: -1e-15, dt: 4e-31
 tan(-31): ok: 1e-15, dt: 5e-32
 tan(-15): ok: 6e-16, dt: 2e-32
-tan(-7): ok: -3e+15, derr: 3e-17
+tan(-7): ok: -3e+15, derr: 1e-16
 tan(-6): ok: 2e-16, dt: 2e-33
 tan(-4): ok: -5e+15, derr: 1e-16
 tan(-3): ok: -0, dt: 5e-18
 tan(-3): ok: -3e-8, dt: 2e-24
 tan(-3): ok: 1e-16, dt: 1e-33
-tan(-3): ok: 3e-8, dt: 4e-24
+tan(-3): ok: 3e-8, dt: 1e-24
 tan(-2): ok: 0, dt: 3e-18
 tan(-2): ok: 1, dt: 3e-17
 tan(-1): ok: -1e+16, derr: 2e-17
 tan(-0): ok: -0, dt: 4e-17
 tan(-0): ok: -0, dt: 2e-17
 tan(-3e-06): ok: -3e-6, dt: 7e-23
-tan(-3e-08): ok: -3e-8, dt: 3e-24
+tan(-3e-08): ok: -3e-8, dt: 2e-24
 tan(-3e-12): ok: -3e-12, dt: 5e-36
 tan(0): ok: 0, dt: 0
 tan(3e-12): ok: 3e-12, dt: 5e-36
-tan(3e-08): ok: 3e-8, dt: 3e-24
+tan(3e-08): ok: 3e-8, dt: 2e-24
 tan(3e-06): ok: 3e-6, dt: 7e-23
 tan(0): ok: 0, dt: 2e-17
 tan(0): ok: 0, dt: 4e-17
 tan(1): ok: 1e+16, derr: 2e-17
 tan(2): ok: -1, dt: 3e-17
 tan(2): ok: -0, dt: 3e-18
-tan(3): ok: -3e-8, dt: 4e-24
+tan(3): ok: -3e-8, dt: 1e-24
 tan(3): ok: -1e-16, dt: 1e-33
 tan(3): ok: 3e-8, dt: 2e-24
 tan(3): ok: 0, dt: 5e-18
 tan(4): ok: 5e+15, derr: 1e-16
 tan(6): ok: -2e-16, dt: 2e-33
-tan(7): ok: 3e+15, derr: 3e-17
+tan(7): ok: 3e+15, derr: 1e-16
 tan(15): ok: -6e-16, dt: 2e-32
 tan(31): ok: -1e-15, dt: 5e-32
 tan(314): ok: 1e-15, dt: 4e-31
 tan(3141592): ok: -2e-10, dt: 3e-26
 tan(314159265): ok: -3e-8, dt: 1e-24
 tan(3141592653589): ok: -0, dt: 2e-20
-tan(-4): ok: -3, dt: 3e-16
+tan(-4): ok: -3, dt: 5e-17
 tan(-2): ok: 0, dt: 3e-17
-tan(-2): ok: 1, dt: 1e-16
-tan(2): ok: -1, dt: 1e-16
+tan(-2): ok: 1, dt: 6e-17
+tan(2): ok: -1, dt: 6e-17
 tan(2): ok: -0, dt: 3e-17
-tan(4): ok: 3, dt: 3e-16
-tan(-1): ok: -6, dt: 8e-16
+tan(4): ok: 3, dt: 5e-17
+tan(-1): ok: -6, dt: 6e-17
 tan(-0): ok: -0, dt: 4e-17
 tan(-0): ok: -0, dt: 3e-18
 tan(0): ok: 0, dt: 3e-18
 tan(0): ok: 0, dt: 4e-17
-tan(1): ok: 6, dt: 8e-16
+tan(1): ok: 6, dt: 6e-17
 sin(-3141592653589): ok: 0, dt: 2e-20
 sin(-314159265): ok: 3e-8, dt: 1e-24
 sin(-3141592): ok: 2e-10, dt: 3e-26
@@ -742,11 +742,11 @@ sinh(-31): ok: -22015752930315, derr: 3e-17
 sinh(-15): ok: -3317811, derr: 1e-17
 sinh(-7): ok: -1287, derr: 5e-17
 sinh(-6): ok: -267, derr: 4e-17
-sinh(-4): ok: -55, dt: 2e-15
+sinh(-4): ok: -55, dt: 4e-15
 sinh(-3): ok: -15, dt: 7e-17
-sinh(-3): ok: -11, dt: 4e-16
-sinh(-3): ok: -11, dt: 5e-16
-sinh(-3): ok: -11, dt: 7e-16
+sinh(-3): ok: -11, dt: 1e-15
+sinh(-3): ok: -11, dt: 1e-15
+sinh(-3): ok: -11, dt: 9e-16
 sinh(-2): ok: -8, dt: 3e-16
 sinh(-2): ok: -5, dt: 2e-16
 sinh(-1): ok: -2, dt: 4e-18
@@ -764,11 +764,11 @@ sinh(0): ok: 0, dt: 3e-17
 sinh(1): ok: 2, dt: 4e-18
 sinh(2): ok: 5, dt: 2e-16
 sinh(2): ok: 8, dt: 3e-16
-sinh(3): ok: 11, dt: 7e-16
-sinh(3): ok: 11, dt: 5e-16
-sinh(3): ok: 11, dt: 4e-16
+sinh(3): ok: 11, dt: 9e-16
+sinh(3): ok: 11, dt: 1e-15
+sinh(3): ok: 11, dt: 1e-15
 sinh(3): ok: 15, dt: 7e-17
-sinh(4): ok: 55, dt: 2e-15
+sinh(4): ok: 55, dt: 4e-15
 sinh(6): ok: 267, derr: 4e-17
 sinh(7): ok: 1287, derr: 5e-17
 sinh(15): ok: 3317811, derr: 1e-17
@@ -783,12 +783,12 @@ sinh(-2): ok: -4, dt: 3e-16
 sinh(2): ok: 4, dt: 3e-16
 sinh(2): ok: 5, dt: 3e-16
 sinh(4): ok: 42, dt: 1e-15
-sinh(-1): ok: -1, dt: 9e-17
+sinh(-1): ok: -1, dt: 1e-16
 sinh(-0): ok: -0, dt: 3e-17
 sinh(-0): ok: -0, dt: 2e-17
 sinh(0): ok: 0, dt: 2e-17
 sinh(0): ok: 0, dt: 3e-17
-sinh(1): ok: 1, dt: 9e-17
+sinh(1): ok: 1, dt: 1e-16
 cosh(-3141592653589): ok: inf
 cosh(-314159265): ok: inf
 cosh(-3141592): ok: inf
@@ -802,8 +802,8 @@ cosh(-3): ok: 15, dt: 5e-16
 cosh(-3): ok: 11, dt: 1e-16
 cosh(-3): ok: 11, dt: 5e-16
 cosh(-3): ok: 11, dt: 4e-16
-cosh(-2): ok: 8, dt: 8e-16
-cosh(-2): ok: 5, dt: 3e-16
+cosh(-2): ok: 8, dt: 9e-16
+cosh(-2): ok: 5, dt: 5e-16
 cosh(-1): ok: 2, dt: 1e-17
 cosh(-0): ok: 1, dt: 1e-16
 cosh(-0): ok: 1, dt: 8e-17
@@ -817,8 +817,8 @@ cosh(3e-06): ok: 1, dt: 8e-17
 cosh(0): ok: 1, dt: 8e-17
 cosh(0): ok: 1, dt: 1e-16
 cosh(1): ok: 2, dt: 1e-17
-cosh(2): ok: 5, dt: 3e-16
-cosh(2): ok: 8, dt: 8e-16
+cosh(2): ok: 5, dt: 5e-16
+cosh(2): ok: 8, dt: 9e-16
 cosh(3): ok: 11, dt: 4e-16
 cosh(3): ok: 11, dt: 5e-16
 cosh(3): ok: 11, dt: 1e-16
@@ -851,7 +851,7 @@ atan(-100): ok: -1, dt: 1e-16
 atan(-10): ok: -1, dt: 1e-16
 atan(-5): ok: -1, dt: 3e-17
 atan(-2): ok: -1, dt: 7e-17
-atan(-2): ok: -1, dt: 1e-16
+atan(-2): ok: -1, dt: 9e-17
 atan(-1): ok: -0, dt: 1e-17
 atan(-1): ok: -0, dt: 1e-17
 atan(-1): ok: -0, dt: 5e-18
@@ -859,7 +859,7 @@ atan(-1): ok: -0, dt: 3e-17
 atan(-1): ok: -0, dt: 4e-17
 atan(-0): ok: -0, dt: 5e-17
 atan(-0): ok: -0, dt: 1e-17
-atan(-0): ok: -0, dt: 3e-17
+atan(-0): ok: -0, dt: 2e-17
 atan(-0): ok: -0, dt: 1e-17
 atan(-0): ok: -0, dt: 5e-18
 atan(-1e-06): ok: -9e-7, dt: 2e-23
@@ -871,7 +871,7 @@ atan(1e-08): ok: 9e-9, dt: 3e-25
 atan(1e-06): ok: 9e-7, dt: 2e-23
 atan(0): ok: 0, dt: 5e-18
 atan(0): ok: 0, dt: 1e-17
-atan(0): ok: 0, dt: 3e-17
+atan(0): ok: 0, dt: 2e-17
 atan(0): ok: 0, dt: 1e-17
 atan(0): ok: 0, dt: 5e-17
 atan(1): ok: 0, dt: 4e-17
@@ -879,7 +879,7 @@ atan(1): ok: 0, dt: 3e-17
 atan(1): ok: 0, dt: 5e-18
 atan(1): ok: 0, dt: 1e-17
 atan(1): ok: 0, dt: 1e-17
-atan(2): ok: 1, dt: 1e-16
+atan(2): ok: 1, dt: 9e-17
 atan(2): ok: 1, dt: 7e-17
 atan(5): ok: 1, dt: 3e-17
 atan(10): ok: 1, dt: 1e-16
@@ -958,13 +958,13 @@ acos(-1): ok: 3, dt: 2e-16
 acos(-0): ok: 2, dt: 1e-16
 acos(-0): ok: 2, dt: 6e-17
 acos(-0): ok: 2, dt: 2e-16
+acos(-0): ok: 1, dt: 9e-17
 acos(-0): ok: 1, dt: 1e-16
-acos(-0): ok: 1, dt: 1e-16
-acos(-1e-06): ok: 1, dt: 1e-16
+acos(-1e-06): ok: 1, dt: 7e-17
 acos(-1e-08): ok: 1, dt: 1e-16
 acos(-1e-12): ok: 1, dt: 2e-17
 acos(0): ok: 1, dt: 6e-17
-acos(1e-12): ok: 1, dt: 1e-16
+acos(1e-12): ok: 1, dt: 7e-17
 acos(1e-08): ok: 1, dt: 4e-19
 acos(1e-06): ok: 1, dt: 2e-17
 acos(0): ok: 1, dt: 3e-18
@@ -1006,8 +1006,8 @@ atanh(-1): ok: -inf
 atanh(-1): ok: -9, dt: 1e-16
 atanh(-0): ok: -1, dt: 6e-18
 atanh(-0): ok: -0, dt: 3e-17
-atanh(-0): ok: -0, dt: 4e-17
-atanh(-0): ok: -0, dt: 3e-17
+atanh(-0): ok: -0, dt: 6e-17
+atanh(-0): ok: -0, dt: 1e-17
 atanh(-0): ok: -0, dt: 5e-18
 atanh(-1e-06): ok: -1e-6, dt: 2e-23
 atanh(-1e-08): ok: -1e-8, dt: 1e-24
@@ -1017,8 +1017,8 @@ atanh(1e-12): ok: 9e-13, dt: 0
 atanh(1e-08): ok: 1e-8, dt: 1e-24
 atanh(1e-06): ok: 1e-6, dt: 2e-23
 atanh(0): ok: 0, dt: 5e-18
-atanh(0): ok: 0, dt: 3e-17
-atanh(0): ok: 0, dt: 4e-17
+atanh(0): ok: 0, dt: 1e-17
+atanh(0): ok: 0, dt: 6e-17
 atanh(0): ok: 0, dt: 3e-17
 atanh(0): ok: 1, dt: 6e-18
 atanh(1): ok: 9, dt: 1e-16
@@ -1050,7 +1050,7 @@ asinh(-2): ok: -1, dt: 8e-17
 asinh(-2): ok: -1, dt: 4e-17
 asinh(-1): ok: -1, dt: 1e-16
 asinh(-1): ok: -0, dt: 2e-17
-asinh(-1): ok: -0, dt: 2e-18
+asinh(-1): ok: -0, dt: 1e-16
 asinh(-1): ok: -0, dt: 2e-17
 asinh(-1): ok: -0, dt: 4e-17
 asinh(-0): ok: -0, dt: 3e-17
@@ -1072,7 +1072,7 @@ asinh(0): ok: 0, dt: 2e-17
 asinh(0): ok: 0, dt: 3e-17
 asinh(1): ok: 0, dt: 4e-17
 asinh(1): ok: 0, dt: 2e-17
-asinh(1): ok: 0, dt: 2e-18
+asinh(1): ok: 0, dt: 1e-16
 asinh(1): ok: 0, dt: 2e-17
 asinh(1): ok: 1, dt: 1e-16
 asinh(2): ok: 1, dt: 4e-17
@@ -1122,7 +1122,7 @@ acosh(0): ok: nan
 acosh(1): ok: nan
 acosh(1): ok: 0, dt: 0
 acosh(1): ok: 0, dt: 5e-21
-acosh(1): ok: 0, dt: 5e-17
+acosh(1): ok: 0, dt: 3e-18
 acosh(1): ok: 0, dt: 4e-17
 acosh(2): ok: 1, dt: 1e-16
 acosh(2): ok: 1, dt: 1e-18
@@ -1137,7 +1137,7 @@ acosh(-0): ok: nan
 acosh(-0): ok: nan
 acosh(0): ok: nan
 acosh(0): ok: nan
-acosh(1): ok: 0, dt: 3e-17
+acosh(1): ok: 0, dt: 7e-17
 add1 : ok: 9e+15 vs. 9e+15
 pow1 : ok: 1e+31
 mul1a : ok: 1e+28 vs. 1e+28

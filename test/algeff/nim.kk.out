@@ -1,3 +1,73 @@
-test/algeff/nim.kk(244,30): error: invalid syntax
- unexpected identifier "g"
- expecting ":", "with", "->", "=" or "{"
+-----------
+alice
+-----------
+bob
+-----------
+alice[
+ 1 -> bob[
+ 1 -> alice[
+ 1 -> alice wins],
+ 2 -> bob wins],
+ 2 -> bob[
+ 1 -> bob wins],
+ 3 -> alice wins]
+-----------
+alice
+-----------
+bob
+-----------
+[bob,alice]
+-----------
+uncaught exception: bob cheated!
+add default effect for std/core/exn
+ 
+algeff/nim/==: (p1 : player, p2 : player) -> bool
+algeff/nim/Alice: player
+algeff/nim/Bob: player
+algeff/nim/Cheating: forall<e,a> (.hnd-cheating<e,a>) -> cheating
+algeff/nim/Choose: forall<e,a> (.hnd-choose<e,a>) -> choose
+algeff/nim/Nim: forall<e,a> (.hnd-nim<e,a>) -> nim
+algeff/nim/State: forall<a,e,b> (.hnd-state<a,e,b>) -> state<a>
+algeff/nim/Take: (player : player, moves : list<(int, gtree)>) -> gtree
+algeff/nim/Winner: (player : player) -> gtree
+algeff/nim/aliceTurn: (n : int) -> <div,nim> player
+algeff/nim/allResults: forall<a,e> (() -> <choose|e> a) -> e list<a>
+algeff/nim/bobChooses: forall<a,e> (m : () -> <choose,nim|e> a) -> <choose|e> a
+algeff/nim/bobTurn: (n : int) -> <div,nim> player
+algeff/nim/cheat: forall<a> (player : player) -> cheating a
+algeff/nim/cheatReport: forall<a,e> (() -> <cheating,exn|e> a) -> <exn|e> a
+algeff/nim/check: forall<a,e> (() -> <cheating,nim,nim|e> a) -> <cheating,nim|e> a
+algeff/nim/choose: () -> choose bool
+algeff/nim/game: (n : int) -> <div,nim> player
+algeff/nim/gametree: forall<e> (() -> <nim|e> player) -> e gtree
+algeff/nim/get: forall<a> () -> (state<a>) a
+algeff/nim/is-alice: (player : player) -> bool
+algeff/nim/is-bob: (player : player) -> bool
+algeff/nim/is-take: (gtree : gtree) -> bool
+algeff/nim/is-winner: (gtree : gtree) -> bool
+algeff/nim/main: () -> <pure,console> ()
+algeff/nim/move: (player : player, sticks : int) -> nim int
+algeff/nim/mymap: forall<a,b,e> (list<a>, (a) -> e b) -> e list<b>
+algeff/nim/pc: forall<a,e> (() -> <nim|e> a) -> e a
+algeff/nim/perfect: forall<a,e> (() -> <nim|e> a) -> e a
+algeff/nim/player: (gtree : gtree) -> player
+algeff/nim/printBoard: (gs : gstate) -> io ()
+algeff/nim/printer: forall<a,e> (() -> <io,state<gstate>|e> a) -> <io,state<gstate>|e> a
+algeff/nim/put: forall<a> (x : a) -> (state<a>) ()
+algeff/nim/replay: forall<a,e> (n : int, action : () -> <div|e> a) -> <div|e> a
+algeff/nim/s0: list<(player, int)>
+algeff/nim/scoreUpdater: forall<e> (() -> <state<gstate>|e> player) -> <state<gstate>|e> player
+algeff/nim/show: (gt : gtree) -> div string
+algeff/nim/show: (ps : list<player>) -> string
+algeff/nim/show: (p : player) -> string
+algeff/nim/showGt: (gt : gtree, indent : int) -> div string
+algeff/nim/state: forall<a,b,e> (init : a, action : () -> <div,state<a>|e> b) -> <div|e> b
+algeff/nim/testCheck: () -> pure player
+algeff/nim/testChoose: () -> div list<player>
+algeff/nim/testGt: () -> div gtree
+algeff/nim/testPc1: () -> pure player
+algeff/nim/testPc2: () -> pure player
+algeff/nim/testPerfect1: () -> div player
+algeff/nim/testPerfect2: () -> div player
+algeff/nim/updateScore: (p : player, gs : gstate) -> gstate
+algeff/nim/validMoves: (n : int) -> list<int>

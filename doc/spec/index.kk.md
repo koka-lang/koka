@@ -89,7 +89,7 @@ body {
 
 ~ heading-title 
 [Koka]{font-size:200%; font-weight:bold; display:inline-block; padding-top:0.45em; }\
-[A Functional Language with Effect Types and Handlers]{font-size:140%; display:inline-block; margin: -0.5ex 0ex 0.5ex 0ex; }
+[A Functional Language with Effect Types and Handlers]{font-size:140%; display:inline-block; margin: -0.5ex 0ex 1ex 0ex; }
 ~
 
 ~ heading-side

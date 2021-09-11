@@ -11,6 +11,7 @@
 
 module Core.Simplify (simplify, uniqueSimplify, simplifyDefs) where
 
+import Data.List
 import Control.Monad
 import Control.Applicative
 import Lib.Trace
@@ -51,7 +52,8 @@ simplifyN nRuns defs
 uniqueSimplify :: Simplify a => Pretty.Env -> Bool -> Bool -> Int -> Int -> a -> Unique a
 uniqueSimplify penv unsafe ndebug nRuns duplicationMax expr
   = do u <- unique
-       let (x,u') = runSimplify unsafe ndebug duplicationMax u penv (simplify expr) -- (simplifyN (if nRuns <= 0 then 1 else nRuns) expr)
+       let (x,u') = runSimplify unsafe ndebug duplicationMax u penv 
+                     (simplifyN nRuns expr) -- (simplify expr) -- (simplifyN (if nRuns <= 0 then 1 else nRuns) expr)
        setUnique u'
        return x
 
@@ -203,16 +205,30 @@ topDown expr@(App (Lam pars eff body) args) | length pars == length args
     makeDef (TName npar nparTp) arg
       = DefNonRec (Def npar nparTp arg Private DefVal InlineAuto rangeNull "")
 
+
 -- Direct function applications
-topDown expr@(App (TypeApp (TypeLam tpars (Lam pars eff body)) targs) args) | length pars == length args && length tpars == length targs
+topDown expr@(App (TypeApp (TypeLam tpars (Lam pars eff body)) targs) args) 
+  | length pars == length args && length tpars == length targs
   = do let tsub    = subNew (zip tpars targs)
        newNames <- -- trace ("topDown function app: " ++ show (zip tpars targs) ++ "\n expr:" ++ show expr) $
                    mapM uniqueTName [TName nm (tsub |-> tp) | (TName nm tp) <- pars]
        let sub     = [(p,Var np InfoNone) | (p,np) <- zip pars newNames]        
-       return (Let (zipWith makeDef newNames args) (sub |~> (substitute tsub body)))
+       return (Let (zipWith makeDef newNames args) (sub |~> (substitute tsub body)))  
   where
     makeDef (TName npar nparTp) arg
       = DefNonRec (Def npar nparTp arg Private DefVal InlineAuto rangeNull "")
+
+
+-- app-of-let
+topDown (App (Let dgs expr) args)
+  = assertion "Core.Simplify.topDown.App-Of-Let" (bv dgs `tnamesDisjoint` fv args) $
+    return (Let dgs (App expr args))
+
+
+topDown (App (TypeApp (Let dgs expr) targs) args)
+  = assertion "Core.Simplify.topDown.TApp-Of-Let" (bv dgs `tnamesDisjoint` fv args) $
+    return (Let dgs (App (TypeApp expr targs) args))
+
 
 -- case-of-let
 topDown (Case [Let dgs expr] branches) 
@@ -254,10 +270,37 @@ topDown (Case [Case scruts0 branches0] branches1) | doesNotDuplicate
                  Just _ -> True
                  _      -> False
 
+-- App of case
+topDown expr@(App (Case scruts branches) args)
+  = do (sbinders,bscruts) <- bindExprs scruts
+       (binders,bargs)    <- bindExprs args
+       return $ sbinders (binders (Case bscruts (map (makeBranchApp bargs) branches)))
+  where
+    makeBranchApp bargs (Branch pats guards)  = Branch pats (map (makeGuardApp bargs) guards)
+    makeGuardApp bargs (Guard test body)      = Guard test (App body bargs)
+
+
+
 -- No optimization applies
 topDown expr
-  = return expr
+  = do -- traceS ("no topdown match: " ++ show expr) 
+       return expr
 
+
+-- normalize evaluation by binding sub expressions
+bindExprs :: [Expr] -> Simp (Expr -> Expr, [Expr])
+bindExprs exprs
+  = do (defss,bexprs) <- unzip <$> mapM uniqueBind exprs
+       return (makeLet (concat defss), bexprs)
+  where
+    uniqueBind expr
+      = case expr of 
+          Var{} -> return ([], expr)
+          Lit{} -> return ([], expr)
+          Con{} -> return ([], expr)
+          _     -> do name <- uniqueName "norm"
+                      let tname = TName name (typeOf expr)
+                      return ([DefNonRec (makeTDef tname expr)], Var tname InfoNone)
 
 
 {--------------------------------------------------------------------------
@@ -406,7 +449,8 @@ bottomUp (Lam pars eff (App (Var ret _) [arg]))  | getName ret == nameReturn
 
 -- No optimization applies
 bottomUp expr
-  = expr
+  = -- trace ("no bottomup match: " ++ show expr) 
+    expr
 
 
 ----------------------------------------------------------------
@@ -580,7 +624,8 @@ instance Simplify DefGroup where
 instance Simplify Def where
   simplify def@(Def name tp expr vis sort inl nameRng doc)
     = -- trace ("simplifying " ++ show name ) $ -- ++ ": " ++ show expr) $
-      do expr' <- case expr of
+      do expr' <- inDef name $
+                  case expr of
                     TypeLam tvs (Lam pars eff body)
                       -> do body' <- simplify body
                             return $ TypeLam tvs (Lam pars eff body')
@@ -599,21 +644,24 @@ instance Simplify a => Simplify [a] where
 
 instance Simplify Expr where
   simplify e
-    = --trace "simplify start" $ 
-      do td <- topDown e
-         e' <- case td of
-                Lam tnames eff expr
-                  -> do x <- simplify expr; return $ Lam tnames eff x
+    = do -- traceS ("simplify: " ++ show e)
+         td <- topDown e
+         se <- case td of
+                Lam pars eff expr
+                  -> do x <- simplify expr
+                        return (Lam pars eff x)
                 Var tname info
                   -> return td
-                App e1 e2
-                  -> do x1 <- simplify e1
-                        x2 <- simplify e2
-                        return $ App x1 x2
-                TypeLam tv expr
-                  -> fmap (TypeLam tv) (simplify expr)
-                TypeApp expr tp
-                  -> do x <- simplify expr; return $ TypeApp x tp
+                App f args
+                  -> do f'    <- simplify f
+                        args' <- simplify args
+                        return $ App f' args'
+                TypeLam tpars expr
+                  -> do x <- simplify expr
+                        return (TypeLam tpars x)
+                TypeApp expr tps
+                  -> do x <- simplify expr
+                        return (TypeApp x tps)
                 Con tname repr
                   -> return td
                 Lit lit
@@ -627,7 +675,9 @@ instance Simplify Expr where
                         bs <- simplify branches
                         return $ Case xs bs
          -- bottomUpM e'
-         return (bottomUp e')
+         let bu = bottomUp se
+         -- traceS ("simplified:\n  " ++ show e ++ "\n  to:\n  " ++ show bu)
+         return bu
 
 instance Simplify Branch where
   simplify (Branch patterns guards)
@@ -840,7 +890,7 @@ runSimplify unsafe ndebug dupMax uniq penv (Simplify c)
 
 
 
-data SEnv = SEnv{ unsafe :: Bool, ndebug :: Bool, dupMax :: Int, penv :: Pretty.Env, currentDef :: [Def] }
+data SEnv = SEnv{ unsafe :: Bool, ndebug :: Bool, dupMax :: Int, penv :: Pretty.Env, currentDef :: [Name] }
 
 data Result a = Ok a Int
 
@@ -869,6 +919,10 @@ withEnv :: SEnv -> Simp a -> Simp a
 withEnv env (Simplify c)
   = Simplify (\u _ -> c u env)
 
+updateEnv :: (SEnv -> SEnv) -> Simp a -> Simp a
+updateEnv f (Simplify c)
+  = Simplify (\u env -> c u (f env))
+
 getUnsafe :: Simp Bool
 getUnsafe
   = do env <- getEnv
@@ -883,3 +937,13 @@ getNDebug :: Simp Bool
 getNDebug
   = do env <- getEnv
        return (ndebug env)
+
+inDef :: Name -> Simp a -> Simp a       
+inDef name simp
+  = updateEnv (\env -> env{ currentDef = name:currentDef env }) simp
+
+traceS :: String -> Simp ()
+traceS msg
+  = do env <- getEnv
+       trace ("Core.Simplify: " ++ concat (intersperse "." (map show (reverse (currentDef env)))) ++ ": " ++ msg) $ 
+         return ()
