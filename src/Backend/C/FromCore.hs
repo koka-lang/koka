@@ -1145,10 +1145,10 @@ cTypeCon c
          then CPrim "kk_char_t"  -- 32-bit unicode point
         else if (name == nameTpInt32)
          then CPrim "int32_t"
-        else if (name == nameTpSizeT)
-         then CPrim "size_t"
         else if (name == nameTpSSizeT)
          then CPrim "kk_ssize_t"
+        else if (name == nameTpIntPtrT)
+         then CPrim "intptr_t"
         else if (name == nameTpFloat)
          then CPrim "double"
         else if (name == nameTpBool)
@@ -1157,10 +1157,6 @@ cTypeCon c
          then CPrim "kk_unit_t"
         else if (name == nameTpInt64)
          then CPrim "int64_t"
-        else if (name == nameTpInt16)
-         then CPrim "int16_t"
-        else if (name == nameTpInt8)
-         then CPrim "int8_t"
         else if (name == nameTpByte)
          then CPrim "uint8_t"
         else if (name == nameTpFloat32)
@@ -1771,10 +1767,10 @@ genAppSpecial f args
           -> return (Just (genLitInt64 i))
         (Var tname _, [Lit (LitInt i)]) | getName tname == nameSSizeT && isSmallSSizeT platform i
           -> return (Just (genLitSSizeT i))
-        (Var tname _, [Lit (LitInt i)]) | getName tname == nameSizeT && isSmallSizeT platform i
-          -> return (Just (genLitSizeT i))
-        (Var tname _, [Lit (LitInt i)]) | getName tname == namePtrDiffT && isSmallPtrDiffT platform i
-          -> return (Just (genLitPtrDiffT i))
+        (Var tname _, [Lit (LitInt i)]) | getName tname == nameIntPtrT && isSmallIntPtrT platform i
+          -> return (Just (genLitIntPtrT i))
+        (Var tname _, [Lit (LitInt i)]) | getName tname == nameByte && isSmallUInt8 platform i
+          -> return (Just (genLitUInt8 i))
         _ -> case extractExtern f of
                Just (tname,formats)
                  -- inline external
@@ -1783,12 +1779,12 @@ genAppSpecial f args
                        -> return (Just (genLitInt32 i))
                      [Lit (LitInt i)] | getName tname == nameInt64 && isSmallInt64 i
                        -> return (Just (genLitInt64 i))
+                     [Lit (LitInt i)] | getName tname == nameByte && isSmallUInt8 platform i
+                       -> return (Just (genLitUInt8 i))
                      [Lit (LitInt i)] | getName tname == nameSSizeT && isSmallSSizeT platform i
                        -> return (Just (genLitSSizeT i))
-                     [Lit (LitInt i)] | getName tname == nameSizeT && isSmallSizeT platform i
-                       -> return (Just (genLitSizeT i))                       
-                     [Lit (LitInt i)] | getName tname == namePtrDiffT && isSmallPtrDiffT platform i
-                       -> return (Just (genLitPtrDiffT i))
+                     [Lit (LitInt i)] | getName tname == nameIntPtrT && isSmallIntPtrT platform i
+                       -> return (Just (genLitIntPtrT i))
                      _ -> return Nothing
                _ -> return Nothing
 
@@ -2278,17 +2274,17 @@ genLitInt64 :: Integer -> Doc
 genLitInt64 i
   = parens (text "(int64_t)" <.> pretty i)
 
-genLitSizeT :: Integer -> Doc
-genLitSizeT i
-  = parens (text "(size_t)" <.> pretty i)
+genLitUInt8 :: Integer -> Doc
+genLitUInt8 i
+  = parens (text "(uint8_t)" <.> pretty i)
 
 genLitSSizeT :: Integer -> Doc
 genLitSSizeT i
   = parens (text "(kk_ssize_t)" <.> pretty i)
 
-genLitPtrDiffT :: Integer -> Doc
-genLitPtrDiffT i
-  = parens (text "(ptrdiff_t)" <.> pretty i)
+genLitIntPtrT :: Integer -> Doc
+genLitIntPtrT i
+  = parens (text "(intptr_t)" <.> pretty i)
 
 
 isSmallLitInt expr
@@ -2311,20 +2307,18 @@ maxSmallInt64, minSmallInt64 :: Integer
 maxSmallInt64 = 9223372036854775807  -- 2^63 - 1
 minSmallInt64 = -maxSmallInt64 - 1
 
-isSmallSizeT platform i
-  | sizeSize platform == 4 = (i >= 0 && i <= 4294967295)
-  | sizeSize platform == 8 = (i >= 0 && i <= 18446744073709551615)
-  | otherwise = failure $ "Backend.C.isSmallSizeT: unknown platform size_t: " ++ show platform
+isSmallUInt8 platform i
+  = (i >= 0 && i < 255)
 
 isSmallSSizeT platform i
   | sizeSize platform == 4 = (i >= minSmallInt32 && i <= maxSmallInt32)
   | sizeSize platform == 8 = (i >= minSmallInt64 && i <= maxSmallInt64)
   | otherwise = failure $ "Backend.C.isSmallSSizeT: unknown platform ssize_t: " ++ show platform
 
-isSmallPtrDiffT platform i
+isSmallIntPtrT platform i
   | sizePtr platform == 4 = (i >= minSmallInt32 && i <= maxSmallInt32)
   | sizePtr platform == 8 = (i >= minSmallInt64 && i <= maxSmallInt64)
-  | otherwise = failure $ "Backend.C.isSmallPtrDiffT: unknown platform ptrdiff_t: " ++ show platform
+  | otherwise = failure $ "Backend.C.isSmallIntPtrT: unknown platform intptr_t: " ++ show platform
 
 
 ppName :: Name -> Doc
@@ -2373,8 +2367,10 @@ reserved
     , "signed"
     , "size_t"
     , "ssize_t"
+    , "intptr_t"
     , "uintptr_t"
     , "unsigned"
+    , "uint8_t"
     ]
     ++ -- C keywords
     [ "async"

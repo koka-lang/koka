@@ -646,9 +646,13 @@ genExpr expr
        -> genExpr arg
      App (Con _ repr) [arg]  | isConIso repr
        -> genExpr arg
+     App (Var tname _) [Lit (LitInt i)] | getName tname == nameByte && (i >= 0 && i < 256)
+       -> return (empty, pretty i)
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt i
        -> return (empty, pretty i)
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameSSizeT && isSmallInt i
+       -> return (empty, pretty i)
+     App (Var tname _) [Lit (LitInt i)] | getName tname == nameIntPtrT && isSmallInt i
        -> return (empty, pretty i)
 
      -- special: cfield-set
@@ -675,9 +679,13 @@ genExpr expr
                   Nothing -> case extractExtern f of
                    Just (tname,formats)
                      -> case args of
+                         [Lit (LitInt i)] | getName tname == nameByte  && i >= 0 && i < 256
+                           -> return (empty,pretty i)
                          [Lit (LitInt i)] | getName tname == nameInt32  && isSmallInt i
                            -> return (empty,pretty i)
                          [Lit (LitInt i)] | getName tname == nameSSizeT  && isSmallInt i
+                           -> return (empty,pretty i)
+                         [Lit (LitInt i)] | getName tname == nameIntPtrT  && isSmallInt i
                            -> return (empty,pretty i)
                          _ -> -- genInlineExternal tname formats argDocs
                               do (decls,argDocs) <- genExprs args
@@ -799,12 +807,12 @@ genInline expr
               case extractExtern f of
                 Just (tname,formats)
                   -> case args of
-                       [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameInt64,nameSSizeT,namePtrDiffT] && isSmallInt i
+                       [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameInt64,nameSSizeT,nameIntPtrT] && isSmallInt i
                          -> return (pretty i)
                        _ -> genInlineExternal tname formats argDocs
                 Nothing
                   -> case (f,args) of
-                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt32,nameInt64,nameSSizeT,namePtrDiffT] && isSmallInt i
+                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt32,nameInt64,nameSSizeT,nameIntPtrT] && isSmallInt i
                          -> return (pretty i)
                        _ -> do fdoc <- genInline f
                                return (fdoc <.> tupled argDocs)

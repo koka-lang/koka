@@ -507,6 +507,12 @@ public static class Primitive
     return (int)(i);
   }
 
+  public static byte IntToByte(BigInteger i) {
+    if (i < 0) return 0;
+    if (i > 255) return 255;
+    return (byte)(i);
+  }
+
   public static __std_core._order IntCompare(BigInteger i, BigInteger j) {
     int s = BigInteger.Compare(i, j);
     return (s < 0 ? __std_core._order.Lt : (s > 0 ? __std_core._order.Gt : __std_core._order.Eq));
