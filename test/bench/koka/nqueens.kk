@@ -10,7 +10,6 @@ fun safe( queen : int32, diag : int32, xs : solution ) : bool
     _          -> True
 
 
-
 fun append-safe( queen : int32, xs : solution, xss : solutions ) : div solutions
   if queen <= 0.int32 then xss
   elif safe(queen,1.int32,xs) then append-safe( queen.dec, xs, Cons(Cons(queen,xs),xss) )
@@ -21,7 +20,6 @@ fun extend(queen : int32, acc : solutions, xss : solutions ) : div solutions
   match xss
     Cons(xs,rest) -> extend(queen, append-safe(queen,xs,acc), rest)
     Nil           -> acc
-
 
 
 fun find-solutions( n : int32, queen : int32 ) : div solutions
