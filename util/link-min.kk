@@ -6,6 +6,6 @@ found in the LICENSE file at the root of this distribution.
 
 Minimal program to create a minimal install bundle
 -----------------------------------------------------------------------------*/
-fun main() : console () {
+fun main() : console () 
   println("done.")
-}
+
