@@ -378,7 +378,7 @@ value type cfield<a>
 
 // _Internal_. Internal type for _tail recursion module cons_ (TRMC) optimization.
 abstract value type ctail<a> {
-  con CTail( :a, :cfield<a> )
+  con CTail( res : a, hole : cfield<a> )
   con CTailNil
 }
 

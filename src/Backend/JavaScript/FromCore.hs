@@ -641,7 +641,7 @@ genMatch result scrutinees branches
                       docs <- f (ppName (getName tname)) pat -- avoid mutiple a.b.c.d call
                       return (doc:docs)
               PatCon _ fields _ _ info
-                -> do fmap concat $ mapM (\(field,fn) -> f (s <.> text "." <.> text (show fn)) field) (zip fields (map fst (conInfoParams info))) -- using ppName here writes __null0_ for _field1. WTF?
+                -> do fmap concat $ mapM (\(field,fn) -> f (s <.> text "." <.> text (show fn)) field) (zip fields (map fst (conInfoParams info))) -- using ppName here writes __null0_ for _field1.?
 -}
     -- | Takes a list of docs and concatenates them with logical and
     conjunction :: [Doc] -> Doc
