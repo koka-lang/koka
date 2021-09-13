@@ -221,43 +221,54 @@ in the [Perceus] report.
 
 Please help develop Koka: there are many opportunities to improve Koka or do research with Koka. We need:
 
-- Emacs (partially done) and Vim syntax highlighting.
-- Improve documentation, landing page etc. Make it easier for people to contribute.
-- More examples
-- Many library modules are incomplete (like `std/os/file`) or missing (like `std/data/map`).
+- [ ] Emacs (partially done) and Vim syntax highlighting.
+- [ ] Add more samples, improve documentation, landing page etc. Make it easier for people to contribute.
+- [ ] Many library modules are incomplete (like `std/os/file`) or missing (like `std/data/map`).
+- [ ] Update file and os primitives for the JavaScript backend.
+- [x] Run the full test suite.
+- [x] Run the Bayesian probalistic machine learning program with large parameters.
+- [x] Functions with a pattern match in the argument (by Steven Fontanella).
+- [x] Support `int64` operations
 
 More advanced projects:
 
-- Update the JavaScript backend to 1) use proper modules instead of amdefine, 2) use the new bigints instead of 
-  bigint.js, and 3) add support for int64. This requires mostly changes to `Backend/JS/FromCore.hs` together 
-  with `lib/core/core-inline.js`.
-- Partially done: see PR #100. A language server for Visual Studio Code and Atom. Koka can already generate a 
-  typed [range map](src/Syntax/RangeMap.hs) so this should be managable.
-- Package management of Koka modules.
-- Proper overloading with (a form of) type classes. (in design phase).
+- [x] Update the JavaScript backend to 1) use modern modules instead of amdefine, 2) use the new bigints instead of 
+  bigint.js, and 3) add support for int64. (landed in the `dev` branch)
+- [x] Port `std/text/regex` from v1 (using PCRE)
+- [ ] A language server for Visual Studio Code and Atom. Koka can already generate a 
+  typed [range map](src/Syntax/RangeMap.hs) so this should be managable. Partially done: see PR #100 (by @fwcd) -- it just
+  needs work on packaging it to make it easy to build and install as part of the Koka installer.
+- [ ] Package management of Koka modules.
+- [ ] Compile to WASM (using emscripten on the current C backend)
+
+Master/PhD level:
+
+- [ ] Better FBIP support with guaranteed datatype matching, automatic derivative and visitor generation.
+- [x] Float up `open` calls to improve effect handling (worked on by Naoya Furudono)
+- [x] Formalize opening and closing effect row types (worked on by Kazuki Ikemori)
 
 Currently being worked on:
 
-- Various standard optimizations like case-of-case, join points, case-of-known constructor, etc.
-- Implement inline specialization where functions like `map`, `fold` etc get specialized for the function 
-  with which they are called.
-  This is an important optimization for functional style languages to reduce the allocation of lambda's.
+- [x] Various standard optimizations like case-of-case, join points, case-of-known constructor, etc.
+- [x] Implement inline specialization where functions like `map`, `fold` etc get specialized for the function 
+  with which they are called. This is an important optimization for functional style languages to reduce the allocation of lambda's.
   (contact: Steven Fontanella)
-- Borrowing analysis for Perceus and improved reuse analysis. (contact: Anton Lorenzen)
+- [x] Borrowing analysis for Perceus and improved reuse analysis. (contact: Anton Lorenzen)
+- [ ] Improve case-of-known simplification with shape information
+- [ ] Improve compilation of local state to use local variables directly (in C) without allocation. Tricky though due to multiple resumptions.
+- [ ] Improve performance of array/mutable reference programming. Koka is has great performance for
+      algebraic datatypes but lags when using more imperative array algorithms. This requires better
+      integration with the reference counting (faster in-place update for vectors) and integration local mutable references.
+- [ ] To support optimal btree's we need mutable fields in constructors; or at least intrusive vector fields.
+- [ ] The current parallel task support is very basic; we need a great work-stealing thread pool, LVar's etc.
+- [ ] Expose the "bytes" primitive data together with views.
 
 The following is the immediate todo list to be completed in the coming months:
 
-- Port `std/async` (using `libuv`).
-- Improve compilation of local state to use local variables directly (in C).
+- [ ] Port `std/async` (using `libuv`).
+- [ ] Proper overloading with (a form of) type classes. (in design phase).
 
 Contact me if you are interested in tackling some of these :-)
-
-Recently completed tasks:
-
-- Ported `std/text/regex` (using PCRE)
-- Run the full test suite.
-- Run the Bayesian probalistic machine learning program with large parameters.
-- Functions with a pattern match in the argument (by Steven Fontanella).
 
 
 # Build Notes
