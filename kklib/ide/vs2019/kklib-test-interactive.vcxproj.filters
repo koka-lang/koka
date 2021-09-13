@@ -6,5 +6,6 @@
     <ClCompile Include="..\..\..\out\Debug\std_core_types.c" />
     <ClCompile Include="..\..\..\out\Debug\interactive.c" />
     <ClCompile Include="..\..\..\out\Debug\std_num_int64.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_num_int32.c" />
   </ItemGroup>
 </Project>

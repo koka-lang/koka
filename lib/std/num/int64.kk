@@ -9,13 +9,11 @@
 // 64-bit signed integers.
 public module std/num/int64
 
-// todo: c-backend: fix shift bounds; improve perf of rotl/rotr by using kk_rotl functions.
-
 // The maximal integer value before overflow happens
-val max-int64 : int =  0x7FFFFFFFFFFFFFFF
+val max-int64 : int64 =  0x7FFFFFFFFFFFFFFF.int64
 
 // The minimal integer value before underflow happens
-val min-int64 : int = -0x8000000000000000
+val min-int64 : int64 = -0x8000000000000000.int64
 
 // The number of bits in an `:int64` (always 64)
 val bits-int64 : int64 = 64.int64
@@ -50,7 +48,7 @@ fun show-hex( i : int64, width : int = 1, use-capitals : bool = True, pre : stri
 // `0x8000000000000000.uint64 == -0x800000000000000.int64 == min-int64`\
 // `0xFFFFFFFFFFFFFFFF.uint64 == -1.int64`\
 fun uint64( i : int ) : int64 {
-  if (i > max-int64) then (i - 0x10000000000000000).int64 else i.int64
+  if (i > max-int64.int) then (i - 0x10000000000000000).int64 else i.int64
 }
 
 // Convert an `:int64` to an `:int` but interpret the `:int64` as a 64-bit unsigned value.
@@ -142,7 +140,7 @@ fun compare( x : int64, y : int64) : order {
 // (since the negation of `min-int64` equals itself and is still negative)
 fun abs( i : int64 ) : exn int64 {
   if (!i.is-neg) then i
-  elif (i > min-int64.int64) then negate(i)
+  elif (i > min-int64) then negate(i)
   else throw( "std/num/int64/abs: cannot make min-int64 into a positive int64 without overflow" )
 }
 
@@ -151,7 +149,7 @@ fun abs( i : int64 ) : exn int64 {
 // (since the negation of `min-int64` equals itself and is still negative)
 fun abs0( i : int64 ) : int64 {
   if (!i.is-neg) then i
-  elif (i > min-int64.int64) then negate(i)
+  elif (i > min-int64) then negate(i)
   else 0.int64
 }
 
@@ -178,17 +176,15 @@ inline extern not : ( i : int64 ) -> int64  {
 }
 
 
-// Shift an `:int64` `i` to the left by `n` bits.
-// Returns `i` when `n` is negative, or `0` when `n >= bitsInt`.
+// Shift an `:int64` `i` to the left by `n & 63` bits.
 inline extern shl : (int64,int64) -> int64 {
-  inline "#1 << #2"
+  c inline "kk_shl64(#1,#2)"
   js "$std_core._int64_shl"
 }
 
-// Logical shift an `:int64` to the right by `n` bits. Shift in zeros from the left.
-// Returns `i` when `n` is negative, or `0` when `n >= bitsInt`.
+// Logical shift an `:int64` to the right by `n & 63` bits. Shift in zeros from the left.
 inline extern shr : (int64,int64) -> int64 {
-  c inline "((int64_t)(((uint64_t)#1) >> #2))"
+  c inline "(int64_t)kk_shr64(#1,#2)"
   cs inline "(int64)(((Uint64)#1)>>#2)"
   js "$std_core._int64_shr"
 }
@@ -196,47 +192,42 @@ inline extern shr : (int64,int64) -> int64 {
 // Arithmetic shift an `:int64` to the right by `n` bits. Preserves the sign bit.
 // Returns `i` when `n` is negative. When `n >= bitsInt` returns either `-1` when `i<0`, or `0` when `i>=0`.
 inline extern sar : (int64,int64) -> int64 {
-  c inline "(#1 >> #2)"
+  c inline "kk_sar64(#1,#2)"
   js "$std_core._int64_sar"
 }
 
-// Bitwise rotate an `:int64` `n` bits to the left.
-// Does not rotate when `n` is negative.
-fun rotl( i : int64, n : int64 ) : int64 {
-  if (n.is-neg) return i;
-  val r = and(n,bits-int64.dec)  // modulo bits in an int64
-  or(shl(i,r),shr(i,bits-int64 - r))
+// Bitwise rotate an `:int64` `n & 63` bits to the left.
+inline extern rotl( i : int64, n : int64 ) : int64 {
+  c inline "(int64_t)kk_bits_rotl64(#1,#2)"
+  js "$std_core._int64_rotl"
 }
 
-// Bitwise rotate an `:int64` `n` bits to the right.
-// Does not rotate when `n` is negative.
-fun rotr( i : int64, n : int64 ) : int64 {
-  if (n.is-neg) return i;
-  val r = and(n,bits-int64.dec)  // modulo bits in an int64
-  or(shr(i,r),shl(i,bits-int64 - r))
+// Bitwise rotate an `:int64` `n & 63` bits to the right.
+inline extern rotr( i : int64, n : int64 ) : int64 {
+  c inline "(int64_t)kk_bits_rotr64(#1,#2)"
+  js "$std_core._int64_rotr"
 }
-
-
-
 
 // Return the minimum of two integers
-fun min( i : int64, j : int64 ) : int64 { if (i <= j) then i else j }
+fun min( i : int64, j : int64 ) : int64 
+  if (i <= j) then i else j 
 
 // Return the maximum of two integers
-fun max( i : int64, j : int64 ) : int64 { if (i >= j) then i else j }
+fun max( i : int64, j : int64 ) : int64 
+  if (i >= j) then i else j 
 
 
 // Truncated division (as in C). See also `(/):(x : int64, y : int64) -> int64`.
 fun cdiv(i:int64, j:int64) : exn int64 {
   if (j.is-zero) then throw("std/num/int64/cdiv: division by zero")
-  elif (i==min-int64.int64 && j == -1.int64) then throw("std/num/int64/cdiv: division overflow in cdiv(min-int64, -1.int64)")
+  elif (i==min-int64 && j == -1.int64) then throw("std/num/int64/cdiv: division overflow in cdiv(min-int64, -1.int64)")
   else unsafe-cdiv(i,j)
 }
 
 // Truncated modulus (as in C). See also `(%):(x : int64, y : int64) -> int64`.
 fun cmod(i:int64, j:int64) : exn int64 {
   if (j.is-zero) then throw("std/num/int64/cdiv: modulus by zero")
-  elif (i==min-int64.int64 && j == -1.int64) then throw("std/num/int64/cmod: modulus overflow in cmod(min-int64, -1.int64)")
+  elif (i==min-int64 && j == -1.int64) then throw("std/num/int64/cmod: modulus overflow in cmod(min-int64, -1.int64)")
   else unsafe-cmod(i,j)
 }
 
@@ -291,7 +282,7 @@ See also _Division and modulus for computer scientists, Daan Leijen, 2001_
 fun (/)( x : int64, y : int64 ) : int64
 {
   if (y == 0.int64) return 0.int64
-  if (x==min-int64.int64 && y == -1.int64) return x
+  if (x==min-int64 && y == -1.int64) return x
   val q = unsafe-cdiv(x,y)
   val r = unsafe-cmod(x,y)
   if (r >= 0.int64) then q
@@ -303,7 +294,7 @@ fun (/)( x : int64, y : int64 ) : int64
 fun (%)( x : int64, y : int64 ) : int64
 {
   if (y == 0.int64) return x
-  if (x==min-int64.int64 && y == -1.int64) return 0.int64
+  if (x==min-int64 && y == -1.int64) return 0.int64
   val r = unsafe-cmod(x,y)
   if (r >= 0.int64) then r
   elif (y > 0.int64) then r + y
@@ -312,7 +303,7 @@ fun (%)( x : int64, y : int64 ) : int64
 
 fun divmod(x:int64,y:int64) : (int64,int64) {
   if (y.is-zero) then return (zero,x)
-  elif (x==min-int64.int64 && y == -1.int64) then return (x,0.int64)
+  elif (x==min-int64 && y == -1.int64) then return (x,0.int64)
   val q = unsafe-cdiv(x,y)
   val r = unsafe-cmod(x,y)
   if (r >= 0.int64) then (q, r)
