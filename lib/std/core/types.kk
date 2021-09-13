@@ -42,7 +42,7 @@ value type double
 value type int32
 
 // A 64-bit signed integer (represented in two's complement).
-// Provides no operations but is used mostly for interaction with external code.
+// See the `module std/num/int64` module for operations on 64-bit integers.
 value type int64
 
 // A signed two's complement integer equal to a signed `size_t` in C, i.e.

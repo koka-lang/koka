@@ -1311,7 +1311,7 @@ private inline extern (+)  : (ssize_t,ssize_t) -> ssize_t { inline "(#1 + #2)"; 
 private inline extern (-)  : (ssize_t,ssize_t) -> ssize_t { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
 private inline extern is-pos( i : ssize_t ) : bool { inline "(#1 > 0)" }
 private inline extern is-neg( i : ssize_t ) : bool { inline "(#1 < 0)" }
-private extern is-zero( i : ssize_t ) : bool { inline "(#1 == 0)" }
+private extern is-zero( i : ssize_t ) : bool { inline "(#1 == 0)"; js inline "(#1 === 0)" }
 private extern decr(i : ssize_t ) : ssize_t { inline "(#1 - 1)" }
 private extern incr(i : ssize_t ) : ssize_t { inline "(#1 + 1)" }
 

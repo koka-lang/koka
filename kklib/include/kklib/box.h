@@ -328,6 +328,36 @@ static inline kk_box_t kk_int16_box(int16_t i, kk_context_t* ctx) {
   return kk_int_box(i);
 }
 
+typedef struct kk_boxed_int64_s {
+  kk_block_t  _block;
+  int64_t  value;
+} *boxed_int64_t;
+
+static inline int64_t kk_int64_unbox(kk_box_t v, kk_context_t* ctx) {
+  if (kk_likely(kk_box_is_value(v))) {
+    kk_intx_t i = kk_int_unbox(v);
+    return (int64_t)i;
+  }
+  else {
+    kk_assert_internal((kk_box_is_ptr(v) && kk_block_tag(kk_ptr_unbox(v)) == KK_TAG_INT64) || kk_box_is_any(v));
+    boxed_int64_t bi = kk_block_assert(boxed_int64_t, kk_ptr_unbox(v), KK_TAG_INT64);
+    int64_t i = bi->value;
+    if (ctx!=NULL) { kk_block_drop(&bi->_block, ctx); }
+    return i;
+  }
+}
+
+static inline kk_box_t kk_int64_box(int64_t i, kk_context_t* ctx) {
+  if (i >= KK_MIN_BOXED_INT && i <= KK_MAX_BOXED_INT) {
+    return kk_int_box(i);
+  }
+  else {
+    boxed_int64_t bi = kk_block_alloc_as(struct kk_boxed_int64_s, 0, KK_TAG_INT64, ctx);
+    bi->value = i;
+    return kk_ptr_box(&bi->_block);
+  }
+}
+
 static inline bool kk_bool_unbox(kk_box_t v) {
   return (kk_int_unbox(v) != 0);
 }

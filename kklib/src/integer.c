@@ -340,24 +340,42 @@ static kk_integer_t integer_bigint(kk_bigint_t* x, kk_context_t* ctx) {
 // create a bigint from an kk_int_t
 static kk_bigint_t* bigint_from_int(kk_intx_t i, kk_context_t* ctx) {
   bool is_neg = (i < 0);
-  if (is_neg) i = -i;
+  kk_uintx_t u;  // use uint64 so we can convert MIN_INT64
+  if (!is_neg) {
+    u = (kk_uintx_t)i;
+  }
+  else if (i == KK_INTX_MIN) {
+    u = ((kk_uintx_t)KK_INTX_MAX) + 1;
+  }
+  else {
+    u = (kk_uintx_t)(-i);
+  }
   kk_bigint_t* b = bigint_alloc(0, is_neg, ctx); // will reserve at least 4 digits
   do {
-    b = bigint_push(b, i%BASE, ctx);
-    i /= BASE;
-  } while (i > 0);
+    b = bigint_push(b, u%BASE, ctx);
+    u /= BASE;
+  } while (u > 0);
   return b;
 }
 
 // create a bigint from an int64_t
 static kk_bigint_t* bigint_from_int64(int64_t i, kk_context_t* ctx) {
   bool is_neg = (i < 0);
-  if (is_neg) i = -i;
+  uint64_t u;  // use uint64 so we can convert MIN_INT64
+  if (!is_neg) { 
+    u = (uint64_t)i; 
+  }
+  else if (i == INT64_MIN) { 
+    u = ((uint64_t)INT64_MAX) + 1; 
+  }
+  else { 
+    u = (uint64_t)(-i); 
+  }
   kk_bigint_t* b = bigint_alloc(0, is_neg, ctx); // will reserve at least 4 digits
   do {
-    b = bigint_push(b, i%BASE, ctx);
-    i /= BASE;
-  } while (i > 0);
+    b = bigint_push(b, (kk_digit_t)(u%BASE), ctx);
+    u /= BASE;
+  } while (u > 0);
   return b;
 }
 

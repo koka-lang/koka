@@ -473,9 +473,11 @@ static bool test_count10_32(uint32_t u) {
   snprintf(buf, 63, "%" PRIu32, u);
   if (strlen(buf) != c) {
     printf("*************\nvalue: %s: is not %i digits!!!\n************\n", buf, c);
+    return false;
   }
   else {
     printf("value: %s: digits: %i\n", buf, c);
+    return true;
   }
 }
 

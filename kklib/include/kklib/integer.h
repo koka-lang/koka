@@ -348,6 +348,7 @@ static inline kk_integer_t kk_integer_from_intptr_t(intptr_t i, kk_context_t* ct
 }
 
 static inline kk_integer_t kk_integer_from_byte(uint8_t i, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
   return kk_integer_from_small(i);
 }
 
