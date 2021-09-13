@@ -21,7 +21,7 @@ fun check1(name : string, res : string, tst : double ) : io () {
 }
 
 fun check-logp(name : string, res : string, x : double ) : io () {
-  check(name,res, log(x + 1.0).show ++ ", " ++ log1p(x).show ++ ", " ++ system-log1p(x).show)
+  check(name,res, log(x + 1.0).show(16) ++ ", " ++ log1p(x).show(16) ++ ", " ++ system-log1p(x).show(16))
 }
 
 extern system-log1p( x : double ) : double {
@@ -57,12 +57,12 @@ fun check-eq( name : string, nums : list<double>, f : double -> double, g : doub
 }
 
 fun main() {
-  check-logp("logp 1", "0.69314718055994529, 0.69314718055994529, 0.69314718055994529", 1.0)
-  check-logp("logp 2", "1.3322676295501871e-015, 1.2344999999999993e-015, 1.2344999999999993e-015", 1.2345e-15)
-  check-logp("logp 3", "2.2204460492503128e-016, 1.2344999999999999e-016, 1.2344999999999999e-016", 1.2345e-16)
-  check-logp("logp 4", "0, 1.2345e-032, 1.2345e-032", 1.2345e-32)
-  check-logp("logp 5", "0, 1.2344999999999999e-064, 1.2344999999999999e-064", 1.2345e-64)
-  check-logp("logp 6", "709.78271289338397, 709.78271289338397, 709.78271289338397", 1.7976931348622732e+308)
+  check-logp("logp 1", "0.6931471805599453, 0.6931471805599453, 0.6931471805599453", 1.0)
+  check-logp("logp 2", "1.3322676295501871e-15, 1.2344999999999993e-15, 1.2344999999999993e-15", 1.2345e-15)
+  check-logp("logp 3", "2.2204460492503128e-16, 1.2344999999999999e-16, 1.2344999999999999e-16", 1.2345e-16)
+  check-logp("logp 4", "0.0000000000000000, 1.2345000000000000e-32, 1.2345000000000000e-32", 1.2345e-32)
+  check-logp("logp 5", "0.0000000000000000, 1.2344999999999999e-64, 1.2344999999999999e-64", 1.2345e-64)
+  check-logp("logp 6", "709.7827128933839731, 709.7827128933839731, 709.7827128933839731", 1.7976931348622732e+308)
   check-eq("atanh", [0.0,1.23e-11,1.23e-10,1.23e-3,0.123,0.5,dbl-log2,1.0,2.0,posinf,nan], atanh, system-atanh)
   check-eq("asinh", [0.0,1.23e-16,1.23e-15,1.23e-3,0.122,0.5,dbl-log2,1.0,2.0,1.23e3,1.23e8,1.23e15,1.23e16,posinf,nan], asinh, system-asinh)
   check-eq("acosh", [0.0,1.23e-16,1.23e-15,1.23e-3,0.122,0.5,dbl-log2,1.0,2.0,1.23e3,1.23e8,1.23e15,1.23e16,posinf,nan], acosh, system-acosh)

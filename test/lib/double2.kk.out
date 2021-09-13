@@ -1,16 +1,8 @@
 logp 1 : ok: 0, 0, 0
-logp 2 : FAILED!:
- expect: 1e-015, 1e-015, 1e-015
- gotten: 1e-15, 1e-15, 1e-15
-logp 3 : FAILED!:
- expect: 2e-016, 1e-016, 1e-016
- gotten: 2e-16, 1e-16, 1e-16
-logp 4 : FAILED!:
- expect: 0, 1e-032, 1e-032
- gotten: 0, 1e-32, 1e-32
-logp 5 : FAILED!:
- expect: 0, 1e-064, 1e-064
- gotten: 0, 1e-64, 1e-64
+logp 2 : ok: 1e-15, 1e-15, 1e-15
+logp 3 : ok: 2e-16, 1e-16, 1e-16
+logp 4 : ok: 0, 1e-32, 1e-32
+logp 5 : ok: 0, 1e-64, 1e-64
 logp 6 : ok: 709, 709, 709
 atanh: 0: ok: 0
 atanh: 1e-11: ok: 1e-11
