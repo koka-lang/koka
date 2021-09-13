@@ -240,10 +240,21 @@ More advanced projects:
   needs work on packaging it to make it easy to build and install as part of the Koka installer.
 - [ ] Package management of Koka modules.
 - [ ] Compile to WASM (using emscripten on the current C backend)
+- [ ] Improve compilation of local state to use local variables directly (in C) without allocation. Tricky though due to multiple resumptions.
+- [ ] Improve performance of array/mutable reference programming. Koka is has great performance for
+      algebraic datatypes but lags when using more imperative array algorithms. This requires better
+      integration with the reference counting (faster in-place update for vectors) and integration local mutable references.
+- [ ] To support optimal btree's we need mutable fields in constructors; or at least intrusive vector fields.
+- [ ] The current parallel task support is very basic; we need a great work-stealing thread pool, LVar's etc.
+- [ ] Expose the "bytes" primitive data together with views.
+- [ ] Improve C backend code generation to generate nicer output with less "noise" (like temporary variables, or variables for each if condition etc).
+- [ ] Improve C code generation by identifying output that could be better; also in effectful code we generate many join-points (see [9]),
+      can we increase the sharing/reduce the extra code.
 
 Master/PhD level:
 
 - [ ] Better FBIP support with guaranteed datatype matching, automatic derivative and visitor generation.
+- [ ] Can we use C++ exceptions to implement "zero-cost" `if yielding() ...` branches and remove the need join points (see [9]).
 - [x] Float up `open` calls to improve effect handling (worked on by Naoya Furudono)
 - [x] Formalize opening and closing effect row types (worked on by Kazuki Ikemori)
 
@@ -255,13 +266,6 @@ Currently being worked on:
   (contact: Steven Fontanella)
 - [x] Borrowing analysis for Perceus and improved reuse analysis. (contact: Anton Lorenzen)
 - [ ] Improve case-of-known simplification with shape information
-- [ ] Improve compilation of local state to use local variables directly (in C) without allocation. Tricky though due to multiple resumptions.
-- [ ] Improve performance of array/mutable reference programming. Koka is has great performance for
-      algebraic datatypes but lags when using more imperative array algorithms. This requires better
-      integration with the reference counting (faster in-place update for vectors) and integration local mutable references.
-- [ ] To support optimal btree's we need mutable fields in constructors; or at least intrusive vector fields.
-- [ ] The current parallel task support is very basic; we need a great work-stealing thread pool, LVar's etc.
-- [ ] Expose the "bytes" primitive data together with views.
 
 The following is the immediate todo list to be completed in the coming months:
 
