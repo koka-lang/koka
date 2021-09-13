@@ -42,7 +42,6 @@ value type double
 value type int32
 
 // A 64-bit signed integer (represented in two's complement).
-// Currently not supported by the Javascript backend
 // Provides no operations but is used mostly for interaction with external code.
 value type int64
 
@@ -56,7 +55,7 @@ value type ssize_t
 // A signed two's complement integer equal to an `intptr_t` in C, i.e.
 // it has the same bit-size as a native pointer (`void*`).
 // Provides no operations but is used mostly for interaction with external code.
-// The Javascript backend uses `int32` for this.
+// The Javascript backend uses `int64` for this.
 value type intptr_t
 
 // A 8-bit unsigned integer.

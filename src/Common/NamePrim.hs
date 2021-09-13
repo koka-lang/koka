@@ -195,7 +195,7 @@ nameNull        = preludeName "Nil"
 nameCons        = preludeName "Cons"
 nameTpList      = preludeName "list"
 
-nameIntConst    = preludeName ".int-string"
+nameIntConst    = preludeName ".int-const"
 
 {--------------------------------------------------------------------------
   Primitive type constructors

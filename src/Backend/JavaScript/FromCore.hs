@@ -679,7 +679,9 @@ genExpr expr
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameSSizeT && isSmallInt i
        -> return (empty, pretty i)
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameIntPtrT && isSmallInt i
-       -> return (empty, pretty i)
+       -> return (empty, pretty i <.> text "n")
+     App (Var tname _) [Lit (LitInt i)] | getName tname == nameInt64 && isSmallInt i
+       -> return (empty, pretty i <.> text "n")       
 
      -- special: cfield-set
      App (TypeApp (Var cfieldOf _) [_]) [Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameCFieldOf
@@ -712,7 +714,9 @@ genExpr expr
                          [Lit (LitInt i)] | getName tname == nameSSizeT  && isSmallInt i
                            -> return (empty,pretty i)
                          [Lit (LitInt i)] | getName tname == nameIntPtrT  && isSmallInt i
-                           -> return (empty,pretty i)
+                           -> return (empty,pretty i <.> text "n")
+                         [Lit (LitInt i)] | getName tname == nameInt64  && isSmallInt i
+                           -> return (empty,pretty i <.> text "n")                           
                          _ -> -- genInlineExternal tname formats argDocs
                               do (decls,argDocs) <- genExprs args
                                  (edecls,doc) <- genExprExternal tname formats argDocs
@@ -833,13 +837,17 @@ genInline expr
               case extractExtern f of
                 Just (tname,formats)
                   -> case args of
-                       [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameInt64,nameSSizeT,nameIntPtrT] && isSmallInt i
+                       [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameSSizeT] && isSmallInt i
                          -> return (pretty i)
+                       [Lit (LitInt i)] | getName tname `elem` [nameInt64,nameIntPtrT] && isSmallInt i
+                         -> return (pretty i <.> text "n")
                        _ -> genInlineExternal tname formats argDocs
                 Nothing
                   -> case (f,args) of
-                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt32,nameInt64,nameSSizeT,nameIntPtrT] && isSmallInt i
+                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt32,nameSSizeT] && isSmallInt i
                          -> return (pretty i)
+                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt64,nameIntPtrT] && isSmallInt i
+                         -> return (pretty i <.> text "n")
                        _ -> do fdoc <- genInline f
                                return (fdoc <.> tupled argDocs)
 
@@ -1164,13 +1172,13 @@ getInStatement
 -- Pretty printing
 ---------------------------------------------------------------------------------
 
--- | Approved for use in JavaScript according to ECMA definition
+
 ppLit :: Lit -> Doc
 ppLit lit
     = case lit of
       LitInt i    -> if (isSmallInt(i))
-                      then (pretty i)
-                      else ppName nameIntConst <.> parens (dquotes (pretty i))
+                      then pretty i
+                      else ppName nameIntConst <.> parens (pretty i <.> text "n")
       LitChar c   -> text ("0x" ++ showHex 4 (fromEnum c))
       LitFloat d  -> text (showsPrec 20 d "")
       LitString s -> dquotes (hcat (map escape s))
