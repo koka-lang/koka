@@ -189,8 +189,7 @@ inline extern shr : (int64,int64) -> int64 {
   js "$std_core._int64_shr"
 }
 
-// Arithmetic shift an `:int64` to the right by `n` bits. Preserves the sign bit.
-// Returns `i` when `n` is negative. When `n >= bitsInt` returns either `-1` when `i<0`, or `0` when `i>=0`.
+// Arithmetic shift an `:int64` to the right by `n & 63` bits. Preserves the sign bit.
 inline extern sar : (int64,int64) -> int64 {
   c inline "kk_sar64(#1,#2)"
   js "$std_core._int64_sar"

@@ -110,7 +110,7 @@ public fun test-show() {
 public fun test-int10() {
   for(2,308) fn(i){
     val expect = "1e+" ++ i.show
-    check("int" ++ i.show, expect) { ddouble-exp(1,i).show-exp(-29) }
+    check("int" ++ i.show, expect) { ddouble-exp(1,i).show-exp(-28) }
   }
 }
 
@@ -133,7 +133,7 @@ public fun test-int99() {
 
 
 public fun test-big() {
-  val digits= dd-max-prec - 2
+  val digits= dd-max-prec - 3
   val pi290 = dd-pi * ddouble-exp(1,290)
   val s     = dd-pi.show-exp(digits)
   //trace( "s: " ++ s ++ ", len: " ++ s.count.show)
