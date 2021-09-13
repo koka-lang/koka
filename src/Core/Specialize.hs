@@ -155,7 +155,7 @@ specInnerCalls from to bools = rewriteBottomUp $ \e ->
     e -> e
 
 comment :: String -> String
-comment = unlines . map ("// " ++ ). lines
+comment = unlines . map ("// " ++ ) . lines
 
 replaceCall :: Name -> Expr -> [Bool] -> [Expr] -> Maybe [Type] -> SpecM Expr
 replaceCall name expr bools args mybeTypeArgs -- trace ("specializing" <> show name) $
