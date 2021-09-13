@@ -1253,7 +1253,7 @@ fun fold-int( start : int, end : int, init : a, f : (int,a) -> a ) : a {
 inline extern int( i : int32 ) : int {
   c  "kk_integer_from_int"
   cs inline "(new BigInteger(#1))"
-  js "$std_core._int_double"
+  js "$std_core._int_from_int32"
 }
 
 // Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
@@ -1261,7 +1261,7 @@ inline extern int( i : int32 ) : int {
 extern int32  : (int) -> int32   {
   c  "kk_integer_clamp32"
   cs "Primitive.IntToInt32"
-  js "$std_core._int_to_int32"
+  js "$std_core._int_clamp32"
 }
 
 
@@ -1292,14 +1292,14 @@ private fun decr( i : int32 ) : int32 {
 extern ssize_t( i : int) : ssize_t   {
   c  "kk_integer_clamp_ssize_t"
   cs "Primitive.IntToInt32"
-  js "$std_core._int_to_int32"
+  js "$std_core._int_clamp32"
 }
 
 // Convert an `:ssize_t` to an `:int`.
 inline extern int( i : ssize_t ) : int {
   c  "kk_integer_from_ssize_t"
   cs inline "(new BigInteger(#1))"
-  js "$std_core._int_double"
+  js "$std_core._int_from_int32"
 }
 
 
@@ -1325,32 +1325,32 @@ private extern incr(i : ssize_t ) : ssize_t { inline "(#1 + 1)" }
 extern int64( i : int) : int64 {
   c  "kk_integer_clamp64"
   cs "Primitive.IntToInt64"
-  js "$std_core._int_to_int32"
+  js "$std_core._int_clamp64"
 }
 
 // Convert an `:int64_t` to an `:int`.
 inline extern int( i : int64 ) : int {
   c  "kk_integer_from_int64"
   cs inline "(new BigInteger(#1))"
-  js "$std_core._int_double"
+  js "$std_core._int_from_int64"
 }
 
 // ----------------------------------------------------------------------------
 // intptr_t
 // ----------------------------------------------------------------------------
 
-// clamp an `:int` to fit in an `:intptr_t`.
+// clamp an `:int` to fit in an `:intptr_t`. 
 extern intptr_t( i : int) : intptr_t {
   c  "kk_integer_clamp_intptr_t"
   cs "Primitive.IntToInt64"
-  js "$std_core._int_to_int32"
+  js "$std_core._int_clamp64"
 }
 
 // Convert an `:intptr_t` to an `:int`.
 inline extern int( i : intptr_t ) : int {
   c  "kk_integer_from_intptr_t"
   cs inline "(new BigInteger(#1))"
-  js "$std_core._int_double"
+  js "$std_core._int_from_int64"
 }
 
 // ----------------------------------------------------------------------------
@@ -1361,14 +1361,14 @@ inline extern int( i : intptr_t ) : int {
 extern byte( i : int) : byte {
   c  "kk_integer_clamp_byte"
   cs inline "Primitive.IntToByte"
-  js "$std_core._int_to_byte"
+  js "$std_core._int_clamp_byte"
 }
 
 // Convert an `:byte` to an `:int`.
 inline extern int( i : byte ) : int {
   c  "kk_integer_from_byte"
   cs inline "(new BigInteger(#1))"
-  js "$std_core._int_double"
+  js "$std_core._int_from_int32"
 }
 
 // ----------------------------------------------------------------------------
