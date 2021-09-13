@@ -2268,11 +2268,13 @@ cstring s
 
 genLitInt32 :: Integer -> Doc
 genLitInt32 i
-  = parens (text "(int32_t)" <.> pretty i)
+  | i == minSmallInt32 = parens (text "INT32_MIN")
+  | otherwise          = parens (text "(int32_t)" <.> text "KI32" <.> parens (pretty i))
 
 genLitInt64 :: Integer -> Doc
 genLitInt64 i
-  = parens (text "(int64_t)" <.> pretty i)
+  | i == minSmallInt64  = parens (text "INT64_MIN")
+  | otherwise           = parens (text "(int64_t)" <.> text "KI64" <.> parens (pretty i))
 
 genLitUInt8 :: Integer -> Doc
 genLitUInt8 i
@@ -2310,14 +2312,15 @@ minSmallInt64 = -maxSmallInt64 - 1
 isSmallUInt8 platform i
   = (i >= 0 && i < 255)
 
+-- note: don't allow smallest or we get C constant errors
 isSmallSSizeT platform i
-  | sizeSize platform == 4 = (i >= minSmallInt32 && i <= maxSmallInt32)
-  | sizeSize platform == 8 = (i >= minSmallInt64 && i <= maxSmallInt64)
+  | sizeSize platform == 4 = (i > minSmallInt32 && i <= maxSmallInt32)
+  | sizeSize platform == 8 = (i > minSmallInt64 && i <= maxSmallInt64)
   | otherwise = failure $ "Backend.C.isSmallSSizeT: unknown platform ssize_t: " ++ show platform
 
 isSmallIntPtrT platform i
-  | sizePtr platform == 4 = (i >= minSmallInt32 && i <= maxSmallInt32)
-  | sizePtr platform == 8 = (i >= minSmallInt64 && i <= maxSmallInt64)
+  | sizePtr platform == 4 = (i > minSmallInt32 && i <= maxSmallInt32)
+  | sizePtr platform == 8 = (i > minSmallInt64 && i <= maxSmallInt64)
   | otherwise = failure $ "Backend.C.isSmallIntPtrT: unknown platform intptr_t: " ++ show platform
 
 
