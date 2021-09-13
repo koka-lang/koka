@@ -2,7 +2,7 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
-#define KKLIB_BUILD        48       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        49       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1
 
@@ -176,7 +176,7 @@ typedef struct kk_block_large_s {
 // A pointer to a block. Cannot be NULL.
 typedef kk_block_t* kk_ptr_t;
 
-// A general : with constructors and singletons is eiter a pointer to a block or an enumeration
+// A general datatype with constructors and singletons is eiter a pointer to a block or an enumeration
 
 typedef union kk_datatype_s {
   kk_ptr_t   ptr;         // always lowest bit cleared
@@ -294,7 +294,7 @@ typedef enum kk_yield_kind_e {
 typedef struct kk_yield_s {
   int32_t       marker;          // marker of the handler to yield to
   kk_function_t clause;          // the operation clause to execute when the handler is found
-  kk_ssize_t       conts_count;     // number of continuations in `conts`
+  kk_ssize_t    conts_count;     // number of continuations in `conts`
   kk_function_t conts[KK_YIELD_CONT_MAX]; // fixed array of continuations. The final continuation `k` is
                                           // composed as `fN ○ ... ○ f2 ○ f1` if `conts = { f1, f2, ..., fN }`
                                           // if the array becomes full, a fresh array is allocated and the first
@@ -320,7 +320,7 @@ typedef struct kk_context_s {
   kk_function_t  out;              // std output
 
   struct kk_random_ctx_s* srandom_ctx; // strong random using chacha20, initialized on demand
-  kk_ssize_t        argc;             // command line argument count 
+  kk_ssize_t     argc;             // command line argument count 
   const char**   argv;             // command line arguments
   kk_timer_t     process_start;    // time at start of the process
   int64_t        timer_freq;       // high precision timer frequency

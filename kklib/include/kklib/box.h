@@ -136,7 +136,7 @@ double   kk_double_unbox_heap(kk_box_t b, kk_context_t* ctx);
 kk_box_t kk_double_box_heap(double d, kk_context_t* ctx);
 #endif
 
-#if (KK_INTPTR_SIZE==8)
+#if (KK_INTPTR_SIZE>=8)
 kk_box_t kk_double_box(double d, kk_context_t* ctx);
 double   kk_double_unbox(kk_box_t b, kk_context_t* ctx);
 #endif

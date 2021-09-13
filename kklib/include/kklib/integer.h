@@ -43,7 +43,7 @@ Finally, we subtract 1 (== ^3 in this case) to normalize the integer again.
 With gcc on x86-64 we get:
 
 kk_integer_add(long x, long y)
-        mov     rax, rdi   // move  `x` to eax
+        mov     rax, rdi   // move  `x` to rax
         add     rax, rsi   // add `y`
         jo      .L7        // on overflow goto slow
         and     rax, 2     // check bit 1 of the result
