@@ -24,9 +24,9 @@ data Mode = Test | New | Update
   deriving (Eq, Ord, Show)
 
 
-data Options = Options{ mode :: Mode, cabal :: Bool, sysghc:: Bool, opt :: Int }
+data Options = Options{ mode :: Mode, cabal :: Bool, sysghc:: Bool, opt :: Int, js :: Bool }
 
-optionsDefault = Options Test False False 0
+optionsDefault = Options Test False False 0 False
 
 data Cfg = Cfg{ flags   :: [String],
                 options :: Options,
@@ -68,7 +68,9 @@ extendCfg (Cfg flags1 opts1 exclude1 fexclude1) (Cfg flags2 opts2 exclude2 fexcl
         (exclude1 ++ exclude2) (\s -> fexclude1 s || fexclude2 s)
 
 initialCfg :: Options -> Cfg
-initialCfg options = makeCfg commonFlags options [] 
+initialCfg options 
+  = makeCfg (commonFlags ++ if (js options) then ["--target=js"] else [])
+            options [] 
                   
 
 readFlagsFile :: FilePath -> IO [String]
@@ -178,6 +180,8 @@ processOptions arg (options,hargs)
       then (options{opt=read (drop 2 arg)}, hargs)
     else if (arg == "--system-ghc")
       then (options{sysghc=True}, hargs)
+    else if (arg == "--target-js")
+      then (options{js=True}, hargs)
       else (options, arg : hargs)
   where
     parseMode :: String -> Mode
@@ -204,7 +208,8 @@ main = do
   let cfg = initialCfg options
   runKoka cfg "" "util/link-test.kk" 
   putStrLn "ok."
-  let spec = parallel $ discoverTests cfg (pwd </> "test")
+  let spec = (if (js options) then id else parallel) $ 
+             discoverTests cfg (pwd </> "test")
   summary <- withArgs [] (runSpec spec hcfg{configFormatter=Just specProgress})
   evaluateSummary summary
 

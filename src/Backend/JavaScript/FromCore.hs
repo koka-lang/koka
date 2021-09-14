@@ -70,12 +70,12 @@ genModule :: BuildType -> Maybe (Name,Bool) -> [Import] -> Core -> Asm Doc
 genModule buildType mbMain imports core
   =  do let externs = vcat (concatMap (includeExternal  buildType) (coreProgExternals core))
             (tagDefs,defs) = partition isTagDef (coreProgDefs core)
-        decls0 <- genGroups tagDefs
+        decls0 <- genGroups True tagDefs
         decls1 <- genTypeDefs (coreProgTypeDefs core)
-        decls2 <- genGroups defs
+        decls2 <- genGroups True defs
         let -- `imports = coreProgImports core` is not enough due to inlined definitions
-            (mainEntry,mainImports) = case mbMain of
-                          Nothing -> (empty,[])
+            (mainEntry) = case mbMain of
+                          Nothing -> (empty)
                           Just (name,isAsync)
                             -> ({-if isAsync
                                  then (text " " <-> text "// main entry:" <->
@@ -84,16 +84,23 @@ genModule buildType mbMain imports core
                                  else-}
                                       (text " " <-> text "// main entry:" <->
                                        ppName (unqualify name) <.> text "($std_core.id);" -- pass id for possible cps translated main
-                                      ,[]))
-        return $  text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
-              <-> text "if (typeof define !== 'function') { var define = require('amdefine')(module) }"
-              <-> text "define(" <.> ( -- (squotes $ ppModFileName $ coreProgName core) <.> comma <->
-                   list ( {- (squotes $ text "_external"): -} (map squotes (map fst (externalImports++mainImports)) ++ map moduleImport imports)) <.> comma <+>
-                   text "function" <.> tupled ( {- (text "_external"): -} (map snd (externalImports ++ mainImports) ++ map (ppModName . importName) imports)) <+> text "{" <->
+                                      ))
+        return $  
+              -- <-> text "if (typeof define !== 'function') { var define = require('amdefine')(module) }"
+              -- <-> text "define(" <.> ( -- (squotes $ ppModFileName $ coreProgName core) <.> comma <->
+              --     list ( {- (squotes $ text "_external"): -} (map squotes (map fst (externalImports++mainImports)) ++ map moduleImport imports)) <.> comma <+>
+              --     text "function" <.> tupled ( {- (text "_external"): -} (map snd (externalImports ++ mainImports) ++ map (ppModName . importName) imports)) <+> text "{" <->
+                  
                     vcat (
-                    [ text "\"use strict\";"
-                    , text "var" <+> modName <+> text " = {};"
+                    [ text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
+                    , text "\"use strict\";"
                     , text " "
+                    , text "// imports"
+                    ]
+                    ++
+                    importDecls
+                    ++
+                    [ text " "
                     , text "// externals"
                     , externs
                     , text " "
@@ -104,6 +111,7 @@ genModule buildType mbMain imports core
                     , text "// declarations"
                     , decls2
                     , mainEntry
+                    {-
                     , text " "
                     , text "// exports"
                     , hang 2 (modName <+> text "=" <+> ppModName nameCoreTypes <.> dot <.> text "_export(" <.>
@@ -113,10 +121,18 @@ genModule buildType mbMain imports core
                               ( exportedConstrs ++ exportedValues ))
                       ) <--> text "});"
                     , text "return" <+> modName <.> semi
+                    -}
                     ])
-                 )
-              <-> text "});"
   where
+    importDecls :: [Doc]
+    importDecls 
+      = [text "import * as" <+> dname <+> text "from" <+> squotes (dpath <.> text ".mjs") <.> semi
+        | (dpath,dname) <- externalImports ++ normalImports]
+
+    normalImports :: [(Doc,Doc)]
+    normalImports
+      = [(moduleImport imp, ppModName (importName imp)) | imp <- imports]
+
     modName         = ppModName (coreProgName core)
     exportedValues  = let f (DefRec xs)   = map defName xs
                           f (DefNonRec x) = [defName x]
@@ -136,7 +152,7 @@ genModule buildType mbMain imports core
 
 moduleImport :: Import -> Doc
 moduleImport imp
-  = squotes (text (if null (importPackage imp) then "." else importPackage imp) <.> text "/" <.> text (moduleNameToPath  (importName imp)))
+  = (text (if null (importPackage imp) then "." else importPackage imp) <.> text "/" <.> text (moduleNameToPath  (importName imp)))
 
 includeExternal ::  BuildType -> External -> [Doc]
 includeExternal buildType  ext
@@ -158,28 +174,33 @@ importExternal buildType  ext
 -- Generate javascript statements for value definitions
 ---------------------------------------------------------------------------------
 
-genGroups :: [DefGroup] -> Asm Doc
-genGroups groups
+genGroups :: Bool -> [DefGroup] -> Asm Doc
+genGroups topLevel groups
   = localUnique $
-    do docs <- mapM genGroup groups
+    do docs <- mapM (genGroup topLevel) groups
        return (vcat docs)
 
-genGroup :: DefGroup -> Asm Doc
-genGroup group
+genGroup :: Bool -> DefGroup -> Asm Doc
+genGroup topLevel group
   = case group of
-      DefRec defs   -> do docs <- mapM genDef defs
+      DefRec defs   -> do docs <- mapM (genDef topLevel) defs
                           return (vcat docs)
-      DefNonRec def -> genDef def
+      DefNonRec def -> genDef topLevel def
 
-genDef :: Def -> Asm Doc
-genDef def@(Def name tp expr vis sort inl rng comm)
+genDef :: Bool -> Def -> Asm Doc
+genDef topLevel def@(Def name tp expr vis sort inl rng comm)
   = do penv <- getPrettyEnv
        let resDoc = typeComment (Pretty.ppType penv tp)
        defDoc <- do mdoc <- tryFunDef name resDoc expr
                     case mdoc of
-                      Just doc -> return doc
-                      Nothing  -> genStat (ResultAssign name Nothing) expr
-       return $ vcat [ if null comm
+                      Just doc -> return (if (topLevel) then ppVis vis doc else doc)
+                      Nothing  -> do doc <- genStat (ResultAssign name Nothing) expr
+                                     return (if (topLevel) 
+                                               then ppVis vis (text "var" <+> ppName (unqualify name) <.> semi <--> doc) 
+                                               else doc)
+                                                              
+       return $ vcat [ text " "
+                     , if null comm
                          then empty
                          else align (vcat (space : map text (lines (trim comm)))) {- already a valid javascript comment -}
                      , defDoc
@@ -187,6 +208,10 @@ genDef def@(Def name tp expr vis sort inl rng comm)
   where
     -- remove final newlines and whitespace
     trim s = reverse (dropWhile (`elem` " \n\r\t") (reverse s))
+
+
+ppVis _ doc  = text "export" <+> doc   -- always export due to inlined definitions
+-- ppVis _ doc       = doc
 
 tryFunDef :: Name -> CommentDoc -> Expr -> Asm (Maybe Doc)
 tryFunDef name comment expr
@@ -242,27 +267,28 @@ genTypeDef (Data info isExtend)
              let singletonValue val
                      = constdecl <+> name <+> text "=" <+>
                          text val <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
-             if (conInfoName c == nameTrue)
-              then return (constdecl <+> name <+> text "=" <+> text "true" <.> semi)
-              else if (conInfoName c == nameFalse)
-              then return (constdecl <+> name <+> text "=" <+> text "false" <.> semi)
-              else return $ case repr of
-                -- special
-                ConEnum{}
-                   -> constdecl <+> name <+> text "=" <+> int (conTag repr) <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
-                ConSingleton _ _ _ | conInfoName c == nameOptionalNone
-                   -> singletonValue "undefined"
-                ConSingleton _ DataAsMaybe _
-                   -> singletonValue "null"
-                ConSingleton _ DataAsList _
-                   -> singletonValue "null"
-                -- tagless
-                ConIso{}     -> genConstr penv c repr name args []
-                ConSingle{}  -> genConstr penv c repr name args []
-                ConAsCons{}  -> genConstr penv c repr name args []
-                ConAsJust{}  -> genConstr penv c repr name args []
-                -- normal with tag
-                _            -> genConstr penv c repr name args [(tagField, getConTag modName c repr)]
+             decl <- if (conInfoName c == nameTrue)
+                      then return (constdecl <+> name <+> text "=" <+> text "true" <.> semi)
+                      else if (conInfoName c == nameFalse)
+                      then return (constdecl <+> name <+> text "=" <+> text "false" <.> semi)
+                      else return $ case repr of
+                        -- special
+                        ConEnum{}
+                          -> constdecl <+> name <+> text "=" <+> int (conTag repr) <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
+                        ConSingleton _ _ _ | conInfoName c == nameOptionalNone
+                          -> singletonValue "undefined"
+                        ConSingleton _ DataAsMaybe _
+                          -> singletonValue "null"
+                        ConSingleton _ DataAsList _
+                          -> singletonValue "null"
+                        -- tagless
+                        ConIso{}     -> genConstr penv c repr name args []
+                        ConSingle{}  -> genConstr penv c repr name args []
+                        ConAsCons{}  -> genConstr penv c repr name args []
+                        ConAsJust{}  -> genConstr penv c repr name args []
+                        -- normal with tag
+                        _            -> genConstr penv c repr name args [(tagField, getConTag modName c repr)]
+             return (ppVis (conInfoVis c) decl)
           ) $ zip (dataInfoConstrs $ info) conReprs
        return $ linecomment (text "type" <+> pretty (unqualify (dataInfoName info)))
             <-> vcat docs
@@ -425,7 +451,7 @@ genExprStat result expr
                return (vcat docs <-> doc)
 
       Let groups body
-        -> do doc1 <- genGroups groups
+        -> do doc1 <- genGroups False groups
               doc2 <- genStat result body
               return (doc1 <-> doc2)
 
@@ -615,7 +641,7 @@ genMatch result scrutinees branches
                       docs <- f (ppName (getName tname)) pat -- avoid mutiple a.b.c.d call
                       return (doc:docs)
               PatCon _ fields _ _ info
-                -> do fmap concat $ mapM (\(field,fn) -> f (s <.> text "." <.> text (show fn)) field) (zip fields (map fst (conInfoParams info))) -- using ppName here writes __null0_ for _field1. WTF?
+                -> do fmap concat $ mapM (\(field,fn) -> f (s <.> text "." <.> text (show fn)) field) (zip fields (map fst (conInfoParams info))) -- using ppName here writes __null0_ for _field1.?
 -}
     -- | Takes a list of docs and concatenates them with logical and
     conjunction :: [Doc] -> Doc
@@ -646,10 +672,16 @@ genExpr expr
        -> genExpr arg
      App (Con _ repr) [arg]  | isConIso repr
        -> genExpr arg
+     App (Var tname _) [Lit (LitInt i)] | getName tname == nameByte && (i >= 0 && i < 256)
+       -> return (empty, pretty i)
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameInt32 && isSmallInt i
        -> return (empty, pretty i)
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameSSizeT && isSmallInt i
        -> return (empty, pretty i)
+     App (Var tname _) [Lit (LitInt i)] | getName tname == nameIntPtrT && isSmallInt i
+       -> return (empty, pretty i <.> text "n")
+     App (Var tname _) [Lit (LitInt i)] | getName tname == nameInt64 && isSmallInt i
+       -> return (empty, pretty i <.> text "n")       
 
      -- special: cfield-set
      App (TypeApp (Var cfieldOf _) [_]) [Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameCFieldOf
@@ -675,10 +707,16 @@ genExpr expr
                   Nothing -> case extractExtern f of
                    Just (tname,formats)
                      -> case args of
+                         [Lit (LitInt i)] | getName tname == nameByte  && i >= 0 && i < 256
+                           -> return (empty,pretty i)
                          [Lit (LitInt i)] | getName tname == nameInt32  && isSmallInt i
                            -> return (empty,pretty i)
                          [Lit (LitInt i)] | getName tname == nameSSizeT  && isSmallInt i
                            -> return (empty,pretty i)
+                         [Lit (LitInt i)] | getName tname == nameIntPtrT  && isSmallInt i
+                           -> return (empty,pretty i <.> text "n")
+                         [Lit (LitInt i)] | getName tname == nameInt64  && isSmallInt i
+                           -> return (empty,pretty i <.> text "n")                           
                          _ -> -- genInlineExternal tname formats argDocs
                               do (decls,argDocs) <- genExprs args
                                  (edecls,doc) <- genExprExternal tname formats argDocs
@@ -691,7 +729,7 @@ genExpr expr
                           return (vcat decls, fdoc <.> tupled docs)
 
      Let groups body
-       -> do decls1       <- genGroups groups
+       -> do decls1       <- genGroups False groups
              (decls2,doc) <- genExpr body
              return (decls1 <-> decls2, doc)
 
@@ -799,13 +837,17 @@ genInline expr
               case extractExtern f of
                 Just (tname,formats)
                   -> case args of
-                       [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameInt64,nameSSizeT,namePtrDiffT] && isSmallInt i
+                       [Lit (LitInt i)] | getName tname `elem` [nameInt32,nameSSizeT] && isSmallInt i
                          -> return (pretty i)
+                       [Lit (LitInt i)] | getName tname `elem` [nameInt64,nameIntPtrT] && isSmallInt i
+                         -> return (pretty i <.> text "n")
                        _ -> genInlineExternal tname formats argDocs
                 Nothing
                   -> case (f,args) of
-                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt32,nameInt64,nameSSizeT,namePtrDiffT] && isSmallInt i
+                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt32,nameSSizeT] && isSmallInt i
                          -> return (pretty i)
+                       ((Var tname _),[Lit (LitInt i)]) | getName tname `elem` [nameInt64,nameIntPtrT] && isSmallInt i
+                         -> return (pretty i <.> text "n")
                        _ -> do fdoc <- genInline f
                                return (fdoc <.> tupled argDocs)
 
@@ -1130,13 +1172,13 @@ getInStatement
 -- Pretty printing
 ---------------------------------------------------------------------------------
 
--- | Approved for use in JavaScript according to ECMA definition
+
 ppLit :: Lit -> Doc
 ppLit lit
     = case lit of
       LitInt i    -> if (isSmallInt(i))
-                      then (pretty i)
-                      else ppName nameIntConst <.> parens (dquotes (pretty i))
+                      then pretty i
+                      else ppName nameIntConst <.> parens (pretty i <.> text "n")
       LitChar c   -> text ("0x" ++ showHex 4 (fromEnum c))
       LitFloat d  -> text (showsPrec 20 d "")
       LitString s -> dquotes (hcat (map escape s))

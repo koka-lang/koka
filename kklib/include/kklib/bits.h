@@ -55,41 +55,47 @@ static inline bool kk_bits_is_power_of2(kk_uintx_t x) {
 #ifdef _MSC_VER
 #include <intrin.h>
 static inline uint16_t kk_bits_rotl16(uint16_t x, uint16_t shift) {
-  return _rotl16(x, (uint8_t)shift);  // in <intrin.h>
+  return _rotl16(x, (uint8_t)shift & 15);  // in <intrin.h>
 }
 static inline uint16_t kk_bits_rotr16(uint16_t x, uint16_t shift) {
-  return _rotr16(x, (uint8_t)shift);  
+  return _rotr16(x, (uint8_t)shift & 15);  
 }
 static inline uint32_t kk_bits_rotl32(uint32_t x, uint32_t shift) {
-  return _lrotl(x, (int)shift);
+  return _lrotl(x, (int)shift & 31);
 }
 static inline uint32_t kk_bits_rotr32(uint32_t x, uint32_t shift) {
-  return _lrotr(x, (int)shift);
+  return _lrotr(x, (int)shift & 31);
 }
 static inline uint64_t kk_bits_rotl64(uint64_t x, uint64_t shift) {
-  return _rotl64(x, (int)shift);
+  return _rotl64(x, (int)shift & 63);
 }
 static inline uint64_t kk_bits_rotr64(uint64_t x, uint64_t shift) {
-  return _rotr64(x, (int)shift);
+  return _rotr64(x, (int)shift & 63);
 }
 #else
 // most compilers translate these expressions to a direct rotation instruction
 static inline uint16_t kk_bits_rotl16(uint16_t x, uint16_t shift) {
+  shift &= 15;
   return (x << shift) | (x >> (16 - shift));
 }
 static inline uint16_t kk_bits_rotr16(uint16_t x, uint16_t shift) {
+  shift &= 15;
   return (x >> shift) | (x << (16 - shift));
 }
 static inline uint32_t kk_bits_rotl32(uint32_t x, uint32_t shift) {
+  shift &= 31;
   return (x << shift) | (x >> (32 - shift));
 }
 static inline uint32_t kk_bits_rotr32(uint32_t x, uint32_t shift) {
+  shift &= 31;
   return (x >> shift) | (x << (32 - shift));
 }
 static inline uint64_t kk_bits_rotl64(uint64_t x, uint64_t shift) {
+  shift &= 63;
   return (x << shift) | (x >> (64 - shift));
 }
 static inline uint64_t kk_bits_rotr64(uint64_t x, uint64_t shift) {
+  shift &= 63;
   return (x >> shift) | (x << (64 - shift));
 }
 #endif
@@ -115,7 +121,7 @@ static inline uint8_t kk_bits_clz32(uint32_t x) {
 static inline uint8_t kk_bits_ctz32(uint32_t x) {
   return (x==0 ? 32 : __builtin32(ctz)(x));
 }
-#if (KK_INTPTR_SIZE >= 8)
+#if (KK_INTX_SIZE >= 8)
 #define HAS_BITS_CLZ64
 static inline uint8_t kk_bits_clz64(uint64_t x) {
   return (x==0 ? 64 : __builtin64(clz)(x));
@@ -146,7 +152,7 @@ static inline uint8_t kk_bits_ctz32(uint32_t x) {
   unsigned long idx;
   return (_BitScanForward(&idx, x) ? (uint8_t)idx : 32);
 }
-#if (KK_INTPTR_SIZE >= 8)
+#if (KK_INTX_SIZE >= 8)
 #define HAS_BITS_CLZ64
 static inline uint8_t kk_bits_clz64(uint64_t x) {
   #if defined(_M_X64) || defined(_M_IX86)
@@ -284,7 +290,7 @@ static inline uint32_t kk_bits_count32(uint32_t x) {
   if (__has_popcnt) return __popcnt(x);
   return kk_bits_generic_count32(x);
 }
-#if (KK_INTPTR_SIZE >= 8)
+#if (KK_INTX_SIZE >= 8)
 #define HAS_BITS_COUNT64
 static inline uint64_t kk_bits_count64(uint64_t x) {
   if (__has_popcnt) return __popcnt64(x);
@@ -296,7 +302,7 @@ static inline uint64_t kk_bits_count64(uint64_t x) {
 static inline uint32_t kk_bits_count32(uint32_t x) {
   return __builtin32(popcount)(x);
 }
-#if (KK_INTPTR_SIZE >= 8)
+#if (KK_INTX_SIZE >= 8)
 #define HAS_BITS_COUNT64
 static inline uint64_t kk_bits_count64(uint64_t x) {
   return __builtin64(popcount)(x);
@@ -504,8 +510,8 @@ static inline bool kk_bits_count_is_even(kk_uintx_t x) {
 /* ---------------------------------------------------------------
   Digits in a decimal representation
 ------------------------------------------------------------------ */
-uint8_t kk_bits_digits32(uint32_t x);
-uint8_t kk_bits_digits64(uint64_t x);
+kk_decl_export uint8_t kk_bits_digits32(uint32_t x);
+kk_decl_export uint8_t kk_bits_digits64(uint64_t x);
 
 static inline uint8_t kk_bits_digits(kk_uintx_t x) {
   return kk_bitsx(digits)(x);

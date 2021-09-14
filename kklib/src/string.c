@@ -727,7 +727,21 @@ kk_unit_t kk_trace_any(kk_string_t s, kk_box_t x, kk_context_t* ctx) {
 }
 
 
+static kk_string_t kk_double_show_special(double d, kk_context_t* ctx) {
+  if (d == HUGE_VAL) {
+    return kk_string_alloc_dup_valid_utf8("inf", ctx);
+  }
+  else if (d == -HUGE_VAL) {
+    return kk_string_alloc_dup_valid_utf8("-inf", ctx);
+  }
+  else {
+    kk_assert(isnan(d));
+    return kk_string_alloc_dup_valid_utf8("nan", ctx);
+  }
+}
+
 static kk_string_t kk_double_show_spec(double d, int32_t prec, char spec, kk_context_t* ctx) {
+  if (!isfinite(d)) return kk_double_show_special(d,ctx);
   char buf[64];
   char fmt[16];
   if (prec < 0)  prec = -prec;

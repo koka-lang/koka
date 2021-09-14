@@ -115,7 +115,7 @@ static inline kk_string_t kk_string_empty(void) {
 #define kk_define_string_literal(decl,name,len,chars) \
   static struct { struct kk_bytes_s _base; size_t length; char str[len+1]; } _static_##name = \
     { { { KK_HEADER_STATIC(0,KK_TAG_STRING) } }, len, chars }; \
-  decl kk_string_t name = { { &_static_##name._base._block } };  
+  decl kk_string_t name = { { (uintptr_t)&_static_##name._base._block } };  
 
 #define kk_define_string_literal_empty(decl,name) \
   decl kk_string_t name = { { (kk_block_t*)((uintptr_t)(5)) } };

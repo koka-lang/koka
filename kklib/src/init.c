@@ -183,7 +183,7 @@ static kk_decl_thread kk_context_t* context;
 
 
 static struct { kk_block_t _block; kk_integer_t cfc; } kk_evv_empty_static = {
-  { KK_HEADER_STATIC(1,KK_TAG_EVV_VECTOR) }, { (KIP(-1)^0x02) /*==-1 smallint*/}
+  { KK_HEADER_STATIC(1,KK_TAG_EVV_VECTOR) }, { ((~KUP(0))^0x02) /*==-1 smallint*/}
 };
 kk_ptr_t kk_evv_empty_singleton = &kk_evv_empty_static._block;
 

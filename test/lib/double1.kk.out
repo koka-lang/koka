@@ -1,10 +1,6 @@
 frexp1 : ok: 0, 4
-fr/ld 1: FAILED!:
- expect: 1e+001 == ldexp(0, 4 )
- gotten: 1e+01 == ldexp(0, 4 )
-fr/ld 1: FAILED!:
- expect: 1e-001 == ldexp(0, -3 )
- gotten: 1e-01 == ldexp(0, -3 )
+fr/ld 1: ok: 1e+01 == ldexp(0, 4 )
+fr/ld 1: ok: 1e-01 == ldexp(0, -3 )
 fr/ld 3: ok: 1e-323 == ldexp(0, -1072 )
 fr/ld 4: ok: 4e-324 == ldexp(0, -1073 )
 fr/ld 5: ok: 2e-308 == ldexp(0, -1021 )

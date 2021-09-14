@@ -93,24 +93,24 @@ private inline extern evv-total() : evv<<>> {
 
 public inline extern ".evv-at"<e,h> ( i : ev-index ) : ev<h> {  // pretend total; don't simplify
   c inline "kk_evv_at(#1,kk_context())"
-  js inline "$std_core_hnd._evv[#1]"
+  js inline "$std_core_hnd._evv_at(#1)"
 }
 
 // (dynamically) find evidence insertion/deletion index in the evidence vector
 public extern ".evv-index"<e::E,h>( htag : htag<h> ) : e ev-index {
   c inline "kk_evv_index(#1,kk_context())"
-  js inline "__evv_index($std_core_hnd._evv,#1)"
+  js inline "__evv_index(#1)"
 }
 
 
 public extern ".evv-lookup"( htag : htag<h> ) : ev<h> {
   c inline "kk_evv_lookup(#1,kk_context())"
-  js inline "__evv_lookup($std_core_hnd._evv,#1)"
+  js "__evv_lookup"
 }
 
 public inline extern ".evv-select"( i : ev-index, htag : htag<h> ) : ev<h> {
   c inline "(#1 >= 0 ? kk_evv_at(#1,kk_context()) : kk_evv_lookup(#2,kk_context()))"
-  js inline "(#1 >= 0 ? $std_core_hnd._evv[#1] : __evv_lookup($std_core_hnd._evv,#2))"
+  js inline "(#1 >= 0 ? $std_core_hnd._evv_at(#1) : __evv_lookup(#2))"
 }
 
 private extern evv-show( evv : evv<e> ) : string {
@@ -126,17 +126,17 @@ private extern evv-eq(evv0 : evv<e>, evv1 : evv<e> ) : bool {
 
 private extern evv-get() : e evv<e> {
   c  inline "kk_evv_get(kk_context())"
-  js inline "$std_core_hnd._evv"
+  js "$std_core_hnd._evv_get"
 }
 
 private inline extern evv-set<e1,e>( w : evv<e1> ) : e () {
   c inline "kk_evv_set(#1,kk_context())"
-  js inline "(function(){ $std_core_hnd._evv = (#1); })()"
+  js "$std_core_hnd._evv_set"
 }
 
 private inline extern evv-swap<e1,e2>( w : evv<e1> ) : e evv<e2> {
   c inline "kk_evv_swap(#1,kk_context())"
-  js inline "(function(){ const evv = $std_core_hnd._evv; $std_core_hnd._evv = (#1); return evv; })()"
+  js "$std_core_hnd._evv_swap"
 }
 
 private extern evv-insert( evv : evv<e1>, ev : ev<h> ) : e1 evv<e2> {
@@ -151,12 +151,12 @@ private extern evv-swap-delete( i : ev-index, behind : bool ) : e1 evv<e> {
 
 private inline extern evv-swap-create0() : e evv<e> { //not quite the right effect type but avoids unbound effect types
   c inline "kk_evv_swap_create0(kk_context())"
-  js inline "(function(){ const evv = $std_core_hnd._evv; $std_core_hnd._evv = $std_core_hnd._evv_empty; return evv; })()"
+  js "$std_core_hnd._evv_swap_create0"
 }
 
 private inline extern evv-swap-create1( i : ev-index ) : e evv<e> {   //not quite the right effect type but avoids unbound effect types
   c inline "kk_evv_swap_create1(#1,kk_context())"
-  js inline "(function(){ const evv = $std_core_hnd._evv; if (evv.length !== 1) { $std_core_hnd._evv = [evv[#1]]; }; return evv; })()"
+  js "$std_core_hnd._evv_swap_create1"
 }
 
 private extern evv-swap-create( indices : vector<ev-index> ) : e evv<e> { //not quite the right effect type but avoids unbound effect types
@@ -181,12 +181,12 @@ public extern ".evv-is-affine"() : bool {
 
 public inline extern yielding() : bool {
   c  inline "kk_yielding(kk_context())"
-  js inline "($std_core_hnd._yield !== null)"
+  js inline "$std_core_hnd._yielding()"
 }
 
 public inline extern yielding-non-final() : bool {
   c  inline "kk_yielding_non_final(kk_context())"
-  js inline "($std_core_hnd._yield !== null && !$std_core_hnd._yield.final)"
+  js inline "$std_core_hnd._yielding_non_final()"
 }
 
 public noinline extern yield-extend(next : a -> e b ) : e b {

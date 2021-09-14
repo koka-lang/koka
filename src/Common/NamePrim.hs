@@ -56,7 +56,7 @@ module Common.NamePrim
 
           --
           , nameUnsafeTotal
-          , nameIntConst, nameInt32, nameInt64, nameSizeT, nameSSizeT, namePtrDiffT
+          , nameIntConst, nameByte, nameInt32, nameInt64, nameSSizeT, nameIntPtrT
 
           , nameTpBox, nameUnbox, nameBox, nameBoxCon
 
@@ -89,8 +89,8 @@ module Common.NamePrim
           , nameTpBool, nameTpInt, nameTpChar
           , nameTpFloat, nameTpFloat32
           , nameTpString
-          , nameTpInt32, nameTpInt64, nameTpInt16, nameTpInt8, nameTpByte
-          , nameTpSSizeT, nameTpSizeT, nameTpPtrDiffT
+          , nameTpInt32, nameTpInt64, nameTpByte
+          , nameTpSSizeT,nameTpIntPtrT
           , nameTpAny
           , nameTpNull
           , nameTpException
@@ -195,7 +195,7 @@ nameNull        = preludeName "Nil"
 nameCons        = preludeName "Cons"
 nameTpList      = preludeName "list"
 
-nameIntConst    = preludeName ".int-string"
+nameIntConst    = preludeName ".int-const"
 
 {--------------------------------------------------------------------------
   Primitive type constructors
@@ -362,11 +362,11 @@ nameTpHandled1  = coreTypesName "handled1"
 
 nameIdentity    = coreTypesName "id"
 
+nameByte        = preludeName "byte"
 nameInt32       = preludeName "int32"
 nameInt64       = preludeName "int64"
-nameSizeT       = preludeName "size_t"
 nameSSizeT      = preludeName "ssize_t"
-namePtrDiffT    = preludeName "ptrdiff_t"
+nameIntPtrT     = preludeName "intptr_t"
 
 nameUnit        = coreTypesName "()"
 nameTrue        = coreTypesName "True"
@@ -386,12 +386,9 @@ nameTpBool      = coreTypesName "bool"
 nameTpInt       = coreTypesName "int"
 nameTpInt32     = coreTypesName "int32"
 nameTpInt64     = coreTypesName "int64"
-nameTpInt16     = coreTypesName "int16"
-nameTpInt8      = coreTypesName "int8"
-nameTpSizeT     = coreTypesName "size_t"
 nameTpSSizeT    = coreTypesName "ssize_t"
-nameTpPtrDiffT  = coreTypesName "ptrdiff_t"
-nameTpByte      = coreTypesName "uint8"
+nameTpIntPtrT   = coreTypesName "intptr_t"
+nameTpByte      = coreTypesName "byte"
 nameTpFloat     = coreTypesName "double"
 nameTpFloat32   = coreTypesName "float32"
 nameTpChar      = coreTypesName "char"

@@ -19,6 +19,10 @@ This way, boxing a heap pointer has zero cost and is unchanged which helps
 the processor with prediction. For integers, we use a pointer to big integers,
 or a value for small integers (and boxing is zero cost this way as well).
 
+On platforms like arm CHERI, we have 128-bit pointers and a box is always
+128-bits in that case, but for values we just use the bottom 64 bits as
+the arithmetic registers are still 64-bit (a `kk_intf_t`).
+
 On 32-bit platforms doubles are heap allocated when boxed, but on 64-bit
 platforms there are 2 strategies: 
 (A) As we lose 1 bit, heap allocate half of the doubles, and use the 
@@ -78,25 +82,39 @@ On 64-bit, We can encode half of the doubles by saving 1 bit; There are two impl
                 and merge the bit 0 with bit 1 to ensure a NaN payload is never unboxed as 0. 
                 We set the bottom bit to 1 to encode as a value.
                 On unboxing, we extend bit 1 to bit 0, which means we may lose up to 1 bit of the NaN payload.
+
 ----------------------------------------------------------------*/
 
 #define KK_USE_NAN_BOX   (0)                  // strategy A2 by default
-//#define KK_USE_NAN_BOX   (KK_INTPTR_SIZE==8)  // strategy B is only possible on 64-bit platforms
+//#define KK_USE_NAN_BOX   (KK_INTPTR_SIZE>=8)  // strategy B is only possible on 64-bit platforms
 //#define KK_BOX_DOUBLE_IF_NEG (1)              // use strategy A1
 
 // Forward declarations
 static inline bool         kk_box_is_ptr(kk_box_t b);
 static inline kk_block_t*  kk_ptr_unbox(kk_box_t b);
 static inline kk_box_t     kk_ptr_box(const kk_block_t* p);
-static inline kk_intx_t    kk_int_unbox(kk_box_t v);
-static inline kk_box_t     kk_int_box(kk_intx_t i);
+static inline kk_intf_t    kk_int_unbox(kk_box_t v);
+static inline kk_box_t     kk_int_box(kk_intf_t i);
 
 // Use a boxed representation as an intptr
-static inline kk_box_t _kk_box_new(uintptr_t u) {
-  kk_box_t b; 
-  b.box = u;
+static inline kk_box_t _kk_box_new_ptr(const kk_block_t* p) {
+  kk_box_t b = { (uintptr_t)p };
   return b;
 }
+
+static inline kk_box_t _kk_box_new_value(kk_uintf_t u) {
+  kk_box_t b = { u };
+  return b;
+}
+
+static inline kk_uintf_t _kk_box_value(kk_box_t b) {
+  return (kk_uintf_t)(b.box);
+}
+
+static inline kk_ptr_t _kk_box_ptr(kk_box_t b) {
+  return (kk_ptr_t)(b.box);
+}
+
 
 // Are two boxed representations equal?
 static inline bool kk_box_eq(kk_box_t b1, kk_box_t b2) {
@@ -104,18 +122,18 @@ static inline bool kk_box_eq(kk_box_t b1, kk_box_t b2) {
 }
 
 // We cannot store NULL as a pointer (`kk_ptr_t`); use `box_null` instead
-#define kk_box_null       (_kk_box_new(~KUP(0)))  // -1 value
+#define kk_box_null       (_kk_box_new_ptr((void*)(~KUP(0))))  // -1 value
 
 // null initializer
 #define kk_box_null_init  {~KUP(0)}
 
 // the _fast versions can apply if you are sure it is not a double
 static inline bool _kk_box_is_ptr_fast(kk_box_t b) {
-  return ((b.box&1)==0);
+  return ((_kk_box_value(b)&1)==0);
 }
 
 static inline bool _kk_box_is_value_fast(kk_box_t b) {
-  return ((b.box&1)!=0);
+  return ((_kk_box_value(b)&1)!=0);
 }
 
 static inline bool kk_box_is_null(kk_box_t b) {
@@ -124,10 +142,10 @@ static inline bool kk_box_is_null(kk_box_t b) {
 
 static inline bool kk_box_is_any(kk_box_t b);
 
-#define KK_MAX_BOXED_INT  ((intptr_t)INTPTR_MAX >> (KK_INTPTR_BITS - KK_BOXED_VALUE_BITS))
+#define KK_MAX_BOXED_INT  ((kk_intf_t)KK_INTF_MAX >> (KK_INTF_BITS - KK_BOXED_VALUE_BITS))
 #define KK_MIN_BOXED_INT  (- KK_MAX_BOXED_INT - 1)
 
-#define KK_MAX_BOXED_UINT ((uintptr_t)UINTPTR_MAX >> (KK_INTPTR_BITS - KK_BOXED_VALUE_BITS))
+#define KK_MAX_BOXED_UINT ((kk_uintf_t)KK_UINTF_MAX >> (KK_INTF_BITS - KK_BOXED_VALUE_BITS))
 #define KK_MIN_BOXED_UINT (0)
 
 
@@ -136,7 +154,7 @@ double   kk_double_unbox_heap(kk_box_t b, kk_context_t* ctx);
 kk_box_t kk_double_box_heap(double d, kk_context_t* ctx);
 #endif
 
-#if (KK_INTPTR_SIZE==8)
+#if (KK_INTPTR_SIZE>=8)
 kk_box_t kk_double_box(double d, kk_context_t* ctx);
 double   kk_double_unbox(kk_box_t b, kk_context_t* ctx);
 #endif
@@ -158,7 +176,7 @@ static inline bool kk_box_is_value(kk_box_t b) {
 
 static inline int32_t kk_int32_unbox(kk_box_t v, kk_context_t* ctx) {
   KK_UNUSED(ctx);
-  kk_intx_t i = kk_int_unbox(v);
+  kk_intf_t i = kk_int_unbox(v);
   kk_assert_internal((i >= INT32_MIN && i <= INT32_MAX) || kk_box_is_any(v));
   return (int32_t)(i);
 }
@@ -178,7 +196,7 @@ static inline kk_box_t kk_int32_box(int32_t i, kk_context_t* ctx) {
 
 static inline bool _kk_double_is_normal(kk_box_t b) {
   // test if top 12 bits are not 0xFFF or 0x000
-  intptr_t i = kk_sar((intptr_t)b.box, 21);  // arithmetic shift right until lowest of the 12 bits (at bit 52), is at bit 31.
+  intptr_t i = kk_sarp((intptr_t)b.box, 21);  // arithmetic shift right until lowest of the 12 bits (at bit 52), is at bit 31.
   return (i != (int32_t)i);               // check if sign extension is not equal
 }
 
@@ -200,7 +218,7 @@ static inline bool _is_double(kk_box_t b) {
 
 static inline int32_t kk_int32_unbox(kk_box_t v, kk_context_t* ctx) {
   KK_UNUSED(ctx);
-  kk_intx_t i = kk_int_unbox(v);
+  kk_intf_t i = kk_int_unbox(v);
   kk_assert_internal((i >= INT32_MIN && i <= INT32_MAX) || kk_box_is_any(v));
   return (int32_t)(i);
 }
@@ -245,7 +263,7 @@ typedef struct kk_boxed_int32_s {
 
 static inline int32_t kk_int32_unbox(kk_box_t v, kk_context_t* ctx) {
   if (kk_likely(kk_box_is_value(v))) {
-    kk_intx_t i = kk_int_unbox(v);
+    kk_intf_t i = kk_int_unbox(v);
     kk_assert_internal((i >= INT32_MIN && i <= INT32_MAX) || kk_box_is_any(v));
     return (int32_t)i;
   }
@@ -282,43 +300,38 @@ static inline bool kk_box_is_non_null_ptr(kk_box_t v) {
 static inline kk_ptr_t kk_ptr_unbox(kk_box_t v) {
   kk_assert_internal(kk_box_is_ptr(v) || kk_box_is_any(v));
   kk_assert_internal(v.box != 0); // no NULL pointers allowed
-  return (kk_block_t*)(v.box);
+  return _kk_box_ptr(v);
 }
 
 static inline kk_box_t kk_ptr_box(const kk_block_t* p) {
   kk_assert_internal(((uintptr_t)p & 0x03) == 0); // check alignment
   kk_assert_internal(p != NULL);                  // block should never be NULL
-  kk_box_t b = { (uintptr_t)(p) };
-  return b;
+  return _kk_box_new_ptr(p);
 }
 
-static inline kk_uintx_t kk_uint_unbox(kk_box_t b) {
+static inline kk_uintf_t kk_uint_unbox(kk_box_t b) {
   kk_assert_internal(kk_box_is_value(b) || kk_box_is_any(b));
-  return kk_shr(b.box, 1);
+  return kk_shrf(_kk_box_value(b), 1);
 }
 
-static inline kk_box_t kk_uint_box(kk_uintx_t u) {
+static inline kk_box_t kk_uint_box(kk_uintf_t u) {
   kk_assert_internal(u <= KK_MAX_BOXED_UINT);
-  kk_box_t b = { ((uintptr_t)u << 1) | 1 };
-  kk_assert_internal(kk_box_is_value(b));
-  return b;
+  return _kk_box_new_value( (u << 1)|1 );  
 }
 
-static inline kk_intx_t kk_int_unbox(kk_box_t v) {
+static inline kk_intf_t kk_int_unbox(kk_box_t v) {
   kk_assert_internal(kk_box_is_value(v) || kk_box_is_any(v));
-  return (kk_sar((kk_intx_t)v.box, 1));
+  return kk_sarf((kk_intf_t)_kk_box_value(v), 1); // preserve sign
 }
 
-static inline kk_box_t kk_int_box(kk_intx_t i) {
+static inline kk_box_t kk_int_box(kk_intf_t i) {
   kk_assert_internal(i >= KK_MIN_BOXED_INT && i <= KK_MAX_BOXED_INT);
-  kk_box_t v = { ((uintptr_t)i << 1) | 1 };
-  kk_assert_internal(kk_box_is_value(v));
-  return v;
+  return _kk_box_new_value( ((kk_uintf_t)i << 1)|1 );
 }
 
 static inline int16_t kk_int16_unbox(kk_box_t v, kk_context_t* ctx) {
   KK_UNUSED(ctx);
-  kk_intx_t i = kk_int_unbox(v);
+  kk_intf_t i = kk_int_unbox(v);
   kk_assert_internal(i >= INT16_MIN && i <= INT16_MAX);
   return (int16_t)i;
 }
@@ -326,6 +339,36 @@ static inline int16_t kk_int16_unbox(kk_box_t v, kk_context_t* ctx) {
 static inline kk_box_t kk_int16_box(int16_t i, kk_context_t* ctx) {
   KK_UNUSED(ctx);
   return kk_int_box(i);
+}
+
+typedef struct kk_boxed_int64_s {
+  kk_block_t  _block;
+  int64_t     value;
+} *boxed_int64_t;
+
+static inline int64_t kk_int64_unbox(kk_box_t v, kk_context_t* ctx) {
+  if (kk_likely(kk_box_is_value(v))) {
+    kk_intf_t i = kk_int_unbox(v);
+    return (int64_t)i;
+  }
+  else {
+    kk_assert_internal((kk_box_is_ptr(v) && kk_block_tag(kk_ptr_unbox(v)) == KK_TAG_INT64) || kk_box_is_any(v));
+    boxed_int64_t bi = kk_block_assert(boxed_int64_t, kk_ptr_unbox(v), KK_TAG_INT64);
+    int64_t i = bi->value;
+    if (ctx!=NULL) { kk_block_drop(&bi->_block, ctx); }
+    return i;
+  }
+}
+
+static inline kk_box_t kk_int64_box(int64_t i, kk_context_t* ctx) {
+  if (i >= KK_MIN_BOXED_INT && i <= KK_MAX_BOXED_INT) {
+    return kk_int_box(i);
+  }
+  else {
+    boxed_int64_t bi = kk_block_alloc_as(struct kk_boxed_int64_s, 0, KK_TAG_INT64, ctx);
+    bi->value = i;
+    return kk_ptr_box(&bi->_block);
+  }
 }
 
 static inline bool kk_bool_unbox(kk_box_t v) {
@@ -371,14 +414,12 @@ static inline kk_box_t kk_ptr_box_assert(kk_block_t* b, kk_tag_t tag) {
 #define kk_constructor_box(b)                  (kk_basetype_box(&(b)->_base))
 
 static inline kk_datatype_t kk_datatype_unbox(kk_box_t b) {
-  kk_datatype_t d;
-  d.singleton = b.box;
+  kk_datatype_t d = { b.box };
   return d;
 }
 
 static inline kk_box_t kk_datatype_box(kk_datatype_t d) {
-  kk_box_t b;
-  b.box = d.singleton;
+  kk_box_t b = { d.dbox };
   return b;
 }
 
@@ -472,10 +513,10 @@ static inline void* kk_cptr_raw_unbox(kk_box_t b) {
 
 static inline kk_box_t kk_cptr_box(void* p, kk_context_t* ctx) {
   uintptr_t u = (uintptr_t)p;
-  if (kk_likely((u&1) == 0)) {  // aligned pointer?
+  if (kk_likely((u&1) == 0 && u <= KK_MAX_BOXED_UINT))  // aligned pointer?
+  {  
     // box as value
-    kk_box_t b = { (u|1) };
-    return b;
+    return _kk_box_new_value((kk_uintf_t)(u|1));    
   }
   else {
     // allocate 
@@ -486,7 +527,7 @@ static inline kk_box_t kk_cptr_box(void* p, kk_context_t* ctx) {
 static inline void* kk_cptr_unbox(kk_box_t b) {
   if (_kk_box_is_value_fast(b)) {
     kk_assert_internal(kk_box_is_value(b));
-    return (void*)(b.box ^ 1);  // clear lowest bit
+    return (void*)(_kk_box_value(b) ^ 1);  // clear lowest bit
   }
   else {
     return kk_cptr_raw_unbox(b);
@@ -531,7 +572,7 @@ static inline kk_cfun_ptr_t kk_cfun_ptr_unbox(kk_box_t b) {  // never drop; only
 // kk_ssize_t
 typedef struct kk_box_ssize_s {
   kk_block_t  _block;
-  kk_ssize_t     value;
+  kk_ssize_t  value;
 } *kk_box_ssize_t;
 
 static inline kk_box_t kk_ssize_box(kk_ssize_t i, kk_context_t* ctx) {

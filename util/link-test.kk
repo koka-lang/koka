@@ -8,6 +8,6 @@ Used by `stack test` to pre-compil everyting in the `std/toc` module.
 -----------------------------------------------------------------------------*/
 import toc
 
-fun main() : console () {
+fun main() : console () 
   println("done.")
-}
+

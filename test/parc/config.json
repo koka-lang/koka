@@ -1,1 +1,4 @@
-"-l --target=c --showfcore"
+{ 
+  "flags": "-l --target=c --showfcore",
+  "exclude": [ "parc19.kk" ]
+}
