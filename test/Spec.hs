@@ -16,6 +16,7 @@ import Test.Hspec.Core.Formatters hiding (Error)
 
 commonFlags :: [String]
 commonFlags = ["-c", "-v0", "--console=raw",
+               -- "--cc=clang",
                -- "--checkcore",
                "-ilib", "-itest",
                "--outtag=test"]
@@ -91,7 +92,7 @@ testSanitize kokaDir
   . sub "\\\\" "/"
   -- type variable names and box names
   . sub "\\.box-x[[:digit:]]+(-x[[:digit:]]+)?" ".box"
-  . sub "\\.[[:digit:]]+" ""
+  . sub "([a-zA-Z])\\.[[:digit:]]+" "\\1"
   . sub "<[[:digit:]]+>" "<0>"
   -- . sub ": [[:digit:]]+([,\\)])" ": 0\\1"
   . replace kokaDir "..."
