@@ -37,11 +37,11 @@
   - `kk_intx_t` for the natural largest register size (for general arithmetic),
   - `kk_intf_t` for the natural largest register size where |kk_intf_t| <= |uintptr_t|.
     (this is used to store small integers in heap fields that are the size of a `uintptr_t`.
-     on arm CHERI we still want to use 64-bit arithmetic instead of 128-bit)
+     for example, on arm CHERI we still want to use 64-bit arithmetic instead of 128-bit)
 
   We always have: 
-  - `|uintptr_t| >= |size_t| >= |kk_intf_t|` >= |int|. 
-  - `|kk_intx_t| >= |kk_intf_t| >= |int|`
+  - `|uintptr_t| >= |size_t| >= |kk_intf_t| >= |int|`. 
+  - `|kk_intx_t| >= |kk_intf_t| >= |int|`.
   - and `|ptrdiff_t| >= |size_t|`.
   
 
