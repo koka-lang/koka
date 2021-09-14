@@ -2666,7 +2666,7 @@ extern null(x : maybe<a>) : null<a> {
 // Transform a `:null` type to a `:maybe` type. Note that it is not
 // always the case that `id(x) == maybe(null(x))` (e.g. when `x = Just(Nothing)`).
 extern maybe( n : null<a> ) : maybe<a> {
-  c inline "((#1).ptr == NULL ? kk_std_core_types__new_Nothing(kk_context()) : kk_std_core_types__new_Just(kk_datatype_box(#1),kk_context()))"
+  c  inline "(kk_datatype_as_ptr(#1) == NULL ? kk_std_core_types__new_Nothing(kk_context()) : kk_std_core_types__new_Just(kk_datatype_box(#1),kk_context()))"
   cs inline "(EqualityComparer<##1>.Default.Equals(#1,default(##1)) ? __std_core._maybe<##1>.Nothing_ : new __std_core._maybe<##1>(#1))"
   js inline "(#1==null ? $std_core_types.Nothing : $std_core_types.Just(#1))"
 }

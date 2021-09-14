@@ -193,8 +193,10 @@ static kk_ptr_t bigint_ptr_(kk_bigint_t* x) {
 }
 
 static kk_integer_t bigint_as_integer_(kk_bigint_t* x) {
-  kk_assert_internal(((uintptr_t)x&3) == 0);
-  return _kk_new_integer((intptr_t)(bigint_ptr_(x)));
+  uintptr_t p = (uintptr_t)bigint_ptr_(x);
+  kk_assert_internal((p&3) == 0);
+  kk_integer_t i = { p };  
+  return i;
 }
 
 static bool bigint_is_unique_(kk_bigint_t* x) {
@@ -327,7 +329,7 @@ static kk_integer_t integer_bigint(kk_bigint_t* x, kk_context_t* ctx) {
   ) {
 
     // make it a small int
-    kk_intx_t i = x->digits[0];
+    kk_intf_t i = (kk_intf_t)(x->digits[0]);
     if (x->is_neg) i = -i;
     drop_bigint(x,ctx);
     return kk_integer_from_small(i);
@@ -394,7 +396,7 @@ static kk_bigint_t* bigint_from_uint64(uint64_t i, kk_context_t* ctx) {
 static kk_bigint_t* kk_integer_to_bigint(kk_integer_t x, kk_context_t* ctx) {
   kk_assert_internal(kk_is_integer(x));
   if (kk_is_bigint(x)) {
-    return kk_block_assert(kk_bigint_t*, _kk_as_bigint(x), KK_TAG_BIGINT);
+    return kk_block_assert(kk_bigint_t*, _kk_integer_ptr(x), KK_TAG_BIGINT);
   }
   else {
     kk_assert_internal(kk_is_smallint(x));
@@ -487,7 +489,7 @@ static kk_string_t kk_bigint_to_string(kk_bigint_t* b, kk_context_t* ctx) {
 
 // kk_int_t to string
 static kk_string_t kk_int_to_string(kk_intx_t n, kk_context_t* ctx) {
-  kk_assert_internal(KK_INTPTR_SIZE <= 26);
+  kk_assert_internal(KK_INTX_SIZE <= 26);
   char buf[64];  // enough for 2^212
   bool neg = (n < 0);
   if (neg) n = -n;
@@ -584,7 +586,7 @@ kk_decl_export bool kk_integer_parse(const char* s, kk_integer_t* res, kk_contex
     for (; s[i] != 0; i++) {
       char c = s[i];
       if (kk_ascii_is_digit(c)) {
-        exp = 10*exp + (c - '0');
+        exp = 10*exp + ((kk_ssize_t)c - '0');
         if (exp > BASE) return false; // exponents must be < 10^9
       }
       else return false;
@@ -715,8 +717,9 @@ bool kk_integer_hex_parse(const char* s, kk_integer_t* res, kk_context_t* ctx) {
   const kk_ssize_t count = (kk_ssize_t)(ceil((double)hdigits * KK_LOG16_DIV_LOG10)) + 1; // conservatively overallocate to max needed.
   kk_extra_t ecount = (count >= MAX_EXTRA ? MAX_EXTRA-1 : (kk_extra_t)count);
   kk_bigint_t* b = bigint_alloc(ecount, is_neg, ctx);
-  b->extra += (ecount-1);
-  b->count -= (ecount-1);
+  ecount--;
+  b->extra += ecount;
+  b->count -= ecount;
   b->digits[0] = 0;
 
   // create in chucks of LOG_BASE_HEX digits
@@ -1063,16 +1066,16 @@ static kk_bigint_t* bigint_mul_karatsuba(kk_bigint_t* x, kk_bigint_t* y, kk_cont
 
 kk_integer_t kk_integer_pow(kk_integer_t x, kk_integer_t p, kk_context_t* ctx) {
   if (kk_is_smallint(p)) {
-    if (p.value == kk_integer_zero.value) return kk_integer_one;
+    if (_kk_integer_value(p) == _kk_integer_value(kk_integer_zero)) return kk_integer_one;
   }
   if (kk_is_smallint(x)) {
-    if (x.value == kk_integer_zero.value) {
+    if (_kk_integer_value(x) == _kk_integer_value(kk_integer_zero)) {
       kk_integer_drop(p,ctx);  return kk_integer_zero;
     }
-    if (x.value == kk_integer_one.value) {
+    if (_kk_integer_value(x) == _kk_integer_value(kk_integer_one)) {
       kk_integer_drop(p,ctx);  return kk_integer_one;
     }
-    if (x.value == kk_integer_min_one.value) {
+    if (_kk_integer_value(x) == _kk_integer_value(kk_integer_min_one)) {
       return (kk_integer_is_even(p,ctx) ? kk_integer_one : kk_integer_min_one);
     }
   }
@@ -1273,7 +1276,7 @@ static kk_bigint_t* kk_bigint_sub(kk_bigint_t* x, kk_bigint_t* y, bool yneg, kk_
 
  bool kk_integer_is_even_generic(kk_integer_t x, kk_context_t* ctx) {
   kk_assert_internal(kk_is_integer(x));
-  if (kk_is_smallint(x)) return ((x.value&0x04)==0);
+  if (kk_is_smallint(x)) return ((_kk_integer_value(x)&0x04)==0);
   kk_bigint_t* bx = kk_integer_to_bigint(x,ctx);
   bool even = ((bx->digits[0]&0x1)==0);
   kk_integer_drop(x,ctx);

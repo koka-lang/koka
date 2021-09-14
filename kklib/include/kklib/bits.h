@@ -302,7 +302,7 @@ static inline uint64_t kk_bits_count64(uint64_t x) {
 static inline uint32_t kk_bits_count32(uint32_t x) {
   return __builtin32(popcount)(x);
 }
-#if (KK_INTPTR_SIZE >= 8)
+#if (KK_INTX_SIZE >= 8)
 #define HAS_BITS_COUNT64
 static inline uint64_t kk_bits_count64(uint64_t x) {
   return __builtin64(popcount)(x);

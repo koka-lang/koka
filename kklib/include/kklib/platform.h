@@ -31,25 +31,35 @@
 /*--------------------------------------------------------------------------------------
   Integer sizes and portability:
   Here are some architectures with the bit size of various integers.
-  We have `uintptr_t` for addresses, `size_t` for object sizes, and `kk_intx_t` for
-  the natural register size (for arithmetic).
-  We always have `|uintptr_t| >= |size_t| >= |int|` (and `|ptrdiff_t| >= |size_t|`).
+  We have 
+  - `uintptr_t` for addresses, 
+  - `size_t` for object sizes, 
+  - `kk_intx_t` for the natural largest register size (for general arithmetic),
+  - `kk_intf_t` for the natural largest register size where |kk_intf_t| <= |uintptr_t|.
+    (this is used to store small integers in heap fields that are the size of a `uintptr_t`.
+     on arm CHERI we still want to use 64-bit arithmetic instead of 128-bit)
 
-        system        uintptr_t   size_t   int   long   kk_intx_t         notes
- ------------------ ----------- -------- ----- ------ ----------- --------------------
-  x86, arm32                32       32    32     32     32
-  x64, arm64, etc.          64       64    32     64     64
-  x64 windows               64       64    32     32     64       size_t > long
-  x32 linux                 32       32    32     64     64       long > size_t
-  arm CHERI                128       64    32     64     64       uintptr_t > size_t
-  riscV 128-bit            128       64    32     64     64       uintptr_t > size_t
-  x86 16-bit small          16       16    16     32     16       long > size_t
-  x86 16-bit large          32       16    16     32     16       uintptr_t/long > size_t
-  x86 16-bit huge           32       32    16     32     16       kk_intx_t < size_t
+  We always have: 
+  - `|uintptr_t| >= |size_t| >= |kk_intf_t|` >= |int|. 
+  - `|kk_intx_t| >= |kk_intf_t| >= |int|`
+  - and `|ptrdiff_t| >= |size_t|`.
+  
+
+        system        uintptr_t   size_t   int   long   intx   intf    notes
+ ------------------ ----------- -------- ----- ------ ------ ------  -----------
+  x86, arm32                32       32    32     32     32     32
+  x64, arm64, etc.          64       64    32     64     64     64
+  x64 windows               64       64    32     32     64     64   size_t    > long
+  x32 linux                 32       32    32     64     64     32   long/intx > size_t
+  arm CHERI                128       64    32     64     64     64   uintptr_t > size_t
+  riscV 128-bit            128       64    32     64     64     64   uintptr_t > size_t
+  x86 16-bit small          16       16    16     32     16     16   long      > size_t
+  x86 16-bit large          32       16    16     32     16     16   uintptr_t/long > size_t
+  x86 16-bit huge           32       32    16     32     16     16   intx < size_t
 
   We use a signed `size_t` as `kk_ssize_t` (see comments below) and define
   the fast integer `kk_intx_t` as `if |int| < 32 then int else max(size_t,long)`
-  (and we always have `|kk_int_t| >= |int|`).
+  (and we always have `|kk_intx_t| >= |int|`). `kk_intf_t` is the `min(kk_intx_t,size_t)`.
 --------------------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------------------
@@ -218,7 +228,7 @@
 # define KK_INTPTR_SIZE 16
 # define KIP(i)         KI64(i)
 # define KUP(i)         KU64(i)
-##else
+#else
 #error platform addresses must be 16, 32, 64, or 128 bits
 #endif
 #define KK_INTPTR_BITS        (8*KK_INTPTR_SIZE)
@@ -293,6 +303,7 @@ typedef unsigned       kk_uintx_t;
 #define KK_INTX_SIZE   2
 #define KK_INTX_MAX    INT_MAX
 #define KK_INTX_MIN    INT_MIN
+#define KK_UINTX_MAX   UINT_MAX
 #define PRIdIX         "%d"
 #define PRIuUX         "%u"
 #define PRIxUX         "%x"
@@ -305,6 +316,7 @@ typedef size_t         kk_uintx_t;
 #define KK_INTX_SIZE   KK_SSIZE_SIZE
 #define KK_INTX_MAX    KK_SSIZE_MAX
 #define KK_INTX_MIN    KK_SSIZE_MIN
+#define KK_UINTX_MAX   SIZE_MAX
 #define PRIdIX         "%zd"
 #define PRIuUX         "%zu"
 #define PRIxUX         "%zx"
@@ -317,6 +329,7 @@ typedef unsigned long  kk_uintx_t;
 #define KK_INTX_SIZE   KK_LONG_SIZE
 #define KK_INTX_MAX    LONG_MAX
 #define KK_INTX_MIN    LONG_MIN
+#define KK_UINTX_MAX   ULONG_MAX
 #define PRIdIX         "%ld"
 #define PRIuUX         "%lu"
 #define PRIxUX         "%lx"
@@ -324,11 +337,35 @@ typedef unsigned long  kk_uintx_t;
 #endif
 #define KK_INTX_BITS   (8*KK_INTX_SIZE)
 
+// `sizeof(kk_intf_t)` is `min(sizeof(kk_intx_t),sizeof(size_t))`
+#if (KK_INTX_SIZE > KK_SIZE_SIZE)
+typedef kk_ssize_t     kk_intf_t;
+typedef size_t         kk_uintf_t;
+#define KUF(i)         KUZ(i)
+#define KIF(i)         KIZ(i)
+#define KK_INTF_SIZE   KK_SSIZE_SIZE
+#define KK_INTF_MAX    KK_SSIZE_MAX
+#define KK_INTF_MIN    KK_SSIZE_MIN
+#define KK_UINTF_MAX   SIZE_MAX
+#else
+typedef kk_intx_t      kk_intf_t;
+typedef kk_uintx_t     kk_uintf_t;
+#define KUF(i )        KUX(i)
+#define KIF(i)         KIX(i)
+#define KK_INTF_SIZE   KK_INTX_SIZE
+#define KK_INTF_MAX    KK_INTX_MAX
+#define KK_INTF_MIN    KK_INTX_MIN
+#define KK_UINTF_MAX   KK_UINTX_MAX
+#endif
+#define KK_INTF_BITS   (8*KK_INTF_SIZE)
+
 
 // Distinguish unsigned shift right and signed arithmetic shift right.
 // (Here we assume >> is arithmetic right shift). Avoid UB by always masking the shift.
 static inline kk_intx_t   kk_sar(kk_intx_t i,  kk_intx_t shift) { return (i >> (shift & (KK_INTX_BITS - 1))); }
 static inline kk_uintx_t  kk_shr(kk_uintx_t u, kk_intx_t shift) { return (u >> (shift & (KK_INTX_BITS - 1))); }
+static inline kk_intf_t   kk_sarf(kk_intf_t i, kk_intf_t shift) { return (i >> (shift & (KK_INTF_BITS - 1))); }
+static inline kk_uintf_t  kk_shrf(kk_uintf_t u, kk_intf_t shift){ return (u >> (shift & (KK_INTF_BITS - 1))); }
 static inline int32_t     kk_sar32(int32_t i,  int32_t shift)   { return (i >> (shift & 31)); }
 static inline uint32_t    kk_shr32(uint32_t u, int32_t shift)   { return (u >> (shift & 31)); }
 static inline int64_t     kk_sar64(int64_t i,  int64_t shift)   { return (i >> (shift & 63)); }
@@ -336,6 +373,7 @@ static inline uint64_t    kk_shr64(uint64_t u, int64_t shift)   { return (u >> (
 
 // Avoid UB by left shifting on unsigned integers (and masking the shift).
 static inline kk_intx_t   kk_shl(kk_intx_t i, kk_intx_t shift)  { return (kk_intx_t)((kk_uintx_t)i << (shift & (KK_INTX_BITS - 1))); }
+static inline kk_intf_t   kk_shlf(kk_intf_t i, kk_intf_t shift) { return (kk_intf_t)((kk_uintf_t)i << (shift & (KK_INTF_BITS - 1))); }
 static inline int32_t     kk_shl32(int32_t i, int32_t shift)    { return (int32_t)((uint32_t)i << (shift & 31)); }
 static inline int64_t     kk_shl64(int64_t i, int64_t shift)    { return (int64_t)((uint64_t)i << (shift & 63)); }
 static inline intptr_t    kk_shlp(intptr_t i, intptr_t shift)   { return (intptr_t)((uintptr_t)i << (shift & (KK_INTPTR_BITS - 1))); }
