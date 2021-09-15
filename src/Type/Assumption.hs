@@ -19,7 +19,7 @@ module Type.Assumption (
                     , gammaList
                     , gammaIsEmpty
                     , gammaNames
-                    , ppGamma, gammaRemove, gammaUnion, gammaUnions
+                    , ppGamma, ppGammaHidden, gammaRemove, gammaUnion, gammaUnions
                     , gammaFilter
                     , isInfoCon
                     , isInfoImport
@@ -331,18 +331,22 @@ instance Pretty Gamma where
   pretty g
     = ppGamma Type.Pretty.defaultEnv g
 
-
-ppGamma :: Env -> Gamma -> Doc
-ppGamma env gamma
+ppGammaInternal :: Bool -> Env -> Gamma -> Doc
+ppGammaInternal showHidden env gamma
     = vcat [fill maxwidth (text (showPlain name)) {-(ppName env name)-} <.> color (colorSep (colors env)) (typeColon (colors env)) <+> align (nice scheme)
         | (name,scheme) <- nameSchemes,
-          not (isHiddenName name)
+          showHidden || not (isHiddenName name)
         ]
     where
       nameSchemes   = [(name,infoType info) | (name,info) <- gammaList gamma]
       maxwidth      = 12 `min` foldl max 0 [length (show name) | (name,scheme) <- nameSchemes]
       nice scheme   = align (head (niceTypes env [scheme]))
 
+ppGamma :: Env -> Gamma -> Doc
+ppGamma = ppGammaInternal False
+
+ppGammaHidden :: Env -> Gamma -> Doc
+ppGammaHidden = ppGammaInternal True
 
 instance HasTypeVar Gamma where
   sub `substitute` (Gamma gamma)

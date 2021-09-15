@@ -10,7 +10,7 @@
 -}
 -----------------------------------------------------------------------------
 module Compiler.Options( -- * Command line options
-                         getOptions, processOptions, Mode(..), Flags(..)
+                         getOptions, processOptions, Mode(..), Flags(..), showTypeSigs
                        -- * Show standard messages
                        , showHelp, showEnv, showVersion, commandLineHelp, showIncludeInfo
                        -- * Utilities
@@ -88,6 +88,9 @@ data Option
   | Flag (Flags -> Flags)
   | Error String
 
+showTypeSigs :: Flags -> Bool
+showTypeSigs flags = showHiddenTypeSigs flags || _showTypeSigs flags
+
 data Flags
   = Flags{ warnShadow       :: Bool
          , showKinds        :: Bool
@@ -99,7 +102,8 @@ data Flags
          , showAsmCS        :: Bool
          , showAsmJS        :: Bool
          , showAsmC         :: Bool
-         , showTypeSigs     :: Bool
+         , _showTypeSigs     :: Bool
+         , showHiddenTypeSigs     :: Bool
          , showElapsed      :: Bool
          , evaluate         :: Bool
          , execOpts         :: String
@@ -178,6 +182,7 @@ flagsNull
           False
           False
           False -- typesigs
+          False -- hiddentypesigs
           False -- show elapsed time
           True  -- executes
           ""    -- execution options
@@ -295,7 +300,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["showtime"]       (\b f -> f{ showElapsed = b})    "show elapsed time and rss after evaluation"
  , flag   []    ["showspan"]       (\b f -> f{ showSpan = b})       "show ending row/column too on errors"
  , flag   []    ["showkindsigs"]   (\b f -> f{showKindSigs=b})      "show kind signatures of type definitions"
- , flag   []    ["showtypesigs"]   (\b f -> f{showTypeSigs=b})      "show type signatures of definitions"
+ , flag   []    ["showtypesigs"]   (\b f -> f{_showTypeSigs=b})      "show type signatures of definitions"
+ , flag   []    ["showhiddentypesigs"]   (\b f -> f{showHiddenTypeSigs=b})"(implies --showtypesigs) show hidden type signatures of definitions"
  , flag   []    ["showsynonyms"]   (\b f -> f{showSynonyms=b})      "show expanded type synonyms in types"
  , flag   []    ["showcore"]       (\b f -> f{showCore=b})          "show core"
  , flag   []    ["showfcore"]      (\b f -> f{showFinalCore=b})     "show final core (with backend optimizations)"
