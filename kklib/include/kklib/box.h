@@ -28,13 +28,14 @@ On 64-bit, using `x` for bytes, and `b` for bits, with `z` the least significant
   xxxx xxxx xxxx xxxz   z = bbbb bbb0  : 64-bit pointer p  (always aligned to (at least) 2 bytes!)
   xxxx xxxx xxxx xxxz   z = bbbb bbb1  : 63-bit values n as n*2+1
 
-On 64-bit, We can encode half of the doubles by saving 1 bit; We now use strategy A1:
+On 64-bit, We can encode half of the doubles as values by saving 1 bit; Possible strategies:
 (A1): use value encoding if the 11-bit exponent fits in 10-bits. This uses value encoding
       for numbers whose absolute value is in the range [2^-511,2^512), or if it is
       zero, subnormal, NaN, or infinity. This is the default: it is more computationally
       expensive but it can avoid many allocations as this captures almost
       all doubles that are commonly in use for most workloads.
-(A2): We can also box doubles as an int64_t, which means all doubles outside the range
+(A2): heap allocate all negative doubles and use values for positive ones (in 63-bits).
+(A0): We can also box doubles as an int64_t, which means all doubles outside the range
       (-2.0, 2.0) would be heap allocated. (for simplicity we use this for floats on 32-bit platforms)
 
 
@@ -61,8 +62,9 @@ On 64-bit, We can encode half of the doubles by saving 1 bit; We now use strateg
       for numbers whose absolute value is in the range [2^-511,2^512), or if it is
       zero, subnormal, NaN, or infinity. This is the default as this captures almost
       all doubles that are commonly in use for most workloads.
-     
-Deprecated:
+(A2): heap allocate all negative doubles and use values for positive ones (in 63-bits).
+
+Deprecated strategy:
 (B), use NaN boxing on 64-bit:   
   For pointers and integers, the top 12-bits are the sign extension of the bottom 52 bits
   and thus always 0x000 or 0xFFF (denoted as `sss`).
@@ -97,7 +99,11 @@ Deprecated:
 
 ----------------------------------------------------------------*/
 #if (KK_INTPTR_SIZE == 8)
-#define KK_BOX_DOUBLE_EXP    (1)    // Box doubles on 64-bit using strategy A1 by default
+#define KK_BOX_DOUBLE64    (1)    // box doubles on 64-bit using strategy A1 by default
+// #define KK_BOX_DOUBLE64    (2)    // heap allocate negative doubles on 64-bit (strategy A2)
+// #define KK_BOX_DOUBLE64    (0)    // heap allocate doubles interpreted as int64_t
+#else
+#define KK_BOX_DOUBLE64    (0)
 #endif
 
 #define KK_BOXED_VALUE_BITS  (KK_INTF_BITS-1)   // note: can be less than intptr_t on CHERI architectures for example
@@ -271,7 +277,7 @@ static inline kk_box_t kk_int16_box(int16_t i, kk_context_t* ctx) {
 }
 #endif
 
-#if (KK_INTPTR_SIZE == 8) && KK_BOX_DOUBLE_EXP
+#if (KK_INTPTR_SIZE == 8) && KK_BOX_DOUBLE64
 kk_decl_export kk_box_t kk_double_box(double d, kk_context_t* ctx);
 kk_decl_export double   kk_double_unbox(kk_box_t b, kk_context_t* ctx);
 #else

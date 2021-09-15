@@ -242,10 +242,10 @@ kk_cfun_ptr_t kk_cfun_ptr_unbox(kk_box_t b) {  // never drop; only used from fun
 
 
 /*----------------------------------------------------------------
-  Double boxing using the exponent
+  Double boxing on 64-bit systems
 ----------------------------------------------------------------*/
 
-#if (KK_INTPTR_SIZE == 8) && KK_BOX_DOUBLE_EXP
+#if (KK_INTPTR_SIZE == 8) && KK_BOX_DOUBLE64
 // Generic double allocation in the heap
 typedef struct kk_boxed_double_s {
   kk_block_t _block;
@@ -259,6 +259,38 @@ static double kk_double_unbox_heap(kk_box_t b, kk_context_t* ctx) {
   return d;
 }
 
+#if (KK_BOX_DOUBLE64 == 2)  // heap allocate when negative
+kk_box_t kk_double_box(double d, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+  int64_t i;
+  //if (isnan(d)) { kk_debugger_break(ctx); }
+  memcpy(&i, &d, sizeof(i));  // safe for C aliasing
+  if (i >= 0) {  // positive?
+    kk_box_t b = { ((uintptr_t)i<<1)|1 };
+    return b;
+  }
+  else {
+    // heap allocate
+    return kk_double_box_heap(d, ctx);
+  }
+}
+
+double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+  double d;
+  if (kk_box_is_value(b)) {
+    // positive double
+    uint64_t u = kk_shrp(b.box, 1);
+    memcpy(&d, &u, sizeof(d)); // safe for C aliasing: see <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly>
+  }
+  else {
+    // heap allocated
+    d = kk_double_unbox_heap(b, ctx);
+  }
+  // if (isnan(d)) { kk_debugger_break(ctx); }
+  return d;
+}
+#else  // heap allocate when the exponent is between 0x200 and 0x5FF.
 static kk_box_t kk_double_box_heap(double d, kk_context_t* ctx) {
   kk_boxed_double_t dt = kk_block_alloc_as(struct kk_boxed_double_s, 0, KK_TAG_DOUBLE, ctx);
   dt->value = d;
@@ -319,4 +351,5 @@ double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
     return kk_double_unbox_heap(b, ctx);
   }
 }
+#endif
 #endif
