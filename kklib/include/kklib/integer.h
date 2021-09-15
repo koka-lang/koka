@@ -190,8 +190,11 @@ typedef int32_t kk_smallint_t;
 #elif KK_INTF_SIZE==4
 typedef int16_t kk_smallint_t;
 #define KK_SMALLINT_BITS  (16)
+#elif KK_INTF_SIZE==2
+typedef int8_t kk_smallint_t;
+#define KK_SMALLINT_BITS  (8)
 #else
-# error "platform must be 32, 64, or 128 bits."
+# error "platform must be 16, 32, 64, or 128 bits."
 #endif
 
 #define KK_SMALLINT_MAX  ((kk_intf_t)(((kk_uintf_t)KK_INTF_MAX >> (KK_INTF_BITS - KK_SMALLINT_BITS)) >> 2))  // use unsigned shift to avoid UB
