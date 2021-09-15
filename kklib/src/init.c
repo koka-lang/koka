@@ -154,7 +154,7 @@ static void kklib_init(void) {
   // for Koka, we need to be fully deterministic and careful when using C functionality that depends on global variables
   setlocale(LC_ALL, "C.utf8"); 
 #if defined(WIN32) && (defined(_CONSOLE) || defined(__MINGW32__))
-  SetConsoleOutputCP(65001);   // set the console to unicode instead of OEM page
+  SetConsoleOutputCP(65001);   // set the console to utf-8 instead of OEM page
 #endif
   //todo: do we need to set the IEEE floating point flags?
   //fexcept_t fexn;

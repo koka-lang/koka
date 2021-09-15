@@ -92,7 +92,7 @@ static int kk_posix_fsize(kk_file_t f, kk_ssize_t* fsize) {
   kk_stat_t st;
   int err = kk_posix_fstat(f, &st);
   if (err != 0) return err;
-  *fsize = st.st_size;
+  *fsize = (kk_ssize_t)st.st_size;
   return 0;
 }
 
@@ -912,7 +912,7 @@ kk_decl_export kk_string_t kk_os_app_path(kk_context_t* ctx) {
     kk_ssize_t slen = kk_os_path_max();
     uint16_t* bbuf = (uint16_t*)kk_malloc((slen+1) * kk_ssizeof(uint16_t), ctx);
     len = GetModuleFileNameW(NULL, bbuf, (DWORD)slen+1);
-    if (len >= slen) {
+    if ((kk_ssize_t)len >= slen) {
       // failed again, use fall back
       kk_free(bbuf);
       return kk_os_app_path_generic(ctx);

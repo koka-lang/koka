@@ -778,7 +778,7 @@ kk_string_t kk_double_show(double d, int32_t prec, kk_context_t* ctx) {
 kk_string_t kk_show_any(kk_box_t b, kk_context_t* ctx) {
   char buf[128];
 #if KK_USE_NAN_BOX
-  if (_is_double(b)) {
+  if (_kk_is_double(b)) {
     return kk_double_show(kk_double_unbox(b, ctx), 0, ctx);
   }
   else
