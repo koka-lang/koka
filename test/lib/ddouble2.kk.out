@@ -32,11 +32,11 @@ dsin2 : ok: -1, dt: 0
 dcos2 : ok: 0, dt: 6e-17
 sin(2): ok: 0, dt: 7e-32
 cos(2): ok: -0, dt: 7e-32
-dsin3 : ok: 0, dt: 5e-17
+dsin3 : ok: 0, dt: 1e-16
 dcos3 : ok: -0, dt: 2e-16
 sin(-2): ok: -0, dt: 7e-32
 cos(-2): ok: -0, dt: 7e-32
-dsin3 : ok: -0, dt: 5e-17
+dsin3 : ok: -0, dt: 1e-16
 dcos3 : ok: -0, dt: 2e-16
 sin(1): ok: 0, dt: 1e-32
 cos(1): ok: 0, dt: 6e-33

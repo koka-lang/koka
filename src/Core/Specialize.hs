@@ -112,7 +112,8 @@ specOneCall (InlineDef{ inlineName=specName, inlineExpr=specExpr, specializeArgs
       _ -> return e
 
   where
-    goodArgs args  = all goodArg $ filterBools specArgs args
+    goodArgs args  = -- (\isgoodarg -> trace (show args ++ " is " ++ (if isgoodarg then "" else "not ") ++ "good") isgoodarg) $
+      all goodArg $ filterBools specArgs args
     goodArg expr = case expr of
                     Lam{}                  -> True
                     TypeLam _ body         -> goodArg body
@@ -153,12 +154,15 @@ specInnerCalls from to bools = rewriteBottomUp $ \e ->
       | f == from -> App (Var to info) $ filterBools bools xs
     e -> e
 
+comment :: String -> String
+comment = unlines . map ("// " ++ ). lines
+
 replaceCall :: Name -> Expr -> [Bool] -> [Expr] -> Maybe [Type] -> SpecM Expr
 replaceCall name expr bools args mybeTypeArgs -- trace ("specializing" <> show name) $
   = pure $ Let [DefRec [specDef]] (App (Var (defTName specDef) InfoNone) newArgs)
   where
     specDef = Def (getName specTName) (typeOf specTName) specBody Private DefFun InlineAuto rangeNull
-               $ "// specialized " <> show name <> " to parameters " <> show speccedParams
+               $ "// specialized " <> show name <> " to parameters " <> show speccedParams <> " with args " <> comment (show speccedArgs)
     specBody
       = specInnerCalls (TName name (typeOf expr)) specTName (not <$> bools) specBody0
 

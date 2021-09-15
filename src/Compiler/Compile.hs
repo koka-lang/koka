@@ -890,12 +890,14 @@ inferCheck loaded0 flags line coreImports program
                          else inlinesFilter (\name -> nameId nameCoreHnd /= nameModule name) (loadedInlines loaded)
          in inlineDefs penv (2*(optInlineMax flags)) inlines
        checkCoreDefs "inlined"
+
+       simplifyDupN
        -- traceDefGroups "inlined"
        
        -- specialize 
        specializeDefs <- -- if (isPrimitiveModule (Core.coreProgName coreProgram)) then return [] else 
                          Core.withCoreDefs (\defs -> extractSpecializeDefs defs)
-       -- trace ("Spec defs:\n" ++ show specializeDefs) $ return ()
+       -- traceM ("Spec defs:\n" ++ unlines (map show specializeDefs))
        
        when (optSpecialize flags) $
          specialize (inlinesExtends specializeDefs (loadedInlines loaded))
