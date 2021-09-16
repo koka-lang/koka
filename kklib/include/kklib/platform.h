@@ -159,6 +159,9 @@
 #define kk_decl_noinline   __declspec(noinline)
 #define kk_decl_align(a)   __declspec(align(a))
 #define kk_decl_thread     __declspec(thread)
+#ifndef __cplusplus
+#error "when using cl (the Microsoft Visual C++ compiler), use the /TP option to always compile in C++ mode."
+#endif
 #else
 #define kk_unlikely(h)     (h)
 #define kk_likely(h)       (h)
