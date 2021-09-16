@@ -1,7 +1,12 @@
-effect foo {
-    fun boo(x:int):int
-}
+effect foo 
+  fun boo(x : int) : int
 
+
+fun main() 
+  with fun boo(x){ x }
+  boo(42)
+
+/*
 fun test1(){
     print("In test1")
     with fun boo(x){x}
@@ -23,7 +28,7 @@ fun main(){
     print("In main")
     test1()
 }
-
+*/
 // Compile this file with feature/open, other files with dev
 // Below is the message for compiling main, expr of this file
 // -----------------

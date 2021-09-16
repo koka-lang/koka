@@ -162,6 +162,7 @@ data Flags
          , parcReuse        :: Bool
          , parcSpecialize   :: Bool
          , parcReuseSpec    :: Bool
+         , optOpenFloat     :: Bool
          , asan             :: Bool
          , useStdAlloc      :: Bool -- don't use mimalloc for better asan and valgrind support
          , optSpecialize    :: Bool
@@ -244,6 +245,7 @@ flagsNull
           True -- parc reuse
           True -- parc specialize
           True -- parc reuse specialize
+          True  -- open float
           False -- use asan
           False -- use stdalloc
           True  -- use specialization (only used if optimization level >= 1)
@@ -342,6 +344,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fflag       ["optctail"]  (\b f -> f{optctail=b})          "enable con-tail optimization (TRMC)"
  , hide $ fflag       ["optctailinline"]  (\b f -> f{optctailInline=b})  "enable con-tail inlining (increases code size)"
  , hide $ fflag       ["specialize"]  (\b f -> f{optSpecialize=b})      "enable inline specialization"
+ , hide $ fflag       ["optopenfloat"] (\b f -> f{optOpenFloat=b})   "enable open floating"
 
  -- deprecated
  , hide $ option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"

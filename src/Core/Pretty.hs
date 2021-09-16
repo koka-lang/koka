@@ -298,7 +298,8 @@ prettyExpr :: Env -> Expr -> Doc
 prettyExpr env lam@(Lam tnames eff expr)
   = pparens (prec env) precArrow $
     keyword env "fn" <.>
-      (if isTypeTotal eff then empty else color (colorType (colors env)) (text "<" <.> prettyType env' eff <.> text ">")) <.>
+      (-- if isTypeTotal eff then empty else 
+        color (colorType (colors env)) (text "<" <.> prettyType env' eff <.> text ">")) <.>
       tupled [prettyTName env' tname | tname <- tnames] <.> text "{" <-->
       tab (prettyExpr env expr <.> semi) <-->
       text "}"

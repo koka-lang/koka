@@ -840,16 +840,19 @@ inferCheck loaded0 flags line coreImports program
                               , loadedNewtypes= newtypes -- newtypesCompose (loadedNewtypes loaded) newtypes
                               , loadedConstructors=constructors
                               }
-            penv    = prettyEnv loaded flags
+            penv    = (prettyEnv loaded flags){coreIface=False, coreShowDef=True, coreShowTypes=True }
             
             traceDefGroups title  
               = do dgs <- Core.getCoreDefs 
-                   -- let doc = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } C [] 
-                   --            (coreProgram{ Core.coreProgDefs = dgs })
+                   --let doc = Core.Pretty.prettyCore penv C [] (coreProgram{ Core.coreProgDefs = dgs })
+                   --trace (unlines (["","-----------------", title, "---------------"] ++ [show doc])) $ return ()                         
+              
                    trace (unlines (["","-----------------", title, "---------------"] ++ -- ++ [show doc])) $ return ()                         
                            map showDef (Core.flattenDefGroups dgs))) $ return ()
               where 
-                showDef def = show (Core.Pretty.prettyDef (penv{coreShowDef=True}) def)
+                showDef def = show (Core.Pretty.prettyDef penv def)
+              
+              
 
 
        -- Type inference
@@ -917,11 +920,12 @@ inferCheck loaded0 flags line coreImports program
        -- backend optimizations 
 
        -- open floating
-       when (not (isPrimitiveModule (Core.coreProgName coreProgram))) $
+       when (optOpenFloat flags && not (isPrimitiveModule (Core.coreProgName coreProgram))) $
           do openFloat penv gamma
              checkCoreDefs "open floated"
+             simplifyNoDup 
              traceDefGroups "open floated" 
-
+       
        -- tail-call-modulo-cons optimization
        when (optctail flags) $
          ctailOptimize penv (platform flags) newtypes gamma (optctailInline flags) 
