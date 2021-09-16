@@ -202,13 +202,14 @@ static void kk_chacha_split(kk_random_ctx_t* rnd, uint64_t nonce, kk_random_ctx_
 /* ----------------------------------------------------------------------------
 Secure random: split
 -----------------------------------------------------------------------------*/
+/*
 #if !defined(NDEBUG) && defined(KK_DEBUG_FULL)
 static bool kk_random_is_initialized(kk_random_ctx_t* rnd) {
   return (rnd->input[0] != 0);
 }
 #endif
 
-/*
+
 static void kk_random_split(kk_random_ctx_t* rnd, kk_random_ctx_t* ctx_new) {
   kk_assert_internal(random_is_initialized(rnd));
   kk_assert_internal(rnd != ctx_new);

@@ -349,14 +349,21 @@ kk_decl_export kk_string_t    kk_string_convert_from_qutf8(kk_bytes_t b, kk_cont
 kk_decl_export uint16_t*      kk_string_to_qutf16_borrow(kk_string_t str, kk_context_t* ctx);
 kk_decl_export const char*    kk_string_to_qutf8_borrow(kk_string_t str, bool* should_free, kk_context_t* ctx);
 
-#define kk_with_string_as_qutf16_borrow(str,wstr,ctx) /* { action } */ \
-  for( const wchar_t* wstr = (wchar_t*)kk_string_to_qutf16_borrow(str,ctx); wstr != nullptr; kk_free(wstr), wstr = nullptr )
 
 #define kk_with_string_as_qutf8_borrow(str,ustr,ctx) /* { action } */ \
   bool should_free_##ustr; \
   for( const char* ustr = kk_string_to_qutf8_borrow(str,&should_free_##ustr,ctx); ustr != nullptr; \
       ustr = (should_free_##ustr ? (kk_free(ustr), nullptr) : nullptr) )
 
+#define kk_with_string_as_qutf16_borrow(str,wstr,ctx) /* { action } */ \
+  for( const uint16_t* wstr = kk_string_to_qutf16_borrow(str,ctx); wstr != nullptr; kk_free(wstr), wstr = nullptr )
+
+#define kk_with_string_as_qutf16w_borrow(str,wstr,ctx) /* { action } */ \
+  for( const wchar_t* wstr = (const wchar_t*)kk_string_to_qutf16_borrow(str,ctx); wstr != nullptr; kk_free(wstr), wstr = nullptr )
+
+static inline kk_string_t    kk_string_alloc_from_qutf16w(const wchar_t* wstr, kk_context_t* ctx) {
+  return kk_string_alloc_from_qutf16((const uint16_t*)wstr, ctx);
+}
 
 /*--------------------------------------------------------------------------------------------------
   Utilities that can use the bytes functions
