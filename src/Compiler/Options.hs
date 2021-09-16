@@ -815,8 +815,8 @@ ccMsvc name opt path
           (Release,words "-MD -O2 -Ob2 -DNDEBUG"),
           (RelWithDebInfo,words "-MD -Zi -O2 -Ob2 -DNDEBUG")]
          ["-W3"]
-         ["-TP","-c"]   -- always compile as C++ on msvc (for atomics etc.)
-         ["-link"]      -- , "/NODEFAULTLIB:msvcrt"]
+         ["-EHs","-TP","-c"]   -- always compile as C++ on msvc (for atomics etc.)
+         ["-link"]             -- , "/NODEFAULTLIB:msvcrt"]
          (\libdir -> ["/LIBPATH:" ++ libdir])
          (\idir -> ["-I",idir])
          (\fname -> ["-Fo" ++ ((notext fname) ++ objExtension)])
