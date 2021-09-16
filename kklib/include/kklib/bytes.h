@@ -30,7 +30,7 @@ struct kk_bytes_s {
 typedef kk_datatype_t kk_bytes_t;
 
 static inline kk_bytes_t kk_bytes_empty(void) {
-  return kk_datatype_from_tag(1);
+  return kk_datatype_from_tag((kk_tag_t)1);
 }
 
 #define KK_BYTES_SMALL_MAX (7)

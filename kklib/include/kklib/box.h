@@ -153,7 +153,7 @@ static inline bool kk_box_eq(kk_box_t b1, kk_box_t b2) {
 }
 
 // We cannot store NULL as a pointer (`kk_ptr_t`); use `box_null` instead
-#define kk_box_null       (_kk_box_new_ptr((void*)(~KUP(0))))  // -1 value
+#define kk_box_null       (_kk_box_new_ptr((kk_ptr_t)(~KUP(0))))  // -1 value
 
 // null initializer
 #define kk_box_null_init  {~KUP(0)}

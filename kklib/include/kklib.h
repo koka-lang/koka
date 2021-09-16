@@ -2,7 +2,7 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
-#define KKLIB_BUILD        53       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        54       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1
 
@@ -968,7 +968,7 @@ typedef struct kk_vector_large_s {  // always use a large block for a vector so 
 
 
 static inline kk_vector_t kk_vector_empty(void) {
-  return kk_datatype_from_tag(1);
+  return kk_datatype_from_tag((kk_tag_t)1);
 }
 
 static inline kk_vector_large_t kk_vector_as_large_borrow(kk_vector_t v) {

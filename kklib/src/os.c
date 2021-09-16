@@ -100,7 +100,7 @@ static int kk_posix_stat(kk_string_t path, kk_stat_t* st, kk_context_t* ctx) {
   int err = 0;
 #if defined(WIN32)
   kk_with_string_as_qutf16_borrow(path, wpath, ctx) {
-    if (_wstat64(wpath, st) < 0) err = errno;
+    if (_wstat64((wchar_t*)wpath, st) < 0) err = errno;
   }
 #else
   kk_with_string_as_qutf8_borrow(path, cpath, ctx) {
@@ -248,7 +248,7 @@ kk_decl_export int kk_os_write_text_file(kk_string_t path, kk_string_t content, 
   mkdir
 --------------------------------------------------------------------------------------------------*/
 #if defined(WIN32)
-static bool kk_is_dir(const uint16_t* wpath) {  
+static bool kk_is_dir(const wchar_t* wpath) {  
   kk_stat_t st = { 0 };
   _wstat64(wpath, &st);
   return ((st.st_mode & S_IFDIR) != 0);  // true for symbolic link as well
@@ -275,7 +275,7 @@ kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ct
   path = kk_string_copy(path, ctx); // copy so we can mutate
   #if defined(WIN32)
   kk_with_string_as_qutf16_borrow(path, cpath, ctx) {
-    uint16_t* p = (uint16_t*)cpath;
+    wchar_t* p = (wchar_t*)cpath;
   #else
   kk_with_string_as_qutf8_borrow(path, cpath, ctx) {
     char* p = (char*)cpath;
@@ -320,7 +320,7 @@ kk_decl_export int kk_os_copy_file(kk_string_t from, kk_string_t to, bool preser
   int err = 0;
   kk_with_string_as_qutf16_borrow(from, wfrom, ctx) {
     kk_with_string_as_qutf16_borrow(to, wto, ctx) {
-      if (!CopyFileW(wfrom, wto, FALSE)) {
+      if (!CopyFileW((LPWSTR)wfrom, (LPWSTR)wto, FALSE)) {
         DWORD werr = GetLastError();
         if (werr == ERROR_FILE_NOT_FOUND) err = ENOENT;
         else if (werr == ERROR_ACCESS_DENIED) err = EPERM;
@@ -481,7 +481,7 @@ static kk_string_t os_direntry_name(dir_entry* entry, kk_context_t* ctx) {
     return kk_string_empty();
   }
   else {
-    return kk_string_alloc_from_qutf16(entry->name, ctx);
+    return kk_string_alloc_from_qutf16( (const uint16_t*)&entry->name, ctx);
   }
 }
 
@@ -628,7 +628,7 @@ kk_vector_t kk_os_get_argv(kk_context_t* ctx) {
   kk_box_t* buf;
   kk_vector_t args = kk_vector_alloc_uninit(wargc, &buf, ctx);  
   for ( ; i < wargc; i++) {
-    kk_string_t arg = kk_string_alloc_from_qutf16(wargv[i], ctx);
+    kk_string_t arg = kk_string_alloc_from_qutf16((const uint16_t*)wargv[i], ctx);
     buf[i] = kk_string_box(arg);
   }
   LocalFree(wargv);
@@ -659,7 +659,7 @@ kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx) {
   }
   kk_box_t* buf;
   kk_vector_t v = kk_vector_alloc_uninit(count*2, &buf, ctx);  
-  const uint16_t* p = env;
+  const uint16_t* p = (const uint16_t*)env;
   // copy the strings into the vector
   for(kk_ssize_t i = 0; i < count; i++) {
     const uint16_t* pname = p;
@@ -766,7 +766,7 @@ kk_string_t kk_os_realpath(kk_string_t path, kk_context_t* ctx) {
   kk_string_t rpath = kk_string_empty();
   kk_with_string_as_qutf16_borrow(path, wpath, ctx) {
     uint16_t buf[264];
-    DWORD res = GetFullPathNameW(wpath, 264, buf, NULL);
+    DWORD res = GetFullPathNameW((LPWSTR)wpath, 264, (LPWSTR)buf, NULL);
     if (res == 0) {
       // failure
       rpath = kk_string_dup(path);
@@ -774,7 +774,7 @@ kk_string_t kk_os_realpath(kk_string_t path, kk_context_t* ctx) {
     else if (res >= 264) {
       DWORD pbuflen = res;
       uint16_t* pbuf = (uint16_t*)kk_malloc(pbuflen * sizeof(uint16_t*), ctx);
-      res = GetFullPathNameW(wpath, pbuflen, pbuf, NULL);
+      res = GetFullPathNameW((LPWSTR)wpath, pbuflen, (LPWSTR)pbuf, NULL);
       if (res == 0 || res >= pbuflen) {
         // failed again
         rpath = kk_string_dup(path);
@@ -897,7 +897,7 @@ static kk_string_t kk_os_app_path_generic(kk_context_t* ctx) {
 #include <Windows.h>
 kk_decl_export kk_string_t kk_os_app_path(kk_context_t* ctx) {
   uint16_t buf[264];
-  DWORD len = GetModuleFileNameW(NULL, buf, 264);
+  DWORD len = GetModuleFileNameW(NULL, (LPWSTR)buf, 264);
   buf[min(len,263)] = 0;
   if (len == 0) { 
     // fail, fall back
@@ -911,7 +911,7 @@ kk_decl_export kk_string_t kk_os_app_path(kk_context_t* ctx) {
     // not enough space in the buffer, try again with larger buffer
     kk_ssize_t slen = kk_os_path_max();
     uint16_t* bbuf = (uint16_t*)kk_malloc((slen+1) * kk_ssizeof(uint16_t), ctx);
-    len = GetModuleFileNameW(NULL, bbuf, (DWORD)slen+1);
+    len = GetModuleFileNameW(NULL, (LPWSTR)bbuf, (DWORD)slen+1);
     if ((kk_ssize_t)len >= slen) {
       // failed again, use fall back
       kk_free(bbuf);
@@ -990,10 +990,10 @@ kk_decl_export kk_string_t kk_os_dir_sep(kk_context_t* ctx) {
 
 kk_decl_export kk_string_t kk_os_home_dir(kk_context_t* ctx) {
 #if defined(WIN32)
-  const uint16_t* h = _wgetenv(L"HOME");
+  const uint16_t* h = (const uint16_t*)_wgetenv(L"HOME");
   if (h != NULL) return kk_string_alloc_from_qutf16(h, ctx);
-  const uint16_t* hd = _wgetenv(L"HOMEDRIVE");
-  const uint16_t* hp = _wgetenv(L"HOMEPATH");
+  const uint16_t* hd = (const uint16_t*)_wgetenv(L"HOMEDRIVE");
+  const uint16_t* hp = (const uint16_t*)_wgetenv(L"HOMEPATH");
   if (hd!=NULL && hp!=NULL) {
     kk_string_t hds = kk_string_alloc_from_qutf16(hd, ctx);
     kk_string_t hdp = kk_string_alloc_from_qutf16(hp, ctx);
@@ -1010,11 +1010,11 @@ kk_decl_export kk_string_t kk_os_home_dir(kk_context_t* ctx) {
 kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx) 
 {  
 #if defined(WIN32)
-  const uint16_t* tmp = _wgetenv(L"TEMP");
-  if (tmp == NULL) tmp = _wgetenv(L"TMP");
-  if (tmp == NULL) tmp = _wgetenv(L"TMPDIR");
+  const uint16_t* tmp = (const uint16_t*)_wgetenv(L"TEMP");
+  if (tmp == NULL) tmp = (const uint16_t*)_wgetenv(L"TMP");
+  if (tmp == NULL) tmp = (const uint16_t*)_wgetenv(L"TMPDIR");
   if (tmp != NULL) return kk_string_alloc_from_qutf16(tmp, ctx);  
-  const uint16_t* ad = _wgetenv(L"LOCALAPPDATA");
+  const uint16_t* ad = (const uint16_t*)_wgetenv(L"LOCALAPPDATA");
   if (ad!=NULL) {
     kk_string_t s = kk_string_alloc_from_qutf16(ad, ctx);
     return kk_string_cat_from_valid_utf8(s, "\\Temp", ctx);

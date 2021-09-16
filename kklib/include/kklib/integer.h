@@ -258,11 +258,11 @@ static inline bool kk_integer_small_eq(kk_integer_t x, kk_integer_t y) {
 
 // Isomorphic with boxed values
 static inline kk_box_t kk_integer_box(kk_integer_t i) { 
-  kk_box_t b = { (uintptr_t)i.ibox };
+  kk_box_t b = { i.ibox };
   return b;
 }
 static inline kk_integer_t kk_integer_unbox(kk_box_t b) { 
-  kk_integer_t i = { (intptr_t)b.box };
+  kk_integer_t i = { b.box };
   return i;
 }
 
