@@ -71,17 +71,21 @@ kk_integer_add(long x, long y)
         jmp       kk_integer_add_generic(long, long)
 
 
+
 However, we can also test in portable way, and do it with just a single test!
 We can do that by limiting kk_smallint_t to a half-word. 
 We then use a full-word add and see if the sign-extended lower half-word 
 equals the full-word (and thus didn't overflow). 
+
+(I call this the "SOFA" technique: Sign-extension OverFlow Arithmetic :-) )
+
 This also allows us to combine that test with testing
 if we added two small integers, (where bit 1 must ==1 after an addition):
 
     intptr_t kk_integer_add(intptr_t x, intptr_t y) {
       intptr_t z = x + y;
       if (kk_likely(z == (int32_t)(z|2))) return (z^3);
-                                  else return kk_integer_add_generic(x,y);
+                                     else return kk_integer_add_generic(x,y);
     }
 
 Now we have just one test that test both for overflow, as well as for the
@@ -98,21 +102,22 @@ kk_integer_add(long x, long y)
 .L28:
         jmp     kk_integer_add_generic
 
-on RISC-V with gcc we get:
+on RISC-V (rv64) with clang 12 we get:
 
-kk_integer_add(long x, long y)
-        add     a4,a0,a1       // add into a4
-        ori     a5,a4,2        // a5 = a4|2
-        sext.w  a5,a5          // sign extend
-        bne     a5,a4,.L30     // a5 == a4 ? if not, overflow or pointer add
-        xori    a0,a5,3        // clear bit 1, set bit 0
+kk_integer_add(long, long):
+        add     a2, a1, a0         // add into a2
+        addw    a3, a1, a0         // add (32-bit) word-wise and sign extend into a3
+        ori     a3, a3, 2          // set bit 1 to 1
+        bne     a2, a3, .LBB1_2    // a2 == a3 ?  if not, overflow or pointer add
+        xori    a0, a2, 3          // clear bit 1, set bit 0
         ret
-.L30:
+.LBB1_2:
         tail    kk_integer_add_generic
 
 
-on ARM-v8 with gcc; using __builtin_add_overflow, we have:
+on ARM-v8 with gcc, using __builtin_add_overflow, we have:
 
+kk_integer_add(long, long):
         add     x2, x0, x1    // x2 = x0 + x1
         eon     x3, x0, x1    // x3 = ~(x0^x1)
         eor     x4, x2, x1    // x4 = x2^x1
@@ -122,19 +127,20 @@ on ARM-v8 with gcc; using __builtin_add_overflow, we have:
         eor     x0, x3, 3     // x0 = x3^3
         ret
 .L6:
-        b       kk_add_slow(long, long)
+        b       kk_integer_add_generic
 
 and in the portable way:
 
+kk_integer_add(long, long):
         add     x3, x0, x1   // x3 = x0 + x1
         orr     w2, w3, 2    // w2 = w3|2
         sxtw    x2, w2       // sign extend w2 to x2
         cmp     x2, x3       // x2 == x3?
-        bne     .L32         // if not, goto slow
+        b.ne    .L32         // if not, goto slow
         eor     x0, x2, 3    // x0 = x2^3
         ret
 .L32:
-        b       kk_add_slow(long, long)
+        b       kk_integer_add_generic
         
 So, overall, the portable way seems to always be better with a single test
 but we can only use a half-word for small integers. We make it a define so we can 
@@ -160,6 +166,8 @@ of other code, we measure for gcc:
   clang: 0.171s    0.171s
 
 so more experimentation is needed.
+
+-- Daan Leijen, 2020.
 --------------------------------------------------------------------------------------------------*/
 
 #if defined(__GNUC__) && !defined(__INTEL_COMPILER)
@@ -173,14 +181,20 @@ so more experimentation is needed.
 #if KK_USE_BUILTIN_OVF
 typedef kk_intf_t kk_smallint_t;
 #define KK_SMALLINT_BITS  (KK_INTF_BITS)
+#elif KK_INTF_SIZE>=16
+typedef int64_t kk_smallint_t;
+#define KK_SMALLINT_BITS  (64)
 #elif KK_INTF_SIZE==8
 typedef int32_t kk_smallint_t;
 #define KK_SMALLINT_BITS  (32)
 #elif KK_INTF_SIZE==4
 typedef int16_t kk_smallint_t;
 #define KK_SMALLINT_BITS  (16)
+#elif KK_INTF_SIZE==2
+typedef int8_t kk_smallint_t;
+#define KK_SMALLINT_BITS  (8)
 #else
-# error "platform must be 32 or 64 bits."
+# error "platform must be 16, 32, 64, or 128 bits."
 #endif
 
 #define KK_SMALLINT_MAX  ((kk_intf_t)(((kk_uintf_t)KK_INTF_MAX >> (KK_INTF_BITS - KK_SMALLINT_BITS)) >> 2))  // use unsigned shift to avoid UB
@@ -244,11 +258,11 @@ static inline bool kk_integer_small_eq(kk_integer_t x, kk_integer_t y) {
 
 // Isomorphic with boxed values
 static inline kk_box_t kk_integer_box(kk_integer_t i) { 
-  kk_box_t b = { (uintptr_t)i.ibox };
+  kk_box_t b = { i.ibox };
   return b;
 }
 static inline kk_integer_t kk_integer_unbox(kk_box_t b) { 
-  kk_integer_t i = { (intptr_t)b.box };
+  kk_integer_t i = { b.box };
   return i;
 }
 
@@ -374,11 +388,11 @@ Addition: for small n we have `boxed(n) = n*4 + 1`, and we can add as:
   (to normalize back we use (^ 3) instead of (- 1) to reduce register stalls 
   (since we know the bottom bits of the result are 01)
 
-     x + y = z
-    00  00  00    ptr + ptr
-    00  01  01    ptr + int
-    01  00  01    int + ptr
-    01  01  10    int + int
+     x + y = z                        
+    00  00  00    ptr + ptr            
+    00  01  01    ptr + int            
+    01  00  01    int + ptr            
+    01  01  10    int + int            
   so we can check if both were small ints by checking if bit 1 is set in the result.
 
 Subtraction: for small `n` we have
@@ -390,10 +404,10 @@ Subtraction: for small `n` we have
   except we use ^3 instead of +1 as we check if both were small ints:
 
      x - y   x^3  (x^3 - y)
-    00  00    11   11       ptr - ptr
-    00  01    11   10       ptr - int
-    01  00    10   10       int - ptr
-    01  01    10   01       int - int
+    00  00    11   11       ptr - ptr     
+    00  01    11   10       ptr - int          
+    01  00    10   10       int - ptr          
+    01  01    10   01       int - int           
   So we can detect if both were small ints by checking if bit 1 was clear in the result.
 
 Multiply: Since `boxed(n) = n*4 + 1`, we can multiply as:

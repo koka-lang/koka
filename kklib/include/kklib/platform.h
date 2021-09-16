@@ -13,8 +13,7 @@
 /*--------------------------------------------------------------------------------------
   Platform: we assume:
   - C99 as C compiler (syntax and library), with possible C11 extensions for threads and atomics.
-  - Either a 32- or 64-bit platform (but others should be possible with few changes, code
-    is already written with arm CHERI in mind for example).
+  - Either a 32- or 64-bit platform (but others should be possible with few changes).
   - The compiler can do a great job on small static inline definitions (and we avoid #define's
     to get better static type checks).
   - The compiler will inline small structs (like `struct kk_box_s{ uintptr_t u; }`) without
@@ -30,21 +29,20 @@
 
 /*--------------------------------------------------------------------------------------
   Integer sizes and portability:
-  Here are some architectures with the bit size of various integers.
-  We have 
-  - `uintptr_t` for addresses, 
+  Here are some architectures with the bit size of various integers, where
+  - `uintptr_t` for addresses (where `sizeof(uintptr_t) == sizeof(void*)`), 
   - `size_t` for object sizes, 
   - `kk_intx_t` for the natural largest register size (for general arithmetic),
   - `kk_intf_t` for the natural largest register size where |kk_intf_t| <= |uintptr_t|.
-    (this is used to store small integers in heap fields that are the size of a `uintptr_t`.
-     on arm CHERI we still want to use 64-bit arithmetic instead of 128-bit)
+    (this is used to store integer values in heap fields that are the size of a `uintptr_t`.
+     here we want to limit the `kk_intf_t` to be at most the size of `uintptr_t` (for
+     example on x32) but also not too large (for example, on arm CHERI we would still
+     use 64-bit arithmetic)).
 
   We always have: 
-  - `|uintptr_t| >= |size_t| >= |kk_intf_t|` >= |int|. 
-  - `|kk_intx_t| >= |kk_intf_t| >= |int|`
-  - and `|ptrdiff_t| >= |size_t|`.
+  - `|uintptr_t| >= |size_t| >= |kk_intf_t| >= |int|`. 
+  - `|kk_intx_t| >= |kk_intf_t| >= |int|`.
   
-
         system        uintptr_t   size_t   int   long   intx   intf    notes
  ------------------ ----------- -------- ----- ------ ------ ------  -----------
   x86, arm32                32       32    32     32     32     32
@@ -52,19 +50,18 @@
   x64 windows               64       64    32     32     64     64   size_t    > long
   x32 linux                 32       32    32     64     64     32   long/intx > size_t
   arm CHERI                128       64    32     64     64     64   uintptr_t > size_t
-  riscV 128-bit            128       64    32     64     64     64   uintptr_t > size_t
-  x86 16-bit small          16       16    16     32     16     16   long      > size_t
+  riscV 128-bit            128      128    32     64    128    128   
+  x86 16-bit small          16       16    16     32     16     16   long > size_t
   x86 16-bit large          32       16    16     32     16     16   uintptr_t/long > size_t
   x86 16-bit huge           32       32    16     32     16     16   intx < size_t
 
   We use a signed `size_t` as `kk_ssize_t` (see comments below) and define
-  the fast integer `kk_intx_t` as `if |int| < 32 then int else max(size_t,long)`
-  (and we always have `|kk_intx_t| >= |int|`). `kk_intf_t` is the `min(kk_intx_t,size_t)`.
+  the fast integer `kk_intx_t` as `if |int| < 32 then int else max(size_t,long)`. 
+  `kk_intf_t` is the `min(kk_intx_t,size_t)`.
 --------------------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------------------
   Object size and signed/unsigned:
-
   We limit the maximum object size (and array sizes) to at most `SIZE_MAX/2` bytes 
   so we can always use the signed `kk_ssize_t` (instead of `size_t`) to specify sizes 
   and do indexing in arrays. This avoids:
@@ -82,8 +79,8 @@
 
   We also need some helpers to deal with API's (like `strlen`) that use `size_t` 
   results or arguments, where we clamp the values into the `kk_ssize_t` range 
-  (but again, on modern systems no clamping will happen as these already limit the size 
-  of objects to SIZE_MAX/2 internally)
+  (but then, on modern systems no clamping will ever happen as these already limit 
+   the size of objects to SIZE_MAX/2 internally)
 --------------------------------------------------------------------------------------*/
 
 #ifdef __cplusplus
@@ -154,6 +151,7 @@
 #pragma warning(disable:4204)  // non-constant aggregate initializer
 #pragma warning(disable:4068)  // unknown pragma
 #pragma warning(disable:4996)  // POSIX name deprecated
+#pragma warning(disable:26812) // the enum type is unscoped (in C++)
 #define kk_unlikely(x)     (x)
 #define kk_likely(x)       (x)
 #define kk_decl_const
@@ -161,6 +159,9 @@
 #define kk_decl_noinline   __declspec(noinline)
 #define kk_decl_align(a)   __declspec(align(a))
 #define kk_decl_thread     __declspec(thread)
+#ifndef __cplusplus
+#error "when using cl (the Microsoft Visual C++ compiler), use the /TP option to always compile in C++ mode."
+#endif
 #else
 #define kk_unlikely(h)     (h)
 #define kk_likely(h)       (h)
@@ -295,7 +296,7 @@ static inline size_t kk_to_size_t(kk_ssize_t sz) {
 // We define it such that `sizeof(kk_intx_t) == (sizeof(int)==2 ? 2 : max(sizeof(long),sizeof(size_t)))`. 
 // (We cannot use just `long` as it is sometimes too short (as on Windows 64-bit where a `long` is 32 bits).
 //  Similarly, `size_t` is sometimes too short as well (like on the x32 ABI with a 64-bit `long` but 32-bit addresses)).
-#if (INT_MAX == INT16_MAX)  
+#if (INT_MAX < INT32_MAX)  
 typedef int            kk_intx_t;
 typedef unsigned       kk_uintx_t;
 #define KIX(i)         i
@@ -374,9 +375,9 @@ static inline uint64_t    kk_shr64(uint64_t u, int64_t shift)   { return (u >> (
 // Avoid UB by left shifting on unsigned integers (and masking the shift).
 static inline kk_intx_t   kk_shl(kk_intx_t i, kk_intx_t shift)  { return (kk_intx_t)((kk_uintx_t)i << (shift & (KK_INTX_BITS - 1))); }
 static inline kk_intf_t   kk_shlf(kk_intf_t i, kk_intf_t shift) { return (kk_intf_t)((kk_uintf_t)i << (shift & (KK_INTF_BITS - 1))); }
-static inline int32_t     kk_shl32(int32_t i, int32_t shift)    { return (int32_t)((uint32_t)i << (shift & 31)); }
-static inline int64_t     kk_shl64(int64_t i, int64_t shift)    { return (int64_t)((uint64_t)i << (shift & 63)); }
-static inline intptr_t    kk_shlp(intptr_t i, intptr_t shift)   { return (intptr_t)((uintptr_t)i << (shift & (KK_INTPTR_BITS - 1))); }
+static inline int32_t     kk_shl32(int32_t i, int32_t shift)    { return (int32_t)  ((uint32_t)i   << (shift & 31)); }
+static inline int64_t     kk_shl64(int64_t i, int64_t shift)    { return (int64_t)  ((uint64_t)i   << (shift & 63)); }
+static inline intptr_t    kk_shlp(intptr_t i, intptr_t shift)   { return (intptr_t) ((uintptr_t)i  << (shift & (KK_INTPTR_BITS - 1))); }
 
 
 // Architecture assumptions

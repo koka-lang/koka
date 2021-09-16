@@ -2,7 +2,7 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
-#define KKLIB_BUILD        50       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        55       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1
 
@@ -56,13 +56,13 @@ typedef enum kk_tag_e {
   KK_TAG_BYTES_SMALL, // small byte sequence of at most 7 bytes.
   KK_TAG_BYTES,       // byte sequence
   KK_TAG_VECTOR,      // a vector of (boxed) values
-  KK_TAG_INT64,       // boxed int64_t
-  KK_TAG_DOUBLE,      // boxed IEEE double (64-bit)
-  KK_TAG_INT32,       // boxed int32_t               (on 32-bit platforms)
-  KK_TAG_FLOAT,       // boxed IEEE float  (32-bit)  (on 32-bit platforms)
+  KK_TAG_INT64,       // boxed int64_t               (only on <=64-bit platforms)
+  KK_TAG_DOUBLE,      // boxed IEEE double (64-bit)  (only on <=64-bit platforms)
+  KK_TAG_INT32,       // boxed int32_t               (only on <=32-bit platforms)
+  KK_TAG_FLOAT,       // boxed IEEE float  (32-bit)  (only on <=32-bit platforms)
+  KK_TAG_INT16,       // boxed int16_t               (only on <=16-bit platforms)
   KK_TAG_CFUNPTR,     // C function pointer
-  KK_TAG_SIZE_T,      // boxed size_t
-  KK_TAG_SSIZE_T,     // boxed kk_ssize_t
+  KK_TAG_INTPTR,      // boxed intptr_t  
   KK_TAG_EVV_VECTOR,  // evidence vector (used in std/core/hnd)
   // raw tags have a free function together with a `void*` to the data
   KK_TAG_CPTR_RAW,    // full void* (must be first, see kk_tag_is_raw())
@@ -976,7 +976,7 @@ typedef struct kk_vector_large_s {  // always use a large block for a vector so 
 
 
 static inline kk_vector_t kk_vector_empty(void) {
-  return kk_datatype_from_tag(1);
+  return kk_datatype_from_tag((kk_tag_t)1);
 }
 
 static inline kk_vector_large_t kk_vector_as_large_borrow(kk_vector_t v) {
