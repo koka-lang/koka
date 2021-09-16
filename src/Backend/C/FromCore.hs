@@ -1350,7 +1350,10 @@ genMatch result0 exprDocs branches
 
 genBranch :: Result -> [Doc] -> Bool -> Branch -> Asm Doc
 genBranch result exprDocs doTest branch@(Branch patterns guards)
-  = genPattern doTest (freeLocals guards)  (zip exprDocs patterns) (genGuards result guards)
+  = do doc <- genPattern doTest (freeLocals guards)  (zip exprDocs patterns) (genGuards result guards)
+       if (doc `dstartsWith` "if") 
+         then return doc 
+         else return (block doc)  -- for C++ we need to scope the locals or goto's can skip initialization
 
 genGuards :: Result -> [Guard] -> Asm Doc
 genGuards result guards
@@ -2420,9 +2423,16 @@ reserved
     , "exception_info"
     ]
 
+inlineblock :: Doc -> Doc
+inlineblock doc
+  | doc `dstartsWith` "{" = doc
+  | otherwise             = (hang 2 (text "{" <+> doc)) <--> text "}"
+
+
 block :: Doc -> Doc
 block doc
-  = text "{" <--> tab doc <--> text "}"
+  | doc `dstartsWith` "{" = doc
+  | otherwise             = text "{" <--> tab doc <--> text "}"
 
 tblock :: Doc -> Doc -> Doc
 tblock tpDoc doc

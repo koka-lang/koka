@@ -151,6 +151,7 @@
 #pragma warning(disable:4204)  // non-constant aggregate initializer
 #pragma warning(disable:4068)  // unknown pragma
 #pragma warning(disable:4996)  // POSIX name deprecated
+#pragma warning(disable:26812) // the enum type is unscoped (in C++)
 #define kk_unlikely(x)     (x)
 #define kk_likely(x)       (x)
 #define kk_decl_const
