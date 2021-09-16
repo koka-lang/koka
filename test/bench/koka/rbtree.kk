@@ -11,7 +11,7 @@ type tree
   Node(color: color, lchild: tree, key: int32, value: bool, rchild: tree)
 
 
-fun is-red(t : tree) : bool
+noinline fun is-red(t : tree) : bool
   match t
     Node(Red) -> True
     _         -> False
