@@ -28,7 +28,8 @@ kk_std_core__list kk_vector_to_list(kk_vector_t v, kk_std_core__list tail, kk_co
     }
     cons = kk_std_core__as_Cons(hd);
   }
-  cons->tail = tail;
+  if (cons == NULL) { list = tail; } 
+               else { cons->tail = tail; }
   kk_vector_drop(v,ctx);
   return list;
 }

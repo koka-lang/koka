@@ -10,10 +10,10 @@
 public module std/num/int32
 
 // The maximal integer value before overflow happens
-val max-int32 : int = 0x7FFFFFFF
+val max-int32 : int32 = 0x7FFFFFFF.int32
 
 // The minimal integer value before underflow happens
-val min-int32 : int = ~0x80000000
+val min-int32 : int32 = -0x80000000.int32
 
 // The number of bits in an `:int32` (always 32)
 val bits-int32 : int32 = 32.int32
@@ -53,10 +53,10 @@ fun show-hex( i : int32, width : int = 1, use-capitals : bool = True, pre : stri
 // Convert an `:int` to `:int32` but interpret the `int` as an unsigned 32-bit value.
 // `i` is clamped between `0` and `0xFFFFFFFF`.\
 // `0x7FFFFFFF.uint32 == 0x7FFFFFFF.int32 == max-int32`\
-// `0x80000000.uint32 == -1.int32`\
-// `0xFFFFFFFF.uint32 == -0x80000000.int32 == min-int32`\
+// `0x80000000.uint32 == -0x80000000.int32 == min-int32`\
+// `0xFFFFFFFF.uint32 == -1.int32`\
 fun uint32( i : int ) : int32 {
-  if (i > max-int32) then (i - 0x100000000).int32 else i.int32
+  if (i > max-int32.int) then (i - 0x100000000).int32 else i.int32
 }
 
 // Convert an `:int32` to an `:int` but interpret the `:int32` as a 32-bit unsigned value.
@@ -72,26 +72,33 @@ fun show-hex32( i : int32, width : int = 8, use-capitals : bool = True, pre : st
   std/core/show-hex(i.uint,width,use-capitals,pre)
 }
 
-inline extern (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)"; js inline "(#1 <= #2)" }
 inline extern (==) : (int32,int32) -> bool  { inline "(#1 == #2)"; js inline "(#1 === #2)" }
 inline extern (!=) : (int32,int32) -> bool  { inline "(#1 != #2)"; js inline "(#1 !== #2)" }
-inline extern (>=) : (int32,int32) -> bool  { inline "(#1 >= #2)"; js inline "(#1 >= #2)"}
-inline extern (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"; js inline "(#1 < #2)" }
-inline extern (>)  : (int32,int32) -> bool  { inline "(#1 > #2)"; js inline "(#1 > #2)" }
+inline extern (<=) : (int32,int32) -> bool  { inline "(#1 <= #2)" }
+inline extern (>=) : (int32,int32) -> bool  { inline "(#1 >= #2)" }
+inline extern (<)  : (int32,int32) -> bool  { inline "(#1 < #2)"  }
+inline extern (>)  : (int32,int32) -> bool  { inline "(#1 > #2)"  }
 
-inline extern (+)  : (int32,int32) -> int32 { inline "(#1 + #2)"; js inline "((#1 + #2)|0)" }
-inline extern (-)  : (int32,int32) -> int32 { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
+inline extern (+)  : (int32,int32) -> int32 { 
+  c inline "(int32_t)((uint32_t)#1 + (uint32_t)#2)" // avoid UB
+  js inline "((#1 + #2)|0)" 
+}
+inline extern (-)  : (int32,int32) -> int32 { 
+  c inline "(int32_t)((uint32_t)#1 - (uint32_t)#2)" // avoid UB
+  js inline "((#1 - #2)|0)" 
+}
 
 inline extern is-neg( i : int32 ) : bool {
-  inline "(#1)<0"
+  inline "0 > #1"
 }
 
 inline extern is-pos( i : int32 ) : bool {
-  inline "0<=(#1)"
+  inline "0 < #1"
 }
 
 inline extern is-zero( i : int32 ) : bool {
-  inline "0==(#1)"
+  inline "0 == #1"
+  js inline "0 === #1"
 }
 
 val zero = 0.int32
@@ -123,7 +130,7 @@ fun dec( i : int32 ) : int32 {
 
 // Multiply two 32-bit integers.
 inline extern (*) : (int32,int32) -> int32 {
-  inline "#1*#2";
+  inline "(int32_t)((uint32_t)#1 * (uint32_t)#2)" // avoid UB
   js "$std_core._int32_multiply"
 }
 
@@ -140,7 +147,7 @@ fun compare( x : int32, y : int32) : order
 fun abs( i : int32 ) : exn int32
 {
   if (!i.is-neg) then i
-  elif (i > min-int32.int32) then negate(i)
+  elif (i > min-int32) then negate(i)
   else throw( "std/num/int32/abs: cannot make min-int32 into a positive int32 without overflow" )
 }
 
@@ -150,7 +157,7 @@ fun abs( i : int32 ) : exn int32
 fun abs0( i : int32 ) : int32
 {
   if (!i.is-neg) then i
-  elif (i > min-int32.int32) then negate(i)
+  elif (i > min-int32) then negate(i)
   else 0.int32
 }
 
@@ -176,63 +183,60 @@ inline extern not : ( i : int32 ) -> int32  {
 }
 
 
-// Shift an `:int32` `i` to the left by `n` bits.
-// Returns `i` when `n` is negative, or `0` when `n >= bitsInt`.
+// Shift an `:int32` `i` to the left by `n & 31` bits.
 inline extern shl : (int32,int32) -> int32 {
-  inline "(#1 << #2)"
+  c  inline "kk_shl32(#1,#2)"
+  js inline "#1 << #2"       // javascript masks the shift already
 }
 
-// Logical shift an `:int32` to the right by `n` bits. Shift in zeros from the left.
-// Returns `i` when `n` is negative, or `0` when `n >= bitsInt`.
+// Logical shift an `:int32` to the right by `n & 31` bits. Shift in zeros from the left.
 inline extern shr : (int32,int32) -> int32 {
-  c inline "((int32_t)((uint32_t)#1 >> #2))"
+  c  inline "(int32_t)kk_shr32(#1,#2)"
   cs inline "(Int32)(((UInt32)#1)>>#2)"
-  js inline "(#1>>>#2)"
+  js inline "#1 >>> #2"
 }
 
-// Arithmetic shift an `:int32` to the right by `n` bits. Preserves the sign bit.
-// Returns `i` when `n` is negative. When `n >= bitsInt` returns either `-1` when `i<0`, or `0` when `i>=0`.
+// Arithmetic shift an `:int32` to the right by `n & 31` bits. Preserves the sign bit.
 inline extern sar : (int32,int32) -> int32 {
-  c inline "(#1 >> #2)"
+  c  inline "kk_sar32(#1,#2)"
   cs inline "(#1>>#2)"
-  js inline "(#1>>#2)"
+  js inline "#1 >> #2"
 }
 
-// Bitwise rotate an `:int32` `n` bits to the left.
-// Does not rotate when `n` is negative.
-fun rotl( i : int32, n : int32 ) : int32 {
-  if (n.is-neg) return i;
-  val r = and(n,bits-int32.dec)  // modulo bits in an int32
-  or(shl(i,r),shr(i,bits-int32 - r))
+// Bitwise rotate an `:int32` `n & 31` bits to the left.
+inline extern rotl( i : int32, n : int32 ) : int32 {
+  c inline "(int32_t)kk_bits_rotl32(#1,#2)"
+  js "$std_core._int32_rotl"
 }
 
-// Bitwise rotate an `:int32` `n` bits to the right.
-// Does not rotate when `n` is negative.
-fun rotr( i : int32, n : int32 ) : int32 {
-  if (n.is-neg) return i;
-  val r = and(n,bits-int32.dec)  // modulo bits in an int32
-  or(shr(i,r),shl(i,bits-int32 - r))
+// Bitwise rotate an `:int32` `n & 31` bits to the right.
+inline extern rotr( i : int32, n : int32 ) : int32 {
+  c inline "(int32_t)kk_bits_rotr32(#1,#2)"
+  js "$std_core._int32_rotr"
 }
-
-
-
 
 // Return the minimum of two integers
-fun min( i : int32, j : int32 ) : int32 { if (i <= j) then i else j }
+fun min( i : int32, j : int32 ) : int32 
+  if (i <= j) then i else j 
+
 // Return the maximum of two integers
-fun max( i : int32, j : int32 ) : int32 { if (i >= j) then i else j }
+fun max( i : int32, j : int32 ) : int32 
+  if (i >= j) then i else j 
+
 
 
 // Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.
-inline extern cdiv : (int32,int32) -> exn int32 {
-  inline "(#1 / #2)";
-  js "$std_core._int32_cdiv"
+fun cdiv(i:int32, j:int32) : exn int32 {
+  if (j.is-zero) then throw("std/num/int32/cdiv: modulus by zero")
+  elif (i==min-int32 && j == -1.int32) then throw("std/num/int32/cdiv: modulus overflow in cdiv(min-int32, -1.int32)")
+  unsafe-cdiv(i,j)
 }
 
 // Truncated modulus (as in C). See also `(%):(x : int32, y : int32) -> int32`.
-inline extern cmod : (int32,int32) -> exn int32 {
-  inline "(#1 % #2)";
-  js "$std_core._int32_cmod"
+fun cmod(i:int32, j:int32) : exn int32 {
+  if (j.is-zero) then throw("std/num/int32/(%): modulus by zero")
+  elif (i==min-int32 && j == -1.int32) then throw("std/num/int32/cmod: modulus overflow in cmod(min-int32, -1.int32)")
+  unsafe-cmod(i,j)
 }
 
 // Truncated division (as in C). See also `(/):(x : int32, y : int32) -> int32`.
@@ -249,7 +253,7 @@ private inline extern unsafe-cmod : (int32,int32) -> int32 {
 
 // Convert an 32-bit integer to a double.
 inline extern double : (int32) -> double { 
-  c inline "((double)(#1))"
+  c inline "(double)(#1)"
   cs inline "(double)(#1)"
   js inline "(#1)" 
 }
@@ -290,6 +294,7 @@ See also _Division and modulus for computer scientists, Daan Leijen, 2001_
 fun (/)( x : int32, y : int32 ) : int32
 {
   if (y == 0.int32) then return 0.int32
+  if (x==min-int32 && y == -1.int32) return x
   val q = unsafe-cdiv(x,y)
   val r = unsafe-cmod(x,y)
   if (r >= 0.int32) then q
@@ -301,6 +306,7 @@ fun (/)( x : int32, y : int32 ) : int32
 fun (%)( x : int32, y : int32 ) : int32
 {
   if (y == 0.int32) then return x
+  if (x==min-int32 && y == -1.int32) return 0.int32
   val r = unsafe-cmod(x,y)
   if (r >= 0.int32) then r
   elif (y > 0.int32) then (r+y)
@@ -308,7 +314,8 @@ fun (%)( x : int32, y : int32 ) : int32
 }
 
 fun divmod(x:int32,y:int32) : (int32,int32) {
-  if (y.is-zero) then return (zero,zero)
+  if (y.is-zero) then return (zero,x)
+  if (x==min-int32 && y == -1.int32) return (x,0.int32)
   val q = unsafe-cdiv(x,y)
   val r = unsafe-cmod(x,y)
   if (!r.is-neg) then (q,r)

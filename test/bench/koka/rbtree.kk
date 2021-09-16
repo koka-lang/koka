@@ -17,7 +17,6 @@ fun is-red(t : tree) : bool
     _         -> False
 
 
-
 fun balance-left(l:tree, k: int32, v: bool, r: tree): tree
   match l
     Leaf -> Leaf
@@ -29,7 +28,6 @@ fun balance-left(l:tree, k: int32, v: bool, r: tree): tree
       -> Node(Black, Node(Red, lx, kx, vx, rx), k, v, r)
 
 
-
 fun balance-right(l: tree, k: int32, v: bool, r: tree): tree
   match r
     Leaf -> Leaf
@@ -39,7 +37,6 @@ fun balance-right(l: tree, k: int32, v: bool, r: tree): tree
       -> Node(Red, Node(Black, l, k, v, lx), kx, vx, Node(Black, ly, ky, vy, ry))
     Node(_, lx, kx, vx, rx)
       -> Node(Black, l, k, v, Node(Red, lx, kx, vx, rx))
-
 
 
 fun ins(t: tree, k: int32, v: bool): tree
@@ -57,12 +54,10 @@ fun ins(t: tree, k: int32, v: bool): tree
          else Node(Black, l, kx, vx, ins(r, k, v))
 
 
-
 fun set-black(t: tree) : tree
   match t
     Node(_, l, k, v, r) -> Node(Black, l, k, v, r)
     _ -> t
-
 
 
 fun insert(t: tree, k: int32, v: bool): tree
@@ -77,12 +72,10 @@ fun fold(t: tree, b: a, f: (int32, bool, a) -> a) : a
     Node(_, l, k, v, r) -> r.fold( f(k, v, l.fold(b, f)), f)
 
 
-
 fun make-tree-aux(n: int32, m: tree): div tree
   if n <= zero then m else
     val n1 = n.dec
     make-tree-aux(n1, insert(m, n1, n1 % 10.int32 == zero))
-
 
 
 fun make-tree(n: int32): div tree

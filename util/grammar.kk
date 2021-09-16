@@ -17,11 +17,11 @@ import std/os/dir
 import std/os/env
 import std/os/process
 
-fun main() {
+fun main()
   build()
-}
 
-fun build() {
+
+fun build()
   // Install paths
   val outdir = "out/grammar".path
   val gdir   = "doc/spec/grammar".path
@@ -40,10 +40,10 @@ fun build() {
   val parser = (outdir / "koka-parser").string
   println("created: " ++ parser)
   println("run as : " ++ parser ++ " lib/std/core.kk" )
-}
 
-fun run-echo(cmd : string) : io () {
+
+fun run-echo(cmd : string) : io ()
   // println("> " ++ cmd)
   val exit-code = run-system(cmd)
-  println( if (exit-code==0) then "ok" else "error: " ++ exit-code.show )
-}
+  println( if exit-code==0 then "ok" else "error: " ++ exit-code.show )
+

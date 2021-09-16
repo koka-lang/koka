@@ -10,6 +10,6 @@ in the `std/toc` module.
 import toc
 import std/text/regex
 
-fun main() : console () {
+fun main() : console () 
   println("done.")
-}
+

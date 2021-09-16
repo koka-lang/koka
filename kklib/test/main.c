@@ -76,13 +76,13 @@ static intptr_t mul(intptr_t x, intptr_t y, kk_context_t* ctx) { KK_UNUSED(ctx);
 static void testx(const char* name, iop* op, xop* opx, intptr_t i, intptr_t j, kk_context_t* ctx) {
   kk_integer_t x = _kk_new_integer(i);
   kk_integer_t y = _kk_new_integer(j);
-  intptr_t k = op(x, y, ctx).value;
+  intptr_t k = _kk_integer_value(op(x, y, ctx));
   intptr_t expect = opx(i, j, ctx);
   printf("%16zx %s %16zx = %16zx: %4s   (expected %zx) %s\n", i, name, j, k, (k==expect ? "ok" : "FAIL"), expect, (k == 10 ? "(overflow)" : ""));
 }
 static void testb(const char* name, iop* op, kk_integer_t x, kk_integer_t y, kk_integer_t expect, kk_context_t* ctx ) {
   kk_integer_t k = (op(x, y, ctx));
-  printf("%16zx %s %16zx = %16zx: %4s   (expected %zx) %s\n", x.value, name, y.value, k.value, (k.value==expect.value ? "ok" : "FAIL"), expect.value, (k.value == 43 ? "(overflow)" : ""));
+  printf("%16zx %s %16zx = %16zx: %4s   (expected %zx) %s\n", _kk_integer_value(x), name, _kk_integer_value(y), _kk_integer_value(k), (_kk_integer_value(k)==_kk_integer_value(expect) ? "ok" : "FAIL"), _kk_integer_value(expect), (_kk_integer_value(k) == 43 ? "(overflow)" : ""));
 }
 static void test_op(const char* name, iop* op, xop* opx, kk_context_t* ctx) {
   testx(name, op, opx, KK_SMALLINT_MAX, 1, ctx);
@@ -473,9 +473,11 @@ static bool test_count10_32(uint32_t u) {
   snprintf(buf, 63, "%" PRIu32, u);
   if (strlen(buf) != c) {
     printf("*************\nvalue: %s: is not %i digits!!!\n************\n", buf, c);
+    return false;
   }
   else {
     printf("value: %s: digits: %i\n", buf, c);
+    return true;
   }
 }
 
@@ -566,7 +568,7 @@ static void test_ovf(kk_context_t* ctx) {
 
 int main() {
   kk_context_t* ctx = kk_get_context();
-  /*
+  
   test_fib(50,ctx);   // 12586269025
   test_fib(150, ctx);  // 9969216677189303386214405760200
   test_fib(300, ctx);  // 22223224462942044552973989346190996720666693909649976499097960
@@ -583,11 +585,11 @@ int main() {
   test_pow10(ctx);
   test_double(ctx);
   test_ovf(ctx);
-  */
+  
   test_count10(ctx);
-  // test_popcount();
-  // test_bitcount();
-  // test_random(ctx);
+  //test_popcount();
+  test_bitcount();
+  //test_random(ctx);
 
   /*
   init_nums();

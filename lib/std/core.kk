@@ -1253,7 +1253,7 @@ fun fold-int( start : int, end : int, init : a, f : (int,a) -> a ) : a {
 inline extern int( i : int32 ) : int {
   c  "kk_integer_from_int"
   cs inline "(new BigInteger(#1))"
-  js "$std_core._int_double"
+  js "$std_core._int_from_int32"
 }
 
 // Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
@@ -1261,7 +1261,7 @@ inline extern int( i : int32 ) : int {
 extern int32  : (int) -> int32   {
   c  "kk_integer_clamp32"
   cs "Primitive.IntToInt32"
-  js "$std_core._int_to_int32"
+  js "$std_core._int_clamp32"
 }
 
 
@@ -1292,14 +1292,14 @@ private fun decr( i : int32 ) : int32 {
 extern ssize_t( i : int) : ssize_t   {
   c  "kk_integer_clamp_ssize_t"
   cs "Primitive.IntToInt32"
-  js "$std_core._int_to_int32"
+  js "$std_core._int_clamp32"
 }
 
 // Convert an `:ssize_t` to an `:int`.
 inline extern int( i : ssize_t ) : int {
   c  "kk_integer_from_ssize_t"
   cs inline "(new BigInteger(#1))"
-  js "$std_core._int_double"
+  js "$std_core._int_from_int32"
 }
 
 
@@ -1311,7 +1311,7 @@ private inline extern (+)  : (ssize_t,ssize_t) -> ssize_t { inline "(#1 + #2)"; 
 private inline extern (-)  : (ssize_t,ssize_t) -> ssize_t { inline "(#1 - #2)"; js inline "((#1 - #2)|0)" }
 private inline extern is-pos( i : ssize_t ) : bool { inline "(#1 > 0)" }
 private inline extern is-neg( i : ssize_t ) : bool { inline "(#1 < 0)" }
-private extern is-zero( i : ssize_t ) : bool { inline "(#1 == 0)" }
+private extern is-zero( i : ssize_t ) : bool { inline "(#1 == 0)"; js inline "(#1 === 0)" }
 private extern decr(i : ssize_t ) : ssize_t { inline "(#1 - 1)" }
 private extern incr(i : ssize_t ) : ssize_t { inline "(#1 + 1)" }
 
@@ -1321,19 +1321,55 @@ private extern incr(i : ssize_t ) : ssize_t { inline "(#1 + 1)" }
 // int64
 // ----------------------------------------------------------------------------
 
+// clamp an `:int` to fit in an `:int64_t`.
 extern int64( i : int) : int64 {
   c  "kk_integer_clamp64"
   cs "Primitive.IntToInt64"
-  js "$std_core._int_to_int32"
+  js "$std_core._int_clamp64"
 }
 
 // Convert an `:int64_t` to an `:int`.
 inline extern int( i : int64 ) : int {
-  c  "kk_integer_from_big64"
+  c  "kk_integer_from_int64"
   cs inline "(new BigInteger(#1))"
-  js "$std_core._int_double"
+  js "$std_core._int_from_int64"
 }
 
+// ----------------------------------------------------------------------------
+// intptr_t
+// ----------------------------------------------------------------------------
+
+// clamp an `:int` to fit in an `:intptr_t`. 
+extern intptr_t( i : int) : intptr_t {
+  c  "kk_integer_clamp_intptr_t"
+  cs "Primitive.IntToInt64"
+  js "$std_core._int_clamp64"
+}
+
+// Convert an `:intptr_t` to an `:int`.
+inline extern int( i : intptr_t ) : int {
+  c  "kk_integer_from_intptr_t"
+  cs inline "(new BigInteger(#1))"
+  js "$std_core._int_from_int64"
+}
+
+// ----------------------------------------------------------------------------
+// Byte
+// ----------------------------------------------------------------------------
+
+// clamp an `:int` to fit in a `:byte`.
+extern byte( i : int) : byte {
+  c  "kk_integer_clamp_byte"
+  cs inline "Primitive.IntToByte"
+  js "$std_core._int_clamp_byte"
+}
+
+// Convert an `:byte` to an `:int`.
+inline extern int( i : byte ) : int {
+  c  "kk_integer_from_byte"
+  cs inline "(new BigInteger(#1))"
+  js "$std_core._int_from_int32"
+}
 
 // ----------------------------------------------------------------------------
 // Parse numbers
@@ -2630,7 +2666,7 @@ extern null(x : maybe<a>) : null<a> {
 // Transform a `:null` type to a `:maybe` type. Note that it is not
 // always the case that `id(x) == maybe(null(x))` (e.g. when `x = Just(Nothing)`).
 extern maybe( n : null<a> ) : maybe<a> {
-  c inline "((#1).ptr == NULL ? kk_std_core_types__new_Nothing(kk_context()) : kk_std_core_types__new_Just(kk_datatype_box(#1),kk_context()))"
+  c  inline "(kk_datatype_as_ptr(#1) == NULL ? kk_std_core_types__new_Nothing(kk_context()) : kk_std_core_types__new_Just(kk_datatype_box(#1),kk_context()))"
   cs inline "(EqualityComparer<##1>.Default.Equals(#1,default(##1)) ? __std_core._maybe<##1>.Nothing_ : new __std_core._maybe<##1>(#1))"
   js inline "(#1==null ? $std_core_types.Nothing : $std_core_types.Just(#1))"
 }
@@ -2854,3 +2890,4 @@ extern phantom<a>() : a {
   c inline "kk_box_null"
   inline "undefined"
 }
+
