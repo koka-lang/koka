@@ -626,9 +626,10 @@ kk_vector_t kk_os_get_argv(kk_context_t* ctx) {
   kk_assert_internal(ctx->argc <= wargc);
   if (ctx->argc < wargc) i = wargc - ctx->argc;
   kk_box_t* buf;
-  kk_vector_t args = kk_vector_alloc_uninit(wargc, &buf, ctx);  
-  for ( ; i < wargc; i++) {
-    kk_string_t arg = kk_string_alloc_from_qutf16((const uint16_t*)wargv[i], ctx);
+  kk_vector_t args = kk_vector_alloc_uninit(wargc - skip, &buf, ctx);  
+  for (kk_ssize_t i = 0; i < wargc - skip; i++) {
+    kk_ssize_t j = (i == 0 ? 0 : i + skip);
+    kk_string_t arg = kk_string_alloc_from_qutf16((const uint16_t*)wargv[j], ctx);
     buf[i] = kk_string_box(arg);
   }
   LocalFree(wargv);
