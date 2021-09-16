@@ -13,6 +13,7 @@
 /*--------------------------------------------------------------------------------------
   Platform: we assume:
   - C99 as C compiler (syntax and library), with possible C11 extensions for threads and atomics.
+  - Write code such that it can be compiled with a C++ compiler as well (used with msvc)
   - Either a 32- or 64-bit platform (but others should be possible with few changes).
   - The compiler can do a great job on small static inline definitions (and we avoid #define's
     to get better static type checks).
