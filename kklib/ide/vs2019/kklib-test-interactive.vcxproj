@@ -163,6 +163,9 @@
     <ClCompile Include="..\..\..\out\Debug\std_core_types.c" />
     <ClCompile Include="..\..\..\out\Debug\std_num_int32.c" />
     <ClCompile Include="..\..\..\out\Debug\std_num_int64.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_os_dir.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_os_path.c" />
+    <ClCompile Include="..\..\..\out\Debug\std_text_parse.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
