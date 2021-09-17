@@ -1,5 +1,6 @@
 // Adapted from https://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap.lean
 import std/num/int32
+import std/os/env
 
 type color
   Red
@@ -83,7 +84,8 @@ fun make-tree(n: int32): div tree
 
 
 fun main()
-  val m = make-tree(4200000.int32); // todo: read first command line arg for size
+  val n = get-args().head("").parse-int.default(4200000).int32
+  val m = make-tree(n); // todo: read first command line arg for size
   val v = m.fold(zero) fn(k, v, r:int32){ if (v) then r.inc else r }
   v.show.println
 
