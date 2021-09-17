@@ -108,12 +108,17 @@ fltExpr expr maybeEff
       -> do   
             traceDoc $ \env -> text "lambda:" <+> niceType env eff
             (body', rq) <- fltExpr body $ Just eff
-            let rqSup = supb (Eff eff) rq
-            if matchRq rqSup $ Eff eff then return ()
+            -- check $rq <= eff$
+            -- let rqSup = supb (Eff eff) rq
+            -- if matchRq rqSup $ Eff eff then return ()
+            --   else traceDoc $ \env -> text "bad lambda!! before:" <+> niceType env (typeOf expr) <+> text "\n  eff: " <+> niceType env (orderEffect eff) <+> text "\n  req : " <+> niceRq  env rq
+            if leqRq rq (Eff eff) then return ()
               else traceDoc $ \env -> text "bad lambda!! before:" <+> niceType env (typeOf expr) <+> text "\n  eff: " <+> niceType env (orderEffect eff) <+> text "\n  req : " <+> niceRq  env rq
+            let
+              body'' = smartRestrictExpr rq (Eff eff) body'
             return (
               --  assertion ("lambda bad body rq\n Why this lambda type checked?\n Annotated effect does not range over internal effect of the body." ++ show (typeOf expr)) (matchRq rqSup $ Eff eff) . 
-               assertTypeInvariant $ Lam args eff body',
+               assertTypeInvariant $ Lam args eff body'',
                Bottom)
 
     Let defgs body
