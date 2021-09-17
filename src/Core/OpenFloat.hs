@@ -45,6 +45,10 @@ enable = -- set to True to enable the transformation
   True
   -- False
 
+debug =  -- set True to enable debug (e.g., Checking type invariant at all sub-expressions)
+  True 
+  -- False
+
 openFloat :: Pretty.Env -> Gamma -> CorePhase ()
 openFloat penv gamma
   = liftCorePhaseUniq $ \uniq defs ->
@@ -151,7 +155,7 @@ fltExpr expr maybeEff
     _ -> return (expr, Bottom)
     where
       assertTypeInvariant :: Expr -> Expr
-      assertTypeInvariant expr' =
+      assertTypeInvariant expr' = if not debug then expr' else 
         let tpBefore = typeOf expr
             tpAfter = typeOf expr' in
               assertion "OpenFloat. Type invariant violaiton." (matchType tpBefore tpAfter) expr'
