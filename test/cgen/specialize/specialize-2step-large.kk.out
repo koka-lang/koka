@@ -1,0 +1,5 @@
+cgen/specialize/specialize-2step-large/.lift250-main: (xs : list<int>) -> total list<int>
+cgen/specialize/specialize-2step-large/.lift251-main: (xs0 : list<int>) -> total list<int>
+cgen/specialize/specialize-2step-large/calls-large: (f : (int) -> total int) -> console ()
+cgen/specialize/specialize-2step-large/large: (f : (int) -> total int) -> total int
+cgen/specialize/specialize-2step-large/main: () -> console ()

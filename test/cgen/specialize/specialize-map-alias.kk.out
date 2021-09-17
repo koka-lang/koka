@@ -1,0 +1,4 @@
+cgen/specialize/specialize-map-alias/.lift309-main: (xs : list<int>) -> console list<int>
+cgen/specialize/specialize-map-alias/main: () -> console ()
+cgen/specialize/specialize-map-alias/map2: forall<a,b,e> (xs : list<a>, f : (a) -> e b) -> e list<b>
+cgen/specialize/specialize-map-alias/map3: forall<a,b,e> (xs : list<a>, f : (a) -> e b) -> e list<b>

@@ -1,0 +1,10 @@
+cgen/specialize/specialize-2step-large2/.lift446-repeatN: forall<e,a> (f : () -> e a, xs : list<int>) -> e list<a>
+cgen/specialize/specialize-2step-large2/.lift447-large: (xs : list<int>) -> total list<list<list<int>>>
+cgen/specialize/specialize-2step-large2/.lift448-large: (xs0 : list<int>) -> total list<list<int>>
+cgen/specialize/specialize-2step-large2/.lift449-large: (xs1 : list<int>) -> total list<int>
+cgen/specialize/specialize-2step-large2/.mlift461-op: forall<e,a> (a, list<a>) -> e list<a>
+cgen/specialize/specialize-2step-large2/.mlift462-op: forall<e,a> (f : () -> e a, xx : list<int>, a) -> e list<a>
+cgen/specialize/specialize-2step-large2/calls-large: (f : (int) -> total int) -> console ()
+cgen/specialize/specialize-2step-large2/large: (f : (int) -> total int) -> total int
+cgen/specialize/specialize-2step-large2/main: () -> console ()
+cgen/specialize/specialize-2step-large2/repeatN: forall<a,e> (i : int, f : () -> e a) -> e list<a>
