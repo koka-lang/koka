@@ -1,5 +1,0 @@
-cgen/specialize/specialize-zipwithacc/.lift249-main: (i : int, acc : list<int>, xs0 : list<int>, ys0 : list<int>) -> console list<int>
-cgen/specialize/specialize-zipwithacc/.mlift257-zipwith-acc: forall<e,a,b,c> (acc : list<b>, f : (int, a, c) -> e b, i : int, xx : list<a>, yy : list<c>, b) ->
-                                                      e list<b>
-cgen/specialize/specialize-zipwithacc/main: () -> console ()
-cgen/specialize/specialize-zipwithacc/zipwith-acc: forall<a,b,c,e> ((int, a, b) -> e c, int, list<c>, list<a>, list<b>) -> e list<c>
