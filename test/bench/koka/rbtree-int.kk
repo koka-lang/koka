@@ -1,4 +1,4 @@
-// Adapted from https://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap.lean
+// Adapted from https ://github.com/leanprover/lean4/blob/IFL19/tests/bench/rbmap.lean
 import std/os/env
 
 type color
@@ -6,7 +6,7 @@ type color
   Black
 
 type tree
-  Node(color: color, left: tree, key: int, value: bool, right: tree)
+  Node(color : color, left : tree, key : int, value : bool, right : tree)
   Leaf
   
 
@@ -16,7 +16,7 @@ fun is-red(t : tree) : bool
     _         -> False
 
 
-fun balance-left(l:tree, k: int, v: bool, r: tree): tree
+fun balance-left(l :tree, k : int, v : bool, r : tree) : tree
   match l
     Node(_, Node(Red, lx, kx, vx, rx), ky, vy, ry)
       -> Node(Red, Node(Black, lx, kx, vx, rx), ky, vy, Node(Black, ry, k, v, r))
@@ -27,7 +27,7 @@ fun balance-left(l:tree, k: int, v: bool, r: tree): tree
     Leaf -> Leaf
     
 
-fun balance-right(l: tree, k: int, v: bool, r: tree): tree
+fun balance-right(l : tree, k : int, v : bool, r : tree) : tree
   match r
     Node(_, Node(Red, lx, kx, vx, rx), ky, vy, ry)
       -> Node(Red, Node(Black, l, k, v, lx), kx, vx, Node(Black, rx, ky, vy, ry))
@@ -38,7 +38,7 @@ fun balance-right(l: tree, k: int, v: bool, r: tree): tree
     Leaf -> Leaf
     
 
-fun ins(t: tree, k: int, v: bool): tree
+fun ins(t : tree, k : int, v : bool) : tree
   match t
     Node(Red, l, kx, vx, r)
       -> if k < kx then Node(Red, ins(l, k, v), kx, vx, r)
@@ -53,26 +53,26 @@ fun ins(t: tree, k: int, v: bool): tree
     Leaf -> Node(Red, Leaf, k, v, Leaf)
     
 
-fun set-black(t: tree) : tree
+fun set-black(t : tree) : tree
   match t
     Node(_, l, k, v, r) -> Node(Black, l, k, v, r)
     _ -> t
 
 
 
-fun insert(t: tree, k: int, v: bool): tree
+fun insert(t : tree, k : int, v : bool) : tree
   if is-red(t)
     then ins(t, k, v).set-black
     else ins(t, k, v)
 
 
-fun fold(t: tree, b: a, f: (int, bool, a) -> a): a
+fun fold(t : tree, b : a, f : (int, bool, a) -> a) : a
   match t
     Node(_, l, k, v, r) -> r.fold( f(k, v, l.fold(b, f)), f)
-    Leaf                -> b
+    Leaf -> b
     
 
-fun make-tree(n: int): div tree
+fun make-tree(n : int) : div tree
   fold-int( 0, n - 1, Leaf) fn(i,t)
     t.insert( i, i%10 == 0 )
 
@@ -87,4 +87,3 @@ fun main()
   val t = make-tree(n)
   val v = t.count
   v.println
-
