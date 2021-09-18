@@ -1415,12 +1415,12 @@ bodyexpr
 
 blockexpr :: LexParser UserExpr   -- like expr but a block `{..}` is interpreted as statements
 blockexpr
-  = withexpr <|> bfunexpr <|> returnexpr <|> basicexpr
+  = withexpr <|> bfunexpr <|> returnexpr <|> valexpr <|> basicexpr
   <?> "expression"
 
 expr :: LexParser UserExpr
 expr
-  = withexpr <|> funexpr <|> returnexpr <|> basicexpr
+  = withexpr <|> funexpr <|> returnexpr <|> valexpr <|> basicexpr
   <?> "expression"
 
 basicexpr :: LexParser UserExpr
@@ -1434,6 +1434,14 @@ withexpr
        keyword "in"
        e <- blockexpr
        return (f e)
+
+valexpr :: LexParser UserExpr
+valexpr
+  = do f <- localValueDecl
+       keyword "in"
+       e <- expr
+       return (f e)
+
 
 bfunexpr
   = block <|> lambda ["fun"]

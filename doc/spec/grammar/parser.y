@@ -415,6 +415,7 @@ blockexpr   : expr              /* a `block` is not interpreted as an anonymous 
 expr        : withexpr
             | block             /* interpreted as an anonymous function (except if coming from `blockexpr`) */
             | returnexpr
+            | valexpr
             // | basicexpr '?' expr ':' expr  
             | basicexpr                   
             ;
@@ -446,6 +447,9 @@ ifexpr      : IF ntlexpr THEN expr elifs
 elifs       : ELIF ntlexpr THEN expr elifs
             | ELSE expr
             ;
+
+valexpr     : VAL apattern '=' bodyexpr IN expr
+            ;            
 
 
 /* operator expression */
