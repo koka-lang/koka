@@ -210,8 +210,11 @@ fun (||)( x : bool, y : bool) : bool { // inlined in the compiler for short-circ
 // inline extern (&&) : (bool,bool) -> bool  { inline "(#1 && #2)" }
 // inline extern (||) : (bool,bool) -> bool  { inline "(#1 || #2)" }
 
-fun (!)( b : bool ) : bool = if (b) then False else True
-fun not( b : bool ) : bool = if (b) then False else True
+fun (!)( b : bool ) : bool 
+  if (b) then False else True
+
+fun not( b : bool ) : bool 
+  if (b) then False else True
 
 //inline extern not  : (bool) -> bool  { inline "!(#1)" }
 //inline extern (!)  : (bool) -> bool  { inline "!(#1)" }
