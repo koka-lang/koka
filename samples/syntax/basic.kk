@@ -35,7 +35,7 @@ fun test3()
     println(i)
   }
 
-// Of course, the indentation rule allows us to write also:
+// Of course, the indentation rule allows us to elide the braces here as well:
 fun test3a() 
   list(1,5).map fn(i)
     println(i)

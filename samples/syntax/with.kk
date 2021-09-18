@@ -34,6 +34,8 @@ fun test1-expanded()
     twice
       println("hi")
 
+
+// Without using layout, the fully expanded version is:
 fun test1-fully-expanded() 
   twice( fn(){
     twice( fn(){
@@ -41,6 +43,7 @@ fun test1-fully-expanded()
     })
   })
 }
+
 
 /* Also, a `with` statement can have a (monomophic lambda) binding:
     ````

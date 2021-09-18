@@ -3,12 +3,13 @@
 // red-black trees as well.
 //
 // Note: This is a bit unfair to `rbtree.kk` as that uses polymorphic trees with infinite
-// precision integers and generic folding; and is purely functional so supports "persistent"
+// precision integers and generic folding; and is purely functional and thus also supports "persistent"
 // shared trees as well. A more direct comparison can be found in the benchmarks (`test/bench/cpp` and `test/bench/koka`).
 //
-// The `std::map` uses eventually <https://code.woboq.org/gcc/libstdc++-v3/src/c++98/tree.cc.html>
-// In older glibc it uses: <https://sourceware.org/git/?p=glibc.git;a=blob;f=misc/tsearch.c>
-// (Highly optimized in-place red-black tree using the low pointer bit to encode color information.)
+// The `std::map` uses eventually <https://github.com/gcc-mirror/gcc/tree/master/libstdc++-v3/src/c++98/tree.cc>
+// with glib++, and <https://github.com/llvm/llvm-project/blob/main/libcxx/include/__tree> with the LLVM libc++.
+// (in older glibc it uses: <https://sourceware.org/git/?p=glibc.git;a=blob;f=misc/tsearch.c>,
+//  a highly optimized in-place red-black tree using the low pointer bit to encode color information.)
 //
 // Compile as: > g++ --std=c++17 -O3 -o cpp-rbtree  samples/basic/rbtree.cpp
 
