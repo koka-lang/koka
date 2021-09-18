@@ -1408,7 +1408,7 @@ typeAnnotation
 --------------------------------------------------------------------------}
 bodyexpr :: LexParser UserExpr
 bodyexpr
-  = do keyword "->" <|> keyword "="
+  = do keyword "->" -- <|> keyword "="
        blockexpr
   <|>
     block
