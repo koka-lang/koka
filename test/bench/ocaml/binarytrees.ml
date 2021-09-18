@@ -1,10 +1,23 @@
-(* The Computer Language Benchmarks Game
- * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
- *
- * Contributed by Troestler Christophe
- * Rough parallelization by Mauricio Fernandez
- * *reset*
- *)
+(* Multi-core ocaml version by KC Sivaramakrishnan
+   from: https://github.com/kayceesrk/code-snippets/blob/master/binary_trees/binarytrees_parallel2.ml 
+      
+   see <https://github.com/ocaml-multicore/multicore-opam> for installation (including domainslib)
+   > opam update
+   > opam switch create 4.12.0+domains+effects --repositories=multicore=git+https://github.com/ocaml-multicore/multicore-opam.git,default
+   > opam install dune domainslib
+
+   compile as:
+   > ocamlopt -O2  -o ./mcml_bintrees -I ~/.opam/4.12.0+domains+effects/lib/domainslib/ domainslib.cmxa test/bench/ocaml/binarytrees_mc.ml
+
+   "Since this benchmark was designed to stress the GC performance, it is very sensitive to the size of the minor heap.
+    The default minor heap size in OCaml is 2 MB (256k words on 64-bit machines). 
+    You can try other options: use OCAMLRUNPARAM="s=2M" to set the minor heap size to 16 MB"
+*)
+module T = Domainslib.Task
+
+let num_domains = try int_of_string Sys.argv.(1) with _ -> 32
+let max_depth = try int_of_string Sys.argv.(2) with _ -> 21
+let pool = T.setup_pool ~num_additional_domains:(num_domains - 1)
 
 type 'a tree = Empty | Node of 'a tree * 'a tree
 
@@ -13,11 +26,14 @@ let rec make d =
   if d = 0 then Node(Empty, Empty)
   else let d = d - 1 in Node(make d, make d)
 
-let rec check = function Empty -> 0 | Node(l, r) -> 1 + check l + check r
+let rec check t =
+  Domain.Sync.poll ();
+  match t with
+  | Empty -> 0
+  | Node(l, r) -> 1 + check l + check r
 
 let min_depth = 4
-let max_depth = (let n = try int_of_string(Array.get Sys.argv 1) with _ -> 10 in
-                 max (min_depth + 2) n)
+let max_depth = max (min_depth + 2) max_depth
 let stretch_depth = max_depth + 1
 
 let () =
@@ -27,40 +43,25 @@ let () =
 
 let long_lived_tree = make max_depth
 
-let rec loop_depths d =
-  let worker d =
-    let niter = 1 lsl (max_depth - d + min_depth) and c = ref 0 in
-    for i = 1 to niter do c := !c + check(make d) done;
-    (niter, !c) in
-  let workers = Array.init ((max_depth - d) / 2 + 1)
-                  (fun i -> let d = d + i * 2 in (d, invoke worker d))
-  in Array.iter
-       (fun (d, w) ->
-          let niter, c = w () in
-          Printf.printf "%i\t trees of depth %i\t check: %i\n" niter d c)
-       workers
-
-(* function originally due to Jon D. Harrop *)
-and invoke (f : 'a -> 'b) x : unit -> 'b =
-  let input, output = Unix.pipe() in
-  match Unix.fork() with
-  | -1 -> Unix.close input; Unix.close output; (let v = f x in fun () -> v)
-  | 0 ->
-      Unix.close input;
-      let output = Unix.out_channel_of_descr output in
-      Marshal.to_channel output (try `Res(f x) with e -> `Exn e) [];
-      close_out output;
-      exit 0
-  | pid ->
-      Unix.close output;
-      let input = Unix.in_channel_of_descr input in
-      fun () ->
-        let v = Marshal.from_channel input in
-        ignore (Unix.waitpid [] pid);
-        close_in input;
-        match v with
-        | `Res x -> x
-        | `Exn e -> raise e
+let loop_depths d =
+  let j = ((max_depth - d) / 2 + 1) in
+  let a = Array.make j "" in
+  T.parallel_for pool ~start:0 ~finish:(j-1)
+    ~body:(fun i ->
+      let d = d + i * 2 in
+      let niter = 1 lsl (max_depth - d + min_depth) in
+      let csum = ref 0 in
+      for i = 0 to niter do
+        csum := !csum + check(make d)
+      done;
+      let c = !csum
+      (*
+      let c = T.parallel_for_reduce pool (+) 0 ~start:1 ~finish:niter
+        ~body:(fun _ -> check(make d))
+      *)
+      in
+      a.(i) <- Printf.sprintf "%i\t trees of depth %i\t check: %i\n" niter d c);
+  Array.iter print_string a
 
 let () =
   flush stdout;
