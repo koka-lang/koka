@@ -25,7 +25,7 @@ fun vec(action : forall<s> () -> <vec<s>|e> a ) : e a   // rank-2 signature requ
     fun lookup(ix)
       xs[ix.index].default("")   // index is always valid!  
   action()
-}
+
 
 fun main() 
   with vec
