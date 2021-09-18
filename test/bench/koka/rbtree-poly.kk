@@ -3,6 +3,8 @@
 */
 module rbtree
 
+import std/os/env
+
 type color
   Red
   Black
