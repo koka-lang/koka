@@ -158,27 +158,28 @@ comment :: String -> String
 comment = unlines . map ("// " ++ ) . lines
 
 replaceCall :: Name -> Expr -> [Bool] -> [Expr] -> Maybe [Type] -> SpecM Expr
-replaceCall name expr bools args mybeTypeArgs -- trace ("specializing" <> show name) $
-  = pure $ Let [DefRec [specDef]] (App (Var (defTName specDef) InfoNone) newArgs)
-  where
-    specDef = Def (getName specTName) (typeOf specTName) specBody Private DefFun InlineAuto rangeNull
-               $ "// specialized " <> show name <> " to parameters " <> show speccedParams <> " with args " <> comment (show speccedArgs)
-    specBody
-      = specInnerCalls (TName name (typeOf expr)) specTName (not <$> bools) specBody0
+replaceCall name expr bools args mybeTypeArgs = do
 
-    specTName = TName (genSpecName name bools) specType
-    specType = typeOf specBody0
-
-    specBody0 =
+  specBody0 <-
       (\body -> case mybeTypeArgs of
         Nothing -> body
         Just typeArgs -> subNew (zip (fnTypeParams expr) typeArgs) |-> body)
-      $ Lam newParams (fnEffect expr)
+      <$> Lam newParams (fnEffect expr)
+      <$> specOneExpr name
       -- TODO do we still need the Let?
-      $ Let [DefNonRec $ Def param typ arg Private DefVal InlineAuto rangeNull ""
+      (Let [DefNonRec $ Def param typ arg Private DefVal InlineAuto rangeNull ""
             | (TName param typ, arg) <- zip speccedParams speccedArgs]
-      $ fnBody expr
+      $ fnBody expr)
 
+  let specBody = specInnerCalls (TName name (typeOf expr)) specTName (not <$> bools) specBody0
+      specType = typeOf specBody0
+      specDef = Def (getName specTName) (typeOf specTName) specBody Private DefFun InlineAuto rangeNull
+                $ "// specialized " <> show name <> " to parameters " <> show speccedParams <> " with args " <> comment (show speccedArgs)
+      specTName = TName (genSpecName name bools) specType
+
+  pure $ Let [DefRec [specDef]] (App (Var (defTName specDef) InfoNone) newArgs)
+
+  where
     ((newParams, newArgs), (speccedParams, speccedArgs)) =
       (unzip *** unzip)
       -- $ (\x@(new, spec) -> trace ("Specializing to newArgs " <> show new) $ x)
@@ -244,8 +245,7 @@ makeSpecialize def
             $ allPassedInSameOrder params recArgs
 
       guard (any isJust specializableParams)
-      pure $ -- SpecializeInfo (defName def) (defExpr def) $ map isJust specializableParams
-             InlineDef (defName def) (defExpr def) True (InlineAuto) (costDef def) (map isJust specializableParams)
+      pure $ InlineDef (defName def) (defExpr def) True (InlineAuto) (costDef def) (map isJust specializableParams)
 
 allPassedInSameOrder :: [TName] -> [[Expr]] -> [Maybe TName]
 allPassedInSameOrder params calls
