@@ -14,6 +14,20 @@ fun mapT(Node(a, children) : tree<a>, f : a -> b) : _ tree<b> {
     Node(f(a), std/core/map(children, fn(tree) { tree.mapT(f) }))
 }
 
+/*
+fun mapInc(Node(a, children) : tree<int>) : _ tree<int> {
+    Node(inc(a), mapper)
+}
+
+fun mapper(children : list<tree<int>>) : _ list<tree<int>> {
+    match (children) {
+        Nil -> Nil
+        Cons(a, xs) -> Cons(mapInc(a), mapper(xs))
+    }
+
+}
+*/
+
 fun main() {
     val tree = Node(1, [Node(2, []), Node(3, [])])
     tree.mapT(inc).show.println

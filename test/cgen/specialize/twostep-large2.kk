@@ -1,9 +1,9 @@
 fun repeatN(i, f) {
+    // list(1, i, fn(_) { f() })
     map(list(1, i), fn(_) { f() })
 }
 
 fun large(f) : total _ {
-    // list(1, 10).map(f).sum
     repeatN(10) {
         repeatN(10) {
             repeatN(10) {
