@@ -229,43 +229,43 @@ apt_get_install() {
   if [ "$missing" = "" ]; then
     info "Packages already installed"
   elif ! sudocmd apt-get install -y ${QUIET:+-qq}$missing; then
-    stop "\ninstalling apt packages failed ($@).  Please run 'apt-get update' and try again."
+    stop "installing apt packages failed ($@).  Please run 'apt-get update' and try again."
   fi
 }
 
 dnf_install() {
   if ! sudocmd dnf install -y ${QUIET:+-q} "$@"; then
-    stop "\ninstalling dnf packages failed ($@).  Please run 'dnf check-update' and try again."
+    stop "installing dnf packages failed ($@).  Please run 'dnf check-update' and try again."
   fi
 }
 
 dnf_groupinstall() {
   if ! sudocmd dnf groupinstall -y ${QUIET:+-q} "$@"; then
-    stop "\ninstalling dnf package group failed ($@).  Please run 'dnf check-update' and try again."
+    stop "installing dnf package group failed ($@).  Please run 'dnf check-update' and try again."
   fi
 }
 
 pacman_install() {
   if ! sudocmd pacman -S --noconfirm ${QUIET:+-q} "$@"; then
-    stop "\ninstalling pacman packages failed ($@).  Please run 'pacman -Sy' and try again."
+    stop "installing pacman packages failed ($@).  Please run 'pacman -Sy' and try again."
   fi
 }
 
 yum_install() {
   if ! sudocmd yum install -y ${QUIET:+-q} "$@"; then
-    stop "\ninstalling yum packages failed ($@).  Please run 'yum check-update' and try again."
+    stop "installing yum packages failed ($@).  Please run 'yum check-update' and try again."
   fi
 }
 
 apk_install() {
   if ! sudocmd apk add --update ${QUIET:+-q} "$@"; then
-    stop "\ninstalling apk packages failed ($@).  Please run 'apk update' and try again."
+    stop "installing apk packages failed ($@).  Please run 'apk update' and try again."
   fi
 }
 
 pkg_install() {
   if ! sudocmd pkg install -y "$@"; then
-    stop "\ninstalling pkg packages failed ($@).  Please run 'pkg update' and try again."
+    stop "installing pkg packages failed ($@).  Please run 'pkg update' and try again."
   fi
 }
 
@@ -282,6 +282,7 @@ install_dependencies() {
   elif has_cmd apk ; then
     apk_install build-essential $deps
   elif has_cmd pacman; then
+    deps="gcc make tar curl cmake ninja pkg-config"     # ninja-build -> ninja
     pacman_install base-devel $deps
   else
     case "$OSARCH" in
@@ -415,7 +416,7 @@ install_dist() {  # <prefix> <version>
   fi  
   
   # install Visual Studio Code editor support
-  NODE_NO_WARNINGS=1
+  export NODE_NO_WARNINGS=1
   vscode="code"
   if ! which "$vscode" > /dev/null ; then
     if [ "$(uname)" = "Darwin" ] ; then
