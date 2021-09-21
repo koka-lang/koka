@@ -111,7 +111,7 @@ detect_previous_install() {
     KOKA_PREV_EXE="$(which koka)"
     if [ -e "$KOKA_PREV_EXE" ] ; then 
       KOKA_PREV_PREFIX="${KOKA_PREV_EXE%/bin/koka*}"   # remove trailing "/bin/koka*"
-      KOKA_PREV_VERSION="$($KOKA_PREV_EXE --version)"  # get version info
+      KOKA_PREV_VERSION="$($KOKA_PREV_EXE --version --console=raw)"  # get version info
       KOKA_PREV_VERSION="${KOKA_PREV_VERSION%%,*}"     # remove everything after the first ",*"
       KOKA_PREV_VERSION="v${KOKA_PREV_VERSION#Koka }"  # remove "Koka " prefix 
       # echo "found previous koka version $KOKA_PREV_VERSION (installed at: $KOKA_PREV_PREFIX)"
