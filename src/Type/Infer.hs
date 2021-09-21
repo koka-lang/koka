@@ -14,6 +14,7 @@
 module Type.Infer (inferTypes, coreVarInfoFromNameInfo ) where
 
 import Lib.Trace hiding (traceDoc)
+import Control.Monad(when)
 import Data.List(partition,sortBy,sortOn)
 import qualified Data.List(find)
 import Data.Ord(comparing)
@@ -454,6 +455,7 @@ inferBindDef (Def (ValueBinder name () expr nameRng vrng) rng vis sort inl doc)
         do (tp,eff,coreExpr) <- inferExpr Nothing Instantiated expr
            stp <- subst tp
                                 --  Just annTp -> inferExpr (Just (annTp,rng)) Instantiated (Ann expr annTp rng)
+           -- traceDoc $ \penv -> text ("infer bind def: " ++ show name ++ ", var?:" ++ show (sort==DefVar)) <+> ppType penv stp 
            coreDef <- if (sort /= DefVar)
                        then return (Core.Def name tp coreExpr vis sort inl nameRng doc)
                        else do hp <- Op.freshTVar kindHeap Meta
@@ -1242,7 +1244,7 @@ inferApp propagated expect fun nargs rng
            -- instantiate or generalize result type
            funTp1         <- subst funTp
            -- traceDoc $ \env -> text " inferAppFunFirst: inst or gen:" <+> pretty (show expect) <+> colon <+> ppType env funTp1 <.> text ", top eff: " <+> ppType env topEff
-           (resTp,resCore) <- maybeInstantiateOrGeneralize rng (getRange fun) topEff expect funTp1 core
+           (resTp,resCore) <- maybeInstantiateOrGeneralizeClosed rng (getRange fun) topEff expect funTp1 core
            --stopEff <- subst topEff
            -- traceDoc $ \env -> text " inferAppFunFirst: resTp:" <+> ppType env resTp <.> text ", top eff: " <+> ppType env stopEff
            return (resTp,topEff,resCore )
@@ -1395,7 +1397,7 @@ inferApp propagated expect fun nargs rng
 
            -- instantiate or generalize result type
            resTp1          <- subst expTp
-           (resTp,resCore) <- maybeInstantiateOrGeneralize rng (getRange fun) topEff expect resTp1 (Core.App fcore coreArgs)
+           (resTp,resCore) <- maybeInstantiateOrGeneralizeClosed rng (getRange fun) topEff expect resTp1 (Core.App fcore coreArgs)
            return (resTp,topEff,resCore )
 
     fst3 (x,y,z) = x
@@ -1451,8 +1453,13 @@ inferVar propagated expect name rng isRhs
               do let coreVar = coreExprFromNameInfo qname info
                  -- traceDoc $ \env -> text "inferVar:" <+> pretty name <+> text ":" <+> text (show info) <.> text ":" <+> ppType env tp
                  addRangeInfo rng (RM.Id (infoCanonicalName qname info) (RM.NIValue tp) False)
-                 (itp,coref) <- maybeInstantiate rng expect tp
+                 (itp,coref) <- if (isQualified qname)  -- is it a top-level declaration?
+                                  then maybeInstantiate rng expect tp
+                                  else maybeInstantiateClosed rng expect tp
+                                          
                  sitp <- subst itp
+                 -- when (not (isQualified qname)) $
+                  -- traceDoc $ \env -> text " Type.Infer.Var:" <+> pretty name <+> text "as closed, to:" <+> ppType env{showIds=True} sitp
                  -- traceDoc $ \env -> (text " Type.Infer.Var: " <+> pretty name <.> colon <+> ppType env{showIds=True} sitp)
                  eff <- freshEffect
                  return (itp,eff,coref coreVar)
@@ -2106,6 +2113,20 @@ maybeInstantiateOrGeneralize contextRange range eff expect tp core
   = case expect of
       Generalized close  -> generalize contextRange range close eff tp core
       Instantiated -> do (tp,_,coref) <- instantiate range tp
+                         return (tp, coref core)
+
+maybeInstantiateClosed :: Range -> Expect -> Scheme -> Inf (Rho,Core.Expr -> Core.Expr)
+maybeInstantiateClosed range expect tp
+  = case expect of
+      Generalized close -> return (tp,id)
+      Instantiated -> do (rho,_,coref) <- instantiateNoEx range tp
+                         return (rho,coref)
+
+maybeInstantiateOrGeneralizeClosed :: Range -> Range -> Effect -> Expect -> Type -> Core.Expr -> Inf (Type,Core.Expr)
+maybeInstantiateOrGeneralizeClosed contextRange range eff expect tp core
+  = case expect of
+      Generalized close  -> generalize contextRange range close eff tp core
+      Instantiated -> do (tp,_,coref) <- instantiateNoEx range tp
                          return (tp, coref core)
 
 

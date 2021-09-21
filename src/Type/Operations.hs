@@ -57,7 +57,7 @@ instantiate range tp
 instantiateEx :: HasUnique m => Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
 instantiateEx rng tp
   = do (ids,preds,rho,coref) <- instantiateExFl Meta rng tp
-       (erho,coreg) <- extend rho
+       (erho,coreg) <- extend rho False
        return (ids,preds,erho, coreg . coref)
 
 -- | Instantiate a type and return the instantiated quantifiers, name/predicate pairs for evidence,
@@ -65,18 +65,20 @@ instantiateEx rng tp
 instantiateNoEx :: HasUnique m => Range -> Type -> m ([TypeVar],[Evidence],Rho,Core.Expr -> Core.Expr)
 instantiateNoEx rng tp
   = do (ids,preds,rho,coref) <- instantiateExFl Meta rng tp
-       return (ids,preds,rho,coref)
+       (erho,coreg) <- extend rho True
+       return (ids,preds,erho, coreg . coref)
+       -- return (ids,preds,rho,coref)
 
 -- | Ensure the result of function always gets an extensible effect type
 -- This is necessary to do on instantiation since we simplify such effect variables
 -- away during generalization. Effectively, the set of accepted programs does not
 -- change but the types look simpler to the user.
-extend :: HasUnique m => Rho -> m (Rho, Core.Expr -> Core.Expr)
-extend tp
+extend :: HasUnique m => Rho -> Bool -> m (Rho, Core.Expr -> Core.Expr)
+extend tp totalOnly
   = case expandSyn tp of
       TFun args eff res
         -> let (ls,tl) = extractOrderedEffect eff
-           in if isEffectEmpty tl
+           in if (isEffectEmpty tl && (not totalOnly || null ls))
                then do tv <- freshTVar kindEffect Meta
                        let openEff = effectExtends ls tv
                            openTp  = TFun args openEff res

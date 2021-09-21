@@ -2397,22 +2397,20 @@ private extern xprints( s : string) : console ()  {
 // _Unsafe_. This function removes the non-termination effect (`:div`) from the effect of an action
 inline extern unsafe-nostate( action : () -> <st<h>,console> a ) : (() -> console a) { inline "#1"}
 
+private inline extern unsafe-read( action : () -> <read<h>> a ) : (() -> a) { inline "#1"}
+
 private noinline fun prints( s : string ) : console () {
-  (unsafe-nostate {
-    match(!redirect) {
-      Nothing -> xprints(s)
-      Just(f) -> f(s)
-    }
-  })()
+  val r = unsafe-read({!redirect})()
+  match r 
+    Nothing -> xprints(s)
+    Just(f) -> f(s)
 }
 
 private noinline fun printsln( s : string ) : console () {
-  (unsafe-nostate {
-    match(!redirect) {
-      Nothing -> xprintsln(s)
-      Just(f) -> f(s ++ "\n")
-    }
-  })()
+  val r = unsafe-read({!redirect})()
+  match r 
+    Nothing -> xprintsln(s)
+    Just(f) -> f(s ++ "\n")
 }
 
 // Print a string to the console.

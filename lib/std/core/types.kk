@@ -331,7 +331,7 @@ inline extern byref(loc : a) : a { inline "#1" }
 // _Unsafe_. Mark a function parameter as decreasing to suppress the non-termination effect (`:div`).
 inline extern unsafe-decreasing( x : a ) : a { inline "#1" }
 
-private inline extern unsafe-total-cast : forall<e,a> ( action : () -> e a ) -> (() -> a) { inline "#1" }
+private inline extern unsafe-total-cast : forall<e1,e2,a> ( action : () -> e1 a ) -> (() -> e2 a) { inline "#1" }
 
 // _Unsafe_. This function calls a function and pretends it did not have any effect at all.
 fun unsafe-total( action : () -> e a ) : a {

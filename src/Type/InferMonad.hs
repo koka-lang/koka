@@ -266,7 +266,7 @@ instantiate = instantiateEx
 
 instantiateEx :: Range -> Scheme -> Inf (Rho,[TypeVar],Core.Expr -> Core.Expr)
 instantiateEx range tp | isRho tp
-  = do (rho,coref) <- Op.extend tp
+  = do (rho,coref) <- Op.extend tp False
        return (rho,[],coref)
 instantiateEx range tp
   = do (tvars,ps,rho,coref) <- Op.instantiateEx range tp
@@ -276,7 +276,8 @@ instantiateEx range tp
 instantiateNoEx :: Range -> Scheme -> Inf (Rho,[TypeVar],Core.Expr -> Core.Expr)
 
 instantiateNoEx range tp | isRho tp
-  = return (tp,[],id)
+  = do (rho,coref) <- Op.extend tp True
+       return (rho,[],coref)
 instantiateNoEx range tp
   = do (tvars,ps,rho,coref) <- Op.instantiateNoEx range tp
        addPredicates ps
