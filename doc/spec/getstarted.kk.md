@@ -81,9 +81,9 @@ It is also straightforward to build the compiler [from source][build].
 
 ## Running the compiler
 
-You can compile a &koka; source using `-c` (note that all [`samples`][samples] are pre-installed):
+You can compile a &koka; source as (note that all [`samples`][samples] are pre-installed):
 
-    $ koka -c samples/basic/caesar.kk
+    $ koka samples/basic/caesar.kk
     compile: samples/basic/caesar.kk
     loading: std/core
     loading: std/core/types
@@ -93,11 +93,11 @@ You can compile a &koka; source using `-c` (note that all [`samples`][samples] a
     loading: std/num/int32
     check  : samples/basic/caesar
     linking: samples_basic_caesar
-    created: out/v2.1.6/gcc-debug/samples_basic_caesar
+    created: .koka/v2.3.1/gcc-debug/samples_basic_caesar
 
 and run the resulting executable:
 
-    $ out/v2.1.6/gcc-debug/samples_basic_caesar
+    $ .koka/v2.3.1/gcc-debug/samples_basic_caesar
     plain  : Koka is a well-typed language
     encoded: Krnd lv d zhoo-wbshg odqjxdjh
     cracked: Koka is a well-typed language
@@ -108,9 +108,9 @@ of balanced insertion in a red-black tree ([`rbtree.kk`](https://github.com/koka
     $ koka -O2 -c samples/basic/rbtree.kk
     ...
     linking: samples_basic_rbtree
-    created: out/v2.1.6/gcc-drelease/samples_basic_rbtree
+    created: .koka/v2.3.1/gcc-drelease/samples_basic_rbtree
 
-    $ time out/v2.1.6/gcc-drelease/samples_basic_rbtree
+    $ time .koka/v2.3.1/gcc-drelease/samples_basic_rbtree
     420000
     real    0m0.750s
     ...
@@ -118,9 +118,9 @@ of balanced insertion in a red-black tree ([`rbtree.kk`](https://github.com/koka
 (On Windows you can give the `--kktime` option to see the elapsed time).
 We can compare this against an in-place updating C++ implementation using ``stl::map``
 ([``rbtree.cpp``](https://github.com/koka-lang/koka/tree/master/samples/basic/rbtree.cpp)) (which also uses a
-[red-black tree](https://code.woboq.org/gcc/libstdc++-v3/src/c++98/tree.cc.html) internally):
+[red-black tree](https://github.com/llvm/llvm-project/blob/main/libcxx/include/__tree) internally):
 
-    $ clang++ --std=c++17 -o cpp-rbtree -O3 /usr/local/share/koka/v2.1.6/samples/basic/rbtree.cpp
+    $ clang++ --std=c++17 -o cpp-rbtree -O3 /usr/local/share/koka/v2.3.1/lib/samples/basic/rbtree.cpp
     $ time ./cpp-rbtree
     420000
     real    0m0.864s

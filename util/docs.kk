@@ -53,14 +53,14 @@ fun build( publish : bool, version : string, speconly : bool ) : io ()
   val docsite  = "https://koka-lang.github.io/koka/doc/"
   val doclocal = "../koka-pages/doc".path
 
-  val outspec  = "out/spec".path;
+  val outspec  = ".koka/spec".path;
   //val outspec   = outspecx ++ "js-debug"
   val outstyles = outspec / "styles"
   val outscripts = outspec / "scripts"
   val outimages = outspec / "images"
   val specdir   = "doc/spec".path
   val docflags  = "--htmlcss=styles/madoko.css --htmlcss=styles/koka.css " ++ (if (publish) then "--htmlbases=" ++ docsite ++ " " else "")
-  val cmd = "koka -c -l --builddir=" ++ outspec.string ++ " -i" ++ specdir.string ++ " --html " ++ docflags
+  val cmd = "koka -l --outputdir=" ++ outspec.string ++ " -i" ++ specdir.string ++ " --html " ++ docflags
   if !speconly then
     println("compile standard libraries...")
     run-echo(cmd ++ " toc.kk")

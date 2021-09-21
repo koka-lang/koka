@@ -52,7 +52,7 @@ esac
 
 # build the compiler (for used packages see 'package.yaml')
 set -o xtrace
-ghc -isrc:src/Platform/cpp -odir=out/minbuild -hidir=out/minbuild -o out/minbuild/koka \
+ghc -isrc:src/Platform/cpp -odir=.koka/minbuild -hidir=.koka/minbuild -o .koka/minbuild/koka \
     -DKOKA_MAIN=\"koka\" -DKOKA_VARIANT=\"$KOKA_VARIANT\" -DKOKA_VERSION=\"$KOKA_VERSION\" $EXTRADEFS \
     --make -j4 -O2 src/Main.hs src/Platform/cpp/Platform/cconsole.c
 

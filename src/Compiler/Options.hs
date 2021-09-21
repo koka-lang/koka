@@ -20,7 +20,7 @@ module Compiler.Options( -- * Command line options
                        , isValueFromFlags
                        , CC(..), BuildType(..), ccFlagsBuildFromFlags
                        , buildType, unquote
-                       , outName, buildDir, buildVariant
+                       , outName, fullBuildDir, buildVariant
                        , cpuArch, osName
                        , optionCompletions
                        ) where
@@ -31,7 +31,7 @@ import Data.List              ( intersperse )
 import Control.Monad          ( when )
 import qualified System.Info  ( os, arch )
 import System.Environment     ( getArgs )
-import System.Directory       ( doesFileExist, doesDirectoryExist, getHomeDirectory )
+import System.Directory       ( doesFileExist, doesDirectoryExist, getHomeDirectory, getTemporaryDirectory )
 import Platform.GetOptions
 import Platform.Config
 import Lib.PPrint
@@ -110,9 +110,11 @@ data Flags
          , simplify         :: Int
          , simplifyMaxDup   :: Int
          , colorScheme      :: ColorScheme
-         , outDir           :: FilePath      -- out
-         , outTag           :: String
-         , outBuildDir      :: FilePath      -- actual build output: <outdir>/<version>-<outtag>/<ccomp>-<variant>
+         , buildDir         :: FilePath      -- kkbuild
+         , buildTag         :: String
+         , outBuildDir      :: FilePath      -- actual build output: <builddir>/<version>-<buildtag>/<ccomp>-<variant>
+         , outBaseName      :: String
+         , outFinalPath     :: FilePath        
          , includePath      :: [FilePath]    -- .kk/.kki files 
          , csc              :: FileName
          , node             :: FileName
@@ -140,7 +142,6 @@ data Flags
          , htmlCss          :: String
          , htmlJs           :: String
          , verbose          :: Int
-         , exeName          :: String
          , showSpan         :: Bool
          , console          :: String
          , rebuild          :: Bool
@@ -179,7 +180,7 @@ flagsNull
           False
           False -- typesigs
           False -- show elapsed time
-          True  -- executes
+          False -- do not execute by default
           ""    -- execution options
           False -- library
           C     -- target
@@ -188,10 +189,12 @@ flagsNull
           5     -- simplify passes
           10    -- simplify dup max (must be at least 10 to inline partial applications across binds)
           defaultColorScheme
-          "out"    -- outdir 
-          ""       -- outtag
+          ""       -- builddir 
+          ""       -- buildtag
           ("")     -- build dir
-          []
+          ""       -- exe base name
+          ""       -- final exe output path
+          []       -- include paths
           "csc"
           "node"
           "cmake"
@@ -222,7 +225,6 @@ flagsNull
           ("styles/" ++ programName ++ ".css")
           ("")
           1        -- verbosity
-          ""
           False
           "ansi"  -- console: ansi, html, raw
           False -- rebuild
@@ -273,43 +275,24 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  [ option ['?','h'] ["help"]            (NoArg Help)                "show this information"
  , option []    ["version"]         (NoArg Version)                 "show the compiler version"
  , option ['p'] ["prompt"]          (NoArg Interactive)             "interactive mode"
- , flag   ['e'] ["execute"]         (\b f -> f{evaluate= b})        "compile and execute (default)"
- , flag   ['c'] ["compile"]         (\b f -> f{evaluate= not b})    "only compile, do not execute"
- , option ['i'] ["include"]         (OptArg includePathFlag "dirs") "add <dirs> to search path (empty resets)"
- , option ['o'] ["outdir"]          (ReqArg outDirFlag "dir")       "output files go under <dir> ('out' by default)"
- , option []    ["outname"]         (ReqArg exeNameFlag "name")     "base name of the final executable"
+ , flag   ['e'] ["execute"]         (\b f -> f{evaluate= b})        "compile and execute"
+ , flag   ['c'] ["compile"]         (\b f -> f{evaluate= not b})    "only compile, do not execute (default)"
+ , option ['i'] ["include"]         (OptArg includePathFlag "dirs") "add <dirs> to module search path (empty resets)"
+ , option ['o'] ["output"]          (ReqArg outFinalPathFlag "file")"write final executable to <file>"
+ , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (0=default, 1=space, 2=full, 3=aggressive)"
+ , flag   ['g'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)" 
  , numOption 1 "n" ['v'] ["verbose"] (\i f -> f{verbose=i})         "verbosity 'n' (0=quiet, 1=default, 2=trace)"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
- , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (0=default, 1=space, 2=full, 3=aggressive)"
- , flag   ['g'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)"
- , emptyline
-
  , config []    ["target"]          [("c",C),("js",JS),("cs",CS)] "" targetFlag  "generate C (default), javascript, or C#"
  , config []    ["host"]            [("node",Node),("browser",Browser)] "host" (\h f -> f{ target=JS, host=h}) "specify host for javascript: <node|browser>"
- , flag   []    ["html"]            (\b f -> f{outHtml = if b then 2 else 0}) "generate documentation"
- , option []    ["htmlbases"]       (ReqArg htmlBasesFlag "bases")  "set link prefixes for documentation"
- , option []    ["htmlcss"]         (ReqArg htmlCssFlag "link")     "set link to the css documentation style"
  , emptyline
 
- , flag   []    ["showtime"]       (\b f -> f{ showElapsed = b})    "show elapsed time and rss after evaluation"
- , flag   []    ["showspan"]       (\b f -> f{ showSpan = b})       "show ending row/column too on errors"
- , flag   []    ["showkindsigs"]   (\b f -> f{showKindSigs=b})      "show kind signatures of type definitions"
- , flag   []    ["showtypesigs"]   (\b f -> f{showTypeSigs=b})      "show type signatures of definitions"
- , flag   []    ["showsynonyms"]   (\b f -> f{showSynonyms=b})      "show expanded type synonyms in types"
- , flag   []    ["showcore"]       (\b f -> f{showCore=b})          "show core"
- , flag   []    ["showfcore"]      (\b f -> f{showFinalCore=b})     "show final core (with backend optimizations)"
- , flag   []    ["showcoretypes"]  (\b f -> f{showCoreTypes=b})     "show full types in core"
- , flag   []    ["showcs"]         (\b f -> f{showAsmCS=b})         "show generated c#"
- , flag   []    ["showjs"]         (\b f -> f{showAsmJS=b})         "show generated javascript"
- , flag   []    ["showc"]          (\b f -> f{showAsmC=b})          "show generated C"
- , flag   []    ["core"]           (\b f -> f{genCore=b})           "generate a core file"
- , flag   []    ["checkcore"]      (\b f -> f{coreCheck=b})         "check generated core" 
- , emptyline
-
- , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
- , option []    ["outtag"]          (ReqArg outTagFlag "tag")       "set output tag (e.g. 'bundle')"
- , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     "build into <dir> (= <outdir>/<ver>-<tag>/<variant>)"
+ , option []    ["buildtag"]        (ReqArg buildTagFlag "tag")     "set build variant tag (e.g. 'bundle' or 'dev')"
+ , option []    ["builddir"]        (ReqArg buildDirFlag "dir")     ("build under <dir> ('" ++ kkbuild ++ "' by default)")
+ , option []    ["buildname"]       (ReqArg outBaseNameFlag "name") "base name of the final output"
+ , option []    ["outputdir"]       (ReqArg outBuildDirFlag "dir")  "write intermediate files in <dir>.\ndefaults to: <builddir>/<ver>-<buildtag>/<cc>-<variant>"
+ 
  , option []    ["libdir"]          (ReqArg libDirFlag "dir")       "object library <dir> (= <prefix>/lib/koka/<ver>)"
  , option []    ["sharedir"]        (ReqArg shareDirFlag "dir")     "source library <dir> (= <prefix>/share/koka/<ver>)"
  , option []    ["cc"]              (ReqArg ccFlag "cmd")           "use <cmd> as the C backend compiler "
@@ -324,9 +307,30 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["vcpkgauto"]       (\b f -> f{vcpkgAutoInstall=b}) "automatically install required vcpkg packages"
  , option []    ["csc"]             (ReqArg cscFlag "cmd")          "use <cmd> as the csharp backend compiler "
  , option []    ["node"]            (ReqArg nodeFlag "cmd")         "use <cmd> to execute node"
+ , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
  , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors"
  , option []    ["redirect"]        (ReqArg redirectFlag "file")    "redirect output to <file>"
  , configstr [] ["console"]  ["ansi","html","raw"] "fmt" (\s f -> f{ console = s }) "console output format: <ansi|html|raw>"
+ 
+ , flag   []    ["html"]            (\b f -> f{outHtml = if b then 2 else 0}) "generate documentation"
+ , option []    ["htmlbases"]       (ReqArg htmlBasesFlag "bases")  "set link prefixes for documentation"
+ , option []    ["htmlcss"]         (ReqArg htmlCssFlag "link")     "set link to the css documentation style"
+ , emptyline
+ 
+ , flag   []    ["showtime"]       (\b f -> f{ showElapsed = b})    "show elapsed time and rss after evaluation"
+ , flag   []    ["showspan"]       (\b f -> f{ showSpan = b})       "show ending row/column too on errors"
+ , flag   []    ["showkindsigs"]   (\b f -> f{showKindSigs=b})      "show kind signatures of type definitions"
+ , flag   []    ["showtypesigs"]   (\b f -> f{showTypeSigs=b})      "show type signatures of definitions"
+ , flag   []    ["showsynonyms"]   (\b f -> f{showSynonyms=b})      "show expanded type synonyms in types"
+ , flag   []    ["showcore"]       (\b f -> f{showCore=b})          "show core"
+ , flag   []    ["showfcore"]      (\b f -> f{showFinalCore=b})     "show final core (with backend optimizations)"
+ , flag   []    ["showcoretypes"]  (\b f -> f{showCoreTypes=b})     "show full types in core"
+ , flag   []    ["showcs"]         (\b f -> f{showAsmCS=b})         "show generated c#"
+ , flag   []    ["showjs"]         (\b f -> f{showAsmJS=b})         "show generated javascript"
+ , flag   []    ["showc"]          (\b f -> f{showAsmC=b})          "show generated C"
+ , flag   []    ["core"]           (\b f -> f{genCore=b})           "generate a core file"
+ , flag   []    ["checkcore"]      (\b f -> f{coreCheck=b})         "check generated core" 
+ , emptyline
 
  -- hidden
  , hide $ fflag        ["asan"]      (\b f -> f{asan=b})             "compile with address, undefined, and leak sanitizer"
@@ -346,7 +350,6 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  -- deprecated
  , hide $ option []    ["cmake"]           (ReqArg cmakeFlag "cmd")        "use <cmd> to invoke cmake"
  , hide $ option []    ["cmakeopts"]       (ReqArg cmakeArgsFlag "opts")   "pass <opts> to cmake"
-
  ]
  where
   emptyline
@@ -415,13 +418,13 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
                                      Just s | not (null s) -> includePath f ++ undelimPaths s
                                      _ -> [] })
 
-  outDirFlag s
-    = Flag (\f -> f{ outDir = s })
-
-  outTagFlag s
-    = Flag (\f -> f{ outTag = s })    
-
   buildDirFlag s
+    = Flag (\f -> f{ buildDir = s })
+
+  buildTagFlag s
+    = Flag (\f -> f{ buildTag = s })    
+
+  outBuildDirFlag s
     = Flag (\f -> f{ outBuildDir = s })
 
   libDirFlag s
@@ -430,8 +433,11 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   shareDirFlag s
     = Flag (\f -> f{ localShareDir = s })
 
-  exeNameFlag s
-    = Flag (\f -> f{ exeName = s })
+  outBaseNameFlag s
+    = Flag (\f -> f{ outBaseName = s })
+
+  outFinalPathFlag s
+    = Flag (\f -> f{ outFinalPath = s })    
 
   ccFlag s
     = Flag (\f -> f{ ccompPath = s })
@@ -508,15 +514,17 @@ readHtmlBases s
 environment :: [ (String, String, (String -> [String]), String) ]
 environment
   = [ -- ("koka_dir",     "dir",     dirEnv,       "The install directory")
-      ("koka_options", "options", flagsEnv,     "Add <options> to the command line")
-    , ("koka_editor",  "command", editorEnv,    "Use <cmd> as the editor (substitutes %l, %c, and %f)")
-    , ("koka_vcpkg",   "dir",     vcpkgEnv,     "vcpkg root directory")
+      ("koka_options", "options", flagsEnv,         "Add <options> to the command line")
+    , ("koka_editor",  "command", opt "editor",     "Use <cmd> as the editor (substitutes %l, %c, and %f)")
+    , ("koka_vcpkg",   "dir",     opt "vcpkg",      "Set vcpkg root directory")
+    , ("koka_lib_dir", "dir",     opt "libdir",     "Set the koka compiled library directory (= '<prefix>/lib/koka/<ver>')")
+    , ("koka_share_dir", "dir",   opt "sharedir",   "Set the koka library sources directory (= '<prefix>/share/koka/<ver>')")
+    , ("koka_build_dir", "dir",   opt "builddir",   ("Set the default koka build directory (= '" ++ kkbuild ++ "')"))
     ]
   where
     flagsEnv s      = [s]
-    editorEnv s     = ["--editor=" ++ s]
-    vcpkgEnv dir    = ["--vcpkg=" ++ dir]
-    -- dirEnv s        = ["--install-dir=" ++ s]
+    opt name dir    = ["--" ++ name ++ "=" ++ quote dir]
+    
 
 optionCompletions :: [(String,String)]
 optionCompletions 
@@ -550,19 +558,23 @@ processOptions flags0 opts
         (options,files,errs0) = getOpt Permute optionsAll preOpts
         errs = errs0 ++ extractErrors options
     in if (null errs)
-        then let flags = extractFlags flags1 options
+        then let flags2 = extractFlags flags1 options
                  mode = if (any isHelp options) then ModeHelp
                         else if (any isVersion options) then ModeVersion
                         else if (any isInteractive options) then ModeInteractive files
                         else if (null files) then ModeInteractive files
                                              else ModeCompiler files                 
-             in do ed   <- if (null (editor flags))
+                 flags = case mode of 
+                           ModeInteractive _ -> flags2{evaluate = True}
+                           _                 -> flags2
+             in do buildDir <- getKokaBuildDir (buildDir flags) (evaluate flags)
+                   ed   <- if (null (editor flags))
                             then detectEditor 
                             else return (editor flags)
-                   pkgs <- discoverPackages (outDir flags)
+                   pkgs <- discoverPackages buildDir
 
                    (localDir,localLibDir,localShareDir,localBinDir) 
-                        <- getKokaDirs (localLibDir flags) (localShareDir flags)
+                        <- getKokaDirs (localLibDir flags) (localShareDir flags) buildDir
                    
                    -- cc
                    ccmd <- if (ccompPath flags == "") then detectCC
@@ -590,6 +602,7 @@ processOptions flags0 opts
                        vcpkgLibDirs     = if (null vcpkg) then [] else [vcpkgLibDir]
                        vcpkgIncludeDirs = if (null vcpkg) then [] else [vcpkgIncludeDir] 
                    return (flags{ packages    = pkgs,
+                                  buildDir    = buildDir,
                                   localBinDir = localBinDir,
                                   localDir    = localDir,
                                   localLibDir = localLibDir,
@@ -622,16 +635,29 @@ processOptions flags0 opts
                           ,flags,mode)
         else invokeError errs
 
-getKokaDirs :: FilePath -> FilePath -> IO (FilePath,FilePath,FilePath,FilePath)
-getKokaDirs libDir0 shareDir0
+getKokaBuildDir :: FilePath -> Bool -> IO FilePath
+getKokaBuildDir "" eval
+  = if (eval)
+      then do exist <- doesDirectoryExist kkbuild
+              if (exist)
+                then return kkbuild
+                else do tmp <- getTemporaryDirectory
+                        return (joinPath tmp kkbuild)
+      else return kkbuild
+getKokaBuildDir buildDir _ = return buildDir    
+
+
+kkbuild :: String
+kkbuild = ".koka"
+
+getKokaDirs :: FilePath -> FilePath -> FilePath -> IO (FilePath,FilePath,FilePath,FilePath)
+getKokaDirs libDir1 shareDir1 buildDir0
   = do bin        <- getProgramPath
        let binDir  = dirname bin
            rootDir = rootDirFrom binDir
-       isRootRepo <- doesDirectoryExist (joinPath rootDir "kklib")
-       libDir1    <- if (null libDir0) then getEnvVar "koka_lib_dir" else return libDir0
-       shareDir1  <- if (null shareDir0) then getEnvVar "koka_share_dir" else return shareDir0
+       isRootRepo <- doesDirectoryExist (joinPath rootDir "kklib")       
        let libDir   = if (not (null libDir1)) then libDir1
-                      else if (isRootRepo) then joinPath rootDir "out"
+                      else if (isRootRepo) then joinPath rootDir kkbuild
                       else joinPath rootDir ("lib/koka/v" ++ version)
            shareDir = if (not (null shareDir1)) then shareDir1           
                       else if (isRootRepo) then rootDir
@@ -654,9 +680,9 @@ rootDirFrom binDir
                   ("bin":_:_:_:"install":".stack-work":es) -> joinPaths (reverse es)
                   -- regular install
                   ("bin":es)   -> joinPaths (reverse es)
-                  -- minbuild / jake build
-                  (_:"out":es) -> joinPaths (reverse es)
-                  _            -> binDir
+                  -- minbuild 
+                  (_:dir:es) | dir == kkbuild -> joinPaths (reverse es)
+                  _          -> binDir
 
 
 extractFlags :: Flags -> [Option] -> Flags
@@ -748,17 +774,17 @@ data CC = CC{  ccName       :: String,
 
 outName :: Flags -> FilePath -> FilePath
 outName flags s
-  = joinPath (buildDir flags) s
+  = joinPath (fullBuildDir flags) s
 
-buildDir :: Flags -> FilePath    -- usually <outDir>/windows-x64-v2.x.x/<config>
-buildDir flags
+fullBuildDir :: Flags -> FilePath    -- usually <buildDir>/windows-x64-v2.x.x/<config>
+fullBuildDir flags
   = if (null (outBuildDir flags))
-     then joinPaths [outDir flags, outVersionTag flags, buildVariant flags]
+     then joinPaths [buildDir flags, buildVersionTag flags, buildVariant flags]
      else outBuildDir flags
 
-outVersionTag :: Flags -> String   
-outVersionTag flags
-  = "v" ++ version ++ (if (null (outTag flags)) then "" else "-" ++ outTag flags)
+buildVersionTag :: Flags -> String   
+buildVersionTag flags
+  = "v" ++ version ++ (if (null (buildTag flags)) then "" else "-" ++ buildTag flags)
 
 buildVariant :: Flags -> String   -- for example: clang-debug, js-release
 buildVariant flags
@@ -879,6 +905,9 @@ ccCheckExist cc
                          putStrLn ("   hint: run in an x64 Native Tools command prompt? or use the --cc=clang-cl flag?")
                        when (ccName cc == "clang-cl") $
                          putStrLn ("   hint: install clang for Windows from <https://llvm.org/builds/> ?")
+
+quote s
+  = "\"" ++ s ++ "\""
 
 -- unquote a shell argument string (as well as we can)
 unquote :: String -> [String]
@@ -1068,7 +1097,7 @@ versionMessage flags
   <-> text "bin    :" <+> text (localBinDir flags)
   <-> text "lib    :" <+> text (localLibDir flags)
   <-> text "share  :" <+> text (localShareDir flags)
-  <-> text "build  :" <+> text (buildDir flags)
+  <-> text "output :" <+> text (fullBuildDir flags)
   <-> text "cc     :" <+> text (ccPath (ccomp flags))
   <->
   (color Gray $ vcat $ map text

@@ -369,7 +369,7 @@ run the minimal build script to build Koka:
 which directly invokes `ghc` to build the compiler.
 You can create an install bundle from a minbuild as:
 ```
-~/koka$ out/minbuild/koka util/bundle.kk -- --koka=out/minbuild/koka
+~/koka$ .koka/minbuild/koka -e util/bundle.kk -- --koka=.koka/minbuild/koka
 ```
 
 

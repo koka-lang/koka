@@ -3,6 +3,7 @@
 .idea/
 .vs/
 .vscode/
+.koka/
 node_modules/
 out/
 bundle/
