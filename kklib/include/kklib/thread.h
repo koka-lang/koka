@@ -27,13 +27,14 @@ kk_decl_export kk_promise_t kk_task_schedule_n( kk_ssize_t count, kk_ssize_t str
 // kk_decl_export void kk_task_group_free( kk_task_group_t* tg, kk_context_t* ctx );
 
 /*--------------------------------------------------------------------------------------
-   Lvars
+   Lattice_Vars
 --------------------------------------------------------------------------------------*/
-typedef kk_box_t kk_lvar_t;
+typedef kk_box_t kk_lattice_var_t;
 
-kk_decl_export kk_lvar_t kk_lvar_alloc( kk_box_t init, kk_context_t* ctx );
-kk_decl_export void      kk_lvar_put( kk_lvar_t lvar, kk_box_t val, kk_function_t monotonic_combine, kk_context_t* ctx );
-kk_decl_export kk_box_t  kk_lvar_get( kk_lvar_t lvar, kk_box_t bot, kk_function_t is_gte, kk_context_t* ctx );
+kk_decl_export kk_lattice_var_t kk_lattice_var_alloc( kk_box_t init, kk_context_t* ctx );
+kk_decl_export void             kk_lattice_var_put( kk_lattice_var_t lattice_var, kk_box_t val, kk_function_t monotonic_combine, kk_context_t* ctx );
+kk_decl_export kk_box_t         kk_lattice_var_get( kk_lattice_var_t lattice_var, kk_box_t bot, kk_function_t is_gte, kk_context_t* ctx );
+void                            kk_lattice_var_freeze( kk_lattice_var_t lattice_var, kk_context_t* ctx )
 
 
 #endif // include guard
