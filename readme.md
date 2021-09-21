@@ -77,12 +77,14 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 ## Recent Releases
 
-- `v2.3.0`, 2021-09-20: many big changes: new layout rule to [elide braces][nobrace] and no more need to 
+- `v2.3.0`, 2021-09-20: many changes: new layout rule to [elide braces][nobrace] and no more need to 
   parenthesize `if` and `match` conditions (see the [`samples/basic/rbtree`](samples/basic/rbtree.kk) for 
   an example of this), updated the JavaScript backend (`--target=js`) to use standard ES6 modules and using the new [`BigInt`][bigint] for arbitrary precision integers, improved runtime layout with support for 128-bit arm CHERI, 
   add the `std/num/int64` module and `int64` primitive type, add the [binarytrees](test/bench/koka/binarytrees.kk) 
   benchmark, initial support for parallel tasks (in `std/os/task`), improved simplification and inlining giving
   much improved effect operations, updated isocline for the interactive environment.
+- `v2.2.1`, 2021-09-05: improved optimization, initial parallel tasks, binary-trees benchmark, 
+  still slightly slower effect handling, upgrade isocline, fix minor bugs.
 - `v2.2.0`, 2021-08-26: improved case-of-known simpification (by Rashika B), improve cross-module specialization
   (by Steven Fontanella), initial borrowing annotations and improved reuse analysis (by Anton Lorenzen),
   improved line editing in the interactive environment, improved inlining. Note: due to the new inline phases,
@@ -229,43 +231,58 @@ in the [Perceus] report.
 
 Please help develop Koka: there are many opportunities to improve Koka or do research with Koka. We need:
 
-- Emacs (partially done) and Vim syntax highlighting.
-- Improve documentation, landing page etc. Make it easier for people to contribute.
-- More examples
-- Many library modules are incomplete (like `std/os/file`) or missing (like `std/data/map`).
+- [ ] Emacs (partially done) and Vim syntax highlighting.
+- [ ] Add more samples, improve documentation, landing page etc. Make it easier for people to contribute.
+- [ ] Many library modules are incomplete (like `std/os/file`) or missing (like `std/data/map`).
+- [ ] Update file and os primitives for the JavaScript backend.
+- [x] Run the full test suite.
+- [x] Run the Bayesian probalistic machine learning program with large parameters.
+- [x] Functions with a pattern match in the argument (by Steven Fontanella).
+- [x] Support `int64` operations
 
 More advanced projects:
 
-- Update the JavaScript backend to 1) use proper modules instead of amdefine, 2) use the new bigints instead of 
-  bigint.js, and 3) add support for int64. This requires mostly changes to `Backend/JS/FromCore.hs` together 
-  with `lib/core/core-inline.js`.
-- Partially done: see PR #100. A language server for Visual Studio Code and Atom. Koka can already generate a 
-  typed [range map](src/Syntax/RangeMap.hs) so this should be managable.
-- Package management of Koka modules.
-- Proper overloading with (a form of) type classes. (in design phase).
+- [x] Update the JavaScript backend to 1) use modern modules instead of amdefine, 2) use the new bigints instead of 
+  bigint.js, and 3) add support for int64. (landed in the `dev` branch)
+- [x] Port `std/text/regex` from v1 (using PCRE)
+- [ ] A language server for Visual Studio Code and Atom. Koka can already generate a 
+  typed [range map](src/Syntax/RangeMap.hs) so this should be managable. Partially done: see PR #100 (by @fwcd) -- it just
+  needs work on packaging it to make it easy to build and install as part of the Koka installer.
+- [ ] Package management of Koka modules.
+- [ ] Compile to WASM (using emscripten on the current C backend)
+- [ ] Improve compilation of local state to use local variables directly (in C) without allocation. Tricky though due to multiple resumptions.
+- [ ] Improve performance of array/mutable reference programming. Koka is has great performance for
+      algebraic datatypes but lags when using more imperative array algorithms. This requires better
+      integration with the reference counting (faster in-place update for vectors) and integration local mutable references.
+- [ ] To support optimal btree's we need mutable fields in constructors; or at least intrusive vector fields.
+- [ ] The current parallel task support is very basic; we need a great work-stealing thread pool, LVar's etc.
+- [ ] Expose the "bytes" primitive data together with views.
+- [ ] Improve C backend code generation to generate nicer output with less "noise" (like temporary variables, or variables for each if condition etc).
+- [ ] Improve C code generation by identifying output that could be better; also in effectful code we generate many join-points (see [9]),
+      can we increase the sharing/reduce the extra code.
+
+Master/PhD level:
+
+- [ ] Better FBIP support with guaranteed datatype matching, automatic derivative and visitor generation.
+- [ ] Can we use C++ exceptions to implement "zero-cost" `if yielding() ...` branches and remove the need join points (see [9]).
+- [x] Float up `open` calls to improve effect handling (worked on by Naoya Furudono)
+- [x] Formalize opening and closing effect row types (worked on by Kazuki Ikemori)
 
 Currently being worked on:
 
-- Various standard optimizations like case-of-case, join points, case-of-known constructor, etc.
-- Implement inline specialization where functions like `map`, `fold` etc get specialized for the function 
-  with which they are called.
-  This is an important optimization for functional style languages to reduce the allocation of lambda's.
+- [x] Various standard optimizations like case-of-case, join points, case-of-known constructor, etc.
+- [x] Implement inline specialization where functions like `map`, `fold` etc get specialized for the function 
+  with which they are called. This is an important optimization for functional style languages to reduce the allocation of lambda's.
   (contact: Steven Fontanella)
-- Borrowing analysis for Perceus and improved reuse analysis. (contact: Anton Lorenzen)
+- [x] Borrowing analysis for Perceus and improved reuse analysis. (contact: Anton Lorenzen)
+- [ ] Improve case-of-known simplification with shape information
 
 The following is the immediate todo list to be completed in the coming months:
 
-- Port `std/async` (using `libuv`).
-- Improve compilation of local state to use local variables directly (in C).
+- [ ] Port `std/async` (using `libuv`).
+- [ ] Proper overloading with (a form of) type classes. (in design phase).
 
 Contact me if you are interested in tackling some of these :-)
-
-Recently completed tasks:
-
-- Ported `std/text/regex` (using PCRE)
-- Run the full test suite.
-- Run the Bayesian probalistic machine learning program with large parameters.
-- Functions with a pattern match in the argument (by Steven Fontanella).
 
 
 # Build Notes
@@ -286,7 +303,7 @@ The main development branches are:
 Currently (Sep 2021) `stack` is not always working well on the M1.
 You need to install `ghc` via `brew`:
 ```
-$ brew install ghc cabal-install haskell-stack
+$ brew install pkg-config ghc cabal-install haskell-stack
 ```
 
 Note it is important to have `stack` and `ghc` as an arm64 build since otherwise Koka will
@@ -316,6 +333,10 @@ bash:~/koka$ stack --system-ghc --skip-ghc-check build
 bash:~/koka$ stack --system-ghc --skip-ghc-check exec koka
 ```
 
+and pass the `--system-ghc` flag to create an installation bundle as well:
+```
+bash:~/koka$ stack --system-ghc --skip-ghc-check exec koka -- util/bundle -- --system-ghc
+```
 
 ## Building with Cabal 
 
