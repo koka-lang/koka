@@ -315,7 +315,7 @@ inline extern local-get : forall<a,s,e> (v: local-var<s,a>) -> <local<s>|e> a wi
   js inline "((#1).value)";
 }
 
-private inline extern unsafe-no-local-cast : forall<a,h,e> ( action : () -> <local<h>|e> a ) -> (() -> e a) { inline "#1" }
+private inline extern unsafe-no-local-cast : forall<a,e> ( action : () -> <local<global>|e> a ) -> (() -> e a) { inline "#1" }
 
 // If local mutation is unobservable, the `:local` effect can be erased by using the `local-scope` function.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
