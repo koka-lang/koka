@@ -63,7 +63,7 @@ fun set-black(t : tree) : tree
 
 fun insert(t : tree, k : int32, v : bool) : tree
   if is-red(t)
-    then set-black(ins(t, k, v))
+    then ins(t, k, v).set-black
     else ins(t, k, v)
 
 
