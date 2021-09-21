@@ -38,6 +38,7 @@ module Common.File(
                   , copyTextFile, copyTextIfNewer, copyTextIfNewerWith, copyTextFileWith
                   , copyBinaryFile, copyBinaryIfNewer
                   , removeFileIfExists
+                  , realPath
                   ) where
 
 import Data.List        ( intersperse )
@@ -420,6 +421,9 @@ getEnvVar name
          Nothing  -> return ""
 
 
+realPath :: FilePath -> IO FilePath
+realPath fpath 
+  = canonicalizePath fpath
 
 {-
 splitPath :: String -> [String]
