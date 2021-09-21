@@ -65,8 +65,8 @@ fun merge(t2, t) {
 fun find-min(t) {
     match(t) {
         E -> raise("Empty")
-        T(E, x, b) = x
-        T(a, x, b) = find-min(a)
+        T(E, x, b) -> x
+        T(a, x, b) -> find-min(a)
     }
 }
 

@@ -10,6 +10,7 @@ import pairing-heaps-tailcall
 import splay-heaps-fbip
 import splay-heaps-okasaki
 import weight-biased-leftist-heaps-okasaki
+import haskell-sort
 
 struct test-config {
     testsize : int
@@ -67,14 +68,16 @@ fun main() {
     val r4 = heapsort-splay-heaps-fbip(test)
     val r5 = heapsort-splay-heaps-okasaki(test)
     val r6 = heapsort-weight-biased-leftist-heaps-okasaki(test)
-    // val r7 = heapsort-binomial-heaps-okasaki(input)
+    val r7 = merge-sort(test)
+    // val r8 = heapsort-binomial-heaps-okasaki(input)
 
     print(eq(r1, r2))
     print(eq(r2, r3))
     print(eq(r3, r4))
     print(eq(r4, r5))
     print(eq(r5, r6))
-    println(eq(r6, r1))
+    print(eq(r6, r7))
+    println(eq(r7, r1))
 
     // Benchmark:
 
@@ -87,20 +90,22 @@ fun main() {
         val input = rand-list(tc)
 
         // print-elapsed(fn() { heapsort-binomial-heaps-okasaki(input)}, "Binomial Heaps: ")
+        print-elapsed(fn() { merge-sort(input)}, "Merge sort: ")
         val r = print-elapsed(fn() { heapsort-weight-biased-leftist-heaps-okasaki(input)}, "Weight Biased Leftist Heaps: ")
         print-elapsed(fn() { heapsort-splay-heaps-fbip(input)}, "Splay Heaps (FBIP): ")
         print-elapsed(fn() { heapsort-splay-heaps-okasaki(input)}, "Splay Heaps: ")
         print-elapsed(fn() { heapsort-leftist-heaps-okasaki(input)}, "Leftist Heaps: ")
-        // print-elapsed(fn() { heapsort-pairing-heaps-okasaki(input)}, "Pairing Heaps: ")
+        print-elapsed(fn() { heapsort-pairing-heaps-okasaki(input)}, "Pairing Heaps: ")
         print-elapsed(fn() { heapsort-pairing-heaps-tailcall(input)}, "Pairing Heaps (tailcall): ")
 
         println("... and sorting the sorted list again:")
+        print-elapsed(fn() { merge-sort(r)}, "Merge sort: ")
         // print-elapsed(fn() { heapsort-binomial-heaps-okasaki(r)}, "Binomial Heaps: ")
         print-elapsed(fn() { heapsort-weight-biased-leftist-heaps-okasaki(r)}, "Weight Biased Leftist Heaps: ")
         print-elapsed(fn() { heapsort-splay-heaps-fbip(r)}, "Splay Heaps (FBIP): ")
-        // print-elapsed(fn() { heapsort-splay-heaps-okasaki(r)}, "Splay Heaps: ")
+        print-elapsed(fn() { heapsort-splay-heaps-okasaki(r)}, "Splay Heaps: ")
         print-elapsed(fn() { heapsort-leftist-heaps-okasaki(r)}, "Leftist Heaps: ")
-        // print-elapsed(fn() { heapsort-pairing-heaps-okasaki(r)}, "Pairing Heaps: ")
+        print-elapsed(fn() { heapsort-pairing-heaps-okasaki(r)}, "Pairing Heaps: ")
         print-elapsed(fn() { heapsort-pairing-heaps-tailcall(r)}, "Pairing Heaps (tailcall): ")
 
         ()

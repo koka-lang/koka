@@ -77,7 +77,7 @@ fun find-min(t) {
   val t' = access-min(t)
   match(t') {
     Leaf -> raise("Empty")
-    Node(Leaf, x, b) = (x, t')
+    Node(Leaf, x, b) -> (x, t')
     _ -> raise("Can't happen")
   }
 }
@@ -86,7 +86,7 @@ fun delete-min(t) {
   val t' = access-min(t)
   match(t') {
     Leaf -> raise("Empty")
-    Node(Leaf, x, b) = b
+    Node(Leaf, x, b) -> b
     _ -> raise("Can't happen")
   }
 }

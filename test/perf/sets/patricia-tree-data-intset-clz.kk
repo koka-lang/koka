@@ -71,7 +71,7 @@ public extern clz32( x : int32 ) : int32 {
   c inline "(int32_t)(kk_bits_clz((uint32_t)(#1)))"
 }
 
-val min32 = min-int32.int32
+val min32 = min-int32
 
 public fun highest-bit(x0 : int32) {
   if(x0 == 0.int32) then 0.int32 else min32.shr(clz32(x0))
