@@ -33,16 +33,15 @@ extern import {
 }
 
 extern import {
+  js file "core/core-integer-inline.js"
+}
+extern import {
   js file "core/core-string-inline.js"
 }
-
 extern import {
   js file "core/core-console-inline.js"
 }
 
-extern import {
-  js file "../../contrib/biginteger.js"
-}
 
 // ----------------------------------------------------------------------------
 // Builtin effects
