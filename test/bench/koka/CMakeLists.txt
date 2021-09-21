@@ -18,14 +18,14 @@ foreach (source IN LISTS sources)
 
   add_custom_command(
     OUTPUT  ${out_path}
-    COMMAND ${koka} --target=c --builddir=${out_dir} --outname=${name} -v -O2 -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> -c "${source}"
+    COMMAND ${koka} --target=c --outputdir=${out_dir} --outname=${name} -v -O2 -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> "${source}"
     DEPENDS ${source}
     VERBATIM)
 
   # --fno-optctail
   add_custom_command(
     OUTPUT  ${outx_path}
-    COMMAND ${koka} --target=c --builddir=${outx_dir} --outname=${namex} -v -O2 --fno-parcreuse --fno-parcspec -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> -c "${source}"
+    COMMAND ${koka} --target=c --outputdir=${outx_dir} --outname=${namex} -v -O2 --fno-parcreuse --fno-parcspec -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> "${source}"
     DEPENDS ${source}
     VERBATIM)
 

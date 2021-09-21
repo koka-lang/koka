@@ -57,7 +57,7 @@ val flag-descs : list<flag<iflags>> = {
 }
 
 fun flag-usage() {
-  flag-descs.usage("usage:\n out/kk/bench [options]\n\noptions:").println
+  flag-descs.usage("usage:\n koka -e bench.kk [options]\n\noptions:").println
   println([
     "\nnotes:",
     "  tests    : " ++ all-test-names.join(", "),
@@ -67,11 +67,11 @@ fun flag-usage() {
 
 public fun process-flags() : <ndet,console> maybe<iflags> {
   val (flags,args,errs) = parse( Iflags(), flag-descs, get-args() )
-  if (flags.help) {
+  if (flags.help) then {
     flag-usage()
     Nothing
   }
-  elif (errs.is-nil && args.is-nil) {
+  elif (errs.is-nil && args.is-nil) then {
     Just(flags)
   }
   else {
@@ -183,7 +183,7 @@ fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen
   })
 
   // emit latex chart
-  if (gen-chart) {
+  if (gen-chart) then {
     val ymax       = 4.0
     val chart-desc = @"16-core AMD 5950X at 3.4Ghz\\Ubuntu 20.04, gcc 9.3.0"
     val chart-elapsed = if (normalize)
@@ -318,7 +318,7 @@ fun run-test( test-name : string, langt : (string,string), iterations : int ) : 
                   else prog.path
   println("\nrun: " ++ prog)
 
-  if (!is-file(progpath)) {
+  if (!is-file(progpath)) then {
     return Test(test-name,lang,err="NA")
   }
 

@@ -14,7 +14,7 @@ module Common.File(
                     getEnvPaths, getEnvVar
                   , searchPaths, searchPathsSuffixes, searchPathsEx
                   , runSystem, runSystemRaw, runCmd
-                  , getInstallDir, getProgramPath
+                  , getProgramPath
 
                   -- * Strings
                   , startsWith, endsWith, splitOn, trim
@@ -321,24 +321,6 @@ removeFileIfExists :: FilePath -> IO ()
 removeFileIfExists fname 
   = B.exCatch (removeFile fname)
               (\exn -> return ())
-
-getInstallDir :: IO FilePath
-getInstallDir
-  = do p <- getProgramPath
-       let d  = dirname p
-           ds = splitPath d
-           result = case reverse ds of
-                      -- stack build
-                      ("bin":_:"install":".stack-work":es)     -> joinPaths (reverse es)
-                      ("bin":_:_:"install":".stack-work":es)   -> joinPaths (reverse es)
-                      ("bin":_:_:_:"install":".stack-work":es) -> joinPaths (reverse es)
-                      -- install
-                      ("bin":es)   -> joinPaths (reverse es)
-                      -- jake build
-                      (_:"out":es) -> joinPaths (reverse es)
-                      _            -> d
-       -- trace ("install-dir: " ++ result ++ ": " ++ show ds) $
-       return result
 
 getProgramPath :: IO FilePath
 getProgramPath = getExecutablePath

@@ -82,7 +82,7 @@ import Type.Infer             ( inferTypes )
 import Type.Pretty hiding     ( verbose )
 import Compiler.Options       ( Flags(..), CC(..), BuildType(..), buildType, ccFlagsBuildFromFlags, unquote,
                                 prettyEnvFromFlags, colorSchemeFromFlags, prettyIncludePath, isValueFromFlags,
-                                buildDir, outName, buildVariant )
+                                fullBuildDir, outName, buildVariant )
 
 import Compiler.Module
 
@@ -619,7 +619,7 @@ resolveModule term flags currentDir modules mimp
                     Just iface -> loadDepend iface root stem
 
       -- core import in source
-      ImpCore cimp | (null (Core.importPackage cimp)) && (currentDir == buildDir flags) ->
+      ImpCore cimp | (null (Core.importPackage cimp)) && (currentDir == fullBuildDir flags) ->
         do mbSource <- liftIO $ searchSource flags "" name
            mbIface  <- liftIO $ searchOutputIface flags name
            -- trace ("source core: found: " ++ show (mbIface,mbSource)) $ return ()
@@ -726,7 +726,7 @@ searchPackageIface flags currentDir mbPackage name
          Nothing
           -> searchPackages (packages flags) currentDir "" postfix
          Just ""
-          -> do let reliface = joinPath {- currentDir -} (buildDir flags) postfix  -- TODO: should be currentDir?
+          -> do let reliface = joinPath {- currentDir -} (fullBuildDir flags) postfix  -- TODO: should be currentDir?
                 exist <- doesFileExist reliface
                 if exist then return (Just reliface)
                  else trace ("no iface at: " ++ reliface) $ return Nothing
@@ -737,7 +737,7 @@ searchPackageIface flags currentDir mbPackage name
 searchOutputIface :: Flags -> Name -> IO (Maybe FilePath)
 searchOutputIface flags name
   = do let postfix = showModName name ++ ifaceExtension -- map (\c -> if c == '.' then '_' else c) (show name)
-           iface = joinPath (buildDir flags) postfix
+           iface = joinPath (fullBuildDir flags) postfix
        exist <- doesFileExist iface
        -- trace ("search output iface: " ++ show name ++ ": " ++ iface ++ " (" ++ (if exist then "found" else "not found" ) ++ ")") $ return ()
        if exist then return (Just iface)
@@ -1046,21 +1046,36 @@ codeGen term flags compileTarget loaded
        let mod1 = (loadedModule loaded){ modTime = ftime }
            loaded1 = loaded{ loadedModule = mod1  }
 
+       -- copy final exe if -o is given
+       case mbRun of
+         Just (out,_)
+           -> do let finalOut = outFinalPath flags
+                 exe <- if (not (null finalOut)) 
+                          then do let targetOut = if (not (null exeExtension) && extname out == exeExtension && extname finalOut /= exeExtension)
+                                                    then finalOut ++ exeExtension
+                                                    else finalOut
+                                  copyBinaryFile out targetOut
+                                  return finalOut
+                          else return out
+                 termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
+                    color (colorSource (colorScheme flags)) (text (normalizeWith pathSep exe))
+         _ -> return ()
+
        -- run the program
        when ((evaluate flags && isExecutable compileTarget)) $
         compilerCatch "program run" term () $
           case mbRun of
-            Just run -> do termPhase term $ "evaluate"
-                           termDoc term $ space
-                           run
-            _        -> termDoc term $ space
+            Just (_,run) -> do termPhase term $ "evaluate"
+                               termDoc term $ space
+                               run
+            _  -> termDoc term $ space
 
        return loaded1 -- { loadedArities = arities, loadedExternals = externals }
   where
     concatMaybe :: [Maybe a] -> [a]
     concatMaybe mbs  = concatMap (maybe [] (\x -> [x])) mbs
 
-    backend :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO()))
+    backend :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (FilePath, IO()))
     backend  = case target flags of
                  CS -> codeGenCS
                  JS -> codeGenJS
@@ -1077,7 +1092,7 @@ codeGenCSDll term flags modules compileTarget outBase core
                                  _ -> (Nothing, False)
            cs  = csharpFromCore (buildType flags) (enableMon flags) mbEntry core
            outcs       = outBase ++ ".cs"
-           searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [buildDir flags] {- : includePath flags -}, not (null dir)] ++ " "
+           searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [fullBuildDir flags] {- : includePath flags -}, not (null dir)] ++ " "
 
        termPhase term $ "generate csharp" ++ maybe "" (\(name,_) -> ": entry: " ++ show name) mbEntry
        writeDoc outcs cs
@@ -1087,7 +1102,7 @@ codeGenCSDll term flags modules compileTarget outBase core
                                     | imp <- Core.coreProgImports core] -- TODO: link to correct package!
                         ++ "-r:System.Numerics.dll " ++ (if isAsync then "-r:" ++ outName flags "std_async.dll " else "")
            targetName = case compileTarget of
-                          Executable _ _ -> dquote ((if null (exeName flags) then outBase else outName flags (exeName flags)) ++ exeExtension)
+                          Executable _ _ -> dquote ((if null (outBaseName flags) then outBase else outName flags (outBaseName flags)) ++ exeExtension)
                           _              -> dquote (outBase ++ dllExtension)
            targetFlags= case compileTarget of
                           Executable _ _ -> "-t:exe -out:" ++ targetName
@@ -1100,7 +1115,7 @@ codeGenCSDll term flags modules compileTarget outBase core
        return (Just (runSystemEcho term flags targetName))
 
 -- Generate C# through CS files without generating dll's
-codeGenCS :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO()))
+codeGenCS :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (FilePath, IO()))
 codeGenCS term flags modules compileTarget outBase core
   = compilerCatch "csharp compilation" term Nothing $
     do let (mbEntry,isAsync) = case compileTarget of
@@ -1108,7 +1123,7 @@ codeGenCS term flags modules compileTarget outBase core
                                  _ -> (Nothing, False)
            cs  = csharpFromCore (buildType flags) (enableMon flags) mbEntry core
            outcs       = outBase ++ ".cs"
-           searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [buildDir flags] {- : includePath flags -}, not (null dir)] ++ " "
+           searchFlags = "" -- concat ["-lib:" ++ dquote dir ++ " " | dir <- [fullBuildDir flags] {- : includePath flags -}, not (null dir)] ++ " "
 
        termPhase term $ "generate csharp" ++ maybe "" (\(name,_) -> ": entry: " ++ show name) mbEntry
        writeDoc outcs cs
@@ -1119,16 +1134,17 @@ codeGenCS term flags modules compileTarget outBase core
          Just entry ->
           do let linkFlags  = "-r:System.Numerics.dll " -- ++ (if isAsync then "-r:" ++ outName flags "std_async.dll ")
                  sources    = concat [dquote (outName flags (showModName (modName mod)) ++ ".cs") ++ " " | mod <- modules]
-                 targetName = dquote ((if null (exeName flags) then outBase else outName flags (exeName flags)) ++ exeExtension)
+                 targetExe  = (if null (outBaseName flags) then outBase else outName flags (outBaseName flags)) ++ exeExtension
+                 targetName = dquote targetExe
                  targetFlags= "-t:exe -out:" ++ targetName ++ " "
                  debugFlags = (if (debug flags) then "-debug -define:DEBUG " else "") ++ (if (optimize flags >= 1) then "-optimize " else "")
              let cmd = (csc flags ++ " " ++ targetFlags ++ debugFlags ++ " -nologo -warn:4 " ++ searchFlags ++ linkFlags ++ sources)
              runSystemEcho term flags cmd
              -- run the program
-             return (Just (runSystemEcho term flags targetName))
+             return (Just (targetExe, runSystemEcho term flags targetName))
 
 
-codeGenJS :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO ()))
+codeGenJS :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (FilePath, IO ()))
 codeGenJS term flags modules compileTarget outBase core
   = do let outjs = outBase ++ ".mjs"
        let mbEntry = case compileTarget of
@@ -1144,7 +1160,7 @@ codeGenJS term flags modules compileTarget outBase core
         Nothing -> return Nothing
         Just (name) ->
          do -- always generate an index.html file
-            let outHtml = outName flags ((if (null (exeName flags)) then "index" else (exeName flags)) ++ ".html")
+            let outHtml = outName flags ((if (null (outBaseName flags)) then "index" else (outBaseName flags)) ++ ".html")
                 contentHtml = text $ unlines $ [
                                 "<!DOCTYPE html>",
                                 "<html>",
@@ -1170,21 +1186,21 @@ codeGenJS term flags modules compileTarget outBase core
 
             -- try to ensure require.js is there
             -- TODO: we should search along the node_modules search path
-            {-mbReq <- searchPackages (packages flags) (buildDir flags) "requirejs" "require.js"
+            {-mbReq <- searchPackages (packages flags) (fullBuildDir flags) "requirejs" "require.js"
             case mbReq of
               Just reqPath -> copyTextIfNewer (rebuild flags) reqPath (outName flags "require.js")
               Nothing      -> trace "could not find requirejs" $ return () -- TODO: warning?
             -}
             case host flags of
               Browser ->
-               do return (Just (runSystemEcho term flags (dquote outHtml ++ " &")))
+               do return (Just (outHtml, runSystemEcho term flags (dquote outHtml ++ " &")))
               _ ->
-               do return (Just (runCommand term flags ["node","--stack-size=100000",outjs]))
+               do return (Just (outjs, runCommand term flags ["node","--stack-size=100000",outjs]))
 
 
 
 
-codeGenC :: FilePath -> Newtypes -> Borrowed -> Int -> Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO ()))
+codeGenC :: FilePath -> Newtypes -> Borrowed -> Int -> Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (FilePath,IO ()))
 codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget outBase core0
  = -- compilerCatch "c compilation" term Nothing $
    do let outC = outBase ++ ".c"
@@ -1221,11 +1237,9 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
        Nothing -> return Nothing
        Just _ ->
          do currentDir <- getCurrentDirectory
-            -- kklibInstallDir = joinPath kklibDir "out/install"
-            -- installKKLib term flags kklibDir kklibInstallDir cmakeGeneratorFlag cmakeConfigTypeFlag buildVariant
-
+            
             let mainModName= showModName (Core.coreProgName core0)
-                mainName   = if null (exeName flags) then mainModName else exeName flags
+                mainName   = if null (outBaseName flags) then mainModName else outBaseName flags
                 mainExe    = outName flags mainName
 
             -- build kklib for the specified build variant
@@ -1255,7 +1269,7 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
                          ]
                          ++ [objs]
                          ++ [ccFlagsLink cc]  -- must be last due to msvc
-                         -- ++ [ccAddLibraryDir cc (buildDir flags)]
+                         -- ++ [ccAddLibraryDir cc (fullBuildDir flags)]
                          ++ map (ccAddLib cc) libpaths  -- libs
                          ++ map (ccAddSysLib cc) syslibs
                          
@@ -1264,10 +1278,12 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
                                color (colorSource (colorScheme flags)) (text mainName))
             runCommand term flags clink
 
-            termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
-                                  color (colorSource (colorScheme flags)) (text (normalizeWith pathSep mainExe))
+            when (not (null (outFinalPath flags))) $
+              termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
+                                    color (colorSource (colorScheme flags)) (text (normalizeWith pathSep mainExe))
             let cmdflags = if (showElapsed flags) then " --kktime" else ""
-            return (Just (runSystemEcho term flags (dquote mainExe ++ cmdflags ++ " " ++ execOpts flags))) -- use shell for proper rss accounting
+            return (Just (mainExe ++ exeExtension, 
+                          runSystemEcho term flags (dquote mainExe ++ cmdflags ++ " " ++ execOpts flags))) -- use shell for proper rss accounting
 
 
 ccompile :: Terminal -> Flags -> CC -> FilePath -> [FilePath] -> IO ()
@@ -1475,7 +1491,7 @@ cmakeLib term flags cc libName {-kklib-} libFile {-libkklib.a-} cmakeGeneratorFl
                                       ++ cmakeGeneratorFlag ++
                                       [ cmakeConfigType
                                       , "-DCMAKE_C_COMPILER=" ++ (basename (ccPath cc))
-                                      , "-DCMAKE_INSTALL_PREFIX=" ++ (buildDir flags)
+                                      , "-DCMAKE_INSTALL_PREFIX=" ++ (fullBuildDir flags)
                                       , "-DKK_COMP_VERSION=" ++ version
                                       , (if (asan flags) then "-DKK_DEBUG_SAN=address" else "")
                                       ]

@@ -187,8 +187,8 @@ fun get-default-postfix() : io string
   ["v" ++ ver, osname, arch].join("-")
 
 
-fun get-build-dir(cc : string, variant : variant, version : string ) : path
-  "out".path / (version ++ "-bundle") / (cc ++ "-" ++ variant.show)
+fun get-output-dir(cc : string, variant : variant, version : string ) : path
+  ".koka".path / (version ++ "-bundle") / (cc ++ "-" ++ variant.show)
 
 
 type variant
@@ -204,13 +204,13 @@ fun show( v : variant ) : string
 
 
 fun copy-libraries( libdir : path, cc : string, variant : variant, version : string ) : io ()
-  val builddir = get-build-dir( cc, variant, version )
-  val vardir = builddir.basename
+  val outputdir = get-output-dir( cc, variant, version )
+  val vardir = outputdir.basename
   val objdir = libdir / vardir
   val kklib  = if get-os-name()=="windows" then "kklib.obj" else "kklib.o"
   ensure-dir(objdir)
-  copy-file-to-dir( builddir / kklib, objdir )
-  val all = list-directory(builddir)
+  copy-file-to-dir( outputdir / kklib, objdir )
+  val all = list-directory(outputdir)
   val files = all.filter fn(f){ !is-directory(f) }
   val objs = files.filter fn(f)
               val ext = f.extname
@@ -228,17 +228,17 @@ fun build-libraries(cc : string, variant : variant, version : string, dist : boo
     Release  -> "-O2 --no-debug"
 
   val prog = if minimal then "util/link-min" else "util/link-std"
-  val builddir = get-build-dir( cc, variant, version )
+  val outputdir = get-output-dir( cc, variant, version )
   val args = "--cc=" ++ cc ++ " " ++ extra
-  val cmd  = [koka-run, "--cc=" ++ cc, "--builddir=" ++ builddir.show, extra, prog].join(" ")
+  val cmd  = [koka-run, "--cc=" ++ cc, "--outputdir=" ++ outputdir.show, extra, prog].join(" ")
   println("> "  ++ cmd)
   val code = run-system( cmd )
   if code != 0 then throw("error: " ++ code.show)
 
   if dist && cc=="clang-cl" then
     // also generate cl binaries on windows
-    val clbuilddir = get-build-dir("cl", variant, version)
-    val clcmd  = [koka-run, "--cc=cl", "--builddir=" ++ clbuilddir.show, extra, prog].join(" ")
+    val cloutputdir = get-output-dir("cl", variant, version)
+    val clcmd  = [koka-run, "--cc=cl", "--outputdir=" ++ cloutputdir.show, extra, prog].join(" ")
     println("> "  ++ clcmd)
     run-system( clcmd )
     ()

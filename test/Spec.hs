@@ -19,7 +19,7 @@ commonFlags = ["-c", "-v0", "--console=raw",
                -- "--cc=clang",
                -- "--checkcore",
                "-ilib", "-itest",
-               "--outtag=test"]
+               "--buildtag=test"]
 
 data Mode = Test | New | Update
   deriving (Eq, Ord, Show)
