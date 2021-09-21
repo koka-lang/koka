@@ -665,10 +665,7 @@ parameters env
 parameter :: Env -> Bool -> LexParser ((Name,Type),ParamInfo)
 parameter env allowBorrow
   = do (name,pinfo) <-  try (do pinfo <- if allowBorrow then paramInfo else return Own
-                                (name,_) <- do wildcard 
-                                               return (nameNil,rangeNull)
-                                            <|> 
-                                               identifier
+                                (name,_) <- paramid
                                 keyword ":" 
                                 return (name,pinfo))
                         <|> return (nameNil,Own)
