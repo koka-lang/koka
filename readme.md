@@ -146,18 +146,18 @@ Use `stack test --fast` to run the test-suite.
 Koka can generate a binary install bundle that can be installed
 on the local machine:
 ```
-$ stack exec koka -- util/bundle
+$ stack exec koka -- -e util/bundle
 ...
 distribution bundle created.
-  bundle : bundle/koka-v2.1.7-linux-x64.tar.gz
+  bundle : bundle/koka-v2.3.1-linux-x64.tar.gz
   cc     : gcc
-  version: v2.1.7
+  version: v2.3.1
 ```
 This takes a while as it pre-compiles the standard libraries in three build
 variants (`debug`, `drelease` (release with debug info), and `release`).
 After generating the bundle, you can install it locally as:
 ```
-$ util/install.sh -b bundle/koka-v2.1.7-linux-x64.tar.gz
+$ util/install.sh -b bundle/koka-v2.3.1-linux-x64.tar.gz
 ```
 (use `util/install.bat` on Windows). 
 After installation, you can now directly invoke `koka`:
@@ -260,6 +260,9 @@ More advanced projects:
 - [ ] Improve C backend code generation to generate nicer output with less "noise" (like temporary variables, or variables for each if condition etc).
 - [ ] Improve C code generation by identifying output that could be better; also in effectful code we generate many join-points (see [9]),
       can we increase the sharing/reduce the extra code.
+- [ ] The compiler always analyses module dependencies and builds any needed dependencies. The current code 
+      (in `src/Compiler/Compile.hs`) is not great and it would be nice to factorize the "make" functionality out 
+      and also allow for parallel builds.
 
 Master/PhD level:
 
@@ -335,7 +338,7 @@ bash:~/koka$ stack --system-ghc --skip-ghc-check exec koka
 
 and pass the `--system-ghc` flag to create an installation bundle as well:
 ```
-bash:~/koka$ stack --system-ghc --skip-ghc-check exec koka -- util/bundle -- --system-ghc
+bash:~/koka$ stack --system-ghc --skip-ghc-check exec koka -- -e util/bundle -- --system-ghc
 ```
 
 ## Building with Cabal 
@@ -377,7 +380,7 @@ We can also run tests as:
 
 or create an installer:
 ```
-~/koka$ cabal new-run koka -- util/bundle
+~/koka$ cabal new-run koka -- -e util/bundle
 ```
 
 ## Building with minbuild
