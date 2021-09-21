@@ -267,7 +267,7 @@ a closure over the rest of the lexical scope.
 
 #### With Finally { #sec-with-finally; }
 
-As another example, the `finally` function takes as it first argument a
+As another example, the `finally` function takes as its first argument a
 function that is run when exiting the scope -- either normally, 
 or through an "exception" (&ie; when an effect operation does not resume).
 Again, `with` is a natural fit:
@@ -517,7 +517,7 @@ fun square6( x : int ) : _e int {
 }
 ```
 
-Hover over `square6` to see the inferred effect for `:_e`
+Hover over `square6` to see the inferred effect for `:_e`.
 
 ### Semantics of effects
 
@@ -569,7 +569,7 @@ fun combine-effects() {
 The effect assigned to `combine-effects` are `:ndet`, `:div`, and `:exn`. We
 can write such combination as a _row_ of effects as `: <div,exn,ndet> `. When
 you hover over the `combine-effects` identifiers, you will see that the type
-inferred is really `: <pure,ndet> ` where `:pure` is a type alias defined as
+inferred is really `: <pure,ndet> ` where `:pure` is a type alias defined as:
 
 ```unchecked
 alias pure = <div,exn>
@@ -608,7 +608,7 @@ action to have exactly the same effect `: <div|e>`, which even includes
 divergence. However, when effects are inferred at the call-site, both the
 effects of predicate and action are extended automatically until they match.
 This ensures we take the union of the effects in the predicate and action.
-Take for example the following loop
+Take for example the following loop:
 
 ```
 fun looptest() {
@@ -732,7 +732,7 @@ compiler proves this by showing that a function is fully polymorphic in the
 heap type `:h` and applies the `run` function (corresponding to ``runST`` in
 Haskell) to discard the `:st<h> ` effect.
 
-The Garsia-Wachs algorithm is nice example where side-effects are used
+The Garsia-Wachs algorithm is a nice example where side-effects are used
 internally across function definitions and data structures, but where the
 final algorithm itself behaves like a pure function, see the
 [``samples/basic/garsia-wachs.kk``][garsia-wachs].
@@ -871,7 +871,7 @@ type list<a> {
 &koka; automatically generates accessor functions for each named parameter. For
 lists for example, we can access the head of a list as `Cons(1,Nil).head`.
 
-We can now also see that `struct` types are just syntactic sugar for regular a
+We can now also see that `struct` types are just syntactic sugar for a regular
 `type` with a single constructor of the same name as the type:
 
 ~ translate
@@ -925,7 +925,7 @@ these types are equivalent but value types can be more efficient as they
 avoid heap allocation and reference counting (or more expensive as they need copying 
 instead of sharing a reference). 
 
-By default, any non-recursive inductive datatype of a size upto 3 machine words (= 24 bytes 
+By default, any non-recursive inductive data type of a size up to 3 machine words (= 24 bytes
 on a 64-bit platform) is treated as a value type. For example, tuples and 3-tuples
 are passed and returned by value. Usually, that means that such tuples are for
 example returned in registers when compiling with optimization.
@@ -941,7 +941,7 @@ value struct argb{ alpha: int; color-red: int; color-green: int; color-blue: int
 #### Boxing
 
 To support generic polymorphism, sometimes value types are _boxed_. For example, a list
-is polymorpic in its elements. That means that if we construct a list of tuples, like
+is polymorphic in its elements. That means that if we construct a list of tuples, like
 `[(1,True)]`, that the element `(1,2)` will be boxed and heap allocated -- essentially 
 the compiler transforms this expression into `[Box((1,True)]` internally.
 
@@ -951,7 +951,7 @@ up to 63 bits (on a 64-bit platform) are boxed in-place and do not require heap 
 only heap allocates doubles when their absolute value is
 outside the range 2^-511^ up to 2^512^ (excluding infinity and NaN)).
 
-For performance sensitive code we may specialize certain polymorphic datatypes to
+For performance sensitive code we may specialize certain polymorphic data types to
 reduce allocations due to boxing. For example:
 
 ```
@@ -976,7 +976,7 @@ define control-flow abstractions and dynamic binding as user defined
 handlers -- no need anymore to add special compiler extensions for
 exceptions, iterators, async-await, probabilistic programming, etc. 
 Moreover, these handlers can be composed freely so the interaction between,
-say, async-await and exceptions as well-defined. 
+say, async-await and exceptions are well-defined.
 
 ### Handling 
 
@@ -1260,7 +1260,7 @@ Or, we can define it as a value operation instead:
 effect val width : int
 ```
 
-This also allows us to refer to the `width` operation as if is a 
+This also allows us to refer to the `width` operation as if it was a
 regular value (even though internally it invokes the operation).
 So, the check for the width in the pretty printer can be written as:
 
@@ -2143,7 +2143,7 @@ type is $\mu x. 1 + x\times int\times x  \,\cong\, \mu x. 1 + x^2\times int$.
 Calculating the derivative $@list (\pdv{x} (1 + x^2\times int) \mid_{x = tree})$
 and by further simplification, 
 we get $\mu x. 1 + (tree\times int\times x) + (tree\times int\times x)$,
-which corresponds exactly to our `:visitor` datatype.)
+which corresponds exactly to our `:visitor` data type.)
 
 We also keep track of which `:direction` in the tree 
 we are going, either `Up` or `Down` the tree.
