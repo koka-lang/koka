@@ -123,7 +123,6 @@ fun bundle( prefixdir : path, cc : string, version : string, dist : bool, post :
   val contribdir = sharedir / "contrib"
   println("copy contrib...")
   ensure-dir(contribdir)
-  copy-file-to-dir("contrib/biginteger.js".path, contribdir)
   copy-directory("support/atom".path, contribdir / "atom")
   copy-directory("support/vscode".path, contribdir / "vscode")  
   copy-directory("support/emacs".path, contribdir / "emacs")  
