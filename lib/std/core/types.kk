@@ -295,27 +295,27 @@ type local :: (H) -> X
 type local-var :: (H,V) -> V
 
 // Allocate a fresh local with an initial value.
-inline extern local-new(value:a) : <local<s>|e> local-var<s,a> {
+inline extern local-new<a,s,e>(value:a) : <local<s>|e> local-var<s,a> {
   c inline "kk_ref_alloc(#1,kk_context())"
   cs inline "new Ref<##1,##2>(#1)"
   js inline "{ value: #1 }"
 }
 
 // Assign a new value to a local variable
-inline extern local-set( ^v: local-var<s,a>, assigned: a) : <local<s>|e> () {
+inline extern local-set<a,s,e>( ^v: local-var<s,a>, assigned: a) : <local<s>|e> () {
   c inline "(kk_ref_set_borrow(#1,#2,kk_context()))"
   cs inline "#1.Set(#2)";
   js inline "((#1).value = #2)"
 }
 
 // Read the value of a local variable.
-inline extern local-get : forall<a,e,s> (v: local-var<s,a>) -> <local<s>|e> a with(hdiv<s,a,e>)  {
+inline extern local-get : forall<a,s,e> (v: local-var<s,a>) -> <local<s>|e> a with(hdiv<s,a,e>)  {
   c inline "(kk_ref_get(#1,kk_context()))"
   cs inline "#1.Value";
   js inline "((#1).value)";
 }
 
-private inline extern unsafe-no-local-cast : forall<a,e> ( action : () -> <local<global>|e> a ) -> (() -> e a) { inline "#1" }
+private inline extern unsafe-no-local-cast : forall<a,e,h> ( action : () -> <local<h>|e> a ) -> (() -> e a) { inline "#1" }
 
 // If local mutation is unobservable, the `:local` effect can be erased by using the `local-scope` function.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
