@@ -66,6 +66,7 @@ To learn more:
 [ghcup]: https://www.haskell.org/ghcup
 [nobrace]: https://koka-lang.github.io/koka/doc/book.html#sec-layout
 [m1arch]: https://cpufun.substack.com/p/setting-up-the-apple-m1-for-native
+[bigint]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt
 
 Enjoy,  
   Daan Leijen
@@ -78,7 +79,7 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 - `v2.3.0`, 2021-09-20: many big changes: new layout rule to [elide braces][nobrace] and no more need to 
   parenthesize `if` and `match` conditions (see the [`samples/basic/rbtree`](samples/basic/rbtree.kk) for 
-  an example of this), updated the JavaScript backend (`--target=js`) to use standard ES6 modules and using the new [`BigInt`][bigint] for arbitraty precision integers, improved runtime layout with support for 128-bit arm CHERI, 
+  an example of this), updated the JavaScript backend (`--target=js`) to use standard ES6 modules and using the new [`BigInt`][bigint] for arbitrary precision integers, improved runtime layout with support for 128-bit arm CHERI, 
   add the `std/num/int64` module and `int64` primitive type, add the [binarytrees](test/bench/koka/binarytrees.kk) 
   benchmark, initial support for parallel tasks (in `std/os/task`), improved simplification and inlining giving
   much improved effect operations, updated isocline for the interactive environment.
