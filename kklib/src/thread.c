@@ -185,12 +185,12 @@ static kk_task_t* kk_task_alloc( kk_function_t fun, kk_promise_t p, kk_context_t
 
 static void kk_task_exec( kk_task_t* task, kk_context_t* ctx ) {
   if (task->fun != NULL) {
-    kk_function_dup(task->fun);      
+    kk_function_dup(task->fun);
     kk_box_t res = kk_function_call(kk_box_t,(kk_function_t,kk_context_t*),task->fun,(task->fun,ctx));
     kk_box_dup(task->promise);
     kk_promise_set( task->promise, res, ctx );
   }
-  kk_task_free(task,ctx);  
+  kk_task_free(task,ctx);
 }
 
 
@@ -216,9 +216,9 @@ static kk_task_t* kk_tasks_dequeue( kk_task_group_t* tg ) {
   kk_task_t* task = tg->tasks;
   if (task != NULL) {
     tg->tasks = task->next;
-    if (tg->tasks == NULL) { 
+    if (tg->tasks == NULL) {
       kk_assert(tg->tasks_tail == task);
-      tg->tasks_tail = NULL; 
+      tg->tasks_tail = NULL;
     }
   }
   kk_assert(task != NULL || tg->done);
@@ -247,7 +247,7 @@ static kk_promise_t kk_task_group_schedule( kk_task_group_t* tg, kk_function_t f
   pthread_mutex_lock(&tg->tasks_lock);
   kk_tasks_enqueue(tg,task,ctx);
   pthread_mutex_unlock(&tg->tasks_lock);
-  pthread_cond_signal(&tg->tasks_available);  
+  pthread_cond_signal(&tg->tasks_available);
   return p;
 }
 
@@ -278,7 +278,7 @@ static void* kk_task_group_worker( void* vtg ) {
 
 
 void kk_task_group_free( kk_task_group_t* tg, kk_context_t* ctx ) {
-  if (tg==NULL) return;  
+  if (tg==NULL) return;
   // set done state
   kk_task_t* task = NULL;
   tg->done = true;
@@ -292,7 +292,7 @@ void kk_task_group_free( kk_task_group_t* tg, kk_context_t* ctx ) {
   while( task != NULL ) {
     kk_task_t* next = task->next;
     kk_task_free(task,ctx);
-    task = next;  
+    task = next;
   }
   // stop threads
   pthread_cond_broadcast(&tg->tasks_available);  // pretend there are tasks to make the threads exit;
@@ -310,7 +310,7 @@ void kk_task_group_free( kk_task_group_t* tg, kk_context_t* ctx ) {
 static kk_task_group_t* kk_task_group_alloc( kk_ssize_t thread_count, kk_context_t* ctx ) {
   const kk_ssize_t cpu_count = kk_cpu_count(ctx);
   if (thread_count <= 0) { thread_count = cpu_count; }
-  if (thread_count > 8*cpu_count) { thread_count = 8*cpu_count; };  
+  if (thread_count > 8*cpu_count) { thread_count = 8*cpu_count; };
   kk_task_group_t* tg = kk_zalloc( kk_ssizeof(kk_task_group_t), ctx );
   if (tg==NULL) return NULL;
   tg->threads = kk_zalloc( (thread_count+1) * sizeof(pthread_t), ctx );
@@ -330,11 +330,11 @@ static kk_task_group_t* kk_task_group_alloc( kk_ssize_t thread_count, kk_context
 err_threads:
   tg->done = true;
   pthread_cond_broadcast(&tg->tasks_available); // makes threads exit
-  
+
 err:
   if (tg != NULL) {
     if (tg->threads != NULL) { kk_free(tg->threads); }
-    kk_free(tg); 
+    kk_free(tg);
   }
   return NULL;
 }
@@ -363,7 +363,7 @@ static void kk_promise_free( void* vp, kk_block_t* b, kk_context_t* ctx ) {
   KK_UNUSED(b);
   promise_t* p = (promise_t*)(vp);
   pthread_cond_destroy(&p->available);
-  pthread_mutex_destroy(&p->lock);  
+  pthread_mutex_destroy(&p->lock);
   kk_box_drop(p->result,ctx);
   kk_free(p);
 }
@@ -405,7 +405,7 @@ static bool kk_promise_available( kk_promise_t pr, kk_context_t* ctx ) {
 }
 */
 
-kk_box_t kk_promise_get( kk_promise_t pr, kk_context_t* ctx ) {  
+kk_box_t kk_promise_get( kk_promise_t pr, kk_context_t* ctx ) {
   promise_t* p = (promise_t*)kk_cptr_raw_unbox(pr);
   pthread_mutex_lock(&p->lock);
   while (kk_box_is_any(p->result)) {
@@ -421,9 +421,9 @@ kk_box_t kk_promise_get( kk_promise_t pr, kk_context_t* ctx ) {
       }
       pthread_mutex_unlock(&tg->tasks_lock);
       // run task
-      if (task != NULL) { 
+      if (task != NULL) {
         kk_task_exec(task, ctx);
-        pthread_mutex_lock(&p->lock);        
+        pthread_mutex_lock(&p->lock);
       }
       else {
         pthread_mutex_lock(&p->lock);
@@ -442,10 +442,10 @@ kk_box_t kk_promise_get( kk_promise_t pr, kk_context_t* ctx ) {
         pthread_mutex_lock(&p->lock);
         if (kk_box_is_any(p->result)) {
           if (pthread_cond_timedwait( &p->available, &p->lock, &tm) == ETIMEDOUT) {
-            pthread_mutex_lock(&p->lock); 
+            pthread_mutex_lock(&p->lock);
           }
         }
-        */        
+        */
       }
     }
     // if in the main thread do a blocking wait
@@ -453,7 +453,7 @@ kk_box_t kk_promise_get( kk_promise_t pr, kk_context_t* ctx ) {
       pthread_cond_wait( &p->available, &p->lock );
     }
   }
-  pthread_mutex_unlock(&p->lock);  
+  pthread_mutex_unlock(&p->lock);
   const kk_box_t result = kk_box_dup( p->result );
   kk_box_drop(pr,ctx);
   return result;
@@ -464,116 +464,122 @@ kk_box_t kk_promise_get( kk_promise_t pr, kk_context_t* ctx ) {
    Lvar
 ---------------------------------------------------------------------------*/
 
-typedef struct lvar_s {
+typedef struct lattice_var_s {
   kk_box_t        result;
   pthread_mutex_t lock;
   pthread_cond_t  available;
-} lvar_t;
+  kk_box_t        lattice_bottom;
+  kk_function_t   lattice_join; // least-upper bound
+  bool            is_frozen;
+_} lattice_var_t;
 
-typedef kk_box_t kk_lvar_t;
+typedef kk_box_t kk_lattice_var_t;
 
-kk_lvar_t kk_lvar_alloc( kk_box_t init, kk_context_t* ctx );
-void      kk_lvar_put( kk_lvar_t lvar, kk_box_t val, kk_function_t monotonic_combine, kk_context_t* ctx );
-kk_box_t  kk_lvar_get( kk_lvar_t lvar, kk_box_t bot, kk_function_t is_gte, kk_context_t* ctx );
+kk_lattice_var_t kk_lvar_alloc( kk_box_t init, kk_context_t* ctx );
+void      kk_lvar_put( kk_lattice_var_t lvar, kk_box_t val, kk_function_t monotonic_combine, kk_context_t* ctx );
+// is_gte is the threshold set as a predicate
+kk_box_t  kk_lvar_get( kk_lattice_var_t lvar, kk_function_t is_gte, kk_context_t* ctx );
 
-
+// frees alloc'ed lvar
 static void kk_lvar_free( void* lvar, kk_block_t* b, kk_context_t* ctx ) {
   KK_UNUSED(b);
-  lvar_t* lv = (lvar_t*)(lvar);
+  lattice_var_t* lv = (lattice_var_t*)(lvar);
   pthread_cond_destroy(&lv->available);
-  pthread_mutex_destroy(&lv->lock);  
+  pthread_mutex_destroy(&lv->lock);
   kk_box_drop(lv->result,ctx);
+  kk_box_drop(lv->lattice_bottom, ctx);
+  kk_function_drop(lv->lattice_join, ctx);
   kk_free(lv);
 }
 
-kk_lvar_t kk_lvar_alloc(kk_box_t init, kk_context_t* ctx) {
-  lvar_t* lv = kk_zalloc(kk_ssizeof(lvar_t),ctx);
+// new lvar
+kk_lattice_var_t kk_lvar_alloc(kk_box_t bottom, kk_function_t join, kk_context_t* ctx) {
+  lattice_var_t* lv = kk_zalloc(kk_ssizeof(lattice_var_t),ctx);
   if (lv == NULL) goto err;
-  lv->result = init;
+  lv->result = bottom;
+  lv->lattice_bottom = bottom;
+  lv->lattice_join = join;
   if (pthread_mutex_init(&lv->lock, NULL) != 0) goto err;
   if (pthread_cond_init(&lv->available, NULL) != 0) goto err;
-  kk_lvar_t lvar = kk_cptr_raw_box( &kk_lvar_free, lv, ctx );
-  kk_box_mark_shared(init,ctx);
+  kk_lattice_var_t lvar = kk_cptr_raw_box( &kk_lvar_free, lv, ctx );
+  kk_box_mark_shared(bottom,ctx);
+  // TODO: are functions not marked?
   kk_box_mark_shared(lvar,ctx);
   return lvar;
 err:
   kk_free(lv);
-  kk_box_drop(init,ctx);
+  kk_box_drop(bottom,ctx);
+  kk_function_drop(join,ctx);
+  kk_box_mark_shared(bottom,ctx);
   return kk_box_any(ctx);
 }
 
+// add value to lvar
+void kk_lvar_put( kk_lattice_var_t lvar, kk_box_t val, kk_context_t* ctx ) {
+  lattice_var_t* lv = (lattice_var_t*)kk_cptr_raw_unbox(lvar);
+  if (lv->is_frozen) goto err;
 
-void kk_lvar_put( kk_lvar_t lvar, kk_box_t val, kk_function_t monotonic_combine, kk_context_t* ctx ) {
-  lvar_t* lv = (lvar_t*)kk_cptr_raw_unbox(lvar);
-  pthread_mutex_lock(&lv->lock);
-  lv->result = kk_function_call(kk_box_t,(kk_function_t,kk_box_t,kk_box_t,kk_context_t*),monotonic_combine,(monotonic_combine,val,lv->result,ctx));
-  kk_box_mark_shared(lv->result,ctx);  // todo: can we mark outside the mutex?
-  pthread_mutex_unlock(&lv->lock);
-  pthread_cond_signal(&lv->available);
+  lv->result = kk_function_call(kk_box_t,(kk_function_t,kk_box_t,kk_box_t,kk_context_t*),lv->lattice_join,(lv->lattice_join,val,lv->result,ctx));
+  kk_box_mark_shared(lv->result,ctx);  // TODO: can we mark outside the mutex?
+  // TODO: should we mark all boxes within lattice_var_s?
+  pthread_cond_broadcast(lv->cond);
+  // TODO: why do we call kk_box_drop?
   kk_box_drop(lvar,ctx);
+  return;
+
+err:
+  kk_box_drop(val,ctx);
+  kk_box_mark_shared(val,ctx);
+  // TODO: do we need to box_drop lvar from context?
 }
 
+void kk_lvar_wait (kk_lattice_var_t lvar, kk_context_t* ctx) {
+  lattice_var_t* lv = (lattice_var_t*)kk_cptr_raw_unbox(lvar);
 
-kk_box_t kk_lvar_get( kk_lvar_t lvar, kk_box_t bot, kk_function_t is_gte, kk_context_t* ctx ) {
-  lvar_t* lv = (lvar_t*)kk_cptr_raw_unbox(lvar);
-  kk_box_t result;
-  pthread_mutex_lock(&lv->lock);
-  while (true) {
-    kk_function_dup(is_gte);
-    kk_box_dup(lv->result);
-    kk_box_dup(bot);
-    int32_t done = kk_function_call(int32_t,(kk_function_t,kk_box_t,kk_box_t,kk_context_t*),is_gte,(is_gte,lv->result,bot,ctx));
-    if (done != 0) {
-      result = kk_box_dup(lv->result);
-      break;
+  if (ctx->task_group != NULL) {
+    // try to get a task
+    kk_task_group_t* tg = ctx->task_group;
+    kk_task_t* task = NULL;
+
+    pthread_mutex_lock(&tg->tasks_lock);
+
+    if (!kk_tasks_is_empty(tg) && !tg->done) {
+      task = kk_tasks_dequeue(tg);
     }
-    // if part of a task group, run other tasks while waiting
-    if (ctx->task_group != NULL) {
-      pthread_mutex_unlock(&lv->lock);
-      // try to get a task
-      kk_task_group_t* tg = ctx->task_group;
-      kk_task_t* task = NULL;
-      pthread_mutex_lock(&tg->tasks_lock);
-      if (!kk_tasks_is_empty(tg) && !tg->done) {
-        task = kk_tasks_dequeue(tg);
-      }
-      pthread_mutex_unlock(&tg->tasks_lock);
-      // run task
-      if (task != NULL) { 
-        kk_task_exec(task, ctx);
-        pthread_mutex_lock(&lv->lock);        
-      }
-      else {
-        pthread_mutex_lock(&lv->lock);
-        if (kk_box_is_any(lv->result)) {
-          pthread_cond_wait( &lv->available, &lv->lock);
-        }
-        /*
-        // no task, block for a while
-        struct timespec tm;
-        clock_gettime(CLOCK_REALTIME, &tm);
-        tm.tv_nsec     +=  100000000;  // 0.1s
-        if (tm.tv_nsec >= 1000000000) {
-          tm.tv_nsec   -= 1000000000;
-          tm.tv_sec += 1;
-        }
-        pthread_mutex_lock(&lv->lock);
-        if (kk_box_is_any(lv->result)) {
-          if (pthread_cond_timedwait( &lv->available, &lv->lock, &tm) == ETIMEDOUT) {
-            pthread_mutex_lock(&lv->lock); 
-          }
-        }
-        */        
-      }
-    }
-    // if in the main thread do a blocking wait
-    else {
-      pthread_cond_wait( &lv->available, &lv->lock );
-    }
+
+    pthread_mutex_unlock(&tg->tasks_lock);
+
+    // run task
+    if (task != NULL) kk_task_exec(task, ctx);
+    pthread_mutex_lock(&lv->lock);
   }
-  pthread_mutex_unlock(&lv->lock);  
-  kk_box_drop(bot,ctx);
-  kk_function_drop(is_gte,ctx);
+  else if (kk_box_is_any(lv->result)) {
+    pthread_mutex_lock(&lv->lock);
+    pthread_cond_wait( &lv->available, &lv->lock);
+  }
+  kk_box_drop(lvar,ctx); // TODO: do we need to box_drop lvar from context?
+}
+
+kk_box_t kk_lvar_get( kk_lattice_var_t lvar, kk_function_t in_threshold_set, kk_context_t* ctx ) {
+  lattice_var_t* lv = (lattice_var_t*)kk_cptr_raw_unbox(lvar);
+  kk_box_t result;
+
+  while (!lv->is_frozen) {
+    kk_box_dup(lvar);
+    kk_lvar_wait(lvar,ctx);
+    result = kk_box_dup(lv->result); // TODO: do we need to dup this?
+    pthread_mutex_unlock(lv->lock);
+    // we have acquired the lock on lv->lock when we come out of kk_lvar_wait
+    // an update (put, freeze) has happened to the lvar
+
+    kk_function_dup(in_threshold_set);
+    kk_box_dup(result);
+    int32_t done = kk_function_call(int32_t,(kk_function_t,kk_box_t,kk_context_t*),in_threshold_set,(in_threshold_set,result,ctx));
+
+    if (done != 0) break;
+  }
+
+  kk_function_drop(in_threshold_set,ctx);
   kk_box_drop(lvar,ctx);
   return result;
 }
