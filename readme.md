@@ -117,8 +117,8 @@ without problems on most common platforms, e.g. Windows (including WSL), macOS, 
 Unix. The following programs are required to build Koka:
 
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler. 
-  It is recommended to use `brew install haskell-stack` on macOS M1 in order to get an [arm64][m1arch] version. 
-  Otherwise use `curl -sSL https://get.haskellstack.org/ | sh` 
+  It is recommended to use `brew install haskell-stack` on macOS M1, 
+  otherwise use `curl -sSL https://get.haskellstack.org/ | sh` 
   on Unix and macOS x64, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
 * Optional: [vcpkg] to be able to link easily with C libraries. Koka can find it automatically if installed to `~/vcpkg`.
 * Optional: [nodejs](http://nodejs.org) if using the Javascript backend.
