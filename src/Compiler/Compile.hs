@@ -890,12 +890,14 @@ inferCheck loaded0 flags line coreImports program
                          else inlinesFilter (\name -> nameId nameCoreHnd /= nameModule name) (loadedInlines loaded)
          in inlineDefs penv (2*(optInlineMax flags)) inlines
        checkCoreDefs "inlined"
+
+       simplifyDupN
        -- traceDefGroups "inlined"
        
        -- specialize 
        specializeDefs <- -- if (isPrimitiveModule (Core.coreProgName coreProgram)) then return [] else 
                          Core.withCoreDefs (\defs -> extractSpecializeDefs defs)
-       -- trace ("Spec defs:\n" ++ show specializeDefs) $ return ()
+       -- traceM ("Spec defs:\n" ++ unlines (map show specializeDefs))
        
        when (optSpecialize flags) $
          specialize (inlinesExtends specializeDefs (loadedInlines loaded))
@@ -1128,7 +1130,7 @@ codeGenCS term flags modules compileTarget outBase core
 
 codeGenJS :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (IO ()))
 codeGenJS term flags modules compileTarget outBase core
-  = do let outjs = outBase ++ ".js"
+  = do let outjs = outBase ++ ".mjs"
        let mbEntry = case compileTarget of
                        Executable name tp -> Just (name,isAsyncFunction tp)
                        _                  -> Nothing
@@ -1148,7 +1150,7 @@ codeGenJS term flags modules compileTarget outBase core
                                 "<html>",
                                 "  <head>",
                                 "    <meta charset=\"utf-8\">",
-                                "    <script data-main='" ++ notdir (basename outjs) ++ "' src=\"node_modules/requirejs/require.js\"></script>",
+                                "    <script type='module' src='./" ++ notdir outjs ++ "'></script>",
                                 "  </head>",
                                 "  <body>",
                                 "  </body>",
@@ -1157,11 +1159,13 @@ codeGenJS term flags modules compileTarget outBase core
             termPhase term ("generate index html: " ++ outHtml)
             writeDoc outHtml contentHtml
             -- copy amdefine
+            {-
             let copyNodeModules fname
                   = let nname = "node_modules/" ++ fname
                     in copyTextIfNewer (rebuild flags) (joinPath (localShareDir flags) nname) (outName flags nname)
             mapM_ copyNodeModules ["amdefine/amdefine.js","amdefine/package.json",
                                    "requirejs/require.js","requirejs/package.json"]
+            -}
 
 
             -- try to ensure require.js is there
@@ -1552,8 +1556,8 @@ copyIFaceToOutputDir term flags iface core
                 copyBinaryIfNewer (rebuild flags) libSrc libOut
         else return ()
        if (JS == target flags)
-        then do let jsSrc = notext iface ++ ".js"
-                let jsOut = notext outIFace ++ ".js"
+        then do let jsSrc = notext iface ++ ".mjs"
+                let jsOut = notext outIFace ++ ".mjs"
                 -- copyTextFileWith  jsSrc jsOut (packagePatch iface (targetPath) imported)
                 copyTextIfNewer (rebuild flags) jsSrc jsOut
         else return ()
@@ -1577,7 +1581,7 @@ copyPkgIFaceToOutputDir term flags iface core targetPath imported
   -- | otherwise
   = do outIFace <- copyIFaceToOutputDir term flags iface core
        if (JS == target flags)
-        then do let outJs = notext outIFace ++ ".js"
+        then do let outJs = notext outIFace ++ ".mjs"
                 content <- readTextFile outJs
                 case content of
                   Nothing -> return ()

@@ -891,13 +891,11 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                         then 4
                        else if (name == nameTpFloat || name == nameTpInt64)
                         then 8
-                       else if (name == nameTpInt16)
-                        then 2
-                       else if (name == nameTpInt8 || name == nameTpByte)
+                       else if (name == nameTpByte)
                         then 1
-                       else if (name == nameTpAny || name == nameTpCField || name == nameTpPtrDiffT)
+                       else if (name == nameTpAny || name == nameTpCField || name == nameTpIntPtrT)
                         then (sizePtr platform)
-                       else if (name == nameTpSizeT || name==nameTpSSizeT)
+                       else if (name==nameTpSSizeT)
                         then (sizeSize platform)
                         else 0
            m <- if (size <= 0)

@@ -72,9 +72,7 @@ fun balance( xs : list1<(tree<a>,int)> ) : div tree<a>
 fun mark( depth : int, t : tree<(a,ref<h,int>)> ) : <write<h>> ()
   match t
     Leaf((_,d)) -> d := depth
-    Node(l,r)   -> 
-      mark(depth+1,l)
-      mark(depth+1,r)
+    Node(l,r)   -> { mark(depth+1,l); mark(depth+1,r) }
 
 
 fun build( depth : int, xs : list1<(a,ref<h,int>)> ) : <read<h>,div> (tree<a>,list<(a,ref<h,int>)>)
@@ -94,7 +92,7 @@ fun test()
 
 
 fun garciawachs( xs : list1<(a,int)> ) : div tree<a>
-  val refs   = xs.map(fst).map( fn(x){ (x, ref(0)) } )
+  val refs   = xs.map( fn((x,_)){ (x, ref(0)) } )
   val wleafs = zip( refs.map(Leaf), xs.map(snd) )
   val tree   = balance(wleafs)
   mark(0,tree)

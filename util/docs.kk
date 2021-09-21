@@ -97,7 +97,7 @@ fun build( publish : bool, version : string, speconly : bool ) : io ()
     ensure-dir(doclocal)
     val htmls = list-directory(outspec).
                 filter(fn(p){ p.extname == "html" && !p.string.ends-with(".xmp.html").bool })
-    htmls.map fn(p){ copy-file-to-dir(p,doclocal) }
+    htmls.map fn(p){ copy-file-to-dir(p,doclocal)
     copy-directory(outstyles,doclocal / "styles")
     copy-directory(outimages,doclocal / "images")
   

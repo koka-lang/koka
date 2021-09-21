@@ -18,10 +18,6 @@ public module std/core/types
 infixr 30  (&&)
 infixr 20  (||)
 
-extern import {
-  js file "types-inline.js"
-}
-
 // ----------------------------------------------------------------------------
 // Core types
 // ----------------------------------------------------------------------------
@@ -42,22 +38,29 @@ type string
 value type double
 
 // A 32-bit signed integer (represented in two's complement).
-// See the [``std/num/int32``](std_num_int32.html) module for operations on 32-bit integers.
+// See the `module std/num/int32` module for operations on 32-bit integers.
 value type int32
 
 // A 64-bit signed integer (represented in two's complement).
-// Currently not supported by the Javascript backend
-// Provides no operations but is used mostly for interaction with external code.
+// See the `module std/num/int64` module for operations on 64-bit integers.
 value type int64
 
-// A signed integer equal to signed `size_t` in C.
+// A signed two's complement integer equal to a signed `size_t` in C, i.e.
+// it can hold the byte size of any object, in particular the maximum possible
+// byte size of a vector or string.
 // Provides no operations but is used mostly for interaction with external code.
 // The Javascript backend uses `int32` for this.
 value type ssize_t
 
-// A 8-bit unsigned integer (represented in two's complement).
+// A signed two's complement integer equal to an `intptr_t` in C, i.e.
+// it has the same bit-size as a native pointer (`void*`).
 // Provides no operations but is used mostly for interaction with external code.
-value type uint8
+// The Javascript backend uses `int64` for this.
+value type intptr_t
+
+// A 8-bit unsigned integer.
+// Provides no operations but is used mostly for interaction with external code.
+value type byte
 
 // A 32-bit IEEE 754 floating point value.
 // Not supported by the Javascript backend
@@ -207,8 +210,11 @@ fun (||)( x : bool, y : bool) : bool { // inlined in the compiler for short-circ
 // inline extern (&&) : (bool,bool) -> bool  { inline "(#1 && #2)" }
 // inline extern (||) : (bool,bool) -> bool  { inline "(#1 || #2)" }
 
-fun (!)( b : bool ) : bool = if (b) then False else True
-fun not( b : bool ) : bool = if (b) then False else True
+fun (!)( b : bool ) : bool 
+  if (b) then False else True
+
+fun not( b : bool ) : bool 
+  if (b) then False else True
 
 //inline extern not  : (bool) -> bool  { inline "!(#1)" }
 //inline extern (!)  : (bool) -> bool  { inline "!(#1)" }
@@ -289,27 +295,27 @@ type local :: (H) -> X
 type local-var :: (H,V) -> V
 
 // Allocate a fresh local with an initial value.
-inline extern local-new(value:a) : <local<s>|e> local-var<s,a> {
+inline extern local-new<a,s,e>(value:a) : <local<s>|e> local-var<s,a> {
   c inline "kk_ref_alloc(#1,kk_context())"
   cs inline "new Ref<##1,##2>(#1)"
   js inline "{ value: #1 }"
 }
 
 // Assign a new value to a local variable
-inline extern local-set( ^v: local-var<s,a>, assigned: a) : <local<s>|e> () {
+inline extern local-set<a,s,e>( ^v: local-var<s,a>, assigned: a) : <local<s>|e> () {
   c inline "(kk_ref_set_borrow(#1,#2,kk_context()))"
   cs inline "#1.Set(#2)";
   js inline "((#1).value = #2)"
 }
 
 // Read the value of a local variable.
-inline extern local-get : forall<a,e,s> (v: local-var<s,a>) -> <local<s>|e> a with(hdiv<s,a,e>)  {
+inline extern local-get : forall<a,s,e> (v: local-var<s,a>) -> <local<s>|e> a with(hdiv<s,a,e>)  {
   c inline "(kk_ref_get(#1,kk_context()))"
   cs inline "#1.Value";
   js inline "((#1).value)";
 }
 
-private inline extern unsafe-no-local-cast : forall<a,e> ( action : () -> <local<global>|e> a ) -> (() -> e a) { inline "#1" }
+private inline extern unsafe-no-local-cast : forall<a,e,h> ( action : () -> <local<h>|e> a ) -> (() -> e a) { inline "#1" }
 
 // If local mutation is unobservable, the `:local` effect can be erased by using the `local-scope` function.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
@@ -383,7 +389,7 @@ value type cfield<a>
 
 // _Internal_. Internal type for _tail recursion module cons_ (TRMC) optimization.
 abstract value type ctail<a> {
-  con CTail( :a, :cfield<a> )
+  con CTail( res : a, hole : cfield<a> )
   con CTailNil
 }
 

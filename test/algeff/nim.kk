@@ -152,7 +152,7 @@ fun testPc1() {
   pc { cheatReport { check{ game(12) } } }  // exn: bob cheats
 }
 
-fun testPc2() {
+noinline fun testPc2() {
   perfect{ cheatReport { check{ pc { game(12) }  } } }  // bob
   // the `perfect` on the outside is necessary as the type system
   // does not detect that `check` will never perform a `move`.
@@ -177,7 +177,7 @@ val allResults = handler {
   control choose() -> resume(True) ++ resume(False)
 }
 
-fun testChoose() {
+public inline fun testChoose() {
   allResults{ bobChooses { game(7) } }  // [bob,alice]
 }
 
@@ -278,7 +278,7 @@ fun main() {
   //,testPrint2().show
   ,""
   ].join("\n-----------\n").print
-  testPc1().show.println // raises exception
+  testPc1().show.println // raises exception  
 }
 
 fun mymap( xs, f ) {

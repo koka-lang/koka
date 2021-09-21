@@ -93,24 +93,24 @@ private inline extern evv-total() : evv<<>> {
 
 public inline extern ".evv-at"<e,h> ( i : ev-index ) : ev<h> {  // pretend total; don't simplify
   c inline "kk_evv_at(#1,kk_context())"
-  js inline "$std_core_hnd._evv[#1]"
+  js inline "$std_core_hnd._evv_at(#1)"
 }
 
 // (dynamically) find evidence insertion/deletion index in the evidence vector
 public extern ".evv-index"<e::E,h>( htag : htag<h> ) : e ev-index {
   c inline "kk_evv_index(#1,kk_context())"
-  js inline "__evv_index($std_core_hnd._evv,#1)"
+  js inline "__evv_index(#1)"
 }
 
 
 public extern ".evv-lookup"( htag : htag<h> ) : ev<h> {
   c inline "kk_evv_lookup(#1,kk_context())"
-  js inline "__evv_lookup($std_core_hnd._evv,#1)"
+  js "__evv_lookup"
 }
 
 public inline extern ".evv-select"( i : ev-index, htag : htag<h> ) : ev<h> {
   c inline "(#1 >= 0 ? kk_evv_at(#1,kk_context()) : kk_evv_lookup(#2,kk_context()))"
-  js inline "(#1 >= 0 ? $std_core_hnd._evv[#1] : __evv_lookup($std_core_hnd._evv,#2))"
+  js inline "(#1 >= 0 ? $std_core_hnd._evv_at(#1) : __evv_lookup(#2))"
 }
 
 private extern evv-show( evv : evv<e> ) : string {
@@ -126,17 +126,17 @@ private extern evv-eq(evv0 : evv<e>, evv1 : evv<e> ) : bool {
 
 private extern evv-get() : e evv<e> {
   c  inline "kk_evv_get(kk_context())"
-  js inline "$std_core_hnd._evv"
+  js "$std_core_hnd._evv_get"
 }
 
 private inline extern evv-set<e1,e>( w : evv<e1> ) : e () {
   c inline "kk_evv_set(#1,kk_context())"
-  js inline "(function(){ $std_core_hnd._evv = (#1); })()"
+  js "$std_core_hnd._evv_set"
 }
 
 private inline extern evv-swap<e1,e2>( w : evv<e1> ) : e evv<e2> {
   c inline "kk_evv_swap(#1,kk_context())"
-  js inline "(function(){ const evv = $std_core_hnd._evv; $std_core_hnd._evv = (#1); return evv; })()"
+  js "$std_core_hnd._evv_swap"
 }
 
 private extern evv-insert( evv : evv<e1>, ev : ev<h> ) : e1 evv<e2> {
@@ -149,17 +149,17 @@ private extern evv-swap-delete( i : ev-index, behind : bool ) : e1 evv<e> {
   js "_evv_swap_delete"
 }
 
-private inline extern evv-swap-create0() : evv<<>> {
+private inline extern evv-swap-create0() : e evv<e> { //not quite the right effect type but avoids unbound effect types
   c inline "kk_evv_swap_create0(kk_context())"
-  js inline "(function(){ const evv = $std_core_hnd._evv; $std_core_hnd._evv = $std_core_hnd._evv_empty; return evv; })()"
+  js "$std_core_hnd._evv_swap_create0"
 }
 
 private inline extern evv-swap-create1( i : ev-index ) : e evv<e> {   //not quite the right effect type but avoids unbound effect types
   c inline "kk_evv_swap_create1(#1,kk_context())"
-  js inline "(function(){ const evv = $std_core_hnd._evv; if (evv.length !== 1) { $std_core_hnd._evv = [evv[#1]]; }; return evv; })()"
+  js "$std_core_hnd._evv_swap_create1"
 }
 
-private extern evv-swap-create( indices : vector<ev-index> ) : e evv<e> {
+private extern evv-swap-create( indices : vector<ev-index> ) : e evv<e> { //not quite the right effect type but avoids unbound effect types
   c inline "kk_evv_swap_create(#1,kk_context())"
   js "_evv_swap_create"
 }
@@ -181,12 +181,12 @@ public extern ".evv-is-affine"() : bool {
 
 public inline extern yielding() : bool {
   c  inline "kk_yielding(kk_context())"
-  js inline "($std_core_hnd._yield !== null)"
+  js inline "$std_core_hnd._yielding()"
 }
 
 public inline extern yielding-non-final() : bool {
   c  inline "kk_yielding_non_final(kk_context())"
-  js inline "($std_core_hnd._yield !== null && !$std_core_hnd._yield.final)"
+  js inline "$std_core_hnd._yielding_non_final()"
 }
 
 public noinline extern yield-extend(next : a -> e b ) : e b {
@@ -476,11 +476,11 @@ private fun initially-prompt( init : (int) -> e (), res : a ) : e a {
 
 abstract struct resume-context<b,e::E,e0::E,r>( k : resume-result<b,r> -> e r )
 
-public noinline fun resume( r : resume-context<b,e,e0,r>, x : b ) : e r {
+public fun resume( r : resume-context<b,e,e0,r>, x : b ) : e r {
   (r.k)(Deep(x))
 }
 
-public noinline fun resume-shallow( r : resume-context<b,e,e0,r>, x : b ) : e0 r {
+public fun resume-shallow( r : resume-context<b,e,e0,r>, x : b ) : e0 r {
   cast-ev1(r.k)(Shallow(x))
 }
 
@@ -535,7 +535,7 @@ private noinline fun under1x( ev : ev<h>, op : a -> e b, x : a ) : e b {
   y
 }
 
-public noinline fun clause-control-raw1( op : (x:a, r: resume-context<b,e,e0,r>) -> e r ) : clause1<a,b,h,e,r> {
+public fun clause-control-raw1( op : (x:a, r: resume-context<b,e,e0,r>) -> e r ) : clause1<a,b,h,e,r> {
   Clause1(fn(m,_ev,x){ yield-to(m, fn(k){ op(x,Resume-context(k)) } ) } )
 }
 
@@ -569,19 +569,19 @@ public fun clause-control1( clause : (x:a, k: b -> e r) -> e r ) : clause1<a,b,e
 }
 */
 
-public noinline fun clause-control1( clause : (x:a, k: b -> e r) -> e r ) : clause1<a,b,h,e,r> {
+public fun clause-control1( clause : (x:a, k: b -> e r) -> e r ) : clause1<a,b,h,e,r> {
   Clause1(fn(m,_ev,x){ yield-to(m, fn(k){ protect(x,clause,k) }) })
 }
 
-public noinline fun clause-tail1<e,r,a,b>(op : a -> e b) : clause1<a,b,h,e,r> {
+public fun clause-tail1<e,r,a,b>(op : a -> e b) : clause1<a,b,h,e,r> {
   Clause1(fn(_m,ev,x){ under1(ev,op,x) })
 }
 
-public noinline fun clause-tail-noyield1<e,r,a,b>(op : a -> e b) : clause1<a,b,h,e,r> {
+public fun clause-tail-noyield1<e,r,a,b>(op : a -> e b) : clause1<a,b,h,e,r> {
   Clause1(fn(_m,_ev,x){ op(x) })
 }
 
-public noinline fun clause-never1( op : a -> e r ) : clause1<a,b,h,e,r> {
+public fun clause-never1( op : a -> e r ) : clause1<a,b,h,e,r> {
   Clause1(fn(m,_ev,x){ yield-to-final(m, fn(_k){ op(x) }) })
 }
 
@@ -592,6 +592,10 @@ public noinline fun clause-never1( op : a -> e r ) : clause1<a,b,h,e,r> {
 abstract type clause0<b,h,e,r> {
   Clause0( clause: (marker<e,r>, ev<h>) -> e b )
 }
+
+
+//private inline extern cast-hnd( h : h<e1,r> ) : e h<e,r> { inline "#1" }
+//private inline extern cast-marker( m : marker<e1,r> ) : e marker<e,r> { inline "#1" }
 
 public inline fun ".perform0"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause0<b,h,e1,r>) ) : e b {
   match(ev) {
@@ -610,7 +614,7 @@ private inline fun under0( ev : ev<i>, op : () -> e b) : e b {
   y
 }
 
-public noinline fun clause-control-raw0( op : resume-context<b,e,e0,r> -> e r ) : clause0<b,h,e,r> {
+public fun clause-control-raw0( op : resume-context<b,e,e0,r> -> e r ) : clause0<b,h,e,r> {
   Clause0(fn(m,_ev){ yield-to(m, fn(k){ op(Resume-context(k)) } ) })
 }
 
@@ -620,24 +624,24 @@ public fun clause-control0( op : (b -> e r) -> e r ) : clause0<b,e,r> {
 }
 */
 
-public noinline fun clause-control0( op : (b -> e r) -> e r ) : clause0<b,h,e,r> {
+public fun clause-control0( op : (b -> e r) -> e r ) : clause0<b,h,e,r> {
   Clause0(fn(m,_ev){ yield-to(m, fn(k){ protect((),fn(_x,r){ op(r) }, k) }) })
 }
 
 
-public noinline fun clause-tail0<e,r,b>(op : () -> e b) : clause0<b,h,e,r> {
+public fun clause-tail0<e,r,b>(op : () -> e b) : clause0<b,h,e,r> {
   Clause0(fn(_m,ev){ under0(ev,op) })
 }
 
-public noinline fun clause-tail-noyield0<e,r,b>(op : () -> e b) : clause0<b,h,e,r> {
+public fun clause-tail-noyield0<e,r,b>(op : () -> e b) : clause0<b,h,e,r> {
   Clause0(fn(_m,_ev){ op() })
 }
 
-public noinline fun clause-value(v : b) : clause0<b,h,e,r> {
+public fun clause-value(v : b) : clause0<b,h,e,r> {
   Clause0(fn(_m,_ev){ v })
 }
 
-public noinline fun clause-never0( op : () -> e r ) : clause0<b,h,e,r> {
+public fun clause-never0( op : () -> e r ) : clause0<b,h,e,r> {
   Clause0(fn(m,_ev){ yield-to-final(m, fn(_k){ op() }) })
 }
 
@@ -668,20 +672,20 @@ private fun protect( x1 : a1, x2:a2, clause : (x:a1,x:a2, k: b -> e r) -> e r, k
   protect-check(resumed,k,res)
 }
 
-public noinline fun clause-control2( clause : (x1:a1, x2:a2, k: b -> e r) -> e r ) : clause2<a1,a2,b,h,e,r> {
+public fun clause-control2( clause : (x1:a1, x2:a2, k: b -> e r) -> e r ) : clause2<a1,a2,b,h,e,r> {
   Clause2(fn(m,_ev,x1,x2){ yield-to(m, fn(k){ protect(x1,x2,clause,k) }) })
 }
 
 
-public noinline fun clause-control-raw2( op : (x1:a1, x2:a2, r: resume-context<b,e,e0,r>) -> e r ) : clause2<a1,a2,b,h,e,r> {
+public fun clause-control-raw2( op : (x1:a1, x2:a2, r: resume-context<b,e,e0,r>) -> e r ) : clause2<a1,a2,b,h,e,r> {
   Clause2(fn(m,_ev,x1,x2){ yield-to(m, fn(k){ op(x1,x2,Resume-context(k)) } ) })
 }
 
-public noinline fun clause-tail2<e,r,a1,a2,b>(op : (a1,a2) -> e b) : clause2<a1,a2,b,h,e,r> {
+public fun clause-tail2<e,r,a1,a2,b>(op : (a1,a2) -> e b) : clause2<a1,a2,b,h,e,r> {
   Clause2(fn(m,ev,x1,x2){ under2(ev,op,x1,x2) })
 }
 
-public noinline fun clause-tail-noyield2<e,r,a1,a2,b>(op : (a1,a2) -> e b) : clause2<a1,a2,b,h,e,r> {
+public fun clause-tail-noyield2<e,r,a1,a2,b>(op : (a1,a2) -> e b) : clause2<a1,a2,b,h,e,r> {
   Clause2(fn(_m,_ev,x1,x2){ op(x1,x2) })
 }
 
@@ -693,7 +697,7 @@ public inline fun ".perform2"( evx : ev<h>, op : (forall<e1,r> h<e1,r> -> clause
   }
 }
 
-public noinline fun clause-never2( op : (a1,a2) -> e r ) : clause2<a1,a2,b,h,e,r> {
+public fun clause-never2( op : (a1,a2) -> e r ) : clause2<a1,a2,b,h,e,r> {
   Clause2(fn(m,_ev,x1,x2){ yield-to-final(m, fn(_k){ op(x1,x2) }) })
 }
 

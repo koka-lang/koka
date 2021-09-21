@@ -32,6 +32,7 @@ public import std/num/decimal
 public import std/num/ddouble
 public import std/num/double
 public import std/num/int32
+public import std/num/int64
 public import std/num/random
 
 public import std/time

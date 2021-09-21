@@ -18,7 +18,7 @@ Visit <https://koka-lang.github.io> for more information.
 * `koka.special`: reserved separators (`{};,` etc).
 * `koka.special.dot`: the dot separator.
 * `koka.number`: numbers.
-* `koka.string`(`.invalid`|`.escape`|`.raw`): strings literals.
+* `koka.string`(`.invalid`|`.escape`|`.raw`): string literals.
 * `koka.char`(`.invalid`|`.escape`): character literals.
 * `koka.type`(`.kind`|`.special`|`.typevar`|`.typecon`): types.
 * `koka.comment`(`.line`|`.block`): comments.
