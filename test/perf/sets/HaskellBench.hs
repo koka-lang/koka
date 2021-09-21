@@ -8,6 +8,7 @@ import Data.Time
 import Data.Time.Clock.System
 import qualified Data.Set as Set
 import qualified Data.IntSet as IntSet
+import qualified ZipSet as ZipSet
 import Control.DeepSeq
 
 data TestConfig = TestConfig
@@ -56,6 +57,19 @@ countSet start end list
       then if Set.member n set then count (n+1) (acc+1) else count (n+1) acc
       else acc
 
+countZipSet :: Int -> Int -> [Int] -> Int
+countZipSet start end list
+  = count start 0
+  where
+    set = fromList ZipSet.empty list
+
+    fromList s [] = s
+    fromList s (x:xs) = fromList (ZipSet.insert x s) xs
+
+    count n !acc = if n <= end
+      then if ZipSet.member n set then count (n+1) (acc+1) else count (n+1) acc
+      else acc
+
 countIntSet :: Int -> Int -> [Int] -> Int
 countIntSet start end list
   = count start 0
@@ -93,4 +107,6 @@ main = do
     putStr "Data.IntSet: "
     printElapsed $ \_ -> countIntSet start end input
     putStr "Data.Set: "
-    printElapsed $ \_ -> countSet start end input)
+    printElapsed $ \_ -> countSet start end input
+    putStr "ZipSet: "
+    printElapsed $ \_ -> countZipSet start end input)

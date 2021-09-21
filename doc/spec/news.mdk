@@ -1,15 +1,21 @@
 ~ begin news
 News:
 
+* 2021-09-05: Koka v2.2.1 released, with initial parallel tasks, the binary-trees benchmark, and
+  [brace elision](https://koka-lang.github.io/koka/doc/book.html#sec-layout).
 * 2021-09-05: The ICFP'21 tutorial
   "_Programming with Effect Handlers and FBIP in Koka_" is now available on 
   [youtube](https://www.youtube.com/watch?v=6OFhD_mHtKA).
 * 2021-08-26: Koka v2.2.0 released, improved simplification (by Rashika B), cross-module specialization (Steven Fontanella), and borrowing annotations with improved reuse analysis (Anton Lorenzen).
-* 2021-08-26: At 12:30 EST was the [Koka Tutorial at
-ICFP'21](https://icfp21.sigplan.org/details/icfp-2021-tutorials/5/Programming-with-Effect-Handlers-and-FBIP-in-Koka).
-* 2021-08-23: "_Generalized Evidence Passing for Effect Handlers_", by Ningning Xie and Daan Leijen presented at ICFP'21. See it on [youtube](https://www.youtube.com/watch?v=yAT0qYlD0UM&list=PLyrlk8Xaylp5ed_Yhg2oTdVhrtVohVaoa&index=40)
-or read the [paper](https://www.microsoft.com/en-us/research/publication/generalized-evidence-passing-for-effect-handlers/).
-* 2021-08-22: "_First-class Named Effect Handlers_", by Youyou Cong, Ningning Xie, and Daan Leijen presented at HOPE'21 [pdf](https://www.microsoft.com/en-us/research/publication/first-class-named-effect-handlers/).
+* 2021-08-26: At 12:30 EST was the live Koka tutorial at
+[ICFP'21](https://icfp21.sigplan.org/details/icfp-2021-tutorials/5/Programming-with-Effect-Handlers-and-FBIP-in-Koka),
+see it on [youtube](https://www.youtube.com/watch?v=6OFhD_mHtKA).
+* 2021-08-23: "_Generalized Evidence Passing for Effect Handlers_", by Ningning Xie and Daan Leijen presented at ICFP'21.
+  See it on [youtube](https://www.youtube.com/watch?v=yAT0qYlD0UM&list=PLyrlk8Xaylp5ed_Yhg2oTdVhrtVohVaoa&index=40)
+  or read the [paper](https://www.microsoft.com/en-us/research/publication/generalized-evidence-passing-for-effect-handlers/).
+* 2021-08-22: "_First-class Named Effect Handlers_", by Youyou Cong, Ningning Xie, and Daan Leijen presented at HOPE'21.
+  See it on [youtube](https://www.youtube.com/watch?v=3HsI4__8RQM&list=PLyrlk8Xaylp6Q52MwsRZBUSIRL3wOk_k1&index=4)
+  or read the [paper](https://www.microsoft.com/en-us/research/publication/first-class-named-effect-handlers/).
 * 2021-06-23: Koka v2.1.9 released, initial cross-module specialization (by Steven Fontanella).
 * 2021-06-17: Koka v2.1.8 released, initial Apple M1 support.
 * The [Perceus] paper won a distinguished paper award at PLDI'21!

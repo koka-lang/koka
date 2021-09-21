@@ -26,7 +26,7 @@ import Common.Range
 import Common.Unique
 import Common.NamePrim( nameEffectOpen, nameYieldOp, nameReturn, nameTpCont, nameDeref, nameByref,
                         nameTrue, nameFalse, nameTpBool, nameApplyK, nameUnsafeTotal, nameIsValidK,
-                        nameBind, nameLift, nameTpYld, nameSystemCore )
+                        nameBind, nameLift, nameTpYld, nameSystemCore, namePerform )
 import Common.Error
 import Common.Syntax
 
@@ -91,16 +91,20 @@ monExpr expr
 monExpr' :: Bool -> Expr -> Mon (TransX Expr Expr)
 monExpr' topLevel expr
   = case expr of
+      -- optimized open binding
+      -- note: we cannot just check for `isMonEffect effFrom` as the effFrom
+      -- might be total but inside we may still need a monadic translation if `f`
+      -- contains handlers itself for example.
       App (App eopen@(TypeApp (Var open _) [effFrom,effTo,_,_]) [f]) args
-          | getName open == nameEffectOpen && not (isMonEffect effFrom)
+          | getName open == nameEffectOpen && not (isMonExpr f) -- not (isMonEffect effFrom)
           -> do args' <- mapM monExpr args
                 return $ \k -> applies args' (\argss -> k (App (App eopen [f]) argss))
 
       App (TypeApp (App eopen@(TypeApp (Var open _) [effFrom,effTo,_,_]) [f]) targs) args
-          | getName open == nameEffectOpen && not (isMonEffect effFrom)
+          | getName open == nameEffectOpen && not (isMonExpr f) -- not (isMonEffect effFrom)
           -> do args' <- mapM monExpr args
                 return $ \k -> applies args' (\argss -> k (App (TypeApp (App eopen [f]) targs) argss))
-
+      
       --  lift _open_ applications
       App eopen@(TypeApp (Var open _) [effFrom,effTo,_,_]) [f]
         | getName open == nameEffectOpen
@@ -293,6 +297,7 @@ isAlwaysMon expr
       TypeApp e _ -> isAlwaysMon e
       Var v _     -> -- getName v == nameYieldOp ||
                      getName v == nameUnsafeTotal -- TODO: remove these special cases?
+                     -- getName v == namePerform 0
       _ -> False
 
 -- Some expressions never need mon translation

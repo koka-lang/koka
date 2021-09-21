@@ -381,7 +381,7 @@
       },
 
     "decl_function":
-      { "match": "((?:inline|noinline)?\\s*(?:fun|fn|except|rcontrol|control))\\s+([\\.a-z][\\w\\-]*[\\'\\?]*(?:\\.\\d+)?|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+(?:\\.\\d+)?\\)|\\[\\])"
+      { "match": "((?:inline|noinline)?\\s*(?:fun|fn|except|rcontrol|control))\\s+([\\.a-z][\\w\\-]*[\\'\\?]*(?:\\.\\d+)?|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+(?:\\.\\d+)?\\)|\\[\\]|\\\"[^\\s\\\"]+\\\")"
       , "captures": {
           "1": { "name": "keyword.declaration.function koka.keyword.fun" },
           "2": { "name": "entity.name.function koka.id.decl.function" }
@@ -399,7 +399,7 @@
       },
 
     "decl_external":
-      { "match": "((?:inline|noinline)?\\s*extern)\\s+([\\.a-z][\\w\\-]*[\\'\\?]*(?:\\.\\d+)?|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+(?:\\.\\d+)?\\)|\\[\\])?"
+      { "match": "((?:inline|noinline)?\\s*extern)\\s+([\\.a-z][\\w\\-]*[\\'\\?]*(?:\\.\\d+)?|\\([$%&\\*\\+@!/\\\\\\^~=\\.:\\-\\?\\|<>]+(?:\\.\\d+)?\\)|\\[\\]|\\\"[^\\s\\\"]+\\\")?"
       , "captures": {
           "1": { "name": "keyword.declaration.function koka.keyword.extern" },
           "2": { "name": "entity.name.function koka.id.decl.function" }

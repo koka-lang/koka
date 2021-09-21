@@ -156,7 +156,7 @@ static void kklib_init(void) {
   // for Koka, we need to be fully deterministic and careful when using C functionality that depends on global variables
   setlocale(LC_ALL, "C.utf8"); 
 #if defined(WIN32) && (defined(_CONSOLE) || defined(__MINGW32__))
-  SetConsoleOutputCP(65001);   // set the console to unicode instead of OEM page
+  SetConsoleOutputCP(65001);   // set the console to utf-8 instead of OEM page
 #endif
   //todo: do we need to set the IEEE floating point flags?
   //fexcept_t fexn;
@@ -183,7 +183,7 @@ static kk_decl_thread kk_context_t* context;
 
 
 static struct { kk_block_t _block; kk_integer_t cfc; } kk_evv_empty_static = {
-  { KK_HEADER_STATIC(1,KK_TAG_EVV_VECTOR) }, { (KIP(-1)^0x02) /*==-1 smallint*/}
+  { KK_HEADER_STATIC(1,KK_TAG_EVV_VECTOR) }, { ((~KUP(0))^0x02) /*==-1 smallint*/}
 };
 kk_ptr_t kk_evv_empty_singleton = &kk_evv_empty_static._block;
 

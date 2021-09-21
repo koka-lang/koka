@@ -205,7 +205,7 @@ flagsNull
           []       -- clink args
           []       -- clink sys libs
           []       -- clink full lib paths
-          (ccGcc "gcc" "gcc")
+          (ccGcc "gcc" 0 "gcc")
           (if onWindows then []        -- ccomp library dirs
                         else ["/usr/local/lib;/usr/lib;/lib"])
           
@@ -283,7 +283,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , numOption 1 "n" ['v'] ["verbose"] (\i f -> f{verbose=i})         "verbosity 'n' (0=quiet, 1=default, 2=trace)"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
- , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (0=default, 2=full)"
+ , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (0=default, 1=space, 2=full, 3=aggressive)"
  , flag   ['g'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)"
  , emptyline
 
@@ -790,13 +790,14 @@ ccFlagsBuildFromFlags cc flags
 gnuWarn = words "-Wall -Wextra -Wno-unknown-pragmas -Wno-unused-parameter -Wno-unused-variable -Wno-unused-value" ++
           words "-Wno-missing-field-initializers -Wpointer-arith -Wshadow -Wstrict-aliasing"
 
-ccGcc,ccMsvc :: String -> FilePath -> CC
-ccGcc name path
+ccGcc,ccMsvc :: String -> Int -> FilePath -> CC
+ccGcc name opt path
   = CC name path []
         [(DebugFull,     words "-g -O0 -fno-omit-frame-pointer"),
          (Debug,         words "-g -O1"),
-         (Release,       words "-O2 -DNDEBUG"),
-         (RelWithDebInfo,words "-O2 -g -DNDEBUG")]
+         (RelWithDebInfo,[if (opt == 1) then "-Os" else "-O2", "-g", "-DNDEBUG"]),
+         (Release,       [if (opt > 2) then "-O3" else "-O2", "-DNDEBUG"])
+        ]
         (gnuWarn ++ ["-Wno-unused-but-set-variable"])
         (["-c"]) -- ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
         []
@@ -810,15 +811,15 @@ ccGcc name path
         (\lib -> libPrefix ++ lib ++ libExtension)
         (\obj -> obj ++ objExtension)
 
-ccMsvc name path
+ccMsvc name opt path
   = CC name path ["-DWIN32","-nologo"] 
          [(DebugFull,words "-MDd -Zi -Od -RTC1"),
           (Debug,words "-MDd -Zi -O1"),
           (Release,words "-MD -O2 -Ob2 -DNDEBUG"),
           (RelWithDebInfo,words "-MD -Zi -O2 -Ob2 -DNDEBUG")]
          ["-W3"]
-         ["-TC","-c"]
-         ["-link"] -- , "/NODEFAULTLIB:msvcrt"]
+         ["-EHs","-TP","-c"]   -- always compile as C++ on msvc (for atomics etc.)
+         ["-link"]             -- , "/NODEFAULTLIB:msvcrt"]
          (\libdir -> ["/LIBPATH:" ++ libdir])
          (\idir -> ["-I",idir])
          (\fname -> ["-Fo" ++ ((notext fname) ++ objExtension)])
@@ -834,12 +835,12 @@ ccFromPath :: Flags -> FilePath -> IO (CC,Bool {-asan-})
 ccFromPath flags path
   = let name    = -- reverse $ dropWhile (not . isAlpha) $ reverse $
                   basename path
-        gcc     = ccGcc name path
+        gcc     = ccGcc name (optimize flags) path
         mingw   = gcc{ ccName = "mingw", ccLibFile = \lib -> "lib" ++ lib ++ ".a" }
         clang   = gcc{ ccFlagsWarn = gnuWarn ++ 
                                      words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align" }
         generic = gcc{ ccFlagsWarn = [] }
-        msvc    = ccMsvc name path
+        msvc    = ccMsvc name (optimize flags) path
         clangcl = msvc{ ccFlagsWarn = ["-Wno-everything"] ++ ccFlagsWarn clang ++ 
                                       words "-Wno-extra-semi-stmt -Wno-extra-semi -Wno-float-equal",
                         ccFlagsLink = words "-Wno-unused-command-line-argument" ++ ccFlagsLink msvc,
@@ -849,7 +850,7 @@ ccFromPath flags path
         cc0     | (name `startsWith` "clang-cl") = clangcl
                 | (name `startsWith` "mingw") = mingw
                 | (name `startsWith` "clang") = clang
-                | (name `startsWith` "gcc")   = if onWindows then mingw else gcc
+                | (name `startsWith` "gcc" || name `startsWith` "g++")   = if onWindows then mingw else gcc
                 | (name `startsWith` "cl")    = msvc
                 | (name `startsWith` "icc")   = gcc
                 | (name == "cc") = generic
@@ -859,7 +860,7 @@ ccFromPath flags path
                 , ccFlagsLink    = ccFlagsLink cc0 ++ ccompLinkArgs flags }
 
     in if (asan flags)
-         then if (not (ccName cc `startsWith` "clang" || ccName cc `startsWith` "gcc"))
+         then if (not (ccName cc `startsWith` "clang" || ccName cc `startsWith` "gcc" || ccName cc `startsWith` "g++"))
                 then do putStrLn "warning: can only use address sanitizer with clang or gcc (--fasan is ignored)"
                         return (cc,False)
                 -- asan on Apple Silicon can't find leaks and throws an error

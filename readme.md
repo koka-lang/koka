@@ -10,7 +10,7 @@
 # Koka: a Functional Language with Effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
-_Latest release_: v2.2.1, 2021-09-05 ([Install]).
+_Latest release_: v2.3.0, 2021-09-20 ([Install]).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -64,6 +64,9 @@ To learn more:
 [winclang]: https://llvm.org/builds
 [vcpkg]: https://github.com/microsoft/vcpkg#getting-started
 [ghcup]: https://www.haskell.org/ghcup
+[nobrace]: https://koka-lang.github.io/koka/doc/book.html#sec-layout
+[m1arch]: https://cpufun.substack.com/p/setting-up-the-apple-m1-for-native
+[bigint]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt
 
 Enjoy,  
   Daan Leijen
@@ -74,9 +77,12 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 ## Recent Releases
 
-- `v2.2.1`, 2021-09-05: improved optimization, initial parallel tasks, binary-trees benchmark, new 
-   [brace elision](https://koka-lang.github.io/koka/doc/book.html#sec-layout), 
-   still slightly slower effect handling, upgrade isocline, fix minor bugs.
+- `v2.3.0`, 2021-09-20: many big changes: new layout rule to [elide braces][nobrace] and no more need to 
+  parenthesize `if` and `match` conditions (see the [`samples/basic/rbtree`](samples/basic/rbtree.kk) for 
+  an example of this), updated the JavaScript backend (`--target=js`) to use standard ES6 modules and using the new [`BigInt`][bigint] for arbitrary precision integers, improved runtime layout with support for 128-bit arm CHERI, 
+  add the `std/num/int64` module and `int64` primitive type, add the [binarytrees](test/bench/koka/binarytrees.kk) 
+  benchmark, initial support for parallel tasks (in `std/os/task`), improved simplification and inlining giving
+  much improved effect operations, updated isocline for the interactive environment.
 - `v2.2.0`, 2021-08-26: improved case-of-known simpification (by Rashika B), improve cross-module specialization
   (by Steven Fontanella), initial borrowing annotations and improved reuse analysis (by Anton Lorenzen),
   improved line editing in the interactive environment, improved inlining. Note: due to the new inline phases,
@@ -110,8 +116,10 @@ Koka has few dependencies and should build from source
 without problems on most common platforms, e.g. Windows (including WSL), macOS, and
 Unix. The following programs are required to build Koka:
 
-* [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
-  Use `curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
+* [Stack](https://docs.haskellstack.org/) to run the Haskell compiler. 
+  It is recommended to use `brew install haskell-stack` on macOS M1, 
+  otherwise use `curl -sSL https://get.haskellstack.org/ | sh` 
+  on Unix and macOS x64, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
 * Optional: [vcpkg] to be able to link easily with C libraries. Koka can find it automatically if installed to `~/vcpkg`.
 * Optional: [nodejs](http://nodejs.org) if using the Javascript backend.
 * Optional: On Windows it is recommended to install the [clang][winclang] C compiler, or the [Visual Studio](https://visualstudio.microsoft.com/downloads/) C compiler.
@@ -275,11 +283,23 @@ The main development branches are:
 
 ## Building on macOS M1
 
-Currently (Jun 2021) `stack` is not always working well on the M1.
+Currently (Sep 2021) `stack` is not always working well on the M1.
 You need to install `ghc` via `brew`:
 ```
 $ brew install pkg-config ghc cabal-install haskell-stack
 ```
+
+Note it is important to have `stack` and `ghc` as an arm64 build since otherwise Koka will
+be build for x64 and as a result compile to x64 as well! Test this as:
+
+```
+$ file `which stack`
+/opt/homebrew/bin/stack: Mach-O 64-bit executable arm64
+```
+
+If this is not the case, you can still build an x64 Koka but need to add the options
+`--ccopts="-arch arm64" --cclinkopts="-arch arm64"` to cross compile to arm64 executables 
+(since the `clang` compiler targets by default the architecture that its [host process uses][m1arch]!).
 
 Moreover, sometimes `stack` segfaults and running it inside `bash` seems to resolve the issue:
 ```
@@ -287,7 +307,8 @@ $ bash
 bash$ stack update
 ```
 
-Also, we need to tell stack to use the system installed ghc and skip the version check:
+Also, we need to tell stack to use the system installed ghc and skip the version check as
+it can currently not install GHC for arm64 yet:
 ```
 bash:~$ git clone --recursive https://github.com/koka-lang/koka
 bash:~$ cd koka

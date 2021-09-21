@@ -38,7 +38,7 @@ static DWORD WINAPI kk_thread_proc(LPVOID varg) {
 static int pthread_create(pthread_t* thread, void* attr, void* (*action)(void*), void* arg) {
   KK_UNUSED(attr);
   kk_context_t* ctx = kk_get_context();
-  kk_thread_proc_arg_t* parg = kk_zalloc(kk_ssizeof(kk_thread_proc_arg_t), ctx);
+  kk_thread_proc_arg_t* parg = (kk_thread_proc_arg_t*)kk_zalloc(kk_ssizeof(kk_thread_proc_arg_t), ctx);
   parg->action = action;
   parg->arg = arg;
   DWORD tid = 0;
@@ -171,7 +171,7 @@ static void kk_task_free( kk_task_t* task, kk_context_t* ctx ) {
 }
 
 static kk_task_t* kk_task_alloc( kk_function_t fun, kk_promise_t p, kk_context_t* ctx ) {
-  kk_task_t* task = kk_zalloc(kk_ssizeof(kk_task_t), ctx);
+  kk_task_t* task = (kk_task_t*)kk_zalloc(kk_ssizeof(kk_task_t), ctx);
   if (task == NULL) {
     kk_function_drop(fun,ctx);
     kk_box_drop(p,ctx);
@@ -311,9 +311,9 @@ static kk_task_group_t* kk_task_group_alloc( kk_ssize_t thread_count, kk_context
   const kk_ssize_t cpu_count = kk_cpu_count(ctx);
   if (thread_count <= 0) { thread_count = cpu_count; }
   if (thread_count > 8*cpu_count) { thread_count = 8*cpu_count; };  
-  kk_task_group_t* tg = kk_zalloc( kk_ssizeof(kk_task_group_t), ctx );
+  kk_task_group_t* tg = (kk_task_group_t*)kk_zalloc( kk_ssizeof(kk_task_group_t), ctx );
   if (tg==NULL) return NULL;
-  tg->threads = kk_zalloc( (thread_count+1) * sizeof(pthread_t), ctx );
+  tg->threads = (pthread_t*)kk_zalloc( (thread_count+1) * sizeof(pthread_t), ctx );
   if (tg->threads == NULL) goto err;
   tg->thread_count = thread_count;
   tg->tasks = NULL;
@@ -369,7 +369,7 @@ static void kk_promise_free( void* vp, kk_block_t* b, kk_context_t* ctx ) {
 }
 
 static kk_promise_t kk_promise_alloc(kk_context_t* ctx) {
-  promise_t* p = kk_zalloc(kk_ssizeof(promise_t),ctx);
+  promise_t* p = (promise_t*)kk_zalloc(kk_ssizeof(promise_t),ctx);
   if (p == NULL) goto err;
   p->result = kk_box_any(ctx);
   if (pthread_mutex_init(&p->lock, NULL) != 0) goto err;
@@ -487,7 +487,7 @@ static void kk_lvar_free( void* lvar, kk_block_t* b, kk_context_t* ctx ) {
 }
 
 kk_lvar_t kk_lvar_alloc(kk_box_t init, kk_context_t* ctx) {
-  lvar_t* lv = kk_zalloc(kk_ssizeof(lvar_t),ctx);
+  lvar_t* lv = (lvar_t*)kk_zalloc(kk_ssizeof(lvar_t),ctx);
   if (lv == NULL) goto err;
   lv->result = init;
   if (pthread_mutex_init(&lv->lock, NULL) != 0) goto err;
