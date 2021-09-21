@@ -1,6 +1,10 @@
 ~ begin news
 News:
 
+* 2021-09-20: Koka v2.3.0 released, with new 
+  [brace elision](https://koka-lang.github.io/koka/doc/book.html#sec-layout) and if/match
+  conditions without parenthesis, updated javascript backend
+  using ES6 modules and BigInt, new `std/num/int64`, improved effect operation performance.
 * 2021-09-05: Koka v2.2.1 released, with initial parallel tasks, the binary-trees benchmark, and
   [brace elision](https://koka-lang.github.io/koka/doc/book.html#sec-layout).
 * 2021-09-05: The ICFP'21 tutorial

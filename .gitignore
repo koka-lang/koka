@@ -18,6 +18,5 @@ test.kk
 *.exe
 *.vsix
 /*.cmake
-.vscode/
-test/bench
 bench
+test/bench
