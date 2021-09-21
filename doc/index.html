@@ -806,10 +806,11 @@
     vertical-align: -0.1ex;
   }
   .news-items {
-  	height: 7em;
+  	height: 14em;
   	overflow-y: auto;
   	padding-top: 1ex;
-    margin-top: -1em;  
+    margin-top: -1em;
+    padding-right: 1ex;  
   }
   .advanced h3, .advanced h4 {
     margin-top: 0em;
@@ -1051,7 +1052,7 @@
 </p>
 <div class="heading-title">
 <p class="p noindent"><span style="font-size:200%;font-weight:bold;display:inline-block;padding-top:0.45em">Koka</span><br>
-<span style="font-size:140%;display:inline-block;margin:-0.5ex 0ex 0.5ex 0ex">A Functional Language with Effect Types and Handlers</span></p></div>
+<span style="font-size:140%;display:inline-block;margin:-0.5ex 0ex 1ex 0ex">A Functional Language with Effect Types and Handlers</span></p></div>
 <div class="heading-side"><pre class="koka source"><span class="plaincode">// A generator effect with one operation
 effect yield&lt;a&gt;
   fun yield( x : a ) : ()
@@ -1101,6 +1102,11 @@ libraries, package management, and deep IDE integration.
 <p class="p noindent">News:
 </p>
 <ul class="ul list-star news-items compact">
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-09-20: Koka v2.3.0 released, with new 
+<a href="https://koka-lang.github.io/koka/doc/book.html#sec-layout">brace elision</a> and if/match
+conditions without parenthesis, updated javascript backend
+using ES6 modules and BigInt, new <code class="code code1 language-koka lang-koka koka colorized"><span style="color:navy">std/num/</span>int64</code>, improved effect operation performance.
+</li>
 <li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-09-05: Koka v2.2.1 released, with initial parallel tasks, the binary-trees benchmark, and
 <a href="https://koka-lang.github.io/koka/doc/book.html#sec-layout">brace elision</a>.
 </li>
@@ -1110,13 +1116,17 @@ libraries, package management, and deep IDE integration.
 </li>
 <li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-08-26: Koka v2.2.0 released, improved simplification (by Rashika B), cross-module specialization (Steven Fontanella), and borrowing annotations with improved reuse analysis (Anton Lorenzen).
 </li>
-<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-08-26: At 12:30 EST was the&nbsp;<a href="https://icfp21.sigplan.org/details/icfp-2021-tutorials/5/Programming-with-Effect-Handlers-and-FBIP-in-Koka">Koka Tutorial at
-ICFP&#39;21</a>.
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-08-26: At 12:30 EST was the live Koka tutorial at
+<a href="https://icfp21.sigplan.org/details/icfp-2021-tutorials/5/Programming-with-Effect-Handlers-and-FBIP-in-Koka">ICFP&#39;21</a>,
+see it on&nbsp;<a href="https://www.youtube.com/watch?v=6OFhD_mHtKA">youtube</a>.
 </li>
-<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-08-23: &#8220;<em class="em-low1">Generalized Evidence Passing for Effect Handlers</em>&#8221;, by Ningning Xie and Daan Leijen presented at ICFP&#39;21. See it on&nbsp;<a href="https://www.youtube.com/watch?v=yAT0qYlD0UM&amp;list=PLyrlk8Xaylp5ed_Yhg2oTdVhrtVohVaoa&amp;index=40">youtube</a>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-08-23: &#8220;<em class="em-low1">Generalized Evidence Passing for Effect Handlers</em>&#8221;, by Ningning Xie and Daan Leijen presented at ICFP&#39;21.
+See it on&nbsp;<a href="https://www.youtube.com/watch?v=yAT0qYlD0UM&amp;list=PLyrlk8Xaylp5ed_Yhg2oTdVhrtVohVaoa&amp;index=40">youtube</a>
 or read the&nbsp;<a href="https://www.microsoft.com/en-us/research/publication/generalized-evidence-passing-for-effect-handlers/">paper</a>.
 </li>
-<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-08-22: &#8220;<em class="em-low1">First-class Named Effect Handlers</em>&#8221;, by Youyou Cong, Ningning Xie, and Daan Leijen presented at HOPE&#39;21&nbsp;<a href="https://www.microsoft.com/en-us/research/publication/first-class-named-effect-handlers/">pdf</a>.
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-08-22: &#8220;<em class="em-low1">First-class Named Effect Handlers</em>&#8221;, by Youyou Cong, Ningning Xie, and Daan Leijen presented at HOPE&#39;21.
+See it on&nbsp;<a href="https://www.youtube.com/watch?v=3HsI4__8RQM&amp;list=PLyrlk8Xaylp6Q52MwsRZBUSIRL3wOk_k1&amp;index=4">youtube</a>
+or read the&nbsp;<a href="https://www.microsoft.com/en-us/research/publication/first-class-named-effect-handlers/">paper</a>.
 </li>
 <li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-06-23: Koka v2.1.9 released, initial cross-module specialization (by Steven Fontanella).
 </li>
