@@ -196,10 +196,9 @@ prettyDefFunType env pinfos tp
     in pre <.> parens (commaSep (map ppParam params)) <+> text "->" <+> post
   where
     ppParam (name,pinfo,tpDoc)  
-      = (case pinfo of Borrow -> text "^ "
-                       _      -> empty) <.>
-        (if nameNil == name then empty else ppName env name <+> text ": ") <.>
-        tpDoc
+      = (case pinfo of Borrow -> text "^" <.> (if nameNil == name then text "_" else ppName env name) <+> text ": "
+                       _      -> if nameNil == name then empty else ppName env name <+> text ": ") 
+        <.> tpDoc
 
 ppDeclType :: Env -> [ParamInfo] -> Scheme -> (Maybe [(Name,ParamInfo,Doc)],Doc,Doc)
 ppDeclType env pinfos tp
