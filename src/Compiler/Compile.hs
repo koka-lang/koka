@@ -1318,7 +1318,9 @@ copyCLibraryX term flags cc eimport tries
                     
   where
     nosuccess clib
-      = raiseIO ("unable to find C library " ++ clib)
+      = raiseIO (unlines ["unable to find C library " ++ clib
+                         ,"library search paths: " ++ show (ccompLibDirs flags) 
+                         ,"library base name   : " ++ ccLibFile cc clib])
     copyLibFile fname clib    
       = do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "library:") <+>
               color (colorSource (colorScheme flags)) (text fname))         

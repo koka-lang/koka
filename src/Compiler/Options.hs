@@ -207,7 +207,7 @@ flagsNull
           []       -- clink full lib paths
           (ccGcc "gcc" 0 "gcc")
           (if onWindows then []        -- ccomp library dirs
-                        else ["/usr/local/lib;/usr/lib;/lib"])
+                        else ["/usr/local/lib","/usr/lib","/lib"])
           
           ""       -- vcpkg root
           ""       -- vcpkg triplet
@@ -718,8 +718,12 @@ vcpkgFindRoot root
                         paths   <- getEnvPaths "PATH"
                         mbFile  <- searchPaths (paths ++ [joinPaths [homeDir,"vcpkg"]]) [] vcpkgExe
                         case mbFile of
-                          Just fname -> return (dirname fname, fname)
-                          Nothing    -> return ("", vcpkgExe)
+                          Nothing     -> return ("", vcpkgExe)
+                          Just fname0 -> do fname <- realPath fname0
+                                            let root = case (reverse (splitPath (dirname fname))) of
+                                                         ("bin":dirs) -> joinPaths (reverse ("libexec":dirs)) 
+                                                         _ -> dirname fname
+                                            return (root, fname)
       else return (root, joinPath root vcpkgExe)
   where 
     vcpkgExe = "vcpkg" ++ exeExtension
