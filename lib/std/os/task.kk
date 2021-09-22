@@ -69,26 +69,34 @@ abstract struct lvar<a> {
   lv : any
 }
 
-noinline extern unsafe-lvar( bottom : a, lattice-join : (a,a) -> a) ): pure any {
-  c "kk_lvar_alloc"
+noinline extern unsafe-lvar( bottom : a, join : (a,a) -> a) : pure any {
+  c "kk_lattice_var_alloc"
 }
 
-noinline extern unsafe-put( lvar : any, x : a) : pure () {
-  c "kk_lvar_put"
+noinline extern unsafe-put( lv : any, x : a) : pure () {
+  c "kk_lattice_var_put"
 }
 
-noinline extern unsafe-get( lvar : any, bot : a, in-threshold-set : (a,a) -> int32 ) : pure a {
-  c "kk_lvar_get"
+noinline extern unsafe-get( lv : any, in-threshold-set : (a) -> int32 ) : pure a {
+  c "kk_lattice_var_get"
 }
 
-public noinline fun lvar( bottom : a ) : pure lvar<a> {
-  Lvar( unsafe-lvar(bottom) )
+noinline extern unsafe-freeze( lv : any ) : pure () {
+  c "kk_lattice_var_freeze"
+}
+
+public noinline fun lvar( bottom : a, join : (a,a) -> a) : pure lvar<a> {
+  Lvar( unsafe-lvar(bottom, join) )
 }
 
 public fun put( lvar : lvar<a>, x : a ) : pure () {
   unsafe-put( lvar.lv, x )
 }
 
-public fun get( lvar : lvar<a>, in_threshold_set: (a,a) -> bool ) : pure a {
-  unsafe-get( lvar.lv, fn(x,y){ if (in_threshold_set(x,y)) then one else zero } )
+public fun get( lvar : lvar<a>, in_threshold_set: (a) -> bool ) : pure a {
+  unsafe-get( lvar.lv, fn(x){ if (in_threshold_set(x)) then one else zero } )
+}
+
+public fun freeze( lvar : lvar<a> ) : pure () {
+  unsafe-freeze( lvar.lv )
 }

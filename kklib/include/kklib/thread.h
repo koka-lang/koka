@@ -31,10 +31,10 @@ kk_decl_export kk_promise_t kk_task_schedule_n( kk_ssize_t count, kk_ssize_t str
 --------------------------------------------------------------------------------------*/
 typedef kk_box_t kk_lattice_var_t;
 
-kk_decl_export kk_lattice_var_t kk_lattice_var_alloc( kk_box_t init, kk_context_t* ctx );
-kk_decl_export void             kk_lattice_var_put( kk_lattice_var_t lattice_var, kk_box_t val, kk_function_t monotonic_combine, kk_context_t* ctx );
-kk_decl_export kk_box_t         kk_lattice_var_get( kk_lattice_var_t lattice_var, kk_box_t bot, kk_function_t is_gte, kk_context_t* ctx );
-void                            kk_lattice_var_freeze( kk_lattice_var_t lattice_var, kk_context_t* ctx )
+kk_decl_export kk_lattice_var_t kk_lattice_var_alloc( kk_box_t bottom, kk_function_t join, kk_context_t* ctx );
+kk_decl_export void             kk_lattice_var_put( kk_lattice_var_t lattice_var, kk_box_t val, kk_context_t* ctx );
+kk_decl_export kk_box_t         kk_lattice_var_get( kk_lattice_var_t lattice_var, kk_function_t in_threshold_set, kk_context_t* ctx );
+void                            kk_lattice_var_freeze( kk_lattice_var_t lattice_var, kk_context_t* ctx );
 
 
 #endif // include guard

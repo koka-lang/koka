@@ -353,7 +353,7 @@ kk_promise_t kk_task_schedule( kk_function_t fun, kk_context_t* ctx ) {
   return kk_task_group_schedule( task_group, fun, ctx );
 }
 
-inline void kk_task_group_yield (kk_context_t* ctx) {
+static void kk_task_group_yield (kk_context_t* ctx) {
 
   if (ctx->task_group != NULL) {
     // try to get a task
@@ -489,12 +489,12 @@ typedef struct lattice_var_s {
   kk_box_t        lattice_bottom;
   kk_function_t   lattice_join; // least-upper bound
   bool            is_frozen;
-_} lattice_var_t;
+} lattice_var_t;
 
 typedef kk_box_t kk_lattice_var_t;
 
-kk_lattice_var_t kk_lattice_var_alloc( kk_box_t init, kk_context_t* ctx );
-void             kk_lattice_var_put( kk_lattice_var_t lattice_var, kk_box_t val, kk_function_t monotonic_combine, kk_context_t* ctx );
+kk_lattice_var_t kk_lattice_var_alloc( kk_box_t bottom, kk_function_t join, kk_context_t* ctx );
+void             kk_lattice_var_put( kk_lattice_var_t lattice_var, kk_box_t val, kk_context_t* ctx );
 // in_threshold_set is the threshold set as a predicate
 kk_box_t         kk_lattice_var_get( kk_lattice_var_t lattice_var, kk_function_t in_threshold_set, kk_context_t* ctx );
 void             kk_lattice_var_freeze( kk_lattice_var_t lattice_var, kk_context_t* ctx );
@@ -536,23 +536,25 @@ err:
 // add value to lattice_var
 void kk_lattice_var_put( kk_lattice_var_t lattice_var, kk_box_t val, kk_context_t* ctx ) {
   lattice_var_t* lv = (lattice_var_t*)kk_cptr_raw_unbox(lattice_var);
-  if (lv->is_frozen) goto err;
+  if (!lv->is_frozen) {
 
-  lv->result = kk_function_call(kk_box_t,(kk_function_t,kk_box_t,kk_box_t,kk_context_t*),lv->lattice_join,(lv->lattice_join,val,lv->result,ctx));
-  kk_box_mark_shared(lv->result,ctx);  // TODO: can we mark outside the mutex?
-  // TODO: should we mark all boxes within lattice_var_s?
-  pthread_cond_broadcast(lv->cond);
-  // TODO: why do we call kk_box_drop?
-  kk_box_drop(lattice_var,ctx);
-  return;
+    pthread_mutex_lock(&lv->lock);
+    lv->result = kk_function_call(kk_box_t,(kk_function_t,kk_box_t,kk_box_t,kk_context_t*),lv->lattice_join,(lv->lattice_join,val,lv->result,ctx));
+    kk_box_mark_shared(lv->result, ctx); // TODO: can we mark outside the mutex?
+    pthread_mutex_unlock(&lv->lock);
 
-err:
+    // TODO: should we mark all boxes within lattice_var_s?
+    pthread_cond_broadcast(&lv->available);
+    // TODO: why do we call kk_box_drop?
+    kk_box_drop(lattice_var,ctx);
+  }
+
   kk_box_drop(val,ctx);
   kk_box_mark_shared(val,ctx);
   // TODO: do we need to box_drop lattice_var from context?
 }
 
-inline void kk_lattice_var_wait (kk_lattice_var_t lattice_var, kk_context_t* ctx) {
+static void kk_lattice_var_wait (kk_lattice_var_t lattice_var, kk_context_t* ctx) {
   lattice_var_t* lv = (lattice_var_t*)kk_cptr_raw_unbox(lattice_var);
 
   if (ctx->task_group != NULL) {
@@ -578,7 +580,7 @@ kk_box_t kk_lattice_var_get( kk_lattice_var_t lattice_var, kk_function_t in_thre
     kk_lattice_var_wait(lattice_var,ctx);
     // get is pair-wise incompatible, meaning that get returns a value within a sum type
     result = kk_box_dup(lv->result); // TODO: do we need to dup here?
-    pthread_mutex_unlock(lv->lock);
+    pthread_mutex_unlock(&lv->lock);
 
     kk_function_dup(in_threshold_set);
     kk_box_dup(result);
@@ -596,7 +598,7 @@ void kk_lattice_var_freeze( kk_lattice_var_t lattice_var, kk_context_t* ctx ) {
   lattice_var_t* lv = (lattice_var_t*)kk_cptr_raw_unbox(lattice_var);
 
   lv->is_frozen = true;
-  pthread_cond_broadcast(lv->cond);
+  pthread_cond_broadcast(&lv->available);
 
   kk_box_drop(lattice_var,ctx);
 }
