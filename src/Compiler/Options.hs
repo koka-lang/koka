@@ -335,19 +335,19 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , emptyline
 
  -- hidden
- , hide $ fflag        ["asan"]      (\b f -> f{asan=b})             "compile with address, undefined, and leak sanitizer"
- , hide $ fflag        ["stdalloc"]  (\b f -> f{useStdAlloc=b})      "use the standard libc allocator"
+ , hide $ fflag       ["asan"]      (\b f -> f{asan=b})             "compile with address, undefined, and leak sanitizer"
+ , hide $ fflag       ["stdalloc"]  (\b f -> f{useStdAlloc=b})      "use the standard libc allocator"
  , hide $ fnum 3 "n"  ["simplify"]  (\i f -> f{simplify=i})          "enable 'n' core simplification passes"
  , hide $ fnum 10 "n" ["maxdup"]    (\i f -> f{simplifyMaxDup=i})    "set 'n' as maximum code duplication threshold"
  , hide $ fnum 10 "n" ["inline"]    (\i f -> f{optInlineMax=i})      "set 'n' as maximum inline threshold (=10)"
  , hide $ fflag       ["monadic"]   (\b f -> f{enableMon=b})         "enable monadic translation"
  , hide $ flag []     ["semi"]      (\b f -> f{semiInsert=b})        "insert semicolons based on layout"
- , hide $ fflag       ["parcreuse"] (\b f -> f{parcReuse=b})         "enable in-place update analysis"
- , hide $ fflag       ["parcspec"]  (\b f -> f{parcSpecialize=b})    "enable drop specialization"
- , hide $ fflag       ["parcrspec"] (\b f -> f{parcReuseSpec=b})     "enable reuse specialization"
- , hide $ fflag       ["binference"]    (\b f -> f{parcBorrowInference=b})     "enable reuse inference (does not work cross-module!)"
- , hide $ fflag       ["optctail"]  (\b f -> f{optctail=b})          "enable con-tail optimization (TRMC)"
- , hide $ fflag       ["optctailinline"]  (\b f -> f{optctailInline=b})  "enable con-tail inlining (increases code size)"
+ , hide $ fflag       ["binference"]   (\b f -> f{parcBorrowInference=b})     "enable reuse inference (does not work cross-module!)"
+ , hide $ fflag       ["optreuse"]     (\b f -> f{parcReuse=b})          "enable in-place update analysis"
+ , hide $ fflag       ["optdropspec"]  (\b f -> f{parcSpecialize=b}) "enable drop specialization"
+ , hide $ fflag       ["optreusespec"] (\b f -> f{parcReuseSpec=b})  "enable reuse specialization"
+ , hide $ fflag       ["opttrmc"]      (\b f -> f{optctail=b})              "enable tail-recursion-modulo-cons optimization"
+ , hide $ fflag       ["opttrmcinline"] (\b f -> f{optctailInline=b})  "enable trmc inlining (increases code size)"
  , hide $ fflag       ["specialize"]  (\b f -> f{optSpecialize=b})      "enable inline specialization"
 
  -- deprecated
