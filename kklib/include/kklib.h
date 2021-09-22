@@ -543,7 +543,7 @@ static inline kk_block_t* kk_block_dup(kk_block_t* b) {
 static inline void kk_block_drop(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;
-  if ((int32_t)(rc > 0)) {          // note: assume two's complement
+  if ((int32_t)rc > 0) {          // note: assume two's complement
     b->header.refcount = rc-1;
   }
   else {
@@ -554,7 +554,7 @@ static inline void kk_block_drop(kk_block_t* b, kk_context_t* ctx) {
 static inline void kk_block_decref(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;  
-  if (kk_likely((int32_t)(rc > 0))) {     // note: assume two's complement
+  if (kk_likely((int32_t)rc > 0)) {     // note: assume two's complement
     b->header.refcount = rc - 1;
   }
   else {
