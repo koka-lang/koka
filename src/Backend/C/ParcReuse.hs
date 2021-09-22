@@ -143,11 +143,12 @@ ruLet' def
   = withCurrentDef def $
       case defExpr def of
           App var@(Var name _) [Var tname _] | getName name == nameDrop
-            -> do return $ ([(tname, False)], \mReuses ->
+            -> do return ([(tname, True)], \mReuses ->
                     case head mReuses of
                       Nothing -> return ([], makeLet [DefNonRec def])
-                      Just ru -> do assign <- genReuseAssign tname
-                                    return ([ru], makeLet [DefNonRec (makeDef nameNil assign)]))
+                      Just rReuse
+                        -> do let ru = makeTDef (defTName rReuse) genReuseNull
+                              return ([ru], makeLet [DefNonRec (makeDef nameNil $ genReuseAssignWith (defTName rReuse) (defExpr rReuse))]))
           -- See makeDropSpecial:
           -- We assume that makeDropSpecial always occurs in a definition.
           App (Var name _) [Var y _, xUnique, rShared, xDecRef] | getName name == nameDropSpecial
