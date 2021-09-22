@@ -85,7 +85,7 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
   much improved effect operations, updated isocline for the interactive environment.
 - `v2.2.1`, 2021-09-05: improved optimization, initial parallel tasks, binary-trees benchmark, 
   still slightly slower effect handling, upgrade isocline, fix minor bugs.
-- `v2.2.0`, 2021-08-26: improved case-of-known simpification (by Rashika B), improve cross-module specialization
+- `v2.2.0`, 2021-08-26: improved case-of-known simpification (by Rakshika B), improve cross-module specialization
   (by Steven Fontanella), initial borrowing annotations and improved reuse analysis (by Anton Lorenzen),
   improved line editing in the interactive environment, improved inlining. Note: due to the new inline phases,
   effect handling may currently be a tad slower in this release but will be improved for the next release.
