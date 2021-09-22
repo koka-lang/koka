@@ -87,12 +87,22 @@ typedef kk_decl_align(8) struct kk_header_s {
   uint8_t   scan_fsize;       // number of fields that should be scanned when releasing (`scan_fsize <= 0xFF`, if 0xFF, the full scan size is the first field)
   uint8_t   thread_shared : 1;
   uint16_t  tag;              // header tag
-  uint32_t  refcount;         // reference count  (last to reduce code size constants in kk_block_init)
+  uint32_t  refcount;         // reference count  (last to reduce code size constants in kk_header_init)
 } kk_header_t;
 
 #define KK_SCAN_FSIZE_MAX (0xFF)
 #define KK_HEADER(scan_fsize,tag)         { scan_fsize, 0, tag, 0}             // start with refcount of 0
 #define KK_HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 0, tag, KU32(0xFF00)}  // start with recognisable refcount (anything > 1 is ok)
+
+static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_tag_t tag) {
+  kk_assert_internal(scan_fsize >= 0 && scan_fsize < KK_SCAN_FSIZE_MAX);
+#if (KK_ARCH_LITTLE_ENDIAN)
+  * ((uint64_t*)h) = ((uint64_t)scan_fsize | (uint64_t)tag << 16); // explicit shifts leads to better codegen  
+#else
+  kk_header_t header = KK_HEADER((uint8_t)scan_fsize, (uint16_t)tag);
+  *h = header;
+#endif  
+}
 
 
 // Polymorphic operations work on boxed values. (We use a struct for extra checks to prevent accidental conversion)
@@ -432,20 +442,12 @@ static inline void kk_free_local(const void* p) {
 
 static inline void kk_block_init(kk_block_t* b, kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag) {
   KK_UNUSED(size);
-  kk_assert_internal(scan_fsize >= 0 && scan_fsize < KK_SCAN_FSIZE_MAX);
-#if (KK_ARCH_LITTLE_ENDIAN)
-  // explicit shifts lead to better codegen
-  *((uint64_t*)b) = ((uint64_t)scan_fsize | (uint64_t)tag << 16);                    
-#else
-  kk_header_t header = { (uint8_t)scan_fsize, 0, (uint16_t)tag, 0 };
-  b->header = header;
-#endif
+  kk_header_init(&b->header, scan_fsize, tag);
 }
 
 static inline void kk_block_large_init(kk_block_large_t* b, kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag) {
   KK_UNUSED(size);
-  kk_header_t header = { KK_SCAN_FSIZE_MAX, 0, (uint16_t)tag, 0 };
-  b->_block.header = header;
+  kk_header_init(&b->_block.header, KK_SCAN_FSIZE_MAX, tag);
   b->large_scan_fsize = kk_int_box(scan_fsize);
 }
 
@@ -535,11 +537,11 @@ static inline kk_block_t* kk_block_dup(kk_block_t* b) {
 static inline void kk_block_drop(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;
-  if ((int32_t)rc > 0) {          // note: assume two's complement
+  if ((int32_t)rc > 0) {                // note: assume two's complement
     b->header.refcount = rc-1;
   }
   else {
-    kk_block_check_drop(b, rc, ctx);   // thread-shared, sticky (overflowed), or can be freed?
+    kk_block_check_drop(b, rc, ctx);    // thread-shared, sticky (overflowed), or can be freed?
   }
 }
 
@@ -550,7 +552,7 @@ static inline void kk_block_decref(kk_block_t* b, kk_context_t* ctx) {
     b->header.refcount = rc - 1;
   }
   else {
-    kk_block_check_decref(b, rc, ctx);      // thread-shared, sticky (overflowed), or can be freed? TODO: should just free; not drop recursively
+    kk_block_check_decref(b, rc, ctx);  // thread-shared, sticky (overflowed), or can be freed? TODO: should just free; not drop recursively
   }
 }
 
@@ -759,7 +761,7 @@ static inline kk_block_t* kk_datatype_as_ptr(kk_datatype_t d) {
 }
 
 static inline bool kk_datatype_is_unique(kk_datatype_t d) {
-  return (kk_datatype_is_ptr(d) && kk_block_is_unique(kk_datatype_as_ptr(d)));
+  return (kk_likely(kk_datatype_is_ptr(d)) && kk_likely(kk_block_is_unique(kk_datatype_as_ptr(d))));
 }
 
 static inline kk_datatype_t kk_datatype_dup(kk_datatype_t d) {
