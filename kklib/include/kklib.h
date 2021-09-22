@@ -95,7 +95,6 @@ typedef kk_decl_align(8) struct kk_header_s {
 #define KK_HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 0, tag, KU32(0xFF00)}  // start with recognisable refcount (anything > 1 is ok)
 
 static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_tag_t tag) {
-  kk_assert_internal(scan_fsize >= 0 && scan_fsize < KK_SCAN_FSIZE_MAX);
 #if (KK_ARCH_LITTLE_ENDIAN)
   * ((uint64_t*)h) = ((uint64_t)scan_fsize | (uint64_t)tag << 16); // explicit shifts leads to better codegen  
 #else
@@ -450,6 +449,7 @@ static inline void kk_free_local(const void* p) {
 
 static inline void kk_block_init(kk_block_t* b, kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag) {
   KK_UNUSED(size);
+  kk_assert_internal(scan_fsize >= 0 && scan_fsize < KK_SCAN_FSIZE_MAX);
   kk_header_init(&b->header, scan_fsize, tag);
 }
 
@@ -768,7 +768,9 @@ static inline kk_block_t* kk_datatype_as_ptr(kk_datatype_t d) {
 }
 
 static inline bool kk_datatype_is_unique(kk_datatype_t d) {
-  return (kk_likely(kk_datatype_is_ptr(d)) && kk_likely(kk_block_is_unique(kk_datatype_as_ptr(d))));
+  kk_assert_internal(kk_datatype_is_ptr(d)); 
+  return (kk_datatype_is_ptr(d) && kk_block_is_unique(kk_datatype_as_ptr(d)));
+  //return kk_block_is_unique(kk_datatype_as_ptr(d));
 }
 
 static inline kk_datatype_t kk_datatype_dup(kk_datatype_t d) {
@@ -799,13 +801,10 @@ static inline void kk_datatype_drop_assert(kk_datatype_t d, kk_tag_t t, kk_conte
 }
 
 static inline kk_reuse_t kk_datatype_dropn_reuse(kk_datatype_t d, kk_ssize_t scan_fsize, kk_context_t* ctx) {
-  if (kk_datatype_is_singleton(d)) {
-    return kk_reuse_null;
-  }
-  else {
-    return kk_block_dropn_reuse(kk_datatype_as_ptr(d), scan_fsize, ctx);
-  }
+  kk_assert_internal(kk_datatype_is_ptr(d));
+  return kk_block_dropn_reuse(kk_datatype_as_ptr(d), scan_fsize, ctx);
 }
+
 static inline kk_reuse_t kk_datatype_reuse(kk_datatype_t d) {
   if (kk_datatype_is_singleton(d)) {
     return kk_reuse_null;
