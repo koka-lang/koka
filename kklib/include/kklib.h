@@ -802,7 +802,12 @@ static inline void kk_datatype_drop_assert(kk_datatype_t d, kk_tag_t t, kk_conte
 
 static inline kk_reuse_t kk_datatype_dropn_reuse(kk_datatype_t d, kk_ssize_t scan_fsize, kk_context_t* ctx) {
   kk_assert_internal(kk_datatype_is_ptr(d));
-  return kk_block_dropn_reuse(kk_datatype_as_ptr(d), scan_fsize, ctx);
+  if (kk_unlikely(kk_datatype_is_singleton(d))) {
+    return kk_reuse_null;
+  }
+  else {
+    return kk_block_dropn_reuse(kk_datatype_as_ptr(d), scan_fsize, ctx);
+  }
 }
 
 static inline kk_reuse_t kk_datatype_reuse(kk_datatype_t d) {
