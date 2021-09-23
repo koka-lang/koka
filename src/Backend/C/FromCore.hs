@@ -257,9 +257,8 @@ genLocalDef def@(Def name tp expr vis sort inl rng comm)
                        )
        return (fdoc)
   where
-    isDiscardExpr (Con con _)              = (getName con == nameUnit)
     isDiscardExpr (App (Var name _) [])    = (getName name == nameReuseNull)
-    isDiscardExpr _                        = False
+    isDiscardExpr expr                     = isExprUnit expr -- False
 
 -- remove final newlines and whitespace and line continuations (\\)
 trimComment comm
@@ -1190,7 +1189,9 @@ getResultX result (retDoc)
      ResultReturn _ _  -> text "return" <+> retDoc <.> semi
      ResultAssign n ml -> ( if --isWildcard (getName n) ||
                                nameNil == (getName n) || isTypeUnit (typeOf n)
-                              then retDoc <.> semi
+                              then if (dstartsWith retDoc "kk_Unit")
+                                     then empty
+                                     else retDoc <.> semi
                               else ppName (getName n) <+> text "=" <+> retDoc <.> semi <+> text "/*" <.> pretty (typeOf n) <.> text "*/"
                           ) <-> case ml of
                                   Nothing -> empty

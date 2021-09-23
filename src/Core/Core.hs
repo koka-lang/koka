@@ -631,7 +631,7 @@ data TName = TName
   }
 
 showTName (TName name tp)
-    = show name -- ++ ": " ++ minCanonical tp
+    = show name -- ++ ": " ++ show tp -- ++ ": " ++ minCanonical tp
 
 
 defTName :: Def -> TName
