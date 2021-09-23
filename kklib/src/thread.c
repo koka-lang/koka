@@ -7,6 +7,7 @@
 ---------------------------------------------------------------------------*/
 #include "kklib.h"
 #include "kklib/thread.h"
+#include <sys/_types/_int32_t.h>
 
 
 /*---------------------------------------------------------------------------
@@ -486,15 +487,13 @@ typedef struct lattice_var_s {
   kk_box_t        result;
   pthread_mutex_t lock;
   pthread_cond_t  available;
-  kk_box_t        lattice_bottom;
-  kk_function_t   lattice_join; // least-upper bound
   bool            is_frozen;
 } lattice_var_t;
 
 typedef kk_box_t kk_lattice_var_t;
 
-kk_lattice_var_t kk_lattice_var_alloc( kk_box_t bottom, kk_function_t join, kk_context_t* ctx );
-void             kk_lattice_var_put( kk_lattice_var_t lattice_var, kk_box_t val, kk_context_t* ctx );
+kk_lattice_var_t kk_lattice_var_alloc( kk_box_t lattice_bottom, kk_context_t* ctx );
+void             kk_lattice_var_put( kk_lattice_var_t lattice_var, kk_function_t lattice_join, kk_box_t val, kk_context_t* ctx );
 // in_threshold_set is the threshold set as a predicate
 kk_box_t         kk_lattice_var_get( kk_lattice_var_t lattice_var, kk_function_t in_threshold_set, kk_context_t* ctx );
 void             kk_lattice_var_freeze( kk_lattice_var_t lattice_var, kk_context_t* ctx );
@@ -506,40 +505,35 @@ static void kk_lattice_var_free( void* lattice_var, kk_block_t* b, kk_context_t*
   pthread_cond_destroy(&lv->available);
   pthread_mutex_destroy(&lv->lock);
   kk_box_drop(lv->result,ctx);
-  kk_box_drop(lv->lattice_bottom, ctx);
-  kk_function_drop(lv->lattice_join, ctx);
   kk_free(lv);
 }
 
 // new lattice_var
-kk_lattice_var_t kk_lattice_var_alloc(kk_box_t bottom, kk_function_t join, kk_context_t* ctx) {
+kk_lattice_var_t kk_lattice_var_alloc(kk_box_t lattice_bottom, kk_context_t* ctx) {
   lattice_var_t* lv = kk_zalloc(kk_ssizeof(lattice_var_t),ctx);
   if (lv == NULL) goto err;
-  lv->result = bottom;
-  lv->lattice_bottom = bottom;
-  lv->lattice_join = join;
+  lv->result = lattice_bottom;
   if (pthread_mutex_init(&lv->lock, NULL) != 0) goto err;
   if (pthread_cond_init(&lv->available, NULL) != 0) goto err;
   kk_lattice_var_t lattice_var = kk_cptr_raw_box( &kk_lattice_var_free, lv, ctx );
-  kk_box_mark_shared(bottom,ctx);
+  kk_box_mark_shared(lattice_bottom,ctx);
   // TODO: are functions not marked?
   kk_box_mark_shared(lattice_var,ctx);
   return lattice_var;
 err:
   kk_free(lv);
-  kk_box_drop(bottom,ctx);
-  kk_function_drop(join,ctx);
-  kk_box_mark_shared(bottom,ctx);
+  kk_box_drop(lattice_bottom,ctx);
+  kk_box_mark_shared(lattice_bottom,ctx);
   return kk_box_any(ctx);
 }
 
 // add value to lattice_var
-void kk_lattice_var_put( kk_lattice_var_t lattice_var, kk_box_t val, kk_context_t* ctx ) {
+void kk_lattice_var_put( kk_lattice_var_t lattice_var, kk_function_t lattice_join, kk_box_t val, kk_context_t* ctx ) {
   lattice_var_t* lv = (lattice_var_t*)kk_cptr_raw_unbox(lattice_var);
   if (!lv->is_frozen) {
 
     pthread_mutex_lock(&lv->lock);
-    lv->result = kk_function_call(kk_box_t,(kk_function_t,kk_box_t,kk_box_t,kk_context_t*),lv->lattice_join,(lv->lattice_join,val,lv->result,ctx));
+    lv->result = kk_function_call(kk_box_t,(kk_function_t,kk_box_t,kk_box_t,kk_context_t*),lattice_join,(lattice_join,val,lv->result,ctx));
     kk_box_mark_shared(lv->result, ctx); // TODO: can we mark outside the mutex?
     pthread_mutex_unlock(&lv->lock);
 
@@ -547,6 +541,7 @@ void kk_lattice_var_put( kk_lattice_var_t lattice_var, kk_box_t val, kk_context_
     pthread_cond_broadcast(&lv->available);
     // TODO: why do we call kk_box_drop?
     kk_box_drop(lattice_var,ctx);
+    /* kk_function_drop(lattice_join, ctx); TODO: do we need this? */
   }
 
   kk_box_drop(val,ctx);
@@ -584,9 +579,9 @@ kk_box_t kk_lattice_var_get( kk_lattice_var_t lattice_var, kk_function_t in_thre
 
     kk_function_dup(in_threshold_set);
     kk_box_dup(result);
-    int32_t done = kk_function_call(int32_t,(kk_function_t,kk_box_t,kk_context_t*),in_threshold_set,(in_threshold_set,result,ctx));
+    kk_box_t done = kk_function_call(kk_box_t,(kk_function_t,kk_box_t,kk_context_t*),in_threshold_set,(in_threshold_set,result,ctx));
 
-    if (done != 0) break;
+    if (!kk_box_is_null(done)) break;
   }
 
   kk_function_drop(in_threshold_set,ctx);

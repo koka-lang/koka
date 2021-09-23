@@ -66,18 +66,21 @@ public noinline fun taskn( count : int, stride : int, work : () -> pure a, combi
 // Note: currently unsafe in the pure effect!! needs work
 
 abstract struct lvar<a> {
-  lv : any
+  lv : any;
+  bottom : a;
+  join : (a, a) -> a;
+  is-gte : (a, a) -> maybe<bool>
 }
 
-noinline extern unsafe-lvar( bottom : a, join : (a,a) -> a) : pure any {
+noinline extern unsafe-lvar( bottom : a ) : pure any {
   c "kk_lattice_var_alloc"
 }
 
-noinline extern unsafe-put( lv : any, x : a) : pure () {
+noinline extern unsafe-put( lv : any, join : (a,a) -> a, x : a) : pure () {
   c "kk_lattice_var_put"
 }
 
-noinline extern unsafe-get( lv : any, in-threshold-set : (a) -> int32 ) : pure a {
+noinline extern unsafe-get( lv : any, in-threshold-set : a -> null<a> ) : pure a {
   c "kk_lattice_var_get"
 }
 
@@ -85,16 +88,24 @@ noinline extern unsafe-freeze( lv : any ) : pure () {
   c "kk_lattice_var_freeze"
 }
 
-public noinline fun lvar( bottom : a, join : (a,a) -> a) : pure lvar<a> {
-  Lvar( unsafe-lvar(bottom, join) )
+public noinline fun lvar( bottom : a, join : (a,a) -> a, is-gte : (a, a) -> maybe<bool>) : pure lvar<a> {
+  Lvar( unsafe-lvar(bottom), bottom, join, is-gte )
 }
 
 public fun put( lvar : lvar<a>, x : a ) : pure () {
-  unsafe-put( lvar.lv, x )
+  unsafe-put( lvar.lv, lvar.join, x )
 }
 
-public fun get( lvar : lvar<a>, in_threshold_set: (a) -> bool ) : pure a {
-  unsafe-get( lvar.lv, fn(x){ if (in_threshold_set(x)) then one else zero } )
+public fun get( lvar : lvar<a>, in-threshold-set : a -> maybe<a> ) : pure a {
+  unsafe-get( lvar.lv, fn (x) { null(in-threshold-set(x)) } )
+}
+
+public fun get( lvar : lvar<a>, threshold-set : list<a> ) : pure a {
+  get( lvar, fn (x) {
+    threshold-set.find(fn (y) {
+      is-gte(lvar)(x,y).default(False)
+    })
+  })
 }
 
 public fun freeze( lvar : lvar<a> ) : pure () {
