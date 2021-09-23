@@ -532,7 +532,7 @@ parseDefGroups0 env
 parseDefGroup :: Env -> LexParser (Env,DefGroup)
 parseDefGroup env
   = do (sort,inl,isRec,doc) <- pdefSort
-       (name,_)   <- funid <|> wildcard
+       (name,_)   <- funid <|> do{ wildcard; return (nameNil,rangeNull) }
        -- inl        <- parseInline
        tp         <- typeAnnot env
        expr       <- parseBody env
