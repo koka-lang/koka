@@ -146,9 +146,10 @@ genModule buildType sourceDir penv platform newtypes enableReuse enableSpecializ
                   <-> doneSignature
                   <.> block done
 
-        emitToH $ vcat [ linebreak <.> initSignature <.> semi <.> linebreak
-                       , linebreak <.> doneSignature <.> semi <.> linebreak
-                       , text "#endif // header"]
+        emitToH $ vcat $  [ linebreak <.> initSignature <.> semi <.> linebreak
+                          , linebreak <.> doneSignature <.> semi <.> linebreak]
+                          ++ externalEndIncludesH
+                          ++ [text "#endif // header"]
         return core -- box/unboxed core
   where
     modName         = ppModName (coreProgName core0)
@@ -160,6 +161,10 @@ genModule buildType sourceDir penv platform newtypes enableReuse enableSpecializ
     externalIncludesH :: [Doc]
     externalIncludesH
       = concatMap (includeExternalH buildType) (coreProgExternals core0)
+
+    externalEndIncludesH :: [Doc]
+    externalEndIncludesH
+      = concatMap (includeEndExternalH buildType) (coreProgExternals core0)
 
 
     externalImportIncludes :: [Doc]
@@ -195,6 +200,11 @@ includeExternalH buildType  ext
       Just content -> [text (dropWhile isSpace content)]
       _ -> []
 
+includeEndExternalH :: BuildType -> External -> [Doc]
+includeEndExternalH buildType  ext
+  = case externalImportLookup C buildType  "header-end-include-inline" ext of
+      Just content -> [text (dropWhile isSpace content)]
+      _ -> []
 
 importExternalInclude :: BuildType -> FilePath -> External -> [Doc]
 importExternalInclude buildType  sourceDir ext
