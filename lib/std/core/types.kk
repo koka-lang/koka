@@ -383,18 +383,20 @@ type handled1   :: HX1 -> X;
 // _tail recursion module cons_ (TRMC) optimization.
 // ----------------------------------------------------------------------------
 
+extern import 
+  c header-end-file "types-end-inline.h"
+
+
 // _Internal_. Internal type for _tail recursion module cons_ (TRMC) optimization.
 // Holds the address to a field of type `:a` in a constructor.
 value type cfield<a>
 
 // _Internal_. Internal type for _tail recursion module cons_ (TRMC) optimization.
-abstract value type ctail<a> {
-  con CTail( res : a, hole : cfield<a> )
-  con CTailNil
-}
+abstract value type ctail<a>
+  ".CTail"( res  : a, hole : cfield<a> )
 
-fun ".ctail-nil"() : ctail<a> {
-  CTailNil
+inline extern ".ctail-nil"() : ctail<a> {
+  c "kk_ctail_nil"
 }
 
 inline extern ".cfield-hole"() : a { }
@@ -405,7 +407,15 @@ inline fun ".cfield-set"( field : cfield<a>, res : a ) : () {
   cfield-set(field,res)
 }
 
-inline fun ".ctail-link"( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
+inline extern ".ctail-link"( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
+  c "kk_ctail_link"
+}
+
+inline extern ".ctail-resolve"( acc : ctail<a>, res : a ) : ctail<a> {
+  c "kk_ctail_resolve"
+}
+/*
+inline fun ".ctail-linkx"( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
   match(acc) {
     CTail(head,last) {
       cfield-set(last,res)
@@ -424,3 +434,4 @@ inline fun ".ctail-resolve"( acc : ctail<a>, rest : a ) : a {
     CTailNil -> rest
   }
 }
+*/

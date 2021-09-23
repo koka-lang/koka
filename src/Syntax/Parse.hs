@@ -406,7 +406,7 @@ externalImport rng1
       = do (id,_) <- varid
            return (show id) 
 
-    externalIncludes target rng (key,fname)  | key == "file" || key == "header-file"
+    externalIncludes target rng (key,fname)  | key == "file" || key == "header-file" || key == "header-end-file"
      = do let currentFile = (Common.Range.sourceName (rangeSource rng))
               fpath       = joinPath (dirname currentFile) fname
           if (target==C && null (extname fpath) && key=="file")
@@ -416,6 +416,9 @@ externalImport rng1
             else if (target==C && key=="header-file")
                   then do content <- preadFile fpath
                           return [("header-include-inline",content)]
+                 else if (target==C && key=="header-end-file")
+                  then do content <- preadFile fpath
+                          return [("header-end-include-inline",content)]                 
                   else if (key == "file") 
                          then do content <- preadFile fpath
                                  return [("include-inline",content)]

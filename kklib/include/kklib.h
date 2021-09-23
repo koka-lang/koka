@@ -1163,8 +1163,6 @@ static inline kk_unit_t kk_unit_unbox(kk_box_t u) {
   return kk_Unit; // (kk_unit_t)kk_enum_unbox(u);
 }
 
-
-
 kk_decl_export kk_string_t  kk_get_host(kk_context_t* ctx);
 
 
