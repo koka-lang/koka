@@ -769,8 +769,8 @@ static inline kk_block_t* kk_datatype_as_ptr(kk_datatype_t d) {
 
 static inline bool kk_datatype_is_unique(kk_datatype_t d) {
   kk_assert_internal(kk_datatype_is_ptr(d)); 
-  return (kk_datatype_is_ptr(d) && kk_block_is_unique(kk_datatype_as_ptr(d)));
-  //return kk_block_is_unique(kk_datatype_as_ptr(d));
+  //return (kk_datatype_is_ptr(d) && kk_block_is_unique(kk_datatype_as_ptr(d)));
+  return kk_block_is_unique(kk_datatype_as_ptr(d));
 }
 
 static inline kk_datatype_t kk_datatype_dup(kk_datatype_t d) {
@@ -811,12 +811,16 @@ static inline kk_reuse_t kk_datatype_dropn_reuse(kk_datatype_t d, kk_ssize_t sca
 }
 
 static inline kk_reuse_t kk_datatype_reuse(kk_datatype_t d) {
+  kk_assert_internal(!kk_datatype_is_singleton(d));
+  return kk_datatype_as_ptr(d);
+  /*
   if (kk_datatype_is_singleton(d)) {
     return kk_reuse_null;
   }
   else {
     return kk_datatype_as_ptr(d);
   }
+  */
 }
 
 static inline void kk_datatype_free(kk_datatype_t d) {
