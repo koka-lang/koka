@@ -683,7 +683,7 @@ genExpr expr
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameInt64 && isSmallInt i
        -> return (empty, pretty i <.> text "n")       
 
-     -- special: cfield-set
+     -- special: cfield-of
      App (TypeApp (Var cfieldOf _) [_]) [Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameCFieldOf
        -> do conDoc <- genTName con
              return (empty,text "{value:" <+> conDoc <.> text ", field: \"" <.> ppName (unqualify (readQualified fieldName)) <.> text "\"}")
