@@ -384,7 +384,7 @@ type handled1   :: HX1 -> X;
 // ----------------------------------------------------------------------------
 
 extern import 
-  c header-end-file "types-end-inline.h"
+  c header-end-file "types-ctail-inline.h"
 
 
 // _Internal_. Internal type for _tail recursion module cons_ (TRMC) optimization.
@@ -395,43 +395,26 @@ value type cfield<a>
 abstract value type ctail<a>
   ".CTail"( res  : a, hole : cfield<a> )
 
-inline extern ".ctail-nil"() : ctail<a> {
-  c "kk_ctail_nil"
-}
-
-inline extern ".cfield-hole"() : a { }
-inline extern ".cfield-of"( obj : a, conname : string, fieldname : string ) : cfield<a> { }
-private inline extern cfield-set( field : cfield<a>, res : a ) : () { }
-
-inline fun ".cfield-set"( field : cfield<a>, res : a ) : () {
-  cfield-set(field,res)
-}
-
-inline extern ".ctail-link"( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
-  c "kk_ctail_link"
-}
-
-inline extern ".ctail-resolve"( acc : ctail<a>, res : a ) : ctail<a> {
-  c "kk_ctail_resolve"
-}
 /*
-inline fun ".ctail-linkx"( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
-  match(acc) {
-    CTail(head,last) {
-      cfield-set(last,res)
-      CTail(head,field)
-    }
-    CTailNil -> CTail(res,field)
-  }
+// address of a field in a constructor (this is implemented in the compiler backend)
+inline extern ".cfield-of"( obj : a, conname : string, fieldname : string ) : cfield<a> { } 
+
+// create 'hole' of a certain type that is to be filled in later by ctail-link/ctail-resolve
+// implemented in the compiler backend as it needs to by typed correctly (and should not be unboxed)
+inline extern ".cfield-hole"() : a { }
+
+// initial accumulator
+inline extern ".ctail-nil"() : ctail<a> {
+  c inline "kk_ctail_nil()"
 }
 
-inline fun ".ctail-resolve"( acc : ctail<a>, rest : a ) : a {
-  match(acc) {
-    CTail(head,last) {
-      cfield-set(last,rest)
-      head
-    }
-    CTailNil -> rest
-  }
+// accumulate 
+inline extern ".ctail-link"( acc : ctail<a>, res : a, field : cfield<a> ) : ctail<a> {
+  c inline "kk_ctail_link(#1,#2,#3)"
+}
+
+// resolve to final result
+inline extern ".ctail-resolve"( acc : ctail<a>, res : a ) : ctail<a> {
+  c inline "kk_ctail_resolve(#1,#2)"
 }
 */
