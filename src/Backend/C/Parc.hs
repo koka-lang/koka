@@ -227,7 +227,7 @@ optimizeGuard False ri dups rdrops
 optimizeGuard enabled ri dups rdrops
   = do shapes <- getShapeMap
        let mchildrenOf x = case M.lookup x shapes of
-                            Just (ShapeInfo mchildren _ _) -> mchildren
+                            Just (ShapeInfo (Just mchildren) _ _) | not (null mchildren) -> Just mchildren                            
                             _    -> Nothing
        let conNameOf x  = case M.lookup x shapes of
                             Just (ShapeInfo _ (Just (_,cname)) _) -> Just cname
