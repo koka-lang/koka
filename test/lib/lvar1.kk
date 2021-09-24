@@ -1,6 +1,6 @@
 public module lvar1
 
-public import std/os/task
+public import std/os/lvar
 
 fun main() {
   val lv = lvar(False, (||), is-gte-bool)
