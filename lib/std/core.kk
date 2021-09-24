@@ -1244,13 +1244,19 @@ fun sum( xs : list<int> ) : int
 
 // Transform an integer to a maybe type, using `Nothing` for `0`
 fun maybe( i : int ) : maybe<int> {
-    if (i==0) then Nothing else Just(i)
+  if (i==0) then Nothing else Just(i)
 }
 
-fun fold-int( start : int, end : int, init : a, f : (int,a) -> a ) : a {
-  if (start >= end) then return init
-  val x = f(start,init)
-  fold-int(unsafe-decreasing(start.inc), end, x, f)
+// fold over the integers between [`start`,`end`] (inclusive).
+fun fold-int( start : int, end : int, init : a, f : (int,a) -> e a ) : e a {
+  if (start >= end) then init else
+    val x = f(start,init)
+    fold-int(unsafe-decreasing(start.inc), end, x, f)
+}
+
+// fold over the integers between [0,`upto`)  (not including `upto`).
+fun fold-int( upto : int, init : a, f : (int,a) -> e a ) : e a {
+  fold-int( 0, upto.dec, init, f )
 }
 
 // ----------------------------------------------------------------------------

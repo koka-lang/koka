@@ -43,22 +43,20 @@ fun checkr( t : tree ) : div int
   
 
 fun check( t : tree ) : div int
-  checkv(t, Done, 0)
-  //t.checkr
+  //checkv(t, Done, 0)
+  t.checkr
   
 
 
 // generate `count` trees of `depth` and return the total checksum
 fun sum-count( count : int, depth : int ) : div int
-  var csum := 0
-  repeat(count)
-    csum := csum + make(depth).check
-  csum
-
+  fold-int(count,0) fn(i,csum)
+    csum + make(depth).check
+  
 
 // parallel sum count: spawn up to `n` sub-tasks to count checksums
 fun psum-count( count : int, depth : int ) : pure int
-  val n = 2
+  val n = 2  
   val partc = count / n
   val rest  = count % n
   val parts = list(1,n) fn(i){ task{ sum-count( partc, depth ) }
