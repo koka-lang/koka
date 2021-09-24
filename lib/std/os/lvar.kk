@@ -1,4 +1,5 @@
 /*---------------------------------------------------------------------------
+
 Copyright 2020-2021, April Gonçalves, Wen Kokke.
 
 This is free software; you can redistribute it and/or modify it under the
@@ -10,6 +11,7 @@ LVars, lattice-based mutable shared state
 
 Implementation of Kuper et al's LVars.
 Stability: Unstable
+
 */
 
 module std/os/lvar
@@ -41,7 +43,14 @@ public noinline fun lvar( bottom : a, join : (a,a) -> a, is-gte : (a, a) -> mayb
 }
 
 public fun put( lvar : lvar<a>, x : a ) : pure () {
-  unsafe-put( lvar.lv, fn (y) { join(lvar)(x, y) } )
+  put( lvar, fn (y) { join(lvar)(x, y) } )
+}
+
+// the update function must obey the following laws:
+// update(x) >= x                             -- ordering
+// update1(update2(x)) == update2(update1(x)) -- commutativity
+public fun put( lvar : lvar<a>, update : a -> a ) : pure () {
+  unsafe-put( lvar.lv, update )
 }
 
 public fun get( lvar : lvar<a>, in-threshold-set : a -> maybe<a> ) : pure a {

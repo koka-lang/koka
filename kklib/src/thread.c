@@ -567,25 +567,32 @@ kk_box_t kk_lvar_get( kk_lvar_t lvar, kk_function_t in_threshold_set, kk_context
   lvar_t* lv = (lvar_t*)kk_cptr_raw_unbox(lvar);
   kk_box_t result;
 
-  while (!lv->is_frozen) {
-    kk_box_dup(lvar);
-
-    // run a task or a lvar operation, returns with lvar's lock is locked
-    kk_lvar_wait(lvar,ctx);
-    // get is pair-wise incompatible, meaning that get returns a value within a sum type
-    result = kk_box_dup(lv->result); // TODO: do we need to dup here?
-    pthread_mutex_unlock(&lv->lock);
-
+  while (true) {
+    // check if current value has reached threshold and get result value on threshold
     kk_function_dup(in_threshold_set);
-    kk_box_dup(result);
-    kk_box_t done = kk_function_call(kk_box_t,(kk_function_t,kk_box_t,kk_context_t*),in_threshold_set,(in_threshold_set,result,ctx));
+    result = kk_function_call(kk_box_t, (kk_function_t, kk_box_t, kk_context_t *),
+                              in_threshold_set, (in_threshold_set, kk_box_dup(lv->result), ctx));
 
-    if (!kk_box_is_null(done)) break;
+    // if current value has reached threshold, return
+    if (!kk_box_is_null(result)) break;
+
+    // if threshold was not reached but lvar is frozen, error
+    if(lv->is_frozen) goto err;
+
+    // otherwise wait for an update to the lvar
+    kk_box_dup(lvar);
+    kk_lvar_wait(lvar, ctx);
+    pthread_mutex_unlock(&lv->lock);
   }
-
-  kk_function_drop(in_threshold_set,ctx);
+  kk_function_drop(in_threshold_set, ctx);
   kk_box_drop(lvar,ctx);
   return result;
+ err:
+  // get should block forever in this situation
+  // but maybe we can do something better?
+  pthread_mutex_lock(&lv->lock);
+  pthread_cond_wait(&lv->available, &lv->lock);
+  return kk_box_null;
 }
 
 void kk_lvar_freeze( kk_lvar_t lvar, kk_context_t* ctx ) {
