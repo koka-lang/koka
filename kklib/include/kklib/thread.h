@@ -32,8 +32,8 @@ kk_decl_export kk_promise_t kk_task_schedule_n( kk_ssize_t count, kk_ssize_t str
 typedef kk_box_t kk_lvar_t;
 
 kk_decl_export kk_lvar_t kk_lvar_alloc(kk_box_t lattice_bottom, kk_context_t *ctx);
-kk_decl_export void kk_lvar_put(kk_lvar_t lvar, kk_function_t update, kk_context_t *ctx);
-kk_decl_export kk_box_t kk_lvar_get( kk_lvar_t lvar, kk_function_t in_threshold_set, kk_context_t* ctx );
-kk_decl_export void kk_lvar_freeze(kk_lvar_t lvar, kk_context_t *ctx);
+kk_decl_export void      kk_lvar_put(kk_lvar_t lvar, kk_function_t update, kk_context_t *ctx);
+kk_decl_export kk_box_t  kk_lvar_get( kk_lvar_t lvar, kk_function_t in_threshold_set, kk_context_t* ctx );
+kk_decl_export kk_box_t  kk_lvar_freeze(kk_lvar_t lvar, kk_context_t *ctx);
 
 #endif // include guard

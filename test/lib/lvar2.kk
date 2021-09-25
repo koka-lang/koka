@@ -29,5 +29,5 @@ fun main() {
   lv.get([32]).println
   lv.get([33]).println
   await(promises)
-  lv.freeze()
+  lv.freeze().println
 }

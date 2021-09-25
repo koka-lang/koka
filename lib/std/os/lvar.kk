@@ -18,53 +18,90 @@ module std/os/lvar
 
 abstract struct lvar<a> {
   lv : any;
-  join : (a, a) -> a;
-  is-gte : (a, a) -> maybe<bool>
+  join : (a, a) -> maybe<a>;
+  compare : (a, a) -> maybe<order>;
 }
 
 noinline extern unsafe-lvar( bottom : a ) : pure any {
   c "kk_lvar_alloc"
 }
 
-noinline extern unsafe-put( lv : any, update : a -> a) : pure () {
+noinline extern unsafe-put( lv : any, update : a -> null<a>) : pure () {
   c "kk_lvar_put"
 }
 
-noinline extern unsafe-get( lv : any, in-threshold-set : a -> null<a> ) : pure a {
+noinline extern unsafe-get( lv : any, in-threshold-set : (a, bool) -> null<a> ) : pure a {
   c "kk_lvar_get"
 }
 
-noinline extern unsafe-freeze( lv : any ) : pure () {
+noinline extern unsafe-freeze( lv : any ) : pure a {
   c "kk_lvar_freeze"
 }
 
-public noinline fun lvar( bottom : a, join : (a,a) -> a, is-gte : (a, a) -> maybe<bool>) : pure lvar<a> {
-  Lvar( unsafe-lvar(bottom), join, is-gte )
+public noinline fun lvar( bottom : a, join : (a, a) -> maybe<a>, compare : (a, a) -> maybe<order>) : pure lvar<a> {
+  Lvar( unsafe-lvar(bottom), join, compare )
 }
 
-public fun put( lvar : lvar<a>, x : a ) : pure () {
-  put( lvar, fn (y) { join(lvar)(x, y) } )
+// Update functions must obey the following laws:
+//
+//   d <= update(d)                             -- monotonicity
+//   update1(update2(d)) == update2(update1(d)) -- commutativity
+//
+public fun put( lvar : lvar<a>, update : a -> maybe<a> ) : pure () {
+  lvar.lv.unsafe-put( fn (d) { d.update.null } )
 }
 
-// the update function must obey the following laws:
-// update(x) >= x                             -- ordering
-// update1(update2(x)) == update2(update1(x)) -- commutativity
-public fun put( lvar : lvar<a>, update : a -> a ) : pure () {
-  unsafe-put( lvar.lv, update )
+public fun put( lvar : lvar<a>, d : a ) : pure () {
+  lvar.put( fn (d') { lvar.join(d, d') } )
 }
 
+public fun get( lvar : lvar<a>, in-threshold-set : (a, bool) -> maybe<a> ) : pure a {
+  lvar.lv.unsafe-get( fn (p) { p.in-threshold-set.null } )
+}
+
+// Variant of `get` which assumes every value in the threshold set is unfrozen.
 public fun get( lvar : lvar<a>, in-threshold-set : a -> maybe<a> ) : pure a {
-  unsafe-get( lvar.lv, fn (x) { null(in-threshold-set(x)) } )
+  lvar.get( fn (p) { if not(p.snd) then p.fst.in-threshold-set else Nothing } )
 }
 
+// Variant of `get` which represents the threshold set as an explicit list of values and frozen status bits.
+public fun get( lvar : lvar<a>, threshold-set : list<(a, bool)> ) : pure a {
+  lvar.get( fn (p) { threshold-set.find( fn (p') { lvar.compare.is-gte(p, p') } ) } )
+}
+
+// Variant of `get` which represents the threshold set as an explicit list of values and assumes all values are unfrozen.
 public fun get( lvar : lvar<a>, threshold-set : list<a> ) : pure a {
-  get( lvar, fn (x) {
-    threshold-set.find(fn (y) {
-      is-gte(lvar)(x,y).default(False)
-    })
-  })
+  lvar.get( threshold-set.map( fn (d) { (d, false) } ) )
 }
 
-public fun freeze( lvar : lvar<a> ) : pure () {
-  unsafe-freeze( lvar.lv )
+public fun freeze( lvar : lvar<a> ) : pure a {
+  lvar.lv.unsafe-freeze
+}
+
+private fun is-eq( m : maybe<order> ) : bool {
+  m.default(False, fn (ord) { ord == Eq } ) // TODO: default doesn't typecheck !
+}
+
+private fun is-gte( m : maybe<order> ) : bool {
+   m.default(False, fn (ord) { ord == Gt || ord == Eq }) // TODO: default doesn't typecheck !
+}
+
+// Lift the partial comparison operation on elements of the lattice to a >= comparison on
+// elements accompanied by frozen status bits.
+private fun is-gte( compare : (a, a) -> maybe<order>, p : (a, bool), p' : (a, bool)) : bool {
+   match (p, p') {
+     ((d, false), (d', false)) -> compare(d, d').is-gte
+     ((d, true) , (d', true))  -> compare(d, d').is-eq
+     ((d, false), (d', true))  -> compare(d, d').is-gte
+     // Originally, Kuper checks if d' is top, which is necessary as top is an explicit element of the lattice type a,
+     // even though such a state should never arise. Our implementation uses the type maybe<a> to represent the lattice,
+     // where Nothing is top, and rule out the state where the lvar stores top via the type system, as it stores a value
+     // of type a rather than maybe<a>.
+     ((d, true) , (d', false)) -> False // d' == top
+   }
+}
+
+// Syntactic sugar to allow us to write `lvar.join(d, d')`
+public fun join( lv : lvar<a>, d : a, d' : a ) : maybe<a> {
+  join(lvar)(d, d')
 }
