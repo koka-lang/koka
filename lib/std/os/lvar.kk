@@ -16,6 +16,8 @@ Stability: Unstable
 
 module std/os/lvar
 
+import std/num/int32
+
 abstract struct lvar<a> {
   lv : any;
   join : (a, a) -> maybe<a>;
@@ -30,7 +32,7 @@ noinline extern unsafe-put( lv : any, update : a -> null<a>) : pure () {
   c "kk_lvar_put"
 }
 
-noinline extern unsafe-get( lv : any, in-threshold-set : (a, bool) -> null<a> ) : pure a {
+noinline extern unsafe-get( lv : any, in-threshold-set : (a, int32) -> null<a> ) : pure a {
   c "kk_lvar_get"
 }
 
@@ -56,52 +58,52 @@ public fun put( lvar : lvar<a>, d : a ) : pure () {
 }
 
 public fun get( lvar : lvar<a>, in-threshold-set : (a, bool) -> maybe<a> ) : pure a {
-  lvar.lv.unsafe-get( fn (p) { p.in-threshold-set.null } )
+  lvar.lv.unsafe-get( fn (d, frz) { in-threshold-set(d, frz.bool).null } )
 }
 
 // Variant of `get` which assumes every value in the threshold set is unfrozen.
 public fun get( lvar : lvar<a>, in-threshold-set : a -> maybe<a> ) : pure a {
-  lvar.get( fn (p) { if not(p.snd) then p.fst.in-threshold-set else Nothing } )
+  lvar.get( fn (d, frz) { if frz then Nothing else d.in-threshold-set  } )
 }
 
 // Variant of `get` which represents the threshold set as an explicit list of values and frozen status bits.
 public fun get( lvar : lvar<a>, threshold-set : list<(a, bool)> ) : pure a {
-  lvar.get( fn (p) { threshold-set.find( fn (p') { lvar.compare.is-gte(p, p') } ) } )
+  lvar.get( fn (d, frz) { threshold-set.find( fn (p') { lvar.compare.is-gte((d, frz), p') } ).map(fst) } )
 }
 
 // Variant of `get` which represents the threshold set as an explicit list of values and assumes all values are unfrozen.
 public fun get( lvar : lvar<a>, threshold-set : list<a> ) : pure a {
-  lvar.get( threshold-set.map( fn (d) { (d, false) } ) )
+  lvar.get( threshold-set.map( fn (d) { (d, False) } ) )
 }
 
 public fun freeze( lvar : lvar<a> ) : pure a {
   lvar.lv.unsafe-freeze
 }
 
-private fun is-eq( m : maybe<order> ) : bool {
-  m.default(False, fn (ord) { ord == Eq } ) // TODO: default doesn't typecheck !
+private fun is-eq( m : maybe<order> ) : total bool {
+  m.maybe(False, fn (ord) { ord == Eq } ) // TODO: default doesn't typecheck !
 }
 
-private fun is-gte( m : maybe<order> ) : bool {
-   m.default(False, fn (ord) { ord == Gt || ord == Eq }) // TODO: default doesn't typecheck !
+private fun is-gte( m : maybe<order> ) : total bool {
+   m.maybe(False, fn (ord) { ord == Gt || ord == Eq }) // TODO: default doesn't typecheck !
 }
 
 // Lift the partial comparison operation on elements of the lattice to a >= comparison on
 // elements accompanied by frozen status bits.
-private fun is-gte( compare : (a, a) -> maybe<order>, p : (a, bool), p' : (a, bool)) : bool {
+private fun is-gte( compare : (a, a) -> total maybe<order>, p : (a, bool), p' : (a, bool)) : total bool {
    match (p, p') {
-     ((d, false), (d', false)) -> compare(d, d').is-gte
-     ((d, true) , (d', true))  -> compare(d, d').is-eq
-     ((d, false), (d', true))  -> compare(d, d').is-gte
+     ((d, False), (d', False)) -> compare(d, d').is-gte
+     ((d, True) , (d', True))  -> compare(d, d').is-eq
+     ((d, False), (d', True))  -> compare(d, d').is-gte
      // Originally, Kuper checks if d' is top, which is necessary as top is an explicit element of the lattice type a,
      // even though such a state should never arise. Our implementation uses the type maybe<a> to represent the lattice,
      // where Nothing is top, and rule out the state where the lvar stores top via the type system, as it stores a value
      // of type a rather than maybe<a>.
-     ((d, true) , (d', false)) -> False // d' == top
+     _ -> False // d' == top
    }
 }
 
 // Syntactic sugar to allow us to write `lvar.join(d, d')`
-public fun join( lv : lvar<a>, d : a, d' : a ) : maybe<a> {
-  join(lvar)(d, d')
+public fun join( lv : lvar<a>, d : a, d' : a ) : total maybe<a> {
+  join(lv)(d, d')
 }
