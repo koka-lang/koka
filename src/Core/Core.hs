@@ -47,7 +47,7 @@ module Core.Core ( -- Data structures
                    , makeInt32, makeSizeT
                    , makeEvIndex
                    , makeList, makeVector
-                   , makeDef, makeTDef, makeStats, makeDefExpr
+                   , makeDef, makeTDef, makeStats, makeDefsLet, makeDefExpr
                    , makeDropSpecial
                    , unzipM
                    , Visibility(..), Fixity(..), Assoc(..), isPublic
@@ -192,12 +192,19 @@ makeDefExpr expr
 
 makeStats :: [Expr] -> Expr
 makeStats []
-  = failure "Core.Parc.makeStats: no expressions"
+  = failure "Core.Core.makeStats: no expressions"
 makeStats [expr]
   = expr
 makeStats exprs
-  = Let [DefNonRec (makeDef nameNil expr) | expr <- init exprs]
-        (last exprs)
+  = makeLet [DefNonRec (makeDef nameNil expr) | expr <- init exprs] (last exprs)
+    -- makeDefsLet [makeDef nameNil expr | expr <- init exprs] (last exprs)
+
+makeDefsLet :: [Def] -> Expr -> Expr
+makeDefsLet [] expr    = expr
+makeDefsLet defs expr  | isExprUnit expr && typeOf (defExpr (last defs)) == typeUnit
+  = makeDefsLet (init defs) (defExpr (last defs))
+makeDefsLet defs expr
+  = makeLet (map DefNonRec defs) expr
 
 unzipM :: Monad m => m [(a,b)] -> m ([a],[b])
 unzipM m = fmap unzip m
@@ -210,8 +217,9 @@ unzipM m = fmap unzip m
 -- If this remains in the source after Reuse Analyis an error will be thrown!
 makeDropSpecial :: TName -> Expr -> Expr -> Expr -> Expr
 makeDropSpecial y xUnique xShared xDecRef
-  = App (Var (TName nameDropSpecial noUse) noUse) [Var y noUse, xUnique, xShared, xDecRef]
-  where noUse = error "Core.Core.makeDropSpecial not removed!"
+  = App (Var (TName nameDropSpecial tp) (InfoExternal [])) [Var y InfoNone, xUnique, xShared, xDecRef]
+  where
+    tp = typeFun [(nameNil,t) | t <- [typeOf y, typeOf xUnique, typeOf xShared, typeOf xDecRef]] typeTotal typeUnit
 
 {--------------------------------------------------------------------------
   Top-level structure

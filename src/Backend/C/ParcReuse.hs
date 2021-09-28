@@ -121,7 +121,7 @@ ruLet def expr
   = do (tnames, fn) <- ruLet' def
        (expr', mReuses) <- ruTryReuseNamesIn tnames expr
        (ds, fe) <- fn mReuses
-       return $ makeLet (DefNonRec <$> ds) $ fe expr'
+       return $ makeDefsLet ds $ fe expr'
 
 ruLetExpr :: Expr -> Reuse ([(TName, Bool)], [Maybe Def] -> Reuse ([Def], Expr -> Expr))
 ruLetExpr expr
@@ -145,10 +145,10 @@ ruLet' def
           App var@(Var name _) [Var tname _] | getName name == nameDrop
             -> do return ([(tname, True)], \mReuses ->
                     case head mReuses of
-                      Nothing -> return ([], makeLet [DefNonRec def])
+                      Nothing -> return ([], makeDefsLet [def])
                       Just rReuse
                         -> do let ru = makeTDef (defTName rReuse) genReuseNull
-                              return ([ru], makeLet [DefNonRec (makeDef nameNil $ genReuseAssignWith (defTName rReuse) (defExpr rReuse))]))
+                              return ([ru], makeDefsLet [(makeDef nameNil $ genReuseAssignWith (defTName rReuse) (defExpr rReuse))]))
           -- See makeDropSpecial:
           -- We assume that makeDropSpecial always occurs in a definition.
           App (Var name _) [Var y _, xUnique, rShared, xDecRef] | getName name == nameDropSpecial
@@ -159,18 +159,18 @@ ruLet' def
                     let rUnique = rUnique' exprUnit
                     case head mReuses of
                       Nothing
-                        -> do return (rusUnique, makeLet [DefNonRec (makeDef nameNil
+                        -> do return (rusUnique, makeDefsLet [(makeDef nameNil
                                 ( makeIfExpr (genIsUnique y)
                                   (makeStats [rUnique, genFree y])
                                   (makeStats [rShared, xDecRef])))])
                       Just ru
                         -> do rReuse <- genReuseAssign y 
-                              return (ru:rusUnique, makeLet [DefNonRec (makeDef nameNil
+                              return (ru:rusUnique, makeDefsLet [(makeDef nameNil
                                 ( makeIfExpr (genIsUnique y)
                                   (makeStats [rUnique, rReuse])
                                   (makeStats [rShared, xDecRef])))]))
           _ -> do de <- ruExpr (defExpr def)
-                  return $ ([], \_ -> return ([], makeLet [DefNonRec (def{defExpr=de})]))
+                  return $ ([], \_ -> return ([], makeDefsLet [(def{defExpr=de})]))
 
 ruBranches :: [TName] -> [Branch] -> Reuse [Branch]
 ruBranches scrutinees branches
