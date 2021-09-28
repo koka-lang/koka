@@ -2513,12 +2513,12 @@ type scope :: S -> X
 // Exceptions
 effect exn {
   // Throw an exception
-  ctl throw-exn( exn : exception ) : a
+  brk throw-exn( exn : exception ) : a
 }
 
 fun ".default-exn"(action) {
   handle( action ) {
-    ctl throw-exn( exn : exception ) {
+    brk throw-exn( exn : exception ) {
       "uncaught exception: ".prints
       show(exn).println
     }
@@ -2561,7 +2561,7 @@ fun error-pattern(location : string, definition : string) : exn a {
 // Catch any exception raised in `action` and handle it.
 // Use `on-exn` or `on-exit` when appropiate.
 fun try( action : () -> <exn|e> a, hndl: exception -> e a ) : e a {
-  with ctl throw-exn(exn){ hndl(exn) }
+  with brk throw-exn(exn){ hndl(exn) }
   action()
 }
 
