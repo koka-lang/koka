@@ -4,7 +4,7 @@ effect state {
 }
 
 effect exc {
-  except raise( s : string ) : a
+  ctl raise( s : string ) : a
 }
 
 fun bar() {
@@ -31,7 +31,7 @@ fun foo() : _ int
 fun main() {
   handle(foo) {
     return (x){ println( "result: " ++ (x:int).show ) }
-    except raise(msg){ println("raised: " ++ msg) }
+    brk raise(msg){ println("raised: " ++ msg) }
     finally { println("exc finalize") }
   }
 }

@@ -1,4 +1,5 @@
-warning (line 39, column 5): using a bare operation is deprecated.
- hint: start with 'val', 'fun', 'except', or 'control' instead.
-test/algeff/wrong/ops1.kk(44,11): error: invalid syntax
- unexpected '(': local parameters are no longer supported, use a local 'var' instead
+test/algeff/wrong/ops1.kk(45, 3): error: operator flip is not part of the handled effect
+ term : handle(action) {
+ ...
+ }
+ inferred type: state

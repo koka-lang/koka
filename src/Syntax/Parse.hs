@@ -935,15 +935,14 @@ parseFunOpDecl linear vis =
   do ((rng0,doc),opSort) <- do rdoc <- dockeywordFun
                                return (rdoc,OpFun)
                            <|>
-                            do rdoc <- dockeyword "except"
-                               warnDeprecated "except" "ctl"
+                            do rdoc <- dockeyword "except" <|> dockeyword "brk"
                                if (linear)
-                                then fail "'except' operations are invalid for a linear effect"
+                                then fail "'brk' operations are invalid for a linear effect"
                                 else return (rdoc,OpExcept)
                            <|>
                             do rdoc <- dockeyword "control" <|> dockeyword "ctl"
                                if (linear)
-                                then fail "'control' operations are invalid for a linear effect"
+                                then fail "'ctl' operations are invalid for a linear effect"
                                 else return (rdoc,OpControl)
      (id,idrng)   <- identifier
      exists0      <- typeparams
@@ -1652,7 +1651,7 @@ opClauses
 handlerOpX :: LexParser (Clause, Maybe (UserExpr -> UserExpr))
 handlerOpX
   = do rng <- specialId "finally"
-       parens (return ())
+       optional( parens (return ()) )
        expr <- bodyexpr
        return (ClauseFinally (Lam [] expr (combineRanged rng expr)), Nothing)
   <|>
@@ -1695,8 +1694,7 @@ handlerOp
     do opSort <- do keyword "fun"
                     return OpFun
                  <|>
-                 do keyword "except"
-                    warnDeprecated "except" "ctl"
+                 do keyword "except" <|> keyword "brk"
                     return OpExcept
                  <|>
                  do keyword "control" <|> keyword "ctl"
@@ -1707,7 +1705,7 @@ handlerOp
                  <|>
                  -- deprecated
                  do lookAhead qidentifier
-                    pwarningMessage "using a bare operation is deprecated.\n  hint: start with 'val', 'fun', or 'ctl' instead."
+                    pwarningMessage "using a bare operation is deprecated.\n  hint: start with 'val', 'fun', 'brk', or 'ctl' instead."
                     return OpControl
        (name, nameRng) <- qidentifier
        (oppars,prng) <- opParams

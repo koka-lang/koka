@@ -9,6 +9,28 @@ module basic
 
 import std/num/random
 
+
+// --------------------------------------------------------
+//  Input
+//  Essentially models dynamically bound state
+// --------------------------------------------------------
+
+// Declare an effect `:input` with a single operation `ask`.
+// We use `fun` instead of general `ctl` to ensure that all handlers
+// will always resume (at most once) with the result.
+effect fun ask() : string
+
+fun hello()
+  val name = ask()
+  println("Hello " ++ name ++ ", " ++ ask())  // "Hello <ask>, <ask>"
+
+
+public fun test2() 
+  with fun ask(){ "there" }   // handle input; a `fun` operation resumes implicitly
+  hello()
+
+
+
 // --------------------------------------------------------
 //  Exceptions
 // --------------------------------------------------------
@@ -38,33 +60,13 @@ fun zerodiv(x,y)
 
 // reify the ctlion effect back to a `:maybe` value
 fun to-maybe(action) 
-  with ctl raise(_s){ Nothing }
+  with brk raise(s){ Nothing }    // if a function never resumes, using `brk` ("break") can be more efficient then `ctl` (as it runs finalizers eagerly)
   Just(action())
 
 
 public fun test1() 
   zerodiv(10,0).println
 
-
-
-// --------------------------------------------------------
-//  Input
-//  Essentially models dynamically bound state
-// --------------------------------------------------------
-
-// Declare an effect `:input` with a single operation `input`.
-// We use `fun` instead of general `control` to ensure that all handlers
-// will always resume (at most once) with the result.
-effect fun input() : string
-
-fun hello()
-  val name = input()
-  println("Hello " ++ name ++ ", " ++ input())  // "Hello <input>, <input>"
-
-
-public fun test2() 
-  with fun input(){ "there" }   // handle input; a `fun` operation resumes implicitly
-  hello()
 
 
 
@@ -87,13 +89,12 @@ fun counter()
 
 // State handler.
 fun state(init, action)
-  var s := init              // use a local mutable variable
-  with handler
-    return(x) { (x,s) }
-    fun get() { s }
-    fun put(x){ s := x }
-  action()
-
+  var s := init        // use a local mutable variable
+  handle(action)
+    return(x)  (x,s) 
+    fun get()  s 
+    fun put(x) s := x 
+  
 
 public fun test3() 
   state(1,counter).snd

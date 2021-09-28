@@ -63,8 +63,8 @@ fun parse(input0 : string, action : () -> <parse,many|e> a) : <many|e> (a,string
   with return(x){ (x,input) }
   with fun satisfy(pred){
     match(pred(input)) {
-      Nothing          { fail() }
-      Just((res,rest)) { input := rest; res }
+      Nothing          -> { fail() }
+      Just((res,rest)) -> { input := rest; res }
     }
   }
   action()      

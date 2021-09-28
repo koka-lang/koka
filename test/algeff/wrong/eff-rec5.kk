@@ -7,9 +7,11 @@ type hide {
   Hide(unhide : int -> state int)
 }
 
-val new-ref = handler(s) {
-  get() -> resume(s,s)
-  set(x) -> resume((),x)
+fun new-ref(init,action) {
+  var s := init
+  handle(action)
+    fun get()  { s }
+    fun set(x) { s := x }
 }
 
 fun recurse() {

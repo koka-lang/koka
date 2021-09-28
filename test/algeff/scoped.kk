@@ -163,8 +163,8 @@ fun parse(input : string, action : () -> <nondet,symbol|e> a) : <nondet|e> a {
   handle(action) {
     return(x) -> if (cs.is-empty) then x else fail()
     ctl symbol(s) -> match(cs.starts-with(s)) {
-      Nothing   { fail() }
-      Just(rest){ cs := rest.string; resume(s) }
+      Nothing    -> { fail() }
+      Just(rest) -> { cs := rest.string; resume(s) }
     }  
   }
 }

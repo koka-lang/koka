@@ -46,8 +46,8 @@ fun pretty-emit(action) {
 }
 
 effect state<s> {
-  fun get()      : s
-  fun set(x : s) : ()
+  ctl get()      : s
+  ctl set(x : s) : ()
 }
 
 fun state1(action) {
@@ -70,32 +70,32 @@ fun emit4(action) {
   action()
 }
 
-effect control abort() : ()
+effect ctl abort() : ()
 
 fun pretty-abort(action) {
   with pretty-emit
-  with control abort(){ () }
+  with ctl abort(){ () }
   action()
 }
 
-effect control choice() : bool
+effect ctl choice() : bool
 
 fun pretty-all(action) {
-  with control choice() { resume(True) ++ (resume(False) : list<string>) }
+  with ctl choice() { resume(True) ++ (resume(False) : list<string>) }
   [pretty-abort(action)]
 }
 
 
 fun pretty-all2(action) {
-  with control choice() { resume(True) ++ (resume(False) : list<string>) }
+  with ctl choice() { resume(True) ++ (resume(False) : list<string>) }
   with return(x) { [x] }
   pretty-abort(action)
 }
 
 fun state2(init,action) {
   val f = with {
-            control get()  { (fn(s){ resume(s)(s) }) }
-            control set(x) { (fn(s){ resume(())(x) }) }
+            ctl get()  { (fn(s){ resume(s)(s) }) }
+            ctl set(x) { (fn(s){ resume(())(x) }) }
           } in {
             val x = action()
             (fn(s) { x })

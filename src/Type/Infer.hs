@@ -46,7 +46,6 @@ import qualified Common.NameSet as S
 import qualified Data.Map as M
 
 import Syntax.Syntax
-import Static.BindingGroups( hasFreeVar )
 import qualified Core.Core as Core
 
 import Kind.Kind
@@ -941,8 +940,9 @@ inferHandler propagated expect handlerSort handlerScoped allowMask
                           OpVal        -> (nameClause "tail" (length pars), pars)
                           OpFun        -> (nameClause "tail" (length pars), pars)
                           OpExcept     -> (nameClause "never" (length pars), pars)
-                          OpControl    | not (hasFreeVar body (newName "resume")) 
-                                       -> (nameClause "never" (length pars), pars)  -- except
+                          -- don't optimize ctl to exc since exc runs the finalizers before the clause (unlike ctl)
+                          -- OpControl    | not (hasFreeVar body (newName "resume")) 
+                          --             -> (nameClause "never" (length pars), pars)  -- except
                           OpControl    -> let resumeTp = TFun [(nameNil,resumeArg)] eff res
                                           in (nameClause "control" (length pars), pars ++ [ValueBinder (newName "resume") (Just resumeTp) () hrng patRng])
                           OpControlRaw -> let eff0 = effectExtend heff eff

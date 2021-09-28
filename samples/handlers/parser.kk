@@ -19,14 +19,14 @@ fun select(xs)
 // Return all solutions
 val solutions = handler 
   return(x)  [x]          // wraps final result in singleton list
-  ctl fail() []           // never resumes, but returns directly with an empty list
+  brk fail() []           // never resumes ("break"s), but returns directly with an empty list
   ctl flip() resume(True) ++ resume(False)
 
 
 // Return the first solution
 val eager = handler 
   return(x)  [x]
-  ctl fail() []
+  brk fail() []
   ctl flip() match resume(True)
                Nil -> resume(False)
                xs  -> xs

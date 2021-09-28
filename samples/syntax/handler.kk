@@ -42,12 +42,15 @@ public fun test3() : console int
 
 
 // There are three kinds of operations:
-// - `ctl`:
-//    Most generally is `ctl` which binds implicitly the
+// - `ctl`: ("control")
+//   Most generally is `ctl` which binds implicitly the
 //   `resume` function that can be used to resume at the call-site
-//   of the operation (see `handlers/basic`). If `resume` is not
-//   used in the body, it is an operation that never resumes which
-//   is used for exception-like effects.
+//   of the operation (see `handlers/basic`). 
+// - `brk`: ("break")
+//   Used for operations that never resume, like exceptions.
+//   We can use `ctl` as well for such functions but using `brk` is
+//   a bit more efficient as it runs any finalizers directly before 
+//   evaluating the body of `brk`.
 // - `fun`:
 //   `fun op(<args>{ <body> })  ~>  ctl op(<args>){ resume (<body>) }`
 //   The `fun` operation clause always resumes once at with the result
@@ -59,7 +62,7 @@ public fun test3() : console int
 //   as `fun` operations.
 
 public fun test4() : console int 
-  with ctl raise(msg){ println(msg); 42 }
+  with brk raise(msg){ println(msg); 42 }
   raise("error")
 
 

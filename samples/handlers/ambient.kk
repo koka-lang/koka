@@ -1,5 +1,5 @@
 /* Examples from the paper:
-   "Programming with Implicit Values, Functions, and ctl (or, Implicit Functions: Dynamic Binding with Lexical Scoping)"
+   "Programming with Implicit Values, Functions, and Control (or, Implicit Functions: Dynamic Binding with Lexical Scoping)"
    by Jonathan Brachthauser and Daan Leijen.
 
    Shows how effects can model typed dynamic binding/implicit parameters/ambient state.

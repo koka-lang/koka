@@ -1,4 +1,3 @@
-warning (line 39, column 5): using a bare operation is deprecated.
- hint: start with 'val', 'fun', 'except', or 'control' instead.
-test/algeff/wrong/ops2.kk(44,11): error: invalid syntax
- unexpected '(': local parameters are no longer supported, use a local 'var' instead
+test/algeff/wrong/ops2.kk(38, 3): warning: operation flip is declared as 'fun' but handled here using 'ctl'
+(1, 0): error: there is no 'main' function defined
+ hint: use the '-l' flag to generate a library?
