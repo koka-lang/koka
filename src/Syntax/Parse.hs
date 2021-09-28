@@ -1697,16 +1697,16 @@ handlerOp
                  do keyword "except"
                     return OpExcept
                  <|>
-                 do keyword "control"
+                 do keyword "control" <|> keyword "ctl"
                     return OpControl
                  <|>
-                 do keyword "rcontrol"
+                 do keyword "rcontrol" <|> keyword "rctl"
                     return OpControlRaw
                  <|>
                  -- deprecated
                  do lookAhead qidentifier
                     pos <- getPosition
-                    pwarning $ "warning " ++ show pos ++ ": using a bare operation is deprecated.\n  hint: start with 'val', 'fun', 'except', or 'control' instead."
+                    pwarning $ "warning " ++ show pos ++ ": using a bare operation is deprecated.\n  hint: start with 'val', 'fun', or 'ctl' instead."
                     return OpControl
        (name, nameRng) <- qidentifier
        (oppars,prng) <- opParams

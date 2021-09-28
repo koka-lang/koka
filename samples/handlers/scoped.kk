@@ -4,7 +4,7 @@
 
 effect nondet 
   control flip() : bool
-  except  fail() : a
+  control fail() : a
 
 
 fun knapsack(w : int, vs : list<int> ) : <nondet,div> list<int> 
@@ -22,9 +22,9 @@ fun select(xs)
 
 
 val solutions = handler 
-  return(x)      [x]
-  except fail()  []
-  control flip() resume(True) ++ resume(False)
+  return(x)       [x]
+  control fail()  []
+  control flip()  resume(True) ++ resume(False)
 
 
 fun show( xss : list<list<int>> ) : string 
