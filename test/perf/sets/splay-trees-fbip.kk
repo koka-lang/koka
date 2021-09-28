@@ -47,20 +47,16 @@ fun insert(v : elem, tree) {
 }
 
 public fun member(v : elem, tree : tree) : (bool, tree) {
-  fun go2(tree, zipper, k) {
-    match(tree) {
-      Leaf -> (v == k, splay(Con(Leaf, v, Leaf), zipper))
-      Node(a, b, c) {
-        if(v <= b) { go2(a, LeftChild(b, zipper, c), b) }
-        else { go2(c, RightChild(b, zipper, a), k) }
-      }
-    }
-  }
   fun go(tree, zipper) {
     match(tree) {
-      Leaf -> (False, splay(Con(Leaf, v, Leaf), zipper))
+      Leaf -> (False, splay_(zipper))
       Node(a, b, c) {
-        if(v <= b) { go2(a, LeftChild(b, zipper, c), b) }
+        if(v <= b) {
+          if(v == b) {
+            (True, splay(Con(a, b, c), zipper))
+          } else {
+            go(a, LeftChild(b, zipper, c))
+          }
         else { go(c, RightChild(b, zipper, a)) }
       }
     }

@@ -16,7 +16,7 @@ type tree {
   Bin(s : int32, a : elem, l : tree, r : tree)
 }
 
-fun size(t) {
+fun size(^t) {
   match(t) {
     Tip -> 0.int32
     Bin(sz, _, _, _) -> sz

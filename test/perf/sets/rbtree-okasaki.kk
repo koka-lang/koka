@@ -46,7 +46,7 @@ fun rbalance(c1, a, x, b1) {
   }
 }
 
-fun is-red(t) {
+fun is-red(^t) {
   match(t) {
     T(R, _, _, _) -> True
     _ -> False

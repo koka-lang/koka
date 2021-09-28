@@ -50,14 +50,6 @@ fun splay(e, f, g, zipper) {
   }
 }
 
-fun splay_(zipper) {
-  match(zipper) {
-    Root -> Leaf
-    LeftChild(b, z, c) -> splay(Leaf, b, c, z)
-    RightChild(b, z, a) -> splay(a, b, Leaf, z)
-  }
-}
-
 fun access-min(tree) {
   fun go(c, d, e) {
     match(c) {

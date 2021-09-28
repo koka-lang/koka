@@ -28,7 +28,7 @@ type container {
   Con(s : int32, a : (elem, int32), l : tree, r : tree)
 }
 
-fun size(t) {
+fun size(^t) {
   match(t) {
     Tip -> 0.int32
     Bin(sz, _, _, _) -> sz
@@ -127,7 +127,7 @@ fun is-balanced-size(x : int32, y : int32) {
   x + y <= 1.int32 || delta * x >= y
 }
 
-fun is-single(a, b) {
+fun is-single(^a, ^b) {
   size(a) < gamma * size(b)
 }
 
