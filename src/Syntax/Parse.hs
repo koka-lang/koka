@@ -1411,10 +1411,11 @@ typeAnnotation
 --------------------------------------------------------------------------}
 bodyexpr :: LexParser UserExpr
 bodyexpr
-  = do keyword "->" -- <|> keyword "="
-       blockexpr
+  = blockexpr
   <|>
-    block
+    do keyword "->" -- <|> keyword "="
+       -- pwarningMessage "using '->' is deprecated, it can be left out."
+       blockexpr    
 
 blockexpr :: LexParser UserExpr   -- like expr but a block `{..}` is interpreted as statements
 blockexpr
@@ -1463,7 +1464,7 @@ lambda alts
   = do rng <- keywordOr "fn" alts
        spars <- squantifier
        (tpars,pars,parsRng,mbtres,preds,ann) <- funDef
-       body <- block
+       body <- bodyexpr
        let fun = promote spars tpars preds mbtres
                   (Lam pars body (combineRanged rng body))
        return (ann fun)
@@ -1650,6 +1651,7 @@ opClauses
 handlerOpX :: LexParser (Clause, Maybe (UserExpr -> UserExpr))
 handlerOpX
   = do rng <- specialId "finally"
+       parens (return ())
        expr <- bodyexpr
        return (ClauseFinally (Lam [] expr (combineRanged rng expr)), Nothing)
   <|>
@@ -1664,11 +1666,13 @@ handlerOpX
   <|>
     handlerOp
 
+
 -- returns a clause and potentially a binder as transformation on the handler
 handlerOp :: LexParser (Clause, Maybe (UserExpr -> UserExpr))
 handlerOp
   = do rng <- keyword "return"
        (name,prng,tp) <- do (name,prng) <- paramid
+                            pwarningMessage "'return x' is deprecated; use 'return(x)' instead."
                             tp         <- optionMaybe typeAnnotPar
                             return (name,prng,tp)
                         <|>
@@ -1749,7 +1753,12 @@ guards :: LexParser [UserGuard]
 guards
   = many1 guardBar
   <|>
-    do exp <- bodyexpr
+    do keyword "->"
+       exp <- blockexpr
+       return [Guard guardTrue exp]
+  <|>
+    do exp <- block
+       pwarningMessage "use '->' for pattern matches"
        return [Guard guardTrue exp]
 
 guardBar
@@ -2761,6 +2770,11 @@ dockeyword s
 warnDeprecated dep new
   = do pos <- getPosition
        pwarning $ "warning " ++ show pos ++ ": keyword \"" ++ dep ++ "\" is deprecated. Consider using \"" ++ new ++ "\" instead."
+
+
+pwarningMessage msg
+  = do pos <- getPosition
+       pwarning $ "warning " ++ show pos ++ ": " ++ msg
 
 pwarning :: String -> LexParser ()
 pwarning msg = traceM msg

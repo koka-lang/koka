@@ -179,8 +179,8 @@ fun bob-chooses(m)
 
 
 val all-results = handler 
-  return(x) -> [x] 
-  control choose()
+  return(x) [x] 
+  control choose() 
     resume(True) ++ resume(False) 
 
 

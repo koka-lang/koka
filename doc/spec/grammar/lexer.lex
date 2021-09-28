@@ -162,7 +162,9 @@ private                   { return PRIVATE;}
 as                        { return AS;}
 
 control                   { return CONTROL; }
+ctl                       { return CONTROL; }
 rcontrol                  { return RCONTROL; }
+rctl                      { return RCONTROL; }
 except                    { return EXCEPT; }
 handle                    { return HANDLE; }
 handler                   { return HANDLER; }

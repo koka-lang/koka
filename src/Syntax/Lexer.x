@@ -257,7 +257,7 @@ reservedNames
     , "type", "alias"
     , "struct", "enum", "con"
     , "val", "fun", "fn", "extern", "var"
-    , "control", "rcontrol", "except"
+    , "control", "rcontrol", "except", "ctl", "rctl"
     , "if", "then", "else", "elif"
     , "return", "match", "with", "in"
     , "forall", "exists", "some"

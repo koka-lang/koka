@@ -22,13 +22,14 @@ fun select(xs)
 
 
 val solutions = handler 
-  return  x      -> [x]
-  except  fail() -> []
-  control flip() -> resume(True) ++ resume(False)
+  return(x)      [x]
+  except fail()  []
+  control flip() resume(True) ++ resume(False)
 
 
 fun show( xss : list<list<int>> ) : string 
-  xss.show-list fn(xs){ xs.show-list(core/show) }
+  xss.show-list fn(xs) 
+    xs.show-list(core/show) 
 
 
 fun test1() 
@@ -48,9 +49,9 @@ effect state<s>
 fun state(init,action) 
   var s := init
   with handler
-    return(x)  -> (s,x)
-    fun get()  -> s
-    fun put(i) -> s := i
+    return(x)  (s,x)
+    fun get()  s
+    fun put(i) s := i
   action()
 
 
@@ -71,8 +72,8 @@ fun global(s,action)
 
 
 val choices = handler 
-  except  fail(){ fail() }
-  control flip(){ incr(); resume(flip()) }
+  except fail() { fail() }
+  fun flip()    { incr(); flip() }
 }
 
 fun show(x : (int,list<list<int>>)) : string 
@@ -106,8 +107,7 @@ fun cut()
 
 
 val hcutfail = handler
-  return(x)         -> x
-  control cutfail() -> fail()
+  control cutfail() fail()
 
 
 // collect creates thunks of continuations,
@@ -115,7 +115,7 @@ val hcutfail = handler
 fun collect(action) 
   var q := [fail]
   with handler 
-    return(x) ->
+    return(x)
       if flip() then x else 
         match q
           Nil -> fail()
@@ -140,10 +140,7 @@ fun call(p)
 
 
 fun once(p) 
-  with call
-  val x = p()
-  cut()
-  x 
+  call{ val x = p(); cut(); x }
 
 fun test4() 
   with solutions
@@ -160,11 +157,12 @@ effect fun symbol(s : string) : string
 fun parse(input : string, action : () -> <nondet,symbol|e> a) : <nondet|e> a 
   var cs := input
   handle(action) 
-    return (x) -> if cs.is-empty then x else fail() 
+    return(x) 
+      if cs.is-empty then x else fail() 
     fun symbol(s) 
       match cs.starts-with(s)
-        Nothing   { fail() }
-        Just(rest){ cs := rest.string; s }
+        Nothing    -> fail()
+        Just(rest) -> { cs := rest.string; s }
 
 
 val digits = list(0,9).map(show)

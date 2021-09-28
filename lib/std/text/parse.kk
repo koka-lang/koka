@@ -53,32 +53,33 @@ fun parse-eof( input : sslice, p : () -> <parse|e> a) : e parse-error<a> {
 
 fun parse( input0 : sslice, p : () -> <parse|e> a ) : e parse-error<a> {
   var input := input0
-  with {
-    return x            { ParseOk(x,input) }
-    fun current-input() { input }
-    control fail(msg)   { ParseError(msg,input) }
-    fun satisfy(pred) {
+  with handler
+    return(x)            
+      ParseOk(x,input) 
+
+    fun current-input()  
+      input 
+
+    except fail(msg)     
+      ParseError(msg,input) 
+
+    fun satisfy(pred) 
       val inp = input
-      val m = fn() : total _ { pred(inp) }
-      match(m()) {
-        Just((x,cap)) { input := cap; Just(x) }
-        Nothing       { Nothing }
-      }
-    }
-    control pick() {
+      val m   = fn() : total _ { pred(inp) }
+      match m() 
+        Just((x,cap)) -> { input := cap; Just(x) }
+        Nothing       -> Nothing
+
+    control pick() 
       val save = input;
-      match(resume(True)) {
-        ParseOk(x1,rest1) { ParseOk(x1,rest1) }
-        err1 -> {
+      match resume(True)
+        ParseOk(x1,rest1) -> ParseOk(x1,rest1)
+        err1 -> 
           input := save
-          match(resume(False)) {  // todo: limit lookahead?
-            ParseOk(x2,rest2) { ParseOk(x2,rest2) }
+          match resume(False)   // todo: limit lookahead?
+            ParseOk(x2,rest2) -> ParseOk(x2,rest2) 
             _err2 -> err1  // todo: merge or pick closest?
-          }
-        }
-      }
-    }    
-  }  
+
   mask<local>(p)
 }
 

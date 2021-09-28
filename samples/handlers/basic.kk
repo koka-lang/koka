@@ -91,7 +91,7 @@ fun counter()
 fun state(init, action)
   var s := init              // use a local mutable variable
   with handler
-    return x  { (x,s) }
+    return(x) { (x,s) }
     fun get() { s }
     fun put(x){ s := x }
   action()
