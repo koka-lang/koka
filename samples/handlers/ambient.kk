@@ -1,5 +1,5 @@
 /* Examples from the paper:
-   "Programming with Implicit Values, Functions, and Control (or, Implicit Functions: Dynamic Binding with Lexical Scoping)"
+   "Programming with Implicit Values, Functions, and ctl (or, Implicit Functions: Dynamic Binding with Lexical Scoping)"
    by Jonathan Brachthauser and Daan Leijen.
 
    Shows how effects can model typed dynamic binding/implicit parameters/ambient state.
@@ -51,56 +51,54 @@ fun pretty-emit(action)
 
 
 effect state<s>
-  control get()      : s
-  control set(x : s) : ()
+  ctl get()      : s
+  ctl set(x : s) : ()
 
 
 fun state1(action)
   var s := 0
-  with {
-    fun get()  { s }
-    fun set(x) { s := x }
-  }
-  action()
+  handle(action)
+    fun get() { s }
+    fun set(x){ s := x }
 
 
 effect fun total() : int
 
 fun emit4(action)
   var out := ""
-  with return(x)   { out }
-  with fun emit(s) { out := out ++ s ++ "\n" }
-  with fun total() { out.count }
+  with return(x)  { out }
+  with fun emit(s){ out := out ++ s ++ "\n" }
+  with fun total(){ out.count }
   action()
 
 
-effect control abort() : ()
+effect ctl abort() : ()
 
 fun pretty-abort(action)
   with pretty-emit
-  with control abort() { () }
+  with ctl abort(){ () }
   action()
 
 
-effect control choice() : bool
+effect ctl choice() : bool
 
 fun pretty-all(action)
-  with control choice() 
+  with ctl choice() 
     append(resume(True), resume(False)) 
   [pretty-abort(action)]
 
 
 fun pretty-all2(action) 
-  with control choice() 
+  with ctl choice() 
     append(resume(True), resume(False)) }
-  with return(x) { [x] }
+  with return(x){ [x] }
   pretty-abort(action)
 
 
 fun state2(init,action) 
-  val f = with {
-            control get()  { (fn(s){ resume(s)(s) }) }
-            control set(x) { (fn(s){ resume(())(x) }) }
+  val f = with handler {
+            ctl get()  { (fn(s){ resume(s)(s) }) }
+            ctl set(x) { (fn(s){ resume(())(x) }) }
           } in {
             val x = action()
             (fn(s) { x })

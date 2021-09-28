@@ -936,11 +936,12 @@ parseFunOpDecl linear vis =
                                return (rdoc,OpFun)
                            <|>
                             do rdoc <- dockeyword "except"
+                               warnDeprecated "except" "ctl"
                                if (linear)
                                 then fail "'except' operations are invalid for a linear effect"
                                 else return (rdoc,OpExcept)
                            <|>
-                            do rdoc <- dockeyword "control"
+                            do rdoc <- dockeyword "control" <|> dockeyword "ctl"
                                if (linear)
                                 then fail "'control' operations are invalid for a linear effect"
                                 else return (rdoc,OpControl)
@@ -1695,18 +1696,18 @@ handlerOp
                     return OpFun
                  <|>
                  do keyword "except"
+                    warnDeprecated "except" "ctl"
                     return OpExcept
                  <|>
                  do keyword "control" <|> keyword "ctl"
                     return OpControl
                  <|>
-                 do keyword "rcontrol" <|> keyword "rctl"
+                 do keyword "rcontrol" <|> keyword "rawctl"
                     return OpControlRaw
                  <|>
                  -- deprecated
                  do lookAhead qidentifier
-                    pos <- getPosition
-                    pwarning $ "warning " ++ show pos ++ ": using a bare operation is deprecated.\n  hint: start with 'val', 'fun', or 'ctl' instead."
+                    pwarningMessage "using a bare operation is deprecated.\n  hint: start with 'val', 'fun', or 'ctl' instead."
                     return OpControl
        (name, nameRng) <- qidentifier
        (oppars,prng) <- opParams

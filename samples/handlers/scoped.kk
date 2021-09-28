@@ -3,16 +3,14 @@
 */
 
 effect nondet 
-  control flip() : bool
-  control fail() : a
+  ctl flip() : bool
+  ctl fail() : a
 
 
 fun knapsack(w : int, vs : list<int> ) : <nondet,div> list<int> 
   if w < 0 then fail()
   elif w == 0 then []
-  else 
-    val v = select(vs)
-    Cons(v,knapsack(w - v, vs))
+  else val v = select(vs) in Cons(v,knapsack(w - v, vs))
 
 
 fun select(xs) 
@@ -22,9 +20,9 @@ fun select(xs)
 
 
 val solutions = handler 
-  return(x)       [x]
-  control fail()  []
-  control flip()  resume(True) ++ resume(False)
+  return(x)  [x]
+  ctl fail() []
+  ctl flip() resume(True) ++ resume(False)
 
 
 fun show( xss : list<list<int>> ) : string 
@@ -55,7 +53,7 @@ fun state(init,action)
   action()
 
 
-fun incr(i = 1) : state<int> () 
+fun incr(i : int = 1) : state<int> () 
   put(get()+i)
 
 
@@ -72,9 +70,9 @@ fun global(s,action)
 
 
 val choices = handler 
-  except fail() { fail() }
-  fun flip()    { incr(); flip() }
-}
+  ctl fail() { fail() }
+  fun flip() { incr(); flip() }
+
 
 fun show(x : (int,list<list<int>>)) : string 
   "(state=" ++ x.fst.show ++ ", " ++ x.snd.show ++ ")"
@@ -100,37 +98,36 @@ fun test3()
 // Cut
 // --------------------------------------------------------------
 
-effect control cutfail() : a
+effect ctl cutfail() : a
 
 fun cut() 
   if flip() then () else cutfail()
 
 
-val hcutfail = handler
-  control cutfail() fail()
+fun hcutfail(action)
+  with ctl cutfail() fail()
+  action()
 
 
 // collect creates thunks of continuations,
 // only `cutfail` will `fail` and cut the choices short
 fun collect(action) 
   var q := [fail]
-  with handler 
+  handle(action)
     return(x)
       if flip() then x else 
         match q
           Nil -> fail()
           Cons(p,ps) -> { q := ps; p() }
 
-    except fail()       
+    ctl fail()       
       match q 
         Nil -> fail()
         Cons(p,ps) -> { q := ps; p() }
 
-    control flip() 
-      q := Cons({resume(False)},q)
+    ctl flip() 
+      q := Cons({ resume(False) }, q)
       resume(True)
-
-  action()
 
 
 fun call(p)
@@ -158,7 +155,7 @@ fun parse(input : string, action : () -> <nondet,symbol|e> a) : <nondet|e> a
   var cs := input
   handle(action) 
     return(x) 
-      if cs.is-empty then x else fail() 
+      if cs.is-empty then x else fail()       
     fun symbol(s) 
       match cs.starts-with(s)
         Nothing    -> fail()
@@ -213,13 +210,12 @@ fun factor()
     symbol("(")
     val i = expr()
     symbol(")")
-    i
+    i  
 
 
 fun test5()   
   with solutions
   parse("2+8*5"){ expr() } 
-
 
 
 // --------------------------------------------------------------

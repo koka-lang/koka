@@ -37,7 +37,7 @@ fun show(ps : list<player> ) : string {
 // --------------------------------------------------------
 
 effect nim {
-  control move(player:player,sticks:int) : int
+  ctl move(player:player,sticks:int) : int
 }
 
 
@@ -84,7 +84,7 @@ fun validMoves(n) {
 
 val gametree = handler {
   return x  -> Winner(x)
-  control move(p,n) {
+  ctl move(p,n) {
     val moves    = validMoves(n)
     val subgames = moves.mymap(resume)
     val subtrees = zip(moves,subgames)
@@ -164,7 +164,7 @@ noinline fun testPc2() {
 // --------------------------------------------------------
 
 effect choose {
-  control choose() : bool
+  ctl choose() : bool
 }
 
 fun bobChooses(m) {
@@ -174,7 +174,7 @@ fun bobChooses(m) {
 
 val allResults = handler {
   return x -> [x]
-  control choose() -> resume(True) ++ resume(False)
+  ctl choose() -> resume(True) ++ resume(False)
 }
 
 public inline fun testChoose() {

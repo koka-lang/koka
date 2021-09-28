@@ -1,5 +1,5 @@
 effect amb {
-  control flip() : bool
+  ctl flip() : bool
 }
 
 effect state<s> {
@@ -26,7 +26,7 @@ fun foo() : <amb,state<int>> bool {
 
 val amb_handle = handler {
   return x -> [x]
-  control flip() -> resume(False) ++ resume(True)
+  ctl flip() -> resume(False) ++ resume(True)
 }
 
 fun state_handle(init,action) {

@@ -17,29 +17,28 @@ import std/num/random
 // This is equivalent to writing:
 // ```
 // effect raise {
-//   except raise(s:string) : a
+//   ctl raise(s:string) : a
 // }
 // ```
-// We use `except` instead of general `control` as we ensure
-// that this particular operation will never resume.
-effect except raise(s : string ) : a
+
+effect ctl raise(s : string ) : a
 
 fun safe-div(x,y) 
   if (y==0) then raise("division by zero") else x / y
 
 
 fun rcatch(action,h) 
-  with except raise(s){ h(s) }     // handle `raise` with function `h`
-  action()                         // in `action()`
+  with ctl raise(s){ h(s) }     // handle `raise` with function `h`
+  action()                      // in `action()`
 
 
 fun zerodiv(x,y) 
   rcatch( { safe-div(x,y) }, fn(s){ 0 } )
 
 
-// reify the exception effect back to a `:maybe` value
+// reify the ctlion effect back to a `:maybe` value
 fun to-maybe(action) 
-  with except raise(_s) { Nothing }
+  with ctl raise(_s){ Nothing }
   Just(action())
 
 
@@ -86,7 +85,6 @@ fun counter()
     counter()
 
 
-
 // State handler.
 fun state(init, action)
   var s := init              // use a local mutable variable
@@ -102,19 +100,18 @@ public fun test3()
 
 
 
-
 // --------------------------------------------------------
 //  Iterators
 // --------------------------------------------------------
 
-// Now we use general `control` as we want to enable breaking
+// Now we use general control `ctl` as we want to enable breaking
 // the interation (and thus not resume). Equivalent to:
 // ````
 // effect yield<a> {
-//   control yield( item : a ) : ()
+//   ctl yield( item : a ) : ()
 // }
 // ````
-effect<a> control yield( item : a ) : ()
+effect<a> ctl yield( item : a ) : ()
 
 fun iterate(xs : list<a> ) : yield<a> () 
   match xs
@@ -123,8 +120,7 @@ fun iterate(xs : list<a> ) : yield<a> ()
     
 
 fun foreach( f : a -> e bool, action : () -> <yield<a>|e> () ) : e () 
-  with control yield(x)
-        if f(x) then resume(()) else ()    // resume is explicit in a `control` operation
+  with ctl yield(x){ if f(x) then resume(()) else () }  // resume is explicit in a `ctl` operation
   action()
 
 
@@ -133,11 +129,12 @@ public fun test4()
     [1,2,3].iterate
 
 fun test4b() 
-  with return(x) { () }               // just force final result to ()
+  with return(x){ () }               // just force final result to ()
   with amb
   with foreach fn(x:int)
-                  if flip() then println(x) else println("flip false " ++ x.show)
-                  x <= 1  
+    if flip() then println(x) else println("flip false " ++ x.show)
+    x <= 1  
+  
   [1,2,3].iterate
 
 
@@ -145,7 +142,7 @@ fun test4b()
 //  Resume more than once
 // --------------------------------------------------------
 
-effect control flip() : bool
+effect ctl flip() : bool
 
 fun xor() : flip bool 
   val p = flip()
@@ -155,13 +152,13 @@ fun xor() : flip bool
 
 // handler that randomly flips
 val coinflip = handler 
-  fun flip(){ srandom-bool() }     // we can still define an operation as `fun` even if declared as `control`
+  fun flip() srandom-bool()      // we can still define an operation as `fun` even if declared as `ctl`
 
 
 // handler that returns all possible outcomes
 val amb = handler 
-  return(x)     { [x] }
-  control flip(){ resume(False) ++ resume(True) }
+  return(x)  [x] 
+  ctl flip() resume(False) ++ resume(True)
 
 
 public fun test5() 
@@ -201,7 +198,8 @@ public fun main()
 
 
 fun show( xs : list<(bool,int)> ) : string  
-  xs.show-list(fn(x){ x.show-tuple(show,show) })
+  xs.show-list fn(x) 
+    x.show-tuple(show,show)
 
 
 fun show( x : (list<bool>,int) ) : string  
