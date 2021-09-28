@@ -6,8 +6,8 @@
 
 // First defined the `many` effect to describe multiple of results and failure
 effect many 
-  control flip() : bool
-  except  fail() : a
+  ctl flip() : bool
+  ctl fail() : a
 
 
 fun select(xs) 
@@ -18,18 +18,18 @@ fun select(xs)
 
 // Return all solutions
 val solutions = handler 
-  return(x)      -> [x]          // wraps final result in singleton list
-  except fail()  -> []           // never resumes, but returns directly with an empty list
-  control flip() -> resume(True) ++ resume(False)
+  return(x)  [x]          // wraps final result in singleton list
+  brk fail() []           // never resumes ("break"s), but returns directly with an empty list
+  ctl flip() resume(True) ++ resume(False)
 
 
 // Return the first solution
 val eager = handler 
-  return(x)      -> [x]
-  except fail()  -> []
-  control flip() -> match resume(True)
-                      Nil -> resume(False)
-                      xs  -> xs
+  return(x)  [x]
+  brk fail() []
+  ctl flip() match resume(True)
+               Nil -> resume(False)
+               xs  -> xs
 
 
 // Choice is now defined over `flip` to possibly return multiple results
@@ -39,7 +39,7 @@ fun choice(p1,p2)
 
 // Basic combinators
 fun many(p : () -> <many,div|e> a ) : <div,many|e> list<a> 
-  choice{ many1(p) } { [] }
+  choice{ many1(p) }{ [] }
 
 
 fun many1(p : () -> <many,div|e> a ) : <div,many|e> list<a> 
@@ -61,14 +61,12 @@ alias mparse = <parse,many>
 // (which is saved/restored among multiple parser strands when using multiple resumptions)
 fun parse( inp : string, action : () -> <parse,many|e> a ) : <many|e> (a,string) 
   var input := inp
-  with handler 
+  handle(action)
     return(x) -> (x,input)
     fun satisfy(pred) 
       match pred(input)
         Nothing          -> fail()
         Just((res,rest)) -> { input := rest; res }      
-  action()
-
 
 
 fun char(p : char -> bool) : parse char 
@@ -80,7 +78,7 @@ fun char(p : char -> bool) : parse char
 
 // Expression parsers
 fun symbol(c : char) : parse () 
-  char( fn(d) { c == d })
+  char(fn(d) c == d)
   ()
 
 
@@ -93,7 +91,7 @@ fun alpha() : parse int
 
 
 fun number() 
-  many1(digit).foldl(0, fn(n,d) { 10*n + d })
+  many1(digit).foldl(0, fn(n,d) 10*n + d)
 
 
 fun expr() : <div,mparse> int 
@@ -161,4 +159,4 @@ fun show-parse-int( xs : list<(int,string)> ) : string
 
 
 fun show-parse-ints( xs : list<(list<int>,string)> ) : string 
-  xs.show-parse( fn(is) { is.show-list(show) } )
+  xs.show-parse(fn(is) is.show-list(show))

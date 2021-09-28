@@ -1,2 +1,1 @@
-test/algeff/wrong/ops4.kk(10,21): error: invalid syntax
- unexpected '(': local parameters are no longer supported, use a local 'var' instead
+test/algeff/wrong/ops4.kk(12, 3): error: operator set is not handled

@@ -89,12 +89,12 @@ fun show( r : either<string,(int,int)> ) : total string {
 // --------------------------------------------------------
 
 effect exc {
-  control failure(s : string) : a
+  ctl failure(s : string) : a
 }
 
 val exc = handler {
-  return x   -> Right(x)
-  control failure(s) -> Left(s)
+  return(x)      -> Right(x)
+  ctl failure(s) -> Left(s)
 }
 
 fun eval1( e : expr ) : exc int {

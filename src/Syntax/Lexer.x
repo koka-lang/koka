@@ -257,7 +257,7 @@ reservedNames
     , "type", "alias"
     , "struct", "enum", "con"
     , "val", "fun", "fn", "extern", "var"
-    , "control", "rcontrol", "except"
+    , "ctl", "rawctl", "brk"
     , "if", "then", "else", "elif"
     , "return", "match", "with", "in"
     , "forall", "exists", "some"
@@ -276,6 +276,7 @@ reservedNames
 
     -- deprecated
     -- alternative names for backwards paper compatability
+    , "control", "rcontrol", "except"
     , "ambient", "context" -- use effcet
     , "inject"       -- use mask
     , "use", "using" -- use with instead

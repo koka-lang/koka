@@ -1,3 +1,9 @@
-test/algeff/wrong/eff-rec2.kk(8, 8): error: invalid syntax
- unexpected "instance"
- expecting identifier, "<", "::", "val", "fun", "except" or "control"
+test/algeff/wrong/eff-rec2.kk(39,32): error: effects do not match
+ context : fun main() : <exn,console> int {
+ ...
+ }
+ term : {
+ ...
+ }
+ inferred effect: <console,div,exn|_e>
+ expected effect: <exn,console>

@@ -50,15 +50,15 @@ public fun queens( n : int ) : div solutions {
 // -----------------------------------------------------------------
 
 effect choose {
-  control pick(n : int) : int
-  control fail<b>()     : b
+  ctl pick(n : int) : int
+  ctl fail<b>()     : b
 }
 
 fun choose-all( action ) {
   handle(action){
-    return x  -> [x]
-    rcontrol pick(n)  -> list(1,n,fn(x){ rcontext.resume(x) }).concat
-    except   fail()   -> []
+    return(x)       -> [x]
+    ctl fail()      -> []
+    rawctl pick(n)  -> list(1,n,fn(x){ rcontext.resume(x) }).concat
   }
 }
 

@@ -501,13 +501,13 @@ public fun jd( i : instant, ts : timescale ) : ddouble {
 public fun mjd( i : instant, tscale : timescale, tzdelta : timespan = timespan0 ) : ddouble {
   val i0 = i.use-timescale(tscale)
   val mjd = match(tscale.mb-to-mjd2000) {
-              Nothing {
+              Nothing -> {
                 val i1   = i0.add-duration-in(tscale,tzdelta)
                 val days = i1.days.ddouble
                 val frac = i1.since.seconds-into-day / solar-secs-per-day
                 (days + frac)
               }
-              Just(to-mjd) {
+              Just(to-mjd) -> {
                 to-mjd( i0.since, tzdelta )
               }
             }

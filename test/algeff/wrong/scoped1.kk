@@ -4,7 +4,7 @@
 //------------------------------------------------
 
 effect nondet {
-  fun choice(xs : list<a>) : a;
+  ctl choice(xs : list<a>) : a;
 }
 
 fun fail() {
@@ -21,8 +21,8 @@ fun knapsack(w : int, vs : list<int> ) : <nondet,div> list<int> {
 }
 
 val solutions = handler {
-  return x   -> [x]
-  choice(xs) -> xs.concat(resume)
+  return(x)  -> [x]
+  ctl choice(xs) -> xs.concat(resume)
 }
 
 fun show( xss : list<list<int>> ) : string {
@@ -39,11 +39,12 @@ effect state<s> {
   fun put(i:s) : ()
 }
 
-val state = handler(i) {
-  return x -> (i,x)
-  get()    -> resume(i,i)
-  put(j)   -> resume((),j) 
-}
+fun state(init,action) 
+  var s := init
+  handle(action)
+    fun get()  { s }
+    fun set(x) { s := x }
+  
 
 fun incr(i = 1) : state<int> () {
   put(get()+i)
@@ -58,8 +59,7 @@ fun global(s,action) {
 }
 
 val choices = handler {
-  return x   -> x
-  choice(xs) -> {
+  ctl choice(xs) {
     incr(xs.length)
     // resume(choice(xs))
     choice(xs)

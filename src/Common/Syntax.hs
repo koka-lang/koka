@@ -102,7 +102,7 @@ data HandlerSort
 instance Show (HandlerSort) where
   show hsort = case hsort of
                  HandlerNormal -> "normal"
-                 HandlerInstance -> "instance"
+                 HandlerInstance -> "named"
 
 isHandlerInstance (HandlerInstance) = True
 isHandlerInstance _ = False
@@ -119,18 +119,21 @@ instance Show OperationSort where
   show opsort = case opsort of
                   OpVal -> "val"
                   OpFun -> "fun"
-                  OpExcept -> "except"
-                  OpControlRaw -> "rcontrol"
-                  OpControl -> "control"
-  
+                  OpExcept -> "brk"
+                  OpControl -> "ctl"
+                  OpControlRaw -> "rawctl"
+                  
 readOperationSort :: String -> Maybe OperationSort
 readOperationSort s 
   = case s of 
       "val" -> Just OpVal
       "fun" -> Just OpFun
-      "except"   -> Just OpExcept
-      "rcontrol" -> Just OpControlRaw
+      "brk" -> Just OpExcept
+      "ctl"    -> Just OpControl
+      "rawctl" -> Just OpControlRaw
+      "except" -> Just OpExcept
       "control"  -> Just OpControl
+      "rcontrol" -> Just OpControlRaw
       _ -> Nothing
   
 {--------------------------------------------------------------------------

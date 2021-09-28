@@ -1,7 +1,7 @@
 
 effect state {
-  fun get() : hide
-  fun set(x : hide ) : ()
+  ctl get() : hide
+  ctl set(x : hide ) : ()
 }
 type hide {
   Hide(unhide : int -> state int)
@@ -9,9 +9,9 @@ type hide {
 
 fun new-ref( init : hide, action : () -> state a) : a {
   val st = handle(action) {
-    return x -> fun(s){ x }
-    get()    -> fun(s){ resume(s)(s) }
-    set(x)   -> fun(s){ resume(())(x) }
+    return(x) -> fn(s){ x }
+    ctl get()     -> fn(s){ resume(s)(s) }
+    ctl set(x)    -> fn(s){ resume(())(x) }
   }
   st(init)
 }

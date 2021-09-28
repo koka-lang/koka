@@ -44,17 +44,15 @@ fun strong-random(action : () -> <random,ndet|e> a) : <ndet|e> a {
 // <http://pracrand.sourceforge.net/RNG_engines.txt>
 private struct sfc(x:int32, y:int32, z:int32, cnt:int32)
 
-private fun sfc-step( sfc : sfc ) : (int32,sfc) {
-  match(sfc) {
-    Sfc(x,y,z,cnt) {
+private fun sfc-step( sfc : sfc ) : (int32,sfc) 
+  match sfc 
+    Sfc(x,y,z,cnt) -> 
       val res = x + y + cnt
       (res, Sfc( y ^ shr(y,9.int32), 
                  z + shl(z,3.int32), 
                  rotl(z,21.int32) + res, 
                  cnt + 1.int32 ))      
-    }
-  }
-}
+
 
 private fun sfc-init( seed : int ) : sfc {
   val sfc0 = Sfc(0.int32, seed.int32, (seed / 0x100000000).int32, 1.int32)
