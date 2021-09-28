@@ -309,7 +309,7 @@ void kk_task_group_free( kk_task_group_t* tg, kk_context_t* ctx ) {
 
 static kk_task_group_t* kk_task_group_alloc( kk_ssize_t thread_count, kk_context_t* ctx ) {
   const kk_ssize_t cpu_count = kk_cpu_count(ctx);
-  if (thread_count <= 0) { thread_count = cpu_count; }
+  if (thread_count <= 0) { thread_count = 3*cpu_count / 2; }
   if (thread_count > 8*cpu_count) { thread_count = 8*cpu_count; };  
   kk_task_group_t* tg = (kk_task_group_t*)kk_zalloc( kk_ssizeof(kk_task_group_t), ctx );
   if (tg==NULL) return NULL;

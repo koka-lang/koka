@@ -1,0 +1,6 @@
+test/cgen/wrong/exists1a.kk(18, 5): warning: pattern variable f is unused (or a wrongly spelled constructor?)
+ hint: prepend an underscore to make it a wildcard pattern
+test/cgen/wrong/exists1a.kk(18, 5): error: abstract type(s) escape(s) into the context
+ term : App(f,x) -> (x.eval)
+ inferred type: (f : expr<($c) -> a>, arg : expr<$c>) -> expr<$b>
+ hint : give a higher-rank type annotation to a function parameter?

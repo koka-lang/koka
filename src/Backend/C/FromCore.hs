@@ -572,7 +572,7 @@ genConstructorTestX info dataRepr con conRepr
                     ConSingle{}    -> text "true"
                     ConAsJust{}    -> valueTagEq
                     ConStruct{}    -> valueTagEq
-                    ConAsCons{}    -> text "kk_datatype_is_ptr(x)" --  <+> conSingletonNameX (conAsNil conRepr)
+                    ConAsCons{}    -> text "kk_datatype_is_ptr(x)" --  <+> conSingletonNameX (  Nil conRepr)
                     ConNormal{}
                                    -- | dataRepr == DataSingleNormal -> text "datatype_is_ptr(x)"
                                    -- | otherwise -> text "datatype_is_ptr(x) && datatype_tag_fast(x) ==" <+> ppConTag con conRepr dataRepr

@@ -36,27 +36,27 @@ fun checkv( t : tree, v : visit, acc : int ) : div int
 
 
 // normal checksum  
-fun checkr( t : tree ) : div int  
+fun checkr( t : tree ) : div int
   match t
     Node(l,r) -> l.checkr + r.checkr + 1
     Tip       -> 0
   
 
 fun check( t : tree ) : div int
-  //checkv(t, Done, 0)
-  t.checkr
+  checkv(t, Done, 0)
+  //t.checkr
   
 
 
 // generate `count` trees of `depth` and return the total checksum
 fun sum-count( count : int, depth : int ) : div int
-  fold-int(count,0) fn(i,csum)
+  fold-int(count+1,0) fn(i,csum)
     csum + make(depth).check
   
 
 // parallel sum count: spawn up to `n` sub-tasks to count checksums
 fun psum-count( count : int, depth : int ) : pure int
-  val n = 2  
+  val n = 16
   val partc = count / n
   val rest  = count % n
   val parts = list(1,n) fn(i){ task{ sum-count( partc, depth ) }
@@ -69,12 +69,12 @@ fun gen-depth( min-depth : int, max-depth : int ) : pure list<(int,int,promise<i
   list(min-depth, max-depth, 2) fn(d)
     val count = 2^(max-depth + min-depth - d)    // todo: ensure fast 2^n operation
     //(count, d, task{ psum-count(count, d) })
-    (count, d, task{ sum-count(count, d) })   // one task per depth    
-
+    (count, d, task{ sum-count(count, d) } )   // one task per depth    
+   
 
 // show results
 fun show( msg : string, depth : int, check : int ) : console ()
-  println(msg ++ " of depth " ++ depth.show ++ "\tcheck: " ++ check.show)
+  println(msg ++ " of depth " ++ depth.show ++ "\t check: " ++ check.show)
 
 
 // main

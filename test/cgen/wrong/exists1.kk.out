@@ -1,0 +1,5 @@
+test/cgen/wrong/exists1.kk(18,27): error: types do not match
+ context : (f.eval)(True)
+ term : True
+ inferred type: bool
+ expected type: $a

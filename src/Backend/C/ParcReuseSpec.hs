@@ -1,5 +1,5 @@
 -----------------------------------------------------------------------------
--- Copyright 2020-2021, Microsoft Research, Daan Leijen, Alex Reinking
+-- Copyright 2020-2021, Microsoft Research, Daan Leijen, Alex Reinking, Anton Lorenzen
 --
 -- This is free software; you can redistribute it and/or modify it under the
 -- terms of the Apache License, Version 2.0. A copy of the License can be
