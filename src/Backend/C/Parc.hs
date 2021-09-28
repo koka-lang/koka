@@ -17,7 +17,7 @@ import Lib.Trace (trace)
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State.Strict
-import Data.Maybe ( catMaybes, fromMaybe, isJust )
+import Data.Maybe ( catMaybes, fromMaybe, isJust, mapMaybe )
 import Data.Char
 import qualified Data.List as L
 import qualified Data.Map.Strict as M
@@ -263,7 +263,7 @@ data ShapeInfo = ShapeInfo{
 parcGuardRC :: Dups -> Drops -> Expr -> Parc Expr
 parcGuardRC dups drops body
   = do enable <- allowSpecialize
-       rcStats <- optimizeGuard enable dups (S.toList drops)
+       rcStats <- optimizeGuard enable dups drops 
        return $ maybeStats rcStats body
 
 
@@ -272,7 +272,7 @@ parcGuardRC dups drops body
 --  - all dups before drops, and drops before drop-reuses, and,
 --  - within drops and dropr-reuses, each are ordered by pattern tree depth: parents must appear before children.
 -- note: all drops are "tree" disjoint, none is a parent of another.
-optimizeGuard :: Bool {-specialize?-} -> Dups -> [TName] -> Parc [Maybe Expr]
+optimizeGuard :: Bool {-specialize?-} -> Dups -> Drops -> Parc [Maybe Expr]
 optimizeGuard False dups rdrops
   = -- no optimization on dup/drops
     do xdups  <- foldMapM genDup dups
@@ -289,10 +289,10 @@ optimizeGuard enabled dups rdrops
                             _    -> Nothing
        optimizeGuardEx mchildrenOf conNameOf dups rdrops
 
-optimizeGuardEx :: (TName -> Maybe TNames) -> (TName -> Maybe Name) -> Dups -> [TName] -> Parc [Maybe Expr]
-optimizeGuardEx mchildrenOf conNameOf dups rdrops
+optimizeGuardEx :: (TName -> Maybe TNames) -> (TName -> Maybe Name) -> Dups -> Drops -> Parc [Maybe Expr]
+optimizeGuardEx mchildrenOf conNameOf dups drops
   = do -- parcTrace ("optimizeGuardEx: " ++ show (dups, rdrops))
-       optimize dups rdrops
+       optimizeEliminate dups drops
   where
     childrenOf parent
       = case (mchildrenOf parent) of
@@ -303,6 +303,22 @@ optimizeGuardEx mchildrenOf conNameOf dups rdrops
     isDescendentOf parent x
       = let ys = childrenOf parent
         in S.member x ys || any (`isDescendentOf` x) ys
+
+    eliminatePairs :: Dups -> Drops -> Parc (Dups, Drops)
+    eliminatePairs dups drops
+      = do newtypes <- getNewtypes
+           platform <- getPlatform
+           let dups' = dups S.\\ drops
+           let drops' = drops S.\\ dups
+           let forwards = mapMaybe (\y -> sequence (y, forwardingChild platform newtypes childrenOf dups y)) (S.toList drops')
+           let dups'' = dups' S.\\ S.fromList (map snd forwards)
+           let drops'' = drops' S.\\ S.fromList (map fst forwards)
+           pure (dups'', drops'')
+
+    optimizeEliminate :: Dups -> Drops -> Parc [Maybe Expr]
+    optimizeEliminate dups drops
+      = do (dups', drops') <- eliminatePairs dups drops
+           optimize dups' (S.toList drops')
 
     optimize :: Dups -> [TName] -> Parc [Maybe Expr]
     optimize dups []
@@ -323,15 +339,15 @@ optimizeGuardEx mchildrenOf conNameOf dups rdrops
               Nothing -> do let (yDups, dups') = S.partition (isDescendentOf y) dups
                             let (yRecs, ys')   = L.partition (isDescendentOf y) ys
                             rest    <- optimize dups' ys'             -- optimize outside the y tree
-                            inlined <- specialize yDups y yRecs   -- specialize the y tree
-                            return $ rest ++ [inlined]
+                            prefix <- maybeStatsUnit <$> mapM genDrop yRecs
+                            inlined <- specialize yDups y   -- specialize the y tree
+                            return $ rest ++ [Just prefix, inlined]
 
-    specialize :: Dups -> TName -> [TName] -> Parc (Maybe Expr)
-    specialize dups v drops     -- dups and drops are descendents of v
+    specialize :: Dups -> TName -> Parc (Maybe Expr)
+    specialize dups v     -- dups and drops are descendents of v
       = -- trace ("enter specialize: " ++ show (mchildrenOf (dropInfoVar v)) ++ ", " ++ show (dups,v,drops)) $
-        do xShared <- optimize dups drops   -- for the non-unique branch
-           xUnique <- optimize dups $
-                      S.toList (childrenOf v) ++ drops -- drop direct children in unique branch (note: `v \notin drops`)
+        do xShared <- optimize dups []   -- for the non-unique branch
+           xUnique <- optimizeEliminate dups (childrenOf v) -- drop direct children in unique branch (note: `v \notin drops`)
            let tp = typeOf v
            isValue <- isJust <$> getValueForm tp
            let hasKnownChildren = isJust (mchildrenOf v)
