@@ -56,7 +56,6 @@ fun sum-count( count : int, depth : int ) : div int
     csum := csum + make(depth).check
   csum
 
-
 // parallel sum count: spawn up to `n` sub-tasks to count checksums
 fun psum-count( count : int, depth : int ) : pure int
   val n = 2
