@@ -200,11 +200,14 @@ makeStats exprs
     -- makeDefsLet [makeDef nameNil expr | expr <- init exprs] (last exprs)
 
 makeDefsLet :: [Def] -> Expr -> Expr
-makeDefsLet [] expr    = expr
-makeDefsLet defs expr  | isExprUnit expr && typeOf (defExpr (last defs)) == typeUnit
-  = makeDefsLet (init defs) (defExpr (last defs))
-makeDefsLet defs expr
-  = makeLet (map DefNonRec defs) expr
+makeDefsLet defs0 expr0
+  = make (reverse defs0) expr0
+  where
+    make [] expr          = expr
+    make (def:rdefs) expr | isExprUnit expr && defName def == nameNil && isExprUnit (defExpr def) = make rdefs (defExpr def)                          
+    -- disable for now as it can cause drop expressions (returning void) in unit positions (:f std/os/flags, issue #196)
+    -- make (def,rdefs) expr  | isExprUnit expr && defName def == nameNil && typeOf (defExpr (last defs)) == typeUnit = make rdefs (defExpr def)
+    make rdefs expr       = makeLet (map DefNonRec (reverse rdefs)) expr
 
 unzipM :: Monad m => m [(a,b)] -> m ([a],[b])
 unzipM m = fmap unzip m
