@@ -310,7 +310,7 @@ optimizeGuardEx mchildrenOf conNameOf dups drops
            platform <- getPlatform
            let dups' = dups S.\\ drops
            let drops' = drops S.\\ dups
-           let forwards = mapMaybe (\y -> sequence (y, forwardingChild platform newtypes childrenOf dups y)) (S.toList drops')
+           let forwards = mapMaybe (\y -> sequence (y, forwardingChild platform newtypes childrenOf dups' y)) (S.toList drops')
            let dups'' = dups' S.\\ S.fromList (map snd forwards)
            let drops'' = drops' S.\\ S.fromList (map fst forwards)
            pure (dups'', drops'')
