@@ -185,7 +185,7 @@ parcBorrowApp tname args expr
           []
             -> return $ App expr args'
           _
-            -> do appName <- uniqueName "borrowApp"
+            -> do appName <- uniqueName "brw"
                   let def = makeDef appName $ App expr args'
                   return $ makeLet [DefNonRec def] $ maybeStats drops $ Var (defTName def) InfoNone
         return $ makeLet (concat lets) expr'
@@ -199,7 +199,7 @@ parcBorrowArg a b
          (_, Own)
            | isTotal a -> (\x -> ([], Nothing, x)) <$> parcExpr a
            | otherwise
-             -> do argName <- uniqueName "ownedArg"
+             -> do argName <- uniqueName "own"
                    a' <- parcExpr a
                    let def = makeDef argName a'
                    return ([DefNonRec def], Nothing, Var (defTName def) InfoNone)
@@ -208,7 +208,7 @@ parcBorrowArg a b
               then (\d -> ([], d, Var tname info)) <$> useTNameBorrowed tname
               else return ([], Nothing, Var tname info)
          (_, Borrow)
-           -> do argName <- uniqueName "borrowedArg"
+           -> do argName <- uniqueName "brw"
                  a' <- parcExpr a
                  let def = makeDef argName a'
                  drop <- extendOwned (S.singleton (defTName def)) $ genDrop (defTName def)
