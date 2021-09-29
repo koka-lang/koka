@@ -86,6 +86,7 @@ public fun main()
   // allocate and free the stretch tree
   val stretch-depth = max-depth.inc
   show( "stretch tree", stretch-depth, make(stretch-depth).check )
+  
   // allocate long lived tree
   val long = make(max-depth)
 
