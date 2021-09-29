@@ -8,26 +8,26 @@ import std/os/env
 import std/os/task
 import std/num/int32
 
-type tree  
-  Node( left : tree, right : tree )
+type tree
   Tip
+  Node( left : tree, right : tree )
 
 
 // make a perfectly balanced binary tree of `depth`
-fun make( depth : int ) : div tree
-  if depth > 0
+fun make( depth : int32 ) : div tree
+  if depth > 0.int32
     then Node( make(depth.dec), make(depth.dec) ) 
     else Node( Tip, Tip )
 
 
 // FBIP in action: use a visitor to run the checksum tail-recursively
-type visit  
+type visit
   Done
   NodeR( right : tree, v : visit )
 
 
 // tail-recursive checksum
-fun checkv( t : tree, v : visit, acc : int ) : div int
+fun checkv( t : tree, v : visit, acc : int32 ) : div int32
   match t
     Node(l,r) -> checkv( l, NodeR(r,v), acc.inc)
     Tip       -> match v
@@ -36,45 +36,45 @@ fun checkv( t : tree, v : visit, acc : int ) : div int
 
 
 // normal checksum  
-fun checkr( t : tree ) : div int
+fun checkr( t : tree ) : div int32 
   match t
-    Node(l,r) -> l.checkr + r.checkr + 1
-    Tip       -> 0
+    Node(l,r) -> l.checkr + r.checkr.inc
+    Tip       -> zero
+  
 
-
-fun check( t : tree ) : div int
-  checkv(t, Done, 0)
+fun check( t : tree ) : div int32
+  checkv(t, Done, zero)
   //t.checkr
   
 
 
 // generate `count` trees of `depth` and return the total checksum
-fun sum-count( count : int, depth : int ) : div int
-  fold-int(count+1,0) fn(i,csum)
+fun sum-count( count : int32, depth : int32 ) : div int32
+  fold-int32(0.int32, count, 0.int32) fn(i,csum)
     csum + make(depth).check
   
-
+/*
 // parallel sum count: spawn up to `n` sub-tasks to count checksums
 fun psum-count( count : int, depth : int ) : pure int
-  val n = 16
+  val n = 4 
   val partc = count / n
   val rest  = count % n
   val parts = list(1,n) fn(i){ task{ sum-count( partc, depth ) }
   sum-count(rest, depth) + parts.await.sum
-
+*/
 
 // for depth to max-depth with stride 2, process 
 // many trees of size depth in parallel and compute the total checksum
 fun gen-depth( min-depth : int, max-depth : int ) : pure list<(int,int,promise<int>)>
   list(min-depth, max-depth, 2) fn(d)
-    val count = 2^(max-depth + min-depth - d)    // todo: ensure fast 2^n operation
+    val count = shl( 1.int32, (max-depth + min-depth - d).int32)
     //(count, d, task{ psum-count(count, d) })
-    (count, d, task{ sum-count(count, d) } )   // one task per depth    
-   
+    (count.int, d, task{ sum-count(count, d.int32).int })   // one task per depth    
+
 
 // show results
 fun show( msg : string, depth : int, check : int ) : console ()
-  println(msg ++ " of depth " ++ depth.show ++ "\t check: " ++ check.show)
+  println(msg ++ " of depth " ++ depth.show ++ "\tcheck: " ++ check.show)
 
 
 // main
@@ -85,9 +85,9 @@ public fun main()
 
   // allocate and free the stretch tree
   val stretch-depth = max-depth.inc
-  show( "stretch tree", stretch-depth, make(stretch-depth).check )
+  show( "stretch tree", stretch-depth, make(stretch-depth.int32).check.int )
   // allocate long lived tree
-  val long = make(max-depth)
+  val long = make(max-depth.int32)
 
   // allocate and free many trees in parallel
   val trees = gen-depth( min-depth, max-depth )
@@ -95,5 +95,5 @@ public fun main()
     show( count.show ++ "\t trees", depth, csum.await )
 
   // and check if the long lived tree is still good
-  show( "long lived tree", max-depth, long.check )
+  show( "long lived tree", max-depth, long.check.int )
 
