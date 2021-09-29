@@ -8,10 +8,10 @@ import std/os/env
 import std/os/task
 import std/num/int32
 
-type tree
-  Tip
+type tree  
   Node( left : tree, right : tree )
-
+  Tip
+  
 
 // make a perfectly balanced binary tree of `depth`
 fun make( depth : int ) : div tree
@@ -21,7 +21,7 @@ fun make( depth : int ) : div tree
 
 
 // FBIP in action: use a visitor to run the checksum tail-recursively
-type visit
+type visit  
   Done
   NodeR( right : tree, v : visit )
 
@@ -40,7 +40,7 @@ fun checkr( t : tree ) : div int
   match t
     Node(l,r) -> l.checkr + r.checkr + 1
     Tip       -> 0
-  
+
 
 fun check( t : tree ) : div int
   checkv(t, Done, 0)
