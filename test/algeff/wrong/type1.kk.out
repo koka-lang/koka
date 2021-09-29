@@ -1,7 +1,4 @@
-warning (line 10, column 5): using a bare operation is deprecated.
- hint: start with 'val', 'fun', 'except', or 'control' instead.
-test/algeff/wrong/type1.kk(8, 3): warning: operation flip is declared as 'fun' but handled here using 'control'
-test/algeff/wrong/type1.kk(10, 5): error: types do not match (due to an infinite type)
+test/algeff/wrong/type1.kk(10, 9): error: types do not match (due to an infinite type)
  context : flip() -> [resume(False)]
  term : flip
  inferred type: (resume : (bool) -> _e list<_a>) -> _e list<list<_a>>

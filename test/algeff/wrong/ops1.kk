@@ -24,7 +24,7 @@ fun foos() : <amb,state> string {
 }    
  
 effect amb {
-  fun flip() : bool
+  ctl flip() : bool
 }
  
 effect state {
@@ -35,16 +35,17 @@ effect state {
 
 fun amb_handle() {
   handler {
-    return x -> [x]
-    flip()   -> resume(False) + resume(True)
+    return(x) -> [x]
+    ctl flip()   -> resume(False) ++ resume(True)
   }
 }
 
-fun state_handle() {
-  handler(i:int) {
-    return x -> x
-    get()    -> resume(i,i)
-    set(j)   -> resume((),j) 
-    flip()   -> resume(true)
+fun state_handle(init,action) {
+  var i := init
+  handle(action) {
+    return(x) -> x
+    fun get()    -> i
+    fun set(j)   -> i := j
+    ctl flip()   -> resume(True)
   }
 }

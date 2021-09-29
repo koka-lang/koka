@@ -267,7 +267,6 @@ static void* kk_task_group_worker( void* vtg ) {
      if (task == NULL) {  // due to tg->done
        break;
      }
-     // todo: mark as concurrent
      kk_task_exec(task,ctx);
      // todo: ensure context is cleared again?
   }
@@ -309,7 +308,7 @@ void kk_task_group_free( kk_task_group_t* tg, kk_context_t* ctx ) {
 
 static kk_task_group_t* kk_task_group_alloc( kk_ssize_t thread_count, kk_context_t* ctx ) {
   const kk_ssize_t cpu_count = kk_cpu_count(ctx);
-  if (thread_count <= 0) { thread_count = 3*cpu_count / 2; }
+  if (thread_count <= 0) { thread_count = cpu_count + (cpu_count/2)  ; }
   if (thread_count > 8*cpu_count) { thread_count = 8*cpu_count; };  
   kk_task_group_t* tg = (kk_task_group_t*)kk_zalloc( kk_ssizeof(kk_task_group_t), ctx );
   if (tg==NULL) return NULL;
@@ -349,7 +348,10 @@ static void kk_task_group_init(void) {
 kk_promise_t kk_task_schedule( kk_function_t fun, kk_context_t* ctx ) {
   pthread_once( &task_group_once, &kk_task_group_init );
   kk_assert(task_group != NULL);
-  kk_block_mark_shared( &fun->_block, ctx );
+  kk_block_mark_shared( &fun->_block, ctx );  // mark everything reachable from the task as shared
+  if (ctx->task_group == NULL) { 
+    ctx->task_group = task_group; // let main thread participate instead of blocking on a promise.get
+  }
   return kk_task_group_schedule( task_group, fun, ctx );
 }
 
@@ -385,9 +387,9 @@ err:
 
 static void kk_promise_set( kk_promise_t pr, kk_box_t r, kk_context_t* ctx ) {
   promise_t* p = (promise_t*)kk_cptr_raw_unbox(pr);
+  kk_box_mark_shared(r,ctx);
   pthread_mutex_lock(&p->lock);
   kk_box_drop(p->result,ctx);
-  // TODO: mark as thread shared
   p->result = r;
   pthread_mutex_unlock(&p->lock);
   pthread_cond_signal(&p->available);
@@ -425,7 +427,7 @@ kk_box_t kk_promise_get( kk_promise_t pr, kk_context_t* ctx ) {
         kk_task_exec(task, ctx);
         pthread_mutex_lock(&p->lock);        
       }
-      else {
+      else {        
         pthread_mutex_lock(&p->lock);
         if (kk_box_is_any(p->result)) {
           pthread_cond_wait( &p->available, &p->lock);

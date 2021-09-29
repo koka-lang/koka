@@ -17,8 +17,8 @@ named scoped effect file<s::S>
 // a handler instance for files
 fun file(fname : string, action : forall<s> file<s> -> <scope<s>|e> a ) : e a 
   var i := 0
-  with f = named handler 
-    fun read-line() {
+  with f <- named handler 
+    fun read-line()
       i := i + 1
       (fname ++ ": line " ++ i.show)
   action(f)
@@ -29,8 +29,8 @@ fun read-both( f1 : file<s1>, f2 : file<s2> ) : <console,scope<s1>,scope<s2>|e> 
 
 
 public fun main() 
-  with f1 = file("package.yaml")
-  with f2 = file("stack.yaml")
+  with f1 <- file("package.yaml")
+  with f2 <- file("stack.yaml")
   read-both(f1,f2)
   //println( f1.read-line() ++ "\n" ++ f2.read-line() )
   //println( f2.read-line() ++ "\n" ++ f1.read-line() )

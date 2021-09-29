@@ -5,7 +5,7 @@
 -- terms of the Apache License, Version 2.0. A copy of the License can be
 -- found in the LICENSE file at the root of this distribution.
 -----------------------------------------------------------------------------
-module Static.BindingGroups( bindingGroups ) where
+module Static.BindingGroups( bindingGroups, hasFreeVar ) where
 
 
 import qualified Common.NameMap as M
@@ -232,6 +232,13 @@ dependencyLamBinder modName binder
 class HasFreeVar a where
   freeVar :: a -> FreeVar
 
+instance HasFreeVar a => HasFreeVar [a] where
+  freeVar xs = S.unions (map freeVar xs)
+
+instance HasFreeVar a => HasFreeVar (Maybe a) where
+  freeVar Nothing  = S.empty
+  freeVar (Just x) = freeVar x
+
 instance HasFreeVar (Pattern t) where
   freeVar pat
     = case pat of
@@ -241,6 +248,51 @@ instance HasFreeVar (Pattern t) where
         PatAnn  pat tp range     -> freeVar pat
         PatParens pat range      -> freeVar pat
         PatLit _                 -> S.empty
+
+instance HasFreeVar (Expr t) where
+  freeVar expr = case expr of
+      Lam binders body rng -> foldr (\b fv -> S.delete (binderName b) fv) (freeVar body) binders        
+      Bind def body rng    -> S.union (freeVar (defBody def)) (S.delete (defName def) (freeVar body))                              
+      Let group body rng   -> let (fv,bound) = freeBoundVar group
+                              in S.union fv (S.difference (freeVar body) bound)
+      Var name op rng      -> if isConstructorName name
+                                then S.empty
+                                else S.singleton name
+      App fun nargs rng    -> freeVar (fun:map snd nargs)
+      Ann expr t rng       -> freeVar expr
+      Case expr bs rng     -> S.union (freeVar expr) (freeVar bs)
+      Parens expr name rng -> freeVar expr
+      Lit    lit           -> S.empty
+      Inject tp body b rng -> freeVar body
+      Handler shallow scoped override allowMask eff pars reinit ret final ops hrng rng
+        -> let fvs = S.unions [freeVar ret, freeVar ops, freeVar reinit, freeVar final]
+           in S.difference fvs (S.fromList (map binderName pars)) 
+
+
+instance HasFreeVar (HandlerBranch t) where
+  freeVar (HandlerBranch{ hbranchName=name, hbranchPars=pars, hbranchExpr=expr })
+    = S.difference (freeVar expr) (S.fromList (map getName pars))
+  
+instance HasFreeVar (Branch t) where
+  freeVar (Branch pattern guards)
+    = S.difference (freeVar guards) (freeVar pattern)
+
+instance HasFreeVar (Guard t) where
+  freeVar (Guard test expr)
+    = S.union (freeVar test) (freeVar expr)
+
+freeBoundVar :: DefGroup t -> (FreeVar,FreeVar)
+freeBoundVar (DefNonRec def) 
+  = (S.singleton (defName def), freeVar (defBody def))
+freeBoundVar (DefRec defs)
+  = let bound = S.fromList (map defName defs)
+        free  = freeVar (map defBody defs)
+    in (bound, S.difference free bound)
+
+
+hasFreeVar :: Expr t -> Name -> Bool
+hasFreeVar expr name 
+  = S.member name (freeVar expr) 
 
 unzipWith (f,g) xs
   = let (x,y) = unzip xs in (f x, g y)

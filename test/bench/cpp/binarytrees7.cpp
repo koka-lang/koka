@@ -61,7 +61,9 @@ public:
 
     CountingIterator operator+(int v) const { return CountingIterator { val + v }; }
     int operator-(CountingIterator const& rhs) const { return val - rhs.val; }
-
+    int operator[](int x) {
+        return val + x;
+    }
 private:
     int val;
 };

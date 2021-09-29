@@ -5,7 +5,7 @@
 // but now using a choice operator that chooses directly from a list.
 // --------------------------------------------------------------
 effect nondet {
-  control choice(xs : list<a>) : a
+  ctl choice(xs : list<a>) : a
 }
 
 fun fail() {
@@ -22,8 +22,8 @@ fun knapsack(w : int, vs : list<int> ) : <nondet,div> list<int> {
 }
 
 val solutions = handler {
-  return x   -> [x]
-  control choice(xs) -> xs.flatmap(fn(x){ resume(x) })
+  return(x)   -> [x]
+  ctl choice(xs) -> xs.flatmap(fn(x){ resume(x) })
 }
 
 fun show( xss : list<list<int>> ) : string {
@@ -65,8 +65,8 @@ fun global(s,action) {
 }
 
 val choices = handler {
-  return x   -> x
-  control choice(xs) -> {
+  return(x)   -> x
+  ctl choice(xs) -> {
     val y = choice(xs)
     incr()
     resume(y)

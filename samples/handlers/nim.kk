@@ -35,7 +35,7 @@ public fun show(ps : list<player> ) : string
 // Game of Nim
 // --------------------------------------------------------
 
-effect control move( player :player, sticks :int) : int
+effect ctl move( player :player, sticks :int) : int
 
 
 fun alice-turn(n : int) : <div,move> player 
@@ -77,12 +77,12 @@ type gtree
 
 
 fun valid-moves(n) 
-  [1,2,3].filter fn(m){ m <= n }
+  [1,2,3].filter(fn(m) m <= n)
 
 
 val gametree = handler 
-  return(x){ Winner(x) }
-  control move(p,n)
+  return(x)  Winner(x) 
+  ctl move(p,n)
     val moves    = valid-moves(n)
     val subgames = moves.map(resume)
     val subtrees = zip(moves,subgames)
@@ -94,14 +94,14 @@ fun show(gt :gtree) : div string
 
 
 fun show-gtree(gt :gtree, indent:int) : _ string 
-  val showi = (show : (int) -> string)
   match gt
     Winner(p) -> p.show ++ " wins"
     Take(p,moves) ->
-      p.show ++ moves.map(fn(x){
-        val (sticks,gtx) = x
-        "\n" ++ " ".repeat(indent) ++ sticks.show ++ " -> " ++ gtx.show-gtree(indent+2)
-      }).join
+      val lines = moves.map fn((sticks,gtx))
+                    "\n" ++ " ".repeat(indent) ++ sticks.show 
+                      ++ " -> " ++ gtx.show-gtree(indent+2)
+      p.show ++ lines.join
+
 
 public fun test-gtree()
   with gametree
@@ -120,7 +120,7 @@ val cheat-report = handler
     throw(p.show ++ " cheated!") 
 
 val check = handler 
-  control move(p,n) 
+  ctl move(p,n) 
     val m = move(p,n)
     if (valid-moves(n).find(fn(i) { i == m }).bool)
     then resume(m)
@@ -172,27 +172,25 @@ public fun test-pc2()
 // Choosing a strategy
 // --------------------------------------------------------
 
-effect control choose() : bool
+effect ctl choose() : bool
 
 fun bob-chooses(m) 
   if choose() then pc(m) else perfect(m)
 
 
 val all-results = handler 
-  return(x) -> [x] 
-  control choose()
-    resume(True) ++ resume(False) 
+  return(x)    [x] 
+  ctl choose() resume(True) ++ resume(False) 
 
 
 public fun test-choose() 
-  with control choose() 
-          resume(True) ++ (resume(False) : list<_>)
+  with ctl choose() resume(True) ++ (resume(False):list<_>)
   with bob-chooses
   [game(7)]   // [bob,alice]
 
 
-val coin = handler fun choose() 
-  srandom-double() > 0.5 
+val coin = handler 
+  fun choose() srandom-double() > 0.5 
 
 public fun test-coin() 
   with coin
@@ -213,29 +211,27 @@ effect state<s>
 
 fun state(init,action) 
   var s := init
-  with
-    fun get() { s } 
-    fun put(x){ s := x }
-  action()
+  handle(action)
+    fun get()  s 
+    fun put(x) s := x 
 
 
 alias gstate = list<(player,int)>
 
 val s0 = [(Alice,0),(Bob,0)]
 
-val score-updater = handler return(p){ put(update-score(p,get())); p } 
+val score-updater = handler 
+  return(p){ put(update-score(p,get())); p } 
 
 fun update-score( p : player, gs : gstate ) : gstate 
-  gs.map fn(qs)
-    val (q,s) = qs
-    if p==q then (q,s+1) else qs
+  gs.map( fn((q,s)) if p==q then (q,s+1) else (q,s) )
 
-val printer = handler return(x){ print-board(get()); x }
+val printer = handler 
+  return(x){ print-board(get()); x }
 
 fun print-board( gs : gstate ) : io () 
-  gs.map fn(ps)
-    ps.fst.show ++ " -> " ++ ps.snd.show
-  .join("\n").println
+  val scores = gs.map fn((p,s)) p.show ++ " -> " ++ s.show
+  scores.join("\n").println
 
 
 public fun test-print1() 
@@ -248,7 +244,7 @@ public fun test-print1()
 
 
 fun replay(n : int, action : () -> <div|e> a) : <div|e> a 
-  with return(x){ if n <= 1 then x else replay(n - 1, action ) }
+  with return(x) if n <= 1 then x else replay(n - 1, action ) 
   action()
 
 

@@ -1,9 +1,9 @@
 effect cow {
-  control moo() : (() -> cow ())
+  ctl moo() : (() -> cow ())
 }
 
 val cow = handler {
-  control moo() {
+  ctl moo() {
     println("moo")
     resume( {moo()() } )
   }

@@ -1,6 +1,6 @@
 // Test finally
 effect fun inc() : int
-effect control raise( msg : string ) : a
+effect ctl raise( msg : string ) : a
 
 fun bar() {
   println("action: " ++ inc().show )
@@ -18,7 +18,7 @@ fun foo()
 }
 
 fun main() {
-  with control raise(msg) { println("raised: " ++ msg) }
+  with ctl raise(msg) { println("raised: " ++ msg) }
   with return(x)  { println( "result: " ++ (x:int).show ) }
   with finally    { println("exc finalize") }
   foo()
