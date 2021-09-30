@@ -81,7 +81,7 @@ import Type.Infer             ( inferTypes )
 import Type.Pretty hiding     ( verbose )
 import Compiler.Options       ( Flags(..), CC(..), BuildType(..), buildType, ccFlagsBuildFromFlags, unquote,
                                 prettyEnvFromFlags, colorSchemeFromFlags, prettyIncludePath, isValueFromFlags,
-                                fullBuildDir, outName, buildVariant )
+                                fullBuildDir, outName, buildVariant, osName )
 
 import Compiler.Module
 
@@ -1053,6 +1053,8 @@ codeGen term flags compileTarget loaded
                           then do let targetOut = if (not (null exeExtension) && extname out == exeExtension && extname finalOut /= exeExtension)
                                                     then finalOut ++ exeExtension
                                                     else finalOut
+                                  when (osName == "macos") $
+                                    removeFileIfExists targetOut  -- needed on macOS due to code signing issues (see https://developer.apple.com/forums/thread/669145)
                                   copyBinaryFile out targetOut
                                   return finalOut
                           else return out
