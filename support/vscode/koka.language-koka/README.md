@@ -1,6 +1,6 @@
 # Koka Syntax Highlighting
 
-Support syntax highlighting for the 
+Syntax highlighting support for the 
 Koka programming language in Visual Studio Code.
 
 Visit <https://koka-lang.github.io> for more information.
