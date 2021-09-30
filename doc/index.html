@@ -1102,10 +1102,16 @@ libraries, package management, and deep IDE integration.
 <p class="p noindent">News:
 </p>
 <ul class="ul list-star news-items compact">
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-09-29: Koka v2.3.1 released, with improved TRMC optimizations, and improved reuse 
+(the rbtree benchmark is as fast as C++ now), and 
+faster effect operations. Experimental: allow elision of <code class="code code1 language-koka lang-koka koka colorized"><span style="color:blue">-&gt;</span></code> in anonymous
+function expressions (e.g. <code class="code code1 language-koka lang-koka koka colorized">xs<span style="color:blue">.</span>map( fn(x) x + <span class="constant" style="color:purple">1</span> )</code>) and operation clauses.
+Command line options changed a bit with <code class="code code2">.koka</code> as the standard output directory.  
+</li>
 <li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-09-20: Koka v2.3.0 released, with new 
 <a href="https://koka-lang.github.io/koka/doc/book.html#sec-layout">brace elision</a> and if/match
-conditions without parenthesis, updated javascript backend
-using ES6 modules and BigInt, new <code class="code code1 language-koka lang-koka koka colorized"><span style="color:navy">std/num/</span>int64</code>, improved effect operation performance.
+conditions without parenthesis. Updated the javascript backend
+using ES6 modules and BigInt. new <code class="code code1 language-koka lang-koka koka colorized"><span style="color:blue">module</span> <span style="color:navy">std/num/int64</span></code>, improved effect operation performance.
 </li>
 <li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-09-05: Koka v2.2.1 released, with initial parallel tasks, the binary-trees benchmark, and
 <a href="https://koka-lang.github.io/koka/doc/book.html#sec-layout">brace elision</a>.
