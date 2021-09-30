@@ -160,7 +160,7 @@ public fun matched( s : sslice ) : bool {
 fun replace-captures( caps : list<sslice>, repl : string ) : string {
   replace-all( repl, regex(@"\$(?:(\d)|(\&)|(\$))") )  fn(cap){
     match(cap) {
-      [_,digit,amp,dollar] {
+      [_,digit,amp,dollar] -> {
         if (dollar.is-valid) then "$" else {
           val grp = if (amp.is-valid) then 0 else parse-int-default(digit.string,0)
           match (caps[grp]) {
