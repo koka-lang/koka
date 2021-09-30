@@ -79,6 +79,7 @@ module Core.Core ( -- Data structures
                    , costDef, costExpr, costInf
                    , isInlineable
                    , inlineDefIsSpecialize
+                   , hasTotalEffect
 
                    -- * Canonical names
                    -- , canonicalName, nonCanonicalName, canonicalSplit

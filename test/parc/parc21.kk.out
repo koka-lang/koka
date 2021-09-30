@@ -14,24 +14,24 @@ public fun print-ret : (x : int) -> console int
 public fun test : () -> console int
  = fn<console>(){
  val i : int
- = val .borrowedArg : int
+ = val .brw : int
  = 4;
- val .borrowApp : int
- = parc/parc21/bo(3, .borrowedArg);
- std/core/types/.drop(.borrowedArg);
- .borrowApp;
+ val .brw : int
+ = parc/parc21/bo(3, .brw);
+ std/core/types/.drop(.brw);
+ .brw;
  val _ : ()
  = std/core/prints((std/core/show(i)));
- val .ownedArg : int
+ val .own : int
  = val _0 : ()
  = std/core/prints((std/core/show(3)));
  3;
- val .borrowedArg : int
+ val .brw : int
  = val _1 : ()
  = std/core/prints((std/core/show(4)));
  4;
- val .borrowApp : int
- = parc/parc21/bo(.ownedArg, .borrowedArg);
- std/core/types/.drop(.borrowedArg);
- .borrowApp;
+ val .brw : int
+ = parc/parc21/bo(.own, .brw);
+ std/core/types/.drop(.brw);
+ .brw;
  };

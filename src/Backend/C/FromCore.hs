@@ -1292,7 +1292,7 @@ genExprStat result expr
       Let groups body
         -> case (reverse groups, body) of
              (DefNonRec (Def name tp expr Private DefVal _ _ _):rgroups, (Case [Var vname _] branches))
-               | name == getName vname && not (S.member vname (freeLocals branches)) && isInlineableExpr expr
+               | name == getName vname && not (S.member vname (freeLocals branches)) && isInlineableExpr expr 
                -> genExprStat result (makeLet (reverse rgroups) (Case [expr] branches))
              _ -> do docs1 <- genLocalGroups groups
                      doc2  <- genStat result body
@@ -2014,7 +2014,7 @@ isInlineableExpr expr
       -- App (Var v (InfoExternal _)) [arg] | getName v `elem` [nameBox,nameDup,nameInt32] -> isInlineableExpr arg
       App (Var v _) [arg] | getName v `elem` [nameBox,nameInt32,nameReuse,nameReuseIsValid,nameIsUnique] -> isInlineableExpr arg
 
-      --App (Var _ (InfoExternal _)) args -> all isPureExpr args  -- yielding() etc.
+      -- App (Var v (InfoExternal _)) args -> hasTotalEffect (typeOf v) &&  all isPureExpr args  -- yielding() etc.
 
       -- App (Var v _) [arg] | getName v `elem` [nameBox,nameUnbox] -> isInlineableExpr arg
       {-
