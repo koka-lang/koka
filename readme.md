@@ -256,6 +256,8 @@ More advanced projects:
   needs work on packaging it to make it easy to build and install as part of the Koka installer.
 - [ ] Package management of Koka modules.
 - [ ] Compile to WASM (using emscripten on the current C backend)
+- [ ] Extend TRMC to include (1) return results with pairs (like `unzip` or `partition`), (2) associative functions
+      (like `+` in `length`), and (3) mutually recursive functions.
 - [ ] Improve compilation of local state to use local variables directly (in C) without allocation. Tricky though due to multiple resumptions.
 - [ ] Improve performance of array/mutable reference programming. Koka is has great performance for
       algebraic datatypes but lags when using more imperative array algorithms. This requires better
