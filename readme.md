@@ -10,7 +10,7 @@
 # Koka: a Functional Language with Effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
-_Latest release_: v2.3.0, 2021-09-20 ([Install]).
+_Latest release_: v2.3.1, 2021-09-29 ([Install]).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -77,6 +77,12 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 ## Recent Releases
 
+- `v2.3.1`, 2021-09-29: improved TRMC optimizations, and improved reuse 
+  (the [rbtree](test/bench/koka/rbtree.kk) benchmark is faster as C++ now). 
+  Improved effect operation speed. Allow elision of `->` in anonymous
+  function expressions (e.g. `xs.map( fn(x) x + 1 )`) and operation clauses. Allow `ctl` for `control`.
+  New default output directory as `.koka` and improved command line options to be more in line with
+  other compilers (with `-o` specifying the final output, and `-e` to execute the program).
 - `v2.3.0`, 2021-09-20: many changes: new layout rule to [elide braces][nobrace] and no more need to 
   parenthesize `if` and `match` conditions (see the [`samples/basic/rbtree`](samples/basic/rbtree.kk) for 
   an example of this), updated the JavaScript backend (`--target=js`) to use standard ES6 modules and using the new [`BigInt`][bigint] for arbitrary precision integers, improved runtime layout with support for 128-bit arm CHERI, 
