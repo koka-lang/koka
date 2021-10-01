@@ -969,7 +969,9 @@ kk_string_t kk_os_app_path(kk_context_t* ctx) {
 }
 
 #else
+#if !defined(__wasi__) && !defined(__EMSCRIPTEN__)
 #pragma message("using generic application path detection")
+#endif
 kk_string_t kk_os_app_path(kk_context_t* ctx) {
   return kk_os_app_path_generic(ctx);
 }

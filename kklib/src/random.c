@@ -299,7 +299,7 @@ static bool kk_os_random_buf(void* buf, size_t buf_len) {
 }
 #elif defined(ANDROID) || defined(XP_DARWIN) || defined(__APPLE__) || defined(__DragonFly__) || \
       defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || \
-      defined(__wasi__)
+      (defined(__wasi__) && !defined(__EMSCRIPTEN__))
 #include <stdlib.h>
 static bool kk_os_random_buf(void* buf, size_t buf_len) {
   arc4random_buf(buf, buf_len);
