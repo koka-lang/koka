@@ -907,17 +907,21 @@ ccFromPath flags path
         cc = cc0{ ccFlagsCompile = ccFlagsCompile cc0 ++ ccompCompileArgs flags
                 , ccFlagsLink    = ccFlagsLink cc0 ++ ccompLinkArgs flags }
 
-    in if (asan flags)
-         then if (not (ccName cc `startsWith` "clang" || ccName cc `startsWith` "gcc" || ccName cc `startsWith` "g++"))
-                then do putStrLn "warning: can only use address sanitizer with clang or gcc (--fasan is ignored)"
-                        return (cc,False)
-                else do return (cc{ ccName         = ccName cc ++ "-asan"
-                                  , ccFlagsCompile = ccFlagsCompile cc ++ ["-fsanitize=address,undefined,leak","-fno-omit-frame-pointer","-O0"]
-                                  , ccFlagsLink    = ccFlagsLink cc ++ ["-fsanitize=address,undefined,leak"] }
-                               ,True)
-       else if (useStdAlloc flags)
-         then return (cc{ ccName = ccName cc ++ "-stdalloc" }, False)
-         else return (cc,False)
+    in do when (host flags == Wasm && not (name `startsWith` "emcc")) $
+            putStrLn ("\nwarning: the wasm target should use the emscripten compiler (emcc),\n  but currently '" 
+                       ++ ccPath cc ++ "' is used." 
+                       ++ "\n  hint: specify the emscripten path using --cc=<emcc path>?")                       
+          if (asan flags)
+            then if (not (ccName cc `startsWith` "clang" || ccName cc `startsWith` "gcc" || ccName cc `startsWith` "g++"))
+                    then do putStrLn "warning: can only use address sanitizer with clang or gcc (--fasan is ignored)"
+                            return (cc,False)
+                    else do return (cc{ ccName         = ccName cc ++ "-asan"
+                                      , ccFlagsCompile = ccFlagsCompile cc ++ ["-fsanitize=address,undefined,leak","-fno-omit-frame-pointer","-O0"]
+                                      , ccFlagsLink    = ccFlagsLink cc ++ ["-fsanitize=address,undefined,leak"] }
+                                  ,True)
+          else if (useStdAlloc flags)
+            then return (cc{ ccName = ccName cc ++ "-stdalloc" }, False)
+            else return (cc,False)
 
 ccCheckExist :: CC -> IO ()
 ccCheckExist cc
