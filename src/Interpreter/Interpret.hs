@@ -694,6 +694,10 @@ messageHeader st
     welcome       = text ("welcome to the " ++ Config.programName ++ " interactive compiler")
     targetMsg
       = case (target (flags st)) of
+          C  | host (flags st) == Wasm 
+             -> ", " ++ "wasm" -- osName 
+                ++ show (8*sizePtr (platform (flags st)))
+                ++ " (" ++ (ccName (ccomp (flags st))) ++ ")"
           C  -> ", " ++ "libc" -- osName 
                 ++ " " ++ cpuArch -- show (8*sizePtr (platform (flags st))) ++ "-bit"
                 ++ " (" ++ (ccName (ccomp (flags st))) ++ ")"

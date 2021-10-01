@@ -1050,7 +1050,9 @@ codeGen term flags compileTarget loaded
          Just (out,_)
            -> do let finalOut = outFinalPath flags
                  exe <- if (not (null finalOut)) 
-                          then do let targetOut = if (not (null exeExtension) && extname out == exeExtension && extname finalOut /= exeExtension)
+                          then do let targetOut = if (host flags == Wasm)
+                                                    then finalOut ++ ".wasm"
+                                                  else if (not (null exeExtension) && extname out == exeExtension && extname finalOut /= exeExtension)
                                                     then finalOut ++ exeExtension
                                                     else finalOut
                                   when (osName == "macos") $
@@ -1278,12 +1280,17 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                                color (colorSource (colorScheme flags)) (text mainName))
             runCommand term flags clink
 
+            let mainTarget = mainExe ++ targetExtension flags
             when (not (null (outFinalPath flags))) $
               termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
-                                    color (colorSource (colorScheme flags)) (text (normalizeWith pathSep mainExe))
+                                    color (colorSource (colorScheme flags)) (text (normalizeWith pathSep mainTarget))
             let cmdflags = if (showElapsed flags) then " --kktime" else ""
-            return (Just (mainExe ++ exeExtension, 
-                          runSystemEcho term flags (dquote mainExe ++ cmdflags ++ " " ++ execOpts flags))) -- use shell for proper rss accounting
+            
+            case host flags of
+              Wasm -> return (Just (mainTarget, 
+                               runSystemEcho term flags ("wasmtime " ++ dquote mainTarget ++ cmdflags ++ " " ++ execOpts flags))) 
+              _    -> return (Just (mainTarget, 
+                               runSystemEcho term flags (dquote mainExe ++ cmdflags ++ " " ++ execOpts flags))) -- use shell for proper rss accounting
 
 
 ccompile :: Terminal -> Flags -> CC -> FilePath -> [FilePath] -> IO ()
@@ -1533,7 +1540,10 @@ checkCMake term flags
                               else -- visual studio prompt
                                    return ()
 
-
+targetExtension flags
+  = case host flags of
+      Wasm -> ".wasm"
+      _    -> exeExtension
 
 onWindows :: Bool
 onWindows

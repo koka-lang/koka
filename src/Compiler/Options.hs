@@ -207,7 +207,7 @@ flagsNull
           []       -- clink args
           []       -- clink sys libs
           []       -- clink full lib paths
-          (ccGcc "gcc" 0 "gcc")
+          (ccGcc "gcc" 0 platform64 "gcc")
           (if onWindows then []        -- ccomp library dirs
                         else ["/usr/local/lib;/usr/lib;/lib"])
           
@@ -284,7 +284,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , numOption 1 "n" ['v'] ["verbose"] (\i f -> f{verbose=i})         "verbosity 'n' (0=quiet, 1=default, 2=trace)"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
- , configstr []    ["target"]          ["c","c64","c32","js","cs"] "tgt" targetFlag  "generate C (default), javascript, or C#"
+ , configstr []    ["target"]       ["c","c64","c32","js","cs","wasm32","wasm64"] "tgt" targetFlag  "generate C (default), javascript, or C#"
  , config []    ["host"]            [("node",Node),("browser",Browser)] "host" (\h f -> f{ target=JS, host=h}) "specify host for javascript: <node|browser>"
  , emptyline
 
@@ -401,6 +401,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   targetFlag c f
     = if (c=="js") then f{ target=JS, platform=platformJS }
       else if (c=="cs") then f{ target=CS, platform=platformCS }
+      else if (c=="wasm32" || c=="wasm") then f{ target=C, platform=platform32, host=Wasm }      
+      else if (c=="wasm64") then f{ target=C, platform=platform64, host=Wasm }      
       else if (c=="c32") then f{ target=C, platform=platform32 }
       else f{ target=C, platform=platform64 }  -- "c", "c64"
 
@@ -578,7 +580,7 @@ processOptions flags0 opts
                         <- getKokaDirs (localLibDir flags) (localShareDir flags) buildDir
                    
                    -- cc
-                   ccmd <- if (ccompPath flags == "") then detectCC
+                   ccmd <- if (ccompPath flags == "") then detectCC (host flags)
                            else if (ccompPath flags == "mingw") then return "gcc"
                            else return (ccompPath flags)
                    (cc,asan) <- ccFromPath flags ccmd
@@ -814,14 +816,14 @@ ccFlagsBuildFromFlags cc flags
 gnuWarn = words "-Wall -Wextra -Wno-unknown-pragmas -Wno-unused-parameter -Wno-unused-variable -Wno-unused-value" ++
           words "-Wno-missing-field-initializers -Wpointer-arith -Wshadow -Wstrict-aliasing"
 
-ccGcc,ccMsvc :: String -> Int -> FilePath -> CC
-ccGcc name opt path
+ccGcc,ccMsvc :: String -> Int -> Platform -> FilePath -> CC
+ccGcc name opt platform path
   = CC name path []
-        [(DebugFull,     words "-g -O0 -fno-omit-frame-pointer"),
-         (Debug,         words "-g -O1"),
-         (RelWithDebInfo,[optFlag, "-g", "-DNDEBUG"]),
-         (Release,       [optFlag, "-DNDEBUG"])
-        ]
+        ([(DebugFull,     tune ++ ["-g","-O0","-fno-omit-frame-pointer"]),
+          (Debug,         tune ++ ["-g","-O1"]),
+          (RelWithDebInfo,tune ++ [optFlag, "-g", "-DNDEBUG"]),
+          (Release,       tune ++ [optFlag, "-DNDEBUG"]) ]
+        )
         (gnuWarn ++ ["-Wno-unused-but-set-variable"])
         (["-c"]) -- ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
         []
@@ -839,7 +841,13 @@ ccGcc name opt path
               else if (opt > 2) then "-O3" 
               else "-O2"
 
-ccMsvc name opt path
+    archBits= 8 * sizePtr platform
+    
+    tune    = if (cpuArch=="x64" && archBits==64) then ["-march=nehalem","-mtune=native"]           -- popcnt
+              else if (cpuArch=="arm64" && archBits==64) then ["-march=armv8.1-a","-mtune=native"]  -- lse
+              else ["-m" ++ show archBits]
+
+ccMsvc name opt platform path
   = CC name path ["-DWIN32","-nologo"] 
          [(DebugFull,words "-MDd -Zi -Od -RTC1"),
           (Debug,words "-MDd -Zi -O1"),
@@ -863,12 +871,16 @@ ccFromPath :: Flags -> FilePath -> IO (CC,Bool {-asan-})
 ccFromPath flags path
   = let name    = -- reverse $ dropWhile (not . isAlpha) $ reverse $
                   basename path
-        gcc     = ccGcc name (optimize flags) path
+        gcc     = ccGcc name (optimize flags) (platform flags) path        
         mingw   = gcc{ ccName = "mingw", ccLibFile = \lib -> "lib" ++ lib ++ ".a" }
+        emcc    = gcc{ ccFlagsCompile = ccFlagsCompile gcc ++ ["-D__wasi__"],
+                       ccFlagsLink = ccFlagsLink gcc ++ ["-s","TOTAL_MEMORY=2000MB", "-s","TOTAL_STACK=8MB"],
+                       ccTargetExe = (\out -> ["-o", out ++ ".wasm"])
+                     }
         clang   = gcc{ ccFlagsWarn = gnuWarn ++ 
                                      words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align" }
         generic = gcc{ ccFlagsWarn = [] }
-        msvc    = ccMsvc name (optimize flags) path
+        msvc    = ccMsvc name (optimize flags) (platform flags) path
         clangcl = msvc{ ccFlagsWarn = ["-Wno-everything"] ++ ccFlagsWarn clang ++ 
                                       words "-Wno-extra-semi-stmt -Wno-extra-semi -Wno-float-equal",
                         ccFlagsLink = words "-Wno-unused-command-line-argument" ++ ccFlagsLink msvc,
@@ -877,6 +889,7 @@ ccFromPath flags path
 
         cc0     | (name `startsWith` "clang-cl") = clangcl
                 | (name `startsWith` "mingw") = mingw
+                | (name `startsWith` "emcc") = emcc
                 | (name `startsWith` "clang" || name `startsWith` "musl-clang") = clang
                 | (name `startsWith` "musl-gcc" || name `startsWith` "musl-g++") = gcc
                 | (name `startsWith` "gcc" || name `startsWith` "g++")   = if onWindows then mingw else gcc
@@ -970,11 +983,12 @@ cpuArch
       arch          -> arch
 
 
-detectCC :: IO String
-detectCC
+detectCC :: Host -> IO String
+detectCC host
   = do paths <- getEnvPaths "PATH"
        (name,path) <- do envCC <- getEnvVar "CC"
-                         findCC paths ((if (envCC=="") then [] else [envCC]) ++
+                         findCC paths ((if (host==Wasm) then ["emcc"] else []) ++
+                                       (if (envCC=="") then [] else [envCC]) ++
                                        (if (onMacOS) then ["clang"] else []) ++
                                        (if (onWindows) then ["clang-cl","cl"] else []) ++
                                        ["gcc","clang","icc","cc","g++","clang++"])
