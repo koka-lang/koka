@@ -267,8 +267,7 @@ genLocalDef def@(Def name tp expr vis sort inl rng comm)
                        )
        return (fdoc)
   where
-    isDiscardExpr (App (Var name _) [])    = (getName name == nameReuseNull)
-    isDiscardExpr expr                     = isExprUnit expr -- False
+    isDiscardExpr expr                     = isExprUnit expr  || isReuseNull expr
 
 -- remove final newlines and whitespace and line continuations (\\)
 trimComment comm
@@ -2001,6 +2000,12 @@ isFunExpr expr
       TypeLam _ e   -> isFunExpr e
       Lam args eff body -> True
       _                 -> False
+
+isReuseNull :: Expr -> Bool 
+isReuseNull expr
+  = case expr of
+      App (Var v (InfoExternal _)) [] | getName v  == nameReuseNull -> True
+      _ -> False
 
 isInlineableExpr :: Expr -> Bool
 isInlineableExpr expr
