@@ -1197,7 +1197,7 @@ codeGenJS term flags modules compileTarget outBase core
               Browser ->
                do return (Just (outHtml, runSystemEcho term flags (dquote outHtml ++ " &")))
               _ ->
-               do return (Just (outjs, runCommand term flags ["node","--stack-size=100000",outjs]))
+               do return (Just (outjs, runCommand term flags [node flags,"--stack-size=100000",outjs]))
 
 
 
@@ -1288,7 +1288,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             
             case host flags of
               Wasm -> return (Just (mainTarget, 
-                               runSystemEcho term flags ("wasmtime " ++ dquote mainTarget ++ cmdflags ++ " " ++ execOpts flags))) 
+                               runSystemEcho term flags (wasmrun flags ++ " " ++ dquote mainTarget ++ cmdflags ++ " " ++ execOpts flags))) 
               _    -> return (Just (mainTarget, 
                                runSystemEcho term flags (dquote mainExe ++ cmdflags ++ " " ++ execOpts flags))) -- use shell for proper rss accounting
 

@@ -118,6 +118,7 @@ data Flags
          , includePath      :: [FilePath]    -- .kk/.kki files 
          , csc              :: FileName
          , node             :: FileName
+         , wasmrun          :: FileName
          , cmake            :: FileName
          , cmakeArgs        :: String
          , ccompPath        :: FilePath
@@ -197,6 +198,7 @@ flagsNull
           []       -- include paths
           "csc"
           "node"
+          "wasmtime"
           "cmake"
           ""       -- cmake args
           
@@ -307,6 +309,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["vcpkgauto"]       (\b f -> f{vcpkgAutoInstall=b}) "automatically install required vcpkg packages"
  , option []    ["csc"]             (ReqArg cscFlag "cmd")          "use <cmd> as the csharp backend compiler "
  , option []    ["node"]            (ReqArg nodeFlag "cmd")         "use <cmd> to execute node"
+ , option []    ["wasmrun"]         (ReqArg wasmrunFlag "cmd")      "use <cmd> to execute wasm"
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
  , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors"
  , option []    ["redirect"]        (ReqArg redirectFlag "file")    "redirect output to <file>"
@@ -482,6 +485,9 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
   nodeFlag s
     = Flag (\f -> f{ node = s })
+
+  wasmrunFlag s
+    = Flag (\f -> f{ wasmrun = s })
 
   editorFlag s
     = Flag (\f -> f{ editor = s })
