@@ -284,7 +284,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , numOption 1 "n" ['v'] ["verbose"] (\i f -> f{verbose=i})         "verbosity 'n' (0=quiet, 1=default, 2=trace)"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
- , config []    ["target"]          [("c",C),("js",JS),("cs",CS)] "" targetFlag  "generate C (default), javascript, or C#"
+ , configstr []    ["target"]          ["c","c64","c32","js","cs"] "tgt" targetFlag  "generate C (default), javascript, or C#"
  , config []    ["host"]            [("node",Node),("browser",Browser)] "host" (\h f -> f{ target=JS, host=h}) "specify host for javascript: <node|browser>"
  , emptyline
 
@@ -398,11 +398,12 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   configstr short long opts argDesc f desc
     = config short long (map (\s -> (s,s)) opts) argDesc f desc
 
-  targetFlag t f
-    = f{ target=t, platform=case t of
-                              JS -> platformJS
-                              CS -> platformCS
-                              _  -> platform64  }
+  targetFlag c f
+    = if (c=="js") then f{ target=JS, platform=platformJS }
+      else if (c=="cs") then f{ target=CS, platform=platformCS }
+      else if (c=="c32") then f{ target=C, platform=platform32 }
+      else f{ target=C, platform=platform64 }  -- "c", "c64"
+
 
   colorFlag s
     = Flag (\f -> f{ colorScheme = readColorFlags s (colorScheme f) })
