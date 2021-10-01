@@ -2,7 +2,7 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
-#define KKLIB_BUILD        55       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        57       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1
 
@@ -83,6 +83,8 @@ static inline bool kk_tag_is_raw(kk_tag_t tag) {
 // Reference counts larger than 0x8000000 use atomic increment/decrement (for thread shared objects).
 // (Reference counts are always 32-bit (even on 64-bit) platforms but get "sticky" if
 //  they get too large (>0xC0000000) and in such case we never free the object, see `refcount.c`)
+// If the scan_fsize == 0xFF, the full scan count is in the first field as a boxed int
+// (and this full scan count does _not_ include the scan count field itself).
 typedef struct kk_header_s {
   uint8_t   scan_fsize;       // number of fields that should be scanned when releasing (`scan_fsize <= 0xFF`, if 0xFF, the full scan size is the first field)
   uint8_t   thread_shared : 1;
@@ -1020,9 +1022,9 @@ static inline kk_box_t* kk_vector_buf_borrow(kk_vector_t vd, kk_ssize_t* len) {
   }
   else {
     if (len != NULL) {
-      *len = (kk_ssize_t)kk_int_unbox(v->_base.large_scan_fsize) - 1;
-      kk_assert_internal(*len + 1 == kk_block_scan_fsize(&v->_base._block));
-      kk_assert_internal(*len + 1 != 0);
+      *len = (kk_ssize_t)kk_int_unbox(v->_base.large_scan_fsize);
+      kk_assert_internal(*len == kk_block_scan_fsize(&v->_base._block));
+      kk_assert_internal(*len != 0);
     }
     return &(v->vec[0]);
   }
