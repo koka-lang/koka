@@ -818,8 +818,8 @@ ccGcc name opt path
   = CC name path []
         [(DebugFull,     words "-g -O0 -fno-omit-frame-pointer"),
          (Debug,         words "-g -O1"),
-         (RelWithDebInfo,[if (opt == 1) then "-Os" else "-O2", "-g", "-DNDEBUG"]),
-         (Release,       [if (opt > 2) then "-O3" else "-O2", "-DNDEBUG"])
+         (RelWithDebInfo,[optFlag, "-g", "-DNDEBUG"]),
+         (Release,       [optFlag, "-DNDEBUG"])
         ]
         (gnuWarn ++ ["-Wno-unused-but-set-variable"])
         (["-c"]) -- ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
@@ -833,6 +833,10 @@ ccGcc name opt path
         (\(def,val) -> ["-D" ++ def ++ (if null val then "" else "=" ++ val)])
         (\lib -> libPrefix ++ lib ++ libExtension)
         (\obj -> obj ++ objExtension)
+  where
+    optFlag = if (opt == 1) then "-Os" 
+              else if (opt > 2) then "-O3" 
+              else "-O2"
 
 ccMsvc name opt path
   = CC name path ["-DWIN32","-nologo"] 
@@ -872,7 +876,8 @@ ccFromPath flags path
 
         cc0     | (name `startsWith` "clang-cl") = clangcl
                 | (name `startsWith` "mingw") = mingw
-                | (name `startsWith` "clang") = clang
+                | (name `startsWith` "clang" || name `startsWith` "musl-clang") = clang
+                | (name `startsWith` "musl-gcc" || name `startsWith` "musl-g++") = gcc
                 | (name `startsWith` "gcc" || name `startsWith` "g++")   = if onWindows then mingw else gcc
                 | (name `startsWith` "cl")    = msvc
                 | (name `startsWith` "icc")   = gcc
