@@ -35,16 +35,17 @@ module Common.Syntax( Visibility(..)
 data Target = CS | JS | C | Default deriving (Eq,Ord)
 
 instance Show Target where
-  show CS = "cs"
-  show JS = "js"
-  show C  = "c"
+  show CS   = "cs"
+  show JS   = "js"
+  show C    = "c"
   show Default = ""
 
-data Host = Node | Browser deriving (Eq,Ord)
+data Host = Node | Browser | Wasm deriving (Eq,Ord)
 
 instance Show Host where
   show Node    = "node"
   show Browser = "browser"
+  show Wasm    = "wasm"
 
 
 data Platform = Platform{ sizePtr  :: Int -- sizeof(intptr_t)

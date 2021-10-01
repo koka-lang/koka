@@ -56,7 +56,7 @@ fun sum-count( count : int, depth : int ) : div int
 
 // parallel sum count: spawn up to `n` sub-tasks to count checksums
 fun psum-count( count : int, depth : int ) : pure int
-  val n = 16
+  val n = 8
   val partc = count / n
   val rest  = count % n
   val parts = list(1,n) fn(i){ task{ sum-count( partc, depth ) }
@@ -68,8 +68,8 @@ fun psum-count( count : int, depth : int ) : pure int
 fun gen-depth( min-depth : int, max-depth : int ) : pure list<(int,int,promise<int>)>
   list(min-depth, max-depth, 2) fn(d)
     val count = 2^(max-depth + min-depth - d)    // todo: ensure fast 2^n operation
-    //(count, d, task{ psum-count(count, d) })
-    (count, d, task{ sum-count(count, d) } )   // one task per depth    
+    (count, d, task{ psum-count(count, d) })
+    //(count, d, task{ sum-count(count, d) } )   // one task per depth    
    
 
 // show results

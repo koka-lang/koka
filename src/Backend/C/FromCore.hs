@@ -93,6 +93,7 @@ genModule buildType sourceDir penv platform newtypes borrowed0 enableReuse enabl
                            )
 
         let headComment   = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
+                            <.> text ", platform:" <+> string (show (8 * sizePtr platform)) <.> text "-bit"
             initSignature = text "void" <+> ppName (qualify (coreProgName core) (newName ".init")) <.> parameters []
             doneSignature = text "void" <+> ppName (qualify (coreProgName core) (newName ".done")) <.> parameters []
 
@@ -125,7 +126,7 @@ genModule buildType sourceDir penv platform newtypes borrowed0 enableReuse enabl
         emitToH (linebreak <.> text "// value declarations")
         genTopGroups (coreProgDefs core)
 
-        genMain (coreProgName core) mbMain
+        genMain (coreProgName core) platform mbMain
 
         emitToDone $ vcat [text "static bool _kk_done = false;"
                           ,text "if (_kk_done) return;"
@@ -217,9 +218,9 @@ importExternalInclude buildType  sourceDir ext
       _ -> [] 
 
 
-genMain :: Name -> Maybe (Name,Bool) -> Asm ()
-genMain progName Nothing = return ()
-genMain progName (Just (name,_))
+genMain :: Name -> Platform -> Maybe (Name,Bool) -> Asm ()
+genMain progName platform Nothing = return ()
+genMain progName platform (Just (name,_))
   = emitToC $
     text "\n// main exit\nstatic void _kk_main_exit(void)" <+> block (vcat [
             text "kk_context_t* _ctx = kk_get_context();",
@@ -227,7 +228,8 @@ genMain progName (Just (name,_))
           ]) 
     <->
     text "\n// main entry\nint main(int argc, char** argv)" <+> block (vcat [
-        text "kk_context_t* _ctx = kk_main_start(argc, argv);"
+        text $ "kk_assert(sizeof(size_t)==" ++ show (sizeSize platform) ++ " && sizeof(void*)==" ++ show (sizePtr platform) ++ ");"
+      , text "kk_context_t* _ctx = kk_main_start(argc, argv);"
       , ppName (qualify progName (newName ".init")) <.> parens (text "_ctx") <.> semi
       , text "atexit(&_kk_main_exit);"
       , ppName name <.> parens (text "_ctx") <.> semi

@@ -96,7 +96,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>../../include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../include;../../mimalloc/include</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>KK_DEBUG_FULL=1;KK_STATIC_LIB=1;KK_MIMALLOC=1;_CONSOLE=1;DEBUG=3;%(PreprocessorDefinitions);</PreprocessorDefinitions>
       <CompileAs>CompileAsCpp</CompileAs>
       <SupportJustMyCode>false</SupportJustMyCode>
@@ -145,7 +145,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>../../include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../../include;../../mimalloc/include</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>KK_STATIC_LIB=1;KK_MIMALLOC=1;_CONSOLE=1;%(PreprocessorDefinitions);NDEBUG</PreprocessorDefinitions>
       <AssemblerOutput>AssemblyAndSourceCode</AssemblerOutput>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>

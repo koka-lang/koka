@@ -53,23 +53,23 @@ fun sum-count( count : int32, depth : int32 ) : div int32
   fold-int32(0.int32, count, 0.int32) fn(i,csum)
     csum + make(depth).check
   
-/*
+
 // parallel sum count: spawn up to `n` sub-tasks to count checksums
-fun psum-count( count : int, depth : int ) : pure int
-  val n = 4 
-  val partc = count / n
-  val rest  = count % n
+fun psum-count( count : int32, depth : int32 ) : pure int
+  val n = 2
+  val partc = count / n.int32
+  val rest  = count % n.int32
   val parts = list(1,n) fn(i){ task{ sum-count( partc, depth ) }
-  sum-count(rest, depth) + parts.await.sum
-*/
+  (if rest > 0.int32 then sum-count(rest, depth).int else 0) + parts.await.map(int).sum
+
 
 // for depth to max-depth with stride 2, process 
 // many trees of size depth in parallel and compute the total checksum
 fun gen-depth( min-depth : int, max-depth : int ) : pure list<(int,int,promise<int>)>
   list(min-depth, max-depth, 2) fn(d)
     val count = shl( 1.int32, (max-depth + min-depth - d).int32)
-    //(count, d, task{ psum-count(count, d) })
-    (count.int, d, task{ sum-count(count, d.int32).int })   // one task per depth    
+    (count.int, d, task{ psum-count(count, d.int32) })
+    //(count.int, d, task{ sum-count(count, d.int32).int })   // one task per depth    
 
 
 // show results
