@@ -248,7 +248,7 @@ static kk_decl_noinline void kk_block_drop_free_rec(kk_block_t* b, kk_ssize_t sc
         kk_ssize_t i = 0;
         if (kk_unlikely(scan_fsize >= KK_SCAN_FSIZE_MAX)) { 
           scan_fsize = (kk_ssize_t)kk_int_unbox(kk_block_field(b, 0)); 
-          i++;
+          i++;  // skip the scan field itself (and the full scan_fsize does not include the field itself)
         }
         // free fields up to the last one
         for (; i < (scan_fsize-1); i++) {

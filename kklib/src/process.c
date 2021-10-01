@@ -105,7 +105,7 @@ void kk_process_info(kk_msecs_t* utime, kk_msecs_t* stime, size_t* peak_rss, siz
   *page_reclaim = 0;
 }
 
-#elif defined(__unix__) || defined(__unix) || defined(unix) || (defined(__APPLE__) && defined(__MACH__)) || defined(__HAIKU__)
+#elif !defined(__EMSCRIPTEN__) && (defined(__unix__) || defined(__unix) || defined(unix) || (defined(__APPLE__) && defined(__MACH__)) || defined(__HAIKU__))
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/resource.h>
@@ -154,12 +154,12 @@ void kk_process_info(kk_msecs_t* utime, kk_msecs_t* stime, size_t* peak_rss, siz
 }
 
 #else
-#ifndef __wasi__
+#if !defined(__wasi__) && !defined(__EMSCRIPTEN__)
 // WebAssembly instances are not processes
 #pragma message("define a way to get process info")
 #endif
 
-static kk_process_info(kk_msecs_t* utime, kk_msecs_t* stime, size_t* peak_rss, size_t* page_faults, size_t* page_reclaim, size_t* peak_commit) {
+void kk_process_info(kk_msecs_t* utime, kk_msecs_t* stime, size_t* peak_rss, size_t* page_faults, size_t* page_reclaim, size_t* peak_commit) {
   *peak_rss = 0;
   *page_faults = 0;
   *page_reclaim = 0;
