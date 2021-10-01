@@ -914,20 +914,24 @@ ccFromPath flags path
         cc = cc0{ ccFlagsCompile = ccFlagsCompile cc0 ++ ccompCompileArgs flags
                 , ccFlagsLink    = ccFlagsLink cc0 ++ ccompLinkArgs flags }
 
-    in if (asan flags)
-         then if (not (ccName cc `startsWith` "clang" || ccName cc `startsWith` "gcc" || ccName cc `startsWith` "g++"))
-                then do putStrLn "warning: can only use address sanitizer with clang or gcc (--fasan is ignored)"
-                        return (cc,False)
-                -- asan on Apple Silicon can't find leaks and throws an error
-                -- We can't check for arch, since GHC 8.10 runs on Rosetta and detects x86_64
-                else do let sanitize = if onMacOS then "-fsanitize=address,undefined" else "-fsanitize=address,undefined,leak"
-                        return (cc{ ccName         = ccName cc ++ "-asan"
-                                  , ccFlagsCompile = ccFlagsCompile cc ++ [sanitize,"-fno-omit-frame-pointer","-O0"]
-                                  , ccFlagsLink    = ccFlagsLink cc ++ [sanitize] }
-                               ,True)
-       else if (useStdAlloc flags)
-         then return (cc{ ccName = ccName cc ++ "-stdalloc" }, False)
-         else return (cc,False)
+    in do when (host flags == Wasm && not (name `startsWith` "emcc")) $
+            putStrLn ("\nwarning: the wasm target should use the emscripten compiler (emcc),\n  but currently '" 
+                       ++ ccPath cc ++ "' is used." 
+                       ++ "\n  hint: specify the emscripten path using --cc=<emcc path>?")   
+          if (asan flags)
+            then if (not (ccName cc `startsWith` "clang" || ccName cc `startsWith` "gcc" || ccName cc `startsWith` "g++"))
+                    then do putStrLn "warning: can only use address sanitizer with clang or gcc (--fasan is ignored)"
+                            return (cc,False)
+                    -- asan on Apple Silicon can't find leaks and throws an error
+                    -- We can't check for arch, since GHC 8.10 runs on Rosetta and detects x86_64
+                    else do let sanitize = if onMacOS then "-fsanitize=address,undefined" else "-fsanitize=address,undefined,leak"
+                            return (cc{ ccName         = ccName cc ++ "-asan"
+                                      , ccFlagsCompile = ccFlagsCompile cc ++ [sanitize,"-fno-omit-frame-pointer","-O0"]
+                                      , ccFlagsLink    = ccFlagsLink cc ++ [sanitize] }
+                                  ,True)
+          else if (useStdAlloc flags)
+            then return (cc{ ccName = ccName cc ++ "-stdalloc" }, False)
+            else return (cc,False)
 
 ccCheckExist :: CC -> IO ()
 ccCheckExist cc
