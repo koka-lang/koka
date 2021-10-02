@@ -337,14 +337,14 @@ optimizeGuardEx mchildrenOf conNameOf dups drops
               Just x -> -- trace ("fuse forward child: " ++ show y ++ " -> " ++ show x) $
                         optimize (S.delete x dups) ys
               Nothing -> do let (yDups, dups') = S.partition (isDescendentOf y) dups
-                            let (yRecs, ys')   = L.partition (isDescendentOf y) ys
+                            let (yDrops, ys')   = L.partition (isDescendentOf y) ys
                             rest    <- optimize dups' ys'             -- optimize outside the y tree
-                            prefix <- maybeStatsUnit <$> mapM genDrop yRecs
+                            prefix <- maybeStatsUnit <$> mapM genDrop yDrops
                             inlined <- specialize yDups y   -- specialize the y tree
                             return $ rest ++ [Just prefix, inlined]
 
     specialize :: Dups -> TName -> Parc (Maybe Expr)
-    specialize dups v     -- dups and drops are descendents of v
+    specialize dups v    -- dups and drops are descendents of v
       = -- trace ("enter specialize: " ++ show (mchildrenOf (dropInfoVar v)) ++ ", " ++ show (dups,v,drops)) $
         do xShared <- optimize dups []   -- for the non-unique branch
            xUnique <- optimizeEliminate dups (childrenOf v) -- drop direct children in unique branch (note: `v \notin drops`)
@@ -356,7 +356,7 @@ optimizeGuardEx mchildrenOf conNameOf dups drops
 
                noSpecialize y   = do xDrop <- genDrop y
                                      return $ Just (maybeStatsUnit (xShared ++ [xDrop]))
-           if isValue && S.size (childrenOf v) == length dups && null drops
+           if isValue && S.size (childrenOf v) == length dups
                -- Try to optimize a dropped value type where all fields are dup'd and where
                -- the fields are not boxed in a special way (all BoxIdentity).
                -- this optimization is important for TRMC for the `ctail` value type.
