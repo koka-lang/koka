@@ -1038,6 +1038,28 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx)
 }
 
 /*--------------------------------------------------------------------------------------------------
+  Dynamically increase stack size
+  Only used on Unix; on windows and macos we use a link flag
+--------------------------------------------------------------------------------------------------*/
+
+#if (defined(unix) || defined(__unix__)) && !defined(__APPLE__) && !defined(__wasi__)
+#include <sys/resource.h>
+bool kk_os_set_stack_size( kk_ssize_t stack_size ) {
+  rlim_t stack_limit = (rlim_t)(stack_size == 0 ? 128*1024*1024UL : stack_size);  
+  struct rlimit rl = { 0 };
+  if (getrlimit(RLIMIT_STACK, &rl) != 0) return false;
+  if (rl.rlim_cur >= stack_limit) return true;
+  rl.rlim_cur = (rl.rlim_max < stack_limit ? rl.rlim_max : stack_limit); 
+  if (setrlimit(RLIMIT_STACK, &rl) != 0) return false;
+  return true;
+}
+#else
+bool kk_os_set_stack_size( kk_ssize_t stack_size ) {
+  return false;
+}
+#endif
+
+/*--------------------------------------------------------------------------------------------------
   Environment
 --------------------------------------------------------------------------------------------------*/
 
@@ -1068,6 +1090,8 @@ kk_string_t kk_os_name(kk_context_t* ctx) {
   #endif
 #elif defined(__CYGWIN__) && !defined(WIN32)
   name = "unix-cygwin";
+#elif defined(__wasi__)
+  name = "wasi";  
 #elif defined(__hpux)
   name = "unix-hpux";
 #elif defined(_AIX)
