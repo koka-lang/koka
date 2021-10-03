@@ -515,10 +515,11 @@ genTypeDefPost (Data info isExtend)
        -- generate functions for constructors
        mapM_ (genConstructor info dataRepr maxScanCount) conInfos
        mapM_ (genConstructorTest info dataRepr) conInfos
-       genDupDrop (typeClassName name) info dataRepr conInfos
 
-       -- generate functions for the datatype (box/unbox)
-       genBoxUnbox name info dataRepr
+       -- generate functions for the data type
+       when (not isExtend) $
+         do genDupDrop (typeClassName name) info dataRepr conInfos
+            genBoxUnbox name info dataRepr       
   where    
     ppStructConField con
       = text "struct" <+> ppName ((conInfoName con)) <+> ppName (unqualify (conInfoName con)) <.> semi
@@ -792,15 +793,14 @@ genDupDrop name info dataRepr conInfos
   = do genScanFields name info dataRepr conInfos
        genDupDropX True name info dataRepr conInfos
        genDupDropX False name info dataRepr conInfos
-       if (dataReprIsValue dataRepr)
-        then return ()
-        else do  genIsUnique name info dataRepr
-                 genFree name info dataRepr          -- free the block
-                 genDecRef name info dataRepr        -- decrement the ref count (if > 0)
-                 genDropReuseFun name info dataRepr     -- drop, but if refcount==0 return the address of the block instead of freeing
-                 genDropNFun name info dataRepr
-                 genReuse name info dataRepr         -- return the address of the block
-                 genHole name info dataRepr
+       when (not (dataReprIsValue dataRepr)) $
+         do genIsUnique name info dataRepr
+            genFree name info dataRepr          -- free the block
+            genDecRef name info dataRepr        -- decrement the ref count (if > 0)
+            genDropReuseFun name info dataRepr     -- drop, but if refcount==0 return the address of the block instead of freeing
+            genDropNFun name info dataRepr
+            genReuse name info dataRepr         -- return the address of the block
+            genHole name info dataRepr
 
 
 genIsUnique :: Name -> DataInfo -> DataRepr -> Asm ()
