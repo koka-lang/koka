@@ -841,10 +841,10 @@ gnuWarn = words "-Wall -Wextra -Wno-unknown-pragmas -Wno-unused-parameter -Wno-u
 ccGcc,ccMsvc :: String -> Int -> Platform -> FilePath -> CC
 ccGcc name opt platform path
   = CC name path []
-        ([(DebugFull,     tune ++ ["-g","-O0","-fno-omit-frame-pointer"]),
-          (Debug,         tune ++ ["-g","-O1"]),
-          (RelWithDebInfo,tune ++ [optFlag, "-g", "-DNDEBUG"]),
-          (Release,       tune ++ [optFlag, "-DNDEBUG"]) ]
+        ([(DebugFull,     arch ++ ["-g","-O0","-fno-omit-frame-pointer"]),
+          (Debug,         arch ++ ["-g","-O1"]),
+          (RelWithDebInfo,arch ++ [optFlag, "-g", "-DNDEBUG"]),
+          (Release,       arch ++ [optFlag, "-DNDEBUG"]) ]
         )
         (gnuWarn ++ ["-Wno-unused-but-set-variable"])
         (["-c"]) -- ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
@@ -865,10 +865,10 @@ ccGcc name opt platform path
               else "-O2"
 
     archBits= 8 * sizePtr platform
-    
-    tune    = if (cpuArch=="x64" && archBits==64) then ["-march=nehalem","-mtune=native"]           -- popcnt
-              else if (cpuArch=="arm64" && archBits==64) then ["-march=armv8.1-a","-mtune=native"]  -- lse
-              else ["-m" ++ show archBits]
+    arch    = -- if (cpuArch=="x64" && archBits==64) then ["-march=nehalem","-mtune=native"]           -- popcnt
+              -- else if (cpuArch=="arm64" && archBits==64) then ["-march=armv8.1-a","-mtune=native"]  -- lse
+              -- else 
+              ["-m" ++ show archBits]
 
 ccMsvc name opt platform path
   = CC name path ["-DWIN32","-nologo"] 
