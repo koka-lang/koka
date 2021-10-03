@@ -430,19 +430,19 @@ compileProgram' term flags modules compileTarget fname program
            case compileTarget of
              Executable entryName _
                -> let mainName = if (isQualified entryName) then entryName else qualify (getName program) (entryName) in
-                  case map infoType (gammaLookupQ mainName (loadedGamma loaded2)) of
+                  case gammaLookupQ mainName (loadedGamma loaded2) of
                      []   -> errorMsg (ErrorGeneral rangeNull (text "there is no 'main' function defined" <-> text "hint: use the '-l' flag to generate a library?"))
-                     tps  -> let mainType = TFun [] (TCon (TypeCon nameTpIO kindEffect)) typeUnit  -- just for display, so IO can be TCon
+                     infos-> let mainType = TFun [] (TCon (TypeCon nameTpIO kindEffect)) typeUnit  -- just for display, so IO can be TCon
                                  isMainType tp = case expandSyn tp of
                                                    TFun [] eff resTp  -> True -- resTp == typeUnit
-                                                   _                  -> False
-                             in case filter isMainType tps of
-                               [tp] -> do mbF <- checkUnhandledEffects flags loaded2 mainName rangeNull tp
-                                          case mbF of
-                                           Nothing -> return (Executable mainName tp, loaded2)
-                                           Just f  ->
+                                                   _                  -> False                                
+                             in case filter (isMainType . infoType) infos of
+                               [InfoFun{infoType=tp,infoRange=r}] 
+                                  -> do mbF <- checkUnhandledEffects flags loaded2 mainName r tp
+                                        case mbF of
+                                          Nothing -> return (Executable mainName tp, loaded2)
+                                          Just f  ->
                                             let mainName2  = qualify (getName program) (newHiddenName "hmain")
-                                                r          = rangeNull
                                                 expression = App (Var (if (isHiddenName mainName) then mainName -- .expr
                                                                                                   else unqualify mainName -- main
                                                                       ) False r) [] r
@@ -450,10 +450,12 @@ compileProgram' term flags modules compileTarget fname program
                                                 program2   = programAddDefs program [] [defMain]
                                             in do (loaded3,_) <- typeCheck loaded1 flags 0 coreImports program2
                                                   return (Executable mainName2 tp, loaded3) -- TODO: refine the type of main2
-                               []   -> errorMsg (ErrorGeneral rangeNull (text "the type of 'main' must be a function without arguments" <->
+                               [info]
+                                  -> errorMsg (ErrorGeneral (infoRange info) (text "'main' must be declared as a function (fun)"))
+                               [] -> errorMsg (ErrorGeneral rangeNull (text "the type of 'main' must be a function without arguments" <->
                                                                                       table [(text "expected type", ppType (prettyEnvFromFlags flags) mainType)
-                                                                                            ,(text "inferred type", ppType (prettyEnvFromFlags flags) (head tps))]))
-                               _    -> errorMsg (ErrorGeneral rangeNull (text "found multiple definitions for the 'main' function"))
+                                                                                            ,(text "inferred type", ppType (prettyEnvFromFlags flags) (head (map infoType infos)))]))
+                               _  -> errorMsg (ErrorGeneral rangeNull (text "found multiple definitions for the 'main' function"))
              Object -> return (Object,loaded2)
              Library -> return (Library,loaded2)
        -- try to set the right host depending on the main type

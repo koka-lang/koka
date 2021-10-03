@@ -1,6 +1,2 @@
-test/type/wrong/div3.kk(3, 5): error: effects do not match
- context : recursive
- term : recursive
- inferred effect: (<>)
- expected effect: <div|_e>
- because : effect cannot be subsumed
+test/type/wrong/div3.kk(1, 5): error: value definition is recursive.
+ recursive group: [type/wrong/div3/recursive,type/wrong/div3/wrong]
