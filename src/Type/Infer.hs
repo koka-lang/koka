@@ -143,8 +143,7 @@ inferDefGroup topLevel (DefNonRec def) cont
        return ([cgroup1],x)
 inferDefGroup topLevel (DefRec defs) cont
   = -- trace ("\ninfer group: " ++ show (map defName defs)) $
-    do when topLevel (mapM_ checkRecVal defs)
-       (gamma,infgamma) <- createGammas [] [] defs
+    do (gamma,infgamma) <- createGammas [] [] defs
        --coreDefs0 <- extendGamma gamma (mapM (inferRecDef topLevel infgamma) defs)
        (coreDefsX,assumed) <- extendGamma False gamma $ extendInfGamma topLevel infgamma $
                                  do assumed <- mapM (\def -> lookupInfName (getName def)) defs
@@ -154,6 +153,7 @@ inferDefGroup topLevel (DefRec defs) cont
        -- re-analyze the mutual recursive groups
        scoreDefsX <- subst coreDefsX
        let coreGroups0 = regroup scoreDefsX
+       when topLevel (mapM_ checkRecVal coreGroups0)
        -- now analyze divergence
        (coreGroups1,divTNames)
             <- fmap unzip $
@@ -237,10 +237,14 @@ inferDefGroup topLevel (DefRec defs) cont
                                 -- trace ("*** createGammasx: assume: " ++ show name ++ ": " ++ show info) $ return ()
                                 createGammas gamma ((qname,info):infgamma) defs
 
-checkRecVal :: Def t -> Inf ()
-checkRecVal def 
-  = if not (defIsVal def) then return () else
-      do infError (getRange (defBinder def)) (text ("value definition is recursive"))
+checkRecVal :: Core.DefGroup -> Inf ()
+checkRecVal (Core.DefNonRec def) = return ()
+checkRecVal (Core.DefRec defs)
+  = mapM_ checkDef defs
+  where 
+    checkDef def
+      = if (not (Core.defIsVal def)) then return () else    
+         do infError (Core.defNameRange def) (text ("value definition is recursive.\n  recursive group: " ++ show (map Core.defName defs)))
 
 fixCanonicalName :: Core.Def -> Inf Core.Def
 fixCanonicalName def
