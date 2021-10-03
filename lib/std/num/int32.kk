@@ -38,7 +38,7 @@ fun bool( i : int32 ) : bool {
 
 // Convert a boolean to an `:int32`.
 fun int32( b : bool ) : int32 {
-  if (b) then one else zero
+  if (b) then 1.int32 else 0.int32
 }
 
 

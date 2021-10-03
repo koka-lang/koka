@@ -30,7 +30,7 @@ fun bool( i : int64 ) : bool {
 
 // Convert a boolean to an `:int64`.
 fun int64( b : bool ) : int64 {
-  if (b) then one else zero
+  if (b) then 1.int32 else 0.int32
 }
 
 
