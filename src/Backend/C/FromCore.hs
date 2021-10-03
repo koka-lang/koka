@@ -375,11 +375,12 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
                                 case genDupDropCall False {-drop-} tp (ppName name) of 
                                   []   -> return ()
                                   docs -> emitToDone (hcat docs <.> semi)
-                                let decl = ppType tp <+> ppName name <.> unitSemi tp
+                                let hdecl = ppType tp <+> ppName name <.> semi
+                                    cdecl = ppType tp <+> ppName name <.> unitSemi tp
                                 -- if (isPublic vis) -- then do
                                 -- always public since inlined definitions can refer to it (sin16 in std/num/ddouble)
-                                emitToH (linebreak <.> text "extern" <+> decl)
-                                emitToC (linebreak <.> decl)
+                                emitToH (linebreak <.> text "extern" <+> hdecl)
+                                emitToC (linebreak <.> cdecl)
                                 -- else do emitToC (linebreak <.> text "static" <+> decl)
     in withDef name inlineC (tryFun defBody)
   where
@@ -410,7 +411,8 @@ genTopDefDecl genSig inlineC def@(Def name tp defBody vis sort inl rng comm)
                       )
 
 unitSemi :: Type -> Doc
-unitSemi tp  = if (isTypeUnit tp) then text " = kk_Unit;" else semi
+unitSemi tp  
+  = if (isTypeUnit tp) then text " = kk_Unit;" else semi
 
 ---------------------------------------------------------------------------------
 -- Generate value constructors for each defined type
