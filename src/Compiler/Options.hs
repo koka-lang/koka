@@ -849,7 +849,9 @@ ccGcc name opt platform path
         (gnuWarn ++ ["-Wno-unused-but-set-variable"])
         (["-c"]) -- ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
         []
-        (\stksize -> [])  -- stack size is usually set programmatically
+        (\stksize -> if (onMacOS && stksize > 0)  -- stack size is usually set programmatically (except on macos/windows)
+                       then ["-Wl,-stack_size," ++ show stksize]
+                       else []) 
         (\libdir -> ["-L",libdir])
         (\idir -> ["-I",idir])
         (\fname -> ["-o", (notext fname) ++ objExtension])
