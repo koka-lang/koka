@@ -12,50 +12,58 @@ type tree
   Node( left : tree, right : tree )
   Tip
 
-type visitor
+
+// make a perfectly balanced binary tree of `depth` using FBIP
+// to use no extra stack space.
+type builder  
   Top
-  LeftChild( pad : int, up : visitor )
-  RightChild( left : tree, up : visitor )
+  BuildRight( depth : int, up : builder )
+  BuildNode( left : tree, up : builder )
 
-// Make the left spine
-fun makev( depth : int, v : visitor ) : div tree
-  if depth > 0
-    then makev(depth.dec, LeftChild(0, v))
-    else goUp(depth, Node( Tip, Tip ), v)
+// using mutual recursion
+fun make-down( depth : int, builder : builder ) : div tree
+  if depth > 0 
+    then make-down( depth - 1, BuildRight(depth - 1, builder))
+    else make-up( Node(Tip,Tip), builder)
 
-// Go up and call makev on the right subtree
-fun goUp( depth : int, t : tree, v : visitor ) : div tree
-  match v
+fun make-up( t : tree, builder : builder ) : div tree
+  match builder
+    BuildRight(depth, up) -> make-down( depth, BuildNode(t, up))
+    BuildNode(l, up)      -> make-up( Node(l, t), up)
     Top -> t
-    LeftChild(_, up) -> makev(depth, RightChild(t, up))
-    RightChild(l, up) -> goUp(depth.inc, Node(l, t), up)
 
-// The mutual recursive definition of 'goUp' and 'makev' in one
-fun makevGoUp( depth : int, mt : maybe<tree>, v : visitor) : div tree
-  match mt
-    Just(t) -> match v
+// using a single tail recursive definition
+type direction  
+  Down( depth : int )
+  Up( t : tree )
+
+fun make-fbip( dir : direction, builder : builder) : div tree
+  match dir
+    Down(depth) -> if depth > 0 
+      then make-fbip(Down(depth - 1), BuildRight(depth - 1, builder))
+      else make-fbip(Up(Node(Tip,Tip)), builder)
+    Up(t) -> match builder
+      BuildRight(depth, up) -> make-fbip(Down(depth), BuildNode(t, up))
+      BuildNode(l, up)      -> make-fbip(Up(Node(l, t)), up)
       Top -> t
-      LeftChild(_, up) -> makevGoUp(depth, Nothing, RightChild(t, up))
-      RightChild(l, up) -> makevGoUp(depth.inc, Just(Node(l, t)), up)
-    Nothing -> if depth > 0
-      then makevGoUp(depth.dec, Nothing, LeftChild(0, v))
-      else makevGoUp(depth, Just(Node( Tip, Tip )), v)
-
-fun makex( depth : int ) : div tree
-  makevGoUp( depth, Nothing, Top )
 
 // make a perfectly balanced binary tree of `depth`
-fun make( depth : int ) : div tree
+fun make-rec( depth : int ) : div tree
   if depth > 0
-    then Node( make(depth.dec), make(depth.dec) ) 
+    then Node( make(depth - 1), make(depth - 1) ) 
     else Node( Tip, Tip )
+
+fun make( depth : int ) : div tree
+  //make-rec(depth)
+  make-fbip(Down(depth), Top)
+  // make-down( depth, Top )
+
 
 
 // FBIP in action: use a visitor to run the checksum tail-recursively
 type visit  
   Done
   NodeR( right : tree, v : visit )
-
 
 // tail-recursive checksum
 fun checkv( t : tree, v : visit, acc : int ) : div int
@@ -64,7 +72,6 @@ fun checkv( t : tree, v : visit, acc : int ) : div int
     Tip       -> match v
       NodeR(r,v') -> checkv( r, v', acc)
       Done        -> acc
-
 
 // normal checksum  
 fun checkr( t : tree ) : div int
@@ -83,7 +90,7 @@ fun check( t : tree ) : div int
 fun sum-count( count : int, depth : int ) : div int
   fold-int(count+1,0) fn(i,csum)
     // csum + make(depth).check
-    csum + makex(depth).check
+    csum + make(depth).check
   
 
 // parallel sum count: spawn up to `n` sub-tasks to count checksums
@@ -121,7 +128,7 @@ public fun main()
   
   // allocate long lived tree
   // val long = make(max-depth)
-  val long = makex(max-depth)
+  val long = make(max-depth)
 
   // allocate and free many trees in parallel
   val trees = gen-depth( min-depth, max-depth )
