@@ -313,7 +313,7 @@ optimizeDupDrops mchildrenOf conNameOf dups0 drops0
       = do  let (yDups, dups')    = S.partition (isDescendentOf y) dups
             let (yDrops, drops')  = L.partition (isDescendentOf y) drops
             rest   <- optimizeDisjoint dups' drops'             -- optimize outside the y tree
-            prefix <- mapM genDrop yDrops
+            prefix <- mapM genDrop yDrops                       -- todo: these could be decRef as these can never be unique
             spec   <- specializeDrop mchildrenOf conNameOf yDups y   -- specialize the y tree
             return $ rest ++ prefix ++ spec
 
@@ -331,7 +331,7 @@ specializeDrop mchildrenOf conNameOf dups v    -- dups are descendents of v
 
             noSpecialize y   = do xDrop <- genDrop y
                                   return $ xShared ++ [xDrop]
-        if isValue && S.size (childrenOf v) == length dups
+        if isValue && all (\child -> S.member child dups) (S.toList (childrenOf v))
             -- Try to optimize a dropped value type where all fields are dup'd and where
             -- the fields are not boxed in a special way (all BoxIdentity).
             -- this optimization is important for TRMC for the `ctail` value type.
