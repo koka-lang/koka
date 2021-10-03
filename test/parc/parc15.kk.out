@@ -7,7 +7,6 @@ public fun test : (xs : list<int>, y : int) -> int
  (std/core/Cons(((.skip std/core/types/.Box((x: int)) : .Box ) as .box: .Box), (.pat0: list<int>)) : list<int> )
  -> std/core/types/.dup(x);
  std/core/types/.drop(y);
- std/core/types/();
  (match (xs) {
  (std/core/Cons(((.skip std/core/types/.Box((.pat2: int)) : .Box ) as .box: .Box), (.pat3: list<int>)) : list<int> )
  -> std/core/types/.drop(xs, (std/core/int32(2)));

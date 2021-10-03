@@ -13,7 +13,6 @@ public fun test : (xs : list<maybe<int>>, y : int) -> int
  std/core/types/.dup(x);
  std/core/types/.drop(.box);
  std/core/types/();
- std/core/types/();
  std/core/types/.free(xs);
  _
  -> std/core/types/.dup(x);
