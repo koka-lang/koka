@@ -12,6 +12,37 @@ type tree
   Node( left : tree, right : tree )
   Tip
 
+type visitor
+  Top
+  LeftChild( pad : int, up : visitor )
+  RightChild( left : tree, up : visitor )
+
+// Make the left spine
+fun makev( depth : int, v : visitor ) : div tree
+  if depth > 0
+    then makev(depth.dec, LeftChild(0, v))
+    else goUp(depth, Node( Tip, Tip ), v)
+
+// Go up and call makev on the right subtree
+fun goUp( depth : int, t : tree, v : visitor ) : div tree
+  match v
+    Top -> t
+    LeftChild(_, up) -> makev(depth, RightChild(t, up))
+    RightChild(l, up) -> goUp(depth.inc, Node(l, t), up)
+
+// The mutual recursive definition of 'goUp' and 'makev' in one
+fun makevGoUp( depth : int, mt : maybe<tree>, v : visitor) : div tree
+  match mt
+    Just(t) -> match v
+      Top -> t
+      LeftChild(_, up) -> makevGoUp(depth, Nothing, RightChild(t, up))
+      RightChild(l, up) -> makevGoUp(depth.inc, Just(Node(l, t)), up)
+    Nothing -> if depth > 0
+      then makevGoUp(depth.dec, Nothing, LeftChild(0, v))
+      else makevGoUp(depth, Just(Node( Tip, Tip )), v)
+
+fun makex( depth : int ) : div tree
+  makevGoUp( depth, Nothing, Top )
 
 // make a perfectly balanced binary tree of `depth`
 fun make( depth : int ) : div tree
@@ -51,7 +82,8 @@ fun check( t : tree ) : div int
 // generate `count` trees of `depth` and return the total checksum
 fun sum-count( count : int, depth : int ) : div int
   fold-int(count+1,0) fn(i,csum)
-    csum + make(depth).check
+    // csum + make(depth).check
+    csum + makex(depth).check
   
 
 // parallel sum count: spawn up to `n` sub-tasks to count checksums
@@ -88,7 +120,8 @@ public fun main()
   show( "stretch tree", stretch-depth, make(stretch-depth).check )
   
   // allocate long lived tree
-  val long = make(max-depth)
+  // val long = make(max-depth)
+  val long = makex(max-depth)
 
   // allocate and free many trees in parallel
   val trees = gen-depth( min-depth, max-depth )
