@@ -38,7 +38,8 @@ import Lib.PPrint
 import Lib.Printer
 import Common.Failure         ( raiseIO, catchIO )
 import Common.ColorScheme
-import Common.File            
+import Common.File        
+import Common.Name    
 import Common.Syntax          ( Target (..), Host(..), Platform(..), BuildType(..), platform32, platform64, platformJS, platformCS )
 import Compiler.Package
 import Core.Core( dataInfoIsValue )
@@ -850,7 +851,7 @@ ccGcc name opt platform path
         (["-c"]) -- ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
         []
         (\stksize -> if (onMacOS && stksize > 0)  -- stack size is usually set programmatically (except on macos/windows)
-                       then ["-Wl,-stack_size," ++ show stksize]
+                       then ["-Wl,-stack_size,0x" ++ showHex 0 stksize]
                        else []) 
         (\libdir -> ["-L",libdir])
         (\idir -> ["-I",idir])
