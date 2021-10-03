@@ -293,7 +293,9 @@ optimizeGuard True {-specialize-} dups rdrops
 optimizeDupDrops :: (TName -> Maybe TNames) -> (TName -> Maybe Name) -> Dups -> Drops -> Parc [Maybe Expr]
 optimizeDupDrops mchildrenOf conNameOf dups0 drops0
   = do (fdups, fdrops) <- fuseDupDrops childrenOf dups0 drops0
-       optimizeDisjoint fdups (S.toList fdrops)
+       assertion ("Backend.C.Parc.optimizeDupDrops: intersection not empty: " ++ show (fdups,fdrops))
+                 (S.null (S.intersection fdups fdrops)) $
+         optimizeDisjoint fdups (S.toList fdrops)
   where
     childrenOf x
       = case mchildrenOf x of
@@ -369,23 +371,26 @@ specializeDrop mchildrenOf conNameOf dups v    -- dups are descendents of v
 -- Remove dup/drop pairs
 fuseDupDrops :: (TName -> TNames) -> Dups -> Drops -> Parc (Dups, Drops)
 fuseDupDrops childrenOf dups drops
-  =do newtypes <- getNewtypes
-      platform <- getPlatform
-      let dups' = dups S.\\ drops
-      let drops' = drops S.\\ dups
-      let forwards = mapMaybe (\y -> sequence (y, forwardingChild platform newtypes childrenOf dups' y)) (S.toList drops')
-      let dups'' = dups' S.\\ S.fromList (map snd forwards)
-      let drops'' = drops' S.\\ S.fromList (map fst forwards)
-      assertion ("Backend.C.Parc.fuseDupDrops: intersection not empty: " ++ show (dups'',drops''))
-                (S.null (S.intersection dups'' drops'')) $
-       return (dups'', drops'')
-
-
+  = fuseAliases childrenOf (dups S.\\ drops) (drops S.\\ dups)
+      
+fuseAliases :: (TName -> TNames) -> Dups -> Drops -> Parc (Dups,Drops)
+fuseAliases childrenOf dups drops
+  = do newtypes <- getNewtypes
+       platform <- getPlatform
+       return $ L.foldl' (fuseAlias platform newtypes) (dups,S.empty) (S.toList drops)
+  where
+    fuseAlias :: Platform -> Newtypes -> (Dups,Drops) -> TName -> (Dups,Drops)
+    fuseAlias platform newtypes (dups,drops) y 
+      = case forwardingChild platform newtypes childrenOf dups y of
+          Just child -> assertion ("Backend.C.Parc.fuseAlias: not a member? " ++ show (child,dups)) 
+                                  (S.member child dups) $
+                        (S.delete child dups, drops)  
+          Nothing    -> (dups,S.insert y drops)        -- not (S.member y dups)
 
 -- | Return a dupped name which is a child of the given name
--- if the given name will forward a drop to the child
--- (eg. because the given name is a box or a newtype).
-forwardingChild :: Platform -> Newtypes -> (TName -> TNames) -> Dups -> TName -> Maybe TName
+-- if the given name will always forward a drop directly to the child
+-- (e.g. because the given name is a box or a newtype).
+forwardingChild :: Platform -> Newtypes -> (TName -> TNames) -> Dups -> TName -> (Maybe TName)
 forwardingChild platform newtypes childrenOf dups y
   = case tnamesList (childrenOf y) of
       [x] -> -- trace ("forwarding child?: " ++ show y ++ " -> " ++ show x) $
