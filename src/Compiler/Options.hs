@@ -26,7 +26,7 @@ module Compiler.Options( -- * Command line options
                        ) where
 
 
-import Data.Char              ( toUpper, isAlpha, isSpace )
+import Data.Char              ( toLower, toUpper, isAlpha, isSpace )
 import Data.List              ( intersperse )
 import Control.Monad          ( when )
 import qualified System.Info  ( os, arch )
@@ -107,6 +107,7 @@ data Flags
          , target           :: Target
          , host             :: Host
          , platform         :: Platform
+         , stackSize        :: Int
          , simplify         :: Int
          , simplifyMaxDup   :: Int
          , colorScheme      :: ColorScheme
@@ -187,6 +188,7 @@ flagsNull
           C     -- target
           Node  -- js host
           platform64
+          0     -- stack size
           5     -- simplify passes
           10    -- simplify dup max (must be at least 10 to inline partial applications across binds)
           defaultColorScheme
@@ -286,7 +288,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , numOption 1 "n" ['v'] ["verbose"] (\i f -> f{verbose=i})         "verbosity 'n' (0=quiet, 1=default, 2=trace)"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
- , configstr []    ["target"]       ["c","c64","c32","js","cs","wasm32","wasm64"] "tgt" targetFlag  "generate C (default), javascript, or C#"
+ , configstr [] ["target"]          ["c","c64","c32","js","cs","wasm32","wasm64"] "tgt" targetFlag  "target: c (default), c32, c64, js, or wasm32"
  , config []    ["host"]            [("node",Node),("browser",Browser)] "host" (\h f -> f{ target=JS, host=h}) "specify host for javascript: <node|browser>"
  , emptyline
 
@@ -311,6 +313,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["node"]            (ReqArg nodeFlag "cmd")         "use <cmd> to execute node"
  , option []    ["wasmrun"]         (ReqArg wasmrunFlag "cmd")      "use <cmd> to execute wasm"
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
+ , option []    ["stack"]           (ReqArg stackFlag "size")       "set stack size (0 for platform default)"
  , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors"
  , option []    ["redirect"]        (ReqArg redirectFlag "file")    "redirect output to <file>"
  , configstr [] ["console"]  ["ansi","html","raw"] "fmt" (\s f -> f{ console = s }) "console output format: <ansi|html|raw>"
@@ -500,6 +503,18 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
 
   cmakeArgsFlag s
       = Flag (\f -> f{ cmakeArgs = s })
+
+  stackFlag s
+    = case parseSize s of
+        Just n -> Flag (\f -> f{ stackSize = n })
+        _      -> Flag (id)
+    where
+      parseSize :: String -> Maybe Int
+      parseSize s = case reads (map toLower s) of
+                       [(n,rest)] | rest `elem` ["k","kb","kib"] -> Just (1024*n)
+                                  | rest `elem` ["m","mb","mib"] -> Just (1024*1024*n)
+                                  | null rest                    -> Just n
+                       _ -> Nothing
 
   
 readHtmlBases :: String -> [(String,String)]
@@ -769,6 +784,7 @@ data CC = CC{  ccName       :: String,
                ccFlagsWarn  :: Args,
                ccFlagsCompile :: Args,
                ccFlagsLink    :: Args,
+               ccFlagStack  :: Int -> Args,
                ccAddLibraryDir :: FilePath -> Args,
                ccIncludeDir :: FilePath -> Args,
                ccTargetObj  :: FilePath -> Args,
@@ -833,6 +849,7 @@ ccGcc name opt platform path
         (gnuWarn ++ ["-Wno-unused-but-set-variable"])
         (["-c"]) -- ++ (if onWindows then [] else ["-D_GNU_SOURCE"]))
         []
+        (\stksize -> [])  -- stack size is usually set programmatically
         (\libdir -> ["-L",libdir])
         (\idir -> ["-I",idir])
         (\fname -> ["-o", (notext fname) ++ objExtension])
@@ -862,6 +879,7 @@ ccMsvc name opt platform path
          ["-W3"]
          ["-EHs","-TP","-c"]   -- always compile as C++ on msvc (for atomics etc.)
          ["-link"]             -- , "/NODEFAULTLIB:msvcrt"]
+         (\stksize -> if stksize > 0 then ["/STACK:" ++ show stksize] else [])
          (\libdir -> ["/LIBPATH:" ++ libdir])
          (\idir -> ["-I",idir])
          (\fname -> ["-Fo" ++ ((notext fname) ++ objExtension)])
@@ -878,9 +896,13 @@ ccFromPath flags path
   = let name    = -- reverse $ dropWhile (not . isAlpha) $ reverse $
                   basename path
         gcc     = ccGcc name (optimize flags) (platform flags) path        
-        mingw   = gcc{ ccName = "mingw", ccLibFile = \lib -> "lib" ++ lib ++ ".a" }
+        mingw   = gcc{ ccName = "mingw", 
+                       ccLibFile = \lib -> "lib" ++ lib ++ ".a",
+                       ccFlagStack = (\stksize -> if stksize > 0 then ["-Wl,--stack," ++ show stksize] else [])
+                     }
         emcc    = gcc{ ccFlagsCompile = ccFlagsCompile gcc ++ ["-D__wasi__"],
-                       ccFlagsLink = ccFlagsLink gcc ++ ["-s","TOTAL_MEMORY=2000MB", "-s","TOTAL_STACK=8MB"],
+                       ccFlagsLink = ccFlagsLink gcc ++ ["-s","TOTAL_MEMORY=2000MB"],
+                       ccFlagStack = (\stksize -> if stksize == 0 then [] else ["-s","TOTAL_STACK=" ++ show stksize]),
                        ccTargetExe = (\out -> ["-o", out ++ ".wasm"])
                      }
         clang   = gcc{ ccFlagsWarn = gnuWarn ++ 

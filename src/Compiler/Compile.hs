@@ -1197,7 +1197,8 @@ codeGenJS term flags modules compileTarget outBase core
               Browser ->
                do return (Just (outHtml, runSystemEcho term flags (dquote outHtml ++ " &")))
               _ ->
-               do return (Just (outjs, runCommand term flags [node flags,"--stack-size=100000",outjs]))
+               do let stksize = if (stackSize flags == 0) then 100000 else (stackSize flags `div` 1024)
+                  return (Just (outjs, runCommand term flags [node flags,"--stack-size=" ++ show stksize,outjs]))
 
 
 
@@ -1214,6 +1215,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
       let -- (core,unique) = parcCore (prettyEnvFromFlags flags) newtypes unique0 core0
           (cdoc,hdoc,bcore) = cFromCore (buildType flags) sourceDir (prettyEnvFromFlags flags) (platform flags)
                                 newtypes unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
+                                (stackSize flags)
                                 mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } C [] bcore
       -- writeDocW 120 (outBase ++ ".c.core") bcoreDoc
@@ -1262,6 +1264,12 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                          concat [clibsFromCore flags mcore | mcore <- map modCore modules]
 
                 libpaths = map (\lib -> outName flags (ccLibFile cc lib)) libs
+
+                stksize = if (stackSize flags == 0) 
+                            then if (onWindows || host flags == Wasm) 
+                                   then 8*1024*1024 -- default to 8Mb on windows and wasi
+                                   else 0
+                            else stackSize flags
  
                 clink  = concat $
                          [ [ccPath cc]
@@ -1271,6 +1279,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                          ]
                          ++ [objs]
                          ++ [ccFlagsLink cc]  -- must be last due to msvc
+                         ++ [ccFlagStack cc stksize]
                          -- ++ [ccAddLibraryDir cc (fullBuildDir flags)]
                          ++ map (ccAddLib cc) libpaths  -- libs
                          ++ map (ccAddSysLib cc) syslibs

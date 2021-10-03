@@ -65,10 +65,10 @@ externalNames
 -- Generate C code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Int -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
-cFromCore buildType sourceDir penv0 platform newtypes uniq enableReuse enableSpecialize enableReuseSpecialize mbMain core
+cFromCore :: BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Int -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
+cFromCore buildType sourceDir penv0 platform newtypes uniq enableReuse enableSpecialize enableReuseSpecialize stackSize mbMain core
   = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes platform False)
-           (genModule buildType sourceDir penv platform newtypes enableReuse enableSpecialize enableReuseSpecialize mbMain core) of
+           (genModule buildType sourceDir penv platform newtypes enableReuse enableSpecialize enableReuseSpecialize stackSize mbMain core) of
       (bcore,cdoc,hdoc) -> (cdoc,hdoc,bcore)
   where
     moduleName = coreProgName core
@@ -80,8 +80,8 @@ contextDoc = text "_ctx"
 contextParam :: Doc
 contextParam = text "kk_context_t* _ctx"
 
-genModule :: BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> Asm Core
-genModule buildType sourceDir penv platform newtypes enableReuse enableSpecialize enableReuseSpecialize mbMain core0
+genModule :: BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> Asm Core
+genModule buildType sourceDir penv platform newtypes enableReuse enableSpecialize enableReuseSpecialize stackSize mbMain core0
   =  do core <- liftUnique (do bcore <- boxCore core0            -- box/unbox transform
                                ucore <- if (enableReuse)
                                          then parcReuseCore penv platform newtypes bcore -- constructor reuse analysis
@@ -127,7 +127,7 @@ genModule buildType sourceDir penv platform newtypes enableReuse enableSpecializ
         emitToH (linebreak <.> text "// value declarations")
         genTopGroups (coreProgDefs core)
 
-        genMain (coreProgName core) platform mbMain
+        genMain (coreProgName core) platform stackSize mbMain
 
         emitToDone $ vcat [text "static bool _kk_done = false;"
                           ,text "if (_kk_done) return;"
@@ -219,9 +219,9 @@ importExternalInclude buildType  sourceDir ext
       _ -> [] 
 
 
-genMain :: Name -> Platform -> Maybe (Name,Bool) -> Asm ()
-genMain progName platform Nothing = return ()
-genMain progName platform (Just (name,_))
+genMain :: Name -> Platform -> Int -> Maybe (Name,Bool) -> Asm ()
+genMain progName platform stackSize Nothing = return ()
+genMain progName platform stackSize (Just (name,_))
   = emitToC $
     text "\n// main exit\nstatic void _kk_main_exit(void)" <+> block (vcat [
             text "kk_context_t* _ctx = kk_get_context();",
@@ -230,6 +230,8 @@ genMain progName platform (Just (name,_))
     <->
     text "\n// main entry\nint main(int argc, char** argv)" <+> block (vcat [
         text $ "kk_assert(sizeof(size_t)==" ++ show (sizeSize platform) ++ " && sizeof(void*)==" ++ show (sizePtr platform) ++ ");"
+      , if stackSize == 0 then empty else
+        text $ "kk_os_set_stack_size(KIZ(" ++ show stackSize ++ "));"
       , text "kk_context_t* _ctx = kk_main_start(argc, argv);"
       , ppName (qualify progName (newName ".init")) <.> parens (text "_ctx") <.> semi
       , text "atexit(&_kk_main_exit);"

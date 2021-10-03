@@ -1045,7 +1045,7 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx)
 #if (defined(unix) || defined(__unix__)) && !defined(__APPLE__) && !defined(__wasi__)
 #include <sys/resource.h>
 bool kk_os_set_stack_size( kk_ssize_t stack_size ) {
-  rlim_t stack_limit = (rlim_t)(stack_size == 0 ? 128*1024*1024UL : stack_size);  
+  rlim_t stack_limit = (rlim_t)(stack_size > 0 ? stack_size : 128*1024*1024);  
   struct rlimit rl = { 0 };
   if (getrlimit(RLIMIT_STACK, &rl) != 0) return false;
   if (rl.rlim_cur >= stack_limit) return true;
