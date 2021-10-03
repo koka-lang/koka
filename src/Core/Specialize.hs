@@ -212,18 +212,13 @@ fnBody (TypeLam _ (Lam _ _ body)) = body
 
 extractSpecializeDefs ::  DefGroups -> [InlineDef]
 extractSpecializeDefs dgs =
-  --   flip multiStepInlines (fnDefs dgs)
-  -- $ inlinesMerge inlines
-  -- $ inlinesNew
     mapMaybe makeSpecialize
+  $ filter (isFun . defType)
   $ flattenDefGroups
   $ filter isRecursiveDefGroup dgs
   where
     isRecursiveDefGroup (DefRec [def]) = True
     isRecursiveDefGroup _ = False
-
-    fnDefs :: DefGroups -> [Def]
-    fnDefs = filter (isFun . defType) . flattenDefGroups
 
 filterMaybe :: (a -> Bool) -> Maybe a -> Maybe a
 filterMaybe f Nothing = Nothing
