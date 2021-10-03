@@ -18,6 +18,7 @@ import Data.List(partition,sortBy,sortOn)
 import qualified Data.List(find)
 import Data.Ord(comparing)
 import Data.Maybe(catMaybes)
+import Control.Monad(when)
 import Lib.PPrint
 import Core.Pretty
 import Common.Failure
@@ -142,7 +143,8 @@ inferDefGroup topLevel (DefNonRec def) cont
        return ([cgroup1],x)
 inferDefGroup topLevel (DefRec defs) cont
   = -- trace ("\ninfer group: " ++ show (map defName defs)) $
-    do (gamma,infgamma) <- createGammas [] [] defs
+    do when topLevel (mapM_ checkRecVal defs)
+       (gamma,infgamma) <- createGammas [] [] defs
        --coreDefs0 <- extendGamma gamma (mapM (inferRecDef topLevel infgamma) defs)
        (coreDefsX,assumed) <- extendGamma False gamma $ extendInfGamma topLevel infgamma $
                                  do assumed <- mapM (\def -> lookupInfName (getName def)) defs
@@ -234,6 +236,11 @@ inferDefGroup topLevel (DefRec defs) cont
                                                            return (createNameInfoX Public qname DefVal nameRng tp)  -- must assume Val for now: get fixed later in inferRecDef2
                                 -- trace ("*** createGammasx: assume: " ++ show name ++ ": " ++ show info) $ return ()
                                 createGammas gamma ((qname,info):infgamma) defs
+
+checkRecVal :: Def t -> Inf ()
+checkRecVal def 
+  = if not (defIsVal def) then return () else
+      do infError (getRange (defBinder def)) (text ("value definition is recursive"))
 
 fixCanonicalName :: Core.Def -> Inf Core.Def
 fixCanonicalName def
