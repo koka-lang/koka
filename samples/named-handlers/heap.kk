@@ -16,7 +16,7 @@
 module heap
 
 scoped effect heap<s::S> 
-  control new-ref(init:a) : ref<s,a>
+  ctl new-ref(init:a) : ref<s,a>
 
 
 named effect ref<s::S,a::V> in heap<s>    // named under umbrella effect `:heap`
@@ -27,15 +27,15 @@ named effect ref<s::S,a::V> in heap<s>    // named under umbrella effect `:heap`
 // private (named) handler instance for a reference
 fun with-ref(init,action) 
   var s := init
-  with r = named handler 
-    fun get() { s  }
-    fun set(x){ s := x }  
+  with r <- named handler 
+    fun get()  s 
+    fun set(x) s := x 
   action(r)
 
 
 // handler for a local heap
 fun heap(action : forall<s> () -> <heap<s>,div|e> a) : <div|e> a   // required rank-2 signature
-  with control new-ref(init){ with-ref(init,resume) }
+  with ctl new-ref(init){ with-ref(init,resume) }
   action()
 
 

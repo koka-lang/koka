@@ -34,16 +34,17 @@ module Common.Syntax( Visibility(..)
 data Target = CS | JS | C | Default deriving (Eq,Ord)
 
 instance Show Target where
-  show CS = "cs"
-  show JS = "js"
-  show C  = "c"
+  show CS   = "cs"
+  show JS   = "js"
+  show C    = "c"
   show Default = ""
 
-data Host = Node | Browser deriving (Eq,Ord)
+data Host = Node | Browser | Wasm deriving (Eq,Ord)
 
 instance Show Host where
   show Node    = "node"
   show Browser = "browser"
+  show Wasm    = "wasm"
 
 
 data Platform = Platform{ sizePtr  :: Int -- sizeof(intptr_t)
@@ -101,7 +102,7 @@ data HandlerSort
 instance Show (HandlerSort) where
   show hsort = case hsort of
                  HandlerNormal -> "normal"
-                 HandlerInstance -> "instance"
+                 HandlerInstance -> "named"
 
 isHandlerInstance (HandlerInstance) = True
 isHandlerInstance _ = False
@@ -118,18 +119,21 @@ instance Show OperationSort where
   show opsort = case opsort of
                   OpVal -> "val"
                   OpFun -> "fun"
-                  OpExcept -> "except"
-                  OpControlRaw -> "rcontrol"
-                  OpControl -> "control"
-  
+                  OpExcept -> "brk"
+                  OpControl -> "ctl"
+                  OpControlRaw -> "rawctl"
+                  
 readOperationSort :: String -> Maybe OperationSort
 readOperationSort s 
   = case s of 
       "val" -> Just OpVal
       "fun" -> Just OpFun
-      "except"   -> Just OpExcept
-      "rcontrol" -> Just OpControlRaw
+      "brk" -> Just OpExcept
+      "ctl"    -> Just OpControl
+      "rawctl" -> Just OpControlRaw
+      "except" -> Just OpExcept
       "control"  -> Just OpControl
+      "rcontrol" -> Just OpControlRaw
       _ -> Nothing
   
 {--------------------------------------------------------------------------

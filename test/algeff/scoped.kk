@@ -4,8 +4,8 @@
 // --------------------------------------------------------------
 
 effect nondet {
-  control flip() : bool
-  control fail() : a
+  ctl flip() : bool
+  ctl fail() : a
 }
 
 fun knapsack(w : int, vs : list<int> ) : <nondet,div> list<int> {
@@ -25,9 +25,9 @@ fun select(xs) {
 }
 
 val solutions = handler {
-  return  x      -> [x]
-  control fail() -> []
-  control flip() -> resume(True) ++ resume(False)
+  return(x)  -> [x]
+  ctl fail() -> []
+  ctl flip() -> resume(True) ++ resume(False)
 }
 
 fun show( xss : list<list<int>> ) : string {
@@ -50,7 +50,7 @@ effect state<s> {
 fun state(init,action) {
   var s := init
   with {
-    return x   -> (s,x)
+    return(x)  -> (s,x)
     fun get()  -> s
     fun put(i) -> s := i
   }
@@ -70,9 +70,9 @@ fun global(s,action) {
 }
 
 val choices = handler {
-  return x       -> x
-  control fail() -> fail()
-  control flip() -> { incr(); resume(flip()) }
+  return(x)  -> x
+  ctl fail() -> fail()
+  ctl flip() -> { incr(); resume(flip()) }
 }
 
 fun show(x : (int,list<list<int>>)) : string {
@@ -98,7 +98,7 @@ fun test3() {
 // --------------------------------------------------------------
 
 effect cutfail {
-  control cutfail() : a
+  ctl cutfail() : a
 }
 
 fun cut() {
@@ -106,8 +106,8 @@ fun cut() {
 }
 
 val hcutfail = handler{
-  return x          -> x
-  control cutfail() -> fail()
+  return(x)     -> x
+  ctl cutfail() -> fail()
 }
 
 // collect creates thunks of continuations,
@@ -115,7 +115,7 @@ val hcutfail = handler{
 fun collect(action) { 
   var q := [fail]
   with {
-    return x       -> {
+    return(x) -> {
       if (flip()) then x else {
         match(q) {
           Nil -> fail()
@@ -123,13 +123,13 @@ fun collect(action) {
         }
       }
     }
-    control fail   -> {
+    ctl fail   -> {
       match(q) {
         Nil -> fail()
         Cons(p,ps) -> { q := ps; p() }
       }
     }
-    control flip() -> {
+    ctl flip() -> {
       q := Cons({resume(False)},q)
       resume(True)
       // resume(True,{resume(False,p))
@@ -155,16 +155,16 @@ fun test4() {
 // --------------------------------------------------------------
 
 effect symbol {
-  control symbol(s : string) : string
+  ctl symbol(s : string) : string
 }
 
 fun parse(input : string, action : () -> <nondet,symbol|e> a) : <nondet|e> a {
   var cs := input
   handle(action) {
-    return x -> if (cs.is-empty) then x else fail()
-    control symbol(s) -> match(cs.starts-with(s)) {
-      Nothing   { fail() }
-      Just(rest){ cs := rest.string; resume(s) }
+    return(x) -> if (cs.is-empty) then x else fail()
+    ctl symbol(s) -> match(cs.starts-with(s)) {
+      Nothing    -> { fail() }
+      Just(rest) -> { cs := rest.string; resume(s) }
     }  
   }
 }

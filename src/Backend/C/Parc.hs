@@ -227,7 +227,7 @@ optimizeGuard False ri dups rdrops
 optimizeGuard enabled ri dups rdrops
   = do shapes <- getShapeMap
        let mchildrenOf x = case M.lookup x shapes of
-                            Just (ShapeInfo mchildren _ _) -> mchildren
+                            Just (ShapeInfo (Just mchildren) _ _) | not (null mchildren) -> Just mchildren                            
                             _    -> Nothing
        let conNameOf x  = case M.lookup x shapes of
                             Just (ShapeInfo _ (Just (_,cname)) _) -> Just cname
@@ -312,10 +312,10 @@ optimizeGuardEx mchildrenOf conNameOf ri dups rdrops
                      case mftps of
                        Nothing   -> noSpecialize y
                        Just ftps -> do bforms <- mapM getBoxForm ftps
-                                       if (all isBoxIdentity bforms)
-                                         then -- trace ("  all box identity: " ++ show v) $
+                                       if (all isBoxIdentityOrUnknown bforms)
+                                         then -- trace ("** all box identity: " ++ showTName (dropInfoVar v) ++ ": " ++ show (bforms,map pretty ftps)) $
                                               return Nothing
-                                         else -- trace (" no identity: " ++ show (bforms,map pretty ftps)) $
+                                         else -- trace ("** no identity: " ++ showTName (dropInfoVar v) ++ ": " ++ show (bforms,map pretty ftps)) $
                                               noSpecialize y
 
              Drop y | dontSpecialize
@@ -513,10 +513,15 @@ useTName tname
 data BoxForm = BoxIdentity   -- directly in the box itself (`int` or any regular datatype)
              | BoxRaw        -- (possibly) heap allocated raw bits (`int64`)
              | BoxValue      -- (possibly) heap allocated value with scan fields (`maybe<int>`)
+             | BoxUnknown 
              deriving(Eq,Ord,Enum,Show)
 
 isBoxIdentity BoxIdentity = True
 isBoxIdentity _           = False
+
+isBoxIdentityOrUnknown BoxIdentity = True
+isBoxIdentityOrUnknown BoxUnknown  = True
+isBoxIdentityOrUnknown _           = False
 
 getBoxForm' :: Platform -> Newtypes -> Type -> BoxForm
 getBoxForm' platform newtypes tp
@@ -524,7 +529,7 @@ getBoxForm' platform newtypes tp
       Just (DataDefValue _ 0) -- 0 scan fields
         -> case extractDataDefType tp of
              Just name
-               | name `elem` [nameTpInt, nameTpChar, nameTpInt8, nameTpInt16, nameTpByte, nameTpCField] ||
+               | name `elem` [nameTpInt, nameTpChar, nameTpByte, nameTpCField] ||
                  ((name `elem` [nameTpInt32, nameTpFloat32]) && sizePtr platform > 4)
                    -> BoxIdentity
              _ -> BoxRaw
@@ -533,7 +538,7 @@ getBoxForm' platform newtypes tp
       Just _
         -> BoxIdentity
       Nothing 
-        -> BoxValue
+        -> BoxUnknown
 
 getBoxForm :: Type -> Parc BoxForm
 getBoxForm tp
@@ -582,6 +587,7 @@ getFieldTypes tp Nothing
 getFieldTypes tp (Just conName)
   = do mdi <- getDataInfo tp
        case mdi of
+         Just di | dataInfoName di == nameOptional -> return Nothing  -- prevent trying to optimize the optional type in specialize above
          Just di -> case filter (\ci -> conName == conInfoName ci) (dataInfoConstrs di) of
                       [con] -> return (Just (map snd (conInfoParams con)))
                       _     -> return Nothing

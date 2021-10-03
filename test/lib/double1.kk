@@ -33,8 +33,8 @@ public fun show( x : (double,int), prec : int = -1) : string {
 
 fun main() {
   check2( "frexp1", "0.625, 4", frexp(10.0))
-  check-fl( "fr/ld 1", "1.0000000000000000e+001 == ldexp(0.625, 4 )", 10.0 )
-  check-fl( "fr/ld 1", "1.0000000000000001e-001 == ldexp(0.8, -3 )", 0.1 )
+  check-fl( "fr/ld 1", "1.0000000000000000e+01 == ldexp(0.625, 4 )", 10.0 )
+  check-fl( "fr/ld 1", "1.0000000000000001e-01 == ldexp(0.8, -3 )", 0.1 )
   check-fl( "fr/ld 3", "1.4821969375237396e-323 == ldexp(0.75, -1072 )", 1.4821969375237396325e-323 )
   check-fl( "fr/ld 4", "4.9406564584124654e-324 == ldexp(0.5, -1073 )", dbl-true-min )
   check-fl( "fr/ld 5", "2.2250738585072014e-308 == ldexp(0.5, -1021 )", dbl-min )

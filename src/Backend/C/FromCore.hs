@@ -65,10 +65,10 @@ externalNames
 -- Generate C code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Int -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
-cFromCore buildType sourceDir penv0 platform newtypes uniq enableReuse enableSpecialize enableReuseSpecialize mbMain core
+cFromCore :: BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Int -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
+cFromCore buildType sourceDir penv0 platform newtypes uniq enableReuse enableSpecialize enableReuseSpecialize stackSize mbMain core
   = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes platform False)
-           (genModule buildType sourceDir penv platform newtypes enableReuse enableSpecialize enableReuseSpecialize mbMain core) of
+           (genModule buildType sourceDir penv platform newtypes enableReuse enableSpecialize enableReuseSpecialize stackSize mbMain core) of
       (bcore,cdoc,hdoc) -> (cdoc,hdoc,bcore)
   where
     moduleName = coreProgName core
@@ -80,8 +80,8 @@ contextDoc = text "_ctx"
 contextParam :: Doc
 contextParam = text "kk_context_t* _ctx"
 
-genModule :: BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Bool -> Bool -> Bool -> Maybe (Name,Bool) -> Core -> Asm Core
-genModule buildType sourceDir penv platform newtypes enableReuse enableSpecialize enableReuseSpecialize mbMain core0
+genModule :: BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> Asm Core
+genModule buildType sourceDir penv platform newtypes enableReuse enableSpecialize enableReuseSpecialize stackSize mbMain core0
   =  do core <- liftUnique (do bcore <- boxCore core0            -- box/unbox transform
                                ucore <- if (enableReuse)
                                          then parcReuseCore penv platform newtypes bcore -- constructor reuse analysis
@@ -94,6 +94,7 @@ genModule buildType sourceDir penv platform newtypes enableReuse enableSpecializ
                            )
 
         let headComment   = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
+                            <.> text ", platform:" <+> string (show (8 * sizePtr platform)) <.> text "-bit"
             initSignature = text "void" <+> ppName (qualify (coreProgName core) (newName ".init")) <.> parameters []
             doneSignature = text "void" <+> ppName (qualify (coreProgName core) (newName ".done")) <.> parameters []
 
@@ -126,7 +127,7 @@ genModule buildType sourceDir penv platform newtypes enableReuse enableSpecializ
         emitToH (linebreak <.> text "// value declarations")
         genTopGroups (coreProgDefs core)
 
-        genMain (coreProgName core) mbMain
+        genMain (coreProgName core) platform stackSize mbMain
 
         emitToDone $ vcat [text "static bool _kk_done = false;"
                           ,text "if (_kk_done) return;"
@@ -146,9 +147,10 @@ genModule buildType sourceDir penv platform newtypes enableReuse enableSpecializ
                   <-> doneSignature
                   <.> block done
 
-        emitToH $ vcat [ linebreak <.> initSignature <.> semi <.> linebreak
-                       , linebreak <.> doneSignature <.> semi <.> linebreak
-                       , text "#endif // header"]
+        emitToH $ vcat $  [ linebreak <.> initSignature <.> semi <.> linebreak
+                          , linebreak <.> doneSignature <.> semi <.> linebreak]
+                          ++ externalEndIncludesH
+                          ++ [text "#endif // header"]
         return core -- box/unboxed core
   where
     modName         = ppModName (coreProgName core0)
@@ -160,6 +162,10 @@ genModule buildType sourceDir penv platform newtypes enableReuse enableSpecializ
     externalIncludesH :: [Doc]
     externalIncludesH
       = concatMap (includeExternalH buildType) (coreProgExternals core0)
+
+    externalEndIncludesH :: [Doc]
+    externalEndIncludesH
+      = concatMap (includeEndExternalH buildType) (coreProgExternals core0)
 
 
     externalImportIncludes :: [Doc]
@@ -195,6 +201,11 @@ includeExternalH buildType  ext
       Just content -> [text (dropWhile isSpace content)]
       _ -> []
 
+includeEndExternalH :: BuildType -> External -> [Doc]
+includeEndExternalH buildType  ext
+  = case externalImportLookup C buildType  "header-end-include-inline" ext of
+      Just content -> [text (dropWhile isSpace content)]
+      _ -> []
 
 importExternalInclude :: BuildType -> FilePath -> External -> [Doc]
 importExternalInclude buildType  sourceDir ext
@@ -208,9 +219,9 @@ importExternalInclude buildType  sourceDir ext
       _ -> [] 
 
 
-genMain :: Name -> Maybe (Name,Bool) -> Asm ()
-genMain progName Nothing = return ()
-genMain progName (Just (name,_))
+genMain :: Name -> Platform -> Int -> Maybe (Name,Bool) -> Asm ()
+genMain progName platform stackSize Nothing = return ()
+genMain progName platform stackSize (Just (name,_))
   = emitToC $
     text "\n// main exit\nstatic void _kk_main_exit(void)" <+> block (vcat [
             text "kk_context_t* _ctx = kk_get_context();",
@@ -218,7 +229,10 @@ genMain progName (Just (name,_))
           ]) 
     <->
     text "\n// main entry\nint main(int argc, char** argv)" <+> block (vcat [
-        text "kk_context_t* _ctx = kk_main_start(argc, argv);"
+        text $ "kk_assert(sizeof(size_t)==" ++ show (sizeSize platform) ++ " && sizeof(void*)==" ++ show (sizePtr platform) ++ ");"
+      , if stackSize == 0 then empty else
+        text $ "kk_os_set_stack_size(KIZ(" ++ show stackSize ++ "));"
+      , text "kk_context_t* _ctx = kk_main_start(argc, argv);"
       , ppName (qualify progName (newName ".init")) <.> parens (text "_ctx") <.> semi
       , text "atexit(&_kk_main_exit);"
       , ppName name <.> parens (text "_ctx") <.> semi
@@ -1145,10 +1159,10 @@ cTypeCon c
          then CPrim "kk_char_t"  -- 32-bit unicode point
         else if (name == nameTpInt32)
          then CPrim "int32_t"
-        else if (name == nameTpSizeT)
-         then CPrim "size_t"
         else if (name == nameTpSSizeT)
          then CPrim "kk_ssize_t"
+        else if (name == nameTpIntPtrT)
+         then CPrim "intptr_t"
         else if (name == nameTpFloat)
          then CPrim "double"
         else if (name == nameTpBool)
@@ -1157,10 +1171,6 @@ cTypeCon c
          then CPrim "kk_unit_t"
         else if (name == nameTpInt64)
          then CPrim "int64_t"
-        else if (name == nameTpInt16)
-         then CPrim "int16_t"
-        else if (name == nameTpInt8)
-         then CPrim "int8_t"
         else if (name == nameTpByte)
          then CPrim "uint8_t"
         else if (name == nameTpFloat32)
@@ -1354,7 +1364,10 @@ genMatch result0 exprDocs branches
 
 genBranch :: Result -> [Doc] -> Bool -> Branch -> Asm Doc
 genBranch result exprDocs doTest branch@(Branch patterns guards)
-  = genPattern doTest (freeLocals guards)  (zip exprDocs patterns) (genGuards result guards)
+  = do doc <- genPattern doTest (freeLocals guards)  (zip exprDocs patterns) (genGuards result guards)
+       if (doc `dstartsWith` "if") 
+         then return doc 
+         else return (block doc)  -- for C++ we need to scope the locals or goto's can skip initialization
 
 genGuards :: Result -> [Guard] -> Asm Doc
 genGuards result guards
@@ -1771,10 +1784,10 @@ genAppSpecial f args
           -> return (Just (genLitInt64 i))
         (Var tname _, [Lit (LitInt i)]) | getName tname == nameSSizeT && isSmallSSizeT platform i
           -> return (Just (genLitSSizeT i))
-        (Var tname _, [Lit (LitInt i)]) | getName tname == nameSizeT && isSmallSizeT platform i
-          -> return (Just (genLitSizeT i))
-        (Var tname _, [Lit (LitInt i)]) | getName tname == namePtrDiffT && isSmallPtrDiffT platform i
-          -> return (Just (genLitPtrDiffT i))
+        (Var tname _, [Lit (LitInt i)]) | getName tname == nameIntPtrT && isSmallIntPtrT platform i
+          -> return (Just (genLitIntPtrT i))
+        (Var tname _, [Lit (LitInt i)]) | getName tname == nameByte && isSmallUInt8 platform i
+          -> return (Just (genLitUInt8 i))
         _ -> case extractExtern f of
                Just (tname,formats)
                  -- inline external
@@ -1783,12 +1796,12 @@ genAppSpecial f args
                        -> return (Just (genLitInt32 i))
                      [Lit (LitInt i)] | getName tname == nameInt64 && isSmallInt64 i
                        -> return (Just (genLitInt64 i))
+                     [Lit (LitInt i)] | getName tname == nameByte && isSmallUInt8 platform i
+                       -> return (Just (genLitUInt8 i))
                      [Lit (LitInt i)] | getName tname == nameSSizeT && isSmallSSizeT platform i
                        -> return (Just (genLitSSizeT i))
-                     [Lit (LitInt i)] | getName tname == nameSizeT && isSmallSizeT platform i
-                       -> return (Just (genLitSizeT i))                       
-                     [Lit (LitInt i)] | getName tname == namePtrDiffT && isSmallPtrDiffT platform i
-                       -> return (Just (genLitPtrDiffT i))
+                     [Lit (LitInt i)] | getName tname == nameIntPtrT && isSmallIntPtrT platform i
+                       -> return (Just (genLitIntPtrT i))
                      _ -> return Nothing
                _ -> return Nothing
 
@@ -2272,23 +2285,25 @@ cstring s
 
 genLitInt32 :: Integer -> Doc
 genLitInt32 i
-  = parens (text "(int32_t)" <.> pretty i)
+  | i == minSmallInt32 = parens (text "INT32_MIN")
+  | otherwise          = parens (text "(int32_t)" <.> text "KI32" <.> parens (pretty i))
 
 genLitInt64 :: Integer -> Doc
 genLitInt64 i
-  = parens (text "(int64_t)" <.> pretty i)
+  | i == minSmallInt64  = parens (text "INT64_MIN")
+  | otherwise           = parens (text "(int64_t)" <.> text "KI64" <.> parens (pretty i))
 
-genLitSizeT :: Integer -> Doc
-genLitSizeT i
-  = parens (text "(size_t)" <.> pretty i)
+genLitUInt8 :: Integer -> Doc
+genLitUInt8 i
+  = parens (text "(uint8_t)" <.> pretty i)
 
 genLitSSizeT :: Integer -> Doc
 genLitSSizeT i
   = parens (text "(kk_ssize_t)" <.> pretty i)
 
-genLitPtrDiffT :: Integer -> Doc
-genLitPtrDiffT i
-  = parens (text "(ptrdiff_t)" <.> pretty i)
+genLitIntPtrT :: Integer -> Doc
+genLitIntPtrT i
+  = parens (text "(intptr_t)" <.> pretty i)
 
 
 isSmallLitInt expr
@@ -2311,20 +2326,19 @@ maxSmallInt64, minSmallInt64 :: Integer
 maxSmallInt64 = 9223372036854775807  -- 2^63 - 1
 minSmallInt64 = -maxSmallInt64 - 1
 
-isSmallSizeT platform i
-  | sizeSize platform == 4 = (i >= 0 && i <= 4294967295)
-  | sizeSize platform == 8 = (i >= 0 && i <= 18446744073709551615)
-  | otherwise = failure $ "Backend.C.isSmallSizeT: unknown platform size_t: " ++ show platform
+isSmallUInt8 platform i
+  = (i >= 0 && i < 255)
 
+-- note: don't allow smallest or we get C constant errors
 isSmallSSizeT platform i
-  | sizeSize platform == 4 = (i >= minSmallInt32 && i <= maxSmallInt32)
-  | sizeSize platform == 8 = (i >= minSmallInt64 && i <= maxSmallInt64)
+  | sizeSize platform == 4 = (i > minSmallInt32 && i <= maxSmallInt32)
+  | sizeSize platform == 8 = (i > minSmallInt64 && i <= maxSmallInt64)
   | otherwise = failure $ "Backend.C.isSmallSSizeT: unknown platform ssize_t: " ++ show platform
 
-isSmallPtrDiffT platform i
-  | sizePtr platform == 4 = (i >= minSmallInt32 && i <= maxSmallInt32)
-  | sizePtr platform == 8 = (i >= minSmallInt64 && i <= maxSmallInt64)
-  | otherwise = failure $ "Backend.C.isSmallPtrDiffT: unknown platform ptrdiff_t: " ++ show platform
+isSmallIntPtrT platform i
+  | sizePtr platform == 4 = (i > minSmallInt32 && i <= maxSmallInt32)
+  | sizePtr platform == 8 = (i > minSmallInt64 && i <= maxSmallInt64)
+  | otherwise = failure $ "Backend.C.isSmallIntPtrT: unknown platform intptr_t: " ++ show platform
 
 
 ppName :: Name -> Doc
@@ -2373,8 +2387,10 @@ reserved
     , "signed"
     , "size_t"
     , "ssize_t"
+    , "intptr_t"
     , "uintptr_t"
     , "unsigned"
+    , "uint8_t"
     ]
     ++ -- C keywords
     [ "async"
@@ -2421,9 +2437,16 @@ reserved
     , "exception_info"
     ]
 
+inlineblock :: Doc -> Doc
+inlineblock doc
+  | doc `dstartsWith` "{" = doc
+  | otherwise             = (hang 2 (text "{" <+> doc)) <--> text "}"
+
+
 block :: Doc -> Doc
 block doc
-  = text "{" <--> tab doc <--> text "}"
+  | doc `dstartsWith` "{" = doc
+  | otherwise             = text "{" <--> tab doc <--> text "}"
 
 tblock :: Doc -> Doc -> Doc
 tblock tpDoc doc

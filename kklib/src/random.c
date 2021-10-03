@@ -202,13 +202,14 @@ static void kk_chacha_split(kk_random_ctx_t* rnd, uint64_t nonce, kk_random_ctx_
 /* ----------------------------------------------------------------------------
 Secure random: split
 -----------------------------------------------------------------------------*/
+/*
 #if !defined(NDEBUG) && defined(KK_DEBUG_FULL)
 static bool kk_random_is_initialized(kk_random_ctx_t* rnd) {
   return (rnd->input[0] != 0);
 }
 #endif
 
-/*
+
 static void kk_random_split(kk_random_ctx_t* rnd, kk_random_ctx_t* ctx_new) {
   kk_assert_internal(random_is_initialized(rnd));
   kk_assert_internal(rnd != ctx_new);
@@ -298,7 +299,7 @@ static bool kk_os_random_buf(void* buf, size_t buf_len) {
 }
 #elif defined(ANDROID) || defined(XP_DARWIN) || defined(__APPLE__) || defined(__DragonFly__) || \
       defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || \
-      defined(__wasi__)
+      (defined(__wasi__) && !defined(__EMSCRIPTEN__))
 #include <stdlib.h>
 static bool kk_os_random_buf(void* buf, size_t buf_len) {
   arc4random_buf(buf, buf_len);

@@ -1,15 +1,16 @@
 module wrong/linear1
 
-effect linear state<s> {
+linear effect state<s> {
   fun get() : s
   fun put(x : s) : ()
 }
 
-val state = handler(s) {
-  return x -> x
-  get()    -> resume(s,s)
-  put(t)   -> 20 + resume((),t) + resume((),t) 
-}
+fun state(init,action) 
+  var s := init
+  handle(action)
+    fun get()  { s }
+    ctl put(t) { s := t; val x : int = resume(()); s := t; x + resume(()) } 
+
 
 fun foo() {
   val i = get()

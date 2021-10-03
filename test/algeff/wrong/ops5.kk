@@ -7,9 +7,10 @@ effect state {
   fun set(i : int) : ()
 }
 
-val state = handler(i:int) {
-  return x -> x
-  get()    -> resume(i,i)
-  set(j)   -> resume((),j)
-  get()    -> resume(i,0)
-}
+fun state(init,action) 
+  var s := init
+  handle(action)
+    fun get()  { s }
+    fun set(x) { s := x }
+    fun get()  { 0 }
+   

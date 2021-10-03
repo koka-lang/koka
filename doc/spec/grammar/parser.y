@@ -349,7 +349,7 @@ operation   : visibility VAL identifier typeparams ':' tatomic
 -- Pure (top-level) Declarations
 ----------------------------------------------------------*/
 puredecl    : inlineattr VAL binder '=' blockexpr      { $$ = $3; }
-            | inlineattr FUN funid funparams bodyexpr  { $$ = $3; }
+            | inlineattr FUN funid funbody             { $$ = $3; }
             ;
 
 inlineattr  : ID_INLINE
@@ -357,7 +357,7 @@ inlineattr  : ID_INLINE
             | /* empty */
             ;
 
-fundecl     : funid funparams bodyexpr      { $$ = $1; }
+fundecl     : funid funbody                { $$ = $1; }
             ;
 
 binder      : identifier                    { $$ = $1; }
@@ -369,7 +369,8 @@ funid       : identifier         { $$ = $1; }
             | STRING             { $$ = $1; }
             ;
 
-funparams   : typeparams '(' pparameters ')' annotres qualifier
+funbody     : typeparams '(' pparameters ')' bodyexpr
+            | typeparams '(' pparameters ')' ':' tresult qualifier block
             ;
 
 annotres    : ':' tresult
@@ -405,8 +406,8 @@ decl        : FUN fundecl
 /* ---------------------------------------------------------
 -- Expressions
 ----------------------------------------------------------*/
-bodyexpr    : RARROW blockexpr
-            | block
+bodyexpr    : blockexpr
+            | RARROW blockexpr  /* deprecated */
             ;
 
 blockexpr   : expr              /* a `block` is not interpreted as an anonymous function but as statement grouping */
@@ -415,6 +416,7 @@ blockexpr   : expr              /* a `block` is not interpreted as an anonymous 
 expr        : withexpr
             | block             /* interpreted as an anonymous function (except if coming from `blockexpr`) */
             | returnexpr
+            | valexpr
             // | basicexpr '?' expr ':' expr  
             | basicexpr                   
             ;
@@ -432,7 +434,7 @@ basicexpr   : ifexpr
 matchexpr   : MATCH ntlexpr '{' semis matchrules '}'
             ;
 
-fnexpr      : FN funparams bodyexpr            /* anonymous function */
+fnexpr      : FN funbody                     /* anonymous function */       
             ;
 
 returnexpr  : RETURN expr
@@ -446,6 +448,9 @@ ifexpr      : IF ntlexpr THEN expr elifs
 elifs       : ELIF ntlexpr THEN expr elifs
             | ELSE expr
             ;
+
+valexpr     : VAL apattern '=' blockexpr IN expr
+            ;            
 
 
 /* operator expression */
@@ -660,7 +665,7 @@ matchrules1 : matchrules1 semis1 matchrule
             ;
 
 matchrule   : patterns1 '|' expr RARROW blockexpr
-            | patterns1 bodyexpr
+            | patterns1 RARROW blockexpr
             ;
 
 patterns1   : patterns1 ',' pattern
@@ -745,8 +750,8 @@ opclausex   : ID_FINALLY bodyexpr
             | opclause
             ;
 
-opclause    : VAL qidentifier '=' expr
-            | VAL qidentifier ':' type '=' expr
+opclause    : VAL qidentifier '=' blockexpr
+            | VAL qidentifier ':' type '=' blockexpr
             | FUN qidentifier opparams bodyexpr
             | EXCEPT qidentifier opparams bodyexpr
             | CONTROL qidentifier opparams bodyexpr
@@ -756,7 +761,6 @@ opclause    : VAL qidentifier '=' expr
             ;
 
 opparams    : '(' opparams0 ')'
-            | /* empty */
             ;
 
 opparams0   : opparams1

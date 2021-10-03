@@ -579,7 +579,7 @@ fun utc-to-mjd( leaps : leaps-table, utc : utc-timestamp, tzdelta : timespan ) :
   val (days1,secs1) = (utc + tzdelta).days-seconds
   val frac = match(utc-leap-in-day(leaps,utc.days)) {
                Nothing -> (secs1 + utc.leap.ddouble) / solar-secs-per-day
-               Just((start,diff)) {
+               Just((start,diff)) -> {
                  val secs-in-day = solar-secs-per-day + diff
                  val secs = if (utc < start) then secs1 + utc.leap.ddouble
                                              else secs1 + diff
@@ -594,7 +594,7 @@ fun utc-to-mjd( leaps : leaps-table, utc : utc-timestamp, tzdelta : timespan ) :
 fun utc-from-mjd( leaps : leaps-table, days : int, frac : ddouble ) : utc-timestamp {
   match(utc-leap-in-day(leaps,days)) {
     Nothing -> timestamp-days( days, frac*solar-secs-per-day)
-    Just((start,diff)) {
+    Just((start,diff)) -> {
       val secs = frac*(solar-secs-per-day + diff)
       val utc  = timestamp-days(days,secs)
       if (utc < start) then utc
@@ -611,7 +611,7 @@ fun utc-from-mjd( leaps : leaps-table, days : int, frac : ddouble ) : utc-timest
 fun utc-sls-leap-in-day( leaps : leaps-table, smooth : timespan, utc : utc-timestamp ) : maybe<(timestamp,timestamp,timespan,timespan)> {
   match(utc-leap-in-day(leaps, utc.days)) {
     Nothing -> Nothing // on non-leap days, utc-sls == utc
-    Just((start,diff)) {
+    Just((start,diff)) -> {
       val smooth-start = (start - smooth) + diff
       val smooth-end   = start.add-leap-seconds(diff)
       if (utc <= smooth-start) then Nothing // before the smoothing
@@ -629,7 +629,7 @@ fun utc-sls-from-tai( leaps : leaps-table, smooth : timespan, tai-since : durati
   val utc = utc-from-tai(leaps,tai-since)
   match(utc-sls-leap-in-day(leaps, smooth, utc)) {
     Nothing -> utc // outside smooth zone: utc-sls == utc
-    Just((_start,smooth-start,smooth-total,dt)) {
+    Just((_start,smooth-start,smooth-total,dt)) -> {
       val frac = dt / smooth
       smooth-start + (frac * smooth-total)
     }
@@ -639,7 +639,7 @@ fun utc-sls-from-tai( leaps : leaps-table, smooth : timespan, tai-since : durati
 fun utc-sls-to-tai( leaps : leaps-table, smooth : timespan, sls : utc-timestamp ) : duration {
   val utc = match(utc-sls-leap-in-day(leaps,smooth,sls)) { // sls ~ utc
     Nothing -> sls  // utc == utc-sls outside smooth zone
-    Just((start,smooth-start,smooth-total,dt)) {
+    Just((start,smooth-start,smooth-total,dt)) -> {
       val frac  = dt / smooth-total
       val utc0  = smooth-start + (frac * smooth)
       if (utc0 <= start) then utc0 else {
@@ -710,7 +710,7 @@ fun utc-to-leap-adjust( leaps : leaps-table, utc : utc-timestamp ) : leap-adjust
 fun find-leap-adjust( utc : utc-timestamp, leaps : list<leap-adjust> ) : leap-adjust {
   match(leaps) {
     Nil -> zero // should never happen
-    Cons(la,earlier) {
+    Cons(la,earlier) -> {
       if (la.utc-start > utc)
        then find-leap-adjust(utc,earlier)
        else la

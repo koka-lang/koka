@@ -3,6 +3,7 @@
 .idea/
 .vs/
 .vscode/
+.koka/
 node_modules/
 out/
 bundle/
@@ -18,3 +19,5 @@ test.kk
 *.exe
 *.vsix
 /*.cmake
+bench
+test/bench

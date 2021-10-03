@@ -1,0 +1,7 @@
+test/algeff/wrong/linear1.kk(10, 3): warning: operation put is declared as 'fun' but handled here using 'ctl'
+test/algeff/wrong/linear1.kk(12, 9): error: operation put needs to be linear but is handled in a non-linear way (as 'ctl')
+ context: handle(action)
+ fun get() { s }
+ ctl put(t) { s := t; val x : int = resume(()); s := t; x + resume(()) }
+ term : put(t)
+ hint : use a 'val' or 'fun' operation clause instead

@@ -35,7 +35,7 @@ fun test3()
     println(i)
   }
 
-// Of course, the indentation rule allows us to write also:
+// Of course, the indentation rule allows us to elide the braces here as well:
 fun test3a() 
   list(1,5).map fn(i)
     println(i)
@@ -97,3 +97,12 @@ fun test5a()
 fun main() 
   [21,21].foldl(0,(+)).println
 
+
+// The body of a function `fun` or `fn` does not have to braced
+// but can directly be an expression.
+fun increment(xs)  xs.map(fn(x) x + 1).filter(fn(x) x > 2)
+
+// which is equivalent to:
+fun increment2(xs) {
+  xs.map(fn(x){ x + 1 }).filter(fn(x){ x > 2 })
+}

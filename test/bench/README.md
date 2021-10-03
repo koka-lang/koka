@@ -71,16 +71,16 @@ Test project /home/daan/dev/koka/test/bench/build
 ...
 ```
 
-We can also run the tests using the `test/bench/run.kk` script instead of
+We can also run the tests using the `test/bench/bench.kk` script instead of
 using `ctest` which also measures peak working set and calculates
 normalized scores. For example, from the `build` directory, we can run all benchmarks as:
 ```
-> koka ../run
+> koka -e ../bench
 ```
 Use the `--lang` or `--test` options to specify a comma separated list of
 languages or benchmarks:
 ```
-> koka ../run -- --lang=koka,ocaml  --test=rbtree,rbtree-ck
+> koka -e ../bench -- --lang=koka,ocaml  --test=rbtree,rbtree-ck
 ```
 The `-i<N>` switch runs `N` iterations on each benchmark and calculates
 the average and the error interval.

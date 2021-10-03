@@ -79,7 +79,7 @@ public fun main() {
   check("pow1","1e+31") { ddouble-exp(1,31).show }
   check("mul1a","1.5241578753238668e+28 vs. 1.5241578753238669120562399025000e+28") { (mx * mx).show-exp(16) ++ " vs. " ++ mx.ddouble.sqr.show-exp(dd-max-prec) }
   check("mul1b","1.5241578753238668e+28 vs. 1.5241578753238669120562399025e+28") { (mx * mx).show-exp(16) ++ " vs. " ++ mx.ddouble.sqr.show-exp }
-  check("max","1.797693134862315807937289714053e+308"){ dd-max.show }
+  check("max","1.797693134862315807937289714053e+308"){ dd-max.show(30) }
 }
 
 val max-int = 9007199254740991.0
@@ -94,9 +94,9 @@ public fun test-show() {
   check("prec1c","5.1"){ x1.show(1) }
   check("prec1d","5"){ x1.show(0) }
   val x2 = 0.000123.ddouble
-  check("prec2","0.0001230000000000000081983031475"){ x2.show() }
-  check("prec2","0.00012300"){ x2.show(8) }
-  check("prec2","0.00012"){ x2.show(5) }
+  check("prec2","0.0001230000000000000081983031475"){ x2.show-fixed() }
+  check("prec2","0.00012300"){ x2.show-fixed(8) }
+  check("prec2","0.00012"){ x2.show-fixed(5) }
   val x30 = "1e+30".parse-int.default(0)
   check("int1","1000000000000000000000000000000"){ x30.ddouble.show-fixed }
   check("int2", "999999999999999999999999999999"){ x30.dec.ddouble.show-fixed }
@@ -110,7 +110,7 @@ public fun test-show() {
 public fun test-int10() {
   for(2,308) fn(i){
     val expect = "1e+" ++ i.show
-    check("int" ++ i.show, expect) { ddouble-exp(1,i).show-exp(-29) }
+    check("int" ++ i.show, expect) { ddouble-exp(1,i).show-exp(-28) }
   }
 }
 
@@ -124,7 +124,7 @@ public fun test-int99() {
     check-rte("int" ++ i.show, expect1) { ddouble-exp(1,i).inc }
     val expect2 = "1." ++ repeat("0",i.dec) ++ "2e+" ++ i.show
     check-rte("int" ++ i.show, expect2) { ddouble-exp(1,i).inc.inc }
-    if (i < 30) {
+    if (i < 30) then {
       val expect99 = "1" ++ repeat("9",i)// ++ "e+" ++ i.show
       check("int" ++ i.show, expect99) { (ddouble-exp(1,i) + ddouble-exp(1,i).dec).show-fixed(-9) }
     }
@@ -133,7 +133,7 @@ public fun test-int99() {
 
 
 public fun test-big() {
-  val digits= dd-max-prec - 2
+  val digits= dd-max-prec - 3
   val pi290 = dd-pi * ddouble-exp(1,290)
   val s     = dd-pi.show-exp(digits)
   //trace( "s: " ++ s ++ ", len: " ++ s.count.show)
@@ -153,8 +153,8 @@ public fun test-big() {
 
 
 public fun test-sin() {
-  val exact-sin : list<ddouble> =
-    ["0.000099999999833333333416666666646825396828152557318973",
+  val exact-sin : list<ddouble> = [
+    "0.000099999999833333333416666666646825396828152557318973",
     "0.0009999998333333416666664682539710097001513147348086",
     "0.0099998333341666646825424382690997290389643853601692",
     "0.099833416646828152306814198410622026989915388017982",
@@ -174,8 +174,8 @@ public fun test-sin() {
 
 
 public fun test-atan() {
-  val exact-atan : list<ddouble> =
-   ["0.000099999999666666668666666652380952492063491154401162",
+  val exact-atan : list<ddouble> = [
+    "0.000099999999666666668666666652380952492063491154401162",
     "0.00099999966666686666652380963492054401162093455426801",
     "0.0099996666866652382063401162092795485613693525443766",
     "0.099668652491162027378446119878020590243278322504315",

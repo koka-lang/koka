@@ -28,7 +28,8 @@ kk_std_core__list kk_vector_to_list(kk_vector_t v, kk_std_core__list tail, kk_co
     }
     cons = kk_std_core__as_Cons(hd);
   }
-  cons->tail = tail;
+  if (cons == NULL) { list = tail; } 
+               else { cons->tail = tail; }
   kk_vector_drop(v,ctx);
   return list;
 }
@@ -301,12 +302,12 @@ kk_std_core__error kk_error_ok( kk_box_t result, kk_context_t* ctx ) {
 
 kk_std_core__error kk_error_from_errno( int err, kk_context_t* ctx ) {  
   kk_string_t msg;
-  #if defined(_GNU_SOURCE) && !defined(WIN32) && !defined(__APPLE__) && !defined(__FreeBSD__)
+  #if defined(__GLIBC__) && !defined(WIN32) && !defined(__APPLE__) && !defined(__FreeBSD__)
     // GNU version of strerror_r
     char buf[256];
     char* serr = strerror_r(err, buf, 255); buf[255] = 0;
     msg = kk_string_alloc_from_qutf8( serr, ctx );
-  #elif (/* _POSIX_C_SOURCE >= 200112L ||*/ !defined(WIN32) && (_XOPEN_SOURCE >= 600 || defined(__APPLE__) || defined(__FreeBSD__)))
+  #elif (/* _POSIX_C_SOURCE >= 200112L ||*/ !defined(WIN32) && (_XOPEN_SOURCE >= 600 || defined(__APPLE__) || defined(__FreeBSD__) || defined(__MUSL__)))
     // XSI version of strerror_r
     char buf[256];
     strerror_r(err, buf, 255); buf[255] = 0;
