@@ -294,33 +294,36 @@ optimizeGuardEx mchildrenOf conNameOf dups drops
   = do -- parcTrace ("optimizeGuardEx: " ++ show (dups, rdrops))
        optimizeEliminate dups drops
   where
+    childrenOf :: TName -> TNames
     childrenOf parent
       = case (mchildrenOf parent) of
           Just ch -> ch
           Nothing -> S.empty
+
     isChildOf parent x
       = S.member x (childrenOf parent)
     isDescendentOf parent x
       = let ys = childrenOf parent
         in S.member x ys || any (`isDescendentOf` x) ys
 
-    eliminatePairs :: Dups -> Drops -> Parc (Dups, Drops)
-    eliminatePairs dups drops
-      = do newtypes <- getNewtypes
-           platform <- getPlatform
-           let dups' = dups S.\\ drops
-           let drops' = drops S.\\ dups
-           let forwards = mapMaybe (\y -> sequence (y, forwardingChild platform newtypes childrenOf dups' y)) (S.toList drops')
-           let dups'' = dups' S.\\ S.fromList (map snd forwards)
-           let drops'' = drops' S.\\ S.fromList (map fst forwards)
-           pure (dups'', drops'')
-
     optimizeEliminate :: Dups -> Drops -> Parc [Maybe Expr]
     optimizeEliminate dups drops
-      = do (dups', drops') <- eliminatePairs dups drops
+      = do (dups', drops') <- fuseDupDrops childrenOf dups drops
            optimize dups' (S.toList drops')
 
     optimize :: Dups -> [TName] -> Parc [Maybe Expr]
+    optimize dups []
+      = do foldMapM genDup dups     
+    optimize dups drops | S.null dups
+      = do foldMapM genDrop drops      
+    optimize dups (y:drops)
+      = do let (yDups, dups')    = S.partition (isDescendentOf y) dups
+           let (yDrops, drops')  = L.partition (isDescendentOf y) drops
+           rest    <- optimize dups' drops'             -- optimize outside the y tree
+           prefix  <- mapM genDrop yDrops
+           inlined <- specialize yDups y   -- specialize the y tree
+           return $ rest ++ prefix ++ [inlined]
+    {-
     optimize dups []
       = foldMapM genDup dups
     optimize dups dropRecs | S.null dups
@@ -342,6 +345,7 @@ optimizeGuardEx mchildrenOf conNameOf dups drops
                             prefix <- maybeStatsUnit <$> mapM genDrop yDrops
                             inlined <- specialize yDups y   -- specialize the y tree
                             return $ rest ++ [Just prefix, inlined]
+    -}
 
     specialize :: Dups -> TName -> Parc (Maybe Expr)
     specialize dups v    -- dups and drops are descendents of v
@@ -378,6 +382,23 @@ optimizeGuardEx mchildrenOf conNameOf dups drops
              else do -- parcTrace $ "specialize: " ++ show y
                      xDecRef <- genDecRef v
                      return $ Just $ makeDropSpecial v (maybeStatsUnit xUnique) (maybeStatsUnit xShared) (maybeStatsUnit [xDecRef])
+
+
+-- Remove dup/drop pairs
+fuseDupDrops :: (TName -> TNames) -> Dups -> Drops -> Parc (Dups, Drops)
+fuseDupDrops childrenOf dups drops
+  =do newtypes <- getNewtypes
+      platform <- getPlatform
+      let dups' = dups S.\\ drops
+      let drops' = drops S.\\ dups
+      let forwards = mapMaybe (\y -> sequence (y, forwardingChild platform newtypes childrenOf dups' y)) (S.toList drops')
+      let dups'' = dups' S.\\ S.fromList (map snd forwards)
+      let drops'' = drops' S.\\ S.fromList (map fst forwards)
+      assertion ("Backend.C.Parc.fuseDupDrops: intersection not empty: " ++ show (dups'',drops''))
+                (S.null (S.intersection dups'' drops'')) $
+       return (dups'', drops'')
+
+
 
 -- | Return a dupped name which is a child of the given name
 -- if the given name will forward a drop to the child
