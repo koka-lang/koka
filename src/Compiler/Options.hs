@@ -23,6 +23,7 @@ module Compiler.Options( -- * Command line options
                        , outName, fullBuildDir, buildVariant
                        , cpuArch, osName
                        , optionCompletions
+                       , targetExeExtension
                        ) where
 
 
@@ -40,7 +41,7 @@ import Common.Failure         ( raiseIO, catchIO )
 import Common.ColorScheme
 import Common.File        
 import Common.Name    
-import Common.Syntax          ( Target (..), Host(..), Platform(..), BuildType(..), platform32, platform64, platformJS, platformCS )
+import Common.Syntax          
 import Compiler.Package
 import Core.Core( dataInfoIsValue )
 {--------------------------------------------------------------------------
@@ -108,7 +109,6 @@ data Flags
          , target           :: Target
          , targetOS         :: String
          , targetArch       :: String
-         , host             :: Host
          , platform         :: Platform
          , stackSize        :: Int
          , heapSize         :: Int
@@ -189,10 +189,9 @@ flagsNull
           False -- do not execute by default
           ""    -- execution options
           False -- library
-          C     -- target
+          (C LibC)  -- target
           osName  -- target OS
           cpuArch -- target CPU
-          Node  -- js host
           platform64
           0     -- stack size
           0     -- reserved heap size (for wasm)
@@ -295,8 +294,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , numOption 1 "n" ['v'] ["verbose"] (\i f -> f{verbose=i})         "verbosity 'n' (0=quiet, 1=default, 2=trace)"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
- , configstr [] ["target"]          ["c","c64","c32","js","cs","wasm","wasm32","wasm64","wasmjs"] "tgt" targetFlag  "target: c (default), c32, c64, js, wasm, or wasmjs"
- , config []    ["host"]            [("node",Node),("browser",Browser)] "host" (\h f -> f{ target=JS, host=h}) "specify host for javascript: <node|browser>"
+ , configstr [] ["target"]          (map fst targets) "tgt" targetFlag  ("target: " ++ show (map fst targets))
+ -- , config []    ["host"]            [("node",Node),("browser",Browser)] "host" (\h f -> f{ target=JS, host=h}) "specify host for javascript: <node|browser>"
  , emptyline
 
  , option []    ["buildtag"]        (ReqArg buildTagFlag "tag")     "set build variant tag (e.g. 'bundle' or 'dev')"
@@ -412,15 +411,27 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   configstr short long opts argDesc f desc
     = config short long (map (\s -> (s,s)) opts) argDesc f desc
 
-  targetFlag c f
-    = if (c=="js") then f{ target=JS, platform=platformJS }
-      else if (c=="cs") then f{ target=CS, platform=platformCS }
-      else if (c=="wasm32" || c=="wasm") then f{ target=C, platform=platform32, host=Wasm }      
-      else if (c=="wasmjs") then f{ target=C, platform=platform32, host=WasmJs }      
-      else if (c=="wasm64") then f{ target=C, platform=platform64, host=Wasm }      
-      else if (c=="c32") then f{ target=C, platform=platform32 }
-      else f{ target=C, platform=platform64 }  -- "c", "c64"
 
+  targets :: [(String,Flags -> Flags)]
+  targets =
+    [("c",      \f -> f{ target=C LibC, platform=platform64 }),
+     ("c64",    \f -> f{ target=C LibC, platform=platform64 }),
+     ("c32",    \f -> f{ target=C LibC, platform=platform32 }),
+     ("js",     \f -> f{ target=JS JsNode, platform=platformJS }),
+     ("jsnode", \f -> f{ target=JS JsNode, platform=platformJS }),
+     ("jsweb",  \f -> f{ target=JS JsWeb, platform=platformJS }),
+     ("wasm",   \f -> f{ target=C Wasm, platform=platform32 }),
+     ("wasm32", \f -> f{ target=C Wasm, platform=platform32 }),
+     ("wasm64", \f -> f{ target=C Wasm, platform=platform64 }),
+     ("wasmjs", \f -> f{ target=C WasmJs, platform=platform32 }),
+     ("wasmweb",\f -> f{ target=C WasmWeb, platform=platform32 }),
+     ("cs",     \f -> f{ target=CS, platform=platformCS })
+    ]
+
+  targetFlag t f
+    = case lookup t targets of
+        Just update -> update f
+        Nothing     -> f
 
   colorFlag s
     = Flag (\f -> f{ colorScheme = readColorFlags s (colorScheme f) })
@@ -616,7 +627,7 @@ processOptions flags0 opts
                         <- getKokaDirs (localLibDir flags) (localShareDir flags) buildDir
                    
                    -- cc
-                   ccmd <- if (ccompPath flags == "") then detectCC (host flags)
+                   ccmd <- if (ccompPath flags == "") then detectCC (target flags)
                            else if (ccompPath flags == "mingw") then return "gcc"
                            else return (ccompPath flags)
                    (cc,asan) <- ccFromPath flags ccmd
@@ -817,6 +828,25 @@ data CC = CC{  ccName       :: String,
             }
 
 
+targetExeExtension target
+  = case target of
+      C Wasm   -> ".wasm"
+      C WasmJs -> ".js"
+      C WasmWeb-> ".html"
+      C _      -> exeExtension
+      JS JsWeb -> ".html"
+      JS _     -> ".mjs"
+      _        -> exeExtension
+
+targetObjExtension target
+  = case target of
+      C Wasm   -> ".o"
+      C WasmJs -> ".o"
+      C WasmWeb-> ".o"
+      C _      -> objExtension
+      JS _     -> ".mjs"
+      _        -> objExtension      
+
 outName :: Flags -> FilePath -> FilePath
 outName flags s
   = joinPath (fullBuildDir flags) s
@@ -833,12 +863,16 @@ buildVersionTag flags
 
 buildVariant :: Flags -> String   -- for example: clang-debug, js-release
 buildVariant flags
-  = let pre  = if (target flags == C)
-                 then ccName (ccomp flags) ++ (case host flags of
-                                                 Wasm   -> "-wasm" ++ show (8*sizePtr (platform flags))
-                                                 WasmJs -> "-wasmjs"
-                                                 _      -> "")
-                 else show (target flags)
+  = let pre  = case target flags of
+                 C ctarget 
+                   -> ccName (ccomp flags) ++ 
+                      (case ctarget of
+                        Wasm   -> "-wasm" ++ show (8*sizePtr (platform flags))
+                        WasmJs -> "-wasmjs"
+                        WasmWeb-> "-wasmweb"
+                        _      -> "")                       
+                 JS _  -> "js"
+                 _     -> show (target flags)
     in pre ++ "-" ++ show (buildType flags)
 
 
@@ -930,7 +964,8 @@ ccFromPath flags path
         emcc    = gcc{ ccFlagsCompile = ccFlagsCompile gcc ++ ["-D__wasi__"],
                        ccFlagStack = (\stksize -> if stksize == 0 then [] else ["-s","TOTAL_STACK=" ++ show stksize]),
                        ccFlagHeap  = (\hpsize -> if hpsize == 0 then [] else ["-s","TOTAL_MEMORY=" ++ show hpsize]),
-                       ccTargetExe = (\out -> ["-o", out ++ (if (host flags == WasmJs) then ".js" else ".wasm")])
+                       ccTargetExe = (\out -> ["-o", out ++ targetExeExtension (target flags)]),
+                       ccTargetObj = (\fname -> ["-o", (notext fname) ++ targetObjExtension (target flags)])
                      }
         clang   = gcc{ ccFlagsWarn = gnuWarn ++ 
                                      words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align" }
@@ -956,7 +991,7 @@ ccFromPath flags path
         cc = cc0{ ccFlagsCompile = ccFlagsCompile cc0 ++ ccompCompileArgs flags
                 , ccFlagsLink    = ccFlagsLink cc0 ++ ccompLinkArgs flags }
 
-    in do when ((host flags == Wasm || host flags == WasmJs) && not (name `startsWith` "emcc")) $
+    in do when (isTargetWasm (target flags) && not (name `startsWith` "emcc")) $
             putStrLn ("\nwarning: a wasm target should use the emscripten compiler (emcc),\n  but currently '" 
                        ++ ccPath cc ++ "' is used." 
                        ++ "\n  hint: specify the emscripten path using --cc=<emcc path>?")                       
@@ -984,8 +1019,9 @@ ccCheckExist cc
                        when (ccName cc == "clang-cl") $
                          putStrLn ("   hint: install clang for Windows from <https://llvm.org/builds/> ?")
 
+
 quote s
-  = "\"" ++ s ++ "\""
+  = "\"" ++ s ++ "\""  
 
 -- unquote a shell argument string (as well as we can)
 unquote :: String -> [String]
@@ -1042,16 +1078,17 @@ cpuArch
       arch          -> arch
 
 
-detectCC :: Host -> IO String
-detectCC host
+detectCC :: Target -> IO String
+detectCC target
   = do paths <- getEnvPaths "PATH"
        (name,path) <- do envCC <- getEnvVar "CC"
-                         findCC paths ((if (host==Wasm || host==WasmJs) then ["emcc"] else []) ++
+                         findCC paths ((if (isTargetWasm target) then ["emcc"] else []) ++
                                        (if (envCC=="") then [] else [envCC]) ++
                                        (if (onMacOS) then ["clang"] else []) ++
                                        (if (onWindows) then ["clang-cl","cl"] else []) ++
                                        ["gcc","clang","icc","cc","g++","clang++"])
        return path
+
 
 findCC :: [FilePath] -> [FilePath] -> IO (String,FilePath)
 findCC paths []

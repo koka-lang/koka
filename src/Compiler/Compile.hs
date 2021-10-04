@@ -81,7 +81,7 @@ import Type.Infer             ( inferTypes )
 import Type.Pretty hiding     ( verbose )
 import Compiler.Options       ( Flags(..), CC(..), BuildType(..), buildType, ccFlagsBuildFromFlags, unquote,
                                 prettyEnvFromFlags, colorSchemeFromFlags, prettyIncludePath, isValueFromFlags,
-                                fullBuildDir, outName, buildVariant, osName )
+                                fullBuildDir, outName, buildVariant, osName, targetExeExtension )
 
 import Compiler.Module
 
@@ -457,22 +457,8 @@ compileProgram' term flags modules compileTarget fname program
                                _  -> errorMsg (ErrorGeneral rangeNull (text "found multiple definitions for the 'main' function"))
              Object -> return (Object,loaded2)
              Library -> return (Library,loaded2)
-       -- try to set the right host depending on the main type
-       let flags' = case newTarget of
-                      Executable _ tp
-                          -> -- trace ("type to analyse: " ++ show (pretty tp) ++ "\n\n") $
-                             case expandSyn tp of
-                               TFun [] eff resTp -> let isWrite (TApp (TCon tc) [_]) = typeconName tc == nameTpWrite
-                                                        isWrite _                    = False
-                                                    in -- trace ("effect: " ++ show (extractEffectExtend eff) ++ "\n\n") $
-                                                       case filter isWrite (fst (extractEffectExtend eff)) of
-                                                          (TApp _ [TCon tc]):_  | typeconName tc == newQualified "sys/dom/types" "hdom"
-                                                            -> flags{ host = Browser }
-                                                          _ -> flags
-                               _ -> flags
-                      _ -> flags
-
-       loaded4 <- liftIO $ codeGen term flags' newTarget loaded3
+       
+       loaded4 <- liftIO $ codeGen term flags newTarget loaded3
        -- liftIO $ termDoc term (text $ show (loadedGamma loaded3))
        -- trace (" final loaded modules: " ++ show (map modName (loadedModules loaded4))) $ return ()
        return loaded4{ loadedModules = addOrReplaceModule (loadedModule loaded4) (loadedModules loaded4) }
@@ -975,7 +961,7 @@ inferCheck loaded0 flags line coreImports program
                                 , loadedInlines = inlinesExtends allInlineDefs (loadedInlines loaded)
                                 }
 
-           coreDoc = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } C [] 
+           coreDoc = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } (C CDefault) [] 
                        (coreProgram{ Core.coreProgDefs = coreDefsInlined })
 
        return (loadedFinal, coreDoc)
@@ -1019,7 +1005,7 @@ codeGen term flags compileTarget loaded
        when (genCore flags)  $
          do termPhase term "generate core"
             writeDocW 10000 outCore coreDoc  -- just for debugging
-       when (showFinalCore flags && target flags /= C) $
+       when (showFinalCore flags && not (isTargetC (target flags))) $
          do termDoc term coreDoc
 
        -- write documentation
@@ -1052,13 +1038,7 @@ codeGen term flags compileTarget loaded
          Just (out,_)
            -> do let finalOut = outFinalPath flags
                  exe <- if (not (null finalOut)) 
-                          then do let targetOut = if (host flags == Wasm)
-                                                    then ensureExt finalOut ".wasm"
-                                                  else if (host flags == WasmJs)
-                                                    then ensureExt finalOut ".js"
-                                                  else if (not (null exeExtension) && extname out == exeExtension)
-                                                    then ensureExt finalOut exeExtension
-                                                    else finalOut
+                          then do let targetOut = ensureExt finalOut (targetExeExtension (target flags))                                                  
                                   when (osName == "macos") $
                                     removeFileIfExists targetOut  -- needed on macOS due to code signing issues (see https://developer.apple.com/forums/thread/669145)
                                   copyBinaryFile out targetOut
@@ -1084,9 +1064,9 @@ codeGen term flags compileTarget loaded
 
     backend :: Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (FilePath, IO()))
     backend  = case target flags of
-                 CS -> codeGenCS
-                 JS -> codeGenJS
-                 _  -> codeGenC (modSourcePath (loadedModule loaded)) (loadedNewtypes loaded) (loadedUnique loaded)
+                 CS   -> codeGenCS
+                 JS _ -> codeGenJS
+                 _    -> codeGenC (modSourcePath (loadedModule loaded)) (loadedNewtypes loaded) (loadedUnique loaded)
 
 
 -- CS code generation via libraries; this catches bugs in C# generation early on but doesn't take a transitive closure of dll's
@@ -1197,8 +1177,8 @@ codeGenJS term flags modules compileTarget outBase core
               Just reqPath -> copyTextIfNewer (rebuild flags) reqPath (outName flags "require.js")
               Nothing      -> trace "could not find requirejs" $ return () -- TODO: warning?
             -}
-            case host flags of
-              Browser ->
+            case target flags of
+              JS JsWeb ->
                do return (Just (outHtml, runSystemEcho term flags (dquote outHtml ++ " &")))
               _ ->
                do let stksize = if (stackSize flags == 0) then 100000 else (stackSize flags `div` 1024)
@@ -1217,11 +1197,14 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                       Executable name tp -> Just (name,isAsyncFunction tp)
                       _                  -> Nothing
       let -- (core,unique) = parcCore (prettyEnvFromFlags flags) newtypes unique0 core0
-          (cdoc,hdoc,bcore) = cFromCore (buildType flags) sourceDir (prettyEnvFromFlags flags) (platform flags)
+          ctarget = case target flags of
+                      C ctarget -> ctarget
+                      _         -> CDefault
+          (cdoc,hdoc,bcore) = cFromCore ctarget (buildType flags) sourceDir (prettyEnvFromFlags flags) (platform flags)
                                 newtypes unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
                                 (stackSize flags)
                                 mbEntry core0
-          bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } C [] bcore
+          bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } (C CDefault) [] bcore
       -- writeDocW 120 (outBase ++ ".c.core") bcoreDoc
       when (showFinalCore flags) $
         do termDoc term bcoreDoc
@@ -1233,7 +1216,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
 
       -- copy libraries
       let cc       = ccomp flags
-          eimports = externalImportsFromCore bcore
+          eimports = externalImportsFromCore (target flags) bcore
           clibs    = clibsFromCore flags bcore 
       mapM_ (copyCLibrary term flags cc) eimports
 
@@ -1269,10 +1252,10 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
 
                 libpaths = map (\lib -> outName flags (ccLibFile cc lib)) libs
 
-                stksize = if (stackSize flags == 0 && (onWindows || host flags == Wasm || host flags == WasmJs))
+                stksize = if (stackSize flags == 0 && (onWindows || isTargetWasm (target flags)))
                             then 8*1024*1024    -- default to 8Mb on windows and wasi
                             else stackSize flags
-                hpsize  = if (heapSize flags == 0 && (host flags == Wasm || host flags == WasmJs)) 
+                hpsize  = if (heapSize flags == 0 && isTargetWasm (target flags)) 
                             then 1024*1024*1024 -- default to 1Gb on wasi
                             else heapSize flags
  
@@ -1294,17 +1277,17 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                                color (colorSource (colorScheme flags)) (text mainName))
             runCommand term flags clink
 
-            let mainTarget = mainExe ++ targetExtension flags
+            let mainTarget = mainExe ++ targetExeExtension (target flags)
             when (not (null (outFinalPath flags))) $
               termPhaseDoc term $ color (colorInterpreter (colorScheme flags)) (text "created:") <+>
                                     color (colorSource (colorScheme flags)) (text (normalizeWith pathSep mainTarget))
             let cmdflags = if (showElapsed flags) then " --kktime" else ""
             
-            case host flags of
-              Wasm 
+            case target flags of
+              C Wasm 
                 -> do return (Just (mainTarget, 
                                runSystemEcho term flags (wasmrun flags ++ " " ++ dquote mainTarget ++ cmdflags ++ " " ++ execOpts flags))) 
-              WasmJs
+              C WasmJs
                 -> do let nodeStack = if (stksize == 0) then 100000 else (stksize `div` 1024)
                       return (Just (mainTarget, 
                                runCommand term flags [node flags,"--stack-size=" ++ show nodeStack,mainTarget]))                               
@@ -1428,16 +1411,16 @@ vcpkgInstall term flags cc eimport clib
   where
     clrSource doc = color (colorSource (colorScheme flags)) doc
 
-clibsFromCore flags core    = externalImportKeyFromCore (buildType flags) core "library"
-csyslibsFromCore flags core = externalImportKeyFromCore (buildType flags) core "syslib"
+clibsFromCore flags core    = externalImportKeyFromCore (target flags) (buildType flags) core "library"
+csyslibsFromCore flags core = externalImportKeyFromCore (target flags) (buildType flags) core "syslib"
 
-externalImportKeyFromCore :: BuildType -> Core.Core -> String -> [String]
-externalImportKeyFromCore buildType core key
-  = catMaybes [Core.eimportLookup buildType key keyvals  | keyvals <- externalImportsFromCore core]
+externalImportKeyFromCore :: Target -> BuildType -> Core.Core -> String -> [String]
+externalImportKeyFromCore target buildType core key
+  = catMaybes [Core.eimportLookup buildType key keyvals  | keyvals <- externalImportsFromCore target core]
 
-externalImportsFromCore :: Core.Core -> [[(String,String)]]
-externalImportsFromCore core 
-  = [keyvals  | Core.ExternalImport imports _ <- Core.coreProgExternals core, (C,keyvals) <- imports]
+externalImportsFromCore :: Target -> Core.Core -> [[(String,String)]]
+externalImportsFromCore target core 
+  = [keyvals  | Core.ExternalImport imports _ <- Core.coreProgExternals core, (target,keyvals) <- imports]
 
 
 kklibBuild :: Terminal -> Flags -> CC -> String -> FilePath -> IO FilePath
@@ -1559,11 +1542,6 @@ checkCMake term flags
                               else -- visual studio prompt
                                    return ()
 
-targetExtension flags
-  = case host flags of
-      Wasm   -> ".wasm"
-      WasmJs -> ".js"
-      _      -> exeExtension
 
 onWindows :: Bool
 onWindows
@@ -1596,19 +1574,18 @@ copyIFaceToOutputDir term flags iface core
            withExt fname ext = notext fname ++ ext
        -- trace ("copy iface: " ++ iface ++ " to " ++ outIFace) $ return ()
        copyTextIfNewer (rebuild flags) iface outIFace
-       if (CS == target flags)
-        then do let libSrc = notext iface ++ dllExtension
+       case target flags of
+        CS 
+          -> do let libSrc = notext iface ++ dllExtension
                 let libOut = notext outIFace ++ dllExtension
                 copyBinaryIfNewer (rebuild flags) libSrc libOut
-        else return ()
-       if (JS == target flags)
-        then do let jsSrc = notext iface ++ ".mjs"
+        JS _ 
+          -> do let jsSrc = notext iface ++ ".mjs"
                 let jsOut = notext outIFace ++ ".mjs"
                 -- copyTextFileWith  jsSrc jsOut (packagePatch iface (targetPath) imported)
                 copyTextIfNewer (rebuild flags) jsSrc jsOut
-        else return ()
-       if (C == target flags)
-        then do copyTextIfNewer (rebuild flags) (withExt iface ".c") (withExt outIFace ".c")
+        C _
+          -> do copyTextIfNewer (rebuild flags) (withExt iface ".c") (withExt outIFace ".c")
                 copyTextIfNewer (rebuild flags) (withExt iface ".h") (withExt outIFace ".h")
                 let cc = ccomp flags
                     srcDir = dirname iface
@@ -1617,8 +1594,7 @@ copyIFaceToOutputDir term flags iface core
                   do let libFile = ccLibFile cc clib
                      -- todo: only copy if it exists?
                      copyBinaryIfNewer (rebuild flags) (joinPath srcDir libFile) (outName flags libFile)
-                 ) (clibsFromCore flags core)
-        else return ()
+                 ) (clibsFromCore flags core)        
        return outIFace
 
 copyPkgIFaceToOutputDir :: Terminal -> Flags -> FilePath -> Core.Core -> PackageName -> [Module] -> IO ()
@@ -1626,7 +1602,7 @@ copyPkgIFaceToOutputDir term flags iface core targetPath imported
   -- | host flags == Node && target flags == JS = return ()
   -- | otherwise
   = do outIFace <- copyIFaceToOutputDir term flags iface core
-       if (JS == target flags)
+       if (isTargetJS (target flags))
         then do let outJs = notext outIFace ++ ".mjs"
                 content <- readTextFile outJs
                 case content of
