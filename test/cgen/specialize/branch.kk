@@ -2,8 +2,9 @@ fun map_other(xs : list<a>, f : a -> b, g : a -> b) : list<b> {
     val isEven : bool = xs.length % 2 == 0
     match (xs) {
         Nil -> Nil
+        // this branch gets specialized
         Cons(x, xx) | isEven    -> Cons(f(x), xx.map_other(f, g))
-                    // this branch seems to get ignored if this function is total
+        // this branch does not since f and g are passed in a different order
                     | _         -> Cons(g(x), xx.map_other(g, f))
     }
 }

@@ -1,5 +1,4 @@
 fun repeatN(i, f) {
-    // list(1, i, fn(_) { f() })
     map(list(1, i), fn(_) { f() })
 }
 
