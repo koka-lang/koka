@@ -965,7 +965,8 @@ ccFromPath flags path
                        ccFlagStack = (\stksize -> if stksize == 0 then [] else ["-s","TOTAL_STACK=" ++ show stksize]),
                        ccFlagHeap  = (\hpsize -> if hpsize == 0 then [] else ["-s","TOTAL_MEMORY=" ++ show hpsize]),
                        ccTargetExe = (\out -> ["-o", out ++ targetExeExtension (target flags)]),
-                       ccTargetObj = (\fname -> ["-o", (notext fname) ++ targetObjExtension (target flags)])
+                       ccTargetObj = (\fname -> ["-o", (notext fname) ++ targetObjExtension (target flags)]),
+                       ccObjFile   = (\fname -> fname ++ targetObjExtension (target flags))
                      }
         clang   = gcc{ ccFlagsWarn = gnuWarn ++ 
                                      words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align" }

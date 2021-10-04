@@ -88,7 +88,7 @@ import Compiler.Module
 -- needed for code generation
 import Data.Char              ( toUpper )
 import Lib.PPrint             hiding (dquote)
-import Platform.Config        ( version, exeExtension, dllExtension, libPrefix, libExtension, objExtension, pathSep, sourceExtension )
+import Platform.Config        ( version, exeExtension, dllExtension, libPrefix, libExtension, pathSep, sourceExtension )
 
 import Backend.CSharp.FromCore    ( csharpFromCore )
 import Backend.JavaScript.FromCore( javascriptFromCore )
@@ -1189,7 +1189,7 @@ codeGenJS term flags modules compileTarget outBase core
 
 codeGenC :: FilePath -> Newtypes -> Int -> Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (FilePath, IO ()))
 codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase core0
- = -- compilerCatch "c compilation" term Nothing $
+ = compilerCatch "c compilation" term Nothing $
    do let outC = outBase ++ ".c"
           outH = outBase ++ ".h"
           sourceDir = dirname sourceFile
@@ -1242,8 +1242,9 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                          | mname <- (map modName modules ++ [Core.coreProgName core0])]
                 syslibs= concat [csyslibsFromCore flags mcore | mcore <- map modCore modules]
                          ++ ccompLinkSysLibs flags
-                         ++ (if onWindows then ["bcrypt","psapi","advapi32"]
-                                          else ["m","pthread"])
+                         ++ (if onWindows && not (isTargetWasm (target flags))
+                              then ["bcrypt","psapi","advapi32"]
+                              else ["m","pthread"])
                 libs   = -- ["kklib"] -- [normalizeWith '/' (outName flags (ccLibFile cc "kklib"))] ++ ccompLinkLibs flags
                          -- ++ 
                          clibs 
@@ -1287,6 +1288,8 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
               C Wasm 
                 -> do return (Just (mainTarget, 
                                runSystemEcho term flags (wasmrun flags ++ " " ++ dquote mainTarget ++ cmdflags ++ " " ++ execOpts flags))) 
+              C WasmWeb
+                -> do return (Just (mainTarget, runSystemEcho term flags (dquote mainTarget ++ " &")))                
               C WasmJs
                 -> do let nodeStack = if (stksize == 0) then 100000 else (stksize `div` 1024)
                       return (Just (mainTarget, 
@@ -1555,13 +1558,23 @@ runSystemEcho term flags cmd
 
 runCommand :: Terminal -> Flags -> [String] -> IO ()
 runCommand term flags cargs@(cmd:args)
-  = do let command = unwords (cmd : map showArg args)
+  = do let command = unwords (shellQuote cmd : map shellQuote args)
            showArg arg = if (' ' `elem` arg) then show arg else arg
-       when (verbose flags >= 2) $
-         termPhase term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")
-       runCmd cmd (filter (not . null) args) 
-        `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command ))
+       if (osName == "windows" && cmd `endsWith` "emcc") -- hack to run emcc correctly on windows (due to Python?)
+         then runSystemEcho term flags command 
+         else  do when (verbose flags >= 2) $
+                    termPhase term ("command> " ++ command) -- cmd ++ " [" ++ concat (intersperse "," args) ++ "]")      
+                  runCmd cmd (filter (not . null) args)
+                    `catchIO` (\msg -> raiseIO ("error  : " ++ msg ++ "\ncommand: " ++ command))
 
+
+shellQuote s
+  = if (all (\c -> isAlphaNum c || c `elem` ":/-_.") s) then s 
+     else "\"" ++ concatMap quote s ++ "\"" 
+  where
+    quote '"'  = "\\\""
+    quote '\'' = "\\'"
+    quote c    = [c]
 
 joinWith sep xs
   = concat (intersperse sep xs)
