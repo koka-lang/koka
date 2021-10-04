@@ -29,6 +29,7 @@ module Common.File(
                   , commonPathPrefix
                   , normalizeWith, normalize
                   , isLiteralDoc
+                  , ensureExt
 
                   -- * Files
                   , FileTime, fileTime0, maxFileTime, maxFileTimes
@@ -104,6 +105,10 @@ extname fname
     in if null post
         then ""
         else ("." ++ reverse pre)
+
+ensureExt :: FileName -> String -> FileName
+ensureExt fname ext
+  = if (extname fname == ext) then fname else fname ++ ext        
 
 -- | Return the directory prefix (including last separator if present)
 dirname :: FileName -> FileName
