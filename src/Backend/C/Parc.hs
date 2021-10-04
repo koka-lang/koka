@@ -668,7 +668,7 @@ genDecRef tname
        if not needs
          then return Nothing
          else return $ Just $
-                        App (Var (TName nameDecRef funTp) (InfoExternal [(C, "decref(#1,current_context())")]))
+                        App (Var (TName nameDecRef funTp) (InfoExternal [(C CDefault, "decref(#1,current_context())")]))
                             [Var tname InfoNone]
   where
     funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
@@ -753,12 +753,12 @@ genDrop name = do shape <- getShapeInfo name
 -- get the dup/drop function
 dupDropFun :: Bool -> Type -> Maybe (ConRepr,Name) -> Maybe Int -> Expr -> Expr
 dupDropFun False {-drop-} tp (Just (conRepr,_)) (Just scanFields) arg  | not (conReprIsValue conRepr) && not (isBoxType tp)-- drop with known number of scan fields
-  = App (Var (TName name coerceTp) (InfoExternal [(C, "dropn(#1,#2)")])) [arg,makeInt32 (toInteger scanFields)]
+  = App (Var (TName name coerceTp) (InfoExternal [(C CDefault, "dropn(#1,#2)")])) [arg,makeInt32 (toInteger scanFields)]
   where
     name = nameDrop
     coerceTp = TFun [(nameNil,tp),(nameNil,typeInt32)] typeTotal typeUnit
 dupDropFun isDup tp mbConRepr mbScanCount arg
-  = App (Var (TName name coerceTp) (InfoExternal [(C, (if isDup then "dup" else "drop") ++ "(#1)")])) [arg]
+  = App (Var (TName name coerceTp) (InfoExternal [(C CDefault, (if isDup then "dup" else "drop") ++ "(#1)")])) [arg]
   where
     name = if isDup then nameDup else nameDrop
     coerceTp = TFun [(nameNil,tp)] typeTotal (if isDup then tp else typeUnit)

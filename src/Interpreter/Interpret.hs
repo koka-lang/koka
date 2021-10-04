@@ -692,18 +692,19 @@ messageHeader st
                            (if compilerBuildVariant /= "release" then (" (" ++ compilerBuildVariant ++ ")") else "") ++ ", "
                            ++ buildDate ++ targetMsg
     welcome       = text ("welcome to the " ++ Config.programName ++ " interactive compiler")
+    tgt = target (flags st)
     targetMsg
-      = case (target (flags st)) of
-          C  | host (flags st) == Wasm 
-             -> ", " ++ "wasm" -- osName 
-                ++ show (8*sizePtr (platform (flags st)))
-                ++ " (" ++ (ccName (ccomp (flags st))) ++ ")"
-          C  -> ", " ++ "libc" -- osName 
-                ++ " " ++ cpuArch -- show (8*sizePtr (platform (flags st))) ++ "-bit"
-                ++ " (" ++ (ccName (ccomp (flags st))) ++ ")"
-          JS -> ", node"
-          CS -> ", .net"
-          _  -> ""
+      = case tgt of
+          C _ | isTargetWasm tgt
+                -> ", " ++ show tgt
+                    ++ show (8*sizePtr (platform (flags st)))
+                    ++ " (" ++ (ccName (ccomp (flags st))) ++ ")"
+          C _   -> ", " ++ show tgt
+                    ++ " " ++ cpuArch -- show (8*sizePtr (platform (flags st))) ++ "-bit"
+                    ++ " (" ++ (ccName (ccomp (flags st))) ++ ")"
+          JS _  -> ", " ++ show tgt
+          CS    -> ", .net"
+          _     -> ""
 
 semiRandom min max
   = do t <- getCurrentTime

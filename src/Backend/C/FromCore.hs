@@ -66,10 +66,10 @@ externalNames
 -- Generate C code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Int -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
-cFromCore buildType sourceDir penv0 platform newtypes borrowed uniq enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain core
+cFromCore :: CTarget -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Int -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
+cFromCore ctarget buildType sourceDir penv0 platform newtypes borrowed uniq enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain core
   = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes platform False)
-           (genModule buildType sourceDir penv platform newtypes borrowed enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain core) of
+           (genModule ctarget buildType sourceDir penv platform newtypes borrowed enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain core) of
       (bcore,cdoc,hdoc) -> (cdoc,hdoc,bcore)
   where
     moduleName = coreProgName core
@@ -81,8 +81,8 @@ contextDoc = text "_ctx"
 contextParam :: Doc
 contextParam = text "kk_context_t* _ctx"
 
-genModule :: BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> Asm Core
-genModule buildType sourceDir penv platform newtypes borrowed0 enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain core0
+genModule :: CTarget -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> Asm Core
+genModule ctarget buildType sourceDir penv platform newtypes borrowed0 enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain core0
   =  do core <- liftUnique (do bcore <- boxCore core0            -- box/unbox transform
                                let borrowed = borrowedExtendICore bcore borrowed0
                                pcore <- parcCore penv platform newtypes borrowed enableSpecialize bcore -- precise automatic reference counting
@@ -156,20 +156,20 @@ genModule buildType sourceDir penv platform newtypes borrowed0 enableReuse enabl
 
     externalIncludesC :: [Doc]
     externalIncludesC
-      = concatMap (includeExternalC buildType) (coreProgExternals core0)
+      = concatMap (includeExternalC ctarget buildType) (coreProgExternals core0)
 
     externalIncludesH :: [Doc]
     externalIncludesH
-      = concatMap (includeExternalH buildType) (coreProgExternals core0)
+      = concatMap (includeExternalH ctarget buildType) (coreProgExternals core0)
 
     externalEndIncludesH :: [Doc]
     externalEndIncludesH
-      = concatMap (includeEndExternalH buildType) (coreProgExternals core0)
+      = concatMap (includeEndExternalH ctarget buildType) (coreProgExternals core0)
 
 
     externalImportIncludes :: [Doc]
     externalImportIncludes
-      = concatMap (importExternalInclude buildType sourceDir) (coreProgExternals core0)
+      = concatMap (importExternalInclude ctarget buildType sourceDir) (coreProgExternals core0)
 
     initImport :: Import -> Doc
     initImport imp
@@ -188,27 +188,27 @@ moduleImport imp
       then dquotes (text (moduleNameToPath  (importName imp)) <.> text ".h")
       else brackets (text (importPackage imp) <.> text "/" <.> text (moduleNameToPath  (importName imp))) <.> text ".h")
 
-includeExternalC :: BuildType -> External -> [Doc]
-includeExternalC buildType  ext
-  = case externalImportLookup C buildType  "include-inline" ext of
+includeExternalC :: CTarget -> BuildType -> External -> [Doc]
+includeExternalC ctarget buildType  ext
+  = case externalImportLookup (C ctarget) buildType  "include-inline" ext of
       Just content -> [text (dropWhile isSpace content)]
       _ -> []
 
-includeExternalH :: BuildType -> External -> [Doc]
-includeExternalH buildType  ext
-  = case externalImportLookup C buildType  "header-include-inline" ext of
+includeExternalH :: CTarget -> BuildType -> External -> [Doc]
+includeExternalH ctarget buildType ext
+  = case externalImportLookup (C ctarget) buildType  "header-include-inline" ext of
       Just content -> [text (dropWhile isSpace content)]
       _ -> []
 
-includeEndExternalH :: BuildType -> External -> [Doc]
-includeEndExternalH buildType  ext
-  = case externalImportLookup C buildType  "header-end-include-inline" ext of
+includeEndExternalH :: CTarget -> BuildType -> External -> [Doc]
+includeEndExternalH ctarget buildType ext
+  = case externalImportLookup (C ctarget) buildType  "header-end-include-inline" ext of
       Just content -> [text (dropWhile isSpace content)]
       _ -> []
 
-importExternalInclude :: BuildType -> FilePath -> External -> [Doc]
-importExternalInclude buildType  sourceDir ext
-  = case externalImportLookup C buildType  "include" ext of
+importExternalInclude :: CTarget -> BuildType -> FilePath -> External -> [Doc]
+importExternalInclude ctarget buildType sourceDir ext
+  = case externalImportLookup (C ctarget) buildType  "include" ext of
       Just path -> [(text "#include" <+>
                       (if (head path == '<')
                         then text path
@@ -1950,11 +1950,9 @@ genExprExternal tname formats argDocs0
 
 getFormat :: TName -> [(Target,String)] -> String
 getFormat tname formats
-  = case lookup C formats of
-      Nothing -> case lookup Default formats of
-         Just s  -> s
-         Nothing -> -- failure ("backend does not support external in " ++ show tname ++ ": " ++ show formats)
-                    trace( "warning: C backend does not support external in " ++ show tname ) $
+  = case lookupTarget (C CDefault) formats of  -- TODO: pass real ctarget from flags
+      Nothing -> -- failure ("backend does not support external in " ++ show tname ++ ": " ++ show formats)
+                 trace( "warning: C backend does not support external in " ++ show tname ) $
                       ("kk_unsupported_external(\"" ++ (show tname) ++ "\")")
       Just s -> s
 
@@ -1993,10 +1991,8 @@ extractExternal expr
       _ -> Nothing
   where
     format tn fs
-      = case lookup C fs of
-          Nothing -> case lookup Default fs of
-                       Nothing -> failure ("backend does not support external in " ++ show tn ++ show fs)
-                       Just s  -> s
+      = case lookupTarget (C CDefault) fs of  -- TODO: pass real target from flags
+          Nothing -> failure ("backend does not support external in " ++ show tn ++ show fs)
           Just s -> s
 
 isFunExpr :: Expr -> Bool

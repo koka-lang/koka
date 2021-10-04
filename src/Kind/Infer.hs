@@ -416,8 +416,8 @@ formatCall tp (target,ExternalInline inline) = (target,inline)
 formatCall tp (target,ExternalCall fname)
   = case target of
       CS      -> (target,formatCS)
-      JS      -> (target,formatJS)
-      C       -> (target,formatC)
+      JS _    -> (target,formatJS)
+      C _     -> (target,formatC)
       Default -> (target,formatJS)
   where
     (foralls,preds,rho) = splitPredType tp

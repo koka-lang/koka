@@ -409,14 +409,14 @@ externalImport rng1
     externalIncludes target rng (key,fname)  | key == "file" || key == "header-file" || key == "header-end-file"
      = do let currentFile = (Common.Range.sourceName (rangeSource rng))
               fpath       = joinPath (dirname currentFile) fname
-          if (target==C && null (extname fpath) && key=="file")
+          if (isTargetC target && null (extname fpath) && key=="file")
             then do contentH <- preadFile (fpath ++ ".h")
                     contentC <- preadFile (fpath ++ ".c")
                     return [("header-include-inline",contentH),("include-inline",contentC)]
-            else if (target==C && key=="header-file")
+            else if (isTargetC target  && key=="header-file")
                   then do content <- preadFile fpath
                           return [("header-include-inline",content)]
-                 else if (target==C && key=="header-end-file")
+                 else if (isTargetC target && key=="header-end-file")
                   then do content <- preadFile fpath
                           return [("header-end-include-inline",content)]                 
                   else if (key == "file") 
@@ -469,13 +469,13 @@ externalCall
 
 externalTarget
   = do specialId "c"
-       return C
+       return (C CDefault)
   <|>
     do specialId "cs"
        return CS
   <|>
     do specialId "js"
-       return JS
+       return (JS JsDefault)
   <|>
     return Default
 

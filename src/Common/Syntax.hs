@@ -16,8 +16,7 @@ module Common.Syntax( Visibility(..)
                     , DefSort(..), isDefFun, defFun
                     , ParamInfo(..)
                     , DefInline(..)
-                    , Target(..)
-                    , Host(..)
+                    , Target(..), CTarget(..), JsTarget(..), isTargetC, isTargetJS, isTargetWasm
                     , isPublic, isPrivate
                     , DataDef(..)
                     , dataDefIsRec, dataDefIsOpen, dataDefIsValue
@@ -32,21 +31,38 @@ module Common.Syntax( Visibility(..)
 {--------------------------------------------------------------------------
   Backend targets
 --------------------------------------------------------------------------}
-data Target = CS | JS | C | Default deriving (Eq,Ord)
+data JsTarget = JsDefault | JsNode | JsWeb                 deriving (Eq,Ord)
+data CTarget  = CDefault | LibC | Wasm | WasmJs | WasmWeb deriving (Eq,Ord)
+
+data Target = CS | JS JsTarget| C CTarget | Default deriving (Eq,Ord)
+
+isTargetC (C _) = True
+isTargetC _     = False
+
+isTargetJS (JS _) = True
+isTargetJS _      = False
+
+isTargetWasm :: Target -> Bool
+isTargetWasm target 
+  = case target of
+      C Wasm    -> True
+      C WasmJs  -> True
+      C WasmWeb -> True
+      _         -> False
+
 
 instance Show Target where
-  show CS   = "cs"
-  show JS   = "js"
-  show C    = "c"
-  show Default = ""
-
-data Host = Node | Browser | Wasm | WasmJs deriving (Eq,Ord)
-
-instance Show Host where
-  show Node    = "node"
-  show Browser = "browser"
-  show Wasm    = "wasm"
-  show WasmJs  = "wasmjs"
+  show tgt = case tgt of
+               CS        -> "cs"
+               JS JsWeb  -> "jsweb"
+               JS JsNode -> "jsnode"
+               JS _      -> "js"
+               C  Wasm   -> "wasm"
+               C  WasmJs -> "wasmjs"
+               C  WasmWeb-> "wasmweb"
+               C  LibC   -> "libc"
+               C  _      -> "c"
+               Default   -> ""
 
 
 data Platform = Platform{ sizePtr  :: Int -- sizeof(intptr_t)
