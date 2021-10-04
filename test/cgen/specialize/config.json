@@ -1,1 +1,1 @@
-"-l --showhiddentypesigs --fno-optctail -O1"
+"-l --showhiddentypesigs --fno-opttrmc -O1"
