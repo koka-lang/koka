@@ -106,6 +106,8 @@ data Flags
          , execOpts         :: String
          , library          :: Bool
          , target           :: Target
+         , targetOS         :: String
+         , targetArch       :: String
          , host             :: Host
          , platform         :: Platform
          , stackSize        :: Int
@@ -188,6 +190,8 @@ flagsNull
           ""    -- execution options
           False -- library
           C     -- target
+          osName  -- target OS
+          cpuArch -- target CPU
           Node  -- js host
           platform64
           0     -- stack size
@@ -285,7 +289,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   ['e'] ["execute"]         (\b f -> f{evaluate= b})        "compile and execute"
  , flag   ['c'] ["compile"]         (\b f -> f{evaluate= not b})    "only compile, do not execute (default)"
  , option ['i'] ["include"]         (OptArg includePathFlag "dirs") "add <dirs> to module search path (empty resets)"
- , option ['o'] ["output"]          (ReqArg outFinalPathFlag "file")"write final executable to <file>"
+ , option ['o'] ["output"]          (ReqArg outFinalPathFlag "file")"write final executable to <file> (without extension)"
  , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (0=default, 1=space, 2=full, 3=aggressive)"
  , flag   ['g'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)" 
  , numOption 1 "n" ['v'] ["verbose"] (\i f -> f{verbose=i})         "verbosity 'n' (0=quiet, 1=default, 2=trace)"
@@ -643,6 +647,10 @@ processOptions flags0 opts
                                   localLibDir = localLibDir,
                                   localShareDir = localShareDir,
 
+                                  outBaseName = if null (outBaseName flags) && not (null (outFinalPath flags))
+                                                  then basename (outFinalPath flags)
+                                                  else outBaseName flags,
+
                                   optSpecialize  = if (optimize flags <= 0) then False 
                                                     else (optSpecialize flags),
                                   optInlineMax   = if (optimize flags < 0) 
@@ -902,7 +910,7 @@ ccMsvc name opt platform path
          (\libdir -> ["/LIBPATH:" ++ libdir])
          (\idir -> ["-I",idir])
          (\fname -> ["-Fo" ++ ((notext fname) ++ objExtension)])
-         (\out -> ["-Fe" ++ out ++ exeExtension])
+         (\out -> ["-Fe" ++ out ++ ".exe"])
          (\syslib -> [syslib ++ libExtension])
          (\lib -> [lib])
          (\(def,val) -> ["-D" ++ def ++ (if null val then "" else "=" ++ val)])
