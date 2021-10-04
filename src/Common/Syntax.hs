@@ -39,12 +39,13 @@ instance Show Target where
   show C    = "c"
   show Default = ""
 
-data Host = Node | Browser | Wasm deriving (Eq,Ord)
+data Host = Node | Browser | Wasm | WasmJs deriving (Eq,Ord)
 
 instance Show Host where
   show Node    = "node"
   show Browser = "browser"
   show Wasm    = "wasm"
+  show WasmJs  = "wasmjs"
 
 
 data Platform = Platform{ sizePtr  :: Int -- sizeof(intptr_t)

@@ -1053,9 +1053,11 @@ codeGen term flags compileTarget loaded
            -> do let finalOut = outFinalPath flags
                  exe <- if (not (null finalOut)) 
                           then do let targetOut = if (host flags == Wasm)
-                                                    then finalOut ++ ".wasm"
-                                                  else if (not (null exeExtension) && extname out == exeExtension && extname finalOut /= exeExtension)
-                                                    then finalOut ++ exeExtension
+                                                    then ensureExt finalOut ".wasm"
+                                                  else if (host flags == WasmJs)
+                                                    then ensureExt finalOut ".js"
+                                                  else if (not (null exeExtension) && extname out == exeExtension)
+                                                    then ensureExt finalOut exeExtension
                                                     else finalOut
                                   when (osName == "macos") $
                                     removeFileIfExists targetOut  -- needed on macOS due to code signing issues (see https://developer.apple.com/forums/thread/669145)
@@ -1267,11 +1269,12 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
 
                 libpaths = map (\lib -> outName flags (ccLibFile cc lib)) libs
 
-                stksize = if (stackSize flags == 0) 
-                            then if (onWindows || host flags == Wasm) 
-                                   then 8*1024*1024 -- default to 8Mb on windows and wasi
-                                   else 0
+                stksize = if (stackSize flags == 0 && (onWindows || host flags == Wasm || host flags == WasmJs))
+                            then 8*1024*1024    -- default to 8Mb on windows and wasi
                             else stackSize flags
+                hpsize  = if (heapSize flags == 0 && (host flags == Wasm || host flags == WasmJs)) 
+                            then 1024*1024*1024 -- default to 1Gb on wasi
+                            else heapSize flags
  
                 clink  = concat $
                          [ [ccPath cc]
@@ -1281,7 +1284,7 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                          ]
                          ++ [objs]
                          ++ [ccFlagsLink cc]  -- must be last due to msvc
-                         ++ [ccFlagStack cc stksize]
+                         ++ [ccFlagStack cc stksize,ccFlagHeap cc hpsize]
                          -- ++ [ccAddLibraryDir cc (fullBuildDir flags)]
                          ++ map (ccAddLib cc) libpaths  -- libs
                          ++ map (ccAddSysLib cc) syslibs
@@ -1298,9 +1301,14 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
             let cmdflags = if (showElapsed flags) then " --kktime" else ""
             
             case host flags of
-              Wasm -> return (Just (mainTarget, 
+              Wasm 
+                -> do return (Just (mainTarget, 
                                runSystemEcho term flags (wasmrun flags ++ " " ++ dquote mainTarget ++ cmdflags ++ " " ++ execOpts flags))) 
-              _    -> return (Just (mainTarget, 
+              WasmJs
+                -> do let nodeStack = if (stksize == 0) then 100000 else (stksize `div` 1024)
+                      return (Just (mainTarget, 
+                               runCommand term flags [node flags,"--stack-size=" ++ show nodeStack,mainTarget]))                               
+              _ -> do return (Just (mainTarget, 
                                runSystemEcho term flags (dquote mainExe ++ cmdflags ++ " " ++ execOpts flags))) -- use shell for proper rss accounting
 
 
@@ -1553,8 +1561,9 @@ checkCMake term flags
 
 targetExtension flags
   = case host flags of
-      Wasm -> ".wasm"
-      _    -> exeExtension
+      Wasm   -> ".wasm"
+      WasmJs -> ".js"
+      _      -> exeExtension
 
 onWindows :: Bool
 onWindows

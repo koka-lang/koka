@@ -109,6 +109,7 @@ data Flags
          , host             :: Host
          , platform         :: Platform
          , stackSize        :: Int
+         , heapSize         :: Int
          , simplify         :: Int
          , simplifyMaxDup   :: Int
          , colorScheme      :: ColorScheme
@@ -190,6 +191,7 @@ flagsNull
           Node  -- js host
           platform64
           0     -- stack size
+          0     -- reserved heap size (for wasm)
           5     -- simplify passes
           10    -- simplify dup max (must be at least 10 to inline partial applications across binds)
           defaultColorScheme
@@ -289,7 +291,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , numOption 1 "n" ['v'] ["verbose"] (\i f -> f{verbose=i})         "verbosity 'n' (0=quiet, 1=default, 2=trace)"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
- , configstr [] ["target"]          ["c","c64","c32","js","cs","wasm32","wasm64"] "tgt" targetFlag  "target: c (default), c32, c64, js, or wasm32"
+ , configstr [] ["target"]          ["c","c64","c32","js","cs","wasm","wasm32","wasm64","wasmjs"] "tgt" targetFlag  "target: c (default), c32, c64, js, wasm, or wasmjs"
  , config []    ["host"]            [("node",Node),("browser",Browser)] "host" (\h f -> f{ target=JS, host=h}) "specify host for javascript: <node|browser>"
  , emptyline
 
@@ -315,6 +317,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["wasmrun"]         (ReqArg wasmrunFlag "cmd")      "use <cmd> to execute wasm"
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
  , option []    ["stack"]           (ReqArg stackFlag "size")       "set stack size (0 for platform default)"
+ , option []    ["heap"]            (ReqArg heapFlag "size")        "set reserved heap size (0 for platform default)"
  , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors"
  , option []    ["redirect"]        (ReqArg redirectFlag "file")    "redirect output to <file>"
  , configstr [] ["console"]  ["ansi","html","raw"] "fmt" (\s f -> f{ console = s }) "console output format: <ansi|html|raw>"
@@ -409,6 +412,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
     = if (c=="js") then f{ target=JS, platform=platformJS }
       else if (c=="cs") then f{ target=CS, platform=platformCS }
       else if (c=="wasm32" || c=="wasm") then f{ target=C, platform=platform32, host=Wasm }      
+      else if (c=="wasmjs") then f{ target=C, platform=platform32, host=WasmJs }      
       else if (c=="wasm64") then f{ target=C, platform=platform64, host=Wasm }      
       else if (c=="c32") then f{ target=C, platform=platform32 }
       else f{ target=C, platform=platform64 }  -- "c", "c64"
@@ -509,13 +513,19 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
     = case parseSize s of
         Just n -> Flag (\f -> f{ stackSize = n })
         _      -> Flag (id)
-    where
-      parseSize :: String -> Maybe Int
-      parseSize s = case reads (map toLower s) of
-                       [(n,rest)] | rest `elem` ["k","kb","kib"] -> Just (1024*n)
-                                  | rest `elem` ["m","mb","mib"] -> Just (1024*1024*n)
-                                  | null rest                    -> Just n
-                       _ -> Nothing
+
+  heapFlag s
+    = case parseSize s of
+        Just n -> Flag (\f -> f{ heapSize = n })
+        _      -> Flag (id)        
+    
+  parseSize :: String -> Maybe Int
+  parseSize s = case reads (map toLower s) of
+                    [(n,rest)] | rest `elem` ["k","kb","kib"] -> Just (1024*n)
+                               | rest `elem` ["m","mb","mib"] -> Just (1024*1024*n)
+                               | rest `elem` ["g","gb","gib"] -> Just (1024*1024*1024*n)
+                               | null rest                    -> Just n
+                    _ -> Nothing
 
   
 readHtmlBases :: String -> [(String,String)]
@@ -786,6 +796,7 @@ data CC = CC{  ccName       :: String,
                ccFlagsCompile :: Args,
                ccFlagsLink    :: Args,
                ccFlagStack  :: Int -> Args,
+               ccFlagHeap   :: Int -> Args,
                ccAddLibraryDir :: FilePath -> Args,
                ccIncludeDir :: FilePath -> Args,
                ccTargetObj  :: FilePath -> Args,
@@ -815,8 +826,11 @@ buildVersionTag flags
 buildVariant :: Flags -> String   -- for example: clang-debug, js-release
 buildVariant flags
   = let pre  = if (target flags == C)
-                 then ccName (ccomp flags)
-                 else (show (target flags))
+                 then ccName (ccomp flags) ++ (case host flags of
+                                                 Wasm   -> "-wasm" ++ show (8*sizePtr (platform flags))
+                                                 WasmJs -> "-wasmjs"
+                                                 _      -> "")
+                 else show (target flags)
     in pre ++ "-" ++ show (buildType flags)
 
 
@@ -853,6 +867,7 @@ ccGcc name opt platform path
         (\stksize -> if (onMacOS && stksize > 0)  -- stack size is usually set programmatically (except on macos/windows)
                        then ["-Wl,-stack_size,0x" ++ showHex 0 stksize]
                        else []) 
+        (\heapsize -> [])
         (\libdir -> ["-L",libdir])
         (\idir -> ["-I",idir])
         (\fname -> ["-o", (notext fname) ++ objExtension])
@@ -883,6 +898,7 @@ ccMsvc name opt platform path
          ["-EHs","-TP","-c"]   -- always compile as C++ on msvc (for atomics etc.)
          ["-link"]             -- , "/NODEFAULTLIB:msvcrt"]
          (\stksize -> if stksize > 0 then ["/STACK:" ++ show stksize] else [])
+         (\heapsize -> [])        
          (\libdir -> ["/LIBPATH:" ++ libdir])
          (\idir -> ["-I",idir])
          (\fname -> ["-Fo" ++ ((notext fname) ++ objExtension)])
@@ -904,9 +920,9 @@ ccFromPath flags path
                        ccFlagStack = (\stksize -> if stksize > 0 then ["-Wl,--stack," ++ show stksize] else [])
                      }
         emcc    = gcc{ ccFlagsCompile = ccFlagsCompile gcc ++ ["-D__wasi__"],
-                       ccFlagsLink = ccFlagsLink gcc ++ ["-s","TOTAL_MEMORY=2000MB"],
                        ccFlagStack = (\stksize -> if stksize == 0 then [] else ["-s","TOTAL_STACK=" ++ show stksize]),
-                       ccTargetExe = (\out -> ["-o", out ++ ".wasm"])
+                       ccFlagHeap  = (\hpsize -> if hpsize == 0 then [] else ["-s","TOTAL_MEMORY=" ++ show hpsize]),
+                       ccTargetExe = (\out -> ["-o", out ++ (if (host flags == WasmJs) then ".js" else ".wasm")])
                      }
         clang   = gcc{ ccFlagsWarn = gnuWarn ++ 
                                      words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align" }
@@ -932,8 +948,8 @@ ccFromPath flags path
         cc = cc0{ ccFlagsCompile = ccFlagsCompile cc0 ++ ccompCompileArgs flags
                 , ccFlagsLink    = ccFlagsLink cc0 ++ ccompLinkArgs flags }
 
-    in do when (host flags == Wasm && not (name `startsWith` "emcc")) $
-            putStrLn ("\nwarning: the wasm target should use the emscripten compiler (emcc),\n  but currently '" 
+    in do when ((host flags == Wasm || host flags == WasmJs) && not (name `startsWith` "emcc")) $
+            putStrLn ("\nwarning: a wasm target should use the emscripten compiler (emcc),\n  but currently '" 
                        ++ ccPath cc ++ "' is used." 
                        ++ "\n  hint: specify the emscripten path using --cc=<emcc path>?")                       
           if (asan flags)
@@ -1022,7 +1038,7 @@ detectCC :: Host -> IO String
 detectCC host
   = do paths <- getEnvPaths "PATH"
        (name,path) <- do envCC <- getEnvVar "CC"
-                         findCC paths ((if (host==Wasm) then ["emcc"] else []) ++
+                         findCC paths ((if (host==Wasm || host==WasmJs) then ["emcc"] else []) ++
                                        (if (envCC=="") then [] else [envCC]) ++
                                        (if (onMacOS) then ["clang"] else []) ++
                                        (if (onWindows) then ["clang-cl","cl"] else []) ++
