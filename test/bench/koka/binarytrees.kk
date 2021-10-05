@@ -54,8 +54,8 @@ fun make-rec( depth : int ) : div tree
     else Node( Tip, Tip )
 
 fun make( depth : int ) : div tree
-  //make-rec(depth)
-  make-fbip(Down(depth), Top)
+  make-rec(depth)
+  //make-fbip(Down(depth), Top)
   // make-down( depth, Top )
 
 
