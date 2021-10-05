@@ -170,12 +170,12 @@ so more experimentation is needed.
 -- Daan Leijen, 2020.
 --------------------------------------------------------------------------------------------------*/
 
+#if !defined(KK_USE_BUILTIN_OVF)
 #if defined(__GNUC__) && !defined(__INTEL_COMPILER)
-#define KK_USE_BUILTIN_OVF (1)  
+#define KK_USE_BUILTIN_OVF (1)       // use builtin on gcc/clang
+#else
+#define KK_USE_BUILTIN_OVF (0)       // otherwise default to portable overflow detection
 #endif
-
-#ifndef KK_USE_BUILTIN_OVF
-#define KK_USE_BUILTIN_OVF (0)       // default to portable overflow detection
 #endif
 
 #if KK_USE_BUILTIN_OVF
