@@ -306,9 +306,21 @@ void kk_task_group_free( kk_task_group_t* tg, kk_context_t* ctx ) {
   kk_free(tg);
 }
 
-static kk_task_group_t* kk_task_group_alloc( kk_ssize_t thread_count, kk_context_t* ctx ) {
+static _Atomic(kk_ssize_t) default_concurrency;  // = 0
+
+void kk_task_set_default_concurrency(kk_ssize_t thread_count, kk_context_t* ctx) {
   const kk_ssize_t cpu_count = kk_cpu_count(ctx);
-  if (thread_count <= 0) { thread_count = cpu_count + (cpu_count/2)  ; }
+  if (thread_count < 0) { thread_count = 0; }
+  else if (thread_count > 8*cpu_count) { thread_count = 8*cpu_count; };
+  kk_atomic_store_release(&default_concurrency, thread_count);
+}
+
+static kk_task_group_t* kk_task_group_alloc( kk_ssize_t thread_count, kk_context_t* ctx ) {
+  if (thread_count <= 0) {
+    thread_count = kk_atomic_load_acquire(&default_concurrency);
+  }
+  const kk_ssize_t cpu_count = kk_cpu_count(ctx);
+  if (thread_count <= 0) { thread_count = cpu_count + (cpu_count > 16 ? cpu_count/4 : cpu_count/2); }
   if (thread_count > 8*cpu_count) { thread_count = 8*cpu_count; };  
   kk_task_group_t* tg = (kk_task_group_t*)kk_zalloc( kk_ssizeof(kk_task_group_t), ctx );
   if (tg==NULL) return NULL;

@@ -30,6 +30,14 @@ noinline extern unsafe_await( p : any ) : pure a {
   c "kk_promise_get"
 }
 
+extern prim-task-set-default-concurrency( thread-count : ssize_t  ) : io () {
+  c "kk_task_set_default_concurrency"
+}
+
+public fun task-set-default-concurrency( thread-count : int ) : io () {
+  prim-task-set-default-concurrency( thread-count.ssize_t )
+}
+
 // Spark a pure computation in a separate thread of control.
 public noinline fun task( work : () -> pure a ) : pure promise<a> {
   Promise( unsafe_task( work ) )
