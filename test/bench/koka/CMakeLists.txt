@@ -23,9 +23,10 @@ foreach (source IN LISTS sources)
     VERBATIM)
 
   # --fno-optctail
+  # --fno-optreuse
   add_custom_command(
     OUTPUT  ${outx_path}
-    COMMAND ${koka} --target=c --outputdir=${outx_dir} --buildname=${namex} -v -O2 --fno-optreuse -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> "${source}"
+    COMMAND ${koka} --target=c --outputdir=${outx_dir} --buildname=${namex} -v -O2 --fno-opttrmc -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> "${source}"
     DEPENDS ${source}
     VERBATIM)
 

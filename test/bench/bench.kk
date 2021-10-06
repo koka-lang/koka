@@ -22,7 +22,7 @@ val all-test-names = ["rbtree","rbtree-ck","deriv","nqueens","cfold","binarytree
 
 val all-lang-names = [
   ("koka","kk"),
-  // ("kokax","kkx"),
+  ("kokax","kkx"),
   ("ocaml","ml"),
   ("haskell","hs"),
   ("swift","sw"),
@@ -121,10 +121,10 @@ fun show-norm( test : test ) {
 // ----------------------------------------------------
 // main
 // ----------------------------------------------------
-public fun main() {
-  match (process-flags()) {
+public fun main()
+  match (process-flags())
     Nothing -> ()
-    Just(flags) {
+    Just(flags) ->
       val test-names = if (flags.tests.is-empty) then all-test-names
                         else flags.tests.split(",")
       val lang-names = if (flags.langs.is-empty) then all-lang-names else { 
@@ -132,9 +132,7 @@ public fun main() {
                           all-lang-names.filter(fn(l){ lnames.any(fn(nm){ nm == l.snd || nm == l.fst }) })
                         }
       run-tests(test-names,lang-names,flags.chart,flags.iter,flags.normalize)
-    }
-  }
-}
+
 
 fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen-chart : bool, iterations : int, normalize : bool ) {
   println("tests    : " ++ test-names.join(", "))
@@ -184,7 +182,7 @@ fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen
 
   // emit latex chart
   if (gen-chart) then {
-    val ymax       = 4.0
+    val ymax       = 3.0
     val chart-desc = @"16-core AMD 5950X at 3.4Ghz\\Ubuntu 20.04, gcc 9.3.0"
     val chart-elapsed = if (normalize)
                           then chart("time", True, norm-elapsed, norm-elapsed-sdev, elapsed, test-names, lang-ntests, ymax, chart-desc)
@@ -349,32 +347,30 @@ fun test-sum( t1 : test, t2 : test) : test {
   t1( elapsed = t1.elapsed + t2.elapsed, rss = t1.rss + t2.rss )
 }
 
-fun execute-test( run : int, base : string, prog : string ) : io either<string,(double,int)> {
+fun execute-test( run : int, base : string, prog : string ) : io either<string,(double,int)> 
   val timef= "out/time-" ++ base ++ ".txt"
-  val cmd  = if (get-env("SHELL").default("").contains("zsh"))
+  val cmd  = if get-env("SHELL").default("").contains("zsh")
                then "/usr/bin/time -l 2> " ++ timef ++ " " ++ prog
                else "/usr/bin/time -f'%e %M' -o" ++ timef ++ " " ++ prog
+  ensure-dir("out".path)
+  run-system("sleep 2")
   val out  = run-system-read(cmd).exn
   print(out)
   val time = read-text-file(timef.path).trim
-  if (time=="") return Left("no output")
-  match(time.list) {
+  if  time=="" return Left("no output")
+  match time.list
     Nil -> Left("no output")
     Cons(d) | !d.is-digit -> Left(time)  // error
-    _ -> {
-      val parts = time.replace-all("\n"," ").replace-all("\t"," ").split(" ").filter(fn(p){ !p.is-empty })
+    _ -> 
+      val parts = time.replace-all("\n"," ").replace-all("\t"," ").split(" ").filter(fn(p) !p.is-empty )
       // println( parts.join(",") )
       match(parts) {
-        Cons(elapsed,Cons(rss,Nil)) { // linux
+        Cons(elapsed,Cons(rss,Nil)) -> // linux
           println("" ++ run.show ++ ": elapsed: " ++ elapsed ++ "s, rss: " ++ rss ++ "kb" )
           Right( (parse-double(elapsed).default(0.0), parse-int(rss).default(0)) )
-        }
-        Cons(elapsed,Cons("real",Cons(_,Cons(_user,Cons(_,Cons(_sys,Cons(rss,_))))))) {  // on macOS
+
+        Cons(elapsed,Cons("real",Cons(_,Cons(_user,Cons(_,Cons(_sys,Cons(rss,_))))))) ->  // on macOS
           println("" ++ run.show ++ ": elapsed: " ++ elapsed ++ "s, rss: " ++ rss ++ "b" )
           Right( (parse-double(elapsed).default(0.0), parse-int(rss).default(0)/1024) )
-        }
+        
         _ -> Left("bad format")
-      }
-    }
-  }
-}
