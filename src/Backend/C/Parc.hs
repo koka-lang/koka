@@ -309,8 +309,8 @@ optimizeDupDrops mchildrenOf conNameOf dups0 drops0
     optimizeDisjoint :: Dups -> [TName] -> Parc [Maybe Expr]
     optimizeDisjoint dups []
       = do foldMapM genDup dups     
-    optimizeDisjoint dups drops | S.null dups  -- todo: do not do this as it will not specialize all drops
-      = do foldMapM genDrop drops      
+    -- optimizeDisjoint dups drops | S.null dups  -- todo: do not do this as it will not specialize all drops
+    --  = do foldMapM genDrop drops      
     optimizeDisjoint dups (y:drops)
       = do  let (yDups, dups')    = S.partition (isDescendentOf y) dups
             let (yDrops, drops')  = L.partition (isDescendentOf y) drops
