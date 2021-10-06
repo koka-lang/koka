@@ -142,7 +142,7 @@ ruLet' :: Def -> Reuse ([(TName, Bool)], [Maybe Def] -> Reuse ([Def], Expr -> Ex
 ruLet' def
   = withCurrentDef def $
       case defExpr def of
-          App var@(Var name _) [Var tname _] | getName name == nameDrop
+          App var@(Var name _) (Var tname _ : _maybe_scanfields) | getName name == nameDrop
             -> do return ([(tname, True)], \mReuses ->
                     case head mReuses of
                       Nothing -> return ([], makeDefsLet [def])
