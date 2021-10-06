@@ -37,7 +37,7 @@ import Core.Core
 import qualified Core.Core as Core
 import Core.Pretty
 
-trace s x =
+trace s x = 
    Lib.Trace.trace s
     x
 
@@ -52,10 +52,8 @@ debug =  -- set True to enable debug (e.g., Checking type invariant at all sub-e
 openFloat :: Pretty.Env -> Gamma -> CorePhase ()
 openFloat penv gamma
   = liftCorePhaseUniq $ \uniq defs ->
-    let
-      (expr, i) = runFlt penv gamma uniq $
+      runFlt penv gamma uniq $
         (if enable then fltDefGroups else return) defs
-    in (expr, i)
 
 
 {--------------------------------------------------------------------------
@@ -125,13 +123,18 @@ fltExpr expr maybeEff
                assertTypeInvariant $ Lam args eff body'',
                Bottom)
 
-    Let defgs body
-      -> do defgIR_rqs <- mapM (\def -> fltDefGroupAux def maybeEff) defgs
-            (body', rq) <- fltExpr body maybeEff
-            let (defgIRs, rqs) = unzip defgIR_rqs
-                rqSup = sup $ rq:rqs
-            defgs' <- mapM (restrictToDG rqSup) defgIRs
-            return (assertTypeInvariant $ Let defgs' body', rqSup)
+    Let defgs body ->
+      if length defgs > 1
+        then fltExpr (expandLetExpr expr) maybeEff
+      else 
+        do -- traceDoc $ \env -> text $ "LET " ++ show expr ++ "\n"
+          defgIR_rqs <- mapM (\def -> fltDefGroupAux def maybeEff) defgs
+          (body', rq) <- fltExpr body maybeEff
+          let (defgIRs, rqs) = unzip defgIR_rqs
+              rqSup = sup $ rq:rqs
+              body'' = smartRestrictExpr rq rqSup body'
+          defgs' <- mapM (restrictToDG rqSup) defgIRs
+          return (assertTypeInvariant $ Let defgs' body'', rqSup)
     Case exprs bs
       -> do exprIR_rqs <- mapM (\exp-> fltExpr exp maybeEff)exprs
             bIR_rqs <- mapM (\b -> fltBranchAux b maybeEff) bs
@@ -187,11 +190,13 @@ fltExpr expr maybeEff
 
       fltDefGroupAux :: DefGroup -> Maybe Effect -> Flt (DefGroupIR, Req)
       fltDefGroupAux (DefRec defs) maybeEff =
-        do defIR_rqs <- mapM (\def -> fltDefAux def maybeEff) defs
+        do
+           defIR_rqs <- mapM (\def -> fltDefAux def maybeEff) defs
            let (defIRs, rqs) = unzip defIR_rqs
            return (DefRecIR defIRs, sup rqs)
       fltDefGroupAux (DefNonRec def) maybeEff =
-        do (defIR, rq) <- fltDefAux def maybeEff
+        do
+           (defIR, rq) <- fltDefAux def maybeEff
            return (DefNonRecIR defIR, rq)
 
       fltBranchAux :: Branch -> Maybe Effect -> Flt (BranchIR, Req)
@@ -205,7 +210,11 @@ fltExpr expr maybeEff
         do (guard', rqg) <- fltExpr guard maybeEff
            (body', rqb)  <- fltExpr body maybeEff
            return (GuardIR (guard', rqg) (body', rqb), supb rqg rqb)
-
+      
+      expandLetExpr :: Expr -> Expr
+      expandLetExpr expr = case expr of
+        Let defgs body | length defgs > 1 -> foldr (\d b -> Let [d] b) body defgs
+        _ -> expr
 {--------------------------------------------------------------------------
   Requirement
 --------------------------------------------------------------------------}
@@ -227,11 +236,11 @@ supbEffect eff1 eff2 =
     (labs1, tl1) = extractOrderedEffect eff1
     (labs2, tl2) = extractOrderedEffect eff2
     tl = assertion
-           ("OpenFlaot. sup undefined between:\n" ++ "A. " ++ show tl1 ++ "\nB. " ++ show tl2)
+           ("OpenFloat. sup undefined between:\n" ++ "A. " ++ show tl1 ++ "\nB. " ++ show tl2)
            (isEffectEmpty tl1 || isEffectEmpty tl2 || tl1 `matchEffect` tl2 )
            (if isEffectEmpty tl1 then tl2 else tl1)
     labs = mergeLabs labs1 labs2
-  in effectExtends labs tl
+  in effectExtends labs tl  -- tl might be singlton label? so that it make result ill-formed?
   where
     compareLabel :: Tau -> Tau -> Ordering
     compareLabel l1 l2 = let (name1, i1, args1) = labelNameEx l1
@@ -240,10 +249,9 @@ supbEffect eff1 eff2 =
                               EQ ->
                                 (case (args1, args2) of
                                       ([TVar (TypeVar id1 kind1 sort1)], [TVar (TypeVar id2 kind2 sort2)]) -> compare id1 id2
-                                      _ -> assertion ("openFloat: unexpected label-args. Label argument should only differ in variable case. \n1. " ++ show args1 ++ "\n2. " ++ show args2) (
-                                             all (\(t1, t2)-> matchType t1 t2) $ zip args1 args2
-                                              ) EQ
-                                    )
+                                      _ -> assertion ("openFloat: unexpected label-args. Label argument should only differ in variable case. \n1. " ++ show args1 ++ "\n2. " ++ show args2)
+                                             (all (\(t1, t2)-> matchType t1 t2) $ zip args1 args2)
+                                             EQ)
                               order -> order
 
     mergeLabs :: [Tau] -> [Tau] -> [Tau]
