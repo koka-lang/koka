@@ -62,9 +62,7 @@ fun set-black(t : tree) : tree
 
 
 fun insert(t : tree, k : int32, v : bool) : tree
-  if is-red(t)
-    then ins(t, k, v).set-black
-    else ins(t, k, v)
+  ins(t, k, v).set-black
 
 
 fun fold(t : tree, b : a, f: (int32, bool, a) -> a) : a
