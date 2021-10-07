@@ -97,7 +97,7 @@ constexpr auto MIN_DEPTH = 4;
 
 int main(int argc, char* argv[])
 {
-    const int max_depth = std::max(MIN_DEPTH + 2, (argc == 2 ? atoi(argv[1]) : 10));
+    const int max_depth = std::max(MIN_DEPTH + 2, (argc == 2 ? atoi(argv[1]) : 21));
     const int stretch_depth = max_depth + 1;
 
     // Alloc then dealloc stretchdepth tree.

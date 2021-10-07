@@ -3,8 +3,12 @@ set(sources cfold.kk deriv.kk nqueens.kk nqueens-int.kk
             rbtree-ck.kk binarytrees.kk)
 
 # stack exec koka -- --target=c -O2 -c $(readlink -f ../cfold.kk) -o cfold
-find_program(koka "stack" REQUIRED)
-set(koka ${koka} exec koka --)
+find_program(stack "stack" REQUIRED)
+if(APPLE)
+  set(koka ${stack} --system-ghc --skip-ghc-check exec koka --)
+else()
+  set(koka ${stack} exec koka --)
+endif()
 
 foreach (source IN LISTS sources)
   get_filename_component(basename "${source}" NAME_WE)
@@ -18,7 +22,7 @@ foreach (source IN LISTS sources)
 
   add_custom_command(
     OUTPUT  ${out_path}
-    COMMAND ${koka} --target=c --outputdir=${out_dir} --buildname=${name} -v -O2 -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> "${source}"
+    COMMAND ${koka} --target=c --stack=128M --outputdir=${out_dir} --buildname=${name} -v -O2 -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> "${source}"
     DEPENDS ${source}
     VERBATIM)
 
@@ -26,7 +30,7 @@ foreach (source IN LISTS sources)
   # --fno-optreuse
   add_custom_command(
     OUTPUT  ${outx_path}
-    COMMAND ${koka} --target=c --outputdir=${outx_dir} --buildname=${namex} -v -O2 --fno-opttrmc -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> "${source}"
+    COMMAND ${koka} --target=c --stack=128M --outputdir=${outx_dir} --buildname=${namex} -v -O2 --fno-opttrmc -i$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}> "${source}"
     DEPENDS ${source}
     VERBATIM)
 

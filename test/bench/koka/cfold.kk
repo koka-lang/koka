@@ -36,7 +36,7 @@ fun reassoc( e : expr ) : expr
 
 fun cfold( e : expr ) : expr
   match e
-    Add(e1,e2)
+    Add(e1,e2) ->
       val e1' = cfold(e1)
       val e2' = cfold(e2)
       match e1'
@@ -46,7 +46,7 @@ fun cfold( e : expr ) : expr
           Add(Val(b),f) -> Add(Val(a+b),f)
           _             -> Add(e1',e2')
         _ -> Add(e1',e2')
-    Mul(e1,e2)
+    Mul(e1,e2) ->
       val e1' = cfold(e1)
       val e2' = cfold(e2)
       match e1'

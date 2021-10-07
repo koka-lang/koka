@@ -10,7 +10,7 @@ foreach (source IN LISTS sources)
 
   add_custom_command(
     OUTPUT  ${name}
-    COMMAND ${swiftc} -O -o ${name} "$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}/${source}>"
+    COMMAND ${swiftc} -O -whole-module-optimization -Xlinker -stack_size -Xlinker 0x8000000 -o ${name} "$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}/${source}>"
     DEPENDS ${source}
     VERBATIM)
 

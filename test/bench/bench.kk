@@ -222,7 +222,7 @@ fun tikz-footer( test-names : list<string> ) : list<string> {
 }
 
 fun tikz-picture( kind : string, normalize : bool, test-names : list<string>, lang-names : list<string>, ymax : double = 5.0, 
-                  desc : string = "", height:string = "5cm", width:string = "11cm" ) {
+                  desc : string = "", height:string = "5cm", width:string = "6cm" ) {
   val n = test-names.length - 1
   val header = [
     @"",
@@ -257,7 +257,7 @@ fun tikz-data( kind:string, normalize : bool, norm : test -> double, norm-sdev :
            then (if (normalize) then (
                    if (lang == "kk") 
                    then (if (kind=="rss") 
-                            then @"{\absrssnormlabel{" ++ t.abs.round.int.show ++ "}}" 
+                            then @"{\absrssnormlabel{" ++ (t.abs / 1024.0).round.int.show ++ "mb}}" // megabytes  
                             else @"{\absnormlabel{" ++ t.abs.show-fixed(2) ++ "}}" )
                    else @"{\normlabel{" ++ t.norm.show-fixed(2) ++ "}}" )
                 else @"{\abslabel{" ++ t.abs.show-fixed(2) ++ "}}")
@@ -308,7 +308,7 @@ fun run-test( test-name : string, langt : (string,string), iterations : int ) : 
              else lang-long  
   val base = lang ++ "-" ++ test-name
   val prog = if (lang-long=="java")
-              then "java --enable-preview --class-path=" ++ dir ++ " "
+              then "java --enable-preview --class-path=" ++ dir ++ " " // ++ "-Xmx1G "
                     ++ (if (test-name=="cfold") then "-Xss128m " else "")
                     ++ test-name.replace-all("-","")
               else dir ++ "/" ++ base
@@ -353,7 +353,7 @@ fun execute-test( run : int, base : string, prog : string ) : io either<string,(
                then "/usr/bin/time -l 2> " ++ timef ++ " " ++ prog
                else "/usr/bin/time -f'%e %M' -o" ++ timef ++ " " ++ prog
   ensure-dir("out".path)
-  run-system("sleep 2")
+  run-system("sleep 1")
   val out  = run-system-read(cmd).exn
   print(out)
   val time = read-text-file(timef.path).trim

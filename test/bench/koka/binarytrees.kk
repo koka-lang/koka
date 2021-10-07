@@ -55,7 +55,7 @@ fun make-rec( depth : int ) : div tree
 
 fun make( depth : int ) : div tree
   make-rec(depth)
-  //make-fbip(Down(depth), Top)
+  // make-fbip(Down(depth), Top)
   // make-down( depth, Top )
 
 
@@ -118,6 +118,7 @@ fun show( msg : string, depth : int, check : int ) : console ()
 
 // main
 public fun main()
+  // task-set-default-concurrency(8);
   val n = get-args().head.default("").parse-int.default(21)
   val min-depth = 4
   val max-depth = max(min-depth + 2, n)
