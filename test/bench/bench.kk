@@ -310,8 +310,11 @@ fun run-test( test-name : string, langt : (string,string), iterations : int ) : 
   val prog = if (lang-long=="java")
               then "java --enable-preview --class-path=" ++ dir ++ " " // ++ "-Xmx1G "
                     ++ (if (test-name=="cfold") then "-Xss128m " else "")
-                    ++ test-name.replace-all("-","")
+                    ++ test-name.replace-all("-","")             
               else dir ++ "/" ++ base
+  val envvars  = if (lang-long=="ocaml" && test-name=="cfold")
+                   then "OCAMLRUNPARAM=\"l=2560000\""
+                   else ""
   val progpath = if (lang-long=="java") then (dir.path / (test-name.replace-all("-","") ++ ".class"))
                   else prog.path
   println("\nrun: " ++ prog)
@@ -321,7 +324,7 @@ fun run-test( test-name : string, langt : (string,string), iterations : int ) : 
   }
 
   val results = list(1,iterations)
-                .map( fn(i){ execute-test(i,base,prog)} )
+                .map( fn(i){ execute-test(i,base,prog,envvars)} )
                 .map( fn(r){
                    match(r) {
                      Left(err)            -> Test(test-name,lang,err=err)
@@ -347,11 +350,12 @@ fun test-sum( t1 : test, t2 : test) : test {
   t1( elapsed = t1.elapsed + t2.elapsed, rss = t1.rss + t2.rss )
 }
 
-fun execute-test( run : int, base : string, prog : string ) : io either<string,(double,int)> 
+fun execute-test( run : int, base : string, prog : string, envvars : string ) : io either<string,(double,int)> 
   val timef= "out/time-" ++ base ++ ".txt"
-  val cmd  = if get-env("SHELL").default("").contains("zsh")
-               then "/usr/bin/time -l 2> " ++ timef ++ " " ++ prog
-               else "/usr/bin/time -f'%e %M' -o" ++ timef ++ " " ++ prog
+  val cmd  = (if envvars.is-empty then "" else ("env " ++ envvars ++ " ")) ++
+             (if get-env("SHELL").default("").contains("zsh")
+                then "/usr/bin/time -l 2> " ++ timef ++ " " ++ prog
+                else "/usr/bin/time -f'%e %M' -o" ++ timef ++ " " ++ prog)
   ensure-dir("out".path)
   run-system("sleep 2")
   val out  = run-system-read(cmd).exn
