@@ -38,7 +38,7 @@ import qualified Core.Core as Core
 import Core.Pretty
 
 trace s x = 
-   Lib.Trace.trace s
+  --  Lib.Trace.trace s
     x
 
 enable = -- set to True to enable the transformation

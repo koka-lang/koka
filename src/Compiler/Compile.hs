@@ -912,7 +912,7 @@ inferCheck loaded0 flags line coreImports program
           do openFloat penv gamma
              checkCoreDefs "open floated"
              simplifyNoDup 
-             traceDefGroups "open floated" 
+            --  traceDefGroups "open floated" 
        
        -- tail-call-modulo-cons optimization
        when (optctail flags) $
@@ -945,7 +945,7 @@ inferCheck loaded0 flags line coreImports program
        -- final simplification
        simplifyDupN
        checkCoreDefs "final" 
-       -- traceDefGroups "simplify final"
+       traceDefGroups "simplify final"
 
        -- Assemble core program and return
        coreDefsFinal <- Core.getCoreDefs
