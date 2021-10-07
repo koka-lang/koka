@@ -4,8 +4,8 @@
 
 // First defined the `many` effect to describe multiple of results and failure
 effect many {
-  control flip() : bool
-  control fail() : a
+  ctl flip() : bool
+  ctl fail() : a
 }
 
 fun select(xs) {
@@ -17,17 +17,17 @@ fun select(xs) {
 
 // Return all solutions 
 val solutions = handler {
-  return  x       -> [x]
-  control fail()  -> []
-  control flip()  -> resume(True) ++ resume(False)
+  return(x)   -> [x]
+  ctl fail()  -> []
+  ctl flip()  -> resume(True) ++ resume(False)
 }
 
 
 // Return the first solution
 val eager = handler {
-  return x       -> [x]
-  control fail() -> []
-  control flip() -> match(resume(True)) {
+  return(x)  -> [x]
+  ctl fail() -> []
+  ctl flip() -> match(resume(True)) {
     Nil -> resume(False)
     xs  -> xs
   }
@@ -63,8 +63,8 @@ fun parse(input0 : string, action : () -> <parse,many|e> a) : <many|e> (a,string
   with return(x){ (x,input) }
   with fun satisfy(pred){
     match(pred(input)) {
-      Nothing          { fail() }
-      Just((res,rest)) { input := rest; res }
+      Nothing          -> { fail() }
+      Just((res,rest)) -> { input := rest; res }
     }
   }
   action()      

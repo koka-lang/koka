@@ -13,7 +13,7 @@ import std/os/flags
 val all-test-names = ["rbtree","rbtree-ck","deriv","nqueens","cfold"]
 val all-lang-names = [
   ("koka","kk"),
-  ("kokax","kkx"),
+  // ("kokax","kkx"),
   ("ocaml","ml"),
   ("haskell","hs"),
   ("swift","sw"),

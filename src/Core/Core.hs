@@ -28,7 +28,7 @@ module Core.Core ( -- Data structures
                    , extractSignatures
                    , typeDefIsExtension
                    , typeDefVis
-                   , externalImportLookup, eimportLookup
+                   , externalImportLookup, eimportLookup, lookupTarget
 
                      -- Core term builders
                    , defIsVal
@@ -260,11 +260,9 @@ externalVis _ = Private
 
 externalImportLookup :: Target -> BuildType -> String -> External -> Maybe String
 externalImportLookup target buildType key (ExternalImport imports range)
-  = let keyvals = case lookup target imports of
-                    Just keyvals -> keyvals
-                    Nothing -> case lookup Default imports of
-                                 Just keyvals -> keyvals
-                                 Nothing -> []
+  = let keyvals = case lookupTarget target imports of
+                    Just kv -> kv
+                    Nothing -> []
     in eimportLookup buildType key keyvals
 
 externalImportLookup target buildType key ext
@@ -276,6 +274,19 @@ eimportLookup buildType key keyvals
       Just val -> Just val
       Nothing  -> lookup key keyvals
 
+
+lookupTarget :: Target -> [(Target,a)] -> Maybe a
+lookupTarget target imports
+  = let targets = case target of 
+                    C WasmJs  -> [target,C Wasm,C CDefault,Default]
+                    C WasmWeb -> [target,C Wasm,C CDefault,Default]
+                    C _       -> [target,C CDefault,Default]
+                    JS _ -> [target,JS JsDefault,Default]
+                    _    -> [target,Default]
+    in case catMaybes (map (\t -> lookup t imports) targets) of
+         (x:_) -> Just x
+         _     -> Nothing
+    
 
 {--------------------------------------------------------------------------
   Type definitions
@@ -613,7 +624,7 @@ data TName = TName
   }
 
 showTName (TName name tp)
-    = show name -- ++ ": " ++ minCanonical tp
+    = show name -- ++ ": " ++ show tp -- ++ ": " ++ minCanonical tp
 
 
 defTName :: Def -> TName

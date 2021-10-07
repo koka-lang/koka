@@ -354,13 +354,13 @@ externalEntry
 
 externalTarget
   = do specialId "c"
-       return C
+       return (C CDefault)
   <|>
     do specialId "cs"
        return CS
   <|>
     do specialId "js"
-       return JS
+       return (JS JsDefault)
   <|>
     return Default
 

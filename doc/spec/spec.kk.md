@@ -273,13 +273,13 @@ which automatically adds braces and semicolons at appropriate places:
 
 * Any block that is _indented_ is automatically wrapped with curly braces:
   ```
-  fun foo1( msgs : list<string> ) : console ()  
+  fun show-messages1( msgs : list<string> ) : console ()  
     msgs.foreach fn(msg)
       println(msg)
   ```
   is elaborated to:
   ```unchecked
-  fun foo1( msgs : list<string> ) : console () {
+  fun show-messages1( msgs : list<string> ) : console () {
     msgs.foreach fn(msg) {
       println(msg)
     }
@@ -288,18 +288,18 @@ which automatically adds braces and semicolons at appropriate places:
 
 * Any statements and declarations that are _aligned_ in a block are terminated with semicolons, that is:
   ```
-  fun foo2( msgs : list<string> ) : console ()  
+  fun show-messages2( msgs : list<string> ) : console ()  
     msgs.foreach fn(msg)
       println(msg)
-      println("hi")
+      println("--")
     println("done")
   ```
   is fully elaborated to:
   ```unchecked
-  fun foo2( msgs : list<string> ) : console () {
+  fun show-messages2( msgs : list<string> ) : console () {
     msgs.foreach fn(msg){
       println(msg);
-      println("hi");
+      println("--");
     };
     println("done");
   }
@@ -340,20 +340,19 @@ which automatically adds braces and semicolons at appropriate places:
   More precisely, for long expressions and declarations, indented or aligned lines 
   do not get braced or semicolons if:
 
-  1. The line starts with a clear expression or declaration _continuation token_,
+  1. The line starts with a clear expression or declaration _start continuation token_,
     namely: an operator (including `.`), `then`, `else`, `elif`, 
     a closing brace (`)`, `>`, `]`, or `}`), 
     or one of `,`, `->`, `{` , `=`, `|`, `::`, `.`, `:=`.
-  2. The previous line ends with a clear expression or declaration _ending continuation token_,
+  2. The previous line ends with a clear expression or declaration _end continuation token_,
     namely an operator (including `.`), an open brace (`(`, `<`, `[`, or `{`), or `,`.
 
-The layout
-algorithm is performed on the token stream in-between lexing
-and parsing, and is independent of both. In particular, there are no intricate dependencies with the parser
-(which leads to bizarrely complex layout rules, as is the case in languages like
-[Haskell] or [JavaScript]).
+The layout algorithm is performed on the token stream in-between lexing
+and parsing, and is independent of both. In particular, there are no intricate 
+dependencies with the parser (which leads to very complex layout rules, as is the 
+case in languages like [Haskell] or [JavaScript]).
 
-Moreover, in contrast to token-based layout rules (as in [Scala] or [Go] for example), 
+Moreover, in contrast to purely token-based layout rules (as in [Scala] or [Go] for example), 
 the visual indentation in a Koka program corresponds directly to how the compiler 
 interprets the statements. Many tricky layout
 examples in other programming languages are often based on a mismatch between
@@ -400,8 +399,8 @@ To define the layout algorithm formally, we first establish some terminology:
   that line (starting at 1), and the indentation of a line is the indentation
   of the first lexeme on the line.
 * A lexeme is an _expression continuation_ if it is the first lexeme on a line,
-  and the lexeme is a _continuation token_, or the previous lexeme is an
-  _ending continuation token_ (as defined in the previous section).
+  and the lexeme is a _start continuation token_, or the previous lexeme is an
+  _end continuation token_ (as defined in the previous section).
 
 Because braces can be nested, we use a _layout stack_ of strictly
 increasing indentations. The top indentation on the layout stack holds the

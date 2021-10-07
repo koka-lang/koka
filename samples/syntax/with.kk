@@ -34,6 +34,8 @@ fun test1-expanded()
     twice
       println("hi")
 
+
+// Without using layout, the fully expanded version is:
 fun test1-fully-expanded() 
   twice( fn(){
     twice( fn(){
@@ -42,9 +44,10 @@ fun test1-fully-expanded()
   })
 }
 
+
 /* Also, a `with` statement can have a (monomophic lambda) binding:
     ````
-    with x = f(e1,...,eN)
+    with x <- f(e1,...,eN)
     <body>
     ````
     translates to:
@@ -54,12 +57,12 @@ fun test1-fully-expanded()
 */
 
 public fun test2()
-  with x = list(1,10).map
+  with x <- list(1,10).map
   println(x)
 
 
 fun test2-expanded()
-  list(1,10).map( fn(x) {
+  list(1,10).map(fn(x){
     println(x)
   })
 
@@ -92,9 +95,9 @@ fun test3-expanded()
    ````
    and for single operations, we get:
    ````
-   with val op = <expr>           ~> with handler{ val op = <expr> }
-   with fun op(x){ <stats> }      ~> with handler{ fun op(x){ <stats> } }
-   with control op(x){ <stats> }  ~> with handler{ control op(x){ <stats> } }
+   with val op = <expr>       ~> with handler{ val op = <expr> }
+   with fun op(x){ <stats> }  ~> with handler{ fun op(x){ <stats> } }
+   with ctl op(x){ <stats> }  ~> with handler{ ctl op(x){ <stats> } }
    ````
 */
 

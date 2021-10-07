@@ -291,7 +291,7 @@ for example divide with larger precision and use `round-to-prec`.
 .
 */
 public fun div( x : decimal, y : decimal, min-prec : int = 15 ) : decimal {
-  if (x.is-zero || y.is-zero) then return zero
+  if (x.is-zero || y.is-zero) then return Decimal(0,0)
   val e = x.exp - y.exp
   /*
   // use double division if within precision bounds..

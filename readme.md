@@ -10,7 +10,7 @@
 # Koka: a Functional Language with Effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
-_Latest release_: v2.2.0, 2021-08-26 ([Install]).
+_Latest release_: v2.3.1, 2021-09-29 ([Install]).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -64,6 +64,9 @@ To learn more:
 [winclang]: https://llvm.org/builds
 [vcpkg]: https://github.com/microsoft/vcpkg#getting-started
 [ghcup]: https://www.haskell.org/ghcup
+[nobrace]: https://koka-lang.github.io/koka/doc/book.html#sec-layout
+[m1arch]: https://cpufun.substack.com/p/setting-up-the-apple-m1-for-native
+[bigint]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt
 
 Enjoy,  
   Daan Leijen
@@ -74,7 +77,21 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 ## Recent Releases
 
-- `v2.2.0`, 2021-08-26: improved case-of-known simpification (by Rashika B), improve cross-module specialization
+- `v2.3.1`, 2021-09-29: improved TRMC optimizations, and improved reuse 
+  (the [rbtree](test/bench/koka/rbtree.kk) benchmark is faster as C++ now). 
+  Improved effect operation speed. Allow elision of `->` in anonymous
+  function expressions (e.g. `xs.map( fn(x) x + 1 )`) and operation clauses. Allow `ctl` for `control`.
+  New default output directory as `.koka` and improved command line options to be more in line with
+  other compilers (with `-o` specifying the final output, and `-e` to execute the program).
+- `v2.3.0`, 2021-09-20: many changes: new layout rule to [elide braces][nobrace] and no more need to 
+  parenthesize `if` and `match` conditions (see the [`samples/basic/rbtree`](samples/basic/rbtree.kk) for 
+  an example of this), updated the JavaScript backend (`--target=js`) to use standard ES6 modules and using the new [`BigInt`][bigint] for arbitrary precision integers, improved runtime layout with support for 128-bit arm CHERI, 
+  add the `std/num/int64` module and `int64` primitive type, add the [binarytrees](test/bench/koka/binarytrees.kk) 
+  benchmark, initial support for parallel tasks (in `std/os/task`), improved simplification and inlining giving
+  much improved effect operations, updated isocline for the interactive environment.
+- `v2.2.1`, 2021-09-05: improved optimization, initial parallel tasks, binary-trees benchmark, 
+  still slightly slower effect handling, upgrade isocline, fix minor bugs.
+- `v2.2.0`, 2021-08-26: improved case-of-known simpification (by Rakshika B), improve cross-module specialization
   (by Steven Fontanella), initial borrowing annotations and improved reuse analysis (by Anton Lorenzen),
   improved line editing in the interactive environment, improved inlining. Note: due to the new inline phases,
   effect handling may currently be a tad slower in this release but will be improved for the next release.
@@ -107,8 +124,10 @@ Koka has few dependencies and should build from source
 without problems on most common platforms, e.g. Windows (including WSL), macOS, and
 Unix. The following programs are required to build Koka:
 
-* [Stack](https://docs.haskellstack.org/) to run the Haskell compiler.  
-  Use `curl -sSL https://get.haskellstack.org/ | sh` on Unix and macOS, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
+* [Stack](https://docs.haskellstack.org/) to run the Haskell compiler. 
+  It is recommended to use `brew install haskell-stack` on macOS M1, 
+  otherwise use `curl -sSL https://get.haskellstack.org/ | sh` 
+  on Unix and macOS x64, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
 * Optional: [vcpkg] to be able to link easily with C libraries. Koka can find it automatically if installed to `~/vcpkg`.
 * Optional: [nodejs](http://nodejs.org) if using the Javascript backend.
 * Optional: On Windows it is recommended to install the [clang][winclang] C compiler, or the [Visual Studio](https://visualstudio.microsoft.com/downloads/) C compiler.
@@ -133,18 +152,18 @@ Use `stack test --fast` to run the test-suite.
 Koka can generate a binary install bundle that can be installed
 on the local machine:
 ```
-$ stack exec koka -- util/bundle
+$ stack exec koka -- -e util/bundle
 ...
 distribution bundle created.
-  bundle : bundle/koka-v2.1.7-linux-x64.tar.gz
+  bundle : bundle/koka-v2.3.1-linux-x64.tar.gz
   cc     : gcc
-  version: v2.1.7
+  version: v2.3.1
 ```
 This takes a while as it pre-compiles the standard libraries in three build
 variants (`debug`, `drelease` (release with debug info), and `release`).
 After generating the bundle, you can install it locally as:
 ```
-$ util/install.sh -b bundle/koka-v2.1.7-linux-x64.tar.gz
+$ util/install.sh -b bundle/koka-v2.3.1-linux-x64.tar.gz
 ```
 (use `util/install.bat` on Windows). 
 After installation, you can now directly invoke `koka`:
@@ -218,43 +237,63 @@ in the [Perceus] report.
 
 Please help develop Koka: there are many opportunities to improve Koka or do research with Koka. We need:
 
-- Emacs (partially done) and Vim syntax highlighting.
-- Improve documentation, landing page etc. Make it easier for people to contribute.
-- More examples
-- Many library modules are incomplete (like `std/os/file`) or missing (like `std/data/map`).
+- [ ] Emacs (partially done) and Vim syntax highlighting.
+- [ ] Add more samples, improve documentation, landing page etc. Make it easier for people to contribute.
+- [ ] Many library modules are incomplete (like `std/os/file`) or missing (like `std/data/map`).
+- [ ] Update file and os primitives for the JavaScript backend.
+- [x] Run the full test suite.
+- [x] Run the Bayesian probalistic machine learning program with large parameters.
+- [x] Functions with a pattern match in the argument (by Steven Fontanella).
+- [x] Support `int64` operations
 
 More advanced projects:
 
-- Update the JavaScript backend to 1) use proper modules instead of amdefine, 2) use the new bigints instead of 
-  bigint.js, and 3) add support for int64. This requires mostly changes to `Backend/JS/FromCore.hs` together 
-  with `lib/core/core-inline.js`.
-- Partially done: see PR #100. A language server for Visual Studio Code and Atom. Koka can already generate a 
-  typed [range map](src/Syntax/RangeMap.hs) so this should be managable.
-- Package management of Koka modules.
-- Proper overloading with (a form of) type classes. (in design phase).
+- [x] Update the JavaScript backend to 1) use modern modules instead of amdefine, 2) use the new bigints instead of 
+  bigint.js, and 3) add support for int64. (landed in the `dev` branch)
+- [x] Port `std/text/regex` from v1 (using PCRE)
+- [ ] A language server for Visual Studio Code and Atom. Koka can already generate a 
+  typed [range map](src/Syntax/RangeMap.hs) so this should be managable. Partially done: see PR #100 (by @fwcd) -- it just
+  needs work on packaging it to make it easy to build and install as part of the Koka installer.
+- [ ] Package management of Koka modules.
+- [ ] Compile to WASM (using emscripten on the current C backend)
+- [ ] Extend TRMC to include (1) return results with pairs (like `unzip` or `partition`), (2) associative functions
+      (like `+` in `length`), and (3) mutually recursive functions.
+- [ ] Improve compilation of local state to use local variables directly (in C) without allocation. Tricky though due to multiple resumptions.
+- [ ] Improve performance of array/mutable reference programming. Koka is has great performance for
+      algebraic datatypes but lags when using more imperative array algorithms. This requires better
+      integration with the reference counting (faster in-place update for vectors) and integration local mutable references.
+- [ ] To support optimal btree's we need mutable fields in constructors; or at least intrusive vector fields.
+- [ ] The current parallel task support is very basic; we need a great work-stealing thread pool, LVar's etc.
+- [ ] Expose the "bytes" primitive data together with views.
+- [ ] Improve C backend code generation to generate nicer output with less "noise" (like temporary variables, or variables for each if condition etc).
+- [ ] Improve C code generation by identifying output that could be better; also in effectful code we generate many join-points (see [9]),
+      can we increase the sharing/reduce the extra code.
+- [ ] The compiler always analyses module dependencies and builds any needed dependencies. The current code 
+      (in `src/Compiler/Compile.hs`) is not great and it would be nice to factorize the "make" functionality out 
+      and also allow for parallel builds.
+
+Master/PhD level:
+
+- [ ] Better FBIP support with guaranteed datatype matching, automatic derivative and visitor generation.
+- [ ] Can we use C++ exceptions to implement "zero-cost" `if yielding() ...` branches and remove the need join points (see [9]).
+- [x] Float up `open` calls to improve effect handling (worked on by Naoya Furudono)
+- [x] Formalize opening and closing effect row types (worked on by Kazuki Ikemori)
 
 Currently being worked on:
 
-- Various standard optimizations like case-of-case, join points, case-of-known constructor, etc.
-- Implement inline specialization where functions like `map`, `fold` etc get specialized for the function 
-  with which they are called.
-  This is an important optimization for functional style languages to reduce the allocation of lambda's.
+- [x] Various standard optimizations like case-of-case, join points, case-of-known constructor, etc.
+- [x] Implement inline specialization where functions like `map`, `fold` etc get specialized for the function 
+  with which they are called. This is an important optimization for functional style languages to reduce the allocation of lambda's.
   (contact: Steven Fontanella)
-- Borrowing analysis for Perceus and improved reuse analysis. (contact: Anton Lorenzen)
+- [x] Borrowing analysis for Perceus and improved reuse analysis. (contact: Anton Lorenzen)
+- [ ] Improve case-of-known simplification with shape information
 
 The following is the immediate todo list to be completed in the coming months:
 
-- Port `std/async` (using `libuv`).
-- Improve compilation of local state to use local variables directly (in C).
+- [ ] Port `std/async` (using `libuv`).
+- [ ] Proper overloading with (a form of) type classes. (in design phase).
 
 Contact me if you are interested in tackling some of these :-)
-
-Recently completed tasks:
-
-- Ported `std/text/regex` (using PCRE)
-- Run the full test suite.
-- Run the Bayesian probalistic machine learning program with large parameters.
-- Functions with a pattern match in the argument (by Steven Fontanella).
 
 
 # Build Notes
@@ -272,11 +311,23 @@ The main development branches are:
 
 ## Building on macOS M1
 
-Currently (Jun 2021) `stack` is not always working well on the M1.
+Currently (Sep 2021) `stack` is not always working well on the M1.
 You need to install `ghc` via `brew`:
 ```
-$ brew install ghc cabal-install haskell-stack
+$ brew install pkg-config ghc cabal-install haskell-stack
 ```
+
+Note it is important to have `stack` and `ghc` as an arm64 build since otherwise Koka will
+be build for x64 and as a result compile to x64 as well! Test this as:
+
+```
+$ file `which stack`
+/opt/homebrew/bin/stack: Mach-O 64-bit executable arm64
+```
+
+If this is not the case, you can still build an x64 Koka but need to add the options
+`--ccopts="-arch arm64" --cclinkopts="-arch arm64"` to cross compile to arm64 executables 
+(since the `clang` compiler targets by default the architecture that its [host process uses][m1arch]!).
 
 Moreover, sometimes `stack` segfaults and running it inside `bash` seems to resolve the issue:
 ```
@@ -284,7 +335,8 @@ $ bash
 bash$ stack update
 ```
 
-Also, we need to tell stack to use the system installed ghc and skip the version check:
+Also, we need to tell stack to use the system installed ghc and skip the version check as
+it can currently not install GHC for arm64 yet:
 ```
 bash:~$ git clone --recursive https://github.com/koka-lang/koka
 bash:~$ cd koka
@@ -292,6 +344,10 @@ bash:~/koka$ stack --system-ghc --skip-ghc-check build
 bash:~/koka$ stack --system-ghc --skip-ghc-check exec koka
 ```
 
+and pass the `--system-ghc` flag to create an installation bundle as well:
+```
+bash:~/koka$ stack --system-ghc --skip-ghc-check exec koka -- -e util/bundle -- --system-ghc
+```
 
 ## Building with Cabal 
 
@@ -332,7 +388,7 @@ We can also run tests as:
 
 or create an installer:
 ```
-~/koka$ cabal new-run koka -- util/bundle
+~/koka$ cabal new-run koka -- -e util/bundle
 ```
 
 ## Building with minbuild
@@ -345,7 +401,7 @@ run the minimal build script to build Koka:
 which directly invokes `ghc` to build the compiler.
 You can create an install bundle from a minbuild as:
 ```
-~/koka$ out/minbuild/koka util/bundle.kk -- --koka=out/minbuild/koka
+~/koka$ .koka/minbuild/koka -e util/bundle.kk -- --koka=.koka/minbuild/koka
 ```
 
 

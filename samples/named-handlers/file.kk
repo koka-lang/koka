@@ -17,16 +17,16 @@ named effect file
 // a (named) handler instance for files
 fun file(fname,action) 
   var content := read-text-file(fname.path).lines
-  with f = named handler 
+  with f <- named handler 
     fun read-line() 
       match content  
         Nil -> "" 
-        Cons(x,xx){ content := xx; x }
+        Cons(x,xx) -> { content := xx; x }
   action(f)
 
 
 public fun main() 
-  with f1 = file("package.yaml")
-  with f2 = file("stack.yaml")
+  with f1 <- file("package.yaml")
+  with f2 <- file("stack.yaml")
   println( f1.read-line() ++ "\n" ++ f2.read-line() )
 

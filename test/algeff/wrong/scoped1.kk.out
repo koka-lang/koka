@@ -1,5 +1,11 @@
-warning (line 25, column 3): using a bare operation is deprecated.
- hint: start with 'val', 'fun', 'except', or 'control' instead.
 warning (line 29, column 19): keyword "fun" is deprecated. Consider using "fn" instead.
-test/algeff/wrong/scoped1.kk(42,21): error: invalid syntax
- unexpected '(': local parameters are no longer supported, use a local 'var' instead
+test/algeff/wrong/scoped1.kk(62, 7): error: type is not polymorphic enough
+ context : handler {
+ ...
+ }
+ term : choice(xs) {
+ ...
+ }
+ inferred type : forall<b,c,d,e1> std/core/hnd/clause1<list<b>,c,d,<nondet,state<int>|e1>,b>
+ is less general than: forall<b> std/core/hnd/clause1<list<b>,b,.hnd-nondet,<nondet,state<int>|_e>,$a>
+ hint : give a higher-rank type annotation to a function parameter?

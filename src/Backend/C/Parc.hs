@@ -227,7 +227,7 @@ optimizeGuard False ri dups rdrops
 optimizeGuard enabled ri dups rdrops
   = do shapes <- getShapeMap
        let mchildrenOf x = case M.lookup x shapes of
-                            Just (ShapeInfo mchildren _ _) -> mchildren
+                            Just (ShapeInfo (Just mchildren) _ _) | not (null mchildren) -> Just mchildren                            
                             _    -> Nothing
        let conNameOf x  = case M.lookup x shapes of
                             Just (ShapeInfo _ (Just (_,cname)) _) -> Just cname
@@ -312,10 +312,10 @@ optimizeGuardEx mchildrenOf conNameOf ri dups rdrops
                      case mftps of
                        Nothing   -> noSpecialize y
                        Just ftps -> do bforms <- mapM getBoxForm ftps
-                                       if (all isBoxIdentity bforms)
-                                         then -- trace ("  all box identity: " ++ show v) $
+                                       if (all isBoxIdentityOrUnknown bforms)
+                                         then -- trace ("** all box identity: " ++ showTName (dropInfoVar v) ++ ": " ++ show (bforms,map pretty ftps)) $
                                               return Nothing
-                                         else -- trace (" no identity: " ++ show (bforms,map pretty ftps)) $
+                                         else -- trace ("** no identity: " ++ showTName (dropInfoVar v) ++ ": " ++ show (bforms,map pretty ftps)) $
                                               noSpecialize y
 
              Drop y | dontSpecialize
@@ -393,7 +393,7 @@ genReuseAssignEx ri x setNull
 genReuseAssignWith :: TName -> Expr -> Parc Expr
 genReuseAssignWith reuseName arg
   = let assign = TName nameAssignReuse (TFun [(nameNil,typeReuse),(nameNil,typeReuse)] typeTotal typeUnit)
-    in return (App (Var assign (InfoExternal [(C, "#1 = #2")])) [Var reuseName InfoNone, arg])
+    in return (App (Var assign (InfoExternal [(C CDefault, "#1 = #2")])) [Var reuseName InfoNone, arg])
 
 
 inferShapes :: [TName] -> [Pattern] -> Parc ShapeMap
@@ -445,7 +445,7 @@ mergeShapeInfo (ShapeInfo mchildren1 mci1 mscan1) (ShapeInfo mchildren2 mci2 msc
 -- Generate a reuse a block
 genReuseAddress :: TName -> Expr
 genReuseAddress tname
-  = App (Var (TName nameReuse funTp) (InfoExternal [(C, "reuse_datatype(#1,current_context())")])) [Var tname InfoNone]
+  = App (Var (TName nameReuse funTp) (InfoExternal [(C CDefault, "reuse_datatype(#1,current_context())")])) [Var tname InfoNone]
   where
     tp    = typeOf tname
     funTp = TFun [(nameNil,tp)] typeTotal typeReuse
@@ -513,10 +513,15 @@ useTName tname
 data BoxForm = BoxIdentity   -- directly in the box itself (`int` or any regular datatype)
              | BoxRaw        -- (possibly) heap allocated raw bits (`int64`)
              | BoxValue      -- (possibly) heap allocated value with scan fields (`maybe<int>`)
+             | BoxUnknown 
              deriving(Eq,Ord,Enum,Show)
 
 isBoxIdentity BoxIdentity = True
 isBoxIdentity _           = False
+
+isBoxIdentityOrUnknown BoxIdentity = True
+isBoxIdentityOrUnknown BoxUnknown  = True
+isBoxIdentityOrUnknown _           = False
 
 getBoxForm' :: Platform -> Newtypes -> Type -> BoxForm
 getBoxForm' platform newtypes tp
@@ -533,7 +538,7 @@ getBoxForm' platform newtypes tp
       Just _
         -> BoxIdentity
       Nothing 
-        -> BoxValue
+        -> BoxUnknown
 
 getBoxForm :: Type -> Parc BoxForm
 getBoxForm tp
@@ -582,6 +587,7 @@ getFieldTypes tp Nothing
 getFieldTypes tp (Just conName)
   = do mdi <- getDataInfo tp
        case mdi of
+         Just di | dataInfoName di == nameOptional -> return Nothing  -- prevent trying to optimize the optional type in specialize above
          Just di -> case filter (\ci -> conName == conInfoName ci) (dataInfoConstrs di) of
                       [con] -> return (Just (map snd (conInfoParams con)))
                       _     -> return Nothing
@@ -624,12 +630,12 @@ genDrop name = do shape <- getShapeInfo name
 -- get the dup/drop function
 dupDropFun :: Bool -> Type -> Maybe (ConRepr,Name) -> Maybe Int -> Expr -> Expr
 dupDropFun False {-drop-} tp (Just (conRepr,_)) (Just scanFields) arg  | not (conReprIsValue conRepr) && not (isBoxType tp)-- drop with known number of scan fields
-  = App (Var (TName name coerceTp) (InfoExternal [(C, "dropn(#1,#2)")])) [arg,makeInt32 (toInteger scanFields)]
+  = App (Var (TName name coerceTp) (InfoExternal [(C CDefault, "dropn(#1,#2)")])) [arg,makeInt32 (toInteger scanFields)]
   where
     name = nameDrop
     coerceTp = TFun [(nameNil,tp),(nameNil,typeInt32)] typeTotal typeUnit
 dupDropFun isDup tp mbConRepr mbScanCount arg
-  = App (Var (TName name coerceTp) (InfoExternal [(C, (if isDup then "dup" else "drop") ++ "(#1)")])) [arg]
+  = App (Var (TName name coerceTp) (InfoExternal [(C CDefault, (if isDup then "dup" else "drop") ++ "(#1)")])) [arg]
   where
     name = if isDup then nameDup else nameDrop
     coerceTp = TFun [(nameNil,tp)] typeTotal (if isDup then tp else typeUnit)
@@ -637,7 +643,7 @@ dupDropFun isDup tp mbConRepr mbScanCount arg
 -- Generate a test if a (locally bound) name is unique
 genIsUnique :: TName -> Expr
 genIsUnique tname
-  = App (Var (TName nameIsUnique funTp) (InfoExternal [(C, "is_unique(#1)")]))
+  = App (Var (TName nameIsUnique funTp) (InfoExternal [(C CDefault, "is_unique(#1)")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeBool
 
@@ -645,7 +651,7 @@ genIsUnique tname
 genFree :: TName -> Parc (Maybe Expr)
 genFree tname
   = return $ Just $
-      App (Var (TName nameFree funTp) (InfoExternal [(C, "kk_constructor_free(#1)")]))
+      App (Var (TName nameFree funTp) (InfoExternal [(C CDefault, "kk_constructor_free(#1)")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
 
@@ -656,7 +662,7 @@ genDecRef tname
        if not needs
          then return Nothing
          else return $ Just $
-                        App (Var (TName nameDecRef funTp) (InfoExternal [(C, "decref(#1,current_context())")]))
+                        App (Var (TName nameDecRef funTp) (InfoExternal [(C CDefault, "decref(#1,current_context())")]))
                             [Var tname InfoNone]
   where
     funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
@@ -665,14 +671,14 @@ genDecRef tname
 -- Generate a reuse free of a constructor
 genFreeReuse :: TName -> Expr
 genFreeReuse tname
-  = App (Var (TName nameFreeReuse funTp) (InfoExternal [(C, "kk_reuse_free(#1)")]))
+  = App (Var (TName nameFreeReuse funTp) (InfoExternal [(C CDefault, "kk_reuse_free(#1)")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeReuse
 
 -- Get a null token for reuse inlining
 genReuseNull :: Expr
 genReuseNull
-  = App (Var (TName nameReuseNull funTp) (InfoExternal [(C, "kk_reuse_null")])) []
+  = App (Var (TName nameReuseNull funTp) (InfoExternal [(C CDefault, "kk_reuse_null")])) []
   where funTp = TFun [] typeTotal typeReuse
 
 

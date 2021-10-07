@@ -1,12 +1,12 @@
 
 effect amb {
-  fun flip() : bool
+  ctl flip() : bool
 }
 
 
 fun amb_handle() {
   handler {
-    return x -> [x]
-    flip()   -> [resume(False)]
+    return(x)  -> [x]
+    ctl flip() -> [resume(False)]
   }
 }

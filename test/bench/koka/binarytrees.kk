@@ -8,10 +8,10 @@ import std/os/env
 import std/os/task
 import std/num/int32
 
-type tree
-  Tip
+type tree  
   Node( left : tree, right : tree )
-
+  Tip
+  
 
 // make a perfectly balanced binary tree of `depth`
 fun make( depth : int ) : div tree
@@ -21,7 +21,7 @@ fun make( depth : int ) : div tree
 
 
 // FBIP in action: use a visitor to run the checksum tail-recursively
-type visit
+type visit  
   Done
   NodeR( right : tree, v : visit )
 
@@ -37,15 +37,15 @@ fun checkv( t : tree, v : visit, acc : int ) : div int
 
 
 // normal checksum  
-fun check32( t : tree ) : div int32  
+fun checkr( t : tree ) : div int  
   match t
-    Node(l,r) -> l.check32 + r.check32.inc
-    Tip       -> zero
-  
+    Node(l,r) -> l.checkr + r.checkr + 1
+    Tip       -> 0
+
 
 fun check( t : tree ) : div int
   checkv(t, Done, 0)
-  //t.check32.int
+  //t.checkr
   
 
 
@@ -56,10 +56,9 @@ fun sum-count( count : int, depth : int ) : div int
     csum := csum + make(depth).check
   csum
 
-
 // parallel sum count: spawn up to `n` sub-tasks to count checksums
 fun psum-count( count : int, depth : int ) : pure int
-  val n = 8
+  val n = 2
   val partc = count / n
   val rest  = count % n
   val parts = list(1,n) fn(i){ task{ sum-count( partc, depth ) }
@@ -71,8 +70,8 @@ fun psum-count( count : int, depth : int ) : pure int
 fun gen-depth( min-depth : int, max-depth : int ) : pure list<(int,int,promise<int>)>
   list(min-depth, max-depth, 2) fn(d)
     val count = 2^(max-depth + min-depth - d)    // todo: ensure fast 2^n operation
-    (count, d, task{ psum-count(count, d) })
-    //(count, d, task{ sum-count(count, d) })   // one task per depth    
+    //(count, d, task{ psum-count(count, d) })
+    (count, d, task{ sum-count(count, d) })   // one task per depth    
 
 
 // show results

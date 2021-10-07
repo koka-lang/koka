@@ -5,7 +5,7 @@
 # For use on platforms where stack is not working and to document
 # the minimal needed commands to build the full compiler.
 
-KOKA_VERSION=2.2.0
+KOKA_VERSION=2.3.1
 KOKA_VARIANT=release
 
 echo ""
@@ -52,7 +52,7 @@ esac
 
 # build the compiler (for used packages see 'package.yaml')
 set -o xtrace
-ghc -isrc:src/Platform/cpp -odir=out/minbuild -hidir=out/minbuild -o out/minbuild/koka \
+ghc -isrc:src/Platform/cpp -odir=.koka/minbuild -hidir=.koka/minbuild -o .koka/minbuild/koka \
     -DKOKA_MAIN=\"koka\" -DKOKA_VARIANT=\"$KOKA_VARIANT\" -DKOKA_VERSION=\"$KOKA_VERSION\" $EXTRADEFS \
     --make -j4 -O2 src/Main.hs src/Platform/cpp/Platform/cconsole.c
 

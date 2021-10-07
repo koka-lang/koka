@@ -156,7 +156,7 @@ moduleImport imp
 
 includeExternal ::  BuildType -> External -> [Doc]
 includeExternal buildType  ext
-  = case externalImportLookup JS buildType "include-inline" ext of
+  = case externalImportLookup (JS JsDefault) buildType "include-inline" ext of
       Just content -> [align $ vcat $! map text (lines content)]
       _ -> []
       
@@ -164,8 +164,8 @@ includeExternal buildType  ext
 
 importExternal :: BuildType -> External -> [(Doc,Doc)]
 importExternal buildType  ext
-  = case externalImportLookup JS buildType  "library" ext of
-      Just path -> [(text path, case externalImportLookup JS buildType  "library-id" ext of 
+  = case externalImportLookup (JS JsDefault) buildType  "library" ext of
+      Just path -> [(text path, case externalImportLookup (JS JsDefault) buildType  "library-id" ext of 
                                   Just name -> text name
                                   Nothing   -> text path)]
       _ -> []
@@ -683,7 +683,7 @@ genExpr expr
      App (Var tname _) [Lit (LitInt i)] | getName tname == nameInt64 && isSmallInt i
        -> return (empty, pretty i <.> text "n")       
 
-     -- special: cfield-set
+     -- special: cfield-of
      App (TypeApp (Var cfieldOf _) [_]) [Var con _, Lit (LitString conName), Lit (LitString fieldName)]  | getName cfieldOf == nameCFieldOf
        -> do conDoc <- genTName con
              return (empty,text "{value:" <+> conDoc <.> text ", field: \"" <.> ppName (unqualify (readQualified fieldName)) <.> text "\"}")
@@ -932,12 +932,10 @@ genExprExternalPrim tname formats argDocs0
 
 getFormat :: TName -> [(Target,String)] -> String
 getFormat tname formats
-  = case lookup JS formats of
-      Nothing -> case lookup Default formats of
-         Just s  -> s
-         Nothing -> -- failure ("backend does not support external in " ++ show tname ++ ": " ++ show formats)
-                    trace( "warning: backend does not support external in " ++ show tname ) $
-                      ("$std_core._unsupported_external(\"" ++ (show tname) ++ "\")")
+  = case lookupTarget (JS JsDefault) formats of  -- TODO: pass specific target from the flags
+      Nothing -> -- failure ("backend does not support external in " ++ show tname ++ ": " ++ show formats)
+                 trace( "warning: backend does not support external in " ++ show tname ) $
+                    ("$std_core._unsupported_external(\"" ++ (show tname) ++ "\")")
       Just s -> s
 
 genDefName :: TName -> Asm Doc
@@ -997,10 +995,8 @@ extractExternal expr
       _ -> Nothing
   where
     format tn fs
-      = case lookup JS fs of
-          Nothing -> case lookup Default fs of
-                       Nothing -> failure ("backend does not support external in " ++ show tn ++ show fs)
-                       Just s  -> s
+      = case lookupTarget (JS JsDefault) fs of  -- TODO: pass real target from flags
+          Nothing -> failure ("backend does not support external in " ++ show tn ++ show fs)
           Just s -> s
 
 isFunExpr :: Expr -> Bool

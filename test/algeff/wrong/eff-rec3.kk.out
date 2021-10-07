@@ -1,2 +1,7 @@
-test/algeff/wrong/eff-rec3.kk(7,23): error: invalid syntax
- unexpected '(': local parameters are no longer supported, use a local 'var' instead
+test/algeff/wrong/eff-rec3.kk(17, 5): error: types do not match (due to an infinite type)
+ context : get()(i)
+ term : get()
+ inferred effect: <state<(int) -> _e1 _a>|_e>
+ expected effect: _e1
+ because : effect cannot be subsumed
+ hint : give a type to the function definition?

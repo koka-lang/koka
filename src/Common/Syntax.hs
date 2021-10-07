@@ -15,8 +15,7 @@ module Common.Syntax( Visibility(..)
                     , DataKind(..)
                     , DefSort(..), isDefFun, defFun
                     , DefInline(..)
-                    , Target(..)
-                    , Host(..)
+                    , Target(..), CTarget(..), JsTarget(..), isTargetC, isTargetJS, isTargetWasm
                     , isPublic, isPrivate
                     , DataDef(..)
                     , dataDefIsRec, dataDefIsOpen, dataDefIsValue
@@ -31,19 +30,38 @@ module Common.Syntax( Visibility(..)
 {--------------------------------------------------------------------------
   Backend targets
 --------------------------------------------------------------------------}
-data Target = CS | JS | C | Default deriving (Eq,Ord)
+data JsTarget = JsDefault | JsNode | JsWeb                 deriving (Eq,Ord)
+data CTarget  = CDefault | LibC | Wasm | WasmJs | WasmWeb deriving (Eq,Ord)
+
+data Target = CS | JS JsTarget| C CTarget | Default deriving (Eq,Ord)
+
+isTargetC (C _) = True
+isTargetC _     = False
+
+isTargetJS (JS _) = True
+isTargetJS _      = False
+
+isTargetWasm :: Target -> Bool
+isTargetWasm target 
+  = case target of
+      C Wasm    -> True
+      C WasmJs  -> True
+      C WasmWeb -> True
+      _         -> False
+
 
 instance Show Target where
-  show CS = "cs"
-  show JS = "js"
-  show C  = "c"
-  show Default = ""
-
-data Host = Node | Browser deriving (Eq,Ord)
-
-instance Show Host where
-  show Node    = "node"
-  show Browser = "browser"
+  show tgt = case tgt of
+               CS        -> "cs"
+               JS JsWeb  -> "jsweb"
+               JS JsNode -> "jsnode"
+               JS _      -> "js"
+               C  Wasm   -> "wasm"
+               C  WasmJs -> "wasmjs"
+               C  WasmWeb-> "wasmweb"
+               C  LibC   -> "libc"
+               C  _      -> "c"
+               Default   -> ""
 
 
 data Platform = Platform{ sizePtr  :: Int -- sizeof(intptr_t)
@@ -101,7 +119,7 @@ data HandlerSort
 instance Show (HandlerSort) where
   show hsort = case hsort of
                  HandlerNormal -> "normal"
-                 HandlerInstance -> "instance"
+                 HandlerInstance -> "named"
 
 isHandlerInstance (HandlerInstance) = True
 isHandlerInstance _ = False
@@ -118,18 +136,21 @@ instance Show OperationSort where
   show opsort = case opsort of
                   OpVal -> "val"
                   OpFun -> "fun"
-                  OpExcept -> "except"
-                  OpControlRaw -> "rcontrol"
-                  OpControl -> "control"
-  
+                  OpExcept -> "brk"
+                  OpControl -> "ctl"
+                  OpControlRaw -> "rawctl"
+                  
 readOperationSort :: String -> Maybe OperationSort
 readOperationSort s 
   = case s of 
       "val" -> Just OpVal
       "fun" -> Just OpFun
-      "except"   -> Just OpExcept
-      "rcontrol" -> Just OpControlRaw
+      "brk" -> Just OpExcept
+      "ctl"    -> Just OpControl
+      "rawctl" -> Just OpControlRaw
+      "except" -> Just OpExcept
       "control"  -> Just OpControl
+      "rcontrol" -> Just OpControlRaw
       _ -> Nothing
   
 {--------------------------------------------------------------------------

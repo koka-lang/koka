@@ -58,11 +58,14 @@ data ColorScheme  = ColorScheme
                       }
 
 -- | The default color scheme
-defaultColorScheme :: ColorScheme
+defaultColorScheme, darkColorScheme, lightColorScheme :: ColorScheme
 defaultColorScheme
-  = let c = emptyColorScheme{ colorInterpreter = Red
+  = darkColorScheme
+
+darkColorScheme  
+  = let c = emptyColorScheme{ colorInterpreter = DarkRed
+                            , colorCommand     = Red
                             , colorError       = Red
-                            , colorCommand     = White
                             , colorComment     = DarkGreen
                             , colorReserved    = DarkYellow  
                             -- , colorReservedOp  = DarkYellow
@@ -70,8 +73,8 @@ defaultColorScheme
                             , colorModule      = DarkCyan
                             , colorNameQual    = DarkGray
                             , colorString      = DarkRed
-                            , colorNumber      = Gray
-                            , colorSource      = Gray
+                            , colorNumber      = ColorDefault
+                            , colorSource      = ColorDefault
                             , colorParameter   = DarkGray
                             , colorRange       = colorInterpreter c
                             , colorMarker      = colorInterpreter c
@@ -88,14 +91,32 @@ defaultColorScheme
                             }
     in c
   
+lightColorScheme
+  = let c = darkColorScheme {
+                colorNumber      = DarkGray
+              , colorSource      = DarkGray
+              , colorCommand     = Black
+              , colorInterpreter = DarkRed
+              , colorError       = DarkRed
+              , colorWarning     = colorError c
+              , colorNameQual    = DarkGray
+              , colorRange       = colorInterpreter c
+              , colorMarker      = colorInterpreter c
+              , colorString      = Red           
+            }
+    in c  
+
 emptyColorScheme
-  = ColorScheme ColorDefault ColorDefault ColorDefault ColorDefault ColorDefault
-                ColorDefault ColorDefault ColorDefault ColorDefault
-                 ColorDefault ColorDefault ColorDefault ColorDefault
-                 ColorDefault ColorDefault ColorDefault ColorDefault
-                 ColorDefault ColorDefault ColorDefault ColorDefault
-                 ColorDefault ColorDefault ColorDefault ColorDefault
-                 ColorDefault ColorDefault ColorDefault
+  = makeColorScheme ColorDefault
+
+makeColorScheme clr
+  = ColorScheme clr clr clr clr clr
+                clr clr clr clr
+                 clr clr clr clr
+                 clr clr clr clr
+                 clr clr clr clr
+                 clr clr clr clr
+                 clr clr clr
 
 {--------------------------------------------------------------------------
   Read colors
@@ -123,7 +144,9 @@ readColorFlag s scheme
                    -> case (readUpdate name, readColor clr) of
                         (Just update,Just color) -> update color scheme
                         _                        -> scheme
-         _         -> scheme
+         _         -> case readUpdate name of
+                        Just update -> update ColorDefault scheme
+                        _  -> scheme
 
 readUpdate :: String -> Maybe (Color -> ColorScheme -> ColorScheme)
 readUpdate s
@@ -169,6 +192,8 @@ updaters  = [("type", \color scheme -> scheme{ colorType = color, colorTypeCon =
             ,("parameter",\color scheme -> scheme{ colorParameter = color })
             ,("cons",\color scheme -> scheme{ colorCons = color })
             ,("constructor",\color scheme -> scheme{ colorCons = color })
+            ,("none",\color scheme -> makeColorScheme color)
+            ,("all",\color scheme -> makeColorScheme color)
             ]
 
 colors  = [("black",Black)

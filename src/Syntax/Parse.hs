@@ -405,16 +405,19 @@ externalImport rng1
       = do (id,_) <- varid
            return (show id) 
 
-    externalIncludes target rng (key,fname)  | key == "file" || key == "header-file"
+    externalIncludes target rng (key,fname)  | key == "file" || key == "header-file" || key == "header-end-file"
      = do let currentFile = (Common.Range.sourceName (rangeSource rng))
               fpath       = joinPath (dirname currentFile) fname
-          if (target==C && null (extname fpath) && key=="file")
+          if (isTargetC target && null (extname fpath) && key=="file")
             then do contentH <- preadFile (fpath ++ ".h")
                     contentC <- preadFile (fpath ++ ".c")
                     return [("header-include-inline",contentH),("include-inline",contentC)]
-            else if (target==C && key=="header-file")
+            else if (isTargetC target  && key=="header-file")
                   then do content <- preadFile fpath
                           return [("header-include-inline",content)]
+                 else if (isTargetC target && key=="header-end-file")
+                  then do content <- preadFile fpath
+                          return [("header-end-include-inline",content)]                 
                   else if (key == "file") 
                          then do content <- preadFile fpath
                                  return [("include-inline",content)]
@@ -465,13 +468,13 @@ externalCall
 
 externalTarget
   = do specialId "c"
-       return C
+       return (C CDefault)
   <|>
     do specialId "cs"
        return CS
   <|>
     do specialId "js"
-       return JS
+       return (JS JsDefault)
   <|>
     return Default
 
@@ -932,14 +935,14 @@ parseFunOpDecl linear vis =
   do ((rng0,doc),opSort) <- do rdoc <- dockeywordFun
                                return (rdoc,OpFun)
                            <|>
-                            do rdoc <- dockeyword "except"
+                            do rdoc <- dockeyword "except" <|> dockeyword "brk"
                                if (linear)
-                                then fail "'except' operations are invalid for a linear effect"
+                                then fail "'brk' operations are invalid for a linear effect"
                                 else return (rdoc,OpExcept)
                            <|>
-                            do rdoc <- dockeyword "control"
+                            do rdoc <- dockeyword "control" <|> dockeyword "ctl"
                                if (linear)
-                                then fail "'control' operations are invalid for a linear effect"
+                                then fail "'ctl' operations are invalid for a linear effect"
                                 else return (rdoc,OpControl)
      (id,idrng)   <- identifier
      exists0      <- typeparams
@@ -1408,19 +1411,20 @@ typeAnnotation
 --------------------------------------------------------------------------}
 bodyexpr :: LexParser UserExpr
 bodyexpr
-  = do keyword "->" <|> keyword "="
-       blockexpr
+  = blockexpr
   <|>
-    block
+    do keyword "->" -- <|> keyword "="
+       -- pwarningMessage "using '->' is deprecated, it can be left out."
+       blockexpr    
 
 blockexpr :: LexParser UserExpr   -- like expr but a block `{..}` is interpreted as statements
 blockexpr
-  = withexpr <|> bfunexpr <|> returnexpr <|> basicexpr
+  = withexpr <|> bfunexpr <|> returnexpr <|> valexpr <|> basicexpr
   <?> "expression"
 
 expr :: LexParser UserExpr
 expr
-  = withexpr <|> funexpr <|> returnexpr <|> basicexpr
+  = withexpr <|> funexpr <|> returnexpr <|> valexpr <|> basicexpr
   <?> "expression"
 
 basicexpr :: LexParser UserExpr
@@ -1434,6 +1438,14 @@ withexpr
        keyword "in"
        e <- blockexpr
        return (f e)
+
+valexpr :: LexParser UserExpr
+valexpr
+  = do f <- localValueDecl
+       keyword "in"
+       e <- expr
+       return (f e)
+
 
 bfunexpr
   = block <|> lambda ["fun"]
@@ -1452,7 +1464,7 @@ lambda alts
   = do rng <- keywordOr "fn" alts
        spars <- squantifier
        (tpars,pars,parsRng,mbtres,preds,ann) <- funDef
-       body <- block
+       body <- bodyexpr
        let fun = promote spars tpars preds mbtres
                   (Lam pars body (combineRanged rng body))
        return (ann fun)
@@ -1639,6 +1651,7 @@ opClauses
 handlerOpX :: LexParser (Clause, Maybe (UserExpr -> UserExpr))
 handlerOpX
   = do rng <- specialId "finally"
+       optional( parens (return ()) )
        expr <- bodyexpr
        return (ClauseFinally (Lam [] expr (combineRanged rng expr)), Nothing)
   <|>
@@ -1653,11 +1666,13 @@ handlerOpX
   <|>
     handlerOp
 
+
 -- returns a clause and potentially a binder as transformation on the handler
 handlerOp :: LexParser (Clause, Maybe (UserExpr -> UserExpr))
 handlerOp
   = do rng <- keyword "return"
        (name,prng,tp) <- do (name,prng) <- paramid
+                            pwarningMessage "'return x' is deprecated; use 'return(x)' instead."
                             tp         <- optionMaybe typeAnnotPar
                             return (name,prng,tp)
                         <|>
@@ -1679,19 +1694,18 @@ handlerOp
     do opSort <- do keyword "fun"
                     return OpFun
                  <|>
-                 do keyword "except"
+                 do keyword "except" <|> keyword "brk"
                     return OpExcept
                  <|>
-                 do keyword "control"
+                 do keyword "control" <|> keyword "ctl"
                     return OpControl
                  <|>
-                 do keyword "rcontrol"
+                 do keyword "rcontrol" <|> keyword "rawctl"
                     return OpControlRaw
                  <|>
                  -- deprecated
                  do lookAhead qidentifier
-                    pos <- getPosition
-                    pwarning $ "warning " ++ show pos ++ ": using a bare operation is deprecated.\n  hint: start with 'val', 'fun', 'except', or 'control' instead."
+                    pwarningMessage "using a bare operation is deprecated.\n  hint: start with 'val', 'fun', 'brk', or 'ctl' instead."
                     return OpControl
        (name, nameRng) <- qidentifier
        (oppars,prng) <- opParams
@@ -1738,7 +1752,12 @@ guards :: LexParser [UserGuard]
 guards
   = many1 guardBar
   <|>
-    do exp <- bodyexpr
+    do keyword "->"
+       exp <- blockexpr
+       return [Guard guardTrue exp]
+  <|>
+    do exp <- block
+       pwarningMessage "use '->' for pattern matches"
        return [Guard guardTrue exp]
 
 guardBar
@@ -2750,6 +2769,11 @@ dockeyword s
 warnDeprecated dep new
   = do pos <- getPosition
        pwarning $ "warning " ++ show pos ++ ": keyword \"" ++ dep ++ "\" is deprecated. Consider using \"" ++ new ++ "\" instead."
+
+
+pwarningMessage msg
+  = do pos <- getPosition
+       pwarning $ "warning " ++ show pos ++ ": " ++ msg
 
 pwarning :: String -> LexParser ()
 pwarning msg = traceM msg

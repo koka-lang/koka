@@ -851,7 +851,7 @@ static kk_bigint_t* bigint_add_abs(kk_bigint_t* x, kk_bigint_t* y, kk_context_t*
 
 
 static kk_bigint_t* kk_bigint_add_abs_small(kk_bigint_t* x, kk_digit_t y, kk_context_t* ctx) {
-  kk_assert_internal(y >= 0 && y < BASE);  
+  kk_assert_internal(y < BASE);  
   const kk_ssize_t cx = bigint_count_(x);
 
   // allocate result bigint

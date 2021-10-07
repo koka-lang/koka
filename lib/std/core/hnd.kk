@@ -289,15 +289,15 @@ private fun prompt( w0 : evv<e0>,  w1 : evv<e0>, ev : ev<h>, m : marker<e0,r>, r
   guard(w1)
   evv-set(w0)  // restore the previous evidence vector
   match(yield-prompt(m)) {
-    Pure {
+    Pure -> {
       // returning
       ret(result)
     }
-    YieldingFinal {
+    YieldingFinal -> {
       // yielding final (exception), keep yielding
       keep-yielding-final()
     }
-    Yielding {
+    Yielding -> {
       // regular yield, install a continuation
       yield-cont(fn(cont,res){
         // we resume, continue under a fresh a prompt again
@@ -307,20 +307,20 @@ private fun prompt( w0 : evv<e0>,  w1 : evv<e0>, ev : ev<h>, m : marker<e0,r>, r
         prompt(w0',w1',ev,unsafe-decreasing(m),ret,cont(res));
       })
     }
-    Yield(clause,cont) {
+    Yield(clause,cont) -> {
       // yielded to the operation `clause` in our handler
       fun resume(r) {
         match(r) {
-          Deep(x) {
+          Deep(x) -> {
             val w0' = evv-get()  // if not using scoped resumptions, w0' may be different from w0
             val w1' = if (evv-eq(w0,w0')) then w1 else evv-insert(w0',ev)
             evv-set(w1')
             prompt(w0',w1',ev,unsafe-decreasing(m),ret,cont({x}))
           }
-          Shallow(x) {
+          Shallow(x) -> {
             yield-bind( cont({x}), fn(y){ ret(y) } )
           }
-          Finalize(x) {
+          Finalize(x) -> {
             val w0' = evv-get()  // if not using scoped resumptions, w0' may be different from w0
             val w1' = if (evv-eq(w0,w0')) then w1 else evv-insert(w0',ev)
             evv-set(w1')

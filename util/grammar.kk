@@ -23,7 +23,7 @@ fun main()
 
 fun build()
   // Install paths
-  val outdir = "out/grammar".path
+  val outdir = ".koka/grammar".path
   val gdir   = "doc/spec/grammar".path
 
   println("copying...")

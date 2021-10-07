@@ -72,7 +72,7 @@ data State = State{  printer    :: ColorPrinter
 ---------------------------------------------------------------}
 interpret ::  ColorPrinter -> Flags -> Flags -> [FilePath] -> IO ()
 interpret printer flags0 flagspre files
-  = withReadLine (outDir flags0) $
+  = withReadLine (buildDir flags0) $
     do{ let st0 = (State printer flags0 flagspre False initialLoaded initialLoaded [] (programNull nameInteractiveModule) Nothing [] initialLoaded)
       ; messageHeader st0
       ; let st2 = st0
@@ -266,7 +266,12 @@ loadFiles term originalSt startSt files force
 
 
 loadFilesErr term startSt fileNames force
-  = do walk [] startSt fileNames
+  = do {- when (verbose (flags startSt) > 0) $
+          do let colors = colorSchemeFromFlags (flags startSt)
+             withColor (printer startSt) (colorInterpreter colors) (message startSt "builddir: ")
+             withColor (printer startSt) (colorSource colors) (messageLn startSt (fullBuildDir (flags startSt)))
+       -}
+       walk [] startSt fileNames
   where
     walk :: [Module] -> State -> [FilePath] -> IO (Error State)
     walk imports st files
@@ -687,14 +692,19 @@ messageHeader st
                            (if compilerBuildVariant /= "release" then (" (" ++ compilerBuildVariant ++ ")") else "") ++ ", "
                            ++ buildDate ++ targetMsg
     welcome       = text ("welcome to the " ++ Config.programName ++ " interactive compiler")
+    tgt = target (flags st)
     targetMsg
-      = case (target (flags st)) of
-          C  -> ", " ++ "libc" -- osName 
-                ++ " " ++ cpuArch -- show (8*sizePtr (platform (flags st))) ++ "-bit"
-                ++ " (" ++ (ccName (ccomp (flags st))) ++ ")"
-          JS -> ", node"
-          CS -> ", .net"
-          _  -> ""
+      = case tgt of
+          C _ | isTargetWasm tgt
+                -> ", " ++ show tgt
+                    ++ show (8*sizePtr (platform (flags st)))
+                    ++ " (" ++ (ccName (ccomp (flags st))) ++ ")"
+          C _   -> ", " ++ show tgt
+                    ++ " " ++ cpuArch -- show (8*sizePtr (platform (flags st))) ++ "-bit"
+                    ++ " (" ++ (ccName (ccomp (flags st))) ++ ")"
+          JS _  -> ", " ++ show tgt
+          CS    -> ", .net"
+          _     -> ""
 
 semiRandom min max
   = do t <- getCurrentTime

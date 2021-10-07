@@ -6,8 +6,6 @@
 ()
 False
  
-test/algeff/implicits.kk(96,11): warning: operation get is declared as 'fun' but handled here using 'control'
-test/algeff/implicits.kk(96,11): warning: operation set is declared as 'fun' but handled here using 'control'
 algeff/implicits/Abort: forall<e,a> (.hnd-abort<e,a>) -> abort
 algeff/implicits/Children: forall<e,a> (.hnd-children<e,a>) -> children
 algeff/implicits/Choice: forall<e,a> (.hnd-choice<e,a>) -> choice
