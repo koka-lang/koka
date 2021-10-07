@@ -1,5 +1,14 @@
 // bench mark to measure the effect of open floating
 
+/*
+ feature/open decrease the number of open calls but the execution time seems 2x slower, compare to dev one.
+
+ feature/open: commit 1f1c93c37e53715911bb1b756056aa85c8173d82
+ dev: commit 22e54d8b4d3a5f74e44df04ba5ad9b1c45e07516 
+
+*/ 
+
+
 effect bra {
     fun brara() : ()
 }
