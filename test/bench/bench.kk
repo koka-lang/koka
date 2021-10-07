@@ -353,7 +353,7 @@ fun execute-test( run : int, base : string, prog : string ) : io either<string,(
                then "/usr/bin/time -l 2> " ++ timef ++ " " ++ prog
                else "/usr/bin/time -f'%e %M' -o" ++ timef ++ " " ++ prog
   ensure-dir("out".path)
-  run-system("sleep 1")
+  run-system("sleep 2")
   val out  = run-system-read(cmd).exn
   print(out)
   val time = read-text-file(timef.path).trim
