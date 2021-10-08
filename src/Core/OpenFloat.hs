@@ -83,8 +83,8 @@ fltExpr expr
       -> do fltExpr  (App f args)
 
     App f args
-      -> do (f', rqf) <- fltExpr f 
-            args_rq' <- mapM (\arg -> fltExpr arg ) args
+      -> do (f', rqf) <- fltExpr f
+            args_rq' <- mapM fltExpr args
             tp <- getFunType f
             let (args', rqs) = unzip args_rq'
                 Just(_, feff, _) = splitFunType tp
@@ -116,20 +116,20 @@ fltExpr expr
 
     Let defgs body ->
       if length defgs > 1
-        -- opens in same defgroups cannot be merged in the middle of the defgroups
-        then fltExpr (expandLetExpr expr) 
+        -- expand because open calls in same defGroups cannot be merged in the middle of the defGroups
+        then fltExpr (expandLetExpr expr)
       else
         do -- traceDoc $ \env -> text $ "LET " ++ show expr ++ "\n"
-          defgIR_rqs <- mapM (\def -> fltDefGroupAux def ) defgs
-          (body', rq) <- fltExpr body 
+          defgIR_rqs <- mapM fltDefGroupAux defgs
+          (body', rq) <- fltExpr body
           let (defgIRs, rqs) = unzip defgIR_rqs
               rqSup = sup $ rq:rqs
               body'' = smartRestrictExpr rq rqSup body'
           defgs' <- mapM (restrictToDG rqSup) defgIRs
           return (assertTypeInvariant $ Let defgs' body'', rqSup)
     Case exprs bs
-      -> do exprIR_rqs <- mapM (\exp-> fltExpr exp )exprs
-            bIR_rqs <- mapM (\b -> fltBranchAux b ) bs
+      -> do exprIR_rqs <- mapM fltExpr exprs
+            bIR_rqs <- mapM fltBranchAux bs
             let rqe = foldl supb Bottom $ map snd exprIR_rqs
                 (bIRs, rqbs) = unzip bIR_rqs
                 rqSup = sup $ rqe : rqbs
@@ -139,11 +139,11 @@ fltExpr expr
 
     -- type application and abstraction
     TypeLam tvars body
-      -> do (body', rq) <- fltExpr body 
+      -> do (body', rq) <- fltExpr body
             return (assertTypeInvariant $ TypeLam tvars body', Bottom)
 
     TypeApp body tps
-      -> do (body', rq) <- fltExpr body 
+      -> do (body', rq) <- fltExpr body
             return (assertTypeInvariant $ TypeApp body' tps, rq)
 
     -- the rest
@@ -153,7 +153,7 @@ fltExpr expr
       assertTypeInvariant expr' = if not debug then expr' else
         let tpBefore = typeOf expr
             tpAfter = typeOf expr' in
-              assertion "OpenFloat. Type invariant violaiton." (matchType tpBefore tpAfter) expr'
+              assertion "OpenFloat. Type invariant violation." (matchType tpBefore tpAfter) expr'
       restrictToD :: Req -> DefIR -> Flt Def
       restrictToD rqSup (DefIR def@Def{defExpr=expr} rq) = return $ def{defExpr= smartRestrictExpr rq rqSup expr}
       restrictToDG :: Req -> DefGroupIR -> Flt DefGroup
@@ -177,30 +177,30 @@ fltExpr expr
 
       fltDefAux :: Def -> Flt (DefIR, Req)
       fltDefAux def@Def{defExpr=expr}  =
-        do (expr', rq) <- fltExpr expr 
+        do (expr', rq) <- fltExpr expr
            return (DefIR def{defExpr=expr'} rq, rq)
 
       fltDefGroupAux :: DefGroup -> Flt (DefGroupIR, Req)
       fltDefGroupAux (DefRec defs)  =
         do
-           defIR_rqs <- mapM (\def -> fltDefAux def ) defs
+           defIR_rqs <- mapM fltDefAux defs
            let (defIRs, rqs) = unzip defIR_rqs
            return (DefRecIR defIRs, sup rqs)
       fltDefGroupAux (DefNonRec def)  =
         do
-           (defIR, rq) <- fltDefAux def 
+           (defIR, rq) <- fltDefAux def
            return (DefNonRecIR defIR, rq)
 
       fltBranchAux :: Branch -> Flt (BranchIR, Req)
       fltBranchAux (Branch pat guards)  =
-        do guard_rqs <- mapM (\guard -> fltGuardAux guard  ) guards
+        do guard_rqs <- mapM fltGuardAux guards
            let (guards', rqs) = unzip guard_rqs
            return (BranchIR pat guards', sup rqs)
 
       fltGuardAux :: Guard -> Flt (GuardIR, Req)
       fltGuardAux (Guard guard body)  =
-        do (guard', rqg) <- fltExpr guard 
-           (body', rqb)  <- fltExpr body 
+        do (guard', rqg) <- fltExpr guard
+           (body', rqb)  <- fltExpr body
            return (GuardIR (guard', rqg) (body', rqb), supb rqg rqb)
 
       expandLetExpr :: Expr -> Expr
@@ -232,7 +232,7 @@ supbEffect eff1 eff2 =
            (isEffectEmpty tl1 || isEffectEmpty tl2 || tl1 `matchEffect` tl2 )
            (if isEffectEmpty tl1 then tl2 else tl1)
     labs = mergeLabs labs1 labs2
-  in effectExtends labs tl  -- tl might be singlton label? so that it make result ill-formed?
+  in effectExtends labs tl  -- tl might be singleton label? so that it make result ill-formed?
   where
     compareLabel :: Tau -> Tau -> Ordering
     compareLabel l1 l2 = let (name1, i1, args1) = labelNameEx l1
@@ -301,6 +301,8 @@ smartRestrictExpr (Eff effFrom) (Eff effTo) expr =
       df = Def {defName=fname, defType=tp, defExpr=Lam [] effFrom expr, defVis=Public , defSort=DefFun , defInline=InlineAuto , defNameRange=rangeNull , defDoc="internal"}
       dgs = [DefNonRec df] in
     Let dgs $ App (openEffectExpr effFrom effTo (TFun [] effFrom restp) (TFun [] effTo restp) (Var ftname InfoNone)) []
+
+    -- open(\_.expr)() : ERROR
     -- let
     --   tp = typeOf expr
     --   fname = newHiddenName "restrict"
@@ -322,7 +324,7 @@ smartOpenExpr (Eff effFrom) (Eff effTo) expr =
 
 
 {--------------------------------------------------------------------------
-  IRs : Return type of auxiliary functions. Each Expr has own rq in order to be restricted.
+  IRs : Return type of auxiliary functions. Each Expr of constructs has its own rq, in order to be restricted.
 --------------------------------------------------------------------------}
 
 data BranchIR = BranchIR { branchPatterns :: [Pattern]
