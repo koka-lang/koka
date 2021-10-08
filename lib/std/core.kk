@@ -350,7 +350,6 @@ fun list( lo: int, hi: int, stride : int, f : int -> e a ) : e list<a> {
     else Nil  
 }
 
-
 // Create a list of characters from `lo`  to `hi`  (inclusive).
 fun list( lo : char, hi : char ) : total list<char> {
   list(lo.int, hi.int).map( char )
@@ -1258,6 +1257,8 @@ fun fold-int( start : int, end : int, init : a, f : (int,a) -> e a ) : e a {
 fun fold-int( upto : int, init : a, f : (int,a) -> e a ) : e a {
   fold-int( 0, upto.dec, init, f )
 }
+
+
 
 // ----------------------------------------------------------------------------
 // 32-bit integers

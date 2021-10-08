@@ -333,7 +333,7 @@ typedef struct kk_context_s {
   kk_function_t  log;              // logging function
   kk_function_t  out;              // std output
   kk_task_group_t* task_group;     // task group for managing threads. NULL for the main thread.
-
+  
   struct kk_random_ctx_s* srandom_ctx; // strong random using chacha20, initialized on demand
   kk_ssize_t     argc;             // command line argument count 
   const char**   argv;             // command line arguments

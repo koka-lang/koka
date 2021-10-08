@@ -135,7 +135,6 @@ void kk_info_message(const char* fmt, ...) {
 /*--------------------------------------------------------------------------------------------------
   Process init/done
 --------------------------------------------------------------------------------------------------*/
-// static void free_context(void);
 static bool process_initialized; // = false
 
 static void kklib_done(void) {
