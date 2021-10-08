@@ -298,7 +298,7 @@ smartRestrictExpr (Eff effFrom) (Eff effTo) expr =
       restp = typeOf expr
       tp = TFun [] effFrom restp
       ftname = TName fname tp
-      df = Def {defName=fname, defType=tp, defExpr=Lam [] effFrom expr, defVis=Public , defSort=DefFun , defInline=InlineAuto , defNameRange=rangeNull , defDoc="internal"}
+      df = Def {defName=fname, defType=tp, defExpr=Lam [] effFrom expr, defVis=Public , defSort=DefFun [], defInline=InlineAuto , defNameRange=rangeNull , defDoc="internal"}
       dgs = [DefNonRec df] in
     Let dgs $ App (openEffectExpr effFrom effTo (TFun [] effFrom restp) (TFun [] effTo restp) (Var ftname InfoNone)) []
 

@@ -48,6 +48,7 @@ set(kklib_sources
     src/refcount.c
     src/ref.c
     src/string.c
+    src/thread.c
     src/time.c
     src/vector.c
     )

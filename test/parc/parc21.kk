@@ -1,10 +1,15 @@
+// Check that borrowing keeps evaluation order
 
-rectype foo {
-  Foo( i : int )  
+noinline fun bo(a : int, ^b : int) {
+  a
 }
 
-fun testx(foo:foo)  {
-  match(foo) {
-    Foo(ii) -> ii
-  }
+fun print-ret(x : int) {
+  print(x)
+  x
+}
+
+fun test() {
+  bo(3, 4).print
+  bo(print-ret(3), print-ret(4))
 }

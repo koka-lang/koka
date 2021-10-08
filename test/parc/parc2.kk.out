@@ -2,6 +2,6 @@ module parc/parc2
 private import std/core/types = std/core/types = "";
 private import std/core = std/core = "";
 public fun test : forall<a> (x : list<a>) -> list<a>
- = fn(x: list<41>){
+ = fn(x: list<0>){
  std/core/append((std/core/types/.dup(x)), x);
  };

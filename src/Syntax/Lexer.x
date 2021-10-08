@@ -272,8 +272,7 @@ reservedNames
     , "effect", "receffect"
     , "named"
     , "mask"
-    , "override"
-    , "unsafe"       -- future
+    , "override"   
 
     -- deprecated
     -- alternative names for backwards paper compatability

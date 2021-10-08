@@ -164,15 +164,14 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\.koka\debug\samples_handlers_scoped.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core_hnd.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core_types.c" />
-    <ClCompile Include="..\..\..\.koka\debug\std_num_double.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_num_int32.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_os_env.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_os_path.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_text_parse.c" />
+    <ClCompile Include="..\..\..\.koka\debug\test_bench_koka_rbtree.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

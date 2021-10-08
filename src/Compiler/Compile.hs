@@ -64,6 +64,7 @@ import Core.FunLift           ( liftFunctions )
 import Core.Monadic           ( monTransform )
 import Core.MonadicLift       ( monadicLift )
 import Core.Inlines           ( inlinesExtends, extractInlineDefs, inlinesMerge, inlinesToList, inlinesFilter, inlinesNew )
+import Core.Borrowed          ( Borrowed )
 import Core.Inline            ( inlineDefs )
 import Core.Specialize
 
@@ -213,7 +214,7 @@ compileExpression term flags loaded compileTarget program line input
                               [(qnameShow,_)]
                                 -> do let expression = mkApp (Var (qualify nameSystemCore (newName "println")) False r)
                                                         [mkApp (Var qnameShow False r) [mkApp (Var qnameExpr False r) []]]
-                                      let defMain = Def (ValueBinder (qualify (getName program) nameMain) () (Lam [] expression r) r r)  r Public (DefFun ) InlineNever ""
+                                      let defMain = Def (ValueBinder (qualify (getName program) nameMain) () (Lam [] expression r) r r)  r Public (DefFun []) InlineNever ""
                                       let programDef' = programAddDefs programDef [] [defMain]
                                       compileProgram' term flags (loadedModules ld) (Executable nameMain ()) "<interactive>" programDef'
                                       return ld
@@ -446,7 +447,7 @@ compileProgram' term flags modules compileTarget fname program
                                                 expression = App (Var (if (isHiddenName mainName) then mainName -- .expr
                                                                                                   else unqualify mainName -- main
                                                                       ) False r) [] r
-                                                defMain    = Def (ValueBinder (unqualify mainName2) () (Lam [] (f expression) r) r r)  r Public (DefFun ) InlineNever  ""
+                                                defMain    = Def (ValueBinder (unqualify mainName2) () (Lam [] (f expression) r) r r)  r Public (DefFun []) InlineNever  ""
                                                 program2   = programAddDefs program [] [defMain]
                                             in do (loaded3,_) <- typeCheck loaded1 flags 0 coreImports program2
                                                   return (Executable mainName2 tp, loaded3) -- TODO: refine the type of main2
@@ -1077,7 +1078,8 @@ codeGen term flags compileTarget loaded
     backend  = case target flags of
                  CS   -> codeGenCS
                  JS _ -> codeGenJS
-                 _    -> codeGenC (modSourcePath (loadedModule loaded)) (loadedNewtypes loaded) (loadedUnique loaded)
+                 _    -> codeGenC (modSourcePath (loadedModule loaded)) (loadedNewtypes loaded) 
+                                                 (loadedBorrowed loaded) (loadedUnique loaded)
 
 
 -- CS code generation via libraries; this catches bugs in C# generation early on but doesn't take a transitive closure of dll's
@@ -1198,9 +1200,9 @@ codeGenJS term flags modules compileTarget outBase core
 
 
 
-codeGenC :: FilePath -> Newtypes -> Int -> Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (FilePath, IO ()))
-codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase core0
- = compilerCatch "c compilation" term Nothing $
+codeGenC :: FilePath -> Newtypes -> Borrowed -> Int -> Terminal -> Flags -> [Module] -> CompileTarget Type -> FilePath -> Core.Core -> IO (Maybe (FilePath,IO ()))
+codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget outBase core0
+ = -- compilerCatch "c compilation" term Nothing $
    do let outC = outBase ++ ".c"
           outH = outBase ++ ".h"
           sourceDir = dirname sourceFile
@@ -1212,9 +1214,8 @@ codeGenC sourceFile newtypes unique0 term flags modules compileTarget outBase co
                       C ctarget -> ctarget
                       _         -> CDefault
           (cdoc,hdoc,bcore) = cFromCore ctarget (buildType flags) sourceDir (prettyEnvFromFlags flags) (platform flags)
-                                newtypes unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
-                                (stackSize flags)
-                                mbEntry core0
+                                newtypes borrowed0 unique0 (parcReuse flags) (parcSpecialize flags) (parcReuseSpec flags)
+                                (parcBorrowInference flags) (stackSize flags) mbEntry core0
           bcoreDoc  = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } (C CDefault) [] bcore
       -- writeDocW 120 (outBase ++ ".c.core") bcoreDoc
       when (showFinalCore flags) $
@@ -1357,7 +1358,9 @@ copyCLibraryX term flags cc eimport tries
                     
   where
     nosuccess clib
-      = raiseIO ("unable to find C library " ++ clib)
+      = raiseIO (unlines ["unable to find C library " ++ clib
+                         ,"library search paths: " ++ show (ccompLibDirs flags) 
+                         ,"library base name   : " ++ ccLibFile cc clib])
     copyLibFile fname clib    
       = do termPhaseDoc term (color (colorInterpreter (colorScheme flags)) (text "library:") <+>
               color (colorSource (colorScheme flags)) (text fname))         

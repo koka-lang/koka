@@ -1,6 +1,9 @@
-// Notes: this is c++ #3 program coming in at spot 1.9 (relative to c++ #7).
-// We use this one as the other rely on <memory_resource> which is not widely supported.
-// Still needs boost though for object pools which frees all objects at once
+// Note: this is C++ #3 program coming in at spot 1.9 (relative to the top entry as C++ #7).
+// We use this one as both of the top 2 entries (#5 and #7) use different kind of parallelism
+// with parallel execution within the iterations of sum-count. 
+// (it would be interesting to also create a Koka version of this but it requires a work-stealing implementation).
+// Even #3 is a bit too specialized as it uses the Boost object pools for allocation 
+// which frees all objects at once instead of freeing per node (like Koka and the other languages do).
 
 /* The Computer Language Benchmarks Game
  * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
@@ -60,7 +63,7 @@ int main(int argc, char *argv[])
 {
    const int min_depth = 4;
    const int max_depth = std::max(min_depth+2,
-                      (argc == 2 ? atoi(argv[1]) : 10));
+                      (argc == 2 ? atoi(argv[1]) : 21));
    const int stretch_depth = max_depth+1;
    
    // Alloc then dealloc stretchdepth tree

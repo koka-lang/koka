@@ -310,7 +310,7 @@ fun divmod(x:int64,y:int64) : (int64,int64) {
   else (q.inc, r - y)
 }
 
-fun fold-int64( start : int64, end : int64, init : a, f : (int64,a) -> a ) : a {
+fun fold-int64( start : int64, end : int64, init : a, f : (int64,a) -> e a ) : e a {
   if (start >= end) then return init
   val x = f(start,init)
   fold-int64(unsafe-decreasing(start.inc), end, x, f)

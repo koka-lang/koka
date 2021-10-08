@@ -1,12 +1,12 @@
 find_program(javac "javac" REQUIRED)
 
-set(sources rbtree.java rbtreeck.java nqueens.java deriv.java cfold.java)
+set(sources rbtree.java rbtreeck.java nqueens.java deriv.java cfold.java binarytrees.java)
 foreach (source IN LISTS sources)
   get_filename_component(name "${source}" NAME_WE)
 
   add_custom_command(
     OUTPUT  ${name}.class
-    COMMAND ${javac} --enable-preview -source 15 -d "${CMAKE_CURRENT_BINARY_DIR}" "$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}/${source}>"
+    COMMAND ${javac} --enable-preview -source 17 -d "${CMAKE_CURRENT_BINARY_DIR}" "$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}/${source}>"
     DEPENDS ${source}
     VERBATIM)
 

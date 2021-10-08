@@ -34,7 +34,6 @@ void kk_vector_init_borrow(kk_vector_t _v, kk_ssize_t start, kk_box_t def, kk_co
 kk_vector_t kk_vector_realloc(kk_vector_t vec, kk_ssize_t newlen, kk_box_t def, kk_context_t* ctx) {
   kk_ssize_t len;
   kk_box_t* src = kk_vector_buf_borrow(vec, &len);
-  if (len == newlen) return vec;
   kk_box_t* dest;
   kk_vector_t vdest = kk_vector_alloc_uninit(newlen, &dest, ctx);
   const kk_ssize_t n = (len > newlen ? newlen : len);
@@ -44,4 +43,33 @@ kk_vector_t kk_vector_realloc(kk_vector_t vec, kk_ssize_t newlen, kk_box_t def, 
   kk_vector_init_borrow(vdest, n, def, ctx); // set extra entries to default value
   kk_vector_drop(vec, ctx);
   return vdest;
+}
+
+kk_vector_t kk_vector_copy(kk_vector_t vec, kk_context_t* ctx) {
+  kk_ssize_t len = kk_vector_len_borrow(vec);
+  return kk_vector_realloc(vec, len, kk_box_null, ctx);
+}
+
+kk_unit_t kk_ref_vector_assign_borrow(kk_ref_t r, kk_integer_t idx, kk_box_t value, kk_context_t* ctx) {
+  if (kk_likely(r->_block.header.thread_shared == 0)) {
+    // fast path
+    kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
+    kk_vector_t v = kk_vector_unbox(b, ctx);
+    if(kk_unlikely(! kk_datatype_is_unique(v))) {
+      // the old v is dropped by kk_ref_set_borrow
+      v = kk_vector_copy(kk_vector_dup(v), ctx);
+      kk_ref_set_borrow(r, kk_vector_box(v, ctx), ctx);
+    }
+    kk_ssize_t len;
+    kk_box_t* p = kk_vector_buf_borrow(v, &len);
+    kk_ssize_t i = kk_integer_clamp_ssize_t_borrow(idx);
+    kk_assert(i < len);
+    kk_box_drop(p[i], ctx);
+    p[i] = value;
+  }
+  else {
+    // thread shared
+    kk_unsupported_external("kk_ref_vector_assign with a thread-shared reference");
+  }
+  return kk_Unit;
 }

@@ -31,7 +31,7 @@ module Type.Assumption (
                     , extractGammaImports
                     , extractGamma
                     , coreDefInfo
-                    , createNameInfo
+                    -- , createNameInfo
                     , createNameInfoX
                     , getArity
                     , coreVarInfoFromNameInfo, coreExprFromNameInfo
@@ -302,7 +302,7 @@ createNameInfoX vis name sort rng tp
     if (not (isDefFun sort)) then InfoVal vis name tp rng (sort == DefVar) else InfoFun vis name tp (getArity  tp) rng
 
 createNameInfo name isVal rng tp
-  = createNameInfoX Public name (if isVal then DefVal else DefFun) rng tp
+  = createNameInfoX Public name (if isVal then DefVal else DefFun []) rng tp
     -- if (isVal) then InfoVal name tp rng False else InfoFun name tp (getArity tp) rng
 
 getArity :: Type -> (Int,Int)
@@ -316,7 +316,7 @@ getArity tp
       _                        -> failure ("Type.Assumption.createNameInfo.getArity: illegal type?" ++ show tp)
 
 
-extractExternal updateVis (Core.External name tp body vis nameRng doc)
+extractExternal updateVis (Core.External name tp pinfos body vis nameRng doc)
   = gammaSingle (nonCanonicalName name) (InfoExternal (updateVis vis) name tp body nameRng)
 extractExternal updateVis _
   = gammaEmpty

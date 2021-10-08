@@ -4,24 +4,27 @@ private import std/core = std/core = "";
 public fun test : (xs : list<int>, y : int, z : int) -> int
  = fn(xs: list<int>, y: int, z: int){
  match (xs) {
- (std/core/Cons(((.skip std/core/types/.Box((x: int)) : .Box ) as .box-x105: .Box), (.pat0: list<int>)) : list<int> )
- | std/core/(==.1)((std/core/types/.dup(x)), (std/core/types/.dup(z))) -> std/core/types/.drop(y);
+ (std/core/Cons(((.skip std/core/types/.Box((x: int)) : .Box ) as .box: .Box), (.pat0: list<int>)) : list<int> )
+ | std/core/(==.1)(x, z) -> std/core/types/.drop(y);
  std/core/types/.drop(z);
  (match ((std/core/types/.is-unique(xs))) {
  (std/core/types/True() : bool )
  -> std/core/types/.drop(.pat0);
+ std/core/types/();
  std/core/types/.free(xs);
  _
  -> std/core/types/.dup(x);
+ std/core/types/();
  std/core/types/.dec-ref(xs);
+ std/core/types/();
  });
  x;
- (std/core/Cons(((.skip std/core/types/.Box((x0: int)) : .Box ) as .box-x106: .Box), (.pat2: list<int>)) : list<int> )
- | std/core/(==.1)((std/core/types/.dup(x0)), (std/core/types/.dup(y))) -> std/core/types/.drop(xs, (std/core/int32(2)));
+ (std/core/Cons(((.skip std/core/types/.Box((x0: int)) : .Box ) as .box: .Box), (.pat2: list<int>)) : list<int> )
+ | std/core/(==.1)(x0, y) -> std/core/types/.drop(xs, (std/core/int32(2)));
  std/core/types/.drop(z);
  y;
- (std/core/Cons(((.skip std/core/types/.Box((.pat4: int)) : .Box ) as .box-x107: .Box), (.pat5: list<int>)) : list<int> )
- | std/core/(==.1)((std/core/types/.dup(y)), (std/core/types/.dup(z))) -> std/core/types/.drop(xs, (std/core/int32(2)));
+ (std/core/Cons(((.skip std/core/types/.Box((.pat4: int)) : .Box ) as .box: .Box), (.pat5: list<int>)) : list<int> )
+ | std/core/(==.1)(y, z) -> std/core/types/.drop(xs, (std/core/int32(2)));
  std/core/types/.drop(y);
  std/core/types/.drop(z);
  2;

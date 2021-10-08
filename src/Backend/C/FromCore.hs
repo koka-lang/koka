@@ -40,6 +40,7 @@ import Common.Syntax
 import Core.Core
 import Core.Pretty
 import Core.CoreVar
+import Core.Borrowed ( Borrowed, borrowedExtendICore )
 
 import Backend.C.Parc
 import Backend.C.ParcReuse
@@ -65,10 +66,10 @@ externalNames
 -- Generate C code from System-F core language
 --------------------------------------------------------------------------
 
-cFromCore :: CTarget -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Int -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
-cFromCore ctarget buildType sourceDir penv0 platform newtypes uniq enableReuse enableSpecialize enableReuseSpecialize stackSize mbMain core
+cFromCore :: CTarget -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Int -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> (Doc,Doc,Core)
+cFromCore ctarget buildType sourceDir penv0 platform newtypes borrowed uniq enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain core
   = case runAsm uniq (Env moduleName moduleName False penv externalNames newtypes platform False)
-           (genModule ctarget buildType sourceDir penv platform newtypes enableReuse enableSpecialize enableReuseSpecialize stackSize mbMain core) of
+           (genModule ctarget buildType sourceDir penv platform newtypes borrowed enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain core) of
       (bcore,cdoc,hdoc) -> (cdoc,hdoc,bcore)
   where
     moduleName = coreProgName core
@@ -80,17 +81,15 @@ contextDoc = text "_ctx"
 contextParam :: Doc
 contextParam = text "kk_context_t* _ctx"
 
-genModule :: CTarget -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> Asm Core
-genModule ctarget buildType sourceDir penv platform newtypes enableReuse enableSpecialize enableReuseSpecialize stackSize mbMain core0
+genModule :: CTarget -> BuildType -> FilePath -> Pretty.Env -> Platform -> Newtypes -> Borrowed -> Bool -> Bool -> Bool -> Bool -> Int -> Maybe (Name,Bool) -> Core -> Asm Core
+genModule ctarget buildType sourceDir penv platform newtypes borrowed0 enableReuse enableSpecialize enableReuseSpecialize enableBorrowInference stackSize mbMain core0
   =  do core <- liftUnique (do bcore <- boxCore core0            -- box/unbox transform
-                               ucore <- if (enableReuse)
-                                         then parcReuseCore penv platform newtypes bcore -- constructor reuse analysis
-                                         else return bcore
-                               pcore <- parcCore penv platform newtypes enableSpecialize ucore -- precise automatic reference counting
-                               score <- if (enableReuse && enableReuseSpecialize)
-                                         then parcReuseSpecialize penv pcore -- selective reuse
-                                         else return pcore
-                               return score
+                               let borrowed = borrowedExtendICore bcore borrowed0
+                               pcore <- parcCore penv platform newtypes borrowed enableSpecialize bcore -- precise automatic reference counting
+                               rcore <- parcReuseCore penv enableReuse platform newtypes pcore -- constructor reuse analysis
+                               if enableReuse && enableReuseSpecialize
+                                  then parcReuseSpecialize penv rcore -- selective reuse
+                                  else return rcore
                            )
 
         let headComment   = text "// Koka generated module:" <+> string (showName (coreProgName core)) <.> text ", koka version:" <+> string version
@@ -272,9 +271,7 @@ genLocalDef def@(Def name tp expr vis sort inl rng comm)
                        )
        return (fdoc)
   where
-    isDiscardExpr (Con con _)              = (getName con == nameUnit)
-    isDiscardExpr (App (Var name _) [])    = (getName name == nameReuseNull)
-    isDiscardExpr _                        = False
+    isDiscardExpr expr                     = isExprUnit expr  || isReuseNull expr
 
 -- remove final newlines and whitespace and line continuations (\\)
 trimComment comm
@@ -575,13 +572,19 @@ genConstructorTestX info dataRepr con conRepr
                   in case conRepr of
                     ConEnum{}      -> text "x ==" <+> ppConTag con conRepr dataRepr
                     ConIso{}       -> text "true"
-                    ConSingleton{} | dataRepr == DataAsList -> text "kk_datatype_is_singleton(x)" -- text "x ==" <+> conSingletonName con
-                                   | dataReprIsValue dataRepr -> valueTagEq
-                                   | otherwise -> text "kk_datatype_has_tag" <.> tupled [text "x", ppConTag con conRepr dataRepr]
+                    ConSingleton{} | dataRepr == DataAsList 
+                                     -> -- text "kk_datatype_is_singleton(x)" 
+                                        text "kk_datatype_eq(x," <.> conCreateNameInfo con <.> text "(NULL))"
+                                   | dataReprIsValue dataRepr 
+                                     -> valueTagEq
+                                   | otherwise 
+                                     -> text "kk_datatype_has_tag" <.> tupled [text "x", ppConTag con conRepr dataRepr]
                     ConSingle{}    -> text "true"
                     ConAsJust{}    -> valueTagEq
                     ConStruct{}    -> valueTagEq
-                    ConAsCons{}    -> text "kk_datatype_is_ptr(x)" --  <+> conSingletonNameX (conAsNil conRepr)
+                    ConAsCons{}    -> -- testing for a constant singleton seems faster on x64 than testing the lowest bit
+                                      -- text "kk_datatype_is_ptr(x)" 
+                                      text "!kk_datatype_eq(x," <.> conCreateName (conAsNil conRepr) <.> text "(NULL))"
                     ConNormal{}
                                    -- | dataRepr == DataSingleNormal -> text "datatype_is_ptr(x)"
                                    -- | otherwise -> text "datatype_is_ptr(x) && datatype_tag_fast(x) ==" <+> ppConTag con conRepr dataRepr
@@ -1205,7 +1208,8 @@ getResultX result (retDoc)
      ResultReturn (Just n) _  | (isTypeUnit (typeOf n))
                               -> retDoc <.> text "; return kk_Unit;"
      ResultReturn _ _  -> text "return" <+> retDoc <.> semi
-     ResultAssign n ml -> ( if --isWildcard (getName n) ||
+     ResultAssign n ml | isTypeUnit (typeOf n) && dstartsWith retDoc "kk_Unit" -> empty  
+     ResultAssign n ml -> (if --isWildcard (getName n) ||
                                nameNil == (getName n) || isTypeUnit (typeOf n)
                               then retDoc <.> semi
                               else ppName (getName n) <+> text "=" <+> retDoc <.> semi <+> text "/*" <.> pretty (typeOf n) <.> text "*/"
@@ -1299,7 +1303,7 @@ genExprStat result expr
       Let groups body
         -> case (reverse groups, body) of
              (DefNonRec (Def name tp expr Private DefVal _ _ _):rgroups, (Case [Var vname _] branches))
-               | name == getName vname && not (S.member vname (freeLocals branches)) && isInlineableExpr expr
+               | name == getName vname && not (S.member vname (freeLocals branches)) && isInlineableExpr expr 
                -> genExprStat result (makeLet (reverse rgroups) (Case [expr] branches))
              _ -> do docs1 <- genLocalGroups groups
                      doc2  <- genStat result body
@@ -1440,7 +1444,7 @@ genPatternTest doTest gfree (exprDoc,pattern)
       PatLit (LitString s)
         -> return [(test [text "kk_string_cmp_cstr_borrow" <.> tupled [exprDoc,fst (cstring s)] <+> text "== 0"],[],[])]
       PatLit lit@(LitInt _)
-        -> return [(test [text "kk_integer_eq" <.> arguments [exprDoc,ppLit lit]],[],[])]
+        -> return [(test [text "kk_integer_eq_borrow" <.> arguments [exprDoc,ppLit lit]],[],[])]
       PatLit lit
         -> return [(test [exprDoc <+> text "==" <+> ppLit lit],[],[])]
       PatCon tname patterns repr targs exists tres info skip
@@ -2005,6 +2009,12 @@ isFunExpr expr
       Lam args eff body -> True
       _                 -> False
 
+isReuseNull :: Expr -> Bool 
+isReuseNull expr
+  = case expr of
+      App (Var v (InfoExternal _)) [] | getName v  == nameReuseNull -> True
+      _ -> False
+
 isInlineableExpr :: Expr -> Bool
 isInlineableExpr expr
   = case expr of
@@ -2017,7 +2027,7 @@ isInlineableExpr expr
       -- App (Var v (InfoExternal _)) [arg] | getName v `elem` [nameBox,nameDup,nameInt32] -> isInlineableExpr arg
       App (Var v _) [arg] | getName v `elem` [nameBox,nameInt32,nameReuse,nameReuseIsValid,nameIsUnique] -> isInlineableExpr arg
 
-      --App (Var _ (InfoExternal _)) args -> all isPureExpr args  -- yielding() etc.
+      -- App (Var v (InfoExternal _)) args -> hasTotalEffect (typeOf v) &&  all isPureExpr args  -- yielding() etc.
 
       -- App (Var v _) [arg] | getName v `elem` [nameBox,nameUnbox] -> isInlineableExpr arg
       {-

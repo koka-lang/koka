@@ -3,6 +3,12 @@ find_program(swiftc "swiftc" REQUIRED
                    $ENV{SWIFT_ROOT}/bin
                    /usr/local/swift/bin)
 
+if(APPLE)
+  set(swopts "-Xlinker -stack_size -Xlinker 0x8000000")
+else()
+  set(swopts "")
+endif()  
+
 set(sources binarytrees.swift cfold.swift deriv.swift qsort.swift rbtree.swift rbtree-ck.swift nqueens.swift)
 foreach (source IN LISTS sources)
   get_filename_component(name "${source}" NAME_WE)
@@ -10,7 +16,7 @@ foreach (source IN LISTS sources)
 
   add_custom_command(
     OUTPUT  ${name}
-    COMMAND ${swiftc} -O -o ${name} "$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}/${source}>"
+    COMMAND ${swiftc} -O -whole-module-optimization  -o ${name} ${swopts} "$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}/${source}>"
     DEPENDS ${source}
     VERBATIM)
 

@@ -21,6 +21,7 @@
 #include "ref.c"
 #include "refcount.c"
 #include "string.c"
+#include "thread.c"
 #include "time.c"
 #include "vector.c"
 
