@@ -7,7 +7,7 @@ fun test1(){
     boo(1)
 }
 
-fun f(): int {
+noinline fun f(): int {
     4 * 3
 }
 

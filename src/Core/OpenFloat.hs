@@ -155,20 +155,27 @@ fltExpr expr
             tpAfter = typeOf expr' in
               assertion "OpenFloat. Type invariant violation." (matchType tpBefore tpAfter) expr'
       restrictToD :: Req -> DefIR -> Flt Def
-      restrictToD rqSup (DefIR def@Def{defExpr=expr} rq) = return $ def{defExpr= smartRestrictExpr rq rqSup expr}
+      restrictToD rqSup (DefIR def@Def{defExpr=expr} rq) 
+        = return $ def{defExpr= smartRestrictExpr rq rqSup expr}
+
       restrictToDG :: Req -> DefGroupIR -> Flt DefGroup
       restrictToDG rqSup (DefRecIR defIRs) =
         do defs <- mapM (restrictToD rqSup) defIRs
            return $ DefRec defs
+
       restrictToDG rqSup (DefNonRecIR defIR) =
         do def <- restrictToD rqSup defIR
            return $ DefNonRec def
+
       restrictToE :: Req -> (Expr, Req) -> Flt Expr
-      restrictToE rqSup (e, rq) = return $ smartRestrictExpr rq rqSup e
+      restrictToE rqSup (e, rq) 
+        = return $ smartRestrictExpr rq rqSup e
+
       restrictToB :: Req -> BranchIR -> Flt Branch
       restrictToB rqSup (BranchIR pt gIRs) =
         do guards' <- mapM (restrictToG rqSup) gIRs
            return $ Branch pt guards'
+
       restrictToG :: Req -> GuardIR -> Flt Guard
       restrictToG rqSup (GuardIR t g) =
         do testExpr' <- restrictToE rqSup t
@@ -182,13 +189,11 @@ fltExpr expr
 
       fltDefGroupAux :: DefGroup -> Flt (DefGroupIR, Req)
       fltDefGroupAux (DefRec defs)  =
-        do
-           defIR_rqs <- mapM fltDefAux defs
+        do defIR_rqs <- mapM fltDefAux defs
            let (defIRs, rqs) = unzip defIR_rqs
            return (DefRecIR defIRs, sup rqs)
       fltDefGroupAux (DefNonRec def)  =
-        do
-           (defIR, rq) <- fltDefAux def
+        do (defIR, rq) <- fltDefAux def
            return (DefNonRecIR defIR, rq)
 
       fltBranchAux :: Branch -> Flt (BranchIR, Req)
@@ -207,6 +212,7 @@ fltExpr expr
       expandLetExpr expr = case expr of
         Let defgs body | length defgs > 1 -> foldr (\d b -> Let [d] b) body defgs
         _ -> expr
+
 {--------------------------------------------------------------------------
   Requirement
 --------------------------------------------------------------------------}
@@ -231,6 +237,7 @@ supbEffect eff1 eff2 =
            ("OpenFloat. sup undefined between:\n" ++ "A. " ++ show tl1 ++ "\nB. " ++ show tl2)
            (isEffectEmpty tl1 || isEffectEmpty tl2 || tl1 `matchEffect` tl2 )
            (if isEffectEmpty tl1 then tl2 else tl1)
+    -- daan: I think we do not need to merge the labels in-order? 
     labs = mergeLabs labs1 labs2
   in effectExtends labs tl  -- tl might be singleton label? so that it make result ill-formed?
   where
@@ -239,11 +246,12 @@ supbEffect eff1 eff2 =
                              (name2, i2, args2) = labelNameEx l2
                          in case labelNameCompare name1 name2 of
                               EQ ->
+                                -- daan: why is this comparison needed? due to skolem variables? Like st<s1>,st<s2> ?                                    
                                 (case (args1, args2) of
-                                      ([TVar (TypeVar id1 kind1 sort1)], [TVar (TypeVar id2 kind2 sort2)]) -> compare id1 id2
-                                      _ -> assertion ("openFloat: unexpected label-args. Label argument should only differ in variable case. \n1. " ++ show args1 ++ "\n2. " ++ show args2)
-                                             (all (\(t1, t2)-> matchType t1 t2) $ zip args1 args2)
-                                             EQ)
+                                    ([TVar (TypeVar id1 kind1 sort1)], [TVar (TypeVar id2 kind2 sort2)]) -> compare id1 id2
+                                    _ -> assertion ("openFloat: unexpected label-args. Label argument should only differ in variable case. \n1. " ++ show args1 ++ "\n2. " ++ show args2)
+                                            (all (\(t1, t2)-> matchType t1 t2) $ zip args1 args2)
+                                            EQ)
                               order -> order
 
     mergeLabs :: [Tau] -> [Tau] -> [Tau]
@@ -270,6 +278,7 @@ leqRq rq1 rq2 = let rqSup = supb rq1 rq2 in matchRq rqSup rq2
 niceRq :: Pretty.Env -> Req -> Doc
 niceRq env Bottom = text "Bottom"
 niceRq env (Eff eff) = text "Eff " <+> niceType env eff
+
 
 {--------------------------------------------------------------------------
   smart open
@@ -323,6 +332,7 @@ smartOpenExpr (Eff effFrom) (Eff effTo) expr =
 -- smartRestrictDefGroup :: Req -> 
 
 
+
 {--------------------------------------------------------------------------
   IRs : Return type of auxiliary functions. Each Expr of constructs has its own rq, in order to be restricted.
 --------------------------------------------------------------------------}
@@ -333,6 +343,7 @@ data GuardIR = GuardIR { guardTestIR :: (Expr, Req)
                        , guardExprIR :: (Expr, Req)}
 data DefIR = DefIR { def :: Def, req :: Req}
 data DefGroupIR = DefRecIR [DefIR] | DefNonRecIR DefIR
+
 
 {--------------------------------------------------------------------------
   Flt monad
