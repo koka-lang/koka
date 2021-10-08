@@ -137,3 +137,361 @@ real        11.95
 user        11.66
 sys          0.00
 
+-------------
+run test/float/bench2
+Note. floating, no-monadic lifting
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 15:16:20 +0900
+real        18.80
+user        18.48
+sys          0.01
+
+-------------
+run test/float/bench2
+Note. floating without let-expansion, no-monadic lifting
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 15:17:27 +0900
+real        21.69
+user        21.37
+sys          0.01
+
+-------------
+run test/float/bench2.kk
+Note. 
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 15:33:08 +0900
+multitime: Error when attempting to run ./.floatbench/v2.3.2/clang-debug/test_float_bench2
+
+-------------
+run test/float/bench2.kk
+Note. 
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 15:37:56 +0900
+multitime: Error when attempting to run ./.floatbench/v2.3.2/clang-debug/test_float_bench2
+
+-------------
+run test/float/bench2
+Note. 
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 15:40:50 +0900
+multitime: Error when attempting to run ./.floatbench/v2.3.2/clang-debug/test_float_bench2
+
+-------------
+run test/float/bench2
+Note. 
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 15:41:49 +0900
+real         4.48
+user         4.18
+sys          0.00
+
+-------------
+run test/float/bench2
+Note. 
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 15:43:36 +0900
+real         9.03
+user         8.70
+sys          0.01
+
+-------------
+run test/float/bench2
+Note. 
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 15:45:21 +0900
+real         9.03
+user         8.72
+sys          0.01
+
+-------------
+run test/float/bench2
+Note. without floating
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 15:47:58 +0900
+real         4.58
+user         4.23
+sys          0.00
+
+-------------
+run bench1
+Note. compile stds
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 16:05:11 +0900
+multitime: Error when attempting to run ./.floatbench/*/clang-debug/bench1
+
+-------------
+run test/float/bench1.kk
+Note. compile stds
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 16:06:19 +0900
+real         0.55
+user         0.10
+sys          0.00
+
+-------------
+run test/float/bench2.kk
+Note. witout floating
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 16:06:56 +0900
+real         4.39
+user         4.14
+sys          0.00
+
+-------------
+run test/float/bench2.kk
+Note. floating
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 16:07:36 +0900
+real         8.91
+user         8.62
+sys          0.01
+
+-------------
+run test/float/bench2.kk
+Note. floating without let-expansion
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 16:08:42 +0900
+real        11.89
+user        11.59
+sys          0.01
+
+-------------
+run test/bench/koka/nqueens.kk
+Note. floating
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 17:32:49 +0900
+73712
+real        10.96
+user        10.65
+sys          0.04
+
+-------------
+run test/bench/koka/nqueens.kk
+Note. no-floating
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 17:33:35 +0900
+73712
+real        10.96
+user        10.63
+sys          0.03
+
+-------------
+run test/float/bench3.kk
+Note. floating
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 17:44:08 +0900
+real         8.49
+user         8.15
+sys          0.00
+
+-------------
+run test/float/bench3.kk
+Note. no-floating
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 17:44:50 +0900
+real         4.65
+user         4.38
+sys          0.00
+
+-------------
+run test/float/bench3.kk
+Note. floating-witout-let-expansion
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 17:46:09 +0900
+real         8.33
+user         8.05
+sys          0.00
+
+-------------
+run test/float/bench3.kk
+Note. floating-witout-let-expansion
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 17:49:27 +0900
+real        17.95
+user        17.47
+sys          0.00
+
+-------------
+run test/float/bench3.kk
+Note. floating
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 17:50:28 +0900
+real        17.64
+user        17.33
+sys          0.00
+
+-------------
+run test/float/bench3.kk
+Note. no-floating
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 17:51:20 +0900
+real         8.29
+user         8.03
+sys          0.00
+
+-------------
+run test/float/bench3.kk
+Note. no-float
+commit 3c6a60f95f02643f69ab492ee3f508b9a4657f32
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 17:53:23 2021 +0900
+
+    new bench
+Fri, 08 Oct 2021 17:54:01 +0900
+real         8.52
+user         8.01
+sys          0.00
+
+-------------
+run test/float/bench4.kk
+Note. no-float
+commit 3c6a60f95f02643f69ab492ee3f508b9a4657f32
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 17:53:23 2021 +0900
+
+    new bench
+Fri, 08 Oct 2021 17:54:14 +0900
+real         4.66
+user         4.36
+sys          0.00
+
+-------------
+run test/float/bench3.kk
+Note. floating
+commit 3c6a60f95f02643f69ab492ee3f508b9a4657f32
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 17:53:23 2021 +0900
+
+    new bench
+Fri, 08 Oct 2021 17:55:00 +0900
+real        17.74
+user        17.37
+sys          0.00
+
+-------------
+run test/float/bench4.kk
+Note. floating
+commit 3c6a60f95f02643f69ab492ee3f508b9a4657f32
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 17:53:23 2021 +0900
+
+    new bench
+Fri, 08 Oct 2021 17:55:18 +0900
+real         8.28
+user         7.98
+sys          0.00
+
+-------------
+run test/float/bench3.kk
+Note. floating-no-let-expansion
+commit 3c6a60f95f02643f69ab492ee3f508b9a4657f32
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 17:53:23 2021 +0900
+
+    new bench
+Fri, 08 Oct 2021 17:56:03 +0900
+real        17.74
+user        17.44
+sys          0.00
+
+-------------
+run test/float/bench4.kk
+Note. floating-no-let-expansion
+commit 3c6a60f95f02643f69ab492ee3f508b9a4657f32
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 17:53:23 2021 +0900
+
+    new bench
+Fri, 08 Oct 2021 17:56:19 +0900
+real         8.29
+user         8.01
+sys          0.00
+

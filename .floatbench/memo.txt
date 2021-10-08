@@ -1,0 +1,102 @@
+2021-10-08 16:24:56
+
+The result of benchmark is listed at the bottom of this doc. It indicate open floating slowdown the execution currently.
+First record was taken without open floating.
+Second with open floating.
+Third with open floating and without expanding let-definition group before floating.
+
+The difference between second and third makes floating succeed or not.
+bench2 is like such code:
+
+```koka
+...
+while { i < 10000000 }
+{   // <bra, count>
+    bra()  // <bra>
+    count()  // <count>
+    count()
+    count()
+}
+```
+
+~~>
+
+```Core
+while {...}
+{
+    Let [
+        open(bra)(),
+        open(count)(),
+        open(count)()
+    ] open(count)()
+}
+
+~~>
+
+while{...}
+{
+    Let [open(bra)()]
+      Let [open(count)()]
+        Let [open(count)()]
+          open(count)()
+}
+
+~~> float
+
+while{...}
+{
+    Let [open(bra)()]
+    restrict(
+      Let [count()]
+        Let [count()]
+          count())
+}
+```
+
+Without let-expansion, opens in the defGroup cannot be float up because
+each of them are wrapped by `Def` stuff and
+they cannot be gathered as an expression (or AST).
+
+The difference between first and second one, while I am not sure about it, 
+might be caused by a lot of lambda.
+Current implementation of `restrict` use lambda and open so that a lot of lambda are introduced
+and function call overhead might be caused.
+
+-------------
+run test/float/bench2.kk
+Note. witout floating
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 16:06:56 +0900
+real         4.39
+user         4.14
+sys          0.00
+
+-------------
+run test/float/bench2.kk
+Note. floating
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 16:07:36 +0900
+real         8.91
+user         8.62
+sys          0.01
+
+-------------
+run test/float/bench2.kk
+Note. floating without let-expansion
+commit 04ced8b653e056132b8c7c9798af83b4fddbb675
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 15:14:26 2021 +0900
+
+    refactor
+Fri, 08 Oct 2021 16:08:42 +0900
+real        11.89
+user        11.59
+sys          0.01
