@@ -74,6 +74,11 @@ fltDef def
     do (expr', _) <- fltExpr (defExpr def)
        return def{ defExpr = expr' }
 
+
+{--------------------------------------------------------------------------
+  float expressions
+--------------------------------------------------------------------------}
+
 -- exor : typrOf(expr) | \eff ~~> (expr', rq)
 fltExpr :: Expr -> Flt (Expr, Req)
 fltExpr expr
@@ -115,6 +120,7 @@ fltExpr expr
             return (assertTypeInvariant $ Lam args eff body'', Bottom)
 
     Let defgs body ->
+      -- daan: this should be fold over the defgs ?
       if length defgs > 1
         -- expand because open calls in same defGroups cannot be merged in the middle of the defGroups
         then fltExpr (expandLetExpr expr)
@@ -129,7 +135,7 @@ fltExpr expr
           return (assertTypeInvariant $ Let defgs' body'', rqSup)
     Case exprs bs
       -> do exprIR_rqs <- mapM fltExpr exprs
-            bIR_rqs <- mapM fltBranchAux bs
+            bIR_rqs <- mapM fltBranch bs
             let rqe = foldl supb Bottom $ map snd exprIR_rqs
                 (bIRs, rqbs) = unzip bIR_rqs
                 rqSup = sup $ rqe : rqbs
@@ -148,70 +154,84 @@ fltExpr expr
 
     -- the rest
     _ -> return (expr, Bottom)
-    where
-      assertTypeInvariant :: Expr -> Expr
-      assertTypeInvariant expr' = if not debug then expr' else
-        let tpBefore = typeOf expr
-            tpAfter = typeOf expr' in
-              assertion "OpenFloat. Type invariant violation." (matchType tpBefore tpAfter) expr'
-      restrictToD :: Req -> DefIR -> Flt Def
-      restrictToD rqSup (DefIR def@Def{defExpr=expr} rq) 
-        = return $ def{defExpr= smartRestrictExpr rq rqSup expr}
+  where
+    assertTypeInvariant :: Expr -> Expr
+    assertTypeInvariant expr' = if not debug then expr' else
+      let tpBefore = typeOf expr
+          tpAfter = typeOf expr' in
+          assertion "OpenFloat. Type invariant violation." (matchType tpBefore tpAfter) expr'
 
-      restrictToDG :: Req -> DefGroupIR -> Flt DefGroup
-      restrictToDG rqSup (DefRecIR defIRs) =
-        do defs <- mapM (restrictToD rqSup) defIRs
-           return $ DefRec defs
 
-      restrictToDG rqSup (DefNonRecIR defIR) =
-        do def <- restrictToD rqSup defIR
-           return $ DefNonRec def
+fltBranch :: Branch -> Flt (BranchIR, Req)
+fltBranch (Branch pat guards)  =
+  do guard_rqs <- mapM fltGuard guards
+     let (guards', rqs) = unzip guard_rqs
+     return (BranchIR pat guards', sup rqs)
 
-      restrictToE :: Req -> (Expr, Req) -> Flt Expr
-      restrictToE rqSup (e, rq) 
-        = return $ smartRestrictExpr rq rqSup e
+fltGuard :: Guard -> Flt (GuardIR, Req)
+fltGuard (Guard guard body)  =
+  do (guard', rqg) <- fltExpr guard
+     (body', rqb)  <- fltExpr body
+     return (GuardIR (guard', rqg) (body', rqb), supb rqg rqb)
 
-      restrictToB :: Req -> BranchIR -> Flt Branch
-      restrictToB rqSup (BranchIR pt gIRs) =
-        do guards' <- mapM (restrictToG rqSup) gIRs
-           return $ Branch pt guards'
 
-      restrictToG :: Req -> GuardIR -> Flt Guard
-      restrictToG rqSup (GuardIR t g) =
-        do testExpr' <- restrictToE rqSup t
-           guardExpr' <- restrictToE rqSup g
-           return $ Guard testExpr' guardExpr'
+-- daan: why are there separate Aux functions instead of using fltDefGroup?
 
-      fltDefAux :: Def -> Flt (DefIR, Req)
-      fltDefAux def@Def{defExpr=expr}  =
-        do (expr', rq) <- fltExpr expr
-           return (DefIR def{defExpr=expr'} rq, rq)
+fltDefGroupAux :: DefGroup -> Flt (DefGroupIR, Req)
+fltDefGroupAux (DefRec defs) =
+  do defIR_rqs <- mapM fltDefAux defs
+     let (defIRs, rqs) = unzip defIR_rqs
+     return (DefRecIR defIRs, sup rqs)
+fltDefGroupAux (DefNonRec def) =
+  do (defIR, rq) <- fltDefAux def
+     return (DefNonRecIR defIR, rq)
 
-      fltDefGroupAux :: DefGroup -> Flt (DefGroupIR, Req)
-      fltDefGroupAux (DefRec defs)  =
-        do defIR_rqs <- mapM fltDefAux defs
-           let (defIRs, rqs) = unzip defIR_rqs
-           return (DefRecIR defIRs, sup rqs)
-      fltDefGroupAux (DefNonRec def)  =
-        do (defIR, rq) <- fltDefAux def
-           return (DefNonRecIR defIR, rq)
+fltDefAux :: Def -> Flt (DefIR, Req)
+fltDefAux def@Def{defExpr=expr}  =
+  do (expr', rq) <- fltExpr expr
+     return (DefIR def{defExpr=expr'} rq, rq)      
 
-      fltBranchAux :: Branch -> Flt (BranchIR, Req)
-      fltBranchAux (Branch pat guards)  =
-        do guard_rqs <- mapM fltGuardAux guards
-           let (guards', rqs) = unzip guard_rqs
-           return (BranchIR pat guards', sup rqs)
 
-      fltGuardAux :: Guard -> Flt (GuardIR, Req)
-      fltGuardAux (Guard guard body)  =
-        do (guard', rqg) <- fltExpr guard
-           (body', rqb)  <- fltExpr body
-           return (GuardIR (guard', rqg) (body', rqb), supb rqg rqb)
+-- daan: instead of splitting Let, should be instead fold over the groups in the fltExpr.Let case?
+expandLetExpr :: Expr -> Expr
+expandLetExpr expr = case expr of
+  Let defgs body | length defgs > 1 -> foldr (\d b -> Let [d] b) body defgs
+  _ -> expr
 
-      expandLetExpr :: Expr -> Expr
-      expandLetExpr expr = case expr of
-        Let defgs body | length defgs > 1 -> foldr (\d b -> Let [d] b) body defgs
-        _ -> expr
+
+
+{--------------------------------------------------------------------------
+  Restrict
+--------------------------------------------------------------------------}
+
+restrictToD :: Req -> DefIR -> Flt Def
+restrictToD rqSup (DefIR def@Def{defExpr=expr} rq) 
+  = return $ def{defExpr= smartRestrictExpr rq rqSup expr}
+
+restrictToDG :: Req -> DefGroupIR -> Flt DefGroup
+restrictToDG rqSup (DefRecIR defIRs) =
+  do defs <- mapM (restrictToD rqSup) defIRs
+     return $ DefRec defs
+restrictToDG rqSup (DefNonRecIR defIR) =
+  do def <- restrictToD rqSup defIR
+     return $ DefNonRec def
+
+restrictToE :: Req -> (Expr, Req) -> Flt Expr
+restrictToE rqSup (e, rq) 
+  = return $ smartRestrictExpr rq rqSup e
+
+restrictToB :: Req -> BranchIR -> Flt Branch
+restrictToB rqSup (BranchIR pt gIRs) =
+  do guards' <- mapM (restrictToG rqSup) gIRs
+     return $ Branch pt guards'
+
+restrictToG :: Req -> GuardIR -> Flt Guard
+restrictToG rqSup (GuardIR t g) =
+  do testExpr' <- restrictToE rqSup t
+     guardExpr' <- restrictToE rqSup g
+     return $ Guard testExpr' guardExpr'
+
+
 
 {--------------------------------------------------------------------------
   Requirement
@@ -289,11 +309,10 @@ smartRestrictExpr :: Req -> Req -> Expr -> Expr
 smartRestrictExpr Bottom _ expr     = expr
 smartRestrictExpr (Eff _) Bottom _  = failure "Core.OpenFloat.smartRestrictExpr: unexpected Bottom?"
 smartRestrictExpr (Eff effFrom) (Eff effTo) expr =
-  if matchEffect effFrom effTo then expr else restrict effFrom effTo expr
-
-restrict effFrom effTo expr
-  = let tp = typeOf expr
-    in App (openEffectExpr effFrom effTo (TFun [] effFrom tp) (TFun [] effTo tp) (Lam [] effFrom expr)) []
+  if matchEffect effFrom effTo 
+    then expr 
+    else let tp = typeOf expr
+         in App (openEffectExpr effFrom effTo (TFun [] effFrom tp) (TFun [] effTo tp) (Lam [] effFrom expr)) []
     -- (\x. open(x)() ) \_.expr
     -- let
     --   tp = typeOf expr
