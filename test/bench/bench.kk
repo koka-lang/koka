@@ -22,7 +22,7 @@ val all-test-names = ["rbtree","rbtree-ck","deriv","nqueens","cfold","binarytree
 
 val all-lang-names = [
   ("koka","kk"),
-  // ("kokax","kkx"),
+  ("kokax","kkx"),
   ("ocaml","ml"),
   ("haskell","hs"),
   ("swift","sw"),
@@ -121,10 +121,10 @@ fun show-norm( test : test ) {
 // ----------------------------------------------------
 // main
 // ----------------------------------------------------
-public fun main() {
-  match (process-flags()) {
+public fun main()
+  match (process-flags())
     Nothing -> ()
-    Just(flags) {
+    Just(flags) ->
       val test-names = if (flags.tests.is-empty) then all-test-names
                         else flags.tests.split(",")
       val lang-names = if (flags.langs.is-empty) then all-lang-names else { 
@@ -132,9 +132,7 @@ public fun main() {
                           all-lang-names.filter(fn(l){ lnames.any(fn(nm){ nm == l.snd || nm == l.fst }) })
                         }
       run-tests(test-names,lang-names,flags.chart,flags.iter,flags.normalize)
-    }
-  }
-}
+
 
 fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen-chart : bool, iterations : int, normalize : bool ) {
   println("tests    : " ++ test-names.join(", "))
@@ -184,7 +182,7 @@ fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen
 
   // emit latex chart
   if (gen-chart) then {
-    val ymax       = 4.0
+    val ymax       = 3.0
     val chart-desc = @"16-core AMD 5950X at 3.4Ghz\\Ubuntu 20.04, gcc 9.3.0"
     val chart-elapsed = if (normalize)
                           then chart("time", True, norm-elapsed, norm-elapsed-sdev, elapsed, test-names, lang-ntests, ymax, chart-desc)
@@ -224,7 +222,7 @@ fun tikz-footer( test-names : list<string> ) : list<string> {
 }
 
 fun tikz-picture( kind : string, normalize : bool, test-names : list<string>, lang-names : list<string>, ymax : double = 5.0, 
-                  desc : string = "", height:string = "5cm", width:string = "11cm" ) {
+                  desc : string = "", height:string = "5cm", width:string = "6cm" ) {
   val n = test-names.length - 1
   val header = [
     @"",
@@ -232,7 +230,7 @@ fun tikz-picture( kind : string, normalize : bool, test-names : list<string>, la
     @"\begin{axis}[Chart" ++ (if (normalize) then "norm" else "abs") ++ kind ++ ",ymax=" ++ ymax.show(1) ++ ",height=" ++ height ++ ",xmax=" ++ n.show ++ ".5,width=" ++ width ++ "]",
     if (normalize) then @"  \draw (axis cs:-0.5,1) -- (axis cs:" ++ n.show ++ ".5,1);" else ""
   ]
-  val mid = lang-names.map(fn(l){ @"  \draw" ++ kind ++ @"{\color" ++ kind ++ l ++ @"{0}}{\data" ++ kind ++ l ++ "};"})
+  val mid = lang-names.map(fn(l){ @"  \draw" ++ kind ++ @"{color" ++ l ++ @"}{\data" ++ kind ++ l ++ "};"})
   val footer = [
      if (kind=="time") then @"  \legend{" ++ lang-names.map(fn(l){ "\\lang" ++ l }).join(",") ++ "};"
                        else "",
@@ -259,7 +257,7 @@ fun tikz-data( kind:string, normalize : bool, norm : test -> double, norm-sdev :
            then (if (normalize) then (
                    if (lang == "kk") 
                    then (if (kind=="rss") 
-                            then @"{\absrssnormlabel{" ++ t.abs.round.int.show ++ "}}" 
+                            then @"{\absrssnormlabel{" ++ (t.abs / 1024.0).round.int.show ++ "mb}}" // megabytes  
                             else @"{\absnormlabel{" ++ t.abs.show-fixed(2) ++ "}}" )
                    else @"{\normlabel{" ++ t.norm.show-fixed(2) ++ "}}" )
                 else @"{\abslabel{" ++ t.abs.show-fixed(2) ++ "}}")
@@ -310,10 +308,13 @@ fun run-test( test-name : string, langt : (string,string), iterations : int ) : 
              else lang-long  
   val base = lang ++ "-" ++ test-name
   val prog = if (lang-long=="java")
-              then "java --enable-preview --class-path=" ++ dir ++ " "
+              then "java --enable-preview --class-path=" ++ dir ++ " " // ++ "-Xmx1G "
                     ++ (if (test-name=="cfold") then "-Xss128m " else "")
-                    ++ test-name.replace-all("-","")
+                    ++ test-name.replace-all("-","")             
               else dir ++ "/" ++ base
+  val envvars  = if (lang-long=="ocaml" && test-name=="cfold")
+                   then "OCAMLRUNPARAM=\"l=2560000\""
+                   else ""
   val progpath = if (lang-long=="java") then (dir.path / (test-name.replace-all("-","") ++ ".class"))
                   else prog.path
   println("\nrun: " ++ prog)
@@ -323,7 +324,7 @@ fun run-test( test-name : string, langt : (string,string), iterations : int ) : 
   }
 
   val results = list(1,iterations)
-                .map( fn(i){ execute-test(i,base,prog)} )
+                .map( fn(i){ execute-test(i,base,prog,envvars)} )
                 .map( fn(r){
                    match(r) {
                      Left(err)            -> Test(test-name,lang,err=err)
@@ -349,32 +350,31 @@ fun test-sum( t1 : test, t2 : test) : test {
   t1( elapsed = t1.elapsed + t2.elapsed, rss = t1.rss + t2.rss )
 }
 
-fun execute-test( run : int, base : string, prog : string ) : io either<string,(double,int)> {
+fun execute-test( run : int, base : string, prog : string, envvars : string ) : io either<string,(double,int)> 
   val timef= "out/time-" ++ base ++ ".txt"
-  val cmd  = if (get-env("SHELL").default("").contains("zsh"))
-               then "/usr/bin/time -l 2> " ++ timef ++ " " ++ prog
-               else "/usr/bin/time -f'%e %M' -o" ++ timef ++ " " ++ prog
+  val cmd  = (if envvars.is-empty then "" else ("env " ++ envvars ++ " ")) ++
+             (if get-env("SHELL").default("").contains("zsh")
+                then "/usr/bin/time -l 2> " ++ timef ++ " " ++ prog
+                else "/usr/bin/time -f'%e %M' -o" ++ timef ++ " " ++ prog)
+  ensure-dir("out".path)
+  run-system("sleep 2")
   val out  = run-system-read(cmd).exn
   print(out)
   val time = read-text-file(timef.path).trim
-  if (time=="") return Left("no output")
-  match(time.list) {
+  if  time=="" return Left("no output")
+  match time.list
     Nil -> Left("no output")
     Cons(d) | !d.is-digit -> Left(time)  // error
-    _ -> {
-      val parts = time.replace-all("\n"," ").replace-all("\t"," ").split(" ").filter(fn(p){ !p.is-empty })
+    _ -> 
+      val parts = time.replace-all("\n"," ").replace-all("\t"," ").split(" ").filter(fn(p) !p.is-empty )
       // println( parts.join(",") )
       match(parts) {
-        Cons(elapsed,Cons(rss,Nil)) { // linux
+        Cons(elapsed,Cons(rss,Nil)) -> // linux
           println("" ++ run.show ++ ": elapsed: " ++ elapsed ++ "s, rss: " ++ rss ++ "kb" )
           Right( (parse-double(elapsed).default(0.0), parse-int(rss).default(0)) )
-        }
-        Cons(elapsed,Cons("real",Cons(_,Cons(_user,Cons(_,Cons(_sys,Cons(rss,_))))))) {  // on macOS
+
+        Cons(elapsed,Cons("real",Cons(_,Cons(_user,Cons(_,Cons(_sys,Cons(rss,_))))))) ->  // on macOS
           println("" ++ run.show ++ ": elapsed: " ++ elapsed ++ "s, rss: " ++ rss ++ "b" )
           Right( (parse-double(elapsed).default(0.0), parse-int(rss).default(0)/1024) )
-        }
+        
         _ -> Left("bad format")
-      }
-    }
-  }
-}

@@ -7,17 +7,25 @@
 #> ocamlopt -O2  -o ./mcml_bintrees -I ~/.opam/4.12.0+domains+effects/lib/domainslib/ domainslib.cmxa test/bench/ocaml/binarytrees_mc.ml
 
 
+set(sources cfold.ml deriv.ml nqueens.ml rbtree.ml rbtree-ck.ml binarytrees.ml)
+
 # find_program(ocamlopt "ocamlopt" REQUIRED)
 set(ocamlopt "ocamlopt")
 
-set(sources cfold.ml deriv.ml nqueens.ml rbtree.ml rbtree-ck.ml binarytrees.ml)
+# no domains
+set(domainslib "unix.cmxa")
+
+# with domains
+# set(domainslib "-I $ENV{HOME}/.opam/4.12.0+domains+effects/lib/domainslib/ domainslib.cmxa")
+# set(sources cfold.ml deriv.ml nqueens.ml rbtree.ml rbtree-ck.ml binarytrees.ml)
+
 foreach (source IN LISTS sources)
   get_filename_component(name "${source}" NAME_WE)
   set(name "ml-${name}")
   
   add_custom_command(
     OUTPUT  ${name}    
-    COMMAND ${ocamlopt} -O2 -o ${name} -I $ENV{HOME}/.opam/4.12.0+domains+effects/lib/domainslib/ domainslib.cmxa "$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}/${source}>"
+    COMMAND ${ocamlopt} -O2 -o ${name} ${domainslib} "$<SHELL_PATH:${CMAKE_CURRENT_SOURCE_DIR}/${source}>"
     DEPENDS ${source}
     VERBATIM)
 

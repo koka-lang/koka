@@ -43,8 +43,6 @@ import Lib.Trace
   Initial
 --------------------------------------------------------------------------}
 
--- | Environment mapping names to type schemes. Due to overloading
--- there may be multiple entries for the same qualified name
 newtype Inlines   = Inlines (M.NameMap InlineDef)
 
 -- | The intial Inlines

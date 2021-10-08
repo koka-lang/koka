@@ -1,83 +1,113 @@
-// The Computer Language Benchmark Game
-// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+// The Computer Language Benchmarks Game
+// http://benchmarksgame.alioth.debian.org/
 //
-// contributed by Ralph Ganszky
-// *reset*
+// Swift adaptation of binary-trees Go #8,
+// that in turn is based on Rust #4.
+// Used DispatchQueue.concurrentPerform() to launch the
+// worker threads.
+//
+// contributed by Marcel Ibes
 
 import Dispatch
 import Foundation
 
-class TreeNode {
-    var left, right: TreeNode?
+indirect enum Tree {
+    case Empty
+    case Node(left: Tree, right: Tree)
+}
 
-    init(left: TreeNode?, right: TreeNode?) {
-        self.left = left
-	self.right = right
-    }
-
-    func check() -> Int {
-	if left != nil {
-	    return left!.check() + right!.check() + 1
-	} else {
-	    return 1
-	}
+func itemCheck(_ tree: Tree) -> UInt32 {
+    switch tree {
+    case .Node(let left, let right):
+        switch (left, right) {
+        case (.Empty, .Empty):
+            return 1
+        default:
+            return 1 + itemCheck(left) + itemCheck(right)
+        }
+    case .Empty:
+        return 1
     }
 }
 
-func createTree(_ depth: Int) -> TreeNode? {
+func bottomUpTree(_ depth: UInt32) -> Tree {
     if depth > 0 {
-	let node = TreeNode(left: createTree(depth-1),
-			    right: createTree(depth-1))
-	return node
-    } else {
-	let node = TreeNode(left: nil, right: nil)
-	return node
+        return .Node(left: bottomUpTree(depth - 1),
+                     right: bottomUpTree(depth - 1))
     }
+
+    return .Node(left: .Empty, right: .Empty)
 }
 
-let n: Int
+func inner(depth: UInt32, iterations: UInt32) -> String {
+    var chk = UInt32(0)
+    for _ in 0..<iterations {
+        let a = bottomUpTree(depth)
+        chk += itemCheck(a)
+    }
+
+    return "\(iterations)\t trees of depth \(depth)\t check: \(chk)"
+}
+
+let n: UInt32
+
 if CommandLine.argc > 1 {
-    n = Int(CommandLine.arguments[1]) ?? 10
+    n = UInt32(CommandLine.arguments[1]) ?? UInt32(21)
 } else {
-    n = 10
+    n = 21
 }
-let minDepth = 4
+
+let minDepth = UInt32(4)
 let maxDepth = (n > minDepth + 2) ? n : minDepth + 2
+var messages: [UInt32: String] = [:]
+let depth = maxDepth + 1
 
-// Create big tree in first pool
-let tree = createTree(maxDepth+1)
-let check = tree!.check()
-print("stretch tree of depth \(maxDepth+1)\t check: \(check)")
-
-// Cleal first pool and allocate long living tree
-let longLivingTree = createTree(maxDepth)
-
-// Allocate binary trees of increasing depth up to maxDepth depth
 let group = DispatchGroup()
-let rq = DispatchQueue(label: "Result", attributes: [])
-let queue = DispatchQueue(label: "Worker", attributes: .concurrent)
-var results = [String](repeating: "", count: (maxDepth-minDepth)/2+1)
-for currentDepth in stride(from: minDepth, through: maxDepth, by: 2) {
-    queue.async(group: group) {
-        let idx = (currentDepth - minDepth) / 2
-	let iterations = 1 << (maxDepth - currentDepth + minDepth)
-	var totalChecksum = 0
-	for i in 1...iterations {
-	    let tree1 = createTree(currentDepth)
-	    totalChecksum += tree1!.check()
-	}
-	rq.async{
-	    results[idx] = "\(iterations)\t trees of depth \(currentDepth)\t check: \(totalChecksum)"
-	}
+
+let workerQueue = DispatchQueue(label: "workerQueue", qos: .userInteractive, attributes: .concurrent)
+let messageQueue = DispatchQueue(label: "messageQueue", qos: .background)
+
+group.enter()
+workerQueue.async {
+    let tree = bottomUpTree(depth)
+
+    messageQueue.async {
+        messages[0] = "stretch tree of depth \(depth)\t check: \(itemCheck(tree))"
+        group.leave()
     }
 }
+
+group.enter()
+workerQueue.async {
+    let longLivedTree = bottomUpTree(maxDepth)
+
+    messageQueue.async {
+        messages[UINT32_MAX] = "long lived tree of depth \(maxDepth)\t check: \(itemCheck(longLivedTree))"
+        group.leave()
+    }
+}
+
+let halfDepth = (minDepth / 2)
+let halfMaxDepth = (maxDepth / 2 + 1)
+let itt = Int(halfMaxDepth - halfDepth)
+
+DispatchQueue.concurrentPerform(iterations: itt, execute: { idx in
+    let depth = (halfDepth + UInt32(idx)) * 2
+    let iterations = UInt32(1 << (maxDepth - depth + minDepth))
+
+    group.enter()
+    workerQueue.async {
+        let msg = inner(depth: depth, iterations: iterations)
+        messageQueue.async {
+            messages[depth] = msg
+            group.leave()
+        }
+    }
+})
+
+// Wait for all the operations to finish
 group.wait()
 
-rq.sync {
-    for result in results {
-	print(result)
-    }
+for msg in messages.sorted(by: { $0.0 < $1.0 }) {
+    print(msg.value)
 }
-
-// Check long living tree and print out check info
-print("long lived tree of depth \(maxDepth)\t check: \(longLivingTree!.check())")

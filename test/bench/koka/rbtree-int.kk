@@ -42,14 +42,14 @@ fun ins(t : tree, k : int, v : bool) : tree
   match t
     Node(Red, l, kx, vx, r)
       -> if k < kx then Node(Red, ins(l, k, v), kx, vx, r)
-         elif k == kx then Node(Red, l, k, v, r)
-         else Node(Red, l, kx, vx, ins(r, k, v))
+         elif k > kx then Node(Red, l, kx, vx, ins(r, k, v))
+         else Node(Red, l, k, v, r)
     Node(Black, l, kx, vx, r)
       -> if k < kx then (if is-red(l) then balance-left(ins(l,k,v), kx, vx, r)
                                       else Node(Black, ins(l, k, v), kx, vx, r))
-         elif k == kx then Node(Black, l, k, v, r)
-         elif is-red(r) then balance-right(l, kx, vx, ins(r,k,v))
-         else Node(Black, l, kx, vx, ins(r, k, v))
+         elif k > kx then (if is-red(r) then balance-right(l, kx, vx, ins(r,k,v))
+                                        else Node(Black, l, kx, vx, ins(r, k, v)))
+         else Node(Black, l, k, v, r)
     Leaf -> Node(Red, Leaf, k, v, Leaf)
     
 
@@ -73,7 +73,7 @@ fun fold(t : tree, b : a, f : (int, bool, a) -> a) : a
     
 
 fun make-tree(n : int) : div tree
-  fold-int( 0, n - 1, Leaf) fn(i,t)
+  fold-int( n, Leaf) fn(i,t)
     t.insert( i, i%10 == 0 )
 
 

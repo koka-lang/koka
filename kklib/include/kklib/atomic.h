@@ -39,10 +39,12 @@
 #define kk_atomic_sub32_relaxed(p,x)          kk_atomic(fetch_sub_explicit)(p,x,kk_memory_order(relaxed))
 #define kk_atomic_add32_acq_rel(p,x)          kk_atomic(fetch_add_explicit)(p,x,kk_memory_order(acq_rel))
 #define kk_atomic_sub32_acq_rel(p,x)          kk_atomic(fetch_sub_explicit)(p,x,kk_memory_order(acq_rel))
+#define kk_atomic_sub_relaxed(p,x)            kk_atomic(fetch_sub_explicit)(p,x,kk_memory_order(relaxed))
 
 #define kk_atomic_inc32_relaxed(p)            kk_atomic_add32_relaxed(p,1)
 #define kk_atomic_dec32_relaxed(p)            kk_atomic_sub32_relaxed(p,1)
 #define kk_atomic_inc32_acq_rel(p)            kk_atomic_add32_acq_rel(p,1)
 #define kk_atomic_dec32_acq_rel(p)            kk_atomic_sub32_acq_rel(p,1)
+#define kk_atomic_dec_relaxed(p)              kk_atomic_sub_relaxed(p,1)
 
 #endif // include guard

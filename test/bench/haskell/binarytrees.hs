@@ -25,7 +25,9 @@ minN = 4
 io s n t = printf "%s of depth %d\t check: %d\n" s n t
 
 main = do
-    n <- getArgs >>= readIO . head
+    args <- getArgs
+    let n = case args  of [] -> 21
+                          (arg:_) -> read arg
     let maxN     = max (minN + 2) n
         stretchN = maxN + 1
 

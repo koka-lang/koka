@@ -220,6 +220,7 @@
     </ClCompile>
     <ClCompile Include="..\..\src\init.c" />
     <ClCompile Include="..\..\src\string.c" />
+    <ClCompile Include="..\..\src\thread.c" />
     <ClCompile Include="..\..\src\time.c" />
     <ClCompile Include="..\..\src\vector.c" />
   </ItemGroup>
@@ -235,6 +236,7 @@
     <ClInclude Include="..\..\include\kklib\process.h" />
     <ClInclude Include="..\..\include\kklib\random.h" />
     <ClInclude Include="..\..\include\kklib\string.h" />
+    <ClInclude Include="..\..\include\kklib\thread.h" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="kklib.natvis" />

@@ -248,26 +248,35 @@ type ediv :: (X,V,E) -> P
 type ref :: (H,V) -> V
 
 // Allocate a fresh reference with an initial value.
-inline extern ref : forall<h,a> (value:a) -> alloc<h> ref<h,a> {
+inline extern ref( value : a) : alloc<h> ref<h,a> {
   c inline "kk_ref_alloc(#1,kk_context())"
   cs inline "new Ref<##1,##2>(#1)"
   js inline "{ value: #1 }"
 }
 
 // Assign a new value to a reference.
-inline extern set  : forall<h,a> (ref: ref<h,a>, assigned: a) -> <write<h>> () {
-  c inline "kk_ref_set(#1,#2,kk_context())"
+inline extern set( ^ref : ref<h,a>, assigned : a) : <write<h>> () {
+  c inline "kk_ref_set_borrow(#1,#2,kk_context())"
   cs inline "#1.Set(#2)"
   js inline "((#1).value = #2)"
 }
 
-// Read the value of reference.
-inline extern (!) : forall<h,a,e> (ref: ref<h,a>) -> <read<h>|e> a with(hdiv<h,a,e>)  {
+// Read the value of a reference.
+inline extern (!) : forall<h,a,e> ( ref : ref<h,a>) -> <read<h>|e> a with(hdiv<h,a,e>)  {
   c inline "kk_ref_get(#1,kk_context())"
   cs inline "#1.Value"
   js inline "((#1).value)"
 }
 
+// Modify the value of a reference.
+// This is especially useful when the reference contains a vector, because
+// getting the vector into a local variable and then setting it back into the reference later
+// would mean that we hold on to a copy (and we can't update the vector in place then!).
+// In contrast, this function will pass its ownership to the given function.
+inline extern modify : forall<h,a,b,e> ( ref : ref<h,a>, f : forall<s> local-var<s,a> -> <local<s>|e> b) -> <read<h>,write<h>|e> b with(hdiv<h,a,e>)  {
+  c  inline "kk_ref_modify(#1, #2, kk_context())"
+  js inline "((#2)(#1))"
+}
 
 // If a heap effect is unobservable, the heap effect can be erased by using the `run` fun.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
@@ -286,21 +295,21 @@ type local :: (H) -> X
 type local-var :: (H,V) -> V
 
 // Allocate a fresh local with an initial value.
-inline extern local-new(value:a) : <local<s>|e> local-var<s,a> {
+inline extern local-new<a,s,e>(value:a) : <local<s>|e> local-var<s,a> {
   c inline "kk_ref_alloc(#1,kk_context())"
   cs inline "new Ref<##1,##2>(#1)"
   js inline "{ value: #1 }"
 }
 
 // Assign a new value to a local variable
-inline extern local-set(v: local-var<s,a>, assigned: a) : <local<s>|e> () {
-  c inline "(kk_ref_set(#1,#2,kk_context()))"
+inline extern local-set<a,s,e>( ^v: local-var<s,a>, assigned: a) : <local<s>|e> () {
+  c inline "(kk_ref_set_borrow(#1,#2,kk_context()))"
   cs inline "#1.Set(#2)";
   js inline "((#1).value = #2)"
 }
 
 // Read the value of a local variable.
-inline extern local-get : forall<a,e,s> (v: local-var<s,a>) -> <local<s>|e> a with(hdiv<s,a,e>)  {
+inline extern local-get : forall<a,s,e> (v: local-var<s,a>) -> <local<s>|e> a with(hdiv<s,a,e>)  {
   c inline "(kk_ref_get(#1,kk_context()))"
   cs inline "#1.Value";
   js inline "((#1).value)";

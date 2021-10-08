@@ -10,7 +10,7 @@ import std/os/flags
 // Flags
 // ----------------------------------------------------
 
-val all-test-names = ["rbtree","rbtree-ck","deriv","nqueens","cfold"]
+val all-test-names = ["rbtree","rbtree-ck","deriv","nqueens","cfold","binarytrees"]
 val all-lang-names = [
   ("koka","kk"),
   // ("kokax","kkx"),
@@ -51,7 +51,7 @@ fun flag-usage() {
 
 public fun process-flags() : <ndet,console> maybe<iflags> {
   val (flags,args,errs) = parse( Iflags(), flag-descs, get-args() )
-  if (errs.is-nil && args.is-nil) {
+  if (errs.is-nil && args.is-nil) then {
     Just(flags)
   }
   else {
@@ -121,8 +121,6 @@ fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen
                    }
                  }
 
-  // todo: average over multiple runs
-
   // show test results
   test-names.foreach fn(test-name){
     val tests = alltests.filter(fn(t){ t.name == test-name })
@@ -157,7 +155,7 @@ fun run-tests(test-names : list<string>, lang-names : list<(string,string)>, gen
   })
 
   // emit latex chart
-  if (gen-chart) {
+  if (gen-chart) then {
     val ymax       = 2.0
     val chart-desc = @"6-core AMD 3600XT at 3.8Ghz\\Ubuntu 20.04, Gcc 9.3.0"
     val chart-elapsed = chart("time", norm-elapsed, norm-elapsed-sdev, test-names, lang-ntests, ymax, chart-desc)
@@ -251,7 +249,7 @@ fun run-test( test-name : string, langt : (string,string), iterations : int ) : 
                   else prog.path
   println("\nrun: " ++ prog)
 
-  if (!is-file(progpath)) {
+  if (!is-file(progpath)) then {
     return Test(test-name,lang,err="NA")
   }
 
@@ -290,7 +288,8 @@ fun test-sum( t1 : test, t2 : test) : test {
 
 fun execute-test( run : int, base : string, prog : string ) : io either<string,(double,int)> {
   val timef= "time-" ++ base ++ ".txt"
-  val cmd  = if (get-env("SHELL").default("").contains("zsh"))
+  val system = run-system-read("uname -s").exn
+  val cmd  = if (system == "Darwin")
                then "/usr/bin/time -l 2> " ++ timef ++ " " ++ prog
                else "/usr/bin/time -f'%e %M' -o" ++ timef ++ " " ++ prog
   val out  = run-system-read(cmd).exn

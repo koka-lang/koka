@@ -2,7 +2,7 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
-#define KKLIB_BUILD        62       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        63       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1
 
@@ -248,6 +248,7 @@ static inline bool kk_block_is_valid(kk_block_t* b) {
   return (b != NULL && ((uintptr_t)b&1)==0 && kk_block_field(b, 0).box != KK_BLOCK_INVALID); // already freed!
 }
 
+
 /*--------------------------------------------------------------------------------------
   The thread local context as `kk_context_t`
   This is passed by the code generator as an argument to every function so it can
@@ -292,6 +293,9 @@ typedef struct kk_box_any_s {
   kk_integer_t  _unused;
 } *kk_box_any_t;
 
+// Workers run in a task_group
+typedef struct kk_task_group_s kk_task_group_t;
+
 //A yield context allows up to 8 continuations to be stored in-place
 #define KK_YIELD_CONT_MAX (8)
 
@@ -328,6 +332,7 @@ typedef struct kk_context_s {
   kk_box_any_t   kk_box_any;       // used when yielding as a value of any type
   kk_function_t  log;              // logging function
   kk_function_t  out;              // std output
+  kk_task_group_t* task_group;     // task group for managing threads. NULL for the main thread.
 
   struct kk_random_ctx_s* srandom_ctx; // strong random using chacha20, initialized on demand
   kk_ssize_t     argc;             // command line argument count 
@@ -342,6 +347,7 @@ typedef struct kk_context_s {
 
 // Get the current (thread local) runtime context (should always equal the `_ctx` parameter)
 kk_decl_export kk_context_t* kk_get_context(void);
+kk_decl_export void          kk_free_context(void);
 
 kk_decl_export kk_context_t* kk_main_start(int argc, char** argv);
 kk_decl_export void          kk_main_end(kk_context_t* ctx);
@@ -374,6 +380,8 @@ static inline int32_t kk_marker_unique(kk_context_t* ctx) {
 }
 
 
+kk_decl_export void kk_block_mark_shared( kk_block_t* b, kk_context_t* ctx );
+kk_decl_export void kk_box_mark_shared( kk_box_t b, kk_context_t* ctx );
 
 /*--------------------------------------------------------------------------------------
   Allocation
@@ -444,6 +452,7 @@ static inline void kk_free_local(const void* p) {
 
 static inline void kk_block_init(kk_block_t* b, kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag) {
   KK_UNUSED(size);
+  kk_assert_internal(scan_fsize >= 0 && scan_fsize < KK_SCAN_FSIZE_MAX);
   kk_header_init(&b->header, scan_fsize, tag);
 }
 
@@ -666,8 +675,7 @@ static inline kk_block_t* kk_block_dup_assert(kk_block_t* b, kk_tag_t tag) {
   return kk_block_dup(b);
 }
 
-static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+static inline void kk_reuse_drop(kk_reuse_t r) {
   if (r != NULL) {
     kk_assert_internal(kk_block_is_unique(r));
     kk_free(r);
@@ -764,7 +772,9 @@ static inline kk_block_t* kk_datatype_as_ptr(kk_datatype_t d) {
 }
 
 static inline bool kk_datatype_is_unique(kk_datatype_t d) {
-  return (kk_likely(kk_datatype_is_ptr(d)) && kk_likely(kk_block_is_unique(kk_datatype_as_ptr(d))));
+  kk_assert_internal(kk_datatype_is_ptr(d)); 
+  //return (kk_datatype_is_ptr(d) && kk_block_is_unique(kk_datatype_as_ptr(d)));
+  return kk_block_is_unique(kk_datatype_as_ptr(d));
 }
 
 static inline kk_datatype_t kk_datatype_dup(kk_datatype_t d) {
@@ -795,32 +805,46 @@ static inline void kk_datatype_drop_assert(kk_datatype_t d, kk_tag_t t, kk_conte
 }
 
 static inline kk_reuse_t kk_datatype_dropn_reuse(kk_datatype_t d, kk_ssize_t scan_fsize, kk_context_t* ctx) {
-  if (kk_datatype_is_singleton(d)) {
+  kk_assert_internal(kk_datatype_is_ptr(d));
+  if (kk_unlikely(kk_datatype_is_singleton(d))) {
     return kk_reuse_null;
   }
   else {
     return kk_block_dropn_reuse(kk_datatype_as_ptr(d), scan_fsize, ctx);
   }
 }
+
 static inline kk_reuse_t kk_datatype_reuse(kk_datatype_t d) {
+  kk_assert_internal(!kk_datatype_is_singleton(d));
+  return kk_datatype_as_ptr(d);
+  /*
   if (kk_datatype_is_singleton(d)) {
     return kk_reuse_null;
   }
   else {
     return kk_datatype_as_ptr(d);
   }
+  */
 }
 
 static inline void kk_datatype_free(kk_datatype_t d) {
+  kk_assert_internal(kk_datatype_is_ptr(d));
+  kk_free(kk_datatype_as_ptr(d));
+  /*
   if (kk_datatype_is_ptr(d)) {
     kk_free(kk_datatype_as_ptr(d));
   }
+  */
 }
 
 static inline void kk_datatype_decref(kk_datatype_t d, kk_context_t* ctx) {
+  kk_assert_internal(kk_datatype_is_ptr(d));
+  kk_block_decref(kk_datatype_as_ptr(d), ctx);
+  /*
   if (kk_datatype_is_ptr(d)) {
     kk_block_decref(kk_datatype_as_ptr(d), ctx);
   }
+  */
 }
 
 
@@ -886,6 +910,7 @@ typedef enum kk_unit_e {
 #include "kklib/string.h"
 #include "kklib/random.h"
 #include "kklib/os.h"
+#include "kklib/thread.h"
 
 /*----------------------------------------------------------------------
   TLD operations
@@ -1007,6 +1032,7 @@ static inline kk_vector_t kk_vector_alloc_uninit(kk_ssize_t length, kk_box_t** b
 
 kk_decl_export void        kk_vector_init_borrow(kk_vector_t _v, kk_ssize_t start, kk_box_t def, kk_context_t* ctx);
 kk_decl_export kk_vector_t kk_vector_realloc(kk_vector_t vec, kk_ssize_t newlen, kk_box_t def, kk_context_t* ctx);
+kk_decl_export kk_vector_t kk_vector_copy(kk_vector_t vec, kk_context_t* ctx);
 
 static inline kk_vector_t kk_vector_alloc(kk_ssize_t length, kk_box_t def, kk_context_t* ctx) {
   kk_vector_t v = kk_vector_alloc_uninit(length, NULL, ctx);
@@ -1036,17 +1062,15 @@ static inline kk_ssize_t kk_vector_len_borrow(const kk_vector_t v) {
   return len;
 }
 
-// TODO: Use borrowed variant in core.kk
 static inline kk_ssize_t kk_vector_len(const kk_vector_t v, kk_context_t* ctx) {
   kk_ssize_t len = kk_vector_len_borrow(v);
   kk_vector_drop(v, ctx);
   return len;
 }
 
-static inline kk_box_t kk_vector_at(const kk_vector_t v, kk_ssize_t i, kk_context_t* ctx) {
+static inline kk_box_t kk_vector_at_borrow(const kk_vector_t v, kk_ssize_t i) {
   kk_assert(i < kk_vector_len_borrow(v));
   kk_box_t res = kk_box_dup(kk_vector_buf_borrow(v, NULL)[i]);
-  kk_vector_drop(v, ctx);
   return res;
 }
 
@@ -1071,7 +1095,8 @@ typedef struct kk_ref_s {
 } *kk_ref_t;
 
 kk_decl_export kk_box_t  kk_ref_get_thread_shared(kk_ref_t r, kk_context_t* ctx);
-kk_decl_export kk_box_t  kk_ref_swap_thread_shared(kk_ref_t r, kk_box_t value, kk_context_t* ctx);
+kk_decl_export kk_box_t  kk_ref_swap_thread_shared_borrow(kk_ref_t r, kk_box_t value);
+kk_decl_export kk_unit_t kk_ref_vector_assign_borrow(kk_ref_t r, kk_integer_t idx, kk_box_t value, kk_context_t* ctx);
 
 static inline kk_box_t kk_ref_box(kk_ref_t r, kk_context_t* ctx) {
   KK_UNUSED(ctx);
@@ -1102,7 +1127,7 @@ static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
     // fast path
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
     kk_box_dup(b);
-    kk_ref_drop(r,ctx);    // TODO: make references borrowed
+    kk_ref_drop(r,ctx);    // TODO: make references borrowed (only get left)
     return b;
   }
   else {
@@ -1111,50 +1136,30 @@ static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
   }  
 }
 
-static inline kk_box_t kk_ref_swap(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
+static inline kk_box_t kk_ref_swap_borrow(kk_ref_t r, kk_box_t value) {
   if (kk_likely(r->_block.header.thread_shared == 0)) {
     // fast path
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
     kk_atomic_store_relaxed(&r->value, value.box);
-    kk_ref_drop(r, ctx);
     return b;
   }
   else {
     // thread shared
-    return kk_ref_swap_thread_shared(r, value, ctx);
+    return kk_ref_swap_thread_shared_borrow(r, value);
   }
 }
 
 
-static inline kk_unit_t kk_ref_set(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
-  kk_box_t b = kk_ref_swap(r, value, ctx);
+static inline kk_unit_t kk_ref_set_borrow(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
+  kk_box_t b = kk_ref_swap_borrow(r, value);
   kk_box_drop(b, ctx);
   return kk_Unit;
 }
 
-static inline kk_unit_t kk_ref_vector_assign(kk_ref_t r, kk_integer_t idx, kk_box_t value, kk_context_t* ctx) {
-  if (kk_likely(r->_block.header.thread_shared == 0)) {
-    // fast path
-    kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
-    kk_vector_t v = kk_vector_unbox(b, ctx);
-    kk_ssize_t len;
-    kk_box_t* p = kk_vector_buf_borrow(v, &len);
-    kk_ssize_t i = kk_integer_clamp_ssize_t(idx,ctx);
-    if (i < len) {
-      kk_box_drop(p[i], ctx);
-      p[i] = value;
-    }  // TODO: return status for out-of-bounds access
-    kk_ref_drop(r, ctx);    // TODO: make references borrowed
-    return kk_Unit;
-  }
-  else {
-    // thread shared
-    kk_unsupported_external("kk_ref_vector_assign with a thread-shared reference");
-    return kk_Unit;
-  }
+// In Koka we can constrain the argument of f to be a local-scope reference.
+static inline kk_box_t kk_ref_modify(kk_ref_t r, kk_function_t f, kk_context_t* ctx) {
+  return kk_function_call(kk_box_t,(kk_function_t,kk_ref_t,kk_context_t*),f,(f,r,ctx));
 }
-
-
 
 /*--------------------------------------------------------------------------------------
   kk_Unit

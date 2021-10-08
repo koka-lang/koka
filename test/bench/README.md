@@ -7,27 +7,35 @@ and the benchmarks need:
 
 - `gcc`. Should be there, otherwise use `sudo apt install gcc`,
 - `ghc`. Use `sudo apt install ghc`,
-- `ocamlopt`. Use `sudo apt install ocaml`,
+- `ocamlopt`. Use `sudo apt install ocaml`.
+  We used the new multi-core OCaml, see <https://github.com/ocaml-multicore/multicore-opam> 
+  for installation instructions (including `domainslib` for the binarytrees benchmark)
+  ```
+  > opam update
+  > opam switch create 4.12.0+domains+effects --repositories=multicore=git+https://github.com/ocaml-multicore/multicore-opam.git,default
+  > opam install dune domainslib
+  ```
+
 - `swiftc`. The Swift compiler can be downloaded [here](https://swift.org/download/).
    The benchmarks expect `swiftc` to be installed at `/opt/swift/bin`,
    so unpack and copy everything under `swift-.../usr` to `/opt/swift/bin`:
    ```
-   > tar -xzf swift-5.3-RELEASE-ubuntu20.04.tar.gz
-   > cd swift-5.3-RELEASE-ubuntu20.04/usr
+   > tar -xzf swift-5.5-RELEASE-ubuntu20.04.tar.gz
+   > cd swift-5.5-RELEASE-ubuntu20.04/usr
    > sudo mkdir /opt/swift
    > sudo cp -r * /opt/swift
    ```
-- `javac`/`java`. We used these [instructions](https://computingforgeeks.com/install-oracle-java-openjdk-14-on-ubuntu-debian-linux/)
-   to install the Java SE 15 Hotspot compiler:
+
+- `javac`/`java`. We used these [instructions](https://www.linuxcapable.com/how-to-install-java-17-lts-jdk-17-on-ubuntu-20-04/)
+   to install the Java SE 17 Hotspot compiler:
    ```
    > sudo apt update
    > sudo add-apt-repository ppa:linuxuprising/java
-   > sudo apt -y install oracle-java15-installer
-   > sudo apt -y install oracle-java15-set-default
+   > sudo apt-get -y install oracle-java17-installer oracle-java17-set-default
    > java --version
-   java 15.0.1 2020-10-20
-   Java(TM) SE Runtime Environment (build 15.0.1+9-18)
-   Java HotSpot(TM) 64-Bit Server VM (build 15.0.1+9-18, mixed mode, sharing)
+   java 17 2021-09-14 LTS
+   Java(TM) SE Runtime Environment (build 17+35-LTS-2724)
+   Java HotSpot(TM) 64-Bit Server VM (build 17+35-LTS-2724, mixed mode, sharing)
    ```
 
 The benchmarks can now be build using:

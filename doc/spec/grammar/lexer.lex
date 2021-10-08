@@ -210,6 +210,7 @@ unsafe                    { return UNSAFE; }
 \<                        { return '<';    }
 \>                        { return '>';    }
 !                         { return '!';    }
+\^                        { return '^';    }
 ~                         { return '~';    }
 
 file                      { return ID_FILE;    }

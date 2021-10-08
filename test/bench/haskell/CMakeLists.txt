@@ -1,11 +1,15 @@
-find_program(GHC "stack")
-if (GHC)
-  list(APPEND GHC ghc --)
-else ()
-  find_program(GHC ghc REQUIRED)
-endif ()
+find_program(GHC ghc REQUIRED)
 
-set(sources cfold.hs deriv.hs nqueens.hs rbtree.hs rbtree2.hs rbtree-ck.hs)
+#find_program(GHC "stack")
+#if (GHC)
+#  list(APPEND GHC ghc --)
+#else ()
+#  find_program(GHC ghc REQUIRED)
+#endif ()
+
+# run `$ cabal install --lib parallel`  to compile binarytrees
+
+set(sources cfold.hs deriv.hs nqueens.hs rbtree.hs rbtree2.hs rbtree-ck.hs binarytrees.hs)
 foreach (source IN LISTS sources)
   get_filename_component(name "${source}" NAME_WE)
   set(name "hs-${name}")

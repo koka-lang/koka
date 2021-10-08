@@ -41,6 +41,7 @@ import Kind.Assumption        ( KGamma, kgammaInit, extractKGamma, kgammaUnion )
 import Type.Assumption        ( Gamma, gammaInit, gammaUnion, extractGamma, gammaNames)
 import Type.Type              ( DataInfo )
 import Core.Inlines           ( Inlines, inlinesNew, inlinesEmpty, inlinesExtends )
+import Core.Borrowed          ( Borrowed, borrowedEmpty, borrowedExtendICore )
 
 import Syntax.RangeMap
 import Compiler.Package       ( PackageName, joinPkg )
@@ -76,6 +77,7 @@ data Loaded = Loaded{ loadedGamma       :: Gamma
                     , loadedModule      :: Module
                     , loadedModules     :: [Module]
                     , loadedInlines     :: Inlines
+                    , loadedBorrowed    :: Borrowed
                     }
 
 loadedLatest :: Loaded -> FileTime
@@ -95,6 +97,7 @@ initialLoaded
            (moduleNull (newName "Interactive"))
            []
            inlinesEmpty
+           borrowedEmpty
 
 moduleNull :: Name -> Module
 moduleNull modName
@@ -133,7 +136,7 @@ loadedMatchNames l
 
 
 loadedImportModule :: (DataInfo -> Bool) -> Loaded -> Module -> Range -> Name -> (Loaded,[ErrorMessage])
-loadedImportModule isValue (Loaded gamma1 kgamma1 syns1 data1 cons1 fix1 imps1 unique1 mod1 imp1 inlines1) mod range impName
+loadedImportModule isValue (Loaded gamma1 kgamma1 syns1 data1 cons1 fix1 imps1 unique1 mod1 imp1 inlines1 borrowed1) mod range impName
   = -- trace ("loadedImport: " ++ show impName ++ " into " ++ show [mod | mod <- importsList imps1]) $
     let core = modCore mod
         (imps2,errs)
@@ -152,6 +155,7 @@ loadedImportModule isValue (Loaded gamma1 kgamma1 syns1 data1 cons1 fix1 imps1 u
                 mod1
                 (addOrReplaceModule mod imp1)
                 inlines1
+                (borrowedExtendICore core borrowed1)
     in (loaded,errs)
 
 addOrReplaceModule :: Module -> Modules -> Modules

@@ -21,7 +21,7 @@ set CLANG_VERSION=12.0.1
 set CLANG_INSTALL_BASE=LLVM-%CLANG_VERSION%-win64.exe
 set CLANG_INSTALL=%TEMP%\%CLANG_INSTALL_BASE%
 set CLANG_INSTALL_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-%CLANG_VERSION%/%CLANG_INSTALL_BASE%
-set CLANG_INSTALL_SHA256=8426d57f2af2bf07f80014bfd359e87ed10f5521a236a10cfe9fc4870d1b1b25
+set CLANG_INSTALL_SHA256=fcbabc9a170208bb344f7bba8366cca57ff103d72a316781bbb77d634b9e9433
 
 rem check if %LOCALAPPDATA% was not empty
 if "%KOKA_PREFIX%" == "\koka" (set KOKA_PREFIX=c:\usr\local\koka)
