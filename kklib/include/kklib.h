@@ -828,15 +828,23 @@ static inline kk_reuse_t kk_datatype_reuse(kk_datatype_t d) {
 }
 
 static inline void kk_datatype_free(kk_datatype_t d) {
+  kk_assert_internal(kk_datatype_is_ptr(d));
+  kk_free(kk_datatype_as_ptr(d));
+  /*
   if (kk_datatype_is_ptr(d)) {
     kk_free(kk_datatype_as_ptr(d));
   }
+  */
 }
 
 static inline void kk_datatype_decref(kk_datatype_t d, kk_context_t* ctx) {
+  kk_assert_internal(kk_datatype_is_ptr(d));
+  kk_block_decref(kk_datatype_as_ptr(d), ctx);
+  /*
   if (kk_datatype_is_ptr(d)) {
     kk_block_decref(kk_datatype_as_ptr(d), ctx);
   }
+  */
 }
 
 
