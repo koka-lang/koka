@@ -41,10 +41,6 @@ trace s x =
   --  Lib.Trace.trace s
     x
 
-enable = -- set to True to enable the transformation
-  True
-  -- False
-
 debug =  -- set True to enable debug (e.g., Checking type invariant at all sub-expressions)
   True
   -- False
@@ -52,8 +48,7 @@ debug =  -- set True to enable debug (e.g., Checking type invariant at all sub-e
 openFloat :: Pretty.Env -> Gamma -> CorePhase ()
 openFloat penv gamma
   = liftCorePhaseUniq $ \uniq defs ->
-      runFlt penv gamma uniq $
-        (if enable then fltDefGroups else return) defs
+      runFlt penv gamma uniq $ fltDefGroups defs
 
 
 {--------------------------------------------------------------------------
@@ -299,8 +294,8 @@ smartRestrictExpr (Eff effFrom) (Eff effTo) expr =
     --        (Lam [ftname] effTo (  -- ([] -> effFrom tp) -> effTo 
     --           App (openEffectExpr effFrom effTo (TFun [] effFrom tp) (TFun [] effTo tp) (Var ftname InfoNone)) []))
     --        [Lam [] effFrom expr]  -- :: [] -> effFrom tp
-    -- let x = \_.expr in (open(x) ())
 
+    -- let x = \_.expr in (open(x) ())
     let
       fname = newHiddenName "restrict"
       restp = typeOf expr
@@ -308,7 +303,12 @@ smartRestrictExpr (Eff effFrom) (Eff effTo) expr =
       ftname = TName fname tp
       df = Def {defName=fname, defType=tp, defExpr=Lam [] effFrom expr, defVis=Public , defSort=DefFun , defInline=InlineAuto , defNameRange=rangeNull , defDoc="internal"}
       dgs = [DefNonRec df] in
-    Let dgs (App (openEffectExpr effFrom effTo (TFun [] effFrom restp) (TFun [] effTo restp) (Var ftname InfoNone)) [])
+    Let dgs $ App (openEffectExpr effFrom effTo (TFun [] effFrom restp) (TFun [] effTo restp) (Var ftname InfoNone)) []
+    -- let
+    --   tp = typeOf expr
+    --   fname = newHiddenName "restrict"
+    --   ftname = TName fname (TFun [] effFrom tp)
+    --   in App (openEffectExpr effFrom effTo (TFun [] effFrom tp) (TFun [] effTo tp) (Lam [ftname] effFrom expr)) []
 
 smartOpenExpr :: Req -> Req -> Expr -> Expr
 smartOpenExpr Bottom _ e = e
