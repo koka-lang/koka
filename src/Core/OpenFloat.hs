@@ -85,7 +85,7 @@ fltExpr expr maybeEff
     App f args
       -> do (f', rqf) <- fltExpr f maybeEff
             args_rq' <- mapM (\arg -> fltExpr arg maybeEff) args
-            tp <- getFunType f  -- debug
+            tp <- getFunType f
             let (args', rqs) = unzip args_rq'
                 Just(_, feff, _) = splitFunType tp
                 rqSup = sup $ Eff feff  : rqf : rqs
@@ -98,9 +98,8 @@ fltExpr expr maybeEff
               getFunType :: Expr -> Flt Type
               getFunType expr = case typeOf expr of
                 funtp@TFun{} -> return funtp
-                tp -> do traceDoc $ \env -> text "App" <+> niceType env tp
+                tp -> do traceDoc $ \env -> text "bad App" <+> niceType env tp
                          return tp
-
     Lam args eff body
       -> do
             traceDoc $ \env -> text "lambda:" <+> niceType env eff
@@ -109,17 +108,15 @@ fltExpr expr maybeEff
             -- let rqSup = supb (Eff eff) rq
             -- if matchRq rqSup $ Eff eff then return ()
             --   else traceDoc $ \env -> text "bad lambda!! before:" <+> niceType env (typeOf expr) <+> text "\n  eff: " <+> niceType env (orderEffect eff) <+> text "\n  req : " <+> niceRq  env rq
-            if leqRq rq (Eff eff) then return ()
-              else traceDoc $ \env -> text "bad lambda!! before:" <+> niceType env (typeOf expr) <+> text "\n  eff: " <+> niceType env (orderEffect eff) <+> text "\n  req : " <+> niceRq  env rq
+            unless (leqRq rq (Eff eff)) $
+              traceDoc $ \env -> text "bad lambda!! before:" <+> niceType env (typeOf expr) <+> text "\n  eff: " <+> niceType env (orderEffect eff) <+> text "\n  req : " <+> niceRq  env rq
             let
               body'' = smartRestrictExpr rq (Eff eff) body'
-            return (
-              --  assertion ("lambda bad body rq\n Why this lambda type checked?\n Annotated effect does not range over internal effect of the body." ++ show (typeOf expr)) (matchRq rqSup $ Eff eff) . 
-               assertTypeInvariant $ Lam args eff body'',
-               Bottom)
+            return (assertTypeInvariant $ Lam args eff body'', Bottom)
 
     Let defgs body ->
       if length defgs > 1
+        -- opens in same defgroups cannot be merged in the middle of the defgroups
         then fltExpr (expandLetExpr expr) maybeEff
       else
         do -- traceDoc $ \env -> text $ "LET " ++ show expr ++ "\n"
