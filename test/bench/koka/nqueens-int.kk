@@ -3,7 +3,7 @@ module nqueens-int
 alias solution = list<int>
 alias solutions = list<list<int>>
 
-fun safe( queen : int, diag : int, xs : solution ) : bool
+fun safe( queen : int, diag : int, ^xs : solution ) : bool
   match xs
     Cons(q,qs) -> (queen != q && queen != (q+diag) && queen != (q - diag) && safe(queen,diag+1,qs))
     _          -> True

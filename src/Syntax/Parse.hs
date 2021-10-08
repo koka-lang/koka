@@ -1205,6 +1205,7 @@ parameters allowDefaults = do
 
 parameter :: Bool -> LexParser (ValueBinder (Maybe UserType) (Maybe UserExpr), UserExpr -> UserExpr)
 parameter allowDefaults = do
+  optional (specialOp "^")
   pat <- patAtom
   tp  <- optionMaybe typeAnnotPar
   (opt,drng) <- if allowDefaults then defaultExpr else return (Nothing,rangeNull)
