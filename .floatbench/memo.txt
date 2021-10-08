@@ -5,8 +5,8 @@ First record was taken without open floating.
 Second with open floating.
 Third with open floating and without expanding let-definition group before floating.
 
-The difference between second and third makes floating succeed or not.
-bench2 is like such code:
+The difference between second and third makes floating succeed or not for some cases.
+bench2 contain such code:
 
 ```koka
 ...
@@ -31,7 +31,7 @@ while {...}
     ] open(count)()
 }
 
-~~>
+~~> expand definitions
 
 while{...}
 {
