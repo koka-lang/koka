@@ -572,13 +572,19 @@ genConstructorTestX info dataRepr con conRepr
                   in case conRepr of
                     ConEnum{}      -> text "x ==" <+> ppConTag con conRepr dataRepr
                     ConIso{}       -> text "true"
-                    ConSingleton{} | dataRepr == DataAsList -> text "kk_datatype_is_singleton(x)" -- text "x ==" <+> conSingletonName con
-                                   | dataReprIsValue dataRepr -> valueTagEq
-                                   | otherwise -> text "kk_datatype_has_tag" <.> tupled [text "x", ppConTag con conRepr dataRepr]
+                    ConSingleton{} | dataRepr == DataAsList 
+                                     -> -- text "kk_datatype_is_singleton(x)" 
+                                        text "kk_datatype_eq(x," <.> conCreateNameInfo con <.> text "(NULL))"
+                                   | dataReprIsValue dataRepr 
+                                     -> valueTagEq
+                                   | otherwise 
+                                     -> text "kk_datatype_has_tag" <.> tupled [text "x", ppConTag con conRepr dataRepr]
                     ConSingle{}    -> text "true"
                     ConAsJust{}    -> valueTagEq
                     ConStruct{}    -> valueTagEq
-                    ConAsCons{}    -> text "kk_datatype_is_ptr(x)" --  <+> conSingletonNameX (  Nil conRepr)
+                    ConAsCons{}    -> -- testing for a constant singleton seems faster on x64 than testing the lowest bit
+                                      -- text "kk_datatype_is_ptr(x)" 
+                                      text "!kk_datatype_eq(x," <.> conCreateName (conAsNil conRepr) <.> text "(NULL))"
                     ConNormal{}
                                    -- | dataRepr == DataSingleNormal -> text "datatype_is_ptr(x)"
                                    -- | otherwise -> text "datatype_is_ptr(x) && datatype_tag_fast(x) ==" <+> ppConTag con conRepr dataRepr
