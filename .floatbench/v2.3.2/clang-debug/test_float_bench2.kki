@@ -1,0 +1,142 @@
+module interface test/float/bench2
+ 
+//------------------------------
+//#kki: import declarations
+ 
+private import std/core/types = std/core/types = "";
+private import std/core/hnd = std/core/hnd = "";
+private import std/core = std/core = "";
+ 
+//------------------------------
+//#kki: external imports
+ 
+ 
+//------------------------------
+//#kki: fixity declarations
+ 
+ 
+//------------------------------
+//#kki: local imported aliases
+ 
+ 
+//------------------------------
+//#kki: type declarations
+ 
+// handlers for the `:bra` effect
+public recursive type .hnd-bra <(e :: E),a> :: (E, V) -> V {
+  public con .Hnd-bra(fun-brara: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(),(.hnd-bra :: (E, V) -> V),(e :: E),a>) : forall<(e :: E),a> (fun-brara : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(),(.hnd-bra :: (E, V) -> V),(e :: E),a>) -> (.hnd-bra :: (E, V) -> V)<(e :: E),a>;
+};
+// handlers for the `:count` effect
+public recursive type .hnd-count <(e :: E),a> :: (E, V) -> V {
+  public con .Hnd-count(fun-one: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,std/core/types/int,(.hnd-count :: (E, V) -> V),(e :: E),a>, fun-two: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,std/core/types/int,(.hnd-count :: (E, V) -> V),(e :: E),a>) : forall<(e :: E),a> (fun-one : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,std/core/types/int,(.hnd-count :: (E, V) -> V),(e :: E),a>, fun-two : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,std/core/types/int,(.hnd-count :: (E, V) -> V),(e :: E),a>) -> (.hnd-count :: (E, V) -> V)<(e :: E),a>;
+};
+// `:bra` effect
+public type bra :: HX {
+  private con Bra<(e :: E),a>((.hnd-bra :: (E, V) -> V)<(e :: E),a>) : forall<(e :: E),a> ((.hnd-bra :: (E, V) -> V)<(e :: E),a>) -> (bra :: HX);
+};
+// `:count` effect
+public type count :: HX {
+  private con Count<(e :: E),a>((.hnd-count :: (E, V) -> V)<(e :: E),a>) : forall<(e :: E),a> ((.hnd-count :: (E, V) -> V)<(e :: E),a>) -> (count :: HX);
+};
+ 
+//------------------------------
+//#kki: declarations
+ 
+// runtime tag for the `:bra` effect
+public val .tag-bra : (std/core/hnd/htag :: ((E, V) -> V) -> V)<(.hnd-bra :: (E, V) -> V)>;
+// handler for the `:bra` effect
+public fun .handle-bra : forall<a,(e :: E),b> (cfc : std/core/types/int32, hnd : (.hnd-bra :: (E, V) -> V)<(e :: E),b>, ret : (res : a) -> (e :: E) b, action : () -> <(std/core/types/handled :: HX -> X)<(bra :: HX)>|(e :: E)> a) -> (e :: E) b;
+// runtime tag for the `:count` effect
+public val .tag-count : (std/core/hnd/htag :: ((E, V) -> V) -> V)<(.hnd-count :: (E, V) -> V)>;
+// handler for the `:count` effect
+public fun .handle-count : forall<a,(e :: E),b> (cfc : std/core/types/int32, hnd : (.hnd-count :: (E, V) -> V)<(e :: E),b>, ret : (res : a) -> (e :: E) b, action : () -> <(std/core/types/handled :: HX -> X)<(count :: HX)>|(e :: E)> a) -> (e :: E) b;
+// select `brara` operation out of the `:bra` effect handler
+public fun .select-brara : forall<(e :: E),a> (hnd : (.hnd-bra :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(),(.hnd-bra :: (E, V) -> V),(e :: E),a>;
+// select `one` operation out of the `:count` effect handler
+public fun .select-one : forall<(e :: E),a> (hnd : (.hnd-count :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,std/core/types/int,(.hnd-count :: (E, V) -> V),(e :: E),a>;
+// select `two` operation out of the `:count` effect handler
+public fun .select-two : forall<(e :: E),a> (hnd : (.hnd-count :: (E, V) -> V)<(e :: E),a>) -> (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,std/core/types/int,(.hnd-count :: (E, V) -> V),(e :: E),a>;
+// call `brara` operation of the `:bra` effect
+public fun brara : () -> <(std/core/types/handled :: HX -> X)<(bra :: HX)>> ();
+public fun k : () -> <(std/core/types/handled :: HX -> X)<(bra :: HX)>> ();
+// call `one` operation of the `:count` effect
+public fun one : (a : std/core/types/int) -> <(std/core/types/handled :: HX -> X)<(count :: HX)>> std/core/types/int;
+public fun one_ : (a : std/core/types/int) -> <(std/core/types/handled :: HX -> X)<(count :: HX)>> std/core/types/int;
+// call `two` operation of the `:count` effect
+public fun two : (a : std/core/types/int) -> <(std/core/types/handled :: HX -> X)<(count :: HX)>> std/core/types/int;
+public fun two_ : (a : std/core/types/int) -> <(std/core/types/handled :: HX -> X)<(count :: HX)>> std/core/types/int;
+// monadic lift
+private fun .mlift791-f : forall<(h :: H)> (i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, wild_0 : ()) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: E)> std/core/types/int;
+// monadic lift
+private fun .mlift792-f : forall<(h :: H)> (c : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, std/core/types/int) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: E)> std/core/types/int;
+// monadic lift
+private fun .mlift793-f : forall<(h :: H)> (c : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, wild_ : ()) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: E)> std/core/types/int;
+// monadic lift
+private fun .mlift794-f : forall<(h :: H)> (i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, wild_2 : ()) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: E)> std/core/types/int;
+// monadic lift
+private fun .mlift795-f : forall<(h :: H)> (c : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, std/core/types/int) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: E)> std/core/types/int;
+// monadic lift
+private fun .mlift796-f : forall<(h :: H)> (c : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, wild_1 : ()) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: E)> std/core/types/int;
+// monadic lift
+private fun .mlift797-f : forall<(h :: H)> (std/core/types/int) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/div :: X),(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/handled :: HX -> X)<(count :: HX)>> std/core/types/bool;
+// monadic lift
+private fun .mlift798-f : (wild_4 : std/core/types/int) -> <(std/core/types/handled :: HX -> X)<(count :: HX)>> ();
+// monadic lift
+private fun .mlift799-f : (a2 : std/core/types/int) -> <(std/core/types/handled :: HX -> X)<(count :: HX)>> ();
+// monadic lift
+private fun .mlift800-f : (a1 : std/core/types/int) -> <(std/core/types/handled :: HX -> X)<(count :: HX)>> ();
+// monadic lift
+private fun .mlift801-f : forall<(h :: H)> (a00 : std/core/types/int) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(count :: HX)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: X)> ();
+// monadic lift
+private fun .mlift802-f : forall<(h :: H)> (i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, wild_3 : ()) -> <(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/handled :: HX -> X)<(count :: HX)>,(std/core/types/div :: X),(std/core/types/local :: H -> X)<(h :: H)>> ();
+// fun fib( n : int ) {
+//     if n < 2 then n else fib(n-1) + fib
+// } 
+public fun f : () -> <(std/core/types/div :: E)> std/core/types/int;
+public fun main : () -> <(std/core/types/div :: E)> std/core/types/int;
+ 
+//------------------------------
+//#kki: external declarations
+ 
+ 
+//------------------------------
+//#kki: inline definitions
+ 
+//.inline-section
+inline fun .select-brara // inline size: 0
+  = forall<(e :: E),a> fn<(std/core/types/(<>) :: E)>(hnd: (.hnd-bra :: (E, V) -> V)<(e :: E),a>){
+    (match (hnd) {
+      ((.skip test/float/bench2/.Hnd-bra((fun-brara: (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(),(.hnd-bra :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause0 :: (V, (E, V) -> V, E, V) -> V)<(),(.hnd-bra :: (E, V) -> V),(e :: E),a>) : (.hnd-bra :: (E, V) -> V)<(e :: E),a> ) as .pat: ((.hnd-bra :: (E, V) -> V)<(e :: E),a>))
+         -> fun-brara;
+    });
+  };
+inline fun .select-one // inline size: 0
+  = forall<(e :: E),a> fn<(std/core/types/(<>) :: E)>(hnd: (.hnd-count :: (E, V) -> V)<(e :: E),a>){
+    (match (hnd) {
+      ((.skip test/float/bench2/.Hnd-count((fun-one: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,std/core/types/int,(.hnd-count :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,std/core/types/int,(.hnd-count :: (E, V) -> V),(e :: E),a>, (.pat0: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,std/core/types/int,(.hnd-count :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,std/core/types/int,(.hnd-count :: (E, V) -> V),(e :: E),a>) : (.hnd-count :: (E, V) -> V)<(e :: E),a> ) as .pat: ((.hnd-count :: (E, V) -> V)<(e :: E),a>))
+         -> fun-one;
+    });
+  };
+inline fun .select-two // inline size: 0
+  = forall<(e :: E),a> fn<(std/core/types/(<>) :: E)>(hnd: (.hnd-count :: (E, V) -> V)<(e :: E),a>){
+    (match (hnd) {
+      ((.skip test/float/bench2/.Hnd-count((.pat0: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,std/core/types/int,(.hnd-count :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,std/core/types/int,(.hnd-count :: (E, V) -> V),(e :: E),a>, (fun-two: (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,std/core/types/int,(.hnd-count :: (E, V) -> V),(e :: E),a>) : (std/core/hnd/clause1 :: (V, V, (E, V) -> V, E, V) -> V)<std/core/types/int,std/core/types/int,(.hnd-count :: (E, V) -> V),(e :: E),a>) : (.hnd-count :: (E, V) -> V)<(e :: E),a> ) as .pat: ((.hnd-count :: (E, V) -> V)<(e :: E),a>))
+         -> fun-two;
+    });
+  };
+inline fun brara // inline size: 5
+  = fn<<(std/core/types/handled :: HX -> X)<(bra :: HX)>>>(){
+    std/core/hnd/.perform0<(),<(std/core/types/handled :: HX -> X)<(bra :: HX)>>,(.hnd-bra :: (E, V) -> V)>((std/core/types/.open<(std/core/types/(<>) :: E),<(std/core/types/handled :: HX -> X)<(bra :: HX)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(.hnd-bra :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: HX -> X)<(bra :: HX)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(.hnd-bra :: (E, V) -> V)>>((std/core/hnd/.evv-at<(.hnd-bra :: (E, V) -> V)>))((std/core/types/.open<(std/core/types/(<>) :: E),<(std/core/types/handled :: HX -> X)<(bra :: HX)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: HX -> X)<(bra :: HX)>> std/core/types/ssize_t>(std/core/ssize_t)(0)))), test/float/bench2/.select-brara);
+  };
+inline fun one // inline size: 5
+  = fn<<(std/core/types/handled :: HX -> X)<(count :: HX)>>>(a: std/core/types/int){
+    std/core/hnd/.perform1<std/core/types/int,std/core/types/int,<(std/core/types/handled :: HX -> X)<(count :: HX)>>,(.hnd-count :: (E, V) -> V)>((std/core/types/.open<(std/core/types/(<>) :: E),<(std/core/types/handled :: HX -> X)<(count :: HX)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(.hnd-count :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: HX -> X)<(count :: HX)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(.hnd-count :: (E, V) -> V)>>((std/core/hnd/.evv-at<(.hnd-count :: (E, V) -> V)>))((std/core/types/.open<(std/core/types/(<>) :: E),<(std/core/types/handled :: HX -> X)<(count :: HX)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: HX -> X)<(count :: HX)>> std/core/types/ssize_t>(std/core/ssize_t)(0)))), test/float/bench2/.select-one, a);
+  };
+inline fun two // inline size: 5
+  = fn<<(std/core/types/handled :: HX -> X)<(count :: HX)>>>(a: std/core/types/int){
+    std/core/hnd/.perform1<std/core/types/int,std/core/types/int,<(std/core/types/handled :: HX -> X)<(count :: HX)>>,(.hnd-count :: (E, V) -> V)>((std/core/types/.open<(std/core/types/(<>) :: E),<(std/core/types/handled :: HX -> X)<(count :: HX)>>,(i : std/core/hnd/ev-index) -> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(.hnd-count :: (E, V) -> V)>,(i : std/core/hnd/ev-index) -> <(std/core/types/handled :: HX -> X)<(count :: HX)>> (std/core/hnd/ev :: ((E, V) -> V) -> V)<(.hnd-count :: (E, V) -> V)>>((std/core/hnd/.evv-at<(.hnd-count :: (E, V) -> V)>))((std/core/types/.open<(std/core/types/(<>) :: E),<(std/core/types/handled :: HX -> X)<(count :: HX)>>,(i : std/core/types/int) -> std/core/types/ssize_t,(i : std/core/types/int) -> <(std/core/types/handled :: HX -> X)<(count :: HX)>> std/core/types/ssize_t>(std/core/ssize_t)(0)))), test/float/bench2/.select-two, a);
+  };
+fun main // inline size: 1
+  = fn<<(std/core/types/div :: E)>>(){
+    test/float/bench2/f();
+  };

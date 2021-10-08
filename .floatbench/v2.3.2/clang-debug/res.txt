@@ -1,0 +1,7 @@
+commit 265790fafe2164938526870ae8440c06bdabe2ea
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Thu Oct 7 23:25:40 2021 +0900
+
+    add memo about the result of test/float/bench2.kk
+Fri, 08 Oct 2021 10:29:24 +0900
+real 9.21 user 8.64 sys 0.00
