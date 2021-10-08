@@ -33,3 +33,107 @@ result:\n real         8.89
 user         8.54
 sys          0.00
 \n\n
+-------------
+run test/float/bench1.kk
+Note. 
+commit f20cb56fbca21efdb9d8894225e6e01f2d25395a
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 11:28:58 2021 +0900
+
+    chage smartrestrict to use Let insteasd of lambda
+Fri, 08 Oct 2021 13:44:08 +0900
+real         0.69
+user         0.21
+sys          0.00
+
+-------------
+run test/float/bench1.kk
+Note. 
+commit f20cb56fbca21efdb9d8894225e6e01f2d25395a
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 11:28:58 2021 +0900
+
+    chage smartrestrict to use Let insteasd of lambda
+Fri, 08 Oct 2021 13:45:19 +0900
+real         0.83
+user         0.21
+sys          0.00
+
+-------------
+run test/float/bench2
+Note. 
+commit f20cb56fbca21efdb9d8894225e6e01f2d25395a
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 11:28:58 2021 +0900
+
+    chage smartrestrict to use Let insteasd of lambda
+Fri, 08 Oct 2021 13:46:04 +0900
+real         8.80
+user         8.53
+sys          0.00
+
+-------------
+run test/float/bench2
+Note. 
+commit 63762913f1cd0927f8320f8fca9651dc5ee47adf
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 13:49:23 2021 +0900
+
+    delete floating flag
+Fri, 08 Oct 2021 14:07:49 +0900
+real         8.85
+user         8.55
+sys          0.00
+
+-------------
+run test/float/bench2
+Note. floating
+commit a6afa704129baf25a214315e4ede2d7a52320ea5
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 14:31:27 2021 +0900
+
+    remove effect paramqeter of fltExpr
+Fri, 08 Oct 2021 14:47:34 +0900
+real         8.93
+user         8.64
+sys          0.00
+
+-------------
+run test/float/bench2
+Note. floating with extra-simplify
+commit a6afa704129baf25a214315e4ede2d7a52320ea5
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 14:31:27 2021 +0900
+
+    remove effect paramqeter of fltExpr
+Fri, 08 Oct 2021 14:50:43 +0900
+real         8.91
+user         8.64
+sys          0.00
+
+-------------
+run test/float/bench2
+Note. floating without expanding Let-defs
+commit a6afa704129baf25a214315e4ede2d7a52320ea5
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 14:31:27 2021 +0900
+
+    remove effect paramqeter of fltExpr
+Fri, 08 Oct 2021 14:53:31 +0900
+real         9.20
+user         9.08
+sys          0.02
+
+-------------
+run test/float/bench2
+Note. floating without expanding Let-defs
+commit a6afa704129baf25a214315e4ede2d7a52320ea5
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 14:31:27 2021 +0900
+
+    remove effect paramqeter of fltExpr
+Fri, 08 Oct 2021 14:55:13 +0900
+real        11.95
+user        11.66
+sys          0.00
+
