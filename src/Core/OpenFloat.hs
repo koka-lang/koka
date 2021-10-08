@@ -285,11 +285,15 @@ niceRq env (Eff eff) = text "Eff " <+> niceType env eff
 --------------------------------------------------------------------------}
 
 -- How should I define restrict?
-smartRestrictExpr :: Req -> Req -> Expr  -> Expr
-smartRestrictExpr Bottom _ expr = expr
-smartRestrictExpr (Eff _) Bottom _ = undefined
+smartRestrictExpr :: Req -> Req -> Expr -> Expr
+smartRestrictExpr Bottom _ expr     = expr
+smartRestrictExpr (Eff _) Bottom _  = failure "Core.OpenFloat.smartRestrictExpr: unexpected Bottom?"
 smartRestrictExpr (Eff effFrom) (Eff effTo) expr =
-  if matchEffect effFrom effTo then expr else
+  if matchEffect effFrom effTo then expr else restrict effFrom effTo expr
+
+restrict effFrom effTo expr
+  = let tp = typeOf expr
+    in App (openEffectExpr effFrom effTo (TFun [] effFrom tp) (TFun [] effTo tp) (Lam [] effFrom expr)) []
     -- (\x. open(x)() ) \_.expr
     -- let
     --   tp = typeOf expr
@@ -302,6 +306,7 @@ smartRestrictExpr (Eff effFrom) (Eff effTo) expr =
     --        [Lam [] effFrom expr]  -- :: [] -> effFrom tp
 
     -- let x = \_.expr in (open(x) ())
+    {-
     let
       fname = newHiddenName "restrict"
       restp = typeOf expr
@@ -310,6 +315,7 @@ smartRestrictExpr (Eff effFrom) (Eff effTo) expr =
       df = Def {defName=fname, defType=tp, defExpr=Lam [] effFrom expr, defVis=Public , defSort=DefFun [], defInline=InlineAuto , defNameRange=rangeNull , defDoc="internal"}
       dgs = [DefNonRec df] in
     Let dgs $ App (openEffectExpr effFrom effTo (TFun [] effFrom restp) (TFun [] effTo restp) (Var ftname InfoNone)) []
+    -}
 
     -- open(\_.expr)() : ERROR
     -- let
