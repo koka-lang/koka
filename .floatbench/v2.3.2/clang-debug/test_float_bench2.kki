@@ -66,29 +66,29 @@ public fun one_ : (a : std/core/types/int) -> <(std/core/types/handled :: HX -> 
 public fun two : (a : std/core/types/int) -> <(std/core/types/handled :: HX -> X)<(count :: HX)>> std/core/types/int;
 public fun two_ : (a : std/core/types/int) -> <(std/core/types/handled :: HX -> X)<(count :: HX)>> std/core/types/int;
 // monadic lift
-private fun .mlift791-f : forall<(h :: H)> (i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, wild_0 : ()) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: E)> std/core/types/int;
+private fun .mlift772-f : forall<(h :: H)> (i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, wild_0 : ()) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: E)> std/core/types/int;
 // monadic lift
-private fun .mlift792-f : forall<(h :: H)> (c : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, std/core/types/int) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: E)> std/core/types/int;
+private fun .mlift773-f : forall<(h :: H)> (c : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, std/core/types/int) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: E)> std/core/types/int;
 // monadic lift
-private fun .mlift793-f : forall<(h :: H)> (c : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, wild_ : ()) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: E)> std/core/types/int;
+private fun .mlift774-f : forall<(h :: H)> (c : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, wild_ : ()) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: E)> std/core/types/int;
 // monadic lift
-private fun .mlift794-f : forall<(h :: H)> (i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, wild_2 : ()) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: E)> std/core/types/int;
+private fun .mlift775-f : forall<(h :: H)> (i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, wild_2 : ()) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: E)> std/core/types/int;
 // monadic lift
-private fun .mlift795-f : forall<(h :: H)> (c : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, std/core/types/int) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: E)> std/core/types/int;
+private fun .mlift776-f : forall<(h :: H)> (c : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, std/core/types/int) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: E)> std/core/types/int;
 // monadic lift
-private fun .mlift796-f : forall<(h :: H)> (c : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, wild_1 : ()) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: E)> std/core/types/int;
+private fun .mlift777-f : forall<(h :: H)> (c : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, wild_1 : ()) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: E)> std/core/types/int;
 // monadic lift
-private fun .mlift797-f : forall<(h :: H)> (std/core/types/int) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/div :: X),(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/handled :: HX -> X)<(count :: HX)>> std/core/types/bool;
+private fun .mlift778-f : forall<(h :: H)> (std/core/types/int) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/div :: X),(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/handled :: HX -> X)<(count :: HX)>> std/core/types/bool;
 // monadic lift
-private fun .mlift798-f : (wild_4 : std/core/types/int) -> <(std/core/types/handled :: HX -> X)<(count :: HX)>> ();
+private fun .mlift779-f : (wild_4 : std/core/types/int) -> <(std/core/types/handled :: HX -> X)<(count :: HX)>> ();
 // monadic lift
-private fun .mlift799-f : (a2 : std/core/types/int) -> <(std/core/types/handled :: HX -> X)<(count :: HX)>> ();
+private fun .mlift780-f : (a2 : std/core/types/int) -> <(std/core/types/handled :: HX -> X)<(count :: HX)>> ();
 // monadic lift
-private fun .mlift800-f : (a1 : std/core/types/int) -> <(std/core/types/handled :: HX -> X)<(count :: HX)>> ();
+private fun .mlift781-f : (a1 : std/core/types/int) -> <(std/core/types/handled :: HX -> X)<(count :: HX)>> ();
 // monadic lift
-private fun .mlift801-f : forall<(h :: H)> (a00 : std/core/types/int) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(count :: HX)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: X)> ();
+private fun .mlift782-f : forall<(h :: H)> (a00 : std/core/types/int) -> <(std/core/types/local :: H -> X)<(h :: H)>,(std/core/types/handled :: HX -> X)<(count :: HX)>,(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/div :: X)> ();
 // monadic lift
-private fun .mlift802-f : forall<(h :: H)> (i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, wild_3 : ()) -> <(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/handled :: HX -> X)<(count :: HX)>,(std/core/types/div :: X),(std/core/types/local :: H -> X)<(h :: H)>> ();
+private fun .mlift783-f : forall<(h :: H)> (i : (std/core/types/local-var :: (H, V) -> V)<(h :: H),std/core/types/int>, wild_3 : ()) -> <(std/core/types/handled :: HX -> X)<(bra :: HX)>,(std/core/types/handled :: HX -> X)<(count :: HX)>,(std/core/types/div :: X),(std/core/types/local :: H -> X)<(h :: H)>> ();
 // fun fib( n : int ) {
 //     if n < 2 then n else fib(n-1) + fib
 // } 

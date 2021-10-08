@@ -5,3 +5,31 @@ Date:   Thu Oct 7 23:25:40 2021 +0900
     add memo about the result of test/float/bench2.kk
 Fri, 08 Oct 2021 10:29:24 +0900
 real 9.21 user 8.64 sys 0.00
+commit d6528c8f3255da7be550471d0e8061b15071ca96
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 10:55:02 2021 +0900
+
+    create directory for benchmarking
+Fri, 08 Oct 2021 11:16:33 +0900
+result:\n multitime: Error when attempting to run ./.floatbench/v2.3.2/clang-debug/
+\n\n
+commit d6528c8f3255da7be550471d0e8061b15071ca96
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 10:55:02 2021 +0900
+
+    create directory for benchmarking
+Fri, 08 Oct 2021 11:17:23 +0900
+result:\n real         9.00
+user         8.53
+sys          0.00
+\n\n
+commit d6528c8f3255da7be550471d0e8061b15071ca96
+Author: naoyafurudono <furudono.n.aa@m.titech.ac.jp>
+Date:   Fri Oct 8 10:55:02 2021 +0900
+
+    create directory for benchmarking
+Fri, 08 Oct 2021 11:27:55 +0900
+result:\n real         8.89
+user         8.54
+sys          0.00
+\n\n

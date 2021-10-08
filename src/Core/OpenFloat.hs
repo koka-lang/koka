@@ -37,7 +37,7 @@ import Core.Core
 import qualified Core.Core as Core
 import Core.Pretty
 
-trace s x = 
+trace s x =
   --  Lib.Trace.trace s
     x
 
@@ -46,7 +46,7 @@ enable = -- set to True to enable the transformation
   -- False
 
 debug =  -- set True to enable debug (e.g., Checking type invariant at all sub-expressions)
-  True 
+  True
   -- False
 
 openFloat :: Pretty.Env -> Gamma -> CorePhase ()
@@ -107,7 +107,7 @@ fltExpr expr maybeEff
                          return tp
 
     Lam args eff body
-      -> do   
+      -> do
             traceDoc $ \env -> text "lambda:" <+> niceType env eff
             (body', rq) <- fltExpr body $ Just eff
             -- check $rq <= eff$
@@ -126,7 +126,7 @@ fltExpr expr maybeEff
     Let defgs body ->
       if length defgs > 1
         then fltExpr (expandLetExpr expr) maybeEff
-      else 
+      else
         do -- traceDoc $ \env -> text $ "LET " ++ show expr ++ "\n"
           defgIR_rqs <- mapM (\def -> fltDefGroupAux def maybeEff) defgs
           (body', rq) <- fltExpr body maybeEff
@@ -158,7 +158,7 @@ fltExpr expr maybeEff
     _ -> return (expr, Bottom)
     where
       assertTypeInvariant :: Expr -> Expr
-      assertTypeInvariant expr' = if not debug then expr' else 
+      assertTypeInvariant expr' = if not debug then expr' else
         let tpBefore = typeOf expr
             tpAfter = typeOf expr' in
               assertion "OpenFloat. Type invariant violaiton." (matchType tpBefore tpAfter) expr'
@@ -210,7 +210,7 @@ fltExpr expr maybeEff
         do (guard', rqg) <- fltExpr guard maybeEff
            (body', rqb)  <- fltExpr body maybeEff
            return (GuardIR (guard', rqg) (body', rqb), supb rqg rqb)
-      
+
       expandLetExpr :: Expr -> Expr
       expandLetExpr expr = case expr of
         Let defgs body | length defgs > 1 -> foldr (\d b -> Let [d] b) body defgs
@@ -289,16 +289,26 @@ smartRestrictExpr Bottom _ expr = expr
 smartRestrictExpr (Eff _) Bottom _ = undefined
 smartRestrictExpr (Eff effFrom) (Eff effTo) expr =
   if matchEffect effFrom effTo then expr else
-    -- let x = \_.expr in (open(x) ())  ~~> (\x. open(x)() ) \_.expr
+    -- (\x. open(x)() ) \_.expr
+    -- let
+    --   tp = typeOf expr
+    --   fname = newHiddenName "restrict"
+    --   ftname = TName fname (TFun [] effFrom tp)
+    --   -- tmptname = TName (newHiddenName "tmp") typeUnit
+    --   in App
+    --        (Lam [ftname] effTo (  -- ([] -> effFrom tp) -> effTo 
+    --           App (openEffectExpr effFrom effTo (TFun [] effFrom tp) (TFun [] effTo tp) (Var ftname InfoNone)) []))
+    --        [Lam [] effFrom expr]  -- :: [] -> effFrom tp
+    -- let x = \_.expr in (open(x) ())
+
     let
-      tp = typeOf expr
-      fname = newHiddenName "restedthunk"
-      ftname = TName fname (TFun [] effFrom tp)
-      -- tmptname = TName (newHiddenName "tmp") typeUnit
-      in App
-           (Lam [ftname] effTo (  -- ([] -> effFrom tp) -> effTo 
-              App (openEffectExpr effFrom effTo (TFun [] effFrom tp) (TFun [] effTo tp) (Var ftname InfoNone)) []))
-           [Lam [] effFrom expr]  -- :: [] -> effFrom tp
+      fname = newHiddenName "restrict"
+      restp = typeOf expr
+      tp = TFun [] effFrom restp
+      ftname = TName fname tp
+      df = Def {defName=fname, defType=tp, defExpr=Lam [] effFrom expr, defVis=Public , defSort=DefFun , defInline=InlineAuto , defNameRange=rangeNull , defDoc="internal"}
+      dgs = [DefNonRec df] in
+    Let dgs (App (openEffectExpr effFrom effTo (TFun [] effFrom restp) (TFun [] effTo restp) (Var ftname InfoNone)) [])
 
 smartOpenExpr :: Req -> Req -> Expr -> Expr
 smartOpenExpr Bottom _ e = e
