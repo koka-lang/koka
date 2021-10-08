@@ -230,7 +230,7 @@ fun tikz-picture( kind : string, normalize : bool, test-names : list<string>, la
     @"\begin{axis}[Chart" ++ (if (normalize) then "norm" else "abs") ++ kind ++ ",ymax=" ++ ymax.show(1) ++ ",height=" ++ height ++ ",xmax=" ++ n.show ++ ".5,width=" ++ width ++ "]",
     if (normalize) then @"  \draw (axis cs:-0.5,1) -- (axis cs:" ++ n.show ++ ".5,1);" else ""
   ]
-  val mid = lang-names.map(fn(l){ @"  \draw" ++ kind ++ @"{\color" ++ kind ++ l ++ @"{0}}{\data" ++ kind ++ l ++ "};"})
+  val mid = lang-names.map(fn(l){ @"  \draw" ++ kind ++ @"{color" ++ l ++ @"}{\data" ++ kind ++ l ++ "};"})
   val footer = [
      if (kind=="time") then @"  \legend{" ++ lang-names.map(fn(l){ "\\lang" ++ l }).join(",") ++ "};"
                        else "",
