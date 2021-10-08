@@ -11,20 +11,59 @@ import std/num/int32
 type tree  
   Node( left : tree, right : tree )
   Tip
-  
+
+
+// make a perfectly balanced binary tree of `depth` using FBIP
+// to use no extra stack space.
+type builder  
+  Top
+  BuildRight( depth : int, up : builder )
+  BuildNode( left : tree, up : builder )
+
+// using mutual recursion
+fun make-down( depth : int, builder : builder ) : div tree
+  if depth > 0 
+    then make-down( depth - 1, BuildRight(depth - 1, builder))
+    else make-up( Node(Tip,Tip), builder)
+
+fun make-up( t : tree, builder : builder ) : div tree
+  match builder
+    BuildRight(depth, up) -> make-down( depth, BuildNode(t, up))
+    BuildNode(l, up)      -> make-up( Node(l, t), up)
+    Top -> t
+
+// using a single tail recursive definition
+type direction  
+  Down( depth : int )
+  Up( t : tree )
+
+fun make-fbip( dir : direction, builder : builder) : div tree
+  match dir
+    Down(depth) -> if depth > 0 
+      then make-fbip(Down(depth - 1), BuildRight(depth - 1, builder))
+      else make-fbip(Up(Node(Tip,Tip)), builder)
+    Up(t) -> match builder
+      BuildRight(depth, up) -> make-fbip(Down(depth), BuildNode(t, up))
+      BuildNode(l, up)      -> make-fbip(Up(Node(l, t)), up)
+      Top -> t
 
 // make a perfectly balanced binary tree of `depth`
-fun make( depth : int ) : div tree
+fun make-rec( depth : int ) : div tree
   if depth > 0
-    then Node( make(depth.dec), make(depth.dec) ) 
+    then Node( make(depth - 1), make(depth - 1) ) 
     else Node( Tip, Tip )
+
+fun make( depth : int ) : div tree
+  make-rec(depth)
+  // make-fbip(Down(depth), Top)
+  // make-down( depth, Top )
+
 
 
 // FBIP in action: use a visitor to run the checksum tail-recursively
 type visit  
   Done
   NodeR( right : tree, v : visit )
-
 
 // tail-recursive checksum
 fun checkv( t : tree, v : visit, acc : int ) : div int
@@ -34,10 +73,8 @@ fun checkv( t : tree, v : visit, acc : int ) : div int
       NodeR(r,v') -> checkv( r, v', acc)
       Done        -> acc
 
-
-
 // normal checksum  
-fun checkr( t : tree ) : div int  
+fun checkr( t : tree ) : div int
   match t
     Node(l,r) -> l.checkr + r.checkr + 1
     Tip       -> 0
@@ -51,14 +88,14 @@ fun check( t : tree ) : div int
 
 // generate `count` trees of `depth` and return the total checksum
 fun sum-count( count : int, depth : int ) : div int
-  var csum := 0
-  repeat(count)
-    csum := csum + make(depth).check
-  csum
+  fold-int(count+1,0) fn(i,csum)
+    // csum + make(depth).check
+    csum + make(depth).check
+  
 
 // parallel sum count: spawn up to `n` sub-tasks to count checksums
 fun psum-count( count : int, depth : int ) : pure int
-  val n = 2
+  val n = 8
   val partc = count / n
   val rest  = count % n
   val parts = list(1,n) fn(i){ task{ sum-count( partc, depth ) }
@@ -70,17 +107,18 @@ fun psum-count( count : int, depth : int ) : pure int
 fun gen-depth( min-depth : int, max-depth : int ) : pure list<(int,int,promise<int>)>
   list(min-depth, max-depth, 2) fn(d)
     val count = 2^(max-depth + min-depth - d)    // todo: ensure fast 2^n operation
-    //(count, d, task{ psum-count(count, d) })
-    (count, d, task{ sum-count(count, d) })   // one task per depth    
-
+    (count, d, task{ psum-count(count, d) })
+    //(count, d, task{ sum-count(count, d) } )   // one task per depth    
+   
 
 // show results
 fun show( msg : string, depth : int, check : int ) : console ()
-  println(msg ++ " of depth " ++ depth.show ++ "\tcheck: " ++ check.show)
+  println(msg ++ " of depth " ++ depth.show ++ "\t check: " ++ check.show)
 
 
 // main
 public fun main()
+  // task-set-default-concurrency(8);
   val n = get-args().head.default("").parse-int.default(21)
   val min-depth = 4
   val max-depth = max(min-depth + 2, n)
@@ -88,7 +126,9 @@ public fun main()
   // allocate and free the stretch tree
   val stretch-depth = max-depth.inc
   show( "stretch tree", stretch-depth, make(stretch-depth).check )
+  
   // allocate long lived tree
+  // val long = make(max-depth)
   val long = make(max-depth)
 
   // allocate and free many trees in parallel

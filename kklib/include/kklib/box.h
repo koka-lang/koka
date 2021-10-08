@@ -426,9 +426,9 @@ static inline kk_box_t kk_box_any(kk_context_t* ctx) {
 ----------------------------------------------------------------*/
 
 // A function to free a raw C pointer, raw bytes, or raw string.
-typedef void (kk_free_fun_t)(void* p, kk_block_t* block);
-kk_decl_export void kk_free_fun_null(void* p, kk_block_t* block);
-kk_decl_export void kk_free_fun(void* p, kk_block_t* block);
+typedef void (kk_free_fun_t)(void* p, kk_block_t* block, kk_context_t* ctx);
+kk_decl_export void kk_free_fun_null(void* p, kk_block_t* block, kk_context_t* ctx);
+kk_decl_export void kk_free_fun(void* p, kk_block_t* block, kk_context_t* ctx);
 
 // "raw" types: first field is pointer to a free function, the next field a pointer to raw C data
 typedef struct kk_cptr_raw_s {

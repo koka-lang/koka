@@ -22,6 +22,7 @@
 #include "refcount.c"
 #include "string.c"
 #include "time.c"
+#include "thread.c"
 #include "vector.c"
 
 #if defined(KK_MIMALLOC)

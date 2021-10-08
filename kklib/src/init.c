@@ -36,14 +36,16 @@ kk_function_t kk_function_null(kk_context_t* ctx) {
 
 
 // null functions
-void kk_free_fun_null(void* p, kk_block_t* b) {
+void kk_free_fun_null(void* p, kk_block_t* b, kk_context_t* ctx) {
   KK_UNUSED(p);
   KK_UNUSED(b);
+  KK_UNUSED(ctx);
 }
 
 // free memory
-void kk_free_fun(void* p, kk_block_t* b) {
+void kk_free_fun(void* p, kk_block_t* b, kk_context_t* ctx) {
   KK_UNUSED(b);
+  KK_UNUSED(ctx);
   kk_free(p);
 }
 
@@ -133,12 +135,11 @@ void kk_info_message(const char* fmt, ...) {
 /*--------------------------------------------------------------------------------------------------
   Process init/done
 --------------------------------------------------------------------------------------------------*/
-static void free_context(void);
 static bool process_initialized; // = false
 
 static void kklib_done(void) {
   if (!process_initialized) return;
-  free_context();
+  kk_free_context();
   process_initialized = false;
 }
 
@@ -207,7 +208,7 @@ kk_context_t* kk_get_context(void) {
   return ctx;
 }
 
-static void free_context(void) {
+void kk_free_context(void) {
   if (context != NULL) {
     kk_block_drop(context->evv, context);
     kk_basetype_free(context->kk_box_any);

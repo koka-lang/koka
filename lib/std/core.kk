@@ -327,6 +327,15 @@ fun list( lo: int, hi: int ) : total list<int> {
   enumerate(lo,hi,[])
 }
 
+// Returns an integer list of increasing elements from `lo`  to `hi` with stride `stride`.
+// If `lo > hi`  the function returns the empty list.
+fun list( lo: int, hi: int, stride : int ) : total list<int> {
+  if (lo <= hi) 
+    then Cons( lo, list(  unsafe-decreasing(lo + stride), hi, stride ))
+    else Nil  
+}
+
+
 // Applies a function `f` to list of increasing elements from `lo`  to `hi`
 // (including both `lo`  and `hi` ).
 // If `lo > hi`  the function returns the empty list.
@@ -337,6 +346,14 @@ fun list( lo : int, hi: int, f : int -> e a) : e list<a> {
      else enumerate(low, unsafe-decreasing(high - 1), Cons(f(high),acc))
   }
   enumerate(lo,hi,[])
+}
+
+// Returns an integer list of increasing elements from `lo`  to `hi` with stride `stride`.
+// If `lo > hi`  the function returns the empty list.
+fun list( lo: int, hi: int, stride : int, f : int -> e a ) : e list<a> {
+  if (lo <= hi) 
+    then Cons( f(lo), list(  unsafe-decreasing(lo + stride), hi, stride, f ))
+    else Nil  
 }
 
 
@@ -1236,10 +1253,15 @@ fun maybe( i : int ) : maybe<int> {
     if (i==0) then Nothing else Just(i)
 }
 
-fun fold-int( start : int, end : int, init : a, f : (int,a) -> a ) : a {
+fun fold-int( start : int, end : int, init : a, f : (int,a) -> e a ) : e a {
   if (start >= end) then return init
   val x = f(start,init)
   fold-int(unsafe-decreasing(start.inc), end, x, f)
+}
+
+// fold over the integers between [0,`upto`)  (not including `upto`).
+fun fold-int( upto : int, init : a, f : (int,a) -> e a ) : e a {
+  fold-int( 0, upto.dec, init, f )
 }
 
 // ----------------------------------------------------------------------------
