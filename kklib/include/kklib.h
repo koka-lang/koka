@@ -2,7 +2,7 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
-#define KKLIB_BUILD        63       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        64       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1
 
@@ -227,6 +227,11 @@ typedef struct kk_block_fields_s {
 static inline kk_box_t kk_block_field(kk_block_t* b, kk_ssize_t index) {
   kk_block_fields_t* bf = (kk_block_fields_t*)b;  // must overlap with datatypes with scanned fields.
   return bf->fields[index];
+}
+
+static inline void kk_block_field_set(kk_block_t* b, kk_ssize_t index, kk_box_t v) {
+  kk_block_fields_t* bf = (kk_block_fields_t*)b;  // must overlap with datatypes with scanned fields.
+  bf->fields[index] = v;
 }
 
 #if (KK_INTPTR_SIZE==8)
