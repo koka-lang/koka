@@ -164,14 +164,21 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\.koka\debug\interactive.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core_hnd.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core_types.c" />
+    <ClCompile Include="..\..\..\.koka\debug\std_num_ddouble.c" />
+    <ClCompile Include="..\..\..\.koka\debug\std_num_decimal.c" />
+    <ClCompile Include="..\..\..\.koka\debug\std_num_double.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_num_int32.c" />
-    <ClCompile Include="..\..\..\.koka\debug\std_os_env.c" />
-    <ClCompile Include="..\..\..\.koka\debug\std_os_path.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_text_parse.c" />
-    <ClCompile Include="..\..\..\.koka\debug\test_bench_koka_rbtree.c" />
+    <ClCompile Include="..\..\..\.koka\debug\std_time_date.c" />
+    <ClCompile Include="..\..\..\.koka\debug\std_time_duration.c" />
+    <ClCompile Include="..\..\..\.koka\debug\std_time_instant.c" />
+    <ClCompile Include="..\..\..\.koka\debug\std_time_timer.c" />
+    <ClCompile Include="..\..\..\.koka\debug\std_time_timestamp.c" />
+    <ClCompile Include="..\..\..\.koka\debug\test_bench_koka_kkfree.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
