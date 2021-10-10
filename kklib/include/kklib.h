@@ -98,8 +98,8 @@ typedef struct kk_header_s {
 
 static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_tag_t tag) {
   kk_assert_internal(scan_fsize >= 0 && scan_fsize <= KK_SCAN_FSIZE_MAX);
-#if (KK_ARCH_LITTLE_ENDIAN)
-  * ((uint64_t*)h) = ((uint64_t)scan_fsize | (uint64_t)tag << 16); // explicit shifts leads to better codegen  
+#if (KK_ARCH_LITTLE_ENDIAN && !defined(__aarch64__))
+  * ((uint64_t*)h) = ((uint64_t)scan_fsize | (uint64_t)tag << 16); // explicit shifts leads to better codegen in general
 #else
   kk_header_t header = KK_HEADER((uint8_t)scan_fsize, (uint16_t)tag);
   *h = header;
