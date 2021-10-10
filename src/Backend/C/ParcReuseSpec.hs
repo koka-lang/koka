@@ -121,17 +121,18 @@ ruGuard (Guard test expr)
 ruSpecialize :: TName -> Pattern -> Expr -> Reuse (Maybe Expr)
 ruSpecialize reuseName reusePat conApp
   = case (conApp,reusePat) of
-      (App con args, PatCon{patConName, patConPatterns})
+      (App con args, PatCon{patTypeRes, patConRepr, patConPatterns})
         -> case extractCon con of
              Just (cname, repr)
-               -> do mci <- getConInfo (typeOf con) (getName cname)
+               -> do mci <- getConInfo (typeOf conApp) (getName cname)
+                     isSureReuse <- isNonShared patTypeRes
                      let matches = zipWith tryMatch args patConPatterns
-                         needsTag = patConName /= cname
+                         needsTag = conTag patConRepr /= conTag repr
                          oldTagBenefit = if needsTag then 0 else 1
                          specialize = oldTagBenefit + length (filter isMatch matches) >= 1 + ((1 + length args) `div` 4)
                      case (mci, specialize) of
                        (Just ci, True)
-                         -> Just <$> ruSpecCon reuseName cname ci needsTag (conTag repr) (typeOf conApp) (App con) matches
+                         -> Just <$> ruSpecCon reuseName cname ci needsTag (conTag repr) isSureReuse (typeOf conApp) con matches
                        _ -> return Nothing
              Nothing -> return Nothing
       _ -> return Nothing
@@ -143,14 +144,15 @@ ruSpecialize reuseName reusePat conApp
 -- | Move dups before the allocation and emit:
 -- if(reuseName != NULL) { set tag and fields }
 -- else { allocate constructor without reuse }
-ruSpecCon :: TName -> TName -> ConInfo -> Bool -> Int -> Type -> ([Expr] -> Expr) -> [Match] -> Reuse Expr
-ruSpecCon reuseName conName conInfo needsTag tag resultType makeConApp matches
+ruSpecCon :: TName -> TName -> ConInfo -> Bool -> Int -> Bool -> Type -> Expr -> [Match] -> Reuse Expr
+ruSpecCon reuseName conName conInfo needsTag tag isSureReuse resultType con matches
   = do (defss, assigns) <- unzip <$> mapM ruToAssign matches
        let fields = map fst (conInfoParams conInfo)
            nonMatching = [(name,expr) | (name,(expr,isMatch)) <- zip fields assigns, not isMatch]
            reuseExpr = if needsTag then genConTagFieldsAssign resultType conName reuseName tag nonMatching
                                    else genConFieldsAssign resultType conName reuseName nonMatching
-           specExpr = makeIfExpr (genReuseIsValid reuseName) reuseExpr (makeConApp (map fst assigns))
+           specExpr = if isSureReuse then reuseExpr
+                      else makeIfExpr (genReuseIsValid reuseName) reuseExpr (App con (map fst assigns))
        return (makeLet (concat defss) specExpr)
 
 data Match
@@ -197,17 +199,7 @@ genReuseIsValid reuseName
   where
     typeReuseIsValid = TFun [(nameNil,typeReuse)] typeTotal typeBool
 
--- genConFieldsAssign tp conName reuseName [(field1,expr1)...(fieldN,exprN)]
--- generates:  c = (conName*)reuseName; c->field1 := expr1; ... ; c->fieldN := exprN; (tp*)(c)
-genConTagFieldsAssign :: Type -> TName -> TName -> Int -> [(Name,Expr)] -> Expr
-genConTagFieldsAssign resultType conName reuseName tag fieldExprs
-  = App (Var (TName nameConTagFieldsAssign typeConFieldsAssign) (InfoArity 0 (length fieldExprs + 1)))
-        ([Var reuseName (InfoConField conName nameNil), Var (TName (newName (show tag)) typeUnit) InfoNone] ++ map snd fieldExprs)
-  where
-    fieldTypes = [(name,typeOf expr) | (name,expr) <- fieldExprs]
-    typeConFieldsAssign = TFun ([(nameNil,typeOf reuseName), (nameNil, typeUnit)] ++ fieldTypes) typeTotal resultType
-
--- genConTagFieldsAssign tp conName reuseName [(field1,expr1)...(fieldN,exprN)]
+-- | genConFieldsAssign tp conName reuseName [(field1,expr1)...(fieldN,exprN)]
 -- generates:  c = (conName*)reuseName; c->field1 := expr1; ... ; c->fieldN := exprN; (tp*)(c)
 genConFieldsAssign :: Type -> TName -> TName -> [(Name,Expr)] -> Expr
 genConFieldsAssign resultType conName reuseName fieldExprs
@@ -216,6 +208,15 @@ genConFieldsAssign resultType conName reuseName fieldExprs
   where
     fieldTypes = [(name,typeOf expr) | (name,expr) <- fieldExprs]
     typeConFieldsAssign = TFun ((nameNil,typeOf reuseName) : fieldTypes) typeTotal resultType
+
+-- | Like genConFieldsAssign but also set the tag.
+genConTagFieldsAssign :: Type -> TName -> TName -> Int -> [(Name,Expr)] -> Expr
+genConTagFieldsAssign resultType conName reuseName tag fieldExprs
+  = App (Var (TName nameConTagFieldsAssign typeConFieldsAssign) (InfoArity 0 (length fieldExprs + 1)))
+        ([Var reuseName (InfoConField conName nameNil), Var (TName (newName (show tag)) typeUnit) InfoNone] ++ map snd fieldExprs)
+  where
+    fieldTypes = [(name,typeOf expr) | (name,expr) <- fieldExprs]
+    typeConFieldsAssign = TFun ([(nameNil,typeOf reuseName), (nameNil, typeUnit)] ++ fieldTypes) typeTotal resultType
 
 getConInfo :: Type -> Name -> Reuse (Maybe ConInfo)
 getConInfo dataType conName
@@ -226,12 +227,28 @@ getConInfo dataType conName
          Just (ci:_) -> pure $ Just ci
          _ -> pure Nothing
   where
-    extractDataName :: Type -> Maybe Name
-    extractDataName tp
-      = case expandSyn tp of
-          TFun _ _ t -> extractDataName t
-          TCon tc    -> Just (typeConName tc)
-          _          -> Nothing
+
+-- | TODO
+isNonShared :: Type -> Reuse Bool
+isNonShared dataType
+  = do newtypes <- getNewtypes
+       let mdataName = extractDataName dataType
+       return $ mdataName `elem` map Just
+         [ newQualified "test/bench/koka/rbtree-fbip" "zipper"
+         , newQualified "test/perf/sets/splay-trees-fbip" "zipper"
+         , newQualified "test/perf/sets/splay-trees-fbip-con" "zipper"
+         , newQualified "test/perf/sets/splay-trees-fbip-con" "container"
+         , newQualified "test/perf/sets/rbtree-fbip" "rbzipper"
+         , newQualified "test/perf/sets/weight-balanced-fbip" "zipper"
+         , newQualified "test/perf/sets/weight-balanced-fbip-int" "zipper"
+         ]
+
+extractDataName :: Type -> Maybe Name
+extractDataName tp
+  = case expandSyn tp of
+      TFun _ _ t -> extractDataName t
+      TCon tc    -> Just (typeConName tc)
+      _          -> Nothing
 
 --------------------------------------------------------------------------
 -- Utilities for readability
