@@ -626,17 +626,18 @@ constructorSize platform newtypes conRepr paramTypes
 -- return the ordered fields, the byte size of the allocation, and the scan count (including tags)
 orderConFieldsEx :: Platform -> Newtypes -> Bool -> [(Name,Type)] -> ([(Name,Type)],Int,Int)
 orderConFieldsEx platform newtypes isOpen fields
-  = visit ([],[],0,0) fields
+  = visit ([],[],[],0) fields
   where
-    visit (rraw, rscan, scanCount0, mixCount) []
-      = if (mixCount > 1)
+    visit (rraw, rmixed, rscan, scanCount0) []
+      = if (length rmixed > 1)
          then failure ("Backend.C.ParcReuse.orderConFields: multiple fields with mixed raw/scan fields itself in " ++ show fields)
          else let scanCount = scanCount0 + (if (isOpen) then 1 else 0)  -- +1 for the open datatype tag
                   ssize = scanCount * (sizePtr platform)
-                  rsize = alignedSum ssize (map snd (reverse rraw))
+                  raws  = rmixed ++ reverse rraw
+                  rsize = alignedSum ssize (map snd raws)
                   size  = alignUp rsize (sizeSize platform)
-              in (reverse rscan ++ map fst (reverse rraw), size, scanCount)
-    visit (rraw,rscan,scanCount,mixCount) (field@(name,tp) : fs)
+              in (reverse rscan ++ map fst raws, size, scanCount)
+    visit (rraw,rmixed,rscan,scanCount) (field@(name,tp) : fs)
       = let (dd,dataRepr) = newtypesDataDefRepr newtypes tp
         in case dd of
              DataDefValue raw scan
@@ -644,12 +645,19 @@ orderConFieldsEx platform newtypes isOpen fields
                   if (raw > 0 && scan > 0)
                    then -- mixed raw/scan: put it at the head of the raw fields (there should be only one of these as checked in Kind/Infer)
                         -- but we count them to be sure (and for function data)
-                        visit (rraw ++ [(field,raw)], rscan, scanCount + scan  + extra, mixCount + 1) fs
+                        visit (rraw, (field,raw):rmixed, rscan, scanCount + scan  + extra) fs
                    else if (raw > 0)
-                         then visit ((field,raw):rraw, rscan, scanCount, mixCount) fs
-                         else visit (rraw, field:rscan, scanCount + scan + extra, mixCount) fs
-             _ -> visit (rraw, field:rscan, scanCount + 1, mixCount) fs
+                         then visit (insertRaw field raw rraw, rmixed, rscan, scanCount) fs
+                         else visit (rraw, rmixed, field:rscan, scanCount + scan + extra) fs
+             _ -> visit (rraw, rmixed, field:rscan, scanCount + 1) fs
 
+    -- insert raw fields in order of size so they align to the smallest total size in a datatype
+    insertRaw :: (Name,Type) -> Int -> [((Name,Type),Int)] -> [((Name,Type),Int)] 
+    insertRaw field raw ((f,r):rs)  
+      | raw <= r  = (field,raw):(f,r):rs
+      | otherwise = (f,r):insertRaw field raw rs
+    insertRaw field raw []
+      = [(field,raw)]
 
 newtypesDataDefRepr :: Newtypes -> Type -> (DataDef,DataRepr)
 newtypesDataDefRepr newtypes tp
