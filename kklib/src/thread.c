@@ -383,12 +383,13 @@ static void kk_promise_free( void* vp, kk_block_t* b, kk_context_t* ctx ) {
 }
 
 static kk_promise_t kk_promise_alloc(kk_context_t* ctx) {
+  kk_promise_t pr;
   promise_t* p = (promise_t*)kk_zalloc(kk_ssizeof(promise_t),ctx);
   if (p == NULL) goto err;
   p->result = kk_box_any(ctx);
   if (pthread_mutex_init(&p->lock, NULL) != 0) goto err;
   if (pthread_cond_init(&p->available, NULL) != 0) goto err;
-  kk_promise_t pr = kk_cptr_raw_box( &kk_promise_free, p, ctx );
+  pr = kk_cptr_raw_box( &kk_promise_free, p, ctx );
   kk_box_mark_shared(pr,ctx);
   return pr;
 err:
@@ -501,12 +502,13 @@ static void kk_lvar_free( void* lvar, kk_block_t* b, kk_context_t* ctx ) {
 }
 
 kk_lvar_t kk_lvar_alloc(kk_box_t init, kk_context_t* ctx) {
+  kk_lvar_t lvar;
   lvar_t* lv = (lvar_t*)kk_zalloc(kk_ssizeof(lvar_t),ctx);
   if (lv == NULL) goto err;
   lv->result = init;
   if (pthread_mutex_init(&lv->lock, NULL) != 0) goto err;
   if (pthread_cond_init(&lv->available, NULL) != 0) goto err;
-  kk_lvar_t lvar = kk_cptr_raw_box( &kk_lvar_free, lv, ctx );
+  lvar = kk_cptr_raw_box( &kk_lvar_free, lv, ctx );
   kk_box_mark_shared(init,ctx);
   kk_box_mark_shared(lvar,ctx);
   return lvar;
