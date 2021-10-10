@@ -133,7 +133,7 @@ ruLetExpr expr
               (ys2, fn2) <- ruLetExpr (Let dgs body)
               return (ys1 ++ ys2, \mrs
                 -> do let (mrs1, mrs2) = splitAt (length ys1) mrs
-                      (ds1, fe1) <- fn1 mrs1 
+                      (ds1, fe1) <- fn1 mrs1
                       (ds2, fe2) <- fn2 mrs2
                       return $ (ds1 ++ ds2, fe1 . fe2))
       _ -> return ([], \_ -> return ([], \_ -> expr))
@@ -148,27 +148,27 @@ ruLet' def
                       Nothing -> return ([], makeDefsLet [def])
                       Just rReuse
                         -> do let ru = makeTDef (defTName rReuse) genReuseNull
-                              return ([ru], makeDefsLet [(makeDef nameNil $ genReuseAssignWith (defTName rReuse) (defExpr rReuse))]))
+                              return ([ru], makeDefsLet [makeDef nameNil $ genReuseAssignWith (defTName rReuse) (defExpr rReuse)]))
           -- See makeDropSpecial:
           -- We assume that makeDropSpecial always occurs in a definition.
           App (Var name _) [Var y _, xUnique, rShared, xDecRef] | getName name == nameDropSpecial
             -> do (uniqYs, fUnique) <- ruLetExpr xUnique
                   return $ ((y, False):uniqYs, \mReuses -> do
                     let (mrs1, mrs2) = splitAt (length uniqYs) (tail mReuses)
-                    (rusUnique, rUnique') <- fUnique mrs1 
+                    (rusUnique, rUnique') <- fUnique mrs1
                     let rUnique = rUnique' exprUnit
                     case head mReuses of
                       Nothing
-                        -> do return (rusUnique, makeDefsLet [(makeDef nameNil
+                        -> do return (rusUnique, makeDefsLet [makeDef nameNil
                                 ( makeIfExpr (genIsUnique y)
                                   (makeStats [rUnique, genFree y])
-                                  (makeStats [rShared, xDecRef])))])
+                                  (makeStats [rShared, xDecRef]))])
                       Just ru
-                        -> do rReuse <- genReuseAssign y 
-                              return (ru:rusUnique, makeDefsLet [(makeDef nameNil
+                        -> do rReuse <- genReuseAssign y
+                              return (ru:rusUnique, makeDefsLet [makeDef nameNil
                                 ( makeIfExpr (genIsUnique y)
                                   (makeStats [rUnique, rReuse])
-                                  (makeStats [rShared, xDecRef])))]))
+                                  (makeStats [rShared, xDecRef]))]))
           _ -> do de <- ruExpr (defExpr def)
                   return $ ([], \_ -> return ([], makeDefsLet [(def{defExpr=de})]))
 
@@ -286,7 +286,7 @@ ruTryReuse shouldGenDrop (rName, patName, size, scan)
        enable <- getEnableReuse
        if not enable then return Nothing
        else case M.lookup size av of
-         Just rinfos  | rName `elem` (map reuseName rinfos)
+         Just rinfos  | rName `elem` map reuseName rinfos
            -> do let rest = filter (\r -> rName /= reuseName r) rinfos
                  setAvailable (M.insert size rest av)
                  return Nothing
@@ -334,22 +334,14 @@ genReuseDrop tname
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeReuse
 
-genSetNull :: TName -> Reuse Expr
-genSetNull x
-  = genReuseAssignEx x True
-
 genReuseAssign :: TName -> Reuse Expr
 genReuseAssign x
-  = genReuseAssignEx x False
-
-genReuseAssignEx :: TName -> Bool -> Reuse Expr
-genReuseAssignEx x setNull
   = do dss <- getDeconstructed
        case NameMap.lookup (getName x) dss of
-          Nothing -> failure $ "Backend.C.Parc.genReuseAssignEx: cannot find: " ++ show x
-          Just (r, _, _, _)
-            -> let arg = if setNull then genReuseNull else genReuseAddress x
-               in return $ genReuseAssignWith r arg
+         Nothing
+           -> failure $ "Backend.C.Parc.genReuseAssignEx: cannot find: " ++ show x
+         Just (r, _, _, _)
+           -> return $ genReuseAssignWith r (genReuseAddress x)
 
 -- Get a null token for reuse inlining
 genReuseNull :: Expr
@@ -408,7 +400,7 @@ data Env = Env { currentDef :: [Def],
                  newtypes :: Newtypes
                }
 
-data ReuseState = ReuseState { uniq :: Int, 
+data ReuseState = ReuseState { uniq :: Int,
                                available :: Available,
                                deconstructed :: Deconstructed,
                                reused :: Reused }
@@ -438,7 +430,7 @@ runReuse :: Pretty.Env -> Bool -> Platform -> Newtypes -> Reuse a -> Unique a
 runReuse penv enableReuse platform newtypes (Reuse action)
   = withUnique $ \u ->
       let env = Env [] enableReuse penv platform newtypes
-          st = ReuseState u M.empty NameMap.empty S.empty 
+          st = ReuseState u M.empty NameMap.empty S.empty
           (val, st') = runState (runReaderT action env) st
        in (val, uniq st')
 
@@ -514,7 +506,7 @@ setDeconstructed :: Deconstructed -> Reuse ()
 setDeconstructed = updateDeconstructed . const
 
 deconstructedIntersect :: [Deconstructed] -> Deconstructed
-deconstructedIntersect = foldl NameMap.intersection NameMap.empty 
+deconstructedIntersect = foldl NameMap.intersection NameMap.empty
 
 markReused :: TName -> Reuse ()
 markReused name = updateSt (\s -> s { reused = S.insert name (reused s) })
@@ -660,6 +652,7 @@ newtypesDataDefRepr newtypes tp
                       Nothing -> failure $ "Backend.C.ParcReuse.getDataDefRepr: cannot find type: " ++ show name
                       Just di -> (dataInfoDef di, fst (getDataRepr di))
 
+extractDataDefType :: Type -> Maybe Name
 extractDataDefType tp
  = case expandSyn tp of
      TApp t _      -> extractDataDefType t
@@ -668,6 +661,7 @@ extractDataDefType tp
      _             -> Nothing
 
 
+isDataStructLike :: DataRepr -> Bool
 isDataStructLike (DataAsMaybe) = True
 isDataStructLike (DataStruct) = True
 isDataStructLike _ = False
