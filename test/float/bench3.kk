@@ -1,8 +1,8 @@
-effect bra {
-    fun brara() : ()
+effect bar {
+    fun barra() : ()
 }
 
-fun k() : <bra> () { brara() }
+fun k() : <bar> () { barra() }
 
 effect count {
     fun one( a : int ) : int 
@@ -25,7 +25,7 @@ fun f() {
     var i : int := 0
     var c : int := 0
     var b := 0
-    with fun brara() { b := i + c }
+    with fun barra() { b := i + c }
     with handler {
         fun one( a ) { i := a + 1; c := c + 1; i }
         fun two( a ) { i := a + 2; c := c + 1; i }
@@ -37,6 +37,8 @@ fun f() {
       val a = i
       one_(a) + one_(a) + two_(a)
       ()
+
+
     }
 }
 

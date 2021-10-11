@@ -2,11 +2,11 @@
 
 import std/os/env
 
-effect bra {
-    fun brara() : ()
+effect bar {
+    fun barra() : ()
 }
 
-fun k() : <bra> () { brara() }
+fun k() : <bar> () { barra() }
 
 effect count {
     fun one( a : int ) : int 
@@ -18,13 +18,13 @@ fun one_( a : int ): count int {
     
 }
 
-// fun g() : bra () { () }
-// fun h() : <bra,count> () { () }
+// fun g() : bar () { () }
+// fun h() : <bar,count> () { () }
 fun f(n) {
     var i : int := 0
     var c : int := 0
     var b := 0
-    with fun brara() { b := i + c }
+    with fun barra() { b := i + c }
     with handler {
         fun one( a ) { i := a + 1; c := c + 1; i }
         // fun two( a ) { i := a + 2; c := c + 1; i }
