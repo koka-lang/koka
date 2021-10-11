@@ -74,15 +74,11 @@ fltDef def
     do (expr', _) <- fltExpr (defExpr def)
        return def{ defExpr = expr' }
 
-<<<<<<< HEAD
-=======
 
 {--------------------------------------------------------------------------
   float expressions
 --------------------------------------------------------------------------}
 
--- exor : typrOf(expr) | \eff ~~> (expr', rq)
->>>>>>> 5cdcd32163c0ac9eac330318a5dd0b9624173e7e
 fltExpr :: Expr -> Flt (Expr, Req)
 fltExpr expr
   = case expr of
