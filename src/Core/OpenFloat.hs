@@ -118,20 +118,24 @@ fltExpr expr
               body'' = smartRestrictExpr rq (Eff eff) body'
             return (assertTypeInvariant $ Lam args eff body'', Bottom)
 
-    Let defgs body ->
-      -- daan: this should be fold over the defgs ?
-      if length defgs > 1
-        -- expand because open calls in same defGroups cannot be merged in the middle of the defGroups
-        then fltExpr (expandLetExpr expr)
-      else
-        do -- traceDoc $ \env -> text $ "LET " ++ show expr ++ "\n"
+    -- TODO Refactor this case. Use foldr or something like that
+    Let defgs@[defg] body ->
+      do
           defgIR_rqs <- mapM fltDefGroupAux defgs
           (body', rq) <- fltExpr body
           let (defgIRs, rqs) = unzip defgIR_rqs
               rqSup = sup $ rq:rqs
               body'' = smartRestrictExpr rq rqSup body'
           defgs' <- mapM (restrictToDG rqSup) defgIRs
-          return (assertTypeInvariant $ Let defgs' body'', rqSup)
+          return (assertTypeInvariant $ Let defgs' body'', rqSup) 
+    Let [] body ->
+      do
+        (expr', rq) <- fltExpr body
+        return (Let [] expr', rq)
+    Let defgs body ->
+        -- daan: this should be fold over the defgs ?
+        -- expand because open calls in same defGroups cannot be merged in the middle of the defGroups
+        fltExpr (expandLetExpr expr)
     Case exprs bs
       -> do exprIR_rqs <- mapM fltExpr exprs
             bIR_rqs <- mapM fltBranch bs
@@ -194,7 +198,7 @@ fltDefAux def@Def{defExpr=expr}  =
 -- daan: instead of splitting Let, should be instead fold over the groups in the fltExpr.Let case?
 expandLetExpr :: Expr -> Expr
 expandLetExpr expr = case expr of
-  Let defgs body | length defgs > 1 -> foldr (\d b -> Let [d] b) body defgs
+  Let defgs body -> foldr (\d b -> Let [d] b) body defgs
   _ -> expr
 
 
