@@ -89,31 +89,30 @@ fltExpr expr
     App f args
       -> do (f', rqf) <- fltExpr f
             args_rq' <- mapM fltExpr args
-            tp <- getFunType f
-            let (args', rqs) = unzip args_rq'
-                Just(_, feff, _) = splitFunType tp
+            let
+                (args', rqs) = unzip args_rq'
+                feff = getEffectType f
                 rqSup = sup $ Eff feff  : rqf : rqs
                 frest = smartRestrictExpr rqf rqSup f'
                 f'' = smartOpenExpr (Eff feff) rqSup frest
                 args'' = map (\(e, rq)-> smartRestrictExpr rq rqSup e) args_rq'
-            traceDoc $ \env -> text "app: " <+> niceType env (typeOf f'')
+            -- traceDoc $ \env -> text "app: " <+> niceType env (typeOf f'')
             return (assertTypeInvariant $ App f'' args'', rqSup)
             where
-              getFunType :: Expr -> Flt Type
-              getFunType expr = case typeOf expr of
-                funtp@TFun{} -> return funtp
-                tp -> do traceDoc $ \env -> text "bad App" <+> niceType env tp
-                         return tp
+              getEffectType :: Expr -> Effect
+              getEffectType e = case splitFunType $ typeOf e of
+                Just(_, eff, _) -> eff
+                Nothing -> failure $ "Core.OpenFloat/getEffectType: invalid input expr\nOperator must have function type.\n found: " ++ show (typeOf e)
     Lam args eff body
       -> do
-            traceDoc $ \env -> text "lambda:" <+> niceType env eff
+            -- traceDoc $ \env -> text "lambda:" <+> niceType env eff
             (body', rq) <- fltExpr body
             -- check $rq <= eff$
             -- let rqSup = supb (Eff eff) rq
             -- if matchRq rqSup $ Eff eff then return ()
             --   else traceDoc $ \env -> text "bad lambda!! before:" <+> niceType env (typeOf expr) <+> text "\n  eff: " <+> niceType env (orderEffect eff) <+> text "\n  req : " <+> niceRq  env rq
-            unless (leqRq rq (Eff eff)) $
-              traceDoc $ \env -> text "bad lambda!! before:" <+> niceType env (typeOf expr) <+> text "\n  eff: " <+> niceType env (orderEffect eff) <+> text "\n  req : " <+> niceRq  env rq
+            -- unless (leqRq rq (Eff eff)) $
+              -- traceDoc $ \env -> text "bad lambda!! before:" <+> niceType env (typeOf expr) <+> text "\n  eff: " <+> niceType env (orderEffect eff) <+> text "\n  req : " <+> niceRq  env rq
             let
               body'' = smartRestrictExpr rq (Eff eff) body'
             return (assertTypeInvariant $ Lam args eff body'', Bottom)
@@ -127,7 +126,7 @@ fltExpr expr
               rqSup = sup $ rq:rqs
               body'' = smartRestrictExpr rq rqSup body'
           defgs' <- mapM (restrictToDG rqSup) defgIRs
-          return (assertTypeInvariant $ Let defgs' body'', rqSup) 
+          return (assertTypeInvariant $ Let defgs' body'', rqSup)
     Let [] body ->
       do
         (expr', rq) <- fltExpr body
@@ -192,7 +191,7 @@ fltDefGroupAux (DefNonRec def) =
 fltDefAux :: Def -> Flt (DefIR, Req)
 fltDefAux def@Def{defExpr=expr}  =
   do (expr', rq) <- fltExpr expr
-     return (DefIR def{defExpr=expr'} rq, rq)      
+     return (DefIR def{defExpr=expr'} rq, rq)
 
 
 -- daan: instead of splitting Let, should be instead fold over the groups in the fltExpr.Let case?
@@ -208,7 +207,7 @@ expandLetExpr expr = case expr of
 --------------------------------------------------------------------------}
 
 restrictToD :: Req -> DefIR -> Flt Def
-restrictToD rqSup (DefIR def@Def{defExpr=expr} rq) 
+restrictToD rqSup (DefIR def@Def{defExpr=expr} rq)
   = return $ def{defExpr= smartRestrictExpr rq rqSup expr}
 
 restrictToDG :: Req -> DefGroupIR -> Flt DefGroup
@@ -220,7 +219,7 @@ restrictToDG rqSup (DefNonRecIR defIR) =
      return $ DefNonRec def
 
 restrictToE :: Req -> (Expr, Req) -> Flt Expr
-restrictToE rqSup (e, rq) 
+restrictToE rqSup (e, rq)
   = return $ smartRestrictExpr rq rqSup e
 
 restrictToB :: Req -> BranchIR -> Flt Branch
@@ -312,8 +311,8 @@ smartRestrictExpr :: Req -> Req -> Expr -> Expr
 smartRestrictExpr Bottom _ expr     = expr
 smartRestrictExpr (Eff _) Bottom _  = failure "Core.OpenFloat.smartRestrictExpr: unexpected Bottom?"
 smartRestrictExpr (Eff effFrom) (Eff effTo) expr =
-  if matchEffect effFrom effTo 
-    then expr 
+  if matchEffect effFrom effTo
+    then expr
     else let tp = typeOf expr
          in App (openEffectExpr effFrom effTo (TFun [] effFrom tp) (TFun [] effTo tp) (Lam [] effFrom expr)) []
     -- (\x. open(x)() ) \_.expr
