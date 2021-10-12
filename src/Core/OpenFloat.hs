@@ -102,7 +102,7 @@ fltExpr expr
               getEffectType :: Expr -> Effect
               getEffectType e = case splitFunType $ typeOf e of
                 Just(_, eff, _) -> eff
-                Nothing -> failure $ "Core.OpenFloat/getEffectType: invalid input expr\nOperator must have function type.\n found: " ++ show (typeOf e)
+                Nothing -> failure $ "Core.OpenFloat/getEffectType: invalid input expr\nOperator must have function type.\nfound: " ++ show (typeOf e)
     Lam args eff body
       -> do
             -- traceDoc $ \env -> text "lambda:" <+> niceType env eff
