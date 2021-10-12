@@ -7,8 +7,8 @@
 ---------------------------------------------------------------------------*/
 #include "kklib.h"
 
-static void kk_block_drop_free_delayed(kk_context_t* ctx);
-static kk_decl_noinline void kk_block_drop_free_rec(kk_block_t* b, kk_ssize_t scan_fsize, const kk_ssize_t depth, kk_context_t* ctx);
+// static void kk_block_drop_free_delayed(kk_context_t* ctx);
+// static kk_decl_noinline void kk_block_drop_free_rec(kk_block_t* b, kk_ssize_t scan_fsize, const kk_ssize_t depth, kk_context_t* ctx);
 static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t* ctx);
 
 static void kk_block_free_raw(kk_block_t* b, kk_context_t* ctx) {
@@ -525,7 +525,7 @@ kk_decl_export void kk_box_mark_shared( kk_box_t b, kk_context_t* ctx ) {
   }
 }
 
-
+#if 0
 //-----------------------------------------------------------------------------------------
 // Old: Drop a block and its children using at most MAX_RECURSE_DEPTH stack space
 //-----------------------------------------------------------------------------------------
@@ -632,3 +632,5 @@ static kk_decl_noinline void kk_block_drop_free_rec(kk_block_t* b, kk_ssize_t sc
     }
   }
 }
+
+#endif

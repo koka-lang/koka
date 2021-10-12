@@ -139,6 +139,7 @@
 #if defined(__GNUC__)
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wunused-value"
+#pragma GCC diagnostic ignored "-Warray-bounds"      // gives wrong warnings in std/os/path for string literals
 #define kk_unlikely(h)     __builtin_expect((h),0)
 #define kk_likely(h)       __builtin_expect((h),1)
 #define kk_decl_const      __attribute__((const))    // reads no global state at all
