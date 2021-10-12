@@ -220,7 +220,7 @@ static inline kk_block_t* kk_block_field_should_free(kk_block_t* b, kk_ssize_t f
 static kk_decl_noinline void kk_block_drop_free_large_rec(kk_block_t* b, kk_ssize_t scan_fsize, kk_context_t* ctx) 
 {
   kk_assert_internal(b->header.scan_fsize == KK_SCAN_FSIZE_MAX);
-  for (kk_ssize_t i = 1; i <= scan_fsize; i++) {   // can be equal to scan_fsize as that does not include the scan field itself
+  for (kk_ssize_t i = 1; i < scan_fsize; i++) {   // start at 1 to skip the initial large scan_fsize field
     kk_block_t* child = kk_block_field_should_free(b, i, ctx);
     if (child != NULL) {
       // free field recursively
@@ -235,10 +235,11 @@ static kk_decl_noinline void kk_block_drop_free_large_rec(kk_block_t* b, kk_ssiz
 static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t* ctx) 
 {
   kk_block_t* parent = NULL;
+  uint8_t scan_fsize;
   
   // ------- move down ------------
   movedown:
-    uint8_t scan_fsize = b->header.scan_fsize;
+    scan_fsize = b->header.scan_fsize;
     kk_assert_internal(b->header.refcount == 0);
     if (scan_fsize == 0) {
       // nothing to scan, just free
@@ -302,10 +303,11 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
       kk_assert_internal(scan_fsize == KK_SCAN_FSIZE_MAX);
       // is it a small vector?
       kk_ssize_t vscan_fsize = (kk_ssize_t)kk_int_unbox(kk_block_field(b, 0));
-      if (vscan_fsize < KK_SCAN_FSIZE_MAX + 1) {
+      if (vscan_fsize < KK_SCAN_FSIZE_MAX) {
+        // todo: this will never happen as we initialize this already in `block_large_alloc` ?
         // pretend it is a small block (which is ok as the scan field itself is boxed)
         // this way do not consume stack for small vectors
-        b->header.scan_fsize = (uint8_t)(vscan_fsize + 1);
+        b->header.scan_fsize = (uint8_t)(vscan_fsize);
         goto movedown;
       }
       else {
@@ -410,7 +412,7 @@ static kk_decl_noinline void kk_block_mark_shared_rec(kk_block_t* b, kk_ssize_t 
         kk_block_make_shared(b);
         kk_ssize_t i = 0;
         if (kk_unlikely(scan_fsize >= KK_SCAN_FSIZE_MAX)) { 
-          scan_fsize = (kk_ssize_t)kk_int_unbox(kk_block_field(b, 0)) + 1; // +1 to include the scan field itself!
+          scan_fsize = (kk_ssize_t)kk_int_unbox(kk_block_field(b, 0)); 
           i++;  // skip scan field
         }
         // mark fields up to the last one
@@ -445,7 +447,7 @@ static kk_decl_noinline void kk_block_mark_shared_rec(kk_block_t* b, kk_ssize_t 
 static kk_decl_noinline void kk_block_mark_shared_recx_large(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(b->header.scan_fsize == KK_SCAN_FSIZE_MAX);
   kk_ssize_t scan_fsize = kk_block_scan_fsize(b);
-  for (kk_ssize_t i = 1; i <= scan_fsize; i++) {
+  for (kk_ssize_t i = 1; i < scan_fsize; i++) {  // start at 1 to skip the large scan field itself
     if (kk_block_field_should_mark(b, i, ctx)) {
       kk_block_mark_shared_recx(b, ctx);
     }
@@ -599,7 +601,7 @@ static kk_decl_noinline void kk_block_drop_free_rec(kk_block_t* b, kk_ssize_t sc
       if (depth < MAX_RECURSE_DEPTH) {
         kk_ssize_t i = 0;
         if (kk_unlikely(scan_fsize >= KK_SCAN_FSIZE_MAX)) {
-          scan_fsize = (kk_ssize_t)kk_int_unbox(kk_block_field(b, 0)) + 1; // +1 to include the scan field itself!
+          scan_fsize = (kk_ssize_t)kk_int_unbox(kk_block_field(b, 0)); 
           i++;  // skip scan field
         }
         // free fields up to the last one

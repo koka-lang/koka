@@ -461,7 +461,10 @@ static inline void kk_block_init(kk_block_t* b, kk_ssize_t size, kk_ssize_t scan
 
 static inline void kk_block_large_init(kk_block_large_t* b, kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag) {
   KK_UNUSED(size);
-  kk_header_init(&b->_block.header, KK_SCAN_FSIZE_MAX, tag);
+  // to optimize for "small" vectors with less than 255 scanable elements, we still set the small scan_fsize
+  // for those in the header. This is still duplicated in the large scan_fsize field as it is used for the vector length for example.
+  uint8_t bscan_fsize = (scan_fsize >= KK_SCAN_FSIZE_MAX ? KK_SCAN_FSIZE_MAX : (uint8_t)scan_fsize);
+  kk_header_init(&b->_block.header, bscan_fsize, tag);
   kk_assert_internal(scan_fsize > 0);
   b->large_scan_fsize = kk_int_box(scan_fsize);  
 }
@@ -981,7 +984,7 @@ static inline kk_function_t kk_function_dup(kk_function_t f) {
 
 typedef struct kk_vector_large_s {  // always use a large block for a vector so the offset to the elements is fixed
   struct kk_block_large_s _base;
-  kk_box_t                vec[1];               // vec[(large_)scan_fsize]
+  kk_box_t                vec[1];               // vec[(large_)scan_fsize - 1]
 } *kk_vector_large_t;
 
 
@@ -1012,7 +1015,10 @@ static inline kk_vector_t kk_vector_alloc_uninit(kk_ssize_t length, kk_box_t** b
     return kk_vector_empty();
   }
   else {
-    kk_vector_large_t v = (kk_vector_large_t)kk_block_large_alloc(kk_ssizeof(struct kk_vector_large_s) + (length-1)*kk_ssizeof(kk_box_t), length /* do not count the kk_large_scan_fsize itself */, KK_TAG_VECTOR, ctx);
+    kk_vector_large_t v = (kk_vector_large_t)kk_block_large_alloc(
+        kk_ssizeof(struct kk_vector_large_s) + (length-1)*kk_ssizeof(kk_box_t),  // length-1 as the vector_large_s already includes one element 
+        length + 1, // +1 to include the kk_large_scan_fsize field itself 
+        KK_TAG_VECTOR, ctx);
     if (buf != NULL) *buf = &v->vec[0];
     return kk_datatype_from_base(&v->_base);
   }
@@ -1035,9 +1041,9 @@ static inline kk_box_t* kk_vector_buf_borrow(kk_vector_t vd, kk_ssize_t* len) {
   }
   else {
     if (len != NULL) {
-      *len = (kk_ssize_t)kk_int_unbox(v->_base.large_scan_fsize);
-      kk_assert_internal(*len == kk_block_scan_fsize(&v->_base._block));
-      kk_assert_internal(*len != 0);
+      *len = (kk_ssize_t)kk_int_unbox(v->_base.large_scan_fsize) - 1;  // exclude the large scan_fsize field itself
+      kk_assert_internal(*len + 1 == kk_block_scan_fsize(&v->_base._block));
+      kk_assert_internal(*len > 0);
     }
     return &(v->vec[0]);
   }
