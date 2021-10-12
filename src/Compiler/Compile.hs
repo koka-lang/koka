@@ -947,7 +947,7 @@ inferCheck loaded0 flags line coreImports program
        -- final simplification
        simplifyDupN
        checkCoreDefs "final" 
-       traceDefGroups "simplify final"
+       -- traceDefGroups "simplify final"
 
        -- Assemble core program and return
        coreDefsFinal <- Core.getCoreDefs
