@@ -94,6 +94,8 @@ testSanitize kokaDir
   . sub "\\.box-x[[:digit:]]+(-x[[:digit:]]+)?" ".box"
   . sub "([a-zA-Z])\\.[[:digit:]]+" "\\1"
   . sub "<[[:digit:]]+>" "<0>"
+  -- self-evident effect annotation
+  . sub "<\\(<>\\)>" ""
   -- . sub ": [[:digit:]]+([,\\)])" ": 0\\1"
   . replace kokaDir "..."
   where 
