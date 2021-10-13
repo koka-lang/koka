@@ -640,12 +640,14 @@ processOptions flags0 opts
                    -- vcpkg
                    (vcpkgRoot,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)
                    let triplet          = if (not (null (vcpkgTriplet flags))) then vcpkgTriplet flags
-                                            else tripletArch ++ 
-                                                 (if onWindows 
-                                                    then (if (ccName cc `startsWith` "mingw") 
-                                                            then "-mingw-static"
-                                                            else "-windows-static-md")
-                                                    else ("-" ++ tripletOsName))
+                                            else if (isTargetWasm (target flags))
+                                              then ("wasm" ++ show (8*sizePtr (platform flags)) ++ "-emscripten")
+                                              else tripletArch ++ 
+                                                    (if onWindows 
+                                                        then (if (ccName cc `startsWith` "mingw") 
+                                                                then "-mingw-static"
+                                                                else "-windows-static-md")
+                                                        else ("-" ++ tripletOsName))
                        vcpkgInstalled   = (vcpkgRoot) ++ "/installed/" ++ triplet
                        vcpkgIncludeDir  = vcpkgInstalled ++ "/include"
                        vcpkgLibDir      = vcpkgInstalled ++ (if buildType flags <= Debug then "/debug/lib" else "/lib")
@@ -795,8 +797,12 @@ vcpkgFindRoot root
                         paths   <- getEnvPaths "PATH"
                         mbFile  <- searchPaths (paths ++ [joinPaths [homeDir,"vcpkg"]]) [] vcpkgExe
                         case mbFile of
-                          Just fname -> return (dirname fname, fname)
-                          Nothing    -> return ("", vcpkgExe)
+                          Nothing     -> return ("", vcpkgExe)
+                          Just fname0 -> do fname <- realPath fname0
+                                            let root = case (reverse (splitPath (dirname fname))) of
+                                                         ("bin":dirs) -> joinPaths (reverse ("libexec":dirs)) 
+                                                         _ -> dirname fname
+                                            return (root, fname)
       else return (root, joinPath root vcpkgExe)
   where 
     vcpkgExe = "vcpkg" ++ exeExtension
@@ -925,10 +931,11 @@ ccGcc name opt platform path
               else "-O2"
 
     archBits= 8 * sizePtr platform
-    arch    = -- if (cpuArch=="x64" && archBits==64) then ["-march=nehalem","-mtune=native"]           -- popcnt
+    arch    = -- unfortunately, these flags are not as widely supported as one may hope so we use --ccopts if needed.
+              -- if (cpuArch=="x64" && archBits==64) then ["-march=nehalem","-mtune=native"]           -- popcnt
               -- else if (cpuArch=="arm64" && archBits==64) then ["-march=armv8.1-a","-mtune=native"]  -- lse
-              -- else 
-              ["-m" ++ show archBits]
+              -- else ["-m" ++ show archBits]
+              []
 
 ccMsvc name opt platform path
   = CC name path ["-DWIN32","-nologo"] 

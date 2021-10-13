@@ -1334,7 +1334,8 @@ copyCLibraryX term flags cc eimport tries
                       -- and the actual name of the library is not easy to extract from vcpkg (we could read 
                       -- the lib/config/<lib>.pc information and parse the Libs field but that seems fragile as well)
                       let suffixes = (if (buildType flags <= Debug) then ["d","_d","-debug","_debug"] else [])
-                      in searchPathsSuffixes (ccompLibDirs flags) [] suffixes (ccLibFile cc clib)                     
+                      in -- trace ("search lib dirs: " ++ show (ccompLibDirs flags)) $
+                         searchPathsSuffixes (ccompLibDirs flags) [] suffixes (ccLibFile cc clib)                     
             case mbPath of
                 Just fname -> copyLibFile fname clib
                 _ -> if (tries > 0) 
