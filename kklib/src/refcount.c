@@ -324,7 +324,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
     } while (i < scan_fsize);
     // done: free the block and move up further
     b = parent;
-    parent = kk_ptr_unbox( kk_block_field(parent, 0) );
+    parent = _kk_box_ptr( kk_block_field(parent, 0) );  // low-level box as it can be NULL
     kk_block_free(b);  // note: cannot be a raw block as those have no scanfield
   }
   // done
@@ -459,7 +459,7 @@ markfields:
       if (child != NULL) {
         // move down 
         // remember our state and link back to the parent
-        kk_block_field_set(b, i-1, _kk_box_new_ptr(parent));
+        kk_block_field_set(b, i-1, _kk_box_new_ptr(parent));  // low-level box as parent can be NULL
         parent = b;
         parent->header.thread_shared = i;
         b = child;
@@ -475,7 +475,7 @@ markfields:
   while (parent != NULL) {
     // move up
     i = parent->header.thread_shared;
-    kk_block_t* pparent = _kk_box_ptr( kk_block_field(parent, i-1) );
+    kk_block_t* pparent = _kk_box_ptr( kk_block_field(parent, i-1) );  // low-level unbox on parent
     kk_block_field_set(parent, i-1, kk_ptr_box(b));  // restore original pointer
     parent = pparent;
     b = parent;
