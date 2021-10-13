@@ -217,9 +217,10 @@ static inline kk_block_t* kk_block_field_should_free(kk_block_t* b, kk_ssize_t f
 // for each recursion over these vectors; the idea is that vectors will not be 
 // deeply nested. (We could improve this by only recursing for vectors with more than 2^32 elements 
 // (fits in a refcount)).
-static kk_decl_noinline void kk_block_drop_free_large_rec(kk_block_t* b, kk_ssize_t scan_fsize, kk_context_t* ctx) 
+static kk_decl_noinline void kk_block_drop_free_large_rec(kk_block_t* b, kk_context_t* ctx) 
 {
   kk_assert_internal(b->header.scan_fsize == KK_SCAN_FSIZE_MAX);
+  kk_ssize_t scan_fsize = kk_block_scan_fsize(b);
   for (kk_ssize_t i = 1; i < scan_fsize; i++) {   // start at 1 to skip the initial large scan_fsize field
     kk_block_t* child = kk_block_field_should_free(b, i, ctx);
     if (child != NULL) {
@@ -234,33 +235,24 @@ static kk_decl_noinline void kk_block_drop_free_large_rec(kk_block_t* b, kk_ssiz
 // Recursively free a block and drop its children without using stack space
 static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t* ctx) 
 {
+  kk_assert_internal(b->header.scan_fsize > 0);
   kk_block_t* parent = NULL;
   uint8_t scan_fsize;
-  
+
   // ------- move down ------------
   movedown:
     scan_fsize = b->header.scan_fsize;
     kk_assert_internal(b->header.refcount == 0);
-    if (scan_fsize == 0) {
-      // nothing to scan, just free
-      if (kk_unlikely(kk_tag_is_raw(kk_block_tag(b)))) kk_block_free_raw(b, ctx); // potentially call custom `free` function on the data
-      kk_block_free(b);
-      // goto moveup;  // fall through
-    }
-    else if (scan_fsize == 1) {
+    kk_assert_internal(scan_fsize > 0);           // due to kk_block_should_free
+    if (scan_fsize == 1) {
       // if just one field, we can free directly and continue with the child
-      const kk_box_t v = kk_block_field(b, 0);
+      kk_block_t* next = kk_block_field_should_free(b, 0, ctx);
       kk_block_free(b);
-      if (kk_box_is_non_null_ptr(v)) {
-        // try to free the child now
-        b = kk_ptr_unbox(v);
-        if (kk_block_decref_no_free(b)) {
-          // continue freeing with the child block (leaving parent unchanged)
-          scan_fsize = b->header.scan_fsize;
-          goto movedown;
-        }
+      if (next != NULL) {
+        b = next;
+        goto movedown;
       }
-      // goto moveup;  // fall through
+      // goto moveup; // fallthrough
     }
     else if (scan_fsize == 2 && !kk_box_is_non_null_ptr(kk_block_field(b,0))) {
       // optimized code for lists/nodes with boxed first element
@@ -301,19 +293,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
     }
     else {
       kk_assert_internal(scan_fsize == KK_SCAN_FSIZE_MAX);
-      // is it a small vector?
-      kk_ssize_t vscan_fsize = (kk_ssize_t)kk_int_unbox(kk_block_field(b, 0));
-      if (vscan_fsize < KK_SCAN_FSIZE_MAX) {
-        // todo: this will never happen as we initialize this already in `block_large_alloc` ?
-        // pretend it is a small block (which is ok as the scan field itself is boxed)
-        // this way do not consume stack for small vectors
-        b->header.scan_fsize = (uint8_t)(vscan_fsize);
-        goto movedown;
-      }
-      else {
-        // recurse over large blocks
-        kk_block_drop_free_large_rec(b, vscan_fsize, ctx);
-      }
+      kk_block_drop_free_large_rec(b, ctx);
     }
 
   // ------- move up along the parent chain ------------
