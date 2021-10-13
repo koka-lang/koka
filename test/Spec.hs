@@ -25,9 +25,9 @@ data Mode = Test | New | Update
   deriving (Eq, Ord, Show)
 
 
-data Options = Options{ mode :: Mode, cabal :: Bool, sysghc:: Bool, opt :: Int, js :: Bool }
+data Options = Options{ mode :: Mode, cabal :: Bool, sysghc:: Bool, opt :: Int, js :: Bool, par :: Bool }
 
-optionsDefault = Options Test False False 0 False
+optionsDefault = Options Test False False 0 False True
 
 data Cfg = Cfg{ flags   :: [String],
                 options :: Options,
@@ -183,6 +183,8 @@ processOptions arg (options,hargs)
       then (options{sysghc=True}, hargs)
     else if (arg == "--target-js")
       then (options{js=True}, hargs)
+    else if (arg == "--seq")
+      then (options{par=False}, hargs)
       else (options, arg : hargs)
   where
     parseMode :: String -> Mode
@@ -209,7 +211,7 @@ main = do
   let cfg = initialCfg options
   runKoka cfg "" "util/link-test.kk" 
   putStrLn "ok."
-  let spec = (if (js options) then id else parallel) $ 
+  let spec = (if (js options || not (par options)) then id else parallel) $ 
              discoverTests cfg (pwd </> "test")
   summary <- withArgs [] (runSpec spec hcfg{configFormatter=Just specProgress})
   evaluateSummary summary
