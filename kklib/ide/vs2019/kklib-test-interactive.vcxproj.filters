@@ -16,5 +16,8 @@
     <ClCompile Include="..\..\..\.koka\debug\std_time_timer.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_time_timestamp.c" />
     <ClCompile Include="..\..\..\.koka\debug\test_bench_koka_kkfree.c" />
+    <ClCompile Include="..\..\..\.koka\debug\std_text_unicode.c" />
+    <ClCompile Include="..\..\..\.koka\debug\test_lib_ddouble3.c" />
+    <ClCompile Include="..\..\..\.koka\debug\test_mask_inject_dash_behind1.c" />
   </ItemGroup>
 </Project>
