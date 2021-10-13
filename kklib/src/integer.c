@@ -41,7 +41,7 @@ including Karatsuba multiplication.
     portable overflow detection.
 ----------------------------------------------------------------------*/
 
-#if (KK_INTPTR_SIZE>=8) && defined(_MSC_VER) && (_MSC_VER >= 1920) && !defined(__clang_msvc__) /* not clang-cl or we get link errors */
+#if (KK_INTPTR_SIZE>=8) && defined(_XMSC_VER) && (_MSC_VER >= 1920) && !defined(__clang_msvc__) /* not clang-cl or we get link errors */
 // Use 64-bit digits on Microsoft VisualC
 #define BASE          KI64(1000000000000000000)
 #define LOG_BASE      (18)
@@ -641,7 +641,7 @@ kk_decl_export bool kk_integer_parse(const char* s, kk_integer_t* res, kk_contex
     chunk = LOG_BASE;  // after the first digit, all chunks are full digits
   }
   // set the final zeros
-  kk_assert_internal(zero_digits / LOG_BASE == k);
+  kk_assert_internal(k == 0 || zero_digits / LOG_BASE == k);
   for (kk_ssize_t j = 0; j < k; j++) { b->digits[j] = 0; }
   *res = integer_bigint(b, ctx);
   return true;
