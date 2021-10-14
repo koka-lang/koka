@@ -245,7 +245,7 @@ kk_char_t kk_utf8_read_validate(const uint8_t* s, kk_ssize_t* count, kk_ssize_t*
   }
   // 3 byte encoding; reject overlong and utf-16 surrogate halves (0xD800 - 0xDFFF)
   if ((b == 0xE0 && s[1] >= 0xA0 && s[1] <= 0xBF && kk_utf8_is_cont(s[2]))
-    || (b >= 0xE1 && b <= 0xEF && b != 0xED) && kk_utf8_is_cont(s[1]) && kk_utf8_is_cont(s[2])
+    || ((b >= 0xE1 && b <= 0xEF && b != 0xED) && kk_utf8_is_cont(s[1]) && kk_utf8_is_cont(s[2]))
     || (b == 0xED && s[1] >= 0x80 && s[1] <= 0x9F && kk_utf8_is_cont(s[2])))
   {
     *count = 3;
