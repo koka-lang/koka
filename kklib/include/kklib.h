@@ -86,14 +86,14 @@ static inline bool kk_tag_is_raw(kk_tag_t tag) {
 // If the scan_fsize == 0xFF, the full scan count is in the first field as a boxed int (which includes the scan field itself).
 typedef struct kk_header_s {
   uint8_t   scan_fsize;       // number of fields that should be scanned when releasing (`scan_fsize <= 0xFF`, if 0xFF, the full scan size is the first field)
-  uint8_t   thread_shared : 1;
-  uint16_t  tag;              // header tag
+  uint8_t   thread_shared;    // is it thread shared? (if true, the refcount should be >= 0x8000000) (needs 8 bits as it is used during marking as a field offset)
+  uint16_t  tag;              // constructor tag
   uint32_t  refcount;         // reference count  (last to reduce code size constants in kk_header_init)
 } kk_header_t;
 
 #define KK_SCAN_FSIZE_MAX (0xFF)
-#define KK_HEADER(scan_fsize,tag)         { scan_fsize, 0, tag, 0}             // start with refcount of 0
-#define KK_HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 0, tag, KU32(0xFF00)}  // start with recognisable refcount (anything > 1 is ok)
+#define KK_HEADER(scan_fsize,tag)         { scan_fsize, 0, tag, 0}                 // start with refcount of 0
+#define KK_HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 1, tag, KU32(0x80000001)}  // start with a sticky recognisable refcount (anything > 1 is ok)
 
 static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_tag_t tag) {
   kk_assert_internal(scan_fsize >= 0 && scan_fsize <= KK_SCAN_FSIZE_MAX);
@@ -385,6 +385,7 @@ static inline int32_t kk_marker_unique(kk_context_t* ctx) {
 
 kk_decl_export void kk_block_mark_shared( kk_block_t* b, kk_context_t* ctx );
 kk_decl_export void kk_box_mark_shared( kk_box_t b, kk_context_t* ctx );
+kk_decl_export void kk_box_mark_shared_recx(kk_box_t b, kk_context_t* ctx);
 
 /*--------------------------------------------------------------------------------------
   Allocation
