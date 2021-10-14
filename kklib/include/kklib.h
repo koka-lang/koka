@@ -930,13 +930,12 @@ static inline void kk_unsupported_external(const char* msg) {
 // Tag for value types is always an integer
 typedef kk_integer_t kk_value_tag_t;
 
-// Use inlined #define to enable constant initializer expression
-/*
-static inline kk_value_tag_t kk_value_tag(kk_uintx_t tag) {
-  return kk_integer_from_small((kk_intx_t)tag);
-}
-*/
 #define kk_value_tag(tag) (kk_integer_from_small(tag))   
+
+static inline bool kk_value_tag_eq(kk_value_tag_t x, kk_value_tag_t y) {
+  // note: x or y may be box_any so don't assert they are smallints
+  return (_kk_integer_value(x) == _kk_integer_value(y));
+}
 
 /*--------------------------------------------------------------------------------------
   Functions
