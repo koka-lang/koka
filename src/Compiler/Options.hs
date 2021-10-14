@@ -23,6 +23,7 @@ module Compiler.Options( -- * Command line options
                        , outName, fullBuildDir, buildVariant
                        , cpuArch, osName
                        , optionCompletions
+                       , targetExeExtension
                        ) where
 
 
@@ -40,7 +41,7 @@ import Common.Failure         ( raiseIO, catchIO )
 import Common.ColorScheme
 import Common.File        
 import Common.Name    
-import Common.Syntax          ( Target (..), Host(..), Platform(..), BuildType(..), platform32, platform64, platformJS, platformCS )
+import Common.Syntax          
 import Compiler.Package
 import Core.Core( dataInfoIsValue )
 {--------------------------------------------------------------------------
@@ -110,9 +111,11 @@ data Flags
          , execOpts         :: String
          , library          :: Bool
          , target           :: Target
-         , host             :: Host
+         , targetOS         :: String
+         , targetArch       :: String
          , platform         :: Platform
          , stackSize        :: Int
+         , heapSize         :: Int
          , simplify         :: Int
          , simplifyMaxDup   :: Int
          , colorScheme      :: ColorScheme
@@ -191,10 +194,12 @@ flagsNull
           False -- do not execute by default
           ""    -- execution options
           False -- library
-          C     -- target
-          Node  -- js host
+          (C LibC)  -- target
+          osName  -- target OS
+          cpuArch -- target CPU
           platform64
           0     -- stack size
+          0     -- reserved heap size (for wasm)
           5     -- simplify passes
           10    -- simplify dup max (must be at least 10 to inline partial applications across binds)
           defaultColorScheme
@@ -288,14 +293,14 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   ['e'] ["execute"]         (\b f -> f{evaluate= b})        "compile and execute"
  , flag   ['c'] ["compile"]         (\b f -> f{evaluate= not b})    "only compile, do not execute (default)"
  , option ['i'] ["include"]         (OptArg includePathFlag "dirs") "add <dirs> to module search path (empty resets)"
- , option ['o'] ["output"]          (ReqArg outFinalPathFlag "file")"write final executable to <file>"
+ , option ['o'] ["output"]          (ReqArg outFinalPathFlag "file")"write final executable to <file> (without extension)"
  , numOption 0 "n" ['O'] ["optimize"]   (\i f -> f{optimize=i})     "optimize (0=default, 1=space, 2=full, 3=aggressive)"
  , flag   ['g'] ["debug"]           (\b f -> f{debug=b})            "emit debug information (on by default)" 
  , numOption 1 "n" ['v'] ["verbose"] (\i f -> f{verbose=i})         "verbosity 'n' (0=quiet, 1=default, 2=trace)"
  , flag   ['r'] ["rebuild"]         (\b f -> f{rebuild = b})        "rebuild all"
  , flag   ['l'] ["library"]         (\b f -> f{library=b, evaluate=if b then False else (evaluate f) }) "generate a library"
- , configstr [] ["target"]          ["c","c64","c32","js","cs","wasm32","wasm64"] "tgt" targetFlag  "target: c (default), c32, c64, js, or wasm32"
- , config []    ["host"]            [("node",Node),("browser",Browser)] "host" (\h f -> f{ target=JS, host=h}) "specify host for javascript: <node|browser>"
+ , configstr [] ["target"]          (map fst targets) "tgt" targetFlag  ("target: " ++ show (map fst targets))
+ -- , config []    ["host"]            [("node",Node),("browser",Browser)] "host" (\h f -> f{ target=JS, host=h}) "specify host for javascript: <node|browser>"
  , emptyline
 
  , option []    ["buildtag"]        (ReqArg buildTagFlag "tag")     "set build variant tag (e.g. 'bundle' or 'dev')"
@@ -320,6 +325,7 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["wasmrun"]         (ReqArg wasmrunFlag "cmd")      "use <cmd> to execute wasm"
  , option []    ["editor"]          (ReqArg editorFlag "cmd")       "use <cmd> as editor"
  , option []    ["stack"]           (ReqArg stackFlag "size")       "set stack size (0 for platform default)"
+ , option []    ["heap"]            (ReqArg heapFlag "size")        "set reserved heap size (0 for platform default)"
  , option []    ["color"]           (ReqArg colorFlag "colors")     "set colors"
  , option []    ["redirect"]        (ReqArg redirectFlag "file")    "redirect output to <file>"
  , configstr [] ["console"]  ["ansi","html","raw"] "fmt" (\s f -> f{ console = s }) "console output format: <ansi|html|raw>"
@@ -411,14 +417,27 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   configstr short long opts argDesc f desc
     = config short long (map (\s -> (s,s)) opts) argDesc f desc
 
-  targetFlag c f
-    = if (c=="js") then f{ target=JS, platform=platformJS }
-      else if (c=="cs") then f{ target=CS, platform=platformCS }
-      else if (c=="wasm32" || c=="wasm") then f{ target=C, platform=platform32, host=Wasm }      
-      else if (c=="wasm64") then f{ target=C, platform=platform64, host=Wasm }      
-      else if (c=="c32") then f{ target=C, platform=platform32 }
-      else f{ target=C, platform=platform64 }  -- "c", "c64"
 
+  targets :: [(String,Flags -> Flags)]
+  targets =
+    [("c",      \f -> f{ target=C LibC, platform=platform64 }),
+     ("c64",    \f -> f{ target=C LibC, platform=platform64 }),
+     ("c32",    \f -> f{ target=C LibC, platform=platform32 }),
+     ("js",     \f -> f{ target=JS JsNode, platform=platformJS }),
+     ("jsnode", \f -> f{ target=JS JsNode, platform=platformJS }),
+     ("jsweb",  \f -> f{ target=JS JsWeb, platform=platformJS }),
+     ("wasm",   \f -> f{ target=C Wasm, platform=platform32 }),
+     ("wasm32", \f -> f{ target=C Wasm, platform=platform32 }),
+     ("wasm64", \f -> f{ target=C Wasm, platform=platform64 }),
+     ("wasmjs", \f -> f{ target=C WasmJs, platform=platform32 }),
+     ("wasmweb",\f -> f{ target=C WasmWeb, platform=platform32 }),
+     ("cs",     \f -> f{ target=CS, platform=platformCS })
+    ]
+
+  targetFlag t f
+    = case lookup t targets of
+        Just update -> update f
+        Nothing     -> f
 
   colorFlag s
     = Flag (\f -> f{ colorScheme = readColorFlags s (colorScheme f) })
@@ -515,13 +534,19 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
     = case parseSize s of
         Just n -> Flag (\f -> f{ stackSize = n })
         _      -> Flag (id)
-    where
-      parseSize :: String -> Maybe Int
-      parseSize s = case reads (map toLower s) of
-                       [(n,rest)] | rest `elem` ["k","kb","kib"] -> Just (1024*n)
-                                  | rest `elem` ["m","mb","mib"] -> Just (1024*1024*n)
-                                  | null rest                    -> Just n
-                       _ -> Nothing
+
+  heapFlag s
+    = case parseSize s of
+        Just n -> Flag (\f -> f{ heapSize = n })
+        _      -> Flag (id)        
+    
+  parseSize :: String -> Maybe Int
+  parseSize s = case reads (map toLower s) of
+                    [(n,rest)] | rest `elem` ["k","kb","kib"] -> Just (1024*n)
+                               | rest `elem` ["m","mb","mib"] -> Just (1024*1024*n)
+                               | rest `elem` ["g","gb","gib"] -> Just (1024*1024*1024*n)
+                               | null rest                    -> Just n
+                    _ -> Nothing
 
   
 readHtmlBases :: String -> [(String,String)]
@@ -608,7 +633,7 @@ processOptions flags0 opts
                         <- getKokaDirs (localLibDir flags) (localShareDir flags) buildDir
                    
                    -- cc
-                   ccmd <- if (ccompPath flags == "") then detectCC (host flags)
+                   ccmd <- if (ccompPath flags == "") then detectCC (target flags)
                            else if (ccompPath flags == "mingw") then return "gcc"
                            else return (ccompPath flags)
                    (cc,asan) <- ccFromPath flags ccmd
@@ -621,12 +646,14 @@ processOptions flags0 opts
                    -- vcpkg
                    (vcpkgRoot,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)
                    let triplet          = if (not (null (vcpkgTriplet flags))) then vcpkgTriplet flags
-                                            else tripletArch ++ 
-                                                 (if onWindows 
-                                                    then (if (ccName cc `startsWith` "mingw") 
-                                                            then "-mingw-static"
-                                                            else "-windows-static-md")
-                                                    else ("-" ++ tripletOsName))
+                                            else if (isTargetWasm (target flags))
+                                              then ("wasm" ++ show (8*sizePtr (platform flags)) ++ "-emscripten")
+                                              else tripletArch ++ 
+                                                    (if onWindows 
+                                                        then (if (ccName cc `startsWith` "mingw") 
+                                                                then "-mingw-static"
+                                                                else "-windows-static-md")
+                                                        else ("-" ++ tripletOsName))
                        vcpkgInstalled   = (vcpkgRoot) ++ "/installed/" ++ triplet
                        vcpkgIncludeDir  = vcpkgInstalled ++ "/include"
                        vcpkgLibDir      = vcpkgInstalled ++ (if buildType flags <= Debug then "/debug/lib" else "/lib")
@@ -638,6 +665,10 @@ processOptions flags0 opts
                                   localDir    = localDir,
                                   localLibDir = localLibDir,
                                   localShareDir = localShareDir,
+
+                                  outBaseName = if null (outBaseName flags) && not (null (outFinalPath flags))
+                                                  then basename (outFinalPath flags)
+                                                  else outBaseName flags,
 
                                   optSpecialize  = if (optimize flags <= 0) then False 
                                                     else (optSpecialize flags),
@@ -772,8 +803,12 @@ vcpkgFindRoot root
                         paths   <- getEnvPaths "PATH"
                         mbFile  <- searchPaths (paths ++ [joinPaths [homeDir,"vcpkg"]]) [] vcpkgExe
                         case mbFile of
-                          Just fname -> return (dirname fname, fname)
-                          Nothing    -> return ("", vcpkgExe)
+                          Nothing     -> return ("", vcpkgExe)
+                          Just fname0 -> do fname <- realPath fname0
+                                            let root = case (reverse (splitPath (dirname fname))) of
+                                                         ("bin":dirs) -> joinPaths (reverse ("libexec":dirs)) 
+                                                         _ -> dirname fname
+                                            return (root, fname)
       else return (root, joinPath root vcpkgExe)
   where 
     vcpkgExe = "vcpkg" ++ exeExtension
@@ -792,6 +827,7 @@ data CC = CC{  ccName       :: String,
                ccFlagsCompile :: Args,
                ccFlagsLink    :: Args,
                ccFlagStack  :: Int -> Args,
+               ccFlagHeap   :: Int -> Args,
                ccAddLibraryDir :: FilePath -> Args,
                ccIncludeDir :: FilePath -> Args,
                ccTargetObj  :: FilePath -> Args,
@@ -803,6 +839,25 @@ data CC = CC{  ccName       :: String,
                ccObjFile    :: String -> FilePath   -- make object file namen
             }
 
+
+targetExeExtension target
+  = case target of
+      C Wasm   -> ".wasm"
+      C WasmJs -> ".js"
+      C WasmWeb-> ".html"
+      C _      -> exeExtension
+      JS JsWeb -> ".html"
+      JS _     -> ".mjs"
+      _        -> exeExtension
+
+targetObjExtension target
+  = case target of
+      C Wasm   -> ".o"
+      C WasmJs -> ".o"
+      C WasmWeb-> ".o"
+      C _      -> objExtension
+      JS _     -> ".mjs"
+      _        -> objExtension      
 
 outName :: Flags -> FilePath -> FilePath
 outName flags s
@@ -820,9 +875,16 @@ buildVersionTag flags
 
 buildVariant :: Flags -> String   -- for example: clang-debug, js-release
 buildVariant flags
-  = let pre  = if (target flags == C)
-                 then ccName (ccomp flags)
-                 else (show (target flags))
+  = let pre  = case target flags of
+                 C ctarget 
+                   -> ccName (ccomp flags) ++ 
+                      (case ctarget of
+                        Wasm   -> "-wasm" ++ show (8*sizePtr (platform flags))
+                        WasmJs -> "-wasmjs"
+                        WasmWeb-> "-wasmweb"
+                        _      -> "")                       
+                 JS _  -> "js"
+                 _     -> show (target flags)
     in pre ++ "-" ++ show (buildType flags)
 
 
@@ -859,6 +921,7 @@ ccGcc name opt platform path
         (\stksize -> if (onMacOS && stksize > 0)  -- stack size is usually set programmatically (except on macos/windows)
                        then ["-Wl,-stack_size,0x" ++ showHex 0 stksize]
                        else []) 
+        (\heapsize -> [])
         (\libdir -> ["-L",libdir])
         (\idir -> ["-I",idir])
         (\fname -> ["-o", (notext fname) ++ objExtension])
@@ -874,10 +937,11 @@ ccGcc name opt platform path
               else "-O2"
 
     archBits= 8 * sizePtr platform
-    arch    = -- if (cpuArch=="x64" && archBits==64) then ["-march=nehalem","-mtune=native"]           -- popcnt
+    arch    = -- unfortunately, these flags are not as widely supported as one may hope so we use --ccopts if needed.
+              -- if (cpuArch=="x64" && archBits==64) then ["-march=nehalem","-mtune=native"]           -- popcnt
               -- else if (cpuArch=="arm64" && archBits==64) then ["-march=armv8.1-a","-mtune=native"]  -- lse
-              -- else 
-              ["-m" ++ show archBits]
+              -- else ["-m" ++ show archBits]
+              []
 
 ccMsvc name opt platform path
   = CC name path ["-DWIN32","-nologo"] 
@@ -889,10 +953,11 @@ ccMsvc name opt platform path
          ["-EHs","-TP","-c"]   -- always compile as C++ on msvc (for atomics etc.)
          ["-link"]             -- , "/NODEFAULTLIB:msvcrt"]
          (\stksize -> if stksize > 0 then ["/STACK:" ++ show stksize] else [])
+         (\heapsize -> [])        
          (\libdir -> ["/LIBPATH:" ++ libdir])
          (\idir -> ["-I",idir])
          (\fname -> ["-Fo" ++ ((notext fname) ++ objExtension)])
-         (\out -> ["-Fe" ++ out ++ exeExtension])
+         (\out -> ["-Fe" ++ out ++ ".exe"])
          (\syslib -> [syslib ++ libExtension])
          (\lib -> [lib])
          (\(def,val) -> ["-D" ++ def ++ (if null val then "" else "=" ++ val)])
@@ -910,9 +975,11 @@ ccFromPath flags path
                        ccFlagStack = (\stksize -> if stksize > 0 then ["-Wl,--stack," ++ show stksize] else [])
                      }
         emcc    = gcc{ ccFlagsCompile = ccFlagsCompile gcc ++ ["-D__wasi__"],
-                       ccFlagsLink = ccFlagsLink gcc ++ ["-s","TOTAL_MEMORY=2000MB"],
                        ccFlagStack = (\stksize -> if stksize == 0 then [] else ["-s","TOTAL_STACK=" ++ show stksize]),
-                       ccTargetExe = (\out -> ["-o", out ++ ".wasm"])
+                       ccFlagHeap  = (\hpsize -> if hpsize == 0 then [] else ["-s","TOTAL_MEMORY=" ++ show hpsize]),
+                       ccTargetExe = (\out -> ["-o", out ++ targetExeExtension (target flags)]),
+                       ccTargetObj = (\fname -> ["-o", (notext fname) ++ targetObjExtension (target flags)]),
+                       ccObjFile   = (\fname -> fname ++ targetObjExtension (target flags))
                      }
         clang   = gcc{ ccFlagsWarn = gnuWarn ++ 
                                      words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align" }
@@ -938,8 +1005,8 @@ ccFromPath flags path
         cc = cc0{ ccFlagsCompile = ccFlagsCompile cc0 ++ ccompCompileArgs flags
                 , ccFlagsLink    = ccFlagsLink cc0 ++ ccompLinkArgs flags }
 
-    in do when (host flags == Wasm && not (name `startsWith` "emcc")) $
-            putStrLn ("\nwarning: the wasm target should use the emscripten compiler (emcc),\n  but currently '" 
+    in do when (isTargetWasm (target flags) && not (name `startsWith` "emcc")) $
+            putStrLn ("\nwarning: a wasm target should use the emscripten compiler (emcc),\n  but currently '" 
                        ++ ccPath cc ++ "' is used." 
                        ++ "\n  hint: specify the emscripten path using --cc=<emcc path>?")                       
           if (asan flags)
@@ -966,8 +1033,9 @@ ccCheckExist cc
                        when (ccName cc == "clang-cl") $
                          putStrLn ("   hint: install clang for Windows from <https://llvm.org/builds/> ?")
 
+
 quote s
-  = "\"" ++ s ++ "\""
+  = "\"" ++ s ++ "\""  
 
 -- unquote a shell argument string (as well as we can)
 unquote :: String -> [String]
@@ -1024,16 +1092,17 @@ cpuArch
       arch          -> arch
 
 
-detectCC :: Host -> IO String
-detectCC host
+detectCC :: Target -> IO String
+detectCC target
   = do paths <- getEnvPaths "PATH"
        (name,path) <- do envCC <- getEnvVar "CC"
-                         findCC paths ((if (host==Wasm) then ["emcc"] else []) ++
+                         findCC paths ((if (isTargetWasm target) then ["emcc"] else []) ++
                                        (if (envCC=="") then [] else [envCC]) ++
                                        (if (onMacOS) then ["clang"] else []) ++
                                        (if (onWindows) then ["clang-cl","cl"] else []) ++
                                        ["gcc","clang","icc","cc","g++","clang++"])
        return path
+
 
 findCC :: [FilePath] -> [FilePath] -> IO (String,FilePath)
 findCC paths []

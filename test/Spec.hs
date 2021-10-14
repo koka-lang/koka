@@ -112,7 +112,7 @@ runKoka :: Cfg -> FilePath -> FilePath -> IO String
 runKoka cfg kokaDir fp
   = do caseFlags <- readFlagsFile (fp ++ ".flags")
        let relTest = makeRelative kokaDir fp
-           optFlag   = if (opt (options cfg) > 0) then ["-O" ++ show (opt (options cfg))] else []
+           optFlag   = if (opt (options cfg) /= 0) then ["-O" ++ show (opt (options cfg))] else []
            kokaFlags = flags cfg ++ optFlag ++ caseFlags 
        if (cabal (options cfg))
          then do let argv = ["new-run", "koka", "--"] ++ kokaFlags ++ [relTest]

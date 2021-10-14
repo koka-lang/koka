@@ -29,6 +29,7 @@ module Common.File(
                   , commonPathPrefix
                   , normalizeWith, normalize
                   , isLiteralDoc
+                  , ensureExt
 
                   -- * Files
                   , FileTime, fileTime0, maxFileTime, maxFileTimes
@@ -38,6 +39,7 @@ module Common.File(
                   , copyTextFile, copyTextIfNewer, copyTextIfNewerWith, copyTextFileWith
                   , copyBinaryFile, copyBinaryIfNewer
                   , removeFileIfExists
+                  , realPath
                   ) where
 
 import Data.List        ( intersperse )
@@ -103,6 +105,10 @@ extname fname
     in if null post
         then ""
         else ("." ++ reverse pre)
+
+ensureExt :: FileName -> String -> FileName
+ensureExt fname ext
+  = if (extname fname == ext) then fname else fname ++ ext        
 
 -- | Return the directory prefix (including last separator if present)
 dirname :: FileName -> FileName
@@ -401,6 +407,9 @@ getEnvVar name
          Just val -> return val
          Nothing  -> return ""
 
+realPath :: FilePath -> IO FilePath
+realPath fpath 
+  = canonicalizePath fpath
 
 
 {-

@@ -14,7 +14,7 @@ module Core.AnalysisMatch( analyzeBranches ) where
 
 import Lib.Trace
 import Lib.PPrint
-import Common.Syntax( Target(..) )
+import Common.Syntax( Target(..), JsTarget(..), CTarget(..) )
 import Common.Id
 import Common.Name
 import Common.Range
@@ -244,5 +244,5 @@ patternMatchError resultType defName range
     info = if (qualifier defName /= nameSystemCore)
             then (InfoArity 1 2)
             else (InfoExternal [(CS,"koka_" ++ aname ++ "<##1>(#1,#2)")
-                               ,(JS,aname ++ "(#1,#2)")])
+                               ,(JS JsDefault,aname ++ "(#1,#2)")])
     aname = asciiEncode True (nameModule name) ++ "." ++ asciiEncode False (nameId name)

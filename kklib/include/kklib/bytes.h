@@ -54,15 +54,15 @@ typedef struct kk_bytes_raw_s {
   struct kk_bytes_s _base;
   kk_free_fun_t* free;     
   const uint8_t* cbuf;                    
-  kk_ssize_t        length;
+  kk_ssize_t        clength;
 } *kk_bytes_raw_t;
 
 // Define bytes literals
 #define kk_define_bytes_literal(decl,name,len,init) \
   static struct { struct kk_bytes_s _base; kk_ssize_t length; uint8_t buf[len+1]; } _static_##name = \
     { { { KK_HEADER_STATIC(0,KK_TAG_BYTES) } }, len, init }; \
-  decl kk_bytes_t name = { &_static_##name._base._block };  
-
+  decl kk_bytes_t name = { &_static_##name._base._block }; \
+  
 #define kk_define_bytes_literal_empty(decl,name) \
   decl kk_bytes_t name = { (kk_block_t*)((uintptr_t)(5)) };
 
@@ -116,7 +116,7 @@ static inline kk_bytes_t kk_bytes_alloc_raw_len(kk_ssize_t len, const uint8_t* p
   struct kk_bytes_raw_s* br = kk_block_alloc_as(struct kk_bytes_raw_s, 0, KK_TAG_BYTES_RAW, ctx);
   br->free = (free ? &kk_free_fun : NULL);
   br->cbuf = p;
-  br->length = len;
+  br->clength = len;
   return kk_datatype_from_base(&br->_base);
 }
 
@@ -148,7 +148,7 @@ static inline const uint8_t* kk_bytes_buf_borrow(const kk_bytes_t b, kk_ssize_t*
   }
   else {
     kk_bytes_raw_t br = kk_datatype_as_assert(kk_bytes_raw_t, b, KK_TAG_BYTES_RAW);
-    if (len != NULL) *len = br->length;
+    if (len != NULL) *len = br->clength;
     return br->cbuf;
   }
 }

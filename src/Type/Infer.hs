@@ -18,6 +18,7 @@ import Data.List(partition,sortBy,sortOn)
 import qualified Data.List(find)
 import Data.Ord(comparing)
 import Data.Maybe(catMaybes)
+import Control.Monad(when)
 import Lib.PPrint
 import Core.Pretty
 import Common.Failure
@@ -152,6 +153,7 @@ inferDefGroup topLevel (DefRec defs) cont
        -- re-analyze the mutual recursive groups
        scoreDefsX <- subst coreDefsX
        let coreGroups0 = regroup scoreDefsX
+       when topLevel (mapM_ checkRecVal coreGroups0)
        -- now analyze divergence
        (coreGroups1,divTNames)
             <- fmap unzip $
@@ -234,6 +236,15 @@ inferDefGroup topLevel (DefRec defs) cont
                                                            return (createNameInfoX Public qname DefVal nameRng tp)  -- must assume Val for now: get fixed later in inferRecDef2
                                 -- trace ("*** createGammasx: assume: " ++ show name ++ ": " ++ show info) $ return ()
                                 createGammas gamma ((qname,info):infgamma) defs
+
+checkRecVal :: Core.DefGroup -> Inf ()
+checkRecVal (Core.DefNonRec def) = return ()
+checkRecVal (Core.DefRec defs)
+  = mapM_ checkDef defs
+  where 
+    checkDef def
+      = if (not (Core.defIsVal def)) then return () else    
+         do infError (Core.defNameRange def) (text ("value definition is recursive.\n  recursive group: " ++ show (map Core.defName defs)))
 
 fixCanonicalName :: Core.Def -> Inf Core.Def
 fixCanonicalName def
@@ -624,7 +635,8 @@ inferExpr propagated expect (App (Var name _ nameRng) [(_,expr)] rng)  | name ==
                  resTp <- Op.freshTVar kindStar Meta
                  let typeReturn = typeFun [(nameNil,tp)] typeTotal resTp
                  addRangeInfo nameRng (RM.Id (newName "return") (RM.NIValue tp) False)
-                 return (resTp, eff, Core.App (Core.Var (Core.TName nameReturn typeReturn) (Core.InfoExternal [(CS,"return #1"),(JS,"return #1")])) [core])
+                 return (resTp, eff, Core.App (Core.Var (Core.TName nameReturn typeReturn) 
+                                      (Core.InfoExternal [(Default,"return #1")])) [core])
 -- | Assign expression
 inferExpr propagated expect (App assign@(Var name _ arng) [lhs@(_,lval),rhs@(_,rexpr)] rng) | name == nameAssign
   = case lval of
