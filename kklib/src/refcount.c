@@ -7,9 +7,8 @@
 ---------------------------------------------------------------------------*/
 #include "kklib.h"
 
-static void kk_block_drop_free_delayed(kk_context_t* ctx);
-static kk_decl_noinline void kk_block_drop_free_visitor(kk_block_t* b, kk_context_t* ctx);
-static kk_decl_noinline void kk_block_drop_free_rec(kk_block_t* b, kk_ssize_t scan_fsize, const kk_ssize_t depth, kk_context_t* ctx);
+// static void kk_block_drop_free_delayed(kk_context_t* ctx);
+// static kk_decl_noinline void kk_block_drop_free_rec(kk_block_t* b, kk_ssize_t scan_fsize, const kk_ssize_t depth, kk_context_t* ctx);
 static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t* ctx);
 
 static void kk_block_free_raw(kk_block_t* b, kk_context_t* ctx) {
@@ -185,6 +184,7 @@ static bool kk_block_decref_no_free(kk_block_t* b) {
 // The stack-less algorithm without delay list was initially created by Anton Lorenzen.
 // It maintains a parent stack in the first field of visited objects, with the 
 // next field to process in as an 8-bit value in the refcount.
+// (and it is faster than a recursive version so we only have a stackless free)
 //-----------------------------------------------------------------------------------------
 
 // Check if a field `i` in a block `b` should be freed, i.e. it is heap allocated with a refcount of 0.
@@ -216,10 +216,11 @@ static inline kk_block_t* kk_block_field_should_free(kk_block_t* b, kk_ssize_t f
 // for each recursion over these vectors; the idea is that vectors will not be 
 // deeply nested. (We could improve this by only recursing for vectors with more than 2^32 elements 
 // (fits in a refcount)).
-static kk_decl_noinline void kk_block_drop_free_large_rec(kk_block_t* b, kk_ssize_t scan_fsize, kk_context_t* ctx) 
+static kk_decl_noinline void kk_block_drop_free_large_rec(kk_block_t* b, kk_context_t* ctx) 
 {
   kk_assert_internal(b->header.scan_fsize == KK_SCAN_FSIZE_MAX);
-  for (kk_ssize_t i = 1; i <= scan_fsize; i++) {   // can be equal to scan_fsize as that does not include the scan field itself
+  kk_ssize_t scan_fsize = kk_block_scan_fsize(b);
+  for (kk_ssize_t i = 1; i < scan_fsize; i++) {   // start at 1 to skip the initial large scan_fsize field
     kk_block_t* child = kk_block_field_should_free(b, i, ctx);
     if (child != NULL) {
       // free field recursively
@@ -233,6 +234,7 @@ static kk_decl_noinline void kk_block_drop_free_large_rec(kk_block_t* b, kk_ssiz
 // Recursively free a block and drop its children without using stack space
 static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t* ctx) 
 {
+  kk_assert_internal(b->header.scan_fsize > 0);
   kk_block_t* parent = NULL;
   uint8_t scan_fsize;
 
@@ -240,26 +242,16 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
   movedown:
     scan_fsize = b->header.scan_fsize;
     kk_assert_internal(b->header.refcount == 0);
-    if (scan_fsize == 0) {
-      // nothing to scan, just free
-      if (kk_unlikely(kk_tag_is_raw(kk_block_tag(b)))) kk_block_free_raw(b, ctx); // potentially call custom `free` function on the data
-      kk_block_free(b);
-      // goto moveup;  // fall through
-    }
-    else if (scan_fsize == 1) {
+    kk_assert_internal(scan_fsize > 0);           // due to kk_block_should_free
+    if (scan_fsize == 1) {
       // if just one field, we can free directly and continue with the child
-      const kk_box_t v = kk_block_field(b, 0);
+      kk_block_t* next = kk_block_field_should_free(b, 0, ctx);
       kk_block_free(b);
-      if (kk_box_is_non_null_ptr(v)) {
-        // try to free the child now
-        b = kk_ptr_unbox(v);
-        if (kk_block_decref_no_free(b)) {
-          // continue freeing with the child block (leaving parent unchanged)
-          scan_fsize = b->header.scan_fsize;
-          goto movedown;
-        }
+      if (next != NULL) {
+        b = next;
+        goto movedown;
       }
-      // goto moveup;  // fall through
+      // goto moveup; // fallthrough
     }
     else if (scan_fsize == 2 && !kk_box_is_non_null_ptr(kk_block_field(b,0))) {
       // optimized code for lists/nodes with boxed first element
@@ -300,18 +292,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
     }
     else {
       kk_assert_internal(scan_fsize == KK_SCAN_FSIZE_MAX);
-      // is it a small vector?
-      kk_ssize_t vscan_fsize = (kk_ssize_t)kk_int_unbox(kk_block_field(b, 0));
-      if (vscan_fsize < KK_SCAN_FSIZE_MAX + 1) {
-        // pretend it is a small block (which is ok as the scan field itself is boxed)
-        // this way do not consume stack for small vectors
-        b->header.scan_fsize = (uint8_t)(vscan_fsize + 1);
-        goto movedown;
-      }
-      else {
-        // recurse over large blocks
-        kk_block_drop_free_large_rec(b, vscan_fsize, ctx);
-      }
+      kk_block_drop_free_large_rec(b, ctx);
     }
 
   // ------- move up along the parent chain ------------
@@ -342,7 +323,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
     } while (i < scan_fsize);
     // done: free the block and move up further
     b = parent;
-    parent = kk_ptr_unbox( kk_block_field(parent, 0) );
+    parent = _kk_box_ptr( kk_block_field(parent, 0) );  // low-level box as it can be NULL
     kk_block_free(b);  // note: cannot be a raw block as those have no scanfield
   }
   // done
@@ -351,6 +332,8 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
 
 //-----------------------------------------------------------------------------------------
 // Mark a block and all children recursively as thread shared
+// For marking the recursive algorithm is about twice as fast as the stackless one
+// unfortunately so we use recursion first and then switch to stackless.
 //-----------------------------------------------------------------------------------------
 
 #define MAX_RECURSE_DEPTH (100)
@@ -381,25 +364,33 @@ static inline kk_block_t* kk_block_field_should_mark(kk_block_t* b, kk_ssize_t f
 }
   
 // Recurse up to `depth` while marking objects
-static kk_decl_noinline void kk_block_mark_shared_rec(kk_block_t* b, kk_ssize_t scan_fsize, const kk_ssize_t depth, kk_context_t* ctx) {
+static kk_decl_noinline void kk_block_mark_shared_rec(kk_block_t* b, const kk_ssize_t depth, kk_context_t* ctx) 
+{
   while(true) {
     if (b->header.thread_shared) {
       // already shared
       return;
     } 
-    if (scan_fsize == 0) {
-      // nothing to scan
-      kk_block_make_shared(b);
-      return;
-    }
-    else if (scan_fsize == 1) {
+    
+    kk_ssize_t scan_fsize = b->header.scan_fsize;
+    kk_assert_internal(scan_fsize > 0);
+    if (scan_fsize == 1) {
       // if just one field, we can recursively scan without using stack space
       kk_block_make_shared(b);
-      const kk_box_t v = kk_block_field(b, 0);
-      if (kk_box_is_non_null_ptr(v)) {
+      kk_block_t* child = kk_block_field_should_mark(b, 0, ctx);
+      if (child != NULL) {
         // try to mark the child now
-        b = kk_ptr_unbox(v);
-        scan_fsize = b->header.scan_fsize;
+        b = child;
+        continue; // tailcall
+      }
+      return;
+    }
+    else if (scan_fsize == 2 && !kk_box_is_non_null_ptr(kk_block_field(b, 0))) {
+      // optimized code for lists/nodes with boxed first element
+      kk_block_make_shared(b);
+      kk_block_t* child = kk_block_field_should_mark(b, 1, ctx);
+      if (child != NULL) {
+        b = child;
         continue; // tailcall
       }
       return;
@@ -410,28 +401,27 @@ static kk_decl_noinline void kk_block_mark_shared_rec(kk_block_t* b, kk_ssize_t 
         kk_block_make_shared(b);
         kk_ssize_t i = 0;
         if (kk_unlikely(scan_fsize >= KK_SCAN_FSIZE_MAX)) { 
-          scan_fsize = (kk_ssize_t)kk_int_unbox(kk_block_field(b, 0)) + 1; // +1 to include the scan field itself!
+          scan_fsize = (kk_ssize_t)kk_int_unbox(kk_block_field(b, 0)); 
           i++;  // skip scan field
         }
         // mark fields up to the last one
         for (; i < (scan_fsize-1); i++) {
-          kk_box_t v = kk_block_field(b, i);
-          if (kk_box_is_non_null_ptr(v)) {
-            kk_block_t* vb = kk_ptr_unbox(v);
-            kk_block_mark_shared_rec(vb, vb->header.scan_fsize, depth+1, ctx); // recurse with increased depth
-          }
+          kk_block_t* child = kk_block_field_should_mark(b, i, ctx);
+          if (child != NULL) {
+            kk_block_mark_shared_rec(child, depth+1, ctx); // recurse with increased depth
+          }          
         }
         // and recurse into the last one
-        kk_box_t v = kk_block_field(b,scan_fsize - 1);
-        if (kk_box_is_non_null_ptr(v)) {
-          b = kk_ptr_unbox(v);
+        kk_block_t* child = kk_block_field_should_mark(b, i, ctx);
+        if (child != NULL) {
+          b = child;
           scan_fsize = b->header.scan_fsize;
           continue; // tailcall          
         }
         return;
       }
       else {
-        // switch to stackless marking
+        // max recursion depth reached: switch to stackless marking
         kk_block_mark_shared_recx(b, ctx);
         return;
       }
@@ -445,7 +435,7 @@ static kk_decl_noinline void kk_block_mark_shared_rec(kk_block_t* b, kk_ssize_t 
 static kk_decl_noinline void kk_block_mark_shared_recx_large(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(b->header.scan_fsize == KK_SCAN_FSIZE_MAX);
   kk_ssize_t scan_fsize = kk_block_scan_fsize(b);
-  for (kk_ssize_t i = 1; i <= scan_fsize; i++) {
+  for (kk_ssize_t i = 1; i < scan_fsize; i++) {  // start at 1 to skip the large scan field itself
     if (kk_block_field_should_mark(b, i, ctx)) {
       kk_block_mark_shared_recx(b, ctx);
     }
@@ -464,7 +454,7 @@ static kk_decl_noinline void kk_block_mark_shared_recx(kk_block_t* b, kk_context
 
   // ---- marking fields -----
 markfields:
-  kk_assert(!b->header.thread_shared);  
+  // kk_assert(!b->header.thread_shared);  
   kk_assert_internal(scan_fsize > 0);
   if (scan_fsize == KK_SCAN_FSIZE_MAX) {
     // recurse over the stack for large objects (vectors)
@@ -477,7 +467,7 @@ markfields:
       if (child != NULL) {
         // move down 
         // remember our state and link back to the parent
-        kk_block_field_set(b, i-1, _kk_box_new_ptr(parent));
+        kk_block_field_set(b, i-1, _kk_box_new_ptr(parent));  // low-level box as parent can be NULL
         parent = b;
         parent->header.thread_shared = i;
         b = child;
@@ -493,10 +483,10 @@ markfields:
   while (parent != NULL) {
     // move up
     i = parent->header.thread_shared;
-    kk_block_t* pparent = _kk_box_ptr( kk_block_field(parent, i-1) );
+    kk_block_t* pparent = _kk_box_ptr( kk_block_field(parent, i-1) );  // low-level unbox on parent
     kk_block_field_set(parent, i-1, kk_ptr_box(b));  // restore original pointer
-    parent = pparent;
     b = parent;
+    parent = pparent;
     // and continue visiting the fields
     scan_fsize = b->header.scan_fsize;
     if (i >= scan_fsize) {
@@ -515,7 +505,12 @@ markfields:
 
 kk_decl_export void kk_block_mark_shared( kk_block_t* b, kk_context_t* ctx ) {
   if (!b->header.thread_shared) {
-    kk_block_mark_shared_rec(b, b->header.scan_fsize, 0, ctx);
+    if (b->header.scan_fsize == 0) {
+      kk_block_make_shared(b); // no scan fields
+    }
+    else {
+      kk_block_mark_shared_rec(b, 0, ctx);
+    }
   }
 }
 
@@ -526,6 +521,13 @@ kk_decl_export void kk_box_mark_shared( kk_box_t b, kk_context_t* ctx ) {
 }
 
 
+kk_decl_export void kk_box_mark_shared_recx(kk_box_t b, kk_context_t* ctx) {
+  if (kk_box_is_non_null_ptr(b)) {
+    kk_block_mark_shared_recx(kk_ptr_unbox(b), ctx);
+  }
+}
+
+#if 0
 //-----------------------------------------------------------------------------------------
 // Old: Drop a block and its children using at most MAX_RECURSE_DEPTH stack space
 //-----------------------------------------------------------------------------------------
@@ -599,7 +601,7 @@ static kk_decl_noinline void kk_block_drop_free_rec(kk_block_t* b, kk_ssize_t sc
       if (depth < MAX_RECURSE_DEPTH) {
         kk_ssize_t i = 0;
         if (kk_unlikely(scan_fsize >= KK_SCAN_FSIZE_MAX)) {
-          scan_fsize = (kk_ssize_t)kk_int_unbox(kk_block_field(b, 0)) + 1; // +1 to include the scan field itself!
+          scan_fsize = (kk_ssize_t)kk_int_unbox(kk_block_field(b, 0)); 
           i++;  // skip scan field
         }
         // free fields up to the last one
@@ -633,136 +635,4 @@ static kk_decl_noinline void kk_block_drop_free_rec(kk_block_t* b, kk_ssize_t sc
   }
 }
 
-/*
-// Free a block and decref all its children. Recursively free a child if
-// the reference count of a child is zero. We apply the visitor pattern:
-//  (1) We store the pointer to the parent in the
-//      0th scan field (or the 1st if scan_fsize >= KK_SCAN_FSIZE_MAX).
-//      It is NULL for the root.
-//  (2) We store an integer that gives the next scan_field to free
-//      in the refcount.
-// Invariants:
-//  (1) Any parent node still has at least one further scan field to process.
-//      All nodes with zero or one scan field are freed directly.
-//  (2) 'parent' is set correctly when moving down (but not when moving up).
-//  (3) 'b' is NULL only when moving up beyond the root.
-static kk_decl_noinline void kk_block_drop_free_visitor(kk_block_t* b, kk_context_t* ctx) {
-  kk_block_t* parent = NULL;
-  bool moving_up = false;
-  while(true) {
-    outer: ;
-    if(moving_up) {
-      if(b == NULL) return;
-      kk_ssize_t scan_fsize = b->header.scan_fsize;
-      kk_box_t parent_ptr = kk_block_field(b, 0);
-      if (kk_unlikely(scan_fsize >= KK_SCAN_FSIZE_MAX)) { 
-        scan_fsize = (kk_ssize_t)kk_int_unbox(kk_block_field(b, 0)) + 1;
-        parent_ptr = kk_block_field(b, 1);
-      }
-      kk_ssize_t i = b->header.refcount;
-      kk_box_t v = kk_block_field(b, i);
-      scan_fsize -= 1;
-      while(i != scan_fsize) {
-        i++;
-        if(kk_box_is_non_null_ptr(v)) {
-          kk_block_t* next = kk_ptr_unbox(v);
-          if (kk_block_decref_no_free(next)) {
-            // free recursively
-            b->header.refcount = i;
-            parent = b;
-            b = next;
-            moving_up = false;
-            goto outer;
-          } // else: move on to next scan field
-        }
-        v = kk_block_field(b, i);
-      } // else: work on last scan field
-      kk_block_free(b);
-      b = (kk_block_t*)(parent_ptr.box); // kk_ptr_unbox, but parent_ptr may be null
-      if(kk_box_is_non_null_ptr(v)) {
-        kk_block_t* next = kk_ptr_unbox(v);
-        if (kk_block_decref_no_free(next)) {
-          parent = b;
-          b = next;
-          moving_up = false;
-          goto outer;
-        } // else: go up
-      }
-      moving_up = true;
-    }
-    else { // moving down
-      kk_ssize_t scan_fsize = b->header.scan_fsize;
-      if(scan_fsize == 0) {
-        // free and go up
-        if (kk_tag_is_raw(kk_block_tag(b))) { kk_block_free_raw(b,ctx); }
-        kk_block_free(b);
-        b = parent;
-        moving_up = true;
-      }
-      else if(scan_fsize == 1) {
-        const kk_box_t v = kk_block_field(b, 0);
-        kk_block_free(b);
-        if (kk_box_is_non_null_ptr(v)) {
-          b = kk_ptr_unbox(v);
-          if (kk_block_decref_no_free(b)) {
-            goto outer; // same b and parent, still moving down
-          } // else: go up
-        }
-        b = parent;
-        moving_up = true;
-      }
-      else {
-        kk_ssize_t i = 0;
-        if (kk_unlikely(scan_fsize >= KK_SCAN_FSIZE_MAX)) { 
-          scan_fsize = (kk_ssize_t)kk_int_unbox(kk_block_field(b, 0)) + 1;
-          i++;  // skip the scan field itself (and the full scan_fsize does not include the field itself)
-        }
-        kk_ssize_t parent_idx = i; // store the parent here
-        kk_box_t v = kk_block_field(b, i);
-        scan_fsize -= 1;
-        while(i != scan_fsize) {
-          i++;
-          if(kk_box_is_non_null_ptr(v)) {
-            kk_block_t* next = kk_ptr_unbox(v);
-            if (kk_block_decref_no_free(next)) {
-              b->header.refcount = i;
-              kk_block_fields_t* bf = (kk_block_fields_t*)b; // assign to kk_block_field(b, parent_idx)
-              bf->fields[parent_idx] = (kk_box_t) { (uintptr_t)(parent) }; // kk_ptr_box(parent), but parent may be null
-              parent = b;
-              b = next;
-              moving_up = false;
-              goto outer;
-            } // else: move on to next scan field
-          }
-          v = kk_block_field(b, i);
-        } // else: work on last scan field
-        kk_block_free(b);
-        if(kk_box_is_non_null_ptr(v)) {
-          kk_block_t* next = kk_ptr_unbox(v);
-          if (kk_block_decref_no_free(next)) {
-            b = kk_ptr_unbox(v);
-            // use old parent
-            moving_up = false;
-            goto outer;
-          } // else: go up
-        }
-        b = parent;
-        moving_up = true;
-      }
-    }
-  }
-}
-
-// Push a block on the delayed-free list
-static void kk_block_push_delayed_drop_free(kk_block_t* b, kk_context_t* ctx) {
-  kk_assert_internal(b->header.refcount == 0);
-  kk_block_t* delayed = ctx->delayed_free;
-  // encode the next pointer into the block header (while keeping `scan_fsize` valid)
-  b->header.refcount = (uint32_t)((uintptr_t)delayed);
-#if (KK_INTPTR_SIZE > 4)
-  b->header.tag = (uint16_t)((uintptr_t)delayed >> 32);  // at most 48 bits, but can extend to 56 bits (as only scan_fsize needs to be preserved)
-  kk_assert_internal(((uintptr_t)delayed >> 48) == 0);   // adapt for sign extension?
 #endif
-  ctx->delayed_free = b;
-}
-*/

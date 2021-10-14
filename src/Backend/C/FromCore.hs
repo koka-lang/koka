@@ -568,7 +568,7 @@ genConstructorTestX info dataRepr con conRepr
                   let nameDoc = ppName (conInfoName con)
                       -- tagDoc  = text "datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
                       dataTypeTagDoc = text "kk_datatype_tag" <.> tupled [text "x"]
-                      valueTagEq     = text "kk_integer_small_eq(x._tag," <+> ppConTag con conRepr dataRepr <.> text ")"
+                      valueTagEq     = text "kk_value_tag_eq(x._tag," <+> ppConTag con conRepr dataRepr <.> text ")"
                   in case conRepr of
                     ConEnum{}      -> text "x ==" <+> ppConTag con conRepr dataRepr
                     ConIso{}       -> text "true"
