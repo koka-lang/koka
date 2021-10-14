@@ -411,10 +411,6 @@ realPath :: FilePath -> IO FilePath
 realPath fpath 
   = canonicalizePath fpath
 
-realPath :: FilePath -> IO FilePath
-realPath fpath 
-  = canonicalizePath fpath
-
 {-
 splitPath :: String -> [String]
 splitPath xs
