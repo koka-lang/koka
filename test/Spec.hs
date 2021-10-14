@@ -95,8 +95,10 @@ testSanitize kokaDir
   . sub "([a-zA-Z])\\.[[:digit:]]+" "\\1"
   . sub "<[[:digit:]]+>" "<0>"
   -- for tests using --showhiddentypesigs,
-  -- e.g. .lift250-main -> .lift000-main
-  . sub "(\\.m?lift)[[:digit:]]+" "\\g{1}000"
+  -- e.g. .lift250-main => .lift000-main
+  --      f: (z00.192 : a) -> a => f: (a.00.000 : a) -> a
+  . sub "(\\.m?)lift[[:digit:]]+" "\\1lift000"
+  . sub "(^[[:alnum:]]+\\/.+:.*) [[:alpha:]]+[[:digit:]]+\\.[[:digit:]]+ :" "\\1 a00.000 :"
   -- . sub ": [[:digit:]]+([,\\)])" ": 0\\1"
   . replace kokaDir "..."
   where 
