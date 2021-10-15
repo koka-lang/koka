@@ -1,6 +1,8 @@
 ~ begin news
 News:
-
+* 2021-10-15: Koka v2.3.2 released, with initial wasm support 
+  (use `--target=wasm`, and install [emscripten] and [wasmtime]), 
+  improved reuse specialization (by Anton Lorenzen), and various bug fixes.
 * 2021-09-29: Koka v2.3.1 released, with improved TRMC optimizations, and improved reuse 
   (the rbtree benchmark is as fast as C++ now), and 
   faster effect operations. Experimental: allow elision of `->` in anonymous
@@ -39,5 +41,8 @@ see it on [youtube](https://www.youtube.com/watch?v=6OFhD_mHtKA).
 {.news-items}
 
 [released]: https://koka-lang.github.io/koka/doc/book.html#install
+[emscripten]: https://emscripten.org/docs/getting_started/downloads.html
+[musl]: https://musl.libc.org/
+[wasmtime]: https://wasmtime.dev/ 
 
 ~ end news
