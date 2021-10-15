@@ -1029,6 +1029,7 @@ resolveConstructor typeName typeSort isSingleton typeResult typeParams idmap (Us
        let scheme = quantifyType (typeParams ++ existVars) $
                     if (null params') then result' else typeFun [(binderName p, binderType p) | (_,p) <- params'] typeTotal result'
        addRangeInfo rng (Decl "con" qname (mangleConName qname))
+       addRangeInfo rngName (Id qname (NICon scheme) True)
        return (UserCon qname exist' params' (Just result') rngName rng vis doc
               ,ConInfo qname typeName typeParams existVars
                   (map (\(i,b) -> (if (nameIsNil (binderName b)) then newFieldName i else binderName b, binderType b)) (zip [1..] (map snd params')))
