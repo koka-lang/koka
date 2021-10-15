@@ -191,6 +191,7 @@ genSpecName name bools = newName $ "spec_" ++ show (unqualify name)
 
 fnTypeParams :: Expr -> [TypeVar]
 fnTypeParams (TypeLam typeParams _) = typeParams
+fnTypeParams e = failure $ "fnTypeParams: Not a function: " <> show e
 
 fnParams :: Expr -> [TName]
 fnParams (Lam params _ _) = params
@@ -200,10 +201,12 @@ fnParams e = failure $ "fnParams: Not a function: " <> show e
 fnEffect :: Expr -> Effect
 fnEffect (Lam _ effect _) = effect
 fnEffect (TypeLam _ (Lam _ effect _)) = effect
+fnEffect e = failure $ "fnEffect: Not a function: " <> show e
 
 fnBody :: Expr -> Expr
 fnBody (Lam _ _ body) = body
 fnBody (TypeLam _ (Lam _ _ body)) = body
+fnBody e = failure $ "fnBody: Not a function: " <> show e
 
 
 {--------------------------------------------------------------------------
