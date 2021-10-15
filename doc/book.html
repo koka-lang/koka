@@ -1299,45 +1299,67 @@ implements the full specification. The main things lacking at the moment are
 libraries, package management, and deep IDE integration. 
 </p>
 <div class="news">
-<p class="p news-items noindent">News:
-<em class="em-star1"> 2021-10-15: Koka v2.3.2 released, with initial wasm support 
-  (use <code class="code code1 language-koka lang-koka koka colorized">--target<span style="color:blue">=</span>wasm</code>, and install&nbsp;<a href="https://emscripten.org/docs/getting_started/downloads.html" data-linkid="emscripten">emscripten</a> and&nbsp;<a href="https://wasmtime.dev/" data-linkid="wasmtime">wasmtime</a>), 
-  improved reuse specialization (by Anton Lorenzen), and various bug fixes.
-</em> 2021-09-29: Koka v2.3.1 released, with improved TRMC optimizations, and improved reuse 
-  (the rbtree benchmark is as fast as C++ now), and 
-  faster effect operations. Experimental: allow elision of <code class="code code1 language-koka lang-koka koka colorized"><span style="color:blue">-&gt;</span></code> in anonymous
-  function expressions (e.g. <code class="code code1 language-koka lang-koka koka colorized">xs<span style="color:blue">.</span>map( fn(x) x + <span class="constant" style="color:purple">1</span> )</code>) and operation clauses.
-  Command line options changed a bit with <code class="code code2">.koka</code> as the standard output directory.<br>
-<em class="em-star1"> 2021-09-20: Koka v2.3.0 released, with new 
-&nbsp;<a href="https://koka-lang.github.io/koka/doc/book.html#sec-layout">brace elision</a> and if/match
-  conditions without parenthesis. Updated the javascript backend
-  using ES6 modules and BigInt. new <code class="code code1 language-koka lang-koka koka colorized"><span style="color:blue">module</span> <span style="color:navy">std/num/int64</span></code>, improved effect operation performance.
-</em> 2021-09-05: Koka v2.2.1 released, with initial parallel tasks, the binary-trees benchmark, and
-&nbsp;<a href="https://koka-lang.github.io/koka/doc/book.html#sec-layout">brace elision</a>.
-<em class="em-star1"> 2021-09-05: The ICFP&#39;21 tutorial
-  &#8220;<em class="em-low1">Programming with Effect Handlers and FBIP in Koka</em>&#8221; is now available on 
-&nbsp;<a href="https://www.youtube.com/watch?v=6OFhD_mHtKA">youtube</a>.
-</em> 2021-08-26: Koka v2.2.0 released, improved simplification (by Rashika B), cross-module specialization (Steven Fontanella), and borrowing annotations with improved reuse analysis (Anton Lorenzen).
-<em class="em-star1"> 2021-08-26: At 12:30 EST was the live Koka tutorial at
+<p class="p noindent">News:
+</p>
+<ul class="ul list-star news-items compact">
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-10-15: Koka v2.3.2 released, with initial wasm support 
+(use <code class="code code1 language-koka lang-koka koka colorized">--target<span style="color:blue">=</span>wasm</code>, and install&nbsp;<a href="https://emscripten.org/docs/getting_started/downloads.html" data-linkid="emscripten">emscripten</a> and&nbsp;<a href="https://wasmtime.dev/" data-linkid="wasmtime">wasmtime</a>), 
+improved reuse specialization (by Anton Lorenzen), and various bug fixes.
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-09-29: Koka v2.3.1 released, with improved TRMC optimizations, and improved reuse 
+(the rbtree benchmark is as fast as C++ now), and 
+faster effect operations. Experimental: allow elision of <code class="code code1 language-koka lang-koka koka colorized"><span style="color:blue">-&gt;</span></code> in anonymous
+function expressions (e.g. <code class="code code1 language-koka lang-koka koka colorized">xs<span style="color:blue">.</span>map( fn(x) x + <span class="constant" style="color:purple">1</span> )</code>) and operation clauses.
+Command line options changed a bit with <code class="code code2">.koka</code> as the standard output directory.  
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-09-20: Koka v2.3.0 released, with new 
+<a href="https://koka-lang.github.io/koka/doc/book.html#sec-layout">brace elision</a> and if/match
+conditions without parenthesis. Updated the javascript backend
+using ES6 modules and BigInt. new <code class="code code1 language-koka lang-koka koka colorized"><span style="color:blue">module</span> <span style="color:navy">std/num/int64</span></code>, improved effect operation performance.
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-09-05: Koka v2.2.1 released, with initial parallel tasks, the binary-trees benchmark, and
+<a href="https://koka-lang.github.io/koka/doc/book.html#sec-layout">brace elision</a>.
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-09-05: The ICFP&#39;21 tutorial
+&#8220;<em class="em-low1">Programming with Effect Handlers and FBIP in Koka</em>&#8221; is now available on 
+<a href="https://www.youtube.com/watch?v=6OFhD_mHtKA">youtube</a>.
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-08-26: Koka v2.2.0 released, improved simplification (by Rashika B), cross-module specialization (Steven Fontanella), and borrowing annotations with improved reuse analysis (Anton Lorenzen).
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-08-26: At 12:30 EST was the live Koka tutorial at
 <a href="https://icfp21.sigplan.org/details/icfp-2021-tutorials/5/Programming-with-Effect-Handlers-and-FBIP-in-Koka">ICFP&#39;21</a>,
 see it on&nbsp;<a href="https://www.youtube.com/watch?v=6OFhD_mHtKA">youtube</a>.
-</em> 2021-08-23: &#8220;<em class="em-low1">Generalized Evidence Passing for Effect Handlers</em>&#8221;, by Ningning Xie and Daan Leijen presented at ICFP&#39;21.
-  See it on&nbsp;<a href="https://www.youtube.com/watch?v=yAT0qYlD0UM&amp;list=PLyrlk8Xaylp5ed_Yhg2oTdVhrtVohVaoa&amp;index=40">youtube</a>
-  or read the&nbsp;<a href="https://www.microsoft.com/en-us/research/publication/generalized-evidence-passing-for-effect-handlers/">paper</a>.
-<em class="em-star1"> 2021-08-22: &#8220;<em class="em-low1">First-class Named Effect Handlers</em>&#8221;, by Youyou Cong, Ningning Xie, and Daan Leijen presented at HOPE&#39;21.
-  See it on&nbsp;<a href="https://www.youtube.com/watch?v=3HsI4__8RQM&amp;list=PLyrlk8Xaylp6Q52MwsRZBUSIRL3wOk_k1&amp;index=4">youtube</a>
-  or read the&nbsp;<a href="https://www.microsoft.com/en-us/research/publication/first-class-named-effect-handlers/">paper</a>.
-</em> 2021-06-23: Koka v2.1.9 released, initial cross-module specialization (by Steven Fontanella).
-<em class="em-star1"> 2021-06-17: Koka v2.1.8 released, initial Apple M1 support.
-</em> The&nbsp;<a href="https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/" data-linkid="perceus">Perceus</a> paper won a distinguished paper award at PLDI&#39;21!
-<em class="em-star1"> 2021-06-10: Koka v2.1.6 released.
-</em> 2021-05-31: Koka v2.1.4 released.
-<em class="em-star1"> 2021-05-01: Koka v2.1.2 released.
-</em> 2021-03-08: Koka v2.1.1 released.
-<em class="em-star1"> 2021-02-14: Koka v2.0.16 released.
-</em> 2020-12-12: Koka v2.0.14 released.
-<em class="em-star1"> 2020-12-02: Koka v2.0.12 released.
-</em> 2020-11-29: Perceus technical report publised (<a href="https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/" data-linkid="perceus">pdf</a>).</p></div></div><h2 id="install" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#install" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">1.1</span>.&#8194;</span>Installing the compiler</h2>
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-08-23: &#8220;<em class="em-low1">Generalized Evidence Passing for Effect Handlers</em>&#8221;, by Ningning Xie and Daan Leijen presented at ICFP&#39;21.
+See it on&nbsp;<a href="https://www.youtube.com/watch?v=yAT0qYlD0UM&amp;list=PLyrlk8Xaylp5ed_Yhg2oTdVhrtVohVaoa&amp;index=40">youtube</a>
+or read the&nbsp;<a href="https://www.microsoft.com/en-us/research/publication/generalized-evidence-passing-for-effect-handlers/">paper</a>.
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-08-22: &#8220;<em class="em-low1">First-class Named Effect Handlers</em>&#8221;, by Youyou Cong, Ningning Xie, and Daan Leijen presented at HOPE&#39;21.
+See it on&nbsp;<a href="https://www.youtube.com/watch?v=3HsI4__8RQM&amp;list=PLyrlk8Xaylp6Q52MwsRZBUSIRL3wOk_k1&amp;index=4">youtube</a>
+or read the&nbsp;<a href="https://www.microsoft.com/en-us/research/publication/first-class-named-effect-handlers/">paper</a>.
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-06-23: Koka v2.1.9 released, initial cross-module specialization (by Steven Fontanella).
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-06-17: Koka v2.1.8 released, initial Apple M1 support.
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">The&nbsp;<a href="https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/" data-linkid="perceus">Perceus</a> paper won a distinguished paper award at PLDI&#39;21!
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-06-10: Koka v2.1.6 released.
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-05-31: Koka v2.1.4 released.
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-05-01: Koka v2.1.2 released.
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-03-08: Koka v2.1.1 released.
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2021-02-14: Koka v2.0.16 released.
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2020-12-12: Koka v2.0.14 released.
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2020-12-02: Koka v2.0.12 released.
+</li>
+<li class="li ul-li list-star-li news-items-li compact-li" style="margin-bottom:1ex">2020-11-29: Perceus technical report publised (<a href="https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/" data-linkid="perceus">pdf</a>).</li></ul>
+</div></div><h2 id="install" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#install" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">1.1</span>.&#8194;</span>Installing the compiler</h2>
 <p class="p noindent">For Linux (x64, arm64) and macOS (x64, M1), you can install Koka using:
 </p>
 <p class="p copy button indent" title="Copy" data-value="curl -sSL https://github.com/koka-lang/koka/releases/latest/download/install.sh | sh" style="float:left;font-size:75%"><span class="fa fa-copy"></span></p>
