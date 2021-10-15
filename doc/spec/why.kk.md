@@ -110,11 +110,11 @@ be evaluated multiple times.
 and a function type has 3 parts: the argument types, the effect type, 
 and the type of the result. For example: 
 ```unchecked
-fun sqr    : (int)     -> total int       // mathematical total function    
-fun divide : (int,int) -> exn int         // may raise an exception (partial)  
-fun turing : (tape)    -> div int         // may not terminate (diverge)  
-fun print  : (string)  -> console ()      // may write to the console  
-fun rand   : ()        -> ndet int        // non-deterministic  
+fun sqr    : (int) -> total int       // total: mathematical total function    
+fun divide : (int,int) -> exn int     // exn: may raise an exception (partial)  
+fun turing : (tape) -> div int        // div: may not terminate (diverge)  
+fun print  : (string) -> console ()   // console: may write to the console  
+fun rand   : () -> ndet int           // ndet: non-deterministic  
 ```
 
 The precise effect typing gives &koka; rock-solid semantics and deep 
@@ -161,10 +161,10 @@ abstractions like async/await as a user library in a typed and
 composable way.
 
 Here is an example of an effect definition with
-one operation to yield `:int` values:
+one _control_ (`ctl`) operation to yield `:int` values:
 ```
 effect yield
-  control yield( i : int ) : bool
+  ctl yield( i : int ) : bool
 ```
 Once the effect is declared, we can use it 
 for example to yield the elements of a list:
@@ -180,13 +180,15 @@ This is much like defining an exception handler, except we can receive values (h
 and we can _resume_ with a result (which determines if we keep traversing):
 ```
 fun print-elems() : console () 
-  with control yield(i)
+  with ctl yield(i)
     println("yielded " ++ i.show)
     resume(i<=2)
   traverse([1,2,3,4])
 ```
-The `with` statement binds the handler for `:yield` over the
+The `with` statement binds the handler for `yield` control operation over the
 rest of the scope, in this case `traverse([1,2,3,4])`. 
+Every time `yield` is called, our control handler is called, prints the current value,
+and resumes to the call site with a boolean result (indeed, dynamic binding with static typing!).
 Note how the handler discharges the `:yield` effect -- and replaces
 it with a `:console` effect. When we run the example, we get:
 ````
