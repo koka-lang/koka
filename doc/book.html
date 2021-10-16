@@ -1168,7 +1168,7 @@
 <div class="titleblock align-center para-block" style="text-align:center;line-adjust:0">
 <div class="titleheader align-center" style="text-align:center;line-adjust:0">
 <div class="title para-block" style="font-weight:bold;margin-bottom:0.5ex;font-size:xxx-large;line-adjust:0">The Koka Programming Language</div>
-<div class="titlenote para-block" style="line-adjust:0"><span style="font-size:75%">(Daan Leijen, 2021-10-15)</span></div></div></div></div>
+<div class="titlenote para-block" style="line-adjust:0"><span style="font-size:75%">(Daan Leijen, 2021-10-16)</span></div></div></div></div>
 <div class="flexbody">
 
 <div class="sidepanel">
@@ -1303,7 +1303,7 @@ libraries, package management, and deep IDE integration.
 </p>
 <ul class="ul list-star news-items loose">
 <li class="li ul-li list-star-li news-items-li loose-li" style="margin-bottom:1ex">
-<p>(pinned) The ICFP&#39;21 tutorial
+<p>2021-09-01 (pinned) The ICFP&#39;21 tutorial
 &#8220;<em class="em-low1">Programming with Effect Handlers and FBIP in Koka</em>&#8221; is now available on 
 <a href="https://www.youtube.com/watch?v=6OFhD_mHtKA">youtube</a>.
 </p></li>
@@ -3218,11 +3218,11 @@ Xie, Brachthäuser, Schuster, Hillerström, and Leijen, 2020" class="bibref loca
 Xie and Leijen, 2021" class="bibref localref" style="target-element:bibitem"><span class="cite-number">17</span></a>]</span>
 to pass down handler information to each call-site. At the call to <code class="koka">ask</code> in <code class="koka"><a class="pp" href="#add_twice">add<span class="dash">-</span>twice<span class="pc"><span class="mo">tour<span class="fslash last">/</span></span>add<span class="dash">-</span>twice: <span class="tp sp">(</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp sp">(</span><span class="tp">ask</span><span class="tp sp">&#60;</span><span class="tp">int</span><span class="tp sp">&#62;</span><span class="tp sp">)</span> <span class="tp">int</span></span></a></code>,
 it selects the handler from the evidence vector and when the operation is
-a tail-resumptive <code class="koka"><span class="kw">fun</span></code>, it calls it directly as a regular function (except with an adjucted evidence
-vector for its context). Unlike a general <code class="koka"><span class="kw">control</span></code> operation, there is no need to yield upward
+a tail-resumptive <code class="koka"><span class="kw">fun</span></code>, it calls it directly as a regular function (except with an adjusted evidence
+vector for its context). Unlike a general <code class="koka"><span class="kw">ctl</span></code> operation, there is no need to yield upward
 to the handler, capture the stack, and eventually resume again. 
 This gives <code class="koka"><span class="kw">fun</span></code> (and <code class="koka"><span class="kw">val</span></code>) operations a performance cost very similar to <em class="em-low1">virtual method calls</em> 
-which can be very efficient.
+which can be quite efficient.
 </p>
 <p class="p indent">For even a bit more performance, you can also declare upfront that any operation
 definition must be tail-resumptive, as:
@@ -3238,7 +3238,14 @@ definition must be tail-resumptive, as:
 for the <code class="koka">ask</code> operation. However, it increases the ability to reason about the code,
 and the compiler can optimize such calls a bit more as it no longer needs to check at
 run-time if the handler happens to define the operation as tail-resumptive.
-</p><h4 id="sec-opval" class="h4" data-heading-depth="4" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Value Operations</h4>
+</p>
+<div class="advanced" style="border-left:1px solid #AAA;padding:0em 0em 0em 1em;margin:1em 0em">
+<p class="p noindent"><span class="boxed-label" style="margin:0em 0em 0em -1em;display:block;font-size:70%;color:#999">advanced</span>For even better performance, one can mark the effect as <em class="em-low1">linear</em> (Section&nbsp;<a href="#sec-linear" title="3.4.12.&#8194;Linear Effects" class="localref" style="target-element:h3"><span class="heading-label">3.4.12</span></a>).
+Such effects are statically guaranteed to never use a general control operation and 
+never need to capture a resumption. This removes the need for the monadic transformation
+and improves performance of any effect polymorphic function that uses such effects as well
+(like <code class="koka">map</code> or <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#foldr">foldr<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>foldr: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">b</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">xs</span> <span class="tp kw op">:</span> <span class="tp">list</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">&#62;</span><span class="tp sp">,</span> <span class="tp tpp">z</span> <span class="tp kw op">:</span> <span class="tp tv">b</span><span class="tp sp">,</span> <span class="tp tpp">f</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp tv">a</span><span class="tp sp">,</span> <span class="tp tv">b</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp tv">b</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp tv">b</span></span></a></code>). Examples of linear effects are state (<code class="koka">st</code>) and builtin effects
+(like <code class="koka">io</code> or <code class="koka">console</code>).</p></div><h4 id="sec-opval" class="h4" data-heading-depth="4" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Value Operations</h4>
 <p class="p noindent">A common subset of operations always tail-resume with a single value; these are
 essentially dynamically bound variables (but statically typed!). Such operations
 can be declared as a <code class="koka"><span class="kw">val</span></code> with the following translation:
