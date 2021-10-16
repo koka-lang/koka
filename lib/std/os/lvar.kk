@@ -24,23 +24,23 @@ abstract struct lvar<a> {
   compare : (a, a) -> maybe<order>;
 }
 
-noinline extern unsafe-lvar( bottom : a ) : pure any {
+noinline extern unsafe-lvar( bottom : a ) : total any {
   c "kk_lvar_alloc"
 }
 
-noinline extern unsafe-put( lv : any, update : a -> null<a>) : pure () {
+noinline extern unsafe-put( lv : any, update : a -> null<a>) : total int32 {
   c "kk_lvar_put"
 }
 
-noinline extern unsafe-get( lv : any, in-threshold-set : (a, int32) -> null<a> ) : pure a {
+noinline extern unsafe-get( lv : any, in-threshold-set : (a, int32) -> null<a> ) : total a {
   c "kk_lvar_get"
 }
 
-noinline extern unsafe-freeze( lv : any ) : pure a {
+noinline extern unsafe-freeze( lv : any ) : total a {
   c "kk_lvar_freeze"
 }
 
-public noinline fun lvar( bottom : a, join : (a, a) -> maybe<a>, compare : (a, a) -> maybe<order>) : pure lvar<a> {
+public noinline fun lvar( bottom : a, join : (a, a) -> maybe<a>, compare : (a, a) -> maybe<order>) : total lvar<a> {
   Lvar( unsafe-lvar(bottom), join, compare )
 }
 
@@ -49,8 +49,11 @@ public noinline fun lvar( bottom : a, join : (a, a) -> maybe<a>, compare : (a, a
 //   d <= update(d)                             -- monotonicity
 //   update1(update2(d)) == update2(update1(d)) -- commutativity
 //
-public fun put( lvar : lvar<a>, update : a -> maybe<a> ) : pure () {
-  lvar.lv.unsafe-put( fn (d) { d.update.null } )
+public fun put( lvar : lvar<a>, update : a -> maybe<a> ) : exn () {
+  match (lvar.lv.unsafe-put( fn (d) { d.update.null } ).bool) {
+    True -> ()
+    False -> throw("LVar was frozen when `put` was attempted")
+  }
 }
 
 public fun put( lvar : lvar<a>, d : a ) : pure () {

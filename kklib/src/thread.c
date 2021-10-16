@@ -493,7 +493,7 @@ typedef struct lvar_s {
 typedef kk_box_t kk_lvar_t;
 
 kk_lvar_t kk_lvar_alloc( kk_box_t lattice_bottom, kk_context_t* ctx );
-void      kk_lvar_put(kk_lvar_t lvar, kk_function_t update, kk_context_t *ctx);
+int32_t   kk_lvar_put(kk_lvar_t lvar, kk_function_t update, kk_context_t *ctx);
 kk_box_t  kk_lvar_get( kk_lvar_t lvar, kk_function_t in_threshold_set, kk_context_t* ctx );
 kk_box_t  kk_lvar_freeze(kk_lvar_t lvar, kk_context_t *ctx);
 
@@ -528,34 +528,41 @@ err:
 }
 
 // add value to lvar
-void kk_lvar_put(kk_lvar_t lvar, kk_function_t update, kk_context_t *ctx) {
+// int32 boolean flag for error
+int32_t kk_lvar_put(kk_lvar_t lvar, kk_function_t update, kk_context_t *ctx) {
   lvar_t *lv = (lvar_t *)kk_cptr_raw_unbox(lvar);
+  kk_box_t result;
 
   if (lv->is_frozen != 0) goto err;
 
   pthread_mutex_lock(&lv->lock);
-  lv->result =
+  result = lv->result;
+  // add some dup stuff I don't understand
+  result =
     kk_function_call(kk_box_t, (kk_function_t, kk_box_t, kk_context_t *),
-                     update, (update, lv->result, ctx));
+                     update, (update, result, ctx));
 
-  kk_box_mark_shared(lv->result, ctx); // TODO: can we mark outside the mutex?
+  kk_box_mark_shared(result, ctx); // TODO: can we mark outside the mutex?
 
   // null means that update went to top
-  if (kk_box_is_null(lv->result)) goto err;
+  if (kk_box_is_null(result)) {
+    pthread_mutex_unlock(&lv->lock);
+    goto err;
+  }
 
+  lv->result = result;
+  // drop stuff here?
   pthread_mutex_unlock(&lv->lock);
-
   pthread_cond_broadcast(&lv->available);
 
   kk_box_drop(lvar, ctx);
   kk_function_drop(update, ctx);
-  return;
+  return 1;
 
 err:
-  // TODO: how to throw an error?
   kk_box_drop(lvar, ctx);
   kk_function_drop(update, ctx);
-  return;
+  return 0;
 }
 
 static void kk_lvar_wait (kk_lvar_t lvar, kk_context_t* ctx) {
