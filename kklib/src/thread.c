@@ -516,7 +516,6 @@ kk_lvar_t kk_lvar_alloc(kk_box_t lattice_bottom, kk_context_t* ctx) {
   if (pthread_cond_init(&lv->available, NULL) != 0) goto err;
   kk_lvar_t lvar = kk_cptr_raw_box( &kk_lvar_free, lv, ctx );
   kk_box_mark_shared(lattice_bottom,ctx);
-  // TODO: are functions not marked?
   kk_box_mark_shared(lvar,ctx);
   return lvar;
 
@@ -531,18 +530,16 @@ err:
 // int32 boolean flag for error
 int32_t kk_lvar_put(kk_lvar_t lvar, kk_function_t update, kk_context_t *ctx) {
   lvar_t *lv = (lvar_t *)kk_cptr_raw_unbox(lvar);
-  kk_box_t result;
 
+  // TODO
   if (lv->is_frozen != 0) goto err;
 
+  // TODO
   pthread_mutex_lock(&lv->lock);
-  result = lv->result;
-  // add some dup stuff I don't understand
-  result =
-    kk_function_call(kk_box_t, (kk_function_t, kk_box_t, kk_context_t *),
-                     update, (update, result, ctx));
 
-  kk_box_mark_shared(result, ctx); // TODO: can we mark outside the mutex?
+  kk_box_t result;
+  result = kk_function_call(kk_box_t, (kk_function_t, kk_box_t, kk_context_t *),
+                            update, (update, lv->result, ctx));
 
   // null means that update went to top
   if (kk_box_is_null(result)) {
@@ -550,9 +547,12 @@ int32_t kk_lvar_put(kk_lvar_t lvar, kk_function_t update, kk_context_t *ctx) {
     goto err;
   }
 
+  // TODO
+  kk_box_mark_shared(result, ctx);
   lv->result = result;
-  // drop stuff here?
   pthread_mutex_unlock(&lv->lock);
+
+  // TODO
   pthread_cond_broadcast(&lv->available);
 
   kk_box_drop(lvar, ctx);
@@ -565,7 +565,7 @@ err:
   return 0;
 }
 
-static void kk_lvar_wait (kk_lvar_t lvar, kk_context_t* ctx) {
+static void kk_lvar_wait ( kk_lvar_t lvar, kk_context_t* ctx ) {
   lvar_t* lv = (lvar_t*)kk_cptr_raw_unbox(lvar);
 
   if (ctx->task_group != NULL) {
@@ -580,15 +580,23 @@ static void kk_lvar_wait (kk_lvar_t lvar, kk_context_t* ctx) {
   kk_box_drop(lvar,ctx); // TODO: do we need to box_drop lvar from context?
 }
 
+// kk_std_core__null
 kk_box_t kk_lvar_get( kk_lvar_t lvar, kk_function_t in_threshold_set, kk_context_t* ctx ) {
   lvar_t* lv = (lvar_t*)kk_cptr_raw_unbox(lvar);
   kk_box_t result;
 
   while (true) {
     // check if current value has reached threshold and get result value on threshold
+    pthread_mutex_lock(&lv->lock);
+
     kk_function_dup(in_threshold_set);
-    result = kk_function_call(kk_box_t, (kk_function_t, kk_box_t, int32_t, kk_context_t *),
-                              in_threshold_set, (in_threshold_set, kk_box_dup(lv->result), lv->is_frozen, ctx));
+    kk_box_dup(lv->result);
+
+    result = kk_function_call(
+        kk_box_t, (kk_function_t, kk_box_t, int32_t, kk_context_t *),
+        in_threshold_set, (in_threshold_set, lv->result, lv->is_frozen, ctx));
+
+    pthread_mutex_unlock(&lv->lock);
 
     // if current value has reached threshold, return
     if (!kk_box_is_null(result)) break;
@@ -601,14 +609,19 @@ kk_box_t kk_lvar_get( kk_lvar_t lvar, kk_function_t in_threshold_set, kk_context
     kk_lvar_wait(lvar, ctx);
     pthread_mutex_unlock(&lv->lock);
   }
+
   kk_function_drop(in_threshold_set, ctx);
   kk_box_drop(lvar,ctx);
+  kk_box_drop(result, ctx);
+  // kk_datatype_unbox(result)
   return result;
- err:
-  // get should block forever in this situation
-  // but maybe we can do something better?
-  pthread_mutex_lock(&lv->lock);
-  pthread_cond_wait(&lv->available, &lv->lock);
+
+err:
+  pthread_mutex_unlock(&lv->lock);
+  kk_function_drop(in_threshold_set, ctx);
+  kk_box_drop(lvar, ctx);
+  kk_box_drop(result, ctx);
+  // kk_datatype_from_ptr(NULL)
   return kk_box_null;
 }
 
@@ -616,9 +629,13 @@ kk_box_t kk_lvar_freeze(kk_lvar_t lvar, kk_context_t *ctx) {
   lvar_t* lv = (lvar_t*)kk_cptr_raw_unbox(lvar);
   kk_box_t result;
 
-  lv->is_frozen = true;
+  lv->is_frozen = 1; // true
+
+  // TODO
   pthread_cond_broadcast(&lv->available);
-  result = kk_box_dup(lv->result);
+
+  result = lv->result;
+  kk_box_dup(result);
 
   kk_box_drop(lvar, ctx);
   return result;

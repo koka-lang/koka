@@ -32,6 +32,8 @@ noinline extern unsafe-put( lv : any, update : a -> null<a>) : total int32 {
   c "kk_lvar_put"
 }
 
+// we need to get a null<a> but we don't know how
+// test/lib/lvar3.kk test that behaviour
 noinline extern unsafe-get( lv : any, in-threshold-set : (a, int32) -> null<a> ) : total a {
   c "kk_lvar_get"
 }
