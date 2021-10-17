@@ -161,21 +161,27 @@ replaceCall :: Name -> Expr -> [Bool] -> [Expr] -> Maybe [Type] -> SpecM Expr
 replaceCall name expr bools args mybeTypeArgs = do
 
   specBody0 <-
-      (\body -> case mybeTypeArgs of
-        Nothing -> body
-        Just typeArgs -> subNew (zip (fnTypeParams expr) typeArgs) |-> body)
-      <$> Lam newParams (fnEffect expr)
-      <$> specOneExpr name
-      -- TODO do we still need the Let?
-      (Let [DefNonRec $ Def param typ arg Private DefVal InlineAuto rangeNull ""
-            | (TName param typ, arg) <- zip speccedParams speccedArgs]
-      $ fnBody expr)
+        (\body -> case mybeTypeArgs of
+          Nothing -> body
+          Just typeArgs -> subNew (zip (fnTypeParams expr) typeArgs) |-> body)
+        <$> Lam newParams (fnEffect expr)
+        <$> specOneExpr name
+        -- TODO do we still need the Let?
+        (Let [DefNonRec $ Def param typ arg Private DefVal InlineAuto rangeNull ""
+              | (TName param typ, arg) <- zip speccedParams speccedArgs]
+        -- $ specInnerCalls (TName name (typeOf expr)) specTName (not <$> bools)
+        $ fnBody expr)
 
-  let specBody = specInnerCalls (TName name (typeOf expr)) specTName (not <$> bools) specBody0
-      specType = typeOf specBody0
+  -- explain fixing the inner body here
+  let specType = typeOf specBody0
+      specTName = TName (genSpecName name bools) specType
+  let specBody = case specBody0 of
+        Lam args eff (Let specArgs body) -> Lam args eff
+          (Let specArgs $ specInnerCalls (TName name (typeOf expr)) specTName (not <$> bools) body)
+        _ -> failure "Specialize.replaceCall: Unexpected output from specialize pass"
+  let
       specDef = Def (getName specTName) (typeOf specTName) specBody Private DefFun InlineAuto rangeNull
                 $ "// specialized " <> show name <> " to parameters " <> show speccedParams <> " with args " <> comment (show speccedArgs)
-      specTName = TName (genSpecName name bools) specType
 
   pure $ Let [DefRec [specDef]] (App (Var (defTName specDef) InfoNone) newArgs)
 
@@ -186,8 +192,10 @@ replaceCall name expr bools args mybeTypeArgs = do
       $ partitionBools bools
       $ zip (fnParams expr) args
 
+-- we might shadow here but it will still be correct(?) and we uniquefy at the end
 genSpecName :: Name -> [Bool] -> Name
 genSpecName name bools = newName $ "spec_" ++ show (unqualify name)
+-- genSpecName name bools = makeHiddenName "spec" name
 
 fnTypeParams :: Expr -> [TypeVar]
 fnTypeParams (TypeLam typeParams _) = typeParams
