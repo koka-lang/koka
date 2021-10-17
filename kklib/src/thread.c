@@ -497,7 +497,7 @@ int32_t   kk_lvar_put(kk_lvar_t lvar, kk_function_t update, kk_context_t *ctx);
 kk_box_t  kk_lvar_get( kk_lvar_t lvar, kk_function_t in_threshold_set, kk_context_t* ctx );
 kk_box_t  kk_lvar_freeze(kk_lvar_t lvar, kk_context_t *ctx);
 
-// frees alloc'ed lvar
+// free alloc'ed lvar
 static void kk_lvar_free( void* lvar, kk_block_t* b, kk_context_t* ctx ) {
   KK_UNUSED(b);
   lvar_t* lv = (lvar_t*)(lvar);
@@ -531,28 +531,32 @@ err:
 int32_t kk_lvar_put(kk_lvar_t lvar, kk_function_t update, kk_context_t *ctx) {
   lvar_t *lv = (lvar_t *)kk_cptr_raw_unbox(lvar);
 
-  // TODO
+  // when frozen, LVars are immutable
+  // therefore, attempting to write to an LVar
+  // inccurs in an error
   if (lv->is_frozen != 0) goto err;
 
-  // TODO
+  // Lock before touching the contents of the LVar
+  // Semantically, no lock is necessary for LVar
+  // However, we do it for pthread's benefit
   pthread_mutex_lock(&lv->lock);
 
   kk_box_t result;
   result = kk_function_call(kk_box_t, (kk_function_t, kk_box_t, kk_context_t *),
                             update, (update, lv->result, ctx));
 
-  // null means that update went to top
+  // null means that an LVar update went to top
   if (kk_box_is_null(result)) {
     pthread_mutex_unlock(&lv->lock);
     goto err;
   }
 
-  // TODO
   kk_box_mark_shared(result, ctx);
   lv->result = result;
+
   pthread_mutex_unlock(&lv->lock);
 
-  // TODO
+  // Notify that all other LVar operations that an update has happened
   pthread_cond_broadcast(&lv->available);
 
   kk_box_drop(lvar, ctx);
@@ -580,7 +584,6 @@ static void kk_lvar_wait ( kk_lvar_t lvar, kk_context_t* ctx ) {
   kk_box_drop(lvar,ctx); // TODO: do we need to box_drop lvar from context?
 }
 
-// kk_std_core__null
 kk_box_t kk_lvar_get( kk_lvar_t lvar, kk_function_t in_threshold_set, kk_context_t* ctx ) {
   lvar_t* lv = (lvar_t*)kk_cptr_raw_unbox(lvar);
   kk_box_t result;
@@ -601,10 +604,10 @@ kk_box_t kk_lvar_get( kk_lvar_t lvar, kk_function_t in_threshold_set, kk_context
     // if current value has reached threshold, return
     if (!kk_box_is_null(result)) break;
 
-    // if threshold was not reached but lvar is frozen, error
+    // if threshold was not reached but lvar is frozen, then error
     if(lv->is_frozen != 0) goto err;
 
-    // otherwise wait for an update to the lvar
+    // otherwise wait for an update to §the lvar
     kk_box_dup(lvar);
     kk_lvar_wait(lvar, ctx);
     pthread_mutex_unlock(&lv->lock);
@@ -613,7 +616,6 @@ kk_box_t kk_lvar_get( kk_lvar_t lvar, kk_function_t in_threshold_set, kk_context
   kk_function_drop(in_threshold_set, ctx);
   kk_box_drop(lvar,ctx);
   kk_box_drop(result, ctx);
-  // kk_datatype_unbox(result)
   return result;
 
 err:
@@ -621,7 +623,6 @@ err:
   kk_function_drop(in_threshold_set, ctx);
   kk_box_drop(lvar, ctx);
   kk_box_drop(result, ctx);
-  // kk_datatype_from_ptr(NULL)
   return kk_box_null;
 }
 
@@ -631,7 +632,8 @@ kk_box_t kk_lvar_freeze(kk_lvar_t lvar, kk_context_t *ctx) {
 
   lv->is_frozen = 1; // true
 
-  // TODO
+  // Notify other LVar operations that
+  // the current LVar structure is frozen
   pthread_cond_broadcast(&lv->available);
 
   result = lv->result;
