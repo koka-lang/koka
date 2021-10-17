@@ -59,36 +59,3 @@ public noinline fun taskn( count : int, stride : int, work : () -> pure a, combi
   Promise( unsafe_task_n( count.ssize_t, stride.ssize_t, work, combine ) )
 }
 */
-
-
-// ---------------------------------------------------------
-// LVar's 
-// Note: currently unsafe in the pure effect!! needs work
-
-abstract struct lvar<a> {
-  lv : any
-}
-
-noinline extern unsafe-lvar( init : a ) : pure any {
-  c "kk_lvar_alloc"
-}
-
-noinline extern unsafe-put( lvar : any, x : a, monotonic-combine : (a,a) -> a ) : pure () {
-  c "kk_lvar_put"
-}
-
-noinline extern unsafe-get( lvar : any, bot : a, is-gte : (a,a) -> int32 ) : pure a {
-  c "kk_lvar_get"
-}
-
-public noinline fun lvar( init : a ) : pure lvar<a> {
-  Lvar( unsafe-lvar(init) )
-}
-
-public fun put( lvar : lvar<a>, x : a ,monotonic-combine : (a,a) -> a ) : pure () {
-  unsafe-put( lvar.lv, x, monotonic-combine )
-}
-
-public fun get( lvar : lvar<a>, bot : a, is-gte: (a,a) -> bool ) : pure a {
-  unsafe-get( lvar.lv, bot, fn(x,y){ if (is-gte(x,y)) then one else zero } )
-}

@@ -2,7 +2,7 @@
 #ifndef KKLIB_H
 #define KKLIB_H
 
-#define KKLIB_BUILD        48       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        99     // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1
 
@@ -305,7 +305,7 @@ typedef struct kk_yield_s {
 
 extern kk_ptr_t kk_evv_empty_singleton;
 
-     
+
 // The thread local context.
 // The fields `yielding`, `heap` and `evv` should come first for efficiency
 typedef struct kk_context_s {
@@ -323,7 +323,7 @@ typedef struct kk_context_s {
   kk_task_group_t* task_group;     // task group for managing threads. NULL for the main thread.
 
   struct kk_random_ctx_s* srandom_ctx; // strong random using chacha20, initialized on demand
-  kk_ssize_t        argc;             // command line argument count 
+  kk_ssize_t        argc;             // command line argument count
   const char**   argv;             // command line arguments
   kk_timer_t     process_start;    // time at start of the process
   int64_t        timer_freq;       // high precision timer frequency
@@ -383,7 +383,7 @@ kk_decl_export void kk_box_mark_shared( kk_box_t b, kk_context_t* ctx );
 #else
   static inline void* kk_malloc_small(kk_ssize_t sz, kk_context_t* ctx) {
     return mi_heap_malloc_small(ctx->heap, (size_t)sz);
-  } 
+  }
 #endif
 
 static inline void* kk_malloc(kk_ssize_t sz, kk_context_t* ctx) {
@@ -443,7 +443,7 @@ static inline void kk_block_init(kk_block_t* b, kk_ssize_t size, kk_ssize_t scan
   kk_assert_internal(scan_fsize >= 0 && scan_fsize < KK_SCAN_FSIZE_MAX);
 #if (KK_ARCH_LITTLE_ENDIAN)
   // explicit shifts lead to better codegen
-  *((uint64_t*)b) = ((uint64_t)scan_fsize | (uint64_t)tag << 16);                    
+  *((uint64_t*)b) = ((uint64_t)scan_fsize | (uint64_t)tag << 16);
 #else
   kk_header_t header = { (uint8_t)scan_fsize, 0, (uint16_t)tag, 0 };
   b->header = header;
@@ -553,7 +553,7 @@ static inline void kk_block_drop(kk_block_t* b, kk_context_t* ctx) {
 
 static inline void kk_block_decref(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
-  const uint32_t rc = b->header.refcount;  
+  const uint32_t rc = b->header.refcount;
   if (kk_likely((int32_t)(rc > 0))) {     // note: assume two's complement
     b->header.refcount = rc - 1;
   }
@@ -578,7 +578,7 @@ static inline kk_reuse_t kk_block_drop_reuse(kk_block_t* b, kk_context_t* ctx) {
 
 static inline void kk_box_drop(kk_box_t b, kk_context_t* ctx);
 
-// Drop with inlined dropping of children 
+// Drop with inlined dropping of children
 static inline void kk_block_dropi(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;
@@ -590,7 +590,7 @@ static inline void kk_block_dropi(kk_block_t* b, kk_context_t* ctx) {
     kk_block_free(b);
   }
   else if (kk_unlikely((int32_t)rc < 0)) {     // note: assume two's complement
-    kk_block_check_drop(b, rc, ctx);           // thread-share or sticky (overflowed) ?    
+    kk_block_check_drop(b, rc, ctx);           // thread-share or sticky (overflowed) ?
   }
   else {
     b->header.refcount = rc-1;
@@ -614,7 +614,7 @@ static inline kk_reuse_t kk_block_dropi_reuse(kk_block_t* b, kk_context_t* ctx) 
   }
 }
 
-// Drop with known scan size 
+// Drop with known scan size
 static inline void kk_block_dropn(kk_block_t* b, kk_ssize_t scan_fsize, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;
@@ -639,7 +639,7 @@ static inline void kk_block_dropn(kk_block_t* b, kk_ssize_t scan_fsize, kk_conte
 static inline kk_reuse_t kk_block_dropn_reuse(kk_block_t* b, kk_ssize_t scan_fsize, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;
-  if (rc == 0) {                 
+  if (rc == 0) {
     kk_assert_internal(kk_block_scan_fsize(b) == scan_fsize);
     for (kk_ssize_t i = 0; i < scan_fsize; i++) {
       kk_box_drop(kk_block_field(b, i), ctx);
@@ -755,7 +755,7 @@ static inline kk_tag_t kk_datatype_tag(kk_datatype_t d) {
 
 static inline bool kk_datatype_has_tag(kk_datatype_t d, kk_tag_t t) {
   if (kk_datatype_is_ptr(d)) {
-    return (kk_block_tag(d.ptr) == t); 
+    return (kk_block_tag(d.ptr) == t);
   }
   else {
     return (d.singleton == kk_datatype_from_tag(t).singleton);
@@ -926,7 +926,7 @@ static inline kk_value_tag_t kk_value_tag(kk_uintx_t tag) {
   return kk_integer_from_small((kk_intx_t)tag);
 }
 */
-#define kk_value_tag(tag) (kk_integer_from_small(tag))   
+#define kk_value_tag(tag) (kk_integer_from_small(tag))
 
 /*--------------------------------------------------------------------------------------
   Functions
@@ -1065,7 +1065,7 @@ static inline kk_vector_t kk_vector_unbox(kk_box_t v, kk_context_t* ctx) {
 }
 
 
- 
+
 /*--------------------------------------------------------------------------------------
   References
 --------------------------------------------------------------------------------------*/
@@ -1113,7 +1113,7 @@ static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
   else {
     // thread shared
     return kk_ref_get_thread_shared(r,ctx);
-  }  
+  }
 }
 
 static inline kk_box_t kk_ref_swap_borrow(kk_ref_t r, kk_box_t value) {
