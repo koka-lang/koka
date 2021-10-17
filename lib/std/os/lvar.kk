@@ -18,12 +18,20 @@ module std/os/lvar
 
 import std/num/int32
 
+// an LVar comprises a value and two functions that characterise comparing two values
+// for the "biggest" one, one returning said value and a second one returning their ordering.
+// however, they return a maybe value since the two values may not be comparable.
+// mathematically, those functions represent a partial order, and should be representable
+// in terms of each other, however, Koka's type system cannot express such invariants,
+// so we keep both functions are provided by the user.
 abstract struct lvar<a> {
   lv : any;
   join : (a, a) -> maybe<a>;
   compare : (a, a) -> maybe<order>;
 }
 
+
+// FFI for the C implementation
 noinline extern unsafe-lvar( bottom : a ) : total any {
   c "kk_lvar_alloc"
 }
@@ -33,7 +41,7 @@ noinline extern unsafe-put( lv : any, update : a -> null<a>) : total int32 {
 }
 
 // we need to get a null<a> but we don't know how
-// test/lib/lvar3.kk test that behaviour
+// `test/lib/lvar3.kk` tests that behaviour
 noinline extern unsafe-get( lv : any, in-threshold-set : (a, int32) -> null<a> ) : total a {
   c "kk_lvar_get"
 }
@@ -42,10 +50,19 @@ noinline extern unsafe-freeze( lv : any ) : total a {
   c "kk_lvar_freeze"
 }
 
+// Here, a better interface to LVars is provided
+
+// New LVars take an initial value and the characteristic partial order functions
+// The initial value, together with said functions creates a lattice variable.
+// Theoretical note: the mathematical structure lattice require more properties,
+// but for a lattice variable (LVar), this is enough.
 public noinline fun lvar( bottom : a, join : (a, a) -> maybe<a>, compare : (a, a) -> maybe<order>) : total lvar<a> {
   Lvar( unsafe-lvar(bottom), join, compare )
 }
 
+// `put` adds a value to an LVar via an update function,
+// and is undefined if the new value is not comparable
+// or the current LVar is frozen (ie immutable)
 // Update functions must obey the following laws:
 //
 //   d <= update(d)                             -- monotonicity
@@ -58,10 +75,15 @@ public fun put( lvar : lvar<a>, update : a -> maybe<a> ) : exn () {
   }
 }
 
+// Variant of `put` where `update = id a`
 public fun put( lvar : lvar<a>, d : a ) : pure () {
   lvar.put( fn (d') { lvar.join(d, d') } )
 }
 
+// `get` observes value changes of the LVar and notify user that a threshold has been reached
+// The returned value is always a value within the threshold set.
+// The status of the LVar (frozen or not) should be explicitly passed as a bool.
+// Note: all values within the threshold set should be "incomparable"
 public fun get( lvar : lvar<a>, in-threshold-set : (a, bool) -> maybe<a> ) : pure a {
   lvar.lv.unsafe-get( fn (d, frz) { in-threshold-set(d, frz.bool).null } )
 }
@@ -81,14 +103,17 @@ public fun get( lvar : lvar<a>, threshold-set : list<a> ) : pure a {
   lvar.get( threshold-set.map( fn (d) { (d, False) } ) )
 }
 
+// `frezze` exposes the C interface
 public fun freeze( lvar : lvar<a> ) : pure a {
   lvar.lv.unsafe-freeze
 }
 
+// Conversion of `EQ`  to bool
 private fun is-eq( m : maybe<order> ) : total bool {
   m.maybe(False, fn (ord) { ord == Eq } ) // TODO: default doesn't typecheck !
 }
 
+// Conversion of `Gt || Eq` to bool
 private fun is-gte( m : maybe<order> ) : total bool {
    m.maybe(False, fn (ord) { ord == Gt || ord == Eq }) // TODO: default doesn't typecheck !
 }
