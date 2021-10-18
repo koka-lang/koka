@@ -64,7 +64,8 @@ fltDefGroup (DefNonRec def) next
 fltDef :: Def -> Flt Def
 fltDef def
   = withCurrentDef def $
-    do (expr', _) <- fltExpr (defExpr def) (Just effectEmpty)
+    -- XXX Is this assumption hold in Koka compiler? Ok in formal system but not sure about compiler.
+    do (expr', _) <- fltExpr (defExpr def) (Just effectEmpty)  
        return def{ defExpr = expr' }
 
 
@@ -266,7 +267,7 @@ sup effUpperBound rqs =
                              EQ -> True
                              GT -> belongTo l ls
                              LT -> False
-      decideTail :: Tau -> Tau -> Tau
+      decideTail :: Effect-> Effect -> Effect
       decideTail tl1 tl2 = case (isEffectEmpty tl1, isEffectEmpty tl2) of
         (True, _) -> tl2
         (_, True) -> tl1
