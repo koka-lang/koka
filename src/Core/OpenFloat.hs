@@ -273,7 +273,7 @@ sup effUpperBound rqs =
         _ | tl1 == tl2 -> tl1
         _ -> failure "Core/OpenFloat.sup: Unrelated pair of tail found in candidates"
       assertValidTail :: Effect -> Effect -> Effect
-      assertValidTail upper actual = if isEffectEmpty actual || actual == upper then actual else failure "Core/OpenFloat.sup: decided tail of the row is not smaller or equal to given upper bound"
+      assertValidTail upper actual = if debug && isEffectEmpty actual || actual == upper then actual else failure "Core/OpenFloat.sup: decided tail of the row is not smaller or equal to given upper bound"
 
 fromReq :: Req -> Effect
 fromReq Bottom = failure "Core/OpenFloat.fromReq: Bottom"
@@ -295,35 +295,6 @@ smartRestrictExpr (Eff effFrom) (Eff effTo) expr =
     then expr
     else let tp = typeOf expr
          in App (openEffectExpr effFrom effTo (TFun [] effFrom tp) (TFun [] effTo tp) (Lam [] effFrom expr)) []
-    -- (\x. open(x)() ) \_.expr
-    -- let
-    --   tp = typeOf expr
-    --   fname = newHiddenName "restrict"
-    --   ftname = TName fname (TFun [] effFrom tp)
-    --   -- tmptname = TName (newHiddenName "tmp") typeUnit
-    --   in App
-    --        (Lam [ftname] effTo (  -- ([] -> effFrom tp) -> effTo 
-    --           App (openEffectExpr effFrom effTo (TFun [] effFrom tp) (TFun [] effTo tp) (Var ftname InfoNone)) []))
-    --        [Lam [] effFrom expr]  -- :: [] -> effFrom tp
-
-    -- let x = \_.expr in (open(x) ())
-    {-
-    let
-      fname = newHiddenName "restrict"
-      restp = typeOf expr
-      tp = TFun [] effFrom restp
-      ftname = TName fname tp
-      df = Def {defName=fname, defType=tp, defExpr=Lam [] effFrom expr, defVis=Public , defSort=DefFun [], defInline=InlineAuto , defNameRange=rangeNull , defDoc="internal"}
-      dgs = [DefNonRec df] in
-    Let dgs $ App (openEffectExpr effFrom effTo (TFun [] effFrom restp) (TFun [] effTo restp) (Var ftname InfoNone)) []
-    -}
-
-    -- open(\_.expr)() : ERROR
-    -- let
-    --   tp = typeOf expr
-    --   fname = newHiddenName "restrict"
-    --   ftname = TName fname (TFun [] effFrom tp)
-    --   in App (openEffectExpr effFrom effTo (TFun [] effFrom tp) (TFun [] effTo tp) (Lam [ftname] effFrom expr)) []
 
 smartOpenExpr :: Req -> Req -> Expr -> Expr
 smartOpenExpr Bottom _ e = e
@@ -334,11 +305,6 @@ smartOpenExpr (Eff effFrom) (Eff effTo) expr =
         in
           assertion "smart open check" (matchEffect effFrom feff) $
           openEffectExpr effFrom effTo tp (TFun tpPar effTo tpRes) expr
-
--- smartRestrictDefGroups :: Req -> (DefGroups, Req) -> DefGroups 
--- smartRestrictDefGroup :: Req -> 
-
-
 
 {--------------------------------------------------------------------------
   IRs : Return type of auxiliary functions. Each Expr of constructs has its own rq, in order to be restricted.
