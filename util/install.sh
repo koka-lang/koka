@@ -4,7 +4,7 @@
 # Installation script for Koka; use -h to see command line options.
 #-----------------------------------------------------------------------------
 
-VERSION="v2.3.1"        
+VERSION="v2.3.2"        
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
@@ -20,7 +20,7 @@ KOKA_TEMP_DIR=""        # empty creates one dynamically
 adjust_version() {  # <osarch>
   case "$1" in
     linux-arm64)
-      VERSION="v2.3.1";;
+      VERSION="v2.3.2";;
   esac    
 }
 
@@ -111,7 +111,7 @@ detect_previous_install() {
     KOKA_PREV_EXE="$(which koka)"
     if [ -e "$KOKA_PREV_EXE" ] ; then 
       KOKA_PREV_PREFIX="${KOKA_PREV_EXE%/bin/koka*}"   # remove trailing "/bin/koka*"
-      KOKA_PREV_VERSION="$($KOKA_PREV_EXE --version)"  # get version info
+      KOKA_PREV_VERSION="$($KOKA_PREV_EXE --version --console=raw)"  # get version info
       KOKA_PREV_VERSION="${KOKA_PREV_VERSION%%,*}"     # remove everything after the first ",*"
       KOKA_PREV_VERSION="v${KOKA_PREV_VERSION#Koka }"  # remove "Koka " prefix 
       # echo "found previous koka version $KOKA_PREV_VERSION (installed at: $KOKA_PREV_PREFIX)"
@@ -144,12 +144,12 @@ process_options() {
           PREFIX="$flag_arg";;
       -u=*|--url=*)
           KOKA_DIST_URL="$flag_arg";;
-      -b) shift
+      -b) shift 
           KOKA_DIST_SOURCE="$1";;
       -b=*|--bundle=*)
           KOKA_DIST_SOURCE="$flag_arg";;
       -v) shift
-          VERSION="v${1#v}";;         # always prefix with a v          
+          VERSION="v${1#v}";;         # always prefix with a v
       -v=*|--version=*)
           VERSION="v${flag_arg#v}";;  # always prefix with a v
       -u|--uninstall)
@@ -157,7 +157,10 @@ process_options() {
           MODE="uninstall";;
       -h|--help|-\?|help|\?)
           MODE="help";;
-      *) warn "warning: unknown option \"$1\"."
+      *) case "$flag" in
+           -*) warn "warning: unknown option \"$1\".";;
+           *)  KOKA_DIST_SOURCE="$1";;  
+         esac;;
     esac
     shift
   done
@@ -577,17 +580,20 @@ main_install() {
 
 main_help() {
   info "command:"
-  info "  ./install.sh [options]"
+  info "  ./install.sh [options] [bundle file]"
   info ""
   info "options:"
   info "  -q, --quiet              suppress output"
   info "  -f, --force              continue without prompting"
   info "  -u, --uninstall          uninstall koka ($VERSION)"
   info "  -p, --prefix=<dir>       prefix directory ($PREFIX)"
-  info "  -b, --bundle=<file|url>  full bundle location (.../koka-$VERSION-$OSARCH.tar.gz)"
+  # info "  -b, --bundle=<file|url>  full bundle location (.../koka-$VERSION-$OSARCH.tar.gz)"
   info "      --version=<ver>      version tag ($VERSION)"
   info "      --url=<url>          download url"
   info "                           ($KOKA_DIST_URL)"
+  info ""
+  info "notes:"
+  info "  the bundle file can optionally be given explicitly, e.g.: bundle/koka-$VERSION-$OSARCH.tar.gz"
   info ""
 }
 

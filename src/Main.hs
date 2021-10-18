@@ -90,8 +90,8 @@ compile p flags fname
            -> do putPrettyLn p (ppErrorMessage (showSpan flags) cscheme msg)
                  -- exitFailure  -- don't fail for tests
 
-         Right (Loaded gamma kgamma synonyms newtypes constructors _ imports _
-                (Module modName _ _ _ _ _warnings rawProgram core _ _ modTime) _ _
+         Right (Loaded gamma kgamma synonyms newtypes constructors _ imports _ 
+                (Module modName _ _ _ _ _warnings rawProgram core _ _ modTime) _ _ _
                , warnings)
            -> do when (not (null warnings))
                    (let msg = ErrorWarning warnings ErrorZero

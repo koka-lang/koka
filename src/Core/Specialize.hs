@@ -179,8 +179,8 @@ replaceCall name expr bools args mybeTypeArgs = do
         Lam args eff (Let specArgs body) -> Lam args eff
           (Let specArgs $ specInnerCalls (TName name (typeOf expr)) specTName (not <$> bools) body)
         _ -> failure "Specialize.replaceCall: Unexpected output from specialize pass"
-  let
-      specDef = Def (getName specTName) (typeOf specTName) specBody Private DefFun InlineAuto rangeNull
+  let -- todo: maintain borrowed arguments?
+      specDef = Def (getName specTName) (typeOf specTName) specBody Private (DefFun []) InlineAuto rangeNull
                 $ "// specialized " <> show name <> " to parameters " <> show speccedParams <> " with args " <> comment (show speccedArgs)
 
   pure $ Let [DefRec [specDef]] (App (Var (defTName specDef) InfoNone) newArgs)

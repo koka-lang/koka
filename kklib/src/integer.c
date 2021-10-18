@@ -41,7 +41,7 @@ including Karatsuba multiplication.
     portable overflow detection.
 ----------------------------------------------------------------------*/
 
-#if (KK_INTPTR_SIZE>=8) && defined(_MSC_VER) && (_MSC_VER >= 1920) && !defined(__clang_msvc__) /* not clang-cl or we get link errors */
+#if (KK_INTPTR_SIZE>=8) && defined(_XMSC_VER) && (_MSC_VER >= 1920) && !defined(__clang_msvc__) /* not clang-cl or we get link errors */
 // Use 64-bit digits on Microsoft VisualC
 #define BASE          KI64(1000000000000000000)
 #define LOG_BASE      (18)
@@ -641,7 +641,7 @@ kk_decl_export bool kk_integer_parse(const char* s, kk_integer_t* res, kk_contex
     chunk = LOG_BASE;  // after the first digit, all chunks are full digits
   }
   // set the final zeros
-  kk_assert_internal(zero_digits / LOG_BASE == k);
+  kk_assert_internal(k == 0 || zero_digits / LOG_BASE == k);
   for (kk_ssize_t j = 0; j < k; j++) { b->digits[j] = 0; }
   *res = integer_bigint(b, ctx);
   return true;
@@ -1079,8 +1079,7 @@ kk_integer_t kk_integer_pow(kk_integer_t x, kk_integer_t p, kk_context_t* ctx) {
       return (kk_integer_is_even(p,ctx) ? kk_integer_one : kk_integer_min_one);
     }
   }
-  kk_integer_dup(p);
-  if (kk_integer_signum(p,ctx)==-1) {
+  if (kk_integer_signum_borrow(p)==-1) {
     kk_integer_drop(p,ctx); return kk_integer_zero;
   }
   kk_integer_t y = kk_integer_one;
@@ -1254,27 +1253,27 @@ static kk_bigint_t* kk_bigint_sub(kk_bigint_t* x, kk_bigint_t* y, bool yneg, kk_
   Integer interface
 ----------------------------------------------------------------------*/
 
- kk_integer_t kk_integer_neg_generic(kk_integer_t x, kk_context_t* ctx) {
+kk_integer_t kk_integer_neg_generic(kk_integer_t x, kk_context_t* ctx) {
   kk_assert_internal(kk_is_integer(x));
-  kk_bigint_t* bx = kk_integer_to_bigint(x,ctx);
+  kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
   return integer_bigint(bigint_neg(bx, ctx), ctx);
 }
 
- kk_integer_t kk_integer_sqr_generic(kk_integer_t x, kk_context_t* ctx) {
+kk_integer_t kk_integer_sqr_generic(kk_integer_t x, kk_context_t* ctx) {
   kk_assert_internal(kk_is_integer(x));
-  kk_bigint_t* bx = kk_integer_to_bigint(x,ctx);
+  kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
   return integer_bigint(kk_bigint_sqr(bx, ctx), ctx);
 }
 
- int kk_integer_signum_generic(kk_integer_t x, kk_context_t* ctx) {
+/* borrow x, may prodice an invalid read if x is not a bigint */
+int kk_integer_signum_generic_bigint(kk_integer_t x) {
   kk_assert_internal(kk_is_integer(x));
-  kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
+  kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_integer_ptr(x), KK_TAG_BIGINT);
   int signum = (bx->is_neg ? -1 : ((bx->count==0 && bx->digits[0]==0) ? 0 : 1));
-  kk_integer_drop(x, ctx);
   return signum;
 }
 
- bool kk_integer_is_even_generic(kk_integer_t x, kk_context_t* ctx) {
+bool kk_integer_is_even_generic(kk_integer_t x, kk_context_t* ctx) {
   kk_assert_internal(kk_is_integer(x));
   if (kk_is_smallint(x)) return ((_kk_integer_value(x)&0x04)==0);
   kk_bigint_t* bx = kk_integer_to_bigint(x,ctx);
@@ -1284,9 +1283,8 @@ static kk_bigint_t* kk_bigint_sub(kk_bigint_t* x, kk_bigint_t* y, bool yneg, kk_
 }
 
 int kk_integer_cmp_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  kk_assert_internal(kk_is_integer(x)&&kk_is_integer(y));
-  kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
-  kk_bigint_t* by = kk_integer_to_bigint(y, ctx);
+  kk_bigint_t* bx = kk_integer_to_bigint(kk_integer_dup(x), ctx);
+  kk_bigint_t* by = kk_integer_to_bigint(kk_integer_dup(y), ctx);
   int sign = bigint_compare_(bx, by);
   drop_bigint(bx, ctx);
   drop_bigint(by, ctx);
@@ -1404,7 +1402,7 @@ kk_integer_t kk_integer_cmod_generic(kk_integer_t x, kk_integer_t y, kk_context_
 // - x `mod` 2^n == and(x,2^(n-1))  for any x, n
 // - Euclidean division behaves identical to truncated division for positive dividends.
 kk_integer_t kk_integer_div_mod_generic(kk_integer_t x, kk_integer_t y, kk_integer_t* mod, kk_context_t* ctx) {
-if (kk_integer_is_zero(kk_integer_dup(y),ctx)) {
+if (kk_integer_is_zero_borrow(y)) {
     // div by zero
     if (mod!=NULL) {
       *mod = x;
@@ -1415,7 +1413,7 @@ if (kk_integer_is_zero(kk_integer_dup(y),ctx)) {
     kk_integer_drop(y, ctx);
     return kk_integer_zero;
   }
-  else if (kk_integer_is_pos(kk_integer_dup(x),ctx)) {
+  else if (kk_integer_is_pos_borrow(x)) {
     // positive x
     return kk_integer_cdiv_cmod_generic(x, y, mod, ctx);
   }
@@ -1423,8 +1421,8 @@ if (kk_integer_is_zero(kk_integer_dup(y),ctx)) {
     // regular
     kk_integer_t m;
     kk_integer_t d = kk_integer_cdiv_cmod_generic(x, kk_integer_dup(y), &m, ctx);
-    if (kk_integer_is_neg(kk_integer_dup(m), ctx)) {
-      if (kk_integer_is_neg(kk_integer_dup(y), ctx)) {
+    if (kk_integer_is_neg_borrow(m)) {
+      if (kk_integer_is_neg_borrow(y)) {
         d = kk_integer_inc(d, ctx);
         if (mod!=NULL) { m = kk_integer_sub(m, y, ctx); }      
       }
@@ -1622,11 +1620,11 @@ static kk_digit_t digit_powers_of_10[LOG_BASE+1] = { 1, 10, 100, 1000, 10000, 10
                                           };
 
 kk_integer_t kk_integer_mul_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* ctx) {
-  if (kk_integer_is_zero(kk_integer_dup(p),ctx)) {
+  if (kk_integer_is_zero_borrow(p)) {
     kk_integer_drop(p, ctx);
     return x;
   }
-  if (kk_integer_is_zero(kk_integer_dup(x),ctx)) {
+  if (kk_integer_is_zero_borrow(x)) {
     kk_integer_drop(p, ctx); // x is small
     return kk_integer_zero;
   }
@@ -1668,11 +1666,11 @@ kk_integer_t kk_integer_mul_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* 
 
 
 kk_integer_t kk_integer_cdiv_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* ctx) {
-  if (kk_integer_is_zero(kk_integer_dup(p),ctx)) {
+  if (kk_integer_is_zero_borrow(p)) {
     kk_integer_drop(p, ctx);
     return x;
   }
-  if (kk_integer_is_zero(kk_integer_dup(x),ctx)) {
+  if (kk_integer_is_zero_borrow(x)) {
     kk_integer_drop(p, ctx); // x is small
     return kk_integer_zero;
   }
@@ -1721,7 +1719,7 @@ kk_integer_t kk_integer_cdiv_pow10(kk_integer_t x, kk_integer_t p, kk_context_t*
 }
 
 kk_integer_t kk_integer_div_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* ctx) {
-  bool xneg = kk_integer_is_neg(kk_integer_dup(x), ctx);
+  bool xneg = kk_integer_is_neg_borrow(x);
   kk_integer_t d = kk_integer_cdiv_pow10(x, p, ctx);
   if (xneg) {
     d = kk_integer_dec(d, ctx);
@@ -1729,8 +1727,9 @@ kk_integer_t kk_integer_div_pow10(kk_integer_t x, kk_integer_t p, kk_context_t* 
   return d;
 }
 
-int32_t kk_integer_clamp32_generic(kk_integer_t x, kk_context_t* ctx) {
-  kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
+/* owned x, may produce an invalid read if x is not a bigint */
+int32_t kk_integer_clamp32_bigint(kk_integer_t x) {
+  kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_integer_ptr(x), KK_TAG_BIGINT);
   int32_t i = 0;
 #if (BASE < INT32_MAX)
   if (bx->count > 1) {
@@ -1739,12 +1738,12 @@ int32_t kk_integer_clamp32_generic(kk_integer_t x, kk_context_t* ctx) {
 #endif
   i += (int32_t)bx->digits[0];
   if (bx->is_neg) i = -i;
-  drop_bigint(bx,ctx);
   return i;
 }
 
-int64_t kk_integer_clamp64_generic(kk_integer_t x, kk_context_t* ctx) {
-  kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
+/* borrow x, may prodice an invalid read if x is not a bigint */
+int64_t kk_integer_clamp64_bigint(kk_integer_t x) {
+  kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_integer_ptr(x), KK_TAG_BIGINT);
   int64_t i = 0;
 #if (BASE < (INT64_MAX/BASE))
   if (bx->count > 2) i += ((int64_t)bx->digits[2])*BASE*BASE;
@@ -1754,12 +1753,12 @@ int64_t kk_integer_clamp64_generic(kk_integer_t x, kk_context_t* ctx) {
 #endif
   i += bx->digits[0];
   if (bx->is_neg) i = -i;
-  drop_bigint(bx, ctx);
   return i;
 }
 
-size_t kk_integer_clamp_size_t_generic(kk_integer_t x, kk_context_t* ctx) {
-  kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
+/* borrow x, may prodice an invalid read if x is not a bigint */
+size_t kk_integer_clamp_size_t_bigint(kk_integer_t x) {
+  kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_integer_ptr(x), KK_TAG_BIGINT);
   size_t i = 0;
   if (bx->is_neg) goto done;
 #if (BASE < (SIZE_MAX/BASE))
@@ -1790,13 +1789,12 @@ size_t kk_integer_clamp_size_t_generic(kk_integer_t x, kk_context_t* ctx) {
 #endif
   i += (size_t)bx->digits[0];
 done:
-  drop_bigint(bx, ctx);
   return i;
 }
 
-kk_ssize_t kk_integer_clamp_ssize_t_generic(kk_integer_t x, kk_context_t* ctx) {
-  bool isneg = kk_integer_is_neg(kk_integer_dup(x), ctx);
-  size_t sz = kk_integer_clamp_size_t_generic( (isneg ? kk_integer_neg(x, ctx) : x), ctx);
+kk_ssize_t kk_integer_clamp_ssize_t_bigint(kk_integer_t x, kk_context_t* ctx) {
+  bool isneg = (kk_integer_signum_generic_bigint(x) < 0);
+  size_t sz = kk_integer_clamp_size_t_bigint( (isneg ? kk_integer_neg_generic(x, ctx) : x));
   if (isneg) {
     return (sz <= KK_SSIZE_MAX ? -((kk_ssize_t)sz) : KK_SSIZE_MIN);
   }
@@ -1805,8 +1803,9 @@ kk_ssize_t kk_integer_clamp_ssize_t_generic(kk_integer_t x, kk_context_t* ctx) {
   }
 }
 
-double kk_integer_as_double_generic(kk_integer_t x, kk_context_t* ctx) {
-  kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
+/* borrow x, may prodice an invalid read if x is not a bigint */
+double kk_integer_as_double_bigint(kk_integer_t x) {
+  kk_bigint_t* bx = kk_block_assert(kk_bigint_t*, _kk_integer_ptr(x), KK_TAG_BIGINT);
   if (bx->count > ((310/LOG_BASE) + 1)) return (bx->is_neg ? -HUGE_VAL : HUGE_VAL);
   double base = (double)BASE;
   double d = 0.0;
@@ -1814,7 +1813,6 @@ double kk_integer_as_double_generic(kk_integer_t x, kk_context_t* ctx) {
     d = (d*base) + ((double)bx->digits[i-1]);
   }
   if (bx->is_neg) d = -d;
-  drop_bigint(bx, ctx);
   return d;
 }
 

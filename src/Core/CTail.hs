@@ -206,10 +206,12 @@ hasCTailCallArg defName (rarg:rargs)
   = case rarg of
       App (TypeApp (Var name _) targs) args   | defName == name -> True
       App (Var name _) args                   | defName == name -> True
-      App f@(TypeApp (Con{}) _) fargs  | tnamesMember defName (fv fargs) && all isTotal rargs
-        -> hasCTailCallArg defName (reverse fargs)
-      App f@(Con{}) fargs              | tnamesMember defName (fv fargs) && all isTotal rargs
-        -> hasCTailCallArg defName (reverse fargs)
+      App f@(TypeApp (Con{}) _) fargs  
+         | tnamesMember defName (fv fargs) && hasCTailCallArg defName (reverse fargs) -- && all isTotal rargs
+        -> True
+      App f@(Con{}) fargs              
+        | tnamesMember defName (fv fargs) && hasCTailCallArg defName (reverse fargs) -- && all isTotal rargs
+        -> True
       _ -> (isTotal rarg && hasCTailCallArg defName rargs)
 
 
@@ -315,11 +317,11 @@ ctailTryArg dname cname mbC mkApp field (rarg:rargs)
                                return (Just expr)
 
       -- recurse into other con
-      App f@(TypeApp (Con cname2 _) _) fargs  | tnamesMember dname (fv fargs) && all isTotal rargs
+      App f@(TypeApp (Con cname2 _) _) fargs  | tnamesMember dname (fv fargs) -- && all isTotal rargs
        -> do x <- uniqueTName (typeOf rarg)
              ctailTryArg dname cname2 (Just x) (mkAppNested x f) (length fargs) (reverse fargs)
 
-      App f@(Con cname2 _) fargs  | tnamesMember dname (fv fargs)  && all isTotal rargs
+      App f@(Con cname2 _) fargs  | tnamesMember dname (fv fargs)  -- && all isTotal rargs
        -> do x <- uniqueTName (typeOf rarg)
              ctailTryArg dname cname2 (Just x) (mkAppNested x f) (length fargs) (reverse fargs)
 
@@ -353,15 +355,18 @@ ctailFoundArg cname mbC mkConsApp field mkTailApp resTp -- f fargs
                            let acc = Lam [x] typeTotal ((App (Var slot InfoNone) [cons]))
                            let ctailCall   = mkTailApp ctailVar acc
                            return (defs,ctailCall)
-                   else do (_,fieldName) <- getFieldName cname field
-                           let -- tp    = typeOf (App f fargs)
-                               hole  = makeCFieldHole resTp
-                           (defs,cons) <- mkConsApp [hole]
-                           consName    <- uniqueTName (typeOf cons)
-                           let link = makeCTailLink slot consName (maybe consName id mbC) cname fieldName resTp
-                               ctailCall   = mkTailApp ctailVar link -- App ctailVar (fargs ++ [link])
-                           return $ (defs ++ [DefNonRec (makeTDef consName cons)]
-                                    ,ctailCall)
+                   else do fieldInfo <- getFieldName cname field
+                           case fieldInfo of
+                             Left msg -> failure msg -- todo: allow this? see test/cgen/ctail7
+                             Right (_,fieldName) ->
+                               do let -- tp    = typeOf (App f fargs)
+                                      hole  = makeCFieldHole resTp
+                                  (defs,cons) <- mkConsApp [hole]
+                                  consName    <- uniqueTName (typeOf cons)
+                                  let link = makeCTailLink slot consName (maybe consName id mbC) cname fieldName resTp
+                                      ctailCall   = mkTailApp ctailVar link -- App ctailVar (fargs ++ [link])
+                                  return $ (defs ++ [DefNonRec (makeTDef consName cons)]
+                                            ,ctailCall)
 
 
 --------------------------------------------------------------------------
@@ -517,15 +522,19 @@ getIsMulti :: CTail Bool
 getIsMulti
   = isMulti <$> getEnv
 
-getFieldName :: TName -> Int -> CTail (Expr,Name)
+getFieldName :: TName -> Int -> CTail (Either String (Expr,Name))
 getFieldName cname field
   = do env <- getEnv
        case newtypesLookupAny (getDataTypeName cname) (newtypes env) of
-         Just dataInfo -> case filter (\con -> conInfoName con == getName cname) (dataInfoConstrs dataInfo) of
-                            [con] -> case drop (field - 1) (conInfoParams con) of
-                                       ((fname,ftp):_) -> return $ (Con cname (getConRepr dataInfo con), fname)
-                                       _ -> failure $ "Core.CTail.getFieldName: field index is off: " ++ show cname ++ ", field " ++ show  field ++ ", in " ++ show (conInfoParams con)
-                            _ -> failure $ "Core.CTail.getFieldName: cannot find constructor: " ++ show cname ++ ", field " ++ show  field ++ ", in " ++ show (dataInfoConstrs dataInfo)
+         Just dataInfo -> 
+           do let (dataRepr,_) = getDataRepr dataInfo
+              if (dataReprIsValue dataRepr)
+                then return (Left ("cannot optimize modulo-cons tail-call over a value type (" ++ show (getName cname) ++ ")"))
+                else do case filter (\con -> conInfoName con == getName cname) (dataInfoConstrs dataInfo) of
+                          [con] -> case drop (field - 1) (conInfoParams con) of
+                                      ((fname,ftp):_) -> return $ Right (Con cname (getConRepr dataInfo con), fname)
+                                      _ -> failure $ "Core.CTail.getFieldName: field index is off: " ++ show cname ++ ", field " ++ show  field ++ ", in " ++ show (conInfoParams con)
+                          _ -> failure $ "Core.CTail.getFieldName: cannot find constructor: " ++ show cname ++ ", field " ++ show  field ++ ", in " ++ show (dataInfoConstrs dataInfo)
          _ -> failure $ "Core.CTail.getFieldName: no such constructor: " ++ show cname ++ ", field " ++ show  field
   where
     getDataTypeName cname  = case splitFunScheme (typeOf cname) of

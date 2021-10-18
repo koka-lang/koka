@@ -12,6 +12,18 @@
 //  a highly optimized in-place red-black tree using the low pointer bit to encode color information.)
 //
 // Compile as: > g++ --std=c++17 -O3 -o cpp-rbtree  samples/basic/rbtree.cpp
+//
+// as of 2021-09-08, koka v2.3.1, clang++ 10.0.0, g++ 9.3.0, ubuntu 20.04, 32Gb AMD5950x:
+//
+// $ tm .koka/v2.3.1/gcc-drelease/samples_basic_rbtree
+// 420000
+// elapsed: 0.52s, user: 0.49s, sys: 0.01s, rss: 203180kb
+// $ tm bench/gcc_samples_rbtree
+// 420000
+// elapsed: 0.52s, user: 0.48s, sys: 0.02s, rss: 200344kb
+// tm bench/clang_samples_rbtree
+// 420000
+// elapsed: 0.65s, user: 0.63s, sys: 0.02s, rss: 200228kb
 
 #include <iostream>
 #include <map>

@@ -44,14 +44,14 @@ fun ins(t : tree, k : int32, v : bool) : tree
   match t
     Node(Red, l, kx, vx, r)
       -> if k < kx then Node(Red, ins(l, k, v), kx, vx, r)
-         elif k == kx then Node(Red, l, k, v, r)
-         else Node(Red, l, kx, vx, ins(r, k, v))
+         elif k > kx then Node(Red, l, kx, vx, ins(r, k, v))
+         else Node(Red, l, k, v, r)
     Node(Black, l, kx, vx, r)
       -> if k < kx then (if is-red(l) then balance-left(ins(l,k,v), kx, vx, r)
                                       else Node(Black, ins(l, k, v), kx, vx, r))
-         elif k == kx then Node(Black, l, k, v, r)
-         elif is-red(r) then balance-right(l, kx, vx, ins(r,k,v))
-         else Node(Black, l, kx, vx, ins(r, k, v))
+         elif k > kx then (if is-red(r) then balance-right(l, kx, vx, ins(r,k,v))
+                                        else Node(Black, l, kx, vx, ins(r, k, v)))
+         else Node(Black, l, k, v, r)
     Leaf -> Node(Red, Leaf, k, v, Leaf)
 
 
@@ -62,9 +62,7 @@ fun set-black(t : tree) : tree
 
 
 fun insert(t : tree, k : int32, v : bool) : tree
-  if is-red(t)
-    then ins(t, k, v).set-black
-    else ins(t, k, v)
+  ins(t, k, v).set-black
 
 
 fun fold(t : tree, b : a, f: (int32, bool, a) -> a) : a
@@ -78,13 +76,12 @@ fun make-tree-aux(n : int32, t : tree) : div tree
     val n1 = n.dec
     make-tree-aux(n1, insert(t, n1, n1 % 10.int32 == zero))
 
-
 fun make-tree(n : int32) : div tree
   make-tree-aux(n, Leaf)
-
+  
 
 fun main()
   val n = get-args().head("").parse-int.default(4200000).int32
   val t = make-tree(n)
-  val v = t.fold(zero) fn(k, v, r : int32){ if (v) then r.inc else r }
+  val v = t.fold(zero) fn(k,v,r:int32){ if (v) then r.inc else r }
   v.show.println

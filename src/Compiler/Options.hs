@@ -173,6 +173,7 @@ data Flags
          , parcReuse        :: Bool
          , parcSpecialize   :: Bool
          , parcReuseSpec    :: Bool
+         , parcBorrowInference    :: Bool
          , asan             :: Bool
          , useStdAlloc      :: Bool -- don't use mimalloc for better asan and valgrind support
          , optSpecialize    :: Bool
@@ -224,7 +225,7 @@ flagsNull
           []       -- clink full lib paths
           (ccGcc "gcc" 0 platform64 "gcc")
           (if onWindows then []        -- ccomp library dirs
-                        else ["/usr/local/lib;/usr/lib;/lib"])
+                        else ["/usr/local/lib","/usr/lib","/lib"])
           
           ""       -- vcpkg root
           ""       -- vcpkg triplet
@@ -261,6 +262,7 @@ flagsNull
           True -- parc reuse
           True -- parc specialize
           True -- parc reuse specialize
+          False -- parc borrow inference
           False -- use asan
           False -- use stdalloc
           True  -- use specialization (only used if optimization level >= 1)
@@ -359,11 +361,12 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , hide $ fnum 10 "n" ["inline"]    (\i f -> f{optInlineMax=i})      "set 'n' as maximum inline threshold (=10)"
  , hide $ fflag       ["monadic"]   (\b f -> f{enableMon=b})         "enable monadic translation"
  , hide $ flag []     ["semi"]      (\b f -> f{semiInsert=b})        "insert semicolons based on layout"
- , hide $ fflag       ["optreuse"] (\b f -> f{parcReuse=b})          "enable in-place update analysis"
+ , hide $ fflag       ["binference"]   (\b f -> f{parcBorrowInference=b})     "enable reuse inference (does not work cross-module!)"
+ , hide $ fflag       ["optreuse"]     (\b f -> f{parcReuse=b})          "enable in-place update analysis"
  , hide $ fflag       ["optdropspec"]  (\b f -> f{parcSpecialize=b}) "enable drop specialization"
  , hide $ fflag       ["optreusespec"] (\b f -> f{parcReuseSpec=b})  "enable reuse specialization"
- , hide $ fflag       ["opttrmc"]  (\b f -> f{optctail=b})              "enable tail-recursion-modulo-cons optimization"
- , hide $ fflag       ["opttrmcinline"]  (\b f -> f{optctailInline=b})  "enable trmc inlining (increases code size)"
+ , hide $ fflag       ["opttrmc"]      (\b f -> f{optctail=b})              "enable tail-recursion-modulo-cons optimization"
+ , hide $ fflag       ["opttrmcinline"] (\b f -> f{optctailInline=b})  "enable trmc inlining (increases code size)"
  , hide $ fflag       ["specialize"]  (\b f -> f{optSpecialize=b})      "enable inline specialization"
 
  -- deprecated
@@ -1008,14 +1011,17 @@ ccFromPath flags path
     in do when (isTargetWasm (target flags) && not (name `startsWith` "emcc")) $
             putStrLn ("\nwarning: a wasm target should use the emscripten compiler (emcc),\n  but currently '" 
                        ++ ccPath cc ++ "' is used." 
-                       ++ "\n  hint: specify the emscripten path using --cc=<emcc path>?")                       
+                       ++ "\n  hint: specify the emscripten path using --cc=<emcc path>?")   
           if (asan flags)
             then if (not (ccName cc `startsWith` "clang" || ccName cc `startsWith` "gcc" || ccName cc `startsWith` "g++"))
                     then do putStrLn "warning: can only use address sanitizer with clang or gcc (--fasan is ignored)"
                             return (cc,False)
-                    else do return (cc{ ccName         = ccName cc ++ "-asan"
-                                      , ccFlagsCompile = ccFlagsCompile cc ++ ["-fsanitize=address,undefined,leak","-fno-omit-frame-pointer","-O0"]
-                                      , ccFlagsLink    = ccFlagsLink cc ++ ["-fsanitize=address,undefined,leak"] }
+                    -- asan on Apple Silicon can't find leaks and throws an error
+                    -- We can't check for arch, since GHC 8.10 runs on Rosetta and detects x86_64
+                    else do let sanitize = if onMacOS then "-fsanitize=address,undefined" else "-fsanitize=address,undefined,leak"
+                            return (cc{ ccName         = ccName cc ++ "-asan"
+                                      , ccFlagsCompile = ccFlagsCompile cc ++ [sanitize,"-fno-omit-frame-pointer","-O0"]
+                                      , ccFlagsLink    = ccFlagsLink cc ++ [sanitize] }
                                   ,True)
           else if (useStdAlloc flags)
             then return (cc{ ccName = ccName cc ++ "-stdalloc" }, False)

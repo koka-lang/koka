@@ -5,7 +5,11 @@ type expr<a> {
   App<b>( f : expr<b -> a>, arg : expr<b> )
 }
 
-val bexpr : expr<bool> =  App(Lit((pos? : int -> bool)),Lit(42))
+fun is-positive( i : int ) : bool {
+  i.is-pos
+}
+
+val bexpr : expr<bool> =  App(Lit(is-positive),Lit(42))
 
 fun eval(expr : expr<a>) : a {
   match(expr) {

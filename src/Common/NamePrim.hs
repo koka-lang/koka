@@ -64,8 +64,8 @@ module Common.NamePrim
           , nameKeepMatch, nameDropMatch, nameReuseMatch
           , nameTpReuse, nameDropReuse, nameFreeReuse
           , nameReuseNull, nameAssignReuse, nameReuse, nameReuseIsValid
-          , nameAllocAt, nameConFieldsAssign
-          , nameKeep
+          , nameAllocAt, nameConFieldsAssign, nameConTagFieldsAssign, nameReuseDrop
+          , nameDropSpecial, nameKeep, nameSetTag
 
           -- * CTail optimization
           , nameTpCField, nameTpCTailAcc
@@ -411,7 +411,9 @@ nameAssignReuse = coreTypesName ".assign-reuse"
 nameReuse       = coreTypesName ".reuse"
 nameReuseIsValid= coreTypesName ".reuse-is-valid"
 nameConFieldsAssign = coreTypesName ".con-fields-assign"
+nameConTagFieldsAssign = coreTypesName ".con-tag-fields-assign"
 nameKeep        = coreTypesName "keep"
+nameSetTag      = coreTypesName ".set-tag"
 
 nameDup         = coreTypesName ".dup"
 nameDrop        = coreTypesName ".drop"
@@ -421,6 +423,10 @@ nameIsUnique    = coreTypesName ".is-unique"
 nameKeepMatch   = coreTypesName ".keep-match"
 nameDropMatch   = coreTypesName ".drop-match"
 nameReuseMatch  = coreTypesName ".reuse-match"
+
+nameReuseDrop   = coreTypesName ".reuse-drop"
+
+nameDropSpecial    = coreTypesName ".drop-special"
 
 nameTuple :: Int -> Name
 nameTuple n     = coreTypesName ("(" ++ (replicate (n-1) ',') ++ ")")

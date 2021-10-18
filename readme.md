@@ -10,7 +10,7 @@
 # Koka: a Functional Language with Effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
-_Latest release_: v2.3.1, 2021-09-29 ([Install]).
+_Latest release_: v2.3.2, 2021-10-15 ([Install]).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -67,6 +67,9 @@ To learn more:
 [nobrace]: https://koka-lang.github.io/koka/doc/book.html#sec-layout
 [m1arch]: https://cpufun.substack.com/p/setting-up-the-apple-m1-for-native
 [bigint]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt
+[emscripten]: https://emscripten.org/docs/getting_started/downloads.html
+[musl]: https://musl.libc.org/
+[wasmtime]: https://wasmtime.dev/
 
 Enjoy,  
   Daan Leijen
@@ -77,6 +80,10 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 ## Recent Releases
 
+- `v2.3.2`, 2021-10-15: initial wasm support (use `--target=wasm`, and install [emscripten] and [wasmtime]), 
+  improved reuse specialization (by Anton Lorenzen),
+  fix default color scheme for non-dark shells (#190), stack-less free and marking, add `--stack` option, 
+  [musl] support (use `--cc=musl-gcc`), fix `vcpkg` support on macOS with homebrew installed vcpkg, various bug fixes.
 - `v2.3.1`, 2021-09-29: improved TRMC optimizations, and improved reuse 
   (the [rbtree](test/bench/koka/rbtree.kk) benchmark is faster as C++ now). 
   Improved effect operation speed. Allow elision of `->` in anonymous
@@ -163,7 +170,7 @@ This takes a while as it pre-compiles the standard libraries in three build
 variants (`debug`, `drelease` (release with debug info), and `release`).
 After generating the bundle, you can install it locally as:
 ```
-$ util/install.sh -b bundle/koka-v2.3.1-linux-x64.tar.gz
+$ util/install.sh  bundle/koka-v2.3.1-linux-x64.tar.gz
 ```
 (use `util/install.bat` on Windows). 
 After installation, you can now directly invoke `koka`:
@@ -255,17 +262,16 @@ More advanced projects:
   typed [range map](src/Syntax/RangeMap.hs) so this should be managable. Partially done: see PR #100 (by @fwcd) -- it just
   needs work on packaging it to make it easy to build and install as part of the Koka installer.
 - [ ] Package management of Koka modules.
-- [ ] Compile to WASM (using emscripten on the current C backend)
+- [x] Compile to WASM (using emscripten on the current C backend)
 - [ ] Extend TRMC to include (1) return results with pairs (like `unzip` or `partition`), (2) associative functions
       (like `+` in `length`), and (3) mutually recursive functions.
 - [ ] Improve compilation of local state to use local variables directly (in C) without allocation. Tricky though due to multiple resumptions.
 - [ ] Improve performance of array/mutable reference programming. Koka is has great performance for
       algebraic datatypes but lags when using more imperative array algorithms. This requires better
       integration with the reference counting (faster in-place update for vectors) and integration local mutable references.
-- [ ] To support optimal btree's we need mutable fields in constructors; or at least intrusive vector fields.
+- [ ] To support optimal Btree's we need _mutable fields_ in constructors, and perhaps intrusive vector fields.
 - [ ] The current parallel task support is very basic; we need a great work-stealing thread pool, LVar's etc.
-- [ ] Expose the "bytes" primitive data together with views.
-- [ ] Improve C backend code generation to generate nicer output with less "noise" (like temporary variables, or variables for each if condition etc).
+- [ ] Expose the "bytes" primitive data together with views..
 - [ ] Improve C code generation by identifying output that could be better; also in effectful code we generate many join-points (see [9]),
       can we increase the sharing/reduce the extra code.
 - [ ] The compiler always analyses module dependencies and builds any needed dependencies. The current code 
@@ -274,7 +280,7 @@ More advanced projects:
 
 Master/PhD level:
 
-- [ ] Better FBIP support with guaranteed datatype matching, automatic derivative and visitor generation.
+- [ ] Better language level FBIP support with guaranteed datatype matching, automatic derivative and visitor generation.
 - [ ] Can we use C++ exceptions to implement "zero-cost" `if yielding() ...` branches and remove the need join points (see [9]).
 - [x] Float up `open` calls to improve effect handling (worked on by Naoya Furudono)
 - [x] Formalize opening and closing effect row types (worked on by Kazuki Ikemori)

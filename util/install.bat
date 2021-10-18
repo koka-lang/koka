@@ -4,7 +4,7 @@ rem Installation script for Koka; use -h to see command line options.
 rem ------------------------------------------------------------------
 
 setlocal
-set KOKA_VERSION=v2.3.1
+set KOKA_VERSION=v2.3.2
 set KOKA_PREFIX=%LOCALAPPDATA%\koka
 set KOKA_UNINSTALL=N
 set KOKA_HELP=N
@@ -21,60 +21,94 @@ set CLANG_VERSION=12.0.1
 set CLANG_INSTALL_BASE=LLVM-%CLANG_VERSION%-win64.exe
 set CLANG_INSTALL=%TEMP%\%CLANG_INSTALL_BASE%
 set CLANG_INSTALL_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-%CLANG_VERSION%/%CLANG_INSTALL_BASE%
-set CLANG_INSTALL_SHA256=8426d57f2af2bf07f80014bfd359e87ed10f5521a236a10cfe9fc4870d1b1b25
+set CLANG_INSTALL_SHA256=fcbabc9a170208bb344f7bba8366cca57ff103d72a316781bbb77d634b9e9433
 
 rem check if %LOCALAPPDATA% was not empty
 if "%KOKA_PREFIX%" == "\koka" (set KOKA_PREFIX=c:\usr\local\koka)
 
 rem process arguments
-:argparse
-if "%~1" == "" goto done_args
-  if "%~1" == "-u" (
+:args_parse
+set kk_flag=%1
+
+if "%kk_flag%" == "" goto args_done
+if "%kk_flag:~0,1%" == "-" goto args_flag
+
+set KOKA_DIST_SOURCE=%~1
+goto args_next
+
+:args_flag
+  if "%kk_flag%" == "-u" (
     set KOKA_UNINSTALL=Y
-    goto boolflag
+    goto args_next
   )
-  if "%~1" == "--uninstall" (
+  if "%kk_flag%" == "--uninstall" (  
     set KOKA_UNINSTALL=Y
-    goto boolflag
+    goto args_next
   )
-  if "%~1" == "-h" (
+  if "%kk_flag%" == "-h" (
     set KOKA_HELP=Y
-    goto boolflag
+    goto args_next
   )
-  if "%~1" == "--help" (
+  if "%kk_flag%" == "--help" (
     set KOKA_HELP=Y
-    goto boolflag
+    goto args_next
   )
-  if "%~1" == "-f" (
+  if "%kk_flag%" == "-f" (
     set KOKA_FORCE=Y
-    goto boolflag
+    goto args_next
   )
-  if "%~1" == "--force" (
+  if "%kk_flag%" == "--force" (
     set KOKA_FORCE=Y
-    goto boolflag
+    goto args_next
   )
-  if "%~1" == "--iexpress" (
+  if "%kk_flag%" == "--iexpress" (
     set KOKA_IEXPRESS=Y
-    goto boolflag
+    goto args_next
   )
-  if "%~1" == "-v"        (set KOKA_VERSION=%~2)
-  if "%~1" == "--version" (set KOKA_VERSION=%~2)
-  if "%~1" == "-p"        (set KOKA_PREFIX=%~2)
-  if "%~1" == "--prefix"  (set KOKA_PREFIX=%~2)
-  if "%~1" == "-b"        (set KOKA_DIST_SOURCE=%~2)
-  if "%~1" == "--bundle"  (set KOKA_DIST_SOURCE=%~2)
-  if "%~1" == "--url"     (set KOKA_DIST_SOURCE_URL=%~2)  
+  
+  if "%kk_flag%" == "--version" (
+    set KOKA_VERSION=%~2
+    goto args_next2
+  )
+  if "%kk_flag%" == "-p" (
+    set KOKA_PREFIX=%~2
+    goto args_next2
+  )
+  if "%kk_flag%" == "--prefix"  (
+    set KOKA_PREFIX=%~2
+    goto args_next2
+  )
+  if "%kk_flag%" == "-b" (
+    set KOKA_DIST_SOURCE=%~2    
+    goto args_next2
+  )
+  if "%kk_flag%" == "--bundle" (
+    set KOKA_DIST_SOURCE=%~2
+    goto args_next2
+  )
+  if "%kk_flag%" == "--url" (
+    set KOKA_DIST_SOURCE_URL=%~2
+    goto args_next2
+  )
+
+  echo unknown command line option: %kk_flag%
+  set KOKA_HELP=Y
+  goto args_next
+
+:args_next2
 shift
-:boolflag
+:args_next
 shift
-goto argparse
-:done_args 
+goto args_parse
+:args_done
 
 rem ---------------------------------------------------------
 rem Defaults
 rem ---------------------------------------------------------
 
-if "%KOKA_VERSION%" leq "v2.1.6" (set KOKA_ARCH=amd64)
+if "%KOKA_VERSION:~0,1%" neq "v" set KOKA_VERSION=v%KOKA_VERSION%
+
+if "%KOKA_VERSION%" leq "v2.1.6" set KOKA_ARCH=amd64
 
 if "%KOKA_DIST_SOURCE_URL%" == "" (
   set KOKA_DIST_SOURCE_URL=%KOKA_DIST_BASE_URL%/%KOKA_VERSION%/koka-%KOKA_VERSION%-windows-%KOKA_ARCH%.tar.gz
@@ -115,15 +149,15 @@ rem ---------------------------------------------------------
 :help
 
 echo command:
-echo   install-koka.bat [options]
+echo   install-koka.bat [options] [bundle file]
 echo.
 echo options:
 echo   -f, --force              continue without prompting
 echo   -u, --uninstall          uninstall koka (%KOKA_VERSION%)
 echo   -p, --prefix=^<dir^>       prefix directory (%KOKA_PREFIX%)
-echo   -b, --bundle=^<file^|url^>  full bundle location (%KOKA_DIST_SOURCE%)
 echo   --url=^<url^>              download url (%KOKA_DIST_SOURCE_URL%)
-echo   --version=^<ver^>          version tag (%KOKA_VERSION%)
+echo   --version=^<ver^>          version tag (%KOKA_VERSION%) 
+rem echo   -b, --bundle=^<file^|url^>  full bundle location (%KOKA_DIST_SOURCE%)
 echo.
 goto end
 
