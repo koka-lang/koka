@@ -80,20 +80,20 @@ static inline bool kk_tag_is_raw(kk_tag_t tag) {
 
 // Every heap block starts with a 64-bit header with a reference count, tag, and scan fields count.
 // The reference count is 0 for a unique reference (for a faster free test in drop).
-// Reference counts larger than 0x8000000 use atomic increment/decrement (for thread shared objects).
+// Reference counts larger than 0x8000000 (i.e. < 0) use atomic increment/decrement (for thread shared objects).
 // (Reference counts are always 32-bit (even on 64-bit) platforms but get "sticky" if
-//  they get too large (>0xC0000000) and in such case we never free the object, see `refcount.c`)
+//  they get too large and in such case we never free the object, see `refcount.c`)
 // If the scan_fsize == 0xFF, the full scan count is in the first field as a boxed int (which includes the scan field itself).
 typedef struct kk_header_s {
   uint8_t   scan_fsize;       // number of fields that should be scanned when releasing (`scan_fsize <= 0xFF`, if 0xFF, the full scan size is the first field)
-  uint8_t   thread_shared;    // is it thread shared? (if true, the refcount should be >= 0x8000000) (needs 8 bits as it is used during marking as a field offset)
+  uint8_t   field_idx;        // only used during marking for stack-less marking
   uint16_t  tag;              // constructor tag
   uint32_t  refcount;         // reference count  (last to reduce code size constants in kk_header_init)
 } kk_header_t;
 
 #define KK_SCAN_FSIZE_MAX (0xFF)
 #define KK_HEADER(scan_fsize,tag)         { scan_fsize, 0, tag, 0}                 // start with refcount of 0
-#define KK_HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 1, tag, KU32(0x80000001)}  // start with a sticky recognisable refcount (anything > 1 is ok)
+#define KK_HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 0, tag, KU32(0x80000000)}  // start with a sticky refcount (RC_STUCK)
 
 static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_tag_t tag) {
   kk_assert_internal(scan_fsize >= 0 && scan_fsize <= KK_SCAN_FSIZE_MAX);
@@ -103,6 +103,11 @@ static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_tag_
   kk_header_t header = KK_HEADER((uint8_t)scan_fsize, (uint16_t)tag);
   *h = header;
 #endif  
+}
+
+// Are there (possibly) references from other threads? (includes static variables)
+static inline bool kk_refcount_is_thread_shared(uint32_t rc) {
+  return ((int32_t)rc < 0);
 }
 
 
@@ -216,6 +221,10 @@ static inline kk_decl_pure kk_uintx_t kk_block_refcount(const kk_block_t* b) {
 
 static inline kk_decl_pure bool kk_block_is_unique(const kk_block_t* b) {
   return (kk_likely(b->header.refcount == 0));
+}
+
+static inline kk_decl_pure bool kk_block_is_thread_shared(const kk_block_t* b) {
+  return (kk_unlikely(kk_refcount_is_thread_shared(b->header.refcount)));
 }
 
 typedef struct kk_block_fields_s {
@@ -532,6 +541,14 @@ static inline void kk_block_free(kk_block_t* b) {
 
 /*--------------------------------------------------------------------------------------
   Reference counting
+  0    : unique reference
+  > 0  : non thread-shared reference
+  < 0  : thread-shared or sticky
+
+  The main performance trick is to do one single test in a dup/drop for the fast path.
+  In drop we can check `rc > 0` to decrement in place, or check further if we need
+  atomic decrement or can free (in case rc==0). The kk_block_check_xxx routines are not
+  inlined and we get nice inlined assembly for the fast path with the single check.
 --------------------------------------------------------------------------------------*/
 
 kk_decl_export void        kk_block_check_drop(kk_block_t* b, uint32_t rc, kk_context_t* ctx);
@@ -539,7 +556,7 @@ kk_decl_export void        kk_block_check_decref(kk_block_t* b, uint32_t rc, kk_
 kk_decl_export kk_block_t* kk_block_check_dup(kk_block_t* b, uint32_t rc);
 kk_decl_export kk_reuse_t  kk_block_check_drop_reuse(kk_block_t* b, uint32_t rc0, kk_context_t* ctx);
 
-
+// Dup a reference.
 static inline kk_block_t* kk_block_dup(kk_block_t* b) {
   kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;
@@ -552,6 +569,7 @@ static inline kk_block_t* kk_block_dup(kk_block_t* b) {
   }
 }
 
+// Drop a reference: decrement the reference count, and if it was 0 drop the children recursively
 static inline void kk_block_drop(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;
@@ -563,6 +581,8 @@ static inline void kk_block_drop(kk_block_t* b, kk_context_t* ctx) {
   }
 }
 
+
+// Decrement a reference count, and if it was 0 free the block (without freeing the children)
 static inline void kk_block_decref(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;  
@@ -570,7 +590,7 @@ static inline void kk_block_decref(kk_block_t* b, kk_context_t* ctx) {
     b->header.refcount = rc - 1;
   }
   else {
-    kk_block_check_decref(b, rc, ctx);  // thread-shared, sticky (overflowed), or can be freed? TODO: should just free; not drop recursively
+    kk_block_check_decref(b, rc, ctx);  // thread-shared, sticky (overflowed), or can be freed? 
   }
 }
 
@@ -1116,7 +1136,7 @@ static inline kk_ref_t kk_ref_alloc(kk_box_t value, kk_context_t* ctx) {
 }
 
 static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
-  if (kk_likely(r->_block.header.thread_shared == 0)) {
+  if (kk_likely(!kk_block_is_thread_shared(&r->_block))) {
     // fast path
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
     kk_box_dup(b);
@@ -1130,7 +1150,7 @@ static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
 }
 
 static inline kk_box_t kk_ref_swap(kk_ref_t r, kk_box_t value, kk_context_t* ctx) {
-  if (kk_likely(r->_block.header.thread_shared == 0)) {
+  if (kk_likely(!kk_block_is_thread_shared(&r->_block))) {
     // fast path
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
     kk_atomic_store_relaxed(&r->value, value.box);
@@ -1151,7 +1171,7 @@ static inline kk_unit_t kk_ref_set(kk_ref_t r, kk_box_t value, kk_context_t* ctx
 }
 
 static inline kk_unit_t kk_ref_vector_assign(kk_ref_t r, kk_integer_t idx, kk_box_t value, kk_context_t* ctx) {
-  if (kk_likely(r->_block.header.thread_shared == 0)) {
+  if (kk_likely(!kk_block_is_thread_shared(&r->_block))) {
     // fast path
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
     kk_vector_t v = kk_vector_unbox(b, ctx);

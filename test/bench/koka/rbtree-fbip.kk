@@ -21,7 +21,7 @@ fun move-up(z : zipper, t : tree)
     NodeL(c, z1, k, v, r) -> z1.move-up(Node(c, t, k, v, r))
     Done -> t
 
-fun balance-red( z : zipper, l : tree, k : int32, v : bool, r : tree ) : div tree
+fun balance-red( z : zipper, l : tree, k : int32, v : bool, r : tree ) : tree
   match z
     NodeR(Black, l1, k1, v1, z1) -> z1.move-up( Node( Black, l1, k1, v1, Node(Red,l,k,v,r) ) )
     NodeL(Black, z1, k1, v1, r1) -> z1.move-up( Node( Black, Node(Red,l,k,v,r), k1, v1, r1 ) )
@@ -35,7 +35,7 @@ fun balance-red( z : zipper, l : tree, k : int32, v : bool, r : tree ) : div tre
       Done -> Node(Black, Node(Red,l,k,v,r), k1, v1, r1)
     Done -> Node(Black,l,k,v,r)
 
-fun ins(t : tree, k : int32, v : bool, z : zipper) : div tree
+fun ins(t : tree, k : int32, v : bool, z : zipper) : tree
   match t
     Node(c, l, kx, vx, r)
       -> if k < kx   then ins(l, k, v, NodeL(c, z, kx, vx, r))
@@ -43,7 +43,7 @@ fun ins(t : tree, k : int32, v : bool, z : zipper) : div tree
          else z.move-up(Node(c, l, kx, vx, r))  // z.move-up(t) is slower (but not a reuse bug); to be investigated
     Leaf -> z.balance-red(Leaf, k, v, Leaf)
 
-fun insert(t : tree, k : int32, v : bool) : div tree
+fun insert(t : tree, k : int32, v : bool) : tree
   ins(t, k, v, Done)
 
 
@@ -52,16 +52,20 @@ fun fold(t : tree, b : a, f: (int32, bool, a) -> a) : a
     Node(_, l, k, v, r) -> r.fold( f(k, v, l.fold(b, f)), f)
     Leaf                -> b
 
-fun make-tree-aux(n : int32, t : tree) : div tree
+fun make-tree(n : int32, t : tree) : div tree
   if n <= zero then t else
-    val n1 = n.dec
-    make-tree-aux(n1, insert(t, n1, n1 % 10.int32 == zero))
+    val m = n - 1.int32
+    make-tree(m, insert(t, m, m % 10.int32 == zero))
 
-fun make-tree(n : int32) : div tree
-  make-tree-aux(n, Leaf)  
+/* or: 
+fun make-tree(n : int32) : tree  
+  fold-int32(0.int32, n, Leaf) fn(i,t) 
+    val m = n - i - 1.int32
+    insert( t, m, m % 10.int32 == 0.int32 )
+*/
 
 fun main()
   val n = get-args().head("").parse-int.default(4200000).int32
-  val t = make-tree(n)
+  val t = make-tree(n, Leaf)
   val v = t.fold(zero) fn(k,v,r:int32){ if v then r.inc else r }
   v.show.println
