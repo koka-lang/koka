@@ -28,6 +28,7 @@ import qualified Type.Pretty as Pretty
 import Type.Assumption
 import Core.Core
 import qualified Core.Core as Core
+import Data.Maybe (fromJust)
 
 trace s x =
   --  Lib.Trace.trace s
@@ -63,7 +64,7 @@ fltDefGroup (DefNonRec def) next
 fltDef :: Def -> Flt Def
 fltDef def
   = withCurrentDef def $
-    do (expr', _) <- fltExpr (defExpr def) Nothing 
+    do (expr', _) <- fltExpr (defExpr def) (Just effectEmpty)
        return def{ defExpr = expr' }
 
 
@@ -74,20 +75,20 @@ fltDef def
 -- e | eff ~> e', rq
 fltExpr :: Expr -> Maybe Effect -> Flt (Expr, Req)
 fltExpr expr mbEff
-  = 
+  =
     -- pass the assigned effect to sub-expression
     let recurse e = fltExpr e mbEff in
     case expr of
     -- flt open[...](f)(args)  = flt f(args)
     App (App eopen@(TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [f]) args | getName open == nameEffectOpen
-      -> do recurse (App f args) 
+      -> do recurse (App f args)
     App f args
       -> do (f', rqf) <- recurse f
-            args_rq' <- mapM recurse args 
+            args_rq' <- mapM recurse args
             let
                 (args', rqs) = unzip args_rq'
                 feff = getEffectType f
-                rqSup = sup $ Eff feff  : rqf : rqs
+                rqSup = sup (fromJust mbEff) $ Eff feff  : rqf : rqs
                 frest = smartRestrictExpr rqf rqSup f'
                 f'' = smartOpenExpr (Eff feff) rqSup frest
                 args'' = map (\(e, rq)-> smartRestrictExpr rq rqSup e) args_rq'
@@ -100,7 +101,7 @@ fltExpr expr mbEff
                 Nothing -> failure $ "Core.OpenFloat/getEffectType: invalid input expr\nOperator must have function type.\nfound: " ++ show (typeOf e)
     Lam args eff body
       -> do
-            -- The source of effect input of fltExpr
+            -- The source of effect, which is input of fltExpr
             -- Not recurse, but use the annotated effect!
             (body', rq) <- fltExpr body (Just eff)
             let
@@ -113,7 +114,7 @@ fltExpr expr mbEff
           defgIR_rqs <- mapM (\dgs -> fltDefGroupAux dgs mbEff) defgs
           (body', rq) <- recurse body
           let (defgIRs, rqs) = unzip defgIR_rqs
-              rqSup = sup $ rq:rqs
+              rqSup = sup (fromJust mbEff) $ rq:rqs
               body'' = smartRestrictExpr rq rqSup body'
           defgs' <- mapM (restrictToDG rqSup) defgIRs
           return (assertTypeInvariant $ Let defgs' body'', rqSup)
@@ -127,10 +128,10 @@ fltExpr expr mbEff
         recurse (expandLetExpr expr)
     Case exprs bs
       -> do exprIR_rqs <- mapM recurse exprs
-            bIR_rqs <- mapM (\b -> fltBranch b mbEff) bs 
-            let rqe = foldl supb Bottom $ map snd exprIR_rqs
+            bIR_rqs <- mapM (\b -> fltBranch b mbEff) bs
+            let rqe = sup (fromJust mbEff) $ map snd exprIR_rqs
                 (bIRs, rqbs) = unzip bIR_rqs
-                rqSup = sup $ rqe : rqbs
+                rqSup = sup (fromJust mbEff) $ rqe : rqbs
             exprs'' <- mapM (restrictToE rqSup) exprIR_rqs
             bs'' <- mapM (restrictToB rqSup) bIRs
             return (assertTypeInvariant $ Case exprs'' bs'', rqSup)
@@ -151,21 +152,21 @@ fltExpr expr mbEff
     assertTypeInvariant expr' = if not debug then expr' else
       let tpBefore = typeOf expr
           tpAfter = typeOf expr' in
-          assertion "OpenFloat. Type invariant violation." (matchType tpBefore tpAfter) expr'
+          assertion "Core/OpenFloat.fltExpr Type invariant violation." (matchType tpBefore tpAfter) expr'
 
 
 fltBranch :: Branch -> Maybe Effect -> Flt (BranchIR, Req)
 fltBranch (Branch pat guards) mbEff =
   do guard_rqs <- mapM (\b -> fltGuard b mbEff) guards
      let (guards', rqs) = unzip guard_rqs
-     return (BranchIR pat guards', sup rqs)
+     return (BranchIR pat guards', sup (fromJust mbEff) rqs)
 
 fltGuard :: Guard -> Maybe Effect -> Flt (GuardIR, Req)
 fltGuard (Guard guard body) mbEff =
   let recurse e = fltExpr e mbEff in
   do (guard', rqg) <- recurse guard
      (body', rqb)  <- recurse body
-     return (GuardIR (guard', rqg) (body', rqb), supb rqg rqb)
+     return (GuardIR (guard', rqg) (body', rqb), sup (fromJust mbEff) [rqg, rqb])
 
 
 -- daan: why are there separate Aux functions instead of using fltDefGroup?
@@ -174,7 +175,7 @@ fltDefGroupAux :: DefGroup -> Maybe Effect -> Flt (DefGroupIR, Req)
 fltDefGroupAux (DefRec defs) mbEff =
   do defIR_rqs <- mapM (\d -> fltDefAux d mbEff) defs
      let (defIRs, rqs) = unzip defIR_rqs
-     return (DefRecIR defIRs, sup rqs)
+     return (DefRecIR defIRs, sup (fromJust mbEff) rqs)
 fltDefGroupAux (DefNonRec def) mbEff =
   do (defIR, rq) <- (\d -> fltDefAux d mbEff) def
      return (DefNonRecIR defIR, rq)
@@ -232,66 +233,54 @@ restrictToG rqSup (GuardIR t g) =
 
 data Req = Eff Effect | Bottom deriving (Eq, Show)
 
-sup :: [Req] -> Req
-sup = foldl supb Bottom
+-- sup effUp rqs = sup { rq \in Req | rq <= (Eff effUp) and (rq' <= rq, forall rq' in rqs) }
+--                 i.e., sup restricted on Req_{<= Eff effUp} $ rqs
 
-supb :: Req -> Req -> Req
-supb Bottom rq = rq
-supb rq Bottom = rq
-supb (Eff eff1) (Eff eff2) = Eff $ supbEffect eff1 eff2
+-- Using effUp, we can disambiguate such case:
+--     Eff effUp  other     
+--          |\   / |
+--          |  X   /
+--          | / | /
+--           o  o   : rqs
 
+-- e.g., (`sup` [ < loc<h1> >, < loc<h2> > ])  < loc<h1>, ask, exn, loc<h2> >
+--     = < loc<h1>, loc<h2> >  // NOT confused with < loc<h2>, loc<h1> >
+sup :: Effect -> [Req] -> Req
+sup effUpperBound rqs =
+  let effs = map fromReq $ filter (/= Bottom) rqs in
+  if null effs 
+    then Bottom 
+    else
+  -- do we need to order eff here? can we assume input is ordered?
+  Eff $ let (labsUpper, tlUpper) = extractOrderedEffect effUpperBound
+            (labss {- ::[[Tau]] -}, tls)= unzip $ map extractOrderedEffect effs
+            tl' = assertValidTail tlUpper $ foldl decideTail effectEmpty tls
+            -- we can optimize it. change filter to specific one
+            labs' = (`filter` labsUpper) (\l -> any (l `belongTo`) labss) in
+        effectExtends labs' tl'
+    where
+      -- Assume list is ascending ordered for not too slow compilation
+      belongTo :: Tau -> [Tau] -> Bool
+      belongTo _ [] = False
+      belongTo l (l1:ls) = case labelCompare l l1 of
+                             EQ -> True
+                             GT -> belongTo l ls
+                             LT -> False
+      decideTail :: Tau -> Tau -> Tau
+      decideTail tl1 tl2 = case (isEffectEmpty tl1, isEffectEmpty tl2) of
+        (True, _) -> tl2
+        (_, True) -> tl1
+        _ | tl1 == tl2 -> tl1
+        _ -> failure "Core/OpenFloat.sup: Unrelated pair of tail found in candidates"
+      assertValidTail :: Effect -> Effect -> Effect
+      assertValidTail upper actual = if isEffectEmpty actual || actual == upper then actual else failure "Core/OpenFloat.sup: decided tail of the row is not smaller or equal to given upper bound"
 
-supbEffect :: Effect -> Effect -> Effect
-supbEffect eff1 eff2 =
-  let
-    (labs1, tl1) = extractOrderedEffect eff1
-    (labs2, tl2) = extractOrderedEffect eff2
-    tl = assertion
-           ("OpenFloat. sup undefined between:\n" ++ "A. " ++ show tl1 ++ "\nB. " ++ show tl2)
-           (isEffectEmpty tl1 || isEffectEmpty tl2 || tl1 `matchEffect` tl2 )
-           (if isEffectEmpty tl1 then tl2 else tl1)
-    -- daan: I think we do not need to merge the labels in-order? 
-    labs = mergeLabs labs1 labs2
-  in effectExtends labs tl  -- tl might be singleton label? so that it make result ill-formed?
-  where
-    compareLabel :: Tau -> Tau -> Ordering
-    compareLabel l1 l2 = let (name1, i1, args1) = labelNameEx l1
-                             (name2, i2, args2) = labelNameEx l2
-                         in case labelNameCompare name1 name2 of
-                              EQ ->
-                                -- daan: why is this comparison needed? due to skolem variables? Like st<s1>,st<s2> ?                                    
-                                (case (args1, args2) of
-                                    ([TVar (TypeVar id1 kind1 sort1)], [TVar (TypeVar id2 kind2 sort2)]) -> compare id1 id2
-                                    _ -> assertion ("openFloat: unexpected label-args. Label argument should only differ in variable case. \n1. " ++ show args1 ++ "\n2. " ++ show args2)
-                                            (all (\(t1, t2)-> matchType t1 t2) $ zip args1 args2)
-                                            EQ)
-                              order -> order
-
-    mergeLabs :: [Tau] -> [Tau] -> [Tau]
-    mergeLabs [] labs = labs
-    mergeLabs labs [] = labs
-    -- It is ok to use `compareLabel`, because
-    --   if l1 `compareLabel` l2 then (l1 equal l2 including the argument, since the expr type check) 
-    mergeLabs labs1@(l1:ls1) labs2@(l2:ls2) = case l1 `compareLabel` l2 of
-      EQ -> l1:mergeLabs ls1 ls2
-      LT -> l1:mergeLabs ls1 labs2
-      GT -> l2:mergeLabs labs1 ls2
+fromReq :: Req -> Effect
+fromReq Bottom = failure "Core/OpenFloat.fromReq: Bottom"
+fromReq (Eff eff) = eff
 
 matchEffect :: Effect -> Effect -> Bool
 matchEffect eff1 eff2 = matchType (orderEffect eff1) (orderEffect eff2)
-
-matchRq :: Req -> Req -> Bool
-matchRq Bottom Bottom = True
-matchRq (Eff eff1) (Eff eff2) = matchEffect eff1 eff2
-matchRq _ _ = False
-
-leqRq :: Req -> Req -> Bool
-leqRq rq1 rq2 = let rqSup = supb rq1 rq2 in matchRq rqSup rq2
-
-niceRq :: Pretty.Env -> Req -> Doc
-niceRq env Bottom = text "Bottom"
-niceRq env (Eff eff) = text "Eff " <+> niceType env eff
-
 
 {--------------------------------------------------------------------------
   smart open
