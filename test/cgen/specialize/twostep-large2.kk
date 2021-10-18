@@ -6,7 +6,7 @@ fun large(f) : total _ {
     repeatN(10) {
         repeatN(10) {
             repeatN(10) {
-                list(1, 10).map(f).sum
+                list(1, 10).map(inc).sum
             }
         }
     }.concat.concat.sum

@@ -32,7 +32,7 @@ module Core.Core ( -- Data structures
 
                      -- Core term builders
                    , defIsVal, defParamInfos
-                   , defTName , defGroupTNames , defGroupsTNames
+                   , defTName , defsTNames, defGroupTNames , defGroupsTNames
                    , addTypeLambdas, addTypeApps, addLambdas, addLambdasTName, addApps
                    , makeLet, makeTypeApp
                    , addNonRec, addCoreDef, coreNull
@@ -661,9 +661,12 @@ defTName :: Def -> TName
 defTName def
   = TName (defName def) (defType def)
 
+defsTNames :: [Def] -> TNames
+defsTNames defs = S.fromList (map defTName defs)  
+
 defGroupTNames :: DefGroup -> TNames
 defGroupTNames (DefNonRec def) = S.singleton (defTName def)
-defGroupTNames (DefRec defs) = S.fromList $ map defTName defs
+defGroupTNames (DefRec defs) = defsTNames defs
 
 defGroupsTNames :: DefGroups -> TNames
 defGroupsTNames group = foldr S.union S.empty (map defGroupTNames group)
