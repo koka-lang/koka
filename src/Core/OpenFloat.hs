@@ -15,27 +15,19 @@ module Core.OpenFloat( openFloat ) where
 
 import qualified Lib.Trace
 import Control.Monad
-import Control.Applicative
-import Data.Maybe( catMaybes )
 import Lib.PPrint
 import Common.Failure
 import Common.NamePrim ( nameEffectOpen )
 import Common.Name
-import Common.Range
 import Common.Unique
-import Common.Error
-import Common.Syntax
 
-import Kind.Kind
 import Type.Type
-import Type.Kind
 import Type.TypeVar
 import Type.Pretty hiding (Env)
 import qualified Type.Pretty as Pretty
 import Type.Assumption
 import Core.Core
 import qualified Core.Core as Core
-import Core.Pretty
 
 trace s x =
   --  Lib.Trace.trace s
@@ -71,7 +63,7 @@ fltDefGroup (DefNonRec def) next
 fltDef :: Def -> Flt Def
 fltDef def
   = withCurrentDef def $
-    do (expr', _) <- fltExpr (defExpr def)
+    do (expr', _) <- fltExpr (defExpr def) Nothing 
        return def{ defExpr = expr' }
 
 
@@ -79,16 +71,19 @@ fltDef def
   float expressions
 --------------------------------------------------------------------------}
 
-fltExpr :: Expr -> Flt (Expr, Req)
-fltExpr expr
-  = case expr of
+-- e | eff ~> e', rq
+fltExpr :: Expr -> Maybe Effect -> Flt (Expr, Req)
+fltExpr expr mbEff
+  = 
+    -- pass the assigned effect to sub-expression
+    let recurse e = fltExpr e mbEff in
+    case expr of
     -- flt open[...](f)(args)  = flt f(args)
     App (App eopen@(TypeApp (Var open _) [effFrom,effTo,tpFrom,tpTo]) [f]) args | getName open == nameEffectOpen
-      -> do fltExpr  (App f args)
-
+      -> do recurse (App f args) 
     App f args
-      -> do (f', rqf) <- fltExpr f
-            args_rq' <- mapM fltExpr args
+      -> do (f', rqf) <- recurse f
+            args_rq' <- mapM recurse args 
             let
                 (args', rqs) = unzip args_rq'
                 feff = getEffectType f
@@ -105,14 +100,9 @@ fltExpr expr
                 Nothing -> failure $ "Core.OpenFloat/getEffectType: invalid input expr\nOperator must have function type.\nfound: " ++ show (typeOf e)
     Lam args eff body
       -> do
-            -- traceDoc $ \env -> text "lambda:" <+> niceType env eff
-            (body', rq) <- fltExpr body
-            -- check $rq <= eff$
-            -- let rqSup = supb (Eff eff) rq
-            -- if matchRq rqSup $ Eff eff then return ()
-            --   else traceDoc $ \env -> text "bad lambda!! before:" <+> niceType env (typeOf expr) <+> text "\n  eff: " <+> niceType env (orderEffect eff) <+> text "\n  req : " <+> niceRq  env rq
-            -- unless (leqRq rq (Eff eff)) $
-              -- traceDoc $ \env -> text "bad lambda!! before:" <+> niceType env (typeOf expr) <+> text "\n  eff: " <+> niceType env (orderEffect eff) <+> text "\n  req : " <+> niceRq  env rq
+            -- The source of effect input of fltExpr
+            -- Not recurse, but use the annotated effect!
+            (body', rq) <- fltExpr body (Just eff)
             let
               body'' = smartRestrictExpr rq (Eff eff) body'
             return (assertTypeInvariant $ Lam args eff body'', Bottom)
@@ -120,8 +110,8 @@ fltExpr expr
     -- TODO Refactor this case. Use foldr or something like that
     Let defgs@[defg] body ->
       do
-          defgIR_rqs <- mapM fltDefGroupAux defgs
-          (body', rq) <- fltExpr body
+          defgIR_rqs <- mapM (\dgs -> fltDefGroupAux dgs mbEff) defgs
+          (body', rq) <- recurse body
           let (defgIRs, rqs) = unzip defgIR_rqs
               rqSup = sup $ rq:rqs
               body'' = smartRestrictExpr rq rqSup body'
@@ -129,15 +119,15 @@ fltExpr expr
           return (assertTypeInvariant $ Let defgs' body'', rqSup)
     Let [] body ->
       do
-        (expr', rq) <- fltExpr body
+        (expr', rq) <- recurse body
         return (Let [] expr', rq)
     Let defgs body ->
         -- daan: this should be fold over the defgs ?
         -- expand because open calls in same defGroups cannot be merged in the middle of the defGroups
-        fltExpr (expandLetExpr expr)
+        recurse (expandLetExpr expr)
     Case exprs bs
-      -> do exprIR_rqs <- mapM fltExpr exprs
-            bIR_rqs <- mapM fltBranch bs
+      -> do exprIR_rqs <- mapM recurse exprs
+            bIR_rqs <- mapM (\b -> fltBranch b mbEff) bs 
             let rqe = foldl supb Bottom $ map snd exprIR_rqs
                 (bIRs, rqbs) = unzip bIR_rqs
                 rqSup = sup $ rqe : rqbs
@@ -147,11 +137,11 @@ fltExpr expr
 
     -- type application and abstraction
     TypeLam tvars body
-      -> do (body', rq) <- fltExpr body
+      -> do (body', rq) <- recurse body
             return (assertTypeInvariant $ TypeLam tvars body', Bottom)
 
     TypeApp body tps
-      -> do (body', rq) <- fltExpr body
+      -> do (body', rq) <- recurse body
             return (assertTypeInvariant $ TypeApp body' tps, rq)
 
     -- the rest
@@ -164,33 +154,34 @@ fltExpr expr
           assertion "OpenFloat. Type invariant violation." (matchType tpBefore tpAfter) expr'
 
 
-fltBranch :: Branch -> Flt (BranchIR, Req)
-fltBranch (Branch pat guards)  =
-  do guard_rqs <- mapM fltGuard guards
+fltBranch :: Branch -> Maybe Effect -> Flt (BranchIR, Req)
+fltBranch (Branch pat guards) mbEff =
+  do guard_rqs <- mapM (\b -> fltGuard b mbEff) guards
      let (guards', rqs) = unzip guard_rqs
      return (BranchIR pat guards', sup rqs)
 
-fltGuard :: Guard -> Flt (GuardIR, Req)
-fltGuard (Guard guard body)  =
-  do (guard', rqg) <- fltExpr guard
-     (body', rqb)  <- fltExpr body
+fltGuard :: Guard -> Maybe Effect -> Flt (GuardIR, Req)
+fltGuard (Guard guard body) mbEff =
+  let recurse e = fltExpr e mbEff in
+  do (guard', rqg) <- recurse guard
+     (body', rqb)  <- recurse body
      return (GuardIR (guard', rqg) (body', rqb), supb rqg rqb)
 
 
 -- daan: why are there separate Aux functions instead of using fltDefGroup?
 
-fltDefGroupAux :: DefGroup -> Flt (DefGroupIR, Req)
-fltDefGroupAux (DefRec defs) =
-  do defIR_rqs <- mapM fltDefAux defs
+fltDefGroupAux :: DefGroup -> Maybe Effect -> Flt (DefGroupIR, Req)
+fltDefGroupAux (DefRec defs) mbEff =
+  do defIR_rqs <- mapM (\d -> fltDefAux d mbEff) defs
      let (defIRs, rqs) = unzip defIR_rqs
      return (DefRecIR defIRs, sup rqs)
-fltDefGroupAux (DefNonRec def) =
-  do (defIR, rq) <- fltDefAux def
+fltDefGroupAux (DefNonRec def) mbEff =
+  do (defIR, rq) <- (\d -> fltDefAux d mbEff) def
      return (DefNonRecIR defIR, rq)
 
-fltDefAux :: Def -> Flt (DefIR, Req)
-fltDefAux def@Def{defExpr=expr}  =
-  do (expr', rq) <- fltExpr expr
+fltDefAux :: Def -> Maybe Effect -> Flt (DefIR, Req)
+fltDefAux def@Def{defExpr=expr} mbEff =
+  do (expr', rq) <- fltExpr expr mbEff
      return (DefIR def{defExpr=expr'} rq, rq)
 
 
