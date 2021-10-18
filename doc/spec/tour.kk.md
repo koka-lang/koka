@@ -1142,11 +1142,11 @@ Moreover, operations declared as `fun` are much more efficient than general
 `ctl` operations. The &koka; compiler uses (generalized) _evidence passing_  [@Xie:evidence-tr;@Xie:evidently]
 to pass down handler information to each call-site. At the call to `ask` in `add-twice`,
 it selects the handler from the evidence vector and when the operation is
-a tail-resumptive `fun`, it calls it directly as a regular function (except with an adjucted evidence
-vector for its context). Unlike a general `control` operation, there is no need to yield upward
+a tail-resumptive `fun`, it calls it directly as a regular function (except with an adjusted evidence
+vector for its context). Unlike a general `ctl` operation, there is no need to yield upward
 to the handler, capture the stack, and eventually resume again. 
 This gives `fun` (and `val`) operations a performance cost very similar to _virtual method calls_ 
-which can be very efficient.
+which can be quite efficient.
 
 For even a bit more performance, you can also declare upfront that any operation
 definition must be tail-resumptive, as:
@@ -1160,6 +1160,15 @@ This restricts all handler definitions for the `:ask` effect to use `fun` defini
 for the `ask` operation. However, it increases the ability to reason about the code,
 and the compiler can optimize such calls a bit more as it no longer needs to check at
 run-time if the handler happens to define the operation as tail-resumptive.
+
+~ advanced
+For even better performance, one can mark the effect as _linear_ (Section [#sec-linear]).
+Such effects are statically guaranteed to never use a general control operation and 
+never need to capture a resumption. During compilation, this removes the need for the monadic transformation
+and improves performance of any effect polymorphic function that uses such effects as well
+(like `map` or `foldr`). Examples of linear effects are state (`:st`) and builtin effects
+(like `:io` or `:console`).
+~
 
 
 #### Value Operations { #sec-opval; }
