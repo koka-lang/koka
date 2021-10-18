@@ -24,7 +24,8 @@ static void kk_block_drop_free(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(b->header.refcount == 0);
   const kk_ssize_t scan_fsize = b->header.scan_fsize;
   if (scan_fsize==0) {
-    if (kk_tag_is_raw(kk_block_tag(b))) { kk_block_free_raw(b,ctx); }
+    // TODO: can we avoid raw object tests?
+    if (kk_unlikely(kk_tag_is_raw(kk_block_tag(b)))) { kk_block_free_raw(b,ctx); }
     kk_block_free(b); // deallocate directly if nothing to scan
   }
   else {
@@ -124,6 +125,8 @@ kk_decl_noinline kk_block_t* kk_block_check_dup(kk_block_t* b, uint32_t rc0) {
 }
 
 // Check if a reference drop caused the block to be free, or needs atomic operations
+// Currently compiles without register spills (on x64) which is important for performance.
+// Be careful when adding more code to not induce stack usage.
 kk_decl_noinline void kk_block_check_drop(kk_block_t* b, uint32_t rc0, kk_context_t* ctx) {
   kk_assert_internal(b!=NULL);
   kk_assert_internal(b->header.refcount == rc0);
@@ -513,7 +516,7 @@ markfields:
         // remember our state and link back to the parent
         kk_block_field_set(b, i-1, _kk_box_new_ptr(parent));  // low-level box as parent can be NULL
         parent = b;
-        parent->header.field_idx = i;
+        parent->header._field_idx = i;
         b = child;
         i = 0;
         scan_fsize = b->header.scan_fsize;
@@ -526,7 +529,7 @@ markfields:
   //--- moving back up ------------------
   while (parent != NULL) {
     // move up
-    i = parent->header.field_idx;
+    i = parent->header._field_idx;
     kk_block_t* pparent = _kk_box_ptr( kk_block_field(parent, i-1) );  // low-level unbox on parent
     kk_block_field_set(parent, i-1, kk_ptr_box(b));  // restore original pointer
     b = parent;
