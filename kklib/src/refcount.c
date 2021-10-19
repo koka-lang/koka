@@ -38,50 +38,49 @@ static void kk_block_drop_free(kk_block_t* b, kk_context_t* ctx) {
 
 
 /*--------------------------------------------------------------------------------------
-  Checked reference counts. 
-  - We interpret the reference count as a signed int32_t. It is declared as `uint32_t` to avoid
-    undefined behavior but we assume two's complement representation (such that MAX_INT32 + 1 == MIN_INT32)
+Checked reference counts. 
 
-    0 <= refcount <= MAX_INT32
-      regular reference counts where use 0 for a unique reference. So a reference count of 10 means there
-      are 11 reference (from the current thread only).
-      If it is dup'd beyond MAX_INT32 it'll overflow automatically into the sticky range (as a negative value)
-
-    MIN_INT32 <= refcount < 0
-      Thread-shared and sticky reference counts. These use atomic increment/decrement operations.
-
-      RC_STICKY_DROP < refcount < 0
-        A thread-shared reference count. A count like -10 means there are a total of 10 references to it
-        and these references may be shared among threads. 
-        (so -1 is a uniquely owned reference count that is (was) thread-shared.)
-        We can thus mark a structure as thread-shared by negating the reference counts
-        and subtracting 1. It also means that dupping a thread-shared reference will 
-        _decrement_ the  count (to become more negative), and dropping _increments_ the count.
-
-      MIN_INT32 <= refcount <= RC_STICKY_DROP
-        The sticky range. An object in this range will never be freed anymore. 
-        Since we first read the reference count non-atomically we need a range
-        for stickiness. Once the refcount <= RC_STICKY_DROP it will never drop anymore 
-        (increment the refcount), and once refcount <= RC_STICKY it will never dup/drop anymore. 
-        We assume that the relaxed reads of the reference counts catch up to the atomic
-        value within the sticky range (which has a range of ~0.5e9 counts).
-
-      MIN_INT32 == RC_STUCK
-        This is used for single threaded refcounts that overflow into MIN_INT32. 
-        The thread-shared refcounts will never get there.
-        
+  positive:
     0                         : unique reference
     0x00000001 - 0x7FFFFFFF   : reference count (in a single thread)   (~2.1e9 counts)
+  negative:
     0x80000000                : sticky: single-threaded stricky reference count (RC_STUCK)
     0x80000001 - 0x90000000   : sticky: neither increment, nor decrement
     0x90000001 - 0xA0000000   : sticky: still decrements (drop) but no more increments
     0xA0000001 - 0xFFFFFFFF   : thread-shared reference counts with atomic increment/decrement. (~1.6e9 counts)
     0xFFFFFFFF                : RC_SHARED_UNIQUE (-1)
-    
+
+  
+  0 <= refcount <= MAX_INT32 
+    regular reference counts where use 0 for a unique reference. So a reference count of 10 means there
+    are 11 reference (from the current thread only).
+    If it is dup'd beyond MAX_INT32 it'll overflow automatically into the sticky range (as a negative value)
+
+  MAX_INT32 < refcount <= MAX_UINT32
+    Thread-shared and sticky reference counts. These use atomic increment/decrement operations.
+
+  MAX_INT32 + 1 == RC_STUCK
+    This is used for single threaded refcounts that overflow. (This is sticky and the object will never be freed)
+    The thread-shared refcounts will never get there.
+
+  MAX_INT32 < refcount <= RC_STICKY_DROP
+    The sticky range. An object in this range will never be freed anymore.
+    Since we first read the reference count non-atomically we need a range
+    for stickiness. Once `refcount <= RC_STICKY_DROP` it will never drop anymore
+    (increment the refcount), and once refcount <= RC_STICKY it will never dup/drop anymore.
+    We assume that the relaxed reads of the reference counts catch up to the atomic
+    value within the sticky range (which has a range of ~0.5e9 counts).
+
+  RC_STICKY_DROP < refcount <= MAX_UINT32 (= RC_UNIQUE_SHARED) 
+    A thread-shared reference count. 
+    The reference count grows down, e.g. if there are N references to a thread-shared object 
+    the reference count is (RC_UNIQUE_SHARED - N + 1), (i.e. in a signed representation it is -N).
+    It means that to dup a thread-shared reference will  _decrement_ the  count,
+    and to drop will _increment_ the count.
 
   Atomic memory ordering:
   - Increments can be relaxed as there is no dependency on order, the owner
-    could access fields just as well before or after incrementing
+    could access fields just as well before or after incrementing.
   - Decrements must use release order though: after decrementing the owner should
     no longer read/write to the object so no reads/writes are allowed to be reordered
     to occur after the decrement.
