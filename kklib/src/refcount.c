@@ -46,7 +46,7 @@ Checked reference counts.
   negative:
     0x80000000                : sticky: single-threaded stricky reference count (RC_STUCK)
     0x80000001 - 0x90000000   : sticky: neither increment, nor decrement
-    0x90000001 - 0xA0000000   : sticky: still decrements (drop) but no more increments
+    0x90000001 - 0xA0000000   : sticky: still decrements (dup) but no more increments (drop)
     0xA0000001 - 0xFFFFFFFF   : thread-shared reference counts with atomic increment/decrement. (~1.6e9 counts)
     0xFFFFFFFF                : RC_SHARED_UNIQUE (-1)
 
