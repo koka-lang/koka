@@ -1523,6 +1523,9 @@ genExpr expr
 genExprPrim expr
   = -- trace ("genExpr: " ++ show expr) $
     case expr of
+     Con _ _              -> genConEtaExpand expr
+     TypeApp (Con _ _) _  -> genConEtaExpand expr
+
      TypeApp e _ -> genExpr e
      TypeLam _ e -> genExpr e
 
@@ -1556,6 +1559,14 @@ genExprPrim expr
             _ -> failure ("Backend.C.FromCore.genExpr: invalid partially applied external:\n" ++ show expr)
      _ -> failure ("Backend.C.FromCore.genExpr: invalid expression:\n" ++ show expr)
 
+
+genConEtaExpand cexpr
+  = case splitFunScheme (typeOf cexpr) of
+      Just (_,_,tpars,teff,tres) 
+        -> do names <- newVarNames (length tpars)
+              let tnames = [TName name tp | (name,(_,tp)) <- zip names tpars]
+              genExpr $ Lam tnames teff (App cexpr [Var tname InfoNone | tname <- tnames]) 
+      _ ->failure ("Backend.C.FromCore.genExpr: invalid partially applied constructor:\n" ++ show cexpr)
 
 genExprs :: [Expr] -> Asm ([Doc],[Doc])
 genExprs exprs
@@ -2037,7 +2048,9 @@ isPureExpr expr
       TypeLam _ expr  -> isPureExpr expr
       Var _ (InfoExternal{}) -> False
       Var _ _ -> True
-      Con _ _ -> True
+      Con _ _ -> case splitFunScheme (typeOf expr) of 
+                   Just _ -> False  -- partially applied constructor gets eta-expanded
+                   _      -> True
       Lit (LitString _) -> False  -- for our purposes, it's not pure (as it needs a declaration)
       Lit _   -> True
       Lam _ _ _ -> True
