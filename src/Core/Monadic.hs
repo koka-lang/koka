@@ -44,7 +44,7 @@ import Core.Pretty
 import Core.CoreVar
 
 trace s x =
-  -- Lib.Trace.trace s
+   -- Lib.Trace.trace s
     x
 
 monTransform :: Pretty.Env -> CorePhase ()
@@ -128,11 +128,12 @@ monExpr' topLevel expr
                            _ -> do monTraceDoc $ \env -> text "Core.Monadic.App: illegal application:" <+> ppType env ftp
                                    failure ("Core.Monadic.App: illegal application")
               if ((not (isMonType ftp || isAlwaysMon f)) || isNeverMon f)
-               then return $ \k -> f' (\ff ->
-                                        applies args' (\argss ->
-                                           k (App ff argss)
-                                       ))
-               else  do -- monTraceDoc $ \env -> text "app mon:" <+> prettyExpr env expr
+               then do monTraceDoc $ \env -> text "app non-mon: eff:" <+> pretty feff <+> text ", expr:" <+> prettyExpr env expr
+                       return $ \k -> f' (\ff ->
+                                            applies args' (\argss ->
+                                              k (App ff argss)
+                                          ))
+               else  do monTraceDoc $ \env -> text "app mon:" <+> prettyExpr env expr
                         nameY <- uniqueName "y"
                         return $ \k ->
                           let resTp = typeOf expr
@@ -174,8 +175,8 @@ monExpr' topLevel expr
       -- type application and abstraction
       TypeLam tvars body
         -> do body' <- monExpr' topLevel body
-              -- return $ \k -> body' (\xx -> k (TypeLam tvars xx))
-              return $ \k -> k (TypeLam tvars (body' id))
+              return $ \k -> body' (\xx -> k (TypeLam tvars xx))
+              -- return $ \k -> k (TypeLam tvars (body' id))
 
       TypeApp body tps
         -> do body' <- monExpr' topLevel body

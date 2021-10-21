@@ -1,9 +1,9 @@
 effect get-id {
-  control get-id-op(): (a -> a) 
+  control get-id-op<a>() : (a -> a)
 }
 
 fun test() {
-  val f : forall<a> a -> a = get-id-op()     // can we generalize the get-id-op result $a -> $a ?
+  val f : forall<a> a -> a = get-id-op()
   if (f(True)) then (f(0) + 1) else 2
 }
 
@@ -14,5 +14,5 @@ val h = handler {
 }
 
 fun main() {
-  h(test) // 1
+  h(test) 
 }

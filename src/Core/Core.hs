@@ -817,7 +817,8 @@ isMonType tp
     case expandSyn tp of
       TForall vars preds t -> isMonType t
       TFun pars eff res    -> isMonEffect eff
-      _ -> False
+      _ -> -- trace ("isMonType is false: " ++ show (pretty tp)) 
+           False
 
 isMonEffect :: Effect -> Bool
 isMonEffect eff
