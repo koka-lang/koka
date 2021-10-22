@@ -3,7 +3,7 @@ effect get-id {
 }
 
 fun test() {
-  val f : forall<a> a -> a = get-id-op()
+  val f : forall<a> a -> a = get-id-op()     // can we generalize the get-id-op result $a -> $a ?
   if (f(True)) then (f(0) + 1) else 2
 }
 
@@ -14,5 +14,5 @@ val h = handler {
 }
 
 fun main() {
-  h(test) 
+  h(test) // 1
 }

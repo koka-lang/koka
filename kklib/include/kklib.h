@@ -1,8 +1,8 @@
 ﻿#pragma once
 #ifndef KKLIB_H
-#define KKLIB_H
+#define KKLIB_H 
 
-#define KKLIB_BUILD        63       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        69       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1
 
@@ -80,30 +80,34 @@ static inline bool kk_tag_is_raw(kk_tag_t tag) {
 
 // Every heap block starts with a 64-bit header with a reference count, tag, and scan fields count.
 // The reference count is 0 for a unique reference (for a faster free test in drop).
-// Reference counts larger than 0x8000000 use atomic increment/decrement (for thread shared objects).
+// Reference counts larger than 0x8000000 (i.e. < 0) use atomic increment/decrement (for thread shared objects).
 // (Reference counts are always 32-bit (even on 64-bit) platforms but get "sticky" if
-//  they get too large (>0xC0000000) and in such case we never free the object, see `refcount.c`)
-// If the scan_fsize == 0xFF, the full scan count is in the first field as a boxed int
-// (and this full scan count does _not_ include the scan count field itself).
+//  they get too large and in such case we never free the object, see `refcount.c`)
+// If the scan_fsize == 0xFF, the full scan count is in the first field as a boxed int (which includes the scan field itself).
 typedef struct kk_header_s {
   uint8_t   scan_fsize;       // number of fields that should be scanned when releasing (`scan_fsize <= 0xFF`, if 0xFF, the full scan size is the first field)
-  uint8_t   thread_shared : 1;
-  uint16_t  tag;              // header tag
+  uint8_t   _field_idx;       // private: only used during stack-less marking (see `refcount.c`)
+  uint16_t  tag;              // constructor tag
   uint32_t  refcount;         // reference count  (last to reduce code size constants in kk_header_init)
 } kk_header_t;
 
 #define KK_SCAN_FSIZE_MAX (0xFF)
-#define KK_HEADER(scan_fsize,tag)         { scan_fsize, 0, tag, 0}             // start with refcount of 0
-#define KK_HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 0, tag, KU32(0xFF00)}  // start with recognisable refcount (anything > 1 is ok)
+#define KK_HEADER(scan_fsize,tag)         { scan_fsize, 0, tag, 0}                 // start with refcount of 0
+#define KK_HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 0, tag, KU32(0x80000000)}  // start with a stuck refcount (RC_STUCK)
 
 static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_tag_t tag) {
   kk_assert_internal(scan_fsize >= 0 && scan_fsize <= KK_SCAN_FSIZE_MAX);
-#if (KK_ARCH_LITTLE_ENDIAN)
-  * ((uint64_t*)h) = ((uint64_t)scan_fsize | (uint64_t)tag << 16); // explicit shifts leads to better codegen  
+#if (KK_ARCH_LITTLE_ENDIAN && !defined(__aarch64__))
+  * ((uint64_t*)h) = ((uint64_t)scan_fsize | (uint64_t)tag << 16); // explicit shifts leads to better codegen in general
 #else
   kk_header_t header = KK_HEADER((uint8_t)scan_fsize, (uint16_t)tag);
   *h = header;
 #endif  
+}
+
+// Are there (possibly) references from other threads? (includes static variables)
+static inline bool kk_refcount_is_thread_shared(uint32_t rc) {
+  return ((int32_t)rc < 0);
 }
 
 
@@ -178,7 +182,7 @@ typedef struct kk_block_s {
   kk_header_t header;
 } kk_block_t;
 
-// A large block has a (boxed) large scan size for vectors.
+// A large block has a (boxed) large scan size (currently only used for vectors).
 typedef struct kk_block_large_s {
   kk_block_t  _block;
   kk_box_t    large_scan_fsize; // if `scan_fsize == 0xFF` there is a first field with the full scan size
@@ -219,6 +223,10 @@ static inline kk_decl_pure bool kk_block_is_unique(const kk_block_t* b) {
   return (kk_likely(b->header.refcount == 0));
 }
 
+static inline kk_decl_pure bool kk_block_is_thread_shared(const kk_block_t* b) {
+  return (kk_unlikely(kk_refcount_is_thread_shared(b->header.refcount)));
+}
+
 typedef struct kk_block_fields_s {
   kk_block_t _block;
   kk_box_t   fields[1];
@@ -227,6 +235,11 @@ typedef struct kk_block_fields_s {
 static inline kk_box_t kk_block_field(kk_block_t* b, kk_ssize_t index) {
   kk_block_fields_t* bf = (kk_block_fields_t*)b;  // must overlap with datatypes with scanned fields.
   return bf->fields[index];
+}
+
+static inline void kk_block_field_set(kk_block_t* b, kk_ssize_t index, kk_box_t v) {
+  kk_block_fields_t* bf = (kk_block_fields_t*)b;  // must overlap with datatypes with scanned fields.
+  bf->fields[index] = v;
 }
 
 #if (KK_INTPTR_SIZE==8)
@@ -333,7 +346,7 @@ typedef struct kk_context_s {
   kk_function_t  log;              // logging function
   kk_function_t  out;              // std output
   kk_task_group_t* task_group;     // task group for managing threads. NULL for the main thread.
-
+  
   struct kk_random_ctx_s* srandom_ctx; // strong random using chacha20, initialized on demand
   kk_ssize_t     argc;             // command line argument count 
   const char**   argv;             // command line arguments
@@ -382,6 +395,7 @@ static inline int32_t kk_marker_unique(kk_context_t* ctx) {
 
 kk_decl_export void kk_block_mark_shared( kk_block_t* b, kk_context_t* ctx );
 kk_decl_export void kk_box_mark_shared( kk_box_t b, kk_context_t* ctx );
+kk_decl_export void kk_box_mark_shared_recx(kk_box_t b, kk_context_t* ctx);
 
 /*--------------------------------------------------------------------------------------
   Allocation
@@ -458,7 +472,10 @@ static inline void kk_block_init(kk_block_t* b, kk_ssize_t size, kk_ssize_t scan
 
 static inline void kk_block_large_init(kk_block_large_t* b, kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag) {
   KK_UNUSED(size);
-  kk_header_init(&b->_block.header, KK_SCAN_FSIZE_MAX, tag);
+  // to optimize for "small" vectors with less than 255 scanable elements, we still set the small scan_fsize
+  // for those in the header. This is still duplicated in the large scan_fsize field as it is used for the vector length for example.
+  uint8_t bscan_fsize = (scan_fsize >= KK_SCAN_FSIZE_MAX ? KK_SCAN_FSIZE_MAX : (uint8_t)scan_fsize);
+  kk_header_init(&b->_block.header, bscan_fsize, tag);
   kk_assert_internal(scan_fsize > 0);
   b->large_scan_fsize = kk_int_box(scan_fsize);  
 }
@@ -526,6 +543,14 @@ static inline void kk_block_free(kk_block_t* b) {
 
 /*--------------------------------------------------------------------------------------
   Reference counting
+  0    : unique reference
+  > 0  : non thread-shared reference
+  < 0  : thread-shared or sticky
+
+  The main performance trick is to do one single test in a dup/drop for the fast path.
+  In drop we can check `rc > 0` to decrement in place, or check further if we need
+  atomic decrement or can free (in case rc==0). The kk_block_check_xxx routines are not
+  inlined and we get nice inlined assembly for the fast path with the single check.
 --------------------------------------------------------------------------------------*/
 
 kk_decl_export void        kk_block_check_drop(kk_block_t* b, uint32_t rc, kk_context_t* ctx);
@@ -533,7 +558,7 @@ kk_decl_export void        kk_block_check_decref(kk_block_t* b, uint32_t rc, kk_
 kk_decl_export kk_block_t* kk_block_check_dup(kk_block_t* b, uint32_t rc);
 kk_decl_export kk_reuse_t  kk_block_check_drop_reuse(kk_block_t* b, uint32_t rc0, kk_context_t* ctx);
 
-
+// Dup a reference.
 static inline kk_block_t* kk_block_dup(kk_block_t* b) {
   kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;
@@ -546,6 +571,7 @@ static inline kk_block_t* kk_block_dup(kk_block_t* b) {
   }
 }
 
+// Drop a reference: decrement the reference count, and if it was 0 drop the children recursively
 static inline void kk_block_drop(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;
@@ -557,6 +583,8 @@ static inline void kk_block_drop(kk_block_t* b, kk_context_t* ctx) {
   }
 }
 
+
+// Decrement a reference count, and if it was 0 free the block (without freeing the children)
 static inline void kk_block_decref(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
   const uint32_t rc = b->header.refcount;  
@@ -564,7 +592,7 @@ static inline void kk_block_decref(kk_block_t* b, kk_context_t* ctx) {
     b->header.refcount = rc - 1;
   }
   else {
-    kk_block_check_decref(b, rc, ctx);  // thread-shared, sticky (overflowed), or can be freed? TODO: should just free; not drop recursively
+    kk_block_check_decref(b, rc, ctx);  // thread-shared, sticky (overflowed), or can be freed? 
   }
 }
 
@@ -940,13 +968,12 @@ static inline void kk_unsupported_external(const char* msg) {
 // Tag for value types is always an integer
 typedef kk_integer_t kk_value_tag_t;
 
-// Use inlined #define to enable constant initializer expression
-/*
-static inline kk_value_tag_t kk_value_tag(kk_uintx_t tag) {
-  return kk_integer_from_small((kk_intx_t)tag);
-}
-*/
 #define kk_value_tag(tag) (kk_integer_from_small(tag))   
+
+static inline bool kk_value_tag_eq(kk_value_tag_t x, kk_value_tag_t y) {
+  // note: x or y may be box_any so don't assert they are smallints
+  return (_kk_integer_value(x) == _kk_integer_value(y));
+}
 
 /*--------------------------------------------------------------------------------------
   Functions
@@ -993,7 +1020,7 @@ static inline kk_function_t kk_function_dup(kk_function_t f) {
 
 typedef struct kk_vector_large_s {  // always use a large block for a vector so the offset to the elements is fixed
   struct kk_block_large_s _base;
-  kk_box_t                vec[1];               // vec[(large_)scan_fsize]
+  kk_box_t                vec[1];               // vec[(large_)scan_fsize - 1]
 } *kk_vector_large_t;
 
 
@@ -1024,7 +1051,10 @@ static inline kk_vector_t kk_vector_alloc_uninit(kk_ssize_t length, kk_box_t** b
     return kk_vector_empty();
   }
   else {
-    kk_vector_large_t v = (kk_vector_large_t)kk_block_large_alloc(kk_ssizeof(struct kk_vector_large_s) + (length-1)*kk_ssizeof(kk_box_t), length /* do not count the kk_large_scan_fsize itself */, KK_TAG_VECTOR, ctx);
+    kk_vector_large_t v = (kk_vector_large_t)kk_block_large_alloc(
+        kk_ssizeof(struct kk_vector_large_s) + (length-1)*kk_ssizeof(kk_box_t),  // length-1 as the vector_large_s already includes one element 
+        length + 1, // +1 to include the kk_large_scan_fsize field itself 
+        KK_TAG_VECTOR, ctx);
     if (buf != NULL) *buf = &v->vec[0];
     return kk_datatype_from_base(&v->_base);
   }
@@ -1048,9 +1078,9 @@ static inline kk_box_t* kk_vector_buf_borrow(kk_vector_t vd, kk_ssize_t* len) {
   }
   else {
     if (len != NULL) {
-      *len = (kk_ssize_t)kk_int_unbox(v->_base.large_scan_fsize);
-      kk_assert_internal(*len == kk_block_scan_fsize(&v->_base._block));
-      kk_assert_internal(*len != 0);
+      *len = (kk_ssize_t)kk_int_unbox(v->_base.large_scan_fsize) - 1;  // exclude the large scan_fsize field itself
+      kk_assert_internal(*len + 1 == kk_block_scan_fsize(&v->_base._block));
+      kk_assert_internal(*len > 0);
     }
     return &(v->vec[0]);
   }
@@ -1123,7 +1153,7 @@ static inline kk_ref_t kk_ref_alloc(kk_box_t value, kk_context_t* ctx) {
 }
 
 static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
-  if (kk_likely(r->_block.header.thread_shared == 0)) {
+  if (kk_likely(!kk_block_is_thread_shared(&r->_block))) {
     // fast path
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
     kk_box_dup(b);
@@ -1137,7 +1167,7 @@ static inline kk_box_t kk_ref_get(kk_ref_t r, kk_context_t* ctx) {
 }
 
 static inline kk_box_t kk_ref_swap_borrow(kk_ref_t r, kk_box_t value) {
-  if (kk_likely(r->_block.header.thread_shared == 0)) {
+  if (kk_likely(!kk_block_is_thread_shared(&r->_block))) {
     // fast path
     kk_box_t b; b.box = kk_atomic_load_relaxed(&r->value);
     kk_atomic_store_relaxed(&r->value, value.box);

@@ -1057,6 +1057,7 @@ bool kk_os_set_stack_size( kk_ssize_t stack_size ) {
 }
 #else
 bool kk_os_set_stack_size( kk_ssize_t stack_size ) {
+  KK_UNUSED(stack_size);
   return false;
 }
 #endif

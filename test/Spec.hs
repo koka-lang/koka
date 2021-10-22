@@ -25,9 +25,9 @@ data Mode = Test | New | Update
   deriving (Eq, Ord, Show)
 
 
-data Options = Options{ mode :: Mode, cabal :: Bool, sysghc:: Bool, opt :: Int, js :: Bool }
+data Options = Options{ mode :: Mode, cabal :: Bool, sysghc:: Bool, opt :: Int, js :: Bool, par :: Bool }
 
-optionsDefault = Options Test False False 0 False
+optionsDefault = Options Test False False 0 False True
 
 data Cfg = Cfg{ flags   :: [String],
                 options :: Options,
@@ -96,6 +96,11 @@ testSanitize kokaDir
   . sub "<[[:digit:]]+>" "<0>"
   -- self-evident effect annotation
   . sub "<\\(<>\\)>" ""
+  -- for tests using --showhiddentypesigs,
+  -- e.g. .lift250-main => .lift000-main
+  --      f: (z00.192 : a) -> a => f: (a.00.000 : a) -> a
+  . sub "(\\.m?)lift[[:digit:]]+" "\\1lift000"
+  . sub "(^[[:alnum:]]+\\/.+:.*) [[:alpha:]]+[[:digit:]]+\\.[[:digit:]]+ :" "\\1 a00.000 :"
   -- . sub ": [[:digit:]]+([,\\)])" ": 0\\1"
   . replace kokaDir "..."
   where 
@@ -111,7 +116,7 @@ runKoka :: Cfg -> FilePath -> FilePath -> IO String
 runKoka cfg kokaDir fp
   = do caseFlags <- readFlagsFile (fp ++ ".flags")
        let relTest = makeRelative kokaDir fp
-           optFlag   = if (opt (options cfg) > 0) then ["-O" ++ show (opt (options cfg))] else []
+           optFlag   = if (opt (options cfg) /= 0) then ["-O" ++ show (opt (options cfg))] else []
            kokaFlags = flags cfg ++ optFlag ++ caseFlags 
        if (cabal (options cfg))
          then do let argv = ["new-run", "koka", "--"] ++ kokaFlags ++ [relTest]
@@ -185,6 +190,8 @@ processOptions arg (options,hargs)
       then (options{sysghc=True}, hargs)
     else if (arg == "--target-js")
       then (options{js=True}, hargs)
+    else if (arg == "--seq")
+      then (options{par=False}, hargs)
       else (options, arg : hargs)
   where
     parseMode :: String -> Mode
@@ -211,7 +218,7 @@ main = do
   let cfg = initialCfg options
   runKoka cfg "" "util/link-test.kk" 
   putStrLn "ok."
-  let spec = (if (js options) then id else parallel) $ 
+  let spec = (if (js options || not (par options)) then id else parallel) $ 
              discoverTests cfg (pwd </> "test")
   summary <- withArgs [] (runSpec spec hcfg{configFormatter=Just specProgress})
   evaluateSummary summary

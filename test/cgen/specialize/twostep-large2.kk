@@ -3,11 +3,10 @@ fun repeatN(i, f) {
 }
 
 fun large(f) : total _ {
-    // list(1, 10).map(f).sum
     repeatN(10) {
         repeatN(10) {
             repeatN(10) {
-                list(1, 10).map(f).sum
+                list(1, 10).map(inc).sum
             }
         }
     }.concat.concat.sum
@@ -19,8 +18,11 @@ fun calls-large(f) {
 }
 
 fun main() {
-    // does not specialize
-    calls-large() fn(x) {
-        x + 1
-    }
+    // does not specialize, since large is not inline here
+    // calls-large() fn(x) {
+    //     x + 1
+    // }
+    
+    // also does not specialize; large is too big to inline here
+    large(inc).println
 }

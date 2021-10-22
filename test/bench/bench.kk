@@ -23,6 +23,7 @@ val all-test-names = ["rbtree","rbtree-ck","deriv","nqueens","cfold","binarytree
 val all-lang-names = [
   ("koka","kk"),
   ("kokax","kkx"),
+  ("kokadev","kkdev"),
   ("ocaml","ml"),
   ("haskell","hs"),
   ("swift","sw"),
@@ -305,6 +306,7 @@ fun run-test( test-name : string, langt : (string,string), iterations : int ) : 
   // val dir  = "out/" ++ lang
   val dir  = if (lang=="kk") then "koka/out/bench"
              elif (lang=="kkx") then "koka/outx/bench"
+             elif (lang=="kkdev") then "koka/outdev/bench"
              else lang-long  
   val base = lang ++ "-" ++ test-name
   val prog = if (lang-long=="java")

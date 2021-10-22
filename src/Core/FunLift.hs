@@ -17,6 +17,7 @@ module Core.FunLift( liftFunctions
 import qualified Lib.Trace
 import Control.Monad
 import Control.Applicative
+import Data.List( partition )
 
 import Lib.PPrint
 import Common.Failure
@@ -42,13 +43,18 @@ trace s x =
   Lib.Trace.trace s
     x
 
-enableLifting = True
+traceGroups :: [DefGroup] -> String
+traceGroups dgs 
+  = show (map showDG dgs) 
+  where
+    showDG (DefRec defs) = show (map defName defs)
+    showDG (DefNonRec def) = show (defName def)    
+
 
 liftFunctions :: Pretty.Env -> CorePhase ()
 liftFunctions penv 
   = liftCorePhaseUniq $ \uniq defs ->
-    if enableLifting then runLift penv uniq (liftDefGroups True defs)
-                     else (defs,uniq)
+    runLift penv uniq (liftDefGroups True defs)
 
 
 {--------------------------------------------------------------------------
@@ -64,12 +70,21 @@ liftDefGroups topLevel defGroups
 liftDefGroup :: Bool {-toplevel -} -> DefGroup -> Lift DefGroups
 liftDefGroup True (DefNonRec def)
   = do (def', groups) <- collectLifted $ liftDef True def
+       -- trace ("liftDefNonRec: " ++ show (defName def) ++ ":\n - " ++ traceGroups groups) $
        return $  groups ++ [DefNonRec def'] -- all lifted definitions are put before the current definition
 
 liftDefGroup True (DefRec defs)
-  = do (defs', groups) <- collectLifted $ mapM (liftDef True) defs
-       let groups' = flattenDefGroups groups
-       return [DefRec (groups' ++ defs')] -- defs' depend on groups', groups' might depend on defs'
+  = do (defs', dgroups) <- collectLifted $ mapM (liftDef True) defs
+       -- defs' depend on dgroups, but dgroups might depend on defs'
+       -- we could to a topological sort here (as in Static/BindingGroups) but for simplicity
+       -- we approximate here for now. 
+       -- Note that it can be important to have precice DefRec groups for other optimizations, like TRMC. (src/Core/CTail)
+       let dnames = defsTNames defs'
+           (gnonrecs,grecs) = partition (\dg -> tnamesDisjoint (fv dg) dnames) dgroups
+       -- trace ("liftDefRec: " ++ show (map defName defs) ++ ":\n - " ++ traceGroups gnonrecs ++ "\n - " ++ traceGroups grecs) $
+       return (gnonrecs ++ [DefRec (flattenDefGroups grecs ++ defs')]) 
+
+
 
 liftDefGroup False (DefNonRec def)
   = do def' <- liftDef False def
@@ -86,7 +101,7 @@ liftDefGroup False (DefRec defs)
        let subst       = zip names callExprs
            liftedDefs  = map (substWithLiftedExpr subst) liftedDefs0
        groups <- liftDefGroup True (DefRec liftedDefs) -- lift all recs to top-level
-       -- atrace ("lifted: " ++ show (map defName liftedDefs)) $
+       -- traceDoc $ \penv -> text ("lifted: " ++ show (map defName liftedDefs)) 
        emitLifteds groups
 
        let defs' = zipWith (\def callExpr -> def{ defExpr = callExpr

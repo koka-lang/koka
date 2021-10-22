@@ -407,7 +407,6 @@ getEnvVar name
          Just val -> return val
          Nothing  -> return ""
 
-
 realPath :: FilePath -> IO FilePath
 realPath fpath 
   = canonicalizePath fpath

@@ -22,21 +22,22 @@ import Type.Type
 import qualified Type.Pretty as Pretty
 
 import Lib.PPrint
-import Common.NamePrim( nameConFieldsAssign, nameAllocAt, nameReuseIsValid, nameDup )
+import Common.NamePrim( nameConFieldsAssign, nameAllocAt, nameReuseIsValid, nameDup, nameSetTag, nameConTagFieldsAssign )
 import Common.Failure
 import Common.Unique
 import Common.Syntax
 
 import Core.Core
 import Core.Pretty
+import Kind.Newtypes (Newtypes, newtypesLookupAny)
 
 --------------------------------------------------------------------------
 -- Specialize reuse applications
 --------------------------------------------------------------------------
 
-parcReuseSpecialize :: Pretty.Env -> Core -> Unique Core
-parcReuseSpecialize penv core
-  = do defs <- runReuse penv (ruDefGroups (coreProgDefs core))
+parcReuseSpecialize :: Pretty.Env -> Newtypes -> Core -> Unique Core
+parcReuseSpecialize penv newtypes core
+  = do defs <- runReuse penv newtypes (ruDefGroups (coreProgDefs core))
        return core{coreProgDefs=defs}
 
 --------------------------------------------------------------------------
@@ -114,60 +115,70 @@ ruGuard (Guard test expr)
 -- Specialization
 --------------------------------------------------------------------------
 
+-- | Try to specialize an allocation at a reuse.
+-- We will only do this if we can get the necessary ConInfo 
+-- and save at least a fourth of the necessary assignments.
 ruSpecialize :: TName -> Pattern -> Expr -> Reuse (Maybe Expr)
 ruSpecialize reuseName reusePat conApp
-  = -- TODO: generate reuse specialized code by matching reusePat with the conApp
-    -- conApp will be (App (Con _ _) [args]) or (App (TApp (Con _ _) targs) args))
-    --  Cons@r(2,dup(xs)) ~> dup(xs); Cons@r(2,xs)
-    --                    ~> dup(xs);
-    --                       if (r!=NULL) then { r->tail = xs; r->head = 2; r }
-    --                                    else { Cons(2,xs)  ===  p = alloc(n); p->tail = xs; p->head=2; p }
-    {-
-    r@ C' p1 ... pN
-    C a1 ... aN
-
-    *is C == C' ?
-    *match each p_i with a_i: if p_i is a variable x  and a_i == x or dup(x)  -> good
-    *profitable? if at least one field is reused? other measures?
-    *bind each argument that is not a "value"
-    -}
-    case (conApp,reusePat) of
-      (App con@(Con cname repr) args, PatCon{patConName,patConPatterns,patConInfo})
-        | cname == patConName -> ruSpecCon reuseName cname patConInfo (typeOf conApp) (App con) args patConPatterns
-      (App con@(TypeApp (Con cname repr) targs) args, PatCon{patConName,patConPatterns,patConInfo})
-        | cname == patConName -> ruSpecCon reuseName cname patConInfo (typeOf conApp) (App con) args patConPatterns
+  = case (conApp,reusePat) of
+      (App con args, PatCon{patConName, patConPatterns})
+        -> case extractCon con of
+             Just (cname, repr)
+               -> do mci <- getConInfo (typeOf con) (getName cname)
+                     let matches = zipWith tryMatch args patConPatterns
+                         needsTag = patConName /= cname
+                         oldTagBenefit = if needsTag then 0 else 1
+                         specialize = oldTagBenefit + length (filter isMatch matches) >= 1 + ((1 + length args) `div` 4)
+                     case (mci, specialize) of
+                       (Just ci, True)
+                         -> Just <$> ruSpecCon reuseName cname ci needsTag (conTag repr) (typeOf conApp) (App con) matches
+                       _ -> return Nothing
+             Nothing -> return Nothing
       _ -> return Nothing
+  where
+    extractCon (Con cname repr) = Just (cname, repr)
+    extractCon (TypeApp (Con cname repr) _) = Just (cname, repr)
+    extractCon _ = Nothing
 
-ruSpecCon :: TName -> TName -> ConInfo -> Type -> ([Expr] -> Expr) -> [Expr] -> [Pattern] -> Reuse (Maybe Expr)
-ruSpecCon reuseName conName conInfo resultType makeConApp args pats
-  = let matches = map tryMatch (zip args pats)
-        specialize = (length (filter isMatch matches) >= 1 + (length args `div` 4))   -- more than 1/4th matches
-    in if (not specialize) then return Nothing else
-        do xs <- mapM ruToAssign matches
-           let fields     = map fst (conInfoParams conInfo)
-               (defss,assigns) = unzip xs
-               reuseExpr = genConFieldsAssignEx resultType conName reuseName (zip fields assigns)
-               specExpr  = genReuseIfValid reuseName reuseExpr (makeConApp (map fst assigns))
-           return (Just (makeLet (concat defss) specExpr))
+-- | Move dups before the allocation and emit:
+-- if(reuseName != NULL) { set tag and fields }
+-- else { allocate constructor without reuse }
+ruSpecCon :: TName -> TName -> ConInfo -> Bool -> Int -> Type -> ([Expr] -> Expr) -> [Match] -> Reuse Expr
+ruSpecCon reuseName conName conInfo needsTag tag resultType makeConApp matches
+  = do (defss, assigns) <- unzip <$> mapM ruToAssign matches
+       let fields = map fst (conInfoParams conInfo)
+           nonMatching = [(name,expr) | (name,(expr,isMatch)) <- zip fields assigns, not isMatch]
+           reuseExpr = if needsTag then genConTagFieldsAssign resultType conName reuseName tag nonMatching
+                                   else genConFieldsAssign resultType conName reuseName nonMatching
+           specExpr = makeIfExpr (genReuseIsValid reuseName) reuseExpr (makeConApp (map fst assigns))
+       return (makeLet (concat defss) specExpr)
 
-data Match = Match { pre :: [Expr], arg :: Expr }
-           | NoMatch { arg :: Expr }
+data Match
+  = Match { pre :: [Expr], arg :: Expr }
+  | NoMatch { arg :: Expr }
 
-isMatch (Match{}) = True
-isMatch _         = False
+isMatch :: Match -> Bool
+isMatch Match{} = True
+isMatch _       = False
 
-tryMatch :: (Expr,Pattern) -> Match
-tryMatch (expr,pat)
+-- | Determine if we write the same value back that is currently in this place.
+-- This is the case if the expression is:
+--   - the same variable as in the pattern
+--   - a dup on the same variable as in the pattern
+--   - a unit constructor that was also in the pattern
+-- We do not check for non-unit constructors because these may be reused
+-- (and specialized) as well.
+tryMatch :: Expr -> Pattern -> Match
+tryMatch expr pat
   = case (expr,pat) of
       (Var vname _, PatVar pname _)  -- direct match (x == x)
          | vname == pname -> Match [] expr
       (App (Var dname _) [v@(Var vname _)], PatVar pname _)  -- match dup (x == dup(x))
          | getName dname == nameDup && vname == pname -> Match [expr] v
-      (Con cname _, PatCon{patConName,patConPatterns = []}) 
+      (Con cname _, PatCon{patConName,patConPatterns = []})
          | cname == patConName -> Match [] expr
-      (Con cname _, PatVar pname (PatCon{patConName,patConPatterns = []})) 
-         | cname == patConName -> Match [] (Var pname InfoNone)
-      -- (App con@(Con cname repr) args, PatCon{patConName,patConPatterns,patConInfo})
+      (Con cname _, PatVar pname (PatCon{patConName,patConPatterns = []}))
+         | cname == patConName -> Match [] expr
       _ -> NoMatch expr
 
 ruToAssign :: Match -> Reuse ([DefGroup],(Expr,Bool {-is match?-}))
@@ -180,32 +191,47 @@ ruToAssign (NoMatch expr)
              let var = Var (TName name (typeOf expr)) InfoNone
              return ([def],(var,False))
 
--- generates: if (reuseName != NULL) then onValid else onInvalid
-genReuseIfValid :: TName -> Expr -> Expr -> Expr
-genReuseIfValid reuseName onValid onInvalid
-  = makeIfExpr (genReuseIsValid reuseName) onValid onInvalid
-
 genReuseIsValid :: TName -> Expr
 genReuseIsValid reuseName
   = App (Var (TName nameReuseIsValid typeReuseIsValid) (InfoExternal [(C CDefault,"kk_likely(#1!=NULL)")])) [Var reuseName InfoNone]
   where
     typeReuseIsValid = TFun [(nameNil,typeReuse)] typeTotal typeBool
 
-genConFieldsAssignEx :: Type -> TName -> TName -> [(Name,(Expr,Bool))] -> Expr
-genConFieldsAssignEx resultType conName reuseName fieldExprs
-  = genConFieldsAssign resultType conName reuseName $
-    [(name,expr) | (name,(expr,isMatch)) <- fieldExprs, not isMatch]  -- only assign not matching
-
 -- genConFieldsAssign tp conName reuseName [(field1,expr1)...(fieldN,exprN)]
+-- generates:  c = (conName*)reuseName; c->field1 := expr1; ... ; c->fieldN := exprN; (tp*)(c)
+genConTagFieldsAssign :: Type -> TName -> TName -> Int -> [(Name,Expr)] -> Expr
+genConTagFieldsAssign resultType conName reuseName tag fieldExprs
+  = App (Var (TName nameConTagFieldsAssign typeConFieldsAssign) (InfoArity 0 (length fieldExprs + 1)))
+        ([Var reuseName (InfoConField conName nameNil), Var (TName (newName (show tag)) typeUnit) InfoNone] ++ map snd fieldExprs)
+  where
+    fieldTypes = [(name,typeOf expr) | (name,expr) <- fieldExprs]
+    typeConFieldsAssign = TFun ([(nameNil,typeOf reuseName), (nameNil, typeUnit)] ++ fieldTypes) typeTotal resultType
+
+-- genConTagFieldsAssign tp conName reuseName [(field1,expr1)...(fieldN,exprN)]
 -- generates:  c = (conName*)reuseName; c->field1 := expr1; ... ; c->fieldN := exprN; (tp*)(c)
 genConFieldsAssign :: Type -> TName -> TName -> [(Name,Expr)] -> Expr
 genConFieldsAssign resultType conName reuseName fieldExprs
   = App (Var (TName nameConFieldsAssign typeConFieldsAssign) (InfoArity 0 (length fieldExprs + 1)))
-        ([Var reuseName (InfoConField conName nameNil)] ++ map snd fieldExprs)
+        (Var reuseName (InfoConField conName nameNil) : map snd fieldExprs)
   where
     fieldTypes = [(name,typeOf expr) | (name,expr) <- fieldExprs]
-    typeConFieldsAssign = TFun ([(nameNil,typeOf reuseName)] ++ fieldTypes) typeTotal resultType
+    typeConFieldsAssign = TFun ((nameNil,typeOf reuseName) : fieldTypes) typeTotal resultType
 
+getConInfo :: Type -> Name -> Reuse (Maybe ConInfo)
+getConInfo dataType conName
+  = do newtypes <- getNewtypes
+       let mdataName = extractDataName dataType
+       let mdataInfo = (`newtypesLookupAny` newtypes) =<< mdataName
+       case filter (\ci -> conInfoName ci == conName) . dataInfoConstrs <$> mdataInfo of
+         Just (ci:_) -> pure $ Just ci
+         _ -> pure Nothing
+  where
+    extractDataName :: Type -> Maybe Name
+    extractDataName tp
+      = case expandSyn tp of
+          TFun _ _ t -> extractDataName t
+          TCon tc    -> Just (typeConName tc)
+          _          -> Nothing
 
 --------------------------------------------------------------------------
 -- Utilities for readability
@@ -224,6 +250,7 @@ uniqueTName tp = (`TName` tp) <$> uniqueName "ru"
 -- definitions --
 
 data Env = Env { currentDef :: [Def],
+                 newtypes :: Newtypes,
                  prettyEnv :: Pretty.Env
                }
 
@@ -250,10 +277,10 @@ updateSt = modify
 getSt :: Reuse ReuseState
 getSt = get
 
-runReuse :: Pretty.Env -> Reuse a -> Unique a
-runReuse penv (Reuse action)
+runReuse :: Pretty.Env -> Newtypes -> Reuse a -> Unique a
+runReuse penv newtypes (Reuse action)
   = withUnique $ \u ->
-      let env = Env [] penv
+      let env = Env [] newtypes penv
           st = ReuseState u
           (val, st') = runState (runReaderT action env) st
        in (val, uniq st')
@@ -267,6 +294,14 @@ getCurrentDef = currentDef <$> getEnv
 
 withCurrentDef :: Def -> Reuse a -> Reuse a
 withCurrentDef def = withEnv (\e -> e { currentDef = def : currentDef e })
+
+--
+
+getNewtypes :: Reuse Newtypes
+getNewtypes = newtypes <$> getEnv
+
+withNewtypes :: (Newtypes -> Newtypes) -> Reuse a -> Reuse a
+withNewtypes f = withEnv (\e -> e { newtypes = f (newtypes e) })
 
 --
 

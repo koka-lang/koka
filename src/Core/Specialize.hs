@@ -155,41 +155,51 @@ specInnerCalls from to bools = rewriteBottomUp $ \e ->
     e -> e
 
 comment :: String -> String
-comment = unlines . map ("// " ++ ). lines
+comment = unlines . map ("// " ++ ) . lines
 
 replaceCall :: Name -> Expr -> [Bool] -> [Expr] -> Maybe [Type] -> SpecM Expr
-replaceCall name expr bools args mybeTypeArgs -- trace ("specializing" <> show name) $
-  = pure $ Let [DefRec [specDef]] (App (Var (defTName specDef) InfoNone) newArgs)
+replaceCall name expr bools args mybeTypeArgs = do
+
+  specBody0 <-
+        (\body -> case mybeTypeArgs of
+          Nothing -> body
+          Just typeArgs -> subNew (zip (fnTypeParams expr) typeArgs) |-> body)
+        <$> Lam newParams (fnEffect expr)
+        <$> specOneExpr name
+        -- TODO do we still need the Let?
+        (Let [DefNonRec $ Def param typ arg Private DefVal InlineAuto rangeNull ""
+              | (TName param typ, arg) <- zip speccedParams speccedArgs]
+        -- $ specInnerCalls (TName name (typeOf expr)) specTName (not <$> bools)
+        $ fnBody expr)
+
+  -- explain fixing the inner body here
+  let specType = typeOf specBody0
+      specTName = TName (genSpecName name bools) specType
+  let specBody = case specBody0 of
+        Lam args eff (Let specArgs body) -> Lam args eff
+          (Let specArgs $ specInnerCalls (TName name (typeOf expr)) specTName (not <$> bools) body)
+        _ -> failure "Specialize.replaceCall: Unexpected output from specialize pass"
+  let -- todo: maintain borrowed arguments?
+      specDef = Def (getName specTName) (typeOf specTName) specBody Private (DefFun []) InlineAuto rangeNull
+                $ "// specialized " <> show name <> " to parameters " <> show speccedParams <> " with args " <> comment (show speccedArgs)
+
+  pure $ Let [DefRec [specDef]] (App (Var (defTName specDef) InfoNone) newArgs)
+
   where
-    specDef = Def (getName specTName) (typeOf specTName) specBody Private (DefFun []) InlineAuto rangeNull 
-               $ "// specialized " <> show name <> " to parameters " <> show speccedParams <> " with args " <> comment (show speccedArgs)
-    specBody
-      = specInnerCalls (TName name (typeOf expr)) specTName (not <$> bools) specBody0
-
-    specTName = TName (genSpecName name bools) specType
-    specType = typeOf specBody0
-
-    specBody0 =
-      (\body -> case mybeTypeArgs of
-        Nothing -> body
-        Just typeArgs -> subNew (zip (fnTypeParams expr) typeArgs) |-> body)
-      $ Lam newParams (fnEffect expr)
-      -- TODO do we still need the Let?
-      $ Let [DefNonRec $ Def param typ arg Private DefVal InlineAuto rangeNull ""
-            | (TName param typ, arg) <- zip speccedParams speccedArgs]
-      $ fnBody expr
-
     ((newParams, newArgs), (speccedParams, speccedArgs)) =
       (unzip *** unzip)
       -- $ (\x@(new, spec) -> trace ("Specializing to newArgs " <> show new) $ x)
       $ partitionBools bools
       $ zip (fnParams expr) args
 
+-- we might shadow here but it will still be correct(?) and we uniquefy at the end
 genSpecName :: Name -> [Bool] -> Name
 genSpecName name bools = newName $ "spec_" ++ show (unqualify name)
+-- genSpecName name bools = makeHiddenName "spec" name
 
 fnTypeParams :: Expr -> [TypeVar]
 fnTypeParams (TypeLam typeParams _) = typeParams
+fnTypeParams e = failure $ "fnTypeParams: Not a function: " <> show e
 
 fnParams :: Expr -> [TName]
 fnParams (Lam params _ _) = params
@@ -199,10 +209,12 @@ fnParams e = failure $ "fnParams: Not a function: " <> show e
 fnEffect :: Expr -> Effect
 fnEffect (Lam _ effect _) = effect
 fnEffect (TypeLam _ (Lam _ effect _)) = effect
+fnEffect e = failure $ "fnEffect: Not a function: " <> show e
 
 fnBody :: Expr -> Expr
 fnBody (Lam _ _ body) = body
 fnBody (TypeLam _ (Lam _ _ body)) = body
+fnBody e = failure $ "fnBody: Not a function: " <> show e
 
 
 {--------------------------------------------------------------------------
@@ -211,18 +223,13 @@ fnBody (TypeLam _ (Lam _ _ body)) = body
 
 extractSpecializeDefs ::  DefGroups -> [InlineDef]
 extractSpecializeDefs dgs =
-  --   flip multiStepInlines (fnDefs dgs)
-  -- $ inlinesMerge inlines
-  -- $ inlinesNew
     mapMaybe makeSpecialize
+  $ filter (isFun . defType)
   $ flattenDefGroups
   $ filter isRecursiveDefGroup dgs
   where
     isRecursiveDefGroup (DefRec [def]) = True
     isRecursiveDefGroup _ = False
-
-    fnDefs :: DefGroups -> [Def]
-    fnDefs = filter (isFun . defType) . flattenDefGroups
 
 filterMaybe :: (a -> Bool) -> Maybe a -> Maybe a
 filterMaybe f Nothing = Nothing
@@ -244,8 +251,7 @@ makeSpecialize def
             $ allPassedInSameOrder params recArgs
 
       guard (any isJust specializableParams)
-      pure $ -- SpecializeInfo (defName def) (defExpr def) $ map isJust specializableParams
-             InlineDef (defName def) (defExpr def) True (InlineAuto) (costDef def) (map isJust specializableParams)
+      pure $ InlineDef (defName def) (defExpr def) True (InlineAuto) (costDef def) (map isJust specializableParams)
 
 allPassedInSameOrder :: [TName] -> [[Expr]] -> [Maybe TName]
 allPassedInSameOrder params calls

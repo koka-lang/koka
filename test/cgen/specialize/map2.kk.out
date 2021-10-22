@@ -1,0 +1,5 @@
+cgen/specialize/map2/.lift127-test: (y : int, xs : list<int>) -> list<int>
+cgen/specialize/map2/.lift128-main: (xs : list<int>) -> list<int>
+cgen/specialize/map2/main: () -> console ()
+cgen/specialize/map2/map-int: (xs : list<int>, f : (int) -> int) -> list<int>
+cgen/specialize/map2/test: (y : int) -> list<int>

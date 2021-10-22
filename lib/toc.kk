@@ -23,6 +23,7 @@ public import std/os/path
 public import std/os/file
 public import std/os/dir
 public import std/os/process
+public import std/os/task
 
 public import std/text/parse
 // import std/text/regex

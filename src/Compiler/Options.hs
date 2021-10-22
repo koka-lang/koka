@@ -10,7 +10,7 @@
 -}
 -----------------------------------------------------------------------------
 module Compiler.Options( -- * Command line options
-                         getOptions, processOptions, Mode(..), Flags(..)
+                         getOptions, processOptions, Mode(..), Flags(..), showTypeSigs
                        -- * Show standard messages
                        , showHelp, showEnv, showVersion, commandLineHelp, showIncludeInfo
                        -- * Utilities
@@ -90,6 +90,9 @@ data Option
   | Flag (Flags -> Flags)
   | Error String
 
+showTypeSigs :: Flags -> Bool
+showTypeSigs flags = showHiddenTypeSigs flags || _showTypeSigs flags
+
 data Flags
   = Flags{ warnShadow       :: Bool
          , showKinds        :: Bool
@@ -101,7 +104,8 @@ data Flags
          , showAsmCS        :: Bool
          , showAsmJS        :: Bool
          , showAsmC         :: Bool
-         , showTypeSigs     :: Bool
+         , _showTypeSigs     :: Bool
+         , showHiddenTypeSigs     :: Bool
          , showElapsed      :: Bool
          , evaluate         :: Bool
          , execOpts         :: String
@@ -187,6 +191,7 @@ flagsNull
           False
           False
           False -- typesigs
+          False -- hiddentypesigs
           False -- show elapsed time
           False -- do not execute by default
           ""    -- execution options
@@ -337,7 +342,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , flag   []    ["showtime"]       (\b f -> f{ showElapsed = b})    "show elapsed time and rss after evaluation"
  , flag   []    ["showspan"]       (\b f -> f{ showSpan = b})       "show ending row/column too on errors"
  , flag   []    ["showkindsigs"]   (\b f -> f{showKindSigs=b})      "show kind signatures of type definitions"
- , flag   []    ["showtypesigs"]   (\b f -> f{showTypeSigs=b})      "show type signatures of definitions"
+ , flag   []    ["showtypesigs"]   (\b f -> f{_showTypeSigs=b})      "show type signatures of definitions"
+ , flag   []    ["showhiddentypesigs"]   (\b f -> f{showHiddenTypeSigs=b})"(implies --showtypesigs) show hidden type signatures of definitions"
  , flag   []    ["showsynonyms"]   (\b f -> f{showSynonyms=b})      "show expanded type synonyms in types"
  , flag   []    ["showcore"]       (\b f -> f{showCore=b})          "show core"
  , flag   []    ["showfcore"]      (\b f -> f{showFinalCore=b})     "show final core (with backend optimizations)"
@@ -646,12 +652,14 @@ processOptions flags0 opts
                    -- vcpkg
                    (vcpkgRoot,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)
                    let triplet          = if (not (null (vcpkgTriplet flags))) then vcpkgTriplet flags
-                                            else tripletArch ++ 
-                                                 (if onWindows 
-                                                    then (if (ccName cc `startsWith` "mingw") 
-                                                            then "-mingw-static"
-                                                            else "-windows-static-md")
-                                                    else ("-" ++ tripletOsName))
+                                            else if (isTargetWasm (target flags))
+                                              then ("wasm" ++ show (8*sizePtr (platform flags)) ++ "-emscripten")
+                                              else tripletArch ++ 
+                                                    (if onWindows 
+                                                        then (if (ccName cc `startsWith` "mingw") 
+                                                                then "-mingw-static"
+                                                                else "-windows-static-md")
+                                                        else ("-" ++ tripletOsName))
                        vcpkgInstalled   = (vcpkgRoot) ++ "/installed/" ++ triplet
                        vcpkgIncludeDir  = vcpkgInstalled ++ "/include"
                        vcpkgLibDir      = vcpkgInstalled ++ (if buildType flags <= Debug then "/debug/lib" else "/lib")
@@ -935,10 +943,11 @@ ccGcc name opt platform path
               else "-O2"
 
     archBits= 8 * sizePtr platform
-    arch    = -- if (cpuArch=="x64" && archBits==64) then ["-march=nehalem","-mtune=native"]           -- popcnt
+    arch    = -- unfortunately, these flags are not as widely supported as one may hope so we use --ccopts if needed.
+              -- if (cpuArch=="x64" && archBits==64) then ["-march=nehalem","-mtune=native"]           -- popcnt
               -- else if (cpuArch=="arm64" && archBits==64) then ["-march=armv8.1-a","-mtune=native"]  -- lse
-              -- else 
-              ["-m" ++ show archBits]
+              -- else ["-m" ++ show archBits]
+              []
 
 ccMsvc name opt platform path
   = CC name path ["-DWIN32","-nologo"] 

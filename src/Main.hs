@@ -24,13 +24,13 @@ import Common.Name
 import Common.File            ( joinPath )
 import Compiler.Options
 import Compiler.Compile       ( compileFile, CompileTarget(..), Module(..), Loaded(..), Terminal(..) )
+import Core.Core              ( coreProgDefs, flattenDefGroups, defType, Def(..) )
 import Interpreter.Interpret  ( interpret  )
 import Kind.ImportMap         ( importsEmpty )
 import Kind.Synonym           ( synonymsIsEmpty, ppSynonyms, synonymsFilter )
 import Kind.Assumption        ( kgammaFilter )
-import Type.Assumption        ( ppGamma, gammaFilter )
+import Type.Assumption        ( ppGamma, ppGammaHidden, gammaFilter, createNameInfoX, gammaNew )
 import Type.Pretty            ( ppScheme, Env(context,importsMap) )
-
 
 
 -- compiled entry
@@ -96,23 +96,22 @@ compile p flags fname
            -> do when (not (null warnings))
                    (let msg = ErrorWarning warnings ErrorZero
                     in putPrettyLn p (ppErrorMessage (showSpan flags) cscheme msg))
-                 when (showKindSigs flags)
-                   (do putPrettyLn p (pretty (kgammaFilter modName kgamma))
+                 when (showKindSigs flags) $ do
+                       putPrettyLn p (pretty (kgammaFilter modName kgamma))
                        let localSyns = synonymsFilter modName synonyms
                        when (not (synonymsIsEmpty localSyns))
                         (putPrettyLn p (ppSynonyms (prettyEnv flags modName imports) localSyns))
-                       )
-                 when (showTypeSigs flags)
-                   (do putPrettyLn p (ppGamma (prettyEnv flags modName imports) (gammaFilter modName gamma)))
-                 {- 
-                 when (showCore flags)
-                   (do putPrettyLn p (prettyCore (prettyEnv flags modName imports) core))
-                 -}
 
+                 if showHiddenTypeSigs flags then do
+                   -- workaround since private defs aren't in gamma
+                   putPrettyLn p $ ppGammaHidden (prettyEnv flags modName imports) $ gammaFilter modName $ gammaFromDefGroups $ coreProgDefs core
+                 else if showTypeSigs flags then
+                   putPrettyLn p $ ppGamma (prettyEnv flags modName imports) $ gammaFilter modName gamma
+                 else pure ()
   where
     term
       = Terminal (putErrorMessage p (showSpan flags) cscheme)
-                 (if (verbose flags > 1) then (\msg -> withColor p (colorSource cscheme) (writeLn p msg)) 
+                (if (verbose flags > 1) then (\msg -> withColor p (colorSource cscheme) (writeLn p msg))
                                          else (\_ -> return ()))
                  (if (verbose flags > 0) then writePrettyLn p else (\_ -> return ()))
                  (putScheme p (prettyEnv flags nameNil importsEmpty))
@@ -124,6 +123,9 @@ compile p flags fname
     prettyEnv flags ctx imports
       = (prettyEnvFromFlags flags){ context = ctx, importsMap = imports }
 
+gammaFromDefGroups groups = gammaNew $ map defToGammaEntry $ flattenDefGroups groups
+  where
+    defToGammaEntry def = (defName def, createNameInfoX (defVis def) (defName def)  (defSort def) (defNameRange def) (defType def))
 
 putScheme p env tp
   = putPrettyLn p (ppScheme env tp)

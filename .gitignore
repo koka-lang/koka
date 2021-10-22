@@ -1,6 +1,7 @@
 .stack-work
 .trash/
 .idea/
+.DS_Store
 .vs/
 .vscode/
 .koka/
