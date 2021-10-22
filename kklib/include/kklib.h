@@ -86,7 +86,7 @@ static inline bool kk_tag_is_raw(kk_tag_t tag) {
 // If the scan_fsize == 0xFF, the full scan count is in the first field as a boxed int (which includes the scan field itself).
 typedef struct kk_header_s {
   uint8_t   scan_fsize;       // number of fields that should be scanned when releasing (`scan_fsize <= 0xFF`, if 0xFF, the full scan size is the first field)
-  uint8_t   _field_idx;       // private: only used during stack-less marking (see `refcount.c`)
+  uint8_t   _field_idx;       // private: only used during stack-less freeing and marking (see `refcount.c`)
   uint16_t  tag;              // constructor tag
   _Atomic(uint32_t) refcount; // reference count  (last to reduce code size constants in kk_header_init)
 } kk_header_t;
