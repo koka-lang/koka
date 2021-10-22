@@ -96,13 +96,13 @@ static void kk_block_drop_free(kk_block_t* b, kk_context_t* ctx) {
 
 
 static inline uint32_t kk_atomic_dup(kk_block_t* b) {
-  return kk_atomic_dec32_relaxed((_Atomic(uint32_t)*)&b->header.refcount);
+  return kk_atomic_dec32_relaxed(&b->header.refcount);
 }
 static inline uint32_t kk_atomic_drop(kk_block_t* b) {
-  return kk_atomic_inc32_release((_Atomic(uint32_t)*)&b->header.refcount);
+  return kk_atomic_inc32_release(&b->header.refcount);
 }
 static inline uint32_t kk_atomic_acquire(kk_block_t* b) {
-  return kk_atomic_load32_acquire((_Atomic(uint32_t)*)&b->header.refcount);
+  return kk_atomic_load32_acquire(&b->header.refcount);
 }
 static void kk_block_make_shared(kk_block_t* b) {
   uint32_t rc = kk_block_refcount(b);
