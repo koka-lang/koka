@@ -37,7 +37,10 @@
 #define kk_atomic_cas_strong_relaxed(p,exp,des) kk_atomic(compare_exchange_strong_explicit)(p,exp,des,kk_memory_order(relaxed),kk_memory_order(relaxed))
 #define kk_atomic_cas_strong_acq_rel(p,exp,des) kk_atomic(compare_exchange_strong_explicit)(p,exp,des,kk_memory_order(acq_rel),kk_memory_order(acquire))
 
+#define kk_atomic_load32_relaxed(p)           kk_atomic_load_relaxed(p)
 #define kk_atomic_load32_acquire(p)           kk_atomic_load_acquire(p)
+#define kk_atomic_store32_relaxed(p,x)        kk_atomic_store_relaxed(p,x)
+
 #define kk_atomic_add32_relaxed(p,x)          kk_atomic(fetch_add_explicit)(p,x,kk_memory_order(relaxed))
 #define kk_atomic_add32_release(p,x)          kk_atomic(fetch_add_explicit)(p,x,kk_memory_order(release))
 #define kk_atomic_sub32_relaxed(p,x)          kk_atomic(fetch_sub_explicit)(p,x,kk_memory_order(relaxed))
