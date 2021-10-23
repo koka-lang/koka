@@ -13,7 +13,7 @@
 ---------------------------------------------------------------------------*/
 
 static inline kk_box_t kk_ctail_hole(void) {
-  return kk_int_box(0);
+  return kk_intf_box(0);
 }
 
 static inline kk_std_core_types__ctail kk_ctail_nil(void) {

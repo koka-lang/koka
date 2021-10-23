@@ -119,8 +119,8 @@ Deprecated strategy:
 static inline bool         kk_box_is_ptr(kk_box_t b);
 static inline kk_block_t*  kk_ptr_unbox(kk_box_t b);
 static inline kk_box_t     kk_ptr_box(const kk_block_t* p);
-static inline kk_intf_t    kk_int_unbox(kk_box_t v);
-static inline kk_box_t     kk_int_box(kk_intf_t i);
+static inline kk_intf_t    kk_intf_unbox(kk_box_t v);
+static inline kk_box_t     kk_intf_box(kk_intf_t i);
 
 // Low level access
 static inline kk_box_t _kk_box_new_ptr(const kk_block_t* p) {
@@ -188,22 +188,22 @@ static inline kk_box_t kk_ptr_box(const kk_block_t* p) {
   return _kk_box_new_ptr(p);
 }
 
-static inline kk_uintf_t kk_uint_unbox(kk_box_t b) {
+static inline kk_uintf_t kk_uintf_unbox(kk_box_t b) {
   kk_assert_internal(kk_box_is_value(b) || kk_box_is_any(b));
   return kk_shrf(_kk_box_value(b), 1);
 }
 
-static inline kk_box_t kk_uint_box(kk_uintf_t u) {
+static inline kk_box_t kk_uintf_box(kk_uintf_t u) {
   kk_assert_internal(u <= KK_MAX_BOXED_UINT);
   return _kk_box_new_value((u << 1)|1);
 }
 
-static inline kk_intf_t kk_int_unbox(kk_box_t v) {
+static inline kk_intf_t kk_intf_unbox(kk_box_t v) {
   kk_assert_internal(kk_box_is_value(v) || kk_box_is_any(v));
   return kk_sarf((kk_intf_t)_kk_box_value(v), 1); // preserve sign
 }
 
-static inline kk_box_t kk_int_box(kk_intf_t i) {
+static inline kk_box_t kk_intf_box(kk_intf_t i) {
   kk_assert_internal(i >= KK_MIN_BOXED_INT && i <= KK_MAX_BOXED_INT);
   return _kk_box_new_value(((kk_uintf_t)i << 1)|1);
 }
@@ -250,14 +250,14 @@ kk_decl_export kk_box_t kk_int32_box(int32_t i, kk_context_t* ctx);
 #else
 static inline int32_t kk_int32_unbox(kk_box_t v, kk_context_t* ctx) {
   KK_UNUSED(ctx);
-  kk_intf_t i = kk_int_unbox(v);
+  kk_intf_t i = kk_intf_unbox(v);
   kk_assert_internal((i >= INT32_MIN && i <= INT32_MAX) || kk_box_is_any(v));
   return (int32_t)(i);
 }
 
 static inline kk_box_t kk_int32_box(int32_t i, kk_context_t* ctx) {
   KK_UNUSED(ctx);
-  return kk_int_box(i);
+  return kk_intf_box(i);
 }
 #endif
 
@@ -267,13 +267,13 @@ kk_decl_export kk_box_t kk_int16_box(int16_t i, kk_context_t* ctx);
 #else
 static inline int16_t kk_int16_unbox(kk_box_t v, kk_context_t* ctx) {
   KK_UNUSED(ctx);
-  kk_intf_t i = kk_int_unbox(v);
+  kk_intf_t i = kk_intf_unbox(v);
   kk_assert_internal((i >= INT16_MIN && i <= INT16_MAX) || kk_box_is_any(v));
   return (int16_t)(i);
 }
 static inline kk_box_t kk_int16_box(int16_t i, kk_context_t* ctx) {
   KK_UNUSED(ctx);
-  return kk_int_box(i);
+  return kk_intf_box(i);
 }
 #endif
 
@@ -312,11 +312,11 @@ static inline kk_box_t kk_float_box(float f, kk_context_t* ctx) {
 ----------------------------------------------------------------*/
 
 static inline bool kk_bool_unbox(kk_box_t v) {
-  return (kk_int_unbox(v) != 0);
+  return (kk_intf_unbox(v) != 0);
 }
 
 static inline kk_box_t kk_bool_box(bool b) {
-  return kk_int_box(b ? 1 : 0);
+  return kk_intf_box(b ? 1 : 0);
 }
 
 static inline kk_box_t kk_size_box(size_t i, kk_context_t* ctx) {
@@ -362,11 +362,11 @@ static inline kk_box_t kk_datatype_box(kk_datatype_t d) {
 }
 
 static inline kk_uintx_t kk_enum_unbox(kk_box_t b) {
-  return kk_uint_unbox(b);
+  return kk_uintf_unbox(b);
 }
 
 static inline kk_box_t kk_enum_box(kk_uintx_t u) {
-  return kk_uint_box(u);
+  return kk_uintf_box(u);
 }
 
 static inline kk_box_t kk_box_box(kk_box_t b, kk_context_t* ctx) {

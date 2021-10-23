@@ -5,6 +5,5 @@
     <ClCompile Include="..\..\..\.koka\debug\std_core_hnd.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core_types.c" />
     <ClCompile Include="..\..\..\.koka\debug\interactive.c" />
-    <ClCompile Include="..\..\..\.koka\debug\test_algeff_wrong_reject_dash_poly.c" />
   </ItemGroup>
 </Project>

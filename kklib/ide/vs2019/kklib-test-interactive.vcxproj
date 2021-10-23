@@ -168,7 +168,10 @@
     <ClCompile Include="..\..\..\.koka\debug\std_core.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core_hnd.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core_types.c" />
+<<<<<<< HEAD
     <ClCompile Include="..\..\..\.koka\debug\test_algeff_wrong_reject_dash_poly.c" />
+=======
+>>>>>>> dev
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
