@@ -95,17 +95,17 @@ Checked reference counts.
 #define RC_SHARED_UNIQUE  KU32(0xFFFFFFFF)
 
 
-static inline uint32_t kk_atomic_dup(kk_block_t* b) {
+static inline kk_refcount_t kk_atomic_dup(kk_block_t* b) {
   return kk_atomic_dec32_relaxed(&b->header.refcount);
 }
-static inline uint32_t kk_atomic_drop(kk_block_t* b) {
+static inline kk_refcount_t kk_atomic_drop(kk_block_t* b) {
   return kk_atomic_inc32_release(&b->header.refcount);
 }
-static inline uint32_t kk_atomic_acquire(kk_block_t* b) {
+static inline kk_refcount_t kk_atomic_acquire(kk_block_t* b) {
   return kk_atomic_load32_acquire(&b->header.refcount);
 }
 static void kk_block_make_shared(kk_block_t* b) {
-  uint32_t rc = kk_block_refcount(b);
+  kk_refcount_t rc = kk_block_refcount(b);
   kk_assert_internal(rc <= RC_STUCK);
   rc = RC_SHARED_UNIQUE - rc;                // signed: -1 - rc
   if (rc <= RC_STICKY_DROP) rc = RC_STICKY;  // for high reference counts
@@ -113,7 +113,7 @@ static void kk_block_make_shared(kk_block_t* b) {
 }
 
 // Check if a reference dup needs an atomic operation
-kk_decl_noinline kk_block_t* kk_block_check_dup(kk_block_t* b, uint32_t rc0) {
+kk_decl_noinline kk_block_t* kk_block_check_dup(kk_block_t* b, kk_refcount_t rc0) {
   kk_assert_internal(b!=NULL);
   kk_assert_internal(kk_refcount_is_thread_shared(rc0)); // includes KK_STUCK
   if (kk_likely(rc0 > RC_STICKY)) {
@@ -126,7 +126,7 @@ kk_decl_noinline kk_block_t* kk_block_check_dup(kk_block_t* b, uint32_t rc0) {
 // Check if a reference drop caused the block to be free, or needs atomic operations
 // Currently compiles without register spills (on x64) which is important for performance.
 // Be careful when adding more code to not induce stack usage.
-kk_decl_noinline void kk_block_check_drop(kk_block_t* b, uint32_t rc0, kk_context_t* ctx) {
+kk_decl_noinline void kk_block_check_drop(kk_block_t* b, kk_refcount_t rc0, kk_context_t* ctx) {
   kk_assert_internal(b!=NULL);
   kk_assert_internal(kk_block_refcount(b) == rc0);
   kk_assert_internal(rc0 == 0 || kk_refcount_is_thread_shared(rc0));
@@ -137,7 +137,7 @@ kk_decl_noinline void kk_block_check_drop(kk_block_t* b, uint32_t rc0, kk_contex
     // sticky: do not drop further
   }
   else {
-    const uint32_t rc = kk_atomic_drop(b);
+    const kk_refcount_t rc = kk_atomic_drop(b);
     if (rc == RC_SHARED_UNIQUE) {    // this was the last reference?
       kk_atomic_acquire(b);          // prevent reordering of reads/writes before this point
       kk_block_refcount_set(b,0);    // no longer shared
@@ -148,7 +148,7 @@ kk_decl_noinline void kk_block_check_drop(kk_block_t* b, uint32_t rc0, kk_contex
 }
 
 // Check if a reference decrement caused the block to be reused or needs atomic operations
-kk_decl_noinline kk_reuse_t kk_block_check_drop_reuse(kk_block_t* b, uint32_t rc0, kk_context_t* ctx) {
+kk_decl_noinline kk_reuse_t kk_block_check_drop_reuse(kk_block_t* b, kk_refcount_t rc0, kk_context_t* ctx) {
   kk_assert_internal(b!=NULL);
   kk_assert_internal(kk_block_refcount(b) == rc0);
   kk_assert_internal(rc0 == 0 || kk_refcount_is_thread_shared(rc0));
@@ -169,7 +169,7 @@ kk_decl_noinline kk_reuse_t kk_block_check_drop_reuse(kk_block_t* b, uint32_t rc
 }
 
 // Check if a reference decrement caused the block to be freed shallowly or needs atomic operations
-kk_decl_noinline void kk_block_check_decref(kk_block_t* b, uint32_t rc0, kk_context_t* ctx) {
+kk_decl_noinline void kk_block_check_decref(kk_block_t* b, kk_refcount_t rc0, kk_context_t* ctx) {
   KK_UNUSED(ctx);
   kk_assert_internal(b!=NULL);
   kk_assert_internal(kk_block_refcount(b) == rc0);
@@ -181,7 +181,7 @@ kk_decl_noinline void kk_block_check_decref(kk_block_t* b, uint32_t rc0, kk_cont
     // sticky: do not decrement further
   }
   else {
-    const uint32_t rc = kk_atomic_drop(b);
+    const kk_refcount_t rc = kk_atomic_drop(b);
     if (rc == RC_SHARED_UNIQUE) {    // last referenc?
       kk_block_refcount_set(b,0);    // no longer shared
       kk_free(b);                    // no more references, free it.
@@ -198,7 +198,7 @@ kk_decl_noinline void kk_block_check_decref(kk_block_t* b, uint32_t rc0, kk_cont
 
 // Decrement a shared refcount without freeing the block yet. Returns true if there are no more references.
 static kk_decl_noinline bool block_thread_shared_decref_no_free(kk_block_t* b) {
-  const uint32_t rc = kk_atomic_drop(b);
+  const kk_refcount_t rc = kk_atomic_drop(b);
   kk_assert_internal(kk_refcount_is_thread_shared(rc));
   if (rc == RC_SHARED_UNIQUE) {
     kk_block_refcount_set(b, 0); // no more shared
@@ -211,7 +211,7 @@ static kk_decl_noinline bool block_thread_shared_decref_no_free(kk_block_t* b) {
 
 // Decrement a refcount without freeing the block yet. Returns true if there are no more references.
 static bool kk_block_decref_no_free(kk_block_t* b) {
-  uint32_t rc = kk_block_refcount(b);
+  kk_refcount_t rc = kk_block_refcount(b);
   if (rc==0) {
     return true;
   }
