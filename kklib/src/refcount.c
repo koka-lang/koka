@@ -448,7 +448,7 @@ static kk_decl_noinline void kk_block_mark_shared_rec(kk_block_t* b, const kk_ss
         kk_block_make_shared(b);
         kk_ssize_t i = 0;
         if (kk_unlikely(scan_fsize >= KK_SCAN_FSIZE_MAX)) { 
-          scan_fsize = (kk_ssize_t)kk_int_unbox(kk_block_field(b, 0)); 
+          scan_fsize = (kk_ssize_t)kk_intf_unbox(kk_block_field(b, 0)); 
           i++;  // skip scan field
         }
         // mark fields up to the last one

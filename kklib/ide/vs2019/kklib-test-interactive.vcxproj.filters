@@ -4,20 +4,6 @@
     <ClCompile Include="..\..\..\.koka\debug\std_core.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core_hnd.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core_types.c" />
-    <ClCompile Include="..\..\..\.koka\debug\std_num_double.c" />
-    <ClCompile Include="..\..\..\.koka\debug\std_num_int32.c" />
-    <ClCompile Include="..\..\..\.koka\debug\std_text_parse.c" />
     <ClCompile Include="..\..\..\.koka\debug\interactive.c" />
-    <ClCompile Include="..\..\..\.koka\debug\std_num_ddouble.c" />
-    <ClCompile Include="..\..\..\.koka\debug\std_num_decimal.c" />
-    <ClCompile Include="..\..\..\.koka\debug\std_time_date.c" />
-    <ClCompile Include="..\..\..\.koka\debug\std_time_duration.c" />
-    <ClCompile Include="..\..\..\.koka\debug\std_time_instant.c" />
-    <ClCompile Include="..\..\..\.koka\debug\std_time_timer.c" />
-    <ClCompile Include="..\..\..\.koka\debug\std_time_timestamp.c" />
-    <ClCompile Include="..\..\..\.koka\debug\test_bench_koka_kkfree.c" />
-    <ClCompile Include="..\..\..\.koka\debug\std_text_unicode.c" />
-    <ClCompile Include="..\..\..\.koka\debug\test_lib_ddouble3.c" />
-    <ClCompile Include="..\..\..\.koka\debug\test_mask_inject_dash_behind1.c" />
   </ItemGroup>
 </Project>

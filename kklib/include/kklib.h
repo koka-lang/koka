@@ -92,7 +92,7 @@ typedef struct kk_header_s {
 } kk_header_t;
 
 #define KK_SCAN_FSIZE_MAX (0xFF)
-#define KK_HEADER(scan_fsize,tag)         { scan_fsize, 0, tag, 0}                 // start with refcount of 0
+#define KK_HEADER(scan_fsize,tag)         { scan_fsize, 0, tag, ATOMIC_VAR_INIT(0) }                // start with refcount of 0
 #define KK_HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 0, tag, ATOMIC_VAR_INIT(KU32(0x80000000))}  // start with a stuck refcount (RC_STUCK)
 
 static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_tag_t tag) {
@@ -124,8 +124,8 @@ typedef struct kk_integer_s {
 } kk_integer_t;
 
 // boxed forward declarations
-static inline kk_intf_t kk_int_unbox(kk_box_t v);
-static inline kk_box_t  kk_int_box(kk_intf_t u);
+static inline kk_intf_t kk_intf_unbox(kk_box_t v);
+static inline kk_box_t  kk_intf_box(kk_intf_t u);
 
 
 /*--------------------------------------------------------------------------------------
@@ -212,7 +212,7 @@ static inline kk_decl_pure kk_ssize_t kk_block_scan_fsize(const kk_block_t* b) {
   const kk_ssize_t sfsize = b->header.scan_fsize;
   if (kk_likely(sfsize != KK_SCAN_FSIZE_MAX)) return sfsize;
   const kk_block_large_t* bl = (const kk_block_large_t*)b;
-  return (kk_ssize_t)kk_int_unbox(bl->large_scan_fsize);
+  return (kk_ssize_t)kk_intf_unbox(bl->large_scan_fsize);
 }
 
 static inline kk_decl_pure uint32_t kk_block_refcount(const kk_block_t* b) {
@@ -479,7 +479,7 @@ static inline void kk_block_large_init(kk_block_large_t* b, kk_ssize_t size, kk_
   uint8_t bscan_fsize = (scan_fsize >= KK_SCAN_FSIZE_MAX ? KK_SCAN_FSIZE_MAX : (uint8_t)scan_fsize);
   kk_header_init(&b->_block.header, bscan_fsize, tag);
   kk_assert_internal(scan_fsize > 0);
-  b->large_scan_fsize = kk_int_box(scan_fsize);  
+  b->large_scan_fsize = kk_intf_box(scan_fsize);  
 }
 
 typedef kk_block_t* kk_reuse_t;
@@ -1064,7 +1064,7 @@ static inline kk_box_t* kk_vector_buf_borrow(kk_vector_t vd, kk_ssize_t* len) {
   }
   else {
     if (len != NULL) {
-      *len = (kk_ssize_t)kk_int_unbox(v->_base.large_scan_fsize) - 1;  // exclude the large scan_fsize field itself
+      *len = (kk_ssize_t)kk_intf_unbox(v->_base.large_scan_fsize) - 1;  // exclude the large scan_fsize field itself
       kk_assert_internal(*len + 1 == kk_block_scan_fsize(&v->_base._block));
       kk_assert_internal(*len > 0);
     }
@@ -1203,12 +1203,12 @@ static inline kk_unit_t kk_ref_vector_assign(kk_ref_t r, kk_integer_t idx, kk_bo
 --------------------------------------------------------------------------------------*/
 
 static inline kk_box_t kk_unit_box(kk_unit_t u) {
-  return kk_int_box((kk_intf_t)u);
+  return kk_intf_box((kk_intf_t)u);
 }
 
 static inline kk_unit_t kk_unit_unbox(kk_box_t u) {
   KK_UNUSED_INTERNAL(u);
-  kk_assert_internal( kk_int_unbox(u) == (kk_intf_t)kk_Unit || kk_box_is_any(u));
+  kk_assert_internal( kk_intf_unbox(u) == (kk_intf_t)kk_Unit || kk_box_is_any(u));
   return kk_Unit; // (kk_unit_t)kk_enum_unbox(u);
 }
 
