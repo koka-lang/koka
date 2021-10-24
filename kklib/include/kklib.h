@@ -39,7 +39,7 @@
 
 
 /*--------------------------------------------------------------------------------------
-  Basic datatypes
+  Tags
 --------------------------------------------------------------------------------------*/
 
 // Tags for heap blocks
@@ -77,6 +77,10 @@ typedef enum kk_tag_e {
 static inline bool kk_tag_is_raw(kk_tag_t tag) {
   return (tag >= KK_TAG_CPTR_RAW);
 }
+
+/*--------------------------------------------------------------------------------------
+  Headers
+--------------------------------------------------------------------------------------*/
 
 
 // The reference count is 0 for a unique reference (for a faster free test in drop).
@@ -121,17 +125,30 @@ static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_tag_
 }
 
 
+/*--------------------------------------------------------------------------------------
+  Box, Integer, Datatype
+--------------------------------------------------------------------------------------*/
+
 // Polymorphic operations work on boxed values. (We use a struct for extra checks to prevent accidental conversion)
+// The least significant bit is clear for `kk_block_t*` pointers, while it is set for values.
 // See `box.h` for definitions.
 typedef struct kk_box_s {
   uintptr_t box;
 } kk_box_t;
  
-// An integer is either a small int or a pointer to a kk_bigint_t. Isomorphic with boxed values.
+// An integer is either a small int (as: 4*i + 1) or a `kk_bigint_t*` pointer. Isomorphic with boxed values.
 // See `integer.h` for definitions.
 typedef struct kk_integer_s {
   uintptr_t ibox;
 } kk_integer_t;
+
+// A general datatype with constructors and singletons is either
+// an enumeration (with the lowest bit set as: 4*tag + 1) or a `kk_block_t*` pointer.
+// Isomorphic with boxed values. 
+typedef struct kk_datatype_s {
+  uintptr_t dbox;
+} kk_datatype_t;
+
 
 // boxed forward declarations
 static inline kk_intf_t kk_intf_unbox(kk_box_t v);
@@ -202,13 +219,6 @@ typedef struct kk_block_large_s {
 // A pointer to a block. Cannot be NULL.
 typedef kk_block_t* kk_ptr_t;
 
-// A general datatype with constructors and singletons is either 
-// - a pointer to a block with the lowest bit cleared 
-// - or an enumeration with the lowest bit set as: 4*tag + 1
-// Isomorphic with boxed values. 
-typedef struct kk_datatype_s {
-  uintptr_t dbox;
-} kk_datatype_t;
 
 static inline kk_decl_const kk_tag_t kk_block_tag(const kk_block_t* b) {
   return (kk_tag_t)(b->header.tag);
@@ -226,11 +236,11 @@ static inline kk_decl_pure kk_ssize_t kk_block_scan_fsize(const kk_block_t* b) {
 }
 
 static inline kk_decl_pure kk_refcount_t kk_block_refcount(const kk_block_t* b) {
-  return kk_atomic_load32_relaxed(&b->header.refcount);
+  return kk_atomic_load_relaxed(&b->header.refcount);
 }
 
 static inline void kk_block_refcount_set(kk_block_t* b, kk_refcount_t rc) {
-  return kk_atomic_store32_relaxed(&b->header.refcount, rc);
+  return kk_atomic_store_relaxed(&b->header.refcount, rc);
 }
 
 static inline kk_decl_pure bool kk_block_is_unique(const kk_block_t* b) {
@@ -265,7 +275,10 @@ static inline void kk_block_field_set(kk_block_t* b, kk_ssize_t index, kk_box_t 
 static inline void kk_block_set_invalid(kk_block_t* b) {
 #ifdef KK_DEBUG_FULL
   const kk_ssize_t scan_fsize = kk_block_scan_fsize(b);
-  memset(((kk_block_fields_t*)b)->fields, 0xDF, kk_ssizeof(kk_box_t)*scan_fsize);
+  const kk_box_t inv = { KK_BLOCK_INVALID };
+  for (kk_ssize_t i = -1; i < scan_fsize; i++) {
+    kk_block_field_set(b, i, inv);
+  }
 #else
   KK_UNUSED(b);
 #endif
@@ -728,8 +741,8 @@ static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
   Datatype and Constructor macros
   We use:
   - basetype      For a pointer to the base type of a heap allocated constructor.
-                  Datatypes without singletons are always a datatypex
-  - datatype      For a regular kk_datatype_t
+                  Datatypes without singletons are always a basetype.
+  - datatype      For a regular datatypes that can have singletons.
   - constructor   For a pointer to a heap allocated constructor (whose first field
                   is `_base` and points to the base type as a `basetype`
 --------------------------------------------------------------------------------------*/
@@ -937,6 +950,7 @@ typedef enum kk_unit_e {
 #include "kklib/os.h"
 #include "kklib/thread.h"
 
+
 /*----------------------------------------------------------------------
   TLD operations
 ----------------------------------------------------------------------*/
@@ -948,7 +962,7 @@ static inline kk_integer_t kk_gen_unique(kk_context_t* ctx) {
   return u;
 }
 
-
+kk_decl_export kk_string_t kk_get_host(kk_context_t* ctx); 
 kk_decl_export void kk_fatal_error(int err, const char* msg, ...);
 kk_decl_export void kk_warning_message(const char* msg, ...);
 kk_decl_export void kk_info_message(const char* msg, ...);
@@ -956,6 +970,8 @@ kk_decl_export void kk_info_message(const char* msg, ...);
 static inline void kk_unsupported_external(const char* msg) {
   kk_fatal_error(ENOSYS, "unsupported external: %s", msg);
 }
+
+
 
 
 /*--------------------------------------------------------------------------------------
@@ -1222,7 +1238,6 @@ static inline kk_decl_const kk_unit_t kk_unit_unbox(kk_box_t u) {
   return kk_Unit; // (kk_unit_t)kk_enum_unbox(u);
 }
 
-kk_decl_export kk_string_t  kk_get_host(kk_context_t* ctx);
 
 
 #endif // include guard

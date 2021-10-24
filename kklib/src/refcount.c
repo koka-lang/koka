@@ -94,19 +94,19 @@ Checked reference counts.
 #define RC_STICKY_DROP    KU32(0xA0000000)
 #define RC_SHARED_UNIQUE  KU32(0xFFFFFFFF)
 
-
 static inline kk_refcount_t kk_atomic_dup(kk_block_t* b) {
-  return kk_atomic_dec32_relaxed(&b->header.refcount);
+  return kk_atomic_dec_relaxed(&b->header.refcount);
 }
 static inline kk_refcount_t kk_atomic_drop(kk_block_t* b) {
-  return kk_atomic_inc32_release(&b->header.refcount);
+  return kk_atomic_inc_release(&b->header.refcount);
 }
 static inline kk_refcount_t kk_atomic_acquire(kk_block_t* b) {
-  return kk_atomic_load32_acquire(&b->header.refcount);
+  return kk_atomic_load_acquire(&b->header.refcount);
 }
+
 static void kk_block_make_shared(kk_block_t* b) {
   kk_refcount_t rc = kk_block_refcount(b);
-  kk_assert_internal(rc <= RC_STUCK);
+  kk_assert_internal(rc <= RC_STUCK);        // not thread shared already
   rc = RC_SHARED_UNIQUE - rc;                // signed: -1 - rc
   if (rc <= RC_STICKY_DROP) rc = RC_STICKY;  // for high reference counts
   kk_block_refcount_set(b, rc);
@@ -235,6 +235,14 @@ static bool kk_block_decref_no_free(kk_block_t* b) {
 // (and it is faster than a recursive version so we only have a stackless free)
 //-----------------------------------------------------------------------------------------
 
+static inline uint8_t kk_decl_pure kk_block_field_idx(const kk_block_t* b) {
+  return b->header._field_idx;
+}
+
+static inline void kk_block_field_idx_set(kk_block_t* b, uint8_t idx ) {
+  b->header._field_idx = idx;
+}
+
 // Check if a field `i` in a block `b` should be freed, i.e. it is heap allocated with a refcount of 0.
 // Optimizes by already freeing leaf blocks that are heap allocated but have no scan fields.
 static inline kk_block_t* kk_block_field_should_free(kk_block_t* b, kk_ssize_t field, kk_context_t* ctx)
@@ -324,7 +332,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
           if (i < scan_fsize) {
             // save our progress to continue here later (when moving up)
             kk_block_field_set(b, 0, _kk_box_new_ptr(parent)); // set parent (use low-level box as parent could be NULL)
-            b->header._field_idx = i;
+            kk_block_field_idx_set(b,i);
             parent = b;
           }
           else {
@@ -346,7 +354,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
   // ------- move up along the parent chain ------------
   while (kk_likely(parent != NULL)) {
     // go up to parent
-    uint8_t i = parent->header._field_idx;
+    uint8_t i = kk_block_field_idx(parent);
     scan_fsize = parent->header.scan_fsize;
     kk_assert_internal(i < scan_fsize);
     // go through children of the parent
@@ -356,7 +364,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
       if (child != NULL) {
         if (i < scan_fsize) {
           // save our progress to continue here later
-          parent->header._field_idx = i;
+          kk_block_field_idx_set(parent,i);
         }
         else {
           // the last field; free the block and move the parent one up
@@ -515,7 +523,7 @@ markfields:
         // remember our state and link back to the parent
         kk_block_field_set(b, i-1, _kk_box_new_ptr(parent));  // low-level box as parent can be NULL
         parent = b;
-        parent->header._field_idx = i;
+        kk_block_field_idx_set(parent,i);
         b = child;
         i = 0;
         scan_fsize = b->header.scan_fsize;
@@ -528,7 +536,7 @@ markfields:
   //--- moving back up ------------------
   while (parent != NULL) {
     // move up
-    i = parent->header._field_idx;
+    i = kk_block_field_idx(parent);
     kk_block_t* pparent = _kk_box_ptr( kk_block_field(parent, i-1) );  // low-level unbox on parent
     kk_block_field_set(parent, i-1, kk_ptr_box(b));  // restore original pointer
     b = parent;

@@ -323,7 +323,7 @@ static inline uint64_t kk_bits_count64(uint64_t x) {
 #ifndef HAS_BITS_COUNT64
 #define HAS_BITS_COUNT64
 static inline uint64_t kk_bits_count64(uint64_t x) {
-  return (uint64_t)(kk_bits_count32((uint32_t)x) + kk_bits_count32((uint32_t)(x>>32)));
+  return ((uint64_t)kk_bits_count32((uint32_t)x) + kk_bits_count32((uint32_t)(x>>32)));
 }
 #endif
 
