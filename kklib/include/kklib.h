@@ -1101,7 +1101,7 @@ static inline kk_vector_t kk_vector_alloc(kk_ssize_t length, kk_box_t def, kk_co
   return v;
 }
 
-static inline kk_decl_pure kk_box_t* kk_vector_buf_borrow(kk_vector_t vd, kk_ssize_t* len) {
+static inline kk_box_t* kk_vector_buf_borrow(kk_vector_t vd, kk_ssize_t* len) {
   kk_vector_large_t v = kk_vector_as_large_borrow(vd);
   if (kk_unlikely(v==NULL)) {
     if (len != NULL) *len = 0;
