@@ -1,0 +1,7 @@
+resolver: lts-18.14
+packages:
+- '..'
+extra-deps:
+- regex-compat-tdfa-0.95.1.4
+- json-0.10
+- isocline-1.0.5

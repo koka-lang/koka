@@ -1,0 +1,40 @@
+name: stack
+
+on:
+  push:
+    branches: [ci-stack, add/github-actions]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cabal: ["3.4"]
+        ghc:
+          - "8.10.7"
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - uses: haskell/actions/setup@v1
+      name: Setup Stack
+      with:
+        enable-stack: true
+        stack-version: 'latest'
+        cabal-version: ${{ matrix.cabal }}
+
+    - uses: actions/cache@v2
+      name: Cache ~/.stack
+      with:
+        path: ~/.stack
+        key: ${{ runner.os }}-${{ matrix.ghc }}-stack
+
+    - name: build koka
+      run: stack build --fast --no-run-tests --no-terminal --stack-yaml=./stack/stack-${{ matrix.ghc }}.yaml
+
+    - name: run tests
+      run: stack test --fast --no-terminal --test-arguments --stack-yaml=./stack/stack-${{ matrix.ghc }}.yaml
