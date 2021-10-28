@@ -1,0 +1,508 @@
+/*---------------------------------------------------------------------------
+  Copyright 2012-2021, Microsoft Research, Daan Leijen.
+ 
+  This is free software; you can redistribute it and/or modify it under the
+  terms of the Apache License, Version 2.0. A copy of the License can be
+  found in the LICENSE file at the root of this distribution.
+---------------------------------------------------------------------------*/
+@import url("https://fonts.googleapis.com/css?family=Nunito:400,400italic,700,700italic");
+@import url("https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700,400italic");
+@import url("https://fonts.googleapis.com/css?family=Roboto+Slab:300,400,700");
+
+body.madoko,
+body.koka,
+.serif,
+.sans-serif,
+.comment {
+  font-family: "Nunito", "Calibri", serif;
+}
+
+.sans-serif {
+  font-family: "Nunito", "Segoe UI", "Calibri", sans-serif;
+}
+.sans-section {
+  font-family: "Nunito", "Century Gothic", "Apple Gothic", sans-serif;
+}
+
+pre.koka,
+code.koka,
+.koka.doc .header {
+  background-color: #f4f3f2;
+}
+
+/* Text size and margins for screen & print */
+@media screen {
+  body.madoko,
+  body.koka {
+    max-width: 62em;
+    margin: 1em auto;
+    padding: 0em 1em 45em 1em; /* so a link to the end always puts the definition on top of the screen */
+    line-height: 1.4;
+  }
+  .koka.doc p {
+    text-align: left;
+  }
+}
+
+@media screen and (max-device-width: 1022px) {
+  body.madoko,
+  body.koka {
+    max-width: 100%;
+    padding: 0em 0.5em 40em 0.5em;
+    margin: 1em;
+  }
+}
+
+@media screen and (min-device-width: 2048px) {
+  html {
+    font-size: 120%;
+  }
+}
+
+@media print {
+  body {
+    font-size: 9pt;
+    margin: 0pt;
+  }
+  h2,
+  h3,
+  h4 {
+    page-break-after: avoid;
+  }
+  p {
+    text-align: justify;
+  }
+  @page:left {
+    margin: 8% 5% 8% 5%;
+  }
+  @page:right {
+    margin: 8% 5% 8% 5%;
+  }
+}
+/* p,li,div.koka.doc.comment { text-align: justify;} */
+
+/* source code font styles: 
+   font stack designed for windows, mac, and linux.
+   see also: http://www.apaddedcell.com/sites/www.apaddedcell.com/files/fonts-article/final/index.html
+*/
+body {
+  -webkit-text-size-adjust: 100%; /* so math displays well on mobile devices */
+  text-size-adjust: 100%;
+  color: black;
+}
+
+h1 {
+  font-size: 150%;
+}
+h1.mo,
+h1 .mo,
+h1 .toc-link {
+  color: inherit !important;
+}
+
+/* Fix monospace display (see http://code.stephenmorley.org/html-and-css/fixing-browsers-broken-monospace-font-handling/) */
+.koka.source,
+.koka.codeblock,
+.koka.preblock,
+code,
+code.koka,
+.koka .code,
+.madoko code,
+pre,
+pre.koka,
+.madoko pre,
+.monospace {
+  font-family: Consolas, "Menlo", "Andale Mono", Lucida Console, Monaco,
+    "Roboto Mono", monospace, monospace;
+}
+
+.madoko pre,
+.madoko code,
+.madoko kbd,
+.madoko samp,
+.madoko tt,
+.madoko .monospace,
+.madoko .token-indent,
+.madoko .reveal pre,
+.madoko .reveal code,
+.madoko .email {
+  font-size: 0.95em;
+}
+
+.koka .code {
+  /* header and toc code */
+  //   xfont-size: 90%;        /* more even with text */
+}
+
+code,
+code.koka,
+.koka .code,
+.madoko code {
+  border-radius: 4px;
+  padding: 0pt 0.2ex;
+}
+
+pre code code,
+.madoko pre code code {
+  //   xfont-size: 1em;
+}
+
+/* source code blocks */
+.koka.codeblock,
+.koka.preblock {
+  padding: 0.5ex 1ex 0.5ex 1ex;
+}
+
+.koka.source {
+  padding: 0.5ex 1em 0.5ex 1em;
+}
+
+// .koka.source.unchecked {
+// }
+
+.koka.source-body .source {
+  margin-right: 1ex;
+}
+
+.koka .dash {
+  margin-left: -0.25ex;
+  margin-right: -0.25ex;
+}
+
+.koka .minus {
+  font-weight: bold;
+}
+
+.koka .fslash {
+  font-size: 90%;
+}
+.koka .fslash .last {
+  margin-right: 0.5ex;
+}
+
+.koka .postfix {
+  color: gray;
+}
+
+/* Pre */
+.koka.source,
+.koka.codeblock,
+.koka.preblock,
+.koka.code,
+code,
+.koka.pre,
+pre {
+  //   xwhite-space: pre-wrap;
+  overflow: visible;
+}
+
+pre.koka.source {
+  border: 1px solid #ccc;
+}
+
+.madoko pre.koka.source {
+  //   xfont-size: 0.9em;
+}
+
+.koka.doc .comment p {
+  margin: 0pt;
+  margin-bottom: 0.25ex;
+}
+
+/* Used for online tutorials */
+.plaincode {
+  display: none;
+  white-space: pre-wrap;
+}
+
+.koka.source a:hover,
+.koka.code a:hover,
+code.koka a:hover .koka.pre a:hover,
+pre.koka a:hover {
+  text-decoration: none;
+}
+
+/* standard tokens */
+.koka .type,
+.koka .tp {
+  color: teal;
+}
+.koka .keyword,
+.koka .kw {
+  color: blue;
+}
+.koka .string,
+.koka .st {
+  color: maroon;
+}
+.koka .module,
+.koka .mo {
+  color: navy;
+}
+.koka .number,
+.koka .nu {
+  color: black;
+}
+.koka .constructor,
+.koka .co {
+  color: purple;
+}
+.koka .namespace,
+.koka .mo {
+  color: navy;
+}
+.koka .comment {
+  color: green;
+}
+
+/* These are perhaps too fancy ? */
+.koka .type.typeparam,
+.koka .tp.tpp {
+  color: #555;
+}
+.koka .type.typevar,
+.koka .tp.tv {
+  font-style: italic;
+}
+.koka .type.keyword.operator,
+.koka .tp.kw.op {
+  color: teal;
+}
+
+/* comment formats */
+.koka.emph {
+  font-style: italic;
+  color: black;
+}
+
+.koka.preblock,
+.koka.codeblock {
+  display: block;
+  margin-top: 1ex;
+  margin-bottom: 1ex;
+}
+
+.koka.line {
+  display: block;
+  border-bottom: 1px dotted;
+  margin-top: 3px;
+  width: 75%;
+}
+
+/* addornments */
+.koka .error,
+.koka .warning {
+  border-bottom: dotted;
+  border-width: 2px;
+}
+
+.koka .error {
+  border-color: red;
+}
+.koka .warning {
+  border-color: teal;
+}
+
+/* declarations */
+.koka .decl {
+  &.type,
+  &.cotype,
+  &.rectype,
+  &.fun,
+  &.val,
+  &.external {
+    //   background-color: yellow;
+  }
+}
+
+.koka .decl.alias,
+.koka .decl.alias .koka .keywordop {
+  color: teal;
+}
+
+/* popup boxes: for space we call this pp (for popup) and pc (for popup-content) */
+a.pp {
+  position: relative;
+  text-decoration: none;
+  color: black;
+}
+
+.pc {
+  display: none;
+}
+
+a.pp:hover {
+  z-index: 100;
+  text-decoration: none;
+}
+
+a.pp:hover .pc,
+.tooltip {
+  display: block;
+  position: absolute;
+  top: 1.5em;
+  left: 2ex;
+  padding: 0.2ex 0.75ex 0.2ex 0.5ex;
+  border: 1px solid black;
+  background: #fffdf0;
+  white-space: pre;
+}
+
+a.pp a.pp:hover .pc {
+  top: 3em;
+}
+
+/* Documentation */
+.koka.doc > pre.source {
+  border: 1px solid #ccc;
+}
+
+h1.koka.module {
+  font-weight: normal;
+}
+
+.koka .toc-link {
+  font-size: 75%;
+  float: right;
+  color: navy;
+}
+
+.koka.doc .header {
+  padding: 0.25ex;
+  padding-left: 0.5ex;
+  margin-top: 0px;
+  margin-bottom: 0.5em;
+}
+
+.koka.doc .link {
+  text-decoration: none;
+  color: black;
+}
+
+.koka.doc .doc.comment {
+  color: black;
+}
+
+.koka.doc .decl .decl {
+  margin-left: 1em;
+}
+
+.koka.doc .decl .comment {
+  margin: 0em 0em 0em 1em;
+}
+
+.koka.doc.body > .comment {
+  margin-bottom: 1em;
+}
+
+.koka.doc .decl,
+.koka.doc .con-decl {
+  margin-top: 1.2em;
+  border: 1px solid #aaa;
+  border-width: 1px 0px 0px 1px;
+}
+
+.koka.doc .synopsis {
+  font-size: 150%;
+  margin-top: -0.5em;
+  margin-bottom: 0.25em;
+}
+/*
+.koka.doc.header,
+.koka.doc.decl,
+.koka.doc.con-decl { 
+  border-top-left-radius: 8px
+}
+*/
+
+div.nested {
+  margin: 1.25em 0em 1.25em 1em;
+}
+
+.koka.doc .nested .decl {
+  margin-left: 0em;
+}
+
+.koka.doc .con-decl {
+  /* border: dotted 1px */
+
+  margin-left: 1em;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+/* gives more weight to definition entries */
+/*
+.koka.doc .def a {
+  font-weight: bold;
+}
+*/
+
+/* Table of contents */
+
+.koka.doc ul.toc {
+  list-style-type: none;
+  margin: 0em;
+  float: left;
+  clear: none;
+  /* ; margin-bottom: 1.5em;  */
+  padding: 0.5ex 2em 1ex 0.5ex /* ; width: 10.5em; */;
+  white-space: nowrap;
+  border-bottom: 1px solid #aaa;
+}
+
+.koka.doc ul.toc li.nested {
+  padding-left: 1em;
+}
+
+.koka.doc div.toc {
+  overflow: auto;
+  width: 100%;
+}
+
+.koka.doc div.toc + .doc {
+  margin: 1em 0em;
+  padding: 1em 0em;
+  /* border-top: 1px solid #AAA; */
+}
+
+/* Index documentation */
+.koka table.index {
+  border: 1px solid #aaa;
+}
+
+.koka.doc table.index td {
+  vertical-align: top;
+  padding-right: 2.5em;
+  padding-bottom: 0.5ex;
+}
+
+.koka.doc table.index .nested1 {
+  margin-left: 2em;
+}
+
+.koka.doc table.index .nested2 {
+  margin-left: 3em;
+}
+
+.koka.doc table.index .nested3 {
+  margin-left: 4em;
+}
+
+/* Print in black&white. Commented out for now  */
+/*
+@media print {
+  .koka .keyword, .koka .kw       { font-weight: bold; color: black; }      
+  .koka .string, .koka .st        { color: gray }
+  .koka .module, .koka .mo        { color: gray }
+  .koka .number, .koka .nu        { color: black }
+  .koka .constructor, .koka .co   { color: black }
+  .koka .type, .koka .tp          { color: gray }
+  .koka .namespace, .koka .mo     { color: gray }
+  .koka .comment                  { color: black }
+
+  .koka .type.typeparam, .koka .tp.tpp { color: #555 } 
+  .koka .type.typevar, .koka .tp.tv    { font-style: italic }
+  .koka .type.keyword.operator, .koka .tp.kw.op { color: gray } 
+}
+*/

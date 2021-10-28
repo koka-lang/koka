@@ -6,6 +6,7 @@ found in the LICENSE file at the root of this distribution.
 
 Run this to generate documentation from the `doc/spec` directory
 using the Madoko program (install: `> npm install -g madoko`)
+This also uses Sass to generate stylesheet (install: `> npm install -g sass`).
 -----------------------------------------------------------------------------*/
 import std/os/path
 import std/os/flags
@@ -77,7 +78,7 @@ fun build( publish : bool, version : string, speconly : bool ) : io ()
   copy-directory(specdir / "images", outimages)
   copy-directory(specdir / "styles", outstyles)
   copy-directory(specdir / "scripts", outscripts)
-  copy-file-to-dir("doc/koka.css".path, outstyles)
+  run-echo("sass doc/koka.scss " ++ (outstyles / "koka.css").string)
   copy-file-to-dir("doc/logo/koka-logo.png".path, outimages)
   copy-file-to-dir(specdir / "koka.bib", outspec)
   copy-file-to-dir("lib/std/time/timescales.png".path, outspec)
