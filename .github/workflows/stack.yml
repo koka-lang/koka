@@ -37,4 +37,4 @@ jobs:
       run: stack build --fast --no-run-tests --no-terminal --stack-yaml=./stack/stack-${{ matrix.ghc }}.yaml
 
     - name: run tests
-      run: stack test --fast --no-terminal --test-arguments --stack-yaml=./stack/stack-${{ matrix.ghc }}.yaml
+      run: stack test --fast --stack-yaml=./stack/stack-${{ matrix.ghc }}.yaml
