@@ -5,13 +5,6 @@
 
 packages:
 - completed:
-    hackage: regex-compat-tdfa-0.95.1.4@sha256:f4e4ca4b5151d59fe2e8c832f0be8400577b0ae882ade9779190e684e69884cc,2102
-    pantry-tree:
-      size: 215
-      sha256: 8b948f27782b53d09c7fac80164c85f0caeb39b84dedf25d3a0aea869090439e
-  original:
-    hackage: regex-compat-tdfa-0.95.1.4
-- completed:
     hackage: json-0.10@sha256:d9fc6b07ce92b8894825a17d2cf14799856767eb30c8bf55962baa579207d799,3210
     pantry-tree:
       size: 3190
