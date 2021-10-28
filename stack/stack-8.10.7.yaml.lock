@@ -5,13 +5,6 @@
 
 packages:
 - completed:
-    hackage: json-0.10@sha256:d9fc6b07ce92b8894825a17d2cf14799856767eb30c8bf55962baa579207d799,3210
-    pantry-tree:
-      size: 3190
-      sha256: 5654f66b7cd8bf087ac040a9b0a83eb064219eab32230f61a3adeddfdbb4d4cd
-  original:
-    hackage: json-0.10
-- completed:
     hackage: isocline-1.0.5@sha256:ea9cbf9690cf3e252afd56c0e766678dc5f3aab9259a2ee6ec820a598fead989,2420
     pantry-tree:
       size: 2061
