@@ -9,7 +9,8 @@ module Core.Specialize( specialize
                       , extractSpecializeDefs
                       ) where
 
-import Data.List (transpose )
+import Data.List (transpose, foldl', intersect)
+import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Arrow ((***))
@@ -56,10 +57,10 @@ specialize specEnv
     -- TODO: use uniqe int to generate names and remove call to uniquefyDefGroups?
     uniquefyDefGroups $ runSpecM specEnv (mapM specOneDefGroup defs)
 
-speclookupM :: Name -> SpecM (Maybe InlineDef)
-speclookupM name
+speclookup :: Name -> SpecM (Maybe InlineDef)
+speclookup name
   = asks $ \env ->
-      filterMaybe inlineDefIsSpecialize $ inlinesLookup name env
+      inlinesLookup name env
 
 specOneDefGroup :: DefGroup -> SpecM DefGroup
 specOneDefGroup = mapMDefGroup specOneDef
@@ -83,7 +84,7 @@ specOneExpr thisDefName
       e -> pure e
   where
     go name e
-       = do mbSpecDef <- speclookupM name
+       = do mbSpecDef <- speclookup name
             case mbSpecDef of
               Nothing -> pure e
               Just specDef
@@ -155,7 +156,7 @@ specInnerCalls from to bools = rewriteBottomUp $ \e ->
     e -> e
 
 comment :: String -> String
-comment = unlines . map ("// " ++ ) . lines
+comment = unlines . map ("// " ++) . lines
 
 replaceCall :: Name -> Expr -> [Bool] -> [Expr] -> Maybe [Type] -> SpecM Expr
 replaceCall name expr bools args mybeTypeArgs = do
@@ -174,7 +175,7 @@ replaceCall name expr bools args mybeTypeArgs = do
 
   -- explain fixing the inner body here
   let specType = typeOf specBody0
-      specTName = TName (genSpecName name bools) specType
+      specTName = TName (genSpecName name) specType
   let specBody = case specBody0 of
         Lam args eff (Let specArgs body) -> Lam args eff
           (Let specArgs $ specInnerCalls (TName name (typeOf expr)) specTName (not <$> bools) body)
@@ -193,8 +194,8 @@ replaceCall name expr bools args mybeTypeArgs = do
       $ zip (fnParams expr) args
 
 -- we might shadow here but it will still be correct(?) and we uniquefy at the end
-genSpecName :: Name -> [Bool] -> Name
-genSpecName name bools = newName $ "spec_" ++ show (unqualify name)
+genSpecName :: Name -> Name
+genSpecName name = newName $ "spec_" ++ show (unqualify name)
 -- genSpecName name bools = makeHiddenName "spec" name
 
 fnTypeParams :: Expr -> [TypeVar]
@@ -223,7 +224,11 @@ fnBody e = failure $ "fnBody: Not a function: " <> show e
 
 extractSpecializeDefs ::  DefGroups -> [InlineDef]
 extractSpecializeDefs dgs =
-    mapMaybe makeSpecialize
+    inlinesToList
+  $ flip multiStepInlines (flattenDefGroups dgs)
+  $ inlinesNew
+  -- $ traceShowId
+  $ mapMaybe (\def -> makeSpecialize def)
   $ filter (isFun . defType)
   $ flattenDefGroups
   $ filter isRecursiveDefGroup dgs
@@ -239,6 +244,15 @@ whenJust :: (Applicative f) => Maybe a -> (a -> f ()) -> f ()
 whenJust Nothing _ = pure ()
 whenJust (Just x) f = f x
 
+(<&&>) :: (Applicative f) => f Bool -> f Bool -> f Bool
+(<&&>) = liftA2 (&&)
+
+(<||>) :: (Applicative f) => f Bool -> f Bool -> f Bool
+(<||>) = liftA2 (||)
+
+makeCallsSpecialize :: Def -> Maybe InlineDef
+makeCallsSpecialize def = Nothing -- flip anySubExpr (defExpr def) $ \e -> undefined
+  
 makeSpecialize :: Def -> Maybe InlineDef
 makeSpecialize def
   =do let (mbTypes, recArgs) = recursiveCalls def
@@ -246,12 +260,12 @@ makeSpecialize def
 
       let params = fnParams $ defExpr def
       let specializableParams =
-              map   (filterMaybe ((`S.member` usedInThisDef def) . getName)
-                  . (filterMaybe (isFun . tnameType)))
+              map   (filterMaybe (((`S.member` usedInThisDef def) . getName)
+                              <&&> (isFun . tnameType)))
             $ allPassedInSameOrder params recArgs
 
       guard (any isJust specializableParams)
-      pure $ InlineDef (defName def) (defExpr def) True (InlineAuto) (costDef def) (map isJust specializableParams)
+      Just $ InlineDef (defName def) (defExpr def) True InlineAuto (costDef def) (map isJust specializableParams)
 
 allPassedInSameOrder :: [TName] -> [[Expr]] -> [Maybe TName]
 allPassedInSameOrder params calls
@@ -305,7 +319,6 @@ recursiveCalls Def{ defName=thisDefName, defExpr=expr }
       | name == thisDefName = [(Just types, args)]
     f _ = []
 
-{-
 multiStepInlines :: Inlines -> [Def] -> Inlines
 multiStepInlines inlines = foldl' f inlines
   where
@@ -313,28 +326,29 @@ multiStepInlines inlines = foldl' f inlines
     f inlines def
     -- inlineCost ?
       | callsSpecializable inlines def = -- trace ("Add " ++ show (defName def) ++ " as multi-step specializable") $
-          inlinesExtend (InlineDef (defName def) (defExpr def) False InlineAuto 0 []) inlines
+          inlinesExtend (InlineDef (defName def) (defExpr def) False InlineAuto 0 n) inlines
+            where n = if unqualify (defName def) == newName "large" then [True] else []
     f inlines _ = inlines
 
     -- look for calls to specializable functions where we don't know the RHS of an argument
     -- references that aren't calls aren't eligible for multi-step specialization; we don't have the specializable args anyway
     -- callsSpecializable inlines def = getAny $ flip foldMapExpr (defExpr def) $ \e -> Any $ case e of
+    -- callsSpecializable inlines def | trace ("callsSpecializable " <> show inlines <> " ") False = undefined
     callsSpecializable inlines def = flip anySubExpr (defExpr def) $ \e -> case e of
       App (Var (TName name _) _) args
         | Just inlineDef <- inlinesLookup name inlines
-        , inlineDefIsSpecialize inlineDef || isTwoStepSpecialize inlineDef
+        -- , inlineDefIsSpecialize inlineDef -- || isTwoStepSpecialize inlineDef
         , name /= defName def -> trace ("Add " ++ show (defName def) ++ " as multi-step specializable because calls " ++ show name) $
             not $ null $ intersect params $ concatMap vars args
       App (TypeApp (Var (TName name _) _) _) args
         | Just inlineDef <- inlinesLookup name inlines
-        , inlineDefIsSpecialize inlineDef || isTwoStepSpecialize inlineDef
+        -- , inlineDefIsSpecialize inlineDef -- || isTwoStepSpecialize inlineDef
         , name /= defName def -> trace ("Add " ++ show (defName def) ++ " as multi-step specializable because calls " ++ show name) $
             not $ null $ intersect params $ concatMap vars args
       e -> False
 
       where
         params = fnParams $ defExpr def
--}
 
 vars :: Expr -> [TName]
 vars = foldMapExpr $ \e -> case e of

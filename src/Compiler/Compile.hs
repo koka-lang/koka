@@ -889,7 +889,13 @@ inferCheck loaded0 flags line coreImports program
        
        when (optSpecialize flags) $
          specialize (inlinesExtends specializeDefs (loadedInlines loaded))
-       -- traceDefGroups "specialized"
+
+       simplifyNoDup
+
+       when (optSpecialize flags) $
+         specialize (inlinesExtends specializeDefs (loadedInlines loaded))
+
+       traceDefGroups "specialized"
 
        -- simplifyDupN
           
