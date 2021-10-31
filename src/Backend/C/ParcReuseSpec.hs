@@ -66,9 +66,9 @@ ruDef def
 ruExpr :: Expr -> Reuse Expr
 ruExpr expr
   = case expr of
-      App alloc@(Var allocAt _) [reuse@(Var reuseName (InfoReuse pat)), conApp]  | nameAllocAt == getName allocAt
+      App alloc@(Var allocAt _) [reuse@(Var reuseName info), conApp]  | nameAllocAt == getName allocAt
         -> do conApp' <- ruExpr conApp
-              mbExpr  <- ruSpecialize reuseName pat conApp'
+              mbExpr  <- ruSpecialize reuseName info conApp'
               case mbExpr of
                 Just newExpr -> return newExpr
                 Nothing      -> return (App alloc [reuse, conApp'])
@@ -118,10 +118,10 @@ ruGuard (Guard test expr)
 -- | Try to specialize an allocation at a reuse.
 -- We will only do this if we can get the necessary ConInfo 
 -- and save at least a fourth of the necessary assignments.
-ruSpecialize :: TName -> Pattern -> Expr -> Reuse (Maybe Expr)
-ruSpecialize reuseName reusePat conApp
-  = case (conApp,reusePat) of
-      (App con args, PatCon{patConName, patConPatterns})
+ruSpecialize :: TName -> VarInfo -> Expr -> Reuse (Maybe Expr)
+ruSpecialize reuseName info conApp
+  = case (conApp,info) of
+      (App con args, InfoReuse (PatCon{patConName, patConPatterns}))
         -> case extractCon con of
              Just (cname, repr)
                -> do mci <- getConInfo (typeOf con) (getName cname)
