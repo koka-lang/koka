@@ -890,14 +890,19 @@ inferCheck loaded0 flags line coreImports program
        when (optSpecialize flags) $
          specialize (inlinesExtends specializeDefs (loadedInlines loaded))
 
-       simplifyNoDup
+      --  simplifyNoDup
 
-       when (optSpecialize flags) $
-         specialize (inlinesExtends specializeDefs (loadedInlines loaded))
+      --  when (optSpecialize flags) $
+      --    specialize (inlinesExtends specializeDefs (loadedInlines loaded))
 
        traceDefGroups "specialized"
 
-       -- simplifyDupN
+       simplifyNoDup
+
+       traceDefGroups "simplified"
+
+       when (optSpecialize flags) $
+         specialize (inlinesExtends specializeDefs (loadedInlines loaded))
           
        -- lifting recursive functions to top level (must be after specialize)
        liftFunctions penv
