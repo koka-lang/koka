@@ -356,7 +356,7 @@ multiStepInlines inlines = foldl' f inlines
     -- inlineCost ?
       | Just specArgs <- callsSpecializable inlines def 
       , defInline def /= InlineNever  = -- trace ("Add " ++ show (defName def) ++ " as multi-step specializable") $
-          inlinesExtend (InlineDef (defName def) (defExpr def) False InlineAuto 0 [True]) inlines
+          inlinesExtend (InlineDef (defName def) (defExpr def) False InlineAuto 0 specArgs) inlines
             -- where n = if unqualify (defName def) == newName "large" then [True] else []
     f inlines _ = inlines
 
@@ -377,10 +377,11 @@ multiStepInlines inlines = foldl' f inlines
         goCommon name args
           | Just InlineDef{ specializeArgs=specArgs } <- inlinesLookup name inlines
           , goodArgs specArgs args
-          , name /= defName def = -- trace ("Add " ++ show (defName def) ++ " as multi-step specializable " <> " for params " <> show specArgs <> " because calls " ++ show name) $
-            let
-                overlap = map (`elem` concatMap vars args) params
-            in guard (not $ null overlap) >> pure overlap
+          , name /= defName def = do
+              let overlap = map (`elem` concatMap vars args) params
+              guard (not $ null overlap)
+              traceM ("Add " ++ show (defName def) ++ " as multi-step specializable " <> " for params " <> show specArgs <> " because calls " ++ show name)
+              pure overlap
         goCommon _ _ = mempty
 
 vars :: Expr -> [TName]
