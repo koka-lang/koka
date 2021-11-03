@@ -112,7 +112,8 @@ specOneExpr thisDefName
             case mbSpecDef of
               Nothing -> pure e
               Just specDef
-                | inlineName specDef /= thisDefName -> specOneCall specDef e   -- don't specialize ourselves
+                | inlineName specDef /= thisDefName -> trace ("specialize " <> show (inlineName specDef) <> " in " <> show thisDefName)
+                                                       specOneCall specDef e   -- don't specialize ourselves
                 | otherwise -> pure e
 
 filterBools :: [Bool] -> [a] -> [a]
@@ -128,7 +129,7 @@ partitionBools bools as = foldr f ([], []) $ zip bools as
       | otherwise = (a : falses, trues)
 
 specOneCall :: InlineDef -> Expr -> SpecM Expr
-specOneCall (InlineDef{ inlineName=specName, inlineExpr=specExpr, specializeArgs=specArgs }) e
+specOneCall inlineDef@(InlineDef{ inlineName=specName, inlineExpr=specExpr, specializeArgs=specArgs }) e
   = case e of
       App (Var (TName name _) _) args  | goodArgs args
         -> replaceCall specName specExpr specArgs args Nothing
@@ -137,13 +138,15 @@ specOneCall (InlineDef{ inlineName=specName, inlineExpr=specExpr, specializeArgs
       _ -> return e
 
   where
-    goodArgs args  = -- (\isgoodarg -> trace (show args ++ " is " ++ (if isgoodarg then "" else "not ") ++ "good") isgoodarg) $
+    goodArgs args  = -- (\isgoodarg -> trace (show (filterBools specArgs args) ++ " is " ++ (if isgoodarg then "" else "not ") ++ "good") isgoodarg) $
+      -- TODO: not all need to be eligible here; we can still specialize if some are bad
       all goodArg $ filterBools specArgs args
     goodArg expr = case expr of
                     Lam{}                  -> True
                     TypeLam _ body         -> goodArg body
                     TypeApp body _         -> goodArg body
                     App fun _              -> goodArg fun  -- ??  for open(f) calls?
+                    -- Var name info | isQualified (getName name) -> True
                     Var name info          -> case info of
                                                 InfoNone -> False
                                                 _        -> True
@@ -184,7 +187,7 @@ comment = unlines . map ("// " ++) . lines
 
 -- At this point we've identified a call to a specializable function with a 'known' argument passed for all specializable parameters
 -- A couple steps here to avoid looping when getting the type of the specialized Def (e.g. in the spec_f example above)
--- 1. Find the body of spec_f e.g. val y = yexpr; ...body of f... 
+-- 1. Find the body of spec_f e.g. val y = yexpr; ...body of f...
 -- 2. Get the type of this body
 -- 3. Only then, replace the recursive calls to f in the body (specInnerCalls)
 -- The important thing is that we don't try to get the type of the body at the same time as replacing the recursive calls
@@ -200,10 +203,8 @@ replaceCall name expr bools args mybeTypeArgs = do
         -- TODO do we still need the Let?
         (Let [DefNonRec $ Def param typ arg Private DefVal InlineAuto rangeNull ""
               | (TName param typ, arg) <- zip speccedParams speccedArgs]
-        -- $ specInnerCalls (TName name (typeOf expr)) specTName (not <$> bools)
         $ fnBody expr)
 
-  -- explain fixing the inner body here
   let specType = typeOf specBody0
       specTName = TName (genSpecName name) specType
   let specBody = case specBody0 of
@@ -355,7 +356,8 @@ multiStepInlines inlines = foldl' f inlines
     -- seq here since we're using foldl'?
     f inlines def
     -- inlineCost ?
-      | callsSpecializable inlines def = -- trace ("Add " ++ show (defName def) ++ " as multi-step specializable") $
+      | callsSpecializable inlines def 
+      , defInline def /= InlineNever  = -- trace ("Add " ++ show (defName def) ++ " as multi-step specializable") $
           inlinesExtend (InlineDef (defName def) (defExpr def) False InlineAuto 0 n) inlines
             where n = if unqualify (defName def) == newName "large" then [True] else []
     f inlines _ = inlines
