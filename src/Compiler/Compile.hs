@@ -885,7 +885,7 @@ inferCheck loaded0 flags line coreImports program
        -- specialize 
        specializeDefs <- -- if (isPrimitiveModule (Core.coreProgName coreProgram)) then return [] else 
                          Core.withCoreDefs (\defs -> extractSpecializeDefs defs)
-       -- traceM ("Spec defs:\n" ++ unlines (map show specializeDefs))
+      --  traceM ("Spec defs:\n" ++ unlines (map show specializeDefs))
        
        when (optSpecialize flags) $
          specialize (inlinesExtends specializeDefs (loadedInlines loaded))
@@ -895,7 +895,7 @@ inferCheck loaded0 flags line coreImports program
       --  when (optSpecialize flags) $
       --    specialize (inlinesExtends specializeDefs (loadedInlines loaded))
 
-       traceDefGroups "specialized"
+      --  traceDefGroups "specialized"
 
        simplifyNoDup
 
@@ -903,6 +903,8 @@ inferCheck loaded0 flags line coreImports program
 
        when (optSpecialize flags) $
          specialize (inlinesExtends specializeDefs (loadedInlines loaded))
+
+      --  traceDefGroups "specialized2"
           
        -- lifting recursive functions to top level (must be after specialize)
        liftFunctions penv
