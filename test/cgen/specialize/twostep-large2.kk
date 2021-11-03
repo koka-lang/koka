@@ -8,6 +8,10 @@ fun repeatN(i, f) {
     mapp(list(1, i), fn(_) { f() })
 }
 
+noinline fun a(i, f) {
+    repeatN(i, f)
+}
+
 fun large(f) : total _ {
     repeatN(10) {
         repeatN(10) {

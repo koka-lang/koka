@@ -14,7 +14,7 @@ import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Arrow ((***))
-import Data.Monoid((<>))
+import Data.Monoid((<>), Alt(..))
 import Data.Maybe (mapMaybe, fromMaybe, catMaybes, isJust, fromJust)
 
 import Lib.PPrint
@@ -112,7 +112,7 @@ specOneExpr thisDefName
             case mbSpecDef of
               Nothing -> pure e
               Just specDef
-                | inlineName specDef /= thisDefName -> trace ("specialize " <> show (inlineName specDef) <> " in " <> show thisDefName)
+                | inlineName specDef /= thisDefName -> -- trace ("specialize " <> show (inlineName specDef) <> " in " <> show thisDefName)
                                                        specOneCall specDef e   -- don't specialize ourselves
                 | otherwise -> pure e
 
@@ -354,31 +354,34 @@ multiStepInlines inlines = foldl' f inlines
     -- seq here since we're using foldl'?
     f inlines def
     -- inlineCost ?
-      | callsSpecializable inlines def 
+      | Just specArgs <- callsSpecializable inlines def 
       , defInline def /= InlineNever  = -- trace ("Add " ++ show (defName def) ++ " as multi-step specializable") $
-          inlinesExtend (InlineDef (defName def) (defExpr def) False InlineAuto 0 n) inlines
-            where n = if unqualify (defName def) == newName "large" then [True] else []
+          inlinesExtend (InlineDef (defName def) (defExpr def) False InlineAuto 0 [True]) inlines
+            -- where n = if unqualify (defName def) == newName "large" then [True] else []
     f inlines _ = inlines
 
     -- look for calls to specializable functions where we don't know the RHS of an argument
     -- references that aren't calls aren't eligible for multi-step specialization; we don't have the specializable args anyway
     -- callsSpecializable inlines def = getAny $ flip foldMapExpr (defExpr def) $ \e -> Any $ case e of
     -- callsSpecializable inlines def | trace ("callsSpecializable " <> show inlines <> " ") False = undefined
-    callsSpecializable inlines def = flip anySubExpr (defExpr def) $ \e -> case e of
-      App (Var (TName name _) _) args
-        | Just inlineDef <- inlinesLookup name inlines
-        -- , inlineDefIsSpecialize inlineDef -- || isTwoStepSpecialize inlineDef
-        , name /= defName def -> trace ("Add " ++ show (defName def) ++ " as multi-step specializable because calls " ++ show name) $
-            not $ null $ intersect params $ concatMap vars args
-      App (TypeApp (Var (TName name _) _) _) args
-        | Just inlineDef <- inlinesLookup name inlines
-        -- , inlineDefIsSpecialize inlineDef -- || isTwoStepSpecialize inlineDef
-        , name /= defName def -> trace ("Add " ++ show (defName def) ++ " as multi-step specializable because calls " ++ show name) $
-            not $ null $ intersect params $ concatMap vars args
-      e -> False
+    -- callsSpecializable inlines def = flip anySubExpr (defExpr def) $ \e -> case e of
+    callsSpecializable inlines def = getAlt $ flip foldMapExpr (defExpr def) $ \e -> case e of
+      App (Var (TName name _) _) args -> goCommon name args
+      App (TypeApp (Var (TName name _) _) _) args -> goCommon name args
+      e -> mempty
 
       where
         params = fnParams $ defExpr def
+
+        goCommon :: Name -> [Expr] -> Alt Maybe [Bool]
+        goCommon name args
+          | Just InlineDef{ specializeArgs=specArgs } <- inlinesLookup name inlines
+          , goodArgs specArgs args
+          , name /= defName def = -- trace ("Add " ++ show (defName def) ++ " as multi-step specializable " <> " for params " <> show specArgs <> " because calls " ++ show name) $
+            let
+                overlap = map (`elem` concatMap vars args) params
+            in guard (not $ null overlap) >> pure overlap
+        goCommon _ _ = mempty
 
 vars :: Expr -> [TName]
 vars = foldMapExpr $ \e -> case e of
