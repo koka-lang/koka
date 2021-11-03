@@ -37,6 +37,30 @@ import Lib.Trace
 import Core.Inlines
 import Core.Uniquefy
 
+{-
+  Specialization
+  Suppose a function is recursive and passes a function to itself unchanged e.g. map takes a function f which does not
+  change during recursive calls.
+  If we call map with a known function argument e.g. inc or fn(x) { x + x }, then generate a new
+  'specialized' definition at this call site which always has the same value for this parameter
+  e.g. map(inc, list(1, 10)) becomes
+
+  val spec_map = fn(xs)
+    val f = inc
+    match(xs)
+      Nil -> Nil
+      Cons(x, xx) -> Cons(f(x), xx.spec_map())
+  spec_map(list(1, 10))
+
+  the simplifier will later inline the only occurence of f leaving
+
+  val spec_map = fn(xs)
+    match(xs)
+      Nil -> Nil
+      Cons(x, xx) -> Cons(inc(x), xx.spec_map())
+  spec_map(list(1, 10))
+-}
+
 {--------------------------------------------------------------------------
   Specialization Monad
 --------------------------------------------------------------------------}
@@ -158,9 +182,15 @@ specInnerCalls from to bools = rewriteBottomUp $ \e ->
 comment :: String -> String
 comment = unlines . map ("// " ++) . lines
 
+-- At this point we've identified a call to a specializable function with a 'known' argument passed for all specializable parameters
+-- A couple steps here to avoid looping when getting the type of the specialized Def (e.g. in the spec_f example above)
+-- 1. Find the body of spec_f e.g. val y = yexpr; ...body of f... 
+-- 2. Get the type of this body
+-- 3. Only then, replace the recursive calls to f in the body (specInnerCalls)
+-- The important thing is that we don't try to get the type of the body at the same time as replacing the recursive calls
+-- since the type of the body depends on the type of the functions that it calls and vice versa
 replaceCall :: Name -> Expr -> [Bool] -> [Expr] -> Maybe [Type] -> SpecM Expr
 replaceCall name expr bools args mybeTypeArgs = do
-
   specBody0 <-
         (\body -> case mybeTypeArgs of
           Nothing -> body
