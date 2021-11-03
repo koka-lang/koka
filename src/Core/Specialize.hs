@@ -84,7 +84,7 @@ specialize specEnv
 speclookup :: Name -> SpecM (Maybe InlineDef)
 speclookup name
   = asks $ \env ->
-      inlinesLookup name env
+      filterMaybe inlineDefIsSpecialize (inlinesLookup name env)
 
 specOneDefGroup :: DefGroup -> SpecM DefGroup
 specOneDefGroup = mapMDefGroup specOneDef
@@ -112,8 +112,7 @@ specOneExpr thisDefName
             case mbSpecDef of
               Nothing -> pure e
               Just specDef
-                | inlineName specDef /= thisDefName 
-                , inlineDefIsSpecialize specDef -> -- trace ("specialize " <> show (inlineName specDef) <> " in " <> show thisDefName) $
+                | inlineName specDef /= thisDefName -> -- trace ("specialize " <> show (inlineName specDef) <> " in " <> show thisDefName) $
                                                        specOneCall specDef e   -- don't specialize ourselves
                 | otherwise -> pure e
 
@@ -352,12 +351,13 @@ multiStepInlines :: Inlines -> [Def] -> Inlines
 multiStepInlines inlines = foldl' f inlines
   where
     -- seq here since we're using foldl'?
+    -- f inlines def | trace ("checking " <> show (defName def)) False = undefined
     f inlines def
     -- inlineCost ?
       | Just specArgs <- callsSpecializable inlines def 
       , defInline def /= InlineNever  =
-          inlinesExtend (InlineDef (defName def) (defExpr def) False InlineAuto 0 specArgs) inlines
-            -- where n = if unqualify (defName def) == newName "large" then [True] else []
+          -- inlineCost = 1 here since kki complains about inline + specialize
+          inlinesExtend (InlineDef (defName def) (defExpr def) False InlineAuto 1 specArgs) inlines
     f inlines _ = inlines
 
     -- look for calls to specializable functions where we don't know the RHS of an argument

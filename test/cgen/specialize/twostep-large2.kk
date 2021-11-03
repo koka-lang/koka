@@ -1,4 +1,4 @@
-fun mapp(xs : list<a>, f : a -> b) : list<b>
+fun mapp(xs : list<a>, f : a -> e b) : e list<b>
   match (xs)
     Nil -> Nil
     Cons(x, xx) -> Cons(f(x), xx.mapp(f))
@@ -16,22 +16,20 @@ fun large(f) : total _ {
     repeatN(10) {
         repeatN(10) {
             repeatN(10) {
-                list(1, 10).mapp(f).sum
+                list(1, 10).map(f).sum
             }
         }
     }.concat.concat.sum
 }
 
-// fun calls-large(f) {
-//     large(f).println
-//     large(f).println
-// }
+fun calls-large(f) {
+    large(f).println
+    large(f).println
+}
 
 fun main() {
     // does not specialize, since large is not inline here
-    // calls-large() fn(x) {
-    //     x + 1
-    // }
+    // calls-large(inc)
     
     // also does not specialize; large is too big to inline here
     large(inc).println
