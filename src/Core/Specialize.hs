@@ -131,26 +131,30 @@ partitionBools bools as = foldr f ([], []) $ zip bools as
 specOneCall :: InlineDef -> Expr -> SpecM Expr
 specOneCall inlineDef@(InlineDef{ inlineName=specName, inlineExpr=specExpr, specializeArgs=specArgs }) e
   = case e of
-      App (Var (TName name _) _) args  | goodArgs args
+      App (Var (TName name _) _) args  | goodArgs specArgs args
         -> replaceCall specName specExpr specArgs args Nothing
-      App (TypeApp (Var (TName name ty) _) typeArgs) args  | goodArgs args
+      App (TypeApp (Var (TName name ty) _) typeArgs) args  | goodArgs specArgs args
         -> replaceCall specName specExpr specArgs args $ Just typeArgs      
       _ -> return e
 
   where
-    goodArgs args  = -- (\isgoodarg -> trace (show (filterBools specArgs args) ++ " is " ++ (if isgoodarg then "" else "not ") ++ "good") isgoodarg) $
-      -- TODO: not all need to be eligible here; we can still specialize if some are bad
-      all goodArg $ filterBools specArgs args
-    goodArg expr = case expr of
-                    Lam{}                  -> True
-                    TypeLam _ body         -> goodArg body
-                    TypeApp body _         -> goodArg body
-                    App fun _              -> goodArg fun  -- ??  for open(f) calls?
-                    -- Var name info | isQualified (getName name) -> True
-                    Var name info          -> case info of
-                                                InfoNone -> False
-                                                _        -> True
-                    _                      -> False
+
+goodArgs :: [Bool] -> [Expr] -> Bool
+goodArgs specArgs = -- (\isgoodarg -> trace (show (filterBools specArgs args) ++ " is " ++ (if isgoodarg then "" else "not ") ++ "good") isgoodarg) $
+  -- TODO: not all need to be eligible here; we can still specialize if some are bad
+  all goodArg . filterBools specArgs
+
+goodArg :: Expr -> Bool
+goodArg expr = case expr of
+                Lam{}                  -> True
+                TypeLam _ body         -> goodArg body
+                TypeApp body _         -> goodArg body
+                App fun _              -> goodArg fun  -- ??  for open(f) calls?
+                -- Var name info | isQualified (getName name) -> True
+                Var name info          -> case info of
+                                            InfoNone -> False
+                                            _        -> True
+                _                      -> False
 
 
 {-
@@ -278,12 +282,6 @@ whenJust (Just x) f = f x
 (<&&>) :: (Applicative f) => f Bool -> f Bool -> f Bool
 (<&&>) = liftA2 (&&)
 
-(<||>) :: (Applicative f) => f Bool -> f Bool -> f Bool
-(<||>) = liftA2 (||)
-
-makeCallsSpecialize :: Def -> Maybe InlineDef
-makeCallsSpecialize def = Nothing -- flip anySubExpr (defExpr def) $ \e -> undefined
-  
 makeSpecialize :: Def -> Maybe InlineDef
 makeSpecialize def
   =do let (mbTypes, recArgs) = recursiveCalls def
