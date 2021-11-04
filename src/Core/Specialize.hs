@@ -373,7 +373,6 @@ multiStepInlines inlines = foldl' f inlines
         goCommon :: Name -> [Expr] -> Alt Maybe [Bool]
         goCommon name args
           | Just InlineDef{ specializeArgs=specArgs } <- inlinesLookup name inlines
-          , goodArgs specArgs args
           , name /= defName def = do
               let overlap = map (`elem` concatMap vars args) params
               guard (not $ null overlap)

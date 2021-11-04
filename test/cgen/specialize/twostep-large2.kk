@@ -29,8 +29,8 @@ fun calls-large(f) {
 
 fun main() {
     // does not specialize, since large is not inline here
-    // calls-large(inc)
+    calls-large(inc)
     
     // also does not specialize; large is too big to inline here
-    large(inc).println
+    // large(inc).println
 }
