@@ -16,6 +16,7 @@ import Control.Monad.Reader
 import Control.Arrow ((***))
 import Data.Monoid((<>), Alt(..))
 import Data.Maybe (mapMaybe, fromMaybe, catMaybes, isJust, fromJust)
+import Data.Function
 
 import Lib.PPrint
 import Common.Failure (failure)
@@ -257,10 +258,10 @@ fnBody e = failure $ "fnBody: Not a function: " <> show e
   Extract definitions that should be specialized
 --------------------------------------------------------------------------}
 
-extractSpecializeDefs ::  DefGroups -> [InlineDef]
-extractSpecializeDefs dgs =
+extractSpecializeDefs :: Inlines -> DefGroups -> [InlineDef]
+extractSpecializeDefs loadedInlines dgs =
     inlinesToList
-  $ flip multiStepInlines (flattenDefGroups dgs)
+  $ flip (multiStepInlines loadedInlines) (flattenDefGroups dgs)
   $ inlinesNew
   $ mapMaybe (\def -> makeSpecialize def)
   $ filter (isFun . defType)
@@ -347,17 +348,19 @@ recursiveCalls Def{ defName=thisDefName, defExpr=expr }
       | name == thisDefName = [(Just types, args)]
     f _ = []
 
-multiStepInlines :: Inlines -> [Def] -> Inlines
-multiStepInlines inlines = foldl' f inlines
+multiStepInlines :: Inlines -> Inlines -> [Def] -> Inlines
+multiStepInlines loadedInlines inlines = snd . foldl' f (inlines `inlinesMerge` loadedInlines, inlines)
   where
     -- seq here since we're using foldl'?
     -- f inlines def | trace ("checking " <> show (defName def)) False = undefined
-    f inlines def
+    f (allInlines, newInlines) def
     -- inlineCost ?
-      | Just specArgs <- callsSpecializable inlines def 
-      , defInline def /= InlineNever  =
+      | isFun (defType def)
+      , defInline def /= InlineNever
+      , Just specArgs <- callsSpecializable allInlines def =
           -- inlineCost = 1 here since kki complains about inline + specialize
-          inlinesExtend (InlineDef (defName def) (defExpr def) False InlineAuto 1 specArgs) inlines
+          let new = InlineDef (defName def) (defExpr def) False InlineAuto 1 specArgs
+          in ((,) `on` inlinesExtend new) allInlines newInlines
     f inlines _ = inlines
 
     -- look for calls to specializable functions where we don't know the RHS of an argument

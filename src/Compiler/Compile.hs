@@ -884,7 +884,7 @@ inferCheck loaded0 flags line coreImports program
        
        -- specialize 
        specializeDefs <- -- if (isPrimitiveModule (Core.coreProgName coreProgram)) then return [] else 
-                         Core.withCoreDefs (\defs -> extractSpecializeDefs defs)
+                         Core.withCoreDefs (\defs -> extractSpecializeDefs (loadedInlines loaded) defs)
       --  traceM ("Spec defs:\n" ++ unlines (map show specializeDefs))
        
        when (optSpecialize flags) $
