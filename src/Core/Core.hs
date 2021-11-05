@@ -677,6 +677,7 @@ data VarInfo
   | InfoExternal [(Target,String)]  -- inline body
   | InfoReuse Pattern
   | InfoConField TName Name         -- constructor name, field name
+  | InfoKnownRHS Expr
 
 instance Show VarInfo where
   show info = case info of
@@ -690,6 +691,8 @@ instance Show VarInfo where
                   -> "arity:" ++ show (m,n)
                 InfoExternal formats
                   -> "external:" ++ show formats
+                InfoKnownRHS e
+                  -> "knownRHS: <e>"
 
 
 infoArity (InfoArity m n) = n
@@ -705,6 +708,7 @@ infoIsLocal info
   = case info of
       InfoNone       -> True
       InfoReuse{}    -> True
+      InfoKnownRHS e -> True
       InfoArity{}    -> False
       InfoExternal{} -> False
       InfoConField{} -> False

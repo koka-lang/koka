@@ -14,7 +14,7 @@ import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Arrow ((***))
-import Data.Monoid((<>), Alt(..))
+import Data.Monoid((<>), Alt(..), Endo(..))
 import Data.Maybe (mapMaybe, fromMaybe, catMaybes, isJust, fromJust)
 import Data.Function
 
@@ -132,30 +132,50 @@ partitionBools bools as = foldr f ([], []) $ zip bools as
 specOneCall :: InlineDef -> Expr -> SpecM Expr
 specOneCall inlineDef@(InlineDef{ inlineName=specName, inlineExpr=specExpr, specializeArgs=specArgs }) e
   = case e of
-      App (Var (TName name _) _) args  | goodArgs specArgs args
-        -> replaceCall specName specExpr specArgs args Nothing
-      App (TypeApp (Var (TName name ty) _) typeArgs) args  | goodArgs specArgs args
-        -> replaceCall specName specExpr specArgs args $ Just typeArgs      
+      App (Var (TName name _) _) args
+       | gArgs <- goodArgs specArgs args
+       , any isJust gArgs
+        -> replaceCall specName specExpr specArgs (newArgs gArgs args) Nothing
+      App (TypeApp (Var (TName name ty) _) typeArgs) args
+       | gArgs <- goodArgs specArgs args
+       , any isJust gArgs
+        -> replaceCall specName specExpr specArgs (newArgs gArgs args) $ Just typeArgs
       _ -> return e
 
-  where
+  where newArgs gArgs args = zipWith fromMaybe args gArgs
 
-goodArgs :: [Bool] -> [Expr] -> Bool
-goodArgs specArgs = -- (\isgoodarg -> trace (show (filterBools specArgs args) ++ " is " ++ (if isgoodarg then "" else "not ") ++ "good") isgoodarg) $
-  -- TODO: not all need to be eligible here; we can still specialize if some are bad
-  all goodArg . filterBools specArgs
+-- specOneCall :: InlineDef -> Expr -> SpecM Expr
+-- specOneCall inlineDef@(InlineDef{ inlineName=specName, inlineExpr=specExpr, specializeArgs=specArgs }) e
+--   = case e of
+--       App (Var (TName name _) _) args
+--         | gArgs <- goodArgs specArgs args
+--         , any isJust gArgs
+--         -> replaceCall specName specExpr (map isJust gArgs) (newArgs gArgs args) Nothing
+--       App (TypeApp (Var (TName name ty) _) typeArgs) args
+--         | gArgs <- goodArgs specArgs args
+--         , any isJust gArgs
+--         -> replaceCall specName specExpr (map isJust gArgs) (newArgs gArgs args) $ Just typeArgs
+--       _ -> return e
 
-goodArg :: Expr -> Bool
+--   where newArgs gArgs args = zipWith fromMaybe args gArgs -- map fromJust $ zipWith (<|>) gArgs (map Just args)
+
+goodArgs :: [Bool] -> [Expr] -> [Maybe Expr]
+-- goodArgs = zipWith (\b arg -> guard b >> goodArg arg)
+goodArgs bools exprs = map (\(b, e) -> guard b >> goodArg e >> Just e) $ zip bools exprs
+
+goodArg :: Expr -> Maybe Expr
 goodArg expr = case expr of
-                Lam{}                  -> True
-                TypeLam _ body         -> goodArg body
-                TypeApp body _         -> goodArg body
-                App fun _              -> goodArg fun  -- ??  for open(f) calls?
-                -- Var name info | isQualified (getName name) -> True
+                Lam{}                  -> Just expr
+                TypeLam _ body         -> goodArg body >> Just expr
+                TypeApp body _         -> goodArg body >> Just expr
+                App fun _              -> goodArg fun  >> Just expr-- ??  for open(f) calls?
                 Var name info          -> case info of
-                                            InfoNone -> False
-                                            _        -> True
-                _                      -> False
+                                            InfoNone -> Nothing
+                                            -- we should prevent this to begin with
+                                            InfoKnownRHS e | Var n i <- e, n == name -> Nothing
+                                            InfoKnownRHS e -> Just e
+                                            _        -> Just expr
+                _                      -> Nothing
 
 
 {-
@@ -190,6 +210,16 @@ specInnerCalls from to bools = rewriteBottomUp $ \e ->
 comment :: String -> String
 comment = unlines . map ("// " ++) . lines
 
+changeInfo :: TName -> VarInfo -> Expr -> Expr
+changeInfo name info = rewriteBottomUp $ \e ->
+  case e of
+    Var n _ 
+      | n == name -> Var name info
+    e -> e
+
+changeInfos :: [(TName, VarInfo)] -> Expr -> Expr
+changeInfos changes = appEndo $ foldMap (Endo . uncurry changeInfo) changes
+
 -- At this point we've identified a call to a specializable function with a 'known' argument passed for all specializable parameters
 -- A couple steps here to avoid looping when getting the type of the specialized Def (e.g. in the spec_f example above)
 -- 1. Find the body of spec_f e.g. val y = yexpr; ...body of f...
@@ -208,6 +238,7 @@ replaceCall name expr bools args mybeTypeArgs = do
         -- TODO do we still need the Let?
         (Let [DefNonRec $ Def param typ arg Private DefVal InlineAuto rangeNull ""
               | (TName param typ, arg) <- zip speccedParams speccedArgs]
+        $ changeInfos [(param, InfoKnownRHS arg) | (param, arg) <- traceShowId <$> zip speccedParams speccedArgs]
         $ fnBody expr)
 
   let specType = typeOf specBody0

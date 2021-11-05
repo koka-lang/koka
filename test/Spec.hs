@@ -100,7 +100,7 @@ testSanitize kokaDir
   . sub "(\\.m?)lift[[:digit:]]+" "\\1lift000"
   . sub "(^[[:alnum:]]+\\/.+:.*) [[:alpha:]]+[[:digit:]]+\\.[[:digit:]]+ :" "\\1 a00.000 :"
   -- . sub ": [[:digit:]]+([,\\)])" ": 0\\1"
-  . replace kokaDir "..."
+  . if null kokaDir then id else replace kokaDir "..."
   where 
     sub re = flip (subRegex (mkRegex re))
     -- limitTo n s | length s > n = take n s ++ "... (and more)"
