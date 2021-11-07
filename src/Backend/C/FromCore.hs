@@ -667,7 +667,7 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount maxScanCount
                      else -}
                           vcat((if not (isConAsJust conRepr) then [] else 
                                  let arg = ppName (fst (head (conInfoParams con)))
-                                 in [text "if (kk_likely(!kk_box_is_maybe(" <.> arg <.> text "))) { return kk_datatype_as_just(" <.> arg <.> text "); }" 
+                                 in [text "if (kk_likely(!kk_box_is_maybe(" <.> arg <.> text "))) { return kk_datatype_as_Just(" <.> arg <.> text "); }" 
                                     ])
                                ++
                                [text "struct" <+> nameDoc <.> text "*" <+> tmp <+> text "="
@@ -725,9 +725,9 @@ genConstructorAccess info dataRepr con conRepr
 
 
 genBoxUnbox :: Name -> DataInfo -> DataRepr -> Asm ()
-genBoxUnbox name info dataRepr
+genBoxUnbox name info dataRepr 
   = do let tname = typeClassName name
-       genBox tname info dataRepr
+       genBox tname info dataRepr 
        genUnbox  tname info dataRepr
 
 
@@ -758,6 +758,16 @@ genBox name info dataRepr
         DataIso  -> let conInfo = head (dataInfoConstrs info)
                         (isoName,isoTp)   = (head (conInfoParams conInfo))
                     in text "return" <+> genBoxCall "box" False isoTp (text "_x." <.> ppName (unqualify isoName)) <.> semi
+        DataStructAsMaybe
+          -> let [conNothing,conJust] = sortOn (length . conInfoParams) (dataInfoConstrs info)
+                 (conJustFieldName,conJustFieldTp) = head (conInfoParams conJust)
+             in text "if" <+> parens (conTestName conNothing <.> tupled [text "_x"]) <+> (text "return kk_box_Nothing();")
+                <->
+                text "  else" <+> (
+                  let boxField = genBoxCall "box" False conJustFieldTp 
+                                  (text "_x._cons." <.> ppDefName (conInfoName conJust) <.> text "." <.> ppName (unqualify conJustFieldName))
+                  in text "return kk_box_Just" <.> arguments [boxField] <.> semi
+                )
         _ -> case dataInfoDef info of
                DataDefValue raw scancount
                   -> let -- extra = if (hasTagField dataRepr) then 1 else 0  -- adjust scan count for added "tag_t" members in structs with multiple constructors
@@ -780,6 +790,17 @@ genUnbox name info dataRepr
         DataIso  -> let conInfo = head (dataInfoConstrs info)
                         isoTp   = snd (head (conInfoParams conInfo))
                     in text "return" <+> conCreateNameInfo conInfo <.> arguments [genBoxCall "unbox" False isoTp (text "_x")]
+        DataStructAsMaybe
+          -> let [conNothing,conJust] = sortOn (length . conInfoParams) (dataInfoConstrs info)
+                 (conJustFieldName,conJustFieldTp) = head (conInfoParams conJust)
+             in text "if (kk_box_is_Nothing(_x))" <+> 
+                  text "return" <+> conCreateName (conInfoName conNothing) <.> arguments [] <.> semi
+                <->
+                text "  else" <+> (
+                  text "return" <+> conCreateName (conInfoName conJust) <.> arguments [
+                    genBoxCall "unbox" False conJustFieldTp (text "kk_unbox_Just" <.> arguments [text "_x"])
+                  ] <.> semi
+                )
         _ | dataReprIsValue dataRepr
           -> vcat [ text "kk_boxed_value_t _p;"
                   , ppName name <+> text "_unbox;"
@@ -1462,7 +1483,7 @@ genPatternTest doTest gfree (exprDoc,pattern)
                     -> return [(xtest [text "!" <.> parens exprDoc],[],[])]
                  ConAsJust{} 
                     -> do let next = genNextPatterns 
-                                        (\self fld -> text "kk_datatype_unjust" <.> arguments [self]) 
+                                        (\self fld -> text "kk_datatype_unJust" <.> arguments [self]) 
                                         exprDoc (typeOf tname) patterns
                           return [(xtest [conTestName info <.> parens exprDoc],[],next)]
                  _  -> let dataRepr = conDataRepr repr
