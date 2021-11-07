@@ -1363,12 +1363,13 @@ genMatch result0 exprDocs branches
           PatWild    -> True
           PatLit _   -> True
           PatVar _ p -> isSingleTestPat p
-          PatCon{patConPatterns = ps} -> all isZeroTestPat ps
+          PatCon{patConPatterns = ps, patConSkip = skip} -> (skip || all isZeroTestPat ps)
 
     isZeroTestPat pat
       = case pat of
           PatWild    -> True
           PatVar _ p -> isZeroTestPat p
+          PatCon{patConSkip = skip} -> skip
           _          -> False
 
 genBranch :: Result -> [Doc] -> Bool -> Branch -> Asm Doc
