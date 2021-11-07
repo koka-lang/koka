@@ -26,7 +26,7 @@ import Lib.Trace
 -- import Type.Pretty
 
 import Data.Char(isAlphaNum)
-import Data.List(groupBy,intersperse,nubBy)
+import Data.List(groupBy,intersperse,nubBy,sortOn)
 import Data.Maybe(catMaybes)
 
 import Lib.PPrint
@@ -821,6 +821,12 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
               then do addError range (text "Type" <+> nameDoc <+> text "is declared as being" <-> text " (co)inductive but it occurs recursively in a negative position." <->
                                      text " hint: declare it as a 'type rec' (or 'effect rec)' to allow negative occurrences")
               else return ()
+       -- is a maybe like type?
+       let isAsMaybe = not isRec && case sortOn (length . conInfoParams) infos of
+                         [nothing,just] -> length (conInfoParams nothing) == 0 && case conInfoParams just of 
+                                             [(_,TVar _)] -> True
+                                             _ -> False
+                         _ -> False
        -- value types
        ddef' <- case ddef of
                   DataDefNormal
@@ -830,6 +836,8 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                           return ddef
                   DataDefAuto | isRec
                     -> return DataDefRec
+                  DataDefAuto | isAsMaybe
+                    -> return DataDefNormal
                   DataDefOpen
                     -> return DataDefOpen
                   DataDefRec

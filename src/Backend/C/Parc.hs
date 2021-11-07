@@ -327,9 +327,10 @@ specializeDrop mchildrenOf conNameOf dups v    -- dups are descendents of v
         xUnique <- optimizeDupDrops mchildrenOf conNameOf dups (childrenOf v) -- drop direct children in unique branch (note: `v \notin drops`)
         let tp = typeOf v
         isValue <- isJust <$> getValueForm tp
+        isDataAsMaybe <- getIsDataAsMaybe tp
         let hasKnownChildren = isJust (mchildrenOf v)
             dontSpecialize   = not hasKnownChildren ||   -- or otherwise xUnique is wrong!
-                               isValue || isBoxType tp || isFun tp || isTypeInt tp
+                               isValue || isBoxType tp || isFun tp || isTypeInt tp || isDataAsMaybe
 
             noSpecialize y   = do xDrop <- genDrop y
                                   return $ xShared ++ [xDrop]
@@ -668,7 +669,8 @@ genDrop name = do shape <- getShapeInfo name
 
 -- get the dup/drop function
 dupDropFun :: Bool -> Type -> Maybe (ConRepr,Name) -> Maybe Int -> Expr -> Expr
-dupDropFun False {-drop-} tp (Just (conRepr,_)) (Just scanFields) arg  | not (conReprIsValue conRepr) && not (isBoxType tp)-- drop with known number of scan fields
+dupDropFun False {-drop-} tp (Just (conRepr,_)) (Just scanFields) arg  
+   | not (conReprIsValue conRepr) && not (isConAsJust conRepr) && not (isBoxType tp) -- drop with known number of scan fields
   = App (Var (TName name coerceTp) (InfoExternal [(C CDefault, "dropn(#1,#2)")])) [arg,makeInt32 (toInteger scanFields)]
   where
     name = nameDrop
@@ -959,6 +961,16 @@ getDataInfo :: Type -> Parc (Maybe DataInfo)
 getDataInfo tp
   = do newtypes <- getNewtypes
        return (getDataInfo' newtypes tp)
+
+getIsDataAsMaybe :: Type -> Parc Bool
+getIsDataAsMaybe tp
+  = do mbDi <- getDataInfo tp
+       return $ case mbDi of
+                  Just di -> case fst (getDataRepr di) of
+                                DataAsMaybe -> True
+                                _ -> False
+                  Nothing -> False
+
 
 getDataDef :: Type -> Parc DataDef
 getDataDef tp

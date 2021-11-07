@@ -276,7 +276,7 @@ genTypeDef (Data info isExtend)
                         ConEnum{}
                           -> constdecl <+> name <+> text "=" <+> int (conTag repr) <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
                         ConSingleton _ _ _ | conInfoName c == nameOptionalNone
-                          -> singletonValue "undefined"
+                          -> singletonValue "undefined"                        
                         ConSingleton _ DataAsMaybe _
                           -> singletonValue "null"
                         ConSingleton _ DataAsList _
@@ -285,7 +285,7 @@ genTypeDef (Data info isExtend)
                         ConIso{}     -> genConstr penv c repr name args []
                         ConSingle{}  -> genConstr penv c repr name args []
                         ConAsCons{}  -> genConstr penv c repr name args []
-                        ConAsJust{}  -> genConstr penv c repr name args []
+                        ConAsJust{}  -> genConstr penv c repr name args [(tagField, getConTag modName c repr)]
                         -- normal with tag
                         _            -> genConstr penv c repr name args [(tagField, getConTag modName c repr)]
              return (ppVis (conInfoVis c) decl)

@@ -65,8 +65,8 @@ module Core.Core ( -- Data structures
                    , DataRepr(..), ConRepr(..)
                    , isConSingleton
                    , isConNormal
-                   , isConIso
-                   , isDataStruct
+                   , isConIso, isConAsJust
+                   , isDataStruct, isDataAsMaybe
                    , getDataRepr, getDataReprEx, dataInfoIsValue
                    , getConRepr
                    , dataReprIsValue, conReprIsValue
@@ -174,7 +174,7 @@ makeList tp exprs
     nilCon   = Con (TName nameNull nilTp) (ConSingleton nameTpList DataAsList 0)
     nil      = TypeApp nilCon [tp]
     consTp   = TForall [a] [] (typeFun [(nameNil,TVar a),(nameNil,TApp typeList [TVar a])] typeTotal (TApp typeList [TVar a]))
-    consCon  = Con (TName nameCons consTp) (ConAsCons nameTpList DataAsList nameNull 1)
+    consCon  = Con (TName nameCons consTp) (ConAsCons nameTpList DataAsList nameNull 1 2)
     cons expr xs = App (TypeApp consCon [tp]) [expr,xs]
     a = TypeVar (0) kindStar Bound
 
@@ -347,10 +347,10 @@ data DataRepr = -- value types
                 DataEnum            -- only singletons (as an enumeration)
               | DataIso             -- only one constructor with one field  (isomorpic)
               | DataSingleStruct    -- only one constructor (no tag needed)
-              | DataAsMaybe         -- one constructor with fields, and one singleton
               | DataStruct          -- compatible constructors (all raw or regular types) and possibly singletons (need tag)
               -- non-value types
               | DataSingle{ hasSingletons :: Bool } -- only one constructor (no tag needed), hasSingletons true if it is a singleton as well
+              | DataAsMaybe         -- one constructor with one (non-recursive) field, and one singleton
               | DataAsList          -- one constructor with fields, and one singleton (don't need a tag, for example can distinguish pointer vs enum)
               | DataSingleNormal    -- one constructor with fields, and multiple singletons (distinguish one pointer vs enums)
               | DataNormal{ hasSingletons :: Bool }
@@ -361,9 +361,9 @@ data ConRepr  = ConEnum{ conTypeName :: Name, conDataRepr :: DataRepr, conTag ::
               | ConIso{ conTypeName:: Name, conDataRepr :: DataRepr, conTag :: Int }                       -- one constructor with one field
               | ConSingleton{ conTypeName :: Name, conDataRepr :: DataRepr, conTag :: Int }                -- constructor without fields (and not part of an enum)
               | ConSingle{ conTypeName :: Name, conDataRepr :: DataRepr, conTag :: Int }                   -- there is only one constructor and it is not iso or singleton (and this is it)
-              | ConAsJust{ conTypeName :: Name, conDataRepr :: DataRepr, conAsNothing :: Name, conTag :: Int } -- constructor is the cons node of a maybe-like value datatype  (may have one or more fields)
+              | ConAsJust{ conTypeName :: Name, conDataRepr :: DataRepr, conAsNothing :: Name, conTag :: Int } -- constructor is the just node of a maybe-like datatype  
               | ConStruct{ conTypeName :: Name, conDataRepr :: DataRepr, conTag :: Int }                   -- constructor as value type
-              | ConAsCons{ conTypeName :: Name, conDataRepr :: DataRepr, conAsNil :: Name, conTag :: Int } -- constructor is the cons node of a list-like datatype  (may have one or more fields)
+              | ConAsCons{ conTypeName :: Name, conDataRepr :: DataRepr, conAsNil :: Name, conTagAsNil :: Int, conTag :: Int } -- constructor is the cons node of a list-like datatype  (may have one or more fields)
               | ConOpen  { conTypeName :: Name, conDataRepr :: DataRepr }                                  -- constructor of open data type
               | ConNormal{ conTypeName :: Name, conDataRepr :: DataRepr, conTag :: Int }                   -- a regular constructor
               deriving (Eq,Ord,Show)
@@ -380,12 +380,17 @@ isConIso _ = False
 isDataStruct (DataStruct) = True
 isDataStruct _ = False
 
+isDataAsMaybe (DataAsMaybe) = True
+isDataAsMaybe _ = False 
+
+isConAsJust (ConAsJust{}) = True 
+isConAsJust _             = False
+
 -- Value data is not heap allocated and needs no header
 dataReprIsValue :: DataRepr -> Bool
 dataReprIsValue DataEnum         = True
 dataReprIsValue DataIso          = True
 dataReprIsValue DataSingleStruct = True
-dataReprIsValue DataAsMaybe      = True
 dataReprIsValue DataStruct       = True   -- structs have a tag field though
 dataReprIsValue _                = False
 
@@ -435,20 +440,31 @@ getDataReprEx getIsValue info
                   ,[if (isValue && length (conInfoParams conInfo) == 1) then ConIso typeName dataRepr
                     else if length singletons == 1 then ConSingleton typeName dataRepr
                     else ConSingle typeName dataRepr])
-         else if (isValue && not (dataInfoIsRec info)) then (
-           if (length conInfos == 2 && length singletons == 1)
-             then (DataAsMaybe
-                  ,map (\con -> if (null (conInfoParams con)) then ConSingleton typeName DataAsMaybe
-                                 else ConAsJust typeName DataAsMaybe (conInfoName (head singletons))) conInfos)
-             else (DataStruct, map (\con -> if null (conInfoParams con)
-                                          then ConSingleton typeName DataStruct
-                                          else ConStruct typeName DataStruct) conInfos )
-         )
+         else if (isValue && not (dataInfoIsRec info)) then 
+           (DataStruct, map (\con -> if null (conInfoParams con)
+                                              then ConSingleton typeName DataStruct
+                                              else ConStruct typeName DataStruct) conInfos)
          else (
           if (length conInfos == 2 && length singletons == 1)
-            then (DataAsList
-                 ,map (\con -> if (null (conInfoParams con)) then ConSingleton typeName DataAsList
-                                else ConAsCons typeName DataAsList (conInfoName (head singletons))) conInfos)
+            then let isMaybeLike = not (dataInfoIsRec info) && 
+                                   -- note: for now we can only handle a true maybe type with a single Just constructor
+                                   -- with a parametric type so it is always kk_box_t at runtime.
+                                   case (filter (\cinfo -> length (conInfoParams cinfo) == 1) conInfos) of 
+                                     [cinfo] -> case conInfoParams cinfo of
+                                                  [(_,TVar _)] -> True  -- single field of type `a`
+                                                  _ -> False
+                                     _ -> False
+                        
+                 in (if isMaybeLike
+                      then (DataAsMaybe
+                          ,map (\con -> if (null (conInfoParams con)) then ConSingleton typeName DataAsMaybe
+                                          else ConAsJust typeName DataAsMaybe (conInfoName (head singletons))) conInfos)
+                      else (DataAsList
+                          ,map (\con tag 
+                                   -> if (null (conInfoParams con)) then ConSingleton typeName DataAsList tag
+                                        else ConAsCons typeName DataAsList (conInfoName (head singletons)) (if tag == 1 then 2 else 1) tag) conInfos)
+                                             
+                 )
            else let dataRepr = if (length singletons == length conInfos -1 || null conInfos)
                                 then DataSingleNormal else (DataNormal (not (null singletons)))
                 in (dataRepr
