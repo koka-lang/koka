@@ -1019,24 +1019,73 @@ static inline kk_decl_const bool kk_value_tag_eq(kk_value_tag_t x, kk_value_tag_
 /*--------------------------------------------------------------------------------------
   Optimized support for maybe<a> datatypes
 --------------------------------------------------------------------------------------*/
+static inline kk_box_t kk_box_Nothing(void) {
+  return kk_datatype_box( kk_datatype_from_tag(KK_TAG_NOTHING) );
+}
+
+static inline bool kk_box_is_Nothing(kk_box_t b) {
+  return (b.box == kk_datatype_from_tag(KK_TAG_NOTHING).dbox);
+}
+
+static inline bool kk_box_is_Just(kk_box_t b) {
+  return (kk_box_is_ptr(b) && kk_block_has_tag(kk_ptr_unbox(b), KK_TAG_JUST));
+}
 
 static inline bool kk_box_is_maybe(kk_box_t b) {
-  kk_datatype_t d = kk_datatype_unbox(b);
-  if (kk_datatype_is_ptr(d)) {
-    kk_block_t* bl = kk_datatype_as_ptr(d);
-    return kk_block_has_tag(bl, KK_TAG_JUST);
+  return (kk_box_is_Just(b) || kk_box_is_Nothing(b));
+}
+
+typedef struct kk_just_s {  
+  struct kk_block_s _block;
+  kk_box_t          value;   
+} kk_just_t;
+
+static inline kk_box_t kk_unbox_Just_block( kk_block_t* b, kk_context_t* ctx ) {
+  kk_assert_internal(kk_block_has_tag(b,KK_TAG_JUST));
+  kk_just_t* just = kk_block_as(kk_just_t*,b);
+  kk_box_t res = just->value;        
+  if (ctx != NULL) {
+    if (kk_basetype_is_unique(just)) {
+      kk_basetype_free(just);  
+    }
+    else {
+      kk_box_dup(res);
+      kk_basetype_decref(just, ctx);
+    }
+  }
+  return res;
+}
+
+static inline kk_box_t kk_unbox_Just( kk_box_t b, kk_context_t* ctx ) {
+  if (kk_box_is_ptr(b)) {
+    kk_block_t* bl = kk_ptr_unbox(b);
+    if (kk_unlikely(kk_block_has_tag(bl, KK_TAG_JUST))) {
+      return kk_unbox_Just_block(bl,ctx);
+    }
+  }
+  if (ctx==NULL) { kk_box_dup(b); }
+  return b;
+}
+
+static inline kk_box_t kk_box_Just( kk_box_t b, kk_context_t* ctx ) {
+  if (kk_likely(!kk_box_is_maybe(b))) {
+    return b;
   }
   else {
-    return kk_datatype_has_singleton_tag(d,KK_TAG_NOTHING);  
+    kk_just_t* just = kk_block_alloc_as(kk_just_t, 1, KK_TAG_JUST, ctx);
+    just->value = b;
+    return kk_basetype_box(just);
   }
 }
 
-static inline kk_datatype_t kk_datatype_as_just(kk_box_t b) {
+
+
+static inline kk_datatype_t kk_datatype_as_Just(kk_box_t b) {
   kk_assert_internal(!kk_box_is_maybe(b));
   return kk_datatype_unbox(b);
 }
 
-static inline kk_box_t kk_datatype_unjust(kk_datatype_t d, kk_context_t* ctx) {
+static inline kk_box_t kk_datatype_unJust(kk_datatype_t d, kk_context_t* ctx) {
   KK_UNUSED(ctx);
   kk_assert_internal(!kk_datatype_has_singleton_tag(d,KK_TAG_NOTHING));
   if (kk_datatype_is_ptr(d)) {

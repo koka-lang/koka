@@ -684,5 +684,5 @@ extractDataDefType tp
 -- explicit tag field?
 hasTagField :: DataRepr -> Bool
 hasTagField DataStruct        = True
--- hasTagField DataStructAsMaybe = True
+hasTagField DataStructAsMaybe = True
 hasTagField rep               = False
