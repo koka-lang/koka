@@ -13,7 +13,7 @@
 
 module Backend.C.ParcReuse ( parcReuseCore,
                              genDropReuse,
-                             orderConFieldsEx, newtypesDataDefRepr, isDataStructLike,
+                             orderConFieldsEx, newtypesDataDefRepr, hasTagField,
                              constructorSizeOf
                            ) where
 
@@ -107,6 +107,8 @@ ruExpr expr
       _ -> return expr
 
 ruTryReuseCon :: TName -> ConRepr -> Expr -> Reuse Expr
+ruTryReuseCon cname repr conApp | isConAsJust repr  -- never try to reuse a Just-like constructor
+  = return conApp
 ruTryReuseCon cname repr conApp
   = do newtypes <- getNewtypes
        platform <- getPlatform
@@ -427,7 +429,7 @@ orderConFieldsEx platform newtypes isOpen fields
       = let (dd,dataRepr) = newtypesDataDefRepr newtypes tp
         in case dd of
              DataDefValue raw scan
-               -> let extra = if (isDataStructLike dataRepr) then 1 else 0 in -- adjust scan count for added "tag_t" members in structs with multiple constructors
+               -> let extra = if (hasTagField dataRepr) then 1 else 0 in -- adjust scan count for added "tag_t" members in structs with multiple constructors
                   if (raw > 0 && scan > 0)
                    then -- mixed raw/scan: put it at the head of the raw fields (there should be only one of these as checked in Kind/Infer)
                         -- but we count them to be sure (and for function data)
@@ -455,6 +457,8 @@ extractDataDefType tp
      _             -> Nothing
 
 
-isDataStructLike (DataAsMaybe) = True
-isDataStructLike (DataStruct) = True
-isDataStructLike _ = False
+-- explicit tag field?
+hasTagField :: DataRepr -> Bool
+hasTagField DataStruct        = True
+-- hasTagField DataStructAsMaybe = True
+hasTagField rep               = False

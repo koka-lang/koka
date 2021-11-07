@@ -2679,7 +2679,7 @@ extern ".null-any"(x : a) : null<a> {
 
 // Transform a `:maybe` type to a `:null` type (using `null` for `Nothing`).
 extern null(x : maybe<a>) : null<a> {
-  c  inline "(kk_std_core_types__is_Nothing(#1) ? kk_datatype_from_ptr(NULL) : kk_datatype_unbox((#1)._cons.Just.value))"
+  c  inline "(kk_std_core_types__is_Nothing(#1) ? kk_datatype_from_ptr(NULL) : kk_datatype_unbox(kk_datatype_unjust(#1,kk_context())))"
   cs inline "(#1.tag_ == __std_core._maybe_Tag.Nothing ? default(##1) : #1.@value)"
   js inline "(#1==null ? null : #1.value)"
 }

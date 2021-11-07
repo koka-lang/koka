@@ -208,7 +208,7 @@ genConstructor info dataRepr (con,conRepr) =
        -> assertion ("CSharp.FromCore.genTypeDef: singleton constructor with existentials?") (null (conInfoExists con)) $
           conSingleton typeName
 
-    ConAsCons typeName _ nilName _
+    ConAsCons typeName _ nilName _ _
        -> -- merge it into the type class itself
           do ctx <- getModule
              putLn (vcat (map (ppConField ctx) (conInfoParams con) ++ ppConConstructor ctx con conRepr []))
@@ -302,7 +302,7 @@ ppConConstructorEx ctx con conRepr conParams defaults
      then []
      else [text "public" <+>
            (case conRepr of
-              ConAsCons typeName _ nilName _ -> ppDefName (typeClassName typeName)
+              ConAsCons typeName _ nilName _ _ -> ppDefName (typeClassName typeName)
               ConSingle typeName _ _ -> ppDefName (typeClassName typeName)
               ConStruct typeName _ _ -> ppDefName (typeClassName typeName)
               ConIso    typeName _ _ -> ppDefName (typeClassName typeName)
@@ -762,7 +762,7 @@ genCon tname repr targs args
                    tupled ({- ppTag ctx typeName (getName tname) : -} argDocs)
               _ -> text "new" <+>
                    (case repr of
-                      ConAsCons typeName _ _ _
+                      ConAsCons typeName _ _ _ _
                          -> ppQName ctx (typeClassName typeName)
                       ConSingle typeName _ _
                          -> ppQName ctx (typeClassName typeName)
@@ -1166,7 +1166,7 @@ genPatternTest doTest (mbTagDoc,exprDoc,pattern)
                         return [([] -- test [exprDoc <+> text "!=" <+> ppConSingleton ctx typeName (TName nilName (typeOf tname)) targs]
                                 ,[],next,[])]
 
-                 ConAsCons typeName _ nilName _
+                 ConAsCons typeName _ nilName _ _
                   -> do let next    = genNextPatterns (exprDoc) (typeOf tname) patterns
                         return [(test [exprDoc <+> text "!=" <+>
                                     ppConSingleton ctx typeName (TName nilName (typeOf tname)) tpars]

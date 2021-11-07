@@ -2,7 +2,7 @@
 #ifndef KKLIB_H
 #define KKLIB_H 
 
-#define KKLIB_BUILD        70       // modify on changes to trigger recompilation
+#define KKLIB_BUILD        71       // modify on changes to trigger recompilation
 #define KK_MULTI_THREADED   1       // set to 0 to be used single threaded only
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
@@ -64,6 +64,8 @@ typedef enum kk_tag_e {
   KK_TAG_CFUNPTR,     // C function pointer
   KK_TAG_INTPTR,      // boxed intptr_t  
   KK_TAG_EVV_VECTOR,  // evidence vector (used in std/core/hnd)
+  KK_TAG_NOTHING,
+  KK_TAG_JUST,
   // raw tags have a free function together with a `void*` to the data
   KK_TAG_CPTR_RAW,    // full void* (must be first, see kk_tag_is_raw())
   KK_TAG_BYTES_RAW,   // pointer to byte buffer
@@ -820,6 +822,15 @@ static inline kk_decl_pure bool kk_datatype_has_tag(kk_datatype_t d, kk_tag_t t)
   }
 }
 
+static inline kk_decl_pure bool kk_datatype_has_ptr_tag(kk_datatype_t d, kk_tag_t t) {
+  return (kk_datatype_is_ptr(d) && kk_block_tag((kk_ptr_t)d.dbox) == t);
+}
+
+static inline kk_decl_pure bool kk_datatype_has_singleton_tag(kk_datatype_t d, kk_tag_t t) {
+  return (d.dbox == kk_datatype_from_tag(t).dbox);  // todo: optimize if sizeof(kk_uintf_t) < sizeof(uintptr_t) ?  
+}
+
+
 static inline kk_decl_const kk_block_t* kk_datatype_as_ptr(kk_datatype_t d) {
   kk_assert_internal(kk_datatype_is_ptr(d));
   return (kk_ptr_t)d.dbox;
@@ -884,7 +895,6 @@ static inline void kk_datatype_decref(kk_datatype_t d, kk_context_t* ctx) {
     kk_block_decref(kk_datatype_as_ptr(d), ctx);
   }
 }
-
 
 #define kk_datatype_from_base(b)               (kk_datatype_from_ptr(&(b)->_block))
 #define kk_datatype_from_constructor(b)        (kk_datatype_from_base(&(b)->_base))
@@ -986,6 +996,38 @@ typedef kk_integer_t kk_value_tag_t;
 static inline kk_decl_const bool kk_value_tag_eq(kk_value_tag_t x, kk_value_tag_t y) {
   // note: x or y may be box_any so don't assert they are smallints
   return (_kk_integer_value(x) == _kk_integer_value(y));
+}
+
+/*--------------------------------------------------------------------------------------
+  Optimized support for maybe<a> datatypes
+--------------------------------------------------------------------------------------*/
+
+static inline bool kk_box_is_maybe(kk_box_t b) {
+  kk_datatype_t d = kk_datatype_unbox(b);
+  if (kk_datatype_is_ptr(d)) {
+    kk_block_t* bl = kk_datatype_as_ptr(d);
+    return kk_block_has_tag(bl, KK_TAG_JUST);
+  }
+  else {
+    return kk_datatype_has_singleton_tag(d,KK_TAG_NOTHING);  
+  }
+}
+
+static inline kk_datatype_t kk_datatype_as_just(kk_box_t b) {
+  kk_assert_internal(!kk_box_is_maybe(b));
+  return kk_datatype_unbox(b);
+}
+
+static inline kk_box_t kk_datatype_unjust(kk_datatype_t d, kk_context_t* ctx) {
+  KK_UNUSED(ctx);
+  kk_assert_internal(!kk_datatype_has_singleton_tag(d,KK_TAG_NOTHING));
+  if (kk_datatype_is_ptr(d)) {
+    kk_block_t* b = kk_datatype_as_ptr(d);
+    if (kk_block_has_tag(b,KK_TAG_JUST)) {
+      return kk_block_field(b,0);
+    }
+  }
+  return kk_datatype_box(d);
 }
 
 /*--------------------------------------------------------------------------------------
