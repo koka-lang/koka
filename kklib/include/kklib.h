@@ -1063,7 +1063,7 @@ static inline kk_box_t kk_unbox_Just( kk_box_t b, kk_context_t* ctx ) {
       return kk_unbox_Just_block(bl,ctx);
     }
   }
-  if (ctx==NULL) { kk_box_dup(b); }
+  // if ctx==NULL we should not change refcounts, if ctx!=NULL we consume the b
   return b;
 }
 
