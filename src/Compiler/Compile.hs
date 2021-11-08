@@ -889,11 +889,11 @@ inferCheck loaded0 flags line coreImports program
        -- traceDefGroups "lifted"
 
        -- specialize 
-       specializeDefs <- -- if (isPrimitiveModule (Core.coreProgName coreProgram)) then return [] else 
+       specializeDefs <- if (isPrimitiveModule (Core.coreProgName coreProgram)) then return [] else 
                          Core.withCoreDefs (\defs -> extractSpecializeDefs (loadedInlines loaded) defs)
        --  traceM ("Spec defs:\n" ++ unlines (map show specializeDefs))
        
-       when (optSpecialize flags) $
+       when (optSpecialize flags && not (isPrimitiveModule (Core.coreProgName coreProgram))) $
          do specialize (inlinesExtends specializeDefs (loadedInlines loaded))
             simplifyDupN
             -- lifting remaining recursive functions to top level (must be after specialize as that can generate local recursive definitions)
@@ -906,7 +906,7 @@ inferCheck loaded0 flags line coreImports program
        coreDefsInlined <- Core.getCoreDefs
        -- traceDefGroups "simplified"
       
-      
+
        ------------------------------
        -- backend optimizations 
 
