@@ -894,7 +894,7 @@ inferCheck loaded0 flags line coreImports program
          specialize (inlinesExtends specializeDefs (loadedInlines loaded))
 
        --  simplifyNoDup
-       traceDefGroups "specialized"
+       -- traceDefGroups "specialized"
 
        simplifyDupN
 
@@ -908,7 +908,7 @@ inferCheck loaded0 flags line coreImports program
        -- lifting recursive functions to top level (must be after specialize as that can generate local recursive definitions)
        liftFunctions penv
        checkCoreDefs "lifted"      
-       traceDefGroups "lifted"
+       -- traceDefGroups "lifted"
       
        simplifyDupN
        coreDefsInlined <- Core.getCoreDefs
