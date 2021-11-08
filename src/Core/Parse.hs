@@ -460,9 +460,18 @@ parseAtom env
 
 parseLet :: Env -> LexParser Expr
 parseLet env
-  = do (env',dgs) <- parseDefGroups env
+  = {-
+    do specialId "rec"
+       (env',dgs) <- semiBraced (parseDefGroups env)
+       let defs = [def | DefNonRec def <- dgs]
+       expr <- parseExpr env'
+       return (Let [DefRec defs] expr)
+  <|> 
+    -}
+    do (env',dgs) <- parseDefGroups env
        expr <- parseExpr env'
        return (Let dgs expr)
+  
 
 parseForall :: Env -> LexParser Expr
 parseForall env

@@ -95,7 +95,7 @@ liftDefGroup False (DefRec defs)
                              <+> ppName penv (defName (head defs)) 
                              <+> text ", tvs:" 
                              <+> tupled (map (ppTypeVar penv) (tvsList (ftv (defExpr (head defs))))) 
-                             <//> prettyDef penv{coreShowDef=True} (head defs)
+                             <//> prettyDef penv{coreShowDef=True} (head defs) 
        -}
        (callExprs, liftedDefs0) <- fmap unzip $ mapM (makeDef fvs tvs) (zip pinfoss exprDocs)
        let subst       = zip names callExprs
