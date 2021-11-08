@@ -29,8 +29,10 @@ import Common.NameMap (NameMap)
 import qualified Common.NameMap  as M
 import Common.NameSet (NameSet)
 import qualified Common.NameSet as S
+import Common.Unique
 import Core.Core
 import Core.Pretty ()
+import Core.Simplify
 import Type.Type (splitFunScheme, Effect, Type, TypeVar)
 import Type.TypeVar
 import Type.Pretty
@@ -66,10 +68,13 @@ import Core.Uniquefy
   Specialization Monad
 --------------------------------------------------------------------------}
 
-type SpecM = Reader Inlines
+-- add env here
+type SpecM = UniqueT (Reader Inlines)
 
-runSpecM :: Inlines -> SpecM a -> a
-runSpecM specEnv specM = runReader specM specEnv
+runSpecM :: Int -> Inlines -> SpecM a -> (a, Int)
+runSpecM uniq specEnv specM =
+    flip runReader specEnv
+  $ runUniqueT uniq specM
 
 
 {--------------------------------------------------------------------------
@@ -78,13 +83,14 @@ runSpecM specEnv specM = runReader specM specEnv
 
 specialize :: Inlines -> CorePhase ()
 specialize specEnv
-  = liftCorePhase $ \defs ->
+  = liftCorePhaseUniq  $ \uniq defs ->
     -- TODO: use uniqe int to generate names and remove call to uniquefyDefGroups?
-    uniquefyDefGroups $ runSpecM specEnv (mapM specOneDefGroup defs)
+    let (defs', u') = runSpecM uniq specEnv (mapM specOneDefGroup defs)
+    in (uniquefyDefGroups defs', u')
 
 speclookup :: Name -> SpecM (Maybe InlineDef)
 speclookup name
-  = asks $ \env ->
+  = lift $ asks $ \env ->
       filterMaybe inlineDefIsSpecialize (inlinesLookup name env)
 
 specOneDefGroup :: DefGroup -> SpecM DefGroup
@@ -229,17 +235,20 @@ changeInfos changes = appEndo $ foldMap (Endo . uncurry changeInfo) changes
 -- since the type of the body depends on the type of the functions that it calls and vice versa
 replaceCall :: Name -> Expr -> [Bool] -> [Expr] -> Maybe [Type] -> SpecM Expr
 replaceCall name expr bools args mybeTypeArgs = do
-  specBody0 <-
+  let newbody =
+        (Let [DefNonRec $ Def param typ arg Private DefVal InlineAuto rangeNull ""
+              | (TName param typ, arg) <- zip speccedParams speccedArgs]
+        -- $ changeInfos [(param, InfoKnownRHS arg) | (param, arg) <- zip speccedParams speccedArgs]
+        $ fnBody expr)
+  let specBody0 =
         (\body -> case mybeTypeArgs of
           Nothing -> body
           Just typeArgs -> subNew (zip (fnTypeParams expr) typeArgs) |-> body)
-        <$> Lam newParams (fnEffect expr)
-        <$> specOneExpr name
+        $ Lam newParams (fnEffect expr)
+        -- <$> specOneExpr name
         -- TODO do we still need the Let?
-        (Let [DefNonRec $ Def param typ arg Private DefVal InlineAuto rangeNull ""
-              | (TName param typ, arg) <- zip speccedParams speccedArgs]
-        $ changeInfos [(param, InfoKnownRHS arg) | (param, arg) <- traceShowId <$> zip speccedParams speccedArgs]
-        $ fnBody expr)
+        -- =<< uniqueSimplify 
+        newbody
 
   let specType = typeOf specBody0
       specTName = TName (genSpecName name) specType
@@ -247,9 +256,13 @@ replaceCall name expr bools args mybeTypeArgs = do
         Lam args eff (Let specArgs body) -> Lam args eff
           (Let specArgs $ specInnerCalls (TName name (typeOf expr)) specTName (not <$> bools) body)
         _ -> failure "Specialize.replaceCall: Unexpected output from specialize pass"
+  -- sspecBody <- pure specBody
+  sspecBody <- uniqueSimplify defaultEnv True False 1 10 specBody
   let -- todo: maintain borrowed arguments?
-      specDef = Def (getName specTName) (typeOf specTName) specBody Private (DefFun []) InlineAuto rangeNull
+      specDef0 = Def (getName specTName) (typeOf specTName) sspecBody Private (DefFun []) InlineAuto rangeNull
                 $ "// specialized " <> show name <> " to parameters " <> show speccedParams <> " with args " <> comment (show speccedArgs)
+  -- specDef <- pure specDef0
+  specDef <- specOneDef specDef0
 
   pure $ Let [DefRec [specDef]] (App (Var (defTName specDef) InfoNone) newArgs)
 

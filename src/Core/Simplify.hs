@@ -49,7 +49,7 @@ simplifyN nRuns defs
     else do defs' <- simplify defs
             simplifyN (nRuns-1) defs'
 
-uniqueSimplify :: Simplify a => Pretty.Env -> Bool -> Bool -> Int -> Int -> a -> Unique a
+uniqueSimplify :: (HasUnique m, Simplify a) => Pretty.Env -> Bool -> Bool -> Int -> Int -> a -> m a
 uniqueSimplify penv unsafe ndebug nRuns duplicationMax expr
   = do u <- unique
        let (x,u') = runSimplify unsafe ndebug duplicationMax u penv 
@@ -133,7 +133,7 @@ topDown (Let dgs body)
                        -> -- trace "no occurrence" $
                           topDownLet sub (acc) dgs body
                      -- occurs once, always inline (TODO: maybe only if it is not very big?)
-                     Occur vcnt m n acnt | vcnt + acnt == 1
+                     Occur acnt m n vcnt | vcnt + acnt == 1
                        -> -- trace "occurs once: inline" $
                           inlineExpr
                      -- occurs fully applied, check if it small enough to inline anyways;

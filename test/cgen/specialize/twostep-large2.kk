@@ -1,5 +1,6 @@
-fun repeatN(i, f) {
-    map(list(1, i), fn(_) { f() })
+fun repeatN(i, f : () -> _ _) {
+    // map(list(1, i), fn(_) { f() })
+    list(1, i, fn(_) f() )
 }
 
 noinline fun a(i, f) {
@@ -22,9 +23,6 @@ fun calls-large(f) {
 }
 
 fun main() {
-    // does not specialize, since large is not inline here
+    // large(inc)
     calls-large(inc)
-    
-    // also does not specialize; large is too big to inline here
-    // large(inc).println
 }
