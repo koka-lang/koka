@@ -862,7 +862,7 @@ inferCheck loaded0 flags line coreImports program
        -- remove return statements
        unreturn penv
        -- checkCoreDefs "unreturn"
-     
+
        -- initial simplify
        let ndebug  = optimize flags > 0
            simplifyX dupMax = simplifyDefs penv False {-unsafe-} ndebug (simplify flags) dupMax
@@ -881,7 +881,10 @@ inferCheck loaded0 flags line coreImports program
 
        simplifyDupN
        -- traceDefGroups "inlined"
-       
+
+       -- lift recursive functions to top-level before specialize (so specializeDefs do not contain local recursive definitions)
+       liftFunctions penv
+
        -- specialize 
        specializeDefs <- -- if (isPrimitiveModule (Core.coreProgName coreProgram)) then return [] else 
                          Core.withCoreDefs (\defs -> extractSpecializeDefs (loadedInlines loaded) defs)
@@ -890,12 +893,8 @@ inferCheck loaded0 flags line coreImports program
        when (optSpecialize flags) $
          specialize (inlinesExtends specializeDefs (loadedInlines loaded))
 
-      --  simplifyNoDup
-
-      --  when (optSpecialize flags) $
-      --    specialize (inlinesExtends specializeDefs (loadedInlines loaded))
-
-      --  traceDefGroups "specialized"
+       --  simplifyNoDup
+       -- traceDefGroups "specialized"
 
        simplifyDupN
 
@@ -906,9 +905,10 @@ inferCheck loaded0 flags line coreImports program
 
       --  traceDefGroups "specialized2"
           
-       -- lifting recursive functions to top level (must be after specialize)
+       -- lifting recursive functions to top level (must be after specialize as that can generate local recursive definitions)
        liftFunctions penv
        checkCoreDefs "lifted"      
+       -- traceDefGroups "lifted"
       
        simplifyDupN
        coreDefsInlined <- Core.getCoreDefs
