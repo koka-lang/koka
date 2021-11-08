@@ -17,7 +17,7 @@ module Core.FunLift( liftFunctions
 import qualified Lib.Trace
 import Control.Monad
 import Control.Applicative
-import Data.List( partition )
+import Data.List( partition, intersperse )
 
 import Lib.PPrint
 import Common.Failure
@@ -95,9 +95,11 @@ liftDefGroup False (DefRec defs)
                              <+> ppName penv (defName (head defs)) 
                              <+> text ", tvs:" 
                              <+> tupled (map (ppTypeVar penv) (tvsList (ftv (defExpr (head defs))))) 
+                             <+> text ", fvs:"
+                             <+> tupled (map (ppName penv . getName) fvs)
                              <//> prettyDef penv{coreShowDef=True} (head defs) 
        -}
-       (callExprs, liftedDefs0) <- fmap unzip $ mapM (makeDef fvs tvs) (zip pinfoss exprDocs)
+       (callExprs, liftedDefs0) <- fmap unzip $ mapM (makeDef fvs tvs) (zip pinfoss (zip names exprDocs))
        let subst       = zip names callExprs
            liftedDefs  = map (substWithLiftedExpr subst) liftedDefs0
        groups <- liftDefGroup True (DefRec liftedDefs) -- lift all recs to top-level
@@ -214,11 +216,12 @@ liftLocalFun expr eff
        return expr2
 -}
 
-makeDef :: [TName] -> [TypeVar] -> ([ParamInfo], (Expr, String)) -> Lift (Expr, Def)
-makeDef fvs tvs (pinfos, (expr, doc))
+makeDef :: [TName] -> [TypeVar] -> ([ParamInfo], (TName, (Expr, String))) -> Lift (Expr, Def)
+makeDef fvs tvs (pinfos, (origName, (expr, doc)))
   = do -- liftTrace (show expr)
+       dnames <- currentDefNames
        (name,inl) <- uniqueNameCurrentDef
-       let (callExpr,lifted) = (etaExpr name, liftedDef name inl)
+       let (callExpr,lifted) = (etaExpr name, liftedDef dnames name inl)
        -- traceDoc $ \penv -> text "lifting:" <+> ppName penv name <.> colon <+> text "tvs:" <+> tupled (map (ppTypeVar penv) tvs) <//> prettyExpr penv expr <//> text "to:" <+> prettyDef penv{coreShowDef=True} lifted
        return (callExpr,lifted)
   where
@@ -238,7 +241,9 @@ makeDef fvs tvs (pinfos, (expr, doc))
 
     liftedFun = addTypeLambdas alltpars $ Lam allpars eff body
     liftedTp  = typeOf liftedFun
-    liftedDef name inl = Def name liftedTp liftedFun Private (defFun allpinfos) inl rangeNull $ "// lifted\n" ++ doc
+    liftedDef dnames name inl 
+            = Def name liftedTp liftedFun Private (defFun allpinfos) inl rangeNull 
+              $ "// lifted local: " ++ concat (intersperse ", " (map (show . unqualify) (dnames ++ [getName origName]))) ++ "\n" ++ doc
 
     funExpr name
       = Var (TName name liftedTp) (InfoArity (length alltpars) (length allargs))
@@ -359,6 +364,11 @@ withCurrentDef def action
   = -- trace ("lifting: " ++ show (defName def)) $
     withEnv (\env -> env{currentDef = def:currentDef env}) $
     action
+
+currentDefNames :: Lift [Name]
+currentDefNames 
+  = do env <- getEnv
+       return (map defName (currentDef env))
 
 traceDoc :: (Pretty.Env -> Doc) -> Lift ()
 traceDoc f

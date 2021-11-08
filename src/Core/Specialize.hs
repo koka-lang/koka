@@ -9,7 +9,7 @@ module Core.Specialize( specialize
                       , extractSpecializeDefs
                       ) where
 
-import Data.List (transpose, foldl', intersect)
+import Data.List (transpose, foldl', intersect, intersperse)
 import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
@@ -31,6 +31,7 @@ import Common.NameSet (NameSet)
 import qualified Common.NameSet as S
 import Common.Unique
 import Core.Core
+import Core.CoreVar
 import Core.Pretty ()
 import Core.Simplify
 import Type.Type (splitFunScheme, Effect, Type, TypeVar)
@@ -39,6 +40,8 @@ import Type.Pretty
 import Lib.Trace
 import Core.Inlines
 import Core.Uniquefy
+
+import Lib.Trace
 
 {-
   Specialization
@@ -203,15 +206,20 @@ val x  = f<t1,...tn>(e1,...em)
 -}
 
 specInnerCalls :: TName -> TName -> [Bool] -> Expr -> Expr
-specInnerCalls from to bools = rewriteBottomUp $ \e ->
-  case e of
-    App (Var f info) xs
-      | f == from -> App (Var to info) $ filterBools bools xs
-    App (TypeApp (Var f info) _) xs
-    -- the resulting specialized definition is always monomophic; when generating the Inlines we only allow functions whose TypeApps match in ALL recursive calls
-    -- and we apply the TypeLam to the TypeApps from the call site
-      | f == from -> App (Var to info) $ filterBools bools xs
-    e -> e
+specInnerCalls from to bools expr = 
+  -- substitute first
+  let sexpr = [(from,Var to InfoNone)] |~> expr  
+  -- then adjust arguments
+      rewrite e 
+        = case e of
+            App (Var v info) xs
+              | v == to -> App (Var v info) $ filterBools bools xs
+            App (TypeApp (Var v info) _) xs
+            -- the resulting specialized definition is always monomophic; when generating the Inlines we only allow functions whose TypeApps match in ALL recursive calls
+            -- and we apply the TypeLam to the TypeApps from the call site
+              | v == to -> App (Var v info) $ filterBools bools xs
+            e -> e
+  in rewriteBottomUp rewrite sexpr
 
 comment :: String -> String
 comment = unlines . map ("// " ++) . lines
@@ -234,49 +242,48 @@ changeInfos changes = appEndo $ foldMap (Endo . uncurry changeInfo) changes
 -- The important thing is that we don't try to get the type of the body at the same time as replacing the recursive calls
 -- since the type of the body depends on the type of the functions that it calls and vice versa
 replaceCall :: Name -> Expr -> [Bool] -> [Expr] -> Maybe [Type] -> SpecM Expr
-replaceCall name expr bools args mybeTypeArgs = do
-  let newbody =
-        (Let [DefNonRec $ Def param typ arg Private DefVal InlineAuto rangeNull ""
-              | (TName param typ, arg) <- zip speccedParams speccedArgs]
-        -- $ changeInfos [(param, InfoKnownRHS arg) | (param, arg) <- zip speccedParams speccedArgs]
-        $ fnBody expr)
-  let specBody0 =
-        (\body -> case mybeTypeArgs of
-          Nothing -> body
-          Just typeArgs -> subNew (zip (fnTypeParams expr) typeArgs) |-> body)
-        $ Lam newParams (fnEffect expr)
-        -- <$> specOneExpr name
-        -- TODO do we still need the Let?
-        -- =<< uniqueSimplify 
-        newbody
+replaceCall name expr bools args mybeTypeArgs 
+  = do
+      -- extract the specialized parameters
+      let ((newParams, newArgs), (speccedParams, speccedArgs)) 
+            = (unzip *** unzip)
+              -- $ (\x@(new, spec) -> trace ("Specializing to newArgs " <> show new) $ x)
+              $ partitionBools bools
+              $ zip (fnParams expr) args
 
-  let specType = typeOf specBody0
-      specTName = TName (genSpecName name) specType
-  let specBody = case specBody0 of
-        Lam args eff (Let specArgs body) -> Lam args eff
-          (Let specArgs $ specInnerCalls (TName name (typeOf expr)) specTName (not <$> bools) body)
-        _ -> failure "Specialize.replaceCall: Unexpected output from specialize pass"
-  -- sspecBody <- pure specBody
-  sspecBody <- uniqueSimplify defaultEnv True False 1 10 specBody
-  let -- todo: maintain borrowed arguments?
-      specDef0 = Def (getName specTName) (typeOf specTName) sspecBody Private (DefFun []) InlineAuto rangeNull
-                $ "// specialized " <> show name <> " to parameters " <> show speccedParams <> " with args " <> comment (show speccedArgs)
-  -- specDef <- pure specDef0
-  specDef <- specOneDef specDef0
+      -- create a new (recursive) specialized body where the specialized parameters become local defitions
+      let specBody0
+            = (\body -> case mybeTypeArgs of
+                Nothing -> body
+                Just typeArgs -> subNew (zip (fnTypeParams expr) typeArgs) |-> body)
+              $ Lam newParams (fnEffect expr)  -- fn <newparams>
+              $ Let [DefNonRec $ Def param typ arg Private DefVal InlineAuto rangeNull ""  -- bind specialized parameters
+                      | (TName param typ, arg) <- zip speccedParams speccedArgs]
+              $ fnBody expr
+      
+      -- substitute self-recursive calls to call our new specialized definition (without the specialized arguments!)
+      specName <- uniqueName "spec"
+      let specType  = typeOf specBody0
+          specTName = TName specName specType
+          specBody  = case specBody0 of
+                        Lam args eff (Let specArgs body) -> Lam args eff
+                          (Let specArgs $ specInnerCalls (TName name (typeOf expr)) specTName (not <$> bools) body)
+                        _ -> failure "Specialize.replaceCall: Unexpected output from specialize pass"
+      
+      -- simplify so the new specialized arguments are potentially inlined unlocking potential further specialization
+      sspecBody <- uniqueSimplify defaultEnv False False 1 10 specBody
+      -- trace ("\n// ----start--------\n// specializing " <> show name <> " to parameters " <> show speccedParams <> " with args " <> comment (show speccedArgs) <> "\n// specTName: " <> show (getName specTName) <> ", sspecBody: \n" <> show sspecBody <> "\n// ---- start recurse---") $ return ()
 
-  pure $ Let [DefRec [specDef]] (App (Var (defTName specDef) InfoNone) newArgs)
-
-  where
-    ((newParams, newArgs), (speccedParams, speccedArgs)) =
-      (unzip *** unzip)
-      -- $ (\x@(new, spec) -> trace ("Specializing to newArgs " <> show new) $ x)
-      $ partitionBools bools
-      $ zip (fnParams expr) args
-
--- we might shadow here but it will still be correct(?) and we uniquefy at the end
-genSpecName :: Name -> Name
-genSpecName name = newName $ "spec_" ++ show (unqualify name)
--- genSpecName name bools = makeHiddenName "spec" name
+      -- and try again to specialize in our new specialized definition
+      rspecBody <- specOneExpr specName sspecBody
+      -- trace ("\n// -----end recures----\n// specialized " <> show name <> ": rspecBody:\n" <> show rspecBody <> "\n// ---end------") $ return ()
+      
+      let -- todo: maintain borrowed arguments?
+          specDef = Def specName specType rspecBody Private (DefFun []) InlineAuto rangeNull
+                    $ "// specialized: " <> show name <> ", on parameters " <> concat (intersperse ", " (map show speccedParams)) <> ", using:\n" <>
+                      comment (unlines [show param <> " = " <> show arg | (param,arg) <- zip speccedParams speccedArgs])
+      
+      return $ Let [DefRec [specDef]] (App (Var (defTName specDef) InfoNone) newArgs)
 
 fnTypeParams :: Expr -> [TypeVar]
 fnTypeParams (TypeLam typeParams _) = typeParams

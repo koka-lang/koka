@@ -858,6 +858,7 @@ inferCheck loaded0 flags line coreImports program
        let checkCoreDefs title = when (coreCheck flags) (trace ("checking " ++ title) $ 
                                                          Core.Check.checkCore False False penv gamma)    
        -- checkCoreDefs "initial"
+       -- traceDefGroups "initial"
 
        -- remove return statements
        unreturn penv
@@ -877,42 +878,34 @@ inferCheck loaded0 flags line coreImports program
          let inlines = if (isPrimitiveModule (Core.coreProgName coreProgram)) then loadedInlines loaded
                          else inlinesFilter (\name -> nameId nameCoreHnd /= nameModule name) (loadedInlines loaded)
          in inlineDefs penv (2*(optInlineMax flags)) inlines
-       checkCoreDefs "inlined"
+       -- checkCoreDefs "inlined"
 
        simplifyDupN
        -- traceDefGroups "inlined"
 
        -- lift recursive functions to top-level before specialize (so specializeDefs do not contain local recursive definitions)
        liftFunctions penv
+       checkCoreDefs "lifted"      
+       -- traceDefGroups "lifted"
 
        -- specialize 
        specializeDefs <- -- if (isPrimitiveModule (Core.coreProgName coreProgram)) then return [] else 
                          Core.withCoreDefs (\defs -> extractSpecializeDefs (loadedInlines loaded) defs)
-      --  traceM ("Spec defs:\n" ++ unlines (map show specializeDefs))
+       --  traceM ("Spec defs:\n" ++ unlines (map show specializeDefs))
        
        when (optSpecialize flags) $
-         specialize (inlinesExtends specializeDefs (loadedInlines loaded))
-
-       --  simplifyNoDup
-       -- traceDefGroups "specialized"
-
-       simplifyDupN
-
-      --  traceDefGroups "simplified"
-
-      --  when (optSpecialize flags) $
-      --    specialize (inlinesExtends specializeDefs (loadedInlines loaded))
-
-      --  traceDefGroups "specialized2"
-          
-       -- lifting recursive functions to top level (must be after specialize as that can generate local recursive definitions)
-       liftFunctions penv
-       checkCoreDefs "lifted"      
-       -- traceDefGroups "lifted"
-      
+         do specialize (inlinesExtends specializeDefs (loadedInlines loaded))
+            simplifyDupN
+            -- lifting remaining recursive functions to top level (must be after specialize as that can generate local recursive definitions)
+            liftFunctions penv
+            checkCoreDefs "specialized"
+            -- traceDefGroups "specialized"          
+    
+       -- simplify once more
        simplifyDupN
        coreDefsInlined <- Core.getCoreDefs
-       -- traceDefGroups "simplify2"
+       -- traceDefGroups "simplified"
+      
       
        ------------------------------
        -- backend optimizations 
