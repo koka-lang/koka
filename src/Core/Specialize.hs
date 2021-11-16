@@ -109,7 +109,7 @@ specOneDef def
 
 specOneExpr :: Name -> Expr -> SpecM Expr
 specOneExpr thisDefName
-  = rewriteBottomUpM $ \e ->
+  = rewriteTopDownM $ \e ->
     case e of
       App (Var (TName name _) _) args
         -> go name e
@@ -274,12 +274,8 @@ replaceCall name expr bools args mybeTypeArgs
       sspecBody <- uniqueSimplify defaultEnv False False 1 10 specBody
       -- trace ("\n// ----start--------\n// specializing " <> show name <> " to parameters " <> show speccedParams <> " with args " <> comment (show speccedArgs) <> "\n// specTName: " <> show (getName specTName) <> ", sspecBody: \n" <> show sspecBody <> "\n// ---- start recurse---") $ return ()
 
-      -- and try again to specialize in our new specialized definition
-      rspecBody <- specOneExpr specName sspecBody
-      -- trace ("\n// -----end recures----\n// specialized " <> show name <> ": rspecBody:\n" <> show rspecBody <> "\n// ---end------") $ return ()
-      
       let -- todo: maintain borrowed arguments?
-          specDef = Def specName specType rspecBody Private (DefFun []) InlineAuto rangeNull
+          specDef = Def specName specType sspecBody Private (DefFun []) InlineAuto rangeNull
                     $ "// specialized: " <> show name <> ", on parameters " <> concat (intersperse ", " (map show speccedParams)) <> ", using:\n" <>
                       comment (unlines [show param <> " = " <> show arg | (param,arg) <- zip speccedParams speccedArgs])
       

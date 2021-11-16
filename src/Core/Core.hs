@@ -93,6 +93,9 @@ module Core.Core ( -- Data structures
                    , rewriteBottomUp
                    , rewriteBottomUpM
 
+                   , rewriteTopDown
+                   , rewriteTopDownM
+
                    , CorePhase
                    , getCoreDefs, setCoreDefs, withCoreDefs
                    , runCorePhase
@@ -645,7 +648,39 @@ rewriteBottomUpM f e = f =<< case e of
       mbranches = forM branches $ \(Branch patterns guards) ->
         Branch patterns <$> forM guards (\(Guard e1 e2) -> liftA2 Guard (rec e1) (rec e2))
   where
-    rec = f <=< rewriteBottomUpM f
+    rec = rewriteBottomUpM f
+
+rewriteTopDown :: (Expr -> Expr) -> Expr -> Expr
+rewriteTopDown f = runIdentity . rewriteTopDownM (Identity . f)
+
+rewriteTopDownM :: (Monad m) => (Expr -> m Expr) -> Expr -> m Expr
+rewriteTopDownM f e = f e >>= \e -> case e of
+  Lam params eff body -> Lam params eff <$> rec body
+  Var _ _ -> pure e
+  App fun xs -> liftA2 App (rec fun) (mapM rec xs)
+  TypeLam types body -> TypeLam types <$> rec body
+  TypeApp expr types -> (\fexpr -> TypeApp fexpr types) <$> rec expr
+  Con _ _ -> pure e
+  Lit _ -> pure e
+  Let binders body -> do
+    newBinders <- forM binders $ \binder ->
+      case binder of
+        DefNonRec def@Def{defExpr = defExpr} -> do
+          fexpr <- rec defExpr
+          pure $ DefNonRec def { defExpr = fexpr, defType = typeOf fexpr }
+        DefRec defs -> fmap DefRec $ forM defs $ \def@Def{defExpr = defExpr} -> do
+          fexpr <- rec defExpr
+          pure def{ defExpr = fexpr, defType = typeOf fexpr }
+
+    Let newBinders <$> rec body
+
+  Case cases branches -> liftA2 Case mcases mbranches
+    where
+      mcases = mapM rec cases
+      mbranches = forM branches $ \(Branch patterns guards) ->
+        Branch patterns <$> forM guards (\(Guard e1 e2) -> liftA2 Guard (rec e1) (rec e2))
+  where
+    rec = rewriteTopDownM f
 
 
 data TName = TName
