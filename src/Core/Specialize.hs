@@ -181,9 +181,6 @@ goodArg expr = case expr of
                 -- Var name info | show (getName name) == ".spec.1052" -> Just expr
                 Var name info          -> case info of
                                             InfoNone -> Nothing
-                                            -- we should prevent this to begin with
-                                            -- InfoKnownRHS e | Var n i <- e, n == name -> Nothing
-                                            -- InfoKnownRHS e -> Just expr
                                             _        -> Just expr
                 _                      -> Nothing
 
@@ -317,9 +314,6 @@ filterMaybe f (Just a) = guard (f a) >> pure a
 whenJust :: (Applicative f) => Maybe a -> (a -> f ()) -> f ()
 whenJust Nothing _ = pure ()
 whenJust (Just x) f = f x
-
-(<&&>) :: (Applicative f) => f Bool -> f Bool -> f Bool
-(<&&>) = liftA2 (&&)
 
 makeSpecialize :: Def -> Maybe InlineDef
 makeSpecialize def
