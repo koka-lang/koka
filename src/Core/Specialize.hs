@@ -178,11 +178,12 @@ goodArg expr = case expr of
                 TypeLam _ body         -> goodArg body >> Just expr
                 TypeApp body _         -> goodArg body >> Just expr
                 App fun _              -> goodArg fun  >> Just expr-- ??  for open(f) calls?
+                -- Var name info | show (getName name) == ".spec.1052" -> Just expr
                 Var name info          -> case info of
                                             InfoNone -> Nothing
                                             -- we should prevent this to begin with
-                                            InfoKnownRHS e | Var n i <- e, n == name -> Nothing
-                                            InfoKnownRHS e -> Just e
+                                            -- InfoKnownRHS e | Var n i <- e, n == name -> Nothing
+                                            -- InfoKnownRHS e -> Just expr
                                             _        -> Just expr
                 _                      -> Nothing
 
@@ -208,7 +209,8 @@ val x  = f<t1,...tn>(e1,...em)
 specInnerCalls :: TName -> TName -> [Bool] -> Expr -> Expr
 specInnerCalls from to bools expr = 
   -- substitute first
-  let sexpr = [(from,Var to InfoNone)] |~> expr  
+  let arity = length $ filter id bools
+      sexpr = [(from,Var to (InfoArity 0 arity))] |~> expr
   -- then adjust arguments
       rewrite e 
         = case e of
@@ -223,16 +225,6 @@ specInnerCalls from to bools expr =
 
 comment :: String -> String
 comment = unlines . map ("// " ++) . lines
-
-changeInfo :: TName -> VarInfo -> Expr -> Expr
-changeInfo name info = rewriteBottomUp $ \e ->
-  case e of
-    Var n _ 
-      | n == name -> Var name info
-    e -> e
-
-changeInfos :: [(TName, VarInfo)] -> Expr -> Expr
-changeInfos changes = appEndo $ foldMap (Endo . uncurry changeInfo) changes
 
 -- At this point we've identified a call to a specializable function with a 'known' argument passed for all specializable parameters
 -- A couple steps here to avoid looping when getting the type of the specialized Def (e.g. in the spec_f example above)
@@ -336,8 +328,7 @@ makeSpecialize def
 
       let params = fnParams $ defExpr def
       let specializableParams =
-              map   (filterMaybe (((`S.member` usedInThisDef def) . getName)
-                              <&&> (isFun . tnameType)))
+            map (filterMaybe (isFun . tnameType))
             $ allPassedInSameOrder params recArgs
 
       guard (any isJust specializableParams)

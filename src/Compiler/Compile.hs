@@ -895,7 +895,9 @@ inferCheck loaded0 flags line coreImports program
        
        when (optSpecialize flags && not (isPrimitiveModule (Core.coreProgName coreProgram))) $
          do specialize (inlinesExtends specializeDefs (loadedInlines loaded))
+            -- traceDefGroups "specialized"
             simplifyDupN
+            -- traceDefGroups "simplified"
             -- lifting remaining recursive functions to top level (must be after specialize as that can generate local recursive definitions)
             liftFunctions penv
             checkCoreDefs "specialized"
