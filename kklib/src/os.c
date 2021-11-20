@@ -240,6 +240,24 @@ kk_decl_export int kk_os_write_text_file(kk_string_t path, kk_string_t content, 
 
 
 /*--------------------------------------------------------------------------------------------------
+  Read line
+--------------------------------------------------------------------------------------------------*/
+
+kk_decl_export int kk_os_read_line(kk_string_t* result, kk_context_t* ctx)
+{
+  char buf[1024];
+  if (fgets(buf, 1023, stdin) == NULL) return errno;
+  buf[1023] = 0;      // ensure zero termination
+  const size_t len = strlen(buf);
+  if (len > 0 && buf[len-1] == '\n') {
+    buf[len-1] = 0;   // remove possible ending newline character
+  }
+  *result = kk_string_alloc_from_qutf8(buf, ctx);
+  return 0;
+}
+
+
+/*--------------------------------------------------------------------------------------------------
   Directories
 --------------------------------------------------------------------------------------------------*/
 
