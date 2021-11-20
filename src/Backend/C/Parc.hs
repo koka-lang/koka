@@ -322,7 +322,7 @@ optimizeDupDrops mchildrenOf conNameOf dups0 drops0
 
 specializeDrop :: (TName -> Maybe TNames) -> (TName -> Maybe Name) -> Dups -> TName -> Parc [Maybe Expr]
 specializeDrop mchildrenOf conNameOf dups v    -- dups are descendents of v
-  = -- trace ("enter specialize: " ++ show (mchildrenOf (dropInfoVar v)) ++ ", " ++ show (dups,v,drops)) $
+  = -- trace ("enter specialize: " ++ show v ++ ", children: " ++ show (mchildrenOf v) ++ ", dups: " ++ show dups) $
     do  xShared <- foldMapM genDup dups         -- for the non-unique branch
         xUnique <- optimizeDupDrops mchildrenOf conNameOf dups (childrenOf v) -- drop direct children in unique branch (note: `v \notin drops`)
         let tp = typeOf v
@@ -338,16 +338,16 @@ specializeDrop mchildrenOf conNameOf dups v    -- dups are descendents of v
             -- Try to optimize a dropped value type where all fields are dup'd and where
             -- the fields are not boxed in a special way (all BoxIdentity).
             -- this optimization is important for TRMC for the `ctail` value type.
-          then -- trace ("drop spec value: " ++ show (mchildrenOf (dropInfoVar v)) ++ ", " ++ show (dups,v,drops) ++ ", " ++ show tp) $
+          then -- trace ("drop spec value: " ++ show v ++ ", children: " ++ show (mchildrenOf v) ++ ", dups: " ++ show (dups) ++ ", tp: " ++ show tp) $
                do mftps <- getFieldTypes tp (conNameOf v)
                   case mftps of
                     Nothing   -> noSpecialize v
                     Just ftps -> do bforms <- mapM getBoxForm ftps
                                     if (all isBoxIdentityOrUnknown bforms)
-                                      then -- trace ("** all box identity: " ++ showTName (dropInfoVar v) ++ ": " ++ show (bforms,map pretty ftps)) $
-                                          return []
-                                      else -- trace ("** no identity: " ++ showTName (dropInfoVar v) ++ ": " ++ show (bforms,map pretty ftps)) $
-                                          noSpecialize v
+                                      then -- trace ("** all box identity: " ++ showTName (v) ++ ": " ++ show (bforms,map pretty ftps)) $
+                                           return []
+                                      else -- trace ("** no identity: " ++ showTName (v) ++ ": " ++ show (bforms,map pretty ftps)) $
+                                           noSpecialize v
 
           else if dontSpecialize
             -- don't specialize certain primitives
@@ -396,23 +396,29 @@ forwardingChild platform newtypes childrenOf dups y
   = case tnamesList (childrenOf y) of
       [x] -> -- trace ("forwarding child?: " ++ show y ++ " -> " ++ show x) $
              case getValueForm' newtypes (typeOf y) of
-               Just ValueOneScan
+               Just ValueOneScan  -- for example `value type maybe<a> { Nothing; Just(val:a) }` 
                  -> case findChild x dups of
                       Just x  -> -- trace (" is forwarding: " ++ show y ++ " -> " ++ show x) $
-                                 Just x -- Just(x) as y
+                                 Just x -- y as Just(x)
+                      Nothing | isBoxType (typeOf x)
+                              -> case tnamesList (childrenOf x) of
+                                   [x'] -> case getBoxForm' platform newtypes (typeOf x') of
+                                            BoxIdentity
+                                              -> findChild x' dups  -- y as Just(x as Box(x'))
+                                            _ -> Nothing
+                                   _ -> Nothing
                       Nothing -> -- trace (" check box type child: " ++ show (y,x)) $
                                  case getBoxForm' platform newtypes (typeOf x) of
                                    BoxIdentity
-                                     -> -- trace (" check child's children: " ++ show x) $
-                                        case tnamesList (childrenOf x) of
-                                          [x'] -> findChild x' dups  -- (Just(Box x' as x)) as y
+                                     -> case tnamesList (childrenOf x) of
+                                          [x'] -> findChild x' dups 
                                           _    -> Nothing
                                    _ -> Nothing
                Just _  -> Nothing
                Nothing | isBoxType (typeOf y)
                        -> case getBoxForm' platform newtypes (typeOf x) of
                             BoxIdentity -> --trace (" box identity: " ++ show y) $
-                                           findChild x dups  -- Box(x) as y
+                                           findChild x dups  -- y as Box(x) 
                             _ -> Nothing
                _       -> Nothing
       _ -> Nothing
@@ -553,9 +559,11 @@ isBoxIdentityOrUnknown _           = False
 
 getBoxForm' :: Platform -> Newtypes -> Type -> BoxForm
 getBoxForm' platform newtypes tp
-  = case getDataDef' newtypes tp of
+  = -- trace ("getBoxForm' of " ++ show (pretty tp)) $
+    case getDataDef' newtypes tp of
       Just (DataDefValue _ 0) -- 0 scan fields
-        -> case extractDataDefType tp of
+        -> -- trace "  0 scan fields" $
+           case extractDataDefType tp of
              Just name
                | name `elem` [nameTpInt, nameTpChar, nameTpByte, nameTpCField] ||
                  ((name `elem` [nameTpInt32, nameTpFloat32]) && sizePtr platform > 4)
