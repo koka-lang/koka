@@ -240,6 +240,26 @@ kk_cfun_ptr_t kk_cfun_ptr_unbox(kk_box_t b) {  // never drop; only used from fun
   }
 }
 
+/*----------------------------------------------------------------
+  Maybe type support
+----------------------------------------------------------------*/
+
+kk_box_t kk_unbox_Just_block( kk_block_t* b, kk_context_t* ctx ) {
+  kk_assert_internal(kk_block_has_tag(b,KK_TAG_JUST));
+  kk_just_t* just = kk_block_as(kk_just_t*,b);
+  kk_box_t res = just->value;        
+  if (ctx != NULL) {
+    if (kk_basetype_is_unique(just)) {
+      kk_basetype_free(just);  
+    }
+    else {
+      kk_box_dup(res);
+      kk_basetype_decref(just, ctx);
+    }
+  }
+  return res;
+}
+
 
 /*----------------------------------------------------------------
   Double boxing on 64-bit systems
@@ -261,7 +281,7 @@ static double kk_double_unbox_heap(kk_box_t b, kk_context_t* ctx) {
 
 #if (KK_BOX_DOUBLE64 == 2)  // heap allocate when negative
 kk_box_t kk_double_box(double d, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   int64_t i;
   //if (isnan(d)) { kk_debugger_break(ctx); }
   memcpy(&i, &d, sizeof(i));  // safe for C aliasing
@@ -276,7 +296,7 @@ kk_box_t kk_double_box(double d, kk_context_t* ctx) {
 }
 
 double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   double d;
   if (kk_box_is_value(b)) {
     // positive double
@@ -298,7 +318,7 @@ static kk_box_t kk_double_box_heap(double d, kk_context_t* ctx) {
 }
 
 kk_box_t kk_double_box(double d, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   uint64_t u;
   memcpy(&u, &d, sizeof(u));  // safe for C aliasing
   u = kk_bits_rotl64(u, 12);
@@ -324,7 +344,7 @@ kk_box_t kk_double_box(double d, kk_context_t* ctx) {
 }
 
 double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   if (kk_box_is_value(b)) {
     // expand 10-bit exponent to 11-bits again
     uint64_t u = b.box;

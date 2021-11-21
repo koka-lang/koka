@@ -7,7 +7,7 @@
 ---------------------------------------------------------------------------*/
 #include "kklib.h"
 
-#define KK_NSECS_PER_SEC  KI64(1000000000)
+#define KK_NSECS_PER_SEC  KK_I64(1000000000)
 
 
 /*--------------------------------------------------------------------------------------------------
@@ -130,8 +130,8 @@ kk_decl_export double kk_timer_resolution(kk_context_t* ctx) {
 --------------------------------------------------------------------------------------------------*/
 
 #ifdef WIN32
-#define KK_100NSECS_PER_SEC  KI64(10000000)
-#define KK_UNIX_EPOCH        KI64(11644473600)  // seconds since 1601-01-01 UTC to 1970-01-01 (Unix epoch)
+#define KK_100NSECS_PER_SEC  KK_I64(10000000)
+#define KK_UNIX_EPOCH        KK_I64(11644473600)  // seconds since 1601-01-01 UTC to 1970-01-01 (Unix epoch)
 static double kk_time_unix_now_prim(double* secs_frac, kk_context_t* ctx) {
   FILETIME ft;
   GetSystemTimeAsFileTime(&ft);

@@ -43,10 +43,10 @@ including Karatsuba multiplication.
 
 #if (KK_INTPTR_SIZE>=8) && defined(_XMSC_VER) && (_MSC_VER >= 1920) && !defined(__clang_msvc__) /* not clang-cl or we get link errors */
 // Use 64-bit digits on Microsoft VisualC
-#define BASE          KI64(1000000000000000000)
+#define BASE          KK_I64(1000000000000000000)
 #define LOG_BASE      (18)
 #define DIGIT_BITS    (64)
-#define BASE_HEX      KU64(0x100000000000000)  // largest hex base < BASE  
+#define BASE_HEX      KK_U64(0x100000000000000)  // largest hex base < BASE  
 #define LOG_BASE_HEX  (14)                     // hex digits in BASE_HEX
 #define PRIxDIGIT     "%llx"
 #define PRIXDIGIT     "%llX"
@@ -82,10 +82,10 @@ static inline kk_ddigit_t ddigit_mul_add(kk_digit_t x, kk_digit_t y, kk_digit_t 
 
 #elif (KK_INTPTR_SIZE >= 8) && defined(__GNUC__) 
 // Use 64-bit digits with gcc/clang/icc
-#define BASE          KI64(1000000000000000000)
+#define BASE          KK_I64(1000000000000000000)
 #define LOG_BASE      (18)
 #define DIGIT_BITS    (64)
-#define BASE_HEX      KU64(0x100000000000000)  // largest hex base < BASE  
+#define BASE_HEX      KK_U64(0x100000000000000)  // largest hex base < BASE  
 #define LOG_BASE_HEX  (14)                     // hex digits in BASE_HEX
 typedef uint64_t      kk_digit_t;     // 2*BASE + 1 < kk_digit_t_max
 
@@ -114,10 +114,10 @@ static inline kk_ddigit_t ddigit_mul_add(kk_digit_t x, kk_digit_t y, kk_digit_t 
 #pragma message("using 32-bit digits for large integer arithmetic")
 #endif
 
-#define BASE          KI32(1000000000)
+#define BASE          KK_I32(1000000000)
 #define LOG_BASE      (9)
 #define DIGIT_BITS    (32)
-#define BASE_HEX      KU32(0x10000000)  // largest hex base < BASE  
+#define BASE_HEX      KK_U32(0x10000000)  // largest hex base < BASE  
 #define LOG_BASE_HEX  (7)               // hex digits in BASE_HEX
 typedef uint32_t      kk_digit_t;       // 2*BASE + 1 < kk_digit_t_max
 #define PRIxDIGIT     "%x"

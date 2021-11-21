@@ -1123,7 +1123,7 @@ genLambda params eff body
 
        bodyDoc <- genStat (ResultReturn Nothing params) body
        let funDef = funSig <+> block (
-                      (if (null fields) then text "KK_UNUSED(_fself);"
+                      (if (null fields) then text "kk_unused(_fself);"
                         else let dups = braces (hcat [genDupCall tp (ppName name) <.> semi | (name,tp) <- fields])
                              in vcat ([structDoc <.> text "* _self = kk_function_as" <.> tupled [structDoc <.> text "*",text "_fself"] <.> semi]
                                    ++ [ppType tp <+> ppName name <+> text "= _self->" <.> ppName name <.> semi <+> text "/*" <+> pretty tp <+> text "*/"  | (name,tp) <- fields]
@@ -2352,24 +2352,24 @@ cstring s
 genLitInt32 :: Integer -> Doc
 genLitInt32 i
   | i == minSmallInt32 = parens (text "INT32_MIN")
-  | otherwise          = parens (text "(int32_t)" <.> text "KI32" <.> parens (pretty i))
+  | otherwise          = parens ({-text "(int32_t)" <.> -} text "KK_I32" <.> parens (pretty i))
 
 genLitInt64 :: Integer -> Doc
 genLitInt64 i
   | i == minSmallInt64  = parens (text "INT64_MIN")
-  | otherwise           = parens (text "(int64_t)" <.> text "KI64" <.> parens (pretty i))
+  | otherwise           = parens ({-text "(int64_t)" <.> -} text "KK_I64" <.> parens (pretty i))
 
 genLitUInt8 :: Integer -> Doc
 genLitUInt8 i
-  = parens (text "(uint8_t)" <.> pretty i)
+  = parens (text "(uint8_t)" <.> parens (pretty i))
 
 genLitSSizeT :: Integer -> Doc
 genLitSSizeT i
-  = parens (text "(kk_ssize_t)" <.> pretty i)
+  = parens (text "KK_IZ" <.> parens (pretty i))
 
 genLitIntPtrT :: Integer -> Doc
 genLitIntPtrT i
-  = parens (text "(intptr_t)" <.> pretty i)
+  = parens (text "KK_IP" <.> parens (pretty i))
 
 
 isSmallLitInt expr

@@ -183,33 +183,33 @@
 #endif
 
 
-#ifndef KK_UNUSED
-#define KK_UNUSED(x)          ((void)(x))
+#ifndef kk_unused
+#define kk_unused(x)          ((void)(x))
 #ifdef NDEBUG
-#define KK_UNUSED_RELEASE(x)  KK_UNUSED(x)
+#define kk_unused_release(x)  kk_unused(x)
 #else
-#define KK_UNUSED_RELEASE(x)  
+#define kk_unused_release(x)  
 #endif
 #ifndef KK_DEBUG_FULL
-#define KK_UNUSED_INTERNAL(x)  KK_UNUSED(x)
+#define kk_unused_internal(x)  kk_unused(x)
 #else
-#define KK_UNUSED_INTERNAL(x)  
+#define kk_unused_internal(x)  
 #endif
 #endif
 
 // Defining constants of a specific size
 #if LONG_MAX == INT64_MAX
 # define KK_LONG_SIZE   8
-# define KI32(i)        (i)
-# define KI64(i)        (i##L)
-# define KU32(i)        (i##U)
-# define KU64(i)        (i##UL)
+# define KK_I32(i)      (i)
+# define KK_I64(i)      (i##L)
+# define KK_U32(i)      (i##U)
+# define KK_U64(i)      (i##UL)
 #elif LONG_MAX == INT32_MAX
 # define KK_LONG_SIZE 4
-# define KI32(i)        (i##L)
-# define KI64(i)        (i##LL)
-# define KU32(i)        (i##UL)
-# define KU64(i)        (i##ULL)
+# define KK_I32(i)      (i##L)
+# define KK_I64(i)      (i##LL)
+# define KK_U32(i)      (i##UL)
+# define KK_U64(i)      (i##ULL)
 #else
 #error size of a `long` must be 32 or 64 bits
 #endif
@@ -217,20 +217,20 @@
 // Define size of intptr_t
 #if INTPTR_MAX == INT64_MAX         
 # define KK_INTPTR_SIZE 8
-# define KIP(i)         KI64(i)
-# define KUP(i)         KU64(i)
+# define KK_IP(i)       KK_I64(i)
+# define KK_UP(i)       KK_U64(i)
 #elif INTPTR_MAX == INT32_MAX
 # define KK_INTPTR_SIZE 4
-# define KIP(i)         KI32(i)
-# define KUP(i)         KU32(i)
+# define KK_IP(i)       KK_I32(i)
+# define KK_UP(i)       KK_U32(i)
 #elif INTPTR_MAX == INT16_MAX
 # define KK_INTPTR_SIZE 2
-# define KIP(i)         i
-# define KUP(i)         i
+# define KK_IP(i)       i
+# define KK_UP(i)       i
 #elif INTPTR_MAX > INT64_MAX         // assume 128-bit
 # define KK_INTPTR_SIZE 16
-# define KIP(i)         KI64(i)
-# define KUP(i)         KU64(i)
+# define KK_IP(i)       KK_I64(i)
+# define KK_UP(i)       KK_U64(i)
 #else
 #error platform addresses must be 16, 32, 64, or 128 bits
 #endif
@@ -240,22 +240,22 @@
 // Define size of size_t and kk_ssize_t 
 #if SIZE_MAX == UINT64_MAX
 # define KK_SIZE_SIZE   8
-# define KIZ(i)         KI64(i)
-# define KUZ(i)         KU64(i)
+# define KK_IZ(i)       KK_I64(i)
+# define KK_UZ(i)       KK_U64(i)
 # define KK_SSIZE_MAX   INT64_MAX
 # define KK_SSIZE_MIN   INT64_MIN
 typedef int64_t         kk_ssize_t;
 #elif SIZE_MAX == UINT32_MAX         
 # define KK_SIZE_SIZE   4
-# define KIZ(i)         KI32(i)
-# define KUZ(i)         KU32(i)
+# define KK_IZ(i)       KK_I32(i)
+# define KK_UZ(i)       KK_U32(i)
 # define KK_SSIZE_MAX   INT32_MAX
 # define KK_SSIZE_MIN   INT32_MIN
 typedef int32_t         kk_ssize_t;
 #elif SIZE_MAX == UINT16_MAX         
 # define KK_SIZE_SIZE   2
-# define KIZ(i)         i
-# define KUZ(i)         i
+# define KK_IZ(i)       i
+# define KK_UZ(i)       i
 # define KK_SSIZE_MAX   INT16_MAX
 # define KK_SSIZE_MIN   INT16_MIN
 typedef int16_t         kk_ssize_t;
@@ -301,8 +301,8 @@ static inline size_t kk_to_size_t(kk_ssize_t sz) {
 #if (INT_MAX < INT32_MAX)  
 typedef int            kk_intx_t;
 typedef unsigned       kk_uintx_t;
-#define KIX(i)         i
-#define KUX(i)         i
+#define KK_IX(i)       i
+#define KK_UX(i)       i
 #define KK_INTX_SIZE   2
 #define KK_INTX_MAX    INT_MAX
 #define KK_INTX_MIN    INT_MIN
@@ -314,8 +314,8 @@ typedef unsigned       kk_uintx_t;
 #elif (LONG_MAX < KK_SSIZE_MAX)
 typedef kk_ssize_t     kk_intx_t;
 typedef size_t         kk_uintx_t;
-#define KIX(i)         KIZ(i)
-#define KUX(i)         KUZ(i)
+#define KK_IX(i)       KK_IZ(i)
+#define KK_UX(i)       KK_UZ(i)
 #define KK_INTX_SIZE   KK_SSIZE_SIZE
 #define KK_INTX_MAX    KK_SSIZE_MAX
 #define KK_INTX_MIN    KK_SSIZE_MIN
@@ -327,8 +327,8 @@ typedef size_t         kk_uintx_t;
 #else 
 typedef long           kk_intx_t;
 typedef unsigned long  kk_uintx_t;
-#define KUX(i)         (i##UL)
-#define KIX(i)         (i##L)
+#define KK_UX(i)       (i##UL)
+#define KK_IX(i)       (i##L)
 #define KK_INTX_SIZE   KK_LONG_SIZE
 #define KK_INTX_MAX    LONG_MAX
 #define KK_INTX_MIN    LONG_MIN
@@ -344,8 +344,8 @@ typedef unsigned long  kk_uintx_t;
 #if (KK_INTX_SIZE > KK_SIZE_SIZE)
 typedef kk_ssize_t     kk_intf_t;
 typedef size_t         kk_uintf_t;
-#define KUF(i)         KUZ(i)
-#define KIF(i)         KIZ(i)
+#define KK_UF(i)       KK_UZ(i)
+#define KK_IF(i)       KK_IZ(i)
 #define KK_INTF_SIZE   KK_SSIZE_SIZE
 #define KK_INTF_MAX    KK_SSIZE_MAX
 #define KK_INTF_MIN    KK_SSIZE_MIN
@@ -353,8 +353,8 @@ typedef size_t         kk_uintf_t;
 #else
 typedef kk_intx_t      kk_intf_t;
 typedef kk_uintx_t     kk_uintf_t;
-#define KUF(i )        KUX(i)
-#define KIF(i)         KIX(i)
+#define KK_UF(i )      KK_UX(i)
+#define KK_IF(i)       KK_IX(i)
 #define KK_INTF_SIZE   KK_INTX_SIZE
 #define KK_INTF_MAX    KK_INTX_MAX
 #define KK_INTF_MIN    KK_INTX_MIN

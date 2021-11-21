@@ -62,7 +62,7 @@ static void kk_regex_custom_done( kk_context_t* ctx ) {
 ------------------------------------------------------------------------*/
 
 static void kk_regex_free( void* pre, kk_block_t* b, kk_context_t* ctx ) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   pcre2_code* re = (pcre2_code*)pre;
   //kk_info_message( "free regex at %p\n", re );
   if (re != NULL) pcre2_code_free(re);

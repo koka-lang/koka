@@ -64,7 +64,7 @@ typedef enum kk_tag_e {
   KK_TAG_CFUNPTR,     // C function pointer
   KK_TAG_INTPTR,      // boxed intptr_t  
   KK_TAG_EVV_VECTOR,  // evidence vector (used in std/core/hnd)
-  KK_TAG_NOTHING,
+  KK_TAG_NOTHING,     // used to avoid allocation for unnested maybe-like types
   KK_TAG_JUST,
   // raw tags have a free function together with a `void*` to the data
   KK_TAG_CPTR_RAW,    // full void* (must be first, see kk_tag_is_raw())
@@ -114,7 +114,7 @@ typedef struct kk_header_s {
 
 #define KK_SCAN_FSIZE_MAX (0xFF)
 #define KK_HEADER(scan_fsize,tag)         { scan_fsize, 0, tag, ATOMIC_VAR_INIT(0) }                // start with refcount of 0
-#define KK_HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 0, tag, ATOMIC_VAR_INIT(KU32(0x80000000)) } // start with a stuck refcount (RC_STUCK)
+#define KK_HEADER_STATIC(scan_fsize,tag)  { scan_fsize, 0, tag, ATOMIC_VAR_INIT(KK_U32(0x80000000)) } // start with a stuck refcount (RC_STUCK)
 
 static inline void kk_header_init(kk_header_t* h, kk_ssize_t scan_fsize, kk_tag_t tag) {
   kk_assert_internal(scan_fsize >= 0 && scan_fsize <= KK_SCAN_FSIZE_MAX);
@@ -269,9 +269,9 @@ static inline void kk_block_field_set(kk_block_t* b, kk_ssize_t index, kk_box_t 
 }
 
 #if (KK_INTPTR_SIZE==8)
-#define KK_BLOCK_INVALID  KUP(0xDFDFDFDFDFDFDFDF)
+#define KK_BLOCK_INVALID  KK_UP(0xDFDFDFDFDFDFDFDF)
 #else
-#define KK_BLOCK_INVALID  KUP(0xDFDFDFDF)
+#define KK_BLOCK_INVALID  KK_UP(0xDFDFDFDF)
 #endif
 
 static inline void kk_block_set_invalid(kk_block_t* b) {
@@ -282,7 +282,7 @@ static inline void kk_block_set_invalid(kk_block_t* b) {
     kk_block_field_set(b, i, inv);
   }
 #else
-  KK_UNUSED(b);
+  kk_unused(b);
 #endif
 } 
 
@@ -446,12 +446,12 @@ static inline void* kk_malloc(kk_ssize_t sz, kk_context_t* ctx) {
 }
 
 static inline void* kk_zalloc(kk_ssize_t sz, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   return mi_heap_zalloc(ctx->heap, (size_t)sz);
 }
 
 static inline void* kk_realloc(void* p, kk_ssize_t sz, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   return mi_heap_realloc(ctx->heap, p, (size_t)sz);
 }
 
@@ -464,7 +464,7 @@ static inline void kk_free_local(const void* p) {
 }
 #else
 static inline void* kk_malloc(kk_ssize_t sz, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   return malloc((size_t)sz);
 }
 
@@ -473,17 +473,17 @@ static inline void* kk_malloc_small(kk_ssize_t sz, kk_context_t* ctx) {
 }
 
 static inline void* kk_zalloc(kk_ssize_t sz, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   return calloc(1, (size_t)sz);
 }
 
 static inline void* kk_realloc(void* p, kk_ssize_t sz, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   return realloc(p, (size_t)sz);
 }
 
 static inline void kk_free(const void* p) {
-  KK_UNUSED(p);
+  kk_unused(p);
   free((void*)p);
 }
 
@@ -494,13 +494,13 @@ static inline void kk_free_local(const void* p) {
 
 
 static inline void kk_block_init(kk_block_t* b, kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag) {
-  KK_UNUSED(size);
+  kk_unused(size);
   kk_assert_internal(scan_fsize >= 0 && scan_fsize < KK_SCAN_FSIZE_MAX);
   kk_header_init(&b->header, scan_fsize, tag);
 }
 
 static inline void kk_block_large_init(kk_block_large_t* b, kk_ssize_t size, kk_ssize_t scan_fsize, kk_tag_t tag) {
-  KK_UNUSED(size);
+  kk_unused(size);
   // to optimize for "small" vectors with less than 255 scanable elements, we still set the small scan_fsize
   // for those in the header. This is still duplicated in the large scan_fsize field as it is used for the vector length for example.
   uint8_t bscan_fsize = (scan_fsize >= KK_SCAN_FSIZE_MAX ? KK_SCAN_FSIZE_MAX : (uint8_t)scan_fsize);
@@ -553,7 +553,7 @@ static inline kk_block_t* kk_block_realloc(kk_block_t* b, kk_ssize_t size, kk_co
 }
 
 static inline kk_block_t* kk_block_assertx(kk_block_t* b, kk_tag_t tag) {
-  KK_UNUSED_INTERNAL(tag);
+  kk_unused_internal(tag);
   kk_assert_internal(kk_block_tag(b) == tag || kk_block_tag(b) == KK_TAG_BOX_ANY);
   return b;
 }
@@ -721,13 +721,13 @@ static inline kk_reuse_t kk_block_dropn_reuse(kk_block_t* b, kk_ssize_t scan_fsi
 
 
 static inline void kk_block_drop_assert(kk_block_t* b, kk_tag_t tag, kk_context_t* ctx) {
-  KK_UNUSED_INTERNAL(tag);
+  kk_unused_internal(tag);
   kk_assert_internal(kk_block_tag(b) == tag || kk_block_tag(b) == KK_TAG_BOX_ANY);
   kk_block_drop(b,ctx);
 }
 
 static inline kk_block_t* kk_block_dup_assert(kk_block_t* b, kk_tag_t tag) {
-  KK_UNUSED_INTERNAL(tag);
+  kk_unused_internal(tag);
   kk_assert_internal(kk_block_tag(b) == tag || kk_block_tag(b) == KK_TAG_BOX_ANY);
   return kk_block_dup(b);
 }
@@ -860,13 +860,13 @@ static inline void kk_datatype_dropn(kk_datatype_t d, kk_ssize_t scan_fsize, kk_
 }
 
 static inline kk_datatype_t kk_datatype_dup_assert(kk_datatype_t d, kk_tag_t t) {
-  KK_UNUSED_INTERNAL(t);
+  kk_unused_internal(t);
   kk_assert_internal(kk_datatype_has_tag(d, t));
   return kk_datatype_dup(d);
 }
 
 static inline void kk_datatype_drop_assert(kk_datatype_t d, kk_tag_t t, kk_context_t* ctx) {
-  KK_UNUSED_INTERNAL(t);
+  kk_unused_internal(t);
   kk_assert_internal(kk_datatype_has_tag(d, t));
   kk_datatype_drop(d, ctx);
 }
@@ -1017,7 +1017,15 @@ static inline kk_decl_const bool kk_value_tag_eq(kk_value_tag_t x, kk_value_tag_
 }
 
 /*--------------------------------------------------------------------------------------
-  Optimized support for maybe<a> datatypes
+  Optimized support for maybe<a> like datatypes.
+  We try to avoid allocating for maybe-like types. First we define maybe<a> as a value
+  type (in std/core/types) and thus a Just is usually passed in 2 registers for the tag 
+  and payload. This does not help though if it becomes boxed, say, a list of maybe
+  values. In that case we can still avoid allocation through the special TAG_NOTHING
+  and TAG_JUST tags. If the Just value is neither of those, we just use it directly
+  without allocation. This way, only nested maybe types (`Just(Just(x))` or `Just(Nothing)`)
+  are allocated, and sometimes value types like `int32` if these happen to be equal
+  to `kk_box_Nothing`.
 --------------------------------------------------------------------------------------*/
 static inline kk_box_t kk_box_Nothing(void) {
   return kk_datatype_box( kk_datatype_from_tag(KK_TAG_NOTHING) );
@@ -1040,21 +1048,7 @@ typedef struct kk_just_s {
   kk_box_t          value;   
 } kk_just_t;
 
-static inline kk_box_t kk_unbox_Just_block( kk_block_t* b, kk_context_t* ctx ) {
-  kk_assert_internal(kk_block_has_tag(b,KK_TAG_JUST));
-  kk_just_t* just = kk_block_as(kk_just_t*,b);
-  kk_box_t res = just->value;        
-  if (ctx != NULL) {
-    if (kk_basetype_is_unique(just)) {
-      kk_basetype_free(just);  
-    }
-    else {
-      kk_box_dup(res);
-      kk_basetype_decref(just, ctx);
-    }
-  }
-  return res;
-}
+kk_decl_export kk_box_t kk_unbox_Just_block( kk_block_t* b, kk_context_t* ctx );
 
 static inline kk_box_t kk_unbox_Just( kk_box_t b, kk_context_t* ctx ) {
   if (kk_box_is_ptr(b)) {
@@ -1078,15 +1072,13 @@ static inline kk_box_t kk_box_Just( kk_box_t b, kk_context_t* ctx ) {
   }
 }
 
-
-
 static inline kk_datatype_t kk_datatype_as_Just(kk_box_t b) {
   kk_assert_internal(!kk_box_is_maybe(b));
   return kk_datatype_unbox(b);
 }
 
 static inline kk_box_t kk_datatype_unJust(kk_datatype_t d, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   kk_assert_internal(!kk_datatype_has_singleton_tag(d,KK_TAG_NOTHING));
   if (kk_datatype_is_ptr(d)) {
     kk_block_t* b = kk_datatype_as_ptr(d);
@@ -1105,7 +1097,7 @@ static inline kk_box_t kk_datatype_unJust(kk_datatype_t d, kk_context_t* ctx) {
 #define kk_function_alloc_as(tp,scan_fsize,ctx)    kk_block_alloc_as(tp,scan_fsize,KK_TAG_FUNCTION,ctx)
 #define kk_function_call(restp,argtps,f,args)      ((restp(*)argtps)(kk_cfun_ptr_unbox(f->fun)))args
 #define kk_define_static_function(name,cfun,ctx) \
-  static struct kk_function_s _static_##name = { { KK_HEADER_STATIC(0,KK_TAG_FUNCTION) }, { ~KUP(0) } }; /* must be box_null */ \
+  static struct kk_function_s _static_##name = { { KK_HEADER_STATIC(0,KK_TAG_FUNCTION) }, { ~KK_UP(0) } }; /* must be box_null */ \
   kk_function_t name = &_static_##name; \
   if (kk_box_eq(name->fun,kk_box_null)) { name->fun = kk_cfun_ptr_box((kk_cfun_ptr_t)&cfun,ctx); }  // initialize on demand so it can be boxed properly
 
@@ -1227,12 +1219,12 @@ static inline kk_box_t kk_vector_at_borrow(const kk_vector_t v, kk_ssize_t i) {
 }
 
 static inline kk_decl_const kk_box_t kk_vector_box(kk_vector_t v, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   return kk_datatype_box(v);
 }
 
 static inline kk_decl_const kk_vector_t kk_vector_unbox(kk_box_t v, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   return kk_datatype_unbox(v);
 }
 
@@ -1251,12 +1243,12 @@ kk_decl_export kk_box_t  kk_ref_swap_thread_shared_borrow(kk_ref_t r, kk_box_t v
 kk_decl_export kk_unit_t kk_ref_vector_assign_borrow(kk_ref_t r, kk_integer_t idx, kk_box_t value, kk_context_t* ctx);
 
 static inline kk_decl_const kk_box_t kk_ref_box(kk_ref_t r, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   return kk_basetype_box(r);
 }
 
 static inline kk_decl_const kk_ref_t kk_ref_unbox(kk_box_t b, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   return kk_basetype_unbox_as_assert(kk_ref_t, b, KK_TAG_REF);
 }
 
@@ -1322,7 +1314,7 @@ static inline kk_decl_const kk_box_t kk_unit_box(kk_unit_t u) {
 }
 
 static inline kk_decl_const kk_unit_t kk_unit_unbox(kk_box_t u) {
-  KK_UNUSED_INTERNAL(u);
+  kk_unused_internal(u);
   kk_assert_internal( kk_intf_unbox(u) == (kk_intf_t)kk_Unit || kk_box_is_any(u));
   return kk_Unit; // (kk_unit_t)kk_enum_unbox(u);
 }

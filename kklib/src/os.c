@@ -334,7 +334,7 @@ kk_decl_export int kk_os_ensure_dir(kk_string_t path, int mode, kk_context_t* ct
 #if defined(WIN32)
 #include <Windows.h>
 kk_decl_export int kk_os_copy_file(kk_string_t from, kk_string_t to, bool preserve_mtime, kk_context_t* ctx) {
-  KK_UNUSED(preserve_mtime);
+  kk_unused(preserve_mtime);
   int err = 0;
   kk_with_string_as_qutf16w_borrow(from, wfrom, ctx) {
     kk_with_string_as_qutf16w_borrow(to, wto, ctx) {
@@ -420,7 +420,7 @@ kk_decl_export int  kk_os_copy_file(kk_string_t from, kk_string_t to, bool prese
 
 #if defined(__APPLE__)
   // macOS
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   if (fcopyfile(inp, out, 0, COPYFILE_ALL) != 0) {
     err = errno;
   }
@@ -828,7 +828,7 @@ kk_string_t kk_os_realpath(kk_string_t path, kk_context_t* ctx) {
 #else
 #pragma message("realpath ignored on this platform")
 kk_string_t kk_os_realpath(kk_string_t fname, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   return fname;
 }
 #endif
@@ -1075,7 +1075,7 @@ bool kk_os_set_stack_size( kk_ssize_t stack_size ) {
 }
 #else
 bool kk_os_set_stack_size( kk_ssize_t stack_size ) {
-  KK_UNUSED(stack_size);
+  kk_unused(stack_size);
   return false;
 }
 #endif
@@ -1209,7 +1209,7 @@ kk_string_t kk_cc_name(kk_context_t* ctx) {
 
 // note: assumes unistd/Windows etc is already included (like for file copy)
 int kk_cpu_count(kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   int cpu_count = 1;
 #if defined(WIN32)
   SYSTEM_INFO sysinfo;
@@ -1238,7 +1238,7 @@ int kk_cpu_count(kk_context_t* ctx) {
 }
 
 bool kk_cpu_is_little_endian(kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   #if KK_ARCH_LITTLE_ENDIAN
   return true;
   #else

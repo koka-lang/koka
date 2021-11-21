@@ -36,7 +36,7 @@ static DWORD WINAPI kk_thread_proc(LPVOID varg) {
 }
 
 static int pthread_create(pthread_t* thread, void* attr, void* (*action)(void*), void* arg) {
-  KK_UNUSED(attr);
+  kk_unused(attr);
   kk_context_t* ctx = kk_get_context();
   kk_thread_proc_arg_t* parg = (kk_thread_proc_arg_t*)kk_zalloc(kk_ssizeof(kk_thread_proc_arg_t), ctx);
   parg->action = action;
@@ -52,7 +52,7 @@ static int pthread_create(pthread_t* thread, void* attr, void* (*action)(void*),
 typedef CRITICAL_SECTION   pthread_mutex_t;
 
 static int pthread_mutex_init(pthread_mutex_t* mutex, void* attr) {
-  KK_UNUSED(attr);
+  kk_unused(attr);
   InitializeCriticalSection(mutex);
   return 0;
 }
@@ -74,13 +74,13 @@ static void pthread_mutex_unlock(pthread_mutex_t* mutex) {
 typedef CONDITION_VARIABLE pthread_cond_t;
 
 static int pthread_cond_init(pthread_cond_t* cond, void* attr) {
-  KK_UNUSED(attr);
+  kk_unused(attr);
   InitializeConditionVariable(cond);
   return 0;
 }
 
 static void pthread_cond_destroy(pthread_cond_t* cond) {
-  KK_UNUSED(cond);
+  kk_unused(cond);
 }
 
 static int pthread_cond_wait(pthread_cond_t* cond, pthread_mutex_t* mutex) {
@@ -111,7 +111,7 @@ typedef struct kk_once_arg_s {
 } kk_once_arg_t;
 
 static BOOL kk_init_once_cb(PINIT_ONCE once, PVOID varg, PVOID* ctx) {
-  KK_UNUSED(once);
+  kk_unused(once);
   if (ctx != NULL) *ctx = NULL;
   kk_once_arg_t* arg = (kk_once_arg_t*)varg;
   (arg->init)();
@@ -226,7 +226,7 @@ static kk_task_t* kk_tasks_dequeue( kk_task_group_t* tg ) {
 }
 
 static void kk_tasks_enqueue_n( kk_task_group_t* tg, kk_task_t* thead, kk_task_t* ttail, kk_context_t*  ctx ) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   if (tg->tasks_tail != NULL) {
     kk_assert(tg->tasks_tail->next == NULL);
     tg->tasks_tail->next = thead;
@@ -374,7 +374,7 @@ kk_promise_t kk_task_schedule( kk_function_t fun, kk_context_t* ctx ) {
 ---------------------------------------------------------------------------*/
 
 static void kk_promise_free( void* vp, kk_block_t* b, kk_context_t* ctx ) {
-  KK_UNUSED(b);
+  kk_unused(b);
   promise_t* p = (promise_t*)(vp);
   pthread_cond_destroy(&p->available);
   pthread_mutex_destroy(&p->lock);  
@@ -493,7 +493,7 @@ kk_box_t  kk_lvar_get( kk_lvar_t lvar, kk_box_t bot, kk_function_t is_gte, kk_co
 
 
 static void kk_lvar_free( void* lvar, kk_block_t* b, kk_context_t* ctx ) {
-  KK_UNUSED(b);
+  kk_unused(b);
   lvar_t* lv = (lvar_t*)(lvar);
   pthread_cond_destroy(&lv->available);
   pthread_mutex_destroy(&lv->lock);  

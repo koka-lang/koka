@@ -37,21 +37,21 @@ kk_function_t kk_function_null(kk_context_t* ctx) {
 
 // null functions
 void kk_free_fun_null(void* p, kk_block_t* b, kk_context_t* ctx) {
-  KK_UNUSED(p);
-  KK_UNUSED(b);
-  KK_UNUSED(ctx);
+  kk_unused(p);
+  kk_unused(b);
+  kk_unused(ctx);
 }
 
 // free memory
 void kk_free_fun(void* p, kk_block_t* b, kk_context_t* ctx) {
-  KK_UNUSED(b);
-  KK_UNUSED(ctx);
+  kk_unused(b);
+  kk_unused(ctx);
   kk_free(p);
 }
 
 
 kk_string_t kk_get_host(kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   kk_define_string_literal(static, host, 5, "libc")
   return kk_string_dup(host);
 }
@@ -86,7 +86,7 @@ typedef enum kk_log_level_e {
 } kk_log_level_t;
 
 static void kk_log_message(kk_log_level_t level, const char* msg, kk_context_t* ctx) {
-  KK_UNUSED(ctx); KK_UNUSED(level);
+  kk_unused(ctx); kk_unused(level);
   fputs(msg,stderr); // TODO: use ctx->log
 }
 
@@ -110,7 +110,7 @@ static void kk_log_message_fmt(kk_context_t* ctx, kk_log_level_t level, const ch
 }
 
 void kk_fatal_error(int err, const char* fmt, ...) {
-  KK_UNUSED(err);
+  kk_unused(err);
   va_list args;
   va_start(args, fmt);
   kk_log_message_fmt(kk_get_context(), KK_LOG_FATAL, fmt, args);
@@ -166,9 +166,9 @@ static void kklib_init(void) {
   // <https://en.wikipedia.org/wiki/SSE4#POPCNT_and_LZCNT>
   int32_t cpu_info[4];
   __cpuid(cpu_info, 1);
-  __has_popcnt = ((cpu_info[2] & (KI32(1)<<23)) != 0);
+  __has_popcnt = ((cpu_info[2] & (KK_I32(1)<<23)) != 0);
   __cpuid(cpu_info, (int)(0x80000001));
-  __has_lzcnt  = ((cpu_info[2] & (KI32(1)<<5)) != 0);
+  __has_lzcnt  = ((cpu_info[2] & (KK_I32(1)<<5)) != 0);
 #endif
   atexit(&kklib_done);  
 }
@@ -182,7 +182,7 @@ static kk_decl_thread kk_context_t* context;
 
 
 static struct { kk_block_t _block; kk_integer_t cfc; } kk_evv_empty_static = {
-  { KK_HEADER_STATIC(1,KK_TAG_EVV_VECTOR) }, { ((~KUP(0))^0x02) /*==-1 smallint*/}
+  { KK_HEADER_STATIC(1,KK_TAG_EVV_VECTOR) }, { ((~KK_UP(0))^0x02) /*==-1 smallint*/}
 };
 kk_ptr_t kk_evv_empty_singleton = &kk_evv_empty_static._block;
 
@@ -279,7 +279,7 @@ kk_decl_export void  kk_main_end(kk_context_t* ctx) {
 #include <signal.h>
 
 kk_decl_export void kk_debugger_break(kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
 #if _MSC_VER
   __debugbreak();
 #elif defined(SIGTRAP)

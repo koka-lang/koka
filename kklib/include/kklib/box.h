@@ -153,10 +153,10 @@ static inline bool kk_box_eq(kk_box_t b1, kk_box_t b2) {
 }
 
 // We cannot store NULL as a pointer (`kk_ptr_t`); use `box_null` instead
-#define kk_box_null       (_kk_box_new_ptr((kk_ptr_t)(~KUP(0))))  // -1 value
+#define kk_box_null       (_kk_box_new_ptr((kk_ptr_t)(~KK_UP(0))))  // -1 value
 
 // null initializer
-#define kk_box_null_init  {~KUP(0)}
+#define kk_box_null_init  {~KK_UP(0)}
 
 
 static inline bool kk_box_is_null(kk_box_t b) {
@@ -232,13 +232,13 @@ kk_decl_export int64_t  kk_int64_unbox(kk_box_t v, kk_context_t* ctx);
 kk_decl_export kk_box_t kk_int64_box(int64_t i, kk_context_t* ctx);
 #else
 static inline int64_t kk_int64_unbox(kk_box_t v, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   intptr_t i = kk_sarp((intptr_t)v.box, 1);
   kk_assert_internal((i >= INT64_MIN && i <= INT64_MAX) || kk_box_is_any(v));
   return (int64_t)i;
 }
 static inline kk_box_t kk_int64_box(int64_t i, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   kk_box_t b = { ((uintptr_t)i << 1) | 1 };
   return b;
 }
@@ -249,14 +249,14 @@ kk_decl_export int32_t  kk_int32_unbox(kk_box_t v, kk_context_t* ctx);
 kk_decl_export kk_box_t kk_int32_box(int32_t i, kk_context_t* ctx);
 #else
 static inline int32_t kk_int32_unbox(kk_box_t v, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   kk_intf_t i = kk_intf_unbox(v);
   kk_assert_internal((i >= INT32_MIN && i <= INT32_MAX) || kk_box_is_any(v));
   return (int32_t)(i);
 }
 
 static inline kk_box_t kk_int32_box(int32_t i, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   return kk_intf_box(i);
 }
 #endif
@@ -266,13 +266,13 @@ kk_decl_export int16_t  kk_int16_unbox(kk_box_t v, kk_context_t* ctx);
 kk_decl_export kk_box_t kk_int16_box(int16_t i, kk_context_t* ctx);
 #else
 static inline int16_t kk_int16_unbox(kk_box_t v, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   kk_intf_t i = kk_intf_unbox(v);
   kk_assert_internal((i >= INT16_MIN && i <= INT16_MAX) || kk_box_is_any(v));
   return (int16_t)(i);
 }
 static inline kk_box_t kk_int16_box(int16_t i, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   return kk_intf_box(i);
 }
 #endif
@@ -328,7 +328,7 @@ static inline size_t kk_size_unbox(kk_box_t b, kk_context_t* ctx) {
 }
 
 static inline kk_block_t* kk_block_unbox(kk_box_t v, kk_tag_t kk_expected_tag ) {
-  KK_UNUSED_INTERNAL(kk_expected_tag);
+  kk_unused_internal(kk_expected_tag);
   kk_block_t* b = kk_ptr_unbox(v);
   kk_assert_internal(kk_block_tag(b) == kk_expected_tag);
   return b;
@@ -339,7 +339,7 @@ static inline kk_box_t kk_block_box(kk_block_t* b) {
 }
 
 static inline kk_box_t kk_ptr_box_assert(kk_block_t* b, kk_tag_t tag) {
-  KK_UNUSED_INTERNAL(tag);
+  kk_unused_internal(tag);
   kk_assert_internal(kk_block_tag(b) == tag);
   return kk_ptr_box(b);
 }
@@ -370,12 +370,12 @@ static inline kk_box_t kk_enum_box(kk_uintx_t u) {
 }
 
 static inline kk_box_t kk_box_box(kk_box_t b, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   return b;
 }
 
 static inline kk_box_t kk_box_unbox(kk_box_t b, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   return b;
 }
 

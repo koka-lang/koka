@@ -146,7 +146,7 @@ static inline kk_string_t kk_string_dup(kk_string_t str) {
 --------------------------------------------------------------------------------------*/
 typedef int32_t kk_char_t;
 
-#define kk_char_replacement   KI32(0xFFFD)
+#define kk_char_replacement   KK_I32(0xFFFD)
 
 static inline kk_char_t kk_char_unbox(kk_box_t b, kk_context_t* ctx) {
   return (kk_char_t)kk_int32_unbox(b, ctx);

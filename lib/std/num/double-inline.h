@@ -13,7 +13,7 @@ static inline kk_std_core_types__tuple2_ kk_double_to_bits( double d, kk_context
 }
 
 static inline double kk_double_from_bits( int32_t lo, int32_t hi, kk_context_t* ctx ) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   double d;
   uint64_t u = (((uint64_t)((uint32_t)hi)) << 32) | (uint32_t)lo;  // note: careful about sign extension
   memcpy(&d,&u,sizeof(d));

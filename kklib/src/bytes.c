@@ -25,7 +25,7 @@ kk_decl_export kk_decl_noinline kk_bytes_t kk_bytes_alloc_len(kk_ssize_t len, kk
   if (plen > len) plen = len;  // limit plen <= len
   if (len <= KK_BYTES_SMALL_MAX) {
     kk_bytes_small_t b = kk_block_alloc_as(struct kk_bytes_small_s, 0, KK_TAG_BYTES_SMALL, ctx);
-    b->u.buf_value = ~KU64(0);
+    b->u.buf_value = ~KK_U64(0);
     if (p != NULL && plen > 0) {
       kk_memcpy(&b->u.buf[0], p, plen);
     }

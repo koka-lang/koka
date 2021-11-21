@@ -330,7 +330,7 @@ static inline kk_integer_t kk_integer_from_int(kk_intx_t i, kk_context_t* ctx) {
 
 static inline kk_integer_t kk_integer_from_int32(int32_t i, kk_context_t* ctx) {
 #if (KK_SMALLINT_BITS >= 34)
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   return kk_integer_from_small(i);
 #else
   return (kk_likely(i >= KK_SMALLINT_MIN && i <= KK_SMALLINT_MAX) ? kk_integer_from_small(i) : kk_integer_from_big(i, ctx));
@@ -372,7 +372,7 @@ static inline kk_integer_t kk_integer_from_intptr_t(intptr_t i, kk_context_t* ct
 }
 
 static inline kk_integer_t kk_integer_from_byte(uint8_t i, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   return kk_integer_from_small(i);
 }
 
@@ -465,7 +465,7 @@ static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_con
 
 static inline kk_integer_t kk_integer_sub(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   kk_intf_t z = (_kk_integer_value(x)^3) - _kk_integer_value(y);
-  if (kk_likely(z == (kk_smallint_t)(z&~KIP(2)))) {  // clear bit 1 and sign extend
+  if (kk_likely(z == (kk_smallint_t)(z&~KK_IP(2)))) {  // clear bit 1 and sign extend
     kk_assert_internal((z&3) == 1);
     return _kk_new_integer(z);
   }

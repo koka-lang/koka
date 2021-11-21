@@ -205,9 +205,9 @@ static inline uint8_t kk_bits_ctz(kk_uintx_t x) {
   - Sum of bytes
 ----------------------------------------------------------- */
 
-#define kk_bits_one_mask32     KU32(0x01010101)
-#define kk_bits_one_mask64     KU64(0x0101010101010101)
-#define kk_bits_one_mask       ((~(KUX(0)))/0xFF)         // 0x01010101 ...
+#define kk_bits_one_mask32     KK_U32(0x01010101)
+#define kk_bits_one_mask64     KK_U64(0x0101010101010101)
+#define kk_bits_one_mask       ((~(KK_UX(0)))/0xFF)         // 0x01010101 ...
 
 #define kk_bits_high_mask32    (kk_bits_one_mask32<<7)      // 0x80808080
 #define kk_bits_high_mask64    (kk_bits_one_mask64<<7)      // 0x8080808080808080

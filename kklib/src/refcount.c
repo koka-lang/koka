@@ -89,10 +89,10 @@ static void kk_block_drop_free(kk_block_t* b, kk_context_t* ctx) {
   - see also: https://devblogs.microsoft.com/oldnewthing/20210409-00/?p=105065
 --------------------------------------------------------------------------------------*/
 
-#define RC_STUCK          KU32(0x80000000)
-#define RC_STICKY         KU32(0x90000000)
-#define RC_STICKY_DROP    KU32(0xA0000000)
-#define RC_SHARED_UNIQUE  KU32(0xFFFFFFFF)
+#define RC_STUCK          KK_U32(0x80000000)
+#define RC_STICKY         KK_U32(0x90000000)
+#define RC_STICKY_DROP    KK_U32(0xA0000000)
+#define RC_SHARED_UNIQUE  KK_U32(0xFFFFFFFF)
 
 static inline kk_refcount_t kk_atomic_dup(kk_block_t* b) {
   return kk_atomic_dec_relaxed(&b->header.refcount);
@@ -170,7 +170,7 @@ kk_decl_noinline kk_reuse_t kk_block_check_drop_reuse(kk_block_t* b, kk_refcount
 
 // Check if a reference decrement caused the block to be freed shallowly or needs atomic operations
 kk_decl_noinline void kk_block_check_decref(kk_block_t* b, kk_refcount_t rc0, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   kk_assert_internal(b!=NULL);
   kk_assert_internal(kk_block_refcount(b) == rc0);
   kk_assert_internal(rc0 == 0 || kk_refcount_is_thread_shared(rc0));
@@ -400,7 +400,7 @@ static kk_decl_noinline void kk_block_mark_shared_recx(kk_block_t* b, kk_context
 // Optimizes by already marking leaf blocks that have no scan fields.
 static inline kk_block_t* kk_block_field_should_mark(kk_block_t* b, kk_ssize_t field, kk_context_t* ctx)
 {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   kk_box_t v = kk_block_field(b, field);
   if (kk_box_is_non_null_ptr(v)) {
     kk_block_t* child = kk_ptr_unbox(v);
