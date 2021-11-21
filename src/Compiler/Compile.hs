@@ -894,7 +894,7 @@ inferCheck loaded0 flags line coreImports program
        --  traceM ("Spec defs:\n" ++ unlines (map show specializeDefs))
        
        when (optSpecialize flags && not (isPrimitiveModule (Core.coreProgName coreProgram))) $
-         do specialize (inlinesExtends specializeDefs (loadedInlines loaded))
+         do specialize (inlinesExtends specializeDefs (loadedInlines loaded)) penv
             -- traceDefGroups "specialized"
             simplifyDupN
             -- traceDefGroups "simplified"

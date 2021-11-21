@@ -72,11 +72,15 @@ import Lib.Trace
 --------------------------------------------------------------------------}
 
 -- add env here
-type SpecM = UniqueT (Reader Inlines)
+data ReadState = ReadState
+  { inlines :: Inlines
+  , penv    :: Env
+  }
+type SpecM = UniqueT (Reader ReadState)
 
-runSpecM :: Int -> Inlines -> SpecM a -> (a, Int)
-runSpecM uniq specEnv specM =
-    flip runReader specEnv
+runSpecM :: Int -> ReadState -> SpecM a -> (a, Int)
+runSpecM uniq readState specM =
+    flip runReader readState
   $ runUniqueT uniq specM
 
 
@@ -84,17 +88,17 @@ runSpecM uniq specEnv specM =
   Specialization
 --------------------------------------------------------------------------}
 
-specialize :: Inlines -> CorePhase ()
-specialize specEnv
+specialize :: Inlines -> Env -> CorePhase ()
+specialize specEnv penv
   = liftCorePhaseUniq  $ \uniq defs ->
     -- TODO: use uniqe int to generate names and remove call to uniquefyDefGroups?
-    let (defs', u') = runSpecM uniq specEnv (mapM specOneDefGroup defs)
+    let (defs', u') = runSpecM uniq (ReadState specEnv penv) (mapM specOneDefGroup defs)
     in (uniquefyDefGroups defs', u')
 
 speclookup :: Name -> SpecM (Maybe InlineDef)
 speclookup name
-  = lift $ asks $ \env ->
-      filterMaybe inlineDefIsSpecialize (inlinesLookup name env)
+  = lift $ asks (\ReadState{inlines=inlines} ->
+      filterMaybe inlineDefIsSpecialize (inlinesLookup name inlines))
 
 specOneDefGroup :: DefGroup -> SpecM DefGroup
 specOneDefGroup = mapMDefGroup specOneDef
