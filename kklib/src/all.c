@@ -5,8 +5,16 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the LICENSE file at the root of this dibibution.
 ---------------------------------------------------------------------------*/
-#define _BSD_SOURCE         1     // for syscall
-#define _DEFAULT_SOURCE     1     
+#define _BSD_SOURCE       
+#define _DEFAULT_SOURCE          
+
+
+#if defined(KK_MIMALLOC)
+#if !defined(MI_MAX_ALIGN_SIZE) && (KK_MIMALLOC > 1)
+#define MI_MAX_ALIGN_SIZE  KK_MIMALLOC
+#endif  
+#include "../mimalloc/src/static.c"  // must come first on freeBSD
+#endif
 
 #include <kklib.h>
 
@@ -25,6 +33,3 @@
 #include "time.c"
 #include "vector.c"
 
-#if defined(KK_MIMALLOC)
-#include "../mimalloc/src/static.c"
-#endif
