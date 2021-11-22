@@ -368,7 +368,11 @@ On macOS (x64 and arm64) we use `brew` instead:
 ```
 $ brew install pkg-config ghc cabal-install
 ```
-
+On FreeBSD, use `pkg`:
+```
+$ sudo pkg update
+$ sudo pkg install ghc hs-cabal-install   # or: hs-haskell-platform
+```
 Optionally, install `vcpkg` as well. If you
 install this in the `~/vcpkg` directory Koka will find
 it automatically when needed:
