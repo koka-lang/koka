@@ -616,6 +616,8 @@ static inline void kk_block_drop(kk_block_t* b, kk_context_t* ctx) {
 
 
 // Decrement a reference count, and if it was 0 free the block (without freeing the children)
+// Note: the way the compiler generates decref instructions, the only time it could become zero
+// is if it happened to be thread shared and another thread decremented the count as well.
 static inline void kk_block_decref(kk_block_t* b, kk_context_t* ctx) {
   kk_assert_internal(kk_block_is_valid(b));
   const kk_refcount_t rc = b->header.refcount;  
