@@ -148,10 +148,11 @@ parcExpr expr
       Let [] body
         -> parcExpr body
       Let (DefNonRec def:dgs) body
-        -> do def1  <- do mbDrop <- if (nameIsNil (defName def)) then genDrop (defTName def) else return Nothing
+        -> do def1  <- -- check if we need to name a result in case it will be dropped
+                       do mbDrop <- if (nameIsNil (defName def)) then genDrop (defTName def) else return Nothing
                           case mbDrop of
                             Just _ -- | nameIsNil (defName def) 
-                              -> do name <- uniqueName "res" -- we need to name the result as it will be dropped
+                              -> do name <- uniqueName "res" -- name the result
                                     return def{defName = name}
                             _ -> return def
               body1 <- ownedInScope (bv def1) $ parcExpr (Let dgs body)
@@ -181,44 +182,44 @@ parcLam expr parsSet body
 parcBorrowApp :: TName -> [Expr] -> Expr -> Parc Expr
 parcBorrowApp tname args expr
   = do bs <- getParamInfos (getName tname)
-       if Borrow `notElem` bs then
-         App expr <$> reverseMapM parcExpr args
-       else do
-        let argsBs = zip args $ bs ++ repeat Own
-        (lets, drops, args') <- unzip3 <$> reverseMapM (uncurry parcBorrowArg) argsBs
-        -- parcTrace $ "On function " ++ show (getName tname) ++ " with args " ++ show args ++ " we have: " ++ show (lets, drops, args')
-        expr' <- case catMaybes drops of
-          []
-            -> return $ App expr args'
-          _
-            -> do appName <- uniqueName "brw"
-                  let def = makeDef appName $ App expr args'
-                  return $ makeLet [DefNonRec def] $ maybeStats drops $ Var (defTName def) InfoNone
-        return $ makeLet (concat lets) expr'
+       if Borrow `notElem` bs 
+         then App expr <$> reverseMapM parcExpr args
+         else do  let argsBs = zip args (bs ++ repeat Own)
+                  (lets, drops, args') <- unzip3 <$> reverseMapM (uncurry parcBorrowArg) argsBs
+                  -- parcTrace $ "On function " ++ show (getName tname) ++ " with args " ++ show args ++ " we have: " ++ show (lets, drops, args')
+                  expr' <- case catMaybes drops of
+                             [] -> return $ App expr args'
+                             _  -> do appName <- uniqueName "brw"
+                                      let def = makeDef appName $ App expr args'
+                                      return $ makeLet [DefNonRec def] $ maybeStats drops $ Var (defTName def) InfoNone
+                  return $ makeLet (concat lets) expr'
 
 -- | Let-float borrowed arguments to the top so that we can drop them after the function call
 -- We also let-float owned arguments so that the order of evaluation is unchanged.
 -- We make the result prettier by not floating variables and owned total expressions.
 parcBorrowArg :: Expr -> ParamInfo -> Parc ([DefGroup], Maybe Expr, Expr)
-parcBorrowArg a b
-  = do case (a, b) of
-         (_, Own)
-           | isTotal a -> (\x -> ([], Nothing, x)) <$> parcExpr a
-           | otherwise
-             -> do argName <- uniqueName "own"
-                   a' <- parcExpr a
-                   let def = makeDef argName a'
-                   return ([DefNonRec def], Nothing, Var (defTName def) InfoNone)
-         (Var tname info, Borrow)
-           -> if infoIsRefCounted info
-              then (\d -> ([], d, Var tname info)) <$> useTNameBorrowed tname
-              else return ([], Nothing, Var tname info)
-         (_, Borrow)
-           -> do argName <- uniqueName "brw"
-                 a' <- parcExpr a
-                 let def = makeDef argName a'
-                 drop <- extendOwned (S.singleton (defTName def)) $ genDrop (defTName def)
-                 return ([DefNonRec def], drop, Var (defTName def) InfoNone)
+parcBorrowArg expr parInfo
+  = case (expr, parInfo) of
+      (_, Own)
+        | isTotal expr -> (\x -> ([], Nothing, x)) <$> parcExpr expr
+        | otherwise
+          -> do argName <- uniqueName "own"
+                expr' <- parcExpr expr
+                let def = makeDef argName expr'
+                return ([DefNonRec def], Nothing, Var (defTName def) InfoNone)
+      (Var tname info, Borrow)
+        -> if infoIsRefCounted info
+            then (\d -> ([], d, expr)) <$> useTNameBorrowed tname
+            else return ([], Nothing, expr)
+      (_, Borrow)
+        -> do expr' <- parcExpr expr
+              notRefCounted <- exprIsNotRefcounted expr   -- for example, small integer literals
+              if (notRefCounted) 
+                then return ([], Nothing, expr') 
+                else do argName <- uniqueName "brw"
+                        let def = makeDef argName expr'
+                        drop <- extendOwned (S.singleton (defTName def)) $ genDrop (defTName def)
+                        return ([DefNonRec def], drop, Var (defTName def) InfoNone)
 
 varNames :: [Expr] -> [TName]
 varNames (Var tn _:exprs) = tn:varNames exprs
@@ -694,6 +695,16 @@ dupDropFun isDup tp mbConRepr mbScanCount arg
   where
     name = if isDup then nameDup else nameDrop
     coerceTp = TFun [(nameNil,tp)] typeTotal (if isDup then tp else typeUnit)
+
+
+exprIsNotRefcounted :: Expr -> Parc Bool
+exprIsNotRefcounted expr
+  = case expr of
+      Lit (LitInt i)   
+        -> return (i >= -2047 && i <= 2047)
+      _ -> needsDupDrop (typeOf expr)
+
+
 
 --------------------------------------------------------------------------
 -- Utilities for readability
