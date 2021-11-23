@@ -230,7 +230,7 @@ genMain progName platform stackSize (Just (name,_))
     text "\n// main entry\nint main(int argc, char** argv)" <+> block (vcat [
         text $ "kk_assert(sizeof(size_t)==" ++ show (sizeSize platform) ++ " && sizeof(void*)==" ++ show (sizePtr platform) ++ ");"
       , if stackSize == 0 then empty else
-        text $ "kk_os_set_stack_size(KIZ(" ++ show stackSize ++ "));"
+        text $ "kk_os_set_stack_size(KK_IZ(" ++ show stackSize ++ "));"
       , text "kk_context_t* _ctx = kk_main_start(argc, argv);"
       , ppName (qualify progName (newName ".init")) <.> parens (text "_ctx") <.> semi
       , text "atexit(&_kk_main_exit);"

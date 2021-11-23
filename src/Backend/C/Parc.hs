@@ -148,9 +148,15 @@ parcExpr expr
       Let [] body
         -> parcExpr body
       Let (DefNonRec def:dgs) body
-        -> do body' <- ownedInScope (bv def) $ parcExpr (Let dgs body)
-              def'  <- parcDef False def
-              return $ makeLet [DefNonRec def'] body'
+        -> do def1  <- do mbDrop <- if (nameIsNil (defName def)) then genDrop (defTName def) else return Nothing
+                          case mbDrop of
+                            Just _ -- | nameIsNil (defName def) 
+                              -> do name <- uniqueName "res" -- we need to name the result as it will be dropped
+                                    return def{defName = name}
+                            _ -> return def
+              body1 <- ownedInScope (bv def1) $ parcExpr (Let dgs body)
+              def2  <- parcDef False def1
+              return $ makeLet [DefNonRec def2] body1
       Let (DefRec _ : _) _
         -> failure "Backend.C.Parc.parcExpr: Recursive definition in let"
       Case vars brs | caseIsNormalized vars brs

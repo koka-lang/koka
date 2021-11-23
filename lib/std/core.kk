@@ -1781,11 +1781,10 @@ fun foreach-while( slice : sslice, action : (c : char) -> e maybe<a> ) : e maybe
 
 // Apply a function for each character in a string slice.
 fun foreach( slice : sslice, action : (c:char) -> e ()) : e () 
-  match slice.next
-    Nothing -> ()
-    Just((c,rest)) -> 
-      action(c)
-      foreach(unsafe-decreasing(rest),action)
+  foreach-while( slice ) fn(c)
+    action(c)
+    Nothing
+  ()
 
 
 // Does string `s`  contain the string `sub`  ?
