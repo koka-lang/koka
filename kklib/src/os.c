@@ -9,6 +9,7 @@
 #define _CRT_SECURE_NO_WARNINGS   // getenv
 #endif
 #include "kklib.h"
+#include <stdio.h>
 
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 

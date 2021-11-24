@@ -6,13 +6,10 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h> // memcpy
-#include <ctype.h>
-#include <math.h>   // INFINITY
 #include "kklib.h"
-#include "kklib/integer.h"
+
+#include <stdio.h>
+#include <math.h>   // INFINITY
 
 
 /*----------------------------------------------------------------------

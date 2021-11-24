@@ -13,7 +13,8 @@
 #endif
 
 #include "kklib.h"
-
+#include <string.h>
+#include <stdio.h>
 
 
 // Allow reading aligned words as long as some bytes in it are part of a valid C object

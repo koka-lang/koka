@@ -8,6 +8,7 @@
 //#define _CRT_SECURE_NO_WARNINGS
 #include "kklib.h"
 #include <stdarg.h>
+#include <stdio.h>
 #ifdef WIN32
 #include <Windows.h>
 #endif
