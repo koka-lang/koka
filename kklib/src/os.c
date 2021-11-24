@@ -389,7 +389,7 @@ static int kk_posix_copy_file(const int inp, const int out, const kk_ssize_t est
       if (err == 0 && write_count != read_count) err = EIO;
     }    
   } while (err == 0 && read_count == buflen /* < buflen == EOF */ );  
-  kk_free(buf);
+  kk_free(buf,ctx);
   return err;
 }
 #endif  // not __APPLE__ 
@@ -803,7 +803,7 @@ kk_string_t kk_os_realpath(kk_string_t path, kk_context_t* ctx) {
       else {
         rpath = kk_string_alloc_from_qutf16w(pbuf, ctx);
       }
-      kk_free(pbuf);
+      kk_free(pbuf,ctx);
     }
     else {
       rpath = kk_string_alloc_from_qutf16w(buf, ctx);
@@ -876,7 +876,7 @@ static kk_string_t kk_os_searchpathx(const char* paths, const char* fname, kk_co
       kk_string_drop(sfname,ctx);
     }
   }
-  kk_free(buf);
+  kk_free(buf,ctx);
   return s;
 }
 
@@ -935,12 +935,12 @@ kk_decl_export kk_string_t kk_os_app_path(kk_context_t* ctx) {
     len = GetModuleFileNameW(NULL, bbuf, (DWORD)slen+1);
     if ((kk_ssize_t)len >= slen) {
       // failed again, use fall back
-      kk_free(bbuf);
+      kk_free(bbuf,ctx);
       return kk_os_app_path_generic(ctx);
     }
     else {
       kk_string_t s = kk_string_alloc_from_qutf16w(bbuf, ctx);
-      kk_free(bbuf);
+      kk_free(bbuf,ctx);
       return s;
     }
   }
@@ -955,12 +955,12 @@ kk_string_t kk_os_app_path(kk_context_t* ctx) {
   int ret = proc_pidpath(pid, buf, PROC_PIDPATHINFO_MAXSIZE /* must be this value or the call fails */);
   if (ret > 0) {
     // failed, use fall back
-    kk_free(buf);
+    kk_free(buf,ctx);
     return kk_os_app_path_generic(ctx);
   }
   else {
     kk_string_t path = kk_string_alloc_from_qutf8(buf, ctx);
-    kk_free(buf);
+    kk_free(buf,ctx);
     return path;
   }
 }

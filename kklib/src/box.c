@@ -250,7 +250,7 @@ kk_box_t kk_unbox_Just_block( kk_block_t* b, kk_context_t* ctx ) {
   kk_box_t res = just->value;        
   if (ctx != NULL) {
     if (kk_basetype_is_unique(just)) {
-      kk_basetype_free(just);  
+      kk_basetype_free(just,ctx);  
     }
     else {
       kk_box_dup(res);

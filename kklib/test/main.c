@@ -373,7 +373,7 @@ static kk_integer_t init_num(size_t  digits, kk_context_t* ctx) {
   }
   s[digits] = 0;
   kk_integer_t x = kk_integer_from_str(s,ctx);
-  kk_free(s);
+  kk_free(s,ctx);
   return x;
 }
 

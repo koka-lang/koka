@@ -803,7 +803,7 @@ genUnbox name info dataRepr
                   , ppName name <+> text "_unbox;"
                   , text "kk_valuetype_unbox_" <.> arguments [ppName name, text "_p", text "_unbox", text "_x"] <.> semi  -- borrowing
                   , text "if (_ctx!=NULL && _p!=NULL)" <+> block (
-                      text "if (kk_basetype_is_unique(_p)) { kk_basetype_free(_p); } else" <+> block (
+                      text "if (kk_basetype_is_unique(_p)) { kk_basetype_free(_p,_ctx); } else" <+> block (
                         vcat [ppName name <.> text "_dup(_unbox);"
                              ,text "kk_basetype_decref" <.> arguments [text "_p"] <.> semi]
                       )
@@ -847,11 +847,11 @@ genIsUnique name info dataRepr
 genFree :: Name -> DataInfo -> DataRepr -> Asm ()
 genFree name info dataRepr
   = emitToH $
-    text "static inline void" <+> ppName name <.> text "_free" <.> tupled [ppName name <+> text "_x"] <+> block (
+    text "static inline void" <+> ppName name <.> text "_free" <.> parameters [ppName name <+> text "_x"] <+> block (
       (if (dataReprMayHaveSingletons dataRepr)
-        then text "kk_datatype_free(_x)"
-        else text "kk_basetype_free(_x)"
-      ) <.> semi)
+        then text "kk_datatype_free"
+        else text "kk_basetype_free"
+      ) <.> arguments [text "_x"] <.> semi)
 
 genDecRef :: Name -> DataInfo -> DataRepr -> Asm ()
 genDecRef name info dataRepr
@@ -993,7 +993,7 @@ genIsUniqueCall tp arg  = case genDupDropCallX "is_unique" tp (parens arg) of
                             cs     -> cs
 
 genFreeCall :: Type -> Doc -> [Doc]
-genFreeCall tp arg  = genDupDropCallX "free" tp (parens arg)
+genFreeCall tp arg  = genDupDropCallX "free" tp (arguments [arg])
 
 genDecRefCall :: Type -> Doc -> [Doc]
 genDecRefCall tp arg  = genDupDropCallX "decref" tp (arguments [arg])

@@ -372,7 +372,7 @@ typedef struct kk_context_s {
   int32_t        marker_unique;    // unique marker generation
   kk_block_t*    delayed_free;     // list of blocks that still need to be freed
   kk_integer_t   unique;           // thread local unique number generation
-  uintptr_t      thread_id;        // unique thread id
+  size_t         thread_id;        // unique thread id
   kk_box_any_t   kk_box_any;       // used when yielding as a value of any type
   kk_function_t  log;              // logging function
   kk_function_t  out;              // std output
@@ -457,12 +457,14 @@ static inline void* kk_realloc(void* p, kk_ssize_t sz, kk_context_t* ctx) {
   return mi_heap_realloc(ctx->heap, p, (size_t)sz);
 }
 
-static inline void kk_free(const void* p) {
+static inline void kk_free(const void* p, kk_context_t* ctx) {
+  // mi_unsafe_free_with_threadid((void*)p, ctx->thread_id);
+  kk_unused(ctx);
   mi_free((void*)p);
 }
 
-static inline void kk_free_local(const void* p) {
-  kk_free(p);
+static inline void kk_free_local(const void* p, kk_context_t* ctx) {
+  kk_free(p,ctx);
 }
 #else
 static inline void* kk_malloc(kk_ssize_t sz, kk_context_t* ctx) {
@@ -484,13 +486,13 @@ static inline void* kk_realloc(void* p, kk_ssize_t sz, kk_context_t* ctx) {
   return realloc(p, (size_t)sz);
 }
 
-static inline void kk_free(const void* p) {
-  kk_unused(p);
+static inline void kk_free(const void* p, kk_context_t* ctx) {
+  kk_unused(ctx);
   free((void*)p);
 }
 
-static inline void kk_free_local(const void* p) {
-  kk_free(p);
+static inline void kk_free_local(const void* p, kk_context_t* ctx) {
+  kk_free(p,ctx);
 }
 #endif
 
@@ -560,9 +562,9 @@ static inline kk_block_t* kk_block_assertx(kk_block_t* b, kk_tag_t tag) {
   return b;
 }
 
-static inline void kk_block_free(kk_block_t* b) {
+static inline void kk_block_free(kk_block_t* b, kk_context_t* ctx) {
   kk_block_set_invalid(b);
-  kk_free(b);
+  kk_free(b, ctx);
 }
 
 #define kk_block_alloc_as(struct_tp,scan_fsize,tag,ctx)        ((struct_tp*)kk_block_alloc_at(kk_reuse_null, sizeof(struct_tp),scan_fsize,tag,ctx))
@@ -654,7 +656,7 @@ static inline void kk_block_dropi(kk_block_t* b, kk_context_t* ctx) {
     for (kk_ssize_t i = 0; i < scan_fsize; i++) {
       kk_box_drop(kk_block_field(b, i), ctx);
     }
-    kk_block_free(b);
+    kk_block_free(b,ctx);
   }
   else if (kk_unlikely(kk_refcount_is_thread_shared(rc))) {  // (signed)rc < 0
     kk_block_check_drop(b, rc, ctx);                         // thread-share or sticky (overflowed) ?    
@@ -690,7 +692,7 @@ static inline void kk_block_dropn(kk_block_t* b, kk_ssize_t scan_fsize, kk_conte
     for (kk_ssize_t i = 0; i < scan_fsize; i++) {
       kk_box_drop(kk_block_field(b, i), ctx);
     }
-    kk_block_free(b);
+    kk_block_free(b,ctx);
   }
   else if (kk_unlikely(kk_refcount_is_thread_shared(rc))) {  // (signed)rc < 0
     kk_block_check_drop(b, rc, ctx);                         // thread-shared, sticky (overflowed)?
@@ -736,10 +738,10 @@ static inline kk_block_t* kk_block_dup_assert(kk_block_t* b, kk_tag_t tag) {
   return kk_block_dup(b);
 }
 
-static inline void kk_reuse_drop(kk_reuse_t r) {
+static inline void kk_reuse_drop(kk_reuse_t r, kk_context_t* ctx) {
   if (r != NULL) {
     kk_assert_internal(kk_block_is_unique(r));
-    kk_free(r);
+    kk_free(r,ctx);
   }
 }
 
@@ -758,7 +760,7 @@ static inline void kk_reuse_drop(kk_reuse_t r) {
 #define kk_basetype_has_tag(v,t)               (kk_block_has_tag(&((v)->_block),t))
 #define kk_basetype_is_unique(v)               (kk_block_is_unique(&((v)->_block)))
 #define kk_basetype_as(tp,v)                   (kk_block_as(tp,&((v)->_block)))
-#define kk_basetype_free(v)                    (kk_block_free(&((v)->_block)))
+#define kk_basetype_free(v,ctx)                (kk_block_free(&((v)->_block),ctx))
 #define kk_basetype_decref(v,ctx)              (kk_block_decref(&((v)->_block),ctx))
 #define kk_basetype_dup_as(tp,v)               ((tp)kk_block_dup(&((v)->_block)))
 #define kk_basetype_drop(v,ctx)                (kk_block_dropi(&((v)->_block),ctx))
@@ -772,7 +774,7 @@ static inline void kk_reuse_drop(kk_reuse_t r) {
 
 #define kk_constructor_tag(v)                  (kk_basetype_tag(&((v)->_base)))
 #define kk_constructor_is_unique(v)            (kk_basetype_is_unique(&((v)->_base)))
-#define kk_constructor_free(v)                 (kk_basetype_free(&((v)->_base)))
+#define kk_constructor_free(v,ctx)             (kk_basetype_free(&((v)->_base),ctx))
 #define kk_constructor_dup_as(tp,v)            (kk_basetype_dup_as(tp, &((v)->_base)))
 #define kk_constructor_drop(v,ctx)             (kk_basetype_drop(&((v)->_base),ctx))
 #define kk_constructor_dropn_reuse(v,n,ctx)    (kk_basetype_dropn_reuse(&((v)->_base),n,ctx))
@@ -898,9 +900,9 @@ static inline kk_reuse_t kk_datatype_reuse(kk_datatype_t d) {
   */
 }
 
-static inline void kk_datatype_free(kk_datatype_t d) {
+static inline void kk_datatype_free(kk_datatype_t d, kk_context_t* ctx) {
   kk_assert_internal(kk_datatype_is_ptr(d));
-  kk_free(kk_datatype_as_ptr(d));
+  kk_free(kk_datatype_as_ptr(d),ctx);
   /*
   if (kk_datatype_is_ptr(d)) {
     kk_free(kk_datatype_as_ptr(d));
@@ -946,7 +948,7 @@ static inline void kk_datatype_decref(kk_datatype_t d, kk_context_t* ctx) {
 // 2. otherwise, duplicate the used fields, and drop the constructor
 #define kk_drop_match(con,dups,drops,ctx) \
   if (kk_constructor_is_unique(con)) { \
-    do drops while(0); kk_free(con); \
+    do drops while(0); kk_free(con,ctx); \
   } else { \
     do dups while(0); kk_constructor_drop(con,ctx); \
   }

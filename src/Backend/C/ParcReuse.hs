@@ -316,14 +316,14 @@ genIsUnique tname
 -- Generate a free of a constructor
 genFree :: TName -> Expr
 genFree tname
-  = App (Var (TName nameFree funTp) (InfoExternal [(C CDefault, "kk_constructor_free(#1)")]))
+  = App (Var (TName nameFree funTp) (InfoExternal [(C CDefault, "kk_constructor_free(#1,kk_context())")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
 
 -- Generate a drop of a reuse
 genReuseDrop :: TName -> Expr
 genReuseDrop tname
-  = App (Var (TName nameReuseDrop funTp) (InfoExternal [(C CDefault, "kk_reuse_drop(#1)")]))
+  = App (Var (TName nameReuseDrop funTp) (InfoExternal [(C CDefault, "kk_reuse_drop(#1,kk_context())")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeReuse
 
@@ -336,7 +336,7 @@ genReuseNull
 -- Generate a reuse a block
 genReuseAddress :: TName -> Expr
 genReuseAddress tname
-  = App (Var (TName nameReuse funTp) (InfoExternal [(C CDefault, "reuse_datatype(#1,current_context())")])) [Var tname InfoNone]
+  = App (Var (TName nameReuse funTp) (InfoExternal [(C CDefault, "reuse_datatype(#1,kk_context())")])) [Var tname InfoNone]
   where
     tp    = typeOf tname
     funTp = TFun [(nameNil,tp)] typeTotal typeReuse

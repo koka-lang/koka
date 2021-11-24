@@ -46,7 +46,7 @@ void kk_free_fun_null(void* p, kk_block_t* b, kk_context_t* ctx) {
 void kk_free_fun(void* p, kk_block_t* b, kk_context_t* ctx) {
   kk_unused(b);
   kk_unused(ctx);
-  kk_free(p);
+  kk_free(p,ctx);
 }
 
 
@@ -199,7 +199,7 @@ kk_context_t* kk_get_context(void) {
   ctx = (kk_context_t*)kk_zalloc(sizeof(kk_context_t),NULL);
 #endif
   ctx->evv = kk_block_dup(kk_evv_empty_singleton);
-  ctx->thread_id = (uintptr_t)(&context);
+  ctx->thread_id = (size_t)(&context);
   ctx->unique = kk_integer_one;
   context = ctx;
   ctx->kk_box_any = kk_block_alloc_as(struct kk_box_any_s, 0, KK_TAG_BOX_ANY, ctx);  
@@ -211,7 +211,7 @@ kk_context_t* kk_get_context(void) {
 void kk_free_context(void) {
   if (context != NULL) {
     kk_block_drop(context->evv, context);
-    kk_basetype_free(context->kk_box_any);
+    kk_basetype_free(context->kk_box_any,context);
     // kk_basetype_drop_assert(context->kk_box_any, KK_TAG_BOX_ANY, context);
     // TODO: process delayed_free
 #ifdef KK_MIMALLOC
@@ -219,7 +219,7 @@ void kk_free_context(void) {
     mi_free(context);
     // mi_heap_delete(heap);
 #else
-    kk_free(context);
+    kk_free(context,context);
 #endif
     context = NULL;
   }

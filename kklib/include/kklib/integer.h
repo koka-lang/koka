@@ -252,6 +252,21 @@ static inline bool kk_integer_small_eq(kk_integer_t x, kk_integer_t y) {
 #define kk_integer_one      (kk_integer_from_small(1))
 #define kk_integer_min_one  (kk_integer_from_small(-1))
 
+static inline bool kk_integer_is_zero_borrow(kk_integer_t x) {
+  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) == _kk_integer_value(kk_integer_zero));
+  return false;
+}
+
+static inline bool kk_integer_is_one_borrow(kk_integer_t x) {
+  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) == _kk_integer_value(kk_integer_one));
+  return false;
+}
+
+static inline bool kk_integer_is_minus_one_borrow(kk_integer_t x) {
+  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) == _kk_integer_value(kk_integer_min_one));
+  return false;
+}
+
 /*---------------------------------------------------------------------------------
   Generic operations on integers
 -----------------------------------------------------------------------------------*/
@@ -752,22 +767,29 @@ static inline int kk_integer_cmp_borrow(kk_integer_t x, kk_integer_t y, kk_conte
   return kk_integer_cmp_generic_borrow(x, y, ctx);
 }
 
-/* borrow x, borrow y*/
 static inline bool kk_integer_lt_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) < _kk_integer_value(y));
   return (kk_integer_cmp_generic_borrow(x, y, ctx) == -1);
 }
 
-/* borrow x, borrow y*/
+static inline bool kk_integer_lt(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) < _kk_integer_value(y));
+  return (kk_integer_cmp_generic(x, y, ctx) == -1);
+}
+
 static inline bool kk_integer_lte_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) <= _kk_integer_value(y));
   return (kk_integer_cmp_generic_borrow(x, y, ctx) <= 0);
 }
 
-/* borrow x, borrow y*/
 static inline bool kk_integer_gt_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) > _kk_integer_value(y));
   return (kk_integer_cmp_generic_borrow(x, y, ctx) == 1);
+}
+
+static inline bool kk_integer_gt(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) > _kk_integer_value(y));
+  return (kk_integer_cmp_generic(x, y, ctx) == 1);
 }
 
 /* borrow x, borrow y*/
@@ -776,13 +798,16 @@ static inline bool kk_integer_gte_borrow(kk_integer_t x, kk_integer_t y, kk_cont
   return (kk_integer_cmp_generic_borrow(x, y, ctx) >= 0);
 }
 
-/* borrow x, borrow y*/
 static inline bool kk_integer_eq_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) == _kk_integer_value(y));
   return (kk_integer_cmp_generic_borrow(x, y, ctx) == 0);
 }
 
-/* borrow x, borrow y*/
+static inline bool kk_integer_eq(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) == _kk_integer_value(y));
+  return (kk_integer_cmp_generic(x, y, ctx) == 0);
+}
+
 static inline bool kk_integer_neq_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) != _kk_integer_value(y));
   return (kk_integer_cmp_generic_borrow(x, y, ctx) != 0);
@@ -791,24 +816,6 @@ static inline bool kk_integer_neq_borrow(kk_integer_t x, kk_integer_t y, kk_cont
 static inline bool kk_integer_neq(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) != _kk_integer_value(y));
   return (kk_integer_cmp_generic(x, y, ctx) != 0);
-}
-
-/* borrow x*/
-static inline bool kk_integer_is_zero_borrow(kk_integer_t x) {
-  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) == _kk_integer_value(kk_integer_zero));
-  return false;
-}
-
-/* borrow x*/
-static inline bool kk_integer_is_one_borrow(kk_integer_t x) {
-  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) == _kk_integer_value(kk_integer_one));
-  return false;
-}
-
-/* borrow x*/
-static inline bool kk_integer_is_minus_one_borrow(kk_integer_t x) {
-  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) == _kk_integer_value(kk_integer_min_one));
-  return false;
 }
 
 static inline bool kk_integer_is_even(kk_integer_t x, kk_context_t* ctx) {
