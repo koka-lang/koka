@@ -111,7 +111,7 @@ typedef struct kk_once_arg_s {
   void (*init)(void);
 } kk_once_arg_t;
 
-static BOOL kk_init_once_cb(PINIT_ONCE once, PVOID varg, PVOID* ctx) {
+static BOOL WINAPI kk_init_once_cb(PINIT_ONCE once, PVOID varg, PVOID* ctx) {
   kk_unused(once);
   if (ctx != NULL) *ctx = NULL;
   kk_once_arg_t* arg = (kk_once_arg_t*)varg;

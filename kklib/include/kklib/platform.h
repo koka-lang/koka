@@ -370,6 +370,7 @@ static inline kk_intx_t   kk_sar(kk_intx_t i,  kk_intx_t shift) { return (i >> (
 static inline kk_uintx_t  kk_shr(kk_uintx_t u, kk_intx_t shift) { return (u >> (shift & (KK_INTX_BITS - 1))); }
 static inline kk_intf_t   kk_sarf(kk_intf_t i, kk_intf_t shift) { return (i >> (shift & (KK_INTF_BITS - 1))); }
 static inline kk_uintf_t  kk_shrf(kk_uintf_t u, kk_intf_t shift){ return (u >> (shift & (KK_INTF_BITS - 1))); }
+static inline uintptr_t   kk_shrp(uintptr_t u, kk_intx_t shift) { return (u >> (shift & (KK_INTPTR_BITS - 1))); }
 static inline int32_t     kk_sar32(int32_t i,  int32_t shift)   { return (i >> (shift & 31)); }
 static inline uint32_t    kk_shr32(uint32_t u, int32_t shift)   { return (u >> (shift & 31)); }
 static inline int64_t     kk_sar64(int64_t i,  int64_t shift)   { return (i >> (shift & 63)); }

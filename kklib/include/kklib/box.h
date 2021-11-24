@@ -15,9 +15,9 @@ Boxing
 
 We assume pointers are always aligned to the machine word size, and we  
 use the bottom (least significant) bit to distinguish pointers from values. 
-This way, boxing a heap pointer has zero cost and is unchanged which helps
-the processor with prediction. For integers, we use a pointer to big integers,
-or a value for small integers (and boxing is zero cost this way as well).
+This way, boxing a heap pointer has zero cost and is unchanged. 
+For integers, we use a pointer to big integers, or a value for small integers 
+(and boxing is zero cost this way as well).
 
 On platforms like arm CHERI, we have 128-bit pointers and a box is always
 128-bits in that case, but for values we just use the bottom 64 bits as
@@ -25,8 +25,8 @@ the arithmetic registers are still 64-bit (using `kk_intf_t`).
 
 On 64-bit, using `x` for bytes, and `b` for bits, with `z` the least significant byte, we have:
 
-  xxxx xxxx xxxx xxxz   z = bbbb bbb0  : 64-bit pointer p  (always aligned to (at least) 2 bytes!)
-  xxxx xxxx xxxx xxxz   z = bbbb bbb1  : 63-bit values n as n*2+1
+  xxxx xxxz   z = bbbbbbb0  : 64-bit pointer p  (always aligned to (at least) 2 bytes!)
+  xxxx xxxz   z = bbbbbbb1  : 63-bit values n as n*2+1
 
 On 64-bit, We can encode half of the doubles as values by saving 1 bit; Possible strategies:
 (A1): use value encoding if the 11-bit exponent fits in 10-bits. This uses value encoding
@@ -35,73 +35,15 @@ On 64-bit, We can encode half of the doubles as values by saving 1 bit; Possible
       expensive but it can avoid many allocations as this captures almost
       all doubles that are commonly in use for most workloads.
 (A2): heap allocate all negative doubles and use values for positive ones (in 63-bits).
+      (for simplicity we always use this for floats on 32-bit platforms)
 (A0): We can also box doubles as an int64_t, which means all doubles outside the range
-      (-2.0, 2.0) would be heap allocated. (for simplicity we use this for floats on 32-bit platforms)
-
-
-Below is deprecated (since v2.2.1):
-On 32-bit platforms doubles are heap allocated when boxed, but on 64-bit
-platforms there are 2 strategies: 
-(A) As we lose 1 bit, heap allocate half of the doubles, and use the 
-    value encoding for the other half.
-(B) Limit addresses and values to 52 bits and use the top 12 bits to 
-    distinguish pointers, values, or doubles. This effectively encodes 
-    pointers and values in the NaN space but encodes it in a way that pointers 
-    can be used as is. 
-    Option (B) avoids allocating any double for boxing but has a cost in that 
-    scanning memory for recursive free-ing is more expensive (to distinguish 
-    pointers from doubles) so we default to option (A).
-
-Using `x` for bytes, and `b` for bits, with `z` the least significant byte, we have:
-
-    (xxxx xxxx) xxxx xxxz   z = bbbb bbb0  : 64-bit pointer p  (always aligned to (at least) 2 bytes!)
-    (xxxx xxxx) xxxx xxxz   z = bbbb bbb1  : 63-bit values n as n*2+1
-
-On 64-bit, We can encode half of the doubles by saving 1 bit; We now use strategy A1:
-(A1): use value encoding if the 11-bit exponent fits in 10-bits. This uses value encoding
-      for numbers whose absolute value is in the range [2^-511,2^512), or if it is
-      zero, subnormal, NaN, or infinity. This is the default as this captures almost
-      all doubles that are commonly in use for most workloads.
-(A2): heap allocate all negative doubles and use values for positive ones (in 63-bits).
-
-Deprecated strategy:
-(B), use NaN boxing on 64-bit:   
-  For pointers and integers, the top 12-bits are the sign extension of the bottom 52 bits
-  and thus always 0x000 or 0xFFF (denoted as `sss`).
-
-      000x xxxx xxxx xxxz   z = bbbb bbb0  : 52-bit positive pointer (always aligned to 2 bytes!)
-      000x xxxx xxxx xxxz   z = bbbb bbb1  : 51-bit positive value
-      001x xxxx xxxx xxxz   z = bbbb bbbb  : positive double: d + (0x001 << 52)
-      ...
-      800x xxxx xxxx xxxz   z = bbbb bbbb  : negative double: d 
-      ... 
-      FFFx xxxx xxxx xxxz   z = bbbb bbb0  : 52-bit negative pointer (always aligned to 2 bytes!)
-      FFFx xxxx xxxx xxxz   z = bbbb bbb1  : 51-bit negative value
-
-  We can encode most doubles such that the top 12-bits are
-  between 0x001 and 0xFFE. The ranges of IEEE double values are:
-      positive doubles        : 0000 0000 0000 0000 - 7FEF FFFF FFFF FFFF
-      positive infinity       : 7FF0 0000 0000 0000
-      positive NaN            : 7FF0 0000 0000 0001 - 7FFF FFFF FFFF FFFF
-      negative doubles        : 8000 0000 0000 0000 - FFEF FFFF FFFF FFFF
-      negative infinity       : FFF0 0000 0000 0000
-      negative NaN            : FFF0 0000 0000 0001 - FFFF FFFF FFFF FFFF
-
-    Now, if a double is:
-    - positive: we add (0x001 << 52), such that the range of positive doubles is boxed between
-                0010 0000 0000 0000 and 7FFF FFFF FFFF FFFF
-    - negative: leave it as is, so the negative doubles are boxed between
-                8000 0000 0000 0000 and FFEF FFFF FFFF FFFF
-    - special : either infinity or NaN. We extend the sign over the exponent bits (since these are always 0x7FF),
-                and merge the bit 0 with bit 1 to ensure a NaN payload is never unboxed as 0. 
-                We set the bottom bit to 1 to encode as a value.
-                On unboxing, we extend bit 1 to bit 0, which means we may lose up to 1 bit of the NaN payload.
-
+      [0,2.0) and [-inf,-2.0) would be heap allocated. 
 ----------------------------------------------------------------*/
+
 #if (KK_INTPTR_SIZE == 8)
 #define KK_BOX_DOUBLE64    (1)    // box doubles on 64-bit using strategy A1 by default
 // #define KK_BOX_DOUBLE64    (2)    // heap allocate negative doubles on 64-bit (strategy A2)
-// #define KK_BOX_DOUBLE64    (0)    // heap allocate doubles interpreted as int64_t
+// #define KK_BOX_DOUBLE64    (0)    // heap allocate doubles interpreted as int64_t (strategy A0)
 #else
 #define KK_BOX_DOUBLE64    (0)
 #endif
@@ -291,6 +233,10 @@ static inline kk_box_t kk_double_box(double d, kk_context_t* ctx) {
 }
 #endif
 
+#if (KK_INTPTR_SIZE == 4)
+kk_decl_export float    kk_float_unbox(kk_box_t b, kk_context_t* ctx);
+kk_decl_export kk_box_t kk_float_box(float f, kk_context_t* ctx);
+#else
 static inline float kk_float_unbox(kk_box_t b, kk_context_t* ctx) {
   int32_t i = kk_int32_unbox(b, ctx);
   return kk_bits_to_float((uint32_t)i);  
@@ -299,7 +245,7 @@ static inline kk_box_t kk_float_box(float f, kk_context_t* ctx) {
   uint32_t u = kk_bits_from_float(f);
   return kk_int32_box((int32_t)u, ctx);
 }
-
+#endif
 
 /*----------------------------------------------------------------
   Other primitive types

@@ -397,7 +397,7 @@ typedef struct kk_context_s {
   kk_timer_t     process_start;    // time at start of the process
   int64_t        timer_freq;       // high precision timer frequency
   kk_duration_t  timer_prev;       // last requested timer time
-  kk_duration_t  timer_delta;      // applied timer delta
+  kk_duration_t  timer_delta;      // applied timer delta (to ensure monotonicity)
   int64_t        time_freq;        // unix time frequency
   kk_duration_t  time_unix_prev;   // last requested unix time
 } kk_context_t;

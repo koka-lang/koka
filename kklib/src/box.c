@@ -279,6 +279,13 @@ static double kk_double_unbox_heap(kk_box_t b, kk_context_t* ctx) {
   return d;
 }
 
+static kk_box_t kk_double_box_heap(double d, kk_context_t* ctx) {
+  kk_boxed_double_t dt = kk_block_alloc_as(struct kk_boxed_double_s, 0, KK_TAG_DOUBLE, ctx);
+  dt->value = d;
+  return kk_ptr_box(&dt->_block);
+}
+
+
 #if (KK_BOX_DOUBLE64 == 2)  // heap allocate when negative
 kk_box_t kk_double_box(double d, kk_context_t* ctx) {
   kk_unused(ctx);
@@ -310,12 +317,6 @@ double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
   return d;
 }
 #else  // heap allocate when the exponent is between 0x200 and 0x5FF.
-static kk_box_t kk_double_box_heap(double d, kk_context_t* ctx) {
-  kk_boxed_double_t dt = kk_block_alloc_as(struct kk_boxed_double_s, 0, KK_TAG_DOUBLE, ctx);
-  dt->value = d;
-  return kk_ptr_box(&dt->_block);
-}
-
 kk_box_t kk_double_box(double d, kk_context_t* ctx) {
   kk_unused(ctx);
   uint64_t u = kk_bits_from_double(d);
@@ -369,4 +370,59 @@ double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
   }
 }
 #endif
+#endif
+
+
+/*----------------------------------------------------------------
+  Float boxing on 32-bit systems
+----------------------------------------------------------------*/
+
+#if (KK_INTPTR_SIZE == 4) 
+// Generic float allocation in the heap
+typedef struct kk_boxed_float_s {
+  kk_block_t _block;
+  float      value;
+} *kk_boxed_float_t;
+
+static float kk_float_unbox_heap(kk_box_t b, kk_context_t* ctx) {
+  kk_boxed_float_t ft = kk_block_assert(kk_boxed_float_t, kk_ptr_unbox(b), KK_TAG_FLOAT);
+  float f = ft->value;
+  if (ctx != NULL) { kk_basetype_drop(ft, ctx); }
+  return f;
+}
+
+static kk_box_t kk_float_box_heap(float f, kk_context_t* ctx) {
+  kk_boxed_float_t ft = kk_block_alloc_as(struct kk_boxed_float_s, 0, KK_TAG_FLOAT, ctx);
+  ft->value = f;
+  return kk_ptr_box(&ft->_block);
+}
+
+kk_box_t kk_float_box(float f, kk_context_t* ctx) {
+  kk_unused(ctx);
+  uint32_t i = kk_bits_from_float(f);
+  if ((int32_t)i >= 0) {  // positive?
+    kk_box_t b = { ((uintptr_t)i<<1)|1 };
+    return b;
+  }
+  else {
+    // heap allocate
+    return kk_float_box_heap(f, ctx);
+  }
+}
+
+float kk_float_unbox(kk_box_t b, kk_context_t* ctx) {
+  kk_unused(ctx);
+  float f;
+  if (kk_box_is_value(b)) {
+    // positive float
+    uint32_t u = kk_shrp(b.box, 1);
+    f = kk_bits_to_float(u);
+  }
+  else {
+    // heap allocated
+    f = kk_float_unbox_heap(b, ctx);
+  }
+  // if (isnan(f)) { kk_debugger_break(ctx); }
+  return f;
+}
 #endif
