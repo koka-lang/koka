@@ -5,12 +5,7 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
-#ifndef _BSD_SOURCE
-#define _BSD_SOURCE 
-#endif
-#ifndef _DEFAULT_SOURCE
-#define _DEFAULT_SOURCE   
-#endif
+
 #include "kklib.h"
 #include <string.h> // memset
 
@@ -261,9 +256,7 @@ int32_t kk_srandom_range_int32(int32_t min, int32_t max, kk_context_t* ctx) {
 // Use 52 random bits to generate a double in the range [0,1)
 double kk_srandom_double(kk_context_t* ctx) {
   const uint64_t x = KK_U64(0x3FF0000000000000) | kk_shr64(kk_srandom_uint64(ctx), 12);
-  double d;
-  memcpy(&d, &x, sizeof(double)); /* alias safe: <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly> */
-  return (d - 1.0);
+  return (kk_bits_to_double(x) - 1.0);
 }
 
 

@@ -282,10 +282,9 @@ static double kk_double_unbox_heap(kk_box_t b, kk_context_t* ctx) {
 #if (KK_BOX_DOUBLE64 == 2)  // heap allocate when negative
 kk_box_t kk_double_box(double d, kk_context_t* ctx) {
   kk_unused(ctx);
-  int64_t i;
+  uint64_t i = kk_bits_from_double(d);
   //if (isnan(d)) { kk_debugger_break(ctx); }
-  memcpy(&i, &d, sizeof(i));  // safe for C aliasing
-  if (i >= 0) {  // positive?
+  if ((int64_t)i >= 0) {  // positive?
     kk_box_t b = { ((uintptr_t)i<<1)|1 };
     return b;
   }
@@ -301,7 +300,7 @@ double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
   if (kk_box_is_value(b)) {
     // positive double
     uint64_t u = kk_shrp(b.box, 1);
-    memcpy(&d, &u, sizeof(d)); // safe for C aliasing: see <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly>
+    d = kk_bits_to_double(u);
   }
   else {
     // heap allocated
@@ -319,8 +318,7 @@ static kk_box_t kk_double_box_heap(double d, kk_context_t* ctx) {
 
 kk_box_t kk_double_box(double d, kk_context_t* ctx) {
   kk_unused(ctx);
-  uint64_t u;
-  memcpy(&u, &d, sizeof(u));  // safe for C aliasing
+  uint64_t u = kk_bits_from_double(d);
   u = kk_bits_rotl64(u, 12);
   uint64_t exp = u & 0x7FF;
   u -= exp;
@@ -362,8 +360,7 @@ double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
     }
     kk_assert_internal(exp <= 0x7FF);
     u = kk_bits_rotr64(u | exp, 12);
-    double d;
-    memcpy(&d, &u, sizeof(d)); // safe for C aliasing: see <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly>
+    double d = kk_bits_to_double(u);
     return d;
   }
   else {

@@ -283,27 +283,21 @@ kk_decl_export double   kk_double_unbox(kk_box_t b, kk_context_t* ctx);
 #else
 static inline double kk_double_unbox(kk_box_t b, kk_context_t* ctx) {
   int64_t i = kk_int64_unbox(b, ctx);
-  double d;
-  memcpy(&d, &i, sizeof(d));
-  return d;
+  return kk_bits_to_double((uint64_t)i);
 }
 static inline kk_box_t kk_double_box(double d, kk_context_t* ctx) {
-  int64_t i;
-  memcpy(&i, &d, sizeof(i));
-  return kk_int64_box(i, ctx);
+  uint64_t u = kk_bits_from_double(d);
+  return kk_int64_box((int64_t)u, ctx);
 }
 #endif
 
 static inline float kk_float_unbox(kk_box_t b, kk_context_t* ctx) {
   int32_t i = kk_int32_unbox(b, ctx);
-  float f;
-  memcpy(&f, &i, sizeof(f));
-  return f;
+  return kk_bits_to_float((uint32_t)i);  
 }
 static inline kk_box_t kk_float_box(float f, kk_context_t* ctx) {
-  int32_t i;
-  memcpy(&i, &f, sizeof(i));
-  return kk_int32_box(i, ctx);
+  uint32_t u = kk_bits_from_float(f);
+  return kk_int32_box((int32_t)u, ctx);
 }
 
 
