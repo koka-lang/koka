@@ -18,8 +18,16 @@
 #define _DARWIN_C_SOURCE    200809L  // make darwin definitions visible
 #define _XOPEN_SOURCE       700      // make xopen (posix 2008) definitions visible
 #define _FILE_OFFSET_BITS   64       // enable large files
-#if defined(__GNUC__) && !(defined(WIN32))
-#define _GNU_SOURCE         1        // make gnu definitions visible
+#if !defined(_WIN32)
+#ifndef _BSD_SOURCE
+#define _BSD_SOURCE 
+#endif
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE   
+#endif
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #endif
 
 #include <limits.h>           // LONG_MAX, ...
