@@ -937,7 +937,7 @@ kk_string_t kk_show_any(kk_box_t b, kk_context_t* ctx) {
   else
 #endif
     if (kk_box_is_value(b)) {
-      snprintf(buf, 128, "value(%zi)", kk_intf_unbox(b));
+      snprintf(buf, 128, "value(%li)", (long)kk_intf_unbox(b));
       return kk_string_alloc_dup_valid_utf8(buf, ctx);
     }
     else if (b.box == kk_box_null.box) {
