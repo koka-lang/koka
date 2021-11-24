@@ -15,7 +15,6 @@ static inline double kk_double_from_bits( int32_t lo, int32_t hi, kk_context_t* 
   kk_unused(ctx);
   uint64_t u = (((uint64_t)((uint32_t)hi)) << 32) | (uint32_t)lo;  // note: careful about sign extension
   return kk_bits_to_double(u);
-  return d;
 }
 
 static inline double kk_prim_parse_double( kk_string_t str, kk_context_t* ctx) {
