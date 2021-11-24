@@ -49,7 +49,7 @@
   x86, arm32                32       32    32     32     32     32
   x64, arm64, etc.          64       64    32     64     64     64
   x64 windows               64       64    32     32     64     64   size_t    > long
-  x32 linux                 32       32    32     64     64     32   long/intx > size_t
+  x32 linux                 32       32    32     32     64     32   intx      > size_t
   arm CHERI                128       64    32     64     64     64   uintptr_t > size_t
   riscV 128-bit            128      128    32     64    128    128   
   x86 16-bit small          16       16    16     32     16     16   long > size_t
@@ -57,7 +57,6 @@
   x86 16-bit huge           32       32    16     32     16     16   intx < size_t
 
   We use a signed `size_t` as `kk_ssize_t` (see comments below) and define
-  the fast integer `kk_intx_t` as `if |int| < 32 then int else max(size_t,long)`. 
   `kk_intf_t` is the `min(kk_intx_t,size_t)`.
 --------------------------------------------------------------------------------------*/
 
@@ -295,10 +294,36 @@ static inline size_t kk_to_size_t(kk_ssize_t sz) {
 
 
 // We define `kk_intx_t` as an integer with the natural (fast) machine register size. 
-// We define it such that `sizeof(kk_intx_t) == (sizeof(int)==2 ? 2 : max(sizeof(long),sizeof(size_t)))`. 
-// (We cannot use just `long` as it is sometimes too short (as on Windows 64-bit where a `long` is 32 bits).
-//  Similarly, `size_t` is sometimes too short as well (like on the x32 ABI with a 64-bit `long` but 32-bit addresses)).
-#if (INT_MAX < INT32_MAX)  
+// We define it such that `sizeof(kk_intx_t)` is, with `m = max(sizeof(sizeof(long),sizeof(size_t))`
+//   (m==8 || x32) ? 8 : ((m == 4 && sizeof(int) > 2)  ? 4 : sizeof(int))
+// (We cannot use just `long` as it is sometimes too short (as on Windows 64-bit or x32 where a `long` is 32 bits).
+#if (LONG_MAX == INT64_MAX) || (SIZE_MAX == UINT64_MAX) || (defined(__x86_64__) && SIZE_MAX == UINT32_MAX) /* x32 */
+typedef int64_t        kk_intx_t;
+typedef uint64_t       kk_uintx_t;
+#define KK_IX(i)       KK_I64(i)
+#define KK_UX(i)       KK_U64(i)
+#define KK_INTX_SIZE   8
+#define KK_INTX_MAX    INT64_MAX
+#define KK_INTX_MIN    INT64_MIN
+#define KK_UINTX_MAX   UINT64_MAX
+#define PRIdIX         PRId64
+#define PRIuUX         PRIu64
+#define PRIxUX         PRIx64
+#define PRIXUX         PRIX64
+#elif (INT_MAX > INT16_MAX && (LONG_MAX == INT32_MAX) || (SIZE_MAX == UINT32_MAX))
+typedef int32_t        kk_intx_t;
+typedef uint32_t       kk_uintx_t;
+#define KK_IX(i)       KK_I32(i)
+#define KK_UX(i)       KK_U32(i)
+#define KK_INTX_SIZE   4
+#define KK_INTX_MAX    INT32_MAX
+#define KK_INTX_MIN    INT32_MIN
+#define KK_UINTX_MAX   UINT32_MAX
+#define PRIdIX         PRId32
+#define PRIuUX         PRIu32
+#define PRIxUX         PRIx32
+#define PRIXUX         PRIX32
+#elif (INT_MAX == INT16_MAX)
 typedef int            kk_intx_t;
 typedef unsigned       kk_uintx_t;
 #define KK_IX(i)       i
@@ -311,32 +336,8 @@ typedef unsigned       kk_uintx_t;
 #define PRIuUX         "%u"
 #define PRIxUX         "%x"
 #define PRIXUX         "%X"
-#elif (LONG_MAX < KK_SSIZE_MAX)
-typedef kk_ssize_t     kk_intx_t;
-typedef size_t         kk_uintx_t;
-#define KK_IX(i)       KK_IZ(i)
-#define KK_UX(i)       KK_UZ(i)
-#define KK_INTX_SIZE   KK_SSIZE_SIZE
-#define KK_INTX_MAX    KK_SSIZE_MAX
-#define KK_INTX_MIN    KK_SSIZE_MIN
-#define KK_UINTX_MAX   SIZE_MAX
-#define PRIdIX         "%zd"
-#define PRIuUX         "%zu"
-#define PRIxUX         "%zx"
-#define PRIXUX         "%zX"
-#else 
-typedef long           kk_intx_t;
-typedef unsigned long  kk_uintx_t;
-#define KK_UX(i)       (i##UL)
-#define KK_IX(i)       (i##L)
-#define KK_INTX_SIZE   KK_LONG_SIZE
-#define KK_INTX_MAX    LONG_MAX
-#define KK_INTX_MIN    LONG_MIN
-#define KK_UINTX_MAX   ULONG_MAX
-#define PRIdIX         "%ld"
-#define PRIuUX         "%lu"
-#define PRIxUX         "%lx"
-#define PRIXUX         "%lX"
+#else
+#error "platform cannot be determined to have natural 16, 32, or 64 bit registers"
 #endif
 #define KK_INTX_BITS   (8*KK_INTX_SIZE)
 

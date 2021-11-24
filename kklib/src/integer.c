@@ -41,7 +41,7 @@ including Karatsuba multiplication.
     portable overflow detection.
 ----------------------------------------------------------------------*/
 
-#if (KK_INTPTR_SIZE>=8) && defined(_XMSC_VER) && (_MSC_VER >= 1920) && !defined(__clang_msvc__) /* not clang-cl or we get link errors */
+#if (KK_INTPTR_SIZE>=8) && defined(_MSC_VER) && (_MSC_VER >= 1920) && !defined(__clang_msvc__) /* not clang-cl or we get link errors */
 // Use 64-bit digits on Microsoft VisualC
 #define BASE          KK_I64(1000000000000000000)
 #define LOG_BASE      (18)
@@ -347,7 +347,7 @@ static kk_bigint_t* bigint_from_int(kk_intx_t i, kk_context_t* ctx) {
     u = (kk_uintx_t)i;
   }
   else if (i == KK_INTX_MIN) {
-    u = ((kk_uintx_t)KK_INTX_MAX) + 1;
+    u = (KK_UINTX_MAX/2) + KK_UX(1);
   }
   else {
     u = (kk_uintx_t)(-i);
@@ -368,7 +368,7 @@ static kk_bigint_t* bigint_from_int64(int64_t i, kk_context_t* ctx) {
     u = (uint64_t)i; 
   }
   else if (i == INT64_MIN) { 
-    u = ((uint64_t)INT64_MAX) + 1; 
+    u = (UINT64_MAX/2) + KK_U64(1); 
   }
   else { 
     u = (uint64_t)(-i); 
@@ -1475,10 +1475,10 @@ static kk_string_t kk_int_to_hex_string(kk_intx_t i, bool use_capitals, kk_conte
   kk_assert_internal(i >= 0);
   char buf[64];
   if (use_capitals) {
-    snprintf(buf, 64, PRIXUX, (kk_uintx_t)i);
+    snprintf(buf, 64, "%" PRIXUX, (kk_uintx_t)i);
   }
   else {
-    snprintf(buf, 64, PRIxUX, (kk_uintx_t)i);
+    snprintf(buf, 64, "%" PRIxUX, (kk_uintx_t)i);
   }
   return kk_string_alloc_dup_valid_utf8(buf, ctx);
 }
