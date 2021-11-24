@@ -17,7 +17,7 @@
 
 
 // Allow reading aligned words as long as some bytes in it are part of a valid C object
-#define ARCH_ALLOW_WORD_READS  (1)  
+#define KK_ARCH_ALLOW_WORD_READS  (1)  
 
 static uint8_t kk_ascii_toupper(uint8_t c) {
   return (c >= 'a' && c <= 'z' ? c - 'a' + 'A' : c);
