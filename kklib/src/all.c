@@ -7,6 +7,7 @@
 ---------------------------------------------------------------------------*/
 #define _BSD_SOURCE       
 #define _DEFAULT_SOURCE          
+#define __USE_MINGW_ANSI_STDIO   // so %z is valid on mingw
 
 
 #if defined(KK_MIMALLOC)

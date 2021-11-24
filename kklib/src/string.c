@@ -8,8 +8,12 @@
 #ifndef  _CRT_SECURE_NO_WARNINGS
 #define  _CRT_SECURE_NO_WARNINGS
 #endif
-#define  __USE_MINGW_ANSI_STDIO 1  // so %z is valid on mingw
+#ifndef  __USE_MINGW_ANSI_STDIO
+#define  __USE_MINGW_ANSI_STDIO   // so %z is valid on mingw
+#endif
+
 #include "kklib.h"
+
 
 
 // Allow reading aligned words as long as some bytes in it are part of a valid C object

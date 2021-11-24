@@ -6,8 +6,6 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define  __USE_MINGW_ANSI_STDIO 1  // so %z is valid on mingw
-
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h> // memcpy
