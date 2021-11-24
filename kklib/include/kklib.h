@@ -325,10 +325,14 @@ typedef kk_datatype_t kk_vector_t;
 // Strong random number context (using chacha20)
 struct kk_random_ctx_s;
 
-// High precision duration.
+
+// High precision duration as `seconds + (attoseconds * 1e-18)`. 
+// (attosecond precision with a range of about 300 billion years)
+typedef int64_t kk_secs_t;
+typedef int64_t kk_asecs_t;
 typedef struct kk_duration_s {
-  double seconds;
-  double second_fraction;
+  kk_secs_t  seconds;
+  kk_asecs_t attoseconds;  // always >= 0
 } kk_duration_t;
 
 

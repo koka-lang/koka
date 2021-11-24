@@ -73,7 +73,7 @@ public fun now-resolution() : ndet duration {
 }
 
 extern xnow-resolution() : ndet double {
-  c "kk_time_resolution"
+  c "kk_time_dresolution"
   cs "_Chrono.NowResolution"
   js "_now_resolution"
 }
