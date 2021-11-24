@@ -1283,12 +1283,16 @@ bool kk_integer_is_even_generic(kk_integer_t x, kk_context_t* ctx) {
 }
 
 int kk_integer_cmp_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  kk_bigint_t* bx = kk_integer_to_bigint(kk_integer_dup(x), ctx);
-  kk_bigint_t* by = kk_integer_to_bigint(kk_integer_dup(y), ctx);
+  kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
+  kk_bigint_t* by = kk_integer_to_bigint(y, ctx);
   int sign = bigint_compare_(bx, by);
   drop_bigint(bx, ctx);
   drop_bigint(by, ctx);
   return sign;
+}
+
+int kk_integer_cmp_generic_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  return kk_integer_cmp_generic(kk_integer_dup(x), kk_integer_dup(y), ctx);
 }
 
 kk_integer_t kk_integer_add_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {

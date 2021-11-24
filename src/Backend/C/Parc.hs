@@ -697,11 +697,12 @@ dupDropFun isDup tp mbConRepr mbScanCount arg
     coerceTp = TFun [(nameNil,tp)] typeTotal (if isDup then tp else typeUnit)
 
 
+-- | is an expression definitely not reference counted?
 exprIsNotRefcounted :: Expr -> Parc Bool
 exprIsNotRefcounted expr
   = case expr of
       Lit (LitInt i)   
-        -> return (i >= -2047 && i <= 2047)
+        -> return (i >= -8191 && i <= 8191)  -- 14 bits is safe on every platform
       _ -> needsDupDrop (typeOf expr)
 
 

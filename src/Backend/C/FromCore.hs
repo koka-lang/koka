@@ -2379,7 +2379,7 @@ isSmallLitInt expr
 
 isSmallInt i = (i >= minSmallInt && i <= maxSmallInt)
 maxSmallInt, minSmallInt :: Integer
-maxSmallInt = 2047  -- 2^13 - 1   (conservative: 14 bits on 32-bits platform)
+maxSmallInt = 8191  -- 2^13 - 1   (conservative: 14 bits on 32-bits platform)
 minSmallInt = -maxSmallInt - 1
 
 isSmallInt32 i = (i >= minSmallInt32 && i <= maxSmallInt32)
