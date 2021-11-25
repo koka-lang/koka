@@ -694,8 +694,8 @@ processOptions flags0 opts
                                   vcpkgTriplet= triplet,
                                   vcpkgIncludeDir  = vcpkgIncludeDir,
                                   vcpkgLibDir      = vcpkgLibDir,
-                                  ccompLibDirs     = vcpkgLibDirs ++ ccompLibDirs flags,
-                                  ccompIncludeDirs = vcpkgIncludeDirs ++ ccompIncludeDirs flags
+                                  ccompLibDirs     = vcpkgLibDirs ++ ccompLibDirs flags
+                                  -- ccompIncludeDirs = vcpkgIncludeDirs ++ ccompIncludeDirs flags  -- include path added when a library is used
                                }
                           ,flags,mode)
         else invokeError errs

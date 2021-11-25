@@ -1219,10 +1219,10 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
       let cc       = ccomp flags
           eimports = externalImportsFromCore (target flags) bcore
           clibs    = clibsFromCore flags bcore 
-      mapM_ (copyCLibrary term flags cc) eimports
+      extraIncDirs <- fmap concat $ mapM (copyCLibrary term flags cc) eimports
 
       -- compile      
-      ccompile term flags cc outBase [outC] 
+      ccompile term flags cc outBase extraIncDirs [outC] 
 
       -- compile and link?
       case mbEntry of
@@ -1299,8 +1299,8 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
                                runSystemEcho term flags (dquote mainExe ++ cmdflags ++ " " ++ execOpts flags))) -- use shell for proper rss accounting
 
 
-ccompile :: Terminal -> Flags -> CC -> FilePath -> [FilePath] -> IO ()
-ccompile term flags cc ctargetObj csources 
+ccompile :: Terminal -> Flags -> CC -> FilePath -> [FilePath] -> [FilePath] -> IO ()
+ccompile term flags cc ctargetObj extraIncDirs csources 
   = do let cmdline = concat $
                       [ [ccPath cc]
                       , ccFlags cc
@@ -1310,7 +1310,7 @@ ccompile term flags cc ctargetObj csources
                       , ccIncludeDir cc (localShareDir flags ++ "/kklib/include")
                       ]
                       ++
-                      map (ccIncludeDir cc) (ccompIncludeDirs flags)
+                      map (ccIncludeDir cc) (extraIncDirs ++ ccompIncludeDirs flags)
                       ++
                       map (ccAddDef cc) (ccompDefs flags)
                       ++
@@ -1320,7 +1320,7 @@ ccompile term flags cc ctargetObj csources
        runCommand term flags cmdline
 
 
-copyCLibrary :: Terminal -> Flags -> CC -> [(String,String)] -> IO ()
+copyCLibrary :: Terminal -> Flags -> CC -> [(String,String)] -> IO [FilePath]
 copyCLibrary term flags cc eimport
   = copyCLibraryX term flags cc eimport 0
 
@@ -1330,7 +1330,7 @@ copyCLibraryX term flags cc eimport tries
                     Nothing  -> case lookup "vcpkg" eimport of
                                   Just pkg -> pkg
                                   Nothing  -> ""
-       if (null clib) then return () else 
+       if (null clib) then return [] else 
          do mbPath <- -- looking for specific suffixes is not ideal but it differs among plaforms (e.g. pcre2-8 is only pcre2-8d on Windows)
                       -- and the actual name of the library is not easy to extract from vcpkg (we could read 
                       -- the lib/config/<lib>.pc information and parse the Libs field but that seems fragile as well)
@@ -1338,13 +1338,19 @@ copyCLibraryX term flags cc eimport tries
                       in -- trace ("search lib dirs: " ++ show (ccompLibDirs flags)) $
                          searchPathsSuffixes (ccompLibDirs flags) [] suffixes (ccLibFile cc clib)                     
             case mbPath of
-                Just fname -> copyLibFile fname clib
-                _ -> if (tries > 0) 
-                      then nosuccess clib
-                      else do ok <- vcpkgInstall term flags cc eimport clib
-                              if (not ok)
-                                then nosuccess clib
-                                else copyCLibraryX term flags cc eimport (tries + 1)  -- try again 
+              Just fname 
+                -> do copyLibFile fname clib
+                      case reverse (splitPath fname) of
+                        (_:"lib":"debug":rbase) -> return [joinPaths (reverse rbase ++ ["include"])]
+                        (_:"lib":rbase)         -> return [joinPaths (reverse rbase ++ ["include"])]
+                        _                       -> return []
+              _ -> if (tries > 0) 
+                    then nosuccess clib
+                    else do ok <- vcpkgInstall term flags cc eimport clib
+                            if (not ok)
+                              then nosuccess clib
+                              else do copyCLibraryX term flags cc eimport (tries + 1)  -- try again 
+                                      return [vcpkgIncludeDir flags]
                     
   where
     nosuccess clib
@@ -1462,7 +1468,7 @@ kklibBuild term flags cc name {-kklib-} objFile {-libkklib.o-}
                        flags1 = flags0{ ccompDefs = ccompDefs flags ++ 
                                                     [("KK_COMP_VERSION","\"" ++ version ++ "\""),
                                                      ("KK_CC_NAME", "\"" ++ ccName cc ++ "\"")] }
-                   ccompile term flags1 cc objPath [joinPath srcLibDir "src/all.c"] 
+                   ccompile term flags1 cc objPath [] [joinPath srcLibDir "src/all.c"] 
        return objPath
 
 

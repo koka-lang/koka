@@ -26,7 +26,7 @@ static void* kk_pcre2_malloc( PCRE2_SIZE size, void* data ) {
   return kk_malloc( kk_to_ssize_t(size), kk_get_context() );  
 }
 static void kk_pcre2_free( void* p, void* data ) {
-  kk_free(p);
+  kk_free(p,kk_get_context());
 }
 
 static void kk_regex_custom_init( kk_context_t* ctx ) {
