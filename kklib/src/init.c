@@ -146,8 +146,9 @@ static void kklib_done(void) {
 
 
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
-bool __has_popcnt = false;
-bool __has_lzcnt = false;
+bool kk_has_popcnt = false;
+bool kk_has_lzcnt = false;
+bool kk_has_tzcnt = false;
 #endif
 
 static void kklib_init(void) {
@@ -164,12 +165,14 @@ static void kklib_init(void) {
   //_controlfp(_EM_INEXACT|_EM_OVERFLOW|_EM_UNDERFLOW, _MCW_EM);
 
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
-  // <https://en.wikipedia.org/wiki/SSE4#POPCNT_and_LZCNT>
+  // <https://en.wikipedia.org/wiki/CPUID>
   int32_t cpu_info[4];
   __cpuid(cpu_info, 1);
-  __has_popcnt = ((cpu_info[2] & (KK_I32(1)<<23)) != 0);
+  kk_has_popcnt = ((cpu_info[2] & (KK_I32(1)<<23)) != 0);
   __cpuid(cpu_info, (int)(0x80000001));
-  __has_lzcnt  = ((cpu_info[2] & (KK_I32(1)<<5)) != 0);
+  kk_has_lzcnt  = ((cpu_info[2] & (KK_I32(1)<<5)) != 0);   // abm: https://en.wikipedia.org/wiki/X86_Bit_manipulation_instruction_set
+  __cpuid(cpu_info, 7);
+  kk_has_tzcnt = ((cpu_info[1] & (KK_I32(1)<<3)) != 0);    // bmi1: https://en.wikipedia.org/wiki/X86_Bit_manipulation_instruction_set
 #endif
   atexit(&kklib_done);  
 }
