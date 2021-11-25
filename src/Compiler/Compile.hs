@@ -1341,8 +1341,8 @@ copyCLibraryX term flags cc eimport tries
               Just fname 
                 -> do copyLibFile fname clib
                       case reverse (splitPath fname) of
-                        (_:"lib":"debug":rbase) -> return [joinPaths (reverse rbase ++ ["include"])]
-                        (_:"lib":rbase)         -> return [joinPaths (reverse rbase ++ ["include"])]
+                        (_:"lib":"debug":rbase) -> return [joinPaths (reverse rbase ++ ["include"])] -- for vcpkg
+                        (_:"lib":rbase)         -> return [joinPaths (reverse rbase ++ ["include"])] -- e.g. /usr/local/lib
                         _                       -> return []
               _ -> if (tries > 0) 
                     then nosuccess clib
