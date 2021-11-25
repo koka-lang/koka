@@ -183,10 +183,11 @@ prettyExternal env (ExternalImport imports range)
 ppTarget env target
   = case target of
       Default -> empty
-      CS      -> text "cs"
-      C _     -> text "c"
-      JS _    -> text "js"
+      CS      -> text "cs "
+      C _     -> text "c "
+      JS _    -> text "js "
       -- _       -> keyword env (show target) <.> space
+    
 
 prettyTypeDefGroup :: Env -> TypeDefGroup -> Doc
 prettyTypeDefGroup env (TypeDefGroup defs)
