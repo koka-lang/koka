@@ -135,19 +135,20 @@ static inline uint8_t kk_bits_ctz64(uint64_t x) {
 #include <intrin.h>
 
 #if defined(_M_X64) || defined(_M_IX86)
-extern bool __has_lzcnt;  // initialized in runtime.c
+extern bool kk_has_lzcnt;  // initialized in runtime.c
+extern bool kk_has_tzcnt;
 #endif
 
 static inline uint8_t kk_bits_clz32(uint32_t x) {
   #if defined(_M_X64) || defined(_M_IX86)
-  if (kk_likely(__has_lzcnt)) return (uint8_t)__lzcnt(x);
+  if (kk_likely(kk_has_lzcnt)) return (uint8_t)__lzcnt(x);
   #endif
   unsigned long idx;
   return (_BitScanReverse(&idx, x) ? 31 - (uint8_t)idx : 32);
 }
 static inline uint8_t kk_bits_ctz32(uint32_t x) {
   #if defined(_M_X64) || defined(_M_IX86)
-  if (kk_likely(__has_lzcnt)) return (uint8_t)_tzcnt_u32(x);
+  if (kk_likely(kk_has_tzcnt)) return (uint8_t)_tzcnt_u32(x);
   #endif
   unsigned long idx;
   return (_BitScanForward(&idx, x) ? (uint8_t)idx : 32);
@@ -156,14 +157,14 @@ static inline uint8_t kk_bits_ctz32(uint32_t x) {
 #define HAS_BITS_CLZ64
 static inline uint8_t kk_bits_clz64(uint64_t x) {
   #if defined(_M_X64) || defined(_M_IX86)
-  if (kk_likely(__has_lzcnt)) return (uint8_t)__lzcnt64(x);
+  if (kk_likely(kk_has_lzcnt)) return (uint8_t)__lzcnt64(x);
   #endif
   unsigned long idx;
   return (_BitScanReverse64(&idx, x) ? 63 - (uint8_t)idx : 64);
 }
 static inline uint8_t kk_bits_ctz64(uint64_t x) {
   #if defined(_M_X64) || defined(_M_IX86)
-  if (kk_likely(__has_lzcnt)) return (uint8_t)_tzcnt_u64(x);
+  if (kk_likely(kk_has_tzcnt)) return (uint8_t)_tzcnt_u64(x);
   #endif
   unsigned long idx;
   return (_BitScanForward64(&idx, x) ? (uint8_t)idx : 64);
@@ -205,9 +206,9 @@ static inline uint8_t kk_bits_ctz(kk_uintx_t x) {
   - Sum of bytes
 ----------------------------------------------------------- */
 
-#define kk_bits_one_mask32     KU32(0x01010101)
-#define kk_bits_one_mask64     KU64(0x0101010101010101)
-#define kk_bits_one_mask       ((~(KUX(0)))/0xFF)         // 0x01010101 ...
+#define kk_bits_one_mask32     KK_U32(0x01010101)
+#define kk_bits_one_mask64     KK_U64(0x0101010101010101)
+#define kk_bits_one_mask       ((~(KK_UX(0)))/0xFF)         // 0x01010101 ...
 
 #define kk_bits_high_mask32    (kk_bits_one_mask32<<7)      // 0x80808080
 #define kk_bits_high_mask64    (kk_bits_one_mask64<<7)      // 0x8080808080808080
@@ -284,16 +285,16 @@ kk_decl_export uint64_t kk_bits_generic_count64(uint64_t x);
 
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
 #include <intrin.h>
-extern bool __has_popcnt;  // initialized in runtime.c
+extern bool kk_has_popcnt;  // initialized in runtime.c
 
 static inline uint32_t kk_bits_count32(uint32_t x) {
-  if (__has_popcnt) return __popcnt(x);
+  if (kk_has_popcnt) return __popcnt(x);
   return kk_bits_generic_count32(x);
 }
 #if (KK_INTX_SIZE >= 8)
 #define HAS_BITS_COUNT64
 static inline uint64_t kk_bits_count64(uint64_t x) {
-  if (__has_popcnt) return __popcnt64(x);
+  if (kk_has_popcnt) return __popcnt64(x);
   return kk_bits_generic_count64(x);
 }
 #endif

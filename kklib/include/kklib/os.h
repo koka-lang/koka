@@ -22,6 +22,7 @@ kk_decl_export kk_string_t kk_os_temp_dir(kk_context_t* ctx);
 kk_decl_export kk_vector_t kk_os_get_argv(kk_context_t* ctx);
 kk_decl_export kk_vector_t kk_os_get_env(kk_context_t* ctx);
 
+kk_decl_export int  kk_os_read_line(kk_string_t* result, kk_context_t* ctx);
 kk_decl_export int  kk_os_read_text_file(kk_string_t path, kk_string_t* result, kk_context_t* ctx);
 kk_decl_export int  kk_os_write_text_file(kk_string_t path, kk_string_t content, kk_context_t* ctx);
 
@@ -34,11 +35,11 @@ kk_decl_export int  kk_os_list_directory(kk_string_t dir, kk_vector_t* contents,
 kk_decl_export int  kk_os_run_command(kk_string_t cmd, kk_string_t* output, kk_context_t* ctx);
 kk_decl_export int  kk_os_run_system(kk_string_t cmd, kk_context_t* ctx);
 
-kk_decl_export double kk_timer_ticks(double* secs_frac, kk_context_t* ctx);
-kk_decl_export double kk_timer_resolution(kk_context_t* ctx);
+kk_decl_export kk_secs_t  kk_timer_ticks(kk_asecs_t* atto_secs, kk_context_t* ctx);
+kk_decl_export kk_asecs_t kk_timer_resolution(kk_context_t* ctx);
 
-kk_decl_export double kk_time_unix_now(double* secs_frac, kk_context_t* ctx);
-kk_decl_export double kk_time_resolution(kk_context_t* ctx);
+kk_decl_export kk_secs_t  kk_time_unix_now(kk_asecs_t* atto_secs, kk_context_t* ctx);
+kk_decl_export kk_asecs_t kk_time_resolution(kk_context_t* ctx);
 
 kk_decl_export kk_string_t kk_compiler_version(kk_context_t* ctx);
 kk_decl_export kk_string_t kk_cc_name(kk_context_t* ctx);

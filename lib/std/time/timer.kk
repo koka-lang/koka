@@ -46,7 +46,7 @@ public fun ticks-resolution() : ndet duration {
 
 // Return the smallest time difference in seconds that `ticks` can measure.
 extern xticks-resolution() : ndet double {
-  c  "kk_timer_resolution"
+  c  "kk_timer_dresolution"
   cs "_Timer.TicksResolution"
   js "_ticks_resolution"
 }

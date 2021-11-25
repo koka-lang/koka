@@ -12,7 +12,7 @@
 -----------------------------------------------------------------------------
 
 module Backend.C.ParcReuse ( parcReuseCore,
-                             orderConFieldsEx, newtypesDataDefRepr, isDataStructLike,
+                             orderConFieldsEx, newtypesDataDefRepr, hasTagField,
                              constructorSizeOf
                            ) where
 
@@ -109,68 +109,99 @@ ruExpr expr
       -- Var, Lit, Con
       _ -> return expr
 
--- | TODO: Add Deconstructed info for the parameters to the scope.
--- This way we can reuse non-matched-on parameters where all constructors
--- have the same shape.
 ruLam :: [TName] -> Effect -> Expr -> Reuse Expr
 ruLam pars eff body
-  = Lam pars eff <$> withNone (ruExpr body)
+  = fmap (Lam pars eff) $ withNone $ do
+      forM_ pars $ \p -> do
+        msize <- getRuConSize (typeOf p)
+        case msize of
+          Just (size, scan) -> addDeconstructed (p, Nothing, size, scan)
+          Nothing -> return ()
+      ruExpr body
 
 ruLet :: Def -> Expr -> Reuse Expr
 ruLet def expr
-  = do (tnames, fn) <- ruLet' def
-       (expr', mReuses) <- ruTryReuseNamesIn tnames expr
-       (ds, fe) <- fn mReuses
+  = do av1 <- getAvailable
+       fn <- ruLet' def
+       expr' <- ruExpr expr
+       av2 <- getAvailable
+       setAvailableIntersect [av1, av2]
+       reused <- getReused
+       let (rus, fe) = fn reused
+           ds = map (`makeTDef` genReuseNull) rus
+       setReused $ reused S.\\ S.fromList rus
        return $ makeDefsLet ds $ fe expr'
 
-ruLetExpr :: Expr -> Reuse ([(TName, Bool)], [Maybe Def] -> Reuse ([Def], Expr -> Expr))
+ruLetExpr :: Expr -> Reuse (Reused -> ([TName], Expr -> Expr))
 ruLetExpr expr
   = case expr of
       Let [] body
         -> ruLetExpr body
       Let (DefNonRec def:dgs) body
-        -> do (ys1, fn1) <- ruLet' def
-              (ys2, fn2) <- ruLetExpr (Let dgs body)
-              return (ys1 ++ ys2, \mrs
-                -> do let (mrs1, mrs2) = splitAt (length ys1) mrs
-                      (ds1, fe1) <- fn1 mrs1
-                      (ds2, fe2) <- fn2 mrs2
-                      return $ (ds1 ++ ds2, fe1 . fe2))
-      _ -> return ([], \_ -> return ([], \_ -> expr))
+        -> do fn1 <- ruLet' def
+              fn2 <- ruLetExpr (Let dgs body)
+              return (\reused
+                -> let (ds1, fe1) = fn1 reused
+                       (ds2, fe2) = fn2 reused
+                   in (ds1 ++ ds2, fe1 . fe2))
+      _ -> return (\_ -> ([], \_ -> expr))
 
-ruLet' :: Def -> Reuse ([(TName, Bool)], [Maybe Def] -> Reuse ([Def], Expr -> Expr))
+ruLet' :: Def -> Reuse (Reused -> ([TName], Expr -> Expr))
 ruLet' def
   = withCurrentDef def $
       case defExpr def of
           App var@(Var name _) (Var tname _ : _maybe_scanfields) | getName name == nameDrop
-            -> do return ([(tname, True)], \mReuses ->
-                    case head mReuses of
-                      Nothing -> return ([], makeDefsLet [def])
-                      Just rReuse
-                        -> do let ru = makeTDef (defTName rReuse) genReuseNull
-                              return ([ru], makeDefsLet [makeDef nameNil $ genReuseAssignWith (defTName rReuse) (defExpr rReuse)]))
+            -> do ru <- ruMakeAvailable tname
+                  scan <- ruGetScan tname
+                  return (\reused ->
+                    case ru of
+                      Just ru | ru `S.member` reused
+                        -> let assign = case scan of
+                                 Just scan -> genDropReuse tname (makeInt32 (toInteger scan))
+                                 Nothing -> genReuseAddress tname
+                           in ([ru], makeDefsLet [makeDef nameNil $ genReuseAssignWith ru assign])
+                      _ -> ([], makeDefsLet [def]))
           -- See makeDropSpecial:
           -- We assume that makeDropSpecial always occurs in a definition.
           App (Var name _) [Var y _, xUnique, rShared, xDecRef] | getName name == nameDropSpecial
-            -> do (uniqYs, fUnique) <- ruLetExpr xUnique
-                  return $ ((y, False):uniqYs, \mReuses -> do
-                    let (mrs1, mrs2) = splitAt (length uniqYs) (tail mReuses)
-                    (rusUnique, rUnique') <- fUnique mrs1
-                    let rUnique = rUnique' exprUnit
-                    case head mReuses of
-                      Nothing
-                        -> do return (rusUnique, makeDefsLet [makeDef nameNil
-                                ( makeIfExpr (genIsUnique y)
-                                  (makeStats [rUnique, genFree y])
-                                  (makeStats [rShared, xDecRef]))])
-                      Just ru
-                        -> do rReuse <- genReuseAssign y
-                              return (ru:rusUnique, makeDefsLet [makeDef nameNil
+            -> do fUnique <- ruLetExpr xUnique
+                  ru <- ruMakeAvailable y
+                  return (\reused ->
+                    let (rusUnique, rUnique') = fUnique reused
+                        rUnique = rUnique' exprUnit
+                    in case ru of
+                      Just ru | ru `S.member` reused
+                        -> let rReuse = genReuseAssignWith ru (genReuseAddress y)
+                           in (ru:rusUnique, makeDefsLet [makeDef nameNil
                                 ( makeIfExpr (genIsUnique y)
                                   (makeStats [rUnique, rReuse])
+                                  (makeStats [rShared, xDecRef]))])
+                      _ -> do (rusUnique, makeDefsLet [makeDef nameNil
+                                ( makeIfExpr (genIsUnique y)
+                                  (makeStats [rUnique, genFree y])
                                   (makeStats [rShared, xDecRef]))]))
           _ -> do de <- ruExpr (defExpr def)
-                  return $ ([], \_ -> return ([], makeDefsLet [(def{defExpr=de})]))
+                  return (\_ -> ([], makeDefsLet [(def{defExpr=de})]))
+
+ruMakeAvailable :: TName -> Reuse (Maybe TName)
+ruMakeAvailable tname
+  = do ds <- getDeconstructed
+       av <- getAvailable
+       enable <- getEnableReuse
+       case (enable, NameMap.lookup (getName tname) ds) of
+         (True, Just (pat, size, scan))
+           -> do reuseName <- uniqueTName typeReuse
+                 updateAvailable (M.insertWith (++) size [ReuseInfo reuseName pat])
+                 return $ Just reuseName
+         _ -> return Nothing
+
+ruGetScan :: TName -> Reuse (Maybe Int)
+ruGetScan tname
+  = do ds <- getDeconstructed
+       case NameMap.lookup (getName tname) ds of
+         (Just (pat, size, scan))
+           -> return $ Just scan
+         _ -> return Nothing
 
 ruBranches :: [TName] -> [Branch] -> Reuse [Branch]
 ruBranches scrutinees branches
@@ -192,12 +223,13 @@ ruBranch scrutinees (Branch pats guards)
   where
     to3 ((a,b),c) = (a,b,c)
 
-    addDeconstructed :: (TName, (ReuseInfo, Int, Int)) -> Reuse ()
-    addDeconstructed (name, (ReuseInfo patName pat, size, scan))
-      = do reuseName <- uniqueTName typeReuse
-           updateDeconstructed (NameMap.insert (getName name) (reuseName, ReuseInfo patName pat, size, scan))
+addDeconstructed :: (TName, Maybe Pattern, Int, Int) -> Reuse ()
+addDeconstructed (name, pat, size, scan) | size > 0
+  = do ds <- getDeconstructed
+       updateDeconstructed (NameMap.insert (getName name) (pat, size, scan))
+addDeconstructed _ = return ()
 
-ruPattern :: TName -> Pattern -> Reuse [(TName, (ReuseInfo, Int {-byte size-}, Int {-scan fields-}))]
+ruPattern :: TName -> Pattern -> Reuse [(TName, Maybe Pattern, Int {-byte size-}, Int {-scan fields-})]
 ruPattern _ (PatVar tname pat) = ruPattern tname pat
 ruPattern varName pat@PatCon{patConName,patConPatterns,patConRepr,patTypeArgs,patConInfo=ci}
   = do reuses <- concat <$> mapM (ruPattern varName) patConPatterns
@@ -206,12 +238,16 @@ ruPattern varName pat@PatCon{patConName,patConPatterns,patConRepr,patTypeArgs,pa
         else  do newtypes <- getNewtypes
                  platform <- getPlatform
                  -- use type scheme of con, not the instantiated type, to calculate the correct size
-                 let (size,scan) = constructorSizeOf platform newtypes (TName (conInfoName ci) (conInfoType ci)) patConRepr
+                 let (size, scan) = constructorSizeOf platform newtypes (TName (conInfoName ci) (conInfoType ci)) patConRepr
                  if size > 0
                    then do -- ruTrace $ "add for reuse: " ++ show (getName tname) ++ ": " ++ show size
-                           return ((varName, (ReuseInfo varName pat, size, scan)):reuses)
+                           return ((varName, Just pat, size, scan):reuses)
                    else return reuses
-ruPattern _ _ = return []
+ruPattern varName _
+  = do msize <- getRuConSize (typeOf varName)
+       case msize of
+         Just (size, scan) -> return [(varName, Nothing, size, scan)]
+         Nothing -> return []
 
 ruGuard :: Guard -> Reuse (Map.Map TName Expr -> Guard, Available)
 ruGuard (Guard test expr)  -- expects patAdded in depth-order
@@ -225,6 +261,8 @@ ruGuard (Guard test expr)  -- expects patAdded in depth-order
 
 
 ruTryReuseCon :: TName -> ConRepr -> Expr -> Reuse Expr
+ruTryReuseCon cname repr conApp | isConAsJust repr  -- never try to reuse a Just-like constructor
+  = return conApp
 ruTryReuseCon cname repr conApp
   = do newtypes <- getNewtypes
        platform <- getPlatform
@@ -243,56 +281,10 @@ ruTryReuseCon cname repr conApp
     -- todo: match also common fields/arguments to help specialized reuse
     pick cname rinfo []
       = (rinfo,[])
-    pick cname rinfo@(ReuseInfo name (PatCon{patConName})) rinfos  | patConName == cname
+    pick cname rinfo@(ReuseInfo name (Just (PatCon{patConName}))) rinfos  | patConName == cname
       = (rinfo,rinfos)
     pick cname rinfo (rinfo':rinfos)
       = let (r,rs) = pick cname rinfo' rinfos in (r,rinfo:rs)
-
-ruTryReuseNameIn :: Bool -> TName -> Expr -> Reuse (Expr, Maybe Def)
-ruTryReuseNameIn shouldGenDrop tname expr
-  = do (expr', ds) <- ruTryReuseNamesIn [(tname, shouldGenDrop)] expr
-       return (expr', head ds)
-
-ruTryReuseNamesIn :: [(TName, Bool)] -> Expr -> Reuse (Expr, [Maybe Def])
-ruTryReuseNamesIn tnames expr
-  = do dss <- getDeconstructed
-       rus <- fmap concat $ forM tnames $ \(tname, shouldGenDrop) -> do
-        case NameMap.lookup (getName tname) dss of
-          Nothing -> return [Nothing]
-          Just (reuseName, ReuseInfo patName pat, size, scan)
-            -> do mReuse <- ruTryReuse shouldGenDrop (reuseName, patName, size, scan)
-                  case mReuse of
-                    Nothing -> return [Nothing]
-                    Just ru -> return [Just (reuseName, size, pat, ru)]
-       av1 <- getAvailable
-       forM_ rus $ \m -> case m of
-          Just (reuseName, size, pat, _)
-            -> updateAvailable (M.insertWith (++) size [ReuseInfo reuseName pat])
-          Nothing -> return ()
-       expr' <- ruExpr expr
-       av2 <- getAvailable
-       setAvailableIntersect [av1, av2]
-       rus' <- forM rus $ \m -> case m of
-          Just (reuseName, _, _, ru) -> do
-            wasReused <- askAndDeleteReused reuseName
-            return $ if wasReused then Just ru else Nothing
-          Nothing -> return Nothing
-       return (expr', rus')
-
--- generate drop_reuse for each reused in patAdded
-ruTryReuse :: Bool -> (TName, TName, Int, Int) -> Reuse (Maybe Def)
-ruTryReuse shouldGenDrop (rName, patName, size, scan)
-  = do av <- getAvailable
-       enable <- getEnableReuse
-       if not enable then return Nothing
-       else case M.lookup size av of
-         Just rinfos  | rName `elem` map reuseName rinfos
-           -> do let rest = filter (\r -> rName /= reuseName r) rinfos
-                 setAvailable (M.insert size rest av)
-                 return Nothing
-         _ -> if shouldGenDrop
-                then return (Just (makeTDef rName (genDropReuse patName (makeInt32 (toInteger scan)))))
-                else do return (Just (makeTDef rName genReuseNull))
 
 -- Generate a reuse of a constructor
 genDropReuse :: TName -> Expr {- : int32 -} -> Expr
@@ -308,8 +300,9 @@ genDropReuse tname scan
 -- conApp should have form  App (Con _ _) conArgs    : length conArgs >= 1
 genAllocAt :: ReuseInfo -> Expr -> Expr
 genAllocAt (ReuseInfo reuseName pat) conApp
-  = App (Var (TName nameAllocAt typeAllocAt) (InfoArity 0 2)) [Var reuseName (InfoReuse pat), conApp]
+  = App (Var (TName nameAllocAt typeAllocAt) (InfoArity 0 2)) [Var reuseName info, conApp]
   where
+    info = maybe InfoNone InfoReuse pat
     conTp = typeOf conApp
     typeAllocAt = TFun [(nameNil,typeReuse),(nameNil,conTp)] typeTotal conTp
 
@@ -323,25 +316,16 @@ genIsUnique tname
 -- Generate a free of a constructor
 genFree :: TName -> Expr
 genFree tname
-  = App (Var (TName nameFree funTp) (InfoExternal [(C CDefault, "kk_constructor_free(#1)")]))
+  = App (Var (TName nameFree funTp) (InfoExternal [(C CDefault, "kk_constructor_free(#1,kk_context())")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeUnit
 
 -- Generate a drop of a reuse
 genReuseDrop :: TName -> Expr
 genReuseDrop tname
-  = App (Var (TName nameReuseDrop funTp) (InfoExternal [(C CDefault, "kk_reuse_drop(#1)")]))
+  = App (Var (TName nameReuseDrop funTp) (InfoExternal [(C CDefault, "kk_reuse_drop(#1,kk_context())")]))
         [Var tname InfoNone]
   where funTp = TFun [(nameNil, typeOf tname)] typeTotal typeReuse
-
-genReuseAssign :: TName -> Reuse Expr
-genReuseAssign x
-  = do dss <- getDeconstructed
-       case NameMap.lookup (getName x) dss of
-         Nothing
-           -> failure $ "Backend.C.Parc.genReuseAssignEx: cannot find: " ++ show x
-         Just (r, _, _, _)
-           -> return $ genReuseAssignWith r (genReuseAddress x)
 
 -- Get a null token for reuse inlining
 genReuseNull :: Expr
@@ -352,7 +336,7 @@ genReuseNull
 -- Generate a reuse a block
 genReuseAddress :: TName -> Expr
 genReuseAddress tname
-  = App (Var (TName nameReuse funTp) (InfoExternal [(C CDefault, "reuse_datatype(#1,current_context())")])) [Var tname InfoNone]
+  = App (Var (TName nameReuse funTp) (InfoExternal [(C CDefault, "reuse_datatype(#1,kk_context())")])) [Var tname InfoNone]
   where
     tp    = typeOf tname
     funTp = TFun [(nameNil,tp)] typeTotal typeReuse
@@ -388,10 +372,10 @@ maybeStats xs expr
 -- definitions --
 
 type Available = M.IntMap [ReuseInfo]
-type Deconstructed = NameMap.NameMap (TName, ReuseInfo, Int {-byte size-}, Int {-scan fields-})
+type Deconstructed = NameMap.NameMap (Maybe Pattern, Int {-byte size-}, Int {-scan fields-})
 type Reused = S.Set TName
 
-data ReuseInfo = ReuseInfo{ reuseName :: TName, pattern :: Pattern }
+data ReuseInfo = ReuseInfo{ reuseName :: TName, pattern :: Maybe Pattern }
 
 data Env = Env { currentDef :: [Def],
                  enableReuse :: Bool,
@@ -591,27 +575,53 @@ ruTrace msg
 
 ----------------
 
+-- | If all constructors of a type have the same shape,
+-- return the byte size and number of scan fields.
+getRuConSize :: Type -> Reuse (Maybe (Int, Int))
+getRuConSize dataType
+  = do newtypes <- getNewtypes
+       platform <- getPlatform
+       let mdataName = extractDataName dataType
+       let mdataInfo = (`newtypesLookupAny` newtypes) =<< mdataName
+       case mdataInfo of
+         Just dataInfo
+           -> do let (dataRepr, _) = getDataRepr dataInfo
+                 let cis = dataInfoConstrs dataInfo
+                 let sizes = map (constructorSize platform newtypes dataRepr . map snd . conInfoParams) cis
+                 case sizes of
+                   (s:ss) | all (==s) ss -> pure $ Just s
+                   _ -> pure Nothing
+         _ -> pure Nothing
+  where
+    extractDataName :: Type -> Maybe Name
+    extractDataName tp
+      = case expandSyn tp of
+          TFun _ _ t -> extractDataName t
+          TCon tc    -> Just (typeConName tc)
+          _          -> Nothing
+
+
 -- return the allocated size of a constructor. Return 0 for value types or singletons
 constructorSizeOf :: Platform -> Newtypes -> TName -> ConRepr -> (Int {- byte size -}, Int {- scan fields -})
 constructorSizeOf platform newtypes conName conRepr
-  = case splitFunScheme (typeOf conName) of
-      Just (_,_,tpars,_,_)
-        -> constructorSize platform newtypes conRepr (map snd tpars)
-      _ -> -- trace ("constructor not a function: " ++ show conName ++ ": " ++ show (pretty (typeOf conName))) $
-           (0,0)
+  = let dataRepr = conDataRepr conRepr
+    in case splitFunScheme (typeOf conName) of
+        Just (_,_,tpars,_,_)
+          -> constructorSize platform newtypes dataRepr (map snd tpars)
+        _ -> -- trace ("constructor not a function: " ++ show conName ++ ": " ++ show (pretty (typeOf conName))) $
+            (0,0)
 
 
 -- return the allocated size of a constructor. Return 0 for value types or singletons
-constructorSize :: Platform -> Newtypes -> ConRepr -> [Type] -> (Int {- byte size -}, Int {- scan fields -})
-constructorSize platform newtypes conRepr paramTypes
-  = let dataRepr = (conDataRepr conRepr)
-    in {-  if dataReprIsValue dataRepr
-         then (0,0)
-         else-}
-        let (fields,size,scan) = orderConFieldsEx platform newtypes (DataOpen == dataRepr) [(nameNil,tp) | tp <- paramTypes]
-        in if dataReprIsValue dataRepr
-            then (0,scan)
-            else (size,scan)
+constructorSize :: Platform -> Newtypes -> DataRepr -> [Type] -> (Int {- byte size -}, Int {- scan fields -})
+constructorSize platform newtypes dataRepr paramTypes
+  = {-  if dataReprIsValue dataRepr
+        then (0,0)
+        else-}
+      let (fields,size,scan) = orderConFieldsEx platform newtypes (DataOpen == dataRepr) [(nameNil,tp) | tp <- paramTypes]
+      in if dataReprIsValue dataRepr
+          then (0,scan)
+          else (size,scan)
 
 
 -- order constructor fields of constructors with raw field so the regular fields come first to be scanned.
@@ -630,10 +640,10 @@ orderConFieldsEx platform newtypes isOpen fields
                   size  = alignUp rsize (sizeSize platform)
               in (reverse rscan ++ map fst raws, size, scanCount)
     visit (rraw,rmixed,rscan,scanCount) (field@(name,tp) : fs)
-      = let (dd,dataRepr) = newtypesDataDefRepr newtypes tp
-        in case dd of
-             DataDefValue raw scan
-               -> let extra = if (isDataStructLike dataRepr) then 1 else 0 in -- adjust scan count for added "tag_t" members in structs with multiple constructors
+      = let mDataDefRepr = newtypesDataDefRepr newtypes tp
+        in case mDataDefRepr of
+             Just (DataDefValue raw scan, dataRepr)
+               -> let extra = if (hasTagField dataRepr) then 1 else 0 in -- adjust scan count for added "tag_t" members in structs with multiple constructors
                   if (raw > 0 && scan > 0)
                    then -- mixed raw/scan: put it at the head of the raw fields (there should be only one of these as checked in Kind/Infer)
                         -- but we count them to be sure (and for function data)
@@ -644,21 +654,23 @@ orderConFieldsEx platform newtypes isOpen fields
              _ -> visit (rraw, rmixed, field:rscan, scanCount + 1) fs
 
     -- insert raw fields in order of size so they align to the smallest total size in a datatype
-    insertRaw :: (Name,Type) -> Int -> [((Name,Type),Int)] -> [((Name,Type),Int)] 
-    insertRaw field raw ((f,r):rs)  
+    insertRaw :: (Name,Type) -> Int -> [((Name,Type),Int)] -> [((Name,Type),Int)]
+    insertRaw field raw ((f,r):rs)
       | raw <= r  = (field,raw):(f,r):rs
       | otherwise = (f,r):insertRaw field raw rs
     insertRaw field raw []
       = [(field,raw)]
 
-newtypesDataDefRepr :: Newtypes -> Type -> (DataDef,DataRepr)
+-- | Return the DataDef and DataRepr for a type.
+-- This may be 'Nothing' for abstract types.
+newtypesDataDefRepr :: Newtypes -> Type -> Maybe (DataDef,DataRepr)
 newtypesDataDefRepr newtypes tp
    = case extractDataDefType tp of
-       Nothing   -> (DataDefNormal,DataNormal True)
-       Just name | name == nameTpBox -> (DataDefNormal,DataNormal False)
+       Nothing   -> Just (DataDefNormal,DataNormal True)
+       Just name | name == nameTpBox -> Just (DataDefNormal,DataNormal False)
        Just name -> case newtypesLookupAny name newtypes of
-                      Nothing -> failure $ "Backend.C.ParcReuse.getDataDefRepr: cannot find type: " ++ show name
-                      Just di -> (dataInfoDef di, fst (getDataRepr di))
+                      Nothing -> Nothing
+                      Just di -> Just (dataInfoDef di, fst (getDataRepr di))
 
 extractDataDefType :: Type -> Maybe Name
 extractDataDefType tp
@@ -669,7 +681,8 @@ extractDataDefType tp
      _             -> Nothing
 
 
-isDataStructLike :: DataRepr -> Bool
-isDataStructLike (DataAsMaybe) = True
-isDataStructLike (DataStruct) = True
-isDataStructLike _ = False
+-- explicit tag field?
+hasTagField :: DataRepr -> Bool
+hasTagField DataStruct        = True
+hasTagField DataStructAsMaybe = True
+hasTagField rep               = False

@@ -8,6 +8,7 @@
 //#define _CRT_SECURE_NO_WARNINGS
 #include "kklib.h"
 #include <stdarg.h>
+#include <stdio.h>
 #ifdef WIN32
 #include <Windows.h>
 #endif
@@ -37,21 +38,21 @@ kk_function_t kk_function_null(kk_context_t* ctx) {
 
 // null functions
 void kk_free_fun_null(void* p, kk_block_t* b, kk_context_t* ctx) {
-  KK_UNUSED(p);
-  KK_UNUSED(b);
-  KK_UNUSED(ctx);
+  kk_unused(p);
+  kk_unused(b);
+  kk_unused(ctx);
 }
 
 // free memory
 void kk_free_fun(void* p, kk_block_t* b, kk_context_t* ctx) {
-  KK_UNUSED(b);
-  KK_UNUSED(ctx);
-  kk_free(p);
+  kk_unused(b);
+  kk_unused(ctx);
+  kk_free(p,ctx);
 }
 
 
 kk_string_t kk_get_host(kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   kk_define_string_literal(static, host, 5, "libc")
   return kk_string_dup(host);
 }
@@ -86,7 +87,7 @@ typedef enum kk_log_level_e {
 } kk_log_level_t;
 
 static void kk_log_message(kk_log_level_t level, const char* msg, kk_context_t* ctx) {
-  KK_UNUSED(ctx); KK_UNUSED(level);
+  kk_unused(ctx); kk_unused(level);
   fputs(msg,stderr); // TODO: use ctx->log
 }
 
@@ -110,7 +111,7 @@ static void kk_log_message_fmt(kk_context_t* ctx, kk_log_level_t level, const ch
 }
 
 void kk_fatal_error(int err, const char* fmt, ...) {
-  KK_UNUSED(err);
+  kk_unused(err);
   va_list args;
   va_start(args, fmt);
   kk_log_message_fmt(kk_get_context(), KK_LOG_FATAL, fmt, args);
@@ -145,8 +146,9 @@ static void kklib_done(void) {
 
 
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
-bool __has_popcnt = false;
-bool __has_lzcnt = false;
+bool kk_has_popcnt = false;
+bool kk_has_lzcnt = false;
+bool kk_has_tzcnt = false;
 #endif
 
 static void kklib_init(void) {
@@ -163,12 +165,14 @@ static void kklib_init(void) {
   //_controlfp(_EM_INEXACT|_EM_OVERFLOW|_EM_UNDERFLOW, _MCW_EM);
 
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
-  // <https://en.wikipedia.org/wiki/SSE4#POPCNT_and_LZCNT>
+  // <https://en.wikipedia.org/wiki/CPUID>
   int32_t cpu_info[4];
   __cpuid(cpu_info, 1);
-  __has_popcnt = ((cpu_info[2] & (KI32(1)<<23)) != 0);
+  kk_has_popcnt = ((cpu_info[2] & (KK_I32(1)<<23)) != 0);
   __cpuid(cpu_info, (int)(0x80000001));
-  __has_lzcnt  = ((cpu_info[2] & (KI32(1)<<5)) != 0);
+  kk_has_lzcnt  = ((cpu_info[2] & (KK_I32(1)<<5)) != 0);   // abm: https://en.wikipedia.org/wiki/X86_Bit_manipulation_instruction_set
+  __cpuid(cpu_info, 7);
+  kk_has_tzcnt = ((cpu_info[1] & (KK_I32(1)<<3)) != 0);    // bmi1: https://en.wikipedia.org/wiki/X86_Bit_manipulation_instruction_set
 #endif
   atexit(&kklib_done);  
 }
@@ -182,7 +186,7 @@ static kk_decl_thread kk_context_t* context;
 
 
 static struct { kk_block_t _block; kk_integer_t cfc; } kk_evv_empty_static = {
-  { KK_HEADER_STATIC(1,KK_TAG_EVV_VECTOR) }, { ((~KUP(0))^0x02) /*==-1 smallint*/}
+  { KK_HEADER_STATIC(1,KK_TAG_EVV_VECTOR) }, { ((~KK_UP(0))^0x02) /*==-1 smallint*/}
 };
 kk_ptr_t kk_evv_empty_singleton = &kk_evv_empty_static._block;
 
@@ -199,7 +203,7 @@ kk_context_t* kk_get_context(void) {
   ctx = (kk_context_t*)kk_zalloc(sizeof(kk_context_t),NULL);
 #endif
   ctx->evv = kk_block_dup(kk_evv_empty_singleton);
-  ctx->thread_id = (uintptr_t)(&context);
+  ctx->thread_id = (size_t)(&context);
   ctx->unique = kk_integer_one;
   context = ctx;
   ctx->kk_box_any = kk_block_alloc_as(struct kk_box_any_s, 0, KK_TAG_BOX_ANY, ctx);  
@@ -211,7 +215,7 @@ kk_context_t* kk_get_context(void) {
 void kk_free_context(void) {
   if (context != NULL) {
     kk_block_drop(context->evv, context);
-    kk_basetype_free(context->kk_box_any);
+    kk_basetype_free(context->kk_box_any,context);
     // kk_basetype_drop_assert(context->kk_box_any, KK_TAG_BOX_ANY, context);
     // TODO: process delayed_free
 #ifdef KK_MIMALLOC
@@ -219,7 +223,7 @@ void kk_free_context(void) {
     mi_free(context);
     // mi_heap_delete(heap);
 #else
-    kk_free(context);
+    kk_free(context,context);
 #endif
     context = NULL;
   }
@@ -279,7 +283,7 @@ kk_decl_export void  kk_main_end(kk_context_t* ctx) {
 #include <signal.h>
 
 kk_decl_export void kk_debugger_break(kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
 #if _MSC_VER
   __debugbreak();
 #elif defined(SIGTRAP)

@@ -6,15 +6,10 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define  __USE_MINGW_ANSI_STDIO 1  // so %z is valid on mingw
+#include "kklib.h"
 
 #include <stdio.h>
-#include <stdint.h>
-#include <string.h> // memcpy
-#include <ctype.h>
 #include <math.h>   // INFINITY
-#include "kklib.h"
-#include "kklib/integer.h"
 
 
 /*----------------------------------------------------------------------
@@ -41,12 +36,12 @@ including Karatsuba multiplication.
     portable overflow detection.
 ----------------------------------------------------------------------*/
 
-#if (KK_INTPTR_SIZE>=8) && defined(_XMSC_VER) && (_MSC_VER >= 1920) && !defined(__clang_msvc__) /* not clang-cl or we get link errors */
+#if (KK_INTPTR_SIZE>=8) && defined(_MSC_VER) && (_MSC_VER >= 1920) && !defined(__clang_msvc__) /* not clang-cl or we get link errors */
 // Use 64-bit digits on Microsoft VisualC
-#define BASE          KI64(1000000000000000000)
+#define BASE          KK_I64(1000000000000000000)
 #define LOG_BASE      (18)
 #define DIGIT_BITS    (64)
-#define BASE_HEX      KU64(0x100000000000000)  // largest hex base < BASE  
+#define BASE_HEX      KK_U64(0x100000000000000)  // largest hex base < BASE  
 #define LOG_BASE_HEX  (14)                     // hex digits in BASE_HEX
 #define PRIxDIGIT     "%llx"
 #define PRIXDIGIT     "%llX"
@@ -82,10 +77,10 @@ static inline kk_ddigit_t ddigit_mul_add(kk_digit_t x, kk_digit_t y, kk_digit_t 
 
 #elif (KK_INTPTR_SIZE >= 8) && defined(__GNUC__) 
 // Use 64-bit digits with gcc/clang/icc
-#define BASE          KI64(1000000000000000000)
+#define BASE          KK_I64(1000000000000000000)
 #define LOG_BASE      (18)
 #define DIGIT_BITS    (64)
-#define BASE_HEX      KU64(0x100000000000000)  // largest hex base < BASE  
+#define BASE_HEX      KK_U64(0x100000000000000)  // largest hex base < BASE  
 #define LOG_BASE_HEX  (14)                     // hex digits in BASE_HEX
 typedef uint64_t      kk_digit_t;     // 2*BASE + 1 < kk_digit_t_max
 
@@ -114,10 +109,10 @@ static inline kk_ddigit_t ddigit_mul_add(kk_digit_t x, kk_digit_t y, kk_digit_t 
 #pragma message("using 32-bit digits for large integer arithmetic")
 #endif
 
-#define BASE          KI32(1000000000)
+#define BASE          KK_I32(1000000000)
 #define LOG_BASE      (9)
 #define DIGIT_BITS    (32)
-#define BASE_HEX      KU32(0x10000000)  // largest hex base < BASE  
+#define BASE_HEX      KK_U32(0x10000000)  // largest hex base < BASE  
 #define LOG_BASE_HEX  (7)               // hex digits in BASE_HEX
 typedef uint32_t      kk_digit_t;       // 2*BASE + 1 < kk_digit_t_max
 #define PRIxDIGIT     "%x"
@@ -347,7 +342,7 @@ static kk_bigint_t* bigint_from_int(kk_intx_t i, kk_context_t* ctx) {
     u = (kk_uintx_t)i;
   }
   else if (i == KK_INTX_MIN) {
-    u = ((kk_uintx_t)KK_INTX_MAX) + 1;
+    u = (KK_UINTX_MAX/2) + KK_UX(1);
   }
   else {
     u = (kk_uintx_t)(-i);
@@ -368,7 +363,7 @@ static kk_bigint_t* bigint_from_int64(int64_t i, kk_context_t* ctx) {
     u = (uint64_t)i; 
   }
   else if (i == INT64_MIN) { 
-    u = ((uint64_t)INT64_MAX) + 1; 
+    u = (UINT64_MAX/2) + KK_U64(1); 
   }
   else { 
     u = (uint64_t)(-i); 
@@ -1283,12 +1278,16 @@ bool kk_integer_is_even_generic(kk_integer_t x, kk_context_t* ctx) {
 }
 
 int kk_integer_cmp_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  kk_bigint_t* bx = kk_integer_to_bigint(kk_integer_dup(x), ctx);
-  kk_bigint_t* by = kk_integer_to_bigint(kk_integer_dup(y), ctx);
+  kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
+  kk_bigint_t* by = kk_integer_to_bigint(y, ctx);
   int sign = bigint_compare_(bx, by);
   drop_bigint(bx, ctx);
   drop_bigint(by, ctx);
   return sign;
+}
+
+int kk_integer_cmp_generic_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  return kk_integer_cmp_generic(kk_integer_dup(x), kk_integer_dup(y), ctx);
 }
 
 kk_integer_t kk_integer_add_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
@@ -1471,10 +1470,10 @@ static kk_string_t kk_int_to_hex_string(kk_intx_t i, bool use_capitals, kk_conte
   kk_assert_internal(i >= 0);
   char buf[64];
   if (use_capitals) {
-    snprintf(buf, 64, PRIXUX, (kk_uintx_t)i);
+    snprintf(buf, 64, "%" PRIXUX, (kk_uintx_t)i);
   }
   else {
-    snprintf(buf, 64, PRIxUX, (kk_uintx_t)i);
+    snprintf(buf, 64, "%" PRIxUX, (kk_uintx_t)i);
   }
   return kk_string_alloc_dup_valid_utf8(buf, ctx);
 }

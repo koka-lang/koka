@@ -363,7 +363,7 @@ fun unsafe-no-div( action : () -> <div|e> a ) : e a {
 
 // Optional is used internally by the compiler to pass optional arguments.
 // It is usually displayed as `:?a` for some type `:a`.
-type optional<a> {
+value type optional<a> {
   // The `Optional` constructor is used when an optional argument is given.
   con Optional( value : a )
   // `None` is used when an optional argument is not provided.

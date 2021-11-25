@@ -4,7 +4,7 @@ find_program(swiftc "swiftc" REQUIRED
                    /usr/local/swift/bin)
 
 if(APPLE)
-  set(swopts "-Xlinker -stack_size -Xlinker 0x8000000")
+  set(swopts -Xlinker -stack_size -Xlinker 0x8000000)
 else()
   set(swopts "")
 endif()  

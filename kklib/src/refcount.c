@@ -26,7 +26,7 @@ static void kk_block_drop_free(kk_block_t* b, kk_context_t* ctx) {
   if (scan_fsize==0) {
     // TODO: can we avoid raw object tests?
     if (kk_unlikely(kk_tag_is_raw(kk_block_tag(b)))) { kk_block_free_raw(b,ctx); }
-    kk_block_free(b); // deallocate directly if nothing to scan
+    kk_block_free(b,ctx); // deallocate directly if nothing to scan
   }
   else {
     kk_block_drop_free_recx(b, ctx); // free recursively
@@ -89,10 +89,10 @@ static void kk_block_drop_free(kk_block_t* b, kk_context_t* ctx) {
   - see also: https://devblogs.microsoft.com/oldnewthing/20210409-00/?p=105065
 --------------------------------------------------------------------------------------*/
 
-#define RC_STUCK          KU32(0x80000000)
-#define RC_STICKY         KU32(0x90000000)
-#define RC_STICKY_DROP    KU32(0xA0000000)
-#define RC_SHARED_UNIQUE  KU32(0xFFFFFFFF)
+#define RC_STUCK          KK_U32(0x80000000)
+#define RC_STICKY         KK_U32(0x90000000)
+#define RC_STICKY_DROP    KK_U32(0xA0000000)
+#define RC_SHARED_UNIQUE  KK_U32(0xFFFFFFFF)
 
 static inline kk_refcount_t kk_atomic_dup(kk_block_t* b) {
   return kk_atomic_dec_relaxed(&b->header.refcount);
@@ -170,12 +170,12 @@ kk_decl_noinline kk_reuse_t kk_block_check_drop_reuse(kk_block_t* b, kk_refcount
 
 // Check if a reference decrement caused the block to be freed shallowly or needs atomic operations
 kk_decl_noinline void kk_block_check_decref(kk_block_t* b, kk_refcount_t rc0, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   kk_assert_internal(b!=NULL);
   kk_assert_internal(kk_block_refcount(b) == rc0);
   kk_assert_internal(rc0 == 0 || kk_refcount_is_thread_shared(rc0));
   if (kk_likely(rc0==0)) {
-    kk_free(b);  // no more references, free it (without dropping children!)
+    kk_free(b,ctx);  // no more references, free it (without dropping children!)
   }
   else if (kk_unlikely(rc0 <= RC_STICKY_DROP)) {
     // sticky: do not decrement further
@@ -184,7 +184,7 @@ kk_decl_noinline void kk_block_check_decref(kk_block_t* b, kk_refcount_t rc0, kk
     const kk_refcount_t rc = kk_atomic_drop(b);
     if (rc == RC_SHARED_UNIQUE) {    // last referenc?
       kk_block_refcount_set(b,0);    // no longer shared
-      kk_free(b);                    // no more references, free it.
+      kk_free(b,ctx);                // no more references, free it.
     }
   }
 }
@@ -253,7 +253,7 @@ static inline kk_block_t* kk_block_field_should_free(kk_block_t* b, kk_ssize_t f
       if (v_scan_fsize == 0) {
         // free leaf nodes directly and pretend it was not a ptr field
         if (kk_unlikely(kk_tag_is_raw(kk_block_tag(child)))) { kk_block_free_raw(child, ctx); } // potentially call custom `free` function on the data
-        kk_block_free(child);        
+        kk_block_free(child,ctx);        
       }
       else {
         return child;
@@ -282,7 +282,7 @@ static kk_decl_noinline void kk_block_drop_free_large_rec(kk_block_t* b, kk_cont
     }
   }
   // and free the vector itself
-  kk_block_free(b);
+  kk_block_free(b,ctx);
 }
 
 // Recursively free a block and drop its children without using stack space
@@ -300,7 +300,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
     if (scan_fsize == 1) {
       // if just one field, we can free directly and continue with the child
       kk_block_t* next = kk_block_field_should_free(b, 0, ctx);
-      kk_block_free(b);
+      kk_block_free(b,ctx);
       if (next != NULL) {
         b = next;
         goto movedown;
@@ -310,7 +310,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
     else if (scan_fsize == 2 && !kk_box_is_non_null_ptr(kk_block_field(b,0))) {
       // optimized code for lists/nodes with boxed first element
       kk_block_t* next = kk_block_field_should_free(b, 1, ctx);
-      kk_block_free(b);
+      kk_block_free(b,ctx);
       if (next != NULL) {
         b = next;
         goto movedown;
@@ -335,7 +335,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
           }
           else {
             // the last field: free the block and continue with the child leaving the parent unchanged
-            kk_block_free(b);
+            kk_block_free(b,ctx);
           }
           // and continue with the child
           b = child;
@@ -368,7 +368,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
           // the last field; free the block and move the parent one up
           b = parent;
           parent = _kk_box_ptr(kk_block_field(parent, 0)); // use low-level box as it can be NULL
-          kk_block_free(b);  // note: cannot be a raw block as those have no scanfield
+          kk_block_free(b,ctx);  // note: cannot be a raw block as those have no scanfield
         }
         // and continue with the child
         b = child;
@@ -378,7 +378,7 @@ static kk_decl_noinline void kk_block_drop_free_recx(kk_block_t* b, kk_context_t
     // done: free the block and move up further
     b = parent;
     parent = _kk_box_ptr( kk_block_field(parent, 0) );  // low-level box as it can be NULL
-    kk_block_free(b);  // note: cannot be a raw block as those have no scanfield
+    kk_block_free(b,ctx);  // note: cannot be a raw block as those have no scanfield
   }
   // done
 }
@@ -400,7 +400,7 @@ static kk_decl_noinline void kk_block_mark_shared_recx(kk_block_t* b, kk_context
 // Optimizes by already marking leaf blocks that have no scan fields.
 static inline kk_block_t* kk_block_field_should_mark(kk_block_t* b, kk_ssize_t field, kk_context_t* ctx)
 {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   kk_box_t v = kk_block_field(b, field);
   if (kk_box_is_non_null_ptr(v)) {
     kk_block_t* child = kk_ptr_unbox(v);
