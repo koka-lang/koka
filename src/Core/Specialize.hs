@@ -206,10 +206,10 @@ val x  = f<t1,...tn>(e1,...em)
 
 
 -}
-
+{-
 specInnerCalls :: TName -> TName -> [Bool] -> Expr -> Expr
 specInnerCalls from to bools expr = 
-  -- substitute first
+  -- substitute first to avoid name capture
   let arity = length $ filter id bools
       sexpr = [(from,Var to (InfoArity 0 arity))] |~> expr
   -- then adjust arguments
@@ -223,6 +223,67 @@ specInnerCalls from to bools expr =
               | v == to -> App (Var v info) $ filterBools bools xs
             e -> e
   in rewriteBottomUp rewrite sexpr
+-}
+
+-- capture avoiding rewrite of all recursive calls with the given specialized parameter names
+specInnerCalls :: TName -> TName -> [Bool] -> [TName] -> Expr -> Expr
+specInnerCalls from to isSpecParam specParamNames expr 
+  = sicExpr expr
+  where
+    arityTo  = length $ filter id (map not isSpecParam)
+    varTo    = Var to (InfoArity 0 arityTo)
+
+    matchSpecParamNames args
+      = (length args == length specParamNames) &&
+        all eqVar (zip specParamNames args)
+   
+    eqVar (name,Var v _)  = name == v
+    eqVar _               = False
+
+    sicExpr expr 
+      = case expr of    
+          -- rewrite recursive calls
+          App (Var v info) args  | v == from && matchSpecParamNames (filterBools isSpecParam args)
+            -> App varTo (filterBools (map not isSpecParam) args)
+          App (TypeApp (Var v info) targs) args  | v == from && matchSpecParamNames (filterBools isSpecParam args)
+            -> App varTo (filterBools (map not isSpecParam) args)  -- always monomorph
+
+          -- visitor
+          Lam params eff body 
+            | any (== from) params -> expr  -- avoid capture
+            | otherwise            -> Lam params eff (sicExpr body)
+          App f args         -> App (sicExpr f) (map sicExpr args)
+          TypeLam tpars e    -> TypeLam tpars (sicExpr e)
+          TypeApp e targs    -> TypeApp (sicExpr e) targs
+          Let defGroups body -> sicLet defGroups body
+          Case exprs branches-> Case (map sicExpr exprs) (map sicBranch branches)
+          Var tname info     -> expr
+          Con tname repr     -> expr
+          Lit lit            -> expr
+
+    -- capture avoiding rewrite over let bindings
+    sicLet [] body  = sicExpr body
+    sicLet (DefNonRec def : defs) body 
+      | defTName def == from  
+        = makeLet (DefNonRec (sicDef def) : defs) body
+      | otherwise 
+        = makeLet [DefNonRec (sicDef def)]  (sicLet defs body)
+    sicLet (DefRec rdefs : defs) body
+      | any (\d -> defTName d == from) rdefs  
+        = makeLet (DefRec rdefs : defs) body
+      | otherwise
+        = makeLet [DefRec (map sicDef rdefs)] (sicLet defs body)
+
+    -- capture avoiding rewrite over branches
+    sicBranch branch@(Branch patterns guards)    
+      | any (== from) (tnamesList (bv patterns)) = branch
+      | otherwise = Branch patterns (map sicGuard guards)
+
+    sicGuard (Guard test body) = Guard (sicExpr test) (sicExpr body)
+    sicDef def = def{ defExpr = sicExpr (defExpr def) }
+
+
+
 
 comment :: String -> String
 comment = unlines . map ("// " ++) . lines
@@ -260,7 +321,7 @@ replaceCall name expr bools args mybeTypeArgs
           specTName = TName specName specType
           specBody  = case specBody0 of
                         Lam args eff (Let specArgs body) -> Lam args eff
-                          (Let specArgs $ specInnerCalls (TName name (typeOf expr)) specTName (not <$> bools) body)
+                          (Let specArgs $ specInnerCalls (TName name (typeOf expr)) specTName bools speccedParams body)
                         _ -> failure "Specialize.replaceCall: Unexpected output from specialize pass"
       
       -- simplify so the new specialized arguments are potentially inlined unlocking potential further specialization
@@ -391,7 +452,7 @@ multiStepInlines loadedInlines inlines = snd . foldl' f (inlines `inlinesMerge` 
     -- f inlines def | trace ("checking " <> show (defName def)) False = undefined
     f (allInlines, newInlines) def
     -- inlineCost ?
-      | isFun (defType def)
+      | not (defIsVal def) -- isFun (defType def)
       , defInline def /= InlineNever
       , Just specArgs <- callsSpecializable allInlines def =
           -- inlineCost = 1 here since kki complains about inline + specialize

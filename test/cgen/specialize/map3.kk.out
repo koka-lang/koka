@@ -1,7 +1,7 @@
-cgen/specialize/map3/.lift248-test: (y : int, xs0 : list<int>) -> list<int>
-cgen/specialize/map3/.lift249-main: (xs : list<int>) -> list<int>
-cgen/specialize/map3/.mlift256-map-poly: forall<a,e> (a, list<a>) -> e list<a>
-cgen/specialize/map3/.mlift257-map-poly: forall<a,b,e> (f : (a) -> e b, xx : list<a>, b) -> e list<b>
+cgen/specialize/map3/.lift000-test: (y : int, xs0 : list<int>) -> list<int>
+cgen/specialize/map3/.lift000-main: (xs : list<int>) -> list<int>
+cgen/specialize/map3/.mlift000-map-poly: forall<a,e> (a, list<a>) -> e list<a>
+cgen/specialize/map3/.mlift000-map-poly: forall<a,b,e> (f : (a) -> e b, xx : list<a>, b) -> e list<b>
 cgen/specialize/map3/main: () -> console ()
 cgen/specialize/map3/map-poly: forall<a,b,e> (xs : list<a>, f : (a) -> e b) -> e list<b>
 cgen/specialize/map3/test: (xs : list<int>, y : int) -> list<int>

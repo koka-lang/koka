@@ -621,89 +621,44 @@ data Expr =
   -- Case expressions
   | Case{ caseExprs :: [Expr], caseBranches :: [Branch] }
 
-foldMapExpr :: Monoid a => (Expr -> a) -> Expr -> a
-foldMapExpr acc e = case e of
-  Lam _ _ body -> acc e <> foldMapExpr acc body
-  Var _ _ -> acc e
-  App f xs -> acc e <> acc f <> mconcat (foldMapExpr acc <$> xs)
-  TypeLam _ body -> acc e <> foldMapExpr acc body
-  TypeApp expr _ -> acc e <> foldMapExpr acc expr
-  Con _ _ -> acc e
-  Lit _ -> acc e
-  Let binders body -> acc e <> mconcat [foldMapExpr acc (defExpr def) | def <- flattenDefGroups binders] <> foldMapExpr acc body
-  Case cases branches -> acc e <> mconcat (foldMapExpr acc <$> cases) <>
-    mconcat [foldMapExpr acc e | branch <- branches, guard <- branchGuards branch, e <- [guardTest guard, guardExpr guard]]
 
-anySubExpr :: (Expr -> Bool) -> Expr -> Bool
-anySubExpr f = getAny . foldMapExpr (Any . f)
+data Branch = Branch { branchPatterns :: [Pattern]  -- length = length exprs in the match
+                     , branchGuards   :: [Guard]    -- any number (>= 1) of guarded expressions
+                     }
 
-foldExpr :: (Expr -> a -> a) -> a -> Expr -> a
-foldExpr f z e = appEndo (foldMapExpr (Endo . f) e) z
+data Guard  = Guard { guardTest :: Expr  -- boolean
+                    , guardExpr :: Expr  -- body of the branch
+                    }
 
-rewriteBottomUp :: (Expr -> Expr) -> Expr -> Expr
-rewriteBottomUp f = runIdentity . rewriteBottomUpM (Identity . f)
+data Pattern
+  = PatCon{ patConName :: TName,        -- ^ names the constructor with full signature.
+            patConPatterns:: [Pattern], -- ^ sub-patterns. fully materialized to match arity.
+            patConRepr :: ConRepr,      -- ^ representation of ctor in backend.
+            patTypeArgs :: [Type],      -- ^ zipped with patConPatterns
+            patExists :: [TypeVar],     -- ^ closed under existentials here
+            patTypeRes :: Type,         -- ^ result type
+            patConInfo :: ConInfo,      -- ^ other constructor info
+            patConSkip :: Bool         -- ^ skip testing for this constructor (as it should match already)
+          }
+  | PatVar{ patName :: TName,           -- ^ name/type of variable
+            patPattern :: Pattern       -- ^ named sub-pattern
+          }
+  | PatLit{ patLit :: Lit }
+  | PatWild
 
-rewriteBottomUpM :: (Monad m) => (Expr -> m Expr) -> Expr -> m Expr
-rewriteBottomUpM f e = f =<< case e of
-  Lam params eff body -> Lam params eff <$> rec body
-  Var _ _ -> pure e
-  App fun xs -> liftA2 App (rec fun) (mapM rec xs)
-  TypeLam types body -> TypeLam types <$> rec body
-  TypeApp expr types -> (\fexpr -> TypeApp fexpr types) <$> rec expr
-  Con _ _ -> pure e
-  Lit _ -> pure e
-  Let binders body -> do
-    newBinders <- forM binders $ \binder ->
-      case binder of
-        DefNonRec def@Def{defExpr = defExpr} -> do
-          fexpr <- rec defExpr
-          pure $ DefNonRec def { defExpr = fexpr, defType = typeOf fexpr }
-        DefRec defs -> fmap DefRec $ forM defs $ \def@Def{defExpr = defExpr} -> do
-          fexpr <- rec defExpr
-          pure def{ defExpr = fexpr, defType = typeOf fexpr }
+data Lit =
+    LitInt    Integer
+  | LitFloat  Double
+  | LitChar   Char
+  | LitString String
+  deriving (Eq)
 
-    Let newBinders <$> rec body
-
-  Case cases branches -> liftA2 Case mcases mbranches
-    where
-      mcases = mapM rec cases
-      mbranches = forM branches $ \(Branch patterns guards) ->
-        Branch patterns <$> forM guards (\(Guard e1 e2) -> liftA2 Guard (rec e1) (rec e2))
-  where
-    rec = rewriteBottomUpM f
-
-rewriteTopDown :: (Expr -> Expr) -> Expr -> Expr
-rewriteTopDown f = runIdentity . rewriteTopDownM (Identity . f)
-
-rewriteTopDownM :: (Monad m) => (Expr -> m Expr) -> Expr -> m Expr
-rewriteTopDownM f e = f e >>= \e -> case e of
-  Lam params eff body -> Lam params eff <$> rec body
-  Var _ _ -> pure e
-  App fun xs -> liftA2 App (rec fun) (mapM rec xs)
-  TypeLam types body -> TypeLam types <$> rec body
-  TypeApp expr types -> (\fexpr -> TypeApp fexpr types) <$> rec expr
-  Con _ _ -> pure e
-  Lit _ -> pure e
-  Let binders body -> do
-    newBinders <- forM binders $ \binder ->
-      case binder of
-        DefNonRec def@Def{defExpr = defExpr} -> do
-          fexpr <- rec defExpr
-          pure $ DefNonRec def { defExpr = fexpr, defType = typeOf fexpr }
-        DefRec defs -> fmap DefRec $ forM defs $ \def@Def{defExpr = defExpr} -> do
-          fexpr <- rec defExpr
-          pure def{ defExpr = fexpr, defType = typeOf fexpr }
-
-    Let newBinders <$> rec body
-
-  Case cases branches -> liftA2 Case mcases mbranches
-    where
-      mcases = mapM rec cases
-      mbranches = forM branches $ \(Branch patterns guards) ->
-        Branch patterns <$> forM guards (\(Guard e1 e2) -> liftA2 Guard (rec e1) (rec e2))
-  where
-    rec = rewriteTopDownM f
-
+data VarInfo
+  = InfoNone
+  | InfoArity Int Int               -- #Type parameters, #parameters
+  | InfoExternal [(Target,String)]  -- inline body
+  | InfoReuse Pattern
+  | InfoConField TName Name         -- constructor name, field name
 
 data TName = TName
   { getName :: Name
@@ -727,13 +682,6 @@ defGroupTNames (DefRec defs) = defsTNames defs
 
 defGroupsTNames :: DefGroups -> TNames
 defGroupsTNames group = foldr S.union S.empty (map defGroupTNames group)
-
-data VarInfo
-  = InfoNone
-  | InfoArity Int Int               -- #Type parameters, #parameters
-  | InfoExternal [(Target,String)]  -- inline body
-  | InfoReuse Pattern
-  | InfoConField TName Name         -- constructor name, field name
 
 instance Show VarInfo where
   show info = case info of
@@ -768,56 +716,6 @@ infoIsLocal info
 infoIsRefCounted info
   = infoIsLocal info
 
-data Branch = Branch { branchPatterns :: [Pattern]  -- length = length exprs in the match
-                     , branchGuards   :: [Guard]    -- any number (>= 1) of guarded expressions
-                     }
-
-data Guard  = Guard { guardTest :: Expr  -- boolean
-                    , guardExpr :: Expr  -- body of the branch
-                    }
-
-data Pattern
-  = PatCon{ patConName :: TName,        -- ^ names the constructor with full signature.
-            patConPatterns:: [Pattern], -- ^ sub-patterns. fully materialized to match arity.
-            patConRepr :: ConRepr,      -- ^ representation of ctor in backend.
-            patTypeArgs :: [Type],      -- ^ zipped with patConPatterns
-            patExists :: [TypeVar],     -- ^ closed under existentials here
-            patTypeRes :: Type,         -- ^ result type
-            patConInfo :: ConInfo,      -- ^ other constructor info
-            patConSkip :: Bool         -- ^ skip testing for this constructor (as it should match already)
-          }
-  | PatVar{ patName :: TName,           -- ^ name/type of variable
-            patPattern :: Pattern       -- ^ named sub-pattern
-          }
-  | PatLit{ patLit :: Lit }
-  | PatWild
-
-data Lit =
-    LitInt    Integer
-  | LitFloat  Double
-  | LitChar   Char
-  | LitString String
-  deriving (Eq)
-
-
-
--- | a core expression is total if it cannot cause non-total evaluation
-{-
-isTotal:: Expr -> Bool
-isTotal expr
-  = case expr of
-      Lam _ _ _ -> True
-      Var _ _ -> True
-      TypeLam _ _ -> True
-      TypeApp e _ -> isTotal e
-      Con _ _ -> True
-      Lit _   -> True
-      App (Var v _) _ | getName v == nameReturn || getName v == nameTrace || getName v ==nameLog -> False
-      App f args -> case typeOf f of
-                      TFun pars eff res -> (length args == length pars && eff == typeTotal && all isTotal args)
-                      _                 -> False
-      _       -> False  -- todo: a let or case could be total
--}
 
 -- | a core expression that cannot cause any evaluation _for sure_
 -- For now, does not consider the effect type 
@@ -942,39 +840,99 @@ getParamArityExpr :: Expr -> Int
 getParamArityExpr expr
   = snd (getTypeArities (typeOf expr))
 
-{-
-getTypeArityExpr :: Expr -> Int
-getTypeArityExpr expr
-  = case expr of
-      Var _ (InfoArity m n) -> m
-      Var tname _           -> fst (getTypeArities (tnameType tname))
-      Con tname _           -> fst (getTypeArities (tnameType tname))
-      TypeApp e targs       -> getTypeArityExpr e - length targs
-      TypeLam pars _        -> length pars
-      Case _ (Branch _ (Guard _ e:_):_) -> getTypeArityExpr e
-      _ -> 0
-
--- fun foo(x:int){ fun bar(y){ x + y }; [1,2].map(bar) }
-
-getParamArityExpr :: Expr -> Int
-getParamArityExpr expr
-  = case expr of
-    Var _ (InfoArity m n) -> n
-    Var tname _           -> snd (getTypeArities (tnameType tname))
-    Con tname _           -> snd (getTypeArities (tnameType tname))
-    Lam pars _ _          -> length pars
-    App f args            -> getParamArityExpr f - length args
-    TypeLam _ e           -> getParamArityExpr e
-    TypeApp e _           -> getParamArityExpr e
-    Case _ (Branch _ (Guard _ e:_):_) -> getParamArityExpr e
-    _ -> 0
--}
-
 getEffExpr :: Expr -> Effect
 getEffExpr (Lam _ eff _) = eff
 getEffExpr (TypeLam _ (Lam _ eff _)) = eff
 getEffExpr _ = effectEmpty
 
+
+---------------------------------------------------------------------------
+-- Generic Traversals
+---------------------------------------------------------------------------
+
+
+foldMapExpr :: Monoid a => (Expr -> a) -> Expr -> a
+foldMapExpr acc e = case e of
+  Lam _ _ body -> acc e <> foldMapExpr acc body
+  Var _ _ -> acc e
+  App f xs -> acc e <> acc f <> mconcat (foldMapExpr acc <$> xs)
+  TypeLam _ body -> acc e <> foldMapExpr acc body
+  TypeApp expr _ -> acc e <> foldMapExpr acc expr
+  Con _ _ -> acc e
+  Lit _ -> acc e
+  Let binders body -> acc e <> mconcat [foldMapExpr acc (defExpr def) | def <- flattenDefGroups binders] <> foldMapExpr acc body
+  Case cases branches -> acc e <> mconcat (foldMapExpr acc <$> cases) <>
+    mconcat [foldMapExpr acc e | branch <- branches, guard <- branchGuards branch, e <- [guardTest guard, guardExpr guard]]
+
+anySubExpr :: (Expr -> Bool) -> Expr -> Bool
+anySubExpr f = getAny . foldMapExpr (Any . f)
+
+foldExpr :: (Expr -> a -> a) -> a -> Expr -> a
+foldExpr f z e = appEndo (foldMapExpr (Endo . f) e) z
+
+rewriteBottomUp :: (Expr -> Expr) -> Expr -> Expr
+rewriteBottomUp f = runIdentity . rewriteBottomUpM (Identity . f)
+
+rewriteBottomUpM :: (Monad m) => (Expr -> m Expr) -> Expr -> m Expr
+rewriteBottomUpM f e = f =<< case e of
+  Lam params eff body -> Lam params eff <$> rec body
+  Var _ _ -> pure e
+  App fun xs -> liftA2 App (rec fun) (mapM rec xs)
+  TypeLam types body -> TypeLam types <$> rec body
+  TypeApp expr types -> (\fexpr -> TypeApp fexpr types) <$> rec expr
+  Con _ _ -> pure e
+  Lit _ -> pure e
+  Let binders body -> do
+    newBinders <- forM binders $ \binder ->
+      case binder of
+        DefNonRec def@Def{defExpr = defExpr} -> do
+          fexpr <- rec defExpr
+          pure $ DefNonRec def { defExpr = fexpr, defType = typeOf fexpr }
+        DefRec defs -> fmap DefRec $ forM defs $ \def@Def{defExpr = defExpr} -> do
+          fexpr <- rec defExpr
+          pure def{ defExpr = fexpr, defType = typeOf fexpr }
+
+    Let newBinders <$> rec body
+
+  Case cases branches -> liftA2 Case mcases mbranches
+    where
+      mcases = mapM rec cases
+      mbranches = forM branches $ \(Branch patterns guards) ->
+        Branch patterns <$> forM guards (\(Guard e1 e2) -> liftA2 Guard (rec e1) (rec e2))
+  where
+    rec = rewriteBottomUpM f
+
+rewriteTopDown :: (Expr -> Expr) -> Expr -> Expr
+rewriteTopDown f = runIdentity . rewriteTopDownM (Identity . f)
+
+rewriteTopDownM :: (Monad m) => (Expr -> m Expr) -> Expr -> m Expr
+rewriteTopDownM f e = f e >>= \e -> case e of
+  Lam params eff body -> Lam params eff <$> rec body
+  Var _ _ -> pure e
+  App fun xs -> liftA2 App (rec fun) (mapM rec xs)
+  TypeLam types body -> TypeLam types <$> rec body
+  TypeApp expr types -> (\fexpr -> TypeApp fexpr types) <$> rec expr
+  Con _ _ -> pure e
+  Lit _ -> pure e
+  Let binders body -> do
+    newBinders <- forM binders $ \binder ->
+      case binder of
+        DefNonRec def@Def{defExpr = defExpr} -> do
+          fexpr <- rec defExpr
+          pure $ DefNonRec def { defExpr = fexpr, defType = typeOf fexpr }
+        DefRec defs -> fmap DefRec $ forM defs $ \def@Def{defExpr = defExpr} -> do
+          fexpr <- rec defExpr
+          pure def{ defExpr = fexpr, defType = typeOf fexpr }
+
+    Let newBinders <$> rec body
+
+  Case cases branches -> liftA2 Case mcases mbranches
+    where
+      mcases = mapM rec cases
+      mbranches = forM branches $ \(Branch patterns guards) ->
+        Branch patterns <$> forM guards (\(Guard e1 e2) -> liftA2 Guard (rec e1) (rec e2))
+  where
+    rec = rewriteTopDownM f
 
 {--------------------------------------------------------------------------
   Type variables inside core expressions

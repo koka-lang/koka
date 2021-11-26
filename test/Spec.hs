@@ -100,8 +100,9 @@ testSanitize kokaDir
   . sub "(\\.m?)lift[[:digit:]]+" "\\1lift000"
   . sub "(^[[:alnum:]]+\\/.+:.*) [[:alpha:]]+[[:digit:]]+\\.[[:digit:]]+ :" "\\1 a00.000 :"
   -- . sub ": [[:digit:]]+([,\\)])" ": 0\\1"
-  . if null kokaDir then id else replace kokaDir "..."
+  . if null kokaDir then id else replace xkokaDir "..."
   where 
+    xkokaDir = map (\c -> if c == '\\' then '/' else c) kokaDir
     sub re = flip (subRegex (mkRegex re))
     -- limitTo n s | length s > n = take n s ++ "... (and more)"
     --             | otherwise    = s

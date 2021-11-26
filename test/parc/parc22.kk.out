@@ -16,9 +16,7 @@ public fun .copy : (.this : parc/parc22/hello, i : optional<int>) -> parc/parc22
  = fn(.this: parc/parc22/hello, i0: optional<int>){
  parc/parc22/World((match (i0) {
  (std/core/types/Optional(((.skip std/core/types/.Box((.i: int)) : .Box ) as .box: .Box)) : optional<int> )
- -> std/core/types/.dup(.i);
- std/core/types/.drop(i0);
- std/core/types/.drop(.this, (std/core/int32(1)));
+ -> std/core/types/.drop(.this, (std/core/int32(1)));
  .i;
  (.skip std/core/types/None() : (optional<int>) )
  -> (match (.this) {

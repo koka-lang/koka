@@ -1,1 +1,8 @@
-fail
+cgen/specialize/fold1/.lift000-main: (xs : list<int>, z : int) -> <console,exn> int
+cgen/specialize/fold1/.mlift000-op: (xx : list<int>, int) -> <console,exn> int
+cgen/specialize/fold1/.mlift000-main: (int) -> ()
+cgen/specialize/fold1/.mlift000-main: (int) -> <console,exn> ()
+cgen/specialize/fold1/.mlift000-main: (int) -> <console,exn> ()
+cgen/specialize/fold1/bar: forall<e> (f : (int, int) -> <exn|e> int) -> <exn|e> int
+cgen/specialize/fold1/foo: forall<e> (f : (int, int) -> e int) -> e int
+cgen/specialize/fold1/main: () -> <console,exn> ()
