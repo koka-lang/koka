@@ -99,7 +99,7 @@ effect yield<a>
   fun yield( x : a ) : ()
 
 // Traverse a list and yield the elements
-fun traverse( xs : list<int> ) : yield<int> () 
+fun traverse( xs : list<a> ) : yield<a> () 
   match xs
     Cons(x,xx) -> { yield(x); traverse(xx) }
     Nil        -> ()
