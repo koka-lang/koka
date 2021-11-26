@@ -40,6 +40,7 @@ module Common.File(
                   , copyBinaryFile, copyBinaryIfNewer
                   , removeFileIfExists
                   , realPath
+                  , doesFileExistAndNotEmpty
                   ) where
 
 import Data.List        ( intersperse )
@@ -259,10 +260,18 @@ maxFileTimes :: [FileTime] -> FileTime
 maxFileTimes times
   = foldr maxFileTime fileTime0 times
 
+doesFileExistAndNotEmpty :: FilePath -> IO Bool
+doesFileExistAndNotEmpty fpath
+  = do mbContent <- readTextFile fpath
+       case mbContent of
+         Nothing      -> return False
+         Just content -> return (not (null content))
+
+
 readTextFile :: FilePath -> IO (Maybe String)
 readTextFile fpath
   = B.exCatch (do content <- readFile fpath
-                  return (seq (last content) $ Just content))
+                  return (if null content then Just content else (seq (last content) $ Just content)))
               (\exn -> return Nothing)
 
 writeTextFile :: FilePath -> String -> IO ()

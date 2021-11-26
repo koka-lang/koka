@@ -715,7 +715,7 @@ searchPackageIface flags currentDir mbPackage name
           -> searchPackages (packages flags) currentDir "" postfix
          Just ""
           -> do let reliface = joinPath {- currentDir -} (fullBuildDir flags) postfix  -- TODO: should be currentDir?
-                exist <- doesFileExist reliface
+                exist <- doesFileExistAndNotEmpty reliface
                 if exist then return (Just reliface)
                  else trace ("no iface at: " ++ reliface) $ return Nothing
          Just package
@@ -726,7 +726,7 @@ searchOutputIface :: Flags -> Name -> IO (Maybe FilePath)
 searchOutputIface flags name
   = do let postfix = showModName name ++ ifaceExtension -- map (\c -> if c == '.' then '_' else c) (show name)
            iface = joinPath (fullBuildDir flags) postfix
-       exist <- doesFileExist iface
+       exist <- doesFileExistAndNotEmpty iface
        -- trace ("search output iface: " ++ show name ++ ": " ++ iface ++ " (" ++ (if exist then "found" else "not found" ) ++ ")") $ return ()
        if exist then return (Just iface)
          else do let libIface = joinPaths [localLibDir flags, buildVariant flags, postfix]
