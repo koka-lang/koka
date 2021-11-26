@@ -9,6 +9,6 @@
 2
 1
  
-cgen/specialize/while/.lift150-countdown: forall<h> (n : local-var<h,int>) -> <div,local<h>,console> ()
+cgen/specialize/while/.lift000-countdown: forall<h> (n : local-var<h,int>) -> <div,local<h>,console> ()
 cgen/specialize/while/countdown: (n_ : int) -> <console,div> ()
 cgen/specialize/while/main: () -> <console,div> ()

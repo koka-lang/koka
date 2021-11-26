@@ -5,5 +5,3 @@ cgen/specialize/localdef/.lift000-main: (low : int, high : int, acc : list<strin
 cgen/specialize/localdef/.mlift000-op: forall<a,e> (acc : list<a>, f : (int) -> e a, a00.000 : int, low : int, a) -> e list<a>
 cgen/specialize/localdef/li: forall<a,e> (lo : int, hi : int, f : (int) -> e a) -> e list<a>
 cgen/specialize/localdef/main: () -> console ()
-
-No specialization happens here, since enumerate is a local definition, not a top-level one

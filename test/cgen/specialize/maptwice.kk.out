@@ -1,1 +1,10 @@
-outer map specializes but inner map does not
+2
+add default effect for std/core/exn
+ 
+cgen/specialize/maptwice/.hmain: () -> console ()
+cgen/specialize/maptwice/.lift000-maptwice: (f : (int) -> int, xs : list<list<int>>) -> total list<list<int>>
+cgen/specialize/maptwice/.lift000-main: (f : (int) -> int, xs : list<list<int>>) -> total list<list<int>>
+cgen/specialize/maptwice/.mlift000-main: (int) -> ()
+cgen/specialize/maptwice/.mlift000-main: (list<int>) -> ()
+cgen/specialize/maptwice/main: () -> <console,exn> ()
+cgen/specialize/maptwice/maptwice: (f : (int) -> int) -> total list<list<int>>
