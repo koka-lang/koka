@@ -6,7 +6,7 @@
 # - util/minbuild
 
 name:       koka
-version:    2.3.4     
+version:    2.3.5     
 github:     "koka-lang/koka"
 license:    Apache-2.0
 author:     Daan Leijen
@@ -53,7 +53,7 @@ executables:
     cpp-options:
       - -DKOKA_MAIN="koka"      
       - -DKOKA_VARIANT="release"
-      - -DKOKA_VERSION="2.3.4"
+      - -DKOKA_VERSION="2.3.5"
       - -DREADLINE=0   # 1:getline, 2:readline, 3:haskeline, or 0:isocline
     when:
       - condition: os(windows)
