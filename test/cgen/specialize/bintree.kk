@@ -2,7 +2,6 @@ type tree<a> {  Bin( left: tree<a>, right : tree<a> ); Leaf( elems : list<a> ) }
 
 fun mapTree(tree : tree<a>, f : a -> b)  : _ tree<b> {
     match (tree) {
-        // mapTree gets specialized, but this call to map does not
         Leaf(xs) -> Leaf(xs.map(f))
         Bin(left, right) -> Bin(mapTree(left, f), mapTree(right, f))
     }

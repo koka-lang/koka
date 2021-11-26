@@ -12,3 +12,6 @@ cgen/specialize/fold1/.mlift000-main: (int) -> <console,exn> ()
 cgen/specialize/fold1/bar: forall<e> (f : (int, int) -> <exn|e> int) -> <exn|e> int
 cgen/specialize/fold1/foo: forall<e> (f : (int, int) -> e int) -> e int
 cgen/specialize/fold1/main: () -> <console,exn> ()
+
+bar((+)).show.println does not specialize
+foo((+)).show.println does not specialize if bar((+)).show.println is also called within main

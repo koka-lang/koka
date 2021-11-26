@@ -6,3 +6,4 @@ cgen/specialize/fold2/.mlift000-op: forall<a,e,b> (f : (b, a) -> e a, xx : list<
 cgen/specialize/fold2/main: () -> console ()
 cgen/specialize/fold2/xfoldl: forall<a,b,e> (list<a>, b, (b, a) -> e b) -> e b
 cgen/specialize/fold2/xfoldr: forall<a,b,e> (xs : list<a>, z : b, f : (a, b) -> e b) -> e b
+Call to foldr doesn't specialize

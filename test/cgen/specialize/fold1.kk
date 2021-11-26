@@ -9,9 +9,8 @@ fun bar(f) {
 fun main() {
   // specializes
   list(1,10).foldl(0, (+)).show.println
-  // does not specialize
-  // seems like simplifyDupN does not inline the definition of (+) here
-  // i.e. + is a Var, not a lambda
+  // this seems to specialize if the next call to bar is commented
   foo((+)).show.println
+  // does not specialize; check if fold1 is specializable
   bar((+)).show.println
 }
