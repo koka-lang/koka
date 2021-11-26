@@ -659,7 +659,7 @@ genDupDrop isDup tname mbConRepr mbScanCount
        mbDi     <- getDataInfo tp
        borrowed <- isBorrowed tname
        -- parcTrace $ "gen dup/drop: " ++ (if (isDup) then "dup" else "drop") ++ " " ++ show tname ++ ": " ++ 
-       --            show (mbDi,mbConRepr,mbScanCount,borrowed)
+       --             show (mbDi,mbConRepr,mbScanCount,borrowed)
        if borrowed && not isDup
          then do -- parcTrace $ "  borrowed and drop, " ++ show tname
                  return Nothing
@@ -857,6 +857,7 @@ isOwned :: TName -> Parc Bool
 isOwned tn = S.member tn <$> getOwned
 
 isBorrowed :: TName -> Parc Bool
+isBorrowed tn | nameIsNil (getName tn) = return False
 isBorrowed tn = not <$> isOwned tn
 
 withOwned :: Owned -> Parc a -> Parc a
