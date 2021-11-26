@@ -38,7 +38,7 @@ public fun check-prec( name : string, expect : ddouble, res : ddouble, eps : ddo
   if (expect.is-finite) then {
     val delta  = (res - expect).abs
     if (delta < eps) then {
-      println(pre ++ "ok: " ++ res.show /* ++ ", dt: " ++ delta.show(6) */ )
+      println(pre ++ "ok: " ++ res.show(-30) /* ++ ", dt: " ++ delta.show(6) */ )
     }
     else {
       val relerr = (delta / expect).abs
