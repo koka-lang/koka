@@ -155,7 +155,7 @@ You can also use `stack build --fast` to build a debug version of the compiler.
 Use `stack test --fast` to run the test-suite.
 
 (See the [build notes](#build-notes) below 
- for building on macOS M1, or if you have issues when running- or installing `stack`).
+ for building on macOS M1 or freeBSD, or if you have issues when running- or installing `stack`).
 
 
 ## Create an Install Bundle
@@ -337,14 +337,9 @@ $ file `which stack`
 
 If this is not the case, you can still build an x64 Koka but need to add the options
 `--ccopts="-arch arm64" --cclinkopts="-arch arm64"` to cross compile to arm64 executables 
-(since the `clang` compiler targets by default the architecture that its [host process uses][m1arch]!).
+(since the `clang` compiler targets by default the architecture that its [host process uses][m1arch]).
 
-Moreover, sometimes `stack` segfaults and running it inside `bash` seems to resolve the issue:
-```
-$ bash
-bash$ stack update
-```
-
+Moreover, sometimes `stack` segfaults but running it inside `bash` seems to resolve the issue.
 Also, we need to tell stack to use the system installed ghc and skip the version check as
 it can currently not install GHC for arm64 yet:
 ```
@@ -361,7 +356,7 @@ bash:~/koka$ stack --system-ghc --skip-ghc-check exec koka -- -e util/bundle -- 
 
 ## Building with Cabal 
 
-Some platforms, like Linux arm64, do not 
+Some platforms (like Linux arm64 and freeBSD) do not 
 always support `stack` well. In these cases we can also
 use `ghc` and `cabal` directly. Install these packages as:
 ```
@@ -372,11 +367,11 @@ On macOS (x64 and arm64) we use `brew` instead:
 ```
 $ brew install pkg-config ghc cabal-install
 ```
-On freeBSD use `pkg`:
+On FreeBSD, use `pkg`:
 ```
-$ sudo pkg install pkg-config ghc hs-cabal-install
+$ sudo pkg update
+$ sudo pkg install ghc hs-cabal-install   # or: hs-haskell-platform
 ```
-
 Optionally, install `vcpkg` as well. If you
 install this in the `~/vcpkg` directory Koka will find
 it automatically when needed:
