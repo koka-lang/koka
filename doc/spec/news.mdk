@@ -5,6 +5,12 @@ News:
   "_Programming with Effect Handlers and FBIP in Koka_" is now available on 
   [youtube](https://www.youtube.com/watch?v=6OFhD_mHtKA).
 
+* 2021-21-26: Koka v2.3.4 released: 
+  `maybe`-like types are already value types, but now also no longer need heap allocation 
+  if not nested (and `[Just(1)]` uses the same heap space as `[1]`),
+  improved atomic refcounting (by Anton Lorenzen), improved specialization (by Steven Fontanella),
+  various small fixes, fix build on freeBSD  
+
 * 2021-10-15: Koka v2.3.2 released, with initial wasm support 
   (use `--target=wasm`, and install [emscripten] and [wasmtime]), 
   improved reuse specialization (by Anton Lorenzen), and various bug fixes.
@@ -23,11 +29,12 @@ News:
 * 2021-09-05: Koka v2.2.1 released, with initial parallel tasks, the binary-trees benchmark, and
   [brace elision](https://koka-lang.github.io/koka/doc/book.html#sec-layout).
 
-* 2021-08-26: Koka v2.2.0 released, improved simplification (by Rashika B), cross-module specialization (Steven Fontanella), and borrowing annotations with improved reuse analysis (Anton Lorenzen).
+* 2021-08-26: Koka v2.2.0 released, improved simplification (by Rashika B), cross-module specialization (Steven Fontanella),
+  and borrowing annotations with improved reuse analysis (Anton Lorenzen).
 
 * 2021-08-26: At 12:30 EST was the live Koka tutorial at
-[ICFP'21](https://icfp21.sigplan.org/details/icfp-2021-tutorials/5/Programming-with-Effect-Handlers-and-FBIP-in-Koka),
-see it on [youtube](https://www.youtube.com/watch?v=6OFhD_mHtKA).
+  [ICFP'21](https://icfp21.sigplan.org/details/icfp-2021-tutorials/5/Programming-with-Effect-Handlers-and-FBIP-in-Koka),
+  see it on [youtube](https://www.youtube.com/watch?v=6OFhD_mHtKA).
 
 * 2021-08-23: "_Generalized Evidence Passing for Effect Handlers_", by Ningning Xie and Daan Leijen presented at ICFP'21.
   See it on [youtube](https://www.youtube.com/watch?v=yAT0qYlD0UM&list=PLyrlk8Xaylp5ed_Yhg2oTdVhrtVohVaoa&index=40)

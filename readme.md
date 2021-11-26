@@ -10,7 +10,7 @@
 # Koka: a Functional Language with Effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
-_Latest release_: v2.3.2, 2021-10-15 ([Install]).
+_Latest release_: v2.3.2, 2021-11-26 ([Install]).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -80,6 +80,10 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 ## Recent Releases
 
+- `v2.3.4`, 2021-21-26: `maybe`-like types are already value types, but now also no longer need heap allocation 
+  if not nested (and `[Just(1)]` uses the same heap space as `[1]`),
+  improved atomic refcounting (by Anton Lorenzen), improved specialization (by Steven Fontanella),
+  various small fixes, fix build on freeBSD.
 - `v2.3.2`, 2021-10-15: initial wasm support (use `--target=wasm`, and install [emscripten] and [wasmtime]), 
   improved reuse specialization (by Anton Lorenzen),
   fix default color scheme for non-dark shells (#190), stack-less free and marking, add `--stack` option, 
@@ -367,6 +371,10 @@ $ sudo apt install ghc cabal-install
 On macOS (x64 and arm64) we use `brew` instead:
 ```
 $ brew install pkg-config ghc cabal-install
+```
+On freeBSD use `pkg`:
+```
+$ sudo pkg install pkg-config ghc hs-cabal-install
 ```
 
 Optionally, install `vcpkg` as well. If you
