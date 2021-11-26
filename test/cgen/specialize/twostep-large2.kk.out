@@ -1,3 +1,6 @@
+65000
+65000
+ 
 cgen/specialize/twostep-large2/.lift000-repeatN: forall<e,a> (f : () -> e a, lo : int, hi : int) -> e list<a>
 cgen/specialize/twostep-large2/.lift000-a: forall<e,a> (f : () -> e a, lo : int, hi : int) -> e list<a>
 cgen/specialize/twostep-large2/.lift000-large: (f : (int) -> total int, lo : int, hi : int) -> total list<list<list<int>>>

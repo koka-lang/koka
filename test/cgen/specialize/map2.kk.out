@@ -1,3 +1,5 @@
+[3,4,5]
+ 
 cgen/specialize/map2/.lift000-test: (y : int, xs : list<int>) -> list<int>
 cgen/specialize/map2/.lift000-main: (xs : list<int>) -> list<int>
 cgen/specialize/map2/main: () -> console ()

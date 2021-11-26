@@ -1,3 +1,5 @@
+[2,3,4]
+ 
 cgen/specialize/map-alias/.lift000-main: (xs : list<int>) -> console list<int>
 cgen/specialize/map-alias/main: () -> console ()
 cgen/specialize/map-alias/map2: forall<a,b,e> (xs : list<a>, f : (a) -> e b) -> e list<b>

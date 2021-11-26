@@ -1,3 +1,5 @@
+[6,7,8,9,10,11,12,13,14,15]
+ 
 cgen/specialize/map3/.lift000-test: (y : int, xs0 : list<int>) -> list<int>
 cgen/specialize/map3/.lift000-main: (xs : list<int>) -> list<int>
 cgen/specialize/map3/.mlift000-map-poly: forall<a,e> (a, list<a>) -> e list<a>

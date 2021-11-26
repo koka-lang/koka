@@ -1,3 +1,5 @@
+Tree(2, [Tree(3, []), Tree(4, [])])
+ 
 cgen/specialize/tree-list/.copy: forall<a> (tree<a>, data : optional<a>, children : optional<list<tree<a>>>) -> tree<a>
 cgen/specialize/tree-list/.lift000-mapT: forall<a,b,e> (f : (a) -> <div|e> b, xs : list<tree<a>>) -> <div|e> list<tree<b>>
 cgen/specialize/tree-list/.lift000-show: (xs : list<tree<int>>) -> div list<string>

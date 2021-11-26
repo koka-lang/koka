@@ -1,3 +1,9 @@
+55
+55
+55
+add default effect for std/core/exn
+ 
+cgen/specialize/fold1/.hmain: () -> console ()
 cgen/specialize/fold1/.lift000-main: (xs : list<int>, z : int) -> <console,exn> int
 cgen/specialize/fold1/.mlift000-op: (xx : list<int>, int) -> <console,exn> int
 cgen/specialize/fold1/.mlift000-main: (int) -> ()

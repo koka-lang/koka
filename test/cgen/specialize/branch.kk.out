@@ -1,3 +1,8 @@
+2
+1
+2
+5
+ 
 cgen/specialize/branch/.lift000-main: (xs : list<int>) -> console ()
 cgen/specialize/branch/.lift000-main: forall<_e> (xs0 : list<int>) -> list<int>
 cgen/specialize/branch/main: () -> console ()
