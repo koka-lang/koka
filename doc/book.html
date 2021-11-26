@@ -1168,7 +1168,7 @@
 <div class="titleblock align-center para-block" style="text-align:center;line-adjust:0">
 <div class="titleheader align-center" style="text-align:center;line-adjust:0">
 <div class="title para-block" style="font-weight:bold;margin-bottom:0.5ex;font-size:xxx-large;line-adjust:0">The Koka Programming Language</div>
-<div class="titlenote para-block" style="line-adjust:0"><span style="font-size:75%">(Daan Leijen, 2021-10-16)</span></div></div></div></div>
+<div class="titlenote para-block" style="line-adjust:0"><span style="font-size:75%">(Daan Leijen, 2021-11-26)</span></div></div></div></div>
 <div class="flexbody">
 
 <div class="sidepanel">
@@ -1308,6 +1308,13 @@ libraries, package management, and deep IDE integration.
 <a href="https://www.youtube.com/watch?v=6OFhD_mHtKA">youtube</a>.
 </p></li>
 <li class="li ul-li list-star-li news-items-li loose-li" style="margin-bottom:1ex">
+<p>2021-21-26: Koka v2.3.4 released: 
+<code class="code code1 language-koka lang-koka koka colorized">maybe</code>-like types are already value types, but now also no longer need heap allocation 
+if not nested (and <code class="code code1 language-koka lang-koka koka colorized">[<span style="color:purple">Just</span>(<span class="constant" style="color:purple">1</span>)]</code> uses the same heap space as <code class="code code1 language-koka lang-koka koka colorized">[<span class="constant" style="color:purple">1</span>]</code>),
+improved atomic refcounting (by Anton Lorenzen), improved specialization (by Steven Fontanella),
+various small fixes, fix build on freeBSD  
+</p></li>
+<li class="li ul-li list-star-li news-items-li loose-li" style="margin-bottom:1ex">
 <p>2021-10-15: Koka v2.3.2 released, with initial wasm support 
 (use <code class="code code1 language-koka lang-koka koka colorized">--target<span style="color:blue">=</span>wasm</code>, and install&nbsp;<a href="https://emscripten.org/docs/getting_started/downloads.html" data-linkid="emscripten">emscripten</a> and&nbsp;<a href="https://wasmtime.dev/" data-linkid="wasmtime">wasmtime</a>), 
 improved reuse specialization (by Anton Lorenzen), and various bug fixes.
@@ -1330,7 +1337,8 @@ using ES6 modules and BigInt. new <code class="code code1 language-koka lang-kok
 <a href="https://koka-lang.github.io/koka/doc/book.html#sec-layout">brace elision</a>.
 </p></li>
 <li class="li ul-li list-star-li news-items-li loose-li" style="margin-bottom:1ex">
-<p>2021-08-26: Koka v2.2.0 released, improved simplification (by Rashika B), cross-module specialization (Steven Fontanella), and borrowing annotations with improved reuse analysis (Anton Lorenzen).
+<p>2021-08-26: Koka v2.2.0 released, improved simplification (by Rashika B), cross-module specialization (Steven Fontanella),
+and borrowing annotations with improved reuse analysis (Anton Lorenzen).
 </p></li>
 <li class="li ul-li list-star-li news-items-li loose-li" style="margin-bottom:1ex">
 <p>2021-08-26: At 12:30 EST was the live Koka tutorial at
@@ -3242,10 +3250,10 @@ run-time if the handler happens to define the operation as tail-resumptive.
 <div class="advanced" style="border-left:1px solid #AAA;padding:0em 0em 0em 1em;margin:1em 0em">
 <p class="p noindent"><span class="boxed-label" style="margin:0em 0em 0em -1em;display:block;font-size:70%;color:#999">advanced</span>For even better performance, one can mark the effect as <em class="em-low1">linear</em> (Section&nbsp;<a href="#sec-linear" title="3.4.12.&#8194;Linear Effects" class="localref" style="target-element:h3"><span class="heading-label">3.4.12</span></a>).
 Such effects are statically guaranteed to never use a general control operation and 
-never need to capture a resumption. This removes the need for the monadic transformation
+never need to capture a resumption. During compilation, this removes the need for the monadic transformation
 and improves performance of any effect polymorphic function that uses such effects as well
-(like <code class="koka">map</code> or <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#foldr">foldr<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>foldr: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">b</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">xs</span> <span class="tp kw op">:</span> <span class="tp">list</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">&#62;</span><span class="tp sp">,</span> <span class="tp tpp">z</span> <span class="tp kw op">:</span> <span class="tp tv">b</span><span class="tp sp">,</span> <span class="tp tpp">f</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp tv">a</span><span class="tp sp">,</span> <span class="tp tv">b</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp tv">b</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp tv">b</span></span></a></code>). Examples of linear effects are state (<code class="koka">st</code>) and builtin effects
-(like <code class="koka">io</code> or <code class="koka">console</code>).</p></div><h4 id="sec-opval" class="h4" data-heading-depth="4" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Value Operations</h4>
+(like <code class="koka">map</code> or <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#foldr">foldr<span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>foldr: <span class="tp kw">forall</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">,</span><span class="tp tv">b</span><span class="tp sp">,</span><span class="tp tv">e</span><span class="tp sp">&#62;</span> <span class="tp sp">(</span><span class="tp tpp">xs</span> <span class="tp kw op">:</span> <span class="tp">list</span><span class="tp sp">&#60;</span><span class="tp tv">a</span><span class="tp sp">&#62;</span><span class="tp sp">,</span> <span class="tp tpp">z</span> <span class="tp kw op">:</span> <span class="tp tv">b</span><span class="tp sp">,</span> <span class="tp tpp">f</span> <span class="tp kw op">:</span> <span class="tp sp">(</span><span class="tp tv">a</span><span class="tp sp">,</span> <span class="tp tv">b</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp tv">b</span><span class="tp sp">)</span> <span class="tp kw op">-&gt;</span> <span class="tp tv">e</span> <span class="tp tv">b</span></span></a></code>). Examples of linear effects are state (<code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core_types.html#type_space_st"><span class="tp">st</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash">/</span>types<span class="fslash last">/</span></span>st: <span class="co">H</span> <span class="kw op">-&gt;</span> <span class="co">E</span></span></a></code>) and builtin effects
+(like <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_io"><span class="tp">io</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>io: <span class="co">E</span></span></a></code> or <code class="koka"><a class="pp" href="https://koka-lang.github.io/koka/doc/std_core.html#type_space_console"><span class="tp">console</span><span class="pc"><span class="mo">std<span class="fslash">/</span>core<span class="fslash last">/</span></span>console: <span class="co">X</span></span></a></code>).</p></div><h4 id="sec-opval" class="h4" data-heading-depth="4" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif">Value Operations</h4>
 <p class="p noindent">A common subset of operations always tail-resume with a single value; these are
 essentially dynamically bound variables (but statically typed!). Such operations
 can be declared as a <code class="koka"><span class="kw">val</span></code> with the following translation:
@@ -4343,7 +4351,7 @@ case where the input tree is shared, or where parts of the input tree are
 shared, making a single copy of those parts of the tree.
 </p>
 <p class="p learn button indent"><a href="https://www.microsoft.com/en-us/research/publication/perceus-garbage-free-reference-counting-with-reuse/" data-linkid="perceus">Read the Perceus technical report</a></p><h1 id="sec-koka-language-specification" class="h1" data-heading-depth="1" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-koka-language-specification" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">4</span>.&#8194;</span>Koka language specification</h1>
-<p class="p noindent">This is the draft language specification of the Koka language, version v2.3.3<br>
+<p class="p noindent">This is the draft language specification of the Koka language, version v2.3.4<br>
 Currently only the lexical and context-free grammar are specified.
 The&nbsp;<a href="toc.html" data-linkid="stdlib">standard libraries</a> are documented separately.
 </p><h2 id="sec-lexical-syntax" class="h2" data-heading-depth="2" style="display:block;font-family:&#39;Nunito&#39;, &#39;Segoe UI&#39;, sans-serif"><a href="#sec-lexical-syntax" class="entity-anchor fa fa-link localref"></a><span class="heading-before"><span class="heading-label">4.1</span>.&#8194;</span>Lexical syntax</h2>
