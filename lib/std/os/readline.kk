@@ -13,7 +13,7 @@ module std/os/readline
 
 extern import
   c file "readline-inline.c"
-  js file "readline-inline.js"
+  js file "readline-inline.js" 
 
 
 // Read a line of input synchronously from stdin (using UTF8 encoding).
