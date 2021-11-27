@@ -9,6 +9,7 @@ in the `std/toc` module.
 -----------------------------------------------------------------------------*/
 import toc
 import std/text/regex
+import std/os/readline
 
 fun main() : console () 
   println("done.")

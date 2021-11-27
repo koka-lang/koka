@@ -13,10 +13,11 @@ module std/os/readline
 
 extern import
   c file "readline-inline.c"
+  js file "readline-inline.js"
 
 
 // Read a line of input synchronously from stdin (using UTF8 encoding).
-// Read chararacters until either a newline is encountered (not included in the string),
+// Read chararacters until either a newline is encountered (not included in the result),
 // or 1023 characters have been read.
 public fun readline() : <console,exn> string
   match readline-err() 
@@ -30,3 +31,4 @@ private fun prepend( exn : exception, pre : string ) : exception
 
 extern readline-err() : console error<string>
   c "kk_os_read_line_error"  
+  js "sync_readline_err"
