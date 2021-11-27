@@ -10,7 +10,7 @@
 # Koka: a Functional Language with Effects
 
 _Koka v2 is a research language that currently under heavy development with the new C backend_  
-_Latest release_: v2.3.4, 2021-11-26 ([Install]).
+_Latest release_: v2.3.6, 2021-11-26 ([Install]).
 
 <a href="https://koka-lang.github.io/koka/doc/book.html#why-handlers"><img align="right" width="300" src="doc/snippet-yield.png" /></a>
 
@@ -80,7 +80,8 @@ and all previous interns working on earlier versions of Koka: Daniel Hillerströ
 
 ## Recent Releases
 
-- `v2.3.4`, 2021-21-26: `maybe`-like types are already value types, but now also no longer need heap allocation 
+- `v2.3.6`, 2021-11-26: fix specialization bug, add `std/os/readline` module.
+- `v2.3.4`, 2021-11-26: `maybe`-like types are already value types, but now also no longer need heap allocation 
   if not nested (and `[Just(1)]` uses the same heap space as `[1]`),
   improved atomic refcounting (by Anton Lorenzen), improved specialization (by Steven Fontanella),
   various small fixes, fix build on freeBSD.

@@ -4,7 +4,7 @@
 # Installation script for Koka; use -h to see command line options.
 #-----------------------------------------------------------------------------
 
-VERSION="v2.3.4"        
+VERSION="v2.3.6"        
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
@@ -20,9 +20,9 @@ KOKA_TEMP_DIR=""        # empty creates one dynamically
 adjust_version() {  # <osarch>
   case "$1" in
     linux-arm64)
-      VERSION="v2.3.4";;
+      VERSION="v2.3.6";;
     unix-freebsd-x64)
-      VERSION="v2.3.4";;
+      VERSION="v2.3.6";;
   esac    
 }
 

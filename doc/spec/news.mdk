@@ -5,11 +5,11 @@ News:
   "_Programming with Effect Handlers and FBIP in Koka_" is now available on 
   [youtube](https://www.youtube.com/watch?v=6OFhD_mHtKA).
 
-* 2021-11-26: Koka v2.3.4 released: 
+* 2021-11-26: Koka v2.3.6 released: 
   `maybe`-like types are already value types, but now also no longer need heap allocation 
   if not nested (and `[Just(1)]` uses the same heap space as `[1]`),
   improved atomic refcounting (by Anton Lorenzen), improved specialization (by Steven Fontanella),
-  various small fixes, fix build on freeBSD  
+  various small fixes, add `std/os/readline`, fix build on freeBSD  
 
 * 2021-10-15: Koka v2.3.2 released, with initial wasm support 
   (use `--target=wasm`, and install [emscripten] and [wasmtime]), 
