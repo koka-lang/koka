@@ -233,20 +233,25 @@ specInnerCalls from to isSpecParam specParamNames expr
     arityTo  = length $ filter id (map not isSpecParam)
     varTo    = Var to (InfoArity 0 arityTo)
 
+    
     matchSpecParamNames args
       = (length args == length specParamNames) &&
         all eqVar (zip specParamNames args)
    
     eqVar (name,Var v _)  = name == v
-    eqVar _               = False
+    eqVar (name,arg)      = trace ("specialize: specInnerCalls: argument does not match: " ++ show name ++ " as " ++ show arg) $
+                            False
+
+    sicAppTo args
+      = App varTo (map sicExpr (filterBools (map not isSpecParam) args))
 
     sicExpr expr 
       = case expr of    
           -- rewrite recursive calls
           App (Var v info) args  | v == from && matchSpecParamNames (filterBools isSpecParam args)
-            -> App varTo (filterBools (map not isSpecParam) args)
+            -> sicAppTo args
           App (TypeApp (Var v info) targs) args  | v == from && matchSpecParamNames (filterBools isSpecParam args)
-            -> App varTo (filterBools (map not isSpecParam) args)  -- always monomorph
+            -> sicAppTo args  -- always monomorph
 
           -- visitor
           Lam params eff body 
