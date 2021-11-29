@@ -847,26 +847,25 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                   _ -- Value or auto, and not recursive
                     -> -- determine the raw fields and total size
                        do platform <- getPlatform                          
-                          if (not (hasValueTypes platform)) then return DataDefNormal 
-                            else do dd <- toDefValues platform (ddef/=DataDefAuto) qname nameDoc infos
-                                    case (ddef,dd) of  -- note: m = raw, n = scan
-                                      (DataDefValue _ _, DataDefValue m n)
-                                        -> if (hasKindStarResult (getKind typeResult))
-                                            then return (DataDefValue m n)
-                                            else do addError range (text "Type" <+> nameDoc <+> text "is declared as a value type but does not have a value kind ('V').")  -- should never happen?
-                                                    return DataDefNormal
-                                      (DataDefValue _ _, DataDefNormal)
-                                        -> do addError range (text "Type" <+> nameDoc <+> text "cannot be used as a value type.")  -- should never happen?
-                                              return DataDefNormal
-                                      (DataDefAuto, DataDefValue m n)
-                                        -> if ((m + (n*sizePtr platform)) <= 3*(sizePtr platform)
-                                                && hasKindStarResult (getKind typeResult)
-                                                && (sort /= Retractive))
-                                            then -- trace ("default to value: " ++ show name ++ ": " ++ show (m,n)) $
-                                                return (DataDefValue m n)
-                                            else -- trace ("default to reference: " ++ show name ++ ": " ++ show (m,n)) $
-                                                return (DataDefNormal)
-                                      _ -> return DataDefNormal
+                          dd <- toDefValues platform (ddef/=DataDefAuto) qname nameDoc infos
+                          case (ddef,dd) of  -- note: m = raw, n = scan
+                            (DataDefValue _ _, DataDefValue m n)
+                              -> if (hasKindStarResult (getKind typeResult))
+                                  then return (DataDefValue m n)
+                                  else do addError range (text "Type" <+> nameDoc <+> text "is declared as a value type but does not have a value kind ('V').")  -- should never happen?
+                                          return DataDefNormal
+                            (DataDefValue _ _, DataDefNormal)
+                              -> do addError range (text "Type" <+> nameDoc <+> text "cannot be used as a value type.")  -- should never happen?
+                                    return DataDefNormal
+                            (DataDefAuto, DataDefValue m n)
+                              -> if ((m + (n*sizePtr platform)) <= 3*(sizePtr platform)
+                                      && hasKindStarResult (getKind typeResult)
+                                      && (sort /= Retractive))
+                                  then -- trace ("default to value: " ++ show name ++ ": " ++ show (m,n)) $
+                                      return (DataDefValue m n)
+                                  else -- trace ("default to reference: " ++ show name ++ ": " ++ show (m,n)) $
+                                      return (DataDefNormal)
+                            _ -> return DataDefNormal
 
        -- trace (showTypeBinder newtp') $
        addRangeInfo range (Decl (show sort) (getName newtp') (mangleTypeName (getName newtp')))

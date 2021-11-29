@@ -67,17 +67,16 @@ instance Show Target where
 
 data Platform = Platform{ sizePtr  :: Int -- sizeof(intptr_t)
                         , sizeSize :: Int -- sizeof(size_t)
-                        , hasValueTypes :: Bool
                         }
 
 platform32, platform64 :: Platform
-platform32 = Platform 4 4 True
-platform64 = Platform 8 8 True
-platformJS = Platform 8 4 False
-platformCS = Platform 8 4 True
+platform32 = Platform 4 4 
+platform64 = Platform 8 8 
+platformJS = Platform 8 4 
+platformCS = Platform 8 4 
 
 instance Show Platform where
-  show (Platform sp ss _) = "Platform(sizeof(void*)=" ++ show sp ++ ",sizeof(size_t)=" ++ show ss ++ ")"
+  show (Platform sp ss) = "Platform(sizeof(void*)=" ++ show sp ++ ",sizeof(size_t)=" ++ show ss ++ ")"
 
 alignedSum :: Int -> [Int] -> Int
 alignedSum start xs = foldl alignedAdd start xs
