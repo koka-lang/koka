@@ -620,17 +620,17 @@ genMatch result scrutinees branches
                                              (\(field,fieldName) -> genTest modName (scrutinee <.> dot <.> fieldName, field) )
                                              (zip fields (map (ppName . fst) (conInfoParams info)) )
                           in (conTest:fieldTests)
-                     ConAsJust{conAsNothing=nothing}
+                     ConAsJust{}
                        | getName tn == nameOptional
                        -> [scrutinee <+> text "!== undefined"] ++ concatMap (\field -> genTest modName (scrutinee,field) ) fields
                        | otherwise
-                       -> let conTest    = debugWrap "genTest: asJust" $ scrutinee <+> text "!== null" -- <+> ppName nothing
+                       -> let conTest    = debugWrap "genTest: asJust" $ scrutinee <+> text "!== null" 
                               fieldTests = concatMap
                                              (\(field,fieldName) -> genTest modName (scrutinee <.> dot <.> fieldName, field) )
                                              (zip fields (map (ppName . fst) (conInfoParams info)) )
                           in (conTest:fieldTests)
-                     ConAsCons{conAsNil=nil}
-                       -> let conTest    = debugWrap "genTest: asCons" $ scrutinee <+> text "!== null" -- <+> ppName nil
+                     ConAsCons{}
+                       -> let conTest    = debugWrap "genTest: asCons" $ scrutinee <+> text "!== null"
                               fieldTests = concatMap
                                              (\(field,fieldName) -> genTest modName (scrutinee <.> dot <.> fieldName, field) )
                                              (zip fields (map (ppName . fst) (conInfoParams info)) )
