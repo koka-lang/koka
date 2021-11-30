@@ -252,6 +252,21 @@ static inline bool kk_integer_small_eq(kk_integer_t x, kk_integer_t y) {
 #define kk_integer_one      (kk_integer_from_small(1))
 #define kk_integer_min_one  (kk_integer_from_small(-1))
 
+static inline bool kk_integer_is_zero_borrow(kk_integer_t x) {
+  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) == _kk_integer_value(kk_integer_zero));
+  return false;
+}
+
+static inline bool kk_integer_is_one_borrow(kk_integer_t x) {
+  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) == _kk_integer_value(kk_integer_one));
+  return false;
+}
+
+static inline bool kk_integer_is_minus_one_borrow(kk_integer_t x) {
+  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) == _kk_integer_value(kk_integer_min_one));
+  return false;
+}
+
 /*---------------------------------------------------------------------------------
   Generic operations on integers
 -----------------------------------------------------------------------------------*/
@@ -303,6 +318,7 @@ kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_mod_generic(kk_integer_
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_div_mod_generic(kk_integer_t x, kk_integer_t y, kk_integer_t* mod, kk_context_t* ctx);
 
 kk_decl_export kk_decl_noinline int           kk_integer_cmp_generic(kk_integer_t x, kk_integer_t y, kk_context_t* ctx);
+kk_decl_export kk_decl_noinline int           kk_integer_cmp_generic_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx);
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_neg_generic(kk_integer_t x, kk_context_t* ctx);
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_sqr_generic(kk_integer_t x, kk_context_t* ctx);
 kk_decl_export kk_decl_noinline kk_integer_t  kk_integer_pow(kk_integer_t x, kk_integer_t p, kk_context_t* ctx);
@@ -330,7 +346,7 @@ static inline kk_integer_t kk_integer_from_int(kk_intx_t i, kk_context_t* ctx) {
 
 static inline kk_integer_t kk_integer_from_int32(int32_t i, kk_context_t* ctx) {
 #if (KK_SMALLINT_BITS >= 34)
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   return kk_integer_from_small(i);
 #else
   return (kk_likely(i >= KK_SMALLINT_MIN && i <= KK_SMALLINT_MAX) ? kk_integer_from_small(i) : kk_integer_from_big(i, ctx));
@@ -372,7 +388,7 @@ static inline kk_integer_t kk_integer_from_intptr_t(intptr_t i, kk_context_t* ct
 }
 
 static inline kk_integer_t kk_integer_from_byte(uint8_t i, kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   return kk_integer_from_small(i);
 }
 
@@ -465,7 +481,7 @@ static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_con
 
 static inline kk_integer_t kk_integer_sub(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   kk_intf_t z = (_kk_integer_value(x)^3) - _kk_integer_value(y);
-  if (kk_likely(z == (kk_smallint_t)(z&~KIP(2)))) {  // clear bit 1 and sign extend
+  if (kk_likely(z == (kk_smallint_t)(z&~KK_IP(2)))) {  // clear bit 1 and sign extend
     kk_assert_internal((z&3) == 1);
     return _kk_new_integer(z);
   }
@@ -500,6 +516,7 @@ static inline kk_integer_t kk_integer_mul(kk_integer_t x, kk_integer_t y, kk_con
 */
 static inline kk_integer_t kk_integer_cdiv_small(kk_integer_t x, kk_integer_t y) {
   kk_assert_internal(kk_are_smallints(x, y));
+  kk_assert_internal(!kk_integer_is_zero_borrow(y) && !kk_integer_is_minus_one_borrow(y));
   kk_intf_t i = kk_sar(_kk_integer_value(x), 1);
   kk_intf_t j = kk_sar(_kk_integer_value(y), 1);
   return _kk_new_integer(kk_shlp(i/j, 2)|1);
@@ -513,9 +530,10 @@ static inline kk_integer_t kk_integer_cdiv_small(kk_integer_t x, kk_integer_t y)
 // - Euclidean division behaves identical to truncated division for positive dividends.
 static inline kk_integer_t kk_integer_div_small(kk_integer_t x, kk_integer_t y) {
   kk_assert_internal(kk_are_smallints(x, y));
+  kk_assert_internal(!kk_integer_is_zero_borrow(y) && !kk_integer_is_minus_one_borrow(y));
   kk_intf_t i = kk_sar(_kk_integer_value(x), 2);
   kk_intf_t j = kk_sar(_kk_integer_value(y), 2);
-  if (j==0) return kk_integer_zero;
+  // if (j==0) return kk_integer_zero;
   kk_intf_t d = i/j;
   kk_intf_t m = i%j;
   if (i < 0 && m < 0) { d -= (j < 0 ? -1 : 1); }   // i < 0 is not needed, but see note below
@@ -531,6 +549,7 @@ static inline kk_integer_t kk_integer_div_small(kk_integer_t x, kk_integer_t y) 
 */
 static inline kk_integer_t kk_integer_cmod_small(kk_integer_t x, kk_integer_t y) {
   kk_assert_internal(kk_are_smallints(x, y));
+  kk_assert_internal(!kk_integer_is_zero_borrow(y) && !kk_integer_is_minus_one_borrow(y));
   kk_intf_t i = kk_sar(_kk_integer_value(x), 1);
   kk_intf_t j = kk_sar(_kk_integer_value(y), 1);
   return _kk_new_integer(kk_shlp(i%j,1)|1);
@@ -542,9 +561,10 @@ static inline kk_integer_t kk_integer_cmod_small(kk_integer_t x, kk_integer_t y)
 //  = boxed(n%m)
 static inline kk_integer_t kk_integer_mod_small(kk_integer_t x, kk_integer_t y) {
   kk_assert_internal(kk_are_smallints(x, y));
+  kk_assert_internal(!kk_integer_is_zero_borrow(y) && !kk_integer_is_minus_one_borrow(y));
   kk_intf_t i = kk_sar(_kk_integer_value(x), 2);
   kk_intf_t j = kk_sar(_kk_integer_value(y), 2);
-  kk_intf_t m = (j==0 ? i : i%j);
+  kk_intf_t m = i%j;
   if (i < 0 && m < 0) { m += (j < 0 ? -j : j); }    // i < 0 is not needed, but see note below
   kk_assert_internal(m >= 0);
   return _kk_new_integer(kk_shlp(m,2)|1);
@@ -553,6 +573,7 @@ static inline kk_integer_t kk_integer_mod_small(kk_integer_t x, kk_integer_t y) 
 
 static inline kk_integer_t kk_integer_cdiv_cmod_small(kk_integer_t x, kk_integer_t y, kk_integer_t* mod) {
   kk_assert_internal(kk_are_smallints(x, y)); kk_assert_internal(mod!=NULL);
+  kk_assert_internal(!kk_integer_is_zero_borrow(y) && !kk_integer_is_minus_one_borrow(y));
   kk_intf_t i = kk_sar(_kk_integer_value(x), 1);
   kk_intf_t j = kk_sar(_kk_integer_value(y), 1);
   *mod = _kk_new_integer(kk_shlp(i%j,2)|1);
@@ -561,12 +582,9 @@ static inline kk_integer_t kk_integer_cdiv_cmod_small(kk_integer_t x, kk_integer
 
 static inline kk_integer_t kk_integer_div_mod_small(kk_integer_t x, kk_integer_t y, kk_integer_t* mod) {
   kk_assert_internal(kk_are_smallints(x, y)); kk_assert_internal(mod!=NULL);
+  kk_assert_internal(!kk_integer_is_zero_borrow(y) && !kk_integer_is_minus_one_borrow(y));
   kk_intf_t i = kk_sar(_kk_integer_value(x), 2);
   kk_intf_t j = kk_sar(_kk_integer_value(y), 2);
-  if (j==0) {
-    *mod = x;
-    return kk_integer_zero;
-  }
   kk_intf_t d = i/j;
   kk_intf_t m = i%j;
   if (i < 0 && m < 0) {         // note: test i < 0 is not needed but implies m >= 0 and can speed up the test
@@ -583,35 +601,41 @@ static inline kk_integer_t kk_integer_div_mod_small(kk_integer_t x, kk_integer_t
   return _kk_new_integer(kk_shlp(d,2)|1);
 }
 
+// small ints and `y != 0 && y != -1` (to prevent division by zero and overflow on MIN_INTF / -1). 
+static inline bool kk_are_small_div_ints(kk_integer_t x, kk_integer_t y) {
+  return (kk_are_smallints(x, y) && 
+          ((kk_uintf_t)_kk_integer_value(y) + 0x03U <= (kk_uintf_t)0x04));  // single test for 0 or -1
+}
+
 static inline kk_integer_t kk_integer_cdiv(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  if (kk_likely(kk_are_smallints(x, y))) return kk_integer_cdiv_small(x, y);
+  if (kk_likely(kk_are_small_div_ints(x, y))) return kk_integer_cdiv_small(x, y);
   return kk_integer_cdiv_generic(x, y, ctx);
 }
 
 static inline kk_integer_t kk_integer_cmod(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  if (kk_likely(kk_are_smallints(x, y))) return kk_integer_cmod_small(x, y);
+  if (kk_likely(kk_are_small_div_ints(x, y))) return kk_integer_cmod_small(x, y);
   return kk_integer_cmod_generic(x, y, ctx);
 }
 
 static inline kk_integer_t kk_integer_cdiv_cmod(kk_integer_t x, kk_integer_t y, kk_integer_t* mod, kk_context_t* ctx) {
   kk_assert_internal(mod!=NULL);
-  if (kk_likely(kk_are_smallints(x, y))) return kk_integer_cdiv_cmod_small(x, y, mod);
+  if (kk_likely(kk_are_small_div_ints(x, y))) return kk_integer_cdiv_cmod_small(x, y, mod);
   return kk_integer_cdiv_cmod_generic(x, y, mod, ctx);
 }
 
 static inline kk_integer_t kk_integer_div(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  if (kk_likely(kk_are_smallints(x, y))) return kk_integer_div_small(x, y);
+  if (kk_likely(kk_are_small_div_ints(x, y))) return kk_integer_div_small(x, y);
   return kk_integer_div_generic(x, y, ctx);
 }
 
 static inline kk_integer_t kk_integer_mod(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  if (kk_likely(kk_are_smallints(x, y))) return kk_integer_mod_small(x, y);
+  if (kk_likely(kk_are_small_div_ints(x, y))) return kk_integer_mod_small(x, y);
   return kk_integer_mod_generic(x, y, ctx);
 }
 
 static inline kk_integer_t kk_integer_div_mod(kk_integer_t x, kk_integer_t y, kk_integer_t* mod, kk_context_t* ctx) {
   kk_assert_internal(mod!=NULL);
-  if (kk_likely(kk_are_smallints(x, y))) return kk_integer_div_mod_small(x, y, mod);
+  if (kk_likely(kk_are_small_div_ints(x, y))) return kk_integer_div_mod_small(x, y, mod);
   return kk_integer_div_mod_generic(x, y, mod, ctx);
 }
 
@@ -740,23 +764,30 @@ static inline kk_integer_t kk_integer_inc(kk_integer_t x, kk_context_t* ctx) {
 /* borrow x, borrow y*/
 static inline int kk_integer_cmp_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) == _kk_integer_value(y) ? 0 : (_kk_integer_value(x) > _kk_integer_value(y) ? 1 : -1));
-  return kk_integer_cmp_generic(x, y, ctx);
+  return kk_integer_cmp_generic_borrow(x, y, ctx);
 }
 
-/* borrow x, borrow y*/
 static inline bool kk_integer_lt_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) < _kk_integer_value(y));
+  return (kk_integer_cmp_generic_borrow(x, y, ctx) == -1);
+}
+
+static inline bool kk_integer_lt(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) < _kk_integer_value(y));
   return (kk_integer_cmp_generic(x, y, ctx) == -1);
 }
 
-/* borrow x, borrow y*/
 static inline bool kk_integer_lte_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) <= _kk_integer_value(y));
-  return (kk_integer_cmp_generic(x, y, ctx) <= 0);
+  return (kk_integer_cmp_generic_borrow(x, y, ctx) <= 0);
 }
 
-/* borrow x, borrow y*/
 static inline bool kk_integer_gt_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) > _kk_integer_value(y));
+  return (kk_integer_cmp_generic_borrow(x, y, ctx) == 1);
+}
+
+static inline bool kk_integer_gt(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) > _kk_integer_value(y));
   return (kk_integer_cmp_generic(x, y, ctx) == 1);
 }
@@ -764,37 +795,27 @@ static inline bool kk_integer_gt_borrow(kk_integer_t x, kk_integer_t y, kk_conte
 /* borrow x, borrow y*/
 static inline bool kk_integer_gte_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) >= _kk_integer_value(y));
-  return (kk_integer_cmp_generic(x, y, ctx) >= 0);
+  return (kk_integer_cmp_generic_borrow(x, y, ctx) >= 0);
 }
 
-/* borrow x, borrow y*/
 static inline bool kk_integer_eq_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) == _kk_integer_value(y));
+  return (kk_integer_cmp_generic_borrow(x, y, ctx) == 0);
+}
+
+static inline bool kk_integer_eq(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) == _kk_integer_value(y));
   return (kk_integer_cmp_generic(x, y, ctx) == 0);
 }
 
-/* borrow x, borrow y*/
 static inline bool kk_integer_neq_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) != _kk_integer_value(y));
+  return (kk_integer_cmp_generic_borrow(x, y, ctx) != 0);
+}
+
+static inline bool kk_integer_neq(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
+  if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) != _kk_integer_value(y));
   return (kk_integer_cmp_generic(x, y, ctx) != 0);
-}
-
-/* borrow x*/
-static inline bool kk_integer_is_zero_borrow(kk_integer_t x) {
-  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) == _kk_integer_value(kk_integer_zero));
-  return false;
-}
-
-/* borrow x*/
-static inline bool kk_integer_is_one_borrow(kk_integer_t x) {
-  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) == _kk_integer_value(kk_integer_one));
-  return false;
-}
-
-/* borrow x*/
-static inline bool kk_integer_is_minus_one_borrow(kk_integer_t x) {
-  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) == _kk_integer_value(kk_integer_min_one));
-  return false;
 }
 
 static inline bool kk_integer_is_even(kk_integer_t x, kk_context_t* ctx) {

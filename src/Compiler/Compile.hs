@@ -716,7 +716,7 @@ searchPackageIface flags currentDir mbPackage name
           -> searchPackages (packages flags) currentDir "" postfix
          Just ""
           -> do let reliface = joinPath {- currentDir -} (fullBuildDir flags) postfix  -- TODO: should be currentDir?
-                exist <- doesFileExist reliface
+                exist <- doesFileExistAndNotEmpty reliface
                 if exist then return (Just reliface)
                  else trace ("no iface at: " ++ reliface) $ return Nothing
          Just package
@@ -727,7 +727,7 @@ searchOutputIface :: Flags -> Name -> IO (Maybe FilePath)
 searchOutputIface flags name
   = do let postfix = showModName name ++ ifaceExtension -- map (\c -> if c == '.' then '_' else c) (show name)
            iface = joinPath (fullBuildDir flags) postfix
-       exist <- doesFileExist iface
+       exist <- doesFileExistAndNotEmpty iface
        -- trace ("search output iface: " ++ show name ++ ": " ++ iface ++ " (" ++ (if exist then "found" else "not found" ) ++ ")") $ return ()
        if exist then return (Just iface)
          else do let libIface = joinPaths [localLibDir flags, buildVariant flags, postfix]
@@ -862,11 +862,12 @@ inferCheck loaded0 flags line coreImports program
        let checkCoreDefs title = when (coreCheck flags) (trace ("checking " ++ title) $ 
                                                          Core.Check.checkCore False False penv gamma)    
        -- checkCoreDefs "initial"
+       -- traceDefGroups "initial"
 
        -- remove return statements
        unreturn penv
        -- checkCoreDefs "unreturn"
-     
+
        -- initial simplify
        let ndebug  = optimize flags > 0
            simplifyX dupMax = simplifyDefs penv False {-unsafe-} ndebug (simplify flags) dupMax
@@ -881,30 +882,37 @@ inferCheck loaded0 flags line coreImports program
          let inlines = if (isPrimitiveModule (Core.coreProgName coreProgram)) then loadedInlines loaded
                          else inlinesFilter (\name -> nameId nameCoreHnd /= nameModule name) (loadedInlines loaded)
          in inlineDefs penv (2*(optInlineMax flags)) inlines
-       checkCoreDefs "inlined"
+       -- checkCoreDefs "inlined"
 
        simplifyDupN
        -- traceDefGroups "inlined"
-       
-       -- specialize 
-       specializeDefs <- -- if (isPrimitiveModule (Core.coreProgName coreProgram)) then return [] else 
-                         Core.withCoreDefs (\defs -> extractSpecializeDefs defs)
-       -- traceM ("Spec defs:\n" ++ unlines (map show specializeDefs))
-       
-       when (optSpecialize flags) $
-         specialize (inlinesExtends specializeDefs (loadedInlines loaded))
-       -- traceDefGroups "specialized"
 
-       -- simplifyDupN
-          
-       -- lifting recursive functions to top level (must be after specialize)
+       -- lift recursive functions to top-level before specialize (so specializeDefs do not contain local recursive definitions)
        liftFunctions penv
        checkCoreDefs "lifted"      
-      
+       -- traceDefGroups "lifted"
+
+       -- specialize 
+       specializeDefs <- if (isPrimitiveModule (Core.coreProgName coreProgram)) then return [] else 
+                         Core.withCoreDefs (\defs -> extractSpecializeDefs (loadedInlines loaded) defs)
+       --  traceM ("Spec defs:\n" ++ unlines (map show specializeDefs))
+       
+       when (optSpecialize flags && not (isPrimitiveModule (Core.coreProgName coreProgram))) $
+         do specialize (inlinesExtends specializeDefs (loadedInlines loaded)) penv
+            -- traceDefGroups "specialized"
+            simplifyDupN
+            -- traceDefGroups "simplified"
+            -- lifting remaining recursive functions to top level (must be after specialize as that can generate local recursive definitions)
+            liftFunctions penv
+            checkCoreDefs "specialized"
+            -- traceDefGroups "specialized"          
+    
+       -- simplify once more
        simplifyDupN
        coreDefsInlined <- Core.getCoreDefs
-       -- traceDefGroups "simplify2"
+       -- traceDefGroups "simplified"
       
+
        ------------------------------
        -- backend optimizations 
 
@@ -1231,10 +1239,10 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
       let cc       = ccomp flags
           eimports = externalImportsFromCore (target flags) bcore
           clibs    = clibsFromCore flags bcore 
-      mapM_ (copyCLibrary term flags cc) eimports
+      extraIncDirs <- fmap concat $ mapM (copyCLibrary term flags cc) eimports
 
       -- compile      
-      ccompile term flags cc outBase [outC] 
+      ccompile term flags cc outBase extraIncDirs [outC] 
 
       -- compile and link?
       case mbEntry of
@@ -1311,8 +1319,8 @@ codeGenC sourceFile newtypes borrowed0 unique0 term flags modules compileTarget 
                                runSystemEcho term flags (dquote mainExe ++ cmdflags ++ " " ++ execOpts flags))) -- use shell for proper rss accounting
 
 
-ccompile :: Terminal -> Flags -> CC -> FilePath -> [FilePath] -> IO ()
-ccompile term flags cc ctargetObj csources 
+ccompile :: Terminal -> Flags -> CC -> FilePath -> [FilePath] -> [FilePath] -> IO ()
+ccompile term flags cc ctargetObj extraIncDirs csources 
   = do let cmdline = concat $
                       [ [ccPath cc]
                       , ccFlags cc
@@ -1322,7 +1330,7 @@ ccompile term flags cc ctargetObj csources
                       , ccIncludeDir cc (localShareDir flags ++ "/kklib/include")
                       ]
                       ++
-                      map (ccIncludeDir cc) (ccompIncludeDirs flags)
+                      map (ccIncludeDir cc) (extraIncDirs ++ ccompIncludeDirs flags)
                       ++
                       map (ccAddDef cc) (ccompDefs flags)
                       ++
@@ -1332,7 +1340,7 @@ ccompile term flags cc ctargetObj csources
        runCommand term flags cmdline
 
 
-copyCLibrary :: Terminal -> Flags -> CC -> [(String,String)] -> IO ()
+copyCLibrary :: Terminal -> Flags -> CC -> [(String,String)] -> IO [FilePath]
 copyCLibrary term flags cc eimport
   = copyCLibraryX term flags cc eimport 0
 
@@ -1342,7 +1350,7 @@ copyCLibraryX term flags cc eimport tries
                     Nothing  -> case lookup "vcpkg" eimport of
                                   Just pkg -> pkg
                                   Nothing  -> ""
-       if (null clib) then return () else 
+       if (null clib) then return [] else 
          do mbPath <- -- looking for specific suffixes is not ideal but it differs among plaforms (e.g. pcre2-8 is only pcre2-8d on Windows)
                       -- and the actual name of the library is not easy to extract from vcpkg (we could read 
                       -- the lib/config/<lib>.pc information and parse the Libs field but that seems fragile as well)
@@ -1350,13 +1358,19 @@ copyCLibraryX term flags cc eimport tries
                       in -- trace ("search lib dirs: " ++ show (ccompLibDirs flags)) $
                          searchPathsSuffixes (ccompLibDirs flags) [] suffixes (ccLibFile cc clib)                     
             case mbPath of
-                Just fname -> copyLibFile fname clib
-                _ -> if (tries > 0) 
-                      then nosuccess clib
-                      else do ok <- vcpkgInstall term flags cc eimport clib
-                              if (not ok)
-                                then nosuccess clib
-                                else copyCLibraryX term flags cc eimport (tries + 1)  -- try again 
+              Just fname 
+                -> do copyLibFile fname clib
+                      case reverse (splitPath fname) of
+                        (_:"lib":"debug":rbase) -> return [joinPaths (reverse rbase ++ ["include"])] -- for vcpkg
+                        (_:"lib":rbase)         -> return [joinPaths (reverse rbase ++ ["include"])] -- e.g. /usr/local/lib
+                        _                       -> return []
+              _ -> if (tries > 0) 
+                    then nosuccess clib
+                    else do ok <- vcpkgInstall term flags cc eimport clib
+                            if (not ok)
+                              then nosuccess clib
+                              else do copyCLibraryX term flags cc eimport (tries + 1)  -- try again 
+                                      return [vcpkgIncludeDir flags]
                     
   where
     nosuccess clib
@@ -1474,7 +1488,7 @@ kklibBuild term flags cc name {-kklib-} objFile {-libkklib.o-}
                        flags1 = flags0{ ccompDefs = ccompDefs flags ++ 
                                                     [("KK_COMP_VERSION","\"" ++ version ++ "\""),
                                                      ("KK_CC_NAME", "\"" ++ ccName cc ++ "\"")] }
-                   ccompile term flags1 cc objPath [joinPath srcLibDir "src/all.c"] 
+                   ccompile term flags1 cc objPath [] [joinPath srcLibDir "src/all.c"] 
        return objPath
 
 

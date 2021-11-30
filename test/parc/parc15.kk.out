@@ -9,15 +9,35 @@ public fun test : (xs : list<int>, y : int) -> int
  std/core/types/.drop(y);
  (match (xs) {
  (std/core/Cons(((.skip std/core/types/.Box((.pat2: int)) : .Box ) as .box: .Box), (.pat3: list<int>)) : list<int> )
- -> std/core/types/.drop(xs, (std/core/int32(2)));
+ -> (match ((std/core/types/.is-unique(xs))) {
+ (std/core/types/True() : bool )
+ -> std/core/types/.drop(.pat3);
+ std/core/types/.drop(.box);
+ std/core/types/();
+ std/core/types/.free(xs);
+ _
+ -> std/core/types/();
+ std/core/types/.dec-ref(xs);
+ std/core/types/();
+ });
  x;
  (.skip std/core/Nil() : (list<int>) )
  -> std/core/types/.drop(x);
  2;
  });
  (std/core/Cons(((.skip std/core/types/.Box((.pat6: int)) : .Box ) as .box: .Box), (.pat7: list<int>)) : list<int> )
- -> std/core/types/.drop(xs, (std/core/int32(2)));
- std/core/types/.drop(y);
+ -> std/core/types/.drop(y);
+ (match ((std/core/types/.is-unique(xs))) {
+ (std/core/types/True() : bool )
+ -> std/core/types/.drop(.pat7);
+ std/core/types/.drop(.box);
+ std/core/types/();
+ std/core/types/.free(xs);
+ _
+ -> std/core/types/();
+ std/core/types/.dec-ref(xs);
+ std/core/types/();
+ });
  2;
  (.skip std/core/Nil() : (list<int>) )
  -> y;

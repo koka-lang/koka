@@ -1,7 +1,7 @@
 // Applies a function `f` to list of increasing elements from `lo`  to `hi`
 // (including both `lo`  and `hi` ).
 // If `lo > hi`  the function returns the empty list.
-fun li( lo : int, hi: int, f : int -> e a) : e list<a>
+inline fun li( lo : int, hi: int, f : int -> e a) : e list<a>
   fun enumerate( low:int, high:int, acc )
     if (low > high)
      then acc

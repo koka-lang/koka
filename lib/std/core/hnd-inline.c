@@ -249,7 +249,7 @@ struct kcompose_fun_s {
 // kleisli composition of continuations
 static kk_box_t kcompose( kk_function_t fself, kk_box_t x, kk_context_t* ctx) {
   struct kcompose_fun_s* self = kk_function_as(struct kcompose_fun_s*,fself);
-  kk_intx_t count = kk_int_unbox(self->count);
+  kk_intx_t count = kk_intf_unbox(self->count);
   kk_function_t* conts = &self->conts[0];
   // call each continuation in order
   for(kk_intx_t i = 0; i < count; i++) {
@@ -278,7 +278,7 @@ static kk_function_t new_kcompose( kk_function_t* conts, kk_ssize_t count, kk_co
                                kk_block_alloc(kk_ssizeof(struct kcompose_fun_s) - kk_ssizeof(kk_function_t) + (count*kk_ssizeof(kk_function_t)),
                                  2 + count /* scan size */, KK_TAG_FUNCTION, ctx));
   f->_base.fun = kk_cfun_ptr_box(&kcompose,ctx);
-  f->count = kk_int_box(count);
+  f->count = kk_intf_box(count);
   kk_memcpy(f->conts, conts, count * kk_ssizeof(kk_function_t));
   return (&f->_base);
 }

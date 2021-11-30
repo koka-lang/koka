@@ -123,7 +123,8 @@ prettyImport env imp
 
 prettyExternalImport env target (ExternalImport imports _)
   = -- prettyComment env (importModDoc imp) $
-    case lookup target imports of
+    -- trace ("external imports: target: " ++ show target ++ ": " ++ show imports) $
+    case lookupTarget target imports of
       Nothing -> empty
       Just keyvals0
         -> case filter (\(key,_) -> key /= "include-inline" && key /= "header-include-inline") keyvals0 of
@@ -182,7 +183,11 @@ prettyExternal env (ExternalImport imports range)
 ppTarget env target
   = case target of
       Default -> empty
-      _       -> keyword env (show target) <.> space
+      CS      -> text "cs "
+      C _     -> text "c "
+      JS _    -> text "js "
+      -- _       -> keyword env (show target) <.> space
+    
 
 prettyTypeDefGroup :: Env -> TypeDefGroup -> Doc
 prettyTypeDefGroup env (TypeDefGroup defs)

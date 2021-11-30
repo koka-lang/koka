@@ -24,9 +24,10 @@ public import std/os/file
 public import std/os/dir
 public import std/os/process
 public import std/os/task
+public import std/os/readline
 
+public import std/text/regex
 public import std/text/parse
-// import std/text/regex
 public import std/text/unicode
 
 public import std/num/decimal

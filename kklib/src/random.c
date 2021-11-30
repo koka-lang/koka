@@ -5,8 +5,7 @@
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
-#define _BSD_SOURCE         1     // for syscall
-#define _DEFAULT_SOURCE     1
+
 #include "kklib.h"
 #include <string.h> // memset
 
@@ -31,7 +30,7 @@ typedef struct kk_pcg_ctx_s {
 // [2]: https://www.pcg-random.org/pdf/hmc-cs-2014-0905.pdf
 static inline uint32_t pcg_uint32(kk_pcg_ctx_t* rnd) {
   const uint64_t state0 = rnd->state;
-  rnd->state = (state0 * KU64(0x5851F42D4C957F2D)) + rnd->stream;
+  rnd->state = (state0 * KK_U64(0x5851F42D4C957F2D)) + rnd->stream;
   const uint32_t x = (uint32_t)(((state0 >> 18) ^ state0) >> 27);
   const uint32_t rot = (uint32_t)(state0 >> 59);
   return kk_bits_rotr32(x, rot);
@@ -256,10 +255,8 @@ int32_t kk_srandom_range_int32(int32_t min, int32_t max, kk_context_t* ctx) {
 
 // Use 52 random bits to generate a double in the range [0,1)
 double kk_srandom_double(kk_context_t* ctx) {
-  const uint64_t x = KU64(0x3FF0000000000000) | kk_shr64(kk_srandom_uint64(ctx), 12);
-  double d;
-  memcpy(&d, &x, sizeof(double)); /* alias safe: <https://gist.github.com/shafik/848ae25ee209f698763cffee272a58f8#how-do-we-type-pun-correctly> */
-  return (d - 1.0);
+  const uint64_t x = KK_U64(0x3FF0000000000000) | kk_shr64(kk_srandom_uint64(ctx), 12);
+  return (kk_bits_to_double(x) - 1.0);
 }
 
 
@@ -364,7 +361,7 @@ static bool kk_os_random_buf(void* buf, size_t buf_len) {
 
 
 static uint64_t kk_os_random_weak(void) {
-  uint64_t x = (uint64_t)&kk_os_random_weak ^ KU64(0x853C49E6748FEA9B); // hopefully, ASLR makes the address random
+  uint64_t x = (uint64_t)&kk_os_random_weak ^ KK_U64(0x853C49E6748FEA9B); // hopefully, ASLR makes the address random
   do {
   #if defined(WIN32)
     LARGE_INTEGER pcount;

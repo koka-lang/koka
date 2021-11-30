@@ -26,7 +26,7 @@ static inline void kk_evv_drop(kk_evv_t evv, kk_context_t* ctx) {
 }
 
 static inline kk_evv_t kk_evv_empty(kk_context_t* ctx) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   return kk_evv_dup(kk_evv_empty_singleton);
 }
 

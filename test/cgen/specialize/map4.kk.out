@@ -1,7 +1,9 @@
-cgen/specialize/map4/.lift201-test: forall<a> (g : (a) -> int, y : int, xs0 : list<a>) -> list<int>
-cgen/specialize/map4/.lift202-main: (xs : list<int>) -> list<int>
-cgen/specialize/map4/.mlift209-map-poly: forall<a,e> (a, list<a>) -> e list<a>
-cgen/specialize/map4/.mlift210-map-poly: forall<a,b,e> (f : (a) -> e b, xx : list<a>, b) -> e list<b>
+160
+ 
+cgen/specialize/map4/.lift000-test: forall<a> (g : (a) -> int, y : int, xs0 : list<a>) -> list<int>
+cgen/specialize/map4/.lift000-main: (xs : list<int>) -> list<int>
+cgen/specialize/map4/.mlift000-map-poly: forall<a,e> (a, list<a>) -> e list<a>
+cgen/specialize/map4/.mlift000-map-poly: forall<a,b,e> (f : (a) -> e b, xx : list<a>, b) -> e list<b>
 cgen/specialize/map4/main: () -> console ()
 cgen/specialize/map4/map-poly: forall<a,b,e> (xs : list<a>, f : (a) -> e b) -> e list<b>
 cgen/specialize/map4/test: forall<a> (xs : list<a>, y : int, g : (a) -> int) -> list<int>

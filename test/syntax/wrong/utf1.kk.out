@@ -1,5 +1,5 @@
-test/syntax/wrong/utf1.kk(3,13): error: types do not match
- context : 2 + "hello effectful world of 効果! "
- term : "hello effectful world of 効果! "
+test/syntax/wrong/utf1.kk(4,13): error: types do not match
+ context : 2 + "hello effectful world!"
+ term : "hello effectful world!"
  inferred type: string
  expected type: int

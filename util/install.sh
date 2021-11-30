@@ -4,7 +4,7 @@
 # Installation script for Koka; use -h to see command line options.
 #-----------------------------------------------------------------------------
 
-VERSION="v2.3.2"        
+VERSION="v2.3.6"        
 MODE="install"          # or uninstall
 PREFIX="/usr/local"
 QUIET=""
@@ -20,7 +20,9 @@ KOKA_TEMP_DIR=""        # empty creates one dynamically
 adjust_version() {  # <osarch>
   case "$1" in
     linux-arm64)
-      VERSION="v2.3.2";;
+      VERSION="v2.3.6";;
+    unix-freebsd-x64)
+      VERSION="v2.3.6";;
   esac    
 }
 
@@ -89,8 +91,10 @@ detect_osarch() {
       OSARCH="linux-$arch";;
     [Dd]arwin)
       OSARCH="macos-$arch";;
+    [Ff]ree[Bb][Ss][Dd])
+      OSARCH="unix-freebsd-$arch";;
     *)
-      info "Warning: unable to detect OS, assuming generic unix"
+      info "Warning: unable to detect OS, assuming generic unix ($OSARCH)"
   esac
 
   # For tier-2 platforms, adjust the default version

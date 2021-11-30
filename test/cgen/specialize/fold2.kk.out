@@ -1,6 +1,8 @@
-cgen/specialize/fold2/.lift172-xfoldr: forall<a,e,b> (f : (b, a) -> e a, xs0 : list<b>, z0 : a) -> e a
-cgen/specialize/fold2/.mlift184-xfoldl: forall<a,e,b> (f : (a, b) -> e a, xx : list<b>, a) -> e a
-cgen/specialize/fold2/.mlift185-op: forall<a,e,b> (f : (b, a) -> e a, xx : list<b>, z00.174 : a) -> e a
+55
+ 
+cgen/specialize/fold2/.lift000-xfoldr: forall<a,e,b> (f : (b, a) -> e a, xs0 : list<b>, z0 : a) -> e a
+cgen/specialize/fold2/.mlift000-xfoldl: forall<a,e,b> (f : (a, b) -> e a, xx : list<b>, a) -> e a
+cgen/specialize/fold2/.mlift000-op: forall<a,e,b> (f : (b, a) -> e a, xx : list<b>, a00.000 : a) -> e a
 cgen/specialize/fold2/main: () -> console ()
 cgen/specialize/fold2/xfoldl: forall<a,b,e> (list<a>, b, (b, a) -> e b) -> e b
 cgen/specialize/fold2/xfoldr: forall<a,b,e> (xs : list<a>, z : b, f : (a, b) -> e b) -> e b

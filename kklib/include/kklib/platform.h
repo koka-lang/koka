@@ -49,7 +49,7 @@
   x86, arm32                32       32    32     32     32     32
   x64, arm64, etc.          64       64    32     64     64     64
   x64 windows               64       64    32     32     64     64   size_t    > long
-  x32 linux                 32       32    32     64     64     32   long/intx > size_t
+  x32 linux                 32       32    32     32     64     32   intx      > size_t
   arm CHERI                128       64    32     64     64     64   uintptr_t > size_t
   riscV 128-bit            128      128    32     64    128    128   
   x86 16-bit small          16       16    16     32     16     16   long > size_t
@@ -57,7 +57,6 @@
   x86 16-bit huge           32       32    16     32     16     16   intx < size_t
 
   We use a signed `size_t` as `kk_ssize_t` (see comments below) and define
-  the fast integer `kk_intx_t` as `if |int| < 32 then int else max(size_t,long)`. 
   `kk_intf_t` is the `min(kk_intx_t,size_t)`.
 --------------------------------------------------------------------------------------*/
 
@@ -183,33 +182,33 @@
 #endif
 
 
-#ifndef KK_UNUSED
-#define KK_UNUSED(x)          ((void)(x))
+#ifndef kk_unused
+#define kk_unused(x)          ((void)(x))
 #ifdef NDEBUG
-#define KK_UNUSED_RELEASE(x)  KK_UNUSED(x)
+#define kk_unused_release(x)  kk_unused(x)
 #else
-#define KK_UNUSED_RELEASE(x)  
+#define kk_unused_release(x)  
 #endif
 #ifndef KK_DEBUG_FULL
-#define KK_UNUSED_INTERNAL(x)  KK_UNUSED(x)
+#define kk_unused_internal(x)  kk_unused(x)
 #else
-#define KK_UNUSED_INTERNAL(x)  
+#define kk_unused_internal(x)  
 #endif
 #endif
 
 // Defining constants of a specific size
 #if LONG_MAX == INT64_MAX
 # define KK_LONG_SIZE   8
-# define KI32(i)        (i)
-# define KI64(i)        (i##L)
-# define KU32(i)        (i##U)
-# define KU64(i)        (i##UL)
+# define KK_I32(i)      (i)
+# define KK_I64(i)      (i##L)
+# define KK_U32(i)      (i##U)
+# define KK_U64(i)      (i##UL)
 #elif LONG_MAX == INT32_MAX
 # define KK_LONG_SIZE 4
-# define KI32(i)        (i##L)
-# define KI64(i)        (i##LL)
-# define KU32(i)        (i##UL)
-# define KU64(i)        (i##ULL)
+# define KK_I32(i)      (i##L)
+# define KK_I64(i)      (i##LL)
+# define KK_U32(i)      (i##UL)
+# define KK_U64(i)      (i##ULL)
 #else
 #error size of a `long` must be 32 or 64 bits
 #endif
@@ -217,20 +216,20 @@
 // Define size of intptr_t
 #if INTPTR_MAX == INT64_MAX         
 # define KK_INTPTR_SIZE 8
-# define KIP(i)         KI64(i)
-# define KUP(i)         KU64(i)
+# define KK_IP(i)       KK_I64(i)
+# define KK_UP(i)       KK_U64(i)
 #elif INTPTR_MAX == INT32_MAX
 # define KK_INTPTR_SIZE 4
-# define KIP(i)         KI32(i)
-# define KUP(i)         KU32(i)
+# define KK_IP(i)       KK_I32(i)
+# define KK_UP(i)       KK_U32(i)
 #elif INTPTR_MAX == INT16_MAX
 # define KK_INTPTR_SIZE 2
-# define KIP(i)         i
-# define KUP(i)         i
+# define KK_IP(i)       i
+# define KK_UP(i)       i
 #elif INTPTR_MAX > INT64_MAX         // assume 128-bit
 # define KK_INTPTR_SIZE 16
-# define KIP(i)         KI64(i)
-# define KUP(i)         KU64(i)
+# define KK_IP(i)       KK_I64(i)
+# define KK_UP(i)       KK_U64(i)
 #else
 #error platform addresses must be 16, 32, 64, or 128 bits
 #endif
@@ -240,22 +239,22 @@
 // Define size of size_t and kk_ssize_t 
 #if SIZE_MAX == UINT64_MAX
 # define KK_SIZE_SIZE   8
-# define KIZ(i)         KI64(i)
-# define KUZ(i)         KU64(i)
+# define KK_IZ(i)       KK_I64(i)
+# define KK_UZ(i)       KK_U64(i)
 # define KK_SSIZE_MAX   INT64_MAX
 # define KK_SSIZE_MIN   INT64_MIN
 typedef int64_t         kk_ssize_t;
 #elif SIZE_MAX == UINT32_MAX         
 # define KK_SIZE_SIZE   4
-# define KIZ(i)         KI32(i)
-# define KUZ(i)         KU32(i)
+# define KK_IZ(i)       KK_I32(i)
+# define KK_UZ(i)       KK_U32(i)
 # define KK_SSIZE_MAX   INT32_MAX
 # define KK_SSIZE_MIN   INT32_MIN
 typedef int32_t         kk_ssize_t;
 #elif SIZE_MAX == UINT16_MAX         
 # define KK_SIZE_SIZE   2
-# define KIZ(i)         i
-# define KUZ(i)         i
+# define KK_IZ(i)       i
+# define KK_UZ(i)       i
 # define KK_SSIZE_MAX   INT16_MAX
 # define KK_SSIZE_MIN   INT16_MIN
 typedef int16_t         kk_ssize_t;
@@ -295,14 +294,40 @@ static inline size_t kk_to_size_t(kk_ssize_t sz) {
 
 
 // We define `kk_intx_t` as an integer with the natural (fast) machine register size. 
-// We define it such that `sizeof(kk_intx_t) == (sizeof(int)==2 ? 2 : max(sizeof(long),sizeof(size_t)))`. 
-// (We cannot use just `long` as it is sometimes too short (as on Windows 64-bit where a `long` is 32 bits).
-//  Similarly, `size_t` is sometimes too short as well (like on the x32 ABI with a 64-bit `long` but 32-bit addresses)).
-#if (INT_MAX < INT32_MAX)  
+// We define it such that `sizeof(kk_intx_t)` is, with `m = max(sizeof(sizeof(long),sizeof(size_t))`
+//   (m==8 || x32) ? 8 : ((m == 4 && sizeof(int) > 2)  ? 4 : sizeof(int))
+// (We cannot use just `long` as it is sometimes too short (as on Windows 64-bit or x32 where a `long` is 32 bits).
+#if (LONG_MAX == INT64_MAX) || (SIZE_MAX == UINT64_MAX) || (defined(__x86_64__) && SIZE_MAX == UINT32_MAX) /* x32 */
+typedef int64_t        kk_intx_t;
+typedef uint64_t       kk_uintx_t;
+#define KK_IX(i)       KK_I64(i)
+#define KK_UX(i)       KK_U64(i)
+#define KK_INTX_SIZE   8
+#define KK_INTX_MAX    INT64_MAX
+#define KK_INTX_MIN    INT64_MIN
+#define KK_UINTX_MAX   UINT64_MAX
+#define PRIdIX         PRId64
+#define PRIuUX         PRIu64
+#define PRIxUX         PRIx64
+#define PRIXUX         PRIX64
+#elif (INT_MAX > INT16_MAX && (LONG_MAX == INT32_MAX) || (SIZE_MAX == UINT32_MAX))
+typedef int32_t        kk_intx_t;
+typedef uint32_t       kk_uintx_t;
+#define KK_IX(i)       KK_I32(i)
+#define KK_UX(i)       KK_U32(i)
+#define KK_INTX_SIZE   4
+#define KK_INTX_MAX    INT32_MAX
+#define KK_INTX_MIN    INT32_MIN
+#define KK_UINTX_MAX   UINT32_MAX
+#define PRIdIX         PRId32
+#define PRIuUX         PRIu32
+#define PRIxUX         PRIx32
+#define PRIXUX         PRIX32
+#elif (INT_MAX == INT16_MAX)
 typedef int            kk_intx_t;
 typedef unsigned       kk_uintx_t;
-#define KIX(i)         i
-#define KUX(i)         i
+#define KK_IX(i)       i
+#define KK_UX(i)       i
 #define KK_INTX_SIZE   2
 #define KK_INTX_MAX    INT_MAX
 #define KK_INTX_MIN    INT_MIN
@@ -311,32 +336,8 @@ typedef unsigned       kk_uintx_t;
 #define PRIuUX         "%u"
 #define PRIxUX         "%x"
 #define PRIXUX         "%X"
-#elif (LONG_MAX < KK_SSIZE_MAX)
-typedef kk_ssize_t     kk_intx_t;
-typedef size_t         kk_uintx_t;
-#define KIX(i)         KIZ(i)
-#define KUX(i)         KUZ(i)
-#define KK_INTX_SIZE   KK_SSIZE_SIZE
-#define KK_INTX_MAX    KK_SSIZE_MAX
-#define KK_INTX_MIN    KK_SSIZE_MIN
-#define KK_UINTX_MAX   SIZE_MAX
-#define PRIdIX         "%zd"
-#define PRIuUX         "%zu"
-#define PRIxUX         "%zx"
-#define PRIXUX         "%zX"
-#else 
-typedef long           kk_intx_t;
-typedef unsigned long  kk_uintx_t;
-#define KUX(i)         (i##UL)
-#define KIX(i)         (i##L)
-#define KK_INTX_SIZE   KK_LONG_SIZE
-#define KK_INTX_MAX    LONG_MAX
-#define KK_INTX_MIN    LONG_MIN
-#define KK_UINTX_MAX   ULONG_MAX
-#define PRIdIX         "%ld"
-#define PRIuUX         "%lu"
-#define PRIxUX         "%lx"
-#define PRIXUX         "%lX"
+#else
+#error "platform cannot be determined to have natural 16, 32, or 64 bit registers"
 #endif
 #define KK_INTX_BITS   (8*KK_INTX_SIZE)
 
@@ -344,8 +345,8 @@ typedef unsigned long  kk_uintx_t;
 #if (KK_INTX_SIZE > KK_SIZE_SIZE)
 typedef kk_ssize_t     kk_intf_t;
 typedef size_t         kk_uintf_t;
-#define KUF(i)         KUZ(i)
-#define KIF(i)         KIZ(i)
+#define KK_UF(i)       KK_UZ(i)
+#define KK_IF(i)       KK_IZ(i)
 #define KK_INTF_SIZE   KK_SSIZE_SIZE
 #define KK_INTF_MAX    KK_SSIZE_MAX
 #define KK_INTF_MIN    KK_SSIZE_MIN
@@ -353,8 +354,8 @@ typedef size_t         kk_uintf_t;
 #else
 typedef kk_intx_t      kk_intf_t;
 typedef kk_uintx_t     kk_uintf_t;
-#define KUF(i )        KUX(i)
-#define KIF(i)         KIX(i)
+#define KK_UF(i )      KK_UX(i)
+#define KK_IF(i)       KK_IX(i)
 #define KK_INTF_SIZE   KK_INTX_SIZE
 #define KK_INTF_MAX    KK_INTX_MAX
 #define KK_INTF_MIN    KK_INTX_MIN
@@ -369,6 +370,7 @@ static inline kk_intx_t   kk_sar(kk_intx_t i,  kk_intx_t shift) { return (i >> (
 static inline kk_uintx_t  kk_shr(kk_uintx_t u, kk_intx_t shift) { return (u >> (shift & (KK_INTX_BITS - 1))); }
 static inline kk_intf_t   kk_sarf(kk_intf_t i, kk_intf_t shift) { return (i >> (shift & (KK_INTF_BITS - 1))); }
 static inline kk_uintf_t  kk_shrf(kk_uintf_t u, kk_intf_t shift){ return (u >> (shift & (KK_INTF_BITS - 1))); }
+static inline uintptr_t   kk_shrp(uintptr_t u, kk_intx_t shift) { return (u >> (shift & (KK_INTPTR_BITS - 1))); }
 static inline int32_t     kk_sar32(int32_t i,  int32_t shift)   { return (i >> (shift & 31)); }
 static inline uint32_t    kk_shr32(uint32_t u, int32_t shift)   { return (u >> (shift & 31)); }
 static inline int64_t     kk_sar64(int64_t i,  int64_t shift)   { return (i >> (shift & 63)); }

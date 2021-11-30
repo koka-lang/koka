@@ -107,6 +107,7 @@ newtype UniqueT m a = UniqueT
   { unUniqueT :: Int -> m (a, Int)
   }
 
+runUniqueT :: Int -> UniqueT m a -> m (a, Int)
 runUniqueT = flip unUniqueT
 
 instance Monad m => HasUnique (UniqueT m) where

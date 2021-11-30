@@ -30,13 +30,14 @@ typedef struct kk_thread_proc_arg_s {
 
 static DWORD WINAPI kk_thread_proc(LPVOID varg) {
   kk_thread_proc_arg_t arg = *((kk_thread_proc_arg_t*)varg);
-  kk_free(varg);
+  kk_context_t* ctx = kk_get_context();
+  kk_free(varg,ctx);
   (arg.action)(arg.arg);
   return 0;
 }
 
 static int pthread_create(pthread_t* thread, void* attr, void* (*action)(void*), void* arg) {
-  KK_UNUSED(attr);
+  kk_unused(attr);
   kk_context_t* ctx = kk_get_context();
   kk_thread_proc_arg_t* parg = (kk_thread_proc_arg_t*)kk_zalloc(kk_ssizeof(kk_thread_proc_arg_t), ctx);
   parg->action = action;
@@ -52,7 +53,7 @@ static int pthread_create(pthread_t* thread, void* attr, void* (*action)(void*),
 typedef CRITICAL_SECTION   pthread_mutex_t;
 
 static int pthread_mutex_init(pthread_mutex_t* mutex, void* attr) {
-  KK_UNUSED(attr);
+  kk_unused(attr);
   InitializeCriticalSection(mutex);
   return 0;
 }
@@ -74,13 +75,13 @@ static void pthread_mutex_unlock(pthread_mutex_t* mutex) {
 typedef CONDITION_VARIABLE pthread_cond_t;
 
 static int pthread_cond_init(pthread_cond_t* cond, void* attr) {
-  KK_UNUSED(attr);
+  kk_unused(attr);
   InitializeConditionVariable(cond);
   return 0;
 }
 
 static void pthread_cond_destroy(pthread_cond_t* cond) {
-  KK_UNUSED(cond);
+  kk_unused(cond);
 }
 
 static int pthread_cond_wait(pthread_cond_t* cond, pthread_mutex_t* mutex) {
@@ -110,8 +111,8 @@ typedef struct kk_once_arg_s {
   void (*init)(void);
 } kk_once_arg_t;
 
-static BOOL kk_init_once_cb(PINIT_ONCE once, PVOID varg, PVOID* ctx) {
-  KK_UNUSED(once);
+static BOOL WINAPI kk_init_once_cb(PINIT_ONCE once, PVOID varg, PVOID* ctx) {
+  kk_unused(once);
   if (ctx != NULL) *ctx = NULL;
   kk_once_arg_t* arg = (kk_once_arg_t*)varg;
   (arg->init)();
@@ -167,7 +168,7 @@ typedef struct kk_task_s {
 static void kk_task_free( kk_task_t* task, kk_context_t* ctx ) {
   kk_function_drop(task->fun,ctx);
   kk_box_drop(task->promise,ctx);
-  kk_free(task);
+  kk_free(task,ctx);
 }
 
 static kk_task_t* kk_task_alloc( kk_function_t fun, kk_promise_t p, kk_context_t* ctx ) {
@@ -226,7 +227,7 @@ static kk_task_t* kk_tasks_dequeue( kk_task_group_t* tg ) {
 }
 
 static void kk_tasks_enqueue_n( kk_task_group_t* tg, kk_task_t* thead, kk_task_t* ttail, kk_context_t*  ctx ) {
-  KK_UNUSED(ctx);
+  kk_unused(ctx);
   if (tg->tasks_tail != NULL) {
     kk_assert(tg->tasks_tail->next == NULL);
     tg->tasks_tail->next = thead;
@@ -302,31 +303,31 @@ void kk_task_group_free( kk_task_group_t* tg, kk_context_t* ctx ) {
   }
   pthread_cond_destroy(&tg->tasks_available);
   pthread_mutex_destroy(&tg->tasks_lock);
-  kk_free(tg->threads);
-  kk_free(tg);
+  kk_free(tg->threads,ctx);
+  kk_free(tg,ctx);
 }
 
 static _Atomic(kk_ssize_t) default_concurrency;  // = 0
 
-void kk_task_set_default_concurrency(kk_ssize_t thread_count, kk_context_t* ctx) {
+void kk_task_set_default_concurrency(kk_ssize_t thread_cnt, kk_context_t* ctx) {
   const kk_ssize_t cpu_count = kk_cpu_count(ctx);
-  if (thread_count < 0) { thread_count = 0; }
-  else if (thread_count > 8*cpu_count) { thread_count = 8*cpu_count; };
-  kk_atomic_store_release(&default_concurrency, thread_count);
+  if (thread_cnt < 0) { thread_cnt = 0; }
+  else if (thread_cnt > 8*cpu_count) { thread_cnt = 8*cpu_count; };
+  kk_atomic_store_release(&default_concurrency, thread_cnt);
 }
 
-static kk_task_group_t* kk_task_group_alloc( kk_ssize_t thread_count, kk_context_t* ctx ) {
-  if (thread_count <= 0) {
-    thread_count = kk_atomic_load_acquire(&default_concurrency);
+static kk_task_group_t* kk_task_group_alloc( kk_ssize_t thread_cnt, kk_context_t* ctx ) {
+  if (thread_cnt <= 0) {
+    thread_cnt = kk_atomic_load_acquire(&default_concurrency);
   }
   const kk_ssize_t cpu_count = kk_cpu_count(ctx);
-  if (thread_count <= 0) { thread_count = cpu_count + (cpu_count > 16 ? cpu_count/4 : cpu_count/2); }
-  if (thread_count > 8*cpu_count) { thread_count = 8*cpu_count; };  
+  if (thread_cnt <= 0) { thread_cnt = cpu_count + (cpu_count > 16 ? cpu_count/4 : cpu_count/2); }
+  if (thread_cnt > 8*cpu_count) { thread_cnt = 8*cpu_count; };  
   kk_task_group_t* tg = (kk_task_group_t*)kk_zalloc( kk_ssizeof(kk_task_group_t), ctx );
   if (tg==NULL) return NULL;
-  tg->threads = (pthread_t*)kk_zalloc( (thread_count+1) * sizeof(pthread_t), ctx );
+  tg->threads = (pthread_t*)kk_zalloc( (thread_cnt+1) * sizeof(pthread_t), ctx );
   if (tg->threads == NULL) goto err;
-  tg->thread_count = thread_count;
+  tg->thread_count = thread_cnt;
   tg->tasks = NULL;
   tg->tasks_tail = NULL;
   if (pthread_cond_init(&tg->tasks_available, NULL) != 0) goto err;
@@ -344,8 +345,8 @@ err_threads:
   
 err:
   if (tg != NULL) {
-    if (tg->threads != NULL) { kk_free(tg->threads); }
-    kk_free(tg); 
+    if (tg->threads != NULL) { kk_free(tg->threads,ctx); }
+    kk_free(tg,ctx); 
   }
   return NULL;
 }
@@ -374,12 +375,12 @@ kk_promise_t kk_task_schedule( kk_function_t fun, kk_context_t* ctx ) {
 ---------------------------------------------------------------------------*/
 
 static void kk_promise_free( void* vp, kk_block_t* b, kk_context_t* ctx ) {
-  KK_UNUSED(b);
+  kk_unused(b);
   promise_t* p = (promise_t*)(vp);
   pthread_cond_destroy(&p->available);
   pthread_mutex_destroy(&p->lock);  
   kk_box_drop(p->result,ctx);
-  kk_free(p);
+  kk_free(p,ctx);
 }
 
 static kk_promise_t kk_promise_alloc(kk_context_t* ctx) {
@@ -393,7 +394,7 @@ static kk_promise_t kk_promise_alloc(kk_context_t* ctx) {
   kk_box_mark_shared(pr,ctx);
   return pr;
 err:
-  kk_free(p);
+  kk_free(p,ctx);
   return kk_box_any(ctx);
 }
 
@@ -493,12 +494,12 @@ kk_box_t  kk_lvar_get( kk_lvar_t lvar, kk_box_t bot, kk_function_t is_gte, kk_co
 
 
 static void kk_lvar_free( void* lvar, kk_block_t* b, kk_context_t* ctx ) {
-  KK_UNUSED(b);
+  kk_unused(b);
   lvar_t* lv = (lvar_t*)(lvar);
   pthread_cond_destroy(&lv->available);
   pthread_mutex_destroy(&lv->lock);  
   kk_box_drop(lv->result,ctx);
-  kk_free(lv);
+  kk_free(lv,ctx);
 }
 
 kk_lvar_t kk_lvar_alloc(kk_box_t init, kk_context_t* ctx) {
@@ -513,7 +514,7 @@ kk_lvar_t kk_lvar_alloc(kk_box_t init, kk_context_t* ctx) {
   kk_box_mark_shared(lvar,ctx);
   return lvar;
 err:
-  kk_free(lv);
+  kk_free(lv,ctx);
   kk_box_drop(init,ctx);
   return kk_box_any(ctx);
 }

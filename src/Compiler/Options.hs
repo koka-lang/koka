@@ -646,7 +646,7 @@ processOptions flags0 opts
                    ccCheckExist cc
                    let stdAlloc = if asan then True else useStdAlloc flags   -- asan implies useStdAlloc
                        cdefs    = ccompDefs flags 
-                                   ++ if stdAlloc then [] else [("KK_MIMALLOC","")]
+                                   ++ if stdAlloc then [] else [("KK_MIMALLOC",show (sizePtr (platform flags)))]
                                    ++ if (buildType flags > DebugFull) then [] else [("KK_DEBUG_FULL","")]
 
                    -- vcpkg
@@ -697,8 +697,8 @@ processOptions flags0 opts
                                   vcpkgTriplet= triplet,
                                   vcpkgIncludeDir  = vcpkgIncludeDir,
                                   vcpkgLibDir      = vcpkgLibDir,
-                                  ccompLibDirs     = vcpkgLibDirs ++ ccompLibDirs flags,
-                                  ccompIncludeDirs = vcpkgIncludeDirs ++ ccompIncludeDirs flags
+                                  ccompLibDirs     = vcpkgLibDirs ++ ccompLibDirs flags
+                                  -- ccompIncludeDirs = vcpkgIncludeDirs ++ ccompIncludeDirs flags  -- include path added when a library is used
                                }
                           ,flags,mode)
         else invokeError errs

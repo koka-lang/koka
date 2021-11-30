@@ -13,7 +13,7 @@ import Platform.Config(version)
 import Lib.Trace
 import Control.Applicative hiding (empty)
 import Control.Monad
-import Data.List ( intersperse, partition )
+import Data.List ( intersperse, partition, sortOn )
 import Data.Char
 -- import Data.Maybe
 -- import Data.Monoid ( mappend )
@@ -230,7 +230,7 @@ genMain progName platform stackSize (Just (name,_))
     text "\n// main entry\nint main(int argc, char** argv)" <+> block (vcat [
         text $ "kk_assert(sizeof(size_t)==" ++ show (sizeSize platform) ++ " && sizeof(void*)==" ++ show (sizePtr platform) ++ ");"
       , if stackSize == 0 then empty else
-        text $ "kk_os_set_stack_size(KIZ(" ++ show stackSize ++ "));"
+        text $ "kk_os_set_stack_size(KK_IZ(" ++ show stackSize ++ "));"
       , text "kk_context_t* _ctx = kk_main_start(argc, argv);"
       , ppName (qualify progName (newName ".init")) <.> parens (text "_ctx") <.> semi
       , text "atexit(&_kk_main_exit);"
@@ -492,7 +492,7 @@ genTypeDefPost (Data info isExtend)
              return ()
         else if (dataRepr == DataEnum || not (dataReprIsValue dataRepr))
           then return ()
-          else emitToH $ if (isDataStructLike dataRepr)
+          else emitToH $ if (hasTagField dataRepr)
                   then ppVis (dataInfoVis info) <.> text "struct" <+> ppName name <.> text "_s"
                        <+> block (text "kk_value_tag_t _tag;" <-> text "union"
                                   <+> block (vcat (
@@ -510,12 +510,13 @@ genTypeDefPost (Data info isExtend)
                        <+> ppName (typeClassName name) <.> semi
 
        -- generate functions for constructors
-       mapM_ (genConstructor info dataRepr maxScanCount) conInfos
-       mapM_ (genConstructorTest info dataRepr) conInfos
+       let sconInfos = sortOn (\(conInfo,_,_,_) -> length (conInfoParams conInfo)) conInfos -- singletons first for tests
+       mapM_ (genConstructor info dataRepr maxScanCount) sconInfos   
+       mapM_ (genConstructorTest info dataRepr) sconInfos
 
        -- generate functions for the data type
        when (not isExtend) $
-         do genDupDrop (typeClassName name) info dataRepr conInfos
+         do genDupDrop (typeClassName name) info dataRepr sconInfos
             genBoxUnbox name info dataRepr
   where
     ppStructConField con
@@ -572,25 +573,23 @@ genConstructorTestX info dataRepr con conRepr
                   in case conRepr of
                     ConEnum{}      -> text "x ==" <+> ppConTag con conRepr dataRepr
                     ConIso{}       -> text "true"
-                    ConSingleton{} | dataRepr == DataAsList
-                                     -> -- text "kk_datatype_is_singleton(x)" 
-                                        text "kk_datatype_eq(x," <.> conCreateNameInfo con <.> text "(NULL))"
-                                   | dataReprIsValue dataRepr
-                                     -> valueTagEq
-                                   | otherwise
-                                     -> text "kk_datatype_has_tag" <.> tupled [text "x", ppConTag con conRepr dataRepr]
+                    ConSingleton{} -- todo: maybe faster on arm64 with bt? -- | dataRepr == DataAsList -> text "kk_datatype_is_singleton(x)" -- text "x ==" <+> conSingletonName con
+                                   | dataReprIsValue dataRepr -> valueTagEq
+                                   | otherwise -> text "kk_datatype_has_singleton_tag" <.> tupled [text "x", ppConTag con conRepr dataRepr]
                     ConSingle{}    -> text "true"
-                    ConAsJust{}    -> valueTagEq
                     ConStruct{}    -> valueTagEq
-                    ConAsCons{}    -> -- testing for a constant singleton seems faster on x64 than testing the lowest bit
-                                      -- text "kk_datatype_is_ptr(x)" 
-                                      text "!kk_datatype_eq(x," <.> conCreateName (conAsNil conRepr) <.> text "(NULL))"
+                    ConAsJust{conAsNothing=nothing}
+                                   -> text "!" <.> conTestNameX nothing <.> tupled [text "x"]
+                    ConAsCons{conAsNil=nil}    
+                                   -> -- todo: is_ptr may be faster on arm64? 
+                                      -- text "kk_datatype_is_ptr(x)"
+                                      text "!" <.> conTestNameX nil <.> tupled [text "x"]
                     ConNormal{}
                                    -- | dataRepr == DataSingleNormal -> text "datatype_is_ptr(x)"
                                    -- | otherwise -> text "datatype_is_ptr(x) && datatype_tag_fast(x) ==" <+> ppConTag con conRepr dataRepr
                                    -- -> text "datatype_tag(x) ==" <+> ppConTag con conRepr dataRepr
                                    -> text (if (dataReprMayHaveSingletons dataRepr)
-                                             then "kk_datatype_has_tag" else "kk_basetype_has_tag")
+                                             then "kk_datatype_has_ptr_tag" else "kk_basetype_has_tag")
                                       <.> tupled [text "x", ppConTag con conRepr dataRepr]
                     ConOpen{}      -> text "kk_string_ptr_eq_borrow" <.> tupled [text "x->_tag",ppConTag con conRepr dataRepr]
                   ) <.> text ");")
@@ -607,8 +606,10 @@ ppConTag con conRepr dataRepr
   = case conRepr of
       ConOpen{} ->  ppName (makeHiddenName "tag" (conInfoName con))
       ConEnum{} ->  ppName (conInfoName con)
+      ConSingleton{} | dataRepr == DataAsMaybe -> text "KK_TAG_NOTHING"
+      ConAsJust{}    -> text "KK_TAG_JUST"
       -- ConSingleton{}  | dataRepr == DataAsList -> text "datatype_from_enum(" <.> pretty (conTag conRepr) <.> text ")" -- ppName ((conInfoName con))
-      _         | isDataStructLike dataRepr -> text "kk_value_tag(" <.> pretty (conTag conRepr) <.> text ")"
+      _         | hasTagField dataRepr -> text "kk_value_tag(" <.> pretty (conTag conRepr) <.> text ")"
       _         ->  text "(kk_tag_t)" <.> parens (pretty (conTag conRepr))
 
 
@@ -632,9 +633,9 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount maxScanCount
        let at = newHiddenName "at"
        emitToH $
           text "static inline" <+> ppName (typeClassName (dataInfoName info)) <+> conCreateNameInfo con
-          <.> ntparameters ((if (dataReprIsValue dataRepr || (null conFields)) then [] else [(at,typeReuse)])
+          <.> ntparameters ((if (dataReprIsValue dataRepr || (null conFields) || isDataAsMaybe dataRepr) then [] else [(at,typeReuse)])
                              ++ conInfoParams con)
-          <.> block (
+          <+> block (
             let nameDoc = ppName (conInfoName con)
                 -- tagDoc  = text "datatype_enum(" <.> pretty (conTag conRepr) <.> text ")"
             in case conRepr of
@@ -661,10 +662,15 @@ genConstructorCreate info dataRepr con conRepr conFields scanCount maxScanCount
                     else {- if (null conFields)
                      then text "return dup_datatype_as" <.> tupled [ppName (typeClassName (dataInfoName info)),  (conSingletonName con) {-, ppConTag con conRepr dataRepr <+> text "/* _tag */"-}] <.> semi
                      else -}
-                          vcat([text "struct" <+> nameDoc <.> text "*" <+> tmp <+> text "="
+                          vcat((if not (isConAsJust conRepr) then [] else 
+                                 let arg = ppName (fst (head (conInfoParams con)))
+                                 in [text "if (kk_likely(!kk_box_is_maybe(" <.> arg <.> text "))) { return kk_datatype_as_Just(" <.> arg <.> text "); }" 
+                                    ])
+                               ++
+                               [text "struct" <+> nameDoc <.> text "*" <+> tmp <+> text "="
                                <+> text "kk_block_alloc_at_as"
                                        <.> arguments [ text "struct" <+> nameDoc,
-                                                       (if (null conFields {- open singleton -}) then text "kk_reuse_null" else ppName at),
+                                                       (if (isDataAsMaybe dataRepr || null conFields {- open singleton -}) then text "kk_reuse_null" else ppName at),
                                                        pretty scanCount <+> text "/* scan count */",
                                                        if (dataRepr /= DataOpen)
                                                         then ppConTag con conRepr dataRepr
@@ -690,7 +696,7 @@ genConstructorBaseCast info dataRepr con conRepr
       _ -> emitToH $
             text "static inline" <+> ppName (typeClassName (dataInfoName info)) <+> conBaseCastNameInfo con
             <.> tupled [text "struct" <+> ppName (conInfoName con) <.> text "* _x"]
-            <.> block (
+            <+> block (
                   let base = text "&_x->_base"
                   in if (dataReprMayHaveSingletons dataRepr)
                       then text "return kk_datatype_from_base" <.> parens base <.> semi
@@ -716,9 +722,9 @@ genConstructorAccess info dataRepr con conRepr
 
 
 genBoxUnbox :: Name -> DataInfo -> DataRepr -> Asm ()
-genBoxUnbox name info dataRepr
+genBoxUnbox name info dataRepr 
   = do let tname = typeClassName name
-       genBox tname info dataRepr
+       genBox tname info dataRepr 
        genUnbox  tname info dataRepr
 
 
@@ -749,9 +755,19 @@ genBox name info dataRepr
         DataIso  -> let conInfo = head (dataInfoConstrs info)
                         (isoName,isoTp)   = (head (conInfoParams conInfo))
                     in text "return" <+> genBoxCall "box" False isoTp (text "_x." <.> ppName (unqualify isoName)) <.> semi
+        DataStructAsMaybe
+          -> let [conNothing,conJust] = sortOn (length . conInfoParams) (dataInfoConstrs info)
+                 (conJustFieldName,conJustFieldTp) = head (conInfoParams conJust)
+             in text "if" <+> parens (conTestName conNothing <.> tupled [text "_x"]) <+> (text "return kk_box_Nothing();")
+                <->
+                text "  else" <+> (
+                  let boxField = genBoxCall "box" False conJustFieldTp 
+                                  (text "_x._cons." <.> ppDefName (conInfoName conJust) <.> text "." <.> ppName (unqualify conJustFieldName))
+                  in text "return kk_box_Just" <.> arguments [boxField] <.> semi
+                )
         _ -> case dataInfoDef info of
                DataDefValue raw scancount
-                  -> let -- extra = if (isDataStructLike dataRepr) then 1 else 0  -- adjust scan count for added "tag_t" members in structs with multiple constructors
+                  -> let -- extra = if (hasTagField dataRepr) then 1 else 0  -- adjust scan count for added "tag_t" members in structs with multiple constructors
                          docScanCount = if (hasTagField dataRepr)
                                          then ppName name <.> text "_scan_count" <.> parens (text "_x")
                                          else pretty scancount <+> text "/* scan count */"
@@ -771,12 +787,23 @@ genUnbox name info dataRepr
         DataIso  -> let conInfo = head (dataInfoConstrs info)
                         isoTp   = snd (head (conInfoParams conInfo))
                     in text "return" <+> conCreateNameInfo conInfo <.> arguments [genBoxCall "unbox" False isoTp (text "_x")]
+        DataStructAsMaybe
+          -> let [conNothing,conJust] = sortOn (length . conInfoParams) (dataInfoConstrs info)
+                 (conJustFieldName,conJustFieldTp) = head (conInfoParams conJust)
+             in text "if (kk_box_is_Nothing(_x))" <+> 
+                  text "return" <+> conCreateName (conInfoName conNothing) <.> arguments [] <.> semi
+                <->
+                text "  else" <+> (
+                  text "return" <+> conCreateName (conInfoName conJust) <.> arguments [
+                    genBoxCall "unbox" False conJustFieldTp (text "kk_unbox_Just" <.> arguments [text "_x"])
+                  ] <.> semi
+                )
         _ | dataReprIsValue dataRepr
           -> vcat [ text "kk_boxed_value_t _p;"
                   , ppName name <+> text "_unbox;"
                   , text "kk_valuetype_unbox_" <.> arguments [ppName name, text "_p", text "_unbox", text "_x"] <.> semi  -- borrowing
                   , text "if (_ctx!=NULL && _p!=NULL)" <+> block (
-                      text "if (kk_basetype_is_unique(_p)) { kk_basetype_free(_p); } else" <+> block (
+                      text "if (kk_basetype_is_unique(_p)) { kk_basetype_free(_p,_ctx); } else" <+> block (
                         vcat [ppName name <.> text "_dup(_unbox);"
                              ,text "kk_basetype_decref" <.> arguments [text "_p"] <.> semi]
                       )
@@ -797,13 +824,14 @@ genDupDrop name info dataRepr conInfos
        genDupDropX True name info dataRepr conInfos
        genDupDropX False name info dataRepr conInfos
        when (not (dataReprIsValue dataRepr)) $
-         do genIsUnique name info dataRepr
-            genFree name info dataRepr          -- free the block
-            genDecRef name info dataRepr        -- decrement the ref count (if > 0)
-            genDropReuseFun name info dataRepr     -- drop, but if refcount==0 return the address of the block instead of freeing
-            genDropNFun name info dataRepr
-            genReuse name info dataRepr         -- return the address of the block
-            genHole name info dataRepr
+         do genHole name info dataRepr               -- create "hole" of this type for TRMC
+            when (not (isDataAsMaybe dataRepr)) $
+              do genIsUnique name info dataRepr
+                 genFree name info dataRepr          -- free the block
+                 genDecRef name info dataRepr        -- decrement the ref count (if > 0)
+                 genDropReuseFun name info dataRepr  -- drop, but if refcount==0 return the address of the block instead of freeing
+                 genDropNFun name info dataRepr      -- drop with known number of scan fields
+                 genReuse name info dataRepr         -- return the address of the block
 
 
 genIsUnique :: Name -> DataInfo -> DataRepr -> Asm ()
@@ -819,11 +847,11 @@ genIsUnique name info dataRepr
 genFree :: Name -> DataInfo -> DataRepr -> Asm ()
 genFree name info dataRepr
   = emitToH $
-    text "static inline void" <+> ppName name <.> text "_free" <.> tupled [ppName name <+> text "_x"] <+> block (
+    text "static inline void" <+> ppName name <.> text "_free" <.> parameters [ppName name <+> text "_x"] <+> block (
       (if (dataReprMayHaveSingletons dataRepr)
-        then text "kk_datatype_free(_x)"
-        else text "kk_basetype_free(_x)"
-      ) <.> semi)
+        then text "kk_datatype_free"
+        else text "kk_basetype_free"
+      ) <.> arguments [text "_x"] <.> semi)
 
 genDecRef :: Name -> DataInfo -> DataRepr -> Asm ()
 genDecRef name info dataRepr
@@ -965,7 +993,7 @@ genIsUniqueCall tp arg  = case genDupDropCallX "is_unique" tp (parens arg) of
                             cs     -> cs
 
 genFreeCall :: Type -> Doc -> [Doc]
-genFreeCall tp arg  = genDupDropCallX "free" tp (parens arg)
+genFreeCall tp arg  = genDupDropCallX "free" tp (arguments [arg])
 
 genDecRefCall :: Type -> Doc -> [Doc]
 genDecRefCall tp arg  = genDupDropCallX "decref" tp (arguments [arg])
@@ -1040,15 +1068,11 @@ ppDefName name
 vcatBreak []  = empty
 vcatBreak xs  = linebreak <.> vcat xs
 
--- explicit tag field?
-hasTagField :: DataRepr -> Bool
-hasTagField DataAsMaybe = True
-hasTagField DataStruct  = True
-hasTagField rep         = False
 
 dataReprMayHaveSingletons :: DataRepr -> Bool
 dataReprMayHaveSingletons dataRepr
   = case dataRepr of
+      DataAsMaybe       -> True
       DataAsList        -> True
       DataSingleNormal  -> True
       (DataSingle hasSingletons) -> hasSingletons
@@ -1099,7 +1123,7 @@ genLambda params eff body
 
        bodyDoc <- genStat (ResultReturn Nothing params) body
        let funDef = funSig <+> block (
-                      (if (null fields) then text "KK_UNUSED(_fself);"
+                      (if (null fields) then text "kk_unused(_fself);"
                         else let dups = braces (hcat [genDupCall tp (ppName name) <.> semi | (name,tp) <- fields])
                              in vcat ([structDoc <.> text "* _self = kk_function_as" <.> tupled [structDoc <.> text "*",text "_fself"] <.> semi]
                                    ++ [ppType tp <+> ppName name <+> text "= _self->" <.> ppName name <.> semi <+> text "/*" <+> pretty tp <+> text "*/"  | (name,tp) <- fields]
@@ -1360,12 +1384,13 @@ genMatch result0 exprDocs branches
           PatWild    -> True
           PatLit _   -> True
           PatVar _ p -> isSingleTestPat p
-          PatCon{patConPatterns = ps} -> all isZeroTestPat ps
+          PatCon{patConPatterns = ps} -> all isZeroTestPat ps 
 
     isZeroTestPat pat
       = case pat of
           PatWild    -> True
           PatVar _ p -> isZeroTestPat p
+          PatCon{patConPatterns = ps, patConSkip = skip} -> skip && all isZeroTestPat ps
           _          -> False
 
 genBranch :: Result -> [Doc] -> Bool -> Branch -> Asm Doc
@@ -1454,6 +1479,11 @@ genPatternTest doTest gfree (exprDoc,pattern)
                     -> return [(xtest [exprDoc],[],[])]
                  ConEnum{} | conInfoName info == nameFalse
                     -> return [(xtest [text "!" <.> parens exprDoc],[],[])]
+                 ConAsJust{} 
+                    -> do let next = genNextPatterns 
+                                        (\self fld -> text "kk_datatype_unJust" <.> arguments [self]) 
+                                        exprDoc (typeOf tname) patterns
+                          return [(xtest [conTestName info <.> parens exprDoc],[],next)]
                  _  -> let dataRepr = conDataRepr repr
                        in if (dataReprIsValue dataRepr || isConSingleton repr)
                            then valTest tname info dataRepr
@@ -1465,7 +1495,7 @@ genPatternTest doTest gfree (exprDoc,pattern)
           valTest conName conInfo dataRepr
             = --do let next = genNextPatterns (exprDoc) (typeOf tname) patterns
               --   return [(test [conTestName conInfo <.> parens exprDoc],[assign],next)]
-              do let selectOp = if (isDataStructLike dataRepr)
+              do let selectOp = if (hasTagField dataRepr)
                                  then "._cons." ++ show (ppDefName (getName conName)) ++ "."
                                  else "."
                      next = genNextPatterns (\self fld -> self <.> text selectOp <.> fld) exprDoc (typeOf tname) patterns
@@ -1768,7 +1798,7 @@ genAppNormal f args
            -> case f of
                -- constructor
                Con tname repr
-                 -> let at = if (dataReprIsValue (conDataRepr repr)) then [] else [text "kk_reuse_null"]
+                 -> let at = if (dataReprIsValue (conDataRepr repr) || isConAsJust repr) then [] else [text "kk_reuse_null"]
                     in return (decls,conCreateName (getName tname) <.> arguments (at ++ argDocs))
                -- call to known function
                Var tname _ | getName tname == nameAllocAt
@@ -2322,24 +2352,24 @@ cstring s
 genLitInt32 :: Integer -> Doc
 genLitInt32 i
   | i == minSmallInt32 = parens (text "INT32_MIN")
-  | otherwise          = parens (text "(int32_t)" <.> text "KI32" <.> parens (pretty i))
+  | otherwise          = parens ({-text "(int32_t)" <.> -} text "KK_I32" <.> parens (pretty i))
 
 genLitInt64 :: Integer -> Doc
 genLitInt64 i
   | i == minSmallInt64  = parens (text "INT64_MIN")
-  | otherwise           = parens (text "(int64_t)" <.> text "KI64" <.> parens (pretty i))
+  | otherwise           = parens ({-text "(int64_t)" <.> -} text "KK_I64" <.> parens (pretty i))
 
 genLitUInt8 :: Integer -> Doc
 genLitUInt8 i
-  = parens (text "(uint8_t)" <.> pretty i)
+  = parens (text "(uint8_t)" <.> parens (pretty i))
 
 genLitSSizeT :: Integer -> Doc
 genLitSSizeT i
-  = parens (text "(kk_ssize_t)" <.> pretty i)
+  = parens (text "KK_IZ" <.> parens (pretty i))
 
 genLitIntPtrT :: Integer -> Doc
 genLitIntPtrT i
-  = parens (text "(intptr_t)" <.> pretty i)
+  = parens (text "KK_IP" <.> parens (pretty i))
 
 
 isSmallLitInt expr
@@ -2349,7 +2379,7 @@ isSmallLitInt expr
 
 isSmallInt i = (i >= minSmallInt && i <= maxSmallInt)
 maxSmallInt, minSmallInt :: Integer
-maxSmallInt = 2047  -- 2^13 - 1   (conservative: 14 bits on 32-bits platform)
+maxSmallInt = 8191  -- 2^13 - 1   (conservative: 14 bits on 32-bits platform)
 minSmallInt = -maxSmallInt - 1
 
 isSmallInt32 i = (i >= minSmallInt32 && i <= maxSmallInt32)

@@ -48,7 +48,7 @@ layout semiInsert lexemes
               semi checkComments $ 
               lexemes
     in -- trace (unlines (map show ls)) $
-       seq (last ls) ls
+       if null ls then [] else seq (last ls) ls
 
 isLexError (Lexeme _ (LexError {})) = True
 isLexError _ = False
