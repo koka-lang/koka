@@ -273,8 +273,12 @@ sup effUpperBound rqs =
         (_, True) -> tl1
         _ | tl1 == tl2 -> tl1
         _ -> failure "Core/OpenFloat.sup: Unrelated pair of tail found in candidates"
+      -- TODO: Introduce Flt monad and show pretty types
       assertValidTail :: Effect -> Effect -> Effect
-      assertValidTail upper actual = if debug && isEffectEmpty actual || actual == upper then actual else failure "Core/OpenFloat.sup: decided tail of the row is not smaller or equal to given upper bound"
+      assertValidTail upper actual = 
+        if not debug || isEffectEmpty actual || actual == upper
+          then actual 
+          else failure $ "Core/OpenFloat.sup: decided tail of the row is not smaller or equal to given upper bound\n" ++ (show upper) ++ "\n" ++ (show actual)
 
 fromReq :: Req -> Effect
 fromReq Bottom = failure "Core/OpenFloat.fromReq: Bottom"
