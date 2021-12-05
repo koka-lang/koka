@@ -482,7 +482,7 @@ multiStepInlines loadedInlines inlines = snd . foldl' f (inlines `inlinesMerge` 
               let spArgs = filterBools specArgs args
               let overlap = map (`elem` concatMap vars spArgs) params
               guard (or overlap)
-              traceM ("Add " ++ show (defName def) ++ " as multi-step specializable for params " <> show overlap <> " because calls " ++ show name)
+              -- traceM ("Add " ++ show (defName def) ++ " as multi-step specializable for params " <> show overlap <> " because calls " ++ show name)
               pure overlap
         goCommon _ _ = mempty
 

@@ -891,10 +891,13 @@ inferCheck loaded0 flags line coreImports program
        -- specialize 
        specializeDefs <- if (isPrimitiveModule (Core.coreProgName coreProgram)) then return [] else 
                          Core.withCoreDefs (\defs -> extractSpecializeDefs (loadedInlines loaded) defs)
-       --  traceM ("Spec defs:\n" ++ unlines (map show specializeDefs))
+       -- traceM ("Spec defs:\n" ++ unlines (map show specializeDefs))
        
        when (optSpecialize flags && not (isPrimitiveModule (Core.coreProgName coreProgram))) $
-         do specialize (inlinesExtends specializeDefs (loadedInlines loaded)) penv
+         do
+            -- simplifyDupN
+            -- traceDefGroups "beforespec"
+            specialize (inlinesExtends specializeDefs (loadedInlines loaded)) penv
             -- traceDefGroups "specialized"
             simplifyDupN
             -- traceDefGroups "simplified"
@@ -951,7 +954,8 @@ inferCheck loaded0 flags line coreImports program
        -- traceM ("final: " ++ show uniqueFinal)
        let -- extract inline definitions to export
            localInlineDefs  = extractInlineDefs (optInlineMax flags) coreDefsInlined 
-           allInlineDefs    = localInlineDefs ++ specializeDefs
+           -- give priority to specializeDefs, since inlining can prevent specialize opportunities
+           allInlineDefs    = specializeDefs ++ localInlineDefs
 
            coreProgramFinal 
             = uniquefy $
