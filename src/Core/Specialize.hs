@@ -71,7 +71,6 @@ import Lib.Trace
   Specialization Monad
 --------------------------------------------------------------------------}
 
--- add env here
 data ReadState = ReadState
   { inlines :: Inlines
   , penv    :: Env
@@ -177,7 +176,8 @@ goodArgs :: [Bool] -> [Expr] -> [Maybe Expr]
 goodArgs bools exprs = map (\(b, e) -> guard b >> goodArg e >> Just e) $ zip bools exprs
 
 goodArg :: Expr -> Maybe Expr
-goodArg expr = case expr of
+goodArg expr = -- (\isgood -> trace ("expr: " ++ show expr ++ " is good? " ++ show (isJust $ isgood)) $ isgood) $
+               case expr of
                 Lam{}                  -> Just expr
                 TypeLam _ body         -> goodArg body >> Just expr
                 TypeApp body _         -> goodArg body >> Just expr
@@ -479,9 +479,10 @@ multiStepInlines loadedInlines inlines = snd . foldl' f (inlines `inlinesMerge` 
         goCommon name args
           | Just InlineDef{ specializeArgs=specArgs } <- inlinesLookup name inlines
           , name /= defName def = do
-              let overlap = map (`elem` concatMap vars args) params
-              guard (not $ null overlap)
-              -- traceM ("Add " ++ show (defName def) ++ " as multi-step specializable " <> " for params " <> show specArgs <> " because calls " ++ show name)
+              let spArgs = filterBools specArgs args
+              let overlap = map (`elem` concatMap vars spArgs) params
+              guard (or overlap)
+              traceM ("Add " ++ show (defName def) ++ " as multi-step specializable for params " <> show overlap <> " because calls " ++ show name)
               pure overlap
         goCommon _ _ = mempty
 
