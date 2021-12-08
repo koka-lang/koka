@@ -1423,11 +1423,15 @@ if (kk_integer_is_zero_borrow(y)) {
     if (kk_integer_is_neg_borrow(m)) {
       if (kk_integer_is_neg_borrow(y)) {
         d = kk_integer_inc(d, ctx);
-        if (mod!=NULL) { m = kk_integer_sub(m, y, ctx); }      
+        if (mod!=NULL) { 
+          m = kk_integer_sub(m, kk_integer_dup(y), ctx); 
+        }      
       }
       else {
         d = kk_integer_dec(d, ctx);
-        if (mod!=NULL) { m = kk_integer_add(m, y, ctx); } 
+        if (mod!=NULL) { 
+          m = kk_integer_add(m, kk_integer_dup(y), ctx); 
+        } 
       }
     }
     kk_integer_drop(y,ctx);
