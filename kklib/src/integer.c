@@ -1401,7 +1401,7 @@ kk_integer_t kk_integer_cmod_generic(kk_integer_t x, kk_integer_t y, kk_context_
 // - x `mod` 2^n == and(x,2^(n-1))  for any x, n
 // - Euclidean division behaves identical to truncated division for positive dividends.
 kk_integer_t kk_integer_div_mod_generic(kk_integer_t x, kk_integer_t y, kk_integer_t* mod, kk_context_t* ctx) {
-if (kk_integer_is_zero_borrow(y)) {
+  if (kk_integer_is_zero_borrow(y)) {
     // div by zero
     if (mod!=NULL) {
       *mod = x;
@@ -1423,14 +1423,14 @@ if (kk_integer_is_zero_borrow(y)) {
     if (kk_integer_is_neg_borrow(m)) {
       if (kk_integer_is_neg_borrow(y)) {
         d = kk_integer_inc(d, ctx);
-        if (mod!=NULL) { m = kk_integer_sub(m, y, ctx); }      
+        if (mod!=NULL) { m = kk_integer_sub(m, kk_integer_dup(y), ctx); }
       }
       else {
         d = kk_integer_dec(d, ctx);
-        if (mod!=NULL) { m = kk_integer_add(m, y, ctx); } 
+        if (mod!=NULL) { m = kk_integer_add(m, kk_integer_dup(y), ctx); }
       }
     }
-    kk_integer_drop(y,ctx);
+    kk_integer_drop(y, ctx);
     if (mod==NULL) {
       kk_integer_drop(m, ctx);
     }
