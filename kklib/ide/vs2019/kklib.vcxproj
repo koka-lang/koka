@@ -137,7 +137,6 @@
       </AdditionalLibraryDirectories>
       <AdditionalDependencies>
       </AdditionalDependencies>
-      <AdditionalOptions>/NATVIS %(AdditionalOptions)</AdditionalOptions>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
