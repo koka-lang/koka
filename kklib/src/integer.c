@@ -336,9 +336,8 @@ static kk_integer_t integer_bigint(kk_bigint_t* x, kk_context_t* ctx) {
 
 // create a bigint from an kk_int_t
 static kk_bigint_t* bigint_from_int(kk_intx_t i, kk_context_t* ctx) {
-  bool is_neg = (i < 0);
-  kk_uintx_t u;  // use uint64 so we can convert MIN_INT64
-  if (!is_neg) {
+  kk_uintx_t u;  
+  if (i >= 0) {
     u = (kk_uintx_t)i;
   }
   else if (i == KK_INTX_MIN) {
@@ -347,7 +346,7 @@ static kk_bigint_t* bigint_from_int(kk_intx_t i, kk_context_t* ctx) {
   else {
     u = (kk_uintx_t)(-i);
   }
-  kk_bigint_t* b = bigint_alloc(0, is_neg, ctx); // will reserve at least 4 digits
+  kk_bigint_t* b = bigint_alloc(0, i < 0, ctx); // will reserve at least 4 digits
   do {
     b = bigint_push(b, u%BASE, ctx);
     u /= BASE;
@@ -357,9 +356,8 @@ static kk_bigint_t* bigint_from_int(kk_intx_t i, kk_context_t* ctx) {
 
 // create a bigint from an int64_t
 static kk_bigint_t* bigint_from_int64(int64_t i, kk_context_t* ctx) {
-  bool is_neg = (i < 0);
   uint64_t u;  // use uint64 so we can convert MIN_INT64
-  if (!is_neg) { 
+  if (i >= 0) { 
     u = (uint64_t)i; 
   }
   else if (i == INT64_MIN) { 
@@ -368,7 +366,7 @@ static kk_bigint_t* bigint_from_int64(int64_t i, kk_context_t* ctx) {
   else { 
     u = (uint64_t)(-i); 
   }
-  kk_bigint_t* b = bigint_alloc(0, is_neg, ctx); // will reserve at least 4 digits
+  kk_bigint_t* b = bigint_alloc(0, i < 0, ctx); // will reserve at least 4 digits
   do {
     b = bigint_push(b, (kk_digit_t)(u%BASE), ctx);
     u /= BASE;
@@ -1761,7 +1759,7 @@ static uint64_t kk_bigint_clamp_uint64(kk_bigint_t* bx, kk_context_t* ctx) {
     // nothing
   }
   else if (bx->count==1 && bx->digits[0] <= UINT64_MAX) {
-    // fast path for small integers
+    // fast path for "small" integers
     u = (uint64_t)bx->digits[0];
   }
   else {
@@ -1796,7 +1794,7 @@ int64_t kk_integer_clamp64_generic(kk_integer_t x, kk_context_t* ctx) {
   else {
     bool is_neg = bx->is_neg;
     uint64_t u = kk_bigint_clamp_uint64(bx, ctx);
-    if (is_neg) {  // note: ensure INT64_MIN is handled correctly
+    if (is_neg) {  // note: ensures INT64_MIN is handled correctly
       return (u > INT64_MAX ? INT64_MIN : -((int64_t)u));
     }
     else {
@@ -1823,7 +1821,7 @@ int32_t kk_integer_clamp32_generic(kk_integer_t x, kk_context_t* ctx) {
     // use intermediate uint64_t
     bool is_neg = bx->is_neg;
     uint64_t u = kk_bigint_clamp_uint64(bx, ctx);
-    if (is_neg) {  // note: ensure INT32_MIN is handled correctly
+    if (is_neg) {  // note: ensures INT32_MIN is handled correctly
       return (u > INT32_MAX ? INT32_MIN : -((int32_t)u));
     }
     else {
@@ -1834,8 +1832,9 @@ int32_t kk_integer_clamp32_generic(kk_integer_t x, kk_context_t* ctx) {
 
 size_t kk_integer_clamp_size_t_generic(kk_integer_t x, kk_context_t* ctx) {
   kk_bigint_t* bx = kk_integer_to_bigint(x, ctx);
-#if (KK_SIZE_SIZE <= 8)
-  uint64_t u = kk_bigint_clamp_uint64(bx, ctx);
+#if (SIZE_MAX <= UINT64_MAX)
+  uint64_t u = (bx->is_neg ? 0 : kk_bigint_clamp_uint64(bx, ctx));
+  drop_bigint(bx, ctx);
   return (u > SIZE_MAX ? SIZE_MAX : (size_t)u);
 #else
 #error "define kk_integer_clamp_size_t_bigint for this platform"
@@ -1856,7 +1855,8 @@ double kk_integer_as_double_generic(kk_integer_t x, kk_context_t* ctx) {
       d = (d*base) + ((double)bx->digits[i-1]);
     }    
   }
-  if (bx->is_neg) d = -d;
+  if (bx->is_neg) { d = -d; }
+  drop_bigint(bx, ctx);
   return d;
 }
 
