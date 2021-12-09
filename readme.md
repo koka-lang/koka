@@ -74,7 +74,7 @@ To learn more:
 Enjoy,  
   Daan Leijen
 
-Special thanks to: [Anton Lorenzen](https://antonlorenzen.de/about-me-contact) for his work on frame-limited
+Special thanks to: [Anton Lorenzen](https://antonlorenzen.de/) for his work on frame-limited
 reuse in Perceus [[10]](#references), [Ningning Xie](https://xnning.github.io/) for her work on the theory and practice of evidence passing [[9,6]](#references) and the formalization of Perceus reference counting [[8]](#references),
 [Alex Reinking](https://alexreinking.com/) for the implementation of the Perceus reference counting analysis [[8]](#references),
 and all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.
@@ -486,4 +486,4 @@ Also as MSR-TR-2021-5, Mar, 2021.
 [pdf](https://www.microsoft.com/en-us/research/publication/generalized-evidence-passing-for-effect-handlers/)
 
 10. Anton Lorenzen and Daan Leijen. &ldquo; Reference Counting with Frame-Limited Reuse&rdquo; Microsoft Research
-technical report MSR-2021-30, Nov 2021. [pdf][https://www.microsoft.com/en-us/research/publication/reference-counting-with-frame-limited-reuse-extended-version/]
+technical report MSR-TR-2021-30, Nov 2021. [pdf](https://www.microsoft.com/en-us/research/publication/reference-counting-with-frame-limited-reuse-extended-version/)
