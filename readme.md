@@ -486,4 +486,4 @@ Also as MSR-TR-2021-5, Mar, 2021.
 [pdf](https://www.microsoft.com/en-us/research/publication/generalized-evidence-passing-for-effect-handlers/)
 
 10. Anton Lorenzen and Daan Leijen. &ldquo; Reference Counting with Frame-Limited Reuse&rdquo; Microsoft Research
-technical report MSR-2021-30, Nov 2021. [pdf][https://www.microsoft.com/en-us/research/publication/reference-counting-with-frame-limited-reuse-extended-version/]
+technical report MSR-TR-2021-30, Nov 2021. [pdf](https://www.microsoft.com/en-us/research/publication/reference-counting-with-frame-limited-reuse-extended-version/)
