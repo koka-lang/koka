@@ -3,7 +3,7 @@
 // --------------------------------------------------------
 import std/async
 import std/time/duration
-import std/os/readline
+import std/async/readline
 
 fun main() {
   println("starting")

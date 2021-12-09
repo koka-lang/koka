@@ -2609,7 +2609,7 @@ fun try-default( value : a , action : () -> <exn|e> a ) : e a {
 }
 
 // Transform an `:error` type back to an `exn` effect.
-fun throw( err : error<a> ) : exn a {
+fun untry( err : error<a> ) : exn a {
   match(err) {
     Error(exn) -> throw-exn(exn)
     Ok(x)      -> x
@@ -2618,7 +2618,7 @@ fun throw( err : error<a> ) : exn a {
 
 // Transform an `:error` type back to an `exn` effect.
 fun exn( err : error<a> ) : exn a {
-  throw(err)
+  untry(err)
 }
 
 // Use default value `def` in case of an error.

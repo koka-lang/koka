@@ -6,7 +6,7 @@
 // --------------------------------------------------------
 import std/async
 import std/time/duration
-import std/os/readline
+import std/async/readline
 import std/debug
 
 effect state {

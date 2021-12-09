@@ -757,6 +757,14 @@ public fun clause-tail4(op : (a1,a2,a3,a4) -> e b) : clause1<(a1,a2,a3,a4),b,h,e
   clause-tail1( fn( x:(_,_,_,_) ){ op(x.fst,x.snd,x.thd,x.field4) } )
 }
 
+public fun clause-tail-noyield4(op : (a1,a2,a3,a4) -> e b) : clause1<(a1,a2,a3,a4),b,h,e,r> {
+  clause-tail-noyield1( fn( x:(_,_,_,_) ){ op(x.fst,x.snd,x.thd,x.field4) } )
+}
+
+public fun clause-never4( op : (a1,a2,a3,a4) -> e r ) : clause1<(a1,a2,a3,a4),b,h,e,r> {
+  clause-never1(fn(x:(_,_,_,_)){ op(x.fst,x.snd,x.thd,x.field4) } )
+}
+
 public fun ".perform4"( ev : ev<h>, op : (forall<e1,r> h<e1,r> -> clause1<(a1,a2,a3,a4),b,h,e1,r>), x1 : a1, x2 : a2, x3 : a3, x4 : a4 ) : e b {
   xperform1(ev,op,(x1,x2,x3,x4))
 }

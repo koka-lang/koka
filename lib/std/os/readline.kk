@@ -21,7 +21,7 @@ extern import
 // or 1023 characters have been read.
 public fun readline() : <console,exn> string
   match readline-err() 
-    Error(exn)  -> Error(exn.prepend("unable to read from stdin")).throw
+    Error(exn)  -> Error(exn.prepend("unable to read from stdin")).untry
     Ok(line)    -> line
 
 
