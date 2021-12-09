@@ -921,9 +921,9 @@ inline extern int : (char) -> int {
 }
 
 // Convert a unicode code point to a character
-inline extern char( ^i : int) : char {
+inline extern char( i : int) : char {
   inline "(#1)";
-  c  inline "kk_integer_clamp32_borrow(#1)"
+  c "kk_integer_clamp32"
   cs inline "Primitive.IntToInt32(#1)"
 }
 
@@ -1100,8 +1100,8 @@ inline extern (~)(i:int) : int {
 }
 
 // Convert an integer to a `:double`. May return `nan` if the integer is too large to represent as a `:double`.
-inline extern double( ^i : int) : double  {
-  c  inline "kk_integer_as_double_borrow(#1)"
+inline extern double( i : int) : double  {
+  c  "kk_integer_as_double"
   cs "Primitive.IntToDouble"
   js "$std_core._int_to_double"
 }
@@ -1276,7 +1276,7 @@ inline extern int( i : int32 ) : int {
 // Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
 // value if it is outside the range of an `:int32`.
 extern int32( i : int) : int32   {
-  c  "kk_integer_clamp32" // "kk_integer_clamp32_borrow(#1)"
+  c  "kk_integer_clamp32"
   cs "Primitive.IntToInt32"
   js "$std_core._int_clamp32"
 }
@@ -2074,7 +2074,7 @@ inline extern trim-right( s : string ) : string {
 
 // Return the element at position `index`  in vector `v`  without bounds check!
 private inline extern unsafe-idx( ^v : vector<a>, index : ssize_t ) : total a {
-  c  inline "kk_vector_at_borrow(#1, #2)"
+  c  inline "kk_vector_at_borrow(#1,#2)"
   cs inline "(#1)[#2]";
   js inline "(#1)[#2]";
 }
@@ -2093,7 +2093,7 @@ private inline extern unsafe-vector : forall<a> ( n : ssize_t ) -> total vector<
 
 // Return the element at position `index`  in vector `v` . Raise an out of bounds exception if `index < 0`  or `index >= v.length` .
 inline extern []( ^v : vector<a>, ^index : int ) : exn a  {
-  c  inline "kk_vector_at_int_borrow(#1, #2)"
+  c "kk_vector_at_int_borrow"
   cs inline "(#1)[Primitive.IntToInt32(#2)]"
   js inline "$std_core._vector_at(#1,#2)"
 }
