@@ -331,7 +331,11 @@ static inline kk_integer_t kk_integer_from_int32(int32_t i, kk_context_t* ctx) {
 }
 
 static inline kk_integer_t kk_integer_from_uint32(uint32_t i, kk_context_t* ctx) {
+#if (KK_SMALLINT_MAX >= UINT32_MAX)
+  return kk_integer_from_small((kk_intf_t)i);
+#else  
   return (kk_likely(i <= KK_SMALLINT_MAX) ? kk_integer_from_small((kk_intf_t)i) : kk_integer_from_big(i, ctx));
+#endif  
 }
 
 static inline kk_integer_t kk_integer_from_int64(int64_t i, kk_context_t* ctx) {
