@@ -105,7 +105,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>..\..\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <SupportJustMyCode>false</SupportJustMyCode>
+      <SupportJustMyCode>true</SupportJustMyCode>
       <PreprocessorDefinitions>KK_DEBUG_FULL=1;KK_STATIC_LIB=1;KK_MIMALLOC=1;</PreprocessorDefinitions>
       <FloatingPointModel>Strict</FloatingPointModel>
       <CompileAs>CompileAsCpp</CompileAs>
@@ -165,14 +165,15 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\.koka\debug\interactive.c" />
-    <ClCompile Include="..\..\..\.koka\debug\samples_handlers_nim.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core_hnd.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_core_types.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_num_double.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_num_int32.c" />
+    <ClCompile Include="..\..\..\.koka\debug\std_num_int64.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_num_random.c" />
     <ClCompile Include="..\..\..\.koka\debug\std_text_parse.c" />
+    <ClCompile Include="..\..\..\.koka\debug\test_lib_bigint1.c" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="kklib.natvis" />
