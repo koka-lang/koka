@@ -74,7 +74,7 @@ To learn more:
 Enjoy,  
   Daan Leijen
 
-Special thanks to: [Anton Lorenzen](https://antonlorenzen.de/about-me-contact) for his work on frame-limited
+Special thanks to: [Anton Lorenzen](https://antonlorenzen.de/) for his work on frame-limited
 reuse in Perceus [[10]](#references), [Ningning Xie](https://xnning.github.io/) for her work on the theory and practice of evidence passing [[9,6]](#references) and the formalization of Perceus reference counting [[8]](#references),
 [Alex Reinking](https://alexreinking.com/) for the implementation of the Perceus reference counting analysis [[8]](#references),
 and all previous interns working on earlier versions of Koka: Daniel Hillerström, Jonathan Brachthäuser, Niki Vazou, Ross Tate, Edsko de Vries, and Dana Xu.

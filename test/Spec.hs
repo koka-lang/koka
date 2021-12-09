@@ -16,6 +16,7 @@ import Test.Hspec.Core.Formatters hiding (Error)
 
 commonFlags :: [String]
 commonFlags = ["-c", "-v0", "--console=raw",
+               "-O1", -- for cgen/specialize
                -- "--cc=clang",
                -- "--checkcore",
                "-ilib", "-itest",
