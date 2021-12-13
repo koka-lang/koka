@@ -36,7 +36,7 @@ public fun copy-directory( dir : path, to : path ) : <fsys,pure> () {
 // Ensure a directory path exists
 public fun ensure-dir( dir : path ) : <fsys,exn> () {
   match(ensure-dir-err(dir.string, -1)) {
-    Error(exn) -> Error(exn.prepend("unable to create directory " ++ dir.show)).throw
+    Error(exn) -> throw-exn(exn.prepend("unable to create directory " ++ dir.show))
     Ok         -> ()
   }
 }
@@ -68,7 +68,7 @@ public fun copy-file-to-dir( from : path, dir : path ) : <fsys,exn> () {
 // Copy a file.
 public fun copy-file( from : path, to : path, preserve-mtime : bool = True ) : <fsys,exn> () {
   match (prim-copy-file(from.string, to.string, preserve-mtime )) {
-    Error(exn) -> Error(exn.prepend("unable to copy " ++ from.show ++ " to " ++ to.show)).throw
+    Error(exn) -> throw-exn(exn.prepend("unable to copy " ++ from.show ++ " to " ++ to.show))
     _ -> ()
   }
 }

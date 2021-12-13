@@ -27,10 +27,11 @@ $ cabal new-run koka-test -- --match /parc/
 
 Options:
 ```
---mode=<new|update|test>
---match <match>              
+--mode=<new|update|test>     # create new test output, or update existing one
+--match <match>              # only match a specific test or test directory
 --cabal                      # Use cabal to run koka.
 --system-ghc                 # If using stack, use --system-ghc option.
+--target-js                  # Test javascript backend
 -O2                          # Use optimization
 -O-1                         # Full debug mode with internal runtime assertions enabled
 --seq                        # Test sequentially (instead of in parallel) 

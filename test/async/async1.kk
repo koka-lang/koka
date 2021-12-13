@@ -2,7 +2,7 @@
 // Async demo
 // --------------------------------------------------------
 import std/async
-import std/os/readline
+import std/async/readline
 
 fun main() {
   println("what is your name?")

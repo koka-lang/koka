@@ -846,7 +846,7 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                     -> return DataDefRec
                   _ -- Value or auto, and not recursive
                     -> -- determine the raw fields and total size
-                       do platform <- getPlatform
+                       do platform <- getPlatform                          
                           dd <- toDefValues platform (ddef/=DataDefAuto) qname nameDoc infos
                           case (ddef,dd) of  -- note: m = raw, n = scan
                             (DataDefValue _ _, DataDefValue m n)
@@ -862,9 +862,9 @@ resolveTypeDef isRec recNames (DataType newtp params constructors range vis sort
                                       && hasKindStarResult (getKind typeResult)
                                       && (sort /= Retractive))
                                   then -- trace ("default to value: " ++ show name ++ ": " ++ show (m,n)) $
-                                       return (DataDefValue m n)
+                                      return (DataDefValue m n)
                                   else -- trace ("default to reference: " ++ show name ++ ": " ++ show (m,n)) $
-                                       return (DataDefNormal)
+                                      return (DataDefNormal)
                             _ -> return DataDefNormal
 
        -- trace (showTypeBinder newtp') $

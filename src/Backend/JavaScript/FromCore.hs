@@ -277,6 +277,8 @@ genTypeDef (Data info isExtend)
                           -> constdecl <+> name <+> text "=" <+> int (conTag repr) <.> semi <+> linecomment (Pretty.ppType penv (conInfoType c))
                         ConSingleton _ _ _ | conInfoName c == nameOptionalNone
                           -> singletonValue "undefined"                        
+                        ConSingleton _ DataStructAsMaybe _
+                          -> singletonValue "null"
                         ConSingleton _ DataAsMaybe _
                           -> singletonValue "null"
                         ConSingleton _ DataAsList _
@@ -285,7 +287,9 @@ genTypeDef (Data info isExtend)
                         ConIso{}     -> genConstr penv c repr name args []
                         ConSingle{}  -> genConstr penv c repr name args []
                         ConAsCons{}  -> genConstr penv c repr name args []
-                        ConAsJust{}  -> genConstr penv c repr name args [(tagField, getConTag modName c repr)]
+                        ConAsJust{}  -> genConstr penv c repr name args [] -- [(tagField, getConTag modName c repr)]
+                        ConStruct{conDataRepr=DataStructAsMaybe} 
+                                     -> genConstr penv c repr name args []
                         -- normal with tag
                         _            -> genConstr penv c repr name args [(tagField, getConTag modName c repr)]
              return (ppVis (conInfoVis c) decl)
@@ -590,6 +594,8 @@ genMatch result scrutinees branches
                      ConSingleton _ _ _
                        | getName tn == nameOptionalNone
                        -> [debugWrap "genTest: optional none" $ scrutinee <+> text "=== undefined"]
+                     ConSingleton _ DataStructAsMaybe _
+                       -> [debugWrap "genTest: maybe like nothing" $ scrutinee <+> text "=== null"] -- <+> ppName (getName tn)]
                      ConSingleton _ DataAsMaybe _
                        -> [debugWrap "genTest: maybe like nothing" $ scrutinee <+> text "=== null"] -- <+> ppName (getName tn)]
                      ConSingleton _ DataAsList _
@@ -605,17 +611,26 @@ genMatch result scrutinees branches
 
                      ConIso{} -- always success
                        -> []
-                     ConAsJust{conAsNothing=nothing}
+                     ConStruct{conDataRepr=DataStructAsMaybe} 
                        | getName tn == nameOptional
                        -> [scrutinee <+> text "!== undefined"] ++ concatMap (\field -> genTest modName (scrutinee,field) ) fields
                        | otherwise
-                       -> let conTest    = debugWrap "genTest: asJust" $ scrutinee <+> text "!== null" -- <+> ppName nothing
+                       -> let conTest    = debugWrap "genTest: asJust" $ scrutinee <+> text "!== null" 
                               fieldTests = concatMap
                                              (\(field,fieldName) -> genTest modName (scrutinee <.> dot <.> fieldName, field) )
                                              (zip fields (map (ppName . fst) (conInfoParams info)) )
                           in (conTest:fieldTests)
-                     ConAsCons{conAsNil=nil}
-                       -> let conTest    = debugWrap "genTest: asCons" $ scrutinee <+> text "!== null" -- <+> ppName nil
+                     ConAsJust{}
+                       | getName tn == nameOptional
+                       -> [scrutinee <+> text "!== undefined"] ++ concatMap (\field -> genTest modName (scrutinee,field) ) fields
+                       | otherwise
+                       -> let conTest    = debugWrap "genTest: asJust" $ scrutinee <+> text "!== null" 
+                              fieldTests = concatMap
+                                             (\(field,fieldName) -> genTest modName (scrutinee <.> dot <.> fieldName, field) )
+                                             (zip fields (map (ppName . fst) (conInfoParams info)) )
+                          in (conTest:fieldTests)
+                     ConAsCons{}
+                       -> let conTest    = debugWrap "genTest: asCons" $ scrutinee <+> text "!== null"
                               fieldTests = concatMap
                                              (\(field,fieldName) -> genTest modName (scrutinee <.> dot <.> fieldName, field) )
                                              (zip fields (map (ppName . fst) (conInfoParams info)) )
