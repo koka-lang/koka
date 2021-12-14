@@ -5,9 +5,8 @@ alias solutions = list<list<int>>
 
 fun safe( queen : int, diag : int, ^xs : solution ) : bool
   match xs
-    Cons(q,qs) -> (queen != q && queen != (q+diag) && queen != (q - diag) && safe(queen,diag+1,qs))
+    Cons(q,qs) -> (queen != q && queen != q + diag && queen != q - diag && safe(queen,diag + 1,qs))
     _          -> True
-
 
 fun append-safe( queen : int, xs : solution, xss : solutions ) : div solutions
   if queen <= 0 then xss

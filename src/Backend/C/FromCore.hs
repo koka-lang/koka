@@ -1785,6 +1785,19 @@ genAppNormal (Var cfieldOf _) [App (Var box _) [Var con _], Lit (LitString conNa
           doc = genFieldAddress con (readQualified conName) (readQualified fieldName)
       return (drop,text "(kk_box_t*)" <.> parens doc)
 
+-- add/sub small constant 
+genAppNormal (Var add _) [arg, Lit (LitInt i)] | getName add == nameIntAdd && isSmallInt i  -- arg + i
+ = do (decls,argDocs) <- genInlineableExprs [arg]
+      return (decls, text "kk_integer_add_small_const" <.> arguments (argDocs ++ [pretty i]))
+
+genAppNormal (Var add _) [Lit (LitInt i),arg] | getName add == nameIntAdd && isSmallInt i   -- i + arg
+ = do (decls,argDocs) <- genInlineableExprs [arg]
+      return (decls, text "kk_integer_add_small_const" <.> arguments (argDocs ++ [pretty i]))
+
+genAppNormal (Var sub _) [arg, Lit (LitInt i)] | getName sub == nameIntSub && isSmallInt i  -- arg - i
+ = do (decls,argDocs) <- genInlineableExprs [arg]
+      return (decls, text "kk_integer_add_small_const" <.> arguments (argDocs ++ [pretty (-i)]))
+
 
 -- normal
 genAppNormal f args

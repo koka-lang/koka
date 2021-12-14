@@ -1030,19 +1030,25 @@ inline extern (>)(^x : int, ^y : int) : bool  {
   js "$std_core._int_gt"
 }
 
-// Add two integers.
-inline extern (+) : (int,int) -> int {
+private inline extern int-add : (int,int) -> int {
   c  "kk_integer_add"
   cs inline "(#1 + #2)"
   js "$std_core._int_add"
 }
 
-// Substract two integers.
-inline extern (-) : (int,int) -> int {
+// Add two integers.
+fun (+)(x : int, y : int ) : int 
+  int-add(x,y)
+
+private inline extern int-sub : (int,int) -> int {
   c  "kk_integer_sub"
   cs inline "(#1 - #2)"
   js "$std_core._int_sub"
 }
+
+// Substract two integers.
+fun (-)(x : int, y : int ) : int 
+  int-sub(x,y)
 
 // Multiply two integers.
 inline extern (*) : (int,int) -> int {
