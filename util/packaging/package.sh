@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# This script allows you easily convert a bundle to an installable package for multiple distros
+# But keep in mind the actual binaries in the bundle have to be compatible with the distro
+
 PACKAGE_NAME="koka"
 PACKAGE_DESCRIPTION="Koka is a strongly typed functional-style language with effect types and handlers"
 PACKAGE_URL="https://github.com/koka-lang/koka"
@@ -9,7 +12,7 @@ PACKAGE_LICENSE="Apache-2.0"
 GENERAL_NIX_DEPENDENCIES="gcc make tar curl cmake git patch patchutils"
 
 RHEL_DEPENDENCIES="ninja-build pkgconf-pkg-config" # Fedora RedHat CentOS and Rocky
-UBUNTU_DEPENDENCIES="ninja-build pkgconf"            # Ubuntu Debian
+UBUNTU_DEPENDENCIES="ninja-build pkgconf"          # Ubuntu Debian
 ALPINE_DEPENDENCIES="ninja pkgconf"
 ARCH_DEPENDENCIES="ninja pkgconf"
 OPENSUSE_DEPENDENCIES="ninja pkgconf"
@@ -39,59 +42,14 @@ BUNDLE_LOCATION=""
 # Helper functions
 #---------------------------------------------------------
 
-info() {
-  if [ -z "$QUIET" ]; then
-    echo "$@"
-  fi
-}
+source "$(dirname "$0")/util.sh"
 
-warn() {
-  echo "$@" >&2
-}
+make_extra_temp_dirs() {
+  EXTRACTED_BUNDLE_DIR="$TEMP_DIR/bundle"
+  mkdir -p "$EXTRACTED_BUNDLE_DIR"
 
-stop() {
-  warn $@
-  exit 1
-}
-
-has_cmd() {
-  command -v "$1" >/dev/null 2>&1
-}
-
-switch_workdir_to_script() {
-  CALLER_DIR=$(pwd)
-  cd "$(dirname "$0")"
-}
-
-get_absolute_path() {
-  # If realpath is installed
-  if has_cmd realpath; then
-    echo $(realpath "$1")
-  else
-    echo "$(
-      cd "$(dirname "$1")"
-      pwd
-    )/$(basename "$1")"
-  fi
-}
-
-make_temp_dir() {
-  if [ -z "$TEMP_DIR" ]; then
-    TEMP_DIR="$(mktemp -d 2>/dev/null || mktemp -d -t koka_packager)"
-
-    EXTRACTED_BUNDLE_DIR="$TEMP_DIR/bundle"
-    mkdir -p "$EXTRACTED_BUNDLE_DIR"
-
-    BUILT_PACKAGE_DIR="$TEMP_DIR/package"
-    mkdir -p "$BUILT_PACKAGE_DIR"
-  fi
-}
-
-cleanup_temp_dir() {
-  if [ -n "$TEMP_DIR" ]; then
-    rm -rf "$TEMP_DIR"
-    TEMP_DIR=
-  fi
+  BUILT_PACKAGE_DIR="$TEMP_DIR/package"
+  mkdir -p "$BUILT_PACKAGE_DIR"
 }
 
 #---------------------------------------------------------
@@ -283,22 +241,20 @@ main_package() {
   info "Starting packaging"
   switch_workdir_to_script
 
-  # Check if docker exists
-  if ! has_cmd docker; then
-    stop "Docker is required to build the image"
-  fi
+  ensure_docker
 
   # Build a docker image with the necessary tools
   build_fpm_docker
 
   # Extract the bundle to a temp dir
-  make_temp_dir
-  trap cleanup_temp_dir EXIT
+  auto_temp_dir
+  make_extra_temp_dirs
+
   extract_bundle_to_temp
   extract_version_from_bundle
 
   # Build the packages
-  echo "Building for $BUILD_TARGETS"
+  info "Building for $BUILD_TARGETS"
   build_packages "$BUILD_TARGETS"
 
   # Move packages to the package dir
@@ -378,12 +334,13 @@ main_help() {
   info "options:"
   info "  -t, --targets=<url>      Specify the targets to build for"
   info "                           (arch rhel ubuntu alpine opensuse darwin freebsd)"
-  info "  -q, --quiet              suppress output"
-  info "  -h, --help               show this help message"
+  info "  -q, --quiet              Suppress output"
+  info "  -h, --help               Show this help message"
   info ""
 }
 
 main_start() {
+  # Make sure we ignore case in string comparisons
   shopt -s nocasematch
 
   process_options $@
