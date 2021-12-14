@@ -1,0 +1,32 @@
+2
+3
+5
+7
+13
+17
+19
+23
+29
+31
+37
+41
+43
+47
+53
+59
+61
+67
+71
+73
+79
+83
+89
+97
+ 
+cgen/specialize/sieve/.lift000-sieve: (x : int, xs0 : list<int>) -> div list<int>
+cgen/specialize/sieve/.lift000-test: (xs : list<int>) -> <console,div> ()
+cgen/specialize/sieve/.lift000-main: (xs : list<int>) -> <console,div> ()
+cgen/specialize/sieve/gen-primes: (n : int) -> div list<int>
+cgen/specialize/sieve/main: () -> <console,div> ()
+cgen/specialize/sieve/sieve: (xs : list<int>, max : int) -> div list<int>
+cgen/specialize/sieve/test: (n : int) -> <console,div> ()
