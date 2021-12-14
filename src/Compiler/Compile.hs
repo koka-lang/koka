@@ -834,7 +834,7 @@ inferCheck loaded0 flags line coreImports program
               = do dgs <- Core.getCoreDefs 
                    -- let doc = Core.Pretty.prettyCore (prettyEnvFromFlags flags){ coreIface = False, coreShowDef = True } C [] 
                    --            (coreProgram{ Core.coreProgDefs = dgs })
-                   trace (unlines (["","-----------------", title, "---------------"] ++ -- ++ [show doc])) $ return ()                         
+                   trace (unlines (["","/* -----------------", title, "--------------- */"] ++ -- ++ [show doc])) $ return ()                         
                            map showDef (Core.flattenDefGroups dgs))) $ return ()
               where 
                 showDef def = show (Core.Pretty.prettyDef (penv{coreShowDef=True}) def)
@@ -904,7 +904,7 @@ inferCheck loaded0 flags line coreImports program
             -- lifting remaining recursive functions to top level (must be after specialize as that can generate local recursive definitions)
             liftFunctions penv
             checkCoreDefs "specialized"
-            -- traceDefGroups "specialized"          
+            -- traceDefGroups "specialized and lifted"          
     
        -- simplify once more
        simplifyDupN

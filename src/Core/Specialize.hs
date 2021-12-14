@@ -91,7 +91,7 @@ specialize :: Inlines -> Env -> CorePhase ()
 specialize specEnv penv
   = liftCorePhaseUniq  $ \uniq defs ->
     -- TODO: use uniqe int to generate names and remove call to uniquefyDefGroups?
-    let (defs', u') = runSpecM uniq (ReadState specEnv penv) (mapM specOneDefGroup defs)
+    let (defs', u') = runSpecM (uniq+100) (ReadState specEnv penv) (mapM specOneDefGroup defs)
     in (uniquefyDefGroups defs', u')
 
 speclookup :: Name -> SpecM (Maybe InlineDef)
@@ -325,18 +325,20 @@ replaceCall name expr bools args mybeTypeArgs
       let specType  = typeOf specBody0
           specTName = TName specName specType
           specBody  = case specBody0 of
-                        Lam args eff (Let specArgs body) -> Lam args eff
-                          (Let specArgs $ specInnerCalls (TName name (typeOf expr)) specTName bools speccedParams body)
+                        Lam args eff (Let specArgs body) 
+                          -> uniquefyExpr $
+                             Lam args eff $
+                               (Let specArgs $ specInnerCalls (TName name (typeOf expr)) specTName bools speccedParams body)
                         _ -> failure "Specialize.replaceCall: Unexpected output from specialize pass"
       
       -- simplify so the new specialized arguments are potentially inlined unlocking potential further specialization
       sspecBody <- uniqueSimplify defaultEnv False False 1 10 specBody
-      -- trace ("\n// ----start--------\n// specializing " <> show name <> " to parameters " <> show speccedParams <> " with args " <> comment (show speccedArgs) <> "\n// specTName: " <> show (getName specTName) <> ", sspecBody: \n" <> show sspecBody <> "\n// ---- start recurse---") $ return ()
+      -- trace ("\n// ----start--------\n// specializing " <> show name <> " to parameters " <> show speccedParams <> " with args " <> comment (show speccedArgs) <> "\n// specTName: " <> show (getName specTName) <> ", specBody0: \n" <> show specBody <> "\n\n, sspecBody: \n" <> show sspecBody <> "\n// ---- start recurse---") $ return ()
 
       let -- todo: maintain borrowed arguments?
           specDef = Def specName specType sspecBody Private (DefFun []) InlineAuto rangeNull
-                    $ "// specialized: " <> show name <> ", on parameters " <> concat (intersperse ", " (map show speccedParams)) <> ", using:\n" <>
-                      comment (unlines [show param <> " = " <> show arg | (param,arg) <- zip speccedParams speccedArgs])
+                     $ "// specialized: " <> show name <> ", on parameters " <> concat (intersperse ", " (map show speccedParams)) <> ", using:\n" <>
+                       comment (unlines [show param <> " = " <> show arg | (param,arg) <- zip speccedParams speccedArgs])
       
       return $ Let [DefRec [specDef]] (App (Var (defTName specDef) InfoNone) newArgs)
 
