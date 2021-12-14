@@ -8,6 +8,8 @@
 node_modules/
 out/
 bundle/
+packages/
+temp/
 dist/
 dist-newstyle/
 kklib/mimalloc-inline
