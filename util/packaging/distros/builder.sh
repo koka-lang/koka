@@ -27,7 +27,7 @@ mount_overlay() {
     exit 1
   fi
 
-  mkdir -p /tmp/overlay/{coderw,codework}
+  mkdir -p /tmp/overlay/coderw /tmp/overlay/codework
 
   mount -t overlay overlay -o lowerdir=/code,upperdir=/tmp/overlay/coderw,workdir=/tmp/overlay/codework /tmp/overlay/coderw
   if [ $? -ne 0 ]; then
@@ -48,6 +48,10 @@ build_koka() {
   #stack exec koka -- -e util/bundle -- --postfix="$DISTRO"
   # Bypass bug in koka
   script --return --quiet -c "stack exec koka -- -e util/bundle -- --postfix=\"$DISTRO\"" /dev/null
+  if [ $? -ne 0 ]; then
+    echo "Failed to build koka"
+    exit 1
+  fi
 
   echo "Built koka"
 }

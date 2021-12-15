@@ -35,7 +35,10 @@ has_cmd() {
 }
 
 switch_workdir_to_script() {
-  CALLER_DIR=$(pwd)
+  if [ -z "$CALLER_DIR" ]; then
+    CALLER_DIR=$(pwd)
+  fi
+  
   cd "$(dirname "$0")"
 }
 

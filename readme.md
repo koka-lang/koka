@@ -191,7 +191,11 @@ and libraries and samples under `<prefix>/share/koka/v2.x.x`).
 On Unix and macOS the default prefix is `/usr/local` while
 on Windows the default prefix is `%LOCALAPPDATA%\koka`
 
+# Build installable package
 
+Currently this option is linux only for now
+
+TODO:
 
 # Benchmarks
 

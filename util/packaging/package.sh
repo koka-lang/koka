@@ -12,7 +12,7 @@ PACKAGE_LICENSE="Apache-2.0"
 GENERAL_NIX_DEPENDENCIES="gcc make tar curl cmake git patch patchutils"
 
 RHEL_DEPENDENCIES="ninja-build pkgconf-pkg-config" # Fedora RedHat CentOS and Rocky
-UBUNTU_DEPENDENCIES="ninja-build pkgconf"          # Ubuntu Debian
+DEBIAN_DEPENDENCIES="ninja-build pkgconf"          # Ubuntu Debian
 ALPINE_DEPENDENCIES="ninja pkgconf"
 ARCH_DEPENDENCIES="ninja pkgconf"
 OPENSUSE_DEPENDENCIES="ninja pkgconf"
@@ -65,8 +65,8 @@ get_dependencies() {
   rhel)
     deps="$RHEL_DEPENDENCIES"
     ;;
-  ubuntu)
-    deps="$UBUNTU_DEPENDENCIES"
+  debian)
+    deps="$DEBIAN_DEPENDENCIES"
     ;;
   alpine)
     deps="$ALPINE_DEPENDENCIES"
@@ -101,10 +101,15 @@ get_dependencies() {
 
 build_package() {
   TYPE="$1"
-  SYSTEM="$2"
+  EXT="$2"
+  SYSTEM="$3"
 
   if [ -z "$TYPE" ]; then
     stop "No package type specified"
+  fi
+
+  if [ -z "$EXT" ]; then
+    stop "No package extension specified"
   fi
 
   if [ -z "$SYSTEM" ]; then
@@ -113,7 +118,7 @@ build_package() {
 
   dependencies="$(get_dependencies "$SYSTEM")"
 
-  file_name="$PACKAGE_NAME-$VERSION-$SYSTEM.$TYPE"
+  file_name="$PACKAGE_NAME-$VERSION-$SYSTEM.$EXT"
 
   docker run --rm -v "$EXTRACTED_BUNDLE_DIR:/source:z" -v "$BUILT_PACKAGE_DIR:/build:z" fpm \
     -s dir -t $TYPE -C "/source" -p "/build/$file_name" $dependencies \
@@ -143,43 +148,43 @@ build_packages() {
 
   if [[ $packages =~ "rhel" ]]; then
     info "Building RHEL package"
-    build_package rpm rhel
+    build_package rpm rpm rhel
     info "RHEL package built successfully"
   fi
 
-  if [[ $packages =~ "ubuntu" ]]; then
-    info "Building Ubuntu package"
-    build_package deb ubuntu
-    info "Ubuntu package built successfully"
+  if [[ $packages =~ "debian" ]]; then
+    info "Building Debian package"
+    build_package deb deb debian
+    info "Debian package built successfully"
   fi
 
   if [[ $packages =~ "alpine" ]]; then
     info "Building Alpine package"
-    build_package apk alpine
+    build_package apk apk alpine
     info "Alpine package built successfully"
   fi
 
   if [[ $packages =~ "arch" ]]; then
     info "Building Arch package"
-    build_package pacman arch
+    build_package pacman "pkg.tar.zst" arch
     info "Arch package built successfully"
   fi
 
   if [[ $packages =~ "opensuse" ]]; then
     info "Building OpenSUSE package"
-    build_package rpm opensuse
+    build_package rpm rpm opensuse
     info "OpenSUSE package built successfully"
   fi
 
   if [[ $packages =~ "freebsd" ]]; then
     info "Building FreeBSD package"
-    build_package freebsd freebsd
+    build_package freebsd pkg freebsd
     info "FreeBSD package built successfully"
   fi
 
   if [[ $packages =~ "darwin" ]]; then
     info "Building macOS package"
-    build_package darwin darwin
+    build_package darwin pkg darwin
     info "macOS package built successfully"
   fi
 }
@@ -284,6 +289,9 @@ process_options() {
     -t=* | --targets=*)
       BUILD_TARGETS="$flag_arg"
       ;;
+    -o=* | --output=*)
+      CALLER_DIR="$flag_arg"
+      ;;
     *) case "$flag" in
       -*) warn "warning: unknown option \"$1\"." ;;
       *) BUNDLE_LOCATION="$1" ;;
@@ -315,7 +323,7 @@ process_options() {
   if [ -z "$BUILD_TARGETS" ]; then
     case "$OSTYPE" in
     linux*)
-      BUILD_TARGETS="arch rhel ubuntu alpine opensuse"
+      BUILD_TARGETS="arch rhel debian alpine opensuse"
       ;;
     darwin*)
       BUILD_TARGETS="darwin"
@@ -333,7 +341,8 @@ main_help() {
   info ""
   info "options:"
   info "  -t, --targets=<url>      Specify the targets to build for"
-  info "                           (arch rhel ubuntu alpine opensuse darwin freebsd)"
+  info "                           (arch rhel debian alpine opensuse darwin freebsd)"
+  info "  -o, --output=<dir>       Specify the output directory"
   info "  -q, --quiet              Suppress output"
   info "  -h, --help               Show this help message"
   info ""
