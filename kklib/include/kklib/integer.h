@@ -92,14 +92,14 @@ We can do that by limiting kk_smallint_t to a half-word.
 We then use a full-word add and see if the sign-extended lower half-word 
 equals the full-word (and thus didn't overflow). 
 
-(I call this the "SOFA" technique: Sign-extension OverFlow Arithmetic :-) )
+(I call this the "SOFA" technique: Sign-extended OverFlow Arithmetic :-) )
 
 This also allows us to combine that test with testing
-if we added two small integers, (where bit 1 must ==1 after an addition):
+if we added two small integers, (where bit 1 must be set after an addition):
 
     intptr_t kk_integer_add(intptr_t x, intptr_t y) {
       intptr_t z = x + y;
-      if (kk_likely(z == (int32_t)(z|2))) return (z^3);
+      if (kk_likely((z|2) == (int32_t)z)) return (z^3);
                                      else return kk_integer_add_generic(x,y);
     }
 
@@ -107,39 +107,39 @@ Now we have just one test that test both for overflow, as well as for the
 small integers. Now the code on RISC-V (rv64) with clang 12 looks a bit better:
 
   kk_integer_add(long, long):
-          add     a2, a1, a0         // add into a2
-          addw    a3, a1, a0         // add (32-bit) word-wise and sign extend into a3
-          ori     a3, a3, 2          // set bit 1 to 1
-          bne     a2, a3, .LBB1_2    // a2 == a3 ?  if not, overflow or pointer add
-          xori    a0, a2, 3          // clear bit 1, set bit 0
-          ret
-  .LBB1_2:
+          add     a2, a1, a0         // a2 = a1 + a0
+          ori     a3, a2, 2          // a3 = a2 | 2 
+          addw    a4, a1, a0         // 32-bit add and sign extend into a4
+          bne     a3, a4, .LBB6_2    // if not equal goto slow
+          xori    a0, a2, 3          // a0 = a2 ^ 3
+          ret          
+  .LBB6_2:
           tail    kk_integer_add_generic
 
 
 and with clang (and gcc/msvc/icc) on x86-64 we get:
 
   kk_integer_add(long x, long y)
-          lea     rax, [rdi+rsi]        // add into rax
-          movsxd  rcx, eax              // sign extend lower 32-bits to rcx
-          or      rcx, 2                // set bit 1 to 1
-          cmp     rax, rcx              // rax == rcx ?
-          jne     .L28                  // if not, we have an overflow or added a pointer
-          xor     rax, 3                // clear bit 1, set bit 0
+          lea     rax, [rsi + rdi]   // add into rax
+          mov     rcx, rax
+          or      rcx, 2             // set bit 1 to 1
+          movsxd  rdx, eax           // sign extend lower 32-bits to rcx
+          cmp     rcx, rdx
+          jne     .LBB6_2
+          xor     rax, 3
           ret
-  .L28:
+  .LBB6_2:
           jmp     kk_integer_add_generic
 
 and finally on ARM-v8 with gcc:
 
   kk_integer_add(long, long):
-          add     x3, x0, x1   // x3 = x0 + x1
-          orr     w2, w3, 2    // w2 = w3|2
-          sxtw    x2, w2       // sign extend w2 to x2
-          cmp     x2, x3       // x2 == x3?
-          b.ne    .L32         // if not, goto slow
-          eor     x0, x2, 3    // x0 = x2^3
-          ret
+          add     x8, x1, x0     // x8 = x0 + x1
+          orr     x9, x8, #0x2   // x9 = x8|2
+          cmp     x9, w8, sxtw   // sign extend w8 and compare to x9
+          b.ne    .LBB6_2        // not equal, goto slow
+          eor     x0, x8, #0x3   // x0 = x8^3
+          ret          
   .L32:
           b       kk_integer_add_generic
           
