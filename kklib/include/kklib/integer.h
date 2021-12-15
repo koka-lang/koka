@@ -144,20 +144,15 @@ and finally on ARM-v8 with gcc:
           b       kk_integer_add_generic
           
 
-Initial measurements on x64 (AMD5950x) seem to indicate that using the __builtin
-primitives is a bit faster (~10% to 20%), but on arm64 (M1) the portable SOFA
-technique is about 10% faster (but more experimentation is needed).
-For now, we use builtins only on x64.
+Initial measurements on x64 (AMD5950x) and on arm64 (M1) seem
+to indicate the portable SOFA technique is about 5% (x64) to 10% (M1) faster.
+(but more experimentation is needed).
 
 -- Daan Leijen, 2020-2021.
 --------------------------------------------------------------------------------------------------*/
 
 #if !defined(KK_USE_BUILTIN_OVF)
-#if defined(__GNUC__) && !defined(__INTEL_COMPILER) && defined(__x86_64__) // !defined(__riscv) && !defined(__aarch64__)
-#define KK_USE_BUILTIN_OVF (1)       // use builtins with gcc/clang or x64
-#else
-#define KK_USE_BUILTIN_OVF (0)       // otherwise default to portable overflow detection
-#endif
+#define KK_USE_BUILTIN_OVF (0)       // portable overflow detection seems always faster
 #endif
 
 #if KK_USE_BUILTIN_OVF
@@ -223,7 +218,7 @@ static inline bool kk_is_integer(kk_integer_t i) {
 static inline bool kk_are_smallints(kk_integer_t i, kk_integer_t j) {
   kk_assert_internal(kk_is_integer(i) && kk_is_integer(j));
   return (((_kk_integer_value(i)&_kk_integer_value(j))&1) == 1);   
-  // return ((_kk_integer_value(i)&1)==1 || (_kk_integer_value(j)&1)==1);
+  //return ((_kk_integer_value(i)&1)==1 || (_kk_integer_value(j)&1)==1);
 }
 
 static inline bool kk_integer_small_eq(kk_integer_t x, kk_integer_t y) {
@@ -740,13 +735,13 @@ static inline bool kk_integer_eq(kk_integer_t x, kk_integer_t y, kk_context_t* c
 
 static inline bool kk_integer_neq_borrow(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
   if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) != _kk_integer_value(y));  // assume bigint is never small  
-  // if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) != _kk_integer_value(y));
+  // if (kk_are_smallints(x,y)) return (_kk_integer_value(x) != _kk_integer_value(y));
   return (kk_integer_cmp_generic_borrow(x, y, ctx) != 0);
 }
 
 static inline bool kk_integer_neq(kk_integer_t x, kk_integer_t y, kk_context_t* ctx) {
-  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) != _kk_integer_value(y));  // assume bigint is never small  
-  // if (kk_likely(kk_are_smallints(x, y))) return (_kk_integer_value(x) != _kk_integer_value(y));
+  if (kk_likely(kk_is_smallint(x))) return (_kk_integer_value(x) != _kk_integer_value(y));  // assume bigint is never small    
+  // if (kk_are_smallints(x,y)) return (_kk_integer_value(x) != _kk_integer_value(y)); 
   return (kk_integer_cmp_generic(x, y, ctx) != 0);
 }
 
