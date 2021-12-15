@@ -140,7 +140,7 @@ and finally on ARM-v8 with gcc:
           b.ne    .LBB6_2        // not equal, goto slow
           eor     x0, x8, #0x3   // x0 = x8^3
           ret          
-  .L32:
+  .LBB6_2:
           b       kk_integer_add_generic
           
 
