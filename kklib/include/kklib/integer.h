@@ -123,7 +123,7 @@ and with clang (and gcc/msvc/icc) on x86-64 we get:
           lea     rax, [rsi + rdi]   // add into rax
           mov     rcx, rax
           or      rcx, 2             // set bit 1 to 1
-          movsxd  rdx, eax           // sign extend lower 32-bits to rcx
+          movsxd  rdx, eax           // sign extend lower 32-bits to rax
           cmp     rcx, rdx
           jne     .LBB6_2
           xor     rax, 3
@@ -477,7 +477,6 @@ static inline kk_integer_t kk_integer_add(kk_integer_t x, kk_integer_t y, kk_con
   }
   return kk_integer_add_generic(x, y, ctx);
 }
-
 
 static inline kk_integer_t kk_integer_add_small_const(kk_integer_t x, kk_intf_t i, kk_context_t* ctx) {
   kk_assert_internal(i >= KK_SMALLINT_MIN && i <= KK_SMALLINT_MAX);
