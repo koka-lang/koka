@@ -1758,7 +1758,11 @@ static uint64_t kk_bigint_clamp_uint64(kk_bigint_t* bx, kk_context_t* ctx) {
   if (bx->count==0) {
     // nothing
   }
-  else if (bx->count==1 && bx->digits[0] <= UINT64_MAX) {
+  else if (bx->count==1
+          #if (DIGIT_BITS >= 64)
+           && bx->digits[0] <= UINT64_MAX
+          #endif         
+          ) {
     // fast path for "small" integers
     u = (uint64_t)bx->digits[0];
   }
@@ -1784,7 +1788,11 @@ int64_t kk_integer_clamp64_generic(kk_integer_t x, kk_context_t* ctx) {
     drop_bigint(bx, ctx);
     return 0;
   }
-  else if (bx->count==1 && bx->digits[0] <= INT64_MAX) {
+  else if (bx->count==1
+          #if (DIGIT_BITS >= 64)
+          && bx->digits[0] <= INT64_MAX
+          #endif         
+          ) {
     // fast path for small integers
     int64_t i = (int64_t)bx->digits[0];
     if (bx->is_neg) { i = -i; }

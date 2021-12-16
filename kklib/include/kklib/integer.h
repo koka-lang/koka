@@ -350,7 +350,7 @@ static inline kk_integer_t kk_integer_from_int(kk_intx_t i, kk_context_t* ctx) {
 
 #if (KK_INTX_SIZE <= 4)
 static inline kk_integer_t kk_integer_from_uintx_t(kk_uintx_t i, kk_context_t* ctx) {
-  return kk_integer_from_uint32(i,ctx)
+  return kk_integer_from_uint32(i,ctx);
 }
 #elif (KK_INTX_SIZE <= 8)
 static inline kk_integer_t kk_integer_from_uintx_t(kk_uintx_t i, kk_context_t* ctx) {
