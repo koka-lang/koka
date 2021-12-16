@@ -3,12 +3,8 @@
 # This script is ran from inside the distro specific docker containers
 # It automates the building of koka with stack and then cleans everything except the bundles
 
-DISTRO="$1"
-
-if [ -z "$DISTRO" ]; then
-  echo "Usage: $0 <distro>"
-  exit 1
-fi
+DISTRO=""
+BUILD_MODE=""
 
 mount_overlay() {
   echo "Mounting overlay"
@@ -40,8 +36,8 @@ mount_overlay() {
   echo "Overlay mounted"
 }
 
-build_koka() {
-  echo "Building koka"
+build_koka_stack() {
+  echo "Building koka with stack"
   stack build
 
   echo "Making bundle"
@@ -53,7 +49,21 @@ build_koka() {
     exit 1
   fi
 
-  echo "Built koka"
+  echo "Built koka with stack"
+}
+
+build_koka_cabal() {
+  echo "Building koka with cabal"
+  cabal new-build --enable-executable-static
+
+  echo "Making bundle"
+  script --return --quiet -c "cabal new-run koka -- -e util/bundle -- --postfix=\"$DISTRO\"" /dev/null
+  if [ $? -ne 0 ]; then
+    echo "Failed to build koka"
+    exit 1
+  fi
+
+  echo "Built koka with cabal"
 }
 
 export_build() {
@@ -69,8 +79,47 @@ export_build() {
   echo "Exported build"
 }
 
-mount_overlay
+full_build() {
+  echo "Starting build"
 
-build_koka
+  mount_overlay
 
-export_build
+  if [ "$BUILD_MODE" == "stack" ]; then
+    build_koka_stack
+  elif [ "$BUILD_MODE" == "cabal" ]; then
+    build_koka_cabal
+  fi
+
+  export_build
+
+  echo "Build finished"
+}
+
+init_parse_param() {
+  # First param is the distro, if exists
+  if [ -n "$1" ]; then
+    DISTRO="$1"
+  fi
+
+  # Second param is BUILD_MODE, if exists
+  if [ -n "$2" ]; then
+    BUILD_MODE="$2"
+  fi
+
+  # Default distro is unknown
+  if [ -z "$DISTRO" ]; then
+    DISTRO="unknown"
+  fi
+
+  # Default build mode is stack
+  if [ -z "$BUILD_MODE" ]; then
+    BUILD_MODE="stack"
+  fi
+
+  echo "Distro: $DISTRO"
+  echo "Build mode: $BUILD_MODE"
+
+  full_build
+}
+
+init_parse_param "$@"

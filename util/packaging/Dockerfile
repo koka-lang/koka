@@ -6,6 +6,9 @@ RUN apt install -y build-essential libffi-dev rpm libarchive-tools zstd squashfs
 
 RUN gem install fpm
 
+# Patch fpm
+RUN sed -i 's/full_record_path = add_paxstring(full_record_path)/# full_record_path = add_paxstring(full_record_path)/' /usr/local/bundle/gems/fpm-*/lib/fpm/package/apk.rb
+
 ENV SHELL=/bin/bash
 
 VOLUME /source

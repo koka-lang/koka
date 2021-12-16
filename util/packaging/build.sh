@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SUPPORTED_TARGETS="arch rhel ubuntu alpine opensuse"
-SUPPORTED_TARGETS="rhel debian arch"
+SUPPORTED_TARGETS="rhel debian arch alpine"
 
 #---------------------------------------------------------
 # Variables
@@ -67,9 +67,11 @@ run_docker_images() {
       koka-$target
 
     if [ $? -ne 0 ]; then
-      stop "Failed to build docker image for $target"
+      stop "Failed to compile os specific package for $target"
     fi
   done
+
+  info "Compiled os specific packages successfully"
 }
 
 move_outputs() {

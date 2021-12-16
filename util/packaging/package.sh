@@ -13,7 +13,7 @@ GENERAL_NIX_DEPENDENCIES="gcc make tar curl cmake git patch patchutils"
 
 RHEL_DEPENDENCIES="ninja-build pkgconf-pkg-config" # Fedora RedHat CentOS and Rocky
 DEBIAN_DEPENDENCIES="ninja-build pkgconf"          # Ubuntu Debian
-ALPINE_DEPENDENCIES="ninja pkgconf"
+ALPINE_DEPENDENCIES="ninja pkgconf gmp libffi musl-dev"
 ARCH_DEPENDENCIES="ninja pkgconf"
 OPENSUSE_DEPENDENCIES="ninja pkgconf"
 
@@ -118,16 +118,18 @@ build_package() {
 
   dependencies="$(get_dependencies "$SYSTEM")"
 
+  echo $dependencies
+
   file_name="$PACKAGE_NAME-$VERSION-$SYSTEM.$EXT"
 
   docker run --rm -v "$EXTRACTED_BUNDLE_DIR:/source:z" -v "$BUILT_PACKAGE_DIR:/build:z" fpm \
     -s dir -t $TYPE -C "/source" -p "/build/$file_name" $dependencies \
     -n "$PACKAGE_NAME" --description "$PACKAGE_DESCRIPTION" --url "$PACKAGE_URL" --license "$PACKAGE_LICENSE" -v "$VERSION" \
-    -a native --prefix "/usr/local" \
+    -a amd64 --prefix "/usr/local" \
     --provides "$PACKAGE_NAME" \
-    bin/koka=bin/koka \
-    lib/koka=lib \
-    share/koka=share
+    bin/koka=bin/koka lib/koka=lib share/koka=share
+#    lib/koka=lib \
+#    share/koka=share
 
   if [ $? -ne 0 ]; then
     stop "Package build did not return successfully"
@@ -224,9 +226,8 @@ extract_bundle_to_temp() {
 
 extract_version_from_bundle() {
   info "Extracting version from bundle"
-  VERSION="$($EXTRACTED_BUNDLE_DIR/bin/koka --version --console=raw)" # get version info
-  VERSION="${VERSION%%,*}"                                            # remove everything after the first ",*"
-  VERSION="${VERSION#Koka }"                                          # remove "Koka " prefix
+  # Extract version from binary using regex magic
+  VERSION="$(grep -aoiPm 1 "(?<=koka-)[0-9]+\.[0-9]+\.[0-9]+" $EXTRACTED_BUNDLE_DIR/bin/koka)"
   if [ -z "$VERSION" ]; then
     stop "Failed to extract version from bundle"
   fi
