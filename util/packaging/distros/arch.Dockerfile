@@ -1,4 +1,4 @@
-FROM archlinux
+FROM archlinux:base-20211212.0.41353
 
 # The koka source should be mounted here readonly
 # It will use overlays to build the bundle and then export it the output directory

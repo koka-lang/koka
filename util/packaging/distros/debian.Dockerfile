@@ -1,4 +1,4 @@
-FROM debian:10
+FROM debian:10.11
 
 # The koka source should be mounted here readonly
 # It will use overlays to build the bundle and then export it the output directory

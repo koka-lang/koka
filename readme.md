@@ -195,7 +195,34 @@ on Windows the default prefix is `%LOCALAPPDATA%\koka`
 
 Currently this option is linux only for now
 
-TODO:
+Supported Distributions:
+
+* Fedora 34
+* Fedora 35
+* RHEL 8
+* Debian 10, 11
+* Ubuntu 18.04, 20.04, 22.04
+* PopOS 20.04, 21.10
+* Linux Mint 19.3, 20.2
+* Arch Linux
+* OpenSUSE Tumbleweed and Leap 15.3
+
+## Notes
+
+If OpenSuse throws
+```sh
+# zypper in -t package /data/koka-2.3.7-opensuse.rpm
+Loading repository data...
+Reading installed packages...
+'_tmpRPMcache_:koka=0:2.3.7-1' not found in package names. Trying capabilities.
+No provider of '_tmpRPMcache_:koka=0:2.3.7-1' found.
+Resolving package dependencies...
+Nothing to do.
+```
+try
+```sh
+# zypper ref -f
+```
 
 # Benchmarks
 

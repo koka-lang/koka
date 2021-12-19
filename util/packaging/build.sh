@@ -1,7 +1,6 @@
 #!/bin/bash
 
-#SUPPORTED_TARGETS="arch rhel ubuntu alpine opensuse"
-SUPPORTED_TARGETS="rhel debian arch alpine"
+SUPPORTED_TARGETS="rhel debian arch alpine opensuse"
 
 #---------------------------------------------------------
 # Variables
@@ -15,11 +14,19 @@ BUILD_TARGETS=""
 # Helper functions
 #---------------------------------------------------------
 
+LOG_PREFIX="[KOKA BUILDER] "
 source "$(dirname "$0")/util.sh"
 
 #---------------------------------------------------------
 # Main
 #---------------------------------------------------------
+
+clean_workdir() {
+  info "Cleaning up"
+  
+  rm -rf $CALLER_DIR/.koka
+  rm -rf $CALLER_DIR/.stack-work
+}
 
 build_docker_images() {
   info "Building docker images"
@@ -104,6 +111,8 @@ package_outputs() {
 main_build() {
   info "Starting builds"
   switch_workdir_to_script
+
+  clean_workdir
 
   # If mode is not packageonly
   if [ "$MODE" != "packageonly" ]; then

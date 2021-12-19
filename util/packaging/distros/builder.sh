@@ -6,93 +6,139 @@
 DISTRO=""
 BUILD_MODE=""
 
+GLIBC_VERSION=""
+KOKA_VERSION=""
+
+LOG_PREFIX="[KOKA INTERNAL BUILDER] "
+
+info() {
+  echo "$LOG_PREFIX$@"
+}
+
+warn() {
+  echo "$LOG_PREFIX$@" >&2
+}
+
+stop() {
+  warn $@
+  exit 1
+}
+
+get_glibc_version() {
+  GLIBC_VERSION=$(ldd --version | head -n 1)
+  GLIBC_VERSION=$(echo $GLIBC_VERSION | awk '{print $NF}')
+  echo $GLIBC_VERSION
+}
+
+get_koka_version() {
+  kk_version=""
+  if [ "$BUILD_MODE" = "stack" ]; then
+    kk_version=$(stack exec koka -- --version --console=raw)
+  elif [ "$BUILD_MODE" = "cabal" ]; then
+    kk_version=$(cabal new-run koka -- --version --console=raw)
+  fi
+
+  kk_version="${kk_version%%,*}"   # remove everything after the first ",*"
+  kk_version="${kk_version#Koka }" # remove "Koka " prefix
+  echo $kk_version
+}
+
 mount_overlay() {
-  echo "Mounting overlay"
+  info "Mounting overlay"
   # Check if /proc/filesystems contains overlayfs and tmpfs
   if ! grep -q overlay /proc/filesystems || ! grep -q tmpfs /proc/filesystems; then
-    echo "Your system does not support overlayfs or tmpfs, it needs this to build"
-    exit 1
+    stop "Your system does not support overlayfs or tmpfs, it needs this to build"
   fi
 
   mkdir -p /tmp/overlay
-  
+
   mount -t tmpfs tmpfs /tmp/overlay
 
   if [ $? -ne 0 ]; then
-    echo "Failed to mount tmpfs"
-    exit 1
+    stop "Failed to mount tmpfs"
   fi
 
   mkdir -p /tmp/overlay/coderw /tmp/overlay/codework
 
   mount -t overlay overlay -o lowerdir=/code,upperdir=/tmp/overlay/coderw,workdir=/tmp/overlay/codework /tmp/overlay/coderw
   if [ $? -ne 0 ]; then
-    echo "Failed to mount overlayfs, the container needs the SYS_ADMIN capability"
-    exit 1
+    stop "Failed to mount overlayfs, the container needs the SYS_ADMIN capability"
   fi
 
   cd /tmp/overlay/coderw
 
-  echo "Overlay mounted"
+  info "Overlay mounted"
 }
 
-build_koka_stack() {
-  echo "Building koka with stack"
-  stack build
+build_koka() {
+  info "Building koka"
 
-  echo "Making bundle"
-  #stack exec koka -- -e util/bundle -- --postfix="$DISTRO"
-  # Bypass bug in koka
-  script --return --quiet -c "stack exec koka -- -e util/bundle -- --postfix=\"$DISTRO\"" /dev/null
-  if [ $? -ne 0 ]; then
-    echo "Failed to build koka"
-    exit 1
+  status=1
+  if [ "$BUILD_MODE" = "stack" ]; then
+    stack build
+    status=$?
+  elif [ "$BUILD_MODE" = "cabal" ]; then
+    cabal new-build --enable-executable-static
+    status=$?
   fi
 
-  echo "Built koka with stack"
+  if [ $status -ne 0 ]; then
+    stop "Failed to build koka"
+  fi
+
+  info "Koka built"
 }
 
-build_koka_cabal() {
-  echo "Building koka with cabal"
-  cabal new-build --enable-executable-static
+bundle_koka() {
+  info "Bundling koka"
 
-  echo "Making bundle"
-  script --return --quiet -c "cabal new-run koka -- -e util/bundle -- --postfix=\"$DISTRO\"" /dev/null
-  if [ $? -ne 0 ]; then
-    echo "Failed to build koka"
-    exit 1
+  status=1
+  if [ "$BUILD_MODE" = "stack" ]; then
+    script --return --quiet -c "stack exec koka -- -e util/bundle -- --postfix=\"$DISTRO\"" /dev/null
+    status=$?
+  elif [ "$BUILD_MODE" = "cabal" ]; then
+    script --return --quiet -c "cabal new-run koka -- -e util/bundle -- --postfix=\"$DISTRO\"" /dev/null
+    status=$?
   fi
 
-  echo "Built koka with cabal"
+  if [ $status -ne 0 ]; then
+    stop "Failed to bundle koka"
+  fi
+
+  info "Koka bundled"
 }
 
 export_build() {
-  echo "Exporting build"
+  info "Exporting build"
 
   cp ./bundle/*.tar.gz /output/
 
   if [ $? -ne 0 ]; then
-    echo "Failed to export bundle"
-    exit 1
+    stop "Failed to export bundle"
   fi
 
-  echo "Exported build"
+  info "Exported build"
 }
 
 full_build() {
-  echo "Starting build"
+  info "Starting build"
 
   mount_overlay
 
-  if [ "$BUILD_MODE" == "stack" ]; then
-    build_koka_stack
-  elif [ "$BUILD_MODE" == "cabal" ]; then
-    build_koka_cabal
-  fi
+  build_koka
+
+  KOKA_VERSION=$(get_koka_version)
+
+  bundle_koka
+
+  info "Koka version: $KOKA_VERSION"
+  info "Build mode: $BUILD_MODE"
+  info "Distro: $DISTRO"
+  info "GLIBC Version: $GLIBC_VERSION"
 
   export_build
 
-  echo "Build finished"
+  info "Build finished"
 }
 
 init_parse_param() {
@@ -116,8 +162,7 @@ init_parse_param() {
     BUILD_MODE="stack"
   fi
 
-  echo "Distro: $DISTRO"
-  echo "Build mode: $BUILD_MODE"
+  GLIBC_VERSION=$(get_glibc_version)
 
   full_build
 }

@@ -9,15 +9,20 @@ PACKAGE_URL="https://github.com/koka-lang/koka"
 PACKAGE_LICENSE="Apache-2.0"
 
 # Dependencies
-GENERAL_NIX_DEPENDENCIES="gcc make tar curl cmake git patch patchutils"
+GENERAL_NIX_DEPENDENCIES="gcc,make,tar,curl,git" # For these programs version doesnt really matter
 
-RHEL_DEPENDENCIES="ninja-build pkgconf-pkg-config" # Fedora RedHat CentOS and Rocky
-DEBIAN_DEPENDENCIES="ninja-build pkgconf"          # Ubuntu Debian
-ALPINE_DEPENDENCIES="ninja pkgconf gmp libffi musl-dev"
-ARCH_DEPENDENCIES="ninja pkgconf"
-OPENSUSE_DEPENDENCIES="ninja pkgconf"
+# (Info)
+# Rhel and OpenSuse dependencies dont mind a space next to >= sign
+# Debian dependencies need a space next to >= sign
+# Alpine dependencies need no space, and use the > sign
+# Arch dependencies need no space next to >= sign
+RHEL_DEPENDENCIES="glibc >= 2.27"                   # Fedora RedHat CentOS and Rocky
+DEBIAN_DEPENDENCIES="libc6 >= 2.27"                 # Ubuntu Debian
+ALPINE_DEPENDENCIES="gmp>6,libffi>3.4,musl-dev>1.2" # ninja,pkgconf
+ARCH_DEPENDENCIES="glibc>=2.33"
+OPENSUSE_DEPENDENCIES="glibc >= 2.31"
 
-FREEBSD_DEPENDENCIES="ninja pkgconf"
+FREEBSD_DEPENDENCIES=""
 
 DARWIN_DEPENDENCIES=""
 
@@ -42,6 +47,7 @@ BUNDLE_LOCATION=""
 # Helper functions
 #---------------------------------------------------------
 
+LOG_PREFIX="[KOKA PACKAGER] "
 source "$(dirname "$0")/util.sh"
 
 make_extra_temp_dirs() {
@@ -84,16 +90,16 @@ get_dependencies() {
 
   # Skip extra deps for darwin
   if [ "$system" != "darwin" ]; then
-    deps="$GENERAL_NIX_DEPENDENCIES $deps"
+    deps="$GENERAL_NIX_DEPENDENCIES,$deps"
   fi
 
-  IFS=" " read -ra deps_array <<<"$deps"
+  IFS="," read -ra deps_array <<<"$deps"
 
   deps=""
 
   # Map to "-d dependeny"
   for dep in "${deps_array[@]}"; do
-    deps="$deps -d $dep"
+    deps="$deps -d '$dep'"
   done
 
   echo "$deps"
@@ -118,18 +124,16 @@ build_package() {
 
   dependencies="$(get_dependencies "$SYSTEM")"
 
-  echo $dependencies
-
   file_name="$PACKAGE_NAME-$VERSION-$SYSTEM.$EXT"
 
-  docker run --rm -v "$EXTRACTED_BUNDLE_DIR:/source:z" -v "$BUILT_PACKAGE_DIR:/build:z" fpm \
-    -s dir -t $TYPE -C "/source" -p "/build/$file_name" $dependencies \
-    -n "$PACKAGE_NAME" --description "$PACKAGE_DESCRIPTION" --url "$PACKAGE_URL" --license "$PACKAGE_LICENSE" -v "$VERSION" \
-    -a amd64 --prefix "/usr/local" \
-    --provides "$PACKAGE_NAME" \
-    bin/koka=bin/koka lib/koka=lib share/koka=share
-#    lib/koka=lib \
-#    share/koka=share
+  fpm_arguments="-s dir -t '$TYPE' -C '/source' -p '/build/$file_name' $dependencies \
+    -n '$PACKAGE_NAME' --description '$PACKAGE_DESCRIPTION' --url '$PACKAGE_URL' --license '$PACKAGE_LICENSE' -v '$VERSION' \
+    -a native --prefix '/usr/local' \
+    --provides '$PACKAGE_NAME' \
+    bin/koka=bin/koka lib/koka=lib share/koka=share"
+
+  # Build the package                                                             /bin/bash -c "fpm $fpm_arguments"
+  docker run --rm -v "$EXTRACTED_BUNDLE_DIR:/source:z" -v "$BUILT_PACKAGE_DIR:/build:z" fpm -c "fpm $fpm_arguments"
 
   if [ $? -ne 0 ]; then
     stop "Package build did not return successfully"
@@ -227,10 +231,12 @@ extract_bundle_to_temp() {
 extract_version_from_bundle() {
   info "Extracting version from bundle"
   # Extract version from binary using regex magic
-  VERSION="$(grep -aoiPm 1 "(?<=koka-)[0-9]+\.[0-9]+\.[0-9]+" $EXTRACTED_BUNDLE_DIR/bin/koka)"
+  VERSION="$(cat $EXTRACTED_BUNDLE_DIR/meta/version)"
+  
   if [ -z "$VERSION" ]; then
     stop "Failed to extract version from bundle"
   fi
+
   info "Building version $VERSION"
 }
 

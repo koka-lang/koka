@@ -14,4 +14,4 @@ ENV SHELL=/bin/bash
 VOLUME /source
 VOLUME /build
 
-ENTRYPOINT ["fpm"]
+ENTRYPOINT ["/bin/bash"]

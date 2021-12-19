@@ -3,7 +3,7 @@
 # 2. It really wants to dynamically link libffi into it, this package has a different version on alpine 3.14 and before
 # 3. Vcpkg cant dynamically download cmake packages because of musl, so we need to use the one from the alpine image
 # 4. The alpine cmake package is too old on any version below 3.15
-FROM alpine:3.15
+FROM alpine:3.15.0
 
 # The koka source should be mounted here readonly
 # It will use overlays to build the bundle and then export it the output directory

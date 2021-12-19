@@ -17,12 +17,12 @@ fi
 
 info() {
   if [ -z "$QUIET" ]; then
-    echo "$@"
+    echo "$LOG_PREFIX$@"
   fi
 }
 
 warn() {
-  echo "$@" >&2
+  echo "$LOG_PREFIX$@" >&2
 }
 
 stop() {

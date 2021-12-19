@@ -1,4 +1,4 @@
-FROM rockylinux/rockylinux:8.5
+FROM opensuse/leap:15.3
 
 # The koka source should be mounted here readonly
 # It will use overlays to build the bundle and then export it the output directory
@@ -7,9 +7,11 @@ VOLUME /code
 VOLUME /output 
 
 # Install all the necessary packages
-RUN dnf update -y
-RUN dnf groupinstall "Development Tools" -y
-RUN dnf install gmp-devel -y
+RUN zypper update -y
+RUN zypper install -y curl wget zip unzip tar git
+RUN zypper install -t pattern -y devel_C_C++
+RUN zypper install -y gmp-devel gcc-c++
+# Why is gcc-c++ not in the devel_C_C++ pattern?
 
 RUN curl -sSL https://get.haskellstack.org/ | sh
 RUN stack update
@@ -23,4 +25,4 @@ RUN chmod +x /builder.sh
 
 ENTRYPOINT [ "/builder.sh" ]
 
-CMD [ "rhel" ]
+CMD [ "opensuse" ]
