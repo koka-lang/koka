@@ -23,7 +23,7 @@ source "$(dirname "$0")/util.sh"
 
 clean_workdir() {
   info "Cleaning up"
-  
+
   rm -rf $CALLER_DIR/.koka
   rm -rf $CALLER_DIR/.stack-work
 }
@@ -179,6 +179,11 @@ process_options() {
 
   if [ "$MODE" == "help" ]; then
     return
+  fi
+
+  # Default mode is package
+  if [ -z "$MODE" ]; then
+    MODE="package"
   fi
 
   if [ -z "$BUILD_TARGETS" ]; then
