@@ -202,9 +202,9 @@ build_packages() {
 build_fpm_docker() {
   info "Building fpm image"
   if [ -n "$QUIET" ]; then
-    docker build -q -t fpm .
+    docker build -q -t fpm -f ./fpm.Dockerfile .
   else
-    docker build -t fpm .
+    docker build -t fpm -f ./fpm.Dockerfile .
   fi
 }
 
@@ -232,7 +232,7 @@ extract_version_from_bundle() {
   info "Extracting version from bundle"
   # Extract version from binary using regex magic
   VERSION="$(cat $EXTRACTED_BUNDLE_DIR/meta/version)"
-  
+
   if [ -z "$VERSION" ]; then
     stop "Failed to extract version from bundle"
   fi
