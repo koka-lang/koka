@@ -134,6 +134,12 @@ fun bundle( prefixdir : path, cc : string, version : string, dist : bool, post :
     if (dist && cc=="clang-cl") then
       copy-libraries(libdir, "cl", v, version)
 
+  // Insert metadata
+  val metadatadir = prefixdir / "meta"
+  println("inserting metadata...")
+  ensure-dir(metadatadir)
+  insert-metadata(metadatadir)
+
   if dist then
     // tar the result
     val tarcmd = ["tar -czf",tarname,"-C",prefixdir.show,"bin","lib","share"].join(" ")
@@ -202,6 +208,13 @@ fun show( v : variant ) : string
     DRelease -> "drelease"
     Release  -> "release"
 
+fun insert-metadata(location: path) : io ()
+  val version = get-compiler-version()
+  val arch    = get-cpu-arch()
+
+  run-system("echo '" ++ version ++ "' > " ++ (location / "version").string)
+  run-system("echo '" ++ arch ++    "' > " ++ (location / "arch").string)
+  ()
 
 fun copy-libraries( libdir : path, cc : string, variant : variant, version : string ) : io ()
   val outputdir = get-output-dir( cc, variant, version )
