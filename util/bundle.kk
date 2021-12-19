@@ -142,7 +142,7 @@ fun bundle( prefixdir : path, cc : string, version : string, dist : bool, post :
 
   if dist then
     // tar the result
-    val tarcmd = ["tar -czf",tarname,"-C",prefixdir.show,"bin","lib","share"].join(" ")
+    val tarcmd = ["tar -czf",tarname,"-C",prefixdir.show,"bin","lib","share","meta"].join(" ")
     println("> " ++ tarcmd)
     run-system(tarcmd)
     ()
