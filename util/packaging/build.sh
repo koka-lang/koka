@@ -98,7 +98,14 @@ package_outputs() {
   info "Packaging bundles"
 
   for target in $BUILD_TARGETS; do
-    ./package.sh -o="$CALLER_DIR" -t="$target" "$CALLER_DIR/bundle/koka-$target.tar.gz"
+    bundleloc="$CALLER_DIR/bundle/koka-*-$target-*.tar.gz"
+
+    # Check if the bundle exists
+    if [ ! -f $bundleloc ]; then
+      stop "Bundle not found at $bundleloc"
+    fi
+
+    ./package.sh -o="$CALLER_DIR" -t="$target" $bundleloc
 
     if [ $? -ne 0 ]; then
       stop "Failed to package $target"

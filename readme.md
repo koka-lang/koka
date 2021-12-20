@@ -207,9 +207,26 @@ Supported Distributions:
 * Arch Linux
 * OpenSUSE Tumbleweed and Leap 15.3
 
+## Requirements
+
+The only requirement to build and package koka is Docker.
+
+## How to build
+
+To build every possible package automatically you can run this script from the root of this git.
+
+```sh
+$ ./util/packaging/build.sh
+```
+
+To specify which versions you want to build and package you can use `--target="target1 target2"`.
+You can also specify whether to only build or only package with `--package="no"` or `--package="only"`.
+
+After running the script there should now be distro specific bundles in `./bundles`, and installable packages in `./packages/$koka_version`.
+
 ## Notes
 
-If OpenSuse throws
+If OpenSuse throws this when trying to install the built package
 ```sh
 # zypper in -t package /data/koka-2.3.7-opensuse.rpm
 Loading repository data...

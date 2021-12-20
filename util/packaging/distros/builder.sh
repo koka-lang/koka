@@ -8,6 +8,7 @@ BUILD_MODE=""
 
 GLIBC_VERSION=""
 KOKA_VERSION=""
+ARCHITECTURE=""
 
 LOG_PREFIX="[KOKA INTERNAL BUILDER] "
 
@@ -33,9 +34,9 @@ get_glibc_version() {
 get_koka_version() {
   kk_version=""
   if [ "$BUILD_MODE" = "stack" ]; then
-    kk_version=$(stack exec koka -- --version --console=raw)
+    kk_version=$(stack exec koka -- --version --console=raw | grep "Koka ")
   elif [ "$BUILD_MODE" = "cabal" ]; then
-    kk_version=$(cabal new-run koka -- --version --console=raw)
+    kk_version=$(cabal new-run koka -- --version --console=raw | grep "Koka ")
   fi
 
   kk_version="${kk_version%%,*}"   # remove everything after the first ",*"
@@ -92,12 +93,14 @@ build_koka() {
 bundle_koka() {
   info "Bundling koka"
 
+  postfix="$KOKA_VERSION-$DISTRO-$ARCHITECTURE"
+
   status=1
   if [ "$BUILD_MODE" = "stack" ]; then
-    script --return --quiet -c "stack exec koka -- -e util/bundle -- --postfix=\"$DISTRO\"" /dev/null
+    script --return --quiet -c "stack exec koka -- -e util/bundle -- --postfix=\"\\\"$postfix\\\"\"" /dev/null
     status=$?
   elif [ "$BUILD_MODE" = "cabal" ]; then
-    script --return --quiet -c "cabal new-run koka -- -e util/bundle -- --postfix=\"$DISTRO\"" /dev/null
+    script --return --quiet -c "cabal new-run koka -- -e util/bundle -- --postfix=\"\\\"$postfix\\\"\"" /dev/null
     status=$?
   fi
 
@@ -135,6 +138,7 @@ full_build() {
   info "Build mode: $BUILD_MODE"
   info "Distro: $DISTRO"
   info "GLIBC Version: $GLIBC_VERSION"
+  info "Architecture: $ARCHITECTURE"
 
   export_build
 
@@ -163,6 +167,7 @@ init_parse_param() {
   fi
 
   GLIBC_VERSION=$(get_glibc_version)
+  ARCHITECTURE=$(uname -m)
 
   full_build
 }

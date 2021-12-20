@@ -34,6 +34,7 @@ MODE=""
 QUIET=""
 
 VERSION=""
+ARCHITECTURE=""
 BUILD_TARGETS=""
 
 TEMP_DIR=""
@@ -124,13 +125,13 @@ build_package() {
 
   dependencies="$(get_dependencies "$SYSTEM")"
 
-  file_name="$PACKAGE_NAME-$VERSION-$SYSTEM.$EXT"
+  file_name="$PACKAGE_NAME-$VERSION-$SYSTEM-$ARCHITECTURE.$EXT"
 
   fpm_arguments="-s dir -t '$TYPE' -C '/source' -p '/build/$file_name' $dependencies \
     -n '$PACKAGE_NAME' --description '$PACKAGE_DESCRIPTION' --url '$PACKAGE_URL' --license '$PACKAGE_LICENSE' -v '$VERSION' \
     -a native --prefix '/usr/local' \
     --provides '$PACKAGE_NAME' \
-    bin/koka=bin/koka lib/koka=lib share/koka=share"
+    bin/koka=bin/koka lib/koka=lib/ share/koka=share/"
 
   # Build the package                                                             /bin/bash -c "fpm $fpm_arguments"
   docker run --rm -v "$EXTRACTED_BUNDLE_DIR:/source:z" -v "$BUILT_PACKAGE_DIR:/build:z" fpm -c "fpm $fpm_arguments"
@@ -228,16 +229,21 @@ extract_bundle_to_temp() {
   fi
 }
 
-extract_version_from_bundle() {
+extract_version_architecture_from_bundle() {
   info "Extracting version from bundle"
   # Extract version from binary using regex magic
   VERSION="$(cat $EXTRACTED_BUNDLE_DIR/meta/version)"
+  ARCHITECTURE="$(cat $EXTRACTED_BUNDLE_DIR/meta/arch)"
 
   if [ -z "$VERSION" ]; then
     stop "Failed to extract version from bundle"
   fi
 
-  info "Building version $VERSION"
+  if [ -z "$ARCHITECTURE" ]; then
+    stop "Failed to extract architecture from bundle"
+  fi
+
+  info "Building version $VERSION for $ARCHITECTURE"
 }
 
 move_packages() {
@@ -263,7 +269,7 @@ main_package() {
   make_extra_temp_dirs
 
   extract_bundle_to_temp
-  extract_version_from_bundle
+  extract_version_architecture_from_bundle
 
   # Build the packages
   info "Building for $BUILD_TARGETS"
