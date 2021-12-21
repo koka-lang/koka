@@ -74,6 +74,18 @@ auto_temp_dir() {
 
 #------------------------------------------------------------------------------
 
+ensure_kvm() {
+  virtualization=$(lscpu | grep -i "virtualization" | awk '{print $2}')
+
+  if [ "$virtualization" != "AMD-V" ] && [ "$virtualization" != "VT-x" ]; then
+    stop "CPU does not support virtualization, or is not enabled"
+  fi
+
+  if [ ! -c /dev/kvm ]; then
+    stop "KVM not found or enabled"
+  fi
+}
+
 ensure_docker() {
   # Check if docker exists
   if ! has_cmd docker; then
@@ -81,4 +93,58 @@ ensure_docker() {
   fi
 }
 
-OI=3
+test_docker_multiarch() {
+  _test_architectures=$1
+  if [ -z "$_test_architectures" ]; then
+    stop "No architectures to test specified"
+  fi
+
+  this_arch=$(docker info | fgrep -m 1 "arch: " | awk '{print $2}')
+
+  if [ -z "$this_arch" ]; then
+    stop "Failed to determine docker architecture"
+  fi
+
+  for _test_architecture in $_test_architectures; do
+    # Skip if the architecture is the same as the current one
+    if [ "$this_arch" == "$_test_architecture" ]; then
+      continue
+    fi
+
+    # I have no clue why tr -d '\r' is needed, but copilot put it there, and if i remove it it breaks
+    test_output=$(docker run --rm --arch $_test_architecture --security-opt label=disable -t alpine uname -o | tail -n 1 | tr -d '\r')
+
+    if [ "$test_output" != "Linux" ]; then
+      return 1
+    fi
+  done
+
+  return 0
+}
+
+ensure_docker_multiarch() {
+  _test_architectures=$1
+  if [ -z "$_test_architectures" ]; then
+    stop "No architectures to test specified"
+  fi
+
+  test_docker_multiarch "$_test_architectures"
+  if [ $? -ne 0 ]; then
+    info "Multiarch not installed, installing..."
+    
+    # If not root
+    if [ "$(id -u)" != "0" ]; then
+      info "To install multiarch, root is needed, sudo will ask for your password now."
+    fi
+
+    sudo docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+    if [ $? -ne 0 ]; then
+      stop "Failed to install multiarch"
+    fi
+  fi
+
+  test_docker_multiarch "$_test_architectures"
+  if [ $? -ne 0 ]; then
+    stop "Multiarch failed to install"
+  fi
+}

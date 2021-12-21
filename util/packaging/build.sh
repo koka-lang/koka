@@ -1,6 +1,7 @@
 #!/bin/bash
 
 SUPPORTED_TARGETS="rhel debian arch alpine opensuse"
+SUPPORTED_ARCHITECTURES="amd64" # arm64
 
 #---------------------------------------------------------
 # Variables
@@ -9,6 +10,7 @@ SUPPORTED_TARGETS="rhel debian arch alpine opensuse"
 MODE=""
 QUIET=""
 BUILD_TARGETS=""
+BUILD_ARCHITECTURES=""
 
 #---------------------------------------------------------
 # Helper functions
@@ -29,7 +31,9 @@ clean_workdir() {
 }
 
 build_docker_images() {
-  info "Building docker images"
+  _build_arch="$1"
+
+  info "Building docker images for $_build_arch"
 
   quiet_param=""
   if [ -n "$QUIET" ]; then
@@ -42,6 +46,7 @@ build_docker_images() {
 
     # Build the docker image
     docker build $quiet_param -t koka-$target \
+      --arch $_build_arch --security-opt label=disable \
       -f "./$target.Dockerfile" ./distros
 
     if [ $? -ne 0 ]; then
@@ -53,7 +58,9 @@ build_docker_images() {
 }
 
 run_docker_images() {
-  info "Compiling os specific packages"
+  _build_arch="$1"
+
+  info "Compiling os specific packages for $_build_arch"
 
   quiet_param=""
   if [ -n "$QUIET" ]; then
@@ -66,7 +73,7 @@ run_docker_images() {
 
     # Build the docker image
     # (Maybe properly fix SELINUX here?)
-    docker run $quiet_param --rm \
+    docker run $quiet_param --rm --arch $_build_arch \
       --cap-add SYS_ADMIN --security-opt label=disable \
       --tmpfs /tmp/overlay \
       -v "$(pwd)/$KOKA_SOURCE_LOCATION":/code:ro \
@@ -123,13 +130,19 @@ main_build() {
 
   # If mode is not packageonly
   if [ "$MODE" != "packageonly" ]; then
+    ensure_kvm
     ensure_docker
+    ensure_docker_multiarch "$BUILD_ARCHITECTURES"
 
-    build_docker_images
+    for architecture in $BUILD_ARCHITECTURES; do
+      build_docker_images $architecture
+    done
 
     auto_temp_dir
 
-    run_docker_images
+    for architecture in $BUILD_ARCHITECTURES; do
+      run_docker_images $architecture
+    done
 
     move_outputs
   fi
@@ -158,6 +171,9 @@ process_options() {
     "") break ;;
     -t=* | --targets=*)
       BUILD_TARGETS="$flag_arg"
+      ;;
+    -a=* | --architectures=*)
+      BUILD_ARCHITECTURES="$flag_arg"
       ;;
     -p=* | --package=*)
       if [ "$flag_arg" == "yes" ]; then
@@ -203,6 +219,17 @@ process_options() {
       stop "Invalid target: $target"
     fi
   done
+
+  if [ -z "$BUILD_ARCHITECTURES" ]; then
+    BUILD_ARCHITECTURES="$SUPPORTED_ARCHITECTURES"
+  fi
+
+  # Check if BUILD_ARCHITECTURES is in SUPPORTED_ARCHITECTURES
+  for arch in $BUILD_ARCHITECTURES; do
+    if [ -z "$(echo $SUPPORTED_ARCHITECTURES | grep $arch)" ]; then
+      stop "Invalid architecture: $arch"
+    fi
+  done
 }
 
 main_help() {
@@ -212,6 +239,8 @@ main_help() {
   info "options:"
   info "  -t, --targets=<target target>   Specify the targets to build for"
   info "                                  ($SUPPORTED_TARGETS)"
+  info "  -a, --architectures=<arch>      Specify the architectures to build for"
+  info "                                  ($SUPPORTED_ARCHITECTURES)"
   info "  -p, --package=<yes|no|only>     Package the bundle after building"
   info "  -q, --quiet                     Suppress output"
   info "  -h, --help                      Show this help message"
