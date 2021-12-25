@@ -140,7 +140,7 @@ Unix. The following programs are required to build Koka:
 * [Stack](https://docs.haskellstack.org/) to run the Haskell compiler. 
   Use `curl -sSL https://get.haskellstack.org/ | sh` 
   on Unix and macOS x64, or the binary [installer](https://get.haskellstack.org/stable/windows-x86_64-installer.exe) on Windows.
-  On macOS M1, use `brew install haskell-stack` (and see the [build notes](#build-notes) below).  
+  On macOS M1, use `brew install haskell-stack --head` (and see the [build notes](#build-notes) below).  
 * Optional: [vcpkg] to be able to link easily with C libraries. 
   Use `brew install vcpkg` on macOS. On other systems use the vcpkg [install][vcpkg]
   instructions (Koka can find vcpkg automatically if installed to `~/vcpkg`).
@@ -317,32 +317,22 @@ Contact me if you are interested in tackling some of these :-)
 The main development branches are:
 - `master`: latest stable version.
 - `dev`: current development branch -- submit PR's to this branch.
-- `feature/borrow`: branch with borrowing; currently releases are done from this branch
-  (while we measure the perf improvements from borrowing)
 - `v1-master`: last stable version of Koka v1: this is Koka with the Javascript (and C#)
   backend which does not use evidence translation.
   This version supports `std/async` and should compile examples from published papers.
 
 ## Building on macOS M1
 
-Currently (Nov 2021) `stack` is not always working well on the M1.
-You need to install `ghc` via `brew`:
+Currently (Dec 2021) you need to use `brew install haskell-stack --head` 
+to get the latest `2.7.4` version of stack. (Have patience as the cabal
+install step takes about 20 min). Moreover, you need to add the `brew`
+installed LLVM to your path afterwards, or otherwise stack cannot find the LLVM tools.
+Add the following to your `~/.zshrc` script and open an fresh prompt:
 ```
-$ brew install pkg-config ghc cabal-install haskell-stack
-```
-
-Note it is important to have `stack` and `ghc` as an arm64 build since otherwise Koka will
-be build for x64 and as a result compile to x64 as well! Test this as:
-
-```
-$ file `which stack`
-/opt/homebrew/bin/stack: Mach-O 64-bit executable arm64
+export PATH=/opt/homebrew/opt/llvm/bin:$PATH
 ```
 
-If this is not the case, you can still build an x64 Koka but need to add the options
-`--ccopts="-arch arm64" --cclinkopts="-arch arm64"` to cross compile to arm64 executables 
-(since the `clang` compiler targets by default the architecture that its [host process uses][m1arch]).
-
+<!--
 Moreover, sometimes `stack` segfaults but running it inside `bash` seems to resolve the issue.
 Also, we need to tell stack to use the system installed ghc and skip the version check as
 it can currently not install GHC for arm64 yet:
@@ -357,6 +347,7 @@ and pass the `--system-ghc` flag to create an installation bundle as well:
 ```
 bash:~/koka$ stack --system-ghc --skip-ghc-check exec koka -- -e util/bundle -- --system-ghc
 ```
+-->
 
 ## Building with Cabal 
 
