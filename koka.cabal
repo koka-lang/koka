@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.4.
+-- This file has been generated from package.yaml by hpack version 0.34.6.
 --
 -- see: https://github.com/sol/hpack
 
@@ -142,7 +142,7 @@ executable koka
     , bytestring
     , containers
     , directory
-    , isocline >=1.0.5
+    , isocline >=1.0.6
     , mtl
     , parsec
     , process
@@ -172,7 +172,7 @@ test-suite koka-test
     , filepath
     , hspec
     , hspec-core
-    , isocline >=1.0.5
+    , isocline >=1.0.6
     , json
     , mtl
     , parsec
