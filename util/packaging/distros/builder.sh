@@ -44,6 +44,21 @@ get_koka_version() {
   echo $kk_version
 }
 
+get_koka_arch() {
+  # We need this because of the koka bug, this can be removed once the koka bug is fixed
+  export koka_code="\n:l std/os/env\nprintln(\"KK_arch: \" ++ get-cpu-arch())"
+
+  if [ "$BUILD_MODE" = "stack" ]; then
+    kk_arch=$(script --return --quiet -c "echo -e \"\$koka_code\" | stack exec koka" /dev/null)
+  elif [ "$BUILD_MODE" = "cabal" ]; then
+    kk_arch=$(script --return --quiet -c "echo -e \"\$koka_code\" | cabal new-run koka" /dev/null)
+  fi
+  unset koka_code
+
+  kk_arch=$(echo "$kk_arch" | grep -Pom 1 "(?<=KK_arch: )[a-zA-Z0-9]+")
+  echo "$kk_arch"
+}
+
 mount_overlay() {
   info "Mounting overlay"
   # Check if /proc/filesystems contains overlayfs and tmpfs
@@ -79,7 +94,8 @@ build_koka() {
     stack build
     status=$?
   elif [ "$BUILD_MODE" = "cabal" ]; then
-    cabal new-build --enable-executable-static
+    cabal configure --enable-executable-static
+    cabal new-build
     status=$?
   fi
 
@@ -93,7 +109,7 @@ build_koka() {
 bundle_koka() {
   info "Bundling koka"
 
-  postfix="$KOKA_VERSION-$DISTRO-$ARCHITECTURE"
+  postfix="v$KOKA_VERSION-$DISTRO-$ARCHITECTURE"
 
   status=1
   if [ "$BUILD_MODE" = "stack" ]; then
@@ -130,6 +146,7 @@ full_build() {
 
   build_koka
 
+  ARCHITECTURE=$(get_koka_arch)
   KOKA_VERSION=$(get_koka_version)
 
   bundle_koka
@@ -167,7 +184,6 @@ init_parse_param() {
   fi
 
   GLIBC_VERSION=$(get_glibc_version)
-  ARCHITECTURE=$(uname -m)
 
   full_build
 }

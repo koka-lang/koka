@@ -105,7 +105,7 @@ package_outputs() {
   info "Packaging bundles"
 
   for target in $BUILD_TARGETS; do
-    bundleloc="$CALLER_DIR/bundle/koka-*-$target-*.tar.gz"
+    bundleloc="$CALLER_DIR/bundle/koka-v*-$target-*.tar.gz"
 
     # Check if the bundle exists
     if [ ! -f $bundleloc ]; then

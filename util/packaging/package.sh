@@ -125,7 +125,7 @@ build_package() {
 
   dependencies="$(get_dependencies "$SYSTEM")"
 
-  file_name="$PACKAGE_NAME-$VERSION-$SYSTEM-$ARCHITECTURE.$EXT"
+  file_name="$PACKAGE_NAME-v$VERSION-$SYSTEM-$ARCHITECTURE.$EXT"
 
   fpm_arguments="-s dir -t '$TYPE' -C '/source' -p '/build/$file_name' $dependencies \
     -n '$PACKAGE_NAME' --description '$PACKAGE_DESCRIPTION' --url '$PACKAGE_URL' --license '$PACKAGE_LICENSE' -v '$VERSION' \
