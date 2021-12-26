@@ -17,11 +17,9 @@ public fun test : () -> console int
  = parc/parc21/bo(3, 4);
  val _ : ()
  = std/core/prints((std/core/show(i)));
- val .own : int
- = val _0 : ()
+ val _0 : ()
  = std/core/prints((std/core/show(3)));
- 3;
- parc/parc21/bo(.own, val _1 : ()
- = (std/core/prints((std/core/show(4))));
- 4);
+ val _1 : ()
+ = std/core/prints((std/core/show(4)));
+ parc/parc21/bo(3, 4);
  };

@@ -29,3 +29,8 @@ extra-deps:
 
 rebuild-ghc-options: true
 allow-newer: true
+
+# only for test with resolver 18.17+
+flags:
+  mintty:
+    Win32-2-13-1: false
