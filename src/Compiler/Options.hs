@@ -24,6 +24,8 @@ module Compiler.Options( -- * Command line options
                        , cpuArch, osName
                        , optionCompletions
                        , targetExeExtension
+                       , conanSettingsFromFlags
+                       , vcpkgFindRoot
                        ) where
 
 
@@ -139,12 +141,15 @@ data Flags
          , ccompLinkLibs    :: [FilePath]    -- full path to library
          , ccomp            :: CC
          , ccompLibDirs     :: [FilePath]    -- .a/.lib dirs
+         , autoInstallLibs  :: Bool
          , vcpkgRoot        :: FilePath
          , vcpkgTriplet     :: String
-         , vcpkgAutoInstall :: Bool
+         {-
          , vcpkg            :: FilePath
          , vcpkgLibDir      :: FilePath
          , vcpkgIncludeDir  :: FilePath
+         -}
+         , conan            :: FilePath
          , editor           :: String
          , redirectOutput   :: FileName
          , outHtml          :: Int
@@ -227,12 +232,15 @@ flagsNull
           (if onWindows then []        -- ccomp library dirs
                         else ["/usr/local/lib","/usr/lib","/lib"])
           
+          True     -- auto install libraries
           ""       -- vcpkg root
           ""       -- vcpkg triplet
-          True     -- vcpkg auto install
+          {-
           ""       -- vcpkg
           ""       -- vcpkg libdir
           ""       -- vcpkg incdir
+          -}
+          "conan"  -- conan command
 
           ""       -- editor
           ""
@@ -321,7 +329,8 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
  , option []    ["cclibpath"]       (OptArg ccLinkLibs "lpath")     "link with semi-colon separated libraries <lpath>"
  , option []    ["vcpkg"]           (ReqArg ccVcpkgRoot "dir")      "vcpkg root directory"
  , option []    ["vcpkgtriplet"]    (ReqArg ccVcpkgTriplet "tt")    "vcpkg target triplet"
- , flag   []    ["vcpkgauto"]       (\b f -> f{vcpkgAutoInstall=b}) "automatically install required vcpkg packages"
+ , option []    ["conan"]           (ReqArg ccConan "cmd")          "conan command"
+ , flag   []    ["autoinstall"]     (\b f -> f{autoInstallLibs=b})  "automatically download required packages"
  , option []    ["csc"]             (ReqArg cscFlag "cmd")          "use <cmd> as the csharp backend compiler "
  , option []    ["node"]            (ReqArg nodeFlag "cmd")         "use <cmd> to execute node"
  , option []    ["wasmrun"]         (ReqArg wasmrunFlag "cmd")      "use <cmd> to execute wasm"
@@ -512,6 +521,9 @@ options = (\(xss,yss) -> (concat xss, concat yss)) $ unzip
   ccVcpkgTriplet triplet
     = Flag (\f -> f{vcpkgTriplet = triplet })
 
+  ccConan cmd
+    = Flag (\f -> f{conan = cmd })
+
   cscFlag s
     = Flag (\f -> f{ csc = s })
 
@@ -645,9 +657,9 @@ processOptions flags0 opts
                        cdefs    = ccompDefs flags 
                                    ++ if stdAlloc then [] else [("KK_MIMALLOC",show (sizePtr (platform flags)))]
                                    ++ if (buildType flags > DebugFull) then [] else [("KK_DEBUG_FULL","")]
-
+                   
                    -- vcpkg
-                   (vcpkgRoot,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)
+                   -- (vcpkgRoot,vcpkg) <- vcpkgFindRoot (vcpkgRoot flags)
                    let triplet          = if (not (null (vcpkgTriplet flags))) then vcpkgTriplet flags
                                             else if (isTargetWasm (target flags))
                                               then ("wasm" ++ show (8*sizePtr (platform flags)) ++ "-emscripten")
@@ -657,11 +669,13 @@ processOptions flags0 opts
                                                                 then "-mingw-static"
                                                                 else "-windows-static-md")
                                                         else ("-" ++ tripletOsName))
+                       {-
                        vcpkgInstalled   = (vcpkgRoot) ++ "/installed/" ++ triplet
                        vcpkgIncludeDir  = vcpkgInstalled ++ "/include"
                        vcpkgLibDir      = vcpkgInstalled ++ (if buildType flags <= Debug then "/debug/lib" else "/lib")
                        vcpkgLibDirs     = if (null vcpkg) then [] else [vcpkgLibDir]
                        vcpkgIncludeDirs = if (null vcpkg) then [] else [vcpkgIncludeDir] 
+                       -}
                    return (flags{ packages    = pkgs,
                                   buildDir    = buildDir,
                                   localBinDir = localBinDir,
@@ -688,13 +702,16 @@ processOptions flags0 opts
                                   useStdAlloc = stdAlloc,
                                   editor      = ed,
                                   includePath = (localShareDir ++ "/lib") : includePath flags,
+                                  vcpkgTriplet= triplet
 
+                                  {-
                                   vcpkgRoot   = vcpkgRoot,
                                   vcpkg       = vcpkg,
                                   vcpkgTriplet= triplet,
                                   vcpkgIncludeDir  = vcpkgIncludeDir,
-                                  vcpkgLibDir      = vcpkgLibDir,
-                                  ccompLibDirs     = vcpkgLibDirs ++ ccompLibDirs flags
+                                  vcpkgLibDir      = vcpkgLibDir
+                                  -}
+                                  -- ccompLibDirs     = vcpkgLibDirs ++ ccompLibDirs flags
                                   -- ccompIncludeDirs = vcpkgIncludeDirs ++ ccompIncludeDirs flags  -- include path added when a library is used
                                }
                           ,flags,mode)
@@ -799,7 +816,7 @@ getEnvOptions
 vcpkgFindRoot :: FilePath -> IO (FilePath,FilePath)
 vcpkgFindRoot root
   = if (null root) 
-      then do eroot   <- getEnvVar "VCPKG_ROOT"
+      then do eroot <- getEnvVar "VCPKG_ROOT"
               if (not (null eroot))
                 then return (eroot, joinPath eroot vcpkgExe)
                 else do homeDir <- getHomeDirectory
@@ -816,6 +833,42 @@ vcpkgFindRoot root
   where 
     vcpkgExe = "vcpkg" ++ exeExtension
 
+
+conanSettingsFromFlags :: Flags -> CC -> [String]
+conanSettingsFromFlags flags cc
+  = let name = ccName cc
+        clRuntime = ["-s","compiler.runtime=" ++ (if buildType flags <= Debug then "MDd" else "MD")] 
+        -- conan compiler <https://docs.conan.io/en/latest/integrations/compilers.html>
+        settings  | (name `startsWith` "clang-cl") -- <https://github.com/conan-io/conan/pull/5705>
+                  = -- ["-s","compiler=clang","-s","compiler.driver=cl"] ++  -- requires compiler.version
+                    clRuntime  
+                  | (name `startsWith` "mingw") = ["-s","compiler=gcc"]
+                  | (name `startsWith` "emcc") 
+                  = ["-s","compiler=clang","-s","os=Emscripten"] ++ 
+                    (case target flags of  -- <https://docs.conan.io/en/latest/integrations/cross_platform/emscripten.html>
+                       C Wasm | sizePtr (platform flags) == 4  -> ["-s","arch=wasm"]
+                       C Wasm | sizePtr (platform flags) == 8  -> ["-s","arch=wasm64"]
+                       C WasmJs -> ["-s","arch=asm.js"]
+                       _        -> []
+                    )
+                  | name `startsWith` "clang" && onMacOS = ["-s","compiler=apple-clang"]
+                  | (name `startsWith` "clang" || name `startsWith` "musl-clang") = ["-s","compiler=clang"]
+                  | (name `startsWith` "musl-gcc" || name `startsWith` "musl-g++") = ["-s","compiler=gcc"]
+                  | (name `startsWith` "gcc" || name `startsWith` "g++")   = ["-s","compiler=gcc"]
+                  | (name `startsWith` "cl")    
+                  = ["-s","compiler=Visual Studio"] ++ clRuntime
+                  | (name `startsWith` "icc")   = ["-s","compiler=intel-cc"]
+                  | otherwise = []
+        build     = ["-s","build_type=" ++ case buildType flags of
+                        DebugFull -> "Debug"
+                        Debug     -> "Debug"
+                        RelWithDebInfo -> "Release"  -- "RelWithDebInfo" -- often not available
+                        Release        -> "Release"]
+
+    in build ++ settings ++ ["-e","CC=" ++ ccPath cc] -- set CXX as well?
+       ++ (if onWindows then ["-e","CONAN_CMAKE_GENERATOR=Ninja"] else [])
+
+
 {--------------------------------------------------------------------------
   Detect C compiler
 --------------------------------------------------------------------------}
@@ -823,7 +876,7 @@ vcpkgFindRoot root
 type Args = [String]
 
 data CC = CC{  ccName       :: String,
-               ccPath       :: FilePath,
+               ccPath       :: FilePath,               
                ccFlags      :: Args,
                ccFlagsBuild :: [(BuildType,Args)],
                ccFlagsWarn  :: Args,

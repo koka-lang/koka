@@ -136,11 +136,12 @@ static kk_std_core__list kk_regex_exec( kk_box_t bre, kk_string_t str, kk_ssize_
   pcre2_match_data* match_data = NULL;
   kk_std_core__list res = kk_std_core__new_Nil(ctx);
   pcre2_code* re = (pcre2_code*)kk_cptr_raw_unbox(bre);
+  kk_ssize_t len = 0;
+  const uint8_t* cstr = NULL;
   if (re == NULL) goto done;    
   match_data = pcre2_match_data_create_from_pattern(re, gen_ctx);
   if (match_data==NULL) goto done;  
-  kk_ssize_t len;
-  const uint8_t* cstr = kk_string_buf_borrow(str, &len );  
+  cstr = kk_string_buf_borrow(str, &len );  
 
   // and match
   res = kk_regex_exec_ex( re, match_data, str, cstr, len, true, start, NULL, NULL, NULL, ctx );
@@ -164,48 +165,50 @@ static kk_std_core__list kk_regex_exec_all( kk_box_t bre, kk_string_t str, kk_ss
   if (re == NULL) goto done;    
   match_data = pcre2_match_data_create_from_pattern(re, gen_ctx);
   if (match_data==NULL) goto done;  
-  kk_ssize_t len;
-  const uint8_t* cstr = kk_string_buf_borrow(str, &len );  
+  {
+    kk_ssize_t len;
+    const uint8_t* cstr = kk_string_buf_borrow(str, &len );  
 
-  // and match
-  kk_std_core__list* tail = NULL;
-  bool allow_empty = true;
-  int rc = 1;    
-  kk_ssize_t next = start;
-  while( rc > 0 && start < len && atmost > 0) {
-    atmost--;
-    rc = 0;
-    kk_ssize_t mstart = start;
-    kk_std_core__list cap = kk_regex_exec_ex( re, match_data, str, cstr, len, allow_empty, start, &mstart, &next, &rc, ctx );
-    if (rc > 0) {
-      // found a match; 
-      // push string up to match, and the actual matched regex
-      kk_std_core__sslice pre = kk_std_core__new_Sslice( kk_string_dup(str), start, mstart - start, ctx ); 
-      kk_std_core__list   prelist = kk_std_core__new_Cons( kk_reuse_null, kk_std_core__sslice_box(pre,ctx), kk_std_core__new_Nil(ctx), ctx );
-      kk_std_core__list   capcons = kk_std_core__new_Cons( kk_reuse_null, kk_std_core__list_box(cap,ctx), kk_std_core__new_Nil(ctx) /*tail*/, ctx );
-      kk_std_core__list   cons = kk_std_core__new_Cons( kk_reuse_null, kk_std_core__list_box(prelist,ctx), capcons, ctx );
-      if (tail==NULL) res = cons;
-                 else *tail = cons;
-      tail = &kk_std_core__as_Cons(capcons)->tail;
-      allow_empty = (next > start);
-      start = next;
+    // and match
+    kk_std_core__list* tail = NULL;
+    bool allow_empty = true;
+    int rc = 1;    
+    kk_ssize_t next = start;
+    while( rc > 0 && start < len && atmost > 0) {
+      atmost--;
+      rc = 0;
+      kk_ssize_t mstart = start;
+      kk_std_core__list cap = kk_regex_exec_ex( re, match_data, str, cstr, len, allow_empty, start, &mstart, &next, &rc, ctx );
+      if (rc > 0) {
+        // found a match; 
+        // push string up to match, and the actual matched regex
+        kk_std_core__sslice pre = kk_std_core__new_Sslice( kk_string_dup(str), start, mstart - start, ctx ); 
+        kk_std_core__list   prelist = kk_std_core__new_Cons( kk_reuse_null, kk_std_core__sslice_box(pre,ctx), kk_std_core__new_Nil(ctx), ctx );
+        kk_std_core__list   capcons = kk_std_core__new_Cons( kk_reuse_null, kk_std_core__list_box(cap,ctx), kk_std_core__new_Nil(ctx) /*tail*/, ctx );
+        kk_std_core__list   cons = kk_std_core__new_Cons( kk_reuse_null, kk_std_core__list_box(prelist,ctx), capcons, ctx );
+        if (tail==NULL) res = cons;
+                  else *tail = cons;
+        tail = &kk_std_core__as_Cons(capcons)->tail;
+        allow_empty = (next > start);
+        start = next;
+      }
+      else if (rc <= 0 && !allow_empty) {
+        // skip one character and try again
+        // todo: handle cr/lf pairs better?
+        const uint8_t* p = kk_utf8_next( cstr + start );
+        start = (p - cstr);
+        allow_empty = true;
+        rc = 1;
+      }
     }
-    else if (rc <= 0 && !allow_empty) {
-      // skip one character and try again
-      // todo: handle cr/lf pairs better?
-      const uint8_t* p = kk_utf8_next( cstr + start );
-      start = (p - cstr);
-      allow_empty = true;
-      rc = 1;
-    }
+    
+    // push final string part as well and end the list
+    kk_std_core__sslice post    = kk_std_core__new_Sslice( kk_string_dup(str), next, len - next, ctx ); 
+    kk_std_core__list   postlist= kk_std_core__new_Cons( kk_reuse_null, kk_std_core__sslice_box(post,ctx), kk_std_core__new_Nil(ctx), ctx );
+    kk_std_core__list   cons    = kk_std_core__new_Cons( kk_reuse_null, kk_std_core__list_box(postlist,ctx), kk_std_core__new_Nil(ctx), ctx );
+    if (tail==NULL) res = cons;
+              else *tail = cons;  
   }
-  
-  // push final string part as well and end the list
-  kk_std_core__sslice post    = kk_std_core__new_Sslice( kk_string_dup(str), next, len - next, ctx ); 
-  kk_std_core__list   postlist= kk_std_core__new_Cons( kk_reuse_null, kk_std_core__sslice_box(post,ctx), kk_std_core__new_Nil(ctx), ctx );
-  kk_std_core__list   cons    = kk_std_core__new_Cons( kk_reuse_null, kk_std_core__list_box(postlist,ctx), kk_std_core__new_Nil(ctx), ctx );
-  if (tail==NULL) res = cons;
-            else *tail = cons;  
 
 done:  
   if (match_data != NULL) {
