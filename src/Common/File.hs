@@ -402,6 +402,7 @@ searchPathsEx path exts suffixes name
     search [] = return Nothing  -- notfound envname nameext path
     search ((dir,fname):xs)
       = do{ let fullName = joinPath dir fname
+          -- ; trace ("search: " ++ fullName) $ return ()
           ; exist <- doesFileExist fullName
           ; if exist
              then return (Just (dir,fname))

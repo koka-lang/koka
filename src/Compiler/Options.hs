@@ -840,24 +840,23 @@ conanSettingsFromFlags flags cc
         clRuntime = ["-s","compiler.runtime=" ++ (if buildType flags <= Debug then "MDd" else "MD")] 
         -- conan compiler <https://docs.conan.io/en/latest/integrations/compilers.html>
         settings  | (name `startsWith` "clang-cl") -- <https://github.com/conan-io/conan/pull/5705>
-                  = -- ["-s","compiler=clang","-s","compiler.driver=cl"] ++  -- requires compiler.version
-                    clRuntime  
-                  | (name `startsWith` "mingw") = ["-s","compiler=gcc"]
+                  = clRuntime  
+                  | (name `startsWith` "mingw") 
+                  = []
                   | (name `startsWith` "emcc") 
-                  = ["-s","compiler=clang","-s","os=Emscripten"] ++ 
+                  = ["-s","os=Emscripten"] ++ 
                     (case target flags of  -- <https://docs.conan.io/en/latest/integrations/cross_platform/emscripten.html>
                        C Wasm | sizePtr (platform flags) == 4  -> ["-s","arch=wasm"]
                        C Wasm | sizePtr (platform flags) == 8  -> ["-s","arch=wasm64"]
                        C WasmJs -> ["-s","arch=asm.js"]
                        _        -> []
                     )
-                  | name `startsWith` "clang" && onMacOS = ["-s","compiler=apple-clang"]
-                  | (name `startsWith` "clang" || name `startsWith` "musl-clang") = ["-s","compiler=clang"]
-                  | (name `startsWith` "musl-gcc" || name `startsWith` "musl-g++") = ["-s","compiler=gcc"]
-                  | (name `startsWith` "gcc" || name `startsWith` "g++")   = ["-s","compiler=gcc"]
+                  | (name `startsWith` "clang" || name `startsWith` "musl-clang") = []
+                  | (name `startsWith` "musl-gcc" || name `startsWith` "musl-g++") = []
+                  | (name `startsWith` "gcc" || name `startsWith` "g++")   = []
                   | (name `startsWith` "cl")    
-                  = ["-s","compiler=Visual Studio"] ++ clRuntime
-                  | (name `startsWith` "icc")   = ["-s","compiler=intel-cc"]
+                  = clRuntime
+                  | (name `startsWith` "icc")   = []
                   | otherwise = []
         build     = ["-s","build_type=" ++ case buildType flags of
                         DebugFull -> "Debug"

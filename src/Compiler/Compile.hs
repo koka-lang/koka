@@ -1379,9 +1379,9 @@ searchCLibrary flags cc clib searchPaths
   = do mbPath <- -- looking for specific suffixes is not ideal but it differs among plaforms (e.g. pcre2-8 is only pcre2-8d on Windows)
                  -- and the actual name of the library is not easy to extract from vcpkg (we could read 
                  -- the lib/config/<lib>.pc information and parse the Libs field but that seems fragile as well)
-                 let suffixes = (if (buildType flags <= Debug) then ["d","_d","-d","-debug","_debug","-dbg","_dbg"] else [])
-                 in -- trace ("search lib dirs: " ++ show (ccompLibDirs flags)) $
-                     searchPathsSuffixes searchPaths [] suffixes (ccLibFile cc clib)                     
+                 do let suffixes = (if (buildType flags <= Debug) then ["d","_d","-d","-debug","_debug","-dbg","_dbg"] else [])
+                    -- trace ("search in: " ++ show searchPaths) $
+                    searchPathsSuffixes searchPaths [] suffixes (ccLibFile cc clib)                     
        case mbPath of
         Just fname 
           -> case reverse (splitPath fname) of
@@ -1419,7 +1419,7 @@ conanCLibrary term flags cc eimport clib pkg
       = takeWhile (/='/') pkg
 
     settings
-      = conanSettingsFromFlags flags cc ++ ["-o",pkgBase ++ ":shared=False"]
+      = conanSettingsFromFlags flags cc ++ ["-o",pkgBase ++ ":shared=False","-o","shared=False"]
 
     clrSource doc   
       = color (colorSource (colorScheme flags)) doc
@@ -1430,11 +1430,11 @@ conanCLibrary term flags cc eimport clib pkg
                           "--package-filter", pkgBase ++ "/*",
                           "--paths", "--only","package_folder"] ++ settings
            out <- runCommandRead term flags infoCmd  -- TODO: first check if  conan is installed?
+           termPhase term out
            let s = dropWhile isSpace (concat (take 1 (reverse (lines out))))
            if (s `startsWith` "package_folder: ")
-             then return (drop 16 s)                  
-             else do termPhase term out
-                     return ""
+             then return (normalize (drop 16 s))
+             else do return ""
 
     install conanCmd libDir
       = do let installCmd = [conanCmd, "install", pkg ++ "@", "--build", "missing"] ++ settings                             
