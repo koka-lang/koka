@@ -747,6 +747,8 @@ isTotalFun expr
       Lit _         -> True  -- not possible due to typing
       Let dgs e     -> all isTotalDef (flattenDefGroups dgs) && isTotalFun e 
       Case exps branches -> all isTotal exps && all isTotalBranchFun branches
+      -- App (TypeApp (Var open _) _) args  | getName open == nameEffectOpen
+      --              -> all isTotal args
       App f args    -> hasTotalEffect (typeOf expr) && isTotalFun f && all isTotal args
       Var v _       | getName v == nameKeep -> False 
                     | getName v `elem` [nameBox,nameUnbox]  -> True

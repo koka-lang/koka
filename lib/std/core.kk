@@ -2147,17 +2147,17 @@ inline extern vector : forall<a> () -> vector<a> {
 
 // Invoke a function `f` for each element in a vector `v`
 fun foreach( v : vector<a>, f : (a) -> e () ) : e () {
-  v.foreach-indexedz( fn(x,_) { f(x) })
+  v.foreach-indexedz( fn(_,x) { f(x) })
 }
 
 // Invoke a function `f` for each element in a vector `v`
-fun foreach-indexed( v : vector<a>, f : (a,int) -> e () ) : e () {
-  foreach-indexedz( v, fn(x,i) { f(x,i.int) } )
+fun foreach-indexed( v : vector<a>, f : (int,a) -> e () ) : e () {
+  foreach-indexedz( v, fn(i,x) { f(i.int,x) } )
 }
 
-private fun foreach-indexedz( v : vector<a>, f : (a,ssize_t) -> e () ) : e () {
+private fun foreach-indexedz( v : vector<a>, f : (ssize_t,a) -> e () ) : e () {
   forz( 0.ssize_t, v.lengthz.decr ) fn(i) {
-    f(v.unsafe-idx(i),i)
+    f(i,v.unsafe-idx(i))
   }
 }
 
@@ -2172,7 +2172,7 @@ fun foreach-while( v : vector<a>, f : a -> e maybe<b> ) : e maybe<b> {
 // Apply a total function `f` to each element in a vector `v`
 fun map( v : vector<a>, f : a -> e b ) : e vector<b> {
   val w = unsafe-vector(v.length.ssize_t)
-  v.foreach-indexedz fn(x,i) {
+  v.foreach-indexedz fn(i,x) {
     unsafe-assign(w,i,f(x))
   }
   w

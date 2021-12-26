@@ -83,6 +83,10 @@
    the size of objects to SIZE_MAX/2 internally)
 --------------------------------------------------------------------------------------*/
 
+#if defined(__clang_major__) && __clang_major__ < 9
+#error koka requires at least clang version 9 (due to atomics support)
+#endif
+
 #ifdef __cplusplus
 #define kk_decl_externc    extern "C"
 #else
