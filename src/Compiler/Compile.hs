@@ -1476,13 +1476,14 @@ vcpkgCLibrary term flags cc eimport clib pkg
     clrSource doc   
       = color (colorSource (colorScheme flags)) doc
   
-    install rootDir libDir vcpkgCmd
-      = do  pkgExist <- doesDirectoryExist (joinPaths [rootDir,"packages",pkg ++ "_" ++ vcpkgTriplet flags])
+    install rootDir libDir vcpkgCmd    
+      = do  let packageDir = joinPaths [rootDir,"packages",pkg ++ "_" ++ vcpkgTriplet flags]
+            pkgExist <- doesDirectoryExist packageDir
             when (pkgExist) $
               termWarning term flags $ 
                 text "vcpkg" <+> clrSource (text pkg) <+> 
                 text "is installed but the library" <+> clrSource (text clib) <+> 
-                text "is not found."              
+                text "is not found in" <+> clrSource (text libDir)              
             let installCmd = [vcpkgCmd, "install", pkg ++ ":" ++ vcpkgTriplet flags, "--disable-metrics"]                               
             if (not (autoInstallLibs flags))
               then do termWarning term flags (text "this module requires vcpkg package" 

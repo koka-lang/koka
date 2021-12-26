@@ -912,7 +912,16 @@ targetObjExtension target
       C WasmWeb-> ".o"
       C _      -> objExtension
       JS _     -> ".mjs"
-      _        -> objExtension      
+      _        -> objExtension 
+
+targetLibFile target fname
+  = case target of
+      C Wasm   -> "lib" ++ fname ++ ".a"
+      C WasmJs -> "lib" ++ fname ++ ".a"
+      C WasmWeb-> "lib" ++ fname ++ ".a"
+      C _      -> libPrefix ++ fname ++ libExtension
+      JS _     -> fname ++ ".mjs" -- ?
+      _        -> libPrefix ++ fname ++ libExtension
 
 outName :: Flags -> FilePath -> FilePath
 outName flags s
@@ -1034,7 +1043,8 @@ ccFromPath flags path
                        ccFlagHeap  = (\hpsize -> if hpsize == 0 then [] else ["-s","TOTAL_MEMORY=" ++ show hpsize]),
                        ccTargetExe = (\out -> ["-o", out ++ targetExeExtension (target flags)]),
                        ccTargetObj = (\fname -> ["-o", (notext fname) ++ targetObjExtension (target flags)]),
-                       ccObjFile   = (\fname -> fname ++ targetObjExtension (target flags))
+                       ccObjFile   = (\fname -> fname ++ targetObjExtension (target flags)),
+                       ccLibFile   = (\fname -> targetLibFile (target flags) fname)
                      }
         clang   = gcc{ ccFlagsWarn = gnuWarn ++ 
                                      words "-Wno-cast-qual -Wno-undef -Wno-reserved-id-macro -Wno-unused-macros -Wno-cast-align" }
