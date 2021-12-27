@@ -98,7 +98,7 @@ fun psum-count( count : int, depth : int ) : pure int
   val n = 8
   val partc = count / n
   val rest  = count % n
-  val parts = list(1,n) fn(i){ task{ sum-count( partc, depth ) }
+  val parts = list(1,n, fn(i) task{ sum-count( partc, depth ) })
   sum-count(rest, depth) + parts.await.sum
 
 

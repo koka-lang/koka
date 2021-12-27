@@ -67,7 +67,7 @@ void printDecl( const char* sort, const char* name );
 %token INFIX INFIXL INFIXR
 
 %token LEX_WHITE LEX_COMMENT
-%token INSERTED_SEMI
+%token INSERTED_SEMI EXPR_SEMI
 %token LE ASSIGN DCOLON EXTEND
 %token RETURN
 
@@ -537,8 +537,8 @@ parameters1 : parameters1 ',' parameter
             | parameter
             ;
 
-parameter   : paramid ':' paramtype
-            | paramid ':' paramtype '=' expr
+parameter   : borrow paramid ':' paramtype
+            | borrow paramid ':' paramtype '=' expr
             ;
 
 paramid     : identifier
@@ -549,6 +549,9 @@ paramtype   : type
             | '?' type
             ;
 
+borrow      : '^'
+            | /* empty */
+            ;
 
 /* pattern matching parameters: separated by comma */
 
@@ -560,10 +563,10 @@ pparameters1: pparameters1 ',' pparameter
             | pparameter
             ;
 
-pparameter  : pattern 
-            | pattern ':' paramtype
-            | pattern ':' paramtype '=' expr
-            | pattern '=' expr
+pparameter  : borrow pattern 
+            | borrow pattern ':' paramtype
+            | borrow pattern ':' paramtype '=' expr
+            | borrow pattern '=' expr
             ;
 
 

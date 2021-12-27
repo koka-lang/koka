@@ -686,7 +686,7 @@ fun foreach( xs : list<a>, action : (a) -> e () ) : e ()
 {
   match(xs) {
     Nil        -> return ()
-    Cons(x,xx) -> { action(x); xx.foreach(action) }
+    Cons(x,xx) -> { action(x);; xx.foreach(action) }
   }
 }
 

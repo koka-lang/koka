@@ -161,14 +161,15 @@ public                    { return PUBLIC;}
 private                   { return PRIVATE;}
 as                        { return AS;}
 
-control                   { return CONTROL; }
 ctl                       { return CONTROL; }
-rcontrol                  { return RCONTROL; }
-rctl                      { return RCONTROL; }
-except                    { return EXCEPT; }
+rawctl                    { return RCONTROL; }
+brk                       { return EXCEPT; }
 handle                    { return HANDLE; }
 handler                   { return HANDLER; }
 effect                    { return EFFECT; }
+except                    { return EXCEPT; }
+control                   { return CONTROL; }
+rcontrol                  { return RCONTROL; }
 
 rec                       { return ID_REC; }
 co                        { return ID_CO; }
