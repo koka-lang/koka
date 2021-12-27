@@ -1,16 +1,16 @@
 import std/num/int32
 
 effect st 
-  control get() : int32
-  control set(i : int32)  : ()
+  ctl get() : int32
+  ctl set(i : int32)  : ()
 
 
 fun state( init : int32, action : () -> <st|e> a ) : e a 
-  with return(f){ f(init) }
+  with return(f) f(init) 
   with handler 
-    return(x)      { fn(s){ x } }
-    rcontrol get() { fn(s){ rcontext.resume(s)(s) } }
-    rcontrol set(s){ fn(_){ rcontext.resume(())(s) } }    
+    return(x)     (fn(s) x)
+    rawctl get()  (fn(s) rcontext.resume(s)(s))
+    rawctl set(s) (fn(_) rcontext.resume(())(s)) 
   action()
 
 fun counter( c : int32 ) : _ int 

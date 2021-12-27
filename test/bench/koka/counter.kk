@@ -7,15 +7,15 @@ linear effect st
 
 fun state( i : int32, action : () -> <st|e> a ) : e a 
   var s := i
-  with handler
-    fun get() { s }
-    fun set(x){ s := x }    
+  with
+    fun get()  s 
+    fun set(x) s := x
   action()
 
 
 fun counter( c : int32 ) : <st,div> int 
   val i = get()
-  if i==zero then c.int else {
+  if i==zero then c.int else
     set(i.dec)
     counter(c.inc)
 

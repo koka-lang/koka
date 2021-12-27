@@ -10,14 +10,14 @@ linear effect st
 fun state( i : int32, action : () -> <st|e> a ) : e a 
   var s := i
   with handler
-    fun get() { s }
-    fun set(x){ s := x }    
+    fun get()  s 
+    fun set(x) s := x
   action()
 
 
 fun reader( init : int, action ) 
   println("enter reader " ++ init.show)
-  with finally{ println("leave reader " ++ init.show) }
+  with finally fn() println("leave reader " ++ init.show)
   with val ask = init
   action()
 

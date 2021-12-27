@@ -1,17 +1,17 @@
 effect st 
-  control get() : int
-  control set(i : int)  : ()
+  ctl get() : int
+  ctl set(i : int)  : ()
 
 
 fun state( init : int, action : () -> <st|e> a ) : e a 
   with return(f){ f(init) }
   with handler 
-    return(x)      { fn(s){ x } }
-    rcontrol get() { fn(s){ rcontext.resume(s)(s) } }
-    rcontrol set(s){ fn(_){ rcontext.resume(())(s) } }    
+    return(x)     (fn(s) x)
+    rawctl get()  (fn(s) rcontext.resume(s)(s))
+    rawctl set(s) (fn(_) rcontext.resume(())(s))    
   action()
 
-fun counter( c : int ) : _ int {
+fun counter( c : int ) : _ int 
   val i = get()
   if (i==0) then c else 
     set(i.dec)

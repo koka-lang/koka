@@ -7,8 +7,8 @@ linear effect st
 fun state( i : int, action : () -> <st|e> a ) : e a 
   var s := i
   with handler
-    fun get() { s }
-    fun set(x){ s := x }    
+    fun get()  s 
+    fun set(x) s := x 
   action()
 
 fun counter( c : int ) : <st,div> int 

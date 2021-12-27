@@ -15,7 +15,7 @@ fun append-safe( queen : int32, xs : solution, xss : solutions ) : div solutions
   else append-safe( queen.dec, xs, xss )
 }
 
-fun extend( queen : int32, acc : solutions, xss : solutions ) : div solutions {
+fun extend( queen : int32, acc : solutions, xss : solutions ) : div solutions
   match xss 
     Cons(xs,rest) -> extend(queen, append-safe(queen,xs,acc), rest)
     Nil           -> acc
@@ -24,7 +24,7 @@ fun extend( queen : int32, acc : solutions, xss : solutions ) : div solutions {
 fun find-solutions( n : int32, queen : int32 ) : div solutions
   if queen.is-zero
    then [[]]
-   else extend(n,[], find-solutions(n,queen.dec))
+   else extend(n, [], find-solutions(n,queen.dec))
 
 
 public fun queens( n : int32 ) : div int
